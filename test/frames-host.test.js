@@ -21,9 +21,12 @@ let tmp;
 before(async () => { tmp = await mkdtemp(path.join(os.tmpdir(), 'studio-frames-host-')); });
 after(() => rm(tmp, { recursive: true, force: true }));
 
-/** Nice values of this process's threads, from /proc (Linux keeps nice per thread). */
-const threadNice = () => fs.readdirSync('/proc/self/task').map((tid) => Number(fs.readFileSync(
-  `/proc/self/task/${tid}/stat`, 'utf8').split(') ')[1].split(' ')[16]));
+/** Nice values of this process's threads, from /proc (Linux keeps nice per thread), skipping any that just exited. */
+const threadNice = () => fs.readdirSync('/proc/self/task').flatMap((tid) => {
+  try {
+    return [Number(fs.readFileSync(`/proc/self/task/${tid}/stat`, 'utf8').split(') ')[1].split(' ')[16])];
+  } catch { return []; }
+});
 
 /** Frames that change over time (so they compress differently by quality), `frames` long. */
 function frames(seed, count = 170, channels = 300) {
@@ -72,7 +75,10 @@ describe('low priority, one at a time', () => {
     await assert.rejects(jobs.run('wire', { file, sha256: '0'.repeat(64), dir: out, hash: 'cd'.repeat(16),
       quality: 5, maxBytes: bytes.length }), /changed/);
     await jobs.close();
-    assert.ok(!threadNice().includes(10));
+    // close() resolves once the thread is joined, but the kernel lets a join return (it clears the thread's id
+    // early in exit) before the thread leaves /proc/self/task; at nice 10 on a busy machine that can take a while.
+    for (let i = 0; i < 100 && threadNice().includes(10); i++) await new Promise((r) => setTimeout(r, 20));
+    assert.ok(!threadNice().includes(10), 'the encoder thread is gone');
   });
 
   test('brotli quality is the cache\'s to choose (STUDIO_FRAMES_BROTLI_QUALITY)', async () => {
@@ -216,7 +222,8 @@ describe('the render box runs at nice 10', { skip: !probe.ok && `render box unav
         await new Promise((r) => setTimeout(r, 25));
         for (const pid of fs.readdirSync('/proc').filter((d) => /^\d+$/.test(d))) {
           try {
-            if (!fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').includes('/box/render.mjs')) continue;
+            // The box's node itself: the nice wrapper carries the same arguments but is at 0 until it has run.
+            if (!fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').startsWith('/box/node\0')) continue;
             nice = Number(fs.readFileSync(`/proc/${pid}/stat`, 'utf8').split(') ')[1].split(' ')[16]);
           } catch {}
         }
