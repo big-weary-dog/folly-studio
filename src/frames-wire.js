@@ -1,27 +1,9 @@
-// frames-wire.js: baked frames as the browser streams them. The decoder is public/js/frames-wire.js.
-//
-// Frames go in chunks of 80 (2 s at 40 fps). A chunk is one byte naming its layout, then its frames
-// in that layout, whichever of four compresses smallest:
-//   0 frames        frame after frame, as in the .fseq
-//   1 frames-delta  each frame as its byte-wise difference (mod 256) from the frame before
-//   2 planar        channel-major: each channel's values in a row
-//   3 planar-delta  channel-major, each value minus the channel's previous value (mod 256)
-// A chunk's first frame is a delta against zeros (stored as is), never against the previous chunk's
-// last frame: that would save 2-4 % (measured on the library) but tie every chunk to the one before,
-// and here any chunk decodes alone, so a seek fetches one chunk and nothing else.
-// Why four: on the library (20 s, brotli 9) planar-delta wins smooth looks (palette drift 0.53 MB,
-// frame-major delta 0.80, raw 2.57), raw frames win sharp motion, where brotli's matches follow the
-// movement and deltas only add noise (meteors 0.51 MB, delta 1.26, planar-delta 1.52), and planar
-// wins pulses (heartbeat 0.60 MB, planar-delta 0.70). Brotli chunks are chosen with a fast brotli
-// (quality 5 picks what quality 9 picks) and compressed at WIRE_QUALITY; the gzip fallback (browsers
-// send br only over HTTPS) picks its own layout, which saves up to 30 % over reusing brotli's.
-//
-//   wireHash(sha256) → 32 hex chars: the frames' content hash, versioned; names the stored chunks
-//   layoutChunk(data, channels, first, count, mode, out?) → out
-//   encodeWire(parsed, { hash, quality?, onChunk(n, bytes, mode) }) → Promise<manifest>
-//   gzipChunk(brotliBytes, channels) → Promise<Buffer>   the same frames, for clients without br
-//   manifest = { version: 1, hash, frames, fps, channels, ranges, chunkFrames, chunks: [{ bytes }],
-//                bytes }   (bytes: brotli sizes, and their total)
+// Baked frames as the browser streams them (SPEC "Baked frames"; public/js/frames-wire.js decodes). Chunks
+// of 80 frames (2 s): a layout byte, then the frames in whichever layout compresses smallest (MODES: frame
+// after frame, frame deltas mod 256, planar, planar deltas). A chunk's first frame is stored as is, so a
+// seek fetches one chunk. Brotli picks the layout at quality 5 (what 9 picks) and compresses at
+// WIRE_QUALITY; the gzip copy picks its own (up to 30 % smaller than reusing brotli's).
+//   manifest = { version: 1, hash, frames, fps, channels, ranges, chunkFrames, chunks: [{ bytes }], bytes }
 
 import { createHash } from 'node:crypto';
 import { promisify } from 'node:util';
@@ -29,26 +11,22 @@ import zlib from 'node:zlib';
 
 export const WIRE_VERSION = 1;
 export const CHUNK_FRAMES = 80;
-// Quality 11 is 15 % smaller than 9 on the library but about 25× slower to encode (1-2 s per second
-// of frames, on one core). It runs once per bake, in the background, and bandwidth matters more.
+// 15 % smaller than 9 but about 25× slower (1-2 s per second of frames): once per bake, in the background.
 export const WIRE_QUALITY = 11;
 export const MODES = Object.freeze(['frames', 'frames-delta', 'planar', 'planar-delta']);
 const PROBE_QUALITY = 5;
-
 const brotli = promisify(zlib.brotliCompress);
 const unbrotli = promisify(zlib.brotliDecompress);
 const gzip = promisify(zlib.gzip);
+const Z = zlib.constants;
 const compress = (bytes, quality) => brotli(bytes, { params: {
-  [zlib.constants.BROTLI_PARAM_QUALITY]: quality,
-  [zlib.constants.BROTLI_PARAM_LGWIN]: 22,
-  [zlib.constants.BROTLI_PARAM_SIZE_HINT]: bytes.length,
-} });
+  [Z.BROTLI_PARAM_QUALITY]: quality, [Z.BROTLI_PARAM_LGWIN]: 22, [Z.BROTLI_PARAM_SIZE_HINT]: bytes.length } });
 
 /** The name of a bake's chunks: its .fseq's SHA-256 with this format's version and chunk size. */
 export function wireHash(sha256) {
   if (!/^[0-9a-f]{64}$/.test(String(sha256))) throw new TypeError('wireHash: pass the frames file\'s sha256');
-  const name = `folly-wire/${WIRE_VERSION}/${CHUNK_FRAMES}\n${sha256}`;
-  return createHash('sha256').update(name).digest('hex').slice(0, 32);
+  const named = `folly-wire/${WIRE_VERSION}/${CHUNK_FRAMES}\n${sha256}`;
+  return createHash('sha256').update(named).digest('hex').slice(0, 32);
 }
 
 /** Frames first .. first + count - 1 of frame-major `data` in one of MODES, into out (count × channels). */
@@ -66,14 +44,10 @@ export function layoutChunk(data, channels, first, count, mode, out = new Uint8A
   return out;
 }
 
-/**
- * Lay out frames first .. first + count - 1 every way, measure each with size(chunk) → Promise<number>
- * (one at a time: the thread pool stays free), and return the smallest chunk, layout byte first.
- * `scratch` holds a reusable buffer per layout.
- */
+// The chunk laid out every way (into `scratch`, a buffer per layout), measured one at a time by
+// size(chunk) → Promise<number> so the thread pool stays free: the smallest, layout byte first.
 async function smallest(data, channels, first, count, size, scratch) {
-  let best = null;
-  let bestSize = Infinity;
+  let best = null, bestSize = Infinity;
   for (let m = 0; m < MODES.length; m++) {
     const chunk = scratch[m].subarray(0, 1 + count * channels);
     chunk[0] = m;
@@ -86,10 +60,7 @@ async function smallest(data, channels, first, count, size, scratch) {
 
 const buffers = (channels, frames) => MODES.map(() => new Uint8Array(1 + frames * channels));
 
-/**
- * Encode parsed frames (parseFseq) for the wire, one chunk at a time: try each layout, keep the
- * smallest, hand its brotli bytes to onChunk(n, bytes, mode), and resolve with the manifest.
- */
+/** encodeWire(parsed, { hash, quality?, onChunk(n, brotliBytes, mode) }) → manifest, a chunk at a time. */
 export async function encodeWire(parsed, { hash, quality = WIRE_QUALITY, onChunk = () => {} } = {}) {
   const { data, channelCount: channels, frameCount: frames, stepMs, ranges } = parsed;
   if (!(data instanceof Uint8Array) || data.length !== frames * channels) {
@@ -122,7 +93,8 @@ function restoreChunk(chunk, channels) {
   for (let i = 0; i < count; i++) {
     for (let c = 0; c < channels; c++) {
       const o = i * channels + c;
-      out[o] = chunk[1 + (planar ? c * count + i : o)] + (mode.endsWith('delta') && i > 0 ? out[o - channels] : 0);
+      const prev = mode.endsWith('delta') && i > 0 ? out[o - channels] : 0;
+      out[o] = chunk[1 + (planar ? c * count + i : o)] + prev;
     }
   }
   return { data: out, count };

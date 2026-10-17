@@ -11,8 +11,10 @@ import {
   compilePattern, layerEnvelope, lookDuration, normalizeClips, prepareLayer, prepareScene, renderFrame,
 } from '../public/js/pattern-core.js';
 import { writeFseq } from '../public/js/fseq.js';
-import { createServer, validateLayers } from '../src/api.js';
-import { bakeSeconds, createRenderBox } from '../src/bake.js';
+import { createServer } from '../src/app.js';
+import { validateLayers } from '../src/api.js';
+import { bakeSeconds } from '../src/bake.js';
+import { createRenderBox } from '../src/render-box.js';
 import { parseFseq } from '../src/frames.js';
 import { validateLook } from '../src/generate/validate.js';
 

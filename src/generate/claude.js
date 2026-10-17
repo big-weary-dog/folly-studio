@@ -1,7 +1,6 @@
-// claude: one Claude Messages API call turns an idea into a look.
-// Plain fetch (the studio has zero npm dependencies), streamed so a long answer never sits on
-// an idle connection, with structured output (output_config.format) so the reply is the look's
-// JSON. The big static system prompt is cached; the idea goes only in the user turn.
+// claude: one Messages API call turns an idea into a look. Plain fetch, streamed so a long answer never
+// sits on an idle connection, with structured output so the reply is the look's JSON. The big static
+// system prompt is cached; the idea goes only in the user turn.
 
 import { buildSystemPrompt, buildUserMessage, lookSchema } from './prompt.js';
 import { GenerateError } from './validate.js';
@@ -22,15 +21,9 @@ class ApiError extends Error {
 
 const num = (v, d) => (v != null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : d);
 
-/**
- * @param {object} [o]
- * @param {typeof fetch} [o.fetch]
- * @param {string} [o.apiKey]      default ANTHROPIC_API_KEY
- * @param {string} [o.model]       default STUDIO_CLAUDE_MODEL or claude-opus-5-5
- * @param {string} [o.effort]      default STUDIO_CLAUDE_EFFORT or medium
- * @param {number} [o.maxTokens]   default STUDIO_CLAUDE_MAX_TOKENS or 32000 (thinking counts too)
- * @param {number} [o.timeoutMs]   default STUDIO_CLAUDE_TIMEOUT_MS or 300000, per attempt
- */
+// Options (environment): fetch, apiKey (ANTHROPIC_API_KEY), model (STUDIO_CLAUDE_MODEL), effort
+// (STUDIO_CLAUDE_EFFORT, medium), maxTokens (STUDIO_CLAUDE_MAX_TOKENS, 32000, thinking included), timeoutMs
+// (STUDIO_CLAUDE_TIMEOUT_MS, 300000 per attempt).
 export function createClaudeAdapter(o = {}) {
   const env = o.env || process.env;
   const cfg = {
@@ -48,7 +41,9 @@ export function createClaudeAdapter(o = {}) {
   if (!EFFORTS.has(cfg.effort)) cfg.effort = 'medium';
 
   async function generate({ text, library = [], groups = [] }) {
-    if (!cfg.apiKey) throw new GenerateError('The AI generator is not configured on this server.', 'no ANTHROPIC_API_KEY');
+    if (!cfg.apiKey) {
+      throw new GenerateError('The AI generator is not configured on this server.', 'no ANTHROPIC_API_KEY');
+    }
     const { body, headers } = buildRequest({ text, library, groups });
     let message;
     for (let attempt = 1; ; attempt++) {
@@ -69,19 +64,12 @@ export function createClaudeAdapter(o = {}) {
 
   function buildRequest({ text, library, groups }) {
     const body = {
-      model: cfg.model,
-      max_tokens: cfg.maxTokens,
-      stream: true,
-      thinking: { type: 'adaptive' },
+      model: cfg.model, max_tokens: cfg.maxTokens, stream: true, thinking: { type: 'adaptive' },
       output_config: { effort: cfg.effort, format: { type: 'json_schema', schema: lookSchema(groups) } },
       system: [{ type: 'text', text: buildSystemPrompt({ library, groups }), cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: buildUserMessage(text) }],
     };
-    const headers = {
-      'content-type': 'application/json',
-      'x-api-key': cfg.apiKey,
-      'anthropic-version': API_VERSION,
-    };
+    const headers = { 'content-type': 'application/json', 'x-api-key': cfg.apiKey, 'anthropic-version': API_VERSION };
     if (cfg.fallbacks && FALLBACK_MODELS.has(cfg.model)) {
       body.fallbacks = 'default';
       headers['anthropic-beta'] = FALLBACK_BETA;
@@ -93,18 +81,11 @@ export function createClaudeAdapter(o = {}) {
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), cfg.timeoutMs);
     try {
-      let res;
-      try {
-        res = await cfg.fetch(`${cfg.baseUrl}/v1/messages`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(body),
-          signal: ac.signal,
-        });
-      } catch (err) {
+      const init = { method: 'POST', headers, body: JSON.stringify(body), signal: ac.signal };
+      const res = await cfg.fetch(`${cfg.baseUrl}/v1/messages`, init).catch((err) => {
         if (ac.signal.aborted) throw new ApiError('timed out', { type: 'timeout' });
         throw new ApiError(`network error: ${err.message}`, { type: 'network', retryable: true });
-      }
+      });
       if (!res.ok) throw await httpError(res);
       const type = res.headers.get('content-type') || '';
       try {
@@ -124,41 +105,27 @@ export function createClaudeAdapter(o = {}) {
 }
 
 async function httpError(res) {
-  let detail = '';
-  let type = '';
-  try {
-    const j = await res.json();
-    type = j?.error?.type || '';
-    detail = String(j?.error?.message || '').slice(0, 300);
-  } catch {}
+  const j = await res.json().catch(() => null);
+  const type = j?.error?.type || '';
+  const detail = String(j?.error?.message || '').slice(0, 300);
   const s = res.status;
-  const retryable = s === 429 || s >= 500 || type === 'overloaded_error';
   const ra = Number(res.headers.get('retry-after'));
-  return new ApiError(`HTTP ${s} ${type} ${detail}`.trim(), {
-    status: s,
-    type,
-    retryable,
-    retryAfterMs: Number.isFinite(ra) && ra > 0 ? ra * 1000 : 0,
-  });
+  const retryable = s === 429 || s >= 500 || type === 'overloaded_error';
+  const retryAfterMs = Number.isFinite(ra) && ra > 0 ? ra * 1000 : 0;
+  return new ApiError(`HTTP ${s} ${type} ${detail}`.trim(), { status: s, type, retryable, retryAfterMs });
 }
 
 /** Read a Messages API SSE stream into a message object ({ model, stop_reason, content }). */
 async function readStream(body) {
   const msg = { model: '', stop_reason: null, content: [] };
-  let done = false;
-  const reader = body.getReader();
-  const dec = new TextDecoder();
-  let buf = '';
+  const reader = body.getReader(), dec = new TextDecoder();
+  let done = false, buf = '';
   const handle = (raw) => {
     let data = '';
     for (const line of raw.split('\n')) if (line.startsWith('data:')) data += line.slice(5).trimStart();
     if (!data) return;
     let ev;
-    try {
-      ev = JSON.parse(data);
-    } catch {
-      return;
-    }
+    try { ev = JSON.parse(data); } catch { return; }
     switch (ev.type) {
       case 'message_start':
         msg.model = ev.message?.model || '';
@@ -180,10 +147,9 @@ async function readStream(body) {
         break;
       case 'error': {
         const t = ev.error?.type || 'error';
-        throw new ApiError(`stream error ${t}: ${String(ev.error?.message || '').slice(0, 200)}`, {
-          type: t,
-          retryable: t === 'overloaded_error' || t === 'api_error' || t === 'rate_limit_error',
-        });
+        const retryable = t === 'overloaded_error' || t === 'api_error' || t === 'rate_limit_error';
+        const said = String(ev.error?.message || '').slice(0, 200);
+        throw new ApiError(`stream error ${t}: ${said}`, { type: t, retryable });
       }
     }
   };
@@ -206,18 +172,21 @@ async function readStream(body) {
 
 function toUserError(err) {
   if (err instanceof GenerateError) return err;
-  if (!(err instanceof ApiError)) return new GenerateError('The AI generator failed.', err?.message);
-  if (err.type === 'timeout') return new GenerateError('The AI generator took too long; please try again.', err.message);
-  if (err.status === 401 || err.status === 403) return new GenerateError('The AI generator is misconfigured on this server.', err.message);
-  if (err.retryable) return new GenerateError('The AI generator is busy right now; please try again in a few minutes.', err.message);
-  return new GenerateError('The AI generator could not handle this idea.', err.message);
+  const why = !(err instanceof ApiError) ? 'failed.'
+    : err.type === 'timeout' ? 'took too long; please try again.'
+    : err.status === 401 || err.status === 403 ? 'is misconfigured on this server.'
+    : err.retryable ? 'is busy right now; please try again in a few minutes.'
+    : 'could not handle this idea.';
+  return new GenerateError(`The AI generator ${why}`, err?.message);
 }
 
 /** Pull the look JSON out of a final message. */
 function readLook(message) {
   const stop = message?.stop_reason;
-  if (stop === 'refusal') throw new GenerateError('The AI declined this idea. Try describing it differently.', 'refusal');
-  if (stop === 'max_tokens') throw new GenerateError('The AI ran out of room before finishing this look; try a simpler idea.', 'max_tokens');
+  if (stop === 'refusal') throw new GenerateError('The AI declined this idea. Try describing it differently.', stop);
+  if (stop === 'max_tokens') {
+    throw new GenerateError('The AI ran out of room before finishing this look; try a simpler idea.', stop);
+  }
   const blocks = Array.isArray(message?.content) ? message.content : [];
   const texts = (from) => blocks.slice(from).filter((b) => b?.type === 'text').map((b) => b.text || '').join('');
   // After a mid-stream refusal fallback, the text continues across the boundary; if that does
@@ -231,28 +200,17 @@ function readLook(message) {
       return { title: look.title, summary: look.summary, duration: look.duration, layers: look.layers };
     }
   }
-  throw new GenerateError('The AI returned a look the studio could not read.', `unparseable output, stop_reason ${stop}`);
+  const detail = `unparseable output, stop_reason ${stop}`;
+  throw new GenerateError('The AI returned a look the studio could not read.', detail);
 }
 
+/** JSON from text, or from its outermost {…} when something surrounds it; null when neither parses. */
 function parseJson(text) {
   const t = String(text || '').trim();
-  if (!t) return null;
-  try {
-    return JSON.parse(t);
-  } catch {}
-  const a = t.indexOf('{');
-  const b = t.lastIndexOf('}');
-  if (a >= 0 && b > a) {
+  for (const candidate of [t, t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)]) {
     try {
-      return JSON.parse(t.slice(a, b + 1));
-    } catch {}
+      if (candidate) return JSON.parse(candidate);
+    } catch { /* the next candidate */ }
   }
   return null;
-}
-
-let shared;
-/** Adapter interface used by the queue; reads the environment on first use. */
-export function generate(args) {
-  shared ||= createClaudeAdapter();
-  return shared.generate(args);
 }

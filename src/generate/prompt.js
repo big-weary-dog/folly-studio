@@ -80,7 +80,8 @@ export const TASTE = `- Colour at full strength. A palette sets hue, not brightn
   for punctuation, the highlight sparingly.
 - Safety: no large-area flashing or strobing faster than about 3 Hz.`;
 
-const FEATURES = [/function\s+frame\b/, /\bp\.u\b/, /\bp\.(a|r)\b/, /\bp\.(row|petal)\b/, /\b(noise|fbm)\(/, /\bbeat\(/, /\bp\.l[xyz]\b/];
+const FEATURES = [/function\s+frame\b/, /\bp\.u\b/, /\bp\.(a|r)\b/, /\bp\.(row|petal)\b/, /\b(noise|fbm)\(/, /\bbeat\(/,
+  /\bp\.l[xyz]\b/];
 
 /**
  * Pick up to `count` library patterns to show as examples: short enough to read, and covering
@@ -135,10 +136,12 @@ export function formatGroups(groups = []) {
       const m = /^(.*?)(\d+)$/.exec(g.id);
       if (m && leaf(g)) {
         let j = i;
-        while (j + 1 < kids.length && leaf(kids[j + 1]) && kids[j + 1].id.startsWith(m[1]) && /^\d+$/.test(kids[j + 1].id.slice(m[1].length))) j++;
+        const numbered = (k) => k && leaf(k) && k.id.startsWith(m[1]) && /^\d+$/.test(k.id.slice(m[1].length));
+        while (numbered(kids[j + 1])) j++;
         if (j - i >= 2) {
           const last = kids[j];
-          const name = g.name ? ` — ${g.name.replace(/\s*\d+$/, '')} ${plain(m[2])}–${plain(last.id.slice(m[1].length))}` : '';
+          const run = `${plain(m[2])}–${plain(last.id.slice(m[1].length))}`;
+          const name = g.name ? ` — ${g.name.replace(/\s*\d+$/, '')} ${run}` : '';
           lines.push(`${pad}${g.id} … ${last.id}${name}`);
           for (let k = i; k <= j; k++) seen.add(kids[k].id);
           i = j;
@@ -155,7 +158,8 @@ export function formatGroups(groups = []) {
         }
       }
       seen.add(g.id);
-      const extra = Array.isArray(g.rows) && g.rows.length ? ` (rose ring${g.rows.length > 1 ? 's' : ''} ${g.rows.join(', ')})` : '';
+      const rows = Array.isArray(g.rows) ? g.rows : [];
+      const extra = rows.length ? ` (rose ring${rows.length > 1 ? 's' : ''} ${rows.join(', ')})` : '';
       lines.push(`${pad}${g.name && g.name !== g.id ? `${g.id} — ${g.name}` : g.id}${extra}`);
       walk(g.id, depth + 1);
     }
@@ -165,23 +169,23 @@ export function formatGroups(groups = []) {
 }
 
 function formatLibraryIndex(library) {
-  return library
-    .filter((p) => p && p.name)
-    .slice(0, 40)
-    .map((p) => `- ${p.name}${p.title ? `: ${p.title}` : ''}${p.summary ? ` — ${String(p.summary).replace(/\s+/g, ' ').slice(0, 140)}` : ''}`)
-    .join('\n');
+  const summary = (p) => (p.summary ? ` — ${String(p.summary).replace(/\s+/g, ' ').slice(0, 140)}` : '');
+  return library.filter((p) => p && p.name).slice(0, 40)
+    .map((p) => `- ${p.name}${p.title ? `: ${p.title}` : ''}${summary(p)}`).join('\n');
 }
 
 export function formatExamples(examples) {
-  return examples
-    .map((p) => `### ${p.title || p.name} (\`${p.name}\`)\n${p.summary ? `${p.summary}\n` : ''}\n\`\`\`js\n${p.code.trim()}\n\`\`\``)
-    .join('\n\n');
+  const fence = '```';
+  return examples.map((p) => `### ${p.title || p.name} (\`${p.name}\`)\n${p.summary ? `${p.summary}\n` : ''}\n`
+    + `${fence}js\n${p.code.trim()}\n${fence}`).join('\n\n');
 }
 
 /** The system prompt for the claude adapter. Pure function of (library, groups). */
 export function buildSystemPrompt({ library = [], groups = [] } = {}) {
   const examples = pickExamples(library);
   const index = formatLibraryIndex(library);
+  const lib = (index ? `The studio library has these patterns; adapt their ideas freely:\n${index}\n\n` : '')
+    + (examples.length ? `Examples of good pattern code:\n\n${formatExamples(examples)}` : '');
   return `You are the show designer for Folly Studio. People describe a light show idea in plain
 words; you turn it into a "look": a stack of pattern-code layers on groups of the Gothic Folly.
 
@@ -199,7 +203,7 @@ ${formatGroups(groups) || 'cathedral — Cathedral'}
 ${TASTE}
 
 # Library patterns
-${index ? `The studio library has these patterns; adapt their ideas freely:\n${index}\n\n` : ''}${examples.length ? `Examples of good pattern code:\n\n${formatExamples(examples)}` : ''}
+${lib}
 
 # What to return
 A JSON object { "title", "summary", "duration"?,
@@ -244,48 +248,19 @@ Return the look as JSON.`;
 }
 
 /**
- * The JSON schema for structured output. Group ids are an enum when the list is manageable.
- * duration and clips are optional; their ranges are checked by validate.js (structured output
- * takes no numeric bounds).
+ * The JSON schema for structured output. Group ids are an enum when the list is manageable. duration
+ * and clips are optional; validate.js checks their ranges (structured output takes no numeric bounds).
  */
 export function lookSchema(groups = []) {
   const ids = [...new Set(['cathedral', ...groups.map((g) => g && g.id).filter((id) => typeof id === 'string')])];
-  const groupItem = ids.length <= 400 ? { type: 'string', enum: ids } : { type: 'string' };
-  return {
-    type: 'object',
-    properties: {
-      title: { type: 'string' },
-      summary: { type: 'string' },
-      duration: { type: 'number' },
-      layers: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            title: { type: 'string' },
-            groups: { type: 'array', items: groupItem },
-            blend: { type: 'string', enum: [...BLENDS] },
-            level: { type: 'number' },
-            clips: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  start: { type: 'number' }, end: { type: 'number' },
-                  fadeIn: { type: 'number' }, fadeOut: { type: 'number' },
-                },
-                required: ['start', 'end', 'fadeIn', 'fadeOut'],
-                additionalProperties: false,
-              },
-            },
-            code: { type: 'string' },
-          },
-          required: ['title', 'groups', 'blend', 'level', 'code'],
-          additionalProperties: false,
-        },
-      },
-    },
-    required: ['title', 'summary', 'layers'],
-    additionalProperties: false,
-  };
+  const [num, str] = [{ type: 'number' }, { type: 'string' }];
+  const obj = (properties, required = Object.keys(properties)) => ({ type: 'object', properties, required,
+    additionalProperties: false });
+  const clip = obj({ start: num, end: num, fadeIn: num, fadeOut: num });
+  const layer = obj({
+    title: str, groups: { type: 'array', items: ids.length <= 400 ? { type: 'string', enum: ids } : str },
+    blend: { type: 'string', enum: [...BLENDS] }, level: num, clips: { type: 'array', items: clip }, code: str,
+  }, ['title', 'groups', 'blend', 'level', 'code']);
+  const look = { title: str, summary: str, duration: num, layers: { type: 'array', items: layer } };
+  return obj(look, ['title', 'summary', 'layers']);
 }

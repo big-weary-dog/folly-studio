@@ -1,57 +1,35 @@
 // Ideas: describe a show, watch it turn into a look, open it in the Studio.
 import { api } from '../api.js';
-import { h, clear, nextId, stylesheet, timeAgo, toast } from './dom.js';
+import { busy, clear, h, label, stylesheet, timeAgo, toast } from './dom.js';
 import { rose } from './rose.js';
 
 await stylesheet('/css/ideas.css');
 
-const EXAMPLES = [
-  'Rising embers drift up the spires',
-  'A coral reef breathing in slow blues and pinks',
-  'Lightning cracks across the arches in a storm',
-  'The rose window blooms like a sunrise',
-  'A heartbeat at 120 bpm pulsing through the nave',
-  'Aurora curtains sweep over the canopy',
-];
-
-const STATUS = {
-  queued: { label: 'Queued', cls: 'pending' },
-  generating: { label: 'Generating', cls: 'pending' },
-  ready: { label: 'Ready', cls: 'ok' },
-  failed: { label: 'Failed', cls: 'bad' },
-};
+const EXAMPLES = ['Rising embers drift up the spires', 'A coral reef breathing in slow blues and pinks',
+  'Lightning cracks across the arches in a storm', 'The rose window blooms like a sunrise',
+  'A heartbeat at 120 bpm pulsing through the nave', 'Aurora curtains sweep over the canopy'];
+const STATUS = { queued: { label: 'Queued', cls: 'pending' }, generating: { label: 'Generating', cls: 'pending' },
+  ready: { label: 'Ready', cls: 'ok' }, failed: { label: 'Failed', cls: 'bad' } };
 
 const MAX_LEN = 2000;
 
 export function mount(root, ctx) {
   ctx.setTitle('Ideas');
-  let ideas = [];
-  let pollTimer = null;
-  let alive = true;
+  let ideas = [], pollTimer = null, alive = true;
   const known = new Map();      // id → status, to notice when one becomes ready
 
-  const taId = nextId('idea');
-  const textarea = h('textarea', { id: taId, class: 'idea-input', rows: 4, maxlength: MAX_LEN,
+  const textarea = h('textarea', { class: 'idea-input', rows: 4, maxlength: MAX_LEN,
     placeholder: 'A coral reef breathing in slow blues, with fish darting up the spires…' });
   const counter = h('span', { class: 'char-count', 'aria-live': 'off', text: `0 / ${MAX_LEN}` });
   const submit = h('button', { class: 'btn primary', type: 'submit', text: 'Turn it into a look' });
   const formError = h('p', { class: 'form-error', role: 'alert', hidden: true });
+  const prefill = (text) => { textarea.value = text; updateCount(); textarea.focus(); };
   const chips = h('div', { class: 'chips', role: 'group', 'aria-label': 'Example ideas' },
-    EXAMPLES.map((ex) => h('button', { type: 'button', class: 'chip', text: ex, onClick: () => {
-      textarea.value = ex;
-      updateCount();
-      textarea.focus();
-    } })));
-
+    EXAMPLES.map((ex) => h('button', { type: 'button', class: 'chip', text: ex, onClick: () => prefill(ex) })));
   const form = h('form', { class: 'idea-form' },
-    h('label', { for: taId, class: 'sr-only', text: 'Describe a show idea' }),
-    textarea,
-    h('div', { class: 'chips-row' }, h('span', { class: 'chips-label', text: 'Try:' }), chips),
-    formError,
-    h('div', { class: 'idea-form-actions' },
-      counter,
-      h('span', { class: 'kbd-hint', text: 'Ctrl + Enter' }),
-      submit));
+    label(textarea, 'Describe a show idea', 'sr-only'), textarea,
+    h('div', { class: 'chips-row' }, h('span', { class: 'chips-label', text: 'Try:' }), chips), formError,
+    h('div', { class: 'idea-form-actions' }, counter, h('span', { class: 'kbd-hint', text: 'Ctrl + Enter' }), submit));
 
   const list = h('ul', { class: 'idea-list', 'aria-live': 'polite', 'aria-busy': 'true' });
   const empty = h('div', { class: 'empty', hidden: true },
@@ -70,9 +48,7 @@ export function mount(root, ctx) {
         h('a', { class: 'btn ghost small', href: '/studio', text: 'Blank Studio' })),
       list, empty)));
 
-  function updateCount() {
-    counter.textContent = `${textarea.value.length} / ${MAX_LEN}`;
-  }
+  function updateCount() { counter.textContent = `${textarea.value.length} / ${MAX_LEN}`; }
   textarea.addEventListener('input', updateCount);
   textarea.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); form.requestSubmit(); }
@@ -81,15 +57,14 @@ export function mount(root, ctx) {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = textarea.value.trim();
-    formError.hidden = true;
+    const showError = (msg) => { formError.textContent = msg; formError.hidden = !msg; };
+    showError('');
     if (!text) {
-      formError.textContent = 'Describe your idea first.';
-      formError.hidden = false;
+      showError('Describe your idea first.');
       textarea.focus();
       return;
     }
-    submit.disabled = true;
-    submit.classList.add('busy');
+    busy(submit, true);
     try {
       const { idea } = await api.createIdea(text);
       textarea.value = '';
@@ -100,11 +75,9 @@ export function mount(root, ctx) {
       schedulePoll();
     } catch (err) {
       if (err.status === 401) return ctx.signedOut();
-      formError.textContent = err.message;
-      formError.hidden = false;
+      showError(err.message);
     } finally {
-      submit.disabled = false;
-      submit.classList.remove('busy');
+      busy(submit, false);
     }
   });
 
@@ -123,9 +96,7 @@ export function mount(root, ctx) {
         text: 'Open in Studio' }));
     } else if (idea.status === 'failed') {
       actions.append(h('button', { class: 'btn ghost small', type: 'button', text: 'Try again',
-        onClick: () => {
-          textarea.value = idea.text; updateCount(); textarea.focus(); window.scrollTo({ top: 0 });
-        } }));
+        onClick: () => { prefill(idea.text); window.scrollTo({ top: 0 }); } }));
     }
     // The rose fills while the idea is being made and is lit once it is ready.
     const making = idea.status === 'queued' || idea.status === 'generating';
@@ -183,7 +154,5 @@ export function mount(root, ctx) {
     }, 0);
   }
 
-  return {
-    unmount() { alive = false; clearTimeout(pollTimer); },
-  };
+  return { unmount() { alive = false; clearTimeout(pollTimer); } };
 }

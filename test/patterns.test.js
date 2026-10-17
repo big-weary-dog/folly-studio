@@ -12,7 +12,8 @@ const files = readdirSync(here('../public/patterns/')).filter((f) => f.endsWith(
 const source = (name) => readFileSync(here(`../public/patterns/${name}.js`), 'utf8');
 const scene = prepareScene(cathedral);
 const TIMES = [0, 0.37, 1.5, 4.2, 17.9, 63.25, 600.1];
-const GROUPS = [['cathedral'], ['rose-window'], ['spires'], ['main-arch-3'], ['canopy', 'wash', 'spirelets'], ['rose-ring-5']];
+const GROUPS = [['cathedral'], ['rose-window'], ['spires'], ['main-arch-3'], ['canopy', 'wash', 'spirelets'],
+  ['rose-ring-5']];
 
 function check(rgb, what) {
   for (let i = 0; i < rgb.length; i++) {

@@ -1,14 +1,8 @@
-// The baked-frames routes of the HTTP API (SPEC "HTTP API", "Baked frames"): the .fseq download,
-// plain or compressed, and the streaming chunks. Each answers only who may see the look: its owner,
-// or anyone signed in when it is shared (curators included).
-//
+// The baked-frames routes (SPEC "HTTP API", "Baked frames"), for whoever may see the look:
 //   GET /api/looks/:id/frames[?compress=1|zstd|zlib]   the .fseq (attachment)
 //   GET /api/looks/:id/frames/wire                     302 → the manifest; 202 while it is encoded
 //   GET /api/looks/:id/frames/:hash/manifest           the manifest (JSON, immutable)
 //   GET /api/looks/:id/frames/:hash/:n                 chunk n (immutable; br, else gzip, else plain)
-//
-// A chunk's br and plain bodies hold the same bytes; its gzip body lays the same frames out the way
-// gzip compresses best, so it carries its own ETag (and Vary: Accept-Encoding keeps caches apart).
 
 import { promises as fsp } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
@@ -50,13 +44,11 @@ export function framesRoutes({ framesDir, cache, visibleLook, STREAMED }) {
   /** 304 when the client has it (nothing is read then), else 200 with load() → { body, headers }. */
   async function sendImmutable(req, res, etag, load) {
     if (etagMatches(req.headers['if-none-match'], etag)) {
-      res.writeHead(304, { 'Cache-Control': IMMUTABLE, ETag: etag });
-      res.end();
+      res.writeHead(304, { 'Cache-Control': IMMUTABLE, ETag: etag }).end();
       return STREAMED;
     }
     const { body, headers } = await load();
-    res.writeHead(200, { ...headers, 'Content-Length': body.length, 'Cache-Control': IMMUTABLE, ETag: etag });
-    res.end(body);
+    res.writeHead(200, { ...headers, 'Content-Length': body.length, 'Cache-Control': IMMUTABLE, ETag: etag }).end(body);
     return STREAMED;
   }
 
@@ -68,16 +60,12 @@ export function framesRoutes({ framesDir, cache, visibleLook, STREAMED }) {
     const etag = sha ? `W/"${String(sha).slice(0, 40)}${codec ? `-${codec}` : ''}"` : null;
     const vary = codec ? {} : { Vary: 'Accept-Encoding' };
     if (etag && etagMatches(req.headers['if-none-match'], etag)) {
-      res.writeHead(304, { ETag: etag, 'Cache-Control': 'private, no-cache', ...vary });
-      res.end();
+      res.writeHead(304, { ETag: etag, 'Cache-Control': 'private, no-cache', ...vary }).end();
       return STREAMED;
     }
     const gzip = !codec && acceptsEncoding(req.headers['accept-encoding'], 'gzip');
     const file = codec ? await cache.fseq(look, codec) : framesPath(framesDir, id);
-    let fh;
-    try {
-      fh = file && await fsp.open(file, 'r');
-    } catch { /* gone */ }
+    const fh = file && await fsp.open(file, 'r').catch(() => null);
     if (!fh) throw noFrames();
     try {
       const { size } = await fh.stat();
@@ -106,8 +94,7 @@ export function framesRoutes({ framesDir, cache, visibleLook, STREAMED }) {
       res.setHeader('Retry-After', '2');
       return [202, { pending: true, done: w.done, chunks: w.chunks }];
     }
-    res.writeHead(302, { Location: `/api/looks/${id}/frames/${w.hash}/manifest`, 'Cache-Control': 'no-store' });
-    res.end();
+    res.writeHead(302, { Location: `/api/looks/${id}/frames/${w.hash}/manifest`, 'Cache-Control': 'no-store' }).end();
     return STREAMED;
   }
 
@@ -123,7 +110,7 @@ export function framesRoutes({ framesDir, cache, visibleLook, STREAMED }) {
   async function chunk({ user, req, res, params: [id, hash, n] }) {
     bakeOf(id, hash, user);
     res.setHeader('Vary', 'Accept-Encoding');
-    // The gzip copy lays its frames out its own way: a representation, and an ETag, of its own.
+    // The gzip copy lays its frames out its own way (frames-wire.js): an ETag of its own.
     const encoding = pickEncoding(req.headers['accept-encoding']);
     return sendImmutable(req, res, `W/"${hash}.${n}${encoding === 'gzip' ? '.gz' : ''}"`, async () => {
       const got = await cache.chunk(hash, Number(n), encoding);
@@ -134,11 +121,8 @@ export function framesRoutes({ framesDir, cache, visibleLook, STREAMED }) {
     });
   }
 
-  const route = (path, handler) => ({ method: 'GET', path: new RegExp(`^/api/looks/${ID}/frames${path}$`), handler });
-  return [
-    route('', download),
-    route('/wire', wire),
-    route(`/${HASH}/manifest`, manifest),
-    route(`/${HASH}/(\\d{1,5})`, chunk),
-  ];
+  const route = (path, handler) => ({ method: 'GET', path: new RegExp(`^/api/looks/${ID}/frames${path}$`),
+    handler });
+  return [route('', download), route('/wire', wire), route(`/${HASH}/manifest`, manifest),
+    route(`/${HASH}/(\\d{1,5})`, chunk)];
 }

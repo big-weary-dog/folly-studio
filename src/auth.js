@@ -1,14 +1,11 @@
-// Accounts and cookie sessions.
-//
-// Passwords: scrypt (N=16384, r=8, p=1) with a per-user 16-byte salt, compared with
-// timingSafeEqual. Sessions: 32 random bytes in the `studio_session` cookie; the store
-// only ever sees sha256(token), which is the session's id. 30-day expiry.
+// Accounts and cookie sessions. Passwords: scrypt (N=16384, r=8, p=1), a 16-byte salt each, compared with
+// timingSafeEqual. Sessions: 32 random bytes in the `studio_session` cookie for 30 days; the store only sees
+// sha256(token), the session's id.
 
 import { scrypt as scryptCb, randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 
 const scrypt = promisify(scryptCb);
-
 export const COOKIE_NAME = 'studio_session';
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const MAX_SESSIONS_PER_USER = 20;
@@ -19,8 +16,7 @@ const MAX_PASSWORD = 1024;
 export class HttpError extends Error {
   constructor(status, message, headers) {
     super(message);
-    this.status = status;
-    this.headers = headers;
+    Object.assign(this, { status, headers });
   }
 }
 
@@ -43,39 +39,27 @@ export async function verifyPassword(password, stored) {
   if (kind !== 'scrypt' || !saltB64 || !keyB64) return false;
   const expected = Buffer.from(keyB64, 'base64url');
   const opts = { N: Number(N), r: Number(r), p: Number(p), maxmem: 64 * 1024 * 1024 };
-  let key;
-  try {
-    key = await scrypt(password.normalize('NFC'), Buffer.from(saltB64, 'base64url'), expected.length, opts);
-  } catch {
-    return false;
-  }
-  return key.length === expected.length && timingSafeEqual(key, expected);
+  const key = await scrypt(password.normalize('NFC'), Buffer.from(saltB64, 'base64url'), expected.length, opts)
+    .catch(() => null);
+  return !!key && key.length === expected.length && timingSafeEqual(key, expected);
 }
 
-export function sha256(text) {
-  return createHash('sha256').update(text).digest('hex');
-}
+export const sha256 = (text) => createHash('sha256').update(text).digest('hex');
 
 /** Fixed-window counter: hit(key) → 0 when allowed, else seconds until the window resets. */
 export function createRateLimiter({ max, windowMs }) {
   const hits = new Map();
-  function prune(now) {
-    for (const [k, e] of hits) if (e.reset <= now) hits.delete(k);
-  }
   return {
     hit(key, now = Date.now()) {
       let e = hits.get(key);
       if (!e || e.reset <= now) {
-        if (hits.size > 10_000) prune(now);
-        e = { count: 0, reset: now + windowMs };
-        hits.set(key, e);
+        if (hits.size > 10_000) for (const [k, old] of hits) if (old.reset <= now) hits.delete(k);
+        hits.set(key, e = { count: 0, reset: now + windowMs });
       }
       e.count += 1;
       return e.count <= max ? 0 : Math.max(1, Math.ceil((e.reset - now) / 1000));
     },
-    reset(key) {
-      hits.delete(key);
-    },
+    reset: (key) => hits.delete(key),
   };
 }
 
@@ -91,13 +75,10 @@ function parseCookies(header) {
   return out;
 }
 
-/**
- * createAuth({ store, curators, secureCookies, rateLimit: { max, ipMax, windowMs }, trustProxy })
- */
+/** createAuth({ store, curators, secureCookies, rateLimit: { max, ipMax, windowMs }, trustProxy }) */
 export function createAuth({ store, curators = [], secureCookies = false, rateLimit = {}, trustProxy = false } = {}) {
-  const curatorSet = new Set(
-    (typeof curators === 'string' ? curators.split(',') : curators).map((s) => String(s).trim().toLowerCase()).filter(Boolean),
-  );
+  const curatorSet = new Set((typeof curators === 'string' ? curators.split(',') : curators)
+    .map((s) => String(s).trim().toLowerCase()).filter(Boolean));
   const limits = { max: 10, ipMax: 100, windowMs: 60_000, ...rateLimit };
   const perUser = createRateLimiter({ max: limits.max, windowMs: limits.windowMs });
   const perIp = createRateLimiter({ max: limits.ipMax, windowMs: limits.windowMs });
@@ -127,8 +108,12 @@ export function createAuth({ store, curators = [], secureCookies = false, rateLi
   const findUser = (username) => store.users.list((u) => u.username === username)[0] ?? null;
 
   function checkPassword(password) {
-    if (typeof password !== 'string' || password.length < 8) throw new HttpError(400, 'Password must be at least 8 characters.');
-    if (password.length > MAX_PASSWORD) throw new HttpError(400, `Password must be at most ${MAX_PASSWORD} characters.`);
+    if (typeof password !== 'string' || password.length < 8) {
+      throw new HttpError(400, 'Password must be at least 8 characters.');
+    }
+    if (password.length > MAX_PASSWORD) {
+      throw new HttpError(400, `Password must be at most ${MAX_PASSWORD} characters.`);
+    }
   }
 
   async function signup(req, body = {}) {
@@ -158,7 +143,8 @@ export function createAuth({ store, curators = [], secureCookies = false, rateLi
   function createSession(user) {
     const token = randomBytes(32).toString('base64url');
     const now = Date.now();
-    store.sessions.create({ id: sha256(token), userId: user.id, expiresAt: new Date(now + SESSION_TTL_MS).toISOString() });
+    const expiresAt = new Date(now + SESSION_TTL_MS).toISOString();
+    store.sessions.create({ id: sha256(token), userId: user.id, expiresAt });
     // Keep each user's live sessions bounded; drop expired and the oldest extras.
     const mine = store.sessions.list((s) => s.userId === user.id).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
     mine.forEach((s, i) => {
@@ -167,17 +153,10 @@ export function createAuth({ store, curators = [], secureCookies = false, rateLi
     return token;
   }
 
-  function sessionCookie(token) {
-    return [`${COOKIE_NAME}=${token}`, 'HttpOnly', 'SameSite=Lax', 'Path=/', `Max-Age=${SESSION_TTL_MS / 1000}`]
-      .concat(secureCookies ? ['Secure'] : [])
-      .join('; ');
-  }
-
-  function clearCookie() {
-    return [`${COOKIE_NAME}=`, 'HttpOnly', 'SameSite=Lax', 'Path=/', 'Max-Age=0']
-      .concat(secureCookies ? ['Secure'] : [])
-      .join('; ');
-  }
+  const cookie = (value, maxAge) => [`${COOKIE_NAME}=${value}`, 'HttpOnly', 'SameSite=Lax', 'Path=/',
+    `Max-Age=${maxAge}`, ...(secureCookies ? ['Secure'] : [])].join('; ');
+  const sessionCookie = (token) => cookie(token, SESSION_TTL_MS / 1000);
+  const clearCookie = () => cookie('', 0);
 
   function readToken(req) {
     const token = parseCookies(req.headers.cookie)[COOKIE_NAME];
@@ -190,12 +169,8 @@ export function createAuth({ store, curators = [], secureCookies = false, rateLi
     if (!token) return null;
     const session = store.sessions.get(sha256(token));
     if (!session) return null;
-    if (!(Date.parse(session.expiresAt) > Date.now())) {
-      store.sessions.remove(session.id);
-      return null;
-    }
-    const user = store.users.get(session.userId);
-    if (!user) {
+    const user = Date.parse(session.expiresAt) > Date.now() ? store.users.get(session.userId) : null;
+    if (!user) {   // expired, or its user is gone
       store.sessions.remove(session.id);
       return null;
     }
@@ -212,19 +187,6 @@ export function createAuth({ store, curators = [], secureCookies = false, rateLi
     for (const s of store.sessions.list((s) => !(Date.parse(s.expiresAt) > now))) store.sessions.remove(s.id);
   }
 
-  return {
-    signup,
-    login,
-    logout,
-    authenticate,
-    createSession,
-    sessionCookie,
-    clearCookie,
-    pruneSessions,
-    checkRateLimit,
-    clientIp,
-    roleOf,
-    publicUser,
-    isCurator: (user) => roleOf(user) === 'curator',
-  };
+  return { signup, login, logout, authenticate, createSession, sessionCookie, clearCookie, pruneSessions,
+    checkRateLimit, clientIp, roleOf, publicUser, isCurator: (user) => roleOf(user) === 'curator' };
 }

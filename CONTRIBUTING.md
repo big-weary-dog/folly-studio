@@ -29,27 +29,28 @@ namespaces. Without them they skip and print why. The data tests need `python3`.
 | Path | Responsibility |
 |---|---|
 | `server.js` | Entry point: configuration from the environment, start, graceful stop |
-| `src/api.js` | HTTP routes (SPEC "HTTP API"), mutation checks, JSON in and out |
+| `src/app.js` | `createServer()`: the store, auth, queues, frames cache, API and static files in one server |
+| `src/api.js`, `api-looks.js`, `look-rules.js`, `http.js` | HTTP routes (SPEC "HTTP API"): accounts, ideas and the library; looks; what a look may hold; JSON bodies, CSRF checks, the logger |
 | `src/auth.js` | Accounts, password hashing, cookie sessions, login rate limits |
 | `src/store.js` | JSON-file storage under `STUDIO_DATA` |
-| `src/static.js` | Static files, compression, CSPs; inlines the core into `sandbox.html` |
+| `src/static.js`, `bundle.js` | Static files, compression, ETags, CSPs; `sandbox.html` with its worker and the core bundled in |
 | `src/frames.js` | Pure: strict FSEQ parsing and frame analysis (brightness, flicker) |
-| `src/bake.js` | The render box runner and the one-at-a-time bake queue |
+| `src/bake.js`, `render-box.js`, `box-output.js` | The one-at-a-time bake queue and frame files; the render box under bubblewrap; what a box hands back, read as data |
 | `src/frames-wire.js`, `frames-cache.js`, `frames-http.js`, `fseq-codec.js` | Baked frames on the wire: the stream encoder, the chunks and compressed downloads kept by hash, their routes, FSEQ zstd/zlib blocks |
 | `src/generate/` | Idea → look: the queue, adapters (`sketch`, `claude`, `fleet`), prompt, validation |
-| `render-box/render.mjs` | Bakes a look to `.fseq` inside bubblewrap |
+| `render-box/render.mjs`, `renderer.mjs` | Bakes a look to `.fseq` inside bubblewrap; the frame loop it shares with `fleet-box/check.mjs` |
 | `fleet-box/` | Checker and brief for a boxed Fleet worker |
 | `public/index.html`, `css/` | The app shell and its styles: `tokens.css` (the palette), base, layout and components on every page; `ideas`, `gallery`, `studio`, `timeline` load with their views (`stylesheet()` in `ui/dom.js`) |
-| `public/sandbox.html` | The sandboxed pattern runner (SPEC "Sandbox protocol") |
-| `public/js/pattern-core.js` | Pure: stdlib, compile, scene, render, channels; runs in the sandbox, the box and tests |
+| `public/sandbox.html`, `js/sandbox-worker.js` | The sandboxed pattern runner (SPEC "Sandbox protocol"): the relay and watchdog; the Worker |
+| `public/js/pattern-core.js`, `core/` | Pure: stdlib, compile, scene, render, channels (`core/`, re-exported); runs in the sandbox, the boxes and tests |
 | `public/js/fseq.js` | Pure: FSEQ v2 writer |
 | `public/js/frames-wire.js`, `frames-stream.js` | Pure: the stream decoder; streamed playback of baked frames |
 | `public/js/runtime.js` | App side of the sandbox: iframe, frame pump, watchdog |
-| `public/js/viewer.js` | WebGL2 LED renderer and orbit camera |
+| `public/js/viewer.js`, `viewer-gl.js`, `viewer-input.js` | WebGL2 LED view: the orbit camera, the drawing, pointer and keys |
 | `public/js/main.js`, `api.js` | Bootstrap, routing, the fetch wrapper |
-| `public/js/ui/` | Views and panels, one concern per module; `dom.js` holds the DOM helpers |
+| `public/js/ui/` | Views and panels, one concern per module (`studio.js` wires the `studio-*.js` panes); `dom.js` holds the DOM helpers and shared form pieces |
 | `public/patterns/` | The built-in library (`index.json` + one file each), also the AI's examples |
-| `tools/` | `build_cathedral.py` (data), `lint.mjs` (+ `lint/`), `frames-bench.mjs` (wire sizes) |
+| `tools/` | `build_cathedral.py` (data), `lint.mjs` (+ `lint/`: lexing, line budgets in `budget.json`) |
 | `test/` | `node:test` suites; `fixtures/` |
 
 Browser code imports only from `public/`. Server code imports only `pattern-core.js`, `fseq.js`
@@ -62,8 +63,8 @@ and JSON from `public/`. The lint checks both.
 | Source ≤ 400 lines, tests ≤ 600, library patterns ≤ 150 | Small modules have one job, review well, and fit an agent's context. Patterns are AI examples, so they stay short. Over a limit, split by responsibility; never raise it. |
 | Text files ≤ 64 KB (generated `cathedral.json` ≤ 1 MB), lines ≤ 120 | Diffs stay readable, and nothing large gets committed by accident. |
 | Final newline, no trailing spaces, tabs, CRLF or BOM; valid JSON; syntax | Clean diffs, and no surprises on another machine. |
-| `eval`, `Function`, `node:vm` only in the compiler and render box | Code generation is how untrusted code gets in, so it lives only behind the sandbox. |
-| `child_process` only in `src/bake.js`, `src/generate/fleet.js` | Processes are started only to box untrusted work. |
+| `eval`, `Function`, `node:vm` only in the compiler (`core/compile.js`) and render box | Code generation is how untrusted code gets in, so it lives only behind the sandbox. |
+| `child_process` only in `src/render-box.js`, `src/generate/fleet.js` | Processes are started only to box untrusted work. |
 | No `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write` in `public/js` | Titles and ideas are user data. Building nodes and setting `textContent` cannot inject markup. |
 | No remote scripts, styles or imports in `public/` | It works offline on the playa, and the CSP allows only our origin. |
 | No `console.log` in `src/` or `public/js/` | Server output goes through the logger; the browser console stays quiet. |
@@ -71,6 +72,7 @@ and JSON from `public/`. The lint checks both.
 | No secret-looking strings | Keys live in the environment, never in git. |
 | No `Math.random` in `pattern-core.js`, the render box or the library | A bake must be reproducible: same look, same bytes. Use `rand`, `hash`, `noise`, `seed`. |
 | Imports resolve; built-ins as `node:x`; no packages; the boundaries above | Broken paths fail at lint time, and server code never reaches the browser. |
+| Each area's lines of code within `tools/lint/budget.json` | Code shrinks by default; it grows only by a decision: raise that area's budget with a new `reason` beside it, in the same change. |
 
 `// lint-allow <rule>: <reason>` on a line (or alone on the line above) silences that rule for
 that one line. The reason is mandatory, an unused silence is an error, and the run prints how
@@ -97,8 +99,11 @@ reviewed allowlist at the top of `tools/lint.mjs` names who may use `eval` and `
 
 ## Performance budgets
 
-- Gzipped `public/js/**/*.js` + `public/css/*.css` ≤ 70 KB; the login page (`index.html`, what it
-  loads eagerly and the sign-in view) ≤ 30 KB. The lint prints both. Views load on first use.
+- Gzipped `public/js/**/*.js` + `public/css/*.css` ≤ 150 KB; the login page (`index.html`, what it
+  loads eagerly and the sign-in view) ≤ 40 KB. The lint prints both. Views load on first use.
+- On the wire (`test/transfer.test.js`, the real server): a cold Studio load (shell, modules,
+  styles, sandbox, `cathedral.json`, API) ≤ 250 KB compressed; a warm reload moves no bodies
+  (assets stay fresh for 5 minutes, and everything answers its ETag with a 304).
 - 4,870 LEDs at 40 fps: the render loop allocates nothing per frame (reuse typed arrays, pass
   `out`), skips layers outside their clips before any pixel work, and sleeps when idle.
 - The sandbox answers every frame within 1.5 s or reports the layer as hung. Bakes run one at a

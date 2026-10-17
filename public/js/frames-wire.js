@@ -1,27 +1,15 @@
-// frames-wire.js: decode baked frames as the server streams them (src/frames-wire.js encodes them;
-// SPEC "Baked frames"). Pure ES module, no allocation per frame.
-//
-// A manifest describes the bake; chunk n holds frames n × chunkFrames onward: one byte naming its
-// layout, then the frames in it: 0 frame-major, 1 frame-major deltas (each frame minus the one
-// before, mod 256), 2 channel-major (planar), 3 planar deltas (each channel's value minus its
-// previous one). A chunk's first frame is stored as is, so every chunk decodes alone. The browser
-// has already undone the brotli or gzip (Content-Encoding); what is left is the deltas, in place.
-//
-//   parseManifest(json) → manifest                   throws on anything malformed
-//   chunkLength(manifest, n) → frames in chunk n
-//   decodeChunk(bytes, manifest, n) → chunk          { data, frames, planar }: a view of bytes
-//   readFrame(chunk, j, out) → out                   frame j of the chunk, channels in frame order
+// Decodes baked frames as the server streams them (src/frames-wire.js encodes; SPEC "Baked frames").
+// Chunk n holds frames n × chunkFrames onward: a layout byte (MODES: frame-major, frame deltas mod 256,
+// planar, planar deltas), then the frames, the first stored as is so every chunk decodes alone. The
+// browser has undone the brotli or gzip (Content-Encoding); the deltas are undone here, in place.
 
 export const MODES = Object.freeze(['frames', 'frames-delta', 'planar', 'planar-delta']);
 const MAX_CHANNELS = 80 * 510;
-
 const whole = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
 
 /** Check a manifest from the server and return a clean copy. */
 export function parseManifest(m) {
-  const bad = (why) => {
-    throw new Error(`The baked frames' manifest is malformed (${why}).`);
-  };
+  const bad = (why) => { throw new Error(`The baked frames' manifest is malformed (${why}).`); };
   if (!m || typeof m !== 'object') bad('not an object');
   if (m.version !== 1) bad(`version ${m.version}`);
   if (typeof m.hash !== 'string' || !/^[0-9a-f]{32}$/.test(m.hash)) bad('hash');
@@ -29,10 +17,11 @@ export function parseManifest(m) {
   if (!(typeof m.fps === 'number' && m.fps > 0 && m.fps <= 1000)) bad('fps');
   if (!whole(m.channels, 1, MAX_CHANNELS)) bad('channels');
   if (!Array.isArray(m.ranges) || m.ranges.length > 255) bad('ranges');
-  let end = 0;
-  let total = 0;
+  let end = 0, total = 0;
   for (const r of m.ranges) {
-    if (!Array.isArray(r) || !whole(r[0], end, MAX_CHANNELS - 1) || !whole(r[1], 1, MAX_CHANNELS - r[0])) bad('ranges');
+    if (!Array.isArray(r) || !whole(r[0], end, MAX_CHANNELS - 1) || !whole(r[1], 1, MAX_CHANNELS - r[0])) {
+      bad('ranges');
+    }
     end = r[0] + r[1];
     total += r[1];
   }
@@ -57,7 +46,7 @@ export function chunkLength(manifest, n) {
   return Math.min(manifest.chunkFrames, manifest.frames - n * manifest.chunkFrames);
 }
 
-/** Undo chunk n's deltas in place: past its layout byte, `bytes` becomes the frames, in that layout. */
+/** decodeChunk(bytes, manifest, n) → { data, frames, planar }: chunk n's deltas undone in place (a view). */
 export function decodeChunk(bytes, manifest, n) {
   const frames = chunkLength(manifest, n);
   const C = manifest.channels;

@@ -1,5 +1,5 @@
-// HTTP API client (see SPEC "HTTP API"). JSON in, JSON out, cookie session.
-// Any non-2xx response throws an Error carrying the server's message and `status`.
+// HTTP API client (SPEC "HTTP API"): JSON in and out, cookie session. A non-2xx response throws an Error
+// with the server's message and `status`.
 
 async function request(method, path, body) {
   const init = { method, credentials: 'same-origin', headers: { Accept: 'application/json' } };
@@ -7,27 +7,17 @@ async function request(method, path, body) {
     init.headers['Content-Type'] = 'application/json';
     init.body = JSON.stringify(body ?? {});
   }
-  let res;
-  try {
-    res = await fetch(path, init);
-  } catch (err) {
-    const e = new Error('Could not reach the server. Check your connection and try again.');
-    e.status = 0;
-    e.cause = err;
-    throw e;
-  }
-  let data = null;
+  const res = await fetch(path, init).catch((cause) => {
+    throw Object.assign(new Error('Could not reach the server. Check your connection and try again.'),
+      { status: 0, cause });
+  });
   const text = await res.text();
-  if (text) {
-    try { data = JSON.parse(text); } catch { data = null; }
-  }
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = null; }
   if (!res.ok) {
     const msg = (data && typeof data.error === 'string' && data.error)
       || `${res.status} ${res.statusText || 'error'}`.trim();
-    const e = new Error(msg);
-    e.status = res.status;
-    e.data = data;
-    throw e;
+    throw Object.assign(new Error(msg), { status: res.status, data });
   }
   return data ?? {};
 }

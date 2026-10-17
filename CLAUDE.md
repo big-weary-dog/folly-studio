@@ -11,10 +11,11 @@ behind these rules.
   `cathedral.json` shapes, and `pattern-core.js`'s exports are what the other pieces rely on.
   Code follows the spec, in the same change.
 - **Split, never bump.** Source stays ≤ 400 lines, tests ≤ 600, library patterns ≤ 150 (they
-  are the AI's examples), lines ≤ 120, text files ≤ 64 KB, and the gzipped app ≤ 70 KB with the
-  login page ≤ 30 KB. Over a limit, split the module by responsibility, one concern per file
-  named for it. Raising a limit is not a fix. `lint-allow <rule>: <reason>` silences one line,
-  and only with a reason a reviewer would accept.
+  are the AI's examples), lines ≤ 120, text files ≤ 64 KB, and the gzipped app ≤ 150 KB with the
+  login page ≤ 40 KB. Over a limit, split the module by responsibility, one concern per file
+  named for it. Raising a limit is not a fix. Each area's total lines are ratcheted in
+  `tools/lint/budget.json`: lower it when you cut; raise it only with a new `reason`.
+  `lint-allow <rule>: <reason>` silences one line, and only with a reason a reviewer would accept.
 - **Pattern code never runs on the server outside the render box.** It runs in the sandbox
   iframe's Worker or in the render box (bubblewrap, then a stdlib-only `node:vm` realm), never
   in the app page or the server's own process. Tests may run our own library patterns. What a

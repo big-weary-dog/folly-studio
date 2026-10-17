@@ -83,7 +83,8 @@ test('media header, defaults, odd sizes', () => {
 });
 
 test('rejects bad input', () => {
-  assert.throws(() => writeFseq({ channelCount: 3, frames: 2, data: new Uint8Array(5) }), /expected 2 frames × 3 channels/);
+  assert.throws(() => writeFseq({ channelCount: 3, frames: 2, data: new Uint8Array(5) }),
+    /expected 2 frames × 3 channels/);
   assert.throws(() => writeFseq({ channelCount: 0, frames: 1, data: new Uint8Array(0) }), /channelCount/);
   assert.throws(() => writeFseq({ channelCount: 3, frames: 1, stepMs: 0, data: new Uint8Array(3) }), /stepMs/);
   assert.throws(() => writeFseq({ channelCount: 3, frames: 1, data: [1, 2, 3] }), /Uint8Array/);
@@ -104,12 +105,15 @@ test('sparse ranges: header, ranges and frames round-trip', () => {
   assert.deepEqual(h.variables, { sp: 'Folly Studio' });
   assert.equal(h.dataOffset % 4, 0);
   assert.equal(file.length, h.dataOffset + channelCount * frames);
-  for (let f = 0; f < frames; f++) assert.deepEqual(h.frame(f), data.subarray(f * channelCount, (f + 1) * channelCount));
+  for (let f = 0; f < frames; f++) assert.deepEqual(h.frame(f), data.subarray(f * channelCount,
+    (f + 1) * channelCount));
   // 24-bit fields hold big values; an explicit matching channelCount is fine.
-  const wide = readFseq(writeFseq({ channelCount: 70000, frames: 1, data: new Uint8Array(70000), ranges: [[0x123456, 70000]] }));
+  const wide = readFseq(writeFseq({ channelCount: 70000, frames: 1, data: new Uint8Array(70000), ranges: [[0x123456,
+    70000]] }));
   assert.deepEqual(wide.ranges, [[0x123456, 70000]]);
   // No ranges (or an empty list) is the plain full-frame file.
-  assert.equal(readFseq(writeFseq({ channelCount: 3, frames: 1, data: new Uint8Array(3), ranges: [] })).headerLength, 32);
+  assert.equal(readFseq(writeFseq({ channelCount: 3, frames: 1, data: new Uint8Array(3), ranges: [] })).headerLength,
+    32);
 });
 
 test('rejects bad sparse ranges', () => {
@@ -118,7 +122,9 @@ test('rejects bad sparse ranges', () => {
   assert.throws(() => writeFseq({ frames: 1, data: d, ranges: [[0, 6], [5, 4]] }), /overlap/);
   assert.throws(() => writeFseq({ frames: 1, data: d, ranges: [[0, 0], [5, 10]] }), /\[start, count\]/);
   assert.throws(() => writeFseq({ frames: 1, data: d, ranges: [[2 ** 24, 10]] }), /start 0-16777215/);
-  assert.throws(() => writeFseq({ channelCount: 9, frames: 1, data: d, ranges: [[0, 10]] }), /not the ranges' total 10/);
-  assert.throws(() => writeFseq({ frames: 1, data: d, ranges: Array.from({ length: 256 }, (_, i) => [i * 2, 1]) }), /at most 255/);
+  assert.throws(() => writeFseq({ channelCount: 9, frames: 1, data: d, ranges: [[0, 10]] }),
+    /not the ranges' total 10/);
+  assert.throws(() => writeFseq({ frames: 1, data: d, ranges: Array.from({ length: 256 }, (_, i) => [i * 2, 1]) }),
+    /at most 255/);
   assert.throws(() => writeFseq({ frames: 2, data: d, ranges: [[0, 10]] }), /expected 2 frames × 10 channels/);
 });

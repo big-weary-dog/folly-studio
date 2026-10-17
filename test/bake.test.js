@@ -9,8 +9,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { createServer } from '../src/api.js';
-import { BakeError, checkFrames, createRenderBox } from '../src/bake.js';
+import { createServer } from '../src/app.js';
+import { BakeError, checkFrames } from '../src/box-output.js';
+import { createRenderBox } from '../src/render-box.js';
 import { parseFseq } from '../src/frames.js';
 
 const STUDIO = fileURLToPath(new URL('../', import.meta.url));
@@ -18,13 +19,15 @@ const PUBLIC = path.join(STUDIO, 'public');
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const cathedralFile = path.join(PUBLIC, 'data/cathedral.json');
 const ready = fs.existsSync(cathedralFile) && fs.existsSync(path.join(PUBLIC, 'js/pattern-core.js'));
-const probe = ready ? await createRenderBox({ log: quiet }).probe() : { ok: false, reason: 'the pattern runtime or LED map is not built' };
+const probe = ready ? await createRenderBox({ log: quiet }).probe() : { ok: false,
+  reason: 'the pattern runtime or LED map is not built' };
 const skip = !probe.ok && `render box unavailable here: ${probe.reason}`;
 if (skip) console.log(`# SKIP render box tests: ${probe.reason}`);
 
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-bake-'));
 after(() => fs.rmSync(tmpRoot, { recursive: true, force: true }));
-const layer = (code, extra = {}) => ({ id: 'l1', title: 'x', code, groups: ['cathedral'], blend: 'add', level: 1, params: {}, ...extra });
+const layer = (code, extra = {}) => ({ id: 'l1', title: 'x', code, groups: ['cathedral'], blend: 'add', level: 1,
+  params: {}, ...extra });
 const BREATHE = 'function pixel(p, t) { return scale([0.2, 0.4, 1], wave(t * 0.25)); }';
 const STROBE = 'function pixel(p, t) { return floor(t * 20) % 2 ? [0, 0, 0] : [1, 1, 1]; }';
 
@@ -56,7 +59,8 @@ describe('render box (bubblewrap)', { skip }, () => {
   test('a normal look bakes and analyses', async () => {
     const box = createRenderBox({ seconds: 4, log: quiet });
     const { bytes, boxStats } = await box.render({ layers: [layer(BREATHE)] });
-    const { bake, frames } = checkFrames(bytes, { source: 'render-box', cathedral: JSON.parse(fs.readFileSync(cathedralFile, 'utf8')), boxStats });
+    const { bake, frames } = checkFrames(bytes, { source: 'render-box',
+      cathedral: JSON.parse(fs.readFileSync(cathedralFile, 'utf8')), boxStats });
     assert.equal(bake.ok, true, bake.reason);
     assert.equal(bake.analysis.frames, 160);
     assert.equal(bake.analysis.coverage, 1);
@@ -72,7 +76,8 @@ describe('render box (bubblewrap)', { skip }, () => {
   test('an infinite loop is killed by the wall clock, box and all', async () => {
     const box = createRenderBox({ seconds: 2, timeoutMs: 1500, frameTimeoutMs: 600_000, log: quiet });
     const t0 = Date.now();
-    await assert.rejects(box.render({ layers: [layer('function pixel() { for (;;) {} }')] }), (e) => e instanceof BakeError && /longer than 2 s and was stopped/.test(e.reason));
+    await assert.rejects(box.render({ layers: [layer('function pixel() { for (;;) {} }')] }),
+      (e) => e instanceof BakeError && /longer than 2 s and was stopped/.test(e.reason));
     assert.ok(Date.now() - t0 < 10_000);
     let left = boxProcesses();
     for (let i = 0; i < 40 && left.length; i++) {
@@ -82,13 +87,17 @@ describe('render box (bubblewrap)', { skip }, () => {
     assert.deepEqual(left, [], 'nothing from the box keeps running');
     // Inside, a per-frame guard catches a hang first and names it.
     const guarded = createRenderBox({ seconds: 2, frameTimeoutMs: 300, log: quiet });
-    await assert.rejects(guarded.render({ layers: [layer('function pixel(p, t) { while (t > 0.5) {} return [1, 0, 0]; }')] }), (e) => /took over 300 ms on the frame at t = 0\.5\d s/.test(e.reason));
+    const hang = layer('function pixel(p, t) { while (t > 0.5) {} return [1, 0, 0]; }');
+    await assert.rejects(guarded.render({ layers: [hang] }),
+      (e) => /took over 300 ms on the frame at t = 0\.5\d s/.test(e.reason));
   });
 
   test('pattern code reaches no fetch, require, process or Node realm', async () => {
     const box = createRenderBox({ seconds: 1, log: quiet });
-    await assert.rejects(box.render({ layers: [layer(`fetch('http://127.0.0.1:${port}/'); ${BREATHE}`)] }), (e) => /does not compile: .*fetch is not a function/.test(e.reason));
-    await assert.rejects(box.render({ layers: [layer(`const net = require('net'); ${BREATHE}`)] }), (e) => /does not compile: .*require is not defined/.test(e.reason));
+    await assert.rejects(box.render({ layers: [layer(`fetch('http://127.0.0.1:${port}/'); ${BREATHE}`)] }),
+      (e) => /does not compile: .*fetch is not a function/.test(e.reason));
+    await assert.rejects(box.render({ layers: [layer(`const net = require('net'); ${BREATHE}`)] }),
+      (e) => /does not compile: .*require is not defined/.test(e.reason));
     // Escapes that work against a bare node:vm with host objects in it. Green when all fail.
     const probes = `
       const tries = [
@@ -102,7 +111,9 @@ describe('render box (bubblewrap)', { skip }, () => {
         () => Function('return import("node:fs")')(),
       ];
       let reached = 0;
-      for (const t of tries) { try { const v = t(); if (v && typeof v === 'object' && !(v instanceof Promise)) reached++; } catch (e) {} }
+      for (const t of tries) {
+        try { const v = t(); if (v && typeof v === 'object' && !(v instanceof Promise)) reached++; } catch (e) {}
+      }
       function pixel(p, t) { return reached ? [1, 0, 0] : [0, 1, 0]; }`;
     const { bytes } = await box.render({ layers: [layer(probes)] });
     const p = parseFseq(bytes);
@@ -120,15 +131,18 @@ describe('render box (bubblewrap)', { skip }, () => {
       import fs from 'node:fs';
       import net from 'node:net';
       const out = [];
-      const tryIt = (name, fn) => { try { fn(); out.push(name + ':ok'); } catch (e) { out.push(name + ':' + (e.code || e.name)); } };
+      const tryIt = (name,
+        fn) => { try { fn(); out.push(name + ':ok'); } catch (e) { out.push(name + ':' + (e.code || e.name)); } };
       tryIt('read-secret', () => fs.readFileSync(${JSON.stringify(secret)}));
       tryIt('read-passwd', () => fs.readFileSync('/etc/passwd'));
       tryIt('write-host', () => fs.writeFileSync(${JSON.stringify(pwned)}, 'x'));
       tryIt('write-box', () => fs.writeFileSync('/box/x', 'x'));
       tryIt('write-out', () => fs.writeFileSync('/out/scratch', 'x'));
       out.push('env:' + Object.keys(process.env).sort().join(','));
-      try { await fetch('http://127.0.0.1:${port}/'); out.push('fetch:ok'); } catch (e) { out.push('fetch:' + (e.cause?.code || e.name)); }
-      await new Promise((r) => { const s = net.connect(${port}, '127.0.0.1'); s.on('connect', () => { out.push('net:ok'); s.destroy(); r(); }); s.on('error', (e) => { out.push('net:' + e.code); r(); }); });
+      try { await fetch('http://127.0.0.1:${port}/'); out.push('fetch:ok'); }
+      catch (e) { out.push('fetch:' + (e.cause?.code || e.name)); }
+      await new Promise((r) => { const s = net.connect(${port}, '127.0.0.1'); s.on('connect',
+        () => { out.push('net:ok'); s.destroy(); r(); }); s.on('error', (e) => { out.push('net:' + e.code); r(); }); });
       fs.writeFileSync('/out/result.json', JSON.stringify({ ok: false, error: out.join(' ') }));
       process.exit(1);
     `);
@@ -160,18 +174,24 @@ describe('render box (bubblewrap)', { skip }, () => {
     const addr = await app.listen(0);
     const base = `http://127.0.0.1:${addr.port}`;
     const login = async (username) => {
-      const r = await fetch(`${base}/api/signup`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username, password: 'correct horse' }) });
+      const r = await fetch(`${base}/api/signup`, { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username, password: 'correct horse' }) });
       const cookie = r.headers.getSetCookie()[0].split(';')[0];
       return (method, p, body) =>
-        fetch(base + p, { method, headers: { cookie, 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) }).then(async (res) => ({ status: res.status, json: await res.json().catch(() => null) }));
+        fetch(base + p, { method, headers: { cookie, 'content-type': 'application/json' },
+          body: body === undefined ? undefined : JSON.stringify(body) }).then(async (res) => ({ status: res.status,
+            json: await res.json().catch(() => null) }));
     };
     try {
       const own = await login('owner');
       const cur = await login('cur');
-      const strobe = (await own('POST', '/api/looks', { title: 'Strobe', layers: [layer(STROBE)], shared: true })).json.look;
-      const calm = (await own('POST', '/api/looks', { title: 'Calm', layers: [layer(BREATHE)], shared: true })).json.look;
+      const strobe = (await own('POST', '/api/looks', { title: 'Strobe', layers: [layer(STROBE)],
+        shared: true })).json.look;
+      const calm = (await own('POST', '/api/looks', { title: 'Calm', layers: [layer(BREATHE)],
+        shared: true })).json.look;
       assert.equal((await own('POST', `/api/looks/${strobe.id}/bake`, {})).status, 202);
-      assert.equal((await cur('POST', `/api/looks/${calm.id}/bake`, {})).status, 202, 'a curator may bake a shared look');
+      assert.equal((await cur('POST', `/api/looks/${calm.id}/bake`, {})).status, 202,
+        'a curator may bake a shared look');
       await app.bakes.idle();
 
       const s = (await own('GET', `/api/looks/${strobe.id}`)).json.look;

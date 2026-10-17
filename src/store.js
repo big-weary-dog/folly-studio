@@ -1,38 +1,23 @@
-// JSON-file document store: one file per collection in the data dir, loaded at
-// start, kept in memory, written atomically (tmp file + fsync + rename) with the
-// writes for each collection serialized and coalesced.
-//
-//   const store = await createStore(dataDir);
-//   store.looks.create(obj) → obj        (adds id, createdAt, updatedAt)
-//   store.looks.get(id) → obj | null
-//   store.looks.list(filterFn?) → [obj]  (insertion order)
-//   store.looks.update(id, patch) → obj | null   (shallow merge; undefined deletes a key)
-//   store.looks.remove(id) → boolean
-//   await store.flush()                  (resolves once everything is on disk)
-//
-// Objects handed out are copies, so callers cannot mutate the store by accident.
+// JSON-file document store: a file per collection, loaded at start, kept in memory, written atomically
+// (tmp + fsync + rename), each collection's writes serialized and coalesced. Objects handed out are copies.
+//   store.looks.create(obj) → obj (adds id, createdAt, updatedAt);  get(id) → obj | null;  list(filter?) → [obj]
+//   update(id, patch) → obj | null (shallow; undefined deletes a key);  remove(id) → boolean;  await store.flush()
 
 import { promises as fsp } from 'node:fs';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 
 export const COLLECTIONS = ['users', 'sessions', 'ideas', 'looks'];
-
 /** Random url-safe id (16 chars for the default 12 bytes). */
-export function newId(bytes = 12) {
-  return randomBytes(bytes).toString('base64url');
-}
-
+export const newId = (bytes = 12) => randomBytes(bytes).toString('base64url');
 const copy = (v) => (v === undefined || v === null ? v : structuredClone(v));
 
 export async function createStore(dataDir, { collections = COLLECTIONS, log = console } = {}) {
   await fsp.mkdir(dataDir, { recursive: true });
-  const store = {};
-  const states = [];
+  const store = {}, states = [];
   for (const name of collections) {
-    const state = await openCollection(path.join(dataDir, `${name}.json`), log);
-    states.push(state);
-    store[name] = state.api;
+    states.push(await openCollection(path.join(dataDir, `${name}.json`), log));
+    store[name] = states.at(-1).api;
   }
   Object.defineProperties(store, {
     dataDir: { value: dataDir },
@@ -53,12 +38,9 @@ export async function createStore(dataDir, { collections = COLLECTIONS, log = co
 
 async function openCollection(file, log) {
   const map = new Map();
-  let text;
-  try {
-    text = await fsp.readFile(file, 'utf8');
-  } catch (err) {
+  const text = await fsp.readFile(file, 'utf8').catch((err) => {
     if (err.code !== 'ENOENT') throw err;
-  }
+  });
   if (text !== undefined && text.trim()) {
     let data;
     try {
@@ -71,10 +53,7 @@ async function openCollection(file, log) {
     for (const item of items) if (item && typeof item.id === 'string') map.set(item.id, item);
   }
 
-  let chain = Promise.resolve();
-  let queued = false;
-  let lastError = null;
-  let tmpSeq = 0;
+  let chain = Promise.resolve(), queued = false, lastError = null, tmpSeq = 0;
 
   function schedule() {
     if (queued) return chain;
@@ -104,9 +83,7 @@ async function openCollection(file, log) {
   }
 
   const api = {
-    get(id) {
-      return copy(map.get(id)) ?? null;
-    },
+    get: (id) => copy(map.get(id)) ?? null,
     list(filterFn) {
       const out = [];
       for (const item of map.values()) if (!filterFn || filterFn(item)) out.push(copy(item));
@@ -148,10 +125,5 @@ async function openCollection(file, log) {
     },
   };
 
-  return {
-    api,
-    pending: () => chain,
-    queued: () => queued,
-    lastError: () => lastError,
-  };
+  return { api, pending: () => chain, queued: () => queued, lastError: () => lastError };
 }

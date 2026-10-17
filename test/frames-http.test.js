@@ -12,7 +12,7 @@ import zlib from 'node:zlib';
 
 import { writeFseq } from '../public/js/fseq.js';
 import { decodeChunk, parseManifest, readFrame } from '../public/js/frames-wire.js';
-import { createServer } from '../src/api.js';
+import { createServer } from '../src/app.js';
 import { parseFseq } from '../src/frames.js';
 import { IMMUTABLE } from '../src/frames-http.js';
 import { HAS_ZSTD, inflateBlock } from '../src/fseq-codec.js';

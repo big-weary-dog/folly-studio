@@ -1,9 +1,8 @@
-// Bake: render the saved look in the server's render box, show what the checks found, play the
-// baked frames (no pattern code runs), and let a curator mark a passing look reviewed.
-// SPEC "Baked frames". The frames are the deliverable: what plays here is what will play.
+// Bake (SPEC "Baked frames"): render the saved look in the server's render box, show what the checks
+// found, play the baked frames (no pattern code runs), and let a curator mark a passing look reviewed.
 import { api } from '../api.js';
-import { autoFetchAllowed, fetchManifest, openFrameStream } from '../frames-stream.js';
-import { h, clear, nextId, toast } from './dom.js';
+import { autoFetchAllowed, fetchManifest } from '../frames-stream.js';
+import { clear, h, switchBox, toast } from './dom.js';
 
 const POLL_MS = 1500;
 const ACTIVE = new Set(['queued', 'running']);
@@ -22,42 +21,30 @@ export const mb = (bytes) => `${(bytes / 1e6).toFixed(bytes < 1e8 ? 1 : 0)} MB`;
 const pct = (v) => `${Math.round(v * 100)} %`;
 
 /**
- * The bake card. Everything goes through `host`:
- *   host.look()            → { id, owner, shared, reviewed, bake } | null (unsaved)
- *   host.dirty()           → unsaved edits?
- *   host.save()            → Promise<boolean> (saved?)
- *   host.setLook(look)     the server's copy changed (bake / reviewed)
- *   host.playBaked(on)     → Promise (switch the preview to baked frames and back)
- *   host.signedOut()
+ * The bake card. host: { look() → { id, owner, shared, reviewed, bake } | null (unsaved), dirty(),
+ *   save() → Promise<saved?>, setLook(look) (the server's copy changed), playBaked(on) → Promise, signedOut() }
  */
 export class BakePanel {
   constructor(container, { user, host }) {
-    this.user = user;
-    this.host = host;
-    this.curator = user?.role === 'curator';
-    this.timer = 0;
-    this.playing = false;
-    this.busy = false;
+    Object.assign(this, { user, host, curator: user?.role === 'curator', timer: 0, playing: false, busy: false });
     this.error = '';           // last refusal (503 / 409 / …), shown until the state changes
-    const reviewId = nextId('rev');
     this.pill = h('span', { class: 'bake-pill' });
     this.note = h('p', { class: 'bake-note' });
     this.report = h('dl', { class: 'bake-report' });
     this.reason = h('p', { class: 'bake-reason', role: 'status' });
-    this.bakeBtn = h('button', { type: 'button', class: 'btn small wide-only', text: 'Bake' });
-    this.playBtn = h('button', { type: 'button', class: 'btn small bake-play', 'aria-pressed': 'false' });
-    this.reviewBox = h('input', { type: 'checkbox', id: reviewId, class: 'switch' });
-    this.review = h('div', { class: 'share-toggle bake-review wide-only', hidden: !this.curator },
-      this.reviewBox, h('label', { for: reviewId, text: 'Reviewed for the playa' }));
+    this.bakeBtn = h('button', { type: 'button', class: 'btn small wide-only', text: 'Bake',
+      onClick: () => this.bake() });
+    this.playBtn = h('button', { type: 'button', class: 'btn small bake-play', 'aria-pressed': 'false',
+      onClick: () => this.togglePlay() });
+    const review = switchBox('Reviewed for the playa', 'share-toggle bake-review wide-only');
+    [this.reviewBox, this.review] = [review.box, review.el];
+    this.review.hidden = !this.curator;
     this.phoneHint = h('p', { class: 'bake-note narrow-only', text: 'Bake and review from a larger screen.' });
     this.actions = h('div', { class: 'bake-actions' }, this.bakeBtn, this.playBtn);
     this.el = h('section', { class: 'bake', 'aria-label': 'Bake' },
       h('div', { class: 'bake-head' }, h('h2', { class: 'pane-title', text: 'Bake' }), this.pill),
-      this.note, this.report, this.reason, this.actions, this.phoneHint,
-      this.review);
+      this.note, this.report, this.reason, this.actions, this.phoneHint, this.review);
     container.append(this.el);
-    this.bakeBtn.addEventListener('click', () => this.bake());
-    this.playBtn.addEventListener('click', () => this.togglePlay());
     this.reviewBox.addEventListener('change', () => this.setReviewed(this.reviewBox.checked));
     this.render();
   }
@@ -74,22 +61,24 @@ export class BakePanel {
     this.pill.textContent = st.label;
     this.pill.dataset.kind = st.kind;
 
-    let note;
-    if (!look) note = 'Save the look, then bake it: the render box plays it for real and checks it for flashing and power.';
-    else if (st.kind === 'none') note = 'Bake it in the render box to check it for flashing and power, and to get the frames that will actually play.';
-    else if (st.kind === 'queued') note = 'Waiting for the render box…';
-    else if (st.kind === 'running') note = `Rendering ${bake.seconds ? `${bake.seconds} s` : 'the look'} in the render box…`;
-    else note = dirty ? 'You have edits since this bake. Saving them clears it; bake again after.' : 'Editing the layers clears the bake.';
-    this.note.textContent = note;
+    this.note.textContent = !look
+      ? 'Save the look, then bake it: the render box plays it for real and checks it for flashing and power.'
+      : st.kind === 'none' ? 'Bake it in the render box to check it for flashing and power, and to get the '
+        + 'frames that will actually play.'
+      : st.kind === 'queued' ? 'Waiting for the render box…'
+      : st.kind === 'running' ? `Rendering ${bake.seconds ? `${bake.seconds} s` : 'the look'} in the render box…`
+      : dirty ? 'You have edits since this bake. Saving them clears it; bake again after.'
+      : 'Editing the layers clears the bake.';
     this.note.classList.toggle('warn', !!(look && bake && dirty && !ACTIVE.has(bake.status)));
 
     clear(this.report);
     const a = bake?.analysis;
     if (a) {
-      const f = a.flicker || {};
+      const f = a.flicker || {}, at = f.flaggedSeconds || [];
       const row = (k, v, cls) => h('div', { class: cls || null }, h('dt', { text: k }), h('dd', { text: v }));
+      const flagged = `Flagged at ${at.slice(0, 5).map((s) => `${s} s`).join(', ')}${at.length > 5 ? '…' : ''}`;
       this.report.append(
-        row('Flash check', f.ok ? 'Pass' : `Flagged at ${(f.flaggedSeconds || []).slice(0, 5).map((s) => `${s} s`).join(', ')}${(f.flaggedSeconds || []).length > 5 ? '…' : ''}`, f.ok ? 'ok' : 'bad'),
+        row('Flash check', f.ok ? 'Pass' : flagged, f.ok ? 'ok' : 'bad'),
         row('Peak', `${pct(a.peakBrightness)} white · ≈ ${a.estPeakAmps} A`),
         row('Length', `${a.seconds} s${bake.frames?.bytes ? ` · ${mb(bake.frames.bytes)}` : ''}`));
     }
@@ -113,7 +102,8 @@ export class BakePanel {
       const passing = bake?.source === 'render-box' && bake.status === 'done' && bake.ok && !dirty;
       this.reviewBox.checked = !!look?.reviewed;
       this.reviewBox.disabled = this.busy || !look || (!look.reviewed && !passing);
-      this.review.title = look?.reviewed ? 'Reviewed: approved to play on the Folly' : passing ? 'Mark this look approved for the Folly' : 'Needs a passing render-box bake of the saved code first';
+      this.review.title = look?.reviewed ? 'Reviewed: approved to play on the Folly'
+        : passing ? 'Mark this look approved for the Folly' : 'Needs a passing render-box bake of the saved code first';
     }
 
     const poll = look && ACTIVE.has(bake?.status);
@@ -121,27 +111,32 @@ export class BakePanel {
     if (!poll && this.timer) { clearTimeout(this.timer); this.timer = 0; }
   }
 
-  async bake() {
-    if (this.busy) return;
+  /** Run fn with the card busy; a 401 signs out, and any other refusal is kept to show, then failed(err). */
+  async busyWith(fn, failed) {
     this.busy = true;
     this.error = '';
     this.render();
     try {
-      if (!this.host.look() || this.host.dirty()) {
-        if (!(await this.host.save())) return;
-      }
-      const look = this.host.look();
-      const { bake } = await api.bake(look.id);
-      this.host.setLook({ ...look, bake });
-      toast('Baking in the render box…', { timeout: 2500 });
+      await fn();
     } catch (err) {
-      if (err.status === 401) { this.host.signedOut(); return; }
-      this.error = err.message;               // 503: no render box here; 429: queue full
-      toast(this.error, { kind: err.status === 503 ? 'warn' : 'error', timeout: 8000 });
+      if (err.status === 401) return this.host.signedOut();
+      this.error = err.message;
+      failed(err);
     } finally {
       this.busy = false;
       this.render();
     }
+  }
+
+  bake() {
+    if (this.busy) return undefined;
+    return this.busyWith(async () => {
+      if ((!this.host.look() || this.host.dirty()) && !(await this.host.save())) return;
+      const look = this.host.look();
+      const { bake } = await api.bake(look.id);
+      this.host.setLook({ ...look, bake });
+      toast('Baking in the render box…', { timeout: 2500 });
+    }, (err) => toast(err.message, { kind: err.status === 503 ? 'warn' : 'error', timeout: 8000 })); // 503: no box
   }
 
   async poll() {
@@ -155,8 +150,8 @@ export class BakePanel {
       this.host.setLook(look);
       const after = bakeState(look.bake).kind;
       if (before !== after && (after === 'ok' || after === 'flagged' || after === 'failed')) {
-        toast(after === 'ok' ? 'Baked: the flash check passed.' : `Bake ${after === 'flagged' ? 'flagged' : 'failed'}: ${look.bake.reason || ''}`,
-          { kind: after === 'ok' ? 'ok' : 'error', timeout: 7000 });
+        const text = after === 'ok' ? 'Baked: the flash check passed.' : `Bake ${after}: ${look.bake.reason || ''}`;
+        toast(text, { kind: after === 'ok' ? 'ok' : 'error', timeout: 7000 });
       }
     } catch (err) {
       if (err.status === 401) { this.host.signedOut(); return; }
@@ -190,38 +185,20 @@ export class BakePanel {
     this.render();
   }
 
-  async setReviewed(on) {
+  setReviewed(on) {
     const look = this.host.look();
-    if (!look) return;
-    this.busy = true;
-    this.error = '';
-    this.render();
-    try {
-      const res = await api.updateLook(look.id, { reviewed: on });
-      this.host.setLook(res.look);
+    if (!look) return undefined;
+    return this.busyWith(async () => {
+      this.host.setLook((await api.updateLook(look.id, { reviewed: on })).look);
       toast(on ? 'Marked reviewed.' : 'No longer marked reviewed.', { kind: 'ok' });
-    } catch (err) {
-      if (err.status === 401) { this.host.signedOut(); return; }
-      this.error = err.message;               // the server's 409 says why
+    }, (err) => {                               // the server's 409 says why
       toast(err.message, { kind: 'error', timeout: 9000 });
       if (err.status === 409) setTimeout(() => this.poll(), 0);   // our copy is stale: catch up
-    } finally {
-      this.busy = false;
-      this.render();
-    }
+    });
   }
 
   destroy() {
     this.destroyed = true;
     clearTimeout(this.timer);
   }
-}
-
-/**
- * Baked frames, ready to show, streamed (frames-stream.js): resolves once the first 2 s are in, then
- * frameAt(i, rgb) fills a Float32Array(count × 3) from the server's frames. No pattern code runs.
- * `opts.onChunk(n)` hears when a frame asked for before its chunk arrived can be shown.
- */
-export function loadBakedFrames(lookId, cathedral, opts) {
-  return openFrameStream(lookId, cathedral, opts);
 }

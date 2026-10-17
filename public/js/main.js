@@ -8,121 +8,83 @@ const looks = () => import('./ui/looks.js');
 const ROUTES = [
   { re: /^\/login\/?$/, load: auth, public: true, title: 'Sign in' },
   { re: /^\/ideas\/?$/, load: () => import('./ui/ideas.js'), nav: '/ideas', title: 'Ideas' },
-  { re: /^\/studio(?:\/([^/]+))?\/?$/, load: () => import('./ui/studio.js'), nav: '/studio', title: 'Studio', keys: ['lookId'] },
+  { re: /^\/studio(?:\/([^/]+))?\/?$/, load: () => import('./ui/studio.js'), nav: '/studio', title: 'Studio',
+    keys: ['lookId'] },
   { re: /^\/looks\/?$/, load: looks, nav: '/looks', title: 'My looks', args: { scope: 'mine' } },
   { re: /^\/gallery\/?$/, load: looks, nav: '/gallery', title: 'Gallery', args: { scope: 'gallery' } },
 ];
 
-const app = {
-  user: null,
-  current: null,      // { route, instance }
-  url: null,
-};
-
+const app = { user: null, current: null /* { route, instance } */, url: null };
 const main = document.getElementById('main');
-let renders = 0;
 const header = document.getElementById('app-header');
+const here = () => location.pathname + location.search;
+let renders = 0;
 // The rose: the brand mark, and the loader while the first view loads.
 document.getElementById('brand-mark')?.append(rose());
 document.getElementById('boot-msg')?.prepend(rose({ detail: 'full', className: 'rose-loader' }));
 
 function match(pathname) {
-  for (const r of ROUTES) {
-    const m = r.re.exec(pathname);
-    if (m) {
-      const params = {};
-      (r.keys || []).forEach((k, i) => { if (m[i + 1]) params[k] = decodeURIComponent(m[i + 1]); });
-      return { route: r, params };
-    }
+  for (const route of ROUTES) {
+    const m = route.re.exec(pathname);
+    if (!m) continue;
+    const params = {};
+    (route.keys || []).forEach((k, i) => { if (m[i + 1]) params[k] = decodeURIComponent(m[i + 1]); });
+    return { route, params };
   }
   return null;
 }
 
+/** Where to go after signing in: `next` when it is a page of this app, else Ideas. */
+const safeNext = (next) => (next && next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/login')
+  ? next : '/ideas');
+
 function ctxFor(route, params) {
   return {
-    user: app.user,
-    params,
-    query: new URLSearchParams(location.search),
-    args: route.args || {},
-    navigate,
-    setUser,
+    user: app.user, params, query: new URLSearchParams(location.search), args: route.args || {}, navigate, setUser,
     /** Call when an API call says 401: back to the login screen. */
     signedOut() {
       app.user = null;
       renderHeader();
-      navigate(`/login?next=${encodeURIComponent(location.pathname + location.search)}`, { replace: true, force: true });
+      navigate(`/login?next=${encodeURIComponent(here())}`, { replace: true, force: true });
     },
     setTitle(t) { document.title = t ? `${t} · Folly Studio` : 'Folly Studio'; },
     /** Change the address bar without re-rendering (e.g. a new look got its id). */
-    replaceUrl(path) {
-      history.replaceState(null, '', path);
-      app.url = location.pathname + location.search;
-    },
+    replaceUrl(path) { history.replaceState(null, '', path); app.url = here(); },
   };
 }
 
 async function render() {
   const path = location.pathname;
-  if (path === '/' || path === '') {
-    history.replaceState(null, '', app.user ? '/ideas' : '/login');
-    return render();
-  }
-  let found = match(path);
-  if (!found) {
-    history.replaceState(null, '', '/ideas');
-    found = match('/ideas');
-  }
+  const redirect = (to) => { history.replaceState(null, '', to); return render(); };
+  if (path === '/' || path === '') return redirect(app.user ? '/ideas' : '/login');
+  const found = match(path);
+  if (!found) return redirect('/ideas');
   const { route, params } = found;
-  if (!route.public && !app.user) {
-    history.replaceState(null, '', `/login?next=${encodeURIComponent(path + location.search)}`);
-    return render();
-  }
-  if (route.public && app.user) {
-    const next = new URLSearchParams(location.search).get('next');
-    history.replaceState(null, '', safeNext(next));
-    return render();
-  }
+  if (!route.public && !app.user) return redirect(`/login?next=${encodeURIComponent(path + location.search)}`);
+  if (route.public && app.user) return redirect(safeNext(new URLSearchParams(location.search).get('next')));
 
-  let view;
   const token = ++renders;
-  try {
-    view = await route.load();
-  } catch (err) {
+  const view = await route.load().catch((err) => {
     toast(`Could not load this page: ${err.message}`, { kind: 'error', timeout: 0 });
-    return;
-  }
+  });
+  if (!view) return;
   if (token !== renders) return;          // a newer navigation won the race
-
-  // tear down the old view
-  if (app.current?.instance?.unmount) {
-    try { app.current.instance.unmount(); } catch (err) { console.error(err); }
-  }
+  try { app.current?.instance?.unmount?.(); } catch (err) { console.error(err); } // tear down the old view
   app.current = null;
   clear(main);
-  main.className = `view view-${route.nav ? route.nav.slice(1) : 'auth'}`;
-  document.body.dataset.view = route.nav ? route.nav.slice(1) : 'auth';
+  const name = route.nav ? route.nav.slice(1) : 'auth';
+  main.className = `view view-${name}`;
+  document.body.dataset.view = name;
   document.title = `${route.title} · Folly Studio`;
   renderHeader(route);
-
-  const ctx = ctxFor(route, params);
-  const instance = view.mount(main, ctx) || {};
-  app.current = { route, instance };
-  app.url = location.pathname + location.search;
-}
-
-function safeNext(next) {
-  if (next && next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/login')) return next;
-  return '/ideas';
+  app.current = { route, instance: view.mount(main, ctxFor(route, params)) || {} };
+  app.url = here();
 }
 
 async function canLeave() {
-  const inst = app.current?.instance;
-  if (inst?.isDirty?.()) {
-    return confirmDialog('You have unsaved changes in the Studio. Leave without saving?', {
-      title: 'Unsaved changes', ok: 'Leave', danger: true,
-    });
-  }
-  return true;
+  if (!app.current?.instance?.isDirty?.()) return true;
+  return confirmDialog('You have unsaved changes in the Studio. Leave without saving?',
+    { title: 'Unsaved changes', ok: 'Leave', danger: true });
 }
 
 export async function navigate(to, { replace = false, force = false } = {}) {
@@ -146,17 +108,13 @@ function renderHeader(route) {
   const user = app.user;
   header.hidden = !user;
   if (!user) return;
-  const nameEl = document.getElementById('user-name');
-  nameEl.textContent = user.username;
-  const role = document.getElementById('user-role');
-  role.hidden = user.role !== 'curator';
+  document.getElementById('user-name').textContent = user.username;
+  document.getElementById('user-role').hidden = user.role !== 'curator';
   for (const a of header.querySelectorAll('.main-nav a')) {
-    const active = route && route.nav === a.getAttribute('href');
-    if (active) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    if (route && route.nav === a.getAttribute('href')) a.setAttribute('aria-current', 'page');
+    else a.removeAttribute('aria-current');
   }
 }
-
-// ---- global wiring ----------------------------------------------------------------------
 
 document.addEventListener('click', (e) => {
   if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -171,7 +129,7 @@ document.addEventListener('click', (e) => {
 window.addEventListener('popstate', async () => {
   const inst = app.current?.instance;
   if (inst?.isDirty?.()) {
-    const wanted = location.pathname + location.search;
+    const wanted = here();
     history.pushState(null, '', app.url);       // stay put until the user decides
     if (!(await canLeave())) return;
     inst.discard?.();
@@ -206,16 +164,10 @@ if (menuBtn) {
   });
 }
 
-async function boot() {
-  try {
-    const { user } = await api.me();
-    app.user = user || null;
-  } catch (err) {
-    app.user = null;
-    if (err.status !== 401 && err.status !== 403) toast(err.message, { kind: 'error' });
-  }
-  document.body.classList.remove('booting');
-  await render();
+try {
+  app.user = (await api.me()).user || null;
+} catch (err) {
+  if (err.status !== 401 && err.status !== 403) toast(err.message, { kind: 'error' });
 }
-
-boot();
+document.body.classList.remove('booting');
+render();

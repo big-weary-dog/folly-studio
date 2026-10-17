@@ -1,24 +1,17 @@
-// The timeline's controls: the look's length and tempo, snapping, zoom, adding a clip, importing
-// a look, and the selected clip's numbers. On a wide screen they sit in the dock's head and the
-// clip's numbers replace length and tempo while a clip is selected; on a phone they wrap above
-// the strips and the clip's numbers sit below them.
+// The timeline's controls: length and tempo, snapping, zoom, adding a clip, importing a look, and the
+// selected clip's numbers (wide: in the dock's head, in place of length and tempo; phones: below the strips).
 import { h, nextId } from './dom.js';
 import { cleanBpm, cleanDuration, editClip, MAX_DURATION } from './timeline-model.js';
 
-const SNAPS = [
-  { value: 'grid', label: 'Snap ¼ s' },
-  { value: 'beat', label: 'Snap beats' },
-  { value: 'off', label: 'No snap' },
-];
+const SNAPS = [{ value: 'grid', label: 'Snap ¼ s' }, { value: 'beat', label: 'Snap beats' },
+  { value: 'off', label: 'No snap' }];
 
 /** A labelled number box: [label input unit]. */
 function numberField(label, unit, attrs, labelClass = 'tl-label') {
   const id = nextId('tln');
   const input = h('input', { id, type: 'number', class: 'tl-num', inputmode: 'decimal', ...attrs });
-  const unitEl = unit ? h('span', { class: 'tl-unit', text: unit }) : null;
-  const labelEl = h('label', { for: id, class: labelClass, text: label });
-  const field = h('span', { class: 'tl-field' }, labelEl, input, unitEl);
-  return { input, field };
+  return { input, field: h('span', { class: 'tl-field' }, h('label', { for: id, class: labelClass, text: label }),
+    input, unit ? h('span', { class: 'tl-unit', text: unit }) : null) };
 }
 
 const show = (v) => (v === null || v === undefined ? '' : String(Math.round(v * 1000) / 1000));
@@ -37,16 +30,15 @@ export function buildTools(tl) {
     btn('+', 'Zoom in (Ctrl+wheel)', () => tl.zoom(1.6)),
     btn('Fit', 'Fit the whole look', () => tl.zoomToFit(), 'tl-btn tl-fit'));
   const addBtn = h('button', { type: 'button', class: 'btn small tl-add', text: '+ Clip',
-    title: 'Add a clip to the selected layer at the playhead' });
+    title: 'Add a clip to the selected layer at the playhead',
+    onClick: () => tl.addClipAt(tl.layerById(tl.host.selectedId()), tl.host.time()) });
   const importBtn = h('button', { type: 'button', class: 'btn small tl-import', text: 'Import look…',
-    title: 'Import a look: play another look after this one' });
+    title: 'Import a look: play another look after this one', onClick: () => tl.host.onImport() });
 
   // The selected clip's numbers.
-  const secs = { min: 0, max: MAX_DURATION, step: 0.05 };
-  const start = numberField('Start', '', { ...secs, title: 'Start, in seconds' }, 'tl-label keep');
-  const end = numberField('End', '', { ...secs, title: 'End, in seconds' }, 'tl-label keep');
-  const fadeIn = numberField('Fade in', '', { ...secs, title: 'Fade in, in seconds' }, 'tl-label keep');
-  const fadeOut = numberField('Fade out', '', { ...secs, title: 'Fade out, in seconds' }, 'tl-label keep');
+  const secs = (label) => numberField(label, '', { min: 0, max: MAX_DURATION, step: 0.05,
+    title: `${label}, in seconds` }, 'tl-label keep');
+  const [start, end, fadeIn, fadeOut] = ['Start', 'End', 'Fade in', 'Fade out'].map(secs);
   const clipName = h('span', { class: 'tl-clip-name' });
   const delBtn = btn('Remove', 'Remove this clip (Delete)', () => tl.removeSelected(), 'tl-btn tl-del');
   const doneBtn = btn('Done', 'Done with this clip (Esc)', () => {
@@ -70,11 +62,6 @@ export function buildTools(tl) {
     if (bpm !== (tl.look.bpm || null)) tl.setBpm(bpm);
   });
   snapSel.addEventListener('change', () => tl.setSnap(snapSel.value));
-  addBtn.addEventListener('click', () => {
-    const layer = tl.layerById(tl.host.selectedId());
-    tl.addClipAt(layer, tl.host.time());
-  });
-  importBtn.addEventListener('click', () => tl.host.onImport());
   const fields = { start, end, fadeIn, fadeOut };
   for (const [key, f] of Object.entries(fields)) {
     f.input.addEventListener('change', () => {

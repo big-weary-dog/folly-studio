@@ -4,33 +4,15 @@ import { randomId } from './dom.js';
 
 let cathedralP = null;
 export function loadCathedral() {
-  if (!cathedralP) {
-    cathedralP = fetchJSON('/data/cathedral.json').catch((err) => { cathedralP = null; throw err; });
-  }
+  cathedralP ||= fetchJSON('/data/cathedral.json').catch((err) => { cathedralP = null; throw err; });
   return cathedralP;
 }
 
 let libraryP = null;
-/** [{ name, title, summary, code }] — from /api/library, falling back to /patterns/. */
+/** [{ name, title, summary, code }] from /api/library. */
 export function loadLibrary() {
-  if (!libraryP) {
-    libraryP = api.library()
-      .then((r) => (Array.isArray(r.patterns) ? r.patterns : []))
-      .catch(async () => {
-        const idx = await fetchJSON('/patterns/index.json');
-        const list = Array.isArray(idx) ? idx : (idx.patterns || []);
-        const out = [];
-        for (const entry of list) {
-          const meta = typeof entry === 'string' ? { name: entry } : entry;
-          try {
-            const res = await fetch(`/patterns/${encodeURIComponent(meta.name)}.js`);
-            if (res.ok) out.push({ title: meta.name, summary: '', ...meta, code: await res.text() });
-          } catch { /* skip */ }
-        }
-        return out;
-      })
-      .catch((err) => { libraryP = null; throw err; });
-  }
+  libraryP ||= api.library().then((r) => (Array.isArray(r.patterns) ? r.patterns : []))
+    .catch((err) => { libraryP = null; throw err; });
   return libraryP;
 }
 
@@ -58,16 +40,8 @@ function pixel(p, t, P) {
 export function makeLayer(
   { title = 'Layer', code = BLANK_CODE, groups, blend = 'add', level = 1, params = {}, clips } = {}, cathedral,
 ) {
-  return {
-    id: randomId('l'),
-    title,
-    code,
-    groups: groups && groups.length ? [...groups] : [defaultGroupId(cathedral)],
-    blend,
-    level,
-    params: { ...params },
-    ...(clips && clips.length ? { clips: clips.map((c) => ({ ...c })) } : {}),
-  };
+  return { id: randomId('l'), title, code, groups: groups && groups.length ? [...groups] : [defaultGroupId(cathedral)],
+    blend, level, params: { ...params }, ...(clips && clips.length ? { clips: clips.map((c) => ({ ...c })) } : {}) };
 }
 
 export function layerFromPattern(pattern, cathedral) {
@@ -108,14 +82,11 @@ export function normaliseLayers(layers, cathedral) {
   });
 }
 
-// ---- groups -----------------------------------------------------------------------------
-
 /** Precomputed group masks: Map id → Uint8Array(count). */
 export function buildGroupIndex(cathedral) {
   const { count, zones: zoneNames = [], pixels } = cathedral;
   const zoneOf = (z) => (typeof z === 'number' ? z : zoneNames.indexOf(z));
-  const masks = new Map();
-  const counts = new Map();
+  const masks = new Map(), counts = new Map();
   for (const g of cathedral.groups || []) {
     const zones = new Set((g.zones || []).map(zoneOf));
     const strands = new Set(g.strands || []);

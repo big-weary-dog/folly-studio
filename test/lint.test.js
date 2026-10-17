@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { lint, RULES } from '../tools/lint.mjs';
+import { checkBudget } from '../tools/lint/budget.mjs';
 
 const FIXTURES = fileURLToPath(new URL('./fixtures/lint/', import.meta.url));
 const LINT = fileURLToPath(new URL('../tools/lint.mjs', import.meta.url));
@@ -49,6 +50,7 @@ const EXPECT = {
   'syntax': ['src/broken.js:3', 'tools/broken.py:2'],
   'no-eval': ['public/js/main.js:22', 'src/server.js:3', 'src/server.js:13'],
   'no-child-process': ['src/server.js:2'],
+  'line-budget': ['tools/lint/budget.json:7'],
   'no-html-sink': ['public/js/main.js:8', 'public/js/main.js:9', 'public/js/main.js:21'],
   'no-remote-url': ['public/app.css:2', 'public/index.html:9', 'public/js/main.js:6'],
   'no-console-log': ['public/js/main.js:10', 'public/js/main.js:15', 'src/server.js:10'],
@@ -89,6 +91,21 @@ test('every rule has a fixture', () => {
 for (const [rule, want] of Object.entries(EXPECT)) {
   test(rule, () => assert.deepEqual(at(rule === 'bundle-size' ? tight : full, rule), want));
 }
+
+test('a budget goes up only with a new reason, and its file stays', () => {
+  const run = (now, was, lines = 12) => {
+    const out = [];
+    checkBudget(now && JSON.stringify({ areas: { src: now } }), JSON.stringify({ areas: { src: was } }),
+      new Map([['src', lines]]), (line, message) => out.push(message));
+    return out;
+  };
+  assert.deepEqual(run({ lines: 12 }, { lines: 12 }), []);
+  assert.match(run({ lines: 12 }, { lines: 10 })[0], /went up from 10 without a new reason/);
+  assert.match(run({ lines: 12, reason: 'r' }, { lines: 10, reason: 'r' })[0], /without a new reason/);
+  assert.deepEqual(run({ lines: 12, reason: 'the bake panel' }, { lines: 10 }), []);
+  assert.match(run({ lines: 11, reason: 'r' }, { lines: 10 })[0], /over its budget of 11/);
+  assert.match(run(null, { lines: 10 })[0], /committed budget is gone/);
+});
 
 test('valid silences are counted', () => assert.equal(full.silenced, 2));
 

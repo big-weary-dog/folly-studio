@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Folly Studio server: environment → createServer() (src/api.js).
+// Folly Studio server: environment → createServer() (src/app.js).
 //
 //   PORT                   default 8780
 //   HOST                   default 127.0.0.1
@@ -8,31 +8,26 @@
 //   STUDIO_SECURE_COOKIES  1 → Secure session cookie (serve over https)
 //   STUDIO_GENERATOR       idea generator adapter: sketch (default) | claude | fleet
 //   STUDIO_TRUST_PROXY     1 → client IP / host from X-Forwarded-For / X-Forwarded-Host
-//   STUDIO_BAKE_SECONDS    render-box bake length, default 20 (also STUDIO_BAKE_TIMEOUT, _CPU,
-//                          _TASKS, _MEMORY, _MAX_FRAMES: see src/bake.js; needs bubblewrap)
+//   STUDIO_BAKE_SECONDS    longest render-box bake, default 120 (also STUDIO_BAKE_TIMEOUT, _CPU,
+//                          _TASKS, _MEMORY, _MAX_FRAMES: see src/render-box.js; needs bubblewrap)
 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createServer } from './src/api.js';
+import { createServer } from './src/app.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const env = process.env;
 const on = (v) => v === '1' || v === 'true';
-
 const port = Number(env.PORT || 8780);
 const host = env.HOST || '127.0.0.1';
 const dataDir = path.resolve(env.STUDIO_DATA || path.join(here, 'data'));
 
-const app = await createServer({
-  dataDir,
-  publicDir: path.join(here, 'public'),
-  curators: env.STUDIO_CURATORS || '',
-  secureCookies: on(env.STUDIO_SECURE_COOKIES),
-  generatorName: env.STUDIO_GENERATOR || 'sketch',
-  trustProxy: on(env.STUDIO_TRUST_PROXY),
-});
+const app = await createServer({ dataDir, publicDir: path.join(here, 'public'), curators: env.STUDIO_CURATORS || '',
+  secureCookies: on(env.STUDIO_SECURE_COOKIES), generatorName: env.STUDIO_GENERATOR || 'sketch',
+  trustProxy: on(env.STUDIO_TRUST_PROXY) });
 const addr = await app.listen(port, host);
-console.log(`[studio] Folly Studio on http://${host.includes(':') ? `[${host}]` : host}:${addr.port}/ (data ${dataDir}, generator ${app.adapterName})`);
+const where = `http://${host.includes(':') ? `[${host}]` : host}:${addr.port}/`;
+console.log(`[studio] Folly Studio on ${where} (data ${dataDir}, generator ${app.adapterName})`);
 
 let stopping = false;
 for (const signal of ['SIGINT', 'SIGTERM']) {

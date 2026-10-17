@@ -1,170 +1,27 @@
-// Server tests: auth, CSRF, ideas, looks, static files, sandbox, store.
+// Server tests: auth, CSRF, ideas, static files, the sandbox page and the store (looks: looks.test.js).
 // Each server runs on port 0 with its own temp data dir and a fixture public dir.
-
-import { test, before, after, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import http from 'node:http';
-import { writeFseq } from '../public/js/fseq.js';
-import { createServer, validateLayers } from '../src/api.js';
-import { parseFseq } from '../src/frames.js';
+import { after, before, describe, test } from 'node:test';
+
+import { createServer } from '../src/app.js';
+import { validateLayers } from '../src/api.js';
 import { createStore } from '../src/store.js';
 import { CSP_APP, CSP_SANDBOX } from '../src/static.js';
+import {
+  client, CORE_SOURCE, EXPECTED_APP_CSP, EXPECTED_SANDBOX_CSP, fakeBox, fx, layer, PIXEL, quiet, rawGet, signup,
+  startApp, useFixture,
+} from './fixtures/server.js';
 
-const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
-const EXPECTED_APP_CSP =
-  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; " +
-  "frame-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
-const EXPECTED_SANDBOX_CSP = "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; worker-src blob:; sandbox allow-scripts";
-const CORE_SOURCE = "export const STDLIB = {}; const s = 'a$&b$1c'; const t = '</script>';\n";
-const PIXEL = 'function pixel(p, t, P) { return [p.x, p.y, p.z]; }';
-
-let tmp;
-let publicDir;
-
-async function writeFixture(dir) {
-  await mkdir(path.join(dir, 'js'), { recursive: true });
-  await mkdir(path.join(dir, 'patterns'), { recursive: true });
-  await mkdir(path.join(dir, 'data'), { recursive: true });
-  await writeFile(path.join(dir, 'index.html'), '<!doctype html><title>Folly Studio</title><p>APP SHELL</p>');
-  await writeFile(path.join(dir, 'sandbox.html'), '<!doctype html><script>/*@CORE@*/\nwindow.ok = 1;</script>');
-  await writeFile(path.join(dir, 'js', 'pattern-core.js'), CORE_SOURCE);
-  await writeFile(path.join(dir, 'js', 'main.js'), 'console.log("main");');
-  await writeFile(path.join(dir, 'app.css'), 'body { color: red }');
-  await writeFile(path.join(dir, 'favicon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
-  await writeFile(path.join(dir, '.secret-dotfile'), 'DOTFILE');
-  await writeFile(
-    path.join(dir, 'patterns', 'index.json'),
-    JSON.stringify([
-      { name: 'embers', title: 'Rising embers', summary: 'Warm sparks', tags: ['warm'] },
-      { name: 'missing', title: 'No file' },
-      { name: '../evil', title: 'Traversal' },
-    ]),
-  );
-  await writeFile(path.join(dir, 'patterns', 'embers.js'), `// Rising embers\n${PIXEL}\n`);
-  await writeFile(
-    path.join(dir, 'data', 'cathedral.json'),
-    JSON.stringify({
-      version: 1,
-      count: 2,
-      channelsPerUniverse: 510,
-      universes: 1,
-      zones: ['z'],
-      pixels: { zone: [0, 0], strand: [0, 0], universe: [1, 1], channel: [1, 4], row: [0, 0], pos: [0, 0, 0, 0, 1, 0] },
-      groups: [{ id: 'cathedral', name: 'Cathedral', parent: null, zones: [0] }],
-    }),
-  );
-}
-
-/**
- * A stand-in render box (the real one, under bubblewrap, is test/bake.test.js): two seconds of
- * frames for the fixture's two LEDs, strobing at 10 Hz when the code says STROBE, else steady.
- */
-function fakeBox() {
-  return {
-    renders: 0,
-    config: { seconds: 2 },
-    probe: async () => ({ ok: true }),
-    async render({ layers }) {
-      this.renders++;
-      const strobe = layers.some((l) => /STROBE/.test(l.code));
-      const data = new Uint8Array(80 * 6);
-      for (let f = 0; f < 80; f++) data.fill(strobe && Math.floor(f / 2) % 2 ? 0 : 200, f * 6, f * 6 + 6);
-      return { bytes: Buffer.from(writeFseq({ frames: 80, data, ranges: [[0, 6]] })), boxStats: { untrusted: true, reported: { ok: true } } };
-    },
-  };
-}
-
-function fakeQueue() {
-  return { enqueued: [], enqueue(idea) { this.enqueued.push(idea); }, async idle() {} };
-}
-
-async function startApp(opts = {}) {
-  const app = await createServer({ publicDir, generator: fakeQueue(), generatorName: 'test', log: quiet, ...opts });
-  const addr = await app.listen(0, '127.0.0.1');
-  app.base = `http://127.0.0.1:${addr.port}`;
-  app.port = addr.port;
-  return app;
-}
-
-/** A tiny cookie-keeping JSON client. */
-function client(app) {
-  let cookie = '';
-  async function req(method, p, body, headers = {}) {
-    const h = { ...headers };
-    if (cookie && !('cookie' in h)) h.cookie = cookie;
-    if (method !== 'GET' && !('content-type' in h)) h['content-type'] = 'application/json';
-    const payload = body === undefined ? undefined : typeof body === 'string' ? body : JSON.stringify(body);
-    const res = await fetch(app.base + p, { method, headers: h, body: payload });
-    const setCookie = res.headers.getSetCookie();
-    for (const c of setCookie) {
-      const m = /^studio_session=([^;]*)/.exec(c);
-      if (m) cookie = m[1] ? `studio_session=${m[1]}` : '';
-    }
-    const text = await res.text();
-    let json;
-    try {
-      json = JSON.parse(text);
-    } catch {}
-    return { status: res.status, headers: res.headers, json, text, setCookie };
-  }
-  return {
-    req,
-    get: (p, h) => req('GET', p, undefined, h),
-    post: (p, b, h) => req('POST', p, b ?? {}, h),
-    put: (p, b, h) => req('PUT', p, b, h),
-    del: (p, h) => req('DELETE', p, undefined, h),
-    get cookie() {
-      return cookie;
-    },
-    set cookie(v) {
-      cookie = v;
-    },
-  };
-}
-
-async function signup(app, username, password = 'correct horse') {
-  const c = client(app);
-  const r = await c.post('/api/signup', { username, password });
-  assert.equal(r.status, 201, `signup ${username}: ${r.text}`);
-  c.user = r.json.user;
-  return c;
-}
-
-/** Raw GET with an unnormalized path (fetch would collapse ../). */
-function rawGet(port, rawPath) {
-  return new Promise((resolve, reject) => {
-    const r = http.request({ host: '127.0.0.1', port, path: rawPath, method: 'GET' }, (res) => {
-      let data = '';
-      res.setEncoding('utf8');
-      res.on('data', (d) => (data += d));
-      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: data }));
-    });
-    r.on('error', reject);
-    r.end();
-  });
-}
-
-const layer = (extra = {}) => ({ id: 'l1', title: 'Sea', code: PIXEL, groups: ['cathedral'], blend: 'add', level: 1, params: { speed: 0.4 }, ...extra });
-
-before(async () => {
-  tmp = await mkdtemp(path.join(tmpdir(), 'studio-server-test-'));
-  publicDir = path.join(tmp, 'public');
-  await writeFixture(publicDir);
-  await writeFile(path.join(tmp, 'secret.txt'), 'TOP SECRET');
-});
-
-after(async () => {
-  await rm(tmp, { recursive: true, force: true });
-});
+useFixture();
 
 describe('server', () => {
   let app;
   let box;
   before(async () => {
-    app = await startApp({ dataDir: path.join(tmp, 'data-main'), curators: 'Carol, other', renderBox: (box = fakeBox()) });
+    app = await startApp({ dataDir: path.join(fx.tmp, 'data-main'), curators: 'Carol, other',
+      renderBox: (box = fakeBox()) });
   });
   after(async () => {
     await app.close();
@@ -183,7 +40,7 @@ describe('server', () => {
       const me = await c.get('/api/me');
       assert.equal(me.status, 200);
       assert.deepEqual(me.json.user, r.json.user);
-      assert.equal(me.headers.get('cache-control'), 'no-store');
+      assert.equal(me.headers.get('cache-control'), 'private, no-cache', 'kept, but revalidated every time');
 
       const oldCookie = c.cookie;
       const out = await c.post('/api/logout');
@@ -222,7 +79,7 @@ describe('server', () => {
     });
 
     test('Secure cookie when secureCookies is on', async () => {
-      const secure = await startApp({ dataDir: path.join(tmp, 'data-secure'), secureCookies: true });
+      const secure = await startApp({ dataDir: path.join(fx.tmp, 'data-secure'), secureCookies: true });
       try {
         const r = await client(secure).post('/api/signup', { username: 'secure-sam', password: 'password123' });
         assert.equal(r.status, 201);
@@ -260,10 +117,10 @@ describe('server', () => {
     test('nothing secret reaches disk or responses', async () => {
       const c = await signup(app, 'disk-check', 'disk-check-password');
       await app.store.flush();
-      const users = await readFile(path.join(tmp, 'data-main', 'users.json'), 'utf8');
+      const users = await readFile(path.join(fx.tmp, 'data-main', 'users.json'), 'utf8');
       assert.ok(!users.includes('disk-check-password'));
       assert.match(users, /scrypt\$/);
-      const sessions = await readFile(path.join(tmp, 'data-main', 'sessions.json'), 'utf8');
+      const sessions = await readFile(path.join(fx.tmp, 'data-main', 'sessions.json'), 'utf8');
       const token = c.cookie.split('=')[1];
       assert.ok(!sessions.includes(token));
       const me = await c.get('/api/me');
@@ -295,24 +152,29 @@ describe('server', () => {
     });
 
     test('mutations need Content-Type: application/json', async () => {
-      const plain = await alice.post('/api/ideas', JSON.stringify({ text: 'a plain text idea' }), { 'content-type': 'text/plain' });
+      const plain = await alice.post('/api/ideas', JSON.stringify({ text: 'a plain text idea' }),
+        { 'content-type': 'text/plain' });
       assert.equal(plain.status, 415);
-      const form = await alice.post('/api/login', 'username=alice&password=correct+horse', { 'content-type': 'application/x-www-form-urlencoded' });
+      const form = await alice.post('/api/login', 'username=alice&password=correct+horse',
+        { 'content-type': 'application/x-www-form-urlencoded' });
       assert.equal(form.status, 415);
       const none = await fetch(`${app.base}/api/logout`, { method: 'POST', headers: { cookie: alice.cookie } });
       assert.equal(none.status, 415);
       const del = await alice.del('/api/looks/whatever', { 'content-type': '' });
       assert.equal(del.status, 415);
-      const charset = await alice.post('/api/ideas', { text: 'charset is fine' }, { 'content-type': 'application/json; charset=utf-8' });
+      const charset = await alice.post('/api/ideas', { text: 'charset is fine' },
+        { 'content-type': 'application/json; charset=utf-8' });
       assert.equal(charset.status, 201);
     });
 
     test('cross-origin Origin is refused, same-origin allowed', async () => {
-      for (const origin of ['http://evil.example', 'null', `http://127.0.0.1:${app.port + 1}`, 'https://evil.example:443']) {
+      for (const origin of ['http://evil.example', 'null', `http://127.0.0.1:${app.port + 1}`,
+        'https://evil.example:443']) {
         const r = await alice.post('/api/ideas', { text: 'cross origin idea' }, { origin });
         assert.equal(r.status, 403, origin);
       }
-      const login = await client(app).post('/api/login', { username: 'alice', password: 'correct horse' }, { origin: 'http://evil.example' });
+      const login = await client(app).post('/api/login', { username: 'alice', password: 'correct horse' },
+        { origin: 'http://evil.example' });
       assert.equal(login.status, 403);
       assert.equal(login.setCookie.length, 0);
       const same = await alice.post('/api/ideas', { text: 'same origin idea' }, { origin: app.base });
@@ -345,7 +207,8 @@ describe('server', () => {
 
     test('auth required', async () => {
       const anon = client(app);
-      for (const p of ['/api/me', '/api/ideas', '/api/looks', '/api/looks?scope=gallery', '/api/ideas/abc', '/api/looks/abc']) {
+      for (const p of ['/api/me', '/api/ideas', '/api/looks', '/api/looks?scope=gallery', '/api/ideas/abc',
+        '/api/looks/abc']) {
         assert.equal((await anon.get(p)).status, 401, p);
       }
       assert.equal((await anon.post('/api/looks', { title: 't', layers: [] })).status, 401);
@@ -398,237 +261,6 @@ describe('server', () => {
     });
   });
 
-  describe('looks', () => {
-    let alice;
-    let bob;
-    let carol;
-    before(async () => {
-      alice = await signup(app, 'look-alice');
-      bob = await signup(app, 'look-bob');
-      carol = client(app);
-      assert.equal((await carol.post('/api/login', { username: 'carol', password: 'correct horse' })).status, 200);
-    });
-
-    test('create validates and defaults', async () => {
-      const r = await alice.post('/api/looks', { title: ' Coral reef ', layers: [{ code: PIXEL }] });
-      assert.equal(r.status, 201);
-      const look = r.json.look;
-      assert.equal(look.title, 'Coral reef');
-      assert.equal(look.summary, '');
-      assert.equal(look.owner, alice.user.id);
-      assert.equal(look.ownerName, 'look-alice');
-      assert.equal(look.shared, false);
-      assert.equal(look.reviewed, false);
-      assert.equal('versions' in look, false);
-      assert.deepEqual(look.layers, [{ id: 'l1', title: '', code: PIXEL, groups: ['cathedral'], blend: 'add', level: 1, params: {} }]);
-
-      const bads = [
-        { layers: [layer()] },
-        { title: 'x', layers: 'nope' },
-        { title: 'x', layers: Array.from({ length: 9 }, (_, i) => layer({ id: `l${i}` })) },
-        { title: 'x', layers: [layer({ code: 42 })] },
-        { title: 'x', layers: [layer({ code: `// ${'x'.repeat(20 * 1024)}` })] },
-        { title: 'x', layers: [layer({ groups: 'cathedral' })] },
-        { title: 'x', layers: [layer({ groups: [1] })] },
-        { title: 'x', layers: [layer({ blend: 'screen' })] },
-        { title: 'x', layers: [layer({ level: 1.5 })] },
-        { title: 'x', layers: [layer({ level: -0.1 })] },
-        { title: 'x', layers: [layer({ params: [] })] },
-        { title: 'x', layers: [layer({ params: { a: { nested: true } } })] },
-        { title: 'x', layers: [layer(), layer()] },
-        { title: 'x', layers: [layer()], ideaId: 'not-mine' },
-      ];
-      for (const body of bads) {
-        const res = await alice.post('/api/looks', body);
-        assert.equal(res.status, 400, JSON.stringify(body).slice(0, 120));
-        assert.ok(res.json.error);
-      }
-      const eight = Array.from({ length: 8 }, (_, i) => layer({ id: `l${i}`, blend: ['add', 'over', 'max', 'multiply'][i % 4], level: i / 7 }));
-      assert.equal((await alice.post('/api/looks', { title: 'Eight', layers: eight })).status, 201);
-    });
-
-    test('ideaId must be my idea', async () => {
-      const idea = (await alice.post('/api/ideas', { text: 'linked idea' })).json.idea;
-      const ok = await alice.post('/api/looks', { title: 'From idea', layers: [layer()], ideaId: idea.id });
-      assert.equal(ok.status, 201);
-      assert.equal(ok.json.look.ideaId, idea.id);
-      assert.equal((await bob.post('/api/looks', { title: 'Stolen', layers: [layer()], ideaId: idea.id })).status, 400);
-    });
-
-    test('ownership, sharing, gallery', async () => {
-      const a1 = (await alice.post('/api/looks', { title: 'First', layers: [layer()] })).json.look;
-      const a2 = (await alice.post('/api/looks', { title: 'Second', layers: [layer()] })).json.look;
-
-      // Private: invisible to others.
-      assert.equal((await bob.get(`/api/looks/${a1.id}`)).status, 404);
-      assert.equal((await bob.put(`/api/looks/${a1.id}`, { title: 'Mine now' })).status, 404);
-      assert.equal((await bob.del(`/api/looks/${a1.id}`)).status, 404);
-      assert.ok(!(await bob.get('/api/looks?scope=gallery')).json.looks.some((l) => l.id === a1.id));
-
-      const mine = (await alice.get('/api/looks')).json.looks.map((l) => l.id);
-      assert.ok(mine.includes(a1.id) && mine.includes(a2.id));
-      assert.ok(!(await bob.get('/api/looks?scope=mine')).json.looks.some((l) => l.owner === alice.user.id));
-      assert.equal((await alice.get('/api/looks?scope=everything')).status, 400);
-
-      // Share a1 then a2: gallery is newest first.
-      assert.equal((await alice.put(`/api/looks/${a1.id}`, { shared: true })).json.look.shared, true);
-      await new Promise((r) => setTimeout(r, 5));
-      assert.equal((await alice.put(`/api/looks/${a2.id}`, { shared: true })).status, 200);
-      const gallery = (await bob.get('/api/looks?scope=gallery')).json.looks;
-      const ids = gallery.map((l) => l.id);
-      assert.ok(ids.indexOf(a2.id) < ids.indexOf(a1.id) && ids.indexOf(a2.id) >= 0);
-      assert.ok(gallery.every((l) => l.shared === true && !('versions' in l)));
-      assert.equal(gallery.find((l) => l.id === a1.id).ownerName, 'look-alice');
-
-      // Shared: visible, still not editable or deletable by others.
-      assert.equal((await bob.get(`/api/looks/${a1.id}`)).json.look.title, 'First');
-      assert.equal((await bob.put(`/api/looks/${a1.id}`, { title: 'Mine now' })).status, 403);
-      assert.equal((await bob.del(`/api/looks/${a1.id}`)).status, 403);
-
-      // Unshare: gone again.
-      await alice.put(`/api/looks/${a1.id}`, { shared: false });
-      assert.equal((await bob.get(`/api/looks/${a1.id}`)).status, 404);
-
-      // Delete.
-      const del = await alice.del(`/api/looks/${a2.id}`);
-      assert.deepEqual(del.json, { ok: true });
-      assert.equal((await alice.get(`/api/looks/${a2.id}`)).status, 404);
-      assert.equal((await alice.del(`/api/looks/${a2.id}`)).status, 404);
-    });
-
-    test('PUT keeps up to 20 previous versions, shown only with ?versions=1', async () => {
-      const look = (await alice.post('/api/looks', { title: 'Versioned', layers: [layer({ level: 0 })] })).json.look;
-      const r1 = await alice.put(`/api/looks/${look.id}`, { layers: [layer({ level: 0.5 })] });
-      assert.equal(r1.status, 200);
-      assert.equal(r1.json.look.layers[0].level, 0.5);
-      assert.equal('versions' in r1.json.look, false);
-
-      const full = await alice.get(`/api/looks/${look.id}?versions=1`);
-      assert.equal(full.json.look.versions.length, 1);
-      assert.equal(full.json.look.versions[0].layers[0].level, 0);
-      assert.equal('versions' in (await alice.get(`/api/looks/${look.id}`)).json.look, false);
-
-      // Title-only and identical-layer saves add no version.
-      await alice.put(`/api/looks/${look.id}`, { title: 'Renamed', layers: [layer({ level: 0.5 })] });
-      assert.equal((await alice.get(`/api/looks/${look.id}?versions=1`)).json.look.versions.length, 1);
-
-      for (let i = 1; i <= 25; i++) await alice.put(`/api/looks/${look.id}`, { layers: [layer({ level: i / 100 })] });
-      const capped = (await alice.put(`/api/looks/${look.id}?versions=1`, { title: 'Done' })).json.look;
-      assert.equal(capped.versions.length, 20);
-      assert.equal(capped.versions.at(-1).layers[0].level, 0.24);
-      assert.equal(capped.title, 'Done');
-
-      // Others never see versions, even of a shared look.
-      await alice.put(`/api/looks/${look.id}`, { shared: true });
-      assert.equal('versions' in (await bob.get(`/api/looks/${look.id}?versions=1`)).json.look, false);
-
-      // Invalid layers on PUT are rejected and nothing changes.
-      assert.equal((await alice.put(`/api/looks/${look.id}`, { layers: [layer({ blend: 'nope' })] })).status, 400);
-      assert.equal((await alice.get(`/api/looks/${look.id}`)).json.look.layers[0].level, 0.25);
-    });
-
-    test('reviewed is curator-only', async () => {
-      const look = (await alice.post('/api/looks', { title: 'Review me', layers: [layer()], shared: true })).json.look;
-      assert.equal(look.shared, true);
-
-      assert.equal((await alice.put(`/api/looks/${look.id}`, { reviewed: true })).status, 403);
-      assert.equal((await bob.put(`/api/looks/${look.id}`, { reviewed: true })).status, 403);
-      // Echoing the unchanged value is harmless.
-      assert.equal((await alice.put(`/api/looks/${look.id}`, { title: 'Review me', reviewed: false })).status, 200);
-
-      // Reviewing needs a passing render-box bake of the current code.
-      const unbaked = await carol.put(`/api/looks/${look.id}`, { reviewed: true });
-      assert.equal(unbaked.status, 409);
-      assert.match(unbaked.json.error, /Bake this look/);
-      assert.equal((await alice.post(`/api/looks/${look.id}/bake`)).status, 202);
-      await app.bakes.idle();
-      const ok = await carol.put(`/api/looks/${look.id}`, { reviewed: true });
-      assert.equal(ok.status, 200, ok.text);
-      assert.equal(ok.json.look.reviewed, true);
-      assert.equal((await bob.get(`/api/looks/${look.id}`)).json.look.reviewed, true);
-      // A curator may not edit someone else's content.
-      assert.equal((await carol.put(`/api/looks/${look.id}`, { title: 'Curated', reviewed: true })).status, 403);
-
-      // New code from the owner clears the review, and the bake of the old code.
-      const edited = await alice.put(`/api/looks/${look.id}`, { layers: [layer({ level: 0.3 })] });
-      assert.equal(edited.json.look.reviewed, false);
-      assert.equal(edited.json.look.bake, undefined);
-      assert.equal((await carol.put(`/api/looks/${look.id}`, { reviewed: true })).status, 409);
-
-      // A curator cannot review a private look of someone else.
-      const priv = (await alice.post('/api/looks', { title: 'Private', layers: [layer()] })).json.look;
-      assert.equal((await carol.put(`/api/looks/${priv.id}`, { reviewed: true })).status, 404);
-      // But can review their own, once baked.
-      const own = (await carol.post('/api/looks', { title: 'Carol own', layers: [layer()] })).json.look;
-      assert.equal((await carol.post(`/api/looks/${own.id}/bake`)).status, 202);
-      await app.bakes.idle();
-      assert.equal((await carol.put(`/api/looks/${own.id}`, { reviewed: true })).json.look.reviewed, true);
-    });
-
-    test('bake: queued render, frames download, flicker blocks review', async () => {
-      const strobe = (await alice.post('/api/looks', { title: 'Strobe!  "x"', layers: [layer({ code: `// STROBE\n${PIXEL}` })], shared: true })).json.look;
-      const calm = (await alice.post('/api/looks', { title: 'Calm', layers: [layer()] })).json.look;
-      assert.equal((await alice.get(`/api/looks/${calm.id}/frames`)).status, 404, 'nothing baked yet');
-
-      assert.equal((await bob.post(`/api/looks/${strobe.id}/bake`)).status, 403, 'not the owner, not a curator');
-      assert.equal((await bob.post(`/api/looks/${calm.id}/bake`)).status, 404, 'private');
-      const queued = await alice.post(`/api/looks/${strobe.id}/bake`);
-      assert.equal(queued.status, 202);
-      assert.equal(queued.json.bake.source, 'render-box');
-      assert.ok(['queued', 'running'].includes(queued.json.bake.status));
-      assert.equal((await carol.post(`/api/looks/${calm.id}/bake`)).status, 404, 'a curator bakes only what they can see');
-      const before = box.renders;
-      assert.equal((await alice.post(`/api/looks/${calm.id}/bake`)).status, 202);
-      assert.ok(['queued', 'running'].includes((await alice.post(`/api/looks/${calm.id}/bake`)).json.bake.status), 'asking again while queued is the same bake');
-      await app.bakes.idle();
-      assert.equal(box.renders, before + 1);
-
-      const { bake } = (await alice.get(`/api/looks/${strobe.id}`)).json.look;
-      assert.equal(bake.status, 'done');
-      assert.equal(bake.ok, false);
-      assert.equal(bake.analysis.flicker.ok, false);
-      assert.equal(bake.analysis.flicker.maxHz, 10);
-      assert.equal(bake.analysis.frames, 80);
-      assert.equal(bake.boxStats.untrusted, true);
-      assert.match(bake.reason, /flash/);
-      const blocked = await carol.put(`/api/looks/${strobe.id}`, { reviewed: true });
-      assert.equal(blocked.status, 409);
-      assert.match(blocked.json.error, /flash/);
-
-      // Frames: owner and (shared) others download them; the private look's only its owner.
-      const res = await fetch(`${app.base}/api/looks/${strobe.id}/frames`, { headers: { cookie: bob.cookie } });
-      assert.equal(res.status, 200);
-      assert.equal(res.headers.get('content-type'), 'application/octet-stream');
-      assert.equal(res.headers.get('content-disposition'), 'attachment; filename="Strobe-x.fseq"');
-      const parsed = parseFseq(new Uint8Array(await res.arrayBuffer()));
-      assert.equal(parsed.frameCount, 80);
-      assert.deepEqual(parsed.ranges, [[0, 6]]);
-      assert.equal((await alice.get(`/api/looks/${calm.id}/frames`)).status, 200);
-      assert.equal((await bob.get(`/api/looks/${calm.id}/frames`)).status, 404);
-      assert.equal((await fetch(`${app.base}/api/looks/${strobe.id}/frames`)).status, 401);
-
-      // Editing the code drops the bake and its frames.
-      assert.equal((await alice.get(`/api/looks/${calm.id}`)).json.look.bake.ok, true);
-      await alice.put(`/api/looks/${calm.id}`, { layers: [layer({ level: 0.5 })] });
-      assert.equal((await alice.get(`/api/looks/${calm.id}/frames`)).status, 404);
-      // Deleting the look deletes its frames.
-      const file = path.join(tmp, 'data-main', 'frames', `${strobe.id}.fseq`);
-      assert.ok((await readFile(file)).length > 0);
-      assert.equal((await alice.del(`/api/looks/${strobe.id}`)).status, 200);
-      await assert.rejects(readFile(file), /ENOENT/);
-    });
-
-    test('a failed flicker check from any box blocks review', async () => {
-      const look = (await alice.post('/api/looks', { title: 'Fleet strobe', layers: [layer()], shared: true })).json.look;
-      app.store.looks.update(look.id, {
-        bake: { source: 'fleet-box', status: 'done', ok: false, analysis: { flicker: { ok: false, maxHz: 8, flaggedSeconds: [2, 3], regions: ['cathedral'] } } },
-      });
-      const r = await carol.put(`/api/looks/${look.id}`, { reviewed: true });
-      assert.equal(r.status, 409);
-      assert.match(r.json.error, /up to 8 flashes a second .* around 2 s, 3 s/);
-      assert.equal((await alice.get(`/api/looks/${look.id}`)).json.look.reviewed, false);
-    });
-  });
 
   describe('static files', () => {
     test('index, SPA routes, MIME types, security headers', async () => {
@@ -645,7 +277,8 @@ describe('server', () => {
         assert.equal(r.status, 200, p);
         assert.match(await r.text(), /APP SHELL/);
       }
-      const types = { '/js/main.js': /^text\/javascript/, '/app.css': /^text\/css/, '/favicon.svg': /^image\/svg\+xml/, '/data/cathedral.json': /^application\/json/ };
+      const types = { '/js/main.js': /^text\/javascript/, '/app.css': /^text\/css/, '/favicon.svg': /^image\/svg\+xml/,
+        '/data/cathedral.json': /^application\/json/ };
       for (const [p, type] of Object.entries(types)) {
         const r = await fetch(app.base + p);
         assert.equal(r.status, 200, p);
@@ -705,7 +338,9 @@ describe('server', () => {
     test('library lists index.json patterns that have code', async () => {
       const r = await fetch(`${app.base}/api/library`);
       assert.equal(r.status, 200);
-      assert.equal(r.headers.get('cache-control'), 'no-store');
+      assert.equal(r.headers.get('cache-control'), 'private, no-cache');
+      const again = await fetch(`${app.base}/api/library`, { headers: { 'if-none-match': r.headers.get('etag') } });
+      assert.equal(again.status, 304, 'an unchanged library moves no bytes');
       const { patterns } = await r.json();
       assert.deepEqual(patterns.map((p) => p.name), ['embers']);
       assert.equal(patterns[0].title, 'Rising embers');
@@ -716,48 +351,20 @@ describe('server', () => {
   });
 });
 
-describe('without a render box', () => {
-  test('baking refuses with the reason, and nothing is queued', async () => {
-    const reason = 'The render box is not available: bubblewrap (bwrap) is not installed on this server.';
-    const app = await startApp({ dataDir: path.join(tmp, 'data-nobox'), renderBox: { probe: async () => ({ ok: false, reason }), render: assert.fail } });
-    try {
-      const alice = await signup(app, 'nobox');
-      const look = (await alice.post('/api/looks', { title: 'x', layers: [layer()] })).json.look;
-      const r = await alice.post(`/api/looks/${look.id}/bake`);
-      assert.equal(r.status, 503);
-      assert.equal(r.json.error, reason);
-      assert.equal((await alice.get(`/api/looks/${look.id}`)).json.look.bake, undefined);
-    } finally {
-      await app.close();
-    }
-  });
-});
-
-describe('without a generator or public files yet', () => {
+describe('without public files yet', () => {
   let app;
   before(async () => {
-    const empty = path.join(tmp, 'public-empty');
+    const empty = path.join(fx.tmp, 'public-empty');
     await mkdir(empty, { recursive: true });
     app = await createServer({
-      dataDir: path.join(tmp, 'data-fallback'),
+      dataDir: path.join(fx.tmp, 'data-fallback'),
       publicDir: empty,
-      generatorModule: new URL('./no-such-generator.js', import.meta.url).href,
       log: quiet,
     });
     const addr = await app.listen(0);
     app.base = `http://127.0.0.1:${addr.port}`;
   });
   after(() => app.close());
-
-  test('falls back to a queue that marks ideas failed', async () => {
-    const c = client(app);
-    assert.equal((await c.post('/api/signup', { username: 'fallback', password: 'password123' })).status, 201);
-    const r = await c.post('/api/ideas', { text: 'an idea with no generator' });
-    assert.equal(r.status, 201);
-    assert.equal(r.json.idea.generator, 'none');
-    assert.equal(r.json.idea.status, 'failed');
-    assert.ok(r.json.idea.error);
-  });
 
   test('library and groups are empty, missing index.html is a 404', async () => {
     assert.deepEqual((await (await fetch(`${app.base}/api/library`)).json()).patterns, []);
@@ -769,7 +376,7 @@ describe('without a generator or public files yet', () => {
 
 describe('store', () => {
   test('create/get/list/update/remove persist atomically and reload', async () => {
-    const dir = path.join(tmp, 'store-test');
+    const dir = path.join(fx.tmp, 'store-test');
     const store = await createStore(dir, { log: quiet });
     const a = store.looks.create({ title: 'A', owner: 'u1' });
     assert.match(a.id, /^[A-Za-z0-9_-]{16}$/);
@@ -809,7 +416,7 @@ describe('store', () => {
   });
 
   test('refuses to start on a corrupt file', async () => {
-    const dir = path.join(tmp, 'store-corrupt');
+    const dir = path.join(fx.tmp, 'store-corrupt');
     await mkdir(dir, { recursive: true });
     await writeFile(path.join(dir, 'looks.json'), '[{"id": ');
     await assert.rejects(createStore(dir, { log: quiet }), /not valid JSON/);

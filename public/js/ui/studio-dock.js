@@ -1,30 +1,24 @@
-// The Studio's bottom dock on a wide screen: Timeline and Code tabs, a fold toggle, and the
-// splitter that sizes the code editor. The timeline opens by default and sizes itself to its
-// rows; the code editor folds by default on short screens. Phones show these panes as Studio
-// tabs instead, so the dock's head and splitter are wide-screen only (app.css, timeline.css).
+// The Studio's bottom dock (wide screens; phones use Studio tabs): Timeline and Code tabs, a fold toggle,
+// and the splitter that sizes the code editor. The code editor starts folded on short screens.
 import { h, nextId } from './dom.js';
 
 const TABS = [{ id: 'code', label: 'Code' }, { id: 'timeline', label: 'Timeline' }];
 
-/**
- * @param {object} o
- * @param {HTMLElement} o.studio   the Studio root: gets data-dock and the code-collapsed class
- * @param {(key, value?) => string|null} o.store  localStorage get/set
- * @param {Node[]} o.extras        code-only bits for the head (layer name, issue badge, retry)
- * @param {boolean} o.short        a short screen: the code tab starts folded
- */
+// createDock({ studio (gets data-dock, .code-collapsed), store(key, value?) (pref), extras (code-only head
+//   bits), short }) → { pane, splitter, codeBody, timelineBody, toolsSlot, show(id), setFolded(on), tab }
 export function createDock({ studio, store, extras = [], short = false }) {
   const codeBody = h('div', { class: 'pane-body code-body', id: nextId('dock') });
   const timelineBody = h('div', { class: 'tl-body', id: nextId('dock') });
   const toolsSlot = h('div', { class: 'dock-tools' });
   const fold = h('button', { type: 'button', class: 'btn small ghost collapse-btn', 'aria-expanded': 'true',
-    'aria-controls': `${codeBody.id} ${timelineBody.id}`, title: 'Fold the panel away to give the 3D view more room' });
+    'aria-controls': `${codeBody.id} ${timelineBody.id}`, title: 'Fold the panel away to give the 3D view more room',
+    onClick: () => setFolded(!studio.classList.contains('code-collapsed')) });
   const tabBtns = TABS.map((t) => h('button', { type: 'button', class: 'dock-tab', dataset: { dock: t.id },
     'aria-pressed': 'false', text: t.label, onClick: () => show(t.id) }));
   const head = h('div', { class: 'pane-head dock-head' },
-    h('div', { class: 'dock-tabs', role: 'group', 'aria-label': 'Bottom panel' }, tabBtns), ...extras, toolsSlot, fold);
-  const pane = h('section', { class: 'pane pane-code', dataset: { pane: 'code' }, 'aria-label': 'Code and timeline' },
-    head, codeBody, timelineBody);
+    h('div', { class: 'dock-tabs', role: 'group', 'aria-label': 'Bottom panel' }, tabBtns), extras, toolsSlot, fold);
+  const pane = h('section', { class: 'pane pane-code', dataset: { pane: 'code' },
+    'aria-label': 'Code and timeline' }, head, codeBody, timelineBody);
   const splitter = h('div', { class: 'splitter', role: 'separator', 'aria-orientation': 'horizontal', tabindex: 0,
     'aria-label': 'Resize code editor', 'aria-valuemin': 15, 'aria-valuemax': 75 });
 
@@ -50,7 +44,6 @@ export function createDock({ studio, store, extras = [], short = false }) {
   const pref = store('studio.dockFolded');
   studio.classList.toggle('code-collapsed', pref === null ? tab === 'code' && short : pref === '1');
   show(tab, { unfold: false });
-  fold.addEventListener('click', () => setFolded(!studio.classList.contains('code-collapsed')));
 
   // The splitter sizes the code editor (a share of the Studio's height).
   const savedSplit = +store('studio.split');
@@ -62,7 +55,8 @@ export function createDock({ studio, store, extras = [], short = false }) {
   }
   let drag = null;
   splitter.addEventListener('pointerdown', (e) => {
-    drag = { y: e.clientY, h: pane.getBoundingClientRect().height, total: studio.getBoundingClientRect().height };
+    drag = { y: e.clientY, h: pane.getBoundingClientRect().height,
+      total: studio.getBoundingClientRect().height };
     splitter.setPointerCapture(e.pointerId);
     studio.classList.add('resizing');
   });

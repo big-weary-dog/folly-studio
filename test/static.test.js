@@ -13,7 +13,8 @@ import {
 } from '../src/static.js';
 
 const quiet = { info() {}, warn() {}, error() {} };
-const BIG_JS = `// a module big enough to compress\n${'export const lights = ["ruby", "sapphire", "amber", "emerald"];\n'.repeat(80)}`;
+const BIG_JS = `// a module big enough to compress\n${
+  'export const lights = ["ruby", "sapphire", "amber", "emerald"];\n'.repeat(80)}`;
 const CORE = `export function renderFrame() { return '</script>'; }\n${'// stdlib\n'.repeat(100)}`;
 
 let dir, server, base;
@@ -35,17 +36,22 @@ before(async () => {
   dir = await mkdtemp(path.join(tmpdir(), 'studio-static-'));
   await mkdir(path.join(dir, 'js'), { recursive: true });
   await mkdir(path.join(dir, 'data'), { recursive: true });
-  await writeFile(path.join(dir, 'index.html'), `<!doctype html><title>Folly Studio</title>${'<p>APP SHELL</p>'.repeat(60)}`);
-  await writeFile(path.join(dir, 'sandbox.html'), `<!doctype html><script type="text/x-core">/*@CORE@*/</script>${'<!-- relay -->'.repeat(40)}`);
+  await writeFile(path.join(dir, 'index.html'),
+    `<!doctype html><title>Folly Studio</title>${'<p>APP SHELL</p>'.repeat(60)}`);
+  await writeFile(path.join(dir, 'sandbox.html'),
+    `<!doctype html><script type="text/x-core">/*@CORE@*/</script>${'<!-- relay -->'.repeat(40)}`);
   await writeFile(path.join(dir, 'js', 'pattern-core.js'), CORE);
+  await writeFile(path.join(dir, 'js', 'sandbox-worker.js'), "import { renderFrame } from './pattern-core.js';\n");
   await writeFile(path.join(dir, 'js', 'big.js'), BIG_JS);
   await writeFile(path.join(dir, 'js', 'tiny.js'), 'export const a = 1;\n');
-  await writeFile(path.join(dir, 'data', 'cathedral.json'), JSON.stringify({ pos: Array.from({ length: 3000 }, (_, i) => +(i * 0.137).toFixed(3)) }));
+  await writeFile(path.join(dir, 'data', 'cathedral.json'), JSON.stringify({ pos: Array.from({ length: 3000 }, (_,
+    i) => +(i * 0.137).toFixed(3)) }));
   await writeFile(path.join(dir, 'pic.png'), Buffer.alloc(4096, 7));
   const serve = createStatic({ publicDir: dir, log: quiet });
   server = http.createServer((req, res) => {
     applySecurityHeaders(res);
-    serve(req, res, new URL(req.url, 'http://x').pathname).catch((err) => { res.writeHead(500); res.end(String(err)); });
+    serve(req, res, new URL(req.url,
+      'http://x').pathname).catch((err) => { res.writeHead(500); res.end(String(err)); });
   });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${server.address().port}`;
@@ -159,7 +165,8 @@ describe('serving', () => {
     const r = await get('/sandbox.html', { 'accept-encoding': 'gzip' });
     assert.equal(r.status, 200);
     assert.equal(r.headers['content-security-policy'], CSP_SANDBOX);
-    assert.equal(CSP_SANDBOX, "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; worker-src blob:; sandbox allow-scripts");
+    assert.equal(CSP_SANDBOX,
+      "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; worker-src blob:; sandbox allow-scripts");
     assert.equal(r.headers['content-encoding'], 'gzip');
     const html = zlib.gunzipSync(r.body).toString();
     assert.ok(!html.includes('/*@CORE@*/'));
@@ -176,12 +183,5 @@ describe('serving', () => {
     const next = await get('/sandbox.html', { 'if-none-match': r.headers.etag });
     assert.equal(next.status, 200);
     assert.ok(next.body.toString().includes('renderFrame2'));
-  });
-
-  test('the frames parser is served to the browser from src/', async () => {
-    const r = await get('/js/frames.js');
-    assert.equal(r.status, 200);
-    assert.match(r.headers['content-type'], /^text\/javascript/);
-    assert.match(r.body.toString(), /export function parseFseq/);
   });
 });

@@ -1,22 +1,9 @@
-// frames-cache.js: what the server keeps beside a look's baked frames so they travel small, named
-// by content hash (SPEC "Baked frames"):
-//
-//   <framesDir>/<hash>/<n>.br              chunk n for streaming (src/frames-wire.js), made after a bake
-//                      manifest.json       written last: every chunk above is complete
-//                      <n>.gz              chunk n as gzip (its own layout), made on the first request
-//                                          that does not take br
-//                      frames.<codec>.fseq compressed FSEQ v2 download, made on its first request
-//
-// <hash> = wireHash(look.bake.frames.sha256). Looks with the same frames share a folder; prune()
-// removes folders that no look's bake names. Encoding runs one bake at a time, off the event loop.
-//
-// createFramesCache({ framesDir, store, log?, quality? }) → {
-//   hashOf(look) → hash | null
-//   wire(look) → Promise<{ state: 'none' | 'pending' | 'failed' | 'ready', hash?, done?, chunks? }>
-//                (starts encoding when the frames are there but their chunks are not)
-//   encode(lookOrId) → Promise<boolean>, manifest(hash) → Promise<Buffer | null>,
-//   chunk(hash, n, 'br' | 'gzip' | null) → Promise<{ body, encoding } | null>,
-//   fseq(look, codec) → Promise<path | null>, prune() → Promise, idle() → Promise }
+// What the server keeps beside baked frames so they travel small (SPEC "Baked frames"), in
+// <framesDir>/<hash>/ with <hash> = wireHash(look.bake.frames.sha256): <n>.br chunks and manifest.json
+// (written last) after a bake; <n>.gz chunks and frames.<codec>.fseq downloads on first request. Looks
+// with the same frames share a folder; prune() removes folders no bake names. One encode at a time.
+//   wire(look) → { state: none | pending | failed | ready, hash?, done?, chunks? } (encodes when needed)
+//   chunk(hash, n, br | gzip | null) → { body, encoding } | null;  fseq(look, codec) → path | null
 
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
@@ -24,7 +11,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import zlib from 'node:zlib';
 
-import { framesBytesFor, framesPath } from './bake.js';
+import { framesBytesFor, framesPath, writeAtomic } from './bake.js';
 import { parseFseq } from './frames.js';
 import { CHUNK_FRAMES, encodeWire, gzipChunk, WIRE_QUALITY, wireHash } from './frames-wire.js';
 import { compressFseq, inflateBlock } from './fseq-codec.js';
@@ -32,27 +19,13 @@ import { compressFseq, inflateBlock } from './fseq-codec.js';
 const HASH = /^[0-9a-f]{32}$/;
 const MAX_FRAMES_BYTES = framesBytesFor(600); // the longest bake there can be
 const unbrotli = promisify(zlib.brotliDecompress);
-
 const exists = (file) => fs.stat(file).then((st) => st.isFile(), () => false);
-let tmpSeq = 0;
-
-async function writeAtomic(file, bytes) {
-  const tmp = `${file}.${process.pid}.${(tmpSeq++).toString(36)}.tmp`;
-  try {
-    await fs.writeFile(tmp, bytes, { mode: 0o600 });
-    await fs.rename(tmp, file);
-  } catch (err) {
-    await fs.rm(tmp, { force: true }).catch(() => {});
-    throw err;
-  }
-}
 
 export function createFramesCache({ framesDir, store, log = console, quality = WIRE_QUALITY }) {
   const jobs = new Map();   // hash → { promise, done, chunks }: encodes queued or running
   const failed = new Set(); // hashes whose frames could not be encoded (until a restart)
   const making = new Map(); // file → Promise: gzip chunks and .fseq downloads being made
   let queue = Promise.resolve();
-
   const dir = (hash) => path.join(framesDir, hash);
   function hashOf(look) {
     const sha = look?.bake?.frames?.sha256;
@@ -61,12 +34,8 @@ export function createFramesCache({ framesDir, store, log = console, quality = W
 
   /** The look's stored frames, parsed, if they are still the bake's (same SHA-256). */
   async function readFrames(look) {
-    let bytes;
-    try {
-      bytes = await fs.readFile(framesPath(framesDir, look.id));
-    } catch {
-      return null;
-    }
+    const bytes = await fs.readFile(framesPath(framesDir, look.id)).catch(() => null);
+    if (!bytes) return null;
     if (createHash('sha256').update(bytes).digest('hex') !== look.bake.frames.sha256) return null;
     return parseFseq(bytes, { maxBytes: MAX_FRAMES_BYTES, decompress: inflateBlock });
   }
@@ -153,7 +122,8 @@ export function createFramesCache({ framesDir, store, log = console, quality = W
     if (encoding === 'gzip') {
       const manifest = path.join(dir(hash), 'manifest.json');
       if (!(await exists(manifest))) return null; // still being encoded
-      const gz = async () => gzipChunk(await fs.readFile(br), JSON.parse(await fs.readFile(manifest, 'utf8')).channels);
+      const gz = async () => gzipChunk(await fs.readFile(br),
+        JSON.parse(await fs.readFile(manifest, 'utf8')).channels);
       const file = await made(path.join(dir(hash), `${n}.gz`), gz);
       return { body: await fs.readFile(file), encoding: 'gzip' };
     }
@@ -173,12 +143,7 @@ export function createFramesCache({ framesDir, store, log = console, quality = W
   /** Remove hash folders that no look's bake names (and that nothing is encoding). */
   async function prune() {
     const live = new Set([...jobs.keys(), ...store.looks.list((l) => hashOf(l)).map(hashOf)]);
-    let names;
-    try {
-      names = await fs.readdir(framesDir);
-    } catch {
-      return;
-    }
+    const names = await fs.readdir(framesDir).catch(() => []);
     const dead = names.filter((name) => HASH.test(name) && !live.has(name));
     await Promise.all(dead.map((name) => fs.rm(dir(name), { recursive: true, force: true }).catch(() => {})));
   }

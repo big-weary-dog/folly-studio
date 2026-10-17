@@ -1,5 +1,5 @@
-// Auto-generated controls for a layer's `params` (SPEC "Pattern code"): numbers become
-// sliders, `type: 'color'` colour pickers, `type: 'toggle'` switches.
+// Controls for a layer's `params` (SPEC "Pattern code"): numbers become sliders, `type: 'color'` colour
+// pickers, `type: 'toggle'` switches.
 import { h, clear, nextId, humanize } from './dom.js';
 
 /** Normalise one schema entry into { kind, value, min, max, step, label }. */
@@ -8,7 +8,9 @@ export function normaliseParam(key, raw) {
   if (raw == null || typeof raw !== 'object') {
     if (typeof raw === 'boolean') return { kind: 'toggle', value: raw, label };
     if (typeof raw === 'string' && /^#[0-9a-f]{6}$/i.test(raw)) return { kind: 'color', value: raw, label };
-    if (typeof raw === 'number') return { kind: 'number', value: raw, min: Math.min(0, raw), max: Math.max(1, raw * 2), step: 0.01, label };
+    if (typeof raw === 'number') {
+      return { kind: 'number', value: raw, min: Math.min(0, raw), max: Math.max(1, raw * 2), step: 0.01, label };
+    }
     return null;
   }
   const v = raw.value;
@@ -35,10 +37,11 @@ function niceStep(x) {
 
 export function toHex(v) {
   if (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)) return v.toLowerCase();
-  if (typeof v === 'string' && /^#[0-9a-f]{3}$/i.test(v)) return ('#' + [...v.slice(1)].map((c) => c + c).join('')).toLowerCase();
-  if (Array.isArray(v) && v.length >= 3) {
-    return '#' + v.slice(0, 3).map((c) => Math.round(Math.min(1, Math.max(0, +c || 0)) * 255).toString(16).padStart(2, '0')).join('');
+  if (typeof v === 'string' && /^#[0-9a-f]{3}$/i.test(v)) {
+    return `#${[...v.slice(1)].map((c) => c + c).join('')}`.toLowerCase();
   }
+  const byte = (c) => Math.round(Math.min(1, Math.max(0, +c || 0)) * 255).toString(16).padStart(2, '0');
+  if (Array.isArray(v) && v.length >= 3) return `#${v.slice(0, 3).map(byte).join('')}`;
   return '#ffffff';
 }
 
@@ -50,19 +53,11 @@ function decimals(step) {
 
 export class ParamsPanel {
   constructor(container, handlers) {
-    this.h = handlers;
-    this.body = h('div', { class: 'params' });
+    Object.assign(this, { h: handlers, body: h('div', { class: 'params' }), sig: null, controls: new Map() });
     container.append(this.body);
-    this.sig = null;
-    this.controls = new Map();
   }
 
-  /**
-   * @param {string|null} layerId
-   * @param {object|null} schema   the code's `params` as reported by the sandbox
-   * @param {object} values        layer.params (overrides)
-   * @param {{ message?: string }} [note]
-   */
+  /** set(layerId, schema (the code's `params`, from the sandbox), values (layer.params), note? { message }) */
   set(layerId, schema, values, note) {
     const entries = schema && typeof schema === 'object'
       ? Object.entries(schema).map(([k, raw]) => [k, normaliseParam(k, raw)]).filter(([, p]) => p)
@@ -85,39 +80,45 @@ export class ParamsPanel {
     if (note?.message) this.body.append(h('p', { class: 'pane-hint', text: note.message }));
     if (!entries.length) {
       if (!note?.message) {
-        this.body.append(h('p', { class: 'pane-hint' },
-          'This pattern has no params. Declare ', h('code', { text: 'const params = { … }' }), ' in its code to get sliders here.'));
+        this.body.append(h('p', { class: 'pane-hint' }, 'This pattern has no params. Declare ',
+          h('code', { text: 'const params = { … }' }), ' in its code to get sliders here.'));
       }
       return;
     }
     for (const [key, p] of entries) this.body.append(this._control(key, p));
-    this.body.append(h('div', { class: 'params-foot' },
-      h('button', { type: 'button', class: 'btn small ghost', text: 'Reset all to defaults', onClick: () => this.h.onResetAll() })));
+    this.body.append(h('div', { class: 'params-foot' }, h('button', { type: 'button', class: 'btn small ghost',
+      text: 'Reset all to defaults', onClick: () => this.h.onResetAll() })));
   }
 
   _control(key, p) {
     const id = nextId('prm');
-    const reset = h('button', { type: 'button', class: 'param-reset', 'aria-label': `Reset ${p.label} to default`, title: 'Reset to default', text: '↺' });
-    reset.addEventListener('click', () => this.h.onReset(key));
+    const reset = h('button', { type: 'button', class: 'param-reset', 'aria-label': `Reset ${p.label} to default`,
+      title: 'Reset to default', text: '↺', onClick: () => this.h.onReset(key) });
     const c = { p, reset };
     let field;
     if (p.kind === 'number') {
       c.range = h('input', { type: 'range', id, min: p.min, max: p.max, step: p.step });
-      c.num = h('input', { type: 'number', class: 'param-num', min: p.min, max: p.max, step: p.step, 'aria-label': `${p.label} value` });
+      c.num = h('input', { type: 'number', class: 'param-num', min: p.min, max: p.max, step: p.step,
+        'aria-label': `${p.label} value` });
       const dec = Math.min(4, decimals(p.step));
       c.fmt = (v) => (+v).toFixed(dec);
-      c.range.addEventListener('input', () => { c.num.value = c.fmt(c.range.value); this.h.onChange(key, +c.range.value, { live: true }); });
+      c.range.addEventListener('input', () => {
+        c.num.value = c.fmt(c.range.value);
+        this.h.onChange(key, +c.range.value, { live: true });
+      });
       c.range.addEventListener('change', () => this.h.onChange(key, +c.range.value));
       c.num.addEventListener('change', () => {
-        let v = parseFloat(c.num.value);
-        if (!Number.isFinite(v)) v = p.value;
-        this.h.onChange(key, v);
+        const v = parseFloat(c.num.value);
+        this.h.onChange(key, Number.isFinite(v) ? v : p.value);
       });
       field = h('div', { class: 'param-field' }, c.range, c.num);
     } else if (p.kind === 'color') {
       c.color = h('input', { type: 'color', id, class: 'param-color' });
       c.hex = h('span', { class: 'param-hex' });
-      c.color.addEventListener('input', () => { c.hex.textContent = c.color.value; this.h.onChange(key, c.color.value, { live: true }); });
+      c.color.addEventListener('input', () => {
+        c.hex.textContent = c.color.value;
+        this.h.onChange(key, c.color.value, { live: true });
+      });
       c.color.addEventListener('change', () => this.h.onChange(key, c.color.value));
       field = h('div', { class: 'param-field' }, c.color, c.hex);
     } else {
@@ -133,23 +134,18 @@ export class ParamsPanel {
 
   _values(values) {
     for (const [key, c] of this.controls) {
-      const has = Object.prototype.hasOwnProperty.call(values, key);
-      const p = c.p;
+      const has = Object.prototype.hasOwnProperty.call(values, key), p = c.p;
+      let v;
       if (p.kind === 'number') {
-        const v = has && Number.isFinite(+values[key]) ? +values[key] : p.value;
+        v = has && Number.isFinite(+values[key]) ? +values[key] : p.value;
         if (document.activeElement !== c.range && +c.range.value !== v) c.range.value = String(v);
         if (document.activeElement !== c.num) c.num.value = c.fmt(v);
-        c.reset.hidden = !has || v === p.value;
       } else if (p.kind === 'color') {
-        const v = has ? toHex(values[key]) : p.value;
+        v = has ? toHex(values[key]) : p.value;
         if (c.color.value !== v) c.color.value = v;
         c.hex.textContent = v;
-        c.reset.hidden = !has || v === p.value;
-      } else {
-        const v = has ? !!values[key] : p.value;
-        c.toggle.checked = v;
-        c.reset.hidden = !has || v === p.value;
-      }
+      } else c.toggle.checked = v = has ? !!values[key] : p.value;
+      c.reset.hidden = !has || v === p.value;
     }
   }
 }

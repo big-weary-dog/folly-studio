@@ -1,8 +1,7 @@
-// The timeline (SPEC "Timeline"): a row per layer, top layer first as in the stack, clips as
-// blocks on a time ruler, and a playhead. Wide screens: in the bottom dock, edited by dragging
-// (timeline-input.js). Phones: compact strips plus the selected clip's numbers
-// (timeline-tools.js). Only the playhead moves per frame, by transform.
-import { h, stylesheet, toast } from './dom.js';
+// The timeline (SPEC "Timeline"): a row per layer, top layer first, clips as blocks on a ruler, and a
+// playhead. Wide: in the bottom dock, edited by dragging (timeline-input.js). Phones: compact strips
+// plus the selected clip's numbers (timeline-tools.js). Only the playhead moves per frame.
+import { h, pref, stylesheet, toast } from './dom.js';
 import {
   addClip, clock, contentEnd, DEFAULT_DURATION, importLook, MAX_DURATION, removeClip, rulerStep, snapStep,
 } from './timeline-model.js';
@@ -17,33 +16,14 @@ const MAX_WIDTH = 120000;      // and never wider than this
 // Its styles load with the Studio, not with the login page.
 await stylesheet('/css/timeline.css');
 
-function pref(key, value) {
-  try {
-    if (value === undefined) return localStorage.getItem(key);
-    localStorage.setItem(key, value);
-  } catch { /* private mode */ }
-  return null;
-}
-
 export class Timeline {
-  /**
-   * host: { layers(), look(), selectedId(), time(), toolsSlot,
-   *         onSelectLayer(id), onEdit({ live }), onSeek(t), onImport() }
-   */
+  // host: { layers(), look(), selectedId(), time(), toolsSlot, onSelectLayer(id), onEdit({ live }), onSeek(t),
+  //   onImport() }
   constructor(host) {
-    this.host = host;
-    this.mode = 'wide';
-    this.pps = 1;
-    this.fit = true;
-    this.namesW = NAMES_W;
-    this.viewW = 0;
-    this.scrollX = 0;
-    this.t = 0;
-    this.px = -1;
+    Object.assign(this, { host, mode: 'wide', pps: 1, fit: true, namesW: NAMES_W, viewW: 0, scrollX: 0, t: 0, px: -1,
+      dragging: false, snapMode: pref('studio.snap') || 'grid' });
     this.sel = null;                       // the selected clip: { id, index }
     this.rows = new Map();                 // layer id → row parts
-    this.dragging = false;
-    this.snapMode = pref('studio.snap') || 'grid';
 
     this.canvas = h('canvas', { class: 'tl-ruler-canvas', 'aria-hidden': 'true' });
     this.ruler = h('div', { class: 'tl-ruler', title: 'Click or drag to move the playhead' }, this.canvas);
@@ -103,8 +83,7 @@ export class Timeline {
     this.layout();
   }
 
-  // ---- geometry: on resize, zoom and length changes, never per frame -----------------------
-
+  // Geometry: on resize, zoom and length changes, never per frame.
   layout() {
     const w = this.scroll.clientWidth;
     if (!w) return;
@@ -158,8 +137,6 @@ export class Timeline {
 
   zoomToFit() { this.fit = true; this.layout(); }
 
-  // ---- rows and clips ----------------------------------------------------------------------
-
   /** Bring the rows in line with the look. Cheap when nothing changed: it runs on every refresh. */
   render() {
     const layers = this.host.layers();
@@ -197,7 +174,8 @@ export class Timeline {
     r.row.classList.toggle('selected', selected);
     r.name.textContent = title;
     r.always.hidden = clips.length > 0;
-    r.always.firstChild.textContent = this.mode === 'wide' ? 'Always on · double-click to place a clip' : 'Always on';
+    r.always.firstChild.textContent = this.mode === 'wide' ? 'Always on · double-click to place a clip'
+      : 'Always on';
     while (r.clips.length < clips.length) r.clips.push(this.makeClip(r));
     while (r.clips.length > clips.length) r.clips.pop().remove();
     const pps = this.pps;
@@ -231,8 +209,6 @@ export class Timeline {
   }
 
   clipEl(id, index) { return this.rows.get(id)?.clips[index] || null; }
-
-  // ---- selection and edits -----------------------------------------------------------------
 
   /** Select clip `index` of layer `id` (null: just the layer); selecting a clip selects its layer. */
   selectClip(id, index, { focus = false } = {}) {
@@ -319,8 +295,6 @@ export class Timeline {
     });
     return '';
   }
-
-  // ---- the ruler and the playhead ----------------------------------------------------------
 
   drawRuler() {
     const ctx = this.ctx || (this.ctx = this.canvas.getContext('2d'));

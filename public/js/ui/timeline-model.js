@@ -1,7 +1,6 @@
-// Timeline edits as pure functions (SPEC "Timeline"): clips are [{ start, end, fadeIn, fadeOut }]
-// in seconds, sorted and not overlapping. Every edit returns new arrays and keeps those rules, so
-// what the editor produces is what the server accepts. No DOM here: test/timeline-ui.test.js
-// runs these in Node.
+// Timeline edits as pure functions (SPEC "Timeline"): clips are [{ start, end, fadeIn, fadeOut }] in
+// seconds, sorted, not overlapping. Every edit returns new arrays and keeps those rules, so what the
+// editor makes the server accepts. No DOM: test/timeline-ui.test.js runs these in Node.
 
 export const DEFAULT_DURATION = 30;
 export const MIN_DURATION = 1;
@@ -33,26 +32,17 @@ export function snapStep(mode, bpm) {
   return mode === 'off' ? 0 : GRID;
 }
 
-export function snap(t, step) {
-  return step > 0 ? Math.round(t / step) * step : t;
-}
+export const snap = (t, step) => (step > 0 ? Math.round(t / step) * step : t);
 
 /** A clip with every field present and fades that fit inside it. */
 export function fitClip(c) {
   const start = ms(c.start), end = ms(c.end), len = end - start;
   let fadeIn = Math.max(0, +c.fadeIn || 0), fadeOut = Math.max(0, +c.fadeOut || 0);
-  if (fadeIn + fadeOut > len) {
-    const k = len / (fadeIn + fadeOut);
-    fadeIn *= k;
-    fadeOut *= k;
-  }
+  if (fadeIn + fadeOut > len) { const k = len / (fadeIn + fadeOut); fadeIn *= k; fadeOut *= k; }
   return { start, end, fadeIn: ms(fadeIn), fadeOut: ms(fadeOut) };
 }
 
-/**
- * Where clip i may go: from the end of the clip before (or 0) to the start of the next, and not
- * past `limit` (the look's end, say) unless it already reaches further.
- */
+/** Where clip i may go: between its neighbours, and not past `limit` unless it already reaches further. */
 export function room(clips, i, limit = MAX_DURATION) {
   const end = Math.min(MAX_DURATION, Math.max(limit, clips[i] ? clips[i].end : 0));
   return {
@@ -61,11 +51,7 @@ export function room(clips, i, limit = MAX_DURATION) {
   };
 }
 
-function replace(clips, i, c) {
-  const out = clips.slice();
-  out[i] = fitClip(c);
-  return out;
-}
+const replace = (clips, i, c) => clips.map((x, j) => (j === i ? fitClip(c) : x));
 
 /** Move clip i to start near `start`, keeping its length, its neighbours and the grid. */
 export function moveClip(clips, i, start, step = 0, limit = MAX_DURATION) {
@@ -100,10 +86,7 @@ export function fadeClip(clips, i, side, len, step = 0) {
   return replace(clips, i, { ...c, fadeOut: Math.min(v, total - c.fadeIn) });
 }
 
-/**
- * Set clip i's fields from typed numbers ({ start?, end?, fadeIn?, fadeOut? }), held between its
- * neighbours. Returns the new clips, or null when the numbers make no clip.
- */
+/** Clip i's fields from typed numbers ({ start?, end?, fadeIn?, fadeOut? }), within its room; null if none. */
 export function editClip(clips, i, patch, limit = MAX_DURATION) {
   const c = { ...clips[i], ...patch };
   for (const k of ['start', 'end', 'fadeIn', 'fadeOut']) if (!Number.isFinite(+c[k])) return null;
@@ -113,10 +96,7 @@ export function editClip(clips, i, patch, limit = MAX_DURATION) {
   return replace(clips, i, { start, end, fadeIn: +c.fadeIn, fadeOut: +c.fadeOut });
 }
 
-/**
- * Add a clip of about `length` seconds at t, inside the gap that holds t (shifted left when the
- * gap ends first). Returns { clips, index }, or null when there is no room or no clip left.
- */
+/** A clip of about `length` s at t, in the gap holding t (shifted left to fit) → { clips, index } | null. */
 export function addClip(clips, t, length = 4, step = 0, limit = MAX_DURATION) {
   const list = clips || [];
   if (list.length >= MAX_CLIPS) return null;
@@ -135,11 +115,7 @@ export function addClip(clips, t, length = 4, step = 0, limit = MAX_DURATION) {
   return { clips: out, index: i };
 }
 
-export function removeClip(clips, i) {
-  const out = clips.slice();
-  out.splice(i, 1);
-  return out;
-}
+export const removeClip = (clips, i) => clips.filter((_, j) => j !== i);
 
 /** The index of the clip holding t, or -1. */
 export function clipAt(clips, t) {
@@ -157,10 +133,9 @@ export function contentEnd(layers, duration) {
 }
 
 /**
- * Sequence another look after this one: its layers are appended, each playing from `start` (where
- * the current content ends) for that look's duration (its own clips shifted there), the duration
- * grows to fit, and always-on layers here end where the import starts so the two looks follow
- * each other. Returns { layers, duration, start, end, ended } or { error }.
+ * Another look after this one: its layers appended, playing from where this content ends (their clips
+ * shifted there), the duration grown to fit, and always-on layers here ending where it starts.
+ * → { layers, duration, start, end, ended } or { error }.
  */
 export function importLook(layers, duration, look, newId) {
   const incoming = Array.isArray(look?.layers) ? look.layers : [];

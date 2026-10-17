@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import zlib from 'node:zlib';
 
 import { fseqBlocks, MAX_BLOCKS, writeFseq } from '../public/js/fseq.js';
-import { checkFrames } from '../src/bake.js';
+import { checkFrames } from '../src/box-output.js';
 import { FseqError, parseFseq } from '../src/frames.js';
 import { compressFseq, FSEQ_CODEC, HAS_ZSTD, inflateBlock } from '../src/fseq-codec.js';
 

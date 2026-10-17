@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { createServer } from '../src/api.js';
+import { createServer } from '../src/app.js';
 import { createQueue } from '../src/generate/index.js';
 import { createStore } from '../src/store.js';
 

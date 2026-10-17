@@ -1,7 +1,6 @@
-// Editing the timeline with a pointer, the wheel and the keyboard. On a wide screen: drag a clip
-// to move it, its edges to trim, the small handles at its top corners to fade; double-click an
-// empty row to add a clip; click or drag the ruler to scrub; Ctrl/⌘-wheel zooms. On a phone a tap
-// only selects, and the numbers below the strips do the editing.
+// Editing the timeline by pointer, wheel and keys. Wide: drag a clip to move it, its edges to trim, its
+// top-corner handles to fade; double-click a row to add a clip; drag the ruler to scrub; Ctrl/⌘-wheel
+// zooms. On a phone a tap only selects, and the numbers below the strips do the editing.
 import { fadeClip, GRID, moveClip, trimClip } from './timeline-model.js';
 
 const EDGE_PX = 7;          // grab an edge this close to it
@@ -10,9 +9,7 @@ const LIVE_MS = 90;         // mid-drag, the preview catches up this often
 
 export function attachInput(tl) {
   const sc = tl.scroll;
-  let drag = null;
-  let scrub = null;
-  let lastLive = 0;
+  let drag = null, scrub = null, lastLive = 0;
 
   const seekAt = (clientX) => {
     const t = (clientX - scrub.left + (tl.mode === 'wide' ? tl.scrollX : 0)) / tl.pps;
@@ -32,10 +29,7 @@ export function attachInput(tl) {
     const layer = row && tl.layerById(row.dataset.id);
     if (!layer) return;
     const clipEl = e.target.closest('.tl-clip');
-    if (!clipEl) {
-      tl.selectClip(layer.id, null);
-      return;
-    }
+    if (!clipEl) return tl.selectClip(layer.id, null);
     const index = +clipEl.dataset.i;
     tl.selectClip(layer.id, index, { focus: true });
     if (tl.mode !== 'wide') return;
@@ -45,7 +39,8 @@ export function attachInput(tl) {
     if (handle) kind = handle.classList.contains('tl-fh-in') ? 'in' : 'out';
     else if (e.clientX - rect.left <= EDGE_PX && rect.width > 3 * EDGE_PX) kind = 'start';
     else if (rect.right - e.clientX <= EDGE_PX) kind = 'end';
-    drag = { kind, layer, index, x0: e.clientX, clips: layer.clips.slice(), clip: layer.clips[index], moved: false };
+    drag = { kind, layer, index, x0: e.clientX, clips: layer.clips.slice(), clip: layer.clips[index],
+      moved: false };
     clipEl.setPointerCapture(e.pointerId);
     e.preventDefault();          // no text selection; focus was set above
   }
@@ -124,20 +119,8 @@ export function attachInput(tl) {
     }
   }
 
-  sc.addEventListener('pointerdown', onDown);
-  sc.addEventListener('pointermove', onMove);
-  sc.addEventListener('pointerup', onUp);
-  sc.addEventListener('pointercancel', onUp);
-  sc.addEventListener('dblclick', onDouble);
-  sc.addEventListener('wheel', onWheel, { passive: false });
-  sc.addEventListener('keydown', onKey);
-  return () => {
-    sc.removeEventListener('pointerdown', onDown);
-    sc.removeEventListener('pointermove', onMove);
-    sc.removeEventListener('pointerup', onUp);
-    sc.removeEventListener('pointercancel', onUp);
-    sc.removeEventListener('dblclick', onDouble);
-    sc.removeEventListener('wheel', onWheel);
-    sc.removeEventListener('keydown', onKey);
-  };
+  const on = [['pointerdown', onDown], ['pointermove', onMove], ['pointerup', onUp], ['pointercancel', onUp],
+    ['dblclick', onDouble], ['wheel', onWheel, { passive: false }], ['keydown', onKey]];
+  for (const [type, fn, opts] of on) sc.addEventListener(type, fn, opts);
+  return () => { for (const [type, fn] of on) sc.removeEventListener(type, fn); };
 }

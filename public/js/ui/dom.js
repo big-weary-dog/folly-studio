@@ -1,5 +1,4 @@
-// Small DOM helpers shared by the views. No innerHTML with user data anywhere:
-// everything goes through textContent / properties.
+// Small DOM helpers shared by the views. No HTML strings: everything goes through textContent and properties.
 
 const PROPS = new Set(['value', 'checked', 'disabled', 'hidden', 'indeterminate', 'selected',
   'readOnly', 'tabIndex', 'spellcheck', 'open', 'multiple', 'required', 'autofocus']);
@@ -44,8 +43,17 @@ export function append(el, kids) {
 
 export function clear(el) { while (el.firstChild) el.firstChild.remove(); return el; }
 
-export function $(sel, root = document) { return root.querySelector(sel); }
-
+/** A <label> for `control`, which gets an id when it has none. */
+export const label = (control, text, cls) => h('label', { for: control.id ||= nextId('f'), class: cls, text });
+/** A `.field`: the label, then the control (and anything after it). */
+export const field = (text, control, ...after) => h('div', { class: 'field' }, label(control, text), control, ...after);
+/** A labelled switch (checkbox): { box, el }. */
+export function switchBox(text, cls, attrs = {}) {
+  const box = h('input', { type: 'checkbox', class: 'switch', ...attrs });
+  return { box, el: h('div', { class: cls }, box, label(box, text)) };
+}
+/** Mark a button busy (disabled, spinner) or not. */
+export const busy = (btn, on) => { btn.disabled = on; btn.classList.toggle('busy', on); };
 /** A tiny id generator for form labels and layers. */
 let uid = 0;
 export function nextId(prefix = 'u') { return `${prefix}${++uid}`; }
@@ -56,6 +64,15 @@ export function randomId(prefix = 'l') {
 }
 
 export const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** A remembered preference: pref(key) reads it, pref(key, value) stores it (null where storage is off). */
+export function pref(key, value) {
+  try {
+    if (value === undefined) return localStorage.getItem(key);
+    localStorage.setItem(key, value);
+  } catch { /* private mode etc. */ }
+  return null;
+}
 
 /** Adds a view's stylesheet once; resolves when it has loaded (or failed: the view still works). */
 export function stylesheet(href) {
@@ -68,8 +85,6 @@ export function stylesheet(href) {
   });
 }
 
-// ---- toasts ------------------------------------------------------------------------------
-
 export function toast(message, { kind = 'info', timeout = 4200, action } = {}) {
   const host = document.getElementById('toasts');
   if (!host) return;
@@ -79,16 +94,19 @@ export function toast(message, { kind = 'info', timeout = 4200, action } = {}) {
     el.append(h('button', { class: 'btn small ghost', type: 'button', text: action.label,
       onClick: () => { action.onClick(); close(); } }));
   }
-  el.append(h('button', { class: 'toast-close', type: 'button', 'aria-label': 'Dismiss', text: '×', onClick: () => close() }));
+  el.append(h('button', { class: 'toast-close', type: 'button', 'aria-label': 'Dismiss', text: '×',
+    onClick: () => close() }));
   host.append(el);
   let timer = timeout ? setTimeout(close, timeout) : null;
   el.addEventListener('pointerenter', () => { clearTimeout(timer); timer = null; });
   el.addEventListener('pointerleave', () => { if (timeout && !timer) timer = setTimeout(close, 1800); });
-  function close() { clearTimeout(timer); el.classList.add('leaving'); setTimeout(() => el.remove(), reducedMotion() ? 0 : 180); }
+  function close() {
+    clearTimeout(timer);
+    el.classList.add('leaving');
+    setTimeout(() => el.remove(), reducedMotion() ? 0 : 180);
+  }
   return close;
 }
-
-// ---- dialogs -----------------------------------------------------------------------------
 
 /** A modal <dialog>. `build(close)` returns the body; resolves with whatever close() gets. */
 export function openDialog({ title, build, className = '', dismissable = true, onClose }) {
@@ -97,9 +115,9 @@ export function openDialog({ title, build, className = '', dismissable = true, o
     const titleId = dlg.getAttribute('aria-labelledby');
     let result;
     const close = (value) => { result = value; if (dlg.open) dlg.close(); };
-    const head = h('header', { class: 'dialog-head' },
-      h('h2', { id: titleId, text: title }),
-      dismissable ? h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Close', text: '×', onClick: () => close(undefined) }) : null);
+    const head = h('header', { class: 'dialog-head' }, h('h2', { id: titleId, text: title }), dismissable
+      ? h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Close', text: '×', onClick: () => close() })
+      : null);
     dlg.append(head, h('div', { class: 'dialog-body' }, build(close)));
     dlg.addEventListener('cancel', (e) => { if (!dismissable) e.preventDefault(); });
     dlg.addEventListener('close', () => { dlg.remove(); if (onClose) onClose(result); resolve(result); });
@@ -109,23 +127,18 @@ export function openDialog({ title, build, className = '', dismissable = true, o
 }
 
 export function confirmDialog(message, { title = 'Are you sure?', ok = 'OK', danger = false } = {}) {
-  return openDialog({
-    title,
-    build: (close) => [
-      h('p', { class: 'dialog-text', text: message }),
-      h('div', { class: 'dialog-actions' },
-        h('button', { class: 'btn ghost', type: 'button', text: 'Cancel', onClick: () => close(false) }),
-        h('button', { class: ['btn', danger ? 'danger' : 'primary'], type: 'button', text: ok, autofocus: true, onClick: () => close(true) })),
-    ],
-  }).then(Boolean);
+  return openDialog({ title, build: (close) => [
+    h('p', { class: 'dialog-text', text: message }),
+    h('div', { class: 'dialog-actions' },
+      h('button', { class: 'btn ghost', type: 'button', text: 'Cancel', onClick: () => close(false) }),
+      h('button', { class: ['btn', danger ? 'danger' : 'primary'], type: 'button', text: ok, autofocus: true,
+        onClick: () => close(true) })),
+  ] }).then(Boolean);
 }
-
-// ---- formatting --------------------------------------------------------------------------
 
 export function formatTime(t) {
   const m = Math.floor(t / 60);
-  const s = t - m * 60;
-  return `${m}:${s.toFixed(2).padStart(5, '0')}`;
+  return `${m}:${(t - m * 60).toFixed(2).padStart(5, '0')}`;
 }
 
 export function timeAgo(when) {
@@ -165,25 +178,20 @@ export function humanize(key) {
 
 /** Debounce: call fn once `ms` after the last call. `.flush()` runs it now, `.cancel()` drops it. */
 export function debounce(fn, ms) {
-  let timer = null;
-  let args = null;
+  let timer = null, args = null;
   const run = () => { timer = null; const a = args; args = null; fn(...a); };
   const d = (...a) => { args = a; clearTimeout(timer); timer = setTimeout(run, ms); };
   d.flush = () => { if (timer) { clearTimeout(timer); run(); } };
   d.cancel = () => { clearTimeout(timer); timer = null; args = null; };
-  d.pending = () => timer !== null;
   return d;
 }
 
 /** True when keyboard focus is in something that takes typing. */
 export function isTyping(target) {
   const el = target instanceof Element ? target : document.activeElement;
-  if (!el) return false;
-  if (el.isContentEditable) return true;
-  const tag = el.tagName;
-  if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
-  if (tag === 'INPUT') return !['checkbox', 'radio', 'range', 'button', 'submit', 'color'].includes(el.type);
-  return false;
+  const tag = el?.tagName;
+  if (el?.isContentEditable || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  return tag === 'INPUT' && !['checkbox', 'radio', 'range', 'button', 'submit', 'color'].includes(el.type);
 }
 
 /** A stained-glass swatch for cards: a deterministic gradient from a string. */
@@ -191,8 +199,7 @@ const JEWELS = ['#e5486b', '#5b8cff', '#f2b148', '#39c98f', '#a77bff', '#ff7a45'
 export function jewelGradient(seed) {
   let x = 2166136261;
   for (const ch of String(seed)) { x ^= ch.charCodeAt(0); x = Math.imul(x, 16777619) >>> 0; }
-  const pick = (n) => JEWELS[(x >>> (n * 3)) % JEWELS.length];
-  const a = pick(0), b = pick(1), c = pick(2);
+  const [a, b, c] = [0, 1, 2].map((n) => JEWELS[(x >>> (n * 3)) % JEWELS.length]);
   const ang = (x >>> 8) % 360;
   return `radial-gradient(circle at 50% 38%, ${a}cc 0 10%, transparent 34%),` +
     ` conic-gradient(from ${ang}deg at 50% 38%, ${a}55, ${b}66, ${c}55, ${a}55)`;

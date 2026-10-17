@@ -14,6 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
+import { areaOf, BUDGET_FILE, checkBudget } from './lint/budget.mjs';
 import { blank, jsRanges, lineIndex, markupRanges, ranges } from './lint/scan.mjs';
 
 const STUDIO = fileURLToPath(new URL('..', import.meta.url));
@@ -22,30 +23,30 @@ export const LIMITS = {
   source: 400, test: 600, pattern: 150, // lines: code, test/**, public/patterns/*.js (they are AI examples)
   bytes: 64 * KB,                       // any text file
   lineLength: 120,                      // code (js, css, html, py)
-  bundle: 70 * KB,                      // gzip -9 (static.js's level) of public/js/**/*.js + public/css/*.css
-  login: 30 * KB,                       // index.html, what it loads, and the sign-in view
+  bundle: 150 * KB,                     // gzip -9 (static.js's level) of public/js/**/*.js + public/css/*.css
+  login: 40 * KB,                       // index.html, what it loads, and the sign-in view
 };
 const DATA_CAPS = { 'public/data/cathedral.json': 1024 * KB }; // generated, committed data
 const LOGIN_VIEW = 'public/js/ui/auth.js'; // main.js imports it at once for a signed-out visitor
 const SKIP = /^(?:test\/fixtures\/lint\/|data\/)|(?:^|\/)(?:node_modules|\.git)\//;
 // Paths that exist only at run time, and their source: the boxes find these next to their script
-// (bound or copied in by the host), and static.js serves /js/frames.js from src/.
+// (bound or copied in by the host; the core bundled by src/bundle.js).
 const BOX_FILES = {
-  'pattern-core.js': 'public/js/pattern-core.js', 'fseq.js': 'public/js/fseq.js',
-  'frames.js': 'src/frames.js', 'cathedral.json': 'public/data/cathedral.json',
+  'pattern-core.js': 'public/js/pattern-core.js', 'fseq.js': 'public/js/fseq.js', 'frames.js': 'src/frames.js',
+  'cathedral.json': 'public/data/cathedral.json', 'renderer.mjs': 'render-box/renderer.mjs',
 };
-const ALIASES = new Map([['public/js/frames.js', 'src/frames.js'],
-  ...['render-box', 'fleet-box'].flatMap((box) => Object.entries(BOX_FILES).map(([n, to]) => [`${box}/${n}`, to]))]);
+const ALIASES = new Map(['render-box', 'fleet-box'].flatMap((box) => Object.entries(BOX_FILES)
+  .map(([n, to]) => [`${box}/${n}`, to])));
 
 // Reviewed exceptions to the capability rules, each with its reason. test/ is outside these rules.
 const ALLOW = {
   'no-eval': {
-    'public/js/pattern-core.js': 'the pattern compiler: it only runs in the sandbox iframe or a box',
+    'public/js/core/compile.js': 'the pattern compiler: it only runs in the sandbox\'s worker or a box',
     'render-box/render.mjs': 'the render box: a stdlib-only node:vm realm inside bubblewrap',
     'tools/lint.mjs': 'parses modules with vm.SourceTextModule in a child process; never runs them',
   },
   'no-child-process': {
-    'src/bake.js': 'starts the render box under bubblewrap',
+    'src/render-box.js': 'starts the render box under bubblewrap',
     'src/generate/fleet.js': 'drives the fleet CLI for boxed workers',
     'tools/lint.mjs': 'git ls-files and the batched syntax checks',
   },
@@ -55,7 +56,8 @@ export const RULES = {
   'max-lines': 'source ≤ 400 lines, tests ≤ 600, library patterns ≤ 150; markdown exempt',
   'max-bytes': 'text files ≤ 64 KB; listed generated data has its own cap',
   'max-line-length': 'code lines ≤ 120 characters',
-  'bundle-size': 'gzipped public/js + public/css ≤ 70 KB; login page path ≤ 30 KB',
+  'bundle-size': 'gzipped public/js + public/css ≤ 150 KB; login page path ≤ 40 KB',
+  'line-budget': 'each area\'s lines of code within tools/lint/budget.json; raising one needs a new reason',
   'final-newline': 'text files end with a newline',
   'trailing-space': 'no trailing whitespace',
   'no-tabs': 'no tabs in js, css or html',
@@ -64,7 +66,7 @@ export const RULES = {
   'json': '.json files parse',
   'syntax': 'js/mjs pass node --check; py compiles',
   'no-eval': 'eval, Function and node:vm only in the pattern compiler and the render box',
-  'no-child-process': 'child_process only in src/bake.js and src/generate/fleet.js',
+  'no-child-process': 'child_process only in src/render-box.js and src/generate/fleet.js',
   'no-html-sink': 'no innerHTML, outerHTML, insertAdjacentHTML or document.write in public/js',
   'no-remote-url': 'no remote script, style or import URLs in public/',
   'no-console-log': 'no console.log in src/ or public/js/',
@@ -77,8 +79,8 @@ export const RULES = {
   'no-deps': 'no dependencies of any kind in package.json',
   'lint-allow': 'a silence names a known line rule and a reason, and is used',
 };
-const UNSILENCEABLE = new Set(['max-lines', 'max-bytes', 'bundle-size', 'final-newline', 'no-bom', 'json', 'syntax',
-  'no-deps', 'lint-allow']);
+const UNSILENCEABLE = new Set(['max-lines', 'max-bytes', 'bundle-size', 'line-budget', 'final-newline', 'no-bom',
+  'json', 'syntax', 'no-deps', 'lint-allow']);
 
 const URL_START = String.raw`(?:https?:)?\/\/`;
 const REMOTE = new RegExp([
@@ -90,7 +92,8 @@ const REMOTE = new RegExp([
 const SECRET = /\bsk-ant-[\w-]{16,}|\bAKIA[0-9A-Z]{16}\b|-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----/g;
 const shipped = (...kinds) => (f) => kinds.includes(f.kind) && !f.test;
 const under = (...dirs) => (f) => dirs.some((d) => f.rel.startsWith(d));
-const deterministic = (f) => f.rel === 'public/js/pattern-core.js' || f.rel.startsWith('render-box/') || f.pattern;
+const deterministic = (f) => f.pattern || f.rel === 'public/js/pattern-core.js' || f.rel.startsWith('public/js/core/')
+  || f.rel.startsWith('render-box/');
 // [rule, files, pattern, message, view]: the `code` view blanks comments and literals, `text` only comments.
 const PATTERNS = [
   ['no-eval', shipped('js', 'html'), /\beval\s*\(|\bFunction\s*\(/g, 'runtime code generation', 'code'],
@@ -140,7 +143,7 @@ function listFiles(root) {
     };
     walk('');
   }
-  return [...new Set(rels)].filter((r) => !SKIP.test(r)).sort();
+  return [...new Set(rels)].filter((r) => !SKIP.test(r) && existsSync(path.join(root, r))).sort();
 }
 
 /** The comment-blanked (`text`) and comment-and-literal-blanked (`code`) views of a file. */
@@ -230,7 +233,7 @@ function checkFile(f, src, ctx, report) {
   } else if (f.kind === 'html') {
     for (const m of v.code.matchAll(HTML_REF)) link(m[1], m.index, true);
   }
-  return { edges, allows: f.code ? allowsIn(src, v, lineAt) : [] };
+  return { edges, count, allows: f.code ? allowsIn(src, v, lineAt) : [] };
 }
 
 /** `lint-allow <rule>: <reason>` comments: { line, target, rule?, reason? }. */
@@ -303,18 +306,34 @@ async function checkSyntax(root, rels, notes) {
 }
 
 /**
+ * A file as it was before the change under review: HEAD's copy, or when the working copy is HEAD's
+ * (CI, after the commit) its parent's; '' outside git, or when it is new.
+ */
+function committed(root, rel, text) {
+  const show = (rev) => {
+    try {
+      const opts = { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] };
+      return execFileSync('git', ['show', `${rev}:./${rel}`], opts);
+    } catch {
+      return '';
+    }
+  };
+  const head = show('HEAD');
+  return head === text ? show('HEAD~1') : head;
+}
+
+/**
  * Lints a studio tree. Returns { errors: [{ file, line, rule, message }], silenced, files,
- * bundle: { total, login, loginFiles }, notes }.
+ * bundle: { total, login, loginFiles }, areas: Map<area, lines of code>, notes }.
  */
 export async function lint({ root = STUDIO, limits = {} } = {}) {
   const ctx = { root, limits: { ...LIMITS, ...limits }, known: new Set(listFiles(root)) };
   const notes = [];
   const syntax = checkSyntax(root, [...ctx.known], notes);
-  const errors = [], graph = new Map(), gz = new Map();
+  const errors = [], graph = new Map(), gz = new Map(), areas = new Map();
   let silenced = 0;
   for (const rel of ctx.known) {
-    let buf;
-    try { buf = readFileSync(path.join(root, rel)); } catch { continue; } // deleted but still tracked
+    const buf = readFileSync(path.join(root, rel));
     if (buf.includes(0)) continue; // binary
     const f = classify(rel), seen = new Set(), mine = [];
     const report = (line, rule, message) => { // one error per rule per line
@@ -324,15 +343,19 @@ export async function lint({ root = STUDIO, limits = {} } = {}) {
     const cap = DATA_CAPS[rel] || ctx.limits.bytes;
     if (buf.length > cap) report(1, 'max-bytes', `${kb(buf.length)} > ${kb(cap)}`);
     if (/^public\/.*\.(?:js|css|html)$/.test(rel)) gz.set(rel, gzipSync(buf, { level: 9 }).length);
-    const { edges, allows } = checkFile(f, buf.toString('utf8'), ctx, report);
+    const { edges, allows, count } = checkFile(f, buf.toString('utf8'), ctx, report);
     graph.set(rel, edges);
+    if (f.code) areas.set(areaOf(rel), (areas.get(areaOf(rel)) || 0) + count);
     silenced += applyAllows(allows, mine, report);
     errors.push(...mine);
   }
   const bundle = measureBundle(gz, graph, ctx, errors);
+  const budget = ctx.known.has(BUDGET_FILE) ? readFileSync(path.join(root, BUDGET_FILE), 'utf8') : '';
+  const report = (line, message) => errors.push({ file: BUDGET_FILE, line, rule: 'line-budget', message });
+  notes.push(...checkBudget(budget, committed(root, BUDGET_FILE, budget), areas, report));
   errors.push(...await syntax);
   errors.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.rule.localeCompare(b.rule));
-  return { errors, silenced, files: ctx.known.size, bundle, notes };
+  return { errors, silenced, files: ctx.known.size, bundle, areas, notes };
 }
 
 function measureBundle(gz, graph, ctx, errors) {

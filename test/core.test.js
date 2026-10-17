@@ -54,7 +54,8 @@ describe('stdlib', () => {
   test('noise and fbm: 0..1, deterministic, smooth', () => {
     for (let i = 0; i < 2000; i++) {
       const x = i * 0.173 - 50, y = i * 0.071, z = -i * 0.03;
-      for (const v of [S.noise(x), S.noise(x, y), S.noise(x, y, z), S.noise(x, y, z, i * 0.01), S.fbm(x, y, z), S.fbm(x, y, z, 6)]) {
+      for (const v of [S.noise(x), S.noise(x, y), S.noise(x, y, z), S.noise(x, y, z, i * 0.01), S.fbm(x, y, z), S.fbm(x,
+        y, z, 6)]) {
         assert.ok(v >= 0 && v <= 1 && Number.isFinite(v), `${v}`);
       }
       assert.ok(Math.abs(S.noise(x, y, z) - S.noise(x + 1e-4, y, z)) < 0.01, 'continuous');
@@ -64,7 +65,8 @@ describe('stdlib', () => {
     assert.ok(new Set([1, 2, 3, 4].map((i) => S.noise(i).toFixed(3))).size > 1);
     // Varied: covers a good part of 0..1.
     let lo = 1, hi = 0;
-    for (let i = 0; i < 5000; i++) { const v = S.noise(i * 0.31, i * 0.17, i * 0.07); lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    for (let i = 0; i < 5000; i++) { const v = S.noise(i * 0.31, i * 0.17, i * 0.07); lo = Math.min(lo,
+      v); hi = Math.max(hi, v); }
     assert.ok(lo < 0.15 && hi > 0.85, `${lo}..${hi}`);
   });
 
@@ -72,7 +74,8 @@ describe('stdlib', () => {
     nearC(S.hex('#ff8000'), [1, 128 / 255, 0]);
     nearC(S.hex('#0f0'), [0, 1, 0]);
     assert.throws(() => S.hex('nope'), /not a colour/);
-    const h = S.hex('#123456'); h[0] = 9; nearC(S.hex('#123456'), [0x12 / 255, 0x34 / 255, 0x56 / 255]); // cache not shared
+    const h = S.hex('#123456'); h[0] = 9; nearC(S.hex('#123456'), [0x12 / 255, 0x34 / 255,
+      0x56 / 255]); // cache not shared
     nearC(S.hsv(0, 1, 1), [1, 0, 0]); nearC(S.hsv(1 / 3, 1, 1), [0, 1, 0]); nearC(S.hsv(2 / 3, 1, 1), [0, 0, 1]);
     nearC(S.hsv(1.5, 0, 0.5), [0.5, 0.5, 0.5]);
     nearC(S.hsl(0, 1, 0.5), [1, 0, 0]); nearC(S.hsl(0.5, 1, 1), [1, 1, 1]); nearC(S.hsl(0.2, 1, 0), [0, 0, 0]);
@@ -113,13 +116,15 @@ describe('compilePattern', () => {
   });
 
   test('forgives export on declarations', () => {
-    const c = compilePattern('export const params = { k: 0.5 };\nexport function pixel(p, t, P) { return [P.k, 0, 0]; }');
+    const c = compilePattern('export const params = { k: 0.5 };\n'
+      + 'export function pixel(p, t, P) { return [P.k, 0, 0]; }');
     assert.equal(c.params.k.value, 0.5);
     assert.deepEqual(c.pixel({}, 0, { k: 0.5 }), [0.5, 0, 0]);
   });
 
   test('stdlib names can be redeclared by the pattern', () => {
-    const c = compilePattern('const mix = 1; function noise() { return 0.25; } function pixel() { return [noise(), mix, 0]; }');
+    const c = compilePattern('const mix = 1; function noise() { return 0.25; } '
+      + 'function pixel() { return [noise(), mix, 0]; }');
     assert.deepEqual(c.pixel(), [0.25, 1, 0]);
   });
 
@@ -129,8 +134,10 @@ describe('compilePattern', () => {
     assert.throws(() => compilePattern('const params = {};'), /no function pixel/);
     assert.throws(() => compilePattern(''), /empty/);
     assert.throws(() => compilePattern('throw new Error("boom"); function pixel() {}'), /boom/);
-    assert.throws(() => compilePattern('const params = { c: { value: "zz", type: "color" } }; function pixel() {}'), /not a colour/);
-    assert.throws(() => compilePattern('const params = { s: { value: 1, type: "weird" } }; function pixel() {}'), /unknown type/);
+    assert.throws(() => compilePattern('const params = { c: { value: "zz", type: "color" } }; function pixel() {}'),
+      /not a colour/);
+    assert.throws(() => compilePattern('const params = { s: { value: 1, type: "weird" } }; function pixel() {}'),
+      /unknown type/);
   });
 
   test('dangerous globals are shadowed; strict mode', () => {
@@ -222,7 +229,8 @@ describe('scene and groups', () => {
 
 describe('renderFrame', () => {
   const scene = prepareScene(cathedral);
-  const layer = (code, extra = {}) => prepareLayer(scene, { id: extra.id || 'l', groups: ['cathedral'], ...extra }, compilePattern(code));
+  const layer = (code, extra = {}) => prepareLayer(scene, { id: extra.id || 'l', groups: ['cathedral'], ...extra },
+    compilePattern(code));
   const solid = (r, g, b, a = 1) => `function pixel() { return [${r}, ${g}, ${b}, ${a}]; }`;
 
   test('blend modes and level', () => {
@@ -251,13 +259,15 @@ describe('renderFrame', () => {
     const code = `const params = { k: { value: 0.5, min: 0, max: 1 }, c: { value: '#ff0000', type: 'color' } };
       function pixel(p, t, P) { return scale(P.c, P.k); }`;
     nearC(Array.from(renderFrame(scene, [layer(code)], 0).rgb.slice(0, 3)), [0.5, 0, 0]);
-    nearC(Array.from(renderFrame(scene, [layer(code, { params: { k: 1, c: '#00ff00' } })], 0).rgb.slice(0, 3)), [0, 1, 0]);
+    nearC(Array.from(renderFrame(scene, [layer(code, { params: { k: 1, c: '#00ff00' } })], 0).rgb.slice(0, 3)), [0, 1,
+      0]);
     nearC(Array.from(renderFrame(scene, [layer(code, { params: { c: [0, 0, 1] } })], 0).rgb.slice(0, 3)), [0, 0, 0.5]);
   });
 
   test('throwing and NaN layers go black and are reported once', () => {
     const ok = layer(solid(0.2, 0.2, 0.2), { id: 'ok' });
-    const boom = layer('function pixel(p) {\n  if (p.k === 7) throw new Error("bad led");\n  return [1, 1, 1];\n}', { id: 'boom' });
+    const boom = layer('function pixel(p) {\n  if (p.k === 7) throw new Error("bad led");\n  return [1, 1, 1];\n}',
+      { id: 'boom' });
     const nan = layer('function pixel(p) { return [p.k === 3 ? NaN : 1, 0, 0]; }', { id: 'nan' });
     const frameErr = layer('function frame() { null.x; } function pixel() { return [1, 1, 1]; }', { id: 'fr' });
     const { rgb, errors } = renderFrame(scene, [ok, boom, nan, frameErr], 1);
@@ -280,7 +290,8 @@ describe('renderFrame', () => {
   test('reuses its output buffer and one pixel object', () => {
     const out = new Float32Array(scene.count * 3);
     assert.equal(renderFrame(scene, [layer(solid(1, 0, 0))], 0, out).rgb, out);
-    const spy = layer('let last = null, same = true;\nfunction pixel(p) { if (last && last !== p) same = false; last = p; return same ? [1, 1, 1] : [0, 0, 0]; }');
+    const spy = layer('let last = null, same = true;\nfunction pixel(p) { if (last && last !== p) same = false; '
+      + 'last = p; return same ? [1, 1, 1] : [0, 0, 0]; }');
     const { rgb } = renderFrame(scene, [spy], 0);
     assert.equal(rgb[3 * (scene.count - 1)], 1);
   });
@@ -288,7 +299,8 @@ describe('renderFrame', () => {
 
 describe('toChannels', () => {
   const scene = prepareScene(cathedral);
-  const csv = readFileSync(new URL('../../td/data/all-pixels-positions.csv', import.meta.url), 'utf8').trim().split(/\r?\n/);
+  const csv = readFileSync(new URL('../../td/data/all-pixels-positions.csv', import.meta.url),
+    'utf8').trim().split(/\r?\n/);
   const header = csv[0].split(',');
   const rows = csv.slice(1).map((line) => Object.fromEntries(line.split(',').map((v, i) => [header[i], v])));
 
@@ -305,7 +317,8 @@ describe('toChannels', () => {
       const row = rows[id];
       assert.equal(+row.pixel_id, id);
       const base = (+row.universe - 1) * 510 + (+row.channel - 1);
-      assert.deepEqual(Array.from(ch.slice(base, base + 3)), [255, 128, 64], `pixel ${id} (${row.zone} u${row.universe} c${row.channel})`);
+      assert.deepEqual(Array.from(ch.slice(base, base + 3)), [255, 128, 64],
+        `pixel ${id} (${row.zone} u${row.universe} c${row.channel})`);
       let lit = 0;
       for (const v of ch) if (v) lit++;
       assert.equal(lit, 3);

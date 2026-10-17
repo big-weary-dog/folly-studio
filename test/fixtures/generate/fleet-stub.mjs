@@ -13,7 +13,8 @@ const mode = process.env.STUB_FLEET_MODE || 'ok';
 if (process.env.STUB_FLEET_LOG) {
   fs.appendFileSync(
     process.env.STUB_FLEET_LOG,
-    JSON.stringify({ cmd, args, cwd, FLEET_STATE: process.env.FLEET_STATE ?? null, FLEET_DATA: process.env.FLEET_DATA ?? null }) + '\n',
+    JSON.stringify({ cmd, args, cwd, FLEET_STATE: process.env.FLEET_STATE ?? null,
+      FLEET_DATA: process.env.FLEET_DATA ?? null }) + '\n',
   );
 }
 const die = (msg) => {
@@ -79,7 +80,8 @@ switch (cmd) {
     if (!msg) die('usage: fleet send <name> "msg"');
     // Mark this worker's raises answered by rewriting the file, as fleet does.
     const rows = fs.readFileSync(inbox, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
-    fs.writeFileSync(inbox, rows.map((r) => JSON.stringify(r.from === name ? { ...r, answered: true } : r) + '\n').join(''));
+    fs.writeFileSync(inbox, rows.map((r) => JSON.stringify(r.from === name ? { ...r,
+      answered: true } : r) + '\n').join(''));
     if (mode === 'stuck') finish(name);
     break;
   }

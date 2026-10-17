@@ -1,12 +1,6 @@
-// frames-stream.js: play baked frames while they download (SPEC "Baked frames"). The manifest
-// first, then chunk by chunk: playback starts once the first is in, two more are fetched ahead, and
-// a seek fetches the chunk it lands in. Chunks are immutable, so the HTTP cache keeps what this
-// drops. No pattern code runs; nothing is allocated per frame.
-//
-//   autoFetchAllowed(navigator?) → false on a phone, a cellular link, Save-Data or below 4G
-//   fetchManifest(lookId, { fetch? }) → manifest     waits while the server still encodes the bake
-//   openFrameStream(lookId, cathedral, { fetch?, onChunk?, manifest?, ahead? })
-//     → { frameCount, fps, seconds, bytes, manifest, frameAt(i, rgb) → rgb }
+// Plays baked frames while they download (SPEC "Baked frames"): the manifest, then chunk by chunk.
+// Playback starts once the first is in, two more come ahead, a seek fetches the chunk it lands in.
+// Chunks are immutable, so the HTTP cache keeps what this drops. Nothing is allocated per frame.
 
 import { decodeChunk, parseManifest, readFrame } from './frames-wire.js';
 
@@ -37,7 +31,9 @@ export async function fetchManifest(lookId, { fetch = globalThis.fetch, wait = s
     const res = await fetch(url, { credentials: 'same-origin' });
     if (res.status === 202) {
       const ms = Math.min(10, Math.max(1, Number(res.headers.get('retry-after')) || 2)) * 1000;
-      if ((waited += ms) > MAX_WAIT_MS) throw new Error('The baked frames are still being prepared. Try again soon.');
+      if ((waited += ms) > MAX_WAIT_MS) {
+        throw new Error('The baked frames are still being prepared. Try again soon.');
+      }
       await wait(ms);
       continue;
     }
@@ -54,10 +50,7 @@ function ledOffsets(cathedral, ranges) {
   const starts = [], offsets = [], ends = [];
   let off = 0;
   for (const [start, count] of ranges) {
-    starts.push(start);
-    offsets.push(off);
-    ends.push(start + count);
-    off += count;
+    starts.push(start); offsets.push(off); ends.push(start + count); off += count;
   }
   const lut = new Int32Array(N).fill(-1);
   for (let k = 0, r = 0; k < N; k++) {
@@ -73,9 +66,9 @@ function ledOffsets(cathedral, ranges) {
 }
 
 /**
- * Stream a look's baked frames. Resolves once the first chunk is in. frameAt(i, rgb) fills a
- * Float32Array(count × 3) with frame i; while its chunk is still on the way it leaves rgb as it
- * was (the frame on show) and calls onChunk(n) when that chunk arrives, so a paused view can redraw.
+ * openFrameStream(lookId, cathedral, { fetch?, onChunk?, manifest?, ahead? }) → once the first chunk is in,
+ * { frameCount, fps, seconds, bytes, manifest, frameAt(i, rgb) }. frameAt fills rgb (count × 3) with frame i;
+ * while its chunk is on the way it leaves rgb as it was, and onChunk(n) says when it arrives.
  */
 export async function openFrameStream(lookId, cathedral, opts = {}) {
   const { fetch = globalThis.fetch, onChunk, ahead = 2 } = opts;
@@ -88,12 +81,7 @@ export async function openFrameStream(lookId, cathedral, opts = {}) {
   const cache = new Map();   // n → decoded chunk, least recently used first
   const loading = new Map(); // n → Promise<chunk>
   const failedAt = new Map();
-  let waitingFor = -1;
-  let shown = -1;
-
-  const trim = () => {
-    while (cache.size > Math.max(KEEP, ahead + 1)) cache.delete(cache.keys().next().value);
-  };
+  let waitingFor = -1, shown = -1;
   function load(n) {
     if (cache.has(n) || loading.has(n)) return loading.get(n);
     if (Date.now() - (failedAt.get(n) ?? -Infinity) < RETRY_MS) return undefined;
@@ -102,11 +90,8 @@ export async function openFrameStream(lookId, cathedral, opts = {}) {
       if (!res.ok) throw await failure(res);
       const chunk = decodeChunk(new Uint8Array(await res.arrayBuffer()), m, n);
       cache.set(n, chunk);
-      trim();
-      if (waitingFor === n) {
-        waitingFor = -1;
-        onChunk?.(n);
-      }
+      while (cache.size > Math.max(KEEP, ahead + 1)) cache.delete(cache.keys().next().value);
+      if (waitingFor === n) { waitingFor = -1; onChunk?.(n); }
       return chunk;
     })();
     loading.set(n, p);

@@ -8,9 +8,7 @@ export function mount(root, ctx) {
   const scope = ctx.args.scope === 'gallery' ? 'gallery' : 'mine';
   const isGallery = scope === 'gallery';
   ctx.setTitle(isGallery ? 'Gallery' : 'My looks');
-  let alive = true;
-  let looks = [];
-
+  let alive = true, looks = [];
   const grid = h('ul', { class: 'card-grid', 'aria-busy': 'true' });
   const empty = h('div', { class: 'empty', hidden: true });
   const filter = h('input', { type: 'search', class: 'search', 'aria-label': 'Search looks',
@@ -23,8 +21,7 @@ export function mount(root, ctx) {
         h('p', { class: 'lede', text: isGallery
           ? 'Looks people have shared. Open one to watch it; edit it and Save makes it your own copy.'
           : 'Everything you have saved. Share one to put it in the gallery.' })),
-      h('div', { class: 'head-actions' },
-        filter,
+      h('div', { class: 'head-actions' }, filter,
         isGallery ? null : h('a', { class: 'btn primary', href: '/studio', text: 'New look' }))),
     grid, empty));
 
@@ -60,8 +57,7 @@ export function mount(root, ctx) {
       actions.append(h('button', { class: 'btn small ghost danger-text', type: 'button', text: 'Delete',
         'aria-label': `Delete ${look.title}`, onClick: () => remove(look) }));
     }
-    return h('li', { class: 'card' },
-      art,
+    return h('li', { class: 'card' }, art,
       h('div', { class: 'card-body' },
         h('h2', { class: 'card-title' }, h('a', { href, text: look.title || 'Untitled look' })),
         look.summary ? h('p', { class: 'card-summary', text: look.summary }) : null,
@@ -93,7 +89,8 @@ export function mount(root, ctx) {
   api.looks(scope).then((res) => {
     if (!alive) return;
     looks = Array.isArray(res.looks) ? res.looks : [];
-    looks.sort((a, b) => Date.parse(b.updatedAt || b.createdAt || 0) - Date.parse(a.updatedAt || a.createdAt || 0));
+    const when = (l) => Date.parse(l.updatedAt || l.createdAt || 0);
+    looks.sort((a, b) => when(b) - when(a));
     draw();
   }).catch((err) => {
     if (err.status === 401) return ctx.signedOut();

@@ -1,0 +1,15 @@
+{
+  "about": "Lines of code (js, mjs, css, html, py) per area, with ~3% slack: tools/lint/budget.mjs. An area over its budget fails lint; raise a budget only with a new reason beside it.",
+  "areas": {
+    ".": { "lines": 48 },
+    "fleet-box": { "lines": 214 },
+    "public": { "lines": 456 },
+    "public/css": { "lines": 1044 },
+    "public/js": { "lines": 6110 },
+    "public/patterns": { "lines": 328 },
+    "render-box": { "lines": 213 },
+    "src": { "lines": 3954 },
+    "test": { "lines": 5810 },
+    "tools": { "lines": 1167 }
+  }
+}

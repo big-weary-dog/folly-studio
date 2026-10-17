@@ -1,30 +1,20 @@
-// Layer stack: the look's layers, top of the list = top of the composite (index 0 is the
-// bottom, like xLights rows reversed). Rows are keyed so dragging a level slider survives
-// re-renders.
+// The layer stack: top of the list = top of the composite (index 0 is the bottom). Rows are keyed so
+// dragging a level slider survives re-renders.
 import { h, nextId } from './dom.js';
 import { BLEND_MODES } from './model.js';
 
-const STATUS_TEXT = {
-  ok: 'Running',
-  pending: 'Compiling…',
-  compile: 'Compile error',
-  runtime: 'Runtime error',
-  hung: 'Hung — paused',
-  probation: 'Paused while finding a hung layer',
-  muted: 'Muted',
-};
+const STATUS_TEXT = { ok: 'Running', pending: 'Compiling…', compile: 'Compile error', runtime: 'Runtime error',
+  hung: 'Hung — paused', muted: 'Muted' };
 
 export class LayerStack {
   constructor(container, handlers) {
-    this.h = handlers;
-    this.rows = new Map();
-    this.list = h('ol', { class: 'layer-list', 'aria-label': 'Layers, top first' });
+    Object.assign(this, { h: handlers, rows: new Map(), state: null,
+      list: h('ol', { class: 'layer-list', 'aria-label': 'Layers, top first' }) });
     container.append(this.list);
-    this.state = null;
   }
 
+  /** state: { layers, selectedId, status: Map, muted: Set, solo: Set, groupNames(ids) } */
   render(state) {
-    // state: { layers, selectedId, status: Map, muted: Set, solo: Set, readOnly }
     this.state = state;
     const ordered = [...state.layers].reverse();
     const keep = new Set(ordered.map((l) => l.id));
@@ -41,14 +31,13 @@ export class LayerStack {
     const id = layer.id;
     const levelId = nextId('lvl'), blendId = nextId('bl');
     const r = {};
-    r.name = h('button', { type: 'button', class: 'layer-name' });
-    r.name.addEventListener('click', () => this.h.onSelect(id));
+    r.name = h('button', { type: 'button', class: 'layer-name', onClick: () => this.h.onSelect(id) });
     r.dot = h('span', { class: 'status-dot', 'aria-hidden': 'true' });
     r.statusText = h('span', { class: 'sr-only' });
-    r.mute = h('button', { type: 'button', class: 'ms-btn mute', text: 'M', 'aria-pressed': 'false' });
-    r.mute.addEventListener('click', () => this.h.onToggleMute(id));
-    r.solo = h('button', { type: 'button', class: 'ms-btn solo', text: 'S', 'aria-pressed': 'false' });
-    r.solo.addEventListener('click', () => this.h.onToggleSolo(id));
+    r.mute = h('button', { type: 'button', class: 'ms-btn mute', text: 'M', 'aria-pressed': 'false',
+      onClick: () => this.h.onToggleMute(id) });
+    r.solo = h('button', { type: 'button', class: 'ms-btn solo', text: 'S', 'aria-pressed': 'false',
+      onClick: () => this.h.onToggleSolo(id) });
     r.blend = h('select', { id: blendId, class: 'blend-select' },
       BLEND_MODES.map((b) => h('option', { value: b.value, text: b.label, title: b.help })));
     r.blend.addEventListener('change', () => this.h.onChange(id, { blend: r.blend.value }));
@@ -64,16 +53,16 @@ export class LayerStack {
     r.blendLabel = h('label', { for: blendId, class: 'sr-only' });
     r.levelLabel = h('label', { for: levelId, class: 'sr-only' });
     r.li = h('li', { class: 'layer' },
-      h('div', { class: 'layer-top' },
-        r.index,
+      h('div', { class: 'layer-top' }, r.index,
         h('div', { class: 'ms', role: 'group', 'aria-label': 'Mute and solo' }, r.mute, r.solo),
-        r.name,
-        r.dot, r.statusText),
-      h('div', { class: 'layer-bottom' },
-        r.blendLabel, r.blend, r.levelLabel, r.level, r.levelOut),
+        r.name, r.dot, r.statusText),
+      h('div', { class: 'layer-bottom' }, r.blendLabel, r.blend, r.levelLabel, r.level, r.levelOut),
       r.groups);
-    r.li.addEventListener('click', (e) => {
-      if (e.target === r.li || e.target.classList.contains('layer-top') || e.target.classList.contains('layer-bottom') || e.target === r.groups) this.h.onSelect(id);
+    r.li.addEventListener('click', (e) => {   // the row's empty space selects it too
+      const t = e.target;
+      if (t === r.li || t === r.groups || t.classList.contains('layer-top') || t.classList.contains('layer-bottom')) {
+        this.h.onSelect(id);
+      }
     });
     return r;
   }
@@ -82,10 +71,9 @@ export class LayerStack {
     const st = this.state;
     const selected = layer.id === st.selectedId;
     const status = st.status.get(layer.id) || { kind: 'pending' };
-    const muted = st.muted.has(layer.id);
-    const soloed = st.solo.has(layer.id);
+    const muted = st.muted.has(layer.id), soloed = st.solo.has(layer.id);
     const silent = muted || (st.solo.size > 0 && !soloed);
-    const title = layer.title || 'Layer';
+    const title = layer.title || 'Layer', said = STATUS_TEXT[status.kind] || status.kind;
     r.li.classList.toggle('selected', selected);
     r.li.classList.toggle('silent', silent);
     r.li.dataset.status = status.kind;
@@ -93,8 +81,8 @@ export class LayerStack {
     r.index.textContent = String(index + 1);
     r.name.textContent = title;
     r.name.setAttribute('aria-current', selected ? 'true' : 'false');
-    r.name.title = `${title} — ${STATUS_TEXT[status.kind] || status.kind}${status.message ? `: ${status.message}` : ''}`;
-    r.statusText.textContent = `, ${STATUS_TEXT[status.kind] || status.kind}`;
+    r.name.title = `${title} — ${said}${status.message ? `: ${status.message}` : ''}`;
+    r.statusText.textContent = `, ${said}`;
     r.dot.title = STATUS_TEXT[status.kind] || '';
     r.mute.setAttribute('aria-pressed', String(muted));
     r.mute.setAttribute('aria-label', `Mute ${title}`);

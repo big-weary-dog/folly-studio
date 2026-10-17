@@ -105,7 +105,8 @@ describe('parseFseq', () => {
       mutate(b, new DataView(b.buffer));
       return b;
     };
-    const rejects = (bytes, re, opts) => assert.throws(() => parseFseq(bytes, opts), (e) => e instanceof FseqError && re.test(e.message));
+    const rejects = (bytes, re, opts) => assert.throws(() => parseFseq(bytes, opts),
+      (e) => e instanceof FseqError && re.test(e.message));
     rejects(good.subarray(0, good.length - 1), /expected 10 frames × 300 channels/);
     rejects(new Uint8Array([...good, 0]), /expected 10 frames/);
     rejects(good.subarray(0, 20), /shorter than an FSEQ header/);
@@ -131,7 +132,8 @@ describe('parseFseq', () => {
     rejects('PSEQ', /not a byte buffer/);
     const tooWide = writeFseq({ channelCount: MAX_CHANNELS + 1, frames: 1, data: new Uint8Array(MAX_CHANNELS + 1) });
     rejects(tooWide, /40801 channels: at most 40800/);
-    rejects(writeFseq({ frames: 1, data: new Uint8Array(6), ranges: [[MAX_CHANNELS - 3, 6]] }), /ends past channel 40800/);
+    rejects(writeFseq({ frames: 1, data: new Uint8Array(6), ranges: [[MAX_CHANNELS - 3, 6]] }),
+      /ends past channel 40800/);
   });
 });
 
@@ -142,11 +144,13 @@ describe('analyzeFrames', () => {
     assert.equal(a.flicker.maxHz, 10);
     assert.deepEqual(a.flicker.flaggedSeconds, [0, 1, 2, 3, 4]);
     assert.deepEqual(a.flicker.regions, ['cathedral', 'parts', 'spire']);
-    assert.match(flickerReason(a), /up to 10 flashes a second .* around 0 s, 1 s, 2 s, 3 s, 4 s, on cathedral, parts, spire/);
+    assert.match(flickerReason(a),
+      /up to 10 flashes a second .* around 0 s, 1 s, 2 s, 3 s, 4 s, on cathedral, parts, spire/);
   });
 
   test('passes a slow 0.5 Hz breathe, 3 Hz exactly, and bright shimmer', () => {
-    const breathe = analyzeFrames(parseFseq(bake(C, 10, (f) => gray(Math.round(127.5 - 127.5 * Math.cos(Math.PI * (f / 40)))))), C);
+    const breathe = analyzeFrames(parseFseq(bake(C, 10,
+      (f) => gray(Math.round(127.5 - 127.5 * Math.cos(Math.PI * (f / 40)))))), C);
     assert.equal(breathe.flicker.ok, true);
     assert.ok(breathe.flicker.maxHz <= 1, `${breathe.flicker.maxHz}`);
     assert.deepEqual(breathe.flicker.flaggedSeconds, []);
@@ -191,7 +195,8 @@ describe('analyzeFrames', () => {
     assert.throws(() => analyzeFrames({}, C), /parseFseq/);
   });
 
-  test('on the real LED map: a 20 s sparse bake is about 12 MB, full frames about 33 MB', { skip: !fs.existsSync(new URL('../public/data/cathedral.json', import.meta.url)) && 'no cathedral.json' }, () => {
+  test('on the real LED map: a 20 s sparse bake is about 12 MB, full frames about 33 MB',
+    { skip: !fs.existsSync(new URL('../public/data/cathedral.json', import.meta.url)) && 'no cathedral.json' }, () => {
     const real = JSON.parse(fs.readFileSync(new URL('../public/data/cathedral.json', import.meta.url), 'utf8'));
     const ranges = usedRanges(real);
     const cc = ranges.reduce((n, r) => n + r[1], 0);

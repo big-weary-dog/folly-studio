@@ -1,26 +1,25 @@
-// A plain <textarea> code editor: monospace, line numbers, Tab inserts two spaces
-// (Esc then Tab leaves the editor), Enter keeps indentation, Ctrl/Cmd+S saves.
+// A plain <textarea> code editor: line numbers, Tab inserts two spaces (Esc then Tab leaves the
+// editor), Enter keeps indentation, Ctrl/Cmd+S saves.
 import { h, nextId } from './dom.js';
+import { ISSUE_LABELS } from './studio-status.js';
 
 const INDENT = '  ';
 
 export class CodeEditor {
   constructor(container, { onInput, onSave, label = 'Pattern code' } = {}) {
-    this.onInput = onInput || (() => {});
-    this.onSave = onSave || (() => {});
-    this.escaped = false;
-    this.lineCount = 0;
-    this.problemLine = 0;
+    const noop = () => {};
+    Object.assign(this, { onInput: onInput || noop, onSave: onSave || noop, escaped: false, lineCount: 0,
+      problemLine: 0 });
     const id = nextId('code');
     this.gutter = h('div', { class: 'gutter', 'aria-hidden': 'true' });
-    this.ta = h('textarea', { id, class: 'code', spellcheck: false, wrap: 'off', autocapitalize: 'off', autocomplete: 'off',
-      autocorrect: 'off', 'aria-describedby': `${id}-help ${id}-problem`, 'data-gramm': 'false' });
-    this.problem = h('div', { id: `${id}-problem`, class: 'problem', role: 'status', 'aria-live': 'polite', hidden: true });
-    this.help = h('p', { id: `${id}-help`, class: 'sr-only', text: 'Tab inserts spaces. Press Escape, then Tab, to move focus out of the editor.' });
-    this.el = h('div', { class: 'editor' },
-      h('label', { for: id, class: 'sr-only', text: label }),
-      h('div', { class: 'editor-scroll' }, this.gutter, this.ta),
-      this.problem, this.help);
+    this.ta = h('textarea', { id, class: 'code', spellcheck: false, wrap: 'off', autocapitalize: 'off',
+      autocomplete: 'off', autocorrect: 'off', 'aria-describedby': `${id}-help ${id}-problem`, 'data-gramm': 'false' });
+    this.problem = h('div', { id: `${id}-problem`, class: 'problem', role: 'status', 'aria-live': 'polite',
+      hidden: true });
+    const help = 'Tab inserts spaces. Press Escape, then Tab, to move focus out of the editor.';
+    this.el = h('div', { class: 'editor' }, h('label', { for: id, class: 'sr-only', text: label }),
+      h('div', { class: 'editor-scroll' }, this.gutter, this.ta), this.problem,
+      h('p', { id: `${id}-help`, class: 'sr-only', text: help }));
     container.append(this.el);
 
     this.ta.addEventListener('input', () => { this._lines(); this.onInput(this.ta.value); });
@@ -40,29 +39,22 @@ export class CodeEditor {
     this._lines();
   }
 
-  setDisabled(disabled, placeholder = '') {
-    this.ta.disabled = disabled;
-    this.ta.placeholder = placeholder;
-  }
-
+  setDisabled(disabled, placeholder = '') { Object.assign(this.ta, { disabled, placeholder }); }
   focus() { this.ta.focus(); }
 
-  /** problem: null | { kind: 'compile'|'runtime'|'hung'|'probation', message, line? } */
+  /** problem: null | { kind: 'compile'|'runtime'|'hung', message, line? } */
   setProblem(problem) {
     const line = problem ? (problem.line || findLine(problem.message)) : 0;
+    this.problem.hidden = !problem;
+    this.problem.replaceChildren();
     if (problem) {
-      this.problem.hidden = false;
       this.problem.dataset.kind = problem.kind;
-      const label = { compile: 'Compile error', runtime: 'Runtime error', hung: 'Hung', probation: 'Paused' }[problem.kind] || 'Problem';
+      const label = ISSUE_LABELS[problem.kind] || 'Problem';
       const msg = problem.message || '';
-      const saysLine = /\bline \d+/i.test(msg);
-      this.problem.replaceChildren(
-        h('strong', { text: `${label}${line && !saysLine ? ` (line ${line})` : ''}: ` }),
-        h('span', { text: msg }));
-      if (problem.running) this.problem.append(h('span', { class: 'problem-note', text: ' — the model keeps showing the last version that worked.' }));
-    } else {
-      this.problem.hidden = true;
-      this.problem.replaceChildren();
+      const where = line && !/\bline \d+/i.test(msg) ? ` (line ${line})` : '';
+      const note = ' — the model keeps showing the last version that worked.';
+      this.problem.append(h('strong', { text: `${label}${where}: ` }), h('span', { text: msg }),
+        problem.running ? h('span', { class: 'problem-note', text: note }) : '');
     }
     if (line !== this.problemLine) {
       this.problemLine = line;
@@ -71,10 +63,7 @@ export class CodeEditor {
   }
 
   /** Insert text at the cursor (used by the quick reference). */
-  insert(text) {
-    this.ta.focus();
-    insertText(this.ta, text);
-  }
+  insert(text) { this.ta.focus(); insertText(this.ta, text); }
 
   _lines() {
     const n = (this.ta.value.match(/\n/g) || []).length + 1;
@@ -95,23 +84,18 @@ export class CodeEditor {
 
   _key(e) {
     const ta = this.ta;
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-      e.preventDefault();
-      this.onSave();
-      return;
-    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); this.onSave(); return; }
     if (e.key === 'Escape') { this.escaped = true; return; }
     if (e.key === 'Tab') {
-      if (this.escaped || e.ctrlKey || e.altKey || e.metaKey) { this.escaped = false; return; }   // let focus move
+      if (this.escaped || e.ctrlKey || e.altKey || e.metaKey) { this.escaped = false; return; } // focus moves on
       e.preventDefault();
       const { selectionStart: s, selectionEnd: end, value } = ta;
       const multi = value.slice(s, end).includes('\n');
       if (!multi && !e.shiftKey) { insertText(ta, INDENT); return; }
       // indent / outdent every selected line
       const lineStart = value.lastIndexOf('\n', s - 1) + 1;
-      const block = value.slice(lineStart, end);
-      const lines = block.split('\n');
-      const out = lines.map((l) => (e.shiftKey ? l.replace(/^ {1,2}/, '') : INDENT + l)).join('\n');
+      const out = value.slice(lineStart, end).split('\n')
+        .map((l) => (e.shiftKey ? l.replace(/^ {1,2}/, '') : INDENT + l)).join('\n');
       ta.setSelectionRange(lineStart, end);
       insertText(ta, out);
       ta.setSelectionRange(lineStart, lineStart + out.length);
@@ -145,6 +129,7 @@ function insertText(ta, text) {
 /** Pull a line number out of an error message, if it has one. */
 export function findLine(msg) {
   if (!msg) return 0;
-  const m = /\bline (\d+)/i.exec(msg) || /<anonymous>:(\d+):\d+/.exec(msg) || /:(\d+):(\d+)\)?\s*$/.exec(msg);
+  const m = /\bline (\d+)/i.exec(msg) || /<anonymous>:(\d+):\d+/.exec(msg)
+    || /:(\d+):(\d+)\)?\s*$/.exec(msg);
   return m ? +m[1] : 0;
 }

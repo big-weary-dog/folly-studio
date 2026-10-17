@@ -5,7 +5,8 @@ const FIELDS = [
   ['x y z', '0..1 across the whole cathedral (depth, height, left→right)'],
   ['X Y Z', 'metres'],
   ['lx ly lz', '0..1 across the pixels this layer targets — a pattern fills what it lands on'],
-  ['a r', 'angle 0..1 (clockwise from 12 o’clock, seen from the playa) and radius 0..1 on the façade, round this layer’s centre'],
+  ['a r', 'angle 0..1 (clockwise from 12 o’clock, seen from the playa) and radius 0..1 on the façade, round '
+    + 'this layer’s centre'],
   ['u i n', 'position 0..1 along its strand, index along it, strand length'],
   ['zone zi strand', 'zone name, zone index, strand index'],
   ['row petal', 'rose ring 1–7 and petal 0–15 (0 / −1 elsewhere)'],
@@ -48,13 +49,12 @@ function pixel(p, t, P) {     // every LED, every frame
 }`;
 
 export function quickReference(onInsert) {
+  const name = (text, insert = text, title) => h('button', { type: 'button', class: 'ref-name', text, title,
+    onClick: () => onInsert(insert) });
   const insertable = (sig) => {
-    const name = sig.split('(')[0].trim();
-    if (name.includes(' ')) {
-      return h('span', { class: 'ref-names' }, name.split(' ').map((n) => h('button', { type: 'button', class: 'ref-name', text: n, onClick: () => onInsert(n) })));
-    }
-    const call = sig.includes('(') ? `${name}(` : name;
-    return h('button', { type: 'button', class: 'ref-name', text: sig, title: `Insert ${call}`, onClick: () => onInsert(call) });
+    const n = sig.split('(')[0].trim(), call = sig.includes('(') ? `${n}(` : n;
+    return n.includes(' ') ? h('span', { class: 'ref-names' }, n.split(' ').map((w) => name(w)))
+      : name(sig, call, `Insert ${call}`);
   };
   return h('details', { class: 'reference' },
     h('summary', { text: 'Pattern API quick reference' }),
@@ -62,17 +62,18 @@ export function quickReference(onInsert) {
       h('section', {},
         h('h3', { text: 'Shape of a pattern' }),
         h('pre', { class: 'ref-code', text: SKELETON }),
-        h('p', { class: 'ref-note' }, 'Colours are ', h('code', { text: '[r, g, b]' }), ' arrays, 0..1. ', h('code', { text: 'P' }),
-          ' holds each param’s value; colour params arrive as ', h('code', { text: '[r, g, b]' }), '.')),
+        h('p', { class: 'ref-note' }, 'Colours are ', h('code', { text: '[r, g, b]' }), ' arrays, 0..1. ',
+          h('code', { text: 'P' }), ' holds each param’s value; colour params arrive as ',
+          h('code', { text: '[r, g, b]' }), '.')),
       h('section', {},
         h('h3', { text: 'The pixel p' }),
         h('dl', { class: 'ref-fields' }, FIELDS.flatMap(([k, v]) => [
-          h('dt', {}, k.split(' ').map((n) => h('button', { type: 'button', class: 'ref-name', text: `p.${n}`, onClick: () => onInsert(`p.${n}`) }))),
+          h('dt', {}, k.split(' ').map((n) => name(`p.${n}`))),
           h('dd', { text: v }),
         ]))),
       h('section', {},
         h('h3', { text: 'Stdlib (globals)' }),
-        STDLIB.map(([title, items]) => h('div', { class: 'ref-group' },
-          h('h4', { text: title }),
-          h('ul', { class: 'ref-list' }, items.map(([sig, note]) => h('li', {}, insertable(sig), note ? h('span', { class: 'ref-desc', text: note }) : null))))))));
+        STDLIB.map(([title, items]) => h('div', { class: 'ref-group' }, h('h4', { text: title }),
+          h('ul', { class: 'ref-list' }, items.map(([sig, note]) => h('li', {}, insertable(sig),
+            note ? h('span', { class: 'ref-desc', text: note }) : null))))))));
 }

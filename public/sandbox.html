@@ -6,114 +6,16 @@
 </head>
 <body>
 <!--
-  Folly Studio's pattern sandbox. The app embeds it as
-  <iframe sandbox="allow-scripts" src="/sandbox.html"> and the server serves it with the
-  pattern core inlined in place of the marker below, under
-  Content-Security-Policy: default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; worker-src blob:; sandbox allow-scripts
-  so pattern code runs at an opaque origin with no network, no cookies and no storage.
-  Protocol: studio/SPEC.md "Sandbox protocol". No external resources, ever.
-
-  Pattern code never runs on this page's thread. A same-process iframe shares the app's main
-  thread, so a `while (true) {}` here would freeze the whole tab and no watchdog could fire.
-  Instead the core plus the runner below go into a Worker made from a Blob (it inherits this
-  page's CSP, so it has no network either), and this page only relays messages and keeps time.
-  When a job overruns, it terminates the worker, finds the layer to blame (the layer it was
-  compiling, or by running each layer alone for one frame in a throwaway worker), reports that
-  layer as hung, and starts a fresh worker with the others.
+  The pattern sandbox (SPEC.md "Sandbox protocol"): an <iframe sandbox="allow-scripts">, served with
+  the core and its runner (js/sandbox-worker.js) inlined at the marker, under a CSP of default-src
+  'none' (src/static.js), so pattern code runs at an opaque origin with no network or storage.
+  Pattern code never runs on this page's thread, which it shares with the app: a `while (true) {}`
+  would freeze the tab. It runs in a Worker made from a Blob, and this page relays and keeps time.
+  On an overrun it terminates the worker, blames a layer (the one compiling, or each run alone in
+  a throwaway worker), reports it as hung, and starts a fresh worker with the others.
 -->
 <script type="text/x-folly-core" id="pattern-core">/*@CORE@*/</script>
-<script type="text/x-folly-runner" id="pattern-runner">
-// ---- runs inside the Worker, after the core ------------------------------------------------
-const post = self.postMessage.bind(self);   // captured before any pattern code can touch it
-let scene = null;
-let prepared = [];                            // render order, bottom first
-const compiledById = new Map();               // layer id -> { code, compiled, error }: same code keeps its state
-const now = () => performance.now();
-const message = (e) => (e && e.message ? e.message : String(e));
-
-function onInit(msg) {
-  scene = prepareScene(msg.cathedral);
-  prepared = [];
-  compiledById.clear();
-  post({ type: 'ready' });
-}
-
-function onLook(msg) {
-  const layers = Array.isArray(msg.layers) ? msg.layers : [];
-  const report = [];
-  const next = [];
-  const keep = new Set();
-  for (const layer of layers) {
-    const id = layer.id;
-    keep.add(id);
-    let entry = compiledById.get(id);
-    try {
-      if (!scene) throw new Error('sandbox has no cathedral yet (send init first)');
-      if (!entry || entry.code !== layer.code) {
-        entry = { code: layer.code, compiled: null, error: '' };
-        compiledById.set(id, entry);
-        post({ type: 'compiling', id });      // so a hang can be pinned on this layer
-        entry.compiled = compilePattern(layer.code);
-      }
-      if (!entry.compiled) throw new Error(entry.error || 'pattern did not compile');
-      next.push(prepareLayer(scene, layer, entry.compiled));
-      report.push({ id, ok: true, params: entry.compiled.params });
-    } catch (e) {
-      if (entry && !entry.compiled) entry.error = message(e);
-      report.push({ id, ok: false, error: message(e), params: entry && entry.compiled ? entry.compiled.params : {} });
-    }
-  }
-  for (const id of [...compiledById.keys()]) if (!keep.has(id)) compiledById.delete(id);
-  prepared = next;
-  post({ type: 'compiled', layers: report });
-}
-
-function onFrame(msg) {
-  const started = now();
-  const rgb = new Float32Array(scene ? scene.count * 3 : 0);
-  let errors = [];
-  if (scene) errors = renderFrame(scene, prepared, +msg.t || 0, rgb).errors;
-  post({ type: 'frame', seq: msg.seq, rgb, errors, ms: now() - started }, [rgb.buffer]);
-}
-
-function onRender(msg) {
-  if (!scene) throw new Error('sandbox has no cathedral yet (send init first)');
-  const frames = Math.max(0, Math.floor(+msg.frames || 0));
-  const fps = +msg.fps > 0 ? +msg.fps : 40;
-  const start = +msg.start || 0;
-  const opts = { gamma: msg.gamma, brightness: msg.brightness };
-  const size = scene.frameChannels;
-  const channels = new Uint8Array(frames * size);
-  const rgb = new Float32Array(scene.count * 3);
-  const seen = new Map();                     // id -> first error, across the render
-  for (let f = 0; f < frames; f++) {
-    const { errors } = renderFrame(scene, prepared, start + f / fps, rgb);
-    for (const e of errors) if (!seen.has(e.id)) seen.set(e.id, e.error);
-    toChannels(scene, rgb, channels.subarray(f * size, (f + 1) * size), opts);
-    post({ type: 'progress', seq: msg.seq, done: f + 1 });   // the page's watchdog counts these
-  }
-  const errors = [...seen].map(([id, error]) => ({ id, error }));
-  post({ type: 'rendered', seq: msg.seq, channels, frames, channelCount: size, errors }, [channels.buffer]);
-}
-
-self.addEventListener('message', (event) => {
-  const msg = event.data;
-  if (!msg || typeof msg !== 'object') return;
-  try {
-    switch (msg.type) {
-      case 'init': onInit(msg); break;
-      case 'look': onLook(msg); break;
-      case 'frame': onFrame(msg); break;
-      case 'render': onRender(msg); break;
-      default: break;
-    }
-  } catch (e) {
-    post({ type: 'error', seq: msg.seq, request: msg.type, error: message(e) });
-  }
-});
-</script>
 <script>
-// ---- this page: relay between the app and the worker, and the watchdog ----------------------
 (() => {
   'use strict';
   const app = window.parent;
@@ -133,7 +35,6 @@ self.addEventListener('message', (event) => {
   const FROZEN_GAP_MS = 600;      // a tick this late means this thread was busy or frozen: no blame
 
   const core = document.getElementById('pattern-core').textContent;
-  const runner = document.getElementById('pattern-runner').textContent;
   if (!/\bfunction\s+renderFrame\b/.test(core)) {
     // Opened straight from disk or served without the server's inlining.
     toApp({ type: 'error', error: 'core not inlined' });
@@ -145,7 +46,7 @@ self.addEventListener('message', (event) => {
   const workerSource = '(function () {\n"use strict";\n' +
     core.replace(/^[ \t]*export[ \t]+(?=(?:async[ \t]+)?function\b|const\b|let\b|var\b|class\b)/gm, '')
       .replace(/^[ \t]*export[ \t]*\{[^}]*\}[ \t]*;?/gm, '') +
-    '\n;\n' + runner + '\n})();\n';
+    '\n})();\n';
   const workerUrl = URL.createObjectURL(new Blob([workerSource], { type: 'text/javascript' }));
   const now = () => performance.now();
 
@@ -163,8 +64,6 @@ self.addEventListener('message', (event) => {
   let timer = 0;
   let lastTick = 0;
 
-  // -- workers -------------------------------------------------------------------------------
-
   function startWorker() {
     let w;
     try {
@@ -179,7 +78,8 @@ self.addEventListener('message', (event) => {
   }
 
   const layerId = (l, n) => (l && l.id !== undefined ? l.id : 'layer-' + n);
-  const enabled = (l) => l.enabled !== false && (typeof l.level === 'number' && Number.isFinite(l.level) ? l.level > 0 : true);
+  const enabled = (l) => l.enabled !== false
+    && (typeof l.level === 'number' && Number.isFinite(l.level) ? l.level > 0 : true);
 
   /** Why a layer is held back from the worker, or null. */
   function paused(l) {
@@ -204,8 +104,6 @@ self.addEventListener('message', (event) => {
     tickOn();
   }
 
-  // -- from the app --------------------------------------------------------------------------
-
   function fromApp(msg) {
     let job;
     switch (msg.type) {
@@ -227,10 +125,12 @@ self.addEventListener('message', (event) => {
         break;
       }
       case 'frame':
-        job = { type: 'frame', seq: msg.seq, t: +msg.t || 0, answerBy: now() + ANSWER_MS, msg: { type: 'frame', seq: msg.seq, t: +msg.t || 0 } };
+        job = { type: 'frame', seq: msg.seq, t: +msg.t || 0, answerBy: now() + ANSWER_MS,
+          msg: { type: 'frame', seq: msg.seq, t: +msg.t || 0 } };
         break;
       case 'render':
-        job = { type: 'render', seq: msg.seq, start: +msg.start || 0, fps: +msg.fps > 0 ? +msg.fps : 40, done: 0, sentDone: 0, sentAt: now(), msg };
+        job = { type: 'render', seq: msg.seq, start: +msg.start || 0, fps: +msg.fps > 0 ? +msg.fps : 40, done: 0,
+          sentDone: 0, sentAt: now(), msg };
         break;
       default:
         return;
@@ -243,8 +143,6 @@ self.addEventListener('message', (event) => {
     const msg = event.data;
     if (msg && typeof msg === 'object' && typeof msg.type === 'string') fromApp(msg);
   });
-
-  // -- from the worker -----------------------------------------------------------------------
 
   function onWorker(w, m) {
     if (w !== worker || !m || typeof m !== 'object') return;
@@ -284,35 +182,23 @@ self.addEventListener('message', (event) => {
       }
     }
     if (job.internal || job.answered) return;
-    switch (m.type) {
-      case 'ready':
-        toApp({ type: 'ready' });
-        break;
-      case 'compiled':
-        toApp({ type: 'compiled', layers: compiledReport(job.layers, m.layers) });
-        break;
-      case 'frame': {
-        const rgb = m.rgb instanceof Float32Array ? m.rgb : new Float32Array(count * 3);
-        toApp({ type: 'frame', seq: job.seq, rgb, errors: withPaused(m.errors, job.look), ms: +m.ms || 0 }, [rgb.buffer]);
-        break;
-      }
-      case 'rendered': {
-        if (!(m.channels instanceof Uint8Array)) { toApp({ type: 'error', seq: job.seq, request: 'render', error: 'The sandbox returned no channel data.' }); break; }
-        toApp({ type: 'rendered', seq: job.seq, channels: m.channels, frames: m.frames, channelCount: m.channelCount,
-          errors: withPaused(m.errors, job.look) }, [m.channels.buffer]);
-        break;
-      }
-      case 'error':
-        toApp({ type: 'error', seq: job.seq, request: job.type, error: String(m.error || 'error') });
-        break;
-      default:
-        break;
-    }
+    const fail = (error) => toApp({ type: 'error', seq: job.seq, request: job.type, error });
+    if (m.type === 'ready') toApp({ type: 'ready' });
+    else if (m.type === 'compiled') toApp({ type: 'compiled', layers: compiledReport(job.layers, m.layers) });
+    else if (m.type === 'frame') {
+      const rgb = m.rgb instanceof Float32Array ? m.rgb : new Float32Array(count * 3);
+      toApp({ type: 'frame', seq: job.seq, rgb, errors: withPaused(m.errors, job.look), ms: +m.ms || 0 }, [rgb.buffer]);
+    } else if (m.type === 'rendered') {
+      if (!(m.channels instanceof Uint8Array)) return fail('The sandbox returned no channel data.');
+      toApp({ type: 'rendered', seq: job.seq, channels: m.channels, frames: m.frames, channelCount: m.channelCount,
+        errors: withPaused(m.errors, job.look) }, [m.channels.buffer]);
+    } else if (m.type === 'error') fail(String(m.error || 'error'));
   }
 
   /** The worker's report, plus paused layers in their places. */
   function compiledReport(layers, report) {
-    const byId = new Map((Array.isArray(report) ? report : []).filter((r) => r && typeof r === 'object').map((r) => [r.id, r]));
+    const byId = new Map((Array.isArray(report) ? report : []).filter((r) => r && typeof r === 'object')
+      .map((r) => [r.id, r]));
     return layers.map((l) => {
       const p = paused(l);
       if (p && p.load) return { id: l.id, ok: false, error: p.error, params: {} };
@@ -327,7 +213,8 @@ self.addEventListener('message', (event) => {
 
   /** Frame errors, plus one for each paused layer that would be playing. */
   function withPaused(errors, look) {
-    const out = Array.isArray(errors) ? errors.filter((e) => e && typeof e === 'object').map((e) => ({ id: e.id, error: String(e.error) })) : [];
+    const out = (Array.isArray(errors) ? errors : []).filter((e) => e && typeof e === 'object')
+      .map((e) => ({ id: e.id, error: String(e.error) }));
     for (const l of look || []) {
       const p = enabled(l) && paused(l);
       if (p && !out.some((e) => e.id === l.id)) out.push({ id: l.id, error: p.error });
@@ -340,8 +227,6 @@ self.addEventListener('message', (event) => {
     const rgb = new Float32Array(count * 3);
     toApp({ type: 'frame', seq: job.seq, rgb, errors: withPaused([], job.look || sentLook), ms: 0 }, [rgb.buffer]);
   }
-
-  // -- watchdog ------------------------------------------------------------------------------
 
   function tickOn() {
     if (timer) return;
@@ -360,11 +245,10 @@ self.addEventListener('message', (event) => {
       for (const j of held || []) if (j.answerBy) j.answerBy += gap;
       return;
     }
-    for (const j of jobs) if (j.type === 'frame' && !j.answered && t > j.answerBy) answerBlack(j);
-    for (const j of held || []) if (j.type === 'frame' && !j.answered && t > j.answerBy) answerBlack(j);
+    for (const j of [...jobs, ...held || []]) if (j.type === 'frame' && !j.answered && t > j.answerBy) answerBlack(j);
     const head = jobs[0];
     if (head && !held) {
-      const budget = head.type === 'init' ? INIT_BUDGET_MS : head.type === 'look' ? LOOK_BUDGET_MS : FRAME_BUDGET_MS;
+      const budget = { init: INIT_BUDGET_MS, look: LOOK_BUDGET_MS }[head.type] || FRAME_BUDGET_MS;
       if (t - head.at > budget) {
         // Overdue on two ticks in a row: a reply already queued behind this tick gets its chance.
         if (head.overdue) { onHang(head); return; }
@@ -373,8 +257,6 @@ self.addEventListener('message', (event) => {
     }
     if (!jobs.length && !held) { clearInterval(timer); timer = 0; }
   }
-
-  // -- hangs ---------------------------------------------------------------------------------
 
   async function onHang(job) {
     if (worker) worker.terminate();
@@ -386,28 +268,34 @@ self.addEventListener('message', (event) => {
     if (job.type === 'look') {
       // The worker says which layer it was compiling; top-level code hangs the same way each time.
       const l = job.layers.find((x) => x.id === job.compiling);
-      if (l) remember(loadHangs, l.code, 'Pattern hung while loading: its top-level code ran for over 1 s, so this version is paused. Edit the code to try again.');
+      if (l) {
+        remember(loadHangs, l.code, 'Pattern hung while loading: its top-level code ran for over 1 s, '
+          + 'so this version is paused. Edit the code to try again.');
+      }
     } else if (job.type === 'frame' || job.type === 'render') {
       const t = job.type === 'frame' ? job.t : job.start + job.done / job.fps;
       const suspects = (job.look || []).filter((l) => enabled(l) && !paused(l));
       let culprits = suspects.length === 1 ? suspects : await probeAll(suspects, t);
-      let error = `Pattern hung: a frame took over 1 s (at ${t.toFixed(2)} s), so this layer is paused. Edit its code to try again.`;
+      let error = `Pattern hung: a frame took over 1 s (at ${t.toFixed(2)} s), so this layer is paused. `
+        + 'Edit its code to try again.';
       if (!culprits.length && suspects.length) {
         strikes = strikes.filter((s) => now() - s < STRIKE_WINDOW_MS);
         strikes.push(now());
         if (strikes.length >= 2) {
           strikes = [];
           culprits = suspects;
-          error = 'Pattern hung: frames kept taking over 1 s but no single layer hangs on its own, so the look may be too heavy for this device. Paused; edit the code to try again.';
+          error = 'Pattern hung: frames kept taking over 1 s but no single layer hangs on its own, so the look may be '
+            + 'too heavy for this device. Paused; edit the code to try again.';
         } else if (job.type === 'frame') {
-          toApp({ type: 'error', seq: job.seq, request: 'frame', error: 'A frame took over 1 s, so the pattern engine restarted.' });
+          const error = 'A frame took over 1 s, so the pattern engine restarted.';
+          toApp({ type: 'error', seq: job.seq, request: 'frame', error });
         }
       }
       for (const l of culprits) hung.set(l.id, { code: l.code, error, params: schemas.get(l.id) });
       if (job.type === 'render') {
         const names = culprits.map((l) => `“${l.title || l.id}”`).join(', ');
-        renderError = culprits.length
-          ? `Export stopped: ${names} hung at ${t.toFixed(2)} s and ${culprits.length > 1 ? 'are' : 'is'} paused now. Fix the code and export again.`
+        renderError = culprits.length ? `Export stopped: ${names} hung at ${t.toFixed(2)} s and `
+          + `${culprits.length > 1 ? 'are' : 'is'} paused now. Fix the code and export again.`
           : 'Export stopped: a frame took over 1 s. Try again, or simplify the look.';
       }
     }
@@ -430,7 +318,8 @@ self.addEventListener('message', (event) => {
     for (const j of pending) {
       if (j.internal || j.answered) continue;
       if (j === hungJob && j.type === 'render') {
-        toApp({ type: 'error', seq: j.seq, request: 'render', error: renderError || 'Export stopped: the pattern engine restarted.' });
+        const error = renderError || 'Export stopped: the pattern engine restarted.';
+        toApp({ type: 'error', seq: j.seq, request: 'render', error });
         continue;
       }
       j.overdue = false;

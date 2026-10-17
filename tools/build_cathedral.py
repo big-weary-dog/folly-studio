@@ -1,23 +1,14 @@
 #!/usr/bin/env python3
 """Build studio/public/data/cathedral.json, the Folly Studio model of the cathedral.
 
-    python3 studio/tools/build_cathedral.py           # write it
-    python3 studio/tools/build_cathedral.py --check   # exit 1 if the committed file is stale
+    python3 studio/tools/build_cathedral.py [--check]   # write it, or exit 1 if the committed file is stale
 
-Every LED comes from the canonical pipeline, td/python/make_pixel_csv.py's pixel_rows(),
-so the studio lights exactly the LEDs TouchDesigner, Mirage and the relay do: same order,
-same universe/channel, same places. Nothing here re-derives an address.
-
-What this adds is structure the CSV does not keep: strands (one chain from the pixel map:
-an arch, a quad face, a spire strand, a rose petal, a canopy run...) and an xLights-style
-tree of groups over zones and strands. Strand boundaries are learnt by wrapping
-make_pixel_csv's module-global `chain` generator, which chains() and rose() look up at
-call time and pixel_rows() consumes in CSV order, so each tag lines up with its row.
-The spirelets and the wash list one chain per pixel; consecutive pixels of one corner
-(spirelets) or one data chain (wash) are merged into one strand.
-
-Views are td/config/views.json's, verbatim. Universes: xlights/xlights_networks.xml.
-See studio/SPEC.md for the format.
+Every LED comes from td/python/make_pixel_csv.py's pixel_rows(), so the studio lights exactly the LEDs
+TouchDesigner, Mirage and the relay do: same order, universe/channel and places. This adds what the CSV
+does not keep: strands (an arch, a quad face, a spire strand, a rose petal...), learnt by wrapping
+make_pixel_csv's module-global `chain` generator (consecutive spirelet or wash pixels of one corner or
+chain merged), and an xLights-style tree of groups. Views: td/config/views.json, verbatim. Universes:
+xlights/xlights_networks.xml. Format: studio/SPEC.md.
 """
 import argparse
 import json
@@ -42,18 +33,13 @@ if TD_PYTHON not in sys.path:
     sys.path.insert(0, TD_PYTHON)
 import make_pixel_csv as mpc  # noqa: E402  (needs the path above)
 
-
 TOWERS = {'FL': 'front-left', 'FR': 'front-right', 'BL': 'back-left', 'BR': 'back-right'}
-
 
 def title(words):
     return words[:1].upper() + words[1:]
 
-
 def strand_identity(zone, start):
-    """(merge key or None, display name, extra) for one chain() call.
-
-    A merge key means consecutive calls with the same key are one strand."""
+    """(merge key or None, display name, extra) for one chain() call; a key merges consecutive calls."""
     if zone == 'main-arch':
         return None, 'Main arch %d' % start['arch_id'], {}
     m = re.match(r'mini-arch-(left|right)$', zone)
@@ -80,7 +66,6 @@ def strand_identity(zone, start):
         return None, 'Rose petal %s' % m.group(1), {}
     return None, title(zone.replace('-', ' ')), {}
 
-
 def tagged_rows(pixel_map):
     """pixel_rows() plus, per row, its strand index, and the strand list."""
     strands, tags = [], []
@@ -106,9 +91,9 @@ def tagged_rows(pixel_map):
         raise SystemExit('strand tags (%d) and pixel rows (%d) disagree' % (len(tags), len(rows)))
     for i, row in enumerate(rows):
         if strands[tags[i]]['zone'] != row[0]:
-            raise SystemExit('row %d: zone %s tagged as strand of %s' % (i, row[0], strands[tags[i]]['zone']))
+            raise SystemExit('row %d: zone %s tagged as strand of %s'
+                             % (i, row[0], strands[tags[i]]['zone']))
     return rows, tags, strands
-
 
 def universes_in_networks():
     """Universe count of the xLights networks (one <network> per universe, 510 channels)."""
@@ -119,23 +104,18 @@ def universes_in_networks():
         raise SystemExit('%s: expected networks of %d channels' % (NETWORKS, CHANNELS_PER_UNIVERSE))
     return len(sizes)
 
-
 def m3(v):
     """Metres to 3 decimals as a float (deterministic text via repr)."""
     return float('%.3f' % float(v))
-
 
 def build_groups(zones, strands):
     groups = []
 
     def add(gid, name, parent, zones_=None, strands_=None, rows=None):
         g = {'id': gid, 'name': name, 'parent': parent}
-        if zones_:
-            g['zones'] = list(zones_)
-        if strands_:
-            g['strands'] = list(strands_)
-        if rows:
-            g['rows'] = list(rows)
+        for k, v in (('zones', zones_), ('strands', strands_), ('rows', rows)):
+            if v:
+                g[k] = list(v)
         groups.append(g)
 
     def zones_like(pattern):
@@ -198,7 +178,6 @@ def build_groups(zones, strands):
         raise SystemExit('duplicate group ids')
     return groups
 
-
 def build():
     rows, tags, strands = tagged_rows(PIXEL_MAP)
     zones = []
@@ -215,19 +194,16 @@ def build():
 
     out_strands, start = [], 0
     for s in strands:
-        out_strands.append({'zone': zone_index[s['zone']], 'name': s['name'], 'start': start, 'count': s['count']})
+        out_strands.append({'zone': zone_index[s['zone']], 'name': s['name'], 'start': start,
+                            'count': s['count']})
         start += s['count']
 
     with open(VIEWS, encoding='utf-8') as f:
         views = json.load(f)['views']
 
     return {
-        'version': 1,
-        'count': len(rows),
-        'channelsPerUniverse': CHANNELS_PER_UNIVERSE,
-        'universes': universes_in_networks(),
-        'bounds': {'min': lo, 'max': hi},
-        'zones': zones,
+        'version': 1, 'count': len(rows), 'channelsPerUniverse': CHANNELS_PER_UNIVERSE,
+        'universes': universes_in_networks(), 'bounds': {'min': lo, 'max': hi}, 'zones': zones,
         'strands': out_strands,
         'pixels': {
             'zone': [zone_index[r[0]] for r in rows],
@@ -237,10 +213,8 @@ def build():
             'row': [int(r[10]) if r[10] != '' else 0 for r in rows],
             'pos': pos,
         },
-        'groups': build_groups(zones, strands),
-        'views': views,
+        'groups': build_groups(zones, strands), 'views': views,
     }
-
 
 def dumps(model):
     """Compact but diffable: one top-level key, strand or group per line."""
@@ -257,13 +231,13 @@ def dumps(model):
         elif key in ('pixels', 'views'):
             lines.append('%s:{' % c(key))
             sub = list(value)
-            lines += ['%s:%s%s' % (c(k), c(value[k]), ',' if i < len(sub) - 1 else '') for i, k in enumerate(sub)]
+            lines += ['%s:%s%s' % (c(k), c(value[k]), ',' if i < len(sub) - 1 else '')
+                      for i, k in enumerate(sub)]
             lines.append('}' + comma)
         else:
             lines.append('%s:%s%s' % (c(key), c(value), comma))
     lines.append('}')
     return '\n'.join(lines) + '\n'
-
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
@@ -285,7 +259,6 @@ def main():
     print('%d LEDs, %d zones, %d strands, %d groups -> %s (%s)'
           % (model['count'], len(model['zones']), len(model['strands']), len(model['groups']),
              os.path.relpath(args.out, REPO), 'unchanged' if old == text else 'written'))
-
 
 if __name__ == '__main__':
     main()

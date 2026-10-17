@@ -1,7 +1,6 @@
-// The Folly's rose window as inline SVG: sixteen lancet petals, each leaded into the seven rings
-// of the real window (cathedral.json rows 1–7, 14 cells a petal), round a hub. It is the brand
-// mark, the loader (petals light in turn) and an idea's progress (petals fill). Colours, lighting
-// and motion live in CSS (.rose in base.css, ideas.css); this file only draws.
+// The Folly's rose window as inline SVG: sixteen lancet petals leaded into the real window's seven rings
+// (cathedral.json rows 1–7), round a hub. The brand mark, the loader (petals light in turn) and an idea's
+// progress (petals fill); colour and motion live in CSS (.rose in base.css, ideas.css).
 import { svg } from './dom.js';
 
 const PETALS = 16;
@@ -38,12 +37,7 @@ function cell(mid, r0, r1, f0, f1) {
   return `M${side(f0, r0, r1).join('L')}L${side(f1, r1, r0).join('L')}Z`;
 }
 
-/**
- * @param {object} [o]
- * @param {'full'|'mark'} [o.detail]  full: 14 leaded cells a petal; mark: two bands, for small sizes
- * @param {string} [o.className]      e.g. 'rose-loader', 'rose-fill'
- * @param {string} [o.label]          an accessible name; without one the rose is decorative
- */
+/** rose({ detail: full (14 cells a petal) | mark (two bands, small sizes), className, label (else decorative) }) */
 export function rose({ detail = 'mark', className = '', label = '' } = {}) {
   const full = detail === 'full';
   const kids = [svg('circle', { class: 'rose-stone', r: 100 })];
@@ -53,7 +47,8 @@ export function rose({ detail = 'mark', className = '', label = '' } = {}) {
     if (full) {
       CELLS.forEach((glass, ring) => glass.forEach((k, j) => {
         const f = SPLITS[glass.length];
-        petal.append(svg('path', { class: `g-${k}`, d: cell(mid, RINGS[ring], RINGS[ring + 1], f[j], f[j + 1]) }));
+        petal.append(svg('path', { class: `g-${k}`,
+          d: cell(mid, RINGS[ring], RINGS[ring + 1], f[j], f[j + 1]) }));
       }));
     } else {
       for (const [a, b, k] of BANDS) {
@@ -65,8 +60,8 @@ export function rose({ detail = 'mark', className = '', label = '' } = {}) {
   kids.push(svg('circle', { class: 'rose-hub g-a', r: (R * HUB * 0.86).toFixed(1) }),
     svg('circle', { class: 'rose-boss', r: (R * HUB * 0.34).toFixed(1) }));
   // Animations run on the page's clock, so a rose drawn again (a list re-rendered) keeps its phase.
-  const attrs = { class: `rose rose-${detail} ${className}`.trim(), viewBox: '-100 -100 200 200', focusable: 'false',
-    style: `--t0:${-Math.round(performance.now())}ms` };
+  const attrs = { class: `rose rose-${detail} ${className}`.trim(), viewBox: '-100 -100 200 200',
+    focusable: 'false', style: `--t0:${-Math.round(performance.now())}ms` };
   if (label) Object.assign(attrs, { role: 'img', 'aria-label': label });
   else attrs['aria-hidden'] = 'true';
   return svg('svg', attrs, ...kids);
