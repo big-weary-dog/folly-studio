@@ -1,0 +1,15 @@
+{
+  "name": "folly-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Folly Studio: turn show ideas into pattern code and preview them on the Gothic Folly.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test \"test/**/*.test.js\"",
+    "build-data": "python3 tools/build_cathedral.py"
+  }
+}
