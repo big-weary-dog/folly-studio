@@ -10,6 +10,8 @@
   "scripts": {
     "start": "node server.js",
     "test": "node --test \"test/**/*.test.js\"",
+    "lint": "node tools/lint.mjs",
+    "check": "npm run lint && npm test",
     "build-data": "python3 tools/build_cathedral.py"
   }
 }
