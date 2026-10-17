@@ -22,7 +22,7 @@ export const LIMITS = {
   source: 400, test: 600, pattern: 150, // lines: code, test/**, public/patterns/*.js (they are AI examples)
   bytes: 64 * KB,                       // any text file
   lineLength: 120,                      // code (js, css, html, py)
-  bundle: 70 * KB,                      // gzip -9 (static.js's level) of public/js/**/*.js + public/*.css
+  bundle: 70 * KB,                      // gzip -9 (static.js's level) of public/js/**/*.js + public/css/*.css
   login: 30 * KB,                       // index.html, what it loads, and the sign-in view
 };
 const DATA_CAPS = { 'public/data/cathedral.json': 1024 * KB }; // generated, committed data
@@ -55,7 +55,7 @@ export const RULES = {
   'max-lines': 'source ≤ 400 lines, tests ≤ 600, library patterns ≤ 150; markdown exempt',
   'max-bytes': 'text files ≤ 64 KB; listed generated data has its own cap',
   'max-line-length': 'code lines ≤ 120 characters',
-  'bundle-size': 'gzipped public/js + public/*.css ≤ 70 KB; login page path ≤ 30 KB',
+  'bundle-size': 'gzipped public/js + public/css ≤ 70 KB; login page path ≤ 30 KB',
   'final-newline': 'text files end with a newline',
   'trailing-space': 'no trailing whitespace',
   'no-tabs': 'no tabs in js, css or html',
@@ -337,7 +337,7 @@ export async function lint({ root = STUDIO, limits = {} } = {}) {
 
 function measureBundle(gz, graph, ctx, errors) {
   let total = 0;
-  for (const [rel, n] of gz) if (/^public\/(?:js\/.*\.js|[^/]+\.css)$/.test(rel)) total += n;
+  for (const [rel, n] of gz) if (/^public\/(?:js\/.*\.js|(?:css\/)?[^/]+\.css)$/.test(rel)) total += n;
   const loginFiles = new Set(), todo = ['public/index.html', LOGIN_VIEW];
   while (todo.length) {
     const rel = todo.pop();

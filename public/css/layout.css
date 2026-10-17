@@ -1,0 +1,47 @@
+/* Layout: the list pages' column, titles over a string of LEDs, and the sign-in page (the rose
+   window beside a pointed-arch card). */
+.page { max-width: 1120px; margin: 0 auto; padding: 40px 24px 80px; }
+.page-title { font-size: clamp(27px, 3.6vw, 36px); letter-spacing: -.015em; }
+.page-title::after { content: ''; display: block; height: 6px; width: min(240px, 60%); margin-top: 12px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--tint) 70%, #fff) 0 1.3px, #0000 2px) 0 50% / 11px 6px;
+  mask: linear-gradient(90deg, #000 40%, #0000); }
+.lede { color: var(--text-2); margin-top: 12px; max-width: 62ch; font-size: 16px; }
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.section-head h2 { display: flex; align-items: center; gap: 10px; font-size: 21px; }
+.section-head h2::before { --q: 11px; }
+.page-head { margin-bottom: 30px; }
+.head-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.search { width: 240px; max-width: 100%; }
+.empty { margin-top: 16px; padding: 36px 20px; text-align: center; color: var(--text-2); }
+.pane-hint { color: var(--text-3); font-size: 13.5px; padding: 6px 2px; }
+
+.auth { min-height: 100dvh; max-width: 1080px; margin: 0 auto; padding: 40px 28px; display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px); align-items: center; gap: 64px; }
+.auth-art { display: grid; place-items: center; }
+.auth-art .rose { width: min(100%, 460px); filter: drop-shadow(0 0 60px rgb(240 100 127 / .2)); }
+.auth-art .rp { animation: rp-glint 9s ease-in-out infinite; animation-delay: calc(var(--i) * -.5625s); }
+@keyframes rp-glint { 50% { opacity: .62; } } /* a slow wave of light round the window */
+.auth-card { --arch: 110px; --tint: var(--dust); padding: 70px 34px 32px; }
+.auth-card::before {
+  background: radial-gradient(70% 45% at 50% 0%, color-mix(in srgb, var(--tint) 24%, #0000), #0000)
+    color-mix(in srgb, var(--tint) 5%, var(--night-1)); }
+.auth-title { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.auth-title .wordmark { width: 220px; height: 54px; }
+.kicker { display: flex; align-items: center; gap: 8px; color: var(--sand); font-size: 11.5px; font-weight: 650;
+  letter-spacing: .24em; text-transform: uppercase; }
+.kicker::before, .kicker::after { --q: 8px; color: var(--dust); }
+.auth-lede { text-align: center; color: var(--text-2); margin: 14px 0 26px; font-size: 14.5px; }
+.auth-form { display: flex; flex-direction: column; gap: 16px; }
+.auth-form .btn { font-size: 15px; }
+
+@media (max-width: 899px) {
+  .page { padding: 24px 16px 64px; }
+  .lede { font-size: 15px; }
+  .search { flex: 1; width: auto; min-width: 0; }
+  .head-actions { width: 100%; flex-wrap: nowrap; }
+  .auth { grid-template-columns: 1fr; gap: 0; padding: 20px 16px 32px; align-content: start; min-height: 0; }
+  .auth-art { height: 196px; overflow: hidden; margin-bottom: -112px; place-items: start center; }
+  .auth-art .rose { width: 270px; filter: none; }
+  .auth-card { --arch: 120px; padding: 84px 20px 24px; }
+  .auth-title .wordmark { width: 184px; height: 46px; }
+}

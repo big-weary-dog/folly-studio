@@ -3,8 +3,9 @@ import { api } from '../api.js';
 import { Viewer } from '../viewer.js';
 import { Runtime, HUNG_MESSAGE } from '../runtime.js';
 import {
-  h, clear, confirmDialog, debounce, isTyping, nextId, openDialog, randomId, reducedMotion, toast,
+  h, clear, confirmDialog, debounce, isTyping, nextId, openDialog, randomId, reducedMotion, stylesheet, toast,
 } from './dom.js';
+import { rose } from './rose.js';
 import {
   loadCathedral, loadLibrary, buildGroupIndex, makeLayer, layerFromPattern, cleanLayer,
   normaliseLayers, BLANK_CODE,
@@ -21,6 +22,8 @@ import { createDock } from './studio-dock.js';
 import { Timeline } from './timeline.js';
 import { importLookDialog } from './timeline-import.js';
 import { cleanBpm, cleanDuration } from './timeline-model.js';
+
+await stylesheet('/css/studio.css');
 
 // Narrow screens stack the panels under the 3D view and switch them with these tabs.
 const TABS = [
@@ -919,7 +922,10 @@ export function mount(root, ctx) {
     if (!S.look.id || !S.cathedral) return;
     showViewerMsg('Loading the baked frames…');
     try {
-      const frames = await loadBakedFrames(S.look.id, S.cathedral);
+      // A chunk that was still on its way when its frame came up has arrived: redraw it.
+      let frames = null;
+      const onChunk = () => { if (frames && S.baked?.frames === frames) { S.baked.index = -1; kick(); } };
+      frames = await loadBakedFrames(S.look.id, S.cathedral, { onChunk });
       if (!alive || token !== bakedLoad) return;
       S.baked = { frames, rgb: new Float32Array(S.cathedral.count * 3), index: -1 };
       S.t = 0;
@@ -941,7 +947,7 @@ export function mount(root, ctx) {
   }
 
   function showViewerMsg(text, error = false) {
-    viewerMsg.textContent = text;
+    viewerMsg.replaceChildren(error ? '' : rose({ detail: 'full', className: 'rose-loader' }), text);
     viewerMsg.classList.toggle('error', error);
     viewerMsg.hidden = false;
   }

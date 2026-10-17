@@ -89,6 +89,7 @@ export class LayerStack {
     r.li.classList.toggle('selected', selected);
     r.li.classList.toggle('silent', silent);
     r.li.dataset.status = status.kind;
+    r.li.dataset.blend = layer.blend;
     r.index.textContent = String(index + 1);
     r.name.textContent = title;
     r.name.setAttribute('aria-current', selected ? 'true' : 'false');

@@ -1,0 +1,62 @@
+/* Ideas (loaded by js/ui/ideas.js): describe a show in amber glass; each idea's rose, in its own
+   small pane, fills while the idea is made and is lit once it is ready. */
+.ideas-page { max-width: 920px; }
+.compose { position: relative; padding: 44px 32px 28px; }
+/* a margin of small jewel panes leaded along the top of the window */
+.compose::before {
+  content: ''; position: absolute; inset: 0 0 auto; height: 14px; border-bottom: var(--came) solid var(--lead);
+  background: repeating-linear-gradient(90deg, #f4b04f8c 0 36px, var(--lead) 0 39px, #f0647f80 0 75px,
+    var(--lead) 0 78px, #3d64e099 0 114px, var(--lead) 0 117px, #45cf9b73 0 153px, var(--lead) 0 156px,
+    #b393ff80 0 192px, var(--lead) 0 195px); }
+.idea-form { margin-top: 24px; display: flex; flex-direction: column; gap: 14px; }
+.idea-input { width: 100%; min-height: 124px; resize: vertical; padding: 14px 16px; font-size: 17px; line-height: 1.5; }
+.chips-row { display: flex; gap: 12px; align-items: baseline; }
+.chips-label { color: var(--text-3); font-size: 13px; flex: none; }
+.chips { display: flex; flex-wrap: wrap; gap: 2px 18px; }
+.chip { display: inline-flex; align-items: center; gap: 8px; min-height: var(--hit); padding: 4px 0; text-align: left;
+  color: var(--text-2); font-size: 13.5px; background: none; border: 0; cursor: pointer; }
+.chip::before { --q: 9px; color: var(--amber); }
+.chip:nth-child(5n+2)::before { color: var(--ruby); }
+.chip:nth-child(5n+3)::before { color: var(--cobalt-t); }
+.chip:nth-child(5n+4)::before { color: var(--emerald); }
+.chip:nth-child(5n)::before { color: var(--violet); }
+.chip:hover { color: var(--text); text-decoration: underline dotted; text-underline-offset: 4px; }
+.idea-form-actions { display: flex; align-items: center; gap: 14px; justify-content: flex-end; }
+.char-count, .kbd-hint { color: var(--text-3); font-size: 12.5px; }
+.char-count { margin-right: auto; }
+.ideas-section { margin-top: 48px; }
+.idea-list { list-style: none; margin: 18px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.idea { display: grid; grid-template-columns: auto 1fr auto; align-items: center; }
+.idea.is-ready { --tint: var(--emerald); }
+.idea.is-failed { --tint: var(--ruby); }
+.idea.is-queued, .idea.is-generating { --tint: var(--amber); }
+.idea-pane { display: grid; place-items: center; align-self: stretch; grid-row: span 2; padding: 12px 14px;
+  background: rgb(6 4 11 / .35); border-right: var(--came) solid var(--lead); }
+.idea-rose { width: 42px; height: 42px; }
+.idea.is-failed .rp { opacity: .2; }
+.idea.is-queued .rp { --step: 250ms; animation-duration: 8s; }
+.idea-main { min-width: 0; padding: 14px 18px; }
+.idea-text { font-size: 15.5px; overflow-wrap: anywhere; }
+.idea-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 6px; font-size: 12.5px;
+  color: var(--text-3); }
+.idea-error { margin-top: 6px; color: var(--error); font-size: 13px; }
+.idea-actions { padding-right: 16px; }
+.idea-actions:empty { display: none; }
+/* a ready idea opens in its own emerald glass */
+.idea .btn.primary { color: #06140e; text-shadow: none; }
+.idea .btn.primary::before {
+  background: radial-gradient(70% 90% at 50% 18%, #5fe0b0, #0000 75%) color-mix(in srgb, var(--emerald) 64%, #0b3a2a); }
+@media (max-width: 899px) {
+  .compose { padding: 34px 16px 18px; }
+  .idea-input { font-size: 16px; }
+  .chips-row { flex-direction: column; align-items: stretch; gap: 2px; min-width: 0; }
+  .chips { flex-wrap: nowrap; overflow-x: auto; margin: 0 -16px; padding: 0 16px; gap: 0 20px; scrollbar-width: none;
+    scroll-snap-type: x proximity; scroll-padding-inline: 16px; overscroll-behavior-x: contain; }
+  .chip { flex: none; scroll-snap-align: start; white-space: nowrap; }
+  .kbd-hint { display: none; }
+  .idea { grid-template-columns: auto 1fr; }
+  .idea-pane { padding: 12px 9px; place-items: start center; }
+  .idea-rose { width: 36px; height: 36px; }
+  .idea-main { padding: 12px 14px; }
+  .idea-actions { padding: 0 14px 14px; justify-self: start; }
+}

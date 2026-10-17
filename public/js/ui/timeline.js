@@ -2,7 +2,7 @@
 // blocks on a time ruler, and a playhead. Wide screens: in the bottom dock, edited by dragging
 // (timeline-input.js). Phones: compact strips plus the selected clip's numbers
 // (timeline-tools.js). Only the playhead moves per frame, by transform.
-import { h, toast } from './dom.js';
+import { h, stylesheet, toast } from './dom.js';
 import {
   addClip, clock, contentEnd, DEFAULT_DURATION, importLook, MAX_DURATION, removeClip, rulerStep, snapStep,
 } from './timeline-model.js';
@@ -15,9 +15,7 @@ const MAX_PPS = 200;           // pixels a second, fully zoomed in
 const MAX_WIDTH = 120000;      // and never wider than this
 
 // Its styles load with the Studio, not with the login page.
-if (!document.querySelector('link[data-timeline]')) {
-  document.head.append(h('link', { rel: 'stylesheet', href: '/timeline.css', dataset: { timeline: '1' } }));
-}
+await stylesheet('/css/timeline.css');
 
 function pref(key, value) {
   try {
@@ -136,8 +134,8 @@ export class Timeline {
     if (!this.colors) {
       const cs = getComputedStyle(this.el);
       const v = (name, d) => cs.getPropertyValue(name).trim() || d;
-      this.colors = { tick: v('--line-3', '#3a4874'), text: v('--text-3', '#8890aa'), end: v('--amber', '#f2b148'),
-        beat: v('--sapphire', '#6d98ff') };
+      this.colors = { tick: v('--tl-tick', '#4d4258'), text: v('--text-3', '#a3949f'), end: v('--amber', '#f4b04f'),
+        beat: v('--cobalt-t', '#9bb6ff') };
     }
     this.scrollX = this.scroll.scrollLeft;
     for (const r of this.rows.values()) r.sig = '';
@@ -192,9 +190,10 @@ export class Timeline {
     const clips = l.clips || [];
     const selIndex = this.sel && this.sel.id === l.id ? this.sel.index : -1;
     const title = l.title || 'Layer';
-    const sig = `${title}|${selected}|${selIndex}|${JSON.stringify(clips)}|${this.pps}|${this.duration}`;
+    const sig = `${title}|${selected}|${selIndex}|${l.blend}|${JSON.stringify(clips)}|${this.pps}|${this.duration}`;
     if (sig === r.sig) return;
     r.sig = sig;
+    r.row.dataset.blend = l.blend || 'add';     // clips take the glass of the layer's blend
     r.row.classList.toggle('selected', selected);
     r.name.textContent = title;
     r.always.hidden = clips.length > 0;

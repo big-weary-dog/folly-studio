@@ -38,7 +38,7 @@ namespaces. Without them they skip and print why. The data tests need `python3`.
 | `src/generate/` | Idea → look: the queue, adapters (`sketch`, `claude`, `fleet`), prompt, validation |
 | `render-box/render.mjs` | Bakes a look to `.fseq` inside bubblewrap |
 | `fleet-box/` | Checker and brief for a boxed Fleet worker |
-| `public/index.html`, `app.css` | The app shell and its styles (`timeline.css`: the Studio's timeline, loaded with it) |
+| `public/index.html`, `css/` | The app shell and its styles: `tokens.css` (the palette), base, layout and components on every page; `ideas`, `gallery`, `studio`, `timeline` load with their views (`stylesheet()` in `ui/dom.js`) |
 | `public/sandbox.html` | The sandboxed pattern runner (SPEC "Sandbox protocol") |
 | `public/js/pattern-core.js` | Pure: stdlib, compile, scene, render, channels; runs in the sandbox, the box and tests |
 | `public/js/fseq.js` | Pure: FSEQ v2 writer |
@@ -95,7 +95,7 @@ reviewed allowlist at the top of `tools/lint.mjs` names who may use `eval` and `
 
 ## Performance budgets
 
-- Gzipped `public/js/**/*.js` + `public/*.css` ≤ 70 KB; the login page (`index.html`, what it
+- Gzipped `public/js/**/*.js` + `public/css/*.css` ≤ 70 KB; the login page (`index.html`, what it
   loads eagerly and the sign-in view) ≤ 30 KB. The lint prints both. Views load on first use.
 - 4,870 LEDs at 40 fps: the render loop allocates nothing per frame (reuse typed arrays, pass
   `out`), skips layers outside their clips before any pixel work, and sleeps when idle.

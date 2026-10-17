@@ -1,6 +1,7 @@
 // Folly Studio — app bootstrap: session, header, history-API routing.
 import { api } from './api.js';
 import { clear, confirmDialog, toast } from './ui/dom.js';
+import { rose } from './ui/rose.js';
 // Views load on first use, so the login and list pages never fetch the Studio's 3D code.
 const auth = () => import('./ui/auth.js');
 const looks = () => import('./ui/looks.js');
@@ -21,6 +22,9 @@ const app = {
 const main = document.getElementById('main');
 let renders = 0;
 const header = document.getElementById('app-header');
+// The rose: the brand mark, and the loader while the first view loads.
+document.getElementById('brand-mark')?.append(rose());
+document.getElementById('boot-msg')?.prepend(rose({ detail: 'full', className: 'rose-loader' }));
 
 function match(pathname) {
   for (const r of ROUTES) {

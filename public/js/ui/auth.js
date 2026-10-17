@@ -1,6 +1,7 @@
 // Sign up / log in.
 import { api } from '../api.js';
 import { h, svg, nextId } from './dom.js';
+import { rose } from './rose.js';
 
 export function mount(root, ctx) {
   const wantsSignup = ctx.query.get('mode') === 'signup';
@@ -15,7 +16,8 @@ export function mount(root, ctx) {
   const hint = h('p', { class: 'field-hint' });
 
   const tabLogin = h('button', { type: 'button', class: 'seg-btn', text: 'Log in', onClick: () => setMode('login') });
-  const tabSignup = h('button', { type: 'button', class: 'seg-btn', text: 'Sign up', onClick: () => setMode('signup') });
+  const tabSignup = h('button', { type: 'button', class: 'seg-btn', text: 'Sign up',
+    onClick: () => setMode('signup') });
 
   const form = h('form', { class: 'auth-form', novalidate: true, 'aria-describedby': errId },
     h('div', { class: 'seg', role: 'group', 'aria-label': 'Log in or sign up' }, tabLogin, tabSignup),
@@ -30,7 +32,8 @@ export function mount(root, ctx) {
     tabSignup.setAttribute('aria-pressed', String(m === 'signup'));
     submit.textContent = m === 'login' ? 'Log in' : 'Create account';
     password.autocomplete = m === 'login' ? 'current-password' : 'new-password';
-    hint.textContent = m === 'signup' ? 'At least 8 characters is a good idea. Usernames are public in the gallery.' : '';
+    hint.textContent = m === 'signup'
+      ? 'At least 8 characters is a good idea. Usernames are public in the gallery.' : '';
     hint.hidden = m !== 'signup';
     error.hidden = true;
   }
@@ -52,7 +55,8 @@ export function mount(root, ctx) {
       const res = mode === 'login' ? await api.login(u, p) : await api.signup(u, p);
       ctx.setUser(res.user);
       const next = ctx.query.get('next');
-      const dest = next && next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/login') ? next : '/ideas';
+      const safe = next && next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/login');
+      const dest = safe ? next : '/ideas';
       ctx.navigate(dest, { replace: true, force: true });
     } catch (err) {
       showError(err.message);
@@ -70,37 +74,16 @@ export function mount(root, ctx) {
   }
 
   root.append(h('div', { class: 'auth' },
-    h('div', { class: 'auth-art', 'aria-hidden': 'true' }, roseWindow()),
+    h('div', { class: 'auth-art' }, rose({ detail: 'full' })),
     h('section', { class: 'auth-card' },
-      h('h1', { class: 'auth-title' }, h('span', { class: 'kicker', text: 'The Gothic Folly' }), 'Folly Studio'),
-      h('p', { class: 'auth-lede', text: 'Describe a show for 4,870 LEDs — arches, spires, a sixteen-petal rose window — watch it come to life, tune it, and send it to the playa.' }),
+      h('h1', { class: 'auth-title' }, h('span', { class: 'kicker', text: 'The Gothic Folly' }),
+        svg('svg', { class: 'wordmark', 'aria-hidden': 'true' }, svg('use', { href: '#wordmark' })),
+        h('span', { class: 'sr-only', text: 'Folly Studio' })),
+      h('p', { class: 'auth-lede', text: 'Describe a show for 4,870 LEDs — arches, spires, a sixteen-petal rose '
+        + 'window — watch it come to life, tune it, and send it to the playa.' }),
       form)));
 
   // Focus the first field with a mouse; on a phone that would throw the keyboard over the page.
   if (matchMedia('(pointer: fine)').matches) setTimeout(() => username.focus(), 0);
   return {};
-}
-
-/** A decorative sixteen-petal rose window in jewel colours. */
-function roseWindow() {
-  const jewels = ['#e5486b', '#5b8cff', '#f2b148', '#39c98f'];
-  const g = svg('g', { transform: 'translate(200 200)' });
-  g.append(svg('circle', { r: 190, fill: 'none', stroke: '#2b3658', 'stroke-width': 2 }));
-  g.append(svg('circle', { r: 176, fill: 'none', stroke: '#1e2742', 'stroke-width': 1 }));
-  for (let ring = 0; ring < 3; ring++) {
-    const n = 16;
-    const r0 = 40 + ring * 46, r1 = r0 + 40;
-    for (let i = 0; i < n; i++) {
-      const a0 = (i / n) * Math.PI * 2 + (ring % 2) * (Math.PI / n);
-      const a1 = a0 + (Math.PI * 2) / n;
-      const am = (a0 + a1) / 2;
-      const p = (r, a) => `${(r * Math.sin(a)).toFixed(1)} ${(-r * Math.cos(a)).toFixed(1)}`;
-      const d = `M${p(r0, am)} Q${p(r0 + 6, a0 + 0.02)} ${p((r0 + r1) / 2, a0 + 0.04)} Q${p(r1 - 2, a0 + 0.06)} ${p(r1, am)} Q${p(r1 - 2, a1 - 0.06)} ${p((r0 + r1) / 2, a1 - 0.04)} Q${p(r0 + 6, a1 - 0.02)} ${p(r0, am)}Z`;
-      const color = jewels[(i + ring * 2) % jewels.length];
-      g.append(svg('path', { d, fill: color, 'fill-opacity': 0.16 + 0.1 * ((i + ring) % 3), stroke: color, 'stroke-opacity': 0.75, 'stroke-width': 1.2, class: `petal petal-${(i + ring) % 4}` }));
-    }
-  }
-  g.append(svg('circle', { r: 30, fill: '#f2b148', 'fill-opacity': 0.22, stroke: '#f2b148', 'stroke-width': 1.5 }));
-  g.append(svg('circle', { r: 9, fill: '#ffe2a8' }));
-  return svg('svg', { viewBox: '0 0 400 400', class: 'rose', focusable: 'false' }, g);
 }

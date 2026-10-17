@@ -1,0 +1,159 @@
+/* The timeline (js/ui/timeline*.js), loaded with the Studio: clips are small panes of their layer's
+   glass (by blend: add amber, over cobalt, max ruby, multiply violet), the playhead a lit string. */
+.studio .pane-time { display: none; }
+.dock-tools { display: flex; align-items: center; flex: 1; min-width: 0; }
+.dock-tools .btn { margin-left: 0; }
+.tl-body { display: flex; flex-direction: column; flex: none; min-height: 0; }
+@media (min-width: 900px) {
+  .studio[data-dock=timeline] { grid-template-rows: auto auto minmax(0, 1fr) 0 auto; }
+  .studio[data-dock=timeline] .splitter, .studio[data-dock=timeline] .code-body,
+    .studio[data-dock=timeline] .dock-code-only { display: none !important; }
+  .studio[data-dock=code] .tl-body, .studio[data-dock=code] .dock-tools, .studio.code-collapsed .tl-body,
+    .studio.code-collapsed .dock-tools { display: none; }
+  .studio[data-dock=timeline] .dock-issue:not([hidden]) { display: inline-flex; }
+  .studio[data-dock=timeline] .dock-head { min-height: 36px; }
+}
+.tl { --tl-row: 22px; --tl-ruler: 16px; --tl-tick: #4d4258; position: relative; display: flex; flex-direction: column;
+  min-width: 0; }
+.tl-scroll { position: relative; overflow: auto; max-height: min(30vh, 200px); outline: none;
+  background: var(--night-0); overscroll-behavior: contain; scrollbar-width: thin;
+  scrollbar-color: var(--night-4) transparent; }
+.tl-scroll:focus-visible { box-shadow: inset 0 0 0 2px var(--focus); }
+.tl-inner { position: relative; width: calc(var(--tl-names, 0px) + var(--tl-w, 100%)); min-width: 100%; }
+.tl-head-row { position: sticky; top: 0; z-index: 4; display: flex; height: var(--tl-ruler); background: var(--night-1);
+  box-shadow: 0 var(--came-s) 0 var(--lead); }
+.tl-corner, .tl-name { position: sticky; left: 0; flex: none; width: var(--tl-names); background: var(--night-1);
+  border: 0; border-right: var(--came-s) solid var(--lead); }
+.tl-corner { z-index: 1; padding: 1px 8px; color: var(--sand); font-size: 10px; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; }
+.tl-ruler { position: relative; flex: none; width: var(--tl-w); cursor: pointer; touch-action: none; }
+.tl-ruler-canvas { position: sticky; left: var(--tl-names); display: block; height: var(--tl-ruler); }
+.tl-row { --blend: var(--amber); display: flex; height: var(--tl-row); border-bottom: 1px solid var(--lead); }
+.tl-row[data-blend=over] { --blend: var(--cobalt-t); }
+.tl-row[data-blend=max] { --blend: var(--ruby); }
+.tl-row[data-blend=multiply] { --blend: var(--violet); }
+.tl-name { z-index: 3; padding: 0 8px; color: var(--text-2); font-size: 12px; text-align: left; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tl-name:hover { color: var(--text); }
+.tl-row.selected .tl-name { color: var(--text); background: color-mix(in srgb, var(--blend) 14%, var(--night-1));
+  box-shadow: inset 3px 0 0 var(--blend); }
+.tl-lane { --tl-line: rgb(255 236 214 / .05); position: relative; flex: none; width: var(--tl-w);
+  background-image: repeating-linear-gradient(to right, var(--tl-line) 0 1px, #0000 1px var(--tl-grid, 40px)); }
+.tl.beats .tl-lane { --tl-line: rgb(155 182 255 / .1); }
+.tl-row.selected .tl-lane { background-color: color-mix(in srgb, var(--blend) 5%, #0000); }
+.tl-lane::after { /* after the look's end */
+  content: ''; position: absolute; top: 0; bottom: 0; left: var(--tl-dur); right: 0; background: rgb(0 0 0 / .45);
+  pointer-events: none;
+}
+.tl-always { position: absolute; top: 3px; bottom: 3px; left: 0; width: var(--tl-dur); display: flex;
+  align-items: center; padding-left: 8px; overflow: hidden; color: var(--text-3); font-size: 10.5px;
+  white-space: nowrap; pointer-events: none; border: 1px dashed color-mix(in srgb, var(--blend) 35%, #0000); }
+/* a clip: a pane of the layer's glass in lead, lit from behind */
+.tl-clip { position: absolute; top: 2px; bottom: 2px; min-width: 2px; outline: none; cursor: grab; touch-action: none;
+  background: linear-gradient(rgb(255 244 225 / .22), #0000 60%) color-mix(in srgb, var(--blend) 48%, var(--night-1));
+  border: var(--came-s) solid var(--lead); border-radius: 2px; }
+.tl-clip::before, .tl-clip::after { /* the trim handles */
+  content: ''; position: absolute; top: 0; bottom: 0; left: -1px; width: 7px; cursor: ew-resize;
+}
+.tl-clip::after { left: auto; right: -1px; }
+.tl-clip:hover::before, .tl-clip:hover::after { background: rgb(255 244 225 / .25); }
+.tl-clip:hover { background-color: color-mix(in srgb, var(--blend) 60%, var(--night-1)); }
+.tl-clip.selected { background-color: color-mix(in srgb, var(--blend) 80%, var(--night-1));
+  box-shadow: 0 0 0 1px var(--sand), 0 0 12px color-mix(in srgb, var(--blend) 60%, #0000); }
+.tl-clip:focus-visible { box-shadow: 0 0 0 2px var(--focus); }
+.tl-clip.past-end { opacity: .45; }
+.tl.dragging, .tl.dragging .tl-clip { cursor: grabbing; }
+/* the dark corner above each fade's ramp (corner-to-corner gradients meet the other corners at 50%) */
+.tl-ramp { --shade: rgb(6 4 11 / .7); position: absolute; top: 0; bottom: 0; pointer-events: none; }
+.tl-ramp-in { left: 0; width: var(--fi); background: linear-gradient(to bottom right, var(--shade) 50%, #0000 0); }
+.tl-ramp-out { right: 0; width: var(--fo); background: linear-gradient(to bottom left, var(--shade) 50%, #0000 0); }
+.tl-fh { /* the fade handles, at the top corners */
+  position: absolute; top: -2px; z-index: 1; width: 9px; height: 9px; opacity: 0; cursor: ew-resize;
+  background: var(--sand); border: 1px solid var(--lead);
+}
+.tl-fh-in { left: max(1px, calc(var(--fi) - 4px)); }
+.tl-fh-out { right: max(1px, calc(var(--fo) - 4px)); }
+.tl-clip:hover .tl-fh, .tl-clip.selected .tl-fh { opacity: 1; }
+.tl-playhead { position: absolute; top: 0; bottom: 0; left: var(--tl-names); z-index: 5; width: 2px; margin-left: -1px;
+  background: var(--amber); box-shadow: 0 0 6px rgb(244 176 79 / .7); pointer-events: none; will-change: transform; }
+.tl-playhead::before { /* a lozenge on the ruler */
+  content: ''; position: absolute; top: 2px; left: -4px; width: 10px; height: 12px; background: var(--amber);
+  clip-path: polygon(50% 0, 100% 40%, 50% 100%, 0 40%);
+}
+.tl.tl-empty .tl-scroll::after { content: 'Add a layer to sequence it.'; display: block; padding: 10px 12px;
+  color: var(--text-3); font-size: 13px; }
+
+.tl-tools { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; font-size: 12.5px; }
+.tl-look-tools, .tl-view-tools, .tl-inspector { display: flex; align-items: center; gap: 8px; }
+.tl-view-tools { margin-left: auto; }
+.tl-field { display: inline-flex; align-items: center; gap: 4px; color: var(--text-3); white-space: nowrap; }
+.tl-label { cursor: pointer; }
+.tl-tools input.tl-num { width: 62px; min-height: var(--hit, 26px); height: var(--hit, 26px); padding: 1px 6px;
+  font-size: 12.5px; }
+.tl-tools select.tl-snap { min-height: var(--hit, 26px); height: var(--hit, 26px); padding: 1px 26px 1px 6px;
+  font-size: 12.5px; }
+.tl-zoom { display: inline-flex; gap: 2px; }
+.tl-btn { min-width: 26px; height: var(--hit, 26px); padding: 0 7px; font-size: 12.5px; color: var(--text-2);
+  cursor: pointer; background: var(--night-3); border: var(--came-s) solid var(--lead); box-shadow: var(--bevel); }
+.tl-btn:hover:not(:disabled) { color: var(--text); background: var(--night-4); }
+.tl-btn:disabled { opacity: .45; cursor: default; }
+.tl-tools .btn.small { min-height: var(--hit, 26px); height: var(--hit, 26px); padding: 0 10px; font-size: 12.5px; }
+.tl-clip-name { max-width: 170px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; }
+.tl-clip-name, .tl-btn { white-space: nowrap; }
+.tl-del { color: #ffb3c3; }
+.tl[data-mode=wide] .tl-inspector.none, .dock-tools .tl-inspector.none { display: none; }
+/* In the dock, a selected clip's numbers take the place of the other tools. */
+.dock-tools .tl-tools.has-clip > :not(.tl-inspector) { display: none; }
+/* The dock's head is narrow: labels go first, then the import button's words. */
+.dock-tools .tl-tools { gap: 8px; overflow: hidden; }
+.dock-tools .tl-look-tools, .dock-tools .tl-view-tools, .dock-tools .tl-inspector { gap: 6px; }
+.dock-tools .tl-unit { margin-left: -2px; }
+@media (max-width: 1500px) {
+  .dock-tools .tl-label:not(.keep), .dock-tools .tl-clip-name { display: none; }
+  .dock-tools .tl-tools input.tl-num { width: 52px; }
+}
+@media (max-width: 1200px) { .dock-tools .tl-label, .dock-tools .tl-clip-name { display: none; } }
+
+.import-dialog .dialog-text { color: var(--text-2); font-size: 13.5px; margin-bottom: 12px; }
+.import-tabs { display: flex; gap: 2px; margin-bottom: 10px; border-bottom: var(--came) solid var(--lead); }
+.import-tab { --arch: 10px; flex: 1; min-height: 40px; margin-bottom: calc(-1 * var(--came)); padding: 8px 4px 4px;
+  color: var(--text-2); font-weight: 600; background: none; border: 0; cursor: pointer; }
+.import-tab[aria-pressed=true] { color: var(--text); }
+.import-list { max-height: 50vh; overflow: auto; }
+.import-status { color: #ffb3c3; font-size: 13.5px; min-height: 1.5em; margin-top: 8px; }
+
+/* phones: the Time tab, strips of glass and the selected clip's numbers */
+@media (max-width: 899px) {
+  .studio[data-tab=time] .pane-viewer { height: 40dvh; min-height: 220px; }
+  .studio .pane-time { order: 4; flex: 1 1 0; min-height: 0; border: 0; }
+  .studio[data-tab=time] .pane-time { display: flex; }
+  .studio .tl-body { display: none; }
+  .time-body { padding: 0 0 24px; }
+  .tl[data-mode=narrow] .tl-scroll { max-height: none; overflow: visible; margin: 4px 12px 0; background: none; }
+  .tl[data-mode=narrow] .tl-head-row { position: static; background: none; box-shadow: none; }
+  .tl[data-mode=narrow] .tl-corner { display: none; }
+  .tl[data-mode=narrow] .tl-row { flex-direction: column; height: auto; border: 0; padding-bottom: 6px; }
+  .tl[data-mode=narrow] .tl-name { position: static; width: auto; min-height: 44px; padding: 4px 2px; border: 0;
+    background: none; font-size: 13.5px; }
+  .tl[data-mode=narrow] .tl-row.selected .tl-name { background: none; box-shadow: none; color: var(--sand); }
+  .tl[data-mode=narrow] .tl-lane { height: 52px; width: 100%; background-color: var(--night-0);
+    border: var(--came-s) solid var(--lead); }
+  .tl[data-mode=narrow] .tl-row.selected .tl-lane { box-shadow: 0 0 0 1px color-mix(in srgb, var(--blend) 60%, #0000); }
+  .tl[data-mode=narrow] .tl-clip { top: 2px; bottom: 2px; cursor: pointer; touch-action: manipulation; }
+  .tl[data-mode=narrow] .tl-ruler { touch-action: pan-y; }   /* taps only: let the page scroll */
+  .tl[data-mode=narrow] .tl-clip::before, .tl[data-mode=narrow] .tl-clip::after, .tl[data-mode=narrow] .tl-fh,
+    .tl[data-mode=narrow] .tl-view-tools { display: none; }
+  .tl[data-mode=narrow] .tl-tools { flex-wrap: wrap; gap: 10px 14px; padding: 10px 12px;
+    border-bottom: var(--came) solid var(--lead); }
+  .tl[data-mode=narrow] .tl-look-tools { flex-wrap: wrap; gap: 10px; }
+  .tl[data-mode=narrow] input.tl-num { width: 76px; font-size: 16px; }
+  .tl[data-mode=narrow] .tl-tools input.tl-num { width: 66px; }
+  .tl[data-mode=narrow] select.tl-snap { font-size: 15px; }
+  .tl[data-mode=narrow] .btn.small, .tl[data-mode=narrow] .tl-btn { font-size: 14px; }
+  .tl[data-mode=narrow] .tl-inspector { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px;
+    margin: 6px 12px 0; padding: 12px; background: color-mix(in srgb, var(--violet) 7%, var(--night-1));
+    border: var(--came) solid var(--lead); box-shadow: var(--bevel); }
+  .tl[data-mode=narrow] .tl-inspector .tl-field { justify-content: space-between; }
+  .tl[data-mode=narrow] .tl-clip-name { grid-column: 1 / -1; max-width: none; font-size: 13.5px; }
+  .tl[data-mode=narrow] .tl-inspector.none .tl-field { opacity: .5; }
+}

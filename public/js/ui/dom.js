@@ -57,6 +57,17 @@ export function randomId(prefix = 'l') {
 
 export const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+/** Adds a view's stylesheet once; resolves when it has loaded (or failed: the view still works). */
+export function stylesheet(href) {
+  let link = document.querySelector(`link[rel=stylesheet][href="${href}"]`);
+  if (!link) document.head.append(link = h('link', { rel: 'stylesheet', href }));
+  if (link.sheet) return Promise.resolve();
+  return new Promise((done) => {
+    link.addEventListener('load', done, { once: true });
+    link.addEventListener('error', done, { once: true });
+  });
+}
+
 // ---- toasts ------------------------------------------------------------------------------
 
 export function toast(message, { kind = 'info', timeout = 4200, action } = {}) {

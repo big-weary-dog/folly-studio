@@ -1,6 +1,9 @@
 // Ideas: describe a show, watch it turn into a look, open it in the Studio.
 import { api } from '../api.js';
-import { h, clear, nextId, timeAgo, toast } from './dom.js';
+import { h, clear, nextId, stylesheet, timeAgo, toast } from './dom.js';
+import { rose } from './rose.js';
+
+await stylesheet('/css/ideas.css');
 
 const EXAMPLES = [
   'Rising embers drift up the spires',
@@ -52,12 +55,14 @@ export function mount(root, ctx) {
 
   const list = h('ul', { class: 'idea-list', 'aria-live': 'polite', 'aria-busy': 'true' });
   const empty = h('div', { class: 'empty', hidden: true },
-    h('p', { text: 'No ideas yet. Describe one above — or ' }, h('a', { href: '/studio', text: 'start from a blank Studio' }), '.'));
+    h('p', { text: 'No ideas yet. Describe one above — or ' },
+      h('a', { href: '/studio', text: 'start from a blank Studio' }), '.'));
 
   root.append(h('div', { class: 'page ideas-page' },
     h('section', { class: 'compose' },
       h('h1', { class: 'page-title', text: 'Describe a show idea' }),
-      h('p', { class: 'lede', text: 'A sentence or two is plenty: colours, motion, mood, which parts of the cathedral. It becomes pattern code you can preview, tweak and export.' }),
+      h('p', { class: 'lede', text: 'A sentence or two is plenty: colours, motion, mood, which parts of the '
+        + 'cathedral. It becomes pattern code you can preview, tweak and export.' }),
       form),
     h('section', { class: 'ideas-section', 'aria-labelledby': 'my-ideas-h' },
       h('div', { class: 'section-head' },
@@ -77,7 +82,12 @@ export function mount(root, ctx) {
     e.preventDefault();
     const text = textarea.value.trim();
     formError.hidden = true;
-    if (!text) { formError.textContent = 'Describe your idea first.'; formError.hidden = false; textarea.focus(); return; }
+    if (!text) {
+      formError.textContent = 'Describe your idea first.';
+      formError.hidden = false;
+      textarea.focus();
+      return;
+    }
     submit.disabled = true;
     submit.classList.add('busy');
     try {
@@ -109,12 +119,18 @@ export function mount(root, ctx) {
     const st = STATUS[idea.status] || { label: idea.status, cls: 'pending' };
     const actions = h('div', { class: 'idea-actions' });
     if (idea.status === 'ready' && idea.lookId) {
-      actions.append(h('a', { class: 'btn primary small', href: `/studio/${encodeURIComponent(idea.lookId)}`, text: 'Open in Studio' }));
+      actions.append(h('a', { class: 'btn primary small', href: `/studio/${encodeURIComponent(idea.lookId)}`,
+        text: 'Open in Studio' }));
     } else if (idea.status === 'failed') {
       actions.append(h('button', { class: 'btn ghost small', type: 'button', text: 'Try again',
-        onClick: () => { textarea.value = idea.text; updateCount(); textarea.focus(); window.scrollTo({ top: 0 }); } }));
+        onClick: () => {
+          textarea.value = idea.text; updateCount(); textarea.focus(); window.scrollTo({ top: 0 });
+        } }));
     }
+    // The rose fills while the idea is being made and is lit once it is ready.
+    const making = idea.status === 'queued' || idea.status === 'generating';
     return h('li', { class: ['idea', `is-${idea.status}`] },
+      h('span', { class: 'idea-pane' }, rose({ className: making ? 'idea-rose rose-fill' : 'idea-rose' })),
       h('div', { class: 'idea-main' },
         h('p', { class: 'idea-text', text: idea.text }),
         h('div', { class: 'idea-meta' },
@@ -162,7 +178,9 @@ export function mount(root, ctx) {
 
   load();
   if (matchMedia('(pointer: fine)').matches) {
-    setTimeout(() => { if (alive && document.activeElement === document.body) textarea.focus({ preventScroll: true }); }, 0);
+    setTimeout(() => {
+      if (alive && document.activeElement === document.body) textarea.focus({ preventScroll: true });
+    }, 0);
   }
 
   return {

@@ -1,0 +1,38 @@
+/* Buttons: small panes of dark glass in lead. The primary action is lit cobalt glass with a
+   pointed-arch top (the ogive is in panels.css). */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--hit, 38px);
+  padding: 6px 14px; color: var(--text); background: linear-gradient(var(--night-4), var(--night-3));
+  border: var(--came-s) solid var(--lead); border-radius: var(--radius); box-shadow: var(--bevel), var(--rim);
+  font-size: 14px; font-weight: 560; text-decoration: none; white-space: nowrap; cursor: pointer;
+  transition: background .15s, color .15s; }
+.btn:hover { color: var(--text); }
+.btn:not(.primary):hover { background: var(--night-4); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.primary { --arch: 11px; min-height: 44px; padding: 13px 20px 7px; border: 0; color: #fff; font-weight: 650;
+  text-shadow: 0 1px 1px rgb(0 0 0 / .35); box-shadow: none; }
+.btn.primary::before { background: radial-gradient(70% 90% at 50% 18%, #7392f2, #0000 75%) var(--cobalt); }
+.btn.primary:hover::before { background: radial-gradient(75% 95% at 50% 18%, #8ea8ff, #0000 75%) #4a70ea; }
+.btn.ghost { background: rgb(255 236 214 / .03); }
+.btn.ghost:hover { background: rgb(255 236 214 / .08); }
+.btn.danger { color: #ffe0e6; background: color-mix(in srgb, var(--ruby) 34%, var(--night-2)); }
+.btn.danger:hover { background: color-mix(in srgb, var(--ruby) 48%, var(--night-2)); }
+.btn.small { min-height: var(--hit, 30px); padding: 3px 11px; font-size: 13px; }
+.btn.primary.small { --arch: 8px; min-height: var(--hit, 34px); padding: 10px 14px 4px; }
+.btn.wide { width: 100%; }
+.btn.busy { position: relative; color: transparent !important; text-shadow: none; pointer-events: none; }
+.btn.busy::after { content: ''; position: absolute; left: calc(50% - 8px); top: calc(50% - 6px); width: 16px;
+  height: 16px; border-radius: 50%; border: 2px solid rgb(255 255 255 / .3); border-top-color: #fff;
+  animation: spin .7s linear infinite; }
+.danger-text { color: var(--ruby) !important; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.icon-btn { display: inline-grid; place-items: center; width: var(--hit, 32px); height: var(--hit, 32px); padding: 0;
+  flex: none; color: var(--text-2); font-size: 16px; line-height: 1; background: none;
+  border: var(--came-s) solid transparent; border-radius: var(--radius); cursor: pointer; }
+.icon-btn:hover { color: var(--text); background: var(--night-3); border-color: var(--lead); }
+.icon-btn:disabled { opacity: .35; cursor: default; background: none; border-color: transparent; }
+/* windows on a came: the pressed one is lit */
+.seg { display: flex; margin-bottom: 4px; border-bottom: var(--came) solid var(--lead); }
+.seg-btn { flex: 1; min-height: 44px; margin-bottom: calc(-1 * var(--came)); padding: 10px 10px 6px;
+  color: var(--text-2); font-weight: 600; background: none; border: 0; cursor: pointer; }
+.seg-btn:hover, .seg-btn[aria-pressed=true] { color: var(--text); }
+@media (max-width: 899px) { .btn.small { padding: 6px 14px; font-size: 14px; } }

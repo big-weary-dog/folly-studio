@@ -1,0 +1,46 @@
+/* Forms: wells of dark glass in lead, the came lit on focus. Sliders are a string of LEDs with a
+   glass lozenge to drag; a switch slides a quatrefoil that lights when on. */
+input[type=text], input[type=password], input[type=search], input[type=number], textarea, select {
+  min-height: var(--hit, 38px); padding: 8px 10px; color: var(--text); background-color: var(--night-0);
+  border: var(--came-s) solid var(--lead); border-radius: var(--radius); box-shadow: var(--well), var(--rim); }
+input::placeholder, textarea::placeholder { color: var(--text-3); opacity: 1; }
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--focus); }
+select { appearance: none; padding-right: 28px; cursor: pointer; background-repeat: no-repeat; background-size: 5px 5px;
+  background-image: linear-gradient(45deg, #0000 50%, var(--text-2) 0),
+    linear-gradient(-45deg, #0000 50%, var(--text-2) 0);
+  background-position: calc(100% - 17px) 55%, calc(100% - 12px) 55%; }
+select:disabled { opacity: .5; }
+input[type=checkbox] { accent-color: var(--sand); }
+input[type=color] { width: var(--hit, 44px); height: var(--hit, 30px); padding: 2px; cursor: pointer;
+  background: var(--night-0); border: var(--came-s) solid var(--lead); border-radius: var(--radius);
+  box-shadow: var(--rim); }
+input[type=range] { appearance: none; height: var(--hit, 24px); min-width: 0; margin: 0; background: none;
+  cursor: pointer; }
+input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: var(--leds) var(--lead);
+}
+input[type=range]::-moz-range-track { height: 6px; border-radius: 3px; background: var(--leds) var(--lead); }
+input[type=range]::-webkit-slider-thumb { appearance: none; width: 16px; height: 18px; margin-top: -6px; border: 0;
+  background: radial-gradient(circle at 50% 40%, #fff3dc, var(--sand) 45%, #a8875a);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+input[type=range]::-moz-range-thumb { width: 16px; height: 18px; border: 0; border-radius: 0;
+  background: radial-gradient(circle at 50% 40%, #fff3dc, var(--sand) 45%, #a8875a);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+input[type=range]:disabled { opacity: .45; cursor: default; }
+input.switch { appearance: none; position: relative; flex: none; width: 40px; height: 22px; margin: 0; cursor: pointer;
+  background: var(--night-0); border: var(--came-s) solid var(--lead); border-radius: var(--radius);
+  box-shadow: var(--well), var(--rim); }
+input.switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px;
+  color: var(--text-3); background: var(--qf); transition: transform .15s var(--ease); }
+input.switch:checked { background: color-mix(in srgb, var(--emerald) 28%, var(--night-1)); }
+input.switch:checked::after { transform: translateX(18px); color: var(--emerald); }
+input.switch:disabled { opacity: .5; cursor: default; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field > label { font-size: 13px; color: var(--text-2); font-weight: 550; }
+.field-hint { font-size: 12.5px; color: var(--text-3); }
+.form-error { color: var(--error); font-size: 14px; }
+@media (max-width: 899px) {
+  input.switch { width: 52px; height: 30px; }
+  input.switch::after { width: 22px; height: 22px; }
+  input.switch:checked::after { transform: translateX(22px); }
+  select, input[type=text], input[type=password], input[type=search], input[type=number] { font-size: 16px; }
+}
