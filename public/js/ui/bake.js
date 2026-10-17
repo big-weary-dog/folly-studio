@@ -2,6 +2,7 @@
 // baked frames (no pattern code runs), and let a curator mark a passing look reviewed.
 // SPEC "Baked frames". The frames are the deliverable: what plays here is what will play.
 import { api } from '../api.js';
+import { autoFetchAllowed, fetchManifest, openFrameStream } from '../frames-stream.js';
 import { h, clear, nextId, toast } from './dom.js';
 
 const POLL_MS = 1500;
@@ -105,7 +106,8 @@ export class BakePanel {
     this.el.classList.toggle('no-play', !hasFrames);
     this.phoneHint.hidden = !canBake || !look;
     this.playBtn.setAttribute('aria-pressed', String(this.playing));
-    this.playBtn.textContent = this.playing ? 'Back to live' : 'Play baked frames';
+    const size = this.sized && this.sized.sha === bake?.frames?.sha256 ? ` · ${mb(this.sized.bytes)}` : '';
+    this.playBtn.textContent = this.playing ? 'Back to live' : `Play baked frames${size}`;
 
     if (this.curator) {
       const passing = bake?.source === 'render-box' && bake.status === 'done' && bake.ok && !dirty;
@@ -164,9 +166,19 @@ export class BakePanel {
 
   async togglePlay() {
     const on = !this.playing;
+    const look = this.host.look();
+    const sha = look?.bake?.frames?.sha256;
     this.playBtn.disabled = true;
     try {
+      // On a phone or a slow or metered link, the first press only says how much would download.
+      if (on && look && !autoFetchAllowed() && this.sized?.sha !== sha) {
+        this.sized = { sha, bytes: (await fetchManifest(look.id)).bytes };
+        return;
+      }
       await this.host.playBaked(on);
+    } catch (err) {
+      if (err.status === 401) { this.host.signedOut(); return; }
+      toast(err.message, { kind: 'error', timeout: 7000 });
     } finally {
       this.playBtn.disabled = false;
       this.render();
@@ -206,51 +218,10 @@ export class BakePanel {
 }
 
 /**
- * Baked frames, ready to show: fetch the look's .fseq, parse it strictly (the server's own
- * parser), and map each LED to its bytes once. frameAt(i, rgb) then fills a Float32Array(count × 3)
- * straight from the file's channels: no pattern code, no copies of the file.
+ * Baked frames, ready to show, streamed (frames-stream.js): resolves once the first 2 s are in, then
+ * frameAt(i, rgb) fills a Float32Array(count × 3) from the server's frames. No pattern code runs.
+ * `opts.onChunk(n)` hears when a frame asked for before its chunk arrived can be shown.
  */
-export async function loadBakedFrames(lookId, cathedral) {
-  const res = await fetch(`/api/looks/${encodeURIComponent(lookId)}/frames`, { credentials: 'same-origin' });
-  if (!res.ok) {
-    let msg = `Could not load the baked frames (${res.status}).`;
-    try { msg = (await res.json()).error || msg; } catch { /* not JSON */ }
-    throw Object.assign(new Error(msg), { status: res.status });
-  }
-  const bytes = new Uint8Array(await res.arrayBuffer());
-  const { parseFseq } = await import('../frames.js');
-  const f = parseFseq(bytes);
-  const N = cathedral.count;
-  const cpu = cathedral.channelsPerUniverse || 510;
-  const { universe, channel } = cathedral.pixels;
-  // Absolute channel → byte within a frame, through the sparse ranges (33 for a render-box bake).
-  const starts = [], offsets = [], ends = [];
-  let off = 0;
-  for (const [start, count] of f.ranges) { starts.push(start); offsets.push(off); ends.push(start + count); off += count; }
-  const lut = new Int32Array(N).fill(-1);
-  for (let k = 0, r = 0; k < N; k++) {
-    const a = (universe[k] - 1) * cpu + (channel[k] - 1);
-    if (!(a >= starts[r] && a + 3 <= ends[r])) {          // pixels mostly run in range order
-      r = 0;
-      while (r < starts.length && !(a >= starts[r] && a + 3 <= ends[r])) r++;
-      if (r === starts.length) { r = 0; continue; }
-    }
-    lut[k] = offsets[r] + (a - starts[r]);
-  }
-  const { data, channelCount, frameCount, fps } = f;
-  const scale = 1 / 255;
-  return {
-    frameCount, fps, seconds: frameCount / fps, bytes: bytes.length,
-    frameAt(i, rgb) {
-      const base = Math.max(0, Math.min(frameCount - 1, i | 0)) * channelCount;
-      for (let k = 0, o = 0; k < N; k++, o += 3) {
-        const at = lut[k];
-        if (at < 0) { rgb[o] = rgb[o + 1] = rgb[o + 2] = 0; continue; }
-        rgb[o] = data[base + at] * scale;
-        rgb[o + 1] = data[base + at + 1] * scale;
-        rgb[o + 2] = data[base + at + 2] * scale;
-      }
-      return rgb;
-    },
-  };
+export function loadBakedFrames(lookId, cathedral, opts) {
+  return openFrameStream(lookId, cathedral, opts);
 }

@@ -19,6 +19,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { analyzeFrames, DEFAULT_MAX_BYTES, flickerReason, FseqError, parseFseq } from './frames.js';
+import { inflateBlock } from './fseq-codec.js';
 
 export { DEFAULT_MAX_BYTES } from './frames.js';
 
@@ -158,7 +159,7 @@ export function checkFrames(bytes, { source, cathedral, maxBytes = DEFAULT_MAX_B
   if (boxStats) bake.boxStats = boxStats;
   let analysis;
   try {
-    analysis = analyzeFrames(parseFseq(bytes, { maxBytes }), cathedral);
+    analysis = analyzeFrames(parseFseq(bytes, { maxBytes, decompress: inflateBlock }), cathedral);
   } catch (err) {
     bake.status = 'failed';
     bake.reason = err instanceof FseqError ? `The baked frames were rejected: ${err.message.replace(/^frames: /, '')}.` : 'The baked frames could not be checked.';
@@ -416,14 +417,15 @@ function parseDurationMs(v, fallback) {
 // The bake queue: one render-box bake at a time
 
 /**
- * createBakeQueue({ store, box, framesDir, cathedralFile, maxQueue = 16, log })
+ * createBakeQueue({ store, box, framesDir, cathedralFile, maxQueue = 16, log, onFrames? })
  *   → { request(lookId) → bake (queued/running record), idle(), stop(), size }
  * A bake renders the look's layers for its duration (bakeSeconds) as they are when it starts,
- * and is kept only if the layers and duration are still the same when it ends.
+ * and is kept only if the layers and duration are still the same when it ends; onFrames(lookId)
+ * then hears of its stored frames.
  * request() throws BakeError with `status`
  * 503 (no box) or 429 (queue full).
  */
-export function createBakeQueue({ store, box, framesDir, cathedralFile, maxQueue = 16, log = console }) {
+export function createBakeQueue({ store, box, framesDir, cathedralFile, maxQueue = 16, log = console, onFrames }) {
   const source = 'render-box';
   const pending = [];
   const asking = new Set(); // ids between request() and the queue, so a double click is one bake
@@ -474,6 +476,7 @@ export function createBakeQueue({ store, box, framesDir, cathedralFile, maxQueue
       }
     }
     if (!(await store.looks.update(id, { bake: out.bake }))) await removeFrames(framesDir, id);
+    else if (out.bake.frames) onFrames?.(id);
     log.info?.(`[bake] look ${id}: ${out.bake.ok ? 'ok' : out.bake.reason}`);
   }
 

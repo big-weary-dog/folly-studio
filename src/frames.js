@@ -5,8 +5,8 @@
 // computed here on the bytes themselves. (A copy also goes into the Fleet box so a worker can run
 // the same checks on its own bake; that run is advisory, the server repeats it.)
 //
-//   parseFseq(bytes, { maxBytes, maxChannels }) → { version, channelCount, frameCount, stepMs, fps,
-//                                                  ranges, sparse, variables, data }   (throws FseqError)
+//   parseFseq(bytes, { maxBytes, maxChannels, maxDataBytes, decompress }) → { version, channelCount,
+//     frameCount, stepMs, fps, ranges, sparse, variables, compression, blocks, data }  (throws FseqError)
 //   analyzeFrames(parsed, cathedral) → { frames, seconds, fps, channels, sparse, pixels, coverage,
 //                                        peakBrightness, meanBrightness, darkFraction, estPeakAmps,
 //                                        flicker: { maxHz, flaggedSeconds, regions, ok } }
@@ -28,6 +28,7 @@ export const FLASH = Object.freeze({ delta: 0.1, darker: 0.8, perSecond: 3 });
 // Real strips vary and the controller may cap white, so this is an estimate for sizing supplies.
 export const AMPS_PER_CHANNEL = 0.02;
 const DARK = 10; // a pixel is dark when every channel is below this (about 4 %)
+const CODECS = ['none', 'zstd', 'zlib']; // FSEQ v2 compression types 0, 1, 2
 
 export class FseqError extends Error {
   constructor(message) {
@@ -50,11 +51,15 @@ function text(bytes) {
 }
 
 /**
- * Strictly parse an FSEQ v2.x file: uncompressed only, header fields consistent with each other
- * and with the file size, sparse ranges ascending and within maxChannels. Returns a view of the
- * channel data, not a copy. Throws FseqError on anything else.
+ * Strictly parse an FSEQ v2.x file: header fields consistent with each other and with the file size,
+ * sparse ranges ascending and within maxChannels. Returns a view of the channel data, not a copy.
+ * Compressed files (zstd or zlib blocks) are read only with `decompress(type, bytes, size)` →
+ * Uint8Array(size), which must refuse to produce more than `size` bytes: each block must inflate to
+ * exactly its frames, and the whole to at most maxDataBytes, so a decompression bomb is refused.
+ * Throws FseqError on anything else.
  */
-export function parseFseq(input, { maxBytes = DEFAULT_MAX_BYTES, maxChannels = MAX_CHANNELS } = {}) {
+export function parseFseq(input, opts = {}) {
+  const { maxBytes = DEFAULT_MAX_BYTES, maxChannels = MAX_CHANNELS, maxDataBytes = maxBytes, decompress } = opts;
   const b = input instanceof Uint8Array ? input : input instanceof ArrayBuffer ? new Uint8Array(input) : null;
   if (!b) fail('not a byte buffer');
   if (b.length > maxBytes) fail(`${b.length} bytes is over the ${maxBytes}-byte limit`);
@@ -68,13 +73,21 @@ export function parseFseq(input, { maxBytes = DEFAULT_MAX_BYTES, maxChannels = M
   const channelCount = u32(b, 10);
   const frameCount = u32(b, 14);
   const stepMs = b[18];
-  const compression = b[20] & 0x0f;
+  const compression = CODECS[b[20] & 0x0f];
   const blocks = ((b[20] & 0xf0) << 4) | b[21];
   const rangeCount = b[22];
-  if (compression !== 0) fail('compressed files are not accepted');
-  if (blocks !== 0) fail('an uncompressed file lists compression blocks');
-  if (headerLength !== 32 + 6 * rangeCount) fail(`header length ${headerLength} does not fit ${rangeCount} sparse ranges`);
-  if (dataOffset < headerLength || dataOffset > b.length) fail(`channel data offset ${dataOffset} is outside the header or file`);
+  if (!compression) fail(`unknown compression type ${b[20] & 0x0f}`);
+  if (compression !== 'none' && typeof decompress !== 'function') fail('compressed files are not accepted here');
+  if (compression === 'none' && blocks !== 0) fail('an uncompressed file lists compression blocks');
+  if (compression !== 'none' && blocks === 0) fail('a compressed file lists no compression blocks');
+  const rangesAt = 32 + 8 * blocks;
+  if (headerLength !== rangesAt + 6 * rangeCount) {
+    const parts = `${blocks ? `${blocks} compression blocks and ` : ''}${rangeCount} sparse ranges`;
+    fail(`header length ${headerLength} does not fit ${parts}`);
+  }
+  if (dataOffset < headerLength || dataOffset > b.length) {
+    fail(`channel data offset ${dataOffset} is outside the header or file`);
+  }
   if (stepMs < 1) fail('step time is 0 ms');
   if (channelCount < 1) fail('no channels');
   if (frameCount < 1) fail('no frames');
@@ -83,7 +96,7 @@ export function parseFseq(input, { maxBytes = DEFAULT_MAX_BYTES, maxChannels = M
   if (rangeCount) {
     let end = 0;
     let total = 0;
-    for (let i = 0, at = 32; i < rangeCount; i++, at += 6) {
+    for (let i = 0, at = rangesAt; i < rangeCount; i++, at += 6) {
       const start = u24(b, at);
       const count = u24(b, at + 3);
       if (count < 1) fail(`sparse range ${i + 1} is empty`);
@@ -112,8 +125,13 @@ export function parseFseq(input, { maxBytes = DEFAULT_MAX_BYTES, maxChannels = M
   }
 
   const expected = channelCount * frameCount;
-  if (b.length - dataOffset !== expected) {
-    fail(`holds ${b.length - dataOffset} bytes of channel data, expected ${frameCount} frames × ${channelCount} channels = ${expected}`);
+  const shape = `${frameCount} frames × ${channelCount} channels`;
+  let data = b.subarray(dataOffset);
+  if (compression === 'none') {
+    if (data.length !== expected) fail(`holds ${data.length} bytes of channel data, expected ${shape} = ${expected}`);
+  } else {
+    if (expected > maxDataBytes) fail(`${shape} exceed the ${maxDataBytes}-byte limit`);
+    data = inflateBlocks(b, { compression, blocks, dataOffset, channelCount, frameCount, decompress });
   }
   return {
     version: `2.${minor}`,
@@ -124,8 +142,53 @@ export function parseFseq(input, { maxBytes = DEFAULT_MAX_BYTES, maxChannels = M
     ranges,
     sparse: rangeCount > 0,
     variables,
-    data: b.subarray(dataOffset),
+    compression,
+    blocks,
+    data,
   };
+}
+
+/**
+ * The block index (from byte 32: u32 first frame, u32 compressed length), checked and inflated block
+ * by block into one buffer. Zero-length entries may only pad the end of the index (FPP preallocates).
+ */
+function inflateBlocks(b, { compression, blocks, dataOffset, channelCount, frameCount, decompress }) {
+  const index = [];
+  let padding = false;
+  for (let i = 0, at = 32; i < blocks; i++, at += 8) {
+    const frame = u32(b, at);
+    const length = u32(b, at + 4);
+    if (!length) {
+      padding = true;
+      continue;
+    }
+    if (padding) fail(`compression block ${i + 1} follows an empty one`);
+    const prev = index.length ? index[index.length - 1].frame : -1;
+    if (index.length ? frame <= prev : frame !== 0) fail(`compression block ${i + 1} does not follow the last`);
+    if (frame >= frameCount) fail(`compression block ${i + 1} starts past the last frame`);
+    index.push({ frame, length });
+  }
+  if (!index.length) fail('every compression block is empty');
+  const stored = index.reduce((n, x) => n + x.length, 0);
+  if (stored !== b.length - dataOffset) {
+    fail(`holds ${b.length - dataOffset} bytes of compressed data, the block index says ${stored}`);
+  }
+  const data = new Uint8Array(channelCount * frameCount);
+  for (let i = 0, at = dataOffset; i < index.length; at += index[i++].length) {
+    const frames = (i + 1 < index.length ? index[i + 1].frame : frameCount) - index[i].frame;
+    const size = frames * channelCount;
+    let out;
+    try {
+      out = decompress(compression, b.subarray(at, at + index[i].length), size);
+    } catch {
+      out = null;
+    }
+    if (!(out instanceof Uint8Array) || out.length !== size) {
+      fail(`compression block ${i + 1} does not inflate to its ${frames} frames (${size} bytes)`);
+    }
+    data.set(out, index[i].frame * channelCount);
+  }
+  return data;
 }
 
 /** Pixel masks of the whole cathedral and of each top-level group (children of the root). */

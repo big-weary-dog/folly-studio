@@ -1,16 +1,15 @@
 // The HTTP API (see SPEC.md "HTTP API") and createServer(), which wires the store,
 // auth, generator queue, API and static files into one node:http server.
 
-import { promises as fsp } from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
-import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
-import zlib from 'node:zlib';
-import { BakeError, createBakeQueue, createRenderBox, framesPath, removeFrames, reviewBlocker } from './bake.js';
+import { BakeError, createBakeQueue, createRenderBox, removeFrames, reviewBlocker } from './bake.js';
+import { createFramesCache } from './frames-cache.js';
+import { framesRoutes } from './frames-http.js';
 import { createStore } from './store.js';
 import { createAuth, HttpError } from './auth.js';
-import { acceptsEncoding, applySecurityHeaders, createLoaders, createStatic, DEFAULT_PUBLIC_DIR, etagMatches } from './static.js';
+import { applySecurityHeaders, createLoaders, createStatic, DEFAULT_PUBLIC_DIR } from './static.js';
 
 export { HttpError } from './auth.js';
 export { createLoaders, loadLibrary, loadGroups, DEFAULT_PUBLIC_DIR } from './static.js';
@@ -254,10 +253,16 @@ const newestBy = (field) => (a, b) => {
 // API
 
 /**
- * createApi({ store, auth, queue, adapterName, loaders, log, trustProxy, maxIdeasPerDay, framesDir, bakes })
- *   → async handleApi(req, res, pathname, searchParams)
+ * createApi({ store, auth, queue, adapterName, loaders, log, trustProxy, maxIdeasPerDay, framesDir, bakes,
+ *             frames }) → async handleApi(req, res, pathname, searchParams)
+ * `frames` is the src/frames-cache.js cache of streaming chunks and compressed downloads.
  */
-export function createApi({ store, auth, queue, adapterName = 'sketch', loaders, log = createLog(), trustProxy = false, maxIdeasPerDay = MAX_IDEAS_PER_DAY, framesDir = path.join(store.dataDir ?? DEFAULT_DATA_DIR, 'frames'), bakes }) {
+export function createApi(o) {
+  const { store, auth, queue, adapterName = 'sketch', loaders, log = createLog(), trustProxy = false } = o;
+  const { maxIdeasPerDay = MAX_IDEAS_PER_DAY, bakes } = o;
+  const framesDir = o.framesDir ?? path.join(store.dataDir ?? DEFAULT_DATA_DIR, 'frames');
+  const frames = o.frames ?? createFramesCache({ framesDir, store, log });
+  const dropFrames = (id) => removeFrames(framesDir, id).then(() => frames.prune());
   const ownerName = (id) => store.users.get(id)?.username ?? '';
 
   function presentLook(look, { versions = false } = {}) {
@@ -458,7 +463,7 @@ export function createApi({ store, auth, queue, adapterName = 'sketch', loaders,
         }
 
         const updated = Object.keys(patch).length ? store.looks.update(id, patch) : look;
-        if ('bake' in patch) await removeFrames(framesDir, id);
+        if ('bake' in patch) await dropFrames(id);
         return { look: presentLook(updated, { versions: query.get('versions') === '1' && isOwner }) };
       },
     },
@@ -468,7 +473,7 @@ export function createApi({ store, auth, queue, adapterName = 'sketch', loaders,
         const look = visibleLook(id, user);
         if (look.owner !== user.id) throw new HttpError(403, 'Only the owner can delete this look.');
         store.looks.remove(id);
-        await removeFrames(framesDir, id);
+        await dropFrames(id);
         return { ok: true };
       },
     },
@@ -485,44 +490,7 @@ export function createApi({ store, auth, queue, adapterName = 'sketch', loaders,
         }
       },
     },
-    {
-      method: 'GET', path: /^\/api\/looks\/([A-Za-z0-9_-]{1,64})\/frames$/,
-      async handler({ user, req, res, params: [id] }) {
-        const look = visibleLook(id, user);
-        // Replays revalidate (the bake's hash is the ETag), and gzip makes LED frames ~3× smaller.
-        const etag = look.bake?.frames?.sha256 ? `W/"${String(look.bake.frames.sha256).slice(0, 40)}"` : null;
-        if (etag && etagMatches(req.headers['if-none-match'], etag)) {
-          res.writeHead(304, { ETag: etag, 'Cache-Control': 'private, no-cache', Vary: 'Accept-Encoding' });
-          res.end();
-          return STREAMED;
-        }
-        const gzip = acceptsEncoding(req.headers['accept-encoding'], 'gzip');
-        let fh;
-        try {
-          fh = await fsp.open(framesPath(framesDir, id), 'r');
-        } catch {
-          throw new HttpError(404, 'This look has no baked frames.');
-        }
-        try {
-          const { size } = await fh.stat();
-          const name = String(look.title || '').replace(/[^A-Za-z0-9 _-]+/g, '').trim().replace(/\s+/g, '-').slice(0, 60) || 'look';
-          res.writeHead(200, {
-            'Content-Type': 'application/octet-stream',
-            ...(gzip ? { 'Content-Encoding': 'gzip' } : { 'Content-Length': size }),
-            'Content-Disposition': `attachment; filename="${name}.fseq"`,
-            'Cache-Control': etag ? 'private, no-cache' : 'private, no-store',
-            ...(etag ? { ETag: etag } : {}),
-            Vary: 'Accept-Encoding',
-          });
-          const body = fh.createReadStream({ autoClose: false });
-          if (gzip) await pipeline(body, zlib.createGzip({ level: 4 }), res);
-          else await pipeline(body, res);
-        } finally {
-          await fh.close();
-        }
-        return STREAMED;
-      },
-    },
+    ...framesRoutes({ framesDir, cache: frames, visibleLook, STREAMED }),
 
     // --- library
     {
@@ -683,8 +651,14 @@ export async function createServer(opts = {}) {
 
   const framesDir = path.join(dataDir, 'frames');
   const box = renderBox || createRenderBox({ publicDir, log });
-  const bakes = createBakeQueue({ store, box, framesDir, cathedralFile: path.join(publicDir, 'data', 'cathedral.json'), log });
-  const api = createApi({ store, auth, queue, adapterName, loaders, log, trustProxy, maxIdeasPerDay, framesDir, bakes });
+  // Baked frames are encoded for streaming as soon as they are stored (src/frames-cache.js).
+  const frames = createFramesCache({ framesDir, store, log });
+  const cathedralFile = path.join(publicDir, 'data', 'cathedral.json');
+  const bakes = createBakeQueue({ store, box, framesDir, cathedralFile, log, onFrames: (id) => frames.encode(id) });
+  const api = createApi({
+    store, auth, queue, adapterName, loaders, log, trustProxy, maxIdeasPerDay, framesDir, bakes, frames,
+  });
+  frames.prune().catch(() => {});
   const serveStatic = createStatic({ publicDir, log });
   // Ideas a restart cut short go back in the queue (enqueue is idempotent per id).
   for (const idea of store.ideas.list((i) => i.status === 'queued' || i.status === 'generating')) {
@@ -722,6 +696,7 @@ export async function createServer(opts = {}) {
     auth,
     queue,
     bakes,
+    frames,
     loaders,
     adapterName,
     handler,
@@ -746,7 +721,7 @@ export async function createServer(opts = {}) {
       if (typeof queue.idle === 'function') {
         let timer;
         await Promise.race([
-          Promise.all([Promise.resolve(queue.idle()).catch(() => {}), bakes.idle()]),
+          Promise.all([Promise.resolve(queue.idle()).catch(() => {}), bakes.idle(), frames.idle()]),
           new Promise((r) => {
             timer = setTimeout(r, 5000);
             timer.unref();

@@ -30,15 +30,20 @@ studio/
   SPEC.md  README.md  IDEAS.md  package.json  server.js
   src/            server: auth.js store.js api.js static.js generate/{index,sketch,claude,fleet,prompt}.js
                   frames.js (pure: FSEQ parse + analysis)  bake.js (render box, bake queue)
+                  frames-wire.js (stream encoder)  frames-cache.js (chunks, compressed downloads)
+                  frames-http.js (frames routes)  fseq-codec.js (FSEQ zstd/zlib blocks)
   render-box/     render.mjs: bakes a look to .fseq inside bubblewrap
   fleet-box/      check.mjs + BRIEF.template.md for the boxed Fleet worker
-  tools/          build_cathedral.py
+  tools/          build_cathedral.py  frames-bench.mjs (wire sizes per library look)
   public/
-    index.html  app.css  timeline.css (loaded by the Studio only)
+    index.html  favicon.svg
+    css/                  tokens, base, layout, nav, panels, buttons, forms (every page);
+                          ideas, gallery, studio, timeline (loaded by their views)
     sandbox.html          sandboxed pattern runner (template; server inlines the core)
     js/
       pattern-core.js     pure: stdlib, compile, scene prep, renderFrame, toChannels (runs in sandbox + Node tests)
       fseq.js             pure: FSEQ v2 writer (browser + Node tests)
+      frames-wire.js      pure: stream decoder (manifest, chunks)   frames-stream.js: streamed playback
       runtime.js          app side: owns the sandbox iframe, speaks the protocol below
       viewer.js           WebGL2 point renderer + orbit camera
       main.js  api.js  ui/*.js
@@ -201,10 +206,14 @@ timeline `layerEnvelope(clips, t) → 0..1`, `normalizeClips(clips) → clips | 
 bad and overlapping clips), `lookDuration(look) → seconds`, `DEFAULT_DURATION` `MIN_DURATION`
 `MAX_DURATION` `MAX_CLIPS`.
 
-`fseq.js` exports `writeFseq({ channelCount?, frames, stepMs = 25, data: Uint8Array, media?, ranges? }) → Uint8Array`
-(FSEQ v2.0, uncompressed). `ranges: [[startChannel, count], …]` (0-based, ascending, ≤ 255)
-writes a sparse file: header length 32 + 6 × ranges (u24 start, u24 count each), and each frame
-holds only the ranged channels, so `channelCount` is their total.
+`fseq.js` exports `writeFseq({ channelCount?, frames, stepMs = 25, data: Uint8Array, media?, ranges?, compression? })
+→ Uint8Array` (FSEQ v2.0). `ranges: [[startChannel, count], …]` (0-based, ascending, ≤ 255) writes a
+sparse file: each frame holds only the ranged channels, so `channelCount` is their total.
+`compression: { type: 'zstd' | 'zlib', blocks: [{ frame, bytes }] }` writes a compressed file
+instead of `data` (type 1 / 2; each block one whole zstd frame or zlib stream of its frames,
+compressed by the caller; ≤ 255 blocks, so the block count's high nibble in byte 20 stays 0).
+Header length = 32 + 8 × blocks (u32 first frame, u32 compressed length) + 6 × ranges (u24 start,
+u24 count). `fseqBlocks(frames, per = 80) → [[first, count], …]` splits frames into ≤ 255 blocks.
 
 ## HTTP API (JSON; cookie session)
 
@@ -225,7 +234,10 @@ GET    /api/looks/:id                         → { look }             mine, or 
 PUT    /api/looks/:id { title?, summary?, layers?, duration?, bpm?, shared? } → { look }   owner only; keeps versions
 DELETE /api/looks/:id                         → { ok: true }         owner only
 POST   /api/looks/:id/bake                    → 202 { bake }      owner, or a curator if shared; queued
-GET    /api/looks/:id/frames                  → the baked .fseq   mine, or shared; 404 if none (attachment)
+GET    /api/looks/:id/frames[?compress=1|zstd|zlib] → the baked .fseq   mine, or shared; 404 if none (attachment)
+GET    /api/looks/:id/frames/wire             → 302 to its manifest; 202 { pending } + Retry-After while encoded
+GET    /api/looks/:id/frames/:hash/manifest   → the stream manifest (immutable)        mine, or shared
+GET    /api/looks/:id/frames/:hash/:n         → stream chunk n (immutable; br/gzip)  mine, or shared
 GET    /api/library                           → { patterns: [{ name, title, summary, code }] }
 ```
 
@@ -275,8 +287,13 @@ bytes a box hands back. Anything a box says about itself is kept as `boxStats: {
   20 s ≈ 11.7 MB, 120 s ≈ 70 MB (full 40,800-ch frames would be ≈ 32.6 MB for 20 s). Files are
   capped at 64 MB, or ≈ 0.6 MB a second of `STUDIO_BAKE_SECONDS` when that is more
   (`STUDIO_BAKE_MAX_FRAMES` overrides).
-- **Checks** (`src/frames.js`, pure): `parseFseq(bytes, { maxBytes })` is strict (magic, v2.x,
-  uncompressed, consistent header/offset/sizes, ranges within 80 × 510, data = frames × channels).
+- **Checks** (`src/frames.js`, pure): `parseFseq(bytes, { maxBytes, maxDataBytes = maxBytes, decompress? })`
+  is strict (magic, v2.x, consistent header/offset/sizes, ranges within 80 × 510, data = frames ×
+  channels). Compressed files (zstd, zlib) are read only with `decompress(type, bytes, size)`
+  (`src/fseq-codec.js` `inflateBlock`: node:zlib with `maxOutputLength`): the block index must
+  start at frame 0 and ascend, its lengths fill the data exactly, frames × channels ≤
+  maxDataBytes before anything is inflated, and each block inflate to exactly its frames, so a
+  decompression bomb is refused. Empty index entries may only pad its end (FPP preallocates).
   `analyzeFrames(parsed, cathedral)` → `{ frames, seconds, fps, peakBrightness, meanBrightness,
   darkFraction, estPeakAmps (20 mA/channel at 5 V), coverage, flicker: { maxHz, flaggedSeconds,
   regions, ok } }`. Flicker: WCAG 2.3.1 general flash (≥ 10 % luminance swings, darker side < 0.8,
@@ -284,3 +301,25 @@ bytes a box hands back. Anything a box says about itself is kept as `boxStats: {
 - **Stored.** `<STUDIO_DATA>/frames/<lookId>.fseq` and `look.bake = { source, status:
   queued|running|done|failed, ok, reason?, checkedAt, layersHash, analysis?, frames?: { bytes,
   sha256 }, boxStats? }`. `ok` is false when the frames are missing, malformed or flicker.
+  Beside them, by content hash (`hash` = 32 hex of SHA-256 over the wire version, chunk size and
+  `frames.sha256`): `frames/<hash>/<n>.br`, `manifest.json` (written last), `<n>.gz` and
+  `frames.<zstd|zlib>.fseq` (both made on first request). Looks with the same frames share a
+  folder; folders no bake names are pruned.
+- **Wire** (`src/frames-wire.js` encodes, `public/js/frames-wire.js` decodes). Chunks of 80
+  frames, each decodable alone: one layout byte (0 frame-major, 1 frame-major deltas, 2 planar
+  i.e. channel-major, 3 planar deltas; deltas are byte-wise mod 256 from the previous frame, the
+  chunk's first frame against zeros), then the frames. Brotli picks the smallest layout per chunk
+  (probed at quality 5) and compresses it at quality 11, once, in the background after a bake (or
+  on first request for older bakes; the wire then says 202). The gzip copy, for clients that do
+  not take br (browsers send br only over HTTPS), picks its own layout, so it has its own ETag.
+  Manifest: `{ version: 1, hash, frames, fps, channels, ranges, chunkFrames, chunks: [{ bytes }],
+  bytes }` (brotli sizes). Manifest and chunks are served `Cache-Control: public,
+  max-age=31536000, immutable`, chunks with `Content-Encoding: br` (else gzip, else none) and
+  `Vary: Accept-Encoding`.
+- **Playback** (`public/js/frames-stream.js`): manifest, then chunk 0, then play; two chunks
+  ahead are fetched, a seek fetches its chunk, deltas are undone in place once per chunk, and
+  frames are read without allocating. On a phone, a cellular link, Save-Data or below 4G the
+  first press of Play only shows the download size; the second plays.
+- **Downloads.** `?compress=1` (zstd when this Node has `zlib.zstdCompress`, else zlib), `zstd` or
+  `zlib`: FSEQ v2 with 80-frame blocks (zstd level 19, zlib 9), as FPP's FSEQFile writes them;
+  plain (no `compress`) is the stored file, gzip transfer-encoded.
