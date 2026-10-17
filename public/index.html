@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#060914">
+<meta name="description" content="Folly Studio: describe a light show for the Gothic Folly, preview it on a 3D model of its 4,870 LEDs, tune the code and export it.">
+<title>Folly Studio</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/app.css">
+<script type="module" src="/js/main.js"></script>
+</head>
+<body class="booting">
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="app-header" id="app-header" hidden>
+  <a class="brand" href="/ideas" aria-label="Folly Studio home">
+    <img class="brand-mark" src="/favicon.svg" alt="" width="30" height="30">
+    <span class="brand-name">Folly <em>Studio</em></span>
+  </a>
+  <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-panel">
+    <span class="sr-only">Menu</span><span class="nav-toggle-bars" aria-hidden="true"></span>
+  </button>
+  <div class="nav-panel" id="nav-panel">
+    <nav class="main-nav" id="main-nav" aria-label="Main">
+      <a href="/ideas">Ideas</a>
+      <a href="/studio">Studio</a>
+      <a href="/looks">My looks</a>
+      <a href="/gallery">Gallery</a>
+    </nav>
+    <div class="user-box">
+      <span class="user-name" id="user-name"></span>
+      <span class="tag tag-amber" id="user-role" hidden>Curator</span>
+      <button class="btn ghost small" id="logout-btn" type="button">Log out</button>
+    </div>
+  </div>
+</header>
+<main id="main" tabindex="-1">
+  <div class="boot-msg" aria-live="polite">Lighting the candles…</div>
+</main>
+<div id="toasts" class="toasts" aria-live="polite"></div>
+<noscript><p class="noscript">Folly Studio needs JavaScript to run.</p></noscript>
+</body>
+</html>
