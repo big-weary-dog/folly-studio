@@ -1,5 +1,6 @@
 // The Studio's preview: the 3D view and its camera buttons, the sandbox runtime, and the one clock
 // that plays the look (or its baked frames) and pumps frames to the sandbox.
+import { FlashGuard } from '../flash-guard.js';
 import { Runtime } from '../runtime.js';
 import { Viewer } from '../viewer.js';
 import { openFrameStream } from '../frames-stream.js';
@@ -14,6 +15,7 @@ import { Transport } from './transport.js';
 export function createPreview({ S, ui, alive, timeline, onCompiled, onFrameErrors, onBaked, signedOut }) {
   const p = { runtime: null, viewer: null };
   let raf = 0, last = 0, statsAt = 0, onScreen = true, io = null, bakedLoad = 0, everReady = false;
+  const flash = flashGuard(S, ui);
   const transport = new Transport(ui.paneViewer, {
     onPlay: () => p.setPlaying(!S.playing),
     onRestart: () => { S.t = 0; p.kick(); },
@@ -33,6 +35,18 @@ export function createPreview({ S, ui, alive, timeline, onCompiled, onFrameError
     const onError = (msg) => p.showMsg(msg, true);
     const viewer = p.viewer = new Viewer(ui.canvas, { views, defaultView: 'fit', onError });
     viewer.setCathedral(cathedral);
+    flash.start(cathedral, viewer);
+    // Views frame what the buttons over the top of the view leave clear; phones' toasts sit just above
+    // the transport, clear of the panels below it.
+    p.ro = new ResizeObserver(() => {
+      const bar = [ui.viewBar, ui.viewCompact].find((el) => el.offsetHeight);
+      viewer.setOption('insetTop', bar ? bar.offsetTop + bar.offsetHeight + 4 : 0);
+      const top = NARROW.matches ? transport.el.getBoundingClientRect().top : 0;
+      const root = document.documentElement.style;
+      if (top > 0) root.setProperty('--toasts-bottom', `${Math.round(innerHeight - top + 8)}px`);
+      else root.removeProperty('--toasts-bottom');
+    });
+    for (const el of [ui.viewBar, ui.viewCompact, ui.paneViewer]) p.ro.observe(el);
     const label = (n) => n.charAt(0).toUpperCase() + n.slice(1);
     for (const name of ['fit', ...Object.keys(views)]) {
       const title = name === 'fit' ? 'Frame the whole cathedral (double-click the view does this too)'
@@ -59,7 +73,7 @@ export function createPreview({ S, ui, alive, timeline, onCompiled, onFrameError
   function setupRuntime(cathedral) {
     p.runtime = new Runtime({
       container: ui.sandboxHost,
-      onFrame: (rgb) => p.viewer?.setColors(rgb),
+      onFrame: (rgb) => flash.show(rgb, performance.now()),
       onCompiled: (layers) => { onCompiled(layers); p.kick(); },
       onFrameErrors,
       onStatus: (state, detail) => {
@@ -119,7 +133,7 @@ export function createPreview({ S, ui, alive, timeline, onCompiled, onFrameError
     if (B) {
       // Baked frames: pick the frame for this time straight from the file.
       const i = Math.min(B.frames.frameCount - 1, Math.floor(S.t * B.frames.fps));
-      if (i !== B.index && viewer) { B.index = i; viewer.setColors(B.frames.frameAt(i, B.rgb)); }
+      if (i !== B.index && viewer) { B.index = i; flash.show(B.frames.frameAt(i, B.rgb), now); }
     } else if (runtime) runtime.pump(S.t, S.playing);
     transport.set(S.playing, S.t, duration, now);
     timeline.setTime(S.t, S.playing);
@@ -172,6 +186,8 @@ export function createPreview({ S, ui, alive, timeline, onCompiled, onFrameError
 
   p.destroy = () => {
     stop();
+    p.ro?.disconnect();
+    document.documentElement.style.removeProperty('--toasts-bottom');
     document.removeEventListener('visibilitychange', onVisibility);
     bakedLoad++;
     S.baked = null;
@@ -180,4 +196,50 @@ export function createPreview({ S, ui, alive, timeline, onCompiled, onFrameError
     p.viewer?.destroy();
   };
   return p;
+}
+
+const DIM = 0.15;
+const NARROW = typeof matchMedia === 'function' ? matchMedia('(max-width: 899px)') : { matches: false };
+const REDUCE = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+const shown = new Set();     // looks whose flashing someone chose to see, this session
+
+/**
+ * The preview's flash guard: every frame shown goes through show(), which dims the view and offers a
+ * banner while a large area flashes over three times a second (flash-guard.js), or while the saved
+ * look's bake says it does. "Show it anyway" lasts for that look this session; reduced motion keeps
+ * it dimmed.
+ */
+function flashGuard(S, ui) {
+  let guard = null, viewer = null, guarded = false;
+  const key = () => `studio.flash.${S.look.id || 'new'}`;
+  const allowed = () => {
+    if (REDUCE.matches) return false;
+    try { return shown.has(key()) || sessionStorage.getItem(key()) === '1'; } catch { return shown.has(key()); }
+  };
+  const anyway = h('button', { type: 'button', class: 'btn small', text: 'Show it anyway', onClick: () => {
+    shown.add(key());
+    try { sessionStorage.setItem(key(), '1'); } catch { /* private mode: this page only */ }
+    set(guarded);
+  } });
+  const text = h('span', { class: 'flash-text' });
+  const banner = h('div', { class: 'viewer-msg flash-banner', role: 'status', hidden: true }, text, anyway);
+  ui.viewerWrap.append(banner);
+  function set(on) {
+    guarded = on;
+    const dim = on && !allowed();
+    viewer?.setOption('gain', dim ? DIM : 1);
+    banner.hidden = !dim;
+    anyway.hidden = REDUCE.matches;
+    text.textContent = REDUCE.matches ? 'This look flashes quickly, so it stays dimmed: your device asks for '
+      + 'reduced motion.' : 'This look flashes quickly. Show it anyway?';
+  }
+  return {
+    start(cathedral, v) { guard = new FlashGuard(cathedral); viewer = v; },
+    /** Shows a frame (rgb, as the viewer takes it) seen at `now` ms. */
+    show(rgb, now) {
+      const flashing = guard.observe(rgb, now) || (S.server?.bake?.analysis?.flicker?.ok === false && !S.dirty);
+      if (flashing !== guarded) set(flashing);
+      viewer.setColors(rgb);
+    },
+  };
 }

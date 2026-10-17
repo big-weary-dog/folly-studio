@@ -250,7 +250,8 @@ API `GET`s answer `Cache-Control: private, no-cache` with an ETag (a reload reva
 304); other responses are `no-store`.
 
 `PUT reviewed: true` answers 409 with the reason unless the look has a passing render-box bake of
-its current layers; a failed flicker check from any bake always blocks. Changing `layers` or
+its current layers; large-area flashing in any bake always blocks (flashing on small regions only
+warns: `bake.warning`). Changing `layers` or
 `duration` makes a version (`{ title, summary, layers, duration, savedAt }`), drops the bake and
 its frames and clears `reviewed`; `bpm` (`null` clears it) does not. Clips that overlap or fall
 outside 0–600 s, and a duration outside 1–600 s, are refused with 400.
@@ -304,11 +305,16 @@ bytes a box hands back. Anything a box says about itself is kept as `boxStats: {
   decompression bomb is refused. Empty index entries may only pad its end (FPP preallocates).
   `analyzeFrames(parsed, cathedral)` → `{ frames, seconds, fps, peakBrightness, meanBrightness,
   darkFraction, estPeakAmps (20 mA/channel at 5 V), coverage, flicker: { maxHz, flaggedSeconds,
-  regions, ok } }`. Flicker: WCAG 2.3.1 general flash (≥ 10 % luminance swings, darker side < 0.8,
-  > 3 flashes in any 1 s) on the mean of the whole cathedral and of each top-level group.
+  regions, ok, small: { maxHz, flaggedSeconds, regions } } }`. Flicker: WCAG 2.3.1 general flash
+  (≥ 10 % luminance swings, darker side < 0.8, > 3 flashes in any 1 s) on the mean of the whole
+  cathedral and of each top-level group. Only large regions fail `ok`: the whole, a group with
+  ≥ 10 % of the LEDs, or one covering ≥ 10 % of the lit area seen from the front or the side (grid
+  cells 1/32 of the bounds' diagonal; `largeRegions`). Flashing on small regions alone (on the real
+  map: spirelets, wash) goes to `small`, a warning.
 - **Stored.** `<STUDIO_DATA>/frames/<lookId>.fseq` and `look.bake = { source, status:
-  queued|running|done|failed, ok, reason?, checkedAt, layersHash, analysis?, frames?: { bytes,
-  sha256 }, boxStats? }`. `ok` is false when the frames are missing, malformed or flicker.
+  queued|running|done|failed, ok, reason?, warning?, checkedAt, layersHash, analysis?, frames?: {
+  bytes, sha256 }, boxStats? }`. `ok` is false when the frames are missing, malformed or flash over a
+  large area; `warning` says when only small regions flash.
   Beside them, by content hash (`hash` = 32 hex of SHA-256 over the wire version, chunk size and
   `frames.sha256`): `frames/<hash>/<n>.br`, `manifest.json` (written last), `<n>.gz` and
   `frames.<zstd|zlib>.fseq` (both made on first request). Looks with the same frames share a

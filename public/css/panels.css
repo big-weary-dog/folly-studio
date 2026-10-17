@@ -45,8 +45,8 @@
 .menu button { padding: 9px 12px; text-align: left; font-size: 14px; background: none; border: 0; cursor: pointer; }
 .menu button:hover, .menu button:focus-visible { background: var(--night-4); outline: none; }
 
-.toasts { position: fixed; z-index: 90; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px;
-  max-width: min(420px, calc(100vw - 32px)); }
+.toasts { position: fixed; z-index: 90; right: 16px; bottom: var(--toasts-bottom, 16px); display: flex;
+  flex-direction: column; gap: 8px; max-width: min(420px, calc(100vw - 32px)); }
 .toast { --tint: var(--cobalt-t); display: flex; align-items: center; gap: 10px; padding: 8px 6px 8px 12px;
   font-size: 14px; box-shadow: var(--bevel), var(--shadow); animation: toast-in .18s var(--ease); }
 /* quatrefoil markers, in the piece's glass */
@@ -75,6 +75,6 @@
 .tag-sapphire { color: var(--cobalt-t); }
 .tag-emerald { color: var(--emerald); }
 @media (max-width: 899px) {
-  .toasts { left: 12px; right: 12px; bottom: 12px; max-width: none; }
+  .toasts { left: 12px; right: 12px; bottom: var(--toasts-bottom, 12px); max-width: none; }
   .dialog-actions .btn { flex: 1; }
 }

@@ -162,7 +162,8 @@ describe('render box (bubblewrap)', { skip }, () => {
     assert.equal(hits, 0);
   });
 
-  test('through the API: a strobe look is blocked from review, a calm one passes', async () => {
+  test('through the API: a strobe is blocked from review, one on the spirelets only warns, a calm one passes',
+    async () => {
     const app = await createServer({
       dataDir: path.join(tmpRoot, 'data'),
       publicDir: PUBLIC,
@@ -189,6 +190,9 @@ describe('render box (bubblewrap)', { skip }, () => {
         shared: true })).json.look;
       const calm = (await own('POST', '/api/looks', { title: 'Calm', layers: [layer(BREATHE)],
         shared: true })).json.look;
+      const small = (await own('POST', '/api/looks', { title: 'Spirelets', layers: [layer(BREATHE),
+        layer(STROBE, { id: 'l2', groups: ['spirelets'] })], shared: true })).json.look;
+      assert.equal((await own('POST', `/api/looks/${small.id}/bake`, {})).status, 202);
       assert.equal((await own('POST', `/api/looks/${strobe.id}/bake`, {})).status, 202);
       assert.equal((await cur('POST', `/api/looks/${calm.id}/bake`, {})).status, 202,
         'a curator may bake a shared look');
@@ -204,6 +208,11 @@ describe('render box (bubblewrap)', { skip }, () => {
 
       assert.equal((await own('GET', `/api/looks/${calm.id}`)).json.look.bake.ok, true);
       assert.equal((await cur('PUT', `/api/looks/${calm.id}`, { reviewed: true })).json.look.reviewed, true);
+      const warned = (await own('GET', `/api/looks/${small.id}`)).json.look;
+      assert.equal(warned.bake.ok, true, warned.bake.reason);
+      assert.match(warned.bake.warning, /small parts only \(spirelets\)/);
+      assert.equal((await cur('PUT', `/api/looks/${small.id}`, { reviewed: true })).json.look.reviewed, true,
+        'flashing on a small region alone does not block review');
       const frames = await fetch(`${base}/api/looks/${calm.id}/frames`, { headers: { cookie: '' } });
       assert.equal(frames.status, 401);
     } finally {

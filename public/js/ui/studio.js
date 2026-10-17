@@ -38,7 +38,7 @@ export function mount(root, ctx) {
     baked: null,               // { frames, rgb, index } while the preview plays baked frames
     cathedral: null, index: null, library: [], copyOnSave: false, selectedId: null, saved: '', muted: new Set(),
     solo: new Set(), playing: !reducedMotion(), t: 0, speed: 1, hoverGroup: null, pinnedGroup: null, saving: false,
-    ready: false,
+    ready: false, dirty: false,
   };
   const narrowMq = matchMedia(NARROW);
   const layerById = (id) => S.look.layers.find((l) => l.id === id) || null;
@@ -202,7 +202,7 @@ export function mount(root, ctx) {
 
   const updateSaveState = st.updateSaveState = debounce(() => {
     if (!alive) return;
-    const dirty = isDirty();
+    const dirty = S.dirty = isDirty();
     ui.studio.classList.toggle('is-dirty', dirty);
     ui.saveState.textContent = S.saving ? 'Saving…'
       : S.copyOnSave ? (dirty ? 'Edited — Save makes your copy' : 'Gallery look')

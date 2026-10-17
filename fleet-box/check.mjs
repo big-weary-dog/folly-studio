@@ -190,7 +190,7 @@ async function bake() {
     + `frames.fseq, ${(fseq.length / 1e6).toFixed(1)} MB; ${stats.msPerFrame.average} ms a frame`);
   if (existsSync(new URL('./frames.js', import.meta.url))) {
     // The studio's own checks, run here so the worker sees what the studio will see.
-    const { analyzeFrames, flickerReason, parseFseq } = await import('./frames.js');
+    const { analyzeFrames, flickerReason, flickerWarning, parseFseq } = await import('./frames.js');
     const a = analyzeFrames(parseFseq(fseq), cathedral);
     stats.selfCheck = a;
     const pct = (v) => `${Math.round(v * 100)}%`;
@@ -199,6 +199,7 @@ async function bake() {
     if (!a.flicker.ok) {
       failed.push(`${flickerReason(a)} The studio will refuse this bake: slow the large-area changes down.`);
     }
+    if (flickerWarning(a)) console.log(`! ${flickerWarning(a)}`);
   }
   writeFileSync(path.join(dir, 'stats.json'), JSON.stringify(stats, null, 2) + '\n');
   for (const e of failed) console.log(`✗ ${e}`);

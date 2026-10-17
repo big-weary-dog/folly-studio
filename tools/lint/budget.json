@@ -5,11 +5,11 @@
     "fleet-box": { "lines": 214 },
     "public": { "lines": 456 },
     "public/css": { "lines": 1044 },
-    "public/js": { "lines": 6110 },
+    "public/js": { "lines": 6360, "reason": "the live preview's flash guard (flash-guard.js: photosensitivity), and small-region flicker warnings in the bake card" },
     "public/patterns": { "lines": 328 },
     "render-box": { "lines": 213 },
     "src": { "lines": 3954 },
-    "test": { "lines": 5810 },
+    "test": { "lines": 5990, "reason": "flash guard and large/small flicker policy tests, held to src/frames.js on the real LED map" },
     "tools": { "lines": 1167 }
   }
 }

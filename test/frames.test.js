@@ -3,7 +3,9 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { writeFseq } from '../public/js/fseq.js';
-import { analyzeFrames, FseqError, flickerReason, MAX_CHANNELS, parseFseq } from '../src/frames.js';
+import {
+  analyzeFrames, FseqError, flickerReason, flickerWarning, largeRegions, MAX_CHANNELS, parseFseq,
+} from '../src/frames.js';
 
 // 100 LEDs, 3 channels each: the body (zone 0) on universe 1, a small spire (zone 1, 5 LEDs) on
 // universe 2. Top-level groups: body and spire.
@@ -143,9 +145,10 @@ describe('analyzeFrames', () => {
     assert.equal(a.flicker.ok, false);
     assert.equal(a.flicker.maxHz, 10);
     assert.deepEqual(a.flicker.flaggedSeconds, [0, 1, 2, 3, 4]);
-    assert.deepEqual(a.flicker.regions, ['cathedral', 'parts', 'spire']);
+    assert.deepEqual(a.flicker.regions, ['cathedral', 'parts']);
+    assert.deepEqual(a.flicker.small.regions, ['spire'], 'the 5-LED spire flashes too, but it is small');
     assert.match(flickerReason(a),
-      /up to 10 flashes a second .* around 0 s, 1 s, 2 s, 3 s, 4 s, on cathedral, parts, spire/);
+      /up to 10 flashes a second .* around 0 s, 1 s, 2 s, 3 s, 4 s, on cathedral, parts\./);
   });
 
   test('passes a slow 0.5 Hz breathe, 3 Hz exactly, and bright shimmer', () => {
@@ -165,11 +168,14 @@ describe('analyzeFrames', () => {
     assert.equal(analyzeFrames(parseFseq(bake(C, 3, (f) => gray(f % 2 ? 100 : 80))), C).flicker.ok, true);
   });
 
-  test('a strobe on a small top-level group is flagged on that region alone', () => {
+  test('a strobe on a small top-level group alone is a warning, not a block', () => {
     const a = analyzeFrames(parseFseq(bake(C, 3, (f, k) => (k >= 95 ? gray(square(8)(f)) : gray(60)))), C);
-    assert.equal(a.flicker.ok, false);
-    assert.deepEqual(a.flicker.regions, ['spire'], 'a 5 % strobe barely moves the whole-cathedral mean');
-    assert.equal(a.flicker.maxHz, 8);
+    assert.equal(a.flicker.ok, true, 'a 5 % strobe barely moves the whole-cathedral mean');
+    assert.deepEqual(a.flicker.regions, []);
+    assert.deepEqual(a.flicker.small, { maxHz: 8, flaggedSeconds: [0, 1, 2], regions: ['spire'] });
+    assert.equal(flickerReason(a), '');
+    assert.match(flickerWarning(a), /small parts only \(spire\) at up to 8 flashes a second around 0 s, 1 s, 2 s/);
+    assert.equal(flickerWarning(analyzeFrames(parseFseq(bake(C, 1, () => gray(60))), C)), '');
   });
 
   test('brightness, darkness, power and coverage', () => {
@@ -208,5 +214,42 @@ describe('analyzeFrames', () => {
     assert.equal(a.coverage, 1);
     assert.equal(a.estPeakAmps, Math.round(real.count * 3 * 0.02 * 10) / 10);
     assert.equal(a.flicker.ok, true);
+  });
+});
+
+describe('flicker on the real LED map: large regions block, small ones warn', () => {
+  const file = new URL('../public/data/cathedral.json', import.meta.url);
+  const skip = !fs.existsSync(file) && 'no cathedral.json';
+  const real = skip ? null : JSON.parse(fs.readFileSync(file, 'utf8'));
+  const members = (id) => {
+    const g = real.groups.find((x) => x.id === id);
+    const zones = new Set(g.zones.map((z) => real.zones.indexOf(z)));
+    return (k) => zones.has(real.pixels.zone[k]);
+  };
+  const strobeOn = (id) => {
+    const inside = members(id);
+    return analyzeFrames(parseFseq(bake(real, 2, (f, k) => (inside(k) ? gray(square(8)(f)) : gray(40)))), real);
+  };
+
+  test('large: the whole, ≥ 10 % of the LEDs, or ≥ 10 % of the lit area from the front or side', { skip }, () => {
+    const top = real.groups.filter((g) => g.parent === 'cathedral');
+    const regions = [{ id: 'cathedral', idx: null }, ...top.map((g) => {
+      const inside = members(g.id);
+      return { id: g.id, idx: Int32Array.from({ length: real.count }, (_, k) => k).filter(inside) };
+    })];
+    const large = largeRegions(real, regions);
+    const kinds = Object.fromEntries(regions.map((r, j) => [r.id, large[j]]));
+    assert.deepEqual(kinds, { cathedral: true, arches: true, spires: true, spirelets: false, 'rose-window': true,
+      canopy: true, wash: false });
+  });
+
+  test('the 20 spirelets strobing: a warning the curator sees; the rose window strobing: blocked', { skip }, () => {
+    const spirelets = strobeOn('spirelets');
+    assert.equal(spirelets.flicker.ok, true);
+    assert.deepEqual(spirelets.flicker.small.regions, ['spirelets']);
+    assert.match(flickerWarning(spirelets), /small parts only \(spirelets\)/);
+    const rose = strobeOn('rose-window');
+    assert.equal(rose.flicker.ok, false, 'a 6 m disc facing the playa is a large area');
+    assert.deepEqual(rose.flicker.regions, ['rose-window']);
   });
 });

@@ -236,8 +236,11 @@ export function draw(v) {
   gl.bindVertexArray(v.skyVao);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 
-  const vfov = v._vfov();
-  perspective(v._proj, vfov, W / H, 0.05, 600);
+  // The frame is the canvas below the inset: a lens shift moves its centre down, same scale.
+  const vfov = v._vfov(), Hf = v._frameH();
+  perspective(v._proj, vfov, W / Hf, 0.05, 600);
+  v._proj[5] *= Hf / H;
+  v._proj[9] = (H - Hf) / H;
   lookAt(v._view, v._eye(), v.cam.target, v._up);
   multiply(v.viewProj, v._proj, v._view);
 
@@ -256,7 +259,7 @@ export function draw(v) {
     gl.useProgram(v.points.p);
     const u = v.points.u;
     gl.uniformMatrix4fv(u.uViewProj, false, v.viewProj);
-    gl.uniform1f(u.uScale, H / (2 * Math.tan(vfov / 2)));
+    gl.uniform1f(u.uScale, Hf / (2 * Math.tan(vfov / 2)));
     gl.uniform1f(u.uSize, v.options.size);
     const dpr = v.dpr || 1;
     gl.uniform2f(u.uPx, 2.5 * dpr, Math.min(v.maxPoint, 180 * dpr));

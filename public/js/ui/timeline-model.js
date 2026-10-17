@@ -34,12 +34,20 @@ export function snapStep(mode, bpm) {
 
 export const snap = (t, step) => (step > 0 ? Math.round(t / step) * step : t);
 
-/** A clip with every field present and fades that fit inside it. */
+/**
+ * A clip with every field present, to the millisecond. Fades stay as written even when they overrun a
+ * short clip: playback shrinks them in proportion (layerEnvelope), so lengthening it brings them back.
+ */
 export function fitClip(c) {
-  const start = ms(c.start), end = ms(c.end), len = end - start;
-  let fadeIn = Math.max(0, +c.fadeIn || 0), fadeOut = Math.max(0, +c.fadeOut || 0);
-  if (fadeIn + fadeOut > len) { const k = len / (fadeIn + fadeOut); fadeIn *= k; fadeOut *= k; }
-  return { start, end, fadeIn: ms(fadeIn), fadeOut: ms(fadeOut) };
+  const fade = (v) => ms(clamp(+v || 0, 0, MAX_DURATION));
+  return { start: ms(c.start), end: ms(c.end), fadeIn: fade(c.fadeIn), fadeOut: fade(c.fadeOut) };
+}
+
+/** [fadeIn, fadeOut] as they play: shrunk in proportion when together they overrun the clip. */
+export function shownFades(c) {
+  const len = c.end - c.start, sum = c.fadeIn + c.fadeOut;
+  const k = sum > len && sum > 0 ? Math.max(0, len) / sum : 1;
+  return [c.fadeIn * k, c.fadeOut * k];
 }
 
 /** Where clip i may go: between its neighbours, and not past `limit` unless it already reaches further. */
@@ -77,23 +85,38 @@ export function trimClip(clips, i, edge, t, step = 0, limit = MAX_DURATION) {
   return replace(clips, i, { ...c, end: clamp(v, c.start + MIN_CLIP, hi) });
 }
 
-/** Set clip i's fade in or out ('in' | 'out') to `len` seconds, within what the clip leaves. */
+/** Set clip i's fade in or out ('in' | 'out') to `len` seconds, within what the other fade leaves. */
 export function fadeClip(clips, i, side, len, step = 0) {
   const c = clips[i];
   const total = c.end - c.start;
   const v = Math.max(0, snap(len, step));
-  if (side === 'in') return replace(clips, i, { ...c, fadeIn: Math.min(v, total - c.fadeOut) });
-  return replace(clips, i, { ...c, fadeOut: Math.min(v, total - c.fadeIn) });
+  const [fadeIn, fadeOut] = shownFades(c);
+  if (side === 'in') return replace(clips, i, { ...c, fadeIn: Math.min(v, total - fadeOut), fadeOut });
+  return replace(clips, i, { ...c, fadeIn, fadeOut: Math.min(v, total - fadeIn) });
 }
 
-/** Clip i's fields from typed numbers ({ start?, end?, fadeIn?, fadeOut? }), within its room; null if none. */
+/**
+ * Clip i's fields from typed numbers ({ start?, end?, fadeIn?, fadeOut? }), within its room; null if
+ * none. One edge typed past the other moves the clip there, keeping its length; both typed the wrong
+ * way round swap. The order the numbers are typed in never collapses the clip to a sliver.
+ */
 export function editClip(clips, i, patch, limit = MAX_DURATION) {
-  const c = { ...clips[i], ...patch };
+  const old = clips[i];
+  const c = { ...old, ...patch };
   for (const k of ['start', 'end', 'fadeIn', 'fadeOut']) if (!Number.isFinite(+c[k])) return null;
+  const keep = { fadeIn: +c.fadeIn, fadeOut: +c.fadeOut };
+  const both = patch.start !== undefined && patch.end !== undefined;
+  let start = +c.start, end = +c.end;
+  if (start >= end && !both) {
+    const moved = moveClip(clips, i, patch.start !== undefined ? start : end - (old.end - old.start), 0, limit);
+    return replace(moved, i, { ...moved[i], ...keep });
+  }
+  if (start === end) return null;
+  if (start > end) [start, end] = [end, start];
   const { lo, hi } = room(clips, i, limit);
-  const start = clamp(+c.start, lo, hi - MIN_CLIP);
-  const end = clamp(+c.end, start + MIN_CLIP, hi);
-  return replace(clips, i, { start, end, fadeIn: +c.fadeIn, fadeOut: +c.fadeOut });
+  start = clamp(start, lo, hi - MIN_CLIP);
+  end = clamp(end, start + MIN_CLIP, hi);
+  return replace(clips, i, { start, end, ...keep });
 }
 
 /** A clip of about `length` s at t, in the gap holding t (shifted left to fit) → { clips, index } | null. */

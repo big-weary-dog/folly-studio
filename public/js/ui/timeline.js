@@ -3,7 +3,7 @@
 // plus the selected clip's numbers (timeline-tools.js). Only the playhead moves per frame.
 import { h, pref, stylesheet, toast } from './dom.js';
 import {
-  addClip, clock, contentEnd, DEFAULT_DURATION, importLook, MAX_DURATION, removeClip, rulerStep, snapStep,
+  addClip, clock, contentEnd, DEFAULT_DURATION, importLook, MAX_DURATION, removeClip, rulerStep, shownFades, snapStep,
 } from './timeline-model.js';
 import { attachInput } from './timeline-input.js';
 import { buildTools } from './timeline-tools.js';
@@ -184,8 +184,9 @@ export class Timeline {
       el.dataset.i = String(i);
       el.style.left = `${c.start * pps}px`;
       el.style.width = `${Math.max(2, (c.end - c.start) * pps)}px`;
-      el.style.setProperty('--fi', `${c.fadeIn * pps}px`);
-      el.style.setProperty('--fo', `${c.fadeOut * pps}px`);
+      const [fi, fo] = shownFades(c);     // as they play: a short clip squeezes long fades
+      el.style.setProperty('--fi', `${fi * pps}px`);
+      el.style.setProperty('--fo', `${fo * pps}px`);
       el.classList.toggle('selected', i === selIndex);
       el.classList.toggle('past-end', c.start >= this.duration);
       const when = `${clock(c.start)} to ${clock(c.end)}`;

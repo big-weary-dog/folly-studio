@@ -106,8 +106,8 @@ Fit, honestly:
 - **Code never runs where it can hurt**: sandboxed iframe (opaque origin, CSP `default-src
   'none'`, no cookies or network), never on the server. A watchdog reloads the sandbox if a
   pattern hangs.
-- **Photosensitivity guard** (worth building before anything hits the real Folly): flag looks
-  whose large-area brightness flickers faster than ~3 Hz.
+- **Photosensitivity guard**: bakes fail review on large-area flashing over 3 a second (small regions
+  only warn), and the live preview dims such a strobe and asks before showing it.
 - **Power and white limit**: `folly_output` already caps white; the export should estimate peak
   current and apply the same limit.
 - **Review gate**: only curator-`reviewed` looks are eligible for the playa.

@@ -46,6 +46,7 @@ namespaces. Without them they skip and print why. The data tests need `python3`.
 | `public/js/fseq.js` | Pure: FSEQ v2 writer |
 | `public/js/frames-wire.js`, `frames-stream.js` | Pure: the stream decoder; streamed playback of baked frames |
 | `public/js/runtime.js` | App side of the sandbox: iframe, frame pump, watchdog |
+| `public/js/flash-guard.js` | Pure: the preview's flash guard, the bake check's rule on the frames shown |
 | `public/js/viewer.js`, `viewer-gl.js`, `viewer-input.js` | WebGL2 LED view: the orbit camera, the drawing, pointer and keys |
 | `public/js/main.js`, `api.js` | Bootstrap, routing, the fetch wrapper |
 | `public/js/ui/` | Views and panels, one concern per module (`studio.js` wires the `studio-*.js` panes); `dom.js` holds the DOM helpers and shared form pieces |

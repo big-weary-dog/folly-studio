@@ -17,6 +17,7 @@ export function mount(root, ctx) {
   ctx.setTitle('Ideas');
   let ideas = [], pollTimer = null, alive = true;
   const known = new Map();      // id → status, to notice when one becomes ready
+  const ready = new Map();      // look id → close() of its "ready" toast, closed once that look is opened
 
   const textarea = h('textarea', { class: 'idea-input', rows: 4, maxlength: MAX_LEN,
     placeholder: 'A coral reef breathing in slow blues, with fish darting up the spires…' });
@@ -121,8 +122,8 @@ export function mount(root, ctx) {
       for (const idea of ideas) {
         const before = known.get(idea.id);
         if (before && before !== 'ready' && idea.status === 'ready' && idea.lookId) {
-          toast('Your look is ready.', { kind: 'ok', timeout: 8000,
-            action: { label: 'Open', onClick: () => ctx.navigate(`/studio/${encodeURIComponent(idea.lookId)}`) } });
+          ready.set(idea.lookId, toast('Your look is ready.', { kind: 'ok', timeout: 8000,
+            action: { label: 'Open', onClick: () => ctx.navigate(`/studio/${encodeURIComponent(idea.lookId)}`) } }));
         } else if (before && before !== 'failed' && idea.status === 'failed') {
           toast(`An idea could not be generated${idea.error ? `: ${idea.error}` : '.'}`, { kind: 'error' });
         }
@@ -154,5 +155,12 @@ export function mount(root, ctx) {
     }, 0);
   }
 
-  return { unmount() { alive = false; clearTimeout(pollTimer); } };
+  return {
+    unmount() {
+      alive = false;
+      clearTimeout(pollTimer);
+      const opened = /^\/studio\/([^/]+)/.exec(location.pathname);
+      if (opened) ready.get(decodeURIComponent(opened[1]))?.();
+    },
+  };
 }

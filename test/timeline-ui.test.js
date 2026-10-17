@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 
 import {
   addClip, cleanBpm, cleanDuration, clipAt, clock, contentEnd, editClip, fadeClip, importLook, MAX_CLIPS,
-  MIN_CLIP, moveClip, removeClip, rulerStep, snapStep, trimClip,
+  MIN_CLIP, moveClip, removeClip, rulerStep, shownFades, snapStep, trimClip,
 } from '../public/js/ui/timeline-model.js';
 import { validateLayers } from '../src/api.js';
 
@@ -44,8 +44,18 @@ describe('editing clips', () => {
     assert.deepEqual(trimClip(THREE, 1, 'end', 7.1, 0.25)[1].end, 7);
     const tiny = trimClip(THREE, 1, 'end', 4)[1];
     assert.equal(tiny.end, 4 + MIN_CLIP);
-    assert.ok(tiny.fadeIn + tiny.fadeOut <= tiny.end - tiny.start + 1e-9, 'fades shrink with the clip');
     accepted(trimClip(THREE, 1, 'end', 20));
+  });
+
+  test('trimming keeps the fades as written; they play shrunk, and come back when the clip grows', () => {
+    const long = [clip(4, 10, 2, 3)];
+    const short = trimClip(long, 0, 'end', 4.5);
+    assert.deepEqual(short[0], clip(4, 4.5, 2, 3));
+    const [fi, fo] = shownFades(short[0]);
+    assert.ok(Math.abs(fi - 0.2) < 1e-9 && Math.abs(fo - 0.3) < 1e-9, 'shown in proportion, as they play');
+    assert.deepEqual(trimClip(short, 0, 'end', 12)[0], clip(4, 12, 2, 3));
+    assert.deepEqual(shownFades(clip(0, 10, 2, 3)), [2, 3]);
+    accepted(short);
   });
 
   test('fades stay inside the clip', () => {
@@ -58,8 +68,29 @@ describe('editing clips', () => {
   test('typed numbers: clamped to the neighbours; nonsense refused', () => {
     assert.deepEqual(editClip(THREE, 1, { start: 3, end: 8 })[1], clip(3, 8, 0.5, 0.5));
     assert.deepEqual(editClip(THREE, 1, { start: 0, end: 99 })[1], clip(2, 10, 0.5, 0.5));
-    assert.deepEqual(editClip(THREE, 1, { start: 5, end: 4 })[1], clip(5, 5 + MIN_CLIP, 0.05, 0.05));
+    assert.deepEqual(editClip(THREE, 1, { start: 5, end: 4 })[1], clip(4, 5, 0.5, 0.5), 'both reversed: swapped');
+    assert.equal(editClip(THREE, 1, { start: 5, end: 5 }), null);
     assert.equal(editClip(THREE, 1, { start: 'soon' }), null);
+  });
+
+  test('typed edges in any order: one past the other moves the clip, never a sliver', () => {
+    // The phone repro: a clip at 0-10.35 s, fades 1 and 2; Start 9, then End 8.
+    let c = editClip([clip(0, 10.35, 1, 2)], 0, { start: 9 });
+    assert.deepEqual(c[0], clip(9, 10.35, 1, 2));
+    c = editClip(c, 0, { end: 8 });
+    assert.deepEqual(c[0], clip(6.65, 8, 1, 2), 'moved back to end at 8, same length, same fades');
+    assert.deepEqual(editClip(c, 0, { start: 0 })[0], clip(0, 8, 1, 2));
+    // A new clip placed late, then End typed before Start: the same result as Start first.
+    const late = [clip(12, 16)];
+    const endFirst = editClip(editClip(late, 0, { end: 8 }), 0, { start: 0 });
+    const startFirst = editClip(editClip(late, 0, { start: 0 }), 0, { end: 8 });
+    assert.deepEqual(endFirst, startFirst);
+    assert.deepEqual(endFirst[0], clip(0, 8));
+    // Moving still stops at the neighbours and keeps the length.
+    assert.deepEqual(editClip(THREE, 1, { start: 7 })[1], clip(7, 9, 0.5, 0.5));
+    assert.deepEqual(editClip(THREE, 1, { start: 11 })[1], clip(8, 10, 0.5, 0.5));
+    assert.deepEqual(editClip(THREE, 1, { end: 1 })[1], clip(2, 4, 0.5, 0.5));
+    accepted(c);
   });
 
   test('add goes into the gap that holds the time, never over a clip', () => {

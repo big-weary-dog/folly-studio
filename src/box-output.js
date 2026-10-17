@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { constants as FS, promises as fs } from 'node:fs';
 import path from 'node:path';
 
-import { analyzeFrames, DEFAULT_MAX_BYTES, flickerReason, FseqError, parseFseq } from './frames.js';
+import { analyzeFrames, DEFAULT_MAX_BYTES, flickerReason, flickerWarning, FseqError, parseFseq } from './frames.js';
 import { inflateBlock } from './fseq-codec.js';
 
 export const CONTROL = /[\u0000-\u001f\u007f]/g;
@@ -74,7 +74,10 @@ export function cleanBoxStats(value) {
   return { untrusted: true, reported: JSON.stringify(reported).length <= 4096 ? reported : { truncated: true } };
 }
 
-/** Baked frames, parsed and analysed on the LED map → { bake, frames? (bytes to store) }; flicker fails `ok`. */
+/**
+ * Baked frames, parsed and analysed on the LED map → { bake, frames? (bytes to store) }. Large-area flashing
+ * fails `ok`; flashing on small regions only sets `warning`.
+ */
 export function checkFrames(bytes, { source, cathedral, maxBytes = DEFAULT_MAX_BYTES, boxStats } = {}) {
   const bake = { source, status: 'done', ok: false, checkedAt: new Date().toISOString() };
   if (boxStats) bake.boxStats = boxStats;
@@ -91,6 +94,8 @@ export function checkFrames(bytes, { source, cathedral, maxBytes = DEFAULT_MAX_B
   bake.frames = { bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
   bake.ok = analysis.flicker.ok;
   if (!bake.ok) bake.reason = flickerReason(analysis);
+  const warning = flickerWarning(analysis);
+  if (warning) bake.warning = warning;
   return { bake, frames: bytes };
 }
 

@@ -7,12 +7,14 @@ import { clear, h, switchBox, toast } from './dom.js';
 const POLL_MS = 1500;
 const ACTIVE = new Set(['queued', 'running']);
 
-/** A look's bake as one state: { kind, label, note } (kind: none|queued|running|ok|flagged|failed). */
+/** A look's bake as one state: { kind, label } (kind: none|queued|running|ok|warned|flagged|failed). */
 export function bakeState(bake) {
   if (!bake) return { kind: 'none', label: 'Not baked' };
   if (bake.status === 'queued') return { kind: 'queued', label: 'Queued' };
   if (bake.status === 'running') return { kind: 'running', label: 'Baking…' };
-  if (bake.status === 'done' && bake.ok) return { kind: 'ok', label: 'Passed' };
+  if (bake.status === 'done' && bake.ok) {
+    return bake.warning ? { kind: 'warned', label: 'Passed · warning' } : { kind: 'ok', label: 'Passed' };
+  }
   if (bake.analysis?.flicker?.ok === false) return { kind: 'flagged', label: 'Flashing' };
   return { kind: 'failed', label: 'Failed' };
 }
@@ -32,6 +34,7 @@ export class BakePanel {
     this.note = h('p', { class: 'bake-note' });
     this.report = h('dl', { class: 'bake-report' });
     this.reason = h('p', { class: 'bake-reason', role: 'status' });
+    this.warning = h('p', { class: 'bake-warning', role: 'status' });
     this.bakeBtn = h('button', { type: 'button', class: 'btn small wide-only', text: 'Bake',
       onClick: () => this.bake() });
     this.playBtn = h('button', { type: 'button', class: 'btn small bake-play', 'aria-pressed': 'false',
@@ -43,7 +46,7 @@ export class BakePanel {
     this.actions = h('div', { class: 'bake-actions' }, this.bakeBtn, this.playBtn);
     this.el = h('section', { class: 'bake', 'aria-label': 'Bake' },
       h('div', { class: 'bake-head' }, h('h2', { class: 'pane-title', text: 'Bake' }), this.pill),
-      this.note, this.report, this.reason, this.actions, this.phoneHint, this.review);
+      this.note, this.report, this.reason, this.warning, this.actions, this.phoneHint, this.review);
     container.append(this.el);
     this.reviewBox.addEventListener('change', () => this.setReviewed(this.reviewBox.checked));
     this.render();
@@ -74,11 +77,14 @@ export class BakePanel {
     clear(this.report);
     const a = bake?.analysis;
     if (a) {
-      const f = a.flicker || {}, at = f.flaggedSeconds || [];
+      const f = a.flicker || {}, small = f.small?.regions?.length ? f.small : null;
       const row = (k, v, cls) => h('div', { class: cls || null }, h('dt', { text: k }), h('dd', { text: v }));
-      const flagged = `Flagged at ${at.slice(0, 5).map((s) => `${s} s`).join(', ')}${at.length > 5 ? '…' : ''}`;
+      const when = (x) => `${x.flaggedSeconds.slice(0, 5).map((s) => `${s} s`).join(', ')}`
+        + `${x.flaggedSeconds.length > 5 ? '…' : ''}`;
+      const check = !f.ok ? [`Flagged at ${when(f)}`, 'bad']
+        : small ? [`Pass · ${small.regions.join(', ')} flash at ${when(small)}`, 'warn'] : ['Pass', 'ok'];
       this.report.append(
-        row('Flash check', f.ok ? 'Pass' : flagged, f.ok ? 'ok' : 'bad'),
+        row('Flash check', ...check),
         row('Peak', `${pct(a.peakBrightness)} white · ≈ ${a.estPeakAmps}\u00a0A`),
         row('Length', `${a.seconds} s${bake.frames?.bytes ? ` · ${mb(bake.frames.bytes)}` : ''}`));
       if (bake.frames && bake.status === 'done') {
@@ -92,6 +98,9 @@ export class BakePanel {
     const reason = this.error || (st.kind === 'failed' || st.kind === 'flagged' ? bake.reason || '' : '');
     this.reason.textContent = reason;
     this.reason.hidden = !reason;
+    const warning = bake?.status === 'done' && !this.error ? bake.warning || '' : '';
+    this.warning.textContent = warning;
+    this.warning.hidden = !warning;
 
     this.bakeBtn.hidden = !canBake;
     this.bakeBtn.disabled = this.busy || ACTIVE.has(bake?.status);

@@ -32,7 +32,8 @@ export class Viewer {
       hiMask: null, tween: null, inertia: null, dirty: true, pointers: new Map(), drag: null, raf: 0, last: 0,
       destroyed: false, ok: false, center: [1, 0, -0.4], _eyeV: [0, 0, 0], _up: [0, 1, 0] });
     this.defaultView = defaultView === 'fit' || views[defaultView] ? defaultView : Object.keys(views)[0] || null;
-    this.options = { ghost: 0.14, size: 0.42, gain: 1 };
+    // insetTop: CSS px at the top kept clear for buttons over the view; views frame the rest.
+    this.options = { ghost: 0.14, size: 0.42, gain: 1, insetTop: 0 };
     this.cam = { target: [0.9, 9.3, -0.4], distance: 42, angle: 25, elevation: 12, fov: 45 };
     this.viewProj = new Float32Array(16);
     this._proj = new Float32Array(16);
@@ -101,8 +102,15 @@ export class Viewer {
   }
 
   setOption(key, value) {
+    if (this.options[key] === value) return;
     this.options[key] = value;
+    if (key === 'insetTop' && this.currentView === 'fit' && !this.drag) this.setView('fit', { animate: false });
     this.invalidate();
+  }
+
+  /** The framed height in device px: the canvas below insetTop. */
+  _frameH() {
+    return Math.max(1, this.canvas.height - Math.round(this.options.insetTop * (this.dpr || 1)));
   }
 
   /** Go to a named view (or a view object with Target/Distance/Angle/Elevation/Fov/Eyelock). */
@@ -131,7 +139,7 @@ export class Viewer {
     const b = this.bounds;
     if (!b) return null;
     const target = [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2];
-    const aspect = this.canvas.width / Math.max(1, this.canvas.height) || 16 / 9;
+    const aspect = this.canvas.width / this._frameH() || 16 / 9;
     const tanV = Math.tan(this._vfovFor(fov) / 2), tanH = tanV * aspect;
     const { fwd, right, up } = basis(angle, elevation);
     // Every LED inside the frame (tighter than the bounding box's corners).
@@ -191,7 +199,7 @@ export class Viewer {
   _vfovFor(fov) {
     // Fov is horizontal (views.json). On a very wide canvas that would crop the spires, so
     // past 16:9 the frame keeps the 16:9 height and simply shows more to the sides.
-    const aspect = Math.min(16 / 9, this.canvas.width / Math.max(1, this.canvas.height));
+    const aspect = Math.min(16 / 9, this.canvas.width / this._frameH());
     const h = clamp(fov, 10, 120) * DEG;
     return clamp(2 * Math.atan(Math.tan(h / 2) / aspect), 10 * DEG, 115 * DEG);
   }
@@ -219,7 +227,7 @@ export class Viewer {
 
   _pan(dxPx, dyPx) {
     const c = this.cam;
-    const mpp = (2 * c.distance * Math.tan(this._vfov() / 2)) / Math.max(1, this.canvas.clientHeight);
+    const mpp = (2 * c.distance * Math.tan(this._vfov() / 2)) / (this._frameH() / (this.dpr || 1));
     const { right, up } = basis(c.angle, c.elevation);
     for (let i = 0; i < 3; i++) c.target[i] += (-right[i] * dxPx + up[i] * dyPx) * mpp;
     this._moved();
