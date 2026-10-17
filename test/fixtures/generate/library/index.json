@@ -1,0 +1,8 @@
+[
+  { "name": "embers", "title": "Rising embers", "summary": "Warm sparks drift up every surface.", "tags": ["fire", "ember", "warm", "rise"] },
+  { "name": "ocean-swell", "title": "Ocean swell", "summary": "Long waves roll front to back between two blues.", "tags": ["ocean", "sea", "wave", "water"] },
+  { "name": "starfield", "title": "Starfield", "summary": "A deep sky with stars that twinkle in their own time.", "tags": ["star", "twinkle", "night", "sparkle"] },
+  { "name": "heartbeat", "title": "Heartbeat", "summary": "The whole building swells on a double beat.", "tags": ["heart", "pulse", "beat", "bpm"] },
+  { "name": "rose-bloom", "title": "Rose bloom", "summary": "Rings open outward from the centre of the rose window.", "tags": ["rose", "petal", "bloom", "flower"] },
+  { "name": "lighthouse", "title": "Lighthouse", "summary": "A bright beam sweeps round the façade over a deep blue sea.", "tags": ["lighthouse", "beam", "sweep", "searchlight"] }
+]
