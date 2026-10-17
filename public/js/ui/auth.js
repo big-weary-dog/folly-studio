@@ -7,7 +7,7 @@ export function mount(root, ctx) {
   let mode = wantsSignup ? 'signup' : 'login';
 
   const userId = nextId('f'), passId = nextId('f'), errId = nextId('f');
-  const username = h('input', { id: userId, name: 'username', autocomplete: 'username', required: true,
+  const username = h('input', { id: userId, type: 'text', name: 'username', autocomplete: 'username', required: true,
     autocapitalize: 'none', spellcheck: false, minlength: 2, maxlength: 40 });
   const password = h('input', { id: passId, name: 'password', type: 'password', required: true, minlength: 6 });
   const error = h('p', { id: errId, class: 'form-error', role: 'alert', hidden: true });
@@ -76,7 +76,8 @@ export function mount(root, ctx) {
       h('p', { class: 'auth-lede', text: 'Describe a show for 4,870 LEDs — arches, spires, a sixteen-petal rose window — watch it come to life, tune it, and send it to the playa.' }),
       form)));
 
-  setTimeout(() => username.focus(), 0);
+  // Focus the first field with a mouse; on a phone that would throw the keyboard over the page.
+  if (matchMedia('(pointer: fine)').matches) setTimeout(() => username.focus(), 0);
   return {};
 }
 

@@ -95,6 +95,9 @@ export class Runtime {
 
   isHung(id) { return this.quarantine.has(id); }
 
+  /** Ask for a fresh frame on the next pump even if nothing changed (e.g. after an export). */
+  refresh() { this.lastT = NaN; }
+
   get ready() { return this.phase === 'ready'; }
 
   /**

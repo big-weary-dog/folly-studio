@@ -75,19 +75,25 @@ export function applySecurityHeaders(res) {
   res.setHeader('Referrer-Policy', 'same-origin');
 }
 
-/** The best encoding the request accepts: 'br', then 'gzip', else null (q=0 means no). */
-export function pickEncoding(header) {
-  const q = new Map();
+/** Does an Accept-Encoding header take this encoding (q=0 means no; `*` covers the rest)? */
+export function acceptsEncoding(header, name) {
+  let star = 0;
   for (const part of String(header || '').toLowerCase().split(',')) {
-    const [name, ...params] = part.trim().split(';');
-    if (!name) continue;
-    const qp = params.map((p) => p.trim()).find((p) => p.startsWith('q='));
-    const v = qp ? Number(qp.slice(2)) : 1;
-    q.set(name.trim(), Number.isFinite(v) ? v : 0);
+    const [token, ...params] = part.split(';').map((x) => x.trim());
+    if (!token) continue;
+    const qp = params.find((x) => x.startsWith('q='));
+    const q = qp ? Number(qp.slice(2)) : 1;
+    const v = Number.isFinite(q) ? q : 0;
+    if (token === name) return v > 0;
+    if (token === '*') star = v;
   }
-  const ok = (name) => (q.has(name) ? q.get(name) > 0 : (q.get('*') ?? 0) > 0);
-  if (ok('br')) return 'br';
-  if (ok('gzip')) return 'gzip';
+  return star > 0;
+}
+
+/** The best encoding the request accepts: 'br', then 'gzip', else null. */
+export function pickEncoding(header) {
+  if (acceptsEncoding(header, 'br')) return 'br';
+  if (acceptsEncoding(header, 'gzip')) return 'gzip';
   return null;
 }
 

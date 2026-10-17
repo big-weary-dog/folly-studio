@@ -2,7 +2,7 @@
 import { api } from '../api.js';
 import { Viewer } from '../viewer.js';
 import { Runtime, HUNG_MESSAGE } from '../runtime.js';
-import { h, clear, debounce, isTyping, nextId, openDialog, reducedMotion, toast } from './dom.js';
+import { h, clear, confirmDialog, debounce, isTyping, nextId, openDialog, reducedMotion, toast } from './dom.js';
 import {
   loadCathedral, loadLibrary, buildGroupIndex, makeLayer, layerFromPattern, cleanLayer,
   normaliseLayers, BLANK_CODE,
@@ -14,7 +14,7 @@ import { CodeEditor } from './editor.js';
 import { Transport } from './transport.js';
 import { quickReference } from './reference.js';
 import { exportFseqDialog, exportLookJson } from './export.js';
-import { BakePanel, loadBakedFrames } from './bake.js';
+import { BakePanel, loadBakedFrames, mb } from './bake.js';
 
 // Narrow screens stack the panels under the 3D view and switch them with these tabs.
 const TABS = [
@@ -269,6 +269,7 @@ export function mount(root, ctx) {
         onPin: (id) => { S.pinnedGroup = id; updateHighlight(); },
       });
       S.ready = true;
+      bakePanel.render();
       select(S.look.layers.length ? S.look.layers[S.look.layers.length - 1].id : null);
       watchVisibility();
       kick();
@@ -669,8 +670,13 @@ export function mount(root, ctx) {
       className: 'library-dialog',
       build: (close) => {
         const list = h('ul', { class: 'library-list' });
-        const pick = (layer) => { close(); insertLayer(layer); setTab('code', { onlyNarrow: true }); };
-        list.append(h('li', {}, h('button', { type: 'button', class: 'library-item blank', onClick: () => pick(makeLayer({ title: 'New layer' }, S.cathedral)) },
+        const pick = (layer, blank) => {
+          close();
+          insertLayer(layer);
+          setTab('code', { onlyNarrow: true });
+          if (blank && !narrowMq.matches) setCodeCollapsed(false);   // a blank layer is for writing code
+        };
+        list.append(h('li', {}, h('button', { type: 'button', class: 'library-item blank', onClick: () => pick(makeLayer({ title: 'New layer' }, S.cathedral), true) },
           h('span', { class: 'library-title', text: 'Blank pattern' }),
           h('span', { class: 'library-summary', text: 'A minimal starting point: one colour, one moving band.' }))));
         for (const p of S.library) {
@@ -764,10 +770,19 @@ export function mount(root, ctx) {
     }
   }
 
-  function doExportFseq() {
+  async function doExportFseq() {
     if (!runtime || !runtime.ready) { toast('The pattern engine is still starting.', { kind: 'warn' }); return; }
     compileSoon.flush();
-    exportFseqDialog({ runtime, cathedral: S.cathedral, title: titleInput.value.trim() || 'folly-look', duration: S.duration });
+    const paused = S.look.layers.filter((l) => statusOf(l.id).kind === 'hung');
+    if (paused.length) {
+      const names = paused.map((l) => `“${l.title}”`).join(', ');
+      const ok = await confirmDialog(`${names} ${paused.length > 1 ? 'are' : 'is'} paused because ${paused.length > 1 ? 'they' : 'it'} hung, so the export would leave ${paused.length > 1 ? 'them' : 'it'} out. Export the rest anyway?`,
+        { title: 'A layer is paused', ok: 'Export anyway' });
+      if (!ok) return;
+    }
+    await exportFseqDialog({ runtime, cathedral: S.cathedral, title: titleInput.value.trim() || 'folly-look', duration: S.duration });
+    // An export can find a layer that hangs: show where things stand now, even when paused.
+    if (runtime && alive) { runtime.refresh(); kick(); }
   }
 
   function doExportJson() {
@@ -898,8 +913,8 @@ export function mount(root, ctx) {
       bakedBadge.hidden = true;
       studio.classList.remove('is-baked');
       bakePanel.setPlaying(false);
-      if (runtime) runtime.lookDirty = true;     // fresh frame from the live look
       S.t = 0;
+      if (runtime) runtime.pump(S.t, true);       // a fresh frame from the live look
       kick();
       return;
     }
@@ -912,8 +927,9 @@ export function mount(root, ctx) {
       S.t = 0;
       S.playing = true;
       hideViewerMsg();
-      bakedBadge.querySelector('.baked-text').textContent =
-        `Baked frames · ${frames.seconds.toFixed(frames.seconds % 1 ? 1 : 0)} s · ${(frames.bytes / 1e6).toFixed(1)} MB · no code running`;
+      clear(bakedBadge.querySelector('.baked-text')).append(
+        `Baked frames · ${frames.seconds.toFixed(frames.seconds % 1 ? 1 : 0)} s`,
+        h('span', { class: 'baked-extra', text: ` · ${mb(frames.bytes)} · no code running` }));
       bakedBadge.hidden = false;
       studio.classList.add('is-baked');
       bakePanel.setPlaying(true);
@@ -950,18 +966,24 @@ export function mount(root, ctx) {
     if (!alive) return;
     const dt = last && now - last < 250 ? (now - last) / 1000 : 0;
     last = now;
+    const B = S.baked;
+    const duration = B ? B.frames.seconds : S.duration;
     if (S.playing) {
       S.t += dt * S.speed;
-      if (S.t >= S.duration) S.t %= S.duration;
+      if (S.t >= duration) S.t %= duration;
     }
-    if (runtime) runtime.pump(S.t, S.playing);
-    transport.set(S.playing, S.t, S.duration, now);
+    if (B) {
+      // Baked frames: pick the frame for this time straight from the file.
+      const i = Math.min(B.frames.frameCount - 1, Math.floor(S.t * B.frames.fps));
+      if (i !== B.index && viewer) { B.index = i; viewer.setColors(B.frames.frameAt(i, B.rgb)); }
+    } else if (runtime) runtime.pump(S.t, S.playing);
+    transport.set(S.playing, S.t, duration, now);
     if (now - statsAt > 1000 && runtime) {
       statsAt = now;
       const st = runtime.stats;
-      transport.setStats(runtime.ready && S.playing ? `${Math.round(st.fps)} fps · ${st.ms ? st.ms.toFixed(1) : '–'} ms` : '');
+      transport.setStats(B ? `baked · ${B.frames.fps} fps` : runtime.ready && S.playing ? `${Math.round(st.fps)} fps · ${st.ms ? st.ms.toFixed(1) : '–'} ms` : '');
     }
-    if (S.playing || (runtime && runtime.pending(S.t))) kick();
+    if (S.playing || (!B && runtime && runtime.pending(S.t))) kick();
     else last = 0;
   }
 
@@ -1000,6 +1022,10 @@ export function mount(root, ctx) {
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('click', onDocClick);
       document.removeEventListener('visibilitychange', onVisibility);
+      narrowMq.removeEventListener('change', placeBake);
+      bakePanel.destroy();
+      bakedLoad++;
+      S.baked = null;
       if (io) io.disconnect();
       if (runtime) runtime.destroy();
       if (viewer) viewer.destroy();

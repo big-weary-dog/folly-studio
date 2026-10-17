@@ -6,10 +6,11 @@ import http from 'node:http';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
+import zlib from 'node:zlib';
 import { BakeError, createBakeQueue, createRenderBox, framesPath, removeFrames, reviewBlocker } from './bake.js';
 import { createStore } from './store.js';
 import { createAuth, HttpError } from './auth.js';
-import { applySecurityHeaders, createLoaders, createStatic, DEFAULT_PUBLIC_DIR } from './static.js';
+import { acceptsEncoding, applySecurityHeaders, createLoaders, createStatic, DEFAULT_PUBLIC_DIR, etagMatches } from './static.js';
 
 export { HttpError } from './auth.js';
 export { createLoaders, loadLibrary, loadGroups, DEFAULT_PUBLIC_DIR } from './static.js';
@@ -489,8 +490,16 @@ export function createApi({ store, auth, queue, adapterName = 'sketch', loaders,
     },
     {
       method: 'GET', path: /^\/api\/looks\/([A-Za-z0-9_-]{1,64})\/frames$/,
-      async handler({ user, res, params: [id] }) {
+      async handler({ user, req, res, params: [id] }) {
         const look = visibleLook(id, user);
+        // Replays revalidate (the bake's hash is the ETag), and gzip makes LED frames ~3× smaller.
+        const etag = look.bake?.frames?.sha256 ? `W/"${String(look.bake.frames.sha256).slice(0, 40)}"` : null;
+        if (etag && etagMatches(req.headers['if-none-match'], etag)) {
+          res.writeHead(304, { ETag: etag, 'Cache-Control': 'private, no-cache', Vary: 'Accept-Encoding' });
+          res.end();
+          return STREAMED;
+        }
+        const gzip = acceptsEncoding(req.headers['accept-encoding'], 'gzip');
         let fh;
         try {
           fh = await fsp.open(framesPath(framesDir, id), 'r');
@@ -502,11 +511,15 @@ export function createApi({ store, auth, queue, adapterName = 'sketch', loaders,
           const name = String(look.title || '').replace(/[^A-Za-z0-9 _-]+/g, '').trim().replace(/\s+/g, '-').slice(0, 60) || 'look';
           res.writeHead(200, {
             'Content-Type': 'application/octet-stream',
-            'Content-Length': size,
+            ...(gzip ? { 'Content-Encoding': 'gzip' } : { 'Content-Length': size }),
             'Content-Disposition': `attachment; filename="${name}.fseq"`,
-            'Cache-Control': 'private, no-store',
+            'Cache-Control': etag ? 'private, no-cache' : 'private, no-store',
+            ...(etag ? { ETag: etag } : {}),
+            Vary: 'Accept-Encoding',
           });
-          await pipeline(fh.createReadStream({ autoClose: false }), res);
+          const body = fh.createReadStream({ autoClose: false });
+          if (gzip) await pipeline(body, zlib.createGzip({ level: 4 }), res);
+          else await pipeline(body, res);
         } finally {
           await fh.close();
         }

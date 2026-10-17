@@ -17,7 +17,7 @@ export function bakeState(bake) {
   return { kind: 'failed', label: 'Failed' };
 }
 
-const mb = (bytes) => `${(bytes / 1e6).toFixed(bytes < 1e7 ? 1 : 0)} MB`;
+export const mb = (bytes) => `${(bytes / 1e6).toFixed(bytes < 1e8 ? 1 : 0)} MB`;
 const pct = (v) => `${Math.round(v * 100)} %`;
 
 /**
@@ -48,15 +48,17 @@ export class BakePanel {
     this.reviewBox = h('input', { type: 'checkbox', id: reviewId, class: 'switch' });
     this.review = h('div', { class: 'share-toggle bake-review wide-only', hidden: !this.curator },
       this.reviewBox, h('label', { for: reviewId, text: 'Reviewed for the playa' }));
+    this.phoneHint = h('p', { class: 'bake-note narrow-only', text: 'Bake and review from a larger screen.' });
+    this.actions = h('div', { class: 'bake-actions' }, this.bakeBtn, this.playBtn);
     this.el = h('section', { class: 'bake', 'aria-label': 'Bake' },
       h('div', { class: 'bake-head' }, h('h2', { class: 'pane-title', text: 'Bake' }), this.pill),
-      this.note, this.report, this.reason,
-      h('div', { class: 'bake-actions' }, this.bakeBtn, this.playBtn),
+      this.note, this.report, this.reason, this.actions, this.phoneHint,
       this.review);
     container.append(this.el);
     this.bakeBtn.addEventListener('click', () => this.bake());
     this.playBtn.addEventListener('click', () => this.togglePlay());
     this.reviewBox.addEventListener('change', () => this.setReviewed(this.reviewBox.checked));
+    this.render();
   }
 
   /** Redraw from the host's look; starts or stops polling. */
@@ -100,6 +102,8 @@ export class BakePanel {
     this.bakeBtn.textContent = !look || dirty ? 'Save & bake' : st.kind === 'none' ? 'Bake' : 'Bake again';
     const hasFrames = !!(bake?.frames && bake.status === 'done');
     this.playBtn.hidden = !hasFrames;
+    this.el.classList.toggle('no-play', !hasFrames);
+    this.phoneHint.hidden = !canBake || !look;
     this.playBtn.setAttribute('aria-pressed', String(this.playing));
     this.playBtn.textContent = this.playing ? 'Back to live' : 'Play baked frames';
 
@@ -130,9 +134,7 @@ export class BakePanel {
       toast('Baking in the render box…', { timeout: 2500 });
     } catch (err) {
       if (err.status === 401) { this.host.signedOut(); return; }
-      this.error = err.status === 503
-        ? `Baking is not available on this server: ${err.message}`
-        : err.message;
+      this.error = err.message;               // 503: no render box here; 429: queue full
       toast(this.error, { kind: err.status === 503 ? 'warn' : 'error', timeout: 8000 });
     } finally {
       this.busy = false;
@@ -190,6 +192,7 @@ export class BakePanel {
       if (err.status === 401) { this.host.signedOut(); return; }
       this.error = err.message;               // the server's 409 says why
       toast(err.message, { kind: 'error', timeout: 9000 });
+      if (err.status === 409) setTimeout(() => this.poll(), 0);   // our copy is stale: catch up
     } finally {
       this.busy = false;
       this.render();
