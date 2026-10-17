@@ -12,6 +12,7 @@
     "test": "node --test \"test/**/*.test.js\"",
     "lint": "node tools/lint.mjs",
     "check": "npm run lint && npm test",
+    "e2e": "node test/e2e/run.mjs",
     "build-data": "python3 tools/build_cathedral.py"
   }
 }

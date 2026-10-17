@@ -99,13 +99,14 @@ async function main() {
   md.push('## The player reads every FSEQ form the same', '', await playerForms(moving), '');
 
   const { chromium } = loadPlaywright();
+  const three = threeDir();
   const stack = new Stack({ httpPort: HTTP_PORT, log });
   let browser;
   const shots = [];
   try {
     await stack.up();
     browser = await launch(chromium);
-    const context = await newContext(browser, threeDir());
+    const context = await newContext(browser, three);
     const page = await context.newPage();
     const errors = await openMirage(page, `http://localhost:${HTTP_PORT}/mirage/`);
     log('Mirage is up');

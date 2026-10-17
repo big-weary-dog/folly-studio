@@ -79,8 +79,14 @@ export class BakePanel {
       const flagged = `Flagged at ${at.slice(0, 5).map((s) => `${s} s`).join(', ')}${at.length > 5 ? '…' : ''}`;
       this.report.append(
         row('Flash check', f.ok ? 'Pass' : flagged, f.ok ? 'ok' : 'bad'),
-        row('Peak', `${pct(a.peakBrightness)} white · ≈ ${a.estPeakAmps} A`),
+        row('Peak', `${pct(a.peakBrightness)} white · ≈ ${a.estPeakAmps}\u00a0A`),
         row('Length', `${a.seconds} s${bake.frames?.bytes ? ` · ${mb(bake.frames.bytes)}` : ''}`));
+      if (bake.frames && bake.status === 'done') {
+        const url = `/api/looks/${encodeURIComponent(look.id)}/frames`;
+        const link = (href, text) => h('a', { href, download: '', text });
+        this.report.append(h('div', null, h('dt', { text: 'Download' }),
+          h('dd', null, link(url, '.fseq'), ' · ', link(`${url}?compress=1`, 'compressed'))));
+      }
     }
     this.report.hidden = !a;
     const reason = this.error || (st.kind === 'failed' || st.kind === 'flagged' ? bake.reason || '' : '');
