@@ -1,8 +1,12 @@
 // The HTTP API (see SPEC.md "HTTP API") and createServer(), which wires the store,
 // auth, generator queue, API and static files into one node:http server.
 
+import { promises as fsp } from 'node:fs';
 import http from 'node:http';
+import path from 'node:path';
+import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
+import { BakeError, createBakeQueue, createRenderBox, framesPath, removeFrames, reviewBlocker } from './bake.js';
 import { createStore } from './store.js';
 import { createAuth, HttpError } from './auth.js';
 import { applySecurityHeaders, createLoaders, createStatic, DEFAULT_PUBLIC_DIR } from './static.js';
@@ -21,6 +25,7 @@ export const GALLERY_LIMIT = 200;
 export const BLENDS = ['add', 'over', 'max', 'multiply'];
 
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+const STREAMED = Symbol('streamed'); // a handler that wrote the response itself
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** A logger usable both as log(...) and log.info/warn/error(...). */
@@ -205,10 +210,10 @@ const newestBy = (field) => (a, b) => {
 // API
 
 /**
- * createApi({ store, auth, queue, adapterName, loaders, log, trustProxy, maxIdeasPerDay })
+ * createApi({ store, auth, queue, adapterName, loaders, log, trustProxy, maxIdeasPerDay, framesDir, bakes })
  *   → async handleApi(req, res, pathname, searchParams)
  */
-export function createApi({ store, auth, queue, adapterName = 'sketch', loaders, log = createLog(), trustProxy = false, maxIdeasPerDay = MAX_IDEAS_PER_DAY }) {
+export function createApi({ store, auth, queue, adapterName = 'sketch', loaders, log = createLog(), trustProxy = false, maxIdeasPerDay = MAX_IDEAS_PER_DAY, framesDir = path.join(store.dataDir ?? DEFAULT_DATA_DIR, 'frames'), bakes }) {
   const ownerName = (id) => store.users.get(id)?.username ?? '';
 
   function presentLook(look, { versions = false } = {}) {
@@ -360,7 +365,7 @@ export function createApi({ store, auth, queue, adapterName = 'sketch', loaders,
     },
     {
       method: 'PUT', path: /^\/api\/looks\/([A-Za-z0-9_-]{1,64})$/,
-      handler({ user, params: [id], body, query }) {
+      async handler({ user, params: [id], body, query }) {
         const look = visibleLook(id, user);
         const isOwner = look.owner === user.id;
         const isCurator = auth.isCurator(user);
@@ -388,10 +393,14 @@ export function createApi({ store, auth, queue, adapterName = 'sketch', loaders,
         // Only the owner edits; a curator may also set `reviewed` on a look shared with them.
         if (!isOwner && (changes.length || !isCurator)) throw new HttpError(403, 'Only the owner can edit this look.');
 
+        if (layersChanged && look.bake) patch.bake = undefined; // its frames show the old code
+
         if (body.reviewed !== undefined) {
           const reviewed = cleanBool(body.reviewed, 'reviewed');
           if (reviewed !== (look.reviewed === true)) {
             if (!isCurator) throw new HttpError(403, 'Only curators can mark a look reviewed.');
+            const blocker = reviewed && (layersChanged ? 'The code changed. Bake it again first.' : reviewBlocker(look));
+            if (blocker) throw new HttpError(409, blocker);
             patch.reviewed = reviewed;
             patch.reviewedBy = reviewed ? user.username : undefined;
           }
@@ -401,16 +410,57 @@ export function createApi({ store, auth, queue, adapterName = 'sketch', loaders,
         }
 
         const updated = Object.keys(patch).length ? store.looks.update(id, patch) : look;
+        if ('bake' in patch) await removeFrames(framesDir, id);
         return { look: presentLook(updated, { versions: query.get('versions') === '1' && isOwner }) };
       },
     },
     {
       method: 'DELETE', path: /^\/api\/looks\/([A-Za-z0-9_-]{1,64})$/,
-      handler({ user, params: [id] }) {
+      async handler({ user, params: [id] }) {
         const look = visibleLook(id, user);
         if (look.owner !== user.id) throw new HttpError(403, 'Only the owner can delete this look.');
         store.looks.remove(id);
+        await removeFrames(framesDir, id);
         return { ok: true };
+      },
+    },
+    {
+      method: 'POST', path: /^\/api\/looks\/([A-Za-z0-9_-]{1,64})\/bake$/,
+      async handler({ user, params: [id] }) {
+        const look = visibleLook(id, user);
+        if (look.owner !== user.id && !auth.isCurator(user)) throw new HttpError(403, 'Only the owner or a curator can bake this look.');
+        try {
+          return [202, { bake: await bakes.request(id) }];
+        } catch (err) {
+          if (err instanceof BakeError) throw new HttpError(err.status || 503, err.reason);
+          throw err;
+        }
+      },
+    },
+    {
+      method: 'GET', path: /^\/api\/looks\/([A-Za-z0-9_-]{1,64})\/frames$/,
+      async handler({ user, res, params: [id] }) {
+        const look = visibleLook(id, user);
+        let fh;
+        try {
+          fh = await fsp.open(framesPath(framesDir, id), 'r');
+        } catch {
+          throw new HttpError(404, 'This look has no baked frames.');
+        }
+        try {
+          const { size } = await fh.stat();
+          const name = String(look.title || '').replace(/[^A-Za-z0-9 _-]+/g, '').trim().replace(/\s+/g, '-').slice(0, 60) || 'look';
+          res.writeHead(200, {
+            'Content-Type': 'application/octet-stream',
+            'Content-Length': size,
+            'Content-Disposition': `attachment; filename="${name}.fseq"`,
+            'Cache-Control': 'private, no-store',
+          });
+          await pipeline(fh.createReadStream({ autoClose: false }), res);
+        } finally {
+          await fh.close();
+        }
+        return STREAMED;
       },
     },
 
@@ -438,6 +488,7 @@ export function createApi({ store, auth, queue, adapterName = 'sketch', loaders,
       const body = mutating ? await readJson(req) : {};
       const ctx = { req, res, body, query, user: session?.user ?? null, params: pathname.match(route.path).slice(1) };
       const result = await route.handler(ctx);
+      if (result === STREAMED) return;
       const [status, data] = Array.isArray(result) ? result : [200, result];
       sendJson(res, status, data);
     } catch (err) {
@@ -516,12 +567,14 @@ function splitUrl(raw = '/') {
 
 /**
  * createServer({ dataDir, publicDir, generator?, generatorName?, curators?, secureCookies?,
- *                rateLimit?, trustProxy?, log?, maxIdeasPerDay?, generatorModule? })
+ *                rateLimit?, trustProxy?, log?, maxIdeasPerDay?, generatorModule?, renderBox? })
  *   → Promise<{ server, store, auth, queue, loaders, adapterName, handler,
  *               listen(port = 0, host = '127.0.0.1') → Promise<address>, close() → Promise }>
  *
  * `generator` is a ready queue `{ enqueue(idea), idle?() }` (tests) or a createQueue-style
  * factory; when omitted, src/generate/index.js is imported (with a fallback if it is missing).
+ * `renderBox` is a render box `{ probe(), render({ layers }), stop?(), config? }` (tests); by
+ * default src/bake.js createRenderBox() on publicDir, configured from STUDIO_BAKE_* variables.
  */
 export async function createServer(opts = {}) {
   const {
@@ -536,6 +589,7 @@ export async function createServer(opts = {}) {
     trustProxy = false,
     maxIdeasPerDay = MAX_IDEAS_PER_DAY,
     log = createLog(),
+    renderBox,
   } = opts;
 
   const store = await createStore(dataDir, { log });
@@ -550,7 +604,10 @@ export async function createServer(opts = {}) {
   else queue = await loadGenerator({ ...deps, ...(generatorModule ? { moduleUrl: generatorModule } : {}) });
   const adapterName = typeof queue.adapterName === 'string' && queue.adapterName ? queue.adapterName : generatorName;
 
-  const api = createApi({ store, auth, queue, adapterName, loaders, log, trustProxy, maxIdeasPerDay });
+  const framesDir = path.join(dataDir, 'frames');
+  const box = renderBox || createRenderBox({ publicDir, log });
+  const bakes = createBakeQueue({ store, box, framesDir, cathedralFile: path.join(publicDir, 'data', 'cathedral.json'), log });
+  const api = createApi({ store, auth, queue, adapterName, loaders, log, trustProxy, maxIdeasPerDay, framesDir, bakes });
   const serveStatic = createStatic({ publicDir, log });
 
   async function handler(req, res) {
@@ -583,6 +640,7 @@ export async function createServer(opts = {}) {
     store,
     auth,
     queue,
+    bakes,
     loaders,
     adapterName,
     handler,
@@ -603,10 +661,11 @@ export async function createServer(opts = {}) {
           server.closeIdleConnections();
         });
       }
+      bakes.stop();
       if (typeof queue.idle === 'function') {
         let timer;
         await Promise.race([
-          Promise.resolve(queue.idle()).catch(() => {}),
+          Promise.all([Promise.resolve(queue.idle()).catch(() => {}), bakes.idle()]),
           new Promise((r) => {
             timer = setTimeout(r, 5000);
             timer.unref();

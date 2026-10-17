@@ -1,10 +1,15 @@
 // The idea → look queue. The server calls enqueue(idea) right after creating the idea; jobs
 // run in-process, STUDIO_GENERATOR_CONCURRENCY at a time (default 1). Each job: idea status
 // 'generating', the adapter turns the text into a look, validate.js checks it statically, the
-// look is saved and the idea set 'ready' (or 'failed' with a short, user-safe error).
+// look is saved and the idea set 'ready' (or 'failed' with a short, user-safe error). An adapter
+// may also return `bake` (a record from src/bake.js checkFrames) and `frames` (the checked FSEQ
+// bytes): the record is kept on the look and the frames go to <framesDir>/<lookId>.fseq.
+
+import path from 'node:path';
 
 import { createClaudeAdapter } from './claude.js';
 import { createFleetAdapter } from './fleet.js';
+import { layersHash, saveFrames } from '../bake.js';
 import * as sketch from './sketch.js';
 import { GenerateError, validateLook } from './validate.js';
 
@@ -40,6 +45,7 @@ const asAdapter = (a) => (typeof a === 'function' ? { generate: a } : a);
  * @param {object} [o.adapters]      name → adapter ({ generate } or a function); overrides built-ins
  * @param {number} [o.concurrency]   STUDIO_GENERATOR_CONCURRENCY, default 1
  * @param {string} [o.fallbackName]  STUDIO_GENERATOR_FALLBACK: adapter to try when the main one fails (off by default)
+ * @param {string} [o.framesDir]     where baked frames go (default <store.dataDir>/frames)
  */
 export function createQueue({
   store,
@@ -50,8 +56,10 @@ export function createQueue({
   adapters,
   concurrency = Number(process.env.STUDIO_GENERATOR_CONCURRENCY) || 1,
   fallbackName = process.env.STUDIO_GENERATOR_FALLBACK || '',
+  framesDir,
 } = {}) {
   if (!store?.ideas || !store?.looks) throw new Error('createQueue needs a store with ideas and looks');
+  const framesHome = framesDir ?? (store.dataDir ? path.join(store.dataDir, 'frames') : '');
   const registry = { ...defaultAdapters(log), ...(adapters || {}) };
   let primary = String(adapterName || 'sketch').trim().toLowerCase();
   if (!registry[primary]) {
@@ -102,18 +110,22 @@ export function createQueue({
       const ctx = { text: String(idea.text ?? ''), user, library: library || [], groups: groups || [], idea: { id } };
 
       let look;
+      let raw;
       let used = primary;
       try {
-        look = validateLook(await asAdapter(registry[primary]).generate(ctx), ctx);
+        raw = await asAdapter(registry[primary]).generate(ctx);
+        look = validateLook(raw, ctx);
       } catch (err) {
         if (!fallback) throw err;
         log.warn?.(`[generate] ${primary} failed for idea ${id} (${err?.message}); falling back to ${fallback}`);
-        look = validateLook(await asAdapter(registry[fallback]).generate(ctx), ctx);
+        raw = await asAdapter(registry[fallback]).generate(ctx);
+        look = validateLook(raw, ctx);
         used = fallback;
         const why = err instanceof GenerateError ? err.userMessage : 'The AI generator was unavailable.';
         look.summary = `${why} ${look.summary}`.slice(0, 400);
       }
       if (look.dropped.length) log.warn?.(`[generate] idea ${id}: dropped ${look.dropped.join('; ')}`);
+      const bake = raw?.bake && typeof raw.bake === 'object' ? { ...raw.bake, layersHash: layersHash(look.layers) } : null;
 
       const saved = await store.looks.create({
         owner: idea.owner,
@@ -124,13 +136,25 @@ export function createQueue({
         shared: false,
         reviewed: false,
         ideaId: id,
+        ...(bake ? { bake } : {}),
       });
+      if (bake?.frames) await keepFrames(saved.id, raw.frames, bake);
       await store.ideas.update(id, { status: 'ready', lookId: saved.id, generator: used, error: null });
       log.info?.(`[generate] idea ${id} ready via ${used} in ${Date.now() - started} ms (look ${saved.id})`);
     } catch (err) {
       const message = err instanceof GenerateError ? err.userMessage : FALLBACK_ERROR;
       log.warn?.(`[generate] idea ${id} failed via ${primary}: ${err?.message || err}`);
       await store.ideas.update(id, { status: 'failed', error: message });
+    }
+  }
+
+  async function keepFrames(lookId, bytes, bake) {
+    try {
+      if (!framesHome || !(bytes instanceof Uint8Array)) throw new Error('no frames directory');
+      await saveFrames(framesHome, lookId, bytes);
+    } catch (err) {
+      log.warn?.(`[generate] look ${lookId}: could not store its frames: ${err?.message || err}`);
+      await store.looks.update(lookId, { bake: { ...bake, ok: false, status: 'failed', frames: undefined, reason: 'The baked frames could not be stored.' } });
     }
   }
 

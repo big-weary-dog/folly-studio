@@ -7,7 +7,9 @@ import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
+import { writeFseq } from '../public/js/fseq.js';
 import { createServer, validateLayers } from '../src/api.js';
+import { parseFseq } from '../src/frames.js';
 import { createStore } from '../src/store.js';
 import { CSP_APP, CSP_SANDBOX } from '../src/static.js';
 
@@ -44,8 +46,35 @@ async function writeFixture(dir) {
   await writeFile(path.join(dir, 'patterns', 'embers.js'), `// Rising embers\n${PIXEL}\n`);
   await writeFile(
     path.join(dir, 'data', 'cathedral.json'),
-    JSON.stringify({ version: 1, groups: [{ id: 'cathedral', name: 'Cathedral', parent: null, zones: [0] }] }),
+    JSON.stringify({
+      version: 1,
+      count: 2,
+      channelsPerUniverse: 510,
+      universes: 1,
+      zones: ['z'],
+      pixels: { zone: [0, 0], strand: [0, 0], universe: [1, 1], channel: [1, 4], row: [0, 0], pos: [0, 0, 0, 0, 1, 0] },
+      groups: [{ id: 'cathedral', name: 'Cathedral', parent: null, zones: [0] }],
+    }),
   );
+}
+
+/**
+ * A stand-in render box (the real one, under bubblewrap, is test/bake.test.js): two seconds of
+ * frames for the fixture's two LEDs, strobing at 10 Hz when the code says STROBE, else steady.
+ */
+function fakeBox() {
+  return {
+    renders: 0,
+    config: { seconds: 2 },
+    probe: async () => ({ ok: true }),
+    async render({ layers }) {
+      this.renders++;
+      const strobe = layers.some((l) => /STROBE/.test(l.code));
+      const data = new Uint8Array(80 * 6);
+      for (let f = 0; f < 80; f++) data.fill(strobe && Math.floor(f / 2) % 2 ? 0 : 200, f * 6, f * 6 + 6);
+      return { bytes: Buffer.from(writeFseq({ frames: 80, data, ranges: [[0, 6]] })), boxStats: { untrusted: true, reported: { ok: true } } };
+    },
+  };
 }
 
 function fakeQueue() {
@@ -133,8 +162,9 @@ after(async () => {
 
 describe('server', () => {
   let app;
+  let box;
   before(async () => {
-    app = await startApp({ dataDir: path.join(tmp, 'data-main'), curators: 'Carol, other' });
+    app = await startApp({ dataDir: path.join(tmp, 'data-main'), curators: 'Carol, other', renderBox: (box = fakeBox()) });
   });
   after(async () => {
     await app.close();
@@ -506,23 +536,97 @@ describe('server', () => {
       // Echoing the unchanged value is harmless.
       assert.equal((await alice.put(`/api/looks/${look.id}`, { title: 'Review me', reviewed: false })).status, 200);
 
+      // Reviewing needs a passing render-box bake of the current code.
+      const unbaked = await carol.put(`/api/looks/${look.id}`, { reviewed: true });
+      assert.equal(unbaked.status, 409);
+      assert.match(unbaked.json.error, /Bake this look/);
+      assert.equal((await alice.post(`/api/looks/${look.id}/bake`)).status, 202);
+      await app.bakes.idle();
       const ok = await carol.put(`/api/looks/${look.id}`, { reviewed: true });
-      assert.equal(ok.status, 200);
+      assert.equal(ok.status, 200, ok.text);
       assert.equal(ok.json.look.reviewed, true);
       assert.equal((await bob.get(`/api/looks/${look.id}`)).json.look.reviewed, true);
       // A curator may not edit someone else's content.
       assert.equal((await carol.put(`/api/looks/${look.id}`, { title: 'Curated', reviewed: true })).status, 403);
 
-      // New code from the owner clears the review.
+      // New code from the owner clears the review, and the bake of the old code.
       const edited = await alice.put(`/api/looks/${look.id}`, { layers: [layer({ level: 0.3 })] });
       assert.equal(edited.json.look.reviewed, false);
+      assert.equal(edited.json.look.bake, undefined);
+      assert.equal((await carol.put(`/api/looks/${look.id}`, { reviewed: true })).status, 409);
 
       // A curator cannot review a private look of someone else.
       const priv = (await alice.post('/api/looks', { title: 'Private', layers: [layer()] })).json.look;
       assert.equal((await carol.put(`/api/looks/${priv.id}`, { reviewed: true })).status, 404);
-      // But can review their own.
+      // But can review their own, once baked.
       const own = (await carol.post('/api/looks', { title: 'Carol own', layers: [layer()] })).json.look;
+      assert.equal((await carol.post(`/api/looks/${own.id}/bake`)).status, 202);
+      await app.bakes.idle();
       assert.equal((await carol.put(`/api/looks/${own.id}`, { reviewed: true })).json.look.reviewed, true);
+    });
+
+    test('bake: queued render, frames download, flicker blocks review', async () => {
+      const strobe = (await alice.post('/api/looks', { title: 'Strobe!  "x"', layers: [layer({ code: `// STROBE\n${PIXEL}` })], shared: true })).json.look;
+      const calm = (await alice.post('/api/looks', { title: 'Calm', layers: [layer()] })).json.look;
+      assert.equal((await alice.get(`/api/looks/${calm.id}/frames`)).status, 404, 'nothing baked yet');
+
+      assert.equal((await bob.post(`/api/looks/${strobe.id}/bake`)).status, 403, 'not the owner, not a curator');
+      assert.equal((await bob.post(`/api/looks/${calm.id}/bake`)).status, 404, 'private');
+      const queued = await alice.post(`/api/looks/${strobe.id}/bake`);
+      assert.equal(queued.status, 202);
+      assert.equal(queued.json.bake.source, 'render-box');
+      assert.ok(['queued', 'running'].includes(queued.json.bake.status));
+      assert.equal((await carol.post(`/api/looks/${calm.id}/bake`)).status, 404, 'a curator bakes only what they can see');
+      const before = box.renders;
+      assert.equal((await alice.post(`/api/looks/${calm.id}/bake`)).status, 202);
+      assert.ok(['queued', 'running'].includes((await alice.post(`/api/looks/${calm.id}/bake`)).json.bake.status), 'asking again while queued is the same bake');
+      await app.bakes.idle();
+      assert.equal(box.renders, before + 1);
+
+      const { bake } = (await alice.get(`/api/looks/${strobe.id}`)).json.look;
+      assert.equal(bake.status, 'done');
+      assert.equal(bake.ok, false);
+      assert.equal(bake.analysis.flicker.ok, false);
+      assert.equal(bake.analysis.flicker.maxHz, 10);
+      assert.equal(bake.analysis.frames, 80);
+      assert.equal(bake.boxStats.untrusted, true);
+      assert.match(bake.reason, /flash/);
+      const blocked = await carol.put(`/api/looks/${strobe.id}`, { reviewed: true });
+      assert.equal(blocked.status, 409);
+      assert.match(blocked.json.error, /flash/);
+
+      // Frames: owner and (shared) others download them; the private look's only its owner.
+      const res = await fetch(`${app.base}/api/looks/${strobe.id}/frames`, { headers: { cookie: bob.cookie } });
+      assert.equal(res.status, 200);
+      assert.equal(res.headers.get('content-type'), 'application/octet-stream');
+      assert.equal(res.headers.get('content-disposition'), 'attachment; filename="Strobe-x.fseq"');
+      const parsed = parseFseq(new Uint8Array(await res.arrayBuffer()));
+      assert.equal(parsed.frameCount, 80);
+      assert.deepEqual(parsed.ranges, [[0, 6]]);
+      assert.equal((await alice.get(`/api/looks/${calm.id}/frames`)).status, 200);
+      assert.equal((await bob.get(`/api/looks/${calm.id}/frames`)).status, 404);
+      assert.equal((await fetch(`${app.base}/api/looks/${strobe.id}/frames`)).status, 401);
+
+      // Editing the code drops the bake and its frames.
+      assert.equal((await alice.get(`/api/looks/${calm.id}`)).json.look.bake.ok, true);
+      await alice.put(`/api/looks/${calm.id}`, { layers: [layer({ level: 0.5 })] });
+      assert.equal((await alice.get(`/api/looks/${calm.id}/frames`)).status, 404);
+      // Deleting the look deletes its frames.
+      const file = path.join(tmp, 'data-main', 'frames', `${strobe.id}.fseq`);
+      assert.ok((await readFile(file)).length > 0);
+      assert.equal((await alice.del(`/api/looks/${strobe.id}`)).status, 200);
+      await assert.rejects(readFile(file), /ENOENT/);
+    });
+
+    test('a failed flicker check from any box blocks review', async () => {
+      const look = (await alice.post('/api/looks', { title: 'Fleet strobe', layers: [layer()], shared: true })).json.look;
+      app.store.looks.update(look.id, {
+        bake: { source: 'fleet-box', status: 'done', ok: false, analysis: { flicker: { ok: false, maxHz: 8, flaggedSeconds: [2, 3], regions: ['cathedral'] } } },
+      });
+      const r = await carol.put(`/api/looks/${look.id}`, { reviewed: true });
+      assert.equal(r.status, 409);
+      assert.match(r.json.error, /up to 8 flashes a second .* around 2 s, 3 s/);
+      assert.equal((await alice.get(`/api/looks/${look.id}`)).json.look.reviewed, false);
     });
   });
 
@@ -609,6 +713,23 @@ describe('server', () => {
       assert.match(patterns[0].code, /function pixel/);
       assert.deepEqual(app.loaders.loadGroups().map((g) => g.id), ['cathedral']);
     });
+  });
+});
+
+describe('without a render box', () => {
+  test('baking refuses with the reason, and nothing is queued', async () => {
+    const reason = 'The render box is not available: bubblewrap (bwrap) is not installed on this server.';
+    const app = await startApp({ dataDir: path.join(tmp, 'data-nobox'), renderBox: { probe: async () => ({ ok: false, reason }), render: assert.fail } });
+    try {
+      const alice = await signup(app, 'nobox');
+      const look = (await alice.post('/api/looks', { title: 'x', layers: [layer()] })).json.look;
+      const r = await alice.post(`/api/looks/${look.id}/bake`);
+      assert.equal(r.status, 503);
+      assert.equal(r.json.error, reason);
+      assert.equal((await alice.get(`/api/looks/${look.id}`)).json.look.bake, undefined);
+    } finally {
+      await app.close();
+    }
   });
 });
 

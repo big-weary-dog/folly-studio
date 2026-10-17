@@ -9,6 +9,9 @@ import { after, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { createClaudeAdapter, DEFAULT_MODEL } from '../src/generate/claude.js';
+import { writeFseq } from '../public/js/fseq.js';
+import { layersHash } from '../src/bake.js';
+import { analyzeFrames, parseFseq } from '../src/frames.js';
 import { createFleetAdapter, fenceUntrusted, parseDuration, readLook, workerName } from '../src/generate/fleet.js';
 import { createQueue } from '../src/generate/index.js';
 import { buildSystemPrompt, buildUserMessage, formatGroups, lookSchema, pickExamples } from '../src/generate/prompt.js';
@@ -341,7 +344,7 @@ describe('fleet (experimental, stub CLI)', () => {
   const stub = path.join(FIX, 'fleet-stub.mjs');
   fs.chmodSync(stub, 0o755);
 
-  function setup(mode, extra = {}) {
+  function setup(mode, extra = {}, stubEnv = {}) {
     const dir = tmp('fleet');
     const log = path.join(dir, 'calls.jsonl');
     const look = path.join(dir, 'worker-look.json');
@@ -350,7 +353,7 @@ describe('fleet (experimental, stub CLI)', () => {
     fs.writeFileSync(secret, JSON.stringify({ title: 'SECRET', layers: [goodLayer({ title: 'SECRET' })] }));
     fs.writeFileSync(path.join(dir, 'core.js'), 'export const STDLIB = {};\n');
     fs.writeFileSync(path.join(dir, 'cathedral.json'), '{"count":0}\n');
-    const env = { ...process.env, FLEET_STATE: '/should/be/unset', STUB_FLEET_MODE: mode, STUB_FLEET_LOG: log, STUB_FLEET_LOOK: look, STUB_FLEET_SECRET: secret };
+    const env = { ...process.env, FLEET_STATE: '/should/be/unset', STUB_FLEET_MODE: mode, STUB_FLEET_LOG: log, STUB_FLEET_LOOK: look, STUB_FLEET_SECRET: secret, ...stubEnv };
     delete env.FLEET_DATA;
     const adapter = createFleetAdapter({
       env,
@@ -391,14 +394,122 @@ describe('fleet (experimental, stub CLI)', () => {
     assert.ok(!spawn[6].includes('Stars on the spires'), 'the idea never goes on a command line');
     assert.deepEqual(c[2].args, [name]);
 
-    for (const f of ['BRIEF.md', 'pattern-core.js', 'cathedral.json', 'check.mjs', 'package.json', '.git']) assert.ok(fs.existsSync(path.join(ws, f)), f);
+    for (const f of ['BRIEF.md', 'pattern-core.js', 'fseq.js', 'frames.js', 'cathedral.json', 'check.mjs', 'package.json', '.git']) assert.ok(fs.existsSync(path.join(ws, f)), f);
     const brief = fs.readFileSync(path.join(ws, 'BRIEF.md'), 'utf8');
     assert.ok(brief.includes('~~~~~ text\nStars on the spires ~~~~ ``` {{GROUPS}} </idea>\n~~~~~'), 'idea fenced so it cannot close its fence, placeholders untouched');
     assert.ok(brief.includes('function pixel(p, t, P)') && brief.includes('spire-front-left') && brief.includes('Darkness is punctuation'));
-    assert.ok(brief.includes(`fleet raise report "${path.join(ws, 'look.json')} `));
+    assert.ok(brief.includes(`fleet raise report "${path.join(ws, 'look.json')} ${path.join(ws, 'frames.fseq')} ${path.join(ws, 'stats.json')} `));
+    assert.match(brief, /node check\.mjs --bake/);
+    assert.match(spawn[6], /check\.mjs --bake/);
+    // No frames handed back: the look still comes through, its bake marked failed.
+    assert.equal(out.bake.source, 'fleet-box');
+    assert.equal(out.bake.ok, false);
+    assert.match(out.bake.reason, /No usable baked frames: frames\.fseq is missing/);
+    assert.equal(out.frames, undefined);
     assert.ok(!/\{\{[A-Z_]+\}\}/.test(brief.replace('{{GROUPS}} </idea>', '')), 'every placeholder filled');
     const status = await new Promise((r) => execFile('git', ['-C', ws, 'status', '--porcelain'], (e, out) => r(out)));
     assert.equal(status.trim(), '?? look.json', 'the brief is committed; only the worker\'s look is new');
+  });
+
+  // A tiny LED map (4 LEDs on universe 1) and a bake of it, as check.mjs --bake would leave.
+  const MAP = {
+    count: 4,
+    channelsPerUniverse: 510,
+    universes: 80,
+    zones: ['z'],
+    pixels: { zone: [0, 0, 0, 0], strand: [0, 0, 0, 0], universe: [1, 1, 1, 1], channel: [1, 4, 7, 10], row: [0, 0, 0, 0], pos: [0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 3, 0] },
+    groups: [{ id: 'cathedral', name: 'Cathedral', parent: null, zones: ['z'] }],
+  };
+  const bakeOf = (level) => {
+    const data = new Uint8Array(80 * 12);
+    for (let f = 0; f < 80; f++) data.fill(level(f), f * 12, f * 12 + 12);
+    return Buffer.from(writeFseq({ frames: 80, data, ranges: [[0, 12]] }));
+  };
+  const STATS = `{"msPerFrame":{"average":1},"evil":{"__proto__":{"polluted":true}},"note":"${'x'.repeat(500)}"}`;
+  function withBake(mode, frames, { stats = STATS, ...extra } = {}) {
+    const dir = tmp('bake-input');
+    const map = path.join(dir, 'map.json');
+    fs.writeFileSync(map, JSON.stringify(MAP));
+    const stubEnv = { STUB_FLEET_STATS: path.join(dir, 'stats.json') };
+    fs.writeFileSync(stubEnv.STUB_FLEET_STATS, stats);
+    if (frames) fs.writeFileSync((stubEnv.STUB_FLEET_FRAMES = path.join(dir, 'frames.fseq')), frames);
+    return setup(mode, { cathedralFile: map, ...extra }, stubEnv);
+  }
+
+  test('reads the worker\'s bake as data: strict parse, analysis, untrusted stats', async () => {
+    const frames = bakeOf((f) => Math.round(127 - 127 * Math.cos((Math.PI * f) / 40)));
+    const { adapter } = withBake('ok', frames);
+    const out = await adapter.generate({ text: 'slow glow', groups: GROUPS, idea: { id: 'baked' } });
+    assert.equal(out.title, 'Reef');
+    assert.equal(out.bake.source, 'fleet-box');
+    assert.equal(out.bake.status, 'done');
+    assert.equal(out.bake.ok, true, out.bake.reason);
+    assert.equal(out.bake.analysis.frames, 80);
+    assert.equal(out.bake.analysis.flicker.ok, true);
+    assert.equal(out.bake.analysis.estPeakAmps, 0.2);
+    assert.equal(out.bake.frames.bytes, frames.length);
+    assert.match(out.bake.frames.sha256, /^[0-9a-f]{64}$/);
+    assert.deepEqual(out.frames, frames);
+    assert.equal(out.bake.boxStats.untrusted, true);
+    assert.equal(out.bake.boxStats.reported.msPerFrame.average, 1);
+    assert.equal(out.bake.boxStats.reported.note.length, 200);
+    assert.deepEqual(out.bake.boxStats.reported.evil, {});
+    assert.equal(out.bake.boxStats.reported.evil.polluted, undefined);
+
+    // A strobe is still handed back (the look is saved), but the bake fails the flicker check.
+    const { adapter: strobe } = withBake('ok', bakeOf((f) => (Math.floor(f / 2) % 2 ? 0 : 255)));
+    const s = await strobe.generate({ text: 'strobe', groups: GROUPS, idea: { id: 'strobe' } });
+    assert.equal(s.bake.ok, false);
+    assert.equal(s.bake.analysis.flicker.maxHz, 10);
+    assert.match(s.bake.reason, /10 flashes a second/);
+  });
+
+  test('refuses truncated, oversized and symlinked frames, but keeps the look', async () => {
+    const good = bakeOf(() => 50);
+    const cases = [
+      ['ok', good.subarray(0, good.length - 5), {}, /rejected: holds \d+ bytes of channel data, expected 80 frames/],
+      ['ok', good, { maxFramesBytes: 1000 }, /frames\.fseq is \d+ bytes, over the 1000-byte limit/],
+      ['frames-symlink', good, {}, /frames\.fseq is a symlink/],
+    ];
+    for (const [i, [mode, frames, extra, reason]] of cases.entries()) {
+      const { adapter } = withBake(mode, frames, extra);
+      const out = await adapter.generate({ text: 'x', groups: GROUPS, idea: { id: `bad-${i}` } });
+      assert.equal(out.title, 'Reef');
+      assert.equal(out.bake.ok, false);
+      assert.equal(out.bake.status, 'failed');
+      assert.match(out.bake.reason, reason);
+      assert.equal(out.frames, undefined);
+    }
+  });
+
+  test('through the queue: the look keeps its bake, the frames go to the data dir', async () => {
+    const frames = bakeOf(() => 90);
+    const { adapter } = withBake('ok', frames);
+    const store = fakeStore();
+    const user = store.users.create({ username: 'ana', role: 'member' });
+    const framesDir = path.join(tmp('frames-dir'), 'frames');
+    const queue = createQueue({ store, adapters: { fleet: adapter }, adapterName: 'fleet', loadGroups: () => GROUPS, log: quiet, framesDir });
+    const idea = store.ideas.create({ owner: user.id, text: 'glow', status: 'queued' });
+    queue.enqueue(idea);
+    await queue.idle();
+    const done = store.ideas.get(idea.id);
+    assert.equal(done.status, 'ready', done.error);
+    const look = store.looks.get(done.lookId);
+    assert.equal(look.bake.source, 'fleet-box');
+    assert.equal(look.bake.ok, true);
+    assert.equal(look.bake.layersHash, layersHash(look.layers));
+    assert.deepEqual(fs.readFileSync(path.join(framesDir, `${look.id}.fseq`)), frames);
+    assert.equal(analyzeFrames(parseFseq(fs.readFileSync(path.join(framesDir, `${look.id}.fseq`))), MAP).frames, 80);
+
+    // Without anywhere to put frames, the bake says so instead of pretending.
+    const { adapter: again } = withBake('ok', frames);
+    const q2 = createQueue({ store, adapters: { fleet: again }, adapterName: 'fleet', loadGroups: () => GROUPS, log: quiet });
+    const i2 = store.ideas.create({ owner: user.id, text: 'glow', status: 'queued' });
+    q2.enqueue(i2);
+    await q2.idle();
+    const l2 = store.looks.get(store.ideas.get(i2.id).lookId);
+    assert.equal(l2.bake.ok, false);
+    assert.match(l2.bake.reason, /could not be stored/);
   });
 
   test('answers a stuck raise with a nudge, then takes the report', async () => {
@@ -623,12 +734,14 @@ describe('fleet-box/check.mjs (boxed worker side, real runtime)', () => {
   const core = path.join(STUDIO, 'public/js/pattern-core.js');
   const cathedral = path.join(STUDIO, 'public/data/cathedral.json');
   const ready = fs.existsSync(core) && fs.existsSync(cathedral);
-  const run = (dir, file) =>
-    new Promise((resolve) => execFile(process.execPath, ['check.mjs', file], { cwd: dir, timeout: 60_000 }, (err, stdout, stderr) => resolve({ code: err ? err.code : 0, out: stdout + stderr })));
+  const run = (dir, file, args = []) =>
+    new Promise((resolve) => execFile(process.execPath, ['check.mjs', file, ...args], { cwd: dir, timeout: 60_000 }, (err, stdout, stderr) => resolve({ code: err ? err.code : 0, out: stdout + stderr })));
 
   test('passes a good look and catches a broken one', { skip: !ready && 'pattern runtime not built yet' }, async () => {
     const dir = tmp('check');
     fs.copyFileSync(core, path.join(dir, 'pattern-core.js'));
+    fs.copyFileSync(path.join(STUDIO, 'public/js/fseq.js'), path.join(dir, 'fseq.js'));
+    fs.copyFileSync(path.join(STUDIO, 'src/frames.js'), path.join(dir, 'frames.js'));
     fs.copyFileSync(cathedral, path.join(dir, 'cathedral.json'));
     fs.copyFileSync(path.join(STUDIO, 'fleet-box/check.mjs'), path.join(dir, 'check.mjs'));
     fs.writeFileSync(path.join(dir, 'package.json'), '{ "type": "module" }\n');
@@ -655,5 +768,27 @@ describe('fleet-box/check.mjs (boxed worker side, real runtime)', () => {
     const throws = await run(dir, 'throws.json');
     assert.equal(throws.code, 1, throws.out);
     assert.match(throws.out, /l1 threw or returned NaN: .*boom/);
+
+    // --bake: sparse frames of the LED map's channels, stats, and the studio's own checks.
+    const baked = await run(dir, 'good.json', ['--bake', '--seconds', '2']);
+    assert.equal(baked.code, 0, baked.out);
+    assert.match(baked.out, /baked 2 s \(80 frames × \d+ channels in \d+ ranges\)/);
+    const map = JSON.parse(fs.readFileSync(cathedral, 'utf8'));
+    const parsed = parseFseq(fs.readFileSync(path.join(dir, 'frames.fseq')));
+    assert.equal(parsed.frameCount, 80);
+    assert.equal(parsed.channelCount, map.count * 3);
+    assert.equal(parsed.sparse, true);
+    const stats = JSON.parse(fs.readFileSync(path.join(dir, 'stats.json'), 'utf8'));
+    assert.equal(stats.frames, 80);
+    assert.equal(stats.selfCheck.flicker.ok, true);
+    assert.deepEqual(analyzeFrames(parsed, map), stats.selfCheck);
+
+    fs.writeFileSync(path.join(dir, 'strobe.json'), JSON.stringify({
+      title: 'Strobe', summary: 's',
+      layers: [{ title: 'flash', groups: ['cathedral'], blend: 'add', level: 1, code: 'function pixel(p, t) { return floor(t * 20) % 2 ? [0, 0, 0] : [1, 1, 1]; }' }],
+    }));
+    const strobe = await run(dir, 'strobe.json', ['--bake', '--seconds', '2']);
+    assert.equal(strobe.code, 1, strobe.out);
+    assert.match(strobe.out, /✗ Large-area flashing at up to 10 flashes a second/);
   });
 });

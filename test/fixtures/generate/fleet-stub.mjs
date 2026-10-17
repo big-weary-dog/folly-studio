@@ -34,7 +34,14 @@ const raise = (from, kind, msg) =>
 const look = path.join(repo, 'look.json');
 const finish = (name) => {
   fs.copyFileSync(process.env.STUB_FLEET_LOOK, look);
-  raise(name, 'report', `${look} A stub look`);
+  // The worker's bake (check.mjs --bake), when the test hands one over.
+  if (process.env.STUB_FLEET_FRAMES) {
+    const frames = path.join(repo, 'frames.fseq');
+    if (mode === 'frames-symlink') fs.symlinkSync(process.env.STUB_FLEET_FRAMES, frames);
+    else fs.copyFileSync(process.env.STUB_FLEET_FRAMES, frames);
+  }
+  if (process.env.STUB_FLEET_STATS) fs.copyFileSync(process.env.STUB_FLEET_STATS, path.join(repo, 'stats.json'));
+  raise(name, 'report', `${look} ${path.join(repo, 'frames.fseq')} ${path.join(repo, 'stats.json')} A stub look`);
 };
 
 switch (cmd) {
@@ -55,7 +62,7 @@ switch (cmd) {
     if (!fs.existsSync(path.join(repo, 'BRIEF.md'))) die('no BRIEF.md');
     if (!fs.existsSync(path.join(state, 'repo'))) die('no fleet session: fleet up first');
     if (mode === 'fail-spawn') die('--box requires bubblewrap');
-    if (mode === 'ok') finish(name);
+    if (mode === 'ok' || mode === 'frames-symlink') finish(name);
     if (mode === 'stuck') raise(name, 'stuck', 'Which colour should the spires be?');
     if (mode === 'symlink') {
       fs.symlinkSync(process.env.STUB_FLEET_SECRET, look);

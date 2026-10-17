@@ -8,6 +8,8 @@
 //   STUDIO_SECURE_COOKIES  1 → Secure session cookie (serve over https)
 //   STUDIO_GENERATOR       idea generator adapter: sketch (default) | claude | fleet
 //   STUDIO_TRUST_PROXY     1 → client IP / host from X-Forwarded-For / X-Forwarded-Host
+//   STUDIO_BAKE_SECONDS    render-box bake length, default 20 (also STUDIO_BAKE_TIMEOUT, _CPU,
+//                          _TASKS, _MEMORY, _MAX_FRAMES: see src/bake.js; needs bubblewrap)
 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

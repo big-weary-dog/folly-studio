@@ -1,4 +1,4 @@
-// fseq.js: FSEQ v2.0 uncompressed, read back with an independent little reader.
+// fseq.js: FSEQ v2.0 uncompressed (full or sparse), read back with an independent little reader.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { writeFseq } from '../public/js/fseq.js';
@@ -22,7 +22,11 @@ function readFseq(bytes) {
     reserved: buf[23],
     uniqueId: buf.readBigUInt64LE(24),
     variables: {},
+    ranges: [],
   };
+  for (let i = 0, at = 32 + 8 * h.blocks; i < h.sparseRanges; i++, at += 6) {
+    h.ranges.push([buf.readUIntLE(at, 3), buf.readUIntLE(at + 3, 3)]);
+  }
   let at = h.headerLength;
   while (at + 4 <= h.dataOffset) {
     const len = buf.readUInt16LE(at);
@@ -83,4 +87,38 @@ test('rejects bad input', () => {
   assert.throws(() => writeFseq({ channelCount: 0, frames: 1, data: new Uint8Array(0) }), /channelCount/);
   assert.throws(() => writeFseq({ channelCount: 3, frames: 1, stepMs: 0, data: new Uint8Array(3) }), /stepMs/);
   assert.throws(() => writeFseq({ channelCount: 3, frames: 1, data: [1, 2, 3] }), /Uint8Array/);
+});
+
+test('sparse ranges: header, ranges and frames round-trip', () => {
+  const ranges = [[0, 336], [510, 336], [3060, 672], [40800 - 6, 6]];
+  const channelCount = ranges.reduce((n, [, c]) => n + c, 0);
+  const frames = 3;
+  const data = new Uint8Array(channelCount * frames);
+  for (let i = 0; i < data.length; i++) data[i] = (i * 7 + 3) & 255;
+  const file = writeFseq({ frames, data, ranges, uniqueId: 7n });
+  const h = readFseq(file);
+  assert.equal(h.sparseRanges, 4);
+  assert.equal(h.headerLength, 32 + 6 * 4);
+  assert.deepEqual(h.ranges, ranges);
+  assert.equal(h.channelCount, channelCount, 'a sparse frame holds only the ranged channels');
+  assert.deepEqual(h.variables, { sp: 'Folly Studio' });
+  assert.equal(h.dataOffset % 4, 0);
+  assert.equal(file.length, h.dataOffset + channelCount * frames);
+  for (let f = 0; f < frames; f++) assert.deepEqual(h.frame(f), data.subarray(f * channelCount, (f + 1) * channelCount));
+  // 24-bit fields hold big values; an explicit matching channelCount is fine.
+  const wide = readFseq(writeFseq({ channelCount: 70000, frames: 1, data: new Uint8Array(70000), ranges: [[0x123456, 70000]] }));
+  assert.deepEqual(wide.ranges, [[0x123456, 70000]]);
+  // No ranges (or an empty list) is the plain full-frame file.
+  assert.equal(readFseq(writeFseq({ channelCount: 3, frames: 1, data: new Uint8Array(3), ranges: [] })).headerLength, 32);
+});
+
+test('rejects bad sparse ranges', () => {
+  const d = new Uint8Array(10);
+  assert.throws(() => writeFseq({ frames: 1, data: d, ranges: [[5, 5], [0, 5]] }), /ascending/);
+  assert.throws(() => writeFseq({ frames: 1, data: d, ranges: [[0, 6], [5, 4]] }), /overlap/);
+  assert.throws(() => writeFseq({ frames: 1, data: d, ranges: [[0, 0], [5, 10]] }), /\[start, count\]/);
+  assert.throws(() => writeFseq({ frames: 1, data: d, ranges: [[2 ** 24, 10]] }), /start 0-16777215/);
+  assert.throws(() => writeFseq({ channelCount: 9, frames: 1, data: d, ranges: [[0, 10]] }), /not the ranges' total 10/);
+  assert.throws(() => writeFseq({ frames: 1, data: d, ranges: Array.from({ length: 256 }, (_, i) => [i * 2, 1]) }), /at most 255/);
+  assert.throws(() => writeFseq({ frames: 2, data: d, ranges: [[0, 10]] }), /expected 2 frames × 10 channels/);
 });

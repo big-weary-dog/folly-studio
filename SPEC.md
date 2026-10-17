@@ -14,8 +14,9 @@ the real installation.
   the playa. ES modules everywhere (`"type": "module"`).
 - **Every LED comes from the canonical pixel CSV pipeline** (`td/python/make_pixel_csv.py`),
   never re-derived by hand.
-- **Pattern code is untrusted.** It only ever runs inside the sandbox page (below), never in the
-  app page and never in Node on the server (except in tests, on our own library patterns).
+- **Pattern code is untrusted.** It only ever runs inside the sandbox page (below) or a box
+  (bubblewrap: the render box, a Fleet worker's), never in the app page and never in the server's
+  own Node process (except in tests, on our own library patterns). What a box returns is data.
 - Coordinates follow the repo: **x = depth** (front/playa −12 m → back +14 m), **y = height**
   (0 → 18.5 m), **z = left → right** (−9 → +8 m) facing the portal from the playa.
 - 40 fps, 510 channels per universe, universes 1–80 (xLights networks), so a full frame is
@@ -28,6 +29,9 @@ the real installation.
 studio/
   SPEC.md  README.md  IDEAS.md  package.json  server.js
   src/            server: auth.js store.js api.js static.js generate/{index,sketch,claude,fleet,prompt}.js
+                  frames.js (pure: FSEQ parse + analysis)  bake.js (render box, bake queue)
+  render-box/     render.mjs: bakes a look to .fseq inside bubblewrap
+  fleet-box/      check.mjs + BRIEF.template.md for the boxed Fleet worker
   tools/          build_cathedral.py
   public/
     index.html  app.css
@@ -163,8 +167,10 @@ The app tears the iframe down and reloads it if a `frame` reply takes over 2 s.
 `renderFrame(scene, preparedLayers, t, out?) → { rgb, errors }`,
 `toChannels(scene, rgb, out?, { gamma = 1, brightness = 1 }) → Uint8Array(40800)`.
 
-`fseq.js` exports `writeFseq({ channelCount, frames, stepMs = 25, data: Uint8Array }) → Uint8Array`
-(FSEQ v2.0, uncompressed, no sparse ranges).
+`fseq.js` exports `writeFseq({ channelCount?, frames, stepMs = 25, data: Uint8Array, media?, ranges? }) → Uint8Array`
+(FSEQ v2.0, uncompressed). `ranges: [[startChannel, count], …]` (0-based, ascending, ≤ 255)
+writes a sparse file: header length 32 + 6 × ranges (u24 start, u24 count each), and each frame
+holds only the ranged channels, so `channelCount` is their total.
 
 ## HTTP API (JSON; cookie session)
 
@@ -184,12 +190,19 @@ POST   /api/looks    { title, summary?, layers, ideaId? } → { look }
 GET    /api/looks/:id                         → { look }             mine, or shared
 PUT    /api/looks/:id { title?, summary?, layers?, shared? } → { look }   owner only; keeps versions
 DELETE /api/looks/:id                         → { ok: true }         owner only
+POST   /api/looks/:id/bake                    → 202 { bake }      owner, or a curator if shared; queued
+GET    /api/looks/:id/frames                  → the baked .fseq   mine, or shared; 404 if none (attachment)
 GET    /api/library                           → { patterns: [{ name, title, summary, code }] }
 ```
 
+`PUT reviewed: true` answers 409 with the reason unless the look has a passing render-box bake of
+its current layers; a failed flicker check from any bake always blocks. Changing `layers` drops
+the bake and its frames.
+
 `user = { id, username, role: 'member' | 'curator' }` (curators listed in `STUDIO_CURATORS`).
 `idea = { id, owner, text, status: 'queued'|'generating'|'ready'|'failed', generator, lookId?, error?, createdAt, updatedAt }`.
-`look = { id, owner, ownerName, title, summary, layers, shared, ideaId?, reviewed, createdAt, updatedAt }`.
+`look = { id, owner, ownerName, title, summary, layers, shared, ideaId?, reviewed, bake?, createdAt, updatedAt }`
+(`bake`: see Baked frames).
 
 ## Generators (idea → look)
 
@@ -201,4 +214,29 @@ set `ready`.
 
 - `sketch`: offline, keyword → library pattern(s) + params. Always available.
 - `claude`: one Messages API call with the pattern guide + library examples as the system prompt.
-- `fleet`: hands the idea to a boxed Fleet worker as an untrusted brief (experimental).
+- `fleet`: hands the idea to a boxed Fleet worker as an untrusted brief (experimental). The worker
+  also bakes (`node check.mjs --bake`); the adapter returns `bake` + `frames` (see below), and
+  the queue stores them with the look.
+
+## Baked frames
+
+Frames are the deliverable; the server never runs look code itself, it only parses and measures
+bytes a box hands back. Anything a box says about itself is kept as `boxStats: { untrusted: true }`.
+
+- **Boxes.** `render-box` (authoritative, any look): `src/bake.js` runs `render-box/render.mjs`
+  under bubblewrap (`--unshare-all`, no network, `--clearenv`, read-only node + its libraries +
+  pattern-core.js / fseq.js / cathedral.json, tmpfs /tmp, one empty writable /out), with prlimit
+  (CPU s, tasks, file size, RLIMIT_DATA; no RLIMIT_AS) and a wall-clock kill. Inside, layers run in
+  a `node:vm` realm holding only the stdlib (defence in depth). No bubblewrap → 503, no fallback.
+  One bake at a time. `fleet-box` (advisory): the Fleet worker's own `frames.fseq` + `stats.json`.
+- **Format.** 40 fps, sparse FSEQ v2 covering only the LED map's channels (33 ranges, 14,610 ch):
+  20 s ≈ 11.7 MB (full 40,800-ch frames would be ≈ 32.6 MB). Files are capped at 64 MB.
+- **Checks** (`src/frames.js`, pure): `parseFseq(bytes, { maxBytes })` is strict (magic, v2.x,
+  uncompressed, consistent header/offset/sizes, ranges within 80 × 510, data = frames × channels).
+  `analyzeFrames(parsed, cathedral)` → `{ frames, seconds, fps, peakBrightness, meanBrightness,
+  darkFraction, estPeakAmps (20 mA/channel at 5 V), coverage, flicker: { maxHz, flaggedSeconds,
+  regions, ok } }`. Flicker: WCAG 2.3.1 general flash (≥ 10 % luminance swings, darker side < 0.8,
+  > 3 flashes in any 1 s) on the mean of the whole cathedral and of each top-level group.
+- **Stored.** `<STUDIO_DATA>/frames/<lookId>.fseq` and `look.bake = { source, status:
+  queued|running|done|failed, ok, reason?, checkedAt, layersHash, analysis?, frames?: { bytes,
+  sha256 }, boxStats? }`. `ok` is false when the frames are missing, malformed or flicker.

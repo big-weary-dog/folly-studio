@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 // Folly Studio look checker, for the boxed Fleet worker (not the server: it runs pattern code).
-// Usage: node check.mjs [look.json]
+// Usage: node check.mjs [look.json] [--bake [--seconds 20]]
 // Compiles every layer with the studio's own pattern runtime (pattern-core.js), renders a few
 // frames on the real LED map (cathedral.json), and prints problems. Exit 1 if the look would
 // be rejected or a layer fails; warnings alone exit 0.
+// --bake then renders the look from t = 0 at 40 fps and writes frames.fseq (FSEQ v2, sparse:
+// only the channels the LED map uses) and stats.json (advisory) next to the look. With
+// frames.js present it also runs the studio's own frame checks on the result (the studio repeats
+// them on its side; only those count).
 
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 
 const LIMITS = { layers: 4, codeBytes: 20 * 1024, title: 80, summary: 400 };
@@ -13,7 +18,13 @@ const BLENDS = ['add', 'over', 'max', 'multiply'];
 const errors = [];
 const warnings = [];
 
-const file = process.argv[2] || 'look.json';
+const argv = process.argv.slice(2);
+const flag = (name) => argv.includes(name);
+const option = (name) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined);
+const file = argv.find((a, i) => !a.startsWith('--') && argv[i - 1] !== '--seconds') || 'look.json';
+const BAKE = flag('--bake');
+const SECONDS = Math.min(60, Math.max(1, Math.round(Number(option('--seconds')) || 20)));
+const FPS = 40;
 let look;
 try {
   look = JSON.parse(readFileSync(file, 'utf8'));
@@ -38,7 +49,7 @@ const layers = Array.isArray(look.layers) ? look.layers : [];
 if (!layers.length) errors.push('layers is empty');
 if (layers.length > LIMITS.layers) errors.push(`${layers.length} layers: at most ${LIMITS.layers}`);
 
-const prepared = [];
+let prepared = [];
 let scene;
 try {
   scene = core.prepareScene(cathedral);
@@ -46,6 +57,7 @@ try {
   console.error(`✗ the runtime could not prepare the cathedral: ${e.message}`);
   process.exit(1);
 }
+const runnable = []; // [layer as the studio will run it, compiled] for the bake
 layers.slice(0, LIMITS.layers).forEach((layer, i) => {
   const name = `layer ${i + 1}${layer?.title ? ` (${layer.title})` : ''}`;
   if (!layer || typeof layer.code !== 'string') return errors.push(`${name}: no code`);
@@ -74,6 +86,7 @@ layers.slice(0, LIMITS.layers).forEach((layer, i) => {
   };
   try {
     prepared.push(core.prepareLayer(scene, l, compiled));
+    runnable.push(l);
   } catch (e) {
     errors.push(`${name}: could not be prepared: ${e.message}`);
   }
@@ -139,3 +152,79 @@ for (const w of warnings) console.log(`! ${w}`);
 for (const e of errors) console.log(`✗ ${e}`);
 if (errors.length) process.exit(1);
 console.log(`✓ ${file} passes (${layers.length} layer${layers.length === 1 ? '' : 's'}${warnings.length ? `, ${warnings.length} warning${warnings.length === 1 ? '' : 's'}` : ''})`);
+if (BAKE) await bake();
+
+// --- bake: frames.fseq + stats.json --------------------------------------------------------
+async function bake() {
+  if (!existsSync(new URL('./fseq.js', import.meta.url))) {
+    console.error('✗ fseq.js must sit next to check.mjs to bake');
+    process.exit(1);
+  }
+  const { writeFseq } = await import('./fseq.js');
+  // Fresh layers, so state a pattern keeps between frames starts clean at t = 0.
+  prepared = runnable.map((l) => core.prepareLayer(scene, l, core.compilePattern(l.code)));
+  // Only the channels the LED map uses, as merged contiguous spans (one or two per universe).
+  const used = new Uint8Array(scene.frameChannels);
+  for (const a of scene.addr) if (a >= 0 && a + 2 < used.length) used[a] = used[a + 1] = used[a + 2] = 1;
+  const ranges = [];
+  for (let c = 0; c < used.length; c++) {
+    if (!used[c]) continue;
+    const last = ranges[ranges.length - 1];
+    if (last && last[0] + last[1] === c) last[1]++;
+    else ranges.push([c, 1]);
+  }
+  const channelCount = ranges.reduce((n, r) => n + r[1], 0);
+  const frames = SECONDS * FPS;
+  const data = new Uint8Array(frames * channelCount);
+  const rgb = new Float32Array(scene.count * 3);
+  const ch = new Uint8Array(scene.frameChannels);
+  const layerErrors = new Map(prepared.map((p) => [p.id, { count: 0, first: '' }]));
+  let total = 0;
+  let worst = 0;
+  for (let f = 0, off = 0; f < frames; f++) {
+    const t0 = performance.now();
+    const out = core.renderFrame(scene, prepared, f / FPS, rgb);
+    core.toChannels(scene, out.rgb, ch);
+    const ms = performance.now() - t0;
+    total += ms;
+    worst = Math.max(worst, ms);
+    for (const e of out.errors || []) {
+      const le = layerErrors.get(e.id) || { count: 0, first: '' };
+      if (!le.count) le.first = `${e.error} (t=${(f / FPS).toFixed(2)})`;
+      le.count++;
+      layerErrors.set(e.id, le);
+    }
+    for (const [start, count] of ranges) {
+      data.set(ch.subarray(start, start + count), off);
+      off += count;
+    }
+  }
+  const dir = path.dirname(path.resolve(file));
+  const fseq = writeFseq({ frames, stepMs: 1000 / FPS, data, ranges });
+  writeFileSync(path.join(dir, 'frames.fseq'), fseq);
+  const stats = {
+    look: path.basename(file),
+    seconds: SECONDS,
+    fps: FPS,
+    frames,
+    channels: channelCount,
+    ranges: ranges.length,
+    bytes: fseq.length,
+    msPerFrame: { average: +(total / frames).toFixed(2), worst: +worst.toFixed(2) },
+    layers: [...layerErrors].map(([id, e]) => ({ id, errorFrames: e.count, firstError: e.first.slice(0, 200) })),
+  };
+  let failed = stats.layers.filter((l) => l.errorFrames).map((l) => `${l.id} threw or returned NaN in ${l.errorFrames} frames: ${l.firstError}`);
+  console.log(`baked ${SECONDS} s (${frames} frames × ${channelCount} channels in ${ranges.length} ranges) → frames.fseq, ${(fseq.length / 1e6).toFixed(1)} MB; ${stats.msPerFrame.average} ms a frame`);
+  if (existsSync(new URL('./frames.js', import.meta.url))) {
+    // The studio's own checks, run here so the worker sees what the studio will see.
+    const { analyzeFrames, flickerReason, parseFseq } = await import('./frames.js');
+    const a = analyzeFrames(parseFseq(fseq), cathedral);
+    stats.selfCheck = a;
+    console.log(`frames: peak ${Math.round(a.peakBrightness * 100)}% of all-white (≈ ${a.estPeakAmps} A at 5 V), mean ${Math.round(a.meanBrightness * 100)}%, dark ${Math.round(a.darkFraction * 100)}%, flashes up to ${a.flicker.maxHz} a second`);
+    if (!a.flicker.ok) failed.push(`${flickerReason(a)} The studio will refuse this bake: slow the large-area changes down.`);
+  }
+  writeFileSync(path.join(dir, 'stats.json'), JSON.stringify(stats, null, 2) + '\n');
+  for (const e of failed) console.log(`✗ ${e}`);
+  if (failed.length) process.exit(1);
+  console.log('✓ frames.fseq and stats.json written');
+}

@@ -39,14 +39,19 @@ summary that you took it loosely.
    (`pattern-core.js`), renders frames on the real LED map (`cathedral.json`) and prints
    problems. Fix every ✗ and, where you can, every warning. Iterate on how it looks: render
    more frames with your own scripts if that helps (use only node and the files here).
-3. Finish with exactly one command:
+3. Bake it: `node check.mjs --bake` renders 20 seconds at 40 fps from t = 0 and writes
+   `frames.fseq` (the frames themselves) and `stats.json` next to `look.json`, then runs the
+   studio's frame checks on them. Fix every ✗ and bake again. The studio checks the frames
+   again on its side: large-area flashing faster than 3 times a second (anywhere, in any one
+   second) fails, so keep big brightness changes slow. Do not edit either file by hand.
+4. Finish with exactly one command:
 
    ```sh
-   fleet raise report "{{LOOK_PATH}} <one-line summary of the look>"
+   fleet raise report "{{LOOK_PATH}} {{FRAMES_PATH}} {{STATS_PATH}} <one-line summary of the look>"
    ```
 
-No PR, no push, no other deliverable. Only `look.json` is read; keep everything else in this
-folder.
+No PR, no push, no other deliverable. Only `look.json`, `frames.fseq` and `stats.json` are
+read; keep everything else in this folder.
 
 ## The Folly
 
