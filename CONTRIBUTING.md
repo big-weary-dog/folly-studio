@@ -35,6 +35,7 @@ namespaces. Without them they skip and print why. The data tests need `python3`.
 | `src/static.js` | Static files, compression, CSPs; inlines the core into `sandbox.html` |
 | `src/frames.js` | Pure: strict FSEQ parsing and frame analysis (brightness, flicker) |
 | `src/bake.js` | The render box runner and the one-at-a-time bake queue |
+| `src/frames-wire.js`, `frames-cache.js`, `frames-http.js`, `fseq-codec.js` | Baked frames on the wire: the stream encoder, the chunks and compressed downloads kept by hash, their routes, FSEQ zstd/zlib blocks |
 | `src/generate/` | Idea → look: the queue, adapters (`sketch`, `claude`, `fleet`), prompt, validation |
 | `render-box/render.mjs` | Bakes a look to `.fseq` inside bubblewrap |
 | `fleet-box/` | Checker and brief for a boxed Fleet worker |
@@ -42,12 +43,13 @@ namespaces. Without them they skip and print why. The data tests need `python3`.
 | `public/sandbox.html` | The sandboxed pattern runner (SPEC "Sandbox protocol") |
 | `public/js/pattern-core.js` | Pure: stdlib, compile, scene, render, channels; runs in the sandbox, the box and tests |
 | `public/js/fseq.js` | Pure: FSEQ v2 writer |
+| `public/js/frames-wire.js`, `frames-stream.js` | Pure: the stream decoder; streamed playback of baked frames |
 | `public/js/runtime.js` | App side of the sandbox: iframe, frame pump, watchdog |
 | `public/js/viewer.js` | WebGL2 LED renderer and orbit camera |
 | `public/js/main.js`, `api.js` | Bootstrap, routing, the fetch wrapper |
 | `public/js/ui/` | Views and panels, one concern per module; `dom.js` holds the DOM helpers |
 | `public/patterns/` | The built-in library (`index.json` + one file each), also the AI's examples |
-| `tools/` | `build_cathedral.py` (data) and `lint.mjs` (+ `lint/`) |
+| `tools/` | `build_cathedral.py` (data), `lint.mjs` (+ `lint/`), `frames-bench.mjs` (wire sizes) |
 | `test/` | `node:test` suites; `fixtures/` |
 
 Browser code imports only from `public/`. Server code imports only `pattern-core.js`, `fseq.js`
