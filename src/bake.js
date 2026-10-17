@@ -33,6 +33,24 @@ export class BakeError extends Error {
   }
 }
 
+// How long a look runs when it does not say (SPEC.md "Timeline"), and what a bake covers of it.
+export const DEFAULT_DURATION = 30;
+export const DEFAULT_BAKE_SECONDS = 120;
+const FPS = 40;
+// Sparse frames hold the LED map's 14,610 channels: about 0.6 MB a second at 40 fps.
+const BYTES_PER_SECOND = FPS * 15_000;
+
+/** Room for `seconds` of sparse frames: 64 MB, or more for a long bake. */
+export function framesBytesFor(seconds) {
+  return Math.max(DEFAULT_MAX_BYTES, Math.ceil(seconds * BYTES_PER_SECOND) + 1024 * 1024);
+}
+
+/** The seconds a bake of `look` renders: its duration (default 30), at most `max`. */
+export function bakeSeconds(look, max = DEFAULT_BAKE_SECONDS) {
+  const d = Number(look?.duration);
+  return Math.min(max, Number.isFinite(d) && d > 0 ? d : DEFAULT_DURATION);
+}
+
 /** Which version of a look's code a bake belongs to. */
 export function layersHash(layers) {
   return createHash('sha256').update(JSON.stringify(layers ?? [])).digest('hex');
@@ -196,7 +214,7 @@ async function runtimeBinds(node) {
 }
 
 /**
- * createRenderBox(o) → { probe() → { ok, reason? }, render({ layers }) → { bytes, result }, stop(), config }
+ * createRenderBox(o) → { probe() → { ok, reason? }, render({ layers, seconds? }) → { bytes, boxStats, ms, seconds }, stop(), config }
  *
  * Each render gets a fresh empty output dir and runs, under prlimit (CPU seconds, tasks, file
  * size, data segment) and a wall-clock kill:
@@ -210,21 +228,25 @@ async function runtimeBinds(node) {
  * bubblewrap or no user namespaces → probe() says so and render() refuses. There is no unboxed
  * fallback.
  *
- * Options (environment): seconds (STUDIO_BAKE_SECONDS, 20), timeoutMs (STUDIO_BAKE_TIMEOUT, 90 s),
- * cpuSeconds (STUDIO_BAKE_CPU, 120), tasks (STUDIO_BAKE_TASKS, 256), memoryBytes (STUDIO_BAKE_MEMORY,
- * 1 GB; 0 = none), maxFramesBytes (STUDIO_BAKE_MAX_FRAMES, 64 MB), frameTimeoutMs (2 s), publicDir,
- * script, node, bwrap, prlimit, tmpRoot.
+ * A render bakes `seconds` (the look's duration) but never more than the box's `seconds`.
+ * Options (environment): seconds (STUDIO_BAKE_SECONDS, 120, at most 600), timeoutMs
+ * (STUDIO_BAKE_TIMEOUT; default 30 s + 1.5 s per second baked, at least 90 s), cpuSeconds
+ * (STUDIO_BAKE_CPU; default the same in CPU seconds, at least 120), tasks (STUDIO_BAKE_TASKS, 256),
+ * memoryBytes (STUDIO_BAKE_MEMORY, 1 GB; 0 = none), maxFramesBytes (STUDIO_BAKE_MAX_FRAMES; 64 MB,
+ * or more when `seconds` needs it), frameTimeoutMs (2 s), publicDir, script, node, bwrap, prlimit,
+ * tmpRoot.
  */
 export function createRenderBox(o = {}) {
   const env = o.env || process.env;
   const publicDir = path.resolve(o.publicDir || path.join(STUDIO, 'public'));
+  const seconds = Math.min(600, Math.max(1, Math.round(o.seconds ?? (Number(env.STUDIO_BAKE_SECONDS) || DEFAULT_BAKE_SECONDS))));
   const cfg = {
-    seconds: Math.min(60, Math.max(1, Math.round(o.seconds ?? (Number(env.STUDIO_BAKE_SECONDS) || 20)))),
-    timeoutMs: o.timeoutMs ?? parseDurationMs(env.STUDIO_BAKE_TIMEOUT, 90 * SECOND),
-    cpuSeconds: o.cpuSeconds ?? (Number(env.STUDIO_BAKE_CPU) || 120),
+    seconds,
+    timeoutMs: o.timeoutMs ?? parseDurationMs(env.STUDIO_BAKE_TIMEOUT, null), // null: scaled per bake
+    cpuSeconds: o.cpuSeconds ?? (Number(env.STUDIO_BAKE_CPU) || null),
     tasks: o.tasks ?? (Number(env.STUDIO_BAKE_TASKS) || 256),
     memoryBytes: o.memoryBytes ?? parseBytes(env.STUDIO_BAKE_MEMORY, 1024 ** 3),
-    maxFramesBytes: o.maxFramesBytes ?? parseBytes(env.STUDIO_BAKE_MAX_FRAMES, DEFAULT_MAX_BYTES),
+    maxFramesBytes: o.maxFramesBytes ?? parseBytes(env.STUDIO_BAKE_MAX_FRAMES, framesBytesFor(seconds)),
     frameTimeoutMs: o.frameTimeoutMs ?? 2 * SECOND,
     script: o.script || path.join(STUDIO, 'render-box/render.mjs'),
     packageJson: path.join(STUDIO, 'render-box/package.json'),
@@ -260,8 +282,14 @@ export function createRenderBox(o = {}) {
     return { bwrap, prlimit, runtime: await runtimeBinds(cfg.node) };
   }
 
-  function boxArgs(t, outDir, command) {
-    const limits = [`--cpu=${cfg.cpuSeconds}`, `--nproc=${cfg.tasks}`, `--fsize=${cfg.maxFramesBytes + 1024 * 1024}`, '--core=0'];
+  // Time budgets grow with the bake: 30 s plus 1.5 s per second of frames (a 25 ms frame is real time).
+  const budget = (secs) => ({
+    timeoutMs: cfg.timeoutMs ?? Math.max(90, 30 + 1.5 * secs) * SECOND,
+    cpuSeconds: cfg.cpuSeconds ?? Math.ceil(Math.max(120, 30 + 1.5 * secs)),
+  });
+
+  function boxArgs(t, outDir, command, cpuSeconds = budget(cfg.seconds).cpuSeconds) {
+    const limits = [`--cpu=${cpuSeconds}`, `--nproc=${cfg.tasks}`, `--fsize=${cfg.maxFramesBytes + 1024 * 1024}`, '--core=0'];
     if (cfg.memoryBytes > 0) limits.push(`--data=${cfg.memoryBytes}`);
     return [
       ...limits, '--', t.bwrap,
@@ -281,9 +309,9 @@ export function createRenderBox(o = {}) {
     ];
   }
 
-  function run(t, outDir, command, input, timeoutMs) {
+  function run(t, outDir, command, input, timeoutMs, cpuSeconds) {
     return new Promise((resolve) => {
-      const child = spawn(t.prlimit, boxArgs(t, outDir, command), { stdio: ['pipe', 'ignore', 'pipe'], env: {} });
+      const child = spawn(t.prlimit, boxArgs(t, outDir, command, cpuSeconds), { stdio: ['pipe', 'ignore', 'pipe'], env: {} });
       children.add(child);
       let stderr = '';
       let timedOut = false;
@@ -321,17 +349,19 @@ export function createRenderBox(o = {}) {
     return probed;
   }
 
-  /** Bake layers to FSEQ bytes. Throws BakeError with a reason people can read. */
-  async function render({ layers }) {
+  /** Bake layers (with their clips) to FSEQ bytes, `seconds` long (at most the box's). Throws BakeError with a reason people can read. */
+  async function render({ layers, seconds: want }) {
     const p = await probe();
     if (!p.ok) throw new BakeError(p.reason);
     const t = await tools();
+    const secs = Math.round(Math.min(cfg.seconds, want > 0 ? want : cfg.seconds) * FPS) / FPS || 1 / FPS;
+    const { timeoutMs, cpuSeconds } = budget(secs);
     const outDir = await fs.mkdtemp(path.join(cfg.tmpRoot, 'folly-bake-'));
     try {
-      const command = ['/box/render.mjs', '--out', '/out', '--seconds', String(cfg.seconds), '--frame-ms', String(cfg.frameTimeoutMs)];
+      const command = ['/box/render.mjs', '--out', '/out', '--seconds', String(secs), '--frame-ms', String(cfg.frameTimeoutMs)];
       const started = Date.now();
-      const r = await run(t, outDir, command, JSON.stringify({ layers }), cfg.timeoutMs);
-      if (r.timedOut) throw new BakeError(`The bake took longer than ${Math.round(cfg.timeoutMs / SECOND)} s and was stopped.`);
+      const r = await run(t, outDir, command, JSON.stringify({ layers }), timeoutMs, cpuSeconds);
+      if (r.timedOut) throw new BakeError(`The bake took longer than ${Math.round(timeoutMs / SECOND)} s and was stopped.`);
       let result;
       try {
         result = JSON.parse((await readUntrusted(path.join(outDir, 'result.json'), { maxBytes: 64 * 1024, within: outDir })).toString('utf8'));
@@ -342,7 +372,7 @@ export function createRenderBox(o = {}) {
       if (r.code !== 0) {
         const said = typeof result?.error === 'string' ? result.error.replace(CONTROL, ' ').slice(0, 300) : '';
         const reason =
-          r.code === 128 + 24 ? `The bake used more than ${cfg.cpuSeconds} CPU seconds and was stopped.`
+          r.code === 128 + 24 ? `The bake used more than ${cpuSeconds} CPU seconds and was stopped.`
           : r.code === 128 + 25 ? 'The bake wrote more than its file-size limit and was stopped.'
           : said ? `The look could not be baked: ${said}`
           : 'The render box stopped without baking the look.';
@@ -355,7 +385,7 @@ export function createRenderBox(o = {}) {
       } catch (err) {
         throw Object.assign(new BakeError(`The render box left no usable frames: ${err.reason || 'unreadable'}.`), { boxStats });
       }
-      return { bytes, boxStats, ms: Date.now() - started };
+      return { bytes, boxStats, ms: Date.now() - started, seconds: secs };
     } finally {
       await fs.rm(outDir, { recursive: true, force: true }).catch(() => {});
     }
@@ -379,8 +409,9 @@ function parseDurationMs(v, fallback) {
 /**
  * createBakeQueue({ store, box, framesDir, cathedralFile, maxQueue = 16, log })
  *   → { request(lookId) → bake (queued/running record), idle(), stop(), size }
- * A bake renders the look's layers as they are when it starts, and is kept only if the layers
- * are still the same when it ends (layersHash). request() throws BakeError with `status`
+ * A bake renders the look's layers for its duration (bakeSeconds) as they are when it starts,
+ * and is kept only if the layers and duration are still the same when it ends.
+ * request() throws BakeError with `status`
  * 503 (no box) or 429 (queue full).
  */
 export function createBakeQueue({ store, box, framesDir, cathedralFile, maxQueue = 16, log = console }) {
@@ -408,19 +439,20 @@ export function createBakeQueue({ store, box, framesDir, cathedralFile, maxQueue
     if (!look) return;
     const layers = look.layers ?? [];
     const hash = layersHash(layers);
+    const seconds = bakeSeconds(look, box.config?.seconds);
     await store.looks.update(id, { bake: { source, status: 'running', ok: false, requestedAt: look.bake?.requestedAt, startedAt: new Date().toISOString() } });
     let out;
     try {
-      const { bytes, boxStats } = await box.render({ layers });
+      const { bytes, boxStats } = await box.render({ layers, seconds });
       out = checkFrames(bytes, { source, cathedral: await loadCathedral(), maxBytes: box.config?.maxFramesBytes, boxStats });
     } catch (err) {
       if (!(err instanceof BakeError)) log.error?.(`[bake] look ${id}:`, err);
       out = { bake: failedBake(source, err instanceof BakeError ? err.reason : 'The render box failed.', err?.boxStats ? { boxStats: err.boxStats } : {}) };
     }
     out.bake.layersHash = hash;
-    out.bake.seconds = box.config?.seconds;
+    out.bake.seconds = seconds;
     const now = await store.looks.get(id);
-    if (!now || layersHash(now.layers ?? []) !== hash) {
+    if (!now || layersHash(now.layers ?? []) !== hash || bakeSeconds(now, box.config?.seconds) !== seconds) {
       log.info?.(`[bake] look ${id} changed or went away while baking; result dropped`);
       return;
     }

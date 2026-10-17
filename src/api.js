@@ -23,6 +23,10 @@ export const MAX_IDEAS_PER_DAY = 20;
 export const MAX_LOOKS_PER_USER = 500;
 export const GALLERY_LIMIT = 200;
 export const BLENDS = ['add', 'over', 'max', 'multiply'];
+// The timeline (SPEC.md "Timeline"): look.duration and look.bpm, layer.clips.
+export const DEFAULT_DURATION = 30;
+export const MAX_DURATION = 600;
+export const MAX_CLIPS = 32;
 
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const STREAMED = Symbol('streamed'); // a handler that wrote the response itself
@@ -123,7 +127,39 @@ const bad = (msg) => {
 };
 const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v) && Object.getPrototypeOf(v) === Object.prototype;
 const isShortString = (v, max = 200) => typeof v === 'string' && v.length <= max;
-const LAYER_KEYS = new Set(['id', 'title', 'code', 'groups', 'blend', 'level', 'params']);
+const LAYER_KEYS = new Set(['id', 'title', 'code', 'groups', 'blend', 'level', 'params', 'clips']);
+const ms = (v) => Math.round(v * 1000) / 1000; // times are kept to the millisecond
+
+function seconds(v, what, lo = 0, hi = MAX_DURATION) {
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < lo || v > hi) bad(`${what} must be a number of seconds from ${lo} to ${hi}.`);
+  return ms(v);
+}
+
+/** A layer's clips: [{ start, end, fadeIn = 0, fadeOut = 0 }] seconds, sorted; overlaps refused. */
+function cleanClips(v, at) {
+  if (!Array.isArray(v)) bad(`${at}: clips must be an array.`);
+  if (v.length > MAX_CLIPS) bad(`${at}: at most ${MAX_CLIPS} clips.`);
+  const clips = v.map((c, j) => {
+    const where = `${at}, clip ${j + 1}`;
+    if (!isPlainObject(c)) bad(`${where} must be an object.`);
+    const start = seconds(c.start, `${where}: start`);
+    const end = seconds(c.end, `${where}: end`);
+    if (!(end > start)) bad(`${where}: end must be after start.`);
+    return { start, end, fadeIn: seconds(c.fadeIn ?? 0, `${where}: fadeIn`), fadeOut: seconds(c.fadeOut ?? 0, `${where}: fadeOut`) };
+  });
+  clips.sort((a, b) => a.start - b.start);
+  for (let j = 1; j < clips.length; j++) {
+    if (clips[j].start < clips[j - 1].end) bad(`${at}: clips overlap (${clips[j - 1].start}–${clips[j - 1].end} s and ${clips[j].start}–${clips[j].end} s).`);
+  }
+  return clips;
+}
+
+const cleanDuration = (v) => seconds(v, 'duration', 1, MAX_DURATION);
+function cleanBpm(v) {
+  if (v === null) return undefined; // clears it
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < 40 || v > 240) bad('bpm must be a number from 40 to 240, or null.');
+  return ms(v);
+}
 
 function cleanParamValue(v) {
   if (typeof v === 'number') return Number.isFinite(v);
@@ -170,6 +206,7 @@ export function validateLayers(layers) {
     for (const k of keys) {
       if (k.length > 64 || !cleanParamValue(params[k])) bad(`${at}: param ${k.slice(0, 64)} has an unsupported value.`);
     }
+    const clips = l.clips == null ? [] : cleanClips(l.clips, at); // none: always on
 
     // Keep small UI flags the client may add (e.g. enabled, solo); drop anything bulky.
     const extra = {};
@@ -177,7 +214,7 @@ export function validateLayers(layers) {
       if (LAYER_KEYS.has(k) || Object.keys(extra).length >= 16 || k.length > 64) continue;
       if (typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v)) || isShortString(v)) extra[k] = v;
     }
-    return { id, title, code: l.code, groups: [...groups], blend, level, params: { ...params }, ...extra };
+    return { id, title, code: l.code, groups: [...groups], blend, level, params: { ...params }, ...(clips.length ? { clips } : {}), ...extra };
   });
 }
 
@@ -223,6 +260,7 @@ export function createApi({ store, auth, queue, adapterName = 'sketch', loaders,
       ownerName: ownerName(look.owner) || look.ownerName || '',
       summary: rest.summary ?? '',
       layers: rest.layers ?? [],
+      duration: rest.duration ?? DEFAULT_DURATION,
       shared: rest.shared === true,
       reviewed: rest.reviewed === true,
       versionCount: Array.isArray(list) ? list.length : 0,
@@ -331,6 +369,8 @@ export function createApi({ store, auth, queue, adapterName = 'sketch', loaders,
         const title = cleanTitle(body.title, { required: true });
         const summary = cleanSummary(body.summary);
         const layers = validateLayers(body.layers);
+        const duration = body.duration === undefined ? undefined : cleanDuration(body.duration);
+        const bpm = body.bpm === undefined ? undefined : cleanBpm(body.bpm);
         const shared = body.shared === undefined ? false : cleanBool(body.shared, 'shared');
         let ideaId;
         if (body.ideaId !== undefined && body.ideaId !== null) {
@@ -347,6 +387,8 @@ export function createApi({ store, auth, queue, adapterName = 'sketch', loaders,
           title,
           summary,
           layers,
+          ...(duration !== undefined ? { duration } : {}),
+          ...(bpm !== undefined ? { bpm } : {}),
           shared,
           ...(shared ? { sharedAt: new Date().toISOString() } : {}),
           ...(ideaId ? { ideaId } : {}),
@@ -377,17 +419,25 @@ export function createApi({ store, auth, queue, adapterName = 'sketch', loaders,
           patch.shared = cleanBool(body.shared, 'shared');
           if (patch.shared && look.shared !== true) patch.sharedAt = new Date().toISOString();
         }
-        let layersChanged = false;
+        if (body.bpm !== undefined) {
+          const bpm = cleanBpm(body.bpm);
+          if (bpm !== look.bpm) patch.bpm = bpm;
+        }
+        // What plays: the layers and how long the look runs. A change is a new version.
         if (body.layers !== undefined) {
           const layers = validateLayers(body.layers);
-          if (JSON.stringify(layers) !== JSON.stringify(look.layers ?? [])) {
-            layersChanged = true;
-            patch.layers = layers;
-            const prev = { title: look.title, summary: look.summary ?? '', layers: look.layers ?? [], savedAt: look.updatedAt };
-            patch.versions = [...(Array.isArray(look.versions) ? look.versions : []), prev].slice(-MAX_VERSIONS);
-          }
+          if (JSON.stringify(layers) !== JSON.stringify(look.layers ?? [])) patch.layers = layers;
         }
-        const changes = ['title', 'summary', 'shared'].filter((k) => k in patch && patch[k] !== (look[k] ?? (k === 'summary' ? '' : k === 'shared' ? false : undefined)));
+        if (body.duration !== undefined) {
+          const duration = cleanDuration(body.duration);
+          if (duration !== (look.duration ?? DEFAULT_DURATION)) patch.duration = duration;
+        }
+        const layersChanged = 'layers' in patch || 'duration' in patch;
+        if (layersChanged) {
+          const prev = { title: look.title, summary: look.summary ?? '', layers: look.layers ?? [], duration: look.duration ?? DEFAULT_DURATION, savedAt: look.updatedAt };
+          patch.versions = [...(Array.isArray(look.versions) ? look.versions : []), prev].slice(-MAX_VERSIONS);
+        }
+        const changes = ['title', 'summary', 'shared', 'bpm'].filter((k) => k in patch && patch[k] !== (look[k] ?? (k === 'summary' ? '' : k === 'shared' ? false : undefined)));
         if (layersChanged) changes.push('layers');
 
         // Only the owner edits; a curator may also set `reviewed` on a look shared with them.

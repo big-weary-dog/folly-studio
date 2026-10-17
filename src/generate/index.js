@@ -133,6 +133,7 @@ export function createQueue({
         title: look.title,
         summary: look.summary,
         layers: look.layers,
+        ...(look.duration !== undefined ? { duration: look.duration } : {}),
         shared: false,
         reviewed: false,
         ideaId: id,

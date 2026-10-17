@@ -133,15 +133,32 @@ A look is a stack of layers, composited bottom to top like xLights rows reversed
 bottom):
 
 ```jsonc
-{ "title": "Coral reef", "summary": "…", "layers": [
+{ "title": "Coral reef", "summary": "…", "duration": 30, "bpm": 120, "layers": [
   { "id": "l1", "title": "Sea", "code": "…pattern source…", "groups": ["cathedral"],
-    "blend": "add" | "over" | "max" | "multiply", "level": 1, "params": { "speed": 0.4 } }
+    "blend": "add" | "over" | "max" | "multiply", "level": 1, "params": { "speed": 0.4 },
+    "clips": [{ "start": 0, "end": 12, "fadeIn": 2, "fadeOut": 3 }] }
 ] }
 ```
 
 `groups` is an array of group ids (union). `params` overrides the code's defaults. Blend:
 `add` sums light (default), `over` replaces where the layer has alpha × level, `max` keeps the
 brighter channel, `multiply` tints what is below.
+
+### Timeline
+
+Sequencing lives on the look, xLights-style.
+
+- `look.duration`: seconds the look runs, then loops; 1–600, default 30 (absent = 30).
+- `look.bpm`: optional, 40–240; only the editor's beat grid (no effect on rendering).
+- `layer.clips`: optional `[{ start, end, fadeIn = 0, fadeOut = 0 }]` in seconds (0–600, kept to
+  the millisecond), ≤ 32 per layer, sorted, not overlapping (touching is fine). No or empty
+  clips: the layer is always on (looks from before the timeline are unchanged).
+- A clip only scales the layer's level by its envelope: 0 outside `[start, end)`, ramping
+  linearly 0 → 1 over `fadeIn` and 1 → 0 over `fadeOut` (when the fades add up to more than
+  the clip, both shrink in proportion). Where the envelope is 0 the layer does not run at all
+  (no `frame()`, no `pixel()`). Pattern `t` stays show time, so motion is continuous across cuts.
+- Sequencing whole looks = importing another look's layers into this one, then placing clips.
+- Preview loops over `duration`; bakes and `.fseq` exports render `duration` from t = 0.
 
 ## Sandbox protocol (runtime.js ⇄ sandbox.html)
 
@@ -154,7 +171,7 @@ sandbox.html with `/*@CORE@*/` replaced by `public/js/pattern-core.js` and the h
 | app → sandbox | sandbox → app |
 |---|---|
 | `{ type: 'init', cathedral }` | `{ type: 'ready' }` (also sent once on load, before init) |
-| `{ type: 'look', layers }` | `{ type: 'compiled', layers: [{ id, ok, error?, params: schema }] }` |
+| `{ type: 'look', layers }` (layers as saved, `clips` included) | `{ type: 'compiled', layers: [{ id, ok, error?, params: schema }] }` |
 | `{ type: 'frame', seq, t }` | `{ type: 'frame', seq, rgb: Float32Array(count×3), errors: [{ id, error }], ms }` (rgb transferred) |
 | `{ type: 'render', seq, start, frames, fps, gamma, brightness }` | `{ type: 'progress', seq, done }` … then `{ type: 'rendered', seq, channels: Uint8Array(frames × 40800) }` |
 
@@ -163,9 +180,13 @@ The app tears the iframe down and reloads it if a `frame` reply takes over 2 s.
 
 `pattern-core.js` exports (used by sandbox.html and the Node tests):
 `STDLIB`, `compilePattern(code) → { pixel, frame, params }` (throws on syntax error / no `pixel`),
-`prepareScene(cathedral) → scene`, `prepareLayer(scene, layer, compiled) → prepared`,
-`renderFrame(scene, preparedLayers, t, out?) → { rgb, errors }`,
-`toChannels(scene, rgb, out?, { gamma = 1, brightness = 1 }) → Uint8Array(40800)`.
+`prepareScene(cathedral) → scene`, `prepareLayer(scene, layer, compiled) → prepared` (keeps
+`normalizeClips(layer.clips)`), `renderFrame(scene, preparedLayers, t, out?) → { rgb, errors }`
+(level × `layerEnvelope`; skips layers at 0; allocation-free per layer),
+`toChannels(scene, rgb, out?, { gamma = 1, brightness = 1 }) → Uint8Array(40800)`, and for the
+timeline `layerEnvelope(clips, t) → 0..1`, `normalizeClips(clips) → clips | null` (lenient: drops
+bad and overlapping clips), `lookDuration(look) → seconds`, `DEFAULT_DURATION` `MIN_DURATION`
+`MAX_DURATION` `MAX_CLIPS`.
 
 `fseq.js` exports `writeFseq({ channelCount?, frames, stepMs = 25, data: Uint8Array, media?, ranges? }) → Uint8Array`
 (FSEQ v2.0, uncompressed). `ranges: [[startChannel, count], …]` (0-based, ascending, ≤ 255)
@@ -186,9 +207,9 @@ GET    /api/ideas                             → { ideas: [idea] }    mine, new
 POST   /api/ideas    { text }                 → { idea }             queued for generation
 GET    /api/ideas/:id                         → { idea }             mine only
 GET    /api/looks?scope=mine|gallery          → { looks: [look] }
-POST   /api/looks    { title, summary?, layers, ideaId? } → { look }
+POST   /api/looks    { title, summary?, layers, duration?, bpm?, ideaId? } → { look }
 GET    /api/looks/:id                         → { look }             mine, or shared
-PUT    /api/looks/:id { title?, summary?, layers?, shared? } → { look }   owner only; keeps versions
+PUT    /api/looks/:id { title?, summary?, layers?, duration?, bpm?, shared? } → { look }   owner only; keeps versions
 DELETE /api/looks/:id                         → { ok: true }         owner only
 POST   /api/looks/:id/bake                    → 202 { bake }      owner, or a curator if shared; queued
 GET    /api/looks/:id/frames                  → the baked .fseq   mine, or shared; 404 if none (attachment)
@@ -196,21 +217,24 @@ GET    /api/library                           → { patterns: [{ name, title, su
 ```
 
 `PUT reviewed: true` answers 409 with the reason unless the look has a passing render-box bake of
-its current layers; a failed flicker check from any bake always blocks. Changing `layers` drops
-the bake and its frames.
+its current layers; a failed flicker check from any bake always blocks. Changing `layers` or
+`duration` makes a version (`{ title, summary, layers, duration, savedAt }`), drops the bake and
+its frames and clears `reviewed`; `bpm` (`null` clears it) does not. Clips that overlap or fall
+outside 0–600 s, and a duration outside 1–600 s, are refused with 400.
 
 `user = { id, username, role: 'member' | 'curator' }` (curators listed in `STUDIO_CURATORS`).
 `idea = { id, owner, text, status: 'queued'|'generating'|'ready'|'failed', generator, lookId?, error?, createdAt, updatedAt }`.
-`look = { id, owner, ownerName, title, summary, layers, shared, ideaId?, reviewed, bake?, createdAt, updatedAt }`
+`look = { id, owner, ownerName, title, summary, layers, duration, bpm?, shared, ideaId?, reviewed, bake?, createdAt, updatedAt }`
 (`bake`: see Baked frames).
 
 ## Generators (idea → look)
 
 `src/generate/index.js` runs a small in-process queue. An adapter is
-`async generate({ text, user, library, groups }) → { title, summary, layers }` and is chosen by
+`async generate({ text, user, library, groups }) → { title, summary, duration?, layers }` and is chosen by
 `STUDIO_GENERATOR` (`sketch` default, `claude`, `fleet`). The result is validated (≤ 4 layers,
-known group ids, code ≤ 20 kB containing `function pixel`) before a look is saved and the idea
-set `ready`.
+known group ids, code ≤ 20 kB containing `function pixel`; clips and duration normalised, bad or
+overlapping clips dropped) before a look is saved and the idea set `ready`. Generators may add
+clips and a duration for ideas that describe a progression; most looks have neither.
 
 - `sketch`: offline, keyword → library pattern(s) + params. Always available.
 - `claude`: one Messages API call with the pattern guide + library examples as the system prompt.
@@ -229,8 +253,15 @@ bytes a box hands back. Anything a box says about itself is kept as `boxStats: {
   (CPU s, tasks, file size, RLIMIT_DATA; no RLIMIT_AS) and a wall-clock kill. Inside, layers run in
   a `node:vm` realm holding only the stdlib (defence in depth). No bubblewrap → 503, no fallback.
   One bake at a time. `fleet-box` (advisory): the Fleet worker's own `frames.fseq` + `stats.json`.
+- **Length.** A bake renders the look's `duration` from t = 0, honouring clips, but at most
+  `STUDIO_BAKE_SECONDS` (default 120 s, ≤ 600) in the render box; `fleet-box/check.mjs --bake`
+  does the same (`--seconds` overrides). `look.bake.seconds` records what was baked; a bake is
+  dropped if the layers or duration change while it runs. The box's wall-clock and CPU budgets
+  default to 30 s + 1.5 s per second baked (at least 90 s / 120 CPU s).
 - **Format.** 40 fps, sparse FSEQ v2 covering only the LED map's channels (33 ranges, 14,610 ch):
-  20 s ≈ 11.7 MB (full 40,800-ch frames would be ≈ 32.6 MB). Files are capped at 64 MB.
+  20 s ≈ 11.7 MB, 120 s ≈ 70 MB (full 40,800-ch frames would be ≈ 32.6 MB for 20 s). Files are
+  capped at 64 MB, or ≈ 0.6 MB a second of `STUDIO_BAKE_SECONDS` when that is more
+  (`STUDIO_BAKE_MAX_FRAMES` overrides).
 - **Checks** (`src/frames.js`, pure): `parseFseq(bytes, { maxBytes })` is strict (magic, v2.x,
   uncompressed, consistent header/offset/sizes, ranges within 80 × 510, data = frames × channels).
   `analyzeFrames(parsed, cathedral)` → `{ frames, seconds, fps, peakBrightness, meanBrightness,

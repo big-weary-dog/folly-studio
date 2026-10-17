@@ -14,6 +14,7 @@ import { CodeEditor } from './editor.js';
 import { Transport } from './transport.js';
 import { quickReference } from './reference.js';
 import { exportFseqDialog, exportLookJson } from './export.js';
+import { BakePanel, loadBakedFrames } from './bake.js';
 
 // Narrow screens stack the panels under the 3D view and switch them with these tabs.
 const TABS = [
@@ -23,7 +24,12 @@ const TABS = [
   { id: 'look', label: 'Look' },
 ];
 const NARROW = '(max-width: 899px)';
+// Below this height the code editor starts folded, so the cathedral gets the room (once the
+// person opens or closes it, their choice sticks).
+const SHORT = '(max-height: 899px)';
 const RUNTIME_ERROR_HOLD_MS = 1200;
+// The sandbox reports a layer it had to stop as an error starting with this.
+const HUNG_RE = /^Pattern hung\b/;
 const COMPILE_DELAY_MS = 300;
 
 function store(key, value) {
@@ -43,7 +49,9 @@ export function mount(root, ctx) {
     cathedral: null,
     index: null,
     library: [],
-    look: { id: null, title: 'Untitled look', summary: '', layers: [], shared: false, ideaId: null, owner: me?.id, ownerName: me?.username },
+    look: { id: null, title: 'Untitled look', summary: '', layers: [], shared: false, ideaId: null, owner: me?.id, ownerName: me?.username, reviewed: false, bake: null },
+    server: null,              // the look as the server last sent it (bake, reviewed, …), null until saved
+    baked: null,               // { frames, rgb, index } while the preview plays baked frames
     copyOnSave: false,
     selectedId: null,
     saved: '',
@@ -95,7 +103,10 @@ export function mount(root, ctx) {
   const viewSelect = h('select', { class: 'view-select', 'aria-label': 'Camera view' });
   const ghostBtn = h('button', { type: 'button', class: 'view-btn ghost-btn', 'aria-pressed': 'true', text: 'Ghost', title: 'Show unlit LEDs faintly' });
   const viewerMsg = h('div', { class: 'viewer-msg', role: 'status', hidden: true });
-  const viewerWrap = h('div', { class: 'viewer' }, canvas, viewBar, h('div', { class: 'view-compact' }, viewSelect), viewerMsg);
+  const bakedLive = h('button', { type: 'button', class: 'btn small', text: 'Back to live', onClick: () => playBaked(false) });
+  const bakedBadge = h('div', { class: 'baked-badge', role: 'status', hidden: true },
+    h('span', { class: 'baked-dot', 'aria-hidden': 'true' }), h('span', { class: 'baked-text' }), bakedLive);
+  const viewerWrap = h('div', { class: 'viewer' }, canvas, viewBar, h('div', { class: 'view-compact' }, viewSelect), viewerMsg, bakedBadge);
   const sandboxHost = h('div', { class: 'sandbox-host', 'aria-hidden': 'true' });
   const paneViewer = h('section', { class: 'pane pane-viewer', 'aria-label': 'Preview' }, viewerWrap);
   const transport = new Transport(paneViewer, {
@@ -140,19 +151,29 @@ export function mount(root, ctx) {
       paramsBody));
   const side = h('div', { class: 'side', dataset: { pane: 'layers' } }, paneLayers, paneParams);
 
+  // The bottom dock (wide screens): tabs on the left of its head, the fold toggle on the right.
+  // Code is the only tab today; a Timeline tab and pane slot in beside it.
   const codeFor = h('span', { class: 'pane-sub' });
+  const codeIssue = h('span', { class: 'dock-issue', hidden: true });
   const retryBtn = h('button', { type: 'button', class: 'btn small', text: 'Try again', hidden: true });
-  const collapseBtn = h('button', { type: 'button', class: 'icon-btn collapse-btn', 'aria-expanded': 'true', 'aria-label': 'Hide the code editor', title: 'Hide / show the code editor' });
   const codeBody = h('div', { class: 'pane-body code-body' });
+  const collapseId = nextId('dock');
+  const collapseBtn = h('button', { type: 'button', class: 'btn small ghost collapse-btn', 'aria-expanded': 'true', 'aria-controls': collapseId,
+    title: 'Fold the editor away to give the 3D view more room' });
+  const dockTabs = h('div', { class: 'dock-tabs', role: 'group', 'aria-label': 'Bottom panel' },
+    h('button', { type: 'button', class: 'dock-tab', 'aria-pressed': 'true', text: 'Code', onClick: () => setCodeCollapsed(false) }));
+  codeBody.id = collapseId;
   const paneCode = h('section', { class: 'pane pane-code', dataset: { pane: 'code' }, 'aria-label': 'Code' },
-    paneHead('Code', codeFor, retryBtn, collapseBtn), codeBody);
+    h('div', { class: 'pane-head dock-head' }, dockTabs, codeFor, codeIssue, retryBtn, collapseBtn), codeBody);
 
   // "Look" tab (narrow screens): what the toolbar and the header hold on a wide screen
   const shareId2 = nextId('share');
   const shareBox2 = h('input', { type: 'checkbox', id: shareId2, class: 'switch' });
   const myLooks = h('ul', { class: 'mini-list' });
+  const bakeSlotNarrow = h('div', { class: 'bake-slot' });
   const paneLook = h('section', { class: 'pane pane-look', dataset: { pane: 'look' }, 'aria-label': 'Look' },
     h('div', { class: 'pane-body look-body' },
+      bakeSlotNarrow,
       h('div', { class: 'share-toggle big' }, shareBox2, h('label', { for: shareId2, text: 'Share to gallery' })),
       h('div', { class: 'look-actions' },
         h('button', { type: 'button', class: 'btn', text: 'Look details', onClick: () => editDetails() }),
@@ -169,14 +190,36 @@ export function mount(root, ctx) {
   setTab(studio.dataset.tab);
   const savedSplit = +store('studio.split');
   if (savedSplit >= 15 && savedSplit <= 75) studio.style.setProperty('--code-h', `${savedSplit}%`);
-  setCodeCollapsed(store('studio.codeCollapsed') === '1');
+  {
+    const pref = store('studio.codeCollapsed');
+    setCodeCollapsed(pref === null ? matchMedia(SHORT).matches : pref === '1', { remember: false });
+  }
   collapseBtn.addEventListener('click', () => setCodeCollapsed(!studio.classList.contains('code-collapsed')));
-  function setCodeCollapsed(on) {
+  function setCodeCollapsed(on, { remember = true } = {}) {
     studio.classList.toggle('code-collapsed', on);
     collapseBtn.setAttribute('aria-expanded', String(!on));
-    collapseBtn.setAttribute('aria-label', on ? 'Show the code editor' : 'Hide the code editor');
-    store('studio.codeCollapsed', on ? '1' : '0');
+    collapseBtn.textContent = on ? 'Show code' : 'Hide';
+    if (remember) store('studio.codeCollapsed', on ? '1' : '0');
   }
+
+  // Bake card: under the groups tree on a wide screen, in the Look tab on a phone.
+  const bakeSlotWide = h('div', { class: 'bake-slot' });
+  paneGroups.append(bakeSlotWide);
+  const bakePanel = new BakePanel(bakeSlotWide, {
+    user: me,
+    host: {
+      look: () => (S.look.id && S.server ? { ...S.server, id: S.look.id } : null),
+      dirty: () => isDirty(),
+      save: async () => { await save(); return !!S.look.id && !isDirty(); },
+      setLook: (look) => { adoptServer(look); bakePanel.render(); },
+      playBaked: (on) => playBaked(on),
+      signedOut: () => ctx.signedOut(),
+    },
+  });
+  const narrowMq = matchMedia(NARROW);
+  const placeBake = () => (narrowMq.matches ? bakeSlotNarrow : bakeSlotWide).append(bakePanel.el);
+  placeBake();
+  narrowMq.addEventListener('change', placeBake);
 
   // components
   const stack = new LayerStack(layersBody, {
@@ -259,6 +302,8 @@ export function mount(root, ctx) {
         owner: look.owner, ownerName: look.ownerName,
       };
       S.copyOnSave = !!(me && look.owner && look.owner !== me.id);
+      S.server = look;
+      if (look.duration > 0) S.duration = look.duration;
       ctx.setTitle(S.look.title);
     } else {
       const first = S.library[0];
@@ -354,7 +399,24 @@ export function mount(root, ctx) {
     else saveState.textContent = dirty ? 'Unsaved changes' : 'Saved';
     saveState.dataset.state = dirty || !S.look.id ? 'dirty' : 'clean';
   }, 120);
-  function markDirty() { updateSaveState(); }
+  function markDirty() {
+    updateSaveState();
+    if (S.baked) {
+      playBaked(false);
+      toast('Back to the live preview: the baked frames show the look as it was baked, not your edits.', { timeout: 5000 });
+    }
+    if (S.ready) bakePanel.render();
+  }
+
+  /** The server sent a newer copy of this look (after a save, a bake, a review). */
+  function adoptServer(look) {
+    if (!look || (S.look.id && look.id !== S.look.id)) return;
+    S.server = look;
+    S.look.reviewed = !!look.reviewed;
+    S.look.bake = look.bake || null;
+    if (S.baked && !(look.bake && look.bake.frames)) playBaked(false);
+    bakePanel.render();
+  }
 
   function sandboxLayers() {
     const soloing = S.solo.size > 0;
@@ -435,7 +497,7 @@ export function mount(root, ctx) {
     const c = S.compiled.get(id);
     if (!c || !l || c.code !== l.code) return { kind: 'pending', message: bad ? bad.error : '' };
     const rt = S.runtimeErr.get(id);
-    if (rt) return { kind: 'runtime', message: rt.error };
+    if (rt) return { kind: HUNG_RE.test(rt.error) ? 'hung' : 'runtime', message: rt.error, sandbox: true };
     const silent = S.muted.has(id) || (S.solo.size > 0 && !S.solo.has(id));
     return { kind: silent ? 'muted' : 'ok' };
   }
@@ -475,12 +537,19 @@ export function mount(root, ctx) {
     if (!l) { editor.setProblem(null); retryBtn.hidden = true; return; }
     const st = statusOf(l.id);
     let problem = null;
+    const compileKind = HUNG_RE.test(st.message || '') ? 'hung' : 'compile';
     if (st.kind === 'hung' || st.kind === 'probation') problem = { kind: st.kind, message: st.message };
-    else if (st.kind === 'compile') problem = { kind: 'compile', message: st.message, running: S.good.has(l.id) };
-    else if (st.kind === 'pending' && st.message) problem = { kind: 'compile', message: st.message, running: S.good.has(l.id) };
+    else if (st.kind === 'compile') problem = { kind: compileKind, message: st.message, running: S.good.has(l.id) };
+    else if (st.kind === 'pending' && st.message) problem = { kind: compileKind, message: st.message, running: S.good.has(l.id) };
     else if (st.kind === 'runtime') problem = { kind: 'runtime', message: st.message };
     editor.setProblem(problem);
-    retryBtn.hidden = st.kind !== 'hung';
+    // Try again is for the app-side watchdog's parking; a layer the sandbox paused retries on edit.
+    retryBtn.hidden = st.kind !== 'hung' || st.sandbox === true;
+    codeIssue.hidden = !problem;
+    if (problem) {
+      codeIssue.dataset.kind = problem.kind;
+      codeIssue.textContent = { compile: 'Compile error', runtime: 'Runtime error', hung: 'Hung', probation: 'Paused' }[problem.kind] || 'Problem';
+    }
   }
 
   function refresh() {
@@ -650,11 +719,13 @@ export function mount(root, ctx) {
         toast(wasCopy ? 'Saved as your own copy.' : 'Saved.', { kind: 'ok' });
       } else {
         ({ look } = await api.updateLook(S.look.id, body));
-        toast('Saved.', { kind: 'ok', timeout: 1800 });
+        toast(S.server?.bake && !look.bake ? 'Saved. The old bake was cleared: bake again to check the new code.' : 'Saved.',
+          { kind: 'ok', timeout: S.server?.bake && !look.bake ? 5000 : 1800 });
       }
       S.look.id = look.id;
       S.look.title = title;
       S.saved = snap;
+      adoptServer(look);
       ctx.setTitle(title);
     } catch (err) {
       if (err.status === 401) { ctx.signedOut(); return; }
@@ -681,6 +752,7 @@ export function mount(root, ctx) {
       if (!S.look.id) { showShared(!on); return; }
       const { look } = await api.updateLook(S.look.id, { shared: on });
       S.look.shared = !!look.shared;
+      adoptServer(look);
       showShared(S.look.shared);
       toast(S.look.shared ? 'Shared to the gallery.' : 'Removed from the gallery.', { kind: 'ok' });
     } catch (err) {
@@ -814,6 +886,45 @@ export function mount(root, ctx) {
   document.addEventListener('keydown', onKey);
 
   function setPlaying(on) { S.playing = on; kick(); }
+
+  // ---- baked playback: the server's frames, no pattern code -----------------------------------
+
+  let bakedLoad = 0;
+  async function playBaked(on) {
+    const token = ++bakedLoad;
+    if (!on) {
+      if (!S.baked) return;
+      S.baked = null;
+      bakedBadge.hidden = true;
+      studio.classList.remove('is-baked');
+      bakePanel.setPlaying(false);
+      if (runtime) runtime.lookDirty = true;     // fresh frame from the live look
+      S.t = 0;
+      kick();
+      return;
+    }
+    if (!S.look.id || !S.cathedral) return;
+    showViewerMsg('Loading the baked frames…');
+    try {
+      const frames = await loadBakedFrames(S.look.id, S.cathedral);
+      if (!alive || token !== bakedLoad) return;
+      S.baked = { frames, rgb: new Float32Array(S.cathedral.count * 3), index: -1 };
+      S.t = 0;
+      S.playing = true;
+      hideViewerMsg();
+      bakedBadge.querySelector('.baked-text').textContent =
+        `Baked frames · ${frames.seconds.toFixed(frames.seconds % 1 ? 1 : 0)} s · ${(frames.bytes / 1e6).toFixed(1)} MB · no code running`;
+      bakedBadge.hidden = false;
+      studio.classList.add('is-baked');
+      bakePanel.setPlaying(true);
+      kick();
+    } catch (err) {
+      if (!alive || token !== bakedLoad) return;
+      hideViewerMsg();
+      if (err.status === 401) { ctx.signedOut(); return; }
+      toast(err.message, { kind: 'error', timeout: 7000 });
+    }
+  }
 
   function showViewerMsg(text, error = false) {
     viewerMsg.textContent = text;

@@ -790,5 +790,21 @@ describe('fleet-box/check.mjs (boxed worker side, real runtime)', () => {
     const strobe = await run(dir, 'strobe.json', ['--bake', '--seconds', '2']);
     assert.equal(strobe.code, 1, strobe.out);
     assert.match(strobe.out, /✗ Large-area flashing at up to 10 flashes a second/);
+
+    // The timeline: without --seconds it bakes the look's duration, and honours clips.
+    fs.writeFileSync(path.join(dir, 'timed.json'), JSON.stringify({
+      title: 'Timed', summary: 's', duration: 1.5,
+      layers: [
+        { title: 'base', groups: ['cathedral'], blend: 'add', level: 1, code: 'function pixel() { return [0, 0, 0.5]; }' },
+        { title: 'hit', groups: ['cathedral'], blend: 'add', level: 1, clips: [{ start: 0.5, end: 1, fadeIn: 0, fadeOut: 0 }, { start: 0.75, end: 2 }], code: 'function pixel() { return [1, 0, 0]; }' },
+      ],
+    }));
+    const timed = await run(dir, 'timed.json', ['--bake']);
+    assert.equal(timed.code, 0, timed.out);
+    assert.match(timed.out, /1 clip\(s\) are invalid, overlap another/);
+    assert.match(timed.out, /baked 1\.5 s \(60 frames/);
+    const t = parseFseq(fs.readFileSync(path.join(dir, 'frames.fseq')));
+    assert.equal(t.frameCount, 60);
+    assert.deepEqual([0, 19, 20, 39, 40, 59].map((n) => t.data[n * t.channelCount]), [0, 0, 255, 255, 0, 0]);
   });
 });

@@ -1,18 +1,35 @@
 // Static files from public/, the sandbox page with the pattern core inlined, the
 // security headers every response carries, and the loaders for the pattern library
 // and the cathedral's groups (shared with the generator).
+//
+// Lightweight serving: text bodies are compressed once (brotli or gzip, whichever the client
+// takes) and kept in memory until the file's mtime or size changes; every response has an ETag
+// and `If-None-Match` answers 304. HTML and the sandbox revalidate on every load (no-cache);
+// everything else may be reused for a few minutes, then revalidates.
 
+import { createHash } from 'node:crypto';
 import { promises as fsp, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
+import zlib from 'node:zlib';
 
 export const DEFAULT_PUBLIC_DIR = fileURLToPath(new URL('../public/', import.meta.url));
 
 export const CSP_APP =
   "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; " +
   "connect-src 'self'; frame-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
-export const CSP_SANDBOX = "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; sandbox allow-scripts";
+// worker-src blob: lets the sandbox run patterns in a Worker made from a Blob (see sandbox.html);
+// the worker inherits this policy, so it has no network either.
+export const CSP_SANDBOX = "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; worker-src blob:; sandbox allow-scripts";
 export const CORE_MARKER = '/*@CORE@*/';
+
+/** Cache-Control for pages (always revalidate) and for everything else (reuse briefly, then revalidate). */
+export const CACHE_PAGE = 'no-cache';
+export const CACHE_ASSET = 'public, max-age=300, must-revalidate';
+
+// Browser copies of pure ES modules that live in src/ (no Node APIs in them).
+const ALIASES = new Map([['/js/frames.js', fileURLToPath(new URL('./frames.js', import.meta.url))]]);
 
 export const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -37,11 +54,49 @@ export const MIME = {
   '.wasm': 'application/wasm',
 };
 
+const COMPRESSIBLE = /^(?:text\/|application\/(?:json|javascript|manifest\+json)|image\/svg\+xml)/;
+const MIN_COMPRESS = 512;              // smaller bodies are not worth an encoding
+const MAX_CACHED = 4 * 1024 * 1024;    // bigger files are read per request and sent as they are
+const gzip = promisify(zlib.gzip);
+const brotli = promisify(zlib.brotliCompress);
+const ENCODERS = {
+  br: (body) => brotli(body, { params: {
+    [zlib.constants.BROTLI_PARAM_QUALITY]: 11,
+    [zlib.constants.BROTLI_PARAM_MODE]: zlib.constants.BROTLI_MODE_TEXT,
+    [zlib.constants.BROTLI_PARAM_SIZE_HINT]: body.length,
+  } }),
+  gzip: (body) => gzip(body, { level: 9 }),
+};
+
 /** Headers on every response (the sandbox page swaps the CSP for its own). */
 export function applySecurityHeaders(res) {
   res.setHeader('Content-Security-Policy', CSP_APP);
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'same-origin');
+}
+
+/** The best encoding the request accepts: 'br', then 'gzip', else null (q=0 means no). */
+export function pickEncoding(header) {
+  const q = new Map();
+  for (const part of String(header || '').toLowerCase().split(',')) {
+    const [name, ...params] = part.trim().split(';');
+    if (!name) continue;
+    const qp = params.map((p) => p.trim()).find((p) => p.startsWith('q='));
+    const v = qp ? Number(qp.slice(2)) : 1;
+    q.set(name.trim(), Number.isFinite(v) ? v : 0);
+  }
+  const ok = (name) => (q.has(name) ? q.get(name) > 0 : (q.get('*') ?? 0) > 0);
+  if (ok('br')) return 'br';
+  if (ok('gzip')) return 'gzip';
+  return null;
+}
+
+/** Does an If-None-Match header match this ETag (weak comparison, lists and `*`)? */
+export function etagMatches(header, etag) {
+  if (!header) return false;
+  if (header.trim() === '*') return true;
+  const bare = (t) => t.trim().replace(/^W\//, '');
+  return header.split(',').some((t) => bare(t) === bare(etag));
 }
 
 function sendText(req, res, status, text, headers = {}) {
@@ -58,50 +113,82 @@ async function statFile(file) {
   }
 }
 
+const statSig = (st) => `${st.size}:${st.mtimeMs}`;
+
 /** createStatic({ publicDir }) → async (req, res, pathname) handling GET/HEAD for non-/api paths. */
 export function createStatic({ publicDir = DEFAULT_PUBLIC_DIR, log = console } = {}) {
   const root = path.resolve(publicDir);
+  // key → { sig, type, body, etag, compressible, br?: Promise<Buffer>, gzip?: Promise<Buffer> }
+  const cache = new Map();
 
-  async function sendFile(req, res, file, st) {
-    const etag = `W/"${st.size.toString(16)}-${Math.floor(st.mtimeMs).toString(16)}"`;
-    const headers = {
-      'Content-Type': MIME[path.extname(file).toLowerCase()] ?? 'application/octet-stream',
-      'Cache-Control': 'no-cache',
-      ETag: etag,
-      'Last-Modified': st.mtime.toUTCString(),
+  async function entry(key, sig, type, load) {
+    const hit = cache.get(key);
+    if (hit && hit.sig === sig) return hit;
+    const body = await load();
+    const e = {
+      sig, type, body,
+      etag: `W/"${createHash('sha1').update(body).digest('base64url').slice(0, 20)}"`,
+      compressible: COMPRESSIBLE.test(type) && body.length >= MIN_COMPRESS,
     };
-    if (req.headers['if-none-match'] === etag) {
+    if (body.length <= MAX_CACHED) cache.set(key, e);
+    else cache.delete(key);
+    return e;
+  }
+
+  async function encoded(e, enc) {
+    if (!e[enc]) e[enc] = ENCODERS[enc](e.body);
+    try {
+      const out = await e[enc];
+      return out.length < e.body.length ? out : null;
+    } catch (err) {
+      e[enc] = null;
+      (log.warn ?? console.warn)(`static: ${enc} failed: ${err.message}`);
+      return null;
+    }
+  }
+
+  async function send(req, res, e, cacheControl, extra = {}) {
+    const headers = { 'Content-Type': e.type, 'Cache-Control': cacheControl, ETag: e.etag, ...extra };
+    if (e.compressible) headers.Vary = 'Accept-Encoding';
+    if (etagMatches(req.headers['if-none-match'], e.etag)) {
       res.writeHead(304, headers);
       return res.end();
     }
-    const data = await fsp.readFile(file);
-    res.writeHead(200, { ...headers, 'Content-Length': data.length });
-    res.end(req.method === 'HEAD' ? undefined : data);
+    let body = e.body;
+    const enc = e.compressible ? pickEncoding(req.headers['accept-encoding']) : null;
+    const packed = enc ? await encoded(e, enc) : null;
+    if (packed) {
+      body = packed;
+      headers['Content-Encoding'] = enc;
+    }
+    headers['Content-Length'] = body.length;
+    res.writeHead(200, headers);
+    res.end(req.method === 'HEAD' ? undefined : body);
+  }
+
+  async function sendFile(req, res, file, st) {
+    const type = MIME[path.extname(file).toLowerCase()] ?? 'application/octet-stream';
+    const e = await entry(file, statSig(st), type, () => fsp.readFile(file));
+    const page = type.startsWith('text/html');
+    return send(req, res, e, page ? CACHE_PAGE : CACHE_ASSET, { 'Last-Modified': st.mtime.toUTCString() });
   }
 
   async function sendSandbox(req, res) {
-    let html, core;
-    try {
-      html = await fsp.readFile(path.join(root, 'sandbox.html'), 'utf8');
-    } catch {
-      return sendText(req, res, 404, 'Not found');
-    }
-    try {
-      core = await fsp.readFile(path.join(root, 'js', 'pattern-core.js'), 'utf8');
-    } catch {
+    const htmlFile = path.join(root, 'sandbox.html');
+    const coreFile = path.join(root, 'js', 'pattern-core.js');
+    const [hst, cst] = await Promise.all([statFile(htmlFile), statFile(coreFile)]);
+    if (!hst) return sendText(req, res, 404, 'Not found');
+    if (!cst) {
       (log.error ?? console.error)('static: public/js/pattern-core.js is missing; the sandbox cannot run patterns');
       return sendText(req, res, 500, 'pattern-core.js is missing');
     }
-    // Keep the inlined core from closing the <script> element early.
-    core = core.replace(/<\/(script)/gi, '<\\/$1');
-    const body = Buffer.from(html.split(CORE_MARKER).join(core), 'utf8');
-    res.writeHead(200, {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Content-Security-Policy': CSP_SANDBOX,
-      'Cache-Control': 'no-cache',
-      'Content-Length': body.length,
+    const e = await entry(':sandbox', `${statSig(hst)}|${statSig(cst)}`, 'text/html; charset=utf-8', async () => {
+      const [html, raw] = await Promise.all([fsp.readFile(htmlFile, 'utf8'), fsp.readFile(coreFile, 'utf8')]);
+      // Keep the inlined core from closing the <script> element early.
+      const core = raw.replace(/<\/(script)/gi, '<\\/$1');
+      return Buffer.from(html.split(CORE_MARKER).join(core), 'utf8');
     });
-    res.end(req.method === 'HEAD' ? undefined : body);
+    return send(req, res, e, CACHE_PAGE, { 'Content-Security-Policy': CSP_SANDBOX });
   }
 
   return async function serveStatic(req, res, pathname) {
@@ -118,6 +205,11 @@ export function createStatic({ publicDir = DEFAULT_PUBLIC_DIR, log = console } =
       return sendText(req, res, 404, 'Not found');
     }
     if (decoded === '/sandbox.html') return sendSandbox(req, res);
+    if (ALIASES.has(decoded)) {
+      const file = ALIASES.get(decoded);
+      const st = await statFile(file);
+      if (st) return sendFile(req, res, file, st);
+    }
 
     const segments = decoded.split('/').filter(Boolean);
     // No `..`, no `.`, no dotfiles (.git, .env, …).

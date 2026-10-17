@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // Folly Studio look checker, for the boxed Fleet worker (not the server: it runs pattern code).
-// Usage: node check.mjs [look.json] [--bake [--seconds 20]]
+// Usage: node check.mjs [look.json] [--bake [--seconds S]]
 // Compiles every layer with the studio's own pattern runtime (pattern-core.js), renders a few
 // frames on the real LED map (cathedral.json), and prints problems. Exit 1 if the look would
 // be rejected or a layer fails; warnings alone exit 0.
-// --bake then renders the look from t = 0 at 40 fps and writes frames.fseq (FSEQ v2, sparse:
+// --bake then renders the look from t = 0 at 40 fps for its duration (default 30 s, at most
+// 120 s unless --seconds says otherwise) and writes frames.fseq (FSEQ v2, sparse:
 // only the channels the LED map uses) and stats.json (advisory) next to the look. With
 // frames.js present it also runs the studio's own frame checks on the result (the studio repeats
 // them on its side; only those count).
@@ -13,7 +14,7 @@ import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 
-const LIMITS = { layers: 4, codeBytes: 20 * 1024, title: 80, summary: 400 };
+const LIMITS = { layers: 4, codeBytes: 20 * 1024, title: 80, summary: 400, clips: 32, duration: 600 };
 const BLENDS = ['add', 'over', 'max', 'multiply'];
 const errors = [];
 const warnings = [];
@@ -23,7 +24,6 @@ const flag = (name) => argv.includes(name);
 const option = (name) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined);
 const file = argv.find((a, i) => !a.startsWith('--') && argv[i - 1] !== '--seconds') || 'look.json';
 const BAKE = flag('--bake');
-const SECONDS = Math.min(60, Math.max(1, Math.round(Number(option('--seconds')) || 20)));
 const FPS = 40;
 let look;
 try {
@@ -37,6 +37,8 @@ if (!existsSync(new URL('./pattern-core.js', import.meta.url)) || !existsSync(ne
   process.exit(1);
 }
 const core = await import('./pattern-core.js');
+const DURATION = Number.isFinite(look?.duration) && look.duration >= 1 && look.duration <= LIMITS.duration ? look.duration : 30;
+const SECONDS = Number(option('--seconds')) > 0 ? Math.min(LIMITS.duration, Number(option('--seconds'))) : Math.min(120, DURATION);
 const cathedral = JSON.parse(readFileSync(new URL('./cathedral.json', import.meta.url), 'utf8'));
 const groupIds = new Set((cathedral.groups || []).map((g) => g.id));
 
@@ -47,6 +49,7 @@ if (typeof look.summary !== 'string' || !look.summary.trim()) warnings.push('sum
 else if (look.summary.length > LIMITS.summary) warnings.push(`summary is over ${LIMITS.summary} characters and will be cut`);
 const layers = Array.isArray(look.layers) ? look.layers : [];
 if (!layers.length) errors.push('layers is empty');
+if (look.duration != null && DURATION !== look.duration) warnings.push(`duration must be 1..${LIMITS.duration} seconds; the studio will use 30`);
 if (layers.length > LIMITS.layers) errors.push(`${layers.length} layers: at most ${LIMITS.layers}`);
 
 let prepared = [];
@@ -69,6 +72,12 @@ layers.slice(0, LIMITS.layers).forEach((layer, i) => {
   if (unknown.length) errors.push(`${name}: unknown group ids ${unknown.join(', ')}`);
   if (layer.blend != null && !BLENDS.includes(layer.blend)) errors.push(`${name}: blend must be one of ${BLENDS.join(', ')}`);
   if (layer.level != null && !(typeof layer.level === 'number' && layer.level >= 0 && layer.level <= 1)) errors.push(`${name}: level must be a number 0..1`);
+  // Clips: what the runtime keeps (normalizeClips) is what the studio keeps; say what goes.
+  const clips = layer.clips == null ? null : core.normalizeClips(layer.clips);
+  if (layer.clips != null && !Array.isArray(layer.clips)) errors.push(`${name}: clips must be an array of { start, end, fadeIn, fadeOut }`);
+  else if (Array.isArray(layer.clips) && layer.clips.length !== (clips ? clips.length : 0)) warnings.push(`${name}: ${layer.clips.length - (clips ? clips.length : 0)} clip(s) are invalid, overlap another or are over ${LIMITS.clips}, and will be dropped`);
+  if (clips && clips.some((c) => c.end > LIMITS.duration)) errors.push(`${name}: clips must end by ${LIMITS.duration} s`);
+  if (clips && clips.every((c) => c.start >= DURATION)) warnings.push(`${name}: every clip starts after the look ends (${DURATION} s), so it never shows`);
   let compiled;
   try {
     compiled = core.compilePattern(layer.code);
@@ -83,6 +92,7 @@ layers.slice(0, LIMITS.layers).forEach((layer, i) => {
     blend: BLENDS.includes(layer.blend) ? layer.blend : 'add',
     level: typeof layer.level === 'number' ? layer.level : 1,
     params: layer.params && typeof layer.params === 'object' ? layer.params : {},
+    ...(clips ? { clips } : {}),
   };
   try {
     prepared.push(core.prepareLayer(scene, l, compiled));
@@ -102,8 +112,10 @@ if (prepared.length && !errors.length) {
   let frames = 0;
   let dark = 0;
   let nan = 0;
-  const times = [0, 0.37, 1.9, 7.25, 33.3, 121.7];
-  for (let f = 0; f < 80; f++) times.push(10 + f / 40);
+  // Spot frames spread over the look's duration, then two seconds from its middle.
+  const times = [0, 0.012, 0.063, 0.24, 0.55, 0.94].map((k) => +(k * DURATION).toFixed(3));
+  const mid = Math.max(0, DURATION / 2 - 1);
+  for (let f = 0; f < 80; f++) times.push(mid + f / 40);
   for (const [n, t] of times.entries()) {
     const t0 = performance.now();
     let out;
@@ -174,7 +186,7 @@ async function bake() {
     else ranges.push([c, 1]);
   }
   const channelCount = ranges.reduce((n, r) => n + r[1], 0);
-  const frames = SECONDS * FPS;
+  const frames = Math.max(1, Math.round(SECONDS * FPS));
   const data = new Uint8Array(frames * channelCount);
   const rgb = new Float32Array(scene.count * 3);
   const ch = new Uint8Array(scene.frameChannels);

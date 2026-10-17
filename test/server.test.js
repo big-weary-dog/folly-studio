@@ -17,7 +17,7 @@ const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error(
 const EXPECTED_APP_CSP =
   "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; " +
   "frame-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
-const EXPECTED_SANDBOX_CSP = "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; sandbox allow-scripts";
+const EXPECTED_SANDBOX_CSP = "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; worker-src blob:; sandbox allow-scripts";
 const CORE_SOURCE = "export const STDLIB = {}; const s = 'a$&b$1c'; const t = '</script>';\n";
 const PIXEL = 'function pixel(p, t, P) { return [p.x, p.y, p.z]; }';
 

@@ -88,6 +88,8 @@ export function cleanLayer(l) {
     blend: BLEND_MODES.some((b) => b.value === l.blend) ? l.blend : 'add',
     level: Number.isFinite(+l.level) ? Math.min(1, Math.max(0, +l.level)) : 1,
     params: l.params && typeof l.params === 'object' ? { ...l.params } : {},
+    // Timeline clips pass through untouched (the server validates them).
+    ...(Array.isArray(l.clips) ? { clips: l.clips.map((c) => ({ ...c })) } : {}),
   };
 }
 

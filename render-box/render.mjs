@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // Folly Studio render box: bakes one look into FSEQ frames.
 //
-//   node render.mjs --out DIR [--seconds 20] [--frame-ms 2000]  < look.json
-//   → DIR/frames.fseq  FSEQ v2 at 40 fps, sparse: only the channels the LED map uses
+//   node render.mjs --out DIR [--seconds S] [--frame-ms 2000]  < look.json
+//   → DIR/frames.fseq  FSEQ v2 at 40 fps from t = 0, sparse: only the channels the LED map uses.
+//                      S seconds (up to 600); without --seconds, the look's duration (default
+//                      30) up to 120. Layers' clips are honoured by the runtime.
 //     DIR/result.json  { ok, error?, frames, seconds, channels, ranges, msPerFrame, layers }
 //   exit 0 when frames.fseq was written, 1 when the look could not be baked.
 //
@@ -30,10 +32,10 @@ const argv = process.argv.slice(2);
 const option = (name, fallback) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : fallback);
 const bounded = (v, lo, hi, fallback) => (Number.isFinite(+v) ? Math.min(hi, Math.max(lo, Math.round(+v))) : fallback);
 const outDir = option('--out');
-const seconds = bounded(option('--seconds'), 1, 60, 20);
+const secondsArg = option('--seconds');
 const frameMs = bounded(option('--frame-ms'), 10, 600_000, 2000);
 if (!outDir) {
-  console.error('usage: node render.mjs --out DIR [--seconds 20] [--frame-ms 2000] < look.json');
+  console.error('usage: node render.mjs --out DIR [--seconds S] [--frame-ms 2000] < look.json');
   process.exit(2);
 }
 
@@ -49,15 +51,18 @@ function fail(error) {
 
 // --- inputs (main realm, data only) ------------------------------------------------------------
 let layers;
+let duration = 30;
 try {
   const input = readFileSync(0);
   if (input.length > MAX_LOOK_BYTES) fail('the look is over 1 MB');
   const look = JSON.parse(input.toString('utf8'));
   layers = look && Array.isArray(look.layers) ? look.layers : null;
+  if (look && Number.isFinite(look.duration) && look.duration > 0) duration = Math.min(120, look.duration);
 } catch {
   fail('the look is not JSON');
 }
 if (!layers || !layers.length) fail('the look has no layers');
+const seconds = secondsArg !== undefined && Number.isFinite(+secondsArg) && +secondsArg > 0 ? Math.min(600, +secondsArg) : duration;
 const cathedralText = readFileSync(path.join(HERE, 'cathedral.json'), 'utf8');
 const cathedral = JSON.parse(cathedralText);
 
@@ -151,7 +156,7 @@ try {
 }
 if (!ArrayBuffer.isView(packed) || TA_LENGTH.call(packed) !== channelCount) fail('the render realm returned no frame buffer');
 
-const frames = seconds * FPS;
+const frames = Math.max(1, Math.round(seconds * FPS));
 const data = new Uint8Array(frames * channelCount);
 const step = new vm.Script('__next()', { filename: 'render-box-frame' });
 const layerErrors = new Map();
@@ -183,7 +188,7 @@ writeFileSync(path.join(outDir, 'frames.fseq'), writeFseq({ frames, stepMs: 1000
 Object.assign(result, {
   ok: true,
   frames,
-  seconds,
+  seconds: frames / FPS,
   channels: channelCount,
   ranges: ranges.length,
   msPerFrame: { average: +(total / frames).toFixed(2), worst: +worst.toFixed(2) },

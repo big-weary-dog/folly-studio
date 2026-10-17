@@ -228,7 +228,7 @@ function readLook(message) {
   for (const t of candidates) {
     const look = parseJson(t);
     if (look && typeof look === 'object' && !Array.isArray(look)) {
-      return { title: look.title, summary: look.summary, layers: look.layers };
+      return { title: look.title, summary: look.summary, duration: look.duration, layers: look.layers };
     }
   }
   throw new GenerateError('The AI returned a look the studio could not read.', `unparseable output, stop_reason ${stop}`);

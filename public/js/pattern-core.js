@@ -12,6 +12,7 @@
 //   prepareLayer(scene, layer, compiled)
 //   renderFrame(scene, prepared, t, out?) -> { rgb, errors }
 //   toChannels(scene, rgb, out?, { gamma, brightness }) -> Uint8Array(40800)
+//   layerEnvelope(clips, t), normalizeClips(clips), lookDuration(look)   the timeline
 
 // ---------------------------------------------------------------------------------------------
 // Stdlib
@@ -494,6 +495,70 @@ export function pixelsForGroups(scene, ids) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Timeline: a look lasts `duration` seconds; a layer with clips is lit only inside them
+// ---------------------------------------------------------------------------------------------
+
+export const DEFAULT_DURATION = 30;
+export const MIN_DURATION = 1;
+export const MAX_DURATION = 600;
+export const MAX_CLIPS = 32;
+
+/** A look's length in seconds: `look.duration` held to 1..600, else 30. */
+export function lookDuration(look) {
+  const d = look && look.duration;
+  return isNum(d) ? clamp(d, MIN_DURATION, MAX_DURATION) : DEFAULT_DURATION;
+}
+
+/**
+ * Clips as the renderer uses them: [{ start, end, fadeIn, fadeOut }] with finite numbers,
+ * end > start, fades ≥ 0, sorted by start, at most MAX_CLIPS, a clip that overlaps the one
+ * before it dropped. null when there are none (the layer is always on).
+ */
+export function normalizeClips(clips) {
+  if (!Array.isArray(clips) || !clips.length) return null;
+  const list = [];
+  for (const c of clips) {
+    if (!c || typeof c !== 'object') continue;
+    const start = +c.start, end = +c.end;
+    if (!Number.isFinite(start) || !Number.isFinite(end) || !(end > start)) continue;
+    const fadeIn = +c.fadeIn > 0 && Number.isFinite(+c.fadeIn) ? +c.fadeIn : 0;
+    const fadeOut = +c.fadeOut > 0 && Number.isFinite(+c.fadeOut) ? +c.fadeOut : 0;
+    list.push({ start, end, fadeIn, fadeOut });
+  }
+  list.sort((a, b) => a.start - b.start);
+  const out = [];
+  for (const c of list) {
+    if (out.length >= MAX_CLIPS) break;
+    if (out.length && c.start < out[out.length - 1].end) continue;
+    out.push(c);
+  }
+  return out.length ? out : null;
+}
+
+/**
+ * How much of a layer shows at time t (0..1): 1 with no clips; inside a clip [start, end)
+ * it ramps linearly 0 → 1 over fadeIn and 1 → 0 over fadeOut (the two shrink in proportion
+ * when they add up to more than the clip); 0 outside every clip. Allocation-free.
+ */
+export function layerEnvelope(clips, t) {
+  if (!clips || !clips.length) return 1;
+  let best = 0;
+  for (let i = 0; i < clips.length; i++) {
+    const c = clips[i];
+    const start = c.start, end = c.end;
+    if (!(t >= start && t < end)) continue;
+    let fi = c.fadeIn > 0 ? c.fadeIn : 0, fo = c.fadeOut > 0 ? c.fadeOut : 0;
+    const len = end - start;
+    if (fi + fo > len) { const k = len / (fi + fo); fi *= k; fo *= k; }
+    let v = 1;
+    if (fi > 0 && t < start + fi) v = (t - start) / fi;
+    if (fo > 0 && t > end - fo) { const w = (end - t) / fo; if (w < v) v = w; }
+    if (v > best) best = v;
+  }
+  return best;
+}
+
+// ---------------------------------------------------------------------------------------------
 // Layers
 // ---------------------------------------------------------------------------------------------
 
@@ -532,7 +597,7 @@ function makePixel() {
 /**
  * A layer ready to render: its pixels (from `groups`, default the whole cathedral), their
  * lx/ly/lz (0..1 across this layer's own bounds; 0.5 on a flat axis), a/r round the centre of
- * its pixels in the façade (z–y) plane, and its param values.
+ * its pixels in the façade (z–y) plane, its param values and its clips (normalizeClips).
  */
 export function prepareLayer(scene, layer, compiled) {
   if (!compiled || typeof compiled.pixel !== 'function') throw new Error('prepareLayer: layer is not compiled');
@@ -574,6 +639,7 @@ export function prepareLayer(scene, layer, compiled) {
     schema: compiled.params || {},
     P: resolveParams(compiled.params, layer && layer.params),
     blend, level,
+    clips: normalizeClips(layer && layer.clips),
     enabled: !(layer && layer.enabled === false),
     p: makePixel(),
     buf: new Float64Array(m * 4),
@@ -627,18 +693,24 @@ function runLayer(S, L, t) {
 /**
  * Render every prepared layer at time t (seconds), bottom (index 0) to top, into a
  * Float32Array(count × 3) of linear 0..1 RGB. A layer that throws or returns NaN adds nothing
- * this frame and is reported once in `errors` as { id, error }.
+ * this frame and is reported once in `errors` as { id, error }. A layer's clips scale its
+ * level (layerEnvelope); outside them it does not run at all (no frame(), no pixel()). `t`
+ * stays show time, so motion carries on across a cut.
  */
 export function renderFrame(scene, layers, t, out) {
   const N = scene.count;
   const rgb = out && out.length >= N * 3 ? out : new Float32Array(N * 3);
   rgb.fill(0, 0, N * 3);
   const errors = [];
-  for (const L of layers || []) {
+  const list = layers || [];
+  for (let n = 0; n < list.length; n++) {
+    const L = list[n];
     if (!L || !L.pixel || !L.enabled || !(L.level > 0)) continue;
+    const level = L.clips ? L.level * layerEnvelope(L.clips, t) : L.level;
+    if (!(level > 0)) continue;
     const err = runLayer(scene, L, t);
     if (err) { errors.push({ id: L.id, error: err }); continue; }
-    const idx = L.idx, m = idx.length, buf = L.buf, level = L.level;
+    const idx = L.idx, m = idx.length, buf = L.buf;
     switch (L.blend) {
       case 'over':
         for (let j = 0; j < m; j++) {

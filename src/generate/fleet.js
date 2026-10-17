@@ -19,7 +19,7 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { checkFrames, cleanBoxStats, DEFAULT_MAX_BYTES, failedBake, parseBytes, readUntrusted } from '../bake.js';
+import { checkFrames, cleanBoxStats, DEFAULT_BAKE_SECONDS, failedBake, framesBytesFor, parseBytes, readUntrusted } from '../bake.js';
 import { FOLLY, GROUPS_NOTE, PATTERN_GUIDE, TASTE, formatExamples, formatGroups, pickExamples } from './prompt.js';
 import { GenerateError } from './validate.js';
 
@@ -87,7 +87,7 @@ export function renderBrief(template, { text, library = [], groups = [], lookPat
  * @param {string} [o.model]      gpt-* worker model (STUDIO_FLEET_MODEL, default gpt-6.1-sol)
  * @param {number} [o.timeoutMs]  overall wait (STUDIO_FLEET_TIMEOUT, default 30 min)
  * @param {string} [o.fleetData]  FLEET_DATA for these fleets (STUDIO_FLEET_DATA, else fleet's default ~/.fleet)
- * @param {number} [o.maxFramesBytes] cap on the worker's frames.fseq (STUDIO_FLEET_MAX_FRAMES, default 64 MB)
+ * @param {number} [o.maxFramesBytes] cap on the worker's frames.fseq (STUDIO_FLEET_MAX_FRAMES, default room for 120 s, ≈ 73 MB)
  */
 export function createFleetAdapter(o = {}) {
   const env = o.env || process.env;
@@ -103,7 +103,7 @@ export function createFleetAdapter(o = {}) {
     coreFile: o.coreFile || path.join(STUDIO, 'public/js/pattern-core.js'),
     fseqFile: o.fseqFile || path.join(STUDIO, 'public/js/fseq.js'),
     framesLib: o.framesLib || path.join(STUDIO, 'src/frames.js'),
-    maxFramesBytes: o.maxFramesBytes ?? parseBytes(env.STUDIO_FLEET_MAX_FRAMES, DEFAULT_MAX_BYTES),
+    maxFramesBytes: o.maxFramesBytes ?? parseBytes(env.STUDIO_FLEET_MAX_FRAMES, framesBytesFor(DEFAULT_BAKE_SECONDS)),
     cathedralFile: o.cathedralFile || path.join(STUDIO, 'public/data/cathedral.json'),
     checkFile: o.checkFile || path.join(STUDIO, 'fleet-box/check.mjs'),
     briefTemplate: o.briefTemplate || path.join(STUDIO, 'fleet-box/BRIEF.template.md'),
@@ -339,7 +339,7 @@ export async function readLook(file) {
     if (!look || typeof look !== 'object' || Array.isArray(look)) {
       throw new GenerateError('The Fleet worker left a look the studio could not read.', 'look.json is not an object');
     }
-    return { title: look.title, summary: look.summary, layers: look.layers };
+    return { title: look.title, summary: look.summary, duration: look.duration, layers: look.layers };
   } finally {
     await fh.close();
   }

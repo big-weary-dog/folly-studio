@@ -8,6 +8,8 @@ export const LIMITS = Object.freeze({
   layerTitle: 80,
   summary: 400,
   params: 32,
+  clips: 32,
+  duration: 600,
 });
 export const BLENDS = Object.freeze(['add', 'over', 'max', 'multiply']);
 const BLEND_ALIASES = { maximum: 'max', normal: 'over', mult: 'multiply', screen: 'max', lighten: 'max' };
@@ -89,11 +91,57 @@ function checkParams(params) {
   return out;
 }
 
+const ms = (v) => Math.round(v * 1000) / 1000;
+const time = (v) => (typeof v === 'string' && v.trim() ? Number(v) : v);
+
+/**
+ * A layer's clips as the API stores them: [{ start, end, fadeIn, fadeOut }] seconds within
+ * 0..600, end after start, sorted, at most 32. Bad clips, and one that overlaps the clip
+ * before it, are dropped (noted in `dropped`). None left: the layer is always on.
+ */
+function checkClips(clips, note) {
+  if (clips == null) return [];
+  if (!Array.isArray(clips)) {
+    note('clips is not a list');
+    return [];
+  }
+  const list = [];
+  for (const c of clips) {
+    const start = c && typeof c === 'object' ? time(c.start) : NaN;
+    const end = c && typeof c === 'object' ? time(c.end) : NaN;
+    const fade = (v) => {
+      const n = time(v ?? 0);
+      return typeof n === 'number' && Number.isFinite(n) ? ms(Math.min(LIMITS.duration, Math.max(0, n))) : 0;
+    };
+    const ok = (n) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= LIMITS.duration;
+    if (!ok(start) || !ok(end) || !(ms(end) > ms(start))) {
+      note('a clip without a valid start and end');
+      continue;
+    }
+    list.push({ start: ms(start), end: ms(end), fadeIn: fade(c.fadeIn), fadeOut: fade(c.fadeOut) });
+  }
+  list.sort((a, b) => a.start - b.start);
+  const out = [];
+  for (const c of list) {
+    if (out.length >= LIMITS.clips) note(`more than ${LIMITS.clips} clips`);
+    else if (out.length && c.start < out[out.length - 1].end) note(`a clip at ${c.start} s overlapping the one before`);
+    else out.push(c);
+  }
+  return out;
+}
+
+/** The look's length in seconds (1..600), or undefined for the default (30). */
+function checkDuration(d) {
+  const n = time(d);
+  if (typeof n !== 'number' || !Number.isFinite(n)) return undefined;
+  return ms(Math.min(LIMITS.duration, Math.max(1, n)));
+}
+
 /**
  * Validate and normalise a generator's output.
- * @param {unknown} look `{ title, summary, layers: [{ title, groups, blend, level, params?, code }] }`
+ * @param {unknown} look `{ title, summary, duration?, layers: [{ title, groups, blend, level, params?, clips?, code }] }`
  * @param {{ groups?: Array<{id: string}> }} ctx the cathedral group list (from loadGroups)
- * @returns {{ title: string, summary: string, layers: object[], dropped: string[] }}
+ * @returns {{ title: string, summary: string, duration?: number, layers: object[], dropped: string[] }}
  */
 export function validateLook(look, { groups = [] } = {}) {
   if (!look || typeof look !== 'object' || Array.isArray(look)) {
@@ -119,6 +167,7 @@ export function validateLook(look, { groups = [] } = {}) {
       continue;
     }
     const n = layers.length + 1;
+    const clips = checkClips(layer.clips, (why) => dropped.push(`layer ${i + 1}: ${why}`));
     layers.push({
       id: `l${n}`,
       title: cleanText(layer.title, LIMITS.layerTitle) || `Layer ${n}`,
@@ -127,15 +176,18 @@ export function validateLook(look, { groups = [] } = {}) {
       blend: checkBlend(layer.blend),
       level: checkLevel(layer.level),
       params: checkParams(layer.params),
+      ...(clips.length ? { clips } : {}),
     });
   }
   if (!layers.length) {
     const why = dropped.length ? dropped[0].replace(/^layer \d+: /, '') : 'no layers';
     throw new GenerateError('The generator did not produce a usable pattern.', why);
   }
+  const duration = checkDuration(look.duration);
   return {
     title: cleanText(look.title, LIMITS.title) || 'Untitled look',
     summary: cleanText(look.summary, LIMITS.summary),
+    ...(duration !== undefined ? { duration } : {}),
     layers,
     dropped,
   };

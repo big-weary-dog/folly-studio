@@ -49,6 +49,7 @@ export const api = {
   createLook: (look) => request('POST', '/api/looks', look),
   updateLook: (id, patch) => request('PUT', `/api/looks/${enc(id)}`, patch),
   deleteLook: (id) => request('DELETE', `/api/looks/${enc(id)}`),
+  bake: (id) => request('POST', `/api/looks/${enc(id)}/bake`, {}),
 
   library: () => request('GET', '/api/library'),
 };

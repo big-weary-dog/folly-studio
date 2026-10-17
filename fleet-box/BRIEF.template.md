@@ -35,11 +35,16 @@ summary that you took it loosely.
    - `groups`: ids from the list below (a union). `blend`: add, over, max or multiply.
      `level`: 0..1. `params` (optional) overrides the code's param defaults by name.
    - `code`: a complete pattern script defining `function pixel(p, t, P)`, under 20 kB.
+   - Optional timeline, for ideas that change over time ("starts calm, builds to a storm"):
+     `"duration"` (seconds the look runs before it loops; default 30, at most 600) and, on the
+     layers that come and go, `"clips": [{ "start": 0, "end": 12, "fadeIn": 2, "fadeOut": 3 }]`
+     (seconds; not overlapping; the layer shows only inside its clips, fading linearly). A layer
+     without clips plays throughout, and `t` stays show time across clips. Most looks need none.
 2. Run `node check.mjs`. It compiles every layer with the studio's real runtime
    (`pattern-core.js`), renders frames on the real LED map (`cathedral.json`) and prints
    problems. Fix every ✗ and, where you can, every warning. Iterate on how it looks: render
    more frames with your own scripts if that helps (use only node and the files here).
-3. Bake it: `node check.mjs --bake` renders 20 seconds at 40 fps from t = 0 and writes
+3. Bake it: `node check.mjs --bake` renders the look's duration (at most 120 s) at 40 fps from t = 0 and writes
    `frames.fseq` (the frames themselves) and `stats.json` next to `look.json`, then runs the
    studio's frame checks on them. Fix every ✗ and bake again. The studio checks the frames
    again on its side: large-area flashing faster than 3 times a second (anywhere, in any one

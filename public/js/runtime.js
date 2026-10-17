@@ -5,21 +5,24 @@
 // cookies) and only plain data comes back. This module:
 //   • spawns the iframe, answers its `ready` with `init`, then sends the look;
 //   • pumps frames, at most one in flight, each tagged with a sequence number;
-//   • runs a watchdog: a reply that takes over 2 s means a pattern hung, so the iframe is
-//     torn down and rebuilt, and the layer(s) to blame are parked on a stub until their
-//     code changes (when the culprit is unknown, layers come back one at a time);
+//   • runs a backstop watchdog. The sandbox runs patterns in a Worker and catches hangs itself
+//     (it answers every frame within 1.5 s and reports a hung layer as an error), so this only
+//     fires if the sandbox page itself stops answering: then the iframe is torn down and
+//     rebuilt, and the layer(s) to blame are parked on a stub until their code changes (when
+//     the culprit is unknown, layers come back one at a time);
 //   • renders frames for export.
 
-const FRAME_TIMEOUT_MS = 2000;
+const FRAME_TIMEOUT_MS = 4000;
 const INIT_GRACE_MS = 1500;
 const LOAD_TIMEOUT_MS = 6000;
 const RENDER_STALL_MS = 8000;
+const FROZEN_GAP_MS = 1000;      // a watchdog tick this late: the tab was busy, throttled or frozen
 const PROBATION_FRAMES = 24;
 const RECENT_CHANGE_FRAMES = 12;
 const STUB_CODE = 'function pixel() { return [0, 0, 0]; }';
 const EMPTY = Object.freeze([]);
 
-export const HUNG_MESSAGE = 'Pattern hung: one frame took longer than 2 s, so it is paused. Edit the code to try again.';
+export const HUNG_MESSAGE = 'Pattern hung: the pattern engine stopped answering, so this layer is paused. Edit the code to try again.';
 
 export class Runtime {
   /**
@@ -68,6 +71,7 @@ export class Runtime {
 
     this._onMessage = (e) => this._message(e);
     window.addEventListener('message', this._onMessage);
+    this._lastCheck = performance.now();
     this._watchdog = setInterval(() => this._check(), 200);
   }
 
@@ -241,8 +245,8 @@ export class Runtime {
     this.waits.push({ kind: 'look', since: performance.now() });
     this._post({
       type: 'look',
-      layers: out.map(({ id, title, code, groups, blend, level, params, enabled }) => (
-        { id, title, code, groups, blend, level, params, enabled: enabled !== false })),
+      layers: out.map(({ id, title, code, groups, blend, level, params, clips, enabled }) => (
+        { id, title, code, groups, blend, level, params, ...(clips ? { clips } : {}), enabled: enabled !== false })),
     });
   }
 
@@ -340,8 +344,16 @@ export class Runtime {
   // -- watchdog ---------------------------------------------------------------------------
 
   _check() {
-    if (this.phase === 'dead' || this.phase === 'idle') return;
     const now = performance.now();
+    const gap = now - this._lastCheck;
+    this._lastCheck = now;
+    if (this.phase === 'dead' || this.phase === 'idle') return;
+    if (gap > FROZEN_GAP_MS) {
+      // Replies may be queued behind this very tick: restart the clocks rather than blame patterns.
+      if (this.frameInFlight) this.frameInFlight.sentAt += gap;
+      for (const w of this.waits) w.since += gap;
+      return;
+    }
     if (this.frameInFlight && now - this.frameInFlight.sentAt > FRAME_TIMEOUT_MS) { this._hang('frame'); return; }
     if (!this.waits.length) return;
     for (const w of this.waits) {
