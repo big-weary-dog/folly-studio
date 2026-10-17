@@ -60,7 +60,8 @@ export function exportFseqDialog({ runtime, cathedral, title, duration = 30 }) {
       const ids = { d: nextId('ex'), g: nextId('ex'), b: nextId('ex') };
       // Defaults to the look's duration. Up to 2 minutes: the sandbox hands back full frames.
       const maxSecs = 120;
-      const dur = h('input', { type: 'range', id: ids.d, min: 5, max: maxSecs, step: 1, value: Math.round(Math.min(maxSecs, Math.max(5, duration))) });
+      const secs0 = Math.min(maxSecs, Math.max(1, duration));
+      const dur = h('input', { type: 'range', id: ids.d, min: 1, max: maxSecs, step: 0.25, value: secs0 });
       const durOut = h('output', { for: ids.d });
       const gamma = h('input', { type: 'range', id: ids.g, min: 1, max: 3, step: 0.1, value: 1 });
       const gammaOut = h('output', { for: ids.g });
@@ -77,7 +78,7 @@ export function exportFseqDialog({ runtime, cathedral, title, duration = 30 }) {
         durOut.textContent = `${secs} s`;
         gammaOut.textContent = (+gamma.value).toFixed(1);
         brightOut.textContent = `${bright.value}%`;
-        const frames = secs * FPS;
+        const frames = Math.round(secs * FPS);
         const mb = (frames * usedCount) / 1e6;
         info.textContent = `${frames.toLocaleString()} frames at ${FPS} fps · the ${usedCount.toLocaleString()} channels the LEDs use, in ${ranges.length} sparse ranges of the ${channelCount.toLocaleString()}-channel layout · about ${mb < 10 ? mb.toFixed(1) : mb.toFixed(0)} MB, uncompressed FSEQ v2.`;
       };
@@ -91,7 +92,7 @@ export function exportFseqDialog({ runtime, cathedral, title, duration = 30 }) {
         go.disabled = true;
         for (const el of [dur, gamma, bright]) el.disabled = true;
         bar.hidden = false;
-        const frames = +dur.value * FPS;
+        const frames = Math.round(+dur.value * FPS);
         bar.max = frames;
         bar.value = 0;
         status.textContent = 'Rendering…';
@@ -138,7 +139,7 @@ export function exportFseqDialog({ runtime, cathedral, title, duration = 30 }) {
   });
 }
 
-export function exportLookJson({ title, summary, layers }) {
-  const data = JSON.stringify({ title, summary, layers }, null, 2) + '\n';
+export function exportLookJson({ title, summary, layers, duration, bpm }) {
+  const data = JSON.stringify({ title, summary, duration, ...(bpm ? { bpm } : {}), layers }, null, 2) + '\n';
   download(data, `${slugify(title, 'folly-look')}.json`, 'application/json');
 }

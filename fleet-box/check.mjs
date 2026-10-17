@@ -37,8 +37,10 @@ if (!existsSync(new URL('./pattern-core.js', import.meta.url)) || !existsSync(ne
   process.exit(1);
 }
 const core = await import('./pattern-core.js');
-const DURATION = Number.isFinite(look?.duration) && look.duration >= 1 && look.duration <= LIMITS.duration ? look.duration : 30;
-const SECONDS = Number(option('--seconds')) > 0 ? Math.min(LIMITS.duration, Number(option('--seconds'))) : Math.min(120, DURATION);
+const goodDuration = Number.isFinite(look?.duration) && look.duration >= 1 && look.duration <= LIMITS.duration;
+const DURATION = goodDuration ? look.duration : 30;
+const askedSeconds = Number(option('--seconds'));
+const SECONDS = askedSeconds > 0 ? Math.min(LIMITS.duration, askedSeconds) : Math.min(120, DURATION);
 const cathedral = JSON.parse(readFileSync(new URL('./cathedral.json', import.meta.url), 'utf8'));
 const groupIds = new Set((cathedral.groups || []).map((g) => g.id));
 
@@ -49,7 +51,9 @@ if (typeof look.summary !== 'string' || !look.summary.trim()) warnings.push('sum
 else if (look.summary.length > LIMITS.summary) warnings.push(`summary is over ${LIMITS.summary} characters and will be cut`);
 const layers = Array.isArray(look.layers) ? look.layers : [];
 if (!layers.length) errors.push('layers is empty');
-if (look.duration != null && DURATION !== look.duration) warnings.push(`duration must be 1..${LIMITS.duration} seconds; the studio will use 30`);
+if (look.duration != null && !goodDuration) {
+  warnings.push(`duration must be 1..${LIMITS.duration} seconds; the studio will use 30`);
+}
 if (layers.length > LIMITS.layers) errors.push(`${layers.length} layers: at most ${LIMITS.layers}`);
 
 let prepared = [];
@@ -74,10 +78,19 @@ layers.slice(0, LIMITS.layers).forEach((layer, i) => {
   if (layer.level != null && !(typeof layer.level === 'number' && layer.level >= 0 && layer.level <= 1)) errors.push(`${name}: level must be a number 0..1`);
   // Clips: what the runtime keeps (normalizeClips) is what the studio keeps; say what goes.
   const clips = layer.clips == null ? null : core.normalizeClips(layer.clips);
-  if (layer.clips != null && !Array.isArray(layer.clips)) errors.push(`${name}: clips must be an array of { start, end, fadeIn, fadeOut }`);
-  else if (Array.isArray(layer.clips) && layer.clips.length !== (clips ? clips.length : 0)) warnings.push(`${name}: ${layer.clips.length - (clips ? clips.length : 0)} clip(s) are invalid, overlap another or are over ${LIMITS.clips}, and will be dropped`);
-  if (clips && clips.some((c) => c.end > LIMITS.duration)) errors.push(`${name}: clips must end by ${LIMITS.duration} s`);
-  if (clips && clips.every((c) => c.start >= DURATION)) warnings.push(`${name}: every clip starts after the look ends (${DURATION} s), so it never shows`);
+  const lost = Array.isArray(layer.clips) ? layer.clips.length - (clips ? clips.length : 0) : 0;
+  if (layer.clips != null && !Array.isArray(layer.clips)) {
+    errors.push(`${name}: clips must be an array of { start, end, fadeIn, fadeOut }`);
+  } else if (lost) {
+    const why = `invalid, overlap another or are over ${LIMITS.clips}`;
+    warnings.push(`${name}: ${lost} clip(s) are ${why}, and will be dropped`);
+  }
+  if (clips && clips.some((c) => c.end > LIMITS.duration)) {
+    errors.push(`${name}: clips must end by ${LIMITS.duration} s`);
+  }
+  if (clips && clips.every((c) => c.start >= DURATION)) {
+    warnings.push(`${name}: every clip starts after the look ends (${DURATION} s), so it never shows`);
+  }
   let compiled;
   try {
     compiled = core.compilePattern(layer.code);

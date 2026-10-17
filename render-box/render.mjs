@@ -62,7 +62,8 @@ try {
   fail('the look is not JSON');
 }
 if (!layers || !layers.length) fail('the look has no layers');
-const seconds = secondsArg !== undefined && Number.isFinite(+secondsArg) && +secondsArg > 0 ? Math.min(600, +secondsArg) : duration;
+const askedSeconds = secondsArg !== undefined && Number.isFinite(+secondsArg) && +secondsArg > 0 ? +secondsArg : 0;
+const seconds = askedSeconds ? Math.min(600, askedSeconds) : duration;
 const cathedralText = readFileSync(path.join(HERE, 'cathedral.json'), 'utf8');
 const cathedral = JSON.parse(cathedralText);
 

@@ -132,7 +132,8 @@ const LAYER_KEYS = new Set(['id', 'title', 'code', 'groups', 'blend', 'level', '
 const ms = (v) => Math.round(v * 1000) / 1000; // times are kept to the millisecond
 
 function seconds(v, what, lo = 0, hi = MAX_DURATION) {
-  if (typeof v !== 'number' || !Number.isFinite(v) || v < lo || v > hi) bad(`${what} must be a number of seconds from ${lo} to ${hi}.`);
+  const ok = typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi;
+  if (!ok) bad(`${what} must be a number of seconds from ${lo} to ${hi}.`);
   return ms(v);
 }
 
@@ -146,11 +147,14 @@ function cleanClips(v, at) {
     const start = seconds(c.start, `${where}: start`);
     const end = seconds(c.end, `${where}: end`);
     if (!(end > start)) bad(`${where}: end must be after start.`);
-    return { start, end, fadeIn: seconds(c.fadeIn ?? 0, `${where}: fadeIn`), fadeOut: seconds(c.fadeOut ?? 0, `${where}: fadeOut`) };
+    const fadeIn = seconds(c.fadeIn ?? 0, `${where}: fadeIn`);
+    const fadeOut = seconds(c.fadeOut ?? 0, `${where}: fadeOut`);
+    return { start, end, fadeIn, fadeOut };
   });
   clips.sort((a, b) => a.start - b.start);
   for (let j = 1; j < clips.length; j++) {
-    if (clips[j].start < clips[j - 1].end) bad(`${at}: clips overlap (${clips[j - 1].start}–${clips[j - 1].end} s and ${clips[j].start}–${clips[j].end} s).`);
+    const a = clips[j - 1], b = clips[j];
+    if (b.start < a.end) bad(`${at}: clips overlap (${a.start}–${a.end} s and ${b.start}–${b.end} s).`);
   }
   return clips;
 }
@@ -158,7 +162,8 @@ function cleanClips(v, at) {
 const cleanDuration = (v) => seconds(v, 'duration', 1, MAX_DURATION);
 function cleanBpm(v) {
   if (v === null) return undefined; // clears it
-  if (typeof v !== 'number' || !Number.isFinite(v) || v < 40 || v > 240) bad('bpm must be a number from 40 to 240, or null.');
+  const ok = typeof v === 'number' && Number.isFinite(v) && v >= 40 && v <= 240;
+  if (!ok) bad('bpm must be a number from 40 to 240, or null.');
   return ms(v);
 }
 
@@ -215,7 +220,8 @@ export function validateLayers(layers) {
       if (LAYER_KEYS.has(k) || Object.keys(extra).length >= 16 || k.length > 64) continue;
       if (typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v)) || isShortString(v)) extra[k] = v;
     }
-    return { id, title, code: l.code, groups: [...groups], blend, level, params: { ...params }, ...(clips.length ? { clips } : {}), ...extra };
+    const timing = clips.length ? { clips } : {};
+    return { id, title, code: l.code, groups: [...groups], blend, level, params: { ...params }, ...timing, ...extra };
   });
 }
 
@@ -276,21 +282,7 @@ export function createApi({ store, auth, queue, adapterName = 'sketch', loaders,
     return look;
   }
 
-  function enqueue(idea) {
-    const fail = (err) => {
-      log.error?.(`generator: enqueue failed for idea ${idea.id}:`, err);
-      const cur = store.ideas.get(idea.id);
-      if (cur && (cur.status === 'queued' || cur.status === 'generating')) {
-        store.ideas.update(idea.id, { status: 'failed', error: 'The idea could not be queued.' });
-      }
-    };
-    try {
-      const r = queue.enqueue(idea);
-      if (r && typeof r.then === 'function') r.then(undefined, fail);
-    } catch (err) {
-      fail(err);
-    }
-  }
+  const enqueue = (idea) => enqueueIdea({ queue, store, log }, idea);
 
   const routes = [
     // --- accounts
@@ -435,10 +427,15 @@ export function createApi({ store, auth, queue, adapterName = 'sketch', loaders,
         }
         const layersChanged = 'layers' in patch || 'duration' in patch;
         if (layersChanged) {
-          const prev = { title: look.title, summary: look.summary ?? '', layers: look.layers ?? [], duration: look.duration ?? DEFAULT_DURATION, savedAt: look.updatedAt };
+          const prev = {
+            title: look.title, summary: look.summary ?? '', layers: look.layers ?? [],
+            duration: look.duration ?? DEFAULT_DURATION, savedAt: look.updatedAt,
+          };
           patch.versions = [...(Array.isArray(look.versions) ? look.versions : []), prev].slice(-MAX_VERSIONS);
         }
-        const changes = ['title', 'summary', 'shared', 'bpm'].filter((k) => k in patch && patch[k] !== (look[k] ?? (k === 'summary' ? '' : k === 'shared' ? false : undefined)));
+        const unset = { summary: '', shared: false };
+        const changes = ['title', 'summary', 'shared', 'bpm']
+          .filter((k) => k in patch && patch[k] !== (look[k] ?? unset[k]));
         if (layersChanged) changes.push('layers');
 
         // Only the owner edits; a curator may also set `reviewed` on a look shared with them.
@@ -573,6 +570,23 @@ export function createApi({ store, auth, queue, adapterName = 'sketch', loaders,
 // ---------------------------------------------------------------------------
 // Generator queue
 
+/** Hand an idea to the generator queue; if that fails, mark the idea failed. */
+function enqueueIdea({ queue, store, log }, idea) {
+  const fail = (err) => {
+    log.error?.(`generator: enqueue failed for idea ${idea.id}:`, err);
+    const cur = store.ideas.get(idea.id);
+    if (cur && (cur.status === 'queued' || cur.status === 'generating')) {
+      store.ideas.update(idea.id, { status: 'failed', error: 'The idea could not be queued.' });
+    }
+  };
+  try {
+    const r = queue.enqueue(idea);
+    if (r && typeof r.then === 'function') r.then(undefined, fail);
+  } catch (err) {
+    fail(err);
+  }
+}
+
 function fallbackQueue(store, reason) {
   return {
     adapterName: 'none',
@@ -672,6 +686,10 @@ export async function createServer(opts = {}) {
   const bakes = createBakeQueue({ store, box, framesDir, cathedralFile: path.join(publicDir, 'data', 'cathedral.json'), log });
   const api = createApi({ store, auth, queue, adapterName, loaders, log, trustProxy, maxIdeasPerDay, framesDir, bakes });
   const serveStatic = createStatic({ publicDir, log });
+  // Ideas a restart cut short go back in the queue (enqueue is idempotent per id).
+  for (const idea of store.ideas.list((i) => i.status === 'queued' || i.status === 'generating')) {
+    enqueueIdea({ queue, store, log }, idea);
+  }
 
   async function handler(req, res) {
     applySecurityHeaders(res);

@@ -17,6 +17,7 @@ xLights/FPP `.fseq` today, live sACN later).
 | Pattern runtime | `public/js/pattern-core.js`, `public/sandbox.html` | Stdlib, compile, layer compositing, DMX packing. Runs only in a sandboxed, network-less, cookie-less iframe. |
 | Library | `public/patterns/` | A dozen geometric/maths patterns to start from and to teach the generators. |
 | Studio UI | `public/index.html`, `public/js/` | Groups tree · 3D view · layers + params · code editor · transport · export. |
+| Timeline | `public/js/ui/timeline*.js` | Clips with fades place each layer in time; a look runs `duration` seconds; importing a look sequences it after this one. |
 | Accounts & storage | `server.js`, `src/` | Zero-dependency Node: scrypt passwords, hashed session tokens, JSON-file store, per-user ideas and looks, a shared gallery, curator role. |
 | Idea → code | `src/generate/` | `sketch` (offline keyword matcher), `claude` (one API call), `fleet` (boxed worker, experimental). |
 | `.fseq` export | `public/js/fseq.js` | FSEQ v2, 40 fps, 80 × 510 channels, the same addressing as the xLights layout. |
@@ -113,7 +114,8 @@ Fit, honestly:
 
 ## Roadmap
 
-1. Timeline: cues that crossfade layer levels over time, like `folly_cues` and `shows/show.tsv`.
+1. Timeline, next: crossfades between imported looks, and markers for sections and cues
+   (`folly_cues`, `shows/show.tsv`).
 2. Music: load a track, a shared clock, `beat(t, bpm)` locked to it, `.fseq` with media header.
 3. Generator repair loop and "remix this look" prompts.
 4. Live output to Mirage and the Folly; the formula tier and TD export.

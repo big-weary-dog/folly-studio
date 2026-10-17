@@ -139,7 +139,8 @@ function checkDuration(d) {
 
 /**
  * Validate and normalise a generator's output.
- * @param {unknown} look `{ title, summary, duration?, layers: [{ title, groups, blend, level, params?, clips?, code }] }`
+ * @param {unknown} look
+ *   `{ title, summary, duration?, layers: [{ title, groups, blend, level, params?, clips?, code }] }`
  * @param {{ groups?: Array<{id: string}> }} ctx the cathedral group list (from loadGroups)
  * @returns {{ title: string, summary: string, duration?: number, layers: object[], dropped: string[] }}
  */

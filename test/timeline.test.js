@@ -22,12 +22,17 @@ const cathedral = JSON.parse(fs.readFileSync(path.join(PUBLIC, 'data/cathedral.j
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const near = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) <= eps, `${a} ≉ ${b}`);
 const WHITE = 'function pixel() { return [1, 1, 1]; }';
+const RED = 'function pixel() { return [1, 0, 0]; }';
+/** A clip as the API and the runtime keep it. */
+const clip = (start, end, fadeIn = 0, fadeOut = 0) => ({ start, end, fadeIn, fadeOut });
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-timeline-'));
 after(() => fs.rmSync(tmpRoot, { recursive: true, force: true }));
 
 describe('layerEnvelope', () => {
   test('no clips: always on', () => {
-    for (const clips of [undefined, null, []]) for (const t of [-1, 0, 5, 1e6]) assert.equal(layerEnvelope(clips, t), 1);
+    for (const clips of [undefined, null, []]) {
+      for (const t of [-1, 0, 5, 1e6]) assert.equal(layerEnvelope(clips, t), 1);
+    }
   });
 
   test('a hard clip is [start, end): on from start, off at end', () => {
@@ -79,10 +84,8 @@ describe('normalizeClips and lookDuration', () => {
     assert.equal(normalizeClips(undefined), null);
     assert.equal(normalizeClips([]), null);
     assert.equal(normalizeClips([{ start: 3, end: 1 }, null, { start: 'x', end: 2 }]), null);
-    assert.deepEqual(normalizeClips([{ start: 5, end: 6 }, { start: 0, end: 2, fadeIn: -1, fadeOut: 0.5 }, { start: 1, end: 3 }]), [
-      { start: 0, end: 2, fadeIn: 0, fadeOut: 0.5 },
-      { start: 5, end: 6, fadeIn: 0, fadeOut: 0 },
-    ]);
+    const messy = [{ start: 5, end: 6 }, { start: 0, end: 2, fadeIn: -1, fadeOut: 0.5 }, { start: 1, end: 3 }];
+    assert.deepEqual(normalizeClips(messy), [clip(0, 2, 0, 0.5), clip(5, 6)]);
     assert.equal(normalizeClips(Array.from({ length: 40 }, (_, i) => ({ start: i, end: i + 0.5 }))).length, 32);
   });
 
@@ -107,8 +110,9 @@ describe('renderFrame with clips', () => {
   }
 
   test('carries clips through prepareLayer', () => {
-    const L = prepareLayer(scene, { id: 'a', clips: [{ start: 4, end: 5 }, { start: 1, end: 2, fadeIn: 0.5 }] }, compilePattern(WHITE));
-    assert.deepEqual(L.clips, [{ start: 1, end: 2, fadeIn: 0.5, fadeOut: 0 }, { start: 4, end: 5, fadeIn: 0, fadeOut: 0 }]);
+    const L = prepareLayer(scene, { id: 'a', clips: [{ start: 4, end: 5 }, { start: 1, end: 2, fadeIn: 0.5 }] },
+      compilePattern(WHITE));
+    assert.deepEqual(L.clips, [clip(1, 2, 0.5), clip(4, 5)]);
     assert.equal(prepareLayer(scene, { id: 'b' }, compilePattern(WHITE)).clips, null);
     assert.equal(prepareLayer(scene, { id: 'c', clips: [] }, compilePattern(WHITE)).clips, null);
   });
@@ -138,7 +142,7 @@ describe('renderFrame with clips', () => {
     assert.equal(s.t, 11, 'pattern time is show time, not clip time');
     // Blends other than add see the scaled level too.
     const base = prepareLayer(scene, { id: 'base' }, compilePattern('function pixel() { return [0, 0, 1]; }'));
-    const over = prepareLayer(scene, { id: 'o', blend: 'over', clips: [{ start: 0, end: 2, fadeIn: 2 }] }, compilePattern('function pixel() { return [1, 0, 0]; }'));
+    const over = prepareLayer(scene, { id: 'o', blend: 'over', clips: [clip(0, 2, 2)] }, compilePattern(RED));
     const mixed = renderFrame(scene, [base, over], 1).rgb;
     near(mixed[0], 0.5, 1e-6);
     near(mixed[2], 0.5, 1e-6);
@@ -169,11 +173,12 @@ describe('validation', () => {
     assert.equal('clips' in none, false, 'empty clips: always on, stored as no clips');
     assert.equal('clips' in validateLayers([{ code: WHITE }])[0], false);
     // Fades longer than the clip are kept; the envelope shrinks them when it plays.
-    assert.deepEqual(validateLayers([layer([{ start: 0, end: 1, fadeIn: 3, fadeOut: 3 }])])[0].clips, [{ start: 0, end: 1, fadeIn: 3, fadeOut: 3 }]);
+    assert.deepEqual(validateLayers([layer([clip(0, 1, 3, 3)])])[0].clips, [clip(0, 1, 3, 3)]);
   });
 
   test('API: overlaps, out-of-range and malformed clips are refused', () => {
-    const refuse = (clips, re) => assert.throws(() => validateLayers([layer(clips)]), (e) => e.status === 400 && re.test(e.message), JSON.stringify(clips));
+    const refuse = (clips, re) => assert.throws(() => validateLayers([layer(clips)]),
+      (e) => e.status === 400 && re.test(e.message), JSON.stringify(clips));
     refuse([{ start: 0, end: 3 }, { start: 2, end: 4 }], /clips overlap/);
     refuse([{ start: 4, end: 6 }, { start: 0, end: 4.5 }], /clips overlap/);
     refuse([{ start: -1, end: 2 }], /start must be a number of seconds from 0 to 600/);
@@ -187,7 +192,8 @@ describe('validation', () => {
     refuse([[0, 1]], /clip 1 must be an object/);
     refuse({ start: 0, end: 1 }, /clips must be an array/);
     refuse(Array.from({ length: 33 }, (_, i) => ({ start: i, end: i + 0.5 })), /at most 32 clips/);
-    assert.equal(validateLayers([layer(Array.from({ length: 32 }, (_, i) => ({ start: i, end: i + 1 })))])[0].clips.length, 32);
+    const most = Array.from({ length: 32 }, (_, i) => clip(i, i + 1));
+    assert.equal(validateLayers([layer(most)])[0].clips.length, 32);
   });
 
   test('generator: clips and duration are normalised, bad ones dropped and noted', () => {
@@ -197,13 +203,17 @@ describe('validation', () => {
       duration: '90',
       layers: [
         { title: 'Base', code: WHITE },
-        { title: 'Storm', code: WHITE, clips: [{ start: 40, end: 90, fadeIn: 5, fadeOut: -2 }, { start: 30, end: 45 }, { start: 'x', end: 3 }, { start: 0, end: 10 }] },
+        {
+          title: 'Storm', code: WHITE,
+          clips: [{ start: 40, end: 90, fadeIn: 5, fadeOut: -2 }, { start: 30, end: 45 }, { start: 'x', end: 3 },
+            clip(0, 10)],
+        },
         { title: 'Odd', code: WHITE, clips: 'soon' },
       ],
     });
     assert.equal(v.duration, 90);
     assert.equal('clips' in v.layers[0], false);
-    assert.deepEqual(v.layers[1].clips, [{ start: 0, end: 10, fadeIn: 0, fadeOut: 0 }, { start: 30, end: 45, fadeIn: 0, fadeOut: 0 }]);
+    assert.deepEqual(v.layers[1].clips, [clip(0, 10), clip(30, 45)]);
     assert.equal('clips' in v.layers[2], false);
     assert.equal(v.dropped.length, 3);
     assert.ok(v.dropped.some((d) => /overlapping/.test(d)));
@@ -223,20 +233,27 @@ function fakeBox(maxSeconds = 4) {
     async render({ seconds }) {
       this.asked.push(seconds);
       const frames = Math.round(Math.min(maxSeconds, seconds) * 40);
-      return { bytes: Buffer.from(writeFseq({ frames, data: new Uint8Array(frames * 3).fill(100), ranges: [[0, 3]] })), boxStats: { untrusted: true, reported: {} } };
+      const data = new Uint8Array(frames * 3).fill(100);
+      const bytes = Buffer.from(writeFseq({ frames, data, ranges: [[0, 3]] }));
+      return { bytes, boxStats: { untrusted: true, reported: {} } };
     },
   };
 }
 
 async function startApp(renderBox, name) {
-  const app = await createServer({ dataDir: path.join(tmpRoot, name), publicDir: PUBLIC, generator: { enqueue() {}, async idle() {} }, renderBox, log: quiet });
+  const generator = { enqueue() {}, async idle() {} };
+  const dataDir = path.join(tmpRoot, name);
+  const app = await createServer({ dataDir, publicDir: PUBLIC, generator, renderBox, log: quiet });
   const { port } = await app.listen(0);
   const base = `http://127.0.0.1:${port}`;
-  const r = await fetch(`${base}/api/signup`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: `${name}-owner`, password: 'correct horse' }) });
+  const json = { 'content-type': 'application/json' };
+  const account = JSON.stringify({ username: `${name}-owner`, password: 'correct horse' });
+  const r = await fetch(`${base}/api/signup`, { method: 'POST', headers: json, body: account });
   const cookie = r.headers.getSetCookie()[0].split(';')[0];
-  app.call = (method, p, body) =>
-    fetch(base + p, { method, headers: { cookie, 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) })
-      .then(async (res) => ({ status: res.status, json: await res.json().catch(() => null) }));
+  app.call = async (method, p, body) => {
+    const res = await fetch(base + p, { method, headers: { cookie, ...json }, body: body && JSON.stringify(body) });
+    return { status: res.status, json: await res.json().catch(() => null) };
+  };
   return app;
 }
 
@@ -249,17 +266,21 @@ describe('the API: duration and bpm', () => {
       assert.equal(plain.duration, 30, 'a look without one runs 30 s');
       assert.equal('bpm' in plain, false);
 
-      for (const bad of [{ duration: 0.5 }, { duration: 601 }, { duration: '30' }, { duration: null }, { bpm: 39 }, { bpm: 241 }, { bpm: '120' }]) {
+      const bads = [{ duration: 0.5 }, { duration: 601 }, { duration: '30' }, { duration: null }];
+      bads.push({ bpm: 39 }, { bpm: 241 }, { bpm: '120' });
+      for (const bad of bads) {
         const r = await app.call('POST', '/api/looks', { title: 'Bad', layers: [{ code: WHITE }], ...bad });
         assert.equal(r.status, 400, JSON.stringify(bad));
         assert.match(r.json.error, /duration must be|bpm must be/);
       }
       const clipped = { code: WHITE, clips: [{ start: 1, end: 2 }] };
-      const look = (await app.call('POST', '/api/looks', { title: 'Timed', layers: [clipped], duration: 12.5, bpm: 128 })).json.look;
+      const timed = { title: 'Timed', layers: [clipped], duration: 12.5, bpm: 128 };
+      const look = (await app.call('POST', '/api/looks', timed)).json.look;
       assert.equal(look.duration, 12.5);
       assert.equal(look.bpm, 128);
       assert.deepEqual(look.layers[0].clips, [{ start: 1, end: 2, fadeIn: 0, fadeOut: 0 }]);
-      const overlap = await app.call('PUT', `/api/looks/${look.id}`, { layers: [{ code: WHITE, clips: [{ start: 0, end: 2 }, { start: 1, end: 3 }] }] });
+      const crossing = [{ code: WHITE, clips: [{ start: 0, end: 2 }, { start: 1, end: 3 }] }];
+      const overlap = await app.call('PUT', `/api/looks/${look.id}`, { layers: crossing });
       assert.equal(overlap.status, 400);
       assert.match(overlap.json.error, /Layer 1: clips overlap/);
 
@@ -310,12 +331,13 @@ describe('the API: duration and bpm', () => {
 
 // The real render box (bubblewrap). Skips, saying why, where it cannot run.
 const probe = await createRenderBox({ log: quiet }).probe();
-describe('baking a sequenced look in the render box', { skip: !probe.ok && `render box unavailable here: ${probe.reason}` }, () => {
+const skip = !probe.ok && `render box unavailable here: ${probe.reason}`;
+describe('baking a sequenced look in the render box', { skip }, () => {
   test('a 2-clip layer over a dim base: lit in its clips, dark between, for the look\'s duration', async () => {
     const box = createRenderBox({ seconds: 120, log: quiet });
     const layers = [
       { id: 'base', code: 'function pixel() { return [0, 0, 0.2]; }', groups: ['cathedral'] },
-      { id: 'hits', code: 'function pixel(p, t) { return [1, 0, 0]; }', groups: ['cathedral'], clips: [{ start: 0.5, end: 1.5 }, { start: 2.5, end: 3.5, fadeIn: 0.5 }] },
+      { id: 'hits', code: RED, groups: ['cathedral'], clips: [clip(0.5, 1.5), clip(2.5, 3.5, 0.5)] },
     ];
     const { bytes, seconds } = await box.render({ layers, seconds: 4 });
     assert.equal(seconds, 4);

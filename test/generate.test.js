@@ -795,8 +795,11 @@ describe('fleet-box/check.mjs (boxed worker side, real runtime)', () => {
     fs.writeFileSync(path.join(dir, 'timed.json'), JSON.stringify({
       title: 'Timed', summary: 's', duration: 1.5,
       layers: [
-        { title: 'base', groups: ['cathedral'], blend: 'add', level: 1, code: 'function pixel() { return [0, 0, 0.5]; }' },
-        { title: 'hit', groups: ['cathedral'], blend: 'add', level: 1, clips: [{ start: 0.5, end: 1, fadeIn: 0, fadeOut: 0 }, { start: 0.75, end: 2 }], code: 'function pixel() { return [1, 0, 0]; }' },
+        { title: 'base', groups: ['cathedral'], code: 'function pixel() { return [0, 0, 0.5]; }' },
+        {
+          title: 'hit', groups: ['cathedral'], code: 'function pixel() { return [1, 0, 0]; }',
+          clips: [{ start: 0.5, end: 1, fadeIn: 0, fadeOut: 0 }, { start: 0.75, end: 2 }],
+        },
       ],
     }));
     const timed = await run(dir, 'timed.json', ['--bake']);

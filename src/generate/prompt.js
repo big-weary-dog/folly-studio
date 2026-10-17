@@ -202,7 +202,8 @@ ${TASTE}
 ${index ? `The studio library has these patterns; adapt their ideas freely:\n${index}\n\n` : ''}${examples.length ? `Examples of good pattern code:\n\n${formatExamples(examples)}` : ''}
 
 # What to return
-A JSON object { "title", "summary", "duration"?, "layers": [{ "title", "groups", "blend", "level", "clips"?, "code" }] }:
+A JSON object { "title", "summary", "duration"?,
+"layers": [{ "title", "groups", "blend", "level", "clips"?, "code" }] }:
 - title: a short evocative name for the look (at most ${LIMITS.title} characters).
 - summary: one to three sentences on what people will see and where (at most ${LIMITS.summary} characters).
 - layers: 1 to ${LIMITS.layers}, bottom first. Usually a base layer on "cathedral" and one or two
@@ -269,7 +270,10 @@ export function lookSchema(groups = []) {
               type: 'array',
               items: {
                 type: 'object',
-                properties: { start: { type: 'number' }, end: { type: 'number' }, fadeIn: { type: 'number' }, fadeOut: { type: 'number' } },
+                properties: {
+                  start: { type: 'number' }, end: { type: 'number' },
+                  fadeIn: { type: 'number' }, fadeOut: { type: 'number' },
+                },
                 required: ['start', 'end', 'fadeIn', 'fadeOut'],
                 additionalProperties: false,
               },

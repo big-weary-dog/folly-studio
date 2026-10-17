@@ -1,0 +1,180 @@
+/* Folly Studio — the timeline (js/ui/timeline*.js) and the dock's Timeline tab. The Studio loads
+   this; the login page does not. */
+
+/* ---- the dock on a wide screen: Timeline beside Code ------------------------------------ */
+.studio .pane-time { display: none; }
+.dock-tools { display: flex; align-items: center; flex: 1; min-width: 0; }
+.dock-tools .btn { margin-left: 0; }
+.tl-body { display: flex; flex-direction: column; flex: none; min-height: 0; }
+@media (min-width: 900px) {
+  .studio[data-dock=timeline] { grid-template-rows: auto auto minmax(0, 1fr) 0 auto; }
+  .studio[data-dock=timeline] .splitter, .studio[data-dock=timeline] .code-body,
+  .studio[data-dock=timeline] .dock-code-only { display: none !important; }
+  .studio[data-dock=code] .tl-body, .studio[data-dock=code] .dock-tools,
+  .studio.code-collapsed .tl-body, .studio.code-collapsed .dock-tools { display: none; }
+  .studio[data-dock=timeline] .dock-issue:not([hidden]) { display: inline-block; }
+  .studio[data-dock=timeline] .dock-head { min-height: 34px; padding-top: 0; padding-bottom: 0; }
+  .studio[data-dock=timeline]:not(.code-collapsed) .dock-head { border-top: 1px solid var(--line); }
+}
+
+/* ---- the timeline ---------------------------------------------------------------------- */
+.tl { --tl-row: 20px; --tl-ruler: 16px; position: relative; display: flex; flex-direction: column; min-width: 0; }
+.tl-scroll {
+  position: relative; overflow: auto; max-height: min(30vh, 200px); outline: none;
+  overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--line-3) transparent;
+}
+.tl-scroll:focus-visible { box-shadow: inset 0 0 0 2px var(--focus); }
+.tl-inner { position: relative; width: calc(var(--tl-names, 0px) + var(--tl-w, 100%)); min-width: 100%; }
+.tl-head-row {
+  position: sticky; top: 0; z-index: 4; display: flex; height: var(--tl-ruler);
+  background: var(--bg-1); border-bottom: 1px solid var(--line);
+}
+.tl-corner {
+  position: sticky; left: 0; z-index: 1; flex: none; width: var(--tl-names); padding: 1px 8px;
+  font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3);
+  background: var(--bg-1); border-right: 1px solid var(--line);
+}
+.tl-ruler { position: relative; flex: none; width: var(--tl-w); cursor: pointer; touch-action: none; }
+.tl-ruler-canvas { position: sticky; left: var(--tl-names); display: block; height: var(--tl-ruler); }
+.tl-row { display: flex; height: var(--tl-row); border-bottom: 1px solid var(--line); }
+.tl-name {
+  position: sticky; left: 0; z-index: 3; flex: none; width: var(--tl-names); padding: 0 8px;
+  background: var(--bg-1); border: 0; border-right: 1px solid var(--line); color: var(--text-2);
+  font-size: 12px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
+}
+.tl-name:hover { color: var(--text); }
+.tl-row.selected .tl-name { color: var(--text); background: var(--bg-3); box-shadow: inset 3px 0 0 var(--amber); }
+.tl-lane {
+  position: relative; flex: none; width: var(--tl-w);
+  --tl-line: rgba(255, 255, 255, .045);
+  background-image: repeating-linear-gradient(to right, var(--tl-line) 0 1px, transparent 1px var(--tl-grid, 40px));
+}
+.tl.beats .tl-lane { --tl-line: rgba(109, 152, 255, .09); }
+.tl-row.selected .tl-lane { background-color: rgba(109, 152, 255, .05); }
+.tl-lane::after { /* after the look's end */
+  content: ''; position: absolute; top: 0; bottom: 0; left: var(--tl-dur); right: 0;
+  background: rgba(0, 0, 0, .4); pointer-events: none;
+}
+.tl-always {
+  position: absolute; top: 3px; bottom: 3px; left: 0; width: var(--tl-dur); display: flex; align-items: center;
+  padding-left: 8px; border: 1px dashed var(--line-3); border-radius: 4px; color: var(--text-3);
+  font-size: 10.5px; white-space: nowrap; overflow: hidden; pointer-events: none;
+}
+.tl-clip {
+  position: absolute; top: 2px; bottom: 2px; min-width: 2px; border-radius: 4px; outline: none;
+  background: rgba(109, 152, 255, .5); border: 1px solid #8fb0ff; cursor: grab; touch-action: none;
+}
+.tl-clip::before, .tl-clip::after { /* the trim handles */
+  content: ''; position: absolute; top: 0; bottom: 0; width: 7px; cursor: ew-resize;
+}
+.tl-clip::before { left: -1px; border-radius: 4px 0 0 4px; }
+.tl-clip::after { right: -1px; border-radius: 0 4px 4px 0; }
+.tl-clip:hover::before, .tl-clip:hover::after { background: rgba(255, 255, 255, .22); }
+.tl-clip.selected {
+  background: rgba(242, 177, 72, .55); border-color: var(--amber); box-shadow: 0 0 0 1px var(--amber);
+}
+.tl-clip:focus-visible { box-shadow: 0 0 0 2px var(--focus); }
+.tl-clip.past-end { opacity: .45; }
+.tl.dragging, .tl.dragging .tl-clip { cursor: grabbing; }
+.tl-ramp { position: absolute; top: 0; bottom: 0; pointer-events: none; }
+/* the dark corner above each fade's ramp (corner-to-corner gradients meet the other corners at 50%) */
+.tl-ramp { --tl-shade: rgba(6, 9, 20, .65); }
+.tl-ramp-in { left: 0; width: var(--fi); background: linear-gradient(to bottom right, var(--tl-shade) 50%, #0000 0); }
+.tl-ramp-out { right: 0; width: var(--fo); background: linear-gradient(to bottom left, var(--tl-shade) 50%, #0000 0); }
+.tl-fh { /* the fade handles, at the top corners */
+  position: absolute; top: -2px; z-index: 1; width: 9px; height: 9px; border-radius: 2px;
+  background: var(--text); border: 1px solid var(--bg); cursor: ew-resize; opacity: 0;
+}
+.tl-fh-in { left: max(1px, calc(var(--fi) - 4px)); }
+.tl-fh-out { right: max(1px, calc(var(--fo) - 4px)); }
+.tl-clip:hover .tl-fh, .tl-clip.selected .tl-fh { opacity: 1; }
+.tl-playhead {
+  position: absolute; top: 0; bottom: 0; left: var(--tl-names); z-index: 5; width: 2px; margin-left: -1px;
+  background: var(--amber); box-shadow: 0 0 6px rgba(242, 177, 72, .6); pointer-events: none; will-change: transform;
+}
+.tl.tl-empty .tl-scroll::after {
+  content: 'Add a layer to sequence it.'; display: block; padding: 10px 12px; color: var(--text-3); font-size: 13px;
+}
+
+/* ---- tools ----------------------------------------------------------------------------- */
+.tl-tools { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; font-size: 12.5px; }
+.tl-look-tools, .tl-view-tools, .tl-inspector { display: flex; align-items: center; gap: 8px; }
+.tl-view-tools { margin-left: auto; }
+.tl-field { display: inline-flex; align-items: center; gap: 4px; color: var(--text-3); white-space: nowrap; }
+.tl-label { cursor: pointer; }
+.tl-tools input.tl-num { width: 62px; min-height: 24px; height: 24px; padding: 1px 6px; font-size: 12.5px; }
+.tl-tools select.tl-snap { min-height: 24px; height: 24px; padding: 1px 22px 1px 6px; font-size: 12.5px; }
+.tl-zoom { display: inline-flex; gap: 2px; }
+.tl-btn {
+  min-width: 24px; height: 24px; padding: 0 7px; border: 1px solid var(--line-2); border-radius: 4px;
+  background: var(--bg-2); color: var(--text-2); font-size: 12.5px; cursor: pointer;
+}
+.tl-btn:hover:not(:disabled) { color: var(--text); border-color: var(--line-3); }
+.tl-btn:disabled { opacity: .45; cursor: default; }
+.tl-tools .btn.small { min-height: 24px; height: 24px; padding: 0 10px; font-size: 12.5px; white-space: nowrap; }
+.tl-clip-name { max-width: 170px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; }
+.tl-clip-name, .tl-btn { white-space: nowrap; }
+.tl-del { color: #ffc2cf; }
+.tl[data-mode=wide] .tl-inspector.none, .dock-tools .tl-inspector.none { display: none; }
+/* In the dock, a selected clip's numbers take the place of the other tools. */
+.dock-tools .tl-tools.has-clip > :not(.tl-inspector) { display: none; }
+/* The dock's head is narrow: labels go first, then the import button's words. */
+.dock-tools .tl-tools { gap: 8px; overflow: hidden; }
+.dock-tools .tl-look-tools, .dock-tools .tl-view-tools, .dock-tools .tl-inspector { gap: 6px; }
+.dock-tools .tl-unit { margin-left: -2px; }
+@media (max-width: 1500px) {
+  .dock-tools .tl-label:not(.keep), .dock-tools .tl-clip-name { display: none; }
+  .dock-tools .tl-tools input.tl-num { width: 52px; }
+}
+@media (max-width: 1200px) {
+  .dock-tools .tl-label, .dock-tools .tl-clip-name { display: none; }
+}
+
+/* ---- the import dialog ----------------------------------------------------------------- */
+.import-dialog .dialog-text { color: var(--text-2); font-size: 13.5px; margin-bottom: 12px; }
+.import-tabs { display: flex; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.import-tab {
+  flex: 1; min-height: 40px; background: none; border: 0; border-bottom: 2px solid transparent;
+  color: var(--text-2); font-weight: 600; cursor: pointer;
+}
+.import-tab[aria-pressed=true] { color: var(--text); border-bottom-color: var(--amber); }
+.import-list { max-height: 50vh; overflow: auto; }
+.import-status { color: #ffc2cf; font-size: 13.5px; min-height: 1.5em; margin-top: 8px; }
+
+/* ---- phones: the Time tab -------------------------------------------------------------- */
+@media (max-width: 899px) {
+  .studio[data-tab=time] .pane-viewer { height: 40dvh; min-height: 220px; }
+  .studio .pane-time { order: 4; flex: 1 1 0; min-height: 0; border: 0; }
+  .studio[data-tab=time] .pane-time { display: flex; }
+  .studio .tl-body { display: none; }
+  .time-body { padding: 0 0 24px; }
+  .tl[data-mode=narrow] .tl-scroll { max-height: none; overflow: visible; margin: 4px 12px 0; }
+  .tl[data-mode=narrow] .tl-head-row { position: static; border: 0; background: none; }
+  .tl[data-mode=narrow] .tl-corner { display: none; }
+  .tl[data-mode=narrow] .tl-row { flex-direction: column; height: auto; border: 0; padding-bottom: 6px; }
+  .tl[data-mode=narrow] .tl-name {
+    position: static; width: auto; min-height: 30px; padding: 4px 2px; border: 0; background: none; font-size: 13.5px;
+  }
+  .tl[data-mode=narrow] .tl-row.selected .tl-name { background: none; box-shadow: none; color: var(--amber); }
+  .tl[data-mode=narrow] .tl-lane { height: 44px; width: 100%; border-radius: 6px; background-color: var(--bg-1); }
+  .tl[data-mode=narrow] .tl-row.selected .tl-lane { box-shadow: 0 0 0 1px var(--line-3); }
+  .tl[data-mode=narrow] .tl-clip { top: 4px; bottom: 4px; cursor: pointer; touch-action: manipulation; }
+  .tl[data-mode=narrow] .tl-ruler { touch-action: pan-y; }   /* taps only: let the page scroll */
+  .tl[data-mode=narrow] .tl-clip::before, .tl[data-mode=narrow] .tl-clip::after,
+  .tl[data-mode=narrow] .tl-fh { display: none; }
+  .tl[data-mode=narrow] .tl-tools { flex-wrap: wrap; gap: 10px 14px; padding: 10px 12px; }
+  .tl[data-mode=narrow] .tl-tools { border-bottom: 1px solid var(--line); }
+  .tl[data-mode=narrow] .tl-look-tools { flex-wrap: wrap; gap: 10px; }
+  .tl[data-mode=narrow] .tl-view-tools { display: none; }
+  .tl[data-mode=narrow] input.tl-num { width: 76px; min-height: 44px; height: 44px; font-size: 16px; }
+  .tl[data-mode=narrow] .tl-tools input.tl-num { width: 66px; }
+  .tl[data-mode=narrow] select.tl-snap { min-height: 44px; height: 44px; font-size: 15px; }
+  .tl[data-mode=narrow] .btn.small, .tl[data-mode=narrow] .tl-btn { min-height: 44px; height: 44px; font-size: 14px; }
+  .tl[data-mode=narrow] .tl-inspector {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; margin: 6px 12px 0; padding: 12px;
+    background: var(--bg-1); border: 1px solid var(--line-2); border-radius: var(--radius);
+  }
+  .tl[data-mode=narrow] .tl-inspector .tl-field { justify-content: space-between; }
+  .tl[data-mode=narrow] .tl-clip-name { grid-column: 1 / -1; max-width: none; font-size: 13.5px; }
+  .tl[data-mode=narrow] .tl-inspector.none .tl-field { opacity: .5; }
+}

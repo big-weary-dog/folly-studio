@@ -38,7 +38,7 @@ namespaces. Without them they skip and print why. The data tests need `python3`.
 | `src/generate/` | Idea → look: the queue, adapters (`sketch`, `claude`, `fleet`), prompt, validation |
 | `render-box/render.mjs` | Bakes a look to `.fseq` inside bubblewrap |
 | `fleet-box/` | Checker and brief for a boxed Fleet worker |
-| `public/index.html`, `app.css` | The app shell and its styles |
+| `public/index.html`, `app.css` | The app shell and its styles (`timeline.css`: the Studio's timeline, loaded with it) |
 | `public/sandbox.html` | The sandboxed pattern runner (SPEC "Sandbox protocol") |
 | `public/js/pattern-core.js` | Pure: stdlib, compile, scene, render, channels; runs in the sandbox, the box and tests |
 | `public/js/fseq.js` | Pure: FSEQ v2 writer |

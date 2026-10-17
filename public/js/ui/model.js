@@ -55,7 +55,9 @@ function pixel(p, t, P) {
 }
 `;
 
-export function makeLayer({ title = 'Layer', code = BLANK_CODE, groups, blend = 'add', level = 1, params = {} } = {}, cathedral) {
+export function makeLayer(
+  { title = 'Layer', code = BLANK_CODE, groups, blend = 'add', level = 1, params = {}, clips } = {}, cathedral,
+) {
   return {
     id: randomId('l'),
     title,
@@ -64,6 +66,7 @@ export function makeLayer({ title = 'Layer', code = BLANK_CODE, groups, blend = 
     blend,
     level,
     params: { ...params },
+    ...(clips && clips.length ? { clips: clips.map((c) => ({ ...c })) } : {}),
   };
 }
 

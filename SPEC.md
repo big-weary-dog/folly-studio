@@ -34,7 +34,7 @@ studio/
   fleet-box/      check.mjs + BRIEF.template.md for the boxed Fleet worker
   tools/          build_cathedral.py
   public/
-    index.html  app.css
+    index.html  app.css  timeline.css (loaded by the Studio only)
     sandbox.html          sandboxed pattern runner (template; server inlines the core)
     js/
       pattern-core.js     pure: stdlib, compile, scene prep, renderFrame, toChannels (runs in sandbox + Node tests)
@@ -159,14 +159,22 @@ Sequencing lives on the look, xLights-style.
   (no `frame()`, no `pixel()`). Pattern `t` stays show time, so motion is continuous across cuts.
 - Sequencing whole looks = importing another look's layers into this one, then placing clips.
 - Preview loops over `duration`; bakes and `.fseq` exports render `duration` from t = 0.
+- The Studio edits it in a Timeline panel (`ui/timeline*.js`): docked under the 3D view beside
+  Code on a wide screen (drag, trim, fade, zoom, snap to ¼ s or beats), a Time tab on a phone
+  (the selected clip's numbers). The editor's edits (`ui/timeline-model.js`, pure) keep every
+  rule above, so what it saves the API accepts.
 
 ## Sandbox protocol (runtime.js ⇄ sandbox.html)
 
 The app embeds `<iframe sandbox="allow-scripts" src="/sandbox.html">`. The server serves
 sandbox.html with `/*@CORE@*/` replaced by `public/js/pattern-core.js` and the header
-`Content-Security-Policy: default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; sandbox allow-scripts`
+`Content-Security-Policy: default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; worker-src blob:; sandbox allow-scripts`
 (opaque origin, no network, no cookies). Messages use `postMessage(msg, '*')`; the app checks
 `event.source === iframe.contentWindow`.
+
+Pattern code never runs on the sandbox page's thread (a same-process iframe shares the app's).
+The page starts a Worker from a Blob holding the core and a small runner (it inherits the CSP,
+so no network either), relays messages to it and keeps time.
 
 | app → sandbox | sandbox → app |
 |---|---|
@@ -176,7 +184,12 @@ sandbox.html with `/*@CORE@*/` replaced by `public/js/pattern-core.js` and the h
 | `{ type: 'render', seq, start, frames, fps, gamma, brightness }` | `{ type: 'progress', seq, done }` … then `{ type: 'rendered', seq, channels: Uint8Array(frames × 40800) }` |
 
 A layer that throws or returns NaN goes black for that frame and is reported in `errors`.
-The app tears the iframe down and reloads it if a `frame` reply takes over 2 s.
+Watchdog (the page's): a frame, live or exported, running over 1 s, or new code compiling for
+over 0.7 s, has hung. The page terminates the worker, finds the layer to blame (the one being
+compiled, or each layer run alone for one frame in a throwaway worker), starts a fresh worker
+without it and reports it as an error starting `Pattern hung`; it stays paused until its code
+changes. Every `frame` request is answered within 1.5 s. The app (runtime.js) tears the iframe
+down and reloads it only if the page itself stops answering for 4 s.
 
 `pattern-core.js` exports (used by sandbox.html and the Node tests):
 `STDLIB`, `compilePattern(code) → { pixel, frame, params }` (throws on syntax error / no `pixel`),

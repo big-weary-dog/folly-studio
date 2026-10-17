@@ -214,7 +214,8 @@ async function runtimeBinds(node) {
 }
 
 /**
- * createRenderBox(o) → { probe() → { ok, reason? }, render({ layers, seconds? }) → { bytes, boxStats, ms, seconds }, stop(), config }
+ * createRenderBox(o) → { probe() → { ok, reason? }, stop(), config,
+ *                         render({ layers, seconds? }) → { bytes, boxStats, ms, seconds } }
  *
  * Each render gets a fresh empty output dir and runs, under prlimit (CPU seconds, tasks, file
  * size, data segment) and a wall-clock kill:
@@ -239,7 +240,8 @@ async function runtimeBinds(node) {
 export function createRenderBox(o = {}) {
   const env = o.env || process.env;
   const publicDir = path.resolve(o.publicDir || path.join(STUDIO, 'public'));
-  const seconds = Math.min(600, Math.max(1, Math.round(o.seconds ?? (Number(env.STUDIO_BAKE_SECONDS) || DEFAULT_BAKE_SECONDS))));
+  const asked = o.seconds ?? (Number(env.STUDIO_BAKE_SECONDS) || DEFAULT_BAKE_SECONDS);
+  const seconds = Math.min(600, Math.max(1, Math.round(asked)));
   const cfg = {
     seconds,
     timeoutMs: o.timeoutMs ?? parseDurationMs(env.STUDIO_BAKE_TIMEOUT, null), // null: scaled per bake
@@ -289,7 +291,8 @@ export function createRenderBox(o = {}) {
   });
 
   function boxArgs(t, outDir, command, cpuSeconds = budget(cfg.seconds).cpuSeconds) {
-    const limits = [`--cpu=${cpuSeconds}`, `--nproc=${cfg.tasks}`, `--fsize=${cfg.maxFramesBytes + 1024 * 1024}`, '--core=0'];
+    const fsize = cfg.maxFramesBytes + 1024 * 1024;
+    const limits = [`--cpu=${cpuSeconds}`, `--nproc=${cfg.tasks}`, `--fsize=${fsize}`, '--core=0'];
     if (cfg.memoryBytes > 0) limits.push(`--data=${cfg.memoryBytes}`);
     return [
       ...limits, '--', t.bwrap,
@@ -311,7 +314,8 @@ export function createRenderBox(o = {}) {
 
   function run(t, outDir, command, input, timeoutMs, cpuSeconds) {
     return new Promise((resolve) => {
-      const child = spawn(t.prlimit, boxArgs(t, outDir, command, cpuSeconds), { stdio: ['pipe', 'ignore', 'pipe'], env: {} });
+      const args = boxArgs(t, outDir, command, cpuSeconds);
+      const child = spawn(t.prlimit, args, { stdio: ['pipe', 'ignore', 'pipe'], env: {} });
       children.add(child);
       let stderr = '';
       let timedOut = false;
@@ -349,7 +353,10 @@ export function createRenderBox(o = {}) {
     return probed;
   }
 
-  /** Bake layers (with their clips) to FSEQ bytes, `seconds` long (at most the box's). Throws BakeError with a reason people can read. */
+  /**
+   * Bake layers (with their clips) to FSEQ bytes, `seconds` long (at most the box's).
+   * Throws BakeError with a reason people can read.
+   */
   async function render({ layers, seconds: want }) {
     const p = await probe();
     if (!p.ok) throw new BakeError(p.reason);
@@ -358,10 +365,12 @@ export function createRenderBox(o = {}) {
     const { timeoutMs, cpuSeconds } = budget(secs);
     const outDir = await fs.mkdtemp(path.join(cfg.tmpRoot, 'folly-bake-'));
     try {
-      const command = ['/box/render.mjs', '--out', '/out', '--seconds', String(secs), '--frame-ms', String(cfg.frameTimeoutMs)];
+      const command = ['/box/render.mjs', '--out', '/out', '--seconds', String(secs),
+        '--frame-ms', String(cfg.frameTimeoutMs)];
       const started = Date.now();
       const r = await run(t, outDir, command, JSON.stringify({ layers }), timeoutMs, cpuSeconds);
-      if (r.timedOut) throw new BakeError(`The bake took longer than ${Math.round(timeoutMs / SECOND)} s and was stopped.`);
+      const took = Math.round(timeoutMs / SECOND);
+      if (r.timedOut) throw new BakeError(`The bake took longer than ${took} s and was stopped.`);
       let result;
       try {
         result = JSON.parse((await readUntrusted(path.join(outDir, 'result.json'), { maxBytes: 64 * 1024, within: outDir })).toString('utf8'));

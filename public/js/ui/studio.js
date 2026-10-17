@@ -2,7 +2,9 @@
 import { api } from '../api.js';
 import { Viewer } from '../viewer.js';
 import { Runtime, HUNG_MESSAGE } from '../runtime.js';
-import { h, clear, confirmDialog, debounce, isTyping, nextId, openDialog, reducedMotion, toast } from './dom.js';
+import {
+  h, clear, confirmDialog, debounce, isTyping, nextId, openDialog, randomId, reducedMotion, toast,
+} from './dom.js';
 import {
   loadCathedral, loadLibrary, buildGroupIndex, makeLayer, layerFromPattern, cleanLayer,
   normaliseLayers, BLANK_CODE,
@@ -15,11 +17,16 @@ import { Transport } from './transport.js';
 import { quickReference } from './reference.js';
 import { exportFseqDialog, exportLookJson } from './export.js';
 import { BakePanel, loadBakedFrames, mb } from './bake.js';
+import { createDock } from './studio-dock.js';
+import { Timeline } from './timeline.js';
+import { importLookDialog } from './timeline-import.js';
+import { cleanBpm, cleanDuration } from './timeline-model.js';
 
 // Narrow screens stack the panels under the 3D view and switch them with these tabs.
 const TABS = [
   { id: 'layers', label: 'Layers' },
   { id: 'code', label: 'Code' },
+  { id: 'time', label: 'Time' },
   { id: 'groups', label: 'Groups' },
   { id: 'look', label: 'Look' },
 ];
@@ -49,7 +56,10 @@ export function mount(root, ctx) {
     cathedral: null,
     index: null,
     library: [],
-    look: { id: null, title: 'Untitled look', summary: '', layers: [], shared: false, ideaId: null, owner: me?.id, ownerName: me?.username, reviewed: false, bake: null },
+    look: {
+      id: null, title: 'Untitled look', summary: '', layers: [], duration: 30, bpm: null, shared: false, ideaId: null,
+      owner: me?.id, ownerName: me?.username, reviewed: false, bake: null,
+    },
     server: null,              // the look as the server last sent it (bake, reviewed, …), null until saved
     baked: null,               // { frames, rgb, index } while the preview plays baked frames
     copyOnSave: false,
@@ -66,7 +76,6 @@ export function mount(root, ctx) {
     playing: !reducedMotion(),
     t: 0,
     speed: 1,
-    duration: 30,
     hoverGroup: null,
     pinnedGroup: null,
     saving: false,
@@ -151,20 +160,16 @@ export function mount(root, ctx) {
       paramsBody));
   const side = h('div', { class: 'side', dataset: { pane: 'layers' } }, paneLayers, paneParams);
 
-  // The bottom dock (wide screens): tabs on the left of its head, the fold toggle on the right.
-  // Code is the only tab today; a Timeline tab and pane slot in beside it.
-  const codeFor = h('span', { class: 'pane-sub' });
+  // The bottom dock (wide screens): Timeline and Code tabs (studio-dock.js).
+  const codeFor = h('span', { class: 'pane-sub dock-code-only' });
   const codeIssue = h('span', { class: 'dock-issue', hidden: true });
-  const retryBtn = h('button', { type: 'button', class: 'btn small', text: 'Try again', hidden: true });
-  const codeBody = h('div', { class: 'pane-body code-body' });
-  const collapseId = nextId('dock');
-  const collapseBtn = h('button', { type: 'button', class: 'btn small ghost collapse-btn', 'aria-expanded': 'true', 'aria-controls': collapseId,
-    title: 'Fold the editor away to give the 3D view more room' });
-  const dockTabs = h('div', { class: 'dock-tabs', role: 'group', 'aria-label': 'Bottom panel' },
-    h('button', { type: 'button', class: 'dock-tab', 'aria-pressed': 'true', text: 'Code', onClick: () => setCodeCollapsed(false) }));
-  codeBody.id = collapseId;
-  const paneCode = h('section', { class: 'pane pane-code', dataset: { pane: 'code' }, 'aria-label': 'Code' },
-    h('div', { class: 'pane-head dock-head' }, dockTabs, codeFor, codeIssue, retryBtn, collapseBtn), codeBody);
+  const retryBtn = h('button', { type: 'button', class: 'btn small dock-code-only', text: 'Try again', hidden: true });
+  const dock = createDock({ studio, store, extras: [codeFor, codeIssue, retryBtn], short: matchMedia(SHORT).matches });
+  const codeBody = dock.codeBody;
+  // Phones: the timeline's own tab.
+  const timeBody = h('div', { class: 'pane-body time-body' });
+  const paneTime = h('section', { class: 'pane pane-time', dataset: { pane: 'time' }, 'aria-label': 'Timeline' },
+    timeBody);
 
   // "Look" tab (narrow screens): what the toolbar and the header hold on a wide screen
   const shareId2 = nextId('share');
@@ -183,24 +188,9 @@ export function mount(root, ctx) {
       h('p', { class: 'look-links' },
         h('a', { href: '/ideas', text: 'Ideas' }), h('a', { href: '/looks', text: 'All my looks' }), h('a', { href: '/gallery', text: 'Gallery' }))));
 
-  const splitter = h('div', { class: 'splitter', role: 'separator', 'aria-orientation': 'horizontal', tabindex: 0,
-    'aria-label': 'Resize code editor', 'aria-valuemin': 15, 'aria-valuemax': 75 });
-
-  studio.append(bar, notice, paneGroups, paneViewer, splitter, tabs, side, paneCode, paneLook, sandboxHost);
+  studio.append(bar, notice, paneGroups, paneViewer, dock.splitter, tabs, side, dock.pane, paneTime, paneLook,
+    sandboxHost);
   setTab(studio.dataset.tab);
-  const savedSplit = +store('studio.split');
-  if (savedSplit >= 15 && savedSplit <= 75) studio.style.setProperty('--code-h', `${savedSplit}%`);
-  {
-    const pref = store('studio.codeCollapsed');
-    setCodeCollapsed(pref === null ? matchMedia(SHORT).matches : pref === '1', { remember: false });
-  }
-  collapseBtn.addEventListener('click', () => setCodeCollapsed(!studio.classList.contains('code-collapsed')));
-  function setCodeCollapsed(on, { remember = true } = {}) {
-    studio.classList.toggle('code-collapsed', on);
-    collapseBtn.setAttribute('aria-expanded', String(!on));
-    collapseBtn.textContent = on ? 'Show code' : 'Hide';
-    if (remember) store('studio.codeCollapsed', on ? '1' : '0');
-  }
 
   // Bake card: under the groups tree on a wide screen, in the Look tab on a phone.
   const bakeSlotWide = h('div', { class: 'bake-slot' });
@@ -217,9 +207,35 @@ export function mount(root, ctx) {
     },
   });
   const narrowMq = matchMedia(NARROW);
-  const placeBake = () => (narrowMq.matches ? bakeSlotNarrow : bakeSlotWide).append(bakePanel.el);
-  placeBake();
-  narrowMq.addEventListener('change', placeBake);
+
+  const timeline = new Timeline({
+    toolsSlot: dock.toolsSlot,
+    layers: () => S.look.layers,
+    look: () => S.look,
+    selectedId: () => S.selectedId,
+    time: () => S.t,
+    onSelectLayer: (id) => select(id),
+    onEdit: ({ live }) => timelineEdited(live),
+    onSeek: (t) => { S.t = t; kick(); },
+    onImport: () => importLookDialog({ currentId: S.look.id, signedOut: () => ctx.signedOut(),
+      onPick: (look) => timeline.importLook(look, () => randomId('l')) }),
+  });
+  // Clips, the length or the tempo changed (live: mid-drag, so only the preview catches up).
+  function timelineEdited(live) {
+    S.look.duration = cleanDuration(S.look.duration);
+    if (S.t >= S.look.duration) S.t %= S.look.duration;
+    if (live) { pushLook(); markDirty(); } else changed();
+  }
+
+  // Bake card and timeline: where they go depends on the screen.
+  const placePanels = () => {
+    const narrow = narrowMq.matches;
+    (narrow ? bakeSlotNarrow : bakeSlotWide).append(bakePanel.el);
+    (narrow ? timeBody : dock.timelineBody).append(timeline.el);
+    timeline.setMode(narrow);
+  };
+  placePanels();
+  narrowMq.addEventListener('change', placePanels);
 
   // components
   const stack = new LayerStack(layersBody, {
@@ -302,9 +318,10 @@ export function mount(root, ctx) {
         layers: normaliseLayers(look.layers, S.cathedral), shared: !!look.shared, ideaId: look.ideaId || null,
         owner: look.owner, ownerName: look.ownerName,
       };
+      S.look.duration = cleanDuration(look.duration);
+      S.look.bpm = cleanBpm(look.bpm);
       S.copyOnSave = !!(me && look.owner && look.owner !== me.id);
       S.server = look;
-      if (look.duration > 0) S.duration = look.duration;
       ctx.setTitle(S.look.title);
     } else {
       const first = S.library[0];
@@ -385,9 +402,14 @@ export function mount(root, ctx) {
   function selected() { return layerById(S.selectedId); }
   function toggleSet(set, id) { if (set.has(id)) set.delete(id); else set.add(id); }
 
-  function snapshot() {
-    return JSON.stringify({ title: titleInput.value.trim() || S.look.title, summary: S.look.summary || '', layers: S.look.layers.map(cleanLayer) });
+  /** The look as saved: what save() sends and what isDirty() compares. */
+  function saveBody() {
+    return {
+      title: titleInput.value.trim() || 'Untitled look', summary: S.look.summary || '',
+      layers: S.look.layers.map(cleanLayer), duration: cleanDuration(S.look.duration), bpm: S.look.bpm || null,
+    };
   }
+  function snapshot() { return JSON.stringify(saveBody()); }
   function isDirty() { return S.ready && snapshot() !== S.saved; }
 
   const updateSaveState = debounce(() => {
@@ -442,7 +464,7 @@ export function mount(root, ctx) {
   function changed({ look = true, dirty = true, stack: redrawStack = true } = {}) {
     if (look) pushLook();
     if (dirty) markDirty();
-    if (redrawStack) renderStack();
+    if (redrawStack) renderStack(); else timeline.render();
     refreshParams();
   }
 
@@ -519,6 +541,7 @@ export function mount(root, ctx) {
     downBtn.disabled = !l || i <= 0;
     dupBtn.disabled = !l;
     delBtn.disabled = !l;
+    timeline.render();
   }
 
   function refreshParams() {
@@ -674,7 +697,7 @@ export function mount(root, ctx) {
           close();
           insertLayer(layer);
           setTab('code', { onlyNarrow: true });
-          if (blank && !narrowMq.matches) setCodeCollapsed(false);   // a blank layer is for writing code
+          if (blank && !narrowMq.matches) dock.show('code');   // a blank layer is for writing code
         };
         list.append(h('li', {}, h('button', { type: 'button', class: 'library-item blank', onClick: () => pick(makeLayer({ title: 'New layer' }, S.cathedral), true) },
           h('span', { class: 'library-title', text: 'Blank pattern' }),
@@ -701,8 +724,8 @@ export function mount(root, ctx) {
   async function save() {
     if (!S.ready || S.saving) return;
     compileSoon.flush();
-    const title = titleInput.value.trim() || 'Untitled look';
-    const body = { title, summary: S.look.summary || '', layers: S.look.layers.map(cleanLayer) };
+    const body = saveBody();
+    const { title } = body;
     const snap = JSON.stringify(body);
     S.saving = true;
     saveBtn.disabled = true;
@@ -712,6 +735,7 @@ export function mount(root, ctx) {
       let look;
       if (!S.look.id || S.copyOnSave) {
         const payload = { ...body };
+        if (!payload.bpm) delete payload.bpm;
         if (S.look.ideaId && !S.copyOnSave) payload.ideaId = S.look.ideaId;
         ({ look } = await api.createLook(payload));
         const wasCopy = S.copyOnSave;
@@ -780,14 +804,15 @@ export function mount(root, ctx) {
         { title: 'A layer is paused', ok: 'Export anyway' });
       if (!ok) return;
     }
-    await exportFseqDialog({ runtime, cathedral: S.cathedral, title: titleInput.value.trim() || 'folly-look', duration: S.duration });
+    const title = titleInput.value.trim() || 'folly-look';
+    await exportFseqDialog({ runtime, cathedral: S.cathedral, title, duration: S.look.duration });
     // An export can find a layer that hangs: show where things stand now, even when paused.
     if (runtime && alive) { runtime.refresh(); kick(); }
   }
 
   function doExportJson() {
     compileSoon.flush();
-    exportLookJson({ title: titleInput.value.trim() || 'Untitled look', summary: S.look.summary || '', layers: S.look.layers.map(cleanLayer) });
+    exportLookJson(saveBody());
   }
 
   function editDetails() {
@@ -860,33 +885,6 @@ export function mount(root, ctx) {
     } catch (err) {
       myLooksAt = 0;
       if (err.status === 401) ctx.signedOut();
-    }
-  }
-
-  {
-    let drag = null;
-    splitter.addEventListener('pointerdown', (e) => {
-      drag = { y: e.clientY, h: paneCode.getBoundingClientRect().height, total: studio.getBoundingClientRect().height };
-      splitter.setPointerCapture(e.pointerId);
-      studio.classList.add('resizing');
-    });
-    splitter.addEventListener('pointermove', (e) => {
-      if (!drag) return;
-      const pct = Math.min(75, Math.max(15, ((drag.h + drag.y - e.clientY) / drag.total) * 100));
-      setSplit(pct);
-    });
-    const end = () => { if (drag) { drag = null; studio.classList.remove('resizing'); } };
-    splitter.addEventListener('pointerup', end);
-    splitter.addEventListener('pointercancel', end);
-    splitter.addEventListener('keydown', (e) => {
-      const cur = parseFloat(studio.style.getPropertyValue('--code-h')) || 36;
-      if (e.key === 'ArrowUp') { e.preventDefault(); setSplit(Math.min(75, cur + 4)); }
-      if (e.key === 'ArrowDown') { e.preventDefault(); setSplit(Math.max(15, cur - 4)); }
-    });
-    function setSplit(pct) {
-      studio.style.setProperty('--code-h', `${pct.toFixed(1)}%`);
-      splitter.setAttribute('aria-valuenow', String(Math.round(pct)));
-      store('studio.split', pct.toFixed(1));
     }
   }
 
@@ -967,7 +965,7 @@ export function mount(root, ctx) {
     const dt = last && now - last < 250 ? (now - last) / 1000 : 0;
     last = now;
     const B = S.baked;
-    const duration = B ? B.frames.seconds : S.duration;
+    const duration = B ? B.frames.seconds : S.look.duration;
     if (S.playing) {
       S.t += dt * S.speed;
       if (S.t >= duration) S.t %= duration;
@@ -978,6 +976,7 @@ export function mount(root, ctx) {
       if (i !== B.index && viewer) { B.index = i; viewer.setColors(B.frames.frameAt(i, B.rgb)); }
     } else if (runtime) runtime.pump(S.t, S.playing);
     transport.set(S.playing, S.t, duration, now);
+    timeline.setTime(S.t, S.playing);
     if (now - statsAt > 1000 && runtime) {
       statsAt = now;
       const st = runtime.stats;
@@ -1022,7 +1021,8 @@ export function mount(root, ctx) {
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('click', onDocClick);
       document.removeEventListener('visibilitychange', onVisibility);
-      narrowMq.removeEventListener('change', placeBake);
+      narrowMq.removeEventListener('change', placePanels);
+      timeline.destroy();
       bakePanel.destroy();
       bakedLoad++;
       S.baked = null;
