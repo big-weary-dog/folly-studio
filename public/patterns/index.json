@@ -1,0 +1,15 @@
+[
+  { "name": "palette-drift", "title": "Palette drift", "summary": "A calm bed of full-strength colour whose hues slowly travel across the structure. A good bottom layer.", "tags": ["calm", "colour", "background", "hue", "noise", "bed"] },
+  { "name": "rising-sweep", "title": "Rising sweep", "summary": "Bands of colour climb every surface like a tide of light, trading a base colour for a sweep colour.", "tags": ["sweep", "rise", "planes", "height", "tide", "bands"] },
+  { "name": "depth-wave", "title": "Playa wave", "summary": "Colour rolls from the playa front to the back of the nave through a three-colour palette.", "tags": ["wave", "depth", "front-to-back", "ocean", "flow", "palette"] },
+  { "name": "rose-ripple", "title": "Rose ripple", "summary": "Rings of light spread in 3D from the rose window through the arches, towers and spires.", "tags": ["ripple", "rings", "radial", "rose", "water", "pulse"] },
+  { "name": "spire-helix", "title": "Tower helix", "summary": "Candy stripes spiral up round each tower and its spire, turning as they climb.", "tags": ["spiral", "helix", "spires", "towers", "stripes", "candy"] },
+  { "name": "aurora", "title": "Aurora", "summary": "Slow curtains of green and violet drift over a deep night-blue sky, drawn with fractal noise.", "tags": ["aurora", "northern lights", "noise", "fbm", "sky", "calm", "night"] },
+  { "name": "fire", "title": "Fire", "summary": "Flames lick up from the bottom of whatever the layer lands on, ember red to white-hot.", "tags": ["fire", "flame", "embers", "warm", "noise", "heat", "burn"] },
+  { "name": "meteors", "title": "Meteors", "summary": "Shooting stars race along every arch, spire strand and canopy run, trailing fading tails.", "tags": ["meteors", "shooting stars", "chase", "strands", "comets", "rain", "space"] },
+  { "name": "twinkle", "title": "Starfield", "summary": "Every LED a star with its own rhythm, glinting over a slowly shifting night sky.", "tags": ["stars", "twinkle", "sparkle", "glitter", "night", "random"] },
+  { "name": "rose-chase", "title": "Rose chase", "summary": "Petals light in turn round the rose window like clock hands while rings breathe outward.", "tags": ["rose", "petals", "chase", "spin", "rings", "window", "clock"] },
+  { "name": "plasma", "title": "Plasma", "summary": "The demoscene classic: a sum of sine waves wrapped round the structure, through rainbow or cosine palettes.", "tags": ["plasma", "psychedelic", "rainbow", "sines", "trippy", "retro"] },
+  { "name": "lighthouse", "title": "Lighthouse", "summary": "Beams sweep round the vertical axis, washing each face of the layer as they pass.", "tags": ["lighthouse", "beam", "rotate", "sweep", "searchlight", "spin"] },
+  { "name": "heartbeat", "title": "Heartbeat", "summary": "A lub-dub swell at a set tempo, spreading outward from the centre of the layer.", "tags": ["heartbeat", "pulse", "bpm", "beat", "love", "rhythm", "music"] }
+]

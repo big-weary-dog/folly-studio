@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Folly Studio sandbox</title>
+</head>
+<body>
+<!--
+  Folly Studio's pattern sandbox. The app embeds it as
+  <iframe sandbox="allow-scripts" src="/sandbox.html"> and the server serves it with the
+  pattern core inlined in place of the marker below, under
+  Content-Security-Policy: default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; sandbox allow-scripts
+  so pattern code runs at an opaque origin with no network, no cookies and no storage.
+  Protocol: studio/SPEC.md "Sandbox protocol". No external resources, ever.
+-->
+<script type="module">
+/*@CORE@*/
+
+{
+  const host = window.parent;
+  const send = (msg, transfer) => host.postMessage(msg, '*', transfer || []);
+
+  if (typeof compilePattern !== 'function' || typeof renderFrame !== 'function') {
+    // Opened straight from disk or served without the server's inlining.
+    send({ type: 'error', error: 'core not inlined' });
+  } else {
+    const PROGRESS_EVERY = 40;   // frames between progress messages (and yields) while rendering
+    let scene = null;
+    let prepared = [];            // render order, bottom first
+    const compiledById = new Map(); // layer id -> { code, compiled }: same code keeps its state
+
+    const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    const yieldNow = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    function onInit(msg) {
+      scene = prepareScene(msg.cathedral);
+      prepared = [];
+      compiledById.clear();
+      send({ type: 'ready' });
+    }
+
+    function onLook(msg) {
+      const layers = Array.isArray(msg.layers) ? msg.layers : [];
+      const report = [];
+      const next = [];
+      const keep = new Set();
+      layers.forEach((layer, n) => {
+        const id = layer && layer.id !== undefined ? layer.id : 'layer-' + n;
+        keep.add(id);
+        let entry = compiledById.get(id);
+        try {
+          if (!scene) throw new Error('sandbox has no cathedral yet (send init first)');
+          if (!entry || entry.code !== layer.code) {
+            entry = { code: layer.code, compiled: null };
+            compiledById.set(id, entry);
+            entry.compiled = compilePattern(layer.code);
+          }
+          if (!entry.compiled) throw new Error(entry.error || 'pattern did not compile');
+          next.push(prepareLayer(scene, { ...layer, id }, entry.compiled));
+          report.push({ id, ok: true, params: entry.compiled.params });
+        } catch (e) {
+          const error = e && e.message ? e.message : String(e);
+          if (entry && !entry.compiled) entry.error = error;
+          report.push({ id, ok: false, error, params: entry && entry.compiled ? entry.compiled.params : {} });
+        }
+      });
+      for (const id of [...compiledById.keys()]) if (!keep.has(id)) compiledById.delete(id);
+      prepared = next;
+      send({ type: 'compiled', layers: report });
+    }
+
+    function onFrame(msg) {
+      const started = now();
+      const rgb = new Float32Array(scene ? scene.count * 3 : 0);
+      let errors = [];
+      if (scene) errors = renderFrame(scene, prepared, +msg.t || 0, rgb).errors;
+      send({ type: 'frame', seq: msg.seq, rgb, errors, ms: now() - started }, [rgb.buffer]);
+    }
+
+    async function onRender(msg) {
+      if (!scene) throw new Error('sandbox has no cathedral yet (send init first)');
+      const frames = Math.max(0, Math.floor(+msg.frames || 0));
+      const fps = +msg.fps > 0 ? +msg.fps : 40;
+      const start = +msg.start || 0;
+      const opts = { gamma: msg.gamma, brightness: msg.brightness };
+      const size = scene.frameChannels;
+      const layers = prepared;      // a look arriving mid-render applies to the next render
+      const channels = new Uint8Array(frames * size);
+      const rgb = new Float32Array(scene.count * 3);
+      const seen = new Map();       // id -> first error, across the render
+      for (let f = 0; f < frames; f++) {
+        const { errors } = renderFrame(scene, layers, start + f / fps, rgb);
+        for (const e of errors) if (!seen.has(e.id)) seen.set(e.id, e.error);
+        toChannels(scene, rgb, channels.subarray(f * size, (f + 1) * size), opts);
+        if ((f + 1) % PROGRESS_EVERY === 0 && f + 1 < frames) {
+          send({ type: 'progress', seq: msg.seq, done: f + 1 });
+          await yieldNow();
+        }
+      }
+      const errors = [...seen].map(([id, error]) => ({ id, error }));
+      send({ type: 'rendered', seq: msg.seq, channels, frames, channelCount: size, errors }, [channels.buffer]);
+    }
+
+    window.addEventListener('message', async (event) => {
+      if (event.source !== host) return;
+      const msg = event.data;
+      if (!msg || typeof msg !== 'object') return;
+      try {
+        switch (msg.type) {
+          case 'init': onInit(msg); break;
+          case 'look': onLook(msg); break;
+          case 'frame': onFrame(msg); break;
+          case 'render': await onRender(msg); break;
+          default: break;
+        }
+      } catch (e) {
+        send({ type: 'error', seq: msg.seq, request: msg.type, error: e && e.message ? e.message : String(e) });
+      }
+    });
+
+    send({ type: 'ready' });
+  }
+}
+</script>
+</body>
+</html>
