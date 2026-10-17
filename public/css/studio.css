@@ -199,6 +199,7 @@ input.tree-box { width: 16px; height: 16px; margin: 0 4px 0 2px; flex: none; cur
   font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: none; border: 0;
   cursor: pointer; }
 .layer .status-dot { width: 10px; height: 10px; color: var(--text-3); }
+.layer-heavy { --kind: var(--amber); }
 .layer[data-status=ok] .status-dot { color: var(--emerald); }
 .layer[data-status=pending] .status-dot, .layer[data-status=probation] .status-dot { color: var(--amber); }
 .layer[data-status=compile] .status-dot, .layer[data-status=runtime] .status-dot, .layer[data-status=hung] .status-dot {

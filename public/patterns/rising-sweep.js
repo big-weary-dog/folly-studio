@@ -1,8 +1,5 @@
-// Rising sweep: bands of colour climb every surface like a tide of light.
-//
-// A level plane rises through whatever the layer lands on (ly is height across the layer's
-// own pixels), trading the base colour for the sweep colour as it passes. Nothing goes dark:
-// the movement is colour moving. Turn Width down for thin bars, Bands up for several at once.
+// Rising sweep: bands of colour climb every surface like a tide (ly is height across the layer's own
+// pixels), trading the base colour for the sweep colour; nothing goes dark. Width down for thin bars.
 const params = {
   speed: { value: 0.25, min: 0, max: 2, step: 0.01, label: 'Sweeps per second' },
   bands: { value: 1, min: 1, max: 6, step: 1, label: 'Bands at once' },

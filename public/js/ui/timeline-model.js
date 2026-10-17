@@ -1,16 +1,13 @@
-// Timeline edits as pure functions (SPEC "Timeline"): clips are [{ start, end, fadeIn, fadeOut }] in
-// seconds, sorted, not overlapping. Every edit returns new arrays and keeps those rules, so what the
-// editor makes the server accepts. No DOM: test/timeline-ui.test.js runs these in Node.
+// Timeline edits as pure functions (SPEC "Timeline"): clips [{ start, end, fadeIn, fadeOut }] in seconds, sorted,
+// not overlapping. Each edit returns new arrays and keeps those rules, so the server accepts what the editor makes.
+import { DEFAULT_DURATION, MAX_CLIPS, MAX_DURATION, MIN_DURATION } from '../core/scene.js';
 
-export const DEFAULT_DURATION = 30;
-export const MIN_DURATION = 1;
-export const MAX_DURATION = 600;
-export const MAX_CLIPS = 32;
-export const MAX_LAYERS = 8;
+export { DEFAULT_DURATION, MAX_DURATION };
+const MAX_LAYERS = 8;
 export const MIN_CLIP = 0.1;          // the shortest clip an edit makes
 export const GRID = 0.25;             // snap step without a beat
 
-/** Seconds kept to the millisecond, as the server keeps them. */
+/** Seconds to the millisecond, as the server keeps them. */
 export const ms = (v) => Math.round(v * 1000) / 1000;
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 
@@ -19,14 +16,12 @@ export function cleanDuration(v) {
   return Number.isFinite(n) && n > 0 ? ms(clamp(n, MIN_DURATION, MAX_DURATION)) : DEFAULT_DURATION;
 }
 
-/** A tempo from 40 to 240, or null for none. */
 export function cleanBpm(v) {
   if (v === null || v === undefined || v === '') return null;
   const n = +v;
   return Number.isFinite(n) && n >= 40 && n <= 240 ? ms(n) : null;
 }
 
-/** The snap step in seconds: a beat, a quarter second, or 0 for none. */
 export function snapStep(mode, bpm) {
   if (mode === 'beat' && bpm) return 60 / bpm;
   return mode === 'off' ? 0 : GRID;
@@ -34,16 +29,13 @@ export function snapStep(mode, bpm) {
 
 export const snap = (t, step) => (step > 0 ? Math.round(t / step) * step : t);
 
-/**
- * A clip with every field present, to the millisecond. Fades stay as written even when they overrun a
- * short clip: playback shrinks them in proportion (layerEnvelope), so lengthening it brings them back.
- */
+/** Every field, to the ms. Fades that overrun a short clip stay: playback shrinks them (shownFades). */
 export function fitClip(c) {
   const fade = (v) => ms(clamp(+v || 0, 0, MAX_DURATION));
   return { start: ms(c.start), end: ms(c.end), fadeIn: fade(c.fadeIn), fadeOut: fade(c.fadeOut) };
 }
 
-/** [fadeIn, fadeOut] as they play: shrunk in proportion when together they overrun the clip. */
+/** [fadeIn, fadeOut] as they play: shrunk in proportion when they overrun the clip. */
 export function shownFades(c) {
   const len = c.end - c.start, sum = c.fadeIn + c.fadeOut;
   const k = sum > len && sum > 0 ? Math.max(0, len) / sum : 1;
@@ -61,14 +53,13 @@ export function room(clips, i, limit = MAX_DURATION) {
 
 const replace = (clips, i, c) => clips.map((x, j) => (j === i ? fitClip(c) : x));
 
-/** Move clip i to start near `start`, keeping its length, its neighbours and the grid. */
+/** Move clip i near `start`, keeping its length, its neighbours and the grid (the nearer edge snaps). */
 export function moveClip(clips, i, start, step = 0, limit = MAX_DURATION) {
   const c = clips[i];
   const len = c.end - c.start;
   const { lo, hi } = room(clips, i, limit);
   let s = start;
   if (step > 0) {
-    // Snap whichever edge is nearer a grid line.
     const a = snap(s, step), b = snap(s + len, step) - len;
     s = Math.abs(a - s) <= Math.abs(b - s) ? a : b;
   }
@@ -76,7 +67,7 @@ export function moveClip(clips, i, start, step = 0, limit = MAX_DURATION) {
   return replace(clips, i, { ...c, start: s, end: s + len });
 }
 
-/** Drag one edge of clip i ('start' or 'end') to t, between its neighbours, at least MIN_CLIP long. */
+/** Drag clip i's 'start' or 'end' to t, between its neighbours, at least MIN_CLIP long. */
 export function trimClip(clips, i, edge, t, step = 0, limit = MAX_DURATION) {
   const c = clips[i];
   const { lo, hi } = room(clips, i, limit);
@@ -85,7 +76,7 @@ export function trimClip(clips, i, edge, t, step = 0, limit = MAX_DURATION) {
   return replace(clips, i, { ...c, end: clamp(v, c.start + MIN_CLIP, hi) });
 }
 
-/** Set clip i's fade in or out ('in' | 'out') to `len` seconds, within what the other fade leaves. */
+/** Clip i's fade 'in' or 'out' to `len` s, within what the other leaves. */
 export function fadeClip(clips, i, side, len, step = 0) {
   const c = clips[i];
   const total = c.end - c.start;
@@ -95,11 +86,7 @@ export function fadeClip(clips, i, side, len, step = 0) {
   return replace(clips, i, { ...c, fadeIn, fadeOut: Math.min(v, total - fadeIn) });
 }
 
-/**
- * Clip i's fields from typed numbers ({ start?, end?, fadeIn?, fadeOut? }), within its room; null if
- * none. One edge typed past the other moves the clip there, keeping its length; both typed the wrong
- * way round swap. The order the numbers are typed in never collapses the clip to a sliver.
- */
+/** Clip i from typed { start?, end?, fadeIn?, fadeOut? } within its room, or null; an edge past the other moves it. */
 export function editClip(clips, i, patch, limit = MAX_DURATION) {
   const old = clips[i];
   const c = { ...old, ...patch };
@@ -140,11 +127,6 @@ export function addClip(clips, t, length = 4, step = 0, limit = MAX_DURATION) {
 
 export const removeClip = (clips, i) => clips.filter((_, j) => j !== i);
 
-/** The index of the clip holding t, or -1. */
-export function clipAt(clips, t) {
-  return (clips || []).findIndex((c) => t >= c.start && t < c.end);
-}
-
 /** When the look's content ends: the last clip, or `duration` while any layer is always on. */
 export function contentEnd(layers, duration) {
   let end = 0;
@@ -155,11 +137,7 @@ export function contentEnd(layers, duration) {
   return end;
 }
 
-/**
- * Another look after this one: its layers appended, playing from where this content ends (their clips
- * shifted there), the duration grown to fit, and always-on layers here ending where it starts.
- * → { layers, duration, start, end, ended } or { error }.
- */
+/** Another look appended where this one's content ends → { layers, duration, start, end, ended } | { error }. */
 export function importLook(layers, duration, look, newId) {
   const incoming = Array.isArray(look?.layers) ? look.layers : [];
   if (!incoming.length) return { error: 'That look has no layers.' };
@@ -190,7 +168,7 @@ export function importLook(layers, duration, look, newId) {
   return { layers: [...kept, ...added], duration: Math.max(duration, end), start, end, ended };
 }
 
-/** A ruler step (seconds) that keeps labels at least `minPx` apart at `pps` pixels a second. */
+/** A ruler step (s) keeping labels `minPx` apart at `pps`. */
 export function rulerStep(pps, minPx = 56) {
   for (const s of [0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300]) if (s * pps >= minPx) return s;
   return 600;

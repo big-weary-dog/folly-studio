@@ -1,9 +1,5 @@
-// Mirror: folds the layer onto itself, so one half plays and the other reflects it.
-//
-// A warp moves each pixel before the modules after it draw. Left-right folds the right half onto
-// the left (lz, z and the angle a), front-back and up-down fold depth (lx, x) and height (ly, y),
-// and along strands folds every wire at its middle (u and i), so chases run in from both ends.
-// Positions in metres (X Y Z) are left as they are.
+// Mirror: folds the layer onto itself before the modules after it draw: left-right (lz, z, a), front-back
+// (lx, x), up-down (ly, y), or every wire at its middle (u, i), so chases run in from both ends.
 const params = {
   leftRight: { value: true, type: 'toggle', label: 'Left ↔ right' },
   frontBack: { value: false, type: 'toggle', label: 'Front ↔ back' },

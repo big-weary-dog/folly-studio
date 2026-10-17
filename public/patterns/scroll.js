@@ -1,7 +1,5 @@
-// Scroll: slides the layer steadily, across, up, front to back or along every strand, wrapping round.
-//
-// Each speed is in layer-widths (or strand lengths) a second. Scrolling along strands moves u and
-// i together, so chases and meteors drawn after it drift along their wires.
+// Scroll: slides the layer, wrapping round: across, up, front to back (layer widths a second) or along every
+// strand (u and i together, so chases drawn after it drift along their wires).
 const params = {
   across: { value: 0.1, min: -2, max: 2, step: 0.01, label: 'Left → right' },
   up: { value: 0, min: -2, max: 2, step: 0.01, label: 'Upward' },

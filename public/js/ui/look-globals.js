@@ -2,34 +2,28 @@
 // picker showing its roles, and macros to add, rename and set (their range: as the API or a generator gave it).
 // Wide: a tab of the bottom dock; phones: the Look tab (macros are set there, not added). It edits look.globals in
 // place, keeping only what differs from the defaults. Loaded when the Look tab first shows.
+import { GLOBALS, macroNameOk } from '../core/globals.js';
+import { PALETTE_ROLES } from '../core/stdlib.js';
 import { h, humanize, nextId } from './dom.js';
 
-export const GLOBALS = [
-  { key: 'speed', min: 0, max: 4, step: 0.05, value: 1, help: 'How fast every pattern runs; changes never jump' },
-  { key: 'level', min: 0, max: 1, step: 0.01, value: 1, help: 'Master brightness' },
-  { key: 'hue', min: -0.5, max: 0.5, step: 0.01, value: 0, help: 'Turns every colour round the wheel' },
-  { key: 'saturation', min: 0, max: 2, step: 0.01, value: 1, help: '0 is grey, 2 is vivid' },
-  { key: 'energy', min: 0, max: 1, step: 0.01, value: 0.5, help: 'Calm to busy: patterns read it as G.energy' },
-];
-export const ROLES = ['low', 'body', 'accent', 'high'];
-const MACRO_NAME = /^[a-z][A-Za-z0-9_]{0,31}$/;
-const RESERVED = new Set([...GLOBALS.map((g) => g.key), 'palette']);
-export const macroNameOk = (n) => MACRO_NAME.test(n) && !RESERVED.has(n) && !(n in Object.prototype);
+const HELP = { speed: 'How fast every pattern runs; changes never jump', level: 'Master brightness',
+  hue: 'Turns every colour round the wheel', saturation: '0 is grey, 2 is vivid',
+  energy: 'Calm to busy: patterns read it as G.energy' };
 const fmt = (v) => String(Math.round(v * 100) / 100);
 
 export class GlobalsPanel {
-  // o: { look(), palettes: [{ name, low, … }], onChange({ live }), onRenameMacro(from, to) }
+  // o: { look(), palettes: [{ name, low, … }], onChange({ live }) }
   constructor(o) {
     Object.assign(this, { o, sliders: new Map(), macroSig: '' });
-    const rows = GLOBALS.map((g) => this._slider(g));
-    this.palette = h('select', { class: 'palette-select', id: nextId('pal') },
-      h('option', { value: '', text: 'Default (chapel)' }), o.palettes.map((p) => h('option', { value: p.name,
-        text: humanize(p.name) })));
-    this.palette.addEventListener('change', () => this._setPalette(this.palette.value));
+    this.palette = h('select', { class: 'palette-select', id: nextId('pal'),
+      onChange: () => this._setPalette(this.palette.value) },
+    h('option', { value: '', text: 'Default (chapel)' }),
+    o.palettes.map((p) => h('option', { value: p.name, text: humanize(p.name) })));
     this.swatches = h('div', { class: 'swatches', 'aria-label': 'Palette roles' });
     this.macros = h('ul', { class: 'macro-list' });
     this.el = h('div', { class: 'look-globals' },
-      h('section', { class: 'globals-sliders', 'aria-label': 'Globals' }, rows),
+      h('section', { class: 'globals-sliders', 'aria-label': 'Globals' },
+        Object.entries(GLOBALS).map(([key, d]) => this._slider(key, d))),
       h('section', { class: 'globals-palette', 'aria-label': 'Palette' },
         h('label', { for: this.palette.id, class: 'globals-h', text: 'Palette' }), this.palette, this.swatches),
       h('section', { class: 'globals-macros', 'aria-label': 'Macros' },
@@ -40,32 +34,34 @@ export class GlobalsPanel {
   }
 
   get g() { return (this.o.look().globals ||= {}); }
+  _changed(live = false) { this.o.onChange({ live }); }
 
-  _slider(d) {
-    const id = nextId('glb');
-    const range = h('input', { type: 'range', id, min: d.min, max: d.max, step: d.step, title: d.help });
+  _slider(key, d) {
+    const id = nextId('glb'), help = HELP[key];
+    const range = h('input', { type: 'range', id, min: d.min, max: d.max, step: key === 'speed' ? 0.05 : 0.01,
+      title: help });
     const out = h('output', { class: 'globals-out', for: id });
     const auto = h('span', { class: 'globals-auto', text: 'automated', hidden: true });
     const set = (live) => {
       const v = +range.value;
-      if (v === d.value) delete this.g[d.key]; else this.g[d.key] = v;
+      if (v === d.value) delete this.g[key]; else this.g[key] = v;
       out.textContent = fmt(v);
-      this.o.onChange({ live });
+      this._changed(live);
     };
     range.addEventListener('input', () => set(true));
     range.addEventListener('change', () => set(false));
     range.addEventListener('dblclick', () => { range.value = String(d.value); set(false); });
-    this.sliders.set(d.key, { range, out, auto, d });
-    return h('div', { class: 'globals-row' }, h('label', { for: id, text: humanize(d.key), title: d.help }), range, out,
+    this.sliders.set(key, { range, out, auto, d });
+    return h('div', { class: 'globals-row' }, h('label', { for: id, text: humanize(key), title: help }), range, out,
       auto);
   }
 
   _setPalette(name) {
     const p = this.o.palettes.find((x) => x.name === name);
-    if (p) this.g.palette = Object.fromEntries([['name', p.name], ...ROLES.map((r) => [r, [...p[r]]])]);
+    if (p) this.g.palette = Object.fromEntries([['name', p.name], ...PALETTE_ROLES.map((r) => [r, [...p[r]]])]);
     else delete this.g.palette;
     this.render();
-    this.o.onChange({ live: false });
+    this._changed();
   }
 
   _addMacro() {
@@ -74,7 +70,7 @@ export class GlobalsPanel {
     while (macros[`macro${n}`]) n++;
     macros[`macro${n}`] = { value: 0.5, min: 0, max: 1 };
     this.render();
-    this.o.onChange({ live: false });
+    this._changed();
   }
 
   /** Bring the controls in line with the look (after a load, an edit elsewhere, an undo). */
@@ -90,7 +86,7 @@ export class GlobalsPanel {
     const named = g.palette?.name && this.o.palettes.some((p) => p.name === g.palette.name);
     this.palette.value = named ? g.palette.name : '';
     const pal = g.palette || this.o.palettes.find((p) => p.name === 'chapel');
-    this.swatches.replaceChildren(...ROLES.map((r) => h('div', { class: 'swatch-row' },
+    this.swatches.replaceChildren(...PALETTE_ROLES.map((r) => h('div', { class: 'swatch-row' },
       h('span', { class: 'swatch-role', text: humanize(r) }),
       (pal?.[r] || []).map((c) => h('span', { class: 'swatch', title: c, style: { 'background-color': c } })))));
     const sig = JSON.stringify(g.macros || {}) + JSON.stringify(Object.keys(lanes));
@@ -103,34 +99,43 @@ export class GlobalsPanel {
   _macro(name, m, lanes) {
     const id = nextId('mac');
     const nameIn = h('input', { type: 'text', class: 'macro-name', value: name, maxlength: 32, spellcheck: false,
-      'aria-label': `Name of macro ${name}` });
-    nameIn.addEventListener('change', () => {
-      const to = nameIn.value.trim();
-      if (to === name) return;
-      if (!macroNameOk(to) || this.g.macros[to]) {
-        nameIn.value = name;
-        return;
-      }
-      this.g.macros = Object.fromEntries(Object.entries(this.g.macros).map(([k, v]) => [k === name ? to : k, v]));
-      this.o.onRenameMacro(name, to);
-      this.render();
-    });
-    const step = (m.max - m.min) / 100;
-    const range = h('input', { type: 'range', id, min: m.min, max: m.max, step, value: m.value,
+      'aria-label': `Name of macro ${name}`, onChange: () => {
+        const to = nameIn.value.trim();
+        if (to === name) return;
+        if (!macroNameOk(to) || this.g.macros[to]) { nameIn.value = name; return; }
+        this.g.macros = Object.fromEntries(Object.entries(this.g.macros).map(([k, v]) => [k === name ? to : k, v]));
+        this._rename(name, to);
+      } });
+    const range = h('input', { type: 'range', id, min: m.min, max: m.max, step: (m.max - m.min) / 100, value: m.value,
       disabled: !!lanes[name] });
     const out = h('output', { class: 'globals-out', for: id, text: fmt(m.value) });
-    const set = (live) => { m.value = +range.value; out.textContent = fmt(m.value); this.o.onChange({ live }); };
+    const set = (live) => { m.value = +range.value; out.textContent = fmt(m.value); this._changed(live); };
     range.addEventListener('input', () => set(true));
     range.addEventListener('change', () => set(false));
     const del = h('button', { type: 'button', class: 'icon-btn wide-only', text: '×', 'aria-label': `Delete ${name}`,
       onClick: () => {
         delete this.g.macros[name];
         if (!Object.keys(this.g.macros).length) delete this.g.macros;
-        this.o.onRenameMacro(name, null);
-        this.render();
+        this._rename(name, null);
       } });
     return h('li', { class: 'macro' }, nameIn, h('label', { for: id, class: 'sr-only', text: `${name} value` }), range,
-      out, del,
-      lanes[name] ? h('span', { class: 'globals-auto', text: 'automated' }) : null);
+      out, del, lanes[name] ? h('span', { class: 'globals-auto', text: 'automated' }) : null);
+  }
+
+  /** A macro renamed (to null: deleted): its automation lane and the params bound to it follow. */
+  _rename(from, to) {
+    const look = this.o.look(), auto = look.automation;
+    if (auto?.[from]) {
+      if (to) auto[to] = auto[from];
+      delete auto[from];
+      if (!Object.keys(auto).length) delete look.automation;
+    }
+    for (const m of look.layers.flatMap((l) => l.modules)) {
+      for (const [k, b] of Object.entries(m.params || {})) {
+        if (b?.mod === 'global' && b.name === from) { if (to) b.name = to; else delete m.params[k]; }
+      }
+    }
+    this.render();
+    this._changed();
   }
 }

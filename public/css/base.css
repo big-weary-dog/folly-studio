@@ -1,3 +1,33 @@
+/* The shell's styles, on every page: tokens, base, panels, buttons, forms, the header, the list pages' layout. */
+/* Tokens: night over the playa, lead came, lit glass, playa dust. */
+:root {
+  color-scheme: dark;
+  /* night (the 3D view darkest, so the LEDs carry the colour), lead came, lit glass, playa dust */
+  --night-0: #0f0b19; --night-1: #161022; --night-2: #1d1630; --night-3: #271e3e; --night-4: #34294f; --void: #06040b;
+  --lead: #07050b; --came: 3px; --came-s: 2px;
+  --bevel: inset 0 1px 0 rgb(255 236 214 / .1); --rim: 0 0 0 1px rgb(255 236 214 / .08);
+  --well: inset 0 2px 4px rgb(0 0 0 / .45);
+  --ruby: #f0647f; --cobalt: #3d64e0; --cobalt-t: #9bb6ff; --amber: #f4b04f; --emerald: #45cf9b; --violet: #b393ff;
+  --dust: #e9a9a1; --sand: #e8cf9f;
+  --text: #f3e9da; --text-2: #cfbfae; --text-3: #a3949f; --error: #ffa9bb; --focus: #ffd98a;
+  --tint: var(--sand); /* a section's glass: views, panes and states set it */
+  --radius: 3px; --header-h: 56px;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  --ease: cubic-bezier(.2, .7, .2, 1); --shadow: 0 12px 40px rgb(0 0 0 / .5);
+  /* a quatrefoil in currentColor, and an LED string */
+  --qf: radial-gradient(circle at 50% 28%, currentColor 23%, #0000 25%),
+    radial-gradient(circle at 28% 50%, currentColor 23%, #0000 25%),
+    radial-gradient(circle at 72% 50%, currentColor 23%, #0000 25%),
+    radial-gradient(circle at 50% 72%, currentColor 23%, #0000 25%);
+  --leds: radial-gradient(circle, rgb(232 207 159 / .6) 0 1.2px, #0000 1.8px) 1px 50% / 8px 6px;
+}
+/* phones: touch targets (var(--hit, <desktop size>)) and a shorter header */
+@media (max-width: 899px) { :root { --hit: 44px; --header-h: 52px; } }
+body[data-view=ideas] { --tint: var(--amber); }
+body[data-view=studio] { --tint: var(--violet); }
+body[data-view=looks] { --tint: var(--emerald); }
+body[data-view=gallery] { --tint: var(--ruby); }
 /* Base: reset, the night sky, type, focus, the rose window (js/ui/rose.js). */
 *, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -58,3 +88,264 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offs
   .rose-fill .rp:nth-of-type(n+7) { opacity: .2; }
 }
 @media (forced-colors: active) { .rose { forced-color-adjust: none; } }
+/* Panels: glass set in lead, tinted by --tint and lit from behind; pointed-arch (ogive) pieces;
+   dialogs, menus, toasts; states as quatrefoils. */
+.compose, .idea, .card, .dialog, .menu, .toast, .viewer-msg, .library-item, .empty, .bake {
+  border: var(--came) solid var(--lead); border-radius: var(--radius);
+  background: radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--tint) 12%, #0000), #0000 70%)
+    color-mix(in srgb, var(--tint) 5%, var(--night-1));
+  box-shadow: var(--bevel), inset 0 0 26px -10px color-mix(in srgb, var(--tint) 45%, #0000), var(--rim); }
+
+/* Ogive: two elliptical arcs spring upright from the sides and meet in a point, --arch tall.
+   The piece is lead; its ::before, a came inside, is the glass. A mask can't show an outline,
+     so a focused arch lights its came instead. */ .btn.primary, .main-nav a[aria-current=page],
+     .tab[aria-pressed=true], .seg-btn[aria-pressed=true], .dock-tab[aria-pressed=true], .auth-card, .tp-play {
+     --arch: 12px; position: relative; isolation: isolate; background: var(--lead); }
+.btn.primary, .main-nav a[aria-current=page], .tab[aria-pressed=true], .seg-btn[aria-pressed=true],
+  .dock-tab[aria-pressed=true], .auth-card, .tp-play, .btn.primary::before, .main-nav a[aria-current=page]::before,
+  .tab[aria-pressed=true]::before, .seg-btn[aria-pressed=true]::before, .dock-tab[aria-pressed=true]::before,
+  .auth-card::before, .tp-play::before {
+  mask: radial-gradient(200% 115.5% at 200% 100%, #000 calc(100% - 1px), #0000) 0 0 / 50.2% var(--arch) no-repeat,
+    radial-gradient(200% 115.5% at -100% 100%, #000 calc(100% - 1px), #0000) 100% 0 / 50.2% var(--arch) no-repeat,
+    linear-gradient(#000 0 0) 0 var(--arch) / 100% 100% no-repeat; }
+.btn.primary::before, .main-nav a[aria-current=page]::before, .tab[aria-pressed=true]::before,
+  .seg-btn[aria-pressed=true]::before, .dock-tab[aria-pressed=true]::before, .auth-card::before, .tp-play::before {
+  content: ''; position: absolute; inset: var(--came); z-index: -1;
+  background: radial-gradient(110% 90% at 50% 15%, color-mix(in srgb, var(--tint) 30%, #0000), #0000 75%)
+    color-mix(in srgb, var(--tint) 12%, var(--night-2)); }
+.btn.primary:focus-visible, .main-nav a[aria-current=page]:focus-visible, .tab[aria-pressed=true]:focus-visible,
+  .seg-btn[aria-pressed=true]:focus-visible, .dock-tab[aria-pressed=true]:focus-visible, .tp-play:focus-visible {
+  background: var(--focus); outline: none; }
+
+.dialog { --tint: var(--sand); width: min(520px, calc(100vw - 24px)); max-height: calc(100dvh - 40px); padding: 0;
+  color: var(--text); box-shadow: var(--bevel), var(--rim), var(--shadow); }
+.dialog[open] { display: flex; flex-direction: column; }
+.dialog::backdrop { background: rgb(6 4 11 / .78); }
+.dialog-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 16px 14px 0 22px; }
+.dialog-head h2 { font-size: 20px; }
+.dialog-head .icon-btn { font-size: 22px; }
+.dialog-body { min-height: 0; padding: 14px 22px 22px; display: flex; flex-direction: column; gap: 14px; overflow: auto;
+}
+.dialog-text { color: var(--text-2); }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+.menu-wrap { position: relative; }
+.menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 210px; padding: 4px; display: flex;
+  flex-direction: column; box-shadow: var(--bevel), var(--shadow); }
+.menu button { padding: 9px 12px; text-align: left; font-size: 14px; background: none; border: 0; cursor: pointer; }
+.menu button:hover, .menu button:focus-visible { background: var(--night-4); outline: none; }
+
+.toasts { position: fixed; z-index: 90; right: 16px; bottom: var(--toasts-bottom, 16px); display: flex;
+  flex-direction: column; gap: 8px; max-width: min(420px, calc(100vw - 32px)); }
+.toast { --tint: var(--cobalt-t); display: flex; align-items: center; gap: 10px; padding: 8px 6px 8px 12px;
+  font-size: 14px; box-shadow: var(--bevel), var(--shadow); animation: toast-in .18s var(--ease); }
+/* quatrefoil markers, in the piece's glass */
+.toast::before, .status-dot, .tag::before, .chip::before, .section-head h2::before, .kicker::before, .kicker::after,
+  .pane-title::before, .look-h::before, .tree-label::before, .bake-pill::before, .dock-issue::before, .baked-dot {
+  content: ''; width: var(--q, 10px); height: var(--q, 10px); flex: none; color: var(--tint); background: var(--qf); }
+.toast-ok { --tint: var(--emerald); }
+.toast-warn { --tint: var(--amber); }
+.toast-error { --tint: var(--ruby); }
+.toast-msg { flex: 1; }
+.toast-close { min-width: var(--hit); min-height: var(--hit); padding: 4px 8px; font-size: 20px; line-height: 1;
+  color: var(--text-3); background: none; border: 0; cursor: pointer; }
+.toast-close:hover { color: var(--text); }
+.toast.leaving { opacity: 0; transform: translateY(6px); transition: opacity .18s, transform .18s; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
+
+.status { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.status-dot { --q: 9px; color: inherit; }
+.status-ok { color: var(--emerald); }
+.status-bad { color: var(--ruby); }
+.status-pending { color: var(--amber); }
+.tag { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; letter-spacing: .09em;
+  text-transform: uppercase; }
+.tag::before { --q: 8px; color: inherit; }
+.tag-amber { color: var(--amber); }
+.tag-sapphire { color: var(--cobalt-t); }
+.tag-emerald { color: var(--emerald); }
+@media (max-width: 899px) {
+  .toasts { left: 12px; right: 12px; bottom: var(--toasts-bottom, 12px); max-width: none; }
+  .dialog-actions .btn { flex: 1; }
+}
+/* Buttons: small panes of dark glass in lead. The primary action is lit cobalt glass with a
+   pointed-arch top (the ogive is in panels.css). */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--hit, 38px);
+  padding: 6px 14px; color: var(--text); background: linear-gradient(var(--night-4), var(--night-3));
+  border: var(--came-s) solid var(--lead); border-radius: var(--radius); box-shadow: var(--bevel), var(--rim);
+  font-size: 14px; font-weight: 560; text-decoration: none; white-space: nowrap; cursor: pointer;
+  transition: background .15s, color .15s; }
+.btn:hover { color: var(--text); }
+.btn:not(.primary):hover { background: var(--night-4); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.primary { --arch: 11px; min-height: 44px; padding: 13px 20px 7px; border: 0; color: #fff; font-weight: 650;
+  text-shadow: 0 1px 1px rgb(0 0 0 / .35); box-shadow: none; }
+.btn.primary::before { background: radial-gradient(70% 90% at 50% 18%, #7392f2, #0000 75%) var(--cobalt); }
+.btn.primary:hover::before { background: radial-gradient(75% 95% at 50% 18%, #8ea8ff, #0000 75%) #4a70ea; }
+.btn.ghost { background: rgb(255 236 214 / .03); }
+.btn.ghost:hover { background: rgb(255 236 214 / .08); }
+.btn.danger { color: #ffe0e6; background: color-mix(in srgb, var(--ruby) 34%, var(--night-2)); }
+.btn.danger:hover { background: color-mix(in srgb, var(--ruby) 48%, var(--night-2)); }
+.btn.small { min-height: var(--hit, 30px); padding: 3px 11px; font-size: 13px; }
+.btn.primary.small { --arch: 8px; min-height: var(--hit, 34px); padding: 10px 14px 4px; }
+.btn.wide { width: 100%; }
+.btn.busy { position: relative; color: transparent !important; text-shadow: none; pointer-events: none; }
+.btn.busy::after { content: ''; position: absolute; left: calc(50% - 8px); top: calc(50% - 6px); width: 16px;
+  height: 16px; border-radius: 50%; border: 2px solid rgb(255 255 255 / .3); border-top-color: #fff;
+  animation: spin .7s linear infinite; }
+.danger-text { color: var(--ruby) !important; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.icon-btn { display: inline-grid; place-items: center; width: var(--hit, 32px); height: var(--hit, 32px); padding: 0;
+  flex: none; color: var(--text-2); font-size: 16px; line-height: 1; background: none;
+  border: var(--came-s) solid transparent; border-radius: var(--radius); cursor: pointer; }
+.icon-btn:hover { color: var(--text); background: var(--night-3); border-color: var(--lead); }
+.icon-btn:disabled { opacity: .35; cursor: default; background: none; border-color: transparent; }
+/* windows on a came: the pressed one is lit */
+.seg { display: flex; margin-bottom: 4px; border-bottom: var(--came) solid var(--lead); }
+.seg-btn { flex: 1; min-height: 44px; margin-bottom: calc(-1 * var(--came)); padding: 10px 10px 6px;
+  color: var(--text-2); font-weight: 600; background: none; border: 0; cursor: pointer; }
+.seg-btn:hover, .seg-btn[aria-pressed=true] { color: var(--text); }
+@media (max-width: 899px) { .btn.small { padding: 6px 14px; font-size: 14px; } }
+/* Forms: wells of dark glass in lead, the came lit on focus. Sliders are a string of LEDs with a
+   glass lozenge to drag; a switch slides a quatrefoil that lights when on. */
+input[type=text], input[type=password], input[type=search], input[type=number], textarea, select {
+  min-height: var(--hit, 38px); padding: 8px 10px; color: var(--text); background-color: var(--night-0);
+  border: var(--came-s) solid var(--lead); border-radius: var(--radius); box-shadow: var(--well), var(--rim); }
+input::placeholder, textarea::placeholder { color: var(--text-3); opacity: 1; }
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--focus); }
+select { appearance: none; padding-right: 28px; cursor: pointer; background-repeat: no-repeat; background-size: 5px 5px;
+  background-image: linear-gradient(45deg, #0000 50%, var(--text-2) 0),
+    linear-gradient(-45deg, #0000 50%, var(--text-2) 0);
+  background-position: calc(100% - 17px) 55%, calc(100% - 12px) 55%; }
+select:disabled { opacity: .5; }
+input[type=checkbox] { accent-color: var(--sand); }
+input[type=color] { width: var(--hit, 44px); height: var(--hit, 30px); padding: 2px; cursor: pointer;
+  background: var(--night-0); border: var(--came-s) solid var(--lead); border-radius: var(--radius);
+  box-shadow: var(--rim); }
+input[type=range] { appearance: none; height: var(--hit, 24px); min-width: 0; margin: 0; background: none;
+  cursor: pointer; }
+input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: var(--leds) var(--lead);
+}
+input[type=range]::-moz-range-track { height: 6px; border-radius: 3px; background: var(--leds) var(--lead); }
+input[type=range]::-webkit-slider-thumb { appearance: none; width: 16px; height: 18px; margin-top: -6px; border: 0;
+  background: radial-gradient(circle at 50% 40%, #fff3dc, var(--sand) 45%, #a8875a);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+input[type=range]::-moz-range-thumb { width: 16px; height: 18px; border: 0; border-radius: 0;
+  background: radial-gradient(circle at 50% 40%, #fff3dc, var(--sand) 45%, #a8875a);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+input[type=range]:disabled { opacity: .45; cursor: default; }
+input.switch { appearance: none; position: relative; flex: none; width: 40px; height: 22px; margin: 0; cursor: pointer;
+  background: var(--night-0); border: var(--came-s) solid var(--lead); border-radius: var(--radius);
+  box-shadow: var(--well), var(--rim); }
+input.switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px;
+  color: var(--text-3); background: var(--qf); transition: transform .15s var(--ease); }
+input.switch:checked { background: color-mix(in srgb, var(--emerald) 28%, var(--night-1)); }
+input.switch:checked::after { transform: translateX(18px); color: var(--emerald); }
+input.switch:disabled { opacity: .5; cursor: default; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field > label { font-size: 13px; color: var(--text-2); font-weight: 550; }
+.field-hint { font-size: 12.5px; color: var(--text-3); }
+.form-error { color: var(--error); font-size: 14px; }
+@media (max-width: 899px) {
+  input.switch { width: 52px; height: 30px; }
+  input.switch::after { width: 22px; height: 22px; }
+  input.switch:checked::after { transform: translateX(22px); }
+  select, input[type=text], input[type=password], input[type=search], input[type=number] { font-size: 16px; }
+}
+/* The header: the rose and the wordmark, the sections as windows on a came (the current one lit in
+   its own glass), the account. */
+.app-header { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 26px;
+  height: var(--header-h); padding: 0 18px; background: var(--night-0); border-bottom: var(--came) solid var(--lead);
+  box-shadow: 0 1px 0 rgb(255 236 214 / .07); }
+.brand { display: flex; align-items: center; gap: 10px; min-height: 44px; flex: none; color: var(--text); }
+.brand-mark { width: 32px; height: 32px; }
+.wordmark { --wm-2: var(--dust); --wm-dot: var(--ruby); width: 97px; height: 24px; color: var(--text); }
+.nav-panel { display: flex; align-items: center; gap: 22px; flex: 1; min-width: 0; align-self: stretch; }
+.main-nav { display: flex; gap: 2px; align-self: flex-end; }
+.main-nav a { display: flex; align-items: flex-end; height: 46px; margin-bottom: calc(-1 * var(--came));
+  padding: 0 15px 10px; color: var(--text-2); font-size: 14.5px; font-weight: 560; text-decoration: none; }
+.main-nav a:hover { color: var(--text); }
+.main-nav a[href="/ideas"] { --tint: var(--amber); }
+.main-nav a[href="/studio"] { --tint: var(--violet); }
+.main-nav a[href="/looks"] { --tint: var(--emerald); }
+.main-nav a[href="/gallery"] { --tint: var(--ruby); }
+.main-nav a[aria-current=page] { --arch: 15px; color: var(--text); }
+.main-nav a[aria-current=page]::before { inset: var(--came) var(--came) 0;
+  background: radial-gradient(90% 100% at 50% 0%, color-mix(in srgb, var(--tint) 42%, #0000), #0000 80%)
+    color-mix(in srgb, var(--tint) 14%, var(--night-1)); }
+.user-box { margin-left: auto; display: flex; align-items: center; gap: 12px; min-width: 0; }
+.user-name { max-width: 160px; overflow: hidden; color: var(--text-2); font-size: 14px; text-overflow: ellipsis;
+  white-space: nowrap; }
+.nav-toggle { display: none; }
+
+@media (max-width: 899px) {
+  .app-header { gap: 10px; padding: 0 8px 0 12px; }
+  .brand-mark { width: 30px; height: 30px; }
+  .nav-toggle { display: grid; place-items: center; width: 44px; height: 44px; margin-left: auto; color: var(--text);
+    cursor: pointer; background: none; border: var(--came-s) solid var(--lead); border-radius: var(--radius);
+    box-shadow: var(--rim); }
+  .nav-toggle-bars, .nav-toggle-bars::before, .nav-toggle-bars::after { display: block; position: relative; width: 18px;
+    height: 2px; background: currentColor; }
+  .nav-toggle-bars::before, .nav-toggle-bars::after { content: ''; position: absolute; left: 0; top: -6px; }
+  .nav-toggle-bars::after { top: 6px; }
+  .nav-panel { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column;
+    align-items: stretch; gap: 0; padding: 8px; background: var(--night-1);
+    border-bottom: var(--came) solid var(--lead); box-shadow: var(--shadow); }
+  .app-header.nav-open .nav-panel { display: flex; }
+  .main-nav { flex-direction: column; align-self: stretch; }
+  .main-nav a { height: auto; min-height: 48px; margin: 0; padding: 12px 14px; align-items: center; gap: 12px;
+    font-size: 16px; }
+  .main-nav a::after { content: ''; width: 10px; height: 10px; order: -1; color: var(--tint); background: var(--qf); }
+  .main-nav a[aria-current=page], .main-nav a[aria-current=page]:focus-visible { mask: none; background: none; }
+  .main-nav a[aria-current=page]::before { mask: none; inset: 0; border: var(--came-s) solid var(--lead); }
+  .main-nav a:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+  .user-box { margin: 6px 0 0; padding: 12px 14px 6px; border-top: var(--came) solid var(--lead); }
+  .user-name { max-width: none; }
+}
+/* Layout: the list pages' column, titles over a string of LEDs, and the sign-in page (the rose
+   window beside a pointed-arch card). */
+.page { max-width: 1120px; margin: 0 auto; padding: 40px 24px 80px; }
+.page-title { font-size: clamp(27px, 3.6vw, 36px); letter-spacing: -.015em; }
+.page-title::after { content: ''; display: block; height: 6px; width: min(240px, 60%); margin-top: 12px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--tint) 70%, #fff) 0 1.3px, #0000 2px) 0 50% / 11px 6px;
+  mask: linear-gradient(90deg, #000 40%, #0000); }
+.lede { color: var(--text-2); margin-top: 12px; max-width: 62ch; font-size: 16px; }
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.section-head h2 { display: flex; align-items: center; gap: 10px; font-size: 21px; }
+.section-head h2::before { --q: 11px; }
+.page-head { margin-bottom: 30px; }
+.head-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.search { width: 240px; max-width: 100%; }
+.empty { margin-top: 16px; padding: 36px 20px; text-align: center; color: var(--text-2); }
+.pane-hint { color: var(--text-3); font-size: 13.5px; padding: 6px 2px; }
+
+.auth { min-height: 100dvh; max-width: 1080px; margin: 0 auto; padding: 40px 28px; display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px); align-items: center; gap: 64px; }
+.auth-art { display: grid; place-items: center; }
+.auth-art .rose { width: min(100%, 460px); filter: drop-shadow(0 0 60px rgb(240 100 127 / .2)); }
+.auth-art .rp { animation: rp-glint 9s ease-in-out infinite; animation-delay: calc(var(--i) * -.5625s); }
+@keyframes rp-glint { 50% { opacity: .62; } } /* a slow wave of light round the window */
+.auth-card { --arch: 110px; --tint: var(--dust); padding: 70px 34px 32px; }
+.auth-card::before {
+  background: radial-gradient(70% 45% at 50% 0%, color-mix(in srgb, var(--tint) 24%, #0000), #0000)
+    color-mix(in srgb, var(--tint) 5%, var(--night-1)); }
+.auth-title { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.auth-title .wordmark { width: 220px; height: 54px; }
+.kicker { display: flex; align-items: center; gap: 8px; color: var(--sand); font-size: 11.5px; font-weight: 650;
+  letter-spacing: .24em; text-transform: uppercase; }
+.kicker::before, .kicker::after { --q: 8px; color: var(--dust); }
+.auth-lede { text-align: center; color: var(--text-2); margin: 14px 0 26px; font-size: 14.5px; }
+.auth-form { display: flex; flex-direction: column; gap: 16px; }
+.auth-form .btn { font-size: 15px; }
+
+@media (max-width: 899px) {
+  .page { padding: 24px 16px 64px; }
+  .lede { font-size: 15px; }
+  .search { flex: 1; width: auto; min-width: 0; }
+  .head-actions { width: 100%; flex-wrap: nowrap; }
+  .auth { grid-template-columns: 1fr; gap: 0; padding: 20px 16px 32px; align-content: start; min-height: 0; }
+  .auth-art { height: 196px; overflow: hidden; margin-bottom: -112px; place-items: start center; }
+  .auth-art .rose { width: 270px; filter: none; }
+  .auth-card { --arch: 120px; padding: 84px 20px 24px; }
+  .auth-title .wordmark { width: 184px; height: 46px; }
+}

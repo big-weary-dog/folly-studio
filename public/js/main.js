@@ -1,17 +1,15 @@
 // Folly Studio — app bootstrap: session, header, history-API routing.
 import { api } from './api.js';
-import { clear, confirmDialog, toast } from './ui/dom.js';
-import { rose } from './ui/rose.js';
+import { confirmDialog, rose, toast } from './ui/dom.js';
 // Views load on first use, so the login and list pages never fetch the Studio's 3D code.
-const auth = () => import('./ui/auth.js');
-const looks = () => import('./ui/looks.js');
+const pages = () => import('./ui/pages.js');
 const ROUTES = [
-  { re: /^\/login\/?$/, load: auth, public: true, title: 'Sign in' },
-  { re: /^\/ideas\/?$/, load: () => import('./ui/ideas.js'), nav: '/ideas', title: 'Ideas' },
+  { re: /^\/login\/?$/, load: () => import('./ui/auth.js'), public: true, title: 'Sign in' },
+  { re: /^\/ideas\/?$/, load: pages, nav: '/ideas', title: 'Ideas' },
   { re: /^\/studio(?:\/([^/]+))?\/?$/, load: () => import('./ui/studio.js'), nav: '/studio', title: 'Studio',
     keys: ['lookId'] },
-  { re: /^\/looks\/?$/, load: looks, nav: '/looks', title: 'My looks', args: { scope: 'mine' } },
-  { re: /^\/gallery\/?$/, load: looks, nav: '/gallery', title: 'Gallery', args: { scope: 'gallery' } },
+  { re: /^\/looks\/?$/, load: pages, nav: '/looks', title: 'My looks', args: { scope: 'mine' } },
+  { re: /^\/gallery\/?$/, load: pages, nav: '/gallery', title: 'Gallery', args: { scope: 'gallery' } },
 ];
 
 const app = { user: null, current: null /* { route, instance } */, url: null };
@@ -71,7 +69,7 @@ async function render() {
   if (token !== renders) return;          // a newer navigation won the race
   try { app.current?.instance?.unmount?.(); } catch (err) { console.error(err); } // tear down the old view
   app.current = null;
-  clear(main);
+  main.replaceChildren();
   const name = route.nav ? route.nav.slice(1) : 'auth';
   main.className = `view view-${name}`;
   document.body.dataset.view = name;

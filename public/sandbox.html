@@ -19,7 +19,9 @@
 (() => {
   'use strict';
   const app = window.parent;
-  const toApp = (msg, transfer) => app.postMessage(msg, '*', transfer || []);
+  let port = null;            // from the app's init: everything after it goes this way (window messages are slow)
+  const toApp = (msg, transfer = []) => (port ? port.postMessage(msg, transfer)
+    : app.postMessage(msg, '*', transfer));
 
   const FRAME_BUDGET_MS = 1000;   // a frame (live or export) running longer than this has hung
   const LOOK_BUDGET_MS = 700;     // compiling a look's new code
@@ -146,10 +148,13 @@
     if (held) { held.push(job); tickOn(); } else post(job);
   }
 
+  const onApp = (msg) => { if (msg && typeof msg === 'object' && typeof msg.type === 'string') fromApp(msg); };
   window.addEventListener('message', (event) => {
-    if (event.source !== app) return;
-    const msg = event.data;
-    if (msg && typeof msg === 'object' && typeof msg.type === 'string') fromApp(msg);
+    if (event.source !== app || event.data?.type !== 'init' || !event.ports[0]) return;
+    port?.close();
+    port = event.ports[0];
+    port.onmessage = (e) => onApp(e.data);
+    onApp(event.data);
   });
 
   function onWorker(w, m) {
@@ -196,7 +201,8 @@
     else if (m.type === 'compiled') toApp({ type: 'compiled', layers: compiledReport(job.layers, m.layers) });
     else if (m.type === 'frame') {
       const rgb = m.rgb instanceof Float32Array ? m.rgb : new Float32Array(count * 3);
-      toApp({ type: 'frame', seq: job.seq, rgb, errors: withPaused(m.errors, job.look), ms: +m.ms || 0 }, [rgb.buffer]);
+      toApp({ type: 'frame', seq: job.seq, rgb, errors: withPaused(m.errors, job.look), ms: +m.ms || 0,
+        layerMs: m.layerMs }, [rgb.buffer]);
     } else if (m.type === 'rendered') {
       if (!(m.channels instanceof Uint8Array)) return fail('The sandbox returned no channel data.');
       toApp({ type: 'rendered', seq: job.seq, channels: m.channels, frames: m.frames, channelCount: m.channelCount,

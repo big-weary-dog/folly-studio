@@ -1,8 +1,5 @@
-// Starfield: every LED is a star with its own rhythm, glinting over a shifting night sky.
-//
-// seed is a stable random number per LED, so each star keeps its rate, phase and colour from
-// frame to frame; pulse() makes the glint brief. The sky drifts between two deep blues on
-// slow noise, so the dark is never flat.
+// Starfield: every LED a star with its own rhythm (rate, phase and colour from its seed), glinting briefly
+// (pulse) over a sky that drifts between two deep blues on slow noise, so the dark is never flat.
 const params = {
   rate: { value: 0.35, min: 0.05, max: 3, step: 0.01, label: 'Glints per second' },
   density: { value: 0.5, min: 0, max: 1, step: 0.01, label: 'Share of LEDs that are stars' },

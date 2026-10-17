@@ -1,28 +1,18 @@
 // Shared data: the cathedral model, the pattern library, group membership, layer and module helpers.
 import { api, fetchJSON } from '../api.js';
+import { pixelsForGroups, prepareScene } from '../core/scene.js';
 import { randomId } from './dom.js';
 
-let cathedralP = null;
-export function loadCathedral() {
-  cathedralP ||= fetchJSON('/data/cathedral.json').catch((err) => { cathedralP = null; throw err; });
-  return cathedralP;
-}
-
-let palettesP = null;
+/** load() once: its promise is shared, and forgotten if it fails so the next call tries again. */
+const once = (load) => {
+  let p = null;
+  return () => (p ||= load().catch((err) => { p = null; throw err; }));
+};
+export const loadCathedral = once(() => fetchJSON('/data/cathedral.json'));
 /** [{ name, low, body, accent, high }] from data/palettes.json (td/palettes, by tools/build_palettes.py). */
-export function loadPalettes() {
-  palettesP ||= fetchJSON('/data/palettes.json').then((d) => (Array.isArray(d.palettes) ? d.palettes : []))
-    .catch((err) => { palettesP = null; throw err; });
-  return palettesP;
-}
-
-let libraryP = null;
+export const loadPalettes = once(() => fetchJSON('/data/palettes.json').then((d) => d.palettes || []));
 /** [{ name, title, summary, kind, category, code }] from /api/library. */
-export function loadLibrary() {
-  libraryP ||= api.library().then((r) => (Array.isArray(r.patterns) ? r.patterns : []))
-    .catch((err) => { libraryP = null; throw err; });
-  return libraryP;
-}
+export const loadLibrary = once(() => api.library().then((r) => r.patterns || []));
 
 export const BLEND_MODES = [
   { value: 'add', label: 'Add', help: 'Sums light (default)' },
@@ -108,12 +98,9 @@ export function layerFromPattern(pattern, cathedral) {
     cathedral);
 }
 
-export function defaultGroupId(cathedral) {
-  const groups = cathedral?.groups || [];
-  if (groups.some((g) => g.id === 'cathedral')) return 'cathedral';
-  const root = groups.find((g) => !g.parent);
-  return root ? root.id : 'cathedral';
-}
+/** The whole cathedral's group: `cathedral`, else the root of the tree. */
+const defaultGroupId = (cathedral) => (cathedral?.groups || []).find((g) => g.id === 'cathedral' || !g.parent)?.id
+  ?? 'cathedral';
 
 const isBlend = (b) => BLEND_MODES.some((x) => x.value === b);
 const copyParams = (p) => (p && typeof p === 'object' ? JSON.parse(JSON.stringify(p)) : {});
@@ -163,54 +150,23 @@ export function normaliseLayers(layers, cathedral) {
   });
 }
 
-/** Precomputed group masks: Map id → Uint8Array(count). */
+/** Each group's LEDs (the core's membership rule) as masks: Map id → Uint8Array(count); its tree; its ancestors. */
 export function buildGroupIndex(cathedral) {
-  const { count, zones: zoneNames = [], pixels } = cathedral;
-  const zoneOf = (z) => (typeof z === 'number' ? z : zoneNames.indexOf(z));
-  const masks = new Map(), counts = new Map();
-  for (const g of cathedral.groups || []) {
-    const zones = new Set((g.zones || []).map(zoneOf));
-    const strands = new Set(g.strands || []);
-    const rows = Array.isArray(g.rows) && g.rows.length ? new Set(g.rows) : null;
-    const m = new Uint8Array(count);
-    let n = 0;
-    for (let i = 0; i < count; i++) {
-      let hit = zones.has(pixels.zone[i]) || strands.has(pixels.strand[i]);
-      if (hit && rows) hit = rows.has(pixels.row[i]);
-      if (hit) { m[i] = 1; n++; }
-    }
-    masks.set(g.id, m);
-    counts.set(g.id, n);
-  }
-  const children = new Map();
-  for (const g of cathedral.groups || []) {
+  const scene = prepareScene(cathedral), byId = scene.groupById;
+  const masks = new Map(), counts = new Map(), children = new Map();
+  for (const g of scene.groups) {
+    const idx = pixelsForGroups(scene, [g.id]), mask = new Uint8Array(scene.count);
+    for (const k of idx) mask[k] = 1;
+    masks.set(g.id, mask);
+    counts.set(g.id, idx.length);
     const p = g.parent ?? null;
-    if (!children.has(p)) children.set(p, []);
-    children.get(p).push(g);
+    children.set(p, [...(children.get(p) || []), g]);
   }
-  const byId = new Map((cathedral.groups || []).map((g) => [g.id, g]));
   return {
     masks, counts, children, byId,
-    /** Union mask of several group ids (null if none). */
-    union(ids) {
-      const list = (ids || []).map((id) => masks.get(id)).filter(Boolean);
-      if (!list.length) return null;
-      if (list.length === 1) return list[0];
-      const out = new Uint8Array(count);
-      for (const m of list) for (let i = 0; i < count; i++) out[i] |= m[i];
-      return out;
-    },
-    countOf(ids) {
-      const u = this.union(ids);
-      if (!u) return 0;
-      let n = 0;
-      for (let i = 0; i < count; i++) n += u[i];
-      return n;
-    },
     ancestors(id) {
       const out = [];
-      let g = byId.get(id);
-      while (g && g.parent) { out.push(g.parent); g = byId.get(g.parent); }
+      for (let g = byId.get(id); g?.parent; g = byId.get(g.parent)) out.push(g.parent);
       return out;
     },
   };

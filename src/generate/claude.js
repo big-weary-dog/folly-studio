@@ -159,10 +159,7 @@ async function readStream(body) {
     buf += dec.decode(value, { stream: true });
     buf = buf.replace(/\r\n?/g, '\n');
     let i;
-    while ((i = buf.indexOf('\n\n')) >= 0) {
-      handle(buf.slice(0, i));
-      buf = buf.slice(i + 2);
-    }
+    while ((i = buf.indexOf('\n\n')) >= 0) { handle(buf.slice(0, i)); buf = buf.slice(i + 2); }
   }
   if (buf.trim()) handle(buf);
   if (!done) throw new ApiError('stream ended early', { type: 'network', retryable: true });

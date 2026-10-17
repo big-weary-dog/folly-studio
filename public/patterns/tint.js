@@ -1,8 +1,5 @@
-// Tint: recolours the chain from the look's palette, keeping its light and shade.
-//
-// The chain's brightness walks along one palette role (pal(role, t)): dark parts take the start
-// of the role, bright parts its end, so the same look follows whichever palette is picked. Roles
-// are 0 low, 1 body, 2 accent, 3 high; `amount` blends from the original colour to the tint.
+// Tint: recolours the chain from one role of the look's palette, keeping its light and shade: brightness walks
+// along the role (pal(role, t)), so the look follows whichever palette is picked. amount blends.
 const params = {
   role: { value: 1, min: 0, max: 3, step: 1, label: 'Role: low, body, accent, high' },
   amount: { value: 1, min: 0, max: 1, step: 0.01 },

@@ -1,7 +1,6 @@
 // Sign up / log in.
 import { api } from '../api.js';
-import { busy, field, h, nextId, svg } from './dom.js';
-import { rose } from './rose.js';
+import { busy, field, h, nextId, rose, svg } from './dom.js';
 
 export function mount(root, ctx) {
   const wantsSignup = ctx.query.get('mode') === 'signup';

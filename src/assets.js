@@ -8,10 +8,9 @@
 // shell's href/src are rewritten to the hashed URLs. Plain URLs still serve the files as they are.
 
 import { createHash } from 'node:crypto';
-import { promises as fsp } from 'node:fs';
+import { promises as fsp, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { bundle } from './bundle.js';
 
 export const CORE_MARKER = '/*@CORE@*/';
 export const THEME_URL = '/css/theme.css';
@@ -22,6 +21,26 @@ const STYLESHEET = /<link rel="stylesheet" href="(\/css\/[^"]+\.css)">\n?/g;
 const sha = (body, enc = 'hex') => createHash('sha256').update(body).digest(enc);
 const hashed = (url, body) => url.replace(/(\.[a-z0-9]+)$/, `.${sha(body).slice(0, HASH_LENGTH)}$1`);
 const statSig = (st) => (st ? `${st.size}:${st.mtimeMs}` : '-');
+
+// An ES module and what it imports as one script, for what cannot load modules: the sandbox's worker (a Blob at an
+// opaque origin) and the boxes. Dependencies come first; relative import and re-export lines go, `export` keywords
+// stay, so the result is still a module of its own.
+const FROM = /^(?:import|export)\b[^;]*?\bfrom\s*'(\.{1,2}\/[^']+)';[ \t]*\n?/gm;
+
+/** bundle(file) → { text, files }; `files` (every module read) lets a caller cache on them. */
+export function bundle(file) {
+  const files = [];
+  const parts = [];
+  const visit = (f) => {
+    if (files.includes(f)) return;
+    files.push(f);
+    const text = readFileSync(f, 'utf8');
+    for (const m of text.matchAll(FROM)) visit(path.resolve(path.dirname(f), m[1]));
+    parts.push(text.replace(FROM, ''));
+  };
+  visit(path.resolve(file));
+  return { text: parts.join('\n'), files };
+}
 
 /** The URL a hashed one names (/js/main.0123456789.js → /js/main.js), or null. */
 export function unhashed(url) {

@@ -1,4 +1,4 @@
-// Small DOM helpers shared by the views. No HTML strings: everything goes through textContent and properties.
+// DOM helpers shared by the views, and the rose. No HTML strings: only nodes, textContent and properties.
 
 const PROPS = new Set(['value', 'checked', 'disabled', 'hidden', 'indeterminate', 'selected',
   'readOnly', 'tabIndex', 'spellcheck', 'open', 'multiple', 'required', 'autofocus']);
@@ -41,20 +41,30 @@ export function append(el, kids) {
   return el;
 }
 
-export function clear(el) { while (el.firstChild) el.firstChild.remove(); return el; }
+/** list's children follow items: a row ({ el, … }) per key, made once, updated each time. */
+export function keyed(list, rows, items, key, make, update) {
+  const keep = new Set(items.map(key));
+  for (const [k, r] of rows) if (!keep.has(k)) { r.el.remove(); rows.delete(k); }
+  items.forEach((item, i) => {
+    let r = rows.get(key(item));
+    if (!r) rows.set(key(item), r = make(item));
+    if (list.children[i] !== r.el) list.insertBefore(r.el, list.children[i] || null);
+    update(r, item, i);
+  });
+}
 
 /** A <label> for `control`, which gets an id when it has none. */
 export const label = (control, text, cls) => h('label', { for: control.id ||= nextId('f'), class: cls, text });
-/** A `.field`: the label, then the control (and anything after it). */
+/** A `.field`: the label, then the control. */
 export const field = (text, control, ...after) => h('div', { class: 'field' }, label(control, text), control, ...after);
 /** A labelled switch (checkbox): { box, el }. */
 export function switchBox(text, cls, attrs = {}) {
   const box = h('input', { type: 'checkbox', class: 'switch', ...attrs });
   return { box, el: h('div', { class: cls }, box, label(box, text)) };
 }
-/** Mark a button busy (disabled, spinner) or not. */
+
 export const busy = (btn, on) => { btn.disabled = on; btn.classList.toggle('busy', on); };
-/** A tiny id generator for form labels and layers. */
+
 let uid = 0;
 export function nextId(prefix = 'u') { return `${prefix}${++uid}`; }
 export function randomId(prefix = 'l') {
@@ -65,7 +75,7 @@ export function randomId(prefix = 'l') {
 
 export const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** A remembered preference: pref(key) reads it, pref(key, value) stores it (null where storage is off). */
+/** A remembered preference: pref(key) reads it, pref(key, value) stores it. */
 export function pref(key, value) {
   try {
     if (value === undefined) return localStorage.getItem(key);
@@ -74,7 +84,7 @@ export function pref(key, value) {
   return null;
 }
 
-/** Adds a view's stylesheet once; resolves when it has loaded (or failed: the view still works). */
+/** A view's stylesheet, added once; resolves when it has loaded or failed. */
 export function stylesheet(href) {
   let link = document.querySelector(`link[rel=stylesheet][href="${href}"]`);
   if (!link) document.head.append(link = h('link', { rel: 'stylesheet', href }));
@@ -136,11 +146,6 @@ export function confirmDialog(message, { title = 'Are you sure?', ok = 'OK', dan
   ] }).then(Boolean);
 }
 
-export function formatTime(t) {
-  const m = Math.floor(t / 60);
-  return `${m}:${(t - m * 60).toFixed(2).padStart(5, '0')}`;
-}
-
 export function timeAgo(when) {
   const t = typeof when === 'number' ? when : Date.parse(when);
   if (!Number.isFinite(t)) return '';
@@ -176,7 +181,7 @@ export function humanize(key) {
     .replace(/^./, (c) => c.toUpperCase());
 }
 
-/** Debounce: call fn once `ms` after the last call. `.flush()` runs it now, `.cancel()` drops it. */
+/** fn once `ms` after the last call; `.flush()` runs it now, `.cancel()` drops it. */
 export function debounce(fn, ms) {
   let timer = null, args = null;
   const run = () => { timer = null; const a = args; args = null; fn(...a); };
@@ -186,15 +191,7 @@ export function debounce(fn, ms) {
   return d;
 }
 
-/** True when keyboard focus is in something that takes typing. */
-export function isTyping(target) {
-  const el = target instanceof Element ? target : document.activeElement;
-  const tag = el?.tagName;
-  if (el?.isContentEditable || tag === 'TEXTAREA' || tag === 'SELECT') return true;
-  return tag === 'INPUT' && !['checkbox', 'radio', 'range', 'button', 'submit', 'color'].includes(el.type);
-}
-
-/** A stained-glass swatch for cards: a deterministic gradient from a string. */
+/** A card's stained glass: a gradient from a string. */
 const JEWELS = ['#e5486b', '#5b8cff', '#f2b148', '#39c98f', '#a77bff', '#ff7a45', '#36b7d6'];
 export function jewelGradient(seed) {
   let x = 2166136261;
@@ -203,4 +200,68 @@ export function jewelGradient(seed) {
   const ang = (x >>> 8) % 360;
   return `radial-gradient(circle at 50% 38%, ${a}cc 0 10%, transparent 34%),` +
     ` conic-gradient(from ${ang}deg at 50% 38%, ${a}55, ${b}66, ${c}55, ${a}55)`;
+}
+
+// The rose window as SVG: sixteen lancet petals in the real window's seven rings round a hub. The brand mark, the
+// loader and an idea's progress; colour and motion live in CSS (.rose in base.css, pages.css).
+const PETALS = 16;
+const R = 98;                         // the petal tips, in a 200-unit viewBox
+// Radii as fractions of the window: the hub, the rings, the shoulder where a petal closes into its point, the tip.
+const HUB = 0.184, SHOULDER = 0.73, TIP = 0.99;
+const RINGS = [HUB, 0.275, 0.395, 0.512, 0.637, 0.738, 0.832, TIP];
+// Cells across each ring and their glass: amber, ruby, cobalt, emerald, violet.
+const CELLS = [['a'], ['c', 'c'], ['r'], ['c', 'c'], ['v', 'a', 'v'], ['r', 'r'], ['c', 'e', 'c']];
+const SPLITS = { 1: [0, 1], 2: [0, 0.5, 1], 3: [0, 0.27, 0.73, 1] };
+const BANDS = [[0, 3, 'c'], [3, 7, 'r']];  // the small mark: two bands, no mullions
+const WIDE = 0.1745;                  // a petal's widest half-angle (10° of the 11.25° it has)
+const T0 = SHOULDER * WIDE, L = TIP - SHOULDER, RHO = (L * L + T0 * T0) / (2 * T0);
+
+/** A petal's half-angle at radius r: open fast from the hub, close in a pointed arch. */
+function halfAngle(r) {
+  if (r <= HUB) return 0;
+  if (r < SHOULDER) return WIDE * (1 - (1 - Math.min(1, (r - HUB) / 0.3)) ** 3);
+  const s = Math.min(L, r - SHOULDER);
+  return Math.max(0, Math.sqrt(RHO * RHO - s * s) - (RHO - T0)) / r;
+}
+
+const pt = (r, a) => `${(R * r * Math.sin(a)).toFixed(1)} ${(-R * r * Math.cos(a)).toFixed(1)}`;
+
+/** One cell: radii r0..r1, across-the-petal fractions f0..f1, round angle `mid`. */
+function cell(mid, r0, r1, f0, f1) {
+  const n = r1 > SHOULDER ? 8 : 3;
+  const side = (f, from, to) => Array.from({ length: n + 1 }, (_, k) => {
+    const r = from + ((to - from) * k) / n;
+    return pt(r, mid + (2 * f - 1) * halfAngle(r));
+  });
+  return `M${side(f0, r0, r1).join('L')}L${side(f1, r1, r0).join('L')}Z`;
+}
+
+/** rose({ detail: full | mark (two bands), className, label (else decorative) }) */
+export function rose({ detail = 'mark', className = '', label = '' } = {}) {
+  const full = detail === 'full';
+  const kids = [svg('circle', { class: 'rose-stone', r: 100 })];
+  for (let i = 0; i < PETALS; i++) {
+    const mid = (i * 2 * Math.PI) / PETALS;
+    const petal = svg('g', { class: 'rp', style: `--i:${i}` });
+    if (full) {
+      CELLS.forEach((glass, ring) => glass.forEach((k, j) => {
+        const f = SPLITS[glass.length];
+        petal.append(svg('path', { class: `g-${k}`,
+          d: cell(mid, RINGS[ring], RINGS[ring + 1], f[j], f[j + 1]) }));
+      }));
+    } else {
+      for (const [a, b, k] of BANDS) {
+        petal.append(svg('path', { class: `g-${k}`, d: cell(mid, RINGS[a], RINGS[b], 0, 1) }));
+      }
+    }
+    kids.push(petal);
+  }
+  kids.push(svg('circle', { class: 'rose-hub g-a', r: (R * HUB * 0.86).toFixed(1) }),
+    svg('circle', { class: 'rose-boss', r: (R * HUB * 0.34).toFixed(1) }));
+  // Animations run on the page's clock, so a rose drawn again (a list re-rendered) keeps its phase.
+  const attrs = { class: `rose rose-${detail} ${className}`.trim(), viewBox: '-100 -100 200 200',
+    focusable: 'false', style: `--t0:${-Math.round(performance.now())}ms` };
+  if (label) Object.assign(attrs, { role: 'img', 'aria-label': label });
+  else attrs['aria-hidden'] = 'true';
+  return svg('svg', attrs, ...kids);
 }

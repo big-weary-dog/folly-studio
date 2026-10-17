@@ -1,9 +1,5 @@
-// Aurora: slow curtains of green and violet drift over a deep night-blue sky.
-//
-// Fractal noise (fbm) across the width and depth of the layer decides where curtains hang;
-// a finer noise stretched upward draws the rays inside them; height (ly) walks the colour from
-// green at the hem to violet at the top. Where there is no curtain the sky stays blue, never
-// black.
+// Aurora: slow curtains of green and violet over a night-blue sky, never black. Fractal noise (fbm) across
+// width and depth places the curtains, a finer noise stretched upward draws their rays, height walks the colour.
 const params = {
   speed: { value: 1, min: 0, max: 4, step: 0.05 },
   amount: { value: 0.55, min: 0, max: 1, step: 0.01, label: 'How much sky the curtains cover' },

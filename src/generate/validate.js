@@ -1,7 +1,8 @@
-// Static checks on a generated look before it is saved. Generated code is untrusted: it is only
-// inspected here as text, never executed on the server (no eval, no vm, no Function).
-import { cleanBinding } from '../look-rules.js';
-import { checkAutomation, checkGlobals, checkModules } from './validate-chain.js';
+// Static checks on a generated look before it is saved: what cannot be used is dropped (with a note), and module
+// chains, globals and automation are then held to the API's own rules (src/look-rules.js). Generated code is
+// untrusted: it is only inspected here as text, never executed on the server (no eval, no vm, no Function).
+import { GLOBALS, macroNameOk, MAX_LANES, MAX_MACROS, MAX_POINTS } from '../../public/js/pattern-core.js';
+import { cleanAutomation, cleanBinding, cleanGlobals, PALETTE_NAMES } from '../look-rules.js';
 
 export const LIMITS = Object.freeze({
   layers: 4, codeBytes: 20 * 1024, title: 80, layerTitle: 80, summary: 400, params: 32, clips: 32, duration: 600,
@@ -11,6 +12,10 @@ const BLEND_ALIASES = { maximum: 'max', normal: 'over', mult: 'multiply', screen
 const DEFINES = (fn) => new RegExp(`\\bfunction\\s+${fn}\\s*\\(`);
 const PARAM_NAME = /^[A-Za-z_$][\w$]{0,63}$/;
 const HEX = /^#[0-9a-fA-F]{6}$/;
+const ID = /^[A-Za-z0-9_.:-]{1,64}$/;
+const FUNCTION = { source: 'pixel', warp: 'warp', filter: 'filter' };
+const KIND_ALIASES = { pattern: 'source', effect: 'filter', transform: 'warp' };
+export const MAX_GENERATED_MODULES = 6;
 // Control characters other than tab/newline/CR; they have no place in code or text we store.
 const CONTROL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
 
@@ -83,6 +88,7 @@ function checkParams(params) {
 const ms = (v) => Math.round(v * 1000) / 1000;
 const time = (v) => (typeof v === 'string' && v.trim() ? Number(v) : v);
 const finite = (n) => typeof n === 'number' && Number.isFinite(n);
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
 /**
  * A layer's clips as the API stores them: [{ start, end, fadeIn, fadeOut }] seconds within 0..600,
@@ -91,10 +97,7 @@ const finite = (n) => typeof n === 'number' && Number.isFinite(n);
  */
 function checkClips(clips, note) {
   if (clips == null) return [];
-  if (!Array.isArray(clips)) {
-    note('clips is not a list');
-    return [];
-  }
+  if (!Array.isArray(clips)) { note('clips is not a list'); return []; }
   const ok = (n) => finite(n) && n >= 0 && n <= LIMITS.duration;
   const fade = (v) => (finite(time(v ?? 0)) ? ms(Math.min(LIMITS.duration, Math.max(0, time(v ?? 0)))) : 0);
   const list = [];
@@ -132,8 +135,7 @@ export function validateLook(look, { groups = [], library = [] } = {}) {
     // A chain of modules, or one pattern's code (and params).
     let own;
     if (Array.isArray(layer.modules) && layer.modules.length) {
-      const modules = checkModules(layer.modules, { checkCode, checkParams, checkBlend, library, drop,
-        cleanTitle: (t) => cleanText(t, LIMITS.layerTitle) });
+      const modules = checkModules(layer.modules, library, drop);
       if (!modules) { drop('no usable source module'); continue; }
       own = { modules };
     } else {
@@ -166,4 +168,75 @@ export function validateLook(look, { groups = [], library = [] } = {}) {
     ...(automation ? { automation } : {}),
     dropped,
   };
+}
+
+/** Modules [{ kind, title, code, ref?, params?, input?, as?, blend?, id? }] → the chain as stored; null: no source. */
+function checkModules(modules, library, drop) {
+  const out = [], ids = new Set();
+  for (const [j, m] of (Array.isArray(modules) ? modules : []).entries()) {
+    const at = (why) => drop(`module ${j + 1}: ${why}`);
+    if (out.length >= MAX_GENERATED_MODULES) { at(`more than ${MAX_GENERATED_MODULES} modules`); continue; }
+    if (!m || typeof m !== 'object') { at('not an object'); continue; }
+    const k = typeof m.kind === 'string' ? m.kind.trim().toLowerCase() : 'source';
+    const kind = FUNCTION[k] ? k : KIND_ALIASES[k];
+    if (!kind) { at(`unknown kind ${String(m.kind).slice(0, 20)}`); continue; }
+    const { code, error } = checkCode(m.code, FUNCTION[kind]);
+    if (error) { at(error); continue; }
+    const id = typeof m.id === 'string' && ID.test(m.id) && !ids.has(m.id) ? m.id : `m${out.length + 1}`;
+    ids.add(id);
+    const ref = typeof m.ref === 'string' && library.some((p) => p.name === m.ref) ? m.ref : undefined;
+    out.push({ id, kind, title: cleanText(m.title, LIMITS.layerTitle) || ref || kind, ...(ref ? { ref } : {}), code,
+      params: checkParams(m.params), ...(kind === 'filter' && typeof m.input === 'string' ? { input: m.input } : {}),
+      ...(kind === 'source' && m.as === 'input' ? { as: 'input' } : {}),
+      ...(m.blend != null ? { blend: checkBlend(m.blend) } : {}) });
+  }
+  // A filter's input names an earlier source, or nothing.
+  for (const [j, m] of out.entries()) {
+    if (m.input && !out.slice(0, j).some((s) => s.id === m.input && s.kind === 'source')) delete m.input;
+  }
+  return out.some((m) => m.kind === 'source') ? out : null;
+}
+
+/** Globals as the model gave them (macros as a list or a map; palette by name) → stored globals, or undefined. */
+function checkGlobals(g, drop) {
+  if (!g || typeof g !== 'object' || Array.isArray(g)) return undefined;
+  const out = {};
+  for (const [k, d] of Object.entries(GLOBALS)) if (finite(g[k])) out[k] = clamp(g[k], d.min, d.max);
+  const name = typeof g.palette === 'string' ? g.palette.trim().toLowerCase() : g.palette?.name;
+  if (PALETTE_NAMES.includes(name)) out.palette = name;
+  else if (g.palette != null) drop(`palette ${String(name).slice(0, 30)} is not one of ${PALETTE_NAMES.join(', ')}`);
+  const list = Array.isArray(g.macros) ? g.macros
+    : g.macros && typeof g.macros === 'object' ? Object.entries(g.macros).map(([n, m]) => ({ ...m, name: n })) : [];
+  const macros = {};
+  for (const m of list.slice(0, MAX_MACROS)) {
+    if (!m || !macroNameOk(m.name)) { drop(`macro ${String(m?.name).slice(0, 30)}: not a usable name`); continue; }
+    const min = finite(m.min) ? m.min : 0, max = finite(m.max) && m.max > min ? m.max : min + 1;
+    macros[m.name] = { value: clamp(finite(m.value) ? m.value : min, min, max), min, max };
+  }
+  if (Object.keys(macros).length) out.macros = macros;
+  return strict('globals', () => cleanGlobals(out), out, drop);
+}
+
+/** Automation as a list of { name, points } or a map → stored lanes (sorted, one point per time), or undefined. */
+function checkAutomation(a, globals, drop) {
+  const lanes = Array.isArray(a) ? a : a && typeof a === 'object'
+    ? Object.entries(a).map(([name, points]) => ({ name, points })) : [];
+  const out = {};
+  for (const lane of lanes.slice(0, MAX_LANES)) {
+    const range = (lane && Object.hasOwn(GLOBALS, lane.name) && GLOBALS[lane.name])
+      || (globals?.macros && Object.hasOwn(globals.macros, lane?.name) && globals.macros[lane.name]);
+    if (!range || !Array.isArray(lane.points)) { drop(`automation of ${String(lane?.name).slice(0, 30)}`); continue; }
+    const seen = new Set();
+    const points = lane.points.filter((p) => Array.isArray(p) && finite(p[0]) && finite(p[1]))
+      .map((p) => [Math.round(clamp(p[0], 0, 600) * 1000) / 1000, clamp(p[1], range.min, range.max)])
+      .sort((x, y) => x[0] - y[0]).filter((p) => !seen.has(p[0]) && seen.add(p[0])).slice(0, MAX_POINTS);
+    if (points.length) out[lane.name] = points;
+  }
+  return strict('automation', () => cleanAutomation(out, globals), out, drop);
+}
+
+/** clean(), the API's rule, on what was kept: undefined when nothing was, or (noted) when the rule refuses it. */
+function strict(what, clean, kept, drop) {
+  if (!Object.keys(kept).length) return undefined;
+  try { return clean(); } catch (e) { drop(`${what}: ${e.message}`); return undefined; }
 }

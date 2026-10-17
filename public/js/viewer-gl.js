@@ -120,59 +120,41 @@ precision mediump float;
 in vec2 vUv;
 out vec4 outColor;
 void main() {
-  vec3 top = vec3(0.016, 0.022, 0.050);
-  vec3 low = vec3(0.040, 0.052, 0.105);
-  float g = smoothstep(0.0, 1.0, vUv.y);
-  vec3 c = mix(low, top, g);
-  float v = 1.0 - 0.35 * length(vUv - vec2(0.5, 0.55));
-  outColor = vec4(c * v, 1.0);
+  vec3 c = mix(vec3(0.040, 0.052, 0.105), vec3(0.016, 0.022, 0.050), smoothstep(0.0, 1.0, vUv.y));
+  outColor = vec4(c * (1.0 - 0.35 * length(vUv - vec2(0.5, 0.55))), 1.0);
 }`;
 
-function compile(gl, type, src) {
-  const s = gl.createShader(type);
-  gl.shaderSource(s, src);
-  gl.compileShader(s);
-  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
-    const log = gl.getShaderInfoLog(s);
-    gl.deleteShader(s);
-    throw new Error('Shader compile failed: ' + log);
-  }
-  return s;
-}
-
+/** A linked program and its uniforms by name: { p, u }. */
 function program(gl, vs, fs) {
   const p = gl.createProgram();
-  gl.attachShader(p, compile(gl, gl.VERTEX_SHADER, vs));
-  gl.attachShader(p, compile(gl, gl.FRAGMENT_SHADER, fs));
-  gl.linkProgram(p);
-  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('Shader link failed: ' + gl.getProgramInfoLog(p));
-  const uniforms = {};
-  const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
-  for (let i = 0; i < n; i++) {
-    const info = gl.getActiveUniform(p, i);
-    uniforms[info.name] = gl.getUniformLocation(p, info.name);
+  for (const [type, src] of [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]]) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(`Shader compile: ${gl.getShaderInfoLog(s)}`);
+    gl.attachShader(p, s);
   }
-  return { p, u: uniforms };
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(`Shader link: ${gl.getProgramInfoLog(p)}`);
+  const u = {};
+  for (let i = 0, n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); i < n; i++) {
+    const { name } = gl.getActiveUniform(p, i);
+    u[name] = gl.getUniformLocation(p, name);
+  }
+  return { p, u };
 }
 
 /** Set up WebGL2 on v.canvas: programs and buffers (v.ok says whether it worked). */
 export function initGL(v) {
-  const gl = v.canvas.getContext('webgl2', { antialias: false, alpha: false, premultipliedAlpha: false,
+  const gl = v.gl = v.canvas.getContext('webgl2', { antialias: false, alpha: false, premultipliedAlpha: false,
     powerPreference: 'high-performance', preserveDrawingBuffer: false });
-  if (!gl) {
-    v.ok = false;
-    v.onError('This browser has no WebGL2, so the 3D preview is off. The patterns still run.');
-    return;
-  }
-  v.gl = gl;
+  v.ok = false;
   try {
-    v.points = program(gl, POINT_VS, POINT_FS);
-    v.grid = program(gl, GRID_VS, GRID_FS);
-    v.sky = program(gl, SKY_VS, SKY_FS);
+    if (!gl) throw new Error('This browser has no WebGL2, so the 3D preview is off. The patterns still run.');
+    Object.assign(v, { points: program(gl, POINT_VS, POINT_FS), grid: program(gl, GRID_VS, GRID_FS),
+      sky: program(gl, SKY_VS, SKY_FS) });
   } catch (err) {
-    v.ok = false;
-    v.onError(err.message);
-    return;
+    return v.onError(err.message);
   }
   const range = gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE);
   v.maxPoint = range ? range[1] : 64;

@@ -7,7 +7,7 @@ import { describe, test } from 'node:test';
 
 import { writeFseq } from '../public/js/fseq.js';
 import { layersHash, parseDuration } from '../src/bake.js';
-import { bundle } from '../src/bundle.js';
+import { bundle } from '../src/assets.js';
 import { analyzeFrames, parseFseq } from '../src/frames.js';
 import { createFleetAdapter, fenceUntrusted, hasMemoryCap, readLook, workerName } from '../src/generate/fleet.js';
 import { createQueue, foundryFromEnv } from '../src/generate/index.js';

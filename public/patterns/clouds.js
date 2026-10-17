@@ -1,8 +1,5 @@
-// Clouds: soft billows drift across the layer, from deep sky to bright cloud.
-//
-// Fractal noise (fbm) over the layer's width, height and depth makes the billows, drifting with t;
-// `cover` sets how much of the sky they hide, and G.energy thickens them a little, so an automated
-// energy brings the weather in. Mark it "input only" to use it as a mask for another source.
+// Clouds: soft billows of fbm noise drift across the layer, from deep sky to bright cloud; `cover` sets how
+// much sky they hide and G.energy thickens them. Mark it "input only" to mask another source with it.
 const params = {
   scale: { value: 2.5, min: 0.5, max: 8, step: 0.1, label: 'Billow size (smaller is bigger)' },
   drift: { value: 0.15, min: 0, max: 1, step: 0.01, label: 'Drift speed' },

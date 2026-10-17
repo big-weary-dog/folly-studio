@@ -13,6 +13,7 @@ node tools/lint.mjs --rules  # the rules, one line each
 npm test                     # node --test "test/**/*.test.js"
 node --test test/core.test.js
 npm run build-data           # rebuild public/data/cathedral.json from ../pixel-map/, palettes.json from ../td/palettes/
+npm run perf                 # the preview on an emulated phone (Playwright from `npm root -g`): ≥ 20 fps at 4× CPU
 ```
 
 Useful settings: `STUDIO_GENERATOR` (`sketch` default, `claude` with `ANTHROPIC_API_KEY`,
@@ -32,27 +33,27 @@ namespaces. Without them they skip and print why. The data tests need `python3`.
 |---|---|
 | `server.js` | Entry point: configuration from the environment, start, graceful stop |
 | `src/app.js` | `createServer()`: the store, auth, queues, frames cache, API and static files in one server |
-| `src/api.js`, `api-looks.js`, `look-rules.js`, `look-globals.js`, `http.js` | HTTP routes (SPEC "HTTP API"): accounts, ideas and the library; looks; what a look may hold (layers and module chains; globals, palettes and automation); JSON bodies, CSRF checks, the logger |
+| `src/api.js`, `api-looks.js`, `look-rules.js` | HTTP routes (SPEC "HTTP API") and their plumbing (JSON bodies, CSRF checks, the logger): accounts, ideas and the library; looks; what a look may hold (layers and module chains, globals, palettes and automation) |
 | `src/auth.js` | Accounts, password hashing, cookie sessions, login rate limits |
 | `src/store.js` | JSON-file storage under `STUDIO_DATA` |
-| `src/static.js`, `assets.js`, `bundle.js` | Static files, compression, ETags, CSPs; content-hashed URLs, the import map and the theme stylesheet; `sandbox.html` with its worker and the core bundled in |
+| `src/static.js`, `assets.js` | Static files, compression, ETags, CSPs; content-hashed URLs, the import map, `sandbox.html` with its worker and the core bundled in |
 | `src/frames.js` | Pure: strict FSEQ parsing and frame analysis (brightness, flicker) |
 | `src/bake.js`, `render-box.js`, `box-output.js` | The one-at-a-time bake queue and frame files; the render box under bubblewrap; what a box hands back, read as data |
-| `src/frames-wire.js`, `frames-cache.js`, `frames-http.js`, `fseq-codec.js` | Baked frames on the wire: the stream encoder, the chunks and compressed downloads kept by hash, their routes, FSEQ zstd/zlib blocks |
-| `src/frames-jobs.js`, `frames-worker.js`, `frames-disk.js` | Heavy work at low priority: the lane bakes and encodes share, the encoder thread at nice 10; the disk cap |
+| `src/frames-wire.js`, `frames-cache.js`, `frames-http.js`, `fseq-codec.js` | Baked frames on the wire: the stream encoder; the chunks and downloads kept by hash under a disk cap, made one job at a time by the encoder thread; their routes; FSEQ zstd/zlib blocks |
+| `src/frames-worker.js` | The encoder thread, at nice 10 |
 | `src/generate/` | Idea → look: the queue, adapters (`sketch`, `claude`, `fleet`), prompt, validation |
 | `render-box/render.mjs`, `renderer.mjs` | Bakes a look to `.fseq` inside bubblewrap; the frame loop it shares with `fleet-box/check.mjs` |
 | `fleet-box/` | Checker and brief for a boxed Fleet worker |
-| `public/index.html`, `css/` | The app shell and its styles: `tokens.css` (the palette), base, layout and components on every page; `ideas`, `gallery`, `studio`, `timeline` load with their views (`stylesheet()` in `ui/dom.js`) |
+| `public/index.html`, `css/` | The app shell and its styles: `base.css` (tokens, layout and components) on every page; `pages`, `studio`, `timeline`, `compose` load with their views (`stylesheet()` in `ui/dom.js`) |
 | `public/sandbox.html`, `js/sandbox-worker.js` | The sandboxed pattern runner (SPEC "Sandbox protocol"): the relay and watchdog; the Worker |
-| `public/js/pattern-core.js`, `core/` | Pure: stdlib, compile, scene, render, channels, module chains (`chain.js`), globals and automation (`globals.js`, `palette.js`), param bindings (`modulate.js`); re-exported; runs in the sandbox, the boxes and tests |
+| `public/js/pattern-core.js`, `core/` | Pure: stdlib (with palettes), compile, scene, render (module chains, DMX channels), globals (with automation and param bindings); re-exported; runs in the sandbox, the boxes and tests |
 | `public/js/fseq.js` | Pure: FSEQ v2 writer |
-| `public/js/frames-wire.js`, `frames-stream.js` | Pure: the stream decoder; streamed playback of baked frames |
-| `public/js/runtime.js` | App side of the sandbox: iframe, frame pump, watchdog |
+| `public/js/frames-stream.js` | Streamed playback of baked frames, and their pure decoder |
+| `public/js/runtime.js` | App side of the sandbox: iframe, adaptive frame rate, watchdog |
 | `public/js/flash-guard.js` | Pure: the preview's flash guard, the bake check's rule on the frames shown |
-| `public/js/viewer.js`, `viewer-gl.js`, `viewer-input.js` | WebGL2 LED view: the orbit camera, the drawing, pointer and keys |
+| `public/js/viewer.js`, `viewer-gl.js` | WebGL2 LED view: the orbit camera, pointer and keys; the drawing |
 | `public/js/main.js`, `api.js` | Bootstrap, routing, the fetch wrapper |
-| `public/js/ui/` | Views and panels, one concern per module (`studio.js` wires the `studio-*.js` panes; `chain*.js`, `modulate.js`, `look-globals.js`, `timeline-auto.js` compose); `dom.js` holds the DOM helpers and shared form pieces |
+| `public/js/ui/` | Views and panels, one concern per module (`studio.js` wires the `studio-*.js` panes; `layers.js`, `chain*.js`, `params.js`, `look-globals.js`, `timeline-auto.js` compose; `pages.js` is ideas and looks); `dom.js` holds the DOM helpers and shared form pieces |
 | `public/patterns/` | The built-in library (`index.json` with each entry's `kind` and `category`, + one file each): sources, warps and filters, also the AI's examples |
 | `tools/` | `build_cathedral.py`, `build_palettes.py` (data), `lint.mjs` (+ `lint/`: lexing, line budgets in `budget.json`), `backup.mjs`, `frames-bench.mjs` (brotli quality against encode time) |
 | `docs/HOSTING.md` | Hosting at home: what runs where, tunnels, settings, backups |
@@ -124,4 +125,5 @@ reviewed allowlist at the top of `tools/lint.mjs` names who may use `eval` and `
   a screenshot in the PR.
 - Never commit `data/`, `.fseq` renders, keys or a hand-edited `cathedral.json`.
 - CI (`.github/workflows/studio.yml`) runs `npm run check` on every push and PR that touches
-  `studio/`, `pixel-map/` or the pixel CSV pipeline, and flags skipped tests.
+  `studio/`, `pixel-map/` or the pixel CSV pipeline, and flags skipped tests. A separate job runs
+  `npm run perf` and only reports.

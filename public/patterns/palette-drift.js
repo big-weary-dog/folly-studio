@@ -1,8 +1,5 @@
-// Palette drift: a calm bed of full-strength colour whose hues slowly travel.
-//
-// Hue varies a little with depth and height (and with a soft fbm swirl), and the whole palette
-// turns over time. Saturation stays high and value at full, so it reads as colour, not dimness.
-// A good bottom layer to stack sweeps, sparkles or chases on.
+// Palette drift: a calm bed of full-strength colour whose hues travel slowly, varying with depth, height and
+// a soft fbm swirl. A good bottom layer to stack sweeps, sparkles or chases on.
 const params = {
   hue: { value: 0.6, min: 0, max: 1, step: 0.01, label: 'Starting hue' },
   drift: { value: 0.02, min: 0, max: 0.2, step: 0.005, label: 'Hue turns per second' },

@@ -1,9 +1,5 @@
-// Plasma: the demoscene classic, a sum of sine waves wrapped round the whole structure.
-//
-// Four sines (across, up, diagonally through depth, and a ring round a wandering centre) add
-// to a value that indexes a palette. frame() works out the moving centre once per frame, so
-// pixel() only does per-LED maths. Palette 0 is a full-strength rainbow; 1-3 are Inigo Quilez
-// cosine palettes.
+// Plasma: the demoscene classic: four sines (across, up, through depth, and round a centre frame() moves) sum
+// to a value that indexes a palette: 0 a full rainbow, 1-3 Inigo Quilez cosine palettes.
 const params = {
   speed: { value: 0.6, min: 0, max: 3, step: 0.01 },
   scale: { value: 6, min: 1, max: 20, step: 0.1, label: 'Detail' },

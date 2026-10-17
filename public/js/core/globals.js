@@ -1,9 +1,8 @@
-// The look's globals (SPEC "Globals"): speed (an accumulated clock), master level, hue and saturation applied to
-// the composite, energy, the palette and macros, as G; automation lanes evaluated per frame.
-import { DEFAULT_PALETTE, paletteColours, RUN } from './palette.js';
-import { clamp, isNum, TAU } from './stdlib.js';
+// The look's globals as G (SPEC "Globals"): speed (a clock), level, hue and saturation (the composite's grade),
+// energy, palette, macros; automation per frame; param values and bindings (SPEC "Param bindings").
+import { clamp, DEFAULT_PALETTE, hex, isNum, paletteColours, RUN, TAU } from './stdlib.js';
 
-/** The built-in globals: default value and range. */
+
 export const GLOBALS = Object.freeze({
   speed: Object.freeze({ value: 1, min: 0, max: 4 }),
   level: Object.freeze({ value: 1, min: 0, max: 1 }),
@@ -15,11 +14,11 @@ export const MAX_MACROS = 16;
 export const MAX_LANES = 16;
 export const MAX_POINTS = 256;
 const MACRO_NAME = /^[a-z][A-Za-z0-9_]{0,31}$/;
-/** May `name` be a macro? Not one of G's own names, nor anything every object has. */
+/** May `name` be a macro: not one of G's own, nor anything every object has? */
 export const macroNameOk = (name) => typeof name === 'string' && MACRO_NAME.test(name) && !(name in GLOBALS)
   && name !== 'palette' && !(name in Object.prototype);
 
-/** Lenient: { speed, level, hue, saturation, energy, palette, macros: [{ name, value, min, max }] }. */
+/** Lenient: each global in range, a palette, macros: [{ name, value, min, max }]. */
 export function normalizeGlobals(g) {
   const src = g && typeof g === 'object' ? g : {};
   const out = {};
@@ -35,7 +34,7 @@ export function normalizeGlobals(g) {
   return out;
 }
 
-/** A lane's value at t: linear between [t, v] points (ascending t), held before the first and after the last. */
+/** A lane's value at t: linear between [t, v] points, held at the ends. */
 export function automationAt(points, t) {
   const n = points ? points.length : 0;
   if (!n) return NaN;
@@ -61,7 +60,7 @@ function integral(points, t) {
   return sum + (fa + automationAt(points, t)) * (t - a) / 2;
 }
 
-/** Lanes the runtime can play: known names, finite points sorted by time (ties dropped), values in range. */
+/** Playable lanes: known names, finite points sorted by time (ties dropped), values in range. */
 function lanesOf(automation, g) {
   const lanes = [];
   const src = automation && typeof automation === 'object' ? automation : {};
@@ -76,10 +75,7 @@ function lanesOf(automation, g) {
   return lanes;
 }
 
-/**
- * A look's globals and automation, ready for renderFrame: { G, bpm, T (pattern time), norm(name) → 0..1, … }.
- * `previous` (the look this one replaces, live) keeps the clock continuous where it last played.
- */
+/** A look's globals and automation for renderFrame; `previous` (the look it replaces) keeps the clock continuous. */
 export function prepareLook(look, previous) {
   const g = normalizeGlobals(look && look.globals);
   const lanes = lanesOf(look && look.automation, g);
@@ -104,13 +100,13 @@ export function prepareLook(look, previous) {
   return L;
 }
 
-/** Pattern time at show time t: ∫ speed dt (plus the offset that kept it continuous). */
+/** Pattern time at show time t: ∫ speed dt, plus the offset. */
 function clockAt(L, t) {
   const base = L.speedLane ? integral(L.speedLane, t) : L.g.speed === 1 ? t : L.g.speed * t;
   return L.offset + base;
 }
 
-/** Set up frame t: G's values (statics, then automation), the clock, the grade, and RUN. No allocation. */
+/** Frame t: G (statics, then automation), the clock, the grade, RUN. No allocation. */
 export function lookFrame(L, t) {
   if (t < L.lastT) L.offset = 0;      // looped, restarted or sought back: back on the canonical clock
   L.lastT = t;
@@ -127,7 +123,7 @@ export function lookFrame(L, t) {
 
 const LUMA = [0.2126, 0.7152, 0.0722];
 const H = new Float64Array(9);
-/** level × saturation × hue rotation (round the grey axis) as one 3×3 matrix; identity skips it. */
+/** level × saturation × hue rotation as one 3×3 matrix; identity skips it. */
 function setGrade(L, level, hue, sat) {
   L.graded = !(level === 1 && hue === 0 && sat === 1);
   if (!L.graded || (L.level === level && L.hue === hue && L.sat === sat)) return;
@@ -147,7 +143,7 @@ function setGrade(L, level, hue, sat) {
 }
 
 const cl = (v) => (v > 0 ? (v < 1 ? v : 1) : 0);
-/** The composite, clamped, graded (when the look asks) and clamped again. */
+/** The composite clamped, graded and clamped again. */
 export function finish(rgb, n, L) {
   if (!L || !L.graded) {
     for (let i = 0; i < n; i++) { const v = rgb[i]; if (!(v > 0)) rgb[i] = 0; else if (v > 1) rgb[i] = 1; }
@@ -159,5 +155,76 @@ export function finish(rgb, n, L) {
     rgb[i] = cl(M[0] * r + M[1] * g + M[2] * b);
     rgb[i + 1] = cl(M[3] * r + M[4] * g + M[5] * b);
     rgb[i + 2] = cl(M[6] * r + M[7] * g + M[8] * b);
+  }
+}
+
+const SHAPES = ['sine', 'tri', 'saw', 'square'];
+const MODS = { lfo: 0, global: 1, envelope: 2 };
+/** Is v a binding ({ mod, … }) rather than a value? */
+export const isBinding = (v) => v !== null && typeof v === 'object' && !Array.isArray(v) && typeof v.mod === 'string';
+
+/** Values P from a schema and overrides (colours as [r, g, b]; a binding starts at the default). */
+export function resolveParams(schema, overrides) {
+  const P = {};
+  const o = overrides && typeof overrides === 'object' ? overrides : {};
+  for (const key of Object.keys(schema || {})) {
+    const d = schema[key];
+    const has = Object.prototype.hasOwnProperty.call(o, key) && o[key] !== null && o[key] !== undefined
+      && !isBinding(o[key]);
+    const v = has ? o[key] : d.value;
+    if (d.type === 'color') {
+      let c;
+      if (Array.isArray(v) && v.length >= 3) c = [+v[0] || 0, +v[1] || 0, +v[2] || 0];
+      else { try { c = hex(v); } catch { c = hex(d.value); } }
+      P[key] = c;
+    } else if (d.type === 'toggle') {
+      P[key] = !!v;
+    } else {
+      const n = +v;
+      P[key] = Number.isFinite(n) ? n : d.value;
+    }
+  }
+  return P;
+}
+
+/** The bound number params, for applyMods. */
+export function paramMods(schema, overrides) {
+  const out = [];
+  const o = overrides && typeof overrides === 'object' ? overrides : {};
+  for (const key of Object.keys(schema || {})) {
+    const d = schema[key], v = Object.prototype.hasOwnProperty.call(o, key) ? o[key] : null;
+    if (d.type !== 'number' || !isBinding(v) || !(v.mod in MODS)) continue;
+    const lo = d.min, hi = d.max, num = (x, dflt) => (isNum(x) ? x : dflt);
+    out.push({
+      key, kind: MODS[v.mod], lo, hi, from: num(v.from, lo), to: num(v.to, hi), name: String(v.name ?? ''),
+      shape: Math.max(0, SHAPES.indexOf(v.shape)), rate: num(v.rate, 1), beats: v.unit === 'beats',
+      depth: num(v.depth, (hi - lo) / 4), center: num(v.center, d.value),
+    });
+  }
+  return out;
+}
+
+/** −1..1 at phase f (0..1): sine, triangle, saw or square. */
+function lfo(shape, f) {
+  switch (shape) {
+    case 1: return 1 - 4 * Math.abs(f - 0.5);
+    case 2: return 2 * f - 1;
+    case 3: return f < 0.5 ? 1 : -1;
+    default: return Math.sin(TAU * f);
+  }
+}
+
+/** Each bound param's value this frame into P (t: show time; env: the clip envelope). No allocation. */
+export function applyMods(mods, P, t, env, look) {
+  for (let i = 0; i < mods.length; i++) {
+    const m = mods[i];
+    let v;
+    if (m.kind === 0) {
+      const ph = t * m.rate * (m.beats ? look.bpm / 60 : 1);
+      v = m.center + m.depth * lfo(m.shape, ph - Math.floor(ph));
+    } else {
+      v = m.from + (m.to - m.from) * (m.kind === 1 ? look.norm(m.name) : env);
+    }
+    P[m.key] = v < m.lo ? m.lo : v > m.hi ? m.hi : v === v ? v : m.lo;
   }
 }

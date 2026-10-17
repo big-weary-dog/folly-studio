@@ -1,8 +1,5 @@
-// Kaleidoscope: cuts the façade into mirrored wedges round the layer's centre, like the rose window.
-//
-// The angle a is folded into `segments` wedges, every other one mirrored, and the wedges turn by
-// `spin` turns a second. lz and ly are rebuilt from the folded angle and the radius r, so patterns
-// drawn across the layer repeat in every wedge as well as those drawn round it.
+// Kaleidoscope: folds the angle a into `segments` mirrored wedges round the layer's centre, turning `spin`
+// turns a second; lz and ly are rebuilt from the folded angle and r, so sources drawn across repeat too.
 const params = {
   segments: { value: 6, min: 2, max: 16, step: 1, label: 'Wedges' },
   spin: { value: 0.02, min: -0.5, max: 0.5, step: 0.01, label: 'Turns a second' },

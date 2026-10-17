@@ -1,30 +1,23 @@
-// The stdlib: what pattern code sees as globals (SPEC "Stdlib"), plus helpers the core shares.
-import { pal, palette } from './palette.js';
+// The stdlib pattern code sees as globals (SPEC "Stdlib"), helpers the core shares, the look's palette (SPEC
+// "Globals") and RUN, what the frame being rendered shares with pattern code. No imports.
 
 const PI = Math.PI;
 export const TAU = Math.PI * 2;
-/** clamp(v, lo = 0, hi = 1): v held inside [lo, hi]. */
 export function clamp(v, lo = 0, hi = 1) { return v < lo ? lo : v > hi ? hi : v; }
-/** fract(x): the fractional part, always 0..1 (fract(-0.25) = 0.75). */
 function fract(x) { return x - Math.floor(x); }
-/** step(edge, x): 0 below edge, 1 from edge on. */
 function step(edge, x) { return x < edge ? 0 : 1; }
 
-/** smoothstep(e0, e1, x): 0 at e0 easing to 1 at e1 (Hermite), clamped. */
 function smoothstep(e0, e1, x) {
   if (e0 === e1) return x < e0 ? 0 : 1;
   const t = clamp((x - e0) / (e1 - e0));
   return t * t * (3 - 2 * t);
 }
 
-/** wave(x): ½ + ½·sin(2πx), a smooth 0..1 wave with period 1 (0.5 at x = 0). */
 function wave(x) { return 0.5 + 0.5 * Math.sin(TAU * x); }
-/** tri(x): triangle wave, 0 at whole numbers, 1 halfway between. */
 function tri(x) { return 1 - Math.abs(2 * (x - Math.floor(x)) - 1); }
-/** saw(x): sawtooth ramp 0 -> 1 each period (= fract). */
-function saw(x) { return x - Math.floor(x); }
+const saw = fract;
 
-/** pulse(x, width = 0.1): 1 at every whole number, easing to 0 at ±width (so it wraps). */
+/** pulse(x, width): 1 at every whole number, easing to 0 at ±width (so it wraps). */
 function pulse(x, width = 0.1) {
   if (!(width > 0)) return 0;
   const d = Math.abs(x - Math.round(x));
@@ -33,7 +26,7 @@ function pulse(x, width = 0.1) {
   return k * k * (3 - 2 * k);
 }
 
-// Hashing: stable, platform-independent 32-bit integer mixing (the murmur3 finaliser).
+// Hashing: stable 32-bit integer mixing (the murmur3 finaliser), the same on every platform.
 function fmix(h) {
   h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b);
   h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35);
@@ -49,10 +42,8 @@ function bits(n) {
   return fmix(U32[0] ^ fmix(U32[1] ^ 0x632be5ab));
 }
 function combine(h, n) { return fmix(h ^ (bits(n) + 0x9e3779b9 + (h << 6) + (h >>> 2))); }
-/** hash(n): a stable pseudo-random 0..1 for any number (same n, same answer, everywhere). */
 export function hash(n) { return bits(n) / 4294967296; }
 
-/** rand(a, b?, c?): a stable pseudo-random 0..1 from one to three numbers. */
 function rand(a, b, c) {
   let h = bits(a);
   if (b !== undefined) h = combine(h, b);
@@ -111,12 +102,11 @@ function noise4(x, y, z, w) {
   return lerp(a, b, s);
 }
 
-/** noise(x, y?, z?, w?): smooth gradient noise, 0..1 (about 0.5 on average), period-free. */
 function noise(x, y = NOISE_Y, z = NOISE_Z, w) {
   return clamp(0.5 + NOISE_GAIN * noise4(+x, +y, +z, w));
 }
 
-/** fbm(x, y, z, octaves = 4): fractal noise (octaves of noise at doubling frequency), 0..1. */
+/** fbm: octaves of noise at doubling frequency. */
 function fbm(x, y = NOISE_Y, z = NOISE_Z, octaves = 4) {
   let sum = 0, amp = 1, norm = 0, f = 1;
   const n = Math.max(1, Math.min(8, octaves | 0));
@@ -128,7 +118,6 @@ function fbm(x, y = NOISE_Y, z = NOISE_Z, octaves = 4) {
 }
 
 const HEX_CACHE = new Map();
-/** hex('#rrggbb' or '#rgb'): a colour [r, g, b] 0..1. */
 export function hex(s) {
   let c = HEX_CACHE.get(s);
   if (!c) {
@@ -147,10 +136,8 @@ function col(c) {
   return c;
 }
 
-/** rgb(r, g, b): a colour from three 0..1 numbers (rgb(v) is grey v). */
 function rgb(r, g, b) { return g === undefined ? [r, r, r] : [r, g, b]; }
 
-/** hsv(h, s = 1, v = 1): hue 0..1 (wraps; 0 red, 1/3 green, 2/3 blue), saturation, value. */
 function hsv(h, s = 1, v = 1) {
   h = (h - Math.floor(h)) * 6;
   const i = Math.floor(h), f = h - i;
@@ -161,25 +148,20 @@ function hsv(h, s = 1, v = 1) {
   }
 }
 
-/** hsl(h, s = 1, l = 0.5): hue 0..1 (wraps), saturation, lightness (0.5 = full colour). */
 function hsl(h, s = 1, l = 0.5) {
   const v = l + s * Math.min(l, 1 - l);
   return hsv(h, v === 0 ? 0 : 2 * (1 - l / v), v);
 }
 
-/** mix(a, b, t): a -> b by t; numbers or colours (arrays or '#hex'). */
 function mix(a, b, t) {
   if (typeof a === 'number' && typeof b === 'number') return a + (b - a) * t;
   a = col(a); b = col(b);
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 }
 
-/** scale(c, k): colour c times k (k = 0.5 is half as bright). */
 function scale(c, k) { c = col(c); return [c[0] * k, c[1] * k, c[2] * k]; }
-/** add(c1, c2): two colours summed, as light sums. */
 function add(c1, c2) { c1 = col(c1); c2 = col(c2); return [c1[0] + c2[0], c1[1] + c2[1], c1[2] + c2[2]]; }
 
-/** gradient(t, [c0, c1, ...]): t 0..1 across evenly spaced colour stops (arrays or '#hex'). */
 function gradient(t, stops) {
   const n = stops ? stops.length : 0;
   if (n === 0) return [0, 0, 0];
@@ -189,7 +171,7 @@ function gradient(t, stops) {
   return mix(stops[i], stops[i + 1], f - i);
 }
 
-/** cosPalette(t, a, b, c, d): Inigo Quilez's a + b·cos(2π(c·t + d)), per channel (arrays or numbers). */
+/** Inigo Quilez's a + b·cos(2π(c·t + d)), per channel. */
 function cosPalette(t, a, b, c, d) {
   const out = [0, 0, 0];
   for (let i = 0; i < 3; i++) {
@@ -200,32 +182,70 @@ function cosPalette(t, a, b, c, d) {
   return out;
 }
 
-/** beat(t, bpm = 120): phase 0..1 through the current beat (0 on the beat). */
 function beat(t, bpm = 120) { const x = t * bpm / 60; return x - Math.floor(x); }
 
-/** dist(x1, y1, z1, x2, y2, z2): straight-line distance (dist(x1, y1, x2, y2) in 2D). */
+/** dist(x1, y1, z1, x2, y2, z2), or in 2D dist(x1, y1, x2, y2). */
 function dist(x1, y1, z1, x2, y2, z2) {
   if (y2 === undefined) { const dx = z1 - x1, dy = x2 - y1; return Math.sqrt(dx * dx + dy * dy); }
   const dx = x2 - x1, dy = y2 - y1, dz = z2 - z1;
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
+export const PALETTE_ROLES = Object.freeze(['low', 'body', 'accent', 'high']);
+/** `chapel` from data/palettes.json: what a look without a palette plays in. */
+export const DEFAULT_PALETTE = Object.freeze({ name: 'chapel', low: ['#a30066', '#d40063'],
+  body: ['#ff333c', '#fd7f40', '#fcae5c', '#fbd182'], accent: ['#2a39ff', '#2380ff', '#50b3ff'], high: ['#f9e5c4'] });
+const MAX_PER_ROLE = 16;
+const HEX6 = /^#[0-9a-f]{6}$/i;
+
+function rgbOf(s) {
+  const v = parseInt(s.slice(1), 16);
+  return Object.freeze([((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255]);
+}
+
+/** A palette ({ name?, low: ['#hex'], … }) as G.palette: frozen [r, g, b] lists by role, and `all` low to high. */
+export function paletteColours(palette) {
+  const src = palette && typeof palette === 'object' ? palette : DEFAULT_PALETTE;
+  const out = { name: typeof src.name === 'string' ? src.name.slice(0, 64) : '' };
+  const all = [];
+  for (const role of PALETTE_ROLES) {
+    const list = Array.isArray(src[role]) ? src[role].filter((c) => typeof c === 'string' && HEX6.test(c)) : [];
+    out[role] = Object.freeze(list.slice(0, MAX_PER_ROLE).map(rgbOf));
+    all.push(...out[role]);
+  }
+  if (!all.length) return src === DEFAULT_PALETTE ? null : paletteColours(DEFAULT_PALETTE);
+  out.all = Object.freeze(all);
+  return Object.freeze(out);
+}
+
+/** Set by renderFrame for pal(), palette() and use(). */
+export const RUN = { G: null, palette: paletteColours(DEFAULT_PALETTE) };
+
+function ramp(list, t) {
+  const n = list.length;
+  if (n === 1 || !(t > 0)) return [list[0][0], list[0][1], list[0][2]];
+  const f = (t < 1 ? t : 1) * (n - 1);
+  const i = Math.min(n - 2, Math.floor(f)), k = f - i, a = list[i], b = list[i + 1];
+  return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+}
+
+/** pal(role, t): t 0..1 across a role's colours (unknown or empty: body). */
+export function pal(role, t = 0) {
+  const p = RUN.palette;
+  let list = p[role];
+  if (!list || !list.length) list = p.body.length ? p.body : p.all;
+  return ramp(list, t);
+}
+
+export function palette(t) { return ramp(RUN.palette.all, t); }
+
 /** Everything pattern code sees as globals. */
 export const STDLIB = Object.freeze({
-  // Constants and Math (the usual meanings).
-  PI, TAU,
-  sin: Math.sin, cos: Math.cos, tan: Math.tan, asin: Math.asin, acos: Math.acos,
-  atan: Math.atan, atan2: Math.atan2, abs: Math.abs, min: Math.min, max: Math.max,
-  floor: Math.floor, ceil: Math.ceil, round: Math.round, sqrt: Math.sqrt, pow: Math.pow,
-  exp: Math.exp, log: Math.log, hypot: Math.hypot, sign: Math.sign,
-  // Shaping.
-  clamp, fract, mix, step, smoothstep, wave, tri, saw, pulse,
-  // Randomness and noise.
-  hash, rand, noise, fbm,
-  // Colour.
-  hsv, hsl, rgb, hex, scale, add, gradient, cosPalette, pal, palette,
-  // Time and space.
-  beat, dist,
+  PI, TAU, sin: Math.sin, cos: Math.cos, tan: Math.tan, asin: Math.asin, acos: Math.acos, atan: Math.atan,
+  atan2: Math.atan2, abs: Math.abs, min: Math.min, max: Math.max, floor: Math.floor, ceil: Math.ceil,
+  round: Math.round, sqrt: Math.sqrt, pow: Math.pow, exp: Math.exp, log: Math.log, hypot: Math.hypot, sign: Math.sign,
+  clamp, fract, mix, step, smoothstep, wave, tri, saw, pulse, hash, rand, noise, fbm,
+  hsv, hsl, rgb, hex, scale, add, gradient, cosPalette, pal, palette, beat, dist,
 });
 export const STDLIB_NAMES = Object.freeze(Object.keys(STDLIB));
 export const isNum = (v) => typeof v === 'number' && Number.isFinite(v);

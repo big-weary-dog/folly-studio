@@ -1,7 +1,5 @@
-// Rotate: turns the layer in the façade plane round its centre, by an angle and on a steady spin.
-//
-// lz and ly turn about (0.5, 0.5) and the angle a turns with them, so anything drawn across the
-// layer or round it rotates. `angle` is in turns; `spin` adds turns a second.
+// Rotate: turns lz and ly about the layer's centre (and the angle a with them) by `angle` turns, plus `spin`
+// turns a second, so anything drawn across the layer or round it rotates.
 const params = {
   angle: { value: 0.125, min: -0.5, max: 0.5, step: 0.005, label: 'Angle (turns)' },
   spin: { value: 0, min: -1, max: 1, step: 0.01, label: 'Turns a second' },

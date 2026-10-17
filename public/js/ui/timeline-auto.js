@@ -1,11 +1,11 @@
 // Automation lanes under the timeline's layers (SPEC "Looks"): a lane per automated global (energy, a macro), its
 // points joined by straight lines and held at either end. Click a lane to add a point, drag one to move it,
 // double-click one to remove it. Edits go to look.automation in place and through the timeline's onEdit.
-import { h, humanize, svg } from './dom.js';
+import { MAX_POINTS } from '../core/globals.js';
+import { h, humanize, keyed, svg } from './dom.js';
 import { clock } from './timeline-model.js';
 
 const H = 34, PAD = 4;              // lane height and the room kept above and below the line (px)
-const MAX_POINTS = 256;
 
 export class AutoLanes {
   constructor(tl) {
@@ -35,63 +35,50 @@ export class AutoLanes {
     this.add.replaceChildren(h('option', { value: '', text: free.length ? '+ Automate…' : 'All automated' }),
       ...free.map((n) => h('option', { value: n, text: humanize(n) })));
     this.add.disabled = !free.length;
-    const names = Object.keys(auto).filter((n) => ranges.has(n));
-    for (const [n, r] of this.rows) if (!names.includes(n)) { r.row.remove(); this.rows.delete(n); }
-    names.forEach((n, i) => {
-      let r = this.rows.get(n);
-      if (!r) { r = this._row(n); this.rows.set(n, r); }
-      if (this.lanesEl.children[i] !== r.row) this.lanesEl.insertBefore(r.row, this.lanesEl.children[i] || null);
-      this._paint(r, auto[n], ranges.get(n));
-    });
+    keyed(this.lanesEl, this.rows, Object.keys(auto).filter((n) => ranges.has(n)), (n) => n, (n) => this._row(n),
+      (r, n) => this._paint(r, auto[n], ranges.get(n)));
   }
 
-  _addLane(name) {
-    const r = this.ranges().get(name);
-    if (!r) return;
-    this.look.automation ||= {};
-    this.look.automation[name] = [[0, r.value], [Math.round(this.tl.duration * 1000) / 1000, r.value]];
+  /** A lane added or removed, a point removed: redraw and commit. */
+  _edited() {
     this.sig = '';
     this.render();
     this.tl.host.onEdit({});
   }
 
+  _addLane(name) {
+    const r = this.ranges().get(name);
+    if (!r) return;
+    (this.look.automation ||= {})[name] = [[0, r.value], [Math.round(this.tl.duration * 1000) / 1000, r.value]];
+    this._edited();
+  }
+
   _row(name) {
-    const r = { name };
-    r.label = h('span', { class: 'tl-auto-name', text: humanize(name) });
+    const r = { name, dots: [] };
     const remove = h('button', { type: 'button', class: 'tl-auto-del', text: '×',
       'aria-label': `Stop automating ${name}`, title: 'Remove this lane', onClick: () => {
         delete this.look.automation[name];
         if (!Object.keys(this.look.automation).length) delete this.look.automation;
-        this.sig = '';
-        this.render();
-        this.tl.host.onEdit({});
+        this._edited();
       } });
-    r.svg = svg('svg', { class: 'tl-auto-svg', height: H, role: 'img' });
     r.line = svg('polyline', { class: 'tl-auto-line' });
-    r.svg.append(r.line);
-    r.dots = [];
-    r.row = h('div', { class: 'tl-row tl-auto-row', dataset: { name } }, h('div', { class: 'tl-name tl-auto-label' },
-      r.label, remove), h('div', { class: 'tl-lane tl-auto-lane' }, r.svg));
-    r.svg.addEventListener('pointerdown', (e) => this._down(r, e));
-    r.svg.addEventListener('pointermove', (e) => this._move(e));
-    r.svg.addEventListener('pointerup', () => this._up());
-    r.svg.addEventListener('pointercancel', () => this._up());
-    r.svg.addEventListener('dblclick', (e) => this._remove(r, e));
+    r.svg = svg('svg', { class: 'tl-auto-svg', height: H, role: 'img' }, r.line);
+    r.el = h('div', { class: 'tl-row tl-auto-row', dataset: { name } }, h('div', { class: 'tl-name tl-auto-label' },
+      h('span', { class: 'tl-auto-name', text: humanize(name) }), remove), h('div', { class: 'tl-lane tl-auto-lane' },
+      r.svg));
+    const on = { pointerdown: (e) => this._down(r, e), pointermove: (e) => this._move(e), pointerup: () => this._up(),
+      pointercancel: () => this._up(), dblclick: (e) => this._remove(r, e) };
+    for (const [type, fn] of Object.entries(on)) r.svg.addEventListener(type, fn);
     return r;
-  }
-
-  _xy(pts, range, i) {
-    const k = (pts[i][1] - range.min) / (range.max - range.min || 1);
-    return [pts[i][0] * this.tl.pps, PAD + (1 - k) * (H - 2 * PAD)];
   }
 
   _paint(r, pts, range) {
     r.range = range;
-    const w = this.tl.contentW || 1;
+    const w = this.tl.contentW || 1, span = range.max - range.min || 1;
     r.svg.setAttribute('width', String(w));
     r.svg.setAttribute('viewBox', `0 0 ${w} ${H}`);
     r.svg.setAttribute('aria-label', `${r.name}: ${pts.map(([t, v]) => `${clock(t)} ${v}`).join(', ')}`);
-    const xy = pts.map((_, i) => this._xy(pts, range, i));
+    const xy = pts.map(([t, v]) => [t * this.tl.pps, PAD + (1 - (v - range.min) / span) * (H - 2 * PAD)]);
     r.line.setAttribute('points', [[0, xy[0][1]], ...xy, [w, xy[xy.length - 1][1]]].map((p) => p.join(',')).join(' '));
     while (r.dots.length < pts.length) {
       const c = svg('circle', { class: 'tl-auto-dot', r: 4.5 });
@@ -159,8 +146,6 @@ export class AutoLanes {
     const pts = this.look.automation[r.name];
     if (i === undefined || pts.length <= 1) return;
     pts.splice(+i, 1);
-    this.sig = '';
-    this.render();
-    this.tl.host.onEdit({});
+    this._edited();
   }
 }

@@ -29,13 +29,22 @@ const sources = index.filter((e) => e.kind === 'source');
 
 test('index.json lists every pattern file, once, with title, summary, tags, kind and category', () => {
   assert.deepEqual(index.map((e) => `${e.name}.js`).sort(), files);
-  assert.ok(sources.length >= 10);
+  assert.ok(sources.length >= 35, `${sources.length} sources`);
   for (const e of index) {
     assert.match(e.name, /^[a-z0-9-]+$/);
     assert.ok(e.title && e.summary && Array.isArray(e.tags) && e.tags.length, e.name);
-    assert.ok(MODULE_KINDS.includes(e.kind) && /^[a-z]+$/.test(e.category), `${e.name}: kind and category`);
+    assert.ok(e.summary.length <= 120, `${e.name}: a crisp summary`);
+    assert.ok(MODULE_KINDS.includes(e.kind) && /^[a-z][a-z &-]*$/.test(e.category), `${e.name}: kind and category`);
   }
-  for (const kind of ['warp', 'filter']) assert.ok(index.filter((e) => e.kind === kind).length >= 5, kind);
+  for (const [kind, n] of [['warp', 7], ['filter', 10]]) {
+    assert.ok(index.filter((e) => e.kind === kind).length >= n, `at least ${n} ${kind}s`);
+  }
+  // A category belongs to one kind, so the shelf's headings never mix them.
+  const kindOf = new Map();
+  for (const e of index) {
+    if (!kindOf.has(e.category)) kindOf.set(e.category, e.kind);
+    assert.equal(kindOf.get(e.category), e.kind, `${e.name}: "${e.category}" is a ${kindOf.get(e.category)} category`);
+  }
 });
 
 describe('each source', () => {
@@ -43,6 +52,7 @@ describe('each source', () => {
     test(name, () => {
       const code = source(name);
       assert.match(code, /^\/\/ .+/, 'starts with a comment saying what it is');
+      assert.ok(code.split('\n').length <= 150, 'short: an example for people and the AI');
       assert.ok(code.length < 20_000 && /function pixel/.test(code), 'fits the generator limits');
       const compiled = compilePattern(code);
       assert.ok(Object.keys(compiled.params).length > 0, 'has params');
@@ -126,7 +136,7 @@ test('the whole library stacked renders well under budget', () => {
   }
   const ms = (performance.now() - t0) / frames;
   check(out, 'stack');
-  // 13 layers; a single typical layer runs in about 1 ms. Generous for slow CI machines.
+  // Every source a layer (over 40); a single typical layer runs in about 2 ms. Generous for slow CI machines.
   assert.ok(ms < 150, `${ms.toFixed(1)} ms per frame for ${layers.length} layers`);
 });
 

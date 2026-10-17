@@ -1,6 +1,6 @@
 // Content-hashed static URLs (src/assets.js through src/static.js): the shell's import map and its CSP hash,
 // one theme stylesheet, modules' asset literals, immutable caching, stale hashes, changes; and the JSON API's
-// compression and revalidation (src/http.js).
+// compression and revalidation (src/api.js).
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, rm, utimes, writeFile } from 'node:fs/promises';

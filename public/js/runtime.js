@@ -1,90 +1,100 @@
-// The app side of the pattern sandbox (SPEC "Sandbox protocol"). Pattern code never runs in this
-// page: it goes to a hidden sandboxed iframe and only plain data comes back. This spawns the iframe,
-// answers its `ready` with `init`, sends the look, pumps frames (one in flight) and renders exports.
-// The sandbox pauses hung layers itself; this watchdog rebuilds the iframe only when it stops answering.
+// The app side of the pattern sandbox (SPEC "Sandbox protocol"): the hidden iframe pattern code runs in, the look,
+// frames (one in flight, at 40, 30 or 20 fps by their cost) and exports. After `init` it talks over a MessagePort:
+// Chrome takes a millisecond to unpack a window message from an opaque origin. The page pauses hung layers itself;
+// this watchdog rebuilds it only when it stops answering.
 
-const FRAME_TIMEOUT_MS = 4000;
-const INIT_GRACE_MS = 1500;
-const LOAD_TIMEOUT_MS = 6000;
-const RENDER_STALL_MS = 8000;
+const LOAD_MS = 6000, INIT_MS = 1500;  // no `ready` by then: init anyway; then carry on (a look's `compiled` tells)
+const SILENT_MS = 4000;          // owed a reply and heard nothing this long: the page is gone (it answers in 1.5 s)
+const RENDER_MS = 8000;          // an export goes quiet while the page probes a hung layer
 const FROZEN_GAP_MS = 1000;      // a watchdog tick this late: the tab was busy, throttled or frozen
+export const RATES = [40, 30, 20];
+export const BUDGET = 0.8;       // a frame's budget: this share of its interval (the rest: messages, the draw)
+export const HEAVY = 0.4;        // a layer over this share of a 40 fps frame's budget is heavy
+const budget = (rate) => (BUDGET * 1000) / rate;
+const SLACK_MS = 4;              // a frame due this soon goes now, on this display frame
 const EMPTY = Object.freeze([]);
+const ema = (old, v) => (old ? old + (v - old) * 0.15 : v);    // smoothed over about ten frames
 
 export class Runtime {
-  /**
-   * { container, onFrame(rgb, t), onCompiled([{ id, ok, error?, params?, code }]), onFrameErrors([{ id, error }]),
-   *   onStatus(loading | ready | warning | dead, detail?) }
-   */
-  constructor({ container = document.body, src = '/sandbox.html', onFrame, onCompiled, onFrameErrors, onStatus } = {}) {
+  // { container, onFrame(rgb, t), onCompiled([{ id, ok, error?, params, modules }]), onFrameErrors([{ id, error }]),
+  //   onStatus(loading | ready | warning | dead, detail?), time() → the show time now (while playing) }
+  constructor({ container = document.body, src = '/sandbox.html', onFrame, onCompiled, onFrameErrors, onStatus,
+    time } = {}) {
     const noop = () => {};
     Object.assign(this, { container, src, onFrame: onFrame || noop, onCompiled: onCompiled || noop,
-      onFrameErrors: onFrameErrors || noop, onStatus: onStatus || noop });
+      onFrameErrors: onFrameErrors || noop, onStatus: onStatus || noop, time, playing: false });
     // phase: idle → loading → init → ready (→ dead)
     Object.assign(this, { cathedral: null, iframe: null, phase: 'idle', layers: [], lookDirty: false, lookVersion: 0,
-      frameLookVersion: -1, lastT: NaN, seq: 0, respawns: [], render_: null, stats: { fps: 0, ms: 0 }, _fpsCount: 0,
-      _fpsSince: performance.now() });
-    this.frameInFlight = null;      // this._frame while a frame request is out
-    this._frame = { seq: 0, t: 0, sentAt: 0, look: 0 };     // reused: no garbage per frame
-    this._frameMsg = { type: 'frame', seq: 0, t: 0 };
-    this.waits = [];                // FIFO of non-frame replies we expect: { kind, since, seq? }
-    this.lookQueue = [];            // per look sent: id → the layer's code, to tag `compiled` replies
-    this._onMessage = (e) => this._message(e);
-    window.addEventListener('message', this._onMessage);
-    this._lastCheck = performance.now();
-    this._watchdog = setInterval(() => this._check(), 200);
+      frameLookVersion: -1, lastT: NaN, seq: 0, respawns: [], render_: null, frameInFlight: null,
+      lookQueue: [],    // per look sent and not compiled yet: its modules' code, to tag the reply
+      since: 0,         // when this phase began, or the page last spoke while owing us something
+      rate: RATES[0], due: 0, rateAt: 0, layerMs: new Map(), stats: { fps: 0, ms: 0 },
+      fpsCount: 0, fpsSince: performance.now() });
+    this.frame = { seq: 0, t: 0, look: 0 };     // reused: no garbage per frame
+    this.frameMsg = { type: 'frame', seq: 0, t: 0 };
+    this.onMessage = (e) => { if (this.iframe && e.source === this.iframe.contentWindow) this._message(e.data); };
+    window.addEventListener('message', this.onMessage);
+    this.lastCheck = performance.now();
+    this.watchdog = setInterval(() => this._check(), 200);
   }
 
   /** library: [{ name, code }] sources for use(). */
   start(cathedral, library = []) {
-    this.cathedral = cathedral;
-    this.library = library;
+    Object.assign(this, { cathedral, library });
     this._spawn();
   }
 
-  /**
-   * layers: [{ id, title, groups, blend, level, clips?, modules | code + params }]; extra: { globals?, automation?,
-   * bpm? } — sent on the next pump.
-   */
+  /** layers as saved (+ enabled: false); extra: { globals?, automation?, bpm? }. */
   setLook(layers, extra = {}) {
-    this.layers = layers.map((l) => ({ ...l }));
+    this.layers = layers;
     this.extra = { globals: extra.globals, automation: extra.automation, bpm: extra.bpm };
     this.lookDirty = true;
+    for (const id of this.layerMs.keys()) if (!layers.some((l) => l.id === id)) this.layerMs.delete(id);
   }
 
-  /** Ask for a fresh frame on the next pump even if nothing changed (e.g. after an export). */
+  /** A fresh frame on the next pump even if nothing changed (after an export). */
   refresh() { this.lastT = NaN; }
   get ready() { return this.phase === 'ready'; }
-
-  /** Once per animation frame: sends a pending look, then asks for time `t` if something changed (or `force`). */
-  pump(t, force = false) {
-    if (this.phase !== 'ready' || this.render_) return;
-    if (this.lookDirty) this._sendLook();
-    if (this.frameInFlight) return;
-    if (!force && t === this.lastT && this.frameLookVersion === this.lookVersion) return;
-    const f = this._frame;
-    Object.assign(f, { seq: ++this.seq, t, sentAt: performance.now(), look: this.lookVersion });
-    this.frameInFlight = f;
-    this._frameMsg.seq = f.seq;
-    this._frameMsg.t = t;
-    this._post(this._frameMsg);          // cloned synchronously, so the object can be reused
+  /** Layers whose time takes over HEAVY of a 40 fps frame's budget: Map id → ms. */
+  heavy() {
+    return new Map([...this.layerMs].filter(([, ms]) => ms > HEAVY * budget(RATES[0])));
   }
 
-  /** Does the pump still have work for time t (so a paused loop should keep ticking)? */
+  /** Per animation frame: a pending look, then frame `t` when due and changed (always while playing). */
+  pump(t, playing = false) {
+    this.playing = playing;
+    if (this.phase !== 'ready' || this.render_) return;
+    if (this.lookDirty) this._sendLook();
+    if (playing || t !== this.lastT || this.frameLookVersion !== this.lookVersion) this._request(t);
+  }
+
+  _request(t) {
+    const now = performance.now(), iv = 1000 / this.rate;
+    if (this.frameInFlight || now < this.due - SLACK_MS) return;
+    this.due = now - this.due < iv ? this.due + iv : now + iv;       // keep the cadence unless far behind
+    const f = this.frame;
+    f.seq = this.frameMsg.seq = ++this.seq;
+    f.t = this.frameMsg.t = t;
+    f.look = this.lookVersion;
+    this._post(this.frameMsg);          // cloned synchronously, so the object can be reused
+    this.frameInFlight = f;
+  }
+
+  /** Should a paused loop keep ticking for time t? */
   pending(t) {
-    if (this.phase !== 'ready' || this.render_) return false;
-    return this.lookDirty || !!this.frameInFlight || t !== this.lastT || this.frameLookVersion !== this.lookVersion;
+    return this.phase === 'ready' && !this.render_ && (this.lookDirty || !!this.frameInFlight || t !== this.lastT
+      || this.frameLookVersion !== this.lookVersion);
   }
 
   /** Render frames for export → Uint8Array(frames × channelsPerFrame). */
   render({ start = 0, frames, fps = 40, gamma = 1, brightness = 1, onProgress } = {}) {
     return new Promise((resolve, reject) => {
-      if (this.phase !== 'ready') { reject(new Error('The pattern engine is not ready yet.')); return; }
-      if (this.render_) { reject(new Error('An export is already running.')); return; }
+      if (this.phase !== 'ready') return reject(new Error('The pattern engine is not ready yet.'));
+      if (this.render_) return reject(new Error('An export is already running.'));
       if (this.lookDirty) this._sendLook();
       const seq = ++this.seq;
-      this.render_ = { seq, resolve, reject, onProgress, frames };
-      this.waits.push({ kind: 'render', seq, since: performance.now() });
       this._post({ type: 'render', seq, start, frames, fps, gamma, brightness });
+      this.render_ = { seq, resolve, reject, onProgress, frames };
     });
   }
 
@@ -96,8 +106,8 @@ export class Runtime {
 
   destroy() {
     this.phase = 'dead';
-    clearInterval(this._watchdog);
-    window.removeEventListener('message', this._onMessage);
+    clearInterval(this.watchdog);
+    window.removeEventListener('message', this.onMessage);
     this._failRender('Closed.');
     this._kill();
   }
@@ -108,57 +118,60 @@ export class Runtime {
     for (const [k, v] of Object.entries(attrs)) f.setAttribute(k, v);
     f.className = 'sandbox-frame';
     f.src = this.src;
-    Object.assign(this, { iframe: f, heard: false, phase: 'loading', frameInFlight: null,
-      waits: [{ kind: 'load', since: performance.now() }] });
+    Object.assign(this, { iframe: f, heard: false, phase: 'loading', frameInFlight: null, since: performance.now() });
     this.onStatus('loading');
     this.container.append(f);
   }
 
   _kill() {
-    if (this.iframe) {
-      try { this.iframe.src = 'about:blank'; } catch { /* ignore */ }
-      this.iframe.remove();
-    }
-    Object.assign(this, { iframe: null, frameInFlight: null, waits: [], lookQueue: [] });
+    this.iframe?.remove();
+    this.port?.close();
+    Object.assign(this, { iframe: null, port: null, frameInFlight: null, lookQueue: [] });
   }
 
   _failRender(message) {
     const r = this.render_;
     this.render_ = null;
-    if (r) r.reject(new Error(message));
+    r?.reject(new Error(message));
   }
 
   _respawn() {
     const now = performance.now();
-    this.respawns = this.respawns.filter((t) => now - t < 20000);
-    this.respawns.push(now);
+    this.respawns = [...this.respawns.filter((t) => now - t < 20000), now];
     this._kill();
     this._failRender('Export stopped: the pattern engine restarted.');
-    if (this.respawns.length > 5) {
-      this.phase = 'dead';
-      this.onStatus('dead', 'The pattern engine keeps stopping. Reload the page to try again.');
-      return;
-    }
+    if (this.respawns.length > 5) return this._die('The pattern engine keeps stopping. Reload the page to try again.');
     this.lookDirty = true;
     this._spawn();
   }
 
-  _post(msg, transfer) {
-    const w = this.iframe && this.iframe.contentWindow;
-    if (w) w.postMessage(msg, '*', transfer || []);
+  _die(detail) {
+    this.phase = 'dead';
+    this.onStatus('dead', detail);
+  }
+
+  /** Owed anything: a frame, a compile, an export? */
+  get owed() { return !!(this.frameInFlight || this.lookQueue.length || this.render_); }
+
+  _post(msg) {
+    if (!this.owed) this.since = performance.now();     // the silence that counts starts with what we ask
+    this.port?.postMessage(msg);
   }
 
   _sendInit() {
     this.phase = 'init';
-    this.waits = this.waits.filter((w) => w.kind !== 'load');
-    this.waits.push({ kind: 'init', since: performance.now() });
-    this._post({ type: 'init', cathedral: this.cathedral, library: this.library || [] });
+    this.since = performance.now();
+    const { port1, port2 } = new MessageChannel();
+    this.port?.close();
+    this.port = port1;
+    port1.onmessage = (e) => { if (this.port === port1) this._message(e.data); };
+    const init = { type: 'init', cathedral: this.cathedral, library: this.library || [] };
+    this.iframe?.contentWindow?.postMessage(init, '*', [port2]);
   }
 
   _becomeReady() {
     if (this.phase !== 'init') return;
     this.phase = 'ready';
-    this.waits = this.waits.filter((w) => w.kind !== 'init');
     this.lookDirty = true;
     this.onStatus('ready');
   }
@@ -166,139 +179,96 @@ export class Runtime {
   _sendLook() {
     this.lookDirty = false;
     this.lookVersion++;
-    // Each layer's code and its modules' as sent, to tag the `compiled` reply with.
-    this.lookQueue.push(new Map(this.layers.map((l) => [l.id, { code: l.code,
-      modules: new Map((l.modules || []).map((m) => [m.id, m.code])) }])));
-    this.waits.push({ kind: 'look', since: performance.now() });
-    this._post({
-      type: 'look', ...(this.extra || {}),
-      layers: this.layers.map(({ id, title, code, groups, blend, level, params, clips, enabled, modules }) => ({
-        id, title, groups, blend, level, ...(modules ? { modules } : { code, params }), ...(clips ? { clips } : {}),
-        enabled: enabled !== false })),
-    });
+    this._post({ type: 'look', ...this.extra, layers: this.layers });
+    this.lookQueue.push(new Map(this.layers.map((l) => [l.id, new Map(l.modules.map((m) => [m.id, m.code]))])));
   }
 
-  _message(e) {
-    if (!this.iframe || e.source !== this.iframe.contentWindow) return;
-    const m = e.data;
-    if (!m || typeof m !== 'object' || typeof m.type !== 'string') return;
-    this.heard = true;
-    this.deadTries = 0;
+  /** A frame came back; while playing, one that came late asks for the next at once. */
+  _frame(m, f) {
+    this.frameInFlight = null;
+    this.lastT = f.t;
+    this.frameLookVersion = f.look;
+    const now = performance.now(), st = this.stats;
+    this.fpsCount++;
+    if (now - this.fpsSince >= 1000) {
+      st.fps = (this.fpsCount * 1000) / (now - this.fpsSince);
+      this.fpsCount = 0;
+      this.fpsSince = now;
+    }
+    if (+m.ms >= 0) st.ms = ema(st.ms, +m.ms);
+    for (const id in m.layerMs) {
+      const ms = +m.layerMs[id];
+      if (ms >= 0) this.layerMs.set(id, ema(this.layerMs.get(id), ms));
+    }
+    // Step down while frames cost over budget; back up once well under the faster rate's, a second apart.
+    const i = RATES.indexOf(this.rate);
+    const next = st.ms > budget(this.rate) ? RATES[i + 1] : st.ms < 0.7 * budget(RATES[i - 1]) ? RATES[i - 1] : 0;
+    if (next && now - this.rateAt > 1000) { this.rate = next; this.rateAt = now; }
+    if (m.rgb) this.onFrame(m.rgb, f.t);
+    this.onFrameErrors(Array.isArray(m.errors) ? m.errors : EMPTY);
+    if (this.playing && this.time && !this.lookDirty && !this.render_) this._request(this.time());
+  }
+
+  _message(m) {
     const r = this.render_;
+    if (!m || typeof m !== 'object' || typeof m.type !== 'string') return;
+    Object.assign(this, { heard: true, deadTries: 0, since: performance.now() });
     switch (m.type) {
       case 'ready':
         if (this.phase === 'loading') this._sendInit();
-        else if (this.phase === 'init') this._becomeReady();
+        else this._becomeReady();
         break;
       case 'compiled': {
-        this._done('look');
-        if (this.phase === 'init') this._becomeReady();
+        this._becomeReady();
         const codes = this.lookQueue.shift() || new Map();
-        this.onCompiled((Array.isArray(m.layers) ? m.layers : []).map((l) => {
-          const sent = codes.get(l.id);
-          const modules = (l.modules || []).map((x) => ({ ...x, code: sent?.modules.get(x.id) }));
-          return { ...l, code: sent?.code, modules };
-        }));
+        this.onCompiled((Array.isArray(m.layers) ? m.layers : []).map((l) => ({ ...l,
+          modules: (l.modules || []).map((x) => ({ ...x, code: codes.get(l.id)?.get(x.id) })) })));
         break;
       }
-      case 'frame': {
-        const f = this.frameInFlight;
-        if (!f || m.seq !== f.seq) break;
-        this.frameInFlight = null;
-        this.lastT = f.t;
-        this.frameLookVersion = f.look;
-        const now = performance.now();
-        this._fpsCount++;
-        if (now - this._fpsSince >= 1000) {
-          this.stats.fps = (this._fpsCount * 1000) / (now - this._fpsSince);
-          this._fpsCount = 0;
-          this._fpsSince = now;
-        }
-        if (typeof m.ms === 'number') this.stats.ms = m.ms;
-        if (m.rgb) this.onFrame(m.rgb, f.t);
-        this.onFrameErrors(Array.isArray(m.errors) ? m.errors : EMPTY);
+      case 'frame':
+        if (this.frameInFlight && m.seq === this.frameInFlight.seq) this._frame(m, this.frameInFlight);
         break;
-      }
-      case 'progress': {
-        if (!r || m.seq !== r.seq) break;
-        const w = this.waits.find((x) => x.kind === 'render' && x.seq === m.seq);
-        if (w) w.since = performance.now();
-        if (r.onProgress) r.onProgress(m.done, r.frames);
+      case 'progress':
+        if (r && m.seq === r.seq) r.onProgress?.(m.done, r.frames);
         break;
-      }
-      case 'rendered': {
-        this._done('render', m.seq);
+      case 'rendered':
         if (!r || m.seq !== r.seq) break;
         this.render_ = null;
         if (Array.isArray(m.errors) && m.errors.length) this.onFrameErrors(m.errors);
         if (m.channels instanceof Uint8Array) r.resolve(m.channels);
         else r.reject(new Error(m.error || 'The sandbox returned no channel data.'));
         break;
-      }
       case 'error':
-        if (r && (m.seq == null || m.seq === r.seq)) {
-          this._done('render', r.seq);
-          this._failRender(m.error || 'Render failed.');
-        }
+        if (r && (m.seq == null || m.seq === r.seq)) this._failRender(m.error || 'Render failed.');
         this.onStatus('warning', m.error || 'The sandbox reported an error.');
         break;
       default:
-        break;
     }
-  }
-
-  _done(kind, seq) {
-    const i = this.waits.findIndex((w) => w.kind === kind && (seq == null || w.seq == null || w.seq === seq));
-    if (i >= 0) this.waits.splice(i, 1);
   }
 
   _check() {
-    const now = performance.now();
-    const gap = now - this._lastCheck;
-    this._lastCheck = now;
-    if (this.phase === 'dead' || this.phase === 'idle') return;
-    if (gap > FROZEN_GAP_MS) {
-      // Replies may be queued behind this very tick: restart the clocks rather than give up.
-      if (this.frameInFlight) this.frameInFlight.sentAt += gap;
-      for (const w of this.waits) w.since += gap;
-      return;
-    }
-    if (this.frameInFlight && now - this.frameInFlight.sentAt > FRAME_TIMEOUT_MS) { this._hang(); return; }
-    for (const w of this.waits) {
-      const age = now - w.since;
-      if (w.kind === 'load' && age > LOAD_TIMEOUT_MS) {
-        // No `ready` on load: try init anyway; if that fails too, the sandbox is broken.
-        if (this.phase !== 'loading') return;
-        this._sendInit();
-        this.onStatus('warning', 'The pattern sandbox is slow to start.');
-        return;
-      }
-      if (w.kind === 'init' && age > INIT_GRACE_MS) {
-        // Sandbox did not answer init with ready: carry on, the look's `compiled` will tell.
-        this.waits = this.waits.filter((x) => x !== w);
-        this._becomeReady();
-        return;
-      }
-      if ((w.kind === 'look' && age > FRAME_TIMEOUT_MS) || (w.kind === 'render' && age > RENDER_STALL_MS)) {
-        this._hang();
-        return;
-      }
+    const now = performance.now(), gap = now - this.lastCheck;
+    this.lastCheck = now;
+    if (gap > FROZEN_GAP_MS) this.since += gap;    // replies may be queued behind this very tick: no blame
+    else if (this.phase === 'loading' && now - this.since > LOAD_MS) {
+      this._sendInit();
+      this.onStatus('warning', 'The pattern sandbox is slow to start.');
+    } else if (this.phase === 'init' && now - this.since > INIT_MS) this._becomeReady();
+    else if (this.phase === 'ready' && this.owed && now - this.since > (this.render_ ? RENDER_MS : SILENT_MS)) {
+      this._hang();
     }
   }
 
-  /** The sandbox page stopped answering: rebuild it (and, if it never spoke at all, retry a few times). */
+  /** Rebuild a silent page (one that never spoke: retry a few times). */
   _hang() {
     if (this.heard) {
       this.onStatus('warning', 'The pattern engine stopped answering, so it was restarted.');
-      this._respawn();
-      return;
+      return this._respawn();
     }
     this.deadTries = (this.deadTries || 0) + 1;
     this._kill();
     if (this.deadTries > 3) {
-      this.phase = 'dead';
-      this.onStatus('dead', 'The pattern sandbox did not start (is /sandbox.html served?). Reload to try again.');
-      return;
+      return this._die('The pattern sandbox did not start (is /sandbox.html served?). Reload to try again.');
     }
     this.phase = 'idle';
     this.onStatus('warning', 'The pattern sandbox is not answering; retrying…');

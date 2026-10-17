@@ -1,11 +1,9 @@
 // Compiling pattern and module source: the stdlib (and use()) as locals, browser globals shadowed, readable
 // errors; and the library that use() runs.
-import { resolveParams } from './modulate.js';
-import { RUN } from './palette.js';
-import { clamp, hex, isNum, STDLIB, STDLIB_NAMES } from './stdlib.js';
+import { resolveParams } from './globals.js';
+import { clamp, hex, isNum, RUN, STDLIB, STDLIB_NAMES } from './stdlib.js';
 
-// Browser/worker globals hidden from pattern code as undefined locals. Defence in depth only:
-// the sandboxed, network-less iframe is the real boundary.
+// Browser globals hidden from pattern code as undefined locals: defence in depth (the sandbox is the boundary).
 const SHADOWED = [
   'fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource', 'importScripts', 'self', 'window',
   'globalThis', 'document', 'parent', 'top', 'opener', 'frames', 'postMessage', 'location',
@@ -24,8 +22,7 @@ const EPILOGUE =
   ' frame: typeof frame === "function" ? frame : undefined,' +
   ' params: typeof params === "undefined" ? undefined : params };\n})();';
 
-// Where pattern line 1 lands in the generated function, learnt once from a probe so runtime
-// errors can say "line N" in V8 and Firefox alike.
+// Where pattern line 1 lands in the generated function, probed once, so errors say "line N" in every engine.
 let lineOffset;
 const STACK_LINE = /(?:<anonymous>|> (?:Function|eval)):(\d+):\d+/;
 function patternLine(err) {
@@ -62,9 +59,7 @@ function toHexString(c) {
 export function normalizeParams(raw) {
   const out = {};
   if (raw === undefined || raw === null) return out;
-  if (typeof raw !== 'object' || Array.isArray(raw)) {
-    throw new Error('params must be an object of { value, ... }');
-  }
+  if (typeof raw !== 'object' || Array.isArray(raw)) throw new Error('params must be an object of { value, ... }');
   for (const key of Object.keys(raw)) {
     let d = raw[key];
     if (typeof d === 'number') d = { value: d };
@@ -112,11 +107,7 @@ const KINDS = { source: ['pixel', 'pixel(p, t, P)'], warp: ['warp', 'warp(q, t, 
   filter: ['filter', 'filter(c, q, t, P, G, x)'] };
 const FACTORIES = new Map();       // source → its compiled wrapper: recompiling the same code makes a fresh instance
 
-/**
- * Compile a module's source (a script defining its kind's function: pixel, warp or filter; optionally `params` and
- * `frame`), the stdlib in scope as locals. Each call is a fresh instance with its own top-level state. Throws a
- * readable Error on a syntax error, a top-level exception, bad params or a missing function.
- */
+/** A module's source → a fresh instance (own top-level state) of its kind's function; throws a readable Error. */
 export function compileModule(code, kind = 'source') {
   const k = KINDS[kind];
   if (!k) throw new Error(`unknown module kind "${kind}" (source, warp or filter)`);

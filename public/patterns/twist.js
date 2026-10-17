@@ -1,8 +1,5 @@
-// Twist: swirls the façade round the layer's centre and winds the depth round the height.
-//
-// `swirl` turns each pixel's angle by an amount that grows with its radius (a whirlpool); `wind`
-// turns the depth–width plane by an amount that grows with height, so towers and spires spiral.
-// Both in turns; `spin` sets the swirl turning, in turns a second.
+// Twist: swirls the angle by an amount growing with the radius (a whirlpool, turning `spin` a second) and
+// winds depth round height (`wind`), so towers and spires spiral. Both in turns.
 const params = {
   swirl: { value: 0.25, min: -1, max: 1, step: 0.01, label: 'Swirl (turns at the rim)' },
   wind: { value: 0, min: -1, max: 1, step: 0.01, label: 'Wind with height (turns)' },

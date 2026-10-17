@@ -1,24 +1,21 @@
-// The timeline (SPEC "Timeline"): a row per layer, top layer first, clips as blocks on a ruler, and a
-// playhead. Wide: in the bottom dock, edited by dragging (timeline-input.js). Phones: compact strips
-// plus the selected clip's numbers (timeline-tools.js). Only the playhead moves per frame.
-import { h, pref, stylesheet, toast } from './dom.js';
+// The timeline (SPEC "Timeline"): a row per layer, top first, clips on a ruler, a playhead (all that moves per
+// frame). Wide: dragged in the dock; phones: strips and the clip's numbers (timeline-tools.js).
+import { h, keyed, pref, randomId, stylesheet, toast } from './dom.js';
 import {
   addClip, clock, contentEnd, DEFAULT_DURATION, importLook, MAX_DURATION, removeClip, rulerStep, shownFades, snapStep,
 } from './timeline-model.js';
-import { attachInput } from './timeline-input.js';
-import { buildTools } from './timeline-tools.js';
+import { attachInput, buildTools } from './timeline-tools.js';
 
 const NAMES_W = 112;           // the layer-name column on a wide screen
 const RULER_H = 16;
 const MAX_PPS = 200;           // pixels a second, fully zoomed in
 const MAX_WIDTH = 120000;      // and never wider than this
 
-// Its styles load with the Studio, not with the login page.
 await stylesheet('/css/timeline.css');
 
 export class Timeline {
   // host: { layers(), look(), selectedId(), time(), toolsSlot, onSelectLayer(id), onEdit({ live }), onSeek(t),
-  //   onImport() }
+  //   signedOut() }
   constructor(host) {
     Object.assign(this, { host, mode: 'wide', pps: 1, fit: true, namesW: NAMES_W, viewW: 0, scrollX: 0, t: 0, px: -1,
       dragging: false, snapMode: pref('studio.snap') || 'grid' });
@@ -29,7 +26,7 @@ export class Timeline {
     this.ruler = h('div', { class: 'tl-ruler', title: 'Click or drag to move the playhead' }, this.canvas);
     this.rowsEl = h('div', { class: 'tl-rows' });
     this.head = h('div', { class: 'tl-playhead', 'aria-hidden': 'true' });
-    // Automation lanes go under the layers: timeline-auto.js, loaded once a look has some or asks for some.
+    // Automation lanes (timeline-auto.js) load once a look has some or asks for some.
     this.auto = null;
     this.autoSlot = h('div', { class: 'tl-auto-head' }, h('div', { class: 'tl-corner tl-auto-corner',
       text: 'Automation' }), h('div', { class: 'tl-auto-tools' }, h('button', { type: 'button', class: 'btn small',
@@ -57,9 +54,9 @@ export class Timeline {
   get look() { return this.host.look(); }
   get duration() { return this.look.duration || DEFAULT_DURATION; }
   layerById(id) { return this.host.layers().find((l) => l.id === id) || null; }
-  /** The snap step for drags and keys (seconds; 0 = none). */
+  /** The snap step (s; 0: none). */
   step() { return snapStep(this.snapMode, this.look.bpm); }
-  /** How far an edit may push clip c: the look's end, or further if c already is. */
+  /** How far an edit may push clip c: the look's end, or c's if past it. */
   limit(c) { return Math.max(this.duration, c ? c.end : 0); }
   /** The time the view spans: the look, and any clip past its end. */
   span() {
@@ -95,10 +92,7 @@ export class Timeline {
     this.viewW = Math.max(1, w - this.namesW);
     const span = this.span();
     const fitPps = this.viewW / span;
-    if (this.fit || this.pps < fitPps) {
-      this.pps = fitPps;
-      this.fit = true;
-    }
+    if (this.fit || this.pps < fitPps) { this.pps = fitPps; this.fit = true; }
     this.pps = Math.min(this.pps, Math.max(fitPps, Math.min(MAX_PPS, MAX_WIDTH / span)));
     this.contentW = Math.max(this.viewW, Math.ceil(span * this.pps));
     const s = this.el.style;
@@ -128,7 +122,7 @@ export class Timeline {
     this.placeHead(true);
   }
 
-  /** Load the automation lanes in place of their placeholder (open: show what can be automated). */
+  /** The automation lanes in place of their placeholder (open: focus what can be automated). */
   loadAuto(open = false) {
     this.autoP ||= import('./timeline-auto.js').then(({ AutoLanes }) => {
       this.auto = new AutoLanes(this);
@@ -152,20 +146,13 @@ export class Timeline {
 
   zoomToFit() { this.fit = true; this.layout(); }
 
-  /** Bring the rows in line with the look. Cheap when nothing changed: it runs on every refresh. */
+  /** Rows in line with the look: cheap when nothing changed. */
   render() {
     const layers = this.host.layers();
     const selectedId = this.host.selectedId();
     if (this.sel && (this.sel.id !== selectedId || !this.selected())) this.sel = null;
-    const keep = new Set(layers.map((l) => l.id));
-    for (const [id, r] of this.rows) if (!keep.has(id)) { r.row.remove(); this.rows.delete(id); }
-    for (let n = 0; n < layers.length; n++) {
-      const l = layers[layers.length - 1 - n];
-      let r = this.rows.get(l.id);
-      if (!r) { r = this.makeRow(l); this.rows.set(l.id, r); }
-      if (this.rowsEl.children[n] !== r.row) this.rowsEl.insertBefore(r.row, this.rowsEl.children[n] || null);
-      this.paintRow(r, l, l.id === selectedId);
-    }
+    keyed(this.rowsEl, this.rows, [...layers].reverse(), (l) => l.id, (l) => this.makeRow(l),
+      (r, l) => this.paintRow(r, l, l.id === selectedId));
     this.el.classList.toggle('tl-empty', !layers.length);
     if (this.auto) this.auto.render(); else if (this.look.automation) this.loadAuto();
     this.tools.update();
@@ -175,8 +162,8 @@ export class Timeline {
     const name = h('button', { type: 'button', class: 'tl-name', onClick: () => this.host.onSelectLayer(l.id) });
     const always = h('div', { class: 'tl-always' }, h('span'));
     const lane = h('div', { class: 'tl-lane' }, always);
-    const row = h('div', { class: 'tl-row', dataset: { id: l.id } }, name, lane);
-    return { row, name, lane, always, clips: [], sig: '' };
+    const el = h('div', { class: 'tl-row', dataset: { id: l.id } }, name, lane);
+    return { el, name, lane, always, clips: [], sig: '' };
   }
 
   paintRow(r, l, selected) {
@@ -186,8 +173,8 @@ export class Timeline {
     const sig = `${title}|${selected}|${selIndex}|${l.blend}|${JSON.stringify(clips)}|${this.pps}|${this.duration}`;
     if (sig === r.sig) return;
     r.sig = sig;
-    r.row.dataset.blend = l.blend || 'add';     // clips take the glass of the layer's blend
-    r.row.classList.toggle('selected', selected);
+    r.el.dataset.blend = l.blend || 'add';     // clips take the glass of the layer's blend
+    r.el.classList.toggle('selected', selected);
     r.name.textContent = title;
     r.always.hidden = clips.length > 0;
     r.always.firstChild.textContent = this.mode === 'wide' ? 'Always on · double-click to place a clip'
@@ -218,7 +205,7 @@ export class Timeline {
       h('span', { class: 'tl-fh tl-fh-in', title: 'Drag to fade in' }),
       h('span', { class: 'tl-fh tl-fh-out', title: 'Drag to fade out' }));
     el.addEventListener('focus', () => {
-      const id = r.row.dataset.id, i = +el.dataset.i;
+      const id = r.el.dataset.id, i = +el.dataset.i;
       if (!this.sel || this.sel.id !== id || this.sel.index !== i) this.selectClip(id, i);
     });
     r.lane.append(el);
@@ -227,7 +214,7 @@ export class Timeline {
 
   clipEl(id, index) { return this.rows.get(id)?.clips[index] || null; }
 
-  /** Select clip `index` of layer `id` (null: just the layer); selecting a clip selects its layer. */
+  /** Select clip `index` of layer `id` (null: just the layer), and its layer. */
   selectClip(id, index, { focus = false } = {}) {
     this.sel = index === null || index === undefined ? null : { id, index };
     if (this.host.selectedId() !== id) this.host.onSelectLayer(id);   // which re-renders us
@@ -289,10 +276,10 @@ export class Timeline {
     this.tools.update();
   }
 
-  /** Play another look after this one (timeline-model.js). Returns an error, or ''. */
-  importLook(other, newId) {
+  /** Play another look after this one → an error, or ''. */
+  importLook(other) {
     const look = this.look;
-    const r = importLook(look.layers, this.duration, other, newId);
+    const r = importLook(look.layers, this.duration, other, () => randomId('l'));
     if (r.error) return r.error;
     const before = { layers: look.layers, duration: look.duration, selected: this.host.selectedId() };
     const apply = (layers, duration, selected) => {
@@ -328,10 +315,7 @@ export class Timeline {
       const x = Math.round(k * minor * pps - x0);
       ctx.fillStyle = colors.tick;
       ctx.fillRect(x, k % 4 ? 12 : 8, 1, RULER_H);
-      if (k % 4 === 0) {
-        ctx.fillStyle = colors.text;
-        ctx.fillText(clock(k * minor), x + 3, 1);
-      }
+      if (k % 4 === 0) { ctx.fillStyle = colors.text; ctx.fillText(clock(k * minor), x + 3, 1); }
     }
     const beat = this.look.bpm ? 60 / this.look.bpm : 0;
     if (beat && beat * pps >= 6) {
@@ -344,7 +328,7 @@ export class Timeline {
     ctx.fillRect(Math.round(this.duration * pps - x0) - 1, 0, 2, RULER_H);
   }
 
-  /** Per frame: moves the playhead (a transform) and, while playing, pages the view along. */
+  /** Per frame: the playhead (a transform); while playing, the view pages along. */
   setTime(t, playing) {
     this.t = t;
     const px = Math.round(t * this.pps);

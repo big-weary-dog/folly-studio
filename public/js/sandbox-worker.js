@@ -9,6 +9,7 @@ let scene = null;
 let prepared = [];                            // render order, bottom first
 let globals = null;                           // { globals, automation, bpm } of the newest look
 let live = null;                              // its prepared globals, the clock kept continuous across looks
+let layerMs = {};                             // layer id → its ms last frame: one object, refilled each frame
 // layer id + module id -> { code, kind, compiled, error }: the same code keeps its instance and state
 const compiledByKey = new Map();
 const now = () => performance.now();
@@ -64,6 +65,7 @@ function onLook(msg) {
   }
   for (const key of [...compiledByKey.keys()]) if (!keep.has(key)) compiledByKey.delete(key);
   prepared = next;
+  layerMs = Object.fromEntries(next.map((L) => [L.id, 0]));
   globals = { globals: msg.globals, automation: msg.automation, bpm: msg.bpm };
   live = prepareLook(globals, live);
   post({ type: 'compiled', layers: report });
@@ -73,7 +75,8 @@ function onFrame(msg) {
   const started = now();
   const rgb = new Float32Array(scene ? scene.count * 3 : 0);
   const errors = scene ? renderFrame(scene, prepared, +msg.t || 0, rgb, live || undefined).errors : [];
-  post({ type: 'frame', seq: msg.seq, rgb, errors, ms: now() - started }, [rgb.buffer]);
+  for (let i = 0; i < prepared.length; i++) layerMs[prepared[i].id] = prepared[i].ms;
+  post({ type: 'frame', seq: msg.seq, rgb, errors, ms: now() - started, layerMs }, [rgb.buffer]);
 }
 
 function onRender(msg) {

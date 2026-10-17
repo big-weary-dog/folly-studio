@@ -1,7 +1,5 @@
-// Threshold: lights only what is brighter than a level, so busy textures become crisp shapes.
-//
-// The chain's brightness (its brightest channel) against `level`, with a soft edge of `softness`
-// either side. Kept parts stay their own colour, or all take `color` when `recolour` is on.
+// Threshold: lights only what is brighter (its brightest channel) than `level`, with a soft edge, so busy
+// textures become crisp shapes; kept parts keep their colour, or take `color` with recolour on.
 const params = {
   level: { value: 0.5, min: 0, max: 1, step: 0.01 },
   softness: { value: 0.05, min: 0, max: 0.5, step: 0.01, label: 'Edge softness' },

@@ -37,10 +37,7 @@ export function prepareScene(cathedral) {
   }
   for (const st of strands) {
     const n = st.count | 0;
-    for (let j = 0; j < n; j++) {
-      const k = st.start + j;
-      s.i[k] = j; s.n[k] = n; s.u[k] = n > 1 ? j / (n - 1) : 0;
-    }
+    for (let j = 0; j < n; j++) { const k = st.start + j; s.i[k] = j; s.n[k] = n; s.u[k] = n > 1 ? j / (n - 1) : 0; }
   }
   return s;
 }

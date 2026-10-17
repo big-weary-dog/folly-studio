@@ -13,15 +13,26 @@ import path from 'node:path';
 
 import { DEFAULT_DURATION } from '../public/js/pattern-core.js';
 import { BakeError, checkFrames, failedBake } from './box-output.js';
-import { bundle } from './bundle.js';
+import { bundle } from './assets.js';
 import { DEFAULT_MAX_BYTES, flickerReason } from './frames.js';
-import { createLane } from './frames-jobs.js';
 import { renderFields } from './look-rules.js';
 
 export const DEFAULT_BAKE_SECONDS = 120;
 const LOOK_ID = /^[A-Za-z0-9_-]{1,64}$/;
 // Sparse frames hold the LED map's 14,610 channels: about 0.6 MB a second at 40 fps.
 const BYTES_PER_SECOND = 40 * 15_000;
+
+/** A queue that runs one task at a time, in order: run(fn) → fn()'s result; size: tasks queued or running. */
+export function createLane() {
+  let tail = Promise.resolve(), size = 0;
+  const run = (fn) => {
+    size++;
+    const p = tail.then(fn).finally(() => { size--; });
+    tail = p.catch(() => {});
+    return p;
+  };
+  return { run, get size() { return size; } };
+}
 
 /** Room for `seconds` of sparse frames: 64 MB, or more for a long bake. */
 export function framesBytesFor(seconds) {
@@ -87,24 +98,23 @@ export function framesPath(dir, lookId) {
 }
 
 let tmpSeq = 0;
-/** Write a file atomically: a temporary file beside it, then a rename. */
-export async function writeAtomic(file, bytes) {
+/** Make `file` atomically: write(tmp) makes a temporary file beside it, then a rename puts it in place. */
+async function atomically(file, write) {
   const tmp = `${file}.${process.pid}.${(tmpSeq++).toString(36)}.tmp`;
   try {
-    await fs.writeFile(tmp, bytes, { mode: 0o600 });
+    await write(tmp);
     await fs.rename(tmp, file);
   } catch (err) {
     await fs.rm(tmp, { force: true }).catch(() => {});
     throw err;
   }
 }
+export const writeAtomic = (file, bytes) => atomically(file, (tmp) => fs.writeFile(tmp, bytes, { mode: 0o600 }));
 
 /** Store a look's frames (atomically). */
 export async function saveFrames(dir, lookId, bytes) {
-  const file = framesPath(dir, lookId);
   await fs.mkdir(dir, { recursive: true });
-  await writeAtomic(file, bytes);
-  return file;
+  await writeAtomic(framesPath(dir, lookId), bytes);
 }
 
 export async function removeFrames(dir, lookId) {
@@ -153,15 +163,7 @@ export function createBakeQueue({ store, box, framesDir, cathedralFile, maxQueue
   /** Give look `id` the frames in `file`: a hard link (a copy where links fail), placed atomically. */
   async function adopt(id, file) {
     const to = framesPath(framesDir, id);
-    if (file === to) return;
-    const tmp = `${to}.${process.pid}.${(tmpSeq++).toString(36)}.tmp`;
-    try {
-      await fs.link(file, tmp).catch(() => fs.copyFile(file, tmp));
-      await fs.rename(tmp, to);
-    } catch (err) {
-      await fs.rm(tmp, { force: true }).catch(() => {});
-      throw err;
-    }
+    if (file !== to) await atomically(to, (tmp) => fs.link(file, tmp).catch(() => fs.copyFile(file, tmp)));
   }
 
   async function bakeOne(id) {
@@ -276,10 +278,7 @@ export function createBakeQueue({ store, box, framesDir, cathedralFile, maxQueue
       if (b?.source !== source || b.status !== 'done' || !b.frames?.sha256) return false;
       if (queued(look.id) || asking.has(look.id)) return true;
       const hit = await stored({ sha: b.frames.sha256 }); // another look may hold the same frames
-      if (hit && await adopt(look.id, hit.file).then(() => true, () => false)) {
-        onFrames?.(look.id);
-        return true;
-      }
+      if (hit && await adopt(look.id, hit.file).then(() => true, () => false)) { onFrames?.(look.id); return true; }
       if (full() || !(await box.probe()).ok) return false;
       restoring.add(look.id);
       pending.push(look.id);

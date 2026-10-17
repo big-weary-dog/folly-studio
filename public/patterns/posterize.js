@@ -1,7 +1,5 @@
-// Posterize: rounds each colour channel to a few steps, for flat, poster-like bands of colour.
-//
-// `steps` levels per channel (2 is pure on/off colour); `mix` blends back toward the original, so
-// a smooth gradient can keep a little of its glow.
+// Posterize: rounds each channel to `steps` levels for flat, screen-print bands (2 is pure on/off colour);
+// mix blends back toward the original, so a gradient keeps a little of its glow.
 const params = {
   steps: { value: 4, min: 2, max: 12, step: 1, label: 'Steps per channel' },
   mix: { value: 1, min: 0, max: 1, step: 0.01, label: 'Amount' },

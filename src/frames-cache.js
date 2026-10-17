@@ -2,25 +2,31 @@
 // <framesDir>/<hash>/ with <hash> = wireHash(look.bake.frames.sha256): <n>.br chunks and manifest.json
 // (written last) after a bake; <n>.gz chunks and frames.<codec>.fseq downloads on first request. Looks
 // with the same frames share a folder; prune() removes folders no bake names. The encoding runs in a
-// low-priority worker thread, one job at a time (src/frames-jobs.js), wire encodes in the lane bakes use.
-// The folder stays under a disk cap (src/frames-disk.js); frames it evicted are baked again on demand.
+// low-priority worker thread, one job at a time (createFrameJobs, below), wire encodes in the lane bakes use.
+// The folder stays under a disk cap (createFramesDisk, below); frames it evicted are baked again on demand.
 //   wire(look) → { state: none | pending | failed | ready, hash?, done?, chunks? } (encodes or re-bakes when needed)
 //   chunk(hash, n, br | gzip | null) → { body, encoding } | null;  fseq(look, codec) → path | null
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
+import { Worker } from 'node:worker_threads';
 import zlib from 'node:zlib';
 
-import { framesBytesFor, framesPath } from './bake.js';
-import { createFramesDisk } from './frames-disk.js';
-import { createFrameJobs, createLane } from './frames-jobs.js';
+import { createLane, framesBytesFor, framesPath } from './bake.js';
 import { WIRE_QUALITY, wireHash } from './frames-wire.js';
 
 const HASH = /^[0-9a-f]{32}$/;
+export const DEFAULT_FRAMES_MAX_BYTES = 2 * 1024 ** 3;
+const TOUCH_MS = 10 * 60_000;
+const MIN_GAP_MS = 5000; // between two looks at the whole folder
 const MAX_FRAMES_BYTES = framesBytesFor(600); // the longest bake there can be
 const unbrotli = promisify(zlib.brotliDecompress);
 const exists = (file) => fs.stat(file).then((st) => st.isFile(), () => false);
+const shaOf = (look) => {
+  const sha = look?.bake?.frames?.sha256;
+  return typeof sha === 'string' && /^[0-9a-f]{64}$/.test(sha) ? sha : null;
+};
 
 /**
  * createFramesCache({ framesDir, store, log, quality, maxBytes, lane, jobs, rebake }): `lane` is shared with
@@ -33,10 +39,6 @@ export function createFramesCache({ framesDir, store, log = console, quality = W
   const failed = new Set();   // hashes whose frames could not be encoded (until a restart)
   const making = new Map();   // file → { promise, sha }: gzip chunks and .fseq downloads being made
   const dir = (hash) => path.join(framesDir, hash);
-  const shaOf = (look) => {
-    const sha = look?.bake?.frames?.sha256;
-    return typeof sha === 'string' && /^[0-9a-f]{64}$/.test(sha) ? sha : null;
-  };
   const hashOf = (look) => (shaOf(look) ? wireHash(shaOf(look)) : null);
   const busy = () => new Set([...encoding.values(), ...making.values()].map((j) => j.sha));
   const disk = createFramesDisk({ framesDir, store, maxBytes, busy, log });
@@ -76,10 +78,7 @@ export function createFramesCache({ framesDir, store, log = console, quality = W
   async function wire(look) {
     const hash = hashOf(look);
     if (!hash) return { state: 'none' };
-    if (await exists(path.join(dir(hash), 'manifest.json'))) {
-      disk.touch(look);
-      return { state: 'ready', hash };
-    }
+    if (await exists(path.join(dir(hash), 'manifest.json'))) { disk.touch(look); return { state: 'ready', hash }; }
     if (failed.has(hash)) return { state: 'failed', hash };
     if (!encoding.has(hash)) {
       if (await exists(framesPath(framesDir, look.id))) encode(look); // an older bake, or a restart cut it short
@@ -114,10 +113,7 @@ export function createFramesCache({ framesDir, store, log = console, quality = W
   async function chunk(hash, n, enc) {
     if (!HASH.test(hash) || !Number.isInteger(n) || n < 0) return null;
     const br = path.join(dir(hash), `${n}.br`);
-    if (enc === 'br') {
-      const body = await read(br);
-      return body && { body, encoding: 'br' };
-    }
+    if (enc === 'br') { const body = await read(br); return body && { body, encoding: 'br' }; }
     if (!(await exists(br))) return null;
     if (enc === 'gzip') {
       const manifest = await read(path.join(dir(hash), 'manifest.json'));
@@ -160,4 +156,159 @@ export function createFramesCache({ framesDir, store, log = console, quality = W
     },
     close: () => jobs.close(),
   };
+}
+
+// Baked frames within a disk budget (STUDIO_FRAMES_MAX_BYTES, default 2 GB). While <framesDir> holds more,
+// the frames used least recently go: a bake's .fseq files with its wire folder (chunks and downloads). Never
+// a reviewed look's, a fleet-box bake's (no box can make it again) or frames in use. An evicted bake keeps
+// its record and is baked again when someone asks for its frames: bakes are deterministic.
+// Last use: when this run saw it used, else the .fseq's mtime (touched on use, at most every 10 minutes).
+async function folderBytes(dir) {
+  const names = await fs.readdir(dir).catch(() => []);
+  const stats = await Promise.all(names.map((n) => fs.stat(path.join(dir, n)).catch(() => null)));
+  return stats.reduce((n, st) => n + (st?.isFile() ? st.size : 0), 0);
+}
+
+/** createFramesDisk({ framesDir, store, maxBytes, busy() → Set of sha256 in use, log }) → { touch, enforce, usage } */
+export function createFramesDisk({ framesDir, store, maxBytes = DEFAULT_FRAMES_MAX_BYTES, busy = () => new Set(),
+  log = console }) {
+  const used = new Map(); // sha256 → when this run last saw it used
+  let running = null, again = false, lastRun = 0, timer = null;
+
+  /** Note that a look's frames were used (streamed, downloaded, baked). */
+  function touch(look) {
+    const sha = shaOf(look);
+    if (!sha) return;
+    const now = Date.now(), last = used.get(sha) ?? 0;
+    used.set(sha, now);
+    if (now - last < TOUCH_MS) return;
+    const when = new Date(now);
+    fs.utimes(framesPath(framesDir, look.id), when, when).catch(() => {});
+  }
+
+  /** { total, groups: [{ sha, looks, bytes, lastUsed, keep }] }: what the folder holds, by bake. */
+  async function usage() {
+    const groups = new Map();
+    const inUse = busy();
+    for (const look of store.looks.list((l) => shaOf(l))) {
+      const sha = shaOf(look);
+      const g = groups.get(sha) ?? { sha, looks: [], bytes: 0, lastUsed: used.get(sha) ?? 0, keep: inUse.has(sha) };
+      g.looks.push(look.id);
+      g.keep ||= look.reviewed === true || look.bake.source !== 'render-box';
+      groups.set(sha, g);
+    }
+    const byLook = new Map([...groups.values()].flatMap((g) => g.looks.map((id) => [`${id}.fseq`, g])));
+    const byFolder = new Map([...groups.values()].map((g) => [wireHash(g.sha), g]));
+    const seen = new Set(); // inodes: looks with the same frames share one file
+    let total = 0;
+    for (const entry of await fs.readdir(framesDir, { withFileTypes: true }).catch(() => [])) {
+      const file = path.join(framesDir, entry.name);
+      if (entry.isDirectory()) {
+        const bytes = await folderBytes(file);
+        total += bytes;
+        const g = byFolder.get(entry.name);
+        if (g) g.bytes += bytes;
+        continue;
+      }
+      const st = await fs.stat(file).catch(() => null);
+      if (!st?.isFile() || seen.has(st.ino)) continue;
+      seen.add(st.ino);
+      total += st.size;
+      const g = byLook.get(entry.name);
+      if (g) Object.assign(g, { bytes: g.bytes + st.size, lastUsed: Math.max(g.lastUsed, st.mtimeMs) });
+    }
+    return { total, groups: [...groups.values()] };
+  }
+
+  async function evict() {
+    const { total, groups } = await usage();
+    let left = total;
+    if (left <= maxBytes) return;
+    for (const g of groups.filter((x) => !x.keep && x.bytes > 0).sort((a, b) => a.lastUsed - b.lastUsed)) {
+      if (left <= maxBytes) break;
+      await Promise.all([...g.looks.map((id) => fs.rm(framesPath(framesDir, id), { force: true })),
+        fs.rm(path.join(framesDir, wireHash(g.sha)), { recursive: true, force: true })]).catch(() => {});
+      left -= g.bytes;
+      used.delete(g.sha);
+      log.info?.(`[frames] evicted ${(g.bytes / 1e6).toFixed(1)} MB (looks ${g.looks.join(', ')}) for the disk cap`);
+    }
+    if (left > maxBytes) {
+      log.warn?.(`[frames] ${(left / 1e6).toFixed(0)} MB of frames that cannot be evicted (reviewed, fleet-box `
+        + `or in use), over STUDIO_FRAMES_MAX_BYTES ${(maxBytes / 1e6).toFixed(0)} MB`);
+    }
+  }
+
+  /** Evict down to the cap; calls close together share a pass, and passes are at least 5 s apart. */
+  function enforce() {
+    if (running) { again = true; return running; }
+    const wait = lastRun + MIN_GAP_MS - Date.now();
+    if (wait > 0) {
+      timer ||= setTimeout(() => { timer = null; enforce(); }, wait);
+      timer.unref?.();
+      return Promise.resolve();
+    }
+    running = evict().catch((err) => log.warn?.(`[frames] the disk cap check failed: ${err.message}`))
+      .finally(() => {
+        running = null;
+        lastRun = Date.now();
+        if (again) { again = false; enforce(); }
+      });
+    return running;
+  }
+
+  return { touch, enforce, usage, evict, get maxBytes() { return maxBytes; } };
+}
+
+// The encoder: one worker thread at nice 10 (src/frames-worker.js), started on demand and stopped when it has been
+// idle a while, one job at a time.
+/** createFrameJobs({ nice, idleMs, log }) → { run(kind, args, onProgress?) → result, close() } */
+export function createFrameJobs({ nice = 10, idleMs = 30_000, log = console } = {}) {
+  const lane = createLane();
+  const waiting = new Map(); // job id → { resolve, reject, onProgress }
+  let worker = null, seq = 0, timer = null;
+
+  function start() {
+    if (worker) return worker;
+    const w = new Worker(new URL('./frames-worker.js', import.meta.url), { workerData: { nice } });
+    w.unref(); // never keeps the process alive
+    const fail = (err) => {
+      if (worker === w) worker = null;
+      for (const job of waiting.values()) job.reject(err);
+      waiting.clear();
+    };
+    w.on('message', ({ id, progress, ok, result, error }) => {
+      const job = waiting.get(id);
+      if (!job) return;
+      if (progress) return job.onProgress?.(progress);
+      waiting.delete(id);
+      if (ok) job.resolve(result);
+      else job.reject(new Error(error));
+    });
+    w.on('error', (err) => {
+      log.error?.('[frames] the encoder thread failed:', err);
+      fail(err);
+    });
+    w.on('exit', (code) => fail(new Error(`the encoder thread stopped (exit ${code})`)));
+    return (worker = w);
+  }
+
+  function stop() {
+    clearTimeout(timer);
+    const w = worker;
+    worker = null;
+    return w ? w.terminate().then(() => {}, () => {}) : Promise.resolve();
+  }
+
+  function run(kind, args, onProgress) {
+    clearTimeout(timer);
+    return lane.run(() => new Promise((resolve, reject) => {
+      const id = ++seq;
+      waiting.set(id, { resolve, reject, onProgress });
+      start().postMessage({ id, kind, args });
+    })).finally(() => {
+      if (!lane.size) (timer = setTimeout(stop, idleMs)).unref();
+    });
+  }
+
+  return { run, close: stop };
 }

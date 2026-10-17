@@ -1,7 +1,5 @@
-// Invert: swaps light and dark, colour for its opposite: night becomes day, embers become ice.
-//
-// Each channel becomes 1 − itself; `amount` blends from the original to the inverse, and `hueOnly`
-// keeps the brightness and only turns the colour round the wheel.
+// Invert: swaps light and dark, each colour for its opposite: night becomes day, embers ice. amount blends
+// from the original; hueOnly keeps the brightness and only turns the colour round the wheel.
 const params = {
   amount: { value: 1, min: 0, max: 1, step: 0.01 },
   hueOnly: { value: false, type: 'toggle', label: 'Keep brightness, turn the hue' },

@@ -5,8 +5,9 @@ import { DEFAULT_DURATION } from '../public/js/pattern-core.js';
 import { HttpError } from './auth.js';
 import { reviewBlocker } from './bake.js';
 import { BakeError } from './box-output.js';
-import { cleanAutomation, cleanGlobals } from './look-globals.js';
-import { bad, cleanBool, cleanBpm, cleanDuration, cleanSummary, cleanTitle, validateLayers } from './look-rules.js';
+import {
+  bad, cleanAutomation, cleanBool, cleanBpm, cleanDuration, cleanGlobals, cleanSummary, cleanTitle, validateLayers,
+} from './look-rules.js';
 
 export const MAX_VERSIONS = 20;
 export const MAX_LOOKS_PER_USER = 500;

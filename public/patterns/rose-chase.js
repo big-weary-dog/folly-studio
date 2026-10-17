@@ -1,8 +1,5 @@
-// Rose chase: petals light in turn round the rose window while rings breathe outward.
-//
-// On the window, petal (0-15, clockwise from 12 o'clock) and row (ring 1-7, centre out) are
-// the window's own cells. Anywhere else the same picture comes from a (angle) and r (radius)
-// round the layer's centre, so it also turns over the whole façade.
+// Rose chase: petals light in turn round the rose window (petal 0-15 clockwise, row 1-7 outward) while rings
+// breathe outward; elsewhere a and r round the layer's centre stand in, so it turns over the whole façade.
 const params = {
   speed: { value: 0.25, min: -2, max: 2, step: 0.01, label: 'Turns per second (− anticlockwise)' },
   hands: { value: 2, min: 1, max: 8, step: 1 },

@@ -5,13 +5,11 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { createApi, enqueueIdea, MAX_IDEAS_PER_DAY } from './api.js';
+import { createApi, createLog, enqueueIdea, MAX_IDEAS_PER_DAY, splitUrl } from './api.js';
 import { createAuth } from './auth.js';
-import { createBakeQueue } from './bake.js';
+import { createBakeQueue, createLane } from './bake.js';
 import { createFramesCache } from './frames-cache.js';
-import { createLane } from './frames-jobs.js';
 import { createQueue } from './generate/index.js';
-import { createLog, splitUrl } from './http.js';
 import { createRenderBox } from './render-box.js';
 import { applySecurityHeaders, createLoaders, createStatic, DEFAULT_PUBLIC_DIR } from './static.js';
 import { createStore } from './store.js';
@@ -63,10 +61,7 @@ export async function createServer(opts = {}) {
   async function handler(req, res) {
     applySecurityHeaders(res);
     const url = splitUrl(req.url);
-    if (!url) {
-      res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
-      return res.end('Bad request');
-    }
+    if (!url) { res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('Bad request'); }
     try {
       if (url.pathname === '/api' || url.pathname.startsWith('/api/')) await api(req, res, url.pathname, url.query);
       else await serveStatic(req, res, url.pathname);

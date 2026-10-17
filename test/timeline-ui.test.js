@@ -4,9 +4,10 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  addClip, cleanBpm, cleanDuration, clipAt, clock, contentEnd, editClip, fadeClip, importLook, MAX_CLIPS,
+  addClip, cleanBpm, cleanDuration, clock, contentEnd, editClip, fadeClip, importLook,
   MIN_CLIP, moveClip, removeClip, rulerStep, shownFades, snapStep, trimClip,
 } from '../public/js/ui/timeline-model.js';
+import { MAX_CLIPS } from '../public/js/core/scene.js';
 import { validateLayers } from '../src/api.js';
 
 const clip = (start, end, fadeIn = 0, fadeOut = 0) => ({ start, end, fadeIn, fadeOut });
@@ -107,11 +108,8 @@ describe('editing clips', () => {
     accepted(addClip(THREE, 13, 4).clips);
   });
 
-  test('remove, clipAt, contentEnd', () => {
+  test('remove, contentEnd', () => {
     assert.deepEqual(removeClip(THREE, 1), [clip(0, 2), clip(10, 12)]);
-    assert.equal(clipAt(THREE, 4), 1);
-    assert.equal(clipAt(THREE, 6), -1);
-    assert.equal(clipAt(undefined, 1), -1);
     assert.equal(contentEnd([{ clips: THREE }], 30), 12);
     assert.equal(contentEnd([{ clips: THREE }, { code: '' }], 30), 30, 'an always-on layer fills the duration');
   });

@@ -1,15 +1,77 @@
-// Plays baked frames while they download (SPEC "Baked frames"): the manifest, then chunk by chunk.
-// Playback starts once the first is in, two more come ahead, a seek fetches the chunk it lands in.
-// Chunks are immutable, so the HTTP cache keeps what this drops. Nothing is allocated per frame.
+// Baked frames as the server streams them (SPEC "Baked frames"; src/frames-wire.js encodes), decoded and played
+// while they download. A chunk is a layout byte (MODES), then its frames; each decodes alone. Playback starts with
+// the first chunk, two come ahead, a seek fetches its own. Nothing is allocated per frame.
 
-import { decodeChunk, parseManifest, readFrame } from './frames-wire.js';
+export const MODES = Object.freeze(['frames', 'frames-delta', 'planar', 'planar-delta']);
+const MAX_CHANNELS = 80 * 510;
+const whole = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+
+/** A manifest from the server, checked, as a clean copy. */
+export function parseManifest(m) {
+  const bad = (why) => { throw new Error(`The baked frames' manifest is malformed (${why}).`); };
+  if (!m || typeof m !== 'object') bad('not an object');
+  if (m.version !== 1) bad(`version ${m.version}`);
+  if (typeof m.hash !== 'string' || !/^[0-9a-f]{32}$/.test(m.hash)) bad('hash');
+  if (!whole(m.frames, 1, 1e7)) bad('frames');
+  if (!(typeof m.fps === 'number' && m.fps > 0 && m.fps <= 1000)) bad('fps');
+  if (!whole(m.channels, 1, MAX_CHANNELS)) bad('channels');
+  if (!Array.isArray(m.ranges) || m.ranges.length > 255) bad('ranges');
+  let end = 0, total = 0;
+  for (const r of m.ranges) {
+    if (!Array.isArray(r) || !whole(r[0], end, MAX_CHANNELS - 1) || !whole(r[1], 1, MAX_CHANNELS - r[0])) bad('ranges');
+    end = r[0] + r[1];
+    total += r[1];
+  }
+  if (m.ranges.length && total !== m.channels) bad('the ranges do not add up to the channels');
+  if (!whole(m.chunkFrames, 1, 1e5)) bad('chunkFrames');
+  if (!Array.isArray(m.chunks) || m.chunks.length !== Math.ceil(m.frames / m.chunkFrames)) bad('chunk count');
+  let bytes = 0;
+  for (const c of m.chunks) {
+    if (!c || !whole(c.bytes, 1, 2 ** 31)) bad('chunk');
+    bytes += c.bytes;
+  }
+  if (m.bytes !== bytes) bad('the chunk sizes do not add up');
+  return {
+    version: 1, hash: m.hash, frames: m.frames, fps: m.fps, channels: m.channels,
+    ranges: m.ranges.length ? m.ranges.map(([s, c]) => [s, c]) : [[0, m.channels]],
+    chunkFrames: m.chunkFrames, chunks: m.chunks.map((c) => ({ bytes: c.bytes })), bytes,
+  };
+}
+
+/** Chunk n → { data, frames, planar }, its deltas undone in place (a view). */
+export function decodeChunk(bytes, manifest, n) {
+  const frames = Math.min(manifest.chunkFrames, manifest.frames - n * manifest.chunkFrames);
+  const C = manifest.channels;
+  if (!(frames > 0) || n >= manifest.chunks.length) throw new Error(`There is no chunk ${n}.`);
+  if (!(bytes instanceof Uint8Array) || bytes.length !== 1 + frames * C) {
+    throw new Error(`Chunk ${n} holds ${bytes?.length} bytes, not 1 + ${frames} frames × ${C} channels.`);
+  }
+  const mode = MODES[bytes[0]];
+  if (!mode) throw new Error(`Chunk ${n} has an unknown layout (${bytes[0]}).`);
+  const data = bytes.subarray(1);
+  // A Uint8Array keeps sums mod 256: the encoder's mod-256 differences undone exactly.
+  if (mode === 'frames-delta') for (let i = C; i < data.length; i++) data[i] += data[i - C];
+  if (mode === 'planar-delta') {
+    for (let o = 0; o < data.length; o += frames) for (let i = o + 1; i < o + frames; i++) data[i] += data[i - 1];
+  }
+  return { data, frames, planar: mode === 'planar' || mode === 'planar-delta' };
+}
+
+/** Frame j of a decoded chunk into out. */
+export function readFrame(chunk, j, out) {
+  const { data, frames, planar } = chunk;
+  const C = out.length;
+  if (planar) for (let c = 0, o = j; c < C; c++, o += frames) out[c] = data[o];
+  else for (let c = 0, o = j * C; c < C; c++, o++) out[c] = data[o];
+  return out;
+}
 
 const KEEP = 8;              // decoded chunks kept: about 9 MB of sparse frames
 const RETRY_MS = 2000;       // a failed chunk is asked for again after this
 const MAX_WAIT_MS = 10 * 60 * 1000;
 const SLOW = new Set(['slow-2g', '2g', '3g']);
 
-/** May baked frames start downloading without asking? Not on phones or slow or metered links. */
+/** May baked frames download without asking? Not on phones, slow or metered links. */
 export function autoFetchAllowed(nav = globalThis.navigator) {
   const c = nav?.connection;
   if (c?.saveData === true || c?.type === 'cellular' || SLOW.has(c?.effectiveType)) return false;
@@ -24,16 +86,14 @@ async function failure(res) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** The bake's manifest. /frames/wire redirects to its immutable URL, or answers 202 while encoding. */
+/** The bake's manifest: /frames/wire redirects to it, or answers 202 while encoding. */
 export async function fetchManifest(lookId, { fetch = globalThis.fetch, wait = sleep } = {}) {
   const url = `/api/looks/${encodeURIComponent(lookId)}/frames/wire`;
   for (let waited = 0; ;) {
     const res = await fetch(url, { credentials: 'same-origin' });
     if (res.status === 202) {
       const ms = Math.min(10, Math.max(1, Number(res.headers.get('retry-after')) || 2)) * 1000;
-      if ((waited += ms) > MAX_WAIT_MS) {
-        throw new Error('The baked frames are still being prepared. Try again soon.');
-      }
+      if ((waited += ms) > MAX_WAIT_MS) throw new Error('The baked frames are still being prepared. Try again soon.');
       await wait(ms);
       continue;
     }
@@ -42,7 +102,7 @@ export async function fetchManifest(lookId, { fetch = globalThis.fetch, wait = s
   }
 }
 
-/** Each LED's first channel within a frame of the file (−1 when the file does not hold it). */
+/** Each LED's first channel in a frame of the file (−1: not held). */
 function ledOffsets(cathedral, ranges) {
   const N = cathedral.count;
   const cpu = cathedral.channelsPerUniverse || 510;
@@ -66,9 +126,8 @@ function ledOffsets(cathedral, ranges) {
 }
 
 /**
- * openFrameStream(lookId, cathedral, { fetch?, onChunk?, manifest?, ahead? }) → once the first chunk is in,
- * { frameCount, fps, seconds, bytes, manifest, frameAt(i, rgb) }. frameAt fills rgb (count × 3) with frame i;
- * while its chunk is on the way it leaves rgb as it was, and onChunk(n) says when it arrives.
+ * openFrameStream(lookId, cathedral, { fetch?, onChunk?, manifest?, ahead? }) → { frameCount, fps, seconds, bytes,
+ * manifest, frameAt(i, rgb) }; frameAt leaves rgb as it was while its chunk is on the way (onChunk(n) on arrival).
  */
 export async function openFrameStream(lookId, cathedral, opts = {}) {
   const { fetch = globalThis.fetch, onChunk, ahead = 2 } = opts;
@@ -98,7 +157,7 @@ export async function openFrameStream(lookId, cathedral, opts = {}) {
     p.catch(() => failedAt.set(n, Date.now())).finally(() => loading.delete(n));
     return p;
   }
-  /** Chunk n and the next ones (round to the start: playback loops), most recently wanted last. */
+  /** Chunk n and the next (looping), most recently wanted last. */
   function want(n) {
     for (let k = 0; k <= ahead && k < count; k++) {
       const c = (n + k) % count;

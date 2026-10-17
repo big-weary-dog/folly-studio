@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 import { DEFAULT_BAKE_SECONDS, framesBytesFor, parseBytes, parseDuration } from './bake.js';
 import { BakeError, cleanBoxStats, CONTROL, readUntrusted } from './box-output.js';
-import { bundle } from './bundle.js';
+import { bundle } from './assets.js';
 
 const STUDIO = fileURLToPath(new URL('../', import.meta.url));
 const SECOND = 1000;

@@ -78,10 +78,10 @@ test('a reload, a minute or a day later, sends only the shell and the API calls:
 
 test('an idea session: polls back off and answer 304s; lists carry metadata, not code', async (t) => {
   const b = browser(port, { cookie });
-  await b.load('/ideas', { view: './ui/ideas.js', api: ['/api/me', '/api/ideas'] });
+  await b.load('/ideas', { view: './ui/pages.js', api: ['/api/me', '/api/ideas'] });
   const { idea } = JSON.parse((await b.call('POST', '/api/ideas', { text: 'Rising embers drift up the spires' })).text);
   app.store.ideas.update(idea.id, { status: 'generating' });
-  // ui/ideas.js: the pending idea after 2 s, then 1.5× as long each time, up to 10 s; ready after 60 s here.
+  // ui/pages.js: the pending idea after 2 s, then 1.5× as long each time, up to 10 s; ready after 60 s here.
   const from = b.log.length;
   let polls = 0;
   for (let t = 0, wait = 2; ; t += wait, wait = Math.min(10, wait * 1.5)) {
@@ -94,8 +94,8 @@ test('an idea session: polls back off and answer 304s; lists carry metadata, not
   assert.ok(polls <= 10, `${polls} polls`);
   assert.ok(b.log.slice(from + 1, -1).every((r) => r.status === 304), 'an unchanged idea answers 304');
   const lists = b.log.length;
-  await b.load('/looks', { shell: false, view: './ui/looks.js', api: ['/api/looks?scope=mine'] });
-  await b.load('/gallery', { shell: false, view: './ui/looks.js', api: ['/api/looks?scope=gallery'] });
+  await b.load('/looks', { shell: false, view: './ui/pages.js', api: ['/api/looks?scope=mine'] });
+  await b.load('/gallery', { shell: false, view: './ui/pages.js', api: ['/api/looks?scope=gallery'] });
   const listed = b.total(lists);
   for (const scope of ['mine', 'gallery']) {
     const { looks } = JSON.parse((await b.fetch(`/api/looks?scope=${scope}`)).text);

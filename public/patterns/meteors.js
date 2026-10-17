@@ -1,8 +1,5 @@
-// Meteors: shooting stars race along every strand, trailing fading tails.
-//
-// u, i and n place each LED along its own wire (an arch, a spire strand, a canopy run, a quad
-// face), so a meteor follows the structure itself. Every strand gets its own random start,
-// pace and direction (rand(p.strand, ...) is stable), and a gap so heads arrive one by one.
+// Meteors: shooting stars race along every strand (u, i, n place each LED on its wire), trailing fading tails.
+// Each strand has its own seeded start, pace and direction (rand(p.strand, …)), and a gap between laps.
 const params = {
   speed: { value: 60, min: 5, max: 200, step: 1, label: 'LEDs per second' },
   count: { value: 2, min: 1, max: 4, step: 1, label: 'Meteors per strand' },

@@ -1,13 +1,10 @@
-// The Studio's panes, built once: toolbar, 3D view, groups, layers and settings, the bottom dock
-// (code and timeline), and the phone tabs. Returns the elements the other studio-*.js modules fill.
-import { h, label, switchBox } from './dom.js';
-import { createDock } from './studio-dock.js';
+// The Studio's panes, built once: toolbar, 3D view, groups, layers and settings, the bottom dock (code, timeline
+// and look tabs, a fold toggle, the splitter that sizes it), and the phone tabs. Returns the elements the other
+// studio modules fill.
+import { h, humanize, label, nextId, switchBox } from './dom.js';
 
 // Narrow screens stack the panels under the 3D view and switch them with these tabs.
-export const TABS = [
-  { id: 'layers', label: 'Layers' }, { id: 'code', label: 'Code' }, { id: 'time', label: 'Time' },
-  { id: 'groups', label: 'Groups' }, { id: 'look', label: 'Look' },
-];
+export const TABS = ['layers', 'code', 'time', 'groups', 'look'];
 // Below this height the code editor starts folded, so the cathedral gets the room.
 const SHORT = '(max-height: 899px)';
 const button = (props) => h('button', { type: 'button', ...props });
@@ -58,8 +55,8 @@ export function buildLayout({ store, tab, setTab, actions, onDock }) {
   ui.paneViewer = h('section', { class: 'pane pane-viewer', 'aria-label': 'Preview' }, ui.viewerWrap);
 
   // tabs (narrow screens)
-  ui.tabBtns = TABS.map((t) => button({ class: 'tab', dataset: { tab: t.id }, text: t.label,
-    onClick: () => setTab(t.id) }));
+  ui.tabBtns = TABS.map((id) => button({ class: 'tab', dataset: { tab: id }, text: humanize(id),
+    onClick: () => setTab(id) }));
   const tabs = h('nav', { class: 'studio-tabs', 'aria-label': 'Studio panels' }, ui.tabBtns);
 
   ui.groupsFor = h('span', { class: 'pane-sub' });
@@ -96,11 +93,10 @@ export function buildLayout({ store, tab, setTab, actions, onDock }) {
       ui.paramsBody));
   const side = h('div', { class: 'side', dataset: { pane: 'layers' } }, paneLayers, paneParams);
 
-  // The bottom dock (wide screens): Timeline and Code tabs (studio-dock.js); phones: a Time tab.
+  // The bottom dock (wide screens): Code, Timeline and Look tabs; phones: a Time tab.
   ui.codeFor = h('span', { class: 'pane-sub dock-code-only' });
   ui.codeIssue = h('span', { class: 'dock-issue', hidden: true });
-  const short = matchMedia(SHORT).matches;
-  ui.dock = createDock({ studio: ui.studio, store, extras: [ui.codeFor, ui.codeIssue], short, onShow: onDock });
+  ui.dock = createDock(ui.studio, store, [ui.codeFor, ui.codeIssue], onDock);
   ui.timeBody = h('div', { class: 'pane-body time-body' });
   const paneTime = pane('time', 'Timeline', ui.timeBody);
 
@@ -134,4 +130,78 @@ export function buildLayout({ store, tab, setTab, actions, onDock }) {
     else if (e.key === 'Escape') { e.preventDefault(); ui.closeMenu(); ui.menuBtn.focus(); }
   });
   return ui;
+}
+
+const DOCK_TABS = ['Code', 'Timeline', 'Look'];
+
+/** The dock: studio gets data-dock and .code-collapsed; store is pref(); extras sit in its head with the code tab. */
+function createDock(studio, store, extras, onShow) {
+  const [codeBody, timelineBody, lookBody] = ['pane-body code-body', 'tl-body', 'pane-body look-dock']
+    .map((cls) => h('div', { class: cls, id: nextId('dock') }));
+  const toolsSlot = h('div', { class: 'dock-tools' });
+  const fold = h('button', { type: 'button', class: 'btn small ghost collapse-btn', 'aria-expanded': 'true',
+    'aria-controls': `${codeBody.id} ${timelineBody.id} ${lookBody.id}`,
+    title: 'Fold the panel away to give the 3D view more room',
+    onClick: () => setFolded(!studio.classList.contains('code-collapsed')) });
+  const tabBtns = DOCK_TABS.map((text) => h('button', { type: 'button', class: 'dock-tab', 'aria-pressed': 'false',
+    dataset: { dock: text.toLowerCase() }, text, onClick: () => show(text.toLowerCase()) }));
+  const head = h('div', { class: 'pane-head dock-head' },
+    h('div', { class: 'dock-tabs', role: 'group', 'aria-label': 'Bottom panel' }, tabBtns), extras, toolsSlot, fold);
+  const pane = h('section', { class: 'pane pane-code', dataset: { pane: 'code' },
+    'aria-label': 'Code, timeline and look' }, head, codeBody, timelineBody, lookBody);
+  const splitter = h('div', { class: 'splitter', role: 'separator', 'aria-orientation': 'horizontal', tabindex: 0,
+    'aria-label': 'Resize code editor', 'aria-valuemin': 15, 'aria-valuemax': 75 });
+
+  const known = (id) => (DOCK_TABS.some((t) => t.toLowerCase() === id) ? id : 'timeline');
+  let tab = known(store('studio.dock'));
+
+  function show(id, { unfold = true } = {}) {
+    tab = known(id);
+    studio.dataset.dock = tab;
+    for (const b of tabBtns) b.setAttribute('aria-pressed', String(b.dataset.dock === tab));
+    store('studio.dock', tab);
+    onShow(tab);
+    if (unfold) setFolded(false);
+    else setFolded(studio.classList.contains('code-collapsed'), { remember: false });
+  }
+
+  function setFolded(on, { remember = true } = {}) {
+    studio.classList.toggle('code-collapsed', on);
+    fold.setAttribute('aria-expanded', String(!on));
+    fold.textContent = on ? `Show ${tab}` : 'Hide';
+    if (remember) store('studio.dockFolded', on ? '1' : '0');
+  }
+
+  const folded = store('studio.dockFolded');
+  studio.classList.toggle('code-collapsed', folded === null ? tab === 'code' && matchMedia(SHORT).matches
+    : folded === '1');
+  show(tab, { unfold: false });
+
+  // The splitter sizes the code editor (a share of the Studio's height).
+  const savedSplit = +store('studio.split');
+  if (savedSplit >= 15 && savedSplit <= 75) studio.style.setProperty('--code-h', `${savedSplit}%`);
+  function setSplit(pct) {
+    studio.style.setProperty('--code-h', `${pct.toFixed(1)}%`);
+    splitter.setAttribute('aria-valuenow', String(Math.round(pct)));
+    store('studio.split', pct.toFixed(1));
+  }
+  let drag = null;
+  splitter.addEventListener('pointerdown', (e) => {
+    drag = { y: e.clientY, h: pane.getBoundingClientRect().height, total: studio.getBoundingClientRect().height };
+    splitter.setPointerCapture(e.pointerId);
+    studio.classList.add('resizing');
+  });
+  splitter.addEventListener('pointermove', (e) => {
+    if (drag) setSplit(Math.min(75, Math.max(15, ((drag.h + drag.y - e.clientY) / drag.total) * 100)));
+  });
+  const end = () => { if (drag) { drag = null; studio.classList.remove('resizing'); } };
+  splitter.addEventListener('pointerup', end);
+  splitter.addEventListener('pointercancel', end);
+  splitter.addEventListener('keydown', (e) => {
+    const cur = parseFloat(studio.style.getPropertyValue('--code-h')) || 36;
+    if (e.key === 'ArrowUp') { e.preventDefault(); setSplit(Math.min(75, cur + 4)); }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setSplit(Math.max(15, cur - 4)); }
+  });
+
+  return { pane, splitter, codeBody, timelineBody, lookBody, toolsSlot, show };
 }

@@ -30,7 +30,7 @@ const DATA_CAPS = { 'public/data/cathedral.json': 1024 * KB }; // generated, com
 const LOGIN_VIEW = 'public/js/ui/auth.js'; // main.js imports it at once for a signed-out visitor
 const SKIP = /^(?:test\/fixtures\/lint\/|data\/)|(?:^|\/)(?:node_modules|\.git)\//;
 // Paths that exist only at run time, and their source: the boxes find these next to their script
-// (bound or copied in by the host; the core bundled by src/bundle.js).
+// (bound or copied in by the host; the core bundled by src/assets.js).
 const BOX_FILES = {
   'pattern-core.js': 'public/js/pattern-core.js', 'fseq.js': 'public/js/fseq.js', 'frames.js': 'src/frames.js',
   'cathedral.json': 'public/data/cathedral.json', 'renderer.mjs': 'render-box/renderer.mjs',

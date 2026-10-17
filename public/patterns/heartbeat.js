@@ -1,9 +1,5 @@
-// Heartbeat: a lub-dub swell at a set tempo, spreading out from the centre.
-//
-// beat(t, bpm) is the phase through each beat; two pulses (the second smaller) make the
-// lub-dub. r is the radius from the centre of the layer in the façade plane, so subtracting
-// it from time lets each beat ripple outward. The colour swells from a full-strength violet
-// body to heart red, white-hot at the centre: a pulse that swells rather than dips to black.
+// Heartbeat: a lub-dub at a set tempo: beat(t, bpm) with two pulses, delayed by the radius r so each beat
+// ripples outward; it swells from violet to heart red, white-hot at the centre, never dipping to black.
 const params = {
   bpm: { value: 72, min: 30, max: 180, step: 1 },
   spread: { value: 0.25, min: 0, max: 1, step: 0.01, label: 'Seconds to reach the edge' },

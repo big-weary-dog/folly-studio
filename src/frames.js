@@ -117,10 +117,7 @@ function inflateBlocks(b, { compression, blocks, dataOffset, channelCount, frame
   let padding = false;
   for (let i = 0, at = 32; i < blocks; i++, at += 8) {
     const [frame, length] = [u32(b, at), u32(b, at + 4)];
-    if (!length) {
-      padding = true;
-      continue;
-    }
+    if (!length) { padding = true; continue; }
     if (padding) fail(`compression block ${i + 1} follows an empty one`);
     const follows = index.length ? frame > index.at(-1).frame : frame === 0;
     if (!follows) fail(`compression block ${i + 1} does not follow the last`);

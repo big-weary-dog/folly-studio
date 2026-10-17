@@ -1,20 +1,157 @@
-// Layers: prepared from a scene, rendered (each its module chain) and blended into a frame, graded by the look's
-// globals, then mapped to DMX channels.
-import { prepareChain, runChain } from './chain.js';
-import { finish, lookFrame, prepareLook } from './globals.js';
-import { applyMods } from './modulate.js';
+// Layers (SPEC "Modules"): each a module chain run over its pixels in one pass (warps move the pixel, sources draw
+// and combine, filters rework the colour), blended into a frame, graded by the look's globals, mapped to DMX.
+import { compileModule, describeError } from './compile.js';
+import { applyMods, finish, lookFrame, paramMods, prepareLook, resolveParams } from './globals.js';
 import { layerEnvelope, normalizeClips, pixelsForGroups } from './scene.js';
-import { clamp, isNum, TAU } from './stdlib.js';
+import { clamp, hex, isNum, TAU } from './stdlib.js';
+
+export const MODULE_KINDS = Object.freeze(['source', 'warp', 'filter']);
+const SOURCE = 0, WARP = 1, FILTER = 2;
+const OVER = 0, ADD = 1, MAX = 2, MULTIPLY = 3;
+const BLEND = { over: OVER, add: ADD, max: MAX, multiply: MULTIPLY };
+
+/** A layer's modules, or its own code and params as one source (looks before chains). */
+export function layerModules(layer) {
+  if (layer && Array.isArray(layer.modules)) return layer.modules.filter((m) => m && typeof m === 'object');
+  return [{ id: 'm1', kind: 'source', title: (layer && layer.title) || 'Pattern', code: layer && layer.code,
+    params: layer && layer.params }];
+}
+
+const isOn = (m) => m.enabled !== false;
+
+/** Each module compiled (null where disabled). Throws on the first failure, as "<module title>: …" in a chain. */
+export function compileLayer(layer) {
+  const modular = !!(layer && Array.isArray(layer.modules));
+  return layerModules(layer).map((m) => {
+    if (!isOn(m)) return null;
+    try {
+      return compileModule(m.code, m.kind ?? 'source');
+    } catch (e) {
+      if (!modular) throw e;
+      throw new Error(`${m.title || m.id || 'Module'}: ${e && e.message ? e.message : e}`);
+    }
+  });
+}
+
+/** The runnable chain: enabled modules with their function, params, bindings, blend, input (index or −1). */
+function prepareChain(layer, compiled) {
+  const modules = layerModules(layer);
+  const list = Array.isArray(compiled) ? compiled : [compiled];
+  if (list.length !== modules.length) throw new Error('prepareLayer: compile every module (compileLayer)');
+  const chain = [], at = new Map();
+  let shown = 0;
+  modules.forEach((m, i) => {
+    if (!isOn(m)) return;
+    const c = list[i];
+    const kind = MODULE_KINDS.indexOf(m.kind ?? 'source');
+    const fn = c && (kind === SOURCE ? c.pixel : kind === WARP ? c.warp : c.filter);
+    if (typeof fn !== 'function') throw new Error('prepareLayer: layer is not compiled');
+    const hidden = kind === SOURCE && m.as === 'input';
+    const blend = m.blend in BLEND ? BLEND[m.blend] : shown ? ADD : OVER;
+    if (kind === SOURCE && !hidden) shown++;
+    const input = kind === FILTER && at.has(m.input) ? at.get(m.input) : -1;
+    if (kind === SOURCE) at.set(m.id, chain.length);
+    chain.push({ id: m.id ?? null, title: m.title || m.id || '', kind, fn, frame: c.frame || null,
+      schema: c.params || {}, P: resolveParams(c.params, m.params), mods: paramMods(c.params, m.params),
+      blend, hidden, input, out: [0.5, 0, 0, 0] });
+  });
+  return chain;
+}
+
+/** v (number, '#hex', [r, g, b, a?], nothing) into out as [r, g, b, a], alpha default `da`. False on NaN. */
+function toColour(v, out, da) {
+  let r, g, b, al;
+  if (v === undefined || v === null) { r = g = b = al = 0; }
+  else if (typeof v === 'number') { r = g = b = v; al = da; }
+  else {
+    if (typeof v === 'string') v = hex(v);
+    r = +v[0]; g = +v[1]; b = +v[2];
+    al = v.length > 3 && v[3] !== undefined ? +v[3] : da;
+  }
+  if (r !== r || g !== g || b !== b || al !== al) return false;
+  out[0] = r; out[1] = g; out[2] = b; out[3] = al < 0 ? 0 : al > 1 ? 1 : al;
+  return true;
+}
+
+/** o into c (straight alpha) by blend; onto nothing it is simply o. */
+function blendInto(c, o, mode) {
+  const a = o[3], ca = c[3];
+  if (mode === MULTIPLY) {
+    for (let i = 0; i < 3; i++) c[i] *= 1 - a + o[i] * a;
+    return;
+  }
+  if (!(ca > 0)) { c[0] = o[0]; c[1] = o[1]; c[2] = o[2]; c[3] = a; return; }
+  if (mode === OVER) {
+    const keep = ca * (1 - a), A = a + keep;
+    for (let i = 0; i < 3; i++) c[i] = (o[i] * a + c[i] * keep) / A;
+    c[3] = A;
+  } else if (mode === ADD) {
+    const A = ca + a < 1 ? ca + a : 1;
+    for (let i = 0; i < 3; i++) c[i] = (c[i] * ca + o[i] * a) / A;
+    c[3] = A;
+  } else {
+    const A = a > ca ? a : ca;
+    for (let i = 0; i < 3; i++) { const x = c[i] * ca, y = o[i] * a; c[i] = (x > y ? x : y) / A; }
+    c[3] = A;
+  }
+}
+
+const said = (v) => (Array.isArray(v) ? `[${Array.from(v).slice(0, 4).join(', ')}]` : String(v));
+
+/** Layer L's chain at pattern time T into L.buf (rgba) → null, or an error (its module in L.failed). */
+function runChain(S, L, T, G) {
+  const idx = L.idx, m = idx.length, buf = L.buf, q = L.p, chain = L.chain, n = chain.length, c = L.c;
+  const zones = S.zones;
+  let j = 0, M = null;
+  try {
+    for (let i = 0; i < n; i++) { M = chain[i]; if (M.frame) M.frame(T, M.P, G); }
+    for (; j < m; j++) {
+      const k = idx[j];
+      q.x = S.x[k]; q.y = S.y[k]; q.z = S.z[k];
+      q.X = S.X[k]; q.Y = S.Y[k]; q.Z = S.Z[k];
+      q.lx = L.lx[j]; q.ly = L.ly[j]; q.lz = L.lz[j];
+      q.a = L.a[j]; q.r = L.r[j];
+      q.u = S.u[k]; q.i = S.i[k]; q.n = S.n[k];
+      const zi = S.zone[k];
+      q.zi = zi; q.zone = zones[zi]; q.strand = S.strand[k];
+      q.row = S.row[k]; q.petal = S.petal[k];
+      q.k = k; q.seed = S.seed[k];
+      c[0] = c[1] = c[2] = c[3] = 0;
+      for (let i = 0; i < n; i++) {
+        M = chain[i];
+        if (M.kind === WARP) { M.fn(q, T, M.P, G); continue; }
+        if (M.kind === SOURCE) {
+          const v = M.fn(q, T, M.P, G);
+          if (!toColour(v, M.out, 1)) return fail(L, M, `pixel() returned ${said(v)} (NaN) at LED ${k}`);
+          if (!M.hidden) blendInto(c, M.out, M.blend);
+        } else {
+          const v = M.fn(c, q, T, M.P, G, M.input >= 0 ? chain[M.input].out : undefined);
+          if (!toColour(v, c, c[3])) return fail(L, M, `filter() returned ${said(v)} (NaN) at LED ${k}`);
+        }
+      }
+      const o = 4 * j;
+      const r = c[0], g = c[1], b = c[2], al = c[3];
+      buf[o] = r < 0 ? 0 : r > 1 ? 1 : r;
+      buf[o + 1] = g < 0 ? 0 : g > 1 ? 1 : g;
+      buf[o + 2] = b < 0 ? 0 : b > 1 ? 1 : b;
+      buf[o + 3] = al;
+    }
+  } catch (e) {
+    return fail(L, M, describeError(e));
+  }
+  return null;
+}
+
+function fail(L, M, msg) {
+  L.failed = M ? M.id : null;
+  return L.modular && M ? `${M.title}: ${msg}` : msg;
+}
 
 export const BLENDS = Object.freeze(['add', 'over', 'max', 'multiply']);
 const makePixel = () => ({ x: 0, y: 0, z: 0, X: 0, Y: 0, Z: 0, lx: 0, ly: 0, lz: 0, a: 0, r: 0, u: 0, i: 0, n: 1,
   zone: '', zi: 0, strand: 0, row: 0, petal: -1, k: 0, seed: 0 });
 
-/**
- * A layer ready to render: its pixels (`groups`, default the whole cathedral), lx/ly/lz (0..1 across its own
- * bounds; 0.5 on a flat axis), a/r round their centre in the façade (z–y) plane, its module chain (`compiled`: one
- * compilePattern result for a layer with code, or compileLayer's list) and its clips.
- */
+/** A layer ready to render: its pixels, their lx/ly/lz (0.5 on a flat axis) and a/r, its chain and clips. */
 export function prepareLayer(scene, layer, compiled) {
   if (!compiled) throw new Error('prepareLayer: layer is not compiled');
   const chain = prepareChain(layer, compiled);
@@ -58,17 +195,17 @@ export function prepareLayer(scene, layer, compiled) {
     clips: normalizeClips(layer && layer.clips),
     enabled: !(layer && layer.enabled === false),
     p: makePixel(), c: [0.5, 0, 0, 0],
-    buf: new Float64Array(m * 4),
+    buf: new Float64Array(m * 4), ms: 0,
   };
 }
 
 let plainLook = null;
+// Captured before any pattern code runs, so a pattern cannot fake its own timing.
+const clock = globalThis.performance ? performance.now.bind(performance) : Date.now;
 
 /**
- * Every prepared layer at show time t (s), bottom to top, into Float32Array(count × 3) of linear 0..1 RGB, graded
- * by `look` (prepareLook; default: no globals). A layer that throws or returns NaN adds nothing and is reported in
- * `errors` as { id, module?, error }. Clips scale a layer's level; outside them it does not run at all. Patterns
- * get the look's clock (show time at speed 1), so motion carries on across a cut.
+ * Every prepared layer at show time t, bottom to top, into rgb (count × 3, 0..1), graded by `look` (prepareLook).
+ * A failing layer adds nothing and is reported in `errors`; outside its clips it does not run. L.ms: its time.
  */
 export function renderFrame(scene, layers, t, out, look) {
   const N = scene.count;
@@ -81,63 +218,55 @@ export function renderFrame(scene, layers, t, out, look) {
   const T = look ? LK.T : t, G = LK.G;
   for (let n = 0; n < list.length; n++) {
     const L = list[n];
-    if (!L || !L.chain || !L.enabled || !(L.level > 0)) continue;
-    const env = L.clips ? layerEnvelope(L.clips, t) : 1;
-    const level = L.level * env;
+    if (!L || !L.chain) continue;
+    L.ms = 0;
+    const env = L.clips ? layerEnvelope(L.clips, t) : 1, level = L.enabled ? L.level * env : 0;
     if (!(level > 0)) continue;
+    const t0 = clock();
     for (let i = 0; i < L.chain.length; i++) {
       const M = L.chain[i];
       if (M.mods.length) applyMods(M.mods, M.P, t, env, LK);
     }
     const err = runChain(scene, L, T, G);
-    if (err) {
-      errors.push(L.modular ? { id: L.id, module: L.failed, error: err } : { id: L.id, error: err });
-      continue;
-    }
-    const idx = L.idx, m = idx.length, buf = L.buf;
-    switch (L.blend) {
-      case 'over':
-        for (let j = 0; j < m; j++) {
-          const o = 3 * idx[j], q = 4 * j, a = buf[q + 3] * level, ia = 1 - a;
-          rgb[o] = rgb[o] * ia + buf[q] * a;
-          rgb[o + 1] = rgb[o + 1] * ia + buf[q + 1] * a;
-          rgb[o + 2] = rgb[o + 2] * ia + buf[q + 2] * a;
-        }
-        break;
-      case 'max':
-        for (let j = 0; j < m; j++) {
-          const o = 3 * idx[j], q = 4 * j, a = buf[q + 3] * level;
-          const r = buf[q] * a, g = buf[q + 1] * a, b = buf[q + 2] * a;
-          if (r > rgb[o]) rgb[o] = r;
-          if (g > rgb[o + 1]) rgb[o + 1] = g;
-          if (b > rgb[o + 2]) rgb[o + 2] = b;
-        }
-        break;
-      case 'multiply':
-        for (let j = 0; j < m; j++) {
-          const o = 3 * idx[j], q = 4 * j, a = buf[q + 3] * level, ia = 1 - a;
-          rgb[o] *= ia + buf[q] * a;
-          rgb[o + 1] *= ia + buf[q + 1] * a;
-          rgb[o + 2] *= ia + buf[q + 2] * a;
-        }
-        break;
-      default: // add
-        for (let j = 0; j < m; j++) {
-          const o = 3 * idx[j], q = 4 * j, a = buf[q + 3] * level;
-          rgb[o] += buf[q] * a;
-          rgb[o + 1] += buf[q + 1] * a;
-          rgb[o + 2] += buf[q + 2] * a;
-        }
-    }
+    if (err) errors.push(L.modular ? { id: L.id, module: L.failed, error: err } : { id: L.id, error: err });
+    else composite(rgb, L, level);
+    L.ms = clock() - t0;
   }
   finish(rgb, N * 3, LK);
   return { rgb, errors };
 }
 
-/**
- * A frame of DMX: Uint8Array(universes × channelsPerUniverse), each LED's R, G, B at (universe − 1) × 510 +
- * (channel − 1). Brightness scales, gamma bends (v ** gamma), values round to 0..255; unused channels stay 0.
- */
+
+function composite(rgb, L, level) {
+  const idx = L.idx, m = idx.length, buf = L.buf;
+  switch (L.blend) {
+    case 'over':
+      for (let j = 0; j < m; j++) {
+        const o = 3 * idx[j], q = 4 * j, a = buf[q + 3] * level, ia = 1 - a;
+        for (let c = 0; c < 3; c++) rgb[o + c] = rgb[o + c] * ia + buf[q + c] * a;
+      }
+      break;
+    case 'max':
+      for (let j = 0; j < m; j++) {
+        const o = 3 * idx[j], q = 4 * j, a = buf[q + 3] * level;
+        for (let c = 0; c < 3; c++) { const v = buf[q + c] * a; if (v > rgb[o + c]) rgb[o + c] = v; }
+      }
+      break;
+    case 'multiply':
+      for (let j = 0; j < m; j++) {
+        const o = 3 * idx[j], q = 4 * j, a = buf[q + 3] * level, ia = 1 - a;
+        for (let c = 0; c < 3; c++) rgb[o + c] *= ia + buf[q + c] * a;
+      }
+      break;
+    default: // add
+      for (let j = 0; j < m; j++) {
+        const o = 3 * idx[j], q = 4 * j, a = buf[q + 3] * level;
+        for (let c = 0; c < 3; c++) rgb[o + c] += buf[q + c] * a;
+      }
+  }
+}
+
+/** A frame of DMX (40,800 channels), each LED's RGB at its address, scaled, gamma-bent, rounded to 0..255. */
 export function toChannels(scene, rgb, out, opts) {
   if (out && !ArrayBuffer.isView(out) && opts === undefined) { opts = out; out = undefined; }
   const gamma = opts && isNum(opts.gamma) && opts.gamma > 0 ? opts.gamma : 1;

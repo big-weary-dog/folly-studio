@@ -1,8 +1,5 @@
-// Fire: flames lick up from the bottom of whatever the layer lands on.
-//
-// Heat is 3D fractal noise scrolling upward (its y input falls with time, so features rise),
-// cooled with height. Heat maps through ember red, orange and yellow to a white-hot core;
-// Embers keeps the cool parts glowing deep red instead of going out.
+// Fire: flames lick up from the bottom of the layer: 3D fbm scrolling upward, cooled with height, maps ember
+// red through orange to white-hot; embers keeps the cool parts glowing instead of going out.
 const params = {
   speed: { value: 1.2, min: 0, max: 4, step: 0.05, label: 'Rise speed' },
   height: { value: 0.75, min: 0.2, max: 1.5, step: 0.01, label: 'Flame height' },

@@ -32,7 +32,7 @@ const fileName = (look) => String(look.title || '').replace(/[^A-Za-z0-9 _-]+/g,
 /** framesRoutes({ framesDir, cache, visibleLook, STREAMED }) → routes for createApi. */
 export function framesRoutes({ framesDir, cache, visibleLook, STREAMED }) {
   const noFrames = () => new HttpError(404, 'This look has no baked frames.');
-  // Frames evicted for the disk cap are baked again (src/frames-disk.js): ask again in a while.
+  // Frames evicted for the disk cap are baked again (src/frames-cache.js): ask again in a while.
   const rebaking = () => new HttpError(503, 'These frames are being baked again. Try again in a minute.',
     { 'Retry-After': '30' });
 

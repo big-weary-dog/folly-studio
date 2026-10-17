@@ -1,13 +1,14 @@
-// The streaming wire format: src/frames-wire.js encodes, public/js/frames-wire.js decodes, and
-// public/js/frames-stream.js plays chunks as they arrive. Round trips must be exact.
+// The streaming wire format: src/frames-wire.js encodes, public/js/frames-stream.js decodes and plays chunks
+// as they arrive. Round trips must be exact.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import zlib from 'node:zlib';
 
 import { compilePattern, prepareLayer, prepareScene, renderFrame, toChannels } from '../public/js/pattern-core.js';
-import { decodeChunk, MODES, parseManifest, readFrame } from '../public/js/frames-wire.js';
-import { autoFetchAllowed, fetchManifest, openFrameStream } from '../public/js/frames-stream.js';
+import {
+  autoFetchAllowed, decodeChunk, fetchManifest, MODES, openFrameStream, parseManifest, readFrame,
+} from '../public/js/frames-stream.js';
 import {
   CHUNK_FRAMES, encodeWire, gzipChunk, layoutChunk, MODES as SERVER_MODES, wireHash,
 } from '../src/frames-wire.js';

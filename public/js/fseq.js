@@ -1,5 +1,5 @@
-// FSEQ v2.0 writer (optional sparse ranges and compressed blocks) for xLights and FPP; runs in the
-// browser and in Node. Layout, little-endian, after FPP's FSEQFile.cpp:
+// FSEQ v2.0 writer (sparse ranges, compressed blocks) for xLights and FPP, in the browser and Node. Little-endian,
+// after FPP's FSEQFile.cpp:
 //   0 'PSEQ' · 4 u16 data offset (headers padded to 4) · 6 u8 minor 0 · 7 u8 major 2
 //   8 u16 header length (32 + 8 × blocks + 6 × ranges) · 10 u32 channels · 14 u32 frames · 18 u8 step ms
 //   19 u8 flags · 20 u8 compression (0 none, 1 zstd, 2 zlib; high nibble: block count bits 8-11)
@@ -15,7 +15,7 @@ const COMPRESSION = { zstd: 1, zlib: 2 };
 export const MAX_BLOCKS = 255;
 const utf8 = (s) => new TextEncoder().encode(String(s));
 
-/** Check sparse ranges ([[start, count], ...], ascending, not overlapping); returns their total. */
+/** Sparse ranges' total, checked: [[start, count], …], ascending, not overlapping. */
 function rangeTotal(ranges) {
   if (!Array.isArray(ranges) || ranges.length > 255) {
     throw new Error('writeFseq: ranges must be an array of at most 255 [start, count] pairs');
@@ -36,7 +36,7 @@ function rangeTotal(ranges) {
   return total;
 }
 
-/** Each compression block's frames, [[firstFrame, count], ...]: `per` each, more to stay ≤ MAX_BLOCKS. */
+/** Each block's frames, [[first, count], …]: `per` each, more to stay ≤ MAX_BLOCKS. */
 export function fseqBlocks(frames, per = 80) {
   if (!(Number.isInteger(frames) && frames >= 1)) throw new Error('fseqBlocks: frames must be a whole number ≥ 1');
   const size = Math.max(1, Math.floor(per) || 1, Math.ceil(frames / MAX_BLOCKS));
@@ -45,7 +45,7 @@ export function fseqBlocks(frames, per = 80) {
   return out;
 }
 
-/** Check compressed blocks ([{ frame, bytes }], first frames ascending from 0); returns their total size. */
+/** Compressed blocks' total size, checked: [{ frame, bytes }], first frames ascending from 0. */
 function blocksTotal(blocks, frames) {
   if (!Array.isArray(blocks) || blocks.length < 1 || blocks.length > MAX_BLOCKS) {
     throw new Error(`writeFseq: compression.blocks must hold 1-${MAX_BLOCKS} blocks`);
@@ -64,11 +64,8 @@ function blocksTotal(blocks, frames) {
 }
 
 /**
- * writeFseq({ channelCount, frames, stepMs = 25, data, uniqueId?, media?, ranges?, compression? }) → Uint8Array.
- * `data`: frames × channelCount bytes. `media`: an audio file name ('mf'); 'sp' is always "Folly Studio".
- * `ranges` ([[start, count], ...], ascending) makes it sparse; channelCount is then their total.
- * `compression` ({ type: 'zstd' | 'zlib', blocks: [{ frame, bytes }] }) replaces `data`: each block is
- * its frames' channels (fseqBlocks), compressed by the caller (this module has no codecs).
+ * writeFseq({ channelCount, frames, stepMs = 25, data, uniqueId?, media?, ranges?, compression? }) (SPEC). `media`:
+ * an audio file name ('mf'). `compression` replaces `data`: its blocks are compressed by the caller.
  */
 export function writeFseq({ channelCount, frames, stepMs = 25, data, uniqueId, media, ranges, compression } = {}) {
   const sparse = ranges !== undefined && ranges !== null && ranges.length !== 0;
@@ -147,7 +144,7 @@ export function writeFseq({ channelCount, frames, stepMs = 25, data, uniqueId, m
   return out;
 }
 
-/** The channels the LED map uses, as merged spans [[start, count], …]: what a sparse file holds. */
+/** The channels the LED map uses as spans [[start, count], …]: what a sparse file holds. */
 export function ledRanges(cathedral) {
   const cpu = cathedral.channelsPerUniverse || 510;
   const used = new Uint8Array((cathedral.universes || 80) * cpu);

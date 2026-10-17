@@ -9,9 +9,8 @@ import { after, before, describe, test } from 'node:test';
 
 import { writeFseq } from '../public/js/fseq.js';
 import { createServer } from '../src/app.js';
-import { createFramesCache } from '../src/frames-cache.js';
-import { createFramesDisk } from '../src/frames-disk.js';
-import { createFrameJobs, createLane } from '../src/frames-jobs.js';
+import { createLane } from '../src/bake.js';
+import { createFrameJobs, createFramesCache, createFramesDisk } from '../src/frames-cache.js';
 import { wireHash } from '../src/frames-wire.js';
 import { createRenderBox } from '../src/render-box.js';
 

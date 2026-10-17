@@ -1,38 +1,31 @@
 // The Studio: groups tree · 3D view + transport · layer stack, module chain + params · code, timeline and look.
-// This module holds the look and wires the panels: studio-layout.js builds them, studio-status.js
-// tracks what the sandbox says about each layer and module, studio-chain.js the selected layer's chain,
-// studio-preview.js runs the 3D view and the clock, and studio-actions.js saves, shares and exports.
+// This module holds the look and wires the panels: studio-layout.js builds them, chain.js tracks what the sandbox
+// says about each layer and module and shows the selected layer's chain, studio-preview.js runs the 3D view and the
+// clock, and studio-actions.js saves, shares and exports.
 import { api } from '../api.js';
 import { BakePanel } from './bake.js';
-import { clear, debounce, h, isTyping, pref, randomId, reducedMotion, stylesheet, toast } from './dom.js';
-import { CodeEditor } from './editor.js';
-import { GroupsTree } from './groups.js';
-import { LayerStack } from './layers.js';
+import { debounce, h, pref, reducedMotion, stylesheet, toast } from './dom.js';
+import { CodeEditor, quickReference } from './editor.js';
+import { createChain, createLayerStatus, ISSUE_LABELS } from './chain.js';
+import { createLayerOps, GroupsTree, LayerStack } from './layers.js';
 import {
-  buildGroupIndex, BLANK_CODE, cleanLayer, layerFromPattern, loadCathedral, loadLibrary, loadPalettes, makeLayer,
-  normaliseLayers,
+  buildGroupIndex, cleanLayer, layerFromPattern, loadCathedral, loadLibrary, loadPalettes, makeLayer, normaliseLayers,
 } from './model.js';
-import { quickReference } from './reference.js';
 import { createActions } from './studio-actions.js';
-import { createChain } from './studio-chain.js';
-import { createLayerOps } from './studio-layers.js';
 import { buildLayout, TABS } from './studio-layout.js';
 import { createPreview } from './studio-preview.js';
-import { createLayerStatus, ISSUE_LABELS } from './studio-status.js';
 import { Timeline } from './timeline.js';
-import { importLookDialog } from './timeline-import.js';
 import { cleanBpm, cleanDuration } from './timeline-model.js';
 
 await Promise.all([stylesheet('/css/studio.css'), stylesheet('/css/compose.css')]);
 
-const NARROW = '(max-width: 899px)';
 const copy = (v) => (v == null ? undefined : JSON.parse(JSON.stringify(v)));
 const COMPILE_DELAY_MS = 300;
 
 export function mount(root, ctx) {
   ctx.setTitle('Studio');
   const me = ctx.user;
-  let alive = true;
+  let alive = true, groupsTree = null, globalsPanel = null, globalsP = null;
   const S = {
     look: { id: null, title: 'Untitled look', summary: '', layers: [], duration: 30, bpm: null, shared: false,
       ideaId: null, owner: me?.id, ownerName: me?.username, reviewed: false, bake: null, globals: {} },
@@ -40,21 +33,21 @@ export function mount(root, ctx) {
     baked: null,               // { frames, rgb, index } while the preview plays baked frames
     cathedral: null, index: null, library: [], copyOnSave: false, selectedId: null, saved: '', muted: new Set(),
     solo: new Set(), playing: !reducedMotion(), t: 0, speed: 1, hoverGroup: null, pinnedGroup: null, saving: false,
-    ready: false, dirty: false,
+    ready: false, dirty: false, heavy: new Map(),  // layers too slow for a phone's 40 fps: id → ms a frame
   };
-  const narrowMq = matchMedia(NARROW);
+  const narrowMq = matchMedia('(max-width: 899px)');
   const layerById = (id) => S.look.layers.find((l) => l.id === id) || null;
   const selected = () => layerById(S.selectedId);
-  const toggleSet = (set, id) => (set.has(id) ? set.delete(id) : set.add(id));
+  const toggle = (set, id) => { if (!set.delete(id)) set.add(id); changed({ dirty: false }); };
   const silent = (id) => S.muted.has(id) || (S.solo.size > 0 && !S.solo.has(id));
-  const groupNames = (ids) => (ids && ids.length ? ids.map((id) => S.index?.byId.get(id)?.name || id).join(', ')
+  const groupNames = (ids) => (ids?.length ? ids.map((id) => S.index?.byId.get(id)?.name || id).join(', ')
     : 'Whole cathedral');
 
-  const st = { S, ctx, isDirty, saveBody, adoptServer, markDirty, alive: () => alive };
-  st.flush = () => compileSoon.flush();
-  const menu = { exportFseq: () => actions.exportFseq(), exportJson: () => actions.exportJson(),
-    details: () => actions.details() };
-  const ui = st.ui = buildLayout({ store: pref, tab: pref('studio.tab') || 'layers', setTab, actions: menu, onDock });
+  const st = { S, ctx, isDirty, saveBody, adoptServer, markDirty, alive: () => alive,
+    flush: () => compileSoon.flush() };
+  const ui = st.ui = buildLayout({ store: pref, tab: pref('studio.tab') || 'layers', setTab, onDock,
+    actions: { exportFseq: () => actions.exportFseq(), exportJson: () => actions.exportJson(),
+      details: () => actions.details() } });
   const actions = createActions(st);
   root.append(ui.studio);
   setTab(ui.studio.dataset.tab);
@@ -69,26 +62,26 @@ export function mount(root, ctx) {
     playBaked: (on) => preview.playBaked(on),
     signedOut: () => ctx.signedOut(),
   } });
+  // Edits mid-drag (live) only let the preview catch up.
+  const edited = ({ live }) => { if (live) { pushLook(); markDirty(); } else changed(); };
   const timeline = new Timeline({
     toolsSlot: ui.dock.toolsSlot, layers: () => S.look.layers, look: () => S.look, selectedId: () => S.selectedId,
-    time: () => S.t, onSelectLayer: (id) => select(id),
-    onEdit: ({ live }) => {        // clips, the length or the tempo (live: mid-drag, only the preview catches up)
-      S.look.duration = cleanDuration(S.look.duration);
-      if (S.t >= S.look.duration) S.t %= S.look.duration;
-      if (live) { pushLook(); markDirty(); } else changed();
-    },
+    time: () => S.t, onSelectLayer: (id) => select(id), signedOut: () => ctx.signedOut(),
     onSeek: (t) => { S.t = t; preview.kick(); },
-    onImport: () => importLookDialog({ currentId: S.look.id, signedOut: () => ctx.signedOut(),
-      onPick: (look) => timeline.importLook(look, () => randomId('l')) }),
+    onEdit: (how) => {        // clips, the length or the tempo
+      S.look.duration = cleanDuration(S.look.duration);
+      S.t %= S.look.duration;
+      edited(how);
+    },
   });
   const preview = st.preview = createPreview({
     S, ui, timeline, alive: () => alive, signedOut: () => ctx.signedOut(),
     onCompiled: (layers) => { if (status.compiled(layers)) pushLook(); refresh(); },
     onFrameErrors: (errors) => { if (status.frameErrors(errors)) refresh(); },
     onBaked: (on) => bakePanel.setPlaying(on),
+    onHeavy: (heavy) => { S.heavy = heavy; renderStack(); },
   });
   // Bake card, timeline and the look's globals: where they go depends on the screen.
-  let globalsPanel = null;
   const placePanels = () => {
     const narrow = narrowMq.matches;
     (narrow ? ui.bakeSlotNarrow : ui.bakeSlotWide).append(bakePanel.el);
@@ -101,18 +94,21 @@ export function mount(root, ctx) {
 
   const stack = new LayerStack(ui.layersBody, {
     onSelect: (id) => select(id),
-    onChange: (id, patch) => { const l = layerById(id); if (!l) return; Object.assign(l, patch); changed(); },
-    onToggleMute: (id) => { toggleSet(S.muted, id); changed({ dirty: false }); },
-    onToggleSolo: (id) => { toggleSet(S.solo, id); changed({ dirty: false }); },
+    onChange: (id, patch, how = {}) => {
+      const l = layerById(id);
+      if (l) { Object.assign(l, patch); edited(how); }
+    },
+    onToggleMute: (id) => toggle(S.muted, id),
+    onToggleSolo: (id) => toggle(S.solo, id),
   });
   const editor = new CodeEditor(ui.dock.codeBody, {
     onInput: (code) => { const m = chain.module(); if (!m) return; m.code = code; markDirty(); compileSoon(); },
     onSave: () => actions.save(),
   });
-  const chain = createChain({ S, ui, editor, status, selected, changed: (o) => changed(o), refresh: () => refresh() });
+  const chain = createChain({ S, ui, editor, status, preview, selected, changed: (o) => changed(o),
+    refresh: () => refresh() });
   ui.dock.codeBody.append(quickReference((text) => editor.insert(text)));
   const compileSoon = debounce(() => { pushLook(); refresh(); }, COMPILE_DELAY_MS);
-  let groupsTree = null;
 
   preview.showMsg('Loading the cathedral…');
   const library = loadLibrary().catch((err) => {
@@ -127,13 +123,13 @@ export function mount(root, ctx) {
     pushLook();
     groupsTree = new GroupsTree(ui.groupsBody, cathedral, S.index, {
       onToggle: (id, checked) => toggleGroup(id, checked),
-      onHover: (id) => { S.hoverGroup = id; updateHighlight(); },
-      onPin: (id) => { S.pinnedGroup = id; updateHighlight(); },
+      onHover: (id) => { S.hoverGroup = id; highlight(); },
+      onPin: (id) => { S.pinnedGroup = id; highlight(); },
     });
     S.ready = true;
     if (S.wantGlobals) showGlobals();
     bakePanel.render();
-    select(S.look.layers.length ? S.look.layers[S.look.layers.length - 1].id : null);
+    select(S.look.layers.at(-1)?.id ?? null);
     preview.kick();
   }).catch((err) => {
     if (!alive) return;
@@ -144,13 +140,12 @@ export function mount(root, ctx) {
 
   async function loadLook() {
     const id = ctx.params.lookId;
-    if (!id) return null;
     try {
-      return (await api.look(id)).look;
+      return id ? (await api.look(id)).look : null;
     } catch (err) {
       if (err.status === 401) throw err;
-      const gone = 'That look was not found (or is not shared). Starting a new one.';
-      toast(err.status === 404 ? gone : err.message, { kind: 'error' });
+      toast(err.status === 404 ? 'That look was not found (or is not shared). Starting a new one.' : err.message,
+        { kind: 'error' });
       ctx.replaceUrl('/studio');
       return null;
     }
@@ -162,24 +157,23 @@ export function mount(root, ctx) {
         id: look.id, title: look.title || 'Untitled look', summary: look.summary || '', shared: !!look.shared,
         layers: normaliseLayers(look.layers, S.cathedral), ideaId: look.ideaId || null, owner: look.owner,
         ownerName: look.ownerName, duration: cleanDuration(look.duration), bpm: cleanBpm(look.bpm),
-        reviewed: false, bake: null, globals: copy(look.globals) || {}, automation: copy(look.automation),
+        globals: copy(look.globals) || {}, automation: copy(look.automation),
       });
       S.copyOnSave = !!(me && look.owner && look.owner !== me.id);
       S.server = look;
       ctx.setTitle(S.look.title);
-    } else {
-      const first = S.library[0];
-      S.look.layers = [first ? layerFromPattern(first, S.cathedral)
-        : makeLayer({ title: 'Rising band', code: BLANK_CODE }, S.cathedral)];
     }
-    if (!S.look.layers.length) S.look.layers.push(makeLayer({ title: 'Rising band' }, S.cathedral));
+    if (!S.look.layers.length) {
+      const first = S.library.find((p) => (p.kind || 'source') === 'source');
+      S.look.layers.push(first ? layerFromPattern(first, S.cathedral)
+        : makeLayer({ title: 'Rising band' }, S.cathedral));
+    }
     ui.titleInput.value = S.look.title;
     S.saved = snapshot();     // untouched: even a brand-new look only nags once edited
     actions.showShared(S.look.shared && !S.copyOnSave);
     if (S.copyOnSave) {
-      clear(ui.notice).append(h('strong', { text: 'From the gallery' }),
-        ` — “${S.look.title}” by ${S.look.ownerName || 'someone else'}. `
-        + 'Play with it freely; Save makes your own copy.');
+      ui.notice.replaceChildren(h('strong', { text: 'From the gallery' }), ` — “${S.look.title}” by `
+        + `${S.look.ownerName || 'someone else'}. Play with it freely; Save makes your own copy.`);
       ui.notice.hidden = false;
     }
     updateSaveState();
@@ -223,7 +217,7 @@ export function mount(root, ctx) {
     S.server = look;
     S.look.reviewed = !!look.reviewed;
     S.look.bake = look.bake || null;
-    if (S.baked && !(look.bake && look.bake.frames)) preview.playBaked(false);
+    if (S.baked && !look.bake?.frames) preview.playBaked(false);
     bakePanel.render();
   }
 
@@ -243,31 +237,27 @@ export function mount(root, ctx) {
     if (look) pushLook();
     if (dirty) markDirty();
     if (redrawStack) renderStack(); else timeline.render();
-    refreshParams();
+    chain.refreshParams();
   }
 
   function renderStack() {
     const statuses = new Map(S.look.layers.map((l) => [l.id, status.of(l.id)]));
     stack.render({ layers: S.look.layers, selectedId: S.selectedId, status: statuses, muted: S.muted, solo: S.solo,
-      groupNames });
-    const l = selected();
-    const i = l ? S.look.layers.indexOf(l) : -1;
+      heavy: S.heavy, groupNames });
+    const l = selected(), i = S.look.layers.indexOf(l);
     ui.upBtn.disabled = !l || i >= S.look.layers.length - 1;
     ui.downBtn.disabled = !l || i <= 0;
     ui.dupBtn.disabled = ui.delBtn.disabled = !l;
     timeline.render();
   }
 
-  const refreshParams = () => chain.refreshParams();
-
   function refresh() {
     if (!S.ready) return;
     renderStack();
     chain.render();
-    refreshParams();
+    chain.refreshParams();
     globalsPanel?.render();
-    const l = selected();
-    const problem = l ? status.problem(l.id, chain.module()) : null;
+    const l = selected(), problem = l ? status.problem(l.id, chain.module()) : null;
     editor.setProblem(problem);
     ui.codeIssue.hidden = !problem;
     if (problem) {
@@ -279,15 +269,12 @@ export function mount(root, ctx) {
   function select(id) {
     S.selectedId = id;
     const l = selected();
-    chain.show();
     ui.layerTitle.value = l ? l.title : '';
     ui.layerTitle.disabled = !l;
     showLayerName(l);
     ui.playsOn.textContent = l ? groupNames(l.groups) : '—';
-    if (groupsTree) {
-      groupsTree.setLayer(l);
-      if (l) groupsTree.reveal(l.groups);
-    }
+    groupsTree?.setLayer(l);
+    if (l) groupsTree?.reveal(l.groups);
     refresh();
   }
   function showLayerName(l) {
@@ -301,42 +288,22 @@ export function mount(root, ctx) {
     S.wantGlobals = true;
     if (S.ready) showGlobals();
   }
-  let globalsP = null;
   function showGlobals() {
     globalsP ||= Promise.all([import('./look-globals.js'), loadPalettes().catch(() => [])])
       .then(([{ GlobalsPanel }, palettes]) => {
         if (!alive) return;
-        globalsPanel = new GlobalsPanel({ look: () => S.look, palettes, onRenameMacro: renameMacro,
+        globalsPanel = new GlobalsPanel({ look: () => S.look, palettes,
           onChange: ({ live }) => { if (live) { pushLook(); markDirty(); } else changed({ stack: false }); } });
         placePanels();
         globalsPanel.render();
       });
   }
 
-  /** A macro renamed (to null: deleted): its automation lane and the params bound to it follow. */
-  function renameMacro(from, to) {
-    const auto = S.look.automation;
-    if (auto && auto[from]) {
-      if (to) auto[to] = auto[from];
-      delete auto[from];
-      if (!Object.keys(auto).length) delete S.look.automation;
-    }
-    for (const l of S.look.layers) {
-      for (const m of l.modules) {
-        for (const [k, b] of Object.entries(m.params || {})) {
-          if (b && b.mod === 'global' && b.name === from) { if (to) b.name = to; else delete m.params[k]; }
-        }
-      }
-    }
-    changed();
-  }
-
-  const layerOps = createLayerOps({ S, ui, changed, select, selected, setTab, narrow: () => narrowMq.matches,
-    groupsTree: () => groupsTree, groupNames, showLayerName });
-  const { toggleGroup } = layerOps;
-  const updateHighlight = () => {
+  const { toggleGroup } = createLayerOps({ S, ui, preview, changed, select, selected, setTab, groupNames, showLayerName,
+    narrow: () => narrowMq.matches, groupsTree: () => groupsTree });
+  const highlight = () => {
     const id = S.hoverGroup || S.pinnedGroup;
-    if (preview.viewer && S.index) preview.viewer.setHighlight(id ? S.index.masks.get(id) : null);
+    preview.viewer?.setHighlight(id ? S.index.masks.get(id) : null);
   };
 
   ui.titleInput.addEventListener('input', () => { S.look.title = ui.titleInput.value; markDirty(); });
@@ -350,22 +317,19 @@ export function mount(root, ctx) {
 
   function setTab(id, { onlyNarrow = false } = {}) {
     if (onlyNarrow && !narrowMq.matches) return;
-    if (!TABS.some((t) => t.id === id)) id = 'layers';
+    if (!TABS.includes(id)) id = 'layers';
     ui.studio.dataset.tab = id;
     for (const b of ui.tabBtns) b.setAttribute('aria-pressed', String(b.dataset.tab === id));
     pref('studio.tab', id);
     if (id === 'look') { actions.loadMyLooks(); onDock('look'); }
   }
 
+  // Ctrl/⌘+S saves; Space plays or pauses unless a control or a dialog has it.
   const onKey = (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); actions.save(); return; }
-    const t = e.target;
-    const control = isTyping(t)
-      || [HTMLButtonElement, HTMLSelectElement, HTMLInputElement].some((c) => t instanceof c);
-    if (e.key === ' ' && !control && !document.querySelector('dialog[open]')) {
-      e.preventDefault();
-      preview.setPlaying(!S.playing);
-    }
+    if (e.key !== ' ' || e.target.closest?.('button, input, select, textarea, [contenteditable], dialog')) return;
+    e.preventDefault();
+    preview.setPlaying(!S.playing);
   };
   document.addEventListener('keydown', onKey);
 

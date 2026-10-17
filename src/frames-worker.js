@@ -1,4 +1,4 @@
-// The CPU-heavy side of baked frames, in a worker thread that src/frames-jobs.js starts. It lowers its own
+// The CPU-heavy side of baked frames, in a worker thread that src/frames-cache.js starts. It lowers its own
 // priority (on Linux, nice is per thread) and compresses on its own thread, one job at a time, so the
 // server's event loop and its thread pool stay free for requests.
 //   wire: { file, sha256, dir, hash, quality, maxBytes } → <dir>/<n>.br chunks, then manifest.json

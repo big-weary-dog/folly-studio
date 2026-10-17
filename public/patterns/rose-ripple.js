@@ -1,8 +1,5 @@
-// Rose ripple: rings of light spread from the rose window through the whole cathedral.
-//
-// Distance is measured in metres in 3D from the centre of the rose window (X, Y, Z are metres),
-// so the rings are true spheres: they cross the window first, then the arches, the towers and
-// the spires. Rainbow shifts each new ring's hue along.
+// Rose ripple: rings spread in 3D from the rose window's centre (X Y Z in metres), true spheres crossing the
+// window, the arches, the towers and the spires; rainbow moves each new ring's hue along.
 const params = {
   speed: { value: 4, min: 0.5, max: 15, step: 0.1, label: 'Metres per second' },
   spacing: { value: 6, min: 1, max: 20, step: 0.1, label: 'Metres between rings' },

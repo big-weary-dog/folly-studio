@@ -191,10 +191,7 @@ function zoneMentions(text, gi) {
       const side = /\b(front|back|rear|left|right)\s+(?:\w+\s+)?$/.exec(before)?.[1];
       if (side && ids.length) {
         const narrowed = findSide(side === 'rear' ? 'back' : side, gi, ids);
-        if (narrowed.length) {
-          ids = narrowed;
-          taken.push([a - before.length + before.lastIndexOf(side), a]);
-        }
+        if (narrowed.length) { ids = narrowed; taken.push([a - before.length + before.lastIndexOf(side), a]); }
       }
       if (ids.length) out.push({ key: zone.key, at: a, ids });
     }

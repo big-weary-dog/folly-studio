@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 import { DEFAULT_BAKE_SECONDS, framesBytesFor, parseBytes, parseDuration } from '../bake.js';
 import { checkFrames, cleanBoxStats, failedBake, readUntrusted } from '../box-output.js';
-import { bundle } from '../bundle.js';
+import { bundle } from '../assets.js';
 import { FOLLY, GROUPS_NOTE, PATTERN_GUIDE, TASTE, formatExamples, formatGroups, pickExamples } from './prompt.js';
 import { GenerateError } from './validate.js';
 
@@ -153,10 +153,7 @@ export function createFleetAdapter(o = {}) {
       }
     }
     // A workspace left by an earlier run (say, a restart mid-job) is stopped and replaced.
-    if (await exists(ws)) {
-      await cleanup(name, ws);
-      await fs.rm(ws, { recursive: true, force: true });
-    }
+    if (await exists(ws)) { await cleanup(name, ws); await fs.rm(ws, { recursive: true, force: true }); }
     await fs.mkdir(ws, { recursive: true });
     const lookPath = path.join(ws, 'look.json');
     const template = await fs.readFile(cfg.briefTemplate, 'utf8');

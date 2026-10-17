@@ -2,7 +2,7 @@
 // found, play the baked frames (no pattern code runs), and let a curator mark a passing look reviewed.
 import { api } from '../api.js';
 import { autoFetchAllowed, fetchManifest } from '../frames-stream.js';
-import { clear, h, switchBox, toast } from './dom.js';
+import { h, switchBox, toast } from './dom.js';
 
 const POLL_MS = 1500;
 const ACTIVE = new Set(['queued', 'running']);
@@ -74,7 +74,7 @@ export class BakePanel {
       : 'Editing the layers clears the bake.';
     this.note.classList.toggle('warn', !!(look && bake && dirty && !ACTIVE.has(bake.status)));
 
-    clear(this.report);
+    this.report.replaceChildren();
     const a = bake?.analysis;
     if (a) {
       const f = a.flicker || {}, small = f.small?.regions?.length ? f.small : null;

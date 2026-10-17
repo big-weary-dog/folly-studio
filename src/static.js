@@ -125,10 +125,7 @@ export function createStatic({ publicDir = DEFAULT_PUBLIC_DIR, log = console, re
   async function send(req, res, e, cacheControl, extra = {}) {
     const headers = { 'Content-Type': e.type, 'Cache-Control': cacheControl, ETag: e.etag, ...extra };
     if (e.compressible) headers.Vary = 'Accept-Encoding';
-    if (etagMatches(req.headers['if-none-match'], e.etag)) {
-      res.writeHead(304, headers);
-      return res.end();
-    }
+    if (etagMatches(req.headers['if-none-match'], e.etag)) { res.writeHead(304, headers); return res.end(); }
     const enc = e.compressible ? pickEncoding(req.headers['accept-encoding']) : null;
     const packed = enc && await encoded(e, enc);
     if (packed) headers['Content-Encoding'] = enc;

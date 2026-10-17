@@ -11,7 +11,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 
 import { writeFseq } from '../public/js/fseq.js';
-import { decodeChunk, parseManifest, readFrame } from '../public/js/frames-wire.js';
+import { decodeChunk, parseManifest, readFrame } from '../public/js/frames-stream.js';
 import { createServer } from '../src/app.js';
 import { parseFseq } from '../src/frames.js';
 import { IMMUTABLE } from '../src/frames-http.js';

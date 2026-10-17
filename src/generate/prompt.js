@@ -3,7 +3,7 @@
 // Everything in the system prompt is static for a given library + group list, so it caches;
 // the idea text, which is untrusted, only ever goes in the user turn.
 
-import { PALETTE_NAMES } from '../look-globals.js';
+import { PALETTE_NAMES } from '../look-rules.js';
 import { BLENDS, LIMITS } from './validate.js';
 
 export const FOLLY = `The Gothic Folly is a full-scale LED cathedral built for Burning Man: a playa-facing portal
