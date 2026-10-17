@@ -12,10 +12,14 @@ const STATUS = { queued: { label: 'Queued', cls: 'pending' }, generating: { labe
   ready: { label: 'Ready', cls: 'ok' }, failed: { label: 'Failed', cls: 'bad' } };
 
 const MAX_LEN = 2000;
+// While an idea is being made, its status is asked for after 2 s, then 1.5× as long each time, up to 10 s.
+const POLL_FIRST_MS = 2000;
+const POLL_MAX_MS = 10_000;
+const isPending = (i) => i.status === 'queued' || i.status === 'generating';
 
 export function mount(root, ctx) {
   ctx.setTitle('Ideas');
-  let ideas = [], pollTimer = null, alive = true;
+  let ideas = [], pollTimer = null, pollMs = POLL_FIRST_MS, polling = false, alive = true;
   const known = new Map();      // id → status, to notice when one becomes ready
   const ready = new Map();      // look id → close() of its "ready" toast, closed once that look is opened
 
@@ -73,6 +77,7 @@ export function mount(root, ctx) {
       ideas = [idea, ...ideas.filter((i) => i.id !== idea.id)];
       known.set(idea.id, idea.status);
       draw();
+      pollMs = POLL_FIRST_MS;
       schedulePoll();
     } catch (err) {
       if (err.status === 401) return ctx.signedOut();
@@ -100,7 +105,7 @@ export function mount(root, ctx) {
         onClick: () => { prefill(idea.text); window.scrollTo({ top: 0 }); } }));
     }
     // The rose fills while the idea is being made and is lit once it is ready.
-    const making = idea.status === 'queued' || idea.status === 'generating';
+    const making = isPending(idea);
     return h('li', { class: ['idea', `is-${idea.status}`] },
       h('span', { class: 'idea-pane' }, rose({ className: making ? 'idea-rose rose-fill' : 'idea-rose' })),
       h('div', { class: 'idea-main' },
@@ -114,21 +119,26 @@ export function mount(root, ctx) {
       actions);
   }
 
+  /** Toasts for ideas that just became ready or failed; remembers each status. */
+  function notice(list) {
+    for (const idea of list) {
+      const before = known.get(idea.id);
+      if (before && before !== 'ready' && idea.status === 'ready' && idea.lookId) {
+        ready.set(idea.lookId, toast('Your look is ready.', { kind: 'ok', timeout: 8000,
+          action: { label: 'Open', onClick: () => ctx.navigate(`/studio/${encodeURIComponent(idea.lookId)}`) } }));
+      } else if (before && before !== 'failed' && idea.status === 'failed') {
+        toast(`An idea could not be generated${idea.error ? `: ${idea.error}` : '.'}`, { kind: 'error' });
+      }
+      known.set(idea.id, idea.status);
+    }
+  }
+
   async function load() {
     try {
       const res = await api.ideas();
       if (!alive) return;
       ideas = Array.isArray(res.ideas) ? res.ideas : [];
-      for (const idea of ideas) {
-        const before = known.get(idea.id);
-        if (before && before !== 'ready' && idea.status === 'ready' && idea.lookId) {
-          ready.set(idea.lookId, toast('Your look is ready.', { kind: 'ok', timeout: 8000,
-            action: { label: 'Open', onClick: () => ctx.navigate(`/studio/${encodeURIComponent(idea.lookId)}`) } }));
-        } else if (before && before !== 'failed' && idea.status === 'failed') {
-          toast(`An idea could not be generated${idea.error ? `: ${idea.error}` : '.'}`, { kind: 'error' });
-        }
-        known.set(idea.id, idea.status);
-      }
+      notice(ideas);
       draw();
     } catch (err) {
       if (err.status === 401) return ctx.signedOut();
@@ -139,14 +149,38 @@ export function mount(root, ctx) {
     schedulePoll();
   }
 
+  // Only the pending ideas are asked about (an unchanged one answers 304, no body), never while hidden.
+  async function poll() {
+    pollTimer = null;
+    if (!alive || document.hidden || polling) return;
+    polling = true;
+    const asked = ideas.filter(isPending);
+    try {
+      const fresh = (await Promise.all(asked.map((i) => api.idea(i.id)))).map((r) => r.idea);
+      if (!alive) return;
+      const byId = new Map(fresh.filter(Boolean).map((i) => [i.id, i]));
+      const changed = asked.some((i) => byId.get(i.id)?.updatedAt !== i.updatedAt);
+      ideas = ideas.map((i) => byId.get(i.id) ?? i);
+      notice(fresh.filter(Boolean));
+      if (changed) draw();
+    } catch (err) {
+      if (err.status === 401) return ctx.signedOut();
+      if (err.status === 404) return load(); // gone: the list says what is left
+    } finally {
+      polling = false;
+    }
+    pollMs = Math.min(POLL_MAX_MS, pollMs * 1.5);
+    schedulePoll();
+  }
+
   function schedulePoll() {
     clearTimeout(pollTimer);
     pollTimer = null;
-    if (!alive) return;
-    if (ideas.some((i) => i.status === 'queued' || i.status === 'generating')) {
-      pollTimer = setTimeout(load, 2000);
-    }
+    if (alive && !document.hidden && ideas.some(isPending)) pollTimer = setTimeout(poll, pollMs);
   }
+  // Back on the tab: ask at once, then carry on backing off.
+  const onVisibility = () => { if (!document.hidden && !pollTimer && ideas.some(isPending)) poll(); };
+  document.addEventListener('visibilitychange', onVisibility);
 
   load();
   if (matchMedia('(pointer: fine)').matches) {
@@ -159,6 +193,7 @@ export function mount(root, ctx) {
     unmount() {
       alive = false;
       clearTimeout(pollTimer);
+      document.removeEventListener('visibilitychange', onVisibility);
       const opened = /^\/studio\/([^/]+)/.exec(location.pathname);
       if (opened) ready.get(decodeURIComponent(opened[1]))?.();
     },

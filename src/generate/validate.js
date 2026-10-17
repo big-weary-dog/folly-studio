@@ -1,12 +1,14 @@
 // Static checks on a generated look before it is saved. Generated code is untrusted: it is only
 // inspected here as text, never executed on the server (no eval, no vm, no Function).
+import { cleanBinding } from '../look-rules.js';
+import { checkAutomation, checkGlobals, checkModules } from './validate-chain.js';
 
 export const LIMITS = Object.freeze({
   layers: 4, codeBytes: 20 * 1024, title: 80, layerTitle: 80, summary: 400, params: 32, clips: 32, duration: 600,
 });
 export const BLENDS = Object.freeze(['add', 'over', 'max', 'multiply']);
 const BLEND_ALIASES = { maximum: 'max', normal: 'over', mult: 'multiply', screen: 'max', lighten: 'max' };
-const PIXEL_FN = /\bfunction\s+pixel\s*\(/;
+const DEFINES = (fn) => new RegExp(`\\bfunction\\s+${fn}\\s*\\(`);
 const PARAM_NAME = /^[A-Za-z_$][\w$]{0,63}$/;
 const HEX = /^#[0-9a-fA-F]{6}$/;
 // Control characters other than tab/newline/CR; they have no place in code or text we store.
@@ -37,11 +39,11 @@ function unfence(code) {
   return m ? m[2] : code;
 }
 
-function checkCode(code) {
+function checkCode(code, fn = 'pixel') {
   if (typeof code !== 'string' || !code.trim()) return { error: 'has no code' };
   const c = unfence(code.replace(/\r\n?/g, '\n')).replace(CONTROL, '');
   if (Buffer.byteLength(c, 'utf8') > LIMITS.codeBytes) return { error: 'code is over 20 kB' };
-  if (!PIXEL_FN.test(c)) return { error: 'code does not define function pixel' };
+  if (!DEFINES(fn).test(c)) return { error: `code does not define function ${fn}` };
   return { code: c };
 }
 
@@ -71,7 +73,8 @@ function checkParams(params) {
     else if (typeof v === 'string' && HEX.test(v)) out[k] = v.toLowerCase();
     else if (Array.isArray(v) && v.length === 3 && v.every((x) => typeof x === 'number' && Number.isFinite(x))) {
       out[k] = v.map((x) => Math.min(1, Math.max(0, x)));
-    } else continue;
+    } else if (cleanBinding(v)) out[k] = cleanBinding(v);
+    else continue;
     n++;
   }
   return out;
@@ -110,11 +113,12 @@ function checkClips(clips, note) {
 }
 
 /**
- * Validate and normalise a generator's output, `{ title, summary, duration?, layers: [{ title, groups,
- * blend, level, params?, clips?, code }] }`, against the cathedral's groups (from loadGroups).
- * → { title, summary, duration?, layers, dropped: [why each dropped thing went] }
+ * Validate and normalise a generator's output, `{ title, summary, duration?, globals?, automation?, layers: [{
+ * title, groups, blend, level, clips?, code + params? | modules }] }`, against the cathedral's groups (from
+ * loadGroups) and the library (a module's `ref`). → { title, summary, duration?, layers, globals?, automation?,
+ * dropped: [why each dropped thing went] }
  */
-export function validateLook(look, { groups = [] } = {}) {
+export function validateLook(look, { groups = [], library = [] } = {}) {
   if (!look || typeof look !== 'object' || Array.isArray(look)) {
     throw new GenerateError('The generator returned something that is not a look.');
   }
@@ -125,14 +129,24 @@ export function validateLook(look, { groups = [] } = {}) {
     const drop = (why) => dropped.push(`layer ${i + 1}: ${why}`);
     if (layers.length >= LIMITS.layers) { drop(`more than ${LIMITS.layers} layers`); continue; }
     if (!layer || typeof layer !== 'object') { drop('not an object'); continue; }
-    const { code, error } = checkCode(layer.code);
-    if (error) { drop(error); continue; }
+    // A chain of modules, or one pattern's code (and params).
+    let own;
+    if (Array.isArray(layer.modules) && layer.modules.length) {
+      const modules = checkModules(layer.modules, { checkCode, checkParams, checkBlend, library, drop,
+        cleanTitle: (t) => cleanText(t, LIMITS.layerTitle) });
+      if (!modules) { drop('no usable source module'); continue; }
+      own = { modules };
+    } else {
+      const { code, error } = checkCode(layer.code);
+      if (error) { drop(error); continue; }
+      own = { code, params: checkParams(layer.params) };
+    }
     const n = layers.length + 1;
     const clips = checkClips(layer.clips, drop);
     layers.push({
-      id: `l${n}`, title: cleanText(layer.title, LIMITS.layerTitle) || `Layer ${n}`, code,
+      id: `l${n}`, title: cleanText(layer.title, LIMITS.layerTitle) || `Layer ${n}`, ...own,
       groups: checkGroups(layer.groups, known), blend: checkBlend(layer.blend), level: checkLevel(layer.level),
-      params: checkParams(layer.params), ...(clips.length ? { clips } : {}),
+      ...(clips.length ? { clips } : {}),
     });
   }
   if (!layers.length) {
@@ -140,11 +154,16 @@ export function validateLook(look, { groups = [] } = {}) {
     throw new GenerateError('The generator did not produce a usable pattern.', why);
   }
   const d = time(look.duration); // the look's length in seconds (1..600), or the default (30)
+  const note = (why) => dropped.push(why);
+  const globals = checkGlobals(look.globals, note);
+  const automation = look.automation == null ? undefined : checkAutomation(look.automation, globals, note);
   return {
     title: cleanText(look.title, LIMITS.title) || 'Untitled look',
     summary: cleanText(look.summary, LIMITS.summary),
     ...(finite(d) ? { duration: ms(Math.min(LIMITS.duration, Math.max(1, d))) } : {}),
     layers,
+    ...(globals ? { globals } : {}),
+    ...(automation ? { automation } : {}),
     dropped,
   };
 }

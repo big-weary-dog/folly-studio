@@ -16,8 +16,11 @@ const pane = (cls, label, ...kids) => h('section',
 const paneHead = (title, ...extra) => h('div', { class: 'pane-head' },
   h('h2', { class: 'pane-title', text: title }), ...extra);
 
-/** buildLayout({ store, tab, setTab, actions }) → elements. `actions`: menu and Look-tab handlers. */
-export function buildLayout({ store, tab, setTab, actions }) {
+/**
+ * buildLayout({ store, tab, setTab, actions, onDock(id) }) → elements. `actions`: menu and Look-tab handlers; onDock:
+ * a dock tab shows.
+ */
+export function buildLayout({ store, tab, setTab, actions, onDock }) {
   const ui = {};
   ui.studio = h('div', { class: 'studio', dataset: { tab } });
 
@@ -78,12 +81,18 @@ export function buildLayout({ store, tab, setTab, actions }) {
     spellcheck: false });
   ui.paramsBody = h('div', { class: 'params-host' });
   ui.playsOn = h('span', { class: 'plays-on-text' });
+  ui.chainBody = h('div', { class: 'chain-host' });
+  ui.moduleTitle = h('input', { type: 'text', class: 'module-title-input', maxlength: 80, spellcheck: false });
+  ui.moduleKind = h('span', { class: 'kind-badge' });
   const paneParams = pane('params', 'Layer settings', paneHead('Settings'),
     h('div', { class: 'pane-body params-wrap' },
       h('div', { class: 'field layer-title-field' },
         label(ui.layerTitle, 'Layer name'), ui.layerTitle),
       h('p', { class: 'plays-on' }, h('span', { class: 'plays-on-label', text: 'Plays on ' }), ui.playsOn,
         button({ class: 'btn small ghost narrow-only', text: 'Change', onClick: () => setTab('groups') })),
+      ui.chainBody,
+      h('div', { class: 'field module-title-field' }, h('div', { class: 'module-label' },
+        label(ui.moduleTitle, 'Module name'), ui.moduleKind), ui.moduleTitle),
       ui.paramsBody));
   const side = h('div', { class: 'side', dataset: { pane: 'layers' } }, paneLayers, paneParams);
 
@@ -91,15 +100,16 @@ export function buildLayout({ store, tab, setTab, actions }) {
   ui.codeFor = h('span', { class: 'pane-sub dock-code-only' });
   ui.codeIssue = h('span', { class: 'dock-issue', hidden: true });
   const short = matchMedia(SHORT).matches;
-  ui.dock = createDock({ studio: ui.studio, store, extras: [ui.codeFor, ui.codeIssue], short });
+  ui.dock = createDock({ studio: ui.studio, store, extras: [ui.codeFor, ui.codeIssue], short, onShow: onDock });
   ui.timeBody = h('div', { class: 'pane-body time-body' });
   const paneTime = pane('time', 'Timeline', ui.timeBody);
 
   // "Look" tab (narrow screens): what the toolbar and the header hold on a wide screen
   ui.myLooks = h('ul', { class: 'mini-list' });
   ui.bakeSlotNarrow = h('div', { class: 'bake-slot' });
+  ui.globalsSlotNarrow = h('div', { class: 'globals-slot' });
   const paneLook = pane('look', 'Look', h('div', { class: 'pane-body look-body' },
-    ui.bakeSlotNarrow, ui.share[1].el,
+    ui.globalsSlotNarrow, ui.bakeSlotNarrow, ui.share[1].el,
     h('div', { class: 'look-actions' }, button({ class: 'btn', text: 'Look details', onClick: actions.details }),
       button({ class: 'btn', text: 'Export look JSON', onClick: actions.exportJson })),
     h('h3', { class: 'look-h', text: 'My looks' }), ui.myLooks,

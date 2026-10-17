@@ -1,3 +1,5 @@
 # Accounts, sessions, ideas and looks (STUDIO_DATA default). Anchored so that
 # public/data/cathedral.json stays tracked.
 /data/
+# tools/backup.mjs archives (default --out)
+/backups/

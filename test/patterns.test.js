@@ -1,9 +1,12 @@
-// The built-in pattern library renders cleanly, quickly, and in colour on the real cathedral.
+// The built-in library renders cleanly, quickly, and in colour on the real cathedral: its sources alone, its warps
+// and filters in a chain over a source.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
-import { compilePattern, prepareScene, prepareLayer, renderFrame, toChannels } from '../public/js/pattern-core.js';
+import {
+  compileLayer, compileModule, compilePattern, MODULE_KINDS, prepareLayer, prepareScene, renderFrame, toChannels,
+} from '../public/js/pattern-core.js';
 
 const here = (p) => new URL(p, import.meta.url);
 const cathedral = JSON.parse(readFileSync(here('../public/data/cathedral.json'), 'utf8'));
@@ -22,17 +25,21 @@ function check(rgb, what) {
   }
 }
 
-test('index.json lists every pattern file, once, with title, summary and tags', () => {
+const sources = index.filter((e) => e.kind === 'source');
+
+test('index.json lists every pattern file, once, with title, summary, tags, kind and category', () => {
   assert.deepEqual(index.map((e) => `${e.name}.js`).sort(), files);
-  assert.ok(index.length >= 10);
+  assert.ok(sources.length >= 10);
   for (const e of index) {
     assert.match(e.name, /^[a-z0-9-]+$/);
     assert.ok(e.title && e.summary && Array.isArray(e.tags) && e.tags.length, e.name);
+    assert.ok(MODULE_KINDS.includes(e.kind) && /^[a-z]+$/.test(e.category), `${e.name}: kind and category`);
   }
+  for (const kind of ['warp', 'filter']) assert.ok(index.filter((e) => e.kind === kind).length >= 5, kind);
 });
 
-describe('each pattern', () => {
-  for (const { name } of index) {
+describe('each source', () => {
+  for (const { name } of sources) {
     test(name, () => {
       const code = source(name);
       assert.match(code, /^\/\/ .+/, 'starts with a comment saying what it is');
@@ -73,9 +80,39 @@ describe('each pattern', () => {
   }
 });
 
+describe('each warp and filter, in a chain over a source', () => {
+  // Warps over a pattern drawn across the layer; filters over one that moves fast, on a dark sky.
+  const base = (kind) => ({ id: 'base', kind: 'source', code: source(kind === 'warp' ? 'plasma' : 'meteors') });
+  for (const { name, kind } of index.filter((e) => e.kind !== 'source')) {
+    test(name, () => {
+      const code = source(name);
+      assert.match(code, /^\/\/ .+/, 'starts with a comment saying what it is');
+      assert.ok(code.split('\n').length <= 150, 'short: an example for people and the AI');
+      const compiled = compileModule(code, kind);
+      assert.ok(Object.keys(compiled.params).length > 0, 'has params');
+      assert.throws(() => compileModule(code, 'source'), /no function pixel/);
+      const input = { id: 'in', kind: 'source', code: source('clouds'), as: 'input' };
+      const mod = { id: 'm', kind, code, ...(kind === 'filter' ? { input: 'in' } : {}) };
+      const modules = kind === 'warp' ? [mod, base(kind)] : [base(kind), input, mod];
+      const plain = prepareLayer(scene, { id: 'p', modules: [base(kind)] }, compileLayer({ modules: [base(kind)] }));
+      const L = prepareLayer(scene, { id: name, modules }, compileLayer({ modules }));
+      let changed = 0;
+      for (const t of TIMES) {
+        for (const dt of [0.2, 0.1]) renderFrame(scene, [L], t - dt);    // what came just before (for trails)
+        const a = renderFrame(scene, [plain], t).rgb.slice();
+        const { rgb, errors } = renderFrame(scene, [L], t);
+        assert.deepEqual(errors, [], `${name} at t=${t}`);
+        check(rgb, `${name} at t=${t}`);
+        for (let i = 0; i < rgb.length; i++) if (Math.abs(rgb[i] - a[i]) > 0.02) changed++;
+      }
+      assert.ok(changed > 0.05 * scene.count * 3 * TIMES.length, `${name} changes what it is chained with`);
+    });
+  }
+});
+
 test('the whole library stacked renders well under budget', () => {
   const blends = ['add', 'over', 'max', 'multiply'];
-  const layers = index.map(({ name }, i) => prepareLayer(scene,
+  const layers = sources.map(({ name }, i) => prepareLayer(scene,
     { id: name, groups: GROUPS[i % GROUPS.length], blend: blends[i % 4], level: 0.8 }, compilePattern(source(name))));
   const out = new Float32Array(scene.count * 3);
   const ch = new Uint8Array(scene.frameChannels);
@@ -94,7 +131,7 @@ test('the whole library stacked renders well under budget', () => {
 });
 
 test('a single cathedral-wide layer renders in well under 10 ms', () => {
-  for (const { name } of index) {
+  for (const { name } of sources) {
     const L = prepareLayer(scene, { id: name, groups: ['cathedral'] }, compilePattern(source(name)));
     const out = new Float32Array(scene.count * 3);
     for (let f = 0; f < 5; f++) renderFrame(scene, [L], f / 40, out);

@@ -34,14 +34,20 @@ export class Runtime {
     this._watchdog = setInterval(() => this._check(), 200);
   }
 
-  start(cathedral) {
+  /** library: [{ name, code }] sources for use(). */
+  start(cathedral, library = []) {
     this.cathedral = cathedral;
+    this.library = library;
     this._spawn();
   }
 
-  /** layers: [{ id, title, code, groups, blend, level, params, clips? }] — sent on the next pump. */
-  setLook(layers) {
+  /**
+   * layers: [{ id, title, groups, blend, level, clips?, modules | code + params }]; extra: { globals?, automation?,
+   * bpm? } — sent on the next pump.
+   */
+  setLook(layers, extra = {}) {
     this.layers = layers.map((l) => ({ ...l }));
+    this.extra = { globals: extra.globals, automation: extra.automation, bpm: extra.bpm };
     this.lookDirty = true;
   }
 
@@ -146,7 +152,7 @@ export class Runtime {
     this.phase = 'init';
     this.waits = this.waits.filter((w) => w.kind !== 'load');
     this.waits.push({ kind: 'init', since: performance.now() });
-    this._post({ type: 'init', cathedral: this.cathedral });
+    this._post({ type: 'init', cathedral: this.cathedral, library: this.library || [] });
   }
 
   _becomeReady() {
@@ -160,12 +166,15 @@ export class Runtime {
   _sendLook() {
     this.lookDirty = false;
     this.lookVersion++;
-    this.lookQueue.push(new Map(this.layers.map((l) => [l.id, l.code])));
+    // Each layer's code and its modules' as sent, to tag the `compiled` reply with.
+    this.lookQueue.push(new Map(this.layers.map((l) => [l.id, { code: l.code,
+      modules: new Map((l.modules || []).map((m) => [m.id, m.code])) }])));
     this.waits.push({ kind: 'look', since: performance.now() });
     this._post({
-      type: 'look',
-      layers: this.layers.map(({ id, title, code, groups, blend, level, params, clips, enabled }) => (
-        { id, title, code, groups, blend, level, params, ...(clips ? { clips } : {}), enabled: enabled !== false })),
+      type: 'look', ...(this.extra || {}),
+      layers: this.layers.map(({ id, title, code, groups, blend, level, params, clips, enabled, modules }) => ({
+        id, title, groups, blend, level, ...(modules ? { modules } : { code, params }), ...(clips ? { clips } : {}),
+        enabled: enabled !== false })),
     });
   }
 
@@ -185,7 +194,11 @@ export class Runtime {
         this._done('look');
         if (this.phase === 'init') this._becomeReady();
         const codes = this.lookQueue.shift() || new Map();
-        this.onCompiled((Array.isArray(m.layers) ? m.layers : []).map((l) => ({ ...l, code: codes.get(l.id) })));
+        this.onCompiled((Array.isArray(m.layers) ? m.layers : []).map((l) => {
+          const sent = codes.get(l.id);
+          const modules = (l.modules || []).map((x) => ({ ...x, code: sent?.modules.get(x.id) }));
+          return { ...l, code: sent?.code, modules };
+        }));
         break;
       }
       case 'frame': {

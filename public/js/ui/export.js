@@ -107,7 +107,8 @@ export async function exportFseqDialog({ runtime, cathedral, title, duration = 3
   });
 }
 
-export function exportLookJson({ title, summary, layers, duration, bpm }) {
-  const data = JSON.stringify({ title, summary, duration, ...(bpm ? { bpm } : {}), layers }, null, 2) + '\n';
+export function exportLookJson({ title, summary, layers, duration, bpm, globals, automation }) {
+  const data = JSON.stringify({ title, summary, duration, ...(bpm ? { bpm } : {}), ...(globals ? { globals } : {}),
+    ...(automation ? { automation } : {}), layers }, null, 2) + '\n';
   download(data, `${slugify(title, 'folly-look')}.json`, 'application/json');
 }

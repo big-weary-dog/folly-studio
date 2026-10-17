@@ -32,7 +32,7 @@ export function importLookDialog({ currentId, onPick, signedOut }) {
       const none = scope === 'mine' ? 'You have no saved looks yet.' : 'The gallery is empty.';
       if (!sorted.length) list.append(h('li', { class: 'pane-hint', text: none }));
       for (const look of sorted) {
-        const n = (look.layers || []).length;
+        const n = look.layerCount ?? (look.layers || []).length;     // lists carry metadata only
         const meta = `${n} layer${n === 1 ? '' : 's'} · ${clock(look.duration || DEFAULT_DURATION)}`
           + `${look.id === currentId ? ' · this look (saved version)' : ''}`
           + `${scope === 'gallery' && look.ownerName ? ` · by ${look.ownerName}` : ''}`;
@@ -42,8 +42,16 @@ export function importLookDialog({ currentId, onPick, signedOut }) {
       }
     }
 
-    function pick(look) {
-      const error = onPick(look);
+    async function pick(look) {
+      let full;
+      try {
+        ({ look: full } = await api.look(look.id));
+      } catch (err) {
+        if (err.status === 401) { close(false); signedOut(); return; }
+        status.textContent = err.message;
+        return;
+      }
+      const error = onPick(full);
       if (error) status.textContent = error; else close(true);
     }
 

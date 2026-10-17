@@ -37,6 +37,17 @@ export function workerName(id) {
   return `idea-${s ? `${s}-` : ''}${(h >>> 0).toString(36)}`;
 }
 
+/**
+ * Do Fleet's boxes get a memory cap here? Fleet puts each box in a systemd user scope (MemoryMax=4G) when
+ * `systemd-run --user --scope` works; without a user bus (WSL, containers) it falls back to prlimit, which caps
+ * CPU seconds and tasks but not memory.
+ */
+export function hasMemoryCap({ bin = 'systemd-run', timeoutMs = 10_000 } = {}) {
+  return new Promise((resolve) => {
+    execFile(bin, ['--user', '--scope', '--quiet', 'true'], { timeout: timeoutMs }, (err) => resolve(!err));
+  });
+}
+
 /** Quote untrusted text in a fence it cannot close. */
 export function fenceUntrusted(text) {
   const t = String(text ?? '').replace(/\r\n?/g, '\n');
@@ -98,11 +109,13 @@ export function createFleetAdapter(o = {}) {
     maxFramesBytes: o.maxFramesBytes
       ?? parseBytes(env.STUDIO_FLEET_MAX_FRAMES, framesBytesFor(DEFAULT_BAKE_SECONDS)),
     coreFile: file('coreFile', 'public/js/pattern-core.js'),
+    patternsDir: file('patternsDir', 'public/patterns'), // the library, for use() inside the box
     cathedralFile: file('cathedralFile', 'public/data/cathedral.json'),
     briefTemplate: file('briefTemplate', 'fleet-box/BRIEF.template.md'),
     copies: { // what the workspace holds besides the bundled core, and where it comes from
       'fseq.js': file('fseqFile', 'public/js/fseq.js'), 'frames.js': file('framesLib', 'src/frames.js'),
       'cathedral.json': file('cathedralFile', 'public/data/cathedral.json'),
+      'palettes.json': file('palettesFile', 'public/data/palettes.json'), // a look's palette by name
       'check.mjs': file('checkFile', 'fleet-box/check.mjs'),
       'renderer.mjs': file('rendererFile', 'render-box/renderer.mjs'),
     },
@@ -134,7 +147,7 @@ export function createFleetAdapter(o = {}) {
   }
 
   async function prepareWorkspace({ name, ws, text, library, groups }) {
-    for (const f of [cfg.coreFile, cfg.briefTemplate, ...Object.values(cfg.copies)]) {
+    for (const f of [cfg.coreFile, cfg.briefTemplate, cfg.patternsDir, ...Object.values(cfg.copies)]) {
       if (!(await exists(f))) {
         throw new GenerateError('The Fleet generator is not set up on this server.', `missing ${f}`);
       }
@@ -150,6 +163,12 @@ export function createFleetAdapter(o = {}) {
     await fs.writeFile(path.join(ws, 'BRIEF.md'), renderBrief(template, { text, library, groups, lookPath }));
     // Plain copies (never hardlinks: the box refuses checkouts with shared hardlinks).
     for (const [to, from] of Object.entries(cfg.copies)) await fs.copyFile(from, path.join(ws, to));
+    await fs.mkdir(path.join(ws, 'patterns'));
+    for (const name of await fs.readdir(cfg.patternsDir)) {
+      if (name === 'index.json' || name.endsWith('.js')) {
+        await fs.copyFile(path.join(cfg.patternsDir, name), path.join(ws, 'patterns', name));
+      }
+    }
     await fs.writeFile(path.join(ws, 'pattern-core.js'), bundle(cfg.coreFile).text);
     await fs.writeFile(path.join(ws, 'package.json'), '{ "private": true, "type": "module" }\n');
     const git = (args) => run(cfg.git, args, { cwd: ws, timeoutMs: 30_000 });

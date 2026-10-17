@@ -51,12 +51,14 @@
   const now = () => performance.now();
 
   let cathedral = null;
+  let library = [];           // library sources for use(), from init
   let count = 0;
   let worker = null;
   let jobs = [];              // sent to `worker`, oldest first; the head is what it is working on
   let held = null;            // jobs that arrived while finding a culprit (null when not recovering)
   let sentLook = [];          // layers of the newest look given to the worker (as the app sent them)
   let baseLook = [];          // layers of the newest look the worker finished
+  let baseExtra = {};         // and its globals, automation and bpm
   const hung = new Map();     // id -> { code, error, params }: paused until its code changes
   const loadHangs = new Map(); // code -> error, for code whose top level hung (deterministic)
   const schemas = new Map();  // id -> last params schema, reported for paused layers
@@ -78,15 +80,20 @@
   }
 
   const layerId = (l, n) => (l && l.id !== undefined ? l.id : 'layer-' + n);
+  /** All of a layer's code, its modules' or its own: what a pause is keyed on. */
+  const codeOf = (l) => (Array.isArray(l.modules)
+    ? l.modules.map((m) => (m && typeof m.code === 'string' ? m.code : '')).join('\u0000')
+    : typeof l.code === 'string' ? l.code : '');
+  const lookExtra = (m) => ({ globals: m.globals, automation: m.automation, bpm: m.bpm });
   const enabled = (l) => l.enabled !== false
     && (typeof l.level === 'number' && Number.isFinite(l.level) ? l.level > 0 : true);
 
   /** Why a layer is held back from the worker, or null. */
   function paused(l) {
-    const load = typeof l.code === 'string' ? loadHangs.get(l.code) : undefined;
+    const load = loadHangs.get(codeOf(l));
     if (load) return { load: true, error: load };
     const h = hung.get(l.id);
-    return h && h.code === l.code ? h : null;
+    return h && h.code === codeOf(l) ? h : null;
   }
 
   function post(job) {
@@ -94,7 +101,7 @@
     if (job.type === 'look') {
       job.compiling = undefined;
       sentLook = job.layers;
-      worker.postMessage({ type: 'look', layers: job.layers.filter((l) => !paused(l)) });
+      worker.postMessage({ type: 'look', layers: job.layers.filter((l) => !paused(l)), ...job.extra });
     } else {
       if (job.type === 'frame' || job.type === 'render') job.look = sentLook;
       worker.postMessage(job.msg);
@@ -109,8 +116,9 @@
     switch (msg.type) {
       case 'init':
         cathedral = msg.cathedral;
+        library = Array.isArray(msg.library) ? msg.library : [];
         count = cathedral && cathedral.count > 0 ? cathedral.count | 0 : 0;
-        job = { type: 'init', msg: { type: 'init', cathedral } };
+        job = { type: 'init', msg: { type: 'init', cathedral, library } };
         break;
       case 'look': {
         // Layer objects pass through intact (clips, params, …); only a missing id is filled in.
@@ -119,9 +127,9 @@
           .map((l, n) => (l.id !== undefined ? l : { ...l, id: layerId(l, n) }));
         for (const [id, h] of hung) {
           const l = layers.find((x) => x.id === id);
-          if (!l || l.code !== h.code) hung.delete(id);     // edited or gone: give it another go
+          if (!l || codeOf(l) !== h.code) hung.delete(id);  // edited or gone: give it another go
         }
-        job = { type: 'look', layers };
+        job = { type: 'look', layers, extra: lookExtra(msg) };
         break;
       }
       case 'frame':
@@ -177,6 +185,7 @@
   function finish(job, m) {
     if (job.type === 'look' && m.type === 'compiled') {
       baseLook = job.layers;
+      baseExtra = job.extra;
       for (const r of Array.isArray(m.layers) ? m.layers : []) {
         if (r && r.ok && r.params && typeof r.params === 'object') schemas.set(r.id, r.params);
       }
@@ -205,7 +214,10 @@
       if (p) return { id: l.id, ok: true, params: p.params || schemas.get(l.id) || {} };
       const r = byId.get(l.id);
       if (!r) return { id: l.id, ok: false, error: 'The sandbox did not report this layer.', params: {} };
-      const out = { id: l.id, ok: !!r.ok, params: r.params && typeof r.params === 'object' ? r.params : {} };
+      const out = { id: l.id, ok: !!r.ok, params: r.params && typeof r.params === 'object' ? r.params : {},
+        modules: (Array.isArray(r.modules) ? r.modules : []).filter((x) => x && typeof x === 'object')
+          .map((x) => ({ id: x.id, ok: !!x.ok, params: x.params && typeof x.params === 'object' ? x.params : {},
+            ...(x.ok ? {} : { error: String(x.error || 'error') }) })) };
       if (!r.ok) out.error = String(r.error || 'error');
       return out;
     });
@@ -214,7 +226,8 @@
   /** Frame errors, plus one for each paused layer that would be playing. */
   function withPaused(errors, look) {
     const out = (Array.isArray(errors) ? errors : []).filter((e) => e && typeof e === 'object')
-      .map((e) => ({ id: e.id, error: String(e.error) }));
+      .map((e) => (e.module == null ? { id: e.id, error: String(e.error) }
+        : { id: e.id, module: e.module, error: String(e.error) }));
     for (const l of look || []) {
       const p = enabled(l) && paused(l);
       if (p && !out.some((e) => e.id === l.id)) out.push({ id: l.id, error: p.error });
@@ -269,7 +282,7 @@
       // The worker says which layer it was compiling; top-level code hangs the same way each time.
       const l = job.layers.find((x) => x.id === job.compiling);
       if (l) {
-        remember(loadHangs, l.code, 'Pattern hung while loading: its top-level code ran for over 1 s, '
+        remember(loadHangs, codeOf(l), 'Pattern hung while loading: its top-level code ran for over 1 s, '
           + 'so this version is paused. Edit the code to try again.');
       }
     } else if (job.type === 'frame' || job.type === 'render') {
@@ -291,7 +304,7 @@
           toApp({ type: 'error', seq: job.seq, request: 'frame', error });
         }
       }
-      for (const l of culprits) hung.set(l.id, { code: l.code, error, params: schemas.get(l.id) });
+      for (const l of culprits) hung.set(l.id, { code: codeOf(l), error, params: schemas.get(l.id) });
       if (job.type === 'render') {
         const names = culprits.map((l) => `“${l.title || l.id}”`).join(', ');
         renderError = culprits.length ? `Export stopped: ${names} hung at ${t.toFixed(2)} s and `
@@ -313,8 +326,8 @@
     held = null;
     worker = startWorker();
     if (!worker) return;
-    if (cathedral) post({ type: 'init', internal: true, msg: { type: 'init', cathedral } });
-    post({ type: 'look', internal: true, layers: baseLook });
+    if (cathedral) post({ type: 'init', internal: true, msg: { type: 'init', cathedral, library } });
+    post({ type: 'look', internal: true, layers: baseLook, extra: baseExtra });
     for (const j of pending) {
       if (j.internal || j.answered) continue;
       if (j === hungJob && j.type === 'render') {
@@ -361,8 +374,8 @@
         } else if (started && m.type === 'frame' && m.seq === -1) done('ok');
         else if (m.type === 'error') done('ok');          // an error is not a hang
       };
-      w.postMessage({ type: 'init', cathedral });
-      w.postMessage({ type: 'look', layers: [layer] });
+      w.postMessage({ type: 'init', cathedral, library });
+      w.postMessage({ type: 'look', layers: [layer], ...baseExtra });
       w.postMessage({ type: 'frame', seq: -1, t });
     });
   }

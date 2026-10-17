@@ -3,6 +3,7 @@
 // Everything in the system prompt is static for a given library + group list, so it caches;
 // the idea text, which is untrusted, only ever goes in the user turn.
 
+import { PALETTE_NAMES } from '../look-globals.js';
 import { BLENDS, LIMITS } from './validate.js';
 
 export const FOLLY = `The Gothic Folly is a full-scale LED cathedral built for Burning Man: a playa-facing portal
@@ -54,7 +55,9 @@ pulse(x, width) (1 near 0 falling to 0 at ±width, wrapping), hash(n) and rand(a
 (stable 0..1), noise(x, y?, z?, w?) (smooth 0..1), fbm(x, y, z, octaves=4), hsv(h, s, v),
 hsl(h, s, l), rgb(r, g, b), hex('#rrggbb'), scale(c, k), add(c1, c2),
 gradient(t, [c0, c1, ...]), cosPalette(t, a, b, c, d) (Inigo Quilez), beat(t, bpm) (phase 0..1),
-dist(x1,y1,z1,x2,y2,z2). Colours are [r, g, b] arrays, 0..1.
+dist(x1,y1,z1,x2,y2,z2), pal(role, t) (the look's palette: role 'low' | 'body' | 'accent' | 'high', t 0..1
+across that role's colours), palette(t) (all its colours, low to high), use(name, params?) (a library
+pattern as a function (p, t) → colour; call it at the top level). Colours are [r, g, b] arrays, 0..1.
 
 Rules for code:
 - pixel() runs ~195,000 times a second: keep it cheap, no big allocations per call; put
@@ -66,7 +69,17 @@ Rules for code:
 A look is a stack of up to ${LIMITS.layers} layers, composited bottom (first) to top. Each layer runs
 one pattern on a union of groups. Blend: \`add\` sums light (default), \`over\` replaces where
 the layer has alpha × level, \`max\` keeps the brighter channel, \`multiply\` tints what is below.
-\`level\` is 0..1.`;
+\`level\` is 0..1.
+
+Instead of one pattern, a layer may be a chain of modules, run in order for every LED:
+- \`source\`: \`function pixel(p, t, P, G)\` draws, as above. The first combines \`over\`, later ones \`add\`
+  (or their own \`blend\`). \`as: "input"\` hides it: it only feeds filters.
+- \`warp\`: \`function warp(q, t, P, G)\` changes q (a copy of p: lx ly lz a r u i …) for the modules after it.
+- \`filter\`: \`function filter(c, q, t, P, G, x)\` returns a new colour for the chain so far, c = [r, g, b, a]
+  (change it and return it); x is the colour of the source its \`input\` names (an earlier module's id).
+So "meteors only inside clouds, mirrored" is [warp mirror, source meteors, source clouds as input, filter mask
+with input = the clouds' id]. A module with a \`ref\` names the library entry it copies; still give its code.
+\`G\` holds the look's globals: G.energy (0..1, calm → busy), the palette, and each macro by name.`;
 
 export const TASTE = `- Colour at full strength. A palette sets hue, not brightness: saturated colours at full value.
   Warm colours at half brightness read as brown and olive.
@@ -80,6 +93,12 @@ export const TASTE = `- Colour at full strength. A palette sets hue, not brightn
   for punctuation, the highlight sparingly.
 - Safety: no large-area flashing or strobing faster than about 3 Hz.`;
 
+export const GLOBALS_GUIDE = `A look may set globals: speed (0..4, 1), level (0..1), hue (−0.5..0.5 turns), saturation
+(0..2, 1), energy (0..1, 0.5), palette (one of ${PALETTE_NAMES.join(', ')}: patterns read it with pal() and
+palette(), so a look in palette colours follows the one picked), and macros [{ name, value, min, max }] that
+patterns read as G.<name>. automation [{ name, points: [[seconds, value], …] }] moves a global or macro over
+time, linearly between points: energy that builds from 0.2 to 1 over a minute, a storm macro that rises.`;
+
 const FEATURES = [/function\s+frame\b/, /\bp\.u\b/, /\bp\.(a|r)\b/, /\bp\.(row|petal)\b/, /\b(noise|fbm)\(/, /\bbeat\(/,
   /\bp\.l[xyz]\b/];
 
@@ -89,7 +108,7 @@ const FEATURES = [/function\s+frame\b/, /\bp\.u\b/, /\bp\.(a|r)\b/, /\bp\.(row|p
  */
 export function pickExamples(library = [], count = 4) {
   const pool = library
-    .filter((p) => p && typeof p.code === 'string' && p.code.length <= 4000)
+    .filter((p) => p && typeof p.code === 'string' && p.code.length <= 4000 && (p.kind ?? 'source') === 'source')
     .slice()
     .sort((a, b) => String(a.name).localeCompare(String(b.name)));
   const chosen = [];
@@ -171,7 +190,8 @@ export function formatGroups(groups = []) {
 function formatLibraryIndex(library) {
   const summary = (p) => (p.summary ? ` — ${String(p.summary).replace(/\s+/g, ' ').slice(0, 140)}` : '');
   return library.filter((p) => p && p.name).slice(0, 40)
-    .map((p) => `- ${p.name}${p.title ? `: ${p.title}` : ''}${summary(p)}`).join('\n');
+    .map((p) => `- ${p.name}${p.kind && p.kind !== 'source' ? ` (${p.kind})` : ''}${p.title ? `: ${p.title}` : ''}`
+      + summary(p)).join('\n');
 }
 
 export function formatExamples(examples) {
@@ -183,6 +203,8 @@ export function formatExamples(examples) {
 /** The system prompt for the claude adapter. Pure function of (library, groups). */
 export function buildSystemPrompt({ library = [], groups = [] } = {}) {
   const examples = pickExamples(library);
+  const mask = library.find((p) => p && p.name === 'mask' && typeof p.code === 'string');
+  if (mask) examples.push(mask);
   const index = formatLibraryIndex(library);
   const lib = (index ? `The studio library has these patterns; adapt their ideas freely:\n${index}\n\n` : '')
     + (examples.length ? `Examples of good pattern code:\n\n${formatExamples(examples)}` : '');
@@ -195,6 +217,9 @@ ${FOLLY}
 # Pattern code
 ${PATTERN_GUIDE}
 
+# Globals
+${GLOBALS_GUIDE}
+
 # Groups (use these ids exactly; a layer's groups are a union)
 ${GROUPS_NOTE}
 ${formatGroups(groups) || 'cathedral — Cathedral'}
@@ -206,14 +231,17 @@ ${TASTE}
 ${lib}
 
 # What to return
-A JSON object { "title", "summary", "duration"?,
-"layers": [{ "title", "groups", "blend", "level", "clips"?, "code" }] }:
+A JSON object { "title", "summary", "duration"?, "globals"?, "automation"?,
+"layers": [{ "title", "groups", "blend", "level", "clips"?, "code" or "modules" }] }:
 - title: a short evocative name for the look (at most ${LIMITS.title} characters).
 - summary: one to three sentences on what people will see and where (at most ${LIMITS.summary} characters).
 - layers: 1 to ${LIMITS.layers}, bottom first. Usually a base layer on "cathedral" and one or two
   accents on the groups the idea names. Each layer's code is a complete pattern script that
   defines function pixel(p, t, P) and stays under 20 kB. blend is one of ${BLENDS.join(', ')}.
-  level is 0..1 (usually 1).
+  level is 0..1 (usually 1). A layer may give "modules" instead of "code": [{ "id", "kind", "title",
+  "ref"?, "code", "input"?, "as"?, "blend"? }], each module's code defining its kind's function.
+- globals and automation (optional): set a palette that suits the idea; automate energy or a macro
+  when the idea builds or changes over time.
 - duration and clips (both optional, and most looks need neither): a look plays for duration
   seconds (default 30, at most ${LIMITS.duration}) and loops. When the idea describes a progression
   ("starts calm, builds to a storm, then fades to embers"), set duration (usually 30–120) and
@@ -257,10 +285,18 @@ export function lookSchema(groups = []) {
   const obj = (properties, required = Object.keys(properties)) => ({ type: 'object', properties, required,
     additionalProperties: false });
   const clip = obj({ start: num, end: num, fadeIn: num, fadeOut: num });
+  const blend = { type: 'string', enum: [...BLENDS] };
+  const module = obj({ id: str, kind: { type: 'string', enum: ['source', 'warp', 'filter'] }, title: str, ref: str,
+    code: str, input: str, as: { type: 'string', enum: ['input'] }, blend }, ['id', 'kind', 'title', 'code']);
   const layer = obj({
     title: str, groups: { type: 'array', items: ids.length <= 400 ? { type: 'string', enum: ids } : str },
-    blend: { type: 'string', enum: [...BLENDS] }, level: num, clips: { type: 'array', items: clip }, code: str,
-  }, ['title', 'groups', 'blend', 'level', 'code']);
-  const look = { title: str, summary: str, duration: num, layers: { type: 'array', items: layer } };
+    blend, level: num, clips: { type: 'array', items: clip }, code: str, modules: { type: 'array', items: module },
+  }, ['title', 'groups', 'blend', 'level']);
+  const globals = obj({ speed: num, level: num, hue: num, saturation: num, energy: num,
+    palette: { type: 'string', enum: [...PALETTE_NAMES] },
+    macros: { type: 'array', items: obj({ name: str, value: num, min: num, max: num }) } }, []);
+  const lane = obj({ name: str, points: { type: 'array', items: { type: 'array', items: num } } });
+  const look = { title: str, summary: str, duration: num, globals, automation: { type: 'array', items: lane },
+    layers: { type: 'array', items: layer } };
   return obj(look, ['title', 'summary', 'layers']);
 }

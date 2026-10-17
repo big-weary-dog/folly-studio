@@ -9,12 +9,12 @@ import { writeFseq } from '../public/js/fseq.js';
 import { layersHash, parseDuration } from '../src/bake.js';
 import { bundle } from '../src/bundle.js';
 import { analyzeFrames, parseFseq } from '../src/frames.js';
-import { createFleetAdapter, fenceUntrusted, readLook, workerName } from '../src/generate/fleet.js';
-import { createQueue } from '../src/generate/index.js';
+import { createFleetAdapter, fenceUntrusted, hasMemoryCap, readLook, workerName } from '../src/generate/fleet.js';
+import { createQueue, foundryFromEnv } from '../src/generate/index.js';
 import { sketchLook } from '../src/generate/sketch.js';
 import { GenerateError, validateLook } from '../src/generate/validate.js';
 import {
-  FIX, fakeStore, goodLayer, GROUPS, LIBRARY, lookJson, quiet, STUDIO, tmp,
+  FIX, fakeStore, goodLayer, GROUPS, LIBRARY, lookJson, queueSetup, quiet, STUDIO, tmp,
 } from './fixtures/generate/shared.js';
 
 describe('fleet (experimental, stub CLI)', () => {
@@ -172,8 +172,9 @@ describe('fleet (experimental, stub CLI)', () => {
     const store = fakeStore();
     const user = store.users.create({ username: 'ana', role: 'member' });
     const framesDir = path.join(tmp('frames-dir'), 'frames');
+    const foundry = { on: true, memoryCap: async () => true };
     const queue = createQueue({ store, adapters: { fleet: adapter }, adapterName: 'fleet', loadGroups: () => GROUPS,
-      log: quiet, framesDir });
+      log: quiet, framesDir, foundry });
     const idea = store.ideas.create({ owner: user.id, text: 'glow', status: 'queued' });
     queue.enqueue(idea);
     await queue.idle();
@@ -189,7 +190,7 @@ describe('fleet (experimental, stub CLI)', () => {
     // Without anywhere to put frames, the bake says so instead of pretending.
     const { adapter: again } = withBake('ok', frames);
     const q2 = createQueue({ store, adapters: { fleet: again }, adapterName: 'fleet', loadGroups: () => GROUPS,
-      log: quiet });
+      log: quiet, foundry });
     const i2 = store.ideas.create({ owner: user.id, text: 'glow', status: 'queued' });
     q2.enqueue(i2);
     await q2.idle();
@@ -343,5 +344,69 @@ describe('fleet-box/check.mjs (boxed worker side, real runtime)', () => {
     const t = parseFseq(fs.readFileSync(path.join(dir, 'frames.fseq')));
     assert.equal(t.frameCount, 60);
     assert.deepEqual([0, 19, 20, 39, 40, 59].map((n) => t.data[n * t.channelCount]), [0, 0, 255, 255, 0, 0]);
+  });
+});
+
+describe('the Fleet foundry is opt-in', () => {
+  /** A queue whose fleet and sketch adapters only record what they were given; fleet waits for release(). */
+  function foundryQueue(foundry, extra = {}) {
+    const ran = [];
+    let release;
+    const gate = new Promise((r) => (release = r));
+    const warnings = [];
+    const log = { ...quiet, warn: (m) => warnings.push(m) };
+    const adapters = {
+      fleet: async ({ text }) => {
+        ran.push(['fleet', text]);
+        await gate;
+        return { title: text, layers: [goodLayer()] };
+      },
+      sketch: async ({ text }) => { ran.push(['sketch', text]); return { title: text, layers: [goodLayer()] }; },
+    };
+    const setup = queueSetup(createQueue, { adapterName: 'fleet', adapters, foundry, log, ...extra });
+    return { ...setup, ran, release, warnings };
+  }
+  const settle = () => new Promise((r) => setTimeout(r, 20));
+
+  test('off by default: deep ideas go to the one-shot generator, and the log says why', async () => {
+    assert.deepEqual({ ...foundryFromEnv({}), memoryCap: 0 }, { on: false, wait: false, memoryCap: 0 });
+    assert.equal(foundryFromEnv({ STUDIO_FOUNDRY: 'on', STUDIO_FOUNDRY_WAIT: '1' }).on, true);
+    const { queue, idea, ran, warnings, store } = foundryQueue({ on: false });
+    assert.equal(queue.adapterName, 'sketch');
+    const i = idea('embers');
+    queue.enqueue(i);
+    await queue.idle();
+    assert.deepEqual(ran, [['sketch', 'embers']]);
+    assert.equal(store.ideas.get(i.id).generator, 'sketch');
+    assert.match(warnings.join('\n'), /foundry is off \(STUDIO_FOUNDRY=on runs it\); ideas go to sketch/);
+  });
+
+  test('on: one job at a time; while busy the next goes one-shot, or waits with STUDIO_FOUNDRY_WAIT', async () => {
+    const busy = foundryQueue({ on: true, memoryCap: async () => true });
+    busy.queue.enqueue(busy.idea('first'));
+    busy.queue.enqueue(busy.idea('second'));
+    await settle();
+    assert.deepEqual(busy.ran, [['fleet', 'first'], ['sketch', 'second']]);
+    busy.release();
+    await busy.queue.idle();
+    assert.deepEqual(busy.warnings, [], 'a memory cap: no warning');
+
+    const waiting = foundryQueue({ on: true, wait: true, memoryCap: async () => true });
+    waiting.queue.enqueue(waiting.idea('first'));
+    waiting.queue.enqueue(waiting.idea('second'));
+    await settle();
+    assert.deepEqual(waiting.ran, [['fleet', 'first']]);
+    assert.equal(waiting.queue.size, 2);
+    waiting.release();
+    await waiting.queue.idle();
+    assert.deepEqual(waiting.ran, [['fleet', 'first'], ['fleet', 'second']]);
+  });
+
+  test('a host without a systemd user bus gets a clear warning: boxes have no memory cap', async () => {
+    const { warnings, release } = foundryQueue({ on: true, memoryCap: async () => false });
+    await settle();
+    release();
+    assert.match(warnings.join('\n'), /no systemd user bus .* NO MEMORY CAP/);
+    assert.equal(await hasMemoryCap({ bin: path.join(STUDIO, 'no-such-systemd-run') }), false);
   });
 });

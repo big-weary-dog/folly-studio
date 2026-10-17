@@ -33,6 +33,11 @@ const STDLIB = [
     ['hsv(h, s, v)', ''], ['hsl(h, s, l)', ''], ['rgb(r, g, b)', ''], ["hex('#rrggbb')", ''],
     ['scale(c, k)', ''], ['add(c1, c2)', ''], ['gradient(t, [c0, c1, …])', ''],
     ['cosPalette(t, a, b, c, d)', 'Inigo Quilez palettes'],
+    ['pal(role, t)', "the look's palette: 'low' 'body' 'accent' 'high'"], ['palette(t)', 'all of it, low to high'],
+  ]],
+  ['Composing', [
+    ['use(name, params?)', 'a library source as (p, t) → colour; call it at the top'],
+    ['G', 'the look: G.energy 0..1, G.palette, each macro as G.name'],
   ]],
 ];
 
@@ -42,11 +47,13 @@ const SKELETON = `const params = {
   glow:  { value: true, type: 'toggle' },
 };
 
-function frame(t, P) {}       // optional, once per frame
+function frame(t, P, G) {}    // optional, once per frame
 
-function pixel(p, t, P) {     // every LED, every frame
+function pixel(p, t, P, G) {  // a source: every LED, every frame
   return [r, g, b];           // 0..1 each, optional 4th = alpha
-}`;
+}
+// a warp:   function warp(q, t, P, G) { q.lz = 1 - q.lz; }
+// a filter: function filter(c, q, t, P, G, x) { return c; }`;
 
 export function quickReference(onInsert) {
   const name = (text, insert = text, title) => h('button', { type: 'button', class: 'ref-name', text, title,

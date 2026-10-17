@@ -1,6 +1,18 @@
-// Controls for a layer's `params` (SPEC "Pattern code"): numbers become sliders, `type: 'color'` colour
-// pickers, `type: 'toggle'` switches.
+// Controls for a module's `params` (SPEC "Pattern code"): numbers become sliders (each can be modulated: SPEC
+// "Param bindings"), `type: 'color'` colour pickers, `type: 'toggle'` switches.
 import { h, clear, nextId, humanize } from './dom.js';
+
+/** Is v a param binding ({ mod: 'lfo' | 'global' | 'envelope', … }) rather than a value? */
+export const isBinding = (v) => !!v && typeof v === 'object' && !Array.isArray(v) && typeof v.mod === 'string';
+const fmt3 = (v) => String(Math.round(v * 1000) / 1000);
+
+/** A binding in a few words: "LFO sine · 0.25 Hz", "energy → 0–2", "envelope → 0–1". */
+export function bindingText(b) {
+  if (!isBinding(b)) return '';
+  if (b.mod === 'lfo') return `LFO ${b.shape || 'sine'} · ${fmt3(b.rate ?? 1)} ${b.unit === 'beats' ? '/beat' : 'Hz'}`;
+  const range = b.from !== undefined || b.to !== undefined ? ` → ${fmt3(b.from ?? 0)}–${fmt3(b.to ?? 1)}` : '';
+  return `${b.mod === 'global' ? b.name : 'envelope'}${range}`;
+}
 
 /** Normalise one schema entry into { kind, value, min, max, step, label }. */
 export function normaliseParam(key, raw) {
@@ -57,7 +69,7 @@ export class ParamsPanel {
     container.append(this.body);
   }
 
-  /** set(layerId, schema (the code's `params`, from the sandbox), values (layer.params), note? { message }) */
+  /** set(key (layer/module), schema (the code's `params`, from the sandbox), values (module.params), note?) */
   set(layerId, schema, values, note) {
     const entries = schema && typeof schema === 'object'
       ? Object.entries(schema).map(([k, raw]) => [k, normaliseParam(k, raw)]).filter(([, p]) => p)
@@ -96,7 +108,12 @@ export class ParamsPanel {
       title: 'Reset to default', text: '↺', onClick: () => this.h.onReset(key) });
     const c = { p, reset };
     let field;
+    let mod = null;
     if (p.kind === 'number') {
+      c.modBtn = mod = h('button', { type: 'button', class: 'param-mod', text: '∿', 'aria-pressed': 'false',
+        'aria-label': `Modulate ${p.label}`, title: 'Modulate: an LFO, a global or the clip envelope',
+        onClick: () => this.h.onModulate(key, p) });
+      c.chip = h('span', { class: 'param-chip', hidden: true });
       c.range = h('input', { type: 'range', id, min: p.min, max: p.max, step: p.step });
       c.num = h('input', { type: 'number', class: 'param-num', min: p.min, max: p.max, step: p.step,
         'aria-label': `${p.label} value` });
@@ -111,7 +128,7 @@ export class ParamsPanel {
         const v = parseFloat(c.num.value);
         this.h.onChange(key, Number.isFinite(v) ? v : p.value);
       });
-      field = h('div', { class: 'param-field' }, c.range, c.num);
+      field = h('div', { class: 'param-field' }, c.range, c.num, c.chip);
     } else if (p.kind === 'color') {
       c.color = h('input', { type: 'color', id, class: 'param-color' });
       c.hex = h('span', { class: 'param-hex' });
@@ -128,7 +145,7 @@ export class ParamsPanel {
     }
     this.controls.set(key, c);
     return h('div', { class: ['param', `param-${p.kind}`] },
-      h('div', { class: 'param-head' }, h('label', { for: id, text: p.label }), reset),
+      h('div', { class: 'param-head' }, h('label', { for: id, text: p.label }), mod, reset),
       field);
   }
 
@@ -137,9 +154,15 @@ export class ParamsPanel {
       const has = Object.prototype.hasOwnProperty.call(values, key), p = c.p;
       let v;
       if (p.kind === 'number') {
-        v = has && Number.isFinite(+values[key]) ? +values[key] : p.value;
-        if (document.activeElement !== c.range && +c.range.value !== v) c.range.value = String(v);
-        if (document.activeElement !== c.num) c.num.value = c.fmt(v);
+        const bound = has && isBinding(values[key]);
+        c.range.disabled = c.num.disabled = bound;
+        c.chip.hidden = !bound;
+        c.chip.textContent = bound ? bindingText(values[key]) : '';
+        c.modBtn.setAttribute('aria-pressed', String(bound));
+        v = has && !bound && Number.isFinite(+values[key]) ? +values[key] : p.value;
+        if (bound) v = NaN;
+        else if (document.activeElement !== c.range && +c.range.value !== v) c.range.value = String(v);
+        if (document.activeElement !== c.num) c.num.value = bound ? '' : c.fmt(v);
       } else if (p.kind === 'color') {
         v = has ? toHex(values[key]) : p.value;
         if (c.color.value !== v) c.color.value = v;

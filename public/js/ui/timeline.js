@@ -29,9 +29,14 @@ export class Timeline {
     this.ruler = h('div', { class: 'tl-ruler', title: 'Click or drag to move the playhead' }, this.canvas);
     this.rowsEl = h('div', { class: 'tl-rows' });
     this.head = h('div', { class: 'tl-playhead', 'aria-hidden': 'true' });
+    // Automation lanes go under the layers: timeline-auto.js, loaded once a look has some or asks for some.
+    this.auto = null;
+    this.autoSlot = h('div', { class: 'tl-auto-head' }, h('div', { class: 'tl-corner tl-auto-corner',
+      text: 'Automation' }), h('div', { class: 'tl-auto-tools' }, h('button', { type: 'button', class: 'btn small',
+      text: '+ Automate…', onClick: () => this.loadAuto(true) })));
     this.inner = h('div', { class: 'tl-inner' },
       h('div', { class: 'tl-head-row' }, h('div', { class: 'tl-corner', text: 'Layers' }), this.ruler),
-      this.rowsEl, this.head);
+      this.rowsEl, this.autoSlot, this.head);
     this.scroll = h('div', { class: 'tl-scroll', tabindex: -1, role: 'group',
       'aria-label': 'Timeline, top layer first. On a selected clip, arrows move it, Shift+arrows '
         + 'change its length and Delete removes it.' }, this.inner);
@@ -123,6 +128,16 @@ export class Timeline {
     this.placeHead(true);
   }
 
+  /** Load the automation lanes in place of their placeholder (open: show what can be automated). */
+  loadAuto(open = false) {
+    this.autoP ||= import('./timeline-auto.js').then(({ AutoLanes }) => {
+      this.auto = new AutoLanes(this);
+      this.autoSlot.replaceWith(this.auto.el);
+      this.auto.render();
+    });
+    if (open) this.autoP.then(() => this.auto.add.focus());
+  }
+
   /** Zoom by `factor`, keeping the time under `anchor` (px into the lanes) in place. */
   zoom(factor, anchor = this.viewW / 2) {
     if (this.mode !== 'wide') return;
@@ -152,6 +167,7 @@ export class Timeline {
       this.paintRow(r, l, l.id === selectedId);
     }
     this.el.classList.toggle('tl-empty', !layers.length);
+    if (this.auto) this.auto.render(); else if (this.look.automation) this.loadAuto();
     this.tools.update();
   }
 

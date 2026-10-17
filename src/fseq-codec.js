@@ -32,20 +32,29 @@ export const HAS_ZSTD = probeZstd();
 export const FSEQ_CODEC = HAS_ZSTD ? 'zstd' : 'zlib';
 const zstd = HAS_ZSTD ? promisify(zlib.zstdCompress) : null;
 const deflate = promisify(zlib.deflate);
+const ZSTD_OPTS = { params: { [zlib.constants.ZSTD_c_compressionLevel]: ZSTD_LEVEL } };
 const COMPRESS = {
-  zstd: (b) => zstd(b, { params: { [zlib.constants.ZSTD_c_compressionLevel]: ZSTD_LEVEL } }),
+  zstd: (b) => zstd(b, ZSTD_OPTS),
   zlib: (b) => deflate(b, { level: ZLIB_LEVEL }),
 };
+const COMPRESS_SYNC = {
+  zstd: (b) => zlib.zstdCompressSync(b, ZSTD_OPTS),
+  zlib: (b) => zlib.deflateSync(b, { level: ZLIB_LEVEL }),
+};
 
-/** A parsed FSEQ as a compressed file: 80-frame blocks, compressed in the thread pool one at a time. */
-export async function compressFseq(parsed, { codec = FSEQ_CODEC, blockFrames = 80, uniqueId } = {}) {
+/**
+ * A parsed FSEQ as a compressed file: 80-frame blocks, compressed one at a time in the thread pool, or on
+ * the calling thread with `sync` (the server's low-priority worker).
+ */
+export async function compressFseq(parsed, { codec = FSEQ_CODEC, blockFrames = 80, uniqueId, sync = false } = {}) {
   if (!COMPRESS[codec] || (codec === 'zstd' && !HAS_ZSTD)) {
     throw new Error(`compressFseq: no ${codec} in this Node`);
   }
   const { data, channelCount, frameCount, stepMs, sparse, ranges, variables = {} } = parsed;
   const blocks = [];
   for (const [frame, count] of fseqBlocks(frameCount, blockFrames)) {
-    const bytes = await COMPRESS[codec](data.subarray(frame * channelCount, (frame + count) * channelCount));
+    const block = data.subarray(frame * channelCount, (frame + count) * channelCount);
+    const bytes = sync ? COMPRESS_SYNC[codec](block) : await COMPRESS[codec](block);
     blocks.push({ frame, bytes: new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.length) });
   }
   return writeFseq({ frames: frameCount, stepMs, media: variables.mf, uniqueId,

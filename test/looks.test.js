@@ -190,23 +190,25 @@ describe('looks', () => {
   test('bake: queued render, frames download, flicker blocks review', async () => {
     const strobe = (await alice.post('/api/looks', { title: 'Strobe!  "x"',
       layers: [layer({ code: `// STROBE\n${PIXEL}` })], shared: true })).json.look;
-    const calm = (await alice.post('/api/looks', { title: 'Calm', layers: [layer()] })).json.look;
+    // Code no other look has baked: the same render would take those frames instead of baking.
+    const calm = (await alice.post('/api/looks', { title: 'Calm', layers: [layer({ code: `// calm\n${PIXEL}` })] }))
+      .json.look;
     assert.equal((await alice.get(`/api/looks/${calm.id}/frames`)).status, 404, 'nothing baked yet');
 
     assert.equal((await bob.post(`/api/looks/${strobe.id}/bake`)).status, 403, 'not the owner, not a curator');
     assert.equal((await bob.post(`/api/looks/${calm.id}/bake`)).status, 404, 'private');
+    const before = box.renders;
     const queued = await alice.post(`/api/looks/${strobe.id}/bake`);
     assert.equal(queued.status, 202);
     assert.equal(queued.json.bake.source, 'render-box');
     assert.ok(['queued', 'running'].includes(queued.json.bake.status));
     assert.equal((await carol.post(`/api/looks/${calm.id}/bake`)).status, 404,
       'a curator bakes only what they can see');
-    const before = box.renders;
     assert.equal((await alice.post(`/api/looks/${calm.id}/bake`)).status, 202);
     assert.ok(['queued', 'running'].includes((await alice.post(`/api/looks/${calm.id}/bake`)).json.bake.status),
       'asking again while queued is the same bake');
     await app.bakes.idle();
-    assert.equal(box.renders, before + 1);
+    assert.equal(box.renders, before + 2, 'the strobe once, the calm look once');
 
     const { bake } = (await alice.get(`/api/looks/${strobe.id}`)).json.look;
     assert.equal(bake.status, 'done');

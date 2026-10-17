@@ -1,0 +1,96 @@
+/* Composition (loaded by js/ui/studio.js): module chains, param modulation, the look's globals and automation lanes.
+   A module's kind is its glass: warps cobalt, sources amber, filters ruby. */
+[data-kind=warp] { --kind: var(--cobalt-t); }
+[data-kind=source] { --kind: var(--amber); }
+[data-kind=filter] { --kind: var(--ruby); }
+.kind-badge { flex: none; padding: 1px 6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--kind, var(--sand));
+  background: color-mix(in srgb, var(--kind, var(--sand)) 16%, var(--night-0));
+  border: var(--came-s) solid var(--lead); box-shadow: var(--bevel); }
+.kind-badge:empty { display: none; }
+/* the chain: small panes in lead, first module first */
+.chain-head, .module-label, .globals-h-row { display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; }
+.chain-title, .globals-h { margin: 0; color: var(--sand); font-size: 11.5px; font-weight: 700; letter-spacing: .14em;
+  text-transform: uppercase; }
+.chain-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.chain-row { padding: 3px 4px 3px 6px; border: var(--came-s) solid var(--lead); box-shadow: var(--bevel);
+  background: color-mix(in srgb, var(--kind) 6%, var(--night-1)); }
+.chain-row.selected { background: color-mix(in srgb, var(--kind) 15%, var(--night-2));
+  box-shadow: inset 3px 0 0 var(--kind), inset 0 0 14px -6px var(--kind); }
+.chain-row.off .chain-name, .chain-row.off .kind-badge { opacity: .45; }
+.chain-top, .chain-bottom, .param-field, .globals-row, .macro, .swatch-row { display: flex; align-items: center;
+  gap: 6px; }
+.chain-bottom { padding-left: 4px; font-size: 12px; color: var(--text-3); }
+.chain-bottom:has(> [hidden]) { display: none; }
+.chain-name { flex: 1; min-width: 0; min-height: var(--hit, 28px); padding: 2px; text-align: left; font-size: 13.5px;
+  font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: none; border: 0;
+  cursor: pointer; }
+.chain-row .status-dot { width: 9px; height: 9px; color: var(--emerald); }
+.chain-row[data-status=pending] .status-dot { color: var(--amber); }
+.chain-row[data-status=compile] .status-dot, .chain-row[data-status=runtime] .status-dot,
+  .chain-row[data-status=hung] .status-dot { color: var(--ruby); }
+.chain-row[data-status=off] .status-dot { color: var(--text-3); }
+.chain-row .icon-btn { width: var(--hit, 24px); height: var(--hit, 24px); font-size: 13px; }
+.chain-select { flex: 1; min-height: var(--hit, 26px); padding: 1px 26px 1px 6px; font-size: 12.5px; }
+.module-title-field { padding-top: 6px; border-top: var(--came-s) solid var(--lead); }
+/* modulation: a ∿ beside a number, lit when something moves it */
+.param-mod { min-width: var(--hit, 26px); min-height: var(--hit, 26px); margin-left: auto; padding: 0 4px;
+  font-size: 15px; color: var(--text-3); background: none; border: 0; cursor: pointer; }
+.param-mod:hover { color: var(--sand); }
+.param-mod[aria-pressed=true] { color: var(--violet); text-shadow: 0 0 8px var(--violet); }
+.param-chip { flex: none; padding: 1px 6px; font: 11.5px var(--mono); color: var(--violet);
+  border: var(--came-s) solid var(--lead); background: color-mix(in srgb, var(--violet) 12%, var(--night-0)); }
+.mod-fields { display: flex; flex-direction: column; gap: 10px; }
+.mod-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
+.modulate-dialog .field, .modulate-dialog .mod-fields { margin-top: 10px; }
+.shelf-dialog .dialog-body { max-height: 70vh; overflow: auto; }
+.shelf + .shelf { margin-top: 18px; }
+.shelf-title { margin: 0; font-size: 16px; color: var(--kind); }
+.shelf-text { margin: 2px 0 8px; color: var(--text-3); font-size: 13px; }
+.shelf-cat { margin: 10px 0 6px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-2); }
+.shelf .library-item { --tint: var(--kind); }
+.shelf .library-title { display: flex; align-items: center; gap: 8px; }
+/* the look's globals: sliders, the palette's roles as glass, macros */
+.look-globals { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px 24px; }
+.look-globals section { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.globals-row label { width: 78px; flex: none; font-size: 13px; color: var(--text-2); }
+.globals-row input[type=range], .macro input[type=range] { flex: 1; }
+.globals-out { width: 36px; flex: none; text-align: right; font: 12px var(--mono); color: var(--text-2); }
+.globals-auto { font-size: 11px; color: var(--violet); }
+.swatch-role { width: 52px; flex: none; font-size: 12px; color: var(--text-3); }
+.swatch { width: 18px; height: 18px; border: var(--came-s) solid var(--lead); box-shadow: var(--bevel); }
+.macro-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+input.macro-name { width: 92px; min-height: var(--hit, 28px); padding: 2px 6px; font: 12.5px var(--mono); }
+.look-dock { display: none; }
+@media (min-width: 900px) {
+  .studio[data-dock=look] { grid-template-rows: auto auto minmax(0, 1fr) 0 auto; }
+  .studio[data-dock=look] .splitter, .studio[data-dock=look] .code-body, .studio[data-dock=look] .dock-code-only,
+    .studio[data-dock=look] .tl-body, .studio[data-dock=look] .dock-tools { display: none !important; }
+  .studio[data-dock=look]:not(.code-collapsed) .look-dock { display: block; max-height: min(34vh, 260px); }
+  .studio[data-dock=look] .pane-code { --tint: var(--dust); }
+  .dock-tab[data-dock=look] { --tint: var(--dust); }
+}
+/* automation lanes under the layers */
+.tl-auto-head { display: flex; height: 24px; border-top: var(--came-s) solid var(--lead); background: var(--night-1); }
+.tl-auto-corner { display: flex; align-items: center; }
+.tl-auto-tools { position: sticky; left: var(--tl-names); display: flex; align-items: center; padding: 0 6px; }
+select.tl-auto-add { min-height: 20px; padding: 0 22px 0 6px; font-size: 11.5px; }
+.tl-auto-row { --tl-row: 34px; --blend: var(--violet); }
+.tl-auto-label { display: flex; align-items: center; justify-content: space-between; cursor: default; }
+.tl-auto-del { padding: 0 4px; color: var(--text-3); background: none; border: 0; cursor: pointer; }
+.tl-auto-del:hover { color: var(--ruby); }
+.tl-auto-lane { cursor: crosshair; touch-action: none; }
+.tl-auto-svg { display: block; }
+.tl-auto-line { fill: none; stroke: var(--violet); stroke-width: 1.5; }
+.tl-auto-dot { fill: var(--night-0); stroke: var(--violet); stroke-width: 2; cursor: grab; }
+.tl-auto-dot:hover { fill: var(--violet); }
+@media (max-width: 899px) {
+  .globals-slot:empty { display: none; }
+  .look-globals { grid-template-columns: 1fr; }
+  .chain-name { font-size: 14.5px; }
+  .tl[data-mode=narrow] .tl-auto-head { height: 40px; border: 0; background: none; }
+  .tl[data-mode=narrow] .tl-auto-row { height: auto; }
+  .tl[data-mode=narrow] .tl-auto-lane { height: 36px; }
+}

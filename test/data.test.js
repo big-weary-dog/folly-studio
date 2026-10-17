@@ -110,3 +110,13 @@ test('cathedral.json is fresh (build_cathedral.py --check)', (t) => {
   if (run.error && run.error.code === 'ENOENT') { t.skip('python3 not available'); return; }
   assert.equal(run.status, 0, `${run.stdout}${run.stderr}`);
 });
+
+test('palettes.json is fresh (build_palettes.py --check), roles in order', (t) => {
+  const pals = JSON.parse(readFileSync(here('../public/data/palettes.json'), 'utf8'));
+  assert.deepEqual(pals.roles, ['low', 'body', 'accent', 'high']);
+  assert.ok(pals.palettes.length >= 8 && pals.palettes.every((p) => p.body.length && p.low.length));
+  const script = fileURLToPath(here('../tools/build_palettes.py'));
+  const run = spawnSync('python3', [script, '--check'], { encoding: 'utf8' });
+  if (run.error && run.error.code === 'ENOENT') { t.skip('python3 not available'); return; }
+  assert.equal(run.status, 0, `${run.stdout}${run.stderr}`);
+});

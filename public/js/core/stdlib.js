@@ -1,4 +1,5 @@
 // The stdlib: what pattern code sees as globals (SPEC "Stdlib"), plus helpers the core shares.
+import { pal, palette } from './palette.js';
 
 const PI = Math.PI;
 export const TAU = Math.PI * 2;
@@ -222,7 +223,7 @@ export const STDLIB = Object.freeze({
   // Randomness and noise.
   hash, rand, noise, fbm,
   // Colour.
-  hsv, hsl, rgb, hex, scale, add, gradient, cosPalette,
+  hsv, hsl, rgb, hex, scale, add, gradient, cosPalette, pal, palette,
   // Time and space.
   beat, dist,
 });

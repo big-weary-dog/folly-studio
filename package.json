@@ -13,6 +13,7 @@
     "lint": "node tools/lint.mjs",
     "check": "npm run lint && npm test",
     "e2e": "node test/e2e/run.mjs",
-    "build-data": "python3 tools/build_cathedral.py"
+    "backup": "node tools/backup.mjs",
+    "build-data": "python3 tools/build_cathedral.py && python3 tools/build_palettes.py"
   }
 }

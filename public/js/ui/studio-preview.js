@@ -10,8 +10,8 @@ import { rose } from './rose.js';
 import { Transport } from './transport.js';
 
 // createPreview({ S, ui, alive(), timeline, onCompiled(layers), onFrameErrors(errors), onBaked(on), signedOut() })
-//   → { start(cathedral), kick(), setPlaying(on), playBaked(on), showMsg(text, error?), hideMsg(), runtime, viewer,
-//   destroy() }
+//   → { start(cathedral, library), kick(), setPlaying(on), playBaked(on), showMsg(text, error?), hideMsg(), runtime,
+//   viewer, destroy() }
 export function createPreview({ S, ui, alive, timeline, onCompiled, onFrameErrors, onBaked, signedOut }) {
   const p = { runtime: null, viewer: null };
   let raf = 0, last = 0, statsAt = 0, onScreen = true, io = null, bakedLoad = 0, everReady = false;
@@ -70,7 +70,7 @@ export function createPreview({ S, ui, alive, timeline, onCompiled, onFrameError
     if (!ghost) viewer.setOption('ghost', 0);
   }
 
-  function setupRuntime(cathedral) {
+  function setupRuntime(cathedral, library) {
     p.runtime = new Runtime({
       container: ui.sandboxHost,
       onFrame: (rgb) => flash.show(rgb, performance.now()),
@@ -83,12 +83,12 @@ export function createPreview({ S, ui, alive, timeline, onCompiled, onFrameError
         else if (state === 'warning' && detail) toast(detail, { kind: 'warn' });
       },
     });
-    p.runtime.start(cathedral);
+    p.runtime.start(cathedral, library);
   }
 
-  p.start = (cathedral) => {
+  p.start = (cathedral, library = []) => {
     setupViewer(cathedral);
-    setupRuntime(cathedral);
+    setupRuntime(cathedral, library.map(({ name, code }) => ({ name, code })));
     document.addEventListener('visibilitychange', onVisibility);
     if ('IntersectionObserver' in window) {
       io = new IntersectionObserver((entries) => {

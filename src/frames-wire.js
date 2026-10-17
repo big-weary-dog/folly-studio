@@ -1,8 +1,9 @@
 // Baked frames as the browser streams them (SPEC "Baked frames"; public/js/frames-wire.js decodes). Chunks
 // of 80 frames (2 s): a layout byte, then the frames in whichever layout compresses smallest (MODES: frame
 // after frame, frame deltas mod 256, planar, planar deltas). A chunk's first frame is stored as is, so a
-// seek fetches one chunk. Brotli picks the layout at quality 5 (what 9 picks) and compresses at
-// WIRE_QUALITY; the gzip copy picks its own (up to 30 % smaller than reusing brotli's).
+// seek fetches one chunk. Brotli picks the layout at quality 5 (what 9 picks) and compresses at the
+// quality asked (WIRE_QUALITY by default); the gzip copy picks its own (up to 30 % smaller than reusing
+// brotli's). `sync` compresses on the calling thread: the server encodes in a low-priority worker thread.
 //   manifest = { version: 1, hash, frames, fps, channels, ranges, chunkFrames, chunks: [{ bytes }], bytes }
 
 import { createHash } from 'node:crypto';
@@ -11,16 +12,19 @@ import zlib from 'node:zlib';
 
 export const WIRE_VERSION = 1;
 export const CHUNK_FRAMES = 80;
-// 15 % smaller than 9 but about 25× slower (1-2 s per second of frames): once per bake, in the background.
-export const WIRE_QUALITY = 11;
+// Quality 11 is a few % smaller than 9 but several times slower (tools/frames-bench.mjs); a home server
+// takes 9 by default (STUDIO_FRAMES_BROTLI_QUALITY).
+export const WIRE_QUALITY = 9;
 export const MODES = Object.freeze(['frames', 'frames-delta', 'planar', 'planar-delta']);
 const PROBE_QUALITY = 5;
 const brotli = promisify(zlib.brotliCompress);
 const unbrotli = promisify(zlib.brotliDecompress);
 const gzip = promisify(zlib.gzip);
 const Z = zlib.constants;
-const compress = (bytes, quality) => brotli(bytes, { params: {
+const brotliParams = (bytes, quality) => ({ params: {
   [Z.BROTLI_PARAM_QUALITY]: quality, [Z.BROTLI_PARAM_LGWIN]: 22, [Z.BROTLI_PARAM_SIZE_HINT]: bytes.length } });
+const compressor = (sync) => (sync ? (bytes, quality) => zlib.brotliCompressSync(bytes, brotliParams(bytes, quality))
+  : (bytes, quality) => brotli(bytes, brotliParams(bytes, quality)));
 
 /** The name of a bake's chunks: its .fseq's SHA-256 with this format's version and chunk size. */
 export function wireHash(sha256) {
@@ -60,8 +64,9 @@ async function smallest(data, channels, first, count, size, scratch) {
 
 const buffers = (channels, frames) => MODES.map(() => new Uint8Array(1 + frames * channels));
 
-/** encodeWire(parsed, { hash, quality?, onChunk(n, brotliBytes, mode) }) → manifest, a chunk at a time. */
-export async function encodeWire(parsed, { hash, quality = WIRE_QUALITY, onChunk = () => {} } = {}) {
+/** encodeWire(parsed, { hash, quality?, sync?, onChunk(n, brotliBytes, mode) }) → manifest, a chunk at a time. */
+export async function encodeWire(parsed, { hash, quality = WIRE_QUALITY, sync = false, onChunk = () => {} } = {}) {
+  const compress = compressor(sync);
   const { data, channelCount: channels, frameCount: frames, stepMs, ranges } = parsed;
   if (!(data instanceof Uint8Array) || data.length !== frames * channels) {
     throw new TypeError('encodeWire: pass the result of parseFseq');
@@ -101,11 +106,12 @@ function restoreChunk(chunk, channels) {
 }
 
 /** The same chunk for a client without br: gzip, in whichever layout gzip makes smallest. */
-export async function gzipChunk(brotliBytes, channels) {
-  const { data, count } = restoreChunk(await unbrotli(brotliBytes), channels);
+export async function gzipChunk(brotliBytes, channels, { sync = false } = {}) {
+  const raw = sync ? zlib.brotliDecompressSync(brotliBytes) : await unbrotli(brotliBytes);
+  const { data, count } = restoreChunk(raw, channels);
   let best = null;
   const size = async (chunk) => {
-    const bytes = await gzip(chunk, { level: 9 });
+    const bytes = sync ? zlib.gzipSync(chunk, { level: 9 }) : await gzip(chunk, { level: 9 });
     if (!best || bytes.length < best.length) best = bytes;
     return bytes.length;
   };

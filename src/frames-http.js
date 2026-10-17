@@ -11,10 +11,9 @@ import zlib from 'node:zlib';
 import { HttpError } from './auth.js';
 import { framesPath } from './bake.js';
 import { FSEQ_CODEC, HAS_ZSTD } from './fseq-codec.js';
-import { acceptsEncoding, etagMatches, pickEncoding } from './static.js';
+import { acceptsEncoding, CACHE_IMMUTABLE as IMMUTABLE, etagMatches, pickEncoding } from './static.js';
 
-// The URL names the content (its hash), so a copy never goes stale.
-export const IMMUTABLE = 'public, max-age=31536000, immutable';
+export { IMMUTABLE };
 const ID = '([A-Za-z0-9_-]{1,64})';
 const HASH = '([0-9a-f]{32})';
 
@@ -33,11 +32,15 @@ const fileName = (look) => String(look.title || '').replace(/[^A-Za-z0-9 _-]+/g,
 /** framesRoutes({ framesDir, cache, visibleLook, STREAMED }) → routes for createApi. */
 export function framesRoutes({ framesDir, cache, visibleLook, STREAMED }) {
   const noFrames = () => new HttpError(404, 'This look has no baked frames.');
+  // Frames evicted for the disk cap are baked again (src/frames-disk.js): ask again in a while.
+  const rebaking = () => new HttpError(503, 'These frames are being baked again. Try again in a minute.',
+    { 'Retry-After': '30' });
 
   /** The look, if `hash` names its current bake. */
   function bakeOf(id, hash, user) {
     const look = visibleLook(id, user);
     if (cache.hashOf(look) !== hash) throw noFrames();
+    cache.touch(look);
     return look;
   }
 
@@ -66,7 +69,8 @@ export function framesRoutes({ framesDir, cache, visibleLook, STREAMED }) {
     const gzip = !codec && acceptsEncoding(req.headers['accept-encoding'], 'gzip');
     const file = codec ? await cache.fseq(look, codec) : framesPath(framesDir, id);
     const fh = file && await fsp.open(file, 'r').catch(() => null);
-    if (!fh) throw noFrames();
+    if (!fh) throw (await cache.restore(look)) ? rebaking() : noFrames();
+    cache.touch(look);
     try {
       const { size } = await fh.stat();
       res.writeHead(200, {

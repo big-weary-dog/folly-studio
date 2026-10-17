@@ -12,12 +12,14 @@ npm run lint                 # node tools/lint.mjs: `path:line rule message`, ex
 node tools/lint.mjs --rules  # the rules, one line each
 npm test                     # node --test "test/**/*.test.js"
 node --test test/core.test.js
-npm run build-data           # rebuild public/data/cathedral.json from ../pixel-map/
+npm run build-data           # rebuild public/data/cathedral.json from ../pixel-map/, palettes.json from ../td/palettes/
 ```
 
 Useful settings: `STUDIO_GENERATOR` (`sketch` default, `claude` with `ANTHROPIC_API_KEY`,
-`fleet`), `STUDIO_CURATORS` (usernames), `STUDIO_SECURE_COOKIES=1` behind HTTPS,
-`STUDIO_TRUST_PROXY=1` behind a reverse proxy.
+`fleet` with `STUDIO_FOUNDRY=on`), `STUDIO_CURATORS` (usernames), `STUDIO_SECURE_COOKIES=1` behind HTTPS,
+`STUDIO_TRUST_PROXY=1` behind a reverse proxy, `STUDIO_FRAMES_BROTLI_QUALITY` (9),
+`STUDIO_FRAMES_MAX_BYTES` (2GB). `docs/HOSTING.md` covers running it at home behind a tunnel, and
+`npm run backup` makes a dated `.tar.gz` of the data.
 
 The render-box tests need bubblewrap (`apt install bubblewrap`) and unprivileged user
 namespaces. Without them they skip and print why. The data tests need `python3`. Run
@@ -30,28 +32,30 @@ namespaces. Without them they skip and print why. The data tests need `python3`.
 |---|---|
 | `server.js` | Entry point: configuration from the environment, start, graceful stop |
 | `src/app.js` | `createServer()`: the store, auth, queues, frames cache, API and static files in one server |
-| `src/api.js`, `api-looks.js`, `look-rules.js`, `http.js` | HTTP routes (SPEC "HTTP API"): accounts, ideas and the library; looks; what a look may hold; JSON bodies, CSRF checks, the logger |
+| `src/api.js`, `api-looks.js`, `look-rules.js`, `look-globals.js`, `http.js` | HTTP routes (SPEC "HTTP API"): accounts, ideas and the library; looks; what a look may hold (layers and module chains; globals, palettes and automation); JSON bodies, CSRF checks, the logger |
 | `src/auth.js` | Accounts, password hashing, cookie sessions, login rate limits |
 | `src/store.js` | JSON-file storage under `STUDIO_DATA` |
-| `src/static.js`, `bundle.js` | Static files, compression, ETags, CSPs; `sandbox.html` with its worker and the core bundled in |
+| `src/static.js`, `assets.js`, `bundle.js` | Static files, compression, ETags, CSPs; content-hashed URLs, the import map and the theme stylesheet; `sandbox.html` with its worker and the core bundled in |
 | `src/frames.js` | Pure: strict FSEQ parsing and frame analysis (brightness, flicker) |
 | `src/bake.js`, `render-box.js`, `box-output.js` | The one-at-a-time bake queue and frame files; the render box under bubblewrap; what a box hands back, read as data |
 | `src/frames-wire.js`, `frames-cache.js`, `frames-http.js`, `fseq-codec.js` | Baked frames on the wire: the stream encoder, the chunks and compressed downloads kept by hash, their routes, FSEQ zstd/zlib blocks |
+| `src/frames-jobs.js`, `frames-worker.js`, `frames-disk.js` | Heavy work at low priority: the lane bakes and encodes share, the encoder thread at nice 10; the disk cap |
 | `src/generate/` | Idea → look: the queue, adapters (`sketch`, `claude`, `fleet`), prompt, validation |
 | `render-box/render.mjs`, `renderer.mjs` | Bakes a look to `.fseq` inside bubblewrap; the frame loop it shares with `fleet-box/check.mjs` |
 | `fleet-box/` | Checker and brief for a boxed Fleet worker |
 | `public/index.html`, `css/` | The app shell and its styles: `tokens.css` (the palette), base, layout and components on every page; `ideas`, `gallery`, `studio`, `timeline` load with their views (`stylesheet()` in `ui/dom.js`) |
 | `public/sandbox.html`, `js/sandbox-worker.js` | The sandboxed pattern runner (SPEC "Sandbox protocol"): the relay and watchdog; the Worker |
-| `public/js/pattern-core.js`, `core/` | Pure: stdlib, compile, scene, render, channels (`core/`, re-exported); runs in the sandbox, the boxes and tests |
+| `public/js/pattern-core.js`, `core/` | Pure: stdlib, compile, scene, render, channels, module chains (`chain.js`), globals and automation (`globals.js`, `palette.js`), param bindings (`modulate.js`); re-exported; runs in the sandbox, the boxes and tests |
 | `public/js/fseq.js` | Pure: FSEQ v2 writer |
 | `public/js/frames-wire.js`, `frames-stream.js` | Pure: the stream decoder; streamed playback of baked frames |
 | `public/js/runtime.js` | App side of the sandbox: iframe, frame pump, watchdog |
 | `public/js/flash-guard.js` | Pure: the preview's flash guard, the bake check's rule on the frames shown |
 | `public/js/viewer.js`, `viewer-gl.js`, `viewer-input.js` | WebGL2 LED view: the orbit camera, the drawing, pointer and keys |
 | `public/js/main.js`, `api.js` | Bootstrap, routing, the fetch wrapper |
-| `public/js/ui/` | Views and panels, one concern per module (`studio.js` wires the `studio-*.js` panes); `dom.js` holds the DOM helpers and shared form pieces |
-| `public/patterns/` | The built-in library (`index.json` + one file each), also the AI's examples |
-| `tools/` | `build_cathedral.py` (data), `lint.mjs` (+ `lint/`: lexing, line budgets in `budget.json`) |
+| `public/js/ui/` | Views and panels, one concern per module (`studio.js` wires the `studio-*.js` panes; `chain*.js`, `modulate.js`, `look-globals.js`, `timeline-auto.js` compose); `dom.js` holds the DOM helpers and shared form pieces |
+| `public/patterns/` | The built-in library (`index.json` with each entry's `kind` and `category`, + one file each): sources, warps and filters, also the AI's examples |
+| `tools/` | `build_cathedral.py`, `build_palettes.py` (data), `lint.mjs` (+ `lint/`: lexing, line budgets in `budget.json`), `backup.mjs`, `frames-bench.mjs` (brotli quality against encode time) |
+| `docs/HOSTING.md` | Hosting at home: what runs where, tunnels, settings, backups |
 | `test/` | `node:test` suites; `fixtures/` |
 
 Browser code imports only from `public/`. Server code imports only `pattern-core.js`, `fseq.js`
@@ -102,13 +106,14 @@ reviewed allowlist at the top of `tools/lint.mjs` names who may use `eval` and `
 
 - Gzipped `public/js/**/*.js` + `public/css/*.css` ≤ 150 KB; the login page (`index.html`, what it
   loads eagerly and the sign-in view) ≤ 40 KB. The lint prints both. Views load on first use.
-- On the wire (`test/transfer.test.js`, the real server): a cold Studio load (shell, modules,
-  styles, sandbox, `cathedral.json`, API) ≤ 250 KB compressed; a warm reload moves no bodies
-  (assets stay fresh for 5 minutes, and everything answers its ETag with a 304).
+- On the wire (`test/transfer.test.js`, the real server and a model of a browser's cache): a cold
+  Studio load (shell, modules, theme, sandbox, `cathedral.json`, API) ≤ 190 KB with br (220 KB gzip);
+  a reload, even a day later, sends only the shell and its API calls, each a 304 (assets have
+  content-hashed URLs, kept a year); lists carry no code, and idea polls back off.
 - 4,870 LEDs at 40 fps: the render loop allocates nothing per frame (reuse typed arrays, pass
   `out`), skips layers outside their clips before any pixel work, and sleeps when idle.
 - The sandbox answers every frame within 1.5 s or reports the layer as hung. Bakes run one at a
-  time, under CPU, memory and wall-clock limits.
+  time, under CPU, memory and wall-clock limits, at nice 10, never at the same time as a frame encode.
 - `npm run lint` takes well under a second; keep it that way.
 
 ## Commits and pull requests

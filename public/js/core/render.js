@@ -1,42 +1,23 @@
-// Layers: prepared from a scene, rendered and blended into a frame, then mapped to DMX channels.
-import { describeError } from './compile.js';
+// Layers: prepared from a scene, rendered (each its module chain) and blended into a frame, graded by the look's
+// globals, then mapped to DMX channels.
+import { prepareChain, runChain } from './chain.js';
+import { finish, lookFrame, prepareLook } from './globals.js';
+import { applyMods } from './modulate.js';
 import { layerEnvelope, normalizeClips, pixelsForGroups } from './scene.js';
-import { clamp, hex, isNum, TAU } from './stdlib.js';
+import { clamp, isNum, TAU } from './stdlib.js';
 
 export const BLENDS = Object.freeze(['add', 'over', 'max', 'multiply']);
-
-/** Current values P from a schema and a layer's overrides (colours become [r, g, b]). */
-export function resolveParams(schema, overrides) {
-  const P = {};
-  const o = overrides && typeof overrides === 'object' ? overrides : {};
-  for (const key of Object.keys(schema || {})) {
-    const d = schema[key];
-    const has = Object.prototype.hasOwnProperty.call(o, key) && o[key] !== null && o[key] !== undefined;
-    const v = has ? o[key] : d.value;
-    if (d.type === 'color') {
-      let c;
-      if (Array.isArray(v) && v.length >= 3) c = [+v[0] || 0, +v[1] || 0, +v[2] || 0];
-      else { try { c = hex(v); } catch { c = hex(d.value); } }
-      P[key] = c;
-    } else if (d.type === 'toggle') {
-      P[key] = !!v;
-    } else {
-      const n = +v;
-      P[key] = Number.isFinite(n) ? n : d.value;
-    }
-  }
-  return P;
-}
-
 const makePixel = () => ({ x: 0, y: 0, z: 0, X: 0, Y: 0, Z: 0, lx: 0, ly: 0, lz: 0, a: 0, r: 0, u: 0, i: 0, n: 1,
   zone: '', zi: 0, strand: 0, row: 0, petal: -1, k: 0, seed: 0 });
 
 /**
  * A layer ready to render: its pixels (`groups`, default the whole cathedral), lx/ly/lz (0..1 across its own
- * bounds; 0.5 on a flat axis), a/r round their centre in the façade (z–y) plane, its params and its clips.
+ * bounds; 0.5 on a flat axis), a/r round their centre in the façade (z–y) plane, its module chain (`compiled`: one
+ * compilePattern result for a layer with code, or compileLayer's list) and its clips.
  */
 export function prepareLayer(scene, layer, compiled) {
-  if (!compiled || typeof compiled.pixel !== 'function') throw new Error('prepareLayer: layer is not compiled');
+  if (!compiled) throw new Error('prepareLayer: layer is not compiled');
+  const chain = prepareChain(layer, compiled);
   const given = layer && layer.groups && (Array.isArray(layer.groups) ? layer.groups.length : true);
   const groups = given ? layer.groups : ['cathedral'];
   const idx = pixelsForGroups(scene, groups);
@@ -72,80 +53,47 @@ export function prepareLayer(scene, layer, compiled) {
     id: layer && layer.id !== undefined ? layer.id : null,
     idx, lx, ly, lz, a, r,
     bounds: { min: [x0, y0, z0], max: [x1, y1, z1] },
-    pixel: compiled.pixel, frame: compiled.frame || null,
-    schema: compiled.params || {},
-    P: resolveParams(compiled.params, layer && layer.params),
+    chain, modular: !!(layer && Array.isArray(layer.modules)), failed: null,
     blend, level,
     clips: normalizeClips(layer && layer.clips),
     enabled: !(layer && layer.enabled === false),
-    p: makePixel(),
+    p: makePixel(), c: [0.5, 0, 0, 0],
     buf: new Float64Array(m * 4),
   };
 }
 
-// Runs one layer into its own rgba buffer. Returns an error string, or null.
-function runLayer(S, L, t) {
-  const idx = L.idx, m = idx.length, buf = L.buf, p = L.p, P = L.P, fn = L.pixel;
-  const zones = S.zones;
-  let j = 0;
-  try {
-    if (L.frame) L.frame(t, P);
-    for (; j < m; j++) {
-      const k = idx[j];
-      p.x = S.x[k]; p.y = S.y[k]; p.z = S.z[k];
-      p.X = S.X[k]; p.Y = S.Y[k]; p.Z = S.Z[k];
-      p.lx = L.lx[j]; p.ly = L.ly[j]; p.lz = L.lz[j];
-      p.a = L.a[j]; p.r = L.r[j];
-      p.u = S.u[k]; p.i = S.i[k]; p.n = S.n[k];
-      const zi = S.zone[k];
-      p.zi = zi; p.zone = zones[zi]; p.strand = S.strand[k];
-      p.row = S.row[k]; p.petal = S.petal[k];
-      p.k = k; p.seed = S.seed[k];
-      let c = fn(p, t, P);
-      let r, g, b, al;
-      if (c === undefined || c === null) { r = g = b = al = 0; }
-      else {
-        if (typeof c === 'number') { r = g = b = c; al = 1; }
-        else {
-          if (typeof c === 'string') c = hex(c);
-          r = +c[0]; g = +c[1]; b = +c[2];
-          al = c.length > 3 && c[3] !== undefined ? +c[3] : 1;
-        }
-        if (r !== r || g !== g || b !== b || al !== al) {
-          const said = Array.isArray(c) ? `[${Array.from(c).slice(0, 4).join(', ')}]` : String(c);
-          return `pixel() returned ${said} (NaN) at LED ${k}`;
-        }
-      }
-      const o = 4 * j;
-      buf[o] = r < 0 ? 0 : r > 1 ? 1 : r;
-      buf[o + 1] = g < 0 ? 0 : g > 1 ? 1 : g;
-      buf[o + 2] = b < 0 ? 0 : b > 1 ? 1 : b;
-      buf[o + 3] = al < 0 ? 0 : al > 1 ? 1 : al;
-    }
-  } catch (e) {
-    return describeError(e);
-  }
-  return null;
-}
+let plainLook = null;
 
 /**
- * Every prepared layer at time t (s), bottom to top, into Float32Array(count × 3) of linear 0..1 RGB. A layer
- * that throws or returns NaN adds nothing and is reported in `errors` as { id, error }. Clips scale a layer's
- * level; outside them it does not run at all. `t` stays show time, so motion carries on across a cut.
+ * Every prepared layer at show time t (s), bottom to top, into Float32Array(count × 3) of linear 0..1 RGB, graded
+ * by `look` (prepareLook; default: no globals). A layer that throws or returns NaN adds nothing and is reported in
+ * `errors` as { id, module?, error }. Clips scale a layer's level; outside them it does not run at all. Patterns
+ * get the look's clock (show time at speed 1), so motion carries on across a cut.
  */
-export function renderFrame(scene, layers, t, out) {
+export function renderFrame(scene, layers, t, out, look) {
   const N = scene.count;
   const rgb = out && out.length >= N * 3 ? out : new Float32Array(N * 3);
   rgb.fill(0, 0, N * 3);
   const errors = [];
   const list = layers || [];
+  const LK = look || (plainLook ||= prepareLook(null));
+  lookFrame(LK, t);
+  const T = look ? LK.T : t, G = LK.G;
   for (let n = 0; n < list.length; n++) {
     const L = list[n];
-    if (!L || !L.pixel || !L.enabled || !(L.level > 0)) continue;
-    const level = L.clips ? L.level * layerEnvelope(L.clips, t) : L.level;
+    if (!L || !L.chain || !L.enabled || !(L.level > 0)) continue;
+    const env = L.clips ? layerEnvelope(L.clips, t) : 1;
+    const level = L.level * env;
     if (!(level > 0)) continue;
-    const err = runLayer(scene, L, t);
-    if (err) { errors.push({ id: L.id, error: err }); continue; }
+    for (let i = 0; i < L.chain.length; i++) {
+      const M = L.chain[i];
+      if (M.mods.length) applyMods(M.mods, M.P, t, env, LK);
+    }
+    const err = runChain(scene, L, T, G);
+    if (err) {
+      errors.push(L.modular ? { id: L.id, module: L.failed, error: err } : { id: L.id, error: err });
+      continue;
+    }
     const idx = L.idx, m = idx.length, buf = L.buf;
     switch (L.blend) {
       case 'over':
@@ -182,10 +130,7 @@ export function renderFrame(scene, layers, t, out) {
         }
     }
   }
-  for (let i = 0; i < N * 3; i++) {
-    const v = rgb[i];
-    if (!(v > 0)) rgb[i] = 0; else if (v > 1) rgb[i] = 1;
-  }
+  finish(rgb, N * 3, LK);
   return { rgb, errors };
 }
 

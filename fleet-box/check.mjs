@@ -10,7 +10,8 @@ import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 
-const LIMITS = { layers: 4, codeBytes: 20 * 1024, title: 80, summary: 400, clips: 32, duration: 600 };
+const LIMITS = { layers: 4, codeBytes: 20 * 1024, title: 80, summary: 400, clips: 32, duration: 600, modules: 8 };
+const FUNCTION = { source: 'pixel', warp: 'warp', filter: 'filter' };
 const BLENDS = ['add', 'over', 'max', 'multiply'];
 const errors = [], warnings = [];
 const argv = process.argv.slice(2);
@@ -25,7 +26,18 @@ if (['pattern-core.js', 'renderer.mjs', 'cathedral.json'].some((f) => !existsSyn
   fail('pattern-core.js, renderer.mjs and cathedral.json must sit next to check.mjs');
 }
 const core = await import('./pattern-core.js');
-const { bakeLoop, bakeSeconds, FPS, renderer } = await import('./renderer.mjs');
+const { bakeLoop, bakeSeconds, FPS, readLibrary, renderer } = await import('./renderer.mjs');
+// The library use() runs: patterns/ beside this file when the host copied it, else none.
+const library = readLibrary(path.join(path.dirname(new URL(import.meta.url).pathname), 'patterns'));
+core.setLibrary(library);
+// A palette by name is filled in from palettes.json beside this file (as the studio does on save).
+const named = typeof look.globals?.palette === 'string' ? look.globals.palette : null;
+const palettes = existsSync(new URL('./palettes.json', import.meta.url))
+  ? JSON.parse(readFileSync(new URL('./palettes.json', import.meta.url), 'utf8')).palettes : [];
+const palette = named ? palettes.find((p) => p.name === named.toLowerCase()) : look.globals?.palette;
+if (named && !palette) warnings.push(`palette ${named}: not known here, so the default palette plays`);
+const lookGlobals = { globals: look.globals && { ...look.globals, palette }, automation: look.automation,
+  bpm: look.bpm };
 const goodDuration = Number.isFinite(look?.duration) && look.duration >= 1 && look.duration <= LIMITS.duration;
 const DURATION = goodDuration ? look.duration : 30;
 const SECONDS = bakeSeconds({ duration: DURATION }, option('--seconds'));
@@ -56,9 +68,19 @@ try {
 const runnable = []; // [layer as the studio will run it, compiled] for the bake
 layers.slice(0, LIMITS.layers).forEach((layer, i) => {
   const name = `layer ${i + 1}${layer?.title ? ` (${layer.title})` : ''}`;
-  if (!layer || typeof layer.code !== 'string') return errors.push(`${name}: no code`);
-  if (Buffer.byteLength(layer.code, 'utf8') > LIMITS.codeBytes) errors.push(`${name}: code is over 20 kB`);
-  if (!/\bfunction\s+pixel\s*\(/.test(layer.code)) errors.push(`${name}: code must define function pixel(p, t, P)`);
+  const chain = Array.isArray(layer?.modules);
+  if (!layer || (!chain && typeof layer.code !== 'string')) return errors.push(`${name}: no code or modules`);
+  const modules = chain ? layer.modules : [{ kind: 'source', code: layer.code }];
+  if (chain && (!modules.length || modules.length > LIMITS.modules)) {
+    errors.push(`${name}: 1 to ${LIMITS.modules} modules`);
+  }
+  modules.forEach((m, j) => {
+    const what = chain ? `${name}, module ${j + 1}` : name, fn = FUNCTION[m?.kind ?? 'source'];
+    if (!fn || typeof m.code !== 'string') return errors.push(`${what}: needs a kind (source, warp, filter) and code`);
+    if (Buffer.byteLength(m.code, 'utf8') > LIMITS.codeBytes) errors.push(`${what}: code is over 20 kB`);
+    const defines = new RegExp(`\\bfunction\\s+${fn}\\s*\\(`);
+    if (!defines.test(m.code)) errors.push(`${what}: code must define function ${fn}`);
+  });
   const groups = Array.isArray(layer.groups) ? layer.groups : [];
   const unknown = groups.filter((g) => !groupIds.has(g));
   if (!groups.length) warnings.push(`${name}: no groups, it will land on the whole cathedral`);
@@ -84,18 +106,19 @@ layers.slice(0, LIMITS.layers).forEach((layer, i) => {
   if (clips && clips.every((c) => c.start >= DURATION)) {
     warnings.push(`${name}: every clip starts after the look ends (${DURATION} s), so it never shows`);
   }
+  const known = groups.filter((g) => groupIds.has(g));
+  const l = {
+    id: `l${i + 1}`, title: layer.title, groups: known.length ? known : ['cathedral'],
+    blend: BLENDS.includes(layer.blend) ? layer.blend : 'add', level: typeof layer.level === 'number' ? layer.level : 1,
+    ...(chain ? { modules: layer.modules } : { code: layer.code,
+      params: layer.params && typeof layer.params === 'object' ? layer.params : {} }), ...(clips ? { clips } : {}),
+  };
   let compiled;
   try {
-    compiled = core.compilePattern(layer.code);
+    compiled = core.compileLayer(l);
   } catch (e) {
     return errors.push(`${name}: does not compile: ${e.message}`);
   }
-  const known = groups.filter((g) => groupIds.has(g));
-  const l = {
-    id: `l${i + 1}`, title: layer.title, code: layer.code, groups: known.length ? known : ['cathedral'],
-    blend: BLENDS.includes(layer.blend) ? layer.blend : 'add', level: typeof layer.level === 'number' ? layer.level : 1,
-    params: layer.params && typeof layer.params === 'object' ? layer.params : {}, ...(clips ? { clips } : {}),
-  };
   try {
     prepared.push(core.prepareLayer(scene, l, compiled));
     runnable.push(l);
@@ -109,6 +132,7 @@ if (prepared.length && !errors.length) {
   const count = cathedral.count || cathedral.pixels?.zone?.length || 0;
   const layerErrors = new Map();
   const means = [];
+  const lookState = core.prepareLook(lookGlobals);
   let worst = 0, total = 0, frames = 0, dark = 0, nan = 0;
   // Spot frames spread over the look's duration, then two seconds from its middle.
   const times = [0, 0.012, 0.063, 0.24, 0.55, 0.94].map((k) => +(k * DURATION).toFixed(3));
@@ -118,7 +142,7 @@ if (prepared.length && !errors.length) {
     const t0 = performance.now();
     let out;
     try {
-      out = core.renderFrame(scene, prepared, t);
+      out = core.renderFrame(scene, prepared, t, undefined, lookState);
     } catch (e) {
       errors.push(`render at t=${t}: ${e.message}`);
       break;
@@ -176,7 +200,7 @@ async function bake() {
   const { ledRanges, writeFseq } = await import('./fseq.js');
   const ranges = ledRanges(cathedral);
   // A fresh renderer, so state a pattern keeps between frames starts clean at t = 0.
-  const r = renderer(core, cathedral, runnable, ranges);
+  const r = renderer(core, cathedral, runnable, ranges, { ...lookGlobals, library });
   const frames = Math.max(1, Math.round(SECONDS * FPS));
   const { data, ...baked } = bakeLoop(frames, r.packed, () => r.next());
   const channelCount = r.packed.length;

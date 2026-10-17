@@ -80,7 +80,8 @@ export function createApi(o) {
     ...framesRoutes({ framesDir, cache: frames, visibleLook: looks.visibleLook, STREAMED }),
 
     { method: 'GET', path: /^\/api\/library$/, auth: false, handler: () => ({ patterns: loaders.loadLibrary()
-      .map(({ name, title, summary, tags, code }) => ({ name, title, summary, tags, code })) }) },
+      .map(({ name, title, summary, tags, kind = 'source', category = '', code }) => (
+        { name, title, summary, tags, kind, category, code })) }) },
   ];
 
   return async function handleApi(req, res, pathname, query = new URLSearchParams()) {

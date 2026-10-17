@@ -1,7 +1,7 @@
-// The Studio: groups tree · 3D view + transport · layer stack + params · code editor and timeline.
+// The Studio: groups tree · 3D view + transport · layer stack, module chain + params · code, timeline and look.
 // This module holds the look and wires the panels: studio-layout.js builds them, studio-status.js
-// tracks what the sandbox says about each layer, studio-preview.js runs the 3D view and the clock,
-// and studio-actions.js saves, shares and exports.
+// tracks what the sandbox says about each layer and module, studio-chain.js the selected layer's chain,
+// studio-preview.js runs the 3D view and the clock, and studio-actions.js saves, shares and exports.
 import { api } from '../api.js';
 import { BakePanel } from './bake.js';
 import { clear, debounce, h, isTyping, pref, randomId, reducedMotion, stylesheet, toast } from './dom.js';
@@ -9,11 +9,12 @@ import { CodeEditor } from './editor.js';
 import { GroupsTree } from './groups.js';
 import { LayerStack } from './layers.js';
 import {
-  buildGroupIndex, BLANK_CODE, cleanLayer, layerFromPattern, loadCathedral, loadLibrary, makeLayer, normaliseLayers,
+  buildGroupIndex, BLANK_CODE, cleanLayer, layerFromPattern, loadCathedral, loadLibrary, loadPalettes, makeLayer,
+  normaliseLayers,
 } from './model.js';
-import { ParamsPanel } from './params.js';
 import { quickReference } from './reference.js';
 import { createActions } from './studio-actions.js';
+import { createChain } from './studio-chain.js';
 import { createLayerOps } from './studio-layers.js';
 import { buildLayout, TABS } from './studio-layout.js';
 import { createPreview } from './studio-preview.js';
@@ -22,9 +23,10 @@ import { Timeline } from './timeline.js';
 import { importLookDialog } from './timeline-import.js';
 import { cleanBpm, cleanDuration } from './timeline-model.js';
 
-await stylesheet('/css/studio.css');
+await Promise.all([stylesheet('/css/studio.css'), stylesheet('/css/compose.css')]);
 
 const NARROW = '(max-width: 899px)';
+const copy = (v) => (v == null ? undefined : JSON.parse(JSON.stringify(v)));
 const COMPILE_DELAY_MS = 300;
 
 export function mount(root, ctx) {
@@ -33,7 +35,7 @@ export function mount(root, ctx) {
   let alive = true;
   const S = {
     look: { id: null, title: 'Untitled look', summary: '', layers: [], duration: 30, bpm: null, shared: false,
-      ideaId: null, owner: me?.id, ownerName: me?.username, reviewed: false, bake: null },
+      ideaId: null, owner: me?.id, ownerName: me?.username, reviewed: false, bake: null, globals: {} },
     server: null,              // the look as the server last sent it (bake, reviewed, …), null until saved
     baked: null,               // { frames, rgb, index } while the preview plays baked frames
     cathedral: null, index: null, library: [], copyOnSave: false, selectedId: null, saved: '', muted: new Set(),
@@ -52,7 +54,7 @@ export function mount(root, ctx) {
   st.flush = () => compileSoon.flush();
   const menu = { exportFseq: () => actions.exportFseq(), exportJson: () => actions.exportJson(),
     details: () => actions.details() };
-  const ui = st.ui = buildLayout({ store: pref, tab: pref('studio.tab') || 'layers', setTab, actions: menu });
+  const ui = st.ui = buildLayout({ store: pref, tab: pref('studio.tab') || 'layers', setTab, actions: menu, onDock });
   const actions = createActions(st);
   root.append(ui.studio);
   setTab(ui.studio.dataset.tab);
@@ -85,11 +87,13 @@ export function mount(root, ctx) {
     onFrameErrors: (errors) => { if (status.frameErrors(errors)) refresh(); },
     onBaked: (on) => bakePanel.setPlaying(on),
   });
-  // Bake card and timeline: where they go depends on the screen.
+  // Bake card, timeline and the look's globals: where they go depends on the screen.
+  let globalsPanel = null;
   const placePanels = () => {
     const narrow = narrowMq.matches;
     (narrow ? ui.bakeSlotNarrow : ui.bakeSlotWide).append(bakePanel.el);
     (narrow ? ui.timeBody : ui.dock.timelineBody).append(timeline.el);
+    if (globalsPanel) (narrow ? ui.globalsSlotNarrow : ui.dock.lookBody).append(globalsPanel.el);
     timeline.setMode(narrow);
   };
   placePanels();
@@ -101,21 +105,11 @@ export function mount(root, ctx) {
     onToggleMute: (id) => { toggleSet(S.muted, id); changed({ dirty: false }); },
     onToggleSolo: (id) => { toggleSet(S.solo, id); changed({ dirty: false }); },
   });
-  const setParams = (fn) => {
-    const l = selected();
-    if (!l) return;
-    l.params = fn({ ...l.params });
-    changed({ stack: false });
-  };
-  const params = new ParamsPanel(ui.paramsBody, {
-    onChange: (key, value) => setParams((p) => ({ ...p, [key]: value })),
-    onReset: (key) => setParams((p) => { delete p[key]; return p; }),
-    onResetAll: () => setParams(() => ({})),
-  });
   const editor = new CodeEditor(ui.dock.codeBody, {
-    onInput: (code) => { const l = selected(); if (!l) return; l.code = code; markDirty(); compileSoon(); },
+    onInput: (code) => { const m = chain.module(); if (!m) return; m.code = code; markDirty(); compileSoon(); },
     onSave: () => actions.save(),
   });
+  const chain = createChain({ S, ui, editor, status, selected, changed: (o) => changed(o), refresh: () => refresh() });
   ui.dock.codeBody.append(quickReference((text) => editor.insert(text)));
   const compileSoon = debounce(() => { pushLook(); refresh(); }, COMPILE_DELAY_MS);
   let groupsTree = null;
@@ -129,7 +123,7 @@ export function mount(root, ctx) {
     if (!alive) return;
     Object.assign(S, { cathedral, index: buildGroupIndex(cathedral), library: lib });
     setupLook(look);
-    preview.start(cathedral);
+    preview.start(cathedral, lib.filter((p) => (p.kind || 'source') === 'source'));
     pushLook();
     groupsTree = new GroupsTree(ui.groupsBody, cathedral, S.index, {
       onToggle: (id, checked) => toggleGroup(id, checked),
@@ -137,6 +131,7 @@ export function mount(root, ctx) {
       onPin: (id) => { S.pinnedGroup = id; updateHighlight(); },
     });
     S.ready = true;
+    if (S.wantGlobals) showGlobals();
     bakePanel.render();
     select(S.look.layers.length ? S.look.layers[S.look.layers.length - 1].id : null);
     preview.kick();
@@ -167,7 +162,7 @@ export function mount(root, ctx) {
         id: look.id, title: look.title || 'Untitled look', summary: look.summary || '', shared: !!look.shared,
         layers: normaliseLayers(look.layers, S.cathedral), ideaId: look.ideaId || null, owner: look.owner,
         ownerName: look.ownerName, duration: cleanDuration(look.duration), bpm: cleanBpm(look.bpm),
-        reviewed: false, bake: null,
+        reviewed: false, bake: null, globals: copy(look.globals) || {}, automation: copy(look.automation),
       });
       S.copyOnSave = !!(me && look.owner && look.owner !== me.id);
       S.server = look;
@@ -192,9 +187,11 @@ export function mount(root, ctx) {
 
   /** The look as saved: what save() sends and what isDirty() compares. */
   function saveBody() {
+    const some = (o) => (o && Object.keys(o).length ? copy(o) : null);
     return {
       title: ui.titleInput.value.trim() || 'Untitled look', summary: S.look.summary || '',
       layers: S.look.layers.map(cleanLayer), duration: cleanDuration(S.look.duration), bpm: S.look.bpm || null,
+      globals: some(S.look.globals), automation: some(S.look.automation),
     };
   }
   function snapshot() { return JSON.stringify(saveBody()); }
@@ -234,9 +231,10 @@ export function mount(root, ctx) {
     if (!preview.runtime) return;
     compileSoon.cancel();
     preview.runtime.setLook(S.look.layers.map((l) => {
-      const c = { ...cleanLayer(l), code: status.codeFor(l) };
+      const c = cleanLayer(l);
+      c.modules = c.modules.map((m) => ({ ...m, code: status.codeFor(l.id, m) }));
       return silent(l.id) ? { ...c, level: 0, enabled: false } : c;
-    }));
+    }), { globals: S.look.globals, automation: S.look.automation, bpm: S.look.bpm || undefined });
     preview.kick();
   }
 
@@ -260,19 +258,16 @@ export function mount(root, ctx) {
     timeline.render();
   }
 
-  function refreshParams() {
-    const l = selected();
-    if (!l) return params.set(null, null, {});
-    const { schema, note } = status.params(l.id);
-    params.set(l.id, schema, l.params || {}, note);
-  }
+  const refreshParams = () => chain.refreshParams();
 
   function refresh() {
     if (!S.ready) return;
     renderStack();
+    chain.render();
     refreshParams();
+    globalsPanel?.render();
     const l = selected();
-    const problem = l ? status.problem(l.id) : null;
+    const problem = l ? status.problem(l.id, chain.module()) : null;
     editor.setProblem(problem);
     ui.codeIssue.hidden = !problem;
     if (problem) {
@@ -284,8 +279,7 @@ export function mount(root, ctx) {
   function select(id) {
     S.selectedId = id;
     const l = selected();
-    editor.setValue(l ? l.code : '');
-    editor.setDisabled(!l, l ? '' : 'Add a layer to write code.');
+    chain.show();
     ui.layerTitle.value = l ? l.title : '';
     ui.layerTitle.disabled = !l;
     showLayerName(l);
@@ -297,8 +291,44 @@ export function mount(root, ctx) {
     refresh();
   }
   function showLayerName(l) {
-    ui.codeFor.textContent = l ? l.title : '';
+    chain.show();
     ui.groupsFor.textContent = l ? `for ${l.title}` : '';
+  }
+
+  // The Look panel (the globals) loads when the Look tab of the dock, or a phone's, first shows.
+  function onDock(id) {
+    if (id !== 'look') return;
+    S.wantGlobals = true;
+    if (S.ready) showGlobals();
+  }
+  let globalsP = null;
+  function showGlobals() {
+    globalsP ||= Promise.all([import('./look-globals.js'), loadPalettes().catch(() => [])])
+      .then(([{ GlobalsPanel }, palettes]) => {
+        if (!alive) return;
+        globalsPanel = new GlobalsPanel({ look: () => S.look, palettes, onRenameMacro: renameMacro,
+          onChange: ({ live }) => { if (live) { pushLook(); markDirty(); } else changed({ stack: false }); } });
+        placePanels();
+        globalsPanel.render();
+      });
+  }
+
+  /** A macro renamed (to null: deleted): its automation lane and the params bound to it follow. */
+  function renameMacro(from, to) {
+    const auto = S.look.automation;
+    if (auto && auto[from]) {
+      if (to) auto[to] = auto[from];
+      delete auto[from];
+      if (!Object.keys(auto).length) delete S.look.automation;
+    }
+    for (const l of S.look.layers) {
+      for (const m of l.modules) {
+        for (const [k, b] of Object.entries(m.params || {})) {
+          if (b && b.mod === 'global' && b.name === from) { if (to) b.name = to; else delete m.params[k]; }
+        }
+      }
+    }
+    changed();
   }
 
   const layerOps = createLayerOps({ S, ui, changed, select, selected, setTab, narrow: () => narrowMq.matches,
@@ -324,7 +354,7 @@ export function mount(root, ctx) {
     ui.studio.dataset.tab = id;
     for (const b of ui.tabBtns) b.setAttribute('aria-pressed', String(b.dataset.tab === id));
     pref('studio.tab', id);
-    if (id === 'look') actions.loadMyLooks();
+    if (id === 'look') { actions.loadMyLooks(); onDock('look'); }
   }
 
   const onKey = (e) => {

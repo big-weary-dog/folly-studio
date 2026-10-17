@@ -8,7 +8,8 @@
 //   exit 0 when frames.fseq was written, 1 when the look could not be baked.
 //
 // src/render-box.js runs this inside bubblewrap: no network, nothing writable but DIR, read-only
-// node, this file, renderer.mjs, the bundled core, fseq.js and cathedral.json, rlimits and a wall
+// node, this file, renderer.mjs, the bundled core, fseq.js, cathedral.json and the pattern library (patterns/,
+// what use() runs), rlimits and a wall
 // clock. That is the boundary. In here the core is not imported: its source and renderer() run in a
 // node:vm realm with the look, so patterns see only the stdlib and the ECMAScript built-ins (no
 // process, require, import, fetch or timers): defence in depth. Inputs go in as JSON text, and only
@@ -20,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 import { ledRanges, writeFseq } from './fseq.js';
-import { bakeLoop, bakeSeconds, FPS, renderer } from './renderer.mjs';
+import { bakeLoop, bakeSeconds, FPS, readLibrary, renderer } from './renderer.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const MAX_LOOK_BYTES = 1024 * 1024;
@@ -55,6 +56,8 @@ const layers = look && Array.isArray(look.layers) ? look.layers : null;
 if (!layers || !layers.length) fail('the look has no layers');
 const cathedralText = readFileSync(path.join(HERE, 'cathedral.json'), 'utf8');
 const ranges = ledRanges(JSON.parse(cathedralText));
+const extra = { globals: look.globals, automation: look.automation, bpm: look.bpm,
+  library: readLibrary(path.join(HERE, 'patterns')) };
 
 const core = readFileSync(path.join(HERE, 'pattern-core.js'), 'utf8')
   .replace(/^export\s+(?=(?:const|let|var|function|class|async)\b)/gm, '');
@@ -65,7 +68,7 @@ const context = vm.createContext(Object.create(null), {
   codeGeneration: { strings: true, wasm: false }, // compilePattern needs new Function
   microtaskMode: 'afterEvaluate', // promise jobs run inside each timed call
 });
-context.__input = JSON.stringify({ layers, ranges });
+context.__input = JSON.stringify({ layers, ranges, extra });
 context.__cathedral = cathedralText;
 
 const DRIVER = `(function () {
@@ -83,10 +86,10 @@ Object.defineProperty(globalThis, 'console', { value: Object.freeze({ log: __noo
   error: __noop, debug: __noop }) });
 const core = (function () {
 ${core}
-;return { prepareScene, prepareLayer, compilePattern, renderFrame, toChannels, describeError };
+;return { prepareScene, prepareLayer, compileLayer, prepareLook, setLibrary, renderFrame, toChannels, describeError };
 })();
 ${renderer}
-const r = renderer(core, __cathedral, __in.layers, __in.ranges);
+const r = renderer(core, __cathedral, __in.layers, __in.ranges, __in.extra);
 const errorText = (errors) => (errors.length
   ? JSON.stringify(errors.map((e) => ({ id: String(e.id), error: String(e.error).slice(0, 300) }))) : '');
 Object.defineProperty(globalThis, '__next', { value: () => errorText(r.next()) });

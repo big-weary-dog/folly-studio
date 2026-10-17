@@ -43,15 +43,16 @@ async function runtimeBinds(node) {
 }
 
 /**
- * createRenderBox(o) → { probe() → { ok, reason? }, render({ layers, seconds? }) → { bytes, boxStats, ms,
- *   seconds }, stop(), config }. Each render gets a fresh folder with the bundled core and an empty /out, under prlimit
- * (CPU, tasks, file size, data) and a wall clock, in `bwrap --unshare-all --cap-drop ALL --clearenv` with
- * everything read-only but /out and a 16 MB /tmp. No RLIMIT_AS: V8 reserves large ranges up front and it
- * crashes; RLIMIT_DATA caps writable maps. RLIMIT_NPROC counts every process of the server's user.
+ * createRenderBox(o) → { probe() → { ok, reason? }, render({ layers, seconds?, globals?, automation?, bpm? }) →
+ *   { bytes, boxStats, ms, seconds }, stop(), config }. Each render gets a fresh folder with the bundled core and
+ * an empty /out, under prlimit (CPU, tasks, file size, data) and a wall clock, in `bwrap --unshare-all --cap-drop
+ * ALL --clearenv` with everything read-only but /out and a 16 MB /tmp. No RLIMIT_AS: V8 reserves large ranges up
+ * front and it crashes; RLIMIT_DATA caps writable maps. RLIMIT_NPROC counts every process of the server's user.
  * Options (environment): seconds (STUDIO_BAKE_SECONDS, 120, ≤ 600), timeoutMs (STUDIO_BAKE_TIMEOUT; 30 s +
  * 1.5 s per second baked, ≥ 90 s), cpuSeconds (STUDIO_BAKE_CPU; likewise, ≥ 120), tasks (STUDIO_BAKE_TASKS,
  * 256), memoryBytes (STUDIO_BAKE_MEMORY, 1 GB; 0 = none), maxFramesBytes (STUDIO_BAKE_MAX_FRAMES; 64 MB or
- * what `seconds` needs), frameTimeoutMs (2 s), publicDir, script, node, bwrap, prlimit, tmpRoot.
+ * what `seconds` needs), nice (STUDIO_BAKE_NICE, 10: the box runs at low priority), frameTimeoutMs (2 s),
+ * publicDir, script, node, bwrap, prlimit, tmpRoot.
  */
 export function createRenderBox(o = {}) {
   const env = o.env || process.env;
@@ -63,6 +64,7 @@ export function createRenderBox(o = {}) {
     timeoutMs: o.timeoutMs ?? parseDuration(env.STUDIO_BAKE_TIMEOUT, null), // null: scaled per bake
     cpuSeconds: o.cpuSeconds ?? (Number(env.STUDIO_BAKE_CPU) || null),
     tasks: o.tasks ?? (Number(env.STUDIO_BAKE_TASKS) || 256),
+    nice: Math.min(19, Math.max(0, Math.round(o.nice ?? (Number(env.STUDIO_BAKE_NICE ?? 10) || 0)))),
     memoryBytes: o.memoryBytes ?? parseBytes(env.STUDIO_BAKE_MEMORY, 1024 ** 3),
     maxFramesBytes: o.maxFramesBytes ?? parseBytes(env.STUDIO_BAKE_MAX_FRAMES, framesBytesFor(seconds)),
     frameTimeoutMs: o.frameTimeoutMs ?? 2 * SECOND,
@@ -74,6 +76,7 @@ export function createRenderBox(o = {}) {
       'cathedral.json': o.cathedralFile || path.join(publicDir, 'data/cathedral.json'),
     },
     coreFile: o.coreFile || path.join(publicDir, 'js/pattern-core.js'),
+    patternsDir: o.patternsDir || path.join(publicDir, 'patterns'),    // the library, for use()
     node: o.node || process.execPath, bwrap: o.bwrap || 'bwrap', prlimit: o.prlimit || 'prlimit',
     tmpRoot: o.tmpRoot || tmpdir(), log: o.log || console,
   };
@@ -93,7 +96,11 @@ export function createRenderBox(o = {}) {
         throw new BakeError('The render box is not set up on this server.', `missing ${f}`);
       }
     }
-    return { bwrap, prlimit, runtime: await runtimeBinds(cfg.node) };
+    if (!(await fs.stat(cfg.patternsDir).catch(() => null))?.isDirectory()) {
+      throw new BakeError('The render box is not set up on this server.', `missing ${cfg.patternsDir}`);
+    }
+    const nice = cfg.nice > 0 ? await which('nice', env.PATH) : null;
+    return { bwrap, prlimit, nice, runtime: await runtimeBinds(cfg.node) };
   }
 
   // Time budgets grow with the bake: 30 s plus 1.5 s per second of frames (a 25 ms frame is real time).
@@ -115,13 +122,16 @@ export function createRenderBox(o = {}) {
       '--ro-bind', t.runtime.node, '/box/node',
       '--ro-bind', cfg.script, '/box/render.mjs',
       ...Object.entries(cfg.files).flatMap(([name, from]) => ['--ro-bind', from, `/box/${name}`]),
+      '--ro-bind', cfg.patternsDir, '/box/patterns',
       ...(work ? ['--ro-bind', path.join(work, 'pattern-core.js'), '/box/pattern-core.js'] : []),
       ...(work ? ['--bind', path.join(work, 'out'), '/out'] : []),
       '--remount-ro', '/', '--chdir', '/box',
       '--', '/box/node', '--max-old-space-size=512', '--disallow-code-generation-from-strings', ...command,
     ];
     return new Promise((resolve) => {
-      const child = spawn(t.prlimit, args, { stdio: ['pipe', 'ignore', 'pipe'], env: {} });
+      // Under nice, so a bake never starves the server or the machine it shares.
+      const [cmd, pre] = t.nice ? [t.nice, ['-n', String(cfg.nice), t.prlimit]] : [t.prlimit, []];
+      const child = spawn(cmd, [...pre, ...args], { stdio: ['pipe', 'ignore', 'pipe'], env: {} });
       children.add(child);
       let stderr = '', timedOut = false;
       // bwrap --die-with-parent takes the whole box down with it
@@ -157,8 +167,11 @@ export function createRenderBox(o = {}) {
     return probed;
   }
 
-  /** Bake layers (with their clips) to FSEQ bytes, `seconds` long (at most the box's). Throws BakeError. */
-  async function render({ layers, seconds: want }) {
+  /**
+   * Bake layers (with their clips), globals and automation to FSEQ bytes, `seconds` long (at most the box's).
+   * Throws BakeError.
+   */
+  async function render({ layers, seconds: want, globals, automation, bpm }) {
     const p = await probe();
     if (!p.ok) throw new BakeError(p.reason);
     const t = await tools();
@@ -172,7 +185,9 @@ export function createRenderBox(o = {}) {
       const command = ['/box/render.mjs', '--out', '/out', '--seconds', String(secs),
         '--frame-ms', String(cfg.frameTimeoutMs)];
       const started = Date.now();
-      const r = await run(t, work, command, JSON.stringify({ layers }), timeoutMs, cpuSeconds);
+      const look = { layers, ...(globals ? { globals } : {}), ...(automation ? { automation } : {}),
+        ...(bpm ? { bpm } : {}) };
+      const r = await run(t, work, command, JSON.stringify(look), timeoutMs, cpuSeconds);
       const took = `The bake took longer than ${Math.round(timeoutMs / SECOND)} s and was stopped.`;
       if (r.timedOut) throw new BakeError(took);
       const result = await readUntrusted(path.join(out, 'result.json'), { maxBytes: 64 * 1024, within: out })

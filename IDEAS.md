@@ -40,6 +40,12 @@ carries everything that makes the Folly interesting to address:
 Layers composite `add` / `over` / `max` / `multiply` with a level — the same operations
 `shows.md` maps to xLights' Normal/Max/Mask.
 
+A layer is a **chain of modules**: warps move the pixel (mirror, kaleidoscope, scroll), sources draw,
+filters rework the colour, some by another source (meteors masked by clouds). Every look also has
+**globals**: speed as a clock (so a change never lurches, `shows.md`'s open question 7), master
+level, hue and saturation, an energy and macros patterns read, a palette by role as in TouchDesigner,
+and automation lanes on the timeline, so any look can be tweaked without touching code.
+
 **Why JavaScript and not a formula language?** It's what an AI writes best and what people can
 read and tweak, and frame-level state (particles, flocking, cellular automata via `frame()`)
 needs a real language. The cost is that it has to be sandboxed. A natural next step is a

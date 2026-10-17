@@ -1,4 +1,4 @@
-// My looks and the Gallery: cards that open in the Studio.
+// My looks and the Gallery: cards that open in the Studio. Lists carry metadata only; the Studio fetches a look.
 import { api } from '../api.js';
 import { h, clear, confirmDialog, jewelGradient, stylesheet, timeAgo, toast } from './dom.js';
 
@@ -47,7 +47,7 @@ export function mount(root, ctx) {
   }
 
   function card(look) {
-    const layers = Array.isArray(look.layers) ? look.layers.length : 0;
+    const layers = look.layerCount ?? 0;
     const mine = ctx.user && look.owner === ctx.user.id;
     const art = h('div', { class: 'card-art', 'aria-hidden': 'true' });
     art.style.setProperty('--art', jewelGradient(look.id + look.title));

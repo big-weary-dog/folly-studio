@@ -1,0 +1,10 @@
+{"version":1,"roles":["low","body","accent","high"],"palettes":[
+{"name":"carnival","low":["#6700cb","#b500b0"],"body":["#ee008e","#ff4f6d","#ff8162","#ffa566","#ffc673","#ffe068"],"accent":["#009298","#00beaf","#00ec43"],"high":["#f9e9cf"]},
+{"name":"chapel","low":["#a30066","#d40063"],"body":["#ff333c","#fd7f40","#fcae5c","#fbd182"],"accent":["#2a39ff","#2380ff","#50b3ff"],"high":["#f9e5c4"]},
+{"name":"ember","low":["#a1002c","#cb0020","#ee1300"],"body":["#fe5100","#ff7e2d","#ffa14c","#ffc070","#ffd988"],"accent":["#e10095","#ff53a5"],"high":["#fae6b6"]},
+{"name":"mono","low":["#ff8a1a"],"body":["#ffb46b","#ffcd9a","#ffe0c4"],"accent":["#bcd2ff"],"high":["#fff2dd"]},
+{"name":"playa","low":["#7200c8","#a100cf","#d100cb"],"body":["#ff26ab","#ff7b8a","#ffa28a","#ffc299"],"accent":["#00a8a4","#00d3c4"],"high":["#f8dbc5","#f7ede2"]},
+{"name":"prism","low":["#5300b2","#0d22ff"],"body":["#ff0018","#ff8a00","#ffe600","#00d92e","#0a66ff","#7d00ff"],"accent":["#e800e1","#ff74c9"],"high":["#f9f3cf"]},
+{"name":"vapour","low":["#5f00ca","#571bff","#3f62ff"],"body":["#1f8aff","#1daaff","#00c5ff","#00dffe","#00f9ff"],"accent":["#da00d4","#ff65c6"],"high":["#aaf9f8"]},
+{"name":"verdant","low":["#007137","#009033"],"body":["#14ad00","#60c400","#99d900","#cde800"],"accent":["#da00d4","#ff6dc7"],"high":["#d1f987"]}
+]}

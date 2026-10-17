@@ -31,7 +31,8 @@ export function createLayerOps(o) {
       return h('ul', { class: 'library-list' },
         item('Blank pattern', 'A minimal starting point: one colour, one moving band.',
           () => makeLayer({ title: 'New layer' }, S.cathedral), true),
-        S.library.map((p) => item(p.title || p.name, p.summary, () => layerFromPattern(p, S.cathedral))),
+        S.library.filter((p) => (p.kind || 'source') === 'source')
+          .map((p) => item(p.title || p.name, p.summary, () => layerFromPattern(p, S.cathedral))),
         S.library.length ? null : h('li', { class: 'pane-hint', text: 'The pattern library could not be loaded.' }));
     } });
   }

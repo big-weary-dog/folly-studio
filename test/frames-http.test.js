@@ -225,7 +225,15 @@ describe('.fseq downloads', () => {
     assert.equal((await get(alice, `${url}?compress=lz4`)).status, 400);
     assert.equal((await get(bob, `${url}?compress=1`)).status, 404);
     assert.ok(existsSync(path.join(tmp, 'data', 'frames', hash, 'frames.zlib.fseq')), 'made once, then kept');
+    // Frames gone (evicted for the disk cap): baked again on demand, the same bytes, the same bake.
     await unlink(path.join(tmp, 'data', 'frames', `${look.id}.fseq`));
-    assert.equal((await get(alice, `${url}?compress=zlib`)).status, 404, 'no frames, no download');
+    const gone = await get(alice, `${url}?compress=zlib`);
+    assert.equal(gone.status, 503);
+    assert.equal(gone.headers['retry-after'], '30');
+    await app.bakes.idle();
+    const again = await get(alice, url, { 'accept-encoding': 'identity' });
+    assert.equal(again.status, 200);
+    assert.deepEqual(again.body, plain.body);
+    assert.equal(again.headers.etag, plain.headers.etag, 'the bake record is kept');
   });
 });

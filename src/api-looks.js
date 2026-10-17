@@ -5,6 +5,7 @@ import { DEFAULT_DURATION } from '../public/js/pattern-core.js';
 import { HttpError } from './auth.js';
 import { reviewBlocker } from './bake.js';
 import { BakeError } from './box-output.js';
+import { cleanAutomation, cleanGlobals } from './look-globals.js';
 import { bad, cleanBool, cleanBpm, cleanDuration, cleanSummary, cleanTitle, validateLayers } from './look-rules.js';
 
 export const MAX_VERSIONS = 20;
@@ -32,6 +33,16 @@ export function lookRoutes({ store, auth, bakes, dropFrames }) {
     };
   }
 
+  /** A look as lists show it: what a card needs, no layers or code (GET /api/looks/:id has those). */
+  function listed(look) {
+    const out = { id: look.id, owner: look.owner, ownerName: ownerName(look.owner) || look.ownerName || '',
+      title: look.title, summary: look.summary ?? '', duration: look.duration ?? DEFAULT_DURATION,
+      layerCount: Array.isArray(look.layers) ? look.layers.length : 0, shared: look.shared === true,
+      reviewed: look.reviewed === true, createdAt: look.createdAt, updatedAt: look.updatedAt };
+    for (const k of ['bpm', 'sharedAt', 'ideaId']) if (look[k] != null) out[k] = look[k];
+    return out;
+  }
+
   function visibleLook(id, user) {
     const look = store.looks.get(id);
     if (!look || (look.owner !== user.id && look.shared !== true)) throw new HttpError(404, 'Look not found.');
@@ -45,13 +56,17 @@ export function lookRoutes({ store, auth, bakes, dropFrames }) {
     else if (scope === 'gallery') {
       looks = store.looks.list((l) => l.shared === true).reverse().sort(newestBy('sharedAt')).slice(0, GALLERY_LIMIT);
     } else bad('scope must be mine or gallery.');
-    return { looks: looks.map((l) => presentLook(l)) };
+    return { looks: looks.map(listed) };
   }
 
   function create({ user, body }) {
     const look = { owner: user.id, ownerName: user.username, title: cleanTitle(body.title, { required: true }),
       summary: cleanSummary(body.summary), layers: validateLayers(body.layers) };
     if (body.duration !== undefined) look.duration = cleanDuration(body.duration);
+    const globals = body.globals === undefined ? undefined : cleanGlobals(body.globals);
+    if (globals) look.globals = globals;
+    const automation = body.automation === undefined ? undefined : cleanAutomation(body.automation, globals);
+    if (automation) look.automation = automation;
     const bpm = body.bpm === undefined ? undefined : cleanBpm(body.bpm);
     if (bpm !== undefined) look.bpm = bpm;
     look.shared = body.shared === undefined ? false : cleanBool(body.shared, 'shared');
@@ -89,10 +104,19 @@ export function lookRoutes({ store, auth, bakes, dropFrames }) {
       const duration = cleanDuration(body.duration);
       if (duration !== (look.duration ?? DEFAULT_DURATION)) patch.duration = duration;
     }
-    const layersChanged = 'layers' in patch || 'duration' in patch;
+    // The globals and their automation play too (null clears them).
+    const globals = body.globals === undefined ? look.globals : cleanGlobals(body.globals);
+    if (body.globals !== undefined && JSON.stringify(globals) !== JSON.stringify(look.globals)) patch.globals = globals;
+    if (body.automation !== undefined || 'globals' in patch) {
+      const automation = cleanAutomation(body.automation === undefined ? look.automation ?? null : body.automation,
+        globals);
+      if (JSON.stringify(automation) !== JSON.stringify(look.automation)) patch.automation = automation;
+    }
+    const layersChanged = 'layers' in patch || 'duration' in patch || 'globals' in patch || 'automation' in patch;
     if (layersChanged) {
       const prev = { title: look.title, summary: look.summary ?? '', layers: look.layers ?? [],
-        duration: look.duration ?? DEFAULT_DURATION, savedAt: look.updatedAt };
+        duration: look.duration ?? DEFAULT_DURATION, ...(look.globals ? { globals: look.globals } : {}),
+        ...(look.automation ? { automation: look.automation } : {}), savedAt: look.updatedAt };
       patch.versions = [...(Array.isArray(look.versions) ? look.versions : []), prev].slice(-MAX_VERSIONS);
     }
     const unset = { summary: '', shared: false };
