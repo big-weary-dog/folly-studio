@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // What brotli quality costs when baked frames are encoded for the wire (src/frames-wire.js): bakes each
-// library pattern, a 3-layer timeline look and an incompressible noise pattern in-process (our own
+// library source, a 3-layer timeline look and an incompressible noise pattern in-process (our own
 // library code only), then encodes each at every quality asked, one chunk after another as the server does.
 //
 //   node tools/frames-bench.mjs [--seconds 20] [--quality 9,11] [--only name,name]
@@ -35,7 +35,8 @@ const channels = ranges.reduce((n, r) => n + r[1], 0);
 
 const NOISE = 'noise (worst case)';
 const LOOKS = [
-  ...index.map(({ name }) => [name, [{ id: 'a', code: source(name) }]]),
+  ...index.filter((p) => (p.kind ?? 'source') === 'source')
+    .map(({ name }) => [name, [{ id: 'a', code: source(name) }]]),
   ['timeline (3 layers)', [
     { id: 'bed', code: source('palette-drift') },
     { id: 'meteors', code: source('meteors'), tags: ['arch'],

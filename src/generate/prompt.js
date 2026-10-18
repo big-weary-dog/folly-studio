@@ -3,7 +3,7 @@
 // Everything in the system prompt is static for a given library + rig, so it caches;
 // the idea text, which is untrusted, only ever goes in the user turn.
 
-import { prepareScene } from '../../public/js/pattern-core.js';
+import { MODULE_KINDS, prepareScene } from '../../public/js/pattern-core.js';
 import { PALETTE_NAMES } from '../look-rules.js';
 import { BLENDS, LIMITS } from './validate.js';
 
@@ -204,11 +204,15 @@ export function formatGroups(groups = []) {
   return lines.join('\n');
 }
 
-function formatLibraryIndex(library) {
-  const summary = (p) => (p.summary ? ` — ${String(p.summary).replace(/\s+/g, ' ').slice(0, 140)}` : '');
-  return library.filter((p) => p && p.name).slice(0, 40)
-    .map((p) => `- ${p.name}${p.kind && p.kind !== 'source' ? ` (${p.kind})` : ''}${p.title ? `: ${p.title}` : ''}`
-      + summary(p)).join('\n');
+/** Every library entry, one line each (`- name: summary`) under its kind: the names `ref` and `use()` take. */
+export function formatLibraryIndex(library = []) {
+  const entries = library.filter((p) => p && p.name);
+  const kindOf = (p) => (MODULE_KINDS.includes(p.kind) ? p.kind : 'source');
+  const summary = (p) => String(p.summary || '').replace(/\s+/g, ' ').trim().slice(0, 140);
+  const line = (p) => `- ${p.name}${summary(p) ? `: ${summary(p)}` : ''}`;
+  return MODULE_KINDS.map((kind) => [kind, entries.filter((p) => kindOf(p) === kind)])
+    .filter(([, list]) => list.length)
+    .map(([kind, list]) => `${kind[0].toUpperCase()}${kind.slice(1)}s:\n${list.map(line).join('\n')}`).join('\n');
 }
 
 export function formatExamples(examples) {
@@ -226,7 +230,7 @@ export function buildSystemPrompt({ library = [], rig, groups = rig?.groups || [
   const mask = library.find((p) => p && p.name === 'mask' && typeof p.code === 'string');
   if (mask) examples.push(mask);
   const index = formatLibraryIndex(library);
-  const lib = (index ? `The studio library has these patterns; adapt their ideas freely:\n${index}\n\n` : '')
+  const lib = (index ? `The studio library, by kind; adapt their ideas freely:\n${index}\n\n` : '')
     + (examples.length ? `Examples of good pattern code:\n\n${formatExamples(examples)}` : '');
   return `You are the show designer for Folly Studio. People describe a light show idea in plain
 words; you turn it into a "look": a stack of pattern-code layers on groups of ${rig?.name || 'the installation'}.

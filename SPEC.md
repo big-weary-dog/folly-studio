@@ -27,7 +27,7 @@ file), edit it, and export it toward the real installation.
 
 ```
 studio/
-  SPEC.md  README.md  IDEAS.md  package.json  server.js
+  SPEC.md  README.md  DESIGN.md  IDEAS.md  package.json  server.js
   src/            server: app.js (createServer) api.js (+ JSON plumbing) api-looks.js look-rules.js auth.js store.js
                   static.js assets.js (content-hashed URLs, the sandbox's worker + core bundled)
                   generate/{index,sketch,claude,fleet,prompt,validate}.js
@@ -40,7 +40,7 @@ studio/
   fleet-box/      check.mjs + BRIEF.template.md for the boxed Fleet worker
   tools/          build_rig.py  build_palettes.py  lint.mjs (+ lint/: lexing, line budgets)
                   backup.mjs (dated .tar.gz of the data)  frames-bench.mjs (brotli quality vs time)
-  docs/HOSTING.md running it at home: tunnels, settings, resources, backups
+  docs/HOSTING.md running it at home: tunnels, settings, resources, backups; docs/screenshots/ (DESIGN.md's)
   public/
     index.html  favicon.svg
     css/                  base (tokens, layout, components: every page);

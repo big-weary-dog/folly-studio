@@ -76,7 +76,7 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `public/js/ui/` | Views and panels, one concern per module (`studio.js` wires the `studio-*.js` panes, `view-mode.js` the Playa | Points toggle; `layers.js`, `chain*.js`, `params.js`, `look-globals.js`, `timeline-auto.js` compose; `pages.js` is ideas and looks); `dom.js` holds the DOM helpers and shared form pieces |
 | `public/patterns/` | The built-in library (`index.json` with each entry's `kind` and `category`, + one file each): sources, warps and filters, also the AI's examples |
 | `tools/` | `build_rig.py` (+ `rig_render.py`: what Mirage draws), `build_palettes.py` (data), `sacn-play.mjs`, `lint.mjs` (+ `lint/`: lexing, line budgets in `budget.json`), `backup.mjs`, `frames-bench.mjs` (brotli quality against encode time) |
-| `docs/HOSTING.md` | Hosting at home: what runs where, tunnels, settings, backups |
+| `README.md`, `DESIGN.md`, `docs/` | What it is; what was built and why (`docs/screenshots/`); `docs/HOSTING.md`, hosting at home |
 | `test/` | `node:test` suites; `fixtures/` |
 
 Browser code imports only from `public/`. Server code imports only `pattern-core.js`, `fseq.js`

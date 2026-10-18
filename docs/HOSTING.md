@@ -22,7 +22,7 @@ baked again when someone presses Play.
 
 Static files are served under content-hashed URLs and cached for a year, so after the first visit
 a reload costs about 2 KB (the page and two API checks, all `304`). A cold Studio load is about
-175 KB. Lists send no code, and an idea being made is checked less and less often (2 s, then up to
+200 KB. Lists send no code, and an idea being made is checked less and less often (2 s, then up to
 10 s), never from a hidden tab. Streaming a baked look costs 0.05–2 MB per 30 s, depending on how
 busy it is. Brotli quality 11 (`STUDIO_FRAMES_BROTLI_QUALITY=11`) saves about 12 % of that, but
 needs about 13 times the CPU (`node tools/frames-bench.mjs`).

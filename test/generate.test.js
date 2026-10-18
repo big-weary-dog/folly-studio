@@ -5,7 +5,9 @@ import path from 'node:path';
 import { describe, test } from 'node:test';
 
 import { createQueue } from '../src/generate/index.js';
-import { buildSystemPrompt, buildUserMessage, formatGroups, lookSchema, pickExamples } from '../src/generate/prompt.js';
+import {
+  buildSystemPrompt, buildUserMessage, formatGroups, formatLibraryIndex, lookSchema, pickExamples,
+} from '../src/generate/prompt.js';
 import { BUILTIN_PATTERN, parseParams, sketchLook } from '../src/generate/sketch.js';
 import { GenerateError, LIMITS, validateLook } from '../src/generate/validate.js';
 import { byName, goodLayer, GROUPS, LIBRARY, queueSetup, quiet, RIG, STUDIO } from './fixtures/generate/shared.js';
@@ -163,6 +165,26 @@ describe('prompt', () => {
     }
     assert.ok(sys.includes(byName('lighthouse').code.trim()), 'a frame() example is included');
     assert.ok(pickExamples(LIBRARY).length <= 4);
+  });
+
+  test('the library index lists every entry, one line each under its kind, and the prompt stays small', () => {
+    const dir = path.join(STUDIO, 'public/patterns');
+    const lib = JSON.parse(fs.readFileSync(path.join(dir, 'index.json'), 'utf8')).map((p) => ({ ...p,
+      code: fs.readFileSync(path.join(dir, `${p.name}.js`), 'utf8') }));
+    const index = formatLibraryIndex(lib);
+    const kinds = {};
+    let head = '';
+    for (const line of index.split('\n')) {
+      if (/^\w+s:$/.test(line)) kinds[head = line] = [];
+      else kinds[head].push(line);
+    }
+    assert.deepEqual(Object.keys(kinds), ['Sources:', 'Warps:', 'Filters:']);
+    for (const p of lib) {
+      assert.ok(kinds[`${p.kind[0].toUpperCase()}${p.kind.slice(1)}s:`].includes(`- ${p.name}: ${p.summary}`), p.name);
+    }
+    assert.equal(Object.values(kinds).flat().length, lib.length);
+    const sys = buildSystemPrompt({ library: lib, rig: RIG });
+    assert.ok(sys.includes(index) && sys.length < 32_000, `the system prompt is ${sys.length} characters`);
   });
 
   test('group tree is compact', () => {
