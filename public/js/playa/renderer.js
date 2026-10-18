@@ -35,15 +35,23 @@ export function createPlaya(v) {
       pl.tier = q === 'auto' ? coarse() : Math.max(0, TIERS.findIndex((t) => t.name === q));
       tier(pl);
     },
-    /** A drawn frame took `ms`, asked to drawn: under 'auto', step down while the median is too slow. */
+    /** A drawn frame took `ms`, asked to drawn: under 'auto', a lower tier while frames are slow. */
     sample(ms) {
-      const s = pl.samples;
-      if (pl.quality !== 'auto' || ms > 250 || pl.tier > 1 || s.push(ms) < 24) return;
-      s.sort((a, b) => a - b);
-      if (s[12] > SLOW_MS) { pl.tier++; tier(pl); }
-      s.length = 0;
+      if (pl.quality === 'auto' && pl.tier < TIERS.length - 1 && tooSlow(pl.samples, ms)) {
+        pl.tier++;
+        tier(pl);
+      }
     },
   };
+}
+
+/** Auto's rule, on each drawn frame's ms: every 24 frames, whether their median took over 30 ms. */
+export function tooSlow(samples, ms) {
+  if (ms > 250 || samples.push(ms) < 24) return false;     // a frame after a pause or a hidden tab says nothing
+  samples.sort((a, b) => a - b);
+  const slow = samples[12] > SLOW_MS;
+  samples.length = 0;
+  return slow;
 }
 
 function texture(gl, w, h, format, filter) {

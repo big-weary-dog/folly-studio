@@ -1,13 +1,20 @@
 #!/usr/bin/env node
 // npm run perf: the Studio's live preview on a mid-range phone. A real server on a temporary data folder, headless
 // Chromium (Playwright from `npm root -g`, browsers in /opt/pw-browsers) at 390 × 844, and the demo composed look
-// (a warp, two sources, a mask and globals). At each CPU slowdown, in the Points view and in the Playa view at its
-// phone tier (lite), it counts the frames the sandbox answers and the 3D view draws, the worker's ms, and the main
-// thread's long tasks; at 4× both must stay ≥ 20 fps and no long task may reach 100 ms. CDP's
-// Emulation.setCPUThrottlingRate slows the page's thread, but Chrome refuses it for workers, so the sandbox's worker
-// is slowed by the same factor here: each frame busy-waits (rate − 1) × its own compute time, and its reported times
-// scale with it. Not in npm test.
-//   PERF_RATES=1,4  PERF_SECONDS=10  PERF_VIEWS=points,playa
+// (a warp, two sources, a mask and globals). Each run counts the frames the sandbox answers and the 3D view draws,
+// the worker's ms and the main thread's long tasks, at each CPU slowdown. CDP's Emulation.setCPUThrottlingRate slows
+// the page's thread, but Chrome refuses it for workers, so the sandbox's worker is slowed by the same factor here:
+// each frame busy-waits (rate − 1) × its own time, and its reported times scale with it.
+//
+// What it asserts, and what it only reports:
+// - compute (asserted): the sandbox with WebGL off. A phone draws on its GPU; here software GL (SwiftShader) would
+//   take the very CPUs the worker needs, and the slowdown above would multiply that contention. At 4× it must
+//   compute ≥ 20 fps.
+// - points, playa (reported): the 3D view on SwiftShader, Playa at its phone tier (lite). Their fps are software
+//   GL's, not a phone GPU's, so they are printed, not judged; the Playa view must not fall back to Points.
+// - auto (asserted): the Playa view on Auto with every frame held 35 ms, as on a slow GPU: it must step down to low.
+// Every run: no page errors, and no main-thread task of 100 ms or more at its highest slowdown. Not in npm test.
+//   PERF_RATES=1,4  PERF_SECONDS=10  PERF_RUNS=compute,points,playa,auto
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -18,7 +25,12 @@ import { loadPlaywright } from './mirage.mjs';
 
 const RATES = (process.env.PERF_RATES || '1,4').split(',').map(Number);
 const SECONDS = Number(process.env.PERF_SECONDS) || 10;
-const VIEWS = (process.env.PERF_VIEWS || 'points,playa').split(',');
+const RUNS = [
+  { name: 'compute', gl: false, view: 'points', rates: RATES },
+  { name: 'points', gl: true, view: 'points', rates: RATES },
+  { name: 'playa', gl: true, view: 'playa', quality: 'lite', rates: RATES },
+  { name: 'auto', gl: true, view: 'playa', quality: 'auto', slow: 35, rates: [1] },
+].filter((r) => (process.env.PERF_RUNS || 'compute,points,playa,auto').split(',').includes(r.name));
 const MIN_FPS = 20, MAX_TASK_MS = 100;
 const log = (m) => console.log(`perf: ${m}`);
 const code = (name) => readFile(new URL(`../../public/patterns/${name}.js`, import.meta.url), 'utf8');
@@ -38,9 +50,9 @@ async function demoLook() {
 }
 
 // In each frame, before its scripts. The page: count the sandbox's frame replies and the frames the 3D view draws
-// (its last pass, a full-screen triangle onto the canvas), record long tasks. The sandbox: slow its worker `rate`
-// times, as a phone's core would be (its source is a Blob; the probe goes first).
-function probe({ rate, view }) {
+// (its last pass, a full-screen triangle onto the canvas; `slow` ms each, if set), record long tasks. The sandbox:
+// slow its worker `rate` times, as a phone's core would be (its source is a Blob; the probe goes first).
+function probe({ rate, view, quality = 'auto', slow = 0 }) {
   if (window !== window.top) {
     const Blob0 = Blob;
     const slow = `(() => { const now = performance.now.bind(performance), post = self.postMessage.bind(self);
@@ -63,11 +75,12 @@ function probe({ rate, view }) {
   }
   const p = window.perfProbe = { frames: 0, first: 0, last: 0, ms: [], layers: {}, tasks: [], draws: 0, d0: 0, d1: 0 };
   localStorage.setItem('studio.render', view);
-  localStorage.setItem('studio.quality', 'lite');
+  localStorage.setItem('studio.quality', quality);
   const GL = WebGL2RenderingContext.prototype, bind = GL.bindFramebuffer, drawArrays = GL.drawArrays;
   GL.bindFramebuffer = function (target, fb) { this.perfFb = fb; return bind.call(this, target, fb); };
   GL.drawArrays = function (mode, first, count) {
     if (mode === this.TRIANGLES && count === 3 && !this.perfFb) {
+      for (const end = performance.now() + slow; performance.now() < end;);
       if (!p.draws++) p.d0 = performance.now();
       p.d1 = performance.now();
     }
@@ -90,11 +103,11 @@ function probe({ rate, view }) {
 
 const median = (a) => (a.length ? [...a].sort((x, y) => x - y)[a.length >> 1] : 0);
 
-async function measure(browser, origin, cookie, lookId, rate, view) {
+async function measure(browser, origin, cookie, lookId, run, rate) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3,
     isMobile: true, hasTouch: true });
   await context.addCookies([{ name: 'studio_session', value: cookie.split('=')[1], url: origin }]);
-  await context.addInitScript(probe, { rate, view });
+  await context.addInitScript(probe, { rate, view: run.view, quality: run.quality, slow: run.slow });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
@@ -112,11 +125,13 @@ async function measure(browser, origin, cookie, lookId, rate, view) {
   const stats = await page.locator('.tp-stats').textContent();
   const heavy = await page.locator('.layer-heavy:not([hidden])').count();
   const mode = await page.locator('.view-modes .mode-btn[aria-pressed=true]').first().getAttribute('data-mode');
+  const title = await page.locator('.view-modes .quality-btn').first().getAttribute('title');
   await context.close();
   const layerMs = Object.fromEntries(Object.entries(p.layers).map(([id, v]) => [id, median(v)]));
-  return { rate, view, mode, fps: ((p.frames - 1) * 1000) / (p.last - p.first), ms: median(p.ms), layerMs,
-    draws: ((p.draws - 1) * 1000) / (p.d1 - p.d0),
-    longest: Math.max(0, ...p.tasks), tasks: p.tasks.length, stats, heavy, errors };
+  const tier = (/now (\w+)/.exec(title) || /quality: (\w+)/.exec(title))?.[1];   // Auto says what it is now
+  return { run, rate, mode, tier, fps: ((p.frames - 1) * 1000) / (p.last - p.first), ms: median(p.ms), layerMs,
+    draws: p.draws > 1 ? ((p.draws - 1) * 1000) / (p.d1 - p.d0) : 0, longest: Math.max(0, ...p.tasks),
+    tasks: p.tasks.length, stats, heavy, errors };
 }
 
 async function main() {
@@ -135,26 +150,35 @@ async function main() {
     const made = await post('/api/looks', await demoLook(), cookie);
     if (!made.ok) throw new Error(`perf: the demo look was refused: ${await made.text()}`);
     const { look } = await made.json();
-    browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+    // One browser with software GL for the 3D view, one without WebGL for the sandbox alone.
+    const browsers = {
+      true: await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] }),
+      false: await chromium.launch({ args: ['--disable-3d-apis'] }),
+    };
+    browser = { close: () => Promise.all(Object.values(browsers).map((b) => b.close())) };
     const results = [];
-    for (const view of VIEWS) {
-      for (const rate of RATES) {
-        const r = await measure(browser, origin, cookie, look.id, rate, view);
+    for (const run of RUNS) {
+      for (const rate of run.rates) {
+        const r = await measure(browsers[run.gl], origin, cookie, look.id, run, rate);
         results.push(r);
         const layers = Object.values(r.layerMs).map((v) => v.toFixed(1)).join(', ');
-        log(`${view} (shown: ${r.mode}), ${rate}× CPU: ${r.fps.toFixed(1)} fps computed, ${r.draws.toFixed(1)} drawn, `
-          + `worker ${r.ms.toFixed(1)} ms a frame (layers ${layers} ms), longest task ${r.longest.toFixed(0)} ms `
-          + `(${r.tasks} over 50 ms), heavy badges ${r.heavy}; the transport says "${r.stats}"`);
+        const gl = run.gl ? `${r.draws.toFixed(1)} drawn (software GL, for the record), ${r.mode} view`
+          + `${r.mode === 'playa' ? ` at ${r.tier}` : ''}` : 'no WebGL';
+        log(`${run.name}, ${rate}× CPU: ${r.fps.toFixed(1)} fps computed, ${gl}; worker ${r.ms.toFixed(1)} ms a frame `
+          + `(layers ${layers} ms), longest task ${r.longest.toFixed(0)} ms (${r.tasks} over 50 ms), heavy badges `
+          + `${r.heavy}; the transport says "${r.stats}"`);
         for (const e of r.errors) log(`page error: ${e}`);
       }
     }
     const fails = [];
-    for (const phone of results.filter((r) => r.rate === Math.max(...RATES))) {
-      const at = `${phone.view} at ${phone.rate}×`;
-      if (phone.mode !== phone.view) fails.push(`${phone.view} asked for, ${phone.mode} shown`);
-      if (phone.fps < MIN_FPS) fails.push(`${phone.fps.toFixed(1)} fps computed (${at}), under ${MIN_FPS}`);
-      if (!(phone.draws >= MIN_FPS)) fails.push(`${phone.draws.toFixed(1)} fps drawn (${at}), under ${MIN_FPS}`);
-      if (phone.longest >= MAX_TASK_MS) fails.push(`a ${phone.longest.toFixed(0)} ms task (${at})`);
+    for (const r of results) {
+      const at = `${r.run.name} at ${r.rate}×`, top = r.rate === Math.max(...r.run.rates);
+      if (r.run.name === 'compute' && top && r.fps < MIN_FPS) {
+        fails.push(`${r.fps.toFixed(1)} fps computed (${at}), under ${MIN_FPS}`);
+      }
+      if (top && r.longest >= MAX_TASK_MS) fails.push(`a ${r.longest.toFixed(0)} ms task (${at})`);
+      if (r.run.view === 'playa' && r.mode !== 'playa') fails.push(`the Playa view fell back to ${r.mode} (${at})`);
+      if (r.run.name === 'auto' && r.tier !== 'low') fails.push(`Auto stayed at ${r.tier} on slow frames (${at})`);
     }
     if (results.some((r) => r.errors.length)) fails.push('page errors');
     if (fails.length) {

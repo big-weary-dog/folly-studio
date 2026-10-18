@@ -13,7 +13,8 @@ node tools/lint.mjs --rules  # the rules, one line each
 npm test                     # node --test "test/**/*.test.js"
 node --test test/core.test.js
 npm run build-data           # rebuild public/data/rig.json from ../pixel-map/, palettes.json from ../td/palettes/
-npm run perf                 # the preview on an emulated phone (Playwright from `npm root -g`): ≥ 20 fps at 4× CPU
+npm run perf                 # the preview on an emulated phone (Playwright from `npm root -g`): ≥ 20 fps at 4× CPU,
+                             #   Playa's Auto stepping down on slow frames; software-GL fps only reported
 ```
 
 Useful settings: `STUDIO_GENERATOR` (`sketch` default, `claude` with `ANTHROPIC_API_KEY`,

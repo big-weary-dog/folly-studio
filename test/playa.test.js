@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import { buildGeometry, cluster, earClip, playa } from '../public/js/playa/geometry.js';
+import { tooSlow } from '../public/js/playa/renderer.js';
 import { frameOf } from '../public/js/viewer.js';
 
 const rig = (file) => JSON.parse(readFileSync(new URL(file, import.meta.url), 'utf8'));
@@ -73,4 +74,15 @@ test('earClip triangulates a concave loop in any plane; cluster puts every pixel
   assert.ok(c.of.every((x) => x >= 0 && x < c.n));
   const ground = playa(0, 0);
   assert.ok(ground.index.every((x) => x < ground.pos.length / 2));
+});
+
+test('Auto steps down when the median of 24 drawn frames is over 30 ms, and only then', () => {
+  const samples = [], feed = (list) => list.reduce((_, ms) => tooSlow(samples, ms), false);   // the last verdict
+  assert.equal(feed(Array(23).fill(80)), false, 'not before 24 frames');
+  assert.equal(tooSlow(samples, 80), true, 'the 24th slow frame');
+  assert.equal(samples.length, 0, 'a fresh window after each verdict');
+  assert.equal(feed([...Array(12).fill(10), ...Array(12).fill(80)]), true, 'median 80');
+  assert.equal(feed([...Array(13).fill(10), ...Array(11).fill(80)]), false, 'median 10: fast enough');
+  assert.equal(feed(Array(24).fill(400)), false, 'pauses are not samples');
+  assert.equal(samples.length, 0);
 });
