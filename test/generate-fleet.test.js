@@ -8,9 +8,10 @@ import { describe, test } from 'node:test';
 import { writeFseq } from '../public/js/fseq.js';
 import { flashRegions, prepareScene } from '../public/js/pattern-core.js';
 import { layersHash, parseDuration } from '../src/bake.js';
-import { bundle } from '../src/assets.js';
 import { analyzeFrames, parseFseq } from '../src/frames.js';
-import { createFleetAdapter, fenceUntrusted, hasMemoryCap, readLook, workerName } from '../src/generate/fleet.js';
+import {
+  copyModule, createFleetAdapter, fenceUntrusted, hasMemoryCap, readLook, workerName,
+} from '../src/generate/fleet.js';
 import { createQueue, foundryFromEnv } from '../src/generate/index.js';
 import { sketchLook } from '../src/generate/sketch.js';
 import { GenerateError, validateLook } from '../src/generate/validate.js';
@@ -264,7 +265,7 @@ describe('fleet-box/check.mjs (boxed worker side, real runtime)', () => {
 
   test('passes a good look and catches a broken one', { skip: !ready && 'pattern runtime not built yet' }, async () => {
     const dir = tmp('check');
-    fs.writeFileSync(path.join(dir, 'pattern-core.js'), bundle(core).text);
+    await copyModule(core, dir);
     fs.copyFileSync(path.join(STUDIO, 'render-box/renderer.mjs'), path.join(dir, 'renderer.mjs'));
     fs.copyFileSync(path.join(STUDIO, 'public/js/fseq.js'), path.join(dir, 'fseq.js'));
     fs.copyFileSync(path.join(STUDIO, 'src/frames.js'), path.join(dir, 'frames.js'));

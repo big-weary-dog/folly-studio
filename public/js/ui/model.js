@@ -8,9 +8,10 @@ const once = (load) => {
   let p = null;
   return () => (p ||= load().catch((err) => { p = null; throw err; }));
 };
-export const loadRig = once(() => fetchJSON('/data/rig.json'));
+export const loadRig = once(() => fetchJSON(new URL('../../data/rig.json', import.meta.url).href));
 /** [{ name, low, body, accent, high }] from data/palettes.json (td/palettes, by tools/build_palettes.py). */
-export const loadPalettes = once(() => fetchJSON('/data/palettes.json').then((d) => d.palettes || []));
+export const loadPalettes = once(() => fetchJSON(new URL('../../data/palettes.json', import.meta.url).href)
+  .then((d) => d.palettes || []));
 /** [{ name, title, summary, kind, category, code }] from /api/library. */
 export const loadLibrary = once(() => api.library().then((r) => r.patterns || []));
 

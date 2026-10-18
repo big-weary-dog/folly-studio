@@ -1,5 +1,5 @@
 // fleet (EXPERIMENTAL): hands the idea to a boxed Fleet worker as an untrusted brief. Per idea, a fresh git
-// workspace (BRIEF.md with the idea quoted as untrusted text, the bundled core, the LED map, check.mjs and
+// workspace (BRIEF.md with the idea quoted as untrusted text, the core's modules, the LED map, check.mjs and
 // its renderer); then `fleet up --no-coordinator`, `fleet spawn idea-<id> --here --box`, and a poll of the
 // inbox for the worker's `report` raise. Its look.json is read as data, its frames.fseq checked by
 // src/frames.js, its stats.json kept as untrusted boxStats; then `fleet done`. Boxed Claude is refused by
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 import { DEFAULT_BAKE_SECONDS, framesBytesFor, parseBytes, parseDuration } from '../bake.js';
 import { checkFrames, cleanBoxStats, failedBake, readUntrusted } from '../box-output.js';
-import { bundle } from '../assets.js';
+import { moduleFiles } from '../core-script.js';
 import {
   describeRig, formatExamples, formatGroups, GROUPS_NOTE, PATTERN_GUIDE, pickExamples, rootOf, TASTE,
 } from './prompt.js';
@@ -27,6 +27,15 @@ const NUDGE = 'Nobody can answer raises for this task. Decide for yourself, writ
 const exists = (p) => fs.lstat(p).then(() => true, () => false);
 const readSmall = (file) => fs.readFile(file, 'utf8').then((t) => t.slice(0, 4096), () => null);
 const rowKey = (r) => [r.at, r.from, r.kind, r.msg].map(String).join('\u0000');
+
+/** Copy a module into `dir` as `name`, and the modules it imports at their paths relative to it (plain copies). */
+export async function copyModule(entry, dir, name = path.basename(entry)) {
+  for (const f of moduleFiles(entry)) {
+    const to = path.join(dir, f === path.resolve(entry) ? name : path.relative(path.dirname(entry), f));
+    await fs.mkdir(path.dirname(to), { recursive: true });
+    await fs.copyFile(f, to);
+  }
+}
 
 // A fleet worker name (lowercase letters, digits, dashes) for an idea id; when that changes the id, a
 // short hash of the original keeps two ideas from sharing a name.
@@ -111,12 +120,13 @@ export function createFleetAdapter(o = {}) {
     git: o.git || 'git',
     maxFramesBytes: o.maxFramesBytes
       ?? parseBytes(env.STUDIO_FLEET_MAX_FRAMES, framesBytesFor(DEFAULT_BAKE_SECONDS)),
-    coreFile: file('coreFile', 'public/js/pattern-core.js'),
     patternsDir: file('patternsDir', 'public/patterns'), // the library, for use() inside the box
     rigFile: file('rigFile', 'public/data/rig.json'),
     briefTemplate: file('briefTemplate', 'fleet-box/BRIEF.template.md'),
-    copies: { // what the workspace holds besides the bundled core, and where it comes from
-      'fseq.js': file('fseqFile', 'public/js/fseq.js'), 'frames.js': file('framesLib', 'src/frames.js'),
+    modules: { // what check.mjs imports, by the names it uses, each with the modules it imports, as they are
+      'pattern-core.js': file('coreFile', 'public/js/pattern-core.js'),
+      'fseq.js': file('fseqFile', 'public/js/fseq.js'), 'frames.js': file('framesLib', 'src/frames.js') },
+    copies: { // what else the workspace holds, and where it comes from
       'rig.json': file('rigFile', 'public/data/rig.json'),
       'palettes.json': file('palettesFile', 'public/data/palettes.json'), // a look's palette by name
       'check.mjs': file('checkFile', 'fleet-box/check.mjs'),
@@ -150,7 +160,7 @@ export function createFleetAdapter(o = {}) {
   }
 
   async function prepareWorkspace({ name, ws, text, library, rig, groups }) {
-    for (const f of [cfg.coreFile, cfg.briefTemplate, cfg.patternsDir, ...Object.values(cfg.copies)]) {
+    for (const f of [...Object.values(cfg.modules), cfg.briefTemplate, cfg.patternsDir, ...Object.values(cfg.copies)]) {
       if (!(await exists(f))) {
         throw new GenerateError('The Fleet generator is not set up on this server.', `missing ${f}`);
       }
@@ -169,7 +179,7 @@ export function createFleetAdapter(o = {}) {
         await fs.copyFile(path.join(cfg.patternsDir, name), path.join(ws, 'patterns', name));
       }
     }
-    await fs.writeFile(path.join(ws, 'pattern-core.js'), bundle(cfg.coreFile).text);
+    for (const [name, entry] of Object.entries(cfg.modules)) await copyModule(entry, ws, name);
     await fs.writeFile(path.join(ws, 'package.json'), '{ "private": true, "type": "module" }\n');
     const git = (args) => run(cfg.git, args, { cwd: ws, timeoutMs: 30_000 });
     await git(['init', '-q', '-b', 'main']);

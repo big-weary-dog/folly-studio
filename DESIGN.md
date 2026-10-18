@@ -32,27 +32,40 @@ It is hosted on the owner's computer for tens of people (the camp and friends), 
 
 ![Ideas: one generating (the rose fills as it works), one failed with a plain reason, two ready](docs/screenshots/laptop-ideas.jpg)
 
-## 2. Zero dependencies, and light
+## 2. Dependencies, and light
 
-Node ≥ 22 built-ins on the server; vanilla JS and WebGL2 in the browser; no packages, no build step, nothing from
-a CDN. It must work offline on the playa, install with a `git pull`, and have no supply chain to audit. The
-budgets are measured, not hoped for:
+We use a dependency whenever it makes life easier: TypeScript checks the code and Vite builds the browser's part.
+Each is pinned exactly, the lockfile is committed, CI installs with `npm ci`, and CONTRIBUTING says why each is
+there. What has to stay true:
+
+- **It works offline on the playa.** Dependencies are installed at setup, and the browser's bundled at build time;
+  nothing is fetched at run time and nothing comes from a CDN. The app, the sandbox and the boxes load only our own
+  files.
+- **What ships to the browser stays lean.** Phones on the camp's link pay for every byte, so the budgets below are
+  measured on the build, and a library earns its place in the browser only within them.
+- **The sandbox and the boxes stay closed and small.** The sandbox page carries everything it runs (its CSP loads
+  nothing); the boxes run our core from its source and the stdlib, nothing else.
+- **No build for the server.** Node runs the server's, the boxes' and the tests' TypeScript as written, stripping
+  the types, so what runs is what is in git; only the browser's code is built.
 
 | Budget | Limit | Now | Measured by |
 |---|---|---|---|
-| App JS + CSS, gzipped | 165 KB | 153.5 KB | `tools/lint.mjs` |
-| Login page path | 40 KB | 17.9 KB | `tools/lint.mjs` |
-| Cold Studio load (36 requests) | 205 KB br / 240 KB gzip | 200.7 / 232.9 KB | `test/transfer.test.js` |
+| App JS, CSS and sandbox page, gzipped, as built | 165 KB | 105.1 KB | `test/build.test.js` |
+| Login page path | 40 KB | 14.7 KB | `test/build.test.js` |
+| Cold Studio load (19 requests) | 205 KB br / 240 KB gzip | 145.3 / 169.7 KB | `test/transfer.test.js` |
 | Reload, a minute or a day later | shell + API, all 304 | 3 requests, 1.6 KB | `test/transfer.test.js` |
-| Phone preview, a composed look, 4× CPU slowdown | ≥ 20 fps computed | 38.9 fps | `npm run perf` |
+| Phone preview, a composed look, 4× CPU slowdown | ≥ 20 fps computed | 34.7 fps | `npm run perf` |
 
-Assets get content-hashed URLs cached for a year; views load on first use; lists carry no code. The code itself
-is ratcheted: sources ≤ 400 lines, tests ≤ 600, library patterns ≤ 150, and each area's total lines in
-`tools/lint/budget.json` may grow only with a written reason. Over a limit, a module is split by responsibility.
+Built files are named by their content and cached for a year; views and their styles load on first use; lists
+carry no code. The code itself is ratcheted: sources ≤ 400 lines, tests ≤ 600, library patterns ≤ 150, and each
+area's total lines in `tools/lint/budget.json` may grow only with a written reason. Over a limit, a module is split
+by responsibility.
 
-- **Alternatives.** React or Svelte with Vite and three.js: faster to write, but three.js alone would fill the
-  whole budget, and a build chain and a CDN do not survive the playa.
-- **Trade-off.** We maintain our own WebGL, DOM helpers and linter (`tools/lint.mjs`, zero-dependency too).
+- **Alternatives.** No dependencies at all, with our own content hashing, import map and stylesheet concatenation
+  (no supply chain, but unminified code and machinery to maintain); React or Svelte with three.js (three.js alone
+  would fill the budget).
+- **Trade-off.** A build before the app is served and a lockfile to keep current. We still maintain our own WebGL,
+  DOM helpers and linter.
 
 ## 3. The pattern model
 

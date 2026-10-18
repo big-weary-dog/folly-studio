@@ -84,17 +84,6 @@ export function pref(key, value) {
   return null;
 }
 
-/** A view's stylesheet, added once; resolves when it has loaded or failed. */
-export function stylesheet(href) {
-  let link = document.querySelector(`link[rel=stylesheet][href="${href}"]`);
-  if (!link) document.head.append(link = h('link', { rel: 'stylesheet', href }));
-  if (link.sheet) return Promise.resolve();
-  return new Promise((done) => {
-    link.addEventListener('load', done, { once: true });
-    link.addEventListener('error', done, { once: true });
-  });
-}
-
 export function toast(message, { kind = 'info', timeout = 4200, action } = {}) {
   const host = document.getElementById('toasts');
   if (!host) return;

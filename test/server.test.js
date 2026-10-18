@@ -1,5 +1,5 @@
 // Server tests: auth, CSRF, ideas, static files, the sandbox page and the store (looks: looks.test.js).
-// Each server runs on port 0 with its own temp data dir and a fixture public dir.
+// Each server runs on port 0 with its own temp data dir and fixture public and dist dirs.
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -10,7 +10,7 @@ import { validateLayers } from '../src/api.js';
 import { createStore } from '../src/store.js';
 import { CSP_APP, CSP_SANDBOX } from '../src/static.js';
 import {
-  client, CORE_SOURCE, EXPECTED_APP_CSP, EXPECTED_SANDBOX_CSP, fakeBox, fx, layer, PIXEL, quiet, rawGet, signup,
+  client, EXPECTED_APP_CSP, EXPECTED_SANDBOX_CSP, fakeBox, fx, layer, PIXEL, quiet, rawGet, SANDBOX_PAGE, signup,
   startApp, useFixture,
 } from './fixtures/server.js';
 
@@ -321,16 +321,14 @@ describe('server', () => {
       }
     });
 
-    test('sandbox.html inlines the core with the sandbox CSP', async () => {
-      const r = await fetch(`${app.base}/sandbox.html`);
+    test('the built sandbox page has the sandbox CSP and is kept, its name being its content', async () => {
+      const r = await fetch(app.base + SANDBOX_PAGE);
       assert.equal(r.status, 200);
       assert.equal(r.headers.get('content-security-policy'), EXPECTED_SANDBOX_CSP);
+      assert.equal(r.headers.get('cache-control'), 'public, max-age=31536000, immutable');
       assert.match(r.headers.get('content-type'), /^text\/html/);
-      const html = await r.text();
-      assert.ok(!html.includes('/*@CORE@*/'));
-      assert.ok(html.includes("const s = 'a$&b$1c';"), 'replacement patterns are not expanded');
-      assert.ok(html.includes("const t = '<\\/script>';"), 'a </script> inside the core cannot end the element');
-      assert.ok(html.includes('window.ok = 1;'));
+      assert.ok((await r.text()).includes('window.ok = 1;'));
+      assert.equal((await fetch(`${app.base}/sandbox.html`)).status, 404, 'only the built page is served');
       assert.equal(CSP_SANDBOX, EXPECTED_SANDBOX_CSP);
       assert.equal(CSP_APP, EXPECTED_APP_CSP);
     });
@@ -359,6 +357,7 @@ describe('without public files yet', () => {
     app = await createServer({
       dataDir: path.join(fx.tmp, 'data-fallback'),
       publicDir: empty,
+      distDir: empty,
       log: quiet,
     });
     const addr = await app.listen(0);
@@ -366,7 +365,7 @@ describe('without public files yet', () => {
   });
   after(() => app.close());
 
-  test('library and groups are empty, missing index.html is a 404', async () => {
+  test('library and groups are empty, missing index.html (no build yet) is a 404', async () => {
     assert.deepEqual((await (await fetch(`${app.base}/api/library`)).json()).patterns, []);
     assert.deepEqual(app.loaders.loadGroups(), []);
     assert.equal((await fetch(`${app.base}/`)).status, 404);

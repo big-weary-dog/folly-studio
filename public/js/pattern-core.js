@@ -1,6 +1,6 @@
 // pattern-core.js: Folly Studio's pattern runtime (SPEC "Sandbox protocol"). Pure ES modules: no
-// DOM, no globals touched. It runs in the sandbox's worker and in the render box, where the server
-// ships it as one script (src/bundle.js), and in the Node tests on our own library patterns.
+// DOM, no globals touched. It runs in the sandbox's worker (Vite builds it in), in the boxes, from its source (the
+// render box's realm takes it as one script: src/core-script.js), and in the Node tests on our own library patterns.
 export { DEFAULT_PALETTE, PALETTE_ROLES, STDLIB, STDLIB_NAMES } from './core/stdlib.js';
 export { compileModule, compilePattern, describeError, normalizeParams, setLibrary } from './core/compile.js';
 export {

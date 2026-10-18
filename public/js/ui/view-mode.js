@@ -1,8 +1,8 @@
 // Over the 3D view: Playa (Mirage's night playa) or Points (the lightest), and the Playa's quality: Auto (by
 // device, then stepping down while frames are slow), Full, Lite or Low.
-import { h, pref, stylesheet } from './dom.js';
+import '../../css/viewer.css';
+import { h, pref } from './dom.js';
 
-stylesheet('/css/viewer.css');
 const QUALITY = ['auto', 'full', 'lite', 'low'];
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 

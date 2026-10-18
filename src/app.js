@@ -11,24 +11,25 @@ import { createBakeQueue, createLane } from './bake.js';
 import { createFramesCache } from './frames-cache.js';
 import { createQueue } from './generate/index.js';
 import { createRenderBox } from './render-box.js';
-import { applySecurityHeaders, createLoaders, createStatic, DEFAULT_PUBLIC_DIR } from './static.js';
+import { applySecurityHeaders, createLoaders, createStatic, DEFAULT_DIST_DIR, DEFAULT_PUBLIC_DIR } from './static.js';
 import { createStore } from './store.js';
 
 export const DEFAULT_DATA_DIR = fileURLToPath(new URL('../data/', import.meta.url));
 
 /**
- * createServer({ dataDir, publicDir, generator?, generatorName?, curators?, secureCookies?, rateLimit?,
+ * createServer({ dataDir, publicDir, distDir, generator?, generatorName?, curators?, secureCookies?, rateLimit?,
  *   trustProxy?, log?, maxIdeasPerDay?, renderBox?, framesQuality?, framesMaxBytes? }) → { server, store, auth,
  *   queue, bakes, frames, loaders,
  *   adapterName, handler, listen(port = 0, host = '127.0.0.1') → address, close() }.
  * `generator`: a queue `{ enqueue(idea), idle?() }` or a factory of one (tests), else createQueue().
  * `renderBox`: `{ probe(), render({ layers }), stop?(), config? }` (tests), else createRenderBox() (STUDIO_BAKE_*).
+ * `publicDir`: the sources (the library, the rig); `distDir`: the app as Vite built it, served as static files.
  */
 export async function createServer(opts = {}) {
   const {
-    dataDir = DEFAULT_DATA_DIR, publicDir = DEFAULT_PUBLIC_DIR, generator, generatorName = 'sketch', curators = [],
-    secureCookies = false, rateLimit, trustProxy = false, maxIdeasPerDay = MAX_IDEAS_PER_DAY, log = createLog(),
-    renderBox, framesQuality, framesMaxBytes,
+    dataDir = DEFAULT_DATA_DIR, publicDir = DEFAULT_PUBLIC_DIR, distDir = DEFAULT_DIST_DIR, generator,
+    generatorName = 'sketch', curators = [], secureCookies = false, rateLimit, trustProxy = false,
+    maxIdeasPerDay = MAX_IDEAS_PER_DAY, log = createLog(), renderBox, framesQuality, framesMaxBytes,
   } = opts;
 
   const store = await createStore(dataDir, { log });
@@ -52,7 +53,7 @@ export async function createServer(opts = {}) {
   const api = createApi({ store, auth, queue, adapterName, loaders, log, trustProxy, maxIdeasPerDay, framesDir, bakes,
     frames });
   frames.prune().then(() => frames.disk.enforce()).catch(() => {});
-  const serveStatic = createStatic({ publicDir, log });
+  const serveStatic = createStatic({ distDir, log });
   // Ideas a restart cut short go back in the queue (enqueue is idempotent per id).
   for (const idea of store.ideas.list((i) => i.status === 'queued' || i.status === 'generating')) {
     enqueueIdea({ queue, store, log }, idea);

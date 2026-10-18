@@ -1,5 +1,5 @@
 // The sandbox's worker (SPEC "Sandbox protocol"): runs the look's layers, each a chain of modules, on the core.
-// The server inlines it, bundled with the core, into sandbox.html, which starts it as a Worker from a Blob.
+// Vite builds it with the core into one classic script inside sandbox.html, which starts it as a Worker from a Blob.
 import {
   compileModule, layerModules, prepareLayer, prepareLook, prepareScene, renderFrame, setLibrary, toChannels,
 } from './pattern-core.js';

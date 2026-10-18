@@ -5,7 +5,7 @@
 //   node tools/lint.mjs --rules    the rules, one line each
 //
 // One line can be silenced by a comment that starts with the marker, on the line or alone on the
-// line above:  `lint-allow <rule>: <reason>`. File-level rules (sizes, syntax, deps) cannot be.
+// line above:  `lint-allow <rule>: <reason>`. File-level rules (sizes, syntax, JSON) cannot be.
 
 import { execFile, execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -30,9 +30,9 @@ export const LIMITS = {
 };
 const DATA_CAPS = { 'public/data/rig.json': 1024 * KB }; // generated, committed data
 const LOGIN_VIEW = 'public/js/ui/auth.js'; // main.js imports it at once for a signed-out visitor
-const SKIP = /^(?:test\/fixtures\/lint\/|data\/)|(?:^|\/)(?:node_modules|\.git)\//;
+const SKIP = /^(?:test\/fixtures\/lint\/|data\/|dist\/|package-lock\.json$)|(?:^|\/)(?:node_modules|\.git)\//;
 // Paths that exist only at run time, and their source: the boxes find these next to their script
-// (bound or copied in by the host; the core bundled by src/assets.js).
+// (bound or copied in by the host; the core as one script by src/core-script.js, or its modules copied).
 const BOX_FILES = {
   'pattern-core.js': 'public/js/pattern-core.js', 'fseq.js': 'public/js/fseq.js', 'frames.js': 'src/frames.js',
   'rig.json': 'public/data/rig.json', 'renderer.mjs': 'render-box/renderer.mjs',
@@ -76,13 +76,12 @@ export const RULES = {
   'no-only': 'no focused tests',
   'no-secret': 'no API keys or private keys',
   'no-random': 'no Math.random in pattern-core.js, the render box or library patterns',
-  'import-resolve': 'relative imports resolve to files; built-ins as node:x; no packages',
+  'import-resolve': 'relative imports resolve to files; built-ins as node:x; packages only from package.json',
   'import-boundary': 'public/ imports only public/; src/ only pattern-core.js, fseq.js and data from it',
-  'no-deps': 'no dependencies of any kind in package.json',
   'lint-allow': 'a silence names a known line rule and a reason, and is used',
 };
 const UNSILENCEABLE = new Set(['max-lines', 'max-bytes', 'bundle-size', 'line-budget', 'final-newline', 'no-bom',
-  'json', 'syntax', 'no-deps', 'lint-allow']);
+  'json', 'syntax', 'lint-allow']);
 
 const URL_START = String.raw`(?:https?:)?\/\/`;
 const REMOTE = new RegExp([
@@ -159,13 +158,22 @@ function views(f, src) {
   return { text: blank(src, comments), code: blank(src, [...comments, ...literals].sort((a, b) => a[0] - b[0])) };
 }
 
+/** The packages package.json declares (dependencies and devDependencies). */
+function declared(root) {
+  try {
+    const json = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
+    return new Set(Object.keys({ ...json.dependencies, ...json.devDependencies }));
+  } catch { return new Set(); }
+}
+
 /** Where an import or a page reference lands: { target } and/or { error }. */
-function resolve(f, spec, known, root) {
+function resolve(f, spec, { known, root, packages }) {
   if (/^(?:[a-z][\w+.-]*:|\/\/|#)/i.test(spec) && !spec.startsWith('node:')) return {}; // URLs: no-remote-url
   if (spec.includes('${')) return {}; // computed
   if (isBuiltin(spec)) return spec.startsWith('node:') ? {} : { error: `write 'node:${spec}'` };
   if (spec.startsWith('node:')) return { error: `no built-in '${spec}'` };
-  if (!/^\.{0,2}\//.test(spec)) return { error: `package '${spec}': Folly Studio has no dependencies` };
+  const pkg = spec.split('/').slice(0, spec.startsWith('@') ? 2 : 1).join('/');
+  if (!/^\.{0,2}\//.test(spec)) return packages.has(pkg) ? {} : { error: `package '${pkg}' is not in package.json` };
   const clean = spec.replace(/[?#].*$/, '');
   let target = clean.startsWith('/') ? `public${clean}` : path.posix.join(path.posix.dirname(f.rel), clean);
   if (!known.has(target) && ALIASES.has(target)) target = ALIASES.get(target);
@@ -203,15 +211,7 @@ function checkFile(f, src, ctx, report) {
   });
   if (f.kind === 'json') {
     try {
-      const json = JSON.parse(src);
-      if (path.posix.basename(f.rel) === 'package.json') {
-        for (const k of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies',
-          'bundleDependencies', 'bundledDependencies']) {
-          if (k in json && !['{}', '[]'].includes(JSON.stringify(json[k]))) {
-            report(lineAt(src.indexOf(`"${k}"`)), 'no-deps', `${k}: Folly Studio uses Node built-ins only`);
-          }
-        }
-      }
+      JSON.parse(src);
     } catch (e) {
       const at = /line (\d+)/.exec(e.message)?.[1] || lineAt(+(/position (\d+)/.exec(e.message)?.[1] || 0));
       report(+at, 'json', e.message.replace(/ in JSON at position.*$/, ''));
@@ -224,7 +224,7 @@ function checkFile(f, src, ctx, report) {
   }
   const edges = [];
   const link = (spec, at, eager) => {
-    const r = resolve(f, spec, ctx.known, ctx.root);
+    const r = resolve(f, spec, ctx);
     if (r.error) report(lineAt(at), 'import-resolve', r.error);
     const crossing = r.target && boundary(f, r.target);
     if (crossing) report(lineAt(at), 'import-boundary', `'${spec}' is ${r.target}: ${crossing}`);
@@ -329,7 +329,7 @@ function committed(root, rel, text) {
  * bundle: { total, login, loginFiles }, areas: Map<area, lines of code>, notes }.
  */
 export async function lint({ root = STUDIO, limits = {} } = {}) {
-  const ctx = { root, limits: { ...LIMITS, ...limits }, known: new Set(listFiles(root)) };
+  const ctx = { root, limits: { ...LIMITS, ...limits }, known: new Set(listFiles(root)), packages: declared(root) };
   const notes = [];
   const syntax = checkSyntax(root, [...ctx.known], notes);
   const errors = [], graph = new Map(), gz = new Map(), areas = new Map();

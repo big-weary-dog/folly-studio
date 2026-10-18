@@ -22,13 +22,22 @@ baked again when someone presses Play.
 
 Static files are served under content-hashed URLs and cached for a year, so after the first visit
 a reload costs about 2 KB (the page and two API checks, all `304`). A cold Studio load is about
-200 KB. Lists send no code, and an idea being made is checked less and less often (2 s, then up to
+145 KB. Lists send no code, and an idea being made is checked less and less often (2 s, then up to
 10 s), never from a hidden tab. Streaming a baked look costs 0.05–2 MB per 30 s, depending on how
 busy it is. Brotli quality 11 (`STUDIO_FRAMES_BROTLI_QUALITY=11`) saves about 12 % of that, but
 needs about 13 times the CPU (`node tools/frames-bench.mjs`).
 
 **Use HTTPS.** Browsers ask for `br` only over HTTPS. Over plain HTTP they get the gzip copy of each
 frame chunk, which is up to 76 % larger, and is made on first request. Both tunnels below serve HTTPS.
+
+## Install and update
+
+```sh
+npm ci           # once, and after every pull: the dependencies, exactly as package-lock.json pins them
+npm start        # builds the app into dist/ (a few seconds), then serves it with the API
+```
+
+Everything is installed and built on your machine: once it is, the studio needs no network but the tunnel.
 
 ## Bind to localhost
 
@@ -54,8 +63,8 @@ cloudflared tunnel run folly
 
 For a quick trial with no domain, run `cloudflared tunnel --url http://127.0.0.1:8780`. In the
 dashboard, leave Rocket Loader and email obfuscation off, because they inject scripts the CSP
-refuses. Add no cache rules for `/api/`. Content-hashed `.js`, `.css` and `.json` may be cached at the
-edge, which also spares your upload.
+refuses. Add no cache rules for `/api/`. Everything under `/assets/` is named by its content and may be cached
+at the edge, which also spares your upload.
 
 ## Tailscale Funnel *(to verify)*
 

@@ -9,11 +9,14 @@ xLights.
 
 ## Quick start
 
-Node ≥ 22 and Python 3; there is nothing to install.
+Node ≥ 22.18 and Python 3.
 
 ```sh
-npm start              # http://127.0.0.1:8780/ (data in ./data/; sign up, then describe an idea)
-npm run check          # lint, then every test: green before anything is done
+npm ci                 # the dependencies (TypeScript, Vite), exactly as package-lock.json pins them
+npm start              # builds the app into dist/, then http://127.0.0.1:8780/ (data in ./data/; sign up, then
+                       #   describe an idea)
+npm run dev            # the same with Vite's dev server and hot reload, on http://127.0.0.1:5173/
+npm run check          # typecheck, lint, then every test: green before anything is done
 npm run e2e            # the Mirage match: our .fseq through sACN into Mirage, every LED compared
 npm run perf           # the live preview on an emulated phone at 4× CPU slowdown
 npm run build-data     # rebuild public/data/rig.json from ../pixel-map/, palettes.json from ../td/palettes/
@@ -34,5 +37,5 @@ npm run build-data     # rebuild public/data/rig.json from ../pixel-map/, palett
 | [DESIGN.md](DESIGN.md) | What was built, why, the trade-offs and the limits, with screenshots |
 | [SPEC.md](SPEC.md) | The contract: the rig file, pattern code, looks, the sandbox protocol, the HTTP API, baked frames |
 | [docs/HOSTING.md](docs/HOSTING.md) | Running it at home: what runs where, tunnels, settings, backups |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Layout, the rules and why, security invariants, budgets, adding an installation |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Layout, dependencies, TypeScript, the rules and why, security invariants, budgets, adding an installation |
 | [IDEAS.md](IDEAS.md) | Where it could go next |

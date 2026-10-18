@@ -1,9 +1,8 @@
 // The list pages. Ideas: describe a show, watch it turn into a look, open it in the Studio. My looks and the
 // Gallery: cards that open in the Studio (lists carry metadata only; the Studio fetches a look).
 import { api } from '../api.js';
-import { busy, confirmDialog, h, jewelGradient, label, rose, stylesheet, timeAgo, toast } from './dom.js';
-
-await stylesheet('/css/pages.css');
+import '../../css/pages.css';
+import { busy, confirmDialog, h, jewelGradient, label, rose, timeAgo, toast } from './dom.js';
 
 /** The route's page: My looks or the Gallery when it names a scope, else Ideas. */
 export const mount = (root, ctx) => (ctx.args.scope ? looksPage(root, ctx) : ideasPage(root, ctx));

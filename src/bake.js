@@ -13,7 +13,7 @@ import path from 'node:path';
 
 import { DEFAULT_DURATION } from '../public/js/pattern-core.js';
 import { BakeError, checkFrames, failedBake } from './box-output.js';
-import { bundle } from './assets.js';
+import { bundle } from './core-script.js';
 import { DEFAULT_MAX_BYTES, flickerReason } from './frames.js';
 import { renderFields } from './look-rules.js';
 

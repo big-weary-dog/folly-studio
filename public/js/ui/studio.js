@@ -4,7 +4,9 @@
 // clock, and studio-actions.js saves, shares and exports.
 import { api } from '../api.js';
 import { BakePanel } from './bake.js';
-import { debounce, h, pref, reducedMotion, stylesheet, toast } from './dom.js';
+import '../../css/compose.css'; // before studio.css, which refines some of its rules
+import '../../css/studio.css';
+import { debounce, h, pref, reducedMotion, toast } from './dom.js';
 import { CodeEditor, quickReference } from './editor.js';
 import { createChain, createLayerStatus, ISSUE_LABELS } from './chain.js';
 import { createLayerOps, GroupsTree, LayerStack } from './layers.js';
@@ -16,8 +18,6 @@ import { buildLayout, TABS } from './studio-layout.js';
 import { createPreview } from './studio-preview.js';
 import { Timeline } from './timeline.js';
 import { cleanBpm, cleanDuration } from './timeline-model.js';
-
-await Promise.all([stylesheet('/css/studio.css'), stylesheet('/css/compose.css')]);
 
 const copy = (v) => (v == null ? undefined : JSON.parse(JSON.stringify(v)));
 const COMPILE_DELAY_MS = 300;

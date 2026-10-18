@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Folly Studio server: environment → createServer() (src/app.js).
+// Folly Studio server: environment → createServer() (src/app.js), serving the app from dist/ (`npm run build`).
 //
 //   PORT                   default 8780
 //   HOST                   default 127.0.0.1
@@ -28,8 +28,9 @@ const port = Number(env.PORT || 8780);
 const host = env.HOST || '127.0.0.1';
 const dataDir = path.resolve(env.STUDIO_DATA || path.join(here, 'data'));
 
-const app = await createServer({ dataDir, publicDir: path.join(here, 'public'), curators: env.STUDIO_CURATORS || '',
-  secureCookies: on(env.STUDIO_SECURE_COOKIES), generatorName: env.STUDIO_GENERATOR || 'sketch',
+const app = await createServer({ dataDir, publicDir: path.join(here, 'public'), distDir: path.join(here, 'dist'),
+  curators: env.STUDIO_CURATORS || '', secureCookies: on(env.STUDIO_SECURE_COOKIES),
+  generatorName: env.STUDIO_GENERATOR || 'sketch',
   trustProxy: on(env.STUDIO_TRUST_PROXY), framesQuality: Number(env.STUDIO_FRAMES_BROTLI_QUALITY) || undefined,
   framesMaxBytes: parseBytes(env.STUDIO_FRAMES_MAX_BYTES, undefined) });
 const addr = await app.listen(port, host);

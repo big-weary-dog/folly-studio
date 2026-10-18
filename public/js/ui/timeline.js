@@ -1,6 +1,7 @@
 // The timeline (SPEC "Timeline"): a row per layer, top first, clips on a ruler, a playhead (all that moves per
 // frame). Wide: dragged in the dock; phones: strips and the clip's numbers (timeline-tools.js).
-import { h, keyed, pref, randomId, stylesheet, toast } from './dom.js';
+import '../../css/timeline.css';
+import { h, keyed, pref, randomId, toast } from './dom.js';
 import {
   addClip, clock, contentEnd, DEFAULT_DURATION, importLook, MAX_DURATION, removeClip, rulerStep, shownFades, snapStep,
 } from './timeline-model.js';
@@ -10,8 +11,6 @@ const NAMES_W = 112;           // the layer-name column on a wide screen
 const RULER_H = 16;
 const MAX_PPS = 200;           // pixels a second, fully zoomed in
 const MAX_WIDTH = 120000;      // and never wider than this
-
-await stylesheet('/css/timeline.css');
 
 export class Timeline {
   // host: { layers(), look(), selectedId(), time(), toolsSlot, onSelectLayer(id), onEdit({ live }), onSeek(t),

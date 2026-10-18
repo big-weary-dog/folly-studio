@@ -3,3 +3,6 @@
 /data/
 # tools/backup.mjs archives (default --out)
 /backups/
+# npm ci installs these; npm run build writes the app here
+/node_modules/
+/dist/

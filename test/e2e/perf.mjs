@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// npm run perf: the Studio's live preview on a mid-range phone. A real server on a temporary data folder, headless
-// Chromium (Playwright from `npm root -g`, browsers in /opt/pw-browsers) at 390 × 844, and the demo composed look
+// npm run perf: the Studio's live preview on a mid-range phone. A real server on a temporary data folder and a fresh
+// build, headless Chromium (Playwright from `npm root -g`, browsers in /opt/pw-browsers) at 390 × 844, the demo look
 // (a warp, two sources, a mask and globals). Each run counts the frames the sandbox answers and the 3D view draws,
 // the worker's ms and the main thread's long tasks, at each CPU slowdown. CDP's Emulation.setCPUThrottlingRate slows
 // the page's thread, but Chrome refuses it for workers, so the sandbox's worker is slowed by the same factor here:
@@ -20,6 +20,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { createServer } from '../../src/app.js';
+import { builtApp } from '../fixtures/build.js';
 import { quiet } from '../fixtures/server.js';
 import { loadPlaywright } from './mirage.mjs';
 
@@ -138,7 +139,8 @@ async function main() {
   const { chromium } = loadPlaywright();
   const tmp = await mkdtemp(path.join(tmpdir(), 'studio-perf-'));
   const renderBox = { probe: async () => ({ ok: false, reason: 'off' }), render: async () => ({}) };
-  const app = await createServer({ dataDir: tmp, log: quiet, generator: { enqueue() {} }, renderBox });
+  const app = await createServer({ dataDir: tmp, distDir: await builtApp(), log: quiet, generator: { enqueue() {} },
+    renderBox });
   const { port } = await app.listen(0);
   const origin = `http://127.0.0.1:${port}`;
   let browser;

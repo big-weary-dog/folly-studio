@@ -1,11 +1,9 @@
 // A browser, as far as bytes on the wire go: an HTTP cache (max-age, immutable, no-cache, ETags), a page load
-// that follows the shell's stylesheets, scripts and import map, every module's static imports, the
-// view module a route loads and the asset literals modules fetch, and a clock to make cached copies stale.
+// that follows the shell's scripts and links, and for each module what Vite's manifest says it loads with it (the
+// modules it imports, its styles and the files it fetches), the view module a route loads, and a clock to make
+// cached copies stale.
 import http from 'node:http';
 import zlib from 'node:zlib';
-
-const IMPORT = /^(?:import|export)\b[^;]*?\bfrom\s*'([^']+)'/gm;
-const ASSET = /'(\/(?:css|data)\/[^']+|\/sandbox[^'/]*\.html)'/g;
 
 /** GET (or another method) counting the bytes on the wire: status line, headers and the body as sent. */
 export function request(port, url, { method = 'GET', headers = {}, body } = {}) {
@@ -30,10 +28,14 @@ export function request(port, url, { method = 'GET', headers = {}, body } = {}) 
 
 const maxAge = (cc) => (/no-cache|no-store/.test(cc) ? 0 : Number(/max-age=(\d+)/.exec(cc)?.[1] || 0));
 
-/** browser(port, { encoding, cookie }) → { load(path, { view, api }), fetch(url, opts), tick(s), log, … } */
-export function browser(port, { encoding = 'br, gzip', cookie = '' } = {}) {
+/**
+ * browser(port, { encoding, cookie, manifest }) → { load(path, { view, api }), fetch(url, opts), tick(s), log, … };
+ * `manifest`: the build's .vite/manifest.json, and a view is its key (js/ui/studio.js).
+ */
+export function browser(port, { encoding = 'br, gzip', cookie = '', manifest = {} } = {}) {
   const cache = new Map(); // url → { res, at }
-  const b = { log: [], clock: 0, cookie, importMap: {} };
+  const b = { log: [], clock: 0, cookie };
+  const byFile = new Map(Object.values(manifest).map((e) => [`/${e.file}`, e]));
   const send = (url, opts = {}) => request(port, url, { ...opts, headers: { 'accept-encoding': encoding,
     ...(b.cookie ? { cookie: b.cookie } : {}), ...opts.headers } });
 
@@ -63,18 +65,15 @@ export function browser(port, { encoding = 'br, gzip', cookie = '' } = {}) {
     return res;
   };
 
-  const resolve = (spec, from) => {
-    const url = new URL(spec, `http://x${from}`).pathname;
-    return b.importMap[url] || url;
-  };
   const loaded = new Set();
-  async function module(url) {
+  /** A file, and for a module the modules, styles and files it loads with it. */
+  async function file(url) {
     if (loaded.has(url)) return;
     loaded.add(url);
-    const { text } = await b.fetch(url);
-    for (const [, spec] of text.matchAll(IMPORT)) await module(resolve(spec, url));
-    for (const [, asset] of text.matchAll(ASSET)) await b.fetch(asset);
-    return text;
+    await b.fetch(url);
+    const e = byFile.get(url);
+    for (const key of e?.imports || []) await file(`/${manifest[key].file}`);
+    for (const f of [...e?.css || [], ...e?.assets || []]) await file(`/${f}`);
   }
 
   /** A navigation: the shell (if `shell`), then what it loads, the view module, `api` GETs. */
@@ -82,14 +81,9 @@ export function browser(port, { encoding = 'br, gzip', cookie = '' } = {}) {
     if (shell) {
       loaded.clear();
       const { text } = await b.fetch(path, { main: true });
-      const map = /<script type="importmap"[^>]*>([^<]*)<\/script>/.exec(text);
-      b.importMap = map ? JSON.parse(map[1]).imports : {};
-      for (const [, url] of text.matchAll(/<(?:link|script)\b[^>]*?\b(?:href|src)="(\/[^"]+)"/g)) {
-        if (/\.js$/.test(url)) await module(url);
-        else await b.fetch(url);
-      }
+      for (const [, url] of text.matchAll(/<(?:link|script)\b[^>]*?\b(?:href|src)="(\/[^"]+)"/g)) await file(url);
     }
-    if (view) await module(resolve(view, '/js/main.js'));
+    if (view) await file(`/${manifest[view].file}`);
     for (const url of api) await b.fetch(url);
   };
   b.tick = (seconds) => { b.clock += seconds; };

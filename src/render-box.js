@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 import { DEFAULT_BAKE_SECONDS, framesBytesFor, parseBytes, parseDuration } from './bake.js';
 import { BakeError, cleanBoxStats, CONTROL, readUntrusted } from './box-output.js';
-import { bundle } from './assets.js';
+import { bundle } from './core-script.js';
 
 const STUDIO = fileURLToPath(new URL('../', import.meta.url));
 const SECOND = 1000;
@@ -44,10 +44,11 @@ async function runtimeBinds(node) {
 
 /**
  * createRenderBox(o) → { probe() → { ok, reason? }, render({ layers, seconds?, globals?, automation?, bpm? }) →
- *   { bytes, boxStats, ms, seconds }, stop(), config }. Each render gets a fresh folder with the bundled core and
- * an empty /out, under prlimit (CPU, tasks, file size, data) and a wall clock, in `bwrap --unshare-all --cap-drop
- * ALL --clearenv` with everything read-only but /out and a 16 MB /tmp. No RLIMIT_AS: V8 reserves large ranges up
- * front and it crashes; RLIMIT_DATA caps writable maps. RLIMIT_NPROC counts every process of the server's user.
+ *   { bytes, boxStats, ms, seconds }, stop(), config }. Each render gets a fresh folder with the core as one script
+ * (src/core-script.js, from its source) and an empty /out, under prlimit (CPU, tasks, file size, data) and a wall
+ * clock, in `bwrap --unshare-all --cap-drop ALL --clearenv` with everything read-only but /out and a 16 MB /tmp.
+ * No RLIMIT_AS: V8 reserves large ranges up front and it crashes; RLIMIT_DATA caps writable maps. RLIMIT_NPROC counts
+ * every process of the server's user.
  * Options (environment): seconds (STUDIO_BAKE_SECONDS, 120, ≤ 600), timeoutMs (STUDIO_BAKE_TIMEOUT; 30 s +
  * 1.5 s per second baked, ≥ 90 s), cpuSeconds (STUDIO_BAKE_CPU; likewise, ≥ 120), tasks (STUDIO_BAKE_TASKS,
  * 256), memoryBytes (STUDIO_BAKE_MEMORY, 1 GB; 0 = none), maxFramesBytes (STUDIO_BAKE_MAX_FRAMES; 64 MB or
@@ -81,6 +82,7 @@ export function createRenderBox(o = {}) {
     tmpRoot: o.tmpRoot || tmpdir(), log: o.log || console,
   };
   const children = new Set();
+  const boxScript = () => `/box/${path.basename(cfg.script)}`; // its own name: Node runs a .ts one as TypeScript
   let probed, found;
   const tools = () => (found ||= findTools().catch((err) => { found = null; throw err; }));
 
@@ -120,7 +122,7 @@ export function createRenderBox(o = {}) {
       '--proc', '/proc', '--dev', '/dev', '--size', String(16 * 1024 * 1024), '--tmpfs', '/tmp',
       ...t.runtime.binds,
       '--ro-bind', t.runtime.node, '/box/node',
-      '--ro-bind', cfg.script, '/box/render.mjs',
+      '--ro-bind', cfg.script, boxScript(),
       ...Object.entries(cfg.files).flatMap(([name, from]) => ['--ro-bind', from, `/box/${name}`]),
       '--ro-bind', cfg.patternsDir, '/box/patterns',
       ...(work ? ['--ro-bind', path.join(work, 'pattern-core.js'), '/box/pattern-core.js'] : []),
@@ -182,7 +184,7 @@ export function createRenderBox(o = {}) {
     try {
       await fs.mkdir(out);
       await fs.writeFile(path.join(work, 'pattern-core.js'), bundle(cfg.coreFile).text);
-      const command = ['/box/render.mjs', '--out', '/out', '--seconds', String(secs),
+      const command = [boxScript(), '--out', '/out', '--seconds', String(secs),
         '--frame-ms', String(cfg.frameTimeoutMs)];
       const started = Date.now();
       const look = { layers, ...(globals ? { globals } : {}), ...(automation ? { automation } : {}),

@@ -2,6 +2,7 @@
 // frames (one in flight, at 40, 30 or 20 fps by their cost) and exports. After `init` it talks over a MessagePort:
 // Chrome takes a millisecond to unpack a window message from an opaque origin. The page pauses hung layers itself;
 // this watchdog rebuilds it only when it stops answering.
+import SANDBOX_URL from '../sandbox.html?sandbox';
 
 const LOAD_MS = 6000, INIT_MS = 1500;  // no `ready` by then: init anyway; then carry on (a look's `compiled` tells)
 const SILENT_MS = 4000;          // owed a reply and heard nothing this long: the page is gone (it answers in 1.5 s)
@@ -18,7 +19,7 @@ const ema = (old, v) => (old ? old + (v - old) * 0.15 : v);    // smoothed over 
 export class Runtime {
   // { container, onFrame(rgb, t), onCompiled([{ id, ok, error?, params, modules }]), onFrameErrors([{ id, error }]),
   //   onStatus(loading | ready | warning | dead, detail?), time() → the show time now (while playing) }
-  constructor({ container = document.body, src = '/sandbox.html', onFrame, onCompiled, onFrameErrors, onStatus,
+  constructor({ container = document.body, src = SANDBOX_URL, onFrame, onCompiled, onFrameErrors, onStatus,
     time } = {}) {
     const noop = () => {};
     Object.assign(this, { container, src, onFrame: onFrame || noop, onCompiled: onCompiled || noop,
@@ -268,7 +269,7 @@ export class Runtime {
     this.deadTries = (this.deadTries || 0) + 1;
     this._kill();
     if (this.deadTries > 3) {
-      return this._die('The pattern sandbox did not start (is /sandbox.html served?). Reload to try again.');
+      return this._die('The pattern sandbox did not start (is sandbox.html served?). Reload to try again.');
     }
     this.phase = 'idle';
     this.onStatus('warning', 'The pattern sandbox is not answering; retrying…');

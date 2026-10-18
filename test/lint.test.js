@@ -61,7 +61,6 @@ const EXPECT = {
   'import-resolve': ['public/index.html:10', 'public/js/main.js:3', 'public/js/main.js:5', 'render-box/render.mjs:4',
     'src/server.js:4'],
   'import-boundary': ['public/js/main.js:4', 'src/server.js:8'],
-  'no-deps': ['package.json:4'],
   'lint-allow': ['public/js/main.js:15', 'public/js/main.js:25', 'public/js/main.js:27', 'public/js/main.js:28',
     'tools/ok.py:1'],
 };

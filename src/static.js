@@ -1,7 +1,7 @@
-// Static files from public/, the sandbox page with its worker inlined, the security headers, and the
-// loaders for the pattern library and the rig. Text bodies are compressed once (br or gzip)
-// and kept until the file changes; ETags answer 304. The shell revalidates every load and names the
-// content-hashed URLs of src/assets.js, which are kept for a year; plain URLs are reused for 5 minutes.
+// Static files: the app as Vite builds it into dist/ (`npm run build`), with the security headers, and the loaders
+// for the pattern library and the rig (from public/). Text bodies are compressed once (br or gzip) and kept until
+// the file changes; ETags answer 304. Vite names every file under assets/ by its content, so those are kept for a
+// year; the shell (index.html, for every SPA route) revalidates on every load and names the current ones.
 
 import { createHash } from 'node:crypto';
 import { promises as fsp, readFileSync, statSync } from 'node:fs';
@@ -10,9 +10,8 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import zlib from 'node:zlib';
 
-import { buildSandbox, createAssets, unhashed } from './assets.js';
-
 export const DEFAULT_PUBLIC_DIR = fileURLToPath(new URL('../public/', import.meta.url));
+export const DEFAULT_DIST_DIR = fileURLToPath(new URL('../dist/', import.meta.url));
 
 // worker-src blob: lets the sandbox run patterns in a Worker made from a Blob (see sandbox.html);
 // the worker inherits this policy, so it has no network either.
@@ -21,11 +20,12 @@ export const CSP_APP = "default-src 'self'; script-src 'self'; style-src 'self' 
   + "base-uri 'none'; frame-ancestors 'none'";
 export const CSP_SANDBOX = "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; worker-src blob:; "
   + 'sandbox allow-scripts';
-export { CORE_MARKER } from './assets.js';
 export const CACHE_PAGE = 'no-cache';
 export const CACHE_ASSET = 'public, max-age=300, must-revalidate';
 // The URL names the content (its hash), so a copy never goes stale.
 export const CACHE_IMMUTABLE = 'public, max-age=31536000, immutable';
+const HASHED = /^assets\//;                        // Vite's content-hashed output (vite.config.js)
+const SANDBOX_PAGE = /^assets\/sandbox-[\w-]+\.html$/; // the sandbox page (tools/vite-sandbox.js)
 const UTF8 = '; charset=utf-8';
 export const MIME = {
   '.html': `text/html${UTF8}`, '.js': `text/javascript${UTF8}`, '.mjs': `text/javascript${UTF8}`,
@@ -44,9 +44,6 @@ const ENCODERS = {
     [Z.BROTLI_PARAM_SIZE_HINT]: body.length } }),
   gzip: (body) => gzip(body, { level: 9 }),
 };
-
-/** The app's CSP with an inline script's hash allowed (the shell's import map). */
-export const cspWithScript = (hash) => CSP_APP.replace("script-src 'self'", `script-src 'self' '${hash}'`);
 
 /** Headers on every response (the sandbox page swaps the CSP for its own). */
 export function applySecurityHeaders(res) {
@@ -90,23 +87,21 @@ function sendText(req, res, status, text, headers = {}) {
 const statFile = (file) => fsp.stat(file).then((st) => (st.isFile() ? st : null), () => null);
 const statSig = (st) => (st ? `${st.size}:${st.mtimeMs}` : '-');
 
-/** createStatic({ publicDir, log, recheckMs }) → async (req, res, pathname) handling GET/HEAD for non-/api paths. */
-export function createStatic({ publicDir = DEFAULT_PUBLIC_DIR, log = console, recheckMs } = {}) {
-  const root = path.resolve(publicDir);
-  const cache = new Map(); // key → { sig, type, body, etag, compressible, br?: Promise, gzip?: Promise }
-  const assets = createAssets({ root, log, recheckMs });
-  const hashedEntries = new WeakMap(); // manifest asset → its entry (bodies are compressed once per version)
-  const shells = new WeakMap();        // manifest → { sig, e, csp }: the shell naming that version's URLs
-  let sandboxFiles = [];   // the sandbox's last bundle: its cache depends on them
+/** createStatic({ distDir, log }) → async (req, res, pathname) handling GET/HEAD for non-/api paths. */
+export function createStatic({ distDir = DEFAULT_DIST_DIR, log = console } = {}) {
+  const root = path.resolve(distDir);
+  const indexFile = path.join(root, 'index.html');
+  const cache = new Map(); // file → { sig, type, body, etag, compressible, br?: Promise, gzip?: Promise }
+  let warned = false;
 
-  const makeEntry = (sig, type, body) => ({ sig, type, body, etag: etagOf(body),
-    compressible: COMPRESSIBLE.test(type) && body.length >= MIN_COMPRESS });
-  async function entry(key, sig, type, load) {
-    const hit = cache.get(key);
-    if (hit && hit.sig === sig) return hit;
-    const e = makeEntry(sig, type, await load());
-    if (e.body.length <= MAX_CACHED) cache.set(key, e);
-    else cache.delete(key);
+  async function entry(file, st, type) {
+    const hit = cache.get(file);
+    if (hit && hit.sig === statSig(st)) return hit;
+    const body = await fsp.readFile(file);
+    const e = { sig: statSig(st), type, body, etag: etagOf(body),
+      compressible: COMPRESSIBLE.test(type) && body.length >= MIN_COMPRESS };
+    if (body.length <= MAX_CACHED) cache.set(file, e);
+    else cache.delete(file);
     return e;
   }
 
@@ -122,8 +117,13 @@ export function createStatic({ publicDir = DEFAULT_PUBLIC_DIR, log = console, re
     }
   }
 
-  async function send(req, res, e, cacheControl, extra = {}) {
-    const headers = { 'Content-Type': e.type, 'Cache-Control': cacheControl, ETag: e.etag, ...extra };
+  async function sendFile(req, res, file, st) {
+    const rel = path.relative(root, file).split(path.sep).join('/');
+    const type = MIME[path.extname(file).toLowerCase()] ?? 'application/octet-stream';
+    const e = await entry(file, st, type);
+    const headers = { 'Content-Type': e.type, ETag: e.etag, 'Last-Modified': st.mtime.toUTCString(),
+      'Cache-Control': HASHED.test(rel) ? CACHE_IMMUTABLE : type.startsWith('text/html') ? CACHE_PAGE : CACHE_ASSET };
+    if (SANDBOX_PAGE.test(rel)) headers['Content-Security-Policy'] = CSP_SANDBOX;
     if (e.compressible) headers.Vary = 'Accept-Encoding';
     if (etagMatches(req.headers['if-none-match'], e.etag)) { res.writeHead(304, headers); return res.end(); }
     const enc = e.compressible ? pickEncoding(req.headers['accept-encoding']) : null;
@@ -132,59 +132,6 @@ export function createStatic({ publicDir = DEFAULT_PUBLIC_DIR, log = console, re
     const body = packed || e.body;
     res.writeHead(200, { ...headers, 'Content-Length': body.length });
     res.end(req.method === 'HEAD' ? undefined : body);
-  }
-
-  async function sendFile(req, res, file, st) {
-    const type = MIME[path.extname(file).toLowerCase()] ?? 'application/octet-stream';
-    const e = await entry(file, statSig(st), type, () => fsp.readFile(file));
-    return send(req, res, e, type.startsWith('text/html') ? CACHE_PAGE : CACHE_ASSET,
-      { 'Last-Modified': st.mtime.toUTCString() });
-  }
-
-  /** The app shell, its URLs hashed; the CSP allows its import map. */
-  async function sendShell(req, res, file, st) {
-    const manifest = await assets.current();
-    if (!manifest) return sendFile(req, res, file, st);
-    let shell = shells.get(manifest);
-    if (shell?.sig !== statSig(st)) {
-      const { body, scriptHash } = manifest.shell(await fsp.readFile(file, 'utf8'));
-      shell = { sig: statSig(st), e: makeEntry('', MIME['.html'], Buffer.from(body, 'utf8')),
-        csp: scriptHash ? cspWithScript(scriptHash) : CSP_APP };
-      shells.set(manifest, shell);
-    }
-    return send(req, res, shell.e, CACHE_PAGE, { 'Content-Security-Policy': shell.csp });
-  }
-
-  async function sendSandbox(req, res) {
-    const htmlFile = path.join(root, 'sandbox.html');
-    const files = [htmlFile, ...sandboxFiles];
-    const stats = await Promise.all(files.map(statFile));
-    if (!stats[0]) return sendText(req, res, 404, 'Not found');
-    let e;
-    try {
-      e = await entry(':sandbox', stats.map(statSig).join('|'), 'text/html; charset=utf-8', async () => {
-        const built = await buildSandbox(root);
-        sandboxFiles = built.files;
-        return built.body;
-      });
-    } catch (err) {
-      log.error?.(`static: the sandbox's scripts cannot be read: ${err.message}`);
-      return sendText(req, res, 500, 'The sandbox scripts are missing');
-    }
-    return send(req, res, e, CACHE_PAGE, { 'Content-Security-Policy': CSP_SANDBOX });
-  }
-
-  /** A content-hashed URL: kept for a year when it names the current version, else the current one, briefly. */
-  async function sendHashed(req, res, url) {
-    const manifest = await assets.current();
-    const exact = manifest?.byUrl.get(url);
-    const asset = exact ?? manifest?.byUrl.get(manifest.urlOf(unhashed(url)));
-    if (!asset) return false;
-    let e = hashedEntries.get(asset);
-    if (!e) hashedEntries.set(asset, e = makeEntry('', asset.type, asset.body));
-    const extra = asset.url === '/sandbox.html' ? { 'Content-Security-Policy': CSP_SANDBOX } : {};
-    await send(req, res, e, exact ? CACHE_IMMUTABLE : CACHE_ASSET, extra);
-    return true;
   }
 
   return async function serveStatic(req, res, pathname) {
@@ -196,19 +143,21 @@ export function createStatic({ publicDir = DEFAULT_PUBLIC_DIR, log = console, re
     if (!decoded.startsWith('/') || decoded.includes('\0') || decoded.includes('\\')) {
       return sendText(req, res, 404, 'Not found');
     }
-    if (decoded === '/sandbox.html') return sendSandbox(req, res);
     const segments = decoded.split('/').filter(Boolean);
-    // No `..`, no `.`, no dotfiles (.git, .env, …).
+    // No `..`, no `.`, no dotfiles (.vite/, .env, …).
     if (segments.some((s) => s.startsWith('.'))) return sendText(req, res, 404, 'Not found');
-    const indexFile = path.join(root, 'index.html');
     const file = segments.length ? path.resolve(root, ...segments) : indexFile;
     if (file !== indexFile && !file.startsWith(root + path.sep)) return sendText(req, res, 404, 'Not found');
-    if (unhashed(decoded) && await sendHashed(req, res, decoded)) return;
     const st = await statFile(file);
-    if (st) return file === indexFile ? sendShell(req, res, file, st) : sendFile(req, res, file, st);
+    if (st) return sendFile(req, res, file, st);
     // SPA routes (/studio, /ideas/abc, …) get the app shell.
     const ist = !path.extname(segments.at(-1) ?? '') && await statFile(indexFile);
-    return ist ? sendShell(req, res, indexFile, ist) : sendText(req, res, 404, 'Not found');
+    if (ist) return sendFile(req, res, indexFile, ist);
+    if (!warned && !await statFile(indexFile)) {
+      warned = true;
+      log.warn?.(`static: ${indexFile} is missing: run npm run build`);
+    }
+    return sendText(req, res, 404, 'Not found');
   };
 }
 

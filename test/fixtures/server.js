@@ -1,5 +1,5 @@
-// Shared by the server tests: a fixture public dir in a temp folder, apps on port 0 with a stand-in
-// queue and render box, and a cookie-keeping JSON client.
+// Shared by the server tests: fixture public (sources) and dist (built) dirs in a temp folder, apps on port 0 with
+// a stand-in queue and render box, and a cookie-keeping JSON client.
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import http from 'node:http';
@@ -10,13 +10,15 @@ import { after, before } from 'node:test';
 import { writeFseq } from '../../public/js/fseq.js';
 import { createServer } from '../../src/app.js';
 
-/** { tmp, publicDir } once useFixture()'s before hook has run. */
+/** { tmp, publicDir, distDir } once useFixture()'s before hook has run. */
 export const fx = {};
 export function useFixture() {
   before(async () => {
     fx.tmp = await mkdtemp(path.join(tmpdir(), 'studio-server-test-'));
     fx.publicDir = path.join(fx.tmp, 'public');
+    fx.distDir = path.join(fx.tmp, 'dist');
     await writeFixture(fx.publicDir);
+    await writeBuilt(fx.distDir);
     await writeFile(path.join(fx.tmp, 'secret.txt'), 'TOP SECRET');
   });
   after(() => rm(fx.tmp, { recursive: true, force: true }));
@@ -28,23 +30,34 @@ export const EXPECTED_APP_CSP = "default-src 'self'; script-src 'self'; style-sr
   + "base-uri 'none'; frame-ancestors 'none'";
 export const EXPECTED_SANDBOX_CSP = "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; worker-src blob:; "
   + 'sandbox allow-scripts';
-export const CORE_SOURCE = "export const STDLIB = {}; const s = 'a$&b$1c'; const t = '</script>';\n";
+export const SANDBOX_PAGE = '/assets/sandbox-0123abcd.html';
 export const PIXEL = 'function pixel(p, t, P) { return [p.x, p.y, p.z]; }';
 
+const RIG = JSON.stringify({
+  rig: 1, count: 2, output: { universes: 1, channelsPerUniverse: 510 }, bounds: { min: [0, 0, 0], max: [0, 1, 0] },
+  fixtures: [{ id: 'z', zone: 'z', kind: 'strip', start: 0, count: 2 }],
+  pixels: { universe: [1, 1], channel: [1, 4], pos: [0, 0, 0, 0, 1, 0] },
+  groups: [{ id: 'cathedral', name: 'Cathedral', parent: null, zones: ['z'] }],
+});
 
-async function writeFixture(dir) {
+/** What a build leaves in dist/: the shell, files, a hashed sandbox page, and a dotfile that must not be served. */
+async function writeBuilt(dir) {
   await mkdir(path.join(dir, 'js'), { recursive: true });
-  await mkdir(path.join(dir, 'patterns'), { recursive: true });
   await mkdir(path.join(dir, 'data'), { recursive: true });
+  await mkdir(path.join(dir, 'assets'), { recursive: true });
   await writeFile(path.join(dir, 'index.html'), '<!doctype html><title>Folly Studio</title><p>APP SHELL</p>');
-  await writeFile(path.join(dir, 'sandbox.html'), '<!doctype html><script>/*@CORE@*/\nwindow.ok = 1;</script>');
-  await writeFile(path.join(dir, 'js', 'pattern-core.js'), CORE_SOURCE);
-  await writeFile(path.join(dir, 'js', 'sandbox-worker.js'),
-    "import { STDLIB } from './pattern-core.js';\nconst w = 1;\n");
+  await writeFile(path.join(dir, SANDBOX_PAGE), '<!doctype html><script>window.ok = 1;</script>');
   await writeFile(path.join(dir, 'js', 'main.js'), 'console.log("main");');
   await writeFile(path.join(dir, 'app.css'), 'body { color: red }');
   await writeFile(path.join(dir, 'favicon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
+  await writeFile(path.join(dir, 'data', 'rig.json'), RIG);
   await writeFile(path.join(dir, '.secret-dotfile'), 'DOTFILE');
+}
+
+/** The sources the server reads: the library and the rig. */
+async function writeFixture(dir) {
+  await mkdir(path.join(dir, 'patterns'), { recursive: true });
+  await mkdir(path.join(dir, 'data'), { recursive: true });
   await writeFile(
     path.join(dir, 'patterns', 'index.json'),
     JSON.stringify([
@@ -54,15 +67,7 @@ async function writeFixture(dir) {
     ]),
   );
   await writeFile(path.join(dir, 'patterns', 'embers.js'), `// Rising embers\n${PIXEL}\n`);
-  await writeFile(
-    path.join(dir, 'data', 'rig.json'),
-    JSON.stringify({
-      rig: 1, count: 2, output: { universes: 1, channelsPerUniverse: 510 }, bounds: { min: [0, 0, 0], max: [0, 1, 0] },
-      fixtures: [{ id: 'z', zone: 'z', kind: 'strip', start: 0, count: 2 }],
-      pixels: { universe: [1, 1], channel: [1, 4], pos: [0, 0, 0, 0, 1, 0] },
-      groups: [{ id: 'cathedral', name: 'Cathedral', parent: null, zones: ['z'] }],
-    }),
-  );
+  await writeFile(path.join(dir, 'data', 'rig.json'), RIG);
 }
 
 /**
@@ -90,8 +95,8 @@ export function fakeQueue() {
 }
 
 export async function startApp(opts = {}) {
-  const app = await createServer({ publicDir: fx.publicDir, generator: fakeQueue(), generatorName: 'test', log: quiet,
-    ...opts });
+  const app = await createServer({ publicDir: fx.publicDir, distDir: fx.distDir, generator: fakeQueue(),
+    generatorName: 'test', log: quiet, ...opts });
   const addr = await app.listen(0, '127.0.0.1');
   app.base = `http://127.0.0.1:${addr.port}`;
   app.port = addr.port;
