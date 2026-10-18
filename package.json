@@ -24,11 +24,23 @@
     "build-data": "python3 tools/build_rig.py && python3 tools/build_palettes.py"
   },
   "devDependencies": {
+    "@babel/core": "7.29.7",
     "@playwright/test": "1.56.1",
+    "@preact/preset-vite": "2.10.6",
     "@types/node": "22.20.5",
     "oxlint": "1.88.0",
     "typescript": "7.0.2",
     "vite": "8.3.4",
     "vitest": "5.0.5"
+  },
+  "dependencies": {
+    "@fastify/accept-negotiator": "2.1.1",
+    "@fastify/cookie": "11.1.3",
+    "@fastify/rate-limit": "11.2.1",
+    "@fastify/static": "10.1.6",
+    "@preact/signals": "2.11.3",
+    "fastify": "5.12.7",
+    "preact": "11.0.1",
+    "zod": "4.6.7"
   }
 }

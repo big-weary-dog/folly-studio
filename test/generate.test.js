@@ -7,10 +7,10 @@ import { describe, test } from 'vitest';
 
 import { createQueue } from '../src/generate/index.js';
 import {
-  buildSystemPrompt, buildUserMessage, formatGroups, formatLibraryIndex, lookSchema, pickExamples,
+  buildSystemPrompt, buildUserMessage, formatGroups, formatLibraryIndex, pickExamples,
 } from '../src/generate/prompt.js';
 import { BUILTIN_PATTERN, parseParams, sketchLook } from '../src/generate/sketch.js';
-import { GenerateError, LIMITS, validateLook } from '../src/generate/validate.js';
+import { GenerateError, LIMITS, validateLook, wireSchema } from '../shared/schemas/generated.ts';
 import { byName, goodLayer, GROUPS, LIBRARY, queueSetup, quiet, RIG, STUDIO } from './fixtures/generate/shared.js';
 import { mini as MINI } from './fixtures/rigs.js';
 
@@ -207,7 +207,7 @@ describe('prompt', () => {
   });
 
   test('schema enumerates group ids and closes every object', () => {
-    const schema = lookSchema(GROUPS);
+    const schema = wireSchema(GROUPS);
     assert.equal(schema.additionalProperties, false);
     assert.equal(schema.properties.layers.items.additionalProperties, false);
     assert.ok(schema.properties.layers.items.properties.groups.items.enum.includes('spires'));

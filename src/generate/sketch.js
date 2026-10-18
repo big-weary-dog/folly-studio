@@ -4,7 +4,7 @@
 // Library code is only read as text here (params are parsed with regexes, never evaluated).
 
 import WORDS from './sketch-words.json' with { type: 'json' };
-import { cleanText, LIMITS } from './validate.js';
+import { cleanText, LIMITS } from '../../shared/schemas/generated.ts';
 
 // Theme words in the idea → terms looked for in a pattern's name, tags, title and summary;
 // colour words → full-strength colours ("colour at full strength"); pace words.

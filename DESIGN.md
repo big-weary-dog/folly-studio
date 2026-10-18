@@ -29,13 +29,21 @@ It is hosted on the owner's computer for tens of people (the camp and friends), 
 - **Alternatives.** A desktop app (no shared gallery, no phones), a hosted service (cost and operations for a
   few dozen users), an xLights plugin (desktop-only C++, no AI loop).
 - **Trade-off.** The server is a personal machine: its uptime and upload are the service's.
+- **The UI.** Preact components in TSX, with signals for state. The look being edited is one signal, replaced
+  (never mutated) on each edit; what follows from it (unsaved or saved, the selected layer and module, what the
+  sandbox runs) is computed, so no panel keeps another in sync by hand. The imperative parts stay imperative behind
+  thin components: the WebGL view, the sandbox runtime, the frames stream. Per frame nothing renders: the clock moves
+  the playhead through a ref and the time readout through a signal bound to its text, at most 8 times a second.
 
 ![Ideas: one generating (the rose fills as it works), one failed with a plain reason, two ready](docs/screenshots/laptop-ideas.jpg)
 
 ## 2. Dependencies, and light
 
-We use a dependency whenever it makes life easier: TypeScript checks the code and Vite builds the browser's part.
-Each is pinned exactly, the lockfile is committed, CI installs with `npm ci`, and CONTRIBUTING says why each is
+We use a dependency whenever it makes life easier: TypeScript checks the code and Vite builds the browser's part;
+Fastify and its plugins serve the API and the build (routing, bodies, cookies, login limits, static files), and zod
+holds the shapes both sides share (`shared/schemas/`: the look, the API's bodies, the generators' output), so the
+types come from the rules and the AI's JSON Schema from the same schema the server cleans its answer with. Each is
+pinned exactly, the lockfile is committed, CI installs with `npm ci`, and CONTRIBUTING says why each is
 there. What has to stay true:
 
 - **It works offline on the playa.** Dependencies are installed at setup, and the browser's bundled at build time;
@@ -46,15 +54,16 @@ there. What has to stay true:
 - **The sandbox and the boxes stay closed and small.** The sandbox page carries everything it runs (its CSP loads
   nothing); the boxes run our core from its source and the stdlib, nothing else.
 - **No build for the server.** Node runs the server's, the boxes' and the tests' TypeScript as written, stripping
-  the types, so what runs is what is in git; only the browser's code is built.
+  the types, so what runs is what is in git; only the browser's code is built. The browser takes the shared
+  schemas as types only, so zod ships only where a view deliberately validates with one.
 
 | Budget | Limit | Now | Measured by |
 |---|---|---|---|
-| App JS, CSS and sandbox page, gzipped, as built | 165 KB | 105.1 KB | `test/build.test.js` |
-| Login page path | 40 KB | 14.7 KB | `test/build.test.js` |
-| Cold Studio load (19 requests) | 205 KB br / 240 KB gzip | 145.3 / 169.7 KB | `test/transfer.test.js` |
+| App JS, CSS and sandbox page, gzipped, as built (Preact and signals: 11 KB of it) | 165 KB | 117.7 KB | `test/build.test.js` |
+| Login page path | 40 KB | 26.1 KB | `test/build.test.js` |
+| Cold Studio load (13 requests) | 205 KB br / 240 KB gzip | 149.1 / 174.5 KB | `test/transfer.test.js` |
 | Reload, a minute or a day later | shell + API, all 304 | 3 requests, 1.6 KB | `test/transfer.test.js` |
-| Phone preview, a composed look, 4× CPU slowdown | ≥ 20 fps computed | 34.7 fps | `npm run perf` |
+| Phone preview, a composed look, 4× CPU slowdown | ≥ 20 fps computed | 30 fps | `npm run perf` |
 
 Built files are named by their content and cached for a year; views and their styles load on first use; lists
 carry no code. The code itself is ratcheted: sources ≤ 400 lines, tests ≤ 600, library patterns ≤ 150, and each
@@ -62,10 +71,12 @@ area's total lines in `tools/budgets.json` may grow only with a written reason. 
 by responsibility.
 
 - **Alternatives.** No dependencies at all, with our own content hashing, import map and stylesheet concatenation
-  (no supply chain, but unminified code and machinery to maintain); React or Svelte with three.js (three.js alone
-  would fill the budget).
-- **Trade-off.** A build before the app is served and a lockfile to keep current. We still maintain our own WebGL
-  and DOM helpers, and the checks oxlint lacks (`tools/budgets.mjs`).
+  (no supply chain, but unminified code and machinery to maintain); React (several times Preact's 11 KB with
+  signals) or Svelte (a compiler of its own) for the UI; three.js for the 3D view (alone it would fill the budget).
+- **Trade-off.** A build before the app is served and a lockfile to keep current. We still maintain our own WebGL,
+  the checks oxlint lacks (`tools/budgets.mjs`), and the auth design (scrypt hashes that name their
+  cost, hashed session tokens, the CSRF rule as a hook): the auth libraries are deprecated, a framework of their own,
+  or stateless and so not revocable.
 
 ## 3. The pattern model
 
@@ -244,14 +255,15 @@ work for any rig.
 
 ## 11. Idea → code generators
 
-An adapter turns `{ text, library, rig, groups }` into a look; the result is validated statically (≤ 4 layers,
-known groups and tags, code size, each module's function present, clips and globals cleaned) and never run on
-the server.
+An adapter turns `{ text, library, rig, groups }` into a look; the result is cleaned statically by one zod schema
+(`shared/schemas/generated.ts`: ≤ 4 layers, known groups and tags, code size, each module's function present, clips
+mended or dropped with a note, globals and automation then held to the API's own rules) and never run on the
+server.
 
 | Generator | How | Cost |
 |---|---|---|
 | `sketch` (default) | Offline keyword match: library patterns and params; place words to tags | Instant, free, always on; the fallback |
-| `claude` | One Messages API call with structured output (the look's JSON schema, group ids as an enum). The system prompt (rig description, pattern guide, group tree, show taste, every library entry, five examples; ≈ 23 K characters, ≈ 5.9 K tokens) is cached; the idea goes only in the user turn, fenced as untrusted | Seconds, cents |
+| `claude` | One Messages API call with structured output (that schema as JSON Schema, group ids and tags as enums, so what the model may write and what the server keeps cannot drift apart; our own `fetch` client, no SDK). The system prompt (rig description, pattern guide, group tree, show taste, every library entry, five examples; ≈ 23 K characters, ≈ 5.9 K tokens) is cached; the idea goes only in the user turn, fenced as untrusted | Seconds, cents |
 | `fleet` (experimental) | A boxed Codex worker per idea: writes `look.json`, checks and bakes it in its box, hands it back | Minutes; opt-in foundry |
 
 **Fleet, assessed.** Its script-driven mode (`fleet up --no-coordinator`, `fleet spawn --here --box`, polling the
@@ -269,12 +281,18 @@ so Fleet's boxes get **no memory cap**; the server warns at start.
 
 - **Priorities.** People editing come first: bakes and frame encodes run one at a time at nice 10 in a shared
   lane, never together; the API stays responsive.
+- **The server.** One Fastify process: routing, bodies, cookies, login limits and the static files are its
+  plugins'; the auth design and the CSRF and caching rules are ours, as hooks. Static text is compressed once, at
+  build time (`.br`, `.gz`), so serving the app costs no CPU. A login hashes with scrypt at OWASP's cost: half a
+  second and 128 MiB, at most four at once (libuv's threads).
 - **Caches.** Hashed immutable assets; API reads answer 304 to an ETag; idea polls back off (2 s to 10 s, never
   from a hidden tab); bakes reuse earlier frames by key; stream chunks by content hash.
 - **Disk cap.** Baked frames are capped (`STUDIO_FRAMES_MAX_BYTES`, 2 GB, about an hour of frames), least
   recently used first, never a reviewed look's; an evicted bake is baked again when someone presses Play.
 - **The tunnel.** Bind to 127.0.0.1 and reach out through Cloudflare Tunnel or Tailscale Funnel; no router
-  ports. HTTPS matters: browsers ask for brotli only over it.
+  ports. HTTPS matters: browsers ask for brotli only over it. With `STUDIO_TRUST_PROXY` the server takes the client
+  address and host the tunnel forwards, from this machine only; never `trustProxy: true`, which would let a client
+  name its own address and dodge the per-address login limit.
 - **Backups.** `npm run backup`: a dated `.tar.gz`, safe while the server runs; daily from cron.
 - **Storage.** JSON files, one per collection, written atomically: enough for tens of users; SQLite is the next
   step if it grows.

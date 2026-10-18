@@ -8,7 +8,7 @@ import path from 'node:path';
 
 import { build } from 'vite';
 
-import { CSP_SANDBOX } from '../src/static.js';
+import { CSP_SANDBOX } from '../src/static.ts';
 
 const QUERY = '?sandbox';
 const ID = '\0folly-sandbox:'; // `${ID}<template>.js`: the module whose default export is the page's URL

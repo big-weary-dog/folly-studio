@@ -9,7 +9,7 @@ import path from 'node:path';
 import { afterAll, beforeAll } from 'vitest';
 
 import { writeFseq } from '../../public/js/fseq.js';
-import { createServer } from '../../src/app.js';
+import { createServer } from '../../src/app.ts';
 
 /** { tmp, publicDir, distDir } once useFixture()'s before hook has run. */
 export const fx = {};
@@ -95,9 +95,12 @@ export function fakeQueue() {
   return { enqueued: [], enqueue(idea) { this.enqueued.push(idea); }, async idle() {} };
 }
 
+/** Passwords at a test's cost: at OWASP's, each hash takes half a second (test/auth.test.ts holds the real one). */
+export const CHEAP = Object.freeze({ N: 1024, r: 8, p: 1 });
+
 export async function startApp(opts = {}) {
   const app = await createServer({ publicDir: fx.publicDir, distDir: fx.distDir, generator: fakeQueue(),
-    generatorName: 'test', log: quiet, ...opts });
+    generatorName: 'test', log: quiet, scrypt: CHEAP, ...opts });
   const addr = await app.listen(0, '127.0.0.1');
   app.base = `http://127.0.0.1:${addr.port}`;
   app.port = addr.port;
@@ -148,10 +151,10 @@ export async function signup(app, username, password = 'correct horse') {
   return c;
 }
 
-/** Raw GET with an unnormalized path (fetch would collapse ../). */
-export function rawGet(port, rawPath) {
+/** Raw GET with an unnormalized path (fetch would collapse ../, and send Cache-Control: no-cache with an ETag). */
+export function rawGet(port, rawPath, headers = {}) {
   return new Promise((resolve, reject) => {
-    const r = http.request({ host: '127.0.0.1', port, path: rawPath, method: 'GET' }, (res) => {
+    const r = http.request({ host: '127.0.0.1', port, path: rawPath, method: 'GET', headers }, (res) => {
       let data = '';
       res.setEncoding('utf8');
       res.on('data', (d) => (data += d));

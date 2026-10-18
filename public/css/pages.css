@@ -1,5 +1,4 @@
-/* The list pages: Ideas (js/ui/ideas.js), My looks and the Gallery (js/ui/looks.js). */
-/* Ideas (loaded by js/ui/ideas.js): describe a show in amber glass; each idea's rose, in its own
+/* The list pages (js/ui/pages.tsx). Ideas: describe a show in amber glass; each idea's rose, in its own
    small pane, fills while the idea is made and is lit once it is ready. */
 .ideas-page { max-width: 920px; }
 .compose { position: relative; padding: 44px 32px 28px; }
@@ -61,8 +60,8 @@
   .idea-main { padding: 12px 14px; }
   .idea-actions { padding: 0 14px 14px; justify-self: start; }
 }
-/* My looks and the Gallery (loaded by js/ui/looks.js): each look is a triple-lancet window glazed in
-   its own colours (--art, from jewelGradient in js/ui/dom.js) above a pane of text. */
+/* My looks and the Gallery: each look is a triple-lancet window glazed in
+   its own colours (--art, from jewelGradient in js/ui/kit.tsx) above a pane of text. */
 .card-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 20px;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
 .card { --art-h: 128px; display: flex; flex-direction: column; overflow: hidden;

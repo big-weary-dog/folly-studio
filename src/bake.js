@@ -15,7 +15,6 @@ import { DEFAULT_DURATION } from '../public/js/pattern-core.js';
 import { BakeError, checkFrames, failedBake } from './box-output.js';
 import { bundle } from './core-script.js';
 import { DEFAULT_MAX_BYTES, flickerReason } from './frames.js';
-import { renderFields } from './look-rules.js';
 
 export const DEFAULT_BAKE_SECONDS = 120;
 const LOOK_ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -43,6 +42,22 @@ export function framesBytesFor(seconds) {
 export function bakeSeconds(look, max = DEFAULT_BAKE_SECONDS) {
   const d = Number(look?.duration);
   return Math.min(max, Number.isFinite(d) && d > 0 ? d : DEFAULT_DURATION);
+}
+
+const beatsLfo = (params) => Object.values(params || {})
+  .some((v) => v && typeof v === 'object' && v.mod === 'lfo' && v.unit === 'beats');
+
+/**
+ * What a bake renders besides the duration: the plain `layers` when the look has no globals, no automation and
+ * no LFO in beats (so older looks keep their hash), else { layers, globals, automation, bpm }.
+ */
+export function renderFields(look) {
+  const layers = look?.layers ?? [];
+  const beats = layers.some((l) => beatsLfo(l?.params) || (Array.isArray(l?.modules)
+    && l.modules.some((m) => beatsLfo(m?.params))));
+  if (!look?.globals && !look?.automation && !beats) return layers;
+  return { layers, globals: look.globals ?? null, automation: look.automation ?? null,
+    bpm: beats ? look.bpm ?? null : null };
 }
 
 /** Which version of a look's code a bake belongs to: layersHash(renderFields(look)). */

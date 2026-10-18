@@ -6,10 +6,10 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { createServer } from '../src/app.js';
-import { validateLayers } from '../src/api.js';
+import { createServer } from '../src/app.ts';
+import { validateLayers } from '../src/api-looks.ts';
 import { createStore } from '../src/store.js';
-import { CSP_APP, CSP_SANDBOX } from '../src/static.js';
+import { CSP_APP, CSP_SANDBOX } from '../src/static.ts';
 import {
   client, EXPECTED_APP_CSP, EXPECTED_SANDBOX_CSP, fakeBox, fx, PIXEL, quiet, rawGet, SANDBOX_PAGE, signup,
   startApp, useFixture,
@@ -295,10 +295,9 @@ describe('server', () => {
     });
 
     test('ETag revalidation', async () => {
-      const r = await fetch(`${app.base}/js/main.js`);
-      const etag = r.headers.get('etag');
-      assert.ok(etag);
-      assert.equal((await fetch(`${app.base}/js/main.js`, { headers: { 'if-none-match': etag } })).status, 304);
+      const r = await rawGet(app.port, '/js/main.js');
+      assert.ok(r.headers.etag);
+      assert.equal((await rawGet(app.port, '/js/main.js', { 'if-none-match': r.headers.etag })).status, 304);
     });
 
     test('directory traversal and dotfiles are blocked', async () => {

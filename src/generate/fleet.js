@@ -11,13 +11,13 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { GenerateError } from '../../shared/schemas/generated.ts';
 import { DEFAULT_BAKE_SECONDS, framesBytesFor, parseBytes, parseDuration } from '../bake.js';
 import { checkFrames, cleanBoxStats, failedBake, readUntrusted } from '../box-output.js';
 import { moduleFiles } from '../core-script.js';
 import {
   describeRig, formatExamples, formatGroups, GROUPS_NOTE, PATTERN_GUIDE, pickExamples, rootOf, TASTE,
 } from './prompt.js';
-import { GenerateError } from './validate.js';
 
 const STUDIO = fileURLToPath(new URL('../../', import.meta.url));
 const MAX_LOOK_BYTES = 512 * 1024;

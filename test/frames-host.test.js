@@ -9,7 +9,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, test } from 'vitest';
 
 import { writeFseq } from '../public/js/fseq.js';
-import { createServer } from '../src/app.js';
+import { createServer } from '../src/app.ts';
 import { createLane } from '../src/bake.js';
 import { createFrameJobs, createFramesCache, createFramesDisk } from '../src/frames-cache.js';
 import { wireHash } from '../src/frames-wire.js';

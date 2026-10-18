@@ -1,4 +1,4 @@
-// The baked-frames routes (src/frames-http.js, src/frames-cache.js): streaming chunks under
+// The baked-frames routes (src/frames-http.ts, src/frames-cache.js): streaming chunks under
 // immutable content-hash URLs, br / gzip / plain negotiation, who may fetch them, the wait while a
 // bake is encoded, compressed .fseq downloads, and folders pruned when their bake goes.
 import assert from 'node:assert/strict';
@@ -13,9 +13,9 @@ import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { writeFseq } from '../public/js/fseq.js';
 import { decodeChunk, parseManifest, readFrame } from '../public/js/frames-stream.js';
-import { createServer } from '../src/app.js';
+import { createServer } from '../src/app.ts';
 import { parseFseq } from '../src/frames.js';
-import { IMMUTABLE } from '../src/frames-http.js';
+import { IMMUTABLE } from '../src/frames-http.ts';
 import { lineRig } from './fixtures/rigs.js';
 import { HAS_ZSTD, inflateBlock } from '../src/fseq-codec.js';
 

@@ -1,4 +1,4 @@
-// The app as Vite builds it (vite.config.js), served by src/static.js: the shell runs under the app CSP with no
+// The app as Vite builds it (vite.config.js), served by src/static.ts: the shell runs under the app CSP with no
 // inline script, every asset has a content-hashed name kept for a year, the sandbox page carries everything it runs
 // (its CSP loads nothing) and its Worker renders, and the gzipped budgets hold. Also the JSON API on the wire.
 import assert from 'node:assert/strict';
@@ -12,13 +12,13 @@ import zlib from 'node:zlib';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { createServer } from '../src/app.js';
-import { CACHE_IMMUTABLE, CACHE_PAGE, CSP_APP, CSP_SANDBOX } from '../src/static.js';
+import { createServer } from '../src/app.ts';
+import { CACHE_IMMUTABLE, CACHE_PAGE, CSP_APP, CSP_SANDBOX } from '../src/static.ts';
 import { builtApp, removeBuiltApp } from './fixtures/build.js';
 
 const KB = 1024;
 const BUDGET = { total: 165 * KB, login: 40 * KB }; // CONTRIBUTING "Performance budgets"
-const LOGIN_VIEW = 'js/ui/auth.js';                  // main.js imports it at once for a signed-out visitor
+const LOGIN_VIEW = 'js/ui/auth.tsx';                  // the shell imports it at once for a signed-out visitor
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 let dist, manifest, dir, app, base;
 
@@ -66,7 +66,7 @@ describe('the built app', () => {
   });
 
   test('assets are kept for a year, compressed; the views and their styles load on first use', async () => {
-    const studio = manifest['js/ui/studio.js'];
+    const studio = manifest['js/ui/studio.tsx'];
     assert.ok(studio?.isDynamicEntry && studio.css?.length, 'the Studio is its own chunk, with its own styles');
     for (const file of [studio.file, ...studio.css, manifest['data/rig.json'].file]) {
       const r = await get(`/${file}`, { 'accept-encoding': 'br, gzip' });
@@ -79,7 +79,7 @@ describe('the built app', () => {
   });
 
   test('the sandbox page loads nothing, has its CSP, and its Worker renders a frame', async () => {
-    const [file] = manifest['js/ui/studio.js'].assets.filter((f) => /sandbox-[\w-]+\.html$/.test(f));
+    const [file] = manifest['js/ui/studio.tsx'].assets.filter((f) => /sandbox-[\w-]+\.html$/.test(f));
     const r = await get(`/${file}`);
     assert.equal(r.headers['content-security-policy'], CSP_SANDBOX);
     assert.equal(r.headers['cache-control'], CACHE_IMMUTABLE);

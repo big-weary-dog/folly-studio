@@ -10,7 +10,7 @@
 <title>Folly Studio</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/css/base.css">
-<script type="module" src="/js/main.js"></script>
+<script type="module" src="/js/main.tsx"></script>
 </head>
 <body class="booting">
 <svg class="sprite" aria-hidden="true" width="0" height="0">
@@ -30,32 +30,9 @@
 <g style="fill:var(--wm-dot)"><path transform="translate(77.9 0)" d="M1.6.6L3.1 2.3 1.6 4 .1 2.3Z"/></g></symbol>
 </svg>
 <a class="skip-link" href="#main">Skip to content</a>
-<header class="app-header" id="app-header" hidden>
-  <a class="brand" href="/ideas" aria-label="Folly Studio home">
-    <span class="brand-mark" id="brand-mark"></span>
-    <svg class="wordmark" aria-hidden="true"><use href="#wordmark"/></svg>
-  </a>
-  <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-panel">
-    <span class="sr-only">Menu</span><span class="nav-toggle-bars" aria-hidden="true"></span>
-  </button>
-  <div class="nav-panel" id="nav-panel">
-    <nav class="main-nav" id="main-nav" aria-label="Main">
-      <a href="/ideas">Ideas</a>
-      <a href="/studio">Studio</a>
-      <a href="/looks">My looks</a>
-      <a href="/gallery">Gallery</a>
-    </nav>
-    <div class="user-box">
-      <span class="user-name" id="user-name"></span>
-      <span class="tag tag-amber" id="user-role" hidden>Curator</span>
-      <button class="btn ghost small" id="logout-btn" type="button">Log out</button>
-    </div>
-  </div>
-</header>
-<main id="main" tabindex="-1">
-  <div class="boot-msg" id="boot-msg" aria-live="polite">Lighting the candles…</div>
-</main>
-<div id="toasts" class="toasts" aria-live="polite"></div>
+<div id="app"><main id="main" tabindex="-1">
+  <div class="boot-msg" aria-live="polite">Lighting the candles…</div>
+</main></div>
 <noscript><p class="noscript">Folly Studio needs JavaScript to run.</p></noscript>
 </body>
 </html>

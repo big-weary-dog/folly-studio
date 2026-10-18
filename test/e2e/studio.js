@@ -1,4 +1,4 @@
-// Playwright Test fixtures for the smoke and perf specs: `studio`, the real server (src/app.js) on a temporary data
+// Playwright Test fixtures for the smoke and perf specs: `studio`, the real server (src/app.ts) on a temporary data
 // folder, serving a fresh build of the app (test/fixtures/build.js), one per worker; `serverOptions` are its
 // createServer() options (the perf check turns the generator and the render box off).
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -7,7 +7,7 @@ import path from 'node:path';
 
 import { test as base } from '@playwright/test';
 
-import { createServer } from '../../src/app.js';
+import { createServer } from '../../src/app.ts';
 import { builtApp, removeBuiltApp } from '../fixtures/build.js';
 
 export { expect } from '@playwright/test';

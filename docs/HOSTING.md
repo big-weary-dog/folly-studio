@@ -8,7 +8,7 @@ were not run on a real tunnel when this was written. Check them against the tool
 | Where | What | Cost |
 |---|---|---|
 | Phone or laptop | The app, the 3D preview, every pattern's code (sandboxed iframe), playback of baked frames | Its own CPU and battery |
-| Your computer (`npm start`) | Accounts, the JSON store, the API, static files, generators, bakes, frame encoding | About 100 MB of RAM idle |
+| Your computer (`npm start`) | Accounts, the JSON store, the API, static files, generators, bakes, frame encoding | About 100 MB of RAM idle; a login takes 128 MiB for half a second (scrypt, at most four at once) |
 | Render box (bubblewrap) | One bake at a time, `nice 10`, ≤ 1 GB of data (`STUDIO_BAKE_MEMORY`), a wall clock | A 30 s look takes 2–3 s on one core |
 | Encoder thread | Brotli for streaming, `nice 10`, one job at a time; a look's encode waits for any bake | 2.5–5.5 s per 30 s look at quality 9 |
 | Fleet foundry (opt-in) | Deep ideas in a boxed agent, one at a time | Minutes, and **no memory cap on WSL** (below) |
@@ -88,7 +88,7 @@ HOST=127.0.0.1
 PORT=8780
 STUDIO_DATA=/home/you/folly-data
 STUDIO_SECURE_COOKIES=1           # the tunnel serves HTTPS
-STUDIO_TRUST_PROXY=1              # client IPs (login limits) from the tunnel; only when bound to localhost
+STUDIO_TRUST_PROXY=1              # client IP (login limits) and host from the tunnel, trusted from this machine only
 STUDIO_CURATORS=alice,bob         # who may mark looks reviewed
 STUDIO_GENERATOR=claude           # or sketch (offline, free)
 ANTHROPIC_API_KEY=sk-ant-...      # a key with a spend limit

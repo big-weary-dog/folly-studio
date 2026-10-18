@@ -1,4 +1,4 @@
-/* The Studio (loaded by js/ui/studio.js): one window leaded into panes round the 3D view, clear dark glass
+/* The Studio (loaded by js/ui/studio.tsx): one window leaded into panes round the 3D view, clear dark glass
    so the LEDs carry the colour. Phones: the view on top, the panes under it as tabs. */
 body[data-view=studio] { overflow: hidden; }
 .view-studio { height: calc(100dvh - var(--header-h)); }
@@ -121,8 +121,8 @@ body[data-view=studio] { overflow: hidden; }
 .dock-issue { display: inline-flex; align-items: center; gap: 5px; flex: none; color: #ffb3c3; font-size: 12px;
   font-weight: 650; }
 .dock-issue::before { --q: 9px; color: var(--ruby); }
-.dock-issue[data-kind=runtime], .dock-issue[data-kind=probation] { color: #ffd99a; }
-.dock-issue[data-kind=runtime]::before, .dock-issue[data-kind=probation]::before { color: var(--amber); }
+.dock-issue[data-kind=runtime] { color: #ffd99a; }
+.dock-issue[data-kind=runtime]::before { color: var(--amber); }
 .studio:not(.code-collapsed) .dock-issue { display: none; }
 .collapse-btn { margin-left: auto; gap: 8px; }
 .collapse-btn::after { content: ''; width: 6px; height: 6px; border: solid currentColor; border-width: 0 1.5px 1.5px 0;
@@ -201,7 +201,7 @@ input.tree-box { width: 16px; height: 16px; margin: 0 4px 0 2px; flex: none; cur
 .layer .status-dot { width: 10px; height: 10px; color: var(--text-3); }
 .layer-heavy { --kind: var(--amber); }
 .layer[data-status=ok] .status-dot { color: var(--emerald); }
-.layer[data-status=pending] .status-dot, .layer[data-status=probation] .status-dot { color: var(--amber); }
+.layer[data-status=pending] .status-dot { color: var(--amber); }
 .layer[data-status=compile] .status-dot, .layer[data-status=runtime] .status-dot, .layer[data-status=hung] .status-dot {
   color: var(--ruby); }
 .ms { display: flex; gap: 3px; }
@@ -276,7 +276,7 @@ textarea.code:disabled { color: var(--text-3); }
 .problem { --tint: var(--ruby); flex: none; max-height: 30%; overflow: auto; padding: 8px 12px; color: #ffc6d2;
   font: 12.5px/1.45 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; box-shadow: inset 3px 0 0 var(--tint);
   background: color-mix(in srgb, var(--tint) 14%, var(--night-1)); border-top: var(--came) solid var(--lead); }
-.problem[data-kind=runtime], .problem[data-kind=probation] { --tint: var(--amber); color: #ffdca2; }
+.problem[data-kind=runtime] { --tint: var(--amber); color: #ffdca2; }
 .problem-note { opacity: .75; font-style: italic; }
 .reference { flex: none; display: flex; flex-direction: column; max-height: 45%;
   border-top: var(--came) solid var(--lead); }

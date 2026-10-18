@@ -1,0 +1,254 @@
+// The Studio's preview: the 3D view (viewer.js) and the sandbox runtime (runtime.js), both imperative, driven by one
+// clock that plays the look, the flash guard on every frame shown, and baked playback. One rAF loop advances the
+// clock and pumps the sandbox (which computes at its own rate), only while playing or owed a frame, never while
+// hidden or off screen; per frame it touches only the sinks (the timeline's playhead) and the time readout's signal,
+// at most 8 times a second while playing.
+import { computed, effect, signal } from '@preact/signals';
+
+import { statusOf } from '../api.ts';
+import { FlashGuard } from '../flash-guard.js';
+import { openFrameStream } from '../frames-stream.js';
+import { Runtime } from '../runtime.js';
+import type { Layer, LibraryEntry, Rig } from '../types.ts';
+import { Viewer } from '../viewer.js';
+import { signedOut } from './session.ts';
+import type { Compiled } from './layer-status.ts';
+import { pref, toast } from './kit.tsx';
+import type { Studio } from './studio-store.ts';
+
+/** The seams: what the Studio uses of viewer.js and runtime.js. */
+export interface ViewerApi {
+  currentView: string | null; playa?: { tier?: string } | null;
+  onViewChange?: (name: string | null) => void; onRender?: (mode: 'playa' | 'points', tier?: string) => void;
+  setRig(rig: Rig): void; setColors(rgb: Float32Array): void; setHighlight(mask: Uint8Array | null): void;
+  setView(name: string): void; setOption(key: string, value: number): void;
+  setMode(m: string): Promise<'playa' | 'points'>; setQuality(q: string): void; destroy(): void;
+}
+export interface RuntimeApi {
+  ready: boolean; layers: Layer[]; extra: object; stats: { fps: number; ms: number };
+  start(rig: Rig, library: { name: string; code: string }[]): void; setLook(layers: Layer[], extra: object): void;
+  pump(t: number, playing: boolean): void; pending(t: number): boolean; heavy(): Map<string, number>; refresh(): void;
+  render(o: object): Promise<Uint8Array>; cancelRender(): void; destroy(): void;
+}
+interface Frames { frameCount: number; fps: number; seconds: number; bytes: number;
+  frameAt(i: number, rgb: Float32Array): Float32Array }
+
+// viewer.js and runtime.js are JavaScript: their constructors as the seams above.
+const ViewerOf = Viewer as unknown as new (canvas: HTMLCanvasElement, o: object) => ViewerApi;
+const RuntimeOf = Runtime as unknown as new (o: object) => RuntimeApi;
+const QUALITY = ['auto', 'full', 'lite', 'low'];
+const REDUCE = matchMedia('(prefers-reduced-motion: reduce)');
+const DIM = 0.15;
+const seenFlashing = new Set<string>();     // looks whose flashing someone chose to see, this session
+
+export function createPreview(st: Studio) {
+  const msg = signal<{ text: string; error?: boolean } | null>({ text: 'Loading the rig…' });
+  const views = signal<string[]>([]), view = signal<string | null>(null);
+  const mode = signal<'playa' | 'points'>('points'), tier = signal<string | undefined>(undefined);
+  const quality = signal(QUALITY.includes(pref('studio.quality') || '') ? pref('studio.quality') as string : 'auto');
+  const ghost = signal(pref('studio.ghost') !== '0'), dimmed = signal(false), stats = signal('');
+  const bakedInfo = signal<{ seconds: number; bytes: number } | null>(null);
+  const time = signal(0);
+  const duration = computed(() => bakedInfo.value?.seconds ?? st.look.value.duration);
+  const sinks: ((t: number, playing: boolean) => void)[] = [];    // an array: walking it allocates nothing
+  const c = st.clock;
+  let viewer: ViewerApi | null = null, runtime: RuntimeApi | null = null, guard: FlashGuard | null = null;
+  let baked: { frames: Frames; rgb: Float32Array; index: number } | null = null;
+  let raf = 0, last = 0, statsAt = 0, clockAt = 0, onScreen = true, everReady = false, guarded = false;
+  let heavyKey = '', bakedLoad = 0, pushTimer = 0, alive = true, io: IntersectionObserver | null = null;
+  const disposers: (() => void)[] = [];
+
+  // Every frame shown goes through show(): the view dims, with a banner, while a large area flashes over 3 times a
+  // second (flash-guard.js) or the look's bake says it does. "Show it anyway" lasts the session; reduced motion dims.
+  const flashKey = () => `studio.flash.${st.look.peek().id || 'new'}`;
+  const remembered = () => { try { return sessionStorage.getItem(flashKey()) === '1'; } catch { return false; } };
+  function setGuard(on: boolean) {
+    guarded = on;
+    dimmed.value = on && (REDUCE.matches || !(seenFlashing.has(flashKey()) || remembered()));
+    viewer?.setOption('gain', dimmed.value ? DIM : 1);
+  }
+  function show(rgb: Float32Array, now: number) {
+    const flashing = !!guard?.observe(rgb, now)
+      || (st.server.peek()?.bake?.analysis?.flicker?.ok === false && !st.dirty.peek());
+    if (flashing !== guarded) setGuard(flashing);
+    viewer?.setColors(rgb);
+  }
+
+  const stop = () => { cancelAnimationFrame(raf); raf = 0; last = 0; };
+  const kick = () => {
+    if (!raf && alive && st.ready.peek() && onScreen && !document.hidden) raf = requestAnimationFrame(loop);
+  };
+  function loop(now: number) {
+    raf = 0;
+    if (!alive) return;
+    const dt = last && now - last < 250 ? (now - last) / 1000 : 0;
+    last = now;
+    const B = baked, playing = st.playing.peek(), d = duration.peek();
+    if (playing) c.t = (c.t + dt * st.speed.peek()) % d;
+    if (B) {   // baked frames: pick the frame for this time straight from the file
+      const i = Math.min(B.frames.frameCount - 1, Math.floor(c.t * B.frames.fps));
+      if (i !== B.index) { B.index = i; show(B.frames.frameAt(i, B.rgb), now); }
+    } else runtime?.pump(c.t, playing);
+    for (let i = 0; i < sinks.length; i++) sinks[i](c.t, playing);
+    if (c.t !== time.peek() && (!playing || now - clockAt >= 120)) { clockAt = now; time.value = c.t; }
+    if (now - statsAt > 1000 && runtime) {
+      statsAt = now;
+      const { fps, ms } = runtime.stats;
+      stats.value = B ? `baked · ${B.frames.fps} fps`
+        : runtime.ready && playing ? `${Math.round(fps)} fps · ${ms ? ms.toFixed(1) : '–'} ms` : '';
+      const slow = runtime.heavy(), key = [...slow.keys()].join('|');
+      if (key !== heavyKey) { heavyKey = key; st.heavy.value = slow; }
+    }
+    if (playing || (!B && runtime?.pending(c.t))) kick();
+    else last = 0;
+  }
+  const onVisibility = () => (document.hidden ? stop() : kick());
+
+  function push() {
+    clearTimeout(pushTimer);
+    pushTimer = 0;
+    const { layers, extra } = st.sandboxLook.peek();
+    runtime?.setLook(layers, extra);
+    kick();
+  }
+
+  const p = {
+    msg, views, view, mode, tier, quality, ghost, dimmed, stats, bakedInfo, time, duration, kick, push,
+    get runtime() { return runtime; },
+    get viewer() { return viewer; },
+    /** Per frame: fn(t, playing). Returns its removal. */
+    onFrame(fn: (t: number, playing: boolean) => void) {
+      sinks.push(fn);
+      return () => { sinks.splice(sinks.indexOf(fn), 1); };
+    },
+    seek(t: number) { c.t = t; time.value = t; kick(); },
+    setPlaying(on: boolean) { st.playing.value = on; kick(); },
+    showAnyway() {
+      seenFlashing.add(flashKey());
+      try { sessionStorage.setItem(flashKey(), '1'); } catch { /* private mode: this page only */ }
+      setGuard(guarded);
+    },
+    setGhost(on: boolean) {
+      ghost.value = on;
+      viewer?.setOption('ghost', on ? 0.14 : 0);
+      pref('studio.ghost', on ? '1' : '0');
+    },
+    async setMode(m: string) {
+      pref('studio.render', m);
+      mode.value = (await viewer?.setMode(m)) || 'points';
+      tier.value = viewer?.playa?.tier;
+    },
+    nextQuality() {
+      quality.value = QUALITY[(QUALITY.indexOf(quality.value) + 1) % QUALITY.length];
+      pref('studio.quality', quality.value);
+      viewer?.setQuality(quality.value);
+    },
+
+    start(canvas: HTMLCanvasElement, sandboxHost: HTMLElement, onScreenEl: HTMLElement, rig: Rig,
+      library: LibraryEntry[]) {
+      const v = viewer = new ViewerOf(canvas, { views: rig.views || {}, defaultView: 'fit',
+        onError: (text: string) => { msg.value = { text, error: true }; } });
+      v.setRig(rig);
+      guard = new FlashGuard(rig);
+      views.value = ['fit', ...Object.keys(rig.views || {})];
+      v.onViewChange = (name) => { view.value = name; };
+      view.value = v.currentView;
+      v.onRender = (m, t) => { mode.value = m; tier.value = t; };
+      p.setGhost(ghost.value);
+      v.setQuality(quality.value);
+      p.setMode(pref('studio.render') === 'points' ? 'points' : 'playa');
+      runtime = new RuntimeOf({
+        container: sandboxHost,
+        onFrame: (rgb: Float32Array) => show(rgb, performance.now()),
+        time: () => (last ? (c.t + ((performance.now() - last) / 1000) * st.speed.peek()) % duration.peek() : c.t),
+        onCompiled: (layers: Compiled[]) => { if (st.status.compiled(layers)) st.fallbackRev.value++; kick(); },
+        onFrameErrors: (errors: { id: string; error?: unknown; module?: string }[]) => st.status.frameErrors(errors),
+        onStatus: (state: string, detail?: string) => {
+          if (state === 'loading' && !everReady) msg.value = { text: 'Starting the pattern engine…' };
+          else if (state === 'ready') { everReady = true; msg.value = null; kick(); }
+          else if (state === 'dead') msg.value = { text: detail || 'The pattern engine stopped.', error: true };
+          else if (state === 'warning' && detail) toast(detail, { kind: 'warn' });
+        },
+      });
+      runtime.start(rig, library.filter((e) => (e.kind || 'source') === 'source')
+        .map(({ name, code }) => ({ name, code })));
+      // What the sandbox runs follows the look; while code is being typed, it waits for the typing to settle.
+      disposers.push(effect(() => {
+        void st.sandboxLook.value;
+        const wait = c.typingUntil - performance.now();
+        clearTimeout(pushTimer);
+        if (wait > 0) pushTimer = window.setTimeout(push, wait); else push();
+      }), effect(() => {         // the server's copy lost its frames (a new bake, an edit): back to live
+        if (baked && !st.server.value?.bake?.frames) p.playBaked(false);
+      }), effect(() => {
+        const id = st.hoverGroup.value || st.pinnedGroup.value;
+        v.setHighlight(id ? st.data.index?.masks.get(id) || null : null);
+      }));
+      st.flush = () => { c.typingUntil = 0; if (pushTimer) push(); };
+      st.onEdit = () => {
+        if (!baked) return;
+        p.playBaked(false);
+        toast('Back to the live preview: the baked frames show the look as it was baked, not your edits.',
+          { timeout: 5000 });
+      };
+      document.addEventListener('visibilitychange', onVisibility);
+      io = new IntersectionObserver((entries) => {
+        onScreen = entries[entries.length - 1].isIntersecting;
+        if (onScreen) kick(); else stop();
+      });
+      io.observe(onScreenEl);
+      kick();
+    },
+
+    /** Baked playback: the server's frames, no pattern code. */
+    async playBaked(on: boolean) {
+      const token = ++bakedLoad, id = st.look.peek().id, rig = st.data.rig;
+      if (!on) {
+        if (!baked) return;
+        baked = null;
+        bakedInfo.value = null;
+        st.baked.value = false;
+        c.t = 0;
+        runtime?.pump(0, true);      // a fresh frame from the live look
+        kick();
+        return;
+      }
+      if (!id || !rig) return;
+      msg.value = { text: 'Loading the baked frames…' };
+      try {
+        let frames: Frames | null = null;
+        // A chunk that was still on its way when its frame came up has arrived: redraw it.
+        const onChunk = () => { if (frames && baked?.frames === frames) { baked.index = -1; kick(); } };
+        frames = await openFrameStream(id, rig, { onChunk }) as Frames;
+        if (!alive || token !== bakedLoad) return;
+        baked = { frames, rgb: new Float32Array(rig.count * 3), index: -1 };
+        c.t = 0;
+        st.playing.value = true;
+        msg.value = null;
+        bakedInfo.value = { seconds: frames.seconds, bytes: frames.bytes };
+        st.baked.value = true;
+        kick();
+      } catch (err) {
+        if (!alive || token !== bakedLoad) return;
+        msg.value = null;
+        if (statusOf(err) === 401) return signedOut();
+        toast((err as Error).message, { kind: 'error', timeout: 7000 });
+      }
+    },
+
+    destroy() {
+      alive = false;
+      stop();
+      clearTimeout(pushTimer);
+      for (const d of disposers) d();
+      document.removeEventListener('visibilitychange', onVisibility);
+      bakedLoad++;
+      baked = null;
+      io?.disconnect();
+      runtime?.destroy();
+      viewer?.destroy();
+    },
+  };
+  return p;
+}
+export type Preview = ReturnType<typeof createPreview>;

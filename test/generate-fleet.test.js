@@ -15,7 +15,7 @@ import {
 } from '../src/generate/fleet.js';
 import { createQueue, foundryFromEnv } from '../src/generate/index.js';
 import { sketchLook } from '../src/generate/sketch.js';
-import { GenerateError, validateLook } from '../src/generate/validate.js';
+import { GenerateError, validateLook } from '../shared/schemas/generated.ts';
 import {
   FIX, fakeStore, goodLayer, GROUPS, LIBRARY, lookJson, queueSetup, quiet, RIG, STUDIO, tmp,
 } from './fixtures/generate/shared.js';

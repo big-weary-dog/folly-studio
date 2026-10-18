@@ -1,4 +1,4 @@
-/* The timeline (js/ui/timeline*.js), loaded with the Studio: clips are small panes of their layer's
+/* The timeline (js/ui/timeline*.tsx), loaded with the Studio: clips are small panes of their layer's
    glass (by blend: add amber, over cobalt, max ruby, multiply violet), the playhead a lit string. */
 .studio .pane-time { display: none; }
 .dock-tools { display: flex; align-items: center; flex: 1; min-width: 0; }

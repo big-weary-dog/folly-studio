@@ -28,7 +28,7 @@ body[data-view=ideas] { --tint: var(--amber); }
 body[data-view=studio] { --tint: var(--violet); }
 body[data-view=looks] { --tint: var(--emerald); }
 body[data-view=gallery] { --tint: var(--ruby); }
-/* Base: reset, the night sky, type, focus, the rose window (js/ui/rose.js). */
+/* Base: reset, the night sky, type, focus, the rose window (js/ui/rose.tsx). */
 *, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 html, body { margin: 0; min-height: 100%; }

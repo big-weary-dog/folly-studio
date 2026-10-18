@@ -3,9 +3,9 @@
 // Everything in the system prompt is static for a given library + rig, so it caches;
 // the idea text, which is untrusted, only ever goes in the user turn.
 
-import { MODULE_KINDS, prepareScene } from '../../public/js/pattern-core.js';
-import { PALETTE_NAMES } from '../look-rules.js';
-import { BLENDS, LIMITS } from './validate.js';
+import { BLENDS, MODULE_KINDS, prepareScene } from '../../public/js/pattern-core.js';
+import { LIMITS } from '../../shared/schemas/generated.ts';
+import { PALETTE_NAMES } from '../../shared/schemas/look.ts';
 
 /** The installation in words: the rig's `about`, its size, rate, extent and fixtures. */
 export function describeRig(rig) {
@@ -298,32 +298,4 @@ ${idea}
 </idea>
 
 Return the look as JSON.`;
-}
-
-/**
- * The JSON schema for structured output. Group ids are an enum when the list is manageable. duration
- * and clips are optional; validate.js checks their ranges (structured output takes no numeric bounds).
- */
-export function lookSchema(groups = []) {
-  const ids = [...new Set([rootOf(groups), ...groups.map((g) => g && g.id).filter((id) => typeof id === 'string')])];
-  const tags = [...new Set(groups.flatMap((g) => (Array.isArray(g?.tags) ? g.tags : [])))];
-  const [num, str] = [{ type: 'number' }, { type: 'string' }];
-  const obj = (properties, required = Object.keys(properties)) => ({ type: 'object', properties, required,
-    additionalProperties: false });
-  const clip = obj({ start: num, end: num, fadeIn: num, fadeOut: num });
-  const blend = { type: 'string', enum: [...BLENDS] };
-  const module = obj({ id: str, kind: { type: 'string', enum: ['source', 'warp', 'filter'] }, title: str, ref: str,
-    code: str, input: str, as: { type: 'string', enum: ['input'] }, blend }, ['id', 'kind', 'title', 'code']);
-  const layer = obj({
-    title: str, groups: { type: 'array', items: ids.length <= 400 ? { type: 'string', enum: ids } : str },
-    tags: { type: 'array', items: tags.length ? { type: 'string', enum: tags } : str },
-    blend, level: num, clips: { type: 'array', items: clip }, code: str, modules: { type: 'array', items: module },
-  }, ['title', 'groups', 'blend', 'level']);
-  const globals = obj({ speed: num, level: num, hue: num, saturation: num, energy: num,
-    palette: { type: 'string', enum: [...PALETTE_NAMES] },
-    macros: { type: 'array', items: obj({ name: str, value: num, min: num, max: num }) } }, []);
-  const lane = obj({ name: str, points: { type: 'array', items: { type: 'array', items: num } } });
-  const look = { title: str, summary: str, duration: num, globals, automation: { type: 'array', items: lane },
-    layers: { type: 'array', items: layer } };
-  return obj(look, ['title', 'summary', 'layers']);
 }

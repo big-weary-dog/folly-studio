@@ -32,7 +32,7 @@ function tree(files) {
 test('budgets.mjs: sizes, hygiene, remote URLs, secrets, silences and the ratchet', () => {
   const root = tree({
     'tools/budgets.json': `${JSON.stringify({ areas: { src: { lines: 10 }, public: { lines: 1 },
-      'public/css': { lines: 500 } } }, null, 1)}\n`,
+      'public/css': { lines: 500 }, 'public/js': { lines: 1 } } }, null, 1)}\n`,
     'src/crlf.js': 'export const a = 1;\r\nexport const b = 2;\r\n',
     'src/bom.js': '\uFEFFexport const a = 1;\n',
     'src/spaces.js': 'export const a = 1; \n',
@@ -45,6 +45,7 @@ test('budgets.mjs: sizes, hygiene, remote URLs, secrets, silences and the ratche
     'src/long.js': '// filler\n'.repeat(401), // oxlint's max-lines
     'public/css/long.css': 'a {}\n'.repeat(401),
     'public/index.html': '<script src="https://cdn.example.com/x.js"></script>\n',
+    'public/js/ui/raw.tsx': `export const Raw = (p) => <div ${'dangerously'}SetInnerHTML={{ __html: p.html }} />;\n`,
     'public/data/rig.json': json70k,
     'public/data/big.json': json70k,
     'broken.json': '{ "a": 1,\n}\n',
@@ -53,7 +54,8 @@ test('budgets.mjs: sizes, hygiene, remote URLs, secrets, silences and the ratche
   const r = check(root);
   assert.deepEqual(r.errors.map((e) => `${e.file}:${e.line} ${e.rule}`), [
     'broken.json:1 json', 'public/css/long.css:401 max-lines', 'public/data/big.json:1 max-bytes',
-    'public/index.html:1 no-remote-url', 'src/bom.js:1 no-bom', 'src/crlf.js:1 no-crlf', 'src/keys.js:1 no-secret',
+    'public/index.html:1 no-remote-url', 'public/js/ui/raw.tsx:1 no-html-sink', 'src/bom.js:1 no-bom',
+    'src/crlf.js:1 no-crlf', 'src/keys.js:1 no-secret',
     'src/no-newline.js:1 final-newline', 'src/silences.js:1 silence', 'src/silences.js:5 silence',
     'src/silences.js:6 silence', 'src/spaces.js:1 trailing-space', 'src/tabs.js:2 no-tabs',
     'src/wide.js:1 max-line-length', 'tools/budgets.json:3 line-budget',
@@ -63,7 +65,7 @@ test('budgets.mjs: sizes, hygiene, remote URLs, secrets, silences and the ratche
   const cli = spawnSync(process.execPath, [path.join(STUDIO, 'tools/budgets.mjs'), root], { encoding: 'utf8' });
   assert.equal(cli.status, 1);
   assert.equal(cli.stdout.split('\n').filter((l) => /^\S+:\d+ [a-z-]+ \S/.test(l)).length, r.errors.length);
-  assert.match(cli.stdout, /^budgets: 15 errors, 16 files checked, [\d.]+ s$/m);
+  assert.match(cli.stdout, /^budgets: 16 errors, 17 files checked, [\d.]+ s$/m);
 });
 
 test('.oxlintrc.jsonc: the safety rules, the import boundaries and the allowlist', () => {

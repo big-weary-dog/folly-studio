@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Folly Studio server: environment → createServer() (src/app.js), serving the app from dist/ (`npm run build`).
+// Folly Studio server: environment → createServer() (src/app.ts), serving the app from dist/ (`npm run build`).
 //
 //   PORT                   default 8780
 //   HOST                   default 127.0.0.1
@@ -9,7 +9,7 @@
 //   STUDIO_GENERATOR       idea generator adapter: sketch (default) | claude | fleet (deep ideas, below)
 //   STUDIO_FOUNDRY         on → fleet runs, one job at a time; else deep ideas go to STUDIO_GENERATOR_FALLBACK
 //                          (default sketch); STUDIO_FOUNDRY_WAIT=1 → they wait for the foundry instead
-//   STUDIO_TRUST_PROXY     1 → client IP / host from X-Forwarded-For / X-Forwarded-Host
+//   STUDIO_TRUST_PROXY     1 → one proxy in front (a tunnel): client IP and host from what it forwards
 //   STUDIO_BAKE_SECONDS    longest render-box bake, default 120 (also STUDIO_BAKE_TIMEOUT, _CPU, _NICE (10),
 //                          _TASKS, _MEMORY, _MAX_FRAMES: see src/render-box.js; needs bubblewrap)
 //   STUDIO_FRAMES_BROTLI_QUALITY  baked frames' brotli quality for streaming, default 9 (11: ~12 % smaller,
@@ -18,7 +18,7 @@
 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createServer } from './src/app.js';
+import { createServer } from './src/app.ts';
 import { parseBytes } from './src/bake.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));

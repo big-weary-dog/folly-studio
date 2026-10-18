@@ -1,4 +1,4 @@
-/* Composition (loaded by js/ui/studio.js): module chains, param modulation, the look's globals and automation lanes.
+/* Composition (loaded by js/ui/studio.tsx): module chains, param modulation, the look's globals and automation lanes.
    A module's kind is its glass: warps cobalt, sources amber, filters ruby. */
 [data-kind=warp] { --kind: var(--cobalt-t); }
 [data-kind=source] { --kind: var(--amber); }

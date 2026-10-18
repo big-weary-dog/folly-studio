@@ -12,10 +12,11 @@ export const BUDGET_FILE = 'tools/budgets.json';
 const KB = 1024;
 const MAX_BYTES = 64 * KB, MAX_LINE = 120, CAPS = { 'public/data/rig.json': 1024 * KB }; // generated, committed data
 const SKIP = /^(?:data|dist)\/|^package-lock\.json$/;
-const CODE = /\.(?:[cm]?[jt]s|css|html|py)$/, LINTED = /\.[cm]?[jt]s$/, TABLESS = /\.(?:[cm]?[jt]s|css|html)$/;
+const CODE = /\.(?:[cm]?[jt]sx?|css|html|py)$/, LINTED = /\.[cm]?[jt]sx?$/, TABLESS = /\.(?:[cm]?[jt]sx?|css|html)$/;
 const SECRET = /\bsk-ant-[\w-]{16,}|\bAKIA[0-9A-Z]{16}\b|-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----/;
 const REMOTE = new RegExp(String.raw`(?:<(?:script|link|iframe|img)\b[^>]*?\b(?:src|href)\s*=\s*|@import\s+|\burl\(\s*)`
   + String.raw`["']?(?:https?:)?//`, 'i');
+const HTML_SINK = /\bdangerouslySetInnerHTML\b/;    // JSX's HTML string sink; oxlint bans the DOM's (innerHTML, …)
 const DIRECTIVE = /(?:\/\/|\/\*)\s*(?:oxlint|eslint)-(?:disable|enable)(\S*)(.*)/;
 const SILENCE = /^\s+([\w/@-]+(?:\s*,\s*[\w/@-]+)*)\s+--\s+\S/; // after -next-line or -line: rules -- reason
 
@@ -84,7 +85,7 @@ export function check(root) {
     if (text.charCodeAt(0) === 0xfeff) report(1, 'no-bom', 'byte-order mark');
     if (text && !text.endsWith('\n')) report(count, 'final-newline', 'no newline at the end of the file');
     if (rel.endsWith('.json') && parse(text) === undefined) report(1, 'json', 'does not parse as JSON');
-    const remote = /^public\/.*\.(?:css|html)$/.test(rel);
+    const remote = /^public\/.*\.(?:css|html)$/.test(rel), browser = /^public\/js\/.*\.[jt]sx?$/.test(rel);
     const crlf = lines.findIndex((l) => l.endsWith('\r'));
     if (crlf >= 0) report(crlf + 1, 'no-crlf', 'CRLF line ending');
     lines.forEach((l, i) => {
@@ -96,6 +97,7 @@ export function check(root) {
       }
       if (SECRET.test(l)) report(i + 1, 'no-secret', 'secret-looking string: keys come from the environment');
       if (remote && REMOTE.test(l)) report(i + 1, 'no-remote-url', 'remote URL: the app runs offline, self-only CSP');
+      if (browser && HTML_SINK.test(l)) report(i + 1, 'no-html-sink', 'HTML string sink: build nodes with JSX');
       const bad = LINTED.test(rel) && badSilence(l);
       if (bad) report(i + 1, 'silence', bad);
     });

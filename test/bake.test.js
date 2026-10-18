@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, beforeEach, describe, test } from 'vitest';
 
-import { createServer } from '../src/app.js';
+import { createServer } from '../src/app.ts';
 import { BakeError, checkFrames } from '../src/box-output.js';
 import { createRenderBox } from '../src/render-box.js';
 import { parseFseq } from '../src/frames.js';

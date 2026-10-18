@@ -1,0 +1,122 @@
+// The HTTP API under /api (SPEC "HTTP API"): accounts, ideas and the library here, looks in api-looks.ts, baked
+// frames in frames-http.ts, plumbing in http.ts. Each mutation passes the CSRF check first; then every route but
+// the public ones needs a session. Logins are limited per IP, and failed ones per IP and username.
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+
+import { IdeaBody, Login, Signup } from '../shared/schemas/api.ts';
+import { lookRoutes } from './api-looks.ts';
+import { COOKIE_NAME, SESSION_TTL_MS } from './auth.ts';
+import type { Auth } from './auth.ts';
+import { removeFrames } from './bake.js';
+import { framesRoutes } from './frames-http.ts';
+import { checkMutation, HttpError, parse, routes, sendJson } from './http.ts';
+import type { Log } from './http.ts';
+
+export const MAX_IDEAS_PER_DAY = 20;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+type Stored = NonNullable<ReturnType<Auth['authenticate']>>['user'];
+declare module 'fastify' {
+  interface FastifyRequest { user: Stored | null }
+  interface FastifyContextConfig { public?: boolean }
+}
+
+type Idea = { id: string, owner: string, status: string, createdAt: string };
+type Queue = { enqueue(idea: Idea): unknown };
+type IdeaStore = { get(id: string): Idea | null, list(fn: (i: Idea) => boolean): Idea[],
+  create(x: object): Idea, update(id: string, patch: object): unknown };
+
+/** Hand an idea to the generator queue; if that fails, mark the idea failed. */
+export function enqueueIdea({ queue, store, log }: { queue: Queue, store: { ideas: IdeaStore }, log: Log },
+  idea: Idea) {
+  const fail = (err: unknown) => {
+    log.error?.(`generator: enqueue failed for idea ${idea.id}:`, err);
+    const cur = store.ideas.get(idea.id);
+    if (cur && (cur.status === 'queued' || cur.status === 'generating')) {
+      store.ideas.update(idea.id, { status: 'failed', error: 'The idea could not be queued.' });
+    }
+  };
+  try { Promise.resolve(queue.enqueue(idea)).catch(fail); } catch (err) { fail(err); }
+}
+
+export const newestBy = (field: string) => (a: Record<string, unknown>, b: Record<string, unknown>) => {
+  const x = String(a[field] ?? a.createdAt ?? ''), y = String(b[field] ?? b.createdAt ?? '');
+  return x < y ? 1 : x > y ? -1 : 0;
+};
+
+// apiRoutes({ store, auth, queue, adapterName, loaders, log, maxIdeasPerDay, framesDir, bakes, frames, rateLimit,
+//   secureCookies }) → the /api plugin
+export function apiRoutes(o: Record<string, any>) {
+  const { store, auth, queue, adapterName = 'sketch', loaders, log, maxIdeasPerDay = MAX_IDEAS_PER_DAY } = o;
+  const { bakes, framesDir, frames, secureCookies = false } = o;
+  const limits = { max: 10, ipMax: 100, windowMs: 60_000, ...o.rateLimit };
+  return async (api: FastifyInstance) => {
+    api.addHook('onRequest', checkMutation);
+    api.addHook('onRequest', async (req) => {
+      req.user = (auth as Auth).authenticate(req.cookies[COOKIE_NAME])?.user ?? null;
+      if (!req.routeOptions.config.public && !req.user) throw new HttpError(401, 'Log in first.');
+    });
+    api.addHook('onSend', sendJson);
+
+    const nameOf = (req: FastifyRequest) => {
+      const name = (req.body as { username?: unknown } | undefined)?.username;
+      return typeof name === 'string' ? name.trim().toLowerCase().slice(0, 64) : '';
+    };
+    const window = { timeWindow: limits.windowMs };
+    const perIp = api.createRateLimit({ ...window, max: limits.ipMax, keyGenerator: (req) => req.ip });
+    const perName = api.createRateLimit({ ...window, max: limits.max,
+      keyGenerator: (req) => `${req.ip}|${nameOf(req)}` });
+    /** Sign up or log in: a fresh session replaces any old one. */
+    const signIn = (status: number, run: (req: FastifyRequest) => Promise<Stored>) => async (req: FastifyRequest,
+      reply: FastifyReply) => {
+      const [ip, name] = [await perIp(req), await perName(req, { increment: false })];
+      const wait = !ip.isAllowed && ip.isExceeded ? ip.ttlInSeconds
+        : !name.isAllowed && name.remaining === 0 ? name.ttlInSeconds : 0;
+      if (wait) throw new HttpError(429, 'Too many attempts. Try again in a minute.', { 'Retry-After': `${wait}` });
+      const user = await run(req).catch(async (err) => { await perName(req); throw err; });
+      auth.logout(req.cookies[COOKIE_NAME]);
+      reply.setCookie(COOKIE_NAME, auth.createSession(user), cookie(SESSION_TTL_MS / 1000)).code(status);
+      return { user: auth.publicUser(user) };
+    };
+    const cookie = (maxAge: number) => ({ httpOnly: true, sameSite: 'lax' as const, path: '/', maxAge,
+      secure: secureCookies });
+    const dropFrames = (id: string) => removeFrames(framesDir, id).then(() => frames.prune());
+    const looks = lookRoutes({ store, auth, bakes, dropFrames });
+
+    routes(api, {
+      'POST /signup': [signIn(201, (req) => auth.signup(parse(Signup, req.body))), { public: true }],
+      'POST /login': [signIn(200, (req) => auth.login(Login.parse(req.body))), { public: true }],
+      'POST /logout': [async (req, reply) => {
+        auth.logout(req.cookies[COOKIE_NAME]);
+        reply.setCookie(COOKIE_NAME, '', cookie(0));
+        return { ok: true };
+      }, { public: true }],
+      'GET /me': async (req) => ({ user: auth.publicUser(req.user) }),
+
+      'GET /ideas': async (req) => ({ ideas: store.ideas.list((i: Idea) => i.owner === req.user!.id).reverse()
+        .sort(newestBy('createdAt')) }),
+      'POST /ideas': async (req, reply) => {
+        const { text } = parse(IdeaBody, req.body);
+        const since = Date.now() - DAY_MS;
+        const today = store.ideas.list((i: Idea) => i.owner === req.user!.id && Date.parse(i.createdAt) > since).length;
+        if (today >= maxIdeasPerDay) {
+          throw new HttpError(429, `That's ${maxIdeasPerDay} ideas today. Try again tomorrow.`);
+        }
+        const idea = store.ideas.create({ owner: req.user!.id, text, status: 'queued', generator: adapterName });
+        enqueueIdea({ queue, store, log }, idea);
+        reply.code(201);
+        return { idea: store.ideas.get(idea.id) ?? idea };
+      },
+      'GET /ideas/:id': async (req) => {
+        const idea = store.ideas.get((req.params as { id: string }).id);
+        if (!idea || idea.owner !== req.user!.id) throw new HttpError(404, 'Idea not found.');
+        return { idea };
+      },
+      ...looks.routes,
+      ...framesRoutes({ framesDir, cache: frames, visibleLook: looks.visibleLook }),
+      'GET /library': [async () => ({ patterns: loaders.loadLibrary()
+        .map(({ name, title, summary, tags, kind, category, code }: Record<string, unknown>) => (
+          { name, title, summary, tags, kind, category, code })) }), { public: true }],
+    });
+  };
+}

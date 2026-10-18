@@ -10,15 +10,15 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, test } from 'vitest';
 
-import { createServer } from '../src/app.js';
+import { createServer } from '../src/app.ts';
 import { browser, request } from './fixtures/browser.js';
 import { builtApp, removeBuiltApp } from './fixtures/build.js';
 
 const KB = 1024;
-// Measured: 145 KB in 19 requests with br, 170 KB with gzip only (HTTP/1.1 headers counted in full; HTTP/2 shrinks
+// Measured: 149 KB in 13 requests with br, 175 KB with gzip only (HTTP/1.1 headers counted in full; HTTP/2 shrinks
 // them). rig.json is 31 KB of that with br (43 KB gzip): the LEDs, and the 3D view's rose cells, floods and scaffold.
 const COLD = { 'br, gzip': 205 * KB, gzip: 240 * KB };
-const STUDIO = { view: 'js/ui/studio.js', api: ['/api/me', '/api/library'] };
+const STUDIO = { view: 'js/ui/studio.tsx', api: ['/api/me', '/api/library'] };
 const PLAYA = { view: 'js/playa/renderer.js', shell: false };   // the 3D view's default mode, imported on show
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const kb = (n) => `${(n / KB).toFixed(1)} KB`;
@@ -87,10 +87,10 @@ test('a reload, a minute or a day later, sends only the shell and the API calls:
 
 test('an idea session: polls back off and answer 304s; lists carry metadata, not code', async () => {
   const b = browser(port, { cookie, manifest });
-  await b.load('/ideas', { view: 'js/ui/pages.js', api: ['/api/me', '/api/ideas'] });
+  await b.load('/ideas', { view: 'js/ui/pages.tsx', api: ['/api/me', '/api/ideas'] });
   const { idea } = JSON.parse((await b.call('POST', '/api/ideas', { text: 'Rising embers drift up the spires' })).text);
   app.store.ideas.update(idea.id, { status: 'generating' });
-  // ui/pages.js: the pending idea after 2 s, then 1.5× as long each time, up to 10 s; ready after 60 s here.
+  // ui/pages.tsx: the pending idea after 2 s, then 1.5× as long each time, up to 10 s; ready after 60 s here.
   const from = b.log.length;
   let polls = 0;
   for (let t = 0, wait = 2; ; t += wait, wait = Math.min(10, wait * 1.5)) {
@@ -103,8 +103,8 @@ test('an idea session: polls back off and answer 304s; lists carry metadata, not
   assert.ok(polls <= 10, `${polls} polls`);
   assert.ok(b.log.slice(from + 1, -1).every((r) => r.status === 304), 'an unchanged idea answers 304');
   const lists = b.log.length;
-  await b.load('/looks', { shell: false, view: 'js/ui/pages.js', api: ['/api/looks?scope=mine'] });
-  await b.load('/gallery', { shell: false, view: 'js/ui/pages.js', api: ['/api/looks?scope=gallery'] });
+  await b.load('/looks', { shell: false, view: 'js/ui/pages.tsx', api: ['/api/looks?scope=mine'] });
+  await b.load('/gallery', { shell: false, view: 'js/ui/pages.tsx', api: ['/api/looks?scope=gallery'] });
   const listed = b.total(lists);
   for (const scope of ['mine', 'gallery']) {
     const { looks } = JSON.parse((await b.fetch(`/api/looks?scope=${scope}`)).text);

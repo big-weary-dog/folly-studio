@@ -66,24 +66,39 @@
           "patterns": [
             { "regex": "^\\.{1,2}/(?:.*/)?(?:src|render-box|fleet-box|tools|test)/|^\\.{1,2}/(?:.*/)?server\\.js$",
               "message": "browser code imports only from public/ and packages" },
-            { "regex": "^(?:[a-z]+:)?//", "message": "remote URL: the app runs offline under a self-only CSP" }
+            { "regex": "^(?:[a-z]+:)?//", "message": "remote URL: the app runs offline under a self-only CSP" },
+            { "regex": "^\\.{1,2}/(?:.*/)?shared/", "allowTypeImports": true,
+              "message": "browser code takes shared/ schemas as types (import type), so zod is not shipped by accident" }
           ]
         }]
       }
     },
     {
-      "files": ["src/**", "public/js/**"],
+      // The schemas are shared with the browser: zod, the core's constants and data, nothing of the server's.
+      "files": ["shared/**"],
+      "rules": {
+        "no-restricted-imports": ["error", { "patterns": [
+          { "regex": "^node:", "message": "shared/ runs in the browser too: no Node built-ins" },
+          { "regex": "^\\.{1,2}/(?:.*/)?(?:src|render-box|fleet-box|tools|test)/|^\\.{1,2}/(?:.*/)?server\\.js$",
+            "message": "shared/ imports only zod, itself and the core's constants and data from public/" },
+          { "group": ["**/public/**", "!**/public/js/pattern-core.*", "!**/public/**/*.json"],
+            "message": "shared/ imports only zod, itself and the core's constants and data from public/" }
+        ] }]
+      }
+    },
+    {
+      "files": ["src/**", "shared/**", "public/js/**"],
       "rules": { "no-console": ["error", { "allow": ["warn", "error"] }] }
     },
     {
       "files": ["public/js/**"],
       "rules": {
         "no-restricted-properties": ["error",
-          { "property": "innerHTML", "message": "HTML string sink: build nodes with h() and set textContent" },
-          { "property": "outerHTML", "message": "HTML string sink: build nodes with h() and set textContent" },
-          { "property": "insertAdjacentHTML", "message": "HTML string sink: build nodes with h() and set textContent" },
-          { "object": "document", "property": "write", "message": "HTML string sink: build nodes with h()" },
-          { "object": "document", "property": "writeln", "message": "HTML string sink: build nodes with h()" }
+          { "property": "innerHTML", "message": "HTML string sink: build nodes with JSX, text as text" },
+          { "property": "outerHTML", "message": "HTML string sink: build nodes with JSX, text as text" },
+          { "property": "insertAdjacentHTML", "message": "HTML string sink: build nodes with JSX, text as text" },
+          { "object": "document", "property": "write", "message": "HTML string sink: build nodes with JSX" },
+          { "object": "document", "property": "writeln", "message": "HTML string sink: build nodes with JSX" }
         ]
       }
     },
@@ -91,11 +106,11 @@
       "files": ["public/js/pattern-core.*", "public/js/core/**"],
       "rules": {
         "no-restricted-properties": ["error",
-          { "property": "innerHTML", "message": "HTML string sink: build nodes with h() and set textContent" },
-          { "property": "outerHTML", "message": "HTML string sink: build nodes with h() and set textContent" },
-          { "property": "insertAdjacentHTML", "message": "HTML string sink: build nodes with h() and set textContent" },
-          { "object": "document", "property": "write", "message": "HTML string sink: build nodes with h()" },
-          { "object": "document", "property": "writeln", "message": "HTML string sink: build nodes with h()" },
+          { "property": "innerHTML", "message": "HTML string sink: build nodes with JSX, text as text" },
+          { "property": "outerHTML", "message": "HTML string sink: build nodes with JSX, text as text" },
+          { "property": "insertAdjacentHTML", "message": "HTML string sink: build nodes with JSX, text as text" },
+          { "object": "document", "property": "write", "message": "HTML string sink: build nodes with JSX" },
+          { "object": "document", "property": "writeln", "message": "HTML string sink: build nodes with JSX" },
           { "object": "Math", "property": "random", "message": "bakes are deterministic: use rand, hash, noise, seed" }
         ]
       }

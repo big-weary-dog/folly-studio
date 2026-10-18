@@ -1,9 +1,9 @@
 // claude: one Messages API call turns an idea into a look. Plain fetch, streamed so a long answer never
-// sits on an idle connection, with structured output so the reply is the look's JSON. The big static
-// system prompt is cached; the idea goes only in the user turn.
+// sits on an idle connection, with structured output so the reply is the look's JSON (the schema is the generated
+// look's, shared/schemas/generated.ts). The big static system prompt is cached; the idea goes only in the user turn.
 
-import { buildSystemPrompt, buildUserMessage, lookSchema } from './prompt.js';
-import { GenerateError } from './validate.js';
+import { GenerateError, wireSchema } from '../../shared/schemas/generated.ts';
+import { buildSystemPrompt, buildUserMessage } from './prompt.js';
 
 export const DEFAULT_MODEL = 'claude-opus-5-5';
 const API_VERSION = '2023-06-01';
@@ -65,7 +65,7 @@ export function createClaudeAdapter(o = {}) {
   function buildRequest({ text, library, rig, groups }) {
     const body = {
       model: cfg.model, max_tokens: cfg.maxTokens, stream: true, thinking: { type: 'adaptive' },
-      output_config: { effort: cfg.effort, format: { type: 'json_schema', schema: lookSchema(groups) } },
+      output_config: { effort: cfg.effort, format: { type: 'json_schema', schema: wireSchema(groups) } },
       system: [{ type: 'text', text: buildSystemPrompt({ library, rig, groups }),
         cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: buildUserMessage(text) }],
@@ -195,7 +195,8 @@ function readLook(message) {
   for (const t of candidates) {
     const look = parseJson(t);
     if (look && typeof look === 'object' && !Array.isArray(look)) {
-      return { title: look.title, summary: look.summary, duration: look.duration, layers: look.layers };
+      const { title, summary, duration, globals, automation, layers } = look;
+      return { title, summary, duration, globals, automation, layers };
     }
   }
   const detail = `unparseable output, stop_reason ${stop}`;

@@ -5,7 +5,7 @@ import { describe, test } from 'vitest';
 
 import { createClaudeAdapter } from '../src/generate/claude.js';
 import { createQueue } from '../src/generate/index.js';
-import { GenerateError } from '../src/generate/validate.js';
+import { GenerateError, validateLook } from '../shared/schemas/generated.ts';
 import { GROUPS, jsonRes, LIBRARY, lookJson, queueSetup, quiet, sse, streamOf } from './fixtures/generate/shared.js';
 
 describe('claude', () => {
@@ -116,6 +116,21 @@ describe('claude', () => {
         () => reject(new DOMException('aborted', 'AbortError')))),
     });
     await assert.rejects(slow.generate({ text: 'x' }), (e) => /took too long/.test(e.userMessage));
+  });
+
+  test('keeps the globals and automation the model returns, cleaned like any look', async () => {
+    const reply = { ...JSON.parse(lookJson()), globals: { energy: 0.3, palette: 'ember',
+      macros: [{ name: 'storm', value: 0.5, min: 0, max: 1 }] },
+    automation: [{ name: 'storm', points: [[20, 1], [0, 0]] }, { name: 'energy', points: [[0, 0.2], [30, 1]] }] };
+    const fetch = async () => sse(streamOf(JSON.stringify(reply)));
+    const a = createClaudeAdapter({ env: {}, apiKey: 'k', log: quiet, fetch });
+    const out = await a.generate({ text: 'a storm builds', groups: GROUPS });
+    assert.deepEqual(out.globals, reply.globals);
+    assert.deepEqual(out.automation, reply.automation);
+    const look = validateLook(out, { groups: GROUPS });
+    assert.equal(look.globals.palette.name, 'ember');
+    assert.deepEqual(look.automation, { storm: [[0, 0], [20, 1]], energy: [[0, 0.2], [30, 1]] });
+    assert.deepEqual(look.dropped, []);
   });
 
   test('reads the fallback model’s answer after a refusal boundary', async () => {

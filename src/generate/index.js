@@ -1,5 +1,6 @@
 // The idea → look queue, in-process. Each job: idea 'generating', an adapter turns the text into a look,
-// validate.js checks it, the look is saved and the idea 'ready' (or 'failed', with a user-safe error).
+// validateLook (shared/schemas/generated.ts) cleans it, the look is saved and the idea 'ready' (or 'failed', with
+// a user-safe error).
 // An adapter may also return `bake` (a checkFrames record, kept on the look) and `frames` (stored).
 // The Fleet foundry (deep ideas: STUDIO_GENERATOR=fleet) is opt-in, STUDIO_FOUNDRY=on, one job at a time
 // in a slot of its own. While it is off or busy, deep ideas go to the one-shot generator
@@ -7,14 +8,13 @@
 
 import path from 'node:path';
 
-import { layersHash, saveFrames } from '../bake.js';
-import { renderFields } from '../look-rules.js';
+import { GenerateError, validateLook } from '../../shared/schemas/generated.ts';
+import { layersHash, renderFields, saveFrames } from '../bake.js';
 import { createClaudeAdapter } from './claude.js';
 import { createFleetAdapter, hasMemoryCap } from './fleet.js';
 import { sketchLook } from './sketch.js';
-import { GenerateError, validateLook } from './validate.js';
 
-export { GenerateError, validateLook } from './validate.js';
+export { GenerateError, validateLook };
 
 const FALLBACK_ERROR = 'Something went wrong while turning this idea into a look.';
 

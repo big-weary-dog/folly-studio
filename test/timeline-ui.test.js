@@ -1,4 +1,4 @@
-// The timeline editor's pure edits (public/js/ui/timeline-model.js): every edit keeps clips
+// The timeline editor's pure edits (public/js/ui/timeline-model.ts): every edit keeps clips
 // sorted, apart and inside their neighbours, so what the editor makes the API accepts.
 import assert from 'node:assert/strict';
 
@@ -7,9 +7,9 @@ import { describe, test } from 'vitest';
 import {
   addClip, cleanBpm, cleanDuration, clock, contentEnd, editClip, fadeClip, importLook,
   MIN_CLIP, moveClip, removeClip, rulerStep, shownFades, snapStep, trimClip,
-} from '../public/js/ui/timeline-model.js';
+} from '../public/js/ui/timeline-model.ts';
 import { MAX_CLIPS } from '../public/js/core/timeline.js';
-import { validateLayers } from '../src/api.js';
+import { validateLayers } from '../src/api-looks.ts';
 
 const clip = (start, end, fadeIn = 0, fadeOut = 0) => ({ start, end, fadeIn, fadeOut });
 const THREE = [clip(0, 2), clip(4, 6, 0.5, 0.5), clip(10, 12)];

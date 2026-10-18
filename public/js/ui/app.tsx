@@ -1,0 +1,175 @@
+// The app shell: the session, history-API routing (views load on first use, so the login and list pages never fetch
+// the Studio's 3D code), the header, and the guard that keeps unsaved Studio edits from being lost.
+import { signal } from '@preact/signals';
+import type { ComponentType } from 'preact';
+import { useLayoutEffect, useState } from 'preact/hooks';
+
+import { api, statusOf } from '../api.ts';
+import type { User } from '../types.ts';
+import { confirmDialog, cx, toast, Toasts } from './kit.tsx';
+import { Rose } from './rose.tsx';
+import { here, leaveGuard, navigate, router, setTitle, user, type ViewProps } from './session.ts';
+
+interface Route {
+  re: RegExp; name: string; title: string; load: () => Promise<ComponentType<ViewProps>>; public?: boolean;
+  nav?: string; keys?: string[]; scope?: 'mine' | 'gallery';
+}
+const pages = () => import('./pages.tsx');
+const ROUTES: Route[] = [
+  { re: /^\/login\/?$/, name: 'auth', title: 'Sign in', public: true,
+    load: () => import('./auth.tsx').then((m) => m.Auth) },
+  { re: /^\/ideas\/?$/, name: 'ideas', title: 'Ideas', nav: '/ideas', load: () => pages().then((m) => m.Ideas) },
+  { re: /^\/studio(?:\/([^/]+))?\/?$/, name: 'studio', title: 'Studio', nav: '/studio', keys: ['lookId'],
+    load: () => import('./studio.tsx').then((m) => m.Studio) },
+  { re: /^\/looks\/?$/, name: 'looks', title: 'My looks', nav: '/looks', scope: 'mine',
+    load: () => pages().then((m) => m.Looks) },
+  { re: /^\/gallery\/?$/, name: 'gallery', title: 'Gallery', nav: '/gallery', scope: 'gallery',
+    load: () => pages().then((m) => m.Looks) },
+];
+
+/** Where to go after signing in: `next` when it is a page of this app, else Ideas. */
+export const safeNext = (next: string | null) => (next && next.startsWith('/') && !next.startsWith('//')
+  && !next.startsWith('/login') ? next : '/ideas');
+
+/** Where a path leads: a redirect, or a route and its params. */
+export function resolve(path: string, search: string, signedIn: boolean):
+  { redirect: string } | { route: Route; params: Record<string, string> } {
+  if (path === '/' || path === '') return { redirect: signedIn ? '/ideas' : '/login' };
+  for (const route of ROUTES) {
+    const m = route.re.exec(path);
+    if (!m) continue;
+    if (!route.public && !signedIn) return { redirect: `/login?next=${encodeURIComponent(path + search)}` };
+    if (route.public && signedIn) return { redirect: safeNext(new URLSearchParams(search).get('next')) };
+    const params: Record<string, string> = {};
+    (route.keys || []).forEach((k, i) => { if (m[i + 1]) params[k] = decodeURIComponent(m[i + 1]); });
+    return { route, params };
+  }
+  return { redirect: '/ideas' };
+}
+
+const current = signal<{ route: Route; props: ViewProps; View: ComponentType<ViewProps>; key: number } | null>(null);
+let renders = 0;
+
+async function show() {
+  const found = resolve(location.pathname, location.search, !!user.value);
+  if ('redirect' in found) { history.replaceState(null, '', found.redirect); return show(); }
+  const { route, params } = found;
+  const token = ++renders;
+  const View = await route.load().catch((err) => {
+    toast(`Could not load this page: ${err.message}`, { kind: 'error', timeout: 0 });
+  });
+  if (!View || token !== renders) return;          // a newer navigation won the race
+  setTitle(route.title);
+  document.body.dataset.view = route.nav?.slice(1) || 'auth';
+  current.value = { route, View, key: token,
+    props: { params, query: new URLSearchParams(location.search), scope: route.scope } };
+  router.shown = here();
+}
+
+async function canLeave() {
+  if (!leaveGuard.isDirty?.()) return true;
+  return confirmDialog('You have unsaved changes in the Studio. Leave without saving?',
+    { title: 'Unsaved changes', ok: 'Leave', danger: true });
+}
+
+router.go = async (to, { replace = false, force = false }) => {
+  const url = new URL(to, location.origin), target = url.pathname + url.search;
+  if (!force && target === router.shown && !replace) return;
+  if (!force && !(await canLeave())) return;
+  leaveGuard.discard?.();
+  history[replace ? 'replaceState' : 'pushState'](null, '', target);
+  await show();
+  if (!replace) document.getElementById('main')?.focus({ preventScroll: true });
+  window.scrollTo(0, 0);
+};
+
+async function logout() {
+  if (!(await canLeave())) return;
+  leaveGuard.discard?.();
+  try { await api.logout(); } catch (err) { toast((err as Error).message, { kind: 'error' }); }
+  user.value = null;
+  navigate('/login', { force: true, replace: true });
+}
+
+const NAV = [['/ideas', 'Ideas'], ['/studio', 'Studio'], ['/looks', 'My looks'], ['/gallery', 'Gallery']];
+
+function Header({ me, nav }: { me: User; nav?: string }) {
+  const [open, setOpen] = useState(false);
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+    const outside = (e: MouseEvent) => { if (!(e.target as Element).closest?.('.app-header')) setOpen(false); };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setOpen(false); document.getElementById('nav-toggle')?.focus(); }
+    };
+    document.addEventListener('click', outside);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('click', outside); document.removeEventListener('keydown', esc); };
+  }, [open]);
+  return (
+    <header class={cx('app-header', open && 'nav-open')} id="app-header">
+      <a class="brand" href="/ideas" aria-label="Folly Studio home">
+        <span class="brand-mark"><Rose /></span>
+        <svg class="wordmark" aria-hidden="true"><use href="#wordmark" /></svg>
+      </a>
+      <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded={open} aria-controls="nav-panel"
+        onClick={() => setOpen(!open)}>
+        <span class="sr-only">Menu</span><span class="nav-toggle-bars" aria-hidden="true" />
+      </button>
+      <div class="nav-panel" id="nav-panel" onClick={(e) => {
+        if ((e.target as Element).closest('a, .btn')) setOpen(false);
+      }}>
+        <nav class="main-nav" aria-label="Main">
+          {NAV.map(([href, text]) => <a href={href} aria-current={nav === href ? 'page' : undefined}>{text}</a>)}
+        </nav>
+        <div class="user-box">
+          <span class="user-name">{me.username}</span>
+          {me.role === 'curator' && <span class="tag tag-amber">Curator</span>}
+          <button class="btn ghost small" type="button" onClick={logout}>Log out</button>
+        </div>
+      </div>
+    </header>);
+}
+
+export function App() {
+  const cur = current.value, name = cur ? cur.route.nav?.slice(1) || 'auth' : null;
+  return <>
+    {user.value && <Header me={user.value} nav={cur?.route.nav} />}
+    <main id="main" tabindex={-1} class={name ? `view view-${name}` : undefined}>
+      {cur ? <cur.View key={cur.key} {...cur.props} />
+        : <div class="boot-msg" aria-live="polite"><Rose detail="full" class="rose-loader" />Lighting the candles…
+        </div>}
+    </main>
+    <Toasts />
+  </>;
+}
+
+/** Links to our own pages go through the router; history moves re-route, asking first when edits would be lost. */
+export async function boot() {
+  document.addEventListener('click', (e) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const a = (e.target as Element).closest?.('a[href]') as HTMLAnchorElement | null;
+    if (!a || a.target || a.hasAttribute('download') || a.dataset.native != null) return;
+    const href = a.getAttribute('href') || '';
+    if (!href.startsWith('/') || href.startsWith('//') || href.startsWith('/api/')) return;
+    e.preventDefault();
+    navigate(href);
+  });
+  window.addEventListener('popstate', async () => {
+    if (leaveGuard.isDirty?.()) {
+      const wanted = here();
+      history.pushState(null, '', router.shown);   // stay put until the user decides
+      if (!(await canLeave())) return;
+      leaveGuard.discard?.();
+      history.pushState(null, '', wanted);
+    }
+    show();
+  });
+  window.addEventListener('beforeunload', (e) => { if (leaveGuard.isDirty?.()) e.preventDefault(); });
+  try {
+    user.value = (await api.me()).user || null;
+  } catch (err) {
+    if (statusOf(err) !== 401 && statusOf(err) !== 403) toast((err as Error).message, { kind: 'error' });
+  }
+  document.body.classList.remove('booting');
+  show();
+}

@@ -30,7 +30,7 @@ const maxAge = (cc) => (/no-cache|no-store/.test(cc) ? 0 : Number(/max-age=(\d+)
 
 /**
  * browser(port, { encoding, cookie, manifest }) → { load(path, { view, api }), fetch(url, opts), tick(s), log, … };
- * `manifest`: the build's .vite/manifest.json, and a view is its key (js/ui/studio.js).
+ * `manifest`: the build's .vite/manifest.json, and a view is its key (js/ui/studio.tsx).
  */
 export function browser(port, { encoding = 'br, gzip', cookie = '', manifest = {} } = {}) {
   const cache = new Map(); // url → { res, at }
