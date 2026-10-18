@@ -58,7 +58,7 @@ switch (cmd) {
     const value = (f) => args[args.indexOf(f) + 1];
     if (!/^[a-z0-9][a-z0-9-]*$/.test(name || '')) die('a name is lowercase letters, digits and dashes');
     if (!flag('--here') || !flag('--box')) die('expected --here --box');
-    if (!/^gpt-/.test(value('--model') || '')) die('boxed workers need a gpt-* model');
+    if (!(value('--model') || '').startsWith('gpt-')) die('boxed workers need a gpt-* model');
     if (!(value('--brief') || '').includes('BRIEF.md')) die('brief should point at BRIEF.md');
     if (!fs.existsSync(path.join(repo, 'BRIEF.md'))) die('no BRIEF.md');
     if (!fs.existsSync(path.join(state, 'repo'))) die('no fleet session: fleet up first');

@@ -1,13 +1,14 @@
 // The render box for real: render-box/render.mjs under bubblewrap, run by src/bake.js. Where
 // bubblewrap or user namespaces are missing these tests skip and say why: a skipped isolation
 // test, not a passing one.
-import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { afterAll, beforeAll, beforeEach, describe, test } from 'vitest';
 
 import { createServer } from '../src/app.js';
 import { BakeError, checkFrames } from '../src/box-output.js';
@@ -21,32 +22,44 @@ const rigFile = path.join(PUBLIC, 'data/rig.json');
 const ready = fs.existsSync(rigFile) && fs.existsSync(path.join(PUBLIC, 'js/pattern-core.js'));
 const probe = ready ? await createRenderBox({ log: quiet }).probe() : { ok: false,
   reason: 'the pattern runtime or LED map is not built' };
-const skip = !probe.ok && `render box unavailable here: ${probe.reason}`;
-if (skip) console.log(`# SKIP render box tests: ${probe.reason}`);
+const unavailable = `render box unavailable here: ${probe.reason}`;
 
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-bake-'));
-after(() => fs.rmSync(tmpRoot, { recursive: true, force: true }));
+afterAll(() => fs.rmSync(tmpRoot, { recursive: true, force: true }));
 const layer = (code, extra = {}) => ({ id: 'l1', title: 'x', code, groups: ['cathedral'], blend: 'add', level: 1,
   params: {}, ...extra });
 const BREATHE = 'function pixel(p, t) { return scale([0.2, 0.4, 1], wave(t * 0.25)); }';
 const STROBE = 'function pixel(p, t) { return floor(t * 20) % 2 ? [0, 0, 0] : [1, 1, 1]; }';
 
-/** Processes still running render.mjs (the box's command line), from /proc. */
-function boxProcesses() {
+/** /proc/<pid>/stat's fields from the state on: [0] state, [1] parent, [19] start time. */
+const stat = (pid) => fs.readFileSync(`/proc/${pid}/stat`, 'utf8').split(') ')[1].split(' ');
+const alive = ([pid, start]) => {
+  try {
+    return stat(pid)[19] === start;   // not a pid reused since
+  } catch { return false; }
+};
+
+/** render.mjs processes (the box's command line) this process started, as [pid, start time]: other test files run
+ * boxes of their own at the same time. */
+function ourBoxes() {
   const found = [];
   for (const pid of fs.readdirSync('/proc').filter((d) => /^\d+$/.test(d))) {
     try {
-      if (fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').includes('/box/render.mjs')) found.push(pid);
+      if (!fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').includes('/box/render.mjs')) continue;
+      let up = Number(stat(pid)[1]);
+      while (up > 1 && up !== process.pid) up = Number(stat(up)[1]);
+      if (up === process.pid) found.push([pid, stat(pid)[19]]);
     } catch {}
   }
   return found;
 }
 
-describe('render box (bubblewrap)', { skip }, () => {
+describe('render box (bubblewrap)', () => {
+  beforeEach(({ skip }) => skip(!probe.ok, unavailable));
   let hits = 0;
   let server;
   let port;
-  before(async () => {
+  beforeAll(async () => {
     server = http.createServer((req, res) => {
       hits++;
       res.end('ok');
@@ -54,7 +67,7 @@ describe('render box (bubblewrap)', { skip }, () => {
     await new Promise((r) => server.listen(0, '127.0.0.1', r));
     port = server.address().port;
   });
-  after(() => server.close());
+  afterAll(() => server.close());
 
   test('a normal look bakes and analyses', async () => {
     const box = createRenderBox({ seconds: 4, log: quiet });
@@ -76,13 +89,17 @@ describe('render box (bubblewrap)', { skip }, () => {
   test('an infinite loop is killed by the wall clock, box and all', async () => {
     const box = createRenderBox({ seconds: 2, timeoutMs: 1500, frameTimeoutMs: 600_000, log: quiet });
     const t0 = Date.now();
+    const seen = new Map();
+    const watch = setInterval(() => { for (const [pid, start] of ourBoxes()) seen.set(pid, start); }, 50);
     await assert.rejects(box.render({ layers: [layer('function pixel() { for (;;) {} }')] }),
-      (e) => e instanceof BakeError && /longer than 2 s and was stopped/.test(e.reason));
+      (e) => e instanceof BakeError && /longer than 2 s and was stopped/.test(e.reason))
+      .finally(() => clearInterval(watch));
     assert.ok(Date.now() - t0 < 10_000);
-    let left = boxProcesses();
+    assert.ok(seen.size > 0, 'the box was seen running');
+    let left = [...seen].filter(alive);
     for (let i = 0; i < 40 && left.length; i++) {
       await new Promise((r) => setTimeout(r, 50));
-      left = boxProcesses();
+      left = left.filter(alive);
     }
     assert.deepEqual(left, [], 'nothing from the box keeps running');
     // Inside, a per-frame guard catches a hang first and names it.

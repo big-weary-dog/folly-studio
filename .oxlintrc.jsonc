@@ -1,0 +1,159 @@
+// oxlint's half of `npm run lint` (tools/budgets.mjs is the rest); CONTRIBUTING "The rules, and why" says why.
+// Overrides apply in order, and an override's options replace the base's, so each one restates its whole list.
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "typescript", "unicorn", "oxc", "vitest"],
+  "categories": { "correctness": "error", "suspicious": "error" },
+  "options": { "reportUnusedDisableDirectives": "error" },
+  "rules": {
+    "max-lines": ["error", { "max": 400 }],
+    "no-eval": "error",
+    "no-new-func": "error",
+    "no-implied-eval": "error",
+    "no-debugger": "error",
+    "unicorn/prefer-node-protocol": "error",
+    "vitest/no-focused-tests": "error",
+    "no-restricted-imports": ["error", { "paths": [
+      { "name": "node:vm", "message": "code generation lives only in the pattern compiler and the render box" },
+      { "name": "node:child_process", "message": "processes only box untrusted work" }
+    ] }],
+    // `const { data, ...stats } = baked` drops a key on purpose.
+    "no-unused-vars": ["error", { "ignoreRestSiblings": true }],
+    // Noise here, each for its reason:
+    "no-underscore-dangle": "off",                       // `_row`, `_update`: a class's internal members
+    "no-shadow": "off",                                  // a nested `list` or `label` is the clearest name
+    "unicorn/consistent-function-scoping": "off",        // a helper sits beside its one caller
+    "unicorn/no-array-sort": "off",                      // they sort fresh arrays; toSorted() would copy again
+    "unicorn/no-array-reverse": "off",                   // likewise toReversed()
+    "unicorn/no-new-array": "off",                       // `new Array(n).fill(0)` is the clear way to size one
+    "unicorn/prefer-add-event-listener": "off",          // a MessagePort's onmessage setter also starts the port
+    "unicorn/require-post-message-target-origin": "off"  // every postMessage goes to a Worker or a port
+  },
+  "overrides": [
+    {
+      "files": ["src/**", "server.js"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "paths": [
+            { "name": "node:vm", "message": "code generation lives only in the pattern compiler and the render box" },
+            { "name": "node:child_process", "message": "processes only box untrusted work" }
+          ],
+          "patterns": [{ "group": ["**/public/**", "!**/public/js/pattern-core.*", "!**/public/js/fseq.*",
+            "!**/public/**/*.json"], "message": "server code takes only pattern-core, fseq and data from public/" }]
+        }]
+      }
+    },
+    {
+      "files": ["src/render-box.js", "src/generate/fleet.js"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "paths": [
+            { "name": "node:vm", "message": "code generation lives only in the pattern compiler and the render box" }
+          ],
+          "patterns": [{ "group": ["**/public/**", "!**/public/js/pattern-core.*", "!**/public/js/fseq.*",
+            "!**/public/**/*.json"], "message": "server code takes only pattern-core, fseq and data from public/" }]
+        }]
+      }
+    },
+    {
+      "files": ["public/**"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "paths": [
+            { "name": "node:vm", "message": "code generation lives only in the pattern compiler and the render box" },
+            { "name": "node:child_process", "message": "processes only box untrusted work" }
+          ],
+          "patterns": [
+            { "regex": "^\\.{1,2}/(?:.*/)?(?:src|render-box|fleet-box|tools|test)/|^\\.{1,2}/(?:.*/)?server\\.js$",
+              "message": "browser code imports only from public/ and packages" },
+            { "regex": "^(?:[a-z]+:)?//", "message": "remote URL: the app runs offline under a self-only CSP" }
+          ]
+        }]
+      }
+    },
+    {
+      "files": ["src/**", "public/js/**"],
+      "rules": { "no-console": ["error", { "allow": ["warn", "error"] }] }
+    },
+    {
+      "files": ["public/js/**"],
+      "rules": {
+        "no-restricted-properties": ["error",
+          { "property": "innerHTML", "message": "HTML string sink: build nodes with h() and set textContent" },
+          { "property": "outerHTML", "message": "HTML string sink: build nodes with h() and set textContent" },
+          { "property": "insertAdjacentHTML", "message": "HTML string sink: build nodes with h() and set textContent" },
+          { "object": "document", "property": "write", "message": "HTML string sink: build nodes with h()" },
+          { "object": "document", "property": "writeln", "message": "HTML string sink: build nodes with h()" }
+        ]
+      }
+    },
+    {
+      "files": ["public/js/pattern-core.*", "public/js/core/**"],
+      "rules": {
+        "no-restricted-properties": ["error",
+          { "property": "innerHTML", "message": "HTML string sink: build nodes with h() and set textContent" },
+          { "property": "outerHTML", "message": "HTML string sink: build nodes with h() and set textContent" },
+          { "property": "insertAdjacentHTML", "message": "HTML string sink: build nodes with h() and set textContent" },
+          { "object": "document", "property": "write", "message": "HTML string sink: build nodes with h()" },
+          { "object": "document", "property": "writeln", "message": "HTML string sink: build nodes with h()" },
+          { "object": "Math", "property": "random", "message": "bakes are deterministic: use rand, hash, noise, seed" }
+        ]
+      }
+    },
+    {
+      "files": ["render-box/**", "public/patterns/**"],
+      "rules": {
+        "no-restricted-properties": ["error",
+          { "object": "Math", "property": "random", "message": "bakes are deterministic: use rand, hash, noise, seed" }
+        ]
+      }
+    },
+    {
+      // Library patterns are scripts the compiler reads by name, and their signatures are the API the AI copies.
+      "files": ["public/patterns/**", "test/fixtures/generate/library/**"],
+      "rules": {
+        "no-unused-vars": ["error", { "varsIgnorePattern": "^(?:params|pixel|warp|filter|frame)$", "args": "none" }]
+      }
+    },
+    { "files": ["public/patterns/**"], "rules": { "max-lines": ["error", { "max": 150 }] } },
+    // The allowlist: the pattern compiler, the render box, and the processes that box untrusted work.
+    { "files": ["public/js/core/compile.js"], "rules": { "no-new-func": "off" } },
+    {
+      "files": ["render-box/render.mjs"],
+      "rules": { "no-restricted-imports": ["error", { "paths": [
+        { "name": "node:child_process", "message": "processes only box untrusted work" }
+      ] }] }
+    },
+    { "files": ["tools/**"], "rules": { "no-restricted-imports": "off" } },
+    {
+      // Tests may run code and processes; they are outside the capability rules.
+      "files": ["test/**"],
+      "rules": {
+        "max-lines": ["error", { "max": 600 }],
+        "no-restricted-imports": "off", "no-eval": "off", "no-new-func": "off", "no-implied-eval": "off",
+        "unicorn/no-invalid-fetch-options": "off",  // helpers pass `method` through; it reads a variable as GET
+        "no-unmodified-loop-condition": "off",      // `while (writing)`: another async task clears the flag
+        // A case's test is named by the case, in a loop over the library or the rigs.
+        "vitest/valid-title": ["error", { "ignoreTypeOfTestName": true }],
+        // node:assert asserts, and so do the tests' own helpers that wrap it.
+        "vitest/expect-expect": ["error", { "assertFunctionNames": ["expect", "assert", "assert.*", "near", "nearC",
+          "check"] }]
+      }
+    },
+    {
+      // Playwright Test specs (`npm run smoke`, `perf`, `e2e`): its own test API, which oxlint has no plugin for.
+      // `.only` stays an error there too.
+      "files": ["test/e2e/**"],
+      "rules": {
+        "vitest/expect-expect": "off", "vitest/hoisted-apis-on-top": "off", "vitest/no-commented-out-tests": "off",
+        "vitest/no-conditional-expect": "off", "vitest/no-conditional-tests": "off", "vitest/no-disabled-tests": "off",
+        "vitest/no-standalone-expect": "off", "vitest/prefer-snapshot-hint": "off",
+        "vitest/require-awaited-expect-poll": "off",
+        "vitest/require-local-test-context-for-concurrent-snapshots": "off",
+        "vitest/require-mock-type-parameters": "off", "vitest/require-to-throw-message": "off",
+        "vitest/valid-describe-callback": "off", "vitest/valid-expect": "off", "vitest/valid-expect-in-promise": "off",
+        "vitest/valid-title": "off", "vitest/warn-todo": "off"
+      }
+    }
+  ]
+}

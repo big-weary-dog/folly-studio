@@ -1,9 +1,10 @@
 // The streaming wire format: src/frames-wire.js encodes, public/js/frames-stream.js decodes and plays chunks
 // as they arrive. Round trips must be exact.
-import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import zlib from 'node:zlib';
+
+import { describe, test } from 'vitest';
 
 import { compilePattern, prepareLayer, prepareScene, renderFrame, toChannels } from '../public/js/pattern-core.js';
 import {

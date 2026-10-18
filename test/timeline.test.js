@@ -1,11 +1,12 @@
 // The timeline: look.duration / look.bpm, layer.clips. Envelope maths and the renderer's skip
 // (pattern-core.js), validation (api.js, generate/validate.js) and baking a look's duration.
-import { test, describe, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { afterAll, beforeEach, describe, test } from 'vitest';
 
 import {
   compilePattern, layerEnvelope, lookDuration, normalizeClips, prepareLayer, prepareScene, renderFrame,
@@ -28,7 +29,7 @@ const RED = 'function pixel() { return [1, 0, 0]; }';
 /** A clip as the API and the runtime keep it. */
 const clip = (start, end, fadeIn = 0, fadeOut = 0) => ({ start, end, fadeIn, fadeOut });
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-timeline-'));
-after(() => fs.rmSync(tmpRoot, { recursive: true, force: true }));
+afterAll(() => fs.rmSync(tmpRoot, { recursive: true, force: true }));
 
 describe('layerEnvelope', () => {
   test('no clips: always on', () => {
@@ -333,8 +334,8 @@ describe('the API: duration and bpm', () => {
 
 // The real render box (bubblewrap). Skips, saying why, where it cannot run.
 const probe = await createRenderBox({ log: quiet }).probe();
-const skip = !probe.ok && `render box unavailable here: ${probe.reason}`;
-describe('baking a sequenced look in the render box', { skip }, () => {
+describe('baking a sequenced look in the render box', () => {
+  beforeEach(({ skip }) => skip(!probe.ok, `render box unavailable here: ${probe.reason}`));
   test('a 2-clip layer over a dim base: lit in its clips, dark between, for the look\'s duration', async () => {
     const box = createRenderBox({ seconds: 120, log: quiet });
     const layers = [

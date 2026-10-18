@@ -5,7 +5,8 @@ import fs from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { after, before, describe, test } from 'node:test';
+
+import { afterAll, beforeAll, beforeEach, describe, test } from 'vitest';
 
 import { writeFseq } from '../public/js/fseq.js';
 import { createServer } from '../src/app.js';
@@ -18,8 +19,8 @@ import { lineRig } from './fixtures/rigs.js';
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const PIXEL = 'function pixel(p, t) { return [p.x, p.y, p.z]; }';
 let tmp;
-before(async () => { tmp = await mkdtemp(path.join(os.tmpdir(), 'studio-frames-host-')); });
-after(() => rm(tmp, { recursive: true, force: true }));
+beforeAll(async () => { tmp = await mkdtemp(path.join(os.tmpdir(), 'studio-frames-host-')); });
+afterAll(() => rm(tmp, { recursive: true, force: true }));
 
 /** Nice values of this process's threads, from /proc (Linux keeps nice per thread), skipping any that just exited. */
 const threadNice = () => fs.readdirSync('/proc/self/task').flatMap((tid) => {
@@ -140,7 +141,7 @@ describe('the disk cap', () => {
 
 describe('the bake cache and re-baking evicted frames, through the API', () => {
   let app, base, cookie, renders = 0;
-  before(async () => {
+  beforeAll(async () => {
     const publicDir = path.join(tmp, 'public');
     fs.mkdirSync(path.join(publicDir, 'data'), { recursive: true });
     fs.writeFileSync(path.join(publicDir, 'index.html'), '<!doctype html><title>t</title>');
@@ -154,7 +155,7 @@ describe('the bake cache and re-baking evicted frames, through the API', () => {
       body: JSON.stringify({ username: 'cache', password: 'correct horse' }) });
     cookie = r.headers.getSetCookie()[0].split(';')[0];
   });
-  after(() => app.close());
+  afterAll(() => app.close());
   const call = (method, p, body) => fetch(base + p, { method, redirect: 'manual', headers: { cookie,
     'content-type': 'application/json' }, body: body && JSON.stringify(body) });
 
@@ -205,25 +206,25 @@ describe('the bake cache and re-baking evicted frames, through the API', () => {
 });
 
 const probe = await createRenderBox({ log: quiet }).probe();
-describe('the render box runs at nice 10', { skip: !probe.ok && `render box unavailable here: ${probe.reason}` },
-  () => {
-    test('its processes have nice 10', async () => {
-      const box = createRenderBox({ seconds: 3, frameTimeoutMs: 600_000, log: quiet });
-      const slow = { id: 'l1', groups: ['cathedral'], blend: 'add', level: 1, params: {},
-        code: 'function pixel(p, t) { let s = 0; for (let i = 0; i < 300; i++) s += sin(i); return [s, 0, 0]; }' };
-      const done = box.render({ layers: [slow] });
-      let nice = null;
-      for (let i = 0; i < 200 && nice === null; i++) {
-        await new Promise((r) => setTimeout(r, 25));
-        for (const pid of fs.readdirSync('/proc').filter((d) => /^\d+$/.test(d))) {
-          try {
-            // The box's node itself: the nice wrapper carries the same arguments but is at 0 until it has run.
-            if (!fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').startsWith('/box/node\0')) continue;
-            nice = Number(fs.readFileSync(`/proc/${pid}/stat`, 'utf8').split(') ')[1].split(' ')[16]);
-          } catch {}
-        }
+describe('the render box runs at nice 10', () => {
+  beforeEach(({ skip }) => skip(!probe.ok, `render box unavailable here: ${probe.reason}`));
+  test('its processes have nice 10', async () => {
+    const box = createRenderBox({ seconds: 3, frameTimeoutMs: 600_000, log: quiet });
+    const slow = { id: 'l1', groups: ['cathedral'], blend: 'add', level: 1, params: {},
+      code: 'function pixel(p, t) { let s = 0; for (let i = 0; i < 300; i++) s += sin(i); return [s, 0, 0]; }' };
+    const done = box.render({ layers: [slow] });
+    let nice = null;
+    for (let i = 0; i < 200 && nice === null; i++) {
+      await new Promise((r) => setTimeout(r, 25));
+      for (const pid of fs.readdirSync('/proc').filter((d) => /^\d+$/.test(d))) {
+        try {
+          // The box's node itself: the nice wrapper carries the same arguments but is at 0 until it has run.
+          if (!fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').startsWith('/box/node\0')) continue;
+          nice = Number(fs.readFileSync(`/proc/${pid}/stat`, 'utf8').split(') ')[1].split(' ')[16]);
+        } catch {}
       }
-      await done.catch(() => {});
-      assert.equal(nice, 10);
-    });
+    }
+    await done.catch(() => {});
+    assert.equal(nice, 10);
   });
+});

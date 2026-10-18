@@ -163,7 +163,7 @@ export function importLook(layers, duration, look, newId) {
       .map((c) => fitClip({ ...c, start: start + c.start, end: Math.min(end, start + c.end) }))
       .filter((c) => c.end - c.start >= MIN_CLIP)
       .slice(0, MAX_CLIPS);
-    return { ...l, id: newId(), groups: [...(l.groups || [])], params: { ...(l.params || {}) }, clips };
+    return { ...l, id: newId(), groups: [...(l.groups || [])], params: { ...l.params }, clips };
   });
   return { layers: [...kept, ...added], duration: Math.max(duration, end), start, end, ended };
 }

@@ -7,13 +7,14 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import http from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { after, before, describe, test } from 'node:test';
 import vm from 'node:vm';
 import zlib from 'node:zlib';
 
+import { afterAll, beforeAll, describe, test } from 'vitest';
+
 import { createServer } from '../src/app.js';
 import { CACHE_IMMUTABLE, CACHE_PAGE, CSP_APP, CSP_SANDBOX } from '../src/static.js';
-import { builtApp } from './fixtures/build.js';
+import { builtApp, removeBuiltApp } from './fixtures/build.js';
 
 const KB = 1024;
 const BUDGET = { total: 165 * KB, login: 40 * KB }; // CONTRIBUTING "Performance budgets"
@@ -39,16 +40,17 @@ function get(p, headers = {}) {
 const gz = (file) => zlib.gzipSync(readFileSync(path.join(dist, file)), { level: 9 }).length;
 const kb = (n) => `${(n / KB).toFixed(1)} KB`;
 
-before(async () => {
+beforeAll(async () => {
   dist = await builtApp();
   manifest = JSON.parse(readFileSync(path.join(dist, '.vite/manifest.json'), 'utf8'));
   dir = await mkdtemp(path.join(tmpdir(), 'studio-build-'));
   app = await createServer({ dataDir: dir, distDir: dist, generator: { enqueue() {} }, log: quiet });
   base = `http://127.0.0.1:${(await app.listen(0)).port}`;
 });
-after(async () => {
+afterAll(async () => {
   await app.close();
   await rm(dir, { recursive: true, force: true });
+  await removeBuiltApp();
 });
 
 describe('the built app', () => {
@@ -106,7 +108,7 @@ describe('the built app', () => {
     assert.ok(rgb.some((v) => v > 0), 'something is lit');
   });
 
-  test(`gzipped, the app is within ${BUDGET.total / KB} KB and the login page ${BUDGET.login / KB} KB`, (t) => {
+  test(`gzipped, the app is within ${BUDGET.total / KB} KB and the login page ${BUDGET.login / KB} KB`, () => {
     const files = readdirSync(path.join(dist, 'assets')).filter((f) => /\.(?:js|css|html)$/.test(f));
     const total = files.reduce((n, f) => n + gz(`assets/${f}`), 0);
     // The login page: the shell, its entry with what that imports, and the sign-in view with what it imports.
@@ -120,7 +122,7 @@ describe('the built app', () => {
     visit('index.html');
     visit(LOGIN_VIEW);
     const loginBytes = [...login].reduce((n, f) => n + gz(f), 0);
-    t.diagnostic(`app ${kb(total)} gz in ${files.length} files; login page ${kb(loginBytes)} gz in ${login.size}`);
+    console.info(`app ${kb(total)} gz in ${files.length} files; login page ${kb(loginBytes)} gz in ${login.size}`);
     assert.ok(total <= BUDGET.total, `the app is ${kb(total)} gzipped > ${kb(BUDGET.total)}`);
     assert.ok(loginBytes <= BUDGET.login, `the login page loads ${kb(loginBytes)} gzipped > ${kb(BUDGET.login)}`);
   });
@@ -128,7 +130,7 @@ describe('the built app', () => {
 
 describe('the JSON API on the wire', () => {
   let cookie;
-  before(async () => {
+  beforeAll(async () => {
     const r = await fetch(`${base}/api/signup`, { method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ username: 'wire', password: 'correct horse' }) });
     cookie = r.headers.getSetCookie()[0].split(';')[0];

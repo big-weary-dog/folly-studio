@@ -46,7 +46,7 @@ async function openCollection(file, log) {
     try {
       data = JSON.parse(text);
     } catch (err) {
-      throw new Error(`store: ${file} is not valid JSON (${err.message})`);
+      throw new Error(`store: ${file} is not valid JSON (${err.message})`, { cause: err });
     }
     const items = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : null;
     if (!items) throw new Error(`store: ${file} does not hold an array`);

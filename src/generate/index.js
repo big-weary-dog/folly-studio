@@ -50,7 +50,7 @@ export function createQueue({
 } = {}) {
   if (!store?.ideas || !store?.looks) throw new Error('createQueue needs a store with ideas and looks');
   const framesHome = framesDir ?? (store.dataDir ? path.join(store.dataDir, 'frames') : '');
-  const registry = { ...defaultAdapters(log), ...(adapters || {}) };
+  const registry = { ...defaultAdapters(log), ...adapters };
   const adapter = (name) => (typeof registry[name] === 'function' ? { generate: registry[name] } : registry[name]);
   let primary = String(adapterName || 'sketch').trim().toLowerCase();
   if (!registry[primary]) {

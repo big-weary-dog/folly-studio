@@ -15,13 +15,18 @@ npm run dev                  # Vite's dev server with HMR on http://127.0.0.1:51
 npm run build                # public/ → dist/: content-hashed files, the manifest, the sandbox page
 npm run check                # typecheck, lint, then every test: run it before you call anything done
 npm run typecheck            # tsc -p . (checks only; nothing is emitted)
-npm run lint                 # node tools/lint.mjs: `path:line rule message`, exit 1 on errors
-node tools/lint.mjs --rules  # the rules, one line each
-npm test                     # node --test "test/**/*.test.{js,ts}" (a fresh build of the app included)
-node --test test/core.test.js
+npm run lint                 # oxlint (.oxlintrc.jsonc), then node tools/budgets.mjs; exit 1 on errors
+npx oxlint src/app.js        # oxlint alone, on a file or a folder
+npm test                     # vitest run: test/**/*.test.{js,ts} (vitest.config.js; a fresh build of the app
+                             #   included), then every skipped test and why
+npx vitest run test/core.test.js     # one file (`-t <name>` for one test); `npm run test:watch` reruns on save
 npm run build-data           # rebuild public/data/rig.json from ../pixel-map/, palettes.json from ../td/palettes/
-npm run perf                 # the preview on an emulated phone (Playwright from `npm root -g`): ≥ 20 fps at 4× CPU,
-                             #   Playa's Auto stepping down on slow frames; software-GL fps only reported
+npm run smoke                # the app in Chromium at 1366 × 768 and 390 × 844: sign up, an idea, the Studio, a code
+                             #   error, the timeline, a bake (Playwright Test, test/e2e/smoke.spec.js)
+npm run perf                 # the preview on an emulated phone: ≥ 20 fps computed at 4× CPU, Playa's Auto stepping
+                             #   down on slow frames; software-GL fps only reported (test/e2e/perf.spec.js)
+npm run e2e                  # our .fseq through sACN and the relay into Mirage, every LED compared byte for byte
+                             #   (test/e2e/mirage.spec.js; E2E_DEPS, relay/node_modules: see "Browser checks")
 ```
 
 Useful settings: `STUDIO_GENERATOR` (`sketch` default, `claude` with `ANTHROPIC_API_KEY`,
@@ -31,7 +36,8 @@ Useful settings: `STUDIO_GENERATOR` (`sketch` default, `claude` with `ANTHROPIC_
 `npm run backup` makes a dated `.tar.gz` of the data.
 
 The render-box tests need bubblewrap (`apt install bubblewrap`) and unprivileged user
-namespaces. Without them they skip and print why. The data tests need `python3`. Run
+namespaces. Without them they skip (`ctx.skip(condition, reason)`) and the run ends listing each skipped test and
+why (`test/skip-reporter.js`). The data tests need `python3`. Run
 `npm run build-data` after any change to `../pixel-map/`, `td/python/make_pixel_csv.py`, `td/config/` or Mirage's
 `src/config.js`; `test/data.test.js` fails while `rig.json` is stale. Never edit the Folly's by hand.
 
@@ -48,6 +54,21 @@ sandbox and the boxes take only our own code and the stdlib.
 | `typescript` 7.0.2 | `tsc` checks types (`npm run typecheck`, no emit); 7 is the native compiler, with the same CLI |
 | `vite` 8.3.4 | Builds `public/` into `dist/` (hashed names, a manifest, split views and styles, the sandbox page); the dev server |
 | `@types/node` 22.20.5 | The types of Node 22's built-ins, for `tsc` |
+| `oxlint` 1.88.0 | The lint (`.oxlintrc.jsonc`): reads `.js` and `.ts` alike, in well under a second; `tools/budgets.mjs` does the rest |
+| `vitest` 5.0.5 | Runs the tests through the app's Vite config: `.ts` and Vite's imports as the build sees them, a process per file, a watch mode |
+| `@playwright/test` 1.56.1 | The browser checks (`smoke`, `perf`, `e2e`); pinned to the Chromium it drives (build 1194, as in `/opt/pw-browsers`) |
+
+### Browser checks
+
+`npm run smoke`, `perf` and `e2e` are Playwright Test specs in `test/e2e/` (`playwright.config.js`, one test at a
+time, WebGL on SwiftShader). Chromium comes from `PLAYWRIGHT_BROWSERS_PATH` (`/opt/pw-browsers` is found without
+it) or from `npx playwright install chromium` (CI does this); it is never fetched while a check runs, and
+`@playwright/test` moves only together with the browsers. `smoke` and `perf` start the real server on a temporary
+data folder and a fresh build (`test/e2e/studio.js`); `smoke` bakes, so it needs the render box. `e2e` needs
+`relay/node_modules` (`cd ../relay && npm install`), and three.js 0.160.0, which Mirage loads from a CDN: the spec
+serves it from a local copy (`page.route`) in `E2E_DEPS`, a folder where `npm install three@0.160.0` was run. three
+is not a devDependency on purpose: it would add 31 MB to every `npm ci`, CI's included, for a check that also needs
+the relay's own install and minutes of Mirage on software GL, and so runs by hand, not in CI.
 
 ## TypeScript
 
@@ -61,8 +82,8 @@ types (Node ≥ 22.18, no flag). So, enforced by `erasableSyntaxOnly` and `verba
 - relative imports name the real file, `.ts` included (`import { hash } from './stdlib.ts'`): Node maps nothing.
   `'<path>/sandbox.html?sandbox'` (its URL, `public/js/env.d.ts`) and style imports are Vite's.
 
-`tools/lint.mjs` reads `.js`, `.mjs`, `.css`, `.html` and `.py`; a `.ts` file gets its hygiene checks (size,
-newlines, whitespace, secrets) and `tsc`'s.
+oxlint parses and lints `.js`, `.mjs` and `.ts` alike; `tools/budgets.mjs` checks every text file's size and hygiene,
+and the line limits of the CSS, HTML and Python oxlint does not read.
 
 The boxes take the core from its source too: `src/core-script.js` joins its modules into one script for the render
 box's realm (stripping a `.ts` module's types with `node:module`), and the Fleet workspace gets copies of the
@@ -116,13 +137,13 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `public/js/main.js`, `api.js` | Bootstrap, routing, the fetch wrapper |
 | `public/js/ui/` | Views and panels, one concern per module (`studio.js` wires the `studio-*.js` panes, `view-mode.js` the Playa | Points toggle; `layers.js`, `chain*.js`, `params.js`, `look-globals.js`, `timeline-auto.js` compose; `pages.js` is ideas and looks); `dom.js` holds the DOM helpers and shared form pieces |
 | `public/patterns/` | The built-in library (`index.json` with each entry's `kind` and `category`, + one file each): sources, warps and filters, also the AI's examples |
-| `tools/` | `build_rig.py` (+ `rig_render.py`: what Mirage draws), `build_palettes.py` (data), `sacn-play.mjs`, `lint.mjs` (+ `lint/`: lexing, line budgets in `budget.json`), `backup.mjs`, `frames-bench.mjs` (brotli quality against encode time) |
+| `tools/` | `build_rig.py` (+ `rig_render.py`: what Mirage draws), `build_palettes.py` (data), `sacn-play.mjs`, `budgets.mjs` (the checks oxlint lacks, with line budgets in `budgets.json`; oxlint's rules are `.oxlintrc.jsonc` at the root), `backup.mjs`, `frames-bench.mjs` (brotli quality against encode time) |
 | `README.md`, `DESIGN.md`, `docs/` | What it is; what was built and why (`docs/screenshots/`); `docs/HOSTING.md`, hosting at home |
-| `test/` | `node:test` suites; `fixtures/` (`build.js`: a fresh build of the app for the tests that serve it) |
+| `test/` | Vitest suites (`vitest.config.js`; `skip-reporter.js` lists skips and why); `fixtures/` (`build.js`: a fresh build of the app for the tests that serve it); `e2e/`: the Playwright Test browser checks (`smoke`, `perf`, `e2e`) |
 | `dist/` | What `npm run build` makes; not committed |
 
 Browser code imports only from `public/` and packages. Server code imports only `pattern-core.js`, `fseq.js`
-and JSON from `public/`. The lint checks both.
+and JSON from `public/`. oxlint checks both, by import path.
 
 ## The rules, and why
 
@@ -131,21 +152,23 @@ and JSON from `public/`. The lint checks both.
 | Source ≤ 400 lines, tests ≤ 600, library patterns ≤ 150 | Small modules have one job, review well, and fit an agent's context. Patterns are AI examples, so they stay short. Over a limit, split by responsibility; never raise it. |
 | Text files ≤ 64 KB (generated `rig.json` ≤ 1 MB), lines ≤ 120 | Diffs stay readable, and nothing large gets committed by accident. |
 | Final newline, no trailing spaces, tabs, CRLF or BOM; valid JSON; syntax | Clean diffs, and no surprises on another machine. |
-| `eval`, `Function`, `node:vm` only in the compiler (`core/compile.js`) and render box | Code generation is how untrusted code gets in, so it lives only behind the sandbox. |
-| `child_process` only in `src/render-box.js`, `src/generate/fleet.js` | Processes are started only to box untrusted work. |
+| `eval`, `Function`, `node:vm` only in the compiler (`core/compile.js`), the render box and `tools/` | Code generation is how untrusted code gets in, so it lives only behind the sandbox. |
+| `child_process` only in `src/render-box.js`, `src/generate/fleet.js` and `tools/` | Processes are started only to box untrusted work. |
 | No `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write` in `public/js` | Titles and ideas are user data. Building nodes and setting `textContent` cannot inject markup. |
 | No remote scripts, styles or imports in `public/` | It works offline on the playa, and the CSP allows only our origin. Packages are bundled by the build. |
-| No `console.log` in `src/` or `public/js/` | Server output goes through the logger; the browser console stays quiet. |
+| No `console` but `warn` and `error` in `src/` or `public/js/` | Server output goes through the logger (its one silenced line); the browser console stays quiet. |
 | No `debugger`, no `.only` in tests | Leftovers that stall the app or skip the rest of the suite. |
 | No secret-looking strings | Keys live in the environment, never in git. |
 | No `Math.random` in `pattern-core.js`, the render box or the library | A bake must be reproducible: same look, same bytes. Use `rand`, `hash`, `noise`, `seed`. |
-| Imports resolve; built-ins as `node:x`; packages only from `package.json`; the boundaries above | Broken paths fail at lint time, and server code never reaches the browser. |
-| Each area's lines of code within `tools/lint/budget.json` | Code shrinks by default; it grows only by a decision: raise that area's budget with a new `reason` beside it, in the same change. |
+| Built-ins as `node:x`; the boundaries above | Server code never reaches the browser. A broken import path fails `tsc` (in `.ts`), the build or the tests. |
+| oxlint's `correctness` and `suspicious` rules | Likely bugs. The few that are only noise here are off in `.oxlintrc.jsonc`, each with its reason. |
+| Each area's lines of code within `tools/budgets.json` | Code shrinks by default; it grows only by a decision: raise that area's budget with a new `reason` beside it, in the same change. |
 
-`// lint-allow <rule>: <reason>` on a line (or alone on the line above) silences that rule for
-that one line. The reason is mandatory, an unused silence is an error, and the run prints how
-many there are. File-level rules (sizes, syntax, JSON) cannot be silenced. A small
-reviewed allowlist at the top of `tools/lint.mjs` names who may use `eval` and `child_process`.
+`// oxlint-disable-next-line <rule> -- <reason>` alone on the line above (or `oxlint-disable-line` at the end of
+the line) silences that rule for that one line. It names its rules and the reason is mandatory: `tools/budgets.mjs`
+rejects a silence without them, and any file- or block-wide `oxlint-disable`; oxlint reports one that silences
+nothing. `max-lines` and the budgets' checks cannot be silenced. Who may use `eval`, `node:vm` and `child_process` is
+a reviewed allowlist: the per-file overrides in `.oxlintrc.jsonc`.
 
 ## Security invariants
 
@@ -169,7 +192,7 @@ reviewed allowlist at the top of `tools/lint.mjs` names who may use `eval` and `
 
 - As built, gzipped: the app's scripts, styles and sandbox page (`dist/assets/`) ≤ 165 KB; the login page (the
   shell, its entry and what that imports, the sign-in view) ≤ 40 KB. `test/build.test.js` measures both on a fresh
-  build; the lint prints a source-side estimate. Views and their styles load on first use.
+  build. Views and their styles load on first use.
 - On the wire (`test/transfer.test.js`, the real server, the build and a model of a browser's cache): a cold
   Studio load (shell, modules, styles, sandbox, `rig.json`, API) ≤ 205 KB with br (240 KB gzip);
   a reload, even a day later, sends only the shell and its API calls, each a 304 (assets have
@@ -184,10 +207,10 @@ reviewed allowlist at the top of `tools/lint.mjs` names who may use `eval` and `
 
 - One concern per commit, with `npm run check` green. Stage only `studio/` (and its workflow).
 - Subject line: `Folly Studio: <what changed>`. The body says why, not how it got there.
-- Interface changes update `SPEC.md` in the same commit. UI changes get a browser smoke test and
-  a screenshot in the PR.
+- Interface changes update `SPEC.md` in the same commit. UI changes get a browser smoke test (`npm run smoke`,
+  extended when the flow changes) and a screenshot in the PR (the smoke check saves one per step).
 - Never commit `data/`, `.fseq` renders, keys or a hand-edited Folly `rig.json`.
-- CI (`.github/workflows/studio.yml`) runs `npm ci`, the typecheck, the lint, every test and the build on every
-  push and PR that touches `studio/`, `pixel-map/` or the pixel CSV pipeline, and flags skipped tests. A separate
-  job runs `npm run perf` and only reports.
+- CI (`.github/workflows/studio.yml`) runs `npm ci`, the typecheck, the lint, every test, the build and
+  `npm run smoke` on every push and PR that touches `studio/`, `pixel-map/` or the pixel CSV pipeline, and flags
+  each skipped test, with its reason, as a warning. A separate job runs `npm run perf` and only reports.
 - Commit `package-lock.json` with any change to `package.json`; never commit `dist/` or `node_modules/`.

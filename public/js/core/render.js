@@ -29,7 +29,7 @@ export function compileLayer(layer) {
       return compileModule(m.code, m.kind ?? 'source');
     } catch (e) {
       if (!modular) throw e;
-      throw new Error(`${m.title || m.id || 'Module'}: ${e && e.message ? e.message : e}`);
+      throw new Error(`${m.title || m.id || 'Module'}: ${e && e.message ? e.message : e}`, { cause: e });
     }
   });
 }

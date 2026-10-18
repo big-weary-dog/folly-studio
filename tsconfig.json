@@ -17,5 +17,5 @@
     "skipLibCheck": true
   },
   "include": ["*.js", "src", "public/js", "render-box", "fleet-box", "tools", "test"],
-  "exclude": ["node_modules", "dist", "public/patterns", "test/fixtures/lint"]
+  "exclude": ["node_modules", "dist", "public/patterns"]
 }

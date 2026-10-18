@@ -1,8 +1,9 @@
 // public/js/flash-guard.js: the Studio's live flash guard reaches the same verdicts as the bake check
 // (src/frames.js) on the Folly's rig: large-area flashing over three a second dims the preview;
 // slow change, small shimmer and flashing on small regions alone do not.
-import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+
+import { describe, test } from 'vitest';
 
 import { FlashGuard, guardRegions } from '../public/js/flash-guard.js';
 import { ledRanges, writeFseq } from '../public/js/fseq.js';

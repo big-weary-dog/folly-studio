@@ -13,17 +13,22 @@
     "dev": "node tools/dev.mjs",
     "build": "vite build",
     "typecheck": "tsc -p .",
-    "lint": "node tools/lint.mjs",
-    "test": "node --test \"test/**/*.test.{js,ts}\"",
+    "lint": "oxlint && node tools/budgets.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "check": "npm run typecheck && npm run lint && npm test",
-    "e2e": "node test/e2e/run.mjs",
-    "perf": "node test/e2e/perf.mjs",
+    "e2e": "playwright test --project=e2e",
+    "perf": "playwright test --project=perf",
+    "smoke": "playwright test --project=smoke",
     "backup": "node tools/backup.mjs",
     "build-data": "python3 tools/build_rig.py && python3 tools/build_palettes.py"
   },
   "devDependencies": {
+    "@playwright/test": "1.56.1",
     "@types/node": "22.20.5",
+    "oxlint": "1.88.0",
     "typescript": "7.0.2",
-    "vite": "8.3.4"
+    "vite": "8.3.4",
+    "vitest": "5.0.5"
   }
 }

@@ -7,11 +7,12 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { after, before, test } from 'node:test';
+
+import { afterAll, beforeAll, test } from 'vitest';
 
 import { createServer } from '../src/app.js';
 import { browser, request } from './fixtures/browser.js';
-import { builtApp } from './fixtures/build.js';
+import { builtApp, removeBuiltApp } from './fixtures/build.js';
 
 const KB = 1024;
 // Measured: 145 KB in 19 requests with br, 170 KB with gzip only (HTTP/1.1 headers counted in full; HTTP/2 shrinks
@@ -23,7 +24,7 @@ const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error(
 const kb = (n) => `${(n / KB).toFixed(1)} KB`;
 let app, dir, port, cookie, manifest;
 
-before(async () => {
+beforeAll(async () => {
   const dist = await builtApp();
   manifest = JSON.parse(await readFile(path.join(dist, '.vite/manifest.json'), 'utf8'));
   dir = await mkdtemp(path.join(os.tmpdir(), 'studio-transfer-'));
@@ -44,13 +45,14 @@ before(async () => {
       sharedAt: new Date().toISOString(), reviewed: false, versions: [] });
   }
 });
-after(async () => {
+afterAll(async () => {
   await app.close();
   await rm(dir, { recursive: true, force: true });
+  await removeBuiltApp();
 });
 
 for (const encoding of Object.keys(COLD)) {
-  test(`a cold Studio load stays within ${COLD[encoding] / KB} KB on the wire (${encoding})`, async (t) => {
+  test(`a cold Studio load stays within ${COLD[encoding] / KB} KB on the wire (${encoding})`, async () => {
     const b = browser(port, { encoding, cookie, manifest });
     await b.load('/studio', STUDIO);
     await b.load('/studio', PLAYA);
@@ -62,12 +64,12 @@ for (const encoding of Object.keys(COLD)) {
       assert.ok(files.some((url) => want.test(url)), `${name} is loaded`);
     }
     const { requests, bytes } = b.total();
-    t.diagnostic(`${requests} requests, ${kb(bytes)}`);
+    console.info(`${requests} requests, ${kb(bytes)}`);
     assert.ok(bytes <= COLD[encoding], `${kb(bytes)} > ${kb(COLD[encoding])}`);
   });
 }
 
-test('a reload, a minute or a day later, sends only the shell and the API calls: 304s', async (t) => {
+test('a reload, a minute or a day later, sends only the shell and the API calls: 304s', async () => {
   const b = browser(port, { cookie, manifest });
   await b.load('/studio', STUDIO);
   for (const later of [60, 24 * 3600]) {
@@ -78,12 +80,12 @@ test('a reload, a minute or a day later, sends only the shell and the API calls:
     assert.deepEqual(sent.map((r) => r.url), ['/studio', ...STUDIO.api]);
     assert.ok(sent.every((r) => r.status === 304), sent.map((r) => `${r.url} ${r.status}`).join(', '));
     const { bytes } = b.total(from);
-    t.diagnostic(`after ${later} s: ${sent.length} requests, ${kb(bytes)}`);
+    console.info(`after ${later} s: ${sent.length} requests, ${kb(bytes)}`);
     assert.ok(bytes <= 2 * KB, kb(bytes));
   }
 });
 
-test('an idea session: polls back off and answer 304s; lists carry metadata, not code', async (t) => {
+test('an idea session: polls back off and answer 304s; lists carry metadata, not code', async () => {
   const b = browser(port, { cookie, manifest });
   await b.load('/ideas', { view: 'js/ui/pages.js', api: ['/api/me', '/api/ideas'] });
   const { idea } = JSON.parse((await b.call('POST', '/api/ideas', { text: 'Rising embers drift up the spires' })).text);
@@ -109,7 +111,7 @@ test('an idea session: polls back off and answer 304s; lists carry metadata, not
     assert.equal(looks.length, 12);
     assert.ok(looks.every((l) => !('layers' in l) && l.layerCount === 3), 'no layers in a list');
   }
-  t.diagnostic(`${polls} polls over 60 s: ${kb(poll.bytes)}; My looks + Gallery: ${kb(listed.bytes)}; `
+  console.info(`${polls} polls over 60 s: ${kb(poll.bytes)}; My looks + Gallery: ${kb(listed.bytes)}; `
     + `the whole session ${kb(b.total().bytes)}`);
   assert.ok(listed.bytes <= 8 * KB, kb(listed.bytes));
 });

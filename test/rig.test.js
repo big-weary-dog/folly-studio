@@ -1,7 +1,8 @@
 // The rig (SPEC "Rig") through the core, on the Folly's and on a fictional mini rig (z up, GRB, 2 universes of 300
 // channels): nothing in the core, the addressing or the group rules assumes the Folly.
-import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+
+import { describe, test } from 'vitest';
 
 import { ledRanges } from '../public/js/fseq.js';
 import {

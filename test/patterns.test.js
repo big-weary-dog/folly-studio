@@ -1,9 +1,11 @@
 // The built-in library renders cleanly, quickly, and in colour on the Folly: its sources alone, its warps
 // and filters in a chain over a source.
-import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
+
+import { describe, test } from 'vitest';
+
 import {
   compileLayer, compileModule, compilePattern, MODULE_KINDS, prepareLayer, prepareScene, renderFrame, toChannels,
 } from '../public/js/pattern-core.js';

@@ -1,8 +1,9 @@
 // Composition (SPEC "Modules", "Globals", "Param bindings"): module chains, globals, automation and use(), on the
 // Folly's rig with our own library modules.
-import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+
+import { describe, test } from 'vitest';
 
 import {
   automationAt, compileLayer, compilePattern, DEFAULT_PALETTE, layerModules, PALETTE_ROLES, prepareLayer, prepareLook,

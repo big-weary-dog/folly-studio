@@ -1,7 +1,8 @@
 // The timeline editor's pure edits (public/js/ui/timeline-model.js): every edit keeps clips
 // sorted, apart and inside their neighbours, so what the editor makes the API accepts.
-import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+
+import { describe, test } from 'vitest';
 
 import {
   addClip, cleanBpm, cleanDuration, clock, contentEnd, editClip, fadeClip, importLook,

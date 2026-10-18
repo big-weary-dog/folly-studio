@@ -17,6 +17,7 @@ const FUNCTION = { source: 'pixel', warp: 'warp', filter: 'filter' };
 const KIND_ALIASES = { pattern: 'source', effect: 'filter', transform: 'warp' };
 export const MAX_GENERATED_MODULES = 6;
 // Control characters other than tab/newline/CR; they have no place in code or text we store.
+// oxlint-disable-next-line no-control-regex -- matching control characters is the point
 const CONTROL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
 
 /** An error whose `userMessage` is safe to show to the person who submitted the idea. */

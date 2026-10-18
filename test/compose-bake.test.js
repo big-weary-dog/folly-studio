@@ -2,11 +2,12 @@
 // the library from its read-only mount) bakes the same bytes as the core run here through renderer.mjs, the
 // renderer the Fleet box bakes with, on the Folly and on the mini rig (its own fps, GRB, tags for the Folly's ids).
 // Where bubblewrap is missing the box half skips and says why.
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { test } from 'vitest';
 
 import * as core from '../public/js/pattern-core.js';
 import { ledRanges } from '../public/js/fseq.js';
@@ -57,7 +58,7 @@ function bakeHere(look, rig = readRig(RIGS.folly)) {
   return baked;
 }
 
-test('a composed look bakes in-process on either rig: lit, deterministic, and it costs the time it says', (t) => {
+test('a composed look bakes in-process on either rig: lit, deterministic, and it costs the time it says', () => {
   const a = bakeHere(LOOK), b = bakeHere(LOOK);
   assert.deepEqual(a.data, b.data);
   assert.ok(a.data.some((v) => v > 0));
@@ -66,15 +67,15 @@ test('a composed look bakes in-process on either rig: lit, deterministic, and it
   assert.equal(small.data.length, small.frames * 148 * 3);
   assert.ok(small.data.some((v) => v > 0));
   const plain = bakeHere({ layers: [{ id: 'p', groups: ['arches', 'spires'], code: lib('meteors') }] });
-  t.diagnostic(`per frame: composed look ${a.msPerFrame.average} ms, meteors alone ${plain.msPerFrame.average} ms`);
+  console.info(`per frame: composed look ${a.msPerFrame.average} ms, meteors alone ${plain.msPerFrame.average} ms`);
 });
 
 const probe = await createRenderBox({ log: quiet }).probe();
-const skip = !probe.ok && `render box unavailable here: ${probe.reason}`;
-if (skip) console.log(`# SKIP composed bake in the render box: ${probe.reason}`);
+const unavailable = `render box unavailable here: ${probe.reason}`;
 
 for (const [name, rigFile] of Object.entries(RIGS)) {
-  test(`the render box bakes the composed look to the same bytes as the core here (${name})`, { skip }, async () => {
+  test(`the render box bakes the composed look to the same bytes as the core here (${name})`, async ({ skip }) => {
+    skip(!probe.ok, unavailable);
     const box = createRenderBox({ seconds: SECONDS, rigFile, log: quiet });
     const { layers, globals, automation, bpm } = LOOK;
     const { bytes } = await box.render({ layers, seconds: SECONDS, globals, automation, bpm });

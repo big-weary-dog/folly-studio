@@ -2,7 +2,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { describe, test } from 'node:test';
+
+import { describe, test } from 'vitest';
 
 import { createQueue } from '../src/generate/index.js';
 import {
@@ -125,7 +126,7 @@ describe('sketch', () => {
     const on = (groups, text) => validateLook(sketchLook({ text, library: LIBRARY, groups }), { groups }).layers;
     const fire = on(GROUPS, 'fire on the spires');
     assert.deepEqual([fire[0].groups, fire[0].tags], [['spires'], ['spire']]);
-    const bare = GROUPS.map(({ tags, ...g }) => g);
+    const bare = GROUPS.map(({ tags: _tags, ...g }) => g);
     assert.deepEqual(on(bare, 'fire on the spires')[0].groups, ['spires'], 'no tags: ids and names');
     const mini = on(MINI.groups, 'twinkling stars on the rose window, and an ocean swell over everything');
     assert.deepEqual(mini.map((l) => [l.groups, l.tags]), [[['all'], ['all']], [['panel'], ['rose']]]);

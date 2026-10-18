@@ -2,7 +2,8 @@
 // (z up, floods aimed up) both build, in the view frame, with nothing non-finite in what goes to the GPU.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { test } from 'node:test';
+
+import { test } from 'vitest';
 
 import { buildGeometry, cluster, earClip, playa } from '../public/js/playa/geometry.js';
 import { tooSlow } from '../public/js/playa/renderer.js';

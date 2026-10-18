@@ -1,10 +1,11 @@
 // tools/sacn-play.mjs: E1.31 (sACN) packets checked field by field against the ANSI E1.31-2018
 // data packet layout (offsets written out here, independently of the tool's own table), the
 // universe slicing of absolute channels, and every FSEQ form it plays.
-import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import dgram from 'node:dgram';
 import { readFileSync } from 'node:fs';
+
+import { describe, test } from 'vitest';
 
 import { ledRanges, writeFseq } from '../public/js/fseq.js';
 import { parseFseq } from '../src/frames.js';

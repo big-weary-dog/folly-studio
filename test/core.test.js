@@ -1,7 +1,9 @@
 // pattern-core.js: stdlib, compile, scene and layers, compositing, DMX packing.
-import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+
+import { describe, test } from 'vitest';
+
 import {
   STDLIB, compilePattern, prepareScene, prepareLayer, renderFrame, toChannels, pixelsForGroups,
 } from '../public/js/pattern-core.js';

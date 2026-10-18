@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { describe, test } from 'node:test';
+
+import { describe, test } from 'vitest';
 
 import { writeFseq } from '../public/js/fseq.js';
 import { flashRegions, prepareScene } from '../public/js/pattern-core.js';
@@ -263,7 +264,8 @@ describe('fleet-box/check.mjs (boxed worker side, real runtime)', () => {
     new Promise((resolve) => execFile(process.execPath, ['check.mjs', file, ...args], { cwd: dir, timeout: 60_000 },
       (err, stdout, stderr) => resolve({ code: err ? err.code : 0, out: stdout + stderr })));
 
-  test('passes a good look and catches a broken one', { skip: !ready && 'pattern runtime not built yet' }, async () => {
+  test('passes a good look and catches a broken one', async ({ skip }) => {
+    skip(!ready, 'pattern runtime not built yet');
     const dir = tmp('check');
     await copyModule(core, dir);
     fs.copyFileSync(path.join(STUDIO, 'render-box/renderer.mjs'), path.join(dir, 'renderer.mjs'));

@@ -1,3 +1,0 @@
-/* url(https://commented.example/x.css) is fine in a comment */
-@import url("https://fonts.example.com/css");
-body { background: url(/img/bg.png); }

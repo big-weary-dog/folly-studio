@@ -24,8 +24,10 @@ const fail = (msg) => { throw new FseqError(`frames: ${msg}`); };
 const u16 = (b, o) => b[o] | (b[o + 1] << 8);
 const u24 = (b, o) => b[o] | (b[o + 1] << 8) | (b[o + 2] << 16);
 const u32 = (b, o) => (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16)) + b[o + 3] * 0x1000000;
+// oxlint-disable-next-line no-control-regex -- control characters are what it strips from header text
+const CONTROL = /[\u0000-\u001f\u007f]/g;
 const text = (bytes) => new TextDecoder('utf-8').decode(bytes.subarray(0,
-  Math.min(bytes.indexOf(0) < 0 ? bytes.length : bytes.indexOf(0), 256))).replace(/[\u0000-\u001f\u007f]/g, '');
+  Math.min(bytes.indexOf(0) < 0 ? bytes.length : bytes.indexOf(0), 256))).replace(CONTROL, '');
 
 /**
  * parseFseq(bytes, { maxBytes, maxChannels, maxDataBytes, decompress }) → parsed, or throws FseqError.

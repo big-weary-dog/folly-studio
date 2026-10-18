@@ -58,14 +58,14 @@ there. What has to stay true:
 
 Built files are named by their content and cached for a year; views and their styles load on first use; lists
 carry no code. The code itself is ratcheted: sources ≤ 400 lines, tests ≤ 600, library patterns ≤ 150, and each
-area's total lines in `tools/lint/budget.json` may grow only with a written reason. Over a limit, a module is split
+area's total lines in `tools/budgets.json` may grow only with a written reason. Over a limit, a module is split
 by responsibility.
 
 - **Alternatives.** No dependencies at all, with our own content hashing, import map and stylesheet concatenation
   (no supply chain, but unminified code and machinery to maintain); React or Svelte with three.js (three.js alone
   would fill the budget).
-- **Trade-off.** A build before the app is served and a lockfile to keep current. We still maintain our own WebGL,
-  DOM helpers and linter.
+- **Trade-off.** A build before the app is served and a lockfile to keep current. We still maintain our own WebGL
+  and DOM helpers, and the checks oxlint lacks (`tools/budgets.mjs`).
 
 ## 3. The pattern model
 

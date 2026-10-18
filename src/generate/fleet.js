@@ -135,7 +135,7 @@ export function createFleetAdapter(o = {}) {
     maxNudges: 3, log: o.log || console,
   };
   const say = (level, msg) => cfg.log[level]?.(`[generate/fleet] ${msg}`);
-  if (!/^gpt-/.test(cfg.model)) {
+  if (!cfg.model.startsWith('gpt-')) {
     say('warn', `${cfg.model}: boxed Claude is refused by Fleet today; use a gpt-* model`);
   }
 

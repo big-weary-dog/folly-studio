@@ -1,10 +1,11 @@
 // A restart must not strand ideas: queued and generating ones go back in the generator queue.
-import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { afterAll, test } from 'vitest';
 
 import { createServer } from '../src/app.js';
 import { createQueue } from '../src/generate/index.js';
@@ -13,7 +14,7 @@ import { createStore } from '../src/store.js';
 const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url));
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-restart-'));
-after(() => fs.rmSync(tmp, { recursive: true, force: true }));
+afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
 const box = { config: { seconds: 2 }, probe: async () => ({ ok: true }), render: assert.fail };
 
 /** A data dir left by a server that stopped mid-work: one idea of each status. */

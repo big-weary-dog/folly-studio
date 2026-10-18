@@ -63,7 +63,7 @@ function onLook(msg) {
     }
     report.push({ id, ok: !error, ...(error ? { error } : {}), params: params || {}, modules });
   }
-  for (const key of [...compiledByKey.keys()]) if (!keep.has(key)) compiledByKey.delete(key);
+  for (const key of compiledByKey.keys()) if (!keep.has(key)) compiledByKey.delete(key);
   prepared = next;
   layerMs = Object.fromEntries(next.map((L) => [L.id, 0]));
   globals = { globals: msg.globals, automation: msg.automation, bpm: msg.bpm };

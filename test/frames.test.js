@@ -1,6 +1,8 @@
 // src/frames.js: the strict FSEQ parser and the frame analysis (brightness, power, flicker).
-import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+
+import { describe, test } from 'vitest';
+
 import { ledRanges, writeFseq } from '../public/js/fseq.js';
 import { flashRegions, pixelsForGroups, prepareScene } from '../public/js/pattern-core.js';
 import { analyzeFrames, FseqError, flickerReason, flickerWarning, MAX_CHANNELS, parseFseq } from '../src/frames.js';

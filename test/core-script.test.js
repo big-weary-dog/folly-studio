@@ -5,16 +5,17 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { after, test } from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import vm from 'node:vm';
+
+import { afterAll, test } from 'vitest';
 
 import { bundle, moduleFiles } from '../src/core-script.js';
 import { copyModule } from '../src/generate/fleet.js';
 
 const CORE = fileURLToPath(new URL('../public/js/pattern-core.js', import.meta.url));
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-core-script-'));
-after(() => fs.rmSync(tmp, { recursive: true, force: true }));
+afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
 const write = (rel, text) => {
   fs.mkdirSync(path.dirname(path.join(tmp, rel)), { recursive: true });
   fs.writeFileSync(path.join(tmp, rel), text);

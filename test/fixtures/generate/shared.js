@@ -3,8 +3,9 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
+
+import { afterAll } from 'vitest';
 
 import { DEFAULT_MODEL } from '../../../src/generate/claude.js';
 
@@ -17,7 +18,7 @@ export const LIBRARY = JSON.parse(fs.readFileSync(path.join(FIX, 'library/index.
 export const byName = (n) => LIBRARY.find((p) => p.name === n);
 export const quiet = { info() {}, warn() {}, error() {} };
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-generate-'));
-after(() => fs.rmSync(tmpRoot, { recursive: true, force: true }));
+afterAll(() => fs.rmSync(tmpRoot, { recursive: true, force: true }));
 export const tmp = (name) => fs.mkdtempSync(path.join(tmpRoot, `${name}-`));
 export const goodLayer = (extra = {}) => ({ title: 'Sea', groups: ['cathedral'], blend: 'add', level: 1,
   code: byName('ocean-swell').code, ...extra });

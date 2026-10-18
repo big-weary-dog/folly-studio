@@ -1,12 +1,14 @@
 // Static serving of the built app (dist/): compression (br / gzip) with an in-memory cache keyed by mtime, ETag
 // revalidation, cache headers (content-hashed assets kept a year), the sandbox page's CSP, and what is never served.
-import { test, before, after, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm, utimes } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
 import zlib from 'node:zlib';
+
+import { afterAll, beforeAll, describe, test } from 'vitest';
+
 import {
   createStatic, applySecurityHeaders, pickEncoding, acceptsEncoding, etagMatches,
   CSP_APP, CSP_SANDBOX, CACHE_PAGE, CACHE_ASSET, CACHE_IMMUTABLE,
@@ -32,7 +34,7 @@ function get(p, headers = {}, method = 'GET') {
   });
 }
 
-before(async () => {
+beforeAll(async () => {
   dir = await mkdtemp(path.join(tmpdir(), 'studio-static-'));
   await mkdir(path.join(dir, 'assets'), { recursive: true });
   await mkdir(path.join(dir, '.vite'), { recursive: true });
@@ -56,7 +58,7 @@ before(async () => {
   base = `http://127.0.0.1:${server.address().port}`;
 });
 
-after(async () => {
+afterAll(async () => {
   await new Promise((r) => server.close(r));
   await rm(dir, { recursive: true, force: true });
 });

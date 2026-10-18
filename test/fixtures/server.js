@@ -5,7 +5,8 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import http from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { after, before } from 'node:test';
+
+import { afterAll, beforeAll } from 'vitest';
 
 import { writeFseq } from '../../public/js/fseq.js';
 import { createServer } from '../../src/app.js';
@@ -13,7 +14,7 @@ import { createServer } from '../../src/app.js';
 /** { tmp, publicDir, distDir } once useFixture()'s before hook has run. */
 export const fx = {};
 export function useFixture() {
-  before(async () => {
+  beforeAll(async () => {
     fx.tmp = await mkdtemp(path.join(tmpdir(), 'studio-server-test-'));
     fx.publicDir = path.join(fx.tmp, 'public');
     fx.distDir = path.join(fx.tmp, 'dist');
@@ -21,7 +22,7 @@ export function useFixture() {
     await writeBuilt(fx.distDir);
     await writeFile(path.join(fx.tmp, 'secret.txt'), 'TOP SECRET');
   });
-  after(() => rm(fx.tmp, { recursive: true, force: true }));
+  afterAll(() => rm(fx.tmp, { recursive: true, force: true }));
 }
 
 export const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });

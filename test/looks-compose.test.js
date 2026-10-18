@@ -2,8 +2,9 @@
 // automation are validated strictly by the API and leniently by generators; old single-code layers stay valid.
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { after, before, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+
+import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { validateLook } from '../src/generate/validate.js';
 import { renderFields } from '../src/look-rules.js';
@@ -24,11 +25,11 @@ const GLOBALS = { energy: 0.7, palette: 'carnival', macros: { storm: { value: 0.
 
 describe('composed looks over the API', () => {
   let app, ana;
-  before(async () => {
+  beforeAll(async () => {
     app = await startApp({ dataDir: path.join(fx.tmp, 'data-compose'), publicDir: PUBLIC, renderBox: fakeBox() });
     ana = await signup(app, 'compose-ana');
   });
-  after(() => app.close());
+  afterAll(() => app.close());
 
   test('a chain, globals and automation are stored, a palette name filled in', async () => {
     const r = await ana.post('/api/looks', { title: 'Storm', layers: [chain()], globals: GLOBALS,

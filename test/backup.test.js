@@ -5,14 +5,15 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { after, test } from 'node:test';
 import zlib from 'node:zlib';
+
+import { afterAll, test } from 'vitest';
 
 import { createStore } from '../src/store.js';
 import { backup, snapshot } from '../tools/backup.mjs';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-backup-'));
-after(() => fs.rmSync(tmp, { recursive: true, force: true }));
+afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
 /** A .tar.gz's regular files: { name: Buffer }. */
 function untar(file) {

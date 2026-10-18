@@ -3,14 +3,15 @@
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { after, before, describe, test } from 'node:test';
+
+import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { createServer } from '../src/app.js';
 import { validateLayers } from '../src/api.js';
 import { createStore } from '../src/store.js';
 import { CSP_APP, CSP_SANDBOX } from '../src/static.js';
 import {
-  client, EXPECTED_APP_CSP, EXPECTED_SANDBOX_CSP, fakeBox, fx, layer, PIXEL, quiet, rawGet, SANDBOX_PAGE, signup,
+  client, EXPECTED_APP_CSP, EXPECTED_SANDBOX_CSP, fakeBox, fx, PIXEL, quiet, rawGet, SANDBOX_PAGE, signup,
   startApp, useFixture,
 } from './fixtures/server.js';
 
@@ -18,12 +19,11 @@ useFixture();
 
 describe('server', () => {
   let app;
-  let box;
-  before(async () => {
+  beforeAll(async () => {
     app = await startApp({ dataDir: path.join(fx.tmp, 'data-main'), curators: 'Carol, other',
-      renderBox: (box = fakeBox()) });
+      renderBox: fakeBox() });
   });
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
@@ -146,7 +146,7 @@ describe('server', () => {
 
   describe('CSRF and request limits', () => {
     let alice;
-    before(async () => {
+    beforeAll(async () => {
       alice = client(app);
       assert.equal((await alice.post('/api/login', { username: 'alice', password: 'correct horse' })).status, 200);
     });
@@ -218,7 +218,7 @@ describe('server', () => {
   describe('ideas', () => {
     let alice;
     let bob;
-    before(async () => {
+    beforeAll(async () => {
       alice = await signup(app, 'idea-alice');
       bob = await signup(app, 'idea-bob');
     });
@@ -260,7 +260,6 @@ describe('server', () => {
       assert.equal((await bob.post('/api/ideas', { text: 'bob still can' })).status, 201);
     });
   });
-
 
   describe('static files', () => {
     test('index, SPA routes, MIME types, security headers', async () => {
@@ -351,7 +350,7 @@ describe('server', () => {
 
 describe('without public files yet', () => {
   let app;
-  before(async () => {
+  beforeAll(async () => {
     const empty = path.join(fx.tmp, 'public-empty');
     await mkdir(empty, { recursive: true });
     app = await createServer({
@@ -363,7 +362,7 @@ describe('without public files yet', () => {
     const addr = await app.listen(0);
     app.base = `http://127.0.0.1:${addr.port}`;
   });
-  after(() => app.close());
+  afterAll(() => app.close());
 
   test('library and groups are empty, missing index.html (no build yet) is a 404', async () => {
     assert.deepEqual((await (await fetch(`${app.base}/api/library`)).json()).patterns, []);

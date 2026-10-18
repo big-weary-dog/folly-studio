@@ -10,6 +10,7 @@ import { flashRegions, prepareScene } from '../public/js/pattern-core.js';
 import { analyzeFrames, DEFAULT_MAX_BYTES, flickerReason, flickerWarning, FseqError, parseFseq } from './frames.js';
 import { inflateBlock } from './fseq-codec.js';
 
+// oxlint-disable-next-line no-control-regex -- control characters are what it strips from a box's strings
 export const CONTROL = /[\u0000-\u001f\u007f]/g;
 const BAD_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 

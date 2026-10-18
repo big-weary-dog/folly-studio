@@ -22,6 +22,7 @@ export const STREAMED = Symbol('streamed'); // a handler that wrote the response
 
 /** A logger usable both as log(...) and log.info/warn/error(...). */
 export function createLog(prefix = '[studio]') {
+  // oxlint-disable-next-line no-console -- the logger: the one place server output is written
   const log = (...a) => console.info(prefix, ...a);
   return Object.assign(log, { info: log, debug: () => {}, warn: (...a) => console.warn(prefix, ...a),
     error: (...a) => console.error(prefix, ...a) });

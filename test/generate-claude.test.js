@@ -1,8 +1,9 @@
 // src/generate/claude.js against a mocked fetch: the request, streaming, retries and failures.
 import assert from 'node:assert/strict';
-import { describe, test } from 'node:test';
 
-import { createClaudeAdapter, DEFAULT_MODEL } from '../src/generate/claude.js';
+import { describe, test } from 'vitest';
+
+import { createClaudeAdapter } from '../src/generate/claude.js';
 import { createQueue } from '../src/generate/index.js';
 import { GenerateError } from '../src/generate/validate.js';
 import { GROUPS, jsonRes, LIBRARY, lookJson, queueSetup, quiet, sse, streamOf } from './fixtures/generate/shared.js';

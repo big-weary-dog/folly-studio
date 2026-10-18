@@ -4,10 +4,11 @@ Folly Studio, the web app that turns show ideas into pattern code and previews t
 of the Gothic Folly. `SPEC.md` is the contract; `CONTRIBUTING.md` has the layout and the reasons
 behind these rules.
 
-- **Nothing is done until `npm run check` passes.** After `npm ci`, it runs `tsc` (`npm run typecheck`),
-  `tools/lint.mjs` (sizes, hygiene, syntax, safety, import boundaries; `node tools/lint.mjs --rules` lists
-  them), then every test, including a fresh Vite build of the app. A render-box test that skips says why.
-  A skip is not a pass.
+- **Nothing is done until `npm run check` passes.** After `npm ci`, it runs `tsc` (`npm run typecheck`), the lint
+  (`npm run lint`: oxlint with `.oxlintrc.jsonc` for syntax, safety and import boundaries, then `tools/budgets.mjs`
+  for sizes, hygiene and the line ratchet), then every test (`vitest run`), including a fresh Vite build of the app.
+  A render-box test that skips says why (`ctx.skip(condition, reason)`; the run ends listing them). A skip is not a
+  pass. UI changes also get `npm run smoke` (Playwright Test; `perf` and `e2e` beside it in `test/e2e/`).
 - **SPEC.md is the contract: change it first.** The sandbox protocol, the HTTP API, the look and
   `rig.json` shapes, and `pattern-core.js`'s exports are what the other pieces rely on.
   Code follows the spec, in the same change.
@@ -15,13 +16,13 @@ behind these rules.
   are the AI's examples), lines ≤ 120, text files ≤ 64 KB, and the gzipped app ≤ 165 KB with the
   login page ≤ 40 KB, as built (`test/build.test.js`). Over a limit, split the module by responsibility, one
   concern per file named for it. Raising a limit is not a fix. Each area's total lines are ratcheted in
-  `tools/lint/budget.json`: lower it when you cut; raise it only with a new `reason`.
-  `lint-allow <rule>: <reason>` silences one line, and only with a reason a reviewer would accept.
+  `tools/budgets.json`: lower it when you cut; raise it only with a new `reason`.
+  `// oxlint-disable-next-line <rule> -- <reason>` silences one line, and only with a reason a reviewer would accept.
 - **Pattern code never runs on the server outside the render box.** It runs in the sandbox
   iframe's Worker or in the render box (bubblewrap, then a stdlib-only `node:vm` realm), never
   in the app page or the server's own process. Tests may run our own library patterns. What a
   box returns is data: parse and bound it, and keep anything it says about itself untrusted.
-  `eval`, `Function`, `node:vm` and `child_process` stay where the lint allowlist puts them.
+  `eval`, `Function`, `node:vm` and `child_process` stay where `.oxlintrc.jsonc`'s allowlist puts them.
 - **Use a dependency whenever it makes life easier.** Pin it exactly (`npm install --save-exact`), commit
   `package-lock.json`, and give it a one-line reason in CONTRIBUTING "Dependencies". Dependencies are installed
   at setup (and the browser's bundled at build time), never fetched at run time and never from a CDN: the app,

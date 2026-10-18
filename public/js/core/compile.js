@@ -98,7 +98,7 @@ const syntax = (...args) => {
   try {
     return new Function(...args);
   } catch (e) {
-    throw new Error(`Syntax error: ${e && e.message ? e.message : e}`);
+    throw new Error(`Syntax error: ${e && e.message ? e.message : e}`, { cause: e });
   }
 };
 
@@ -127,7 +127,7 @@ export function compileModule(code, kind = 'source') {
   try {
     made = factory(SCOPE);
   } catch (e) {
-    throw new Error(`Error while loading the ${what}: ${describeError(e)}`);
+    throw new Error(`Error while loading the ${what}: ${describeError(e)}`, { cause: e });
   }
   if (!made || typeof made[k[0]] !== 'function') throw new Error(`${what} defines no function ${k[1]}`);
   return { kind, [k[0]]: made[k[0]], frame: made.frame, params: normalizeParams(made.params) };

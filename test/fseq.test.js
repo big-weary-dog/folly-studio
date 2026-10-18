@@ -1,6 +1,8 @@
 // fseq.js: FSEQ v2.0 uncompressed (full or sparse), read back with an independent little reader.
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+
+import { test } from 'vitest';
+
 import { writeFseq } from '../public/js/fseq.js';
 
 // Parses an FSEQ v2 file the way FPP/xLights do, without sharing any code with the writer.

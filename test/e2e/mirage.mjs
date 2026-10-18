@@ -1,23 +1,10 @@
-// Mirage (and the older cathedral-3d-sim.html) in headless Chromium through Playwright: three.js is
-// served from a local copy instead of the CDN, WebGL runs on SwiftShader, and the running sim's
-// pixel store (`window.mirage.app.store`) is read back per pixel with its universe and channel.
-import { execFileSync } from 'node:child_process';
+// Mirage (and the older cathedral-3d-sim.html) in headless Chromium, for mirage.spec.js: three.js is served from a
+// local copy instead of the CDN, WebGL runs on SwiftShader (playwright.config.js), and the running sim's pixel store
+// (`window.mirage.app.store`) is read back per pixel with its universe and channel.
 import { existsSync, readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import path from 'node:path';
 
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/';
-
-/** Playwright from the global npm root (never installed here; browsers come from /opt/pw-browsers). */
-export function loadPlaywright() {
-  const root = process.env.PLAYWRIGHT_ROOT || execFileSync('npm', ['root', '-g'], { encoding: 'utf8' }).trim();
-  if (!process.env.PLAYWRIGHT_BROWSERS_PATH && existsSync('/opt/pw-browsers')) {
-    process.env.PLAYWRIGHT_BROWSERS_PATH = '/opt/pw-browsers';
-  }
-  const file = path.join(root, 'playwright');
-  if (!existsSync(file)) throw new Error(`e2e: no Playwright in ${root} (npm root -g); set PLAYWRIGHT_ROOT`);
-  return createRequire(import.meta.url)(file);
-}
 
 /** The local three@0.160.0 package: E2E_DEPS is a folder holding node_modules/three (or three itself). */
 export function threeDir() {
@@ -30,12 +17,6 @@ export function threeDir() {
     }
   }
   throw new Error('e2e: set E2E_DEPS to a folder where `npm install three@0.160.0` was run (the CDN is not used)');
-}
-
-export async function launch(chromium) {
-  return chromium.launch({
-    args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
-  });
 }
 
 /** A context whose jsDelivr three.js requests come from `dir`, and every other remote request fails fast. */

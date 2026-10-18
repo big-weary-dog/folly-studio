@@ -1,7 +1,6 @@
 // The baked-frames routes (src/frames-http.js, src/frames-cache.js): streaming chunks under
 // immutable content-hash URLs, br / gzip / plain negotiation, who may fetch them, the wait while a
 // bake is encoded, compressed .fseq downloads, and folders pruned when their bake goes.
-import { test, before, after, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { mkdtemp, mkdir, rm, unlink, writeFile } from 'node:fs/promises';
@@ -9,6 +8,8 @@ import http from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
+
+import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { writeFseq } from '../public/js/fseq.js';
 import { decodeChunk, parseManifest, readFrame } from '../public/js/frames-stream.js';
@@ -99,13 +100,13 @@ async function bakedLook(seed, extra = {}) {
   return { look, hash, base: `/api/looks/${look.id}/frames/${hash}/` };
 }
 
-before(async () => {
+beforeAll(async () => {
   tmp = await mkdtemp(path.join(tmpdir(), 'folly-wire-'));
   await startApp();
   [alice, bob, carol] = [await signup('alice'), await signup('bob'), await signup('carol')];
   anon = { cookie: '' };
 });
-after(async () => {
+afterAll(async () => {
   await app?.close();
   await rm(tmp, { recursive: true, force: true });
 });

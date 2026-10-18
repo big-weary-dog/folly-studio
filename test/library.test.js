@@ -1,10 +1,12 @@
 // The library's house style, beyond rendering at defaults (patterns.test.js): every source holds up under any
 // palette and energy, recolours with the look's palette where it reads one, and lands on the same frame whether
 // played from the start or sought to; the new warps and filters stack in long chains; all within the frame budget.
-import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
+
+import { describe, test } from 'vitest';
+
 import { compileLayer, compilePattern, prepareLayer, prepareLook, prepareScene, renderFrame } from
   '../public/js/pattern-core.js';
 import { folly, mini } from './fixtures/rigs.js';
@@ -88,9 +90,8 @@ test('each source lands on the same frame played from the start as sought to, an
       for (; t < end; t += 0.025) renderFrame(scene, [played], t, a);
       renderFrame(scene, [played], end, a);
       renderFrame(scene, [again], end, b);
-      for (let i = 0; i < a.length; i++) {
-        if (Math.abs(a[i] - b[i]) > 1e-4) assert.fail(`${name} at t=${end}: rgb[${i}] ${a[i]} played, ${b[i]} sought`);
-      }
+      const i = a.findIndex((v, k) => Math.abs(v - b[k]) > 1e-4);
+      assert.ok(i < 0, `${name} at t=${end}: rgb[${i}] ${a[i]} played, ${b[i]} sought`);
     }
   }
 });

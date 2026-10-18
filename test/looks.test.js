@@ -1,10 +1,10 @@
 // The looks routes: create, read, edit with versions and review, share, delete, bake and frames.
 import assert from 'node:assert/strict';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { after, before, describe, test } from 'node:test';
 
-import { writeFseq } from '../public/js/fseq.js';
+import { afterAll, beforeAll, describe, test } from 'vitest';
+
 import { parseFseq } from '../src/frames.js';
 import { fakeBox, fx, layer, PIXEL, signup, startApp, useFixture } from './fixtures/server.js';
 
@@ -13,17 +13,17 @@ useFixture();
 describe('looks', () => {
   let app;
   let box;
-  before(async () => {
+  beforeAll(async () => {
     app = await startApp({ dataDir: path.join(fx.tmp, 'data-main'), curators: 'Carol, other',
       renderBox: (box = fakeBox()) });
   });
-  after(async () => {
+  afterAll(async () => {
     await app.close();
   });
   let alice;
   let bob;
   let carol;
-  before(async () => {
+  beforeAll(async () => {
     alice = await signup(app, 'look-alice');
     bob = await signup(app, 'look-bob');
     carol = await signup(app, 'carol');   // a curator
