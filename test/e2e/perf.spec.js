@@ -12,10 +12,19 @@
 // of 11 s counted second by second. A run's fps is its median second's (the 6th of 11, so most seconds reach it):
 // a stalled second or two on a noisy runner do not decide it, a slow pipeline does.
 //
+// Calibration (perf-calibrate.js): runners differ about 2× in speed, so in the same page and worker the look's
+// frames take turns with a fixed reference workload, and our pattern and core code are held to the look's cost as a
+// multiple of the reference's. That ratio is taken warm at full speed: at 4×, CDP's busy-wait oversubscribes a
+// 2-CPU runner, and with one more busy process it wandered 1.0–1.7× where full speed held 0.9–1.2×. Taken again as
+// the slowdown settles, the reference's ms in the worker (× the rate) and on the page say how fast this run's
+// emulated phone is.
+//
 // What it asserts, and what it only reports:
 // - compute (asserted): the sandbox with WebGL off. A phone draws on its GPU; here software GL (SwiftShader) would
-//   take the very CPUs the worker needs. At 4× it must compute ≥ 20 fps: most seconds hold 20 frames, and its
-//   median frame fits a 20 fps frame's budget (runtime.js: 80 % of the interval), so the app need not go below 20.
+//   take the very CPUs the worker needs. The look must cost ≤ MAX_RATIO × the reference. At 4× it must compute
+//   ≥ 20 fps: most seconds hold 20 frames, and its median frame fits a 20 fps frame's budget (runtime.js: 80 % of the
+//   interval), so the app need not go below 20. That is judged only when the emulated phone is at least as fast as a
+//   mid-range one (PHONE_REF_MS); a slower one's fps and ms measure the runner, so they are reported instead.
 // - points, playa (reported): the 3D view on SwiftShader, Playa at its phone tier (lite). Their fps are software
 //   GL's, not a phone GPU's, so they are printed, not judged; the Playa view must not fall back to Points.
 // - auto (asserted): the Playa view on Auto with every frame held 35 ms, as on a slow GPU: it must step down to low.
@@ -23,6 +32,7 @@
 //   PERF_RATES=1,4  PERF_SECONDS=11 (odd: a median is a middle second); one run: npm run perf -- -g compute
 import { readFile } from 'node:fs/promises';
 
+import { calibrator, reference, timer } from './perf-calibrate.js';
 import { expect, signup, test } from './studio.js';
 
 const RATES = (process.env.PERF_RATES || '1,4').split(',').map(Number);
@@ -36,6 +46,19 @@ const RUNS = [
 const MIN_FPS = 20, MAX_TASK_MS = 100;
 const FRAME_BUDGET_MS = (0.8 * 1000) / MIN_FPS;     // runtime.js BUDGET at the lowest rate
 const WARM_MS = 2000, SETTLE_MS = 6000;
+// Calibration: bursts of 2 look/reference pairs in the worker and a reference run on the page, 32 at full speed and
+// 12 as the slowdown settles. A burst stays far below the sandbox's 1 s hang budget even on a crawling runner; one
+// unanswered in 5 s (a restarted worker) is dropped.
+const FULL = { bursts: 32, gap: 50 }, SLOWED = { bursts: 12, gap: 250 }, CAL_PAIRS = 2, CAL_WAIT_MS = 5000;
+// The demo look costs 0.9–1.2× the reference (idle, on 2 CPUs, on 2 CPUs with busy processes); 1.6 leaves it a
+// third to grow, and a core twice as slow per LED reads 2.1.
+const MAX_RATIO = 1.6;
+// The ≥ 20 fps promise is for a mid-range phone, which this check models as a runner's core at a quarter speed. The
+// reference takes 2.7–4 ms on a runner (CI's ran the look in 3.0 ms; a 2.8 GHz Xeon runs the reference in 3.0–3.5),
+// so up to 16 ms on that phone. A run whose reference takes longer on either thread (the worker's × the rate; CDP
+// slows the page's itself) emulates a slower phone than we promise: its fps and ms measure the runner, not the look,
+// so they are reported, and the ratio still judges our code.
+const PHONE_REF_MS = 16;
 const SWIFTSHADER = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
 const log = (m) => console.log(`perf: ${m}`);
 const code = (name) => readFile(new URL(`../../public/patterns/${name}.js`, import.meta.url), 'utf8');
@@ -58,14 +81,16 @@ async function demoLook() {
 // (its last pass, a full-screen triangle onto the canvas; `slow` ms each, if set), record long tasks. The sandbox:
 // slow its worker `rate` times, as a phone's core would be (its source is a Blob; the probe goes first). The
 // worker's replies keep their order: while a frame is held back, what follows it waits behind it.
-function probe({ rate, view, quality = 'auto', slow = 0 }) {
+function probe({ rate, view, quality = 'auto', slow = 0, calibrator, timer, reference }) {
   if (window !== window.top) {
-    const Blob0 = Blob;
+    const Blob0 = Blob, Worker0 = Worker;
     const slower = `(() => { const now = performance.now.bind(performance), post = self.postMessage.bind(self);
+      const calibration = (${calibrator})((${timer})(${reference}), post);
       let t0 = 0, held = [];
       const flush = () => { const q = held; held = []; for (const [m, transfer] of q) post(m, transfer); };
       self.addEventListener('message', (e) => { if (e.data && e.data.type === 'frame') t0 = now(); });
       self.postMessage = (m, transfer) => {
+        if (calibration(m)) return;
         if (held.length) return void held.push([m, transfer]);
         if (m && m.type === 'frame' && t0 && ${rate} > 1) {
           const took = now() - t0;
@@ -81,6 +106,21 @@ function probe({ rate, view, quality = 'auto', slow = 0 }) {
     window.Blob = function (parts, opts) {
       return new Blob0(opts?.type === 'text/javascript' ? [slower, ...parts] : parts, opts);
     };
+    // The calibration, asked of the pattern worker from the test: its answer, or null after `wait` ms.
+    window.Worker = class extends Worker0 {
+      constructor(url, opts) {
+        super(url, opts);
+        if (opts?.name === 'folly-patterns') window.perfWorker = this;
+      }
+    };
+    window.perfCalibrate = (pairs, flip, wait) => new Promise((resolve) => {
+      const w = window.perfWorker;
+      const done = (answer) => { clearTimeout(late); w.removeEventListener('message', on); resolve(answer); };
+      const on = (e) => { if (e.data?.type === 'perf-calibrated') done(e.data); };
+      const late = setTimeout(done, wait, null);
+      w.addEventListener('message', on);
+      w.postMessage({ type: 'perf-calibrate', pairs, flip });
+    });
     return;
   }
   const p = window.perfProbe = { frames: 0, times: [], ms: [], layers: {}, tasks: [], draws: 0, d0: 0, d1: 0 };
@@ -113,23 +153,45 @@ function probe({ rate, view, quality = 'auto', slow = 0 }) {
 
 const median = (a) => (a.length ? [...a].sort((x, y) => x - y)[a.length >> 1] : 0);
 
+/**
+ * The calibration: `bursts` of look/reference pairs in the sandbox's worker, and of reference runs on the page. The
+ * look's cost as a multiple of the reference's (the median pair's: a stall spoils a pair, not the lot; a frame that
+ * ran no layer counts for nothing) and the reference's median ms in each; NaN for none.
+ */
+async function calibrate(page, { bursts, gap }) {
+  const sandbox = page.frames().find((f) => f.url().includes('/sandbox'));
+  const ratios = [], worker = [], main = [];
+  for (let n = 0; n < bursts; n++) {
+    const r = await sandbox?.evaluate((a) => window.perfCalibrate(...a), [CAL_PAIRS, n % 2, CAL_WAIT_MS]);
+    worker.push(...(r?.ref ?? []));
+    for (const [i, ms] of (r?.look ?? []).entries()) if (ms > 0) ratios.push(ms / r.ref[i]);
+    main.push(await page.evaluate(() => window.perfTime(performance.now() / 1000)));
+    await page.waitForTimeout(gap);
+  }
+  const mid = (a) => (a.length ? median(a) : NaN);
+  return { ratio: mid(ratios), worker: mid(worker), page: mid(main) };
+}
+
 async function measure(browser, origin, cookie, lookId, run, rate) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3,
     isMobile: true, hasTouch: true });
   await context.addCookies([{ name: 'studio_session', value: cookie.split('=')[1], url: origin }]);
-  await context.addInitScript(probe, { rate, view: run.view, quality: run.quality, slow: run.slow });
+  await context.addInitScript(probe, { rate, view: run.view, quality: run.quality, slow: run.slow,
+    calibrator: String(calibrator), timer: String(timer), reference: String(reference) });
+  await context.addInitScript({ content: `window.perfTime = (${timer})(${reference});` });   // on the page's thread
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.goto(`${origin}/studio/${lookId}`);
   await page.waitForFunction(() => window.perfProbe?.frames > 10, null, { timeout: 60_000 });
   await page.waitForTimeout(WARM_MS);
+  const full = await calibrate(page, FULL);
   // The sandbox frame shares the page's process and thread unless the browser isolates it: throttle each.
   for (const f of page.frames()) {
     const cdp = await context.newCDPSession(f).catch(() => null);  // only an out-of-process frame has its own
     await cdp?.send('Emulation.setCPUThrottlingRate', { rate });
   }
-  await page.waitForTimeout(SETTLE_MS);
+  const [slowed] = await Promise.all([calibrate(page, SLOWED), page.waitForTimeout(SETTLE_MS)]);
   const start = await page.evaluate(() => {
     Object.assign(window.perfProbe, { frames: 0, times: [], ms: [], layers: {}, tasks: [], draws: 0 });
     return performance.now();
@@ -148,7 +210,8 @@ async function measure(browser, origin, cookie, lookId, run, rate) {
   const tier = (/now (\w+)/.exec(title) || /quality: (\w+)/.exec(title))?.[1];   // Auto says what it is now
   const span = p.times.at(-1) - p.times[0];
   return { run, rate, mode, tier, fps: median(perSecond), perSecond, mean: ((p.frames - 1) * 1000) / span,
-    ms: median(p.ms), layerMs, draws: p.draws > 1 ? ((p.draws - 1) * 1000) / (p.d1 - p.d0) : 0,
+    ms: median(p.ms), ratio: full.ratio, worker: slowed.worker * rate, main: slowed.page, layerMs,
+    draws: p.draws > 1 ? ((p.draws - 1) * 1000) / (p.d1 - p.d0) : 0,
     longest: Math.max(0, ...p.tasks), tasks: p.tasks.length, stats, heavy, errors };
 }
 
@@ -179,7 +242,9 @@ for (const run of RUNS) {
         log(`${run.name}, ${rate}× CPU: ${r.fps} fps computed (median second of ${r.perSecond.join(' ')}; mean `
           + `${r.mean.toFixed(1)}), ${gl}; worker ${r.ms.toFixed(1)} ms a frame (${(r.ms / rate).toFixed(1)} ms of `
           + `it its own work; layers ${layers} ms), longest task ${r.longest.toFixed(0)} ms (${r.tasks} over 50 ms), `
-          + `heavy badges ${r.heavy}; the transport says "${r.stats}"`);
+          + `heavy badges ${r.heavy}; the transport says "${r.stats}"; the look costs ${r.ratio.toFixed(2)}× the `
+          + `reference, which took ${r.worker.toFixed(1)} ms in the emulated phone's worker, ${r.main.toFixed(1)} on `
+          + 'its page');
         for (const e of r.errors) log(`page error: ${e}`);
       }
     } finally {
@@ -193,9 +258,19 @@ for (const run of RUNS) {
         + `${top.rate}× as at 1×`);
     }
     if (run.name === 'compute') {
-      expect.soft(top.fps, `fps computed (${at}), its median second`).toBeGreaterThanOrEqual(MIN_FPS);
-      expect.soft(top.ms, `the worker's ms a frame (${at}) within a ${MIN_FPS} fps frame's budget`)
-        .toBeLessThanOrEqual(FRAME_BUDGET_MS);
+      expect.soft(top.ratio, `the demo look's cost (${run.name}, at full speed) as a multiple of the reference's`)
+        .toBeLessThanOrEqual(MAX_RATIO);
+      const phone = Math.max(top.worker, top.main);   // its slower thread
+      if (phone <= PHONE_REF_MS) {
+        expect.soft(top.fps, `fps computed (${at}), its median second`).toBeGreaterThanOrEqual(MIN_FPS);
+        expect.soft(top.ms, `the worker's ms a frame (${at}) within a ${MIN_FPS} fps frame's budget`)
+          .toBeLessThanOrEqual(FRAME_BUDGET_MS);
+      } else {
+        const why = `${top.fps} fps and ${top.ms.toFixed(1)} ms a frame (${at}) not judged: the reference took `
+          + `${phone.toFixed(1)} ms on this run's emulated phone, over a mid-range phone's ${PHONE_REF_MS} ms`;
+        log(why);
+        test.info().annotations.push({ type: 'not judged', description: why });
+      }
     }
     expect.soft(top.longest, `the longest main-thread task (${at}), ms`).toBeLessThan(MAX_TASK_MS);
     for (const r of results) {
