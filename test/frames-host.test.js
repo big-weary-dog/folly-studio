@@ -13,6 +13,7 @@ import { createLane } from '../src/bake.js';
 import { createFrameJobs, createFramesCache, createFramesDisk } from '../src/frames-cache.js';
 import { wireHash } from '../src/frames-wire.js';
 import { createRenderBox } from '../src/render-box.js';
+import { lineRig } from './fixtures/rigs.js';
 
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const PIXEL = 'function pixel(p, t) { return [p.x, p.y, p.z]; }';
@@ -143,12 +144,7 @@ describe('the bake cache and re-baking evicted frames, through the API', () => {
     const publicDir = path.join(tmp, 'public');
     fs.mkdirSync(path.join(publicDir, 'data'), { recursive: true });
     fs.writeFileSync(path.join(publicDir, 'index.html'), '<!doctype html><title>t</title>');
-    fs.writeFileSync(path.join(publicDir, 'data', 'cathedral.json'), JSON.stringify({ version: 1, count: 100,
-      channelsPerUniverse: 510, universes: 1, zones: ['z'], pixels: { zone: Array(100).fill(0),
-        strand: Array(100).fill(0), universe: Array(100).fill(1),
-        channel: Array.from({ length: 100 }, (_, i) => 1 + i * 3),
-        row: Array(100).fill(0), pos: Array(300).fill(0) },
-      groups: [{ id: 'cathedral', name: 'Cathedral', parent: null, zones: [0] }] }));
+    fs.writeFileSync(path.join(publicDir, 'data', 'rig.json'), JSON.stringify(lineRig(100)));
     const renderBox = { config: { seconds: 5 }, probe: async () => ({ ok: true }),
       async render({ layers }) { renders++; return { bytes: frames(layers[0].code.length) }; } };
     app = await createServer({ dataDir: path.join(tmp, 'data'), publicDir, generator: { enqueue() {} }, log: quiet,

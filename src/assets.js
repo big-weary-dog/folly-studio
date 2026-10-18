@@ -4,7 +4,7 @@
 //                      CSP hash goes in the shell's header), so module imports and import() stay as written
 //   /css/*.css       → one /css/theme.<hash>.css: the shell's stylesheets in their order, then the views'
 //   /data/*.json, /favicon.svg, /sandbox.html (core inlined) → <name>.<hash>.<ext>
-// Modules' quoted literals naming these ('/css/ideas.css', '/data/cathedral.json', '/sandbox.html') and the
+// Modules' quoted literals naming these ('/css/ideas.css', '/data/rig.json', '/sandbox.html') and the
 // shell's href/src are rewritten to the hashed URLs. Plain URLs still serve the files as they are.
 
 import { createHash } from 'node:crypto';

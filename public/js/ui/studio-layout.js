@@ -5,7 +5,7 @@ import { h, humanize, label, nextId, switchBox } from './dom.js';
 
 // Narrow screens stack the panels under the 3D view and switch them with these tabs.
 export const TABS = ['layers', 'code', 'time', 'groups', 'look'];
-// Below this height the code editor starts folded, so the cathedral gets the room.
+// Below this height the code editor starts folded, so the 3D view gets the room.
 const SHORT = '(max-height: 899px)';
 const button = (props) => h('button', { type: 'button', ...props });
 const pane = (cls, label, ...kids) => h('section',
@@ -39,7 +39,7 @@ export function buildLayout({ store, tab, setTab, actions, onDock }) {
   ui.notice = h('div', { class: 'studio-notice', role: 'note', hidden: true });
 
   // the 3D view
-  ui.canvas = h('canvas', { class: 'viewer-canvas', tabindex: 0, 'aria-label': '3D preview of the cathedral. Drag to '
+  ui.canvas = h('canvas', { class: 'viewer-canvas', tabindex: 0, 'aria-label': '3D preview. Drag to '
     + 'orbit, scroll or pinch to zoom, right-drag or two fingers to pan, double-click to reset. With focus: arrow keys '
     + 'orbit, Alt+arrows pan, plus and minus zoom.' });
   ui.viewBar = h('div', { class: 'view-bar', role: 'group', 'aria-label': 'Camera views' });

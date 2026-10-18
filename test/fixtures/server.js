@@ -55,15 +55,12 @@ async function writeFixture(dir) {
   );
   await writeFile(path.join(dir, 'patterns', 'embers.js'), `// Rising embers\n${PIXEL}\n`);
   await writeFile(
-    path.join(dir, 'data', 'cathedral.json'),
+    path.join(dir, 'data', 'rig.json'),
     JSON.stringify({
-      version: 1,
-      count: 2,
-      channelsPerUniverse: 510,
-      universes: 1,
-      zones: ['z'],
-      pixels: { zone: [0, 0], strand: [0, 0], universe: [1, 1], channel: [1, 4], row: [0, 0], pos: [0, 0, 0, 0, 1, 0] },
-      groups: [{ id: 'cathedral', name: 'Cathedral', parent: null, zones: [0] }],
+      rig: 1, count: 2, output: { universes: 1, channelsPerUniverse: 510 }, bounds: { min: [0, 0, 0], max: [0, 1, 0] },
+      fixtures: [{ id: 'z', zone: 'z', kind: 'strip', start: 0, count: 2 }],
+      pixels: { universe: [1, 1], channel: [1, 4], pos: [0, 0, 0, 0, 1, 0] },
+      groups: [{ id: 'cathedral', name: 'Cathedral', parent: null, zones: ['z'] }],
     }),
   );
 }

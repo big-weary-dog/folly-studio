@@ -36,7 +36,7 @@ export function foundryFromEnv(env = process.env) {
 }
 
 /**
- * createQueue({ store, loadLibrary, loadGroups, adapterName, log, adapters?, concurrency?, fallbackName?,
+ * createQueue({ store, loadLibrary, loadRig, adapterName, log, adapters?, concurrency?, fallbackName?,
  *   framesDir?, foundry? }) → { adapterName, enqueue(idea | id) → false when already queued, idle(), size }.
  * adapterName: STUDIO_GENERATOR, sketch (default) | claude | fleet; adapters: name → { generate } or a function;
  * concurrency: STUDIO_GENERATOR_CONCURRENCY (1); fallbackName: STUDIO_GENERATOR_FALLBACK, tried when the main
@@ -44,7 +44,7 @@ export function foundryFromEnv(env = process.env) {
  * foundryFromEnv().
  */
 export function createQueue({
-  store, loadLibrary = () => [], loadGroups = () => [], adapterName = process.env.STUDIO_GENERATOR || 'sketch',
+  store, loadLibrary = () => [], loadRig = () => null, adapterName = process.env.STUDIO_GENERATOR || 'sketch',
   log = console, adapters, concurrency = Number(process.env.STUDIO_GENERATOR_CONCURRENCY) || 1,
   fallbackName = process.env.STUDIO_GENERATOR_FALLBACK || '', framesDir, foundry = foundryFromEnv(),
 } = {}) {
@@ -128,8 +128,9 @@ export function createQueue({
     try {
       const owner = (await store.users?.get?.(idea.owner)) || null;
       const user = owner ? { id: owner.id, username: owner.username, role: owner.role } : { id: idea.owner };
-      const [library, groups] = await Promise.all([loadLibrary(), loadGroups()]);
-      const ctx = { text: String(idea.text ?? ''), user, library: library || [], groups: groups || [], idea: { id } };
+      const [library, rig] = await Promise.all([loadLibrary(), loadRig()]);
+      const groups = Array.isArray(rig?.groups) ? rig.groups : [];
+      const ctx = { text: String(idea.text ?? ''), user, library: library || [], rig, groups, idea: { id } };
       const { raw, look, used } = await lookFrom(ctx, id, name);
       if (look.dropped.length) log.warn?.(`[generate] idea ${id}: dropped ${look.dropped.join('; ')}`);
       const bake = raw?.bake && typeof raw.bake === 'object'

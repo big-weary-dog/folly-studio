@@ -16,7 +16,7 @@ const now = () => performance.now();
 const message = (e) => (e && e.message ? e.message : String(e));
 
 function onInit(msg) {
-  scene = prepareScene(msg.cathedral);
+  scene = prepareScene(msg.rig);
   setLibrary(msg.library);
   prepared = [];
   compiledByKey.clear();
@@ -43,7 +43,7 @@ function onLook(msg) {
   for (const layer of layers) {
     const id = layer.id, modular = Array.isArray(layer.modules);
     const modules = [], list = [];
-    let error = scene ? '' : 'sandbox has no cathedral yet (send init first)', params = null;
+    let error = scene ? '' : 'sandbox has no rig yet (send init first)', params = null;
     for (const m of scene ? layerModules(layer) : []) {
       const entry = compiled(id, m, keep);
       const schema = entry.compiled ? entry.compiled.params : {};
@@ -80,9 +80,9 @@ function onFrame(msg) {
 }
 
 function onRender(msg) {
-  if (!scene) throw new Error('sandbox has no cathedral yet (send init first)');
+  if (!scene) throw new Error('sandbox has no rig yet (send init first)');
   const frames = Math.max(0, Math.floor(+msg.frames || 0));
-  const fps = +msg.fps > 0 ? +msg.fps : 40;
+  const fps = +msg.fps > 0 ? +msg.fps : scene.fps;
   const start = +msg.start || 0;
   const opts = { gamma: msg.gamma, brightness: msg.brightness };
   const size = scene.frameChannels;

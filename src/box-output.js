@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { constants as FS, promises as fs } from 'node:fs';
 import path from 'node:path';
 
+import { flashRegions, prepareScene } from '../public/js/pattern-core.js';
 import { analyzeFrames, DEFAULT_MAX_BYTES, flickerReason, flickerWarning, FseqError, parseFseq } from './frames.js';
 import { inflateBlock } from './fseq-codec.js';
 
@@ -78,12 +79,14 @@ export function cleanBoxStats(value) {
  * Baked frames, parsed and analysed on the LED map → { bake, frames? (bytes to store) }. Large-area flashing
  * fails `ok`; flashing on small regions only sets `warning`.
  */
-export function checkFrames(bytes, { source, cathedral, maxBytes = DEFAULT_MAX_BYTES, boxStats } = {}) {
+export function checkFrames(bytes, { source, rig, maxBytes = DEFAULT_MAX_BYTES, boxStats } = {}) {
   const bake = { source, status: 'done', ok: false, checkedAt: new Date().toISOString() };
   if (boxStats) bake.boxStats = boxStats;
   let analysis;
   try {
-    analysis = analyzeFrames(parseFseq(bytes, { maxBytes, decompress: inflateBlock }), cathedral);
+    const scene = prepareScene(rig);
+    const parsed = parseFseq(bytes, { maxBytes, maxChannels: scene.frameChannels, decompress: inflateBlock });
+    analysis = analyzeFrames(parsed, scene, flashRegions(scene));
   } catch (err) {
     bake.status = 'failed';
     bake.reason = err instanceof FseqError ? `The baked frames were rejected: ${err.message.replace(/^frames: /, '')}.`

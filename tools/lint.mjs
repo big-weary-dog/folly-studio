@@ -23,17 +23,19 @@ export const LIMITS = {
   source: 400, test: 600, pattern: 150, // lines: code, test/**, public/patterns/*.js (they are AI examples)
   bytes: 64 * KB,                       // any text file
   lineLength: 120,                      // code (js, css, html, py)
-  bundle: 150 * KB,                     // gzip -9 (static.js's level) of public/js/**/*.js + public/css/*.css
+  // gzip -9 (static.js's level) of public/js/**/*.js + public/css/*.css. 165: the Playa view (Mirage-style renderer)
+  // is lazy-loaded with the Studio; the owner allows generous code KB; transfer budgets still guard bandwidth.
+  bundle: 165 * KB,
   login: 40 * KB,                       // index.html, what it loads, and the sign-in view
 };
-const DATA_CAPS = { 'public/data/cathedral.json': 1024 * KB }; // generated, committed data
+const DATA_CAPS = { 'public/data/rig.json': 1024 * KB }; // generated, committed data
 const LOGIN_VIEW = 'public/js/ui/auth.js'; // main.js imports it at once for a signed-out visitor
 const SKIP = /^(?:test\/fixtures\/lint\/|data\/)|(?:^|\/)(?:node_modules|\.git)\//;
 // Paths that exist only at run time, and their source: the boxes find these next to their script
 // (bound or copied in by the host; the core bundled by src/assets.js).
 const BOX_FILES = {
   'pattern-core.js': 'public/js/pattern-core.js', 'fseq.js': 'public/js/fseq.js', 'frames.js': 'src/frames.js',
-  'cathedral.json': 'public/data/cathedral.json', 'renderer.mjs': 'render-box/renderer.mjs',
+  'rig.json': 'public/data/rig.json', 'renderer.mjs': 'render-box/renderer.mjs',
 };
 const ALIASES = new Map(['render-box', 'fleet-box'].flatMap((box) => Object.entries(BOX_FILES)
   .map(([n, to]) => [`${box}/${n}`, to])));
@@ -56,7 +58,7 @@ export const RULES = {
   'max-lines': 'source ≤ 400 lines, tests ≤ 600, library patterns ≤ 150; markdown exempt',
   'max-bytes': 'text files ≤ 64 KB; listed generated data has its own cap',
   'max-line-length': 'code lines ≤ 120 characters',
-  'bundle-size': 'gzipped public/js + public/css ≤ 150 KB; login page path ≤ 40 KB',
+  'bundle-size': 'gzipped public/js + public/css ≤ 165 KB; login page path ≤ 40 KB',
   'line-budget': 'each area\'s lines of code within tools/lint/budget.json; raising one needs a new reason',
   'final-newline': 'text files end with a newline',
   'trailing-space': 'no trailing whitespace',

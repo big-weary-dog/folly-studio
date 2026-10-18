@@ -1,5 +1,5 @@
 // Composition (SPEC "Modules", "Globals", "Param bindings"): module chains, globals, automation and use(), on the
-// real cathedral with our own library modules.
+// Folly's rig with our own library modules.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -10,10 +10,10 @@ import {
 } from '../public/js/pattern-core.js';
 
 const here = (p) => new URL(p, import.meta.url);
-const cathedral = JSON.parse(readFileSync(here('../public/data/cathedral.json'), 'utf8'));
+const rig = JSON.parse(readFileSync(here('../public/data/rig.json'), 'utf8'));
 const palettes = JSON.parse(readFileSync(here('../public/data/palettes.json'), 'utf8'));
 const lib = (name) => readFileSync(here(`../public/patterns/${name}.js`), 'utf8');
-const scene = prepareScene(cathedral);
+const scene = prepareScene(rig);
 const N = scene.count;
 const layerOf = (layer) => prepareLayer(scene, layer, compileLayer(layer));
 const frame = (layers, t, look) => renderFrame(scene, layers, t, undefined, look);

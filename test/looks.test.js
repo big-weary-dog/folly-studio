@@ -40,8 +40,10 @@ describe('looks', () => {
     assert.equal(look.shared, false);
     assert.equal(look.reviewed, false);
     assert.equal('versions' in look, false);
-    assert.deepEqual(look.layers, [{ id: 'l1', title: '', code: PIXEL, groups: ['cathedral'], blend: 'add', level: 1,
-      params: {} }]);
+    assert.deepEqual(look.layers, [{ id: 'l1', title: '', code: PIXEL, groups: [], blend: 'add', level: 1,
+      params: {} }], 'no groups: the rig\'s root');
+    const tagged = await alice.post('/api/looks', { title: 'Portable', layers: [layer({ tags: ['rose', 'rose'] })] });
+    assert.deepEqual(tagged.json.look.layers[0].tags, ['rose']);
 
     const bads = [
       { layers: [layer()] },
@@ -51,6 +53,8 @@ describe('looks', () => {
       { title: 'x', layers: [layer({ code: `// ${'x'.repeat(20 * 1024)}` })] },
       { title: 'x', layers: [layer({ groups: 'cathedral' })] },
       { title: 'x', layers: [layer({ groups: [1] })] },
+      { title: 'x', layers: [layer({ tags: ['Not a tag'] })] },
+      { title: 'x', layers: [layer({ tags: 'rose' })] },
       { title: 'x', layers: [layer({ blend: 'screen' })] },
       { title: 'x', layers: [layer({ level: 1.5 })] },
       { title: 'x', layers: [layer({ level: -0.1 })] },

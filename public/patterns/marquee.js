@@ -15,7 +15,7 @@ function frame(t, P, G) {
 }
 
 function pixel(p, t, P) {
-  const sp = round(P.spacing), at = (P.alternate && p.strand % 2 ? p.n - 1 - p.i : p.i) - floor(run);
+  const sp = round(P.spacing), at = (P.alternate && p.fixture % 2 ? p.n - 1 - p.i : p.i) - floor(run);
   const grp = floor(at / sp);
   if (at - grp * sp >= round(P.size)) return pal('low', p.u);
   return grp & 1 ? pal('accent', p.u) : pal('body', p.u);

@@ -6,7 +6,8 @@
 //     --host <ip>        unicast destination (default 127.0.0.1)
 //     --multicast        send to 239.255.{hi}.{lo} per universe instead
 //     --port <n>         UDP port (default 5568)
-//     --universes a-b    universes to send (default 1-80); each carries 510 channels in 512 slots
+//     --rig <rig.json>   the installation (default public/data/rig.json): its universes and channels per universe
+//     --universes a-b    universes to send (default: all the rig's); each carries its channels in 512 slots
 //     --loop             start again at the end (default: play once, then terminate the streams)
 //     --hold <frame>     keep sending that one frame (with --seconds, for that long)
 //     --seconds <s>      stop after s seconds
@@ -103,12 +104,12 @@ export function multicastAddress(universe) {
 }
 
 /**
- * Copy a universe's 510 channels from a full frame (absolute channel (u − 1) × 510 + (ch − 1)) into
- * its packet's slots 1-510; slots 511 and 512 stay zero.
+ * Copy a universe's channels from a full frame (absolute channel (u − 1) × cpu + (ch − 1)) into
+ * its packet's first slots; the rest of its 512 stay zero.
  */
-export function fillSlots(packet, frame, universe) {
-  const from = (universe - 1) * CHANNELS_PER_UNIVERSE;
-  const end = Math.min(from + CHANNELS_PER_UNIVERSE, frame.length);
+export function fillSlots(packet, frame, universe, cpu = CHANNELS_PER_UNIVERSE) {
+  const from = (universe - 1) * cpu;
+  const end = Math.min(from + cpu, frame.length);
   if (end > from) packet.set(frame.subarray(from, end), E131.DATA);
   packet.fill(0, E131.DATA + Math.max(0, end - from), E131.LENGTH);
   return packet;
@@ -116,15 +117,15 @@ export function fillSlots(packet, frame, universe) {
 
 /**
  * A show from .fseq bytes: { frames, stepMs, fps, channels, frame(n, out?) → Uint8Array(channels) },
- * every frame expanded to absolute channels (sparse ranges placed, the rest zero), at least 80 × 510.
+ * every frame expanded to absolute channels (sparse ranges placed, the rest zero), at least `minChannels`.
  */
-export function readShow(bytes, { maxDataBytes = 2 ** 31 - 1 } = {}) {
+export function readShow(bytes, { maxDataBytes = 2 ** 31 - 1, minChannels = MAX_CHANNELS } = {}) {
   const parsed = parseFseq(bytes, {
     maxBytes: Math.max(bytes.length, 1), maxDataBytes, maxChannels: 2 ** 24, decompress: inflateBlock,
   });
   const { data, ranges, channelCount, frameCount, stepMs } = parsed;
   const span = ranges.reduce((m, [start, count]) => Math.max(m, start + count), 0);
-  const channels = Math.max(MAX_CHANNELS, span);
+  const channels = Math.max(minChannels, span);
   const frame = (n, out) => {
     const full = out && out.length >= channels ? out : new Uint8Array(channels);
     const i = Math.min(Math.max(0, Math.floor(n)), frameCount - 1);
@@ -146,9 +147,9 @@ export function readShow(bytes, { maxDataBytes = 2 ** 31 - 1 } = {}) {
  */
 export class SacnSender {
   constructor({ socket, host = '127.0.0.1', port = E131.PORT, multicast = false, cid, name, priority = 100,
-    universes = [1, 80] }) {
+    universes = [1, 80], channelsPerUniverse = CHANNELS_PER_UNIVERSE }) {
     const cidBuf = cid ? cidBytes(cid) : cidBytes();
-    Object.assign(this, { socket, host, port, multicast, packets: 0, frames: 0 });
+    Object.assign(this, { socket, host, port, multicast, packets: 0, frames: 0, cpu: channelsPerUniverse });
     this.streams = [];
     for (let u = universes[0]; u <= universes[1]; u++) {
       const template = e131Packet({ cid: cidBuf, name, priority, universe: u });
@@ -159,7 +160,7 @@ export class SacnSender {
 
   #emit(frame, options) {
     for (const s of this.streams) {
-      const p = fillSlots(s.free.pop() ?? Buffer.from(s.template), frame, s.universe);
+      const p = fillSlots(s.free.pop() ?? Buffer.from(s.template), frame, s.universe, this.cpu);
       p[E131.SEQUENCE] = s.sequence;
       p[E131.OPTIONS] = options;
       s.sequence = (s.sequence + 1) & 0xff;
@@ -180,13 +181,14 @@ export class SacnSender {
   }
 }
 
-const USAGE = 'usage: node tools/sacn-play.mjs <show.fseq> [--host ip | --multicast] [--port n] [--universes a-b]'
-  + ' [--loop] [--hold frame] [--seconds s] [--fps n] [--priority n] [--name text] [--quiet]';
+const USAGE = 'usage: node tools/sacn-play.mjs <show.fseq> [--host ip | --multicast] [--port n] [--rig rig.json]'
+  + ' [--universes a-b] [--loop] [--hold frame] [--seconds s] [--fps n] [--priority n] [--name text] [--quiet]';
+const RIG = fileURLToPath(new URL('../public/data/rig.json', import.meta.url));
 
 /** Command-line options; throws with the usage on anything unknown or out of range. */
 export function parseArgs(argv) {
-  const o = { host: '127.0.0.1', port: E131.PORT, multicast: false, universes: [1, 80], loop: false, hold: null,
-    seconds: null, fps: null, priority: 100, name: 'Folly Studio sacn-play', quiet: false, file: null };
+  const o = { host: '127.0.0.1', port: E131.PORT, multicast: false, universes: null, loop: false, hold: null,
+    seconds: null, fps: null, priority: 100, name: 'Folly Studio sacn-play', quiet: false, file: null, rig: RIG };
   const num = (v, flag, lo, hi) => {
     const n = Number(v);
     if (v === undefined || !Number.isFinite(n) || n < lo || n > hi) throw new Error(`${flag}: ${lo}-${hi}\n${USAGE}`);
@@ -205,10 +207,11 @@ export function parseArgs(argv) {
     else if (a === '--priority') o.priority = num(next(), a, 0, 200) | 0;
     else if (a === '--name') o.name = String(next() ?? '');
     else if (a === '--quiet') o.quiet = true;
+    else if (a === '--rig') o.rig = String(next() ?? '');
     else if (a === '--universes') {
       const m = /^(\d+)(?:-(\d+))?$/.exec(next() || '');
       const lo = m ? +m[1] : 0, hi = m ? +(m[2] ?? m[1]) : 0;
-      if (!m || lo < 1 || hi > 80 || lo > hi) throw new Error(`--universes: a-b within 1-80\n${USAGE}`);
+      if (!m || lo < 1 || hi > 63999 || lo > hi) throw new Error(`--universes: a-b within 1-63999\n${USAGE}`);
       o.universes = [lo, hi];
     } else if (a === '-h' || a === '--help') throw new Error(USAGE);
     else if (!a.startsWith('-') && !o.file) o.file = a;
@@ -268,7 +271,14 @@ async function main() {
     process.exitCode = 2;
     return;
   }
-  const show = readShow(new Uint8Array(readFileSync(o.file)));
+  const { universes, channelsPerUniverse } = JSON.parse(readFileSync(o.rig, 'utf8')).output;
+  o.universes ||= [1, universes];
+  if (o.universes[1] > universes) {
+    console.error(`--universes: the rig has universes 1-${universes}`);
+    process.exitCode = 2;
+    return;
+  }
+  const show = readShow(new Uint8Array(readFileSync(o.file)), { minChannels: universes * channelsPerUniverse });
   if (o.hold !== null && o.hold >= show.frames) {
     console.error(`--hold ${o.hold}: the file has ${show.frames} frames`);
     process.exitCode = 2;
@@ -277,7 +287,7 @@ async function main() {
   const socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
   await new Promise((resolve) => socket.bind(0, resolve));
   if (o.multicast) socket.setMulticastTTL(1);
-  const sender = new SacnSender({ socket, ...o });
+  const sender = new SacnSender({ socket, ...o, channelsPerUniverse });
   const what = o.hold !== null ? `holding frame ${o.hold}` : `${show.frames} frames${o.loop ? ', looping' : ''}`;
   const kind = `${show.sparse ? 'sparse' : 'full'}${show.compression === 'none' ? '' : `, ${show.compression}`}`;
   const to = o.multicast ? 'multicast 239.255.x.x' : o.host;

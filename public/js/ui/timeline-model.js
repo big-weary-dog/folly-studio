@@ -1,6 +1,6 @@
 // Timeline edits as pure functions (SPEC "Timeline"): clips [{ start, end, fadeIn, fadeOut }] in seconds, sorted,
 // not overlapping. Each edit returns new arrays and keeps those rules, so the server accepts what the editor makes.
-import { DEFAULT_DURATION, MAX_CLIPS, MAX_DURATION, MIN_DURATION } from '../core/scene.js';
+import { DEFAULT_DURATION, MAX_CLIPS, MAX_DURATION, MIN_DURATION } from '../core/timeline.js';
 
 export { DEFAULT_DURATION, MAX_DURATION };
 const MAX_LAYERS = 8;

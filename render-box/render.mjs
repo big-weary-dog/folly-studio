@@ -2,13 +2,13 @@
 // Folly Studio render box: bakes one look into FSEQ frames.
 //
 //   node render.mjs --out DIR [--seconds S] [--frame-ms 2000]  < look.json
-//   → DIR/frames.fseq  FSEQ v2 at 40 fps from t = 0, sparse: only the channels the LED map uses,
+//   → DIR/frames.fseq  FSEQ v2 at the rig's fps from t = 0, sparse: only the channels the rig's LEDs use,
 //                      for bakeSeconds(look, S) (renderer.mjs); clips are honoured by the core.
 //     DIR/result.json  { ok, error?, frames, seconds, channels, ranges, msPerFrame, layers }
 //   exit 0 when frames.fseq was written, 1 when the look could not be baked.
 //
 // src/render-box.js runs this inside bubblewrap: no network, nothing writable but DIR, read-only
-// node, this file, renderer.mjs, the bundled core, fseq.js, cathedral.json and the pattern library (patterns/,
+// node, this file, renderer.mjs, the bundled core, fseq.js, rig.json and the pattern library (patterns/,
 // what use() runs), rlimits and a wall
 // clock. That is the boundary. In here the core is not imported: its source and renderer() run in a
 // node:vm realm with the look, so patterns see only the stdlib and the ECMAScript built-ins (no
@@ -54,8 +54,9 @@ try {
 }
 const layers = look && Array.isArray(look.layers) ? look.layers : null;
 if (!layers || !layers.length) fail('the look has no layers');
-const cathedralText = readFileSync(path.join(HERE, 'cathedral.json'), 'utf8');
-const ranges = ledRanges(JSON.parse(cathedralText));
+const rigText = readFileSync(path.join(HERE, 'rig.json'), 'utf8');
+const rig = JSON.parse(rigText);
+const ranges = ledRanges(rig), fps = rig.output?.fps || FPS;
 const extra = { globals: look.globals, automation: look.automation, bpm: look.bpm,
   library: readLibrary(path.join(HERE, 'patterns')) };
 
@@ -69,7 +70,7 @@ const context = vm.createContext(Object.create(null), {
   microtaskMode: 'afterEvaluate', // promise jobs run inside each timed call
 });
 context.__input = JSON.stringify({ layers, ranges, extra });
-context.__cathedral = cathedralText;
+context.__rig = rigText;
 
 const DRIVER = `(function () {
 'use strict';
@@ -78,9 +79,9 @@ const DRIVER = `(function () {
 const { Math, Array, Error, TypeError, Float32Array, Float64Array, Int32Array, Uint8Array, Uint32Array, JSON, Map, Set,
   Number, Object, String, Function, isFinite, parseInt } = globalThis;
 const __in = JSON.parse(globalThis.__input);
-const __cathedral = JSON.parse(globalThis.__cathedral);
+const __rig = JSON.parse(globalThis.__rig);
 delete globalThis.__input;
-delete globalThis.__cathedral;
+delete globalThis.__rig;
 const __noop = function () {};
 Object.defineProperty(globalThis, 'console', { value: Object.freeze({ log: __noop, info: __noop, warn: __noop,
   error: __noop, debug: __noop }) });
@@ -89,7 +90,7 @@ ${core}
 ;return { prepareScene, prepareLayer, compileLayer, prepareLook, setLibrary, renderFrame, toChannels, describeError };
 })();
 ${renderer}
-const r = renderer(core, __cathedral, __in.layers, __in.ranges, __in.extra);
+const r = renderer(core, __rig, __in.layers, __in.ranges, __in.extra);
 const errorText = (errors) => (errors.length
   ? JSON.stringify(errors.map((e) => ({ id: String(e.id), error: String(e.error).slice(0, 300) }))) : '');
 Object.defineProperty(globalThis, '__next', { value: () => errorText(r.next()) });
@@ -118,20 +119,21 @@ if (!ArrayBuffer.isView(packed) || TA_LENGTH.call(packed) !== channels) {
   fail('the render realm returned no frame buffer');
 }
 
-const frames = Math.max(1, Math.round(bakeSeconds(look, option('--seconds')) * FPS));
+const frames = Math.max(1, Math.round(bakeSeconds(look, option('--seconds')) * fps));
 const step = new vm.Script('__next()', { filename: 'render-box-frame' });
 const baked = bakeLoop(frames, packed, (f) => {
   let errors;
   try {
     errors = step.runInContext(context, { timeout: frameMs });
   } catch (e) {
-    const at = `t = ${(f / FPS).toFixed(2)} s`;
+    const at = `t = ${(f / fps).toFixed(2)} s`;
     fail(timedOut(e) ? `a layer took over ${frameMs} ms on the frame at ${at}` : `rendering stopped at ${at}`);
   }
   return JSON.parse(text(errors, 64 * 1024) || '[]');
-});
+}, fps);
 
-writeFileSync(path.join(outDir, 'frames.fseq'), writeFseq({ frames, stepMs: 1000 / FPS, data: baked.data, ranges }));
+const fseq = writeFseq({ frames, stepMs: Math.round(1000 / fps), data: baked.data, ranges });
+writeFileSync(path.join(outDir, 'frames.fseq'), fseq);
 const { data, ...stats } = baked;
 Object.assign(result, { ok: true, ...stats, channels, ranges: ranges.length });
 finish(0);

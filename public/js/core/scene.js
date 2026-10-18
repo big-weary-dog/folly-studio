@@ -1,43 +1,72 @@
-// The scene (cathedral.json as typed arrays), group membership, and the timeline's clips.
-import { clamp, hash, isNum } from './stdlib.js';
+// The scene: a rig (SPEC "Rig") as typed arrays in the pattern frame (x depth front → back, y up, z left →
+// right), its fixtures, attrs, groups and tags, and the regions the flash checks watch.
+import { hash } from './stdlib.js';
 
-/** cathedral.json -> a scene of typed arrays (CSV order), shared by every layer. */
-export function prepareScene(cathedral) {
-  if (!cathedral || !cathedral.pixels) throw new Error('prepareScene: not a cathedral.json');
-  const N = cathedral.count | 0;
-  const px = cathedral.pixels;
-  for (const k of ['zone', 'strand', 'universe', 'channel', 'row']) {
-    if (!px[k] || px[k].length !== N) throw new Error(`prepareScene: pixels.${k} must have ${N} entries`);
-  }
-  if (!px.pos || px.pos.length !== N * 3) throw new Error(`prepareScene: pixels.pos must have ${N * 3} entries`);
-  const lo = cathedral.bounds.min, hi = cathedral.bounds.max;
+const AXIS = /^([+-])([xyz])$/;
+const ORDERS = ['RGB', 'RBG', 'GRB', 'GBR', 'BRG', 'BGR'];
+const bad = (msg) => { throw new Error(`prepareScene: ${msg}`); };
+const int = (v, lo = 1) => Number.isInteger(v) && v >= lo;
+
+/** For depth, up and right: [rig axis index, sign]. Depth runs away from the front. */
+function frameOf(axes = {}) {
+  const [front, up, right] = ['front', 'up', 'right'].map((k) => {
+    const m = AXIS.exec(axes[k] ?? { front: '-x', up: '+y', right: '+z' }[k]) || bad(`axes.${k} must be ±x, ±y or ±z`);
+    return ['xyz'.indexOf(m[2]), m[1] === '+' ? 1 : -1];
+  });
+  if (new Set([front[0], up[0], right[0]]).size < 3) bad('axes must name three different axes');
+  return [[front[0], -front[1]], up, right];
+}
+
+/** rig.json → a scene of typed arrays (pixel order), shared by every layer. Throws on a malformed rig. */
+export function prepareScene(rig) {
+  if (!rig || !rig.pixels || !Array.isArray(rig.fixtures)) bad('not a rig (SPEC "Rig")');
+  const N = rig.count, px = rig.pixels, out = rig.output || {};
+  if (!int(N, 0)) bad('count must be a whole number');
+  for (const k of ['universe', 'channel']) if (px[k]?.length !== N) bad(`pixels.${k} must have ${N} entries`);
+  if (px.pos?.length !== N * 3) bad(`pixels.pos must have ${N * 3} entries`);
+  const cpu = out.channelsPerUniverse, universes = out.universes, order = out.order ?? 'RGB';
+  if (!int(cpu, 3) || !int(universes)) bad('output needs universes and channelsPerUniverse');
+  if (!rig.bounds?.min || !rig.bounds.max) bad('bounds needs min and max');
+  if (!ORDERS.includes(order)) bad(`output.order must be one of ${ORDERS.join(', ')}`);
+  const frame = frameOf(rig.axes);
+  const lo = frame.map(([a, s]) => (s > 0 ? rig.bounds.min[a] : -rig.bounds.max[a]));
+  const hi = frame.map(([a, s]) => (s > 0 ? rig.bounds.max[a] : -rig.bounds.min[a]));
   const span = [0, 1, 2].map((i) => (hi[i] - lo[i]) || 1);
-  const cpu = cathedral.channelsPerUniverse || 510;
-  const zones = cathedral.zones.slice();
-  const zoneIndex = new Map(zones.map((z, i) => [z, i]));
-  const petalOfZone = zones.map((z) => { const m = /^rose-petal-(\d+)$/.exec(z); return m ? +m[1] - 1 : -1; });
-  const strands = cathedral.strands || [];
   const F = () => new Float64Array(N), I = () => new Int32Array(N);
+  const zones = [], zoneIndex = new Map(), fixtureIndex = new Map(), groups = rig.groups || [];
+  const attrs = new Map(Object.entries(px.attrs || {}).map(([name, v]) => {
+    if (v?.length !== N) bad(`pixels.attrs.${name} must have ${N} entries`);
+    return [name, Float64Array.from(v)];
+  }));
   const s = {
-    count: N, channelsPerUniverse: cpu, universes: cathedral.universes, frameChannels: cathedral.universes * cpu,
-    bounds: { min: lo.slice(), max: hi.slice() }, zones, zoneIndex, strands, groups: cathedral.groups || [],
-    groupById: new Map((cathedral.groups || []).map((g) => [g.id, g])), groupCache: new Map(),
-    X: F(), Y: F(), Z: F(), x: F(), y: F(), z: F(),
-    zone: Int32Array.from(px.zone), strand: Int32Array.from(px.strand), row: Int32Array.from(px.row),
-    petal: I(), u: F(), i: I(), n: I(), seed: F(), addr: I(),
+    rig, count: N, channelsPerUniverse: cpu, universes, frameChannels: universes * cpu, fps: out.fps || 40,
+    order: [...'RGB'].map((c) => order.indexOf(c)), frame, bounds: { min: lo, max: hi }, zones, zoneIndex,
+    fixtures: rig.fixtures, fixtureIndex, attrs, groups, groupById: new Map(groups.map((g) => [g.id, g])),
+    root: groups.find((g) => g.parent == null) || null, groupCache: new Map(), tagCache: new Map(),
+    X: F(), Y: F(), Z: F(), x: F(), y: F(), z: F(), zone: I(), fixture: I(),
+    ring: attrs.get('ring') || F(), sector: attrs.get('sector') || F().fill(-1),
+    u: F(), i: I(), n: I(), seed: F(), addr: I(), centresOf: (tag) => tagCentres(s, tag),
   };
+  let next = 0;
+  rig.fixtures.forEach((f, j) => {
+    if (f.start !== next || !int(f.count, 0)) bad(`fixture ${f.id} must start at ${next} (fixtures tile the pixels)`);
+    const zone = f.zone ?? f.id;
+    if (!zoneIndex.has(zone)) { zoneIndex.set(zone, zones.length); zones.push(zone); }
+    fixtureIndex.set(f.id, j);
+    for (let i = 0, n = f.count, k = next; i < n; i++, k++) {
+      s.zone[k] = zoneIndex.get(zone); s.fixture[k] = j; s.i[k] = i; s.n[k] = n; s.u[k] = n > 1 ? i / (n - 1) : 0;
+    }
+    next += f.count;
+  });
+  if (next !== N) bad(`fixtures cover ${next} of ${N} pixels`);
+  const P = [s.X, s.Y, s.Z], p = [s.x, s.y, s.z];
   for (let k = 0; k < N; k++) {
-    const X = px.pos[3 * k], Y = px.pos[3 * k + 1], Z = px.pos[3 * k + 2];
-    s.X[k] = X; s.Y[k] = Y; s.Z[k] = Z;
-    s.x[k] = (X - lo[0]) / span[0]; s.y[k] = (Y - lo[1]) / span[1]; s.z[k] = (Z - lo[2]) / span[2];
-    s.petal[k] = petalOfZone[s.zone[k]] ?? -1;
+    for (let c = 0; c < 3; c++) {
+      const [a, sign] = frame[c], v = sign * px.pos[3 * k + a];
+      P[c][k] = v; p[c][k] = (v - lo[c]) / span[c];
+    }
     s.seed[k] = hash(k * 7919 + 13);
     s.addr[k] = (px.universe[k] - 1) * cpu + (px.channel[k] - 1);
-    s.n[k] = 1;
-  }
-  for (const st of strands) {
-    const n = st.count | 0;
-    for (let j = 0; j < n; j++) { const k = st.start + j; s.i[k] = j; s.n[k] = n; s.u[k] = n > 1 ? j / (n - 1) : 0; }
   }
   return s;
 }
@@ -47,18 +76,18 @@ function groupMembers(scene, g, seen = new Set()) {
   if (cached) return cached;
   if (seen.has(g.id)) return new Int32Array(0);
   seen.add(g.id);
-  const N = scene.count;
-  const mask = new Uint8Array(N);
-  const zoneSet = new Set((g.zones || []).map((z) => (typeof z === 'number' ? z : scene.zoneIndex.get(z))));
-  const strandSet = new Set(g.strands || []);
-  const rows = g.rows && g.rows.length ? new Set(g.rows) : null;
-  if (zoneSet.size || strandSet.size) {
+  const N = scene.count, mask = new Uint8Array(N);
+  const fixtures = new Set((g.fixtures || []).map((id) => scene.fixtureIndex.get(id)));
+  const zones = new Set((g.zones || []).map((z) => scene.zoneIndex.get(z)));
+  const where = Object.entries(g.where || {}).map(([a, vs]) => [scene.attrs.get(a), new Set(vs)]);
+  const any = !fixtures.size && !zones.size;
+  if (!any || where.length) {
     for (let k = 0; k < N; k++) {
-      const hit = zoneSet.has(scene.zone[k]) || strandSet.has(scene.strand[k]);
-      if (hit && (!rows || rows.has(scene.row[k]))) mask[k] = 1;
+      if ((any || fixtures.has(scene.fixture[k]) || zones.has(scene.zone[k]))
+        && where.every(([v, set]) => v && set.has(v[k]))) mask[k] = 1;
     }
   } else {
-    // A group with no zones or strands of its own is the union of its children.
+    // A group with no fixtures, zones or where of its own is the union of its children.
     for (const child of scene.groups) {
       if (child.parent === g.id) for (const k of groupMembers(scene, child, seen)) mask[k] = 1;
     }
@@ -76,78 +105,101 @@ function maskToIndex(mask) {
   return out;
 }
 
-/** Pixel indices (ascending, unique) in the union of the groups `ids`. Unknown ids throw. */
-export function pixelsForGroups(scene, ids) {
-  const list = ids === undefined || ids === null ? ['cathedral'] : Array.isArray(ids) ? ids : [ids];
-  if (list.length === 1) {
-    const g = scene.groupById.get(list[0]);
-    if (!g) throw new Error(`unknown group "${list[0]}"`);
-    return groupMembers(scene, g).slice();
+const members = (scene, id) => (scene.groupById.has(id) ? groupMembers(scene, scene.groupById.get(id))
+  : Int32Array.from({ length: scene.count }, (_, k) => k)); // a rig without groups: all of it
+
+/** Groups tagged `tag`, outermost first (cached). */
+export function groupsByTag(scene, tag) {
+  let list = scene.tagCache.get(tag);
+  if (!list) {
+    const depth = (g) => {
+      let d = 0;
+      for (let p = g; p?.parent != null && d < 64; d++) p = scene.groupById.get(p.parent);
+      return d;
+    };
+    list = scene.groups.filter((g) => Array.isArray(g.tags) && g.tags.includes(tag))
+      .map((g) => [depth(g), g]).sort((a, b) => a[0] - b[0]).map(([, g]) => g);
+    scene.tagCache.set(tag, list);
   }
+  return list;
+}
+
+/**
+ * A layer's pixels (ascending, unique): its group ids; when it names none, or one this rig lacks, the known ones
+ * plus the groups tagged with any of `tags`; nothing at all: the root. An unknown id without tags throws.
+ */
+export function pixelsForGroups(scene, ids, tags) {
+  const list = ids == null ? [] : Array.isArray(ids) ? ids : [ids];
+  let use = list.filter((id) => scene.groupById.has(id));
+  if (use.length < list.length || !list.length) {
+    const tagged = Array.isArray(tags) && tags.length ? tags.flatMap((t) => groupsByTag(scene, t)) : null;
+    if (tagged) use = use.concat(tagged.map((g) => g.id));
+    else if (list.length) throw new Error(`unknown group "${list.find((id) => !scene.groupById.has(id))}"`);
+    else use = [scene.root?.id];
+  }
+  if (use.length === 1) return members(scene, use[0]).slice();
   const mask = new Uint8Array(scene.count);
-  for (const id of list) {
-    const g = scene.groupById.get(id);
-    if (!g) throw new Error(`unknown group "${id}"`);
-    for (const k of groupMembers(scene, g)) mask[k] = 1;
-  }
+  for (const id of use) for (const k of members(scene, id)) mask[k] = 1;
   return maskToIndex(mask);
 }
 
-// The timeline: a look lasts `duration` seconds; a layer with clips is lit only inside them.
-export const DEFAULT_DURATION = 30;
-export const MIN_DURATION = 1;
-export const MAX_DURATION = 600;
-export const MAX_CLIPS = 32;
-
-/** A look's length in seconds: `look.duration` held to 1..600, else 30. */
-export function lookDuration(look) {
-  const d = look && look.duration;
-  return isNum(d) ? clamp(d, MIN_DURATION, MAX_DURATION) : DEFAULT_DURATION;
+/** 1 where a pixel is in a group tagged `tag` (cached). */
+export function tagMask(scene, tag) {
+  const key = `#${tag}`;
+  let mask = scene.tagCache.get(key);
+  if (!mask) {
+    mask = new Uint8Array(scene.count);
+    for (const g of groupsByTag(scene, tag)) for (const k of groupMembers(scene, g)) mask[k] = 1;
+    scene.tagCache.set(key, mask);
+  }
+  return mask;
 }
 
-/**
- * Clips as the renderer uses them: [{ start, end, fadeIn, fadeOut }], finite, end > start, fades ≥ 0, sorted,
- * at most MAX_CLIPS, overlapping ones dropped; null when there are none (the layer is always on).
- */
-export function normalizeClips(clips) {
-  if (!Array.isArray(clips) || !clips.length) return null;
-  const list = [];
-  for (const c of clips) {
-    if (!c || typeof c !== 'object') continue;
-    const start = +c.start, end = +c.end;
-    if (!Number.isFinite(start) || !Number.isFinite(end) || !(end > start)) continue;
-    const fadeIn = +c.fadeIn > 0 && Number.isFinite(+c.fadeIn) ? +c.fadeIn : 0;
-    const fadeOut = +c.fadeOut > 0 && Number.isFinite(+c.fadeOut) ? +c.fadeOut : 0;
-    list.push({ start, end, fadeIn, fadeOut });
+/** Each group tagged `tag`: its `centre` (else its pixels' middle) as a frozen [X, Y, Z] (cached). */
+export function tagCentres(scene, tag) {
+  const key = `@${tag}`;
+  let list = scene.tagCache.get(key);
+  if (!list) {
+    list = Object.freeze(groupsByTag(scene, tag).map((g) => {
+      if (Array.isArray(g.centre)) return Object.freeze(scene.frame.map(([a, s]) => s * g.centre[a]));
+      const idx = groupMembers(scene, g), P = [scene.X, scene.Y, scene.Z];
+      return Object.freeze(P.map((v) => {
+        let a = Infinity, b = -Infinity;
+        for (const k of idx) { if (v[k] < a) a = v[k]; if (v[k] > b) b = v[k]; }
+        return idx.length ? (a + b) / 2 : 0;
+      }));
+    }));
+    scene.tagCache.set(key, list);
   }
-  list.sort((a, b) => a.start - b.start);
-  const out = [];
-  for (const c of list) {
-    if (out.length >= MAX_CLIPS) break;
-    if (out.length && c.start < out[out.length - 1].end) continue;
-    out.push(c);
-  }
-  return out.length ? out : null;
+  return list;
 }
 
+export const LARGE = Object.freeze({ share: 0.1, extent: 0.1, grid: 32 });
+
 /**
- * How much of a layer shows at t (0..1): 1 with no clips; in a clip [start, end) a linear ramp up over
- * fadeIn and down over fadeOut (shrunk in proportion when they overrun the clip); 0 outside. No allocation.
+ * The flash checks' regions (SPEC "Baked frames"): the whole rig (idx null), then each lit top-level group, and
+ * whether each is large: the whole, ≥ 10 % of the LEDs, or ≥ 10 % of the lit cells (1/32 of the bounds' diagonal)
+ * seen from the front (z, y) or the side (x, y).
  */
-export function layerEnvelope(clips, t) {
-  if (!clips || !clips.length) return 1;
-  let best = 0;
-  for (let i = 0; i < clips.length; i++) {
-    const c = clips[i];
-    const start = c.start, end = c.end;
-    if (!(t >= start && t < end)) continue;
-    let fi = c.fadeIn > 0 ? c.fadeIn : 0, fo = c.fadeOut > 0 ? c.fadeOut : 0;
-    const len = end - start;
-    if (fi + fo > len) { const k = len / (fi + fo); fi *= k; fo *= k; }
-    let v = 1;
-    if (fi > 0 && t < start + fi) v = (t - start) / fi;
-    if (fo > 0 && t > end - fo) { const w = (end - t) / fo; if (w < v) v = w; }
-    if (v > best) best = v;
+export function flashRegions(scene) {
+  const N = scene.count, root = scene.root, regions = [{ id: root ? root.id : 'all', idx: null }];
+  for (const g of scene.groups) {
+    const idx = root && g.parent === root.id ? groupMembers(scene, g) : [];
+    if (idx.length) regions.push({ id: g.id, idx: idx.slice() });
   }
-  return best;
+  const { min: lo, max: hi } = scene.bounds, P = [scene.X, scene.Y, scene.Z];
+  const cell = Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) / LARGE.grid || 1;
+  const at = (k, a) => Math.floor((P[a][k] - lo[a]) / cell);
+  const area = (idx, [u, v]) => {
+    const cells = new Set();
+    for (let i = 0, n = idx ? idx.length : N; i < n; i++) {
+      const k = idx ? idx[i] : i;
+      cells.add(at(k, u) * 65536 + at(k, v));
+    }
+    return cells.size;
+  };
+  const views = [[2, 1], [0, 1]];
+  const whole = views.map((view) => area(null, view));
+  return regions.map((r) => ({ ...r, large: !r.idx || r.idx.length >= LARGE.share * N
+    || views.some((view, i) => area(r.idx, view) >= LARGE.extent * whole[i]) }));
 }

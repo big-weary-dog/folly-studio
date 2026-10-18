@@ -44,7 +44,7 @@ before(async () => {
   await writeFile(path.join(dir, 'js', 'sandbox-worker.js'), "import { renderFrame } from './pattern-core.js';\n");
   await writeFile(path.join(dir, 'js', 'big.js'), BIG_JS);
   await writeFile(path.join(dir, 'js', 'tiny.js'), 'export const a = 1;\n');
-  await writeFile(path.join(dir, 'data', 'cathedral.json'), JSON.stringify({ pos: Array.from({ length: 3000 }, (_,
+  await writeFile(path.join(dir, 'data', 'rig.json'), JSON.stringify({ pos: Array.from({ length: 3000 }, (_,
     i) => +(i * 0.137).toFixed(3)) }));
   await writeFile(path.join(dir, 'pic.png'), Buffer.alloc(4096, 7));
   const serve = createStatic({ publicDir: dir, log: quiet });
@@ -99,7 +99,7 @@ describe('serving', () => {
   });
 
   test('brotli when accepted', async () => {
-    const r = await get('/data/cathedral.json', { 'accept-encoding': 'gzip, deflate, br' });
+    const r = await get('/data/rig.json', { 'accept-encoding': 'gzip, deflate, br' });
     assert.equal(r.headers['content-encoding'], 'br');
     const json = JSON.parse(zlib.brotliDecompressSync(r.body).toString());
     assert.equal(json.pos.length, 3000);

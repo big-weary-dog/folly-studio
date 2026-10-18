@@ -94,8 +94,7 @@ describe('wire format', () => {
   });
 
   test('real frames from the library round-trip, smooth looks as planar deltas', async () => {
-    const cathedral = JSON.parse(readFileSync(new URL('../public/data/cathedral.json', import.meta.url), 'utf8'));
-    const scene = prepareScene(cathedral);
+    const scene = prepareScene(JSON.parse(readFileSync(new URL('../public/data/rig.json', import.meta.url), 'utf8')));
     const C = scene.frameChannels;
     for (const name of ['palette-drift', 'meteors']) {
       const code = readFileSync(new URL(`../public/patterns/${name}.js`, import.meta.url), 'utf8');
@@ -186,8 +185,8 @@ function smallMap() {
   const universe = [], channel = [];
   for (let k = 0; k < 30; k++) { universe.push(1); channel.push(k * 3 + 1); }
   for (let k = 0; k < 4; k++) { universe.push(3); channel.push(k * 3 + 1); }
-  const cathedral = { count: 34, channelsPerUniverse: 510, pixels: { universe, channel } };
-  return { cathedral, ranges: [[0, 90], [1020, 12]] };
+  const rig = { count: 34, output: { universes: 3, channelsPerUniverse: 510 }, pixels: { universe, channel } };
+  return { rig, ranges: [[0, 90], [1020, 12]] };
 }
 
 /** A fetch that serves one encoded bake; chunk responses can be held back with hold(n). */
@@ -221,7 +220,7 @@ function fakeServer(manifest, chunks, { pending = 0 } = {}) {
 const tick = () => new Promise((r) => setImmediate(r));
 
 describe('streaming playback', () => {
-  const { cathedral, ranges } = smallMap();
+  const { rig, ranges } = smallMap();
   const C = 102;
   const data = frames(5 * CHUNK_FRAMES + 7, C, 11);
   const expect = (f) => {
@@ -238,7 +237,7 @@ describe('streaming playback', () => {
     const srv = fakeServer(manifest, chunks);
     const late = srv.hold(4);
     const arrived = [];
-    const stream = await openFrameStream('look1', cathedral, { fetch: srv.fetch, onChunk: (n) => arrived.push(n) });
+    const stream = await openFrameStream('look1', rig, { fetch: srv.fetch, onChunk: (n) => arrived.push(n) });
     assert.equal(srv.calls[0], '/api/looks/look1/frames/wire');
     assert.equal(srv.calls[1], `/api/looks/look1/frames/${manifest.hash}/0`);
     assert.equal(stream.frameCount, data.length / C);
@@ -281,7 +280,7 @@ describe('streaming playback', () => {
     assert.deepEqual(waits, [1000, 1000]);
     const error = { error: 'This look has no baked frames.' };
     const gone = async () => ({ status: 404, ok: false, headers: new Headers(), json: async () => error });
-    await assert.rejects(openFrameStream('x', cathedral, { fetch: gone }), { status: 404, message: /no baked frames/ });
+    await assert.rejects(openFrameStream('x', rig, { fetch: gone }), { status: 404, message: /no baked frames/ });
   });
 });
 

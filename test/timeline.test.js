@@ -20,7 +20,7 @@ import { validateLook } from '../src/generate/validate.js';
 
 const STUDIO = fileURLToPath(new URL('../', import.meta.url));
 const PUBLIC = path.join(STUDIO, 'public');
-const cathedral = JSON.parse(fs.readFileSync(path.join(PUBLIC, 'data/cathedral.json'), 'utf8'));
+const rig = JSON.parse(fs.readFileSync(path.join(PUBLIC, 'data/rig.json'), 'utf8'));
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const near = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) <= eps, `${a} ≉ ${b}`);
 const WHITE = 'function pixel() { return [1, 1, 1]; }';
@@ -102,7 +102,7 @@ describe('normalizeClips and lookDuration', () => {
 });
 
 describe('renderFrame with clips', () => {
-  const scene = prepareScene(cathedral);
+  const scene = prepareScene(rig);
 
   /** A hand-made "compiled" pattern that counts its calls and records the t it was given. */
   function spy(color = [1, 1, 1]) {

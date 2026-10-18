@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-export const FPS = 40;
+export const FPS = 40; // when the rig gives none (SPEC "Rig": output.fps)
 
 /** The library's sources in `dir` (index.json and its files), for use(): [{ name, code }]; none if missing. */
 export function readLibrary(dir) {
@@ -28,14 +28,14 @@ export function bakeSeconds(look, asked) {
 }
 
 /**
- * renderer(core, cathedral, layers, ranges, look?) → { compileErrors, packed, next() → errors }: compiles
- * the layers (each a module chain), then each next() renders the following frame (t = f / 40) into `packed`,
+ * renderer(core, rig, layers, ranges, look?) → { compileErrors, packed, next() → errors }: compiles
+ * the layers (each a module chain), then each next() renders the following frame (t = f / fps) into `packed`,
  * which holds only the ranged channels. look: { globals?, automation?, bpm?, library? } (library: what use()
  * runs). Self-contained, because the render box runs its source in the pattern realm: it uses nothing from
  * this module.
  */
-export function renderer(core, cathedral, layers, ranges, look) {
-  const scene = core.prepareScene(cathedral);
+export function renderer(core, rig, layers, ranges, look) {
+  const scene = core.prepareScene(rig);
   core.setLibrary(look && look.library);
   const prepared = [];
   const compileErrors = [];
@@ -53,7 +53,7 @@ export function renderer(core, cathedral, layers, ranges, look) {
   const packed = new Uint8Array(ranges.reduce((n, r) => n + r[1], 0));
   let f = 0;
   function next() {
-    const out = core.renderFrame(scene, prepared, f++ / 40, rgb, globals);
+    const out = core.renderFrame(scene, prepared, f++ / scene.fps, rgb, globals);
     core.toChannels(scene, out.rgb, full);
     let o = 0;
     for (const r of ranges) {
@@ -69,7 +69,7 @@ export function renderer(core, cathedral, layers, ranges, look) {
  * Bake `frames` frames: step(f) renders frame f into `packed` and returns its layer errors. → the
  * frames back to back, with timing and each layer's error count and first error.
  */
-export function bakeLoop(frames, packed, step) {
+export function bakeLoop(frames, packed, step, fps = FPS) {
   const data = new Uint8Array(frames * packed.length);
   const layers = new Map();
   let total = 0;
@@ -83,11 +83,11 @@ export function bakeLoop(frames, packed, step) {
     data.set(packed, f * packed.length);
     for (const e of errors) {
       const le = layers.get(e.id)
-        || { id: e.id, errorFrames: 0, firstError: `${e.error} (t = ${(f / FPS).toFixed(2)} s)` };
+        || { id: e.id, errorFrames: 0, firstError: `${e.error} (t = ${(f / fps).toFixed(2)} s)` };
       le.errorFrames++;
       layers.set(e.id, le);
     }
   }
   const msPerFrame = { average: +(total / frames).toFixed(2), worst: +worst.toFixed(2) };
-  return { data, frames, seconds: frames / FPS, msPerFrame, layers: [...layers.values()] };
+  return { data, frames, seconds: frames / fps, msPerFrame, layers: [...layers.values()] };
 }

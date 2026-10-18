@@ -93,7 +93,7 @@ export function createActions(st) {
       if (!(await confirmDialog(why, { title: 'A layer is paused', ok: 'Export anyway' }))) return;
     }
     const title = ui.titleInput.value.trim() || 'folly-look';
-    await exportFseqDialog({ runtime, cathedral: S.cathedral, title, duration: S.look.duration });
+    await exportFseqDialog({ runtime, rig: S.rig, title, duration: S.look.duration });
     // An export can find a layer that hangs: show where things stand now, even when paused.
     if (st.alive()) { runtime.refresh(); st.preview.kick(); }
   }
@@ -157,11 +157,11 @@ function packFrames(channels, frames, frameSize, ranges) {
   return channels.subarray(0, to);
 }
 
-/** exportFseqDialog({ runtime, cathedral, title, duration (the default length, s) }) */
-async function exportFseqDialog({ runtime, cathedral, title, duration = 30 }) {
+/** exportFseqDialog({ runtime, rig, title, duration (the default length, s) }) */
+async function exportFseqDialog({ runtime, rig, title, duration = 30 }) {
   const { ledRanges, writeFseq } = await import('../fseq.js');
-  const channelCount = (cathedral.universes || 80) * (cathedral.channelsPerUniverse || 510);
-  const ranges = ledRanges(cathedral);
+  const channelCount = rig.output.universes * rig.output.channelsPerUniverse;
+  const ranges = ledRanges(rig);
   const usedCount = ranges.reduce((n, r) => n + r[1], 0);
   let running = false;
 

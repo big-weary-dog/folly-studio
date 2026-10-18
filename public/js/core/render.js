@@ -2,8 +2,9 @@
 // and combine, filters rework the colour), blended into a frame, graded by the look's globals, mapped to DMX.
 import { compileModule, describeError } from './compile.js';
 import { applyMods, finish, lookFrame, paramMods, prepareLook, resolveParams } from './globals.js';
-import { layerEnvelope, normalizeClips, pixelsForGroups } from './scene.js';
-import { clamp, hex, isNum, TAU } from './stdlib.js';
+import { pixelsForGroups, tagMask } from './scene.js';
+import { clamp, hex, isNum, RUN, TAU } from './stdlib.js';
+import { layerEnvelope, normalizeClips } from './timeline.js';
 
 export const MODULE_KINDS = Object.freeze(['source', 'warp', 'filter']);
 const SOURCE = 0, WARP = 1, FILTER = 2;
@@ -113,8 +114,8 @@ function runChain(S, L, T, G) {
       q.a = L.a[j]; q.r = L.r[j];
       q.u = S.u[k]; q.i = S.i[k]; q.n = S.n[k];
       const zi = S.zone[k];
-      q.zi = zi; q.zone = zones[zi]; q.strand = S.strand[k];
-      q.row = S.row[k]; q.petal = S.petal[k];
+      q.zi = zi; q.zone = zones[zi]; q.fixture = q.strand = S.fixture[k];
+      q.ring = q.row = S.ring[k]; q.sector = q.petal = S.sector[k];
       q.k = k; q.seed = S.seed[k];
       c[0] = c[1] = c[2] = c[3] = 0;
       for (let i = 0; i < n; i++) {
@@ -148,16 +149,20 @@ function fail(L, M, msg) {
 }
 
 export const BLENDS = Object.freeze(['add', 'over', 'max', 'multiply']);
-const makePixel = () => ({ x: 0, y: 0, z: 0, X: 0, Y: 0, Z: 0, lx: 0, ly: 0, lz: 0, a: 0, r: 0, u: 0, i: 0, n: 1,
-  zone: '', zi: 0, strand: 0, row: 0, petal: -1, k: 0, seed: 0 });
+/** The pixel a layer's chain sees (SPEC "The pixel p"), reused for every LED; `attr` and `is` read its k. */
+function makePixel(S) {
+  const q = { x: 0, y: 0, z: 0, X: 0, Y: 0, Z: 0, lx: 0, ly: 0, lz: 0, a: 0, r: 0, u: 0, i: 0, n: 1, zone: '', zi: 0,
+    fixture: 0, strand: 0, ring: 0, row: 0, sector: -1, petal: -1, k: 0, seed: 0 };
+  q.attr = (name, d = 0) => { const v = S.attrs.get(name); return v ? v[q.k] : d; };
+  q.is = (tag) => tagMask(S, tag)[q.k] === 1;
+  return q;
+}
 
 /** A layer ready to render: its pixels, their lx/ly/lz (0.5 on a flat axis) and a/r, its chain and clips. */
 export function prepareLayer(scene, layer, compiled) {
   if (!compiled) throw new Error('prepareLayer: layer is not compiled');
   const chain = prepareChain(layer, compiled);
-  const given = layer && layer.groups && (Array.isArray(layer.groups) ? layer.groups.length : true);
-  const groups = given ? layer.groups : ['cathedral'];
-  const idx = pixelsForGroups(scene, groups);
+  const idx = pixelsForGroups(scene, layer && layer.groups, layer && layer.tags);
   const m = idx.length;
   let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
   for (let j = 0; j < m; j++) {
@@ -194,7 +199,7 @@ export function prepareLayer(scene, layer, compiled) {
     blend, level,
     clips: normalizeClips(layer && layer.clips),
     enabled: !(layer && layer.enabled === false),
-    p: makePixel(), c: [0.5, 0, 0, 0],
+    p: makePixel(scene), c: [0.5, 0, 0, 0],
     buf: new Float64Array(m * 4), ms: 0,
   };
 }
@@ -215,6 +220,7 @@ export function renderFrame(scene, layers, t, out, look) {
   const list = layers || [];
   const LK = look || (plainLook ||= prepareLook(null));
   lookFrame(LK, t);
+  RUN.scene = scene;
   const T = look ? LK.T : t, G = LK.G;
   for (let n = 0; n < list.length; n++) {
     const L = list[n];
@@ -266,7 +272,8 @@ function composite(rgb, L, level) {
   }
 }
 
-/** A frame of DMX (40,800 channels), each LED's RGB at its address, scaled, gamma-bent, rounded to 0..255. */
+/** A frame of DMX (the rig's channels), each LED's colour at its address in the rig's order, scaled, gamma-bent,
+ * rounded to 0..255. */
 export function toChannels(scene, rgb, out, opts) {
   if (out && !ArrayBuffer.isView(out) && opts === undefined) { opts = out; out = undefined; }
   const gamma = opts && isNum(opts.gamma) && opts.gamma > 0 ? opts.gamma : 1;
@@ -274,7 +281,7 @@ export function toChannels(scene, rgb, out, opts) {
   const size = scene.frameChannels;
   const ch = out && out.length >= size ? out : new Uint8Array(size);
   ch.fill(0, 0, size);
-  const addr = scene.addr, N = scene.count;
+  const addr = scene.addr, N = scene.count, order = scene.order;
   for (let k = 0; k < N; k++) {
     const base = addr[k];
     if (base < 0 || base + 2 >= size) continue;
@@ -282,7 +289,7 @@ export function toChannels(scene, rgb, out, opts) {
       let v = rgb[3 * k + c] * brightness;
       v = v > 0 ? (v < 1 ? v : 1) : 0;
       if (gamma !== 1) v = Math.pow(v, gamma);
-      ch[base + c] = Math.round(v * 255);
+      ch[base + order[c]] = Math.round(v * 255);
     }
   }
   return ch;

@@ -107,13 +107,13 @@ export function createLayerOps({ S, ui, preview, changed, select, selected, setT
     title: 'Add a layer', only: 'source', library: S.library,
     audition: { preview, layer: selected() || { groups: [] } },
     onPick: (e) => {
-      insertLayer(e.blank ? makeLayer({ title: 'New layer' }, S.cathedral) : layerFromPattern(e, S.cathedral));
+      insertLayer(e.blank ? makeLayer({ title: 'New layer' }, S.rig) : layerFromPattern(e, S.rig));
       setTab('code', { onlyNarrow: true });
       if (e.blank && !narrow()) ui.dock.show('code');   // a blank layer is for writing code
     } })));
   ui.dupBtn.addEventListener('click', () => {
     const l = selected();
-    if (l) insertLayer(makeLayer({ ...cleanLayer(l), title: `${l.title} copy` }, S.cathedral), layers().indexOf(l) + 1);
+    if (l) insertLayer(makeLayer({ ...cleanLayer(l), title: `${l.title} copy` }, S.rig), layers().indexOf(l) + 1);
   });
   ui.delBtn.addEventListener('click', () => {
     const l = selected();
@@ -154,7 +154,7 @@ export function createLayerOps({ S, ui, preview, changed, select, selected, setT
     if (!l) return;
     const set = new Set(l.groups);
     if (checked) set.add(id); else set.delete(id);
-    if (set.size) l.groups = [...set];
+    if (set.size) { l.groups = [...set]; delete l.tags; } // picked by hand: no longer a portable guess
     else toast('A layer needs at least one group. Tick another group first.', { kind: 'warn' });
     groupsTree().setLayer(l);
     if (!set.size) return;
@@ -166,11 +166,11 @@ export function createLayerOps({ S, ui, preview, changed, select, selected, setT
 }
 
 export class GroupsTree {
-  /** new GroupsTree(container, cathedral, index (buildGroupIndex), { onToggle(id, on), onHover(id), onPin(id) }) */
-  constructor(container, cathedral, index, handlers) {
+  /** new GroupsTree(container, index (buildGroupIndex), { onToggle(id, on), onHover(id), onPin(id) }) */
+  constructor(container, index, handlers) {
     Object.assign(this, { index, handlers, pinned: null });
     this.rows = new Map();        // id → { li, box, toggle, pin, row }
-    this.el = h('ul', { class: 'tree', 'aria-label': 'Cathedral groups' });
+    this.el = h('ul', { class: 'tree', 'aria-label': 'Groups' });
     this.empty = h('p', { class: 'pane-hint', text: 'Select a layer to choose where it plays.' });
     container.append(this.empty, this.el);
     for (const g of index.children.get(null) || []) this.el.append(this._item(g, 0));

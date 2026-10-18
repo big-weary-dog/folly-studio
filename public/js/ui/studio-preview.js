@@ -5,6 +5,7 @@ import { Runtime } from '../runtime.js';
 import { Viewer } from '../viewer.js';
 import { mb } from './bake.js';
 import { h, nextId, pref, rose, toast } from './dom.js';
+import { viewModes } from './view-mode.js';
 
 const NARROW = matchMedia('(max-width: 899px)');
 const REDUCE = matchMedia('(prefers-reduced-motion: reduce)');
@@ -30,11 +31,11 @@ export function createPreview({ S, ui, alive, timeline, onCompiled, onFrameError
   };
   p.hideMsg = () => { ui.viewerMsg.hidden = true; };
 
-  function setupViewer(cathedral) {
-    const views = cathedral.views || {};
+  function setupViewer(rig) {
+    const views = rig.views || {};
     const viewer = p.viewer = new Viewer(ui.canvas, { views, defaultView: 'fit', onError: (m) => p.showMsg(m, true) });
-    viewer.setCathedral(cathedral);
-    flash.start(cathedral, viewer);
+    viewer.setRig(rig);
+    flash.start(rig, viewer);
     // Views frame what the buttons over the view leave clear; phones' toasts sit just above the transport.
     p.ro = new ResizeObserver(() => {
       const bar = [ui.viewBar, ui.viewCompact].find((el) => el.offsetHeight);
@@ -46,8 +47,8 @@ export function createPreview({ S, ui, alive, timeline, onCompiled, onFrameError
     });
     for (const el of [ui.viewBar, ui.viewCompact, ui.paneViewer]) p.ro.observe(el);
     for (const name of ['fit', ...Object.keys(views)]) {
-      const title = name === 'fit' ? 'Frame the whole cathedral (double-click the view does this too)'
-        : `The “${name}” view from views.json`;
+      const title = name === 'fit' ? 'Frame the whole installation (double-click the view does this too)'
+        : `The “${name}” view`;
       ui.viewBar.append(h('button', { type: 'button', class: 'view-btn', dataset: { view: name },
         'aria-pressed': 'false', title, text: label(name), onClick: () => viewer.setView(name) }));
       ui.viewSelect.append(h('option', { value: name, text: label(name) }));
@@ -64,9 +65,10 @@ export function createPreview({ S, ui, alive, timeline, onCompiled, onFrameError
       pref('studio.ghost', on ? '1' : '0');
     };
     setGhost(pref('studio.ghost') !== '0');
+    viewModes(viewer, [ui.viewBar, ui.viewCompact]);
   }
 
-  function setupRuntime(cathedral, library) {
+  function setupRuntime(rig, library) {
     p.runtime = new Runtime({
       container: ui.sandboxHost,
       onFrame: (rgb) => flash.show(rgb, performance.now()),
@@ -80,12 +82,12 @@ export function createPreview({ S, ui, alive, timeline, onCompiled, onFrameError
         else if (state === 'warning' && detail) toast(detail, { kind: 'warn' });
       },
     });
-    p.runtime.start(cathedral, library);
+    p.runtime.start(rig, library);
   }
 
-  p.start = (cathedral, library = []) => {
-    setupViewer(cathedral);
-    setupRuntime(cathedral, library.map(({ name, code }) => ({ name, code })));
+  p.start = (rig, library = []) => {
+    setupViewer(rig);
+    setupRuntime(rig, library.map(({ name, code }) => ({ name, code })));
     document.addEventListener('visibilitychange', onVisibility);
     io = new IntersectionObserver((entries) => {
       onScreen = entries[entries.length - 1].isIntersecting;
@@ -149,15 +151,15 @@ export function createPreview({ S, ui, alive, timeline, onCompiled, onFrameError
       p.runtime?.pump(S.t, true);       // a fresh frame from the live look
       return p.kick();
     }
-    if (!S.look.id || !S.cathedral) return;
+    if (!S.look.id || !S.rig) return;
     p.showMsg('Loading the baked frames…');
     try {
       // A chunk that was still on its way when its frame came up has arrived: redraw it.
       let frames = null;
       const onChunk = () => { if (frames && S.baked?.frames === frames) { S.baked.index = -1; p.kick(); } };
-      frames = await openFrameStream(S.look.id, S.cathedral, { onChunk });
+      frames = await openFrameStream(S.look.id, S.rig, { onChunk });
       if (!alive() || token !== bakedLoad) return;
-      Object.assign(S, { baked: { frames, rgb: new Float32Array(S.cathedral.count * 3), index: -1 }, t: 0,
+      Object.assign(S, { baked: { frames, rgb: new Float32Array(S.rig.count * 3), index: -1 }, t: 0,
         playing: true });
       p.hideMsg();
       ui.bakedText.replaceChildren(`Baked frames · ${frames.seconds.toFixed(frames.seconds % 1 ? 1 : 0)} s`,
@@ -252,7 +254,7 @@ function flashGuard(S, ui) {
       + 'reduced motion.' : 'This look flashes quickly. Show it anyway?';
   }
   return {
-    start(cathedral, v) { guard = new FlashGuard(cathedral); viewer = v; },
+    start(rig, v) { guard = new FlashGuard(rig); viewer = v; },
     /** Shows a frame (rgb, as the viewer takes it) seen at `now` ms. */
     show(rgb, now) {
       const flashing = guard.observe(rgb, now) || (S.server?.bake?.analysis?.flicker?.ok === false && !S.dirty);

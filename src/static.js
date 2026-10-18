@@ -1,5 +1,5 @@
 // Static files from public/, the sandbox page with its worker inlined, the security headers, and the
-// loaders for the pattern library and the cathedral's groups. Text bodies are compressed once (br or gzip)
+// loaders for the pattern library and the rig. Text bodies are compressed once (br or gzip)
 // and kept until the file changes; ETags answer 304. The shell revalidates every load and names the
 // content-hashed URLs of src/assets.js, which are kept for a year; plain URLs are reused for 5 minutes.
 
@@ -250,19 +250,17 @@ function libraryIndex(data) {
 }
 
 // createLoaders(publicDir) → { loadLibrary() → [{ name, title, summary, tags, code, …index.json fields }],
-//   loadGroups() → cathedral.json's `groups` ([] until it exists) }
+//   loadRig() → rig.json (null until it exists), loadGroups() → its `groups` ([] until it exists) }
 export function createLoaders(publicDir = DEFAULT_PUBLIC_DIR, { log = console } = {}) {
   const libDir = path.join(publicDir, 'patterns');
   const indexFile = path.join(libDir, 'index.json');
-  const cathedralFile = path.join(publicDir, 'data', 'cathedral.json');
+  const rigFile = path.join(publicDir, 'data', 'rig.json');
   const index = memo(() => [indexFile], () => libraryIndex(readJson(indexFile, log)));
   const codeFile = (e) => path.join(libDir, `${e.name}.js`);
   const loadLibrary = memo(() => [indexFile, ...index().map(codeFile)], () => index().flatMap((e) => {
     try { return [{ ...e, code: readFileSync(codeFile(e), 'utf8') }]; } catch { return []; } // listed, no file
   }));
-  const loadGroups = memo(() => [cathedralFile], () => {
-    const groups = readJson(cathedralFile, log)?.groups;
-    return Array.isArray(groups) ? groups : [];
-  });
-  return { loadLibrary, loadGroups };
+  const loadRig = memo(() => [rigFile], () => readJson(rigFile, log) || null);
+  const loadGroups = () => (Array.isArray(loadRig()?.groups) ? loadRig().groups : []);
+  return { loadLibrary, loadRig, loadGroups };
 }

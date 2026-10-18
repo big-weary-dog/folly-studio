@@ -125,7 +125,7 @@ void main() {
 }`;
 
 /** A linked program and its uniforms by name: { p, u }. */
-function program(gl, vs, fs) {
+export function program(gl, vs, fs) {
   const p = gl.createProgram();
   for (const [type, src] of [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]]) {
     const s = gl.createShader(type);
@@ -205,6 +205,18 @@ export function buildGrid(v) {
   gl.bindVertexArray(null);
 }
 
+/** v.viewProj (and v._proj, v._view, v._eyeV) for this frame. The frame is the canvas below the inset: a lens
+ * shift moves its centre down, same scale. */
+export function camera(v) {
+  const W = v.canvas.width, H = v.canvas.height, vfov = v._vfov(), Hf = v._frameH();
+  perspective(v._proj, vfov, W / Hf, 0.05, 900);
+  v._proj[5] *= Hf / H;
+  v._proj[9] = (H - Hf) / H;
+  lookAt(v._view, v._eye(), v.cam.target, v._up);
+  multiply(v.viewProj, v._proj, v._view);
+  return { vfov, Hf };
+}
+
 /** One frame: sky, grid, then the LEDs as additive sprites. */
 export function draw(v) {
   const gl = v.gl;
@@ -218,13 +230,7 @@ export function draw(v) {
   gl.bindVertexArray(v.skyVao);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 
-  // The frame is the canvas below the inset: a lens shift moves its centre down, same scale.
-  const vfov = v._vfov(), Hf = v._frameH();
-  perspective(v._proj, vfov, W / Hf, 0.05, 600);
-  v._proj[5] *= Hf / H;
-  v._proj[9] = (H - Hf) / H;
-  lookAt(v._view, v._eye(), v.cam.target, v._up);
-  multiply(v.viewProj, v._proj, v._view);
+  const { vfov, Hf } = camera(v);
 
   // ground grid
   gl.enable(gl.BLEND);

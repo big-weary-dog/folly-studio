@@ -1,4 +1,4 @@
-// Rose bloom: the rose window opens ring by ring (row 1–7; elsewhere r) from its heart, holds, closes to a
+// Rose bloom: the rose window opens ring by ring (p.ring 1–7; elsewhere r) from its heart, holds, closes to a
 // bud. cycle (seconds), petals (every other leans to accent), flare (highlight as a ring opens, plus energy).
 const params = {
   cycle: { value: 6, min: 2, max: 30, step: 0.5, label: 'Seconds per bloom' },
@@ -7,7 +7,7 @@ const params = {
 };
 
 function pixel(p, t, P, G) {
-  const rr = p.row > 0 ? (p.row - 0.5) / 7 : p.r, petal = p.petal >= 0 ? p.petal : floor(p.a * 16);
+  const rr = p.ring > 0 ? (p.ring - 0.5) / 7 : p.r, petal = p.sector >= 0 ? p.sector : floor(p.a * 16);
   const ph = fract(t / P.cycle);
   const front = (smoothstep(0, 0.55, ph) - smoothstep(0.75, 1, ph)) * 1.1;
   const open = smoothstep(front, front - 0.08, rr);

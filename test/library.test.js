@@ -7,13 +7,13 @@ import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import { compileLayer, compilePattern, prepareLayer, prepareLook, prepareScene, renderFrame } from
   '../public/js/pattern-core.js';
+import { folly, mini } from './fixtures/rigs.js';
 
 const here = (p) => new URL(p, import.meta.url);
-const cathedral = JSON.parse(readFileSync(here('../public/data/cathedral.json'), 'utf8'));
 const index = JSON.parse(readFileSync(here('../public/patterns/index.json'), 'utf8'));
 const { palettes } = JSON.parse(readFileSync(here('../public/data/palettes.json'), 'utf8'));
 const source = (name) => readFileSync(here(`../public/patterns/${name}.js`), 'utf8');
-const scene = prepareScene(cathedral);
+const scene = prepareScene(folly);
 const sources = index.filter((e) => e.kind === 'source').map((e) => e.name);
 const SECOND = palettes.find((p) => p.name === 'vapour');
 const layer = (name, groups = ['cathedral']) => prepareLayer(scene, { id: name, groups }, compilePattern(source(name)));
@@ -35,6 +35,27 @@ describe('each source, under the default palette and another, at low, middle and
           const { rgb, errors } = renderFrame(scene, [L], t, undefined, look);
           assert.deepEqual(errors, [], `${palette ? palette.name : 'chapel'}, energy ${energy}, t=${t}`);
           check(rgb, `${name} (${palette ? palette.name : 'chapel'}, energy ${energy}) at t=${t}`);
+        }
+      }
+    });
+  }
+});
+
+// Every module on a rig that is not the Folly: tags stand in for its ids, and a source draws what it finds.
+describe('every library module renders finite values on the mini rig', () => {
+  const small = prepareScene(mini);
+  const BASE = { id: 'b', kind: 'source', code: 'function pixel(p, t) { return [p.x, fract(p.y + t), p.u]; }' };
+  const places = [{}, { tags: ['rose'] }, { tags: ['arch'] }, { tags: ['wash', 'canopy'] }, { tags: ['tower'] }];
+  for (const e of index) {
+    test(e.name, () => {
+      const modules = e.kind === 'source' ? [{ id: 'm', kind: 'source', code: source(e.name) }]
+        : [BASE, { id: 'm', kind: e.kind, code: source(e.name), input: 'b' }];
+      for (const [i, place] of places.entries()) {
+        const L = prepareLayer(small, { id: 'l', modules, ...place }, compileLayer({ modules }));
+        for (const [energy, t] of [[0, 0], [0.5, 3.3], [1, 59.9]]) {
+          const { rgb, errors } = renderFrame(small, [L], t, undefined, prepareLook({ globals: { energy } }));
+          assert.deepEqual(errors, [], `place ${i}, energy ${energy}, t=${t}`);
+          check(rgb, `${e.name} (place ${i}, energy ${energy}) at t=${t}`);
         }
       }
     });

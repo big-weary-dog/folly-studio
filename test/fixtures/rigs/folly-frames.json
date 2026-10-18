@@ -1,0 +1,335 @@
+{
+ "_about": "Frozen at b5d9258 (cathedral.json era) by rendering each look as the bake does (t = f / 40, default gamma and brightness) and hashing its full DMX frames. test/rig-folly.test.js renders them again on rig.json.",
+ "frames": 100,
+ "every": 10,
+ "looks": [
+  {
+   "name": "legacy layers",
+   "look": {
+    "layers": [
+     {
+      "id": "l1",
+      "title": "Bed",
+      "code": "// Palette drift: a calm bed of full-strength colour whose hues travel slowly, varying with depth, height and\n// a soft fbm swirl. A good bottom layer to stack sweeps, sparkles or chases on.\nconst params = {\n  hue: { value: 0.6, min: 0, max: 1, step: 0.01, label: 'Starting hue' },\n  drift: { value: 0.02, min: 0, max: 0.2, step: 0.005, label: 'Hue turns per second' },\n  spread: { value: 0.25, min: 0, max: 1, step: 0.01, label: 'Hue spread across the layer' },\n  swirl: { value: 0.12, min: 0, max: 0.5, step: 0.01 },\n  saturation: { value: 1, min: 0.5, max: 1, step: 0.01 },\n};\n\nfunction pixel(p, t, P) {\n  const h = P.hue + t * P.drift\n          + P.spread * (0.6 * p.lx + 0.4 * p.ly)\n          + P.swirl * (fbm(p.lx * 2, p.ly * 2, p.lz * 2 + t * 0.05) - 0.5);\n  return hsv(h, P.saturation, 1);\n}\n",
+      "level": 0.6
+     },
+     {
+      "id": "l2",
+      "title": "Rose",
+      "groups": [
+       "rose-window"
+      ],
+      "blend": "over",
+      "code": "// Rose chase: petals light in turn round the rose window (petal 0-15 clockwise, row 1-7 outward) while rings\n// breathe outward; elsewhere a and r round the layer's centre stand in, so it turns over the whole façade.\nconst params = {\n  speed: { value: 0.25, min: -2, max: 2, step: 0.01, label: 'Turns per second (− anticlockwise)' },\n  hands: { value: 2, min: 1, max: 8, step: 1 },\n  trail: { value: 3, min: 0.5, max: 12, step: 0.1, label: 'Trail (petals)' },\n  breathe: { value: 0.4, min: 0, max: 2, step: 0.01, label: 'Rings per second' },\n  base: { value: '#1b0080', type: 'color' },\n  chase: { value: '#ff00a0', type: 'color' },\n  ring: { value: '#ffb000', type: 'color' },\n};\n\nfunction pixel(p, t, P) {\n  const petal = p.petal >= 0 ? p.petal : floor(p.a * 16);\n  const ring = p.row > 0 ? p.row : 1 + floor(p.r * 6.999);\n  // Petals since a hand passed, 0 right behind it.\n  const dir = P.speed < 0 ? -1 : 1;\n  const since = fract(dir * (t * P.speed - petal / 16) * P.hands) * 16 / P.hands;\n  const lit = exp(-since / P.trail);\n  const swell = pulse((ring - 1) / 7 - t * P.breathe, 0.12);\n  return mix(mix(P.base, P.chase, lit), P.ring, swell * 0.85);\n}\n"
+     },
+     {
+      "id": "l3",
+      "title": "Arches",
+      "groups": [
+       "main-arches",
+       "mini-arches"
+      ],
+      "blend": "max",
+      "code": "// Arch chase: arches light in turn by strand number (mod count: 5 goes bay by bay, front to back), each\n// filling along its wire behind a highlight head (plus energy), then fading over `trail` steps. rate.\nconst params = {\n  rate: { value: 1, min: 0.25, max: 6, step: 0.05, label: 'Arches a second' },\n  count: { value: 5, min: 2, max: 40, step: 1, label: 'Arches in the cycle' },\n  trail: { value: 1.5, min: 0.2, max: 6, step: 0.1, label: 'Fade (steps)' },\n};\n\nfunction pixel(p, t, P, G) {\n  const n = round(P.count), x = t * P.rate, step = floor(x), f = x - step;\n  const age = (((step - p.strand) % n) + n) % n + f;           // steps since this arch's turn began\n  const head = f * 1.3;\n  const lit = age < 1 ? smoothstep(head, head - 0.05, p.u) : exp(-(age - 1) / P.trail);\n  const c = mix(pal('low', p.u), pal('body', p.u), lit);\n  return age < 1 ? mix(c, pal('high'), exp(-((p.u - head) ** 2) * 600) * (0.5 + 0.5 * G.energy)) : c;\n}\n",
+      "params": {
+       "rate": 2
+      }
+     },
+     {
+      "id": "l4",
+      "title": "Rain",
+      "groups": [
+       "canopy",
+       "spirelets",
+       "wash"
+      ],
+      "code": "// Canopy rain: highlight drops with accent tails streak down the layer in columns across width and depth\n// (energy turns a shower into a downpour), beading on the canopy runs, where they linger, over the low colour at\n// `sky`. columns, speed, tail.\nconst params = {\n  columns: { value: 30, min: 8, max: 80, step: 1, label: 'Columns across' },\n  speed: { value: 0.9, min: 0.2, max: 3, step: 0.05, label: 'Layer heights a second' },\n  tail: { value: 0.12, min: 0.02, max: 0.4, step: 0.01, label: 'Tail length' },\n  sky: { value: 0.5, min: 0, max: 1, step: 0.01, label: 'Sky brightness' },\n};\n\nfunction pixel(p, t, P, G) {\n  const col = floor(p.lz * P.columns) * 7 + floor(p.lx * 6.999), long = p.zone === 'canopy' ? 4 : 1;\n  let v = 0;\n  for (let m = 0; m < 2; m++) {\n    if (rand(col, m, 5) > 0.3 + 0.7 * G.energy) continue;\n    const head = 1.1 - fract(t * P.speed * (0.8 + 0.4 * rand(col, m, 1)) / 1.4 + rand(col, m, 2)) * 1.4;\n    const above = p.ly - head;                                   // ≥ 0 above the head, where its tail is\n    if (above > -0.01) v = max(v, exp(-max(0, above) / (P.tail * long)));\n  }\n  const c = mix(scale(pal('low', p.ly), P.sky), pal('accent', p.ly), min(1, v * 1.2));\n  return mix(c, pal('high'), smoothstep(0.8, 1, v));\n}\n",
+      "clips": [
+       {
+        "start": 0.5,
+        "end": 2,
+        "fadeIn": 0.3,
+        "fadeOut": 0.4
+       }
+      ]
+     }
+    ]
+   },
+   "sha256": "416a893fd0ec231a117bc1553103195e6ea5e3c3df261836f5fdb8c0aff4e8d6",
+   "sampled": {
+    "0": "274de180f4620d7d",
+    "10": "ea43ff3be37ed36a",
+    "20": "b0008d9a974e5df6",
+    "30": "7e536289682ce204",
+    "40": "b0a88691acacaa16",
+    "50": "1f90fbc79d97696d",
+    "60": "84e71438feccf389",
+    "70": "c8e5e95cc86fdc5d",
+    "80": "ad95d8d9f84a967a",
+    "90": "90bfe5ac51b6276a"
+   },
+   "litChannels": 1201726
+  },
+  {
+   "name": "rings, strands and every pixel field",
+   "look": {
+    "duration": 12,
+    "layers": [
+     {
+      "id": "r1",
+      "title": "Rings",
+      "groups": [
+       "rose-ring-3",
+       "rose-ring-5"
+      ],
+      "code": "// Rose bloom: the rose window opens ring by ring (row 1–7; elsewhere r) from its heart, holds, closes to a\n// bud. cycle (seconds), petals (every other leans to accent), flare (highlight as a ring opens, plus energy).\nconst params = {\n  cycle: { value: 6, min: 2, max: 30, step: 0.5, label: 'Seconds per bloom' },\n  petals: { value: 0.4, min: 0, max: 1, step: 0.01, label: 'Petal contrast' },\n  flare: { value: 0.7, min: 0, max: 1, step: 0.01, label: 'Highlight as a ring opens' },\n};\n\nfunction pixel(p, t, P, G) {\n  const rr = p.row > 0 ? (p.row - 0.5) / 7 : p.r, petal = p.petal >= 0 ? p.petal : floor(p.a * 16);\n  const ph = fract(t / P.cycle);\n  const front = (smoothstep(0, 0.55, ph) - smoothstep(0.75, 1, ph)) * 1.1;\n  const open = smoothstep(front, front - 0.08, rr);\n  const bloom = mix(pal('body', rr), pal('accent', rr), (petal % 2) * P.petals);\n  const c = mix(pal('low', rr), bloom, open);\n  const fl = ph < 0.6 ? exp(-(((rr - front) / 0.07) ** 2)) * P.flare * (0.5 + 0.5 * G.energy) : 0;\n  return mix(c, pal('high'), fl);\n}\n"
+     },
+     {
+      "id": "r2",
+      "title": "Spires",
+      "groups": [
+       "spires"
+      ],
+      "code": "// Spire rise: body colour climbs every spire (ly) under a highlight head (plus energy), crowns the tip, lifts\n// away; towers (zones) start `stagger` of a rise apart. every (seconds a rise), head (its length).\nconst params = {\n  every: { value: 4, min: 1, max: 20, step: 0.1, label: 'Seconds per rise' },\n  stagger: { value: 0.15, min: 0, max: 1, step: 0.01, label: 'Towers apart (share of a rise)' },\n  head: { value: 0.06, min: 0.02, max: 0.3, step: 0.01, label: 'Head length' },\n};\n\nfunction pixel(p, t, P, G) {\n  const ph = fract(t / P.every - rand(p.zi, 3) * P.stagger);\n  const top = smoothstep(0, 0.6, ph) * 1.1, foot = smoothstep(0.72, 1, ph) * 1.1;   // the lit column's ends\n  const lit = smoothstep(top, top - 0.03, p.ly) * smoothstep(foot - 0.03, foot, p.ly);\n  const c = mix(pal('low', p.ly), pal('body', p.ly), lit);\n  const head = exp(-(((p.ly - top) / P.head) ** 2)) * (1 - foot);\n  const crown = pulse(ph - 0.66, 0.1) * smoothstep(0.7, 1, p.ly);\n  return mix(c, pal('high'), max(head * (0.5 + 0.5 * G.energy), crown));\n}\n"
+     },
+     {
+      "id": "r3",
+      "title": "Meteors",
+      "groups": [
+       "quad-arches",
+       "canopy-run-2",
+       "spirelets-front-left"
+      ],
+      "code": "// Meteors: shooting stars race along every strand (u, i, n place each LED on its wire), trailing fading tails.\n// Each strand has its own seeded start, pace and direction (rand(p.strand, …)), and a gap between laps.\nconst params = {\n  speed: { value: 60, min: 5, max: 200, step: 1, label: 'LEDs per second' },\n  count: { value: 2, min: 1, max: 4, step: 1, label: 'Meteors per strand' },\n  tail: { value: 10, min: 2, max: 60, step: 1, label: 'Tail length (LEDs)' },\n  gap: { value: 80, min: 0, max: 300, step: 1, label: 'Gap between laps (LEDs)' },\n  both: { value: true, type: 'toggle', label: 'Both directions' },\n  sky: { value: '#0a0a5c', type: 'color' },\n  color: { value: '#00c8ff', type: 'color' },\n  head: { value: '#ffffff', type: 'color' },\n};\n\nfunction pixel(p, t, P) {\n  const s = p.strand;\n  const reverse = P.both && rand(s, 7) < 0.5;\n  const i = reverse ? p.n - 1 - p.i : p.i;               // LEDs from this run's start\n  const lap = p.n + P.gap;\n  let v = 0;\n  for (let m = 0; m < P.count; m++) {\n    const pace = P.speed * (0.7 + 0.6 * rand(s, m, 3));\n    const headAt = fract(rand(s, m) + t * pace / lap) * lap;\n    const behind = headAt - i;                            // LEDs behind the head\n    if (behind >= 0) v = max(v, exp(-behind / P.tail));\n  }\n  const c = mix(P.color, P.head, smoothstep(0.75, 1, v));\n  return mix(P.sky, c, v);\n}\n"
+     },
+     {
+      "id": "r4",
+      "title": "Probe",
+      "groups": [
+       "quad-front-top-left-front",
+       "wash-back-left",
+       "rose-petal-07",
+       "main-arch-3"
+      ],
+      "level": 0.5,
+      "code": "// Probe: every pixel field the pattern API gives, folded into a colour.\nfunction pixel(p, t, P) {\n  const a = (p.k % 97) / 97 + p.zi / 31 + p.strand / 101 + p.row / 7 + (p.petal + 1) / 16;\n  const b = p.u + p.i / 300 + p.n / 250 + p.a + p.r + p.seed;\n  const c = p.lx + p.ly * 2 + p.lz * 3 + p.x + p.y + p.z + (p.X + p.Y + p.Z) / 40 + (p.zone.length % 7) / 7;\n  return [fract(a + t), fract(b + t * 0.5), fract(c - t)];\n}"
+     }
+    ]
+   },
+   "sha256": "726dc855370ce511d791fc25af376c4d6f8d64cd11361bf75619092b27c28398",
+   "sampled": {
+    "0": "b98b12c653ad5ffd",
+    "10": "dad12e7404f73ac0",
+    "20": "ec6c200796cffcd6",
+    "30": "6c01c935e0acabfb",
+    "40": "3f0208f35215df9c",
+    "50": "4be10a2f0baba013",
+    "60": "1f9537497b084ade",
+    "70": "70521fef2f3e573a",
+    "80": "7e3f6adbb7d96ea7",
+    "90": "5f05b5e6ae63f9e3"
+   },
+   "litChannels": 718600
+  },
+  {
+   "name": "composed chains, globals and automation",
+   "look": {
+    "bpm": 128,
+    "globals": {
+     "speed": 1.3,
+     "level": 0.9,
+     "hue": 0.1,
+     "saturation": 1.2,
+     "energy": 0.7,
+     "palette": {
+      "name": "carnival",
+      "low": [
+       "#6700cb"
+      ],
+      "body": [
+       "#ee008e",
+       "#ff6a00"
+      ],
+      "accent": [
+       "#00c8ff"
+      ],
+      "high": [
+       "#f9e9cf"
+      ]
+     },
+     "macros": {
+      "storm": {
+       "value": 0.2,
+       "min": 0,
+       "max": 1
+      }
+     }
+    },
+    "automation": {
+     "energy": [
+      [
+       0,
+       0.2
+      ],
+      [
+       2,
+       1
+      ]
+     ],
+     "storm": [
+      [
+       0,
+       0
+      ],
+      [
+       2,
+       1
+      ]
+     ]
+    },
+    "layers": [
+     {
+      "id": "c1",
+      "title": "Storm",
+      "groups": [
+       "cathedral"
+      ],
+      "modules": [
+       {
+        "id": "m1",
+        "kind": "source",
+        "title": "Meteors",
+        "code": "// Meteors: shooting stars race along every strand (u, i, n place each LED on its wire), trailing fading tails.\n// Each strand has its own seeded start, pace and direction (rand(p.strand, …)), and a gap between laps.\nconst params = {\n  speed: { value: 60, min: 5, max: 200, step: 1, label: 'LEDs per second' },\n  count: { value: 2, min: 1, max: 4, step: 1, label: 'Meteors per strand' },\n  tail: { value: 10, min: 2, max: 60, step: 1, label: 'Tail length (LEDs)' },\n  gap: { value: 80, min: 0, max: 300, step: 1, label: 'Gap between laps (LEDs)' },\n  both: { value: true, type: 'toggle', label: 'Both directions' },\n  sky: { value: '#0a0a5c', type: 'color' },\n  color: { value: '#00c8ff', type: 'color' },\n  head: { value: '#ffffff', type: 'color' },\n};\n\nfunction pixel(p, t, P) {\n  const s = p.strand;\n  const reverse = P.both && rand(s, 7) < 0.5;\n  const i = reverse ? p.n - 1 - p.i : p.i;               // LEDs from this run's start\n  const lap = p.n + P.gap;\n  let v = 0;\n  for (let m = 0; m < P.count; m++) {\n    const pace = P.speed * (0.7 + 0.6 * rand(s, m, 3));\n    const headAt = fract(rand(s, m) + t * pace / lap) * lap;\n    const behind = headAt - i;                            // LEDs behind the head\n    if (behind >= 0) v = max(v, exp(-behind / P.tail));\n  }\n  const c = mix(P.color, P.head, smoothstep(0.75, 1, v));\n  return mix(P.sky, c, v);\n}\n",
+        "params": {
+         "speed": 40
+        }
+       },
+       {
+        "id": "m2",
+        "kind": "source",
+        "title": "Clouds",
+        "code": "// Clouds: soft billows of fbm noise drift across the layer, from deep sky to bright cloud; `cover` sets how\n// much sky they hide and G.energy thickens them. Mark it \"input only\" to mask another source with it.\nconst params = {\n  scale: { value: 2.5, min: 0.5, max: 8, step: 0.1, label: 'Billow size (smaller is bigger)' },\n  drift: { value: 0.15, min: 0, max: 1, step: 0.01, label: 'Drift speed' },\n  cover: { value: 0.5, min: 0, max: 1, step: 0.01, label: 'Cloud cover' },\n  sky: { value: '#0b1a4a', type: 'color' },\n  cloud: { value: '#e8ecff', type: 'color' },\n};\n\nfunction pixel(p, t, P, G) {\n  const s = t * P.drift;\n  const n = fbm(p.lz * P.scale + s, p.ly * P.scale * 0.6 - s * 0.2, p.lx * P.scale * 0.5 + s * 0.3);\n  const edge = 1 - clamp(P.cover + (G.energy - 0.5) * 0.3);\n  const v = smoothstep(edge - 0.15, edge + 0.15, n);\n  return mix(P.sky, P.cloud, v);\n}\n",
+        "params": {},
+        "as": "input"
+       },
+       {
+        "id": "m3",
+        "kind": "filter",
+        "title": "Mask",
+        "code": "// Mask: shows the chain only where its input (another source here, usually \"input only\") is bright: past\n// `cutoff` it shows, below it the alpha falls toward 1 − amount; invert masks where it is dark. No input: no-op.\nconst params = {\n  amount: { value: 1, min: 0, max: 1, step: 0.01, label: 'Mask strength' },\n  cutoff: { value: 0.35, min: 0, max: 1, step: 0.01, label: 'Brightness where it opens' },\n  softness: { value: 0.3, min: 0.01, max: 1, step: 0.01, label: 'Edge softness' },\n  invert: { value: false, type: 'toggle', label: 'Show where the input is dark' },\n};\n\nfunction filter(c, q, t, P, G, x) {\n  if (!x) return c;\n  const b = max(x[0], x[1], x[2]) * x[3];\n  let m = smoothstep(P.cutoff - P.softness / 2, P.cutoff + P.softness / 2, b);\n  if (P.invert) m = 1 - m;\n  c[3] *= 1 - P.amount * (1 - m);        // c is the chain's colour: change it and hand it back\n  return c;\n}\n",
+        "input": "m2",
+        "params": {
+         "amount": {
+          "mod": "global",
+          "name": "storm",
+          "from": 0,
+          "to": 1
+         }
+        }
+       }
+      ]
+     },
+     {
+      "id": "c2",
+      "title": "Stars",
+      "groups": [
+       "arches",
+       "rose-window"
+      ],
+      "blend": "over",
+      "level": 0.8,
+      "clips": [
+       {
+        "start": 0.25,
+        "end": 2.25,
+        "fadeIn": 0.5,
+        "fadeOut": 0.5
+       }
+      ],
+      "modules": [
+       {
+        "id": "w1",
+        "kind": "warp",
+        "title": "Mirror",
+        "code": "// Mirror: folds the layer onto itself before the modules after it draw: left-right (lz, z, a), front-back\n// (lx, x), up-down (ly, y), or every wire at its middle (u, i), so chases run in from both ends.\nconst params = {\n  leftRight: { value: true, type: 'toggle', label: 'Left ↔ right' },\n  frontBack: { value: false, type: 'toggle', label: 'Front ↔ back' },\n  upDown: { value: false, type: 'toggle', label: 'Up ↔ down' },\n  along: { value: false, type: 'toggle', label: 'Along strands' },\n};\n\nconst fold = (v) => (v > 0.5 ? 1 - v : v);\n\nfunction warp(q, t, P) {\n  if (P.leftRight) { q.lz = fold(q.lz); q.z = fold(q.z); q.a = fold(q.a); }\n  if (P.frontBack) { q.lx = fold(q.lx); q.x = fold(q.x); }\n  if (P.upDown) { q.ly = fold(q.ly); q.y = fold(q.y); }\n  if (P.along) { q.u = fold(q.u); q.i = min(q.i, q.n - 1 - q.i); }\n}\n",
+        "params": {
+         "along": true
+        }
+       },
+       {
+        "id": "s1",
+        "kind": "source",
+        "title": "Starfield",
+        "code": "// Starfield: every LED a star with its own rhythm (rate, phase and colour from its seed), glinting briefly\n// (pulse) over a sky that drifts between two deep blues on slow noise, so the dark is never flat.\nconst params = {\n  rate: { value: 0.35, min: 0.05, max: 3, step: 0.01, label: 'Glints per second' },\n  density: { value: 0.5, min: 0, max: 1, step: 0.01, label: 'Share of LEDs that are stars' },\n  sharp: { value: 0.12, min: 0.02, max: 0.5, step: 0.01, label: 'Glint length' },\n  sky: { value: '#08084a', type: 'color' },\n  sky2: { value: '#1c0060', type: 'color' },\n  star: { value: '#d8f0ff', type: 'color' },\n  warm: { value: '#ffd27a', type: 'color' },\n};\n\nfunction pixel(p, t, P) {\n  const bed = mix(P.sky, P.sky2, noise(p.lx * 3, p.ly * 3 + t * 0.05, p.lz * 3));\n  if (rand(p.k, 1) > P.density) return bed;\n  const rate = P.rate * (0.5 + rand(p.k, 2));\n  const glint = pulse(p.seed * 13.7 + t * rate, P.sharp);\n  return mix(bed, mix(P.star, P.warm, rand(p.k, 3)), glint);\n}\n",
+        "params": {}
+       },
+       {
+        "id": "f1",
+        "kind": "filter",
+        "title": "Tint",
+        "code": "// Tint: recolours the chain from one role of the look's palette, keeping its light and shade: brightness walks\n// along the role (pal(role, t)), so the look follows whichever palette is picked. amount blends.\nconst params = {\n  role: { value: 1, min: 0, max: 3, step: 1, label: 'Role: low, body, accent, high' },\n  amount: { value: 1, min: 0, max: 1, step: 0.01 },\n  spread: { value: 1, min: 0, max: 1, step: 0.01, label: 'How far brightness walks the role' },\n};\nconst ROLES = ['low', 'body', 'accent', 'high'];\n\nfunction filter(c, q, t, P) {\n  const v = max(c[0], c[1], c[2]);\n  const tint = pal(ROLES[clamp(round(P.role), 0, 3)], v * P.spread);\n  for (let i = 0; i < 3; i++) c[i] = mix(c[i], tint[i] * v, P.amount);\n  return c;\n}\n",
+        "params": {
+         "amount": {
+          "mod": "lfo",
+          "shape": "sine",
+          "rate": 1,
+          "unit": "beats",
+          "depth": 0.4,
+          "center": 0.6
+         }
+        }
+       }
+      ]
+     },
+     {
+      "id": "c3",
+      "title": "Spin",
+      "groups": [
+       "spires",
+       "spirelets",
+       "rose-ring-7"
+      ],
+      "blend": "max",
+      "modules": [
+       {
+        "id": "w2",
+        "kind": "warp",
+        "title": "Rotate",
+        "code": "// Rotate: turns lz and ly about the layer's centre (and the angle a with them) by `angle` turns, plus `spin`\n// turns a second, so anything drawn across the layer or round it rotates.\nconst params = {\n  angle: { value: 0.125, min: -0.5, max: 0.5, step: 0.005, label: 'Angle (turns)' },\n  spin: { value: 0, min: -1, max: 1, step: 0.01, label: 'Turns a second' },\n};\n\nfunction warp(q, t, P) {\n  const turn = P.angle + t * P.spin;\n  const s = sin(TAU * turn), c = cos(TAU * turn);\n  const dz = q.lz - 0.5, dy = q.ly - 0.5;\n  q.lz = 0.5 + dz * c - dy * s;\n  q.ly = 0.5 + dz * s + dy * c;\n  q.a = fract(q.a + turn);\n}\n",
+        "params": {}
+       },
+       {
+        "id": "s2",
+        "kind": "source",
+        "title": "Rose chase",
+        "code": "// Rose chase: petals light in turn round the rose window (petal 0-15 clockwise, row 1-7 outward) while rings\n// breathe outward; elsewhere a and r round the layer's centre stand in, so it turns over the whole façade.\nconst params = {\n  speed: { value: 0.25, min: -2, max: 2, step: 0.01, label: 'Turns per second (− anticlockwise)' },\n  hands: { value: 2, min: 1, max: 8, step: 1 },\n  trail: { value: 3, min: 0.5, max: 12, step: 0.1, label: 'Trail (petals)' },\n  breathe: { value: 0.4, min: 0, max: 2, step: 0.01, label: 'Rings per second' },\n  base: { value: '#1b0080', type: 'color' },\n  chase: { value: '#ff00a0', type: 'color' },\n  ring: { value: '#ffb000', type: 'color' },\n};\n\nfunction pixel(p, t, P) {\n  const petal = p.petal >= 0 ? p.petal : floor(p.a * 16);\n  const ring = p.row > 0 ? p.row : 1 + floor(p.r * 6.999);\n  // Petals since a hand passed, 0 right behind it.\n  const dir = P.speed < 0 ? -1 : 1;\n  const since = fract(dir * (t * P.speed - petal / 16) * P.hands) * 16 / P.hands;\n  const lit = exp(-since / P.trail);\n  const swell = pulse((ring - 1) / 7 - t * P.breathe, 0.12);\n  return mix(mix(P.base, P.chase, lit), P.ring, swell * 0.85);\n}\n",
+        "params": {}
+       },
+       {
+        "id": "f2",
+        "kind": "filter",
+        "title": "Hue shift",
+        "code": "// Hue shift: turns colours round the wheel (round the grey axis, so brightness holds) by place along an axis:\n// across, up, front to back, round (a) or along strands (u). spread (turns over it), speed (turns a second).\nconst params = {\n  spread: { value: 0.5, min: -2, max: 2, step: 0.01, label: 'Turns of hue across the axis' },\n  axis: { value: 0, min: 0, max: 4, step: 1, label: 'Across, up, front → back, round, along' },\n  speed: { value: 0.05, min: -1, max: 1, step: 0.01, label: 'Turns a second' },\n};\n\nfunction filter(c, q, t, P) {\n  const a = round(P.axis), x = a === 0 ? q.lz : a === 1 ? q.ly : a === 2 ? q.lx : a === 3 ? q.a : q.u;\n  const turn = TAU * (x * P.spread + t * P.speed), cs = cos(turn), s = sin(turn) / sqrt(3), k = (1 - cs) / 3;\n  const r = c[0], g = c[1], b = c[2];\n  c[0] = clamp(r * (cs + k) + g * (k - s) + b * (k + s));\n  c[1] = clamp(r * (k + s) + g * (cs + k) + b * (k - s));\n  c[2] = clamp(r * (k - s) + g * (k + s) + b * (cs + k));\n  return c;\n}\n",
+        "params": {}
+       }
+      ]
+     }
+    ]
+   },
+   "sha256": "40bd9e3b902ff9346d4a4e0928b7d0af46baaadbf0033e0455175055369b420c",
+   "sampled": {
+    "0": "a96fbafa28ac4bfe",
+    "10": "2ca221271bd8e41a",
+    "20": "97afa473cd2e4803",
+    "30": "5ff2905ee5eaed14",
+    "40": "a8a7f4290a844e3e",
+    "50": "676695e3787cf5bb",
+    "60": "f5567a508734a834",
+    "70": "98cb7d17a7f66d05",
+    "80": "b90efa52e65948ba",
+    "90": "9dba7d7bc4ea8f16"
+   },
+   "litChannels": 1253564
+  }
+ ]
+}

@@ -1,6 +1,6 @@
 // What visits move over the wire, against the real server and the real public/ files (test/fixtures/browser.js
 // keeps an HTTP cache the way a browser does). A cold Studio load (the shell, its theme and modules, the
-// Studio's lazy modules, the sandbox, cathedral.json and the API calls) stays within COLD; a reload, even
+// Studio's lazy modules, the sandbox, rig.json and the API calls) stays within COLD; a reload, even
 // a day later, sends only the shell and the API calls, each a 304; an idea session polls little, and lists
 // carry no code.
 import assert from 'node:assert/strict';
@@ -13,9 +13,12 @@ import { createServer } from '../src/app.js';
 import { browser, request } from './fixtures/browser.js';
 
 const KB = 1024;
-// Measured: 176 KB with br, 204 KB with gzip only (HTTP/1.1 headers counted in full; HTTP/2 shrinks them).
-const COLD = { 'br, gzip': 190 * KB, gzip: 220 * KB };
+// Measured: 201 KB with br, 233 KB with gzip only (HTTP/1.1 headers counted in full; HTTP/2 shrinks them).
+// rig.json is 31 KB of that with br (43 KB gzip): the LEDs, and the 3D view's rose cells, floods and scaffold;
+// the Playa view's modules 11 KB (12 KB gzip).
+const COLD = { 'br, gzip': 205 * KB, gzip: 240 * KB };
 const STUDIO = { view: './ui/studio.js', api: ['/api/me', '/api/library'] };
+const PLAYA = { view: './playa/renderer.js', shell: false };   // the 3D view's default mode, imported on show
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const kb = (n) => `${(n / KB).toFixed(1)} KB`;
 let app, dir, port, cookie;
@@ -48,8 +51,9 @@ for (const encoding of Object.keys(COLD)) {
   test(`a cold Studio load stays within ${COLD[encoding] / KB} KB on the wire (${encoding})`, async (t) => {
     const b = browser(port, { encoding, cookie });
     await b.load('/studio', STUDIO);
+    await b.load('/studio', PLAYA);
     for (const r of b.log) assert.ok(r.status === 200 || r.status === 'cache', `${r.url}: ${r.status}`);
-    for (const url of ['/js/ui/studio.js', '/data/cathedral.json', '/sandbox.html', '/css/theme.css']) {
+    for (const url of ['/js/ui/studio.js', '/data/rig.json', '/sandbox.html', '/css/theme.css']) {
       const hashed = b.log.find((r) => r.url.replace(/\.[0-9a-f]{10}(\.\w+)$/, '$1') === url);
       assert.ok(hashed && hashed.url !== url, `${url} is loaded by its content-hashed URL`);
     }

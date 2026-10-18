@@ -73,7 +73,7 @@ export function createRenderBox(o = {}) {
       'package.json': path.join(STUDIO, 'render-box/package.json'),
       'renderer.mjs': path.join(STUDIO, 'render-box/renderer.mjs'),
       'fseq.js': o.fseqFile || path.join(publicDir, 'js/fseq.js'),
-      'cathedral.json': o.cathedralFile || path.join(publicDir, 'data/cathedral.json'),
+      'rig.json': o.rigFile || path.join(publicDir, 'data/rig.json'),
     },
     coreFile: o.coreFile || path.join(publicDir, 'js/pattern-core.js'),
     patternsDir: o.patternsDir || path.join(publicDir, 'patterns'),    // the library, for use()

@@ -5,8 +5,8 @@ import { readFileSync } from 'node:fs';
 import {
   STDLIB, compilePattern, prepareScene, prepareLayer, renderFrame, toChannels, pixelsForGroups,
 } from '../public/js/pattern-core.js';
+import { folly as rig } from './fixtures/rigs.js';
 
-const cathedral = JSON.parse(readFileSync(new URL('../public/data/cathedral.json', import.meta.url), 'utf8'));
 const S = STDLIB;
 const near = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) <= eps, `${a} ≉ ${b}`);
 const nearC = (a, b, eps = 1e-6) => { assert.equal(a.length, b.length); a.forEach((v, i) => near(v, b[i], eps)); };
@@ -15,7 +15,7 @@ describe('stdlib', () => {
   test('has every name the SPEC lists', () => {
     const names = `PI TAU sin cos tan asin acos atan atan2 abs min max floor ceil round sqrt pow exp log hypot sign
       clamp fract mix step smoothstep wave tri saw pulse hash rand noise fbm hsv hsl rgb hex scale add gradient
-      cosPalette beat dist`.split(/\s+/);
+      cosPalette beat dist centres`.split(/\s+/);
     for (const n of names) assert.ok(n in S, n);
     near(S.TAU, 2 * Math.PI);
   });
@@ -152,7 +152,7 @@ describe('compilePattern', () => {
 });
 
 describe('scene and groups', () => {
-  const scene = prepareScene(cathedral);
+  const scene = prepareScene(rig);
   const count = (ids) => pixelsForGroups(scene, ids).length;
 
   test('membership counts', () => {
@@ -176,8 +176,8 @@ describe('scene and groups', () => {
   });
 
   test('every group parent exists and children sit inside their parents', () => {
-    const ids = new Set(cathedral.groups.map((g) => g.id));
-    for (const g of cathedral.groups) {
+    const ids = new Set(rig.groups.map((g) => g.id));
+    for (const g of rig.groups) {
       if (g.parent === null) continue;
       assert.ok(ids.has(g.parent), `${g.id} → ${g.parent}`);
       const parent = new Set(pixelsForGroups(scene, [g.parent]));
@@ -190,13 +190,13 @@ describe('scene and groups', () => {
       for (const f of ['x', 'y', 'z', 'u', 'seed']) assert.ok(scene[f][k] >= 0 && scene[f][k] <= 1, `${f}[${k}]`);
       assert.ok(scene.i[k] >= 0 && scene.i[k] < scene.n[k]);
     }
-    const arch = cathedral.strands[0];
+    const arch = rig.fixtures[0];
     assert.equal(scene.u[arch.start], 0);
     assert.equal(scene.u[arch.start + arch.count - 1], 1);
     assert.equal(scene.n[arch.start + 5], arch.count);
     const petal7 = pixelsForGroups(scene, ['rose-petal-07']);
-    for (const k of petal7) assert.equal(scene.petal[k], 6);
-    assert.equal(scene.petal[0], -1);
+    for (const k of petal7) assert.equal(scene.sector[k], 6);
+    assert.equal(scene.sector[0], -1);
     assert.equal(new Set(Array.from(scene.seed)).size > 4800, true, 'seeds differ');
   });
 
@@ -205,8 +205,8 @@ describe('scene and groups', () => {
     const L = prepareLayer(scene, { id: 'a', groups: ['rose-window'] }, c);
     for (let j = 0; j < L.idx.length; j++) {
       const k = L.idx[j];
-      if (scene.row[k] !== 7) continue;           // outer ring: well off-centre
-      const petal = scene.petal[k];
+      if (scene.ring[k] !== 7) continue;          // outer ring: well off-centre
+      const petal = scene.sector[k];
       // Petal p is at 22.5° × p clockwise from twelve; within half a petal of that angle.
       let d = Math.abs(L.a[j] - petal / 16); d = Math.min(d, 1 - d);
       assert.ok(d < 1 / 32 + 0.01, `petal ${petal} at a = ${L.a[j]}`);
@@ -223,12 +223,12 @@ describe('scene and groups', () => {
     assert.equal(Math.min(...L.ly), 0); assert.equal(Math.max(...L.ly), 1);
     const A = prepareLayer(scene, { id: 'm', groups: ['main-arch-1'] }, c);
     assert.ok(Array.from(A.lx).every((v) => v === 0.5));
-    assert.equal(prepareLayer(scene, { id: 'd' }, c).idx.length, 4870, 'no groups = cathedral');
+    assert.equal(prepareLayer(scene, { id: 'd' }, c).idx.length, 4870, 'no groups = the root');
   });
 });
 
 describe('renderFrame', () => {
-  const scene = prepareScene(cathedral);
+  const scene = prepareScene(rig);
   const layer = (code, extra = {}) => prepareLayer(scene, { id: extra.id || 'l', groups: ['cathedral'], ...extra },
     compilePattern(code));
   const solid = (r, g, b, a = 1) => `function pixel() { return [${r}, ${g}, ${b}, ${a}]; }`;
@@ -298,7 +298,7 @@ describe('renderFrame', () => {
 });
 
 describe('toChannels', () => {
-  const scene = prepareScene(cathedral);
+  const scene = prepareScene(rig);
   const csv = readFileSync(new URL('../../td/data/all-pixels-positions.csv', import.meta.url),
     'utf8').trim().split(/\r?\n/);
   const header = csv[0].split(',');

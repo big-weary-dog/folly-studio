@@ -1,4 +1,4 @@
-// Shared by the generate tests: the fixture library and groups, a temp dir, mocked Messages API
+// Shared by the generate tests: the fixture library, the Folly's rig and groups, a temp dir, mocked Messages API
 // streams and a small in-memory store.
 import fs from 'node:fs';
 import os from 'node:os';
@@ -10,7 +10,8 @@ import { DEFAULT_MODEL } from '../../../src/generate/claude.js';
 
 export const FIX = fileURLToPath(new URL('./', import.meta.url));
 export const STUDIO = fileURLToPath(new URL('../../../', import.meta.url));
-export const GROUPS = JSON.parse(fs.readFileSync(path.join(FIX, 'groups.json'), 'utf8'));
+export const RIG = JSON.parse(fs.readFileSync(path.join(STUDIO, 'public/data/rig.json'), 'utf8'));
+export const GROUPS = RIG.groups;
 export const LIBRARY = JSON.parse(fs.readFileSync(path.join(FIX, 'library/index.json'), 'utf8'))
   .map((p) => ({ ...p, code: fs.readFileSync(path.join(FIX, 'library', `${p.name}.js`), 'utf8') }));
 export const byName = (n) => LIBRARY.find((p) => p.name === n);
@@ -75,6 +76,6 @@ export function queueSetup(createQueue, opts = {}) {
   const store = fakeStore();
   const user = store.users.create({ username: 'ana', role: 'member', passwordHash: 'secret' });
   const idea = (text) => store.ideas.create({ owner: user.id, text, status: 'queued', generator: 'sketch' });
-  const queue = createQueue({ store, loadLibrary: () => LIBRARY, loadGroups: async () => GROUPS, log: quiet, ...opts });
+  const queue = createQueue({ store, loadLibrary: () => LIBRARY, loadRig: async () => RIG, log: quiet, ...opts });
   return { store, user, idea, queue };
 }

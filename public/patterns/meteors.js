@@ -1,5 +1,5 @@
 // Meteors: shooting stars race along every strand (u, i, n place each LED on its wire), trailing fading tails.
-// Each strand has its own seeded start, pace and direction (rand(p.strand, …)), and a gap between laps.
+// Each strand has its own seeded start, pace and direction (rand(p.fixture, …)), and a gap between laps.
 const params = {
   speed: { value: 60, min: 5, max: 200, step: 1, label: 'LEDs per second' },
   count: { value: 2, min: 1, max: 4, step: 1, label: 'Meteors per strand' },
@@ -12,7 +12,7 @@ const params = {
 };
 
 function pixel(p, t, P) {
-  const s = p.strand;
+  const s = p.fixture;
   const reverse = P.both && rand(s, 7) < 0.5;
   const i = reverse ? p.n - 1 - p.i : p.i;               // LEDs from this run's start
   const lap = p.n + P.gap;

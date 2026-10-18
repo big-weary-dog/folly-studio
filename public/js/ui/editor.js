@@ -130,14 +130,16 @@ export function findLine(msg) {
 }
 
 const FIELDS = [
-  ['x y z', '0..1 across the whole cathedral (depth, height, left→right)'],
+  ['x y z', '0..1 across the whole rig (depth front → back, height, left → right)'],
   ['X Y Z', 'metres'],
   ['lx ly lz', '0..1 across the pixels this layer targets — a pattern fills what it lands on'],
-  ['a r', 'angle 0..1 (clockwise from 12 o’clock, seen from the playa) and radius 0..1 on the façade, round '
+  ['a r', 'angle 0..1 (clockwise from 12 o’clock, seen from the front) and radius 0..1 on the façade, round '
     + 'this layer’s centre'],
-  ['u i n', 'position 0..1 along its strand, index along it, strand length'],
-  ['zone zi strand', 'zone name, zone index, strand index'],
-  ['row petal', 'rose ring 1–7 and petal 0–15 (0 / −1 elsewhere)'],
+  ['u i n', 'position 0..1 along its fixture (a wire, a panel), index along it, fixture length'],
+  ['zone zi fixture', 'zone name, zone index, fixture index (strand: the same)'],
+  ['ring sector', 'the rig’s rings and sectors: the rose’s ring 1–7 and petal 0–15 (0 / −1 elsewhere; also row petal)'],
+  ['attr(name)', 'any per-pixel number the rig defines (0 where it has none)'],
+  ['is(tag)', 'true on pixels in a group tagged tag: is(\'rose\'), is(\'tower\')'],
   ['k seed', 'global LED index; a stable random 0..1 per LED'],
 ];
 
@@ -166,6 +168,7 @@ const STDLIB = [
   ['Composing', [
     ['use(name, params?)', 'a library source as (p, t) → colour; call it at the top'],
     ['G', 'the look: G.energy 0..1, G.palette, each macro as G.name'],
+    ["centres('tower')", 'the middle [X, Y, Z] of each group tagged tower (in frame or pixel)'],
   ]],
 ];
 

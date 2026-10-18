@@ -13,7 +13,7 @@ xLights/FPP `.fseq` today, live sACN later).
 
 | Piece | Where | Notes |
 |---|---|---|
-| Cathedral model | `tools/build_cathedral.py` → `public/data/cathedral.json` | Built through `td/python/make_pixel_csv.py`, so it lights exactly the LEDs TouchDesigner, Mirage and the relay do. Adds strands (each arch, face, petal…) and an xLights-style group tree. |
+| The rig | `tools/build_rig.py` → `public/data/rig.json` | The one installation-specific file. The Folly's is built through `td/python/make_pixel_csv.py`, so it lights exactly the LEDs TouchDesigner, Mirage and the relay do. Adds fixtures (each arch, face, petal…), a tagged xLights-style group tree, and how Mirage draws each fixture. |
 | Pattern runtime | `public/js/pattern-core.js`, `public/sandbox.html` | Stdlib, compile, layer compositing, DMX packing. Runs only in a sandboxed, network-less, cookie-less iframe. |
 | Library | `public/patterns/` | A dozen geometric/maths patterns to start from and to teach the generators. |
 | Studio UI | `public/index.html`, `public/js/` | Groups tree · 3D view · layers + params · code editor · transport · export. |
@@ -32,10 +32,11 @@ carries everything that makes the Folly interesting to address:
   on").
 - **Polar on the façade**: `a` and `r` round the layer's centre — rose-window spins, spirals,
   ripples.
-- **Along the wire**: `u i n` place each LED on its strand, so chases and meteors run along
+- **Along the wire**: `u i n` place each LED on its fixture, so chases and meteors run along
   arches and spires. (This is the "strand axis" `td/claude_docs/shows.md` lists as an open
   question.)
-- **Structure**: `zone`, `strand`, rose `row` / `petal`, a stable `seed` per LED.
+- **Structure**: `zone`, `fixture`, the rig's attrs (the rose's `ring` / `sector`), `is(tag)`, a stable `seed`
+  per LED.
 
 Layers composite `add` / `over` / `max` / `multiply` with a level — the same operations
 `shows.md` maps to xLights' Normal/Max/Mask.

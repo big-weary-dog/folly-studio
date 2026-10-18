@@ -1,4 +1,4 @@
-// Shared data: the cathedral model, the pattern library, group membership, layer and module helpers.
+// Shared data: the rig (SPEC "Rig"), the pattern library, group membership, layer and module helpers.
 import { api, fetchJSON } from '../api.js';
 import { pixelsForGroups, prepareScene } from '../core/scene.js';
 import { randomId } from './dom.js';
@@ -8,7 +8,7 @@ const once = (load) => {
   let p = null;
   return () => (p ||= load().catch((err) => { p = null; throw err; }));
 };
-export const loadCathedral = once(() => fetchJSON('/data/cathedral.json'));
+export const loadRig = once(() => fetchJSON('/data/rig.json'));
 /** [{ name, low, body, accent, high }] from data/palettes.json (td/palettes, by tools/build_palettes.py). */
 export const loadPalettes = once(() => fetchJSON('/data/palettes.json').then((d) => d.palettes || []));
 /** [{ name, title, summary, kind, category, code }] from /api/library. */
@@ -74,12 +74,13 @@ export function moduleFromLibrary(entry) {
 }
 
 export function makeLayer(
-  { title = 'Layer', code = BLANK_CODE, groups, blend = 'add', level = 1, params = {}, clips, modules } = {},
-  cathedral,
+  { title = 'Layer', code = BLANK_CODE, groups, tags, blend = 'add', level = 1, params = {}, clips, modules } = {},
+  rig,
 ) {
   const chain = modules && modules.length ? cloneModules(modules) : [makeModule({ title, code, params })];
   return { id: randomId('l'), title, modules: chain,
-    groups: groups && groups.length ? [...groups] : [defaultGroupId(cathedral)], blend, level,
+    groups: groups?.length ? [...groups] : tags?.length ? [] : [rootId(rig)],
+    ...(tags?.length ? { tags: [...tags] } : {}), blend, level,
     ...(clips && clips.length ? { clips: clips.map((c) => ({ ...c })) } : {}) };
 }
 
@@ -93,14 +94,13 @@ export function cloneModules(modules) {
   });
 }
 
-export function layerFromPattern(pattern, cathedral) {
+export function layerFromPattern(pattern, rig) {
   return makeLayer({ title: pattern.title || pattern.name || 'Layer', modules: [moduleFromLibrary(pattern)] },
-    cathedral);
+    rig);
 }
 
-/** The whole cathedral's group: `cathedral`, else the root of the tree. */
-const defaultGroupId = (cathedral) => (cathedral?.groups || []).find((g) => g.id === 'cathedral' || !g.parent)?.id
-  ?? 'cathedral';
+/** The rig's whole: the root of its group tree. */
+const rootId = (rig) => (rig?.groups || []).find((g) => g.parent == null)?.id;
 
 const isBlend = (b) => BLEND_MODES.some((x) => x.value === b);
 const copyParams = (p) => (p && typeof p === 'object' ? JSON.parse(JSON.stringify(p)) : {});
@@ -129,6 +129,7 @@ export function cleanLayer(l) {
     title: String(l.title || 'Layer'),
     modules: modulesOf(l).map(cleanModule),
     groups: Array.isArray(l.groups) ? [...l.groups] : [],
+    ...(Array.isArray(l.tags) && l.tags.length ? { tags: [...l.tags] } : {}),
     blend: isBlend(l.blend) ? l.blend : 'add',
     level: Number.isFinite(+l.level) ? Math.min(1, Math.max(0, +l.level)) : 1,
     // Timeline clips pass through untouched (the server validates them).
@@ -137,7 +138,7 @@ export function cleanLayer(l) {
 }
 
 /** Normalise layers from the server or a file: layer and module ids unique, fields present. */
-export function normaliseLayers(layers, cathedral) {
+export function normaliseLayers(layers, rig) {
   const seen = new Set();
   return (Array.isArray(layers) ? layers : []).map((l) => {
     const c = cleanLayer(l || {});
@@ -145,14 +146,14 @@ export function normaliseLayers(layers, cathedral) {
     seen.add(c.id);
     const mods = new Set();
     for (const m of c.modules) { if (mods.has(m.id)) m.id = randomId('m'); mods.add(m.id); }
-    if (!c.groups.length) c.groups = [defaultGroupId(cathedral)];
+    if (!c.groups.length && !c.tags) c.groups = [rootId(rig)];
     return c;
   });
 }
 
 /** Each group's LEDs (the core's membership rule) as masks: Map id → Uint8Array(count); its tree; its ancestors. */
-export function buildGroupIndex(cathedral) {
-  const scene = prepareScene(cathedral), byId = scene.groupById;
+export function buildGroupIndex(rig) {
+  const scene = prepareScene(rig), byId = scene.groupById;
   const masks = new Map(), counts = new Map(), children = new Map();
   for (const g of scene.groups) {
     const idx = pixelsForGroups(scene, [g.id]), mask = new Uint8Array(scene.count);
@@ -163,7 +164,7 @@ export function buildGroupIndex(cathedral) {
     children.set(p, [...(children.get(p) || []), g]);
   }
   return {
-    masks, counts, children, byId,
+    masks, counts, children, byId, root: scene.root?.id,
     ancestors(id) {
       const out = [];
       for (let g = byId.get(id); g?.parent; g = byId.get(g.parent)) out.push(g.parent);

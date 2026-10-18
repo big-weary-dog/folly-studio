@@ -218,8 +218,8 @@ export function paletteColours(palette) {
   return Object.freeze(out);
 }
 
-/** Set by renderFrame for pal(), palette() and use(). */
-export const RUN = { G: null, palette: paletteColours(DEFAULT_PALETTE) };
+/** Set by renderFrame for pal(), palette(), centres() and use(). */
+export const RUN = { G: null, palette: paletteColours(DEFAULT_PALETTE), scene: null };
 
 function ramp(list, t) {
   const n = list.length;
@@ -239,13 +239,17 @@ export function pal(role, t = 0) {
 
 export function palette(t) { return ramp(RUN.palette.all, t); }
 
+/** centres(tag): [X, Y, Z] of each of the rig's groups tagged `tag` (frozen; [] before the first frame). */
+const NONE = Object.freeze([]);
+function centres(tag) { return RUN.scene ? RUN.scene.centresOf(String(tag)) : NONE; }
+
 /** Everything pattern code sees as globals. */
 export const STDLIB = Object.freeze({
   PI, TAU, sin: Math.sin, cos: Math.cos, tan: Math.tan, asin: Math.asin, acos: Math.acos, atan: Math.atan,
   atan2: Math.atan2, abs: Math.abs, min: Math.min, max: Math.max, floor: Math.floor, ceil: Math.ceil,
   round: Math.round, sqrt: Math.sqrt, pow: Math.pow, exp: Math.exp, log: Math.log, hypot: Math.hypot, sign: Math.sign,
   clamp, fract, mix, step, smoothstep, wave, tri, saw, pulse, hash, rand, noise, fbm,
-  hsv, hsl, rgb, hex, scale, add, gradient, cosPalette, pal, palette, beat, dist,
+  hsv, hsl, rgb, hex, scale, add, gradient, cosPalette, pal, palette, centres, beat, dist,
 });
 export const STDLIB_NAMES = Object.freeze(Object.keys(STDLIB));
 export const isNum = (v) => typeof v === 'number' && Number.isFinite(v);

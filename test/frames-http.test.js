@@ -15,6 +15,7 @@ import { decodeChunk, parseManifest, readFrame } from '../public/js/frames-strea
 import { createServer } from '../src/app.js';
 import { parseFseq } from '../src/frames.js';
 import { IMMUTABLE } from '../src/frames-http.js';
+import { lineRig } from './fixtures/rigs.js';
 import { HAS_ZSTD, inflateBlock } from '../src/fseq-codec.js';
 
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
@@ -38,11 +39,7 @@ async function startApp() {
   const publicDir = path.join(tmp, 'public');
   await mkdir(path.join(publicDir, 'data'), { recursive: true });
   await writeFile(path.join(publicDir, 'index.html'), '<!doctype html><title>t</title>');
-  await writeFile(path.join(publicDir, 'data', 'cathedral.json'), JSON.stringify({
-    version: 1, count: 2, channelsPerUniverse: 510, universes: 1, zones: ['z'],
-    pixels: { zone: [0, 0], strand: [0, 0], universe: [1, 1], channel: [1, 4], row: [0, 0], pos: [0, 0, 0, 0, 1, 0] },
-    groups: [{ id: 'cathedral', name: 'Cathedral', parent: null, zones: [0] }],
-  }));
+  await writeFile(path.join(publicDir, 'data', 'rig.json'), JSON.stringify(lineRig(2)));
   const renderBox = {
     config: { seconds: 5 },
     probe: async () => ({ ok: true }),

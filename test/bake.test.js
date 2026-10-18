@@ -17,8 +17,8 @@ import { parseFseq } from '../src/frames.js';
 const STUDIO = fileURLToPath(new URL('../', import.meta.url));
 const PUBLIC = path.join(STUDIO, 'public');
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
-const cathedralFile = path.join(PUBLIC, 'data/cathedral.json');
-const ready = fs.existsSync(cathedralFile) && fs.existsSync(path.join(PUBLIC, 'js/pattern-core.js'));
+const rigFile = path.join(PUBLIC, 'data/rig.json');
+const ready = fs.existsSync(rigFile) && fs.existsSync(path.join(PUBLIC, 'js/pattern-core.js'));
 const probe = ready ? await createRenderBox({ log: quiet }).probe() : { ok: false,
   reason: 'the pattern runtime or LED map is not built' };
 const skip = !probe.ok && `render box unavailable here: ${probe.reason}`;
@@ -60,7 +60,7 @@ describe('render box (bubblewrap)', { skip }, () => {
     const box = createRenderBox({ seconds: 4, log: quiet });
     const { bytes, boxStats } = await box.render({ layers: [layer(BREATHE)] });
     const { bake, frames } = checkFrames(bytes, { source: 'render-box',
-      cathedral: JSON.parse(fs.readFileSync(cathedralFile, 'utf8')), boxStats });
+      rig: JSON.parse(fs.readFileSync(rigFile, 'utf8')), boxStats });
     assert.equal(bake.ok, true, bake.reason);
     assert.equal(bake.analysis.frames, 160);
     assert.equal(bake.analysis.coverage, 1);

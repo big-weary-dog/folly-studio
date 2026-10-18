@@ -1,4 +1,4 @@
-// Rose chase: petals light in turn round the rose window (petal 0-15 clockwise, row 1-7 outward) while rings
+// Rose chase: petals light in turn round the rose window (sector 0-15 clockwise, ring 1-7 outward) while rings
 // breathe outward; elsewhere a and r round the layer's centre stand in, so it turns over the whole façade.
 const params = {
   speed: { value: 0.25, min: -2, max: 2, step: 0.01, label: 'Turns per second (− anticlockwise)' },
@@ -11,8 +11,8 @@ const params = {
 };
 
 function pixel(p, t, P) {
-  const petal = p.petal >= 0 ? p.petal : floor(p.a * 16);
-  const ring = p.row > 0 ? p.row : 1 + floor(p.r * 6.999);
+  const petal = p.sector >= 0 ? p.sector : floor(p.a * 16);
+  const ring = p.ring > 0 ? p.ring : 1 + floor(p.r * 6.999);
   // Petals since a hand passed, 0 right behind it.
   const dir = P.speed < 0 ? -1 : 1;
   const since = fract(dir * (t * P.speed - petal / 16) * P.hands) * 16 / P.hands;

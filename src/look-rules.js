@@ -14,12 +14,13 @@ export const MAX_CODE_BYTES = 20 * 1024;
 export const MAX_MODULES = 8;
 export const MAX_LAYER_CODE_BYTES = 64 * 1024;   // a chain's modules together
 const ID = /^[A-Za-z0-9_.:-]{1,64}$/;
+export const TAG = /^[a-z0-9-]{1,32}$/; // a rig group's tag (SPEC "Rig")
 export const bad = (msg) => { throw new HttpError(400, msg); };
 const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
   && Object.getPrototypeOf(v) === Object.prototype;
 const isShortString = (v, max = 200) => typeof v === 'string' && v.length <= max;
 const isNumber = (v, lo, hi) => typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi;
-const LAYER_KEYS = new Set(['id', 'title', 'code', 'groups', 'blend', 'level', 'params', 'clips', 'modules']);
+const LAYER_KEYS = new Set(['id', 'title', 'code', 'groups', 'tags', 'blend', 'level', 'params', 'clips', 'modules']);
 const ms = (v) => Math.round(v * 1000) / 1000; // times are kept to the millisecond
 
 function seconds(v, what, lo = 0, hi = MAX_DURATION) {
@@ -133,7 +134,7 @@ function cleanModules(v, at) {
   });
 }
 
-/** Validates and normalizes a look's layers (defaults: blend add, level 1, groups [cathedral], params {}). */
+/** Validates and normalizes a look's layers (defaults: blend add, level 1, groups [] (the rig's root), params {}). */
 export function validateLayers(layers) {
   if (!Array.isArray(layers)) bad('layers must be an array.');
   if (layers.length > MAX_LAYERS) bad(`A look can have at most ${MAX_LAYERS} layers.`);
@@ -154,9 +155,13 @@ export function validateLayers(layers) {
     ids.add(id);
     const title = l.title ?? '';
     if (!isShortString(title)) bad(`${at}: title must be a string of at most 200 characters.`);
-    const groups = l.groups ?? ['cathedral'];
+    const groups = l.groups ?? [];
     if (!Array.isArray(groups) || groups.length > 64 || !groups.every((g) => isShortString(g, 64) && g.length >= 1)) {
       bad(`${at}: groups must be an array of group ids.`);
+    }
+    const tags = l.tags ?? [];
+    if (!Array.isArray(tags) || tags.length > 16 || !tags.every((t) => typeof t === 'string' && TAG.test(t))) {
+      bad(`${at}: tags must be an array of at most 16 tags (a-z, 0-9, -).`);
     }
     const blend = l.blend ?? 'add';
     if (!BLENDS.includes(blend)) bad(`${at}: blend must be one of ${BLENDS.join(', ')}.`);
@@ -170,7 +175,8 @@ export function validateLayers(layers) {
       if (LAYER_KEYS.has(k) || Object.keys(extra).length >= 16 || k.length > 64) continue;
       if (typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v)) || isShortString(v)) extra[k] = v;
     }
-    return { id, title, ...own, groups: [...groups], blend, level, ...(clips.length ? { clips } : {}), ...extra };
+    return { id, title, ...own, groups: [...groups], ...(tags.length ? { tags: [...new Set(tags)] } : {}), blend, level,
+      ...(clips.length ? { clips } : {}), ...extra };
   });
 }
 

@@ -1,4 +1,4 @@
-// The built-in library renders cleanly, quickly, and in colour on the real cathedral: its sources alone, its warps
+// The built-in library renders cleanly, quickly, and in colour on the Folly: its sources alone, its warps
 // and filters in a chain over a source.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,11 +9,11 @@ import {
 } from '../public/js/pattern-core.js';
 
 const here = (p) => new URL(p, import.meta.url);
-const cathedral = JSON.parse(readFileSync(here('../public/data/cathedral.json'), 'utf8'));
+const rig = JSON.parse(readFileSync(here('../public/data/rig.json'), 'utf8'));
 const index = JSON.parse(readFileSync(here('../public/patterns/index.json'), 'utf8'));
 const files = readdirSync(here('../public/patterns/')).filter((f) => f.endsWith('.js')).sort();
 const source = (name) => readFileSync(here(`../public/patterns/${name}.js`), 'utf8');
-const scene = prepareScene(cathedral);
+const scene = prepareScene(rig);
 const TIMES = [0, 0.37, 1.5, 4.2, 17.9, 63.25, 600.1];
 const GROUPS = [['cathedral'], ['rose-window'], ['spires'], ['main-arch-3'], ['canopy', 'wash', 'spirelets'],
   ['rose-ring-5']];

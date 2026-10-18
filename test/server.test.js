@@ -278,7 +278,7 @@ describe('server', () => {
         assert.match(await r.text(), /APP SHELL/);
       }
       const types = { '/js/main.js': /^text\/javascript/, '/app.css': /^text\/css/, '/favicon.svg': /^image\/svg\+xml/,
-        '/data/cathedral.json': /^application\/json/ };
+        '/data/rig.json': /^application\/json/ };
       for (const [p, type] of Object.entries(types)) {
         const r = await fetch(app.base + p);
         assert.equal(r.status, 200, p);

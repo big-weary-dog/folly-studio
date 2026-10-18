@@ -16,7 +16,7 @@ import { readShow } from '../../tools/sacn-play.mjs';
 import {
   addressMarkdown, checkCanonical, compareAddresses, framesPerUniverse, listMarkdown, quirksMarkdown,
 } from './compare.mjs';
-import { ADDRESS_CODE, cathedral, FULL, libraryCode, renderLook, toFseq, ZONE_CODE, ZONE_LABELS } from './looks.mjs';
+import { ADDRESS_CODE, FULL, led, libraryCode, renderLook, toFseq, ZONE_CODE, ZONE_LABELS } from './looks.mjs';
 import {
   launch, loadPlaywright, newContext, openMirage, showView, threeDir, viewFrom, waitForDrive,
 } from './mirage.mjs';
@@ -36,7 +36,7 @@ const file = (name, bytes) => {
 function sameBytes(s, frame) {
   let ok = 0;
   for (let i = 0; i < s.count; i++) {
-    const a = (s.universe[i] - 1) * cathedral.channelsPerUniverse + s.ch0[i];
+    const a = (s.universe[i] - 1) * led.channelsPerUniverse + s.ch0[i];
     if ([0, 1, 2].every((c) => Math.round(s.drive[3 * i + c] * 255) === frame[a + c])) ok++;
   }
   return ok / s.count;
@@ -50,8 +50,8 @@ async function playerForms(rendered) {
     forms.zstd = await compressFseq(parseFseq(sparse), { codec: 'zstd' });
   } catch { /* no zstd in this Node */ }
   const used = new Set();
-  const px = cathedral.pixels;
-  for (let k = 0; k < cathedral.count; k++) {
+  const px = led.pixels;
+  for (let k = 0; k < led.count; k++) {
     const a = (px.universe[k] - 1) * 510 + px.channel[k] - 1;
     used.add(a).add(a + 1).add(a + 2);
   }
@@ -83,7 +83,7 @@ async function main() {
 
   const canon = checkCanonical();
   md.push('## Studio LED map vs the canonical TouchDesigner CSV', '',
-    `cathedral.json ${canon.count} LEDs, td/data/all-pixels-positions.csv ${canon.rows} rows: `
+    `rig.json ${canon.count} LEDs, td/data/all-pixels-positions.csv ${canon.rows} rows: `
     + `${canon.diffs.length} differ in zone, universe/channel or position `
     + `(max Δpos ${canon.posMax.toFixed(4)} m).`, '');
 
@@ -136,14 +136,14 @@ async function main() {
     const sag = await page.evaluate(async () => (await import(new URL('src/config.js', location.href).href))
       .FIXTURES?.canopy?.sag);
     md.push(quirksMarkdown(r, { sag }), '');
-    shots.push(await shoot(page, 'mirage-address-front.png', viewFrom(cathedral.views.front)));
+    shots.push(await shoot(page, 'mirage-address-front.png', viewFrom(led.views.front)));
 
     await stack.play(files.zones, ['--hold', '0', '--loop']);
     store = await waitForDrive(page, (s) => sameBytes(s, zones.channels) > 0.999);
     md.push('## Zone colours', '', `${ZONE_LABELS.join('; ')}.`,
       `Mirage pixels holding exactly our bytes: ${(sameBytes(store, zones.channels) * 100).toFixed(2)} %.`, '');
-    shots.push(await shoot(page, 'mirage-zones-front.png', viewFrom(cathedral.views.front)));
-    shots.push(await shoot(page, 'mirage-zones-rose.png', viewFrom(cathedral.views.rose)));
+    shots.push(await shoot(page, 'mirage-zones-front.png', viewFrom(led.views.front)));
+    shots.push(await shoot(page, 'mirage-zones-rose.png', viewFrom(led.views.rose)));
     const nave = await page.evaluate(async () => (await import(new URL('src/config.js', location.href).href)).VIEWS
       .find((v) => v.label === 'In the nave'));
     if (nave) shots.push(await shoot(page, 'mirage-zones-nave.png', nave));
@@ -154,7 +154,7 @@ async function main() {
     for (const view of ['front', 'rose']) {
       store = await waitForDrive(page, () => true, { timeout: 5000 });
       motion.push(framesPerUniverse(store, moving.channels, moving.frames, FULL));
-      shots.push(await shoot(page, `mirage-${MOVING}-${view}.png`, viewFrom(cathedral.views[view])));
+      shots.push(await shoot(page, `mirage-${MOVING}-${view}.png`, viewFrom(led.views[view])));
     }
     md.push(`## Moving library pattern: ${MOVING} (6 s, sparse + compressed .fseq, --loop)`, '',
       'Universes arrive one packet at a time, so each universe is checked on its own: do its pixels in Mirage '

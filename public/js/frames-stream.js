@@ -103,10 +103,10 @@ export async function fetchManifest(lookId, { fetch = globalThis.fetch, wait = s
 }
 
 /** Each LED's first channel in a frame of the file (−1: not held). */
-function ledOffsets(cathedral, ranges) {
-  const N = cathedral.count;
-  const cpu = cathedral.channelsPerUniverse || 510;
-  const { universe, channel } = cathedral.pixels;
+function ledOffsets(rig, ranges) {
+  const N = rig.count;
+  const cpu = rig.output.channelsPerUniverse;
+  const { universe, channel } = rig.pixels;
   const starts = [], offsets = [], ends = [];
   let off = 0;
   for (const [start, count] of ranges) {
@@ -126,15 +126,16 @@ function ledOffsets(cathedral, ranges) {
 }
 
 /**
- * openFrameStream(lookId, cathedral, { fetch?, onChunk?, manifest?, ahead? }) → { frameCount, fps, seconds, bytes,
+ * openFrameStream(lookId, rig, { fetch?, onChunk?, manifest?, ahead? }) → { frameCount, fps, seconds, bytes,
  * manifest, frameAt(i, rgb) }; frameAt leaves rgb as it was while its chunk is on the way (onChunk(n) on arrival).
  */
-export async function openFrameStream(lookId, cathedral, opts = {}) {
+export async function openFrameStream(lookId, rig, opts = {}) {
   const { fetch = globalThis.fetch, onChunk, ahead = 2 } = opts;
   const m = opts.manifest || await fetchManifest(lookId, { fetch });
   const base = `/api/looks/${encodeURIComponent(lookId)}/frames/${m.hash}/`;
-  const lut = ledOffsets(cathedral, m.ranges);
-  const N = cathedral.count;
+  const lut = ledOffsets(rig, m.ranges);
+  const N = rig.count;
+  const [oR, oG, oB] = [...'RGB'].map((c) => (rig.output.order || 'RGB').indexOf(c));
   const frame = new Uint8Array(m.channels);
   const count = m.chunks.length;
   const cache = new Map();   // n → decoded chunk, least recently used first
@@ -185,9 +186,9 @@ export async function openFrameStream(lookId, cathedral, opts = {}) {
       for (let k = 0, o = 0; k < N; k++, o += 3) {
         const at = lut[k];
         if (at < 0) { rgb[o] = rgb[o + 1] = rgb[o + 2] = 0; continue; }
-        rgb[o] = frame[at] * scale;
-        rgb[o + 1] = frame[at + 1] * scale;
-        rgb[o + 2] = frame[at + 2] * scale;
+        rgb[o] = frame[at + oR] * scale;
+        rgb[o + 1] = frame[at + oG] * scale;
+        rgb[o + 2] = frame[at + oB] * scale;
       }
       return rgb;
     },

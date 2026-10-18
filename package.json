@@ -15,6 +15,6 @@
     "e2e": "node test/e2e/run.mjs",
     "perf": "node test/e2e/perf.mjs",
     "backup": "node tools/backup.mjs",
-    "build-data": "python3 tools/build_cathedral.py && python3 tools/build_palettes.py"
+    "build-data": "python3 tools/build_rig.py && python3 tools/build_palettes.py"
   }
 }

@@ -40,11 +40,11 @@ export function createClaudeAdapter(o = {}) {
   };
   if (!EFFORTS.has(cfg.effort)) cfg.effort = 'medium';
 
-  async function generate({ text, library = [], groups = [] }) {
+  async function generate({ text, library = [], rig, groups = rig?.groups || [] }) {
     if (!cfg.apiKey) {
       throw new GenerateError('The AI generator is not configured on this server.', 'no ANTHROPIC_API_KEY');
     }
-    const { body, headers } = buildRequest({ text, library, groups });
+    const { body, headers } = buildRequest({ text, library, rig, groups });
     let message;
     for (let attempt = 1; ; attempt++) {
       try {
@@ -62,11 +62,12 @@ export function createClaudeAdapter(o = {}) {
     return readLook(message);
   }
 
-  function buildRequest({ text, library, groups }) {
+  function buildRequest({ text, library, rig, groups }) {
     const body = {
       model: cfg.model, max_tokens: cfg.maxTokens, stream: true, thinking: { type: 'adaptive' },
       output_config: { effort: cfg.effort, format: { type: 'json_schema', schema: lookSchema(groups) } },
-      system: [{ type: 'text', text: buildSystemPrompt({ library, groups }), cache_control: { type: 'ephemeral' } }],
+      system: [{ type: 'text', text: buildSystemPrompt({ library, rig, groups }),
+        cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: buildUserMessage(text) }],
     };
     const headers = { 'content-type': 'application/json', 'x-api-key': cfg.apiKey, 'anthropic-version': API_VERSION };

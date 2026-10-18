@@ -2,10 +2,10 @@
 // check our LED map against the canonical TouchDesigner CSV (td/data/all-pixels-positions.csv).
 import { readFileSync } from 'node:fs';
 
-import { cathedral, identity } from './looks.mjs';
+import { identity, led } from './looks.mjs';
 import { REPO } from './stack.mjs';
 
-const CPU = cathedral.channelsPerUniverse;
+const CPU = led.channelsPerUniverse;
 const POS_TOLERANCE = 0.1; // metres: Mirage draws some fixtures at a centroid or offset from the strip
 const absOf = (u, ch0) => (u - 1) * CPU + ch0;
 const zoneGroup = (z) => (z.startsWith('rose-petal') ? 'rose-window (16 petals)' : z);
@@ -22,32 +22,32 @@ export function loadCanonical() {
   });
 }
 
-/** Our cathedral.json against the canonical CSV, row by row: zone, address and position. */
+/** Our rig.json against the canonical CSV, row by row: zone, address and position. */
 export function checkCanonical(csv = loadCanonical()) {
-  const px = cathedral.pixels;
+  const px = led.pixels;
   const diffs = [];
   let posMax = 0;
-  for (let k = 0; k < cathedral.count; k++) {
+  for (let k = 0; k < led.count; k++) {
     const r = csv[k];
     if (!r) { diffs.push({ k, why: 'no CSV row' }); continue; }
-    const zone = cathedral.zones[px.zone[k]];
+    const zone = led.zones[px.zone[k]];
     const d = Math.hypot(...[0, 1, 2].map((i) => px.pos[3 * k + i] - r.pos[i]));
     posMax = Math.max(posMax, d);
     if (zone !== r.zone || px.universe[k] !== r.universe || px.channel[k] !== r.channel || d > 0.002) {
       diffs.push({ k, zone, csvZone: r.zone, ours: [px.universe[k], px.channel[k]], csv: [r.universe, r.channel], d });
     }
   }
-  return { rows: csv.length, count: cathedral.count, diffs, posMax };
+  return { rows: csv.length, count: led.count, diffs, posMax };
 }
 
 const near = (store, i, k) => {
-  const px = cathedral.pixels;
+  const px = led.pixels;
   return Math.hypot(...[0, 1, 2].map((a) => store.pos[3 * i + a] - px.pos[3 * k + a]));
 };
 
 function nearestOurs(store, i) {
   let best = -1, bd = Infinity;
-  for (let k = 0; k < cathedral.count; k++) {
+  for (let k = 0; k < led.count; k++) {
     const d = near(store, i, k);
     if (d < bd) { bd = d; best = k; }
   }
@@ -61,10 +61,10 @@ const median = (a) => (a.length ? [...a].sort((x, y) => x - y)[a.length >> 1] : 
  * channels), are they the address look's identity, and is the pixel where ours is?
  */
 export function compareAddresses(store, frame, { checkIdentity = true } = {}) {
-  const px = cathedral.pixels;
+  const px = led.pixels;
   const ours = new Map();
   const driven = new Uint8Array(frame.length);
-  for (let k = 0; k < cathedral.count; k++) {
+  for (let k = 0; k < led.count; k++) {
     const a = absOf(px.universe[k], px.channel[k] - 1);
     ours.set(a, k);
     driven.fill(1, a, a + 3);
@@ -75,7 +75,7 @@ export function compareAddresses(store, frame, { checkIdentity = true } = {}) {
       studioOnly: 0, dists: [] });
     return zones.get(name);
   };
-  for (let k = 0; k < cathedral.count; k++) zoneRow(zoneGroup(cathedral.zones[px.zone[k]])).ours++;
+  for (let k = 0; k < led.count; k++) zoneRow(zoneGroup(led.zones[px.zone[k]])).ours++;
   const seen = new Map(), problems = [], mirageOnly = [], duplicates = [];
   for (let i = 0; i < store.count; i++) {
     const mz = store.zoneKeys[store.zone[i]];
@@ -92,12 +92,12 @@ export function compareAddresses(store, frame, { checkIdentity = true } = {}) {
       mrow.mirageOnly++;
       const overlaps = driven[a] || driven[a + 1] || driven[a + 2];
       const n = nearestOurs(store, i);
-      mirageOnly.push({ ...at, overlaps: !!overlaps, nearest: { k: n.k, zone: cathedral.zones[px.zone[n.k]],
+      mirageOnly.push({ ...at, overlaps: !!overlaps, nearest: { k: n.k, zone: led.zones[px.zone[n.k]],
         universe: px.universe[n.k], channel: px.channel[n.k], d: +n.d.toFixed(3) } });
       continue;
     }
     mrow.matched++;
-    const row = zoneRow(zoneGroup(cathedral.zones[px.zone[k]]));
+    const row = zoneRow(zoneGroup(led.zones[px.zone[k]]));
     row.matched++;
     const sent = [frame[a], frame[a + 1], frame[a + 2]];
     const want = checkIdentity ? identity(k) : sent;
@@ -108,19 +108,19 @@ export function compareAddresses(store, frame, { checkIdentity = true } = {}) {
     else row.bytesBad++;
     if (d > POS_TOLERANCE) row.posOff++;
     if (!ok || d > POS_TOLERANCE) {
-      problems.push({ ...at, k, zone: cathedral.zones[px.zone[k]], sent, want, bytesOk: ok, d: +d.toFixed(3) });
+      problems.push({ ...at, k, zone: led.zones[px.zone[k]], sent, want, bytesOk: ok, d: +d.toFixed(3) });
     }
   }
   const studioOnly = [];
   for (const [a, k] of ours) {
     if (seen.has(a)) continue;
-    zoneRow(zoneGroup(cathedral.zones[px.zone[k]])).studioOnly++;
-    studioOnly.push({ k, zone: cathedral.zones[px.zone[k]], universe: px.universe[k], channel: px.channel[k] });
+    zoneRow(zoneGroup(led.zones[px.zone[k]])).studioOnly++;
+    studioOnly.push({ k, zone: led.zones[px.zone[k]], universe: px.universe[k], channel: px.channel[k] });
   }
   const perZone = [...zones.values()].map(({ dists, ...r }) => ({ ...r,
     medianD: +median(dists).toFixed(3), maxD: +Math.max(0, ...dists).toFixed(3) }));
   return { perZone, mirageZones: [...mirageZones.values()], problems, mirageOnly, studioOnly, duplicates,
-    mirageCount: store.count, ourCount: cathedral.count };
+    mirageCount: store.count, ourCount: led.count };
 }
 
 /**
@@ -179,13 +179,13 @@ export function listMarkdown(title, rows, fmt, limit = 25) {
  * starts, the main-arch pixel count, and the canopy sag Mirage draws (`sag`, metres, from its config).
  */
 export function quirksMarkdown(r, { sag } = {}) {
-  const px = cathedral.pixels;
+  const px = led.pixels;
   const umap = JSON.parse(readFileSync(`${REPO}pixel-map/universe-map.json`, 'utf8')).zones;
   const bad = new Set([...r.problems.filter((x) => !x.bytesOk).map((x) => x.k), ...r.studioOnly.map((x) => x.k)]);
   const lines = ['## The documented quirks, checked', ''];
   for (const side of ['left', 'right']) {
-    const i = cathedral.strands.findIndex((s) => s.name === `Mini arch ${side} 5`);
-    const s = cathedral.strands[i];
+    const i = led.strands.findIndex((s) => s.name === `Mini arch ${side} 5`);
+    const s = led.strands[i];
     const map = umap[`arches_mini_${side}`].universes_detail.find((d) => d.arch_id === 5 && d.start_ch !== 1);
     let ok = 0;
     for (let k = s.start; k < s.start + s.count; k++) if (!bad.has(k)) ok++;
@@ -195,7 +195,7 @@ export function quirksMarkdown(r, { sag } = {}) {
       + 'pixels at our addresses. cathedral-3d-sim.html reads it from ch 1, so it repeats arch 1 (magenta '
       + 'arch 5 shows orange there).');
   }
-  const arches = cathedral.strands.filter((s) => s.name.startsWith('Main arch '));
+  const arches = led.strands.filter((s) => s.name.startsWith('Main arch '));
   const total = arches.reduce((n, s) => n + s.count, 0);
   lines.push(`- Main arches: Studio, Mirage and td/data/all-pixels-positions.csv have ${total} `
     + `(${arches.map((s) => s.count).join('/')}), from arch-led-positions.json; universe-map.json's totals say `

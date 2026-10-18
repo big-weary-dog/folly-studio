@@ -12,7 +12,7 @@ npm run lint                 # node tools/lint.mjs: `path:line rule message`, ex
 node tools/lint.mjs --rules  # the rules, one line each
 npm test                     # node --test "test/**/*.test.js"
 node --test test/core.test.js
-npm run build-data           # rebuild public/data/cathedral.json from ../pixel-map/, palettes.json from ../td/palettes/
+npm run build-data           # rebuild public/data/rig.json from ../pixel-map/, palettes.json from ../td/palettes/
 npm run perf                 # the preview on an emulated phone (Playwright from `npm root -g`): ≥ 20 fps at 4× CPU
 ```
 
@@ -24,8 +24,26 @@ Useful settings: `STUDIO_GENERATOR` (`sketch` default, `claude` with `ANTHROPIC_
 
 The render-box tests need bubblewrap (`apt install bubblewrap`) and unprivileged user
 namespaces. Without them they skip and print why. The data tests need `python3`. Run
-`npm run build-data` after any change to `../pixel-map/` or `td/python/make_pixel_csv.py`;
-`test/data.test.js` fails while `cathedral.json` is stale. Never edit it by hand.
+`npm run build-data` after any change to `../pixel-map/`, `td/python/make_pixel_csv.py`, `td/config/` or Mirage's
+`src/config.js`; `test/data.test.js` fails while `rig.json` is stale. Never edit the Folly's by hand.
+
+## Adding a new installation
+
+Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"); nothing else names the Folly.
+
+1. Write a generator for it, as `tools/build_rig.py` is for the Folly (with `--check`), from the installation's
+   own canonical LED list, so addresses are never typed twice. A tiny rig can be hand-written:
+   `test/fixtures/rigs/mini.json` is a working example.
+2. Give `axes` (its up, front and right), `output` (universes, channels per universe, colour order, fps),
+   and one fixture per wire, panel, set of cells or flood, in pixel order, with `render` hints for the 3D view.
+3. Group it xLights-style under one root, and tag the groups with the conventional tags (`all`, `arch`, `tower`,
+   `rose`, `canopy`, `wash`, `front`, …): the library, the generators and portable looks find places by tag.
+   Per-pixel numbers the patterns need (rings, sectors, rows) go in `pixels.attrs`.
+4. Replace `public/data/rig.json`, point `npm run build-data` at the new generator, and run `npm run check`:
+   `test/rig.test.js` holds it to the core's rules. Tests that pin the Folly (`data.test.js`, `rig-folly.test.js`,
+   the counts in `core.test.js`) then read its rig from `test/fixtures/rigs/` instead.
+5. Saved looks keep working where their layers carry `tags`; ones that name only the old rig's group ids need
+   their groups picked again.
 
 ## Layout
 
@@ -44,18 +62,19 @@ namespaces. Without them they skip and print why. The data tests need `python3`.
 | `src/generate/` | Idea → look: the queue, adapters (`sketch`, `claude`, `fleet`), prompt, validation |
 | `render-box/render.mjs`, `renderer.mjs` | Bakes a look to `.fseq` inside bubblewrap; the frame loop it shares with `fleet-box/check.mjs` |
 | `fleet-box/` | Checker and brief for a boxed Fleet worker |
-| `public/index.html`, `css/` | The app shell and its styles: `base.css` (tokens, layout and components) on every page; `pages`, `studio`, `timeline`, `compose` load with their views (`stylesheet()` in `ui/dom.js`) |
+| `public/index.html`, `css/` | The app shell and its styles: `base.css` (tokens, layout and components) on every page; `pages`, `studio`, `viewer`, `timeline`, `compose` load with their views (`stylesheet()` in `ui/dom.js`) |
 | `public/sandbox.html`, `js/sandbox-worker.js` | The sandboxed pattern runner (SPEC "Sandbox protocol"): the relay and watchdog; the Worker |
-| `public/js/pattern-core.js`, `core/` | Pure: stdlib (with palettes), compile, scene, render (module chains, DMX channels), globals (with automation and param bindings); re-exported; runs in the sandbox, the boxes and tests |
+| `public/js/pattern-core.js`, `core/` | Pure: stdlib (with palettes), compile, scene (the rig, its groups and tags), timeline, render (module chains, DMX channels), globals (with automation and param bindings); re-exported; runs in the sandbox, the boxes and tests |
 | `public/js/fseq.js` | Pure: FSEQ v2 writer |
 | `public/js/frames-stream.js` | Streamed playback of baked frames, and their pure decoder |
 | `public/js/runtime.js` | App side of the sandbox: iframe, adaptive frame rate, watchdog |
 | `public/js/flash-guard.js` | Pure: the preview's flash guard, the bake check's rule on the frames shown |
-| `public/js/viewer.js`, `viewer-gl.js` | WebGL2 LED view: the orbit camera, pointer and keys; the drawing |
+| `public/js/viewer.js`, `viewer-gl.js` | The 3D view (SPEC "The 3D view"): the orbit camera, pointer and keys; the Points drawing |
+| `public/js/playa/` | The Playa view, loaded on first use: `geometry.js` builds it from the rig's render hints, `renderer.js` draws (light texture, spill, bloom, tone map, tiers), `glsl.js` |
 | `public/js/main.js`, `api.js` | Bootstrap, routing, the fetch wrapper |
-| `public/js/ui/` | Views and panels, one concern per module (`studio.js` wires the `studio-*.js` panes; `layers.js`, `chain*.js`, `params.js`, `look-globals.js`, `timeline-auto.js` compose; `pages.js` is ideas and looks); `dom.js` holds the DOM helpers and shared form pieces |
+| `public/js/ui/` | Views and panels, one concern per module (`studio.js` wires the `studio-*.js` panes, `view-mode.js` the Playa | Points toggle; `layers.js`, `chain*.js`, `params.js`, `look-globals.js`, `timeline-auto.js` compose; `pages.js` is ideas and looks); `dom.js` holds the DOM helpers and shared form pieces |
 | `public/patterns/` | The built-in library (`index.json` with each entry's `kind` and `category`, + one file each): sources, warps and filters, also the AI's examples |
-| `tools/` | `build_cathedral.py`, `build_palettes.py` (data), `lint.mjs` (+ `lint/`: lexing, line budgets in `budget.json`), `backup.mjs`, `frames-bench.mjs` (brotli quality against encode time) |
+| `tools/` | `build_rig.py` (+ `rig_render.py`: what Mirage draws), `build_palettes.py` (data), `sacn-play.mjs`, `lint.mjs` (+ `lint/`: lexing, line budgets in `budget.json`), `backup.mjs`, `frames-bench.mjs` (brotli quality against encode time) |
 | `docs/HOSTING.md` | Hosting at home: what runs where, tunnels, settings, backups |
 | `test/` | `node:test` suites; `fixtures/` |
 
@@ -67,7 +86,7 @@ and JSON from `public/`. The lint checks both.
 | Rule | Why |
 |---|---|
 | Source ≤ 400 lines, tests ≤ 600, library patterns ≤ 150 | Small modules have one job, review well, and fit an agent's context. Patterns are AI examples, so they stay short. Over a limit, split by responsibility; never raise it. |
-| Text files ≤ 64 KB (generated `cathedral.json` ≤ 1 MB), lines ≤ 120 | Diffs stay readable, and nothing large gets committed by accident. |
+| Text files ≤ 64 KB (generated `rig.json` ≤ 1 MB), lines ≤ 120 | Diffs stay readable, and nothing large gets committed by accident. |
 | Final newline, no trailing spaces, tabs, CRLF or BOM; valid JSON; syntax | Clean diffs, and no surprises on another machine. |
 | `eval`, `Function`, `node:vm` only in the compiler (`core/compile.js`) and render box | Code generation is how untrusted code gets in, so it lives only behind the sandbox. |
 | `child_process` only in `src/render-box.js`, `src/generate/fleet.js` | Processes are started only to box untrusted work. |
@@ -105,13 +124,13 @@ reviewed allowlist at the top of `tools/lint.mjs` names who may use `eval` and `
 
 ## Performance budgets
 
-- Gzipped `public/js/**/*.js` + `public/css/*.css` ≤ 150 KB; the login page (`index.html`, what it
+- Gzipped `public/js/**/*.js` + `public/css/*.css` ≤ 165 KB; the login page (`index.html`, what it
   loads eagerly and the sign-in view) ≤ 40 KB. The lint prints both. Views load on first use.
 - On the wire (`test/transfer.test.js`, the real server and a model of a browser's cache): a cold
-  Studio load (shell, modules, theme, sandbox, `cathedral.json`, API) ≤ 190 KB with br (220 KB gzip);
+  Studio load (shell, modules, theme, sandbox, `rig.json`, API) ≤ 205 KB with br (240 KB gzip);
   a reload, even a day later, sends only the shell and its API calls, each a 304 (assets have
   content-hashed URLs, kept a year); lists carry no code, and idea polls back off.
-- 4,870 LEDs at 40 fps: the render loop allocates nothing per frame (reuse typed arrays, pass
+- The Folly's 4,870 LEDs at 40 fps: the render loop allocates nothing per frame (reuse typed arrays, pass
   `out`), skips layers outside their clips before any pixel work, and sleeps when idle.
 - The sandbox answers every frame within 1.5 s or reports the layer as hung. Bakes run one at a
   time, under CPU, memory and wall-clock limits, at nice 10, never at the same time as a frame encode.
@@ -123,7 +142,7 @@ reviewed allowlist at the top of `tools/lint.mjs` names who may use `eval` and `
 - Subject line: `Folly Studio: <what changed>`. The body says why, not how it got there.
 - Interface changes update `SPEC.md` in the same commit. UI changes get a browser smoke test and
   a screenshot in the PR.
-- Never commit `data/`, `.fseq` renders, keys or a hand-edited `cathedral.json`.
+- Never commit `data/`, `.fseq` renders, keys or a hand-edited Folly `rig.json`.
 - CI (`.github/workflows/studio.yml`) runs `npm run check` on every push and PR that touches
   `studio/`, `pixel-map/` or the pixel CSV pipeline, and flags skipped tests. A separate job runs
   `npm run perf` and only reports.

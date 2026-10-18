@@ -24,7 +24,7 @@ export class Runtime {
     Object.assign(this, { container, src, onFrame: onFrame || noop, onCompiled: onCompiled || noop,
       onFrameErrors: onFrameErrors || noop, onStatus: onStatus || noop, time, playing: false });
     // phase: idle → loading → init → ready (→ dead)
-    Object.assign(this, { cathedral: null, iframe: null, phase: 'idle', layers: [], lookDirty: false, lookVersion: 0,
+    Object.assign(this, { rig: null, iframe: null, phase: 'idle', layers: [], lookDirty: false, lookVersion: 0,
       frameLookVersion: -1, lastT: NaN, seq: 0, respawns: [], render_: null, frameInFlight: null,
       lookQueue: [],    // per look sent and not compiled yet: its modules' code, to tag the reply
       since: 0,         // when this phase began, or the page last spoke while owing us something
@@ -39,8 +39,8 @@ export class Runtime {
   }
 
   /** library: [{ name, code }] sources for use(). */
-  start(cathedral, library = []) {
-    Object.assign(this, { cathedral, library });
+  start(rig, library = []) {
+    Object.assign(this, { rig, library });
     this._spawn();
   }
 
@@ -165,7 +165,7 @@ export class Runtime {
     this.port?.close();
     this.port = port1;
     port1.onmessage = (e) => { if (this.port === port1) this._message(e.data); };
-    const init = { type: 'init', cathedral: this.cathedral, library: this.library || [] };
+    const init = { type: 'init', rig: this.rig, library: this.library || [] };
     this.iframe?.contentWindow?.postMessage(init, '*', [port2]);
   }
 

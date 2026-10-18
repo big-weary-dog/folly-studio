@@ -13,7 +13,8 @@ import {
   cidBytes, E131, e131Packet, fillSlots, multicastAddress, parseArgs, play, readShow, SacnSender,
 } from '../tools/sacn-play.mjs';
 
-const cathedral = JSON.parse(readFileSync(new URL('../public/data/cathedral.json', import.meta.url), 'utf8'));
+const rig = JSON.parse(readFileSync(new URL('../public/data/rig.json', import.meta.url), 'utf8'));
+const mini = JSON.parse(readFileSync(new URL('./fixtures/rigs/mini.json', import.meta.url), 'utf8'));
 
 const CID = '6f1c2a3b-4d5e-4f60-8172-8394a5b6c7d8';
 const u16 = (b, o) => (b[o] << 8) | b[o + 1];                    // E1.31 is big-endian ("network order")
@@ -121,13 +122,21 @@ describe('universes from absolute channels', () => {
     assert.ok(p.subarray(126, 126 + 90).every((v) => v === 5));
     assert.ok(p.subarray(126 + 90).every((v) => v === 0));
   });
+
+  test('a rig with 300 channels a universe fills 300 slots', () => {
+    const cpu = mini.output.channelsPerUniverse, frame = Uint8Array.from({ length: 2 * cpu }, (_, a) => (a % 250) + 1);
+    const p = fillSlots(e131Packet({ cid: CID, universe: 2 }), frame, 2, cpu);
+    assert.equal(p[126], frame[cpu]);
+    assert.equal(p[126 + cpu - 1], frame[2 * cpu - 1]);
+    assert.ok(p.subarray(126 + cpu).every((v) => v === 0));
+  });
 });
 
 describe('reading shows', () => {
   const frames = 3;
   const full = new Uint8Array(frames * FULL);
   for (let f = 0; f < frames; f++) full.set(patternFrame().map((v) => (v + f * 11) & 255), f * FULL);
-  const ranges = ledRanges(cathedral);
+  const ranges = ledRanges(rig);
   const sparseData = new Uint8Array(frames * ranges.reduce((n, [, c]) => n + c, 0));
   for (let f = 0, at = 0; f < frames; f++) {
     for (const [start, count] of ranges) {
@@ -211,12 +220,14 @@ describe('sending', () => {
 
   test('options: defaults, ranges and refusals', () => {
     const o = parseArgs(['show.fseq']);
-    assert.deepEqual([o.host, o.port, o.universes, o.loop, o.hold, o.priority], ['127.0.0.1', 5568, [1, 80], false,
-      null, 100]);
+    assert.deepEqual([o.host, o.port, o.universes, o.loop, o.hold, o.priority], ['127.0.0.1', 5568, null, false,
+      null, 100], 'universes: all the rig\'s');
+    assert.match(o.rig, /public\/data\/rig\.json$/);
+    assert.equal(parseArgs(['a.fseq', '--rig', 'other.json']).rig, 'other.json');
     assert.deepEqual(parseArgs(['a.fseq', '--universes', '7-16', '--hold', '0', '--loop']).universes, [7, 16]);
     assert.deepEqual(parseArgs(['a.fseq', '--universes', '39']).universes, [39, 39]);
     assert.equal(parseArgs(['a.fseq', '--multicast']).multicast, true);
-    for (const bad of [['a.fseq', '--universes', '0-3'], ['a.fseq', '--universes', '5-81'], ['--loop'],
+    for (const bad of [['a.fseq', '--universes', '0-3'], ['a.fseq', '--universes', '5-64000'], ['--loop'],
       ['a.fseq', '--priority', '300'], ['a.fseq', '--bogus']]) assert.throws(() => parseArgs(bad), /usage|--/);
   });
 });

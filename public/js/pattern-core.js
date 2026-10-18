@@ -7,10 +7,10 @@ export {
   automationAt, GLOBALS, isBinding, macroNameOk, MAX_LANES, MAX_MACROS, MAX_POINTS, normalizeGlobals, prepareLook,
   resolveParams,
 } from './core/globals.js';
+export { flashRegions, groupsByTag, LARGE, pixelsForGroups, prepareScene, tagCentres, tagMask } from './core/scene.js';
 export {
   DEFAULT_DURATION, layerEnvelope, lookDuration, MAX_CLIPS, MAX_DURATION, MIN_DURATION, normalizeClips,
-  pixelsForGroups, prepareScene,
-} from './core/scene.js';
+} from './core/timeline.js';
 export {
   BLENDS, compileLayer, layerModules, MODULE_KINDS, prepareLayer, renderFrame, toChannels,
 } from './core/render.js';

@@ -144,12 +144,12 @@ export function writeFseq({ channelCount, frames, stepMs = 25, data, uniqueId, m
   return out;
 }
 
-/** The channels the LED map uses as spans [[start, count], …]: what a sparse file holds. */
-export function ledRanges(cathedral) {
-  const cpu = cathedral.channelsPerUniverse || 510;
-  const used = new Uint8Array((cathedral.universes || 80) * cpu);
-  const { universe, channel } = cathedral.pixels;
-  for (let k = 0; k < cathedral.count; k++) {
+/** The channels a rig's LEDs use (SPEC "Rig") as spans [[start, count], …]: what a sparse file holds. */
+export function ledRanges(rig) {
+  const cpu = rig.output.channelsPerUniverse;
+  const used = new Uint8Array(rig.output.universes * cpu);
+  const { universe, channel } = rig.pixels;
+  for (let k = 0; k < rig.count; k++) {
     const a = (universe[k] - 1) * cpu + (channel[k] - 1);
     if (a >= 0 && a + 2 < used.length) used[a] = used[a + 1] = used[a + 2] = 1;
   }

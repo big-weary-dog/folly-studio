@@ -9,7 +9,7 @@ import { CodeEditor, quickReference } from './editor.js';
 import { createChain, createLayerStatus, ISSUE_LABELS } from './chain.js';
 import { createLayerOps, GroupsTree, LayerStack } from './layers.js';
 import {
-  buildGroupIndex, cleanLayer, layerFromPattern, loadCathedral, loadLibrary, loadPalettes, makeLayer, normaliseLayers,
+  buildGroupIndex, cleanLayer, layerFromPattern, loadLibrary, loadPalettes, loadRig, makeLayer, normaliseLayers,
 } from './model.js';
 import { createActions } from './studio-actions.js';
 import { buildLayout, TABS } from './studio-layout.js';
@@ -31,7 +31,7 @@ export function mount(root, ctx) {
       ideaId: null, owner: me?.id, ownerName: me?.username, reviewed: false, bake: null, globals: {} },
     server: null,              // the look as the server last sent it (bake, reviewed, …), null until saved
     baked: null,               // { frames, rgb, index } while the preview plays baked frames
-    cathedral: null, index: null, library: [], copyOnSave: false, selectedId: null, saved: '', muted: new Set(),
+    rig: null, index: null, library: [], copyOnSave: false, selectedId: null, saved: '', muted: new Set(),
     solo: new Set(), playing: !reducedMotion(), t: 0, speed: 1, hoverGroup: null, pinnedGroup: null, saving: false,
     ready: false, dirty: false, heavy: new Map(),  // layers too slow for a phone's 40 fps: id → ms a frame
   };
@@ -41,7 +41,7 @@ export function mount(root, ctx) {
   const toggle = (set, id) => { if (!set.delete(id)) set.add(id); changed({ dirty: false }); };
   const silent = (id) => S.muted.has(id) || (S.solo.size > 0 && !S.solo.has(id));
   const groupNames = (ids) => (ids?.length ? ids.map((id) => S.index?.byId.get(id)?.name || id).join(', ')
-    : 'Whole cathedral');
+    : S.index?.byId.get(S.index.root)?.name || 'Everything');
 
   const st = { S, ctx, isDirty, saveBody, adoptServer, markDirty, alive: () => alive,
     flush: () => compileSoon.flush() };
@@ -110,18 +110,18 @@ export function mount(root, ctx) {
   ui.dock.codeBody.append(quickReference((text) => editor.insert(text)));
   const compileSoon = debounce(() => { pushLook(); refresh(); }, COMPILE_DELAY_MS);
 
-  preview.showMsg('Loading the cathedral…');
+  preview.showMsg('Loading the rig…');
   const library = loadLibrary().catch((err) => {
     toast(`Library unavailable: ${err.message}`, { kind: 'error' });
     return [];
   });
-  Promise.all([loadCathedral(), library, loadLook()]).then(([cathedral, lib, look]) => {
+  Promise.all([loadRig(), library, loadLook()]).then(([rig, lib, look]) => {
     if (!alive) return;
-    Object.assign(S, { cathedral, index: buildGroupIndex(cathedral), library: lib });
+    Object.assign(S, { rig, index: buildGroupIndex(rig), library: lib });
     setupLook(look);
-    preview.start(cathedral, lib.filter((p) => (p.kind || 'source') === 'source'));
+    preview.start(rig, lib.filter((p) => (p.kind || 'source') === 'source'));
     pushLook();
-    groupsTree = new GroupsTree(ui.groupsBody, cathedral, S.index, {
+    groupsTree = new GroupsTree(ui.groupsBody, S.index, {
       onToggle: (id, checked) => toggleGroup(id, checked),
       onHover: (id) => { S.hoverGroup = id; highlight(); },
       onPin: (id) => { S.pinnedGroup = id; highlight(); },
@@ -155,7 +155,7 @@ export function mount(root, ctx) {
     if (look) {
       Object.assign(S.look, {
         id: look.id, title: look.title || 'Untitled look', summary: look.summary || '', shared: !!look.shared,
-        layers: normaliseLayers(look.layers, S.cathedral), ideaId: look.ideaId || null, owner: look.owner,
+        layers: normaliseLayers(look.layers, S.rig), ideaId: look.ideaId || null, owner: look.owner,
         ownerName: look.ownerName, duration: cleanDuration(look.duration), bpm: cleanBpm(look.bpm),
         globals: copy(look.globals) || {}, automation: copy(look.automation),
       });
@@ -165,8 +165,8 @@ export function mount(root, ctx) {
     }
     if (!S.look.layers.length) {
       const first = S.library.find((p) => (p.kind || 'source') === 'source');
-      S.look.layers.push(first ? layerFromPattern(first, S.cathedral)
-        : makeLayer({ title: 'Rising band' }, S.cathedral));
+      S.look.layers.push(first ? layerFromPattern(first, S.rig)
+        : makeLayer({ title: 'Rising band' }, S.rig));
     }
     ui.titleInput.value = S.look.title;
     S.saved = snapshot();     // untouched: even a brand-new look only nags once edited

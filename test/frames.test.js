@@ -1,57 +1,41 @@
 // src/frames.js: the strict FSEQ parser and the frame analysis (brightness, power, flicker).
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import { writeFseq } from '../public/js/fseq.js';
-import {
-  analyzeFrames, FseqError, flickerReason, flickerWarning, largeRegions, MAX_CHANNELS, parseFseq,
-} from '../src/frames.js';
+import { ledRanges, writeFseq } from '../public/js/fseq.js';
+import { flashRegions, pixelsForGroups, prepareScene } from '../public/js/pattern-core.js';
+import { analyzeFrames, FseqError, flickerReason, flickerWarning, MAX_CHANNELS, parseFseq } from '../src/frames.js';
+import { folly } from './fixtures/rigs.js';
 
-// 100 LEDs, 3 channels each: the body (zone 0) on universe 1, a small spire (zone 1, 5 LEDs) on
-// universe 2. Top-level groups: body and spire.
-function smallCathedral() {
+// 100 LEDs, 3 channels each: the body (zone body) on universe 1, a small spire (5 LEDs) on universe 2.
+// Top-level groups: parts (the body) and the spire.
+function smallRig() {
   const N = 100;
-  const px = { zone: [], strand: [], universe: [], channel: [], row: [], pos: [] };
+  const px = { universe: [], channel: [], pos: [] };
   for (let k = 0; k < N; k++) {
     const spire = k >= 95;
-    px.zone.push(spire ? 1 : 0);
-    px.strand.push(spire ? 1 : 0);
     px.universe.push(spire ? 2 : 1);
     px.channel.push((spire ? k - 95 : k) * 3 + 1);
-    px.row.push(0);
     px.pos.push(0, k / N, 0);
   }
   return {
-    count: N,
-    channelsPerUniverse: 510,
-    universes: 80,
-    zones: ['body', 'spire'],
-    pixels: px,
+    rig: 1, count: N, output: { universes: 80, channelsPerUniverse: 510 },
+    bounds: { min: [0, 0, 0], max: [0, 0.99, 0] }, pixels: px,
+    fixtures: [{ id: 'body', zone: 'body', start: 0, count: 95 }, { id: 'spire', zone: 'spire', start: 95, count: 5 }],
     groups: [
       { id: 'cathedral', name: 'Cathedral', parent: null, zones: ['body', 'spire'] },
       { id: 'parts', name: 'Parts', parent: 'cathedral' }, // no zones: the union of its children
       { id: 'body', name: 'Body', parent: 'parts', zones: ['body'] },
-      { id: 'spire', name: 'Spire', parent: 'cathedral', strands: [1] },
+      { id: 'spire', name: 'Spire', parent: 'cathedral', fixtures: ['spire'] },
     ],
   };
 }
 
-/** The channels the LED map uses, as merged spans. */
-function usedRanges(c) {
-  const used = new Uint8Array(MAX_CHANNELS);
-  for (let k = 0; k < c.count; k++) {
-    const a = (c.pixels.universe[k] - 1) * 510 + c.pixels.channel[k] - 1;
-    used[a] = used[a + 1] = used[a + 2] = 1;
-  }
-  const ranges = [];
-  for (let i = 0; i < used.length; i++) {
-    if (!used[i]) continue;
-    const last = ranges.at(-1);
-    if (last && last[0] + last[1] === i) last[1]++;
-    else ranges.push([i, 1]);
-  }
-  return ranges;
+/** analyzeFrames on a rig, as the server calls it. */
+function analyze(parsed, rig) {
+  const scene = prepareScene(rig);
+  return analyzeFrames(parsed, scene, flashRegions(scene));
 }
+const usedRanges = ledRanges;
 
 /** Bake `seconds` at 40 fps; color(f, k) → [r, g, b] 0..255 per LED. Sparse unless full. */
 function bake(c, seconds, color, { full = false } = {}) {
@@ -74,7 +58,7 @@ function bake(c, seconds, color, { full = false } = {}) {
   return writeFseq({ frames, data, ...(full ? { channelCount: cc } : { ranges }) });
 }
 
-const C = smallCathedral();
+const C = smallRig();
 const gray = (v) => [v, v, v];
 const square = (hz) => (f) => (Math.floor((f / 40) * hz * 2) % 2 ? 0 : 255);
 
@@ -141,7 +125,7 @@ describe('parseFseq', () => {
 
 describe('analyzeFrames', () => {
   test('flags a 10 Hz full-white strobe', () => {
-    const a = analyzeFrames(parseFseq(bake(C, 5, (f) => gray(square(10)(f)))), C);
+    const a = analyze(parseFseq(bake(C, 5, (f) => gray(square(10)(f)))), C);
     assert.equal(a.flicker.ok, false);
     assert.equal(a.flicker.maxHz, 10);
     assert.deepEqual(a.flicker.flaggedSeconds, [0, 1, 2, 3, 4]);
@@ -152,34 +136,34 @@ describe('analyzeFrames', () => {
   });
 
   test('passes a slow 0.5 Hz breathe, 3 Hz exactly, and bright shimmer', () => {
-    const breathe = analyzeFrames(parseFseq(bake(C, 10,
+    const breathe = analyze(parseFseq(bake(C, 10,
       (f) => gray(Math.round(127.5 - 127.5 * Math.cos(Math.PI * (f / 40)))))), C);
     assert.equal(breathe.flicker.ok, true);
     assert.ok(breathe.flicker.maxHz <= 1, `${breathe.flicker.maxHz}`);
     assert.deepEqual(breathe.flicker.flaggedSeconds, []);
     assert.equal(flickerReason(breathe), '');
     // WCAG's limit is more than three flashes a second.
-    assert.equal(analyzeFrames(parseFseq(bake(C, 4, (f) => gray(square(3)(f)))), C).flicker.ok, true);
-    assert.equal(analyzeFrames(parseFseq(bake(C, 4, (f) => gray(square(4)(f)))), C).flicker.ok, false);
+    assert.equal(analyze(parseFseq(bake(C, 4, (f) => gray(square(3)(f)))), C).flicker.ok, true);
+    assert.equal(analyze(parseFseq(bake(C, 4, (f) => gray(square(4)(f)))), C).flicker.ok, false);
     // Changes that never go darker than 0.8 relative luminance are not flashes.
-    const shimmer = analyzeFrames(parseFseq(bake(C, 3, (f) => gray(f % 2 ? 255 : 220))), C);
+    const shimmer = analyze(parseFseq(bake(C, 3, (f) => gray(f % 2 ? 255 : 220))), C);
     assert.equal(shimmer.flicker.ok, true);
     // Small changes (under 10 % of full) are not flashes either.
-    assert.equal(analyzeFrames(parseFseq(bake(C, 3, (f) => gray(f % 2 ? 100 : 80))), C).flicker.ok, true);
+    assert.equal(analyze(parseFseq(bake(C, 3, (f) => gray(f % 2 ? 100 : 80))), C).flicker.ok, true);
   });
 
   test('a strobe on a small top-level group alone is a warning, not a block', () => {
-    const a = analyzeFrames(parseFseq(bake(C, 3, (f, k) => (k >= 95 ? gray(square(8)(f)) : gray(60)))), C);
+    const a = analyze(parseFseq(bake(C, 3, (f, k) => (k >= 95 ? gray(square(8)(f)) : gray(60)))), C);
     assert.equal(a.flicker.ok, true, 'a 5 % strobe barely moves the whole-cathedral mean');
     assert.deepEqual(a.flicker.regions, []);
     assert.deepEqual(a.flicker.small, { maxHz: 8, flaggedSeconds: [0, 1, 2], regions: ['spire'] });
     assert.equal(flickerReason(a), '');
     assert.match(flickerWarning(a), /small parts only \(spire\) at up to 8 flashes a second around 0 s, 1 s, 2 s/);
-    assert.equal(flickerWarning(analyzeFrames(parseFseq(bake(C, 1, () => gray(60))), C)), '');
+    assert.equal(flickerWarning(analyze(parseFseq(bake(C, 1, () => gray(60))), C)), '');
   });
 
   test('brightness, darkness, power and coverage', () => {
-    const white = analyzeFrames(parseFseq(bake(C, 1, (f) => gray(f < 20 ? 255 : 0))), C);
+    const white = analyze(parseFseq(bake(C, 1, (f) => gray(f < 20 ? 255 : 0))), C);
     assert.equal(white.frames, 40);
     assert.equal(white.seconds, 1);
     assert.equal(white.fps, 40);
@@ -189,61 +173,47 @@ describe('analyzeFrames', () => {
     assert.equal(white.meanBrightness, 0.5);
     assert.equal(white.darkFraction, 0.5);
     assert.equal(white.estPeakAmps, 6, '100 LEDs × 3 channels × 20 mA');
-    const red = analyzeFrames(parseFseq(bake(C, 0.5, () => [255, 0, 0])), C);
+    const red = analyze(parseFseq(bake(C, 0.5, () => [255, 0, 0])), C);
     assert.equal(red.peakBrightness, 0.333);
     assert.equal(red.estPeakAmps, 2);
     // A file holding only universe 1 leaves the spire's channels out (and dark).
     const part = writeFseq({ frames: 1, data: new Uint8Array(285).fill(255), ranges: [[0, 285]] });
-    const a = analyzeFrames(parseFseq(part), C);
+    const a = analyze(parseFseq(part), C);
     assert.equal(a.coverage, 0.95);
     assert.equal(a.darkFraction, 0.05);
-    assert.throws(() => analyzeFrames(parseFseq(part), { count: 0 }), /no LED map/);
-    assert.throws(() => analyzeFrames({}, C), /parseFseq/);
+    assert.throws(() => analyzeFrames(parseFseq(part), { count: 0 }), /prepareScene/);
+    assert.throws(() => analyzeFrames({}, prepareScene(C)), /parseFseq/);
   });
 
-  test('on the real LED map: a 20 s sparse bake is about 12 MB, full frames about 33 MB',
-    { skip: !fs.existsSync(new URL('../public/data/cathedral.json', import.meta.url)) && 'no cathedral.json' }, () => {
-    const real = JSON.parse(fs.readFileSync(new URL('../public/data/cathedral.json', import.meta.url), 'utf8'));
+  test('on the Folly: a 20 s sparse bake is about 12 MB, full frames about 33 MB', () => {
+    const real = folly;
     const ranges = usedRanges(real);
     const cc = ranges.reduce((n, r) => n + r[1], 0);
     assert.equal(cc, real.count * 3);
     const file = writeFseq({ frames: 800, data: new Uint8Array(800 * cc).fill(255), ranges });
     assert.ok(file.length < 12e6 && file.length > 11e6, `${file.length}`);
     assert.ok(800 * MAX_CHANNELS > 32e6);
-    const a = analyzeFrames(parseFseq(file), real);
+    const a = analyze(parseFseq(file), real);
     assert.equal(a.coverage, 1);
     assert.equal(a.estPeakAmps, Math.round(real.count * 3 * 0.02 * 10) / 10);
     assert.equal(a.flicker.ok, true);
   });
 });
 
-describe('flicker on the real LED map: large regions block, small ones warn', () => {
-  const file = new URL('../public/data/cathedral.json', import.meta.url);
-  const skip = !fs.existsSync(file) && 'no cathedral.json';
-  const real = skip ? null : JSON.parse(fs.readFileSync(file, 'utf8'));
-  const members = (id) => {
-    const g = real.groups.find((x) => x.id === id);
-    const zones = new Set(g.zones.map((z) => real.zones.indexOf(z)));
-    return (k) => zones.has(real.pixels.zone[k]);
-  };
+describe('flicker on the Folly: large regions block, small ones warn', () => {
+  const real = folly, scene = prepareScene(real);
   const strobeOn = (id) => {
-    const inside = members(id);
-    return analyzeFrames(parseFseq(bake(real, 2, (f, k) => (inside(k) ? gray(square(8)(f)) : gray(40)))), real);
+    const inside = new Set(pixelsForGroups(scene, [id]));
+    return analyze(parseFseq(bake(real, 2, (f, k) => (inside.has(k) ? gray(square(8)(f)) : gray(40)))), real);
   };
 
-  test('large: the whole, ≥ 10 % of the LEDs, or ≥ 10 % of the lit area from the front or side', { skip }, () => {
-    const top = real.groups.filter((g) => g.parent === 'cathedral');
-    const regions = [{ id: 'cathedral', idx: null }, ...top.map((g) => {
-      const inside = members(g.id);
-      return { id: g.id, idx: Int32Array.from({ length: real.count }, (_, k) => k).filter(inside) };
-    })];
-    const large = largeRegions(real, regions);
-    const kinds = Object.fromEntries(regions.map((r, j) => [r.id, large[j]]));
+  test('large: the whole, ≥ 10 % of the LEDs, or ≥ 10 % of the lit area from the front or side', () => {
+    const kinds = Object.fromEntries(flashRegions(scene).map((r) => [r.id, r.large]));
     assert.deepEqual(kinds, { cathedral: true, arches: true, spires: true, spirelets: false, 'rose-window': true,
       canopy: true, wash: false });
   });
 
-  test('the 20 spirelets strobing: a warning the curator sees; the rose window strobing: blocked', { skip }, () => {
+  test('the 20 spirelets strobing: a warning the curator sees; the rose window strobing: blocked', () => {
     const spirelets = strobeOn('spirelets');
     assert.equal(spirelets.flicker.ok, true);
     assert.deepEqual(spirelets.flicker.small.regions, ['spirelets']);

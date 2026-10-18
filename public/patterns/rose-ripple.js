@@ -1,5 +1,6 @@
-// Rose ripple: rings spread in 3D from the rose window's centre (X Y Z in metres), true spheres crossing the
-// window, the arches, the towers and the spires; rainbow moves each new ring's hue along.
+// Rose ripple: rings spread in 3D from the rose window's centre (X Y Z in metres; on a rig without a group tagged
+// `rose`, its middle), true spheres crossing the window, the arches, the towers and the spires; rainbow moves each
+// new ring's hue along.
 const params = {
   speed: { value: 4, min: 0.5, max: 15, step: 0.1, label: 'Metres per second' },
   spacing: { value: 6, min: 1, max: 20, step: 0.1, label: 'Metres between rings' },
@@ -9,11 +10,11 @@ const params = {
   rainbow: { value: true, type: 'toggle' },
 };
 
-// The rose window's centre, from the pixel map (td/python/make_pixel_csv.py).
-const ROSE = [-8.567, 5.936, -0.443];
+let O = [0, 0, 0];
+function frame() { O = centres('rose')[0] || centres('all')[0] || O; }
 
 function pixel(p, t, P) {
-  const d = dist(p.X, p.Y, p.Z, ROSE[0], ROSE[1], ROSE[2]);
+  const d = dist(p.X, p.Y, p.Z, O[0], O[1], O[2]);
   const phase = (d - t * P.speed) / P.spacing;
   const k = pulse(phase, P.width);
   // Which ring this is (counting outward ones as newer) picks its hue.

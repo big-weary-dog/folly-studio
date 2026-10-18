@@ -1,5 +1,6 @@
 // sketch: the offline generator. Picks one to three library patterns by keywords in the idea,
-// maps colour words to colour params and zone words to groups. Deterministic, instant, free.
+// maps colour words to colour params and place words to the rig's tagged groups (SPEC "Rig"). Deterministic, instant,
+// free.
 // Library code is only read as text here (params are parsed with regexes, never evaluated).
 
 import WORDS from './sketch-words.json' with { type: 'json' };
@@ -13,21 +14,21 @@ const colourOf = (w) => COLOURS[w] || (w.endsWith('s') && COLOURS[w.slice(0, -1)
 const WARM_WHITE = WORDS.warmWhite;
 const [SLOW, FAST, STOP] = [WORDS.slow, WORDS.fast, WORDS.stop].map((w) => new Set(w.split(' ')));
 
-// Zone phrases → how to find the groups (matched against group ids and names). Order matters:
-// longer phrases first, so "main arches" is not also read as "arches".
-const zone = (key, phrases, ids, match) => ({ key, re: new RegExp(`\\b(${phrases})\\b`, 'g'), ids, match });
+// Place phrases → the tags that find their groups (the first tag the rig uses wins), else group ids and names
+// matching `match`. Order matters: longer phrases first, so "main arches" is not also read as "arches".
+const zone = (key, phrases, tags, match) => ({ key, re: new RegExp(`\\b(${phrases})\\b`, 'g'), tags, match });
 const ZONES = [
-  zone('main-arches', 'main\\s+arch(es)?|portal|entrance|doorway|gateway', ['main-arches', 'main-arch'], /main.?arch/),
-  zone('mini-arches', '(mini|small|side)\\s+arch(es)?', ['mini-arches'], /mini.?arch/),
-  zone('quad-arches', 'quad\\s+arch(es)?', ['quad-arches'], /quad.?arch/),
-  zone('rose', 'rose(\\s+window)?|stained\\s+glass|petals?|window', ['rose-window', 'rose'], /^rose/),
-  zone('spirelets', 'spirelets?|cones?', ['spirelets', 'spirelet'], /spirelet/),
-  zone('spires', 'spires?|towers?|steeples?|pinnacles?', ['spires'], /spire(?!let)/),
-  zone('arches', 'arch(es)?|archways?|vaults?', ['arches'], /arch/),
+  zone('main-arches', 'main\\s+arch(es)?|portal|entrance|doorway|gateway', ['arch-main'], /main.?arch/),
+  zone('mini-arches', '(mini|small|side)\\s+arch(es)?', ['arch-mini'], /mini.?arch/),
+  zone('quad-arches', 'quad\\s+arch(es)?', ['arch-quad'], /quad.?arch/),
+  zone('rose', 'rose(\\s+window)?|stained\\s+glass|petals?|window', ['rose', 'window'], /^rose|window/),
+  zone('spirelets', 'spirelets?|cones?', ['spirelet'], /spirelet/),
+  zone('spires', 'spires?|towers?|steeples?|pinnacles?', ['spire', 'tower'], /spire(?!let)|tower/),
+  zone('arches', 'arch(es)?|archways?|vaults?', ['arch'], /arch/),
   zone('canopy', 'canopy|ceiling|roof|overhead', ['canopy'], /canopy/),
-  zone('wash', 'wash|floods?|floodlights?|ground|floor', ['wash'], /wash|flood/),
-  zone('cathedral', 'everything|everywhere|whole\\s+(cathedral|thing|building|folly)'
-    + '|entire\\s+(cathedral|building|folly)|cathedral', ['cathedral'], /^cathedral$/),
+  zone('wash', 'wash|floods?|floodlights?|ground|floor', ['wash', 'flood'], /wash|flood/),
+  zone('all', 'everything|everywhere|whole\\s+(cathedral|thing|building|folly|installation|structure)'
+    + '|entire\\s+(cathedral|building|folly|installation|structure)|cathedral', ['all'], null),
 ];
 const SIDES = {
   front: /\b(front|facade|façade)\b/g, back: /\b(back|rear)\b/g, left: /\bleft\b/g, right: /\bright\b/g,
@@ -144,28 +145,38 @@ function groupIndex(groups) {
     }
     return false;
   };
-  return { byId, depth, isUnder, list: [...byId.values()] };
+  const root = [...byId.values()].find((g) => g.parent == null)?.id || 'all';
+  const tagged = (tag) => [...byId.values()].filter((g) => Array.isArray(g.tags) && g.tags.includes(tag));
+  return { byId, depth, isUnder, root, tagged, list: [...byId.values()] };
 }
 
-/** The shallowest groups whose id (or name) matches; deterministic. */
+/** { ids, tags }: the shallowest groups with the zone's first tag the rig uses, else whose id or name matches. */
 function findZone(zone, gi) {
-  for (const id of zone.ids) if (gi.byId.has(id)) return [id];
+  const top = (hits) => {
+    const d = Math.min(...hits.map(gi.depth));
+    return hits.filter((g) => gi.depth(g) === d).map((g) => g.id).sort();
+  };
+  for (const tag of zone.tags) {
+    const hits = gi.tagged(tag);
+    if (hits.length) return { ids: top(hits), tags: [tag] };
+  }
+  if (!zone.match) return { ids: [gi.root], tags: zone.tags };
   const named = (g) => String(g.name || '').toLowerCase().replace(/\s+/g, '-');
   const hits = gi.list.filter((g) => zone.match.test(g.id) || zone.match.test(named(g)));
-  if (!hits.length) return [];
-  const top = Math.min(...hits.map(gi.depth));
-  return hits.filter((g) => gi.depth(g) === top).map((g) => g.id).sort();
+  return { ids: hits.length ? top(hits) : [], tags: zone.tags.slice(0, 1) };
 }
 
 /** Groups on one side (front/back/left/right), optionally within some zone groups. */
 const OPPOSITE = { front: 'back', back: 'front', left: 'right', right: 'left' };
 function findSide(side, gi, within) {
-  // An id naming both sides (a quad arch's faces: "quad-back-bottom-left-front") is not on one side.
+  // Groups tagged with the side; on a rig without side tags, an id naming it (not one naming both sides, as a
+  // quad arch's faces do: "quad-back-bottom-left-front").
   const has = (g) => {
     const t = g.id.split(/[^a-z0-9]+/);
     return t.includes(side) && !t.includes(OPPOSITE[side]);
   };
-  let hits = gi.list.filter(has);
+  let hits = gi.tagged(side);
+  if (!hits.length) hits = gi.list.filter(has);
   if (within) hits = hits.filter((g) => within.some((w) => g.id === w || gi.isUnder(g, w)));
   // Keep the outermost: drop any whose ancestor is also a hit.
   const ids = new Set(hits.map((g) => g.id));
@@ -185,7 +196,7 @@ function zoneMentions(text, gi) {
       const [a, b] = [m.index, m.index + m[0].length];
       if (!free(a, b)) continue;
       taken.push([a, b]);
-      let ids = findZone(zone, gi);
+      let { ids, tags } = findZone(zone, gi);
       // "left spires", "back arches": narrow to that side when the group tree allows it.
       const before = text.slice(Math.max(0, a - 12), a);
       const side = /\b(front|back|rear|left|right)\s+(?:\w+\s+)?$/.exec(before)?.[1];
@@ -193,7 +204,7 @@ function zoneMentions(text, gi) {
         const narrowed = findSide(side === 'rear' ? 'back' : side, gi, ids);
         if (narrowed.length) { ids = narrowed; taken.push([a - before.length + before.lastIndexOf(side), a]); }
       }
-      if (ids.length) out.push({ key: zone.key, at: a, ids });
+      if (ids.length) out.push({ key: zone.key, at: a, ids, tags });
     }
   }
   for (const [side, re] of Object.entries(SIDES)) {
@@ -204,7 +215,7 @@ function zoneMentions(text, gi) {
       if (!free(a, b)) continue;
       taken.push([a, b]);
       const ids = findSide(side, gi);
-      if (ids.length) out.push({ key: side, at: a, ids });
+      if (ids.length) out.push({ key: side, at: a, ids, tags: [side] });
     }
   }
   return out.sort((x, y) => x.at - y.at);
@@ -278,20 +289,20 @@ export function sketchLook({ text = '', library = [], groups = [] } = {}) {
   }
 
   // Zones: a pattern takes the zones named in its own clause; zones named on their own go to a
-  // lone pattern; everything else covers the whole cathedral.
+  // lone pattern; everything else covers the whole rig. Each layer keeps the tags that found its groups.
   const zones = zoneMentions(lower, gi);
-  for (const c of chosen) {
-    const mine = zones.filter((z) => c.clause >= 0 && clauseOf(z.at) === c.clause);
-    c.groups = [...new Set(mine.flatMap((z) => z.ids))];
-  }
+  const place = (c, list) => {
+    c.groups = [...new Set(list.flatMap((z) => z.ids))];
+    c.tags = [...new Set(list.flatMap((z) => z.tags))];
+  };
+  for (const c of chosen) place(c, zones.filter((z) => c.clause >= 0 && clauseOf(z.at) === c.clause));
   const claimed = new Set(chosen.filter((c) => c.clause >= 0).map((c) => c.clause));
   const orphans = zones.filter((z) => !claimed.has(clauseOf(z.at)));
-  if (orphans.length && chosen.length === 1 && !chosen[0].groups.length) {
-    chosen[0].groups = [...new Set(orphans.flatMap((z) => z.ids))];
-  }
-  for (const c of chosen) if (!c.groups.length) c.groups = ['cathedral'];
-  // Whole-cathedral layers at the bottom, zone accents on top (stable order otherwise).
-  chosen.sort((a, b) => (b.groups.includes('cathedral') ? 1 : 0) - (a.groups.includes('cathedral') ? 1 : 0));
+  if (orphans.length && chosen.length === 1 && !chosen[0].groups.length) place(chosen[0], orphans);
+  for (const c of chosen) if (!c.groups.length) Object.assign(c, { groups: [gi.root], tags: ['all'] });
+  // Whole-rig layers at the bottom, zone accents on top (stable order otherwise).
+  const whole = (c) => (c.groups.includes(gi.root) ? 1 : 0);
+  chosen.sort((a, b) => whole(b) - whole(a));
 
   // Colours and pace, each with where it was said: a pattern takes those in its own clause,
   // else those said apart from any pattern, else all of them.
@@ -352,9 +363,10 @@ export function sketchLook({ text = '', library = [], groups = [] } = {}) {
     }
     const shift = own ? 0 : li;
     for (let k = 0; k < rest.length && free.length; k++) params[free.shift()] = rest[(k + shift) % rest.length];
-    const where = c.groups.includes('cathedral') ? '' : ` · ${placeOf(c)}`;
+    const where = whole(c) ? '' : ` · ${placeOf(c)}`;
     const title = cleanText(`${c.pattern.title || c.pattern.name || 'Pattern'}${where}`, LIMITS.layerTitle);
-    return { title, groups: c.groups, blend: li === 0 ? 'add' : 'max', level: 1, params, code: c.pattern.code };
+    return { title, groups: c.groups, tags: c.tags, blend: li === 0 ? 'add' : 'max', level: 1, params,
+      code: c.pattern.code };
   });
 
   const named = allColours.map(colourName).filter(Boolean);

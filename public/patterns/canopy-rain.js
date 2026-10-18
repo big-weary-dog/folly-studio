@@ -1,6 +1,6 @@
 // Canopy rain: highlight drops with accent tails streak down the layer in columns across width and depth
 // (energy turns a shower into a downpour), beading on the canopy runs, where they linger, over the low colour at
-// `sky`. columns, speed, tail.
+// `sky`. columns, speed, tail. The canopy is whatever the rig tags `canopy`.
 const params = {
   columns: { value: 30, min: 8, max: 80, step: 1, label: 'Columns across' },
   speed: { value: 0.9, min: 0.2, max: 3, step: 0.05, label: 'Layer heights a second' },
@@ -9,7 +9,7 @@ const params = {
 };
 
 function pixel(p, t, P, G) {
-  const col = floor(p.lz * P.columns) * 7 + floor(p.lx * 6.999), long = p.zone === 'canopy' ? 4 : 1;
+  const col = floor(p.lz * P.columns) * 7 + floor(p.lx * 6.999), long = p.is('canopy') ? 4 : 1;
   let v = 0;
   for (let m = 0; m < 2; m++) {
     if (rand(col, m, 5) > 0.3 + 0.7 * G.energy) continue;

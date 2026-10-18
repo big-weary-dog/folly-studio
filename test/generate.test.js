@@ -8,7 +8,8 @@ import { createQueue } from '../src/generate/index.js';
 import { buildSystemPrompt, buildUserMessage, formatGroups, lookSchema, pickExamples } from '../src/generate/prompt.js';
 import { BUILTIN_PATTERN, parseParams, sketchLook } from '../src/generate/sketch.js';
 import { GenerateError, LIMITS, validateLook } from '../src/generate/validate.js';
-import { byName, goodLayer, GROUPS, LIBRARY, queueSetup, quiet, STUDIO } from './fixtures/generate/shared.js';
+import { byName, goodLayer, GROUPS, LIBRARY, queueSetup, quiet, RIG, STUDIO } from './fixtures/generate/shared.js';
+import { mini as MINI } from './fixtures/rigs.js';
 
 describe('validate', () => {
   test('normalises a look: ids, defaults, known groups, limits', () => {
@@ -118,6 +119,18 @@ describe('sketch', () => {
     assert.deepEqual(look.layers[0].params, { color: '#8000ff', color2: '#ffb000' });
   });
 
+  test('finds places by tag on any rig, by id and name where a rig has none, and keeps the tags', () => {
+    const on = (groups, text) => validateLook(sketchLook({ text, library: LIBRARY, groups }), { groups }).layers;
+    const fire = on(GROUPS, 'fire on the spires');
+    assert.deepEqual([fire[0].groups, fire[0].tags], [['spires'], ['spire']]);
+    const bare = GROUPS.map(({ tags, ...g }) => g);
+    assert.deepEqual(on(bare, 'fire on the spires')[0].groups, ['spires'], 'no tags: ids and names');
+    const mini = on(MINI.groups, 'twinkling stars on the rose window, and an ocean swell over everything');
+    assert.deepEqual(mini.map((l) => [l.groups, l.tags]), [[['all'], ['all']], [['panel'], ['rose']]]);
+    assert.deepEqual(on(MINI.groups, 'fire on the arches')[0].groups, ['gate']);
+    assert.deepEqual(on(MINI.groups, 'the left arches glowing')[0].groups, ['post-left']);
+  });
+
   test('works with the real library and groups', () => {
     const dir = path.join(STUDIO, 'public/patterns');
     if (!fs.existsSync(path.join(dir, 'index.json'))) return;
@@ -141,8 +154,8 @@ describe('sketch', () => {
 
 describe('prompt', () => {
   test('system prompt carries the API, groups, taste and examples, and is stable', () => {
-    const sys = buildSystemPrompt({ library: LIBRARY, groups: GROUPS });
-    assert.equal(sys, buildSystemPrompt({ library: LIBRARY, groups: GROUPS }));
+    const sys = buildSystemPrompt({ library: LIBRARY, rig: RIG });
+    assert.equal(sys, buildSystemPrompt({ library: LIBRARY, rig: RIG }));
     for (const s of ['function pixel(p, t, P)', 'lx ly lz', 'cosPalette', 'beat(t, bpm)', 'spire-front-left',
       'rose-window — Rose window', 'Colour at full strength', 'Darkness is punctuation', 'fills what it lands on',
       '4,870', '40 fps', 'untrusted', '<idea>']) {
@@ -154,7 +167,9 @@ describe('prompt', () => {
 
   test('group tree is compact', () => {
     const text = formatGroups(GROUPS);
-    assert.match(text, /^cathedral — Cathedral$/m);
+    assert.match(text, /^cathedral — Cathedral \[all\]$/m);
+    assert.match(text, /^ {2}rose-window — Rose window \[rose, window\]$/m);
+    assert.match(text, /^ {4}rose-ring-1 … rose-ring-7 — Rose ring 1–7$/m);
     assert.match(text, /^ {6}main-arch-1 … main-arch-5 — Main arch 1–5$/m);
     assert.match(text, /^ {8}quad-back-bottom-left-\{front,left,back,right\}$/m);
     assert.match(text, /rose-petal-01 … rose-petal-16/);

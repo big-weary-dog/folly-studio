@@ -48,7 +48,7 @@ function ideasPage(root, ctx) {
     h('section', { class: 'compose' },
       h('h1', { class: 'page-title', text: 'Describe a show idea' }),
       h('p', { class: 'lede', text: 'A sentence or two is plenty: colours, motion, mood, which parts of the '
-        + 'cathedral. It becomes pattern code you can preview, tweak and export.' }),
+        + 'installation. It becomes pattern code you can preview, tweak and export.' }),
       form),
     h('section', { class: 'ideas-section', 'aria-labelledby': 'my-ideas-h' },
       h('div', { class: 'section-head' },

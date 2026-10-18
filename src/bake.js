@@ -122,31 +122,31 @@ export async function removeFrames(dir, lookId) {
 }
 
 /**
- * createBakeQueue({ store, box, framesDir, cathedralFile, maxQueue = 16, log, onFrames?, lane? })
+ * createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16, log, onFrames?, lane? })
  *   → { request(lookId) → bake record, restore(look) → boolean, idle(), stop(), size }. A bake renders the look's
  * render fields and duration as they are when it starts, and is kept only if they are unchanged when it ends;
  * onFrames(lookId) then hears of it. restore() bakes frames that were evicted again, keeping the record when
  * the bytes come out the same. request() throws BakeError with `status` 503 (no box) or 429 (full).
  */
-export function createBakeQueue({ store, box, framesDir, cathedralFile, maxQueue = 16, log = console, onFrames,
+export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16, log = console, onFrames,
   lane = createLane() }) {
   const source = 'render-box';
   const pending = [];
   const asking = new Set();    // ids between request() and the queue, so a double click is one bake
   const restoring = new Set(); // ids whose evicted frames are being baked again
   const digest = boxDigester(box.config);
-  let running = null, waiters = [], cathedral = { sig: '', value: null };
+  let running = null, waiters = [], rig = { sig: '', value: null };
   // Bakes cut short by a restart are marked failed, so nobody waits on them.
   const cut = (l) => l.bake?.source === source && ['queued', 'running'].includes(l.bake.status);
   for (const look of store.looks.list(cut)) {
     store.looks.update(look.id, { bake: failedBake(source, 'The bake was interrupted by a restart; bake again.') });
   }
 
-  async function loadCathedral() {
-    const st = await fs.stat(cathedralFile);
+  async function loadRig() {
+    const st = await fs.stat(rigFile);
     const sig = `${st.mtimeMs}:${st.size}`;
-    if (cathedral.sig !== sig) cathedral = { sig, value: JSON.parse(await fs.readFile(cathedralFile, 'utf8')) };
-    return cathedral.value;
+    if (rig.sig !== sig) rig = { sig, value: JSON.parse(await fs.readFile(rigFile, 'utf8')) };
+    return rig.value;
   }
 
   /** A done render-box bake with this renderKey (or these frames) whose file is still there: { look, file }. */
@@ -183,8 +183,7 @@ export function createBakeQueue({ store, box, framesDir, cathedralFile, maxQueue
     let out;
     try {
       const { bytes, boxStats } = await lane.run(() => box.render({ layers: look.layers ?? [], seconds, ...extra }));
-      const cathedral = await loadCathedral();
-      out = checkFrames(bytes, { source, cathedral, maxBytes: box.config?.maxFramesBytes, boxStats });
+      out = checkFrames(bytes, { source, rig: await loadRig(), maxBytes: box.config?.maxFramesBytes, boxStats });
     } catch (err) {
       if (!(err instanceof BakeError)) log.error?.(`[bake] look ${id}:`, err);
       const reason = err instanceof BakeError ? err.reason : 'The render box failed.';

@@ -26,7 +26,7 @@ const GENERATED = {
   'test/big.js': filler(601),
   'public/patterns/long.js': `${filler(150)}function pixel() { return [0, 0, 0]; }\n`,
   'NOTES.md': `# Notes\n${`${'word '.repeat(29)}word\n`.repeat(500)}`,
-  'public/data/cathedral.json': json70k,
+  'public/data/rig.json': json70k,
   'public/data/big.json': json70k,
   'src/keys.js': [
     `export const a = '${'sk-' + 'ant-' + 'a'.repeat(24)}';`,

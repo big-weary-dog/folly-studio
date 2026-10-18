@@ -44,7 +44,7 @@ export const api = {
   library: () => request('GET', '/api/library'),
 };
 
-/** Static JSON (not under /api): the cathedral model, the library index. */
+/** Static JSON (not under /api): the rig, the library index. */
 export async function fetchJSON(path) {
   const res = await fetch(path, { credentials: 'same-origin' });
   if (!res.ok) throw new Error(`Could not load ${path} (${res.status})`);

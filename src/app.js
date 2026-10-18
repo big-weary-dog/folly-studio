@@ -35,8 +35,8 @@ export async function createServer(opts = {}) {
   const auth = createAuth({ store, curators, secureCookies, rateLimit, trustProxy });
   auth.pruneSessions();
   const loaders = createLoaders(publicDir, { log });
-  const { loadLibrary, loadGroups } = loaders;
-  const deps = { store, loadLibrary, loadGroups, adapterName: generatorName, log };
+  const { loadLibrary, loadRig } = loaders;
+  const deps = { store, loadLibrary, loadRig, adapterName: generatorName, log };
   const queue = typeof generator === 'function' ? await generator(deps) : generator || createQueue(deps);
   const adapterName = typeof queue.adapterName === 'string' && queue.adapterName ? queue.adapterName : generatorName;
   const framesDir = path.join(dataDir, 'frames');
@@ -46,8 +46,8 @@ export async function createServer(opts = {}) {
   const lane = createLane();
   const frames = createFramesCache({ framesDir, store, log, quality: framesQuality, maxBytes: framesMaxBytes, lane,
     rebake: (look) => bakes.restore(look) });
-  const cathedralFile = path.join(publicDir, 'data', 'cathedral.json');
-  const bakes = createBakeQueue({ store, box, framesDir, cathedralFile, log, lane,
+  const rigFile = path.join(publicDir, 'data', 'rig.json');
+  const bakes = createBakeQueue({ store, box, framesDir, rigFile, log, lane,
     onFrames: (id) => frames.encode(id) });
   const api = createApi({ store, auth, queue, adapterName, loaders, log, trustProxy, maxIdeasPerDay, framesDir, bakes,
     frames });

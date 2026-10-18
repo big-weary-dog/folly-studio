@@ -8,10 +8,10 @@ behind these rules.
   syntax, safety, import boundaries; `node tools/lint.mjs --rules` lists them), then every test.
   A render-box test that skips says why. A skip is not a pass.
 - **SPEC.md is the contract: change it first.** The sandbox protocol, the HTTP API, the look and
-  `cathedral.json` shapes, and `pattern-core.js`'s exports are what the other pieces rely on.
+  `rig.json` shapes, and `pattern-core.js`'s exports are what the other pieces rely on.
   Code follows the spec, in the same change.
 - **Split, never bump.** Source stays ≤ 400 lines, tests ≤ 600, library patterns ≤ 150 (they
-  are the AI's examples), lines ≤ 120, text files ≤ 64 KB, and the gzipped app ≤ 150 KB with the
+  are the AI's examples), lines ≤ 120, text files ≤ 64 KB, and the gzipped app ≤ 165 KB with the
   login page ≤ 40 KB. Over a limit, split the module by responsibility, one concern per file
   named for it. Raising a limit is not a fix. Each area's total lines are ratcheted in
   `tools/lint/budget.json`: lower it when you cut; raise it only with a new `reason`.
@@ -30,7 +30,8 @@ behind these rules.
 - **Frames are hot.** The render loop allocates nothing per frame (reuse typed arrays, pass
   `out`), layers outside their clips are skipped before any pixel work, and the loop sleeps when
   nothing plays or changes. 4,870 LEDs at 40 fps leave no room for garbage.
-- **Every LED comes from `../pixel-map/`**, through `npm run build-data`. Never edit
-  `public/data/cathedral.json` by hand.
+- **Every LED comes from `public/data/rig.json`**, and nothing else names the installation: code finds places
+  by the rig's group tags, never by the Folly's ids. The Folly's rig comes from `../pixel-map/` through
+  `npm run build-data`; never edit it by hand.
 - **Comments and docs are brief and current.** Say what is and why, never how it got here.
 - **Commits are green**, and stage only `studio/` (plus `.github/workflows/studio.yml`).

@@ -8,6 +8,7 @@ import { fseqBlocks, MAX_BLOCKS, writeFseq } from '../public/js/fseq.js';
 import { checkFrames } from '../src/box-output.js';
 import { FseqError, parseFseq } from '../src/frames.js';
 import { compressFseq, FSEQ_CODEC, HAS_ZSTD, inflateBlock } from '../src/fseq-codec.js';
+import { lineRig } from './fixtures/rigs.js';
 
 const RANGES = [[0, 3], [510, 3]];
 const C = 6;
@@ -147,12 +148,9 @@ describe('compressed FSEQ', () => {
   });
 
   test('a box may hand back a compressed bake: checked like any other', async () => {
-    const cathedral = {
-      count: 2, channelsPerUniverse: 510, zones: ['z'],
-      pixels: { zone: [0, 0], strand: [0, 0], universe: [1, 2], channel: [1, 1], row: [0, 0], pos: [0, 0, 0, 0, 1, 0] },
-      groups: [{ id: 'cathedral', name: 'Cathedral', parent: null, zones: [0] }],
-    };
-    const { bake } = checkFrames(await compressFseq(parseFseq(plain)), { source: 'fleet-box', cathedral });
+    const rig = { ...lineRig(2), output: { universes: 2, channelsPerUniverse: 510 } };
+    rig.pixels = { ...rig.pixels, universe: [1, 2], channel: [1, 1] };
+    const { bake } = checkFrames(await compressFseq(parseFseq(plain)), { source: 'fleet-box', rig });
     assert.equal(bake.status, 'done', bake.reason);
     assert.equal(bake.analysis.frames, F);
   });

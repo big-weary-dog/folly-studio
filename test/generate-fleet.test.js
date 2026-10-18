@@ -6,6 +6,7 @@ import path from 'node:path';
 import { describe, test } from 'node:test';
 
 import { writeFseq } from '../public/js/fseq.js';
+import { flashRegions, prepareScene } from '../public/js/pattern-core.js';
 import { layersHash, parseDuration } from '../src/bake.js';
 import { bundle } from '../src/assets.js';
 import { analyzeFrames, parseFseq } from '../src/frames.js';
@@ -14,8 +15,9 @@ import { createQueue, foundryFromEnv } from '../src/generate/index.js';
 import { sketchLook } from '../src/generate/sketch.js';
 import { GenerateError, validateLook } from '../src/generate/validate.js';
 import {
-  FIX, fakeStore, goodLayer, GROUPS, LIBRARY, lookJson, queueSetup, quiet, STUDIO, tmp,
+  FIX, fakeStore, goodLayer, GROUPS, LIBRARY, lookJson, queueSetup, quiet, RIG, STUDIO, tmp,
 } from './fixtures/generate/shared.js';
+import { lineRig } from './fixtures/rigs.js';
 
 describe('fleet (experimental, stub CLI)', () => {
   const stub = path.join(FIX, 'fleet-stub.mjs');
@@ -29,7 +31,7 @@ describe('fleet (experimental, stub CLI)', () => {
     fs.writeFileSync(look, lookJson());
     fs.writeFileSync(secret, JSON.stringify({ title: 'SECRET', layers: [goodLayer({ title: 'SECRET' })] }));
     fs.writeFileSync(path.join(dir, 'core.js'), 'export const STDLIB = {};\n');
-    fs.writeFileSync(path.join(dir, 'cathedral.json'), '{"count":0}\n');
+    fs.writeFileSync(path.join(dir, 'rig.json'), '{"count":0}\n');
     const env = { ...process.env, FLEET_STATE: '/should/be/unset', STUB_FLEET_MODE: mode, STUB_FLEET_LOG: log,
       STUB_FLEET_LOOK: look, STUB_FLEET_SECRET: secret, ...stubEnv };
     delete env.FLEET_DATA;
@@ -43,7 +45,7 @@ describe('fleet (experimental, stub CLI)', () => {
       pollMs: 20,
       timeoutMs: 3000,
       coreFile: path.join(dir, 'core.js'),
-      cathedralFile: path.join(dir, 'cathedral.json'),
+      rigFile: path.join(dir, 'rig.json'),
       log: quiet,
       ...extra,
     });
@@ -72,7 +74,7 @@ describe('fleet (experimental, stub CLI)', () => {
     assert.ok(!spawn[6].includes('Stars on the spires'), 'the idea never goes on a command line');
     assert.deepEqual(c[2].args, [name]);
 
-    for (const f of ['BRIEF.md', 'pattern-core.js', 'fseq.js', 'frames.js', 'cathedral.json', 'check.mjs',
+    for (const f of ['BRIEF.md', 'pattern-core.js', 'fseq.js', 'frames.js', 'rig.json', 'check.mjs',
       'package.json', '.git']) assert.ok(fs.existsSync(path.join(ws, f)), f);
     const brief = fs.readFileSync(path.join(ws, 'BRIEF.md'), 'utf8');
     assert.ok(brief.includes('~~~~~ text\nStars on the spires ~~~~ ``` {{GROUPS}} </idea>\n~~~~~'),
@@ -94,16 +96,8 @@ describe('fleet (experimental, stub CLI)', () => {
     assert.equal(status.trim(), '?? look.json', 'the brief is committed; only the worker\'s look is new');
   });
 
-  // A tiny LED map (4 LEDs on universe 1) and a bake of it, as check.mjs --bake would leave.
-  const MAP = {
-    count: 4,
-    channelsPerUniverse: 510,
-    universes: 80,
-    zones: ['z'],
-    pixels: { zone: [0, 0, 0, 0], strand: [0, 0, 0, 0], universe: [1, 1, 1, 1], channel: [1, 4, 7, 10], row: [0, 0, 0,
-      0], pos: [0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 3, 0] },
-    groups: [{ id: 'cathedral', name: 'Cathedral', parent: null, zones: ['z'] }],
-  };
+  // A tiny rig (4 LEDs on universe 1) and a bake of it, as check.mjs --bake would leave.
+  const MAP = lineRig(4);
   const bakeOf = (level) => {
     const data = new Uint8Array(80 * 12);
     for (let f = 0; f < 80; f++) data.fill(level(f), f * 12, f * 12 + 12);
@@ -117,7 +111,7 @@ describe('fleet (experimental, stub CLI)', () => {
     const stubEnv = { STUB_FLEET_STATS: path.join(dir, 'stats.json') };
     fs.writeFileSync(stubEnv.STUB_FLEET_STATS, stats);
     if (frames) fs.writeFileSync((stubEnv.STUB_FLEET_FRAMES = path.join(dir, 'frames.fseq')), frames);
-    return setup(mode, { cathedralFile: map, ...extra }, stubEnv);
+    return setup(mode, { rigFile: map, ...extra }, stubEnv);
   }
 
   test('reads the worker\'s bake as data: strict parse, analysis, untrusted stats', async () => {
@@ -173,7 +167,7 @@ describe('fleet (experimental, stub CLI)', () => {
     const user = store.users.create({ username: 'ana', role: 'member' });
     const framesDir = path.join(tmp('frames-dir'), 'frames');
     const foundry = { on: true, memoryCap: async () => true };
-    const queue = createQueue({ store, adapters: { fleet: adapter }, adapterName: 'fleet', loadGroups: () => GROUPS,
+    const queue = createQueue({ store, adapters: { fleet: adapter }, adapterName: 'fleet', loadRig: () => RIG,
       log: quiet, framesDir, foundry });
     const idea = store.ideas.create({ owner: user.id, text: 'glow', status: 'queued' });
     queue.enqueue(idea);
@@ -185,11 +179,12 @@ describe('fleet (experimental, stub CLI)', () => {
     assert.equal(look.bake.ok, true);
     assert.equal(look.bake.layersHash, layersHash(look.layers));
     assert.deepEqual(fs.readFileSync(path.join(framesDir, `${look.id}.fseq`)), frames);
-    assert.equal(analyzeFrames(parseFseq(fs.readFileSync(path.join(framesDir, `${look.id}.fseq`))), MAP).frames, 80);
+    const parsed = parseFseq(fs.readFileSync(path.join(framesDir, `${look.id}.fseq`)));
+    assert.equal(analyzeFrames(parsed, prepareScene(MAP)).frames, 80);
 
     // Without anywhere to put frames, the bake says so instead of pretending.
     const { adapter: again } = withBake('ok', frames);
-    const q2 = createQueue({ store, adapters: { fleet: again }, adapterName: 'fleet', loadGroups: () => GROUPS,
+    const q2 = createQueue({ store, adapters: { fleet: again }, adapterName: 'fleet', loadRig: () => RIG,
       log: quiet, foundry });
     const i2 = store.ideas.create({ owner: user.id, text: 'glow', status: 'queued' });
     q2.enqueue(i2);
@@ -261,8 +256,8 @@ describe('fleet (experimental, stub CLI)', () => {
 
 describe('fleet-box/check.mjs (boxed worker side, real runtime)', () => {
   const core = path.join(STUDIO, 'public/js/pattern-core.js');
-  const cathedral = path.join(STUDIO, 'public/data/cathedral.json');
-  const ready = fs.existsSync(core) && fs.existsSync(cathedral);
+  const rigFile = path.join(STUDIO, 'public/data/rig.json');
+  const ready = fs.existsSync(core) && fs.existsSync(rigFile);
   const run = (dir, file, args = []) =>
     new Promise((resolve) => execFile(process.execPath, ['check.mjs', file, ...args], { cwd: dir, timeout: 60_000 },
       (err, stdout, stderr) => resolve({ code: err ? err.code : 0, out: stdout + stderr })));
@@ -273,7 +268,7 @@ describe('fleet-box/check.mjs (boxed worker side, real runtime)', () => {
     fs.copyFileSync(path.join(STUDIO, 'render-box/renderer.mjs'), path.join(dir, 'renderer.mjs'));
     fs.copyFileSync(path.join(STUDIO, 'public/js/fseq.js'), path.join(dir, 'fseq.js'));
     fs.copyFileSync(path.join(STUDIO, 'src/frames.js'), path.join(dir, 'frames.js'));
-    fs.copyFileSync(cathedral, path.join(dir, 'cathedral.json'));
+    fs.copyFileSync(rigFile, path.join(dir, 'rig.json'));
     fs.copyFileSync(path.join(STUDIO, 'fleet-box/check.mjs'), path.join(dir, 'check.mjs'));
     fs.writeFileSync(path.join(dir, 'package.json'), '{ "type": "module" }\n');
     const good = validateLook(sketchLook({ text: 'ocean swell everywhere, twinkling stars on the rose window',
@@ -307,7 +302,7 @@ describe('fleet-box/check.mjs (boxed worker side, real runtime)', () => {
     const baked = await run(dir, 'good.json', ['--bake', '--seconds', '2']);
     assert.equal(baked.code, 0, baked.out);
     assert.match(baked.out, /baked 2 s \(80 frames × \d+ channels in \d+ ranges\)/);
-    const map = JSON.parse(fs.readFileSync(cathedral, 'utf8'));
+    const map = JSON.parse(fs.readFileSync(rigFile, 'utf8'));
     const parsed = parseFseq(fs.readFileSync(path.join(dir, 'frames.fseq')));
     assert.equal(parsed.frameCount, 80);
     assert.equal(parsed.channelCount, map.count * 3);
@@ -315,7 +310,8 @@ describe('fleet-box/check.mjs (boxed worker side, real runtime)', () => {
     const stats = JSON.parse(fs.readFileSync(path.join(dir, 'stats.json'), 'utf8'));
     assert.equal(stats.frames, 80);
     assert.equal(stats.selfCheck.flicker.ok, true);
-    assert.deepEqual(analyzeFrames(parsed, map), stats.selfCheck);
+    const scene = prepareScene(map);
+    assert.deepEqual(analyzeFrames(parsed, scene, flashRegions(scene)), stats.selfCheck);
 
     fs.writeFileSync(path.join(dir, 'strobe.json'), JSON.stringify({
       title: 'Strobe', summary: 's',

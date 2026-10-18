@@ -2,7 +2,7 @@
 // chains, globals and automation are then held to the API's own rules (src/look-rules.js). Generated code is
 // untrusted: it is only inspected here as text, never executed on the server (no eval, no vm, no Function).
 import { GLOBALS, macroNameOk, MAX_LANES, MAX_MACROS, MAX_POINTS } from '../../public/js/pattern-core.js';
-import { cleanAutomation, cleanBinding, cleanGlobals, PALETTE_NAMES } from '../look-rules.js';
+import { cleanAutomation, cleanBinding, cleanGlobals, PALETTE_NAMES, TAG } from '../look-rules.js';
 
 export const LIMITS = Object.freeze({
   layers: 4, codeBytes: 20 * 1024, title: 80, layerTitle: 80, summary: 400, params: 32, clips: 32, duration: 600,
@@ -52,11 +52,15 @@ function checkCode(code, fn = 'pixel') {
   return { code: c };
 }
 
-function checkGroups(groups, known) {
+/** Known group ids; none: the root, or nothing when tags say where it goes (SPEC "Looks"). */
+function checkGroups(groups, known, root, tags) {
   const list = (Array.isArray(groups) ? groups : typeof groups === 'string' ? [groups] : [])
     .filter((g) => typeof g === 'string').map((g) => g.trim()).filter((g) => known.has(g));
-  return list.length ? [...new Set(list)] : ['cathedral'];
+  return list.length ? [...new Set(list)] : tags.length ? [] : [root];
 }
+
+const checkTags = (tags) => [...new Set((Array.isArray(tags) ? tags : [])
+  .filter((t) => typeof t === 'string' && TAG.test(t)))].slice(0, 16);
 
 function checkBlend(blend) {
   const b = typeof blend === 'string' ? blend.trim().toLowerCase() : '';
@@ -117,15 +121,16 @@ function checkClips(clips, note) {
 
 /**
  * Validate and normalise a generator's output, `{ title, summary, duration?, globals?, automation?, layers: [{
- * title, groups, blend, level, clips?, code + params? | modules }] }`, against the cathedral's groups (from
- * loadGroups) and the library (a module's `ref`). → { title, summary, duration?, layers, globals?, automation?,
+ * title, groups, tags?, blend, level, clips?, code + params? | modules }] }`, against the rig's groups (from
+ * loadRig) and the library (a module's `ref`). → { title, summary, duration?, layers, globals?, automation?,
  * dropped: [why each dropped thing went] }
  */
 export function validateLook(look, { groups = [], library = [] } = {}) {
   if (!look || typeof look !== 'object' || Array.isArray(look)) {
     throw new GenerateError('The generator returned something that is not a look.');
   }
-  const known = new Set(['cathedral', ...(groups || []).map((g) => g && g.id).filter((id) => typeof id === 'string')]);
+  const known = new Set((groups || []).map((g) => g && g.id).filter((id) => typeof id === 'string'));
+  const root = (groups || []).find((g) => g && g.parent == null)?.id || 'all';
   const layers = [];
   const dropped = [];
   for (const [i, layer] of (Array.isArray(look.layers) ? look.layers : []).entries()) {
@@ -145,9 +150,11 @@ export function validateLook(look, { groups = [], library = [] } = {}) {
     }
     const n = layers.length + 1;
     const clips = checkClips(layer.clips, drop);
+    const tags = checkTags(layer.tags);
     layers.push({
       id: `l${n}`, title: cleanText(layer.title, LIMITS.layerTitle) || `Layer ${n}`, ...own,
-      groups: checkGroups(layer.groups, known), blend: checkBlend(layer.blend), level: checkLevel(layer.level),
+      groups: checkGroups(layer.groups, known, root, tags), ...(tags.length ? { tags } : {}),
+      blend: checkBlend(layer.blend), level: checkLevel(layer.level),
       ...(clips.length ? { clips } : {}),
     });
   }

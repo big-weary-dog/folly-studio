@@ -7,12 +7,17 @@ import { compilePattern, prepareLayer, prepareScene, renderFrame, toChannels } f
 import { ledRanges, writeFseq } from '../../public/js/fseq.js';
 
 const STUDIO = new URL('../../', import.meta.url);
-export const cathedral = JSON.parse(readFileSync(new URL('public/data/cathedral.json', STUDIO), 'utf8'));
-export const FULL = cathedral.universes * cathedral.channelsPerUniverse;
+export const rig = JSON.parse(readFileSync(new URL('public/data/rig.json', STUDIO), 'utf8'));
+const scene = prepareScene(rig);
+/** The rig as the harness reads it: each LED's zone and fixture index, its address and place; the views. */
+export const led = { count: rig.count, channelsPerUniverse: rig.output.channelsPerUniverse, zones: scene.zones,
+  strands: rig.fixtures, views: rig.views, pixels: { zone: scene.zone, strand: scene.fixture,
+    universe: rig.pixels.universe, channel: rig.pixels.channel, pos: rig.pixels.pos } };
+export const FULL = scene.frameChannels;
 
 /** What the address look gives LED k: [R, G, B] bytes. */
 export function identity(k) {
-  const px = cathedral.pixels;
+  const px = led.pixels;
   return [k % 251, (px.zone[k] * 7) % 251, (px.strand[k] * 13) % 251];
 }
 
@@ -31,7 +36,7 @@ export const ZONE_COLOURS = [
   ['spirelet', '#00e0ff', 'spirelets: cyan'], ['canopy', '#3050ff', 'canopy: blue'],
   ['wash', '#c040ff', 'wash: violet'],
 ];
-const MINI_FIVE = cathedral.strands.flatMap((s, i) => (/^Mini arch (left|right) 5$/.test(s.name) ? [i] : []));
+const MINI_FIVE = led.strands.flatMap((s, i) => (/^Mini arch (left|right) 5$/.test(s.name) ? [i] : []));
 export const ZONE_LABELS = [...ZONE_COLOURS.map(([, , label]) => label), 'mini arch 5: magenta',
   'rose petals: hue wheel from petal 1 = red'];
 export const ZONE_CODE = `// Zone colours: one colour per group of zones.
@@ -54,7 +59,6 @@ export function libraryCode(name) {
  * `fps` (one frame when seconds is 0): { frames, channels: Uint8Array(frames × 40,800), errors }.
  */
 export function renderLook(layers, { seconds = 0, fps = 40, start = 0, gamma = 1, brightness = 1 } = {}) {
-  const scene = prepareScene(cathedral);
   const prepared = layers.map((l, i) => prepareLayer(scene, { id: `l${i}`, groups: ['cathedral'], blend: 'add',
     level: 1, ...l }, compilePattern(l.code)));
   const frames = Math.max(1, Math.round(seconds * fps));
@@ -74,7 +78,7 @@ export function renderLook(layers, { seconds = 0, fps = 40, start = 0, gamma = 1
 export function toFseq({ frames, fps, channels }, { sparse = false } = {}) {
   const stepMs = Math.round(1000 / fps);
   if (!sparse) return writeFseq({ channelCount: FULL, frames, stepMs, data: channels });
-  const ranges = ledRanges(cathedral);
+  const ranges = ledRanges(rig);
   const per = ranges.reduce((n, [, c]) => n + c, 0);
   const data = new Uint8Array(frames * per);
   for (let f = 0, at = 0; f < frames; f++) {

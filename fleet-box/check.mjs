@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Folly Studio look checker, for the boxed Fleet worker (not the server: it runs pattern code).
 // Usage: node check.mjs [look.json] [--bake [--seconds S]]
-// Compiles every layer with the studio's pattern core, renders frames on the real LED map and prints
+// Compiles every layer with the studio's pattern core, renders frames on the rig (rig.json) and prints
 // problems; exit 1 if the look would be rejected or a layer fails. --bake then bakes it as the render box
 // does (renderer.mjs; its duration up to 120 s unless --seconds says) into frames.fseq and stats.json
 // beside the look, and runs the studio's frame checks (frames.js) on it: the studio repeats them; only those count.
@@ -22,8 +22,8 @@ const BAKE = flag('--bake');
 const fail = (message) => { console.error(`✗ ${message}`); process.exit(1); };
 let look;
 try { look = JSON.parse(readFileSync(file, 'utf8')); } catch (e) { fail(`${file}: ${e.message}`); }
-if (['pattern-core.js', 'renderer.mjs', 'cathedral.json'].some((f) => !existsSync(new URL(f, import.meta.url)))) {
-  fail('pattern-core.js, renderer.mjs and cathedral.json must sit next to check.mjs');
+if (['pattern-core.js', 'renderer.mjs', 'rig.json'].some((f) => !existsSync(new URL(f, import.meta.url)))) {
+  fail('pattern-core.js, renderer.mjs and rig.json must sit next to check.mjs');
 }
 const core = await import('./pattern-core.js');
 const { bakeLoop, bakeSeconds, FPS, readLibrary, renderer } = await import('./renderer.mjs');
@@ -41,8 +41,9 @@ const lookGlobals = { globals: look.globals && { ...look.globals, palette }, aut
 const goodDuration = Number.isFinite(look?.duration) && look.duration >= 1 && look.duration <= LIMITS.duration;
 const DURATION = goodDuration ? look.duration : 30;
 const SECONDS = bakeSeconds({ duration: DURATION }, option('--seconds'));
-const cathedral = JSON.parse(readFileSync(new URL('./cathedral.json', import.meta.url), 'utf8'));
-const groupIds = new Set((cathedral.groups || []).map((g) => g.id));
+const rig = JSON.parse(readFileSync(new URL('./rig.json', import.meta.url), 'utf8'));
+const groupIds = new Set((rig.groups || []).map((g) => g.id));
+const fps = rig.output?.fps || FPS;
 
 // The studio's static checks (validate.js), so nothing is silently dropped.
 if (typeof look.title !== 'string' || !look.title.trim()) errors.push('title is missing');
@@ -61,9 +62,9 @@ if (layers.length > LIMITS.layers) errors.push(`${layers.length} layers: at most
 const prepared = [];
 let scene;
 try {
-  scene = core.prepareScene(cathedral);
+  scene = core.prepareScene(rig);
 } catch (e) {
-  fail(`the runtime could not prepare the cathedral: ${e.message}`);
+  fail(`the runtime could not prepare the rig: ${e.message}`);
 }
 const runnable = []; // [layer as the studio will run it, compiled] for the bake
 layers.slice(0, LIMITS.layers).forEach((layer, i) => {
@@ -82,9 +83,10 @@ layers.slice(0, LIMITS.layers).forEach((layer, i) => {
     if (!defines.test(m.code)) errors.push(`${what}: code must define function ${fn}`);
   });
   const groups = Array.isArray(layer.groups) ? layer.groups : [];
+  const tags = Array.isArray(layer.tags) ? layer.tags.filter((t) => typeof t === 'string') : [];
   const unknown = groups.filter((g) => !groupIds.has(g));
-  if (!groups.length) warnings.push(`${name}: no groups, it will land on the whole cathedral`);
-  if (unknown.length) errors.push(`${name}: unknown group ids ${unknown.join(', ')}`);
+  if (!groups.length && !tags.length) warnings.push(`${name}: no groups, it will land on the whole rig`);
+  if (unknown.length && !tags.length) errors.push(`${name}: unknown group ids ${unknown.join(', ')}`);
   if (layer.blend != null && !BLENDS.includes(layer.blend)) {
     errors.push(`${name}: blend must be one of ${BLENDS.join(', ')}`);
   }
@@ -108,7 +110,7 @@ layers.slice(0, LIMITS.layers).forEach((layer, i) => {
   }
   const known = groups.filter((g) => groupIds.has(g));
   const l = {
-    id: `l${i + 1}`, title: layer.title, groups: known.length ? known : ['cathedral'],
+    id: `l${i + 1}`, title: layer.title, groups: known, ...(tags.length ? { tags } : {}),
     blend: BLENDS.includes(layer.blend) ? layer.blend : 'add', level: typeof layer.level === 'number' ? layer.level : 1,
     ...(chain ? { modules: layer.modules } : { code: layer.code,
       params: layer.params && typeof layer.params === 'object' ? layer.params : {} }), ...(clips ? { clips } : {}),
@@ -127,9 +129,9 @@ layers.slice(0, LIMITS.layers).forEach((layer, i) => {
   }
 });
 
-// Render: a few spot frames, then two seconds at 40 fps for timing and flicker.
+// Render: a few spot frames, then two seconds at the rig's fps for timing and flicker.
 if (prepared.length && !errors.length) {
-  const count = cathedral.count || cathedral.pixels?.zone?.length || 0;
+  const count = rig.count;
   const layerErrors = new Map();
   const means = [];
   const lookState = core.prepareLook(lookGlobals);
@@ -137,7 +139,7 @@ if (prepared.length && !errors.length) {
   // Spot frames spread over the look's duration, then two seconds from its middle.
   const times = [0, 0.012, 0.063, 0.24, 0.55, 0.94].map((k) => +(k * DURATION).toFixed(3));
   const mid = Math.max(0, DURATION / 2 - 1);
-  for (let f = 0; f < 80; f++) times.push(mid + f / 40);
+  for (let f = 0; f < 2 * fps; f++) times.push(mid + f / fps);
   for (const [n, t] of times.entries()) {
     const t0 = performance.now();
     let out;
@@ -168,13 +170,15 @@ if (prepared.length && !errors.length) {
   if (nan) errors.push(`${nan} channel values were not finite numbers`);
   const avg = total / Math.max(1, frames);
   console.log(`rendered ${frames} frames of ${count} LEDs: ${avg.toFixed(1)} ms average, ${worst.toFixed(1)} ms worst`);
-  if (avg > 20) warnings.push(`slow: ${avg.toFixed(1)} ms a frame on average; the show runs at 40 fps (25 ms)`);
+  if (avg > 800 / fps) {
+    warnings.push(`slow: ${avg.toFixed(1)} ms a frame on average; the show runs at ${fps} fps (${1000 / fps} ms)`);
+  }
   const darkShare = dark / 6;
   if (darkShare > 0.6) {
     const share = `${Math.round(darkShare * 100)}%`;
     warnings.push(`${share} of LEDs are dark on average: darkness is punctuation, not the picture`);
   }
-  // Large-area flicker: count brightness reversals of the whole-cathedral mean over 2 s.
+  // Large-area flicker: count brightness reversals of the whole rig's mean over 2 s.
   let flips = 0;
   for (let i = 2; i < means.length; i++) {
     const a = means[i - 1] - means[i - 2];
@@ -198,16 +202,16 @@ if (BAKE) await bake();
 async function bake() {
   if (!existsSync(new URL('./fseq.js', import.meta.url))) fail('fseq.js must sit next to check.mjs to bake');
   const { ledRanges, writeFseq } = await import('./fseq.js');
-  const ranges = ledRanges(cathedral);
+  const ranges = ledRanges(rig);
   // A fresh renderer, so state a pattern keeps between frames starts clean at t = 0.
-  const r = renderer(core, cathedral, runnable, ranges, { ...lookGlobals, library });
-  const frames = Math.max(1, Math.round(SECONDS * FPS));
-  const { data, ...baked } = bakeLoop(frames, r.packed, () => r.next());
+  const r = renderer(core, rig, runnable, ranges, { ...lookGlobals, library });
+  const frames = Math.max(1, Math.round(SECONDS * fps));
+  const { data, ...baked } = bakeLoop(frames, r.packed, () => r.next(), fps);
   const channelCount = r.packed.length;
   const dir = path.dirname(path.resolve(file));
-  const fseq = writeFseq({ frames, stepMs: 1000 / FPS, data, ranges });
+  const fseq = writeFseq({ frames, stepMs: Math.round(1000 / fps), data, ranges });
   writeFileSync(path.join(dir, 'frames.fseq'), fseq);
-  const stats = { look: path.basename(file), ...baked, seconds: SECONDS, fps: FPS, channels: channelCount,
+  const stats = { look: path.basename(file), ...baked, seconds: SECONDS, fps, channels: channelCount,
     ranges: ranges.length, bytes: fseq.length };
   const failed = stats.layers.map((l) => `${l.id} threw or returned NaN in ${l.errorFrames} frames: ${l.firstError}`);
   console.log(`baked ${SECONDS} s (${frames} frames × ${channelCount} channels in ${ranges.length} ranges) → `
@@ -215,7 +219,7 @@ async function bake() {
   if (existsSync(new URL('./frames.js', import.meta.url))) {
     // The studio's own checks, run here so the worker sees what the studio will see.
     const { analyzeFrames, flickerReason, flickerWarning, parseFseq } = await import('./frames.js');
-    const a = analyzeFrames(parseFseq(fseq), cathedral);
+    const a = analyzeFrames(parseFseq(fseq, { maxChannels: scene.frameChannels }), scene, core.flashRegions(scene));
     stats.selfCheck = a;
     const pct = (v) => `${Math.round(v * 100)}%`;
     console.log(`frames: peak ${pct(a.peakBrightness)} of all-white (≈ ${a.estPeakAmps} A at 5 V), mean `

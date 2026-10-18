@@ -52,7 +52,7 @@
   const workerUrl = URL.createObjectURL(new Blob([workerSource], { type: 'text/javascript' }));
   const now = () => performance.now();
 
-  let cathedral = null;
+  let rig = null;
   let library = [];           // library sources for use(), from init
   let count = 0;
   let worker = null;
@@ -117,10 +117,10 @@
     let job;
     switch (msg.type) {
       case 'init':
-        cathedral = msg.cathedral;
+        rig = msg.rig;
         library = Array.isArray(msg.library) ? msg.library : [];
-        count = cathedral && cathedral.count > 0 ? cathedral.count | 0 : 0;
-        job = { type: 'init', msg: { type: 'init', cathedral, library } };
+        count = rig && rig.count > 0 ? rig.count | 0 : 0;
+        job = { type: 'init', msg: { type: 'init', rig, library } };
         break;
       case 'look': {
         // Layer objects pass through intact (clips, params, …); only a missing id is filled in.
@@ -332,7 +332,7 @@
     held = null;
     worker = startWorker();
     if (!worker) return;
-    if (cathedral) post({ type: 'init', internal: true, msg: { type: 'init', cathedral, library } });
+    if (rig) post({ type: 'init', internal: true, msg: { type: 'init', rig, library } });
     post({ type: 'look', internal: true, layers: baseLook, extra: baseExtra });
     for (const j of pending) {
       if (j.internal || j.answered) continue;
@@ -380,13 +380,13 @@
         } else if (started && m.type === 'frame' && m.seq === -1) done('ok');
         else if (m.type === 'error') done('ok');          // an error is not a hang
       };
-      w.postMessage({ type: 'init', cathedral, library });
+      w.postMessage({ type: 'init', rig, library });
       w.postMessage({ type: 'look', layers: [layer], ...baseExtra });
       w.postMessage({ type: 'frame', seq: -1, t });
     });
   }
 
-  worker = startWorker();       // parse the core while the app fetches the cathedral
+  worker = startWorker();       // parse the core while the app fetches the rig
   if (worker) toApp({ type: 'ready' });
 })();
 </script>

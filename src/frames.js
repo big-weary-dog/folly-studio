@@ -1,19 +1,18 @@
 // Data-only checks on baked frames (an FSEQ v2 file), for the trusted side. Pure: no I/O, no Node
-// APIs, nothing here runs code. The Fleet box runs a copy on its own bake (advisory; the server repeats it).
+// APIs, no imports, nothing here runs code. The Fleet box runs a copy on its own bake (advisory; the server
+// repeats it). The rig arrives as the pattern core's scene and flash regions (prepareScene, flashRegions).
 
-export const CHANNELS_PER_UNIVERSE = 510;
+export const CHANNELS_PER_UNIVERSE = 510; // a parsed file's default bounds: 80 universes of 510 (xLights, FPP)
 export const UNIVERSES = 80;
 export const MAX_CHANNELS = UNIVERSES * CHANNELS_PER_UNIVERSE; // 40,800
 export const DEFAULT_MAX_BYTES = 64 * 1024 * 1024;
 
 // Photosensitivity: WCAG 2.3.1's general flash threshold for a building. A flash is a pair of opposing
 // changes in relative luminance of ≥ 10 % with the darker state below 0.80; over three a second fail.
-// Regions are the cathedral and each top-level group (their mean luminance). Red flash: not checked.
+// Regions are the rig and each top-level group (their mean luminance). Red flash: not checked.
 export const FLASH = Object.freeze({ delta: 0.1, darker: 0.8, perSecond: 3 });
-// Only large-area flashing blocks review; flashing confined to a small region is a warning. A region
-// is large when it is the whole structure, holds ≥ 10 % of the LEDs, or covers ≥ 10 % of the
-// structure's lit area seen from the front or the side (cells 1/32 of the bounds' diagonal).
-export const LARGE = Object.freeze({ share: 0.1, extent: 0.1, grid: 32 });
+// Only large-area flashing blocks review; flashing confined to a small region is a warning (the core's
+// flashRegions says which regions are large).
 // Power: WS281x pixels draw about 20 mA per channel at full, at 5 V: an estimate for sizing supplies.
 export const AMPS_PER_CHANNEL = 0.02;
 const DARK = 10; // a pixel is dark when every channel is below this (about 4 %)
@@ -145,87 +144,24 @@ function inflateBlocks(b, { compression, blocks, dataOffset, channelCount, frame
   return data;
 }
 
-// Pixel indices of each top-level group, after the whole cathedral (idx null). The pattern core's
-// membership rule: zone in zones OR strand in strands (AND row in rows); else the union of its children.
-function regionsOf(cathedral, N) {
-  const groups = (Array.isArray(cathedral.groups) ? cathedral.groups : [])
-    .filter((g) => g && typeof g.id === 'string');
-  const root = groups.find((g) => g.parent == null);
-  const zoneIndex = new Map((cathedral.zones || []).map((z, i) => [z, i]));
-  const { zone, strand, row } = cathedral.pixels;
-  const memo = new Map();
-  const members = (g, seen) => {
-    if (memo.has(g.id)) return memo.get(g.id);
-    const mask = new Uint8Array(N);
-    if (seen.has(g.id)) return mask;
-    seen.add(g.id);
-    const zones = new Set((g.zones || []).map((z) => (typeof z === 'number' ? z : zoneIndex.get(z))));
-    const strands = new Set(g.strands || []);
-    const rows = Array.isArray(g.rows) && g.rows.length ? new Set(g.rows) : null;
-    if (zones.size || strands.size) {
-      for (let k = 0; k < N; k++) {
-        if ((zones.has(zone[k]) || strands.has(strand?.[k])) && (!rows || rows.has(row?.[k]))) mask[k] = 1;
-      }
-    } else {
-      for (const c of groups) if (c.parent === g.id) members(c, seen).forEach((v, k) => { if (v) mask[k] = 1; });
-    }
-    memo.set(g.id, mask);
-    return mask;
-  };
-  const out = [{ id: root ? root.id : 'cathedral', idx: null }];
-  for (const g of groups) {
-    if (!root || g.parent !== root.id) continue;
-    const idx = [];
-    members(g, new Set()).forEach((v, k) => v && idx.push(k));
-    if (idx.length) out.push({ id: g.id, idx: Int32Array.from(idx) });
-  }
-  return out;
-}
-
-/**
- * Which regions are large (LARGE): the whole, ≥ share of the LEDs, or ≥ extent of the lit cells seen
- * from the front (z, y) or the side (x, y). Without bounds, the pixels' own bounds are used.
- */
-export function largeRegions(cathedral, regions) {
-  const N = cathedral.count | 0, pos = cathedral.pixels.pos;
-  if (!pos || pos.length !== 3 * N) return regions.map((r) => !r.idx || r.idx.length >= LARGE.share * N);
-  const axis = (a) => pos.filter((_, i) => i % 3 === a);
-  const lo = [0, 1, 2].map((a) => cathedral.bounds?.min?.[a] ?? Math.min(...axis(a)));
-  const hi = [0, 1, 2].map((a) => cathedral.bounds?.max?.[a] ?? Math.max(...axis(a)));
-  const cell = Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) / LARGE.grid || 1;
-  const at = (k, a) => Math.floor((pos[3 * k + a] - lo[a]) / cell);
-  const area = (idx, [u, v]) => {
-    const cells = new Set();
-    for (let i = 0, n = idx ? idx.length : N; i < n; i++) {
-      const k = idx ? idx[i] : i;
-      cells.add(at(k, u) * 65536 + at(k, v));
-    }
-    return cells.size;
-  };
-  const views = [[2, 1], [0, 1]];
-  const whole = views.map((view) => area(null, view));
-  return regions.map((r) => !r.idx || r.idx.length >= LARGE.share * N
-    || views.some((view, i) => area(r.idx, view) >= LARGE.extent * whole[i]));
-}
-
 const round = (v, places) => Math.round(v * 10 ** places) / 10 ** places;
 
 /**
- * analyzeFrames(parsed, cathedral) → { frames, seconds, fps, channels, sparse, pixels, coverage, peakBrightness,
+ * analyzeFrames(parsed, scene, regions = the whole) → { frames, seconds, fps, channels, sparse, pixels, coverage,
+ *   peakBrightness,
  *   meanBrightness, darkFraction, estPeakAmps, flicker: { maxHz, flaggedSeconds, regions, ok, small } }: one pass,
  * no allocation per frame. Channels the file does not hold count as off.
  */
-export function analyzeFrames(parsed, cathedral) {
+export function analyzeFrames(parsed, scene, regions = [{ id: 'all', idx: null, large: true }]) {
   const { data, channelCount: cc, frameCount: F, stepMs, ranges } = parsed || {};
   if (!(data instanceof Uint8Array) || !(cc > 0) || !(F > 0) || !(stepMs > 0) || !Array.isArray(ranges)) {
     throw new TypeError('analyzeFrames: pass the result of parseFseq');
   }
-  const px = cathedral && cathedral.pixels;
-  const N = cathedral ? cathedral.count | 0 : 0;
-  if (!px || N < 1 || ['universe', 'channel', 'zone'].some((k) => !px[k] || px[k].length !== N)) {
-    throw new TypeError('analyzeFrames: the cathedral has no LED map');
+  const N = scene ? scene.count | 0 : 0;
+  if (N < 1 || scene.addr?.length !== N || scene.order?.length !== 3) {
+    throw new TypeError("analyzeFrames: pass the core's prepareScene(rig)");
   }
-  const cpu = cathedral.channelsPerUniverse || CHANNELS_PER_UNIVERSE;
+  const [cR, cG, cB] = scene.order;
   // Absolute channel → its byte within a frame (−1 when the file does not hold it).
   const size = ranges.reduce((n, [s, c]) => Math.max(n, s + c), 0);
   const where = new Int32Array(size).fill(-1);
@@ -234,15 +170,14 @@ export function analyzeFrames(parsed, cathedral) {
   const [oR, oG, oB] = [new Int32Array(N), new Int32Array(N), new Int32Array(N)];
   let covered = 0;
   for (let k = 0; k < N; k++) {
-    const a = (px.universe[k] - 1) * cpu + (px.channel[k] - 1);
+    const a = scene.addr[k];
     const at = (c) => (a >= 0 && a + c < size ? where[a + c] : -1);
-    [oR[k], oG[k], oB[k]] = [at(0), at(1), at(2)];
+    [oR[k], oG[k], oB[k]] = [at(cR), at(cG), at(cB)];
     covered += (oR[k] >= 0) + (oG[k] >= 0) + (oB[k] >= 0);
   }
 
   // Flash detector per region: a swing is confirmed once luminance turns back by `delta` from its
   // extreme, so slow drift and small shimmer never count. Swings are stored by frame.
-  const regions = regionsOf(cathedral, N);
   const R = regions.length;
   const { delta, darker, perSecond } = FLASH;
   const EPS = 1e-9;
@@ -292,9 +227,9 @@ export function analyzeFrames(parsed, cathedral) {
     }
     if (sum > peak) peak = sum;
     total += sum;
-    feed(0, lsum / N, f);
-    for (let j = 1; j < R; j++) {
+    for (let j = 0; j < R; j++) {
       const idx = regions[j].idx;
+      if (!idx) { feed(j, lsum / N, f); continue; }
       let s = 0;
       for (let i = 0; i < idx.length; i++) s += lum[idx[i]];
       feed(j, s / idx.length, f);
@@ -307,7 +242,7 @@ export function analyzeFrames(parsed, cathedral) {
   // Any one-second window holding more than 2 × perSecond swings (> perSecond flashes) is flagged:
   // on a large region it blocks review, on a small one it is a warning.
   const seconds = (F * stepMs) / 1000;
-  const large = largeRegions(cathedral, regions);
+  const large = regions.map((r) => r.large);
   const kinds = [0, 1].map(() => ({ mask: new Uint8Array(Math.ceil(seconds) + 1), regions: [], swings: 0 }));
   const second = (frame) => Math.floor((frame * stepMs) / 1000);
   for (let j = 0; j < R; j++) {

@@ -1,5 +1,6 @@
-// The Gothic Folly's LEDs as glowing points in WebGL2 (viewer-gl.js draws), only when something changed. World
-// space is the cathedral's metres (SPEC "Ground rules"); the camera orbits a target as td/common/view_camera.py:
+// The rig's LEDs in WebGL2, drawn only when something changed: as glowing points (viewer-gl.js), or on Mirage's
+// night playa (playa/, loaded on first use). World space is the view frame (x front → back, y up, z left → right,
+// metres): the rig's axes map onto it (SPEC "Rig"). The camera orbits a target as td/common/view_camera.py:
 //   eye = target + (−flat·cos A, d·sin E, +flat·sin A),  flat = d·cos E   (Angle 0: the playa side)
 // Drag orbits, right-drag or two fingers pan, wheel or pinch zoom, double-click resets; arrows, Alt+arrows, +/-.
 
@@ -28,7 +29,8 @@ export class Viewer {
   constructor(canvas, { views = {}, defaultView = 'front', onError } = {}) {
     Object.assign(this, { canvas, views, onError: onError || (() => {}), count: 0, positions: null, colors: null,
       hiMask: null, tween: null, inertia: null, dirty: true, pointers: new Map(), drag: null, raf: 0, last: 0,
-      destroyed: false, ok: false, center: [1, 0, -0.4], _eyeV: [0, 0, 0], _up: [0, 1, 0] });
+      destroyed: false, ok: false, center: [1, 0, -0.4], _eyeV: [0, 0, 0], _up: [0, 1, 0], mode: 'points',
+      rig: null, playa: null, quality: 'auto', toView: frameOf() });
     this.defaultView = defaultView === 'fit' || views[defaultView] ? defaultView : Object.keys(views)[0] || null;
     // insetTop: CSS px at the top kept clear for buttons over the view; views frame the rest.
     this.options = { ghost: 0.14, size: 0.42, gain: 1, insetTop: 0 };
@@ -38,7 +40,7 @@ export class Viewer {
     this._view = new Float32Array(16);
     this.reduced = matchMedia('(prefers-reduced-motion: reduce)');
     // Touch devices get a lower pixel-ratio cap: the glow hides it and the battery thanks us.
-    this.dprCap = matchMedia('(pointer: coarse)').matches ? 1.5 : 2;
+    this.dprCap = this.deviceDpr = matchMedia('(pointer: coarse)').matches ? 1.5 : 2;
     this._tick = (t) => this._loop(t);
     this._bindInput();
     initGL(this);
@@ -51,21 +53,62 @@ export class Viewer {
   /** Draw on the next animation frame. */
   invalidate() {
     this.dirty = true;
-    if (!this.raf && !this.destroyed) this.raf = requestAnimationFrame(this._tick);
+    if (!this.raf && !this.destroyed) {
+      this.raf = requestAnimationFrame(this._tick);
+      this._asked = performance.now();
+    }
   }
 
-  setCathedral(cathedral) {
-    this.count = cathedral.count;
-    this.positions = new Float32Array(cathedral.pixels.pos);
-    this.colors = new Float32Array(this.count * 3);
-    this.hiMask = new Uint8Array(this.count);
-    const b = this.bounds = cathedral.bounds;
+  /** The installation (SPEC "Rig"): its pixels, bounds, views, axes and, for the Playa view, render hints. */
+  setRig(rig) {
+    const T = this.toView = frameOf(rig.axes), n = this.count = rig.count, pos = rig.pixels.pos;
+    this.rig = rig;
+    this.positions = new Float32Array(3 * n);
+    for (let i = 0; i < n; i++) this.positions.set(T(pos, 3 * i), 3 * i);
+    this.colors = new Float32Array(n * 3);
+    this.hiMask = new Uint8Array(n);
+    const [a, c] = [T(rig.bounds.min), T(rig.bounds.max)];
+    const b = this.bounds = { min: a.map((x, i) => Math.min(x, c[i])), max: a.map((x, i) => Math.max(x, c[i])) };
     this.center = [(b.min[0] + b.max[0]) / 2, 0, (b.min[2] + b.max[2]) / 2];
-    if (cathedral.views) this.views = cathedral.views;
+    if (rig.views) {
+      this.views = Object.fromEntries(Object.entries(rig.views).map(([k, w]) => [k, { ...w,
+        Target: w.Target && T(w.Target) }]));
+    }
     if (this.defaultView !== 'fit' && !this.views[this.defaultView]) this.defaultView = 'fit';
     this.setView(this.defaultView, { animate: false });
     if (this.ok) upload(this);
+    this.playa?.setRig();
     this.invalidate();
+  }
+
+  /** 'playa' (playa/ loads on first use; Points if it cannot run here) or 'points'. Resolves to the mode shown. */
+  async setMode(mode) {
+    this.mode = mode === 'playa' && this.rig && this.ok ? 'playa' : 'points';
+    try {
+      if (this.mode === 'playa') this.playa ||= (await import('./playa/renderer.js')).createPlaya(this);
+      if (this.mode === 'playa') this.playa.setQuality(this.quality);
+    } catch {
+      this.mode = 'points';
+    }
+    if (this.mode === 'points') {
+      this.setPixelRatio(this.deviceDpr);
+      if (this.ok && this.colors) upload(this);
+      this.onRender?.('points');
+    }
+    this.invalidate();
+    return this.mode;
+  }
+
+  /** The Playa view's quality: 'auto' (by device, then by measured frame time), 'full', 'lite' or 'low'. */
+  setQuality(q) {
+    this.quality = q;
+    this.playa?.setQuality(q);
+  }
+
+  /** At most this many device pixels per CSS pixel (never past the device's cap). */
+  setPixelRatio(cap) {
+    this.dprCap = Math.min(cap, this.deviceDpr);
+    this._resize();
   }
 
   /** rgb: count × 3, 0..1, transferred to us by the sandbox: kept, not copied. */
@@ -84,7 +127,8 @@ export class Viewer {
   }
 
   _buffer(buf, data, n) {
-    if (this.ok) {
+    if (this.mode === 'playa' && this.playa) this.playa.light();
+    else if (this.ok) {
       this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buf);
       this.gl.bufferSubData(this.gl.ARRAY_BUFFER, 0, data, 0, n);
     }
@@ -94,6 +138,7 @@ export class Viewer {
   setOption(key, value) {
     if (this.options[key] === value) return;
     this.options[key] = value;
+    if (key === 'gain') this.playa?.light();
     if (key === 'insetTop') this._refit();
     this.invalidate();
   }
@@ -236,7 +281,12 @@ export class Viewer {
       ine.vx *= decay; ine.vy *= decay;
       if (Math.hypot(ine.vx, ine.vy) < 0.05) this.inertia = null;
     }
-    if (this.dirty && this.ok) { this.dirty = false; draw(this); }
+    if (this.dirty && this.ok) {
+      this.dirty = false;
+      const playa = this.mode === 'playa' && this.playa;
+      if (playa) playa.draw(); else draw(this);
+      if (playa) playa.sample(performance.now() - this._asked);   // asked to drawn: the GPU's backlog shows here
+    }
     if (this.tween || this.inertia) this.invalidate();
   }
 
@@ -249,7 +299,6 @@ export class Viewer {
     }
     this.inertia = null;
   }
-
 
   _bindInput() {
     const c = this.canvas, L = this._listeners = [], pointers = this.pointers;
@@ -317,8 +366,20 @@ export class Viewer {
       this.tween = null;
     });
     on('webglcontextlost', (e) => { e.preventDefault(); this.ok = false; });
-    on('webglcontextrestored', () => { initGL(this); this.invalidate(); });
+    on('webglcontextrestored', () => {
+      initGL(this);
+      this.playa = null;
+      this.setMode(this.mode);
+    });
   }
+}
+
+/** The rig's axes ({ up: '+y', front: '-x', right: '+z' }) → (p, offset) → [x, y, z] in the view frame. */
+export function frameOf(axes = {}) {
+  const ax = (s, d, m = /^([+-]?)([xyz])$/.exec(s || '')) => (m ? ['xyz'.indexOf(m[2]), m[1] === '-' ? -1 : 1] : d);
+  const f = ax(axes.front, [0, -1]), map = [[f[0], -f[1]], ax(axes.up, [1, 1]), ax(axes.right, [2, 1])];
+  const m = new Set(map.map((a) => a[0])).size === 3 ? map : [[0, 1], [1, 1], [2, 1]];
+  return (p, o = 0) => m.map(([i, sign]) => sign * p[o + i]);
 }
 
 /** Views from views.json → orbit state. Eyelock views stand at eye height. */

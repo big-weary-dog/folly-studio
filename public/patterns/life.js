@@ -34,8 +34,8 @@ function cells(s, n, era, gen, P) {
 }
 
 function pixel(p, t, P, G) {
-  const x = t * P.rate + rand(p.strand, 7), g = floor(x), len = round(P.era), era = floor(g / len);
-  const c = cells(p.strand, p.n, era, g - era * len, P);
+  const x = t * P.rate + rand(p.fixture, 7), g = floor(x), len = round(P.era), era = floor(g / len);
+  const c = cells(p.fixture, p.n, era, g - era * len, P);
   const now = c.now[p.i], was = c.was[p.i], k = smoothstep(0, 0.5, x - g);
   const alive = mix(was, now, k);
   const col = mix(pal('low', p.u), pal('body', p.u), alive);
