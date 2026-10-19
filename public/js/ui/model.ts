@@ -43,13 +43,13 @@ function pixel(p, t, P) {
   const v = pulse(fract(p.ly - t * P.speed), P.width);
   return scale(P.color, v);
 }
-`, warp: `// A new warp: it moves each pixel for the modules after it.
+`, warp: `// A new warp: it moves each pixel for everything above it.
 const params = {
   speed: { value: 0.1, min: -1, max: 1 },
 };
 
 function warp(q, t, P, G) {
-  // slide what comes after across the layer
+  // slide what is above across the layer
   q.lz = fract(q.lz + t * P.speed);
 }
 `, filter: `// A new filter: it reworks the chain's colour so far.
@@ -121,6 +121,40 @@ export function cleanModule(m: Partial<Module>): Module {
     ...(kind === 'source' && m.as === 'input' ? { as: 'input' } : {}),
     ...(isBlend(m.blend) ? { blend: m.blend } : {}), ...(m.enabled === false ? { enabled: false } : {}),
   };
+}
+
+/** mods with m after the selected module, so it works on it; a filter that reads its input (x) takes the nearest
+ * hidden source above it. */
+export function insertModule(mods: Module[], m: Module, selectedId?: string) {
+  const i = mods.findIndex((x) => x.id === selectedId), at = i < 0 ? mods.length : i + 1;
+  if (m.kind === 'filter' && /\bx\s*\[/.test(m.code)) {
+    m.input = mods.slice(0, at).reverse().find((x) => x.kind === 'source' && x.as === 'input')?.id;
+  }
+  return [...mods.slice(0, at), m, ...mods.slice(at)];
+}
+
+/** A module that holds real LED colours (blur, trails): what is below it reaches up to it, no higher. */
+export const isStageEnd = (m: Module) => m.kind === 'filter' && (m.ref === 'blur' || m.ref === 'trails');
+
+export type Reach = { kind: Kind | 'input'; from: number; to: number; lane?: number };
+/** How a chain is drawn (chain.tsx): each module's joint on the came (how a source combines, 'input' if it only feeds
+ * a filter; else its kind), and the reaches, rows `from` to `to`: each enabled warp or filter over everything above it
+ * up to a stage's end (isStageEnd), and a filter's input feed. Lane 0 is outermost; one inside a longer one, lane 1. */
+export function chainWires(mods: Module[]) {
+  const on = (m: Module) => m.enabled !== false, size = (r: Reach) => r.to - r.from, reaches: Reach[] = [];
+  const first = mods.findIndex((m) => on(m) && m.kind === 'source' && m.as !== 'input');
+  let top = 0;
+  mods.forEach((m, i) => {
+    if (!on(m) || m.kind === 'source') return;
+    if (i > top) reaches.push({ kind: m.kind, from: top, to: i });
+    const src = m.kind === 'filter' ? mods.findIndex((s) => s.id === m.input && on(s)) : -1;
+    if (src >= 0 && src < i) reaches.push({ kind: 'input', from: src, to: i });
+    if (isStageEnd(m)) top = i;
+  });
+  reaches.forEach((r, i) => { r.lane = reaches.some((o, j) => o.from <= r.to && r.from <= o.to
+    && (size(o) > size(r) || (size(o) === size(r) && j < i))) ? 1 : 0; });
+  return { first, reaches, joins: mods.map((m, i) => (m.kind !== 'source' ? m.kind : m.as === 'input' ? 'input'
+    : m.blend || (i === first ? 'over' : 'add'))) };
 }
 
 type RawLayer = Partial<Layer> & { code?: string; params?: Module['params'] };
