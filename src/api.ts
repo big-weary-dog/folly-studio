@@ -155,8 +155,9 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       ...looks.routes,
       ...framesRoutes({ framesDir, cache: frames, visibleLook: looks.visibleLook }),
       'GET /library': [async () => ({ patterns: loaders.loadLibrary()
-        .map(({ name, title, summary, tags, kind, category, code }) => (
-          { name, title, summary, tags, kind, category, code })) }), { public: true }],
+        .map(({ name, title, summary, tags, kind, category, code, ...rest }) => ({ name, title, summary, tags, kind,
+          category, code, ...(kind === 'preset' ? { layers: rest.layers, globals: rest.globals } : {}) })) }),
+      { public: true }],
     });
   };
 }

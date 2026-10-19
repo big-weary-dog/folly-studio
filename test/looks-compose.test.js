@@ -107,11 +107,12 @@ describe('composed looks over the API', () => {
     assert.match(r.json.error, /chain must be 2/);
   });
 
-  test('the library lists each entry\'s kind and category', async () => {
+  test('the library lists each entry\'s kind and category, and a preset\'s layers', async () => {
     const { patterns } = (await ana.get('/api/library')).json;
     const byName = new Map(patterns.map((p) => [p.name, p]));
     assert.deepEqual(['meteors', 'mirror', 'mask'].map((n) => byName.get(n).kind), ['source', 'warp', 'filter']);
     assert.ok(patterns.every((p) => p.category && typeof p.code === 'string'));
+    assert.equal(byName.get('palette-drift').layers[0].modules[0].ref, 'colour-wash');
   });
 });
 
