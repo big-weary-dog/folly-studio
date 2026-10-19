@@ -11,7 +11,7 @@ import { pixelsForGroups, type Scene, tagMask } from './scene.ts';
 import { blur, BLUR_MODES, blurState } from './spatial.ts';
 import { clamp, hex, isNum, RUN, TAU } from './stdlib.ts';
 import { layerEnvelope, normalizeClips } from './timeline.ts';
-import { PLACE } from './place.ts';
+import { PLACE, readsLed, settle } from './place.ts';
 import { copyPixel, isStageEnd, placeWarps } from './warps.ts';
 
 export const MODULE_KINDS = Object.freeze(['source', 'warp', 'filter'] as const);
@@ -61,7 +61,8 @@ type Fn = (...a: unknown[]) => unknown;
 // keep: a source's colours for a filter in a later stage (SPEC "Spatial modules"); picks: its colours.
 type Link = { id: string | null, title: string, kind: number, fn: Fn, frame: Compiled['frame'] | null, P: Values,
   mods: ReturnType<typeof paramMods>, picks: Picks | null, blend: number, hidden: boolean, input: number,
-  out: number[], keep: Float64Array | null, end: boolean, ix: number, at: number, from: number, to: number };
+  out: number[], keep: Float64Array | null, end: boolean, ix: number, at: number, from: number, to: number,
+  led: boolean };
 function prepareChain(layer: LayerInput | null | undefined, compiled: Compiled | readonly (Compiled | null)[]) {
   const modules = layerModules(layer);
   const list = Array.isArray(compiled) ? compiled : [compiled];
@@ -85,7 +86,8 @@ function prepareChain(layer: LayerInput | null | undefined, compiled: Compiled |
     c.clocks?.bind(P, mods, clips);
     chain.push({ id: m.id ?? null, title: m.title || m.id || '', kind, fn, frame: c.frame || null,
       P, mods, picks: c.picks || null, blend, hidden, input,
-      out: [0.5, 0, 0, 0], keep: null, end: kind === SPATIAL || isStageEnd(m), ix: 0, at: 0, from: -1, to: -1 });
+      out: [0.5, 0, 0, 0], keep: null, end: kind === SPATIAL || isStageEnd(m), ix: 0, at: 0, from: -1, to: -1,
+      led: kind !== WARP || readsLed(m.code) });
   }
   return chain;
 }
@@ -100,7 +102,7 @@ function prepareStages(S: Scene, layer: LayerInput | null | undefined, chain: Li
     const mode = BLUR_MODES.includes(s.mode as never) ? s.mode as string : 'wire';
     chain.push({ id: null, title: 'Soften', kind: SPATIAL, fn: (c) => c, frame: null, mods: [], picks: null,
       blend: OVER, P: { radius: Number(s.radius), mode, amount: 1 }, hidden: false, input: -1,
-      out: [0, 0, 0, 0], keep: null, end: true, ix: chain.length, at: 0, from: -1, to: -1 });
+      out: [0, 0, 0, 0], keep: null, end: true, ix: chain.length, at: 0, from: -1, to: -1, led: false });
   }
   if (!chain.some((M) => M.kind === SPATIAL)) return null;
   const m = idx.length;
@@ -171,6 +173,7 @@ function runChain(S: Scene, L: PreparedLayer, T: number, G: G) {
         M = chain[i];
         if (M.kind === WARP) continue;
         const q = qs[M.at];
+        if (q.due) settle(q);
         if (M.kind === SOURCE) {
           const v = M.fn(q, T, M.P, G);
           if (!toColour(v, M.out, 1)) return fail(L, M, `pixel() returned ${said(v)} (NaN) at LED ${k}`);
@@ -211,6 +214,7 @@ function setPixel(S: Scene, L: PreparedLayer, q: Pixel, j: number, k: number) {
   q.k = k; q.seed = S.seed[k];
   const f = L.frame;
   q.ox = f[0]; q.oy = f[1]; q.oz = f[2]; q.sx = f[3]; q.sy = f[4]; q.sz = f[5]; q.sr = f[6];
+  q.cy = f[7]; q.cz = f[8]; q.due = 0;
 }
 
 const load = (to: number[], from: Float64Array, o: number) => {
@@ -223,7 +227,9 @@ const save = (to: Float64Array, o: number, from: number[]) => {
 /** A bending warp on pixel slots qs: a copy of its `from` slot unless it bends that in place. */
 function bend(qs: Pixel[], W: Link, T: number, G: G) {
   if (W.to !== W.from) copyPixel(qs[W.to], qs[W.from]);
-  W.fn(qs[W.to], T, W.P, G);
+  const q = qs[W.to];
+  if (W.led && q.due) settle(q);
+  W.fn(q, T, W.P, G);
 }
 
 /**
@@ -251,6 +257,7 @@ function runStaged(S: Scene, L: PreparedLayer, T: number, G: G, st: NonNullable<
             M = chain[i];
             if (M.kind === WARP) continue;
             const q = qs[M.at];
+            if (q.due) settle(q);
             if (M.kind === SOURCE) {
               const v = M.fn(q, T, M.P, G);
               if (!toColour(v, M.out, 1)) return fail(L, M, `pixel() returned ${said(v)} (NaN) at LED ${k}`);
@@ -283,7 +290,7 @@ function runStaged(S: Scene, L: PreparedLayer, T: number, G: G, st: NonNullable<
 function makePixel(S: Scene) {
   const q = { x: 0, y: 0, z: 0, X: 0, Y: 0, Z: 0, lx: 0, ly: 0, lz: 0, a: 0, r: 0, u: 0, i: 0, n: 1, zone: '', zi: 0,
     fixture: 0, strand: 0, ring: 0, row: 0, sector: -1, petal: -1, k: 0, seed: 0,
-    ox: 0, oy: 0, oz: 0, sx: 0, sy: 0, sz: 0, sr: 0,
+    ox: 0, oy: 0, oz: 0, sx: 0, sy: 0, sz: 0, sr: 0, cy: 0, cz: 0, due: 0,
     attr: (name: string, d = 0): number => { const v = S.attrs.get(name); return v ? v[q.k] : d; },
     is: (tag: string): boolean => tagMask(S, tag)[q.k] === 1 };
   return q;
@@ -298,10 +305,11 @@ export function prepareLayer(scene: Scene, layer: LayerInput | null | undefined,
   const chain = prepareChain(layer, compiled), bent = placeWarps(chain, WARP, SPATIAL);
   const idx = pixelsForGroups(scene, layer?.groups, layer?.tags);
   const m = idx.length;
-  let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
+  let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity, sy = 0, sz = 0;
   for (let j = 0; j < m; j++) {
     const k = idx[j];
     const X = scene.X[k], Y = scene.Y[k], Z = scene.Z[k];
+    sy += Y; sz += Z;
     if (X < x0) x0 = X; if (X > x1) x1 = X;
     if (Y < y0) y0 = Y; if (Y > y1) y1 = Y;
     if (Z < z0) z0 = Z; if (Z > z1) z1 = Z;
@@ -330,7 +338,8 @@ export function prepareLayer(scene: Scene, layer: LayerInput | null | undefined,
     idx, lx, ly, lz, a, r,
     bounds: { min: [x0, y0, z0], max: [x1, y1, z1] },
     near: null as ((X: number, Y: number, Z: number) => number) | null,     // place.ts, on the first move
-    frame: Float64Array.of((x0 + x1) / 2, cy, cz, (x1 - x0) / 2, (y1 - y0) / 2, (z1 - z0) / 2, rmax),
+    frame: Float64Array.of((x0 + x1) / 2, cy, cz, (x1 - x0) / 2, (y1 - y0) / 2, (z1 - z0) / 2, rmax,
+      m ? sy / m : 0, m ? sz / m : 0),                                   // then the middle of the LEDs
     extent: Object.freeze([corner([x0, y0, z0]), corner([x1, y1, z1])]),  // extent()
     chain, modular: Array.isArray(layer?.modules), failed: null as string | null,
     blend: isBlend(layer?.blend) ? layer.blend : 'add', level: isNum(layer?.level) ? clamp(layer.level) : 1,

@@ -4,10 +4,10 @@ const params = {
   colours: { value: 'all', type: 'color', label: 'Colours' },
   direction: { value: 'down', type: 'choice', options: ['up', 'down'], label: 'Direction' },
   speed: { value: 1.25, min: 0.25, max: 5, step: 0.05, label: 'Speed (rows a second)' },
-  rows: { value: 5, min: 1, max: 12, step: 1, label: 'Rows' },
+  rows: { value: 4, min: 1, max: 12, step: 1, label: 'Rows' },
   swags: { value: 4, min: 1, max: 12, step: 1, label: 'Swags a row' },
   sag: { value: 0.08, min: 0, max: 0.3, step: 0.005, label: 'Sag' },
-  width: { value: 0.035, min: 0.01, max: 0.15, step: 0.005, label: 'Width' },
+  width: { value: 0.06, min: 0.01, max: 0.15, step: 0.005, label: 'Width' },
 };
 
 function pixel(p, t, P) {

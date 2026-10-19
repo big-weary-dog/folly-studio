@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { describe, test } from 'vitest';
 
 import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
-import { cog, folly } from './fixtures/rigs.js';
+import { cog, folly, lineRig } from './fixtures/rigs.js';
 
 const lib = (name) => readFileSync(new URL(`../public/patterns/${name}.js`, import.meta.url), 'utf8');
 const index = JSON.parse(readFileSync(new URL('../public/patterns/index.json', import.meta.url), 'utf8'));
@@ -64,3 +64,29 @@ for (const [rigName, rig] of Object.entries({ cog, folly })) {
     });
   });
 }
+
+test('the LED fields a source reads follow every move above it, through a stack and a copy of the pixel', () => {
+  const scene = prepareScene(lineRig(9));
+  const probe = { id: 'p', kind: 'source', code: 'function pixel(q) { return [q.k / 8, q.u, q.seed]; }' };
+  const shift = (id) => ({ id, kind: 'warp', code: 'function warp(q) { move(q, q.lx, fract(q.ly + 0.25), q.lz); }' });
+  const none = { id: 'n', kind: 'source', code: 'function pixel() { return null; }', blend: 'over' };
+  const want = (k) => Math.round(8 * (((k / 8 + 0.25) % 1 + 0.25) % 1)) / 8;
+  for (const modules of [[probe, shift('a'), shift('b')], [probe, shift('a'), none, shift('b')]]) {
+    const layer = { id: 'l', modules }, L = prepareLayer(scene, layer, compileLayer(layer));
+    const { rgb, errors } = renderFrame(scene, [L], 0);
+    assert.deepEqual(errors, []);
+    for (let k = 0; k < 9; k++) assert.ok(Math.abs(rgb[3 * k] - want(k)) < 1e-6, `${modules.length}: LED ${k}`);
+  }
+});
+
+test('a warp that reads an LED field sees the LED nearest its point, however its code reads it', () => {
+  const scene = prepareScene(lineRig(9));
+  const probe = { id: 'p', kind: 'source', code: 'function pixel(q) { return [q.k / 8, 0, 0]; }' };
+  const shift = { id: 's', kind: 'warp', code: 'function warp(q) { move(q, q.lx, fract(q.ly + 0.25), q.lz); }' };
+  for (const read of ['q.k', '(() => { const { k } = q; return k; })()', "q[['k'][0]]"]) {
+    const goes = { id: 'g', kind: 'warp', code: `function warp(q) { move(q, q.lx, (${read}) / 8, q.lz); }` };
+    const layer = { id: 'l', modules: [probe, goes, shift] }, L = prepareLayer(scene, layer, compileLayer(layer));
+    const { rgb } = renderFrame(scene, [L], 0);
+    for (let k = 0; k < 9; k++) assert.ok(Math.abs(rgb[3 * k] - ((k / 8 + 0.25) % 1)) < 1e-6, `${read}: LED ${k}`);
+  }
+});

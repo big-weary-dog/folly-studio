@@ -8,8 +8,10 @@ const params = {
 };
 
 function pixel(p, t, P, G) {
-  const ph = beat(t - toward(p, P.direction) * P.spread, G.bpm / 2);
-  const v = max(pulse(ph, 0.1), 0.65 * pulse(ph - 0.22, 0.1));
+  // out and in: from the LEDs' middle
+  const d = P.direction, r = p.sr > 0 ? hypot(p.Y - p.cy, p.Z - p.cz) / p.sr : 0;
+  const ph = beat(t - (d === 'out' ? r : d === 'in' ? 1 - r : toward(p, d)) * P.spread, G.bpm / 2);
+  const v = max(pulse(ph, 0.15), 0.7 * pulse(ph - 0.24, 0.15));
   if (v < 0.004) return null;
   const c = pal('colours', v);
   c[3] = v;

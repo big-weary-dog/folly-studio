@@ -1,5 +1,5 @@
 // What the extended modules gained, where a slip is easy and shows: bars' bands as true swatches with no seam round
-// the circle, rotate's planes.
+// the circle, rotate's planes, spot's middle, life's colour by age.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -44,4 +44,23 @@ test('rotate turns in its plane: a quarter turn in plan swaps depth and across',
     assert.ok(Math.abs(x - (1 - L.lz[j])) < 1e-9 && Math.abs(z - L.lx[j]) < 1e-9 && Math.abs(y - L.ly[j]) < 1e-9,
       `LED ${k}`);
   });
+});
+
+test('spot sits on the middle of the layer\'s LEDs (their mean), not its bounds\' middle', () => {
+  const { L, rgb } = run([mod('spot', 'source', { softness: 0 })]);
+  let Y = 0, Z = 0;
+  L.idx.forEach((k) => { Y += scene.Y[k]; Z += scene.Z[k]; });
+  Y /= L.idx.length; Z /= L.idx.length;
+  const d = (k) => Math.hypot(scene.Y[k] - Y, scene.Z[k] - Z);
+  const lit = Array.from(L.idx, (k, j) => [d(k), Math.max(...rgb(j))]).sort((a, b) => a[0] - b[0]);
+  assert.ok(lit[0][1] > 0 && lit.at(-1)[1] === 0, 'lit at the LEDs\' mean, dark at the farthest');
+});
+
+test('life colours by age: at the first generation every cell is newborn, so one colour; along a strand, many', () => {
+  const lit = (by) => {
+    const { L, rgb } = run([mod('life', 'source', { by, smoothing: 0 })], 0);
+    return new Set(Array.from(L.idx, (_, j) => j).filter((j) => L.buf[4 * j + 3] > 0.5).map((j) => hexOf(rgb(j))));
+  };
+  assert.equal(lit('age').size, 1);
+  assert.ok(lit('along').size > 3 && lit('cell').size > 3);
 });

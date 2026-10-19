@@ -62,4 +62,5 @@ export function copyPixel(to: Pixel, from: Pixel) {
   to.fixture = from.fixture; to.strand = from.strand; to.ring = from.ring; to.row = from.row;
   to.sector = from.sector; to.petal = from.petal; to.k = from.k; to.seed = from.seed;
   to.ox = from.ox; to.oy = from.oy; to.oz = from.oz; to.sx = from.sx; to.sy = from.sy; to.sz = from.sz; to.sr = from.sr;
+  to.cy = from.cy; to.cz = from.cz; to.due = from.due;
 }

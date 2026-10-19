@@ -188,7 +188,7 @@ options, each `[a-z][a-z0-9-]{0,31}`; a value not among them takes the default).
 | `attr(name, d = 0)` | the rig's per-pixel attr `name`, `d` where it has none |
 | `is(tag)` | true when the pixel is in a group tagged `tag` |
 | `k seed` | global index; a stable random 0..1 per LED |
-| `ox oy oz sx sy sz sr` | the frame `lx ly lz a r` are read in (metres): `l = 0.5 + (X − o) / 2s` per axis (a flat axis, s 0: 0.5), `a r` round `(oz, oy)` in the façade, `r` 1 at `sr`; the layer's bounds' middle, half its size and its farthest pixel from that middle, unless a warp re-frames it (anchor) |
+| `ox oy oz sx sy sz sr cy cz` | the frame `lx ly lz a r` are read in (metres): `l = 0.5 + (X − o) / 2s` per axis (a flat axis, s 0: 0.5), `a r` round `(oz, oy)` in the façade, `r` 1 at `sr`; `cy cz` the middle of the LEDs in the façade (their mean: where spot and heartbeat centre, so they sit where the light is); the layer's bounds' middle, half its size, its farthest pixel from that middle and its LEDs' mean, unless a warp re-frames it (anchor) |
 
 ### Stdlib (globals inside pattern code)
 
@@ -241,8 +241,12 @@ field the source reads. A warp moves `q` with `move(q, lx, ly, lz)` (a point in 
 and radius round the frame's middle, in the façade; depth stays) or `slide(q, u)` (along its own fixture to the LED
 nearest `u`). `move` and `turn` set `X Y Z`, `x y z`, `lx ly lz` and `a r` from that point, and every field of an
 LED (`u i n`, `k seed`, `zone zi fixture`, `ring sector`, so `is()` and `attr()` too) from the layer's LED nearest it
-(by a grid of cells a quarter metre or more, at most 64 a side, built once per layer, the first time it is asked); `slide` sets them all
-from that LED. A warp that re-frames (anchor: a new middle and reach) sets `ox oy oz sx sy sz sr` and recomputes
+(by a grid of cells a quarter metre or more, at most 64 a side, built once per layer, the first time it is asked;
+nearest among the LEDs in the cells round the point's cell and round that cell's nearest, ties to the lowest index);
+`slide` sets them all from that LED. The LED fields are looked up when next read, so a stack of warps pays for one
+lookup: before a source or filter, `slide`, or a warp whose code may read one (names it as `.field` or a string, or
+`attr`, `is`; destructures an object; reads a computed key). A warp that re-frames (anchor: a new middle and
+reach) sets `ox oy oz sx sy sz sr cy cz` and recomputes
 `lx ly lz a r` from `X Y Z`, so the moves after it agree. A warp writes no position field any other way.
 
 All may define `params` and `frame(t, P, G)` (once per frame, before any pixel; state such as a trails buffer
@@ -390,10 +394,11 @@ Picks resolve to stops when a layer is prepared and again when the palette chang
 and saturation grade the composite, literals included.
 
 **The library's colour rule.** A source has one colour param, `colours: { value: 'all', type: 'color', label:
-'Colours' }`, and names no role (roles lay out the pick tile for people). It maps what it draws onto positions in the
-pick: bands and seeded objects to `swatch('colours', i)`; a gradient or a tail to `pal('colours', t)`, first colour to
-last; a head or crest to the last colour; one colour at a time to `P.colours`. The recolouring filter
-(`recolour`) takes one `colours` pick too. Code from before this rule may still name roles in `pal()`.
+'Colours' }` (fire adds `tips`, its tips and embers, since flames and what rises off them are two things), and names
+no role (roles lay out the pick tile for people). It maps what it draws onto positions in the pick: bands and seeded
+objects to `swatch('colours', i)`; a gradient or a tail to `pal('colours', t)`, first colour to last; a head or crest
+to the last colour; one colour at a time to `P.colours`. The recolouring filter (`recolour`) takes one `colours` pick
+too. Code from before this rule may still name roles in `pal()`.
 
 ## Looks (what gets saved)
 

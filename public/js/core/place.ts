@@ -1,13 +1,16 @@
 // The warp contract (SPEC "Modules"): move(), turn() and slide() set every position field of a pixel from one point,
 // so any warp works over any source: the place fields from the point in the pixel's frame, the LED fields from the
-// layer's LED nearest it (a grid built once per layer, the first time a move asks).
+// layer's LED nearest it (a grid built once per layer, the first time a move asks). Looking that LED up is the dear
+// part, so a move only marks the LED fields due; settle() looks it up when something reads them (a source or filter,
+// a warp whose code names one, slide()), so a stack of warps pays for one lookup, not one each.
 import type { Scene } from './scene.ts';
 
 /** What the contract reads and writes on a pixel (render.ts makePixel). */
 type Q = { x: number, y: number, z: number, X: number, Y: number, Z: number, lx: number, ly: number, lz: number,
   a: number, r: number, u: number, i: number, n: number, zone: string, zi: number, fixture: number, strand: number,
   ring: number, row: number, sector: number, petal: number, k: number, seed: number,
-  ox: number, oy: number, oz: number, sx: number, sy: number, sz: number, sr: number };
+  ox: number, oy: number, oz: number, sx: number, sy: number, sz: number, sr: number, cy: number, cz: number,
+  due: number };
 /** What a layer brings: its pixels (rig indices), their bounds, and the grid once built. */
 type Layer = { idx: Int32Array, bounds: { min: number[], max: number[] }, near: Near | null };
 type Near = ReturnType<typeof buildNear>;
@@ -48,25 +51,33 @@ function buildNear(S: Scene, L: Layer) {
       if (near[o] < 0 || d2(k, X, Y, Z) < d2(near[o], X, Y, Z) - 1e-12) { near[o] = k; queue.push(o); }
     }
   }
-  /** The rig index of the layer's LED nearest (X, Y, Z): the cells round it and round its cell's nearest. */
-  function nearest(X: number, Y: number, Z: number) {
-    let best = near[at(X, Y, Z)], bd = d2(best, X, Y, Z);
-    const scan = (sx: number, sy: number, sz: number) => {
-      const i = cx(sx), jy = cy(sy), kz = cz(sz);
+  // Each cell's candidates, once it is first asked: the LEDs in the cells round it and round its nearest.
+  const lists: (Int32Array | null)[] = new Array(cells).fill(null), seen = new Int32Array(m).fill(-1);
+  function candidates(c: number) {
+    const out: number[] = [], k0 = near[c];
+    const add = (i: number, jy: number, kz: number) => {
       for (let a = Math.max(0, i - 1); a <= Math.min(nx - 1, i + 1); a++) {
         for (let b = Math.max(0, jy - 1); b <= Math.min(ny - 1, jy + 1); b++) {
           for (let e = Math.max(0, kz - 1); e <= Math.min(nz - 1, kz + 1); e++) {
             for (let j = head[(a * ny + b) * nz + e]; j >= 0; j = next[j]) {
-              const k = idx[j], d = d2(k, X, Y, Z);
-              if (d < bd || (d === bd && k < best)) { bd = d; best = k; }
+              if (seen[j] !== c) { seen[j] = c; out.push(idx[j]); }
             }
           }
         }
       }
     };
-    const k0 = best;
-    scan(X, Y, Z);
-    if (k0 >= 0) scan(S.X[k0], S.Y[k0], S.Z[k0]);
+    add(Math.floor(c / (ny * nz)), Math.floor(c / nz) % ny, c % nz);
+    if (k0 >= 0) add(cx(S.X[k0]), cy(S.Y[k0]), cz(S.Z[k0]));
+    return (lists[c] = Int32Array.from(out));
+  }
+  /** The rig index of the layer's LED nearest (X, Y, Z) among its cell's candidates (the lowest of equals). */
+  function nearest(X: number, Y: number, Z: number) {
+    const c = at(X, Y, Z), list = lists[c] || candidates(c);
+    let best = -1, bd = Infinity;
+    for (let j = 0; j < list.length; j++) {
+      const k = list[j], d = d2(k, X, Y, Z);
+      if (d < bd || (d === bd && k < best)) { bd = d; best = k; }
+    }
     return best;
   }
   return nearest;
@@ -98,14 +109,26 @@ function reframe(q: Q, X: number, Y: number, Z: number) {
   q.r = q.sr > 0 ? Math.sqrt(dz * dz + dy * dy) / q.sr : 0;
 }
 
-/** At (X, Y, Z): its place, and the LED fields of the layer's LED nearest it. */
+/** At (X, Y, Z): its place now, the LED fields of the layer's LED nearest it when settled. */
 function goTo(q: Q, X: number, Y: number, Z: number) {
   reframe(q, X, Y, Z);
+  q.due = 1;
+}
+
+/** q's LED fields, if a move left them due: those of the layer's LED nearest its point. */
+export function settle(q: Q) {
+  q.due = 0;
   const S = PLACE.scene, L = PLACE.layer;
   if (!S || !L || !L.idx.length) return;
   L.near ||= buildNear(S, L);
-  led(S, q, L.near(X, Y, Z));
+  led(S, q, L.near(q.X, q.Y, q.Z));
 }
+
+/** Whether module code may read a pixel's LED fields (or attr/is, which read its k): it names one as `.field` or a
+ *  string, destructures an object, or reads a computed key. */
+export const readsLed = (code: string | undefined) => code === undefined
+  || /[.'"`](u|i|n|zone|zi|fixture|strand|ring|row|sector|petal|k|seed|attr|is)\b/.test(code)
+  || /\{[^{}]*\}\s*=[^=>]|\(\s*\{|\w\s*\[\s*[A-Za-z_$]/.test(code);
 
 /** move(q, lx, ly, lz): q samples the point (lx, ly, lz) of its frame. */
 export function move(q: Q, lx: number, ly: number, lz: number) {
@@ -122,9 +145,10 @@ export function turn(q: Q, a: number, r: number) {
 export function slide(q: Q, u: number) {
   const S = PLACE.scene;
   if (!S) return;
+  if (q.due) settle(q);
   const f = S.fixtures[q.fixture], n = f ? f.count : 0;
   if (!n) return;
   const k = f.start + Math.round(Math.min(1, Math.max(0, u)) * (n - 1));
   reframe(q, S.X[k], S.Y[k], S.Z[k]);
-  led(S, q, k);
+  led(S, q, k); q.due = 0;
 }
