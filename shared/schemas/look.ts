@@ -90,15 +90,6 @@ const unit = z.number({ error: UNIT }).min(0, UNIT).max(1, UNIT);
 const PickObject = z.strictObject({ pick: PickText, blend: oneOf('blend', ['step', 'smooth']).optional(),
   range: z.tuple([unit, unit]).optional(), rotate: z.union([unit, Binding]).optional() });
 export const Pick = z.union([PickText, PickObject]);
-const rolePick = (r: string, error = `palette.${r} must be a pick ('accent', 'body2 #ffffff') or { pick, blend, `
-  + 'range, rotate }.') => z.union([z.string().max(200, error).regex(PICK_TEXT, error), PickObject], { error })
-  .optional();
-/** A layer's role remap: { low?, body?, accent?, high? } of picks over the look's palette. */
-export const LayerPalette = z.strictObject({ low: rolePick('low'), body: rolePick('body'), accent: rolePick('accent'),
-  high: rolePick('high') }, { error: (iss) => (iss.code === 'unrecognized_keys'
-  ? `palette.${String(iss.keys[0]).slice(0, 20)} is not a role: low, body, accent or high.`
-  : 'palette must be { low?, body?, accent?, high? } of picks.') });
-
 const ParamValue = z.union([z.number(), z.boolean(), z.string().max(200), z.array(z.number()).max(16), Binding,
   PickObject]);
 /** Param overrides: values (numbers, toggles, colours as picks, '#hex' or [r, g, b]) or bindings. */
@@ -154,22 +145,35 @@ const Layer = z.looseObject({
   groups: list((error) => z.string({ error }).min(1).max(64), 64, 'groups must be an array of group ids.'),
   tags: list((error) => z.string({ error }).regex(TAG), 16, 'tags must be an array of at most 16 tags (a-z, 0-9, -).'),
   blend: Blend.default('add'), level: num(0, 1, 'level must be a number from 0 to 1.').default(1),
-  clips: Clips.nullish(), soften: Soften.nullish(), palette: LayerPalette.nullish(),
+  clips: Clips.nullish(), soften: Soften.nullish(),
 }, { error: 'must be an object.' }).superRefine((l, ctx) => {
   const stray = l.code !== undefined || Object.keys(l.params ?? {}).length > 0;
   if (l.modules && stray) ctx.addIssue('a layer has modules or code and params, not both.');
   if (!l.modules && l.code === undefined) {
     ctx.addIssue({ code: 'custom', message: 'code must be a string.', path: ['code'] });
   }
-}).transform(({ id, title, code, params, modules, groups, tags, blend, level, clips, soften, palette, ...flags }) => {
-  // Small UI flags the client may add (enabled, solo) are kept; anything bulky is dropped.
+}).transform(({ id, title, code, params, modules, groups, tags, blend, level, clips, soften, palette: _, ...flags },
+) => {
+  // Small UI flags the client may add (enabled, solo) are kept; anything bulky is dropped, and so is `palette`, a role
+  // remap from before every source had one colour pick (dropRemaps).
   const extra = Object.fromEntries(Object.entries(flags).filter(([k, v]) => k.length <= 64
     && (typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v))
       || (typeof v === 'string' && v.length <= 200))).slice(0, 16));
   return { id, title, ...(modules ? { modules } : { code: code!, params: params ?? {} }), groups,
     ...(tags.length ? { tags: [...new Set(tags)] } : {}), blend, level, ...(clips?.length ? { clips } : {}),
-    ...(soften ? { soften } : {}), ...(palette && Object.keys(palette).length ? { palette } : {}), ...extra };
+    ...(soften ? { soften } : {}), ...extra };
 });
+
+/** Layers without `palette`, a role remap from before every source had one colour pick; the same array when none
+ * had one (a stored look keeps its identity unless something changed). */
+export function dropRemaps<T>(layers: T[]): T[] {
+  const has = (l: unknown) => !!l && typeof l === 'object' && 'palette' in l;
+  return layers.some(has) ? layers.map((l) => {
+    if (!has(l)) return l;
+    const { palette: _, ...rest } = l as T & { palette: unknown };
+    return rest as T;
+  }) : layers;
+}
 
 /** A look's layers, bottom first (defaults: blend add, level 1, groups [] (the rig's root), ids l1, l2, …). */
 export const Layers = z.array(Layer, { error: 'layers must be an array.' })
@@ -256,6 +260,5 @@ export type Layer = z.infer<typeof Layers>[number];
 export type Soften = z.infer<typeof Soften>;
 export type Palette = NonNullable<z.infer<typeof Palette>>;
 export type Pick = z.infer<typeof Pick>;
-export type LayerPalette = z.infer<typeof LayerPalette>;
 export type Globals = NonNullable<z.infer<typeof Globals>>;
 export type Automation = Partial<Record<string, [number, number][]>>;

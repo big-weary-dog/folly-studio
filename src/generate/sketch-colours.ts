@@ -1,6 +1,5 @@
 // sketch's colours (SPEC "Palettes"): the idea's colour words choose the look palette nearest them in hue, and each
-// becomes the nearest swatch's slot (`accent2`) when one is close, else itself; a pattern without colour params hears
-// them through its layer's role remap.
+// becomes the nearest swatch's slot (`accent2`) when one is close, else itself: together, a pick for `colours`.
 import PALETTES from '../../public/data/palettes.json' with { type: 'json' };
 
 type Palette = (typeof PALETTES.palettes)[number];
@@ -48,11 +47,6 @@ export function slotFor(hex: string, palette: Palette | null): string {
   return best || hex;
 }
 
-/** A layer's remap for a pattern that only reads the palette: colours set "on" or "behind" something its low, the
- * rest its body; undefined for none. */
-export function remapFor(colours: readonly { hex: string, behind: boolean }[], palette: Palette | null) {
-  const of = (behind: boolean) => [...new Set(colours.filter((c) => c.behind === behind)
-    .map((c) => slotFor(c.hex, palette)))].join(' ');
-  const low = of(true), body = of(false);
-  return low || body ? { ...(low ? { low } : {}), ...(body ? { body } : {}) } : undefined;
-}
+/** Colours as one pick: each the nearest slot, or itself, in the order named. */
+export const pickFor = (hexes: readonly string[], palette: Palette | null) => [...new Set(hexes
+  .map((hex) => slotFor(hex, palette)))].join(' ');

@@ -1,6 +1,6 @@
 // Colour picks (SPEC "Palettes"): what pal(role, t) always did is unchanged; a colour param takes a pick at every
-// rung of the ladder, step by default; rotate turns without a cut; a layer remaps its roles, use() included; looks
-// round-trip; played and sought land on the same frame.
+// rung of the ladder, step by default; rotate turns without a cut; looks round-trip, a layer's old role remap
+// dropped; played and sought land on the same frame.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -12,10 +12,11 @@ import {
   setLibrary,
 } from '../public/js/pattern-core.ts';
 import { LookCreate } from '../shared/schemas/api.ts';
+import { dropRemaps } from '../shared/schemas/look.ts';
 
 const here = (p) => new URL(p, import.meta.url);
 const rig = JSON.parse(readFileSync(here('../public/data/rig.json'), 'utf8'));
-const lib = (name) => readFileSync(here(`../public/patterns/${name}.js`), 'utf8');
+const LIB = JSON.parse(readFileSync(here('./fixtures/library-v1.json'), 'utf8'));
 const scene = prepareScene(rig);
 const rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
 const C = Object.fromEntries(['low', 'body', 'accent', 'high'].flatMap((r) => DEFAULT_PALETTE[r]
@@ -37,7 +38,8 @@ const swatches = (s, n) => Array.from({ length: n }, (_, i) => s.swatch('c', i))
 
 describe('pal(role, t) as before', () => {
   // Frozen from the runtime before picks: float frames at t = 0, 1.3 and 7.9 s, default params, under chapel and a
-  // palette with empty roles (sha256, 16 hex). A library edit to one of these sources means freezing it again.
+  // palette with empty roles (sha256, 16 hex), of the library as it was (fixtures/library-v1.json): code that names
+  // roles, as saved looks and AI code do.
   const FROZEN = {
     'colour-wash': ['dd699f1a7145cd66', '916774580d47ea34'], garlands: ['07f54027c1481f7c', '36cfd86ee5122fa6'],
     pinwheel: ['daba5b0ba5e91e17', '23cf4713b08a39c6'], wave: ['4719bcc5def8f1c5', '59e1545246665aa1'],
@@ -49,7 +51,7 @@ describe('pal(role, t) as before', () => {
   for (const [name, sums] of Object.entries(FROZEN)) {
     test(`${name} renders pixel for pixel as before`, () => {
       [null, SPARSE].forEach((palette, i) => {
-        const layer = { id: 'a', code: lib(name) };
+        const layer = { id: 'a', code: LIB[name].code };
         const L = prepareLayer(scene, layer, compileLayer(layer)), look = prepareLook({ globals: { palette } });
         const h = createHash('sha256'), rgb = new Float32Array(scene.count * 3);
         for (const t of [0, 1.3, 7.9]) h.update(renderFrame(scene, [L], t, rgb, look).rgb);
@@ -119,10 +121,10 @@ describe('the ladder', () => {
   });
 });
 
-/** A one-module layer drawing P.c (or `code`), its params and palette remap. */
-const layerOf = (params, palette, code = 'function pixel(p, t, P) { return P.c; }') => {
+/** A one-module layer drawing P.c (or `code`) with these params. */
+const layerOf = (params, code = 'function pixel(p, t, P) { return P.c; }') => {
   const decl = code.includes('const params') ? '' : "const params = { c: { type: 'color', value: 'body/accent' } };\n";
-  const layer = { id: 'l', palette, modules: [{ id: 'm', code: decl + code, params }] };
+  const layer = { id: 'l', modules: [{ id: 'm', code: decl + code, params }] };
   return prepareLayer(scene, layer, compileLayer(layer));
 };
 const first = (L, t, look) => Array.from(renderFrame(scene, [L], t, null, look).rgb.slice(0, 3));
@@ -153,43 +155,23 @@ describe('rotate', () => {
   });
 });
 
-describe('a layer remaps its roles', () => {
-  const pal = (role) => `function pixel(p) { return pal('${role}', 0); }`;
-  test('pal(role) follows the remap, a declared param wins, slots and G.palette stay the look\'s', () => {
-    const look = prepareLook(null);
-    assert.deepEqual(first(layerOf({}, { body: 'accent2 accent3' }, pal('body')), 0, look).map(Math.fround),
-      C.accent2.map(Math.fround));
+describe('roles in code from before one colour param', () => {
+  test('pal(role) reads the look palette\'s role; a declared param of that name wins', () => {
+    const look = prepareLook(null), pal = (role) => `function pixel(p) { return pal('${role}', 0); }`;
+    assert.deepEqual(first(layerOf({}, pal('accent')), 0, look).map(Math.fround), C.accent1.map(Math.fround));
     const own = `const params = { body: { type: 'color', value: 'accent' } };\n${pal('body')}`;
-    assert.deepEqual(first(layerOf({}, { body: 'high' }, own), 0, look).map(Math.fround), C.accent1
-      .map(Math.fround), 'a param named body wins');
-    assert.deepEqual(first(layerOf({ c: 'body' }, { body: 'high' }), 0, look).map(Math.fround), C.high1
-      .map(Math.fround), 'a role token in a param: through the remap');
-    assert.deepEqual(first(layerOf({ c: 'body2' }, { body: 'high' }), 0, look).map(Math.fround), C.body2
-      .map(Math.fround), 'a slot: the look palette\'s');
-    const G = 'function pixel(p, t, P, G) { return G.palette.body[0]; }';
-    assert.deepEqual(first(layerOf({}, { body: 'high' }, G), 0, look).map(Math.fround), C.body1.map(Math.fround));
+    assert.deepEqual(first(layerOf({}, own), 0, look).map(Math.fround), C.accent1.map(Math.fround));
   });
 
-  test('a remap is smooth for pal(role, t) unless it says step', () => {
-    onPalette();
-    const half = 'function pixel(p) { return pal("body", 0.5); }', look = prepareLook(null);
-    const mid = C.accent2.map((v, i) => Math.fround((v + C.accent3[i]) / 2));
-    assert.ok(near(first(layerOf({}, { body: 'accent2 accent3' }, half), 0, look), mid, 1e-6));
-    assert.ok(near(first(layerOf({}, { body: { pick: 'accent2 accent3', blend: 'step' } }, half), 0, look),
-      C.accent3, 1e-6));
-  });
-
-  test('use() resolves roles through the calling layer', () => {
+  test('use() runs a source that names roles', () => {
     setLibrary([{ name: 'bodyish', code: 'function pixel(p) { return pal("body", 0); }' }]);
     const code = 'const b = use("bodyish");\nfunction pixel(p, t) { return b(p, t); }';
-    const look = prepareLook(null);
-    assert.ok(near(first(layerOf({}, { body: 'high' }, code), 0, look), C.high1, 1e-6));
-    assert.ok(near(first(layerOf({}, undefined, code), 0, look), C.body1, 1e-6));
+    assert.ok(near(first(layerOf({}, code), 0, prepareLook(null)), C.body1, 1e-6));
     setLibrary([]);
   });
 
-  test('a palette change re-resolves picks and remaps', () => {
-    const L = layerOf({}, { high: 'body2' }, 'function pixel(p, t, P) { return mix(P.c, pal("high", 0), 0.5); }');
+  test('a palette change re-resolves picks and roles', () => {
+    const L = layerOf({}, 'function pixel(p, t, P) { return mix(P.c, pal("body", 1), 0.5); }');
     const a = first(L, 0, prepareLook(null)), b = first(L, 0, prepareLook({ globals: { palette: SPARSE } }));
     const want = rgbOf('#ee008e').map((v, i) => Math.fround((v + rgbOf('#ffe068')[i]) / 2));
     assert.ok(!near(a, b, 1e-3) && near(b, want, 1e-6));
@@ -198,7 +180,7 @@ describe('a layer remaps its roles', () => {
 
 describe('looks', () => {
   const base = { title: 'Picks', layers: [{ code: 'function pixel() { return 1; }', params: { c: '#ff0000' } }] };
-  test('picks and remaps round-trip; an old look keeps its shape', () => {
+  test('picks round-trip; an old look keeps its shape; a layer\'s role remap is dropped', () => {
     const old = LookCreate.parse(base);
     assert.equal('palette' in old.layers[0], false);
     assert.deepEqual(old.layers[0].params, { c: '#ff0000' });
@@ -207,19 +189,21 @@ describe('looks', () => {
     palette: { body: 'accent2 accent3', high: { pick: '#ffffff' } } }] };
     const once = LookCreate.parse(look), twice = LookCreate.parse(JSON.parse(JSON.stringify(once)));
     assert.deepEqual(twice, once);
-    assert.deepEqual(once.layers[0].palette, look.layers[0].palette);
+    assert.equal('palette' in once.layers[0], false, 'the remap is dropped');
     assert.deepEqual(once.layers[0].params, look.layers[0].params);
-    assert.equal(LookCreate.safeParse({ ...base, layers: [{ ...base.layers[0], palette: { body: 'nope' } }] }).success,
-      false);
+    const stored = [{ id: 'a', palette: { body: 'high' } }, { id: 'b' }], plain = [{ id: 'b' }];
+    assert.deepEqual(dropRemaps(stored), [{ id: 'a' }, { id: 'b' }]);
+    assert.equal(dropRemaps(plain), plain, 'nothing to drop: the same layers');
   });
 
   test('played and sought land on the same frame', () => {
-    const params = { c: { pick: 'body/accent', rotate: { mod: 'lfo', shape: 'sine', rate: 0.3 } } };
-    const remap = { body: { pick: 'all', blend: 'smooth', rotate: { mod: 'lfo', shape: 'saw', rate: 0.1 } } };
-    const code = 'function pixel(p, t, P) { return mix(P.c, pal("body", p.ly), 0.5); }';
-    const played = layerOf(params, remap, code), look = prepareLook(null);
+    const params = { c: { pick: 'body/accent', rotate: { mod: 'lfo', shape: 'sine', rate: 0.3 } },
+      d: { pick: 'all', blend: 'smooth', rotate: { mod: 'lfo', shape: 'saw', rate: 0.1 } } };
+    const code = `const params = { c: { type: 'color', value: 'body' }, d: { type: 'color', value: 'all' } };
+      function pixel(p, t, P) { return mix(P.c, pal('d', p.ly), 0.5); }`;
+    const played = layerOf(params, code), look = prepareLook(null);
     for (let f = 0; f <= 200; f++) renderFrame(scene, [played], f / 40, null, look);
-    const sought = renderFrame(scene, [layerOf(params, remap, code)], 5, null, prepareLook(null)).rgb;
+    const sought = renderFrame(scene, [layerOf(params, code)], 5, null, prepareLook(null)).rgb;
     assert.deepEqual(renderFrame(scene, [played], 5, null, look).rgb, sought);
   });
 });

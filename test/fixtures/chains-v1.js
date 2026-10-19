@@ -1,8 +1,9 @@
-// Looks from before the one rule (a warp bent the modules after it), in their old order, each with the SHA-256 of
-// its first 60 DMX frames (t = f / 40, default gamma, the Folly) as the engine of 328a218 rendered them (3e681e0, its
-// rule with colour picks, for the last two, and the same bytes for the rest), with this tree's library, rig and
-// palettes. test/chain-order.test.js converts each look and renders the same bytes. To make the digests again (from
-// studio/; the old core is plain modules, so a copy of public/js is enough):
+// Looks from before the one rule (a warp bent the modules after it), in their old order, each with the SHA-256 of its
+// first 60 DMX frames (t = f / 40, default gamma, the Folly) as the engine of 328a218 rendered them (3e681e0, its rule
+// with colour picks, for the last two, and the same bytes for the rest), with the library as of 11a4627
+// (library-v1.json, pinned so that library edits leave these frames alone) and this tree's rig and palettes.
+// test/chain-order.test.js converts each look and renders the same bytes. To make the digests again (from studio/; the
+// old core is plain modules, so a copy of public/js is enough):
 //   mkdir -p /tmp/v1 && git archive 3e681e0 public/js | tar -x -C /tmp/v1
 //   node --input-type=module -e 'const f = await import("./test/fixtures/chains-v1.js");
 //     const core = await import("/tmp/v1/public/js/pattern-core.ts");
@@ -13,7 +14,7 @@ import { readFileSync } from 'node:fs';
 import { folly } from './rigs.js';
 
 const read = (p) => readFileSync(new URL(`../../public/${p}`, import.meta.url), 'utf8');
-const KINDS = Object.fromEntries(JSON.parse(read('patterns/index.json')).map((e) => [e.name, e.kind]));
+const LIB = JSON.parse(readFileSync(new URL('./library-v1.json', import.meta.url), 'utf8'));
 const pal = (name) => JSON.parse(read('data/palettes.json')).palettes.find((p) => p.name === name);
 const OWN = {
   counted: 'let calls = 0;\nfunction frame() { calls++; }\nfunction pixel(p) { return [p.lz, calls % 7 / 7, p.ly]; }\n',
@@ -23,8 +24,8 @@ const OWN = {
 };
 let n = 0;
 /** Library module `name` (or one of OWN), with `extra` fields. */
-const m = (name, extra = {}) => ({ id: extra.id ?? `m${++n}`, kind: OWN[name] ? 'source' : KINDS[name], title: name,
-  ...(OWN[name] ? {} : { ref: name }), code: OWN[name] ?? read(`patterns/${name}.js`), params: {}, ...extra });
+const m = (name, extra = {}) => ({ id: extra.id ?? `m${++n}`, kind: OWN[name] ? 'source' : LIB[name].kind,
+  title: name, ...(OWN[name] ? {} : { ref: name }), code: OWN[name] ?? LIB[name].code, params: {}, ...extra });
 const layer = (title, modules, extra = {}) => ({ id: `l${++n}`, title, groups: ['cathedral'], blend: 'add', level: 1,
   modules, ...extra });
 
@@ -83,16 +84,16 @@ export const LOOKS = [
   ['a disabled warp leads, an enabled one trails', { layers: [layer('Off', [m('mirror', { enabled: false }),
     m('bars'), m('edge-fade'), m('scroll', { params: { up: 0.5 } })])] },
   '9c890167d11bb80f40e54ba3d3074e47ca3acdc36019038f5993a821d19a13c8'],
-  ['picks and a layer remap, a warp before them', { layers: [layer('Picks', [m('twist'),
+  ['picks, a warp before them', { layers: [layer('Picks', [m('twist'),
     m('meteors', { params: { sky: 'low', color: { pick: 'body/accent', rotate: 0.25 }, head: 'high' } }),
-    m('hue-shift')], { palette: { body: 'accent2 accent3', high: '#ffffff' } })],
+    m('hue-shift')])],
   globals: { palette: pal('carnival') } },
-  '928352f3c2598b7285aa3cdbe4371e649613107b17252b2b49265d23b1871062'],
-  ['a pick turned by beats, a remap, two sources bent differently', { bpm: 120, layers: [layer('Turning', [
+  '43ba2b58fbf55f12307b3cede03cfcc580064d6ea6965e3f6d407e2afbf4c539'],
+  ['a pick turned by beats, two sources bent differently', { bpm: 120, layers: [layer('Turning', [
     m('clouds', { params: { sky: 'low', cloud: 'body' } }), m('rotate', { params: { spin: 0.3 } }),
     m('lighthouse', { blend: 'max', params: { beam: { pick: 'accent/high', rotate: { mod: 'lfo', rate: 1,
-      unit: 'beats' } } } })], { palette: { accent: 'high body2' } })] },
-  '78b31f804ed097f32df2bd31c4c35525b6399cc1e4d01cb2508c0fcbc9e673e3'],
+      unit: 'beats' } } } })])] },
+  '938076239d3a9b5b532ecb66b7ed1c1a82874d5aa46e926a8e68a701a2a56ca3'],
 ];
 
 /** SHA-256 (hex) over a look's first 60 frames of DMX as `core` (a pattern-core) renders them on the Folly. */

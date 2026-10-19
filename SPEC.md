@@ -158,24 +158,25 @@ A pattern is a plain script (not a module). It defines `pixel`, and optionally `
 `frame`. Everything in the stdlib is in scope as globals.
 
 ```js
-// Rising embers: warm sparks drift up every surface.
+// Rising bands: bands of colour move up the layer.
 const params = {
-  speed: { value: 0.4, min: 0, max: 2 },
-  color: { value: '#ff6a00', type: 'color' },
+  speed: { value: 0.4, min: 0, max: 2, label: 'Speed' },
+  colours: { value: 'all', type: 'color', label: 'Colours' },
 };
 
 function frame(t, P) {}            // optional: once per frame, before pixel()
 
 function pixel(p, t, P) {          // every LED, every frame
-  const v = pulse(fract(p.ly * 3 - t * P.speed), 0.2);
-  return scale(P.color, v);        // [r, g, b], each 0..1 (optional 4th = alpha)
+  const x = p.ly * 3 - t * P.speed, c = swatch('colours', floor(x));
+  c[3] = pulse(fract(x), 0.2);     // [r, g, b], each 0..1, and an optional alpha (coverage)
+  return c;
 }
 ```
 
 `P` holds each param's current value (`color` params arrive as `[r,g,b]`). Param kinds:
 number `{ value, min, max, step? }`, `{ value: bool, type: 'toggle' }`,
 `{ value: pick, type: 'color', blend? }`: a pick names palette colours or literals ("Palettes" below), such as
-`'high'`, `'body/accent'` or `'#rrggbb'`; `{ value: 'name', type: 'choice', options: ['name', …] }` (≤ 16
+`'all'`, `'accent'` or `'#rrggbb'`; `{ value: 'name', type: 'choice', options: ['name', …] }` (≤ 16
 options, each `[a-z][a-z0-9-]{0,31}`; a value not among them takes the default).
 
 ### The pixel `p`
@@ -204,8 +205,9 @@ of `centre`, else 0, each edge a `soft` one `softness` wide), `wave(x)` = ½+½�
 `noise(x, y?, z?, w?)` (smooth 0..1), `fbm(x, y, z, octaves=4)`, `hsv(h, s, v)`, `hsl(h, s, l)`,
 `rgb(r, g, b)`, `hex('#rrggbb')`, `scale(c, k)`, `add(c1, c2)`, `gradient(t, [c0, c1, ...])`,
 `cosPalette(t, a, b, c, d)` (Inigo Quilez), `beat(t, bpm)` (phase 0..1), `dist(x1,y1,z1,x2,y2,z2)`,
-`pal(name, t = 0)` (t 0..1 along colour param `name`'s pick, else role `low|body|accent|high` through the layer's
-remap; unknown or empty → `body`), `swatch(name, i)` (the same pick's or role's i-th colour, floored and wrapping),
+`pal(name, t = 0)` (t 0..1 along colour param `name`'s pick; a bare role `low|body|accent|high`, in code from
+before one colour param, walks the look palette's role; unknown or empty → `body`), `swatch(name, i)` (the same
+pick's or role's i-th colour, floored and wrapping),
 `palette(t)` (t 0..1 across the look palette's colours, low to high), `centres(tag)` (each group tagged
 `tag`: its `centre` as `[X, Y, Z]`, `[]` when none; call it in `frame` or `pixel`), `extent()` (the running layer's
 pixels' bounds in metres, `[[X0, Y0, Z0], [X1, Y1, Z1]]`, which `lx ly lz` map to 0..1: so a pattern can burst from
@@ -294,35 +296,39 @@ A colour pick's `rotate` takes the same bindings (from 0, to 1, depth ¼ by defa
 
 The look's palette (`G.palette`) has four roles: `low` for big surfaces, `body` for the bulk, `accent` for
 punctuation, `high` sparingly, each a list of colours whose slots are named `low1`, `body2`, … (TD's palette CSVs). A
-colour param's value is a **pick** of them, so every colour param is a slot a user, a preset or a generator can
-point anywhere on this ladder:
+colour param's value is a **pick** of them, which a user, a preset or a generator can point anywhere on this ladder:
 
 | Pick | Meaning |
 |---|---|
-| `'accent'`, `'body high'` | every colour of the role(s), through the layer's remap |
+| `'accent'`, `'body high'` | every colour of the role(s) |
 | `'body2 accent1'` | single colours by slot; a slot this palette lacks is dropped (none left: its role) |
 | `'body/accent'` | `/` deals the groups in turn: body1 accent1 body2 accent2 …, the shorter wrapping |
 | `'all'`, `'rainbow'` | the palette low to high; seven hsv stops red to red (step: six) |
 | `'#ff3c00'`, `'#3a0000 #ff3c00'` | literal colours, mixing freely with the tokens above |
 | `{ pick, blend, range, rotate }` | `blend`: `'step'` (default: equal bands, only the pick's colours) or `'smooth'` (a ramp); `range`: `[from, to]`, the stretch of the walk `pal()` uses; `rotate`: a shift along the stops, 0..1 wrapping, or a binding |
 
-Space joins tokens in order. Unknown tokens are ignored; a pick with none left plays the code's default. A source
-declares a slot's default, usually a role (`{ value: 'body/accent', type: 'color' }`), and may declare `blend:
-'smooth'` for a slot that is a gradient by nature; a pick with no `blend` takes the slot's. Per module instance:
+Space joins tokens in order. Unknown tokens are ignored; a pick with none left plays the code's default. A param
+declares its default pick and may declare `blend: 'smooth'` when its idea is a gradient; a pick with no `blend` takes
+the param's. Per module instance:
 
 - `P.name` is the pick's colour at its rotate position, resolved per frame into the same array.
 - `pal(name, t)` walks it: step gives the stop under t (n equal bands), smooth ramps from the first stop to the
   last; `range` maps t into its stretch. `swatch(name, i)` is its i-th stop, whatever the blend.
 - Under rotate, smooth shifts the walk along the stops and round from the last to the first; step holds each stop
   and crossfades into the next over the last fifth of it. A turning pick never cuts.
-- `pal(role, t)` on a bare role (not a declared param) ramps smoothly, as it always has, so code and looks from
-  before picks render exactly as they did. A declared param wins a name clash.
+- `pal(role, t)` on a bare role (not a declared param) walks the look palette's role smoothly, as it always has, so
+  code and looks from before picks render as they did. A declared param wins a name clash.
 
-A layer's `palette` (`{ low?, body?, accent?, high? }` of picks) remaps its roles for every module on it, the
-`use()` instances they run included: role tokens and `pal(role, t)` read the remap, which is smooth unless its pick
-says `blend: 'step'`. A remap's tokens read the look palette's own roles; slots, `all`, `G.palette` and `palette(t)`
-are always the look palette's. Picks resolve to stops when a layer is prepared and again when the palette changes;
-per frame only rotates move. Hue and saturation grade the composite, literals included.
+Picks resolve to stops when a layer is prepared and again when the palette changes; per frame only rotates move. Hue
+and saturation grade the composite, literals included.
+
+**The library's colour rule.** A source has one colour param, `colours: { value: 'all', type: 'color', label:
+'Colours' }` (the whole palette, low to high, unless the source says why not), and knows nothing of roles: roles are
+how the pick tile lays out the palette for people, not something code names. It maps what it draws onto positions in
+the pick: bands to `swatch('colours', i)` in order; a gradient or a tail to `pal('colours', t)`, first colour to last;
+a head, crest or heart to the last colour (`pal('colours', 1)`); seeded objects to `swatch('colours', seed)`; one
+colour at a time to `P.colours`. Filters that recolour (`tint`, `gradient-map`, `threshold`) take one `colours` pick
+the same way. Code from before this rule (saved looks, AI code) may still name roles in `pal()`.
 
 ## Looks (what gets saved)
 
@@ -334,10 +340,9 @@ browser's too:
 { "title": "Coral reef", "summary": "…", "duration": 30, "bpm": 120, "chain": 2, "layers": [
   { "id": "l1", "title": "Sea", "groups": ["cathedral"], "tags": ["all"], "blend": "add" | "over" | "max" | "multiply",
     "level": 1, "clips": [{ "start": 0, "end": 12, "fadeIn": 2, "fadeOut": 3 }], "soften": { "radius": 0.15, "mode": "wire" },
-    "palette": { "body": "accent2 accent3", "high": "#ffffff" },
     "modules": [
       { "id": "m1", "kind": "source", "title": "Meteors", "ref": "meteors", "code": "…",
-        "params": { "speed": 40, "head": "high", "color": { "pick": "body/accent", "rotate": 0.25 } } },
+        "params": { "speed": 40, "colours": { "pick": "body/accent", "rotate": 0.25 } } },
       { "id": "m2", "kind": "source", "title": "Clouds", "ref": "clouds", "code": "…", "params": {}, "as": "input" },
       { "id": "m3", "kind": "filter", "title": "Mask", "ref": "mask", "code": "…", "input": "m2",
         "params": { "amount": { "mod": "global", "name": "storm", "from": 0, "to": 1 } } },
@@ -376,8 +381,8 @@ has alpha × level, `max` keeps the brighter channel, `multiply` tints what is b
   `DEFAULT_SOFTEN`; a layer without it renders as before.
 - **Colours** ("Palettes"): a colour param's value is a pick string (≤ 200 characters, not checked: a bad one plays
   the default, as a bad hex always did), `[r, g, b]`, or `{ pick, blend?, range?, rotate? }` (checked: tokens, `step`
-  or `smooth`, two numbers 0..1, a number 0..1 or a binding). `layer.palette` is `{ low?, body?, accent?, high? }` of
-  picks, checked; absent, the layer plays the look palette.
+  or `smooth`, two numbers 0..1, a number 0..1 or a binding). A layer's `palette`, a role remap from before one
+  colour param per source, is dropped on the way in and from stored looks at start (`dropRemaps`).
 - **Globals** (all optional): `speed` 0..4 (1), `level` 0..1 (1), `hue` −0.5..0.5 turns (0), `saturation`
   0..2 (1), `energy` 0..1 (0.5); `palette` as role lists (≤ 16 `#rrggbb` each; a bare name from
   `data/palettes.json` is filled in on save; default `chapel`); `macros` ≤ 16, names
@@ -417,9 +422,8 @@ Sequencing lives on the look, xLights-style.
   a field the size of a number's (`kit.tsx` Scrub), its text over the colours it plays (the field opens the pick
   tile), ∿ to move its rotate (the modulate dialog), ↺. The tile is TD's pick: a row per role (a box for the whole
   role, a cell per slot), the whole palette, rainbow, custom colours, then whether roles alternate (`/`), blend, and
-  range and rotate as number fields. The layer's Colours row, under Plays on, shows each role as it plays here and
-  remaps it with the same tile (`layer.palette`). On a phone the tile is a sheet with the palette's roles
-  and a custom colour; the whole palette, rainbow, blend, range and rotate show when set.
+  range and rotate as number fields. On a phone the tile is a sheet with the palette's roles and a custom colour; the
+  whole palette, rainbow, blend, range and rotate show when set.
 
 ## Sandbox protocol (runtime.ts ⇄ sandbox.html)
 
@@ -593,16 +597,15 @@ groups), and give layers the tags they meant beside the ids. The result is clean
 (`shared/schemas/generated.ts`, zod: ≤ 4 layers,
 known group ids (none known: the root) and tags, code ≤ 20 kB containing `function pixel`, or modules whose code defines their kind's
 function; clips and duration normalised, bad or overlapping clips dropped; `globals` and `automation`
-cleaned, a palette name filled in; picks and a layer's `palette` cleaned of unknown tokens; a layer without a usable
-`soften` gets `DEFAULT_SOFTEN`) before a look is saved, with `chain: 2` (generators write the one rule: a warp after
+cleaned, a palette name filled in; picks cleaned of unknown tokens; a layer's `palette` dropped; a layer without a
+usable `soften` gets `DEFAULT_SOFTEN`) before a look is saved, with `chain: 2` (generators write the one rule: a warp after
 what it bends), and the idea set `ready`. Old single-code layers
 stay valid. Generators may add
 clips and a duration for ideas that describe a progression; most looks have neither.
 
 - `sketch`: offline, keyword → library pattern(s) + params, place words → tags. Colour words choose the palette
-  nearest them in hue and become the nearest swatch's slot (`accent2`; none close: the colour itself), on a colour
-  param, or for a pattern that reads only the palette, its layer's `palette` (`low` for a colour set "on" or
-  "behind" something, else `body`). Always available.
+  nearest them in hue and become the nearest swatch's slot (`accent2`; none close: the colour itself): together the
+  pick of a source's `colours`, or, in a source with several colour params, one each. Always available.
 - `claude`: one Messages API call with the pattern guide + library examples as the system prompt (cached: the same
   bytes on every call), and structured output whose JSON Schema is the generated look's own (`wireSchema(groups)`:
   group ids and tags as enums).

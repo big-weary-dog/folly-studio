@@ -12,7 +12,7 @@ From the first design notes, now built (the DESIGN.md section in brackets):
 - Pattern code: space three ways, polar on the façade, along the wire, structure fields (§3).
 - Module chains, globals, palette roles from `td/palettes`, modulation, automation lanes; a library of 59 (§4).
 - Blur and soften: a native spatial filter on the rig's neighbours, soft edges by default (§4).
-- Colour picks: every colour param takes roles, slots, literals, blend, range and rotate; layers remap roles (§4).
+- Colour picks: every colour param takes roles, slots, literals, blend, range and rotate; one `colours` per source (§4).
 - The timeline: clips with fades on show time, importing looks to sequence them (§5).
 - The sandboxed preview, the render box, curator review of baked frames, the flash checks and guard (§6).
 - Sparse `.fseq`, streamed frames, compressed downloads, `tools/sacn-play.ts`, the Mirage match (§7, §8).

@@ -58,7 +58,7 @@ type Renders = { layers?: readonly LayerInput[], globals?: unknown, automation?:
  */
 export function renderFields(look: Renders | null | undefined) {
   const layers = look?.layers ?? [];
-  const beats = layers.some((l) => beatsLfo(l?.params) || beatsLfo(l?.palette as object) || (Array.isArray(l?.modules)
+  const beats = layers.some((l) => beatsLfo(l?.params) || (Array.isArray(l?.modules)
     && l.modules.some((m) => beatsLfo(m?.params))));
   if (!look?.globals && !look?.automation && !beats) return layers;
   return { layers, globals: look!.globals ?? null, automation: look!.automation ?? null,

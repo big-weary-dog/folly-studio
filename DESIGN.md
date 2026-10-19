@@ -146,10 +146,13 @@ Palettes come from the same CSVs TouchDesigner uses, so a look and a TD show agr
 **Picks.** A colour param holds a pick, not a hex: roles (`body`), slots by TD's names (`body2`), `all`,
 `rainbow` and literals, joined in order or dealt in turn (`body/accent`), stepped by default so bands stay
 distinct, with an optional range and a rotate any binding can turn (it crossfades at each step, so it never cuts).
-A layer's `palette` remaps its roles for all its modules, TD's pick per effect. The four roles stay the backbone:
-swapping the palette still restyles the look, and slots address the swatches a TD palette has. Picks resolve when a
-layer is prepared and when the palette changes, so per pixel `pal()` costs what it did; a bare `pal(role, t)` keeps
-its smooth ramp, so looks from before render as they did. Hue and saturation stay a grade on the composite.
+Each library source has one colour param, `colours`, the whole palette by default, and knows nothing of roles: it
+maps bands, tails and heads onto positions in its pick, and people choose the colours. The four roles stay the
+palette's backbone and the pick tile's layout: swapping the palette still restyles the look, and slots address the
+swatches a TD palette has. A per-layer role remap was tried and dropped: roles shown on every source made no sense to
+people. Picks resolve when a layer is prepared and when the palette changes, so per pixel `pal()` costs what it did; a
+bare `pal(role, t)` keeps its smooth ramp, so looks from before render as they did. Hue and saturation stay a grade on
+the composite.
 
 - **Alternatives.** Per-layer frame buffers with a node graph (any spatial filter, at a full frame per node per
   layer); blur in pattern code (portable, but slow, and a pattern could not see past its own pixel); hard-coded

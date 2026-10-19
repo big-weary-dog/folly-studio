@@ -1,9 +1,9 @@
-// Colour picks (SPEC "Palettes"): which palette colours a colour param, or a layer's role, plays. A pick is tokens: a
-// role (`body`: its colours), a slot (`body2`: one), `all` (the palette low to high), `rainbow` or '#rrggbb'; spaces
-// join them in order, `/` deals them in turn (`body/accent`: body1 accent1 body2 …). With `blend` (step by default:
-// equal bands; smooth: a ramp), `range` (a stretch of the walk) and `rotate` (a shift along the stops, wrapping).
-// Picks resolve to stops when a module is bound and again when its layer's roles change (a new palette); per pixel,
-// pal() and swatch() walk them. A layer's `palette` remaps its roles for every module on it.
+// Colour picks (SPEC "Palettes"): which palette colours a colour param plays. A pick is tokens: a role (`body`: its
+// colours), a slot (`body2`: one), `all` (the palette low to high), `rainbow` or '#rrggbb'; spaces join them in order,
+// `/` deals them in turn (`body/accent`: body1 accent1 body2 …). With `blend` (step by default: equal bands; smooth: a
+// ramp), `range` (a stretch of the walk) and `rotate` (a shift along the stops, wrapping). Picks resolve to stops when
+// a module is bound and again when the palette changes; per pixel, pal() and swatch() walk them. A bare role in pal()
+// (code from before one colour param per source) reads the look palette's role.
 import type { ParamSchema } from './compile.ts';
 import type { Values } from './globals.ts';
 import { clamp, hex, isNum, PALETTE_ROLES, ramp, RUN, STDLIB } from './stdlib.ts';
@@ -24,7 +24,7 @@ const MAX_TOKENS = 64, MAX_STOPS = 256;
 // step takes the first six, so red is one band.
 const RAINBOW: Stops = Object.freeze([0, 1, 2, 3, 4, 5, 6].map((k) => Object.freeze(STDLIB.hsv(k / 6))));
 
-/** A param's value or a layer's role as a pick: a string of tokens, { pick, blend?, range?, rotate? }, '#hex' or
+/** A param's value as a pick: a string of tokens, { pick, blend?, range?, rotate? }, '#hex' or
  * [r, g, b]. Unknown tokens are ignored; null when nothing is left. */
 export function readPick(v: unknown): PickSpec | null {
   if (Array.isArray(v)) {
@@ -55,11 +55,11 @@ const hexOfRgb = (c: readonly number[]) => `#${c.slice(0, 3).map((v) => Math.rou
 export const pickText = (groups: readonly (readonly Token[])[]) => groups.map((g) => g
   .map((t) => (typeof t === 'string' ? t : hexOfRgb(t))).join(' ')).join('/');
 
-/** What a role's tokens expand to and what pal(role) walks, for one layer; `fallback` stands in for an empty role. */
+/** What a role's tokens expand to and what pal(role) walks; `fallback` stands in for an empty role. */
 export type Roles = { palette: PaletteColours, lists: Readonly<Record<PaletteRole, Stops>>,
   table: Readonly<Record<string, Slot>>, fallback: Slot };
 
-/** A token's colours: a role through `R`, a slot (a missing one: nothing), all, rainbow, a literal. */
+/** A token's colours: a role, a slot (a missing one: nothing), all, rainbow, a literal. */
 function expandToken(t: Token, R: Roles, step: boolean, out: (readonly number[])[]) {
   if (typeof t !== 'string') out.push(t);
   else if (t[0] === '#') out.push(Object.freeze(hex(t)));
@@ -138,19 +138,12 @@ function slotSwatch(s: Slot, i: number, out: number[]) {
   return mixInto(s.stops, ((j + s.k) % n + n) % n, s.w, out);
 }
 
-type RoleSpec = Omit<PickSpec, 'rotate'>;
-/** A layer's remap: its roles' picks and their rotates (bound ones moved each frame), the Roles last made. */
-export type Remap = { roles: Partial<Record<PaletteRole, RoleSpec>>, rot: Values, made: Roles | null };
-
-/** A layer's roles on `palette`: its own, or as `remap` says (picks over the palette's own roles, smooth unless the
- * remap says step, as pal(role, t) always walked). */
-function buildRoles(palette: PaletteColours, remap: Remap | null): Roles {
-  const base = remap ? plainRoles(palette) : null, lists = {} as Record<PaletteRole, Stops>;
-  const table: Record<string, Slot> = Object.create(null);
+/** The palette's roles: each a smooth ramp, as pal(role, t) always walked. */
+function buildRoles(palette: PaletteColours): Roles {
+  const lists = {} as Record<PaletteRole, Stops>, table: Record<string, Slot> = Object.create(null);
   for (const role of PALETTE_ROLES) {
-    const r = remap?.roles[role], step = r?.blend === 'step';
-    lists[role] = r ? pickStops(r.groups, base!, step) : palette[role];
-    if (lists[role].length) table[role] = newSlot(lists[role], step, r?.range ?? null, r ? +remap!.rot[role] : 0);
+    lists[role] = palette[role];
+    if (lists[role].length) table[role] = newSlot(lists[role], false, null, 0);
   }
   const fallback = table.body ?? newSlot(palette.all, false, null, 0);
   for (const role of PALETTE_ROLES) table[role] ??= fallback;
@@ -158,48 +151,12 @@ function buildRoles(palette: PaletteColours, remap: Remap | null): Roles {
 }
 
 let PLAIN: Roles | null = null;
-/** The palette's own roles (made once per palette). */
+/** The palette's roles (made once per palette). */
 export function plainRoles(palette: PaletteColours) {
-  if (PLAIN?.palette !== palette) PLAIN = buildRoles(palette, null);
+  if (PLAIN?.palette !== palette) PLAIN = buildRoles(palette);
   return PLAIN;
 }
-
-/** The roles of the layer being rendered (renderFrame sets it), else the look palette's own. */
-export const PICKS: { roles: Roles | null } = { roles: null };
-const current = () => PICKS.roles || plainRoles(RUN.palette);
-
-/** A layer's `palette` ({ low?, body?, accent?, high? } of picks) as a Remap, or null. */
-export function prepareRemap(raw: unknown): Remap | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const roles: Remap['roles'] = {}, rot: Values = {};
-  for (const role of PALETTE_ROLES) {
-    const p = Object.hasOwn(raw, role) ? readPick((raw as Record<string, unknown>)[role]) : null;
-    if (p) { roles[role] = p; rot[role] = p.rotate; }
-  }
-  return Object.keys(roles).length ? { roles, rot, made: null } : null;
-}
-
-/** The four roles as colour params, so a remap's rotate bindings run as a module's do (paramMods). */
-export const ROLE_SLOTS: ParamSchema = Object.freeze(Object.fromEntries(PALETTE_ROLES
-  .map((r) => [r, Object.freeze({ type: 'color' as const, value: r })])));
-
-/** The roles a layer plays this frame: made again when the palette changes, its bound rotates turned. No allocation
- * otherwise. */
-export function layerRoles(remap: Remap | null): Roles {
-  if (!remap) return plainRoles(RUN.palette);
-  let R = remap.made;
-  if (!R || R.palette !== RUN.palette) R = remap.made = buildRoles(RUN.palette, remap);
-  else {
-    for (const role of PALETTE_ROLES) {
-      const s = R.table[role], r = remap.rot[role];
-      if (r !== undefined && s.turn !== r) turnSlot(s, r as number);
-    }
-  }
-  return R;
-}
-
-/** A layer's roles on `palette`, its `palette` remap as given: what the Studio shows. */
-export const rolesFor = (palette: PaletteColours, remap: unknown) => buildRoles(palette, prepareRemap(remap));
+const current = () => plainRoles(RUN.palette);
 
 /** The colours a pick (a param's value or default) plays against `R`: what the UI's strip shows. */
 export function stopsFor(v: unknown, dflt: unknown, R: Roles, blend?: PickBlend) {
@@ -217,7 +174,7 @@ export function pickColour(d: ColourSpec, v: unknown): RGB {
 }
 
 type Own = { key: string, groups: Token[][], slot: Slot, rgb: number[] };
-/** A module instance's colours: pal() and swatch() bound to its slots (its colour params, then its layer's roles),
+/** A module instance's colours: pal() and swatch() bound to its slots (its colour params, then the palette's roles),
  * its rotates (`rot`, which bound rotates move), and P's colours kept current (frame()). */
 export function newPicks() {
   let basis: Roles | null = null, table: Record<string, Slot> = Object.create(null);
@@ -239,7 +196,7 @@ export function newPicks() {
   };
   const self = {
     rot,
-    /** pal(name, t): t 0..1 along a colour param's pick, else a role (through the layer), else body. */
+    /** pal(name, t): t 0..1 along a colour param's pick, else a role of the palette, else body. */
     pal(name: string, t = 0): RGB {
       const s = slot(name);
       return (s.plain ? ramp(s.stops, t) : walkSlot(s, t, [0, 0, 0])) as RGB;

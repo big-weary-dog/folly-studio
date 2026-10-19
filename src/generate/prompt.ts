@@ -34,17 +34,18 @@ export const PATTERN_GUIDE = `A pattern is a plain script (not a module: no impo
 optionally \`params\` and \`frame\`. Everything in the stdlib below is in scope as globals.
 
 \`\`\`js
-// Rising embers: warm sparks drift up every surface.
+// Rising bands: bands of colour move up the layer.
 const params = {
-  speed: { value: 0.4, min: 0, max: 2 },
-  color: { value: 'body', type: 'color' },
+  speed: { value: 0.4, min: 0, max: 2, label: 'Speed' },
+  colours: { value: 'all', type: 'color', label: 'Colours' },
 };
 
 function frame(t, P) {}            // optional: once per frame, before pixel()
 
 function pixel(p, t, P) {          // every LED, every frame
-  const v = pulse(fract(p.ly * 3 - t * P.speed), 0.2);
-  return scale(P.color, v);        // [r, g, b], each 0..1 (optional 4th = alpha)
+  const x = p.ly * 3 - t * P.speed, c = swatch('colours', floor(x));
+  c[3] = pulse(fract(x), 0.2);     // [r, g, b], each 0..1, and an optional alpha: how much it covers
+  return c;
 }
 \`\`\`
 
@@ -53,11 +54,13 @@ Param kinds: number \`{ value, min, max, step? }\`, \`{ value: bool, type: 'togg
 \`{ value: pick, type: 'color', blend? }\`, \`{ value: 'a', type: 'choice', options: ['a', 'b'] }\`. People tweak
 params with sliders, so expose the few that matter (speed, colours, scale, density) with sensible ranges.
 
-A colour param's value is a pick of the look's palette, whose four roles are low (big surfaces), body (the bulk),
-accent (punctuation) and high (sparingly), each a few colours named by slot (body1, body2, …): a role 'body', a slot
-'accent2', 'all', 'rainbow' or '#rrggbb', joined by spaces in order or dealt in turn with / ('body/accent': body1
-accent1 body2 …). Blend is 'step' (default: distinct colours) or 'smooth' (a ramp: declare it for a slot that is a
-gradient by nature, such as a bed walked by height). People repoint these picks, so colours follow the palette.
+Every source has one colour param, \`colours: { value: 'all', type: 'color', label: 'Colours' }\`, and draws only
+from it. Its value is a pick of the look's palette, which people choose: 'all' (the palette, low to high), a role
+('body', 'accent'), a slot ('accent2'), 'rainbow' or '#rrggbb', joined by spaces in order or dealt in turn with /.
+Code never names roles: it maps what it draws onto positions in the pick. swatch('colours', i) for bands and seeded
+objects (the i-th colour, wrapping); pal('colours', t) for a gradient or a tail (t 0..1, first colour to last);
+pal('colours', 1), the last, for a head, crest or heart; P.colours for one colour at a time. Blend is 'step'
+(default: distinct colours) or 'smooth' (a ramp): declare \`blend: 'smooth'\` when the idea is a gradient.
 
 The pixel \`p\`:
 - \`x y z\`: 0..1 across the whole installation (depth, height, left→right); \`X Y Z\`: metres
@@ -80,9 +83,9 @@ pulse(x, width) (1 near 0 falling to 0 at ±width, wrapping), hash(n) and rand(a
 (stable 0..1), noise(x, y?, z?, w?) (smooth 0..1), fbm(x, y, z, octaves=4), hsv(h, s, v),
 hsl(h, s, l), rgb(r, g, b), hex('#rrggbb'), scale(c, k), add(c1, c2),
 gradient(t, [c0, c1, ...]), cosPalette(t, a, b, c, d) (Inigo Quilez), beat(t, bpm) (phase 0..1),
-dist(x1,y1,z1,x2,y2,z2), pal(name, t) (t 0..1 along colour param name's pick, or a role 'low' | 'body' | 'accent'
-| 'high'), swatch(name, i) (its i-th colour, wrapping: bands, seeded objects), palette(t) (the palette's colours,
-low to high), centres(tag) ([X, Y, Z] of each group with that tag, [] if none: call it inside pixel or frame),
+dist(x1,y1,z1,x2,y2,z2), pal(name, t) (t 0..1 along colour param name's pick), swatch(name, i) (its i-th colour,
+wrapping: bands, seeded objects), palette(t) (the palette's colours, low to high), centres(tag) ([X, Y, Z] of each
+group with that tag, [] if none: call it inside pixel or frame),
 extent() (this layer's bounds in metres, [[X0, Y0, Z0], [X1, Y1, Z1]]: to place a centre in it, measure in metres,
 fill it), use(name, params?) (a library
 pattern as a function (p, t) → colour; call it at the top level). Colours are [r, g, b] arrays, 0..1.
@@ -121,9 +124,8 @@ export const TASTE = `- Colour at full strength. A palette sets hue, not brightn
   own groups.
 - Every LED has a look. Parts that belong together share one; give the whole installation a
   base unless the idea wants darkness.
-- A look asks for a role, not a colour: lows for the big surfaces, body for the bulk, accents
-  for punctuation, the highlight sparingly. Declare colour params with role defaults ('body', 'body/accent',
-  'high') and read them with P, pal() or swatch(); a hex only when the idea names a colour.
+- Colours come from the palette: each source's one \`colours\` param, read by position. To colour a layer, set its
+  pick in params (\`"colours": "accent2 accent3"\`); a hex only when the idea names a colour.
 - Safety: no large-area flashing, strobing or colour cycling faster than about 3 Hz.`;
 
 export const GLOBALS_GUIDE = `A look may set globals: speed (0..4, 1), level (0..1), hue (−0.5..0.5 turns), saturation
@@ -278,7 +280,7 @@ ${lib}
 
 # What to return
 A JSON object { "title", "summary", "duration"?, "globals"?, "automation"?,
-"layers": [{ "title", "groups", "tags", "blend", "level", "clips"?, "palette"?, "code" or "modules" }] }:
+"layers": [{ "title", "groups", "tags", "blend", "level", "clips"?, "code" or "modules" }] }:
 - title: a short evocative name for the look (at most ${LIMITS.title} characters).
 - summary: one to three sentences on what people will see and where (at most ${LIMITS.summary} characters).
 - layers: 1 to ${LIMITS.layers}, bottom first. Usually a base layer on "${rootOf(groups)}" and one or two
@@ -288,8 +290,6 @@ A JSON object { "title", "summary", "duration"?, "globals"?, "automation"?,
   level is 0..1 (usually 1). A layer may give "modules" instead of "code": [{ "id", "kind", "title",
   "ref"?, "code", "input"?, "as"?, "blend"? }], each module's code defining its kind's function, each warp after
   what it bends.
-- palette (optional): a layer may remap its roles for every module on it, picks as above: { "body": "accent2
-  accent3", "high": "#ffffff" } plays its body in two accents and its highlight white.
 - globals and automation (optional): set a palette that suits the idea; automate energy or a macro
   when the idea builds or changes over time.
 - duration and clips (both optional, and most looks need neither): a look plays for duration

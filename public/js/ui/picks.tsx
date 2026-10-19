@@ -1,28 +1,27 @@
 // Colour picks in the Studio (SPEC "Palettes"): a colour param's row (its pick in a field the size of a number's, its
-// colours lit along it; the field opens the pick tile, ∿ turns it, ↺), a layer's Colours row (its roles, each remapped
-// with the same tile), and the tile: a popover on a wide screen; on a phone a sheet with the palette's roles and a
-// custom colour, the rest shown when set.
+// colours lit along it; the field opens the pick tile, ∿ turns it, ↺), and the tile: the palette by role, a popover
+// on a wide screen; on a phone a sheet with the palette's roles and a custom colour, the rest shown when set.
 import type { ComponentChildren } from 'preact';
 import { useId } from 'preact/hooks';
 
-import type { Binding, LayerPalette, Pick } from '../../../shared/schemas/look.ts';
-import { type PickBlend, rolesFor, stopsFor } from '../core/picks.ts';
-import { DEFAULT_PALETTE, PALETTE_ROLES, type PaletteHex, type PaletteRole, paletteColours } from '../core/stdlib.ts';
+import type { Binding, Pick } from '../../../shared/schemas/look.ts';
+import { type PickBlend, plainRoles, stopsFor } from '../core/picks.ts';
+import { DEFAULT_PALETTE, type PaletteHex, paletteColours } from '../core/stdlib.ts';
 import { bindingText, fmt, isBinding } from './bindings.ts';
 import { cx, Field, humanize, Scrub, Switch } from './kit.tsx';
 import {
   editText, editValue, type PickEdit, readEdit, rolesOf, roleState, toggleRole, toggleSlot, toggleToken,
 } from './pick-model.ts';
 
-/** What picks resolve against here: the look's palette and the layer's remap. */
-export type Colours = { palette: PaletteHex; remap?: LayerPalette };
+/** What picks resolve against here: the look's palette. */
+export type Colours = { palette: PaletteHex };
 type Put = (v: Pick | undefined) => void;
 const byte = (v: number) => Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, '0');
 const hexOf = (c: readonly number[]) => `#${byte(c[0])}${byte(c[1])}${byte(c[2])}`;
 
-/** The colours a pick plays (its value, else its default) on this palette and remap, as hex. */
+/** The colours a pick plays (its value, else its default) on this palette, as hex. */
 function played(c: Colours, value: unknown, dflt: unknown, blend: PickBlend) {
-  const R = rolesFor(paletteColours(c.palette) ?? paletteColours(DEFAULT_PALETTE)!, c.remap);
+  const R = plainRoles(paletteColours(c.palette) ?? paletteColours(DEFAULT_PALETTE)!);
   return stopsFor(value, dflt, R, blend).map(hexOf);
 }
 
@@ -124,22 +123,4 @@ export function PickRow({ label, modulate, ...tile }: Omit<Tile, 'title'> & { la
       onClick={() => modulate(edit.rotate, (b) => turn(b ?? undefined))}>∿</button>
     <button type="button" class={cx('param-reset', !own && 'unused')} title="Reset to default"
       aria-label={`Reset ${label} to default`} onClick={() => tile.put(undefined)}>↺</button></>}</Field>;
-}
-
-/** A layer's roles, each its colours here and remapped with the pick tile (writes layer.palette). */
-export function LayerColours({ colours, narrow, set }: { colours: Colours; narrow: boolean;
-  set: (palette: LayerPalette) => void }) {
-  const R = rolesFor(paletteColours(colours.palette) ?? paletteColours(DEFAULT_PALETTE)!, colours.remap);
-  const put = (role: PaletteRole) => (v: Pick | undefined) => {
-    const next = { ...colours.remap };
-    if (v === undefined || v === role) delete next[role]; else next[role] = v;
-    set(next);
-  };
-  return <Field label="Colours" class="layer-colours">{PALETTE_ROLES.map((role) => {
-    const value = colours.remap?.[role];
-    return <PickButton title={`${humanize(role)} on this layer`} label={`${humanize(role)} on this layer`}
-      class={cx('role-chip', value !== undefined && 'remapped')} value={value} dflt={role} blend="smooth"
-      colours={{ palette: colours.palette }} narrow={narrow} put={put(role)}>
-      <span class="role-name">{role}</span><Strip stops={R.lists[role].map(hexOf)} smooth={false} /></PickButton>;
-  })}</Field>;
 }

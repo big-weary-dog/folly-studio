@@ -6,7 +6,7 @@ import { type Compiled, compileModule, describeError } from './compile.ts';
 import { applyMods, finish, lookFrame, paramMods, prepareLook, resolveParams } from './globals.ts';
 import type { G, PreparedLook, Values } from './globals.ts';
 import { composite } from './output.ts';
-import { layerRoles, PICKS, type Picks, prepareRemap, ROLE_SLOTS } from './picks.ts';
+import type { Picks } from './picks.ts';
 import { pixelsForGroups, type Scene, tagMask } from './scene.ts';
 import { blur, BLUR_MODES, blurState } from './spatial.ts';
 import { clamp, hex, isNum, RUN, TAU } from './stdlib.ts';
@@ -29,7 +29,7 @@ const isSourceBlend = (b: unknown): b is SourceBlend => SOURCE_BLENDS.includes(b
 /** A layer as the core takes one (SPEC "Looks"), any field missing; code and params: a one-source chain. */
 export type LayerInput = Partial<{ id: string, title: string, code: string, params: Record<string, unknown>,
   modules: Partial<Module>[], groups: string[], tags: string[], blend: string, level: number, clips: unknown,
-  enabled: boolean, soften: unknown, palette: unknown }>;
+  enabled: boolean, soften: unknown }>;
 
 /** A layer's modules, or its own code and params as one source (looks before chains). */
 export function layerModules(layer?: LayerInput | null): Partial<Module>[] {
@@ -299,7 +299,6 @@ export function prepareLayer(scene: Scene, layer: LayerInput | null | undefined,
   compiled: Compiled | readonly (Compiled | null)[]) {
   if (!compiled) throw new Error('prepareLayer: layer is not compiled');
   const chain = prepareChain(layer, compiled), bent = placeWarps(chain, WARP, SPATIAL);
-  const remap = prepareRemap(layer?.palette);       // its roles (SPEC "Palettes")
   const idx = pixelsForGroups(scene, layer?.groups, layer?.tags);
   const m = idx.length;
   let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
@@ -337,7 +336,6 @@ export function prepareLayer(scene: Scene, layer: LayerInput | null | undefined,
     chain, modular: Array.isArray(layer?.modules), failed: null as string | null,
     blend: isBlend(layer?.blend) ? layer.blend : 'add', level: isNum(layer?.level) ? clamp(layer.level) : 1,
     clips: normalizeClips(layer?.clips), enabled: layer?.enabled !== false,
-    remap, remapMods: remap ? paramMods(ROLE_SLOTS, layer?.palette, remap.rot) : [],
     p: qs[0], qs, warps: bent.order, c: [0.5, 0, 0, 0],
     buf: new Float64Array(m * 4), ms: 0, stages: prepareStages(scene, layer, chain, idx),
   };
@@ -371,8 +369,6 @@ export function renderFrame(scene: Scene, layers: readonly (PreparedLayer | null
     if (!(level > 0)) continue;
     const t0 = clock();
     RUN.extent = L.extent;
-    if (L.remapMods.length) applyMods(L.remapMods, L.remap!.rot, t, env, LK);
-    PICKS.roles = layerRoles(L.remap);
     for (let i = 0; i < L.chain.length; i++) {
       const M = L.chain[i];
       if (M.mods.length) applyMods(M.mods, M.P, t, env, LK);
@@ -383,7 +379,6 @@ export function renderFrame(scene: Scene, layers: readonly (PreparedLayer | null
     else composite(rgb, L, level);
     L.ms = clock() - t0;
   }
-  PICKS.roles = null;
   finish(rgb, N * 3, LK);
   return { rgb, errors };
 }

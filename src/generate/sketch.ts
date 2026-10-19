@@ -1,12 +1,12 @@
 // sketch: the offline generator. Picks one to three library patterns by keywords in the idea, colour words to the
-// nearest palette and its swatches (sketch-colours.ts) for colour params or a layer's roles, and place words to the
-// rig's tagged groups (SPEC "Rig"). Deterministic, instant, free.
+// nearest palette and its swatches (sketch-colours.ts) for colour params, and place words to the rig's tagged groups
+// (SPEC "Rig"). Deterministic, instant, free.
 // Library code is only read as text here (params are parsed with regexes, never evaluated).
 
 import WORDS from './sketch-words.json' with { type: 'json' };
 import { cleanText, LIMITS } from '../../shared/schemas/generated.ts';
 import type { LibraryEntry, RigGroup } from '../../shared/schemas/rig.ts';
-import { choosePalette, remapFor, slotFor } from './sketch-colours.ts';
+import { choosePalette, pickFor, slotFor } from './sketch-colours.ts';
 
 type Pattern = Pick<LibraryEntry, 'name' | 'code'> & Partial<LibraryEntry>;
 
@@ -345,18 +345,22 @@ export function sketchLook({ text = '', library = [], groups = [] }: { text?: st
       if (/bpm|tempo/i.test(name) && bpm) params[name] = clampTo(bpm, d);
       else if (/speed|rate|pace/i.test(name) && pace !== 1) params[name] = round(clampTo(d.value * pace, d));
     }
-    // Colours: one named next to a param ("white beam", "navy sky") goes there; one set "on" or
-    // "over" something goes to a background param; the rest fill the remaining colour params in
-    // order, only as many as there are colours, so the pattern keeps its contrast.
+    // Colours: a source with one `colours` param takes them all as its pick. Otherwise one named next to a param
+    // ("white beam", "navy sky") goes there; one set "on" or "over" something goes to a background param; the rest
+    // fill the remaining colour params in order, only as many as there are colours, so the pattern keeps its contrast.
     const { list: mentions, own: here } = scoped(colourAt, c);
     const unique = mentions.filter((m, i) => mentions.findIndex((x) => x.hex === m.hex) === i);
-    const free = Object.entries(decl).filter(([, d]) => d.type === 'color').map(([n]) => n), own = free.length;
+    const free = Object.entries(decl).filter(([, d]) => d.type === 'color').map(([n]) => n);
+    if (decl.colours?.type === 'color' && unique.length) {
+      params.colours = pickFor(unique.map((m) => m.hex), palette);
+      free.length = 0;
+    }
     const take = (pred: (n: string) => boolean) => {
       const i = free.findIndex(pred);
       return i < 0 ? null : free.splice(i, 1)[0]!;
     };
     const rest: string[] = [];
-    for (const m of unique) {
+    for (const m of free.length ? unique : []) {
       const near = (n: string) => {
         const a = n.toLowerCase();
         const b = String(m.next || '').replace(/s$/, '');
@@ -371,13 +375,10 @@ export function sketchLook({ text = '', library = [], groups = [] }: { text?: st
     for (let k = 0; k < rest.length && free.length; k++) {
       params[free.shift()!] = slotFor(rest[(k + shift) % rest.length]!, palette);
     }
-    // A pattern that reads the palette, not colour params, hears them through its layer's roles.
-    const remap = own || !/\b(?:pal|palette|swatch)\(/.test(c.pattern.code) ? undefined
-      : remapFor(unique.map((m) => ({ hex: m.hex, behind: behind(m) })), palette);
     const where = whole(c) ? '' : ` · ${placeOf(c)}`;
     const title = cleanText(`${c.pattern.title || c.pattern.name || 'Pattern'}${where}`, LIMITS.layerTitle);
     return { title, groups: c.groups, tags: c.tags, blend: li === 0 ? 'add' : 'max', level: 1, params,
-      code: c.pattern.code, ...(remap ? { palette: remap } : {}) };
+      code: c.pattern.code };
   });
 
   const named = allColours.map(colourName).filter(Boolean);

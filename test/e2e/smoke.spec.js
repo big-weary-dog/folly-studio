@@ -1,8 +1,8 @@
 // npm run smoke: the app in a browser, the way a person meets it, at a laptop's size and a phone's: sign up, an idea
 // the sketch generator turns into a look, the Studio in the Playa view with the sandbox running, a param dragged and
 // stepped, a typo and a hang in the code (reported, paused by the watchdog, running again once fixed), the timeline,
-// a layer's body played in an accent (the pick tile), and a bake in the real render box (the laptop bakes from the
-// Studio; the phone says to bake from a larger screen and plays the baked frames).
+// and a bake in the real render box (the laptop bakes from the Studio; the phone says to bake from a larger screen and
+// plays the baked frames).
 // The real server and a fresh build (studio.js); WebGL on SwiftShader. Every request stays on our origin, and the
 // console stays free of errors and CSP reports. Screenshots of each step land in the test's output folder.
 import { createRenderBox } from '../../src/render-box.ts';
@@ -107,17 +107,6 @@ for (const [name, device] of Object.entries(SIZES)) {
         await open('time', 'Timeline');
         await expect(page.locator('.tl-rows:visible').first()).toBeVisible();
         await shot('timeline');
-      });
-
-      await test.step("colours: the layer's body played in an accent", async () => {
-        if (!wide) await page.locator('.tab[data-tab=layers]').click();
-        const chip = page.locator('.role-chip:visible', { hasText: 'body' });
-        await chip.click();
-        await page.locator('.pick-pop:popover-open .pick-cell[aria-label=accent1]').click();
-        await shot('colours');
-        await page.keyboard.press('Escape');
-        await expect(page.locator('.pick-pop:popover-open')).toHaveCount(0);
-        await expect(chip).toHaveClass(/remapped/);
       });
 
       await test.step('bake', async () => {

@@ -148,19 +148,19 @@ describe('sketch', () => {
     assert.deepEqual(look.layers.map((l) => l.groups[0]), ['spires', 'arches']);
   });
 
-  test('blue bars: a pattern that reads the palette plays blue through its layer\'s roles', async () => {
-    const dir = path.join(STUDIO, 'public/patterns');
-    const lib = JSON.parse(fs.readFileSync(path.join(dir, 'index.json'), 'utf8')).map((p) => ({ ...p,
-      code: fs.readFileSync(path.join(dir, `${p.name}.js`), 'utf8') }));
+  test('blue bars: a source\'s one colours param takes the colours named as its pick', async () => {
+    const lib = [{ name: 'bars', title: 'Bars', summary: 'Bands of colour.', tags: ['bars'], code: 'const params = '
+      + "{ speed: { value: 1, min: 0, max: 2 }, colours: { value: 'all', type: 'color' } };\n"
+      + "function pixel(p) { return swatch('colours', floor(p.ly * 4)); }" }];
     const look = sketch('blue bars', lib), [layer] = look.layers;
-    assert.equal(layer.code, lib.find((p) => p.name === 'bars').code);
+    assert.equal('palette' in layer, false, 'no layer remap');
     const { paletteColours } = await import('../public/js/core/stdlib.ts');
-    const { rolesFor } = await import('../public/js/core/picks.ts');
-    const body = rolesFor(paletteColours(look.globals.palette), layer.palette).lists.body;
+    const { plainRoles, stopsFor } = await import('../public/js/core/picks.ts');
+    const stops = stopsFor(layer.params.colours, 'all', plainRoles(paletteColours(look.globals.palette)));
     const hue = ([r, g, b]) => (Math.atan2(Math.sqrt(3) * (g - b), 2 * r - g - b) / (2 * Math.PI) + 1) % 1;
-    assert.ok(body.length && body.every((c) => Math.abs(hue(c) - 0.62) < 0.05),
-      `body plays blue: ${layer.palette.body}`);
-    assert.deepEqual(sketch('bars', lib).layers[0].palette, undefined, 'no colour named, no remap');
+    assert.ok(stops.length && stops.every((c) => Math.abs(hue(c) - 0.62) < 0.05),
+      `plays blue: ${layer.params.colours}`);
+    assert.equal(sketch('bars', lib).layers[0].params.colours, undefined, 'no colour named: the default');
   });
 
   test('reads params statically', () => {

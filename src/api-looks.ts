@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { DEFAULT_DURATION } from '../public/js/pattern-core.ts';
 import { CHAIN, convertLayers, upgradeLook } from '../shared/chain-order.ts';
 import { type Listed, LookCreate, LookPatch, LooksQuery } from '../shared/schemas/api.ts';
-import { automationFor, type Globals, type Layer, Layers } from '../shared/schemas/look.ts';
+import { automationFor, dropRemaps, type Globals, type Layer, Layers } from '../shared/schemas/look.ts';
 import { newestBy } from './api.ts';
 import type { Auth } from './auth.ts';
 import { type createBakeQueue, layersHash, renderFields, reviewBlocker } from './bake.ts';
@@ -34,11 +34,21 @@ function ruled(body: { layers: Layer[], summary?: string, chain?: number }) {
   return { layers: validateLayers(look.layers), summary: look.summary };
 }
 
+/** A stored look without layer role remaps (dropRemaps), its versions too; itself when it had none. */
+function withoutRemaps(look: Look): Look {
+  const layers = Array.isArray(look.layers) ? dropRemaps(look.layers) : look.layers;
+  const versions = look.versions?.map((v) => (Array.isArray(v.layers) && dropRemaps(v.layers) !== v.layers
+    ? { ...v, layers: dropRemaps(v.layers) } : v));
+  const changed = layers !== look.layers || versions?.some((v, i) => v !== look.versions![i]);
+  return changed ? { ...look, layers, ...(versions ? { versions } : {}) } : look;
+}
+
 /**
- * A stored look from before the one rule, at start: its layers and versions converted, marked. A bake keeps its
- * place when the conversion is exact (same frames); otherwise the look needs a fresh bake and review.
+ * A stored look at start: role remaps dropped; from before the one rule, its layers and versions converted, marked. A
+ * bake keeps its place when the conversion is exact (same frames); otherwise the look needs a fresh bake and review.
  */
-export function upgradeStored(look: Look): Look {
+export function upgradeStored(stored: Look): Look {
+  const look = withoutRemaps(stored);
   if (look.chain === CHAIN) return look;
   const { look: up, exact } = upgradeLook(look);
   const versions = look.versions?.map((v) => (Array.isArray(v.layers)

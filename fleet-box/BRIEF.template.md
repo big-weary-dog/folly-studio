@@ -35,7 +35,7 @@ summary that you took it loosely.
    - `groups`: ids from the list below (a union). `tags`: the tags (from the list) of what the layer
      is meant for, so the look can move to another installation. `blend`: add, over, max or multiply.
      `level`: 0..1. `params` (optional) overrides the code's param defaults by name; a colour param takes a
-     pick. `palette` (optional) remaps the layer's roles for all its code: `{ "body": "accent2 accent3" }`.
+     pick: `"colours": "accent2 accent3"`.
    - `code`: a complete pattern script defining `function pixel(p, t, P)`, under 20 kB.
    - Optional timeline, for ideas that change over time ("starts calm, builds to a storm"):
      `"duration"` (seconds the look runs before it loops; default 30, at most 600) and, on the

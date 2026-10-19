@@ -35,7 +35,7 @@ export function ParamsPanel({ st }: { st: Studio }) {
     fn(params);
     return { params };
   });
-  const colours = { palette: st.look.value.globals?.palette ?? DEFAULT_PALETTE, remap: l.palette };
+  const colours = { palette: st.look.value.globals?.palette ?? DEFAULT_PALETTE };
   return (
     <div class="params">
       {entries.map(([key, p]) => <Control key={`${l.id}/${m.id}/${key}`} name={key} p={p} values={values} set={set}

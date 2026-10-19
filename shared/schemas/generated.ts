@@ -6,13 +6,13 @@ import { z } from 'zod';
 
 import {
   BLENDS, BLUR_MODES, DEFAULT_SOFTEN, GLOBALS, macroNameOk, MAX_LANES, MAX_MACROS, MAX_POINTS, MAX_RADIUS, MODULE_KINDS,
-  PALETTE_ROLES, pickText, readPick, SOURCE_BLENDS,
+  pickText, readPick, SOURCE_BLENDS,
 } from '../../public/js/pattern-core.ts';
 import type { Blend, BlurMode, ModuleKind, SourceBlend } from '../../public/js/pattern-core.ts';
 import {
   automationFor, Binding, bytes, Globals as StrictGlobals, ID, ms, PALETTE_NAMES, Pick, problem, TAG,
 } from './look.ts';
-import type { Automation, Globals, LayerPalette, Module, Range, Soften } from './look.ts';
+import type { Automation, Globals, Module, Range, Soften } from './look.ts';
 
 export const LIMITS = Object.freeze({ layers: 4, modules: 6, codeBytes: 20 * 1024, title: 80, layerTitle: 80,
   summary: 400, params: 32, clips: 32, duration: 600 });
@@ -80,17 +80,6 @@ function cleanPick(v: unknown) {
 const param = z.union([z.number(), z.boolean(), z.string().regex(/^[a-z][a-z0-9-]{0,31}$/),
   z.tuple([z.number(), z.number(), z.number()]).transform((c) => c.map((x) => clamp(x, 0, 1))), Binding,
   z.unknown().transform((v, ctx) => cleanPick(v) ?? (ctx.addIssue('not a value'), z.NEVER))]);
-/** A layer's role remap, its usable picks kept (the rest noted); the model gives strings. */
-const palette = z.record(z.string(), z.unknown()).optional().catch(undefined)
-  .transform((p): { palette?: LayerPalette, notes: string[] } => {
-    const notes: string[] = [], kept: Record<string, unknown> = {};
-    for (const [role, v] of Object.entries(p ?? {})) {
-      const pick = PALETTE_ROLES.includes(role as never) ? cleanPick(v) : undefined;
-      if (pick === undefined) notes.push(`palette.${role.slice(0, 20)}: not a role and a pick`);
-      else kept[role] = pick;
-    }
-    return { ...(Object.keys(kept).length ? { palette: kept as LayerPalette } : {}), notes };
-  }).meta({ type: 'object', properties: Object.fromEntries(PALETTE_ROLES.map((r) => [r, { type: 'string' }])) });
 const params = z.record(z.string(), z.unknown()).catch({}).transform((p) => Object.fromEntries(Object.entries(p)
   .filter(([k]) => PARAM_NAME.test(k) && k !== '__proto__').flatMap(([k, v]) => {
     const r = param.safeParse(v);
@@ -179,10 +168,10 @@ const layerOf = (library: Library, known: Set<string>, root: string, groupTags: 
     .transform((g) => [...new Set(g.filter(isString).map((x) => x.trim()).filter((x) => known.has(x)))])
     .meta({ items: known.size <= 400 ? { type: 'string', enum: [...new Set([root, ...known])] } : { type: 'string' } }),
   tags: tags.meta({ items: groupTags.length ? { type: 'string', enum: groupTags } : { type: 'string' } }),
-  blend, level, clips, soften, palette, code: z.unknown().optional().meta({ type: 'string' }), params,
+  blend, level, clips, soften, code: z.unknown().optional().meta({ type: 'string' }), params,
   modules: z.array(orDrop(moduleOf(library))).optional().catch(undefined),
 }, { error: 'not an object' }).meta({ required: ['title', 'groups', 'blend', 'level'] }).transform((l, ctx) => {
-  const notes = [...l.clips.notes, ...l.palette.notes];
+  const notes = [...l.clips.notes];
   let own;
   if (l.modules?.length) {
     const modules = chain(l.modules, notes);
@@ -196,8 +185,7 @@ const layerOf = (library: Library, known: Set<string>, root: string, groupTags: 
   // Known group ids; none: the root, or nothing when tags say where it goes (SPEC "Looks").
   const groups = l.groups.length ? l.groups : l.tags.length ? [] : [root];
   return { title: l.title, ...own, groups, ...(l.tags.length ? { tags: l.tags } : {}), blend: l.blend,
-    level: l.level, ...(l.clips.clips.length ? { clips: l.clips.clips } : {}), soften: l.soften,
-    ...(l.palette.palette ? { palette: l.palette.palette } : {}), notes };
+    level: l.level, ...(l.clips.clips.length ? { clips: l.clips.clips } : {}), soften: l.soften, notes };
 });
 
 const range = (d: Range) => z.number().transform((v) => clamp(v, d.min, d.max)).optional()
