@@ -43,9 +43,9 @@ const LOOKS = ([
     .map(({ name }): [string, Layer[]] => [name, [{ id: 'a', code: source(name) }]]),
   ['timeline (3 layers)', [
     { id: 'bed', code: source('colour-wash') },
-    { id: 'meteors', code: source('meteors'), tags: ['arch'],
+    { id: 'chase', code: source('single-strand'), tags: ['arch'],
       clips: [{ start: 2, end: 14, fadeIn: 1, fadeOut: 2 }] },
-    { id: 'rose', code: source('rose-chase'), tags: ['rose'], blend: 'over',
+    { id: 'rose', code: source('lighthouse'), tags: ['rose'], blend: 'over',
       clips: [{ start: 8, end: 20, fadeIn: 2 }] },
   ]],
   [NOISE, [{ id: 'n', // every channel a fresh random byte, every frame

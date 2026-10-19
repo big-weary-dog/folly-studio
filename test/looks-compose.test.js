@@ -17,7 +17,7 @@ const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url));
 const WARP = 'function warp(q) { q.lz = 1 - q.lz; }';
 const FILTER = 'function filter(c, q, t, P, G, x) { return x || c; }';
 const chain = (extra = {}) => ({ id: 'l1', title: 'Chain', groups: ['cathedral'], modules: [
-  { id: 'a', kind: 'source', title: 'A', ref: 'meteors', code: PIXEL, params: { speed: { mod: 'lfo', rate: 2 } } },
+  { id: 'a', kind: 'source', title: 'A', ref: 'streaks', code: PIXEL, params: { speed: { mod: 'lfo', rate: 2 } } },
   { id: 'b', kind: 'source', title: 'B', code: PIXEL, as: 'input' },
   { id: 'f', kind: 'filter', title: 'Mask', code: FILTER, input: 'b',
     params: { k: { mod: 'global', name: 'storm', from: 0, to: 1 } } },
@@ -110,7 +110,7 @@ describe('composed looks over the API', () => {
   test('the library lists each entry\'s kind and category, and a preset\'s layers', async () => {
     const { patterns } = (await ana.get('/api/library')).json;
     const byName = new Map(patterns.map((p) => [p.name, p]));
-    assert.deepEqual(['meteors', 'mirror', 'mask'].map((n) => byName.get(n).kind), ['source', 'warp', 'filter']);
+    assert.deepEqual(['streaks', 'mirror', 'mask'].map((n) => byName.get(n).kind), ['source', 'warp', 'filter']);
     assert.ok(patterns.every((p) => p.category && typeof p.code === 'string'));
     assert.equal(byName.get('palette-drift').layers[0].modules[0].ref, 'colour-wash');
   });

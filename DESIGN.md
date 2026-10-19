@@ -104,20 +104,24 @@ colour. A stdlib (`noise`, `fbm`, `hsv`, `pal`, `beat`, `centres(tag)`, `use(nam
 ## 4. Composition and globals
 
 A layer is a **chain of modules** under one rule: each works on everything above it, as in an image editor.
-Sources draw onto it, filters rework it, some by another source (meteors masked by clouds), and warps bend it: a
+Sources draw onto it, filters rework it, some by another source (a chase masked by clouds), and warps bend it: a
 warp goes after what it bends. Per pixel it is one pass with no intermediate buffers, so it costs no memory per frame
-and stays cheap on a phone: each module reads one of a few copies of the pixel, bent from the bottom up. 63 library
-modules (43 sources, 10 warps, 10 filters) and 5 presets fill the pickers, by kind in one-line rows; hovering one (on
+and stays cheap on a phone: each module reads one of a few copies of the pixel, bent from the bottom up. 45 library
+modules (25 sources, 10 warps, 10 filters) and 22 presets fill the pickers, by kind in one-line rows; hovering one (on
 a phone, ▶) auditions it in the 3D view without saving anything.
 
-**One idea a module.** The library is being cut down to single ideas that chains combine: a source with a bed, a
-second motion or a built-in warp becomes a **preset**, a recipe of layers of modules in the index (Palette drift is
-colour wash → hue shift → turbulence). Four conventions make the pieces fit: one `colours` pick per source, read by
-position, so sources know nothing of palette roles; a `direction` from one shared list wherever a module has an
-orientation; motion from `clock('speed')`, a speed integrated over time (seeked to and played to, the same to the
-bit), so binding a speed to energy or an LFO never jumps; and drawing on transparent, alpha as coverage over a
-colour-wash bed, so an element and its background are separate layers of one chain. Splitting costs per-pixel work
-(every module of a chain runs per pixel), so presets are timed in `npm run perf` beside the sources they replace.
+**One idea a module.** The library is single ideas that chains combine. A source that carried a bed, a second motion,
+a built-in warp or its own envelope became a **preset**, a recipe of layers of modules in the index (Starfield is
+colour wash → clouds → sparkle; Rose ripple is colour wash → bars out → anchor on the rose), and so did one another
+module already drew (marquee is a chase with gaps). Four conventions make the pieces fit: one `colours` pick per
+source, read by position, so sources know nothing of palette roles; a `direction` from one shared list wherever a
+module has an orientation; motion from `clock('speed')`, a speed integrated over time (seeked to and played to, the
+same to the bit), so binding a speed to energy or an LFO never jumps; and drawing on transparent, alpha as coverage
+over a colour-wash bed, so an element and its background are separate layers of one chain. No source reads energy
+itself: a preset binds it where it matters (rain falls heavier). The heartbeat stays a source, since no recipe draws
+its lub-dub (no LFO beats twice). Saved looks carry their code, so retiring a source changes none of them; `use()` of
+a retired name says which preset replaced it. Splitting costs per-pixel work (every module of a chain runs per pixel), so presets are timed in
+`npm run perf` beside the sources.
 
 **One rule, and where warps stop.** Warps used to bend what came after them, the shader's order, while sources and
 filters worked on what came before: two directions in one list. Now all three read the same way. A blur or trails
@@ -136,12 +140,12 @@ the blur, then the rest per pixel; a chain without one keeps its single pass, by
 LEDs count, so the edge of a selection keeps its brightness. The neighbours come from the rig once: a uniform grid of
 1.5 m cells for space, each fixture's wire by arc length, every list nearest first so a blur stops at its radius. At
 the source, `soft()` and `band()` draw edges that need no blur, and the library's hard-edged sources (bars, single
-strand, marquee, curtain, strobe's fade) take a `softness`.
+strand, curtain, strobe's fade) take a `softness`.
 
 | On the Folly (4,870 LEDs) | Cost |
 |---|---|
 | Neighbour graph, once per rig (the sandbox's `init`) | 56 neighbours a LED in space, 25 along the wire; 3.2 MB; about 50 ms |
-| The perf demo look, a frame (`test/spatial.test.js`) | 3.3 ms; 3.6 ms with the default soften; 4.4 ms with a 1 m blur in space |
+| The perf demo look, a frame (`test/spatial.test.js`) | 4.9 ms; 5.2 ms with the default soften; 6.2 ms with a 1 m blur in space |
 
 | Kind of global | Which | How |
 |---|---|---|
@@ -240,13 +244,13 @@ URLs served `immutable`, so watching again costs nothing and identical frames sh
 | 20 s at 40 fps, measured by `node tools/frames-bench.ts` | Size | Brotli 9 encode, one core |
 |---|---|---|
 | The sparse `.fseq` on disk | 11.69 MB | |
-| On the wire: a calm wash (`colour-wash`) | 0.22 MB | 1.0 s |
-| On the wire: the median of the 41 library sources | 0.64 MB | 1.6 s |
-| On the wire: a 3-layer timeline look | 0.90 MB | 2.3 s |
-| On the wire: the busiest source (`shimmer`, every LED glittering) | 4.49 MB | 5.4 s |
+| On the wire: a calm wash (`colour-wash`, one colour at a time) | under 0.01 MB | 0.3 s |
+| On the wire: the median of the 25 library sources | 0.75 MB | 1.3 s |
+| On the wire: a 3-layer timeline look | 0.06 MB | 0.6 s |
+| On the wire: the busiest source (`fire`, every LED its own noise) | 5.68 MB | 5.7 s |
 | Fresh random bytes every frame (the worst case) | 11.69 MB | 0.9 s |
 
-Brotli 11 is 13 % smaller over the 41 sources, for 12 times the encode time, so 9 is the default. The bake in the
+Brotli 11 is 13 % smaller over the library's sources, for 10 times the encode time, so 9 is the default. The bake in the
 screenshots (24 s) streams as 1.2 MB, 8.6 % of its file, encoded in 3.2 s.
 
 - **Alternatives.** The `.fseq` gzipped (several times larger); video codecs (lossy, so the LED values would not

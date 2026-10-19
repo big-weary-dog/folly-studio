@@ -47,7 +47,7 @@ describe('every library module renders finite values on the mini rig', () => {
   }
 });
 
-test('sources that read the palette recolour with it, cleanly', () => {
+test('each source recolours with the palette, cleanly', () => {
   // The mean hue of what is drawn: each lit LED's colour over its brightest channel, so a sparse source counts too.
   const mean = (name, palette) => {
     const m = [0, 0, 0];
@@ -65,9 +65,7 @@ test('sources that read the palette recolour with it, cleanly', () => {
     }
     return m.map((v) => v / Math.max(1, lit));
   };
-  const users = sources.filter((name) => /\b(pal|palette|swatch)\(|\bP\.colours\b/.test(source(name)));
-  assert.ok(users.length >= 25, `${users.length} sources use the palette`);
-  for (const name of users) {
+  for (const name of sources) {
     const a = mean(name, undefined), b = mean(name, SECOND);
     assert.ok(Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) > 0.08, `${name}: ${a} vs ${b}`);
   }

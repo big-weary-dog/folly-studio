@@ -25,7 +25,7 @@ const near = (a, b, eps = 1e-5) => a.every((v, i) => Math.abs(v - b[i]) < eps);
 
 describe('module chains', () => {
   test('a layer with code is a one-source chain and renders exactly as that chain', () => {
-    const code = lib('meteors');
+    const code = lib('single-strand');
     const old = prepareLayer(scene, { id: 'a', code, params: { tail: 20 } }, compilePattern(code));
     const chain = layerOf({ id: 'b', modules: [src('m', code, { params: { tail: 20 } })] });
     assert.deepEqual(layerModules({ title: 'X', code }).map((m) => m.kind), ['source']);
@@ -63,13 +63,13 @@ describe('module chains', () => {
     }
   });
 
-  test('meteors masked by clouds: the mask follows how bright the clouds are', () => {
-    const modules = [src('met', lib('meteors')), src('cl', lib('clouds'), { as: 'input' }),
+  test('a chase masked by clouds: the mask follows how bright the clouds are', () => {
+    const modules = [src('met', lib('single-strand')), src('cl', lib('clouds'), { as: 'input' }),
       { id: 'mask', kind: 'filter', input: 'cl', code: lib('mask'), params: { cutoff: 0.5, softness: 0.01 } }];
     const masked = layerOf({ id: 'a', modules });
-    const meteors = layerOf({ id: 'b', modules: [modules[0]] });
+    const chase = layerOf({ id: 'b', modules: [modules[0]] });
     const clouds = layerOf({ id: 'c', modules: [{ ...modules[1], as: undefined }] });
-    const [m, c, s] = [masked, meteors, clouds].map((L) => frame([L], 3).rgb.slice());
+    const [m, c, s] = [masked, chase, clouds].map((L) => frame([L], 3).rgb.slice());
     let dark = 0, shown = 0;
     for (let k = 0; k < N; k++) {
       const cloud = Math.max(...at(s, k));
@@ -170,8 +170,10 @@ describe('use()', () => {
     const used = layerOf({ id: 'b', modules: [src('u',
       'const sky = use("clouds", { cover: 0.8 }); function pixel(p, t) { return sky(p, t); }')] });
     assert.deepEqual(frame([used], 2.5).rgb, frame([direct], 2.5).rgb);
-    assert.throws(() => compileLayer({ modules: [src('u', 'const m = use("mask"); function pixel() {}')] }),
-      /unknown library pattern "mask"/);
+    for (const [name, says] of [['mask', /unknown library pattern "mask"/], ['twinkle', /add the Starfield preset/]]) {
+      const code = `const m = use("${name}"); function pixel() {}`;
+      assert.throws(() => compileLayer({ modules: [src('u', code)] }), says);
+    }
     setLibrary([]);
   });
 });
@@ -179,8 +181,9 @@ describe('use()', () => {
 test('a composed look renders the same bytes every time, and reports its cost', () => {
   const look = { globals: { energy: 0.4, palette: palettes.palettes[0], macros: { storm: { value: 0.5 } } },
     automation: { energy: [[0, 0.2], [10, 1]] } };
-  const modules = [src('met', lib('meteors')), src('cl', lib('clouds'), { as: 'input' }), { id: 'mask', kind: 'filter',
-    input: 'cl', code: lib('mask'), params: { cutoff: { mod: 'global', name: 'energy', from: 0.6, to: 0.2 } } },
+  const modules = [src('met', lib('single-strand')), src('cl', lib('clouds'), { as: 'input' }), { id: 'mask',
+    kind: 'filter', input: 'cl', code: lib('mask'), params: { cutoff: { mod: 'global', name: 'energy', from: 0.6,
+      to: 0.2 } } },
   { id: 'tint', kind: 'filter', code: lib('tint') }, { id: 'w', kind: 'warp', code: lib('mirror'),
     params: { along: true } }];
   const run = () => {

@@ -71,14 +71,16 @@ const SWIFTSHADER = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '
 const log = (m) => console.log(`perf: ${m}`);
 const code = (name) => readFile(new URL(`../../public/patterns/${name}.js`, import.meta.url), 'utf8');
 
-/** The demo composed look: meteors masked by clouds, twisted, on a palette with energy and a macro. */
+/** The demo composed look: comets chasing along the strands (the Meteors preset's), masked by clouds, twisted, on a
+ * palette with energy and a macro. */
 async function demoLook() {
   const mod = async (id, kind, ref, extra = {}) => ({ id, kind, title: ref, ref, code: await code(ref), params: {},
     ...extra });
   return {
     title: 'Perf demo', duration: 30, chain: 2,
     layers: [{ id: 'l1', title: 'Storm', groups: ['cathedral'], blend: 'add', level: 1, modules: [
-      await mod('m2', 'source', 'meteors'), await mod('m3', 'source', 'clouds', { as: 'input' }),
+      await mod('m2', 'source', 'single-strand', { params: { profile: 'comet', size: 100, speed: 60, lap: 80,
+        scatter: 1, gap: 0 } }), await mod('m3', 'source', 'clouds', { as: 'input' }),
       await mod('m4', 'filter', 'mask', { input: 'm3' }), await mod('m1', 'warp', 'twist')] }],
     globals: { palette: 'carnival', energy: 0.7, hue: 0.05, macros: { storm: { value: 0.4, min: 0, max: 1 } } },
     automation: { storm: [[0, 0], [30, 1]] },

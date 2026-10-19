@@ -180,11 +180,22 @@ export function setLibrary(list?: readonly { name: string, code: string, kind?: 
   for (const e of list ?? []) if ((e.kind ?? 'source') === 'source') LIBRARY.set(e.name, e.code);
 }
 
+// Sources the library retired, by the preset that replaced each (a preset is layers, which use() cannot run).
+const RETIRED: Record<string, string> = { aurora: 'Aurora', 'canopy-rain': 'Rain', 'depth-wave': 'Playa wave',
+  galaxy: 'Galaxy', marquee: 'Marquee', meteors: 'Meteors', 'nave-procession': 'Nave procession',
+  'palette-drift': 'Palette drift', pinwheel: 'Pinwheel', 'rising-sweep': 'Rising sweep', 'rose-bloom': 'Rose bloom',
+  'rose-chase': 'Rose chase', 'rose-ripple': 'Rose ripple', shimmer: 'Shimmer', snowflakes: 'Snowflakes',
+  snowstorm: 'Snowstorm', 'spire-helix': 'Tower helix', twinkle: 'Starfield', 'wash-breathe': 'Breathe' };
+
 /** use(name, params?): library source `name` as its own instance, a function (p, t) → colour ([0, 0, 0, 0] for
  * null). */
 function use(name: string, params?: Record<string, unknown>) {
   const code = LIBRARY.get(String(name));
-  if (code === undefined) throw new Error(`use(): unknown library pattern "${name}"`);
+  if (code === undefined) {
+    const now = Object.hasOwn(RETIRED, String(name)) && RETIRED[String(name)];
+    throw new Error(now ? `use(): "${name}" is retired: add the ${now} preset instead`
+      : `use(): unknown library pattern "${name}"`);
+  }
   const m = compileModule(code, 'source');
   const P = resolveParams(m.params, params);
   m.picks.bind(m.params, params, P);

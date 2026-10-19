@@ -157,7 +157,7 @@ describe('the staged chain', () => {
     + 'function pixel(p) { return [p.lz, calls % 7 / 7, p.ly]; }';
   const W = (id = 'w') => ({ id, kind: 'warp', code: lib('mirror'), params: { along: true } });
   const MODS = [
-    { id: 'met', kind: 'source', code: lib('meteors') },
+    { id: 'met', kind: 'source', code: lib('single-strand') },
     { id: 'cl', kind: 'source', code: lib('clouds'), as: 'input' },
     { id: 'c', kind: 'source', code: counted, blend: 'max' },
     W(),
@@ -244,9 +244,10 @@ describe('soft and band', () => {
 });
 
 describe('cost', () => {
-  // The perf demo look (test/e2e/perf.spec.js): a warp, meteors masked by clouds, over the whole rig.
-  const DEMO = [{ id: 'm', kind: 'source', code: lib('meteors') }, { id: 'c', kind: 'source', code: lib('clouds'),
-    as: 'input' }, { id: 'k', kind: 'filter', code: lib('mask'), input: 'c' },
+  // The perf demo look (test/e2e/perf.spec.js): a warp, comets chasing along the strands masked by clouds.
+  const DEMO = [{ id: 'm', kind: 'source', code: lib('single-strand'), params: { profile: 'comet', size: 100, speed: 60,
+    lap: 80, scatter: 1, gap: 0 } }, { id: 'c', kind: 'source', code: lib('clouds'), as: 'input' },
+  { id: 'k', kind: 'filter', code: lib('mask'), input: 'c' },
   { id: 'w', kind: 'warp', code: lib('twist') }];
   const demo = (extra, more = []) => layerOf({ id: 'l', groups: ['cathedral'], modules: [...DEMO, ...more], ...extra });
 

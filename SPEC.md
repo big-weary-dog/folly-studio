@@ -214,7 +214,8 @@ pixels' bounds in metres, `[[X0, Y0, Z0], [X1, Y1, Z1]]`, which `lx ly lz` map t
 a `centres()` point and still fill its layer), `clock(name)` (how far number param `name`, a speed, has moved
 things: "Integrated clocks" below), `DIRECTIONS` and `toward(p, direction)` ("Directions" below), and
 `use(name, params?)` → `(p, t) → colour` (`[0, 0, 0, 0]` for null), library source `name` as its own instance (its
-`frame` runs once per new t; throws `unknown library pattern`). Colours are `[r, g, b]` arrays, 0..1.
+`frame` runs once per new t; throws `unknown library pattern`, or names a retired one's preset). Colours are
+`[r, g, b]` arrays, 0..1.
 
 ### Directions
 
@@ -254,16 +255,16 @@ draws at W1(W2(p))); a stage end reads the pixel itself, and a warp with nothing
 a filter sets `c = filter(…)` with `x` = the output this pixel of the earlier source its `input` names (else
 undefined). `c` and `x` are `[r, g, b, a]` arrays the runtime reuses: read them, do not keep them. Then `c`
 composites onto the stack exactly as a layer did (blend, level × clip envelope). A module that throws or returns NaN
-blacks out its layer for that frame, reported with its `module` id. So "meteors masked by clouds, twisted" is
-`[source meteors, source clouds as: 'input', filter mask input: clouds, warp twist]`.
+blacks out its layer for that frame, reported with its `module` id. So "a chase masked by clouds, twisted" is
+`[source single-strand, source clouds as: 'input', filter mask input: clouds, warp twist]`.
 
-**Drawing on transparent.** A library source draws only what it is: its colour where it draws, alpha its coverage
-there, and `null` (or alpha 0) where it draws nothing. It never paints a background, and it fades by alpha, not toward
-black. A bed fills the layer: `colour-wash` is the one source meant to cover its layer, opaque. An element over a bed
+**Drawing on transparent.** A library source draws only what it is: its colour where it draws, alpha its coverage,
+`null` (or alpha 0) where it draws nothing. It paints no background and fades by alpha, not toward black. A bed fills
+the layer: `colour-wash`, opaque. An element over a bed
 is `[colour-wash, element with blend: 'over']`, `mix(bed, element, alpha)` exactly what a source that painted the bed
 itself drew; with filters that should rework the element alone, `[element, filters…, colour-wash with blend:
-'under']`. Alone on a layer an element shows over black, as one that painted black would. Sources from before this
-rule may still paint their own background; they move to it one by one.
+'under']`. Alone on a layer an element shows over black, as one that painted black would. Older code may
+still paint a background.
 
 ### Library
 
@@ -275,7 +276,16 @@ each, a module the library's by `ref` (an `input` names an `id` in its layer), p
 to one kind. The server drops a preset that is malformed or names a module the library lacks. The Studio makes a
 preset's layers from the library's modules (fresh ids, inputs followed), on the whole rig, softened unless it says,
 above the selected layer; of its `globals` it adds the macros the look lacks and its palette where the look has none,
-and leaves the rest. Summaries say plainly what a module draws and how it moves, in the words the UI uses.
+and leaves the rest.
+
+The library, one idea a module. Sources: colour-wash, bars, plasma, clouds, fire, butterfly, spot, circles, wave,
+shockwave, lighthouse, curtain, single-strand (Chase), arch-chase, life, sparkle, streaks, ripple, lightning, fireworks,
+tendril, spire-rise, garlands, strobe, heartbeat. Warps: mirror, kaleidoscope, radial-repeat, mosaic, polar, anchor,
+rotate, scroll, twist, turbulence. Filters: tint, gradient-map, hue-shift, posterize, invert, mask, threshold, blur,
+edge-fade, trails. Presets: Water, Storm, Curtain reveal, and the **retired sources'**: twinkle's Starfield,
+depth-wave's Playa wave, canopy-rain's Rain, wash-breathe's Breathe, spire-helix's Tower helix, and by their own names
+palette-drift, shimmer, rising-sweep, nave-procession, meteors, marquee, pinwheel, galaxy, rose-ripple, rose-chase,
+rose-bloom, aurora, snowstorm, snowflakes. Saved looks keep their code; `use()` of a retired one names its preset.
 
 ### Spatial modules
 
@@ -366,12 +376,10 @@ Picks resolve to stops when a layer is prepared and again when the palette chang
 and saturation grade the composite, literals included.
 
 **The library's colour rule.** A source has one colour param, `colours: { value: 'all', type: 'color', label:
-'Colours' }` (the whole palette, low to high, unless the source says why not), and knows nothing of roles: roles are
-how the pick tile lays out the palette for people, not something code names. It maps what it draws onto positions in
-the pick: bands to `swatch('colours', i)` in order; a gradient or a tail to `pal('colours', t)`, first colour to last;
-a head, crest or heart to the last colour (`pal('colours', 1)`); seeded objects to `swatch('colours', seed)`; one
-colour at a time to `P.colours`. Filters that recolour (`tint`, `gradient-map`, `threshold`) take one `colours` pick
-the same way. Code from before this rule (saved looks, AI code) may still name roles in `pal()`.
+'Colours' }`, and names no role (roles lay out the pick tile for people). It maps what it draws onto positions in the
+pick: bands and seeded objects to `swatch('colours', i)`; a gradient or a tail to `pal('colours', t)`, first colour to
+last; a head or crest to the last colour; one colour at a time to `P.colours`. Recolouring filters (`tint`,
+`gradient-map`, `threshold`) take one `colours` pick too. Code from before this rule may still name roles in `pal()`.
 
 ## Looks (what gets saved)
 
@@ -384,7 +392,7 @@ browser's too:
   { "id": "l1", "title": "Sea", "groups": ["cathedral"], "tags": ["all"], "blend": "add" | "over" | "max" | "multiply",
     "level": 1, "clips": [{ "start": 0, "end": 12, "fadeIn": 2, "fadeOut": 3 }], "soften": { "radius": 0.15, "mode": "wire" },
     "modules": [
-      { "id": "m1", "kind": "source", "title": "Meteors", "ref": "meteors", "code": "…",
+      { "id": "m1", "kind": "source", "title": "Chase", "ref": "single-strand", "code": "…",
         "params": { "speed": 40, "colours": { "pick": "body/accent", "rotate": 0.25 } } },
       { "id": "m2", "kind": "source", "title": "Clouds", "ref": "clouds", "code": "…", "params": {}, "as": "input" },
       { "id": "m3", "kind": "filter", "title": "Mask", "ref": "mask", "code": "…", "input": "m2",

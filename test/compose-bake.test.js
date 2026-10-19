@@ -34,9 +34,9 @@ const LOOK = {
     { id: 'base', title: 'Sky', groups: ['cathedral'], tags: ['all'], blend: 'add', level: 1, modules: [{ id: 'u',
       kind: 'source', title: 'Used clouds', code: 'const sky = use("clouds", { cover: 0.3 });\n'
         + 'function pixel(p, t, P, G) {\n  return scale(sky(p, t), 0.4 + 0.4 * G.storm);\n}' }] },
-    { id: 'show', title: 'Meteors in clouds', groups: ['arches', 'spires'], tags: ['arch', 'spire'], blend: 'over',
+    { id: 'show', title: 'A chase in clouds', groups: ['arches', 'spires'], tags: ['arch', 'spire'], blend: 'over',
       level: 1, modules: [
-      { id: 'met', kind: 'source', title: 'Meteors', code: lib('meteors'),
+      { id: 'met', kind: 'source', title: 'Chase', code: lib('single-strand'),
         params: { speed: { mod: 'lfo', shape: 'tri', rate: 1, unit: 'beats', center: 60, depth: 30 } } },
       { id: 'cl', kind: 'source', title: 'Clouds', code: lib('clouds'), as: 'input' },
       { id: 'mask', kind: 'filter', title: 'Mask', code: lib('mask'), input: 'cl',
@@ -47,13 +47,13 @@ const LOOK = {
   ],
 };
 
-// Blur and soften (SPEC "Spatial modules"): a soft-edged bars layer, and a pinwheel blurred in space by an LFO.
+// Blur and soften (SPEC "Spatial modules"): a soft-edged bars layer, and a lighthouse blurred in space by an LFO.
 const BLURRED = {
   layers: [
     { id: 'bars', groups: ['arches'], tags: ['arch'], blend: 'add', level: 1, soften: { radius: 0.15, mode: 'wire' },
       modules: [{ id: 'b', kind: 'source', title: 'Bars', code: lib('bars'), params: { softness: 0 } }] },
     { id: 'rose', groups: ['rose-window'], tags: ['rose'], blend: 'over', level: 1, modules: [
-      { id: 'p', kind: 'source', title: 'Pinwheel', code: lib('pinwheel') },
+      { id: 'p', kind: 'source', title: 'Lighthouse', code: lib('lighthouse') },
       { id: 'bl', kind: 'filter', title: 'Blur', code: lib('blur'),
         params: { radius: { mod: 'lfo', rate: 0.5, center: 0.6, depth: 0.3 }, mode: 'both' } }] },
   ],
@@ -78,8 +78,8 @@ test('a composed look bakes in-process on either rig: lit, deterministic, and it
   assert.equal(small.frames, SECONDS * 30, 'the mini rig plays at 30 fps');
   assert.equal(small.data.length, small.frames * 148 * 3);
   assert.ok(small.data.some((v) => v > 0));
-  const plain = bakeHere({ layers: [{ id: 'p', groups: ['arches', 'spires'], code: lib('meteors') }] });
-  console.info(`per frame: composed look ${a.msPerFrame.average} ms, meteors alone ${plain.msPerFrame.average} ms`);
+  const plain = bakeHere({ layers: [{ id: 'p', groups: ['arches', 'spires'], code: lib('single-strand') }] });
+  console.info(`per frame: composed look ${a.msPerFrame.average} ms, a chase alone ${plain.msPerFrame.average} ms`);
 });
 
 const probe = await createRenderBox({ log: quiet }).probe();

@@ -96,7 +96,7 @@ describe('the built app', () => {
     const self = { postMessage: (m) => out.push(m), addEventListener: (type, fn) => { onMessage = fn; } };
     vm.runInNewContext(blocks[0][2], { self, performance, console });
     const rig = JSON.parse(readFileSync(new URL('../public/data/rig.json', import.meta.url), 'utf8'));
-    const code = readFileSync(new URL('../public/patterns/aurora.js', import.meta.url), 'utf8');
+    const code = readFileSync(new URL('../public/patterns/plasma.js', import.meta.url), 'utf8');
     onMessage({ data: { type: 'init', rig, library: [] } });
     onMessage({ data: { type: 'look', layers: [{ id: 'a', code, groups: [rig.groups[0].id], level: 1 }] } });
     onMessage({ data: { type: 'frame', seq: 1, t: 2.5 } });

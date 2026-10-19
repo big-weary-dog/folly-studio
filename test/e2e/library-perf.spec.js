@@ -29,7 +29,7 @@ const CHAINS = {
   'plasma mapped, sparkled, shifted, faded, turned, mosaicked, repeated': [mod('plasma', 'source'),
     mod('gradient-map', 'filter'), mod('sparkle', 'source'), mod('hue-shift', 'filter'), mod('edge-fade', 'filter'),
     mod('rotate', 'warp'), mod('mosaic', 'warp'), mod('radial-repeat', 'warp')],
-  'meteors masked by clouds, swirled, folded, with trails': [mod('meteors', 'source'),
+  'a chase masked by clouds, swirled, folded, with trails': [mod('single-strand', 'source'),
     mod('clouds', 'source', { as: 'input' }), mod('mask', 'filter', { input: 'clouds' }), mod('twist', 'warp'),
     mod('scroll', 'warp'), mod('kaleidoscope', 'warp'), mod('mirror', 'warp'), mod('trails', 'filter')],
   'every colour filter over bars': [mod('bars', 'source'), mod('threshold', 'filter'), mod('posterize', 'filter'),

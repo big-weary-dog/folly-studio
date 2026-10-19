@@ -324,7 +324,7 @@ describe('fleet-box/check.ts (boxed worker side, real runtime)', () => {
       { title: 'bars', groups: ['arches'], blend: 'add', level: 1,
         modules: [{ id: 'b', kind: 'source', title: 'Bars', code: lib('bars'), params: { softness: 0 } }] },
       { title: 'rose', groups: ['rose-window'], blend: 'over', level: 1, soften: { radius: 0.5, mode: 'space' },
-        modules: [{ id: 'p', kind: 'source', title: 'Pinwheel', code: lib('pinwheel') },
+        modules: [{ id: 'p', kind: 'source', title: 'Lighthouse', code: lib('lighthouse') },
           { id: 'bl', kind: 'filter', title: 'Blur', code: lib('blur'), params: { radius: 0.3, mode: 'both' } }] }] };
     fs.writeFileSync(path.join(dir, 'blurred.json'), JSON.stringify(blurred));
     const soft = await run(dir, 'blurred.json', ['--bake', '--seconds', '1']);

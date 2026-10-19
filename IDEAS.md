@@ -10,7 +10,8 @@ From the first design notes, now built (the DESIGN.md section in brackets):
 
 - The rig file: any installation, a tagged group tree, proven on a fictional rig too (§9).
 - Pattern code: space three ways, polar on the façade, along the wire, structure fields (§3).
-- Module chains, globals, palette roles from `td/palettes`, modulation, automation lanes; a library of 59 (§4).
+- Module chains, globals, palette roles from `td/palettes`, modulation, automation lanes (§4).
+- The library as single ideas: 45 modules on one set of rules, and 22 presets for what took two (§4).
 - Blur and soften: a native spatial filter on the rig's neighbours, soft edges by default (§4).
 - Colour picks: every colour param takes roles, slots, literals, blend, range and rotate; one `colours` per source (§4).
 - The timeline: clips with fades on show time, importing looks to sequence them (§5).
@@ -32,9 +33,8 @@ From the first design notes, now built (the DESIGN.md section in brackets):
 5. **Timeline.** Automation of module params; crossfades between imported looks; markers for sections and cues
    (`folly_cues`, `shows/show.tsv`).
 6. **Power.** Apply the limit the bake already estimates (`estPeakAmps`), as `folly_output` caps white.
-7. **Library on picks.** Sources declare their colour slots with role defaults (bars' bands, single strand's head),
-   their fixed colours become roles with "classic" presets keeping the old ones, and merged sources pin colours
-   through picks.
+7. **Presets as the generators' vocabulary.** Let a generated layer name a preset by ref (its modules' code filled
+   in by the server), so the AI composes from recipes instead of copying code.
 
 ## Later
 

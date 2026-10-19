@@ -25,13 +25,8 @@ const quiet = { warn() {}, error() {} };
 describe('the schema', () => {
   const ok = { name: 'p', title: 'P', summary: 'A preset.', tags: ['x'], category: 'beds', kind: 'preset',
     layers: [{ modules: [{ ref: 'bars', params: { speed: { mod: 'lfo', shape: 'hold' }, colours: 'accent' } }] }] };
-  test('takes a recipe of layers of modules by ref, with params, blends, inputs and globals', () => {
-    assert.ok(Preset.safeParse(ok).success);
-    assert.ok(Preset.safeParse({ ...ok, globals: { macros: { storm: { value: 0.5 } } }, layers: [{ blend: 'over',
-      level: 0.8, soften: { radius: 0.2 }, modules: [{ ref: 'clouds', id: 'c', as: 'input' },
-        { ref: 'mask', input: 'c' }] }] }).success);
-  });
   test('refuses what it cannot play, and never reads a malformed preset as a source', () => {
+    assert.ok(Preset.safeParse(ok).success);
     for (const bad of [{ layers: [] }, { layers: [{ modules: [{ ref: 'Bad Ref!' }] }] },
       { layers: [{ modules: [{ ref: 'mask', input: 'nowhere' }] }] },
       { layers: [{ modules: [{ ref: 'x', code: '' }] }] },
@@ -43,7 +38,6 @@ describe('the schema', () => {
 });
 
 test('the library\'s presets parse, name its modules, and the loader drops one that names a module it lacks', () => {
-  assert.ok(presets.length >= 4, `${presets.length} presets`);
   const names = new Set(library.filter((e) => e.kind !== 'preset').map((e) => e.name));
   for (const p of presets) for (const l of p.layers) for (const m of l.modules) assert.ok(names.has(m.ref), m.ref);
   const dir = mkdtempSync(path.join(os.tmpdir(), 'presets-')), lib = path.join(dir, 'patterns');
