@@ -21,6 +21,7 @@
     "perf": "playwright test --project=perf",
     "smoke": "playwright test --project=smoke",
     "backup": "node tools/backup.ts",
+    "host": "bash deploy/host.sh",
     "build-data": "python3 tools/build_rig.py && python3 tools/build_palettes.py"
   },
   "devDependencies": {

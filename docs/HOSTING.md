@@ -1,7 +1,7 @@
 # Hosting Folly Studio at home
 
 For tens of people, on your own computer, behind an HTTPS tunnel. Commands marked *(to verify)*
-were not run on a real tunnel when this was written. Check them against the tool's own docs.
+were not run when this was written. Check them against the tool's own docs.
 
 ## What runs where
 
@@ -12,7 +12,7 @@ were not run on a real tunnel when this was written. Check them against the tool
 | Codex CLI (Sol, Luna) | One `codex exec` per idea, two at once by default, read-only and with no tools | A short-lived process per idea; the model runs at OpenAI |
 | Render box (bubblewrap) | One bake at a time, `nice 10`, ≤ 1 GB of data (`STUDIO_BAKE_MEMORY`), a wall clock | A 30 s look takes 2–3 s on one core |
 | Encoder thread | Brotli for streaming, `nice 10`, one job at a time; a look's encode waits for any bake | 2.5–5.5 s per 30 s look at quality 9 |
-| Fleet foundry (opt-in) | Deep ideas in a boxed agent, one at a time | Minutes, and **no memory cap on WSL** (below) |
+| Fleet foundry (opt-in) | Deep ideas in a boxed agent, one at a time | Minutes, and **no memory cap** without a systemd user session (below) |
 
 Bakes and encodes yield to everything else: the API and your desktop stay responsive. Baked frames
 take about 0.6 MB per second on disk. `STUDIO_FRAMES_MAX_BYTES` (default 2GB, roughly an hour of
@@ -40,33 +40,85 @@ npm start        # builds the app into dist/ (a few seconds), then serves it wit
 ```
 
 Everything is installed and built on your machine: once it is, the studio needs no network but the tunnel.
+To keep it running, use `npm run host` (below).
 
 ## Bind to localhost
 
 `HOST` defaults to `127.0.0.1`: keep it. Never forward port 8780 on your router. The tunnel connects
 outward to its provider, so nothing on your network opens.
 
-## Cloudflare Tunnel *(to verify)*
+## Hosting on this machine (WSL)
 
-```sh
-cloudflared tunnel login                       # once: pick your domain
-cloudflared tunnel create folly
-cloudflared tunnel route dns folly studio.example.org
-cat > ~/.cloudflared/config.yml <<'EOF'
-tunnel: folly
-credentials-file: /home/you/.cloudflared/<tunnel-id>.json
-ingress:
-  - hostname: studio.example.org
-    service: http://127.0.0.1:8780
-  - service: http_status:404
-EOF
-cloudflared tunnel run folly
-```
+The studio runs natively in WSL as a systemd user service, `folly-studio`; the Cloudflare tunnel's connector
+(`cloudflared`) runs on Windows, as it does for Loopr's arcade, and reaches it through WSL's localhost forwarding.
+Native rather than Docker because bakes need bubblewrap's user namespaces, which work here as they are and
+which Docker would have to be loosened for.
 
-For a quick trial with no domain, run `cloudflared tunnel --url http://127.0.0.1:8780`. In the
-dashboard, leave Rocket Loader and email obfuscation off, because they inject scripts the CSP
-refuses. Add no cache rules for `/api/`. Everything under `/assets/` is named by its content and may be cached
-at the edge, which also spares your upload.
+What was checked on this machine (WSL 2.4, NAT networking, `systemd=true` in `/etc/wsl.conf`, linger on):
+
+- A Windows program connecting to `127.0.0.1:<port>` reaches the studio listening on WSL's `127.0.0.1`, and the
+  studio sees it as `127.0.0.1`, so `STUDIO_TRUST_PROXY=1` (trusted from loopback only) takes the client's address
+  from `X-Forwarded-For`'s right-most entry, the one Cloudflare appends. Sign-in limits key on that address;
+  whatever a client writes to the left of it is ignored.
+- `localhost` on Windows tries `::1` first, which WSL does not forward to a `127.0.0.1` listener: each new
+  connection waits for the fallback (0.2 s here). Point the tunnel at `127.0.0.1`, not `localhost`.
+- A program on Windows that listens on the same port wins over WSL's forwarding: a studio started from Windows
+  (`npm start` in a Windows checkout) hides the WSL one. `npm run host` checks this and fails if so.
+- Bakes run in the service. The render box caps a bake's tasks with RLIMIT_NPROC, which counts every process of
+  the account; with a fleet running as the same user that is already past the default 256, so the unit raises
+  `STUDIO_BAKE_TASKS` and caps the whole service with `TasksMax=1024` (systemd's pids controller) instead.
+
+### Owner, once (in WSL)
+
+1. A checkout of its own, apart from any fleet's trees, since `npm run host` checks out commits in it:
+
+   ```sh
+   git clone https://github.com/big-weary-dog/show-builder.git ~/folly-studio
+   ```
+
+2. The settings (the [Environment](#environment) below): `mkdir -p ~/.config/folly-studio`, then
+   `nano ~/.config/folly-studio/studio.env && chmod 600 ~/.config/folly-studio/studio.env`.
+3. Start it: `cd ~/folly-studio/studio && npm run host`. It ends on
+   `host: folly-studio serves <commit> on http://127.0.0.1:8780`, or says what failed.
+4. The public hostname (Cloudflare, below).
+
+### Updating
+
+`cd ~/folly-studio/studio && npm run host` again, or `npm run host -- <ref>` for another commit or branch
+(default `STUDIO_REF`, else `origin/main`). It refuses a checkout with uncommitted changes, then: fetches and checks
+out the ref, `npm ci`, builds, writes `dist/build.json` (`{ commit, builtAt }`), writes and restarts the unit, and
+checks that `/build.json` names the commit, `/api/me` answers 401, and Windows reaches it too. The server saves
+and closes on the restart's SIGTERM; ideas cut short queue again at start. Requests during the few seconds of
+install and restart may fail; a reload fixes them.
+
+- Another port: set `PORT` in the env file, run `npm run host`, and change the tunnel's URL to match.
+- Logs: `journalctl --user -u folly-studio -f`. Status: `systemctl --user status folly-studio`.
+- Stop: `systemctl --user stop folly-studio` (`disable` too, to keep it off at boot).
+- The commit that is live, from anywhere: `https://folly.swampkat.com/build.json`.
+- The unit is written by the script, to `~/.config/systemd/user/folly-studio.service`: change the script, not it.
+- The studio runs while WSL does. It starts with the distro (linger is on), but WSL only boots when something on
+  Windows starts it and may stop an idle distro *(to verify after a Windows restart)*: if it is down, open a WSL
+  terminal, or add a Windows Task Scheduler task at logon running `wsl.exe -d Ubuntu --exec sleep infinity`.
+
+## Cloudflare Tunnel
+
+swampkat.com's tunnel already serves Loopr's arcade (docs/deploy.md in Loopr); the studio is one more public
+hostname on it, with no Worker: the one server answers both the pages and the API. In the dashboard:
+
+1. Zero Trust → Networks → Tunnels → the existing tunnel → Edit → Public Hostname → Add a public hostname.
+2. Subdomain `folly`, domain `swampkat.com`, path empty; Service type `HTTP`, URL `127.0.0.1:8780`
+   (not `localhost`: above). Save. The DNS record is made with it.
+3. Check: `https://folly.swampkat.com/build.json` names the commit `npm run host` printed, and the sign-in page
+   loads.
+
+Another name works the same: only the hostname changes; the studio needs no setting for it.
+
+On the zone (swampkat.com), leave Rocket Loader and email obfuscation off (Speed → Optimization, Scrape Shield):
+they inject scripts the CSP refuses. Add no cache rules for `/api/`; its answers are per user and say so
+(`private`, `no-store`). Everything under `/assets/` is named by its content and may be cached at the edge, which
+also spares your upload.
+
+For a quick trial elsewhere, with no domain, `cloudflared tunnel --url http://127.0.0.1:8780` *(to verify)*.
 
 ## Tailscale Funnel *(to verify)*
 
@@ -82,17 +134,20 @@ node attribute). People reach it without installing Tailscale.
 
 ## Environment
 
-Keep it in a file only you can read (`chmod 600 ~/.folly-studio.env`), then start the server with
-`set -a; . ~/.folly-studio.env; set +a; npm start`.
+`npm run host` reads `~/.config/folly-studio/studio.env` (chmod 600; `STUDIO_ENV_FILE` names another). By hand:
+`set -a; . ~/.config/folly-studio/studio.env; set +a; npm start`. Every session running as your user can read it,
+so give the API key a spend limit.
 
 ```sh
 HOST=127.0.0.1
 PORT=8780
-STUDIO_DATA=/home/you/folly-data
+STUDIO_REF=origin/main            # what npm run host checks out
+STUDIO_DATA=/home/you/folly-data  # outside the checkout
 STUDIO_SECURE_COOKIES=1           # the tunnel serves HTTPS
 STUDIO_TRUST_PROXY=1              # client IP (login limits) and host from the tunnel, trusted from this machine only
 STUDIO_CURATORS=alice,bob         # who may mark looks reviewed
 STUDIO_ADMINS=you                 # who may choose the models (the Models page); admins are curators too
+# (invite code and per-user model limits: their settings go here)
 ANTHROPIC_API_KEY=sk-ant-...      # for Opus: a key with a spend limit
 STUDIO_GENERATOR_FALLBACK=sketch  # when a model fails, and for deep ideas while the foundry is off
 STUDIO_BAKE_SECONDS=120           # longest bake
@@ -102,6 +157,8 @@ STUDIO_FLASH_PER_SECOND=3         # the flash check: flashes a second allowed (W
 STUDIO_FLASH_DELTA=0.1            # a flash's swing in relative luminance (WCAG: 0.1)
 STUDIO_FLASH_AREA=0.1             # share of the LEDs, or of the lit area from the front or side, that blocks
 ```
+
+Sign-up is open to anyone who reaches the page.
 
 ### The flash check
 
@@ -172,11 +229,12 @@ The code a model writes is data: it only ever runs in the browser's sandbox and 
 
 A model with `"via": "fleet"` (`STUDIO_GENERATOR=fleet` adds one, `foundry`, when the registry is first written)
 sends ideas to a boxed Fleet worker (`fleet up`, boxed Codex). It runs only with `STUDIO_FOUNDRY=on`, one job at a
-time. While the foundry is busy, the next idea goes to
-`STUDIO_GENERATOR_FALLBACK`, or waits with `STUDIO_FOUNDRY_WAIT=1`. On a host without a systemd user
-bus, such as WSL, Fleet's boxes get CPU and task limits but **no memory cap**, and the studio says
-so in its log at start. A runaway worker can use all of your RAM. Prefer another machine for the
-foundry, or watch it.
+time. While the foundry is busy, the next idea goes to `STUDIO_GENERATOR_FALLBACK`, or waits with
+`STUDIO_FOUNDRY_WAIT=1`. Fleet puts each box in a systemd user scope with a memory cap, which works under WSL with
+`systemd=true` (as here: the user manager has the memory and pids controllers). On a host without a systemd user
+session (WSL without systemd, containers), Fleet's boxes get CPU and task limits but **no memory cap**, and the
+studio says so in its log at start: a runaway worker can use all of your RAM. Prefer another machine for the
+foundry there, or watch it.
 
 ## Backups
 
