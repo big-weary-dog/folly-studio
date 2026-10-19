@@ -83,6 +83,8 @@ describe('decompose and diff', () => {
     assert.match(lines, /\+ .*Glow/);
     assert.match(lines, /palette/);
     assert.deepEqual(diffCompositions(a, structuredClone(a)), []);
+    const picked = { ...a, globals: { palette: { colors: ['#ff0000'] } } };
+    assert.deepEqual(diffCompositions(picked, structuredClone(picked)), [], 'an equal palette object is no change');
   });
 });
 
