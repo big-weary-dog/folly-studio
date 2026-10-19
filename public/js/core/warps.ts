@@ -4,10 +4,19 @@
 import type { Module } from '../../../shared/schemas/look.ts';
 import type { Pixel } from './render.ts';
 
-const DECLARES_SPATIAL = /\b(?:const|let|var)\s+spatial\s*=/;
-/** Does m hold real LED colours (a spatial filter, trails), so that no warp below it reaches above it? */
-export const isStageEnd = (m: Partial<Pick<Module, 'kind' | 'ref' | 'code'>>) => m.kind === 'filter'
-  && (m.ref === 'blur' || m.ref === 'trails' || DECLARES_SPATIAL.test(m.code ?? ''));
+/** What a filter's `stage` may declare: it reads its neighbours (with a spatial op), or keeps colours across frames. */
+export const STAGES = Object.freeze(['spatial', 'history'] as const);
+// The declaration, a literal at the top level: `const stage = 'spatial' | 'history'`, or a spatial op (one anyway).
+const DECLARES = new RegExp(String.raw`^[ \t]*(?:export[ \t]+)?(?:const|let|var)[ \t]+`
+  + String.raw`(?:stage[ \t]*=[ \t]*(['"])(spatial|history)\1|spatial[ \t]*=)`, 'm');
+type Declares = Partial<Pick<Module, 'kind' | 'code'>>;
+/** The stage a filter's code declares ('spatial' for a spatial op), or null. */
+export function stageOf(m: Declares): (typeof STAGES)[number] | null {
+  const d = m.kind === 'filter' ? DECLARES.exec(m.code ?? '') : null;
+  return d ? (d[2] as (typeof STAGES)[number] | undefined) ?? 'spatial' : null;
+}
+/** Does m hold real LED colours, so that no warp below it reaches above it? A filter whose code declares a stage. */
+export const isStageEnd = (m: Declares) => stageOf(m) !== null;
 
 /** What placeWarps reads (kind, end) and sets: the slot a link reads (at); a bending warp's from and to slots. */
 type Placed = { kind: number, end: boolean, ix: number, at: number, from: number, to: number };

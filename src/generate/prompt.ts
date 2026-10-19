@@ -99,8 +99,8 @@ everything above it, as in an image editor.
 - \`filter\`: \`function filter(c, q, t, P, G, x)\` reworks everything above it, c = [r, g, b, a] (change it and
   return it); x is the colour of the source its \`input\` names (an earlier module's id).
 - \`warp\`: \`function warp(q, t, P, G)\` bends everything above it: it changes q (a copy of p: lx ly lz a r u i …)
-  for the modules above it. So a warp goes after what it bends. A blur or trails holds real LED colours: a warp
-  below one does not reach above it.
+  for the modules above it. So a warp goes after what it bends. A blur or trails holds real LED colours (its code
+  declares \`const stage = 'spatial'\` or \`'history'\`): a warp below one does not reach above it.
 So "meteors only inside clouds, mirrored" is [source meteors, source clouds as input, filter mask with input = the
 clouds' id, warp mirror]. A module with a \`ref\` names the library entry it copies; still give its code.
 \`G\` holds the look's globals: G.energy (0..1, calm → busy), the palette, and each macro by name.`;

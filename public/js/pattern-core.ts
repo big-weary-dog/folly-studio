@@ -18,7 +18,7 @@ export {
 export {
   BLENDS, compileLayer, layerModules, MODULE_KINDS, prepareLayer, renderFrame, SOURCE_BLENDS,
 } from './core/render.ts';
-export { isStageEnd } from './core/warps.ts';
+export { isStageEnd, stageOf, STAGES } from './core/warps.ts';
 export { toChannels } from './core/output.ts';
 export { BLUR_MODES, DEFAULT_SOFTEN, MAX_RADIUS, neighbourGraph } from './core/spatial.ts';
 export type { BlurMode, Neighbours } from './core/spatial.ts';

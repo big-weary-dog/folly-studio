@@ -112,7 +112,8 @@ view without saving anything.
 
 **One rule, and where warps stop.** Warps used to bend what came after them, the shader's order, while sources and
 filters worked on what came before: two directions in one list. Now all three read the same way. A blur or trails
-holds colours only at real LEDs, so a warp below one stops there: there is no colour at a bent position to read.
+holds colours only at real LEDs, so a warp below one stops there: there is no colour at a bent position to read. Each
+says so in its code (`const stage = 'spatial'` or `'history'`), so a module someone writes can be one too.
 Looks saved before are converted once, as they come in, to render as they did (SPEC "Looks" > chain): exact to the
 bit wherever it fits in 8 modules, with a radius-0 blur as a warp stop where two parts of a stage were bent
 differently, and `under`, a source drawn beneath what is above it, where turning two sources over is simpler.

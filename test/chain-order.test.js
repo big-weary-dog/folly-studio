@@ -1,8 +1,7 @@
 // Looks from before the one rule (a warp bent the modules after it) converted so they render as they did
-// (shared/chain-order.ts): each plan on its own, then every frozen look (test/fixtures/chains-v1.json, rendered by
-// the old engine) byte for byte; rig-folly.test.js holds the Folly's composed look to its frozen bytes too.
+// (shared/chain-order.ts): each plan on its own, then every frozen look (test/fixtures/chains-v1.js, its digest made
+// by the old engine) byte for byte; rig-folly.test.js holds the Folly's composed look to its frozen bytes too.
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
@@ -10,7 +9,7 @@ import { describe, test } from 'vitest';
 import * as core from '../public/js/pattern-core.ts';
 import { CHAIN, convertChain, convertLayers, touches, upgradeLook } from '../shared/chain-order.ts';
 import { Layers } from '../shared/schemas/look.ts';
-import { folly } from './fixtures/rigs.js';
+import { digest, LOOKS } from './fixtures/chains-v1.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const lib = (name) => read(`../public/patterns/${name}.js`);
@@ -97,9 +96,14 @@ describe('convertChain', () => {
       'mirror bars !tint hue-shift');
   });
 
-  test('a chain without warps is unchanged', () => {
+  test('a chain without warps is unchanged; trails saved before it declared its stage declare it', () => {
     const mods = [m('meteors'), m('clouds', { as: 'input' }), m('mask', { input: 'clouds' }), m('trails')];
     assert.deepEqual(convertChain(mods), { modules: mods, exact: true });
+    const before = { ...m('trails'), code: lib('trails').replace("const stage = 'history';\n", '') };
+    assert.equal(core.isStageEnd(before), false);
+    const r = convert([m('twist'), m('galaxy'), before, m('hue-shift')]);
+    assert.equal(r.order, 'galaxy twist trails hue-shift twist.2');
+    assert.equal(r.modules[2].code, `const stage = 'history';\n${before.code}`);
   });
 
   test('over 8 modules, or a stage end reading a bent pixel: each warp at the end of its stage, not exact', () => {
@@ -127,32 +131,14 @@ describe('convertChain', () => {
   });
 });
 
-// Each frozen look, converted, renders the old engine's DMX bytes, frame for frame.
-const sha = (b) => createHash('sha256').update(b).digest('hex').slice(0, 16);
-function frames(look, count) {
-  const scene = core.prepareScene(folly);
-  core.setLibrary([]);
-  const layers = look.layers.map((l) => core.prepareLayer(scene, l, core.compileLayer(l)));
-  const g = core.prepareLook({ globals: look.globals, automation: look.automation, bpm: look.bpm });
-  const rgb = new Float32Array(scene.count * 3), full = new Uint8Array(scene.frameChannels), out = [];
-  for (let f = 0; f < count; f++) {
-    const r = core.renderFrame(scene, layers, f / 40, rgb, g);
-    assert.deepEqual(r.errors, []);
-    out.push(sha(core.toChannels(scene, r.rgb, full)));
-  }
-  return out;
-}
-
+// Each frozen look, converted, renders the old engine's DMX bytes: all 60 frames, one digest.
 describe('frozen looks from before the rule render as they did, converted', () => {
-  const fx = JSON.parse(read('./fixtures/chains-v1.json'));
-  for (const { name, look, frames: want } of fx.looks) {
+  for (const [name, look, sha] of LOOKS) {
     test(name, () => {
-      const layers = look.layers.map((l) => ({ ...l,
-        modules: l.modules.map((x) => ({ ...x, code: fx.code[x.code] })) }));
-      const { look: now, exact } = upgradeLook({ ...look, layers });
+      const { look: now, exact } = upgradeLook(look);
       assert.equal(exact, true);
       assert.ok(Layers.safeParse(now.layers).success, 'a valid look');
-      assert.deepEqual(frames(now, fx.frames), want);
+      assert.equal(digest(core, now), sha);
     });
   }
 });

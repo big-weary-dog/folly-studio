@@ -99,14 +99,16 @@ describe('a number as one field, and how a chain is drawn', () => {
     assert.deepEqual([first, joins], [0, ['over', 'warp', 'input', 'filter', 'max']]);
     assert.deepEqual(reaches.map((x) => `${x.kind} ${x.from}-${x.to} ${x.lane}`),
       ['warp 0-1 1', 'filter 0-3 0', 'input 2-3 1'], 'the longest outermost, its input feed dashed inside');
-    const staged = chainWires([mod('a', 'source'), mod('t', 'filter', { ref: 'trails' }), mod('b', 'source'),
+    const trails = { code: "const stage = 'history';" };
+    const staged = chainWires([mod('a', 'source'), mod('t', 'filter', trails), mod('b', 'source'),
       mod('w', 'warp'), mod('x', 'filter', { enabled: false }), mod('f', 'filter', { input: 'gone' })]);
     assert.deepEqual(staged.reaches.map((x) => `${x.kind} ${x.from}-${x.to} ${x.lane}`),
       ['filter 0-1 1', 'warp 1-3 1', 'filter 1-5 0'], 'trails ends a stage; an off module reaches nothing');
     assert.deepEqual(chainWires([mod('w', 'warp'), mod('a', 'source', { enabled: false })]), { first: -1,
       joins: ['warp', 'add'], reaches: [] }, 'a warp at the top has nothing above it');
-    assert.deepEqual([isStageEnd(mod('b', 'filter', { ref: 'blur' })), isStageEnd(mod('b', 'source', { ref: 'blur' }))],
-      [true, false]);
+    const blur = { code: "const spatial = 'blur';\nconst stage = 'spatial';" };
+    assert.deepEqual([isStageEnd(mod('b', 'filter', blur)), isStageEnd(mod('b', 'source', blur)),
+      isStageEnd(mod('b', 'filter', { ref: 'blur' }))], [true, false, false], 'the code says so, not the ref');
   });
 });
 

@@ -218,9 +218,12 @@ A layer is a chain of modules, listed top to bottom, each a plain script like th
 | `warp` | `warp(q, t, P, G)` | bends what is above it: mutates `q` (x y z X Y Z lx ly lz a r u i …) for the modules above it |
 
 All may define `params` and `frame(t, P, G)` (once per frame, before any pixel; state such as a trails buffer
-indexed by `p.k` lives at top level). A **stage end** holds real LED colours: a spatial filter (below) or trails
-(`ref: 'trails'`; `isStageEnd` in the core). A warp bends the modules between itself and the nearest stage end above
-it, never the stage end or anything above that: those colours exist only at real LEDs.
+indexed by `p.k` lives at top level). A **stage end** is a filter that holds real LED colours, as its code declares
+at the top level: `const stage = 'spatial'` (it reads its neighbours: a spatial op, below, is one anyway) or
+`const stage = 'history'` (it keeps colours from frame to frame, as trails does); any other value does not compile.
+`isStageEnd` in the core reads the declaration, for the runtime, the converter and the chain's drawing alike. A warp
+bends the modules between itself and the nearest stage end above it, never the stage end or anything above that:
+those colours exist only at real LEDs.
 
 Per pixel, in one pass with no intermediate buffers (a chain without spatial modules, below): module i reads `q`, a
 copy of the pixel bent by the warps below i up to the next stage end, the bottom-most first (in `[S, W1, W2]`, S
@@ -320,8 +323,9 @@ has alpha × level, `max` keeps the brighter channel, `multiply` tints what is b
   after a stage end gets copies of the warps it read; two sources bent differently turn over (the first goes
   `under`, or adds or maxes as the second did); otherwise a warp stop (a blur of radius 0, `ref: 'blur'`) splits the
   stage. Where it cannot (more than 8 modules, or trails reading a pixel a warp changed), each warp moves to the end of
-  its stage and the summary says which layers changed. Stored looks are converted at start (their versions too); a
-  bake of an exact conversion keeps its place.
+  its stage and the summary says which layers changed. Trails saved before it declared its stage (`ref: 'trails'`)
+  gets `const stage = 'history'`. Stored looks are converted at start (their versions too); a bake of an exact
+  conversion keeps its place.
 - **Soften** (optional): `{ radius: 0–1.5 m, mode: 'wire' | 'space' | 'both' (default 'wire') }`, a blur at the end
   of the chain (SPEC "Spatial modules"); radius 0 is none. New layers in the Studio and generated layers get
   `DEFAULT_SOFTEN`; a layer without it renders as before.

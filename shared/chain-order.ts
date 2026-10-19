@@ -8,7 +8,7 @@
 // carries c unclamped, exact) or, with two visible sources only, turned over (below). A stage after a stage end gets
 // copies of the warps it read. Over 8 modules, the warps stay in their stage, bending all of it, and a note says so.
 import { MAX_LAYER_CODE_BYTES, MAX_MODULES, type Module } from './schemas/look.ts';
-import { isStageEnd } from '../public/js/pattern-core.ts';
+import { isStageEnd, stageOf } from '../public/js/pattern-core.ts';
 
 /** A look's `chain`: its chains follow the one rule. A look without it is converted once, on its way in. */
 export const CHAIN = 2;
@@ -40,11 +40,15 @@ export function touches(code: unknown, fn: string, arg: number): Set<string> | n
 const kind = (m: Mod) => m.kind ?? 'source';
 /** What an op (a source or filter) reads of the pixel; a spatial filter reads none. */
 const reads = (m: Mod) => (kind(m) === 'source' ? touches(m.code, 'pixel', 0)
-  : isStageEnd(m) && m.ref !== 'trails' ? new Set<string>() : touches(m.code, 'filter', 1));
+  : stageOf(m) === 'spatial' ? new Set<string>() : touches(m.code, 'filter', 1));
+/** Trails saved before it declared its stage, declaring it: what the converted chain relies on. */
+const declared = (m: Mod) => (kind(m) === 'filter' && m.ref === 'trails' && !isStageEnd(m)
+  ? { ...m, code: `const stage = 'history';\n${m.code ?? ''}` } : m);
 const apart = (a: Set<string> | null, b: Set<string> | null) => !!a && !!b && ![...a].some((f) => b.has(f));
 
 const STOP_CODE = `// Warp stop: a blur of radius 0 changes nothing; the warps below it bend nothing above it.
 const spatial = 'blur';
+const stage = 'spatial';
 const params = {
   radius: { value: 0, min: 0, max: 1.5, step: 0.01, label: 'Radius (metres; along the wire, metres of wire)' },
   mode: { value: 'wire', type: 'choice', options: ['wire', 'space', 'both'], label: 'Along the wire, in space, both' },
@@ -64,8 +68,8 @@ type Part = { ops: Mod[], lo: number, hi: number, stop: boolean };
  * A chain from before the one rule → { modules, exact }: modules that render as the old chain did (exact), or, when
  * that takes more than 8 modules or a stage end read a bent pixel, each warp at the end of its stage.
  */
-export function convertChain(modules: readonly Mod[]): { modules: Mod[], exact: boolean } {
-  const live = modules.filter((m) => m.enabled !== false);
+export function convertChain(saved: readonly Mod[]): { modules: Mod[], exact: boolean } {
+  const modules = saved.map(declared), live = modules.filter((m) => m.enabled !== false);
   const warps = live.filter((m) => kind(m) === 'warp'), bends = warps.map((w) => touches(w.code, 'warp', 0));
   // An op is free when no warp touches what it reads: any warps, or none, leave it as it was.
   const free = (m: Mod) => bends.every((b) => apart(reads(m), b));

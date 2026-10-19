@@ -5,7 +5,9 @@ import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
-import { compileLayer, isStageEnd, prepareLayer, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
+import {
+  compileLayer, compileModule, isStageEnd, prepareLayer, prepareScene, renderFrame, stageOf,
+} from '../public/js/pattern-core.ts';
 
 const rig = JSON.parse(readFileSync(new URL('../public/data/rig.json', import.meta.url), 'utf8'));
 const lib = (name) => readFileSync(new URL(`../public/patterns/${name}.js`, import.meta.url), 'utf8');
@@ -24,7 +26,7 @@ describe('a warp bends what is above it', () => {
     assert.deepEqual(rgbOf(before), p);
   });
 
-  test('a stage end stops it: blur and trails hold real LED colours', () => {
+  test('a stage end stops it: blur and trails hold real LED colours, as their code declares', () => {
     const blur0 = { id: 'b', kind: 'filter', ref: 'blur', code: lib('blur'), params: { radius: 0 } };
     const trails = { id: 't', kind: 'filter', ref: 'trails', code: lib('trails') };
     for (const end of [blur0, trails]) {
@@ -34,7 +36,16 @@ describe('a warp bends what is above it', () => {
     }
     assert.ok(isStageEnd(blur0) && isStageEnd(trails));
     assert.ok(!isStageEnd({ kind: 'filter', ref: 'mask', code: lib('mask') }));
+    assert.ok(!isStageEnd({ kind: 'filter', ref: 'trails', code: 'function filter(c) { return c; }' }), 'not by ref');
+    const own = 'export const stage = "history";\nfunction filter(c) { return c; }';
+    assert.ok(isStageEnd({ kind: 'filter', code: own }) && !isStageEnd({ kind: 'source', code: own }));
     assert.ok(isStageEnd({ kind: 'filter', code: "const spatial = 'blur';\nfunction filter(c) { return c; }" }));
+    assert.ok(!isStageEnd({ kind: 'filter', code: "// const stage = 'history';\nfunction filter(c) { return c; }" }));
+    assert.deepEqual([stageOf(blur0), stageOf(trails)], ['spatial', 'history']);
+    for (const bad of ["const stage = 'frames';", "const stage = 'spatial';", "const spatial = 'blur';\nconst stage = "
+      + "'history';"]) {
+      assert.throws(() => compileModule(`${bad}\nfunction filter(c) { return c; }`, 'filter'), /stage must be/, bad);
+    }
   });
 });
 
@@ -47,7 +58,7 @@ const POOL = {
   s2: 'function pixel(p) { return [0.05, 0.2 * p.lz * p.ly, 0.1 * p.ly]; }',
   f1: 'function filter(c, q) { c[0] = c[0] * (0.5 + 0.5 * q.ly); return c; }',
   f2: 'function filter(c, q) { c[2] = c[2] + 0.1 * q.lz; return c; }',
-  t: 'function filter(c, q) { c[1] = c[1] + 0.05 * q.ly; return c; }',      // a stage end by its ref, as trails
+  t: "const stage = 'history';\nfunction filter(c, q) { c[1] = c[1] + 0.05 * q.ly; return c; }",   // as trails
   b: "const spatial = 'blur';\nfunction filter(c) { return c; }",           // a stage of its own, the identity
 };
 const fract = (x) => x - Math.floor(x);
@@ -58,8 +69,7 @@ const OPS = { s1: (c, q) => { c[0] += 0.2 * q.ly; c[1] += 0.1 * q.lz; c[2] += 0.
   f1: (c, q) => { c[0] *= 0.5 + 0.5 * q.ly; }, f2: (c, q) => { c[2] += 0.1 * q.lz; },
   t: (c, q) => { c[1] += 0.05 * q.ly; }, b: () => {} };
 const KIND = { w: 'warp', s: 'source' };
-const module = (name, i) => ({ id: `${name}${i}`, kind: KIND[name[0]] ?? 'filter', code: POOL[name], blend: 'add',
-  ...(name === 't' ? { ref: 'trails' } : {}) });
+const module = (name, i) => ({ id: `${name}${i}`, kind: KIND[name[0]] ?? 'filter', code: POOL[name], blend: 'add' });
 
 /** The colour the rule gives at a pixel {lz, ly}: sources add (each opaque, so c sums), filters rework. */
 function expected(names, p) {

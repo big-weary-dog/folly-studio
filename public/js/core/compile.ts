@@ -3,6 +3,7 @@
 import { type G, resolveParams, type Values } from './globals.ts';
 import type { ModuleKind, Pixel } from './render.ts';
 import { clamp, hex, isNum, RUN, STDLIB, STDLIB_NAMES } from './stdlib.ts';
+import { STAGES } from './warps.ts';
 
 /** A pattern's params as its controls show them (SPEC "Pattern code"). */
 export type ParamSpec = { label?: string } & ({ type: 'number', value: number, min: number, max: number, step?: number }
@@ -36,7 +37,7 @@ const EPILOGUE =
   '\n;return { pixel: typeof pixel === "function" ? pixel : undefined,' +
   ' warp: typeof warp === "function" ? warp : undefined, filter: typeof filter === "function" ? filter : undefined,' +
   ' frame: typeof frame === "function" ? frame : undefined,' +
-  ' spatial: typeof spatial === "string" ? spatial : undefined,' +
+  ' spatial: typeof spatial === "string" ? spatial : undefined, stage: typeof stage === "string" ? stage : undefined,' +
   ' params: typeof params === "undefined" ? undefined : params };\n})();';
 
 // Where pattern line 1 lands in the generated function, probed once, so errors say "line N" in every engine.
@@ -153,6 +154,10 @@ export function compileModule(code: string | undefined, kind: string = 'source')
   const spatial = kind === 'filter' ? made.spatial : undefined;
   if (spatial !== undefined && !SPATIAL_OPS.includes(spatial as never)) {
     throw new Error(`spatial must be ${SPATIAL_OPS.map((o) => `'${o}'`).join(' or ')}`);
+  }
+  const stage = kind === 'filter' ? made.stage : undefined;      // isStageEnd reads it from the code
+  if (stage !== undefined && (!STAGES.includes(stage as never) || (stage === 'spatial') !== !!spatial)) {
+    throw new Error("stage must be 'history', or 'spatial' beside a spatial op (const spatial = 'blur')");
   }
   return { kind, [k[0]]: made[k[0]], frame: made.frame, params: normalizeParams(made.params),
     ...(spatial ? { spatial } : {}) } as Compiled;
