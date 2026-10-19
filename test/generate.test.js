@@ -142,7 +142,7 @@ describe('sketch', () => {
     const dir = path.join(STUDIO, 'public/patterns');
     if (!fs.existsSync(path.join(dir, 'index.json'))) return;
     const lib = JSON.parse(fs.readFileSync(path.join(dir, 'index.json'), 'utf8')).map((p) => ({ ...p,
-      code: fs.readFileSync(path.join(dir, `${p.name}.js`), 'utf8') }));
+      code: p.kind === 'preset' ? '' : fs.readFileSync(path.join(dir, `${p.name}.js`), 'utf8') }));
     const look = sketch('fire on the spires and ocean waves across the arches, red and gold', lib);
     assert.equal(look.layers.length, 2);
     assert.deepEqual(look.layers.map((l) => l.groups[0]), ['spires', 'arches']);
@@ -190,7 +190,7 @@ describe('prompt', () => {
   test('the library index lists every entry, one line each under its kind, and the prompt stays small', () => {
     const dir = path.join(STUDIO, 'public/patterns');
     const lib = JSON.parse(fs.readFileSync(path.join(dir, 'index.json'), 'utf8')).map((p) => ({ ...p,
-      code: fs.readFileSync(path.join(dir, `${p.name}.js`), 'utf8') }));
+      code: p.kind === 'preset' ? '' : fs.readFileSync(path.join(dir, `${p.name}.js`), 'utf8') }));
     const index = formatLibraryIndex(lib);
     const kinds = {};
     let head = '';
@@ -198,9 +198,12 @@ describe('prompt', () => {
       if (/^\w+s:$/.test(line)) kinds[head = line] = [];
       else kinds[head].push(line);
     }
-    assert.deepEqual(Object.keys(kinds), ['Sources:', 'Warps:', 'Filters:']);
+    assert.deepEqual(Object.keys(kinds), ['Sources:', 'Warps:', 'Filters:', 'Presets:']);
     for (const p of lib) {
-      assert.ok(kinds[`${p.kind[0].toUpperCase()}${p.kind.slice(1)}s:`].includes(`- ${p.name}: ${p.summary}`), p.name);
+      const recipe = p.kind === 'preset'
+        ? `${p.layers.map((l) => l.modules.map((m) => m.ref).join(' → ')).join(' | ')}, ` : '';
+      assert.ok(kinds[`${p.kind[0].toUpperCase()}${p.kind.slice(1)}s:`].includes(`- ${p.name}: ${recipe}${p.summary}`),
+        p.name);
     }
     assert.equal(Object.values(kinds).flat().length, lib.length);
     const sys = buildSystemPrompt({ library: lib, rig: RIG });

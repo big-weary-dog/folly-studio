@@ -4,13 +4,13 @@
 // each module joins it (a source by how it combines), and each warp and filter spans what it works on, everything above
 // it.
 import type { Module } from '../../../shared/schemas/look.ts';
-import type { LibraryEntry } from '../../../shared/schemas/rig.ts';
 import { cx, Field, toast } from './kit.tsx';
 import {
   BLEND_MODES, chainWires, insertModule, KIND_LABELS, makeModule, moduleFromLibrary, type Reach,
 } from './model.ts';
 import { ParamsPanel } from './params.tsx';
 import type { Preview } from './preview.ts';
+import type { Entry } from './shelf.tsx';
 import { SoftenRow } from './soften.tsx';
 import type { Studio } from './studio-store.ts';
 
@@ -57,10 +57,10 @@ function Chain({ st, pv }: Props) {
     if (l) st.editLayer(l.id, (x) => ({ modules: fn(x.modules.slice()) }));
   };
 
-  /** A library entry (or a blank), after the selected module (model.ts insertModule). */
-  function add(entry: LibraryEntry | { kind: Module['kind']; blank: true }) {
+  /** A library module (or a blank), after the selected module (model.ts insertModule). */
+  function add(entry: Entry) {
     const layer = st.selected.peek(), cur = st.module.peek();
-    if (!layer) return;
+    if (!layer || ('kind' in entry && entry.kind === 'preset')) return;
     if (layer.modules.length >= MAX_MODULES) {
       return toast(`A layer has at most ${MAX_MODULES} modules.`, { kind: 'warn' });
     }
@@ -80,8 +80,8 @@ function Chain({ st, pv }: Props) {
     if (j >= 0 && j < list.length) list.splice(j, 0, list.splice(i, 1)[0]);
     return list;
   });
-  const shelf = () => import('./shelf.tsx').then(({ openShelf }) => openShelf({ library: st.data.library, onPick: add,
-    audition: { pv, layer: l || undefined, moduleId: sel?.id } }));
+  const shelf = () => import('./shelf.tsx').then(({ openShelf }) => openShelf({ mode: 'module',
+    library: st.data.library, onPick: add, audition: { pv, layer: l || undefined, moduleId: sel?.id } }));
   const { first, joins, reaches } = chainWires(mods), at = sel ? mods.indexOf(sel) : -1;
   return (
     <section class="chain" aria-label="Module chain">

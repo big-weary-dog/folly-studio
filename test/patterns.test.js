@@ -30,14 +30,17 @@ function check(rgb, what) {
 
 const sources = index.filter((e) => e.kind === 'source');
 
-test('index.json lists every pattern file, once, with title, summary, tags, kind and category', () => {
-  assert.deepEqual(index.map((e) => `${e.name}.js`).sort(), files);
+test('index.json lists every pattern file, once, and its presets (no file), each with title, summary, tags, kind '
+  + 'and category', () => {
+  assert.deepEqual(index.filter((e) => e.kind !== 'preset').map((e) => `${e.name}.js`).sort(), files);
+  assert.equal(new Set(index.map((e) => e.name)).size, index.length, 'names are unique');
   assert.ok(sources.length >= 35, `${sources.length} sources`);
   for (const e of index) {
     assert.match(e.name, /^[a-z0-9-]+$/);
     assert.ok(e.title && e.summary && Array.isArray(e.tags) && e.tags.length, e.name);
     assert.ok(e.summary.length <= 120, `${e.name}: a crisp summary`);
-    assert.ok(MODULE_KINDS.includes(e.kind) && /^[a-z][a-z &-]*$/.test(e.category), `${e.name}: kind and category`);
+    assert.ok([...MODULE_KINDS, 'preset'].includes(e.kind) && /^[a-z][a-z &-]*$/.test(e.category),
+      `${e.name}: kind and category`);
   }
   for (const [kind, n] of [['warp', 7], ['filter', 10]]) {
     assert.ok(index.filter((e) => e.kind === kind).length >= n, `at least ${n} ${kind}s`);
@@ -102,7 +105,7 @@ describe('each source', () => {
 describe('each warp and filter, in a chain over a source', () => {
   // Warps over a pattern drawn across the layer; filters over one that moves fast, on a dark sky.
   const base = (kind) => ({ id: 'base', kind: 'source', code: source(kind === 'warp' ? 'plasma' : 'meteors') });
-  for (const { name, kind } of index.filter((e) => e.kind !== 'source')) {
+  for (const { name, kind } of index.filter((e) => e.kind === 'warp' || e.kind === 'filter')) {
     test(name, () => {
       const code = source(name);
       assert.match(code, /^\/\/ .+/, 'starts with a comment saying what it is');

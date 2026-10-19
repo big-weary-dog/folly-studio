@@ -36,7 +36,8 @@ beforeAll(async () => {
   cookie = /studio_session=[^;]+/.exec(res.headers['set-cookie'][0])[0];
   // A dozen looks of library code, as a list would show them.
   const user = app.store.users.list()[0];
-  const lib = JSON.parse(await readFile(new URL('../public/patterns/index.json', import.meta.url), 'utf8'));
+  const lib = JSON.parse(await readFile(new URL('../public/patterns/index.json', import.meta.url), 'utf8'))
+    .filter((e) => e.kind !== 'preset');
   for (let i = 0; i < 12; i++) {
     const layers = await Promise.all([0, 1, 2].map(async (k) => ({ id: `l${k}`, title: 'x', groups: ['cathedral'],
       code: await readFile(new URL(`../public/patterns/${lib[(i + k) % lib.length].name}.js`, import.meta.url), 'utf8'),

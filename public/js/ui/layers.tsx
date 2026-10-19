@@ -6,8 +6,11 @@ import { useId, useLayoutEffect, useState } from 'preact/hooks';
 
 import type { RigGroup } from '../../../shared/schemas/rig.ts';
 import { cx, Scrub, toast } from './kit.tsx';
-import { BLEND_MODES, cleanLayer, type Layer, layerFromPattern, makeLayer, newLayer } from './model.ts';
+import {
+  BLEND_MODES, cleanLayer, isPreset, type Layer, layerFromPattern, makeLayer, newLayer, presetLayers, withPresetGlobals,
+} from './model.ts';
 import type { Preview } from './preview.ts';
+import type { Entry } from './shelf.tsx';
 import type { Studio } from './studio-store.ts';
 
 const STATUS_TEXT: Record<string, string> = { ok: 'Running', pending: 'Compiling…', compile: 'Compile error',
@@ -45,10 +48,20 @@ export function LayersPane({ st, pv }: Props) {
     toast(`Deleted “${l.title}”.`, { action: { label: 'Undo', onClick: () => insertLayer(st, l,
       Math.min(i, st.look.peek().layers.length)) } });
   }
-  // The library's sources on the shelf (shelf.tsx), each auditioned as a layer over the selected one's groups.
+  // Add a layer (shelf.tsx): a blank one, one source (auditioned over the selected layer's groups), or a preset's
+  // layers above the selected one, with the globals it needs.
+  const made = (e: Entry) => (isPreset(e) ? presetLayers(e, st.data.library, st.data.rig) : null);
   const add = () => import('./shelf.tsx').then(({ openShelf }) => openShelf({
-    title: 'Add a layer', only: 'source', library: st.data.library, audition: { pv, layer: l || { groups: [] } },
+    mode: 'layer', library: st.data.library, audition: { pv, layer: l || { groups: [] }, layers: made },
     onPick: (e) => {
+      if (isPreset(e)) {
+        const list = made(e);
+        if (!list) return toast(`${e.title} needs a module this library lacks.`, { kind: 'warn' });
+        const at = st.selected.peek() ? st.look.peek().layers.indexOf(st.selected.peek()!) + 1 : undefined;
+        if (e.globals) st.edit((L) => ({ globals: withPresetGlobals(L.globals, e) }));
+        list.forEach((layer, i) => insertLayer(st, layer, at === undefined ? undefined : at + i));
+        return;
+      }
       insertLayer(st, 'blank' in e ? newLayer({ title: 'New layer' }, st.data.rig) : layerFromPattern(e, st.data.rig));
       st.setTab('code', { onlyNarrow: true });
       if ('blank' in e && !st.narrow.peek()) st.showDock('code');   // a blank layer is for writing code

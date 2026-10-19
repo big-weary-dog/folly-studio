@@ -96,7 +96,7 @@ const ParamValue = z.union([z.number(), z.boolean(), z.string().max(200), z.arra
 /** Param overrides: values (numbers, toggles, colours as picks, '#hex' or [r, g, b]) or bindings. */
 const Param = z.custom<z.infer<typeof ParamValue>>((v) => ParamValue.safeParse(v).success,
   { error: 'has an unsupported value.' });
-const Params = z.record(z.string().max(64), Param, { error: 'params must be an object.' })
+export const Params = z.record(z.string().max(64), Param, { error: 'params must be an object.' })
   .refine((p) => Object.keys(p).length <= 64, 'too many params.');
 
 const Code = z.string({ error: 'code must be a string.' })

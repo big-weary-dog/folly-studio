@@ -1,8 +1,10 @@
 // The installation (SPEC "Rig", public/data/rig.json) and the pattern library's index (public/patterns/index.json),
-// as the server reads them. The pattern core checks a rig's pixels against its fixtures (prepareScene).
+// as the server reads them: modules (a code file each) and presets (layers of them, in the index). The pattern core
+// checks a rig's pixels against its fixtures (prepareScene).
 import { z } from 'zod';
 
-import { MODULE_KINDS } from '../../public/js/pattern-core.ts';
+import { BLENDS, MODULE_KINDS, SOURCE_BLENDS } from '../../public/js/pattern-core.ts';
+import { Globals, ID, MAX_MODULES, Params, Soften } from './look.ts';
 
 const int = (min = 0) => z.number().int().min(min);
 const xyz = z.tuple([z.number(), z.number(), z.number()]);
@@ -31,15 +33,39 @@ export const Rig = z.object({
   structure: z.record(z.string(), z.unknown()).optional(),
 });
 
-/** An entry of the library's index.json: a name the code file and `use()` go by; title, summary and tags filled in. */
-export const LibraryEntry = z.looseObject({
-  name: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/), title: z.string().optional(),
-  summary: z.string().catch(''), tags: z.array(z.unknown()).catch([])
-    .transform((t) => t.filter((x): x is string => typeof x === 'string')),
-  kind: z.enum(MODULE_KINDS as unknown as ['source', 'warp', 'filter']).catch('source'), category: z.string().catch(''),
-}).transform((e) => ({ ...e, title: e.title || e.name }));
+const NAME = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
+const shelfed = {
+  name: z.string().regex(NAME), title: z.string().optional(), summary: z.string().catch(''),
+  tags: z.array(z.unknown()).catch([]).transform((t) => t.filter((x): x is string => typeof x === 'string')),
+  category: z.string().catch(''),
+};
+/** A preset's module: a library module by `ref`, its params, and how it joins its chain (SPEC "Library"). */
+const PresetModule = z.strictObject({ ref: z.string().regex(NAME), id: z.string().regex(ID).optional(),
+  title: z.string().max(200).optional(), params: Params.optional(), blend: z.enum(SOURCE_BLENDS).optional(),
+  as: z.literal('input').optional(), input: z.string().regex(ID).optional(), enabled: z.boolean().optional() });
+/** A preset's layer: its chain, and how the layer blends; it plays where the person puts it. */
+const PresetLayer = z.strictObject({ title: z.string().max(200).optional(),
+  modules: z.array(PresetModule).min(1).max(MAX_MODULES), blend: z.enum(BLENDS).optional(),
+  level: z.number().min(0).max(1).optional(), soften: Soften.optional() });
+/** A preset: a recipe of layers of library modules, listed in index.json with no code file of its own. */
+export const Preset = z.strictObject({ ...shelfed, kind: z.literal('preset'),
+  layers: z.array(PresetLayer).min(1).max(4), globals: Globals.optional() })
+  .refine((p) => p.layers.every((l) => l.modules.every((m) => !m.input || l.modules.some((x) => x.id === m.input))),
+    'a module\'s input names a module of its layer');
+const ModuleShape = z.looseObject({ ...shelfed,
+  kind: z.enum(MODULE_KINDS as unknown as ['source', 'warp', 'filter']).catch('source') });
+// A malformed preset is dropped, never read as a source.
+const Module = z.preprocess((e, ctx) => (e && typeof e === 'object' && (e as { kind?: unknown }).kind === 'preset'
+  ? (ctx.addIssue('not a preset'), z.NEVER) : e), ModuleShape);
+/** An entry of the library's index.json: a module (a name its code file and `use()` go by) or a preset; title,
+ * summary and tags filled in. */
+export const LibraryEntry = z.union([Preset, Module]).transform((e) => ({ ...e, title: e.title || e.name }));
 
 export type RigGroup = z.infer<typeof RigGroup>;
 export type Fixture = z.infer<typeof Fixture>;
 export type Rig = z.infer<typeof Rig>;
-export type LibraryEntry = z.infer<typeof LibraryEntry> & { code: string };
+export type PresetEntry = z.infer<typeof Preset> & { title: string, code: string };
+export type ModuleEntry = z.infer<typeof ModuleShape> & { title: string, code: string };
+/** A library entry as the API hands it out: a module with its code, or a preset (code ''). */
+export type LibraryEntry = ModuleEntry | PresetEntry;
+export type PresetLayer = z.infer<typeof PresetLayer>;

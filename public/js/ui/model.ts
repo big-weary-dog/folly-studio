@@ -3,8 +3,8 @@ import { api, fetchJSON } from '../api.ts';
 import { pixelsForGroups, prepareScene } from '../core/scene.ts';
 import { BLUR_MODES, DEFAULT_SOFTEN, MAX_RADIUS } from '../core/spatial.ts';
 import { isStageEnd } from '../core/warps.ts';
-import type { Layer as Saved, Module, Palette, Soften } from '../../../shared/schemas/look.ts';
-import type { LibraryEntry, Rig, RigGroup } from '../../../shared/schemas/rig.ts';
+import type { Globals, Layer as Saved, Module, Palette, Soften } from '../../../shared/schemas/look.ts';
+import type { LibraryEntry, ModuleEntry, PresetEntry, Rig, RigGroup } from '../../../shared/schemas/rig.ts';
 import { randomId } from './kit.tsx';
 
 /** A layer as the Studio holds it (SPEC "Modules"): a chain, never code and params; `enabled: false` when silent. */
@@ -73,8 +73,9 @@ export function makeModule({ kind = 'source', title, code, ref, params = {} }: P
 }
 
 /** A library entry as a module that remembers where it came from. */
-export const moduleFromLibrary = (e: LibraryEntry) => makeModule({ kind: e.kind || 'source', title: e.title || e.name,
+export const moduleFromLibrary = (e: ModuleEntry) => makeModule({ kind: e.kind || 'source', title: e.title || e.name,
   ref: e.name, code: e.code });
+export const isPreset = (e: { kind?: string }): e is PresetEntry => e.kind === 'preset';
 
 /** The rig's whole: the root of its group tree. */
 const rootId = (rig: Rig | null) => (rig?.groups || []).find((g) => g.parent == null)?.id ?? '';
@@ -108,8 +109,34 @@ export function cloneModules(modules: Module[]) {
   });
 }
 
-export const layerFromPattern = (p: LibraryEntry, rig: Rig | null) => newLayer({ title: p.title || p.name || 'Layer',
+export const layerFromPattern = (p: ModuleEntry, rig: Rig | null) => newLayer({ title: p.title || p.name || 'Layer',
   modules: [moduleFromLibrary(p)] }, rig);
+
+/** A preset's layers, bottom first (SPEC "Library"): each module the library's by its ref, with the preset's params,
+ * blend and input, fresh ids; on the whole rig, softened unless it says. Null when the library lacks a module. */
+export function presetLayers(p: PresetEntry, library: LibraryEntry[], rig: Rig | null): Layer[] | null {
+  const byName = new Map(library.filter((e): e is ModuleEntry => !isPreset(e)).map((e) => [e.name, e]));
+  if (p.layers.some((l) => l.modules.some((m) => !byName.has(m.ref)))) return null;
+  return p.layers.map((l, n) => newLayer({
+    title: l.title || (p.layers.length > 1 ? `${p.title} ${n + 1}` : p.title), blend: l.blend ?? 'add',
+    level: l.level ?? 1, ...(l.soften ? { soften: { ...l.soften } } : {}),
+    modules: l.modules.map((m) => {
+      const e = byName.get(m.ref)!, made = moduleFromLibrary(e);
+      return cleanModule({ ...made, id: m.id ?? made.id, title: m.title || made.title, params: m.params ?? {},
+        blend: m.blend, as: m.as, input: m.input, enabled: m.enabled === false ? false : undefined });
+    }),
+  }, rig));
+}
+
+/** A look's globals with what a preset needs: its macros the look lacks, and its palette when the look has none;
+ * everything else stays the look's. */
+export function withPresetGlobals(look: Globals | null | undefined, p: PresetEntry): Globals | undefined {
+  const want = p.globals;
+  if (!want) return look ?? undefined;
+  const macros = { ...want.macros, ...look?.macros };
+  return { ...look, ...(!look?.palette && want.palette ? { palette: want.palette } : {}),
+    ...(Object.keys(macros).length ? { macros } : {}) };
+}
 
 /** Only the fields a saved module keeps (SPEC "Modules"). */
 export function cleanModule(m: Partial<Module>): Module {

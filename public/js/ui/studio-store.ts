@@ -6,7 +6,7 @@ import { batch, computed, signal } from '@preact/signals';
 import { api, statusOf } from '../api.ts';
 import type { Automation, Globals, Module } from '../../../shared/schemas/look.ts';
 import type { Look, User } from '../../../shared/schemas/api.ts';
-import type { LibraryEntry, Rig } from '../../../shared/schemas/rig.ts';
+import type { LibraryEntry, ModuleEntry, Rig } from '../../../shared/schemas/rig.ts';
 import { replaceUrl, setTitle, signedOut } from './session.ts';
 import { pref, reducedMotion, toast } from './kit.tsx';
 import { createLayerStatus } from './layer-status.ts';
@@ -140,7 +140,7 @@ export function createStudio(me: User | null) {
         setTitle(L.title);
       }
       if (!L.layers.length) {
-        const first = library.find((p) => (p.kind || 'source') === 'source');
+        const first = library.find((p): p is ModuleEntry => (p.kind || 'source') === 'source');
         L.layers = [first ? layerFromPattern(first, rig) : newLayer({ title: 'Rising band' }, rig)];
       }
       batch(() => {

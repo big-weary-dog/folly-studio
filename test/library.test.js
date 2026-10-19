@@ -48,7 +48,7 @@ describe('every library module renders finite values on the mini rig', () => {
   const small = prepareScene(mini);
   const BASE = { id: 'b', kind: 'source', code: 'function pixel(p, t) { return [p.x, fract(p.y + t), p.u]; }' };
   const places = [{}, { tags: ['rose'] }, { tags: ['arch'] }, { tags: ['wash', 'canopy'] }, { tags: ['tower'] }];
-  for (const e of index) {
+  for (const e of index.filter((x) => x.kind !== 'preset')) { // presets: presets.test.ts
     test(e.name, () => {
       const modules = e.kind === 'source' ? [{ id: 'm', kind: 'source', code: source(e.name) }]
         : [BASE, { id: 'm', kind: e.kind, code: source(e.name), input: 'b' }];

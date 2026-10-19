@@ -234,13 +234,17 @@ export function formatGroups(groups: Groups = []) {
   return lines.join('\n');
 }
 
-/** Every library entry, one line each (`- name: summary`) under its kind: the names `ref` and `use()` take. */
+/** Every library entry, one line each (`- name: summary`) under its kind: the names `ref` and `use()` take; presets
+ * as their chains (`- name: a → b → c, summary`), recipes a layer's modules can copy. */
 export function formatLibraryIndex(library: Library = []) {
   const entries = library.filter((p) => p && p.name);
-  const kindOf = (p: LibraryEntry) => (MODULE_KINDS.includes(p.kind) ? p.kind : 'source');
+  const kindOf = (p: LibraryEntry) => (p.kind === 'preset' ? 'preset' : MODULE_KINDS.includes(p.kind) ? p.kind
+    : 'source');
   const summary = (p: LibraryEntry) => String(p.summary || '').replace(/\s+/g, ' ').trim().slice(0, 140);
-  const line = (p: LibraryEntry) => `- ${p.name}${summary(p) ? `: ${summary(p)}` : ''}`;
-  return MODULE_KINDS.map((kind) => [kind, entries.filter((p) => kindOf(p) === kind)] as const)
+  const recipe = (p: LibraryEntry) => (p.kind === 'preset' ? `${p.layers.map((l) => l.modules.map((m) => m.ref)
+    .join(' → ')).join(' | ')}, ` : '');
+  const line = (p: LibraryEntry) => `- ${p.name}${summary(p) ? `: ${recipe(p)}${summary(p)}` : ''}`;
+  return [...MODULE_KINDS, 'preset' as const].map((kind) => [kind, entries.filter((p) => kindOf(p) === kind)] as const)
     .filter(([, list]) => list.length)
     .map(([kind, list]) => `${kind[0]!.toUpperCase()}${kind.slice(1)}s:\n${list.map(line).join('\n')}`).join('\n');
 }

@@ -10,7 +10,9 @@ import fastifyStatic from '@fastify/static';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
-import { LibraryEntry, Rig, type Rig as RigType, type RigGroup } from '../shared/schemas/rig.ts';
+import {
+  LibraryEntry, type LibraryEntry as LibraryEntryType, Rig, type Rig as RigType, type RigGroup,
+} from '../shared/schemas/rig.ts';
 import { problem } from '../shared/schemas/look.ts';
 import { HttpError, type Log } from './http.ts';
 
@@ -102,7 +104,8 @@ const Index = z.array(z.unknown()).catch([]).transform((list) => {
   return list.flatMap((e) => LibraryEntry.safeParse(e).data ?? []).filter((e) => !seen.has(e.name) && seen.add(e.name));
 });
 
-// createLoaders(publicDir) → { loadLibrary() → [{ name, title, summary, tags, kind, category, code, … }],
+// createLoaders(publicDir) → { loadLibrary() → [{ name, title, summary, tags, kind, category, code, … }] (a preset:
+//   its layers, code ''; one that names a module the library lacks is dropped),
 //   loadRig() → rig.json as SPEC "Rig" has it (null until it exists), loadGroups() → its `groups`,
 //   version() → a string that changes when any of their files does }
 export function createLoaders(publicDir = DEFAULT_PUBLIC_DIR, { log }: { log: Log }) {
@@ -111,9 +114,21 @@ export function createLoaders(publicDir = DEFAULT_PUBLIC_DIR, { log }: { log: Lo
   const rigFile = path.join(publicDir, 'data', 'rig.json');
   const index = memo(() => [indexFile], () => Index.parse(readJson(indexFile, log)));
   const codeFile = (e: { name: string }) => path.join(libDir, `${e.name}.js`);
-  const loadLibrary = memo(() => [indexFile, ...index().map(codeFile)], () => index().flatMap((e) => {
-    try { return [{ ...e, code: readFileSync(codeFile(e), 'utf8') }]; } catch { return []; } // listed, no file
-  }));
+  const codeFiles = () => index().filter((e) => e.kind !== 'preset').map(codeFile);
+  const loadLibrary = memo(() => [indexFile, ...codeFiles()], () => {
+    const modules = index().flatMap((e) => {
+      if (e.kind === 'preset') return [];
+      try { return [{ ...e, code: readFileSync(codeFile(e), 'utf8') }]; } catch { return []; } // listed, no file
+    });
+    const known = new Set(modules.map((e) => e.name));
+    const presets = index().flatMap((e) => {
+      if (e.kind !== 'preset') return [];
+      const lost = e.layers.flatMap((l) => l.modules).find((m) => !known.has(m.ref));
+      if (lost) log.warn?.(`static: preset ${e.name} names ${lost.ref}, which the library lacks; dropped`);
+      return lost ? [] : [{ ...e, code: '' }];
+    });
+    return [...modules, ...presets] as LibraryEntryType[];
+  });
   const loadRig = memo(() => [rigFile], () => {
     const json = readJson(rigFile, log);
     const rig = json && Rig.safeParse(json);
@@ -121,6 +136,6 @@ export function createLoaders(publicDir = DEFAULT_PUBLIC_DIR, { log }: { log: Lo
     return rig?.success ? json as RigType : null;
   });
   const loadGroups = (): RigGroup[] => loadRig()?.groups ?? [];
-  const version = () => [indexFile, rigFile, ...index().map(codeFile)].map(statSig).join('|');
+  const version = () => [indexFile, rigFile, ...codeFiles()].map(statSig).join('|');
   return { loadLibrary, loadRig, loadGroups, version };
 }

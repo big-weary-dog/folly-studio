@@ -86,25 +86,39 @@
   .pick-pop.sheet::backdrop { background: rgb(6 4 11 / .45); }
   .pick-whole { width: 92px; }
 }
-/* the shelf docks beside the 3D view, lightly veiled, so an audition shows; on a phone, a sheet from below */
-.dialog.shelf-dialog { width: min(440px, calc(100vw - 24px)); margin-right: 12px; }
+/* the pickers dock beside the 3D view, lightly veiled, so an audition shows; on a phone, a sheet from below. Tabs by
+   kind, then one-line rows: a kind dot, the name, the summary cut to fit (all of it on hover, and while previewing) */
+[data-kind=preset] { --kind: var(--violet); }
+[data-kind=blank] { --kind: var(--text-3); }
+.dialog.shelf-dialog { width: min(460px, calc(100vw - 24px)); margin-right: 12px; }
 .shelf-dialog::backdrop { background: rgb(6 4 11 / .2); }
-.shelf-dialog .dialog-body { overflow: hidden; }
+.shelf-dialog .dialog-body { overflow: hidden; gap: 8px; }
+.shelf-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.shelf-tabs { display: flex; gap: 4px; }
+.shelf-tabs [aria-selected=true] { color: var(--sand); box-shadow: inset 0 -2px 0 var(--kind), var(--bevel); }
+.shelf-find { flex: 1; min-width: 140px; }
+.shelf-text { margin: 0; color: var(--text-3); font-size: 12.5px; }
 .shelves { min-height: 0; overflow: auto; }
-.shelf-entry { position: relative; }
-.shelf-try { position: absolute; top: 6px; right: 6px; display: none; }
+.shelf-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.shelf-entry { display: flex; align-items: center; gap: 4px; }
+.shelf-row { display: flex; flex: 1; align-items: center; gap: 8px; min-width: 0; min-height: var(--hit, 28px);
+  padding: 3px 8px; font: 13px var(--font); color: var(--text-2); text-align: left; background: none;
+  border: 1px solid #0000; border-radius: var(--radius); cursor: pointer; }
+.shelf-row:is(:hover, :focus-visible) { color: var(--text); background: var(--night-2); border-color: var(--lead); }
+.kind-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--kind); }
+.shelf-row.blank .kind-dot { background: none; border: 1.5px dashed var(--kind); }
+.shelf-name { flex: none; font-weight: 650; color: var(--text); }
+.shelf-sum { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  color: var(--text-3); }
+.shelf-try { display: none; flex: none; }
+@media (hover: none) { .shelf-try { display: inline-flex; } }
+.shelf-cat { margin: 8px 0 2px 8px; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-3); }
 .shelf-bar { display: flex; align-items: center; gap: 10px; }
-.shelf-bar span { flex: 1; color: var(--text-2); }
+.shelf-bar span { flex: 1; min-width: 0; color: var(--text-2); }
+.shelf-said { display: block; color: var(--text-3); }
 .shelf-dialog.is-trying .dialog-head, .shelf-dialog.is-trying .dialog-body > :not(.shelf-bar) { display: none; }
 .shelf-dialog.is-trying::backdrop { background: none; }
-@media (hover: none) { .shelf-try { display: inline-flex; } .shelf-entry .library-item { padding-right: 96px; } }
-.shelf + .shelf { margin-top: 18px; }
-.shelf-title { margin: 0; font-size: 16px; color: var(--kind); }
-.shelf-text { margin: 2px 0 8px; color: var(--text-3); font-size: 13px; }
-.shelf-cat { margin: 10px 0 6px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
-  color: var(--text-2); }
-.shelf .library-item { --tint: var(--kind); }
-.shelf .library-title { display: flex; align-items: center; gap: 8px; }
 /* the look's globals: sliders, the palette's roles as glass, macros */
 .look-globals { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px 24px; }
 .look-globals section { display: flex; flex-direction: column; gap: 6px; min-width: 0; }

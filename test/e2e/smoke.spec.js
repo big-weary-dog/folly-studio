@@ -1,8 +1,9 @@
 // npm run smoke: the app in a browser, the way a person meets it, at a laptop's size and a phone's: sign up, an idea
 // the sketch generator turns into a look, the Studio in the Playa view with the sandbox running, a param dragged and
 // stepped, a typo and a hang in the code (reported, paused by the watchdog, running again once fixed), the timeline,
-// a source's Colours played in an accent (the pick tile), and a bake in the real render box (the laptop bakes from
-// the Studio; the phone says to bake from a larger screen and plays the baked frames).
+// a source's Colours played in an accent (the pick tile), a preset added from Add a layer and one kind of module
+// shown in Add a module, and a bake in the real render box (the laptop bakes from the Studio; the phone says to bake
+// from a larger screen and plays the baked frames).
 // The real server and a fresh build (studio.js); WebGL on SwiftShader. Every request stays on our origin, and the
 // console stays free of errors and CSP reports. Screenshots of each step land in the test's output folder.
 import { createRenderBox } from '../../src/render-box.ts';
@@ -118,6 +119,23 @@ for (const [name, device] of Object.entries(SIZES)) {
         await page.keyboard.press('Escape');
         await expect(page.locator('.pick-pop:popover-open')).toHaveCount(0);
         await expect(pick).toContainText('accent1');
+      });
+
+      await test.step('the pickers: a preset adds its layer; Add a module shows one kind', async () => {
+        if (!wide) await page.locator('.tab[data-tab=layers]').click();
+        await page.locator('.pane-layers button', { hasText: 'Add' }).first().click();
+        const picker = page.locator('dialog.shelf-dialog[open]');
+        await picker.getByRole('tab', { name: 'Presets' }).click();
+        await shot('presets');
+        await picker.locator('.shelf-row', { hasText: 'Palette drift' }).click();
+        await expect(page.locator('.layer-name:visible', { hasText: 'Palette drift' })).toHaveCount(1);
+        if (!wide) return;
+        await page.locator('.chain-add').click();
+        await picker.getByRole('tab', { name: 'Warps' }).click();
+        await expect(picker.locator('.shelf-row[data-kind=warp]:visible').first()).toBeVisible();
+        await expect(picker.locator('.shelf-row[data-kind=source]:visible')).toHaveCount(0);
+        await shot('warps');
+        await page.keyboard.press('Escape');
       });
 
       await test.step('bake', async () => {
