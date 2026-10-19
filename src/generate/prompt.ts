@@ -88,8 +88,10 @@ wrapping: bands, seeded objects), palette(t) (the palette's colours, low to high
 group with that tag, [] if none: call it inside pixel or frame),
 extent() (this layer's bounds in metres, [[X0, Y0, Z0], [X1, Y1, Z1]]: to place a centre in it, measure in metres,
 fill it), clock(name) (how far number param name, a speed, has moved things: draw motion from clock('speed'), not
-t × P.speed, so a modulated speed never jumps), use(name, params?) (a library pattern as a function (p, t) → colour;
-call it at the top level). Colours are [r, g, b] arrays, 0..1.
+t × P.speed, so a modulated speed never jumps), DIRECTIONS and toward(p, direction) (a source that rises, falls or
+sweeps declares direction: { value: 'up', type: 'choice', options: DIRECTIONS } and reads toward(p, P.direction),
+0..1 along it: up down right left back front out in round along), use(name, params?) (a library pattern as a
+function (p, t) → colour; call it at the top level). Colours are [r, g, b] arrays, 0..1.
 
 Rules for code:
 - pixel() runs ~195,000 times a second: keep it cheap, no big allocations per call; put

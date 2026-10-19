@@ -9,7 +9,7 @@ import { describe, test } from 'vitest';
 
 import { resolve, safeNext } from '../public/js/ui/app.tsx';
 import {
-  bindingForm, bindingText, makeBinding, normaliseParam, type Param, shownValue,
+  bindingForm, bindingText, makeBinding, normaliseParam, optionText, type Param, shownValue,
 } from '../public/js/ui/bindings.ts';
 import { decimals, scrubTo, snap } from '../public/js/ui/kit.tsx';
 import { createLayerStatus } from '../public/js/ui/layer-status.ts';
@@ -62,6 +62,8 @@ describe('modulation', () => {
     assert.deepEqual([choice.kind, choice.value, choice.options], ['choice', 'wire', ['wire', 'space']]);
     assert.deepEqual(shownValue(choice, { mode: 'space' }, 'mode').value, 'space');
     assert.deepEqual(shownValue(choice, { mode: 'fog' }, 'mode').value, 'wire');
+    assert.equal(optionText('right', ['up', 'right', 'out']), 'Across →', 'a direction says where it goes');
+    assert.equal(optionText('wire', ['wire', 'space']), 'Wire');
   });
 
   test('the dialog opens on the binding there is, keeps global and envelope ends apart, and falls back', () => {

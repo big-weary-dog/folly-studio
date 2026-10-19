@@ -212,9 +212,20 @@ pick's or role's i-th colour, floored and wrapping),
 `tag`: its `centre` as `[X, Y, Z]`, `[]` when none; call it in `frame` or `pixel`), `extent()` (the running layer's
 pixels' bounds in metres, `[[X0, Y0, Z0], [X1, Y1, Z1]]`, which `lx ly lz` map to 0..1: so a pattern can burst from
 a `centres()` point and still fill its layer), `clock(name)` (how far number param `name`, a speed, has moved
-things: "Integrated clocks" below), and `use(name, params?)` → a
+things: "Integrated clocks" below), `DIRECTIONS` and `toward(p, direction)` ("Directions" below), and
+`use(name, params?)` → a
 function `(p, t) → colour` running library source `name` as its own instance (its `frame` runs once per new t;
 throws `unknown library pattern`). Colours are `[r, g, b]` arrays, 0..1.
+
+### Directions
+
+A library module with a built-in orientation (it rises, falls, sweeps across, opens from the middle) says so with a
+`direction` choice param, `{ value: 'up', type: 'choice', options: DIRECTIONS, label: 'Direction' }`, its default
+the orientation it always had, so the UI and the generators see one convention. `DIRECTIONS` is `up down right left
+back front out in round along`, and `toward(p, direction)` turns one into a coordinate, 0..1 across the layer: `up`
+ly, `down` 1 − ly, `right` lz (the viewer's right), `left` 1 − lz, `back` lx (front to back), `front` 1 − lx, `out` r,
+`in` 1 − r, `round` a (clockwise), `along` u. A free angle off it, where one makes sense, is an `angle` param in turns.
+A centre is a location, not an orientation: the `anchor` warp moves it.
 
 ### Modules: a layer is a chain
 

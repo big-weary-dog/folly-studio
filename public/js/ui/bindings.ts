@@ -10,6 +10,13 @@ export type BindingForm = { mod: '' | Binding['mod']; shape: Shape; rate: string
   depth: string; hold: string; name: string; from: string; to: string; eFrom: string; eTo: string };
 export const SHAPES: Shape[] = ['sine', 'tri', 'saw', 'square', 'hold'];
 
+/** A choice option as the UI says it: the library's directions (SPEC "Directions") with arrows, else humanized. */
+const DIRECTION_TEXT: Record<string, string> = { up: 'Up ↑', down: 'Down ↓', right: 'Across →', left: 'Across ←',
+  back: 'Front → back', front: 'Back → front', out: 'Out from the centre', in: 'In to the centre',
+  round: 'Round, clockwise', along: 'Along the strands' };
+export const optionText = (key: string, options: string[]) => (options.every((o) => o in DIRECTION_TEXT)
+  ? DIRECTION_TEXT[key] : humanize(key));
+
 /** Is v a param binding rather than a value? */
 export const isBinding = (v: unknown): v is Binding => !!v && typeof v === 'object' && !Array.isArray(v)
   && typeof (v as Binding).mod === 'string';

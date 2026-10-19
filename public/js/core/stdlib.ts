@@ -274,13 +274,36 @@ function centres(tag: string) { return RUN.scene ? RUN.scene.centresOf(String(ta
  * to 0..1), so a pattern can place a point from centres() in its layer and size itself to it. */
 function extent() { return RUN.extent; }
 
+/** The library's directions (SPEC "Directions"): the options of every `direction` choice param, in this order. */
+export const DIRECTIONS = Object.freeze(['up', 'down', 'right', 'left', 'back', 'front', 'out', 'in', 'round',
+  'along'] as const);
+export type Direction = (typeof DIRECTIONS)[number];
+type Placed = { lx: number, ly: number, lz: number, a: number, r: number, u: number };
+/** toward(p, direction): how far p is along a direction, 0..1 across the layer: up ly, down 1 − ly, right lz (the
+ * viewer's right), left 1 − lz, back lx (front to back), front 1 − lx, out r, in 1 − r, round a (clockwise), along
+ * u (each strand from its start); anything else, up. */
+function toward(p: Placed, direction: string) {
+  switch (direction) {
+    case 'down': return 1 - p.ly;
+    case 'right': return p.lz;
+    case 'left': return 1 - p.lz;
+    case 'back': return p.lx;
+    case 'front': return 1 - p.lx;
+    case 'out': return p.r;
+    case 'in': return 1 - p.r;
+    case 'round': return p.a;
+    case 'along': return p.u;
+    default: return p.ly;
+  }
+}
+
 /** Everything pattern code sees as globals. */
 export const STDLIB = Object.freeze({
   PI, TAU, sin: Math.sin, cos: Math.cos, tan: Math.tan, asin: Math.asin, acos: Math.acos, atan: Math.atan,
   atan2: Math.atan2, abs: Math.abs, min: Math.min, max: Math.max, floor: Math.floor, ceil: Math.ceil,
   round: Math.round, sqrt: Math.sqrt, pow: Math.pow, exp: Math.exp, log: Math.log, hypot: Math.hypot, sign: Math.sign,
   clamp, fract, mix, step, smoothstep, soft, band, wave, tri, saw, pulse, hash, rand, noise, fbm,
-  hsv, hsl, rgb, hex, scale, add, gradient, cosPalette, pal, palette, centres, extent, beat, dist,
+  hsv, hsl, rgb, hex, scale, add, gradient, cosPalette, pal, palette, centres, extent, beat, dist, DIRECTIONS, toward,
 });
 export const STDLIB_NAMES = Object.freeze(Object.keys(STDLIB));
 export const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);

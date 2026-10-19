@@ -1,8 +1,8 @@
 // pattern-core.ts: Folly Studio's pattern runtime (SPEC "Sandbox protocol"). Pure ES modules: no
 // DOM, no globals touched. It runs in the sandbox's worker (Vite builds it in), in the boxes, from its source (the
 // render box's realm takes it as one script: src/core-script.ts), and in the Node tests on our own library patterns.
-export { DEFAULT_PALETTE, PALETTE_ROLES, STDLIB, STDLIB_NAMES } from './core/stdlib.ts';
-export type { Colour, PaletteColours, PaletteHex, PaletteRole, RGB } from './core/stdlib.ts';
+export { DEFAULT_PALETTE, DIRECTIONS, PALETTE_ROLES, STDLIB, STDLIB_NAMES } from './core/stdlib.ts';
+export type { Colour, Direction, PaletteColours, PaletteHex, PaletteRole, RGB } from './core/stdlib.ts';
 export { compileModule, compilePattern, describeError, normalizeParams, setLibrary } from './core/compile.ts';
 export { pickText, readPick } from './core/picks.ts';
 export type { PickBlend, PickSpec } from './core/picks.ts';

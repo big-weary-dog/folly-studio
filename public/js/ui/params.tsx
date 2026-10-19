@@ -8,8 +8,8 @@ import { useState } from 'preact/hooks';
 import type { ParamValue } from '../../../shared/schemas/look.ts';
 import { DEFAULT_PALETTE } from '../core/stdlib.ts';
 import {
-  type BindingForm, bindingForm, bindingText, fmt, isBinding, makeBinding, normaliseParam, type Param, SHAPES,
-  shownValue,
+  type BindingForm, bindingForm, bindingText, fmt, isBinding, makeBinding, normaliseParam, optionText, type Param,
+  SHAPES, shownValue,
 } from './bindings.ts';
 import { cx, Field, humanize, openDialog, Scrub } from './kit.tsx';
 import { type Colours, PickRow } from './picks.tsx';
@@ -70,7 +70,7 @@ function Control({ name, p, values, set, globals, colours, narrow }: { name: str
       }))}>∿</button></>
     : p.kind === 'choice' ? <select id={id} class="param-choice" value={value as string}
       onChange={(e) => put(e.currentTarget.value)}>
-      {p.options.map((o) => <option value={o}>{humanize(o)}</option>)}</select>
+      {p.options.map((o) => <option value={o}>{optionText(o, p.options)}</option>)}</select>
     : <input type="checkbox" id={id} class="switch" checked={value as boolean}
       onChange={(e) => put(e.currentTarget.checked)} />);
   // Unused, the reset keeps its place (hidden), so a field never moves under the pointer.
