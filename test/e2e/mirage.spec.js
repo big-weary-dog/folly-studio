@@ -3,11 +3,12 @@
 // E1.31 through relay/relay.js into Mirage, then compares Mirage's pixel store with our bytes per pixel, matched by
 // universe + channel. Each finding is asserted (softly, so the report is whole) and written to run.md with
 // screenshots in E2E_OUT. Not in `npm test` or CI: it needs the relay's own install and Mirage on software GL.
+// It starts only once nothing else sends sACN to :5568, and its processes go with it, however the run ends.
 //
-//   E2E_DEPS=<folder with node_modules/three@0.160.0>  E2E_OUT=<folder for screenshots and findings>
-//   needs: relay/node_modules (cd relay && npm install), python3, ports 8765 (E2E_HTTP_PORT) and 3001 free
+//   E2E_DEPS=<folder with node_modules/three@0.160.0>  E2E_OUT=<folder for screenshots and findings (default: the
+//   test's own output folder, new each run)>
+//   needs: relay/node_modules (cd relay && npm install), python3, ports 8765 (E2E_HTTP_PORT), 3001 and 5568 free
 import { mkdirSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
@@ -20,12 +21,12 @@ import {
 } from './compare.mjs';
 import { ADDRESS_CODE, FULL, led, libraryCode, renderLook, toFseq, ZONE_CODE, ZONE_LABELS } from './looks.mjs';
 import { newContext, openMirage, showView, threeDir, viewFrom, waitForDrive } from './mirage.mjs';
-import { Stack } from './stack.mjs';
+import { quietSacn, Stack } from './stack.mjs';
 
-const OUT = path.resolve(process.env.E2E_OUT || path.join(os.tmpdir(), 'folly-studio-e2e'));
 const HTTP_PORT = Number(process.env.E2E_HTTP_PORT || 8765);
 const MOVING = process.env.E2E_PATTERN || 'plasma';
 const log = (m) => console.log(`e2e: ${m}`);
+let OUT;
 const file = (name, bytes) => {
   const p = path.join(OUT, name);
   writeFileSync(p, bytes);
@@ -69,7 +70,12 @@ async function playerForms(rendered) {
     .join('\n') };
 }
 
+const stack = new Stack({ httpPort: HTTP_PORT, log });
+test.beforeAll(() => quietSacn());
+test.afterAll(() => stack.down());   // also after a timeout, when the test's own finally may never run
+
 test('Studio → sACN → relay → Mirage, byte for byte', async ({ browser }, info) => {
+  OUT = path.resolve(process.env.E2E_OUT || info.outputPath());
   mkdirSync(OUT, { recursive: true });
   const md = ['# Folly Studio → sACN → relay → Mirage: end-to-end findings', '',
     `Run ${new Date().toISOString()}. Output in \`${OUT}\`.`, ''];
@@ -81,7 +87,6 @@ test('Studio → sACN → relay → Mirage, byte for byte', async ({ browser }, 
     shots.push(p);
     log(`screenshot ${p}`);
   };
-  const stack = new Stack({ httpPort: HTTP_PORT, log });
   let looks, context;
   try {
     await test.step('our LED map is the canonical CSV', () => {
