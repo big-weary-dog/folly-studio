@@ -89,7 +89,8 @@ test('a reload, a minute or a day later, sends only the shell and the API calls:
 test('an idea session: polls back off and answer 304s; lists carry metadata, not code', async () => {
   const b = browser(port, { cookie, manifest });
   await b.load('/ideas', { view: 'js/ui/pages.tsx', api: ['/api/me', '/api/ideas', '/api/models'] });
-  const { idea } = JSON.parse((await b.call('POST', '/api/ideas', { text: 'Rising embers drift up the spires' })).text);
+  const body = { text: 'Rising embers drift up the spires', model: 'sketch' };
+  const { idea } = JSON.parse((await b.call('POST', '/api/ideas', body)).text);
   app.store.ideas.update(idea.id, { status: 'generating' });
   // ui/pages.tsx long-polls; where the server answers at once (this queue cannot be watched), it asks after 2 s, then
   // 1.5× as long each time, up to 10 s; ready after 60 s here. (models-api.test.js holds the long poll itself.)

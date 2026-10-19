@@ -115,7 +115,7 @@ describe('availability and choices', () => {
     c.models.find((m) => m.id === 'luna').roles = ['admin'];
     c.models.find((m) => m.id === 'sketch').enabled = false;
     r.save(c);
-    assert.deepEqual(r.choices('member'), { models: [{ id: 'sol', label: 'Sol' }], default: 'sol' },
+    assert.deepEqual(r.choices('member'), { models: [{ id: 'sol', label: 'Sol', paid: true }], default: 'sol' },
       'opus has no key, luna is for admins, sketch is off');
     assert.deepEqual(r.choices('admin').models.map((m) => m.id), ['sol', 'luna']);
     assert.equal(r.pick(undefined, 'member').entry.id, 'sol');

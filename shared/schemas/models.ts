@@ -2,6 +2,8 @@
 // use it. It lives in a JSON file an admin edits (src/generate/models.ts reads it); the admin API takes the same shape.
 import { z } from 'zod';
 
+import { GlobalLimits, PersonLimits } from './access.ts';
+
 /** How a model is reached: the Messages API, the Codex CLI, the offline sketcher, or the Fleet foundry. */
 export const TRANSPORTS = ['claude', 'codex', 'sketch', 'fleet'] as const;
 export type Transport = typeof TRANSPORTS[number];
@@ -31,6 +33,8 @@ export const ModelEntry = z.strictObject({
   timeoutSeconds: int('timeoutSeconds', 10, 3600).optional(),
   enabled: z.boolean({ error: 'enabled must be true or false.' }).default(true),
   roles: z.array(z.enum(ROLES, { error: `roles must be from ${ROLES.join(', ')}.` })).min(1).optional(),
+  /** Caps counted on this model's ideas alone (SPEC "Access"). */
+  limits: PersonLimits.optional(),
 });
 export type ModelEntry = z.output<typeof ModelEntry>;
 
@@ -44,6 +48,8 @@ export const ModelsConfig = z.strictObject({
     .max(24, { error: 'models may list at most 24 models.' }),
   /** Jobs run at once per transport, so a slow call on one never holds up another. */
   concurrency: Lanes.optional(),
+  /** Who may use the paid models, and how much (SPEC "Access"); none: the defaults. */
+  limits: GlobalLimits.optional(),
 }).superRefine((c, ctx) => {
   const seen = new Set<string>();
   c.models.forEach((m, i) => {
@@ -71,7 +77,9 @@ export function readModels(json: unknown): { config: ModelsConfig } | { error: s
 }
 
 // What the API answers with. GET /api/models: what this user may pick, and which one the form starts on.
-export type ModelChoice = { id: string, label: string };
+/** `paid`: it spends money or capacity (any via but sketch), so it needs an unlocked account. */
+export type ModelChoice = { id: string, label: string, paid: boolean };
+export const isPaid = (m: { via: Transport }) => m.via !== 'sketch';
 export type ModelChoices = { models: ModelChoice[], default: string | null };
 /** GET /api/admin/models: the file, its contents, whether each model can run here, and each transport's efforts. */
 export type ModelState = { id: string, available: boolean, note: string, warn?: boolean };

@@ -5,9 +5,11 @@ import '../../css/pages.css';
 import { useEffect, useRef, useState } from 'preact/hooks';
 
 import { api, statusOf } from '../api.ts';
+import type { Access } from '../../../shared/schemas/access.ts';
 import type { Idea, Listed } from '../../../shared/schemas/api.ts';
 import type { ModelChoices } from '../../../shared/schemas/models.ts';
 import { navigate, setTitle, signedOut, user, type ViewProps } from './session.ts';
+import { AccessGate, gateOf } from './idea-access.tsx';
 import { confirmDialog, cx, jewelGradient, timeAgo, toast } from './kit.tsx';
 import { Rose } from './rose.tsx';
 
@@ -22,6 +24,9 @@ const MAX_LEN = 2000;
 const POLL_FIRST_MS = 2000, POLL_MAX_MS = 10_000;
 const isPending = (i: Idea) => i.status === 'queued' || i.status === 'generating';
 const studioHref = (id: string) => `/studio/${encodeURIComponent(id)}`;
+/** "Opus, Sol and Luna". */
+const listed = (names: string[]) => names.length < 2 ? names.join('')
+  : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const shown = () => new Promise<void>((r) => {
   const on = () => { if (!document.hidden) { document.removeEventListener('visibilitychange', on); r(); } };
@@ -71,6 +76,8 @@ export function Ideas() {
   const [ideas, setIdeas] = useState<Idea[] | null>(null);
   const [text, setText] = useState(''), [error, setError] = useState(''), [busy, setBusy] = useState(false);
   const [choices, setChoices] = useState<ModelChoices | null>(null), [model, setModel] = useState('');
+  const [access, setAccess] = useState<Access | null>(null);
+  const refresh = () => api.me().then((m) => setAccess(m.access ?? null), () => {});
   const input = useRef<HTMLTextAreaElement>(null), form = useRef<HTMLFormElement>(null);
   const known = useRef(new Map<string, string>());        // id → status, to notice when one becomes ready
   const ready = useRef(new Map<string, () => void>());    // look id → close() of its "ready" toast
@@ -86,6 +93,7 @@ export function Ideas() {
       } else if (before && before !== 'failed' && idea.status === 'failed') {
         toast(`An idea could not be generated${idea.error ? `: ${idea.error}` : '.'}`, { kind: 'error' });
       }
+      if (before && before !== idea.status && !isPending(idea)) refresh();  // a slot came free
       known.current.set(idea.id, idea.status);
     }
   }, [ideas]);
@@ -97,10 +105,22 @@ export function Ideas() {
   });
   usePolling(ideas, (f) => setIdeas((all) => f(all || [])), load);
   const pickable = choices && choices.models.length > 1 ? choices.models : null;
+  const chosen = choices?.models.find((m) => m.id === (pickable ? model : choices.default));
+  const free = choices?.models.find((m) => !m.paid);
+  const paidLabels = listed((choices?.models ?? []).filter((m) => m.paid).map((m) => m.label));
+  const gate = gateOf(access, chosen);
+  const sketch = free && free.id !== chosen?.id && pickable ? () => setModel(free.id) : undefined;
   useEffect(() => {
     setTitle('Ideas');
     load();
-    api.models().then((c) => { setChoices(c); setModel(c.default ?? ''); }).catch(() => {});
+    // A locked account starts on the free model.
+    Promise.all([api.models(), api.me()]).then(([c, m]) => {
+      const start = c.models.find((x) => x.id === c.default);
+      const open = m.access?.unlocked !== false || !start?.paid;
+      setChoices(c);
+      setAccess(m.access ?? null);
+      setModel((open ? c.default : c.models.find((x) => !x.paid)?.id ?? c.default) ?? '');
+    }).catch(() => {});
     if (matchMedia('(pointer: fine)').matches && document.activeElement === document.body) {
       input.current?.focus({ preventScroll: true });
     }
@@ -116,15 +136,21 @@ export function Ideas() {
     const t = text.trim();
     setError(t ? '' : 'Describe your idea first.');
     if (!t) return input.current?.focus();
+    if (gate.kind === 'locked' || gate.kind === 'wait') return;
     setBusy(true);
     try {
       const { idea } = await api.createIdea(t, pickable ? model : undefined);
       setText('');
       known.current.set(idea.id, idea.status);
       setIdeas((all) => [idea, ...(all || []).filter((i) => i.id !== idea.id)]);
+      if (chosen?.paid) refresh();
     } catch (err) {
       if (statusOf(err) === 401) return signedOut();
-      setError((err as Error).message);
+      // Refused as locked or at a limit (another tab, a stale page): the gate says why, with the server's access.
+      const now = (err as { data?: { access?: Access } }).data?.access;
+      if (now) setAccess(now);
+      const shown = now && ['locked', 'wait'].includes(gateOf(now, chosen).kind);
+      setError(shown ? '' : (err as Error).message);
     } finally {
       setBusy(false);
     }
@@ -153,9 +179,14 @@ export function Ideas() {
             <span class="kbd-hint">Ctrl + Enter</span>
             {pickable && <label class="model-pick">Model
               <select value={model} onChange={(e) => setModel(e.currentTarget.value)}>
-                {pickable.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>}
-            <button class={cx('btn primary', busy && 'busy')} type="submit" disabled={busy}>Turn it into a look</button>
+                {pickable.map((m) => <option key={m.id} value={m.id}>
+                  {m.paid && access && !access.unlocked ? `${m.label} (invite)` : m.label}</option>)}</select></label>}
+            {gate.kind === 'open' && <AccessGate gate={gate} paidLabels={paidLabels} onAccess={setAccess} />}
+            {gate.kind !== 'locked' && <button class={cx('btn primary', busy && 'busy')} type="submit"
+              disabled={busy || gate.kind === 'wait'}>Turn it into a look</button>}
           </div>
+          {gate.kind !== 'open' && <AccessGate gate={gate} model={chosen} paidLabels={paidLabels} sketch={sketch}
+            onAccess={setAccess} />}
         </form>
       </section>
       <section class="ideas-section" aria-labelledby="my-ideas-h">

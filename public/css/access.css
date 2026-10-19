@@ -1,0 +1,29 @@
+/* The Access page (js/ui/access.tsx, admins): invite codes and people, one row each in violet glass. */
+.access-page, .main-nav a[href="/access"] { --tint: var(--violet); }
+.access-page { max-width: 880px; }
+.access-panel { margin-top: 28px; padding: 16px 20px; border: var(--came) solid var(--lead);
+  background: color-mix(in srgb, var(--tint) 5%, var(--night-1)); }
+.access-panel h2 { font-size: 18px; margin-bottom: 12px; }
+.new-code, .limits-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 14px; }
+.new-code label, .limits-form label { display: flex; flex-direction: column; gap: 4px; color: var(--text-3);
+  font-size: 12.5px; }
+.new-code input { min-height: var(--hit, 36px); width: 130px; }
+.new-code label:first-child input { width: 220px; }
+.limits-form { flex-basis: 100%; padding-top: 6px; }
+.limits-form input { width: 90px; }
+.fresh-code { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 14px; padding: 12px 14px;
+  border-left: 4px solid var(--emerald); background: color-mix(in srgb, var(--emerald) 10%, var(--night-1));
+  color: var(--text-2); font-size: 13px; }
+.fresh-code code { font-family: var(--mono); font-size: 18px; letter-spacing: .1em; color: var(--text); }
+.access-list { list-style: none; margin: 14px 0 0; padding: 0; }
+.access-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 0; }
+.access-row + .access-row { border-top: 1px solid rgb(255 236 214 / .08); }
+.access-name { color: var(--text); font-weight: 600; }
+.access-meta { flex: 1 1 240px; color: var(--text-3); font-size: 12.5px; }
+.access-actions { display: flex; gap: 4px; }
+.access-panel .search { margin-bottom: 4px; }
+@media (max-width: 899px) {
+  .access-panel { margin-top: 20px; padding: 12px 14px; }
+  .new-code label, .new-code label:first-child input { flex: 1 1 140px; width: auto; }
+  .new-code input { width: 100%; }
+}

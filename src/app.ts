@@ -7,7 +7,8 @@ import fastifyCookie from '@fastify/cookie';
 import fastifyRateLimit from '@fastify/rate-limit';
 import Fastify from 'fastify';
 
-import { apiRoutes, enqueueIdea, MAX_IDEAS_PER_DAY } from './api.ts';
+import { createAccess } from './access.ts';
+import { apiRoutes, enqueueIdea } from './api.ts';
 import { upgradeStored } from './api-looks.ts';
 import type { Idea } from '../shared/schemas/api.ts';
 import { type Cost, createAuth } from './auth.ts';
@@ -33,7 +34,7 @@ type Deps = Parameters<typeof createQueue>[0] & { adapterName: string };
 type ModelOptions = { file?: string, env?: NodeJS.ProcessEnv, codexBin?: string };
 type Options = { dataDir?: string, publicDir?: string, distDir?: string, generatorName?: string,
   curators?: string | string[], admins?: string | string[], models?: ModelOptions, secureCookies?: boolean,
-  trustProxy?: boolean, maxIdeasPerDay?: number, log?: Log,
+  trustProxy?: boolean, log?: Log,
   rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, scrypt?: Cost, framesQuality?: number,
   framesMaxBytes?: number, generator?: Queue | ((deps: Deps) => Queue | Promise<Queue>),
   renderBox?: Parameters<typeof createBakeQueue>[0]['box'], flash?: FlashSettings };
@@ -49,7 +50,7 @@ export async function createServer(opts: Options = {}) {
   const {
     dataDir = DEFAULT_DATA_DIR, publicDir = DEFAULT_PUBLIC_DIR, distDir = DEFAULT_DIST_DIR, generator,
     generatorName = '', curators = [], admins = [], secureCookies = false, rateLimit, trustProxy = false,
-    maxIdeasPerDay = MAX_IDEAS_PER_DAY, log = createLog(), renderBox, framesQuality, framesMaxBytes, scrypt,
+    log = createLog(), renderBox, framesQuality, framesMaxBytes, scrypt,
     flash = flashSettings(),
   } = opts;
 
@@ -61,6 +62,7 @@ export async function createServer(opts: Options = {}) {
   const env = opts.models?.env ?? process.env, codexBin = opts.models?.codexBin;
   const models = createRegistry({ file: opts.models?.file || env.STUDIO_MODELS || path.join(dataDir, 'models.json'),
     env, log, legacy: generatorName, foundryOn: foundryFromEnv(env).on, codexBin });
+  const access = createAccess({ store, auth, models });
   const deps = { store, loadLibrary, loadRig, loadVersion: loaders.version, models, codexBin, log,
     adapterName: generatorName || 'sketch' };
   const queue: Queue = typeof generator === 'function' ? await generator(deps) : generator || createQueue(deps);
@@ -99,7 +101,7 @@ export async function createServer(opts: Options = {}) {
   });
   await app.register(fastifyCookie);
   await app.register(fastifyRateLimit, { global: false });
-  await app.register(apiRoutes({ store, auth, queue, models, loaders, log, maxIdeasPerDay, framesDir, bakes,
+  await app.register(apiRoutes({ store, auth, queue, models, loaders, log, access, framesDir, bakes,
     frames, rateLimit, secureCookies, flash }), { prefix: '/api' });
   await serveApp(app, { distDir, log });
   await app.ready();
@@ -107,7 +109,7 @@ export async function createServer(opts: Options = {}) {
   pruneTimer.unref();
 
   return {
-    app, server: app.server, store, auth, queue, bakes, frames, loaders, models, adapterName,
+    app, server: app.server, store, auth, access, queue, bakes, frames, loaders, models, adapterName,
     async listen(port = 0, host = '127.0.0.1') {
       await app.listen({ port, host });
       return app.server.address() as { port: number, address: string, family: string };

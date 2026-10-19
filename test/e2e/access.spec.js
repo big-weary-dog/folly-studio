@@ -1,0 +1,93 @@
+// npm run smoke, too: access to the paid models in a browser at a laptop's and a phone's size. A new account's idea
+// form starts on Sketch and shows the lock on a paid model with a code box; a wrong code is refused in place, a good
+// one unlocks it; a limit reached from elsewhere (a stale page) shows when the next idea may go; an admin makes a code
+// on the Access page. The paid models are a stand-in codex CLI (test/fixtures/generate/bin/codex).
+import { fileURLToPath } from 'node:url';
+
+import { expect, test } from './studio.js';
+
+const BIN = fileURLToPath(new URL('../fixtures/generate/bin/', import.meta.url));
+const SIZES = {
+  laptop: { viewport: { width: 1366, height: 768 } },
+  phone: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
+};
+test.use({ serverOptions: { admins: 'keeper-laptop,keeper-phone', models: { codexBin: `${BIN}codex`,
+  env: { ...process.env, ANTHROPIC_API_KEY: '', PATH: `${BIN}:${process.env.PATH}` } } } });
+
+async function signUp(page, origin, username) {
+  await page.goto(`${origin}/login`);
+  await page.getByRole('button', { name: 'Sign up' }).click();
+  await page.fill('input[name=username]', username);
+  await page.fill('input[name=password]', 'correct horse');
+  await page.locator('form button[type=submit]').click();
+  await expect(page.locator('textarea.idea-input')).toBeVisible({ timeout: 20_000 });
+}
+
+for (const [name, device] of Object.entries(SIZES)) {
+  test.describe(`${name}, ${device.viewport.width} × ${device.viewport.height}`, () => {
+    test.use(device);
+
+    test('locked, redeemed, at a limit; an admin makes a code', async ({ page, studio }, info) => {
+      const errors = [];
+      page.on('pageerror', (e) => errors.push(String(e)));
+      const shot = (step) => page.screenshot({ path: info.outputPath(`${step}.png`), timeout: 60_000 });
+      const { app } = studio, pick = page.locator('.model-pick select'), gate = page.locator('.gate');
+      const submit = page.getByRole('button', { name: 'Turn it into a look' });
+
+      await test.step('a new account starts on Sketch; a paid model shows the lock and a code box', async () => {
+        await signUp(page, studio.origin, `guest-${name}`);
+        await expect(pick).toHaveValue('sketch');
+        await expect(pick.locator('option')).toHaveText(['Sol (invite)', 'Luna (invite)', 'Sketch']);
+        await pick.selectOption('sol');
+        await expect(gate).toContainText('Sol needs an invite code.');
+        await expect(gate).toContainText('Sketch is free for everyone.');
+        await expect(submit).toHaveCount(0);
+        await page.fill('textarea.idea-input', 'Embers rising up the spires');
+        await shot('locked');
+      });
+
+      await test.step('a wrong code is refused in place; a good one unlocks', async () => {
+        await page.fill('#invite-code', 'AAAA-BBBB-CCCC');
+        await page.getByRole('button', { name: 'Unlock' }).click();
+        await expect(gate.locator('.form-error')).toContainText('That code is not valid');
+        await shot('redeem-wrong');
+        const { code } = app.access.createInvite('keeper', { uses: 1 });
+        await page.fill('#invite-code', code.toLowerCase());
+        await page.getByRole('button', { name: 'Unlock' }).click();
+        await expect(page.locator('.gate-left')).toHaveText('6 left this hour · 20 today');
+        await expect(pick.locator('option')).toHaveText(['Sol', 'Luna', 'Sketch']);
+        await shot('unlocked');
+      });
+
+      await test.step('a limit reached elsewhere (a stale page) shows on submit as the wait, with Sketch', async () => {
+        const me = app.store.users.list((u) => u.username === `guest-${name}`)[0];
+        app.access.patch(me, 'keeper', { limits: { perHour: 1 } });
+        app.store.ideas.create({ owner: me.id, text: 'from another tab', model: 'sol', status: 'ready' });
+        await expect(page.locator('.gate-left')).toHaveText('6 left this hour · 20 today'); // as this page last saw
+        await submit.click();
+        await expect(gate).toContainText(/That's all your ideas for this hour\. Next idea at \d/);
+        await expect(submit).toBeDisabled();
+        await expect(page.locator('.idea-form > .form-error')).toBeHidden();
+        await shot('at-limit');
+        await page.getByRole('button', { name: 'Use Sketch' }).click();
+        await expect(pick).toHaveValue('sketch');
+        await expect(submit).toBeEnabled();
+      });
+
+      await test.step('an admin makes a code on the Access page', async () => {
+        await page.context().clearCookies();
+        await signUp(page, studio.origin, `keeper-${name}`);
+        await page.goto(`${studio.origin}/access`);
+        await page.getByLabel('Label').fill(`Art crew (${name})`);
+        await page.getByLabel('Uses').fill('5');
+        await page.getByLabel('Expires in days').fill('14');
+        await page.getByRole('button', { name: 'Make a code' }).click();
+        await expect(page.locator('.fresh-code code')).toHaveText(/^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+        await expect(page.locator('.access-row', { hasText: `Art crew (${name})` })).toContainText('0 of 5 used');
+        await expect(page.locator('.access-row', { hasText: `guest-${name}` })).toContainText('unlocked');
+        await shot('access');
+      });
+      expect(errors).toEqual([]);
+    });
+  });
+}

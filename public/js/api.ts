@@ -1,6 +1,7 @@
 // HTTP API client (SPEC "HTTP API"): JSON in and out, cookie session. A non-2xx response throws an ApiError with the
 // server's message and `status` (0: the server could not be reached).
 import type { Bake, FlashSettings, Idea, Listed, Look, LookCreate, LookPatch, User } from '../../shared/schemas/api.ts';
+import type { Access, Invite, Person, PersonLimits } from '../../shared/schemas/access.ts';
 import type { AdminModels, ModelChoices, ModelsConfig } from '../../shared/schemas/models.ts';
 import type { LibraryEntry } from '../../shared/schemas/rig.ts';
 
@@ -31,7 +32,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 }
 
 const enc = encodeURIComponent;
-type Me = { user: User, flash?: FlashSettings };
+type Me = { user: User, flash?: FlashSettings, access?: Access };
 
 export const api = {
   me: () => request<Partial<Me>>('GET', '/api/me'),
@@ -45,6 +46,15 @@ export const api = {
     `/api/ideas/${enc(id)}${wait ? `?wait=${enc(wait)}` : ''}`),
   createIdea: (text: string, model?: string) => request<{ idea: Idea }>('POST', '/api/ideas', { text, model }),
   models: () => request<ModelChoices>('GET', '/api/models'),
+  /** Redeem an invite code: the account's access once unlocked. */
+  redeem: (code: string) => request<{ access: Access }>('POST', '/api/invite', { code }),
+  invites: () => request<{ invites: Invite[] }>('GET', '/api/admin/invites'),
+  createInvite: (body: { label?: string, uses?: number, days?: number }) => request<{ invite: Invite, code: string }>(
+    'POST', '/api/admin/invites', body),
+  revokeInvite: (id: string) => request<{ invite: Invite }>('DELETE', `/api/admin/invites/${enc(id)}`),
+  people: () => request<{ people: Person[] }>('GET', '/api/admin/people'),
+  updatePerson: (id: string, patch: { unlocked?: boolean, limits?: PersonLimits | null, reset?: true }) =>
+    request<{ person: Person }>('PUT', `/api/admin/people/${enc(id)}`, patch),
   adminModels: () => request<AdminModels>('GET', '/api/admin/models'),
   saveModels: (config: ModelsConfig) => request<AdminModels>('PUT', '/api/admin/models', config),
 

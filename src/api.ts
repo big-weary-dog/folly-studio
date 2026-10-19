@@ -4,6 +4,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 import { type FlashSettings, type Idea, IdeaBody, Login, Signup } from '../shared/schemas/api.ts';
+import type { AccessControl } from './access.ts';
+import { accessRoutes, sendRefusal } from './api-access.ts';
 import { lookRoutes } from './api-looks.ts';
 import { modelRoutes } from './api-models.ts';
 import { type Auth, COOKIE_NAME, SESSION_TTL_MS } from './auth.ts';
@@ -16,8 +18,6 @@ import { checkMutation, HttpError, type Log, type Logger, parse, routes, sendJso
 import type { createLoaders } from './static.ts';
 import type { Store } from './store.ts';
 
-export const MAX_IDEAS_PER_DAY = 20;
-const DAY_MS = 24 * 60 * 60 * 1000;
 /** How long GET /api/ideas/:id?wait= holds an unchanged idea, and how many such waits one user may have open. */
 export const WAIT_MS = 25_000;
 const WAITS_PER_USER = 6;
@@ -48,10 +48,10 @@ export const newestBy = (field: string) => (a: Record<string, unknown>, b: Recor
 
 /** The /api plugin. */
 export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: Registry, log: Log,
-  loaders: ReturnType<typeof createLoaders>, maxIdeasPerDay?: number, framesDir: string,
+  loaders: ReturnType<typeof createLoaders>, access: AccessControl, framesDir: string,
   bakes: ReturnType<typeof createBakeQueue>, frames: ReturnType<typeof createFramesCache>, secureCookies?: boolean,
   rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, flash: FlashSettings }) {
-  const { store, auth, queue, models, loaders, log, maxIdeasPerDay = MAX_IDEAS_PER_DAY } = o;
+  const { store, auth, queue, models, loaders, log, access } = o;
   const { bakes, framesDir, frames, secureCookies = false, flash } = o;
   const limits = { max: 10, ipMax: 100, windowMs: 60_000, ...o.rateLimit };
   return async (api: FastifyInstance) => {
@@ -123,7 +123,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         reply.setCookie(COOKIE_NAME, '', cookie(0));
         return { ok: true };
       }, { public: true }],
-      'GET /me': async (req) => ({ user: auth.publicUser(req.user), flash }),
+      'GET /me': async (req) => ({ user: auth.publicUser(req.user), flash, access: access.state(req.user!) }),
 
       'GET /ideas': async (req) => ({ ideas: store.ideas.list((i) => i.owner === req.user!.id).reverse()
         .sort(newestBy('createdAt')) }),
@@ -131,11 +131,8 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         const { text, model } = parse(IdeaBody, req.body);
         const picked = models.pick(model, auth.roleOf(req.user));
         if ('error' in picked) throw new HttpError(400, picked.error);
-        const since = Date.now() - DAY_MS;
-        const today = store.ideas.list((i) => i.owner === req.user!.id && Date.parse(i.createdAt) > since).length;
-        if (today >= maxIdeasPerDay) {
-          throw new HttpError(429, `That's ${maxIdeasPerDay} ideas today. Try again tomorrow.`);
-        }
+        const refused = access.check(req.user!, picked.entry); // no await from here to the create: one step
+        if (refused) return sendRefusal(reply, refused);
         const { id: chosen, label } = picked.entry;
         const idea = store.ideas.create({ owner: req.user!.id, text, status: 'queued', model: chosen, generator: chosen,
           by: label });
@@ -152,6 +149,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         return { idea: own(req) };
       },
       ...modelRoutes({ auth, models }),
+      ...accessRoutes(api, { auth, access, store }),
       ...looks.routes,
       ...framesRoutes({ framesDir, cache: frames, visibleLook: looks.visibleLook }),
       'GET /library': [async () => ({ patterns: loaders.loadLibrary()

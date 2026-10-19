@@ -159,7 +159,8 @@ describe('the JSON API on the wire', () => {
 
   test('the ideas list and an idea revalidate: a poll of an unchanged idea is an empty 304', async () => {
     const { idea } = await fetch(`${base}/api/ideas`, { method: 'POST', headers: { cookie,
-      'content-type': 'application/json' }, body: JSON.stringify({ text: 'embers rising' }) }).then((r) => r.json());
+      'content-type': 'application/json' }, body: JSON.stringify({ text: 'embers rising', model: 'sketch' }) })
+      .then((r) => r.json());
     for (const url of ['/api/ideas', `/api/ideas/${idea.id}`]) {
       const first = await get(url, { cookie });
       assert.equal(first.headers['cache-control'], 'private, no-cache');

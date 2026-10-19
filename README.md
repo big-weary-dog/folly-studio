@@ -40,6 +40,7 @@ npm run build-data     # rebuild public/data/rig.json from ../pixel-map/, palett
 |---|---|
 | [DESIGN.md](DESIGN.md) | What was built, why, the trade-offs and the limits, with screenshots |
 | [SPEC.md](SPEC.md) | The contract: the rig file, pattern code, looks, the sandbox protocol, the HTTP API, baked frames |
+| [SPEC-generators.md](SPEC-generators.md) | The contract's generators, model registry and access (invite codes, limits) |
 | [docs/HOSTING.md](docs/HOSTING.md) | Running it at home: what runs where, tunnels, settings, backups |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Layout, dependencies, TypeScript, the rules and why, security invariants, budgets, adding an installation |
 | [IDEAS.md](IDEAS.md) | Where it could go next |

@@ -8,9 +8,10 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 
 import {
-  type AdminModels, EFFORTS, type ModelChoices, type ModelEntry, type ModelsConfig, readModels, type Role,
+  type AdminModels, EFFORTS, isPaid, type ModelChoices, type ModelEntry, type ModelsConfig, readModels, type Role,
   type Transport,
 } from '../../shared/schemas/models.ts';
+import { LIMITS } from '../../shared/schemas/access.ts';
 import type { Logger } from '../http.ts';
 import { findExecutable } from './proc.ts';
 
@@ -21,9 +22,10 @@ export const DEFAULT_MODELS: ModelsConfig = {
     { id: 'opus', label: 'Opus', via: 'claude', model: 'claude-opus-5-5', effort: 'medium', enabled: true },
     { id: 'sol', label: 'Sol', via: 'codex', model: 'gpt-6.1-sol', effort: 'low', enabled: true },
     { id: 'luna', label: 'Luna', via: 'codex', model: 'gpt-6-luna', effort: 'low', enabled: true },
-    { id: 'sketch', label: 'Sketch', via: 'sketch', enabled: true },
+    { id: 'sketch', label: 'Sketch', via: 'sketch', enabled: true, limits: { perHour: 30, perDay: 100 } },
   ],
   concurrency: { claude: 4, codex: 2 },
+  limits: { ...LIMITS },
 };
 // STUDIO_GENERATOR, from before the registry: the default it names when the file is first written.
 const FOUNDRY: ModelEntry = { id: 'foundry', label: 'Foundry', via: 'fleet', model: 'gpt-6.1-sol', enabled: true };
@@ -107,7 +109,8 @@ export function createRegistry({ file, env = process.env, log = console, legacy 
   const usable = (m: ModelEntry, role: Role) => m.enabled && allowed(m, role) && status(m).available;
   /** What `role` may pick, and the one the form starts on (the default, else the first). */
   function choices(role: Role): ModelChoices {
-    const c = current(), models = c.models.filter((m) => usable(m, role)).map(({ id, label }) => ({ id, label }));
+    const c = current(), models = c.models.filter((m) => usable(m, role)).map((m) => ({ id: m.id,
+      label: m.label, paid: isPaid(m) }));
     return { models, default: models.find((m) => m.id === c.default)?.id ?? models[0]?.id ?? null };
   }
   function admin(): AdminModels {

@@ -26,6 +26,18 @@
 .model-pick { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 13px; }
 .model-pick select { min-height: var(--hit, 36px); }
 .char-count { margin-right: auto; }
+/* the paid models' gate (js/ui/idea-access.tsx): a locked account's code box, a limit's wait, what is left */
+.gate { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; color: var(--text-2); font-size: 14px;
+  border: var(--came-s) solid var(--lead); border-left: 4px solid var(--tint);
+  background: color-mix(in srgb, var(--tint) 9%, var(--night-1)); }
+.gate strong { color: var(--text); }
+.gate-locked { --tint: var(--violet); }
+.gate-wait { --tint: var(--amber); flex-direction: row; flex-wrap: wrap; align-items: center; }
+.gate-wait p { flex: 1 1 260px; }
+.gate-row { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+.gate-code { flex: 0 1 220px; min-width: 0; min-height: var(--hit, 36px); font-family: var(--mono);
+  letter-spacing: .08em; text-transform: uppercase; }
+.gate-left { color: var(--text-3); font-size: 12.5px; }
 .ideas-section { margin-top: 48px; }
 .idea-list { list-style: none; margin: 18px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .idea { display: grid; grid-template-columns: auto 1fr auto; align-items: center; }

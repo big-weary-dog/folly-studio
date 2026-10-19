@@ -252,9 +252,9 @@ describe('server', () => {
       assert.equal((await alice.get('/api/ideas/does-not-exist')).status, 404);
     });
 
-    test('20 ideas per user per day', async () => {
+    test('Sketch is free, but limited: 30 ideas an hour', async () => {
       const dave = await signup(app, 'idea-dave');
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < 30; i++) {
         const r = await dave.post('/api/ideas', { text: `idea number ${i}` });
         assert.equal(r.status, 201, `idea ${i}`);
       }

@@ -27,6 +27,8 @@ const ROUTES: Route[] = [
     load: () => pages().then((m) => m.Looks) },
   { re: /^\/models\/?$/, name: 'models', title: 'Models', nav: '/models',
     load: () => import('./models.tsx').then((m) => m.Models) },
+  { re: /^\/access\/?$/, name: 'access', title: 'Access', nav: '/access',
+    load: () => import('./access.tsx').then((m) => m.AccessPage) },
 ];
 
 /** Where to go after signing in: `next` when it is a page of this app, else Ideas. */
@@ -94,7 +96,7 @@ async function logout() {
 }
 
 const NAV = [['/ideas', 'Ideas'], ['/studio', 'Studio'], ['/looks', 'My looks'], ['/gallery', 'Gallery']];
-const ADMIN_NAV = [...NAV, ['/models', 'Models']];
+const ADMIN_NAV = [...NAV, ['/models', 'Models'], ['/access', 'Access']];
 
 function Header({ me, nav }: { me: User; nav?: string }) {
   const [open, setOpen] = useState(false);

@@ -29,9 +29,9 @@ file), edit it, and export it toward the real installation.
 
 ```
 studio/
-  SPEC.md  README.md  DESIGN.md  IDEAS.md  package.json (+ lock)  tsconfig.json  vite.config.js  server.ts
+  SPEC.md (+ SPEC-generators.md)  README.md  DESIGN.md  IDEAS.md  package.json (+ lock)  tsconfig.json  vite.config.js  server.ts
   src/            server (Fastify): app.ts (createServer) api.ts api-looks.ts api-models.ts http.ts (plumbing) auth.ts
-                  store.ts
+                  store.ts access.ts (invites, limits) api-access.ts
                   static.ts (serves dist/: headers, precompressed copies, ETags)  core-script.ts (the core for the boxes)
                   generate/{index,models,sketch,claude,codex,proc,fleet,prompt}.ts
                   frames.ts (pure: FSEQ parse + analysis)  bake.ts (bake queue, frame files)
@@ -40,7 +40,7 @@ studio/
                   frames-http.ts (frames routes)  fseq-codec.ts (FSEQ zstd/zlib blocks)
                   frames-worker.ts (low-priority encoding)
   shared/schemas/ zod: look.ts (what the API stores) generated.ts (a generator's look, its JSON Schema) api.ts (bodies,
-                  users, ideas) rig.ts (the rig, the library index) models.ts (the model registry); the server's at
+                  users, ideas) rig.ts (the rig, the library index) models.ts (the model registry) access.ts (invites, limits); the server's at
                   run time, the browser's as types
   render-box/     render.ts: bakes a look to .fseq inside bubblewrap; renderer.ts: the frame loop
   fleet-box/      check.ts + BRIEF.template.md for the boxed Fleet worker
@@ -582,18 +582,26 @@ failures, per address and username (10 a minute): 429 with `Retry-After`.
 POST   /api/signup   { username, password }   → { user, flash }     (sets cookie)
 POST   /api/login    { username, password }   → { user, flash }
 POST   /api/logout                            → { ok: true }
-GET    /api/me                                → { user, flash } | 401
+GET    /api/me                                → { user, flash, access } | 401
+POST   /api/invite   { code }                 → { access }           redeem an invite code (SPEC "Access")
 GET    /api/ideas                             → { ideas: [idea] }    mine, newest first
 POST   /api/ideas    { text, model? }         → { idea }             queued for generation on that model (none: the
                                               default this user gets); 400 when it is unknown, off, not offered
-                                              to their role, or cannot run here
+                                              to their role, or cannot run here; 403 { error, access } when it is
+                                              paid and the account is locked; 429 { error, access } + Retry-After
+                                              at a limit (SPEC "Access")
 GET    /api/ideas/:id[?wait=<status>@<updatedAt>] → { idea }         mine only; with wait, an idea still pending and
                                               as given is answered when it changes, or after 25 s
-GET    /api/models                            → { models: [{ id, label }], default }  what this user may pick
+GET    /api/models                            → { models: [{ id, label, paid }], default }  what this user may pick
 GET    /api/admin/models                      → { file, config, models: [{ id, available, note, warn? }], efforts,
                                               problem? }  admins only (403): the registry and what can run here
 PUT    /api/admin/models  config              → the same, after writing the registry file; admins only; 400 names
                                               the first problem
+GET    /api/admin/invites                     → { invites: [invite] }  admins only, as are the four below
+POST   /api/admin/invites { label?, uses?, days? } → 201 { invite, code }  the code is shown only here
+DELETE /api/admin/invites/:id                 → { invite }           revoked (kept, so the list says so)
+GET    /api/admin/people                      → { people: [person] }
+PUT    /api/admin/people/:id { unlocked?, limits?, reset? } → { person }  limits: null clears the override
 GET    /api/looks?scope=mine|gallery          → { looks: [listed] }  metadata only: no layers
 POST   /api/looks    { title, summary?, layers, duration?, bpm?, globals?, automation?, ideaId?, chain? } → { look }
 GET    /api/looks/:id                         → { look }             mine, or shared
@@ -629,6 +637,7 @@ outside 0–600 s, and a duration outside 1–600 s, are refused with 400.
 
 `user = { id, username, role: 'member' | 'curator' | 'admin' }` (curators listed in `STUDIO_CURATORS`, admins in
 `STUDIO_ADMINS`; an admin is also a curator).
+`access`, `invite` and `person`: SPEC "Access".
 `flash = { check, perSecond, delta, darker, area }`: the flash check's settings (Baked frames, Checks), for the
 preview's guard; `check: false` (`STUDIO_FLASH_CHECK=off`) means nothing is dimmed or blocked.
 `idea = { id, owner, text, status: 'queued'|'generating'|'ready'|'failed', model?, generator, by?, timing?, lookId?,
@@ -638,68 +647,10 @@ fallback's when it took over), `by` its label ("Opus"), `timing = { wait, prompt
 flashOverride?, bake?, chain, createdAt, updatedAt }`
 (`bake`: see Baked frames).
 
-## Generators (idea → look)
+## Generators, models and access
 
-`src/generate/index.ts` runs a small in-process queue. An adapter is
-`async generate({ text, user, library, rig, groups, prompt?, signal? }) → { title, summary, duration?, globals?,
-automation?, layers }` (`groups`: the rig's; `prompt()`: the system prompt and output schema, built once per library
-and rig; `signal`: aborted when the server stops). Each idea names a model of the registry (below); its job runs in
-that model's transport lane, each lane with its own concurrency, and `STUDIO_GENERATOR_FALLBACK` (a model or
-transport, usually `sketch`) takes over when it fails. An idea that names no model (from before the registry) goes
-to `STUDIO_GENERATOR`'s transport. Generators find places by the rig's
-tags (falling back to group ids and names), describe the installation from the rig (`about`, its fixtures and
-groups), and give layers the tags they meant beside the ids. The result is cleaned by `validateLook`
-(`shared/schemas/generated.ts`, zod: ≤ 4 layers,
-known group ids (none known: the root) and tags, code ≤ 20 kB containing `function pixel`, or modules whose code defines their kind's
-function; clips and duration normalised, bad or overlapping clips dropped; `globals` and `automation`
-cleaned, a palette name filled in; picks cleaned of unknown tokens; a layer's `palette` dropped; a layer without a
-usable `soften` gets `DEFAULT_SOFTEN`) before a look is saved, with `chain: 2` (generators write the one rule: a warp after
-what it bends), and the idea set `ready`. Old single-code layers
-stay valid. Generators may add
-clips and a duration for ideas that describe a progression; most looks have neither.
-
-- `sketch`: offline, keyword → the preset or source a theme names (`sketch-words.json`) + params, place words →
-  tags. Colour words choose the palette nearest them in hue and become the nearest swatch's slot (`accent2`; none
-  close: the colour itself): the pick of a source's (a preset's top source's) `colours`. Always available.
-- `claude`: one Messages API call with the pattern guide + library examples as the system prompt (cached: the same
-  bytes on every call), and structured output whose JSON Schema is the generated look's own (`wireSchema(groups)`:
-  group ids and tags as enums).
-- `codex`: one `codex exec` call (the Codex CLI, signed in with `codex login`): `--ephemeral --skip-git-repo-check
-  --ignore-user-config --ignore-rules -s read-only -C <an empty folder> -m <model> -o <answer file> --output-schema
-  <the look's schema, strict> -c model_reasoning_effort="<effort>" -c web_search="disabled" -c features.<tool>=false
-  … -`, the prompt on stdin (the guide first, the idea last). Started from an argument list, never a shell (on Windows
-  an npm `codex.cmd` shim is read for the script it runs); its environment is only what the CLI needs; its whole
-  process tree is killed on a wall clock (`timeoutSeconds`, else `STUDIO_CODEX_TIMEOUT_MS`, 300 s), past 4 MB of
-  output, or when the server stops. The answer, at most 512 KB, is read as untrusted data like `claude`'s.
-- `fleet`: hands the idea to a boxed Fleet worker as an untrusted brief (experimental), in a workspace holding
-  copies of the modules `check.ts` imports (the core's, `fseq.ts`, `frames.ts`), as they are. The worker
-  also bakes (`node check.ts --bake`); the adapter returns `bake` + `frames` (see below), and
-  the queue stores them with the look. This foundry is opt-in: it runs only with `STUDIO_FOUNDRY=on`,
-  one job at a time in a slot of its own. While it is off or busy, its ideas go to the one-shot
-  generator (`STUDIO_GENERATOR_FALLBACK`, else `sketch`), or wait for it with `STUDIO_FOUNDRY_WAIT=1`.
-  Without a systemd user bus (`systemd-run --user --scope` fails, as on WSL) Fleet's boxes have no
-  memory cap, and the server warns at start.
-
-### Models (`<STUDIO_DATA>/models.json`, or `STUDIO_MODELS`)
-
-The registry (`shared/schemas/models.ts`), written with the defaults on first run and read again whenever it
-changes (a file that does not parse is reported, and the last good one kept):
-
-```
-{ "about"?: text, "default": id, "concurrency"?: { "claude"?: n, "codex"?: n, "sketch"?: n },
-  "models": [{ "id", "label", "via": "claude" | "codex" | "sketch" | "fleet", "model"?, "effort"?, "maxTokens"?,
-               "timeoutSeconds"?, "enabled": true, "roles"?: ["member" | "curator" | "admin", …] }] }
-```
-
-`id` is 1–32 of `[a-z0-9-]`; `model` the provider's name (required for `codex`; `claude` defaults to
-`claude-opus-5-5`); `effort` one of the transport's (`claude`: low–max; `codex`: minimal–xhigh); `roles` who may
-pick it (none: everyone); `concurrency` the jobs at once per transport (defaults claude 4, codex 2, sketch 4; the
-foundry always 1). The defaults: Opus (`claude-opus-5-5`, medium, the default), Sol (`gpt-6.1-sol`, low) and Luna
-(`gpt-6-luna`, low) through `codex`, and Sketch. A model can run when its transport can: `claude` with
-`ANTHROPIC_API_KEY`, `codex` with the CLI on PATH (`STUDIO_CODEX_BIN`; `warn` when no login is seen), `fleet` with
-`STUDIO_FOUNDRY=on`, `sketch` always. The idea form offers the models that are on, offered to the user's role and
-able to run, the default first when it is one of them; when the file is first written, `STUDIO_GENERATOR` (`claude`,
-`sketch`, `fleet`) names its default.
+In `SPEC-generators.md`, part of this contract: **Generators** (idea → look), **Models** (the registry) and
+**Access** (invite codes and limits on the paid models).
 
 ## Baked frames
 

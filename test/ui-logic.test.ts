@@ -8,6 +8,7 @@ import { computed, signal } from '@preact/signals';
 import { describe, test } from 'vitest';
 
 import { resolve, safeNext } from '../public/js/ui/app.tsx';
+import { gateOf } from '../public/js/ui/idea-access.tsx';
 import {
   bindingForm, bindingText, makeBinding, normaliseParam, type Param, shownValue,
 } from '../public/js/ui/bindings.ts';
@@ -234,5 +235,32 @@ describe('the pick tile', () => {
     assert.deepEqual(editValue({ ...opts, blend: 'step', range: [0, 1], rotate: undefined }, 'smooth'),
       { pick: 'all', blend: 'step' });
     assert.deepEqual(readEdit('banana', 'high').tokens, ['high'], 'a bad value: the default');
+  });
+});
+
+describe('the idea form\'s gate (idea-access.tsx)', () => {
+  const sol = { id: 'sol', label: 'Sol', paid: true }, sketch = { id: 'sketch', label: 'Sketch', paid: false };
+  const access = (o = {}) => ({ unlocked: true, exempt: false, inviteOnly: true,
+    limits: { perHour: 6, perDay: 20, concurrent: 2 }, left: { hour: 4, day: 15, running: 2 }, ...o });
+  test('free models and admins pass; locked shows the lock; open says what is left', () => {
+    assert.equal(gateOf(access({ unlocked: false }), sketch).kind, 'free');
+    assert.equal(gateOf(access({ exempt: true }), sol).kind, 'exempt');
+    assert.equal(gateOf(access({ unlocked: false }), sol).kind, 'locked');
+    assert.deepEqual(gateOf(access({ models: { sol: { day: 2 } } }), sol), { kind: 'open',
+      text: '4 left this hour · 2 today' });
+  });
+  test('at a limit: the wait, and when the next idea may go', () => {
+    const now = new Date(2026, 9, 19, 10, 0), at = new Date(2026, 9, 19, 10, 40).toISOString();
+    const wait = gateOf(access({ left: { hour: 0, day: 3, running: 2 }, nextAt: at }), sol, now);
+    assert.equal(wait.kind, 'wait');
+    assert.match((wait as { text: string }).text, /^That's all your ideas for this hour\. Next idea at .*40/);
+    const next = new Date(2026, 9, 20, 9).toISOString();
+    const tomorrow = gateOf(access({ left: { hour: 2, day: 0, running: 2 }, nextAt: next }), sol, now);
+    assert.match((tomorrow as { text: string }).text, /today\. Next idea tomorrow at/);
+    assert.match((gateOf(access({ left: { hour: 2, day: 2, running: 0 } }), sol) as { text: string }).text,
+      /being made/);
+    assert.match((gateOf(access({ full: true }), sol) as { text: string }).text, /done all they can/);
+    const zero = access({ limits: { perHour: 0, perDay: 20, concurrent: 2 }, left: { hour: 0, day: 20, running: 2 } });
+    assert.deepEqual(gateOf(zero, sol), { kind: 'wait', text: 'Your allowance for the AI models is 0: ask an admin.' });
   });
 });

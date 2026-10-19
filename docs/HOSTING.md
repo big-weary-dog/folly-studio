@@ -148,8 +148,7 @@ STUDIO_DATA=/home/you/folly-data  # outside the checkout
 STUDIO_SECURE_COOKIES=1           # the tunnel serves HTTPS
 STUDIO_TRUST_PROXY=1              # client IP (login limits) and host from the tunnel, trusted from this machine only
 STUDIO_CURATORS=alice,bob         # who may mark looks reviewed
-STUDIO_ADMINS=you                 # who may choose the models (the Models page); admins are curators too
-# (invite code and per-user model limits: their settings go here)
+STUDIO_ADMINS=you                 # the Models and Access pages (models, invite codes); admins are curators too
 ANTHROPIC_API_KEY=sk-ant-...      # for Opus: a key with a spend limit
 STUDIO_GENERATOR_FALLBACK=sketch  # when a model fails, and for deep ideas while the foundry is off
 STUDIO_BAKE_SECONDS=120           # longest bake
@@ -186,9 +185,10 @@ People pick a model for each idea from the ones you offer. They live in `models.
     { "id": "opus", "label": "Opus", "via": "claude", "model": "claude-opus-5-5", "effort": "medium", "enabled": true },
     { "id": "sol", "label": "Sol", "via": "codex", "model": "gpt-6.1-sol", "effort": "low", "enabled": true },
     { "id": "luna", "label": "Luna", "via": "codex", "model": "gpt-6-luna", "effort": "low", "enabled": true },
-    { "id": "sketch", "label": "Sketch", "via": "sketch", "enabled": true }
+    { "id": "sketch", "label": "Sketch", "via": "sketch", "enabled": true, "limits": { "perHour": 30, "perDay": 100 } }
   ],
-  "concurrency": { "claude": 4, "codex": 2 }
+  "concurrency": { "claude": 4, "codex": 2 },
+  "limits": { "inviteOnly": true, "perHour": 6, "perDay": 20, "concurrent": 2, "dailyCeiling": 200 }
 }
 ```
 
@@ -206,6 +206,33 @@ is faster. Each transport has its own lane (`concurrency`), so an Opus idea neve
 system prompt is built once per library and rig and sent the same, byte for byte, every time, so Anthropic's prompt
 cache (and OpenAI's prefix caching, for Codex) can serve it after the first idea. The log says where each idea's
 time went (`queued … prompt … request … parse`), and so does the idea's `timing` in `ideas.json`.
+
+### Invites and limits
+
+Anyone can sign up, browse, edit, preview and use Sketch. The **paid** models (every `via` but `sketch`: they spend
+your API money or your Codex and Fleet capacity) need an **invite code**, and each person's use is limited. Admins
+are exempt from both. The `limits` block above holds the defaults; tune them in the file, and they apply at once:
+
+| Setting | Default | Why |
+|---|---|---|
+| `inviteOnly` | `true` | Paid models need a code. `false` unlocks everyone (a private server) |
+| `perHour` | 6 | An idea takes 20–60 s, so six lets someone try, look and try again through a sitting |
+| `perDay` | 20 | The cap the studio had before invites; enough for a good evening's work |
+| `concurrent` | 2 | Ideas queued or being made at once, so one person cannot fill Opus's 4 lanes |
+| `dailyCeiling` | 200 | Everyone's paid ideas in 24 hours: about 10 people at their full allowance, ~$40 a day of Opus at medium at worst. A backstop: still give the API key its own spend limit |
+
+The hour and day are rolling (the last 60 minutes, the last 24 hours), and a person's paid ideas share one
+allowance. A model may also say `"limits": { "perHour", "perDay", "concurrent" }`, a cap counted on that model's
+ideas alone (Sketch's 30 an hour and 100 a day keep a script from filling the disk). **One idea is one use**, counted
+when it is accepted, whatever comes of it: a retry, the fallback or any repair inside it adds nothing, and "Try
+again" sends a new idea.
+
+On the **Access** page (admins) make a code: a label for who it is for, how many people may redeem it, and how many
+days it lasts (blank: no expiry). It is shown once (only its hash is kept), so copy it then; revoke it any time. A
+person types it in the idea form's code box and their account is unlocked for good. Redeeming is limited to 5 wrong
+codes per account and 20 tries per address in 15 minutes. Under **People** you can unlock or lock someone by hand,
+**Reset** their count (their ideas so far stop counting), or give them their own **Limits** (blank fields keep the
+defaults).
 
 ### Codex (Sol, Luna)
 

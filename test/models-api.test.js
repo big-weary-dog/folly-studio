@@ -35,8 +35,9 @@ describe('models API', () => {
   });
 
   test('everyone signed in sees what they may pick; the registry is for admins only', async () => {
-    assert.deepEqual((await member.get('/api/models')).json, { default: 'sol', models: [{ id: 'sol', label: 'Sol' },
-      { id: 'luna', label: 'Luna' }, { id: 'sketch', label: 'Sketch' }] }, 'no API key here: no Opus');
+    assert.deepEqual((await member.get('/api/models')).json, { default: 'sol', models: [{ id: 'sol', label: 'Sol',
+      paid: true }, { id: 'luna', label: 'Luna', paid: true }, { id: 'sketch', label: 'Sketch', paid: false }] },
+      'no API key here: no Opus');
     assert.equal((await client(app).get('/api/models')).status, 401);
     assert.equal((await member.get('/api/admin/models')).status, 403);
     assert.equal((await member.put('/api/admin/models', {})).status, 403);
@@ -76,6 +77,8 @@ describe('models API', () => {
     const chosen = await post({ text: 'stars over the arches', model: 'sketch' });
     assert.equal(chosen.status, 201);
     assert.deepEqual([chosen.json.idea.model, chosen.json.idea.by], ['sketch', 'Sketch']);
+    assert.equal((await post({ text: 'embers on the spires' })).status, 403, 'Luna needs an unlocked account');
+    assert.equal((await admin.put(`/api/admin/people/${member.user.id}`, { unlocked: true })).status, 200);
     const plain = (await post({ text: 'embers on the spires' })).json.idea;
     assert.deepEqual([plain.model, plain.generator, plain.by], ['luna', 'luna', 'Luna']);
     assert.equal(queue.enqueued.at(-1).model, 'luna');
