@@ -1,15 +1,17 @@
 // Controls for the selected module's `params` (SPEC "Pattern code"): numbers become sliders, `type: 'color'` colour
-// pickers, `type: 'toggle'` switches. A number can be modulated (SPEC "Param bindings"): an LFO, a global (energy, a
-// macro…) or the clip envelope moves it every frame instead of its slider.
+// picks (picks.tsx), `type: 'toggle'` switches. A number, or a pick's rotate, can be modulated (SPEC "Param
+// bindings"): an LFO, a global (energy, a macro…) or the clip envelope moves it every frame instead of its slider.
 import type { ComponentChildren } from 'preact';
 import { useRef, useState } from 'preact/hooks';
 
 import type { ParamValue } from '../../../shared/schemas/look.ts';
+import { DEFAULT_PALETTE } from '../core/stdlib.ts';
 import {
   type BindingForm, bindingForm, bindingText, decimals, fmt, isBinding, makeBinding, normaliseParam, type Param, SHAPES,
   shownValue,
 } from './bindings.ts';
 import { cx, Field, humanize, openDialog } from './kit.tsx';
+import { type Colours, PickRow } from './picks.tsx';
 import type { Studio } from './studio-store.ts';
 
 const GLOBAL_NAMES = ['energy', 'speed', 'level', 'hue', 'saturation'];
@@ -32,9 +34,11 @@ export function ParamsPanel({ st }: { st: Studio }) {
     fn(params);
     return { params };
   });
+  const colours = { palette: st.look.value.globals?.palette ?? DEFAULT_PALETTE, remap: l.palette };
   return (
     <div class="params">
       {entries.map(([key, p]) => <Control key={`${l.id}/${m.id}/${key}`} name={key} p={p} values={values} set={set}
+        colours={colours} narrow={st.narrow.value}
         globals={() => [...GLOBAL_NAMES, ...Object.keys(st.look.peek().globals?.macros || {})]} />)}
       <div class="params-foot"><button type="button" class="btn small ghost"
         onClick={() => st.editModule(l.id, m.id, () => ({ params: {} }))}>Reset all to defaults</button></div>
@@ -42,10 +46,19 @@ export function ParamsPanel({ st }: { st: Studio }) {
 }
 
 /** A param's row; a number's slider, box and modulation take a line of their own under its label. */
-function Control({ name, p, values, set, globals }: { name: string; p: Param; values: Record<string, ParamValue>;
-  set: (fn: (p: Record<string, ParamValue>) => void) => void; globals: () => string[] }) {
+function Control({ name, p, values, set, globals, colours, narrow }: { name: string; p: Param;
+  values: Record<string, ParamValue>; set: (fn: (p: Record<string, ParamValue>) => void) => void;
+  globals: () => string[]; colours: Colours; narrow: boolean }) {
   const box = useRef<HTMLInputElement>(null), { has, bound, value } = shownValue(p, values, name);
   const put = (v: ParamValue) => set((q) => { q[name] = v; });
+  if (p.kind === 'color') {
+    const turn = { ...p, label: `${p.label}: rotate`, value: 0, min: 0, max: 1, step: 0.01 };
+    return <PickRow label={p.label} value={values[name]} dflt={p.value as string} blend={p.blend ?? 'step'}
+      colours={colours} narrow={narrow}
+      put={(v) => set((q) => { if (v === undefined) delete q[name]; else q[name] = v; })}
+      modulate={(now, apply) => modulate({ ...turn, value: typeof now === 'number' ? now : 0 }, now, globals(), apply,
+        'Turns 0 to 1, wrapping: one turn walks every colour of the pick once.')} />;
+  }
   const fixed = (v: number) => v.toFixed(decimals(p.step));
   const field = (id: string) => (p.kind === 'number' ? <>
     <input type="range" id={id} min={p.min} max={p.max} step={p.step} disabled={bound}
@@ -63,8 +76,6 @@ function Control({ name, p, values, set, globals }: { name: string; p: Param; va
       onClick={() => modulate(p, values[name], globals(), (b) => set((q) => {
         if (b) q[name] = b; else delete q[name];
       }))}>∿</button></>
-    : p.kind === 'color' ? <><input type="color" id={id} class="param-color" value={value as string}
-      onInput={(e) => put(e.currentTarget.value)} /><span class="param-hex">{value as string}</span></>
     : <input type="checkbox" id={id} class="switch" checked={value as boolean}
       onChange={(e) => put(e.currentTarget.checked)} />);
   // Unused, the reset keeps its place (hidden), so a slider never narrows under the pointer.
@@ -75,9 +86,9 @@ function Control({ name, p, values, set, globals }: { name: string; p: Param; va
         onClick={() => set((q) => { delete q[name]; })}>↺</button></>}</Field>);
 }
 
-/** The modulate dialog for a number param: an LFO, a global or the clip envelope, or nothing. */
+/** The modulate dialog for a number param (or a pick's rotate): an LFO, a global or the clip envelope, or nothing. */
 function modulate(p: Param, now: ParamValue | undefined, globals: string[], apply: (b: ReturnType<typeof makeBinding>)
-  => void) {
+  => void, range = `Range ${fmt(p.min)} to ${fmt(p.max)}. A modulated value is held to it.`) {
   return openDialog({ title: `Modulate ${p.label}`, className: 'modulate-dialog', body: (close) => {
     const [f, setF] = useState(() => bindingForm(isBinding(now) ? now : {}, p, globals));
     const select = (k: keyof BindingForm, opts: string[][]) => (id: string) => <select id={id} value={f[k]}
@@ -86,7 +97,7 @@ function modulate(p: Param, now: ParamValue | undefined, globals: string[], appl
     const field = (label: string, k: keyof BindingForm) => <Field label={label}>{(id) => <input id={id} type="number"
       step="any" value={f[k]} onInput={(e) => setF({ ...f, [k]: e.currentTarget.value })} />}</Field>;
     return <>
-      <p class="dialog-text">{`Range ${fmt(p.min)} to ${fmt(p.max)}. A modulated value is held to it.`}</p>
+      <p class="dialog-text">{range}</p>
       <Field label="Moved by">{select('mod', [['', 'Nothing: the slider sets it'], ['lfo', 'An LFO'],
         ['global', 'A global'], ['envelope', 'The clip envelope']])}</Field>
       <div class="mod-fields" hidden={f.mod !== 'lfo'}>

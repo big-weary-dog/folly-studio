@@ -355,7 +355,14 @@ Sequencing lives on the look, xLights-style.
 - Composition (`ui/chain.tsx`, `ui/params.tsx`, `ui/shelf.tsx`, `ui/look-globals.tsx`): the selected layer's
   module chain (kind badge, enable, reorder, delete, a filter's input), shelves of library modules by kind and category, the code editor and
   params on the selected module (each number param can be modulated), and a Look panel of globals, the palette
-  and macros. On a phone: globals and palette in the Look tab; the chain read-only but for enable and params.
+  (each swatch titled by its slot, `body2 · #fd7f40`) and macros. On a phone: globals and palette in the Look tab;
+  the chain read-only but for enable and params.
+- Colours (`ui/picks.tsx`, `ui/pick-model.ts`; "Palettes"): a colour param is one row, the colours its pick plays,
+  its text, ▾ the pick tile, ∿ to move its rotate (the modulate dialog), ↺. The tile is TD's pick: a row per role
+  (a box for the whole role, a cell per slot), the whole palette, rainbow, custom colours, then whether roles
+  alternate (`/`), blend, range and rotate. The layer's Colours row, under Plays on, shows each role as it plays
+  here and remaps it with the same tile (`layer.palette`). On a phone the tile is a sheet with the palette and a
+  custom colour; blend, range and rotate show when set.
 
 ## Sandbox protocol (runtime.ts ⇄ sandbox.html)
 

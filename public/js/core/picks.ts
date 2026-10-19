@@ -198,6 +198,9 @@ export function layerRoles(remap: Remap | null): Roles {
   return R;
 }
 
+/** A layer's roles on `palette`, its `palette` remap as given: what the Studio shows. */
+export const rolesFor = (palette: PaletteColours, remap: unknown) => buildRoles(palette, prepareRemap(remap));
+
 /** The colours a pick (a param's value or default) plays against `R`: what the UI's strip shows. */
 export function stopsFor(v: unknown, dflt: unknown, R: Roles, blend?: PickBlend) {
   const spec = readPick(v) || readPick(dflt);
