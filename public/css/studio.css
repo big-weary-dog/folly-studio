@@ -25,7 +25,7 @@ body[data-view=studio] { overflow: hidden; }
 .pane-code { grid-area: code; --tint: var(--cobalt-t); border-top: var(--came) solid var(--lead); }
 .studio[data-dock=timeline] .pane-code { --tint: var(--violet); }
 .studio .studio-tabs, .studio .pane-look, .studio .view-compact, .studio .narrow-only { display: none; }
-.studio, .side, .pane-body, .layer, .param { position: relative; }
+.studio, .side, .pane-body, .layer, .param, .chain-row { position: relative; }
 .studio-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 6px 14px;
   background: var(--night-1); border-bottom: var(--came) solid var(--lead); }
 .bar-title { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; }
@@ -177,6 +177,8 @@ input.tree-box { width: 16px; height: 16px; margin: 0 4px 0 2px; flex: none; cur
 .layer-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .layer { --blend: var(--amber); padding: 6px 8px 6px 18px; cursor: pointer; border: var(--came-s) solid var(--lead);
   background: color-mix(in srgb, var(--blend) 7%, var(--night-1)); box-shadow: var(--bevel); }
+.layer + .layer::after { content: ''; position: absolute; left: 4px; top: -7.5px; border: solid #0000;
+  border-width: 0 3.5px 5px; border-bottom-color: var(--sand); }   /* each layer is drawn over the one under it */
 .layer[data-blend=over] { --blend: var(--cobalt-t); }
 .layer[data-blend=max] { --blend: var(--ruby); }
 .layer[data-blend=multiply] { --blend: var(--violet); }
@@ -195,12 +197,11 @@ input.tree-box { width: 16px; height: 16px; margin: 0 4px 0 2px; flex: none; cur
 .layer-name { flex: 1; min-width: 0; min-height: var(--hit); padding: 2px; text-align: left; font-weight: 600;
   font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: none; border: 0;
   cursor: pointer; }
-.layer .status-dot { width: 10px; height: 10px; color: var(--text-3); }
+.layer .status-dot, .chain-row .status-dot { width: 10px; height: 10px; color: var(--text-3); }
 .layer-heavy { --kind: var(--amber); }
-.layer[data-status=ok] .status-dot { color: var(--emerald); }
-.layer[data-status=pending] .status-dot { color: var(--amber); }
-.layer[data-status=compile] .status-dot, .layer[data-status=runtime] .status-dot, .layer[data-status=hung] .status-dot {
-  color: var(--ruby); }
+[data-status=ok] > * > .status-dot { color: var(--emerald); }
+[data-status=pending] > * > .status-dot { color: var(--amber); }
+:is([data-status=compile], [data-status=runtime], [data-status=hung]) > * > .status-dot { color: var(--ruby); }
 .ms { display: flex; gap: 3px; }
 .ms-btn { width: var(--hit, 24px); height: var(--hit, 24px); padding: 0; font-size: 11px; font-weight: 700;
   cursor: pointer; color: var(--text-3); background: var(--night-0); border: var(--came-s) solid var(--lead); }
@@ -208,19 +209,15 @@ input.tree-box { width: 16px; height: 16px; margin: 0 4px 0 2px; flex: none; cur
 .ms-btn.solo[aria-pressed=true] { color: var(--night-0); background: var(--amber); }
 .layer-bottom { display: flex; align-items: center; gap: 8px; margin-top: 2px; padding-left: 20px; }
 .blend-select { flex: none; min-height: var(--hit, 28px); padding: 2px 28px 2px 8px; font-size: 12.5px; }
-.level { flex: 1; min-width: 40px; }
-.level-out { width: 38px; font-size: 12px; color: var(--text-2); text-align: right; font-variant-numeric: tabular-nums;
-}
+.layer-bottom .scrub, .soften-field .scrub { flex: 1; width: auto; min-width: 60px; }
 .layer-groups { display: block; margin-top: 2px; padding-left: 20px; font-size: 12px; line-height: 1.3;
   color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.params-wrap, .params { display: flex; flex-direction: column; gap: 14px; }
+.params-wrap, .params { display: flex; flex-direction: column; gap: 10px; }
 .layer-title-input { font-weight: 600; }
 .param-reset { min-width: var(--hit); min-height: var(--hit); padding: 0 4px; font-size: 15px; color: var(--text-3);
   background: none; border: 0; cursor: pointer; }
 .param-reset:hover { color: var(--sand); }
 .param-reset.unused { visibility: hidden; }
-input.param-num { flex: none; width: 64px; min-height: var(--hit, 30px); padding: 3px 6px; font-size: 13px;
-  font-variant-numeric: tabular-nums; }
 .param-hex { font: 12.5px var(--mono); color: var(--text-2); }
 .params-foot { padding-top: 4px; }
 /* the bake card: its glass follows the verdict */

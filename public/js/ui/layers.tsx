@@ -5,7 +5,7 @@ import { useComputed } from '@preact/signals';
 import { useId, useLayoutEffect, useState } from 'preact/hooks';
 
 import type { RigGroup } from '../../../shared/schemas/rig.ts';
-import { cx, toast } from './kit.tsx';
+import { cx, Scrub, toast } from './kit.tsx';
 import { BLEND_MODES, cleanLayer, type Layer, layerFromPattern, makeLayer, newLayer } from './model.ts';
 import type { Preview } from './preview.ts';
 import type { Studio } from './studio-store.ts';
@@ -77,12 +77,7 @@ function LayerRow({ l, index, st }: { l: Layer; index: number; st: Studio }) {
   const id = l.id, status = st.status.of(id), title = l.title || 'Layer';
   const said = STATUS_TEXT[status.kind] || status.kind;
   const muted = st.muted.value.has(id), soloed = st.solo.value.has(id), selected = id === st.selectedId.value;
-  const ms = st.heavy.value.get(id), blendId = useId(), levelId = useId();
-  const select = () => st.select(id);
-  const level = (e: Event) => {
-    const v = Number((e.currentTarget as HTMLInputElement).value);
-    st.editLayer(id, () => ({ level: v }));
-  };
+  const ms = st.heavy.value.get(id), blendId = useId(), select = () => st.select(id);
   return (
     <li class={cx('layer', selected && 'selected', st.silent(id) && 'silent')} data-status={status.kind}
       data-blend={l.blend} onClick={(e) => {   // the row's empty space selects it too
@@ -111,9 +106,8 @@ function LayerRow({ l, index, st }: { l: Layer; index: number; st: Studio }) {
             st.editLayer(id, () => ({ blend }));
           }}>
           {BLEND_MODES.map((b) => <option value={b.value} title={b.help}>{b.label}</option>)}</select>
-        <label for={levelId} class="sr-only">Level for {title}</label>
-        <input type="range" id={levelId} class="level" min={0} max={1} step={0.01} value={l.level} onInput={level} />
-        <output class="level-out" for={levelId}>{Math.round(l.level * 100)}%</output></div>
+        <Scrub label={`Level for ${title}`} min={0} max={100} step={1} unit="%" value={Math.round(l.level * 100)}
+          set={(v) => st.editLayer(id, () => ({ level: v / 100 }))} /></div>
       <span class="layer-groups">{st.groupNames(l.groups)}</span>
     </li>);
 }
