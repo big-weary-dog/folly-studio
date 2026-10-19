@@ -62,15 +62,27 @@ export function PreviewPane({ st, pv, els }: Props & { els: Record<string, HTMLE
           <span class="baked-text">{baked && `Baked frames · ${baked.seconds.toFixed(baked.seconds % 1 ? 1 : 0)} s`}
             <span class="baked-extra">{baked && ` · ${mb(baked.bytes)} · no code running`}</span></span>
           <button type="button" class="btn small" onClick={() => pv.playBaked(false)}>Back to live</button></div>
-        <div class="viewer-msg flash-banner" role="status" hidden={!pv.dimmed.value}>
-          <span class="flash-text">{REDUCE.matches ? 'This look flashes quickly, so it stays dimmed: your device asks '
-            + 'for reduced motion.' : 'This look flashes quickly. Show it anyway?'}</span>
-          <button type="button" class="btn small" hidden={REDUCE.matches} onClick={pv.showAnyway}>
-            Show it anyway</button>
-        </div>
+        <FlashBanner pv={pv} />
       </div>
       <Transport st={st} pv={pv} el={transport} />
     </section>);
+}
+
+/** Over a look that flashes fast: dimmed, with Show it anyway and Don't dim for me; or, when this person turned
+ * dimming off, a note that turns it back on. */
+function FlashBanner({ pv }: { pv: Preview }) {
+  const dimmed = pv.dimmed.value, off = pv.flashing.value && !pv.dimFlashes.value;
+  return (
+    <div class={cx('viewer-msg flash-banner', off && 'off')} role="status" hidden={!dimmed && !off}>
+      <span class="flash-text">{off ? 'Flashing quickly: not dimmed for you.'
+        : REDUCE.matches ? 'This look flashes quickly, so it stays dimmed: your device asks for reduced motion.'
+        : 'This look flashes quickly. Show it anyway?'}</span>
+      <button type="button" class="btn small" hidden={off || REDUCE.matches} onClick={pv.showAnyway}>
+        Show it anyway</button>
+      <button type="button" class="btn small ghost" title={off ? 'Dim fast-flashing previews again'
+        : 'Stop dimming fast-flashing previews for you, on this browser'}
+        onClick={() => pv.setDimFlashes(off)}>{off ? 'Dim it' : 'Don\u2019t dim for me'}</button>
+    </div>);
 }
 
 /** Ghost (unlit LEDs shown faintly), then Playa | Points and the Playa's quality. */

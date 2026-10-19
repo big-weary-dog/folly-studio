@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { GenerateError } from '../../shared/schemas/generated.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
 import { DEFAULT_BAKE_SECONDS, framesBytesFor, parseBytes, parseDuration } from '../bake.ts';
-import { type BakeError, checkFrames, cleanBoxStats, failedBake, readUntrusted } from '../box-output.ts';
+import { type BakeError, checkFrames, cleanBoxStats, failedBake, flashSettings, readUntrusted } from '../box-output.ts';
 import { moduleFiles } from '../core-script.ts';
 import {
   describeRig, formatExamples, formatGroups, GROUPS_NOTE, PATTERN_GUIDE, pickExamples, rootOf, TASTE,
@@ -278,7 +278,7 @@ export function createFleetAdapter(o: Options = {}) {
     try { rig ||= JSON.parse(await fs.readFile(cfg.rigFile, 'utf8')); } catch {
       return { bake: failedBake(source, 'The rig could not be read to check the frames.') };
     }
-    const out = checkFrames(bytes, { source, rig, maxBytes: cfg.maxFramesBytes, boxStats });
+    const out = checkFrames(bytes, { source, rig, maxBytes: cfg.maxFramesBytes, boxStats, flash: flashSettings(env) });
     if (!out.bake.ok) say('warn', `bake from ${path.basename(ws)}: ${out.bake.reason}`);
     return out;
   }

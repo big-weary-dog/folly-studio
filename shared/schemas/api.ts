@@ -37,19 +37,27 @@ export const LookCreate = z.object({
   automation: z.unknown().optional(), bpm: Bpm.optional(), shared: bool('shared').default(false),
   ideaId: z.string({ error: 'ideaId does not name one of your ideas.' }).nullish(),
 });
-/** PUT /api/looks/:id: what changes; null clears bpm, globals and automation. */
+const REASON = 'flashOverride: say in 3–500 characters why this flashing is acceptable.';
+/** PUT /api/looks/:id: what changes; null clears bpm, globals and automation. `flashOverride` (with reviewed: true):
+ * a curator's reason for approving a bake that fails the flash check. */
 export const LookPatch = z.object({
   title: LookTitle.optional(), summary: Summary.optional(), shared: bool('shared').optional(),
   bpm: Bpm.optional(), layers: Layers.optional(), duration: Duration.optional(), globals: Globals.optional(),
   automation: z.unknown().optional(), reviewed: bool('reviewed').optional(),
+  flashOverride: z.string({ error: REASON }).trim().min(3, { error: REASON }).max(500, { error: REASON }).optional(),
 });
 export const LooksQuery = z.object({
   scope: z.enum(['mine', 'gallery'], { error: 'scope must be mine or gallery.' }).default('mine'),
   versions: z.string().optional(),
 });
 
-// What the API answers with (it never reads these back): an account, an idea, a look as lists and GET show it.
+// What the API answers with (it never reads these back): an account, the flash check's settings, an idea, a look as
+// lists and GET show it.
 export type User = { id: string, username: string, role: 'member' | 'curator' | 'admin' };
+/** GET /api/me's `flash`: whether the flash check runs here, and its limits (SPEC "Baked frames" > Checks). */
+export type FlashSettings = { check: boolean, perSecond: number, delta: number, darker: number, area: number };
+/** A curator's approval of a look whose bake fails the flash check: why, who, when. */
+export type FlashOverride = { reason: string, by: string, at: string };
 /** Where a generation's time went, in ms: in the queue, building the prompt, the model's request, parsing. */
 export type Timing = { wait: number, prompt: number, request: number, parse: number, total: number };
 /** `model`: the model asked for; `generator`: the one that made the look (a fallback's, if it took over); `by`: its
@@ -65,13 +73,15 @@ export type Listed = { id: string, owner: string, ownerName: string, title: stri
   createdAt: string, updatedAt: string };
 /** A look as GET /api/looks/:id answers. */
 export type Look = Omit<Listed, 'layerCount'> & { layers: Layer[], globals?: z.infer<typeof Globals>,
-  automation?: Automation, versionCount: number, bake?: Bake | null, reviewedBy?: string };
+  automation?: Automation, versionCount: number, bake?: Bake | null, reviewedBy?: string,
+  flashOverride?: FlashOverride };
 
 type Flashes = { maxHz: number, flaggedSeconds: number[], regions: string[] };
 /** What the frame checks found (SPEC "Baked frames" > Checks: src/frames.ts analyzeFrames). */
 export type Analysis = { frames: number, seconds: number, fps: number, channels: number, sparse: boolean,
   pixels: number, coverage: number, peakBrightness: number, meanBrightness: number, darkFraction: number,
-  estPeakAmps: number, flicker: Flashes & { ok: boolean, small: Flashes } };
+  estPeakAmps: number, flicker: Flashes & { ok: boolean, small: Flashes,
+    limits?: { perSecond: number, delta: number, area: number } } };
 /** A look's bake as stored (SPEC "Baked frames" > Stored); `boxStats` is what the box said, kept as untrusted. */
 export type Bake = { source: 'render-box' | 'fleet-box', status: 'queued' | 'running' | 'done' | 'failed', ok: boolean,
   reason?: string, warning?: string, checkedAt?: string, requestedAt?: string, startedAt?: string, layersHash?: string,

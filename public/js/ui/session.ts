@@ -2,10 +2,12 @@
 // Studio edits. The shell plugs its router in, so no view imports the shell (an import cycle would cost Vite's HMR).
 import { signal } from '@preact/signals';
 
-import type { User } from '../../../shared/schemas/api.ts';
+import type { FlashSettings, User } from '../../../shared/schemas/api.ts';
 
 export interface ViewProps { params: Record<string, string>; query: URLSearchParams; scope?: 'mine' | 'gallery' }
 export const user = signal<User | null>(null);
+/** The server's flash check: whether it runs, and its limits (GET /api/me's `flash`); null until known. */
+export const flash = signal<FlashSettings | null>(null);
 /** The Studio's unsaved edits: whether there are any, and how to drop them. */
 export const leaveGuard: { isDirty?: () => boolean; discard?: () => void } = {};
 type Go = { replace?: boolean; force?: boolean };

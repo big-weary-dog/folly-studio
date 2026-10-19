@@ -18,11 +18,14 @@
 //   STUDIO_FRAMES_BROTLI_QUALITY  baked frames' brotli quality for streaming, default 9 (11: ~12 % smaller,
 //                          ~13× the CPU)
 //   STUDIO_FRAMES_MAX_BYTES       disk cap for baked frames, default 2GB (least recently used go first)
+//   STUDIO_FLASH_PER_SECOND, _DELTA, _AREA  the flash check's limits (WCAG: 3, 0.1, 0.1); STUDIO_FLASH_CHECK=off
+//                          stops it blocking review or dimming previews (local use only, never a public server)
 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from './src/app.ts';
 import { parseBytes } from './src/bake.ts';
+import { flashSettings } from './src/box-output.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const env = process.env;
@@ -35,11 +38,12 @@ const app = await createServer({ dataDir, publicDir: path.join(here, 'public'), 
   curators: env.STUDIO_CURATORS || '', admins: env.STUDIO_ADMINS || '', secureCookies: on(env.STUDIO_SECURE_COOKIES),
   generatorName: env.STUDIO_GENERATOR || '',
   trustProxy: on(env.STUDIO_TRUST_PROXY), framesQuality: Number(env.STUDIO_FRAMES_BROTLI_QUALITY) || undefined,
-  framesMaxBytes: parseBytes(env.STUDIO_FRAMES_MAX_BYTES, undefined) });
+  framesMaxBytes: parseBytes(env.STUDIO_FRAMES_MAX_BYTES, undefined), flash: flashSettings(env) });
 const addr = await app.listen(port, host);
 const where = `http://${host.includes(':') ? `[${host}]` : host}:${addr.port}/`;
 console.log(`[studio] Folly Studio on ${where} (data ${dataDir}, models ${app.models.file}, default `
   + `${app.adapterName})`);
+if (!flashSettings(env).check) console.warn('[studio] STUDIO_FLASH_CHECK=off: flashing blocks nothing (local only)');
 
 let stopping = false;
 for (const signal of ['SIGINT', 'SIGTERM']) {

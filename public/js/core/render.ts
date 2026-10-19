@@ -305,10 +305,12 @@ export function prepareLayer(scene: Scene, layer: LayerInput | null | undefined,
     if (r[j] > rmax) rmax = r[j];
   }
   if (rmax > 0) for (let j = 0; j < m; j++) r[j] /= rmax;
+  const corner = (v: number[]) => Object.freeze(m ? v : [0, 0, 0]);
   return {
     id: layer?.id ?? null,
     idx, lx, ly, lz, a, r,
     bounds: { min: [x0, y0, z0], max: [x1, y1, z1] },
+    extent: Object.freeze([corner([x0, y0, z0]), corner([x1, y1, z1])]),  // extent()
     chain, modular: Array.isArray(layer?.modules), failed: null as string | null,
     blend: isBlend(layer?.blend) ? layer.blend : 'add', level: isNum(layer?.level) ? clamp(layer.level) : 1,
     clips: normalizeClips(layer?.clips), enabled: layer?.enabled !== false,
@@ -344,6 +346,7 @@ export function renderFrame(scene: Scene, layers: readonly (PreparedLayer | null
     const env = L.clips ? layerEnvelope(L.clips, t) : 1, level = L.enabled ? L.level * env : 0;
     if (!(level > 0)) continue;
     const t0 = clock();
+    RUN.extent = L.extent;
     for (let i = 0; i < L.chain.length; i++) {
       const M = L.chain[i];
       if (M.mods.length) applyMods(M.mods, M.P, t, env, LK);

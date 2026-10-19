@@ -1,9 +1,9 @@
 // Data-only checks on baked frames (an FSEQ v2 file), for the trusted side. Pure: no I/O, no Node
 // APIs, no imports but types, nothing here runs code. The Fleet box runs a copy on its own bake (advisory; the server
-// repeats it). The rig arrives as the pattern core's scene and flash regions (prepareScene, flashRegions).
+// repeats it). The rig arrives as the pattern core's scene, and the flash check as its FlashWatch (prepareScene).
 
 import type { Span } from '../public/js/fseq.ts';
-import type { Region, Scene } from '../public/js/pattern-core.ts';
+import type { FlashWatch, Scene } from '../public/js/pattern-core.ts';
 import type { Analysis } from '../shared/schemas/api.ts';
 
 export const CHANNELS_PER_UNIVERSE = 510; // a parsed file's default bounds: 80 universes of 510 (xLights, FPP)
@@ -11,12 +11,9 @@ export const UNIVERSES = 80;
 export const MAX_CHANNELS = UNIVERSES * CHANNELS_PER_UNIVERSE; // 40,800
 export const DEFAULT_MAX_BYTES = 64 * 1024 * 1024;
 
-// Photosensitivity: WCAG 2.3.1's general flash threshold for a building. A flash is a pair of opposing
-// changes in relative luminance of ≥ 10 % with the darker state below 0.80; over three a second fail.
-// Regions are the rig and each top-level group (their mean luminance). Red flash: not checked.
-export const FLASH = Object.freeze({ delta: 0.1, darker: 0.8, perSecond: 3 });
-// Only large-area flashing blocks review; flashing confined to a small region is a warning (the core's
-// flashRegions says which regions are large).
+// Photosensitivity: WCAG 2.3.1's general flash threshold for a building, as the core's FlashWatch (core/flash.ts)
+// judges it. Only large-area flashing blocks review; flashing confined to small places is a warning. Red flash: not
+// checked.
 // Power: WS281x pixels draw about 20 mA per channel at full, at 5 V: an estimate for sizing supplies.
 export const AMPS_PER_CHANNEL = 0.02;
 const DARK = 10; // a pixel is dark when every channel is below this (about 4 %)
@@ -159,10 +156,9 @@ function inflateBlocks(b: Bytes, { compression, blocks, dataOffset, channelCount
 export type Parsed = ReturnType<typeof parseFseq>;
 const round = (v: number, places: number) => Math.round(v * 10 ** places) / 10 ** places;
 
-/** What the frames show on the scene (regions: the whole, by default): one pass, no allocation per frame. Channels
- * the file does not hold count as off. */
-export function analyzeFrames(parsed: Parsed, scene: Scene,
-  regions: readonly Region[] = [{ id: 'all', idx: null, large: true }]): Analysis {
+/** What the frames show on the scene: one pass, no allocation per frame. `watch`: the core's FlashWatch for the scene,
+ * recording (new FlashWatch(scene, limits, { record: true })). Channels the file does not hold count as off. */
+export function analyzeFrames(parsed: Parsed, scene: Scene, watch: FlashWatch): Analysis {
   const { data, channelCount: cc, frameCount: F, stepMs, ranges } = parsed;
   const N = scene.count;
   const [cR, cG, cB] = scene.order as [number, number, number];
@@ -180,46 +176,12 @@ export function analyzeFrames(parsed: Parsed, scene: Scene,
     covered += +(oR[k] >= 0) + +(oG[k] >= 0) + +(oB[k] >= 0);
   }
 
-  // Flash detector per region: a swing is confirmed once luminance turns back by `delta` from its
-  // extreme, so slow drift and small shimmer never count. Swings are stored by frame.
-  const R = regions.length;
-  const { delta, darker, perSecond } = FLASH;
-  const EPS = 1e-9;
-  const state = new Int8Array(R); // 0 = not moving yet, 1 = rising, −1 = falling
-  const prev = new Float64Array(R); // the extreme the current swing started from
-  const ext = new Float64Array(R); // the current swing's extreme so far
-  const extAt = new Int32Array(R);
-  const lo = new Float64Array(R).fill(Infinity);
-  const hi = new Float64Array(R).fill(-Infinity);
-  const swings = new Int32Array(R * (F + 1));
-  const nSwings = new Int32Array(R);
-  const swing = (j: number, from: number, to: number, at: number) => {
-    if (Math.min(from, to) < darker) swings[j * (F + 1) + nSwings[j]++] = at;
-  };
-  const extreme = (j: number, v: number, f: number) => { ext[j] = v; extAt[j] = f; };
-  const feed = (j: number, v: number, f: number) => {
-    const s = state[j];
-    if (s === 0) {
-      if (v < lo[j]) lo[j] = v;
-      if (v > hi[j]) hi[j] = v;
-      if (v - lo[j] >= delta - EPS) [state[j], prev[j]] = [1, lo[j]];
-      else if (hi[j] - v >= delta - EPS) [state[j], prev[j]] = [-1, hi[j]];
-      else return;
-      extreme(j, v, f);
-    } else if (s === 1 ? v > ext[j] : v < ext[j]) {
-      extreme(j, v, f);
-    } else if (Math.abs(ext[j] - v) >= delta - EPS) {
-      swing(j, prev[j], ext[j], extAt[j]);
-      [prev[j], state[j]] = [ext[j], -s];
-      extreme(j, v, f);
-    }
-  };
-
   const lum = new Float32Array(N);
   let peak = 0, total = 0, dark = 0;
+  watch.reset();
   for (let f = 0; f < F; f++) {
     const base = f * cc;
-    let sum = 0, lsum = 0;
+    let sum = 0;
     for (let k = 0; k < N; k++) {
       const r = oR[k] >= 0 ? data[base + oR[k]] : 0;
       const g = oG[k] >= 0 ? data[base + oG[k]] : 0;
@@ -227,48 +189,15 @@ export function analyzeFrames(parsed: Parsed, scene: Scene,
       sum += r + g + b;
       if (r < DARK && g < DARK && b < DARK) dark++;
       // Relative luminance. LED PWM values are already linear light, so no sRGB decoding.
-      lsum += lum[k] = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+      lum[k] = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
     }
     if (sum > peak) peak = sum;
     total += sum;
-    for (let j = 0; j < R; j++) {
-      const idx = regions[j].idx;
-      if (!idx) { feed(j, lsum / N, f); continue; }
-      let s = 0;
-      for (let i = 0; i < idx.length; i++) s += lum[idx[i]];
-      feed(j, s / idx.length, f);
-    }
+    watch.frame(lum, f * stepMs);
   }
-  for (let j = 0; j < R; j++) {
-    if (state[j] !== 0 && Math.abs(ext[j] - prev[j]) >= delta - EPS) swing(j, prev[j], ext[j], extAt[j]);
-  }
-
-  // Any one-second window holding more than 2 × perSecond swings (> perSecond flashes) is flagged:
-  // on a large region it blocks review, on a small one it is a warning.
-  const seconds = (F * stepMs) / 1000;
-  const large = regions.map((r) => r.large);
-  const kinds = [0, 1].map(() => ({ mask: new Uint8Array(Math.ceil(seconds) + 1), regions: [] as string[],
-    swings: 0 }));
-  const second = (frame: number) => Math.floor((frame * stepMs) / 1000);
-  for (let j = 0; j < R; j++) {
-    const t = swings.subarray(j * (F + 1), j * (F + 1) + nSwings[j]);
-    const kind = kinds[large[j] ? 0 : 1];
-    let flagged = false;
-    for (let q = 0, i = 0; q < t.length; q++) {
-      while ((t[q] - t[i]) * stepMs >= 1000) i++;
-      kind.swings = Math.max(kind.swings, q - i + 1);
-      if (q - i + 1 <= 2 * perSecond) continue;
-      flagged = true;
-      for (let s = second(t[i]); s <= second(t[q]); s++) kind.mask[s] = 1;
-    }
-    if (flagged) kind.regions.push(regions[j].id);
-  }
-  const [big, small] = kinds.map((k) => {
-    const flaggedSeconds: number[] = [];
-    k.mask.forEach((v, s) => v && flaggedSeconds.push(s));
-    return { maxHz: k.swings / 2, flaggedSeconds, regions: k.regions };
-  });
-
+  // On a large area flashing blocks review; on small places alone it is a warning.
+  const { large, small } = watch.report(), seconds = (F * stepMs) / 1000;
+  const { perSecond, delta, area } = watch.limits;
   return {
     frames: F, seconds: round(seconds, 3), fps: round(1000 / stepMs, 2), channels: cc, sparse: parsed.sparse === true,
     pixels: N,
@@ -276,7 +205,7 @@ export function analyzeFrames(parsed: Parsed, scene: Scene,
     peakBrightness: round(peak / (765 * N), 3), // brightest frame, as a share of all-white
     meanBrightness: round(total / (765 * N * F), 3), darkFraction: round(dark / (N * F), 3),
     estPeakAmps: round((peak / 255) * AMPS_PER_CHANNEL, 1),
-    flicker: { ...big, ok: big.regions.length === 0, small },
+    flicker: { ...large, ok: large.regions.length === 0, small, limits: { perSecond, delta, area } },
   };
 }
 
@@ -287,7 +216,7 @@ const around = (f: { flaggedSeconds: number[] }) => f.flaggedSeconds.slice(0, 6)
 export function flickerReason(analysis?: Analysis) {
   const f = analysis?.flicker;
   if (!f || f.ok) return '';
-  return `Large-area flashing at up to ${f.maxHz} flashes a second (over ${FLASH.perSecond} is unsafe for `
+  return `Large-area flashing at up to ${f.maxHz} flashes a second (over ${f.limits?.perSecond ?? 3} is unsafe for `
     + `photosensitive people) around ${around(f)}, on ${f.regions.join(', ')}.`;
 }
 

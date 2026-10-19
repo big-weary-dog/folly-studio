@@ -180,11 +180,15 @@ itself is kept marked untrusted.
 look's current layers; any edit clears the bake and the review. A curator judges bytes that cannot change, not
 code that might behave differently at showtime.
 
-**Flash checks** adapt WCAG 2.3.1 (general flash: more than 3 flashes in any second) to a sculpture, per region.
-Flashing over a large area (the whole rig, a group with ≥ 10 % of the LEDs, or ≥ 10 % of the lit area seen from
-the front or side) **blocks review**; flashing confined to small regions such as the spirelets only **warns**, for
-the curator to judge. The live preview runs the same rule on the frames it shows and dims a strobe, asking before
-showing it; with reduced motion it stays dimmed.
+**Flash checks** adapt WCAG 2.3.1 (general flash: more than 3 flashes in any second) to a sculpture. Flashes are
+counted where they happen: a swing of a group's light is credited to the cells that made it, so a shockwave crossing
+arch after arch flashes each place once a pass, not the arches over and over. Flashing over a large area (≥ 10 % of
+the LEDs, or of the lit area seen from the front or side) **blocks review**; flashing confined to small parts such as
+the spirelets only **warns**. A curator may still approve a flashing bake by **giving a reason**, kept on the look
+with their name and shown on its bake card. The live preview runs the same rule (`core/flash.ts`) on the frames it
+shows and dims a strobe, asking before showing it; with reduced motion it stays dimmed. Each person may turn the
+dimming off for themselves ("Don't dim for me"). The limits are the host's (`STUDIO_FLASH_*`, WCAG's by default);
+`STUDIO_FLASH_CHECK=off` is for local use only.
 
 - **Alternatives.** `node:vm` alone (not a security boundary), isolated-vm (a native dependency), containers or
   microVMs (heavy for a home host), rendering previews on the server (CPU and latency at home).

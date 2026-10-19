@@ -11,7 +11,8 @@ import { analyzeFrames, parseFseq } from '../../src/frames.ts';
 
 const here = (p) => new URL(p, import.meta.url);
 const rig = JSON.parse(readFileSync(here('../../public/data/rig.json'), 'utf8'));
-const ranges = ledRanges(rig), scene = core.prepareScene(rig), regions = core.flashRegions(scene);
+const ranges = ledRanges(rig), scene = core.prepareScene(rig);
+const watch = new core.FlashWatch(scene, null, { record: true });
 
 const results = workerData.names.map((name) => {
   const code = readFileSync(here(`../../public/patterns/${name}.js`), 'utf8');
@@ -22,7 +23,7 @@ const results = workerData.names.map((name) => {
     errors += next().length;
     data.set(packed, f * packed.length);
   }
-  const { flicker } = analyzeFrames(parseFseq(writeFseq({ frames, data, ranges })), scene, regions);
+  const { flicker } = analyzeFrames(parseFseq(writeFseq({ frames, data, ranges })), scene, watch);
   return { name, ok: flicker.ok, maxHz: flicker.maxHz, small: flicker.small.regions, errors };
 });
 parentPort.postMessage(results);

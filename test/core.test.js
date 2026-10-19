@@ -17,7 +17,7 @@ describe('stdlib', () => {
   test('has every name the SPEC lists', () => {
     const names = `PI TAU sin cos tan asin acos atan atan2 abs min max floor ceil round sqrt pow exp log hypot sign
       clamp fract mix step smoothstep wave tri saw pulse hash rand noise fbm hsv hsl rgb hex scale add gradient
-      cosPalette beat dist centres`.split(/\s+/);
+      cosPalette beat dist centres extent`.split(/\s+/);
     for (const n of names) assert.ok(n in S, n);
     near(S.TAU, 2 * Math.PI);
   });

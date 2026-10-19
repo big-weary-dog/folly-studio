@@ -13,7 +13,7 @@ import { newestBy } from './api.ts';
 import type { Auth } from './auth.ts';
 import { type createBakeQueue, reviewBlocker } from './bake.ts';
 import { BakeError } from './box-output.ts';
-import { HttpError, parse } from './http.ts';
+import { HttpError, type Logger, parse } from './http.ts';
 import type { Store, StoredLook as Look } from './store.ts';
 
 export const MAX_VERSIONS = 20;
@@ -29,8 +29,8 @@ export const validateLayers = (layers: unknown) => parse(z.object({ layers: Laye
 const lanes = (automation: unknown, globals: Globals | null | undefined) =>
   parse(z.object({ automation: automationFor(globals) }), { automation }).automation ?? undefined;
 
-export function lookRoutes({ store, auth, bakes, dropFrames }: { store: Store, auth: Auth,
-  bakes: ReturnType<typeof createBakeQueue>, dropFrames: (id: string) => Promise<unknown> }) {
+export function lookRoutes({ store, auth, bakes, dropFrames, log = console }: { store: Store, auth: Auth,
+  bakes: ReturnType<typeof createBakeQueue>, dropFrames: (id: string) => Promise<unknown>, log?: Logger }) {
   const ownerName = (id: string) => store.users.get(id)?.username ?? '';
 
   function presentLook(look: Look, { versions = false } = {}) {
@@ -132,13 +132,25 @@ export function lookRoutes({ store, auth, bakes, dropFrames }: { store: Store, a
       throw new HttpError(403, 'Only the owner can edit this look.');
     }
     if (layersChanged && look.bake) patch.bake = undefined; // its frames show the old code
+    if (body.flashOverride !== undefined && body.reviewed !== true) {
+      throw new HttpError(400, 'flashOverride goes with reviewed: true.');
+    }
     if (body.reviewed !== undefined && body.reviewed !== (look.reviewed === true)) {
       if (!isCurator) throw new HttpError(403, 'Only curators can mark a look reviewed.');
-      const blocker = body.reviewed && (layersChanged ? 'The code changed. Bake it again first.' : reviewBlocker(look));
+      const override = body.flashOverride ?? '';
+      const blocker = body.reviewed && (layersChanged ? 'The code changed. Bake it again first.'
+        : reviewBlocker(look, { override }));
       if (blocker) throw new HttpError(409, blocker);
-      Object.assign(patch, { reviewed: body.reviewed, reviewedBy: body.reviewed ? user.username : undefined });
+      Object.assign(patch, { reviewed: body.reviewed, reviewedBy: body.reviewed ? user.username : undefined,
+        flashOverride: undefined });
+      // Approving frames that fail the flash check: the curator's reason stays on the look, and in the log.
+      if (body.reviewed && override && look.bake?.analysis?.flicker?.ok === false && !look.bake.ok) {
+        patch.flashOverride = { reason: override, by: user.username, at: new Date().toISOString() };
+        log.info?.(`[review] look ${id}: ${user.username} approved its flashing frames: ${JSON.stringify(override)}`);
+      }
     } else if (body.reviewed === undefined && layersChanged && look.reviewed === true) {
-      Object.assign(patch, { reviewed: false, reviewedBy: undefined }); // new code needs a fresh review
+      // New code needs a fresh review.
+      Object.assign(patch, { reviewed: false, reviewedBy: undefined, flashOverride: undefined });
     }
     const updated = Object.keys(patch).length ? store.looks.update(id, patch)! : look;
     if ('bake' in patch) await dropFrames(id);

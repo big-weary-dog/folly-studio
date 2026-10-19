@@ -1,12 +1,13 @@
 // Bake (SPEC "Baked frames"): render the saved look in the server's render box, show what the checks found, play the
-// baked frames (no pattern code runs), and let a curator mark a passing look reviewed.
+// baked frames (no pattern code runs), and let a curator mark a passing look reviewed, or one that fails only the
+// flash check, with their reason.
 import { useEffect, useState } from 'preact/hooks';
 
 import { api, type ApiError, statusOf } from '../api.ts';
 import { autoFetchAllowed, fetchManifest } from '../frames-stream.ts';
 import type { Bake } from '../../../shared/schemas/api.ts';
 import { signedOut, user } from './session.ts';
-import { cx, Switch, toast } from './kit.tsx';
+import { cx, Field, openDialog, Switch, toast } from './kit.tsx';
 import type { Preview } from './preview.ts';
 import { mb } from './preview-view.tsx';
 import type { Studio } from './studio-store.ts';
@@ -84,13 +85,20 @@ export function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
     st.adopt({ ...now, bake: started });
     toast('Baking in the render box…', { timeout: 2500 });
   }, (err) => toast(err.message, { kind: err.status === 503 ? 'warn' : 'error', timeout: 8000 })); // 503: no box
-  const review = (on: boolean) => look && busyWith(async () => {
-    st.adopt((await api.updateLook(look.id, { reviewed: on })).look);
-    toast(on ? 'Marked reviewed.' : 'No longer marked reviewed.', { kind: 'ok' });
-  }, (err) => {                               // the server's 409 says why
+  const review = async (on: boolean) => {
+    if (!look) return;
+    // Frames that fail the flash check are approved only with the curator's reason, kept on the look.
+    const flashOverride = on && !passing ? await askWhy(bake?.reason || '') : undefined;
+    if (on && !passing && !flashOverride) return;
+    await busyWith(async () => {
+      st.adopt((await api.updateLook(look.id, { reviewed: on, ...(flashOverride ? { flashOverride } : {}) })).look);
+      toast(on ? 'Marked reviewed.' : 'No longer marked reviewed.', { kind: 'ok' });
+    }, failedReview);
+  };
+  const failedReview = (err: ApiError) => {                               // the server's 409 says why
     toast(err.message, { kind: 'error', timeout: 9000 });
     if (err.status === 409) setTimeout(poll, 0);   // our copy is stale: catch up
-  });
+  };
   async function togglePlay() {
     const sha = bake?.frames?.sha256;
     setLoading(true);
@@ -119,6 +127,8 @@ export function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
   const reason = error || (s.kind === 'failed' || s.kind === 'flagged' ? bake?.reason || '' : '');
   const warning = done && !error ? bake?.warning || '' : '', hasFrames = !!(bake?.frames && done);
   const passing = bake?.source === 'render-box' && done && bake.ok && !dirty;
+  const overridable = bake?.source === 'render-box' && hasFrames && f?.ok === false && !bake.ok && !dirty;
+  const approved = look?.reviewed && look.flashOverride;
   const note = !look ? 'Save the look, then bake it: the render box plays it for real and checks it for flashing and '
     + 'power.'
     : s.kind === 'none' ? 'Bake it in the render box to check it for flashing and power, and to get the frames that '
@@ -135,6 +145,7 @@ export function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
       <dl class="bake-report" hidden={!a}>{a && <>
         {row('Flash check', check[0], check[1])}
         {row('Peak', `${pct(a.peakBrightness)} white · ≈ ${a.estPeakAmps} A`)}
+        {approved && row('Approved', `by ${approved.by}, flashing and all: “${approved.reason}”`, 'warn')}
         {row('Length', `${a.seconds} s${bake?.frames?.bytes ? ` · ${mb(bake.frames.bytes)}` : ''}`)}
         {hasFrames && url && <div class="field"><dt>Download</dt><dd><a href={url} download="">.fseq</a> · <a
           href={`${url}?compress=1`} download="">compressed</a></dd></div>}</>}</dl>
@@ -149,8 +160,26 @@ export function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
       </div>
       <p class="bake-note narrow-only" hidden={!canBake || !look}>Bake and review from a larger screen.</p>
       {curator && <Switch label="Reviewed for the playa" class="share-toggle bake-review wide-only"
-        checked={!!look?.reviewed} disabled={busy || !look || (!look.reviewed && !passing)} onChange={review}
-        title={look?.reviewed ? 'Reviewed: approved to play on the Folly' : passing
-          ? 'Mark this look approved for the Folly' : 'Needs a passing render-box bake of the saved code first'} />}
+        checked={!!look?.reviewed} disabled={busy || !look || (!look.reviewed && !passing && !overridable)}
+        onChange={review} title={look?.reviewed ? 'Reviewed: approved to play on the Folly' : passing
+          ? 'Mark this look approved for the Folly' : overridable ? 'It fails the flash check: approve it with a reason'
+          : 'Needs a passing render-box bake of the saved code first'} />}
     </section>);
+}
+
+/** A curator's reason for approving frames that fail the flash check (3–500 characters), or undefined. */
+function askWhy(found: string) {
+  return openDialog<string>({ title: 'Approve despite flashing?', body: (close) => {
+    const [text, setText] = useState('');
+    return <form class="details-form" onSubmit={(e) => { e.preventDefault(); close(text.trim()); }}>
+      <p class="dialog-text">{found} Approving it lets it play on the Folly. Your reason stays on the look, with your
+        name.</p>
+      <Field label="Why is this flashing acceptable?" stack>{(id) => <textarea id={id} rows={3} required
+        minlength={3} maxlength={500} value={text} onInput={(e) => setText(e.currentTarget.value)} />}</Field>
+      <div class="dialog-actions">
+        <button class="btn ghost" type="button" onClick={() => close()}>Cancel</button>
+        <button class="btn primary" type="submit">Approve</button>
+      </div>
+    </form>;
+  } });
 }

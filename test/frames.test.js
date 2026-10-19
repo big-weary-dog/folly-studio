@@ -1,10 +1,14 @@
 // src/frames.js: the strict FSEQ parser and the frame analysis (brightness, power, flicker).
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
 import { ledRanges, writeFseq } from '../public/js/fseq.ts';
-import { flashRegions, pixelsForGroups, prepareScene } from '../public/js/pattern-core.ts';
+import {
+  compileLayer, FlashWatch, pixelsForGroups, prepareLayer, prepareLook, prepareScene, renderFrame,
+} from '../public/js/pattern-core.ts';
+import { checkFrames, flashSettings } from '../src/box-output.ts';
 import { analyzeFrames, FseqError, flickerReason, flickerWarning, MAX_CHANNELS, parseFseq } from '../src/frames.ts';
 import { folly } from './fixtures/rigs.js';
 
@@ -32,10 +36,10 @@ function smallRig() {
   };
 }
 
-/** analyzeFrames on a rig, as the server calls it. */
-function analyze(parsed, rig) {
+/** analyzeFrames on a rig, as the server calls it (limits: the flash check's, WCAG's by default). */
+function analyze(parsed, rig, limits) {
   const scene = prepareScene(rig);
-  return analyzeFrames(parsed, scene, flashRegions(scene));
+  return analyzeFrames(parsed, scene, new FlashWatch(scene, limits, { record: true }));
 }
 const usedRanges = ledRanges;
 
@@ -131,10 +135,11 @@ describe('analyzeFrames', () => {
     assert.equal(a.flicker.ok, false);
     assert.equal(a.flicker.maxHz, 10);
     assert.deepEqual(a.flicker.flaggedSeconds, [0, 1, 2, 3, 4]);
-    assert.deepEqual(a.flicker.regions, ['cathedral', 'parts']);
-    assert.deepEqual(a.flicker.small.regions, ['spire'], 'the 5-LED spire flashes too, but it is small');
+    assert.deepEqual(a.flicker.regions, ['parts', 'spire'], 'the 5-LED spire flashes with the rest: one large area');
+    assert.deepEqual(a.flicker.small.regions, []);
+    assert.deepEqual(a.flicker.limits, { perSecond: 3, delta: 0.1, area: 0.1 });
     assert.match(flickerReason(a),
-      /up to 10 flashes a second .* around 0 s, 1 s, 2 s, 3 s, 4 s, on cathedral, parts\./);
+      /up to 10 flashes a second \(over 3 .* around 0 s, 1 s, 2 s, 3 s, 4 s, on parts, spire\./);
   });
 
   test('passes a slow 0.5 Hz breathe, 3 Hz exactly, and bright shimmer', () => {
@@ -207,10 +212,14 @@ describe('flicker on the Folly: large regions block, small ones warn', () => {
     return analyze(parseFseq(bake(real, 2, (f, k) => (inside.has(k) ? gray(square(8)(f)) : gray(40)))), real);
   };
 
-  test('large: the whole, ≥ 10 % of the LEDs, or ≥ 10 % of the lit area from the front or side', () => {
-    const kinds = Object.fromEntries(flashRegions(scene).map((r) => [r.id, r.large]));
-    assert.deepEqual(kinds, { cathedral: true, arches: true, spires: true, spirelets: false, 'rose-window': true,
-      canopy: true, wash: false });
+  test('large: ≥ 10 % of the LEDs, or ≥ 10 % of the lit area from the front or side', () => {
+    const verdict = (id) => {
+      const a = strobeOn(id);
+      return !a.flicker.ok ? 'blocks' : a.flicker.small.regions.length ? 'warns' : 'passes';
+    };
+    const ids = ['arches', 'spires', 'spirelets', 'rose-window', 'canopy', 'wash'];
+    assert.deepEqual(Object.fromEntries(ids.map((id) => [id, verdict(id)])), { arches: 'blocks', spires: 'blocks',
+      spirelets: 'warns', 'rose-window': 'blocks', canopy: 'blocks', wash: 'warns' });
   });
 
   test('the 20 spirelets strobing: a warning the curator sees; the rose window strobing: blocked', () => {
@@ -221,5 +230,74 @@ describe('flicker on the Folly: large regions block, small ones warn', () => {
     const rose = strobeOn('rose-window');
     assert.equal(rose.flicker.ok, false, 'a 6 m disc facing the playa is a large area');
     assert.deepEqual(rose.flicker.regions, ['rose-window']);
+  });
+});
+
+describe('flash check on looks: a wave a second is fine, a strobe is not', () => {
+  const real = folly, scene = prepareScene(real);
+  /** `seconds` of layers rendered by the core, baked as bytes and checked. */
+  const check = (layers, seconds = 4) => {
+    const prepared = layers.map((l) => prepareLayer(scene, l, compileLayer(l)));
+    const look = prepareLook({}), frames = [];
+    for (let f = 0; f < seconds * 40; f++) frames.push(renderFrame(scene, prepared, f / 40, null, look).rgb);
+    const byte = (v) => Math.round(Math.min(1, Math.max(0, v)) * 255);
+    return analyze(parseFseq(bake(real, seconds, (f, k) => [0, 1, 2].map((c) => byte(frames[f][3 * k + c])))), real);
+  };
+  const shockwave = readFileSync(new URL('../public/patterns/shockwave.js', import.meta.url), 'utf8');
+  const strobe = (hz) => `function pixel(p, t) { return floor(t * ${hz} * 2) % 2 ? 0 : 1; }`;
+  const passes = (a, what) => {
+    assert.equal(a.flicker.ok, true, `${what}: ${flickerReason(a)}`);
+    assert.deepEqual(a.flicker.small.regions, [], `${what}: ${flickerWarning(a)}`);
+  };
+
+  test('shockwaves and pulses at 1 and 2 Hz pass, on the whole Folly and from the rose', () => {
+    for (const every of [1, 0.5]) {
+      passes(check([{ id: 's', code: shockwave, params: { every } }]), `shockwave every ${every} s`);
+      passes(check([{ id: 's', code: shockwave, params: { every, width: 0.3 }, groups: ['rose-window'] }]),
+        `shockwave on the rose every ${every} s`);
+    }
+    for (const hz of [1, 2]) {
+      passes(check([{ id: 'p', code: `function pixel(p, t) { return pulse(fract(t * ${hz}), 0.25); }` }]),
+        `a full white pulse at ${hz} Hz`);
+    }
+  });
+
+  test('a 5 Hz strobe over everything blocks; on the spirelets alone it warns', () => {
+    const all = check([{ id: 'x', code: strobe(5) }], 2);
+    assert.equal(all.flicker.ok, false);
+    assert.equal(all.flicker.maxHz, 5);
+    const small = check([{ id: 'x', code: strobe(5), groups: ['spirelets'] }], 2);
+    assert.equal(small.flicker.ok, true);
+    assert.deepEqual(small.flicker.small.regions, ['spirelets']);
+    assert.equal(small.flicker.small.maxHz, 5);
+  });
+});
+
+describe('the flash check\'s settings', () => {
+  test('from the environment: WCAG\'s by default, each limit only in range, and off for local use', () => {
+    const wcag = { check: true, perSecond: 3, delta: 0.1, darker: 0.8, area: 0.1 };
+    assert.deepEqual(flashSettings({}), wcag);
+    const env = (perSecond, delta, area) => ({ STUDIO_FLASH_PER_SECOND: perSecond, STUDIO_FLASH_DELTA: delta,
+      STUDIO_FLASH_AREA: area });
+    assert.deepEqual(flashSettings(env('5', '0.2', '.25')), { ...wcag, perSecond: 5, delta: 0.2, area: 0.25 });
+    assert.deepEqual(flashSettings(env('lots', '0', '7')), wcag);
+    assert.equal(flashSettings({ STUDIO_FLASH_CHECK: 'off' }).check, false);
+    assert.equal(flashSettings({ STUDIO_FLASH_CHECK: 'on' }).check, true);
+  });
+
+  test('checked frames use them; with the check off, large-area flashing is only a warning', () => {
+    const bytes = bake(C, 2, (f) => gray(square(4)(f)));
+    const wcag = checkFrames(bytes, { source: 'render-box', rig: C, flash: flashSettings({}) }).bake;
+    assert.equal(wcag.ok, false);
+    assert.match(wcag.reason, /up to 4 flashes a second \(over 3 /);
+    const relaxed = checkFrames(bytes, { source: 'render-box', rig: C,
+      flash: flashSettings({ STUDIO_FLASH_PER_SECOND: '4' }) }).bake;
+    assert.equal(relaxed.ok, true);
+    assert.deepEqual(relaxed.analysis.flicker.limits, { perSecond: 4, delta: 0.1, area: 0.1 });
+    const off = checkFrames(bytes, { source: 'render-box', rig: C,
+      flash: flashSettings({ STUDIO_FLASH_CHECK: 'off' }) }).bake;
+    assert.equal(off.ok, true);
+    assert.equal(off.analysis.flicker.ok, false, 'still measured');
+    assert.match(off.warning, /^The flash check is off on this server\. Large-area flashing at up to 4 flashes/);
   });
 });

@@ -241,9 +241,10 @@ export function paletteColours(palette?: PaletteHex | null): PaletteColours | nu
   return Object.freeze(out) as PaletteColours;
 }
 
-/** Set by renderFrame for pal(), palette(), centres() and use(). */
-export const RUN: { G: G | null, palette: PaletteColours, scene: { centresOf(tag: string): Centres } | null } = {
-  G: null, palette: paletteColours(DEFAULT_PALETTE)!, scene: null };
+const ORIGIN: Centres = Object.freeze([Object.freeze([0, 0, 0]), Object.freeze([0, 0, 0])]);
+/** Set by renderFrame for pal(), palette(), centres(), extent() and use(). */
+export const RUN: { G: G | null, palette: PaletteColours, scene: { centresOf(tag: string): Centres } | null,
+  extent: Centres } = { G: null, palette: paletteColours(DEFAULT_PALETTE)!, scene: null, extent: ORIGIN };
 
 function ramp(list: Centres, t: number): RGB {
   const n = list.length;
@@ -267,6 +268,9 @@ export function palette(t: number) { return ramp(RUN.palette.all, t); }
 export type Centres = readonly (readonly number[])[];
 const NONE: Centres = Object.freeze([]);
 function centres(tag: string) { return RUN.scene ? RUN.scene.centresOf(String(tag)) : NONE; }
+/** extent(): the running layer's pixels' bounds in metres, [[X0, Y0, Z0], [X1, Y1, Z1]] (frozen; lx ly lz map them
+ * to 0..1), so a pattern can place a point from centres() in its layer and size itself to it. */
+function extent() { return RUN.extent; }
 
 /** Everything pattern code sees as globals. */
 export const STDLIB = Object.freeze({
@@ -274,7 +278,7 @@ export const STDLIB = Object.freeze({
   atan2: Math.atan2, abs: Math.abs, min: Math.min, max: Math.max, floor: Math.floor, ceil: Math.ceil,
   round: Math.round, sqrt: Math.sqrt, pow: Math.pow, exp: Math.exp, log: Math.log, hypot: Math.hypot, sign: Math.sign,
   clamp, fract, mix, step, smoothstep, soft, band, wave, tri, saw, pulse, hash, rand, noise, fbm,
-  hsv, hsl, rgb, hex, scale, add, gradient, cosPalette, pal, palette, centres, beat, dist,
+  hsv, hsl, rgb, hex, scale, add, gradient, cosPalette, pal, palette, centres, extent, beat, dist,
 });
 export const STDLIB_NAMES = Object.freeze(Object.keys(STDLIB));
 export const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);

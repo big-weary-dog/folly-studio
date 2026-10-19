@@ -1,6 +1,6 @@
 // HTTP API client (SPEC "HTTP API"): JSON in and out, cookie session. A non-2xx response throws an ApiError with the
 // server's message and `status` (0: the server could not be reached).
-import type { Bake, Idea, Listed, Look, LookCreate, LookPatch, User } from '../../shared/schemas/api.ts';
+import type { Bake, FlashSettings, Idea, Listed, Look, LookCreate, LookPatch, User } from '../../shared/schemas/api.ts';
 import type { AdminModels, ModelChoices, ModelsConfig } from '../../shared/schemas/models.ts';
 import type { LibraryEntry } from '../../shared/schemas/rig.ts';
 
@@ -31,10 +31,10 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 }
 
 const enc = encodeURIComponent;
-type Me = { user: User };
+type Me = { user: User, flash?: FlashSettings };
 
 export const api = {
-  me: () => request<{ user?: User }>('GET', '/api/me'),
+  me: () => request<Partial<Me>>('GET', '/api/me'),
   signup: (username: string, password: string) => request<Me>('POST', '/api/signup', { username, password }),
   login: (username: string, password: string) => request<Me>('POST', '/api/login', { username, password }),
   logout: () => request('POST', '/api/logout', {}),

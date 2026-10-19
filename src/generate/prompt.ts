@@ -76,7 +76,8 @@ hsl(h, s, l), rgb(r, g, b), hex('#rrggbb'), scale(c, k), add(c1, c2),
 gradient(t, [c0, c1, ...]), cosPalette(t, a, b, c, d) (Inigo Quilez), beat(t, bpm) (phase 0..1),
 dist(x1,y1,z1,x2,y2,z2), pal(role, t) (the look's palette: role 'low' | 'body' | 'accent' | 'high', t 0..1
 across that role's colours), palette(t) (all its colours, low to high), centres(tag) ([X, Y, Z] of each
-group with that tag, [] if none: call it inside pixel or frame), use(name, params?) (a library
+group with that tag, [] if none: call it inside pixel or frame), extent() (this layer's bounds in metres,
+[[X0, Y0, Z0], [X1, Y1, Z1]]: to place a centre in it, measure in metres, fill it), use(name, params?) (a library
 pattern as a function (p, t) → colour; call it at the top level). Colours are [r, g, b] arrays, 0..1.
 
 Rules for code:

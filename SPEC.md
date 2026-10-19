@@ -54,8 +54,9 @@ studio/
                           pages, studio, viewer, timeline, compose (imported by their views)
     sandbox.html          the sandboxed pattern runner's page (a template: the build inlines its relay and Worker)
     js/
-      pattern-core.ts     pure: stdlib, compile, scene prep, renderFrame, toChannels, re-exported from core/
-                          {stdlib,compile,scene,timeline,render,output,spatial,globals}.ts (sandbox, boxes, Node tests)
+      pattern-core.ts     pure: stdlib, compile, scene prep, renderFrame, toChannels, the flash check, re-exported from
+                          core/{stdlib,compile,scene,timeline,render,output,spatial,globals,flash}.ts (sandbox, boxes,
+                          Node tests)
       sandbox-relay.ts    the sandbox page's script: relay + watchdog
       sandbox-worker.ts   the sandbox's Worker: runs a look's layers on the core
       fseq.ts             pure: FSEQ v2 writer (browser + Node tests)
@@ -204,7 +205,9 @@ of `centre`, else 0, each edge a `soft` one `softness` wide), `wave(x)` = ½+½�
 `cosPalette(t, a, b, c, d)` (Inigo Quilez), `beat(t, bpm)` (phase 0..1), `dist(x1,y1,z1,x2,y2,z2)`,
 `pal(role, t = 0)` (the look's palette: role `low|body|accent|high`, unknown or empty → `body`, t 0..1 across
 that role's colours), `palette(t)` (t 0..1 across all its colours, low to high), `centres(tag)` (each group tagged
-`tag`: its `centre` as `[X, Y, Z]`, `[]` when none; call it in `frame` or `pixel`), and `use(name, params?)` → a
+`tag`: its `centre` as `[X, Y, Z]`, `[]` when none; call it in `frame` or `pixel`), `extent()` (the running layer's
+pixels' bounds in metres, `[[X0, Y0, Z0], [X1, Y1, Z1]]`, which `lx ly lz` map to 0..1: so a pattern can burst from
+a `centres()` point and still fill its layer), and `use(name, params?)` → a
 function `(p, t) → colour` running library source `name` as its own instance (its `frame` runs once per new t;
 throws `unknown library pattern`). Colours are `[r, g, b]` arrays, 0..1.
 
@@ -392,8 +395,9 @@ hung layer).
 (a legacy layer → one source), `compileLayer(layer) → compiled[]` (throws `title: error`), `setLibrary([{ name,
 code }])`, `prepareScene(rig) → scene` (throws on a malformed rig), `groupsByTag(scene, tag) → [group]` (outermost
 first), `pixelsForGroups(scene, ids, tags?) → Int32Array` (a layer's rule above), `tagMask(scene, tag) → Uint8Array`,
-`tagCentres(scene, tag) → [[X, Y, Z]]`, `flashRegions(scene) → [{ id, idx | null, large }]` and `LARGE` (Baked
-frames, Checks), `prepareLayer(scene, layer, compiled | compiled[]) → prepared`
+`tagCentres(scene, tag) → [[X, Y, Z]]`, `FLASH` (WCAG's limits), `flashLimits(partial?) → limits` and
+`new FlashWatch(scene, limits?, { record? })` (Baked frames, Checks), `prepareLayer(scene, layer, compiled | compiled[])
+→ prepared`
 (keeps `normalizeClips(layer.clips)`; a chain with spatial modules or `soften` gets its stage buffers here),
 `neighbourGraph(scene) → { space, wire }` (each CSR: pixel k's neighbours `nb[off[k]]…nb[off[k + 1] − 1]` at
 distances `d`, nearest first; Int32Array, Int32Array, Float32Array; cached on the scene), `MAX_RADIUS` (1.5),
@@ -444,10 +448,10 @@ known path's other methods 405 with `Allow`. Signing up or in is limited per cli
 failures, per address and username (10 a minute): 429 with `Retry-After`.
 
 ```
-POST   /api/signup   { username, password }   → { user }            (sets cookie)
-POST   /api/login    { username, password }   → { user }
+POST   /api/signup   { username, password }   → { user, flash }     (sets cookie)
+POST   /api/login    { username, password }   → { user, flash }
 POST   /api/logout                            → { ok: true }
-GET    /api/me                                → { user } | 401
+GET    /api/me                                → { user, flash } | 401
 GET    /api/ideas                             → { ideas: [idea] }    mine, newest first
 POST   /api/ideas    { text, model? }         → { idea }             queued for generation on that model (none: the
                                               default this user gets); 400 when it is unknown, off, not offered
@@ -462,8 +466,8 @@ PUT    /api/admin/models  config              → the same, after writing the re
 GET    /api/looks?scope=mine|gallery          → { looks: [listed] }  metadata only: no layers
 POST   /api/looks    { title, summary?, layers, duration?, bpm?, globals?, automation?, ideaId? } → { look }
 GET    /api/looks/:id                         → { look }             mine, or shared
-PUT    /api/looks/:id { title?, summary?, layers?, duration?, bpm?, globals?, automation?, shared? } → { look }
-                                              owner only; keeps versions
+PUT    /api/looks/:id { title?, summary?, layers?, duration?, bpm?, globals?, automation?, shared?, reviewed?,
+                     flashOverride? } → { look }  owner only (reviewed: a curator); keeps versions
 DELETE /api/looks/:id                         → { ok: true }         owner only
 POST   /api/looks/:id/bake                    → 202 { bake }      owner, or a curator if shared; queued
 GET    /api/looks/:id/frames[?compress=1|zstd|zlib] → the baked .fseq   mine, or shared; 404 if none (attachment);
@@ -482,18 +486,23 @@ holds `listed = { id, owner, ownerName, title, summary, duration, layerCount, sh
 ideaId?, createdAt, updatedAt }`; `GET /api/looks/:id` has the rest.
 
 `PUT reviewed: true` answers 409 with the reason unless the look has a passing render-box bake of
-its current layers; large-area flashing in any bake always blocks (flashing on small regions only
-warns: `bake.warning`). Changing `layers`, `duration`, `globals` or `automation` (`null` clears either) makes
+its current layers; large-area flashing in any bake blocks (flashing on small regions only
+warns: `bake.warning`) unless the curator gives `flashOverride`, their reason (3–500 characters), with a render-box
+bake that fails only the flash check: it is kept as `look.flashOverride = { reason, by, at }` (and logged), and
+cleared with the review (400 without `reviewed: true`). Changing `layers`, `duration`, `globals` or `automation` (`null` clears either) makes
 a version (`{ title, summary, layers, duration, globals?, automation?, savedAt }`), drops the bake and its
 frames and clears `reviewed`; `bpm` (`null` clears it) does not. Clips that overlap or fall
 outside 0–600 s, and a duration outside 1–600 s, are refused with 400.
 
 `user = { id, username, role: 'member' | 'curator' | 'admin' }` (curators listed in `STUDIO_CURATORS`, admins in
 `STUDIO_ADMINS`; an admin is also a curator).
+`flash = { check, perSecond, delta, darker, area }`: the flash check's settings (Baked frames, Checks), for the
+preview's guard; `check: false` (`STUDIO_FLASH_CHECK=off`) means nothing is dimmed or blocked.
 `idea = { id, owner, text, status: 'queued'|'generating'|'ready'|'failed', model?, generator, by?, timing?, lookId?,
 error?, createdAt, updatedAt }`: `model` the registry id asked for, `generator` the one that made the look (the
 fallback's when it took over), `by` its label ("Opus"), `timing = { wait, prompt, request, parse, total }` in ms.
-`look = { id, owner, ownerName, title, summary, layers, duration, bpm?, shared, ideaId?, reviewed, bake?, createdAt, updatedAt }`
+`look = { id, owner, ownerName, title, summary, layers, duration, bpm?, shared, ideaId?, reviewed, reviewedBy?,
+flashOverride?, bake?, createdAt, updatedAt }`
 (`bake`: see Baked frames).
 
 ## Generators (idea → look)
@@ -588,19 +597,25 @@ bytes a box hands back. Anything a box says about itself is kept as `boxStats: {
   start at frame 0 and ascend, its lengths fill the data exactly, frames × channels ≤
   maxDataBytes before anything is inflated, and each block inflate to exactly its frames, so a
   decompression bomb is refused. Empty index entries may only pad its end (FPP preallocates).
-  `analyzeFrames(parsed, scene, regions)` (the core's `prepareScene(rig)`, `flashRegions(scene)`; frames.ts imports
-  only types, so the Fleet box runs a copy) → `{ frames, seconds, fps, peakBrightness, meanBrightness,
+  `analyzeFrames(parsed, scene, watch)` (the core's `prepareScene(rig)` and a recording `FlashWatch`; frames.ts
+  imports only types, so the Fleet box runs a copy) → `{ frames, seconds, fps, peakBrightness, meanBrightness,
   darkFraction, estPeakAmps (20 mA/channel at 5 V), coverage, flicker: { maxHz, flaggedSeconds,
-  regions, ok, small: { maxHz, flaggedSeconds, regions } } }`. Flicker: WCAG 2.3.1 general flash
-  (≥ 10 % luminance swings, darker side < 0.8, > 3 flashes in any 1 s) on the mean of the whole
-  rig and of each top-level group (`flashRegions`). Only large regions fail `ok`: the whole, a group with
-  ≥ 10 % of the LEDs, or one covering ≥ 10 % of the lit area seen from the front or the side (grid
-  cells 1/32 of the bounds' diagonal; `largeRegions`). Flashing on small regions alone (on the real
-  map: spirelets, wash) goes to `small`, a warning.
+  regions, ok, small: { maxHz, flaggedSeconds, regions }, limits: { perSecond, delta, area } } }`.
+  Flicker (`core/flash.ts`, which the preview's guard runs too): WCAG 2.3.1 general flash, a flash being a pair of
+  opposing swings of ≥ `delta` relative luminance (0.1) with the darker side < 0.8, over `perSecond` (3) in any
+  1 s. The whole rig and each top-level group watch their mean for swings; each swing is credited to the parts
+  that made it (the group's LEDs in each grid cell 1/32 of the bounds' diagonal that changed by `delta` themselves
+  between its extremes) and is large when they cover ≥ `area` (0.1) of the LEDs, or of the lit cells seen from the
+  front or the side. Flashes are counted per cell (a later change of direction), so a wave crossing the rig flashes
+  each place once a pass. Flashing over the limit on a large area fails `ok` (`regions`: the top-level groups where);
+  elsewhere alone (on the real map: spirelets, wash) it goes to `small`, a warning. The limits come from
+  `STUDIO_FLASH_PER_SECOND`, `_DELTA` and `_AREA` (`flashSettings(env)`, `src/box-output.ts`; WCAG's when unset or
+  out of range); `STUDIO_FLASH_CHECK=off` (local use, never a public server) still measures, but large-area
+  flashing only warns.
 - **Stored.** `<STUDIO_DATA>/frames/<lookId>.fseq` and `look.bake = { source, status:
   queued|running|done|failed, ok, reason?, warning?, checkedAt, layersHash, renderKey?, analysis?, frames?: {
   bytes, sha256 }, boxStats? }`. `ok` is false when the frames are missing, malformed or flash over a
-  large area; `warning` says when only small regions flash. `layersHash` = SHA-256 of `renderFields(look)`.
+  large area (with the check on); `warning` says when only small regions flash. `layersHash` = SHA-256 of `renderFields(look)`.
   Bakes are deterministic: `renderKey` = SHA-256 over `renderFields(look)`, the seconds baked and a digest of
   the box's inputs (render.ts, renderer.ts, the core's modules, fseq.ts, rig.json, the library, the
   Node version). A bake request whose key a done render-box bake with stored frames has takes that bake,

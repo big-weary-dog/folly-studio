@@ -11,6 +11,7 @@ import { apiRoutes, enqueueIdea, MAX_IDEAS_PER_DAY } from './api.ts';
 import type { Idea } from '../shared/schemas/api.ts';
 import { type Cost, createAuth } from './auth.ts';
 import { createBakeQueue, createLane } from './bake.ts';
+import { flashSettings } from './box-output.ts';
 import { createFramesCache } from './frames-cache.ts';
 import { createQueue, foundryFromEnv } from './generate/index.ts';
 import { createRegistry } from './generate/models.ts';
@@ -18,6 +19,7 @@ import { createLog, errorHandler, type Log } from './http.ts';
 import { createRenderBox } from './render-box.ts';
 import { createLoaders, CSP_APP, DEFAULT_DIST_DIR, DEFAULT_PUBLIC_DIR, serveApp } from './static.ts';
 import { createStore } from './store.ts';
+import type { FlashSettings } from '../shared/schemas/api.ts';
 
 export const DEFAULT_DATA_DIR = fileURLToPath(new URL('../data/', import.meta.url));
 export const MAX_BODY = 256 * 1024;
@@ -33,19 +35,21 @@ type Options = { dataDir?: string, publicDir?: string, distDir?: string, generat
   trustProxy?: boolean, maxIdeasPerDay?: number, log?: Log,
   rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, scrypt?: Cost, framesQuality?: number,
   framesMaxBytes?: number, generator?: Queue | ((deps: Deps) => Queue | Promise<Queue>),
-  renderBox?: Parameters<typeof createBakeQueue>[0]['box'] };
+  renderBox?: Parameters<typeof createBakeQueue>[0]['box'], flash?: FlashSettings };
 
 /**
  * The server. `generator` and `renderBox` stand in for createQueue() and createRenderBox() (STUDIO_BAKE_*) in tests;
  * `generatorName`: STUDIO_GENERATOR, the registry's default when its file is first written ('' when unset);
  * `publicDir`: the sources (the library, the rig); `distDir`: the app as Vite built it, served as static files.
- * `trustProxy`: one proxy in front (a tunnel): the client's address and host are the ones it forwards.
+ * `trustProxy`: one proxy in front (a tunnel): the client's address and host are the ones it forwards. `flash`: the
+ * flash check's settings (default: flashSettings(process.env)).
  */
 export async function createServer(opts: Options = {}) {
   const {
     dataDir = DEFAULT_DATA_DIR, publicDir = DEFAULT_PUBLIC_DIR, distDir = DEFAULT_DIST_DIR, generator,
     generatorName = '', curators = [], admins = [], secureCookies = false, rateLimit, trustProxy = false,
     maxIdeasPerDay = MAX_IDEAS_PER_DAY, log = createLog(), renderBox, framesQuality, framesMaxBytes, scrypt,
+    flash = flashSettings(),
   } = opts;
 
   const store = await createStore(dataDir, { log });
@@ -68,7 +72,7 @@ export async function createServer(opts: Options = {}) {
   const frames = createFramesCache({ framesDir, store, log, quality: framesQuality, maxBytes: framesMaxBytes, lane,
     rebake: (look) => bakes.restore(look) });
   const rigFile = path.join(publicDir, 'data', 'rig.json');
-  const bakes = createBakeQueue({ store, box, framesDir, rigFile, log, lane,
+  const bakes = createBakeQueue({ store, box, framesDir, rigFile, log, lane, flash,
     onFrames: (id) => frames.encode(id) });
   frames.prune().then(() => frames.disk.enforce()).catch(() => {});
   // Ideas a restart cut short go back in the queue (enqueue is idempotent per id).
@@ -95,7 +99,7 @@ export async function createServer(opts: Options = {}) {
   await app.register(fastifyCookie);
   await app.register(fastifyRateLimit, { global: false });
   await app.register(apiRoutes({ store, auth, queue, models, loaders, log, maxIdeasPerDay, framesDir, bakes,
-    frames, rateLimit, secureCookies }), { prefix: '/api' });
+    frames, rateLimit, secureCookies, flash }), { prefix: '/api' });
   await serveApp(app, { distDir, log });
   await app.ready();
   const pruneTimer = setInterval(() => auth.pruneSessions(), 60 * 60 * 1000);

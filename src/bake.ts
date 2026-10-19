@@ -9,7 +9,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
 import { DEFAULT_DURATION, type LayerInput } from '../public/js/pattern-core.ts';
-import type { Bake } from '../shared/schemas/api.ts';
+import type { Bake, FlashSettings } from '../shared/schemas/api.ts';
 import type { Rig } from '../shared/schemas/rig.ts';
 import { BakeError, checkFrames, failedBake } from './box-output.ts';
 import { bundle } from './core-script.ts';
@@ -149,9 +149,9 @@ export async function removeFrames(dir: string | undefined, lookId: string) {
  * the bytes come out the same. request() throws BakeError with `status` 503 (no box) or 429 (full).
  */
 export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16, log = console, onFrames,
-  lane = createLane() }: { store: Pick<Store, 'looks'>, box: Pick<RenderBox, 'probe' | 'render'> & { stop?(): void,
-  config?: Partial<RenderBox['config']> }, framesDir: string, rigFile: string, maxQueue?: number, log?: Logger,
-  onFrames?: (id: string) => unknown, lane?: ReturnType<typeof createLane> }) {
+  lane = createLane(), flash }: { store: Pick<Store, 'looks'>, box: Pick<RenderBox, 'probe' | 'render'> & {
+  stop?(): void, config?: Partial<RenderBox['config']> }, framesDir: string, rigFile: string, maxQueue?: number,
+  log?: Logger, onFrames?: (id: string) => unknown, lane?: ReturnType<typeof createLane>, flash?: FlashSettings }) {
   const source = 'render-box';
   const pending: string[] = [];
   const asking = new Set<string>();    // ids between request() and the queue, so a double click is one bake
@@ -205,7 +205,8 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
     let out: { bake: Bake, frames?: Uint8Array };
     try {
       const { bytes, boxStats } = await lane.run(() => box.render({ layers: look.layers ?? [], seconds, ...extra }));
-      out = checkFrames(bytes, { source, rig: await loadRig(), maxBytes: box.config?.maxFramesBytes, boxStats });
+      out = checkFrames(bytes, { source, rig: await loadRig(), maxBytes: box.config?.maxFramesBytes, boxStats,
+        flash });
     } catch (err) {
       if (!(err instanceof BakeError)) log.error?.(`[bake] look ${id}:`, err);
       const reason = err instanceof BakeError ? err.reason : 'The render box failed.';
@@ -313,11 +314,16 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
   };
 }
 
-/** Why a look cannot be marked reviewed yet ('' when it can): it needs a passing render-box bake of its code. */
-export function reviewBlocker(look: StoredLook) {
+/**
+ * Why a look cannot be marked reviewed yet ('' when it can): it needs a passing render-box bake of its code. Failing
+ * only the flash check, it passes when a curator gives a reason (`override`).
+ */
+export function reviewBlocker(look: StoredLook, { override = '' } = {}) {
   const b = look?.bake;
-  if (b?.analysis?.flicker?.ok === false) {
-    return `${flickerReason(b.analysis)} A look that fails the flicker check cannot be marked reviewed.`;
+  const flashing = b?.ok === false && b.analysis?.flicker?.ok === false;
+  if (flashing && !override) {
+    return `${flickerReason(b.analysis)} A look that fails the flash check needs a curator's reason to be marked `
+      + 'reviewed.';
   }
   if (!b || b.source !== 'render-box' || !['done', 'failed'].includes(b.status)) {
     return 'Bake this look in the render box first: only looks with a passing bake can be marked reviewed.';
@@ -325,6 +331,6 @@ export function reviewBlocker(look: StoredLook) {
   if (b.layersHash !== layersHash(renderFields(look))) {
     return 'The code changed since the last bake. Bake it again first.';
   }
-  if (!b.ok) return `The last bake failed: ${b.reason || 'no reason given'}`;
+  if (!b.ok && !flashing) return `The last bake failed: ${b.reason || 'no reason given'}`;
   return '';
 }
