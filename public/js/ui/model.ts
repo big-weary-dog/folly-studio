@@ -77,13 +77,19 @@ export const moduleFromLibrary = (e: LibraryEntry) => makeModule({ kind: e.kind 
 /** The rig's whole: the root of its group tree. */
 const rootId = (rig: Rig | null) => (rig?.groups || []).find((g) => g.parent == null)?.id ?? '';
 
-export function makeLayer({ title = 'Layer', groups, tags, blend = 'add', level = 1, clips, modules }: Partial<Layer>,
-  rig: Rig | null): Layer {
+export function makeLayer({ title = 'Layer', groups, tags, blend = 'add', level = 1, clips, modules, palette }:
+  Partial<Layer>, rig: Rig | null): Layer {
   return { id: randomId('l'), title, modules: modules?.length ? cloneModules(modules) : [makeModule({ title })],
     groups: groups?.length ? [...groups] : tags?.length ? [] : [rootId(rig)],
     ...(tags?.length ? { tags: [...tags] } : {}), blend, level,
-    ...(clips?.length ? { clips: clips.map((c) => ({ ...c })) } : {}) };
+    ...(clips?.length ? { clips: clips.map((c) => ({ ...c })) } : {}), ...cleanPalette(palette) };
 }
+
+/** A layer's role remap as saved (SPEC "Palettes"): only the roles it sets; none, nothing. */
+const cleanPalette = (p: unknown) => {
+  const kept = Object.entries(p && typeof p === 'object' ? p : {}).filter(([, v]) => v != null);
+  return kept.length ? { palette: JSON.parse(JSON.stringify(Object.fromEntries(kept))) as Layer['palette'] } : {};
+};
 
 /** Copies of modules with fresh ids, filters' inputs following them. */
 export function cloneModules(modules: Module[]) {
@@ -124,7 +130,7 @@ export function cleanLayer(l: RawLayer): Layer {
     blend: isBlend(l.blend) ? l.blend : 'add',
     level: Number.isFinite(Number(l.level)) ? Math.min(1, Math.max(0, Number(l.level))) : 1,
     // Timeline clips pass through untouched (the server validates them).
-    ...(Array.isArray(l.clips) ? { clips: l.clips.map((c) => ({ ...c })) } : {}),
+    ...(Array.isArray(l.clips) ? { clips: l.clips.map((c) => ({ ...c })) } : {}), ...cleanPalette(l.palette),
   };
 }
 

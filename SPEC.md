@@ -171,7 +171,8 @@ function pixel(p, t, P) {          // every LED, every frame
 
 `P` holds each param's current value (`color` params arrive as `[r,g,b]`). Param kinds:
 number `{ value, min, max, step? }`, `{ value: bool, type: 'toggle' }`,
-`{ value: '#rrggbb', type: 'color' }`.
+`{ value: pick, type: 'color', blend? }`: a pick names palette colours or literals ("Palettes" below), such as
+`'high'`, `'body/accent'` or `'#rrggbb'`.
 
 ### The pixel `p`
 
@@ -197,8 +198,9 @@ number `{ value, min, max, step? }`, `{ value: bool, type: 'toggle' }`,
 `noise(x, y?, z?, w?)` (smooth 0..1), `fbm(x, y, z, octaves=4)`, `hsv(h, s, v)`, `hsl(h, s, l)`,
 `rgb(r, g, b)`, `hex('#rrggbb')`, `scale(c, k)`, `add(c1, c2)`, `gradient(t, [c0, c1, ...])`,
 `cosPalette(t, a, b, c, d)` (Inigo Quilez), `beat(t, bpm)` (phase 0..1), `dist(x1,y1,z1,x2,y2,z2)`,
-`pal(role, t = 0)` (the look's palette: role `low|body|accent|high`, unknown or empty → `body`, t 0..1 across
-that role's colours), `palette(t)` (t 0..1 across all its colours, low to high), `centres(tag)` (each group tagged
+`pal(name, t = 0)` (t 0..1 along colour param `name`'s pick, else role `low|body|accent|high` through the layer's
+remap; unknown or empty → `body`), `swatch(name, i)` (the same pick's or role's i-th colour, floored and wrapping),
+`palette(t)` (t 0..1 across the look palette's colours, low to high), `centres(tag)` (each group tagged
 `tag`: its `centre` as `[X, Y, Z]`, `[]` when none; call it in `frame` or `pixel`), and `use(name, params?)` → a
 function `(p, t) → colour` running library source `name` as its own instance (its `frame` runs once per new t;
 throws `unknown library pattern`). Colours are `[r, g, b]` arrays, 0..1.
@@ -244,6 +246,42 @@ frame per layer and held to the param's min..max (`from`/`to` default to them):
   `hue`, `saturation` or a macro) as 0..1 of its range.
 - `{ mod: 'envelope', from, to }`: by the layer's clip envelope (1 with no clips).
 
+A colour pick's `rotate` takes the same bindings (from 0, to 1, depth ¼ by default); it wraps rather than holds.
+
+### Palettes
+
+The look's palette (`G.palette`) has four roles: `low` for big surfaces, `body` for the bulk, `accent` for
+punctuation, `high` sparingly, each a list of colours whose slots are named `low1`, `body2`, … (TD's palette CSVs). A
+colour param's value is a **pick** of them, so every colour param is a slot a user, a preset or a generator can
+point anywhere on this ladder:
+
+| Pick | Meaning |
+|---|---|
+| `'accent'`, `'body high'` | every colour of the role(s), through the layer's remap |
+| `'body2 accent1'` | single colours by slot; a slot this palette lacks is dropped (none left: its role) |
+| `'body/accent'` | `/` deals the groups in turn: body1 accent1 body2 accent2 …, the shorter wrapping |
+| `'all'`, `'rainbow'` | the palette low to high; seven hsv stops red to red (step: six) |
+| `'#ff3c00'`, `'#3a0000 #ff3c00'` | literal colours, mixing freely with the tokens above |
+| `{ pick, blend, range, rotate }` | `blend`: `'step'` (default: equal bands, only the pick's colours) or `'smooth'` (a ramp); `range`: `[from, to]`, the stretch of the walk `pal()` uses; `rotate`: a shift along the stops, 0..1 wrapping, or a binding |
+
+Space joins tokens in order. Unknown tokens are ignored; a pick with none left plays the code's default. A source
+declares a slot's default, usually a role (`{ value: 'body/accent', type: 'color' }`), and may declare `blend:
+'smooth'` for a slot that is a gradient by nature; a pick with no `blend` takes the slot's. Per module instance:
+
+- `P.name` is the pick's colour at its rotate position, resolved per frame into the same array.
+- `pal(name, t)` walks it: step gives the stop under t (n equal bands), smooth ramps from the first stop to the
+  last; `range` maps t into its stretch. `swatch(name, i)` is its i-th stop, whatever the blend.
+- Under rotate, smooth shifts the walk along the stops and round from the last to the first; step holds each stop
+  and crossfades into the next over the last fifth of it. A turning pick never cuts.
+- `pal(role, t)` on a bare role (not a declared param) ramps smoothly, as it always has, so code and looks from
+  before picks render exactly as they did. A declared param wins a name clash.
+
+A layer's `palette` (`{ low?, body?, accent?, high? }` of picks) remaps its roles for every module on it, the
+`use()` instances they run included: role tokens and `pal(role, t)` read the remap, which is smooth unless its pick
+says `blend: 'step'`. A remap's tokens read the look palette's own roles; slots, `all`, `G.palette` and `palette(t)`
+are always the look palette's. Picks resolve to stops when a layer is prepared and again when the palette changes;
+per frame only rotates move. Hue and saturation grade the composite, literals included.
+
 ## Looks (what gets saved)
 
 A look is a stack of layers, composited bottom to top like xLights rows reversed (index 0 is the
@@ -254,8 +292,10 @@ browser's too:
 { "title": "Coral reef", "summary": "…", "duration": 30, "bpm": 120, "layers": [
   { "id": "l1", "title": "Sea", "groups": ["cathedral"], "tags": ["all"], "blend": "add" | "over" | "max" | "multiply",
     "level": 1, "clips": [{ "start": 0, "end": 12, "fadeIn": 2, "fadeOut": 3 }],
+    "palette": { "body": "accent2 accent3", "high": "#ffffff" },
     "modules": [
-      { "id": "m1", "kind": "source", "title": "Meteors", "ref": "meteors", "code": "…", "params": { "speed": 40 } },
+      { "id": "m1", "kind": "source", "title": "Meteors", "ref": "meteors", "code": "…",
+        "params": { "speed": 40, "head": "high", "color": { "pick": "body/accent", "rotate": 0.25 } } },
       { "id": "m2", "kind": "source", "title": "Clouds", "ref": "clouds", "code": "…", "params": {}, "as": "input" },
       { "id": "m3", "kind": "filter", "title": "Mask", "ref": "mask", "code": "…", "input": "m2",
         "params": { "amount": { "mod": "global", "name": "storm", "from": 0, "to": 1 } } }
@@ -279,6 +319,10 @@ has alpha × level, `max` keeps the brighter channel, `multiply` tints what is b
   override the code's defaults; `enabled: false` skips it; `input` names an earlier source; `as` is only
   `'input'`; `blend` as for layers. A layer with `code` (+ `params`) and no `modules` is a one-source chain and
   renders exactly as before.
+- **Colours** ("Palettes"): a colour param's value is a pick string (≤ 200 characters, not checked: a bad one plays
+  the default, as a bad hex always did), `[r, g, b]`, or `{ pick, blend?, range?, rotate? }` (checked: tokens, `step`
+  or `smooth`, two numbers 0..1, a number 0..1 or a binding). `layer.palette` is `{ low?, body?, accent?, high? }` of
+  picks, checked; absent, the layer plays the look palette.
 - **Globals** (all optional): `speed` 0..4 (1), `level` 0..1 (1), `hue` −0.5..0.5 turns (0), `saturation`
   0..2 (1), `energy` 0..1 (0.5); `palette` as role lists (≤ 16 `#rrggbb` each; a bare name from
   `data/palettes.json` is filled in on save; default `chapel`); `macros` ≤ 16, names
@@ -354,7 +398,9 @@ hung layer).
 `pattern-core.ts` exports (used by the sandbox's worker, the boxes and the Node tests), and its types (`Scene`,
 `PreparedLayer`, `PreparedLook`, `Compiled`, `ParamSchema`, `Pixel`, `G`, `LayerInput`, …):
 `STDLIB`, `compilePattern(code) → { kind, pixel, frame, params }` (throws on syntax error / no `pixel`),
-`compileModule(code, kind) → { kind, pixel | warp | filter, frame, params }`, `layerModules(layer) → modules`
+`compileModule(code, kind) → { kind, pixel | warp | filter, frame, params, picks }` (`picks`: the instance's colours,
+"Palettes"), `readPick(value) → { groups, blend, range, rotate } | null` and `pickText(groups)` (a pick read leniently,
+and as text), `layerModules(layer) → modules`
 (a legacy layer → one source), `compileLayer(layer) → compiled[]` (throws `title: error`), `setLibrary([{ name,
 code }])`, `prepareScene(rig) → scene` (throws on a malformed rig), `groupsByTag(scene, tag) → [group]` (outermost
 first), `pixelsForGroups(scene, ids, tags?) → Int32Array` (a layer's rule above), `tagMask(scene, tag) → Uint8Array`,

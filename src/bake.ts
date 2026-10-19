@@ -46,8 +46,9 @@ export function bakeSeconds(look: { duration?: unknown } | null | undefined, max
   return Math.min(max, Number.isFinite(d) && d > 0 ? d : DEFAULT_DURATION);
 }
 
-const beatsLfo = (params: object | undefined) => Object.values(params || {})
-  .some((v) => v && typeof v === 'object' && v.mod === 'lfo' && v.unit === 'beats');
+// An LFO in beats: a number param's binding, or a colour pick's rotate (SPEC "Palettes").
+const beatsLfo = (params: object | undefined | null): boolean => Object.values(params || {})
+  .some((v) => v && typeof v === 'object' && (v.mod === 'lfo' ? v.unit === 'beats' : beatsLfo({ r: v.rotate })));
 /** What a bake renders of a look. */
 type Renders = { layers?: readonly LayerInput[], globals?: unknown, automation?: unknown, bpm?: unknown };
 
@@ -57,7 +58,7 @@ type Renders = { layers?: readonly LayerInput[], globals?: unknown, automation?:
  */
 export function renderFields(look: Renders | null | undefined) {
   const layers = look?.layers ?? [];
-  const beats = layers.some((l) => beatsLfo(l?.params) || (Array.isArray(l?.modules)
+  const beats = layers.some((l) => beatsLfo(l?.params) || beatsLfo(l?.palette as object) || (Array.isArray(l?.modules)
     && l.modules.some((m) => beatsLfo(m?.params))));
   if (!look?.globals && !look?.automation && !beats) return layers;
   return { layers, globals: look!.globals ?? null, automation: look!.automation ?? null,

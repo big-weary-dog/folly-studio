@@ -232,7 +232,7 @@ export function paletteColours(palette?: PaletteHex | null): PaletteColours | nu
 export const RUN: { G: G | null, palette: PaletteColours, scene: { centresOf(tag: string): Centres } | null } = {
   G: null, palette: paletteColours(DEFAULT_PALETTE)!, scene: null };
 
-function ramp(list: Centres, t: number): RGB {
+export function ramp(list: Centres, t: number): RGB {
   const n = list.length;
   if (n === 1 || !(t > 0)) return [list[0][0], list[0][1], list[0][2]];
   const f = (t < 1 ? t : 1) * (n - 1);

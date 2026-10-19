@@ -2,7 +2,8 @@
 // energy, palette, macros; automation per frame; param values and bindings (SPEC "Param bindings").
 import type { Automation, Binding, Globals, Range } from '../../../shared/schemas/look.ts';
 import type { ParamSchema } from './compile.ts';
-import { clamp, DEFAULT_PALETTE, hex, isNum, paletteColours, RUN, TAU } from './stdlib.ts';
+import { pickColour } from './picks.ts';
+import { clamp, DEFAULT_PALETTE, isNum, paletteColours, RUN, TAU } from './stdlib.ts';
 import type { PaletteColours, PaletteHex } from './stdlib.ts';
 
 /** G: the look's globals as patterns see them, its macros by name (SPEC "Globals"). */
@@ -175,7 +176,7 @@ const MODS: Record<string, number> = { lfo: 0, global: 1, envelope: 2 };
 export const isBinding = (v: unknown): v is Binding => v !== null && typeof v === 'object' && !Array.isArray(v)
   && typeof (v as Binding).mod === 'string';
 
-/** Values P from a schema and overrides (colours as [r, g, b]; a binding starts at the default). */
+/** Values P from a schema and overrides (colours, from picks, as [r, g, b]; a binding starts at the default). */
 export function resolveParams(schema: ParamSchema | undefined, overrides: unknown) {
   const P: Values = {};
   const o = (overrides && typeof overrides === 'object' ? overrides : {}) as Record<string, unknown>;
@@ -184,10 +185,7 @@ export function resolveParams(schema: ParamSchema | undefined, overrides: unknow
       && !isBinding(o[key]);
     const v = has ? o[key] : d.value;
     if (d.type === 'color') {
-      let c;
-      if (Array.isArray(v) && v.length >= 3) c = [+v[0] || 0, +v[1] || 0, +v[2] || 0];
-      else { try { c = hex(v as string); } catch { c = hex(d.value); } }
-      P[key] = c;
+      P[key] = pickColour(d, v);
     } else if (d.type === 'toggle') {
       P[key] = !!v;
     } else {
@@ -198,19 +196,24 @@ export function resolveParams(schema: ParamSchema | undefined, overrides: unknow
   return P;
 }
 
-/** The bound number params, for applyMods. */
-export function paramMods(schema: ParamSchema | undefined, overrides: unknown) {
+/** The bound number params, for applyMods; with `turns` (a module's picks.rot), colour params' bound rotates too,
+ * 0..1 by default and wrapping rather than held. */
+export function paramMods(schema: ParamSchema | undefined, overrides: unknown, turns?: Values) {
   const out = [];
   const o = (overrides && typeof overrides === 'object' ? overrides : {}) as Record<string, unknown>;
   for (const [key, d] of Object.entries(schema || {})) {
-    const v = Object.prototype.hasOwnProperty.call(o, key) ? o[key] : null;
-    if (d.type !== 'number' || !isBinding(v) || !(v.mod in MODS)) continue;
-    const b = v as Record<string, unknown>, lo = d.min, hi = d.max;
+    const own = Object.prototype.hasOwnProperty.call(o, key) ? o[key] : null;
+    const turn = turns && d.type === 'color' && own && typeof own === 'object' ? (own as { rotate?: unknown }).rotate
+      : null;
+    const v = d.type === 'number' ? own : turn;
+    if (!isBinding(v) || !(v.mod in MODS)) continue;
+    const b = v as Record<string, unknown>, [lo, hi, dv] = d.type === 'number' ? [d.min, d.max, d.value] : [0, 1, 0];
     const num = (x: unknown, dflt: number) => (isNum(x) ? x : dflt);
     out.push({
-      key, kind: MODS[v.mod]!, lo, hi, from: num(b.from, lo), to: num(b.to, hi), name: String(b.name ?? ''),
+      key, into: d.type === 'number' ? null : turns!, kind: MODS[v.mod]!, lo: turn ? -1e6 : lo, hi: turn ? 1e6 : hi,
+      from: num(b.from, lo), to: num(b.to, hi), name: String(b.name ?? ''),
       shape: Math.max(0, SHAPES.indexOf(b.shape as string)), rate: num(b.rate, 1), beats: b.unit === 'beats',
-      depth: num(b.depth, (hi - lo) / 4), center: num(b.center, d.value),
+      depth: num(b.depth, (hi - lo) / 4), center: num(b.center, dv),
     });
   }
   return out;
@@ -226,7 +229,8 @@ function lfo(shape: number, f: number) {
   }
 }
 
-/** Each bound param's value this frame into P (t: show time; env: the clip envelope). No allocation. */
+/** Each bound param's value this frame into P, a rotate's into its picks (t: show time; env: the clip envelope).
+ * No allocation. */
 export function applyMods(mods: ReturnType<typeof paramMods>, P: Values, t: number, env: number,
   look: PreparedLook) {
   for (let i = 0; i < mods.length; i++) {
@@ -238,6 +242,6 @@ export function applyMods(mods: ReturnType<typeof paramMods>, P: Values, t: numb
     } else {
       v = m.from + (m.to - m.from) * (m.kind === 1 ? look.norm(m.name) : env);
     }
-    P[m.key] = v < m.lo ? m.lo : v > m.hi ? m.hi : v === v ? v : m.lo;
+    (m.into || P)[m.key] = v < m.lo ? m.lo : v > m.hi ? m.hi : v === v ? v : m.lo;
   }
 }
