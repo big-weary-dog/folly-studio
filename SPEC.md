@@ -467,6 +467,13 @@ Sequencing lives on the look, xLights-style.
   params on the selected module (each number param can be modulated), and a Look panel of globals, the palette
   (each swatch titled by its slot, `body2 · #fd7f40`) and macros. On a phone: globals and palette in the Look tab;
   the chain read-only but for enable and params.
+- Phones (≤ 899 px wide; `ui/phone/`, `css/phone.css`): the 3D view over one panel, switched by the tabs Layers,
+  Time, Groups, Look and More. Layers lists one row a layer (name, mute, status); tapping one opens its settings in
+  the same panel (‹ Layers back, its name, mute and solo, plays on, the chain, the params). The light view hides
+  blend, level, solo and moving up or down on the rows, the layer and module names and Soften in the settings, the
+  automation lanes and the 3D view's style buttons; More holds the code editor, the 3D view's Ghost, style and
+  quality, and Full detail, which shows them all again (kept per browser). On a phone the preview starts without
+  Ghost, the Playa view drops the scaffold lines, and Points draws at a pixel ratio of 1.
 - Colours (`ui/picks.tsx`, `ui/pick-model.ts`; "Palettes"): a colour param is one row like a number's: its pick in
   a field the size of a number's (`kit.tsx` Scrub), its text over the colours it plays (the field opens the pick
   tile), ∿ to move its rotate (the modulate dialog), ↺. The tile is TD's pick: a row per role (a box for the whole

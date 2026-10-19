@@ -21,6 +21,8 @@ const TWEEN_S = 0.9;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+/** A phone: a touch screen under the Studio's narrow width, where the preview draws its lightest. */
+export const isPhone = () => matchMedia('(pointer: coarse) and (max-width: 899px)').matches;
 /** Forward, right and up for an angle and elevation in degrees. */
 function basis(angle: number, elevation: number) {
   const a = angle * DEG, e = elevation * DEG;
@@ -47,8 +49,8 @@ export class Viewer {
   viewProj = new Float32Array(16); _proj = new Float32Array(16); _view = new Float32Array(16);
   _eyeV = [0, 0, 0]; _up = [0, 1, 0];
   reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  // Touch devices get a lower pixel-ratio cap: the glow hides it and the battery thanks us.
-  deviceDpr = matchMedia('(pointer: coarse)').matches ? 1.5 : 2; dprCap = this.deviceDpr;
+  // Touch devices get a lower pixel-ratio cap, phones the lowest: the glow hides it and the battery thanks us.
+  deviceDpr = isPhone() ? 1 : matchMedia('(pointer: coarse)').matches ? 1.5 : 2; dprCap = this.deviceDpr;
   _tick = (t: number) => this._loop(t);
   resizeObserver: ResizeObserver;
   // Set by initGL (viewer-gl.ts).

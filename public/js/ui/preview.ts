@@ -10,7 +10,7 @@ import { api, statusOf } from '../api.ts';
 import { FlashGuard } from '../flash-guard.ts';
 import { openFrameStream } from '../frames-stream.ts';
 import { Runtime } from '../runtime.ts';
-import { Viewer } from '../viewer.ts';
+import { isPhone, Viewer } from '../viewer.ts';
 import { flash, signedOut, user } from './session.ts';
 import { pref, toast } from './kit.tsx';
 import type { Studio } from './studio-store.ts';
@@ -29,7 +29,8 @@ export function createPreview(st: Studio) {
   const views = signal<string[]>([]), view = signal<string | null>(null);
   const mode = signal<'playa' | 'points'>('points'), tier = signal<string | undefined>(undefined);
   const quality = signal(QUALITY.includes(pref('studio.quality') || '') ? pref('studio.quality') as string : 'auto');
-  const ghost = signal(pref('studio.ghost') !== '0'), dimmed = signal(false), stats = signal('');
+  const ghost = signal((pref('studio.ghost') ?? (isPhone() ? '0' : '1')) !== '0');   // phones start without
+  const dimmed = signal(false), stats = signal('');
   const flashing = signal(false), dimFlashes = signal(pref(dimKey()) !== '0');
   const bakedInfo = signal<{ seconds: number; bytes: number } | null>(null);
   const time = signal(0);
