@@ -9,8 +9,8 @@ import type { PaletteColours, PaletteHex } from './stdlib.ts';
 /** G: the look's globals as patterns see them, its macros by name (SPEC "Globals"). */
 export type G = { energy: number, speed: number, level: number, hue: number, saturation: number,
   palette: PaletteColours, [macro: string]: number | PaletteColours };
-/** P: a module's param values (colours as [r, g, b]). */
-export type Values = Record<string, number | boolean | number[]>;
+/** P: a module's param values (colours as [r, g, b], choices as their name). */
+export type Values = Record<string, number | boolean | number[] | string>;
 type Points = readonly (readonly number[])[];
 
 export const GLOBALS = Object.freeze({
@@ -188,6 +188,8 @@ export function resolveParams(schema: ParamSchema | undefined, overrides: unknow
       P[key] = pickColour(d, v);
     } else if (d.type === 'toggle') {
       P[key] = !!v;
+    } else if (d.type === 'choice') {
+      P[key] = typeof v === 'string' && d.options.includes(v) ? v : d.value;
     } else {
       const n = Number(v);
       P[key] = Number.isFinite(n) ? n : d.value;

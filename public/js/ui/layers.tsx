@@ -6,7 +6,7 @@ import { useId, useLayoutEffect, useState } from 'preact/hooks';
 
 import type { RigGroup } from '../../../shared/schemas/rig.ts';
 import { cx, toast } from './kit.tsx';
-import { BLEND_MODES, cleanLayer, type Layer, layerFromPattern, makeLayer } from './model.ts';
+import { BLEND_MODES, cleanLayer, type Layer, layerFromPattern, makeLayer, newLayer } from './model.ts';
 import type { Preview } from './preview.ts';
 import type { Studio } from './studio-store.ts';
 
@@ -49,7 +49,7 @@ export function LayersPane({ st, pv }: Props) {
   const add = () => import('./shelf.tsx').then(({ openShelf }) => openShelf({
     title: 'Add a layer', only: 'source', library: st.data.library, audition: { pv, layer: l || { groups: [] } },
     onPick: (e) => {
-      insertLayer(st, 'blank' in e ? makeLayer({ title: 'New layer' }, st.data.rig) : layerFromPattern(e, st.data.rig));
+      insertLayer(st, 'blank' in e ? newLayer({ title: 'New layer' }, st.data.rig) : layerFromPattern(e, st.data.rig));
       st.setTab('code', { onlyNarrow: true });
       if ('blank' in e && !st.narrow.peek()) st.showDock('code');   // a blank layer is for writing code
     } }));

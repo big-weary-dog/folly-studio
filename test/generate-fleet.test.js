@@ -6,8 +6,9 @@ import path from 'node:path';
 
 import { describe, test } from 'vitest';
 
-import { writeFseq } from '../public/js/fseq.ts';
-import { flashRegions, prepareScene } from '../public/js/pattern-core.ts';
+import { ledRanges, writeFseq } from '../public/js/fseq.ts';
+import * as patternCore from '../public/js/pattern-core.ts';
+import { bakeLoop, renderer } from '../render-box/renderer.ts';
 import { layersHash, parseDuration } from '../src/bake.ts';
 import { analyzeFrames, parseFseq } from '../src/frames.ts';
 import {
@@ -182,7 +183,7 @@ describe('fleet (experimental, stub CLI)', () => {
     assert.equal(look.bake.layersHash, layersHash(look.layers));
     assert.deepEqual(fs.readFileSync(path.join(framesDir, `${look.id}.fseq`)), frames);
     const parsed = parseFseq(fs.readFileSync(path.join(framesDir, `${look.id}.fseq`)));
-    assert.equal(analyzeFrames(parsed, prepareScene(MAP)).frames, 80);
+    assert.equal(analyzeFrames(parsed, patternCore.prepareScene(MAP)).frames, 80);
 
     // Without anywhere to put frames, the bake says so instead of pretending.
     const { adapter: again } = withBake('ok', frames);
@@ -312,8 +313,25 @@ describe('fleet-box/check.ts (boxed worker side, real runtime)', () => {
     const stats = JSON.parse(fs.readFileSync(path.join(dir, 'stats.json'), 'utf8'));
     assert.equal(stats.frames, 80);
     assert.equal(stats.selfCheck.flicker.ok, true);
-    const scene = prepareScene(map);
-    assert.deepEqual(analyzeFrames(parsed, scene, flashRegions(scene)), stats.selfCheck);
+    const scene = patternCore.prepareScene(map);
+    assert.deepEqual(analyzeFrames(parsed, scene, patternCore.flashRegions(scene)), stats.selfCheck);
+
+    // Blur and soften: the box bakes the layers the studio will store, a missing soften as the default.
+    const lib = (n) => fs.readFileSync(path.join(STUDIO, `public/patterns/${n}.js`), 'utf8');
+    const blurred = { title: 'Soft', summary: 's', layers: [
+      { title: 'bars', groups: ['arches'], blend: 'add', level: 1,
+        modules: [{ id: 'b', kind: 'source', title: 'Bars', code: lib('bars'), params: { softness: 0 } }] },
+      { title: 'rose', groups: ['rose-window'], blend: 'over', level: 1, soften: { radius: 0.5, mode: 'space' },
+        modules: [{ id: 'p', kind: 'source', title: 'Pinwheel', code: lib('pinwheel') },
+          { id: 'bl', kind: 'filter', title: 'Blur', code: lib('blur'), params: { radius: 0.3, mode: 'both' } }] }] };
+    fs.writeFileSync(path.join(dir, 'blurred.json'), JSON.stringify(blurred));
+    const soft = await run(dir, 'blurred.json', ['--bake', '--seconds', '1']);
+    assert.equal(soft.code, 0, soft.out);
+    const stored = validateLook(blurred, { groups: GROUPS }).layers;
+    assert.deepEqual(stored.map((l) => l.soften), [patternCore.DEFAULT_SOFTEN, { radius: 0.5, mode: 'space' }]);
+    const here = renderer(patternCore, map, stored, ledRanges(map));
+    const want = bakeLoop(40, here.packed, () => here.next(), 40).data;
+    assert.ok(Buffer.from(parseFseq(fs.readFileSync(path.join(dir, 'frames.fseq'))).data).equals(Buffer.from(want)));
 
     fs.writeFileSync(path.join(dir, 'strobe.json'), JSON.stringify({
       title: 'Strobe', summary: 's',

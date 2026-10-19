@@ -5,13 +5,14 @@
 import { z } from 'zod';
 
 import {
-  BLENDS, GLOBALS, macroNameOk, MAX_LANES, MAX_MACROS, MAX_POINTS, MODULE_KINDS, PALETTE_ROLES, pickText, readPick,
+  BLENDS, BLUR_MODES, DEFAULT_SOFTEN, GLOBALS, macroNameOk, MAX_LANES, MAX_MACROS, MAX_POINTS, MAX_RADIUS, MODULE_KINDS,
+  PALETTE_ROLES, pickText, readPick,
 } from '../../public/js/pattern-core.ts';
-import type { Blend, ModuleKind } from '../../public/js/pattern-core.ts';
+import type { Blend, BlurMode, ModuleKind } from '../../public/js/pattern-core.ts';
 import {
   automationFor, Binding, bytes, Globals as StrictGlobals, ID, ms, PALETTE_NAMES, Pick, problem, TAG,
 } from './look.ts';
-import type { Automation, Globals, LayerPalette, Module, Range } from './look.ts';
+import type { Automation, Globals, LayerPalette, Module, Range, Soften } from './look.ts';
 
 export const LIMITS = Object.freeze({ layers: 4, modules: 6, codeBytes: 20 * 1024, title: 80, layerTitle: 80,
   summary: 400, params: 32, clips: 32, duration: 600 });
@@ -71,8 +72,9 @@ function cleanPick(v: unknown) {
     ...(turn !== undefined ? { rotate: turn } : {}) } : pick).data;
   return typeof out === 'object' && Object.keys(out).length === 1 ? out.pick : out;
 }
-// Params stay out of the model's schema: a pattern's code carries its defaults.
-const param = z.union([z.number(), z.boolean(),
+// Params stay out of the model's schema: a pattern's code carries its defaults. A word is a choice param's value;
+// a colour's is a pick.
+const param = z.union([z.number(), z.boolean(), z.string().regex(/^[a-z][a-z0-9-]{0,31}$/),
   z.tuple([z.number(), z.number(), z.number()]).transform((c) => c.map((x) => clamp(x, 0, 1))), Binding,
   z.unknown().transform((v, ctx) => cleanPick(v) ?? (ctx.addIssue('not a value'), z.NEVER))]);
 /** A layer's role remap, its usable picks kept (the rest noted); the model gives strings. */
@@ -91,6 +93,14 @@ const params = z.record(z.string(), z.unknown()).catch({}).transform((p) => Obje
     const r = param.safeParse(v);
     return r.success ? [[k, r.data]] : [];
   }).slice(0, LIMITS.params))).meta({ omit: true });
+
+/** A layer's soften: one the model gave, held to range, else DEFAULT_SOFTEN (generated layers soften their edges). */
+const soften = z.unknown().optional().transform((v): Soften => {
+  const o = v && typeof v === 'object' ? v as Record<string, unknown> : {};
+  if (typeof o.radius !== 'number' || !Number.isFinite(o.radius)) return { ...DEFAULT_SOFTEN };
+  return { radius: Math.round(clamp(o.radius, 0, MAX_RADIUS) * 1000) / 1000,
+    mode: BLUR_MODES.includes(o.mode as BlurMode) ? o.mode as BlurMode : 'wire' };
+}).meta({ omit: true });
 
 /** A list item that fails is kept as its reason, so the list can note it by position. */
 type Dropped = { dropped: string };
@@ -166,7 +176,7 @@ const layerOf = (library: Library, known: Set<string>, root: string, groupTags: 
     .transform((g) => [...new Set(g.filter(isString).map((x) => x.trim()).filter((x) => known.has(x)))])
     .meta({ items: known.size <= 400 ? { type: 'string', enum: [...new Set([root, ...known])] } : { type: 'string' } }),
   tags: tags.meta({ items: groupTags.length ? { type: 'string', enum: groupTags } : { type: 'string' } }),
-  blend, level, clips, palette, code: z.unknown().optional().meta({ type: 'string' }), params,
+  blend, level, clips, soften, palette, code: z.unknown().optional().meta({ type: 'string' }), params,
   modules: z.array(orDrop(moduleOf(library))).optional().catch(undefined),
 }, { error: 'not an object' }).meta({ required: ['title', 'groups', 'blend', 'level'] }).transform((l, ctx) => {
   const notes = [...l.clips.notes, ...l.palette.notes];
@@ -183,7 +193,7 @@ const layerOf = (library: Library, known: Set<string>, root: string, groupTags: 
   // Known group ids; none: the root, or nothing when tags say where it goes (SPEC "Looks").
   const groups = l.groups.length ? l.groups : l.tags.length ? [] : [root];
   return { title: l.title, ...own, groups, ...(l.tags.length ? { tags: l.tags } : {}), blend: l.blend,
-    level: l.level, ...(l.clips.clips.length ? { clips: l.clips.clips } : {}),
+    level: l.level, ...(l.clips.clips.length ? { clips: l.clips.clips } : {}), soften: l.soften,
     ...(l.palette.palette ? { palette: l.palette.palette } : {}), notes };
 });
 

@@ -1,7 +1,8 @@
 // Shared data: the rig (SPEC "Rig"), the pattern library, group membership, layer and module helpers.
 import { api, fetchJSON } from '../api.ts';
 import { pixelsForGroups, prepareScene } from '../core/scene.ts';
-import type { Layer as Saved, Module, Palette } from '../../../shared/schemas/look.ts';
+import { BLUR_MODES, DEFAULT_SOFTEN, MAX_RADIUS } from '../core/spatial.ts';
+import type { Layer as Saved, Module, Palette, Soften } from '../../../shared/schemas/look.ts';
 import type { LibraryEntry, Rig, RigGroup } from '../../../shared/schemas/rig.ts';
 import { randomId } from './kit.tsx';
 
@@ -77,13 +78,25 @@ export const moduleFromLibrary = (e: LibraryEntry) => makeModule({ kind: e.kind 
 /** The rig's whole: the root of its group tree. */
 const rootId = (rig: Rig | null) => (rig?.groups || []).find((g) => g.parent == null)?.id ?? '';
 
-export function makeLayer({ title = 'Layer', groups, tags, blend = 'add', level = 1, clips, modules, palette }:
+export function makeLayer({ title = 'Layer', groups, tags, blend = 'add', level = 1, clips, modules, soften, palette }:
   Partial<Layer>, rig: Rig | null): Layer {
   return { id: randomId('l'), title, modules: modules?.length ? cloneModules(modules) : [makeModule({ title })],
     groups: groups?.length ? [...groups] : tags?.length ? [] : [rootId(rig)],
     ...(tags?.length ? { tags: [...tags] } : {}), blend, level,
-    ...(clips?.length ? { clips: clips.map((c) => ({ ...c })) } : {}), ...cleanPalette(palette) };
+    ...(clips?.length ? { clips: clips.map((c) => ({ ...c })) } : {}), ...(soften ? { soften: { ...soften } } : {}),
+    ...cleanPalette(palette) };
 }
+
+/** A layer the Studio starts (blank or from the library): softened by default (SPEC "Spatial modules"). */
+export const newLayer = (fields: Partial<Layer>, rig: Rig | null) => makeLayer({ soften: { ...DEFAULT_SOFTEN },
+  ...fields }, rig);
+
+/** A layer's soften as saved, or none: radius 0–MAX_RADIUS m, a known mode. */
+export const cleanSoften = (s: unknown): Soften | undefined => {
+  const o = s && typeof s === 'object' ? s as Partial<Soften> : null, r = Number(o?.radius);
+  return o && Number.isFinite(r) ? { radius: Math.min(MAX_RADIUS, Math.max(0, r)),
+    mode: BLUR_MODES.includes(o.mode as Soften['mode']) ? o.mode! : 'wire' } : undefined;
+};
 
 /** A layer's role remap as saved (SPEC "Palettes"): only the roles it sets; none, nothing. */
 const cleanPalette = (p: unknown) => {
@@ -101,7 +114,7 @@ export function cloneModules(modules: Module[]) {
   });
 }
 
-export const layerFromPattern = (p: LibraryEntry, rig: Rig | null) => makeLayer({ title: p.title || p.name || 'Layer',
+export const layerFromPattern = (p: LibraryEntry, rig: Rig | null) => newLayer({ title: p.title || p.name || 'Layer',
   modules: [moduleFromLibrary(p)] }, rig);
 
 /** Only the fields a saved module keeps (SPEC "Modules"). */
@@ -130,7 +143,8 @@ export function cleanLayer(l: RawLayer): Layer {
     blend: isBlend(l.blend) ? l.blend : 'add',
     level: Number.isFinite(Number(l.level)) ? Math.min(1, Math.max(0, Number(l.level))) : 1,
     // Timeline clips pass through untouched (the server validates them).
-    ...(Array.isArray(l.clips) ? { clips: l.clips.map((c) => ({ ...c })) } : {}), ...cleanPalette(l.palette),
+    ...(Array.isArray(l.clips) ? { clips: l.clips.map((c) => ({ ...c })) } : {}),
+    ...(cleanSoften(l.soften) ? { soften: cleanSoften(l.soften) } : {}), ...cleanPalette(l.palette),
   };
 }
 

@@ -3,8 +3,8 @@
 import type { Binding, ParamValue } from '../../../shared/schemas/look.ts';
 import { humanize } from './kit.tsx';
 
-export interface Param { kind: 'number' | 'color' | 'toggle'; value: number | string | boolean; label: string;
-  min: number; max: number; step: number; blend?: 'smooth' | 'step' }
+export interface Param { kind: 'number' | 'color' | 'toggle' | 'choice'; value: number | string | boolean;
+  label: string; min: number; max: number; step: number; options: string[]; blend?: 'smooth' | 'step' }
 type Shape = NonNullable<Extract<Binding, { mod: 'lfo' }>['shape']>;
 export type BindingForm = { mod: '' | Binding['mod']; shape: Shape; rate: string; unit: string; center: string;
   depth: string; name: string; from: string; to: string; eFrom: string; eTo: string };
@@ -27,16 +27,20 @@ export function bindingText(b: Binding) {
 export function normaliseParam(key: string, raw: unknown): Param | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>, label = typeof r.label === 'string' ? r.label : humanize(key), v = r.value;
-  const base = { label, min: 0, max: 1, step: 1 };
+  const base = { label, min: 0, max: 1, step: 1, options: [] };
   if (r.type === 'color') {
     return { ...base, kind: 'color', value: typeof v === 'string' ? v : toHex(v),
       ...(r.blend === 'smooth' || r.blend === 'step' ? { blend: r.blend } : {}) };
   }
   if (r.type === 'toggle') return { ...base, kind: 'toggle', value: !!v };
+  if (r.type === 'choice' && Array.isArray(r.options) && r.options.length) {
+    const options = r.options.map(String);
+    return { ...base, kind: 'choice', value: options.includes(v as string) ? v as string : options[0], options };
+  }
   if (typeof v !== 'number') return null;
   const min = Number.isFinite(r.min) ? r.min as number : 0, max = Number(r.max) > min ? r.max as number : min + 1;
   const x = (max - min) / 200, p = 10 ** Math.floor(Math.log10(x)), nice = (x / p < 2 ? 1 : x / p < 5 ? 2 : 5) * p;
-  return { kind: 'number', value: v, label, min, max, step: Number(r.step) > 0 ? r.step as number : nice };
+  return { ...base, kind: 'number', value: v, min, max, step: Number(r.step) > 0 ? r.step as number : nice };
 }
 
 /** A colour value ('#rrggbb' or [r, g, b] 0..1) as '#rrggbb'. */
@@ -58,7 +62,9 @@ export function shownValue(p: Param, values: Record<string, ParamValue>, key: st
     const bound = has && isBinding(v);
     return { has, bound, value: bound ? NaN : has && Number.isFinite(Number(v)) ? Number(v) : p.value };
   }
-  return { has, bound: false, value: !has ? p.value : p.kind === 'color' ? toHex(v) : !!v };
+  if (!has) return { has, bound: false, value: p.value };
+  const own = p.kind === 'color' ? toHex(v) : p.kind !== 'choice' ? !!v : p.options.includes(v as string) ? v : p.value;
+  return { has, bound: false, value: own as string | boolean };
 }
 
 /** The dialog's fields for a param's binding (or none yet); global and envelope keep their ends apart. */

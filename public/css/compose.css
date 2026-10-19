@@ -31,6 +31,9 @@
 .chain-row .icon-btn { width: var(--hit, 24px); height: var(--hit, 24px); font-size: 13px; }
 .chain-select { flex: 1; min-height: var(--hit, 26px); padding: 1px 26px 1px 6px; font-size: 12.5px; }
 .module-title-field { padding-top: 6px; border-top: var(--came-s) solid var(--lead); }
+/* soften: the layer's blur after its chain; its mode keeps to its words, the slider takes the rest */
+.soften-field .soften-mode { flex: none; width: auto; min-height: var(--hit, 26px); font-size: 12.5px; }
+.soften-field input[type=range] { min-width: 64px; }
 /* modulation: a ∿ beside a number, lit when something moves it */
 .param-mod { min-width: var(--hit, 26px); min-height: var(--hit, 26px); margin-left: auto; padding: 0 4px;
   font-size: 15px; color: var(--text-3); background: none; border: 0; cursor: pointer; }

@@ -1,6 +1,7 @@
 // The selected layer's settings: its name, groups and colours (its roles remapped, SPEC "Palettes"), its module chain
 // (SPEC "Modules": a row per module with its kind, name, state, enable, reorder, delete, and how a source combines or
-// which input a filter reads; phones: enable and select only), the selected module's name and its params.
+// which input a filter reads; phones: enable and select only), its Soften row, the selected module's name and its
+// params.
 import type { Module } from '../../../shared/schemas/look.ts';
 import type { LibraryEntry } from '../../../shared/schemas/rig.ts';
 import { DEFAULT_PALETTE } from '../core/stdlib.ts';
@@ -9,6 +10,7 @@ import { BLEND_MODES, KIND_LABELS, makeModule, moduleFromLibrary } from './model
 import { ParamsPanel } from './params.tsx';
 import { LayerColours } from './picks.tsx';
 import type { Preview } from './preview.ts';
+import { SoftenRow } from './soften.tsx';
 import type { Studio } from './studio-store.ts';
 
 const STATE_TEXT: Record<string, string> = { ok: 'Running', off: 'Off', pending: 'Compiling…',
@@ -37,6 +39,7 @@ export function ChainPane({ st, pv }: Props) {
           narrow={st.narrow.value} set={(p) => st.editLayer(l.id, () => ({ palette: Object.keys(p).length ? p
             : undefined }))} />}
         <div class="chain-host"><Chain st={st} pv={pv} /></div>
+        <SoftenRow st={st} l={l} />
         <Field label="Module name" class="module-title-field">{(id) => <><input type="text" id={id}
           class="module-title-input" maxlength={80} spellcheck={false} value={m?.title ?? ''} disabled={!m}
           onInput={(e) => {

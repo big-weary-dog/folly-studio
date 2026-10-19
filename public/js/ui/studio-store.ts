@@ -11,7 +11,7 @@ import { replaceUrl, setTitle, signedOut } from './session.ts';
 import { pref, reducedMotion, toast } from './kit.tsx';
 import { createLayerStatus } from './layer-status.ts';
 import {
-  buildGroupIndex, cleanLayer, type GroupIndex, type Layer, layerFromPattern, makeLayer, normaliseLayers,
+  buildGroupIndex, cleanLayer, type GroupIndex, type Layer, layerFromPattern, newLayer, normaliseLayers,
 } from './model.ts';
 import { cleanBpm, cleanDuration } from './timeline-model.ts';
 
@@ -140,7 +140,7 @@ export function createStudio(me: User | null) {
       }
       if (!L.layers.length) {
         const first = library.find((p) => (p.kind || 'source') === 'source');
-        L.layers = [first ? layerFromPattern(first, rig) : makeLayer({ title: 'Rising band' }, rig)];
+        L.layers = [first ? layerFromPattern(first, rig) : newLayer({ title: 'Rising band' }, rig)];
       }
       batch(() => {
         look.value = L;

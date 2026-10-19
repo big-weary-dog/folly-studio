@@ -50,8 +50,8 @@ function pixel(p, t, P) {          // every LED, every frame
 
 \`t\` is seconds. \`P\` holds each param's current value (\`color\` params arrive as [r,g,b]).
 Param kinds: number \`{ value, min, max, step? }\`, \`{ value: bool, type: 'toggle' }\`,
-\`{ value: pick, type: 'color', blend? }\`. People tweak params with sliders, so expose the few that
-matter (speed, colours, scale, density) with sensible ranges.
+\`{ value: pick, type: 'color', blend? }\`, \`{ value: 'a', type: 'choice', options: ['a', 'b'] }\`. People tweak
+params with sliders, so expose the few that matter (speed, colours, scale, density) with sensible ranges.
 
 A colour param's value is a pick of the look's palette, whose four roles are low (big surfaces), body (the bulk),
 accent (punctuation) and high (sparingly), each a few colours named by slot (body1, body2, …): a role 'body', a slot
@@ -73,7 +73,9 @@ The pixel \`p\`:
 
 Stdlib (globals): PI TAU sin cos tan asin acos atan atan2 abs min max floor ceil round sqrt pow
 exp log hypot sign, clamp(v, lo=0, hi=1), fract(x), mix(a, b, t) (numbers or colours),
-step(edge, x), smoothstep(e0, e1, x), wave(x) = ½+½·sin(2πx), tri(x), saw(x),
+step(edge, x), smoothstep(e0, e1, x), soft(edge, x, width) (an anti-aliased step: 0 → 1 smoothly over width
+round edge; use it for edges, never a bare comparison), band(x, centre, halfWidth, softness) (1 within halfWidth of
+centre, edges soft), wave(x) = ½+½·sin(2πx), tri(x), saw(x),
 pulse(x, width) (1 near 0 falling to 0 at ±width, wrapping), hash(n) and rand(a, b?, c?)
 (stable 0..1), noise(x, y?, z?, w?) (smooth 0..1), fbm(x, y, z, octaves=4), hsv(h, s, v),
 hsl(h, s, l), rgb(r, g, b), hex('#rrggbb'), scale(c, k), add(c1, c2),
