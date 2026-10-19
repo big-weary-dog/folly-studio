@@ -1,21 +1,22 @@
 // Compiling pattern and module source: the stdlib (and use()) as locals, browser globals shadowed, readable
 // errors; and the library that use() runs.
 import { type G, resolveParams, type Values } from './globals.ts';
+import { newPicks, type PickBlend, type Picks, pickText, readPick } from './picks.ts';
 import type { ModuleKind, Pixel } from './render.ts';
-import { clamp, hex, isNum, RUN, STDLIB, STDLIB_NAMES } from './stdlib.ts';
+import { isNum, RUN, STDLIB, STDLIB_NAMES } from './stdlib.ts';
 
 /** A pattern's params as its controls show them (SPEC "Pattern code"). */
 export type ParamSpec = { label?: string } & ({ type: 'number', value: number, min: number, max: number, step?: number }
-  | { type: 'toggle', value: boolean } | { type: 'color', value: string }
+  | { type: 'toggle', value: boolean } | { type: 'color', value: string, blend?: PickBlend }
   | { type: 'choice', value: string, options: string[] });
 export type ParamSchema = Record<string, ParamSpec>;
 type RGBA = number[];
-/** What each kind defines (SPEC "Modules"); a module compiled: its function, `frame`, params, and for a spatial
- * filter its op (SPEC "Spatial modules"). */
+/** What each kind defines (SPEC "Modules"); a module compiled: its function, `frame`, params, colours (picks), and
+ * for a spatial filter its op (SPEC "Spatial modules"). */
 export type Compiled = { kind: ModuleKind, params: ParamSchema, frame?: (t: number, P: Values, G: G) => void,
   spatial?: (typeof SPATIAL_OPS)[number],
   pixel?: (p: Pixel, t: number, P: Values, G: G) => unknown, warp?: (q: Pixel, t: number, P: Values, G: G) => void,
-  filter?: (c: RGBA, q: Pixel, t: number, P: Values, G: G, x?: RGBA) => unknown };
+  filter?: (c: RGBA, q: Pixel, t: number, P: Values, G: G, x?: RGBA) => unknown, picks: Picks };
 
 // Browser globals hidden from pattern code as undefined locals: defence in depth (the sandbox is the boundary).
 const SHADOWED = [
@@ -24,12 +25,14 @@ const SHADOWED = [
   'navigator', 'localStorage', 'sessionStorage', 'indexedDB', 'caches', 'Worker', 'SharedWorker',
   'BroadcastChannel', 'setTimeout', 'setInterval', 'requestAnimationFrame', 'queueMicrotask',
 ];
-const SCOPE = Object.freeze({ ...STDLIB, use });
+// Each instance's scope: the stdlib, use(), and pal() and swatch() bound to its own colours (picks.ts).
+const scopeOf = (picks: Picks) => Object.freeze({ ...STDLIB, use, pal: picks.pal, swatch: picks.swatch });
+const SCOPE = scopeOf(newPicks());
 const SPATIAL_OPS = Object.freeze(['blur'] as const);   // what `const spatial = …` may name (SPEC "Spatial modules")
 const CHOICE = /^[a-z][a-z0-9-]{0,31}$/;
 const PRELUDE =
   '"use strict";\n' +
-  `const { ${[...STDLIB_NAMES, 'use'].join(', ')} } = __stdlib;\n` +
+  `const { ${[...STDLIB_NAMES, 'use', 'swatch'].join(', ')} } = __stdlib;\n` +
   `const ${SHADOWED.map((n) => `${n} = undefined`).join(', ')};\n` +
   'return (function () {\n';
 const EPILOGUE =
@@ -67,11 +70,6 @@ export function describeError(err: unknown) {
   return line ? `${msg} (line ${line})` : msg;
 }
 
-function toHexString(c: readonly unknown[]) {
-  const h = (v: unknown) => Math.round(clamp(Number(v) || 0) * 255).toString(16).padStart(2, '0');
-  return '#' + h(c[0]) + h(c[1]) + h(c[2]);
-}
-
 /** A pattern's `params` as a JSON-safe schema: { name: { type, value, min?, max?, step?, label? } }. */
 export function normalizeParams(raw: unknown): ParamSchema {
   const out: ParamSchema = {};
@@ -90,8 +88,10 @@ export function normalizeParams(raw: unknown): ParamSchema {
     }
     let p: ParamSpec;
     if (type === 'color') {
-      const c = Array.isArray(d.value) ? d.value : hex(d.value === undefined ? '#ffffff' : d.value as string);
-      p = { type, value: toHexString(c) };
+      const pick = readPick(d.value === undefined ? '#ffffff' : d.value);
+      if (!pick) throw new Error(`param "${key}": not a colour or a pick: ${JSON.stringify(d.value)?.slice(0, 40)}`);
+      const blend = d.blend ?? pick.blend;
+      p = { type, value: pickText(pick.groups), ...(blend === 'smooth' || blend === 'step' ? { blend } : {}) };
     } else if (type === 'toggle') {
       p = { type, value: !!d.value };
     } else if (type === 'choice') {
@@ -144,8 +144,9 @@ export function compileModule(code: string | undefined, kind: string = 'source')
     FACTORIES.set(code, factory);
   }
   let made: Record<string, unknown>;
+  const picks = newPicks();
   try {
-    made = factory(SCOPE);
+    made = factory(scopeOf(picks));
   } catch (e) {
     throw new Error(`Error while loading the ${what}: ${describeError(e)}`, { cause: e });
   }
@@ -154,8 +155,9 @@ export function compileModule(code: string | undefined, kind: string = 'source')
   if (spatial !== undefined && !SPATIAL_OPS.includes(spatial as never)) {
     throw new Error(`spatial must be ${SPATIAL_OPS.map((o) => `'${o}'`).join(' or ')}`);
   }
-  return { kind, [k[0]]: made[k[0]], frame: made.frame, params: normalizeParams(made.params),
-    ...(spatial ? { spatial } : {}) } as Compiled;
+  const params = normalizeParams(made.params);
+  picks.bind(params, null, {});
+  return { kind, [k[0]]: made[k[0]], frame: made.frame, params, picks, ...(spatial ? { spatial } : {}) } as Compiled;
 }
 
 /** Compile pattern source (a source module) → { pixel, frame, params }. */
@@ -175,10 +177,11 @@ function use(name: string, params?: Record<string, unknown>) {
   if (code === undefined) throw new Error(`use(): unknown library pattern "${name}"`);
   const m = compileModule(code, 'source');
   const P = resolveParams(m.params, params);
+  m.picks.bind(m.params, params, P);    // its roles: the calling layer's, as it runs
   const pixel = m.pixel!, frame = m.frame;
   let last = NaN;
   return function used(p: Pixel, t: number) {
-    if (frame && t !== last) { last = t; frame(t, P, RUN.G!); }
+    if (t !== last) { last = t; m.picks.frame(); if (frame) frame(t, P, RUN.G!); }
     return pixel(p, t, P, RUN.G!);
   };
 }

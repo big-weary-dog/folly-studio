@@ -1,6 +1,6 @@
 // The UI's logic that decides behaviour, without a browser: routing (redirects and `next`), the modulate dialog's
-// bindings, the timeline's zoom and edits on the Studio's state, and the sandbox status (a broken edit keeps the last
-// good code running). The views themselves are checked in a browser (`npm run smoke`).
+// bindings, the pick tile's edits, the timeline's zoom and edits on the Studio's state, and the sandbox status (a
+// broken edit keeps the last good code running). The views themselves are checked in a browser (`npm run smoke`).
 import assert from 'node:assert/strict';
 
 import { computed, signal } from '@preact/signals';
@@ -11,6 +11,9 @@ import {
   bindingForm, bindingText, makeBinding, normaliseParam, type Param, shownValue,
 } from '../public/js/ui/bindings.ts';
 import { createLayerStatus } from '../public/js/ui/layer-status.ts';
+import {
+  editText, editValue, readEdit, roleState, toggleRole, toggleSlot, toggleToken,
+} from '../public/js/ui/pick-model.ts';
 import type { Preview } from '../public/js/ui/preview.ts';
 import type { Draft, Studio } from '../public/js/ui/studio-store.ts';
 import { createTimeline } from '../public/js/ui/timeline-state.ts';
@@ -179,5 +182,24 @@ describe('what the sandbox says', () => {
     assert.deepEqual(status.params('a', look.modules[0]), { schema: { k: { value: 1 } }, note: '' });
     look = L;
     assert.equal(status.of('a').kind, 'ok', 'fixed');
+  });
+});
+
+describe('the pick tile', () => {
+  test('a pick read, edited by role, slot and token, and stored back with only what differs', () => {
+    const e = readEdit(undefined, 'body/accent');
+    assert.deepEqual([e.tokens, e.deal], [['body', 'accent'], true]);
+    assert.equal(editValue(e, 'step'), 'body/accent');
+    const one = toggleSlot(e, 'body', 2, 4);
+    assert.equal(editText(one), 'body1 body3 body4/accent', 'a slot out of a whole role: the others');
+    assert.deepEqual(roleState(one, 'body'), { whole: false, slots: new Set([1, 3, 4]) });
+    assert.equal(editText(toggleRole(one, 'body')), 'body/accent', 'the whole role back, in its place');
+    assert.equal(editText({ ...toggleToken(one, '#ff0000'), deal: false }), 'body1 body3 body4 accent #ff0000');
+    assert.equal(editValue(toggleRole(toggleRole(e, 'body'), 'accent'), 'step'), undefined, 'nothing: the default');
+    const opts = readEdit({ pick: 'all', blend: 'smooth', range: [0.2, 0.8], rotate: { mod: 'lfo', rate: 1 } }, 'low');
+    assert.deepEqual(editValue(opts, 'smooth'), { pick: 'all', range: [0.2, 0.8], rotate: { mod: 'lfo', rate: 1 } });
+    assert.deepEqual(editValue({ ...opts, blend: 'step', range: [0, 1], rotate: undefined }, 'smooth'),
+      { pick: 'all', blend: 'step' });
+    assert.deepEqual(readEdit('banana', 'high').tokens, ['high'], 'a bad value: the default');
   });
 });

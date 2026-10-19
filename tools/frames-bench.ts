@@ -5,7 +5,8 @@
 //
 //   node tools/frames-bench.ts [--seconds 20] [--quality 9,11] [--only name,name]
 //
-// Per quality: the wire's size (MB) and the encode time (s) on one core; last, the raw sparse .fseq (MB).
+// Per quality: the wire's size (MB) and the encode time (s) on one core; then the raw sparse .fseq (MB) and the time
+// the bake's frames took to render (s).
 
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
@@ -71,10 +72,10 @@ function bake(layers: Layer[]) {
 const MB = (n: number) => (n / 1e6).toFixed(2);
 const pad = (cells: unknown[]) => cells.map((c, i) => (i ? String(c).padStart(9) : String(c).padEnd(20))).join(' ');
 console.log(`${SECONDS} s at ${FPS} fps, ${channels} channels a frame. Wire MB and encode s per brotli quality.`);
-console.log(pad(['look', ...QUALITIES.flatMap((q) => [`q${q} MB`, `q${q} s`]), 'raw MB']));
+console.log(pad(['look', ...QUALITIES.flatMap((q) => [`q${q} MB`, `q${q} s`]), 'raw MB', 'render s']));
 const totals = QUALITIES.map(() => ({ bytes: 0, ms: 0 }));
 for (const [name, layers] of LOOKS) {
-  const fseq = bake(layers);
+  const r0 = performance.now(), fseq = bake(layers), rendered = (performance.now() - r0) / 1000;
   const parsed = parseFseq(fseq, { maxBytes: fseq.length });
   const cells = [];
   for (const [i, quality] of QUALITIES.entries()) {
@@ -84,6 +85,6 @@ for (const [name, layers] of LOOKS) {
     if (name !== NOISE) Object.assign(totals[i], { bytes: totals[i].bytes + bytes, ms: totals[i].ms + ms });
     cells.push(MB(bytes), (ms / 1000).toFixed(1));
   }
-  console.log(pad([name.slice(0, 20), ...cells, MB(fseq.length)]));
+  console.log(pad([name.slice(0, 20), ...cells, MB(fseq.length), rendered.toFixed(2)]));
 }
 console.log(pad(['all but noise', ...totals.flatMap((t) => [MB(t.bytes), (t.ms / 1000).toFixed(1)]), '']));

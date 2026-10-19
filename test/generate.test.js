@@ -81,7 +81,8 @@ describe('sketch', () => {
     assert.equal(look.layers.length, 1);
     assert.equal(look.layers[0].code, byName('embers').code);
     assert.deepEqual(look.layers[0].groups, ['spires']);
-    assert.deepEqual(look.layers[0].params, { color: '#ff0000' });
+    assert.deepEqual(look.layers[0].params, { color: 'body1' }, "red: the nearest swatch's slot");
+    assert.equal(look.globals.palette.name, 'chapel', 'the palette nearest red');
     assert.equal(look.title, 'Fire on the spires in red');
     assert.match(look.summary, /Sketched from the pattern library/);
     assert.match(look.summary, /AI generator can do much better/);
@@ -105,7 +106,9 @@ describe('sketch', () => {
     assert.equal(sketch('a heartbeat at 140 bpm').layers[0].params.bpm, 140);
     const beam = sketch('a lighthouse with a warm white beam on navy');
     assert.equal(beam.layers[0].code, byName('lighthouse').code);
-    assert.deepEqual(beam.layers[0].params, { sea: '#0010ff', color: '#ffc070' }, '"on navy" is the background');
+    assert.deepEqual(beam.layers[0].params, { sea: 'accent1', color: 'body3' }, '"on navy" is the background');
+    assert.deepEqual(sketch('a white beam on navy').layers[0].params, { sea: 'accent1', color: '#ffffff' },
+      'no swatch near white: the colour itself');
   });
 
   test('is deterministic, and falls back when nothing matches', () => {
@@ -119,7 +122,8 @@ describe('sketch', () => {
   test('an empty library still gives a valid look', () => {
     const look = sketch('purple and gold fire', []);
     assert.equal(look.layers[0].code, BUILTIN_PATTERN.code);
-    assert.deepEqual(look.layers[0].params, { color: '#8000ff', color2: '#ffb000' });
+    assert.deepEqual(look.layers[0].params, { color: 'body6', color2: 'body2' });
+    assert.equal(look.globals.palette.name, 'prism', 'the palette with a purple and a gold');
   });
 
   test('finds places by tag on any rig, by id and name where a rig has none, and keeps the tags', () => {
@@ -142,6 +146,21 @@ describe('sketch', () => {
     const look = sketch('fire on the spires and ocean waves across the arches, red and gold', lib);
     assert.equal(look.layers.length, 2);
     assert.deepEqual(look.layers.map((l) => l.groups[0]), ['spires', 'arches']);
+  });
+
+  test('blue bars: a pattern that reads the palette plays blue through its layer\'s roles', async () => {
+    const dir = path.join(STUDIO, 'public/patterns');
+    const lib = JSON.parse(fs.readFileSync(path.join(dir, 'index.json'), 'utf8')).map((p) => ({ ...p,
+      code: fs.readFileSync(path.join(dir, `${p.name}.js`), 'utf8') }));
+    const look = sketch('blue bars', lib), [layer] = look.layers;
+    assert.equal(layer.code, lib.find((p) => p.name === 'bars').code);
+    const { paletteColours } = await import('../public/js/core/stdlib.ts');
+    const { rolesFor } = await import('../public/js/core/picks.ts');
+    const body = rolesFor(paletteColours(look.globals.palette), layer.palette).lists.body;
+    const hue = ([r, g, b]) => (Math.atan2(Math.sqrt(3) * (g - b), 2 * r - g - b) / (2 * Math.PI) + 1) % 1;
+    assert.ok(body.length && body.every((c) => Math.abs(hue(c) - 0.62) < 0.05),
+      `body plays blue: ${layer.palette.body}`);
+    assert.deepEqual(sketch('bars', lib).layers[0].palette, undefined, 'no colour named, no remap');
   });
 
   test('reads params statically', () => {

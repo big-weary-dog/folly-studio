@@ -78,12 +78,13 @@ export const moduleFromLibrary = (e: LibraryEntry) => makeModule({ kind: e.kind 
 /** The rig's whole: the root of its group tree. */
 const rootId = (rig: Rig | null) => (rig?.groups || []).find((g) => g.parent == null)?.id ?? '';
 
-export function makeLayer({ title = 'Layer', groups, tags, blend = 'add', level = 1, clips, modules, soften }:
+export function makeLayer({ title = 'Layer', groups, tags, blend = 'add', level = 1, clips, modules, soften, palette }:
   Partial<Layer>, rig: Rig | null): Layer {
   return { id: randomId('l'), title, modules: modules?.length ? cloneModules(modules) : [makeModule({ title })],
     groups: groups?.length ? [...groups] : tags?.length ? [] : [rootId(rig)],
     ...(tags?.length ? { tags: [...tags] } : {}), blend, level,
-    ...(clips?.length ? { clips: clips.map((c) => ({ ...c })) } : {}), ...(soften ? { soften: { ...soften } } : {}) };
+    ...(clips?.length ? { clips: clips.map((c) => ({ ...c })) } : {}), ...(soften ? { soften: { ...soften } } : {}),
+    ...cleanPalette(palette) };
 }
 
 /** A layer the Studio starts (blank or from the library): softened by default (SPEC "Spatial modules"). */
@@ -95,6 +96,12 @@ export const cleanSoften = (s: unknown): Soften | undefined => {
   const o = s && typeof s === 'object' ? s as Partial<Soften> : null, r = Number(o?.radius);
   return o && Number.isFinite(r) ? { radius: Math.min(MAX_RADIUS, Math.max(0, r)),
     mode: BLUR_MODES.includes(o.mode as Soften['mode']) ? o.mode! : 'wire' } : undefined;
+};
+
+/** A layer's role remap as saved (SPEC "Palettes"): only the roles it sets; none, nothing. */
+const cleanPalette = (p: unknown) => {
+  const kept = Object.entries(p && typeof p === 'object' ? p : {}).filter(([, v]) => v != null);
+  return kept.length ? { palette: JSON.parse(JSON.stringify(Object.fromEntries(kept))) as Layer['palette'] } : {};
 };
 
 /** Copies of modules with fresh ids, filters' inputs following them. */
@@ -137,7 +144,7 @@ export function cleanLayer(l: RawLayer): Layer {
     level: Number.isFinite(Number(l.level)) ? Math.min(1, Math.max(0, Number(l.level))) : 1,
     // Timeline clips pass through untouched (the server validates them).
     ...(Array.isArray(l.clips) ? { clips: l.clips.map((c) => ({ ...c })) } : {}),
-    ...(cleanSoften(l.soften) ? { soften: cleanSoften(l.soften) } : {}),
+    ...(cleanSoften(l.soften) ? { soften: cleanSoften(l.soften) } : {}), ...cleanPalette(l.palette),
   };
 }
 
