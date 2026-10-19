@@ -29,22 +29,22 @@ file), edit it, and export it toward the real installation.
 
 ```
 studio/
-  SPEC.md  README.md  DESIGN.md  IDEAS.md  package.json (+ lock)  tsconfig.json  vite.config.js  server.js
-  src/            server (Fastify): app.ts (createServer) api.ts api-looks.ts http.ts (plumbing) auth.ts store.js
-                  static.ts (serves dist/: headers, precompressed copies, ETags)  core-script.js (the core for the boxes)
-                  generate/{index,sketch,claude,fleet,prompt}.js
-                  frames.js (pure: FSEQ parse + analysis)  bake.js (bake queue, frame files)
-                  render-box.js (bubblewrap runner)  box-output.js (what a box hands back, as data)
-                  frames-wire.js (stream encoder)  frames-cache.js (chunks, downloads, encoder jobs, disk cap)
-                  frames-http.ts (frames routes)  fseq-codec.js (FSEQ zstd/zlib blocks)
-                  frames-worker.js (low-priority encoding)
+  SPEC.md  README.md  DESIGN.md  IDEAS.md  package.json (+ lock)  tsconfig.json  vite.config.js  server.ts
+  src/            server (Fastify): app.ts (createServer) api.ts api-looks.ts http.ts (plumbing) auth.ts store.ts
+                  static.ts (serves dist/: headers, precompressed copies, ETags)  core-script.ts (the core for the boxes)
+                  generate/{index,sketch,claude,fleet,prompt}.ts
+                  frames.ts (pure: FSEQ parse + analysis)  bake.ts (bake queue, frame files)
+                  render-box.ts (bubblewrap runner)  box-output.ts (what a box hands back, as data)
+                  frames-wire.ts (stream encoder)  frames-cache.ts (chunks, downloads, encoder jobs, disk cap)
+                  frames-http.ts (frames routes)  fseq-codec.ts (FSEQ zstd/zlib blocks)
+                  frames-worker.ts (low-priority encoding)
   shared/schemas/ zod: look.ts (what the API stores) generated.ts (a generator's look, its JSON Schema) api.ts (bodies,
                   users, ideas) rig.ts (the rig, the library index); the server's at run time, the browser's as types
-  render-box/     render.mjs: bakes a look to .fseq inside bubblewrap; renderer.mjs: the frame loop
-  fleet-box/      check.mjs + BRIEF.template.md for the boxed Fleet worker
-  tools/          build_rig.py  build_palettes.py  budgets.mjs (+ budgets.json: what oxlint cannot check, line budgets)
-                  backup.mjs (dated .tar.gz of the data)  frames-bench.mjs (brotli quality vs time)
-                  vite-sandbox.js (builds the sandbox page)  vite-compress.js (.br/.gz copies)  dev.mjs (npm run dev)
+  render-box/     render.ts: bakes a look to .fseq inside bubblewrap; renderer.ts: the frame loop
+  fleet-box/      check.ts + BRIEF.template.md for the boxed Fleet worker
+  tools/          build_rig.py  build_palettes.py  budgets.ts (+ budgets.json: what oxlint cannot check, line budgets)
+                  backup.ts (dated .tar.gz of the data)  frames-bench.ts (brotli quality vs time)
+                  vite-sandbox.ts (builds the sandbox page)  vite-compress.ts (.br/.gz copies)  dev.ts (npm run dev)
   docs/HOSTING.md running it at home: tunnels, settings, resources, backups; docs/screenshots/ (DESIGN.md's)
   public/
     index.html  favicon.svg
@@ -52,11 +52,11 @@ studio/
                           pages, studio, viewer, timeline, compose (imported by their views)
     sandbox.html          the sandboxed pattern runner's page (a template: the build inlines its relay and Worker)
     js/
-      pattern-core.js     pure: stdlib, compile, scene prep, renderFrame, toChannels, re-exported from core/
-                          {stdlib,compile,scene,timeline,render,globals}.js (sandbox, boxes, Node tests)
+      pattern-core.ts     pure: stdlib, compile, scene prep, renderFrame, toChannels, re-exported from core/
+                          {stdlib,compile,scene,timeline,render,globals}.ts (sandbox, boxes, Node tests)
       sandbox-relay.ts    the sandbox page's script: relay + watchdog
       sandbox-worker.ts   the sandbox's Worker: runs a look's layers on the core
-      fseq.js             pure: FSEQ v2 writer (browser + Node tests)
+      fseq.ts             pure: FSEQ v2 writer (browser + Node tests)
       frames-stream.ts    streamed playback of baked frames, and its pure decoder (manifest, chunks)
       runtime.ts          app side: owns the sandbox iframe, speaks the protocol below, adapts the frame rate
       viewer.ts           the 3D view: orbit camera (pointer and keys: viewer-input.ts); draws Points (viewer-gl.ts)
@@ -351,8 +351,9 @@ changes. Every `frame` request is answered within 1.5 s. The app (runtime.ts) te
 down and reloads it only if the page itself stops answering for 4 s (8 s during an export, while the page probes a
 hung layer).
 
-`pattern-core.js` exports (used by the sandbox's worker, the boxes and the Node tests):
-`STDLIB`, `compilePattern(code) → { pixel, frame, params }` (throws on syntax error / no `pixel`),
+`pattern-core.ts` exports (used by the sandbox's worker, the boxes and the Node tests), and its types (`Scene`,
+`PreparedLayer`, `PreparedLook`, `Compiled`, `ParamSchema`, `Pixel`, `G`, `LayerInput`, …):
+`STDLIB`, `compilePattern(code) → { kind, pixel, frame, params }` (throws on syntax error / no `pixel`),
 `compileModule(code, kind) → { kind, pixel | warp | filter, frame, params }`, `layerModules(layer) → modules`
 (a legacy layer → one source), `compileLayer(layer) → compiled[]` (throws `title: error`), `setLibrary([{ name,
 code }])`, `prepareScene(rig) → scene` (throws on a malformed rig), `groupsByTag(scene, tag) → [group]` (outermost
@@ -369,7 +370,7 @@ timeline `layerEnvelope(clips, t) → 0..1`, `normalizeClips(clips) → clips | 
 bad and overlapping clips), `lookDuration(look) → seconds`, `DEFAULT_DURATION` `MIN_DURATION`
 `MAX_DURATION` `MAX_CLIPS`.
 
-`fseq.js` exports `writeFseq({ channelCount?, frames, stepMs = 25, data: Uint8Array, media?, ranges?, compression? })
+`fseq.ts` exports `writeFseq({ channelCount?, frames, stepMs = 25, data: Uint8Array, media?, ranges?, compression? })
 → Uint8Array` (FSEQ v2.0). `ranges: [[startChannel, count], …]` (0-based, ascending, ≤ 255) writes a
 sparse file: each frame holds only the ranged channels, so `channelCount` is their total.
 `compression: { type: 'zstd' | 'zlib', blocks: [{ frame, bytes }] }` writes a compressed file
@@ -449,7 +450,7 @@ outside 0–600 s, and a duration outside 1–600 s, are refused with 400.
 
 ## Generators (idea → look)
 
-`src/generate/index.js` runs a small in-process queue. An adapter is
+`src/generate/index.ts` runs a small in-process queue. An adapter is
 `async generate({ text, user, library, rig, groups }) → { title, summary, duration?, globals?, automation?, layers }`
 (`groups`: the rig's)
 and is chosen by `STUDIO_GENERATOR` (`sketch` default, `claude`, `fleet`). Generators find places by the rig's
@@ -466,8 +467,8 @@ clips and a duration for ideas that describe a progression; most looks have neit
 - `claude`: one Messages API call with the pattern guide + library examples as the system prompt, and structured
   output whose JSON Schema is the generated look's own (`wireSchema(groups)`: group ids and tags as enums).
 - `fleet`: hands the idea to a boxed Fleet worker as an untrusted brief (experimental), in a workspace holding
-  copies of the modules `check.mjs` imports (the core's, `fseq.js`, `frames.js`), as they are. The worker
-  also bakes (`node check.mjs --bake`); the adapter returns `bake` + `frames` (see below), and
+  copies of the modules `check.ts` imports (the core's, `fseq.ts`, `frames.ts`), as they are. The worker
+  also bakes (`node check.ts --bake`); the adapter returns `bake` + `frames` (see below), and
   the queue stores them with the look. This foundry is opt-in: it runs only with `STUDIO_FOUNDRY=on`,
   one job at a time in a slot of its own. While it is off or busy, its ideas go to the one-shot
   generator (`STUDIO_GENERATOR_FALLBACK`, else `sketch`), or wait for it with `STUDIO_FOUNDRY_WAIT=1`.
@@ -479,18 +480,18 @@ clips and a duration for ideas that describe a progression; most looks have neit
 Frames are the deliverable; the server never runs look code itself, it only parses and measures
 bytes a box hands back. Anything a box says about itself is kept as `boxStats: { untrusted: true }`.
 
-- **Boxes.** `render-box` (authoritative, any look): `src/render-box.js` runs `render-box/render.mjs`
+- **Boxes.** `render-box` (authoritative, any look): `src/render-box.ts` runs `render-box/render.ts`
   under bubblewrap (`--unshare-all`, no network, `--clearenv`, read-only node + its libraries +
-  the core as one script (`src/core-script.js`, from its source) / renderer.mjs / fseq.js / rig.json /
+  the core as one script (`src/core-script.ts`, from its source) / renderer.ts / fseq.ts / rig.json /
   `public/patterns` (for `use`), tmpfs /tmp, one
   empty writable /out; the look on stdin as `{ layers, globals?, automation?, bpm? }`), with prlimit
   (CPU s, tasks, file size, RLIMIT_DATA; no RLIMIT_AS) and a wall-clock kill. Inside, layers run in
   a `node:vm` realm holding only the stdlib (defence in depth). No bubblewrap → 503, no fallback.
   One bake at a time, under `nice` (`STUDIO_BAKE_NICE`, default 10), in a lane it shares with wire encodes
-  (`src/bake.js` `createLane`), so the two never run at once. `fleet-box` (advisory): the Fleet worker's own `frames.fseq` + `stats.json` (its `use`
-  library: `patterns/` beside check.mjs, else none). All three run the same core and `renderer.mjs`.
+  (`src/bake.ts` `createLane`), so the two never run at once. `fleet-box` (advisory): the Fleet worker's own `frames.fseq` + `stats.json` (its `use`
+  library: `patterns/` beside check.ts, else none). All three run the same core and `renderer.ts`.
 - **Length.** A bake renders the look's `duration` from t = 0, honouring clips, but at most
-  `STUDIO_BAKE_SECONDS` (default 120 s, ≤ 600) in the render box; `fleet-box/check.mjs --bake`
+  `STUDIO_BAKE_SECONDS` (default 120 s, ≤ 600) in the render box; `fleet-box/check.ts --bake`
   does the same (`--seconds` overrides). `look.bake.seconds` records what was baked; a bake is
   dropped if the layers or duration change while it runs. The box's wall-clock and CPU budgets
   default to 30 s + 1.5 s per second baked (at least 90 s / 120 CPU s).
@@ -498,16 +499,16 @@ bytes a box hands back. Anything a box says about itself is kept as `boxStats: {
   ch; 20 s ≈ 11.7 MB, 120 s ≈ 70 MB, where full 40,800-ch frames would be ≈ 32.6 MB for 20 s). Files are
   capped at 64 MB, or ≈ 0.6 MB a second of `STUDIO_BAKE_SECONDS` when that is more
   (`STUDIO_BAKE_MAX_FRAMES` overrides).
-- **Checks** (`src/frames.js`, pure): `parseFseq(bytes, { maxBytes, maxDataBytes = maxBytes, decompress? })`
+- **Checks** (`src/frames.ts`, pure): `parseFseq(bytes, { maxBytes, maxDataBytes = maxBytes, decompress? })`
   is strict (magic, v2.x, consistent header/offset/sizes, ranges within `maxChannels` (default 80 × 510; the
   rig's frame where the host knows it), data = frames ×
   channels). Compressed files (zstd, zlib) are read only with `decompress(type, bytes, size)`
-  (`src/fseq-codec.js` `inflateBlock`: node:zlib with `maxOutputLength`): the block index must
+  (`src/fseq-codec.ts` `inflateBlock`: node:zlib with `maxOutputLength`): the block index must
   start at frame 0 and ascend, its lengths fill the data exactly, frames × channels ≤
   maxDataBytes before anything is inflated, and each block inflate to exactly its frames, so a
   decompression bomb is refused. Empty index entries may only pad its end (FPP preallocates).
-  `analyzeFrames(parsed, scene, regions)` (the core's `prepareScene(rig)`, `flashRegions(scene)`; frames.js imports
-  nothing, so the Fleet box runs a copy) → `{ frames, seconds, fps, peakBrightness, meanBrightness,
+  `analyzeFrames(parsed, scene, regions)` (the core's `prepareScene(rig)`, `flashRegions(scene)`; frames.ts imports
+  only types, so the Fleet box runs a copy) → `{ frames, seconds, fps, peakBrightness, meanBrightness,
   darkFraction, estPeakAmps (20 mA/channel at 5 V), coverage, flicker: { maxHz, flaggedSeconds,
   regions, ok, small: { maxHz, flaggedSeconds, regions } } }`. Flicker: WCAG 2.3.1 general flash
   (≥ 10 % luminance swings, darker side < 0.8, > 3 flashes in any 1 s) on the mean of the whole
@@ -520,7 +521,7 @@ bytes a box hands back. Anything a box says about itself is kept as `boxStats: {
   bytes, sha256 }, boxStats? }`. `ok` is false when the frames are missing, malformed or flash over a
   large area; `warning` says when only small regions flash. `layersHash` = SHA-256 of `renderFields(look)`.
   Bakes are deterministic: `renderKey` = SHA-256 over `renderFields(look)`, the seconds baked and a digest of
-  the box's inputs (render.mjs, renderer.mjs, the core's modules, fseq.js, rig.json, the library, the
+  the box's inputs (render.ts, renderer.ts, the core's modules, fseq.ts, rig.json, the library, the
   Node version). A bake request whose key a done render-box bake with stored frames has takes that bake,
   its frames hard-linked, instead of baking.
 - **Disk cap.** `STUDIO_FRAMES_MAX_BYTES` (default 2 GB) bounds `frames/`: past it, the bakes used least
@@ -532,14 +533,14 @@ bytes a box hands back. Anything a box says about itself is kept as `boxStats: {
   `frames.sha256`): `frames/<hash>/<n>.br`, `manifest.json` (written last), `<n>.gz` and
   `frames.<zstd|zlib>.fseq` (both made on first request). Looks with the same frames share a
   folder; folders no bake names are pruned.
-- **Wire** (`src/frames-wire.js` encodes, `public/js/frames-stream.ts` decodes). Chunks of 80
+- **Wire** (`src/frames-wire.ts` encodes, `public/js/frames-stream.ts` decodes). Chunks of 80
   frames, each decodable alone: one layout byte (0 frame-major, 1 frame-major deltas, 2 planar
   i.e. channel-major, 3 planar deltas; deltas are byte-wise mod 256 from the previous frame, the
   chunk's first frame against zeros), then the frames. Brotli picks the smallest layout per chunk
   (probed at quality 5) and compresses it at `STUDIO_FRAMES_BROTLI_QUALITY` (default 9; 11 is about 12 %
   smaller for about 13× the CPU: `tools/frames-bench.ts`), once, after a bake (or on first request for
   older bakes; the wire then says 202). Encoding, the gzip copies and compressed downloads run in one
-  worker thread at nice 10, one job at a time (`src/frames-worker.js`). The gzip copy, for clients that do
+  worker thread at nice 10, one job at a time (`src/frames-worker.ts`). The gzip copy, for clients that do
   not take br (browsers send br only over HTTPS), picks its own layout, so it has its own ETag.
   Manifest: `{ version: 1, hash, frames, fps, channels, ranges, chunkFrames, chunks: [{ bytes }],
   bytes }` (brotli sizes). Manifest and chunks are served `Cache-Control: public,

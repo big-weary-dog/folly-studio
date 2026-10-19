@@ -9,7 +9,9 @@ import zlib from 'node:zlib';
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
+import type { lookRoutes } from './api-looks.ts';
 import { framesPath } from './bake.ts';
+import type { createFramesCache } from './frames-cache.ts';
 import { FSEQ_CODEC, HAS_ZSTD } from './fseq-codec.ts';
 import { etagMatches, HttpError, pickEncoding } from './http.ts';
 import { CACHE_IMMUTABLE as IMMUTABLE } from './static.ts';
@@ -30,8 +32,9 @@ function codecFor(v: string | undefined) {
 const fileName = (look: { title?: string }) => String(look.title || '').replace(/[^A-Za-z0-9 _-]+/g, '').trim()
   .replace(/\s+/g, '-').slice(0, 60) || 'look';
 
-/** framesRoutes({ framesDir, cache, visibleLook }) → routes for the API's table. */
-export function framesRoutes({ framesDir, cache, visibleLook }: Record<string, any>) {
+/** The frames routes, for the API's table. */
+export function framesRoutes({ framesDir, cache, visibleLook }: { framesDir: string,
+  cache: ReturnType<typeof createFramesCache>, visibleLook: ReturnType<typeof lookRoutes>['visibleLook'] }) {
   const noFrames = () => new HttpError(404, 'This look has no baked frames.');
   // Frames evicted for the disk cap are baked again (src/frames-cache.ts): ask again in a while.
   const rebaking = () => new HttpError(503, 'These frames are being baked again. Try again in a minute.',
@@ -39,7 +42,7 @@ export function framesRoutes({ framesDir, cache, visibleLook }: Record<string, a
 
   /** The look, if `hash` names its current bake. */
   function bakeOf({ params: { id, hash }, user }: Req) {
-    const look = visibleLook(id, user);
+    const look = visibleLook(id, user!);
     if (!HASH.test(hash) || cache.hashOf(look) !== hash) throw noFrames();
     cache.touch(look);
     return look;
@@ -47,7 +50,7 @@ export function framesRoutes({ framesDir, cache, visibleLook }: Record<string, a
 
   /** 304 when the client has it (nothing is read then), else 200 with load() → { body, type, encoding? }. */
   async function immutable(req: Req, reply: FastifyReply, etag: string,
-    load: () => Promise<{ body: Buffer, type: string, encoding?: string }>) {
+    load: () => Promise<{ body: Buffer, type: string, encoding?: string | null }>) {
     const headers = { 'cache-control': IMMUTABLE, etag };
     if (etagMatches(req.headers['if-none-match'], etag)) return reply.headers(headers).code(304).send();
     const { body, type, encoding } = await load();
@@ -55,7 +58,7 @@ export function framesRoutes({ framesDir, cache, visibleLook }: Record<string, a
   }
 
   async function download(req: Req, reply: FastifyReply) {
-    const look = visibleLook(req.params.id, req.user);
+    const look = visibleLook(req.params.id, req.user!);
     const codec = codecFor(req.query.compress);
     // Replays revalidate (the bake's hash is the ETag), and gzip makes LED frames ~3× smaller.
     const sha = look.bake?.frames?.sha256;
@@ -77,7 +80,7 @@ export function framesRoutes({ framesDir, cache, visibleLook }: Record<string, a
   }
 
   async function wire(req: Req, reply: FastifyReply) {
-    const w = await cache.wire(visibleLook(req.params.id, req.user));
+    const w = await cache.wire(visibleLook(req.params.id, req.user!));
     if (w.state === 'none') throw noFrames();
     if (w.state === 'failed') throw new HttpError(500, 'The baked frames could not be prepared for playback.');
     if (w.state === 'pending') {

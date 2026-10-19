@@ -24,12 +24,10 @@ export function createLog(prefix = '[studio]'): Log {
 
 /** An error that becomes an HTTP response `{ error: message }`. */
 export class HttpError extends Error {
-  status: number;
-  headers: Record<string, string> | undefined;
+  status: number; headers: Record<string, string> | undefined;
   constructor(status: number, message: string, headers?: Record<string, string>) {
     super(message);
-    this.status = status;
-    this.headers = headers;
+    [this.status, this.headers] = [status, headers];
   }
 }
 

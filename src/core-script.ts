@@ -5,9 +5,9 @@ import { readFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
 import path from 'node:path';
 
-// Relative import and re-export lines (a bundle drops them; `export` keywords stay, so it is still a module). Type-only
-// ones (`import type`) name no module that runs.
-const FROM = /^(?:import|export)\b([^;]*?)\bfrom\s*'(\.{1,2}\/[^']+)';[ \t]*\n?/gm;
+// Relative import and re-export lines (a bundle drops them; `export` keywords stay, so it is still a module), but not
+// type-only ones (`import type`): they name no module that runs, and stripping the types blanks them.
+const FROM = /^(?:import|export)(?!\s+type\b)\b[^;]*?\bfrom\s*'(\.{1,2}\/[^']+)';[ \t]*\n?/gm;
 
 /** fn() without Node's ExperimentalWarning about `feature` (Node warns once, on first use). */
 export function quietly<T>(feature: RegExp, fn: () => T): T {
@@ -31,9 +31,7 @@ export function moduleFiles(file: string) {
   const visit = (f: string) => {
     if (seen.has(f)) return;
     seen.add(f);
-    for (const m of readFileSync(f, 'utf8').matchAll(FROM)) {
-      if (!/^\s*type\b/.test(m[1]!)) visit(path.resolve(path.dirname(f), m[2]!));
-    }
+    for (const m of readFileSync(f, 'utf8').matchAll(FROM)) visit(path.resolve(path.dirname(f), m[1]));
     files.push(f);
   };
   visit(path.resolve(file));

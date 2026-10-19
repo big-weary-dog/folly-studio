@@ -170,8 +170,7 @@ export function createFleetAdapter(o: Options = {}) {
       .catch(() => {});
   }
 
-  async function prepareWorkspace({ name, ws, text, library, rig, groups }: Partial<Context> & { name: string,
-    ws: string }) {
+  async function prepareWorkspace(name: string, ws: string, ctx: Pick<Context, 'text' | 'library' | 'rig' | 'groups'>) {
     for (const f of [...Object.values(cfg.modules), cfg.briefTemplate, cfg.patternsDir, ...Object.values(cfg.copies)]) {
       if (!(await exists(f))) {
         throw new GenerateError('The Fleet generator is not set up on this server.', `missing ${f}`);
@@ -182,7 +181,7 @@ export function createFleetAdapter(o: Options = {}) {
     await fs.mkdir(ws, { recursive: true });
     const lookPath = path.join(ws, 'look.json');
     const template = await fs.readFile(cfg.briefTemplate, 'utf8');
-    await fs.writeFile(path.join(ws, 'BRIEF.md'), renderBrief(template, { text, library, rig, groups, lookPath }));
+    await fs.writeFile(path.join(ws, 'BRIEF.md'), renderBrief(template, { ...ctx, lookPath }));
     // Plain copies (never hardlinks: the box refuses checkouts with shared hardlinks).
     for (const [to, from] of Object.entries(cfg.copies)) await fs.copyFile(from, path.join(ws, to));
     await fs.mkdir(path.join(ws, 'patterns'));
@@ -227,7 +226,7 @@ export function createFleetAdapter(o: Options = {}) {
     const name = workerName(idea?.id ?? Date.now().toString(36));
     await fs.mkdir(cfg.workDir, { recursive: true });
     const ws = path.join(await fs.realpath(cfg.workDir), name);
-    const lookPath = await prepareWorkspace({ name, ws, text, library, rig, groups });
+    const lookPath = await prepareWorkspace(name, ws, { text, library, rig, groups });
     const state = path.join(fleetHome, name);
     const deadline = Date.now() + cfg.timeoutMs;
     try {

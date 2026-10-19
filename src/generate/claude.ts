@@ -14,12 +14,11 @@ const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 const FALLBACK_MODELS = new Set(['claude-opus-5-5', 'claude-opus-5', 'claude-fable-5-1', 'claude-sonnet-5-5']);
 const EFFORTS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
 
-type Failure = { status?: number, type?: string, retryable?: boolean, retryAfterMs?: number };
 class ApiError extends Error {
-  status: number; type: string; retryable: boolean; retryAfterMs: number;
-  constructor(message: string, { status = 0, type = '', retryable = false, retryAfterMs = 0 }: Failure = {}) {
+  status = 0; type = ''; retryable = false; retryAfterMs = 0;
+  constructor(message: string, failure: Partial<ApiError> = {}) {
     super(message);
-    [this.status, this.type, this.retryable, this.retryAfterMs] = [status, type, retryable, retryAfterMs];
+    Object.assign(this, failure);
   }
 }
 

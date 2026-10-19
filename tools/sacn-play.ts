@@ -21,6 +21,7 @@ import dgram from 'node:dgram';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import util from 'node:util';
 
 import { CHANNELS_PER_UNIVERSE, MAX_CHANNELS, parseFseq } from '../src/frames.ts';
 import { inflateBlock } from '../src/fseq-codec.ts';
@@ -193,40 +194,31 @@ const RIG = fileURLToPath(new URL('../public/data/rig.json', import.meta.url));
 
 /** Command-line options; throws with the usage on anything unknown or out of range. */
 export function parseArgs(argv: string[]) {
-  const o = { host: '127.0.0.1' as string | undefined, port: E131.PORT as number, multicast: false,
-    universes: null as number[] | null, loop: false, hold: null as number | null, seconds: null as number | null,
-    fps: null as number | null, priority: 100, name: 'Folly Studio sacn-play', quiet: false, file: '', rig: RIG };
-  const num = (v: string | undefined, flag: string, lo: number, hi: number) => {
-    const n = Number(v);
-    if (v === undefined || !Number.isFinite(n) || n < lo || n > hi) throw new Error(`${flag}: ${lo}-${hi}\n${USAGE}`);
+  const text = { type: 'string' } as const, flag = { type: 'boolean', default: false } as const;
+  let parsed;
+  try {
+    parsed = util.parseArgs({ args: argv, allowPositionals: true, options: { host: { ...text, default: '127.0.0.1' },
+      multicast: flag, port: text, loop: flag, hold: text, seconds: text, fps: text, priority: text, universes: text,
+      name: { ...text, default: 'Folly Studio sacn-play' }, rig: { ...text, default: RIG }, quiet: flag,
+      help: { type: 'boolean', short: 'h' } } });
+  } catch (e) { throw new Error(`${(e as Error).message}\n${USAGE}`, { cause: e }); }
+  const { values: v, positionals: [file, ...extra] } = parsed;
+  if (v.help || !file || extra.length) throw new Error(extra.length ? `unknown argument ${extra[0]}\n${USAGE}` : USAGE);
+  if (!v.host) throw new Error(`--host needs an address\n${USAGE}`);
+  const num = (key: 'port' | 'hold' | 'seconds' | 'fps' | 'priority', lo: number, hi: number,
+    d: number | null = null) => {
+    if (v[key] === undefined) return d;
+    const n = Number(v[key]);
+    if (!Number.isFinite(n) || n < lo || n > hi) throw new Error(`--${key}: ${lo}-${hi}\n${USAGE}`);
     return n;
   };
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    const next = () => argv[++i];
-    if (a === '--host') o.host = next();
-    else if (a === '--multicast') o.multicast = true;
-    else if (a === '--port') o.port = num(next(), a, 1, 65535) | 0;
-    else if (a === '--loop') o.loop = true;
-    else if (a === '--hold') o.hold = num(next(), a, 0, 2 ** 32) | 0;
-    else if (a === '--seconds') o.seconds = num(next(), a, 0.001, 1e7);
-    else if (a === '--fps') o.fps = num(next(), a, 0.1, 1000);
-    else if (a === '--priority') o.priority = num(next(), a, 0, 200) | 0;
-    else if (a === '--name') o.name = String(next() ?? '');
-    else if (a === '--quiet') o.quiet = true;
-    else if (a === '--rig') o.rig = String(next() ?? '');
-    else if (a === '--universes') {
-      const m = /^(\d+)(?:-(\d+))?$/.exec(next() || '');
-      const lo = m ? +m[1] : 0, hi = m ? +(m[2] ?? m[1]) : 0;
-      if (!m || lo < 1 || hi > 63999 || lo > hi) throw new Error(`--universes: a-b within 1-63999\n${USAGE}`);
-      o.universes = [lo, hi];
-    } else if (a === '-h' || a === '--help') throw new Error(USAGE);
-    else if (!a.startsWith('-') && !o.file) o.file = a;
-    else throw new Error(`unknown argument ${a}\n${USAGE}`);
-  }
-  if (!o.file) throw new Error(USAGE);
-  if (!o.host) throw new Error(`--host needs an address\n${USAGE}`);
-  return { ...o, host: o.host };
+  const m = /^(\d+)(?:-(\d+))?$/.exec(v.universes ?? '1');
+  const lo = m ? +m[1] : 0, hi = m ? +(m[2] ?? m[1]) : 0;
+  if (!m || lo < 1 || hi > 63999 || lo > hi) throw new Error(`--universes: a-b within 1-63999\n${USAGE}`);
+  const hold = num('hold', 0, 2 ** 32);
+  return { ...v, file, host: v.host, port: num('port', 1, 65535, E131.PORT)! | 0, hold: hold === null ? null : hold | 0,
+    seconds: num('seconds', 0.001, 1e7), fps: num('fps', 0.1, 1000), priority: num('priority', 0, 200, 100)! | 0,
+    universes: v.universes === undefined ? null : [lo, hi] };
 }
 
 /**

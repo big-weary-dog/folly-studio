@@ -18,12 +18,9 @@ const BAD_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 /** An error whose `reason` is safe to show to people. */
 export class BakeError extends Error {
-  reason: string;
-  status?: number;
-  boxStats?: Bake['boxStats'];
+  name = 'BakeError'; reason: string; status?: number; boxStats?: Bake['boxStats'];
   constructor(reason: string, detail?: string) {
     super(detail ? `${reason} (${detail})` : reason);
-    this.name = 'BakeError';
     this.reason = reason;
   }
 }

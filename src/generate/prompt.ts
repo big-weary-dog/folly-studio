@@ -179,11 +179,11 @@ export function formatGroups(groups: Groups = []) {
           && /^\d+$/.test(k.id.slice(m[1].length));
         while (numbered(kids[j + 1])) j++;
         if (j - i >= 2) {
-          const last = kids[j]!;
-          const run = `${plain(m[2]!)}–${plain(last.id.slice(m[1]!.length))}`;
+          const last = kids[j];
+          const run = `${plain(m[2])}–${plain(last.id.slice(m[1].length))}`;
           const name = g.name ? ` — ${g.name.replace(/\s*\d+$/, '')} ${run}` : '';
           lines.push(`${pad}${g.id} … ${last.id}${name}`);
-          for (let k = i; k <= j; k++) seen.add(kids[k]!.id);
+          for (let k = i; k <= j; k++) seen.add(kids[k].id);
           i = j;
           continue;
         }

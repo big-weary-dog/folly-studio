@@ -74,7 +74,7 @@ by responsibility.
   (no supply chain, but unminified code and machinery to maintain); React (several times Preact's 11 KB with
   signals) or Svelte (a compiler of its own) for the UI; three.js for the 3D view (alone it would fill the budget).
 - **Trade-off.** A build before the app is served and a lockfile to keep current. We still maintain our own WebGL,
-  the checks oxlint lacks (`tools/budgets.mjs`), and the auth design (scrypt hashes that name their
+  the checks oxlint lacks (`tools/budgets.ts`), and the auth design (scrypt hashes that name their
   cost, hashed session tokens, the CSRF rule as a hook): the auth libraries are deprecated, a framework of their own,
   or stateless and so not revocable.
 

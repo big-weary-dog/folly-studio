@@ -28,10 +28,9 @@ const isString = (v: unknown): v is string => typeof v === 'string';
 
 /** An error whose `userMessage` is safe to show to the person who submitted the idea. */
 export class GenerateError extends Error {
-  userMessage: string;
+  name = 'GenerateError'; userMessage: string;
   constructor(userMessage: string, detail?: string) {
     super(detail ? `${userMessage} (${detail})` : userMessage);
-    this.name = 'GenerateError';
     this.userMessage = userMessage;
   }
 }
