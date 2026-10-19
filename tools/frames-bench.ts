@@ -42,7 +42,7 @@ const LOOKS = ([
   ...index.filter((p) => (p.kind ?? 'source') === 'source')
     .map(({ name }): [string, Layer[]] => [name, [{ id: 'a', code: source(name) }]]),
   ['timeline (3 layers)', [
-    { id: 'bed', code: source('palette-drift') },
+    { id: 'bed', code: source('colour-wash') },
     { id: 'meteors', code: source('meteors'), tags: ['arch'],
       clips: [{ start: 2, end: 14, fadeIn: 1, fadeOut: 2 }] },
     { id: 'rose', code: source('rose-chase'), tags: ['rose'], blend: 'over',

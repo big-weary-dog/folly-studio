@@ -74,6 +74,24 @@ for (const [rigName, rig] of Object.entries({ folly, mini })) {
 
 describe('on the Folly', () => {
   const scene = prepareScene(folly), towers = tagCentres(scene, 'tower');
+  test('colour wash: the whole layer one colour, held, then blended into the next, never faster than a fifth', () => {
+    const wash = (params, t) => run(scene, [mod('colour-wash', 'source', { colours: '#ff0000 #0000ff', ...params })],
+      [], t);
+    const one = (params, t) => {
+      const { L, at, alpha } = wash(params, t), c = at(L.idx[0]);
+      L.idx.forEach((k, j) => assert.ok(near3(at(k), c) && alpha(j) === 1, `t = ${t}: one opaque colour`));
+      return c;
+    };
+    const near3 = (a, b) => a.every((v, i) => Math.abs(v - b[i]) < 1e-6);
+    for (const t of [0, 0.2, 0.49]) assert.ok(near3(one({ speed: 1 }, t), [1, 0, 0]), `held red at ${t}`);
+    assert.ok(near3(one({ speed: 1 }, 0.75), [0.5, 0, 0.5]), 'half way at 0.75 s');
+    for (const t of [1, 1.3]) assert.ok(near3(one({ speed: 1 }, t), [0, 0, 1]), `held blue at ${t}`);
+    assert.ok(near3(one({ speed: 1, hold: 0.95 }, 0.9), [0.5, 0, 0.5]), 'a hold past 0.8 still blends over a fifth');
+    assert.ok(near3(one({ speed: 0 }, 7), [1, 0, 0]), 'speed 0: the first colour, still');
+    assert.ok(near3(one({ speed: 0, brightness: 0.5 }, 7), [0.5, 0, 0]), 'brightness');
+  });
+
+
   test('anchor: in plan round each LED\'s nearest tower', () => {
     const { L, at } = run(scene, [probe('lx', 'lz', 'r'), mod('anchor', 'warp', { tag: 'tower', which: 'nearest',
       shape: 'plan', reach: 4 })], ['spires']);

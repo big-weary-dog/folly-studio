@@ -117,6 +117,9 @@ everything above it, as in an image editor.
   declares \`const stage = 'spatial'\` or \`'history'\`): a warp below one does not reach above it.
 So "meteors only inside clouds, mirrored" is [source meteors, source clouds as input, filter mask with input = the
 clouds' id, warp mirror]. A module with a \`ref\` names the library entry it copies; still give its code.
+A source draws only what it is, on transparent: alpha is how much it covers, null where it draws nothing; it paints
+no background. A bed fills: colour-wash, first in the chain with the element after it \`blend: "over"\` (or after a
+filter that should rework the element alone, \`blend: "under"\`).
 \`G\` holds the look's globals: G.energy (0..1, calm → busy), G.bpm (the look's tempo), the palette, and each macro by
 name.`;
 
@@ -127,7 +130,7 @@ export const TASTE = `- Colour at full strength. A palette sets hue, not brightn
 - A pattern fills what it lands on: work in lx/ly/lz, a/r and u, so the pattern spans its
   own groups.
 - Every LED has a look. Parts that belong together share one; give the whole installation a
-  base unless the idea wants darkness.
+  base (a colour-wash bed, or a layer below) unless the idea wants darkness.
 - Colours come from the palette: each source's one \`colours\` param, read by position. To colour a layer, set its
   pick in params (\`"colours": "accent2 accent3"\`); a hex only when the idea names a colour.
 - Safety: no large-area flashing, strobing or colour cycling faster than about 3 Hz.`;

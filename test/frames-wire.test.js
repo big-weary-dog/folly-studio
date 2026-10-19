@@ -97,8 +97,10 @@ describe('wire format', () => {
   test('real frames from the library round-trip, smooth looks as planar deltas', async () => {
     const scene = prepareScene(JSON.parse(readFileSync(new URL('../public/data/rig.json', import.meta.url), 'utf8')));
     const C = scene.frameChannels;
+    // The library as it was (fixtures/library-v1.json): a smooth drift of hue, and meteors.
+    const lib = JSON.parse(readFileSync(new URL('./fixtures/library-v1.json', import.meta.url), 'utf8'));
     for (const name of ['palette-drift', 'meteors']) {
-      const code = readFileSync(new URL(`../public/patterns/${name}.js`, import.meta.url), 'utf8');
+      const { code } = lib[name];
       const layer = prepareLayer(scene, { id: name, groups: ['cathedral'] }, compilePattern(code));
       const F = CHUNK_FRAMES + 20;
       const data = new Uint8Array(F * C);
