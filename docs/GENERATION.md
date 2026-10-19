@@ -1,7 +1,7 @@
 # Generating looks by composition
 
 A design note for whoever builds it, written for an iterating Fleet worker (compose, render, look at the frames,
-refine). Items 1–5 of §7 are built for claude and codex (`catalog.ts`, `composition.ts`, `expand.ts`, `prompt.ts`,
+refine). Items 1–5 and 8 of §7 are built for claude and codex (`catalog.ts`, `composition.ts`, `expand.ts`, `prompt.ts`,
 `guide.ts` in `src/generate/`); the rest is still to do. Where it differs from the plan below, §7 says how.
 
 ## 1. The problem
@@ -148,5 +148,7 @@ module, with no `ref`, marked `generated`. Its code never runs on the server out
 6. Sketch emits a composition and goes through the same expansion.
 7. Fleet: `check.ts --compose`, `still.ts`, the workspace copies, `readLook` keeping globals, a new `BRIEF.md`
    around the loop in §5, and one shared `LIMITS`.
-8. Extensions: the render-box check and `unchecked` on Windows; the Studio's "Ask to fix" row and its endpoint.
+8. Done for claude and codex: the render check in the box (`check.ts`), a runtime repair round, an opt-in critique
+   on stills and per-group lines (`rounds.ts`, `frames-view.ts`), and refining a saved look (`refine.ts`, the
+   Studio's "Ask the AI to fix it" and Refine box). Still to do: `unchecked` on Windows.
 9. SPEC ("Generators", "Looks"), HOSTING (`STUDIO_REPAIR_ROUNDS`), README pointers.

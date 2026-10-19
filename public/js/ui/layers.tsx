@@ -63,8 +63,9 @@ export function LayersPane({ st, pv }: Props) {
         return;
       }
       insertLayer(st, 'blank' in e ? newLayer({ title: 'New layer' }, st.data.rig) : layerFromPattern(e, st.data.rig));
+      if (!('blank' in e)) return;    // a blank layer is for writing code
       st.setTab('code', { onlyNarrow: true });
-      if ('blank' in e && !st.narrow.peek()) st.showDock('code');   // a blank layer is for writing code
+      if (!st.narrow.peek()) st.showDock('code');
     } }));
   return (
     <section class="pane pane-layers" data-pane="layers" aria-label="Layers">

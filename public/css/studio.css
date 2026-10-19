@@ -384,3 +384,15 @@ textarea.code:disabled { color: var(--text-3); }
   .reference { max-height: 60%; }
 }
 @media (max-width: 360px) { .tp-time { display: none; } }
+
+/* Refine with AI (refine.tsx): the request, the model, and what the last refinement changed. */
+.refine { display: flex; flex-direction: column; gap: 8px; }
+.look-dock .refine { padding: 10px 14px 4px; }
+.refine-form { display: flex; flex-direction: column; gap: 8px; }
+.refine-text { width: 100%; resize: vertical; font: inherit; }
+.refine-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.refine-row .field { margin: 0; }
+.refine-error { color: var(--error); margin: 0; font-size: 13px; }
+.refine-done p { margin: 0 0 4px; }
+.refine-changes { margin: 0 0 8px; padding-left: 18px; font-size: 13px; }
+.refine-fix { margin-left: 6px; }

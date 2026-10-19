@@ -33,6 +33,15 @@ export const IdeaBody = z.object({
   model: z.string({ error: 'model must name one of the models.' })
     .max(32, { error: 'model must name one of the models.' }).optional(),
 });
+/** POST /api/looks/:id/refine: the change asked for; or a critique, or a runtime error to fix, with no text. */
+export const RefineBody = z.object({
+  text: z.string({ error: 'Describe the change in at most 1000 characters.' }).trim()
+    .max(1000, { error: 'Describe the change in at most 1000 characters.' }).default(''),
+  model: IdeaBody.shape.model,
+  critique: z.boolean({ error: 'critique must be true or false.' }).optional(),
+  fix: z.object({ layer: z.string().trim().min(1).max(80), error: z.string().trim().min(1).max(400) },
+    { error: 'fix is { layer, error }.' }).optional(),
+}).refine((b) => b.text.length >= 2 || b.critique || b.fix, { error: 'Describe the change first.' });
 
 /** POST /api/looks. `automation` is checked against the look's globals (automationFor). */
 export const LookCreate = z.object({
@@ -61,13 +70,17 @@ export type User = { id: string, username: string, role: 'member' | 'curator' | 
 export type FlashSettings = { check: boolean, perSecond: number, delta: number, darker: number, area: number };
 /** A curator's approval of a look whose bake fails the flash check: why, who, when. */
 export type FlashOverride = { reason: string, by: string, at: string };
-/** Where a generation's time went, in ms: in the queue, building the prompt, the model's request, parsing. */
-export type Timing = { wait: number, prompt: number, request: number, parse: number, total: number };
+/** Where a generation's time went, in ms: in the queue, building the prompt, the model's request, parsing; the render
+ * check and the critique round, when they ran. */
+export type Timing = { wait: number, prompt: number, request: number, parse: number, total: number, check?: number,
+  critique?: number };
+/** What a refinement asks besides its text (SPEC-generators "Refine"). */
+export type RefineAsk = { critique?: true, fix?: { layer: string, error: string } };
 /** `model`: the model asked for; `generator`: the one that made the look (a fallback's, if it took over); `by`: its
  * label as shown ("by <label>"). */
 export type Idea = { id: string, owner: string, text: string, status: 'queued' | 'generating' | 'ready' | 'failed',
-  model?: string, generator: string, by?: string, timing?: Timing, lookId?: string, error?: string | null,
-  createdAt: string, updatedAt: string };
+  model?: string, generator: string, by?: string, timing?: Timing, lookId?: string, refine?: RefineAsk,
+  changes?: string[], error?: string | null, createdAt: string, updatedAt: string };
 export type LookCreate = z.input<typeof LookCreate>;
 export type LookPatch = z.input<typeof LookPatch>;
 /** A look as lists show it: what a card needs, no layers or code. */

@@ -65,7 +65,7 @@ for (const [name, device] of Object.entries(SIZES)) {
         app.store.ideas.create({ owner: me.id, text: 'from another tab', model: 'sol', status: 'ready' });
         await expect(page.locator('.gate-left')).toHaveText('6 left this hour · 20 today'); // as this page last saw
         await submit.click();
-        await expect(gate).toContainText(/That's all your ideas for this hour\. Next idea at \d/);
+        await expect(gate).toContainText(/That's all your ideas for this hour\. Next idea (tomorrow )?at \d/);
         await expect(submit).toBeDisabled();
         await expect(page.locator('.idea-form > .form-error')).toBeHidden();
         await shot('at-limit');

@@ -41,8 +41,41 @@ another use), after which what expanded is kept and the rest noted. `validateLoo
 any look; a layer given as code (the old shape) passes through to it. The prompt shows the library as a catalogue
 sorted by name (a module and its params on one line, a preset as its recipe), the palettes, the groups, show taste,
 and worked compositions (each only where the library and the rig's tags have what it names). The queue logs one
-line per idea: its route, timings, repair rounds, how many library modules, extensions and code it used, and the
-first notes.
+line per idea or refinement: its route, timings, repair rounds, the check and critique, how many library modules,
+extensions and code it used, and the first notes.
+
+**The render check** (`claude`, `codex`; `src/generate/check.ts`). Where the render box can run (`probe()` is ok),
+the expanded look is rendered for 2 s in the box, in the bakes' lane, before it is saved. A look the box cannot load,
+and a layer that throws or gives NaN (the box's `errorFrames`, `firstError`, by layer), get one repair round as
+expansion errors do (the error with the layer's path, `layers[1]: runtime: …`); after it, what renders is kept, and a
+layer that still throws is noted. No box (plain Windows): no check. The box's words are untrusted data, bounded
+before they reach a prompt.
+
+**Critique** (opt-in per model: `critique: "images" | "text"`, default off). With the box, the look is rendered for
+8 s instead of 2, and the model is shown what it made, once: 3 front-view stills (`frames-view.ts`: the LEDs seen
+from the front, at 1, 4 and 7 s, PNG, 360 px wide; `images` only), a line a second with each top-level group's mean
+colour and brightness, the frames' analysis (brightness, dark share, flashing), and the idea again. It answers the
+whole composition again, revised or not; that answer is expanded and checked (2 s), and kept only if it expands and
+renders without errors. It is part of the idea (no use), skipped when the idea has already taken 90 s
+(`STUDIO_CRITIQUE_BUDGET_MS`), and logged with its time. Claude gets the stills as image blocks, codex as `-i`
+attachments.
+
+**Refine** (SPEC "HTTP API": `POST /api/looks/:id/refine`). A follow-up on a saved look of one's own (`slower,
+more red, only the spires`) is an idea with `refine` and `lookId` set; it counts as one use like any idea. Its job
+reads the look as it is stored then and turns it back into a composition (`refine.ts`: a module whose code is still
+its library ref's becomes `{ use: ref, params }`, from the catalogue's declarations; other code becomes an
+extension), which goes to the model with the request (fenced as untrusted, in the user turn; the system prompt is
+the same cached one). The answer is expanded, repaired, checked and (when the model has it) critiqued as an idea is,
+and saved onto the look as an edit through the API's rules (a version of what was there, the bake and review
+cleared). `idea.changes` lists what changed, at most 24 lines, from comparing the two compositions (`Fire: speed 0.4 →
+0.2`, `+ layer Sparkle (sparkle)`, `− layer Bed`). `refine.critique` asks for a critique round on the look as it is
+(any model with the box; the request may be empty); `refine.fix = { layer, error }` sends a runtime error the
+Studio or a bake saw, for a fix. Sketch refines by its words: faster/slower, brighter/dimmer, a colour word (the
+palette), `add <theme>` (a layer), `only the <place>` (the layers' places); a request with none of those fails
+with "Sketch can't make that change; try another model". A refinement has no fallback: when its model fails, the
+look stays as it was, as it does when the look was edited while it ran. A layer keeps its switches (`enabled`,
+`solo`) and its switched-off modules, which the model is not shown. One refinement per look at a time (409). Only
+Sketch and the prompted models refine (the foundry: 400).
 
 - `sketch`: offline, keyword → the preset or source a theme names (`sketch-words.json`) + params, place words →
   tags. Colour words choose the palette nearest them in hue and become the nearest swatch's slot (`accent2`; none
@@ -52,12 +85,13 @@ first notes.
 - `claude`: one Messages API call with the prompt as the system prompt (cached: the same bytes on every call), and
   structured output whose JSON Schema is the composition's (`compositionSchema(groups, catalog)`: the place fields
   `wireSchema(groups)` gives, group ids, tags and preset names as enums). A repair is the same call with the
-  answer as an assistant turn and the errors in a user turn.
+  answer as an assistant turn and the errors in a user turn; a critique likewise, its stills as image blocks; a
+  refinement's user turn is the look's composition and the request.
 - `codex`: one `codex exec` call (the Codex CLI, signed in with `codex login`): `--ephemeral --skip-git-repo-check
   --ignore-user-config --ignore-rules -s read-only -C <an empty folder> -m <model> -o <answer file> --output-schema
   <the composition's schema, strict> -c model_reasoning_effort="<effort>" -c web_search="disabled" -c features.<tool>=false
-  … -`, the prompt on stdin (the guide first, the idea last; a repair adds
-  the last answer and its errors after the idea, as a fresh run). Started from an argument list, never a shell (on Windows
+  … [-i <still> …] -`, the prompt on stdin (the guide first, the idea last; a repair, refinement or critique
+  adds its turn after the idea, as a fresh run, a critique's stills as `-i` attachments). Started from an argument list, never a shell (on Windows
   an npm `codex.cmd` shim is read for the script it runs); its environment is only what the CLI needs; its whole
   process tree is killed on a wall clock (`timeoutSeconds`, else `STUDIO_CODEX_TIMEOUT_MS`, 300 s), past 4 MB of
   output, or when the server stops. The answer, at most 512 KB, is read as untrusted data like `claude`'s.
@@ -78,12 +112,14 @@ changes (a file that does not parse is reported, and the last good one kept):
 ```
 { "about"?: text, "default": id, "concurrency"?: { "claude"?: n, "codex"?: n, "sketch"?: n },
   "models": [{ "id", "label", "via": "claude" | "codex" | "sketch" | "fleet", "model"?, "effort"?, "maxTokens"?,
-               "timeoutSeconds"?, "enabled": true, "roles"?: ["member" | "curator" | "admin", …], "limits"? }],
+               "timeoutSeconds"?, "critique"?: "images" | "text", "enabled": true,
+               "roles"?: ["member" | "curator" | "admin", …], "limits"? }],
   "limits"? }                                                       // limits: "Access" below
 ```
 
 `id` is 1–32 of `[a-z0-9-]`; `model` the provider's name (required for `codex`; `claude` defaults to
-`claude-opus-5-5`); `effort` one of the transport's (`claude`: low–max; `codex`: minimal–xhigh); `roles` who may
+`claude-opus-5-5`); `effort` one of the transport's (`claude`: low–max; `codex`: minimal–xhigh); `critique` turns on
+the critique round (Generators; `claude` and `codex` only); `roles` who may
 pick it (none: everyone); `concurrency` the jobs at once per transport (defaults claude 4, codex 2, sketch 4; the
 foundry always 1). The defaults: Opus (`claude-opus-5-5`, medium, the default), Sol (`gpt-6.1-sol`, low) and Luna
 (`gpt-6-luna`, low) through `codex`, and Sketch. A model can run when its transport can: `claude` with
@@ -110,9 +146,9 @@ models[i].limits?: { "perHour"?, "perDay"?, "concurrent"? }
   that model's ideas alone; a free model is limited only by its own (the default Sketch entry: 30 an hour, 100 a
   day). `dailyCeiling` counts everyone's paid ideas in 24 hours, a spend backstop. `inviteOnly: false` unlocks
   everyone (a private server). A cap of 0 allows none: its 429 has no `Retry-After` and no `nextAt`.
-- **One idea is one use**, counted when POST /api/ideas accepts it, whatever comes of it: retries, the fallback and
-  any repair inside its job add nothing; "Try again" sends a new idea. The check and the create are one synchronous
-  step, so two requests cannot both take the last use.
+- **One idea is one use**, counted when POST /api/ideas (or a look's refine) accepts it, whatever comes of it:
+  retries, the fallback, and any repair, check or critique inside its job add nothing; "Try again" sends a new idea.
+  The check and the create are one synchronous step, so two requests cannot both take the last use.
 - A stored user may hold `access = { unlockedAt?, invite?, by?, limits?, resetAt? }`: `invite` the code's id that
   unlocked it, `by` the admin who did; `limits` an admin's override of the global three for this person; ideas
   created before `resetAt` no longer count.

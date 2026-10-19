@@ -82,7 +82,8 @@ const layerId = (l: Layer, n: number) => (l && l.id !== undefined ? l.id : 'laye
 const codeOf = (l: Layer) => (Array.isArray(l.modules)
   ? l.modules.map((m) => (m && typeof m.code === 'string' ? m.code : '')).join('\u0000')
   : typeof l.code === 'string' ? l.code : '');
-const lookExtra = (m: Extra): Extra => ({ globals: m.globals, automation: m.automation, bpm: m.bpm });
+const lookExtra = (m: Extra): Extra => ({ globals: m.globals, automation: m.automation, bpm: m.bpm,
+  ...(m.clock === 'fresh' ? { clock: m.clock } : {}) });
 const enabled = (l: Layer) => l.enabled !== false
   && (typeof l.level === 'number' && Number.isFinite(l.level) ? l.level > 0 : true);
 

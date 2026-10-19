@@ -19,7 +19,7 @@ import { cleanBpm, cleanDuration } from './timeline-model.ts';
 export interface Draft { id: string | null; title: string; summary: string; layers: Layer[]; duration: number;
   bpm: number | null; globals?: Globals | null; automation?: Automation | null; shared: boolean; ideaId: string | null;
   owner?: string; ownerName?: string }
-export const TABS = ['layers', 'code', 'time', 'groups', 'look'] as const;
+export const TABS = ['layers', 'code', 'time', 'groups', 'look', 'more'] as const;
 export type Tab = typeof TABS[number];
 export type Dock = 'code' | 'timeline' | 'look';
 const copy = <T>(v: T): T => (v == null ? v : JSON.parse(JSON.stringify(v)));

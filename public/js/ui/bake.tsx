@@ -9,6 +9,7 @@ import type { Bake } from '../../../shared/schemas/api.ts';
 import { signedOut, user } from './session.ts';
 import { cx, Field, openDialog, Switch, toast } from './kit.tsx';
 import type { Preview } from './preview.ts';
+import { FixButton } from './refine.tsx';
 import { mb } from './preview-view.tsx';
 import type { Studio } from './studio-store.ts';
 
@@ -26,6 +27,15 @@ export function bakeState(bake?: Bake | null) {
   }
   if (bake.analysis?.flicker?.ok === false) return { kind: 'flagged', label: 'Flashing' };
   return { kind: 'failed', label: 'Failed' };
+}
+
+/** The first layer the box says threw while baking, and its error (what the box reports is untrusted: read with
+ * care, cut short). */
+function thrown(bake: Bake | null) {
+  const layers = (bake?.boxStats?.reported as { layers?: unknown } | undefined)?.layers;
+  const hit = Array.isArray(layers)
+    ? layers.find((l) => Number(l?.errorFrames) > 0 && typeof l?.firstError === 'string') : null;
+  return hit ? { id: String(hit.id ?? '').slice(0, 80), error: String(hit.firstError).slice(0, 400) } : null;
 }
 
 export function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
@@ -128,7 +138,8 @@ export function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
   const warning = done && !error ? bake?.warning || '' : '', hasFrames = !!(bake?.frames && done);
   const passing = bake?.source === 'render-box' && done && bake.ok && !dirty;
   const overridable = bake?.source === 'render-box' && hasFrames && f?.ok === false && !bake.ok && !dirty;
-  const approved = look?.reviewed && look.flashOverride;
+  const approved = look?.reviewed && look.flashOverride, hit = done || bake?.status === 'failed' ? thrown(bake) : null;
+  const threw = hit && { ...hit, title: st.layerById(hit.id)?.title || hit.id };
   const note = !look ? 'Save the look, then bake it: the render box plays it for real and checks it for flashing and '
     + 'power.'
     : s.kind === 'none' ? 'Bake it in the render box to check it for flashing and power, and to get the frames that '
@@ -150,6 +161,8 @@ export function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
         {hasFrames && url && <div class="field"><dt>Download</dt><dd><a href={url} download="">.fseq</a> · <a
           href={`${url}?compress=1`} download="">compressed</a></dd></div>}</>}</dl>
       <p class="bake-reason" role="status" hidden={!reason}>{reason}</p>
+      {threw && !dirty && <p class="bake-reason" role="status">{`${threw.title} threw while baking: ${threw.error} `}
+        <FixButton st={st} layer={threw.title} error={threw.error} /></p>}
       <p class="bake-warning" role="status" hidden={!warning}>{warning}</p>
       <div class="bake-actions">
         <button type="button" class="btn small wide-only" hidden={!canBake} disabled={busy || active} onClick={bakeNow}>

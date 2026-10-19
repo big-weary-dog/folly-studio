@@ -25,6 +25,10 @@ const ROUTES: Route[] = [
     load: () => pages().then((m) => m.Looks) },
   { re: /^\/gallery\/?$/, name: 'gallery', title: 'Gallery', nav: '/gallery', scope: 'gallery',
     load: () => pages().then((m) => m.Looks) },
+  { re: /^\/live\/?$/, name: 'live', title: 'Live', nav: '/live',
+    load: () => import('./live/live.tsx').then((m) => m.LivePage) },
+  { re: /^\/live\/control\/?$/, name: 'live-control', title: 'Live control', nav: '/live',
+    load: () => import('./live/control.tsx').then((m) => m.ControlPage) },
   { re: /^\/models\/?$/, name: 'models', title: 'Models', nav: '/models',
     load: () => import('./models.tsx').then((m) => m.Models) },
   { re: /^\/access\/?$/, name: 'access', title: 'Access', nav: '/access',
@@ -95,7 +99,8 @@ async function logout() {
   navigate('/login', { force: true, replace: true });
 }
 
-const NAV = [['/ideas', 'Ideas'], ['/studio', 'Studio'], ['/looks', 'My looks'], ['/gallery', 'Gallery']];
+const NAV = [['/ideas', 'Ideas'], ['/studio', 'Studio'], ['/looks', 'My looks'], ['/gallery', 'Gallery'],
+  ['/live', 'Live']];
 const ADMIN_NAV = [...NAV, ['/models', 'Models'], ['/access', 'Access']];
 
 function Header({ me, nav }: { me: User; nav?: string }) {

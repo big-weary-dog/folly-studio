@@ -268,7 +268,8 @@ screenshots (24 s) streams as 1.2 MB, 8.6 % of its file, encoded in 3.2 s.
 |---|---|
 | `.fseq` → FPP or xLights | Built; addressing proven (below); not yet verified on FPP or in xLights |
 | `tools/sacn-play.ts` | Built: plays any studio `.fseq` (plain, sparse, zstd, zlib) as E1.31 on the rig's universes, as xLights' Output to Lights and FPP do; packets checked field by field |
-| Live from the browser, headless player, TouchDesigner | Not built (`IDEAS.md`) |
+| The live stage (`/live`, `SPEC-live.md`) | Built: one shared look on every viewer's Playa view, driven from `/live/control`; its state and clock are what an sACN output would follow |
+| Live sACN, headless player, TouchDesigner | Not built: live sACN would be a render-box renderer on the stage's clock at the rig's fps (`SPEC-live.md` "Later"); the rest `IDEAS.md` |
 
 **The proof that our output matches the sculpture's input** is the Mirage match (`npm run e2e`). It renders looks
 whose colours encode each LED's identity, writes them with our FSEQ writer, plays them with `sacn-play` through
@@ -318,6 +319,9 @@ texture that all geometry samples by pixel index, with no allocation per frame.
 | Lite | 1 | quarter-res | 6 | at start, on a touch screen |
 | Low | 1 | none | 4 | while the median of 24 frames takes over 30 ms |
 
+On a phone the view draws its lightest: no scaffold lines in Lite or Low, Ghost off until asked for, and Points at a
+pixel ratio of 1; the Studio's light view keeps the panel under it to one thing at a time (SPEC "Timeline" > Phones).
+
 **Points** (every LED a sprite) is the fallback when a browser cannot render to float targets, and the lightest
 view by choice. Skipped from Mirage, on purpose: three.js (size, CDN), walk mode, the sun's path and time of day,
 dust and haze, and per-zone hand-built geometry. The preview is about the light, must run on a phone, and must
@@ -365,6 +369,8 @@ so Fleet's boxes get **no memory cap**; the server warns at start.
   ports. HTTPS matters: browsers ask for brotli only over it. With `STUDIO_TRUST_PROXY` the server takes the client
   address and host the tunnel forwards, from this machine only; never `trustProxy: true`, which would let a client
   name its own address and dodge the per-address login limit.
+- **The live stage.** One socket per viewer; a change is one JSON string sent to all (≤ 200 sockets); the pattern
+  runs in each viewer's sandbox, so the host renders nothing.
 - **Backups.** `npm run backup`: a dated `.tar.gz`, safe while the server runs; daily from cron.
 - **Storage.** JSON files, one per collection, written atomically: enough for tens of users; SQLite is the next
   step if it grows.
@@ -386,6 +392,9 @@ font. Copy is plain and says what happens ("Bake it in the render box to check i
   integrates in `frame()`) does not: the preview computes at 40, 30 or 20 fps as the device allows, the bake at
   40, and a seek does not rewind state. The baked frames are the truth.
 - **No audio, no live input.** `bpm` is a number; there is no track, beat detection, MIDI, OSC or sACN in.
+- **The live stage has no flash guard yet.** Only reviewed looks play, and those passed the bake's flash check, but
+  pushed values can make a reviewed look flash; `/live` has no flash guard yet. Stateful layers can also differ
+  between its viewers, as above: each computes from its own first frame.
 - **LEDs are points.** A pattern is sampled at each LED's position; cells and floods have extent only in the 3D
   view, and thin fast features can alias between LEDs unless drawn with `soft()` and `band()` or softened.
 - **RGB pixels only.** Output is RGB triples in some order; no RGBW, dimmer channels, movers or other DMX fixtures.
@@ -394,7 +403,8 @@ font. Copy is plain and says what happens ("Bake it in the render box to check i
 - **CPU rendering bounds the rig.** 4,870 LEDs fit a phone's Worker (`npm run perf` holds a composed look at
   ≥ 20 fps on a 4× slowed CPU); ten times that would need the formula tier on the GPU.
 - **The AI works inside the schema.** It can make what a look can hold (≤ 4 layers, modules, globals, clips,
-  automation), nothing else, and does not see the frames it makes.
+  automation), nothing else, and sees its frames only as a few front-view stills and per-group lines, when a
+  model is set to critique (SPEC-generators "Critique").
 - **Not yet verified on FPP or in xLights**, the zstd downloads least of all (§7).
 - **Saved looks do not follow the library.** A look keeps the module code it was saved with, so renaming a module,
   a param or a direction leaves saved looks on the old ones (one that no longer loads is reported, never fatal).
@@ -407,11 +417,10 @@ The next most valuable steps, in order; `IDEAS.md` keeps the longer list.
 
 1. **Play a bake on real FPP and xLights** (plain, sparse and zstd), then on the Folly through `sacn-play`.
 2. **Music**: a track and a shared clock, `beat()` locked to it, the `.fseq` media header.
-3. **A repair loop**: when a generated look throws in the sandbox, send the error back for a fix.
-4. **Fixed-step preview** for stateful patterns, so the preview matches the bake.
-5. **Param automation** on module params, and crossfades and markers between imported looks.
-6. **Apply the power limit** the bake already estimates, as `folly_output` caps white.
-7. **The formula tier**: looks that compile to GLSL, for TouchDesigner and for larger rigs.
+3. **Fixed-step preview** for stateful patterns, so the preview matches the bake.
+4. **Param automation** on module params, and crossfades and markers between imported looks.
+5. **Apply the power limit** the bake already estimates, as `folly_output` caps white.
+6. **The formula tier**: looks that compile to GLSL, for TouchDesigner and for larger rigs.
 
 ## Screenshots
 

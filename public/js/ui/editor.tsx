@@ -4,6 +4,7 @@
 import { useId, useLayoutEffect, useMemo, useRef } from 'preact/hooks';
 
 import { ISSUE_LABELS } from './layer-status.ts';
+import { FixButton } from './refine.tsx';
 import type { Studio } from './studio-store.ts';
 
 const INDENT = '  ';
@@ -82,6 +83,7 @@ export function CodeEditor({ st }: { st: Studio }) {
         {problem && <><strong>{`${ISSUE_LABELS[problem.kind] || 'Problem'}${where}: `}</strong><span>{msg}</span>
           {problem.running && <span class="problem-note">
             {' — the model keeps showing the last version that worked.'}</span>}
+          {problem.kind === 'runtime' && l && <> <FixButton st={st} layer={l.title} error={msg} /></>}
         </>}</div>
       <p id={`${id}-help`} class="sr-only">
         Tab inserts spaces. Press Escape, then Tab, to move focus out of the editor.</p>

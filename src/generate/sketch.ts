@@ -15,9 +15,11 @@ const isPreset = (p: Pattern): p is Pattern & PresetEntry => p.kind === 'preset'
 // colour words → full-strength colours ("colour at full strength"); pace words.
 const THEMES = WORDS.themes.map((t) => ({ ...t, words: new Set(t.words.split(' ')), terms: t.terms.split(' ') }));
 const COLOURS: Record<string, string> = WORDS.colours;
-const colourOf = (w: string) => COLOURS[w] || (w.endsWith('s') && COLOURS[w.slice(0, -1)]);
+export const colourOf = (w: string) => COLOURS[w] || (w.endsWith('s') && COLOURS[w.slice(0, -1)]);
 const WARM_WHITE = WORDS.warmWhite;
-const [SLOW, FAST, STOP] = [WORDS.slow, WORDS.fast, WORDS.stop].map((w) => new Set(w.split(' ')));
+export const [SLOW, FAST, STOP] = [WORDS.slow, WORDS.fast, WORDS.stop].map((w) => new Set(w.split(' ')));
+/** A param that sets a pace, by its name. */
+export const PACE = /speed|rate|pace|spin/i;
 
 // Place phrases → the tags that find their groups (the first tag the rig uses wins), else group ids and names
 // matching `match`. Order matters: longer phrases first, so "main arches" is not also read as "arches".
@@ -67,7 +69,7 @@ function hashString(s: string) {
   return h >>> 0;
 }
 
-const words = (text: string) => [...text.matchAll(/[a-z0-9][a-z0-9'-]*/g)]
+export const words = (text: string) => [...text.matchAll(/[a-z0-9][a-z0-9'-]*/g)]
   .map((m) => ({ w: m[0].replace(/'s$/, ''), at: m.index }));
 
 /** Split into clauses so "fire on the spires and ocean on the arches" pairs each theme with its zone. */
@@ -140,7 +142,7 @@ export function parseParams(code: string) {
   return out;
 }
 
-function groupIndex(groups: readonly RigGroup[]) {
+export function groupIndex(groups: readonly RigGroup[]) {
   const byId = new Map(groups.filter((g) => g && typeof g.id === 'string').map((g) => [g.id, g]));
   const depth = (g: RigGroup) => {
     let d = 0;
@@ -196,7 +198,7 @@ function findSide(side: string, gi: Groups, within?: string[]) {
 
 /** Zone mentions with their positions and resolved group ids. */
 type Mention = { key: string, at: number, ids: string[], tags: string[] };
-function zoneMentions(text: string, gi: Groups) {
+export function zoneMentions(text: string, gi: Groups) {
   const taken: [number, number][] = [];
   const free = (a: number, b: number) => !taken.some(([x, y]) => a < y && b > x);
   const out: Mention[] = [];
@@ -355,7 +357,7 @@ export function sketchLook({ text = '', library = [], groups = [] }: { text?: st
         const v = name in given ? given[name] : d.value;
         if (d.type !== 'number' || typeof v !== 'number' || !Number.isFinite(v)) continue;
         if (/bpm|tempo/i.test(name) && bpm) params[name] = clampTo(bpm, d);
-        else if (/speed|rate|pace|spin/i.test(name) && pace !== 1) params[name] = round(clampTo(v * pace, d));
+        else if (PACE.test(name) && pace !== 1) params[name] = round(clampTo(v * pace, d));
       }
       const names = Object.entries(decl).filter(([, d]) => d.type === 'color').map(([n]) => n);
       return colours ? { ...params, ...colourParams(names, unique, palette, here ? 0 : li) } : params;

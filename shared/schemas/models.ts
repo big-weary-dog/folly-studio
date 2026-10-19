@@ -31,6 +31,8 @@ export const ModelEntry = z.strictObject({
   effort: z.string({ error: 'effort must be text.' }).optional(),
   maxTokens: int('maxTokens', 1024, 128_000).optional(),
   timeoutSeconds: int('timeoutSeconds', 10, 3600).optional(),
+  /** A critique round after the render check (SPEC-generators "Critique"): stills and text, or text alone. */
+  critique: z.enum(['images', 'text'], { error: 'critique must be images or text.' }).optional(),
   enabled: z.boolean({ error: 'enabled must be true or false.' }).default(true),
   roles: z.array(z.enum(ROLES, { error: `roles must be from ${ROLES.join(', ')}.` })).min(1).optional(),
   /** Caps counted on this model's ideas alone (SPEC "Access"). */
@@ -61,6 +63,7 @@ export const ModelsConfig = z.strictObject({
         : `${m.via} takes no effort.`);
     }
     if (m.via === 'codex' && !m.model) at('a codex model needs its model name.');
+    if (m.critique && m.via !== 'claude' && m.via !== 'codex') at(`${m.via} takes no critique.`);
   });
   if (!seen.has(c.default)) ctx.addIssue({ code: 'custom', path: ['default'], message: 'default must name a model.' });
 });

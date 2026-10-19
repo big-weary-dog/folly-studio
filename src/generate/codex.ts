@@ -69,9 +69,11 @@ export function createCodexAdapter(o: Options = {}) {
   };
   const childEnv = Object.fromEntries(Object.entries(env).filter(([k]) => PASS_ENV.test(k)));
 
-  /** The argument list for one call: the answer to `out`, the schema from `schemaFile` when there is one. */
-  function argsFor(cwd: string, out: string, schemaFile: string | null) {
-    const args = ['exec', '--ephemeral', '--skip-git-repo-check', '--ignore-rules', '-s', 'read-only', '-C', cwd,
+  /** The argument list for one call: the answer to `out`, the schema from `schemaFile` when there is one, `images`
+   * attached (a flag follows them: -i takes several). */
+  function argsFor(cwd: string, out: string, schemaFile: string | null, images: string[] = []) {
+    const args = ['exec', ...images.flatMap((f) => ['-i', f]), '--ephemeral', '--skip-git-repo-check', '--ignore-rules',
+      '-s', 'read-only', '-C', cwd,
       '-m', cfg.model, '-o', out, '-c', 'web_search="disabled"', ...FEATURES_OFF.flatMap((f) => ['-c',
         `features.${f}=false`])];
     if (!cfg.userConfig) args.push('--ignore-user-config');
@@ -88,7 +90,7 @@ export function createCodexAdapter(o: Options = {}) {
     const { system, schema } = ctx.prompt?.() ?? buildPrompt(ctx);
     // A repair is a fresh run (codex keeps no session here): the same prefix, then the last answer and what was wrong.
     const repair = ctx.repair ? `\nYour answer was:\n${JSON.stringify(ctx.repair.answer)}\n\n`
-      + `${buildRepairMessage(ctx.repair.errors)}\n` : '';
+      + `${ctx.repair.message ?? buildRepairMessage(ctx.repair.errors)}\n` : '';
     const empty = path.join(cfg.workDir, 'empty');
     await fs.mkdir(empty, { recursive: true });
     const job = await fs.mkdtemp(path.join(cfg.workDir, 'job-'));
@@ -96,8 +98,13 @@ export function createCodexAdapter(o: Options = {}) {
       const out = path.join(job, 'answer.json');
       const schemaFile = cfg.schema ? path.join(job, 'schema.json') : null;
       if (schemaFile) await fs.writeFile(schemaFile, JSON.stringify(strictSchema(schema)));
-      const ran = await runCommand({ ...command, args: [...command.args, ...argsFor(empty, out, schemaFile)],
-        input: `${system}\n\n${buildUserMessage(ctx.text)}\n${repair}`, cwd: empty, env: childEnv,
+      const images = await Promise.all((ctx.repair?.images ?? []).map(async (png, i) => {
+        const file = path.join(job, `still-${i + 1}.png`);
+        await fs.writeFile(file, png);
+        return file;
+      }));
+      const ran = await runCommand({ ...command, args: [...command.args, ...argsFor(empty, out, schemaFile, images)],
+        input: `${system}\n\n${ctx.turn ?? buildUserMessage(ctx.text)}\n${repair}`, cwd: empty, env: childEnv,
         timeoutMs: cfg.timeoutMs, maxOutputBytes: cfg.maxOutputBytes, signal: ctx.signal });
       const said = ran.tail.trim().split('\n').slice(-3).join(' | ').slice(0, 300);
       if (ran.killed === 'timeout') {

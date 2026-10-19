@@ -486,6 +486,13 @@ Sequencing lives on the look, xLights-style.
   params on the selected module (each number param can be modulated), and a Look panel of globals, the palette
   (each swatch titled by its slot, `body2 · #fd7f40`) and macros. On a phone: globals and palette in the Look tab;
   the chain read-only but for enable and params.
+- Phones (≤ 899 px wide; `ui/phone/`, `css/phone.css`): the 3D view over one panel, switched by the tabs Layers,
+  Time, Groups, Look and More. Layers lists one row a layer (name, mute, status); tapping one opens its settings in
+  the same panel (‹ Layers back, its name, mute and solo, plays on, the chain, the params). The light view hides
+  blend, level, solo and moving up or down on the rows, the layer and module names and Soften in the settings, the
+  automation lanes and the 3D view's style buttons; More holds the code editor, the 3D view's Ghost, style and
+  quality, and Full detail, which shows them all again (kept per browser). On a phone the preview starts without
+  Ghost, the Playa view drops the scaffold lines, and Points draws at a pixel ratio of 1.
 - Colours (`ui/picks.tsx`, `ui/pick-model.ts`; "Palettes"): a colour param is one row like a number's: its pick in
   a field the size of a number's (`kit.tsx` Scrub), its text over the colours it plays (the field opens the pick
   tile), ∿ to move its rotate (the modulate dialog), ↺. The tile is TD's pick: a row per role (a box for the whole
@@ -513,7 +520,7 @@ scope (it inherits the CSP, so no network either), relays messages to it and kee
 | app → sandbox | sandbox → app |
 |---|---|
 | `{ type: 'init', rig, library? }` + a `MessagePort` (library: `[{ name, code }]` sources for `use`) | `{ type: 'ready' }` (also sent once on load, before init) |
-| `{ type: 'look', layers, globals?, automation?, bpm? }` (as saved) | `{ type: 'compiled', layers: [{ id, ok, error?, params, modules: [{ id, ok, error?, params }] }] }` (`params`: the first source's schema) |
+| `{ type: 'look', layers, globals?, automation?, bpm?, clock? }` (as saved; `clock: 'fresh'`: the clock not continued from the look before, SPEC-live) | `{ type: 'compiled', layers: [{ id, ok, error?, params, modules: [{ id, ok, error?, params }] }] }` (`params`: the first source's schema) |
 | `{ type: 'frame', seq, t }` | `{ type: 'frame', seq, rgb: Float32Array(count×3), errors: [{ id, module?, error }], ms, layerMs: { <layer id>: ms } }` (rgb transferred; `ms` the frame's, `layerMs` each layer's, timed in the worker) |
 | `{ type: 'render', seq, start, frames, fps, gamma, brightness }` | `{ type: 'progress', seq, done }` … then `{ type: 'rendered', seq, channels: Uint8Array(frames × frame channels) }` |
 
@@ -604,6 +611,10 @@ POST   /api/ideas    { text, model? }         → { idea }             queued fo
                                               to their role, or cannot run here; 403 { error, access } when it is
                                               paid and the account is locked; 429 { error, access } + Retry-After
                                               at a limit (SPEC "Access")
+POST   /api/looks/:id/refine { text?, model?, critique?, fix?: { layer, error } } → 201 { idea }  owner only: a
+                                              refinement of the saved look (SPEC-generators "Refine"); text 2–1000
+                                              unless critique or fix; refused as POST /api/ideas is; 409 while
+                                              one is pending on the look
 GET    /api/ideas/:id[?wait=<status>@<updatedAt>] → { idea }         mine only; with wait, an idea still pending and
                                               as given is answered when it changes, or after 25 s
 GET    /api/models                            → { models: [{ id, label, paid }], default }  what this user may pick
@@ -655,8 +666,10 @@ outside 0–600 s, and a duration outside 1–600 s, are refused with 400.
 `flash = { check, perSecond, delta, darker, area }`: the flash check's settings (Baked frames, Checks), for the
 preview's guard; `check: false` (`STUDIO_FLASH_CHECK=off`) means nothing is dimmed or blocked.
 `idea = { id, owner, text, status: 'queued'|'generating'|'ready'|'failed', model?, generator, by?, timing?, lookId?,
-error?, createdAt, updatedAt }`: `model` the registry id asked for, `generator` the one that made the look (the
-fallback's when it took over), `by` its label ("Opus"), `timing = { wait, prompt, request, parse, total }` in ms.
+refine?, changes?, error?, createdAt, updatedAt }`: `model` the registry id asked for, `generator` the one that made
+the look (the fallback's when it took over), `by` its label ("Opus"), `timing = { wait, prompt, request, parse,
+total, check?, critique? }` in ms. A refinement has `refine = { critique?, fix? }` and the look it changes as
+`lookId` from the start; `changes` (ready) says what changed.
 `look = { id, owner, ownerName, title, summary, layers, duration, bpm?, shared, ideaId?, reviewed, reviewedBy?,
 flashOverride?, bake?, chain, createdAt, updatedAt }`
 (`bake`: see Baked frames).
@@ -665,6 +678,11 @@ flashOverride?, bake?, chain, createdAt, updatedAt }`
 
 In `SPEC-generators.md`, part of this contract: **Generators** (idea → look), **Models** (the registry) and
 **Access** (invite codes and limits on the paid models).
+
+## The live stage
+
+In `SPEC-live.md`, part of this contract: the shared `/live` stage, its socket (`/api/live/socket`), its state and
+the `/live/control` page.
 
 ## Baked frames
 

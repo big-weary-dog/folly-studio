@@ -64,7 +64,12 @@ export const api = {
   createLook: (look: LookCreate) => request<{ look: Look }>('POST', '/api/looks', look),
   updateLook: (id: string, patch: LookPatch) => request<{ look: Look }>('PUT', `/api/looks/${enc(id)}`, patch),
   deleteLook: (id: string) => request('DELETE', `/api/looks/${enc(id)}`),
+  /** A refinement of one's own look (SPEC-generators "Refine"): its idea, to follow with idea(). */
+  refine: (id: string, body: { text?: string, model?: string, critique?: true,
+    fix?: { layer: string, error: string } }) => request<{ idea: Idea }>('POST', `/api/looks/${enc(id)}/refine`, body),
   bake: (id: string) => request<{ bake: Bake }>('POST', `/api/looks/${enc(id)}/bake`, {}),
+
+  liveLooks: () => request<{ looks: Listed[] }>('GET', '/api/live/looks'),
 
   library: () => request<{ patterns?: LibraryEntry[] }>('GET', '/api/library'),
 };

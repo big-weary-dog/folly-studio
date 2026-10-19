@@ -76,6 +76,8 @@ describe('the registry file', () => {
     bad((c) => { c.models[0].secret = 1; }, 'Model 1 (opus): Unrecognized key: "secret"');
     bad((c) => { c.concurrency.codex = 99; }, 'concurrency.codex must be at most 16.');
     bad((c) => { c.models = []; }, 'models must list at least one model.');
+    bad((c) => { c.models[3].critique = 'images'; }, 'Model 4 (sketch): sketch takes no critique.');
+    bad((c) => { c.models[1].critique = 'video'; }, 'Model 2 (sol): critique must be images or text.');
     const next = { ...good, default: 'sketch', concurrency: { codex: 1 } };
     const saved = r.save(next);
     assert.equal(saved.config.default, 'sketch');

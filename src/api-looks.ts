@@ -15,9 +15,9 @@ import type { Auth } from './auth.ts';
 import { type createBakeQueue, layersHash, renderFields, reviewBlocker } from './bake.ts';
 import { BakeError } from './box-output.ts';
 import { HttpError, type Logger, parse } from './http.ts';
+import { versionsWith } from './look-versions.ts';
 import type { Store, StoredLook as Look } from './store.ts';
 
-export const MAX_VERSIONS = 20;
 export const MAX_LOOKS_PER_USER = 500;
 export const GALLERY_LIMIT = 200;
 
@@ -162,12 +162,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, log = console }: { 
       changed('automation', lanes(body.automation === undefined ? look.automation ?? null : body.automation, globals));
     }
     const layersChanged = ['layers', 'duration', 'globals', 'automation'].some((k) => k in patch);
-    if (layersChanged) {
-      const prev = { title: look.title, summary: look.summary ?? '', layers: look.layers ?? [],
-        duration: look.duration ?? DEFAULT_DURATION, ...(look.globals ? { globals: look.globals } : {}),
-        ...(look.automation ? { automation: look.automation } : {}), savedAt: look.updatedAt };
-      patch.versions = [...(Array.isArray(look.versions) ? look.versions : []), prev].slice(-MAX_VERSIONS);
-    }
+    if (layersChanged) patch.versions = versionsWith(look);
     const unset: Partial<Look> = { summary: '', shared: false };
     const changes = (['title', 'summary', 'shared', 'bpm'] as const)
       .filter((k) => k in patch && patch[k] !== (look[k] ?? unset[k]));
@@ -230,6 +225,6 @@ export function lookRoutes({ store, auth, bakes, dropFrames, log = console }: { 
     return { look: presentLook(look, { versions: versionsFor(req, look) }) };
   }
 
-  return { visibleLook, routes: { 'GET /looks': list, 'POST /looks': create, 'GET /looks/:id': read,
+  return { visibleLook, listed, routes: { 'GET /looks': list, 'POST /looks': create, 'GET /looks/:id': read,
     'PUT /looks/:id': edit, 'DELETE /looks/:id': remove, 'POST /looks/:id/bake': bake } };
 }
