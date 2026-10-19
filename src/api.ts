@@ -3,7 +3,7 @@
 // every route but the public ones needs a session. Logins are limited per IP, and failed ones per IP and username.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
-import { type FlashSettings, type Idea, IdeaBody, Login, Signup } from '../shared/schemas/api.ts';
+import { type FlashSettings, type Idea, IdeaBody, Login, RefineBody, Signup } from '../shared/schemas/api.ts';
 import type { AccessControl } from './access.ts';
 import { accessRoutes, sendRefusal } from './api-access.ts';
 import { lookRoutes } from './api-looks.ts';
@@ -141,6 +141,35 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         const { id: chosen, label } = picked.entry;
         const idea = store.ideas.create({ owner: req.user!.id, text, status: 'queued', model: chosen, generator: chosen,
           by: label });
+        enqueueIdea({ queue, store, log }, idea);
+        reply.code(201);
+        return { idea: store.ideas.get(idea.id) ?? idea };
+      },
+      // A refinement of one's own look (SPEC-generators "Refine"): an idea of its own, one use, by the model asked
+      // for, else the one that made the look; one at a time per look.
+      'POST /looks/:id/refine': async (req, reply) => {
+        const look = store.looks.get((req.params as { id: string }).id);
+        if (!look || look.owner !== req.user!.id) throw new HttpError(404, 'Look not found.');
+        const { text, model, critique, fix } = parse(RefineBody, req.body);
+        const made = model ?? (look.ideaId ? store.ideas.get(look.ideaId)?.model : undefined);
+        const picked = models.pick(made, auth.roleOf(req.user), { paid: access.state(req.user!).unlocked });
+        if ('error' in picked) throw new HttpError(400, picked.error);
+        if (!['claude', 'codex', 'sketch'].includes(picked.entry.via)) {
+          throw new HttpError(400, `${picked.entry.label} cannot refine a look; pick another model.`);
+        }
+        if (critique && !['claude', 'codex'].includes(picked.entry.via)) {
+          throw new HttpError(400, `${picked.entry.label} cannot look at its frames; pick another model.`);
+        }
+        if (store.ideas.list((i) => i.lookId === look.id && !!i.refine
+          && (i.status === 'queued' || i.status === 'generating')).length) {
+          throw new HttpError(409, 'This look is already being refined.');
+        }
+        const refused = access.check(req.user!, picked.entry); // no await from here to the create: one step
+        if (refused) return sendRefusal(reply, refused);
+        const { id: chosen, label } = picked.entry;
+        const ask = { ...(critique ? { critique: true as const } : {}), ...(fix ? { fix } : {}) };
+        const idea = store.ideas.create({ owner: req.user!.id, text, status: 'queued', model: chosen, generator: chosen,
+          by: label, lookId: look.id, refine: ask });
         enqueueIdea({ queue, store, log }, idea);
         reply.code(201);
         return { idea: store.ideas.get(idea.id) ?? idea };

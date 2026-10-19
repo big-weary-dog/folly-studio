@@ -15,17 +15,22 @@ import type { Bake, Idea } from '../../shared/schemas/api.ts';
 import { GenerateError, validateLook } from '../../shared/schemas/generated.ts';
 import type { ModelEntry } from '../../shared/schemas/models.ts';
 import type { LibraryEntry, Rig, RigGroup } from '../../shared/schemas/rig.ts';
-import { layersHash, renderFields, saveFrames } from '../bake.ts';
+import { layersHash, removeFrames, renderFields, saveFrames } from '../bake.ts';
+import { revisedFields } from '../look-versions.ts';
 import type { Catalog } from './catalog.ts';
+import type { Box } from './check.ts';
 import { createClaudeAdapter } from './claude.ts';
 import { createCodexAdapter } from './codex.ts';
-import { expand, type ExpandError, type Uses } from './expand.ts';
+import type { ExpandError, Uses } from './expand.ts';
 import { createFleetAdapter, hasMemoryCap } from './fleet.ts';
 import type { Registry } from './models.ts';
-import { buildPrompt } from './prompt.ts';
+import { buildPrompt, buildRefineMessage } from './prompt.ts';
+import { type Composition, decompose, diffCompositions, keepSwitches } from './refine.ts';
+import { compose, type Critique, type Rounds } from './rounds.ts';
+import { sketchRefine } from './sketch-refine.ts';
 import { sketchLook } from './sketch.ts';
 import type { Logger } from '../http.ts';
-import type { Store } from '../store.ts';
+import type { Store, StoredLook } from '../store.ts';
 
 export { GenerateError, validateLook };
 
@@ -33,20 +38,21 @@ const FALLBACK_ERROR = 'Something went wrong while turning this idea into a look
 /** The guide, the output schema and the catalog: built once per library and rig, the same bytes on every call (so it
  * caches). */
 export type Prompt = { system: string, schema: Record<string, unknown>, catalog: Catalog };
-/** A repair turn: the model's previous answer and what expanding it found wrong. */
-export type Repair = { answer: unknown, errors: ExpandError[] };
+/** A follow-up turn: the model's previous answer and what expanding or rendering it found wrong (`message`, when
+ * given, is the whole turn instead: a critique, with its stills as PNGs in `images`). */
+export type Repair = { answer: unknown, errors: ExpandError[], message?: string, images?: Uint8Array[] };
 /** What an adapter is given (SPEC "Generators"), and what makes a look of it: raw output, cleaned by validateLook. */
 export type Context = { text: string, user: { id: string, username?: string, role?: string },
   library: LibraryEntry[], rig: Rig | null, groups: RigGroup[], idea?: { id: string }, prompt?: () => Prompt,
-  repair?: Repair, signal?: AbortSignal };
+  turn?: string, repair?: Repair, signal?: AbortSignal };
 export type Adapter = { name?: string, generate(ctx: Context): unknown };
 type Route = { id: string, label: string, via: string, entry?: ModelEntry };
 type Job = { id: string, route: Route, queuedAt: number };
 const LABELS: Record<string, string> = { sketch: 'Sketch', claude: 'Claude', codex: 'Codex', fleet: 'Fleet' };
 const PROMPTED = new Set(['claude', 'codex']);
 const LANE_DEFAULTS: Record<string, number> = { claude: 4, codex: 2, sketch: 4 };
-const REPAIR_ROUNDS = 1; // inside the one idea: a repair is not another use
 const NO_USES: Uses = { library: 0, extensions: 0, code: 0 };
+const CRITIQUE_BUDGET_MS = Number(process.env.STUDIO_CRITIQUE_BUDGET_MS) || 90_000;
 
 /** What a look was made of, for the log: `3 library, 1 extension`. */
 const describeUses = (u: Uses) => (u === NO_USES ? 'not composed'
@@ -55,6 +61,11 @@ const describeUses = (u: Uses) => (u === NO_USES ? 'not composed'
 /** The first few notes of what was dropped or mended, cut short: the log stays one line. */
 const dropped = (notes: string[]) => (notes.length ? `; ${notes.length} noted: ${notes.slice(0, 3).join('; ')}`
   .slice(0, 240) : '');
+const secs = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
+/** The rounds for the log: `1 repair, check 0.6 s, critique 12.0 s revised`. */
+const describeRounds = (o: Partial<Rounds>) => [o.rounds && `${o.rounds} repair`, o.check !== undefined
+  && `check ${secs(o.check)}`, o.critique && `critique ${secs(o.critique.ms)} ${o.critique.outcome}`]
+  .filter(Boolean).map((s) => `, ${s}`).join('');
 
 /** A transport's adapter for one model: its model string, effort and limits from the registry. */
 function makeAdapter(via: string, m: ModelEntry | undefined, log: Logger, codexBin?: string): Adapter {
@@ -79,17 +90,19 @@ export function foundryFromEnv(env = process.env) {
  * model; adapters: transport → { generate } or a function, in place of the built-in ones;
  * concurrency: STUDIO_GENERATOR_CONCURRENCY, per lane where the registry says nothing; fallbackName:
  * STUDIO_GENERATOR_FALLBACK, a model or transport tried when one fails (and the foundry's one-shot generator);
- * loadVersion: changes when the library or rig does (the prompt is built again only then).
+ * loadVersion: changes when the library or rig does (the prompt is built again only then); box and lane: the render
+ * box and the bakes' lane, for the render check and critique (none: no check).
  */
 export function createQueue({
   store, loadLibrary = () => [], loadRig = () => null, loadVersion, models, adapterName = process.env.STUDIO_GENERATOR
     || 'sketch', log = console, adapters = {}, concurrency = Number(process.env.STUDIO_GENERATOR_CONCURRENCY) || 0,
-  fallbackName = process.env.STUDIO_GENERATOR_FALLBACK || '', framesDir, foundry = foundryFromEnv(), codexBin,
+  fallbackName = process.env.STUDIO_GENERATOR_FALLBACK || '', framesDir, foundry = foundryFromEnv(), codexBin, box,
+  lane: bakeLane, critiqueBudgetMs = CRITIQUE_BUDGET_MS,
 }: { store: Pick<Store, 'ideas' | 'looks'> & Partial<Store>, loadLibrary?: () => LibraryEntry[],
   loadRig?: () => Rig | null | Promise<Rig | null>, loadVersion?: () => string, models?: Registry,
   adapterName?: string, log?: Logger, adapters?: Record<string, Adapter | Adapter['generate']>, concurrency?: number,
   fallbackName?: string, framesDir?: string, foundry?: Partial<ReturnType<typeof foundryFromEnv>>,
-  codexBin?: string }) {
+  codexBin?: string, box?: Box, lane?: Parameters<typeof compose>[0]['lane'], critiqueBudgetMs?: number }) {
   const framesHome = framesDir ?? (store.dataDir ? path.join(store.dataDir, 'frames') : '');
   const transports = new Set(['sketch', 'claude', 'codex', 'fleet', ...Object.keys(adapters)]);
   const made = new Map<string, Adapter>();
@@ -163,51 +176,67 @@ export function createQueue({
   }
 
   // The library, the rig and the prompt, kept while loadVersion() (else the loaders' objects) stay the same.
-  let prepared: { version: string, library: LibraryEntry[], rig: Rig | null, groups: RigGroup[], prompt?: Prompt }
-    | null = null;
-  async function prepare() {
+  type Prepared = { version: string, library: LibraryEntry[], rig: Rig | null, groups: RigGroup[], prompt?: Prompt };
+  let prepared: Prepared | null = null;
+  // Jobs that start together share one load of a version (each loading its own let them race).
+  let loading: { version: string, done: Promise<Prepared> } | null = null;
+  function prepare(): Promise<Prepared> {
     const version = loadVersion?.() ?? '';
-    if (version && prepared?.version === version) return prepared;
-    const [library = [], rig = null] = await Promise.all([loadLibrary(), loadRig()]);
-    if (!version && prepared && prepared.library === library && prepared.rig === rig) return prepared;
-    prepared = { version, library, rig, groups: Array.isArray(rig?.groups) ? rig.groups : [] };
-    return prepared;
-  }
-  const promptOf = (p: NonNullable<typeof prepared>) => (p.prompt ??= buildPrompt(p));
-
-  /** A prompted model's composition, expanded from the library; a repair turn when it named what is not there. */
-  async function composed(adapter: Adapter, ctx: Context, catalog: Catalog) {
-    let raw = await adapter.generate(ctx), x = expand(raw, catalog), rounds = 0;
-    while (x.errors.length && rounds < REPAIR_ROUNDS) {
-      if (stopping) break;
-      rounds++;
-      try {
-        raw = await adapter.generate({ ...ctx, repair: { answer: raw, errors: x.errors } });
-      } catch (err) { // the answer before, less what it got wrong, still makes a look
-        log.warn?.(`[generate] idea ${ctx.idea?.id}: repair failed (${String((err as Error)?.message).slice(0, 160)})`);
-        break;
-      }
-      x = expand(raw, catalog);
+    if (version && prepared?.version === version) return Promise.resolve(prepared);
+    if (version && loading?.version === version) return loading.done;
+    const done = (async (): Promise<Prepared> => {
+      const [library = [], rig = null] = await Promise.all([loadLibrary(), loadRig()]);
+      if (!version && prepared && prepared.library === library && prepared.rig === rig) return prepared;
+      prepared = { version, library, rig, groups: Array.isArray(rig?.groups) ? rig.groups : [] };
+      return prepared;
+    })();
+    if (version) {
+      const mine = { version, done };
+      loading = mine;
+      done.catch(() => {}).finally(() => { if (loading === mine) loading = null; });
     }
-    const left = x.errors.map((e) => `${e.path}: ${e.message}`);
-    return { raw, look: x.look, notes: [...x.notes, ...left], uses: x.uses, rounds };
+    return done;
+  }
+  const promptOf = (p: Prepared) => (p.prompt ??= buildPrompt(p));
+
+  /** What a refinement starts from: the look as a composition, the turn that asks for the change, and (a critique
+   * asked for alone) the composition as the answer to critique. */
+  type Refining = { look: StoredLook, comp: Composition, aim: string, start?: Composition };
+  function refining(idea: Idea, catalog: Catalog): Refining {
+    const look = idea.lookId ? store.looks.get(idea.lookId) : null;
+    if (!look || look.owner !== idea.owner) throw new GenerateError('The look to refine is gone.', 'no such look');
+    const comp = decompose(look, catalog), from = look.ideaId ? store.ideas.get(look.ideaId)?.text : '';
+    const aim = idea.text || from || `${look.title}. ${look.summary ?? ''}`;
+    return { look, comp, aim, ...(!idea.text && !idea.refine?.fix ? { start: comp } : {}) };
   }
 
-  /** The look from the route's adapter, validated; the fallback tries when that one fails. */
-  async function lookFrom(ctx: Context, r: Route) {
+  /** The look from the route's adapter, validated, in rounds for a prompted model; the fallback tries when that one
+   * fails (not for a refinement: its look stays as it was). */
+  async function lookFrom(ctx: Context, r: Route, refine?: Refining & { critique?: true }) {
     const t0 = Date.now();
     const attempt = async (by: Route) => {
-      const adapter = adapterFor(by);
-      const out = PROMPTED.has(by.via) && ctx.prompt ? await composed(adapter, ctx, ctx.prompt().catalog)
-        : { raw: await adapter.generate(ctx), notes: [], uses: NO_USES, rounds: 0 };
-      const t1 = Date.now(), look = validateLook('look' in out ? out.look : out.raw, ctx);
-      look.dropped.unshift(...out.notes);
-      return { ...out, look, used: by, request: t1 - t0, parse: Date.now() - t1, failed: '' };
+      if (refine && !PROMPTED.has(by.via) && by.via !== 'sketch') {
+        throw new GenerateError(`${by.label} cannot refine a look.`, `refine by ${by.via}`);
+      }
+      const adapter = adapterFor(by), catalog = PROMPTED.has(by.via) || refine ? ctx.prompt?.().catalog : undefined;
+      const mode: Critique | undefined = by.entry?.critique ?? (refine?.critique ? 'images' : undefined);
+      const rounds = (a: Adapter, o: { critique?: Critique, box?: Box }) => compose({ adapter: a, ctx, catalog:
+        catalog!, ...o, lane: bakeLane, aim: refine?.aim, start: refine?.start, startedAt: t0,
+        budgetMs: critiqueBudgetMs, stopping: () => stopping, log });
+      const out: Partial<Rounds> & Pick<Rounds, 'raw' | 'look'> = PROMPTED.has(by.via) && catalog && ctx.prompt
+        ? await rounds(adapter, { critique: mode, box })
+        : refine && catalog && by.via === 'sketch'
+          ? await rounds({ generate: () => sketchRefine(refine.comp, ctx.text, { ...ctx, catalog }) }, {})
+        : await (async () => {
+          const raw = await adapter.generate(ctx);
+          return { raw, look: validateLook(raw, ctx) };
+        })();
+      return { ...out, used: by, request: Date.now() - t0, parse: 0, failed: '' };
     };
     try {
       return await attempt(r);
     } catch (err) {
-      if (!fallback || fallback.id === r.id || stopping) throw err;
+      if (!fallback || fallback.id === r.id || stopping || refine) throw err;
       log.warn?.(`[generate] ${r.id} failed for idea ${ctx.idea?.id} (${(err as Error)?.message}); `
         + `trying ${fallback.id}`);
       const out = await attempt(fallback);
@@ -233,12 +262,25 @@ export function createQueue({
       const owner = (await store.users?.get?.(idea.owner)) || null;
       const user = owner ? { id: owner.id, username: owner.username, role: owner.role } : { id: idea.owner };
       const base = await prepare();
-      if (PROMPTED.has(r.via)) promptOf(base);
+      if (PROMPTED.has(r.via) || idea.refine) promptOf(base);
       const prompt = Date.now() - started;
       const ctx: Context = { text: String(idea.text ?? ''), user, library: base.library, rig: base.rig,
         groups: base.groups, idea: { id }, prompt: () => promptOf(base), signal: ac.signal };
-      const { raw, look, used, request, parse, uses, rounds, failed } = await lookFrom(ctx, r);
-      const { bake: made, frames } = (raw ?? {}) as { bake?: Bake, frames?: unknown };
+      const refine = idea.refine ? { ...refining(idea, promptOf(base).catalog), ...idea.refine } : undefined;
+      if (refine) ctx.turn = buildRefineMessage(refine.comp, idea.text, idea.refine?.fix);
+      const out = await lookFrom(ctx, r, refine), { look, used, request, failed } = out;
+      const timing = { wait: started - queuedAt, prompt, request, parse: out.parse, total: 0,
+        ...(out.check !== undefined ? { check: out.check } : {}),
+        ...(out.critique ? { critique: out.critique.ms } : {}) };
+      const how = `${describeRounds(out)}; ${describeUses(out.uses ?? NO_USES)}${dropped(look.dropped)}`;
+      if (refine) {
+        const changes = await revise(refine.look, look, promptOf(base).catalog);
+        timing.total = Date.now() - queuedAt;
+        await update(id, { status: 'ready', generator: used.id, by: used.label, error: null, timing, changes });
+        return log.info?.(`[generate] refinement ${id} ready via ${used.id} in ${timing.total} ms (request ${request}`
+          + `${how}; ${changes.length} changes; look ${refine.look.id})`);
+      }
+      const { bake: made, frames } = (out.raw ?? {}) as { bake?: Bake, frames?: unknown };
       const bake = made && typeof made === 'object' ? { ...made, layersHash: layersHash(renderFields(look)) } : null;
       const saved = await store.looks.create({
         owner: idea.owner, ownerName: owner?.username || '', title: look.title, summary: look.summary,
@@ -248,19 +290,37 @@ export function createQueue({
         shared: false, reviewed: false, ideaId: id, chain: CHAIN, ...(bake ? { bake } : {}),
       });
       if (bake?.frames) await keepFrames(saved.id, frames, bake);
-      const timing = { wait: started - queuedAt, prompt, request, parse, total: Date.now() - queuedAt };
+      timing.total = Date.now() - queuedAt;
       await update(id, { status: 'ready', lookId: saved.id, generator: used.id, by: used.label, error: null, timing });
       log.info?.(`[generate] idea ${id} ready via ${used.id}${failed ? ` after ${failed}` : ''} in ${timing.total} ms `
-        + `(queued ${timing.wait}, request ${request}${rounds ? `, ${rounds} repair` : ''}; ${describeUses(uses)}`
-        + `${dropped(look.dropped)}; look ${saved.id})`);
+        + `(queued ${timing.wait}, request ${request}${how}; look ${saved.id})`);
     } catch (err) {
       if (stopping) return; // left as it is: the next start queues it again
-      log.warn?.(`[generate] idea ${id} failed via ${r.id}: ${(err as Error)?.message || err}`);
+      log.warn?.(`[generate] ${idea.refine ? 'refinement' : 'idea'} ${id} failed via ${r.id}: ${
+        (err as Error)?.message || err}`);
       const error = err instanceof GenerateError ? err.userMessage : FALLBACK_ERROR;
       await update(id, { status: 'failed', error });
     } finally {
       running.delete(ac);
     }
+  }
+
+  /** A refinement saved onto its look as an edit (a version of what was there; no bake, no review) → what changed;
+   * nothing is saved when nothing did, and nothing over an edit made while it ran. */
+  async function revise(from: StoredLook, look: ReturnType<typeof validateLook>, catalog: Catalog) {
+    const lookId = from.id, now = store.looks.get(lookId);
+    if (!now) throw new GenerateError('The look to refine is gone.', 'deleted while refining');
+    if (layersHash(renderFields(now)) !== layersHash(renderFields(from))) {
+      throw new GenerateError('The look was edited while it was being refined; ask again.', 'edited while refining');
+    }
+    const next = { layers: keepSwitches(now.layers as Record<string, unknown>[], look.layers),
+      duration: look.duration ?? now.duration, globals: look.globals ?? now.globals,
+      automation: look.automation ?? now.automation };
+    const changes = diffCompositions(decompose(now, catalog), decompose({ ...now, ...next }, catalog));
+    if (!changes.length) return changes;
+    await store.looks.update(lookId, { ...revisedFields(now), ...next, chain: CHAIN });
+    await removeFrames(framesHome || undefined, lookId).catch(() => {});
+    return changes;
   }
 
   async function keepFrames(lookId: string, bytes: unknown, bake: Bake) {

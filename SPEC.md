@@ -585,6 +585,10 @@ POST   /api/ideas    { text, model? }         → { idea }             queued fo
                                               to their role, or cannot run here; 403 { error, access } when it is
                                               paid and the account is locked; 429 { error, access } + Retry-After
                                               at a limit (SPEC "Access")
+POST   /api/looks/:id/refine { text?, model?, critique?, fix?: { layer, error } } → 201 { idea }  owner only: a
+                                              refinement of the saved look (SPEC-generators "Refine"); text 2–1000
+                                              unless critique or fix; refused as POST /api/ideas is; 409 while
+                                              one is pending on the look
 GET    /api/ideas/:id[?wait=<status>@<updatedAt>] → { idea }         mine only; with wait, an idea still pending and
                                               as given is answered when it changes, or after 25 s
 GET    /api/models                            → { models: [{ id, label, paid }], default }  what this user may pick
@@ -636,8 +640,10 @@ outside 0–600 s, and a duration outside 1–600 s, are refused with 400.
 `flash = { check, perSecond, delta, darker, area }`: the flash check's settings (Baked frames, Checks), for the
 preview's guard; `check: false` (`STUDIO_FLASH_CHECK=off`) means nothing is dimmed or blocked.
 `idea = { id, owner, text, status: 'queued'|'generating'|'ready'|'failed', model?, generator, by?, timing?, lookId?,
-error?, createdAt, updatedAt }`: `model` the registry id asked for, `generator` the one that made the look (the
-fallback's when it took over), `by` its label ("Opus"), `timing = { wait, prompt, request, parse, total }` in ms.
+refine?, changes?, error?, createdAt, updatedAt }`: `model` the registry id asked for, `generator` the one that made
+the look (the fallback's when it took over), `by` its label ("Opus"), `timing = { wait, prompt, request, parse,
+total, check?, critique? }` in ms. A refinement has `refine = { critique?, fix? }` and the look it changes as
+`lookId` from the start; `changes` (ready) says what changed.
 `look = { id, owner, ownerName, title, summary, layers, duration, bpm?, shared, ideaId?, reviewed, reviewedBy?,
 flashOverride?, bake?, chain, createdAt, updatedAt }`
 (`bake`: see Baked frames).

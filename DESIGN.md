@@ -400,7 +400,8 @@ font. Copy is plain and says what happens ("Bake it in the render box to check i
 - **CPU rendering bounds the rig.** 4,870 LEDs fit a phone's Worker (`npm run perf` holds a composed look at
   ≥ 20 fps on a 4× slowed CPU); ten times that would need the formula tier on the GPU.
 - **The AI works inside the schema.** It can make what a look can hold (≤ 4 layers, modules, globals, clips,
-  automation), nothing else, and does not see the frames it makes.
+  automation), nothing else, and sees its frames only as a few front-view stills and per-group lines, when a
+  model is set to critique (SPEC-generators "Critique").
 - **Not yet verified on FPP or in xLights**, the zstd downloads least of all (§7).
 - **Single host.** One process, JSON files, one bake at a time: fine for tens of people, not hundreds.
 
@@ -410,11 +411,10 @@ The next most valuable steps, in order; `IDEAS.md` keeps the longer list.
 
 1. **Play a bake on real FPP and xLights** (plain, sparse and zstd), then on the Folly through `sacn-play`.
 2. **Music**: a track and a shared clock, `beat()` locked to it, the `.fseq` media header.
-3. **A repair loop**: when a generated look throws in the sandbox, send the error back for a fix.
-4. **Fixed-step preview** for stateful patterns, so the preview matches the bake.
-5. **Param automation** on module params, and crossfades and markers between imported looks.
-6. **Apply the power limit** the bake already estimates, as `folly_output` caps white.
-7. **The formula tier**: looks that compile to GLSL, for TouchDesigner and for larger rigs.
+3. **Fixed-step preview** for stateful patterns, so the preview matches the bake.
+4. **Param automation** on module params, and crossfades and markers between imported looks.
+5. **Apply the power limit** the bake already estimates, as `folly_output` caps white.
+6. **The formula tier**: looks that compile to GLSL, for TouchDesigner and for larger rigs.
 
 ## Screenshots
 

@@ -68,15 +68,15 @@ export async function createServer(opts: Options = {}) {
   const models = createRegistry({ file: opts.models?.file || env.STUDIO_MODELS || path.join(dataDir, 'models.json'),
     env, log, legacy: generatorName, foundryOn: foundryFromEnv(env).on, codexBin });
   const access = createAccess({ store, auth, models });
-  const deps = { store, loadLibrary, loadRig, loadVersion: loaders.version, models, codexBin, log,
+  const box = renderBox || createRenderBox({ publicDir, log });
+  // Baked frames are encoded for streaming as soon as they are stored (src/frames-cache.ts); bakes, those encodes
+  // and the generators' render checks take turns at low priority, and evicted frames are baked again on demand.
+  const lane = createLane();
+  const deps = { store, loadLibrary, loadRig, loadVersion: loaders.version, models, codexBin, log, box, lane,
     adapterName: generatorName || 'sketch' };
   const queue: Queue = typeof generator === 'function' ? await generator(deps) : generator || createQueue(deps);
   const adapterName = models.defaultId();
   const framesDir = path.join(dataDir, 'frames');
-  const box = renderBox || createRenderBox({ publicDir, log });
-  // Baked frames are encoded for streaming as soon as they are stored (src/frames-cache.ts); bakes and those
-  // encodes take turns at low priority, and frames evicted for the disk cap are baked again on demand.
-  const lane = createLane();
   const frames = createFramesCache({ framesDir, store, log, quality: framesQuality, maxBytes: framesMaxBytes, lane,
     rebake: (look) => bakes.restore(look) });
   const rigFile = path.join(publicDir, 'data', 'rig.json');

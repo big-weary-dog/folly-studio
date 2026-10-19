@@ -73,6 +73,16 @@ describe('codex', () => {
     assert.match(after('--output-schema'), /schema\.json$/);
   });
 
+  test('a critique round hands codex its stills as -i files, before the other flags', async () => {
+    const { adapter, calls } = setup();
+    await adapter.generate(ctx({ repair: { answer: { title: 'T' }, errors: [], message: 'Look at the frames',
+      images: [new Uint8Array([1]), new Uint8Array([2])] } }));
+    const { args } = calls()[0];
+    assert.deepEqual([args[1], args[3], args[5]], ['-i', '-i', '--ephemeral']);
+    assert.match(args[2], /still-1\.png$/);
+    assert.match(args[4], /still-2\.png$/);
+  });
+
   test('the output schema is the look\'s, made strict: every property required, the optional ones nullable', () => {
     const strict = strictSchema(wireSchema(GROUPS));
     const check = (node) => {

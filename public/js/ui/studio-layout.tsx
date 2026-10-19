@@ -15,6 +15,7 @@ import { GroupsTree, LayersPane } from './layers.tsx';
 import { loadPalettes } from './model.ts';
 import type { Preview } from './preview.ts';
 import { PreviewPane } from './preview-view.tsx';
+import { RefinePanel } from './refine.tsx';
 import { type Dock, type Studio, TABS } from './studio-store.ts';
 import { Timeline } from './timeline.tsx';
 import type { TimelineState } from './timeline-state.ts';
@@ -130,7 +131,7 @@ function DockPane({ st, pv, tl }: Props) {
       </div>
       <div class="pane-body code-body" id={ids[0]}><CodeEditor st={st} /></div>
       <div class="tl-body" id={ids[1]}>{!narrow && <Timeline st={st} pv={pv} tl={tl} />}</div>
-      <div class="pane-body look-dock" id={ids[2]}>{!narrow && <Globals st={st} />}</div>
+      <div class="pane-body look-dock" id={ids[2]}>{!narrow && <><RefinePanel st={st} /><Globals st={st} /></>}</div>
     </section>);
 }
 
@@ -199,6 +200,7 @@ function LookTab({ st, pv }: { st: Studio; pv: Preview }) {
   const id = st.lookId.value;
   return (
     <section class="pane pane-look" data-pane="look" aria-label="Look"><div class="pane-body look-body">
+      {narrow && <RefinePanel st={st} />}
       <div class="globals-slot">{narrow && <Globals st={st} />}</div>
       <div class="bake-slot">{narrow && <BakePanel st={st} pv={pv} />}</div>
       <Share st={st} cls="share-toggle big" />

@@ -98,7 +98,7 @@ export function Ideas() {
     }
   }, [ideas]);
 
-  const load = () => api.ideas().then((r) => setIdeas(r.ideas || [])).catch((err) => {
+  const load = () => api.ideas().then((r) => setIdeas((r.ideas || []).filter((i) => !i.refine))).catch((err) => {
     if (statusOf(err) === 401) return signedOut();
     setIdeas((all) => all || []);
     toast(err.message, { kind: 'error' });
