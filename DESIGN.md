@@ -204,7 +204,7 @@ exactly two places, and neither can reach accounts, cookies or the network:
 | Where | Boundary | If it misbehaves |
 |---|---|---|
 | Browser | `<iframe sandbox="allow-scripts">` at an opaque origin, CSP `default-src 'none'`, code in a Worker from a Blob | A watchdog: a frame over 1 s or a compile over 0.7 s kills the worker, blames the layer, carries on without it |
-| Server | The **render box**: bubblewrap `--unshare-all` (no network), `--clearenv`, read-only inputs, one writable `/out`; prlimits on CPU, tasks, file size and data; nice 10; a wall clock; layers in a stdlib-only `node:vm` realm | Killed; the bake fails. No bubblewrap means 503, never an unboxed fallback |
+| Server | The **render box**: bubblewrap `--unshare-all` (no network), `--clearenv`, read-only inputs, one writable `/out`; its own cgroup for tasks and memory (a systemd user scope); prlimits on CPU and file size; nice 10; a wall clock; layers in a stdlib-only `node:vm` realm | Killed; the bake fails. No bubblewrap means 503, never an unboxed fallback |
 
 ![The code tab: a typo is reported on its line; that layer goes dark and the rest plays on](docs/screenshots/laptop-code.jpg)
 

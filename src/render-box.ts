@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { DEFAULT_BAKE_SECONDS, framesBytesFor, parseBytes, parseDuration } from './bake.ts';
+import { busEnv, scopeLimits } from './box-limits.ts';
 import { BakeError, cleanBoxStats, CONTROL, readUntrusted } from './box-output.ts';
 import type { LayerInput } from '../public/js/pattern-core.ts';
 import { bundle } from './core-script.ts';
@@ -46,18 +47,19 @@ async function runtimeBinds(node: string) {
 
 /**
  * The box: probe(), render(job) → { bytes, boxStats, ms, seconds }. Each render gets a fresh folder with the core as
- * one script (src/core-script.ts, from its source) and an empty /out, under prlimit (CPU, tasks, file size, data) and a
- * wall clock, in `bwrap --unshare-all --cap-drop ALL --clearenv` with everything read-only but /out and a 16 MB /tmp.
- * No RLIMIT_AS: V8 reserves large ranges up front and it crashes; RLIMIT_DATA caps writable maps. RLIMIT_NPROC counts
- * every process of the server's user. Options (environment): seconds (STUDIO_BAKE_SECONDS, 120, ≤ 600), timeoutMs
- * (STUDIO_BAKE_TIMEOUT; 30 s + 1.5 s per second baked, ≥ 90 s), cpuSeconds (STUDIO_BAKE_CPU; likewise, ≥ 120), tasks
- * (STUDIO_BAKE_TASKS, 256), memoryBytes (STUDIO_BAKE_MEMORY, 1 GB; 0 = none), maxFramesBytes (STUDIO_BAKE_MAX_FRAMES;
- * 64 MB or what `seconds` needs), nice (STUDIO_BAKE_NICE, 10: the box runs at low priority), frameTimeoutMs (2 s),
- * publicDir, script, node, bwrap, prlimit, tmpRoot.
+ * one script (src/core-script.ts, from its source) and an empty /out, in its own systemd user scope (tasks, memory;
+ * src/box-limits.ts has the fallback), under prlimit (CPU, file size) and a wall clock, in `bwrap --unshare-all
+ * --cap-drop ALL --clearenv` with everything read-only but /out and a 16 MB /tmp. No RLIMIT_AS: V8 reserves large
+ * ranges up front and it crashes; RLIMIT_DATA caps writable maps. Options (environment): seconds
+ * (STUDIO_BAKE_SECONDS, 120, ≤ 600), timeoutMs (STUDIO_BAKE_TIMEOUT; 30 s + 1.5 s per second baked, ≥ 90 s),
+ * cpuSeconds (STUDIO_BAKE_CPU; likewise, ≥ 120), tasks (STUDIO_BAKE_TASKS, 256), memoryBytes (STUDIO_BAKE_MEMORY,
+ * 1 GB; 0 = none), maxFramesBytes (STUDIO_BAKE_MAX_FRAMES; 64 MB or what `seconds` needs), nice (STUDIO_BAKE_NICE, 10:
+ * the box runs at low priority), frameTimeoutMs (2 s), publicDir, script, node, bwrap, prlimit, systemdRun ('' = no
+ * scope), tmpRoot.
  */
 type Options = Partial<Record<'publicDir' | 'script' | 'fseqFile' | 'rigFile' | 'coreFile' | 'patternsDir' | 'node'
-  | 'bwrap' | 'prlimit' | 'tmpRoot', string> & Record<'seconds' | 'timeoutMs' | 'cpuSeconds' | 'tasks' | 'nice'
-  | 'memoryBytes' | 'maxFramesBytes' | 'frameTimeoutMs', number> & { env: NodeJS.ProcessEnv, log: Logger }>;
+  | 'bwrap' | 'prlimit' | 'systemdRun' | 'tmpRoot', string> & Record<'seconds' | 'timeoutMs' | 'cpuSeconds' | 'tasks'
+  | 'nice' | 'memoryBytes' | 'maxFramesBytes' | 'frameTimeoutMs', number> & { env: NodeJS.ProcessEnv, log: Logger }>;
 export type RenderBox = ReturnType<typeof createRenderBox>;
 /** What a bake renders: the look on the box's stdin. */
 type Job = { layers: readonly LayerInput[], seconds?: number, globals?: unknown, automation?: unknown, bpm?: unknown };
@@ -87,6 +89,7 @@ export function createRenderBox(o: Options = {}) {
     coreFile: o.coreFile || path.join(publicDir, 'js/pattern-core.ts'),
     patternsDir: o.patternsDir || path.join(publicDir, 'patterns'),    // the library, for use()
     node: o.node || process.execPath, bwrap: o.bwrap || 'bwrap', prlimit: o.prlimit || 'prlimit',
+    systemdRun: o.systemdRun ?? 'systemd-run',
     tmpRoot: o.tmpRoot || tmpdir(), log: o.log || console,
   };
   const children = new Set<ReturnType<typeof spawn>>();
@@ -111,7 +114,13 @@ export function createRenderBox(o: Options = {}) {
       throw new BakeError('The render box is not set up on this server.', `missing ${cfg.patternsDir}`);
     }
     const nice = cfg.nice > 0 ? await which('nice', env.PATH) : null;
-    return { bwrap, prlimit, nice, runtime: await runtimeBinds(cfg.node) };
+    const systemdRun = cfg.systemdRun ? await which(cfg.systemdRun, env.PATH) : null;
+    const scope = await scopeLimits(systemdRun, cfg.node, env);
+    const memory = cfg.memoryBytes > 0 ? (scope.pids && scope.memory ? 'MemoryMax' : 'RLIMIT_DATA') : 'no memory cap';
+    if (scope.pids) cfg.log.info?.(`[bake] render box: a systemd user scope per bake (TasksMax, ${memory})`);
+    else cfg.log.warn?.(`[bake] render box: no systemd user scope, so no task cap but the account's; ${memory}`);
+    return { bwrap, prlimit, nice, systemdRun: scope.pids ? systemdRun : null, scope,
+      runtime: await runtimeBinds(cfg.node) };
   }
 
   // Time budgets grow with the bake: 30 s plus 1.5 s per second of frames (a 25 ms frame is real time).
@@ -123,11 +132,15 @@ export function createRenderBox(o: Options = {}) {
   type Ran = { code: number | null, signal: string | null, timedOut: boolean, stderr: string, error?: Error };
   function run(t: Awaited<ReturnType<typeof findTools>>, work: string | null, command: string[], input: string,
     timeoutMs: number, cpuSeconds = budget(cfg.seconds).cpuSeconds): Promise<Ran> {
-    const limits = [`--cpu=${cpuSeconds}`, `--nproc=${cfg.tasks}`, `--fsize=${cfg.maxFramesBytes + 1024 * 1024}`,
-      '--core=0'];
-    if (cfg.memoryBytes > 0) limits.push(`--data=${cfg.memoryBytes}`);
-    const args = [
-      ...limits, '--', t.bwrap,
+    // The bake's own cgroup counts its tasks and memory alone (src/box-limits.ts).
+    const scope = t.systemdRun ? [t.systemdRun, '--user', '--scope', '--quiet', '--collect', '-p',
+      `TasksMax=${cfg.tasks}`] : [];
+    const limits = [`--cpu=${cpuSeconds}`, `--fsize=${cfg.maxFramesBytes + 1024 * 1024}`, '--core=0'];
+    if (cfg.memoryBytes > 0 && t.systemdRun && t.scope.memory) {
+      scope.push('-p', `MemoryMax=${cfg.memoryBytes}`, '-p', 'MemorySwapMax=0');
+    } else if (cfg.memoryBytes > 0) limits.push(`--data=${cfg.memoryBytes}`);
+    const argv = [
+      ...scope, ...(scope.length ? ['--'] : []), t.prlimit, ...limits, '--', t.bwrap,
       '--unshare-all', '--die-with-parent', '--new-session', '--cap-drop', 'ALL', '--clearenv',
       '--setenv', 'LD_LIBRARY_PATH', t.runtime.libraryPath, '--setenv', 'TMPDIR', '/tmp',
       '--proc', '/proc', '--dev', '/dev', '--size', String(16 * 1024 * 1024), '--tmpfs', '/tmp',
@@ -143,8 +156,8 @@ export function createRenderBox(o: Options = {}) {
     ];
     return new Promise((resolve) => {
       // Under nice, so a bake never starves the server or the machine it shares.
-      const [cmd, pre] = t.nice ? [t.nice, ['-n', String(cfg.nice), t.prlimit]] : [t.prlimit, []];
-      const child = spawn(cmd, [...pre, ...args], { stdio: ['pipe', 'ignore', 'pipe'], env: {} });
+      const [cmd, ...args] = t.nice ? [t.nice, '-n', String(cfg.nice), ...argv] : argv;
+      const child = spawn(cmd!, args, { stdio: ['pipe', 'ignore', 'pipe'], env: t.systemdRun ? busEnv(env) : {} });
       children.add(child);
       let stderr = '', timedOut = false;
       // bwrap --die-with-parent takes the whole box down with it

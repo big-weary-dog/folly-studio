@@ -44,8 +44,8 @@
       }
     },
     {
-      // The render box, the Fleet foundry, and the generators' one-shot CLI calls (an argument list, no shell).
-      "files": ["src/render-box.ts", "src/generate/fleet.ts", "src/generate/proc.ts"],
+      // The render box and its limits, the Fleet foundry, and the generators' one-shot CLI calls (no shell).
+      "files": ["src/render-box.ts", "src/box-limits.ts", "src/generate/fleet.ts", "src/generate/proc.ts"],
       "rules": {
         "no-restricted-imports": ["error", {
           "paths": [

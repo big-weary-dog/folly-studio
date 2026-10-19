@@ -10,7 +10,7 @@ were not run when this was written. Check them against the tool's own docs.
 | Phone or laptop | The app, the 3D preview, every pattern's code (sandboxed iframe), playback of baked frames | Its own CPU and battery |
 | Your computer (`npm start`) | Accounts, the JSON store, the API, static files, generators, bakes, frame encoding | About 100 MB of RAM idle; a login takes 128 MiB for half a second (scrypt, at most four at once) |
 | Codex CLI (Sol, Luna) | One `codex exec` per idea, two at once by default, read-only and with no tools | A short-lived process per idea; the model runs at OpenAI |
-| Render box (bubblewrap) | One bake at a time, `nice 10`, ≤ 1 GB of data (`STUDIO_BAKE_MEMORY`), a wall clock | A 30 s look takes 2–3 s on one core |
+| Render box (bubblewrap) | One bake at a time, `nice 10`, in its own systemd user scope: ≤ 256 tasks (`STUDIO_BAKE_TASKS`), ≤ 1 GB (`STUDIO_BAKE_MEMORY`); a wall clock | A 30 s look takes 2–3 s on one core |
 | Encoder thread | Brotli for streaming, `nice 10`, one job at a time; a look's encode waits for any bake | 2.5–5.5 s per 30 s look at quality 9 |
 | Fleet foundry (opt-in) | Deep ideas in a boxed agent, one at a time | Minutes, and **no memory cap** without a systemd user session (below) |
 
@@ -235,6 +235,9 @@ time. While the foundry is busy, the next idea goes to `STUDIO_GENERATOR_FALLBAC
 session (WSL without systemd, containers), Fleet's boxes get CPU and task limits but **no memory cap**, and the
 studio says so in its log at start: a runaway worker can use all of your RAM. Prefer another machine for the
 foundry there, or watch it.
+
+Bakes get the same treatment: without a user bus, a bake's tasks are capped only by your account's own limit
+(its pid namespace and wall clock still end it) and memory by `RLIMIT_DATA`, and the log says so at start.
 
 ## Backups
 

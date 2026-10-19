@@ -12,6 +12,7 @@ import { afterAll, beforeAll, beforeEach, describe, test } from 'vitest';
 
 import { createServer } from '../src/app.ts';
 import { BakeError, checkFrames } from '../src/box-output.ts';
+import { scopeLimits } from '../src/box-limits.ts';
 import { createRenderBox } from '../src/render-box.ts';
 import { parseFseq } from '../src/frames.ts';
 
@@ -69,7 +70,9 @@ describe('render box (bubblewrap)', () => {
   });
   afterAll(() => server.close());
 
-  test('a normal look bakes and analyses', async () => {
+  test('a normal look bakes and analyses, in a systemd user scope or without one', async () => {
+    const plain = createRenderBox({ seconds: 1, systemdRun: '', log: quiet });
+    assert.equal((await plain.render({ layers: [layer(BREATHE)] })).seconds, 1);
     const box = createRenderBox({ seconds: 4, log: quiet });
     const { bytes, boxStats } = await box.render({ layers: [layer(BREATHE)] });
     const { bake, frames } = checkFrames(bytes, { source: 'render-box',
@@ -106,6 +109,34 @@ describe('render box (bubblewrap)', () => {
     const hang = layer('function pixel(p, t) { while (t > 0.5) {} return [1, 0, 0]; }');
     await assert.rejects(guarded.render({ layers: [hang] }),
       (e) => /took over 2000 ms on the frame at t = 0\.5\d s/.test(e.reason));
+  });
+
+  test('a fork bomb in the box is stopped at its tasks', async ({ skip }) => {
+    skip(!(await scopeLimits('systemd-run', process.execPath, process.env)).pids,
+      'no systemd user scope here: bakes have no task cap but the account\'s own');
+    // Stand in for an escaped pattern that forks: start sleeping children until the box refuses one.
+    const bomb = path.join(tmpRoot, 'bomb.mjs');
+    fs.writeFileSync(bomb, `
+      import { spawn } from 'node:child_process';
+      import fs from 'node:fs';
+      const start = () => new Promise((resolve) => {
+        try {
+          const c = spawn('/box/node', ['-e', 'process.stdout.write("up"); setInterval(() => {}, 1e6)']);
+          c.stdout.once('data', () => resolve('up'));
+          c.on('error', (e) => resolve(e.code));
+          c.on('exit', (code, signal) => resolve('exit ' + (signal || code)));
+        } catch (e) { resolve(e.code); }
+      });
+      let up = 0, why;
+      while (up < 200 && (why = await start()) === 'up') up++;
+      fs.writeFileSync('/out/result.json', JSON.stringify({ ok: false, error: 'up ' + up + ': ' + why }));
+      process.exit(1);
+    `);
+    const box = createRenderBox({ script: bomb, seconds: 1, tasks: 64, log: quiet });
+    const err = await box.render({ layers: [layer(BREATHE)] }).then(() => null, (e) => e);
+    assert.ok(err instanceof BakeError, String(err));
+    const [, up] = /up (\d+): EAGAIN/.exec(err.reason) || [];
+    assert.ok(Number(up) < 64, `a node is about ten tasks: a few start, then the box refuses one (${err.reason})`);
   });
 
   test('pattern code reaches no fetch, require, process or Node realm', async () => {

@@ -710,8 +710,8 @@ bytes a box hands back. Anything a box says about itself is kept as `boxStats: {
   under bubblewrap (`--unshare-all`, no network, `--clearenv`, read-only node + its libraries +
   the core as one script (`src/core-script.ts`, from its source) / renderer.ts / fseq.ts / rig.json /
   `public/patterns` (for `use`), tmpfs /tmp, one
-  empty writable /out; the look on stdin as `{ layers, globals?, automation?, bpm? }`), with prlimit
-  (CPU s, tasks, file size, RLIMIT_DATA; no RLIMIT_AS) and a wall-clock kill. Inside, layers run in
+  empty writable /out; the look on stdin as `{ layers, globals?, automation?, bpm? }`), a cgroup
+  (tasks, memory), prlimit (CPU s, file size; no RLIMIT_AS) and a wall-clock kill. Inside, layers run in
   a `node:vm` realm holding only the stdlib (defence in depth). No bubblewrap → 503, no fallback.
   One bake at a time, under `nice` (`STUDIO_BAKE_NICE`, default 10), in a lane it shares with wire encodes
   (`src/bake.ts` `createLane`), so the two never run at once. `fleet-box` (advisory): the Fleet worker's own `frames.fseq` + `stats.json` (its `use`
