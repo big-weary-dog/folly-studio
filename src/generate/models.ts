@@ -107,11 +107,14 @@ export function createRegistry({ file, env = process.env, log = console, legacy 
 
   const allowed = (m: ModelEntry, role: Role) => !m.roles || m.roles.includes(role);
   const usable = (m: ModelEntry, role: Role) => m.enabled && allowed(m, role) && status(m).available;
-  /** What `role` may pick, and the one the form starts on (the default, else the first). */
-  function choices(role: Role): ModelChoices {
+  /** What `role` may pick, and the one the form starts on: the default, else the first; for someone who may not use
+   * the paid models (`paid: false`, a locked account), the first free one. */
+  function choices(role: Role, { paid = true } = {}): ModelChoices {
     const c = current(), models = c.models.filter((m) => usable(m, role)).map((m) => ({ id: m.id,
       label: m.label, paid: isPaid(m) }));
-    return { models, default: models.find((m) => m.id === c.default)?.id ?? models[0]?.id ?? null };
+    const open = paid ? models : models.filter((m) => !m.paid);
+    return { models, default: open.find((m) => m.id === c.default)?.id ?? open[0]?.id ?? models.find((m) =>
+      m.id === c.default)?.id ?? models[0]?.id ?? null };
   }
   function admin(): AdminModels {
     const c = current();
@@ -128,8 +131,8 @@ export function createRegistry({ file, env = process.env, log = console, legacy 
     limit: (via: string) => current().concurrency?.[via as Transport],
     status, choices, admin,
     /** The model an idea asked for (none: the default this user gets), or why it may not have it. */
-    pick(id: string | undefined, role: Role): { entry: ModelEntry } | { error: string } {
-      const want = id ?? choices(role).default;
+    pick(id: string | undefined, role: Role, o: { paid?: boolean } = {}): { entry: ModelEntry } | { error: string } {
+      const want = id ?? choices(role, o).default;
       const m = want ? current().models.find((x) => x.id === want) : undefined;
       if (!m) return { error: want ? `There is no model called "${want}".` : 'No model is available right now.' };
       if (!m.enabled) return { error: `${m.label} is turned off.` };

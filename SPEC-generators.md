@@ -6,9 +6,10 @@ and who may use the paid ones, how much.
 ## Generators (idea → look)
 
 `src/generate/index.ts` runs a small in-process queue. An adapter is
-`async generate({ text, user, library, rig, groups, prompt?, signal? }) → { title, summary, duration?, globals?,
-automation?, layers }` (`groups`: the rig's; `prompt()`: the system prompt and output schema, built once per library
-and rig; `signal`: aborted when the server stops). Each idea names a model of the registry (below); its job runs in
+`async generate({ text, user, library, rig, groups, prompt?, repair?, signal? }) → { title, summary, duration?,
+globals?, automation?, layers, extensions? }` (`groups`: the rig's; `prompt()`: the system prompt, the output schema
+and the library's catalog, built once per library and rig; `repair`: the last answer and its errors, below;
+`signal`: aborted when the server stops). `claude` and `codex` return a composition (below); the others a look. Each idea names a model of the registry (below); its job runs in
 that model's transport lane, each lane with its own concurrency, and `STUDIO_GENERATOR_FALLBACK` (a model or
 transport, usually `sketch`) takes over when it fails. An idea that names no model (from before the registry) goes
 to `STUDIO_GENERATOR`'s transport. Generators find places by the rig's
@@ -23,16 +24,40 @@ what it bends), and the idea set `ready`. Old single-code layers
 stay valid. Generators may add
 clips and a duration for ideas that describe a progression; most looks have neither.
 
+**Composition** (`claude`, `codex`). The model names the library and the server writes the code. A layer is
+`{ title, groups, tags, blend, level, clips?, preset, overrides: [{ module, name, value }] }` (a preset by name;
+an override's `module` is a ref in its recipe, `ref#2` for the second) or `{ …, modules: [{ use, id?, params: [{ name,
+value }], blend?, input?, as? }] }` (a chain under the one rule; `use` is a library module's name or `ext:<name>`).
+`extensions: [{ name, kind, summary, why, code }]` is the last resort: code the model writes when nothing in the
+library draws the idea, `why` naming what it tried. A value is a number, on/off, a word (a choice, a pick) or a
+binding (`{ mod: lfo | global | envelope, … }`, on number params only). `src/generate/expand.ts` turns it into a look:
+each `use` becomes the module's code with its params, held to the declarations read statically from its `const
+params` (`catalog.ts`; never evaluated): a number out of range is clamped, an unknown or ill-typed param dropped,
+each with a note in `dropped`. A preset becomes its layers as the Studio adds one (its params, blends and inputs,
+the overrides on top, its palette and macros where the look has none). An unknown module, preset, extension or
+input, and an empty layer, are errors with a path (`layers[1].modules[0].use: barz is not a library module (did you
+mean bars?)`); they get one repair round inside the idea (the same model, its answer and the errors; it is not
+another use), after which what expanded is kept and the rest noted. `validateLook` then cleans the result as
+any look; a layer given as code (the old shape) passes through to it. The prompt shows the library as a catalogue
+sorted by name (a module and its params on one line, a preset as its recipe), the palettes, the groups, show taste,
+and worked compositions (each only where the library and the rig's tags have what it names). The queue logs one
+line per idea: its route, timings, repair rounds, how many library modules, extensions and code it used, and the
+first notes.
+
 - `sketch`: offline, keyword → the preset or source a theme names (`sketch-words.json`) + params, place words →
   tags. Colour words choose the palette nearest them in hue and become the nearest swatch's slot (`accent2`; none
-  close: the colour itself): the pick of a source's (a preset's top source's) `colours`. Always available.
-- `claude`: one Messages API call with the pattern guide + library examples as the system prompt (cached: the same
-  bytes on every call), and structured output whose JSON Schema is the generated look's own (`wireSchema(groups)`:
-  group ids and tags as enums).
+  close: the colour itself): the pick of a source's (a preset's top source's) `colours`. A plain wash or a colour
+  word (`wash`, `rainbow`) gives way to another theme in its clause; a look placed only on zones gets a dim
+  colour-wash bed on the root; a place or side the rig has no group for lands on the root. Always available.
+- `claude`: one Messages API call with the prompt as the system prompt (cached: the same bytes on every call), and
+  structured output whose JSON Schema is the composition's (`compositionSchema(groups, catalog)`: the place fields
+  `wireSchema(groups)` gives, group ids, tags and preset names as enums). A repair is the same call with the
+  answer as an assistant turn and the errors in a user turn.
 - `codex`: one `codex exec` call (the Codex CLI, signed in with `codex login`): `--ephemeral --skip-git-repo-check
   --ignore-user-config --ignore-rules -s read-only -C <an empty folder> -m <model> -o <answer file> --output-schema
-  <the look's schema, strict> -c model_reasoning_effort="<effort>" -c web_search="disabled" -c features.<tool>=false
-  … -`, the prompt on stdin (the guide first, the idea last). Started from an argument list, never a shell (on Windows
+  <the composition's schema, strict> -c model_reasoning_effort="<effort>" -c web_search="disabled" -c features.<tool>=false
+  … -`, the prompt on stdin (the guide first, the idea last; a repair adds
+  the last answer and its errors after the idea, as a fresh run). Started from an argument list, never a shell (on Windows
   an npm `codex.cmd` shim is read for the script it runs); its environment is only what the CLI needs; its whole
   process tree is killed on a wall clock (`timeoutSeconds`, else `STUDIO_CODEX_TIMEOUT_MS`, 300 s), past 4 MB of
   output, or when the server stops. The answer, at most 512 KB, is read as untrusted data like `claude`'s.
@@ -64,7 +89,9 @@ foundry always 1). The defaults: Opus (`claude-opus-5-5`, medium, the default), 
 (`gpt-6-luna`, low) through `codex`, and Sketch. A model can run when its transport can: `claude` with
 `ANTHROPIC_API_KEY`, `codex` with the CLI on PATH (`STUDIO_CODEX_BIN`; `warn` when no login is seen), `fleet` with
 `STUDIO_FOUNDRY=on`, `sketch` always. The idea form offers the models that are on, offered to the user's role and
-able to run, the default first when it is one of them; when the file is first written, `STUDIO_GENERATOR` (`claude`,
+able to run, starting on the default when it is one of them (else the first); an account that may not use the paid
+models (Access) starts on the first free one, and an idea sent without a model gets that same default. When the
+file is first written, `STUDIO_GENERATOR` (`claude`,
 `sketch`, `fleet`) names its default.
 
 ## Access (invite codes and limits)

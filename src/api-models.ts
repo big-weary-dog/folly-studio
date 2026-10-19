@@ -2,18 +2,21 @@
 // whether each model can run here, and saving it. Mutations pass the API's CSRF check like every other.
 import type { FastifyRequest } from 'fastify';
 
+import type { AccessControl } from './access.ts';
 import type { Auth } from './auth.ts';
 import type { Registry } from './generate/models.ts';
 import { HttpError } from './http.ts';
 
 type Stored = NonNullable<ReturnType<Auth['authenticate']>>['user'];
 
-export function modelRoutes({ auth, models }: { auth: Auth, models: Registry }) {
+export function modelRoutes({ auth, models, access }: { auth: Auth, models: Registry, access: AccessControl }) {
   const admin = (req: FastifyRequest) => {
     if (!auth.isAdmin(req.user as Stored)) throw new HttpError(403, 'Only admins can see and change the models.');
   };
   return {
-    'GET /models': async (req: FastifyRequest) => models.choices(auth.roleOf(req.user)),
+    // A locked account starts on the free model.
+    'GET /models': async (req: FastifyRequest) => models.choices(auth.roleOf(req.user),
+      { paid: access.state(req.user as Stored).unlocked }),
     'GET /admin/models': async (req: FastifyRequest) => {
       admin(req);
       return models.admin();

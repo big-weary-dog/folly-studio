@@ -32,7 +32,8 @@ const ZONES = [
   zone('spires', 'spires?|towers?|steeples?|pinnacles?', ['spire', 'tower'], /spire(?!let)|tower/),
   zone('arches', 'arch(es)?|archways?|vaults?', ['arch'], /arch/),
   zone('canopy', 'canopy|ceiling|roof|overhead', ['canopy'], /canopy/),
-  zone('wash', 'wash|floods?|floodlights?|ground|floor', ['wash', 'flood'], /wash|flood/),
+  // A bare "wash" is a colour wash (a theme); the wash lights are floods, the ground or the wash lights.
+  zone('wash', 'wash\\s+lights?|floods?|floodlights?|ground|floor', ['wash', 'flood'], /wash|flood/),
   zone('all', 'everything|everywhere|whole\\s+(cathedral|thing|building|folly|installation|structure)'
     + '|entire\\s+(cathedral|building|folly|installation|structure)|cathedral', ['all'], null),
 ];
@@ -178,14 +179,14 @@ function findZone(zone: Zone, gi: Groups) {
 /** Groups on one side (front/back/left/right), optionally within some zone groups. */
 const OPPOSITE: Record<string, string> = { front: 'back', back: 'front', left: 'right', right: 'left' };
 function findSide(side: string, gi: Groups, within?: string[]) {
-  // Groups tagged with the side; on a rig without side tags, an id naming it (not one naming both sides, as a
-  // quad arch's faces do: "quad-back-bottom-left-front").
+  // Groups tagged with the side; on a rig with no side tags at all, an id naming it (not one naming both sides, as a
+  // quad arch's faces do: "quad-back-bottom-left-front"). A rig that tags sides but not this one has no such side.
   const has = (g: RigGroup) => {
     const t = g.id.split(/[^a-z0-9]+/);
     return t.includes(side) && !t.includes(OPPOSITE[side]);
   };
   let hits = gi.tagged(side);
-  if (!hits.length) hits = gi.list.filter(has);
+  if (!hits.length && !Object.keys(OPPOSITE).some((s) => gi.tagged(s).length)) hits = gi.list.filter(has);
   if (within) hits = hits.filter((g) => within.some((w) => g.id === w || gi.isUnder(g, w)));
   // Keep the outermost: drop any whose ancestor is also a hit.
   const ids = new Set(hits.map((g) => g.id));
@@ -266,14 +267,17 @@ export function sketchLook({ text = '', library = [], groups = [] }: { text?: st
   const parts = clauses(lower);
   const clauseOf = (at: number) => parts.findIndex((c) => at >= c.start && at < c.end);
   // Theme hits, in order of appearance; a pattern named or tagged in the idea is a hit too.
-  const hits: { at: number, key: string, terms?: string[], use?: string[], direct?: number }[] = [];
+  const hits: { at: number, key: string, terms?: string[], use?: string[], direct?: number, weak?: boolean }[] = [];
   const ownTokens = lib.map(tokensOf);
   for (const { w, at } of ws) {
-    for (const t of THEMES) if (t.words.has(w)) hits.push({ at, terms: t.terms, use: t.use, key: t.key });
+    const weak = THEMES.some((t) => t.weak && t.words.has(w));
+    for (const t of THEMES) if (t.words.has(w)) hits.push({ at, terms: t.terms, use: t.use, key: t.key, weak });
     if (w.length < 4 || reserved(w)) continue;
-    lib.forEach((p, i) => ownTokens[i].has(w) && hits.push({ at, direct: i, key: p.name }));
+    lib.forEach((p, i) => ownTokens[i].has(w) && hits.push({ at, direct: i, key: p.name, weak }));
   }
 
+  // A weak theme (a plain wash) gives way to any other in its clause.
+  hits.sort((a, b) => Number(!!a.weak) - Number(!!b.weak));
   // Choose up to three distinct patterns, one per clause, each remembering its clause.
   type Chosen = { index: number, pattern: Pattern, clause: number, groups: string[], tags: string[] };
   const chosen: Chosen[] = [];
@@ -370,6 +374,12 @@ export function sketchLook({ text = '', library = [], groups = [] }: { text?: st
       ...(m.input ? { input: m.input } : {}) })) };
   });
 
+  // An idea placed only on zones gets a calm bed under it, so the rest of the installation is not dark.
+  const bed = modules.get('colour-wash');
+  if (bed && !chosen.some(whole) && layers.length < LIMITS.layers) {
+    layers.unshift({ title: 'Bed', groups: [gi.root], tags: ['all'], blend: 'add', level: 0.35,
+      params: { colours: 'low', speed: 0.05 }, code: bed.code });
+  }
   const named = allColours.map(colourName).filter(Boolean);
   const what = chosen.map((c) => `${c.pattern.title || c.pattern.name} on ${placeOf(c)}`).join('; ');
   const summary = `Sketched from the pattern library: ${what}${named.length ? `, in ${named.join(', ')}` : ''}. `

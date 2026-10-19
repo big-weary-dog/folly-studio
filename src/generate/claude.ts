@@ -3,10 +3,10 @@
 // look's, shared/schemas/generated.ts). The big static system prompt is cached, built once per library and rig (the
 // queue's ctx.prompt) and byte for byte the same on every call; the idea goes only in the user turn.
 
-import { GenerateError, wireSchema } from '../../shared/schemas/generated.ts';
+import { GenerateError } from '../../shared/schemas/generated.ts';
 import type { Logger } from '../http.ts';
 import type { Context } from './index.ts';
-import { buildSystemPrompt, buildUserMessage } from './prompt.ts';
+import { buildPrompt, buildRepairMessage, buildUserMessage } from './prompt.ts';
 
 export const DEFAULT_MODEL = 'claude-opus-5-5';
 const API_VERSION = '2023-06-01';
@@ -46,11 +46,11 @@ export function createClaudeAdapter(o: Options = {}) {
   };
   if (!EFFORTS.has(cfg.effort)) cfg.effort = 'medium';
 
-  async function generate({ text, library = [], rig, groups = rig?.groups || [], prompt, signal }: Context) {
+  async function generate({ text, library = [], rig, groups = rig?.groups || [], prompt, repair, signal }: Context) {
     if (!cfg.apiKey) {
       throw new GenerateError('The AI generator is not configured on this server.', 'no ANTHROPIC_API_KEY');
     }
-    const { body, headers } = buildRequest({ text, library, rig, groups, prompt });
+    const { body, headers } = buildRequest({ text, library, rig, groups, prompt, repair });
     let message;
     for (let attempt = 1; ; attempt++) {
       try {
@@ -68,15 +68,16 @@ export function createClaudeAdapter(o: Options = {}) {
     return readLook(message);
   }
 
-  function buildRequest({ text, library, rig, groups, prompt }: Pick<Context, 'text' | 'library' | 'rig' | 'groups'>
-    & Partial<Pick<Context, 'prompt'>>) {
-    const { system, schema } = prompt?.() ?? { system: buildSystemPrompt({ library, rig, groups }),
-      schema: wireSchema(groups) };
+  function buildRequest({ text, library, rig, groups, prompt, repair }: Pick<Context, 'text' | 'library' | 'rig'
+    | 'groups'> & Partial<Pick<Context, 'prompt' | 'repair'>>) {
+    const { system, schema } = prompt?.() ?? buildPrompt({ library, rig, groups });
+    const turns = repair ? [{ role: 'assistant', content: JSON.stringify(repair.answer) },
+      { role: 'user', content: buildRepairMessage(repair.errors) }] : [];
     const body: Record<string, unknown> = {
       model: cfg.model, max_tokens: cfg.maxTokens, stream: true, thinking: { type: 'adaptive' },
       output_config: { effort: cfg.effort, format: { type: 'json_schema', schema } },
       system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-      messages: [{ role: 'user', content: buildUserMessage(text) }],
+      messages: [{ role: 'user', content: buildUserMessage(text) }, ...turns],
     };
     const headers: Record<string, string> = { 'content-type': 'application/json', 'x-api-key': cfg.apiKey!,
       'anthropic-version': API_VERSION };
@@ -217,8 +218,8 @@ function readLook(message: Message) {
 /** A look's fields from a parsed answer; null when it is not an object. The codex adapter reads its answer so too. */
 export function pickLook(look: unknown) {
   if (!look || typeof look !== 'object' || Array.isArray(look)) return null;
-  const { title, summary, duration, globals, automation, layers } = look as Record<string, unknown>;
-  return { title, summary, duration, globals, automation, layers };
+  const { title, summary, duration, globals, automation, layers, extensions } = look as Record<string, unknown>;
+  return { title, summary, duration, globals, automation, layers, extensions };
 }
 
 /** JSON from text, or from its outermost {…} when something surrounds it; null when neither parses. */

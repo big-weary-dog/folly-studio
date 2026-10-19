@@ -150,7 +150,7 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `src/frames-wire.ts`, `frames-cache.ts`, `frames-http.ts`, `fseq-codec.ts` | Baked frames on the wire: the stream encoder; the chunks and downloads kept by hash under a disk cap, made one job at a time by the encoder thread; their routes; FSEQ zstd/zlib blocks |
 | `src/frames-worker.ts` | The encoder thread, at nice 10 |
 | `src/access.ts` | Who may use the paid models, and how much (SPEC "Access"): invite codes kept hashed, each account's ideas counted against the limits, the daily ceiling |
-| `src/generate/` | Idea → look: the queue (a lane per transport), the model registry (`models.ts`), adapters (`sketch`, `claude`, `codex` with `proc.ts` for its one CLI call, `fleet`), the prompt (cleaning: `shared/schemas/generated.ts`) |
+| `src/generate/` | Idea → look: the queue (a lane per transport), the model registry (`models.ts`), adapters (`sketch`, `claude`, `codex` with `proc.ts` for its one CLI call, `fleet`), the prompt (`prompt.ts`, its text in `guide.ts`), the library as vocabulary (`catalog.ts`, the answer's schema `composition.ts`, its expansion into a look `expand.ts`; cleaning: `shared/schemas/generated.ts`) |
 | `render-box/render.ts`, `renderer.ts` | Bakes a look to `.fseq` inside bubblewrap; the frame loop it shares with `fleet-box/check.ts` |
 | `fleet-box/` | Checker and brief for a boxed Fleet worker |
 | `public/index.html`, `css/` | The app shell and its styles: `base.css` (tokens, layout and components) on every page; `pages`, `studio`, `viewer`, `timeline`, `compose` imported by their views' modules, so Vite loads them with them |

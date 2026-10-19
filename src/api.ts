@@ -129,7 +129,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         .sort(newestBy('createdAt')) }),
       'POST /ideas': async (req, reply) => {
         const { text, model } = parse(IdeaBody, req.body);
-        const picked = models.pick(model, auth.roleOf(req.user));
+        const picked = models.pick(model, auth.roleOf(req.user), { paid: access.state(req.user!).unlocked });
         if ('error' in picked) throw new HttpError(400, picked.error);
         const refused = access.check(req.user!, picked.entry); // no await from here to the create: one step
         if (refused) return sendRefusal(reply, refused);
@@ -148,7 +148,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         await changed(req, reply, idea);
         return { idea: own(req) };
       },
-      ...modelRoutes({ auth, models }),
+      ...modelRoutes({ auth, models, access }),
       ...accessRoutes(api, { auth, access, store }),
       ...looks.routes,
       ...framesRoutes({ framesDir, cache: frames, visibleLook: looks.visibleLook }),

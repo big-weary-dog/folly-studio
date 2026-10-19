@@ -12,15 +12,17 @@ import path from 'node:path';
 
 import { CHAIN } from '../../shared/chain-order.ts';
 import type { Bake, Idea } from '../../shared/schemas/api.ts';
-import { GenerateError, validateLook, wireSchema } from '../../shared/schemas/generated.ts';
+import { GenerateError, validateLook } from '../../shared/schemas/generated.ts';
 import type { ModelEntry } from '../../shared/schemas/models.ts';
 import type { LibraryEntry, Rig, RigGroup } from '../../shared/schemas/rig.ts';
 import { layersHash, renderFields, saveFrames } from '../bake.ts';
+import type { Catalog } from './catalog.ts';
 import { createClaudeAdapter } from './claude.ts';
 import { createCodexAdapter } from './codex.ts';
+import { expand, type ExpandError, type Uses } from './expand.ts';
 import { createFleetAdapter, hasMemoryCap } from './fleet.ts';
 import type { Registry } from './models.ts';
-import { buildSystemPrompt } from './prompt.ts';
+import { buildPrompt } from './prompt.ts';
 import { sketchLook } from './sketch.ts';
 import type { Logger } from '../http.ts';
 import type { Store } from '../store.ts';
@@ -28,18 +30,31 @@ import type { Store } from '../store.ts';
 export { GenerateError, validateLook };
 
 const FALLBACK_ERROR = 'Something went wrong while turning this idea into a look.';
-/** The guide and the output schema: built once per library and rig, the same bytes on every call (so it caches). */
-export type Prompt = { system: string, schema: Record<string, unknown> };
+/** The guide, the output schema and the catalog: built once per library and rig, the same bytes on every call (so it
+ * caches). */
+export type Prompt = { system: string, schema: Record<string, unknown>, catalog: Catalog };
+/** A repair turn: the model's previous answer and what expanding it found wrong. */
+export type Repair = { answer: unknown, errors: ExpandError[] };
 /** What an adapter is given (SPEC "Generators"), and what makes a look of it: raw output, cleaned by validateLook. */
 export type Context = { text: string, user: { id: string, username?: string, role?: string },
   library: LibraryEntry[], rig: Rig | null, groups: RigGroup[], idea?: { id: string }, prompt?: () => Prompt,
-  signal?: AbortSignal };
+  repair?: Repair, signal?: AbortSignal };
 export type Adapter = { name?: string, generate(ctx: Context): unknown };
 type Route = { id: string, label: string, via: string, entry?: ModelEntry };
 type Job = { id: string, route: Route, queuedAt: number };
 const LABELS: Record<string, string> = { sketch: 'Sketch', claude: 'Claude', codex: 'Codex', fleet: 'Fleet' };
 const PROMPTED = new Set(['claude', 'codex']);
 const LANE_DEFAULTS: Record<string, number> = { claude: 4, codex: 2, sketch: 4 };
+const REPAIR_ROUNDS = 1; // inside the one idea: a repair is not another use
+const NO_USES: Uses = { library: 0, extensions: 0, code: 0 };
+
+/** What a look was made of, for the log: `3 library, 1 extension`. */
+const describeUses = (u: Uses) => (u === NO_USES ? 'not composed'
+  : [`${u.library} library`, u.extensions && `${u.extensions} extension`, u.code && `${u.code} code`]
+    .filter(Boolean).join(', '));
+/** The first few notes of what was dropped or mended, cut short: the log stays one line. */
+const dropped = (notes: string[]) => (notes.length ? `; ${notes.length} noted: ${notes.slice(0, 3).join('; ')}`
+  .slice(0, 240) : '');
 
 /** A transport's adapter for one model: its model string, effort and limits from the registry. */
 function makeAdapter(via: string, m: ModelEntry | undefined, log: Logger, codexBin?: string): Adapter {
@@ -158,26 +173,47 @@ export function createQueue({
     prepared = { version, library, rig, groups: Array.isArray(rig?.groups) ? rig.groups : [] };
     return prepared;
   }
-  const promptOf = (p: NonNullable<typeof prepared>) => (p.prompt ??= {
-    system: buildSystemPrompt(p), schema: wireSchema(p.groups) });
+  const promptOf = (p: NonNullable<typeof prepared>) => (p.prompt ??= buildPrompt(p));
+
+  /** A prompted model's composition, expanded from the library; a repair turn when it named what is not there. */
+  async function composed(adapter: Adapter, ctx: Context, catalog: Catalog) {
+    let raw = await adapter.generate(ctx), x = expand(raw, catalog), rounds = 0;
+    while (x.errors.length && rounds < REPAIR_ROUNDS) {
+      if (stopping) break;
+      rounds++;
+      try {
+        raw = await adapter.generate({ ...ctx, repair: { answer: raw, errors: x.errors } });
+      } catch (err) { // the answer before, less what it got wrong, still makes a look
+        log.warn?.(`[generate] idea ${ctx.idea?.id}: repair failed (${String((err as Error)?.message).slice(0, 160)})`);
+        break;
+      }
+      x = expand(raw, catalog);
+    }
+    const left = x.errors.map((e) => `${e.path}: ${e.message}`);
+    return { raw, look: x.look, notes: [...x.notes, ...left], uses: x.uses, rounds };
+  }
 
   /** The look from the route's adapter, validated; the fallback tries when that one fails. */
-  async function lookFrom(ctx: Context, id: string, r: Route) {
+  async function lookFrom(ctx: Context, r: Route) {
     const t0 = Date.now();
     const attempt = async (by: Route) => {
-      const raw = await adapterFor(by).generate(ctx);
-      const t1 = Date.now();
-      return { raw, look: validateLook(raw, ctx), used: by, request: t1 - t0, parse: Date.now() - t1 };
+      const adapter = adapterFor(by);
+      const out = PROMPTED.has(by.via) && ctx.prompt ? await composed(adapter, ctx, ctx.prompt().catalog)
+        : { raw: await adapter.generate(ctx), notes: [], uses: NO_USES, rounds: 0 };
+      const t1 = Date.now(), look = validateLook('look' in out ? out.look : out.raw, ctx);
+      look.dropped.unshift(...out.notes);
+      return { ...out, look, used: by, request: t1 - t0, parse: Date.now() - t1, failed: '' };
     };
     try {
       return await attempt(r);
     } catch (err) {
       if (!fallback || fallback.id === r.id || stopping) throw err;
-      log.warn?.(`[generate] ${r.id} failed for idea ${id} (${(err as Error)?.message}); trying ${fallback.id}`);
+      log.warn?.(`[generate] ${r.id} failed for idea ${ctx.idea?.id} (${(err as Error)?.message}); `
+        + `trying ${fallback.id}`);
       const out = await attempt(fallback);
       const why = err instanceof GenerateError ? err.userMessage : 'The AI generator was unavailable.';
       out.look.summary = `${why} ${out.look.summary}`.slice(0, 400);
-      return out;
+      return { ...out, failed: `${r.id} failed` };
     }
   }
 
@@ -201,8 +237,7 @@ export function createQueue({
       const prompt = Date.now() - started;
       const ctx: Context = { text: String(idea.text ?? ''), user, library: base.library, rig: base.rig,
         groups: base.groups, idea: { id }, prompt: () => promptOf(base), signal: ac.signal };
-      const { raw, look, used, request, parse } = await lookFrom(ctx, id, r);
-      if (look.dropped.length) log.warn?.(`[generate] idea ${id}: dropped ${look.dropped.join('; ')}`);
+      const { raw, look, used, request, parse, uses, rounds, failed } = await lookFrom(ctx, r);
       const { bake: made, frames } = (raw ?? {}) as { bake?: Bake, frames?: unknown };
       const bake = made && typeof made === 'object' ? { ...made, layersHash: layersHash(renderFields(look)) } : null;
       const saved = await store.looks.create({
@@ -215,8 +250,9 @@ export function createQueue({
       if (bake?.frames) await keepFrames(saved.id, frames, bake);
       const timing = { wait: started - queuedAt, prompt, request, parse, total: Date.now() - queuedAt };
       await update(id, { status: 'ready', lookId: saved.id, generator: used.id, by: used.label, error: null, timing });
-      log.info?.(`[generate] idea ${id} ready via ${used.id} in ${timing.total} ms (queued ${timing.wait}, prompt `
-        + `${prompt}, request ${request}, parse ${parse}; look ${saved.id})`);
+      log.info?.(`[generate] idea ${id} ready via ${used.id}${failed ? ` after ${failed}` : ''} in ${timing.total} ms `
+        + `(queued ${timing.wait}, request ${request}${rounds ? `, ${rounds} repair` : ''}; ${describeUses(uses)}`
+        + `${dropped(look.dropped)}; look ${saved.id})`);
     } catch (err) {
       if (stopping) return; // left as it is: the next start queues it again
       log.warn?.(`[generate] idea ${id} failed via ${r.id}: ${(err as Error)?.message || err}`);

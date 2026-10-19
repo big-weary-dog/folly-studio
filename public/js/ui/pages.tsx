@@ -113,13 +113,11 @@ export function Ideas() {
   useEffect(() => {
     setTitle('Ideas');
     load();
-    // A locked account starts on the free model.
+    // The server's default for this account (a locked one's is the free model).
     Promise.all([api.models(), api.me()]).then(([c, m]) => {
-      const start = c.models.find((x) => x.id === c.default);
-      const open = m.access?.unlocked !== false || !start?.paid;
       setChoices(c);
       setAccess(m.access ?? null);
-      setModel((open ? c.default : c.models.find((x) => !x.paid)?.id ?? c.default) ?? '');
+      setModel(c.default ?? '');
     }).catch(() => {});
     if (matchMedia('(pointer: fine)').matches && document.activeElement === document.body) {
       input.current?.focus({ preventScroll: true });

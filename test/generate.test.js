@@ -142,8 +142,26 @@ describe('sketch', () => {
 
   test('works with the real library and groups', () => {
     const look = sketch('fire on the spires and a starry night across the arches, red and gold', REAL);
-    assert.deepEqual(look.layers.map((l) => l.groups[0]), ['spires', 'arches']);
-    assert.deepEqual(look.layers[1].modules.map((m) => m.title), ['Colour wash', 'Clouds', 'Sparkle'], 'Starfield');
+    assert.deepEqual(look.layers.map((l) => l.groups[0]), ['cathedral', 'spires', 'arches'], 'a bed under the zones');
+    assert.equal(look.layers[0].code, REAL.find((p) => p.name === 'colour-wash').code);
+    assert.deepEqual(look.layers[2].modules.map((m) => m.title), ['Colour wash', 'Clouds', 'Sparkle'], 'Starfield');
+    // A bare "wash" is a colour wash on the whole rig, not the floods; a chase beats the colour it is in.
+    const wash = sketch('slow purple wash that breathes', REAL);
+    assert.deepEqual(wash.layers.map((l) => [l.title, l.groups[0]]), [['Breathe', 'cathedral']]);
+    assert.deepEqual(sketch('rainbow chase around the arches', REAL).layers.map((l) => l.title), ['Bed',
+      'Chase · Arches']);
+  });
+
+  test('a place or side the rig lacks lights the whole rig, not a group named for it', () => {
+    // As City of Gods: towers tagged left/right only, no canopy, wash, flood or back.
+    const groups = [{ id: 'all', tags: ['all'] }, { id: 'spire-back-left', parent: 'all', tags: ['spire', 'left'] },
+      { id: 'spire-back-right', parent: 'all', tags: ['spire', 'right'] }, { id: 'rose-window', parent: 'all',
+        tags: ['rose'] }];
+    const at = (text) => sketchLook({ text, library: REAL, groups }).layers.map((l) => l.groups.join('+'));
+    assert.deepEqual(at('starfield on the canopy'), ['all']);
+    assert.deepEqual(at('fire on the back spires'), ['all', 'spire-back-left+spire-back-right']);
+    assert.deepEqual(at('fire on the left spires'), ['all', 'spire-back-left']);
+    assert.deepEqual(at('rain on the back'), ['all']);
   });
 
   test('blue bars: a source\'s one colours param takes the colours named as its pick', async () => {
@@ -173,22 +191,24 @@ describe('sketch', () => {
 });
 
 describe('prompt', () => {
-  test('system prompt carries the API, groups, taste and examples, and is stable', () => {
+  test('system prompt carries the library, API, groups, taste and examples, and is stable', () => {
     const sys = buildSystemPrompt({ library: LIBRARY, rig: RIG });
     assert.equal(sys, buildSystemPrompt({ library: LIBRARY, rig: RIG }));
-    for (const s of ['function pixel(p, t, P)', 'lx ly lz', 'cosPalette', 'beat(t, bpm)', 'spire-front-left',
-      'rose-window — Rose window', 'Colour at full strength', 'Darkness is punctuation', 'fills what it lands on',
-      '4,870', '40 fps', 'untrusted', '<idea>']) {
+    for (const s of ['# The library', '# Composing a look', 'function pixel(p', 'cosPalette', 'beat(t, bpm)',
+      'spire-front-left', 'rose-window — Rose window', 'Colour at full strength', 'Darkness is punctuation',
+      'fills what it lands on', '4,870', '40 fps', 'last resort', 'untrusted', '<idea>', '- carnival: low ']) {
       assert.ok(sys.includes(s), `system prompt mentions ${s}`);
     }
-    assert.ok(sys.includes(byName('lighthouse').code.trim()), 'a frame() example is included');
+    assert.ok(!sys.includes(byName('lighthouse').code.trim()), 'modules are named, not shown as code');
     assert.ok(pickExamples(LIBRARY).length <= 4);
   });
 
-  test('the prompt lists every library entry, a preset as its chain, and stays small', () => {
+  test('the prompt lists every library entry with its params, a preset as its chain, and stays small', () => {
     const sys = buildSystemPrompt({ library: REAL, rig: RIG });
     for (const p of REAL) assert.ok(sys.includes(`\n- ${p.name}: `), p.name);
-    assert.ok(sys.includes('- starfield: colour-wash → clouds → sparkle, '), 'a preset as its chain');
+    assert.ok(sys.includes('- starfield: colour-wash → clouds → sparkle — '), 'a preset as its chain');
+    assert.ok(sys.includes('speed=0.4 (-2..2), bars=4 (0.25..16)'), 'a module with its params');
+    assert.match(sys, /# Worked compositions\nIdea: /);
     assert.ok(sys.length < 32_000, `the system prompt is ${sys.length} characters`);
   });
 

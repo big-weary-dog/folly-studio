@@ -1,7 +1,8 @@
 # Generating looks by composition
 
 A design note for whoever builds it, written for an iterating Fleet worker (compose, render, look at the frames,
-refine). Nothing here exists yet unless it names a file.
+refine). Items 1–5 of §7 are built for claude and codex (`catalog.ts`, `composition.ts`, `expand.ts`, `prompt.ts`,
+`guide.ts` in `src/generate/`); the rest is still to do. Where it differs from the plan below, §7 says how.
 
 ## 1. The problem
 
@@ -135,14 +136,15 @@ module, with no `ref`, marked `generated`. Its code never runs on the server out
 
 ## 7. TODO, in order
 
-1. A strict static reader of `const params` (replacing `parseParams`), with a test over every library file.
-2. Move `presetLayers` and `withPresetGlobals` into `shared/`; write `expand.ts` with path-coded errors. Tests:
-   names and presets resolve; bad names, params, picks and bindings are refused with useful errors.
-3. The catalog builder, cached on `loadVersion()`, with the coverage test. Measure its tokens.
-4. The composition schema and its strict wire form; `prompt.ts` rewritten around the catalog and 2–3 worked
-   compositions (a preset, warps and filters under the one rule, LFO and macro bindings). Code-only looks still load.
-5. The repair loop for claude and codex (`STUDIO_REPAIR_ROUNDS`, timing), tested with a fake transport: bad then
-   good; bad, bad, then the fallback.
+1. Done: `readParams` (`catalog.ts`), with a test over every library file; sketch still has its own `parseParams`.
+2. Done, but `expand.ts` has its own preset expansion (as the Studio's `presetLayers`), since `shared/` was claimed;
+   moving both into `shared/` is still to do. A param out of range, of the wrong type or unknown is mended or
+   dropped with a note, not refused; unknown names, presets and inputs are errors for the repair round.
+3. Done: `buildCatalog`, built with the prompt once per `loadVersion()`; about 11,000 characters.
+4. Done; the composition's schema is plain JSON Schema in `composition.ts` (from `wireSchema`'s place fields), not
+   zod in `shared/`. Code-only looks still load.
+5. Done as one fixed round inside the idea (it counts as one use), with no setting; a second miss keeps what
+   expanded and notes the rest, and a look with no layers left falls back.
 6. Sketch emits a composition and goes through the same expansion.
 7. Fleet: `check.ts --compose`, `still.ts`, the workspace copies, `readLook` keeping globals, a new `BRIEF.md`
    around the loop in §5, and one shared `LIMITS`.

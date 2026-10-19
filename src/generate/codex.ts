@@ -10,12 +10,12 @@ import { promises as fs } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { GenerateError, wireSchema } from '../../shared/schemas/generated.ts';
+import { GenerateError } from '../../shared/schemas/generated.ts';
 import type { Logger } from '../http.ts';
 import { parseJson, pickLook } from './claude.ts';
 import type { Context } from './index.ts';
 import { findExecutable, runCommand } from './proc.ts';
-import { buildSystemPrompt, buildUserMessage } from './prompt.ts';
+import { buildPrompt, buildRepairMessage, buildUserMessage } from './prompt.ts';
 
 const MAX_ANSWER_BYTES = 512 * 1024;
 // Tools a look needs none of (codex features list, 0.160.1); an unknown name is ignored with a warning.
@@ -85,8 +85,10 @@ export function createCodexAdapter(o: Options = {}) {
     if (!command) {
       throw new GenerateError('The AI generator is not configured on this server.', `${cfg.bin} not found on PATH`);
     }
-    const { system, schema } = ctx.prompt?.()
-      ?? { system: buildSystemPrompt(ctx), schema: wireSchema(ctx.groups) };
+    const { system, schema } = ctx.prompt?.() ?? buildPrompt(ctx);
+    // A repair is a fresh run (codex keeps no session here): the same prefix, then the last answer and what was wrong.
+    const repair = ctx.repair ? `\nYour answer was:\n${JSON.stringify(ctx.repair.answer)}\n\n`
+      + `${buildRepairMessage(ctx.repair.errors)}\n` : '';
     const empty = path.join(cfg.workDir, 'empty');
     await fs.mkdir(empty, { recursive: true });
     const job = await fs.mkdtemp(path.join(cfg.workDir, 'job-'));
@@ -95,8 +97,8 @@ export function createCodexAdapter(o: Options = {}) {
       const schemaFile = cfg.schema ? path.join(job, 'schema.json') : null;
       if (schemaFile) await fs.writeFile(schemaFile, JSON.stringify(strictSchema(schema)));
       const ran = await runCommand({ ...command, args: [...command.args, ...argsFor(empty, out, schemaFile)],
-        input: `${system}\n\n${buildUserMessage(ctx.text)}\n`, cwd: empty, env: childEnv, timeoutMs: cfg.timeoutMs,
-        maxOutputBytes: cfg.maxOutputBytes, signal: ctx.signal });
+        input: `${system}\n\n${buildUserMessage(ctx.text)}\n${repair}`, cwd: empty, env: childEnv,
+        timeoutMs: cfg.timeoutMs, maxOutputBytes: cfg.maxOutputBytes, signal: ctx.signal });
       const said = ran.tail.trim().split('\n').slice(-3).join(' | ').slice(0, 300);
       if (ran.killed === 'timeout') {
         throw new GenerateError('The AI generator took too long; please try again.', `codex: ${ran.ms} ms, no answer`);

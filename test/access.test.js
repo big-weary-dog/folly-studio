@@ -48,6 +48,14 @@ describe('access', () => {
     assert.equal((await idea(mo, 'sketch')).status, 201);
     assert.equal((await mo.get('/api/me')).json.access.left.hour, 6, 'Sketch spends none of the allowance');
     assert.equal((await idea(admin)).status, 201, 'admins are exempt');
+    // A locked account's default is the free model, on the server and so in the form; unlocked, the usual one.
+    assert.equal((await mo.get('/api/models')).json.default, 'sketch');
+    const plain = await mo.post('/api/ideas', { text: 'a slow wash' });
+    assert.equal(plain.status, 201, plain.json.error);
+    assert.equal(plain.json.idea.model, 'sketch');
+    assert.equal((await admin.get('/api/models')).json.default, 'sol');
+    assert.equal((await unlock(mo)).status, 200);
+    assert.equal((await mo.get('/api/models')).json.default, 'sol');
     assert.equal((await admin.get('/api/me')).json.access.exempt, true);
   });
 
