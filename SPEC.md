@@ -393,8 +393,8 @@ Sequencing lives on the look, xLights-style.
   its text, ▾ the pick tile, ∿ to move its rotate (the modulate dialog), ↺. The tile is TD's pick: a row per role
   (a box for the whole role, a cell per slot), the whole palette, rainbow, custom colours, then whether roles
   alternate (`/`), blend, range and rotate. The layer's Colours row, under Plays on, shows each role as it plays
-  here and remaps it with the same tile (`layer.palette`). On a phone the tile is a sheet with the palette and a
-  custom colour; blend, range and rotate show when set.
+  here and remaps it with the same tile (`layer.palette`). On a phone the tile is a sheet with the palette's roles
+  and a custom colour; the whole palette, rainbow, blend, range and rotate show when set.
 
 ## Sandbox protocol (runtime.ts ⇄ sandbox.html)
 

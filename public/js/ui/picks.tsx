@@ -1,6 +1,6 @@
 // Colour picks in the Studio (SPEC "Palettes"): a colour param's row (the colours it plays, its pick, ▾ the pick tile,
 // ∿ to turn it, ↺), a layer's Colours row (its roles, each remapped with the same tile), and the tile: a popover on a
-// wide screen; on a phone a sheet with the palette and a custom colour, blend, range and rotate shown when set.
+// wide screen; on a phone a sheet with the palette's roles and a custom colour, the rest shown when set.
 import type { ComponentChildren } from 'preact';
 import { useId } from 'preact/hooks';
 
@@ -56,8 +56,8 @@ function PickButton({ id, label, class: cls, children, ...tile }: Tile & { id?: 
       <PickTile {...tile} /></div></>;
 }
 
-/** The tile: a row per role (all of it, or a slot each), the whole palette, rainbow, custom colours; then on a wide
- * screen whether roles alternate, blend, range and rotate, which a phone shows only when set. */
+/** The tile: a row per role (all of it, or a slot each), custom colours; then on a wide screen the whole palette,
+ * rainbow, whether roles alternate, blend, range and rotate, which a phone shows only when set. */
 function PickTile({ title, value, dflt, blend, colours, narrow, put }: Tile) {
   const edit = readEdit(value, dflt), set = (e: PickEdit) => put(editValue(e, blend));
   const smooth = (edit.blend ?? blend) === 'smooth', turn = edit.rotate, [from, to] = edit.range ?? [0, 1];
@@ -67,7 +67,8 @@ function PickTile({ title, value, dflt, blend, colours, narrow, put }: Tile) {
   const cells = (list: string[], on: (i: number) => boolean, click: (i: number) => void, name: (i: number) => string) =>
     <span class="pick-cells">{list.map((c, i) => <button type="button" class="pick-cell" style={{ background: c }}
       aria-pressed={on(i)} title={`${name(i)} · ${c}`} aria-label={name(i)} onClick={() => click(i)} />)}</span>;
-  const chips = [edit.blend && humanize(edit.blend), edit.range && `Range ${fmt(from)}–${fmt(to)}`,
+  const chips = [edit.tokens.includes('all') && 'Whole palette', edit.tokens.includes('rainbow') && 'Rainbow',
+    edit.blend && humanize(edit.blend), edit.range && `Range ${fmt(from)}–${fmt(to)}`,
     turn !== undefined && `Rotate ${isBinding(turn) ? bindingText(turn) : fmt(turn)}`].filter(Boolean);
   return <div class="pick-tile">
     <div class="pick-head"><strong>{title}</strong>
@@ -84,7 +85,7 @@ function PickTile({ title, value, dflt, blend, colours, narrow, put }: Tile) {
     })}
     {custom.length > 0 && <div class="pick-role"><span class="pick-whole">custom</span>
       {cells(custom, () => true, (i) => set(toggleToken(edit, custom[i])), (i) => `Remove ${custom[i]}`)}</div>}
-    <div class="pick-more">{toggle('all', 'Whole palette')}{toggle('rainbow', 'Rainbow')}
+    <div class="pick-more">{!narrow && <>{toggle('all', 'Whole palette')}{toggle('rainbow', 'Rainbow')}</>}
       <label class="btn small pick-custom">+ Custom colour<input type="color" value="#ffffff"
         onChange={(e) => set({ ...edit, tokens: [...edit.tokens, e.currentTarget.value] })} /></label></div>
     {narrow ? chips.length > 0 && <p class="pick-chips">{chips.map((c) => <span class="param-chip">{c}</span>)}</p> : <>
