@@ -25,7 +25,7 @@ a reload costs about 2 KB (the page and two API checks, all `304`). A cold Studi
 145 KB. Lists send no code, and an idea being made is checked less and less often (2 s, then up to
 10 s), never from a hidden tab. Streaming a baked look costs 0.05–2 MB per 30 s, depending on how
 busy it is. Brotli quality 11 (`STUDIO_FRAMES_BROTLI_QUALITY=11`) saves about 12 % of that, but
-needs about 13 times the CPU (`node tools/frames-bench.mjs`).
+needs about 13 times the CPU (`node tools/frames-bench.ts`).
 
 **Use HTTPS.** Browsers ask for `br` only over HTTPS. Over plain HTTP they get the gzip copy of each
 frame chunk, which is up to 76 % larger, and is made on first request. Both tunnels below serve HTTPS.

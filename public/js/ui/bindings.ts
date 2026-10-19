@@ -1,13 +1,14 @@
 // Pure: a module's params as controls (SPEC "Pattern code") and number params' bindings (SPEC "Param bindings"):
 // the schema entry a control shows, a binding in a few words, and the binding the modulate dialog makes.
-import type { Binding, ParamValue } from '../types.ts';
+import type { Binding, ParamValue } from '../../../shared/schemas/look.ts';
 import { humanize } from './kit.tsx';
 
 export interface Param { kind: 'number' | 'color' | 'toggle'; value: number | string | boolean; label: string;
   min: number; max: number; step: number }
-export type BindingForm = { mod: '' | Binding['mod']; shape: string; rate: string; unit: string; center: string;
+type Shape = NonNullable<Extract<Binding, { mod: 'lfo' }>['shape']>;
+export type BindingForm = { mod: '' | Binding['mod']; shape: Shape; rate: string; unit: string; center: string;
   depth: string; name: string; from: string; to: string; eFrom: string; eTo: string };
-export const SHAPES = ['sine', 'tri', 'saw', 'square'];
+export const SHAPES: Shape[] = ['sine', 'tri', 'saw', 'square'];
 
 /** Is v a param binding rather than a value? */
 export const isBinding = (v: unknown): v is Binding => !!v && typeof v === 'object' && !Array.isArray(v)
@@ -62,7 +63,7 @@ export function bindingForm(b: Partial<Binding>, p: Param, globals: string[]): B
   const o = b as Record<string, unknown>, ends = (mod: string) => (b.mod === mod
     ? [fmt(Number(o.from ?? p.min)), fmt(Number(o.to ?? p.max))] : [fmt(p.min), fmt(p.max)]);
   const [from, to] = ends('global'), [eFrom, eTo] = ends('envelope');
-  return { mod: b.mod || '', shape: SHAPES.includes(o.shape as string) ? o.shape as string : 'sine',
+  return { mod: b.mod || '', shape: SHAPES.includes(o.shape as Shape) ? o.shape as Shape : 'sine',
     rate: fmt(Number(o.rate ?? 0.25)), unit: o.unit === 'beats' ? 'beats' : 'hz',
     center: fmt(Number(o.center ?? p.value)),
     depth: fmt(Number(o.depth ?? (p.max - p.min) / 4)),

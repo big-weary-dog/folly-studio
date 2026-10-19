@@ -1,13 +1,13 @@
 // A worker for test/library-flash.test.js: bakes library sources on their defaults over the whole Folly as
-// the render box does (render-box/renderer.mjs: 40 fps, the look's default globals, sparse LED channels), then
-// runs src/frames.js's flash check on each. workerData: { names, seconds } → [{ name, ok, maxHz, small, errors }].
+// the render box does (render-box/renderer.ts: 40 fps, the look's default globals, sparse LED channels), then
+// runs src/frames.ts's flash check on each. workerData: { names, seconds } → [{ name, ok, maxHz, small, errors }].
 import { readFileSync } from 'node:fs';
 import { parentPort, workerData } from 'node:worker_threads';
 
-import * as core from '../../public/js/pattern-core.js';
-import { ledRanges, writeFseq } from '../../public/js/fseq.js';
-import { renderer } from '../../render-box/renderer.mjs';
-import { analyzeFrames, parseFseq } from '../../src/frames.js';
+import * as core from '../../public/js/pattern-core.ts';
+import { ledRanges, writeFseq } from '../../public/js/fseq.ts';
+import { renderer } from '../../render-box/renderer.ts';
+import { analyzeFrames, parseFseq } from '../../src/frames.ts';
 
 const here = (p) => new URL(p, import.meta.url);
 const rig = JSON.parse(readFileSync(here('../../public/data/rig.json'), 'utf8'));

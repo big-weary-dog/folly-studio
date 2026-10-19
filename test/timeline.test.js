@@ -1,5 +1,5 @@
 // The timeline: look.duration / look.bpm, layer.clips. Envelope maths and the renderer's skip
-// (pattern-core.js), validation (shared/schemas: look.ts, generated.ts) and baking a look's duration.
+// (pattern-core.ts), validation (shared/schemas: look.ts, generated.ts) and baking a look's duration.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -10,13 +10,13 @@ import { afterAll, beforeEach, describe, test } from 'vitest';
 
 import {
   compilePattern, layerEnvelope, lookDuration, normalizeClips, prepareLayer, prepareScene, renderFrame,
-} from '../public/js/pattern-core.js';
-import { writeFseq } from '../public/js/fseq.js';
+} from '../public/js/pattern-core.ts';
+import { writeFseq } from '../public/js/fseq.ts';
 import { createServer } from '../src/app.ts';
 import { validateLayers } from '../src/api-looks.ts';
-import { bakeSeconds } from '../src/bake.js';
-import { createRenderBox } from '../src/render-box.js';
-import { parseFseq } from '../src/frames.js';
+import { bakeSeconds } from '../src/bake.ts';
+import { createRenderBox } from '../src/render-box.ts';
+import { parseFseq } from '../src/frames.ts';
 import { validateLook } from '../shared/schemas/generated.ts';
 
 const STUDIO = fileURLToPath(new URL('../', import.meta.url));

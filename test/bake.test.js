@@ -1,4 +1,4 @@
-// The render box for real: render-box/render.mjs under bubblewrap, run by src/bake.js. Where
+// The render box for real: render-box/render.ts under bubblewrap, run by src/bake.ts. Where
 // bubblewrap or user namespaces are missing these tests skip and say why: a skipped isolation
 // test, not a passing one.
 import assert from 'node:assert/strict';
@@ -11,15 +11,15 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, beforeEach, describe, test } from 'vitest';
 
 import { createServer } from '../src/app.ts';
-import { BakeError, checkFrames } from '../src/box-output.js';
-import { createRenderBox } from '../src/render-box.js';
-import { parseFseq } from '../src/frames.js';
+import { BakeError, checkFrames } from '../src/box-output.ts';
+import { createRenderBox } from '../src/render-box.ts';
+import { parseFseq } from '../src/frames.ts';
 
 const STUDIO = fileURLToPath(new URL('../', import.meta.url));
 const PUBLIC = path.join(STUDIO, 'public');
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const rigFile = path.join(PUBLIC, 'data/rig.json');
-const ready = fs.existsSync(rigFile) && fs.existsSync(path.join(PUBLIC, 'js/pattern-core.js'));
+const ready = fs.existsSync(rigFile) && fs.existsSync(path.join(PUBLIC, 'js/pattern-core.ts'));
 const probe = ready ? await createRenderBox({ log: quiet }).probe() : { ok: false,
   reason: 'the pattern runtime or LED map is not built' };
 const unavailable = `render box unavailable here: ${probe.reason}`;
@@ -39,13 +39,13 @@ const alive = ([pid, start]) => {
   } catch { return false; }
 };
 
-/** render.mjs processes (the box's command line) this process started, as [pid, start time]: other test files run
+/** render.ts processes (the box's command line) this process started, as [pid, start time]: other test files run
  * boxes of their own at the same time. */
 function ourBoxes() {
   const found = [];
   for (const pid of fs.readdirSync('/proc').filter((d) => /^\d+$/.test(d))) {
     try {
-      if (!fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').includes('/box/render.mjs')) continue;
+      if (!fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').includes('/box/render.ts')) continue;
       let up = Number(stat(pid)[1]);
       while (up > 1 && up !== process.pid) up = Number(stat(up)[1]);
       if (up === process.pid) found.push([pid, stat(pid)[19]]);
@@ -142,7 +142,7 @@ describe('render box (bubblewrap)', () => {
     const secret = path.join(tmpRoot, 'secret.txt');
     fs.writeFileSync(secret, 'TOP SECRET');
     const pwned = path.join(tmpRoot, 'pwned');
-    // Stand in for an escaped pattern: run arbitrary Node in the box in place of render.mjs.
+    // Stand in for an escaped pattern: run arbitrary Node in the box in place of render.ts.
     const evil = path.join(tmpRoot, 'evil.mjs');
     fs.writeFileSync(evil, `
       import fs from 'node:fs';

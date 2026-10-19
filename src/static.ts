@@ -1,7 +1,7 @@
 // The app as Vite builds it into dist/ (`npm run build`), served by @fastify/static under the security headers, and
 // the loaders for the pattern library and the rig (from public/). Vite names every file under assets/ by its
 // content, so those are kept for a year; the shell (index.html, for every SPA route) revalidates on every load and
-// names the current ones. The build precompresses text (.br and .gz beside each file: tools/vite-compress.js).
+// names the current ones. The build precompresses text (.br and .gz beside each file: tools/vite-compress.ts).
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,11 +10,9 @@ import fastifyStatic from '@fastify/static';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
-import { LibraryEntry, Rig } from '../shared/schemas/rig.ts';
-import type { Rig as RigType, RigGroup } from '../shared/schemas/rig.ts';
+import { LibraryEntry, Rig, type Rig as RigType, type RigGroup } from '../shared/schemas/rig.ts';
 import { problem } from '../shared/schemas/look.ts';
-import { HttpError } from './http.ts';
-import type { Log } from './http.ts';
+import { HttpError, type Log } from './http.ts';
 
 export const DEFAULT_PUBLIC_DIR = fileURLToPath(new URL('../public/', import.meta.url));
 export const DEFAULT_DIST_DIR = fileURLToPath(new URL('../dist/', import.meta.url));
@@ -30,7 +28,7 @@ export const CACHE_PAGE = 'no-cache';
 export const CACHE_ASSET = 'public, max-age=300, must-revalidate';
 // The URL names the content (its hash), so a copy never goes stale.
 export const CACHE_IMMUTABLE = 'public, max-age=31536000, immutable';
-const SANDBOX_PAGE = /^assets\/sandbox-[\w-]+\.html$/; // the sandbox page (tools/vite-sandbox.js)
+const SANDBOX_PAGE = /^assets\/sandbox-[\w-]+\.html$/; // the sandbox page (tools/vite-sandbox.ts)
 
 /** serveApp(app, { distDir, log }): dist/ at /, the shell for SPA routes, 404 and 405 for the rest. */
 export async function serveApp(app: FastifyInstance, { distDir = DEFAULT_DIST_DIR, log }: { distDir?: string,

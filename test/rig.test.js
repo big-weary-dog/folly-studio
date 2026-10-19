@@ -4,11 +4,11 @@ import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
-import { ledRanges } from '../public/js/fseq.js';
+import { ledRanges } from '../public/js/fseq.ts';
 import {
   compilePattern, flashRegions, groupsByTag, pixelsForGroups, prepareLayer, prepareScene, renderFrame, tagCentres,
   toChannels,
-} from '../public/js/pattern-core.js';
+} from '../public/js/pattern-core.ts';
 import { mini, RIGS } from './fixtures/rigs.js';
 
 for (const [name, rig] of Object.entries(RIGS)) {

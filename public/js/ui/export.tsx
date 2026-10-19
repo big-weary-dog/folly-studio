@@ -2,8 +2,9 @@
 // look's title and summary.
 import { useId, useState } from 'preact/hooks';
 
+import type { Runtime } from '../runtime.ts';
 import { confirmDialog, download, Field, openDialog, slugify, toast } from './kit.tsx';
-import type { Preview, RuntimeApi } from './preview.ts';
+import type { Preview } from './preview.ts';
 import type { Studio } from './studio-store.ts';
 
 const FPS = 40;
@@ -49,12 +50,10 @@ export async function exportFseq(st: Studio, pv: Preview) {
       + `leave ${many ? 'them' : 'it'} out. Export the rest anyway?`;
     if (!(await confirmDialog(why, { title: 'A layer is paused', ok: 'Export anyway' }))) return undefined;
   }
-  const fseq = await import('../fseq.js');
-  const ledRanges = fseq.ledRanges as (r: object) => [number, number][];
-  const writeFseq = fseq.writeFseq as (o: object) => Uint8Array;
+  const { ledRanges, writeFseq } = await import('../fseq.ts');
   const rig = st.data.rig as NonNullable<typeof st.data.rig>, L = st.look.peek();
   const channelCount = rig.output.universes * rig.output.channelsPerUniverse;
-  const ranges: [number, number][] = ledRanges(rig), used = ranges.reduce((n, r) => n + r[1], 0);
+  const ranges = ledRanges(rig), used = ranges.reduce((n, r) => n + r[1], 0);
   let running = false;
   await openDialog({ title: 'Export .fseq', className: 'export-dialog',
     onClose: () => { if (running) { running = false; runtime.cancelRender(); } },
@@ -86,7 +85,7 @@ function Slider({ label, value, out, set, disabled, ...range }: { label: string;
 }
 
 function FseqForm({ close, runtime, title, channelCount, ranges, used, duration, running, write }: {
-  close: (v?: boolean) => void; runtime: RuntimeApi; title: string; channelCount: number; ranges: [number, number][];
+  close: (v?: boolean) => void; runtime: Runtime; title: string; channelCount: number; ranges: [number, number][];
   used: number; duration: number; running: (on: boolean) => void;
   write: (frames: number, data: Uint8Array) => Uint8Array }) {
   // Defaults to the look's duration. Up to 2 minutes: the sandbox hands back full frames.

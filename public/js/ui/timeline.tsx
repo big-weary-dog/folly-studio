@@ -5,7 +5,7 @@ import '../../css/timeline.css';
 import { computed, effect, useSignalEffect } from '@preact/signals';
 import { useEffect, useRef, useState } from 'preact/hooks';
 
-import type { Layer } from '../types.ts';
+import type { Layer } from './model.ts';
 import { cx, useLazy } from './kit.tsx';
 import type { Preview } from './preview.ts';
 import type { Studio } from './studio-store.ts';

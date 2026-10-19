@@ -8,7 +8,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll } from 'vitest';
 
-import { writeFseq } from '../../public/js/fseq.js';
+import { writeFseq } from '../../public/js/fseq.ts';
 import { createServer } from '../../src/app.ts';
 
 /** { tmp, publicDir, distDir } once useFixture()'s before hook has run. */

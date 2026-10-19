@@ -4,9 +4,9 @@
 import { useComputed } from '@preact/signals';
 import { useId, useLayoutEffect, useState } from 'preact/hooks';
 
-import type { Group, Layer } from '../types.ts';
+import type { RigGroup } from '../../../shared/schemas/rig.ts';
 import { cx, toast } from './kit.tsx';
-import { BLEND_MODES, cleanLayer, layerFromPattern, makeLayer } from './model.ts';
+import { BLEND_MODES, cleanLayer, type Layer, layerFromPattern, makeLayer } from './model.ts';
 import type { Preview } from './preview.ts';
 import type { Studio } from './studio-store.ts';
 
@@ -139,7 +139,7 @@ export function GroupsTree({ st }: { st: Studio }) {
     if (set.size) st.editLayer(l.id, () => ({ groups: [...set], tags: undefined }));
     else toast('A layer needs at least one group. Tick another group first.', { kind: 'warn' });
   };
-  const item = (g: Group, depth: number) => {
+  const item = (g: RigGroup, depth: number) => {
     const kids = index.children.get(g.id) || [], expanded = open.has(g.id);
     const checked = sel.has(g.id), pinned = st.pinnedGroup.value === g.id, boxId = `grp-${g.id}`;
     const implied = !checked && index.ancestors(g.id).some((a) => sel.has(a));

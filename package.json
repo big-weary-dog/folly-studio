@@ -9,18 +9,18 @@
   },
   "scripts": {
     "prestart": "vite build",
-    "start": "node server.js",
-    "dev": "node tools/dev.mjs",
+    "start": "node server.ts",
+    "dev": "node tools/dev.ts",
     "build": "vite build",
     "typecheck": "tsc -p .",
-    "lint": "oxlint && node tools/budgets.mjs",
+    "lint": "oxlint && node tools/budgets.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "npm run typecheck && npm run lint && npm test",
     "e2e": "playwright test --project=e2e",
     "perf": "playwright test --project=perf",
     "smoke": "playwright test --project=smoke",
-    "backup": "node tools/backup.mjs",
+    "backup": "node tools/backup.ts",
     "build-data": "python3 tools/build_rig.py && python3 tools/build_palettes.py"
   },
   "devDependencies": {

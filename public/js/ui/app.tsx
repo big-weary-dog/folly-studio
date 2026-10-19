@@ -5,7 +5,7 @@ import type { ComponentType } from 'preact';
 import { useLayoutEffect, useState } from 'preact/hooks';
 
 import { api, statusOf } from '../api.ts';
-import type { User } from '../types.ts';
+import type { User } from '../../../shared/schemas/api.ts';
 import { confirmDialog, cx, toast, Toasts } from './kit.tsx';
 import { Rose } from './rose.tsx';
 import { here, leaveGuard, navigate, router, setTitle, user, type ViewProps } from './session.ts';

@@ -3,8 +3,8 @@
 // double-click one to remove it.
 import { useLayoutEffect, useRef } from 'preact/hooks';
 
-import { MAX_POINTS } from '../core/globals.js';
-import type { Automation } from '../types.ts';
+import { MAX_POINTS } from '../core/globals.ts';
+import type { Automation } from '../../../shared/schemas/look.ts';
 import { humanize } from './kit.tsx';
 import type { Studio } from './studio-store.ts';
 import { clock } from './timeline-model.ts';
@@ -39,7 +39,7 @@ export function AutoLanes({ st, tl, focus }: { st: Studio; tl: TimelineState; fo
           <option value="">{free.length ? '+ Automate…' : 'All automated'}</option>
           {free.map((n) => <option value={n}>{humanize(n)}</option>)}</select></div></div>
       <div class="tl-auto-lanes">
-        {Object.keys(auto).filter((n) => ranges.has(n)).map((n) => <Lane key={n} name={n} pts={auto[n]}
+        {Object.keys(auto).filter((n) => ranges.has(n)).map((n) => <Lane key={n} name={n} pts={auto[n]!}
           range={ranges.get(n) as Range} tl={tl} get={() => st.look.peek().automation?.[n] || []}
           set={(pts) => setLanes((a) => { if (pts) a[n] = pts; else delete a[n]; })} />)}
       </div>

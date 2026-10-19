@@ -8,7 +8,7 @@ import { performance } from 'node:perf_hooks';
 import { describe, test } from 'vitest';
 
 import { compileLayer, compilePattern, prepareLayer, prepareLook, prepareScene, renderFrame } from
-  '../public/js/pattern-core.js';
+  '../public/js/pattern-core.ts';
 import { folly, mini } from './fixtures/rigs.js';
 
 const here = (p) => new URL(p, import.meta.url);

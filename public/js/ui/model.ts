@@ -1,8 +1,14 @@
 // Shared data: the rig (SPEC "Rig"), the pattern library, group membership, layer and module helpers.
 import { api, fetchJSON } from '../api.ts';
-import { pixelsForGroups, prepareScene } from '../core/scene.js';
-import type { Blend, Group, Kind, Layer, LibraryEntry, Module, Palette, Rig } from '../types.ts';
+import { pixelsForGroups, prepareScene } from '../core/scene.ts';
+import type { Layer as Saved, Module, Palette } from '../../../shared/schemas/look.ts';
+import type { LibraryEntry, Rig, RigGroup } from '../../../shared/schemas/rig.ts';
 import { randomId } from './kit.tsx';
+
+/** A layer as the Studio holds it (SPEC "Modules"): a chain, never code and params; `enabled: false` when silent. */
+export type Layer = Extract<Saved, { modules: unknown }>;
+type Kind = Module['kind'];
+type Blend = Layer['blend'];
 
 /** load() once: its promise is shared, and forgotten if it fails so the next call tries again. */
 const once = <T>(load: () => Promise<T>) => {
@@ -136,17 +142,14 @@ export function normaliseLayers(layers: unknown, rig: Rig | null) {
   });
 }
 
-export interface GroupIndex {
-  masks: Map<string, Uint8Array>; counts: Map<string, number>; children: Map<string | null, Group[]>;
-  byId: Map<string, Group>; root: string; ancestors(id: string): string[];
-}
+export type GroupIndex = ReturnType<typeof buildGroupIndex>;
 /** Each group's LEDs (the core's membership rule) as masks, its tree and its ancestors. */
-export function buildGroupIndex(rig: Rig): GroupIndex {
-  const scene = prepareScene(rig), byId: Map<string, Group> = scene.groupById;
+export function buildGroupIndex(rig: Rig) {
+  const scene = prepareScene(rig), byId = scene.groupById;
   const masks = new Map<string, Uint8Array>(), counts = new Map<string, number>();
-  const children = new Map<string | null, Group[]>();
-  for (const g of scene.groups as Group[]) {
-    const idx: number[] = pixelsForGroups(scene, [g.id]), mask = new Uint8Array(scene.count);
+  const children = new Map<string | null, RigGroup[]>();
+  for (const g of scene.groups) {
+    const idx = pixelsForGroups(scene, [g.id]), mask = new Uint8Array(scene.count);
     for (const k of idx) mask[k] = 1;
     masks.set(g.id, mask);
     counts.set(g.id, idx.length);
@@ -154,8 +157,8 @@ export function buildGroupIndex(rig: Rig): GroupIndex {
     children.set(p, [...(children.get(p) || []), g]);
   }
   return {
-    masks, counts, children, byId, root: scene.root?.id,
-    ancestors(id) {
+    masks, counts, children, byId, root: scene.root?.id ?? '',
+    ancestors(id: string) {
       const out: string[] = [];
       for (let g = byId.get(id); g?.parent; g = byId.get(g.parent)) out.push(g.parent);
       return out;

@@ -2,9 +2,10 @@
 // selected clip, snapping, a clip being dragged, and the edits (SPEC "Timeline"; the maths in timeline-model.ts).
 import { computed, signal } from '@preact/signals';
 
-import type { Clip, Layer, Look } from '../types.ts';
+import type { Clip } from '../../../shared/schemas/look.ts';
+import type { Look } from '../../../shared/schemas/api.ts';
 import { pref, randomId, toast } from './kit.tsx';
-import { normaliseLayers } from './model.ts';
+import { type Layer, normaliseLayers } from './model.ts';
 import type { Preview } from './preview.ts';
 import type { Studio } from './studio-store.ts';
 import {
@@ -110,11 +111,11 @@ export function createTimeline(st: Studio, pv: Preview) {
     setSnap(mode: string) { snap.value = mode; pref('studio.snap', mode); },
 
     /** Play another look after this one → an error, or ''. */
-    importLook(other: Look) {
+    importLook(other: Pick<Look, 'title' | 'duration' | 'layers'>) {
       const L = st.look.peek(), d = duration.peek();
       const r = importLook(L.layers, d, { ...other, layers: normaliseLayers(other.layers, st.data.rig) },
         () => randomId('l'));
-      if ('error' in r) return r.error as string;
+      if ('error' in r) return r.error;
       const before = { layers: L.layers, duration: L.duration, selected: st.selectedId.peek() };
       const apply = (layers: Layer[], duration: number, selectedId: string | null) => {
         st.edit(() => ({ layers, duration }));

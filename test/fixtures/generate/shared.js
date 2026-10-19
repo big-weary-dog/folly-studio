@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll } from 'vitest';
 
-import { DEFAULT_MODEL } from '../../../src/generate/claude.js';
+import { DEFAULT_MODEL } from '../../../src/generate/claude.ts';
 
 export const FIX = fileURLToPath(new URL('./', import.meta.url));
 export const STUDIO = fileURLToPath(new URL('../../../', import.meta.url));

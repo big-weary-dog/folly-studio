@@ -2,8 +2,7 @@
 // parsed with these on the server; the browser takes the types (`import type`).
 import { z } from 'zod';
 
-import { Bpm, Duration, Globals, Layers, LookTitle, Summary } from './look.ts';
-import type { Automation, Layer } from './look.ts';
+import { type Automation, Bpm, Duration, Globals, type Layer, Layers, LookTitle, Summary } from './look.ts';
 
 const bool = (name: string) => z.boolean({ error: `${name} must be true or false.` });
 const USERNAME = 'Username must be 3–32 characters: letters, digits, _ or -.';
@@ -46,22 +45,27 @@ export const LooksQuery = z.object({
   versions: z.string().optional(),
 });
 
-export const Role = z.enum(['member', 'curator']);
-export const User = z.object({ id: z.string(), username: z.string(), role: Role });
-export const IdeaStatus = z.enum(['queued', 'generating', 'ready', 'failed']);
-export const Idea = z.object({
-  id: z.string(), owner: z.string(), text: z.string(), status: IdeaStatus, generator: z.string(),
-  lookId: z.string().optional(), error: z.string().nullish(), createdAt: z.string(), updatedAt: z.string(),
-});
-
-export type User = z.infer<typeof User>;
-export type Idea = z.infer<typeof Idea>;
+// What the API answers with (it never reads these back): an account, an idea, a look as lists and GET show it.
+export type User = { id: string, username: string, role: 'member' | 'curator' };
+export type Idea = { id: string, owner: string, text: string, status: 'queued' | 'generating' | 'ready' | 'failed',
+  generator: string, lookId?: string, error?: string | null, createdAt: string, updatedAt: string };
 export type LookCreate = z.input<typeof LookCreate>;
 export type LookPatch = z.input<typeof LookPatch>;
 /** A look as lists show it: what a card needs, no layers or code. */
 export type Listed = { id: string, owner: string, ownerName: string, title: string, summary: string, duration: number,
   layerCount: number, shared: boolean, reviewed: boolean, bpm?: number, sharedAt?: string, ideaId?: string,
   createdAt: string, updatedAt: string };
-/** A look as GET /api/looks/:id answers (`bake`: SPEC "Baked frames"). */
+/** A look as GET /api/looks/:id answers. */
 export type Look = Omit<Listed, 'layerCount'> & { layers: Layer[], globals?: z.infer<typeof Globals>,
-  automation?: Automation, versionCount: number, bake?: Record<string, unknown>, reviewedBy?: string };
+  automation?: Automation, versionCount: number, bake?: Bake | null, reviewedBy?: string };
+
+type Flashes = { maxHz: number, flaggedSeconds: number[], regions: string[] };
+/** What the frame checks found (SPEC "Baked frames" > Checks: src/frames.ts analyzeFrames). */
+export type Analysis = { frames: number, seconds: number, fps: number, channels: number, sparse: boolean,
+  pixels: number, coverage: number, peakBrightness: number, meanBrightness: number, darkFraction: number,
+  estPeakAmps: number, flicker: Flashes & { ok: boolean, small: Flashes } };
+/** A look's bake as stored (SPEC "Baked frames" > Stored); `boxStats` is what the box said, kept as untrusted. */
+export type Bake = { source: 'render-box' | 'fleet-box', status: 'queued' | 'running' | 'done' | 'failed', ok: boolean,
+  reason?: string, warning?: string, checkedAt?: string, requestedAt?: string, startedAt?: string, layersHash?: string,
+  renderKey?: string, seconds?: number, analysis?: Analysis, frames?: { bytes: number, sha256: string },
+  boxStats?: { untrusted: true, reported: unknown } };

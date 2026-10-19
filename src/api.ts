@@ -3,14 +3,16 @@
 // the public ones needs a session. Logins are limited per IP, and failed ones per IP and username.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
-import { IdeaBody, Login, Signup } from '../shared/schemas/api.ts';
+import { type Idea, IdeaBody, Login, Signup } from '../shared/schemas/api.ts';
 import { lookRoutes } from './api-looks.ts';
-import { COOKIE_NAME, SESSION_TTL_MS } from './auth.ts';
-import type { Auth } from './auth.ts';
-import { removeFrames } from './bake.js';
+import { type Auth, COOKIE_NAME, SESSION_TTL_MS } from './auth.ts';
+import type { Queue } from './app.ts';
+import { type createBakeQueue, removeFrames } from './bake.ts';
+import type { createFramesCache } from './frames-cache.ts';
 import { framesRoutes } from './frames-http.ts';
-import { checkMutation, HttpError, parse, routes, sendJson } from './http.ts';
-import type { Log } from './http.ts';
+import { checkMutation, HttpError, type Log, type Logger, parse, routes, sendJson } from './http.ts';
+import type { createLoaders } from './static.ts';
+import type { Store } from './store.ts';
 
 export const MAX_IDEAS_PER_DAY = 20;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -21,13 +23,8 @@ declare module 'fastify' {
   interface FastifyContextConfig { public?: boolean }
 }
 
-type Idea = { id: string, owner: string, status: string, createdAt: string };
-type Queue = { enqueue(idea: Idea): unknown };
-type IdeaStore = { get(id: string): Idea | null, list(fn: (i: Idea) => boolean): Idea[],
-  create(x: object): Idea, update(id: string, patch: object): unknown };
-
 /** Hand an idea to the generator queue; if that fails, mark the idea failed. */
-export function enqueueIdea({ queue, store, log }: { queue: Queue, store: { ideas: IdeaStore }, log: Log },
+export function enqueueIdea({ queue, store, log }: { queue: Queue, store: Pick<Store, 'ideas'>, log: Logger },
   idea: Idea) {
   const fail = (err: unknown) => {
     log.error?.(`generator: enqueue failed for idea ${idea.id}:`, err);
@@ -44,16 +41,18 @@ export const newestBy = (field: string) => (a: Record<string, unknown>, b: Recor
   return x < y ? 1 : x > y ? -1 : 0;
 };
 
-// apiRoutes({ store, auth, queue, adapterName, loaders, log, maxIdeasPerDay, framesDir, bakes, frames, rateLimit,
-//   secureCookies }) → the /api plugin
-export function apiRoutes(o: Record<string, any>) {
+/** The /api plugin. */
+export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, adapterName?: string, log: Log,
+  loaders: ReturnType<typeof createLoaders>, maxIdeasPerDay?: number, framesDir: string,
+  bakes: ReturnType<typeof createBakeQueue>, frames: ReturnType<typeof createFramesCache>, secureCookies?: boolean,
+  rateLimit?: { max?: number, ipMax?: number, windowMs?: number } }) {
   const { store, auth, queue, adapterName = 'sketch', loaders, log, maxIdeasPerDay = MAX_IDEAS_PER_DAY } = o;
   const { bakes, framesDir, frames, secureCookies = false } = o;
   const limits = { max: 10, ipMax: 100, windowMs: 60_000, ...o.rateLimit };
   return async (api: FastifyInstance) => {
     api.addHook('onRequest', checkMutation);
     api.addHook('onRequest', async (req) => {
-      req.user = (auth as Auth).authenticate(req.cookies[COOKIE_NAME])?.user ?? null;
+      req.user = auth.authenticate(req.cookies[COOKIE_NAME])?.user ?? null;
       if (!req.routeOptions.config.public && !req.user) throw new HttpError(401, 'Log in first.');
     });
     api.addHook('onSend', sendJson);
@@ -93,12 +92,12 @@ export function apiRoutes(o: Record<string, any>) {
       }, { public: true }],
       'GET /me': async (req) => ({ user: auth.publicUser(req.user) }),
 
-      'GET /ideas': async (req) => ({ ideas: store.ideas.list((i: Idea) => i.owner === req.user!.id).reverse()
+      'GET /ideas': async (req) => ({ ideas: store.ideas.list((i) => i.owner === req.user!.id).reverse()
         .sort(newestBy('createdAt')) }),
       'POST /ideas': async (req, reply) => {
         const { text } = parse(IdeaBody, req.body);
         const since = Date.now() - DAY_MS;
-        const today = store.ideas.list((i: Idea) => i.owner === req.user!.id && Date.parse(i.createdAt) > since).length;
+        const today = store.ideas.list((i) => i.owner === req.user!.id && Date.parse(i.createdAt) > since).length;
         if (today >= maxIdeasPerDay) {
           throw new HttpError(429, `That's ${maxIdeasPerDay} ideas today. Try again tomorrow.`);
         }
@@ -115,7 +114,7 @@ export function apiRoutes(o: Record<string, any>) {
       ...looks.routes,
       ...framesRoutes({ framesDir, cache: frames, visibleLook: looks.visibleLook }),
       'GET /library': [async () => ({ patterns: loaders.loadLibrary()
-        .map(({ name, title, summary, tags, kind, category, code }: Record<string, unknown>) => (
+        .map(({ name, title, summary, tags, kind, category, code }) => (
           { name, title, summary, tags, kind, category, code })) }), { public: true }],
     });
   };

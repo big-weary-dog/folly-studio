@@ -5,11 +5,13 @@
 // was; picking adds it.
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 
-import type { Kind, Layer, LibraryEntry, Module } from '../types.ts';
+import type { Module } from '../../../shared/schemas/look.ts';
+import type { LibraryEntry } from '../../../shared/schemas/rig.ts';
 import { humanize, openDialog } from './kit.tsx';
-import { KIND_LABELS } from './model.ts';
+import { KIND_LABELS, type Layer } from './model.ts';
 import type { Preview } from './preview.ts';
 
+type Kind = Module['kind'];
 type Entry = LibraryEntry | { kind: Kind; blank: true; name?: undefined; title?: undefined; code?: undefined };
 type Audition = { pv: Preview; layer?: Pick<Layer, 'groups'> & Partial<Layer>; moduleId?: string };
 const KINDS: [Kind, string][] = [

@@ -1,5 +1,5 @@
 // The built app (dist/) as src/static.ts serves it: br or gzip from the copies the build precompresses
-// (tools/vite-compress.js), ETag revalidation, cache headers (content-hashed assets kept a year), the sandbox page's
+// (tools/vite-compress.ts), ETag revalidation, cache headers (content-hashed assets kept a year), the sandbox page's
 // CSP, the shell for SPA routes, and what is never served.
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, rm, utimes, writeFile } from 'node:fs/promises';
@@ -13,7 +13,7 @@ import { afterAll, beforeAll, describe, test } from 'vitest';
 import { createServer } from '../src/app.ts';
 import { etagMatches, pickEncoding } from '../src/http.ts';
 import { CACHE_ASSET, CACHE_IMMUTABLE, CACHE_PAGE, CSP_APP, CSP_SANDBOX } from '../src/static.ts';
-import { precompress } from '../tools/vite-compress.js';
+import { precompress } from '../tools/vite-compress.ts';
 
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const BIG_JS = `// a module big enough to compress\n${

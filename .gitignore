@@ -1,7 +1,7 @@
 # Accounts, sessions, ideas and looks (STUDIO_DATA default). Anchored so that
 # public/data/cathedral.json stays tracked.
 /data/
-# tools/backup.mjs archives (default --out)
+# tools/backup.ts archives (default --out)
 /backups/
 # npm ci installs these; npm run build writes the app here
 /node_modules/

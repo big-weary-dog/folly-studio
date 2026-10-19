@@ -8,8 +8,8 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, test } from 'vitest';
 
 import { createServer } from '../src/app.ts';
-import { createQueue } from '../src/generate/index.js';
-import { createStore } from '../src/store.js';
+import { createQueue } from '../src/generate/index.ts';
+import { createStore } from '../src/store.ts';
 
 const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url));
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });

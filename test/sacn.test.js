@@ -1,4 +1,4 @@
-// tools/sacn-play.mjs: E1.31 (sACN) packets checked field by field against the ANSI E1.31-2018
+// tools/sacn-play.ts: E1.31 (sACN) packets checked field by field against the ANSI E1.31-2018
 // data packet layout (offsets written out here, independently of the tool's own table), the
 // universe slicing of absolute channels, and every FSEQ form it plays.
 import assert from 'node:assert/strict';
@@ -7,12 +7,12 @@ import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
-import { ledRanges, writeFseq } from '../public/js/fseq.js';
-import { parseFseq } from '../src/frames.js';
-import { compressFseq, HAS_ZSTD } from '../src/fseq-codec.js';
+import { ledRanges, writeFseq } from '../public/js/fseq.ts';
+import { parseFseq } from '../src/frames.ts';
+import { compressFseq, HAS_ZSTD } from '../src/fseq-codec.ts';
 import {
   cidBytes, E131, e131Packet, fillSlots, multicastAddress, parseArgs, play, readShow, SacnSender,
-} from '../tools/sacn-play.mjs';
+} from '../tools/sacn-play.ts';
 
 const rig = JSON.parse(readFileSync(new URL('../public/data/rig.json', import.meta.url), 'utf8'));
 const mini = JSON.parse(readFileSync(new URL('./fixtures/rigs/mini.json', import.meta.url), 'utf8'));

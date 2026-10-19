@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'preact/hooks';
 
 import { api, type ApiError, statusOf } from '../api.ts';
-import { autoFetchAllowed, fetchManifest } from '../frames-stream.js';
-import type { Bake } from '../types.ts';
+import { autoFetchAllowed, fetchManifest } from '../frames-stream.ts';
+import type { Bake } from '../../../shared/schemas/api.ts';
 import { signedOut, user } from './session.ts';
 import { cx, Switch, toast } from './kit.tsx';
 import type { Preview } from './preview.ts';

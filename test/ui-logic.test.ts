@@ -14,7 +14,7 @@ import { createLayerStatus } from '../public/js/ui/layer-status.ts';
 import type { Preview } from '../public/js/ui/preview.ts';
 import type { Draft, Studio } from '../public/js/ui/studio-store.ts';
 import { createTimeline } from '../public/js/ui/timeline-state.ts';
-import type { Layer } from '../public/js/types.ts';
+import type { Layer } from '../public/js/ui/model.ts';
 
 const where = (path: string, search = '', signedIn = true) => {
   const r = resolve(path, search, signedIn);
@@ -144,9 +144,8 @@ describe('the timeline on the Studio\'s state', () => {
   test('importing a look appends it after this one, and says why when it cannot', () => {
     const st = fakeStudio([layer('a')]);
     const tl = createTimeline(st, {} as Preview);
-    assert.equal(tl.importLook({ id: 'o', owner: 'u', title: 'O', summary: '', duration: 10, layers: [] }),
-      'That look has no layers.');
-    const other = { id: 'o', owner: 'u', title: 'O', summary: '', duration: 10 };
+    assert.equal(tl.importLook({ title: 'O', duration: 10, layers: [] }), 'That look has no layers.');
+    const other = { title: 'O', duration: 10 };
     assert.equal(tl.importLook({ ...other, layers: [layer('z')] }), '');
     const L = st.look.peek();
     assert.equal(L.duration, 40);
@@ -158,8 +157,8 @@ describe('the timeline on the Studio\'s state', () => {
 describe('what the sandbox says', () => {
   const m = { id: 'm', kind: 'source' as const, title: 'S', code: 'good', params: {} };
   const L: Layer = { ...layer('a'), modules: [m] };
-  const reply = (code: string, ok: boolean) => [{ id: 'a', ok, modules: [{ id: 'm', ok, code,
-    ...(ok ? { params: { k: { value: 1 } } } : { error: 'SyntaxError' }) }] }];
+  const reply = (code: string, ok: boolean) => [{ id: 'a', ok, params: {}, modules: [{ id: 'm', ok, code,
+    ...(ok ? { params: { k: { value: 1 } } } : { params: {}, error: 'SyntaxError' }) }] }];
 
   test('a broken edit keeps the last good code running, once, and says so', () => {
     let look = L;

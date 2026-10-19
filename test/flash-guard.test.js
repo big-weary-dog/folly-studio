@@ -1,14 +1,14 @@
-// public/js/flash-guard.js: the Studio's live flash guard reaches the same verdicts as the bake check
-// (src/frames.js) on the Folly's rig: large-area flashing over three a second dims the preview;
+// public/js/flash-guard.ts: the Studio's live flash guard reaches the same verdicts as the bake check
+// (src/frames.ts) on the Folly's rig: large-area flashing over three a second dims the preview;
 // slow change, small shimmer and flashing on small regions alone do not.
 import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
-import { FlashGuard, guardRegions } from '../public/js/flash-guard.js';
-import { ledRanges, writeFseq } from '../public/js/fseq.js';
-import { flashRegions, pixelsForGroups, prepareScene } from '../public/js/pattern-core.js';
-import { analyzeFrames, parseFseq } from '../src/frames.js';
+import { FlashGuard, guardRegions } from '../public/js/flash-guard.ts';
+import { ledRanges, writeFseq } from '../public/js/fseq.ts';
+import { flashRegions, pixelsForGroups, prepareScene } from '../public/js/pattern-core.ts';
+import { analyzeFrames, parseFseq } from '../src/frames.ts';
 import { folly as rig } from './fixtures/rigs.js';
 
 const N = rig.count, scene = prepareScene(rig);
@@ -56,7 +56,7 @@ describe('the Studio flash guard', () => {
     assert.equal(regions[0].idx, null);
   });
 
-  test('same verdicts as src/frames.js', () => {
+  test('same verdicts as src/frames.ts', () => {
     const cases = {
       'white strobe, 10 Hz': [(t) => square(10)(t), true],
       'white strobe, 4 Hz': [(t) => square(4)(t), true],

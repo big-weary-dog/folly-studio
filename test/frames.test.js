@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
-import { ledRanges, writeFseq } from '../public/js/fseq.js';
-import { flashRegions, pixelsForGroups, prepareScene } from '../public/js/pattern-core.js';
-import { analyzeFrames, FseqError, flickerReason, flickerWarning, MAX_CHANNELS, parseFseq } from '../src/frames.js';
+import { ledRanges, writeFseq } from '../public/js/fseq.ts';
+import { flashRegions, pixelsForGroups, prepareScene } from '../public/js/pattern-core.ts';
+import { analyzeFrames, FseqError, flickerReason, flickerWarning, MAX_CHANNELS, parseFseq } from '../src/frames.ts';
 import { folly } from './fixtures/rigs.js';
 
 // 100 LEDs, 3 channels each: the body (zone body) on universe 1, a small spire (5 LEDs) on universe 2.
@@ -183,8 +183,6 @@ describe('analyzeFrames', () => {
     const a = analyze(parseFseq(part), C);
     assert.equal(a.coverage, 0.95);
     assert.equal(a.darkFraction, 0.05);
-    assert.throws(() => analyzeFrames(parseFseq(part), { count: 0 }), /prepareScene/);
-    assert.throws(() => analyzeFrames({}, prepareScene(C)), /parseFseq/);
   });
 
   test('on the Folly: a 20 s sparse bake is about 12 MB, full frames about 33 MB', () => {

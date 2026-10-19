@@ -4,7 +4,8 @@
 import { useEffect, useId, useState } from 'preact/hooks';
 
 import { api, statusOf } from '../api.ts';
-import type { Clip, LookCard } from '../types.ts';
+import type { Clip } from '../../../shared/schemas/look.ts';
+import type { Listed } from '../../../shared/schemas/api.ts';
 import { signedOut } from './session.ts';
 import { cx, openDialog } from './kit.tsx';
 import type { Studio } from './studio-store.ts';
@@ -101,10 +102,10 @@ const SCOPES = { mine: 'My looks', gallery: 'Gallery' } as const;
 
 /** The picker; this look is listed last (importing it repeats it). */
 function importLookDialog(st: Studio, tl: TimelineState) {
-  const currentId = st.look.peek().id, cache = new Map<string, LookCard[]>();
+  const currentId = st.look.peek().id, cache = new Map<string, Listed[]>();
   return openDialog<boolean>({ title: 'Import a look', className: 'import-dialog', body: (close) => {
     const [scope, setScope] = useState<keyof typeof SCOPES | null>(null);
-    const [list, setList] = useState<LookCard[] | string>('Loading…'), [status, setStatus] = useState('');
+    const [list, setList] = useState<Listed[] | string>('Loading…'), [status, setStatus] = useState('');
     /** An API call → its result, or null after saying why (a 401 signs out). */
     const ask = <T,>(call: Promise<T>, said: (m: string) => void) => call.catch((err) => {
       if (statusOf(err) === 401) { close(false); signedOut(); } else said(err.message);
@@ -120,7 +121,7 @@ function importLookDialog(st: Studio, tl: TimelineState) {
       const sorted = looks.filter((l) => l.id !== currentId).concat(looks.filter((l) => l.id === currentId));
       setList(sorted.length ? sorted : to === 'mine' ? 'You have no saved looks yet.' : 'The gallery is empty.');
     }
-    async function pick(look: LookCard) {
+    async function pick(look: Listed) {
       const full = (await ask(api.look(look.id), setStatus))?.look;
       const error = full && tl.importLook(full);
       if (error) setStatus(error); else if (full) close(true);

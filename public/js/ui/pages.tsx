@@ -5,7 +5,7 @@ import '../../css/pages.css';
 import { useEffect, useRef, useState } from 'preact/hooks';
 
 import { api, statusOf } from '../api.ts';
-import type { Idea, LookCard } from '../types.ts';
+import type { Idea, Listed } from '../../../shared/schemas/api.ts';
 import { navigate, setTitle, signedOut, user, type ViewProps } from './session.ts';
 import { confirmDialog, cx, jewelGradient, timeAgo, toast } from './kit.tsx';
 import { Rose } from './rose.tsx';
@@ -191,7 +191,7 @@ function IdeaRow({ idea, retry }: { idea: Idea; retry: () => void }) {
 
 export function Looks({ scope }: ViewProps) {
   const gallery = scope === 'gallery';
-  const [looks, setLooks] = useState<LookCard[] | null>(null), [error, setError] = useState('');
+  const [looks, setLooks] = useState<Listed[] | null>(null), [error, setError] = useState('');
   const [q, setQ] = useState('');
   useEffect(() => {
     setTitle(gallery ? 'Gallery' : 'My looks');
@@ -203,7 +203,7 @@ export function Looks({ scope }: ViewProps) {
     return () => { alive = false; };
   }, []);
 
-  async function remove(look: LookCard) {
+  async function remove(look: Listed) {
     const ok = await confirmDialog(`Delete “${look.title}”? This cannot be undone.`,
       { title: 'Delete look', ok: 'Delete', danger: true });
     if (!ok) return;
@@ -242,7 +242,7 @@ export function Looks({ scope }: ViewProps) {
     </div>);
 }
 
-function Card({ look, gallery, remove }: { look: LookCard; gallery: boolean; remove: (l: LookCard) => void }) {
+function Card({ look, gallery, remove }: { look: Listed; gallery: boolean; remove: (l: Listed) => void }) {
   const n = look.layerCount ?? 0, href = studioHref(look.id);
   return (
     <li class="card">

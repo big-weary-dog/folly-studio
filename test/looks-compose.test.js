@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { validateLook } from '../shared/schemas/generated.ts';
-import { renderFields } from '../src/bake.js';
+import { renderFields } from '../src/bake.ts';
 import { fakeBox, fx, PIXEL, signup, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();

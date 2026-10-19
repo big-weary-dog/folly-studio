@@ -5,11 +5,11 @@ import path from 'node:path';
 
 import { describe, test } from 'vitest';
 
-import { createQueue } from '../src/generate/index.js';
+import { createQueue } from '../src/generate/index.ts';
 import {
   buildSystemPrompt, buildUserMessage, formatGroups, formatLibraryIndex, pickExamples,
-} from '../src/generate/prompt.js';
-import { BUILTIN_PATTERN, parseParams, sketchLook } from '../src/generate/sketch.js';
+} from '../src/generate/prompt.ts';
+import { BUILTIN_PATTERN, parseParams, sketchLook } from '../src/generate/sketch.ts';
 import { GenerateError, LIMITS, validateLook, wireSchema } from '../shared/schemas/generated.ts';
 import { byName, goodLayer, GROUPS, LIBRARY, queueSetup, quiet, RIG, STUDIO } from './fixtures/generate/shared.js';
 import { mini as MINI } from './fixtures/rigs.js';

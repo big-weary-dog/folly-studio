@@ -1,4 +1,4 @@
-// oxlint's half of `npm run lint` (tools/budgets.mjs is the rest); CONTRIBUTING "The rules, and why" says why.
+// oxlint's half of `npm run lint` (tools/budgets.ts is the rest); CONTRIBUTING "The rules, and why" says why.
 // Overrides apply in order, and an override's options replace the base's, so each one restates its whole list.
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
@@ -31,7 +31,7 @@
   },
   "overrides": [
     {
-      "files": ["src/**", "server.js"],
+      "files": ["src/**", "server.ts"],
       "rules": {
         "no-restricted-imports": ["error", {
           "paths": [
@@ -44,7 +44,7 @@
       }
     },
     {
-      "files": ["src/render-box.js", "src/generate/fleet.js"],
+      "files": ["src/render-box.ts", "src/generate/fleet.ts"],
       "rules": {
         "no-restricted-imports": ["error", {
           "paths": [
@@ -64,7 +64,7 @@
             { "name": "node:child_process", "message": "processes only box untrusted work" }
           ],
           "patterns": [
-            { "regex": "^\\.{1,2}/(?:.*/)?(?:src|render-box|fleet-box|tools|test)/|^\\.{1,2}/(?:.*/)?server\\.js$",
+            { "regex": "^\\.{1,2}/(?:.*/)?(?:src|render-box|fleet-box|tools|test)/|^\\.{1,2}/(?:.*/)?server\\.[jt]s$",
               "message": "browser code imports only from public/ and packages" },
             { "regex": "^(?:[a-z]+:)?//", "message": "remote URL: the app runs offline under a self-only CSP" },
             { "regex": "^\\.{1,2}/(?:.*/)?shared/", "allowTypeImports": true,
@@ -79,7 +79,7 @@
       "rules": {
         "no-restricted-imports": ["error", { "patterns": [
           { "regex": "^node:", "message": "shared/ runs in the browser too: no Node built-ins" },
-          { "regex": "^\\.{1,2}/(?:.*/)?(?:src|render-box|fleet-box|tools|test)/|^\\.{1,2}/(?:.*/)?server\\.js$",
+          { "regex": "^\\.{1,2}/(?:.*/)?(?:src|render-box|fleet-box|tools|test)/|^\\.{1,2}/(?:.*/)?server\\.[jt]s$",
             "message": "shared/ imports only zod, itself and the core's constants and data from public/" },
           { "group": ["**/public/**", "!**/public/js/pattern-core.*", "!**/public/**/*.json"],
             "message": "shared/ imports only zod, itself and the core's constants and data from public/" }
@@ -132,9 +132,9 @@
     },
     { "files": ["public/patterns/**"], "rules": { "max-lines": ["error", { "max": 150 }] } },
     // The allowlist: the pattern compiler, the render box, and the processes that box untrusted work.
-    { "files": ["public/js/core/compile.js"], "rules": { "no-new-func": "off" } },
+    { "files": ["public/js/core/compile.ts"], "rules": { "no-new-func": "off" } },
     {
-      "files": ["render-box/render.mjs"],
+      "files": ["render-box/render.ts"],
       "rules": { "no-restricted-imports": ["error", { "paths": [
         { "name": "node:child_process", "message": "processes only box untrusted work" }
       ] }] }

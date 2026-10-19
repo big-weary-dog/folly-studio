@@ -54,13 +54,14 @@ studio/
     js/
       pattern-core.js     pure: stdlib, compile, scene prep, renderFrame, toChannels, re-exported from core/
                           {stdlib,compile,scene,timeline,render,globals}.js (sandbox, boxes, Node tests)
-      sandbox-relay.js    the sandbox page's script: relay + watchdog
-      sandbox-worker.js   the sandbox's Worker: runs a look's layers on the core
+      sandbox-relay.ts    the sandbox page's script: relay + watchdog
+      sandbox-worker.ts   the sandbox's Worker: runs a look's layers on the core
       fseq.js             pure: FSEQ v2 writer (browser + Node tests)
-      frames-stream.js    streamed playback of baked frames, and its pure decoder (manifest, chunks)
-      runtime.js          app side: owns the sandbox iframe, speaks the protocol below, adapts the frame rate
-      viewer.js           the 3D view: orbit camera, pointer and keys; draws Points (viewer-gl.js) or Playa (playa/)
-      playa/              the Playa view, loaded on first use: geometry.js (from render hints), renderer.js, glsl.js
+      frames-stream.ts    streamed playback of baked frames, and its pure decoder (manifest, chunks)
+      runtime.ts          app side: owns the sandbox iframe, speaks the protocol below, adapts the frame rate
+      viewer.ts           the 3D view: orbit camera (pointer and keys: viewer-input.ts); draws Points (viewer-gl.ts)
+                          or Playa (playa/)
+      playa/              the Playa view, loaded on first use: geometry.ts (from render hints), renderer.ts, glsl.ts
       main.tsx  api.ts    the UI's entry and its API client; ui/*.tsx: Preact components, signals for state
     patterns/             built-in library: <name>.js + index.json (sources, warps and filters)
     data/rig.json         the installation (SPEC "Rig"); the Folly's by tools/build_rig.py (committed)
@@ -312,12 +313,12 @@ Sequencing lives on the look, xLights-style.
   params on the selected module (each number param can be modulated), and a Look panel of globals, the palette
   and macros. On a phone: globals and palette in the Look tab; the chain read-only but for enable and params.
 
-## Sandbox protocol (runtime.js ⇄ sandbox.html)
+## Sandbox protocol (runtime.ts ⇄ sandbox.html)
 
 The app embeds `<iframe sandbox="allow-scripts">` on the sandbox page, which the build makes self-contained
-(`tools/vite-sandbox.js`): `public/sandbox.html` with `js/sandbox-worker.js` and the pattern core as one classic
-script in a `<script type="text/x-folly-worker" id="pattern-worker">` data block, and `js/sandbox-relay.js` as one
-inline script, both minified, at `/assets/sandbox-<hash>.html` (runtime.js imports its URL as
+(`tools/vite-sandbox.ts`): `public/sandbox.html` with `js/sandbox-worker.ts` and the pattern core as one classic
+script in a `<script type="text/x-folly-worker" id="pattern-worker">` data block, and `js/sandbox-relay.ts` as one
+inline script, both minified, at `/assets/sandbox-<hash>.html` (runtime.ts imports its URL as
 `'../sandbox.html?sandbox'`; the dev server builds it for each request at `/sandbox.html`). It is served with
 `Content-Security-Policy: default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; worker-src blob:; sandbox allow-scripts`
 (opaque origin, no network, no cookies), so it loads nothing. The sandbox's first `ready` and the app's `init` go by
@@ -346,7 +347,7 @@ Watchdog (the page's): a frame, live or exported, running over 1 s, or new code 
 over 0.7 s, has hung. The page terminates the worker, finds the layer to blame (the one being
 compiled, or each layer run alone for one frame in a throwaway worker), starts a fresh worker
 without it and reports it as an error starting `Pattern hung`; it stays paused until its code
-changes. Every `frame` request is answered within 1.5 s. The app (runtime.js) tears the iframe
+changes. Every `frame` request is answered within 1.5 s. The app (runtime.ts) tears the iframe
 down and reloads it only if the page itself stops answering for 4 s (8 s during an export, while the page probes a
 hung layer).
 
@@ -386,7 +387,7 @@ by the view's module and loaded with it), the data modules fetch (`new URL('../.
 import.meta.url)`), the favicon and the sandbox page. `.vite/manifest.json` says what each module loads with it.
 Nothing is inlined into the app's pages (no data: URLs, no inline script; the modulepreload polyfill is off). Beside
 each text file of 512 bytes or more the build writes `<file>.br` (quality 11) and `<file>.gz` (9) where smaller
-(`tools/vite-compress.js`), so nothing static is compressed per request.
+(`tools/vite-compress.ts`), so nothing static is compressed per request.
 
 `src/static.ts` (@fastify/static) serves `dist/` under the app CSP (`CSP_APP`): files under `assets/` with
 `Cache-Control: public, max-age=31536000, immutable`, the sandbox page with `CSP_SANDBOX`; the shell (`index.html`, for
@@ -531,12 +532,12 @@ bytes a box hands back. Anything a box says about itself is kept as `boxStats: {
   `frames.sha256`): `frames/<hash>/<n>.br`, `manifest.json` (written last), `<n>.gz` and
   `frames.<zstd|zlib>.fseq` (both made on first request). Looks with the same frames share a
   folder; folders no bake names are pruned.
-- **Wire** (`src/frames-wire.js` encodes, `public/js/frames-wire.js` decodes). Chunks of 80
+- **Wire** (`src/frames-wire.js` encodes, `public/js/frames-stream.ts` decodes). Chunks of 80
   frames, each decodable alone: one layout byte (0 frame-major, 1 frame-major deltas, 2 planar
   i.e. channel-major, 3 planar deltas; deltas are byte-wise mod 256 from the previous frame, the
   chunk's first frame against zeros), then the frames. Brotli picks the smallest layout per chunk
   (probed at quality 5) and compresses it at `STUDIO_FRAMES_BROTLI_QUALITY` (default 9; 11 is about 12 %
-  smaller for about 13× the CPU: `tools/frames-bench.mjs`), once, after a bake (or on first request for
+  smaller for about 13× the CPU: `tools/frames-bench.ts`), once, after a bake (or on first request for
   older bakes; the wire then says 202). Encoding, the gzip copies and compressed downloads run in one
   worker thread at nice 10, one job at a time (`src/frames-worker.js`). The gzip copy, for clients that do
   not take br (browsers send br only over HTTPS), picks its own layout, so it has its own ETag.
@@ -544,7 +545,7 @@ bytes a box hands back. Anything a box says about itself is kept as `boxStats: {
   bytes }` (brotli sizes). Manifest and chunks are served `Cache-Control: public,
   max-age=31536000, immutable`, chunks with `Content-Encoding: br` (else gzip, else none) and
   `Vary: Accept-Encoding`.
-- **Playback** (`public/js/frames-stream.js`): manifest, then chunk 0, then play; two chunks
+- **Playback** (`public/js/frames-stream.ts`): manifest, then chunk 0, then play; two chunks
   ahead are fetched, a seek fetches its chunk, deltas are undone in place once per chunk, and
   frames are read without allocating. On a phone, a cellular link, Save-Data or below 4G the
   first press of Play only shows the download size; the second plays.

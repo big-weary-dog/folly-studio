@@ -4,7 +4,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 import { api, statusOf } from '../api.ts';
-import type { LookCard } from '../types.ts';
+import type { Listed } from '../../../shared/schemas/api.ts';
 import { signedOut } from './session.ts';
 import { BakePanel } from './bake.tsx';
 import { ChainPane } from './chain.tsx';
@@ -186,13 +186,13 @@ function Globals({ st }: { st: Studio }) {
 
 /** "Look" tab (narrow screens): what the toolbar and the header hold on a wide screen, and my other looks. */
 function LookTab({ st, pv }: { st: Studio; pv: Preview }) {
-  const narrow = st.narrow.value, [mine, setMine] = useState<LookCard[] | null>(null), at = useRef(0);
+  const narrow = st.narrow.value, [mine, setMine] = useState<Listed[] | null>(null), at = useRef(0);
   const shown = st.tab.value === 'look';
   useEffect(() => {        // my looks, newest first, asked for at most every 15 s
     if (!shown || Date.now() - at.current < 15000) return;
     at.current = Date.now();
     api.looks('mine').then(({ looks }) => {
-      const when = (l: LookCard) => Date.parse(l.updatedAt || '') || 0;
+      const when = (l: Listed) => Date.parse(l.updatedAt || '') || 0;
       setMine((looks || []).slice().sort((a, b) => when(b) - when(a)).slice(0, 8));
     }).catch((err) => { at.current = 0; if (statusOf(err) === 401) signedOut(); });
   }, [shown]);

@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
-import { createClaudeAdapter } from '../src/generate/claude.js';
-import { createQueue } from '../src/generate/index.js';
+import { createClaudeAdapter } from '../src/generate/claude.ts';
+import { createQueue } from '../src/generate/index.ts';
 import { GenerateError, validateLook } from '../shared/schemas/generated.ts';
 import { GROUPS, jsonRes, LIBRARY, lookJson, queueSetup, quiet, sse, streamOf } from './fixtures/generate/shared.js';
 

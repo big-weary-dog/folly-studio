@@ -2,7 +2,7 @@
 // Studio edits. The shell plugs its router in, so no view imports the shell (an import cycle would cost Vite's HMR).
 import { signal } from '@preact/signals';
 
-import type { User } from '../types.ts';
+import type { User } from '../../../shared/schemas/api.ts';
 
 export interface ViewProps { params: Record<string, string>; query: URLSearchParams; scope?: 'mine' | 'gallery' }
 export const user = signal<User | null>(null);

@@ -1,4 +1,4 @@
-// `npm run lint` on small trees: tools/budgets.mjs (sizes, hygiene, silences, the line ratchet), and the safety rules
+// `npm run lint` on small trees: tools/budgets.ts (sizes, hygiene, silences, the line ratchet), and the safety rules
 // and allowlist in .oxlintrc.jsonc, each firing where it should and nowhere else.
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -9,15 +9,15 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, test } from 'vitest';
 
-import { check, checkBudget } from '../tools/budgets.mjs';
+import { check, checkBudget } from '../tools/budgets.ts';
 
 const STUDIO = fileURLToPath(new URL('..', import.meta.url));
-const OFF = `// ${'oxlint'}-disable-next-line`; // spelled apart, so budgets.mjs does not read this file's own as one
+const OFF = `// ${'oxlint'}-disable-next-line`; // spelled apart, so budgets.ts does not read this file's own as one
 const json70k = `${JSON.stringify({ pad: 'x'.repeat(70 * 1024) })}\n`;
 const roots = [];
 afterAll(() => roots.forEach((dir) => rmSync(dir, { recursive: true, force: true })));
 
-/** A git work tree (budgets.mjs lists files with git) holding these files. */
+/** A git work tree (budgets.ts lists files with git) holding these files. */
 function tree(files) {
   const root = mkdtempSync(path.join(tmpdir(), 'studio-lint-'));
   roots.push(root);
@@ -29,7 +29,7 @@ function tree(files) {
   return root;
 }
 
-test('budgets.mjs: sizes, hygiene, remote URLs, secrets, silences and the ratchet', () => {
+test('budgets.ts: sizes, hygiene, remote URLs, secrets, silences and the ratchet', () => {
   const root = tree({
     'tools/budgets.json': `${JSON.stringify({ areas: { src: { lines: 10 }, public: { lines: 1 },
       'public/css': { lines: 500 }, 'public/js': { lines: 1 } } }, null, 1)}\n`,
@@ -43,6 +43,7 @@ test('budgets.mjs: sizes, hygiene, remote URLs, secrets, silences and the ratche
     'src/silences.js': [`${OFF} no-console`, 'console.info(1);', `${OFF} no-console -- the logger`, 'console.info(2);',
       `${OFF} max-lines -- long`, `/* ${'oxlint'}-disable no-eval */`, ''].join('\n'),
     'src/long.js': '// filler\n'.repeat(401), // oxlint's max-lines
+    'src/field.ts': "export class A {\n  declare b: number;\n}\ndeclare module 'x' {}\n",
     'public/css/long.css': 'a {}\n'.repeat(401),
     'public/index.html': '<script src="https://cdn.example.com/x.js"></script>\n',
     'public/js/ui/raw.tsx': `export const Raw = (p) => <div ${'dangerously'}SetInnerHTML={{ __html: p.html }} />;\n`,
@@ -55,35 +56,35 @@ test('budgets.mjs: sizes, hygiene, remote URLs, secrets, silences and the ratche
   assert.deepEqual(r.errors.map((e) => `${e.file}:${e.line} ${e.rule}`), [
     'broken.json:1 json', 'public/css/long.css:401 max-lines', 'public/data/big.json:1 max-bytes',
     'public/index.html:1 no-remote-url', 'public/js/ui/raw.tsx:1 no-html-sink', 'src/bom.js:1 no-bom',
-    'src/crlf.js:1 no-crlf', 'src/keys.js:1 no-secret',
+    'src/crlf.js:1 no-crlf', 'src/field.ts:2 no-declare-field', 'src/keys.js:1 no-secret',
     'src/no-newline.js:1 final-newline', 'src/silences.js:1 silence', 'src/silences.js:5 silence',
     'src/silences.js:6 silence', 'src/spaces.js:1 trailing-space', 'src/tabs.js:2 no-tabs',
     'src/wide.js:1 max-line-length', 'tools/budgets.json:3 line-budget',
   ]);
-  assert.match(r.errors.at(-1).message, /^src has 418 lines, over its budget of 10/);
+  assert.match(r.errors.at(-1).message, /^src has 422 lines, over its budget of 10/);
   assert.deepEqual(r.notes, ['public/css is at 401 of 500 lines: lower its budget']);
-  const cli = spawnSync(process.execPath, [path.join(STUDIO, 'tools/budgets.mjs'), root], { encoding: 'utf8' });
+  const cli = spawnSync(process.execPath, [path.join(STUDIO, 'tools/budgets.ts'), root], { encoding: 'utf8' });
   assert.equal(cli.status, 1);
   assert.equal(cli.stdout.split('\n').filter((l) => /^\S+:\d+ [a-z-]+ \S/.test(l)).length, r.errors.length);
-  assert.match(cli.stdout, /^budgets: 16 errors, 17 files checked, [\d.]+ s$/m);
+  assert.match(cli.stdout, /^budgets: 17 errors, 18 files checked, [\d.]+ s$/m);
 });
 
 test('.oxlintrc.jsonc: the safety rules, the import boundaries and the allowlist', () => {
   const root = tree({
     'src/server.js': ["import vm from 'node:vm';", "import { spawn } from 'node:child_process';",
-      "import { h } from '../public/js/ui/dom.js';", "import { run } from '../public/js/pattern-core.js';",
+      "import { h } from '../public/js/ui/dom.js';", "import { run } from '../public/js/pattern-core.ts';",
       "import rig from '../public/data/rig.json' with { type: 'json' };", 'console.warn(vm, spawn, h, run, rig);',
       "console.log(eval('1'), new Function('')); debugger;", ''].join('\n'),
-    'src/render-box.js': "import { spawn } from 'node:child_process';\nconsole.warn(spawn);\n",
+    'src/render-box.ts': "import { spawn } from 'node:child_process';\nconsole.warn(spawn);\n",
     'src/typed.ts': 'export const t = (x: string): unknown => eval(x);\n',
     'public/js/ui/view.js': ["import { app } from '../../../src/app.js';",
       "import x from 'https://cdn.example.com/x.js';",
       'export const s = (el) => { el.innerHTML = app; document.write(x); return Math.random(); };', ''].join('\n'),
-    'public/js/core/scene.js': 'export const r = () => Math.random();\n',
-    'public/js/core/compile.js': 'export const make = (s) => new Function(s);\n',
+    'public/js/core/scene.ts': 'export const r = () => Math.random();\n',
+    'public/js/core/compile.ts': 'export const make = (s) => new Function(s);\n',
     'public/patterns/long.js': `${'// filler\n'.repeat(150)}const params = {};\n`
       + 'function pixel(p, t) { return [Math.random()]; }\n',
-    'render-box/render.mjs': "import vm from 'node:vm';\nconsole.warn(vm);\n",
+    'render-box/render.ts': "import vm from 'node:vm';\nconsole.warn(vm);\n",
     'tools/t.mjs': ["import vm from 'node:vm';", "import { execFile } from 'node:child_process';",
       'console.log(vm, execFile);', ''].join('\n'),
     'test/t.test.js': "import vm from 'node:vm';\nconsole.log(vm, eval('1'));\n",
@@ -93,7 +94,7 @@ test('.oxlintrc.jsonc: the safety rules, the import boundaries and the allowlist
   const found = [...r.stdout.matchAll(/^(\S+):(\d+):\d+: .*\((\S+)\)\]$/gm)]
     .map(([, file, line, rule]) => `${file}:${line} ${rule}`).sort();
   assert.deepEqual(found, [
-    'public/js/core/scene.js:1 no-restricted-properties', 'public/js/ui/view.js:1 no-restricted-imports',
+    'public/js/core/scene.ts:1 no-restricted-properties', 'public/js/ui/view.js:1 no-restricted-imports',
     'public/js/ui/view.js:2 no-restricted-imports', 'public/js/ui/view.js:3 no-restricted-properties',
     'public/js/ui/view.js:3 no-restricted-properties', 'public/patterns/long.js:152 max-lines',
     'public/patterns/long.js:152 no-restricted-properties', 'src/server.js:1 no-restricted-imports',

@@ -19,7 +19,7 @@ const KB = 1024;
 // them). rig.json is 31 KB of that with br (43 KB gzip): the LEDs, and the 3D view's rose cells, floods and scaffold.
 const COLD = { 'br, gzip': 205 * KB, gzip: 240 * KB };
 const STUDIO = { view: 'js/ui/studio.tsx', api: ['/api/me', '/api/library'] };
-const PLAYA = { view: 'js/playa/renderer.js', shell: false };   // the 3D view's default mode, imported on show
+const PLAYA = { view: 'js/playa/renderer.ts', shell: false };   // the 3D view's default mode, imported on show
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const kb = (n) => `${(n / KB).toFixed(1)} KB`;
 let app, dir, port, cookie, manifest;

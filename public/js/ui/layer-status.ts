@@ -2,16 +2,13 @@
 // code is broken), params schemas, runtime errors. Reading a state follows `rev`, which moves when they change.
 import { signal } from '@preact/signals';
 
-import type { Layer, Module } from '../types.ts';
+import type { Module } from '../../../shared/schemas/look.ts';
+import type { FrameError, Report } from '../runtime.ts';
+import type { Layer } from './model.ts';
 
 export type StateKind = 'ok' | 'off' | 'muted' | 'pending' | 'compile' | 'runtime' | 'hung';
 export interface State { kind: StateKind; message?: string }
 export interface Problem { kind: 'compile' | 'runtime' | 'hung'; message: string; running?: boolean }
-/** A compile report from the sandbox (SPEC "Sandbox protocol"). */
-export interface Compiled {
-  id: string; ok: boolean; error?: string;
-  modules?: { id: string; ok: boolean; error?: string; params?: Record<string, unknown> | null; code: string }[];
-}
 export const ISSUE_LABELS: Record<string, string> = { compile: 'Compile error', runtime: 'Runtime error',
   hung: 'Hung' };
 const RUNTIME_ERROR_HOLD_MS = 1200;
@@ -20,7 +17,7 @@ const hungOr = (msg: string, kind: 'compile' | 'runtime') => (HUNG_RE.test(msg) 
 const K = (layerId: string, moduleId: string) => `${layerId}/${moduleId}`;
 
 export function createLayerStatus(layerById: (id: string) => Layer | null, silent: (id: string) => boolean) {
-  const compiled = new Map<string, { ok: boolean; params: Record<string, unknown> | null; code: string }>();
+  const compiled = new Map<string, { ok: boolean; params: Record<string, unknown>; code: string }>();
   const good = new Map<string, string>();                            // module key → last code that compiled
   const bad = new Map<string, { code: string; error: string }>();    // module key → newest code that failed
   const schemas = new Map<string, Record<string, unknown>>();        // module key → last good params schema
@@ -32,17 +29,17 @@ export function createLayerStatus(layerById: (id: string) => Layer | null, silen
   const S = {
     rev,
     /** A compile report → true when a module falls back to its last good code (send the look again). */
-    compiled(layers: Compiled[]) {
+    compiled(layers: Report[]) {
       let fallback = false;
       for (const r of layers) {
         const l = layerById(r.id);
         let moduleFailed = false;
-        for (const mr of r.modules || []) {
+        for (const mr of r.modules) {
           const key = K(r.id, mr.id), m = l?.modules.find((x) => x.id === mr.id);
-          compiled.set(key, { ok: !!mr.ok, params: mr.params || null, code: mr.code });
+          compiled.set(key, { ok: mr.ok, params: mr.params, code: mr.code });
           if (mr.ok) {
             good.set(key, mr.code);
-            if (mr.params) schemas.set(key, mr.params);
+            schemas.set(key, mr.params);
             if (m && m.code === mr.code) bad.delete(key);
           } else {
             moduleFailed = true;
@@ -58,7 +55,7 @@ export function createLayerStatus(layerById: (id: string) => Layer | null, silen
     },
 
     /** A frame's errors; panels redraw only when what they show changed. */
-    frameErrors(errors: { id: string; error?: unknown; module?: string }[]) {
+    frameErrors(errors: readonly FrameError[]) {
       if (!errors.length && !runtimeErr.size) return;      // the usual case: nothing to do
       const now = performance.now();
       for (const e of errors) runtimeErr.set(e.id, { error: String(e.error || 'error'), module: e.module, at: now });

@@ -48,11 +48,11 @@ summary that you took it loosely.
      `function filter(c, q, t, P, G, x)` (`x`: the colour of the source its `input` names). The look
      may set `"globals"` (`speed`, `level`, `hue`, `saturation`, `energy`, `palette` by name,
      `macros`) and `"automation"` (`{ "energy": [[seconds, value], …] }`); patterns read them as `G`.
-2. Run `node check.mjs`. It compiles every layer with the studio's real runtime
-   (`pattern-core.js`), renders frames on the real LEDs (`rig.json`) and prints
+2. Run `node check.ts`. It compiles every layer with the studio's real runtime
+   (`pattern-core.ts`), renders frames on the real LEDs (`rig.json`) and prints
    problems. Fix every ✗ and, where you can, every warning. Iterate on how it looks: render
    more frames with your own scripts if that helps (use only node and the files here).
-3. Bake it: `node check.mjs --bake` renders the look's duration (at most 120 s) at the rig's fps from t = 0 and writes
+3. Bake it: `node check.ts --bake` renders the look's duration (at most 120 s) at the rig's fps from t = 0 and writes
    `frames.fseq` (the frames themselves) and `stats.json` next to `look.json`, then runs the
    studio's frame checks on them. Fix every ✗ and bake again. The studio checks the frames
    again on its side: large-area flashing faster than 3 times a second (anywhere, in any one

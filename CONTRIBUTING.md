@@ -12,7 +12,7 @@ npm start                    # builds the app (vite build → dist/), then http:
                              #   data in STUDIO_DATA, default ./data/); `node server.js` serves the last build
 npm run dev                  # Vite's dev server with HMR (Preact's: components keep their state) on
                              #   http://127.0.0.1:5173/ (DEV_PORT), /api sent to the Node server on PORT
-                             #   (tools/dev.mjs); the sandbox page is built on each request
+                             #   (tools/dev.ts); the sandbox page is built on each request
 npm run build                # public/ → dist/: content-hashed files, the manifest, the sandbox page
 npm run check                # typecheck, lint, then every test: run it before you call anything done
 npm run typecheck            # tsc -p . (checks only; nothing is emitted)
@@ -130,7 +130,7 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `shared/schemas/` | zod schemas the server runs and the browser takes as types: `look.ts` (what a look may hold, the 400s naming the first problem), `generated.ts` (a generator's look cleaned leniently; its JSON Schema for structured output), `api.ts` (request bodies, users, ideas), `rig.ts` (the rig, the library index) |
 | `src/store.js` | JSON-file storage under `STUDIO_DATA` |
 | `src/static.ts` | The built app from `dist/` (@fastify/static: the precompressed copies, ETags, cache headers with `assets/` kept a year, the CSPs, the shell for SPA routes); the library and rig loaders |
-| `vite.config.js`, `tools/vite-sandbox.js`, `tools/vite-compress.js`, `tools/dev.mjs` | The build (`public/` → `dist/`); the sandbox page, its scripts inlined; the `.br` and `.gz` copies of its text; `npm run dev` |
+| `vite.config.js`, `tools/vite-sandbox.ts`, `tools/vite-compress.ts`, `tools/dev.ts` | The build (`public/` → `dist/`); the sandbox page, its scripts inlined; the `.br` and `.gz` copies of its text; `npm run dev` |
 | `src/frames.js` | Pure: strict FSEQ parsing and frame analysis (brightness, flicker) |
 | `src/bake.js`, `render-box.js`, `box-output.js`, `core-script.js` | The one-at-a-time bake queue and frame files; the render box under bubblewrap; what a box hands back, read as data; the core from its source for the boxes |
 | `src/frames-wire.js`, `frames-cache.js`, `frames-http.ts`, `fseq-codec.js` | Baked frames on the wire: the stream encoder; the chunks and downloads kept by hash under a disk cap, made one job at a time by the encoder thread; their routes; FSEQ zstd/zlib blocks |
@@ -139,16 +139,16 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `render-box/render.mjs`, `renderer.mjs` | Bakes a look to `.fseq` inside bubblewrap; the frame loop it shares with `fleet-box/check.mjs` |
 | `fleet-box/` | Checker and brief for a boxed Fleet worker |
 | `public/index.html`, `css/` | The app shell and its styles: `base.css` (tokens, layout and components) on every page; `pages`, `studio`, `viewer`, `timeline`, `compose` imported by their views' modules, so Vite loads them with them |
-| `public/sandbox.html`, `js/sandbox-relay.js`, `js/sandbox-worker.js` | The sandboxed pattern runner (SPEC "Sandbox protocol"): the page Vite inlines them into; the relay and watchdog; the Worker |
+| `public/sandbox.html`, `js/sandbox-relay.ts`, `js/sandbox-worker.ts` | The sandboxed pattern runner (SPEC "Sandbox protocol"): the page Vite inlines them into; the relay and watchdog; the Worker |
 | `public/js/pattern-core.js`, `core/` | Pure: stdlib (with palettes), compile, scene (the rig, its groups and tags), timeline, render (module chains, DMX channels), globals (with automation and param bindings); re-exported; runs in the sandbox, the boxes and tests |
 | `public/js/fseq.js` | Pure: FSEQ v2 writer |
-| `public/js/frames-stream.js` | Streamed playback of baked frames, and their pure decoder |
-| `public/js/runtime.js` | App side of the sandbox: iframe, adaptive frame rate, watchdog |
-| `public/js/flash-guard.js` | Pure: the preview's flash guard, the bake check's rule on the frames shown |
-| `public/js/viewer.js`, `viewer-gl.js` | The 3D view (SPEC "The 3D view"): the orbit camera, pointer and keys; the Points drawing |
-| `public/js/playa/` | The Playa view, loaded on first use: `geometry.js` builds it from the rig's render hints, `renderer.js` draws (light texture, spill, bloom, tone map, tiers), `glsl.js` |
-| `public/js/main.tsx`, `api.ts`, `types.ts` | The entry (renders the shell); the typed fetch wrapper; the client's view of the API's shapes |
-| `public/js/ui/` | The UI, Preact components in TSX with signals for state. `app.tsx`: the shell, routing (history API, views loaded on first use) and the header, `session.ts` what views share with it (the user, navigation, the guard on unsaved edits); `auth`, `pages` (ideas, my looks, the gallery); `kit.tsx` toasts, dialogs, fields and helpers, `rose.tsx` the rose. The Studio: `studio.tsx` loads it, `studio-store.ts` holds its state (the look, replaced on each edit; the selection; layout) and saves, `studio-layout.tsx` lays out the panes; `preview.ts` drives the imperative 3D view and sandbox (one clock, the flash guard, baked playback) and `preview-view.tsx` wraps them; `layers`, `chain`, `params` (+ `bindings.ts`), `editor`, `shelf` (auditions), `look-globals`, `bake`, `export`; the timeline is `timeline.tsx` (+ `-state`, `-tools`, `-input`, `-auto`, `-model`); `layer-status.ts` is what the sandbox says; `model.ts` the rig, library and layer helpers |
+| `public/js/frames-stream.ts` | Streamed playback of baked frames, and their pure decoder |
+| `public/js/runtime.ts` | App side of the sandbox: iframe, adaptive frame rate, watchdog; the protocol's messages as types |
+| `public/js/flash-guard.ts` | Pure: the preview's flash guard, the bake check's rule on the frames shown |
+| `public/js/viewer.ts`, `viewer-input.ts`, `viewer-gl.ts` | The 3D view (SPEC "The 3D view"): the orbit camera; its pointer and keys; the Points drawing |
+| `public/js/playa/` | The Playa view, loaded on first use: `geometry.ts` builds it from the rig's render hints, `renderer.ts` draws (light texture, spill, bloom, tone map, tiers), `glsl.ts` |
+| `public/js/main.tsx`, `api.ts` | The entry (renders the shell); the fetch wrapper, typed by `shared/schemas/` |
+| `public/js/ui/` | The UI, Preact components in TSX with signals for state. `app.tsx`: the shell, routing (history API, views loaded on first use) and the header, `session.ts` what views share with it (the user, navigation, the guard on unsaved edits); `auth`, `pages` (ideas, my looks, the gallery); `kit.tsx` toasts, dialogs, fields and helpers, `rose.tsx` the rose. The Studio: `studio.tsx` loads it, `studio-store.ts` holds its state (the look, replaced on each edit; the selection; layout) and saves, `studio-layout.tsx` lays out the panes; `preview.ts` drives the imperative 3D view and sandbox (one clock, the flash guard, baked playback) and `preview-view.tsx` wraps them; `layers`, `chain`, `params` (+ `bindings.ts`), `editor`, `shelf` (auditions), `look-globals`, `bake`, `export`; the timeline is `timeline.tsx` (+ `-state`, `-tools`, `-input`, `-auto`, `-model`); `layer-status.ts` is what the sandbox says; `model.ts` the rig, library, the Studio's `Layer` (a chain) and its helpers |
 | `public/patterns/` | The built-in library (`index.json` with each entry's `kind` and `category`, + one file each): sources, warps and filters, also the AI's examples |
 | `tools/` | `build_rig.py` (+ `rig_render.py`: what Mirage draws), `build_palettes.py` (data), `sacn-play.mjs`, `budgets.mjs` (the checks oxlint lacks, with line budgets in `budgets.json`; oxlint's rules are `.oxlintrc.jsonc` at the root), `backup.mjs`, `frames-bench.mjs` (brotli quality against encode time) |
 | `README.md`, `DESIGN.md`, `docs/` | What it is; what was built and why (`docs/screenshots/`); `docs/HOSTING.md`, hosting at home |

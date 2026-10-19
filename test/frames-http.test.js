@@ -1,4 +1,4 @@
-// The baked-frames routes (src/frames-http.ts, src/frames-cache.js): streaming chunks under
+// The baked-frames routes (src/frames-http.ts, src/frames-cache.ts): streaming chunks under
 // immutable content-hash URLs, br / gzip / plain negotiation, who may fetch them, the wait while a
 // bake is encoded, compressed .fseq downloads, and folders pruned when their bake goes.
 import assert from 'node:assert/strict';
@@ -11,13 +11,13 @@ import zlib from 'node:zlib';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { writeFseq } from '../public/js/fseq.js';
-import { decodeChunk, parseManifest, readFrame } from '../public/js/frames-stream.js';
+import { writeFseq } from '../public/js/fseq.ts';
+import { decodeChunk, parseManifest, readFrame } from '../public/js/frames-stream.ts';
 import { createServer } from '../src/app.ts';
-import { parseFseq } from '../src/frames.js';
+import { parseFseq } from '../src/frames.ts';
 import { IMMUTABLE } from '../src/frames-http.ts';
 import { lineRig } from './fixtures/rigs.js';
-import { HAS_ZSTD, inflateBlock } from '../src/fseq-codec.js';
+import { HAS_ZSTD, inflateBlock } from '../src/fseq-codec.ts';
 
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const PIXEL = 'function pixel(p, t, P) { return [p.x, p.y, p.z]; }';

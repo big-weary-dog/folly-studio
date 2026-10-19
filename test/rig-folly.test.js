@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
-import * as core from '../public/js/pattern-core.js';
+import * as core from '../public/js/pattern-core.ts';
 import { folly } from './fixtures/rigs.js';
 
 const frozen = JSON.parse(readFileSync(new URL('./fixtures/rigs/folly-frames.json', import.meta.url), 'utf8'));

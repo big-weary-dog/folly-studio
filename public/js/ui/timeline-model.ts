@@ -1,7 +1,8 @@
 // Timeline edits as pure functions (SPEC "Timeline"): clips [{ start, end, fadeIn, fadeOut }] in seconds, sorted,
 // not overlapping. Each edit returns new arrays and keeps those rules, so the server accepts what the editor makes.
-import { DEFAULT_DURATION, MAX_CLIPS, MAX_DURATION, MIN_DURATION } from '../core/timeline.js';
-import type { Clip, Layer } from '../types.ts';
+import { DEFAULT_DURATION, MAX_CLIPS, MAX_DURATION, MIN_DURATION } from '../core/timeline.ts';
+import type { Clip } from '../../../shared/schemas/look.ts';
+import type { Layer } from './model.ts';
 
 export { DEFAULT_DURATION, MAX_DURATION };
 const MAX_LAYERS = 8;

@@ -5,7 +5,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { parseFseq } from '../src/frames.js';
+import { parseFseq } from '../src/frames.ts';
 import { fakeBox, fx, layer, PIXEL, signup, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();

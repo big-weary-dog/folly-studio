@@ -5,9 +5,9 @@ import { readFileSync } from 'node:fs';
 
 import { test } from 'vitest';
 
-import { buildGeometry, cluster, earClip, playa } from '../public/js/playa/geometry.js';
-import { tooSlow } from '../public/js/playa/renderer.js';
-import { frameOf } from '../public/js/viewer.js';
+import { buildGeometry, cluster, earClip, playa } from '../public/js/playa/geometry.ts';
+import { tooSlow } from '../public/js/playa/renderer.ts';
+import { frameOf } from '../public/js/viewer.ts';
 
 const rig = (file) => JSON.parse(readFileSync(new URL(file, import.meta.url), 'utf8'));
 const FOLLY = rig('../public/data/rig.json');

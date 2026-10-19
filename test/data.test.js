@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 import { test } from 'vitest';
 
-import { prepareScene } from '../public/js/pattern-core.js';
+import { prepareScene } from '../public/js/pattern-core.ts';
 
 const here = (p) => new URL(p, import.meta.url);
 const text = readFileSync(here('../public/data/rig.json'), 'utf8');

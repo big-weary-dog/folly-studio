@@ -6,21 +6,20 @@ import { isDeepStrictEqual } from 'node:util';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
-import { DEFAULT_DURATION } from '../public/js/pattern-core.js';
-import { LookCreate, LookPatch, LooksQuery } from '../shared/schemas/api.ts';
-import type { Listed } from '../shared/schemas/api.ts';
-import { automationFor, Layers } from '../shared/schemas/look.ts';
-import type { Globals } from '../shared/schemas/look.ts';
+import { DEFAULT_DURATION } from '../public/js/pattern-core.ts';
+import { type Listed, LookCreate, LookPatch, LooksQuery } from '../shared/schemas/api.ts';
+import { automationFor, type Globals, Layers } from '../shared/schemas/look.ts';
 import { newestBy } from './api.ts';
-import { reviewBlocker } from './bake.js';
-import { BakeError } from './box-output.js';
+import type { Auth } from './auth.ts';
+import { type createBakeQueue, reviewBlocker } from './bake.ts';
+import { BakeError } from './box-output.ts';
 import { HttpError, parse } from './http.ts';
+import type { Store, StoredLook as Look } from './store.ts';
 
 export const MAX_VERSIONS = 20;
 export const MAX_LOOKS_PER_USER = 500;
 export const GALLERY_LIMIT = 200;
 
-type Look = Record<string, any>;
 type User = { id: string, username: string };
 type Req = FastifyRequest<{ Params: { id: string } }>;
 
@@ -30,7 +29,8 @@ export const validateLayers = (layers: unknown) => parse(z.object({ layers: Laye
 const lanes = (automation: unknown, globals: Globals | null | undefined) =>
   parse(z.object({ automation: automationFor(globals) }), { automation }).automation ?? undefined;
 
-export function lookRoutes({ store, auth, bakes, dropFrames }: Record<string, any>) {
+export function lookRoutes({ store, auth, bakes, dropFrames }: { store: Store, auth: Auth,
+  bakes: ReturnType<typeof createBakeQueue>, dropFrames: (id: string) => Promise<unknown> }) {
   const ownerName = (id: string) => store.users.get(id)?.username ?? '';
 
   function presentLook(look: Look, { versions = false } = {}) {
@@ -49,7 +49,8 @@ export function lookRoutes({ store, auth, bakes, dropFrames }: Record<string, an
       title: look.title, summary: look.summary ?? '', duration: look.duration ?? DEFAULT_DURATION,
       layerCount: Array.isArray(look.layers) ? look.layers.length : 0, shared: look.shared === true,
       reviewed: look.reviewed === true, createdAt: look.createdAt, updatedAt: look.updatedAt,
-      ...Object.fromEntries(['bpm', 'sharedAt', 'ideaId'].filter((k) => look[k] != null).map((k) => [k, look[k]])) };
+      ...Object.fromEntries((['bpm', 'sharedAt', 'ideaId'] as const).filter((k) => look[k] != null)
+        .map((k) => [k, look[k]])) };
   }
 
   function visibleLook(id: string, user: User): Look {
@@ -63,15 +64,15 @@ export function lookRoutes({ store, auth, bakes, dropFrames }: Record<string, an
   async function list(req: FastifyRequest) {
     const { scope } = parse(LooksQuery, req.query);
     const looks = scope === 'mine'
-      ? store.looks.list((l: Look) => l.owner === req.user!.id).reverse().sort(newestBy('updatedAt'))
-      : store.looks.list((l: Look) => l.shared === true).reverse().sort(newestBy('sharedAt')).slice(0, GALLERY_LIMIT);
+      ? store.looks.list((l) => l.owner === req.user!.id).reverse().sort(newestBy('updatedAt'))
+      : store.looks.list((l) => l.shared === true).reverse().sort(newestBy('sharedAt')).slice(0, GALLERY_LIMIT);
     return { looks: looks.map(listed) };
   }
 
   async function create(req: FastifyRequest, reply: FastifyReply) {
     const { automation, ideaId, globals, bpm, ...body } = parse(LookCreate, req.body);
     const user = req.user!;
-    const look: Look = { owner: user.id, ownerName: user.username, ...body, reviewed: false, versions: [] };
+    const look: Partial<Look> = { owner: user.id, ownerName: user.username, ...body, reviewed: false, versions: [] };
     if (globals) look.globals = globals;
     const lanesNow = automation === undefined ? undefined : lanes(automation, globals);
     if (lanesNow) look.automation = lanesNow;
@@ -82,7 +83,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames }: Record<string, an
       if (!idea || idea.owner !== user.id) throw new HttpError(400, 'ideaId does not name one of your ideas.');
       look.ideaId = idea.id;
     }
-    if (store.looks.list((l: Look) => l.owner === user.id).length >= MAX_LOOKS_PER_USER) {
+    if (store.looks.list((l) => l.owner === user.id).length >= MAX_LOOKS_PER_USER) {
       throw new HttpError(429, `You have ${MAX_LOOKS_PER_USER} looks; delete some first.`);
     }
     reply.code(201);
@@ -96,8 +97,10 @@ export function lookRoutes({ store, auth, bakes, dropFrames }: Record<string, an
     const isOwner = look.owner === user.id;
     const isCurator = auth.isCurator(user);
     const body = parse(LookPatch, req.body);
-    const patch: Look = {};
-    const changed = (k: string, v: unknown, was = look[k]) => { if (!isDeepStrictEqual(v, was)) patch[k] = v; };
+    const patch: Partial<Look> = {};
+    const changed = <K extends keyof Look>(k: K, v: Look[K], was = look[k]) => {
+      if (!isDeepStrictEqual(v, was)) patch[k] = v;
+    };
     if (body.title !== undefined) patch.title = body.title;
     if (body.summary !== undefined) patch.summary = body.summary;
     if (body.shared !== undefined) {
@@ -121,8 +124,8 @@ export function lookRoutes({ store, auth, bakes, dropFrames }: Record<string, an
         ...(look.automation ? { automation: look.automation } : {}), savedAt: look.updatedAt };
       patch.versions = [...(Array.isArray(look.versions) ? look.versions : []), prev].slice(-MAX_VERSIONS);
     }
-    const unset: Look = { summary: '', shared: false };
-    const changes = ['title', 'summary', 'shared', 'bpm']
+    const unset: Partial<Look> = { summary: '', shared: false };
+    const changes = (['title', 'summary', 'shared', 'bpm'] as const)
       .filter((k) => k in patch && patch[k] !== (look[k] ?? unset[k]));
     // Only the owner edits; a curator may also set `reviewed` on a look shared with them.
     if (!isOwner && (changes.length || layersChanged || !isCurator)) {
@@ -137,7 +140,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames }: Record<string, an
     } else if (body.reviewed === undefined && layersChanged && look.reviewed === true) {
       Object.assign(patch, { reviewed: false, reviewedBy: undefined }); // new code needs a fresh review
     }
-    const updated = Object.keys(patch).length ? store.looks.update(id, patch) : look;
+    const updated = Object.keys(patch).length ? store.looks.update(id, patch)! : look;
     if ('bake' in patch) await dropFrames(id);
     return { look: presentLook(updated, { versions: versionsFor(req, look) }) };
   }
@@ -153,7 +156,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames }: Record<string, an
 
   async function bake(req: Req, reply: FastifyReply) {
     const look = visibleLook(req.params.id, req.user!);
-    if (look.owner !== req.user!.id && !auth.isCurator(req.user)) {
+    if (look.owner !== req.user!.id && !auth.isCurator(req.user!)) {
       throw new HttpError(403, 'Only the owner or a curator can bake this look.');
     }
     try {

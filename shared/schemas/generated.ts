@@ -6,23 +6,24 @@ import { z } from 'zod';
 
 import {
   BLENDS, GLOBALS, macroNameOk, MAX_LANES, MAX_MACROS, MAX_POINTS, MODULE_KINDS,
-} from '../../public/js/pattern-core.js';
-import { automationFor, Binding, bytes, Globals as StrictGlobals, ID, PALETTE_NAMES, problem, TAG } from './look.ts';
-import type { Automation, Globals, Module } from './look.ts';
+} from '../../public/js/pattern-core.ts';
+import type { Blend, ModuleKind } from '../../public/js/pattern-core.ts';
+import {
+  automationFor, Binding, bytes, Globals as StrictGlobals, HEX, ID, ms, PALETTE_NAMES, problem, TAG,
+} from './look.ts';
+import type { Automation, Globals, Module, Range } from './look.ts';
 
 export const LIMITS = Object.freeze({ layers: 4, modules: 6, codeBytes: 20 * 1024, title: 80, layerTitle: 80,
   summary: 400, params: 32, clips: 32, duration: 600 });
-const BLEND_ALIASES: Record<string, string> = { maximum: 'max', normal: 'over', mult: 'multiply', screen: 'max',
+const BLEND_ALIASES: Record<string, Blend> = { maximum: 'max', normal: 'over', mult: 'multiply', screen: 'max',
   lighten: 'max' };
-const KIND_ALIASES: Record<string, string> = { pattern: 'source', effect: 'filter', transform: 'warp' };
+const KIND_ALIASES: Record<string, ModuleKind> = { pattern: 'source', effect: 'filter', transform: 'warp' };
 const FUNCTION: Record<string, string> = { source: 'pixel', warp: 'warp', filter: 'filter' };
 const PARAM_NAME = /^[A-Za-z_$][\w$]{0,63}$/;
-const HEX = /^#[0-9a-fA-F]{6}$/;
 // Control characters other than tab/newline/CR; they have no place in code or text we store.
 // oxlint-disable-next-line no-control-regex -- matching control characters is the point
 const CONTROL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
-const ms = (v: number) => Math.round(v * 1000) / 1000;
 const isString = (v: unknown): v is string => typeof v === 'string';
 
 /** An error whose `userMessage` is safe to show to the person who submitted the idea. */
@@ -53,7 +54,8 @@ const code = (fn: string) => z.string().catch('').refine((c) => c.trim(), { erro
   .refine((c) => new RegExp(`\\bfunction\\s+${fn}\\s*\\(`).test(c), { error: `code does not define function ${fn}` });
 const text = (max: number) => z.string().catch('').transform((s) => cleanText(s, max));
 const blend = z.string().catch('').transform((b) => b.trim().toLowerCase())
-  .transform((b) => (BLENDS.includes(b) ? b : BLEND_ALIASES[b] ?? 'add')).meta({ enum: [...BLENDS] });
+  .transform((b): Blend => (BLENDS.includes(b as Blend) ? b as Blend : BLEND_ALIASES[b] ?? 'add'))
+  .meta({ enum: [...BLENDS] });
 const level = z.number().transform((n) => clamp(n, 0, 1)).catch(1);
 /** Seconds, from a number or a numeric string. */
 const time = z.preprocess((v) => (typeof v === 'string' && v.trim() ? Number(v) : v), z.number());
@@ -71,7 +73,7 @@ const params = z.record(z.string(), z.unknown()).catch({}).transform((p) => Obje
 
 /** A list item that fails is kept as its reason, so the list can note it by position. */
 type Dropped = { dropped: string };
-const orDrop = <T extends z.ZodType>(item: T) => item.catch((c) => ({ dropped: c.error.issues[0]!.message }) as never);
+const orDrop = <T extends z.ZodType>(item: T) => item.catch((c) => ({ dropped: c.error.issues[0].message }) as never);
 const isDropped = (x: unknown): x is Dropped => !!x && typeof x === 'object' && 'dropped' in x;
 /** What was kept, at most `max`; each item dropped is noted as `${label} ${i + 1}: why`. */
 function keep<T>(list: (T | Dropped)[], label: string, max: number, notes: string[]): T[] {
@@ -104,9 +106,10 @@ const clips = z.preprocess((v) => v ?? undefined, z.array(orDrop(clip)).optional
 type Library = { name: string }[];
 const moduleOf = (library: Library) => z.object({
   id: z.string().optional().catch(undefined),
-  kind: z.string().catch('source').transform((k, ctx) => {
+  kind: z.string().catch('source').transform((k, ctx): ModuleKind => {
     const kind = k.trim().toLowerCase();
-    return FUNCTION[kind] ? kind : KIND_ALIASES[kind] ?? (ctx.addIssue(`unknown kind ${k.slice(0, 20)}`), z.NEVER);
+    if (FUNCTION[kind]) return kind as ModuleKind;
+    return KIND_ALIASES[kind] ?? (ctx.addIssue(`unknown kind ${k.slice(0, 20)}`), z.NEVER);
   }).meta({ enum: [...MODULE_KINDS] }),
   title: text(LIMITS.layerTitle), ref: z.string().optional().catch(undefined),
   code: z.unknown().optional().meta({ type: 'string' }),
@@ -114,7 +117,7 @@ const moduleOf = (library: Library) => z.object({
   blend: blend.optional(),
 }, { error: 'not an object' }).meta({ required: ['id', 'kind', 'title', 'code'] }).transform((m, ctx) => {
   const checked = code(FUNCTION[m.kind]!).safeParse(m.code);
-  if (!checked.success) return (ctx.addIssue(checked.error.issues[0]!.message), z.NEVER);
+  if (!checked.success) return (ctx.addIssue(checked.error.issues[0].message), z.NEVER);
   const ref = library.some((p) => p.name === m.ref) ? m.ref : undefined;
   return { id: m.id, kind: m.kind, title: m.title || ref || m.kind, ...(ref ? { ref } : {}), code: checked.data,
     params: m.params, ...(m.kind === 'filter' && m.input ? { input: m.input } : {}),
@@ -153,7 +156,7 @@ const layerOf = (library: Library, known: Set<string>, root: string, groupTags: 
     own = { modules };
   } else {
     const checked = code('pixel').safeParse(l.code);
-    if (!checked.success) return (ctx.addIssue(checked.error.issues[0]!.message), z.NEVER);
+    if (!checked.success) return (ctx.addIssue(checked.error.issues[0].message), z.NEVER);
     own = { code: checked.data, params: l.params };
   }
   // Known group ids; none: the root, or nothing when tags say where it goes (SPEC "Looks").
@@ -162,12 +165,10 @@ const layerOf = (library: Library, known: Set<string>, root: string, groupTags: 
     level: l.level, ...(l.clips.clips.length ? { clips: l.clips.clips } : {}), notes };
 });
 
-type Range = { min: number, max: number };
 const range = (d: Range) => z.number().transform((v) => clamp(v, d.min, d.max)).optional()
   .catch(undefined);
-const macro = z.object({ name: z.unknown().optional().meta({ type: 'string' }),
-  value: z.number().optional().catch(undefined),
-  min: z.number().optional().catch(undefined), max: z.number().optional().catch(undefined) })
+const maybe = z.number().optional().catch(undefined);
+const macro = z.object({ name: z.unknown().optional().meta({ type: 'string' }), value: maybe, min: maybe, max: maybe })
   .meta({ required: ['name', 'value', 'min', 'max'] });
 /** Globals as the model gives them (macros a list or a map, the palette by name) → stored, or undefined. */
 const globalsOf = z.object({
@@ -182,10 +183,8 @@ const automationOf = z.preprocess((a) => (a && typeof a === 'object' && !Array.i
 z.array(orDrop(z.object({ name: z.string(), points: z.array(orDrop(z.array(z.number()))) })))).catch([]);
 
 function cleanGlobals(g: z.infer<typeof globalsOf>, notes: string[]): Globals | undefined {
-  const out: Record<string, unknown> = Object.fromEntries(Object.keys(GLOBALS).flatMap((k) => {
-    const v = g[k as keyof typeof GLOBALS];
-    return v === undefined ? [] : [[k, v]];
-  }));
+  const out: Record<string, unknown> = Object.fromEntries(Object.entries(g)
+    .filter(([k, v]) => k in GLOBALS && v !== undefined));
   const p = g.palette;
   const name = isString(p) ? p.trim().toLowerCase() : (p as { name?: unknown } | null)?.name;
   if (isString(name) && PALETTE_NAMES.includes(name)) out.palette = name;
@@ -197,16 +196,15 @@ function cleanGlobals(g: z.infer<typeof globalsOf>, notes: string[]): Globals | 
       continue;
     }
     const min = m.min ?? 0, max = m.max !== undefined && m.max > min ? m.max : min + 1;
-    macros[m.name as string] = { value: clamp(m.value ?? min, min, max), min, max };
+    macros[m.name] = { value: clamp(m.value ?? min, min, max), min, max };
   }
   if (Object.keys(macros).length) out.macros = macros;
   return strict('globals', StrictGlobals, out, notes) ?? undefined;
 }
 
 function cleanAutomation(lanes: z.infer<typeof automationOf>, globals: Globals | undefined, notes: string[]) {
-  const out: Automation = {};
+  const out: Automation = {}, ranges: Record<string, Range> = { ...GLOBALS, ...globals?.macros };
   for (const lane of lanes.slice(0, MAX_LANES)) {
-    const ranges: Record<string, Range> = { ...GLOBALS, ...globals?.macros };
     const r = !isDropped(lane) && Object.hasOwn(ranges, lane.name) && ranges[lane.name];
     if (isDropped(lane) || !r) {
       notes.push(`automation of ${isDropped(lane) ? '?' : lane.name.slice(0, 30)}`);
@@ -214,7 +212,7 @@ function cleanAutomation(lanes: z.infer<typeof automationOf>, globals: Globals |
     }
     const seen = new Set<number>();
     const points = lane.points.filter((p): p is number[] => !isDropped(p) && p.length >= 2)
-      .map((p): [number, number] => [ms(clamp(p[0]!, 0, LIMITS.duration)), clamp(p[1]!, r.min, r.max)])
+      .map((p): [number, number] => [ms(clamp(p[0], 0, LIMITS.duration)), clamp(p[1], r.min, r.max)])
       .sort((x, y) => x[0] - y[0]).filter((p) => !seen.has(p[0]) && seen.add(p[0])).slice(0, MAX_POINTS);
     if (points.length) out[lane.name] = points;
   }
@@ -258,7 +256,7 @@ export function validateLook(raw: unknown, ctx: { groups?: Group[], library?: Li
     return { id: `l${i + 1}`, ...l, title: l.title || `Layer ${i + 1}` };
   });
   if (!layers.length) {
-    const why = dropped.length ? dropped[0]!.replace(/^layer \d+: /, '') : 'no layers';
+    const why = dropped.length ? dropped[0].replace(/^layer \d+: /, '') : 'no layers';
     throw new GenerateError('The generator did not produce a usable pattern.', why);
   }
   const { title, summary, duration } = r.data;

@@ -8,37 +8,30 @@ import fastifyRateLimit from '@fastify/rate-limit';
 import Fastify from 'fastify';
 
 import { apiRoutes, enqueueIdea, MAX_IDEAS_PER_DAY } from './api.ts';
-import { createAuth } from './auth.ts';
-import type { Cost, Store } from './auth.ts';
-import { createBakeQueue, createLane } from './bake.js';
-import { createFramesCache } from './frames-cache.js';
-import { createQueue } from './generate/index.js';
-import { createLog, errorHandler } from './http.ts';
-import type { Log } from './http.ts';
-import { createRenderBox } from './render-box.js';
+import type { Idea } from '../shared/schemas/api.ts';
+import { type Cost, createAuth } from './auth.ts';
+import { createBakeQueue, createLane } from './bake.ts';
+import { createFramesCache } from './frames-cache.ts';
+import { createQueue } from './generate/index.ts';
+import { createLog, errorHandler, type Log } from './http.ts';
+import { createRenderBox } from './render-box.ts';
 import { createLoaders, CSP_APP, DEFAULT_DIST_DIR, DEFAULT_PUBLIC_DIR, serveApp } from './static.ts';
-import { createStore } from './store.js';
+import { createStore } from './store.ts';
 
 export const DEFAULT_DATA_DIR = fileURLToPath(new URL('../data/', import.meta.url));
 export const MAX_BODY = 256 * 1024;
 
-// The JavaScript modules' factories are untyped: what they take and give is cast here, once.
-type Table = { get(id: string): any, list(fn?: (x: any) => boolean): any[], create(x: object): any,
-  update(id: string, patch: object): any, remove(id: string): boolean };
-type AppStore = Store & Record<'ideas' | 'looks', Table> & { flush(): Promise<void>, dataDir: string };
-
+/** The generator queue: createQueue()'s, or one a test gives. */
+export type Queue = { enqueue(idea: Idea): unknown, idle?(): unknown, adapterName?: string };
+type Deps = Parameters<typeof createQueue>[0] & { adapterName: string };
 type Options = { dataDir?: string, publicDir?: string, distDir?: string, generatorName?: string,
   curators?: string | string[], secureCookies?: boolean, trustProxy?: boolean, maxIdeasPerDay?: number, log?: Log,
   rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, scrypt?: Cost, framesQuality?: number,
-  framesMaxBytes?: number,
-  generator?: any, renderBox?: any };
+  framesMaxBytes?: number, generator?: Queue | ((deps: Deps) => Queue | Promise<Queue>),
+  renderBox?: Parameters<typeof createBakeQueue>[0]['box'] };
 
 /**
- * createServer({ dataDir, publicDir, distDir, generator?, generatorName?, curators?, secureCookies?, rateLimit?,
- *   trustProxy?, scrypt?, log?, maxIdeasPerDay?, renderBox?, framesQuality?, framesMaxBytes? }) → { app (Fastify),
- *   server, store, auth, queue, bakes, frames, loaders, adapterName, listen(port = 0, host) → address, close() }.
- * `generator`: a queue `{ enqueue(idea), idle?() }` or a factory of one (tests), else createQueue().
- * `renderBox`: `{ probe(), render({ layers }), stop?(), config? }` (tests), else createRenderBox() (STUDIO_BAKE_*).
+ * The server. `generator` and `renderBox` stand in for createQueue() and createRenderBox() (STUDIO_BAKE_*) in tests;
  * `publicDir`: the sources (the library, the rig); `distDir`: the app as Vite built it, served as static files.
  * `trustProxy`: one proxy in front (a tunnel): the client's address and host are the ones it forwards.
  */
@@ -49,27 +42,27 @@ export async function createServer(opts: Options = {}) {
     maxIdeasPerDay = MAX_IDEAS_PER_DAY, log = createLog(), renderBox, framesQuality, framesMaxBytes, scrypt,
   } = opts;
 
-  const store = await createStore(dataDir, { log } as never) as AppStore;
+  const store = await createStore(dataDir, { log });
   const auth = createAuth({ store, curators, cost: scrypt });
   auth.pruneSessions();
   const loaders = createLoaders(publicDir, { log });
   const { loadLibrary, loadRig } = loaders;
   const deps = { store, loadLibrary, loadRig, adapterName: generatorName, log };
-  const queue = typeof generator === 'function' ? await generator(deps) : generator || createQueue(deps as never);
+  const queue: Queue = typeof generator === 'function' ? await generator(deps) : generator || createQueue(deps);
   const adapterName = typeof queue.adapterName === 'string' && queue.adapterName ? queue.adapterName : generatorName;
   const framesDir = path.join(dataDir, 'frames');
-  const box = renderBox || createRenderBox({ publicDir, log } as never);
-  // Baked frames are encoded for streaming as soon as they are stored (src/frames-cache.js); bakes and those
+  const box = renderBox || createRenderBox({ publicDir, log });
+  // Baked frames are encoded for streaming as soon as they are stored (src/frames-cache.ts); bakes and those
   // encodes take turns at low priority, and frames evicted for the disk cap are baked again on demand.
   const lane = createLane();
   const frames = createFramesCache({ framesDir, store, log, quality: framesQuality, maxBytes: framesMaxBytes, lane,
-    rebake: (look: unknown) => bakes.restore(look as never) } as never);
+    rebake: (look) => bakes.restore(look) });
   const rigFile = path.join(publicDir, 'data', 'rig.json');
   const bakes = createBakeQueue({ store, box, framesDir, rigFile, log, lane,
-    onFrames: (id: string) => frames.encode(id) } as never);
+    onFrames: (id) => frames.encode(id) });
   frames.prune().then(() => frames.disk.enforce()).catch(() => {});
   // Ideas a restart cut short go back in the queue (enqueue is idempotent per id).
-  for (const idea of store.ideas.list((i: { status: string }) => i.status === 'queued' || i.status === 'generating')) {
+  for (const idea of store.ideas.list((i) => i.status === 'queued' || i.status === 'generating')) {
     enqueueIdea({ queue, store, log }, idea);
   }
 

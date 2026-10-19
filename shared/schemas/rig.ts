@@ -2,7 +2,7 @@
 // as the server reads them. The pattern core checks a rig's pixels against its fixtures (prepareScene).
 import { z } from 'zod';
 
-import { MODULE_KINDS } from '../../public/js/pattern-core.js';
+import { MODULE_KINDS } from '../../public/js/pattern-core.ts';
 
 const int = (min = 0) => z.number().int().min(min);
 const xyz = z.tuple([z.number(), z.number(), z.number()]);

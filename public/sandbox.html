@@ -7,8 +7,8 @@
 <body>
 <!--
   The pattern sandbox (SPEC.md "Sandbox protocol"), served under a CSP of default-src 'none', so it loads nothing:
-  Vite inlines the Worker (js/sandbox-worker.js and the core) and the relay (js/sandbox-relay.js) at the markers,
-  each as one classic script (tools/vite-sandbox.js).
+  Vite inlines the Worker (js/sandbox-worker.ts and the core) and the relay (js/sandbox-relay.ts) at the markers,
+  each as one classic script (tools/vite-sandbox.ts).
 -->
 <script type="text/x-folly-worker" id="pattern-worker">/*@WORKER@*/</script>
 <script>/*@RELAY@*/</script>

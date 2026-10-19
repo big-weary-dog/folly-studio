@@ -8,7 +8,7 @@ import { describe, test } from 'vitest';
 
 import {
   compileLayer, compileModule, compilePattern, MODULE_KINDS, prepareLayer, prepareScene, renderFrame, toChannels,
-} from '../public/js/pattern-core.js';
+} from '../public/js/pattern-core.ts';
 
 const here = (p) => new URL(p, import.meta.url);
 const rig = JSON.parse(readFileSync(here('../public/data/rig.json'), 'utf8'));

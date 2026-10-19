@@ -183,7 +183,7 @@ streaming: chunks of 80 frames (2 s), each decodable alone, laid out frame-major
 the frame before, whichever brotli compresses smallest; then brotli quality 9. Chunks live under content-hash
 URLs served `immutable`, so watching again costs nothing and identical frames share one copy.
 
-| 20 s at 40 fps, measured by `node tools/frames-bench.mjs` | Size | Brotli 9 encode, one core |
+| 20 s at 40 fps, measured by `node tools/frames-bench.ts` | Size | Brotli 9 encode, one core |
 |---|---|---|
 | The sparse `.fseq` on disk | 11.69 MB | |
 | On the wire: a calm wash (`colour-wash`) | 0.22 MB | 1.0 s |
@@ -201,14 +201,14 @@ screenshots (24 s) streams as 1.2 MB, 8.6 % of its file, encoded in 3.2 s.
 - **Downloads.** The plain `.fseq` is the stored sparse file. A zstd (or zlib) compressed FSEQ, written as FPP's
   `FSEQFile` writes them, is opt-in (`?compress=1`). **Neither is verified on a real FPP or in xLights yet.** The
   Mirage match (§8) proves the plain file's addressing; the zstd form has been read only by our own strict parser
-  and `tools/sacn-play.mjs`.
+  and `tools/sacn-play.ts`.
 
 ## 8. Getting to the real Folly
 
 | Path | Status |
 |---|---|
 | `.fseq` → FPP or xLights | Built; addressing proven (below); not yet verified on FPP or in xLights |
-| `tools/sacn-play.mjs` | Built: plays any studio `.fseq` (plain, sparse, zstd, zlib) as E1.31 on the rig's universes, as xLights' Output to Lights and FPP do; packets checked field by field |
+| `tools/sacn-play.ts` | Built: plays any studio `.fseq` (plain, sparse, zstd, zlib) as E1.31 on the rig's universes, as xLights' Output to Lights and FPP do; packets checked field by field |
 | Live from the browser, headless player, TouchDesigner | Not built (`IDEAS.md`) |
 
 **The proof that our output matches the sculpture's input** is the Mirage match (`npm run e2e`). It renders looks

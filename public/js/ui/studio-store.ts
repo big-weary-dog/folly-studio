@@ -4,16 +4,21 @@
 import { batch, computed, signal } from '@preact/signals';
 
 import { api, statusOf } from '../api.ts';
-import type { Globals, Layer, LibraryEntry, Look, LookBody, Module, Rig, User } from '../types.ts';
+import type { Automation, Globals, Module } from '../../../shared/schemas/look.ts';
+import type { Look, User } from '../../../shared/schemas/api.ts';
+import type { LibraryEntry, Rig } from '../../../shared/schemas/rig.ts';
 import { replaceUrl, setTitle, signedOut } from './session.ts';
 import { pref, reducedMotion, toast } from './kit.tsx';
 import { createLayerStatus } from './layer-status.ts';
-import { buildGroupIndex, cleanLayer, type GroupIndex, layerFromPattern, makeLayer, normaliseLayers } from './model.ts';
+import {
+  buildGroupIndex, cleanLayer, type GroupIndex, type Layer, layerFromPattern, makeLayer, normaliseLayers,
+} from './model.ts';
 import { cleanBpm, cleanDuration } from './timeline-model.ts';
 
-/** The look as edited: what saves, and where it came from. */
-export interface Draft extends LookBody { id: string | null; shared: boolean; ideaId: string | null; owner?: string;
-  ownerName?: string }
+/** The look as edited: what saves (saveBody), and where it came from. */
+export interface Draft { id: string | null; title: string; summary: string; layers: Layer[]; duration: number;
+  bpm: number | null; globals?: Globals | null; automation?: Automation | null; shared: boolean; ideaId: string | null;
+  owner?: string; ownerName?: string }
 export const TABS = ['layers', 'code', 'time', 'groups', 'look'] as const;
 export type Tab = typeof TABS[number];
 export type Dock = 'code' | 'timeline' | 'look';
@@ -22,7 +27,7 @@ const some = <T extends object>(o?: T | null) => (o && Object.keys(o).length ? c
 const SHORT = '(max-height: 899px)';   // below this height the code editor starts folded
 
 /** The look as saved: what save() sends and what `dirty` compares. */
-export function saveBody(l: Draft): LookBody {
+export function saveBody(l: Draft) {
   return { title: l.title.trim() || 'Untitled look', summary: l.summary || '', layers: l.layers.map(cleanLayer),
     duration: cleanDuration(l.duration), bpm: l.bpm || null, globals: some(l.globals), automation: some(l.automation) };
 }

@@ -1,5 +1,5 @@
 // The three runtimes agree on a composed look: the render box (bubblewrap, the bundled core in a node:vm realm,
-// the library from its read-only mount) bakes the same bytes as the core run here through renderer.mjs, the
+// the library from its read-only mount) bakes the same bytes as the core run here through renderer.ts, the
 // renderer the Fleet box bakes with, on the Folly and on the mini rig (its own fps, GRB, tags for the Folly's ids).
 // Where bubblewrap is missing the box half skips and says why.
 import assert from 'node:assert/strict';
@@ -9,11 +9,11 @@ import { fileURLToPath } from 'node:url';
 
 import { test } from 'vitest';
 
-import * as core from '../public/js/pattern-core.js';
-import { ledRanges } from '../public/js/fseq.js';
-import { bakeLoop, readLibrary, renderer } from '../render-box/renderer.mjs';
-import { parseFseq } from '../src/frames.js';
-import { createRenderBox } from '../src/render-box.js';
+import * as core from '../public/js/pattern-core.ts';
+import { ledRanges } from '../public/js/fseq.ts';
+import { bakeLoop, readLibrary, renderer } from '../render-box/renderer.ts';
+import { parseFseq } from '../src/frames.ts';
+import { createRenderBox } from '../src/render-box.ts';
 
 const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url));
 const lib = (name) => fs.readFileSync(path.join(PUBLIC, 'patterns', `${name}.js`), 'utf8');
@@ -47,7 +47,7 @@ const LOOK = {
   ],
 };
 
-/** The look baked here, by the core through renderer.mjs, as the Fleet box bakes it. */
+/** The look baked here, by the core through renderer.ts, as the Fleet box bakes it. */
 function bakeHere(look, rig = readRig(RIGS.folly)) {
   const ranges = ledRanges(rig), fps = rig.output.fps;
   const r = renderer(core, rig, look.layers, ranges, { globals: look.globals, automation: look.automation,

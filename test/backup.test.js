@@ -1,4 +1,4 @@
-// tools/backup.mjs: a dated .tar.gz of the data dir, JSON files consistent while they are being rewritten,
+// tools/backup.ts: a dated .tar.gz of the data dir, JSON files consistent while they are being rewritten,
 // baked frames only when asked, written atomically; and real tar reads it.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -9,8 +9,8 @@ import zlib from 'node:zlib';
 
 import { afterAll, test } from 'vitest';
 
-import { createStore } from '../src/store.js';
-import { backup, snapshot } from '../tools/backup.mjs';
+import { createStore } from '../src/store.ts';
+import { backup, snapshot } from '../tools/backup.ts';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-backup-'));
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));

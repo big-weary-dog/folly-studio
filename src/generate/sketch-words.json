@@ -1,5 +1,5 @@
 {
- "_": "Words the sketch generator reads in an idea (src/generate/sketch.js).",
+ "_": "Words the sketch generator reads in an idea (src/generate/sketch.ts).",
  "themes": [
   {"key": "fire", "words": "fire fires fiery ember embers flame flames flaming burn burning blaze blazing inferno lava molten candle candles phoenix bonfire torch", "terms": "fire ember flame burn lava heat spark"},
   {"key": "water", "words": "ocean oceans sea seas wave waves wavy water tide tides surf underwater reef coral river lake aqua swell ripple ripples rippling deep", "terms": "ocean sea wave water ripple tide swell reef"},

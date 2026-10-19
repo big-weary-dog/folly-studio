@@ -9,8 +9,10 @@ import type { z } from 'zod';
 
 import { problem } from '../shared/schemas/look.ts';
 
-export type Log = ((...a: unknown[]) => void) & { info: (...a: unknown[]) => void, debug: (...a: unknown[]) => void,
-  warn: (...a: unknown[]) => void, error: (...a: unknown[]) => void };
+type Say = (...a: unknown[]) => void;
+export type Log = Say & { info: Say, debug: Say, warn: Say, error: Say };
+/** What the queues and caches log through: any of Log's levels (console will do). */
+export type Logger = Partial<Record<'info' | 'warn' | 'error', Say>>;
 
 /** A logger usable both as log(...) and log.info/warn/error(...). */
 export function createLog(prefix = '[studio]'): Log {

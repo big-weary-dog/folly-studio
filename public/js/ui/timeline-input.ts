@@ -1,7 +1,7 @@
 // Pointer, wheel and keys on the timeline. Wide: drag a clip to move it, its edges to trim, its top-corner handles to
 // fade; double-click a row to add a clip; drag the ruler to scrub; Ctrl/⌘-wheel zooms. On a phone a tap only
 // selects, and the numbers below the strips do the editing.
-import type { Clip } from '../types.ts';
+import type { Clip } from '../../../shared/schemas/look.ts';
 import type { Studio } from './studio-store.ts';
 import { fadeClip, GRID, moveClip, trimClip } from './timeline-model.ts';
 import type { TimelineState } from './timeline-state.ts';

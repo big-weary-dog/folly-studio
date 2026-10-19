@@ -3,7 +3,8 @@
 // and select only), the selected module's name and its params.
 import { useId } from 'preact/hooks';
 
-import type { LibraryEntry, Module } from '../types.ts';
+import type { Module } from '../../../shared/schemas/look.ts';
+import type { LibraryEntry } from '../../../shared/schemas/rig.ts';
 import { cx, toast } from './kit.tsx';
 import { BLEND_MODES, KIND_LABELS, makeModule, moduleFromLibrary } from './model.ts';
 import { ParamsPanel } from './params.tsx';

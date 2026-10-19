@@ -1,13 +1,13 @@
 // Vite builds public/ (the app shell, its modules and styles, the data it fetches and the sandbox page) into dist/
-// with content-hashed names under assets/, which src/static.ts serves. `npm run dev` (tools/dev.mjs) serves public/
+// with content-hashed names under assets/, which src/static.ts serves. `npm run dev` (tools/dev.ts) serves public/
 // with HMR (Preact's, through @preact/preset-vite) and sends /api to the Node server on PORT.
 import { fileURLToPath } from 'node:url';
 
 import { preact } from '@preact/preset-vite';
 import { defineConfig } from 'vite';
 
-import { precompress } from './tools/vite-compress.js';
-import { sandboxPage } from './tools/vite-sandbox.js';
+import { precompress } from './tools/vite-compress.ts';
+import { sandboxPage } from './tools/vite-sandbox.ts';
 
 export default defineConfig({
   root: fileURLToPath(new URL('./public', import.meta.url)),

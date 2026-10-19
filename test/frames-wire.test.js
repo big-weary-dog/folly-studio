@@ -1,4 +1,4 @@
-// The streaming wire format: src/frames-wire.js encodes, public/js/frames-stream.js decodes and plays chunks
+// The streaming wire format: src/frames-wire.js encodes, public/js/frames-stream.ts decodes and plays chunks
 // as they arrive. Round trips must be exact.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -6,13 +6,13 @@ import zlib from 'node:zlib';
 
 import { describe, test } from 'vitest';
 
-import { compilePattern, prepareLayer, prepareScene, renderFrame, toChannels } from '../public/js/pattern-core.js';
+import { compilePattern, prepareLayer, prepareScene, renderFrame, toChannels } from '../public/js/pattern-core.ts';
 import {
   autoFetchAllowed, decodeChunk, fetchManifest, MODES, openFrameStream, parseManifest, readFrame,
-} from '../public/js/frames-stream.js';
+} from '../public/js/frames-stream.ts';
 import {
   CHUNK_FRAMES, encodeWire, gzipChunk, layoutChunk, MODES as SERVER_MODES, wireHash,
-} from '../src/frames-wire.js';
+} from '../src/frames-wire.ts';
 
 /** A small deterministic random source (tests stay reproducible). */
 function random(seed = 1) {

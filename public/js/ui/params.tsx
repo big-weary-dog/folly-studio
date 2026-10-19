@@ -4,7 +4,7 @@
 import type { ComponentChildren } from 'preact';
 import { useId, useRef, useState } from 'preact/hooks';
 
-import type { ParamValue } from '../types.ts';
+import type { ParamValue } from '../../../shared/schemas/look.ts';
 import {
   type BindingForm, bindingForm, bindingText, decimals, fmt, isBinding, makeBinding, normaliseParam, type Param, SHAPES,
   shownValue,

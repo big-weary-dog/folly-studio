@@ -7,27 +7,28 @@ import PALETTES from '../../public/data/palettes.json' with { type: 'json' };
 import {
   BLENDS, GLOBALS, macroNameOk, MAX_CLIPS, MAX_DURATION, MAX_LANES, MAX_MACROS, MAX_POINTS, MODULE_KINDS,
   PALETTE_ROLES,
-} from '../../public/js/pattern-core.js';
+} from '../../public/js/pattern-core.ts';
 
+export { BLENDS as BLEND_MODES, MODULE_KINDS as KINDS } from '../../public/js/pattern-core.ts';
 export const MAX_LAYERS = 8;
 export const MAX_MODULES = 8;
-export const MAX_CODE_BYTES = 20 * 1024;
-export const MAX_LAYER_CODE_BYTES = 64 * 1024;   // a chain's modules together
-export const TAG = /^[a-z0-9-]{1,32}$/;          // a rig group's tag (SPEC "Rig")
+const MAX_CODE_BYTES = 20 * 1024;
+const MAX_LAYER_CODE_BYTES = 64 * 1024;   // a chain's modules together
+export const TAG = /^[a-z0-9-]{1,32}$/;   // a rig group's tag (SPEC "Rig")
 export const ID = /^[A-Za-z0-9_.:-]{1,64}$/;
-export const MACRO = /^[a-z][A-Za-z0-9_]{0,31}$/;
-const HEX = /^#[0-9a-f]{6}$/i;
-const LAYER_KEYS = new Set(['id', 'title', 'code', 'groups', 'tags', 'blend', 'level', 'params', 'clips', 'modules']);
+export const HEX = /^#[0-9a-f]{6}$/i;
 export const PALETTE_NAMES: readonly string[] = Object.freeze(PALETTES.palettes.map((p) => p.name));
+/** A global's or a macro's range. */
+export type Range = { min: number, max: number };
 
-const ms = (v: number) => Math.round(v * 1000) / 1000;   // times are kept to the millisecond
+export const ms = (v: number) => Math.round(v * 1000) / 1000;   // times are kept to the millisecond
 const round = (v: number) => Math.round(v * 1e6) / 1e6;
 export const bytes = (s: string) => new TextEncoder().encode(s).length;
 /** A finite number from lo to hi; every failure says `error`. */
 const num = (lo: number, hi: number, error: string) => z.number({ error }).min(lo).max(hi);
 const seconds = (what: string, lo = 0) => num(lo, MAX_DURATION,
   `${what} must be a number of seconds from ${lo} to ${MAX_DURATION}.`).transform(ms);
-const oneOf = <T extends readonly string[]>(what: string, list: T) => z.enum(list as unknown as [T[number]],
+const oneOf = <T extends readonly [string, ...string[]]>(what: string, list: T) => z.enum(list,
   { error: `${what} must be one of ${list.join(', ')}.` });
 
 // Where an issue is, for problem(): "Layer 2, module 1", "Macro storm", "automation.energy".
@@ -39,12 +40,12 @@ const LABELS: Record<string, (k: PropertyKey) => string> = {
 
 /** The first issue as a sentence: "Layer 2, clip 1: start must be …", "Layer 1, clip 1 must be an object." */
 export function problem(error: z.ZodError): string {
-  const issue = error.issues[0]!;
+  const issue = error.issues[0];
   const message = issue.code === 'invalid_key' ? issue.issues[0]?.message ?? issue.message : issue.message;
   const at: string[] = [];
   for (let i = 0; i < issue.path.length - 1; i++) {
     const label = LABELS[String(issue.path[i])];
-    if (label) at.push(label(issue.path[++i]!));
+    if (label) at.push(label(issue.path[++i]));
   }
   if (!at.length) return message;
   return `${at.join(', ')}${/^(?:must|has) /.test(message) ? ' ' : ': '}${message}`;
@@ -56,45 +57,42 @@ const Clip = z.object({
 }, { error: 'must be an object.' }).refine((c) => c.end > c.start, 'end must be after start.');
 
 /** A layer's clips (SPEC "Timeline"): sorted by start; overlaps refused (touching is fine). */
-export const Clips = z.array(Clip, { error: 'clips must be an array.' }).max(MAX_CLIPS, `at most ${MAX_CLIPS} clips.`)
+const Clips = z.array(Clip, { error: 'clips must be an array.' }).max(MAX_CLIPS, `at most ${MAX_CLIPS} clips.`)
   .transform((list, ctx) => {
     list.sort((a, b) => a.start - b.start);
     for (let j = 1; j < list.length; j++) {
-      const [a, b] = [list[j - 1]!, list[j]!];
+      const [a, b] = [list[j - 1], list[j]];
       if (b.start < a.end) ctx.addIssue(`clips overlap (${a.start}–${a.end} s and ${b.start}–${b.end} s).`);
     }
     return list;
   });
 
-const bound = z.number().min(-1e6).max(1e6);
+const bound = z.number().min(-1e6).max(1e6).optional();
 /** A param bound to an LFO, a global or the clip envelope instead of a number (SPEC "Param bindings"). */
 export const Binding = z.discriminatedUnion('mod', [
   z.strictObject({ mod: z.literal('lfo'), shape: z.enum(['sine', 'tri', 'saw', 'square']).optional(),
-    rate: bound.optional(), unit: z.enum(['hz', 'beats']).optional(), depth: bound.optional(),
-    center: bound.optional() }),
-  z.strictObject({ mod: z.literal('global'), name: z.string().regex(MACRO), from: bound.optional(),
-    to: bound.optional() }),
-  z.strictObject({ mod: z.literal('envelope'), from: bound.optional(), to: bound.optional() }),
+    rate: bound, unit: z.enum(['hz', 'beats']).optional(), depth: bound, center: bound }),
+  z.strictObject({ mod: z.literal('global'), name: z.string().regex(/^[a-z][A-Za-z0-9_]{0,31}$/), from: bound,
+    to: bound }),
+  z.strictObject({ mod: z.literal('envelope'), from: bound, to: bound }),
 ]);
 const ParamValue = z.union([z.number(), z.boolean(), z.string().max(200), z.array(z.number()).max(16), Binding]);
 /** Param overrides: values (numbers, toggles, colours as '#hex' or [r, g, b]) or bindings. */
 const Param = z.custom<z.infer<typeof ParamValue>>((v) => ParamValue.safeParse(v).success,
   { error: 'has an unsupported value.' });
-export const Params = z.record(z.string().max(64), Param, { error: 'params must be an object.' })
+const Params = z.record(z.string().max(64), Param, { error: 'params must be an object.' })
   .refine((p) => Object.keys(p).length <= 64, 'too many params.');
 
 const Code = z.string({ error: 'code must be a string.' })
   .refine((c) => bytes(c) <= MAX_CODE_BYTES, `code is over ${MAX_CODE_BYTES / 1024} kB.`);
 const Title = z.string({ error: 'title must be a string of at most 200 characters.' }).max(200);
-const ModuleId = z.string({ error: 'input must be a module id.' }).regex(ID);
-export const BLEND_MODES = BLENDS as readonly ['add', 'over', 'max', 'multiply'];  // the core's, as types
-export const KINDS = MODULE_KINDS as readonly ['source', 'warp', 'filter'];
-const Blend = oneOf('blend', BLEND_MODES);
+const Blend = oneOf('blend', BLENDS);
 
 const Module = z.object({
-  id: z.string().regex(ID).optional(), kind: oneOf('kind', KINDS).default('source'), title: Title.default(''),
+  id: z.string().regex(ID).optional(), kind: oneOf('kind', MODULE_KINDS).default('source'), title: Title.default(''),
   ref: z.string({ error: 'ref must name a library entry.' }).regex(/^[a-z0-9-]{1,64}$/).optional(), code: Code,
-  params: Params.nullish().transform((p) => p ?? {}), input: ModuleId.optional(),
+  params: Params.nullish().transform((p) => p ?? {}),
+  input: z.string({ error: 'input must be a module id.' }).regex(ID).optional(),
   as: z.literal('input', { error: "as is only 'input' (a source)." }).optional(), blend: Blend.optional(),
   enabled: z.boolean({ error: 'enabled must be true or false.' }).optional(),
 }, { error: 'must be an object.' }).refine((m) => !m.as || m.kind === 'source', "as is only 'input' (a source).");
@@ -104,15 +102,14 @@ export const Modules = z.array(Module, { error: `1–${MAX_MODULES} modules.` })
   .transform((list, ctx) => {
     const ids = new Set<string>();
     let total = 0;
-    return list.map((m, j) => {
-      const id = m.id ?? `m${j + 1}`;
+    return list.map(({ id: given, enabled, ...rest }, j) => {
+      const id = given ?? `m${j + 1}`;
       if (ids.has(id)) {
         ctx.addIssue({ code: 'custom', message: 'id must be unique, 1–64 letters, digits or _.:-', path: [j, 'id'] });
       }
       ids.add(id);
-      total += bytes(m.code);
+      total += bytes(rest.code);
       if (total > MAX_LAYER_CODE_BYTES) ctx.addIssue(`its modules' code is over ${MAX_LAYER_CODE_BYTES / 1024} kB.`);
-      const { id: _id, enabled, ...rest } = m;
       return { id, ...rest, ...(enabled === false ? { enabled } : {}) };
     });
   });
@@ -133,10 +130,9 @@ const Layer = z.looseObject({
   if (!l.modules && l.code === undefined) {
     ctx.addIssue({ code: 'custom', message: 'code must be a string.', path: ['code'] });
   }
-}).transform((l) => {
-  const { id, title, code, params, modules, groups, tags, blend, level, clips } = l;
+}).transform(({ id, title, code, params, modules, groups, tags, blend, level, clips, ...flags }) => {
   // Small UI flags the client may add (enabled, solo) are kept; anything bulky is dropped.
-  const extra = Object.fromEntries(Object.entries(l).filter(([k, v]) => !LAYER_KEYS.has(k) && k.length <= 64
+  const extra = Object.fromEntries(Object.entries(flags).filter(([k, v]) => k.length <= 64
     && (typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v))
       || (typeof v === 'string' && v.length <= 200))).slice(0, 16));
   return { id, title, ...(modules ? { modules } : { code: code!, params: params ?? {} }), groups,
@@ -156,19 +152,14 @@ export const Layers = z.array(Layer, { error: 'layers must be an array.' })
     });
   });
 
-/** A palette by name from data/palettes.json, as a look stores it: { name, low, body, accent, high }. */
-export function namedPalette(name: string) {
-  const p = PALETTES.palettes.find((x) => x.name === name);
-  return p ? { name: p.name, low: [...p.low], body: [...p.body], accent: [...p.accent], high: [...p.high] } : null;
-}
-
 const role = (r: string) => list((error) => z.string({ error }).regex(HEX), 16,
   `globals.palette.${r} must be up to 16 '#rrggbb' colours.`).transform((hex) => hex.map((c) => c.toLowerCase()));
 const Palette = z.union([
-  z.string().transform((name, ctx) => namedPalette(name) ?? (ctx.addIssue('no such palette'), z.NEVER)),
+  z.string().transform((name, ctx) => structuredClone(PALETTES.palettes.find((p) => p.name === name))
+    ?? (ctx.addIssue('no such palette'), z.NEVER)),
   z.object({ name: z.string().catch('').transform((n) => n.slice(0, 64)), low: role('low'), body: role('body'),
     accent: role('accent'), high: role('high') })
-    .refine((p) => PALETTE_ROLES.some((r: string) => p[r as 'low'].length), 'globals.palette has no colours.'),
+    .refine((p) => PALETTE_ROLES.some((r) => p[r].length), 'globals.palette has no colours.'),
 ], { error: (iss) => (typeof iss.input === 'string' ? `globals.palette: no palette called ${iss.input.slice(0, 40)}.`
   : 'globals.palette must be a palette name or { name, low, body, accent, high }.') });
 
@@ -193,14 +184,13 @@ export const Globals = z.strictObject({
 }, { error: (iss) => (iss.code === 'unrecognized_keys' ? `globals.${String(iss.keys[0]).slice(0, 40)} is not a global.`
   : 'globals must be an object.') }).nullable();
 
-type Range = { min: number, max: number };
 const lane = ({ min, max }: Range) => {
   const each = `each point is [seconds 0–${MAX_DURATION}, value ${min}–${max}].`;
   return z.array(z.tuple([num(0, MAX_DURATION, each).transform(ms), num(min, max, each).transform(round)],
     { error: each }), { error: `must be 1–${MAX_POINTS} points [t, value].` }).min(1).max(MAX_POINTS)
     .transform((pts, ctx) => {
       pts.sort((a, b) => a[0] - b[0]);
-      const twice = pts.find((p, i) => i && p[0] === pts[i - 1]![0]);
+      const twice = pts.find((p, i) => i && p[0] === pts[i - 1][0]);
       if (twice) ctx.addIssue(`two points at ${twice[0]} s.`);
       return pts;
     });
@@ -233,4 +223,4 @@ export type Module = z.infer<typeof Modules>[number];
 export type Layer = z.infer<typeof Layers>[number];
 export type Palette = NonNullable<z.infer<typeof Palette>>;
 export type Globals = NonNullable<z.infer<typeof Globals>>;
-export type Automation = Record<string, [number, number][]>;
+export type Automation = Partial<Record<string, [number, number][]>>;

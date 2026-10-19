@@ -1,6 +1,7 @@
 // HTTP API client (SPEC "HTTP API"): JSON in and out, cookie session. A non-2xx response throws an ApiError with the
 // server's message and `status` (0: the server could not be reached).
-import type { Bake, Idea, LibraryEntry, Look, LookBody, LookCard, User } from './types.ts';
+import type { Bake, Idea, Listed, Look, LookCreate, LookPatch, User } from '../../shared/schemas/api.ts';
+import type { LibraryEntry } from '../../shared/schemas/rig.ts';
 
 export type ApiError = Error & { status: number; data?: unknown };
 const fail = (message: string, status: number, extra = {}): ApiError => Object.assign(new Error(message), { status },
@@ -30,7 +31,6 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 const enc = encodeURIComponent;
 type Me = { user: User };
-type LookPatch = Partial<LookBody> & { shared?: boolean; reviewed?: boolean; ideaId?: string };
 
 export const api = {
   me: () => request<{ user?: User }>('GET', '/api/me'),
@@ -42,10 +42,10 @@ export const api = {
   idea: (id: string) => request<{ idea?: Idea }>('GET', `/api/ideas/${enc(id)}`),
   createIdea: (text: string) => request<{ idea: Idea }>('POST', '/api/ideas', { text }),
 
-  looks: (scope: 'mine' | 'gallery' = 'mine') => request<{ looks?: LookCard[] }>('GET',
+  looks: (scope: 'mine' | 'gallery' = 'mine') => request<{ looks?: Listed[] }>('GET',
     `/api/looks?scope=${enc(scope)}`),
   look: (id: string) => request<{ look: Look }>('GET', `/api/looks/${enc(id)}`),
-  createLook: (look: LookPatch) => request<{ look: Look }>('POST', '/api/looks', look),
+  createLook: (look: LookCreate) => request<{ look: Look }>('POST', '/api/looks', look),
   updateLook: (id: string, patch: LookPatch) => request<{ look: Look }>('PUT', `/api/looks/${enc(id)}`, patch),
   deleteLook: (id: string) => request('DELETE', `/api/looks/${enc(id)}`),
   bake: (id: string) => request<{ bake: Bake }>('POST', `/api/looks/${enc(id)}/bake`, {}),

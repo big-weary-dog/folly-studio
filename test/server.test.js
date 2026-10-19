@@ -8,7 +8,7 @@ import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { createServer } from '../src/app.ts';
 import { validateLayers } from '../src/api-looks.ts';
-import { createStore } from '../src/store.js';
+import { createStore } from '../src/store.ts';
 import { CSP_APP, CSP_SANDBOX } from '../src/static.ts';
 import {
   client, EXPECTED_APP_CSP, EXPECTED_SANDBOX_CSP, fakeBox, fx, PIXEL, quiet, rawGet, SANDBOX_PAGE, signup,

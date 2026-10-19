@@ -1,41 +1,21 @@
-// The Studio's preview: the 3D view (viewer.js) and the sandbox runtime (runtime.js), both imperative, driven by one
+// The Studio's preview: the 3D view (viewer.ts) and the sandbox runtime (runtime.ts), both imperative, driven by one
 // clock that plays the look, the flash guard on every frame shown, and baked playback. One rAF loop advances the
 // clock and pumps the sandbox (which computes at its own rate), only while playing or owed a frame, never while
 // hidden or off screen; per frame it touches only the sinks (the timeline's playhead) and the time readout's signal,
 // at most 8 times a second while playing.
 import { computed, effect, signal } from '@preact/signals';
 
+import type { LibraryEntry, Rig } from '../../../shared/schemas/rig.ts';
 import { statusOf } from '../api.ts';
-import { FlashGuard } from '../flash-guard.js';
-import { openFrameStream } from '../frames-stream.js';
-import { Runtime } from '../runtime.js';
-import type { Layer, LibraryEntry, Rig } from '../types.ts';
-import { Viewer } from '../viewer.js';
+import { FlashGuard } from '../flash-guard.ts';
+import { openFrameStream } from '../frames-stream.ts';
+import { Runtime } from '../runtime.ts';
+import { Viewer } from '../viewer.ts';
 import { signedOut } from './session.ts';
-import type { Compiled } from './layer-status.ts';
 import { pref, toast } from './kit.tsx';
 import type { Studio } from './studio-store.ts';
 
-/** The seams: what the Studio uses of viewer.js and runtime.js. */
-export interface ViewerApi {
-  currentView: string | null; playa?: { tier?: string } | null;
-  onViewChange?: (name: string | null) => void; onRender?: (mode: 'playa' | 'points', tier?: string) => void;
-  setRig(rig: Rig): void; setColors(rgb: Float32Array): void; setHighlight(mask: Uint8Array | null): void;
-  setView(name: string): void; setOption(key: string, value: number): void;
-  setMode(m: string): Promise<'playa' | 'points'>; setQuality(q: string): void; destroy(): void;
-}
-export interface RuntimeApi {
-  ready: boolean; layers: Layer[]; extra: object; stats: { fps: number; ms: number };
-  start(rig: Rig, library: { name: string; code: string }[]): void; setLook(layers: Layer[], extra: object): void;
-  pump(t: number, playing: boolean): void; pending(t: number): boolean; heavy(): Map<string, number>; refresh(): void;
-  render(o: object): Promise<Uint8Array>; cancelRender(): void; destroy(): void;
-}
-interface Frames { frameCount: number; fps: number; seconds: number; bytes: number;
-  frameAt(i: number, rgb: Float32Array): Float32Array }
-
-// viewer.js and runtime.js are JavaScript: their constructors as the seams above.
-const ViewerOf = Viewer as unknown as new (canvas: HTMLCanvasElement, o: object) => ViewerApi;
-const RuntimeOf = Runtime as unknown as new (o: object) => RuntimeApi;
+type Frames = Awaited<ReturnType<typeof openFrameStream>>;
 const QUALITY = ['auto', 'full', 'lite', 'low'];
 const REDUCE = matchMedia('(prefers-reduced-motion: reduce)');
 const DIM = 0.15;
@@ -52,14 +32,14 @@ export function createPreview(st: Studio) {
   const duration = computed(() => bakedInfo.value?.seconds ?? st.look.value.duration);
   const sinks: ((t: number, playing: boolean) => void)[] = [];    // an array: walking it allocates nothing
   const c = st.clock;
-  let viewer: ViewerApi | null = null, runtime: RuntimeApi | null = null, guard: FlashGuard | null = null;
+  let viewer: Viewer | null = null, runtime: Runtime | null = null, guard: FlashGuard | null = null;
   let baked: { frames: Frames; rgb: Float32Array; index: number } | null = null;
   let raf = 0, last = 0, statsAt = 0, clockAt = 0, onScreen = true, everReady = false, guarded = false;
   let heavyKey = '', bakedLoad = 0, pushTimer = 0, alive = true, io: IntersectionObserver | null = null;
   const disposers: (() => void)[] = [];
 
   // Every frame shown goes through show(): the view dims, with a banner, while a large area flashes over 3 times a
-  // second (flash-guard.js) or the look's bake says it does. "Show it anyway" lasts the session; reduced motion dims.
+  // second (flash-guard.ts) or the look's bake says it does. "Show it anyway" lasts the session; reduced motion dims.
   const flashKey = () => `studio.flash.${st.look.peek().id || 'new'}`;
   const remembered = () => { try { return sessionStorage.getItem(flashKey()) === '1'; } catch { return false; } };
   function setGuard(on: boolean) {
@@ -146,24 +126,24 @@ export function createPreview(st: Studio) {
 
     start(canvas: HTMLCanvasElement, sandboxHost: HTMLElement, onScreenEl: HTMLElement, rig: Rig,
       library: LibraryEntry[]) {
-      const v = viewer = new ViewerOf(canvas, { views: rig.views || {}, defaultView: 'fit',
+      const v = viewer = new Viewer(canvas, { views: rig.views || {}, defaultView: 'fit',
         onError: (text: string) => { msg.value = { text, error: true }; } });
       v.setRig(rig);
       guard = new FlashGuard(rig);
       views.value = ['fit', ...Object.keys(rig.views || {})];
       v.onViewChange = (name) => { view.value = name; };
-      view.value = v.currentView;
+      view.value = v.currentView ?? null;
       v.onRender = (m, t) => { mode.value = m; tier.value = t; };
       p.setGhost(ghost.value);
       v.setQuality(quality.value);
       p.setMode(pref('studio.render') === 'points' ? 'points' : 'playa');
-      runtime = new RuntimeOf({
+      runtime = new Runtime({
         container: sandboxHost,
         onFrame: (rgb: Float32Array) => show(rgb, performance.now()),
         time: () => (last ? (c.t + ((performance.now() - last) / 1000) * st.speed.peek()) % duration.peek() : c.t),
-        onCompiled: (layers: Compiled[]) => { if (st.status.compiled(layers)) st.fallbackRev.value++; kick(); },
-        onFrameErrors: (errors: { id: string; error?: unknown; module?: string }[]) => st.status.frameErrors(errors),
-        onStatus: (state: string, detail?: string) => {
+        onCompiled: (layers) => { if (st.status.compiled(layers)) st.fallbackRev.value++; kick(); },
+        onFrameErrors: (errors) => st.status.frameErrors(errors),
+        onStatus: (state, detail) => {
           if (state === 'loading' && !everReady) msg.value = { text: 'Starting the pattern engine…' };
           else if (state === 'ready') { everReady = true; msg.value = null; kick(); }
           else if (state === 'dead') msg.value = { text: detail || 'The pattern engine stopped.', error: true };
@@ -219,7 +199,7 @@ export function createPreview(st: Studio) {
         let frames: Frames | null = null;
         // A chunk that was still on its way when its frame came up has arrived: redraw it.
         const onChunk = () => { if (frames && baked?.frames === frames) { baked.index = -1; kick(); } };
-        frames = await openFrameStream(id, rig, { onChunk }) as Frames;
+        frames = await openFrameStream(id, rig, { onChunk });
         if (!alive || token !== bakedLoad) return;
         baked = { frames, rgb: new Float32Array(rig.count * 3), index: -1 };
         c.t = 0;

@@ -1,5 +1,5 @@
 // npm run e2e: proves our .fseq output is what the real sculpture's input expects, against the independent
-// simulators. Renders looks with pattern-core.js, writes them with fseq.js, plays them with tools/sacn-play.mjs as
+// simulators. Renders looks with pattern-core.ts, writes them with fseq.ts, plays them with tools/sacn-play.ts as
 // E1.31 through relay/relay.js into Mirage, then compares Mirage's pixel store with our bytes per pixel, matched by
 // universe + channel. Each finding is asserted (softly, so the report is whole) and written to run.md with
 // screenshots in E2E_OUT. Not in `npm test` or CI: it needs the relay's own install and Mirage on software GL.
@@ -12,9 +12,9 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
-import { parseFseq } from '../../src/frames.js';
-import { compressFseq } from '../../src/fseq-codec.js';
-import { readShow } from '../../tools/sacn-play.mjs';
+import { parseFseq } from '../../src/frames.ts';
+import { compressFseq } from '../../src/fseq-codec.ts';
+import { readShow } from '../../tools/sacn-play.ts';
 import {
   addressMarkdown, checkCanonical, compareAddresses, framesPerUniverse, listMarkdown, quirksMarkdown,
 } from './compare.mjs';
@@ -95,7 +95,7 @@ test('Studio → sACN → relay → Mirage, byte for byte', async ({ browser }, 
     });
 
     await test.step('the player reads every FSEQ form the same', async () => {
-      log('rendering looks with pattern-core.js');
+      log('rendering looks with pattern-core.ts');
       const address = renderLook([{ code: ADDRESS_CODE }]);
       const zones = renderLook([{ code: ZONE_CODE }]);
       const moving = renderLook([{ code: libraryCode(MOVING) }], { seconds: 6 });

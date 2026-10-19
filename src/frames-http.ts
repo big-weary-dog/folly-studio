@@ -9,8 +9,8 @@ import zlib from 'node:zlib';
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-import { framesPath } from './bake.js';
-import { FSEQ_CODEC, HAS_ZSTD } from './fseq-codec.js';
+import { framesPath } from './bake.ts';
+import { FSEQ_CODEC, HAS_ZSTD } from './fseq-codec.ts';
 import { etagMatches, HttpError, pickEncoding } from './http.ts';
 import { CACHE_IMMUTABLE as IMMUTABLE } from './static.ts';
 
@@ -33,7 +33,7 @@ const fileName = (look: { title?: string }) => String(look.title || '').replace(
 /** framesRoutes({ framesDir, cache, visibleLook }) → routes for the API's table. */
 export function framesRoutes({ framesDir, cache, visibleLook }: Record<string, any>) {
   const noFrames = () => new HttpError(404, 'This look has no baked frames.');
-  // Frames evicted for the disk cap are baked again (src/frames-cache.js): ask again in a while.
+  // Frames evicted for the disk cap are baked again (src/frames-cache.ts): ask again in a while.
   const rebaking = () => new HttpError(503, 'These frames are being baked again. Try again in a minute.',
     { 'Retry-After': '30' });
 

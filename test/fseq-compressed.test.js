@@ -1,14 +1,14 @@
-// Compressed FSEQ v2 (zstd = type 1, zlib = type 2): public/js/fseq.js writes the block index,
+// Compressed FSEQ v2 (zstd = type 1, zlib = type 2): public/js/fseq.ts writes the block index,
 // src/fseq-codec.js compresses, and src/frames.js parses strictly, refusing decompression bombs.
 import assert from 'node:assert/strict';
 import zlib from 'node:zlib';
 
 import { describe, test } from 'vitest';
 
-import { fseqBlocks, MAX_BLOCKS, writeFseq } from '../public/js/fseq.js';
-import { checkFrames } from '../src/box-output.js';
-import { FseqError, parseFseq } from '../src/frames.js';
-import { compressFseq, FSEQ_CODEC, HAS_ZSTD, inflateBlock } from '../src/fseq-codec.js';
+import { fseqBlocks, MAX_BLOCKS, writeFseq } from '../public/js/fseq.ts';
+import { checkFrames } from '../src/box-output.ts';
+import { FseqError, parseFseq } from '../src/frames.ts';
+import { compressFseq, FSEQ_CODEC, HAS_ZSTD, inflateBlock } from '../src/fseq-codec.ts';
 import { lineRig } from './fixtures/rigs.js';
 
 const RANGES = [[0, 3], [510, 3]];

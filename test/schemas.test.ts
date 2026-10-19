@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'vitest';
 import { z } from 'zod';
 
-import { BLENDS, MODULE_KINDS } from '../public/js/pattern-core.js';
+import { BLENDS, MODULE_KINDS } from '../public/js/pattern-core.ts';
 import { Login, Signup } from '../shared/schemas/api.ts';
 import { validateLook, wireSchema } from '../shared/schemas/generated.ts';
 import { automationFor, BLEND_MODES, Globals, KINDS, Layers, problem } from '../shared/schemas/look.ts';

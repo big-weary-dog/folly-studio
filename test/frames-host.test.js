@@ -8,12 +8,12 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, beforeEach, describe, test } from 'vitest';
 
-import { writeFseq } from '../public/js/fseq.js';
+import { writeFseq } from '../public/js/fseq.ts';
 import { createServer } from '../src/app.ts';
-import { createLane } from '../src/bake.js';
-import { createFrameJobs, createFramesCache, createFramesDisk } from '../src/frames-cache.js';
-import { wireHash } from '../src/frames-wire.js';
-import { createRenderBox } from '../src/render-box.js';
+import { createLane } from '../src/bake.ts';
+import { createFrameJobs, createFramesCache, createFramesDisk } from '../src/frames-cache.ts';
+import { wireHash } from '../src/frames-wire.ts';
+import { createRenderBox } from '../src/render-box.ts';
 import { lineRig } from './fixtures/rigs.js';
 
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });

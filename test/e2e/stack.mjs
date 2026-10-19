@@ -1,5 +1,5 @@
 // The live chain for the end-to-end run: a static server for show-builder/, relay/relay.js
-// (sACN :5568 → WebSocket :3001) and tools/sacn-play.mjs, as child processes, stopped together.
+// (sACN :5568 → WebSocket :3001) and tools/sacn-play.ts, as child processes, stopped together.
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import net from 'node:net';
@@ -61,7 +61,7 @@ export class Stack {
   /** (Re)start the player on a file; args are sacn-play's options. */
   async play(file, args = []) {
     await this.stop('play');
-    const entry = this.start('play', process.execPath, [`${STUDIO}tools/sacn-play.mjs`, file, '--quiet', ...args]);
+    const entry = this.start('play', process.execPath, [`${STUDIO}tools/sacn-play.ts`, file, '--quiet', ...args]);
     await sleep(200);
     if (entry.p.exitCode !== null) throw new Error(`e2e: sacn-play stopped at once:\n${entry.out}`);
     return entry;

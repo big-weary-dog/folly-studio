@@ -4,9 +4,9 @@
 // differs from the defaults. Loaded when the Look tab first shows.
 import { useId } from 'preact/hooks';
 
-import { GLOBALS, macroNameOk } from '../core/globals.js';
-import { PALETTE_ROLES } from '../core/stdlib.js';
-import type { Globals, Macro, Palette } from '../types.ts';
+import { GLOBALS, macroNameOk } from '../core/globals.ts';
+import { PALETTE_ROLES } from '../core/stdlib.ts';
+import type { Globals, Palette } from '../../../shared/schemas/look.ts';
 import { humanize } from './kit.tsx';
 import type { Draft, Studio } from './studio-store.ts';
 
@@ -15,6 +15,7 @@ const HELP: Record<string, string> = { speed: 'How fast every pattern runs; chan
   energy: 'Calm to busy: patterns read it as G.energy' };
 const fmt = (v: number) => String(Math.round(v * 100) / 100);
 type Key = keyof typeof GLOBALS;
+type Macro = NonNullable<Globals['macros']>[string];
 
 /** A macro renamed (to null: deleted): its automation lane and the params bound to it follow. */
 function renameMacro(L: Draft, from: string, to: string | null): Partial<Draft> {
@@ -51,7 +52,7 @@ export function GlobalsPanel({ st, palettes }: { st: Studio; palettes: Palette[]
     <div class="look-globals">
       <section class="globals-sliders" aria-label="Globals">
         {(Object.entries(GLOBALS) as [Key, Macro][]).map(([key, d]) => <Row key={key} name={key} d={d}
-          value={typeof g[key] === 'number' ? g[key] as number : d.value} automated={!!lanes[key]}
+          value={g[key] ?? d.value} automated={!!lanes[key]}
           set={(v) => set((x) => { if (v === d.value) delete x[key]; else x[key] = v; })} />)}
       </section>
       <section class="globals-palette" aria-label="Palette">

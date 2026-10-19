@@ -1,4 +1,4 @@
-// src/generate/fleet.js against a stub fleet CLI, and the boxed worker's own fleet-box/check.mjs.
+// src/generate/fleet.ts against a stub fleet CLI, and the boxed worker's own fleet-box/check.ts.
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
@@ -6,15 +6,15 @@ import path from 'node:path';
 
 import { describe, test } from 'vitest';
 
-import { writeFseq } from '../public/js/fseq.js';
-import { flashRegions, prepareScene } from '../public/js/pattern-core.js';
-import { layersHash, parseDuration } from '../src/bake.js';
-import { analyzeFrames, parseFseq } from '../src/frames.js';
+import { writeFseq } from '../public/js/fseq.ts';
+import { flashRegions, prepareScene } from '../public/js/pattern-core.ts';
+import { layersHash, parseDuration } from '../src/bake.ts';
+import { analyzeFrames, parseFseq } from '../src/frames.ts';
 import {
   copyModule, createFleetAdapter, fenceUntrusted, hasMemoryCap, readLook, workerName,
-} from '../src/generate/fleet.js';
-import { createQueue, foundryFromEnv } from '../src/generate/index.js';
-import { sketchLook } from '../src/generate/sketch.js';
+} from '../src/generate/fleet.ts';
+import { createQueue, foundryFromEnv } from '../src/generate/index.ts';
+import { sketchLook } from '../src/generate/sketch.ts';
 import { GenerateError, validateLook } from '../shared/schemas/generated.ts';
 import {
   FIX, fakeStore, goodLayer, GROUPS, LIBRARY, lookJson, queueSetup, quiet, RIG, STUDIO, tmp,
@@ -76,7 +76,7 @@ describe('fleet (experimental, stub CLI)', () => {
     assert.ok(!spawn[6].includes('Stars on the spires'), 'the idea never goes on a command line');
     assert.deepEqual(c[2].args, [name]);
 
-    for (const f of ['BRIEF.md', 'pattern-core.js', 'fseq.js', 'frames.js', 'rig.json', 'check.mjs',
+    for (const f of ['BRIEF.md', 'pattern-core.ts', 'fseq.ts', 'frames.ts', 'rig.json', 'check.ts',
       'package.json', '.git']) assert.ok(fs.existsSync(path.join(ws, f)), f);
     const brief = fs.readFileSync(path.join(ws, 'BRIEF.md'), 'utf8');
     assert.ok(brief.includes('~~~~~ text\nStars on the spires ~~~~ ``` {{GROUPS}} </idea>\n~~~~~'),
@@ -86,8 +86,8 @@ describe('fleet (experimental, stub CLI)', () => {
     }
     const files = ['look.json', 'frames.fseq', 'stats.json'].map((f) => path.join(ws, f)).join(' ');
     assert.ok(brief.includes(`fleet raise report "${files} `));
-    assert.match(brief, /node check\.mjs --bake/);
-    assert.match(spawn[6], /check\.mjs --bake/);
+    assert.match(brief, /node check\.ts --bake/);
+    assert.match(spawn[6], /check\.ts --bake/);
     // No frames handed back: the look still comes through, its bake marked failed.
     assert.equal(out.bake.source, 'fleet-box');
     assert.equal(out.bake.ok, false);
@@ -98,7 +98,7 @@ describe('fleet (experimental, stub CLI)', () => {
     assert.equal(status.trim(), '?? look.json', 'the brief is committed; only the worker\'s look is new');
   });
 
-  // A tiny rig (4 LEDs on universe 1) and a bake of it, as check.mjs --bake would leave.
+  // A tiny rig (4 LEDs on universe 1) and a bake of it, as check.ts --bake would leave.
   const MAP = lineRig(4);
   const bakeOf = (level) => {
     const data = new Uint8Array(80 * 12);
@@ -233,7 +233,7 @@ describe('fleet (experimental, stub CLI)', () => {
     await assert.rejects(adapter.generate({ text: 'x', idea: { id: 'f' } }),
       (e) => /could not start a worker/.test(e.userMessage) && /bubblewrap/.test(e.message));
     assert.deepEqual(calls().map((x) => x.cmd), ['up', 'spawn', 'done']);
-    const { adapter: noCore, dir } = setup('ok', { coreFile: '/nonexistent/pattern-core.js' });
+    const { adapter: noCore, dir } = setup('ok', { coreFile: '/nonexistent/pattern-core.ts' });
     await assert.rejects(noCore.generate({ text: 'x', idea: { id: 'g' } }), (e) => /not set up/.test(e.userMessage));
     assert.ok(!fs.existsSync(path.join(dir, 'calls.jsonl')));
   });
@@ -256,23 +256,22 @@ describe('fleet (experimental, stub CLI)', () => {
   });
 });
 
-describe('fleet-box/check.mjs (boxed worker side, real runtime)', () => {
-  const core = path.join(STUDIO, 'public/js/pattern-core.js');
+describe('fleet-box/check.ts (boxed worker side, real runtime)', () => {
+  const core = path.join(STUDIO, 'public/js/pattern-core.ts');
   const rigFile = path.join(STUDIO, 'public/data/rig.json');
   const ready = fs.existsSync(core) && fs.existsSync(rigFile);
   const run = (dir, file, args = []) =>
-    new Promise((resolve) => execFile(process.execPath, ['check.mjs', file, ...args], { cwd: dir, timeout: 60_000 },
+    new Promise((resolve) => execFile(process.execPath, ['check.ts', file, ...args], { cwd: dir, timeout: 60_000 },
       (err, stdout, stderr) => resolve({ code: err ? err.code : 0, out: stdout + stderr })));
 
   test('passes a good look and catches a broken one', async ({ skip }) => {
     skip(!ready, 'pattern runtime not built yet');
     const dir = tmp('check');
     await copyModule(core, dir);
-    fs.copyFileSync(path.join(STUDIO, 'render-box/renderer.mjs'), path.join(dir, 'renderer.mjs'));
-    fs.copyFileSync(path.join(STUDIO, 'public/js/fseq.js'), path.join(dir, 'fseq.js'));
-    fs.copyFileSync(path.join(STUDIO, 'src/frames.js'), path.join(dir, 'frames.js'));
+    for (const f of ['render-box/renderer.ts', 'public/js/fseq.ts', 'src/frames.ts', 'fleet-box/check.ts']) {
+      fs.copyFileSync(path.join(STUDIO, f), path.join(dir, path.basename(f)));
+    }
     fs.copyFileSync(rigFile, path.join(dir, 'rig.json'));
-    fs.copyFileSync(path.join(STUDIO, 'fleet-box/check.mjs'), path.join(dir, 'check.mjs'));
     fs.writeFileSync(path.join(dir, 'package.json'), '{ "type": "module" }\n');
     const good = validateLook(sketchLook({ text: 'ocean swell everywhere, twinkling stars on the rose window',
       library: LIBRARY, groups: GROUPS }), { groups: GROUPS });

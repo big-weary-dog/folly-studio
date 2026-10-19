@@ -8,7 +8,7 @@ import { describe, test } from 'vitest';
 import {
   automationAt, compileLayer, compilePattern, DEFAULT_PALETTE, layerModules, PALETTE_ROLES, prepareLayer, prepareLook,
   prepareScene, renderFrame, setLibrary,
-} from '../public/js/pattern-core.js';
+} from '../public/js/pattern-core.ts';
 
 const here = (p) => new URL(p, import.meta.url);
 const rig = JSON.parse(readFileSync(here('../public/data/rig.json'), 'utf8'));

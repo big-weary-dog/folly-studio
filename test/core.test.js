@@ -6,7 +6,7 @@ import { describe, test } from 'vitest';
 
 import {
   STDLIB, compilePattern, prepareScene, prepareLayer, renderFrame, toChannels, pixelsForGroups,
-} from '../public/js/pattern-core.js';
+} from '../public/js/pattern-core.ts';
 import { folly as rig } from './fixtures/rigs.js';
 
 const S = STDLIB;

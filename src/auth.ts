@@ -2,12 +2,12 @@
 // compared with timingSafeEqual. Each hash carries its parameters, so one made at an older cost still verifies, and
 // is made again at the current cost on its next successful login. Sessions: 32 random bytes in the `studio_session`
 // cookie for 30 days; the store only sees sha256(token), the session's id.
-import { createHash, randomBytes, scrypt as scryptCb, timingSafeEqual } from 'node:crypto';
-import type { ScryptOptions } from 'node:crypto';
+import { createHash, randomBytes, scrypt as scryptCb, type ScryptOptions, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 
 import type { User } from '../shared/schemas/api.ts';
 import { HttpError } from './http.ts';
+import type { Store, StoredUser as Stored } from './store.ts';
 
 const scrypt = promisify(scryptCb) as (password: string, salt: Buffer, keylen: number, o: ScryptOptions) =>
   Promise<Buffer>;
@@ -20,11 +20,6 @@ const KEYLEN = 64;
 // scrypt takes 128 × N × r bytes (128 MiB at N = 2^17); Node refuses past maxmem, 32 MiB unless told.
 const options = ({ N, r, p }: Cost): ScryptOptions => ({ N, r, p, maxmem: 128 * N * r + 32 * 1024 * 1024 });
 
-type Stored = { id: string, username: string, passwordHash: string, createdAt: string };
-type Table<T> = { get(id: string): T | null, list(fn?: (x: T) => boolean): T[], create(x: Partial<T>): T,
-  update(id: string, patch: Partial<T>): T | null, remove(id: string): boolean };
-type Session = { id: string, userId: string, expiresAt: string, createdAt: string };
-export type Store = { users: Table<Stored>, sessions: Table<Session> };
 
 /** `scrypt$N$r$p$salt$key` (base64url). */
 export async function hashPassword(password: string, cost: Cost = SCRYPT): Promise<string> {
@@ -60,8 +55,8 @@ export const weaker = (stored: string, cost: Cost) => {
 export const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
 
 /** createAuth({ store, curators, cost }): accounts, roles and sessions (cookies and limits are the API's). */
-export function createAuth({ store, curators = [], cost = SCRYPT }: { store: Store, curators?: string | string[],
-  cost?: Cost }) {
+export function createAuth({ store, curators = [], cost = SCRYPT }: { store: Pick<Store, 'users' | 'sessions'>,
+  curators?: string | string[], cost?: Cost }) {
   const curatorSet = new Set((typeof curators === 'string' ? curators.split(',') : curators)
     .map((s) => String(s).trim().toLowerCase()).filter(Boolean));
   let dummyHash: Promise<string> | null = null; // checked for unknown users, so timing does not reveal them

@@ -1,4 +1,4 @@
-// The core as the boxes take it, from its source with no build (src/core-script.js, generate/fleet.js copyModule):
+// The core as the boxes take it, from its source with no build (src/core-script.ts, generate/fleet.ts copyModule):
 // one script for the render box's realm, and module copies the Fleet worker imports. TypeScript modules work as
 // well: their types are stripped as Node strips them.
 import assert from 'node:assert/strict';
@@ -10,10 +10,10 @@ import vm from 'node:vm';
 
 import { afterAll, test } from 'vitest';
 
-import { bundle, moduleFiles } from '../src/core-script.js';
-import { copyModule } from '../src/generate/fleet.js';
+import { bundle, moduleFiles } from '../src/core-script.ts';
+import { copyModule } from '../src/generate/fleet.ts';
 
-const CORE = fileURLToPath(new URL('../public/js/pattern-core.js', import.meta.url));
+const CORE = fileURLToPath(new URL('../public/js/pattern-core.ts', import.meta.url));
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-core-script-'));
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
 const write = (rel, text) => {
@@ -25,7 +25,8 @@ test('the core as one script: its modules, dependencies first, with no relative 
   const { text, files } = bundle(CORE);
   assert.equal(files.at(-1), CORE);
   assert.deepEqual(moduleFiles(CORE), files);
-  assert.ok(files.some((f) => f.endsWith(path.join('core', 'stdlib.js'))));
+  assert.ok(files.some((f) => f.endsWith(path.join('core', 'stdlib.ts'))));
+  assert.ok(!files.some((f) => f.includes(`${path.sep}shared${path.sep}`)), 'type-only imports name no module');
   assert.ok(!/^(?:import|export)\b[^;]*\bfrom\s*'\./m.test(text));
   const script = text.replace(/^export\s+(?=(?:const|let|var|function|class|async)\b)/gm, '');
   const ctx = vm.createContext({});
@@ -49,7 +50,7 @@ test('TypeScript modules: types stripped for the realm, imported as they are fro
 
 test('the Fleet copy of the real core imports and renders', async () => {
   await copyModule(CORE, path.join(tmp, 'fleet'));
-  const core = await import(pathToFileURL(path.join(tmp, 'fleet/pattern-core.js')).href);
+  const core = await import(pathToFileURL(path.join(tmp, 'fleet/pattern-core.ts')).href);
   assert.equal(typeof core.renderFrame, 'function');
-  assert.ok(fs.existsSync(path.join(tmp, 'fleet/core/compile.js')));
+  assert.ok(fs.existsSync(path.join(tmp, 'fleet/core/compile.ts')));
 });
