@@ -512,11 +512,14 @@ groups), and give layers the tags they meant beside the ids. The result is clean
 (`shared/schemas/generated.ts`, zod: ≤ 4 layers,
 known group ids (none known: the root) and tags, code ≤ 20 kB containing `function pixel`, or modules whose code defines their kind's
 function; clips and duration normalised, bad or overlapping clips dropped; `globals` and `automation`
-cleaned, a palette name filled in) before a look is saved and the idea set `ready`. Old single-code layers
+cleaned, a palette name filled in; picks and a layer's `palette` cleaned of unknown tokens) before a look is saved and the idea set `ready`. Old single-code layers
 stay valid. Generators may add
 clips and a duration for ideas that describe a progression; most looks have neither.
 
-- `sketch`: offline, keyword → library pattern(s) + params, place words → tags. Always available.
+- `sketch`: offline, keyword → library pattern(s) + params, place words → tags. Colour words choose the palette
+  nearest them in hue and become the nearest swatch's slot (`accent2`; none close: the colour itself), on a colour
+  param, or for a pattern that reads only the palette, its layer's `palette` (`low` for a colour set "on" or
+  "behind" something, else `body`). Always available.
 - `claude`: one Messages API call with the pattern guide + library examples as the system prompt, and structured
   output whose JSON Schema is the generated look's own (`wireSchema(groups)`: group ids and tags as enums).
 - `fleet`: hands the idea to a boxed Fleet worker as an untrusted brief (experimental), in a workspace holding
