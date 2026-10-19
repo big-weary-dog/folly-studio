@@ -1,12 +1,15 @@
 // The selected layer's settings: its name, groups and colours (its roles remapped, SPEC "Palettes"), its module chain
 // (SPEC "Modules": a row per module with its kind, name, state, enable, reorder, delete, and how a source combines or
 // which input a filter reads; phones: enable and select only), its Soften row, the selected module's name and its
-// params.
+// params. The chain runs down a came into the layer: each module joins it (a source by how it combines), and each warp
+// and filter spans what it works on, everything above it.
 import type { Module } from '../../../shared/schemas/look.ts';
 import type { LibraryEntry } from '../../../shared/schemas/rig.ts';
 import { DEFAULT_PALETTE } from '../core/stdlib.ts';
 import { cx, Field, toast } from './kit.tsx';
-import { BLEND_MODES, KIND_LABELS, makeModule, moduleFromLibrary } from './model.ts';
+import {
+  BLEND_MODES, chainWires, insertModule, KIND_LABELS, makeModule, moduleFromLibrary, type Reach,
+} from './model.ts';
 import { ParamsPanel } from './params.tsx';
 import { LayerColours } from './picks.tsx';
 import type { Preview } from './preview.ts';
@@ -17,6 +20,8 @@ const STATE_TEXT: Record<string, string> = { ok: 'Running', off: 'Off', pending:
   compile: 'Compile error', runtime: 'Runtime error', hung: 'Hung' };
 const INPUT_ONLY = 'input';
 const MAX_MODULES = 8;
+// How a source joins.
+const GLYPHS: Record<string, string> = { over: '●', under: '○', add: '+', multiply: '×', max: '▴' };
 type Props = { st: Studio; pv: Preview };
 
 export function ChainPane({ st, pv }: Props) {
@@ -57,8 +62,7 @@ function Chain({ st, pv }: Props) {
     if (l) st.editLayer(l.id, (x) => ({ modules: fn(x.modules.slice()) }));
   };
 
-  /** A library entry (or a blank) after the selected module; a filter that reads its input (x) takes the nearest
-   * hidden source as it. */
+  /** A library entry (or a blank), after the selected module (model.ts insertModule). */
   function add(entry: LibraryEntry | { kind: Module['kind']; blank: true }) {
     const layer = st.selected.peek(), cur = st.module.peek();
     if (!layer) return;
@@ -66,13 +70,7 @@ function Chain({ st, pv }: Props) {
       return toast(`A layer has at most ${MAX_MODULES} modules.`, { kind: 'warn' });
     }
     const m = 'blank' in entry ? makeModule({ kind: entry.kind }) : moduleFromLibrary(entry);
-    const i = cur ? layer.modules.indexOf(cur) : -1;      // a warp goes before a selected source, so it moves it
-    const at = i < 0 ? layer.modules.length : i + (m.kind === 'warp' && cur?.kind === 'source' ? 0 : 1);
-    if (m.kind === 'filter' && /\bx\s*\[/.test(m.code)) {
-      const src = layer.modules.slice(0, at).reverse().find((x) => x.kind === 'source' && x.as === 'input');
-      if (src) m.input = src.id;
-    }
-    setMods((list) => { list.splice(at, 0, m); return list; });
+    setMods((list) => insertModule(list, m, cur?.id));
     st.pickModule(m.id);
   }
   function remove(m: Module, i: number) {
@@ -89,7 +87,7 @@ function Chain({ st, pv }: Props) {
   });
   const shelf = () => import('./shelf.tsx').then(({ openShelf }) => openShelf({ library: st.data.library, onPick: add,
     audition: { pv, layer: l || undefined, moduleId: sel?.id } }));
-  const first = mods.findIndex((x) => x.kind === 'source' && x.as !== 'input' && x.enabled !== false);
+  const { first, joins, reaches } = chainWires(mods), at = sel ? mods.indexOf(sel) : -1;
   return (
     <section class="chain" aria-label="Module chain">
       <div class="chain-head"><h3 class="chain-title">Chain</h3>
@@ -98,16 +96,18 @@ function Chain({ st, pv }: Props) {
           onClick={shelf}>+ Module</button></div>
       <p class="pane-hint" hidden={!!l}>Select a layer to see its modules.</p>
       <ol class="chain-list" aria-label="Modules, first to last">
-        {l && mods.map((m, i) => <ModuleRow key={m.id} m={m} i={i} mods={mods} first={first} selected={m.id === sel?.id}
+        {l && mods.map((m, i) => <ModuleRow key={m.id} m={m} i={i} mods={mods} first={first} selected={i === at}
+          join={joins[i]} reach={reaches.filter((r) => r.from <= i && i <= r.to)} lit={at}
           state={st.status.module(l.id, m)} pick={() => st.pickModule(m.id)} remove={() => remove(m, i)}
           move={(dir) => move(i, i + dir)} set={(patch) => st.editModule(l.id, m.id, () => patch)} />)}
       </ol>
     </section>);
 }
 
-function ModuleRow({ m, i, mods, first, selected, state, pick, remove, move, set }: { m: Module; i: number;
-  mods: Module[]; first: number; selected: boolean; state: { kind: string; message?: string }; pick: () => void;
-  remove: () => void; move: (dir: number) => void; set: (patch: Partial<Module>) => void }) {
+function ModuleRow({ m, i, mods, first, selected, join, reach, lit, state, pick, remove, move, set }: { m: Module;
+  i: number; mods: Module[]; first: number; selected: boolean; join: string; reach: Reach[]; lit: number;
+  state: { kind: string; message?: string }; pick: () => void; remove: () => void; move: (dir: number) => void;
+  set: (patch: Partial<Module>) => void }) {
   const title = m.title || KIND_LABELS[m.kind], filter = m.kind === 'filter';
   const icon = (text: string, label: string, disabled: boolean, onClick: () => void) => <button type="button"
     class="icon-btn wide-only" aria-label={label} title={label} disabled={disabled} onClick={onClick}>{text}</button>;
@@ -115,11 +115,14 @@ function ModuleRow({ m, i, mods, first, selected, state, pick, remove, move, set
   const opts = filter ? [['', 'No input'], ...mods.slice(0, i).filter((s) => s.kind === 'source')
     .map((s) => [s.id, s.title || 'Source'])]
     : [['', i === first ? 'Over (first)' : 'Add (default)'], ...BLEND_MODES.map((b) => [b.value, b.label]),
-      [INPUT_ONLY, 'Input only (hidden)']];
+      ['under', 'Under'], [INPUT_ONLY, 'Input only (hidden)']];
   const value = filter ? m.input || '' : m.as === 'input' ? INPUT_ONLY : m.blend || '';
   return (
     <li class={cx('chain-row', selected && 'selected', m.enabled === false && 'off')} data-kind={m.kind}
-      data-status={state.kind} onClick={(e) => { if (e.target === e.currentTarget) pick(); }}>
+      data-join={join} data-status={state.kind} onClick={(e) => { if (e.target === e.currentTarget) pick(); }}>
+      <span class="chain-joint" aria-hidden="true">{GLYPHS[join]}</span>
+      {reach.map((r) => <span class={cx('reach', r.to === lit && 'lit')} aria-hidden="true" data-kind={r.kind}
+        style={{ '--lane': r.lane }} data-part={i === r.from ? 'from' : i === r.to ? 'to' : 'via'} />)}
       <div class="chain-top"><span class="kind-badge">{KIND_LABELS[m.kind]}</span>
         <button type="button" class="chain-name" aria-current={selected} onClick={pick}
           title={`${title} — ${STATE_TEXT[state.kind] || state.kind}${state.message ? `: ${state.message}` : ''}`}>

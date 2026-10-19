@@ -42,11 +42,13 @@ summary that you took it loosely.
      layers that come and go, `"clips": [{ "start": 0, "end": 12, "fadeIn": 2, "fadeOut": 3 }]`
      (seconds; not overlapping; the layer shows only inside its clips, fading linearly). A layer
      without clips plays throughout, and `t` stays show time across clips. Most looks need none.
-   - Optional composition: instead of `code` and `params`, a layer may give `"modules"`, a chain run
-     in order on every LED: `{ "id", "kind", "title", "code", "params"?, "input"?, "as"? }` where a
-     `warp` defines `function warp(q, t, P, G)` (moves the pixel for what follows), a `source`
-     defines `function pixel(p, t, P, G)` (`"as": "input"` hides it) and a `filter` defines
-     `function filter(c, q, t, P, G, x)` (`x`: the colour of the source its `input` names). The look
+   - Optional composition: instead of `code` and `params`, a layer may give `"modules"`, a chain
+     listed top to bottom: `{ "id", "kind", "title", "code", "params"?, "input"?, "as"?, "blend"? }`.
+     Each module works on everything above it: a `source` defines `function pixel(p, t, P, G)` and
+     draws onto it (`"as": "input"` hides it), a `filter` defines `function filter(c, q, t, P, G, x)`
+     and reworks it (`x`: the colour of the source its `input` names), and a `warp` defines
+     `function warp(q, t, P, G)` and bends it, so a warp goes after what it bends (a blur or trails
+     stops it: nothing above one is bent by a warp below it). The look
      may set `"globals"` (`speed`, `level`, `hue`, `saturation`, `energy`, `palette` by name,
      `macros`) and `"automation"` (`{ "energy": [[seconds, value], …] }`); patterns read them as `G`.
 2. Run `node check.ts`. It compiles every layer with the studio's real runtime

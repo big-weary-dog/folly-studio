@@ -50,11 +50,6 @@ export function toHex(v: unknown) {
   return Array.isArray(v) && v.length >= 3 ? `#${v.slice(0, 3).map(byte).join('')}` : '#ffffff';
 }
 
-export function decimals(step: number) {
-  const [m, e] = String(step).split('e-');
-  return Math.min(4, e ? Number(e) : (m.split('.')[1] || '').length);
-}
-
 /** What a control shows for a module's value: its own, the code's default, or none while a binding moves it. */
 export function shownValue(p: Param, values: Record<string, ParamValue>, key: string) {
   const has = Object.hasOwn(values, key), v = values[key];
@@ -79,7 +74,7 @@ export function bindingForm(b: Partial<Binding>, p: Param, globals: string[]): B
     name: globals.includes(o.name as string) ? o.name as string : globals[0], from, to, eFrom, eTo };
 }
 
-/** The binding the dialog's fields make (null: the slider sets it); a number that does not parse takes its default. */
+/** The binding the dialog's fields make (null: its field sets it); a number that does not parse takes its default. */
 export function makeBinding(f: BindingForm, p: Param): Binding | null {
   const n = (s: string, d: number) => { const v = parseFloat(s); return Number.isFinite(v) ? v : d; };
   if (f.mod === 'lfo') {

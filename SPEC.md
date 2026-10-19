@@ -213,25 +213,34 @@ throws `unknown library pattern`). Colours are `[r, g, b]` arrays, 0..1.
 
 ### Modules: a layer is a chain
 
-A layer is a chain of modules, each a plain script like the above (stdlib in scope), by `kind`:
+A layer is a chain of modules, listed top to bottom, each a plain script like the above (stdlib in scope), by
+`kind`. One rule: **every module works on everything above it**, as in an image editor (`warp(filter(source))`):
 
 | kind | defines | does |
 |---|---|---|
-| `source` | `pixel(p, t, P, G) → colour` | draws: number (grey), `'#hex'` or `[r, g, b, a?]` |
-| `warp` | `warp(q, t, P, G)` | moves the pixel: mutates `q` (x y z X Y Z lx ly lz a r u i …) for the modules after it |
-| `filter` | `filter(c, q, t, P, G, x) → colour` | reworks `c`, the chain's colour so far; `x` is the colour of the module named by its `input`; the result's alpha defaults to `c`'s |
+| `source` | `pixel(p, t, P, G) → colour` | draws onto what is above it: number (grey), `'#hex'` or `[r, g, b, a?]` |
+| `filter` | `filter(c, q, t, P, G, x) → colour` | reworks `c`, the colour of what is above it; `x` is the colour of the module named by its `input`; the result's alpha defaults to `c`'s |
+| `warp` | `warp(q, t, P, G)` | bends what is above it: mutates `q` (x y z X Y Z lx ly lz a r u i …) for the modules above it |
 
 All may define `params` and `frame(t, P, G)` (once per frame, before any pixel; state such as a trails buffer
-indexed by `p.k` lives at top level). Per pixel, in one pass with no intermediate buffers (a chain without spatial
-modules, below): `q` is a fresh copy of
-the pixel, `c` is transparent; each enabled module in order: a warp updates `q`; a source computes `o` and
-records it; unless `as: 'input'` (hidden, it only feeds filters) it combines into `c` by its `blend` (default
-`over` for the first, `add` after; `over`, `add`, `max`, `multiply` as for layers); a filter sets
-`c = filter(…)` with `x` = the output this pixel of the earlier source its `input` names (else undefined).
-`c` and `x` are `[r, g, b, a]` arrays the runtime reuses: read them, do not keep them. Then `c` composites
-onto the stack exactly as a layer did (blend, level × clip envelope). A module that throws or returns NaN
-blacks out its layer for that frame, reported with its `module` id. So "meteors masked by clouds" is
-`[source meteors, source clouds as: 'input', filter mask input: clouds]`.
+indexed by `p.k` lives at top level). A **stage end** is a filter that holds real LED colours, as its code declares
+at the top level: `const stage = 'spatial'` (it reads its neighbours: a spatial op, below, is one anyway) or
+`const stage = 'history'` (it keeps colours from frame to frame, as trails does); any other value does not compile.
+`isStageEnd` in the core reads the declaration, for the runtime, the converter and the chain's drawing alike. A warp
+bends the modules between itself and the nearest stage end above it, never the stage end or anything above that:
+those colours exist only at real LEDs.
+
+Per pixel, in one pass with no intermediate buffers (a chain without spatial modules, below): module i reads `q`, a
+copy of the pixel bent by the warps below i up to the next stage end, the bottom-most first (in `[S, W1, W2]`, S
+draws at W1(W2(p))); a stage end reads the pixel itself, and a warp with nothing above it in its stage does nothing.
+`c` starts transparent; each enabled source or filter in order: a source computes `o` and records it; unless
+`as: 'input'` (hidden, it only feeds filters) it combines into `c` by its `blend` (default `over` for the first,
+`add` after; `over`, `add`, `max`, `multiply` as for layers, and `under`: beneath what is above it, `c` over `o`);
+a filter sets `c = filter(…)` with `x` = the output this pixel of the earlier source its `input` names (else
+undefined). `c` and `x` are `[r, g, b, a]` arrays the runtime reuses: read them, do not keep them. Then `c`
+composites onto the stack exactly as a layer did (blend, level × clip envelope). A module that throws or returns NaN
+blacks out its layer for that frame, reported with its `module` id. So "meteors masked by clouds, twisted" is
+`[source meteors, source clouds as: 'input', filter mask input: clouds, warp twist]`.
 
 ### Spatial modules
 
@@ -248,8 +257,8 @@ exactly as it was.
 A chain with no spatial module runs in the one pass above, unchanged. One with spatial modules runs in stages: every
 pixel of the layer through the modules up to the first, into a buffer prepareLayer allocated (`c`, unclamped); the
 spatial op over that buffer; then the modules after it per pixel, `c` read from the buffer; and so on. Every
-`frame()` still runs once a frame, before any stage. A later stage's `q` has the earlier stages' warps applied again
-(so a warp must depend only on its arguments), and its filters' `x` is what their `input` drew in its own stage.
+`frame()` still runs once a frame, before any stage. Each stage's warps are its own (a spatial module is a stage
+end), and a later stage's filters' `x` is what their `input` drew in its own stage.
 
 The neighbours come from the rig, once per scene (`neighbourGraph(scene)`: the sandbox's worker builds it at `init`,
 the boxes on the first spatial layer): in **space**, every pixel within 1.5 m (a uniform grid of 1.5 m cells); along
@@ -320,7 +329,7 @@ bottom). The rules below are `shared/schemas/look.ts`; its types (`Layer`, `Modu
 browser's too:
 
 ```jsonc
-{ "title": "Coral reef", "summary": "…", "duration": 30, "bpm": 120, "layers": [
+{ "title": "Coral reef", "summary": "…", "duration": 30, "bpm": 120, "chain": 2, "layers": [
   { "id": "l1", "title": "Sea", "groups": ["cathedral"], "tags": ["all"], "blend": "add" | "over" | "max" | "multiply",
     "level": 1, "clips": [{ "start": 0, "end": 12, "fadeIn": 2, "fadeOut": 3 }], "soften": { "radius": 0.15, "mode": "wire" },
     "palette": { "body": "accent2 accent3", "high": "#ffffff" },
@@ -329,7 +338,8 @@ browser's too:
         "params": { "speed": 40, "head": "high", "color": { "pick": "body/accent", "rotate": 0.25 } } },
       { "id": "m2", "kind": "source", "title": "Clouds", "ref": "clouds", "code": "…", "params": {}, "as": "input" },
       { "id": "m3", "kind": "filter", "title": "Mask", "ref": "mask", "code": "…", "input": "m2",
-        "params": { "amount": { "mod": "global", "name": "storm", "from": 0, "to": 1 } } }
+        "params": { "amount": { "mod": "global", "name": "storm", "from": 0, "to": 1 } } },
+      { "id": "m4", "kind": "warp", "title": "Twist", "ref": "twist", "code": "…", "params": {} }
     ] }
 ],
   "globals": { "speed": 1, "level": 1, "hue": 0, "saturation": 1, "energy": 0.5,
@@ -348,8 +358,17 @@ has alpha × level, `max` keeps the brighter channel, `multiply` tints what is b
 - **Modules**: 1–8 per layer, ids unique in it (`[A-Za-z0-9_.:-]{1,64}`), `code` ≤ 20 kB each and always
   stored (looks stay self-contained for the boxes); `ref` names the library entry it came from; `params`
   override the code's defaults; `enabled: false` skips it; `input` names an earlier source; `as` is only
-  `'input'`; `blend` as for layers. A layer with `code` (+ `params`) and no `modules` is a one-source chain and
-  renders exactly as before.
+  `'input'`; `blend` as for layers, or `under` (a source's only). A layer with `code` (+ `params`) and no `modules`
+  is a one-source chain and renders exactly as before.
+- **chain**: `2`, the one rule (SPEC "Modules"). Before it a warp bent the modules after it, on through blurs and
+  trails. A look without `chain: 2` (saved before, or a body to `POST`/`PUT` without it) is converted once on its way
+  in (`shared/chain-order.ts`), exactly wherever it can be: warps leading a stage move to its end, reversed; a stage
+  after a stage end gets copies of the warps it read; two sources bent differently turn over (the first goes
+  `under`, or adds or maxes as the second did); otherwise a warp stop (a blur of radius 0, `ref: 'blur'`) splits the
+  stage. Where it cannot (more than 8 modules, or trails reading a pixel a warp changed), each warp moves to the end of
+  its stage and the summary says which layers changed. Trails saved before it declared its stage (`ref: 'trails'`)
+  gets `const stage = 'history'`. Stored looks are converted at start (their versions too); a bake of an exact
+  conversion keeps its place.
 - **Soften** (optional): `{ radius: 0–1.5 m, mode: 'wire' | 'space' | 'both' (default 'wire') }`, a blur at the end
   of the chain (SPEC "Spatial modules"); radius 0 is none. New layers in the Studio and generated layers get
   `DEFAULT_SOFTEN`; a layer without it renders as before.
@@ -507,10 +526,11 @@ GET    /api/ideas                             → { ideas: [idea] }    mine, new
 POST   /api/ideas    { text }                 → { idea }             queued for generation
 GET    /api/ideas/:id                         → { idea }             mine only
 GET    /api/looks?scope=mine|gallery          → { looks: [listed] }  metadata only: no layers
-POST   /api/looks    { title, summary?, layers, duration?, bpm?, globals?, automation?, ideaId? } → { look }
+POST   /api/looks    { title, summary?, layers, duration?, bpm?, globals?, automation?, ideaId?, chain? } → { look }
 GET    /api/looks/:id                         → { look }             mine, or shared
 PUT    /api/looks/:id { title?, summary?, layers?, duration?, bpm?, globals?, automation?, shared?, reviewed?,
-                     flashOverride? } → { look }  owner only (reviewed: a curator); keeps versions
+                     flashOverride?, chain? } → { look }  owner only (reviewed: a curator); keeps versions; layers
+                                              without chain: 2 converted
 DELETE /api/looks/:id                         → { ok: true }         owner only
 POST   /api/looks/:id/bake                    → 202 { bake }      owner, or a curator if shared; queued
 GET    /api/looks/:id/frames[?compress=1|zstd|zlib] → the baked .fseq   mine, or shared; 404 if none (attachment);
@@ -542,7 +562,7 @@ outside 0–600 s, and a duration outside 1–600 s, are refused with 400.
 preview's guard; `check: false` (`STUDIO_FLASH_CHECK=off`) means nothing is dimmed or blocked.
 `idea = { id, owner, text, status: 'queued'|'generating'|'ready'|'failed', generator, lookId?, error?, createdAt, updatedAt }`.
 `look = { id, owner, ownerName, title, summary, layers, duration, bpm?, shared, ideaId?, reviewed, reviewedBy?,
-flashOverride?, bake?, createdAt, updatedAt }`
+flashOverride?, bake?, chain, createdAt, updatedAt }`
 (`bake`: see Baked frames).
 
 ## Generators (idea → look)
@@ -557,7 +577,8 @@ groups), and give layers the tags they meant beside the ids. The result is clean
 known group ids (none known: the root) and tags, code ≤ 20 kB containing `function pixel`, or modules whose code defines their kind's
 function; clips and duration normalised, bad or overlapping clips dropped; `globals` and `automation`
 cleaned, a palette name filled in; picks and a layer's `palette` cleaned of unknown tokens; a layer without a usable
-`soften` gets `DEFAULT_SOFTEN`) before a look is saved and the idea set `ready`. Old single-code layers
+`soften` gets `DEFAULT_SOFTEN`) before a look is saved, with `chain: 2` (generators write the one rule: a warp after
+what it bends), and the idea set `ready`. Old single-code layers
 stay valid. Generators may add
 clips and a duration for ideas that describe a progression; most looks have neither.
 

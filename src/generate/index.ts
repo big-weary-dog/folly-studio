@@ -8,6 +8,7 @@
 
 import path from 'node:path';
 
+import { CHAIN } from '../../shared/chain-order.ts';
 import type { Bake } from '../../shared/schemas/api.ts';
 import { GenerateError, validateLook } from '../../shared/schemas/generated.ts';
 import type { LibraryEntry, Rig, RigGroup } from '../../shared/schemas/rig.ts';
@@ -150,7 +151,7 @@ export function createQueue({
         layers: look.layers,
         ...(look.duration !== undefined ? { duration: look.duration } : {}),
         ...(look.globals ? { globals: look.globals } : {}), ...(look.automation ? { automation: look.automation } : {}),
-        shared: false, reviewed: false, ideaId: id, ...(bake ? { bake } : {}),
+        shared: false, reviewed: false, ideaId: id, chain: CHAIN, ...(bake ? { bake } : {}),
       });
       if (bake?.frames) await keepFrames(saved.id, frames, bake);
       await store.ideas.update(id, { status: 'ready', lookId: saved.id, generator: used, error: null });

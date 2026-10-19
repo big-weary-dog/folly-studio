@@ -4,6 +4,9 @@ import { z } from 'zod';
 
 import { type Automation, Bpm, Duration, Globals, type Layer, Layers, LookTitle, Summary } from './look.ts';
 
+/** A body's `chain`: 2 when its chains follow the one rule; without it they are converted (SPEC "Looks"). */
+const Chain = z.literal(2, { error: 'chain must be 2 (warps bend what is above them).' }).optional();
+
 const bool = (name: string) => z.boolean({ error: `${name} must be true or false.` });
 const USERNAME = 'Username must be 3–32 characters: letters, digits, _ or -.';
 export const MAX_PASSWORD = 1024;
@@ -31,7 +34,7 @@ export const IdeaBody = z.object({
 /** POST /api/looks. `automation` is checked against the look's globals (automationFor). */
 export const LookCreate = z.object({
   title: LookTitle, summary: Summary, layers: Layers, duration: Duration.optional(), globals: Globals.optional(),
-  automation: z.unknown().optional(), bpm: Bpm.optional(), shared: bool('shared').default(false),
+  automation: z.unknown().optional(), bpm: Bpm.optional(), shared: bool('shared').default(false), chain: Chain,
   ideaId: z.string({ error: 'ideaId does not name one of your ideas.' }).nullish(),
 });
 const REASON = 'flashOverride: say in 3–500 characters why this flashing is acceptable.';
@@ -40,7 +43,7 @@ const REASON = 'flashOverride: say in 3–500 characters why this flashing is ac
 export const LookPatch = z.object({
   title: LookTitle.optional(), summary: Summary.optional(), shared: bool('shared').optional(),
   bpm: Bpm.optional(), layers: Layers.optional(), duration: Duration.optional(), globals: Globals.optional(),
-  automation: z.unknown().optional(), reviewed: bool('reviewed').optional(),
+  automation: z.unknown().optional(), reviewed: bool('reviewed').optional(), chain: Chain,
   flashOverride: z.string({ error: REASON }).trim().min(3, { error: REASON }).max(500, { error: REASON }).optional(),
 });
 export const LooksQuery = z.object({
@@ -66,7 +69,7 @@ export type Listed = { id: string, owner: string, ownerName: string, title: stri
 /** A look as GET /api/looks/:id answers. */
 export type Look = Omit<Listed, 'layerCount'> & { layers: Layer[], globals?: z.infer<typeof Globals>,
   automation?: Automation, versionCount: number, bake?: Bake | null, reviewedBy?: string,
-  flashOverride?: FlashOverride };
+  flashOverride?: FlashOverride, chain?: 2 };
 
 type Flashes = { maxHz: number, flaggedSeconds: number[], regions: string[] };
 /** What the frame checks found (SPEC "Baked frames" > Checks: src/frames.ts analyzeFrames). */

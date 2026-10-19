@@ -1,13 +1,15 @@
 // Composed looks over the API and from generators: module chains, globals (a palette by name filled in) and
-// automation are validated strictly by the API and leniently by generators; old single-code layers stay valid.
+// automation are validated strictly by the API and leniently by generators; old single-code layers stay valid;
+// chains from before the one rule are converted on their way in, and once at start.
 import assert from 'node:assert/strict';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { validateLook } from '../shared/schemas/generated.ts';
-import { renderFields } from '../src/bake.ts';
+import { layersHash, renderFields } from '../src/bake.ts';
 import { fakeBox, fx, PIXEL, signup, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
@@ -15,12 +17,16 @@ const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url));
 const WARP = 'function warp(q) { q.lz = 1 - q.lz; }';
 const FILTER = 'function filter(c, q, t, P, G, x) { return x || c; }';
 const chain = (extra = {}) => ({ id: 'l1', title: 'Chain', groups: ['cathedral'], modules: [
-  { id: 'w', kind: 'warp', title: 'Flip', code: WARP },
   { id: 'a', kind: 'source', title: 'A', ref: 'meteors', code: PIXEL, params: { speed: { mod: 'lfo', rate: 2 } } },
   { id: 'b', kind: 'source', title: 'B', code: PIXEL, as: 'input' },
   { id: 'f', kind: 'filter', title: 'Mask', code: FILTER, input: 'b',
     params: { k: { mod: 'global', name: 'storm', from: 0, to: 1 } } },
+  { id: 'w', kind: 'warp', title: 'Flip', code: WARP },
 ], ...extra });
+// A chain from before the one rule: the flip bent the source after it.
+const OLD = { id: 'l1', title: 'Flip', groups: ['cathedral'], modules: [{ id: 'w', kind: 'warp', code: WARP },
+  { id: 's', kind: 'source', code: 'function pixel(p) { return [p.lz, 0, 0]; }' }] };
+const ids = (layers) => layers[0].modules.map((m) => m.id);
 const GLOBALS = { energy: 0.7, palette: 'carnival', macros: { storm: { value: 0.25 } } };
 
 describe('composed looks over the API', () => {
@@ -32,14 +38,14 @@ describe('composed looks over the API', () => {
   afterAll(() => app.close());
 
   test('a chain, globals and automation are stored, a palette name filled in', async () => {
-    const r = await ana.post('/api/looks', { title: 'Storm', layers: [chain()], globals: GLOBALS,
+    const r = await ana.post('/api/looks', { title: 'Storm', layers: [chain()], globals: GLOBALS, chain: 2,
       automation: { energy: [[10, 1], [0, 0.2]], storm: [[0, 0]] } });
     assert.equal(r.status, 201, r.text);
     const look = r.json.look;
-    assert.deepEqual(look.layers[0].modules.map((m) => [m.id, m.kind]), [['w', 'warp'], ['a', 'source'],
-      ['b', 'source'], ['f', 'filter']]);
+    assert.deepEqual(look.layers[0].modules.map((m) => [m.id, m.kind]), [['a', 'source'], ['b', 'source'],
+      ['f', 'filter'], ['w', 'warp']]);
     assert.equal('code' in look.layers[0], false);
-    assert.deepEqual(look.layers[0].modules[1].params.speed, { mod: 'lfo', rate: 2 });
+    assert.deepEqual(look.layers[0].modules[0].params.speed, { mod: 'lfo', rate: 2 });
     assert.equal(look.globals.palette.name, 'carnival');
     assert.deepEqual(look.globals.palette.low, ['#6700cb', '#b500b0']);
     assert.deepEqual(look.globals.macros, { storm: { value: 0.25, min: 0, max: 1 } });
@@ -49,10 +55,10 @@ describe('composed looks over the API', () => {
   });
 
   test('bad chains, globals and automation are refused with a reason', async () => {
-    const m = (patch) => chain({ modules: [{ ...chain().modules[1], ...patch }] });
+    const m = (patch) => chain({ modules: [{ ...chain().modules[0], ...patch }] });
     const bads = [
       [{ layers: [m({ kind: 'effect' })] }, /kind must be one of/],
-      [{ layers: [chain({ modules: [chain().modules[1], chain().modules[1]] })] }, /id must be unique/],
+      [{ layers: [chain({ modules: [chain().modules[0], chain().modules[0]] })] }, /id must be unique/],
       [{ layers: [chain({ code: PIXEL })] }, /modules or code/],
       [{ layers: [m({ as: 'output' })] }, /as is only 'input'/],
       [{ layers: [m({ params: { v: { mod: 'lfo', shape: 'wobble' } } })] }, /unsupported value/],
@@ -90,12 +96,40 @@ describe('composed looks over the API', () => {
     assert.equal((await put({ globals: null })).json.look.versionCount, 3, 'clearing nothing changes nothing');
   });
 
+  test('a chain without `chain: 2` is converted to the one rule on its way in; with it, kept as sent', async () => {
+    let r = await ana.post('/api/looks', { title: 'Old', layers: [OLD] });
+    assert.deepEqual([ids(r.json.look.layers), r.json.look.chain], [['s', 'w'], 2]);
+    const put = (body) => ana.put(`/api/looks/${r.json.look.id}`, body);
+    assert.deepEqual(ids((await put({ layers: [OLD] })).json.look.layers), ['s', 'w']);
+    assert.deepEqual(ids((await put({ layers: [OLD], chain: 2 })).json.look.layers), ['w', 's']);
+    r = await ana.post('/api/looks', { title: 'X', layers: [OLD], chain: 1 });
+    assert.equal(r.status, 400);
+    assert.match(r.json.error, /chain must be 2/);
+  });
+
   test('the library lists each entry\'s kind and category', async () => {
     const { patterns } = (await ana.get('/api/library')).json;
     const byName = new Map(patterns.map((p) => [p.name, p]));
     assert.deepEqual(['meteors', 'mirror', 'mask'].map((n) => byName.get(n).kind), ['source', 'warp', 'filter']);
     assert.ok(patterns.every((p) => p.category && typeof p.code === 'string'));
   });
+});
+
+test('looks stored before the rule are converted once at start: their versions too; an exact bake stays', async () => {
+  const dataDir = path.join(fx.tmp, 'data-before');
+  await mkdir(dataDir, { recursive: true });
+  const at = '2025-01-01T00:00:00.000Z', bake = { source: 'render-box', status: 'done', ok: true,
+    layersHash: layersHash(renderFields({ layers: [OLD] })) };
+  await writeFile(path.join(dataDir, 'looks.json'), JSON.stringify([{ id: 'old', owner: 'u1', title: 'Old',
+    layers: [OLD], versions: [{ layers: [OLD], savedAt: at }], bake, reviewed: true, shared: true, createdAt: at,
+    updatedAt: at }]));
+  const app = await startApp({ dataDir, publicDir: PUBLIC, renderBox: fakeBox() });
+  const { look } = (await (await signup(app, 'before-bo')).get('/api/looks/old')).json;
+  assert.deepEqual([ids(look.layers), look.chain, look.updatedAt, look.reviewed], [['s', 'w'], 2, at, true]);
+  assert.equal(look.bake.layersHash, layersHash(renderFields(look)), 'the same frames: the bake still holds');
+  await app.close();
+  const [stored] = JSON.parse(await readFile(path.join(dataDir, 'looks.json'), 'utf8'));
+  assert.deepEqual([ids(stored.layers), ids(stored.versions[0].layers), stored.chain], [['s', 'w'], ['s', 'w'], 2]);
 });
 
 test('renderFields: plain layers unless something else plays', () => {

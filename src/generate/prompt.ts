@@ -99,14 +99,18 @@ one pattern on a union of groups. Blend: \`add\` sums light (default), \`over\` 
 the layer has alpha × level, \`max\` keeps the brighter channel, \`multiply\` tints what is below.
 \`level\` is 0..1.
 
-Instead of one pattern, a layer may be a chain of modules, run in order for every LED:
-- \`source\`: \`function pixel(p, t, P, G)\` draws, as above. The first combines \`over\`, later ones \`add\`
-  (or their own \`blend\`). \`as: "input"\` hides it: it only feeds filters.
-- \`warp\`: \`function warp(q, t, P, G)\` changes q (a copy of p: lx ly lz a r u i …) for the modules after it.
-- \`filter\`: \`function filter(c, q, t, P, G, x)\` returns a new colour for the chain so far, c = [r, g, b, a]
-  (change it and return it); x is the colour of the source its \`input\` names (an earlier module's id).
-So "meteors only inside clouds, mirrored" is [warp mirror, source meteors, source clouds as input, filter mask
-with input = the clouds' id]. A module with a \`ref\` names the library entry it copies; still give its code.
+Instead of one pattern, a layer may be a chain of modules, listed top to bottom. One rule: each module works on
+everything above it, as in an image editor.
+- \`source\`: \`function pixel(p, t, P, G)\` draws, as above, onto what is above it: the first \`over\`, later ones
+  \`add\` (or their own \`blend\`; \`under\` draws it beneath what is above). \`as: "input"\` hides it: it only
+  feeds filters.
+- \`filter\`: \`function filter(c, q, t, P, G, x)\` reworks everything above it, c = [r, g, b, a] (change it and
+  return it); x is the colour of the source its \`input\` names (an earlier module's id).
+- \`warp\`: \`function warp(q, t, P, G)\` bends everything above it: it changes q (a copy of p: lx ly lz a r u i …)
+  for the modules above it. So a warp goes after what it bends. A blur or trails holds real LED colours (its code
+  declares \`const stage = 'spatial'\` or \`'history'\`): a warp below one does not reach above it.
+So "meteors only inside clouds, mirrored" is [source meteors, source clouds as input, filter mask with input = the
+clouds' id, warp mirror]. A module with a \`ref\` names the library entry it copies; still give its code.
 \`G\` holds the look's globals: G.energy (0..1, calm → busy), the palette, and each macro by name.`;
 
 export const TASTE = `- Colour at full strength. A palette sets hue, not brightness: saturated colours at full value.
@@ -282,7 +286,8 @@ A JSON object { "title", "summary", "duration"?, "globals"?, "automation"?,
   group list), so the look can move to another installation. Each layer's code is a complete pattern script that
   defines function pixel(p, t, P) and stays under 20 kB. blend is one of ${BLENDS.join(', ')}.
   level is 0..1 (usually 1). A layer may give "modules" instead of "code": [{ "id", "kind", "title",
-  "ref"?, "code", "input"?, "as"?, "blend"? }], each module's code defining its kind's function.
+  "ref"?, "code", "input"?, "as"?, "blend"? }], each module's code defining its kind's function, each warp after
+  what it bends.
 - palette (optional): a layer may remap its roles for every module on it, picks as above: { "body": "accent2
   accent3", "high": "#ffffff" } plays its body in two accents and its highlight white.
 - globals and automation (optional): set a palette that suits the idea; automate energy or a macro

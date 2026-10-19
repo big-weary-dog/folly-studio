@@ -1,7 +1,9 @@
 // Blur: softens the chain's colour across neighbouring LEDs, along each strand (wire), through space, or both: hard
 // edges melt, a chase glows. The core runs it over the whole layer at once (SPEC "Spatial modules"), counting only
-// this layer's LEDs; filter() is what a core without spatial modules does. radius (metres), mode, amount.
+// this layer's LEDs; filter() is what a core without spatial modules does. radius (metres), mode, amount. A stage
+// end: it holds real LED colours, so no warp below it bends what is above it.
 const spatial = 'blur';
+const stage = 'spatial';
 const params = {
   radius: { value: 0.4, min: 0, max: 1.5, step: 0.01, label: 'Radius (metres; along the wire, metres of wire)' },
   mode: { value: 'space', type: 'choice', options: ['wire', 'space', 'both'], label: 'Along the wire, in space, both' },

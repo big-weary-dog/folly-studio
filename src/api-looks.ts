@@ -1,17 +1,18 @@
 // The looks routes of the HTTP API (SPEC "HTTP API"): list, create, read, edit (with versions and review), delete
 // and bake. Who may see a look: its owner, or anyone signed in when it is shared. Bodies are checked by the shared
-// schemas (shared/schemas/api.ts, look.ts).
+// schemas (shared/schemas/api.ts, look.ts); chains from before the one rule are converted (shared/chain-order.ts).
 import { isDeepStrictEqual } from 'node:util';
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
 import { DEFAULT_DURATION } from '../public/js/pattern-core.ts';
+import { CHAIN, convertLayers, upgradeLook } from '../shared/chain-order.ts';
 import { type Listed, LookCreate, LookPatch, LooksQuery } from '../shared/schemas/api.ts';
-import { automationFor, type Globals, Layers } from '../shared/schemas/look.ts';
+import { automationFor, type Globals, type Layer, Layers } from '../shared/schemas/look.ts';
 import { newestBy } from './api.ts';
 import type { Auth } from './auth.ts';
-import { type createBakeQueue, reviewBlocker } from './bake.ts';
+import { type createBakeQueue, layersHash, renderFields, reviewBlocker } from './bake.ts';
 import { BakeError } from './box-output.ts';
 import { HttpError, type Logger, parse } from './http.ts';
 import type { Store, StoredLook as Look } from './store.ts';
@@ -25,6 +26,33 @@ type Req = FastifyRequest<{ Params: { id: string } }>;
 
 /** A look's layers as the API stores them (a 400 naming the first problem). */
 export const validateLayers = (layers: unknown) => parse(z.object({ layers: Layers }), { layers }).layers;
+
+/** A body's layers and summary as the one rule reads them: converted when it has no `chain: 2`, noted where inexact. */
+function ruled(body: { layers: Layer[], summary?: string, chain?: number }) {
+  if (body.chain === CHAIN) return { layers: body.layers, summary: body.summary };
+  const { look } = upgradeLook({ layers: body.layers, summary: body.summary ?? '', chain: body.chain });
+  return { layers: validateLayers(look.layers), summary: look.summary };
+}
+
+/**
+ * A stored look from before the one rule, at start: its layers and versions converted, marked. A bake keeps its
+ * place when the conversion is exact (same frames); otherwise the look needs a fresh bake and review.
+ */
+export function upgradeStored(look: Look): Look {
+  if (look.chain === CHAIN) return look;
+  const { look: up, exact } = upgradeLook(look);
+  const versions = look.versions?.map((v) => (Array.isArray(v.layers)
+    ? { ...v, layers: convertLayers(v.layers as Layer[]).layers } : v));
+  const out: Look = { ...up, ...(versions ? { versions } : {}) };
+  if (!exact) {
+    delete out.reviewedBy;
+    return { ...out, reviewed: false };
+  }
+  if (look.bake?.layersHash === layersHash(renderFields(look))) {
+    out.bake = { ...look.bake, layersHash: layersHash(renderFields(up)) };
+  }
+  return out;
+}
 /** A look's automation against its globals (a 400 naming the lane when one does not fit). */
 const lanes = (automation: unknown, globals: Globals | null | undefined) =>
   parse(z.object({ automation: automationFor(globals) }), { automation }).automation ?? undefined;
@@ -72,7 +100,8 @@ export function lookRoutes({ store, auth, bakes, dropFrames, log = console }: { 
   async function create(req: FastifyRequest, reply: FastifyReply) {
     const { automation, ideaId, globals, bpm, ...body } = parse(LookCreate, req.body);
     const user = req.user!;
-    const look: Partial<Look> = { owner: user.id, ownerName: user.username, ...body, reviewed: false, versions: [] };
+    const look: Partial<Look> = { owner: user.id, ownerName: user.username, ...body, ...ruled(body), chain: CHAIN,
+      reviewed: false, versions: [] };
     if (globals) look.globals = globals;
     const lanesNow = automation === undefined ? undefined : lanes(automation, globals);
     if (lanesNow) look.automation = lanesNow;
@@ -103,6 +132,11 @@ export function lookRoutes({ store, auth, bakes, dropFrames, log = console }: { 
     };
     if (body.title !== undefined) patch.title = body.title;
     if (body.summary !== undefined) patch.summary = body.summary;
+    if (body.layers !== undefined) {
+      const now = ruled({ ...body, layers: body.layers, summary: body.summary ?? look.summary });
+      body.layers = now.layers;
+      if (now.summary !== (body.summary ?? look.summary)) patch.summary = now.summary;
+    }
     if (body.shared !== undefined) {
       patch.shared = body.shared;
       if (body.shared && look.shared !== true) patch.sharedAt = new Date().toISOString();

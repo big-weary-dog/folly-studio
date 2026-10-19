@@ -9,24 +9,18 @@ import type { Module } from '../../../shared/schemas/look.ts';
 import type { LibraryEntry } from '../../../shared/schemas/rig.ts';
 import { DEFAULT_SOFTEN } from '../core/spatial.ts';
 import { humanize, openDialog } from './kit.tsx';
-import { KIND_LABELS, type Layer } from './model.ts';
+import { insertModule, KIND_LABELS, type Layer } from './model.ts';
 import type { Preview } from './preview.ts';
 
 type Kind = Module['kind'];
 type Entry = LibraryEntry | { kind: Kind; blank: true; name?: undefined; title?: undefined; code?: undefined };
 type Audition = { pv: Preview; layer?: Pick<Layer, 'groups'> & Partial<Layer>; moduleId?: string };
 const KINDS: [Kind, string][] = [
-  ['warp', 'Warps move each pixel for the modules after them.'],
+  ['warp', 'Warps bend everything above them.'],
   ['source', 'Sources draw. Mark one "input only" to feed a filter without drawing it.'],
-  ['filter', 'Filters rework the colour so far, some by another source (their input).'],
+  ['filter', 'Filters rework everything above them, some by another source (their input).'],
 ];
 const TRY = '~audition';
-
-/** Where picking puts module m in a chain (as chain.tsx's add): after the selected one, a warp before a source. */
-function placeIn(mods: Module[], m: Module, selectedId?: string) {
-  const i = mods.findIndex((x) => x.id === selectedId);
-  return i < 0 ? mods.length : i + (m.kind === 'warp' && mods[i].kind === 'source' ? 0 : 1);
-}
 
 /** The audition: the look the app sent is kept, and put back unless something was picked. */
 function auditioner({ pv, layer, moduleId }: Partial<Audition> = {}) {
@@ -39,13 +33,8 @@ function auditioner({ pv, layer, moduleId }: Partial<Audition> = {}) {
     mine = m.kind === 'source'
       ? [...saved.layers, { id: TRY, title: m.title, groups: layer.groups, blend: 'over', level: 1, modules: [m],
         soften: { ...DEFAULT_SOFTEN } }]                              // as a new layer would be
-      : saved.layers.map((l) => {
-        if (l.id !== layer.id) return l;
-        const mods = l.modules.slice(), at = placeIn(mods, m, moduleId);
-        if (/\bx\s*\[/.test(m.code)) m.input = mods.slice(0, at).reverse().find((x) => x.as === 'input')?.id;
-        mods.splice(at, 0, m);
-        return { ...l, modules: mods, enabled: true, level: l.level || 1, clips: undefined };
-      });
+      : saved.layers.map((l) => (l.id !== layer.id ? l : { ...l, modules: insertModule(l.modules, m, moduleId),
+        enabled: true, level: l.level || 1, clips: undefined }));
     r.setLook(mine, saved.extra);
     pv?.kick();
   };

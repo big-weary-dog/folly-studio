@@ -114,6 +114,72 @@ export function Field({ label, children, hint, stack, class: cls, title }: { lab
       <div class="field-control">{control ? children(id) : children}</div>{hint}</div>);
 }
 
+type Range = { min: number; max: number; step: number };
+/** The decimals a step shows (0.05 → 2, at most 4). */
+export function decimals(step: number) {
+  const [m, e] = String(step).split('e-');
+  return Math.min(4, e ? Number(e) : (m.split('.')[1] || '').length);
+}
+/** v on the step's grid from min, held to min..max. */
+export const snap = (v: number, { min, max, step }: Range) =>
+  Math.min(max, Math.max(min, Number((min + Math.round((v - min) / step) * step).toPrecision(12))));
+/** From v, a drag of dx px across a field w px wide: its width spans the range (`fine`: a tenth of that). */
+export const scrubTo = (v: number, dx: number, w: number, r: Range, fine = false) =>
+  snap(v + (dx / Math.max(1, w)) * (r.max - r.min) * (fine ? 0.1 : 1), r);
+
+/** A number as one field, its glass filled to where the value sits in min..max. Drag across it or its label to
+ * scrub (Shift: finer); click or tap to type; ↑/↓ (Shift: ×10), and the wheel while focused, step it. */
+export function Scrub({ id, label, value, unit = '', disabled, set, ...r }: Range & { id?: string; label?: string;
+  value: number; unit?: string; disabled?: boolean; set: (v: number) => void }) {
+  const ref = useRef<HTMLInputElement>(null), now = useRef({ value, set, r });
+  const text = (v: number) => v.toFixed(decimals(r.step)) + unit;
+  now.current = { value, set, r };
+  const put = (v: number, el = ref.current!) => {   // the box at once; the value when it moves
+    el.value = text(v);
+    if (v !== now.current.value) now.current.set(v);
+  };
+  const num = (el: HTMLInputElement) => { const v = parseFloat(el.value); return Number.isFinite(v) ? v : value; };
+  const step = (el: HTMLInputElement, n: number) => put(snap(num(el) + n * r.step, r), el);
+  useEffect(() => {   // drags on the field and on its label, by pointer capture; a tap types
+    const el = ref.current!, on: HTMLElement[] = [el, ...el.labels || []], eat = (c: Event) => c.preventDefault();
+    function down(e: PointerEvent) {
+      if (el.disabled || document.activeElement === el || e.button) return;
+      e.preventDefault();
+      const t = e.currentTarget as HTMLElement, x0 = e.clientX, v0 = now.current.value, drag = new AbortController();
+      let moved = false;
+      t.setPointerCapture(e.pointerId);
+      t.addEventListener('pointermove', (m) => {
+        moved ||= Math.abs(m.clientX - x0) > 3;
+        if (moved) put(scrubTo(v0, m.clientX - x0, el.clientWidth, now.current.r, m.shiftKey));
+      }, { signal: drag.signal });
+      const up = (u: PointerEvent) => {
+        drag.abort();
+        if (moved) t.addEventListener('click', eat, { once: true });   // a drag on the label is not a click on it
+        else if (u.type === 'pointerup') { el.focus(); el.select(); }
+        setTimeout(() => t.removeEventListener('click', eat));
+      };
+      for (const k of ['pointerup', 'pointercancel'] as const) t.addEventListener(k, up, { signal: drag.signal });
+    }
+    for (const t of on) t.addEventListener('pointerdown', down);
+    return () => { for (const t of on) t.removeEventListener('pointerdown', down); };
+  }, []);
+  // While it has focus, what is typed stays; put() writes the box whenever the value moves.
+  return <input type="text" id={id} ref={ref} class="scrub" role="spinbutton" aria-label={label} autocomplete="off"
+    value={document.activeElement === ref.current ? undefined : text(value)} disabled={disabled}
+    inputMode={r.min < 0 ? 'text' : 'decimal'} aria-valuemin={r.min} aria-valuemax={r.max} aria-valuenow={value}
+    aria-valuetext={text(value)} style={{ '--fill': ((snap(value, r) - r.min) / (r.max - r.min || 1)).toFixed(3) }}
+    onChange={(e) => put(snap(num(e.currentTarget), r), e.currentTarget)}
+    onKeyDown={(e) => {
+      const n = e.key === 'ArrowUp' ? 1 : e.key === 'ArrowDown' ? -1 : 0;
+      if (n) { e.preventDefault(); step(e.currentTarget, e.shiftKey ? n * 10 : n); }
+      else if (e.key === 'Escape') { e.currentTarget.value = text(value); e.currentTarget.blur(); }
+    }}
+    onWheel={(e) => {
+      const d = e.deltaY || e.deltaX;
+      if (d && e.currentTarget === document.activeElement) { e.preventDefault(); step(e.currentTarget, -Math.sign(d)); }
+    }} />;
+}
+
 /** A labelled switch (a checkbox) showing `checked`, which only the caller's state changes. */
 export const Switch = ({ label, class: cls, checked, disabled, title, onChange }: { label: string; class: string;
   checked: boolean; disabled?: boolean; title?: string; onChange: (on: boolean) => void }) =>

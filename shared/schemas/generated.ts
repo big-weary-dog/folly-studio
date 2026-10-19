@@ -6,9 +6,9 @@ import { z } from 'zod';
 
 import {
   BLENDS, BLUR_MODES, DEFAULT_SOFTEN, GLOBALS, macroNameOk, MAX_LANES, MAX_MACROS, MAX_POINTS, MAX_RADIUS, MODULE_KINDS,
-  PALETTE_ROLES, pickText, readPick,
+  PALETTE_ROLES, pickText, readPick, SOURCE_BLENDS,
 } from '../../public/js/pattern-core.ts';
-import type { Blend, BlurMode, ModuleKind } from '../../public/js/pattern-core.ts';
+import type { Blend, BlurMode, ModuleKind, SourceBlend } from '../../public/js/pattern-core.ts';
 import {
   automationFor, Binding, bytes, Globals as StrictGlobals, ID, ms, PALETTE_NAMES, Pick, problem, TAG,
 } from './look.ts';
@@ -56,6 +56,9 @@ const text = (max: number) => z.string().catch('').transform((s) => cleanText(s,
 const blend = z.string().catch('').transform((b) => b.trim().toLowerCase())
   .transform((b): Blend => (BLENDS.includes(b as Blend) ? b as Blend : BLEND_ALIASES[b] ?? 'add'))
   .meta({ enum: [...BLENDS] });
+const sourceBlend = z.string().catch('').transform((b) => b.trim().toLowerCase())
+  .transform((b): SourceBlend => (SOURCE_BLENDS.includes(b as SourceBlend) ? b as SourceBlend
+    : BLEND_ALIASES[b] ?? 'add')).meta({ enum: [...SOURCE_BLENDS] });
 const level = z.number().transform((n) => clamp(n, 0, 1)).catch(1);
 /** Seconds, from a number or a numeric string. */
 const time = z.preprocess((v) => (typeof v === 'string' && v.trim() ? Number(v) : v), z.number());
@@ -145,7 +148,7 @@ const moduleOf = (library: Library) => z.object({
   title: text(LIMITS.layerTitle), ref: z.string().optional().catch(undefined),
   code: z.unknown().optional().meta({ type: 'string' }),
   params, input: z.string().optional().catch(undefined), as: z.literal('input').optional().catch(undefined),
-  blend: blend.optional(),
+  blend: sourceBlend.optional(),
 }, { error: 'not an object' }).meta({ required: ['id', 'kind', 'title', 'code'] }).transform((m, ctx) => {
   const checked = code(FUNCTION[m.kind]!).safeParse(m.code);
   if (!checked.success) return (ctx.addIssue(checked.error.issues[0].message), z.NEVER);

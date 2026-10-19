@@ -5,10 +5,12 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'vitest';
 import { z } from 'zod';
 
-import { BLENDS, DEFAULT_SOFTEN, MODULE_KINDS } from '../public/js/pattern-core.ts';
+import { BLENDS, DEFAULT_SOFTEN, MODULE_KINDS, SOURCE_BLENDS } from '../public/js/pattern-core.ts';
 import { Login, Signup } from '../shared/schemas/api.ts';
 import { validateLook, wireSchema } from '../shared/schemas/generated.ts';
-import { automationFor, BLEND_MODES, Globals, KINDS, Layers, problem } from '../shared/schemas/look.ts';
+import {
+  automationFor, BLEND_MODES, Globals, KINDS, Layers, problem, SOURCE_BLEND_MODES,
+} from '../shared/schemas/look.ts';
 import { LibraryEntry, Rig } from '../shared/schemas/rig.ts';
 import { folly, lineRig, mini } from './fixtures/rigs.js';
 
@@ -26,7 +28,14 @@ const lanes = (a: unknown, g?: { macros?: Record<string, { min: number, max: num
 describe('the API look', () => {
   test("the schema's names are the core's", () => {
     assert.deepEqual([...BLEND_MODES], [...BLENDS]);
+    assert.deepEqual([...SOURCE_BLEND_MODES], [...BLENDS, 'under']);
+    assert.deepEqual([...SOURCE_BLENDS], [...SOURCE_BLEND_MODES]);
     assert.deepEqual([...KINDS], [...MODULE_KINDS]);
+  });
+
+  test('under is how a source combines, not a layer blend', () => {
+    assert.equal(typeof layers([{ modules: [{ code: PIXEL }, { code: PIXEL, blend: 'under' }] }]), 'object');
+    assert.match(String(layers([{ code: PIXEL, blend: 'under' }])), /^Layer 1: blend must be one of add, over/);
   });
 
   test('defaults, ids, tags kept once, empty clips stored as none', () => {

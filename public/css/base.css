@@ -206,8 +206,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offs
   color: var(--text-2); font-weight: 600; background: none; border: 0; cursor: pointer; }
 .seg-btn:hover, .seg-btn[aria-pressed=true] { color: var(--text); }
 @media (max-width: 899px) { .btn.small { padding: 6px 14px; font-size: 14px; } }
-/* Forms: wells of dark glass in lead, the came lit on focus. Sliders are a string of LEDs with a
-   glass lozenge to drag; a switch slides a quatrefoil that lights when on. */
+/* Forms: wells of dark glass in lead, the came lit on focus. Sliders are a string of LEDs with a glass lozenge to
+   drag, a scrub field's string lit as far as its value; a switch slides a quatrefoil that lights when on. */
 input[type=text], input[type=password], input[type=search], input[type=number], textarea, select {
   min-height: var(--hit, 38px); padding: 8px 10px; color: var(--text); background-color: var(--night-0);
   border: var(--came-s) solid var(--lead); border-radius: var(--radius); box-shadow: var(--well), var(--rim); }
@@ -234,6 +234,14 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 18px; border: 0; bord
   background: radial-gradient(circle at 50% 40%, #fff3dc, var(--sand) 45%, #a8875a);
   clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
 input[type=range]:disabled { opacity: .45; cursor: default; }
+input.scrub { flex: none; width: 96px; min-height: var(--hit, 30px); padding: 3px 8px; font-size: 13px;
+  font-variant-numeric: tabular-nums; cursor: ew-resize; touch-action: pan-y; user-select: none;
+  --led: repeating-linear-gradient(90deg, var(--sand) 0 2px, #0000 0 5px) 4px calc(100% - 3px);
+  background: linear-gradient(90deg, rgb(232 207 159 / .12) calc(var(--fill) * 100%), #0000 0),
+    var(--led) / calc((100% - 8px) * var(--fill)) 2px no-repeat, var(--night-0); }
+input.scrub:focus { cursor: text; user-select: auto; }
+input.scrub:disabled { opacity: .45; cursor: default; }
+.field:has(.scrub:not(:disabled, :focus)) > label { cursor: ew-resize; touch-action: pan-y; user-select: none; }
 input.switch { appearance: none; position: relative; flex: none; width: 40px; height: 22px; margin: 0; cursor: pointer;
   background: var(--night-0); border: var(--came-s) solid var(--lead); border-radius: var(--radius);
   box-shadow: var(--well), var(--rim); }
@@ -243,16 +251,16 @@ input.switch:checked { background: color-mix(in srgb, var(--emerald) 28%, var(--
 input.switch:checked::after { transform: translateX(18px); color: var(--emerald); }
 input.switch:disabled { opacity: .5; cursor: default; }
 /* A field (kit.tsx Field) is one row: its label, muted and compact, in a --label-w column, then the control filling
-   the rest. A label too long for it, or a .stack's, goes above; a .toggle's label takes the row, its switch the end. */
+   the rest. Too long for it, or a .stack's, a label goes above; a .toggle's or .end's fills the row to its control. */
 .field { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 .field > :first-child { flex: none; min-width: var(--label-w); max-width: 100%; font-size: 13px; color: var(--text-2); }
 .field > * + * { flex: 1 1 calc(100% - var(--label-w) - 11px); min-width: 0; }
 .field.stack > * { flex-basis: 100%; }
-.field.toggle > :first-child { flex: 1; min-width: 0; min-height: var(--hit); align-content: center; cursor: pointer; }
-.field.toggle > * + * { flex: none; }
+.field:is(.toggle, .end) > :first-child { flex: 1; min-width: 0; min-height: var(--hit); align-content: center;
+  cursor: pointer; }
+.field:is(.toggle, .end) > * + * { flex: none; }
 .field-control { display: flex; align-items: center; gap: 6px; }
 :where(.field-control) > :where(input:not([type=checkbox], [type=color]), select, textarea) { flex: 1; min-width: 0; }
-.field output { flex: none; min-width: 40px; text-align: right; font: 12px var(--mono); color: var(--text-2); }
 .field-hint { font-size: 12.5px; color: var(--text-3); }
 .form-error { color: var(--error); font-size: 14px; }
 @media (max-width: 899px) {

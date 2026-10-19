@@ -1,6 +1,7 @@
-// Colour picks in the Studio (SPEC "Palettes"): a colour param's row (the colours it plays, its pick, ▾ the pick tile,
-// ∿ to turn it, ↺), a layer's Colours row (its roles, each remapped with the same tile), and the tile: a popover on a
-// wide screen; on a phone a sheet with the palette's roles and a custom colour, the rest shown when set.
+// Colour picks in the Studio (SPEC "Palettes"): a colour param's row (its pick in a field the size of a number's, its
+// colours lit along it; the field opens the pick tile, ∿ turns it, ↺), a layer's Colours row (its roles, each remapped
+// with the same tile), and the tile: a popover on a wide screen; on a phone a sheet with the palette's roles and a
+// custom colour, the rest shown when set.
 import type { ComponentChildren } from 'preact';
 import { useId } from 'preact/hooks';
 
@@ -8,7 +9,7 @@ import type { Binding, LayerPalette, Pick } from '../../../shared/schemas/look.t
 import { type PickBlend, rolesFor, stopsFor } from '../core/picks.ts';
 import { DEFAULT_PALETTE, PALETTE_ROLES, type PaletteHex, type PaletteRole, paletteColours } from '../core/stdlib.ts';
 import { bindingText, fmt, isBinding } from './bindings.ts';
-import { cx, Field, humanize, Switch } from './kit.tsx';
+import { cx, Field, humanize, Scrub, Switch } from './kit.tsx';
 import {
   editText, editValue, type PickEdit, readEdit, rolesOf, roleState, toggleRole, toggleSlot, toggleToken,
 } from './pick-model.ts';
@@ -94,31 +95,29 @@ function PickTile({ title, value, dflt, blend, colours, narrow, put }: Tile) {
       <Field label="Blend">{(['step', 'smooth'] as const).map((b) => <button type="button" class="btn small pick-seg"
         aria-pressed={(edit.blend ?? blend) === b} onClick={() => set({ ...edit, blend: b })}>{humanize(b)}</button>)}
       </Field>
-      <Field label="Range">{(id) => <><span class="pick-range">
-        <input type="range" id={id} min={0} max={1} step={0.01} value={from} aria-label="Range from"
-          onInput={(e) => set({ ...edit, range: [Math.min(+e.currentTarget.value, to), to] })} />
-        <input type="range" min={0} max={1} step={0.01} value={to} aria-label="Range to"
-          onInput={(e) => set({ ...edit, range: [from, Math.max(+e.currentTarget.value, from)] })} /></span>
-        <output for={id}>{`${fmt(from)}–${fmt(to)}`}</output></>}</Field>
-      <Field label="Rotate">{(id) => (isBinding(turn) ? <span class="param-chip">{bindingText(turn)}</span> : <>
-        <input type="range" id={id} min={0} max={1} step={0.01} value={turn ?? 0}
-          onInput={(e) => set({ ...edit, rotate: +e.currentTarget.value || undefined })} />
-        <output for={id}>{fmt(turn ?? 0)}</output></>)}</Field></>}
+      <Field label="Range" class="end">{(id) => <>
+        <Scrub id={id} label="Range from" min={0} max={1} step={0.01} value={from}
+          set={(v) => set({ ...edit, range: [Math.min(v, to), to] })} />
+        <Scrub label="Range to" min={0} max={1} step={0.01} value={to}
+          set={(v) => set({ ...edit, range: [from, Math.max(v, from)] })} /></>}</Field>
+      <Field label="Rotate" class="end">{(id) => (isBinding(turn) ? <span class="param-chip">{bindingText(turn)}</span>
+        : <Scrub id={id} min={0} max={1} step={0.01} value={turn ?? 0}
+          set={(v) => set({ ...edit, rotate: v || undefined })} />)}</Field></>}
     <div class="pick-foot"><button type="button" class="btn small ghost" disabled={value === undefined}
       onClick={() => put(undefined)}>Reset</button></div>
   </div>;
 }
 
 type Modulate = (now: number | Binding | undefined, apply: (b: Binding | null) => void) => void;
-/** A colour param's row: its colours and pick (▾ the tile), ∿ to move its rotate, ↺ to reset it. */
+/** A colour param's row: its pick and colours (the tile), ∿ to move its rotate, ↺ to reset it. */
 export function PickRow({ label, modulate, ...tile }: Omit<Tile, 'title'> & { label: string; modulate: Modulate }) {
   const edit = readEdit(tile.value, tile.dflt), own = tile.value !== undefined;
   const smooth = (edit.blend ?? tile.blend) === 'smooth';
   const turn = (rotate?: Binding) => tile.put(editValue({ ...edit, rotate }, tile.blend));
-  return <Field label={label} class="param pick">{(id) => <>
+  return <Field label={label} class="param end pick">{(id) => <>
     <PickButton {...tile} id={id} title={label} label={`${label}: ${editText(edit)}`} class="pick-btn">
+      <span class="pick-text">{editText(edit).replace(/\//g, ' / ')}</span>
       <Strip stops={played(tile.colours, tile.value, tile.dflt, tile.blend)} smooth={smooth} />
-      <span class="pick-text">{editText(edit).replace(/\//g, ' / ')}</span><span aria-hidden="true">▾</span>
     </PickButton>
     <button type="button" class="param-mod" aria-pressed={isBinding(edit.rotate)} aria-label={`Turn ${label}`}
       title="Turn its colours: an LFO, a global or the clip envelope moves its rotate"

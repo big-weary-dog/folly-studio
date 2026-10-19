@@ -8,6 +8,7 @@ import fastifyRateLimit from '@fastify/rate-limit';
 import Fastify from 'fastify';
 
 import { apiRoutes, enqueueIdea, MAX_IDEAS_PER_DAY } from './api.ts';
+import { upgradeStored } from './api-looks.ts';
 import type { Idea } from '../shared/schemas/api.ts';
 import { type Cost, createAuth } from './auth.ts';
 import { createBakeQueue, createLane } from './bake.ts';
@@ -46,7 +47,7 @@ export async function createServer(opts: Options = {}) {
     flash = flashSettings(),
   } = opts;
 
-  const store = await createStore(dataDir, { log });
+  const store = await createStore(dataDir, { log, upgrade: { looks: upgradeStored } });
   const auth = createAuth({ store, curators, cost: scrypt });
   auth.pruneSessions();
   const loaders = createLoaders(publicDir, { log });

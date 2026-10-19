@@ -1,4 +1,4 @@
-// Mirror: folds the layer onto itself before the modules after it draw: left-right (lz, z, a), front-back
+// Mirror: folds the layer onto itself, so what is above it draws folded: left-right (lz, z, a), front-back
 // (lx, x), up-down (ly, y), or every wire at its middle (u, i), so chases run in from both ends.
 const params = {
   leftRight: { value: true, type: 'toggle', label: 'Left ↔ right' },

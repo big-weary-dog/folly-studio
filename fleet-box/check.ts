@@ -90,6 +90,14 @@ layers.slice(0, LIMITS.layers).forEach((layer: any, i: number) => {
     const defines = new RegExp(`\\bfunction\\s+${fn}\\s*\\(`);
     if (!defines.test(m.code)) errors.push(`${what}: code must define function ${fn}`);
   });
+  // The one rule: a warp bends what is above it, up to a blur or trails; with nothing there it does nothing.
+  let above = false;
+  modules.forEach((m: any, j: number) => {
+    if (m?.enabled === false) return;
+    if (core.isStageEnd(m)) above = false;
+    else if (m?.kind !== 'warp') above = true;
+    else if (!above) warnings.push(`${name}, module ${j + 1}: a warp with nothing above it bends nothing`);
+  });
   const groups = Array.isArray(layer.groups) ? layer.groups : [];
   const tags = Array.isArray(layer.tags) ? layer.tags.filter((t: unknown) => typeof t === 'string') : [];
   const unknown = groups.filter((g: string) => !groupIds.has(g));
