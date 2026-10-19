@@ -17,6 +17,11 @@ const alive = (pid) => {
   try { process.kill(pid, 0); } catch { return false; }
   try { return fs.readFileSync(`/proc/${pid}/stat`, 'utf8').split(') ')[1]?.[0] !== 'Z'; } catch { return true; }
 };
+/** Those of the pids still running after up to 5 s (a killed process goes when the kernel next runs it). */
+const stillRunning = async (pids) => {
+  for (let i = 0; i < 100 && pids.some(alive); i++) await new Promise((r) => setTimeout(r, 50));
+  return pids.filter(alive);
+};
 
 function setup(mode = 'ok', o = {}) {
   const dir = tmp('codex'), log = path.join(dir, 'calls.jsonl');
@@ -101,12 +106,8 @@ describe('codex', () => {
 
   test('the wall clock kills the whole tree: codex and what it started', async () => {
     const { adapter, dir } = setup('hang', { timeoutMs: 1500 });
-    const started = Date.now();
     await refused(adapter.generate(ctx()), /took too long/);
-    assert.ok(Date.now() - started < 5000);
-    const pids = fs.readFileSync(path.join(dir, 'pids'), 'utf8').split(' ').map(Number);
-    await new Promise((r) => setTimeout(r, 200));
-    for (const pid of pids) assert.equal(alive(pid), false, `pid ${pid} is gone`);
+    assert.deepEqual(await stillRunning(fs.readFileSync(path.join(dir, 'pids'), 'utf8').split(' ').map(Number)), []);
   });
 
   test('an abort (the server stopping) kills it too', async () => {
@@ -117,7 +118,6 @@ describe('codex', () => {
     for (let i = 0; i < 100 && !fs.existsSync(pidFile); i++) await new Promise((r) => setTimeout(r, 50));
     ac.abort();
     await refused(running, /stopped before it finished/);
-    await new Promise((r) => setTimeout(r, 200));
-    for (const pid of fs.readFileSync(pidFile, 'utf8').split(' ').map(Number)) assert.equal(alive(pid), false);
+    assert.deepEqual(await stillRunning(fs.readFileSync(pidFile, 'utf8').split(' ').map(Number)), []);
   });
 });

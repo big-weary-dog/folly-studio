@@ -27,7 +27,9 @@ npm run smoke                # the app in Chromium at 1366 × 768 and 390 × 844
                              #   page and an idea on a picked model (models.spec.js, a stand-in codex)
 npm run perf                 # the preview on an emulated phone: the look's cost against a reference workload, the
                              #   phone computing it above the 20 fps floor (where the runner keeps up), Playa's Auto
-                             #   stepping down on slow frames; software-GL fps only reported (test/e2e/perf.spec.js)
+                             #   stepping down on slow frames; software-GL fps only reported (test/e2e/perf.spec.js);
+                             #   a frame of each library source, three long chains and the whole library stacked,
+                             #   against the same reference (library-perf.spec.js; no unit test asserts a time in ms)
 npm run e2e                  # our .fseq through sACN and the relay into Mirage, every LED compared byte for byte
                              #   (test/e2e/mirage.spec.js; E2E_DEPS, relay/node_modules: see "Browser checks")
 ```
@@ -81,7 +83,14 @@ data folder and a fresh build (`test/e2e/studio.js`); `smoke` bakes, so it needs
 `relay/node_modules` (`cd ../relay && npm install`), and three.js 0.160.0, which Mirage loads from a CDN: the spec
 serves it from a local copy (`page.route`) in `E2E_DEPS`, a folder where `npm install three@0.160.0` was run. three
 is not a devDependency on purpose: it would add 31 MB to every `npm ci`, CI's included, for a check that also needs
-the relay's own install and minutes of Mirage on software GL, and so runs by hand, not in CI.
+the relay's own install and minutes of Mirage on software GL, and so runs by hand, not in CI. It refuses to start
+while anything sends sACN to port 5568 (a player left running would play over its frames), and names what does.
+
+Each run writes its screenshots and traces to a folder of its own (`STUDIO_PW_OUT`, else a new
+`folly-studio-playwright-<pid>-*` in the temp folder), so runs side by side never share files. The helpers a check
+starts (`e2e`'s static server, relay and player) stay in the run's process group, so Ctrl-C reaches them, and are
+stopped in `afterAll`; each carries its worker's pid in its environment, and before and after every run
+`test/e2e/procs.mjs` kills those whose worker has gone and removes the folders of runs that have ended.
 
 ## TypeScript
 

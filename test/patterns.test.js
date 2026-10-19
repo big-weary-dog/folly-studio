@@ -1,9 +1,8 @@
-// The built-in library renders cleanly, quickly, and in colour on the Folly: its sources alone (one that fills its
-// layer mostly lit; one that draws on transparent, SPEC "Modules", drawing something), its warps and filters in a
-// chain over a source.
+// The built-in library renders cleanly and in colour on the Folly: its sources alone (one that fills its layer mostly
+// lit; one that draws on transparent, SPEC "Modules", drawing something), its warps and filters in a chain over a
+// source.
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { performance } from 'node:perf_hooks';
 
 import { describe, test } from 'vitest';
 
@@ -132,34 +131,18 @@ describe('each warp and filter, in a chain over a source', () => {
   }
 });
 
-test('the whole library stacked renders well under budget', () => {
+test('the whole library stacked renders cleanly, into the buffer it is given', () => {
   const blends = ['add', 'over', 'max', 'multiply'];
   const layers = sources.map(({ name }, i) => prepareLayer(scene,
     { id: name, groups: GROUPS[i % GROUPS.length], blend: blends[i % 4], level: 0.8 }, compilePattern(source(name))));
   const out = new Float32Array(scene.count * 3);
   const ch = new Uint8Array(scene.frameChannels);
-  for (let f = 0; f < 5; f++) renderFrame(scene, layers, f / 40, out);   // warm up
   const frames = 40;
-  const t0 = performance.now();
   for (let f = 0; f < frames; f++) {
     const { rgb, errors } = renderFrame(scene, layers, 3 + f / 40, out);
     assert.deepEqual(errors, []);
+    assert.equal(rgb, out, 'no new frame buffer');
     toChannels(scene, rgb, ch, { gamma: 2.2, brightness: 0.8 });
   }
-  const ms = (performance.now() - t0) / frames;
   check(out, 'stack');
-  // Every source a layer (over 40); a single typical layer runs in about 2 ms. Generous for slow CI machines.
-  assert.ok(ms < 150, `${ms.toFixed(1)} ms per frame for ${layers.length} layers`);
-});
-
-test('a single cathedral-wide layer renders in well under 10 ms', () => {
-  for (const { name } of sources) {
-    const L = prepareLayer(scene, { id: name, groups: ['cathedral'] }, compilePattern(source(name)));
-    const out = new Float32Array(scene.count * 3);
-    for (let f = 0; f < 5; f++) renderFrame(scene, [L], f / 40, out);
-    const t0 = performance.now();
-    for (let f = 0; f < 20; f++) renderFrame(scene, [L], 1 + f / 40, out);
-    const ms = (performance.now() - t0) / 20;
-    assert.ok(ms < 25, `${name}: ${ms.toFixed(2)} ms per frame`);
-  }
 });

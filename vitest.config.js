@@ -13,8 +13,9 @@ export default mergeConfig(viteConfig, defineConfig({
     include: ['test/**/*.test.{js,ts}'],
     // Each file in a fresh process of its own: tests start servers, worker threads and render boxes, and read their
     // own threads' nice values from /proc/self. One file per spare CPU, and two on a 2-CPU runner: much of the suite
-    // waits on servers and boxes (62 s there against 110 s one at a time), the boxes run at nice 10, and the timing
-    // checks leave 10× headroom. The bake test counts only its own boxes in /proc, not other files'.
+    // waits on servers and boxes (62 s there against 110 s one at a time), the boxes run at nice 10, and no test
+    // holds code to a time: a cost is judged against work timed beside it (spatial.test.js, npm run perf). The bake
+    // test counts only its own boxes in /proc, not other files'.
     pool: 'forks',
     isolate: true,
     maxWorkers: Math.max(2, availableParallelism() - 1),
