@@ -23,7 +23,7 @@ export default defineConfig({
   reporter: process.env.CI ? [['list'], ['github']] : [['list']],
   use: { browserName: 'chromium', launchOptions: { args: SWIFTSHADER }, trace: 'retain-on-failure' },
   projects: [
-    { name: 'smoke', testMatch: 'smoke.spec.js', timeout: 5 * 60_000 },
+    { name: 'smoke', testMatch: ['smoke.spec.js', 'models.spec.js'], timeout: 5 * 60_000 },
     { name: 'perf', testMatch: 'perf.spec.js', timeout: 5 * 60_000 },
     { name: 'e2e', testMatch: 'mirage.spec.js', timeout: 20 * 60_000 },
   ],

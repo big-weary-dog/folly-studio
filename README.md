@@ -24,7 +24,9 @@ npm run build-data     # rebuild public/data/rig.json from ../pixel-map/, palett
 ```
 
 - Bakes need bubblewrap (`apt install bubblewrap`) and unprivileged user namespaces; without them baking is off.
-- The AI generator: `STUDIO_GENERATOR=claude` with `ANTHROPIC_API_KEY`. The default, `sketch`, works offline.
+- Models: people pick one per idea from `data/models.json` (Opus with `ANTHROPIC_API_KEY`; Sol and Luna through the
+  Codex CLI after `codex login`; Sketch offline). Admins (`STUDIO_ADMINS=you`) change it on the Models page.
+  docs/HOSTING.md "Models" has the file and the setup.
 - Curators: `STUDIO_CURATORS=alice,bob`.
 - `smoke`, `perf` and `e2e` run on Playwright Test with its Chromium (`npx playwright install chromium`, or
   `PLAYWRIGHT_BROWSERS_PATH`); `e2e` also needs `E2E_DEPS` (a folder with `three@0.160.0`) and

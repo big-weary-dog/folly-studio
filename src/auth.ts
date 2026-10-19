@@ -54,14 +54,20 @@ export const weaker = (stored: string, cost: Cost) => {
 
 export const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
 
-/** createAuth({ store, curators, cost }): accounts, roles and sessions (cookies and limits are the API's). */
-export function createAuth({ store, curators = [], cost = SCRYPT }: { store: Pick<Store, 'users' | 'sessions'>,
-  curators?: string | string[], cost?: Cost }) {
-  const curatorSet = new Set((typeof curators === 'string' ? curators.split(',') : curators)
-    .map((s) => String(s).trim().toLowerCase()).filter(Boolean));
+const names = (list: string | string[]) => new Set((typeof list === 'string' ? list.split(',') : list)
+  .map((s) => String(s).trim().toLowerCase()).filter(Boolean));
+
+/**
+ * createAuth({ store, curators, admins, cost }): accounts, roles and sessions (cookies and limits are the API's).
+ * Admins (STUDIO_ADMINS) choose the models on offer, and are curators too.
+ */
+export function createAuth({ store, curators = [], admins = [], cost = SCRYPT }: {
+  store: Pick<Store, 'users' | 'sessions'>, curators?: string | string[], admins?: string | string[], cost?: Cost }) {
+  const curatorSet = names(curators), adminSet = names(admins);
   let dummyHash: Promise<string> | null = null; // checked for unknown users, so timing does not reveal them
 
-  const roleOf = (user: { username: string } | null) => (user && curatorSet.has(user.username) ? 'curator' : 'member');
+  const roleOf = (user: { username: string } | null): User['role'] => (!user ? 'member'
+    : adminSet.has(user.username) ? 'admin' : curatorSet.has(user.username) ? 'curator' : 'member');
   const publicUser = (user: Stored): User => ({ id: user.id, username: user.username, role: roleOf(user) });
   const findUser = (username: string) => store.users.list((u) => u.username === username)[0] ?? null;
 
@@ -118,6 +124,6 @@ export function createAuth({ store, curators = [], cost = SCRYPT }: { store: Pic
   }
 
   return { signup, login, logout, authenticate, createSession, pruneSessions, roleOf, publicUser,
-    isCurator: (user: Stored) => roleOf(user) === 'curator' };
+    isCurator: (user: Stored) => roleOf(user) !== 'member', isAdmin: (user: Stored) => roleOf(user) === 'admin' };
 }
 export type Auth = ReturnType<typeof createAuth>;

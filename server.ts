@@ -5,8 +5,11 @@
 //   HOST                   default 127.0.0.1
 //   STUDIO_DATA            data dir, default studio/data/
 //   STUDIO_CURATORS        comma-separated usernames with the curator role
+//   STUDIO_ADMINS          comma-separated usernames with the admin role (the Models panel; curators too)
 //   STUDIO_SECURE_COOKIES  1 → Secure session cookie (serve over https)
-//   STUDIO_GENERATOR       idea generator adapter: sketch (default) | claude | fleet (deep ideas, below)
+//   STUDIO_MODELS          the model registry, default <STUDIO_DATA>/models.json (docs/HOSTING.md)
+//   STUDIO_GENERATOR       superseded by the registry: the default it starts with (claude, sketch or fleet)
+//   STUDIO_GENERATOR_FALLBACK  a model or transport tried when one fails (sketch)
 //   STUDIO_FOUNDRY         on → fleet runs, one job at a time; else deep ideas go to STUDIO_GENERATOR_FALLBACK
 //                          (default sketch); STUDIO_FOUNDRY_WAIT=1 → they wait for the foundry instead
 //   STUDIO_TRUST_PROXY     1 → one proxy in front (a tunnel): client IP and host from what it forwards
@@ -29,13 +32,14 @@ const host = env.HOST || '127.0.0.1';
 const dataDir = path.resolve(env.STUDIO_DATA || path.join(here, 'data'));
 
 const app = await createServer({ dataDir, publicDir: path.join(here, 'public'), distDir: path.join(here, 'dist'),
-  curators: env.STUDIO_CURATORS || '', secureCookies: on(env.STUDIO_SECURE_COOKIES),
-  generatorName: env.STUDIO_GENERATOR || 'sketch',
+  curators: env.STUDIO_CURATORS || '', admins: env.STUDIO_ADMINS || '', secureCookies: on(env.STUDIO_SECURE_COOKIES),
+  generatorName: env.STUDIO_GENERATOR || '',
   trustProxy: on(env.STUDIO_TRUST_PROXY), framesQuality: Number(env.STUDIO_FRAMES_BROTLI_QUALITY) || undefined,
   framesMaxBytes: parseBytes(env.STUDIO_FRAMES_MAX_BYTES, undefined) });
 const addr = await app.listen(port, host);
 const where = `http://${host.includes(':') ? `[${host}]` : host}:${addr.port}/`;
-console.log(`[studio] Folly Studio on ${where} (data ${dataDir}, generator ${app.adapterName})`);
+console.log(`[studio] Folly Studio on ${where} (data ${dataDir}, models ${app.models.file}, default `
+  + `${app.adapterName})`);
 
 let stopping = false;
 for (const signal of ['SIGINT', 'SIGTERM']) {

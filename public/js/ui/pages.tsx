@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 
 import { api, statusOf } from '../api.ts';
 import type { Idea, Listed } from '../../../shared/schemas/api.ts';
+import type { ModelChoices } from '../../../shared/schemas/models.ts';
 import { navigate, setTitle, signedOut, user, type ViewProps } from './session.ts';
 import { confirmDialog, cx, jewelGradient, timeAgo, toast } from './kit.tsx';
 import { Rose } from './rose.tsx';
@@ -16,61 +17,60 @@ const EXAMPLES = ['Rising embers drift up the spires', 'A coral reef breathing i
 const STATUS: Record<string, [string, string]> = { queued: ['Queued', 'pending'], generating: ['Generating', 'pending'],
   ready: ['Ready', 'ok'], failed: ['Failed', 'bad'] };
 const MAX_LEN = 2000;
-// While an idea is being made, its status is asked for after 2 s, then 1.5× as long each time, up to 10 s.
+// While an idea is being made it is followed by long polls: the server answers when it changes, or after 25 s. One
+// that answers at once and unchanged is asked again after 2 s, then 1.5× as long each time, up to 10 s.
 const POLL_FIRST_MS = 2000, POLL_MAX_MS = 10_000;
 const isPending = (i: Idea) => i.status === 'queued' || i.status === 'generating';
 const studioHref = (id: string) => `/studio/${encodeURIComponent(id)}`;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const shown = () => new Promise<void>((r) => {
+  const on = () => { if (!document.hidden) { document.removeEventListener('visibilitychange', on); r(); } };
+  document.addEventListener('visibilitychange', on);
+});
 
-/** Polls the pending ideas with backoff (an unchanged one answers 304, no body), never from a hidden tab. */
-function usePolling(ideas: Idea[] | null, setIdeas: (f: (all: Idea[]) => Idea[]) => void, reload: () => void) {
-  const ms = useRef(POLL_FIRST_MS), latest = useRef(ideas), [round, setRound] = useState(0);
-  latest.current = ideas;
-  const pending = !!ideas?.some(isPending);
-  useEffect(() => {
-    if (!pending) return undefined;
-    let timer = 0, alive = true, busy = false;
-    const schedule = () => {
-      clearTimeout(timer);
-      timer = 0;
-      if (alive && !document.hidden) timer = window.setTimeout(poll, ms.current);
-    };
-    async function poll() {
-      timer = 0;
-      if (!alive || document.hidden || busy) return;
-      busy = true;
-      const asked = (latest.current || []).filter(isPending);
-      try {
-        const fresh = (await Promise.all(asked.map((i) => api.idea(i.id)))).map((r) => r.idea).filter(Boolean);
-        if (!alive) return;
-        const byId = new Map(fresh.map((i) => [i!.id, i!]));
-        if (asked.some((i) => byId.get(i.id)?.updatedAt !== i.updatedAt)) {
-          setIdeas((all) => all.map((i) => byId.get(i.id) ?? i));
-        }
-      } catch (err) {
-        if (statusOf(err) === 401) return signedOut();
-        if (statusOf(err) === 404) return reload(); // gone: the list says what is left
-      } finally {
-        busy = false;
+/** Follows one idea while it is pending (never from a hidden tab), handing each change to `set`. */
+async function follow(start: Idea, set: (i: Idea) => void, gone: () => void, alive: () => boolean) {
+  let cur = start, ms = POLL_FIRST_MS;
+  while (alive() && isPending(cur)) {
+    if (document.hidden) { await shown(); continue; }
+    const asked = Date.now();
+    try {
+      const fresh = (await api.idea(cur.id, `${cur.status}@${cur.updatedAt}`)).idea;
+      if (!alive()) return;
+      if (fresh && (fresh.updatedAt !== cur.updatedAt || fresh.status !== cur.status)) {
+        [cur, ms] = [fresh, POLL_FIRST_MS];
+        set(fresh);
+        continue;
       }
-      ms.current = Math.min(POLL_MAX_MS, ms.current * 1.5);
-      schedule();
+    } catch (err) {
+      if (statusOf(err) === 401) return signedOut();
+      if (statusOf(err) === 404) return gone(); // the list says what is left
     }
-    // Back on the tab: ask at once, then carry on backing off.
-    const onVisibility = () => { if (!document.hidden && !timer) poll(); };
-    document.addEventListener('visibilitychange', onVisibility);
-    schedule();
-    return () => {
-      alive = false;
-      clearTimeout(timer);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, [pending, round]);
-  return () => { ms.current = POLL_FIRST_MS; setRound((n) => n + 1); };
+    if (Date.now() - asked < 1000) {
+      await sleep(ms);
+      ms = Math.min(POLL_MAX_MS, ms * 1.5);
+    }
+  }
+}
+
+/** Follows each pending idea until it is ready or failed. */
+function usePolling(ideas: Idea[] | null, setIdeas: (f: (all: Idea[]) => Idea[]) => void, reload: () => void) {
+  const following = useRef(new Set<string>()), mounted = useRef(true);
+  useEffect(() => () => { mounted.current = false; }, []);
+  useEffect(() => {
+    for (const idea of ideas || []) {
+      if (!isPending(idea) || following.current.has(idea.id)) continue;
+      following.current.add(idea.id);
+      follow(idea, (fresh) => setIdeas((all) => all.map((i) => (i.id === fresh.id ? fresh : i))), reload,
+        () => mounted.current).finally(() => following.current.delete(idea.id));
+    }
+  }, [ideas]);
 }
 
 export function Ideas() {
   const [ideas, setIdeas] = useState<Idea[] | null>(null);
   const [text, setText] = useState(''), [error, setError] = useState(''), [busy, setBusy] = useState(false);
+  const [choices, setChoices] = useState<ModelChoices | null>(null), [model, setModel] = useState('');
   const input = useRef<HTMLTextAreaElement>(null), form = useRef<HTMLFormElement>(null);
   const known = useRef(new Map<string, string>());        // id → status, to notice when one becomes ready
   const ready = useRef(new Map<string, () => void>());    // look id → close() of its "ready" toast
@@ -95,10 +95,12 @@ export function Ideas() {
     setIdeas((all) => all || []);
     toast(err.message, { kind: 'error' });
   });
-  const restartPolls = usePolling(ideas, (f) => setIdeas((all) => f(all || [])), load);
+  usePolling(ideas, (f) => setIdeas((all) => f(all || [])), load);
+  const pickable = choices && choices.models.length > 1 ? choices.models : null;
   useEffect(() => {
     setTitle('Ideas');
     load();
+    api.models().then((c) => { setChoices(c); setModel(c.default ?? ''); }).catch(() => {});
     if (matchMedia('(pointer: fine)').matches && document.activeElement === document.body) {
       input.current?.focus({ preventScroll: true });
     }
@@ -116,11 +118,10 @@ export function Ideas() {
     if (!t) return input.current?.focus();
     setBusy(true);
     try {
-      const { idea } = await api.createIdea(t);
+      const { idea } = await api.createIdea(t, pickable ? model : undefined);
       setText('');
       known.current.set(idea.id, idea.status);
       setIdeas((all) => [idea, ...(all || []).filter((i) => i.id !== idea.id)]);
-      restartPolls();
     } catch (err) {
       if (statusOf(err) === 401) return signedOut();
       setError((err as Error).message);
@@ -150,6 +151,9 @@ export function Ideas() {
           <div class="idea-form-actions">
             <span class="char-count" aria-live="off">{`${text.length} / ${MAX_LEN}`}</span>
             <span class="kbd-hint">Ctrl + Enter</span>
+            {pickable && <label class="model-pick">Model
+              <select value={model} onChange={(e) => setModel(e.currentTarget.value)}>
+                {pickable.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>}
             <button class={cx('btn primary', busy && 'busy')} type="submit" disabled={busy}>Turn it into a look</button>
           </div>
         </form>
@@ -168,6 +172,8 @@ export function Ideas() {
 
 function IdeaRow({ idea, retry }: { idea: Idea; retry: () => void }) {
   const [label, cls] = STATUS[idea.status] || [idea.status, 'pending'];
+  const secs = idea.status === 'ready' && idea.timing ? Math.max(1, Math.round(idea.timing.total / 1000)) : 0;
+  const by = (idea.by || idea.generator) && `by ${idea.by || idea.generator}${secs ? ` in ${secs} s` : ''}`;
   return (
     <li class={`idea is-${idea.status}`}>
       {/* The rose fills while the idea is being made and is lit once it is ready. */}
@@ -176,7 +182,7 @@ function IdeaRow({ idea, retry }: { idea: Idea; retry: () => void }) {
         <p class="idea-text">{idea.text}</p>
         <div class="idea-meta">
           <span class={`status status-${cls}`}><span class="status-dot" aria-hidden="true" />{label}</span>
-          {idea.generator && <span class="meta-item">{idea.generator}</span>}
+          {by && <span class="meta-item">{by}</span>}
           <time class="meta-item" dateTime={idea.createdAt || ''}>{timeAgo(idea.createdAt)}</time>
         </div>
         {idea.status === 'failed' && idea.error && <p class="idea-error">{idea.error}</p>}

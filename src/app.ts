@@ -12,7 +12,8 @@ import type { Idea } from '../shared/schemas/api.ts';
 import { type Cost, createAuth } from './auth.ts';
 import { createBakeQueue, createLane } from './bake.ts';
 import { createFramesCache } from './frames-cache.ts';
-import { createQueue } from './generate/index.ts';
+import { createQueue, foundryFromEnv } from './generate/index.ts';
+import { createRegistry } from './generate/models.ts';
 import { createLog, errorHandler, type Log } from './http.ts';
 import { createRenderBox } from './render-box.ts';
 import { createLoaders, CSP_APP, DEFAULT_DIST_DIR, DEFAULT_PUBLIC_DIR, serveApp } from './static.ts';
@@ -22,34 +23,43 @@ export const DEFAULT_DATA_DIR = fileURLToPath(new URL('../data/', import.meta.ur
 export const MAX_BODY = 256 * 1024;
 
 /** The generator queue: createQueue()'s, or one a test gives. */
-export type Queue = { enqueue(idea: Idea): unknown, idle?(): unknown, adapterName?: string };
+export type Queue = { enqueue(idea: Idea): unknown, idle?(): unknown, stop?(): void, adapterName?: string,
+  watch?(id: string, fn: () => void): () => void };
 type Deps = Parameters<typeof createQueue>[0] & { adapterName: string };
+/** The model registry's file (default <dataDir>/models.json), the environment it checks, and the codex command. */
+type ModelOptions = { file?: string, env?: NodeJS.ProcessEnv, codexBin?: string };
 type Options = { dataDir?: string, publicDir?: string, distDir?: string, generatorName?: string,
-  curators?: string | string[], secureCookies?: boolean, trustProxy?: boolean, maxIdeasPerDay?: number, log?: Log,
+  curators?: string | string[], admins?: string | string[], models?: ModelOptions, secureCookies?: boolean,
+  trustProxy?: boolean, maxIdeasPerDay?: number, log?: Log,
   rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, scrypt?: Cost, framesQuality?: number,
   framesMaxBytes?: number, generator?: Queue | ((deps: Deps) => Queue | Promise<Queue>),
   renderBox?: Parameters<typeof createBakeQueue>[0]['box'] };
 
 /**
  * The server. `generator` and `renderBox` stand in for createQueue() and createRenderBox() (STUDIO_BAKE_*) in tests;
+ * `generatorName`: STUDIO_GENERATOR, the registry's default when its file is first written ('' when unset);
  * `publicDir`: the sources (the library, the rig); `distDir`: the app as Vite built it, served as static files.
  * `trustProxy`: one proxy in front (a tunnel): the client's address and host are the ones it forwards.
  */
 export async function createServer(opts: Options = {}) {
   const {
     dataDir = DEFAULT_DATA_DIR, publicDir = DEFAULT_PUBLIC_DIR, distDir = DEFAULT_DIST_DIR, generator,
-    generatorName = 'sketch', curators = [], secureCookies = false, rateLimit, trustProxy = false,
+    generatorName = '', curators = [], admins = [], secureCookies = false, rateLimit, trustProxy = false,
     maxIdeasPerDay = MAX_IDEAS_PER_DAY, log = createLog(), renderBox, framesQuality, framesMaxBytes, scrypt,
   } = opts;
 
   const store = await createStore(dataDir, { log });
-  const auth = createAuth({ store, curators, cost: scrypt });
+  const auth = createAuth({ store, curators, admins, cost: scrypt });
   auth.pruneSessions();
   const loaders = createLoaders(publicDir, { log });
   const { loadLibrary, loadRig } = loaders;
-  const deps = { store, loadLibrary, loadRig, adapterName: generatorName, log };
+  const env = opts.models?.env ?? process.env, codexBin = opts.models?.codexBin;
+  const models = createRegistry({ file: opts.models?.file || env.STUDIO_MODELS || path.join(dataDir, 'models.json'),
+    env, log, legacy: generatorName, foundryOn: foundryFromEnv(env).on, codexBin });
+  const deps = { store, loadLibrary, loadRig, loadVersion: loaders.version, models, codexBin, log,
+    adapterName: generatorName || 'sketch' };
   const queue: Queue = typeof generator === 'function' ? await generator(deps) : generator || createQueue(deps);
-  const adapterName = typeof queue.adapterName === 'string' && queue.adapterName ? queue.adapterName : generatorName;
+  const adapterName = models.defaultId();
   const framesDir = path.join(dataDir, 'frames');
   const box = renderBox || createRenderBox({ publicDir, log });
   // Baked frames are encoded for streaming as soon as they are stored (src/frames-cache.ts); bakes and those
@@ -84,7 +94,7 @@ export async function createServer(opts: Options = {}) {
   });
   await app.register(fastifyCookie);
   await app.register(fastifyRateLimit, { global: false });
-  await app.register(apiRoutes({ store, auth, queue, adapterName, loaders, log, maxIdeasPerDay, framesDir, bakes,
+  await app.register(apiRoutes({ store, auth, queue, models, loaders, log, maxIdeasPerDay, framesDir, bakes,
     frames, rateLimit, secureCookies }), { prefix: '/api' });
   await serveApp(app, { distDir, log });
   await app.ready();
@@ -92,7 +102,7 @@ export async function createServer(opts: Options = {}) {
   pruneTimer.unref();
 
   return {
-    app, server: app.server, store, auth, queue, bakes, frames, loaders, adapterName,
+    app, server: app.server, store, auth, queue, bakes, frames, loaders, models, adapterName,
     async listen(port = 0, host = '127.0.0.1') {
       await app.listen({ port, host });
       return app.server.address() as { port: number, address: string, family: string };
@@ -108,6 +118,7 @@ export async function createServer(opts: Options = {}) {
         await Promise.race([idle, giveUp]);
         clearTimeout(timer);
       }
+      queue.stop?.(); // calls still running are cut (a codex process with them); their ideas queue again at start
       await frames.close();
       await store.flush();
     },

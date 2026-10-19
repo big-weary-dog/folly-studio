@@ -103,7 +103,8 @@ const Index = z.array(z.unknown()).catch([]).transform((list) => {
 });
 
 // createLoaders(publicDir) → { loadLibrary() → [{ name, title, summary, tags, kind, category, code, … }],
-//   loadRig() → rig.json as SPEC "Rig" has it (null until it exists), loadGroups() → its `groups` }
+//   loadRig() → rig.json as SPEC "Rig" has it (null until it exists), loadGroups() → its `groups`,
+//   version() → a string that changes when any of their files does }
 export function createLoaders(publicDir = DEFAULT_PUBLIC_DIR, { log }: { log: Log }) {
   const libDir = path.join(publicDir, 'patterns');
   const indexFile = path.join(libDir, 'index.json');
@@ -120,5 +121,6 @@ export function createLoaders(publicDir = DEFAULT_PUBLIC_DIR, { log }: { log: Lo
     return rig?.success ? json as RigType : null;
   });
   const loadGroups = (): RigGroup[] => loadRig()?.groups ?? [];
-  return { loadLibrary, loadRig, loadGroups };
+  const version = () => [indexFile, rigFile, ...index().map(codeFile)].map(statSig).join('|');
+  return { loadLibrary, loadRig, loadGroups, version };
 }
