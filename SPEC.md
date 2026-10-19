@@ -494,7 +494,7 @@ scope (it inherits the CSP, so no network either), relays messages to it and kee
 | app → sandbox | sandbox → app |
 |---|---|
 | `{ type: 'init', rig, library? }` + a `MessagePort` (library: `[{ name, code }]` sources for `use`) | `{ type: 'ready' }` (also sent once on load, before init) |
-| `{ type: 'look', layers, globals?, automation?, bpm? }` (as saved) | `{ type: 'compiled', layers: [{ id, ok, error?, params, modules: [{ id, ok, error?, params }] }] }` (`params`: the first source's schema) |
+| `{ type: 'look', layers, globals?, automation?, bpm?, clock? }` (as saved; `clock: 'fresh'`: the clock not continued from the look before, SPEC-live) | `{ type: 'compiled', layers: [{ id, ok, error?, params, modules: [{ id, ok, error?, params }] }] }` (`params`: the first source's schema) |
 | `{ type: 'frame', seq, t }` | `{ type: 'frame', seq, rgb: Float32Array(count×3), errors: [{ id, module?, error }], ms, layerMs: { <layer id>: ms } }` (rgb transferred; `ms` the frame's, `layerMs` each layer's, timed in the worker) |
 | `{ type: 'render', seq, start, frames, fps, gamma, brightness }` | `{ type: 'progress', seq, done }` … then `{ type: 'rendered', seq, channels: Uint8Array(frames × frame channels) }` |
 
@@ -646,6 +646,11 @@ flashOverride?, bake?, chain, createdAt, updatedAt }`
 
 In `SPEC-generators.md`, part of this contract: **Generators** (idea → look), **Models** (the registry) and
 **Access** (invite codes and limits on the paid models).
+
+## The live stage
+
+In `SPEC-live.md`, part of this contract: the shared `/live` stage, its socket (`/api/live/socket`), its state and
+the `/live/control` page.
 
 ## Baked frames
 

@@ -20,8 +20,9 @@ const SLACK_MS = 4;              // a frame due this soon goes now, on this disp
 const EMPTY: readonly FrameError[] = Object.freeze([]);
 const ema = (old: number | undefined, v: number) => (old ? old + (v - old) * 0.15 : v);  // smoothed over ~10 frames
 
-/** A look's globals, automation and tempo, as the sandbox takes them. */
-export type Extra = { globals?: Globals | null; automation?: Automation | null; bpm?: number };
+/** A look's globals, automation and tempo, as the sandbox takes them; clock 'fresh': not continued from the look
+ * before (the live stage, whose lanes make every viewer's clock the same). */
+export type Extra = { globals?: Globals | null; automation?: Automation | null; bpm?: number; clock?: 'fresh' };
 type Compiled = { id: string; ok: boolean; error?: string; params: Record<string, unknown> };   // params: untrusted
 /** A layer's compile report (SPEC "Sandbox protocol"), each module's code added. */
 export type Report = Compiled & { modules: (Compiled & { code: string })[] };
@@ -75,7 +76,7 @@ export class Runtime {
   /** layers as saved (+ enabled: false). */
   setLook(layers: Layer[], extra: Extra = {}) {
     this.layers = layers;
-    this.extra = { globals: extra.globals, automation: extra.automation, bpm: extra.bpm };
+    this.extra = { globals: extra.globals, automation: extra.automation, bpm: extra.bpm, clock: extra.clock };
     this.lookDirty = true;
     for (const id of this.layerMs.keys()) if (!layers.some((l) => l.id === id)) this.layerMs.delete(id);
   }

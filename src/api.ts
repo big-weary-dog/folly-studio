@@ -14,7 +14,10 @@ import { type createBakeQueue, removeFrames } from './bake.ts';
 import type { createFramesCache } from './frames-cache.ts';
 import { framesRoutes } from './frames-http.ts';
 import type { Registry } from './generate/models.ts';
+import type { Hub } from './live/hub.ts';
+import { liveRoutes } from './live/routes.ts';
 import { checkMutation, HttpError, type Log, type Logger, parse, routes, sendJson } from './http.ts';
+import type { LiveSettings } from '../shared/schemas/live.ts';
 import type { createLoaders } from './static.ts';
 import type { Store } from './store.ts';
 
@@ -50,7 +53,8 @@ export const newestBy = (field: string) => (a: Record<string, unknown>, b: Recor
 export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: Registry, log: Log,
   loaders: ReturnType<typeof createLoaders>, access: AccessControl, framesDir: string,
   bakes: ReturnType<typeof createBakeQueue>, frames: ReturnType<typeof createFramesCache>, secureCookies?: boolean,
-  rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, flash: FlashSettings }) {
+  rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, flash: FlashSettings, hub: Hub,
+  live: LiveSettings }) {
   const { store, auth, queue, models, loaders, log, access } = o;
   const { bakes, framesDir, frames, secureCookies = false, flash } = o;
   const limits = { max: 10, ipMax: 100, windowMs: 60_000, ...o.rateLimit };
@@ -115,6 +119,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       reply.raw.once('close', wake); // the client went away
     });
 
+    await api.register(liveRoutes({ store, auth, hub: o.hub, settings: o.live, listed: looks.listed }));
     routes(api, {
       'POST /signup': [signIn(201, (req) => auth.signup(parse(Signup, req.body))), { public: true }],
       'POST /login': [signIn(200, (req) => auth.login(Login.parse(req.body))), { public: true }],

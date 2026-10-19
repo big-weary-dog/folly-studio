@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import fastifyCookie from '@fastify/cookie';
 import fastifyRateLimit from '@fastify/rate-limit';
+import fastifyWebsocket from '@fastify/websocket';
 import Fastify from 'fastify';
 
 import { createAccess } from './access.ts';
@@ -18,10 +19,13 @@ import { createFramesCache } from './frames-cache.ts';
 import { createQueue, foundryFromEnv } from './generate/index.ts';
 import { createRegistry } from './generate/models.ts';
 import { createLog, errorHandler, type Log } from './http.ts';
+import { createHub } from './live/hub.ts';
+import { liveSettings, playableLook, stageCopy } from './live/routes.ts';
 import { createRenderBox } from './render-box.ts';
 import { createLoaders, CSP_APP, DEFAULT_DIST_DIR, DEFAULT_PUBLIC_DIR, serveApp } from './static.ts';
 import { createStore } from './store.ts';
 import type { FlashSettings } from '../shared/schemas/api.ts';
+import type { LiveSettings } from '../shared/schemas/live.ts';
 
 export const DEFAULT_DATA_DIR = fileURLToPath(new URL('../data/', import.meta.url));
 export const MAX_BODY = 256 * 1024;
@@ -37,21 +41,22 @@ type Options = { dataDir?: string, publicDir?: string, distDir?: string, generat
   trustProxy?: boolean, log?: Log,
   rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, scrypt?: Cost, framesQuality?: number,
   framesMaxBytes?: number, generator?: Queue | ((deps: Deps) => Queue | Promise<Queue>),
-  renderBox?: Parameters<typeof createBakeQueue>[0]['box'], flash?: FlashSettings };
+  renderBox?: Parameters<typeof createBakeQueue>[0]['box'], flash?: FlashSettings, live?: LiveSettings };
 
 /**
  * The server. `generator` and `renderBox` stand in for createQueue() and createRenderBox() (STUDIO_BAKE_*) in tests;
  * `generatorName`: STUDIO_GENERATOR, the registry's default when its file is first written ('' when unset);
  * `publicDir`: the sources (the library, the rig); `distDir`: the app as Vite built it, served as static files.
  * `trustProxy`: one proxy in front (a tunnel): the client's address and host are the ones it forwards. `flash`: the
- * flash check's settings (default: flashSettings(process.env)).
+ * flash check's settings (default: flashSettings(process.env)); `live`: who controls the live stage and what plays
+ * (default: liveSettings(process.env)).
  */
 export async function createServer(opts: Options = {}) {
   const {
     dataDir = DEFAULT_DATA_DIR, publicDir = DEFAULT_PUBLIC_DIR, distDir = DEFAULT_DIST_DIR, generator,
     generatorName = '', curators = [], admins = [], secureCookies = false, rateLimit, trustProxy = false,
     log = createLog(), renderBox, framesQuality, framesMaxBytes, scrypt,
-    flash = flashSettings(),
+    flash = flashSettings(), live = liveSettings(),
   } = opts;
 
   const store = await createStore(dataDir, { log, upgrade: { looks: upgradeStored } });
@@ -78,6 +83,13 @@ export async function createServer(opts: Options = {}) {
   const bakes = createBakeQueue({ store, box, framesDir, rigFile, log, lane, flash,
     onFrames: (id) => frames.encode(id) });
   frames.prune().then(() => frames.disk.enforce()).catch(() => {});
+  const hub = await createHub({ dataDir, log, playable: (id) => {
+    const look = store.looks.get(id);
+    if (!look || !playableLook(look, live)) {
+      return { error: `Only ${live.looks === 'reviewed' ? 'reviewed' : 'shared'} looks play on the stage.` };
+    }
+    return stageCopy(look, store.users.get(look.owner)?.username ?? '');
+  } });
   // Ideas a restart cut short go back in the queue (enqueue is idempotent per id).
   for (const idea of store.ideas.list((i) => i.status === 'queued' || i.status === 'generating')) {
     enqueueIdea({ queue, store, log }, idea);
@@ -101,21 +113,23 @@ export async function createServer(opts: Options = {}) {
   });
   await app.register(fastifyCookie);
   await app.register(fastifyRateLimit, { global: false });
+  await app.register(fastifyWebsocket, { options: { maxPayload: 16 * 1024 } });
   await app.register(apiRoutes({ store, auth, queue, models, loaders, log, access, framesDir, bakes,
-    frames, rateLimit, secureCookies, flash }), { prefix: '/api' });
+    frames, rateLimit, secureCookies, flash, hub, live }), { prefix: '/api' });
   await serveApp(app, { distDir, log });
   await app.ready();
   const pruneTimer = setInterval(() => auth.pruneSessions(), 60 * 60 * 1000);
   pruneTimer.unref();
 
   return {
-    app, server: app.server, store, auth, access, queue, bakes, frames, loaders, models, adapterName,
+    app, server: app.server, store, auth, access, queue, bakes, frames, loaders, models, adapterName, hub,
     async listen(port = 0, host = '127.0.0.1') {
       await app.listen({ port, host });
       return app.server.address() as { port: number, address: string, family: string };
     },
     async close() {
       clearInterval(pruneTimer);
+      await hub.close();
       await app.close();
       bakes.stop();
       if (typeof queue.idle === 'function') {

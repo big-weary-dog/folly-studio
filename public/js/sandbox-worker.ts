@@ -73,7 +73,7 @@ function onLook(msg: Message<'look'>) {
   prepared = next;
   layerMs = Object.fromEntries(next.map((L) => [L.id, 0]));
   globals = { globals: msg.globals, automation: msg.automation, bpm: msg.bpm };
-  live = prepareLook(globals, live ?? undefined);
+  live = prepareLook(globals, msg.clock === 'fresh' ? undefined : live ?? undefined);
   post({ type: 'compiled', layers: report });
 }
 

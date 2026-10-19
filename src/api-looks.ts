@@ -230,6 +230,6 @@ export function lookRoutes({ store, auth, bakes, dropFrames, log = console }: { 
     return { look: presentLook(look, { versions: versionsFor(req, look) }) };
   }
 
-  return { visibleLook, routes: { 'GET /looks': list, 'POST /looks': create, 'GET /looks/:id': read,
+  return { visibleLook, listed, routes: { 'GET /looks': list, 'POST /looks': create, 'GET /looks/:id': read,
     'PUT /looks/:id': edit, 'DELETE /looks/:id': remove, 'POST /looks/:id/bake': bake } };
 }

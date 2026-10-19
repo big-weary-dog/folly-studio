@@ -157,9 +157,17 @@ STUDIO_FRAMES_MAX_BYTES=2GB
 STUDIO_FLASH_PER_SECOND=3         # the flash check: flashes a second allowed (WCAG 2.3.1: 3)
 STUDIO_FLASH_DELTA=0.1            # a flash's swing in relative luminance (WCAG: 0.1)
 STUDIO_FLASH_AREA=0.1             # share of the LEDs, or of the lit area from the front or side, that blocks
+STUDIO_LIVE_CONTROL=curators      # who drives /live: curators (and admins), admins, or members (anyone signed in)
+STUDIO_LIVE_LOOKS=reviewed        # what may play on /live: reviewed looks, or any shared look
 ```
 
 Sign-up is open to anyone who reaches the page.
+
+### The live stage
+
+`/live` shows everyone signed in the same look at the same moment; `/live/control` drives it (SPEC-live). Its
+socket is `/api/live/socket` on the same host, which both tunnels carry as they are. Its state survives a restart
+in `live.json` in `STUDIO_DATA`. It has no flash guard yet: keep `STUDIO_LIVE_LOOKS=reviewed` on a public site.
 
 ### The flash check
 

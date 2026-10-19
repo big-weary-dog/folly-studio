@@ -66,6 +66,8 @@ export const api = {
   deleteLook: (id: string) => request('DELETE', `/api/looks/${enc(id)}`),
   bake: (id: string) => request<{ bake: Bake }>('POST', `/api/looks/${enc(id)}/bake`, {}),
 
+  liveLooks: () => request<{ looks: Listed[] }>('GET', '/api/live/looks'),
+
   library: () => request<{ patterns?: LibraryEntry[] }>('GET', '/api/library'),
 };
 
