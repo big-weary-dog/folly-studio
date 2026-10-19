@@ -7,7 +7,7 @@
  * The reference: a pattern's worth of work at each of 4,870 LEDs (the Folly's count), five times over. Per-LED
  * inputs read from typed arrays as the core reads its scene, stdlib maths (a twist, a chase, a texture) and fresh
  * colour arrays, as stdlib's mix() makes, so the garbage collector and the caches get their share. Frozen: the
- * spec's MAX_RATIO and PHONE_REF_MS were measured against exactly this code. Self-contained (no imports, no outer
+ * spec's MAX_RATIO and RUNNER_REF_MS were measured against exactly this code. Self-contained (no imports, no outer
  * names): its source text runs in the worker, where `reference()` builds the inputs once and returns the run.
  */
 export function reference() {

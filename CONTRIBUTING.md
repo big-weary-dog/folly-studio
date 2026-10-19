@@ -24,9 +24,9 @@ npx vitest run test/core.test.js     # one file (`-t <name>` for one test); `npm
 npm run build-data           # rebuild public/data/rig.json from ../pixel-map/, palettes.json from ../td/palettes/
 npm run smoke                # the app in Chromium at 1366 × 768 and 390 × 844: sign up, an idea, the Studio, a code
                              #   error, the timeline, a bake (Playwright Test, test/e2e/smoke.spec.js)
-npm run perf                 # the preview on an emulated phone: the look's cost against a reference workload, ≥ 20
-                             #   fps computed at 4× CPU when the run emulates a phone-class CPU, Playa's Auto stepping
-                             #   down on slow frames; software-GL fps only reported (test/e2e/perf.spec.js)
+npm run perf                 # the preview on an emulated phone: the look's cost against a reference workload, the
+                             #   phone computing it above the 20 fps floor (where the runner keeps up), Playa's Auto
+                             #   stepping down on slow frames; software-GL fps only reported (test/e2e/perf.spec.js)
 npm run e2e                  # our .fseq through sACN and the relay into Mirage, every LED compared byte for byte
                              #   (test/e2e/mirage.spec.js; E2E_DEPS, relay/node_modules: see "Browser checks")
 ```
