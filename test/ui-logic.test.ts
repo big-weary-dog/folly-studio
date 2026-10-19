@@ -1,6 +1,6 @@
 // The UI's logic that decides behaviour, without a browser: routing (redirects and `next`), the modulate dialog's
-// bindings, the timeline's zoom and edits on the Studio's state, and the sandbox status (a broken edit keeps the last
-// good code running). The views themselves are checked in a browser (`npm run smoke`).
+// bindings, the scrub field's values, the timeline's zoom and edits on the Studio's state, and the sandbox status (a
+// broken edit keeps the last good code running). The views themselves are checked in a browser (`npm run smoke`).
 import assert from 'node:assert/strict';
 
 import { computed, signal } from '@preact/signals';
@@ -10,6 +10,7 @@ import { resolve, safeNext } from '../public/js/ui/app.tsx';
 import {
   bindingForm, bindingText, makeBinding, normaliseParam, type Param, shownValue,
 } from '../public/js/ui/bindings.ts';
+import { decimals, scrubTo, snap } from '../public/js/ui/kit.tsx';
 import { createLayerStatus } from '../public/js/ui/layer-status.ts';
 import type { Preview } from '../public/js/ui/preview.ts';
 import type { Draft, Studio } from '../public/js/ui/studio-store.ts';
@@ -65,7 +66,7 @@ describe('modulation', () => {
     assert.equal(bindingForm({}, p, globals).name, 'energy', 'an unknown name takes the first global');
     const lfo = makeBinding({ ...bindingForm({}, p, globals), mod: 'lfo', rate: 'fast', depth: '' }, p);
     assert.deepEqual(lfo, { mod: 'lfo', shape: 'sine', rate: 1, unit: 'hz', center: 60, depth: 48.75 });
-    assert.equal(makeBinding({ ...f, mod: '' }, p), null, 'nothing: the slider sets it');
+    assert.equal(makeBinding({ ...f, mod: '' }, p), null, 'nothing: its field sets it');
     assert.equal(bindingText(lfo!), 'LFO sine · 1 Hz');
     assert.equal(bindingText({ mod: 'global', name: 'storm', from: 20, to: 160 }), 'storm → 20–160');
   });
@@ -74,6 +75,18 @@ describe('modulation', () => {
     assert.deepEqual(shownValue(p, {}, 'speed'), { has: false, bound: false, value: 60 });
     assert.deepEqual(shownValue(p, { speed: 90 }, 'speed'), { has: true, bound: false, value: 90 });
     assert.ok(Number.isNaN(shownValue(p, { speed: { mod: 'envelope' } }, 'speed').value));
+  });
+});
+
+describe('a number as one field', () => {
+  test('a value lands on the step from min, within min..max; a drag across the field spans the range', () => {
+    const r = { min: 5, max: 200, step: 1 };
+    assert.deepEqual([snap(90.4, r), snap(999, r), snap(-3, r), snap(0.37, { min: 0, max: 1, step: 0.25 })],
+      [90, 200, 5, 0.25]);
+    assert.equal(snap(0.01 + 37 * 0.01, { min: 0.01, max: 1, step: 0.01 }), 0.38, 'no float noise');
+    assert.deepEqual([decimals(1), decimals(0.05), decimals(1e-7)], [0, 2, 4]);
+    assert.deepEqual([scrubTo(60, 50, 100, r), scrubTo(60, -30, 100, r), scrubTo(60, 50, 100, r, true)], [158, 5, 70],
+      'half the width: half the range; held to min; Shift: a tenth');
   });
 });
 

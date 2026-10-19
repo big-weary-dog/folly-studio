@@ -1,7 +1,8 @@
 // npm run smoke: the app in a browser, the way a person meets it, at a laptop's size and a phone's: sign up, an idea
-// the sketch generator turns into a look, the Studio in the Playa view with the sandbox running, a typo and a hang in
-// the code (reported, paused by the watchdog, running again once fixed), the timeline, and a bake in the real render
-// box (the laptop bakes from the Studio; the phone says to bake from a larger screen and plays the baked frames).
+// the sketch generator turns into a look, the Studio in the Playa view with the sandbox running, a param dragged and
+// stepped, a typo and a hang in the code (reported, paused by the watchdog, running again once fixed), the timeline,
+// and a bake in the real render box (the laptop bakes from the Studio; the phone says to bake from a larger screen and
+// plays the baked frames).
 // The real server and a fresh build (studio.js); WebGL on SwiftShader. Every request stays on our origin, and the
 // console stays free of errors and CSP reports. Screenshots of each step land in the test's output folder.
 import { createRenderBox } from '../../src/render-box.ts';
@@ -68,6 +69,19 @@ for (const [name, device] of Object.entries(SIZES)) {
         const canvas = await page.locator('canvas:visible').first().evaluate((c) => [c.width, c.height]);
         expect(canvas.every((n) => n > 0), `the 3D view's canvas is ${canvas.join(' × ')}`).toBe(true);
         await shot('studio');
+      });
+
+      await test.step('a param is one field: dragged across, stepped by a key', async () => {
+        await page.locator('.layer-name:visible').first().click();
+        const field = page.locator('.params .scrub:visible').first(), min = await field.getAttribute('aria-valuemin');
+        await field.dragTo(page.locator('.params .field:has(.scrub) > label:visible').first());   // past its left end
+        await expect(field).toHaveAttribute('aria-valuenow', min);
+        await field.click();
+        await page.keyboard.press('ArrowUp');
+        await expect(field).not.toHaveAttribute('aria-valuenow', min);
+        await shot('params');
+        await page.locator('.save-btn:visible').click();
+        await expect(page.locator('.studio.is-dirty')).toHaveCount(0);
       });
 
       await test.step('the code: a typo is reported, a hang paused, the fix runs again', async () => {

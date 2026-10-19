@@ -1,15 +1,15 @@
-// Controls for the selected module's `params` (SPEC "Pattern code"): numbers become sliders, `type: 'color'` colour
-// pickers, `type: 'toggle'` switches. A number can be modulated (SPEC "Param bindings"): an LFO, a global (energy, a
-// macro…) or the clip envelope moves it every frame instead of its slider.
+// Controls for the selected module's `params` (SPEC "Pattern code"): numbers become scrub fields, `type: 'color'`
+// colour pickers, `type: 'toggle'` switches, a row each. A number can be modulated (SPEC "Param bindings"): an LFO, a
+// global (energy, a macro…) or the clip envelope moves it every frame instead of its field.
 import type { ComponentChildren } from 'preact';
-import { useRef, useState } from 'preact/hooks';
+import { useState } from 'preact/hooks';
 
 import type { ParamValue } from '../../../shared/schemas/look.ts';
 import {
-  type BindingForm, bindingForm, bindingText, decimals, fmt, isBinding, makeBinding, normaliseParam, type Param, SHAPES,
+  type BindingForm, bindingForm, bindingText, fmt, isBinding, makeBinding, normaliseParam, type Param, SHAPES,
   shownValue,
 } from './bindings.ts';
-import { cx, Field, humanize, openDialog } from './kit.tsx';
+import { cx, Field, humanize, openDialog, Scrub } from './kit.tsx';
 import type { Studio } from './studio-store.ts';
 
 const GLOBAL_NAMES = ['energy', 'speed', 'level', 'hue', 'saturation'];
@@ -24,7 +24,7 @@ export function ParamsPanel({ st }: { st: Studio }) {
   if (note) return hint(note);
   if (!entries.length) {
     return hint('This pattern has no params. Declare ', <code>const params = {'{ … }'}</code>,
-      ' in its code to get sliders here.');
+      ' in its code to set them here.');
   }
   const values = m.params || {};
   const set = (fn: (p: Record<string, ParamValue>) => void) => st.editModule(l.id, m.id, (mod) => {
@@ -41,23 +41,14 @@ export function ParamsPanel({ st }: { st: Studio }) {
     </div>);
 }
 
-/** A param's row; a number's slider, box and modulation take a line of their own under its label. */
+/** A param's row: its label, then its control (a number's scrub field, or what modulates it, and its ∿). */
 function Control({ name, p, values, set, globals }: { name: string; p: Param; values: Record<string, ParamValue>;
   set: (fn: (p: Record<string, ParamValue>) => void) => void; globals: () => string[] }) {
-  const box = useRef<HTMLInputElement>(null), { has, bound, value } = shownValue(p, values, name);
+  const { has, bound, value } = shownValue(p, values, name);
   const put = (v: ParamValue) => set((q) => { q[name] = v; });
-  const fixed = (v: number) => v.toFixed(decimals(p.step));
   const field = (id: string) => (p.kind === 'number' ? <>
-    <input type="range" id={id} min={p.min} max={p.max} step={p.step} disabled={bound}
-      value={bound ? undefined : String(value)} onInput={(e) => put(Number(e.currentTarget.value))} />
-    <input type="number" class="param-num" ref={box} min={p.min} max={p.max} step={p.step}
-      aria-label={`${p.label} value`} disabled={bound}
-      value={document.activeElement === box.current ? undefined : bound ? '' : fixed(value as number)}
-      onChange={(e) => {
-        const v = parseFloat(e.currentTarget.value);
-        put(Number.isFinite(v) ? v : p.value);
-      }} />
-    <span class="param-chip" hidden={!bound}>{bound && bindingText(values[name] as never)}</span>
+    {bound ? <span class="param-chip">{bindingText(values[name] as never)}</span>
+      : <Scrub id={id} min={p.min} max={p.max} step={p.step} value={value as number} set={put} />}
     <button type="button" class="param-mod" aria-pressed={bound} aria-label={`Modulate ${p.label}`}
       title="Modulate: an LFO, a global or the clip envelope"
       onClick={() => modulate(p, values[name], globals(), (b) => set((q) => {
@@ -70,9 +61,9 @@ function Control({ name, p, values, set, globals }: { name: string; p: Param; va
       {p.options.map((o) => <option value={o}>{humanize(o)}</option>)}</select>
     : <input type="checkbox" id={id} class="switch" checked={value as boolean}
       onChange={(e) => put(e.currentTarget.checked)} />);
-  // Unused, the reset keeps its place (hidden), so a slider never narrows under the pointer.
+  // Unused, the reset keeps its place (hidden), so a field never moves under the pointer.
   return (
-    <Field label={p.label} stack={p.kind === 'number'} class={cx('param', p.kind === 'toggle' && 'toggle')}>
+    <Field label={p.label} class={cx('param end', p.kind === 'toggle' && 'toggle')}>
       {(id) => <>{field(id)}<button type="button" class={cx('param-reset', (!has || value === p.value) && 'unused')}
         title="Reset to default" aria-label={`Reset ${p.label} to default`}
         onClick={() => set((q) => { delete q[name]; })}>↺</button></>}</Field>);
@@ -90,7 +81,7 @@ function modulate(p: Param, now: ParamValue | undefined, globals: string[], appl
       step="any" value={f[k]} onInput={(e) => setF({ ...f, [k]: e.currentTarget.value })} />}</Field>;
     return <>
       <p class="dialog-text">{`Range ${fmt(p.min)} to ${fmt(p.max)}. A modulated value is held to it.`}</p>
-      <Field label="Moved by">{select('mod', [['', 'Nothing: the slider sets it'], ['lfo', 'An LFO'],
+      <Field label="Moved by">{select('mod', [['', 'Nothing: its field sets it'], ['lfo', 'An LFO'],
         ['global', 'A global'], ['envelope', 'The clip envelope']])}</Field>
       <div class="mod-fields" hidden={f.mod !== 'lfo'}>
         <Field label="Shape">{select('shape', SHAPES.map((s) => [s, humanize(s)]))}</Field>

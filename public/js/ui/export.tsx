@@ -3,7 +3,7 @@
 import { useState } from 'preact/hooks';
 
 import type { Runtime } from '../runtime.ts';
-import { confirmDialog, download, Field, openDialog, slugify, toast } from './kit.tsx';
+import { confirmDialog, download, Field, openDialog, Scrub, slugify, toast } from './kit.tsx';
 import type { Preview } from './preview.ts';
 import type { Studio } from './studio-store.ts';
 
@@ -76,10 +76,8 @@ function packFrames(channels: Uint8Array, frames: number, frameSize: number, ran
   return channels.subarray(0, to);
 }
 
-const Slider = ({ label, value, out, set, disabled, ...range }: { label: string; value: number; out: string;
-  set: (v: number) => void; disabled: boolean; min: number; max: number; step: number }) =>
-  <Field label={label}>{(id) => <><input type="range" id={id} {...range} value={String(value)} disabled={disabled}
-    onInput={(e) => set(Number(e.currentTarget.value))} /><output for={id}>{out}</output></>}</Field>;
+const Num = ({ label, ...props }: Parameters<typeof Scrub>[0] & { label: string }) =>
+  <Field label={label} class="end">{(id) => <Scrub id={id} {...props} />}</Field>;
 
 function FseqForm({ close, runtime, title, channelCount, ranges, used, duration, running, write }: {
   close: (v?: boolean) => void; runtime: Runtime; title: string; channelCount: number; ranges: [number, number][];
@@ -119,14 +117,11 @@ function FseqForm({ close, runtime, title, channelCount, ranges, used, duration,
   }
   return <>
     <div class="export-fields">
-      <Slider label="Duration" min={1} max={120} step={0.25} value={secs} out={`${secs} s`} set={setSecs}
-        disabled={busy} />
-      <Slider label="Gamma" min={1} max={3} step={0.1} value={gamma} out={gamma.toFixed(1)} set={setGamma}
-        disabled={busy} />
+      <Num label="Duration" min={1} max={120} step={0.25} unit=" s" value={secs} set={setSecs} disabled={busy} />
+      <Num label="Gamma" min={1} max={3} step={0.1} value={gamma} set={setGamma} disabled={busy} />
       <p class="field-hint">1.0 sends values as previewed. Use about 2.2 when the controller (FPP / the F48s) applies no
         gamma of its own, so the LEDs look like the screen.</p>
-      <Slider label="Brightness" min={5} max={100} step={1} value={bright} out={`${bright}%`} set={setBright}
-        disabled={busy} />
+      <Num label="Brightness" min={5} max={100} step={1} unit="%" value={bright} set={setBright} disabled={busy} />
     </div>
     <p class="export-info">{`${frames.toLocaleString()} frames at ${FPS} fps · the ${used.toLocaleString()} channels `
       + `the LEDs use, in ${ranges.length} sparse ranges of the ${channelCount.toLocaleString()}-channel layout · `
