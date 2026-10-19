@@ -40,9 +40,13 @@ for (const [name, device] of Object.entries(SIZES)) {
       });
       page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
       page.on('pageerror', (e) => errors.push(String(e)));
-      // A tab on the phone, a panel of the dock on the laptop.
-      const open = (tab, dock) => (wide ? page.locator('.dock-tab', { hasText: dock })
-        : page.locator(`.tab[data-tab=${tab}]`)).click();
+      // A tab on the phone (the code editor from More), a panel of the dock on the laptop.
+      const open = async (tab, dock) => {
+        if (wide) return page.locator('.dock-tab', { hasText: dock }).click();
+        if (tab !== 'code') return page.locator(`.tab[data-tab=${tab}]`).click();
+        await page.locator('.tab[data-tab=more]').click();
+        await page.getByRole('button', { name: 'Open the code editor' }).click();
+      };
 
       await test.step('sign up', async () => {
         await page.goto(`${origin}/`);
@@ -64,7 +68,7 @@ for (const [name, device] of Object.entries(SIZES)) {
 
       await test.step('the Studio, in the Playa view, with the sandbox running', async () => {
         await expect(page.locator('iframe.sandbox-frame')).toHaveAttribute('src', /^\/assets\/sandbox-[\w-]+\.html$/);
-        await expect(page.locator('.mode-btn[data-mode=playa]:visible').first())
+        await expect(page.locator('.mode-btn[data-mode=playa]').first())
           .toHaveAttribute('aria-pressed', 'true', { timeout: 30_000 });
         await expect(page.locator('.tp-stats')).toHaveText(/\d+ fps/, { timeout: 30_000 });
         const canvas = await page.locator('canvas:visible').first().evaluate((c) => [c.width, c.height]);

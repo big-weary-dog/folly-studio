@@ -14,7 +14,7 @@ import type { LiveSocket } from './socket.ts';
 
 type Pending = Pick<LiveUpdate, 'at' | 'layers' | 'blackout'>;
 type Probe = { frames: Map<number, number> };
-const PROBE_KEEP = 400;
+const PROBE_KEEP = 400, PROBE_STEP = 10;
 const IDLE = 'Nothing is playing yet.';
 
 export function createStage(sock: LiveSocket) {
@@ -23,7 +23,8 @@ export function createStage(sock: LiveSocket) {
   let viewer: Viewer | null = null, runtime: Runtime | null = null, raf = 0, alive = true, dirty = true;
   let fps = 40, statsAt = 0, layersFor: { id: string, layers: Layer[] } | null = null;
   const pending: Pending[] = [];
-  // ?probe=1: each frame's sum by its index on the grid, for the browser checks (test/e2e/live.spec.ts).
+  // ?probe=1: each frame's sum by its index on the grid, for the browser checks (test/e2e/live.spec.ts). Its time
+  // steps every PROBE_STEP grid frames, so viewers at any compute rate render the same frames to compare.
   const probe: Probe | null = new URLSearchParams(location.search).get('probe') === '1' ? { frames: new Map() } : null;
   if (probe) (window as unknown as { __liveProbe: Probe }).__liveProbe = probe;
 
@@ -41,7 +42,8 @@ export function createStage(sock: LiveSocket) {
     const live = sock.live;
     if (!live?.look) return 0;
     const { t: now } = showTime(live, sock.now());
-    return Math.floor(now * fps) / fps;
+    const step = probe ? PROBE_STEP : 1;
+    return Math.floor(now * fps / step) * step / fps;
   };
 
   function send() {

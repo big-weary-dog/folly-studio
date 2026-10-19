@@ -16,10 +16,11 @@ import { loadPalettes } from './model.ts';
 import type { Preview } from './preview.ts';
 import { PreviewPane } from './preview-view.tsx';
 import { RefinePanel } from './refine.tsx';
-import { type Dock, type Studio, TABS } from './studio-store.ts';
+import type { Dock, Studio } from './studio-store.ts';
 import { Timeline } from './timeline.tsx';
 import type { TimelineState } from './timeline-state.ts';
 import { TimelineTools } from './timeline-tools.tsx';
+import { createPhone, MorePane, openOnTap, phoneAttrs, PhoneTabs, SettingsHead } from './phone/phone.tsx';
 
 type Props = { st: Studio; pv: Preview; tl: TimelineState };
 const exporter = () => import('./export.tsx');
@@ -27,10 +28,11 @@ const exporter = () => import('./export.tsx');
 /** The panes. It reads only what rarely changes, so an edit redraws the panes that show it, not the Studio. */
 export function StudioLayout({ st, pv, tl, els }: Props & { els: Record<string, HTMLElement> }) {
   const narrow = st.narrow.value, root = useRef<HTMLDivElement>(null);
-  const [resizing, setResizing] = useState(false);
+  const [resizing, setResizing] = useState(false), [ph] = useState(createPhone);
   return (
     <div ref={root} class={cx('studio', st.folded.value && 'code-collapsed', st.dirty.value && 'is-dirty',
-      st.baked.value && 'is-baked', resizing && 'resizing')} data-tab={st.tab.value} data-dock={st.dock.value}>
+      st.baked.value && 'is-baked', resizing && 'resizing')} data-tab={st.tab.value} data-dock={st.dock.value}
+      {...phoneAttrs(st, ph)}>
       <Bar st={st} pv={pv} />
       {st.copyOnSave.value && <div class="studio-notice" role="note"><strong>From the gallery</strong>
         {` — “${st.server.value?.title}” by ${st.server.value?.ownerName || 'someone else'}. Play with it freely; `
@@ -43,14 +45,14 @@ export function StudioLayout({ st, pv, tl, els }: Props & { els: Record<string, 
       </section>
       <PreviewPane st={st} pv={pv} els={els} />
       <Splitter studio={root} setResizing={setResizing} />
-      <nav class="studio-tabs" aria-label="Studio panels">
-        {TABS.map((id) => <button type="button" class="tab" data-tab={id} aria-pressed={st.tab.value === id}
-          onClick={() => { st.setTab(id); }}>{humanize(id)}</button>)}</nav>
-      <div class="side" data-pane="layers"><LayersPane st={st} pv={pv} /><ChainPane st={st} pv={pv} /></div>
+      <PhoneTabs st={st} ph={ph} />
+      <div class="side" data-pane="layers" onClick={narrow ? openOnTap(st, ph) : undefined}>
+        <LayersPane st={st} pv={pv} />{narrow && <SettingsHead st={st} ph={ph} />}<ChainPane st={st} pv={pv} /></div>
       <DockPane st={st} pv={pv} tl={tl} />
       <section class="pane pane-time" data-pane="time" aria-label="Timeline">
         <div class="pane-body time-body">{narrow && <Timeline st={st} pv={pv} tl={tl} />}</div></section>
       <LookTab st={st} pv={pv} />
+      {narrow && <MorePane st={st} pv={pv} ph={ph} />}
       <div class="sandbox-host" aria-hidden="true" ref={(el) => { if (el) els.sandbox = el; }} />
     </div>);
 }

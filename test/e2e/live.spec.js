@@ -1,7 +1,7 @@
 // npm run smoke, too: the live stage in browsers. A curator on a phone plays a reviewed look from /live/control; a
 // laptop and a phone watching /live show it, and compute the same frame for the same show time (the stage's probe:
-// each frame's weighted sum by its index on the rig's grid); the curator pulls Intensity to 0 and both go dark
-// within the stage's lead. Screenshots of each, and a frame sequence of the push landing on both, in the output.
+// each frame's sum by index on a quarter-second grid, which slow and fast viewers alike compute); Intensity to 0
+// darkens both within the stage's lead. Screenshots of each, and a frame sequence of the push landing, in the output.
 import { writeFileSync } from 'node:fs';
 
 import { expect, signup, test } from './studio.js';

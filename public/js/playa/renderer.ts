@@ -1,7 +1,7 @@
 // The Playa view (Viewer mode 'playa'): each frame's light goes to one RGBA16F texture (rgb; highlight in a) that
 // every fixture samples by pixel index. The scene renders in HDR, then bloom and Mirage's tone map. Tiers trade
 // bloom, spill lights, tube detail and pixel ratio; 'auto' starts by device and steps down while frames are slow.
-import type { Viewer } from '../viewer.ts';
+import { isPhone, type Viewer } from '../viewer.ts';
 import { camera, type Program, program } from '../viewer-gl.ts';
 import { buildGeometry, cluster, type Geometry, playa } from './geometry.ts';
 import { GLSL } from './glsl.ts';
@@ -23,7 +23,8 @@ type Uniforms = Record<string, Uniform>;
 type Target = { tex: WebGLTexture; fb: WebGLFramebuffer; w: number; h: number; depth: WebGLRenderbuffer | null };
 /** The view's GL state: per rig (geometry, buffers, the light texture), per tier (spill lights), per size (targets). */
 interface State {
-  gl: WebGL2RenderingContext; v: Viewer; tier: number; quality: string; samples: number[]; dirty: boolean;
+  gl: WebGL2RenderingContext; v: Viewer; phone: boolean; tier: number; quality: string; samples: number[];
+  dirty: boolean;
   progs: Partial<Record<Shader, Program>>; geo: Geometry; bufs: WebGLBuffer[]; nground: number; groundY: number;
   vao: Record<string, WebGLVertexArrayObject>; light: WebGLTexture; rows: number; staging: Float32Array;
   spill: ReturnType<typeof cluster> & { k: number; acc: Float32Array; lp: Float32Array; lc: Float32Array };
@@ -37,8 +38,8 @@ export function createPlaya(v: Viewer) {
   if (!gl.getExtension('EXT_color_buffer_float') && !gl.getExtension('EXT_color_buffer_half_float')) {
     throw new Error('no float render targets');
   }
-  const pl = { gl, v, tier: coarse(), quality: 'auto', samples: [], bufs: [], levels: [], progs: {} } as unknown as
-    State;    // setRig sets up the rest
+  const pl = { gl, v, phone: isPhone(), tier: coarse(), quality: 'auto', samples: [], bufs: [], levels: [],
+    progs: {} } as unknown as State;    // setRig sets up the rest
   setRig(pl);
   return {
     get tier() { return TIERS[pl.tier].name; },
@@ -239,7 +240,7 @@ function draw(pl: State) {
   gl.colorMask(true, true, true, false);
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.ONE, gl.ONE);
-  pass('line', 'line', gl.LINES, g.nline, { uK: K.line });
+  pass('line', 'line', gl.LINES, t.lite && pl.phone ? 0 : g.nline, { uK: K.line });   // phones: no scaffold
   pass('flood', 'beam', gl.TRIANGLES, g.nbeam, { uK: K.beam, uSo: 0 });
   pass('flood', 'shell', gl.TRIANGLES, g.nshell, { uK: K.shell, uSo: 1 });
   pass('point', 'point', gl.POINTS, g.npoint, { uK: K.point, uPs: px });
