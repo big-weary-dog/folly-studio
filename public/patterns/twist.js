@@ -7,16 +7,10 @@ const params = {
 };
 
 function warp(q, t, P) {
-  if (P.swirl || P.spin) {
-    const a = fract(q.a + P.swirl * q.r + clock('spin'));
-    q.a = a;
-    q.lz = 0.5 + 0.5 * q.r * sin(TAU * a);
-    q.ly = 0.5 + 0.5 * q.r * cos(TAU * a);
-  }
+  if (P.swirl || P.spin) turn(q, q.a + P.swirl * q.r + clock('spin'), q.r);
   if (P.wind) {
-    const turn = TAU * P.wind * q.ly, s = sin(turn), c = cos(turn);
+    const w = TAU * P.wind * q.ly, s = sin(w), c = cos(w);
     const dz = q.lz - 0.5, dx = q.lx - 0.5;
-    q.lz = 0.5 + dz * c - dx * s;
-    q.lx = 0.5 + dz * s + dx * c;
+    move(q, 0.5 + dz * s + dx * c, q.ly, 0.5 + dz * c - dx * s);
   }
 }

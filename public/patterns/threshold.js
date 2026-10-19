@@ -10,6 +10,7 @@ const params = {
 function filter(c, q, t, P) {
   const v = max(c[0], c[1], c[2]) * c[3];
   const k = P.softness > 0 ? smoothstep(P.level - P.softness, P.level + P.softness, v) : step(P.level, v);
-  for (let i = 0; i < 3; i++) c[i] = (P.recolour ? P.colours[i] : c[i]) * k;
+  if (P.recolour) for (let i = 0; i < 3; i++) c[i] = P.colours[i];
+  c[3] *= k;                               // below the level it is transparent, not black
   return c;
 }

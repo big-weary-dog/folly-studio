@@ -188,6 +188,7 @@ options, each `[a-z][a-z0-9-]{0,31}`; a value not among them takes the default).
 | `attr(name, d = 0)` | the rig's per-pixel attr `name`, `d` where it has none |
 | `is(tag)` | true when the pixel is in a group tagged `tag` |
 | `k seed` | global index; a stable random 0..1 per LED |
+| `ox oy oz sx sy sz sr` | the frame `lx ly lz a r` are read in (metres): `l = 0.5 + (X − o) / 2s` per axis (a flat axis, s 0: 0.5), `a r` round `(oz, oy)` in the façade, `r` 1 at `sr`; the layer's bounds' middle, half its size and its farthest pixel from that middle, unless a warp re-frames it (anchor) |
 
 ### Stdlib (globals inside pattern code)
 
@@ -208,7 +209,7 @@ pick's or role's i-th colour, floored and wrapping),
 pixels' bounds in metres, `[[X0, Y0, Z0], [X1, Y1, Z1]]`, which `lx ly lz` map to 0..1: so a pattern can burst from
 a `centres()` point and still fill its layer), `clock(name)` (how far number param `name`, a speed, has moved
 things: "Integrated clocks" below), `DIRECTIONS` and `toward(p, direction)` ("Directions" below), and
-`use(name, params?)` → `(p, t) → colour` (`[0, 0, 0, 0]` for null), library source `name` as its own instance (its
+`move(q, lx, ly, lz)`, `turn(q, a, r)` and `slide(q, u)` (the warp contract, "Modules" below), `use(name, params?)` → `(p, t) → colour` (`[0, 0, 0, 0]` for null), library source `name` as its own instance (its
 `frame` runs once per new t; throws `unknown library pattern`, or names a retired one's preset). Colours are
 `[r, g, b]` arrays, 0..1.
 
@@ -231,7 +232,16 @@ A layer is a chain of modules, listed top to bottom, each a plain script like th
 |---|---|---|
 | `source` | `pixel(p, t, P, G) → colour` | draws onto what is above it: number (grey), `'#hex'`, `[r, g, b, a?]`, or `null` (nothing) |
 | `filter` | `filter(c, q, t, P, G, x) → colour` | reworks `c`, the colour of what is above it; `x` is the colour of the module named by its `input`; the result's alpha defaults to `c`'s |
-| `warp` | `warp(q, t, P, G)` | bends what is above it: mutates `q` (x y z X Y Z lx ly lz a r u i …) for the modules above it |
+| `warp` | `warp(q, t, P, G)` | bends what is above it: moves `q` (by the contract below) for the modules above it |
+
+**The warp contract.** Every position field of `q` stays consistent, so any warp works over any source, whatever
+field the source reads. A warp moves `q` with `move(q, lx, ly, lz)` (a point in its frame), `turn(q, a, r)` (by angle
+and radius round the frame's middle, in the façade; depth stays) or `slide(q, u)` (along its own fixture to the LED
+nearest `u`). `move` and `turn` set `X Y Z`, `x y z`, `lx ly lz` and `a r` from that point, and every field of an
+LED (`u i n`, `k seed`, `zone zi fixture`, `ring sector`, so `is()` and `attr()` too) from the layer's LED nearest it
+(by a grid of cells a quarter metre or more, at most 64 a side, built once per layer, the first time it is asked); `slide` sets them all
+from that LED. A warp that re-frames (anchor: a new middle and reach) sets `ox oy oz sx sy sz sr` and recomputes
+`lx ly lz a r` from `X Y Z`, so the moves after it agree. A warp writes no position field any other way.
 
 All may define `params` and `frame(t, P, G)` (once per frame, before any pixel; state such as a trails buffer
 indexed by `p.k` lives at top level). A **stage end** is a filter that holds real LED colours, as its code declares
@@ -258,7 +268,9 @@ blacks out its layer for that frame, reported with its `module` id. So "a chase 
 the layer: `colour-wash`, opaque. An element over a bed
 is `[colour-wash, element with blend: 'over']`, `mix(bed, element, alpha)` exactly what a source that painted the bed
 itself drew; with filters that should rework the element alone, `[element, filters…, colour-wash with blend:
-'under']`. Alone on a layer an element shows over black, as one that painted black would. Older code may
+'under']`. Alone on a layer an element shows over black, as one that painted black would. A filter that hides or fades
+(mask, edge-fade, trails) does so by alpha too: what it hides is transparent, never black. `mask` reads the brightness
+of its input, or with `by: 'self'` of what is above it (so it keeps what is bright). Older code may
 still paint a background.
 
 ### Library

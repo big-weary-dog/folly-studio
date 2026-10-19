@@ -9,6 +9,5 @@ const params = {
 function warp(q, t, P) {
   const s = P.size, w = clock('speed'), x = q.lz * s, y = q.ly * s, z = q.lx * s + w;
   const dx = 2 * P.amount * (fbm(x, y, z, 3) - 0.5), dy = 2 * P.amount * (fbm(x + 31.4, y - 17.2, z, 3) - 0.5);
-  q.lz += dx; q.ly += dy;
-  q.a = fract(q.a + dx); q.r = max(0, q.r + dy);
+  move(q, q.lx, q.ly + dy, q.lz + dx);
 }

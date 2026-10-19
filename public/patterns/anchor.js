@@ -52,7 +52,8 @@ function warp(q, t, P) {
   q.a = fract(plan ? atan2(dz, -dx) / TAU : atan2(dz, dy) / TAU);  // plan: 0 toward the front, ¼ toward the right
   q.r = metric(P.shape, dx, dy, dz) / R;
   if (P.lineup) { q.lx = q.x; q.ly = q.y; q.lz = q.z; return; }
-  q.lz = 0.5 + dz / (2 * R);
-  if (P.shape !== 'facade') q.lx = 0.5 + dx / (2 * R);
-  if (!plan) q.ly = 0.5 + dy / (2 * R);
+  // A new frame (SPEC "Modules"): the moves of the warps after this one read the group's middle and reach.
+  q.oz = c[2]; q.sz = q.sr = R; q.lz = 0.5 + dz / (2 * R);
+  if (P.shape !== 'facade') { q.ox = c[0]; q.sx = R; q.lx = 0.5 + dx / (2 * R); }
+  if (!plan) { q.oy = c[1]; q.sy = R; q.ly = 0.5 + dy / (2 * R); }
 }

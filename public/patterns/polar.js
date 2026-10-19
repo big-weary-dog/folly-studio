@@ -6,6 +6,5 @@ const params = {
 };
 
 function warp(q, t, P) {
-  q.lz = fract(q.a * round(P.repeats));
-  q.ly = P.inward ? 1 - q.r : q.r;
+  move(q, q.lx, P.inward ? 1 - q.r : q.r, fract(q.a * round(P.repeats)));
 }

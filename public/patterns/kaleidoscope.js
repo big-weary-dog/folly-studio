@@ -4,12 +4,9 @@ const params = {
   spin: { value: 0.02, min: -0.5, max: 0.5, step: 0.01, label: 'Spin (turns a second)' },
 };
 
-// The angle folded into the first wedge, mirrored back and forth; lz and ly rebuilt from it and r.
+// The angle folded into the first wedge, mirrored back and forth.
 function warp(q, t, P) {
   const seg = 1 / max(2, round(P.segments));
   const f = fract((q.a + clock('spin')) / seg);
-  const a = (f < 0.5 ? f : 1 - f) * seg;
-  q.a = a;
-  q.lz = 0.5 + 0.5 * q.r * sin(TAU * a);
-  q.ly = 0.5 + 0.5 * q.r * cos(TAU * a);
+  turn(q, (f < 0.5 ? f : 1 - f) * seg, q.r);
 }

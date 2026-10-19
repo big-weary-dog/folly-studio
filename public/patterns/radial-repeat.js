@@ -8,7 +8,5 @@ const params = {
 
 function warp(q, t, P) {
   const x = q.r * P.rings - clock('speed'), r = P.mirror ? tri(x / 2) : fract(x);
-  q.r = r;
-  q.lz = 0.5 + 0.5 * r * sin(TAU * q.a);
-  q.ly = 0.5 + 0.5 * r * cos(TAU * q.a);
+  turn(q, q.a, r);
 }

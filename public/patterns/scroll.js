@@ -8,12 +8,10 @@ const params = {
 function warp(q, t, P) {
   const d = P.direction, s = d === 'down' || d === 'left' || d === 'front' || d === 'in' ? -clock('speed')
     : clock('speed');
-  if (d === 'right' || d === 'left') q.lz = fract(q.lz - s);
-  else if (d === 'back' || d === 'front') q.lx = fract(q.lx - s);
-  else if (d === 'out' || d === 'in') q.r = fract(q.r - s);
-  else if (d === 'round') q.a = fract(q.a - s);
-  else if (d === 'along') {
-    q.u = fract(q.u - s);
-    q.i = round(q.u * (q.n - 1));
-  } else q.ly = fract(q.ly - s);
+  if (d === 'right' || d === 'left') move(q, q.lx, q.ly, fract(q.lz - s));
+  else if (d === 'back' || d === 'front') move(q, fract(q.lx - s), q.ly, q.lz);
+  else if (d === 'out' || d === 'in') turn(q, q.a, fract(q.r - s));
+  else if (d === 'round') turn(q, fract(q.a - s), q.r);
+  else if (d === 'along') slide(q, fract(q.u - s));
+  else move(q, q.lx, fract(q.ly - s), q.lz);
 }

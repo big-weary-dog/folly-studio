@@ -11,6 +11,7 @@ import { pixelsForGroups, type Scene, tagMask } from './scene.ts';
 import { blur, BLUR_MODES, blurState } from './spatial.ts';
 import { clamp, hex, isNum, RUN, TAU } from './stdlib.ts';
 import { layerEnvelope, normalizeClips } from './timeline.ts';
+import { PLACE } from './place.ts';
 import { copyPixel, isStageEnd, placeWarps } from './warps.ts';
 
 export const MODULE_KINDS = Object.freeze(['source', 'warp', 'filter'] as const);
@@ -157,21 +158,13 @@ const said = (v: unknown) => (Array.isArray(v) ? `[${Array.from(v).slice(0, 4).j
 /** Layer L's chain at pattern time T into L.buf (rgba) → null, or an error (its module in L.failed). */
 function runChain(S: Scene, L: PreparedLayer, T: number, G: G) {
   const idx = L.idx, m = idx.length, buf = L.buf, q = L.p, chain = L.chain, n = chain.length, c = L.c;
-  const zones = S.zones, qs = L.qs, warps = L.warps, nw = warps.length;
+  const qs = L.qs, warps = L.warps, nw = warps.length;
   let j = 0, M: PreparedLayer['chain'][number] | null = null;
   try {
     for (let i = 0; i < n; i++) { M = chain[i]; if (M.frame) M.frame(T, M.P, G); }
     for (; j < m; j++) {
       const k = idx[j];
-      q.x = S.x[k]; q.y = S.y[k]; q.z = S.z[k];
-      q.X = S.X[k]; q.Y = S.Y[k]; q.Z = S.Z[k];
-      q.lx = L.lx[j]; q.ly = L.ly[j]; q.lz = L.lz[j];
-      q.a = L.a[j]; q.r = L.r[j];
-      q.u = S.u[k]; q.i = S.i[k]; q.n = S.n[k];
-      const zi = S.zone[k];
-      q.zi = zi; q.zone = zones[zi]; q.fixture = q.strand = S.fixture[k];
-      q.ring = q.row = S.ring[k]; q.sector = q.petal = S.sector[k];
-      q.k = k; q.seed = S.seed[k];
+      setPixel(S, L, q, j, k);
       for (let w = 0; w < nw; w++) { M = warps[w]; bend(qs, M, T, G); }
       c[0] = c[1] = c[2] = c[3] = 0;
       for (let i = 0; i < n; i++) {
@@ -216,6 +209,8 @@ function setPixel(S: Scene, L: PreparedLayer, q: Pixel, j: number, k: number) {
   q.zi = zi; q.zone = S.zones[zi]; q.fixture = q.strand = S.fixture[k];
   q.ring = q.row = S.ring[k]; q.sector = q.petal = S.sector[k];
   q.k = k; q.seed = S.seed[k];
+  const f = L.frame;
+  q.ox = f[0]; q.oy = f[1]; q.oz = f[2]; q.sx = f[3]; q.sy = f[4]; q.sz = f[5]; q.sr = f[6];
 }
 
 const load = (to: number[], from: Float64Array, o: number) => {
@@ -288,6 +283,7 @@ function runStaged(S: Scene, L: PreparedLayer, T: number, G: G, st: NonNullable<
 function makePixel(S: Scene) {
   const q = { x: 0, y: 0, z: 0, X: 0, Y: 0, Z: 0, lx: 0, ly: 0, lz: 0, a: 0, r: 0, u: 0, i: 0, n: 1, zone: '', zi: 0,
     fixture: 0, strand: 0, ring: 0, row: 0, sector: -1, petal: -1, k: 0, seed: 0,
+    ox: 0, oy: 0, oz: 0, sx: 0, sy: 0, sz: 0, sr: 0,
     attr: (name: string, d = 0): number => { const v = S.attrs.get(name); return v ? v[q.k] : d; },
     is: (tag: string): boolean => tagMask(S, tag)[q.k] === 1 };
   return q;
@@ -333,6 +329,8 @@ export function prepareLayer(scene: Scene, layer: LayerInput | null | undefined,
     id: layer?.id ?? null,
     idx, lx, ly, lz, a, r,
     bounds: { min: [x0, y0, z0], max: [x1, y1, z1] },
+    near: null as ((X: number, Y: number, Z: number) => number) | null,     // place.ts, on the first move
+    frame: Float64Array.of((x0 + x1) / 2, cy, cz, (x1 - x0) / 2, (y1 - y0) / 2, (z1 - z0) / 2, rmax),
     extent: Object.freeze([corner([x0, y0, z0]), corner([x1, y1, z1])]),  // extent()
     chain, modular: Array.isArray(layer?.modules), failed: null as string | null,
     blend: isBlend(layer?.blend) ? layer.blend : 'add', level: isNum(layer?.level) ? clamp(layer.level) : 1,
@@ -360,7 +358,7 @@ export function renderFrame(scene: Scene, layers: readonly (PreparedLayer | null
   const list = layers || [];
   const LK = look || (plainLook ||= prepareLook(null));
   lookFrame(LK, t);
-  RUN.scene = scene;
+  RUN.scene = PLACE.scene = scene;
   const T = look ? LK.T : t, G = LK.G;
   for (let n = 0; n < list.length; n++) {
     const L = list[n];
@@ -369,7 +367,7 @@ export function renderFrame(scene: Scene, layers: readonly (PreparedLayer | null
     const env = L.clips ? layerEnvelope(L.clips, t) : 1, level = L.enabled ? L.level * env : 0;
     if (!(level > 0)) continue;
     const t0 = clock();
-    RUN.extent = L.extent;
+    RUN.extent = L.extent; PLACE.layer = L;
     for (let i = 0; i < L.chain.length; i++) {
       const M = L.chain[i];
       if (M.mods.length) applyMods(M.mods, M.P, t, env, LK);

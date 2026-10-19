@@ -41,6 +41,7 @@ test('rotate turns in its plane: a quarter turn in plan swaps depth and across',
   const { L, rgb } = run([probe, mod('rotate', 'warp', { plane: 'plan', angle: 0.25 })]);
   L.idx.forEach((k, j) => {
     const [x, z, y] = rgb(j);
-    assert.ok(Math.abs(x - (1 - L.lz[j])) < 1e-9 && Math.abs(z - L.lx[j]) < 1e-9 && y === L.ly[j], `LED ${k}`);
+    assert.ok(Math.abs(x - (1 - L.lz[j])) < 1e-9 && Math.abs(z - L.lx[j]) < 1e-9 && Math.abs(y - L.ly[j]) < 1e-9,
+      `LED ${k}`);
   });
 });
