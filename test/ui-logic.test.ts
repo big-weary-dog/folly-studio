@@ -13,9 +13,7 @@ import {
 } from '../public/js/ui/bindings.ts';
 import { decimals, scrubTo, snap } from '../public/js/ui/kit.tsx';
 import { createLayerStatus } from '../public/js/ui/layer-status.ts';
-import {
-  editText, editValue, readEdit, roleState, toggleRole, toggleSlot, toggleToken,
-} from '../public/js/ui/pick-model.ts';
+import { editText, editValue, readEdit, toggleRole, toggleSlot, toggleToken } from '../public/js/ui/pick-model.ts';
 import type { Preview } from '../public/js/ui/preview.ts';
 import type { Draft, Studio } from '../public/js/ui/studio-store.ts';
 import { createTimeline } from '../public/js/ui/timeline-state.ts';
@@ -227,7 +225,7 @@ describe('the pick tile', () => {
     assert.equal(editValue(e, 'step'), 'body/accent');
     const one = toggleSlot(e, 'body', 2, 4);
     assert.equal(editText(one), 'body1 body3 body4/accent', 'a slot out of a whole role: the others');
-    assert.deepEqual(roleState(one, 'body'), { whole: false, slots: new Set([1, 3, 4]) });
+    assert.equal(editText(toggleSlot(readEdit(undefined, 'all'), 'accent', 1, 3)), 'accent1', 'over all: just it');
     assert.equal(editText(toggleRole(one, 'body')), 'body/accent', 'the whole role back, in its place');
     assert.equal(editText({ ...toggleToken(one, '#ff0000'), deal: false }), 'body1 body3 body4 accent #ff0000');
     assert.equal(editValue(toggleRole(toggleRole(e, 'body'), 'accent'), 'step'), undefined, 'nothing: the default');

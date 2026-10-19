@@ -44,6 +44,8 @@ const has = (e: PickEdit, t: string) => e.tokens.includes(t);
 const without = (e: PickEdit, drop: (t: string) => boolean): PickEdit => ({ ...e,
   tokens: e.tokens.filter((t) => !drop(t)) });
 const roleOf = (t: string) => SLOT.exec(t)?.[1];
+/** Without the whole-palette tokens: a role or slot picked over them is picked instead of them. */
+const unwhole = (e: PickEdit) => without(e, (t) => t === 'all' || t === 'rainbow');
 
 /** A role's state on the tile: all of it, its slots picked (1-based), or none. */
 export function roleState(e: PickEdit, role: string) {
@@ -54,16 +56,18 @@ export function roleState(e: PickEdit, role: string) {
 /** The whole role in or out (in: in place of its slots). */
 export function toggleRole(e: PickEdit, role: string): PickEdit {
   if (has(e, role)) return without(e, (t) => roleOf(t) === role);
-  const at = e.tokens.findIndex((t) => roleOf(t) === role), rest = without(e, (t) => roleOf(t) === role).tokens;
+  const w = unwhole(e), at = w.tokens.findIndex((t) => roleOf(t) === role);
+  const rest = without(w, (t) => roleOf(t) === role).tokens;
   rest.splice(at < 0 ? rest.length : at, 0, role);
   return { ...e, tokens: rest };
 }
 
-/** One slot in or out; out of a whole role, the role becomes its other `count` slots. */
+/** One slot in or out; out of a whole role, the role becomes its other `count` slots; in over the whole palette, it
+ * alone. */
 export function toggleSlot(e: PickEdit, role: string, n: number, count: number): PickEdit {
   const slot = `${role}${n}`;
   if (has(e, slot)) return without(e, (t) => t === slot);
-  if (!has(e, role)) return { ...e, tokens: [...e.tokens, slot] };
+  if (!has(e, role)) return { ...e, tokens: [...unwhole(e).tokens, slot] };
   const others = Array.from({ length: count }, (_, i) => `${role}${i + 1}`).filter((t) => t !== slot);
   return { ...e, tokens: e.tokens.flatMap((t) => (t === role ? others : [t])) };
 }
