@@ -115,6 +115,8 @@ const STDLIB: [string, string[][]][] = [
   ['Shapes', [
     ['wave(x)', '½ + ½·sin(2πx)'], ['tri(x)', 'triangle 0..1'], ['saw(x)', 'sawtooth 0..1'],
     ['pulse(x, width)', '1 near 0, falling to 0 at ±width, wrapping'],
+    ['soft(edge, x, width)', 'a step with no stair: 0 → 1 smoothly over width round edge'],
+    ['band(x, centre, halfWidth, softness)', '1 within halfWidth of centre, its edges soft'],
     ['beat(t, bpm)', 'phase 0..1'], ['dist(x1,y1,z1, x2,y2,z2)', ''],
   ]],
   ['Randomness', [
@@ -146,7 +148,8 @@ function pixel(p, t, P, G) {  // a source: every LED, every frame
   return [r, g, b];           // 0..1 each, optional 4th = alpha
 }
 // a warp:   function warp(q, t, P, G) { q.lz = 1 - q.lz; }
-// a filter: function filter(c, q, t, P, G, x) { return c; }`;
+// a filter: function filter(c, q, t, P, G, x) { return c; }
+// a blur:   const spatial = 'blur'; (radius, mode, amount params)`;
 
 function QuickReference({ onInsert }: { onInsert: (text: string) => void }) {
   const name = (text: string, insert = text, title?: string) => <button type="button" class="ref-name" title={title}

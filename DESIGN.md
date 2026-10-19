@@ -105,8 +105,24 @@ colour. A stdlib (`noise`, `fbm`, `hsv`, `pal`, `beat`, `centres(tag)`, `use(nam
 
 A layer is a **chain of modules**: warps move the pixel, sources draw, filters rework the colour so far, some
 by another source (meteors masked by clouds). Per pixel it is one pass with no intermediate buffers, so it costs
-no memory per frame and stays cheap on a phone. 58 library entries (41 sources, 7 warps, 10 filters) fill the
+no memory per frame and stays cheap on a phone. 59 library entries (41 sources, 7 warps, 11 filters) fill the
 shelves; hovering one (on a phone, Preview) auditions it in the 3D view without saving anything.
+
+**Blur and soften.** The one thing a pixel cannot do alone is read its neighbours, so the core does it natively: the
+`blur` filter (radius in metres, along the wire, in space or both, an amount) and each layer's `soften`, a small
+blur after its chain. New and generated layers soften by default, 0.15 m along the wire: on an arch (LEDs 0.1 m
+apart) a bar's one-LED step becomes a three-LED ramp, and on the spires and canopy (0.5 m) nothing changes. A chain
+with a blur runs in stages round it: the modules before it for the layer's every pixel into a buffer made at prepare,
+the blur, then the rest per pixel; a chain without one keeps its single pass, byte for byte. Only the layer's own
+LEDs count, so the edge of a selection keeps its brightness. The neighbours come from the rig once: a uniform grid of
+1.5 m cells for space, each fixture's wire by arc length, every list nearest first so a blur stops at its radius. At
+the source, `soft()` and `band()` draw edges that need no blur, and the library's hard-edged sources (bars, single
+strand, marquee, curtain, strobe's fade) take a `softness`.
+
+| On the Folly (4,870 LEDs) | Cost |
+|---|---|
+| Neighbour graph, once per rig (the sandbox's `init`) | 56 neighbours a LED in space, 25 along the wire; 3.2 MB; about 50 ms |
+| The perf demo look, a frame (`test/spatial.test.js`) | 3.3 ms; 3.6 ms with the default soften; 4.4 ms with a 1 m blur in space |
 
 | Kind of global | Which | How |
 |---|---|---|
@@ -117,9 +133,11 @@ A number param can be **modulated**: an LFO (Hz or beats), a global, or the clip
 frame per layer. **Automation lanes** move a global or macro over the look's time, linearly between points.
 Palettes come from the same CSVs TouchDesigner uses, so a look and a TD show agree on colour.
 
-- **Alternatives.** Per-layer frame buffers with a node graph (spatial filters such as blur become possible, at a
-  full frame per node per layer); hard-coded colours (no palettes to swap).
-- **Trade-off.** Filters see one pixel at a time: no blur or convolution, and no layer can read another's output.
+- **Alternatives.** Per-layer frame buffers with a node graph (any spatial filter, at a full frame per node per
+  layer); blur in pattern code (portable, but slow, and a pattern could not see past its own pixel); hard-coded
+  colours (no palettes to swap).
+- **Trade-off.** Filters see one pixel at a time: blur is the one spatial operation, and only the core's. No
+  layer can read another's output, and a warp before a blur runs again after it, so a warp must be pure.
 
 <p><img src="docs/screenshots/phone-library.jpg" width="260" alt="Phone: auditioning Aurora from the library">
 <img src="docs/screenshots/phone-look.jpg" width="260" alt="Phone: the Look tab, globals and palette"></p>
@@ -315,10 +333,10 @@ font. Copy is plain and says what happens ("Bake it in the render box to check i
   40, and a seek does not rewind state. The baked frames are the truth.
 - **No audio, no live input.** `bpm` is a number; there is no track, beat detection, MIDI, OSC or sACN in.
 - **LEDs are points.** A pattern is sampled at each LED's position; cells and floods have extent only in the 3D
-  view, and thin fast features can alias between LEDs.
+  view, and thin fast features can alias between LEDs unless drawn with `soft()` and `band()` or softened.
 - **RGB pixels only.** Output is RGB triples in some order; no RGBW, dimmer channels, movers or other DMX fixtures.
 - **Clips cannot sequence params**, only levels (automate a macro instead), and **no layer reads another's
-  output**: filters see their own chain.
+  output**: filters see their own chain, and only the core's blur sees past a pixel (no user-written convolution).
 - **CPU rendering bounds the rig.** 4,870 LEDs fit a phone's Worker (`npm run perf` holds a composed look at
   ≥ 20 fps on a 4× slowed CPU); ten times that would need the formula tier on the GPU.
 - **The AI works inside the schema.** It can make what a look can hold (≤ 4 layers, modules, globals, clips,

@@ -6,11 +6,14 @@ import { clamp, hex, isNum, RUN, STDLIB, STDLIB_NAMES } from './stdlib.ts';
 
 /** A pattern's params as its controls show them (SPEC "Pattern code"). */
 export type ParamSpec = { label?: string } & ({ type: 'number', value: number, min: number, max: number, step?: number }
-  | { type: 'toggle', value: boolean } | { type: 'color', value: string });
+  | { type: 'toggle', value: boolean } | { type: 'color', value: string }
+  | { type: 'choice', value: string, options: string[] });
 export type ParamSchema = Record<string, ParamSpec>;
 type RGBA = number[];
-/** What each kind defines (SPEC "Modules"); a module compiled: its function, `frame` and params. */
+/** What each kind defines (SPEC "Modules"); a module compiled: its function, `frame`, params, and for a spatial
+ * filter its op (SPEC "Spatial modules"). */
 export type Compiled = { kind: ModuleKind, params: ParamSchema, frame?: (t: number, P: Values, G: G) => void,
+  spatial?: (typeof SPATIAL_OPS)[number],
   pixel?: (p: Pixel, t: number, P: Values, G: G) => unknown, warp?: (q: Pixel, t: number, P: Values, G: G) => void,
   filter?: (c: RGBA, q: Pixel, t: number, P: Values, G: G, x?: RGBA) => unknown };
 
@@ -22,6 +25,8 @@ const SHADOWED = [
   'BroadcastChannel', 'setTimeout', 'setInterval', 'requestAnimationFrame', 'queueMicrotask',
 ];
 const SCOPE = Object.freeze({ ...STDLIB, use });
+const SPATIAL_OPS = Object.freeze(['blur'] as const);   // what `const spatial = …` may name (SPEC "Spatial modules")
+const CHOICE = /^[a-z][a-z0-9-]{0,31}$/;
 const PRELUDE =
   '"use strict";\n' +
   `const { ${[...STDLIB_NAMES, 'use'].join(', ')} } = __stdlib;\n` +
@@ -31,6 +36,7 @@ const EPILOGUE =
   '\n;return { pixel: typeof pixel === "function" ? pixel : undefined,' +
   ' warp: typeof warp === "function" ? warp : undefined, filter: typeof filter === "function" ? filter : undefined,' +
   ' frame: typeof frame === "function" ? frame : undefined,' +
+  ' spatial: typeof spatial === "string" ? spatial : undefined,' +
   ' params: typeof params === "undefined" ? undefined : params };\n})();';
 
 // Where pattern line 1 lands in the generated function, probed once, so errors say "line N" in every engine.
@@ -88,6 +94,11 @@ export function normalizeParams(raw: unknown): ParamSchema {
       p = { type, value: toHexString(c) };
     } else if (type === 'toggle') {
       p = { type, value: !!d.value };
+    } else if (type === 'choice') {
+      const options = (Array.isArray(d.options) ? d.options : [])
+        .filter((o): o is string => typeof o === 'string' && CHOICE.test(o)).slice(0, 16);
+      if (!options.length) throw new Error(`param "${key}": a choice needs options, short lowercase names`);
+      p = { type, value: options.find((o) => o === d.value) ?? options[0], options };
     } else if (type === 'number') {
       const value = d.value === undefined ? 0 : Number(d.value);
       if (!Number.isFinite(value)) throw new Error(`param "${key}": value must be a number`);
@@ -95,7 +106,7 @@ export function normalizeParams(raw: unknown): ParamSchema {
         max: isNum(d.max) ? d.max : Math.max(1, value) };
       if (isNum(d.step) && d.step > 0) p.step = d.step;
     } else {
-      throw new Error(`param "${key}": unknown type "${d.type}" (number, toggle or color)`);
+      throw new Error(`param "${key}": unknown type "${d.type}" (number, toggle, color or choice)`);
     }
     if (typeof d.label === 'string') p.label = d.label;
     out[key] = p;
@@ -139,7 +150,12 @@ export function compileModule(code: string | undefined, kind: string = 'source')
     throw new Error(`Error while loading the ${what}: ${describeError(e)}`, { cause: e });
   }
   if (!made || typeof made[k[0]] !== 'function') throw new Error(`${what} defines no function ${k[1]}`);
-  return { kind, [k[0]]: made[k[0]], frame: made.frame, params: normalizeParams(made.params) } as Compiled;
+  const spatial = kind === 'filter' ? made.spatial : undefined;
+  if (spatial !== undefined && !SPATIAL_OPS.includes(spatial as never)) {
+    throw new Error(`spatial must be ${SPATIAL_OPS.map((o) => `'${o}'`).join(' or ')}`);
+  }
+  return { kind, [k[0]]: made[k[0]], frame: made.frame, params: normalizeParams(made.params),
+    ...(spatial ? { spatial } : {}) } as Compiled;
 }
 
 /** Compile pattern source (a source module) → { pixel, frame, params }. */

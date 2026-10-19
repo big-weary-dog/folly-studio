@@ -7,6 +7,7 @@ import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 import type { Module } from '../../../shared/schemas/look.ts';
 import type { LibraryEntry } from '../../../shared/schemas/rig.ts';
+import { DEFAULT_SOFTEN } from '../core/spatial.ts';
 import { humanize, openDialog } from './kit.tsx';
 import { KIND_LABELS, type Layer } from './model.ts';
 import type { Preview } from './preview.ts';
@@ -36,7 +37,8 @@ function auditioner({ pv, layer, moduleId }: Partial<Audition> = {}) {
     if (!saved || r.layers !== mine) saved = { layers: r.layers, extra: r.extra };   // the look as the app sent it
     const m: Module = { id: TRY, kind: e.kind || 'source', title: e.title || e.name, code: e.code, params: {} };
     mine = m.kind === 'source'
-      ? [...saved.layers, { id: TRY, title: m.title, groups: layer.groups, blend: 'over', level: 1, modules: [m] }]
+      ? [...saved.layers, { id: TRY, title: m.title, groups: layer.groups, blend: 'over', level: 1, modules: [m],
+        soften: { ...DEFAULT_SOFTEN } }]                              // as a new layer would be
       : saved.layers.map((l) => {
         if (l.id !== layer.id) return l;
         const mods = l.modules.slice(), at = placeIn(mods, m, moduleId);

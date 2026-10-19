@@ -1,10 +1,13 @@
 // Layers (SPEC "Modules"): each a module chain run over its pixels in one pass (warps move the pixel, sources draw
-// and combine, filters rework the colour), blended into a frame, graded by the look's globals, mapped to DMX.
+// and combine, filters rework the colour), or in stages round its spatial modules (SPEC "Spatial modules"); blended
+// into a frame (output.ts), graded by the look's globals.
 import type { Module } from '../../../shared/schemas/look.ts';
 import { type Compiled, compileModule, describeError } from './compile.ts';
 import { applyMods, finish, lookFrame, paramMods, prepareLook, resolveParams } from './globals.ts';
-import type { G, PreparedLook } from './globals.ts';
+import type { G, PreparedLook, Values } from './globals.ts';
+import { composite } from './output.ts';
 import { pixelsForGroups, type Scene, tagMask } from './scene.ts';
+import { blur, BLUR_MODES, blurState } from './spatial.ts';
 import { clamp, hex, isNum, RUN, TAU } from './stdlib.ts';
 import { layerEnvelope, normalizeClips } from './timeline.ts';
 
@@ -12,7 +15,7 @@ export const MODULE_KINDS = Object.freeze(['source', 'warp', 'filter'] as const)
 export type ModuleKind = (typeof MODULE_KINDS)[number];
 export const BLENDS = Object.freeze(['add', 'over', 'max', 'multiply'] as const);
 export type Blend = (typeof BLENDS)[number];
-const SOURCE = 0, WARP = 1, FILTER = 2;
+const SOURCE = 0, WARP = 1, FILTER = 2, SPATIAL = 3;      // SPATIAL: a filter the core runs over the layer at once
 const OVER = 0, ADD = 1, MAX = 2, MULTIPLY = 3;
 const BLEND = { over: OVER, add: ADD, max: MAX, multiply: MULTIPLY };
 const isBlend = (b: unknown): b is Blend => BLENDS.includes(b as Blend);
@@ -20,7 +23,7 @@ const isBlend = (b: unknown): b is Blend => BLENDS.includes(b as Blend);
 /** A layer as the core takes one (SPEC "Looks"), any field missing; code and params: a one-source chain. */
 export type LayerInput = Partial<{ id: string, title: string, code: string, params: Record<string, unknown>,
   modules: Partial<Module>[], groups: string[], tags: string[], blend: string, level: number, clips: unknown,
-  enabled: boolean }>;
+  enabled: boolean, soften: unknown }>;
 
 /** A layer's modules, or its own code and params as one source (looks before chains). */
 export function layerModules(layer?: LayerInput | null): Partial<Module>[] {
@@ -47,18 +50,22 @@ export function compileLayer(layer?: LayerInput | null) {
 
 /** The runnable chain: enabled modules with their function, params, bindings, blend, input (index or −1). */
 type Fn = (...a: unknown[]) => unknown;
+type Link = { id: string | null, title: string, kind: number, fn: Fn, frame: Compiled['frame'] | null, P: Values,
+  mods: ReturnType<typeof paramMods>, blend: number, hidden: boolean, input: number, out: number[],
+  keep: Float64Array | null };     // keep: a source's colours for a filter in a later stage (SPEC "Spatial modules")
 function prepareChain(layer: LayerInput | null | undefined, compiled: Compiled | readonly (Compiled | null)[]) {
   const modules = layerModules(layer);
   const list = Array.isArray(compiled) ? compiled : [compiled];
   if (list.length !== modules.length) throw new Error('prepareLayer: compile every module (compileLayer)');
-  const chain = [], at = new Map<string | undefined, number>();
+  const chain: Link[] = [], at = new Map<string | undefined, number>();
   let shown = 0;
   for (const [i, m] of modules.entries()) {
     if (!isOn(m)) continue;
     const c = list[i];
-    const kind = MODULE_KINDS.indexOf(m.kind ?? 'source');
+    let kind = MODULE_KINDS.indexOf(m.kind ?? 'source');
     const fn = (c && (kind === SOURCE ? c.pixel : kind === WARP ? c.warp : c.filter)) as Fn | undefined;
     if (!c || typeof fn !== 'function') throw new Error('prepareLayer: layer is not compiled');
+    if (kind === FILTER && c.spatial) kind = SPATIAL;
     const hidden = kind === SOURCE && m.as === 'input';
     const blend = isBlend(m.blend) ? BLEND[m.blend] : shown ? ADD : OVER;
     if (kind === SOURCE && !hidden) shown++;
@@ -66,9 +73,30 @@ function prepareChain(layer: LayerInput | null | undefined, compiled: Compiled |
     if (kind === SOURCE) at.set(m.id, chain.length);
     chain.push({ id: m.id ?? null, title: m.title || m.id || '', kind, fn, frame: c.frame || null,
       P: resolveParams(c.params, m.params), mods: paramMods(c.params, m.params), blend, hidden, input,
-      out: [0.5, 0, 0, 0] });
+      out: [0.5, 0, 0, 0], keep: null });
   }
   return chain;
+}
+
+/**
+ * A chain's stages (SPEC "Spatial modules"): `soften` as a last blur; a source a later stage's filter reads keeps its
+ * colours; the stage buffer and the blur's state. Null for a chain that runs in one pass.
+ */
+function prepareStages(S: Scene, layer: LayerInput | null | undefined, chain: Link[], idx: Int32Array) {
+  const s = layer?.soften as { radius?: unknown, mode?: unknown } | null | undefined;
+  if (s && typeof s === 'object' && Number(s.radius) > 0) {
+    const mode = BLUR_MODES.includes(s.mode as never) ? s.mode as string : 'wire';
+    chain.push({ id: null, title: 'Soften', kind: SPATIAL, fn: (c) => c, frame: null, mods: [], blend: OVER,
+      P: { radius: Number(s.radius), mode, amount: 1 }, hidden: false, input: -1,
+      out: [0, 0, 0, 0], keep: null });
+  }
+  if (!chain.some((M) => M.kind === SPATIAL)) return null;
+  const m = idx.length;
+  chain.forEach((M, i) => {
+    const src = M.kind === FILTER && M.input >= 0 ? chain[M.input] : null;
+    if (src && !src.keep && chain.slice(M.input, i).some((x) => x.kind === SPATIAL)) src.keep = new Float64Array(4 * m);
+  });
+  return { buf: new Float64Array(4 * m), ...blurState(S, idx) };
 }
 
 /** v (number, '#hex', [r, g, b, a?], nothing) into out as [r, g, b, a], alpha default `da`. False on NaN. */
@@ -160,6 +188,80 @@ function fail(L: PreparedLayer, M: PreparedLayer['chain'][number] | null, msg: s
   return L.modular && M ? `${M.title}: ${msg}` : msg;
 }
 
+/** q as pixel j of layer L (rig pixel k). */
+function setPixel(S: Scene, L: PreparedLayer, q: Pixel, j: number, k: number) {
+  q.x = S.x[k]; q.y = S.y[k]; q.z = S.z[k];
+  q.X = S.X[k]; q.Y = S.Y[k]; q.Z = S.Z[k];
+  q.lx = L.lx[j]; q.ly = L.ly[j]; q.lz = L.lz[j];
+  q.a = L.a[j]; q.r = L.r[j];
+  q.u = S.u[k]; q.i = S.i[k]; q.n = S.n[k];
+  const zi = S.zone[k];
+  q.zi = zi; q.zone = S.zones[zi]; q.fixture = q.strand = S.fixture[k];
+  q.ring = q.row = S.ring[k]; q.sector = q.petal = S.sector[k];
+  q.k = k; q.seed = S.seed[k];
+}
+
+const load = (to: number[], from: Float64Array, o: number) => {
+  to[0] = from[o]; to[1] = from[o + 1]; to[2] = from[o + 2]; to[3] = from[o + 3];
+};
+const save = (to: Float64Array, o: number, from: number[]) => {
+  to[o] = from[0]; to[o + 1] = from[1]; to[o + 2] = from[2]; to[o + 3] = from[3];
+};
+
+/**
+ * A chain with spatial modules, stage by stage (SPEC "Spatial modules"): each stage's modules for every pixel into
+ * the stage buffer (c unclamped, starting from the buffer after the first stage), then its spatial op over the buffer;
+ * the last stage into L.buf as runChain does. A later stage reruns the earlier warps and reloads kept sources.
+ */
+function runStaged(S: Scene, L: PreparedLayer, T: number, G: G, st: NonNullable<PreparedLayer['stages']>) {
+  const idx = L.idx, m = idx.length, buf = L.buf, sb = st.buf, q = L.p, chain = L.chain, n = chain.length, c = L.c;
+  let from = 0, M: Link | null = null;
+  try {
+    for (let i = 0; i < n; i++) { M = chain[i]; if (M.frame) M.frame(T, M.P, G); }
+    for (;;) {
+      let to = from;
+      while (to < n && chain[to].kind !== SPATIAL) to++;
+      for (let j = 0; j < m; j++) {
+        const k = idx[j], o = 4 * j;
+        if (from) load(c, sb, o); else c[0] = c[1] = c[2] = c[3] = 0;
+        if (from < to) {
+          setPixel(S, L, q, j, k);
+          for (let i = 0; i < from; i++) {
+            M = chain[i];
+            if (M.kind === WARP) M.fn(q, T, M.P, G);
+            else if (M.keep) load(M.out, M.keep, o);
+          }
+          for (let i = from; i < to; i++) {
+            M = chain[i];
+            if (M.kind === WARP) { M.fn(q, T, M.P, G); continue; }
+            if (M.kind === SOURCE) {
+              const v = M.fn(q, T, M.P, G);
+              if (!toColour(v, M.out, 1)) return fail(L, M, `pixel() returned ${said(v)} (NaN) at LED ${k}`);
+              if (M.keep) save(M.keep, o, M.out);
+              if (!M.hidden) blendInto(c, M.out, M.blend);
+            } else {
+              const v = M.fn(c, q, T, M.P, G, M.input >= 0 ? chain[M.input].out : undefined);
+              if (!toColour(v, c, c[3])) return fail(L, M, `filter() returned ${said(v)} (NaN) at LED ${k}`);
+            }
+          }
+        }
+        if (to < n) { save(sb, o, c); continue; }
+        const r = c[0], g = c[1], b = c[2];
+        buf[o] = r < 0 ? 0 : r > 1 ? 1 : r;
+        buf[o + 1] = g < 0 ? 0 : g > 1 ? 1 : g;
+        buf[o + 2] = b < 0 ? 0 : b > 1 ? 1 : b;
+        buf[o + 3] = c[3];
+      }
+      if (to >= n) return null;
+      M = chain[to];
+      blur(S, idx, st, sb, M.P.radius, M.P.mode, M.P.amount);
+      from = to + 1;
+    }
+  } catch (e) {
+    return fail(L, M, describeError(e));
+  }
+}
+
 /** The pixel a layer's chain sees (SPEC "The pixel p"), reused for every LED; `attr` and `is` read its k. */
 function makePixel(S: Scene) {
   const q = { x: 0, y: 0, z: 0, X: 0, Y: 0, Z: 0, lx: 0, ly: 0, lz: 0, a: 0, r: 0, u: 0, i: 0, n: 1, zone: '', zi: 0,
@@ -211,7 +313,7 @@ export function prepareLayer(scene: Scene, layer: LayerInput | null | undefined,
     blend: isBlend(layer?.blend) ? layer.blend : 'add', level: isNum(layer?.level) ? clamp(layer.level) : 1,
     clips: normalizeClips(layer?.clips), enabled: layer?.enabled !== false,
     p: makePixel(scene), c: [0.5, 0, 0, 0],
-    buf: new Float64Array(m * 4), ms: 0,
+    buf: new Float64Array(m * 4), ms: 0, stages: prepareStages(scene, layer, chain, idx),
   };
 }
 
@@ -246,64 +348,11 @@ export function renderFrame(scene: Scene, layers: readonly (PreparedLayer | null
       const M = L.chain[i];
       if (M.mods.length) applyMods(M.mods, M.P, t, env, LK);
     }
-    const err = runChain(scene, L, T, G);
+    const err = L.stages ? runStaged(scene, L, T, G, L.stages) : runChain(scene, L, T, G);
     if (err) errors.push(L.modular ? { id: L.id, module: L.failed, error: err } : { id: L.id, error: err });
     else composite(rgb, L, level);
     L.ms = clock() - t0;
   }
   finish(rgb, N * 3, LK);
   return { rgb, errors };
-}
-
-
-function composite(rgb: Float32Array, L: PreparedLayer, level: number) {
-  const idx = L.idx, m = idx.length, buf = L.buf;
-  switch (L.blend) {
-    case 'over':
-      for (let j = 0; j < m; j++) {
-        const o = 3 * idx[j], q = 4 * j, a = buf[q + 3] * level, ia = 1 - a;
-        for (let c = 0; c < 3; c++) rgb[o + c] = rgb[o + c] * ia + buf[q + c] * a;
-      }
-      break;
-    case 'max':
-      for (let j = 0; j < m; j++) {
-        const o = 3 * idx[j], q = 4 * j, a = buf[q + 3] * level;
-        for (let c = 0; c < 3; c++) { const v = buf[q + c] * a; if (v > rgb[o + c]) rgb[o + c] = v; }
-      }
-      break;
-    case 'multiply':
-      for (let j = 0; j < m; j++) {
-        const o = 3 * idx[j], q = 4 * j, a = buf[q + 3] * level, ia = 1 - a;
-        for (let c = 0; c < 3; c++) rgb[o + c] *= ia + buf[q + c] * a;
-      }
-      break;
-    default: // add
-      for (let j = 0; j < m; j++) {
-        const o = 3 * idx[j], q = 4 * j, a = buf[q + 3] * level;
-        for (let c = 0; c < 3; c++) rgb[o + c] += buf[q + c] * a;
-      }
-  }
-}
-
-/** A frame of DMX (the rig's channels), each LED's colour at its address in the rig's order, scaled, gamma-bent,
- * rounded to 0..255. */
-export function toChannels(scene: Scene, rgb: ArrayLike<number>, out?: Uint8Array | null,
-  opts?: { gamma?: number, brightness?: number }) {
-  const gamma = isNum(opts?.gamma) && opts.gamma > 0 ? opts.gamma : 1;
-  const brightness = isNum(opts?.brightness) ? Math.max(0, opts.brightness) : 1;
-  const size = scene.frameChannels;
-  const ch = out && out.length >= size ? out : new Uint8Array(size);
-  ch.fill(0, 0, size);
-  const addr = scene.addr, N = scene.count, order = scene.order;
-  for (let k = 0; k < N; k++) {
-    const base = addr[k];
-    if (base < 0 || base + 2 >= size) continue;
-    for (let c = 0; c < 3; c++) {
-      let v = rgb[3 * k + c] * brightness;
-      v = v > 0 ? (v < 1 ? v : 1) : 0;
-      if (gamma !== 1) v = Math.pow(v, gamma);
-      ch[base + order[c]] = Math.round(v * 255);
-    }
-  }
-  return ch;
 }

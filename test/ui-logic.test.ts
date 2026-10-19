@@ -52,6 +52,10 @@ describe('modulation', () => {
     assert.equal(normaliseParam('c', { value: [1, 0.5, 0], type: 'color' })?.value, '#ff8000');
     assert.equal(normaliseParam('t', { value: 1, type: 'toggle' })?.value, true);
     assert.equal(normaliseParam('s', { value: 'text' }), null);
+    const choice = normaliseParam('mode', { value: 'fog', type: 'choice', options: ['wire', 'space'] }) as Param;
+    assert.deepEqual([choice.kind, choice.value, choice.options], ['choice', 'wire', ['wire', 'space']]);
+    assert.deepEqual(shownValue(choice, { mode: 'space' }, 'mode').value, 'space');
+    assert.deepEqual(shownValue(choice, { mode: 'fog' }, 'mode').value, 'wire');
   });
 
   test('the dialog opens on the binding there is, keeps global and envelope ends apart, and falls back', () => {

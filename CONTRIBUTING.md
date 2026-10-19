@@ -143,7 +143,7 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `fleet-box/` | Checker and brief for a boxed Fleet worker |
 | `public/index.html`, `css/` | The app shell and its styles: `base.css` (tokens, layout and components) on every page; `pages`, `studio`, `viewer`, `timeline`, `compose` imported by their views' modules, so Vite loads them with them |
 | `public/sandbox.html`, `js/sandbox-relay.ts`, `js/sandbox-worker.ts` | The sandboxed pattern runner (SPEC "Sandbox protocol"): the page Vite inlines them into; the relay and watchdog; the Worker |
-| `public/js/pattern-core.ts`, `core/` | Pure: stdlib (with palettes), compile, scene (the rig, its groups and tags), timeline, render (module chains, DMX channels), globals (with automation and param bindings); re-exported with their types (`Scene`, `PreparedLayer`, `Pixel`, …); runs in the sandbox, the boxes and tests |
+| `public/js/pattern-core.ts`, `core/` | Pure: stdlib (with palettes), compile, scene (the rig, its groups and tags), timeline, render (module chains, in stages round spatial modules), output (compositing, DMX channels), spatial (the neighbour graph and the native blur), globals (with automation and param bindings); re-exported with their types (`Scene`, `PreparedLayer`, `Pixel`, …); runs in the sandbox, the boxes and tests |
 | `public/js/fseq.ts` | Pure: FSEQ v2 writer |
 | `public/js/frames-stream.ts` | Streamed playback of baked frames, and their pure decoder |
 | `public/js/runtime.ts` | App side of the sandbox: iframe, adaptive frame rate, watchdog; the protocol's messages as types |

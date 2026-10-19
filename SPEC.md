@@ -53,7 +53,7 @@ studio/
     sandbox.html          the sandboxed pattern runner's page (a template: the build inlines its relay and Worker)
     js/
       pattern-core.ts     pure: stdlib, compile, scene prep, renderFrame, toChannels, re-exported from core/
-                          {stdlib,compile,scene,timeline,render,globals}.ts (sandbox, boxes, Node tests)
+                          {stdlib,compile,scene,timeline,render,output,spatial,globals}.ts (sandbox, boxes, Node tests)
       sandbox-relay.ts    the sandbox page's script: relay + watchdog
       sandbox-worker.ts   the sandbox's Worker: runs a look's layers on the core
       fseq.ts             pure: FSEQ v2 writer (browser + Node tests)
@@ -171,7 +171,8 @@ function pixel(p, t, P) {          // every LED, every frame
 
 `P` holds each param's current value (`color` params arrive as `[r,g,b]`). Param kinds:
 number `{ value, min, max, step? }`, `{ value: bool, type: 'toggle' }`,
-`{ value: '#rrggbb', type: 'color' }`.
+`{ value: '#rrggbb', type: 'color' }`, `{ value: 'name', type: 'choice', options: ['name', …] }` (≤ 16 options,
+each `[a-z][a-z0-9-]{0,31}`; a value not among them takes the default).
 
 ### The pixel `p`
 
@@ -192,7 +193,9 @@ number `{ value, min, max, step? }`, `{ value: bool, type: 'toggle' }`,
 
 `PI TAU sin cos tan asin acos atan atan2 abs min max floor ceil round sqrt pow exp log hypot sign`,
 `clamp(v, lo=0, hi=1)`, `fract(x)`, `mix(a, b, t)` (numbers or colours), `step(edge, x)`,
-`smoothstep(e0, e1, x)`, `wave(x)` = ½+½·sin(2πx), `tri(x)`, `saw(x)`, `pulse(x, width)`
+`smoothstep(e0, e1, x)`, `soft(edge, x, width)` (an anti-aliased step: 0 below `edge − width/2`, 1 above
+`edge + width/2`, smooth between; width 0 is `step`), `band(x, centre, halfWidth, softness)` (1 within `halfWidth`
+of `centre`, else 0, each edge a `soft` one `softness` wide), `wave(x)` = ½+½·sin(2πx), `tri(x)`, `saw(x)`, `pulse(x, width)`
 (1 near 0 falling to 0 at ±width, wrapping), `hash(n)` and `rand(a, b?, c?)` (stable 0..1),
 `noise(x, y?, z?, w?)` (smooth 0..1), `fbm(x, y, z, octaves=4)`, `hsv(h, s, v)`, `hsl(h, s, l)`,
 `rgb(r, g, b)`, `hex('#rrggbb')`, `scale(c, k)`, `add(c1, c2)`, `gradient(t, [c0, c1, ...])`,
@@ -214,7 +217,8 @@ A layer is a chain of modules, each a plain script like the above (stdlib in sco
 | `filter` | `filter(c, q, t, P, G, x) → colour` | reworks `c`, the chain's colour so far; `x` is the colour of the module named by its `input`; the result's alpha defaults to `c`'s |
 
 All may define `params` and `frame(t, P, G)` (once per frame, before any pixel; state such as a trails buffer
-indexed by `p.k` lives at top level). Per pixel, in one pass with no intermediate buffers: `q` is a fresh copy of
+indexed by `p.k` lives at top level). Per pixel, in one pass with no intermediate buffers (a chain without spatial
+modules, below): `q` is a fresh copy of
 the pixel, `c` is transparent; each enabled module in order: a warp updates `q`; a source computes `o` and
 records it; unless `as: 'input'` (hidden, it only feeds filters) it combines into `c` by its `blend` (default
 `over` for the first, `add` after; `over`, `add`, `max`, `multiply` as for layers); a filter sets
@@ -223,6 +227,30 @@ records it; unless `as: 'input'` (hidden, it only feeds filters) it combines int
 onto the stack exactly as a layer did (blend, level × clip envelope). A module that throws or returns NaN
 blacks out its layer for that frame, reported with its `module` id. So "meteors masked by clouds" is
 `[source meteors, source clouds as: 'input', filter mask input: clouds]`.
+
+### Spatial modules
+
+A filter whose code sets `const spatial = 'blur'` is a **spatial** module: the core's native blur, which reads the
+neighbours' colours (its `filter`, the identity, is what a core without it runs). The library's `blur` is one;
+`layer.soften` (`{ radius, mode }`) is one more at the end of the chain, `amount` 1. Its params: `radius` (metres,
+0–1.5; along the wire, metres of wire), `mode` (a choice: `wire`, the pixels of its own fixture by their distance
+along it; `space`, every pixel within the radius; `both`, the two kernels summed) and `amount` (0–1, its mix with the
+unblurred colour), modulated like any number param. Each pixel becomes the weighted mean of itself and its neighbours
+**in the layer** (outside its groups nothing counts, so the selection's edges do not darken), weights
+`exp(−2 (d / radius)²)` (e⁻² at the radius), the colour premultiplied by its alpha. `radius` or `amount` 0 leaves it
+exactly as it was.
+
+A chain with no spatial module runs in the one pass above, unchanged. One with spatial modules runs in stages: every
+pixel of the layer through the modules up to the first, into a buffer prepareLayer allocated (`c`, unclamped); the
+spatial op over that buffer; then the modules after it per pixel, `c` read from the buffer; and so on. Every
+`frame()` still runs once a frame, before any stage. A later stage's `q` has the earlier stages' warps applied again
+(so a warp must depend only on its arguments), and its filters' `x` is what their `input` drew in its own stage.
+
+The neighbours come from the rig, once per scene (`neighbourGraph(scene)`: the sandbox's worker builds it at `init`,
+the boxes on the first spatial layer): in **space**, every pixel within 1.5 m (a uniform grid of 1.5 m cells); along
+the **wire**, each pixel of the same fixture within 1.5 m of wire (at most 64 each way). Distances are kept to 2⁻²⁰ m
+and each list is sorted nearest first (ties by index), so a blur stops at its radius and sums in the same order in
+every runtime. The Folly: 56 neighbours a LED in space and 25 along the wire, 3.2 MB, built in about 50 ms.
 
 ### Globals
 
@@ -253,7 +281,7 @@ browser's too:
 ```jsonc
 { "title": "Coral reef", "summary": "…", "duration": 30, "bpm": 120, "layers": [
   { "id": "l1", "title": "Sea", "groups": ["cathedral"], "tags": ["all"], "blend": "add" | "over" | "max" | "multiply",
-    "level": 1, "clips": [{ "start": 0, "end": 12, "fadeIn": 2, "fadeOut": 3 }],
+    "level": 1, "clips": [{ "start": 0, "end": 12, "fadeIn": 2, "fadeOut": 3 }], "soften": { "radius": 0.15, "mode": "wire" },
     "modules": [
       { "id": "m1", "kind": "source", "title": "Meteors", "ref": "meteors", "code": "…", "params": { "speed": 40 } },
       { "id": "m2", "kind": "source", "title": "Clouds", "ref": "clouds", "code": "…", "params": {}, "as": "input" },
@@ -279,6 +307,9 @@ has alpha × level, `max` keeps the brighter channel, `multiply` tints what is b
   override the code's defaults; `enabled: false` skips it; `input` names an earlier source; `as` is only
   `'input'`; `blend` as for layers. A layer with `code` (+ `params`) and no `modules` is a one-source chain and
   renders exactly as before.
+- **Soften** (optional): `{ radius: 0–1.5 m, mode: 'wire' | 'space' | 'both' (default 'wire') }`, a blur at the end
+  of the chain (SPEC "Spatial modules"); radius 0 is none. New layers in the Studio and generated layers get
+  `DEFAULT_SOFTEN`; a layer without it renders as before.
 - **Globals** (all optional): `speed` 0..4 (1), `level` 0..1 (1), `hue` −0.5..0.5 turns (0), `saturation`
   0..2 (1), `energy` 0..1 (0.5); `palette` as role lists (≤ 16 `#rrggbb` each; a bare name from
   `data/palettes.json` is filled in on save; default `chapel`); `macros` ≤ 16, names
@@ -309,7 +340,8 @@ Sequencing lives on the look, xLights-style.
   rule above, so what it saves the API accepts. Under the layers, a lane per automated global (energy, macros):
   click to add a point, drag to move it, double-click to remove it.
 - Composition (`ui/chain.tsx`, `ui/params.tsx`, `ui/shelf.tsx`, `ui/look-globals.tsx`): the selected layer's
-  module chain (kind badge, enable, reorder, delete, a filter's input), shelves of library modules by kind and category, the code editor and
+  module chain (kind badge, enable, reorder, delete, a filter's input), its Soften row (radius and mode; new layers
+  start at `DEFAULT_SOFTEN`), shelves of library modules by kind and category, the code editor and
   params on the selected module (each number param can be modulated), and a Look panel of globals, the palette
   and macros. On a phone: globals and palette in the Look tab; the chain read-only but for enable and params.
 
@@ -360,7 +392,10 @@ code }])`, `prepareScene(rig) → scene` (throws on a malformed rig), `groupsByT
 first), `pixelsForGroups(scene, ids, tags?) → Int32Array` (a layer's rule above), `tagMask(scene, tag) → Uint8Array`,
 `tagCentres(scene, tag) → [[X, Y, Z]]`, `flashRegions(scene) → [{ id, idx | null, large }]` and `LARGE` (Baked
 frames, Checks), `prepareLayer(scene, layer, compiled | compiled[]) → prepared`
-(keeps `normalizeClips(layer.clips)`), `prepareLook({ globals, automation, bpm }, previous?) → look`,
+(keeps `normalizeClips(layer.clips)`; a chain with spatial modules or `soften` gets its stage buffers here),
+`neighbourGraph(scene) → { space, wire }` (each CSR: pixel k's neighbours `nb[off[k]]…nb[off[k + 1] − 1]` at
+distances `d`, nearest first; Int32Array, Int32Array, Float32Array; cached on the scene), `MAX_RADIUS` (1.5),
+`BLUR_MODES`, `DEFAULT_SOFTEN`, `prepareLook({ globals, automation, bpm }, previous?) → look`,
 `renderFrame(scene, preparedLayers, t, out?, look?) → { rgb, errors }` (level × `layerEnvelope`; skips layers at
 0; allocation-free per layer; sets each prepared layer's `ms`, its time this frame), `normalizeGlobals(globals)`, `automationAt(points, t)`, `PALETTE_ROLES`,
 `DEFAULT_PALETTE`, `MODULE_KINDS`, `GLOBALS`,
@@ -459,7 +494,8 @@ groups), and give layers the tags they meant beside the ids. The result is clean
 (`shared/schemas/generated.ts`, zod: ≤ 4 layers,
 known group ids (none known: the root) and tags, code ≤ 20 kB containing `function pixel`, or modules whose code defines their kind's
 function; clips and duration normalised, bad or overlapping clips dropped; `globals` and `automation`
-cleaned, a palette name filled in) before a look is saved and the idea set `ready`. Old single-code layers
+cleaned, a palette name filled in; a layer without a usable `soften` gets `DEFAULT_SOFTEN`) before a look is saved
+and the idea set `ready`. Old single-code layers
 stay valid. Generators may add
 clips and a duration for ideas that describe a progression; most looks have neither.
 

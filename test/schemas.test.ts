@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'vitest';
 import { z } from 'zod';
 
-import { BLENDS, MODULE_KINDS } from '../public/js/pattern-core.ts';
+import { BLENDS, DEFAULT_SOFTEN, MODULE_KINDS } from '../public/js/pattern-core.ts';
 import { Login, Signup } from '../shared/schemas/api.ts';
 import { validateLook, wireSchema } from '../shared/schemas/generated.ts';
 import { automationFor, BLEND_MODES, Globals, KINDS, Layers, problem } from '../shared/schemas/look.ts';
@@ -51,6 +51,16 @@ describe('the API look', () => {
     const big = 'x'.repeat(19 * 1024);
     assert.equal(layers([{ modules: [1, 2, 3, 4].map(() => ({ code: big })) }]),
       "Layer 1: its modules' code is over 64 kB.");
+  });
+
+  test('soften: kept, rounded, its mode defaulted; out of range refused; null is none', () => {
+    const out = layers([{ code: PIXEL, soften: { radius: 0.1234567891 } }, { code: PIXEL, soften: null }]);
+    assert.deepEqual((out as { layers: { soften?: object }[] }).layers.map((l) => l.soften),
+      [{ radius: 0.123457, mode: 'wire' }, undefined]);
+    assert.equal(layers([{ code: PIXEL, soften: { radius: 2 } }]),
+      'Layer 1: soften.radius must be a number of metres from 0 to 1.5.');
+    assert.equal(layers([{ code: PIXEL, soften: { radius: 0.2, mode: 'fog' } }]),
+      'Layer 1: soften.mode must be one of wire, space, both.');
   });
 
   test('globals: a palette by name filled in, colours lower-cased, macros defaulted and rounded', () => {
@@ -120,6 +130,14 @@ describe("a generator's look, cleaned", () => {
     assert.deepEqual(a.params, { color: '#abcdef', rgb: [1, 0.5, 0], on: true, lfo: { mod: 'lfo', rate: 1 } });
     assert.deepEqual(b.modules.map((m) => [m.kind, m.blend]), [['source', undefined], ['filter', undefined],
       ['warp', 'over']]);
+  });
+
+  test('layers soften by default, a given soften held to range; a choice param is a word', () => {
+    const look = validateLook({ layers: [{ code: PIXEL, params: { mode: 'space', bad: 'Not a word!' } },
+      { code: PIXEL, soften: { radius: 7, mode: 'fog' } }, { code: PIXEL, soften: { radius: 0 } }] });
+    assert.deepEqual(look.layers.map((l) => l.soften), [DEFAULT_SOFTEN, { radius: 1.5, mode: 'wire' },
+      { radius: 0, mode: 'wire' }]);
+    assert.deepEqual((look.layers[0] as { params?: object }).params, { mode: 'space' });
   });
 
   test('globals and automation as maps or lists; what the API refuses is dropped and noted', () => {

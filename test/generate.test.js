@@ -22,7 +22,7 @@ describe('validate', () => {
         summary: 'x'.repeat(500),
         layers: [
           goodLayer({ groups: ['spires', 'nope', 'spires'], blend: 'MAXIMUM', level: 7, params: { speed: 0.2,
-            color: '#FF0000', bad: 'x', ['__proto__']: 1 } }),
+            color: '#FF0000', bad: 'not a colour', ['__proto__']: 1 } }),
           goodLayer({ groups: ['nope'], blend: 'sparkle', level: 'loud', title: '' }),
           goodLayer({ groups: 'rose-window' }),
           goodLayer(),

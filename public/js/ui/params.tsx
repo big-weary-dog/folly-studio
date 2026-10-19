@@ -65,6 +65,9 @@ function Control({ name, p, values, set, globals }: { name: string; p: Param; va
       }))}>∿</button></>
     : p.kind === 'color' ? <><input type="color" id={id} class="param-color" value={value as string}
       onInput={(e) => put(e.currentTarget.value)} /><span class="param-hex">{value as string}</span></>
+    : p.kind === 'choice' ? <select id={id} class="param-choice" value={value as string}
+      onChange={(e) => put(e.currentTarget.value)}>
+      {p.options.map((o) => <option value={o}>{humanize(o)}</option>)}</select>
     : <input type="checkbox" id={id} class="switch" checked={value as boolean}
       onChange={(e) => put(e.currentTarget.checked)} />);
   // Unused, the reset keeps its place (hidden), so a slider never narrows under the pointer.

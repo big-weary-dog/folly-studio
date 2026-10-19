@@ -47,6 +47,18 @@ const LOOK = {
   ],
 };
 
+// Blur and soften (SPEC "Spatial modules"): a soft-edged bars layer, and a pinwheel blurred in space by an LFO.
+const BLURRED = {
+  layers: [
+    { id: 'bars', groups: ['arches'], tags: ['arch'], blend: 'add', level: 1, soften: { radius: 0.15, mode: 'wire' },
+      modules: [{ id: 'b', kind: 'source', title: 'Bars', code: lib('bars'), params: { softness: 0 } }] },
+    { id: 'rose', groups: ['rose-window'], tags: ['rose'], blend: 'over', level: 1, modules: [
+      { id: 'p', kind: 'source', title: 'Pinwheel', code: lib('pinwheel') },
+      { id: 'bl', kind: 'filter', title: 'Blur', code: lib('blur'),
+        params: { radius: { mod: 'lfo', rate: 0.5, center: 0.6, depth: 0.3 }, mode: 'both' } }] },
+  ],
+};
+
 /** The look baked here, by the core through renderer.ts, as the Fleet box bakes it. */
 function bakeHere(look, rig = readRig(RIGS.folly)) {
   const ranges = ledRanges(rig), fps = rig.output.fps;
@@ -88,3 +100,12 @@ for (const [name, rigFile] of Object.entries(RIGS)) {
     assert.ok(Buffer.from(parsed.data).equals(Buffer.from(here)), 'the box and the core bake the same bytes');
   });
 }
+
+test('the render box bakes blur and soften to the same bytes as the core here', async ({ skip }) => {
+  skip(!probe.ok, unavailable);
+  const box = createRenderBox({ seconds: SECONDS, rigFile: RIGS.folly, log: quiet });
+  const { bytes } = await box.render({ layers: BLURRED.layers, seconds: SECONDS });
+  const here = bakeHere(BLURRED).data, parsed = parseFseq(bytes);
+  assert.ok(here.some((v) => v > 0));
+  assert.ok(Buffer.from(parsed.data).equals(Buffer.from(here)), 'the box and the core bake the same bytes');
+});

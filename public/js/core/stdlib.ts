@@ -18,6 +18,19 @@ function smoothstep(e0: number, e1: number, x: number) {
   return t * t * (3 - 2 * t);
 }
 
+/** soft(edge, x, width): an anti-aliased step, 0 below edge − width/2 rising smoothly to 1 above edge + width/2. */
+function soft(edge: number, x: number, width = 0) {
+  if (!(width > 0)) return x < edge ? 0 : 1;
+  const t = clamp((x - edge) / width + 0.5);
+  return t * t * (3 - 2 * t);
+}
+
+/** band(x, centre, halfWidth, softness): 1 within halfWidth of centre, 0 beyond, each edge soft over `softness` (a
+ * band narrower than that fades rather than flickering on and off). */
+function band(x: number, centre: number, halfWidth: number, softness = 0) {
+  return soft(centre - halfWidth, x, softness) - soft(centre + halfWidth, x, softness);
+}
+
 function wave(x: number) { return 0.5 + 0.5 * Math.sin(TAU * x); }
 function tri(x: number) { return 1 - Math.abs(2 * (x - Math.floor(x)) - 1); }
 const saw = fract;
@@ -260,7 +273,7 @@ export const STDLIB = Object.freeze({
   PI, TAU, sin: Math.sin, cos: Math.cos, tan: Math.tan, asin: Math.asin, acos: Math.acos, atan: Math.atan,
   atan2: Math.atan2, abs: Math.abs, min: Math.min, max: Math.max, floor: Math.floor, ceil: Math.ceil,
   round: Math.round, sqrt: Math.sqrt, pow: Math.pow, exp: Math.exp, log: Math.log, hypot: Math.hypot, sign: Math.sign,
-  clamp, fract, mix, step, smoothstep, wave, tri, saw, pulse, hash, rand, noise, fbm,
+  clamp, fract, mix, step, smoothstep, soft, band, wave, tri, saw, pulse, hash, rand, noise, fbm,
   hsv, hsl, rgb, hex, scale, add, gradient, cosPalette, pal, palette, centres, beat, dist,
 });
 export const STDLIB_NAMES = Object.freeze(Object.keys(STDLIB));

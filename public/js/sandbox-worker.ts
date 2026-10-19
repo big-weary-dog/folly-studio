@@ -2,7 +2,7 @@
 // Vite builds it with the core into one classic script inside sandbox.html, which starts it as a Worker from a Blob.
 // It exports nothing: it is a script.
 import {
-  type Compiled, compileModule, layerModules, prepareLayer, type PreparedLayer, type PreparedLook,
+  type Compiled, compileModule, layerModules, neighbourGraph, prepareLayer, type PreparedLayer, type PreparedLook,
   prepareLook, prepareScene, renderFrame, type Scene, setLibrary, toChannels,
 } from './pattern-core.ts';
 import type { Extra, ToSandbox } from './runtime.ts';
@@ -22,6 +22,7 @@ const message = (e: unknown) => ((e as Error)?.message || String(e));
 
 function onInit(msg: Message<'init'>) {
   scene = prepareScene(msg.rig);
+  neighbourGraph(scene);                      // for blur and soften: here, in init's budget, not a look's
   setLibrary(msg.library);
   prepared = [];
   compiledByKey.clear();

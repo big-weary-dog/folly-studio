@@ -5,8 +5,8 @@ import { z } from 'zod';
 
 import PALETTES from '../../public/data/palettes.json' with { type: 'json' };
 import {
-  BLENDS, GLOBALS, macroNameOk, MAX_CLIPS, MAX_DURATION, MAX_LANES, MAX_MACROS, MAX_POINTS, MODULE_KINDS,
-  PALETTE_ROLES,
+  BLENDS, BLUR_MODES, GLOBALS, macroNameOk, MAX_CLIPS, MAX_DURATION, MAX_LANES, MAX_MACROS, MAX_POINTS, MAX_RADIUS,
+  MODULE_KINDS, PALETTE_ROLES,
 } from '../../public/js/pattern-core.ts';
 
 export { BLENDS as BLEND_MODES, MODULE_KINDS as KINDS } from '../../public/js/pattern-core.ts';
@@ -114,6 +114,12 @@ export const Modules = z.array(Module, { error: `1–${MAX_MODULES} modules.` })
     });
   });
 
+/** A layer's soften (SPEC "Spatial modules"): a blur at the end of its chain. */
+export const Soften = z.strictObject({
+  radius: num(0, MAX_RADIUS, `soften.radius must be a number of metres from 0 to ${MAX_RADIUS}.`).transform(round),
+  mode: oneOf('soften.mode', BLUR_MODES).default('wire'),
+}, { error: 'soften must be { radius, mode }.' });
+
 /** An array of at most `max` of `item`; every failure says `error`. */
 const list = (item: (error: string) => z.ZodString, max: number, error: string) => z.array(item(error), { error })
   .max(max).default([]);
@@ -123,20 +129,21 @@ const Layer = z.looseObject({
   groups: list((error) => z.string({ error }).min(1).max(64), 64, 'groups must be an array of group ids.'),
   tags: list((error) => z.string({ error }).regex(TAG), 16, 'tags must be an array of at most 16 tags (a-z, 0-9, -).'),
   blend: Blend.default('add'), level: num(0, 1, 'level must be a number from 0 to 1.').default(1),
-  clips: Clips.nullish(),
+  clips: Clips.nullish(), soften: Soften.nullish(),
 }, { error: 'must be an object.' }).superRefine((l, ctx) => {
   const stray = l.code !== undefined || Object.keys(l.params ?? {}).length > 0;
   if (l.modules && stray) ctx.addIssue('a layer has modules or code and params, not both.');
   if (!l.modules && l.code === undefined) {
     ctx.addIssue({ code: 'custom', message: 'code must be a string.', path: ['code'] });
   }
-}).transform(({ id, title, code, params, modules, groups, tags, blend, level, clips, ...flags }) => {
+}).transform(({ id, title, code, params, modules, groups, tags, blend, level, clips, soften, ...flags }) => {
   // Small UI flags the client may add (enabled, solo) are kept; anything bulky is dropped.
   const extra = Object.fromEntries(Object.entries(flags).filter(([k, v]) => k.length <= 64
     && (typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v))
       || (typeof v === 'string' && v.length <= 200))).slice(0, 16));
   return { id, title, ...(modules ? { modules } : { code: code!, params: params ?? {} }), groups,
-    ...(tags.length ? { tags: [...new Set(tags)] } : {}), blend, level, ...(clips?.length ? { clips } : {}), ...extra };
+    ...(tags.length ? { tags: [...new Set(tags)] } : {}), blend, level, ...(clips?.length ? { clips } : {}),
+    ...(soften ? { soften } : {}), ...extra };
 });
 
 /** A look's layers, bottom first (defaults: blend add, level 1, groups [] (the rig's root), ids l1, l2, …). */
@@ -221,6 +228,7 @@ export type Binding = z.infer<typeof Binding>;
 export type ParamValue = z.infer<typeof ParamValue>;
 export type Module = z.infer<typeof Modules>[number];
 export type Layer = z.infer<typeof Layers>[number];
+export type Soften = z.infer<typeof Soften>;
 export type Palette = NonNullable<z.infer<typeof Palette>>;
 export type Globals = NonNullable<z.infer<typeof Globals>>;
 export type Automation = Partial<Record<string, [number, number][]>>;

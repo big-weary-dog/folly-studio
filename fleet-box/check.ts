@@ -67,6 +67,10 @@ if (look.duration != null && !goodDuration) {
 }
 if (layers.length > LIMITS.layers) errors.push(`${layers.length} layers: at most ${LIMITS.layers}`);
 
+// A layer's soften as the studio stores it (generated.ts): its own when it gives a radius, else the default.
+const softenOf = (s: { radius?: unknown, mode?: unknown } | null | undefined) => (typeof s?.radius === 'number'
+  && Number.isFinite(s.radius) ? { radius: Math.round(Math.min(core.MAX_RADIUS, Math.max(0, s.radius)) * 1000) / 1000,
+    mode: core.BLUR_MODES.includes(s.mode as Core.BlurMode) ? s.mode : 'wire' } : core.DEFAULT_SOFTEN);
 const prepared: Core.PreparedLayer[] = [];
 let scene: Core.Scene;
 try { scene = core.prepareScene(rig); } catch (e) { fail(`the runtime could not read the rig: ${why(e)}`); }
@@ -118,6 +122,7 @@ layers.slice(0, LIMITS.layers).forEach((layer: any, i: number) => {
     blend: BLENDS.includes(layer.blend) ? layer.blend : 'add', level: typeof layer.level === 'number' ? layer.level : 1,
     ...(chain ? { modules: layer.modules } : { code: layer.code,
       params: layer.params && typeof layer.params === 'object' ? layer.params : {} }), ...(clips ? { clips } : {}),
+    soften: softenOf(layer.soften),
   };
   let compiled;
   try { compiled = core.compileLayer(l); } catch (e) { return errors.push(`${name}: does not compile: ${why(e)}`); }

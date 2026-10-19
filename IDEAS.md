@@ -10,7 +10,8 @@ From the first design notes, now built (the DESIGN.md section in brackets):
 
 - The rig file: any installation, a tagged group tree, proven on a fictional rig too (§9).
 - Pattern code: space three ways, polar on the façade, along the wire, structure fields (§3).
-- Module chains, globals, palette roles from `td/palettes`, modulation, automation lanes; a library of 58 (§4).
+- Module chains, globals, palette roles from `td/palettes`, modulation, automation lanes; a library of 59 (§4).
+- Blur and soften: a native spatial filter on the rig's neighbours, soft edges by default (§4).
 - The timeline: clips with fades on show time, importing looks to sequence them (§5).
 - The sandboxed preview, the render box, curator review of baked frames, the flash checks and guard (§6).
 - Sparse `.fseq`, streamed frames, compressed downloads, `tools/sacn-play.ts`, the Mirage match (§7, §8).

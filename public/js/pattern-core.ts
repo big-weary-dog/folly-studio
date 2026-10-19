@@ -15,7 +15,8 @@ export type { Region, Scene } from './core/scene.ts';
 export {
   DEFAULT_DURATION, layerEnvelope, lookDuration, MAX_CLIPS, MAX_DURATION, MIN_DURATION, normalizeClips,
 } from './core/timeline.ts';
-export {
-  BLENDS, compileLayer, layerModules, MODULE_KINDS, prepareLayer, renderFrame, toChannels,
-} from './core/render.ts';
+export { BLENDS, compileLayer, layerModules, MODULE_KINDS, prepareLayer, renderFrame } from './core/render.ts';
+export { toChannels } from './core/output.ts';
+export { BLUR_MODES, DEFAULT_SOFTEN, MAX_RADIUS, neighbourGraph } from './core/spatial.ts';
+export type { BlurMode, Neighbours } from './core/spatial.ts';
 export type { Blend, LayerInput, ModuleKind, Pixel, PreparedLayer } from './core/render.ts';
