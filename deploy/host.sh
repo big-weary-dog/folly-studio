@@ -52,10 +52,6 @@ Description=Folly Studio ($studio)
 WorkingDirectory=$studio
 EnvironmentFile=$env_file
 Environment=PATH=$(dirname "$node"):$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin
-# A bake's task limit is RLIMIT_NPROC, which counts every process of this account (a fleet's too): TasksMax caps
-# the studio's own, bakes included, instead. The env file may still set STUDIO_BAKE_TASKS.
-Environment=STUDIO_BAKE_TASKS=16384
-TasksMax=1024
 ExecStart=$node server.ts
 Restart=on-failure
 RestartSec=5

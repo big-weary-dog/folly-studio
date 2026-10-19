@@ -64,9 +64,8 @@ What was checked on this machine (WSL 2.4, NAT networking, `systemd=true` in `/e
   connection waits for the fallback (0.2 s here). Point the tunnel at `127.0.0.1`, not `localhost`.
 - A program on Windows that listens on the same port wins over WSL's forwarding: a studio started from Windows
   (`npm start` in a Windows checkout) hides the WSL one. `npm run host` checks this and fails if so.
-- Bakes run in the service. The render box caps a bake's tasks with RLIMIT_NPROC, which counts every process of
-  the account; with a fleet running as the same user that is already past the default 256, so the unit raises
-  `STUDIO_BAKE_TASKS` and caps the whole service with `TasksMax=1024` (systemd's pids controller) instead.
+- Bakes run in the service, each in its own systemd user scope, so a bake's task and memory caps count that bake
+  alone, not the fleets running as the same user.
 
 ### Owner, once (in WSL)
 
@@ -75,6 +74,9 @@ What was checked on this machine (WSL 2.4, NAT networking, `systemd=true` in `/e
    ```sh
    git clone https://github.com/big-weary-dog/show-builder.git ~/folly-studio
    ```
+
+   Until `studio/` is on main, check out its branch:
+   `git -C ~/folly-studio checkout --detach origin/ccr-c0df4e5c-e6amkz`.
 
 2. The settings (the [Environment](#environment) below): `mkdir -p ~/.config/folly-studio`, then
    `nano ~/.config/folly-studio/studio.env && chmod 600 ~/.config/folly-studio/studio.env`.
