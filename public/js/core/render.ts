@@ -6,6 +6,7 @@ import { type Compiled, compileModule, describeError } from './compile.ts';
 import { applyMods, finish, lookFrame, paramMods, prepareLook, resolveParams } from './globals.ts';
 import type { G, PreparedLook, Values } from './globals.ts';
 import { composite } from './output.ts';
+import { layerRoles, PICKS, type Picks, prepareRemap, ROLE_SLOTS } from './picks.ts';
 import { pixelsForGroups, type Scene, tagMask } from './scene.ts';
 import { blur, BLUR_MODES, blurState } from './spatial.ts';
 import { clamp, hex, isNum, RUN, TAU } from './stdlib.ts';
@@ -23,7 +24,7 @@ const isBlend = (b: unknown): b is Blend => BLENDS.includes(b as Blend);
 /** A layer as the core takes one (SPEC "Looks"), any field missing; code and params: a one-source chain. */
 export type LayerInput = Partial<{ id: string, title: string, code: string, params: Record<string, unknown>,
   modules: Partial<Module>[], groups: string[], tags: string[], blend: string, level: number, clips: unknown,
-  enabled: boolean, soften: unknown }>;
+  enabled: boolean, soften: unknown, palette: unknown }>;
 
 /** A layer's modules, or its own code and params as one source (looks before chains). */
 export function layerModules(layer?: LayerInput | null): Partial<Module>[] {
@@ -50,9 +51,10 @@ export function compileLayer(layer?: LayerInput | null) {
 
 /** The runnable chain: enabled modules with their function, params, bindings, blend, input (index or −1). */
 type Fn = (...a: unknown[]) => unknown;
+// keep: a source's colours for a filter in a later stage (SPEC "Spatial modules"); picks: its colours.
 type Link = { id: string | null, title: string, kind: number, fn: Fn, frame: Compiled['frame'] | null, P: Values,
-  mods: ReturnType<typeof paramMods>, blend: number, hidden: boolean, input: number, out: number[],
-  keep: Float64Array | null };     // keep: a source's colours for a filter in a later stage (SPEC "Spatial modules")
+  mods: ReturnType<typeof paramMods>, picks: Picks | null, blend: number, hidden: boolean, input: number,
+  out: number[], keep: Float64Array | null };
 function prepareChain(layer: LayerInput | null | undefined, compiled: Compiled | readonly (Compiled | null)[]) {
   const modules = layerModules(layer);
   const list = Array.isArray(compiled) ? compiled : [compiled];
@@ -71,8 +73,10 @@ function prepareChain(layer: LayerInput | null | undefined, compiled: Compiled |
     if (kind === SOURCE && !hidden) shown++;
     const input = kind === FILTER ? at.get(m.input) ?? -1 : -1;
     if (kind === SOURCE) at.set(m.id, chain.length);
+    const P = resolveParams(c.params, m.params);
+    c.picks?.bind(c.params, m.params, P);
     chain.push({ id: m.id ?? null, title: m.title || m.id || '', kind, fn, frame: c.frame || null,
-      P: resolveParams(c.params, m.params), mods: paramMods(c.params, m.params), blend, hidden, input,
+      P, mods: paramMods(c.params, m.params, c.picks?.rot), picks: c.picks || null, blend, hidden, input,
       out: [0.5, 0, 0, 0], keep: null });
   }
   return chain;
@@ -86,8 +90,8 @@ function prepareStages(S: Scene, layer: LayerInput | null | undefined, chain: Li
   const s = layer?.soften as { radius?: unknown, mode?: unknown } | null | undefined;
   if (s && typeof s === 'object' && Number(s.radius) > 0) {
     const mode = BLUR_MODES.includes(s.mode as never) ? s.mode as string : 'wire';
-    chain.push({ id: null, title: 'Soften', kind: SPATIAL, fn: (c) => c, frame: null, mods: [], blend: OVER,
-      P: { radius: Number(s.radius), mode, amount: 1 }, hidden: false, input: -1,
+    chain.push({ id: null, title: 'Soften', kind: SPATIAL, fn: (c) => c, frame: null, mods: [], picks: null,
+      blend: OVER, P: { radius: Number(s.radius), mode, amount: 1 }, hidden: false, input: -1,
       out: [0, 0, 0, 0], keep: null });
   }
   if (!chain.some((M) => M.kind === SPATIAL)) return null;
@@ -278,6 +282,7 @@ export function prepareLayer(scene: Scene, layer: LayerInput | null | undefined,
   compiled: Compiled | readonly (Compiled | null)[]) {
   if (!compiled) throw new Error('prepareLayer: layer is not compiled');
   const chain = prepareChain(layer, compiled);
+  const remap = prepareRemap(layer?.palette);       // its roles (SPEC "Palettes")
   const idx = pixelsForGroups(scene, layer?.groups, layer?.tags);
   const m = idx.length;
   let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
@@ -314,6 +319,7 @@ export function prepareLayer(scene: Scene, layer: LayerInput | null | undefined,
     chain, modular: Array.isArray(layer?.modules), failed: null as string | null,
     blend: isBlend(layer?.blend) ? layer.blend : 'add', level: isNum(layer?.level) ? clamp(layer.level) : 1,
     clips: normalizeClips(layer?.clips), enabled: layer?.enabled !== false,
+    remap, remapMods: remap ? paramMods(ROLE_SLOTS, layer?.palette, remap.rot) : [],
     p: makePixel(scene), c: [0.5, 0, 0, 0],
     buf: new Float64Array(m * 4), ms: 0, stages: prepareStages(scene, layer, chain, idx),
   };
@@ -347,15 +353,19 @@ export function renderFrame(scene: Scene, layers: readonly (PreparedLayer | null
     if (!(level > 0)) continue;
     const t0 = clock();
     RUN.extent = L.extent;
+    if (L.remapMods.length) applyMods(L.remapMods, L.remap!.rot, t, env, LK);
+    PICKS.roles = layerRoles(L.remap);
     for (let i = 0; i < L.chain.length; i++) {
       const M = L.chain[i];
       if (M.mods.length) applyMods(M.mods, M.P, t, env, LK);
+      if (M.picks) M.picks.frame();
     }
     const err = L.stages ? runStaged(scene, L, T, G, L.stages) : runChain(scene, L, T, G);
     if (err) errors.push(L.modular ? { id: L.id, module: L.failed, error: err } : { id: L.id, error: err });
     else composite(rgb, L, level);
     L.ms = clock() - t0;
   }
+  PICKS.roles = null;
   finish(rgb, N * 3, LK);
   return { rgb, errors };
 }

@@ -1,11 +1,14 @@
-// The selected layer's settings: its name and groups, its module chain (SPEC "Modules": a row per module with its
-// kind, name, state, enable, reorder, delete, and how a source combines or which input a filter reads; phones: enable
-// and select only), its Soften row, the selected module's name and its params.
+// The selected layer's settings: its name, groups and colours (its roles remapped, SPEC "Palettes"), its module chain
+// (SPEC "Modules": a row per module with its kind, name, state, enable, reorder, delete, and how a source combines or
+// which input a filter reads; phones: enable and select only), its Soften row, the selected module's name and its
+// params.
 import type { Module } from '../../../shared/schemas/look.ts';
 import type { LibraryEntry } from '../../../shared/schemas/rig.ts';
+import { DEFAULT_PALETTE } from '../core/stdlib.ts';
 import { cx, Field, toast } from './kit.tsx';
 import { BLEND_MODES, KIND_LABELS, makeModule, moduleFromLibrary } from './model.ts';
 import { ParamsPanel } from './params.tsx';
+import { LayerColours } from './picks.tsx';
 import type { Preview } from './preview.ts';
 import { SoftenRow } from './soften.tsx';
 import type { Studio } from './studio-store.ts';
@@ -32,6 +35,9 @@ export function ChainPane({ st, pv }: Props) {
         <Field label="Plays on" class="plays-on">{l ? st.groupNames(l.groups) : '—'}
           <button type="button" class="btn small ghost narrow-only" onClick={() => st.setTab('groups')}>Change</button>
         </Field>
+        {l && <LayerColours colours={{ palette: st.look.value.globals?.palette ?? DEFAULT_PALETTE, remap: l.palette }}
+          narrow={st.narrow.value} set={(p) => st.editLayer(l.id, () => ({ palette: Object.keys(p).length ? p
+            : undefined }))} />}
         <div class="chain-host"><Chain st={st} pv={pv} /></div>
         <SoftenRow st={st} l={l} />
         <Field label="Module name" class="module-title-field">{(id) => <><input type="text" id={id}

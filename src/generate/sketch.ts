@@ -1,11 +1,12 @@
-// sketch: the offline generator. Picks one to three library patterns by keywords in the idea,
-// maps colour words to colour params and place words to the rig's tagged groups (SPEC "Rig"). Deterministic, instant,
-// free.
+// sketch: the offline generator. Picks one to three library patterns by keywords in the idea, colour words to the
+// nearest palette and its swatches (sketch-colours.ts) for colour params or a layer's roles, and place words to the
+// rig's tagged groups (SPEC "Rig"). Deterministic, instant, free.
 // Library code is only read as text here (params are parsed with regexes, never evaluated).
 
 import WORDS from './sketch-words.json' with { type: 'json' };
 import { cleanText, LIMITS } from '../../shared/schemas/generated.ts';
 import type { LibraryEntry, RigGroup } from '../../shared/schemas/rig.ts';
+import { choosePalette, remapFor, slotFor } from './sketch-colours.ts';
 
 type Pattern = Pick<LibraryEntry, 'name' | 'code'> & Partial<LibraryEntry>;
 
@@ -330,7 +331,7 @@ export function sketchLook({ text = '', library = [], groups = [] }: { text?: st
     const loose = list.filter((x) => !patternClauses.has(clauseOf(x.at)));
     return { list: loose.length ? loose : chosen.length === 1 ? list : [], own: false };
   };
-  const allColours = [...new Set(colourAt.map((c) => c.hex))];
+  const allColours = [...new Set(colourAt.map((c) => c.hex))], palette = choosePalette(allColours);
   const placeOf = (c: Chosen) => c.groups.map((id) => gi.byId.get(id)?.name || id).join(', ');
   const bpm = Number(/(\d{2,3})\s*bpm/.exec(lower)?.[1]) || 0;
 
@@ -347,9 +348,9 @@ export function sketchLook({ text = '', library = [], groups = [] }: { text?: st
     // Colours: one named next to a param ("white beam", "navy sky") goes there; one set "on" or
     // "over" something goes to a background param; the rest fill the remaining colour params in
     // order, only as many as there are colours, so the pattern keeps its contrast.
-    const { list: mentions, own } = scoped(colourAt, c);
+    const { list: mentions, own: here } = scoped(colourAt, c);
     const unique = mentions.filter((m, i) => mentions.findIndex((x) => x.hex === m.hex) === i);
-    const free = Object.entries(decl).filter(([, d]) => d.type === 'color').map(([n]) => n);
+    const free = Object.entries(decl).filter(([, d]) => d.type === 'color').map(([n]) => n), own = free.length;
     const take = (pred: (n: string) => boolean) => {
       const i = free.findIndex(pred);
       return i < 0 ? null : free.splice(i, 1)[0]!;
@@ -362,26 +363,34 @@ export function sketchLook({ text = '', library = [], groups = [] }: { text?: st
         return b.length >= 3 && (a === b || a.startsWith(b) || b.startsWith(a));
       };
       const bg = (n: string) => /^(base|bg|back|sky|sea|low|bed|ground|dark|night|deep)/i.test(n);
-      const behind = /^(on|over|against|behind|into)$/.test(m.prev || '')
-        || /^(background|backdrop|sky|base|bed)$/.test(m.next || '');
-      const name = take(near) || (behind ? take(bg) : null);
-      if (name) params[name] = m.hex;
+      const name = take(near) || (behind(m) ? take(bg) : null);
+      if (name) params[name] = slotFor(m.hex, palette);
       else rest.push(m.hex);
     }
-    const shift = own ? 0 : li;
-    for (let k = 0; k < rest.length && free.length; k++) params[free.shift()!] = rest[(k + shift) % rest.length]!;
+    const shift = here ? 0 : li;
+    for (let k = 0; k < rest.length && free.length; k++) {
+      params[free.shift()!] = slotFor(rest[(k + shift) % rest.length]!, palette);
+    }
+    // A pattern that reads the palette, not colour params, hears them through its layer's roles.
+    const remap = own || !/\b(?:pal|palette|swatch)\(/.test(c.pattern.code) ? undefined
+      : remapFor(unique.map((m) => ({ hex: m.hex, behind: behind(m) })), palette);
     const where = whole(c) ? '' : ` · ${placeOf(c)}`;
     const title = cleanText(`${c.pattern.title || c.pattern.name || 'Pattern'}${where}`, LIMITS.layerTitle);
     return { title, groups: c.groups, tags: c.tags, blend: li === 0 ? 'add' : 'max', level: 1, params,
-      code: c.pattern.code };
+      code: c.pattern.code, ...(remap ? { palette: remap } : {}) };
   });
 
   const named = allColours.map(colourName).filter(Boolean);
   const what = chosen.map((c) => `${c.pattern.title || c.pattern.name} on ${placeOf(c)}`).join('; ');
   const summary = `Sketched from the pattern library: ${what}${named.length ? `, in ${named.join(', ')}` : ''}. `
     + 'This is a quick keyword match; an AI generator can do much better.';
-  return { title: makeTitle(raw), summary: cleanText(summary, LIMITS.summary), layers };
+  return { title: makeTitle(raw), summary: cleanText(summary, LIMITS.summary), layers,
+    ...(palette ? { globals: { palette: palette.name } } : {}) };
 }
+
+/** A colour set "on" or "behind" something, or naming a background: the bed's. */
+const behind = (m: { prev?: string, next?: string }) => /^(on|over|against|behind|into)$/.test(m.prev || '')
+  || /^(background|backdrop|sky|base|bed)$/.test(m.next || '');
 
 const clampTo = (v: number, d: Declared) => Math.min(d.max ?? Infinity, Math.max(d.min ?? -Infinity, v));
 const round = (x: number) => Math.round(x * 1000) / 1000;

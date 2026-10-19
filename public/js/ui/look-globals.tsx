@@ -67,8 +67,8 @@ export function GlobalsPanel({ st, palettes }: { st: Studio; palettes: Palette[]
           }}>
           <option value="">Default (chapel)</option>
           {palettes.map((p) => <option value={p.name}>{humanize(p.name)}</option>)}</select>}</Field>
-        {PALETTE_ROLES.map((r: string) => <Field label={humanize(r)}>{(pal?.[r as 'low'] || []).map((c) =>
-          <span class="swatch" title={c} style={{ backgroundColor: c }} />)}</Field>)}
+        {PALETTE_ROLES.map((r: string) => <Field label={humanize(r)}>{(pal?.[r as 'low'] || []).map((c, i) =>
+          <span class="swatch" title={`${r}${i + 1} · ${c}`} style={{ backgroundColor: c }} />)}</Field>)}
       </section>
       <section class="globals-macros" aria-label="Macros">
         <div class="globals-h-row"><h3 class="globals-h">Macros</h3>

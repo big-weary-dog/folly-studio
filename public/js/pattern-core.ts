@@ -4,6 +4,8 @@
 export { DEFAULT_PALETTE, PALETTE_ROLES, STDLIB, STDLIB_NAMES } from './core/stdlib.ts';
 export type { Colour, PaletteColours, PaletteHex, PaletteRole, RGB } from './core/stdlib.ts';
 export { compileModule, compilePattern, describeError, normalizeParams, setLibrary } from './core/compile.ts';
+export { pickText, readPick } from './core/picks.ts';
+export type { PickBlend, PickSpec } from './core/picks.ts';
 export type { Compiled, ParamSchema, ParamSpec } from './core/compile.ts';
 export {
   automationAt, GLOBALS, isBinding, macroNameOk, MAX_LANES, MAX_MACROS, MAX_POINTS, normalizeGlobals, prepareLook,

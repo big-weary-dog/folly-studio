@@ -4,7 +4,7 @@ import type { Binding, ParamValue } from '../../../shared/schemas/look.ts';
 import { humanize } from './kit.tsx';
 
 export interface Param { kind: 'number' | 'color' | 'toggle' | 'choice'; value: number | string | boolean;
-  label: string; min: number; max: number; step: number; options: string[] }
+  label: string; min: number; max: number; step: number; options: string[]; blend?: 'smooth' | 'step' }
 type Shape = NonNullable<Extract<Binding, { mod: 'lfo' }>['shape']>;
 export type BindingForm = { mod: '' | Binding['mod']; shape: Shape; rate: string; unit: string; center: string;
   depth: string; name: string; from: string; to: string; eFrom: string; eTo: string };
@@ -28,7 +28,10 @@ export function normaliseParam(key: string, raw: unknown): Param | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>, label = typeof r.label === 'string' ? r.label : humanize(key), v = r.value;
   const base = { label, min: 0, max: 1, step: 1, options: [] };
-  if (r.type === 'color') return { ...base, kind: 'color', value: toHex(v) };
+  if (r.type === 'color') {
+    return { ...base, kind: 'color', value: typeof v === 'string' ? v : toHex(v),
+      ...(r.blend === 'smooth' || r.blend === 'step' ? { blend: r.blend } : {}) };
+  }
   if (r.type === 'toggle') return { ...base, kind: 'toggle', value: !!v };
   if (r.type === 'choice' && Array.isArray(r.options) && r.options.length) {
     const options = r.options.map(String);

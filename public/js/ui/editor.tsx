@@ -127,7 +127,8 @@ const STDLIB: [string, string[][]][] = [
     ['hsv(h, s, v)', ''], ['hsl(h, s, l)', ''], ['rgb(r, g, b)', ''], ["hex('#rrggbb')", ''],
     ['scale(c, k)', ''], ['add(c1, c2)', ''], ['gradient(t, [c0, c1, …])', ''],
     ['cosPalette(t, a, b, c, d)', 'Inigo Quilez palettes'],
-    ['pal(role, t)', "the look's palette: 'low' 'body' 'accent' 'high'"], ['palette(t)', 'all of it, low to high'],
+    ['pal(name, t)', "along a colour param's pick, or a role: 'low' 'body' 'accent' 'high'"],
+    ['swatch(name, i)', 'its i-th colour, wrapping'], ['palette(t)', 'the palette, low to high'],
   ]],
   ['Composing', [
     ['use(name, params?)', 'a library source as (p, t) → colour; call it at the top'],

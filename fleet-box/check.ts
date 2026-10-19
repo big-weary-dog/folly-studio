@@ -123,6 +123,7 @@ layers.slice(0, LIMITS.layers).forEach((layer: any, i: number) => {
     ...(chain ? { modules: layer.modules } : { code: layer.code,
       params: layer.params && typeof layer.params === 'object' ? layer.params : {} }), ...(clips ? { clips } : {}),
     soften: softenOf(layer.soften),
+    ...(layer.palette && typeof layer.palette === 'object' ? { palette: layer.palette } : {}),
   };
   let compiled;
   try { compiled = core.compileLayer(l); } catch (e) { return errors.push(`${name}: does not compile: ${why(e)}`); }
