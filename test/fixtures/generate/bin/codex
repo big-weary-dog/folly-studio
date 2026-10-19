@@ -1,0 +1,36 @@
+#!/usr/bin/env node
+// Stands in for the Codex CLI in the codex adapter's tests and the smoke check: `codex exec … -o <file> -`, no network.
+// It reads the prompt from stdin, logs its arguments to CODEX_FAKE_LOG (a JSON line), and per CODEX_FAKE_MODE:
+// ok (default) writes a look to the -o file; slow does so after CODEX_FAKE_DELAY ms; bad writes something not JSON;
+// fail exits 2; huge writes a 600 KB answer; flood floods stdout; hang starts a child (its pid to CODEX_FAKE_PIDS)
+// and waits forever.
+import { spawn } from 'node:child_process';
+import { appendFileSync, writeFileSync } from 'node:fs';
+
+const args = process.argv.slice(2), mode = process.env.CODEX_FAKE_MODE || 'ok';
+const after = (flag) => args[args.indexOf(flag) + 1];
+let prompt = '';
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', (d) => { prompt += d; });
+process.stdin.on('end', async () => {
+  if (process.env.CODEX_FAKE_LOG) {
+    appendFileSync(process.env.CODEX_FAKE_LOG, `${JSON.stringify({ args, cwd: process.cwd(), prompt: prompt.length,
+      idea: /<idea>\n([^]*?)\n<\/idea>/.exec(prompt)?.[1] ?? null, env: Object.keys(process.env).sort() })}\n`);
+  }
+  const out = after('-o');
+  const look = { title: 'Codex sky', summary: 'Blue light drifting.', duration: null, globals: null, automation: null,
+    layers: [{ title: 'Sky', groups: ['cathedral'], tags: [], blend: 'add', level: 1, clips: null, modules: null,
+      code: 'function pixel(p, t) {\n  return [0.1, 0.3 + 0.2 * wave(p.ly - t * 0.1), 1];\n}\n' }] };
+  if (mode === 'fail') { process.stderr.write('error: the model is not available\n'); process.exit(2); }
+  if (mode === 'bad') writeFileSync(out, 'Here is your look: it is lovely.');
+  if (mode === 'huge') writeFileSync(out, JSON.stringify({ ...look, summary: 'x'.repeat(600 * 1024) }));
+  if (mode === 'flood') for (let i = 0; i < 64; i++) process.stdout.write('.'.repeat(64 * 1024));
+  if (mode === 'hang') {
+    const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
+    writeFileSync(process.env.CODEX_FAKE_PIDS, `${process.pid} ${child.pid}`);
+    setInterval(() => {}, 1000);
+    return;
+  }
+  if (mode === 'slow') await new Promise((r) => setTimeout(r, Number(process.env.CODEX_FAKE_DELAY) || 200));
+  if (mode === 'ok' || mode === 'slow') writeFileSync(out, JSON.stringify(look));
+});

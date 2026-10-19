@@ -29,6 +29,9 @@ export const IdeaBody = z.object({
   text: z.string({ error: 'Describe the idea in 3–2000 characters.' }).trim()
     .min(3, { error: 'Describe the idea in 3–2000 characters.' })
     .max(2000, { error: 'Describe the idea in 3–2000 characters.' }),
+  /** A model id (shared/schemas/models.ts); none: the registry's default. */
+  model: z.string({ error: 'model must name one of the models.' })
+    .max(32, { error: 'model must name one of the models.' }).optional(),
 });
 
 /** POST /api/looks. `automation` is checked against the look's globals (automationFor). */
@@ -53,13 +56,18 @@ export const LooksQuery = z.object({
 
 // What the API answers with (it never reads these back): an account, the flash check's settings, an idea, a look as
 // lists and GET show it.
-export type User = { id: string, username: string, role: 'member' | 'curator' };
+export type User = { id: string, username: string, role: 'member' | 'curator' | 'admin' };
 /** GET /api/me's `flash`: whether the flash check runs here, and its limits (SPEC "Baked frames" > Checks). */
 export type FlashSettings = { check: boolean, perSecond: number, delta: number, darker: number, area: number };
 /** A curator's approval of a look whose bake fails the flash check: why, who, when. */
 export type FlashOverride = { reason: string, by: string, at: string };
+/** Where a generation's time went, in ms: in the queue, building the prompt, the model's request, parsing. */
+export type Timing = { wait: number, prompt: number, request: number, parse: number, total: number };
+/** `model`: the model asked for; `generator`: the one that made the look (a fallback's, if it took over); `by`: its
+ * label as shown ("by <label>"). */
 export type Idea = { id: string, owner: string, text: string, status: 'queued' | 'generating' | 'ready' | 'failed',
-  generator: string, lookId?: string, error?: string | null, createdAt: string, updatedAt: string };
+  model?: string, generator: string, by?: string, timing?: Timing, lookId?: string, error?: string | null,
+  createdAt: string, updatedAt: string };
 export type LookCreate = z.input<typeof LookCreate>;
 export type LookPatch = z.input<typeof LookPatch>;
 /** A look as lists show it: what a card needs, no layers or code. */

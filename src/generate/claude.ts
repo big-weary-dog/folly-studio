@@ -1,6 +1,7 @@
 // claude: one Messages API call turns an idea into a look. Plain fetch, streamed so a long answer never
 // sits on an idle connection, with structured output so the reply is the look's JSON (the schema is the generated
-// look's, shared/schemas/generated.ts). The big static system prompt is cached; the idea goes only in the user turn.
+// look's, shared/schemas/generated.ts). The big static system prompt is cached, built once per library and rig (the
+// queue's ctx.prompt) and byte for byte the same on every call; the idea goes only in the user turn.
 
 import { GenerateError, wireSchema } from '../../shared/schemas/generated.ts';
 import type { Logger } from '../http.ts';
@@ -45,15 +46,15 @@ export function createClaudeAdapter(o: Options = {}) {
   };
   if (!EFFORTS.has(cfg.effort)) cfg.effort = 'medium';
 
-  async function generate({ text, library = [], rig, groups = rig?.groups || [] }: Context) {
+  async function generate({ text, library = [], rig, groups = rig?.groups || [], prompt, signal }: Context) {
     if (!cfg.apiKey) {
       throw new GenerateError('The AI generator is not configured on this server.', 'no ANTHROPIC_API_KEY');
     }
-    const { body, headers } = buildRequest({ text, library, rig, groups });
+    const { body, headers } = buildRequest({ text, library, rig, groups, prompt });
     let message;
     for (let attempt = 1; ; attempt++) {
       try {
-        message = await callOnce(body, headers);
+        message = await callOnce(body, headers, signal);
         break;
       } catch (err) {
         if (err instanceof ApiError && err.retryable && attempt < 2) {
@@ -67,12 +68,14 @@ export function createClaudeAdapter(o: Options = {}) {
     return readLook(message);
   }
 
-  function buildRequest({ text, library, rig, groups }: Pick<Context, 'text' | 'library' | 'rig' | 'groups'>) {
+  function buildRequest({ text, library, rig, groups, prompt }: Pick<Context, 'text' | 'library' | 'rig' | 'groups'>
+    & Partial<Pick<Context, 'prompt'>>) {
+    const { system, schema } = prompt?.() ?? { system: buildSystemPrompt({ library, rig, groups }),
+      schema: wireSchema(groups) };
     const body: Record<string, unknown> = {
       model: cfg.model, max_tokens: cfg.maxTokens, stream: true, thinking: { type: 'adaptive' },
-      output_config: { effort: cfg.effort, format: { type: 'json_schema', schema: wireSchema(groups) } },
-      system: [{ type: 'text', text: buildSystemPrompt({ library, rig, groups }),
-        cache_control: { type: 'ephemeral' } }],
+      output_config: { effort: cfg.effort, format: { type: 'json_schema', schema } },
+      system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: buildUserMessage(text) }],
     };
     const headers: Record<string, string> = { 'content-type': 'application/json', 'x-api-key': cfg.apiKey!,
@@ -84,9 +87,11 @@ export function createClaudeAdapter(o: Options = {}) {
     return { body, headers };
   }
 
-  async function callOnce(body: object, headers: Record<string, string>) {
+  async function callOnce(body: object, headers: Record<string, string>, stop?: AbortSignal) {
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), cfg.timeoutMs);
+    const onStop = () => ac.abort();
+    stop?.addEventListener('abort', onStop, { once: true });
     try {
       const init = { method: 'POST', headers, body: JSON.stringify(body), signal: ac.signal };
       const res = await cfg.fetch(`${cfg.baseUrl}/v1/messages`, init).catch((err) => {
@@ -106,6 +111,7 @@ export function createClaudeAdapter(o: Options = {}) {
       }
     } finally {
       clearTimeout(timer);
+      stop?.removeEventListener('abort', onStop);
     }
   }
 
@@ -201,18 +207,22 @@ function readLook(message: Message) {
   const candidates = [texts(0)];
   if (lastFallback >= 0) candidates.push(texts(lastFallback + 1));
   for (const t of candidates) {
-    const look = parseJson(t);
-    if (look && typeof look === 'object' && !Array.isArray(look)) {
-      const { title, summary, duration, globals, automation, layers } = look;
-      return { title, summary, duration, globals, automation, layers };
-    }
+    const look = pickLook(parseJson(t));
+    if (look) return look;
   }
   const detail = `unparseable output, stop_reason ${stop}`;
   throw new GenerateError('The AI returned a look the studio could not read.', detail);
 }
 
+/** A look's fields from a parsed answer; null when it is not an object. The codex adapter reads its answer so too. */
+export function pickLook(look: unknown) {
+  if (!look || typeof look !== 'object' || Array.isArray(look)) return null;
+  const { title, summary, duration, globals, automation, layers } = look as Record<string, unknown>;
+  return { title, summary, duration, globals, automation, layers };
+}
+
 /** JSON from text, or from its outermost {…} when something surrounds it; null when neither parses. */
-function parseJson(text: string) {
+export function parseJson(text: string): unknown {
   const t = String(text || '').trim();
   for (const candidate of [t, t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)]) {
     try {

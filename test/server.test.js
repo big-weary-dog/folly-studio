@@ -236,7 +236,7 @@ describe('server', () => {
       const idea = a.json.idea;
       assert.equal(idea.text, 'Coral reef in the arches');
       assert.equal(idea.status, 'queued');
-      assert.equal(idea.generator, 'test');
+      assert.deepEqual([idea.model, idea.generator, idea.by], ['sketch', 'sketch', 'Sketch'], 'no key, no codex');
       assert.equal(idea.owner, alice.user.id);
       assert.ok(idea.id && idea.createdAt && idea.updatedAt);
       assert.equal(app.queue.enqueued.length, queued0 + 1);

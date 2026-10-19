@@ -178,7 +178,7 @@ describe('fleet (experimental, stub CLI)', () => {
     const done = store.ideas.get(idea.id);
     assert.equal(done.status, 'ready', done.error);
     const look = store.looks.get(done.lookId);
-    assert.equal(look.bake.source, 'fleet-box');
+    assert.deepEqual([look.bake.source, look.chain], ['fleet-box', 2]);   // the one rule, as every transport
     assert.equal(look.bake.ok, true);
     assert.equal(look.bake.layersHash, layersHash(look.layers));
     assert.deepEqual(fs.readFileSync(path.join(framesDir, `${look.id}.fseq`)), frames);

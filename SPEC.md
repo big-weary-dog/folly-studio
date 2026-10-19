@@ -30,16 +30,18 @@ file), edit it, and export it toward the real installation.
 ```
 studio/
   SPEC.md  README.md  DESIGN.md  IDEAS.md  package.json (+ lock)  tsconfig.json  vite.config.js  server.ts
-  src/            server (Fastify): app.ts (createServer) api.ts api-looks.ts http.ts (plumbing) auth.ts store.ts
+  src/            server (Fastify): app.ts (createServer) api.ts api-looks.ts api-models.ts http.ts (plumbing) auth.ts
+                  store.ts
                   static.ts (serves dist/: headers, precompressed copies, ETags)  core-script.ts (the core for the boxes)
-                  generate/{index,sketch,claude,fleet,prompt}.ts
+                  generate/{index,models,sketch,claude,codex,proc,fleet,prompt}.ts
                   frames.ts (pure: FSEQ parse + analysis)  bake.ts (bake queue, frame files)
                   render-box.ts (bubblewrap runner)  box-output.ts (what a box hands back, as data)
                   frames-wire.ts (stream encoder)  frames-cache.ts (chunks, downloads, encoder jobs, disk cap)
                   frames-http.ts (frames routes)  fseq-codec.ts (FSEQ zstd/zlib blocks)
                   frames-worker.ts (low-priority encoding)
   shared/schemas/ zod: look.ts (what the API stores) generated.ts (a generator's look, its JSON Schema) api.ts (bodies,
-                  users, ideas) rig.ts (the rig, the library index); the server's at run time, the browser's as types
+                  users, ideas) rig.ts (the rig, the library index) models.ts (the model registry); the server's at
+                  run time, the browser's as types
   render-box/     render.ts: bakes a look to .fseq inside bubblewrap; renderer.ts: the frame loop
   fleet-box/      check.ts + BRIEF.template.md for the boxed Fleet worker
   tools/          build_rig.py  build_palettes.py  budgets.ts (+ budgets.json: what oxlint cannot check, line budgets)
@@ -523,8 +525,16 @@ POST   /api/login    { username, password }   → { user, flash }
 POST   /api/logout                            → { ok: true }
 GET    /api/me                                → { user, flash } | 401
 GET    /api/ideas                             → { ideas: [idea] }    mine, newest first
-POST   /api/ideas    { text }                 → { idea }             queued for generation
-GET    /api/ideas/:id                         → { idea }             mine only
+POST   /api/ideas    { text, model? }         → { idea }             queued for generation on that model (none: the
+                                              default this user gets); 400 when it is unknown, off, not offered
+                                              to their role, or cannot run here
+GET    /api/ideas/:id[?wait=<status>@<updatedAt>] → { idea }         mine only; with wait, an idea still pending and
+                                              as given is answered when it changes, or after 25 s
+GET    /api/models                            → { models: [{ id, label }], default }  what this user may pick
+GET    /api/admin/models                      → { file, config, models: [{ id, available, note, warn? }], efforts,
+                                              problem? }  admins only (403): the registry and what can run here
+PUT    /api/admin/models  config              → the same, after writing the registry file; admins only; 400 names
+                                              the first problem
 GET    /api/looks?scope=mine|gallery          → { looks: [listed] }  metadata only: no layers
 POST   /api/looks    { title, summary?, layers, duration?, bpm?, globals?, automation?, ideaId?, chain? } → { look }
 GET    /api/looks/:id                         → { look }             mine, or shared
@@ -557,10 +567,13 @@ a version (`{ title, summary, layers, duration, globals?, automation?, savedAt }
 frames and clears `reviewed`; `bpm` (`null` clears it) does not. Clips that overlap or fall
 outside 0–600 s, and a duration outside 1–600 s, are refused with 400.
 
-`user = { id, username, role: 'member' | 'curator' }` (curators listed in `STUDIO_CURATORS`).
+`user = { id, username, role: 'member' | 'curator' | 'admin' }` (curators listed in `STUDIO_CURATORS`, admins in
+`STUDIO_ADMINS`; an admin is also a curator).
 `flash = { check, perSecond, delta, darker, area }`: the flash check's settings (Baked frames, Checks), for the
 preview's guard; `check: false` (`STUDIO_FLASH_CHECK=off`) means nothing is dimmed or blocked.
-`idea = { id, owner, text, status: 'queued'|'generating'|'ready'|'failed', generator, lookId?, error?, createdAt, updatedAt }`.
+`idea = { id, owner, text, status: 'queued'|'generating'|'ready'|'failed', model?, generator, by?, timing?, lookId?,
+error?, createdAt, updatedAt }`: `model` the registry id asked for, `generator` the one that made the look (the
+fallback's when it took over), `by` its label ("Opus"), `timing = { wait, prompt, request, parse, total }` in ms.
 `look = { id, owner, ownerName, title, summary, layers, duration, bpm?, shared, ideaId?, reviewed, reviewedBy?,
 flashOverride?, bake?, chain, createdAt, updatedAt }`
 (`bake`: see Baked frames).
@@ -568,9 +581,12 @@ flashOverride?, bake?, chain, createdAt, updatedAt }`
 ## Generators (idea → look)
 
 `src/generate/index.ts` runs a small in-process queue. An adapter is
-`async generate({ text, user, library, rig, groups }) → { title, summary, duration?, globals?, automation?, layers }`
-(`groups`: the rig's)
-and is chosen by `STUDIO_GENERATOR` (`sketch` default, `claude`, `fleet`). Generators find places by the rig's
+`async generate({ text, user, library, rig, groups, prompt?, signal? }) → { title, summary, duration?, globals?,
+automation?, layers }` (`groups`: the rig's; `prompt()`: the system prompt and output schema, built once per library
+and rig; `signal`: aborted when the server stops). Each idea names a model of the registry (below); its job runs in
+that model's transport lane, each lane with its own concurrency, and `STUDIO_GENERATOR_FALLBACK` (a model or
+transport, usually `sketch`) takes over when it fails. An idea that names no model (from before the registry) goes
+to `STUDIO_GENERATOR`'s transport. Generators find places by the rig's
 tags (falling back to group ids and names), describe the installation from the rig (`about`, its fixtures and
 groups), and give layers the tags they meant beside the ids. The result is cleaned by `validateLook`
 (`shared/schemas/generated.ts`, zod: ≤ 4 layers,
@@ -586,8 +602,16 @@ clips and a duration for ideas that describe a progression; most looks have neit
   nearest them in hue and become the nearest swatch's slot (`accent2`; none close: the colour itself), on a colour
   param, or for a pattern that reads only the palette, its layer's `palette` (`low` for a colour set "on" or
   "behind" something, else `body`). Always available.
-- `claude`: one Messages API call with the pattern guide + library examples as the system prompt, and structured
-  output whose JSON Schema is the generated look's own (`wireSchema(groups)`: group ids and tags as enums).
+- `claude`: one Messages API call with the pattern guide + library examples as the system prompt (cached: the same
+  bytes on every call), and structured output whose JSON Schema is the generated look's own (`wireSchema(groups)`:
+  group ids and tags as enums).
+- `codex`: one `codex exec` call (the Codex CLI, signed in with `codex login`): `--ephemeral --skip-git-repo-check
+  --ignore-user-config --ignore-rules -s read-only -C <an empty folder> -m <model> -o <answer file> --output-schema
+  <the look's schema, strict> -c model_reasoning_effort="<effort>" -c web_search="disabled" -c features.<tool>=false
+  … -`, the prompt on stdin (the guide first, the idea last). Started from an argument list, never a shell (on Windows
+  an npm `codex.cmd` shim is read for the script it runs); its environment is only what the CLI needs; its whole
+  process tree is killed on a wall clock (`timeoutSeconds`, else `STUDIO_CODEX_TIMEOUT_MS`, 300 s), past 4 MB of
+  output, or when the server stops. The answer, at most 512 KB, is read as untrusted data like `claude`'s.
 - `fleet`: hands the idea to a boxed Fleet worker as an untrusted brief (experimental), in a workspace holding
   copies of the modules `check.ts` imports (the core's, `fseq.ts`, `frames.ts`), as they are. The worker
   also bakes (`node check.ts --bake`); the adapter returns `bake` + `frames` (see below), and
@@ -596,6 +620,27 @@ clips and a duration for ideas that describe a progression; most looks have neit
   generator (`STUDIO_GENERATOR_FALLBACK`, else `sketch`), or wait for it with `STUDIO_FOUNDRY_WAIT=1`.
   Without a systemd user bus (`systemd-run --user --scope` fails, as on WSL) Fleet's boxes have no
   memory cap, and the server warns at start.
+
+### Models (`<STUDIO_DATA>/models.json`, or `STUDIO_MODELS`)
+
+The registry (`shared/schemas/models.ts`), written with the defaults on first run and read again whenever it
+changes (a file that does not parse is reported, and the last good one kept):
+
+```
+{ "about"?: text, "default": id, "concurrency"?: { "claude"?: n, "codex"?: n, "sketch"?: n },
+  "models": [{ "id", "label", "via": "claude" | "codex" | "sketch" | "fleet", "model"?, "effort"?, "maxTokens"?,
+               "timeoutSeconds"?, "enabled": true, "roles"?: ["member" | "curator" | "admin", …] }] }
+```
+
+`id` is 1–32 of `[a-z0-9-]`; `model` the provider's name (required for `codex`; `claude` defaults to
+`claude-opus-5-5`); `effort` one of the transport's (`claude`: low–max; `codex`: minimal–xhigh); `roles` who may
+pick it (none: everyone); `concurrency` the jobs at once per transport (defaults claude 4, codex 2, sketch 4; the
+foundry always 1). The defaults: Opus (`claude-opus-5-5`, medium, the default), Sol (`gpt-6.1-sol`, low) and Luna
+(`gpt-6-luna`, low) through `codex`, and Sketch. A model can run when its transport can: `claude` with
+`ANTHROPIC_API_KEY`, `codex` with the CLI on PATH (`STUDIO_CODEX_BIN`; `warn` when no login is seen), `fleet` with
+`STUDIO_FOUNDRY=on`, `sketch` always. The idea form offers the models that are on, offered to the user's role and
+able to run, the default first when it is one of them; when the file is first written, `STUDIO_GENERATOR` (`claude`,
+`sketch`, `fleet`) names its default.
 
 ## Baked frames
 

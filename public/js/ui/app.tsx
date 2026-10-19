@@ -25,6 +25,8 @@ const ROUTES: Route[] = [
     load: () => pages().then((m) => m.Looks) },
   { re: /^\/gallery\/?$/, name: 'gallery', title: 'Gallery', nav: '/gallery', scope: 'gallery',
     load: () => pages().then((m) => m.Looks) },
+  { re: /^\/models\/?$/, name: 'models', title: 'Models', nav: '/models',
+    load: () => import('./models.tsx').then((m) => m.Models) },
 ];
 
 /** Where to go after signing in: `next` when it is a page of this app, else Ideas. */
@@ -92,6 +94,7 @@ async function logout() {
 }
 
 const NAV = [['/ideas', 'Ideas'], ['/studio', 'Studio'], ['/looks', 'My looks'], ['/gallery', 'Gallery']];
+const ADMIN_NAV = [...NAV, ['/models', 'Models']];
 
 function Header({ me, nav }: { me: User; nav?: string }) {
   const [open, setOpen] = useState(false);
@@ -119,11 +122,13 @@ function Header({ me, nav }: { me: User; nav?: string }) {
         if ((e.target as Element).closest('a, .btn')) setOpen(false);
       }}>
         <nav class="main-nav" aria-label="Main">
-          {NAV.map(([href, text]) => <a href={href} aria-current={nav === href ? 'page' : undefined}>{text}</a>)}
+          {(me.role === 'admin' ? ADMIN_NAV : NAV).map(([href, text]) => <a href={href}
+            aria-current={nav === href ? 'page' : undefined}>{text}</a>)}
         </nav>
         <div class="user-box">
           <span class="user-name">{me.username}</span>
-          {me.role === 'curator' && <span class="tag tag-amber">Curator</span>}
+          {me.role === 'admin' ? <span class="tag tag-sapphire">Admin</span>
+            : me.role === 'curator' && <span class="tag tag-amber">Curator</span>}
           <button class="btn ghost small" type="button" onClick={logout}>Log out</button>
         </div>
       </div>

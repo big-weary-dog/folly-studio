@@ -21,8 +21,10 @@
 .chip:nth-child(5n+4)::before { color: var(--emerald); }
 .chip:nth-child(5n)::before { color: var(--violet); }
 .chip:hover { color: var(--text); text-decoration: underline dotted; text-underline-offset: 4px; }
-.idea-form-actions { display: flex; align-items: center; gap: 14px; justify-content: flex-end; }
+.idea-form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; justify-content: flex-end; }
 .char-count, .kbd-hint { color: var(--text-3); font-size: 12.5px; }
+.model-pick { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 13px; }
+.model-pick select { min-height: var(--hit, 36px); }
 .char-count { margin-right: auto; }
 .ideas-section { margin-top: 48px; }
 .idea-list { list-style: none; margin: 18px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
@@ -60,6 +62,26 @@
   .idea-main { padding: 12px 14px; }
   .idea-actions { padding: 0 14px 14px; justify-self: start; }
 }
+/* The Models panel (js/ui/models.tsx, admins): one row per model, its switch at the end, beneath it what it runs on
+   and whether it can run here; cobalt glass. */
+.models-page, .main-nav a[href="/models"] { --tint: var(--cobalt-t); }
+.models-page { max-width: 780px; }
+.models-panel { margin-top: 28px; padding: 6px 20px; border: var(--came) solid var(--lead);
+  border-radius: var(--radius); background: color-mix(in srgb, var(--tint) 5%, var(--night-1));
+  box-shadow: var(--bevel), var(--rim); }
+.models-panel > .field { padding: 12px 0; }
+.models-panel > .field + .field { border-top: 1px solid rgb(255 236 214 / .08); }
+.model-row > :first-child { color: var(--text); font-size: 15px; font-weight: 600; }
+.model-row .field-control { justify-content: flex-end; }
+.model-row .field-control select { flex: 0 1 180px; }
+.models-panel .field-hint { flex-basis: 100%; }
+.model-ok::before, .model-warn::before, .model-off::before { content: ''; display: inline-block; width: 8px;
+  height: 8px; margin-right: 7px; background: var(--qf); }
+.model-ok::before { color: var(--emerald); }
+.model-warn::before { color: var(--amber); }
+.model-off::before { color: var(--ruby); }
+.models-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+@media (max-width: 899px) { .models-panel { margin-top: 20px; padding: 2px 14px; } }
 /* My looks and the Gallery: each look is a triple-lancet window glazed in
    its own colours (--art, from jewelGradient in js/ui/kit.tsx) above a pane of text. */
 .card-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 20px;

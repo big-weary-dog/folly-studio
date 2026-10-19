@@ -29,7 +29,7 @@ export function bakeState(bake?: Bake | null) {
 }
 
 export function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
-  const me = user.value, curator = me?.role === 'curator', id = st.lookId.value, server = st.server.value;
+  const me = user.value, curator = !!me && me.role !== 'member', id = st.lookId.value, server = st.server.value;
   const look = id && server ? { ...server, id } : null, bake = look?.bake || null, s = bakeState(bake);
   const dirty = st.dirty.value, playing = st.baked.value;
   const canBake = !look || look.owner === me?.id || (curator && look.shared);
