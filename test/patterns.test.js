@@ -1,5 +1,6 @@
-// The built-in library renders cleanly, quickly, and in colour on the Folly: its sources alone, its warps
-// and filters in a chain over a source.
+// The built-in library renders cleanly, quickly, and in colour on the Folly: its sources alone (one that fills its
+// layer mostly lit; one that draws on transparent, SPEC "Modules", drawing something), its warps and filters in a
+// chain over a source.
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
@@ -61,6 +62,7 @@ describe('each source', () => {
       for (const [k, p] of Object.entries(compiled.params)) {
         if (p.type === 'number') assert.ok(p.min <= p.value && p.value <= p.max, `${k} default within range`);
       }
+      let element = false;
       for (const groups of GROUPS) {
         const L = prepareLayer(scene, { id: name, groups }, compiled);
         let lit = 0, colours = new Set();
@@ -68,14 +70,19 @@ describe('each source', () => {
           const { rgb, errors } = renderFrame(scene, [L], t);
           assert.deepEqual(errors, [], `${groups} t=${t}`);
           check(rgb, `${name} on ${groups} at t=${t}`);
-          for (const k of L.idx) {
+          L.idx.forEach((k, j) => {
             const r = rgb[3 * k], g = rgb[3 * k + 1], b = rgb[3 * k + 2];
             if (Math.max(r, g, b) > 0.05) lit++;
+            if (L.buf[4 * j + 3] < 0.999) element = true;
             colours.add(`${Math.round(r * 8)},${Math.round(g * 8)},${Math.round(b * 8)}`);
-          }
+          });
         }
-        assert.ok(lit > 0.5 * L.idx.length * TIMES.length, `${name} on ${groups}: mostly lit (${lit})`);
-        if (L.idx.length > 50) assert.ok(colours.size > 3, `${name} on ${groups}: varies (${colours.size} colours)`);
+        const what = `${name} on ${groups}`, cathedral = groups[0] === 'cathedral';
+        // An element is drawn where it is; the whole cathedral shows some of it.
+        if (element && !cathedral) continue;
+        const share = element ? 0.005 : 0.5;
+        assert.ok(lit > share * L.idx.length * TIMES.length, `${what}: ${element ? 'drawn' : 'mostly lit'} (${lit})`);
+        if (L.idx.length > 50) assert.ok(colours.size > 3, `${what}: varies (${colours.size} colours)`);
       }
       // Params at their extremes still render cleanly.
       for (const end of ['min', 'max']) {

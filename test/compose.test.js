@@ -46,6 +46,23 @@ describe('module chains', () => {
     assert.deepEqual(frame([late], 0).errors.length, 1, 'x is undefined, so x[2] throws');
   });
 
+  test('drawing on transparent: an element over a bed is the old element over its own background', () => {
+    // The old way: the element mixes its colour over a background it paints. The new: alpha is its coverage, over a
+    // bed; or under, so a filter between them reworks the element alone.
+    const cover = 'q.lz * q.ly', colour = '[1, 0.5, 0.25]', bed = 'function pixel() { return [0.1, 0.2, 0.6]; }';
+    const old = layerOf({ id: 'old', modules: [src('e', `function pixel(q) { return mix([0.1, 0.2, 0.6], ${colour}, `
+      + `${cover}); }`)] });
+    const element = src('e', `function pixel(q) { const c = ${colour}; c[3] = ${cover}; return c; }`);
+    const over = layerOf({ id: 'over', modules: [src('bed', bed), { ...element, blend: 'over' }] });
+    const under = layerOf({ id: 'under', modules: [element, src('bed', bed, { blend: 'under' })] });
+    const none = layerOf({ id: 'none', modules: [src('n', 'function pixel() { return null; }')] });
+    const [a, b, c, d] = [old, over, under, none].map((L) => frame([L], 0.5).rgb);
+    for (let k = 0; k < N; k += 7) {
+      assert.ok(near(at(b, k), at(a, k)) && near(at(c, k), at(a, k)), `LED ${k}`);
+      assert.deepEqual(at(d, k), [0, 0, 0], 'null: nothing drawn');
+    }
+  });
+
   test('meteors masked by clouds: the mask follows how bright the clouds are', () => {
     const modules = [src('met', lib('meteors')), src('cl', lib('clouds'), { as: 'input' }),
       { id: 'mask', kind: 'filter', input: 'cl', code: lib('mask'), params: { cutoff: 0.5, softness: 0.01 } }];

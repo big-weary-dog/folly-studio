@@ -234,7 +234,7 @@ A layer is a chain of modules, listed top to bottom, each a plain script like th
 
 | kind | defines | does |
 |---|---|---|
-| `source` | `pixel(p, t, P, G) → colour` | draws onto what is above it: number (grey), `'#hex'` or `[r, g, b, a?]` |
+| `source` | `pixel(p, t, P, G) → colour` | draws onto what is above it: number (grey), `'#hex'`, `[r, g, b, a?]`, or `null` (nothing) |
 | `filter` | `filter(c, q, t, P, G, x) → colour` | reworks `c`, the colour of what is above it; `x` is the colour of the module named by its `input`; the result's alpha defaults to `c`'s |
 | `warp` | `warp(q, t, P, G)` | bends what is above it: mutates `q` (x y z X Y Z lx ly lz a r u i …) for the modules above it |
 
@@ -257,6 +257,14 @@ undefined). `c` and `x` are `[r, g, b, a]` arrays the runtime reuses: read them,
 composites onto the stack exactly as a layer did (blend, level × clip envelope). A module that throws or returns NaN
 blacks out its layer for that frame, reported with its `module` id. So "meteors masked by clouds, twisted" is
 `[source meteors, source clouds as: 'input', filter mask input: clouds, warp twist]`.
+
+**Drawing on transparent.** A library source draws only what it is: its colour where it draws, alpha its coverage
+there, and `null` (or alpha 0) where it draws nothing. It never paints a background, and it fades by alpha, not toward
+black. A bed fills the layer: `colour-wash` is the one source meant to cover its layer, opaque. An element over a bed
+is `[colour-wash, element with blend: 'over']`, `mix(bed, element, alpha)` exactly what a source that painted the bed
+itself drew; with filters that should rework the element alone, `[element, filters…, colour-wash with blend:
+'under']`. Alone on a layer an element shows over black, as one that painted black would. Sources from before this
+rule may still paint their own background; they move to it one by one.
 
 ### Spatial modules
 

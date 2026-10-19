@@ -65,13 +65,20 @@ describe('every library module renders finite values on the mini rig', () => {
 });
 
 test('sources that read the palette recolour with it', () => {
+  // The mean hue of what is drawn: each lit LED's colour over its brightest channel, so a sparse source counts too.
   const mean = (name, palette) => {
     const { rgb } = renderFrame(scene, [layer(name)], 3.3, undefined, prepareLook({ globals: { palette } }));
     const m = [0, 0, 0];
-    for (let k = 0; k < scene.count; k++) for (let c = 0; c < 3; c++) m[c] += rgb[3 * k + c] / scene.count;
-    return m;
+    let lit = 0;
+    for (let k = 0; k < scene.count; k++) {
+      const top = Math.max(rgb[3 * k], rgb[3 * k + 1], rgb[3 * k + 2]);
+      if (top < 0.05) continue;
+      lit++;
+      for (let c = 0; c < 3; c++) m[c] += rgb[3 * k + c] / top;
+    }
+    return m.map((v) => v / Math.max(1, lit));
   };
-  const users = sources.filter((name) => /\b(pal|palette)\(/.test(source(name)));
+  const users = sources.filter((name) => /\b(pal|palette|swatch)\(|\bP\.colours\b/.test(source(name)));
   assert.ok(users.length >= 25, `${users.length} sources use the palette`);
   for (const name of users) {
     const a = mean(name, undefined), b = mean(name, SECOND);
