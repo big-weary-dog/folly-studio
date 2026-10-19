@@ -9,13 +9,12 @@ dreamy; the layer's own soften setting already blurs lightly along the wire, so 
 smears over time rather than space; **edge-fade** softens one edge of the layer.
 
 ## Params
-- radius: in metres (of wire in `wire` mode). 0.1–0.2 removes stair-steps; 0.5–1 is a soft glow; capped at 1.5.
-- mode: `wire` blurs along each strand only (keeps strands and arches separate); `space` blurs between nearby LEDs on
-  any strand (the rose's rings and the spire's strands melt together); `both` does both.
-- amount: mix with the sharp colour; 0.5 keeps crisp cores with a halo.
+- radius: In metres (of wire in `wire` mode). 0.1–0.2 removes stair-steps; 0.5–1 is a soft glow; capped at 1.5.
+- mode: `wire` keeps strands and arches separate; `space` melts the rose's rings and the spire's strands together.
+- amount: 0.5 keeps crisp cores with a halo.
 
 ## Pairings
-- After single-strand, arch-chase or bars with a step profile: smooth movement without stepping.
+- After single-strand, groups-in-turn or bars with a step profile: smooth movement without stepping.
 - After sparkle with `space`: twinkles that bloom; follow with a sharp sparkle below it for sharp highlights.
 - After mosaic or posterize: softened blocks or bands.
 

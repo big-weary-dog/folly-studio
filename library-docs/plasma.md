@@ -8,11 +8,10 @@ relative with clear gaps; **colour-wash** with `hue-shift` and `turbulence` (pal
 field; the butterfly preset is plasma mirrored.
 
 ## Params
-- colours: the ramp the field walks; two or three contrasting colours read best, a long pick turns to mush.
-- speed: how fast the waves flow. 0 freezes the marbling; 0.3–0.8 is a lazy swirl; above 2 it boils. The units are
-  closer to radians than waves, so 1 is about a sixth of a wave a second.
-- size: the scale of the ripples. Small (0.05–0.1) is many tight bands, busy on the arches; 0.25–0.5 is a few broad
-  blobs; 1 is nearly one slow gradient.
+- colours: Two or three contrasting colours read best; a long pick turns to mush.
+- speed: 0.3–0.8 is a lazy swirl; above 2 it boils. The units are closer to radians than waves, so 1 is about a sixth of
+  a wave a second.
+- size: 0.05–0.1 is many tight bands, busy on the arches; 0.25–0.5 is a few broad blobs; 1 is nearly one slow gradient.
 
 ## Pairings
 - Then `mirror` across: symmetrical wings (the butterfly preset).

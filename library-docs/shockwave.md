@@ -8,11 +8,9 @@ for it for impacts, drops and booms. **ripple** spreads many thin rings from ran
 place to the tempo; **bars** on `in` with a negative speed gives steady, evenly spaced rings.
 
 ## Params
-- colours: wake to front: the front is the last colour, the glow behind walks back to the first.
-- direction: which way the front travels. `out` from the centre (put `anchor` after it to burst from the rose; shape
-  `sphere` makes it a 3D shell), `in` collapses from the edges, or a straight sweep up, down, right, left, back, front.
-- speed: bursts per second. 0.5 is one every two seconds; for one per beat set it to the tempo ÷ 60.
-- width: the thickness of the front, which also widens as it travels; 0.05 a crisp ring, 0.3 a broad wave of light.
+- direction: Put `anchor` after it to burst `out` from the rose; with shape `sphere` it becomes a 3D shell.
+- speed: Bursts a second; 0.5 is one every two seconds. For one a beat set it to the tempo ÷ 60.
+- width: 0.05 is a crisp ring, 0.3 a broad wave of light.
 
 ## Pairings
 - Over a `colour-wash` bed with `blend: "over"`; then `anchor` (tag `rose`) to burst from the rose window.

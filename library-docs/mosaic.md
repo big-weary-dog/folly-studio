@@ -8,10 +8,10 @@ pixel-art or digital look, or to make a busy texture read from far away. **poste
 space; **mirror** and **kaleidoscope** fold rather than snap.
 
 ## Params
-- cells: blocks across each of the layer's sides. The grid follows the layer's box, so on the wide portal blocks are
-  wider than tall. 6–12 reads as tiles from a distance; above ~30 it hardly differs from no mosaic.
-- leds: meant to snap runs of this many LEDs along each strand. Every LED in a block already shares one sample, so in
-  practice it only nudges where each block takes its colour; leave it at the default.
+- cells: The grid follows the layer's box, so on the wide portal blocks are wider than tall. 6–12 reads as tiles from a
+  distance; above ~30 it hardly differs from no mosaic.
+- leds: Every LED in a block already shares one sample, so in practice it only nudges where each block takes its colour;
+  leave it at the default.
 
 ## Pairings
 - After plasma, clouds or bars (smooth profile): moving colour in tiles that change step by step.

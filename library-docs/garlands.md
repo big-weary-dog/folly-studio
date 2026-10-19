@@ -7,14 +7,13 @@ Christmas or fairground look, a theatrical dressing of the façade. Reach for **
 continuously, **wave** for one line rolling across, **curtain** for a pleated reveal.
 
 ## Params
-- colours: each row takes the next colour of the pick, flat; `body/accent` alternates two families.
-- direction: `down` hangs the first row at the top and fills downward; `up` starts at the bottom and its swags arch
-  upward instead of hanging.
-- speed: rows a second. 0.5–1.5 for a calm dressing; a full cycle takes (rows + 2) ÷ speed seconds.
-- rows: how many rows hang. 3–6 on the whole rig; more rows need a taller, denser layer.
-- swags: curves in each row across the layer. 2–5; many swags on a narrow layer turn into a zigzag.
-- sag: how deep each swag hangs. 0.05–0.12; 0 is a straight line.
-- width: line thickness. 0.03–0.06; thinner breaks up on sparse LEDs.
+- colours: Each row is flat; `body/accent` alternates two families.
+- direction: With `up` the swags arch upward instead of hanging.
+- speed: Rows a second. 0.5–1.5 for a calm dressing; a full cycle takes (rows + 2) ÷ speed seconds.
+- rows: 3–6 on the whole rig; more rows need a taller, denser layer.
+- swags: 2–5; many swags on a narrow layer turn into a zigzag.
+- sag: 0.05–0.12.
+- width: 0.03–0.06; thinner breaks up on sparse LEDs.
 
 ## Pairings
 - Blend `over` a dim `colour-wash` bed so the façade is never black between cycles.

@@ -4,24 +4,20 @@ looks: Bands or comets of colour chasing along every wire, each strand on its ow
 Bands of colour, or comets with fading tails, run along each strand from its start, every strand at once. Distances
 are in LEDs, not layer shares, so the same setting crawls along a long main arch and races up a short spire strand.
 The classic xLights chase: marquee bulbs, meteors, a strand filling and emptying, colour running out from the middle of
-each arch. Reach for **bars** on `along` when the bands should be sized to each wire rather than in LEDs, **arch-chase**
-when whole strands should take turns, **streaks** on `along` for sparse random drips with tails.
+each arch. Reach for **bars** on `along` when the bands should be sized to each wire rather than in LEDs,
+**groups-in-turn** when whole groups should take turns, **streaks** on `along` for sparse random drips with tails.
 
 ## Params
-- colours: the bands' colours in turn (bands), or a comet's tail to head (comet: the last colour is the head). A pick
-  like `"#00c8ff #ffffff"` gives a blue comet with a white head.
-- speed: LEDs a second; negative runs backward. 20 is a walk, 60–100 a race on long strands. A 13-LED strand is
-  crossed in under a second at 20.
-- size: LEDs per band, or the room each comet gets. 3–6 for marquee bulbs, 10–30 for runs, 100+ for one comet a strand.
-- gap: share of each band left clear (bands only). 0 is back-to-back colour; 0.5–0.7 reads as spaced bulbs.
-- mode: `along` from each strand's start, `bounce` slides the pattern a strand's length and back, `out` runs from each
-  strand's middle to both ends (the middle of an arch's top), `in` from both ends to the middle.
-- profile: `bands` (flat bands with soft edges) or `comet` (a bright head and an exponential tail behind it).
-- tail: comet tail length in LEDs. Keep it below size or tails run into the comet behind.
-- lap: clear LEDs after each pass, so comets come in volleys instead of an endless train; 50–100 for meteors.
-- scatter: 0 keeps every strand in step; 1 gives each its own start and up to ±30% pace, so nothing marches together.
-- alternate: every other strand runs the other way: the marquee look on parallel strands.
-- softness: band edge width in LEDs. 1–2 is crisp but smooth; 0 steps hard from LED to LED.
+- colours: A pick like `"#00c8ff #ffffff"` gives a blue comet with a white head.
+- speed: LEDs a second. 20 is a walk, 60–100 a race on long strands; a 13-LED strand is crossed in under a second at 20.
+- size: In LEDs, or the room each comet gets. 3–6 for marquee bulbs, 10–30 for runs, 100+ for one comet a strand.
+- gap: Bands only. 0.5–0.7 reads as spaced bulbs.
+- mode: `out` starts at the middle of an arch's top; `bounce` slides the pattern a strand's length and back.
+- tail: In LEDs. Keep it below size or tails run into the comet behind.
+- lap: In LEDs; 50–100 for meteors.
+- scatter: Pace varies by up to ±30%.
+- alternate: The marquee look on parallel strands.
+- softness: In LEDs. 1–2 is crisp but smooth; 0 steps hard from LED to LED.
 
 ## Pairings
 - Blend `over` a dim `colour-wash` bed: comets over a dark sky (meteors), bulbs over the first colour (marquee).

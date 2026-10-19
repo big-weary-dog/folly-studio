@@ -9,14 +9,12 @@ source read as a heat-map; **hue-shift** turns colours round the wheel by place 
 **posterize** flattens colours without choosing new ones, **invert** flips them.
 
 ## Params
-- colours: the walk from dark to bright; a role (`body`, `accent`) or a list. Order matters: darkest first.
-- amount: 1 replaces the colours fully; 0.3–0.6 tints the original.
-- shade: on, each new colour is as bright as what it replaces, so dark stays dark; off, every LED gets the full
-  colour, so dark areas light up in the first colour.
-- contrast: stretches the walk round mid-brightness. Above 1 pushes toward the two ends (bold, two-tone); below 1
-  keeps most LEDs in the middle colours.
-- shift: slides along the colours, bouncing back at the ends; ±0.2 re-centres which colour dominates.
-- drift: colours a second to slide along automatically, back and forth; 0.02–0.1 for a slowly changing palette.
+- colours: A role (`body`, `accent`) or a list. Order matters: darkest first.
+- amount: 0.3–0.6 tints the original.
+- shade: Off lights dark areas in the first colour.
+- contrast: Above 1 pushes toward the two ends (bold, two-tone); below 1 keeps most LEDs in the middle colours.
+- shift: It bounces back at the ends; ±0.2 re-centres which colour dominates.
+- drift: Colours a second, back and forth; 0.02–0.1 for a slowly changing palette.
 
 ## Pairings
 - After plasma, clouds or fire: the texture's shape in the palette's colours (a fire in blues).

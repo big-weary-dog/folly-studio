@@ -9,16 +9,14 @@ across is the preset butterfly. **kaleidoscope** folds round a centre into many 
 **radial-repeat** repeats in rings, **polar** reshapes rather than folds.
 
 ## Params
-- across: folds left ↔ right round the layer's middle; the viewer's left half is drawn and reflected onto the right.
-- depth: folds front ↔ back, so the front of the towers matches their back; does nothing on a flat layer.
-- height: folds up ↔ down; the lower half is drawn and repeated upside down above. Rising fire becomes flames from
-  both ends.
-- along: folds every strand at its middle: the first half of each wire plays, the second half echoes it backwards.
-  Combines with the others.
+- across: The viewer's left half is drawn and reflected onto the right.
+- depth: Makes the front of the towers match their back; does nothing on a flat layer.
+- height: The lower half is drawn and repeated upside down above. Rising fire becomes flames from both ends.
+- along: The first half of each wire plays; the second echoes it backwards. Combines with the others.
 
 ## Pairings
 - After plasma, clouds or bars on `round`: instant symmetry (preset butterfly).
-- With `along` after single-strand or arch-chase: comets leave both feet of each arch and meet at the keystone.
+- With `along` after single-strand or groups-in-turn: comets leave both feet of each arch and meet at the keystone.
 - Put **anchor** below it to fold round a group's middle (the rose) instead of the layer's.
 
 ## Pitfalls

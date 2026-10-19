@@ -8,12 +8,9 @@ lit-window flicker. Live cells take the colour of their place along the wire. Re
 without structure, **single-strand** for orderly motion along the wire.
 
 ## Params
-- colours: a ramp along each wire (first colour at its start, last at its end) painted onto the live cells.
-- speed: generations a second. 2–6 reads as evolving; 10+ is a seethe.
-- rule: the Wolfram rule. 30 chaos, 110 gliders, 90 and 150 dense chequers, 184 cells drifting one way like traffic,
-  170 and 240 slide the random cells one LED a generation (a chase of random bits), 204 freezes.
-- era: generations before a new random start; short eras keep it lively, long ones let a rule settle.
-- density: share of cells alive at the start. 0.1–0.2 for sparse gliders, 0.5 for full chaos.
+- speed: Generations a second. 2–6 reads as evolving; 10+ is a seethe.
+- era: In generations; short eras keep it lively, long ones let a rule settle.
+- density: 0.1–0.2 for sparse gliders, 0.5 for full chaos.
 
 ## Pairings
 - Blend `over` or `add` on a dim `colour-wash` bed; dead cells are clear.

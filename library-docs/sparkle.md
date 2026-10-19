@@ -7,13 +7,10 @@ down between random levels: sequins or a shimmering surface. The cheapest textur
 layer. Reach for **life** for structured flicker along strands, **streaks** when the glints should move.
 
 ## Params
-- colours: each LED keeps one colour from the pick for good; `high` for white stars, a few hexes for warm and cool.
-- mode: `pulse` (brief glints from dark) or `smooth` (continuous glitter between random levels).
-- density: share of LEDs that ever glint. 0.1–0.3 for stars, 1 for an all-over shimmer.
-- rate: glints a second per LED, each LED ±50% of it. 0.2–0.6 for stars, 4–10 for glitter in smooth mode.
-- length: pulse mode only; how much of each LED's cycle the glint lasts. 0.05 is a sharp twinkle; 0.5 never goes dark,
-  a slow breathing.
-- sharp: smooth mode only; higher makes the bright moments rarer and the glitter spikier. 1 is a soft swirl.
+- colours: `high` gives white stars, a few hexes warm and cool.
+- density: 0.1–0.3 for stars, 1 for an all-over shimmer.
+- rate: Glints a second per LED, each LED ±50% of it. 0.2–0.6 for stars, 4–10 for glitter in smooth mode.
+- length: A share of each LED's cycle. 0.05 is a sharp twinkle; 0.5 never goes dark, a slow breathing.
 
 ## Pairings
 - Last in a chain with blend `over` or `add` on any bed: stars over a dark sky (starfield), glitter over a walk of body

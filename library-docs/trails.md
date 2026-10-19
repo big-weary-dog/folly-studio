@@ -9,7 +9,7 @@ lightning) into smears; **bars** `comet` and **single-strand** draw their own ta
 instead of time.
 
 ## Params
-- decay: the share of light left after one second. 0.05–0.2 short tails; 0.5–0.8 long, ghostly smears; 0 none.
+- decay: 0.05–0.2 gives short tails; 0.5–0.8 long, ghostly smears.
 
 ## Pairings
 - After sparkle, streaks or fireworks: twinkles and particles with tails; then a dim bed with blend `under`.

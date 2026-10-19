@@ -9,10 +9,9 @@ snowstorm), a rainbow wash drifts (preset palette-drift). **twist** swirls in an
 **scroll** slides evenly, **clouds** and **plasma** are noise as a source rather than a push.
 
 ## Params
-- amount: how far things are pushed, as a share of the layer. 0.03–0.1 ripples edges; 0.2+ tears shapes apart.
-- size: the size of each swirl as a share of the layer. Small (0.1–0.2) is fine jitter that sparse LEDs cannot show;
-  0.3–0.7 reads well on the rig.
-- speed: how fast the noise changes. 0.05–0.3 is calm; above 1 it boils.
+- amount: 0.03–0.1 ripples edges; 0.2+ tears shapes apart.
+- size: A share of the layer. 0.1–0.2 is fine jitter that sparse LEDs cannot show; 0.3–0.7 reads well on the rig.
+- speed: 0.05–0.3 is calm; above 1 it boils.
 
 ## Pairings
 - After bars (one bar, duty 0.5, speed 0): a wavy water line (preset water).

@@ -8,11 +8,10 @@ music-synced pulsing. **strobe** flashes hard rather than swelling; **shockwave*
 clock; **spot** with its size on an lfo is a slow breathing glow.
 
 ## Params
-- colours: faint edge to peak: the swell rises through the pick to the last colour. `low body high` or reds to white.
-- direction: where the beat starts and travels: `out` from the centre (with `anchor`, from the rose), `in` from the
-  edges, or a sweep up, down, right, left, back, front.
-- spread: seconds the beat takes to cross the layer. 0 the whole layer beats at once; 0.2–0.4 a visible swell outward;
-  near 1 at 120 bpm the far edge is a full heartbeat behind, so the next beat starts as the last one reaches it.
+- colours: `low body high` or reds to white.
+- direction: With `anchor`, `out` starts from the rose. Up, down, right, left, back and front sweep across.
+- spread: In seconds. 0.2–0.4 is a visible swell outward; near 1 at 120 bpm the far edge is a full heartbeat behind, so
+  the next beat starts as the last one reaches it.
 
 ## Pairings
 - Over a dark `colour-wash` bed (`blend: "over"`) so the pause between beats keeps a colour.

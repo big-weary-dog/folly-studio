@@ -8,11 +8,10 @@ the next. Reach for it to turn any texture into a target or ripple; **bars** on 
 directly, **kaleidoscope** repeats round the angle instead, **scroll** `out` slides without repeating.
 
 ## Params
-- rings: copies from centre to rim. 1–2 keeps the source readable; 4–8 is a target. Each ring shows the full
-  centre-to-corner span of the source, so more rings means more squeezed detail.
-- speed: rings a second moving outward; negative draws them inward toward the centre. 0.1–0.3 for a calm pulse.
-- mirror: on, alternate rings are reflected (smooth, a breathing in-out look); off, each ring restarts with a sharp
-  edge where the source's rim meets its centre.
+- rings: 1–2 keeps the source readable; 4–8 is a target. Each ring shows the source's full centre-to-corner span, so
+  more rings means more squeezed detail.
+- speed: Rings a second; 0.1–0.3 for a calm pulse.
+- mirror: On gives a smooth, breathing in-out look; off shows a sharp edge where the source's rim meets its centre.
 
 ## Pairings
 - After plasma, clouds or fire: textured ripples. After a still colour-wash nothing changes; give it a source that

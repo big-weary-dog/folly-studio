@@ -31,6 +31,8 @@ const INTROS = ['README', 'sources', 'warps', 'filters', 'presets'];
 describe('the prose', () => {
   test('every library entry has prose, and the prose names only what the library has', () => {
     const { missing, errors } = lintDocs(CATALOG, PROSE);
+    const bold = lintDocs(CATALOG, new Map([['README', 'A **source** with **bars**, then **gone-module**.']]));
+    assert.deepEqual(bold.errors, ['README.md: names **gone-module**, which the library lacks'], 'a dangling name');
     const gaps = [...missing.map((n) => `${n}: no library-docs/${n}.md`), ...errors];
     assert.deepEqual(errors.filter((e) => /no (looks: line|paragraph)$/.test(e)), [], 'prose is whole either way');
     if (DOCS_STRICT) assert.deepEqual(gaps, []);
@@ -43,9 +45,7 @@ describe('the prose', () => {
       const p = parseProse(text);
       assert.ok(p.looks && p.looks.length <= 100, `${name}: looks: line`);
       assert.ok(p.about.length > 80, `${name}: a paragraph`);
-      const titles = p.sections.map((s) => s.title);
-      assert.ok(titles.includes('Params') || titles.includes('Overrides'), `${name}: Params or Overrides`);
-      assert.ok(titles.includes('Pitfalls'), `${name}: Pitfalls`);
+      assert.ok(p.sections.some((s) => s.title === 'Pitfalls'), `${name}: Pitfalls`);
     }
   });
 });

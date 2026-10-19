@@ -8,11 +8,9 @@ or trails, so it goes after the source; after **polar** it curls spokes into spi
 turns everything by the same angle, **kaleidoscope** mirrors wedges, **turbulence** swirls at random.
 
 ## Params
-- swirl: turns at the rim (none at the centre). ±0.25 is a gentle curl, ±1 a tight spiral; the sign sets which way
-  arms curl.
-- wind: turns of depth round height from bottom to top: 1 winds a stripe once round each tower. Needs a layer with
-  depth.
-- spin: turns a second for the whole swirl; the default 0.05 turns slowly. 0 for a still spiral.
+- swirl: In turns at the rim (none at the centre). ±0.25 is a gentle curl, ±1 a tight spiral.
+- wind: 1 winds a stripe once round each tower. Needs a layer with depth.
+- spin: Turns a second; the default 0.05 turns slowly.
 
 ## Pairings
 - Bars `right` → polar → twist (swirl −1.2, spin 0) → spot over the centre: a galaxy.

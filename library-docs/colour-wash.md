@@ -8,13 +8,10 @@ layer rather than happen everywhere at once, **plasma** or **clouds** for a bed 
 flashes rather than fades.
 
 ## Params
-- colours: what it walks through, in order; a single role or hex (`low`, `#06104a`) for a still bed, `rainbow` for a
-  slow cycle round the wheel.
-- speed: colours per second. 0 holds the first colour for good (the usual bed); 0.05–0.2 is a calm drift; near 2 the
-  whole layer changes twice a second.
-- hold: the share of each colour's time spent still before it fades on. 0 is a constant slow blend; 0.8 (the cap)
-  holds and then snaps over the last fifth.
-- brightness: scales the colour down; 0.3–0.5 makes a dim bed that lets what is drawn over it stand out.
+- colours: A single role or hex (`low`, `#06104a`) gives a still bed, `rainbow` a slow cycle round the wheel.
+- speed: Colours a second. 0 is the usual bed; 0.05–0.2 is a calm drift; near 2 the whole layer changes twice a second.
+- hold: A share of each colour's time. 0.8 (the cap) holds, then snaps over the last fifth.
+- brightness: 0.3–0.5 makes a dim bed that lets what is drawn over it stand out.
 
 ## Pairings
 - First in the chain as a bed, the next source `blend: "over"` (rising-sweep, galaxy, rain, meteors).

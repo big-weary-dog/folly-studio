@@ -9,13 +9,11 @@ clouds becomes storm cover (preset storm). **edge-fade** fades toward an edge in
 **posterize** bands colours rather than cutting them.
 
 ## Params
-- by: `input` uses the brightness of the source named by `input`; `self` uses the chain's own brightness, so faint
-  parts of a busy texture vanish and the bright parts become crisp shapes.
-- amount: how fully the hidden parts disappear; 0.6–0.8 leaves a dim ghost (preset storm uses 0.8).
-- cutoff: the brightness where it opens. Lower shows more (0.2 nearly everywhere the input is lit); higher only its
-  brightest cores.
-- softness: the width of the edge as a share of brightness. 0.05 is a hard cut-out; 0.3–0.5 soft, cloud-like edges.
-- invert: shows the chain where the input is dark instead: holes in the shape.
+- by: `input` reads the source named by `input`. With `self`, faint parts of a busy texture vanish.
+- amount: 0.6–0.8 leaves a dim ghost (preset storm uses 0.8).
+- cutoff: 0.2 shows nearly everywhere the input is lit.
+- softness: A share of brightness. 0.05 is a hard cut-out; 0.3–0.5 gives soft, cloud-like edges.
+- invert: Use it to cut holes in the shape.
 
 ## Pairings
 - Smooth bars, then clouds `as: input`, then mask with input = the clouds' id, then a dark colour-wash with blend

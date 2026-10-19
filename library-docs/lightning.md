@@ -8,12 +8,11 @@ Reach for **streaks** for many falling lines, **shockwave** for a burst from a p
 clouds.
 
 ## Params
-- colours: glow (first) to core (last); `"accent high"` gives blue glow round a white core.
-- direction: which way the bolt strikes: `down` from the top, `up`, `right` or `left` across.
-- speed: strikes a second, evenly spaced. 0.2–0.4 for a distant storm, 0.7–0.8 for a close one.
-- width: core half-width as a share of the layer. 0.02–0.05; wider looks like a beam.
-- jag: how much it zigzags. 0 is a straight line, 0.2 natural, 0.4+ wild.
-- glow: halo around the core. 0 is a bare line; 0.3–0.4 lights most of the layer with each strike.
+- colours: `"accent high"` gives a blue glow round a white core.
+- speed: Strikes a second, evenly spaced. 0.2–0.4 for a distant storm, 0.7–0.8 for a close one.
+- width: Half-width as a share of the layer. 0.02–0.05; wider looks like a beam.
+- jag: 0.2 is natural, 0.4+ wild.
+- glow: 0.3–0.4 lights most of the layer with each strike.
 
 ## Pairings
 - After `clouds` as input with `mask` over a dim accent bed: bolts out of rolling cloud (storm).

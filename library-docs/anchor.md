@@ -9,15 +9,13 @@ Reach for it whenever a radial look should belong to a structure (presets rose-r
 spire-helix); **polar** and **kaleidoscope** shape round the centre that anchor chooses.
 
 ## Params
-- tag: the group to centre on. Tags with no group on the rig make it do nothing.
-- which: `first` centres on one group with that tag; `nearest` gives each LED its nearest group, so every tower or
-  every mini arch gets its own copy of the effect.
-- shape: how distance is measured. `facade` in the front plane (rings on the portal); `plan` round an upright axis,
-  as seen from above (for towers and spires: `round` then turns round each spire); `sphere` in 3D.
-- reach: the distance in metres that counts as the rim (r = 1). 0 uses the layer's farthest corner (or, with
-  `nearest`, half the gap between the two closest groups). Rose-ripple uses 30 to cover the portal smoothly.
-- lineup: uses the whole rig's across, up and depth instead of the layer's, so layers on different groups line up
-  (a sweep crossing tower and arch layers at the same moment).
+- tag: Tags on the rig include `rose`, `tower`, `ring`, `flood` and `ground-level`; a tag with no group on the rig makes
+  it do nothing.
+- which: `nearest` gives every tower or every mini arch its own copy of the effect.
+- shape: `facade` puts rings on the portal; use `plan` for towers and spires, where `round` then turns round each spire.
+- reach: In metres; the edge is r = 1. 0 uses the layer's farthest corner (or, with `nearest`, half the gap between the
+  two closest groups). Rose-ripple uses 30 to cover the portal smoothly.
+- lineup: Use it for a sweep crossing tower and arch layers at the same moment.
 
 ## Pairings
 - Bars on `in` (pulse, negative speed) then anchor `rose`, `sphere`: rings from the rose (preset rose-ripple).

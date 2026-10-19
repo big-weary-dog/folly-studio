@@ -7,10 +7,10 @@ first. Calm, watery, good on any broad surface. Reach for **bars** on `in` (or t
 from one centre, **shockwave** for a single burst, **fireworks** for bursts that throw sparks.
 
 ## Params
-- colours: faint rings in the first, strong crests and crossings in the last; `"accent high"` for a moonlit pond.
-- speed: how fast rings spread, in layers a second. 0.1–0.3 is a pond; each drop lasts 0.6 ÷ speed seconds.
-- drops: how many spread at once. 1–2 for occasional drops, 5–8 for steady rain.
-- width: ring thickness. 0.03–0.08; thinner breaks up on sparse LEDs, thicker turns rings into soft blooms.
+- colours: `"accent high"` for a moonlit pond.
+- speed: In layers a second. 0.1–0.3 is a pond; each drop lasts 0.6 ÷ speed seconds.
+- drops: 1–2 for occasional drops, 5–8 for steady rain.
+- width: 0.03–0.08; thinner breaks up on sparse LEDs, thicker turns rings into soft blooms.
 
 ## Pairings
 - Blend `over` or `add` on a dim accent `colour-wash`: a pond surface.

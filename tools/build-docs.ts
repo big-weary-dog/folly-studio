@@ -32,5 +32,5 @@ for (const [rel, text] of docs) {
 const { missing, unhelped, errors } = lintDocs(catalog, prose);
 console.log(`${docs.size} docs in ${path.join(out, 'library')}`);
 if (missing.length) console.log(`no prose: ${missing.join(', ')}`);
-if (unhelped.length) console.log(`no help: ${unhelped.join(', ')}`);
+if (unhelped.length) console.log(`no help: ${unhelped.length} params (${unhelped.slice(0, 5).join(', ')}, …)`);
 for (const e of errors) console.log(e);

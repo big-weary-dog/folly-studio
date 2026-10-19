@@ -9,14 +9,11 @@ filter: it reworks what is above it in its chain, by transparency; sources below
 direction; **bars** with one bar draws a moving edge itself.
 
 ## Params
-- direction: where it fades in from: up (from the ground), down (from the top), right, left, back, front, out (from
-  the centre), in (from the rim), round, along (from each wire's start).
-- position: where the edge starts, 0..1 along Direction. 0 starts the fade at the near edge; 1 hides everything.
-  Bind it to an lfo or a cue for a wipe.
-- width: how long the ramp from clear to full is. 0.05–0.1 a crisp edge (a wipe); 0.3–0.6 a soft gradient.
-- both: also fades toward the far edge; that edge stays at the layer's end while Position moves the near one.
-- invert: shows the near side instead: visible up to the edge, clear beyond. With a moving Position it is a fill
-  level.
+- direction: Down fades in from the top; out from the centre, in from the rim, along from each wire's start.
+- position: 0..1 along Direction; 1 hides everything. Bind it to an lfo or a cue for a wipe.
+- width: 0.05–0.1 a crisp edge (a wipe); 0.3–0.6 a soft gradient.
+- both: The far edge stays at the layer's end while Position moves the near one.
+- invert: With a moving Position it is a fill level.
 
 ## Pairings
 - Colour-wash, then edge-fade `up` inverted with position on a sine lfo, then a dim wash blend `under`: a breathing

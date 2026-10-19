@@ -8,8 +8,8 @@ retro, 8-bit or graphic look, or to give a smooth texture crisp edges; **mosaic*
 of colour into steps, **recolour** picks new colours, **mask** with `self` cuts shapes rather than banding colours.
 
 ## Params
-- steps: levels per channel. 2 is harsh primary colours, 3–4 clear banding, 6+ barely visible.
-- amount: 1 fully stepped; 0.4–0.7 keeps some of the gradient under the steps.
+- steps: 2 gives harsh primary colours, 3–4 clear banding; 6+ is barely visible.
+- amount: 0.4–0.7 keeps some of the gradient under the steps.
 
 ## Pairings
 - After plasma, clouds or a smooth bars: contour-map bands of colour that flow.

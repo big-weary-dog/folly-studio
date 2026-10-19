@@ -7,12 +7,11 @@ the façade plane and often hug the layer's edges. Reach for **circles** for blo
 **single-strand** comets for motion locked to each wire, **streaks** for many straight trails.
 
 ## Params
-- colours: tail (first) to head (last); a smooth ramp like `"low accent high"` reads best.
-- speed: how fast they wander. 0.1–0.3 is a slow drift; 0.6+ darts about.
-- tendrils: how many. 1–3 on small groups, 4–6 on the whole rig.
-- length: how long a trail each keeps. 0.2–0.4; at 1 the body breaks into beads.
-- width: head thickness as a share of the layer (the tail tapers to 30% of it). 0.05–0.1; thinner breaks up on sparse
-  LEDs.
+- colours: A smooth ramp like `"low accent high"` reads best.
+- speed: 0.1–0.3 is a slow drift; 0.6+ darts about.
+- tendrils: 1–3 on small groups, 4–6 on the whole rig.
+- length: 0.2–0.4; at 1 the body breaks into beads.
+- width: A share of the layer; the tail tapers to 30% of it. 0.05–0.1; thinner breaks up on sparse LEDs.
 
 ## Pairings
 - Blend `over` a dim `colour-wash` or slow `plasma` bed.

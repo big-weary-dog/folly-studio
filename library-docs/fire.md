@@ -8,12 +8,11 @@ drifting rather than rising; **streaks** with a falling direction is rain; **cli
 group rather than a flicker.
 
 ## Params
-- colours: cool tip to hot root; give it a warm pick in order, e.g. `#300000 #ff2000 #ff9000 #fff0a0`. The default
-  `all` puts the palette's lowest colour at the tips.
-- direction: which way the flames rise, from the opposite edge: up (from the ground), down, right or left.
-- speed: how fast the flames lick upward and boil. 0.6–1.5 is a hearth; 3–4 a blaze; 0 frozen.
-- height: how far they reach; about this share of the layer, raggedly. 0.4 hugs the base; 1–1.5 fills it.
-- size: a flame's width and length as a share of the layer. 0.2–0.4 for distinct tongues; above 1 one slow sheet.
+- colours: Give it a warm pick in order, e.g. `#300000 #ff2000 #ff9000 #fff0a0`. The default `all` puts the palette's
+  lowest colour at the tips.
+- speed: 0.6–1.5 is a hearth; 3–4 a blaze.
+- height: About this share of the layer, raggedly. 0.4 hugs the base; 1–1.5 fills it.
+- size: A share of the layer. 0.2–0.4 for distinct tongues; above 1 one slow sheet.
 
 ## Pairings
 - Over a dim warm `colour-wash` (`blend: "over"`) so the space above the flames glows rather than goes dark.

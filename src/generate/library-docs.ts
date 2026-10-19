@@ -149,7 +149,13 @@ export function lintDocs(catalog: Catalog, prose: ReadonlyMap<string, string>) {
   for (const name of [...catalog.modules.keys(), ...catalog.presets.keys()]) if (!prose.has(name)) missing.push(name);
   const unhelped = [...catalog.modules.values()].flatMap((m) => Object.entries(m.params)
     .filter(([, d]) => !d.help).map(([n]) => `${m.name}.${n}`));
+  const known = (n: string) => catalog.modules.has(n) || catalog.presets.has(n)
+    || /^(source|warp|filter|preset)s?$/.test(n);
   for (const [name, text] of prose) {
+    // A module named in bold is a reference to the library: a rename or removal leaves it dangling.
+    for (const [, ref] of text.matchAll(/\*\*([a-z][a-z0-9-]*)\*\*/g)) {
+      if (!known(ref!)) errors.push(`${name}.md: names **${ref}**, which the library lacks`);
+    }
     if (INTROS.includes(name)) continue;
     const p = parseProse(text), m = catalog.modules.get(name), pr = catalog.presets.get(name);
     if (!m && !pr) { errors.push(`${name}.md: no library entry ${name}`); continue; }

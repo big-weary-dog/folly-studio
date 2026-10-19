@@ -9,10 +9,9 @@ it something that changes with distance and time: plasma, clouds, bars on `in`, 
 wedges, **twist** swirls without repeating.
 
 ## Params
-- segments: wedges round the circle (whole numbers), each mirrored in two, so 6 shows 12 pieces. Matching the rose's
-  16 petals (16 or 8) locks the pattern to the window; 3–4 gives big bold shapes.
-- spin: how fast the fold lines turn round the centre; negative turns anticlockwise. 0.01–0.05 is stately, above
-  ~0.2 the whole rig rotates noticeably.
+- segments: Whole numbers, each mirrored in two, so 6 shows 12 pieces. Matching the rose's 16 petals (16 or 8) locks the
+  pattern to the window; 3–4 gives big bold shapes.
+- spin: Negative is anticlockwise. 0.01–0.05 is stately; above ~0.2 the whole rig rotates noticeably.
 
 ## Pairings
 - After plasma or clouds, then **anchor** (rose) at the bottom: a living rose window.

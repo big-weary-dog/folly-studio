@@ -9,12 +9,9 @@ trails, so it goes after the source. Reach for it to set any linear source at a 
 mirrored pattern.
 
 ## Params
-- plane: `facade` turns in the front plane (the usual choice); `side` turns depth against height (leans
-  front-to-back motion); `plan` turns across against depth, as seen from above (only shows on layers with depth).
-- angle: the fixed tilt in turns; 0.125 (the default) is 45°, 0.25 a right angle. Small values (±0.02–0.05) give a
-  subtle lean.
-- spin: turns a second on top of the angle. 0.02–0.1 is a slow turn; above ~0.5 big stripes sweep past fast enough to
-  flicker.
+- plane: `facade` is the usual choice; `side` leans front-to-back motion; `plan` only shows on layers with depth.
+- angle: In turns; the default 0.125 is 45°. ±0.02–0.05 gives a subtle lean.
+- spin: Turns a second. 0.02–0.1 is a slow turn; above ~0.5 big stripes sweep past fast enough to flicker.
 
 ## Pairings
 - Bars going `back` then rotate `side` with a small angle: waves rolling front to back, leaning with height (preset

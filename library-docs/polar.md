@@ -9,9 +9,8 @@ moves the centre to the rose, **twist** after it curls spokes into spirals (pres
 wedges instead.
 
 ## Params
-- repeats: copies of the source's across round the circle; 2–4 makes several spokes from one bar.
-- inward: off, the source's bottom is the centre and its top the rim; on, the other way, so rising sources fall
-  inward.
+- repeats: 2–4 makes several spokes from one bar.
+- inward: On, rising sources fall inward.
 
 ## Pairings
 - Bars `right` then polar then twist (swirl ≈ −1): spiral arms (preset galaxy); a spot over the centre for a core.

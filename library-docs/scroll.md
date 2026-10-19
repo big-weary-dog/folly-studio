@@ -9,9 +9,7 @@ mosaic) in motion, or to add drift to a moving one; **rotate** turns rather than
 unevenly, **bars** and **single-strand** draw their own motion.
 
 ## Params
-- direction: which way it slides: up, down, right, left, back, front, out, in, round, along (each wire from its
-  start).
-- speed: layers a second, so 1 crosses the whole layer each second; 0.02–0.2 is a drift. Negative reverses.
+- speed: Layers a second, so 1 crosses the whole layer each second; 0.02–0.2 is a drift.
 
 ## Pairings
 - After a colour-wash with gradient colours or a smooth bars: a moving gradient across the façade.

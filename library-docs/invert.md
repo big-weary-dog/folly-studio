@@ -8,8 +8,7 @@ keeps brightness, but by place and time, not by a fixed half turn; **recolour** 
 keep dark dark; **mask** with `invert` shows where a source is dark rather than changing colours.
 
 ## Params
-- amount: 1 fully inverted, 0.5 a flat grey wash, so between 0 and 1 the colours pass through grey; use it at 0 or 1,
-  or bind it to cut on a cue.
+- amount: Between 0 and 1 the colours pass through grey; use it at 0 or 1, or bind it to cut on a cue.
 
 ## Pairings
 - After a dark bed with a bright element: a bright field with a dark element moving through it.

@@ -7,11 +7,11 @@ its own place every time. Celebration, finales, New Year. Reach for **ripple** f
 **shockwave** for one front bursting from a fixed point, **sparkle** for glitter that stays put.
 
 ## Params
-- colours: each burst takes the next colour of the pick; `all` or `rainbow` for a mixed display, `high` for white.
-- speed: bursts a second from each shell. 0.3–0.5 lets each burst bloom and fade; 1+ is a barrage.
-- shells: how many fire independently. 1–2 for single bursts, 4–6 for a finale.
-- size: burst radius as a share of the layer. 0.2–0.4; 0.6 fills the layer with one burst.
-- sparks: spokes round a burst. 8–16 reads as sparks; 24+ merges into a solid ring on sparse LEDs.
+- colours: `all` or `rainbow` for a mixed display, `high` for white.
+- speed: Bursts a second from each shell. 0.3–0.5 lets each burst bloom and fade; 1+ is a barrage.
+- shells: 1–2 for single bursts, 4–6 for a finale.
+- size: A share of the layer; 0.2–0.4 suits most. 0.6 fills the layer with one burst.
+- sparks: 8–16 reads as sparks; 24+ merges into a solid ring on sparse LEDs.
 
 ## Pairings
 - Blend `over` a dark `colour-wash` bed (a night-sky hex) so the bursts stand out.

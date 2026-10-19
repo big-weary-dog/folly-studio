@@ -8,13 +8,12 @@ a soft swelling pulse locked to the tempo; **sparkle** glints single LEDs contin
 then.
 
 ## Params
-- colours: one per flash in turn; `high` or a hex for white-hot hits. The default `all` cycles the whole palette,
-  dim colours included.
-- speed: flashes per second. 2 is the default; above 3 on a large area fails the flash check. For one per beat use the
-  tempo ÷ 60 (2 at 120 bpm).
-- length: the lit share of each flash; 0.05–0.15 a crisp strobe, 0.5 half on, half off.
-- scatter: the share of LEDs skipped on each flash, chosen anew per flash; 0 every LED, 1 leaves about one in ten.
-- fade: how much of each flash fades out at its end (capped at length); 0 cuts off hard.
+- colours: `high` or a hex for white-hot hits. The default `all` cycles the whole palette, dim colours included.
+- speed: Flashes a second; 2 is the default. Above 3 on a large area fails the flash check. For one a beat use the tempo
+  ÷ 60 (2 at 120 bpm).
+- length: 0.05–0.15 is a crisp strobe, 0.5 half on, half off.
+- scatter: Chosen anew each flash; 1 leaves about one LED in ten.
+- fade: Capped at length.
 
 ## Pairings
 - Over the look's main element (`blend: "over"` or `add`), with its level bound to an lfo or the clip envelope so it

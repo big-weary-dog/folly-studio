@@ -8,14 +8,12 @@ shape) or to the clip's envelope to draw it for an opening reveal. **edge-fade**
 **bars** with duty bound makes a plain sliding block.
 
 ## Params
-- colours: the cloth's shades across each pleat walk the first three quarters of the pick; the drawn edge glows in the
-  last colour. `low body` for a dark velvet with a lit hem.
-- open: how far it has parted: 0 shut (no seam), 0.5 half, 1 open. Bind it; a fixed value is a still curtain.
-- direction: only the axis it parts along: right or left (the halves draw to the sides; both look the same), up or
-  down (to top and bottom), back or front (in depth).
-- pleats: folds across each half; 4–8 read on the arches, 0 is flat cloth. More fold together as it opens.
-- swag: how much wider the opening is at the bottom; 0 straight edges, 0.35 classic tie-backs. Made for right/left.
-- softness: the cloth's edge width as a share of the layer; 0.02–0.05 crisp, 0.2 a soft fade. 0 aliases on sparse LEDs.
+- colours: The cloth's shades walk the first three quarters of the pick. `low body` gives a dark velvet with a lit hem.
+- open: 0.5 is half open. Bind it; a fixed value is a still curtain.
+- direction: Only the axis matters: right and left look the same, as do up and down. Back or front parts it in depth.
+- pleats: 4–8 read on the arches. More fold together as it opens.
+- swag: 0.35 gives classic tie-backs. Made for right/left.
+- softness: A share of the layer; 0.02–0.05 crisp, 0.2 a soft fade. 0 aliases on sparse LEDs.
 
 ## Pairings
 - Over a `colour-wash` or the look's main element, `blend: "over"`, with Open on a hold lfo (curtain-reveal: open,

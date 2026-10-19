@@ -9,11 +9,9 @@ colours over a song; **recolour** chooses colours by brightness from a palette, 
 changes the whole layer at once, **invert** flips colours.
 
 ## Params
-- direction: which way the hue changes across: up, down, right, left, back, front, out, in, round (a colour wheel
-  round the centre), along (each wire).
-- spread: turns of the wheel across the layer. 1 shows the full spectrum once; 0.2–0.4 a gentle shading; 0 the same
-  turn everywhere.
-- speed: turns a second; 0.02–0.1 cycles slowly. Combined with spread it makes the rainbow move along Direction.
+- direction: `round` makes a colour wheel round the centre; `along` runs along each wire.
+- spread: Turns of the wheel across the layer. 1 shows the full spectrum once; 0.2–0.4 a gentle shading.
+- speed: Turns a second; 0.02–0.1 cycles slowly. Combined with spread it makes the rainbow move along Direction.
 
 ## Pairings
 - After a one-colour source (bars, single-strand, sparkle): a rainbow of them.

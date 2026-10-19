@@ -7,14 +7,12 @@ the most flexible: one wide smooth bar is a slow tide, 3 pulse bars on `in` are 
 **lighthouse** for beams turning round a centre, **colour-wash** when the whole layer should change at once.
 
 ## Params
-- colours: the bands' colours, dealt in turn; a role (`body`) for a family, `rainbow` for a spectrum.
-- direction: which way bands move; `in` runs toward the centre (a negative speed sends rings outward), `round` circles
-  it, `along` follows each wire.
-- speed: how fast bands move; negative runs them backward. Above ~1 on a step profile reads as flicker on big groups.
-- bars: how many fit across. 1–2 for slow tides, 4–8 for stripes; rounded to whole numbers on `round`.
-- duty: lit share of each bar; below 1 the gaps are clear, so the layer under shows through.
-- profile: step (flat bands), smooth (a gradient, no edges), pulse (bright middles), comet (bright front, fading tail).
-- softness: edge width on step. 0 aliases on sparse LEDs; keep ≥ 0.1.
+- colours: A role (`body`) gives a family, `rainbow` a spectrum.
+- direction: With `in`, a negative speed sends rings outward.
+- speed: Above ~1 on a step profile reads as flicker on big groups.
+- bars: 1–2 for slow tides, 4–8 for stripes; rounded to whole numbers on `round`.
+- duty: Below 1 the layer under shows through the gaps.
+- softness: 0 aliases on sparse LEDs; keep ≥ 0.1.
 
 ## Pairings
 - Over a dim `colour-wash` with duty < 1: bands over a bed (presets rising-sweep, nave-procession).

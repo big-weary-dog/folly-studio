@@ -140,6 +140,7 @@ for (const [name, device] of Object.entries(SIZES)) {
         await shot('help');
         await open('code', 'Code');
         await code.fill(original);
+        if (!wide) await page.locator('.tab[data-tab=layers]').click();   // where the step before left the phone
       });
 
       await test.step('the pickers: a preset adds its layer; Add a module shows one kind', async () => {

@@ -7,11 +7,8 @@ tower, and bind size to an LFO to make it breathe. Reach for **heartbeat** when 
 **shockwave** for a ring bursting out, **circles** for several moving balls.
 
 ## Params
-- colours: the spot's one colour: the first of the pick. The default `all` gives the palette's lowest colour, often
-  dark; set `high` or a hex for a bright core.
-- size: its radius, as a share of the layer (or of the anchor's reach). 0.1–0.2 is a hub; 0.5+ floods most of it.
-- softness: the share of the radius that fades. 0 is a hard disc; 0.6 a soft-edged spot; 1 a glow brightest at the
-  middle.
+- size: A share of the layer (or of the anchor's reach). 0.1–0.2 is a hub; 0.5+ floods most of it.
+- softness: 0.6 gives a soft-edged spot.
 
 ## Pairings
 - Last in a chain with `blend: "over"`: a bright core over spiral arms (galaxy: high, size 0.13, softness 0.8).
