@@ -25,6 +25,7 @@ import type { ExpandError, Uses } from './expand.ts';
 import { createFleetAdapter, hasMemoryCap } from './fleet.ts';
 import type { Registry } from './models.ts';
 import { buildPrompt, buildRefineMessage } from './prompt.ts';
+import { refineHistory } from './refine-history.ts';
 import { type Composition, decompose, diffCompositions, keepSwitches } from './refine.ts';
 import { compose, type Critique, type Rounds } from './rounds.ts';
 import { sketchRefine } from './sketch-refine.ts';
@@ -199,15 +200,16 @@ export function createQueue({
   }
   const promptOf = (p: Prepared) => (p.prompt ??= buildPrompt(p));
 
-  /** What a refinement starts from: the look as a composition, the turn that asks for the change, and (a critique
-   * asked for alone) the composition as the answer to critique. */
-  type Refining = { look: StoredLook, comp: Composition, aim: string, start?: Composition };
+  /** What a refinement starts from: the look as a composition, the aim, its history, and (a critique asked for
+   * alone) the composition as the answer to critique. */
+  type Refining = { look: StoredLook, comp: Composition, aim: string, history: string, start?: Composition };
   function refining(idea: Idea, catalog: Catalog): Refining {
     const look = idea.lookId ? store.looks.get(idea.lookId) : null;
     if (!look || look.owner !== idea.owner) throw new GenerateError('The look to refine is gone.', 'no such look');
     const comp = decompose(look, catalog), from = look.ideaId ? store.ideas.get(look.ideaId)?.text : '';
     const aim = idea.text || from || `${look.title}. ${look.summary ?? ''}`;
-    return { look, comp, aim, ...(!idea.text && !idea.refine?.fix ? { start: comp } : {}) };
+    const history = refineHistory(store.ideas.list((i) => i.lookId === look.id), idea, from);
+    return { look, comp, aim, history, ...(!idea.text && !idea.refine?.fix ? { start: comp } : {}) };
   }
 
   /** The look from the route's adapter, validated, in rounds for a prompted model; the fallback tries when that one
@@ -267,7 +269,7 @@ export function createQueue({
       const ctx: Context = { text: String(idea.text ?? ''), user, library: base.library, rig: base.rig,
         groups: base.groups, idea: { id }, prompt: () => promptOf(base), signal: ac.signal };
       const refine = idea.refine ? { ...refining(idea, promptOf(base).catalog), ...idea.refine } : undefined;
-      if (refine) ctx.turn = buildRefineMessage(refine.comp, idea.text, idea.refine?.fix);
+      if (refine) ctx.turn = buildRefineMessage(refine.comp, idea.text, idea.refine?.fix, refine.history);
       const out = await lookFrom(ctx, r, refine), { look, used, request, failed } = out;
       const timing = { wait: started - queuedAt, prompt, request, parse: out.parse, total: 0,
         ...(out.check !== undefined ? { check: out.check } : {}),
@@ -276,7 +278,8 @@ export function createQueue({
       if (refine) {
         const changes = await revise(refine.look, look, promptOf(base).catalog);
         timing.total = Date.now() - queuedAt;
-        await update(id, { status: 'ready', generator: used.id, by: used.label, error: null, timing, changes });
+        await update(id, { status: 'ready', generator: used.id, by: used.label, error: null, timing, changes,
+          ...(out.critique ? { verdict: out.critique.outcome.slice(0, 80) } : {}) });
         return log.info?.(`[generate] refinement ${id} ready via ${used.id} in ${timing.total} ms (request ${request}`
           + `${how}; ${changes.length} changes; look ${refine.look.id})`);
       }

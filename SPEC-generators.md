@@ -77,6 +77,14 @@ look stays as it was, as it does when the look was edited while it ran. A layer 
 `solo`) and its switched-off modules, which the model is not shown. One refinement per look at a time (409). Only
 Sketch and the prompted models refine (the foundry: 400).
 
+**Refine history.** A refinement's turn also carries the look's history, so a follow-up (`more`, `undo the red`)
+reads against what came before: the idea that made the look, then each earlier ready refinement of it, oldest
+first, as its request (or "a critique", "a fix of layer X") with its `changes` on one line and its critique
+`verdict`. An undone refinement (`POST /api/ideas/:id/undo`, which the Studio's Undo calls) is left out. The last 8
+entries that fit in 1,500 characters, the idea kept first; fenced as untrusted (`<history>`) and marked a record,
+not instructions. The prompted models read it; Sketch ignores it. Only requests and change lines, never answers or
+transcripts.
+
 - `sketch`: offline, keyword → the preset or source a theme names (`sketch-words.json`) + params, place words →
   tags. Colour words choose the palette nearest them in hue and become the nearest swatch's slot (`accent2`; none
   close: the colour itself): the pick of a source's (a preset's top source's) `colours`. A plain wash or a colour

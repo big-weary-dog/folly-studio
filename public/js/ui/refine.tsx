@@ -12,8 +12,8 @@ import { Field, toast } from './kit.tsx';
 import { saveBody, type Studio } from './studio-store.ts';
 
 type Ask = { text?: string, critique?: true, fix?: { layer: string, error: string } };
-type Run = { lookId: string, busy: boolean, by?: string, changes?: string[], before?: ReturnType<typeof saveBody>,
-  error?: string };
+type Run = { lookId: string, busy: boolean, by?: string, ideaId?: string, changes?: string[],
+  before?: ReturnType<typeof saveBody>, error?: string };
 const run = signal<Run | null>(null);
 const model = signal('');   // '' → the model that made the look
 let choices: Promise<ModelChoices> | null = null;
@@ -45,7 +45,7 @@ export async function refine(st: Studio, ask: Ask) {
     if (idea.status === 'failed') throw new Error(idea.error || 'The refinement failed.');
     const changes = idea.changes ?? [];
     if (changes.length) await reload(st, id);
-    run.value = { lookId: id, busy: false, by: idea.by, changes, before };
+    run.value = { lookId: id, busy: false, by: idea.by, ideaId: idea.id, changes, before };
   } catch (err) {
     if (statusOf(err) === 401) return signedOut();
     run.value = { lookId: id, busy: false, error: (err as Error).message };
@@ -55,6 +55,7 @@ export async function refine(st: Studio, ask: Ask) {
 async function undo(st: Studio, r: Run) {
   try {
     await api.updateLook(r.lookId, r.before!);
+    if (r.ideaId) await api.undoRefine(r.ideaId);
     await reload(st, r.lookId);
     run.value = null;
     toast('Put back as it was.', { kind: 'ok' });
