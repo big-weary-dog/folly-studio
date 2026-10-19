@@ -115,13 +115,16 @@ everything above it, as in an image editor.
 - \`warp\`: \`function warp(q, t, P, G)\` bends everything above it: it changes q (a copy of p: lx ly lz a r u i …)
   for the modules above it. So a warp goes after what it bends. A blur or trails holds real LED colours (its code
   declares \`const stage = 'spatial'\` or \`'history'\`): a warp below one does not reach above it.
-So "meteors only inside clouds, mirrored" is [source meteors, source clouds as input, filter mask with input = the
-clouds' id, warp mirror]. A module with a \`ref\` names the library entry it copies; still give its code.
+So "a chase only inside clouds, mirrored" is [source single-strand, source clouds as input, filter mask with input =
+the clouds' id, warp mirror]. A module with a \`ref\` names the library entry it copies; still give its code. A preset
+is such a chain, ready made: copy its modules, each with its library entry's code.
 A source draws only what it is, on transparent: alpha is how much it covers, null where it draws nothing; it paints
 no background. A bed fills: colour-wash, first in the chain with the element after it \`blend: "over"\` (or after a
 filter that should rework the element alone, \`blend: "under"\`).
 \`G\` holds the look's globals: G.energy (0..1, calm → busy), G.bpm (the look's tempo), the palette, and each macro by
-name.`;
+name. A library source never reads G.energy: to make something busier with energy, bind its param in the layer,
+\`"density": { "mod": "global", "name": "energy", "from": 0.3, "to": 1 }\` (or to an LFO,
+\`{ "mod": "lfo", "rate": 0.2 }\`).`;
 
 export const TASTE = `- Colour at full strength. A palette sets hue, not brightness: saturated colours at full value.
   Warm colours at half brightness read as brown and olive.
@@ -141,33 +144,16 @@ so a look in palette colours follows the one picked), and macros [{ name, value,
 patterns read as G.<name>. automation [{ name, points: [[seconds, value], …] }] moves a global or macro over
 time, linearly between points: energy that builds from 0.2 to 1 over a minute, a storm macro that rises.`;
 
-const FEATURES = [/function\s+frame\b/, /\bp\.u\b/, /\bp\.(a|r)\b/, /\bp\.(ring|sector|row|petal)\b/,
-  /\b(noise|fbm)\(/, /\bbeat\(/,
-  /\bp\.l[xyz]\b/];
+// The examples: sources on the library's rules (a direction, a gradient to a head, along the wire, state in frame()
+// with seeded colours) and a preset, a chain whose warps come after what they bend.
+const EXAMPLES = ['fire', 'arch-chase', 'fireworks', 'pinwheel'];
 
-/**
- * Pick up to `count` library patterns to show as examples: short enough to read, and covering
- * different parts of the API (frame(), fixtures, polar, rings, noise, beat). Deterministic.
- */
-export function pickExamples(library: Library = [], count = 4) {
-  const pool = library
-    .filter((p) => p && typeof p.code === 'string' && p.code.length <= 4000 && (p.kind ?? 'source') === 'source')
-    .slice()
-    .sort((a, b) => String(a.name).localeCompare(String(b.name)));
-  const chosen: LibraryEntry[] = [];
-  const covered = new Set<number>();
-  while (chosen.length < count && pool.length) {
-    let best = 0;
-    let bestGain = -1;
-    for (const [i, p] of pool.entries()) {
-      const gain = FEATURES.reduce((g, re, f) => g + (!covered.has(f) && re.test(p.code) ? 1 : 0), 0);
-      if (gain > bestGain) [best, bestGain] = [i, gain];
-    }
-    const p = pool.splice(best, 1)[0]!;
-    FEATURES.forEach((re, f) => re.test(p.code) && covered.add(f));
-    chosen.push(p);
-  }
-  return chosen;
+/** The library's examples for the prompt, in that order; a library without them (a test's) gives its first sources,
+ * by name. Deterministic. */
+export function pickExamples(library: Library = []) {
+  const named = EXAMPLES.flatMap((n) => library.filter((p) => p?.name === n));
+  return named.length ? named : library.filter((p) => p && typeof p.code === 'string' && p.code.length <= 4000
+    && (p.kind ?? 'source') === 'source').sort((a, b) => String(a.name).localeCompare(String(b.name))).slice(0, 4);
 }
 
 export const GROUPS_NOTE = '`a … b` is a numbered run (a, …, b); `x-{a,b}` means x-a and x-b; [tags] say what a '
@@ -249,10 +235,14 @@ export function formatLibraryIndex(library: Library = []) {
     .map(([kind, list]) => `${kind[0]!.toUpperCase()}${kind.slice(1)}s:\n${list.map(line).join('\n')}`).join('\n');
 }
 
+/** Each example: a module's code, or a preset's layers as the modules a layer gives (each module's code that of the
+ * library entry its ref names). */
 export function formatExamples(examples: Library) {
-  const fence = '```';
-  return examples.map((p) => `### ${p.title || p.name} (\`${p.name}\`)\n${p.summary ? `${p.summary}\n` : ''}\n`
-    + `${fence}js\n${p.code.trim()}\n${fence}`).join('\n\n');
+  const fence = '```', preset = (p: LibraryEntry) => p.kind === 'preset';
+  const body = (p: LibraryEntry) => (p.kind === 'preset' ? `json\n${JSON.stringify(p.layers.map((l) => l.modules))}`
+    : `js\n${p.code.trim()}`);
+  return examples.map((p) => `### ${p.title || p.name} (\`${p.name}\`${preset(p) ? ', a preset' : ''})\n`
+    + `${p.summary ? `${p.summary}\n` : ''}\n${fence}${body(p)}\n${fence}`).join('\n\n');
 }
 
 /** The whole installation's group: the root of the tree. */
@@ -265,7 +255,7 @@ export function buildSystemPrompt({ library = [], rig, groups = rig?.groups || [
   const mask = library.find((p) => p && p.name === 'mask' && typeof p.code === 'string');
   if (mask) examples.push(mask);
   const index = formatLibraryIndex(library);
-  const lib = (index ? `The studio library, by kind; adapt their ideas freely:\n${index}\n\n` : '')
+  const lib = (index ? `The studio library, by kind (a preset as its chain); copy or adapt freely:\n${index}\n\n` : '')
     + (examples.length ? `Examples of good pattern code:\n\n${formatExamples(examples)}` : '');
   return `You are the show designer for Folly Studio. People describe a light show idea in plain
 words; you turn it into a "look": a stack of pattern-code layers on groups of ${rig?.name || 'the installation'}.

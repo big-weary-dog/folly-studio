@@ -658,9 +658,9 @@ what it bends), and the idea set `ready`. Old single-code layers
 stay valid. Generators may add
 clips and a duration for ideas that describe a progression; most looks have neither.
 
-- `sketch`: offline, keyword → library pattern(s) + params, place words → tags. Colour words choose the palette
-  nearest them in hue and become the nearest swatch's slot (`accent2`; none close: the colour itself): together the
-  pick of a source's `colours`, or, in a source with several colour params, one each. Always available.
+- `sketch`: offline, keyword → the preset or source a theme names (`sketch-words.json`) + params, place words →
+  tags. Colour words choose the palette nearest them in hue and become the nearest swatch's slot (`accent2`; none
+  close: the colour itself): the pick of a source's (a preset's top source's) `colours`. Always available.
 - `claude`: one Messages API call with the pattern guide + library examples as the system prompt (cached: the same
   bytes on every call), and structured output whose JSON Schema is the generated look's own (`wireSchema(groups)`:
   group ids and tags as enums).

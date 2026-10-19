@@ -1,16 +1,17 @@
-// sketch: the offline generator. Picks one to three library patterns by keywords in the idea, colour words to the
-// nearest palette and its swatches (sketch-colours.ts) for colour params, and place words to the rig's tagged groups
-// (SPEC "Rig"). Deterministic, instant, free.
+// sketch: the offline generator. Picks one to three library presets or sources by keywords in the idea (each theme
+// names the ones it prefers), colour words to the nearest palette and its swatches (sketch-colours.ts) for colour
+// params, and place words to the rig's tagged groups (SPEC "Rig"). Deterministic, instant, free.
 // Library code is only read as text here (params are parsed with regexes, never evaluated).
 
 import WORDS from './sketch-words.json' with { type: 'json' };
 import { cleanText, LIMITS } from '../../shared/schemas/generated.ts';
-import type { LibraryEntry, RigGroup } from '../../shared/schemas/rig.ts';
-import { choosePalette, pickFor, slotFor } from './sketch-colours.ts';
+import type { LibraryEntry, PresetEntry, RigGroup } from '../../shared/schemas/rig.ts';
+import { choosePalette, colourParams } from './sketch-colours.ts';
 
 type Pattern = Pick<LibraryEntry, 'name' | 'code'> & Partial<LibraryEntry>;
+const isPreset = (p: Pattern): p is Pattern & PresetEntry => p.kind === 'preset' && Array.isArray(p.layers);
 
-// Theme words in the idea → terms looked for in a pattern's name, tags, title and summary;
+// Theme words in the idea → the entries it prefers, else terms looked for in a pattern's name, tags, title and summary;
 // colour words → full-strength colours ("colour at full strength"); pace words.
 const THEMES = WORDS.themes.map((t) => ({ ...t, words: new Set(t.words.split(' ')), terms: t.terms.split(' ') }));
 const COLOURS: Record<string, string> = WORDS.colours;
@@ -254,19 +255,21 @@ export function sketchLook({ text = '', library = [], groups = [] }: { text?: st
   groups?: readonly RigGroup[] } = {}) {
   const raw = String(text).slice(0, 4000);
   const lower = raw.toLowerCase();
-  const lib = (Array.isArray(library) ? library : [])
-    .filter((p) => p && typeof p.code === 'string' && /\bfunction\s+pixel\s*\(/.test(p.code))
-    .slice()
+  const all = (Array.isArray(library) ? library : []).filter((p) => p && typeof p.name === 'string');
+  const modules = new Map(all.filter((p) => !isPreset(p) && typeof p.code === 'string').map((p) => [p.name, p]));
+  // Sources, and presets (one-layer chains the generators' limits allow) whose modules the library has.
+  const lib = all.filter((p) => (isPreset(p) ? p.layers.length === 1 && p.layers[0]!.modules.length <= LIMITS.modules
+    && p.layers[0]!.modules.every((m) => modules.has(m.ref)) : /\bfunction\s+pixel\s*\(/.test(p.code)))
     .sort((a, b) => String(a.name).localeCompare(String(b.name)));
   const gi = groupIndex(Array.isArray(groups) ? groups : []);
   const ws = words(lower);
   const parts = clauses(lower);
   const clauseOf = (at: number) => parts.findIndex((c) => at >= c.start && at < c.end);
   // Theme hits, in order of appearance; a pattern named or tagged in the idea is a hit too.
-  const hits: { at: number, key: string, terms?: string[], direct?: number }[] = [];
+  const hits: { at: number, key: string, terms?: string[], use?: string[], direct?: number }[] = [];
   const ownTokens = lib.map(tokensOf);
   for (const { w, at } of ws) {
-    for (const theme of THEMES) if (theme.words.has(w)) hits.push({ at, terms: theme.terms, key: theme.key });
+    for (const t of THEMES) if (t.words.has(w)) hits.push({ at, terms: t.terms, use: t.use, key: t.key });
     if (w.length < 4 || reserved(w)) continue;
     lib.forEach((p, i) => ownTokens[i].has(w) && hits.push({ at, direct: i, key: p.name }));
   }
@@ -279,7 +282,9 @@ export function sketchLook({ text = '', library = [], groups = [] }: { text?: st
     if (chosen.length >= 3 || !lib.length) break;
     if (seenKeys.has(hit.key) || chosen.some((c) => c.clause === clauseOf(hit.at))) continue;
     let pick = -1;
+    const named = hit.use?.map((n) => lib.findIndex((p) => p.name === n)).find((i) => i >= 0);
     if (hit.direct != null) pick = hit.direct;
+    else if (named !== undefined) pick = named;
     else {
       let best = 0;
       lib.forEach((p, i) => {
@@ -336,49 +341,33 @@ export function sketchLook({ text = '', library = [], groups = [] }: { text?: st
   const bpm = Number(/(\d{2,3})\s*bpm/.exec(lower)?.[1]) || 0;
 
   const layers = chosen.map((c, li) => {
-    const decl = parseParams(c.pattern.code);
-    const params: Record<string, number | string> = {};
-    const paces = scoped(paceAt, c).list;
-    const pace = paces.length ? paces.at(-1)!.f : 1;
-    for (const [name, d] of Object.entries(decl)) {
-      if (d.type !== 'number' || typeof d.value !== 'number' || !Number.isFinite(d.value)) continue;
-      if (/bpm|tempo/i.test(name) && bpm) params[name] = clampTo(bpm, d);
-      else if (/speed|rate|pace/i.test(name) && pace !== 1) params[name] = round(clampTo(d.value * pace, d));
-    }
-    // Colours: a source with one `colours` param takes them all as its pick. Otherwise one named next to a param
-    // ("white beam", "navy sky") goes there; one set "on" or "over" something goes to a background param; the rest
-    // fill the remaining colour params in order, only as many as there are colours, so the pattern keeps its contrast.
+    const paces = scoped(paceAt, c).list, pace = paces.length ? paces.at(-1)!.f : 1;
     const { list: mentions, own: here } = scoped(colourAt, c);
     const unique = mentions.filter((m, i) => mentions.findIndex((x) => x.hex === m.hex) === i);
-    const free = Object.entries(decl).filter(([, d]) => d.type === 'color').map(([n]) => n);
-    if (decl.colours?.type === 'color' && unique.length) {
-      params.colours = pickFor(unique.map((m) => m.hex), palette);
-      free.length = 0;
-    }
-    const take = (pred: (n: string) => boolean) => {
-      const i = free.findIndex(pred);
-      return i < 0 ? null : free.splice(i, 1)[0]!;
+    /** A module's params over those it is given: pace and tempo, and, where `colours`, the colours named. */
+    const tune = (code: string, given: Record<string, unknown>, colours: boolean) => {
+      const decl = parseParams(code), params: Record<string, unknown> = { ...given };
+      for (const [name, d] of Object.entries(decl)) {
+        const v = name in given ? given[name] : d.value;
+        if (d.type !== 'number' || typeof v !== 'number' || !Number.isFinite(v)) continue;
+        if (/bpm|tempo/i.test(name) && bpm) params[name] = clampTo(bpm, d);
+        else if (/speed|rate|pace/i.test(name) && pace !== 1) params[name] = round(clampTo(v * pace, d));
+      }
+      const names = Object.entries(decl).filter(([, d]) => d.type === 'color').map(([n]) => n);
+      return colours ? { ...params, ...colourParams(names, unique, palette, here ? 0 : li) } : params;
     };
-    const rest: string[] = [];
-    for (const m of free.length ? unique : []) {
-      const near = (n: string) => {
-        const a = n.toLowerCase();
-        const b = String(m.next || '').replace(/s$/, '');
-        return b.length >= 3 && (a === b || a.startsWith(b) || b.startsWith(a));
-      };
-      const bg = (n: string) => /^(base|bg|back|sky|sea|low|bed|ground|dark|night|deep)/i.test(n);
-      const name = take(near) || (behind(m) ? take(bg) : null);
-      if (name) params[name] = slotFor(m.hex, palette);
-      else rest.push(m.hex);
-    }
-    const shift = here ? 0 : li;
-    for (let k = 0; k < rest.length && free.length; k++) {
-      params[free.shift()!] = slotFor(rest[(k + shift) % rest.length]!, palette);
-    }
     const where = whole(c) ? '' : ` · ${placeOf(c)}`;
     const title = cleanText(`${c.pattern.title || c.pattern.name || 'Pattern'}${where}`, LIMITS.layerTitle);
-    return { title, groups: c.groups, tags: c.tags, blend: li === 0 ? 'add' : 'max', level: 1, params,
-      code: c.pattern.code };
+    const layer = { title, groups: c.groups, tags: c.tags, blend: li === 0 ? 'add' : 'max', level: 1 };
+    if (!isPreset(c.pattern)) return { ...layer, params: tune(c.pattern.code, {}, true), code: c.pattern.code };
+    // A preset's chain, each module the library's; the colours named go to its top source, the one on show.
+    const list = c.pattern.layers[0]!.modules, entry = (m: { ref: string }) => modules.get(m.ref)!;
+    let top = list.length - 1;
+    while (top > 0 && (entry(list[top]!).kind !== 'source' || list[top]!.as)) top--;
+    return { ...layer, modules: list.map((m, k) => ({ id: m.id ?? `m${k + 1}`, kind: entry(m).kind ?? 'source',
+      title: entry(m).title || m.ref, ref: m.ref, code: entry(m).code, params: tune(entry(m).code, m.params ?? {},
+        k === top), ...(m.blend ? { blend: m.blend } : {}), ...(m.as ? { as: m.as } : {}),
+      ...(m.input ? { input: m.input } : {}) })) };
   });
 
   const named = allColours.map(colourName).filter(Boolean);
@@ -388,10 +377,6 @@ export function sketchLook({ text = '', library = [], groups = [] }: { text?: st
   return { title: makeTitle(raw), summary: cleanText(summary, LIMITS.summary), layers,
     ...(palette ? { globals: { palette: palette.name } } : {}) };
 }
-
-/** A colour set "on" or "behind" something, or naming a background: the bed's. */
-const behind = (m: { prev?: string, next?: string }) => /^(on|over|against|behind|into)$/.test(m.prev || '')
-  || /^(background|backdrop|sky|base|bed)$/.test(m.next || '');
 
 const clampTo = (v: number, d: Declared) => Math.min(d.max ?? Infinity, Math.max(d.min ?? -Infinity, v));
 const round = (x: number) => Math.round(x * 1000) / 1000;

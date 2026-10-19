@@ -6,13 +6,15 @@ import path from 'node:path';
 import { describe, test } from 'vitest';
 
 import { createQueue } from '../src/generate/index.ts';
-import {
-  buildSystemPrompt, buildUserMessage, formatGroups, formatLibraryIndex, pickExamples,
-} from '../src/generate/prompt.ts';
+import { buildSystemPrompt, buildUserMessage, formatGroups, pickExamples } from '../src/generate/prompt.ts';
 import { BUILTIN_PATTERN, parseParams, sketchLook } from '../src/generate/sketch.ts';
 import { GenerateError, LIMITS, validateLook, wireSchema } from '../shared/schemas/generated.ts';
 import { byName, goodLayer, GROUPS, LIBRARY, queueSetup, quiet, RIG, STUDIO } from './fixtures/generate/shared.js';
 import { mini as MINI } from './fixtures/rigs.js';
+
+const DIR = path.join(STUDIO, 'public/patterns');
+const REAL = JSON.parse(fs.readFileSync(path.join(DIR, 'index.json'), 'utf8')).map((p) => ({ ...p,
+  code: p.kind === 'preset' ? '' : fs.readFileSync(path.join(DIR, `${p.name}.js`), 'utf8') }));
 
 describe('validate', () => {
   test('normalises a look: ids, defaults, known groups, limits', () => {
@@ -139,13 +141,9 @@ describe('sketch', () => {
   });
 
   test('works with the real library and groups', () => {
-    const dir = path.join(STUDIO, 'public/patterns');
-    if (!fs.existsSync(path.join(dir, 'index.json'))) return;
-    const lib = JSON.parse(fs.readFileSync(path.join(dir, 'index.json'), 'utf8')).map((p) => ({ ...p,
-      code: p.kind === 'preset' ? '' : fs.readFileSync(path.join(dir, `${p.name}.js`), 'utf8') }));
-    const look = sketch('fire on the spires and ocean waves across the arches, red and gold', lib);
-    assert.equal(look.layers.length, 2);
+    const look = sketch('fire on the spires and a starry night across the arches, red and gold', REAL);
     assert.deepEqual(look.layers.map((l) => l.groups[0]), ['spires', 'arches']);
+    assert.deepEqual(look.layers[1].modules.map((m) => m.title), ['Colour wash', 'Clouds', 'Sparkle'], 'Starfield');
   });
 
   test('blue bars: a source\'s one colours param takes the colours named as its pick', async () => {
@@ -187,27 +185,11 @@ describe('prompt', () => {
     assert.ok(pickExamples(LIBRARY).length <= 4);
   });
 
-  test('the library index lists every entry, one line each under its kind, and the prompt stays small', () => {
-    const dir = path.join(STUDIO, 'public/patterns');
-    const lib = JSON.parse(fs.readFileSync(path.join(dir, 'index.json'), 'utf8')).map((p) => ({ ...p,
-      code: p.kind === 'preset' ? '' : fs.readFileSync(path.join(dir, `${p.name}.js`), 'utf8') }));
-    const index = formatLibraryIndex(lib);
-    const kinds = {};
-    let head = '';
-    for (const line of index.split('\n')) {
-      if (/^\w+s:$/.test(line)) kinds[head = line] = [];
-      else kinds[head].push(line);
-    }
-    assert.deepEqual(Object.keys(kinds), ['Sources:', 'Warps:', 'Filters:', 'Presets:']);
-    for (const p of lib) {
-      const recipe = p.kind === 'preset'
-        ? `${p.layers.map((l) => l.modules.map((m) => m.ref).join(' → ')).join(' | ')}, ` : '';
-      assert.ok(kinds[`${p.kind[0].toUpperCase()}${p.kind.slice(1)}s:`].includes(`- ${p.name}: ${recipe}${p.summary}`),
-        p.name);
-    }
-    assert.equal(Object.values(kinds).flat().length, lib.length);
-    const sys = buildSystemPrompt({ library: lib, rig: RIG });
-    assert.ok(sys.includes(index) && sys.length < 32_000, `the system prompt is ${sys.length} characters`);
+  test('the prompt lists every library entry, a preset as its chain, and stays small', () => {
+    const sys = buildSystemPrompt({ library: REAL, rig: RIG });
+    for (const p of REAL) assert.ok(sys.includes(`\n- ${p.name}: `), p.name);
+    assert.ok(sys.includes('- starfield: colour-wash → clouds → sparkle, '), 'a preset as its chain');
+    assert.ok(sys.length < 32_000, `the system prompt is ${sys.length} characters`);
   });
 
   test('group tree is compact', () => {

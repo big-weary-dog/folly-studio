@@ -78,7 +78,7 @@ export function renderBrief(template: string, { text, library = [], rig, groups 
     RIG: describeRig(rig), NAME: rig?.name || 'the installation', ROOT: rootOf(groups),
     GROUPS_NOTE, FRAMES_PATH: path.join(dir, 'frames.fseq'), STATS_PATH: path.join(dir, 'stats.json'),
     GROUPS: formatGroups(groups) || rootOf(groups),
-    EXAMPLES: formatExamples(pickExamples(library, 3)) || '(the library is empty)',
+    EXAMPLES: formatExamples(pickExamples(library)) || '(the library is empty)',
   };
   // One pass, so placeholders inside the idea are never expanded.
   return template.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => (k in vals ? vals[k] : m));

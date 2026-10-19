@@ -50,3 +50,38 @@ export function slotFor(hex: string, palette: Palette | null): string {
 /** Colours as one pick: each the nearest slot, or itself, in the order named. */
 export const pickFor = (hexes: readonly string[], palette: Palette | null) => [...new Set(hexes
   .map((hex) => slotFor(hex, palette)))].join(' ');
+
+/** A colour set "on" or "behind" something, or naming a background: the bed's. */
+const behind = (m: { prev?: string, next?: string }) => /^(on|over|against|behind|into)$/.test(m.prev || '')
+  || /^(background|backdrop|sky|base|bed)$/.test(m.next || '');
+
+/**
+ * The colours named (each with the words beside it) as a source's colour params `names`: one `colours` param takes
+ * them all as its pick. Otherwise one named next to a param ("white beam", "navy sky") goes there, one set "on" or
+ * "over" something to a background param, and the rest fill the remaining params in order from `shift`, only as many
+ * as there are colours, so the pattern keeps its contrast.
+ */
+export function colourParams(names: readonly string[], named: readonly { hex: string, prev?: string, next?: string }[],
+  palette: Palette | null, shift: number) {
+  const params: Record<string, string> = {};
+  if (!named.length) return params;
+  if (names.includes('colours')) return { colours: pickFor(named.map((m) => m.hex), palette) };
+  const free = [...names], rest: string[] = [];
+  const take = (pred: (n: string) => boolean) => {
+    const i = free.findIndex(pred);
+    return i < 0 ? null : free.splice(i, 1)[0]!;
+  };
+  for (const m of named) {
+    const b = String(m.next || '').replace(/s$/, '');
+    const near = (n: string) => b.length >= 3 && (n.toLowerCase() === b || n.toLowerCase().startsWith(b)
+      || b.startsWith(n.toLowerCase()));
+    const bed = (n: string) => /^(base|bg|back|sky|sea|low|bed|ground|dark|night|deep)/i.test(n);
+    const name = take(near) || (behind(m) ? take(bed) : null);
+    if (name) params[name] = slotFor(m.hex, palette);
+    else rest.push(m.hex);
+  }
+  for (let k = 0; k < rest.length && free.length; k++) {
+    params[free.shift()!] = slotFor(rest[(k + shift) % rest.length]!, palette);
+  }
+  return params;
+}
