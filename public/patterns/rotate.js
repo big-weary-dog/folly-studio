@@ -1,9 +1,12 @@
 // Rotate: turns what is above it by Angle, and on round at Spin turns a second, in a Plane: the façade (and the
 // angle round its centre with it), the side (depth and height) or plan (from above).
 const params = {
-  plane: { value: 'facade', type: 'choice', options: ['facade', 'side', 'plan'], label: 'Plane' },
-  angle: { value: 0.125, min: -0.5, max: 0.5, step: 0.005, label: 'Angle (turns)' },
-  spin: { value: 0, min: -1, max: 1, step: 0.01, label: 'Spin (turns a second)' },
+  plane: { value: 'facade', type: 'choice', options: ['facade', 'side', 'plan'], label: 'Plane',
+    help: 'Facade turns the front view round its centre; side tips depth against height; plan turns it from above.' },
+  angle: { value: 0.125, min: -0.5, max: 0.5, step: 0.005, label: 'Angle (turns)',
+    help: 'A fixed tilt. 0 leaves it upright; 0.25 is a quarter turn; negative turns the other way.' },
+  spin: { value: 0, min: -1, max: 1, step: 0.01, label: 'Spin (turns a second)',
+    help: 'Keeps it turning on top of Angle. 0 holds still; higher spins faster; negative spins the other way.' },
 };
 
 function warp(q, t, P) {

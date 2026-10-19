@@ -1,11 +1,16 @@
 // Tendril: tendrils wander the layer at Speed, each trailing a body that tapers behind it: the last of Colours at its
 // head, the first at its tail. Length is how long a trail it keeps.
 const params = {
-  colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth' },
-  speed: { value: 0.2, min: 0.05, max: 1, step: 0.01, label: 'Speed (wanders a second)' },
-  tendrils: { value: 4, min: 1, max: 6, step: 1, label: 'Tendrils' },
-  length: { value: 0.3, min: 0.05, max: 1, step: 0.01, label: 'Length' },
-  width: { value: 0.08, min: 0.02, max: 0.3, step: 0.005, label: 'Width' },
+  colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth',
+    help: 'Colours each tendril: the head takes the last colour, its body fades back to the first at the tail.' },
+  speed: { value: 0.2, min: 0.05, max: 1, step: 0.01, label: 'Speed (wanders a second)',
+    help: 'How fast tendrils wander. Low drifts lazily; high darts about.' },
+  tendrils: { value: 4, min: 1, max: 6, step: 1, label: 'Tendrils',
+    help: 'How many wander at once. 1 is a lone tendril; 6 a tangle.' },
+  length: { value: 0.3, min: 0.05, max: 1, step: 0.01, label: 'Length',
+    help: 'How long a trail each keeps behind its head. Low is a short worm; high a long snaking body.' },
+  width: { value: 0.08, min: 0.02, max: 0.3, step: 0.005, label: 'Width',
+    help: 'How thick the head is (the body tapers behind it). Low is a thin thread; high a fat, bold stroke.' },
 };
 
 const K = 20, Y = new Float64Array(6 * K), Z = new Float64Array(6 * K);

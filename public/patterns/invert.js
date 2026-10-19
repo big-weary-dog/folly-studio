@@ -1,7 +1,8 @@
 // Invert: swaps light and dark in what is above it, each colour for its opposite (to turn only the hue, hue-shift by
 // half a turn). Amount blends it with the colour it had.
 const params = {
-  amount: { value: 1, min: 0, max: 1, step: 0.01, label: 'Amount' },
+  amount: { value: 1, min: 0, max: 1, step: 0.01, label: 'Amount',
+    help: 'How far each colour moves to its opposite. Zero leaves it; half greys it out; one fully inverts.' },
 };
 
 function filter(c, q, t, P) {

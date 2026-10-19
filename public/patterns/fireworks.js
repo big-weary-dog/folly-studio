@@ -1,11 +1,16 @@
 // Fireworks: shells burst high on the layer into rings of sparks that sag and fade, each its own colour from Colours.
 // Speed is bursts a second from each of Shells; Size is how far they spread.
 const params = {
-  colours: { value: 'all', type: 'color', label: 'Colours' },
-  speed: { value: 0.45, min: 0.1, max: 1.5, step: 0.01, label: 'Speed (bursts a second, each shell)' },
-  shells: { value: 4, min: 1, max: 6, step: 1, label: 'Shells' },
-  size: { value: 0.34, min: 0.1, max: 0.6, step: 0.01, label: 'Size (radius, share of the layer)' },
-  sparks: { value: 12, min: 4, max: 32, step: 1, label: 'Sparks round a burst' },
+  colours: { value: 'all', type: 'color', label: 'Colours',
+    help: 'Which palette colours the bursts, one colour a burst.' },
+  speed: { value: 0.45, min: 0.1, max: 1.5, step: 0.01, label: 'Speed (bursts a second, each shell)',
+    help: 'How often each shell bursts. Low gives slow, lingering bursts; high pops them off quickly.' },
+  shells: { value: 4, min: 1, max: 6, step: 1, label: 'Shells',
+    help: 'How many shells burst at once, each in its own place. 1 is a lone burst; 6 a busy display.' },
+  size: { value: 0.34, min: 0.1, max: 0.6, step: 0.01, label: 'Size (radius, share of the layer)',
+    help: 'How far each burst spreads. Small gives tight pops; large fills much of the layer.' },
+  sparks: { value: 12, min: 4, max: 32, step: 1, label: 'Sparks round a burst',
+    help: 'How many sparks ring each burst. Few gives bold rays; many a fine, dense ring.' },
 };
 
 const CZ = new Float64Array(6), CY = new Float64Array(6), AGE = new Float64Array(6), ID = new Float64Array(6);

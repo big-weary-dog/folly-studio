@@ -1,9 +1,12 @@
 // Plasma: a field of four sine waves flowing at Speed, coloured back and forth through Colours.
 // Size is a wave's, as a share of the layer.
 const params = {
-  colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth' },
-  speed: { value: 0.6, min: 0, max: 3, step: 0.01, label: 'Speed (waves a second)' },
-  size: { value: 0.17, min: 0.05, max: 1, step: 0.01, label: 'Size (share of the layer)' },
+  colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth',
+    help: 'The palette the plasma flows through, back and forth.' },
+  speed: { value: 0.6, min: 0, max: 3, step: 0.01, label: 'Speed (waves a second)',
+    help: 'How fast the waves flow. Zero freezes them; high churns quickly.' },
+  size: { value: 0.17, min: 0.05, max: 1, step: 0.01, label: 'Size (share of the layer)',
+    help: 'How big each wave is. Low gives fine, busy ripples; high gives broad, slow swells.' },
 };
 
 let s = 0, cx = 0.5, cy = 0.5;

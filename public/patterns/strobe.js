@@ -1,11 +1,16 @@
 // Strobe: flashes the layer at Speed, each flash the next of Colours; 2 a second by default, and over 3 a second on a
 // large area fails the flash check. Length is the lit share of each flash; Scatter flashes only part of the layer.
 const params = {
-  colours: { value: 'all', type: 'color', label: 'Colours' },
-  speed: { value: 2, min: 0.25, max: 8, step: 0.25, label: 'Speed (flashes a second; over 3 fails the flash check)' },
-  length: { value: 0.15, min: 0.05, max: 0.5, step: 0.01, label: 'Length' },
-  scatter: { value: 0, min: 0, max: 1, step: 0.01, label: 'Scatter' },
-  fade: { value: 0.04, min: 0, max: 0.25, step: 0.01, label: 'Fade out (share of each flash)' },
+  colours: { value: 'all', type: 'color', label: 'Colours',
+    help: 'Colours the flashes, stepping to the next colour in the list on each flash.' },
+  speed: { value: 2, min: 0.25, max: 8, step: 0.25, label: 'Speed (flashes a second; over 3 fails the flash check)',
+    help: 'How often it flashes. Low is a slow blink; high a hard, rapid strobe.' },
+  length: { value: 0.15, min: 0.05, max: 0.5, step: 0.01, label: 'Length',
+    help: 'How much of each beat the flash stays lit. Low is a short sharp blip; high stays on for half the beat.' },
+  scatter: { value: 0, min: 0, max: 1, step: 0.01, label: 'Scatter',
+    help: 'Lights only a random part of the layer on each flash. 0 flashes everything; high flashes scattered LEDs.' },
+  fade: { value: 0.04, min: 0, max: 0.25, step: 0.01, label: 'Fade out (share of each flash)',
+    help: 'How long each flash fades out at its end. 0 cuts off hard; high tails off softly.' },
 };
 
 function pixel(p, t, P) {

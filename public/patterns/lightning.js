@@ -1,12 +1,18 @@
 // Lightning: a forked bolt strikes in Direction at Speed and fades, its core the last of Colours, its glow the rest.
 // Under one strike a second, so it stays clear of the flash check. Jag is how much it zigzags.
 const params = {
-  colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth' },
-  direction: { value: 'down', type: 'choice', options: ['up', 'down', 'right', 'left'], label: 'Direction' },
-  speed: { value: 0.4, min: 0.1, max: 0.8, step: 0.01, label: 'Speed (strikes a second)' },
-  width: { value: 0.035, min: 0.005, max: 0.08, step: 0.005, label: 'Bolt width' },
-  jag: { value: 0.2, min: 0, max: 0.5, step: 0.01, label: 'Jag' },
-  glow: { value: 0.15, min: 0, max: 0.4, step: 0.01, label: 'Glow' },
+  colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth',
+    help: 'The palette of the bolt: its core takes the last colour, its glow the earlier ones.' },
+  direction: { value: 'down', type: 'choice', options: ['up', 'down', 'right', 'left'], label: 'Direction',
+    help: 'Which way each bolt travels as it strikes across the layer.' },
+  speed: { value: 0.4, min: 0.1, max: 0.8, step: 0.01, label: 'Speed (strikes a second)',
+    help: 'How often a bolt strikes. Low leaves long dark gaps; high strikes nearly every second.' },
+  width: { value: 0.035, min: 0.005, max: 0.08, step: 0.005, label: 'Bolt width',
+    help: 'How thick the bright core is. Low is a thin crack; high is a fat bolt.' },
+  jag: { value: 0.2, min: 0, max: 0.5, step: 0.01, label: 'Jag',
+    help: 'How much the bolt zigzags. Zero is a straight line; high is wild and crooked.' },
+  glow: { value: 0.15, min: 0, max: 0.4, step: 0.01, label: 'Glow',
+    help: 'How far the haze spreads out around the core. Zero is a bare line; high is a wide halo.' },
 };
 
 function pixel(p, t, P) {

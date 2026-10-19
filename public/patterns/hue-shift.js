@@ -1,9 +1,12 @@
 // Hue shift: turns the colours above it round the colour wheel (brightness kept) by place along Direction: Spread
 // is turns across the layer, Speed turns a second. One colour becomes a rainbow.
 const params = {
-  direction: { value: 'right', type: 'choice', options: DIRECTIONS, label: 'Direction' },
-  spread: { value: 0.5, min: -2, max: 2, step: 0.01, label: 'Spread (turns across)' },
-  speed: { value: 0.05, min: -1, max: 1, step: 0.01, label: 'Speed (turns a second)' },
+  direction: { value: 'right', type: 'choice', options: DIRECTIONS, label: 'Direction',
+    help: 'Which way the rainbow runs across the layer, and which way it moves when Speed is set.' },
+  spread: { value: 0.5, min: -2, max: 2, step: 0.01, label: 'Spread (turns across)',
+    help: 'How far the hue turns from side to side. Zero shifts every light alike; high packs in more rainbows.' },
+  speed: { value: 0.05, min: -1, max: 1, step: 0.01, label: 'Speed (turns a second)',
+    help: 'How fast the hues roll round the wheel. Zero holds still; negative rolls the other way.' },
 };
 
 function filter(c, q, t, P) {

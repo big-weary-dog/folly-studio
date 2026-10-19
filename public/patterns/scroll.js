@@ -1,8 +1,10 @@
 // Scroll: slides what is above it in Direction at Speed, wrapping round: across, up, front to back, round, out from
 // the centre, or along every strand (so chases above it drift along their wires).
 const params = {
-  direction: { value: 'right', type: 'choice', options: DIRECTIONS, label: 'Direction' },
-  speed: { value: 0.1, min: -2, max: 2, step: 0.01, label: 'Speed (layers a second)' },
+  direction: { value: 'right', type: 'choice', options: DIRECTIONS, label: 'Direction',
+    help: 'Which way it slides: across, up, down, front to back, round, in or out, or along each strand.' },
+  speed: { value: 0.1, min: -2, max: 2, step: 0.01, label: 'Speed (layers a second)',
+    help: 'How fast it slides and wraps round. Near 0 creeps; high races; negative slides the opposite way.' },
 };
 
 function warp(q, t, P) {

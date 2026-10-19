@@ -1,10 +1,14 @@
 // Arch chase: the arches light one after another at Speed, each filling along its wire behind a head of the last
 // colour, then fading. Arches is how many take turns (5 goes bay by bay, front to back).
 const params = {
-  colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth' },
-  speed: { value: 1, min: 0.25, max: 6, step: 0.05, label: 'Speed (arches a second)' },
-  count: { value: 5, min: 2, max: 40, step: 1, label: 'Count (arches in turn)' },
-  fade: { value: 1.5, min: 0.2, max: 6, step: 0.1, label: 'Fade (turns)' },
+  colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth',
+    help: 'Which palette colours each arch along its wire as it fills; the last colour lights the moving head.' },
+  speed: { value: 1, min: 0.25, max: 6, step: 0.05, label: 'Speed (arches a second)',
+    help: 'How fast the chase passes from arch to arch. Low steps slowly; high races round.' },
+  count: { value: 5, min: 2, max: 40, step: 1, label: 'Count (arches in turn)',
+    help: 'How many arches take turns before the chase repeats; arches that many apart light together.' },
+  fade: { value: 1.5, min: 0.2, max: 6, step: 0.1, label: 'Fade (turns)',
+    help: 'How long a lit arch takes to die away. Low snaps off behind the head; high leaves a long glowing trail.' },
 };
 
 function pixel(p, t, P) {

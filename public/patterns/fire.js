@@ -2,13 +2,20 @@
 // cooling through the rest into Tips, the colour of their tips and of the embers that rise above them. Height is how
 // far they reach; Size a flame's, as a share of the layer; Embers how many rise.
 const params = {
-  colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth' },
-  tips: { value: 'high', type: 'color', label: 'Tips and embers', blend: 'smooth' },
-  direction: { value: 'up', type: 'choice', options: ['up', 'down', 'right', 'left'], label: 'Direction' },
-  speed: { value: 1.2, min: 0, max: 4, step: 0.05, label: 'Speed (flickers a second)' },
-  height: { value: 0.75, min: 0.2, max: 1.5, step: 0.01, label: 'Height' },
-  size: { value: 0.33, min: 0.12, max: 2, step: 0.01, label: 'Size (share of the layer)' },
-  embers: { value: 0.3, min: 0, max: 1, step: 0.01, label: 'Embers' },
+  colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth',
+    help: 'Which palette colours the flames, from their cooler upper reaches to their hottest roots.' },
+  tips: { value: 'high', type: 'color', label: 'Tips and embers', blend: 'smooth',
+    help: 'Which palette colours the tips of the flames and the embers that rise above them.' },
+  direction: { value: 'up', type: 'choice', options: ['up', 'down', 'right', 'left'], label: 'Direction',
+    help: 'Which way the flames rise; up burns from the ground, the others from the opposite edge.' },
+  speed: { value: 1.2, min: 0, max: 4, step: 0.05, label: 'Speed (flickers a second)',
+    help: 'How fast the flames flicker and climb. 0 freezes them; high is a fierce, fast blaze.' },
+  height: { value: 0.75, min: 0.2, max: 1.5, step: 0.01, label: 'Height',
+    help: 'How far the flames reach across the layer. Low keeps them near their edge; high licks past it.' },
+  size: { value: 0.33, min: 0.12, max: 2, step: 0.01, label: 'Size (share of the layer)',
+    help: 'How big each tongue of flame is. Small gives a busy flicker; large gives broad, rolling flames.' },
+  embers: { value: 0.3, min: 0, max: 1, step: 0.01, label: 'Embers',
+    help: 'How many embers rise above the flames. 0 has none; 1 fills the air with sparks.' },
 };
 
 function pixel(p, t, P) {

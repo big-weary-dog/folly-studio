@@ -2,13 +2,19 @@
 // a hold LFO or the clip envelope to draw it. The cloth walks Colours across its pleats; its edge catches the last
 // colour; the opening is clear. Swag opens it wider at the bottom.
 const params = {
-  colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth' },
-  open: { value: 0.5, min: 0, max: 1, step: 0.01, label: 'Open' },
+  colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth',
+    help: 'Which palette colours the cloth across its pleats; the last colour lights the drawn edge.' },
+  open: { value: 0.5, min: 0, max: 1, step: 0.01, label: 'Open',
+    help: 'How far the curtain is drawn. 0 is shut across the layer; 1 is fully open and clear.' },
   direction: { value: 'right', type: 'choice', label: 'Direction',
-    options: ['up', 'down', 'right', 'left', 'back', 'front'] },
-  pleats: { value: 6, min: 0, max: 30, step: 1, label: 'Pleats across each half' },
-  swag: { value: 0.35, min: 0, max: 1, step: 0.01, label: 'Swag' },
-  softness: { value: 0.03, min: 0, max: 0.3, step: 0.005, label: 'Edge softness (share of the layer)' },
+    options: ['up', 'down', 'right', 'left', 'back', 'front'],
+    help: 'The way it parts from the middle: right or left opens it sideways, up or down top and bottom.' },
+  pleats: { value: 6, min: 0, max: 30, step: 1, label: 'Pleats across each half',
+    help: 'How many folds each half of the cloth has. 0 is flat; high gives fine, close pleats.' },
+  swag: { value: 0.35, min: 0, max: 1, step: 0.01, label: 'Swag',
+    help: 'How much wider it opens at the bottom than the top. 0 is a straight edge; high a deep sweep.' },
+  softness: { value: 0.03, min: 0, max: 0.3, step: 0.005, label: 'Edge softness (share of the layer)',
+    help: 'How blurred the curtain edge is. 0 is a hard line; high fades the cloth into the opening.' },
 };
 
 function pixel(p, t, P) {

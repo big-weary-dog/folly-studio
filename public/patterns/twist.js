@@ -1,9 +1,12 @@
 // Twist: swirls what is above it round the layer's centre, more toward the rim, turning at Spin; and winds depth
 // round height, so towers and spires spiral. All in turns.
 const params = {
-  swirl: { value: 0.25, min: -1, max: 1, step: 0.01, label: 'Swirl (turns at the rim)' },
-  wind: { value: 0, min: -1, max: 1, step: 0.01, label: 'Wind with height (turns)' },
-  spin: { value: 0.05, min: -0.5, max: 0.5, step: 0.01, label: 'Spin (turns a second)' },
+  swirl: { value: 0.25, min: -1, max: 1, step: 0.01, label: 'Swirl (turns at the rim)',
+    help: 'How far the rim turns against the centre. 0 leaves it straight; more twists a spiral; negative reverses.' },
+  wind: { value: 0, min: -1, max: 1, step: 0.01, label: 'Wind with height (turns)',
+    help: 'Turns depth round height, more the higher up, so 3D towers spiral. 0 is off; negative winds back.' },
+  spin: { value: 0.05, min: -0.5, max: 0.5, step: 0.01, label: 'Spin (turns a second)',
+    help: 'Keeps the swirl turning round the centre. 0 holds still; higher turns faster; negative the other way.' },
 };
 
 function warp(q, t, P) {

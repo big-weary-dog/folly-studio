@@ -3,14 +3,21 @@
 // the rest left clear. Profile: step (flat, edges soft by Softness), smooth (each blends into the next), pulse
 // (brightest in its middle) or comet (brightest at its front, fading behind).
 const params = {
-  colours: { value: 'all', type: 'color', label: 'Colours' },
+  colours: { value: 'all', type: 'color', label: 'Colours',
+    help: 'Which palette colours the bars, one colour a bar, in turn.' },
   direction: { value: 'up', type: 'choice', label: 'Direction',
-    options: ['up', 'down', 'right', 'left', 'back', 'front', 'in', 'round', 'along'] },
-  speed: { value: 0.4, min: -2, max: 2, step: 0.01, label: 'Speed (bars a second)' },
-  bars: { value: 4, min: 0.25, max: 16, step: 0.25, label: 'Bars across the layer' },
-  duty: { value: 1, min: 0.05, max: 1, step: 0.01, label: 'Duty (lit share of each bar)' },
-  profile: { value: 'step', type: 'choice', options: ['step', 'smooth', 'pulse', 'comet'], label: 'Profile' },
-  softness: { value: 0.2, min: 0, max: 1, step: 0.01, label: 'Edge softness (share of a bar)' },
+    options: ['up', 'down', 'right', 'left', 'back', 'front', 'in', 'round', 'along'],
+    help: 'Which way the bars travel; in heads for the middle, round circles it, along follows each wire.' },
+  speed: { value: 0.4, min: -2, max: 2, step: 0.01, label: 'Speed (bars a second)',
+    help: 'How fast the bars move. Negative runs them backward; 0 holds them still.' },
+  bars: { value: 4, min: 0.25, max: 16, step: 0.25, label: 'Bars across the layer',
+    help: 'Few gives broad bands of colour; many gives thin, busy stripes.' },
+  duty: { value: 1, min: 0.05, max: 1, step: 0.01, label: 'Duty (lit share of each bar)',
+    help: 'How much of each bar lights, the rest clear. 1 fills edge to edge; low leaves slivers with wide gaps.' },
+  profile: { value: 'step', type: 'choice', options: ['step', 'smooth', 'pulse', 'comet'], label: 'Profile',
+    help: 'step: flat bands; smooth: each blends into the next; pulse: bright middles; comet: bright fronts.' },
+  softness: { value: 0.2, min: 0, max: 1, step: 0.01, label: 'Edge softness (share of a bar)',
+    help: 'How blurred the edges of step bars are. 0 is a hard cut; high fades each bar softly into the next.' },
 };
 
 function pixel(p, t, P) {

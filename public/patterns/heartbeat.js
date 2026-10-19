@@ -1,10 +1,13 @@
 // Heartbeat: Colours swell out in Direction, lub-dub, every two beats of the look's tempo (60 a minute at 120 bpm),
 // peaking in the last colour. Spread is how long a beat takes to cross the layer.
 const params = {
-  colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth' },
+  colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth',
+    help: 'Which palette colours each beat as it swells, from faint to its peak in the last colour.' },
   direction: { value: 'out', type: 'choice', label: 'Direction',
-    options: ['up', 'down', 'right', 'left', 'back', 'front', 'out', 'in'] },
-  spread: { value: 0.25, min: 0, max: 1, step: 0.01, label: 'Spread (seconds)' },
+    options: ['up', 'down', 'right', 'left', 'back', 'front', 'out', 'in'],
+    help: 'Which way each beat travels; out swells from the middle of the LEDs, in closes toward it.' },
+  spread: { value: 0.25, min: 0, max: 1, step: 0.01, label: 'Spread (seconds)',
+    help: 'How long a beat takes to cross the layer. 0 beats everywhere at once; high ripples it across.' },
 };
 
 function pixel(p, t, P, G) {

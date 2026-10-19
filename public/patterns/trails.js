@@ -3,7 +3,8 @@
 // back clears it. A stage end: it keeps real LED colours from frame to frame, so no warp below it bends what is above.
 const stage = 'history';
 const params = {
-  decay: { value: 0.15, min: 0, max: 0.95, step: 0.01, label: 'Left after one second' },
+  decay: { value: 0.15, min: 0, max: 0.95, step: 0.01, label: 'Left after one second',
+    help: 'How much of the afterglow is left a second later. 0 leaves no trail; high leaves long, lingering smears.' },
 };
 
 let mem = new Float32Array(4 * 5000);    // premultiplied rgb and alpha
