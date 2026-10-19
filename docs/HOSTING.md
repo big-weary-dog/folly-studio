@@ -191,8 +191,10 @@ People pick a model for each idea from the ones you offer. They live in `models.
   "default": "opus",
   "models": [
     { "id": "opus", "label": "Opus", "via": "claude", "model": "claude-opus-5-5", "effort": "medium", "enabled": true },
-    { "id": "sol", "label": "Sol", "via": "codex", "model": "gpt-6.1-sol", "effort": "low", "enabled": true },
-    { "id": "luna", "label": "Luna", "via": "codex", "model": "gpt-6-luna", "effort": "low", "enabled": true },
+    { "id": "sol", "label": "Sol", "via": "codex", "model": "gpt-6.1-sol", "effort": "low", "critique": "images",
+      "enabled": true },
+    { "id": "luna", "label": "Luna", "via": "codex", "model": "gpt-6-luna", "effort": "low", "critique": "text",
+      "enabled": true },
     { "id": "sketch", "label": "Sketch", "via": "sketch", "enabled": true, "limits": { "perHour": 30, "perDay": 100 } }
   ],
   "concurrency": { "claude": 4, "codex": 2 },
@@ -203,7 +205,9 @@ People pick a model for each idea from the ones you offer. They live in `models.
 Edit it by hand or on the **Models** page (admins only: `STUDIO_ADMINS`): turn a model on or off, set its effort,
 pick the default. The server reads the file again when it changes, with no restart; a file that does not parse is
 reported in the log and on the Models page, and the last good one stays in use. Each model may also say
-`"roles": ["admin"]` (who may pick it; none: everyone), `"maxTokens"` and `"timeoutSeconds"`. `via` is how it is
+`"roles": ["admin"]` (who may pick it; none: everyone), `"maxTokens"`, `"timeoutSeconds"` and `"critique"`
+(`"images"` or `"text"`: a round where the model sees what it made; only by hand, and a file written before Sol
+and Luna had it keeps its own settings, so add it there). `via` is how it is
 reached: `claude` (the Anthropic API), `codex` (the Codex CLI), `sketch` (offline) or `fleet` (the foundry, below).
 A model whose transport is not set up (no `ANTHROPIC_API_KEY`, no `codex` on PATH) shows as unavailable and is not
 offered; the form hides its choice when only one model can run. `STUDIO_GENERATOR` is superseded: it only names the
