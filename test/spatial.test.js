@@ -155,18 +155,19 @@ describe('the staged chain', () => {
   // A warp, a hidden source a later filter reads, frame() state: everything the stages must carry across.
   const counted = 'let calls = 0;\nfunction frame() { calls++; }\n'
     + 'function pixel(p) { return [p.lz, calls % 7 / 7, p.ly]; }';
+  const W = (id = 'w') => ({ id, kind: 'warp', code: lib('mirror'), params: { along: true } });
   const MODS = [
-    { id: 'w', kind: 'warp', code: lib('mirror'), params: { along: true } },
     { id: 'met', kind: 'source', code: lib('meteors') },
     { id: 'cl', kind: 'source', code: lib('clouds'), as: 'input' },
     { id: 'c', kind: 'source', code: counted, blend: 'max' },
+    W(),
   ];
   const MASK = { id: 'mask', kind: 'filter', code: lib('mask'), input: 'cl' };
   const look = (modules, extra) => ({ id: 'l', groups: ['arches', 'spires'], blend: 'over', modules, ...extra });
 
-  test('with an identity op between them, the stages render the one-pass chain byte for byte', () => {
+  test('with an identity op between them, each stage bent by its own warp, it is the one pass, byte for byte', () => {
     const plain = layerOf(look([...MODS, MASK]));
-    const staged = layerOf(look([...MODS.slice(0, 2), blurMod({ amount: 0 }, 'b1'), ...MODS.slice(2),
+    const staged = layerOf(look([MODS[0], W(), blurMod({ amount: 0 }, 'b1'), ...MODS.slice(1, 3), W('w2'),
       blurMod({ radius: 0 }, 'b2'), MASK, blurMod({ amount: 0 }, 'b3')]));
     assert.equal(plain.stages, null);
     assert.ok(staged.stages && staged.chain.find((M) => M.id === 'cl').keep, 'the mask reads clouds across a stage');
@@ -244,9 +245,9 @@ describe('soft and band', () => {
 
 describe('cost', () => {
   // The perf demo look (test/e2e/perf.spec.js): a warp, meteors masked by clouds, over the whole rig.
-  const DEMO = [{ id: 'w', kind: 'warp', code: lib('twist') }, { id: 'm', kind: 'source', code: lib('meteors') },
-    { id: 'c', kind: 'source', code: lib('clouds'), as: 'input' }, { id: 'k', kind: 'filter', code: lib('mask'),
-      input: 'c' }];
+  const DEMO = [{ id: 'm', kind: 'source', code: lib('meteors') }, { id: 'c', kind: 'source', code: lib('clouds'),
+    as: 'input' }, { id: 'k', kind: 'filter', code: lib('mask'), input: 'c' },
+  { id: 'w', kind: 'warp', code: lib('twist') }];
   const demo = (extra, more = []) => layerOf({ id: 'l', groups: ['cathedral'], modules: [...DEMO, ...more], ...extra });
 
   test('soften and a 1 m space blur stay cheap beside the demo look (a big blur regression fails)', () => {

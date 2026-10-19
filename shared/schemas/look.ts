@@ -6,14 +6,16 @@ import { z } from 'zod';
 import PALETTES from '../../public/data/palettes.json' with { type: 'json' };
 import {
   BLENDS, BLUR_MODES, GLOBALS, macroNameOk, MAX_CLIPS, MAX_DURATION, MAX_LANES, MAX_MACROS, MAX_POINTS, MAX_RADIUS,
-  MODULE_KINDS, PALETTE_ROLES,
+  MODULE_KINDS, PALETTE_ROLES, SOURCE_BLENDS,
 } from '../../public/js/pattern-core.ts';
 
-export { BLENDS as BLEND_MODES, MODULE_KINDS as KINDS } from '../../public/js/pattern-core.ts';
+export {
+  BLENDS as BLEND_MODES, MODULE_KINDS as KINDS, SOURCE_BLENDS as SOURCE_BLEND_MODES,
+} from '../../public/js/pattern-core.ts';
 export const MAX_LAYERS = 8;
 export const MAX_MODULES = 8;
 const MAX_CODE_BYTES = 20 * 1024;
-const MAX_LAYER_CODE_BYTES = 64 * 1024;   // a chain's modules together
+export const MAX_LAYER_CODE_BYTES = 64 * 1024;   // a chain's modules together
 export const TAG = /^[a-z0-9-]{1,32}$/;   // a rig group's tag (SPEC "Rig")
 export const ID = /^[A-Za-z0-9_.:-]{1,64}$/;
 export const HEX = /^#[0-9a-f]{6}$/i;
@@ -87,13 +89,14 @@ const Code = z.string({ error: 'code must be a string.' })
   .refine((c) => bytes(c) <= MAX_CODE_BYTES, `code is over ${MAX_CODE_BYTES / 1024} kB.`);
 const Title = z.string({ error: 'title must be a string of at most 200 characters.' }).max(200);
 const Blend = oneOf('blend', BLENDS);
+const SourceBlend = oneOf('blend', SOURCE_BLENDS);
 
 const Module = z.object({
   id: z.string().regex(ID).optional(), kind: oneOf('kind', MODULE_KINDS).default('source'), title: Title.default(''),
   ref: z.string({ error: 'ref must name a library entry.' }).regex(/^[a-z0-9-]{1,64}$/).optional(), code: Code,
   params: Params.nullish().transform((p) => p ?? {}),
   input: z.string({ error: 'input must be a module id.' }).regex(ID).optional(),
-  as: z.literal('input', { error: "as is only 'input' (a source)." }).optional(), blend: Blend.optional(),
+  as: z.literal('input', { error: "as is only 'input' (a source)." }).optional(), blend: SourceBlend.optional(),
   enabled: z.boolean({ error: 'enabled must be true or false.' }).optional(),
 }, { error: 'must be an object.' }).refine((m) => !m.as || m.kind === 'source', "as is only 'input' (a source).");
 

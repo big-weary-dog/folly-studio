@@ -51,8 +51,8 @@ function Chain({ st, pv }: Props) {
     if (l) st.editLayer(l.id, (x) => ({ modules: fn(x.modules.slice()) }));
   };
 
-  /** A library entry (or a blank) after the selected module; a filter that reads its input (x) takes the nearest
-   * hidden source as it. */
+  /** A library entry (or a blank) after the selected module, so it works on it; a filter that reads its input (x)
+   * takes the nearest hidden source as it. */
   function add(entry: LibraryEntry | { kind: Module['kind']; blank: true }) {
     const layer = st.selected.peek(), cur = st.module.peek();
     if (!layer) return;
@@ -60,8 +60,7 @@ function Chain({ st, pv }: Props) {
       return toast(`A layer has at most ${MAX_MODULES} modules.`, { kind: 'warn' });
     }
     const m = 'blank' in entry ? makeModule({ kind: entry.kind }) : moduleFromLibrary(entry);
-    const i = cur ? layer.modules.indexOf(cur) : -1;      // a warp goes before a selected source, so it moves it
-    const at = i < 0 ? layer.modules.length : i + (m.kind === 'warp' && cur?.kind === 'source' ? 0 : 1);
+    const i = cur ? layer.modules.indexOf(cur) : -1, at = i < 0 ? layer.modules.length : i + 1;
     if (m.kind === 'filter' && /\bx\s*\[/.test(m.code)) {
       const src = layer.modules.slice(0, at).reverse().find((x) => x.kind === 'source' && x.as === 'input');
       if (src) m.input = src.id;
@@ -109,7 +108,7 @@ function ModuleRow({ m, i, mods, first, selected, state, pick, remove, move, set
   const opts = filter ? [['', 'No input'], ...mods.slice(0, i).filter((s) => s.kind === 'source')
     .map((s) => [s.id, s.title || 'Source'])]
     : [['', i === first ? 'Over (first)' : 'Add (default)'], ...BLEND_MODES.map((b) => [b.value, b.label]),
-      [INPUT_ONLY, 'Input only (hidden)']];
+      ['under', 'Under'], [INPUT_ONLY, 'Input only (hidden)']];
   const value = filter ? m.input || '' : m.as === 'input' ? INPUT_ONLY : m.blend || '';
   return (
     <li class={cx('chain-row', selected && 'selected', m.enabled === false && 'off')} data-kind={m.kind}

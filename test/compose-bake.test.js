@@ -36,13 +36,13 @@ const LOOK = {
         + 'function pixel(p, t, P, G) {\n  return scale(sky(p, t), 0.4 + 0.4 * G.storm);\n}' }] },
     { id: 'show', title: 'Meteors in clouds', groups: ['arches', 'spires'], tags: ['arch', 'spire'], blend: 'over',
       level: 1, modules: [
-      { id: 'w', kind: 'warp', title: 'Mirror', code: lib('mirror'), params: { along: true } },
       { id: 'met', kind: 'source', title: 'Meteors', code: lib('meteors'),
         params: { speed: { mod: 'lfo', shape: 'tri', rate: 1, unit: 'beats', center: 60, depth: 30 } } },
       { id: 'cl', kind: 'source', title: 'Clouds', code: lib('clouds'), as: 'input' },
       { id: 'mask', kind: 'filter', title: 'Mask', code: lib('mask'), input: 'cl',
         params: { cutoff: { mod: 'global', name: 'storm', from: 0.6, to: 0.2 } } },
       { id: 'tint', kind: 'filter', title: 'Tint', code: lib('tint') },
+      { id: 'w', kind: 'warp', title: 'Mirror', code: lib('mirror'), params: { along: true } },
     ] },
   ],
 };

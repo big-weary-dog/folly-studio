@@ -1,6 +1,7 @@
-// JSON-file document store: a file per collection, loaded at start, kept in memory, written atomically
-// (tmp + fsync + rename), each collection's writes serialized and coalesced. Objects handed out are copies; create()
-// adds id, createdAt and updatedAt; update() is shallow, and undefined deletes a key.
+// JSON-file document store: a file per collection, loaded at start (each document through its collection's upgrade,
+// written back once if one changed), kept in memory, written atomically (tmp + fsync + rename), each collection's
+// writes serialized and coalesced. Objects handed out are copies; create() adds id, createdAt and updatedAt; update()
+// is shallow, and undefined deletes a key.
 
 import { randomBytes } from 'node:crypto';
 import { promises as fsp } from 'node:fs';
@@ -21,13 +22,20 @@ export type Store = { users: Collection<StoredUser>, sessions: Collection<Sessio
   looks: Collection<StoredLook>, dataDir: string, flush(): Promise<void> };
 
 const COLLECTIONS = ['users', 'sessions', 'ideas', 'looks'] as const;
+type Item = Doc & Record<string, unknown>;
+type Upgrade = (doc: Item) => Item;
+/** Each collection's documents as stored by an older version → as this one reads them (the same object when one
+ * needs nothing). */
+type Upgrades = { looks?: (look: StoredLook) => StoredLook };
 /** Random url-safe id (16 chars for 12 bytes). */
 const newId = () => randomBytes(12).toString('base64url');
 const copy = <T>(v: T): T => (v === undefined || v === null ? v : structuredClone(v));
 
-export async function createStore(dataDir: string, { log = console }: { log?: Pick<Log, 'error'> } = {}) {
+export async function createStore(dataDir: string, { log = console, upgrade = {} }: { log?: Pick<Log, 'error'>,
+  upgrade?: Upgrades } = {}) {
   await fsp.mkdir(dataDir, { recursive: true });
-  const states = await Promise.all(COLLECTIONS.map((name) => openCollection(path.join(dataDir, `${name}.json`), log)));
+  const states = await Promise.all(COLLECTIONS.map((name) => openCollection(path.join(dataDir, `${name}.json`), log,
+    upgrade[name as keyof Upgrades] as Upgrade | undefined)));
   return {
     ...Object.fromEntries(COLLECTIONS.map((name, i) => [name, states[i]!.api])), dataDir,
     async flush() {
@@ -42,8 +50,9 @@ export async function createStore(dataDir: string, { log = console }: { log?: Pi
   } as Store;
 }
 
-async function openCollection(file: string, log: Pick<Log, 'error'>) {
-  const map = new Map<string, Doc & Record<string, unknown>>();
+async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: Upgrade) {
+  const map = new Map<string, Item>();
+  let upgraded = false;
   const text = await fsp.readFile(file, 'utf8').catch((err) => {
     if (err.code !== 'ENOENT') throw err;
   });
@@ -56,7 +65,12 @@ async function openCollection(file: string, log: Pick<Log, 'error'>) {
     }
     const items = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : null;
     if (!items) throw new Error(`store: ${file} does not hold an array`);
-    for (const item of items) if (item && typeof item.id === 'string') map.set(item.id, item);
+    for (const item of items) {
+      if (!item || typeof item.id !== 'string') continue;
+      const now = upgrade ? upgrade(item) : item;
+      upgraded ||= now !== item;
+      map.set(item.id, now);
+    }
   }
 
   let chain = Promise.resolve(), queued = false, lastError: unknown = null, tmpSeq = 0;
@@ -131,5 +145,6 @@ async function openCollection(file: string, log: Pick<Log, 'error'>) {
     },
   };
 
+  if (upgraded) schedule();
   return { api, pending: () => chain, queued: () => queued, lastError: () => lastError };
 }

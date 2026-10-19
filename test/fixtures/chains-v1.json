@@ -1,0 +1,1762 @@
+{
+ "_about": "Looks from before the one rule (a warp bent the modules after it), each module's code by key in `code`, and the SHA-256 (16 hex) of each of their first 60 DMX frames (t = f / 40, default gamma) as the engine of 328a218 rendered them. test/chain-order.test.js converts each look and renders it again.",
+ "frames": 60,
+ "code": {
+  "twist": "// Twist: swirls the angle by an amount growing with the radius (a whirlpool, turning `spin` a second) and\n// winds depth round height (`wind`), so towers and spires spiral. Both in turns.\nconst params = {\n  swirl: { value: 0.25, min: -1, max: 1, step: 0.01, label: 'Swirl (turns at the rim)' },\n  wind: { value: 0, min: -1, max: 1, step: 0.01, label: 'Wind with height (turns)' },\n  spin: { value: 0.05, min: -0.5, max: 0.5, step: 0.01, label: 'Turns a second' },\n};\n\nfunction warp(q, t, P) {\n  if (P.swirl || P.spin) {\n    const a = fract(q.a + P.swirl * q.r + t * P.spin);\n    q.a = a;\n    q.lz = 0.5 + 0.5 * q.r * sin(TAU * a);\n    q.ly = 0.5 + 0.5 * q.r * cos(TAU * a);\n  }\n  if (P.wind) {\n    const turn = TAU * P.wind * q.ly, s = sin(turn), c = cos(turn);\n    const dz = q.lz - 0.5, dx = q.lx - 0.5;\n    q.lz = 0.5 + dz * c - dx * s;\n    q.lx = 0.5 + dz * s + dx * c;\n  }\n}\n",
+  "meteors": "// Meteors: shooting stars race along every strand (u, i, n place each LED on its wire), trailing fading tails.\n// Each strand has its own seeded start, pace and direction (rand(p.fixture, …)), and a gap between laps.\nconst params = {\n  speed: { value: 60, min: 5, max: 200, step: 1, label: 'LEDs per second' },\n  count: { value: 2, min: 1, max: 4, step: 1, label: 'Meteors per strand' },\n  tail: { value: 10, min: 2, max: 60, step: 1, label: 'Tail length (LEDs)' },\n  gap: { value: 80, min: 0, max: 300, step: 1, label: 'Gap between laps (LEDs)' },\n  both: { value: true, type: 'toggle', label: 'Both directions' },\n  sky: { value: '#0a0a5c', type: 'color' },\n  color: { value: '#00c8ff', type: 'color' },\n  head: { value: '#ffffff', type: 'color' },\n};\n\nfunction pixel(p, t, P) {\n  const s = p.fixture;\n  const reverse = P.both && rand(s, 7) < 0.5;\n  const i = reverse ? p.n - 1 - p.i : p.i;               // LEDs from this run's start\n  const lap = p.n + P.gap;\n  let v = 0;\n  for (let m = 0; m < P.count; m++) {\n    const pace = P.speed * (0.7 + 0.6 * rand(s, m, 3));\n    const headAt = fract(rand(s, m) + t * pace / lap) * lap;\n    const behind = headAt - i;                            // LEDs behind the head\n    if (behind >= 0) v = max(v, exp(-behind / P.tail));\n  }\n  const c = mix(P.color, P.head, smoothstep(0.75, 1, v));\n  return mix(P.sky, c, v);\n}\n",
+  "clouds": "// Clouds: soft billows of fbm noise drift across the layer, from deep sky to bright cloud; `cover` sets how\n// much sky they hide and G.energy thickens them. Mark it \"input only\" to mask another source with it.\nconst params = {\n  scale: { value: 2.5, min: 0.5, max: 8, step: 0.1, label: 'Billow size (smaller is bigger)' },\n  drift: { value: 0.15, min: 0, max: 1, step: 0.01, label: 'Drift speed' },\n  cover: { value: 0.5, min: 0, max: 1, step: 0.01, label: 'Cloud cover' },\n  sky: { value: '#0b1a4a', type: 'color' },\n  cloud: { value: '#e8ecff', type: 'color' },\n};\n\nfunction pixel(p, t, P, G) {\n  const s = t * P.drift;\n  const n = fbm(p.lz * P.scale + s, p.ly * P.scale * 0.6 - s * 0.2, p.lx * P.scale * 0.5 + s * 0.3);\n  const edge = 1 - clamp(P.cover + (G.energy - 0.5) * 0.3);\n  const v = smoothstep(edge - 0.15, edge + 0.15, n);\n  return mix(P.sky, P.cloud, v);\n}\n",
+  "mask": "// Mask: shows the chain only where its input (another source here, usually \"input only\") is bright: past\n// `cutoff` it shows, below it the alpha falls toward 1 − amount; invert masks where it is dark. No input: no-op.\nconst params = {\n  amount: { value: 1, min: 0, max: 1, step: 0.01, label: 'Mask strength' },\n  cutoff: { value: 0.35, min: 0, max: 1, step: 0.01, label: 'Brightness where it opens' },\n  softness: { value: 0.3, min: 0.01, max: 1, step: 0.01, label: 'Edge softness' },\n  invert: { value: false, type: 'toggle', label: 'Show where the input is dark' },\n};\n\nfunction filter(c, q, t, P, G, x) {\n  if (!x) return c;\n  const b = max(x[0], x[1], x[2]) * x[3];\n  let m = smoothstep(P.cutoff - P.softness / 2, P.cutoff + P.softness / 2, b);\n  if (P.invert) m = 1 - m;\n  c[3] *= 1 - P.amount * (1 - m);        // c is the chain's colour: change it and hand it back\n  return c;\n}\n",
+  "radial-repeat": "// Radial repeat: repeats the radius r in rings round the layer's centre (lz, ly rebuilt from it and a), a tunnel\n// when it zooms. rings, zoom (rings a second outward), mirror (every other ring flipped, so no seam).\nconst params = {\n  rings: { value: 3, min: 1, max: 12, step: 1 },\n  zoom: { value: 0.2, min: -2, max: 2, step: 0.01, label: 'Rings a second outward' },\n  mirror: { value: true, type: 'toggle', label: 'Mirror every other ring' },\n};\n\nfunction warp(q, t, P) {\n  const x = q.r * P.rings - t * P.zoom, r = P.mirror ? tri(x / 2) : fract(x);\n  q.r = r;\n  q.lz = 0.5 + 0.5 * r * sin(TAU * q.a);\n  q.ly = 0.5 + 0.5 * r * cos(TAU * q.a);\n}\n",
+  "mosaic": "// Mosaic: snaps positions to blocks: `cells` across width, height and depth (and metres, angle, radius to\n// match), `leds` per block along each strand (1 keeps strands smooth). Flat layers stay flat.\nconst params = {\n  cells: { value: 12, min: 2, max: 64, step: 1, label: 'Blocks across the layer' },\n  leds: { value: 6, min: 1, max: 40, step: 1, label: 'LEDs per block along a strand' },\n};\n\nconst snap = (v, n) => (floor(v * n) + 0.5) / n;\n\nfunction warp(q, t, P) {\n  const n = round(P.cells), m = round(P.leds), metres = 24 / n;\n  if (q.lx !== 0.5) q.lx = snap(q.lx, n);\n  q.ly = snap(q.ly, n); q.lz = snap(q.lz, n);\n  q.x = snap(q.x, n); q.y = snap(q.y, n); q.z = snap(q.z, n);\n  q.X = (floor(q.X / metres) + 0.5) * metres; q.Y = (floor(q.Y / metres) + 0.5) * metres;\n  q.Z = (floor(q.Z / metres) + 0.5) * metres;\n  q.a = snap(q.a, 2 * n); q.r = snap(q.r, n / 2);\n  if (m > 1) {\n    q.i = min(q.n - 1, floor(q.i / m) * m + floor(m / 2));\n    q.u = q.n > 1 ? q.i / (q.n - 1) : 0;\n  }\n}\n",
+  "rotate": "// Rotate: turns lz and ly about the layer's centre (and the angle a with them) by `angle` turns, plus `spin`\n// turns a second, so anything drawn across the layer or round it rotates.\nconst params = {\n  angle: { value: 0.125, min: -0.5, max: 0.5, step: 0.005, label: 'Angle (turns)' },\n  spin: { value: 0, min: -1, max: 1, step: 0.01, label: 'Turns a second' },\n};\n\nfunction warp(q, t, P) {\n  const turn = P.angle + t * P.spin;\n  const s = sin(TAU * turn), c = cos(TAU * turn);\n  const dz = q.lz - 0.5, dy = q.ly - 0.5;\n  q.lz = 0.5 + dz * c - dy * s;\n  q.ly = 0.5 + dz * s + dy * c;\n  q.a = fract(q.a + turn);\n}\n",
+  "plasma": "// Plasma: the demoscene classic: four sines (across, up, through depth, and round a centre frame() moves) sum\n// to a value that indexes a palette: 0 a full rainbow, 1-3 Inigo Quilez cosine palettes.\nconst params = {\n  speed: { value: 0.6, min: 0, max: 3, step: 0.01 },\n  scale: { value: 6, min: 1, max: 20, step: 0.1, label: 'Detail' },\n  palette: { value: 0, min: 0, max: 3, step: 1 },\n  drift: { value: 0.05, min: 0, max: 0.5, step: 0.01, label: 'Palette drift' },\n};\n\nlet cx = 0, cy = 0, tt = 0;\n\nfunction frame(t, P) {\n  tt = t * P.speed;\n  cx = 0.5 + 0.35 * sin(tt * 0.5);\n  cy = 0.5 + 0.35 * cos(tt * 0.37);\n}\n\nfunction pixel(p, t, P) {\n  const s = P.scale;\n  let v = sin(p.lz * s * 1.3 + tt)\n        + sin(p.ly * s * 1.7 - tt * 1.3)\n        + sin((p.lz + p.ly + p.lx) * s * 0.9 + tt * 0.7)\n        + sin(hypot(p.lz - cx, p.ly - cy) * s * 2.2 - tt * 1.1);\n  v = v / 8 + 0.5 + t * P.drift;\n  switch (round(P.palette)) {\n    case 1: return cosPalette(v, [0.5, 0.5, 0.5], [0.5, 0.5, 0.5], [1, 1, 0.5], [0.8, 0.9, 0.3]);\n    case 2: return cosPalette(v, [0.5, 0.5, 0.5], [0.5, 0.5, 0.5], [1, 0.7, 0.4], [0, 0.15, 0.2]);\n    case 3: return cosPalette(v, [0.5, 0.5, 0.5], [0.5, 0.5, 0.5], [2, 1, 0], [0.5, 0.2, 0.25]);\n    default: return hsv(v, 1, 1);\n  }\n}\n",
+  "gradient-map": "// Gradient map: recolours the chain by luminance across the whole palette, low for the dark through body and\n// accent to the highlight. amount, contrast, shift (along the palette), drift (a second; walks back at the ends).\nconst params = {\n  amount: { value: 1, min: 0, max: 1, step: 0.01 },\n  contrast: { value: 1.2, min: 0.2, max: 4, step: 0.05 },\n  shift: { value: 0, min: -1, max: 1, step: 0.01, label: 'Slide along the palette' },\n  drift: { value: 0, min: -0.5, max: 0.5, step: 0.01, label: 'Slide a second' },\n};\n\nfunction filter(c, q, t, P) {\n  const v = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];\n  const m = palette(tri(((v - 0.5) * P.contrast + 0.5 + P.shift + t * P.drift) / 2));\n  for (let i = 0; i < 3; i++) c[i] = mix(c[i], m[i], P.amount);\n  return c;\n}\n",
+  "hue-shift": "// Hue shift: turns colours round the wheel (round the grey axis, so brightness holds) by place along an axis:\n// across, up, front to back, round (a) or along strands (u). spread (turns over it), speed (turns a second).\nconst params = {\n  spread: { value: 0.5, min: -2, max: 2, step: 0.01, label: 'Turns of hue across the axis' },\n  axis: { value: 0, min: 0, max: 4, step: 1, label: 'Across, up, front → back, round, along' },\n  speed: { value: 0.05, min: -1, max: 1, step: 0.01, label: 'Turns a second' },\n};\n\nfunction filter(c, q, t, P) {\n  const a = round(P.axis), x = a === 0 ? q.lz : a === 1 ? q.ly : a === 2 ? q.lx : a === 3 ? q.a : q.u;\n  const turn = TAU * (x * P.spread + t * P.speed), cs = cos(turn), s = sin(turn) / sqrt(3), k = (1 - cs) / 3;\n  const r = c[0], g = c[1], b = c[2];\n  c[0] = clamp(r * (cs + k) + g * (k - s) + b * (k + s));\n  c[1] = clamp(r * (k + s) + g * (cs + k) + b * (k - s));\n  c[2] = clamp(r * (k - s) + g * (k + s) + b * (cs + k));\n  return c;\n}\n",
+  "sparkle": "// Sparkle: seeded highlight glints added as light on top of the chain, like frost; a glint lights alpha too.\n// density (share of LEDs, by rand(p.k); more with energy), rate (glints a second), length.\nconst params = {\n  density: { value: 0.3, min: 0, max: 1, step: 0.01, label: 'Share of LEDs that glint' },\n  rate: { value: 0.6, min: 0.05, max: 4, step: 0.01, label: 'Glints a second' },\n  length: { value: 0.15, min: 0.02, max: 0.5, step: 0.01, label: 'Glint length' },\n};\n\nfunction filter(c, q, t, P, G) {\n  if (rand(q.k, 11) > P.density * (0.5 + G.energy)) return c;\n  const g = pulse(rand(q.k, 12) * 9.7 + t * P.rate * (0.5 + rand(q.k, 13)), P.length);\n  if (g <= 0) return c;\n  const h = pal('high'), A = max(c[3], g);\n  for (let i = 0; i < 3; i++) c[i] = min(1, (c[i] * c[3] + h[i] * g) / A);\n  c[3] = A;\n  return c;\n}\n",
+  "edge-fade": "// Edge fade: fades the chain's alpha toward the layer's edges, so it melts into what is below. axis (across,\n// up, front to back, out from the centre), width, oneSide (on `up`: from the ground), invert.\nconst params = {\n  axis: { value: 1, min: 0, max: 3, step: 1, label: 'Across, up, front → back, out from the centre' },\n  width: { value: 0.35, min: 0.02, max: 1, step: 0.01, label: 'Fade reach' },\n  oneSide: { value: true, type: 'toggle', label: 'From one side only' },\n  invert: { value: false, type: 'toggle', label: 'Fade the middle instead' },\n};\n\nfunction filter(c, q, t, P) {\n  const a = round(P.axis), x = a === 0 ? q.lz : a === 1 ? q.ly : a === 2 ? q.lx : 1 - q.r;\n  let k = smoothstep(0, P.width, x);\n  if (!P.oneSide && a < 3) k *= smoothstep(0, P.width, 1 - x);\n  c[3] *= P.invert ? 1 - k : k;\n  return c;\n}\n",
+  "mirror": "// Mirror: folds the layer onto itself before the modules after it draw: left-right (lz, z, a), front-back\n// (lx, x), up-down (ly, y), or every wire at its middle (u, i), so chases run in from both ends.\nconst params = {\n  leftRight: { value: true, type: 'toggle', label: 'Left ↔ right' },\n  frontBack: { value: false, type: 'toggle', label: 'Front ↔ back' },\n  upDown: { value: false, type: 'toggle', label: 'Up ↔ down' },\n  along: { value: false, type: 'toggle', label: 'Along strands' },\n};\n\nconst fold = (v) => (v > 0.5 ? 1 - v : v);\n\nfunction warp(q, t, P) {\n  if (P.leftRight) { q.lz = fold(q.lz); q.z = fold(q.z); q.a = fold(q.a); }\n  if (P.frontBack) { q.lx = fold(q.lx); q.x = fold(q.x); }\n  if (P.upDown) { q.ly = fold(q.ly); q.y = fold(q.y); }\n  if (P.along) { q.u = fold(q.u); q.i = min(q.i, q.n - 1 - q.i); }\n}\n",
+  "kaleidoscope": "// Kaleidoscope: folds the angle a into `segments` mirrored wedges round the layer's centre, turning `spin`\n// turns a second; lz and ly are rebuilt from the folded angle and r, so sources drawn across repeat too.\nconst params = {\n  segments: { value: 6, min: 2, max: 16, step: 1, label: 'Wedges' },\n  spin: { value: 0.02, min: -0.5, max: 0.5, step: 0.01, label: 'Turns a second' },\n};\n\nfunction warp(q, t, P) {\n  const seg = 1 / max(2, round(P.segments));\n  const f = fract((q.a + t * P.spin) / seg);\n  const a = (f < 0.5 ? f : 1 - f) * seg;          // within the first wedge, mirrored back and forth\n  q.a = a;\n  q.lz = 0.5 + 0.5 * q.r * sin(TAU * a);\n  q.ly = 0.5 + 0.5 * q.r * cos(TAU * a);\n}\n",
+  "scroll": "// Scroll: slides the layer, wrapping round: across, up, front to back (layer widths a second) or along every\n// strand (u and i together, so chases drawn after it drift along their wires).\nconst params = {\n  across: { value: 0.1, min: -2, max: 2, step: 0.01, label: 'Left → right' },\n  up: { value: 0, min: -2, max: 2, step: 0.01, label: 'Upward' },\n  depth: { value: 0, min: -2, max: 2, step: 0.01, label: 'Front → back' },\n  along: { value: 0, min: -2, max: 2, step: 0.01, label: 'Along strands' },\n};\n\nfunction warp(q, t, P) {\n  if (P.across) q.lz = fract(q.lz - t * P.across);\n  if (P.up) q.ly = fract(q.ly - t * P.up);\n  if (P.depth) q.lx = fract(q.lx - t * P.depth);\n  if (P.along) {\n    q.u = fract(q.u - t * P.along);\n    q.i = round(q.u * (q.n - 1));\n  }\n}\n",
+  "trails": "// Trails: a fading afterglow behind whatever moves. A buffer by p.k remembers each LED's light, decaying to\n// `decay` after a second; the chain shows the brighter of now and what is left. Time going back clears it.\nconst params = {\n  decay: { value: 0.15, min: 0, max: 0.95, step: 0.01, label: 'Left after one second' },\n};\n\nlet mem = new Float32Array(3 * 5000);\nlet last = NaN, keep = 0;\n\nfunction frame(t, P) {\n  const dt = t - last;\n  keep = dt > 0 && dt < 1 ? pow(P.decay, dt) : 0;\n  last = t;\n}\n\nfunction filter(c, q, t, P) {\n  const o = 3 * q.k;\n  if (o + 2 >= mem.length) {             // more LEDs than expected: grow once\n    const more = new Float32Array(o + 3000);\n    more.set(mem);\n    mem = more;\n  }\n  for (let i = 0; i < 3; i++) {\n    const now = c[i] * c[3], held = mem[o + i] * keep;\n    c[i] = mem[o + i] = now > held ? now : held;\n  }\n  c[3] = 1;\n  return c;\n}\n",
+  "palette-drift": "// Palette drift: a calm bed of full-strength colour whose hues travel slowly, varying with depth, height and\n// a soft fbm swirl. A good bottom layer to stack sweeps, sparkles or chases on.\nconst params = {\n  hue: { value: 0.6, min: 0, max: 1, step: 0.01, label: 'Starting hue' },\n  drift: { value: 0.02, min: 0, max: 0.2, step: 0.005, label: 'Hue turns per second' },\n  spread: { value: 0.25, min: 0, max: 1, step: 0.01, label: 'Hue spread across the layer' },\n  swirl: { value: 0.12, min: 0, max: 0.5, step: 0.01 },\n  saturation: { value: 1, min: 0.5, max: 1, step: 0.01 },\n};\n\nfunction pixel(p, t, P) {\n  const h = P.hue + t * P.drift\n          + P.spread * (0.6 * p.lx + 0.4 * p.ly)\n          + P.swirl * (fbm(p.lx * 2, p.ly * 2, p.lz * 2 + t * 0.05) - 0.5);\n  return hsv(h, P.saturation, 1);\n}\n",
+  "tint": "// Tint: recolours the chain from one role of the look's palette, keeping its light and shade: brightness walks\n// along the role (pal(role, t)), so the look follows whichever palette is picked. amount blends.\nconst params = {\n  role: { value: 1, min: 0, max: 3, step: 1, label: 'Role: low, body, accent, high' },\n  amount: { value: 1, min: 0, max: 1, step: 0.01 },\n  spread: { value: 1, min: 0, max: 1, step: 0.01, label: 'How far brightness walks the role' },\n};\nconst ROLES = ['low', 'body', 'accent', 'high'];\n\nfunction filter(c, q, t, P) {\n  const v = max(c[0], c[1], c[2]);\n  const tint = pal(ROLES[clamp(round(P.role), 0, 3)], v * P.spread);\n  for (let i = 0; i < 3; i++) c[i] = mix(c[i], tint[i] * v, P.amount);\n  return c;\n}\n",
+  "blur": "// Blur: softens the chain's colour across neighbouring LEDs, along each strand (wire), through space, or both: hard\n// edges melt, a chase glows. The core runs it over the whole layer at once (SPEC \"Spatial modules\"), counting only\n// this layer's LEDs; filter() is what a core without spatial modules does. radius (metres), mode, amount.\nconst spatial = 'blur';\nconst params = {\n  radius: { value: 0.4, min: 0, max: 1.5, step: 0.01, label: 'Radius (metres; along the wire, metres of wire)' },\n  mode: { value: 'space', type: 'choice', options: ['wire', 'space', 'both'], label: 'Along the wire, in space, both' },\n  amount: { value: 1, min: 0, max: 1, step: 0.01, label: 'Mix with the sharp colour' },\n};\n\nfunction filter(c) {\n  return c;\n}\n",
+  "counted": "let calls = 0;\nfunction frame() { calls++; }\nfunction pixel(p) { return [p.lz, calls % 7 / 7, p.ly]; }\n",
+  "rising-sweep": "// Rising sweep: bands of colour climb every surface like a tide (ly is height across the layer's own\n// pixels), trading the base colour for the sweep colour; nothing goes dark. Width down for thin bars.\nconst params = {\n  speed: { value: 0.25, min: 0, max: 2, step: 0.01, label: 'Sweeps per second' },\n  bands: { value: 1, min: 1, max: 6, step: 1, label: 'Bands at once' },\n  width: { value: 0.5, min: 0.02, max: 1, step: 0.01, label: 'Bar width' },\n  base: { value: '#2a00ff', type: 'color' },\n  sweep: { value: '#ff1f6a', type: 'color' },\n  down: { value: false, type: 'toggle', label: 'Fall instead of rise' },\n};\n\nfunction pixel(p, t, P) {\n  const h = P.down ? 1 - p.ly : p.ly;\n  // Distance from the nearest bar centre, in bands: 0 on the centre line, 0.5 between bars.\n  const d = abs(fract(h * P.bands - t * P.speed + 0.5) - 0.5);\n  const half = P.width / 2;\n  const k = 1 - smoothstep(half - 0.04, half + 0.04, d);\n  return mix(P.base, P.sweep, k);\n}\n",
+  "disc": "function pixel(p, t) {\n  const a = smoothstep(0.75, 0.25, p.r) * (0.5 + 0.5 * sin(TAU * (3 * p.a - t)));\n  return [0.9, 0.3 + 0.5 * p.a, 0.1, a];\n}\n",
+  "threshold": "// Threshold: lights only what is brighter (its brightest channel) than `level`, with a soft edge, so busy\n// textures become crisp shapes; kept parts keep their colour, or take `color` with recolour on.\nconst params = {\n  level: { value: 0.5, min: 0, max: 1, step: 0.01 },\n  softness: { value: 0.05, min: 0, max: 0.5, step: 0.01, label: 'Edge softness' },\n  recolour: { value: false, type: 'toggle', label: 'One colour for what is kept' },\n  color: { value: '#ffd27a', type: 'color' },\n};\n\nfunction filter(c, q, t, P) {\n  const v = max(c[0], c[1], c[2]);\n  const k = P.softness > 0 ? smoothstep(P.level - P.softness, P.level + P.softness, v) : step(P.level, v);\n  for (let i = 0; i < 3; i++) c[i] = (P.recolour ? P.color[i] : c[i]) * k;\n  return c;\n}\n",
+  "aurora": "// Aurora: slow curtains of green and violet over a night-blue sky, never black. Fractal noise (fbm) across\n// width and depth places the curtains, a finer noise stretched upward draws their rays, height walks the colour.\nconst params = {\n  speed: { value: 1, min: 0, max: 4, step: 0.05 },\n  amount: { value: 0.55, min: 0, max: 1, step: 0.01, label: 'How much sky the curtains cover' },\n  sky: { value: '#06104a', type: 'color' },\n  low: { value: '#00ff6a', type: 'color' },\n  mid: { value: '#00d0ff', type: 'color' },\n  high: { value: '#b000ff', type: 'color' },\n};\n\nfunction pixel(p, t, P) {\n  const s = t * P.speed;\n  const n = fbm(p.lz * 2 + s * 0.06, p.lx * 2 - s * 0.03, s * 0.05);\n  const edge = 1 - P.amount;\n  const curtain = smoothstep(edge - 0.12, edge + 0.12, n);\n  const rays = noise(p.lz * 16 + n * 6, p.lx * 4, s * 0.25);\n  const glow = curtain * (0.5 + 0.5 * rays);\n  const c = gradient(clamp(p.ly * 0.85 + (n - 0.5) * 0.8), [P.low, P.mid, P.high]);\n  return mix(P.sky, c, glow);\n}\n",
+  "fireworks": "// Fireworks: shells burst high into rings of sparks that sag and fade, body or accent with a white-hot heart,\n// over a night of the low colour at `sky`. every (seconds per slot; energy fills more slots), size, sparks.\nconst params = {\n  every: { value: 2.2, min: 0.8, max: 8, step: 0.1, label: 'Seconds between bursts (each slot)' },\n  size: { value: 0.34, min: 0.1, max: 0.6, step: 0.01, label: 'Burst radius' },\n  sparks: { value: 12, min: 4, max: 32, step: 1, label: 'Sparks round a burst' },\n  sky: { value: 0.35, min: 0, max: 1, step: 0.01, label: 'Sky brightness' },\n};\n\nconst SLOTS = 6;\nconst CZ = new Float64Array(SLOTS), CY = new Float64Array(SLOTS), AGE = new Float64Array(SLOTS);\nconst ID = new Float64Array(SLOTS);\nlet on = 0;\n\nfunction frame(t, P, G) {\n  on = 2 + round(G.energy * 4);\n  for (let s = 0; s < on; s++) {\n    const x = t / P.every + rand(s, 9), c = floor(x), a = (x - c) * P.every;\n    ID[s] = c * SLOTS + s;\n    AGE[s] = a;\n    CZ[s] = 0.15 + 0.7 * rand(s, c, 1);\n    CY[s] = 0.5 + 0.35 * rand(s, c, 2) - 0.05 * a * a;          // the burst sags as it falls\n  }\n}\n\nfunction pixel(p, t, P) {\n  let c = scale(pal('low', p.ly), P.sky);\n  for (let s = 0; s < on; s++) {\n    const a = AGE[s], R = P.size * (1 - exp(-a * 3));\n    const dz = p.lz - CZ[s], dy = p.ly - CY[s], d = hypot(dz, dy);\n    if (d > R + 0.03) continue;\n    const spark = pulse(atan2(dz, dy) / TAU * P.sparks + rand(ID[s], 3), 0.45);\n    const v = (spark * smoothstep(R * 0.2, R, d) + 0.25) * exp(-a * 0.9) + exp(-d * d * 300 - a * 6);\n    const hue = ID[s] % 2 ? pal('accent', rand(ID[s], 4)) : pal('body', rand(ID[s], 5));\n    c = mix(c, mix(hue, pal('high'), exp(-a * 5)), min(1, v * 1.5));\n  }\n  return c;\n}\n",
+  "bars": "// Bars: bands of body and accent colour march across the layer edge to edge (xLights' Bars). speed (plus\n// energy, via frame()'s clock), bars, direction (up, down, across, front to back, out, in), softness (each edge).\nconst params = {\n  speed: { value: 0.4, min: -2, max: 2, step: 0.01, label: 'Bars a second' },\n  bars: { value: 4, min: 1, max: 16, step: 1, label: 'Bars across the layer' },\n  direction: { value: 0, min: 0, max: 6, step: 1, label: 'Up, down, →, ←, front → back, out, in' },\n  softness: { value: 0.2, min: 0, max: 1, step: 0.01, label: 'Edge softness (share of a bar)' },\n};\n\nlet run = 0, last = 0;\nfunction frame(t, P, G) {\n  const dt = t - last, k = P.speed * (0.5 + G.energy);\n  run = dt >= 0 && dt < 1 ? run + dt * k : t * k;\n  last = t;\n}\n\n// The i-th band: body and accent colours in turn, spread along each role.\nconst swatch = (i) => pal(i & 1 ? 'accent' : 'body', fract(i * 0.618));\n\nfunction pixel(p, t, P, G) {\n  const d = round(P.direction), mid = min(1, hypot(p.lz - 0.5, p.ly - 0.5) * 2);\n  const x = d === 0 ? p.ly : d === 1 ? 1 - p.ly : d === 2 ? p.lz : d === 3 ? 1 - p.lz : d === 4 ? p.lx\n    : d === 5 ? mid : 1 - mid;\n  const f = x * P.bars - run, b = round(f);                 // b: the nearest edge, bar b − 1 below it, bar b above\n  return mix(swatch(b - 1), swatch(b), soft(b, f, P.softness));\n}\n",
+  "lighthouse": "// Lighthouse: beams turn round the layer's vertical axis (atan2 of lz and lx; a flat layer, lx 0.5 all over,\n// turns in the façade by a), each a solid band of saturated colour with a crisp `edge`, never blended toward\n// white, leaving an afterglow (`glow`) through the trail colour. twist winds the beams with height.\nconst params = {\n  speed: { value: 0.2, min: -2, max: 2, step: 0.01, label: 'Turns per second' },\n  beams: { value: 2, min: 1, max: 6, step: 1 },\n  width: { value: 0.22, min: 0.02, max: 0.5, step: 0.01, label: 'Beam width (share of the gap)' },\n  edge: { value: 0.015, min: 0.002, max: 0.2, step: 0.001, label: 'Edge softness' },\n  glow: { value: 0.55, min: 0, max: 1, step: 0.01, label: 'Afterglow behind the beam' },\n  twist: { value: 0, min: -2, max: 2, step: 0.05, label: 'Twist with height' },\n  base: { value: '#14009e', type: 'color' },\n  trail: { value: '#d4006a', type: 'color' },\n  beam: { value: '#ffae00', type: 'color' },\n};\n\nlet turn = 0;\n\nfunction frame(t, P) {\n  turn = t * P.speed;\n}\n\nfunction pixel(p, t, P) {\n  const flat = p.lx === 0.5;\n  const angle = (flat ? p.a : atan2(p.lz - 0.5, p.lx - 0.5) / TAU) + p.ly * P.twist;\n  const s = fract((angle - turn) * P.beams);              // 0 on a beam's centre line, rising ahead of it\n  const half = P.width / 2, d = min(s, 1 - s);\n  const behind = (P.speed < 0 ? s : 1 - s) - half;        // how far the beam has passed this LED\n  const after = behind > 0 && behind < 0.5 ? P.glow * exp(-behind * 8) : 0;\n  const c = mix(P.base, P.trail, after);\n  return mix(c, P.beam, smoothstep(half + P.edge, half, d));\n}\n",
+  "galaxy": "// Galaxy: spiral arms wheel round a highlight core by a and r round the layer's centre, accent near the core,\n// body at the rim (xLights). speed (turns a second, plus energy), arms, twist (turns core to rim), width.\nconst params = {\n  speed: { value: 0.1, min: -1, max: 1, step: 0.01, label: 'Turns a second' },\n  arms: { value: 3, min: 1, max: 8, step: 1 },\n  twist: { value: 1.2, min: -4, max: 4, step: 0.05, label: 'Wind (turns from core to rim)' },\n  width: { value: 0.3, min: 0.05, max: 0.5, step: 0.01, label: 'Arm width' },\n};\n\nlet spin = 0, last = 0;\nfunction frame(t, P, G) {\n  const dt = t - last, k = P.speed * (0.5 + G.energy);\n  spin = dt >= 0 && dt < 1 ? spin + dt * k : t * k;\n  last = t;\n}\n\nfunction pixel(p, t, P) {\n  const arm = pulse((p.a - p.r * P.twist - spin) * P.arms, P.width) * (1 - 0.4 * p.r);\n  const glow = mix(pal('accent', p.r), pal('body', p.r), smoothstep(0.2, 0.8, p.r));\n  const c = mix(pal('low', p.r), glow, arm);\n  return mix(c, pal('high'), exp(-p.r * p.r * 60));\n}\n"
+ },
+ "looks": [
+  {
+   "name": "the perf demo: twist, meteors, clouds as input, mask",
+   "look": {
+    "layers": [
+     {
+      "id": "l1",
+      "title": "Storm",
+      "groups": [
+       "cathedral"
+      ],
+      "blend": "add",
+      "level": 1,
+      "modules": [
+       {
+        "id": "w",
+        "kind": "warp",
+        "title": "twist",
+        "ref": "twist",
+        "code": "twist",
+        "params": {}
+       },
+       {
+        "id": "met",
+        "kind": "source",
+        "title": "meteors",
+        "ref": "meteors",
+        "code": "meteors",
+        "params": {}
+       },
+       {
+        "id": "cl",
+        "kind": "source",
+        "title": "clouds",
+        "ref": "clouds",
+        "code": "clouds",
+        "params": {},
+        "as": "input"
+       },
+       {
+        "id": "k",
+        "kind": "filter",
+        "title": "mask",
+        "ref": "mask",
+        "code": "mask",
+        "params": {},
+        "input": "cl"
+       }
+      ]
+     }
+    ],
+    "globals": {
+     "palette": {
+      "name": "carnival",
+      "low": [
+       "#6700cb",
+       "#b500b0"
+      ],
+      "body": [
+       "#ee008e",
+       "#ff4f6d",
+       "#ff8162",
+       "#ffa566",
+       "#ffc673",
+       "#ffe068"
+      ],
+      "accent": [
+       "#009298",
+       "#00beaf",
+       "#00ec43"
+      ],
+      "high": [
+       "#f9e9cf"
+      ]
+     },
+     "energy": 0.7,
+     "hue": 0.05,
+     "macros": {
+      "storm": {
+       "value": 0.4,
+       "min": 0,
+       "max": 1
+      }
+     }
+    },
+    "automation": {
+     "storm": [
+      [
+       0,
+       0
+      ],
+      [
+       30,
+       1
+      ]
+     ]
+    }
+   },
+   "frames": [
+    "c9b2224c5004a929",
+    "d2419716e6067a30",
+    "2c75c27920f06752",
+    "792546809f0045e3",
+    "dba5cb871a2ae179",
+    "cea286b262824484",
+    "0573d7e5e6fd0d72",
+    "8355aeae5d685879",
+    "a6390c61f2969fcd",
+    "836c8203083709df",
+    "1ad55321970d6420",
+    "a0411b0307345929",
+    "11a894e63b6a67d0",
+    "5efa874935c33505",
+    "1810a64d66327991",
+    "698b4cd5d8dd0b8e",
+    "46e4cadb3a5d1f7a",
+    "31c0d77a3335e67b",
+    "be43479cbde064e0",
+    "d76b53e424269d4d",
+    "48e34c373a470c69",
+    "55478a5d997c1ceb",
+    "04c93ef31f9938a7",
+    "c42cf840545372a4",
+    "ef60a96f5ad11f78",
+    "2d146f402808bf48",
+    "61fbeec60d3b3f9a",
+    "9eca4b7459a3f61c",
+    "4b7ef9dc573dceb1",
+    "3bfdb6826e1d0ee1",
+    "ce826693b1f33c2c",
+    "10757e338627ec57",
+    "b032acfe932029e9",
+    "47176f51781cbe38",
+    "d21486f0b16ca6b4",
+    "966a4a124a82a90b",
+    "d1d388d01d32d4cd",
+    "9765d8398bdd0b6e",
+    "e8f1a3f5341b4607",
+    "6da6856cda901167",
+    "2c898eaec279da7f",
+    "e2f2024b9ad1d859",
+    "59fbf241ce77681e",
+    "599c4f53f00bd42c",
+    "b6b716eb1131d6e6",
+    "6d22646ee86ca792",
+    "d82b80062a908deb",
+    "778350de44ce7911",
+    "42d6583e8958af70",
+    "45adc8f18472ddca",
+    "1d54482f3a5db7b0",
+    "ba5c08ca8d010e1b",
+    "a2d34096670618c3",
+    "daeaf46f08799956",
+    "0b51e57fc70bf5e1",
+    "9bfe24b18da00f84",
+    "4134ccea74c801f1",
+    "3202add37498f335",
+    "5d3997446d1a80d1",
+    "e11c905c1784a7df"
+   ]
+  },
+  {
+   "name": "three warps lead plasma and four filters",
+   "look": {
+    "layers": [
+     {
+      "id": "l10",
+      "title": "Long",
+      "groups": [],
+      "blend": "add",
+      "level": 1,
+      "modules": [
+       {
+        "id": "m2",
+        "kind": "warp",
+        "title": "radial-repeat",
+        "ref": "radial-repeat",
+        "code": "radial-repeat",
+        "params": {}
+       },
+       {
+        "id": "m3",
+        "kind": "warp",
+        "title": "mosaic",
+        "ref": "mosaic",
+        "code": "mosaic",
+        "params": {}
+       },
+       {
+        "id": "m4",
+        "kind": "warp",
+        "title": "rotate",
+        "ref": "rotate",
+        "code": "rotate",
+        "params": {
+         "spin": 0.3
+        }
+       },
+       {
+        "id": "m5",
+        "kind": "source",
+        "title": "plasma",
+        "ref": "plasma",
+        "code": "plasma",
+        "params": {}
+       },
+       {
+        "id": "m6",
+        "kind": "filter",
+        "title": "gradient-map",
+        "ref": "gradient-map",
+        "code": "gradient-map",
+        "params": {}
+       },
+       {
+        "id": "m7",
+        "kind": "filter",
+        "title": "hue-shift",
+        "ref": "hue-shift",
+        "code": "hue-shift",
+        "params": {}
+       },
+       {
+        "id": "m8",
+        "kind": "filter",
+        "title": "sparkle",
+        "ref": "sparkle",
+        "code": "sparkle",
+        "params": {}
+       },
+       {
+        "id": "m9",
+        "kind": "filter",
+        "title": "edge-fade",
+        "ref": "edge-fade",
+        "code": "edge-fade",
+        "params": {}
+       }
+      ]
+     }
+    ]
+   },
+   "frames": [
+    "04e94cc8e13c6a2f",
+    "7089263ff7177013",
+    "75c0ccb5ba3a138c",
+    "c986355506538f59",
+    "6aacbf1d1d775371",
+    "f1cfd66df4cf4188",
+    "01d743b91d11da40",
+    "d1455f96088e6a55",
+    "589c4944612bec5a",
+    "4da45b23d8388686",
+    "8d37a4d5fadb9dda",
+    "df46c80afe42e877",
+    "3a4969ad0917edba",
+    "d14a33efffac2832",
+    "fab981308a189b6c",
+    "ab3c96c5be10743a",
+    "b96299545fed1634",
+    "3b84ce508b98fdb0",
+    "1ed8d22254b7c96c",
+    "b3fd5ab4d5a8e1de",
+    "33bfd807a1a3c68b",
+    "481979d7f874eaab",
+    "578b1e3f537365a7",
+    "a4235a9bc8e25264",
+    "a3bb88690b5d8cf1",
+    "e26f59345b1bb8ee",
+    "5fb96b92a324f17d",
+    "abb39932ae309847",
+    "debff9ed77ae95b4",
+    "e0d117e5d5caa936",
+    "c797e13f1ec407af",
+    "2c818c152de96802",
+    "6b1b8b7b86dbbd40",
+    "31a5b892367d910f",
+    "06a1ba406e090cb7",
+    "2c4c0a73b3904250",
+    "7a019279a8537c46",
+    "61234ea1e2c8fb41",
+    "b5e6a8ef5095a7a4",
+    "0a47b90ead587456",
+    "7c9cd0c285045c56",
+    "53cba6cdd6ac31db",
+    "847e4bf5a09bcf69",
+    "efbeeda3c3e3d037",
+    "8a48005a79ee19a2",
+    "86b96f4dc228f6c4",
+    "87e7b85399080905",
+    "3fae07931475c537",
+    "938c69f3438ecf02",
+    "0e729a39ffcdf013",
+    "4d9fccc80cf6be99",
+    "b1280e81b50a4a8b",
+    "fb279b34cd9f8033",
+    "130dd3932b8f68e5",
+    "abfe5e892bbd4106",
+    "c7ef7f6a9d3de275",
+    "7bfb042674c9eb27",
+    "c116c37638f69e04",
+    "9c7b69a76c278e08",
+    "3ecaca51e62317d2"
+   ]
+  },
+  {
+   "name": "four warps lead meteors masked by clouds, then trails",
+   "look": {
+    "layers": [
+     {
+      "id": "l17",
+      "title": "Trails",
+      "groups": [
+       "cathedral"
+      ],
+      "blend": "add",
+      "level": 1,
+      "modules": [
+       {
+        "id": "m11",
+        "kind": "warp",
+        "title": "mirror",
+        "ref": "mirror",
+        "code": "mirror",
+        "params": {}
+       },
+       {
+        "id": "m12",
+        "kind": "warp",
+        "title": "kaleidoscope",
+        "ref": "kaleidoscope",
+        "code": "kaleidoscope",
+        "params": {}
+       },
+       {
+        "id": "m13",
+        "kind": "warp",
+        "title": "scroll",
+        "ref": "scroll",
+        "code": "scroll",
+        "params": {}
+       },
+       {
+        "id": "m14",
+        "kind": "warp",
+        "title": "twist",
+        "ref": "twist",
+        "code": "twist",
+        "params": {}
+       },
+       {
+        "id": "met2",
+        "kind": "source",
+        "title": "meteors",
+        "ref": "meteors",
+        "code": "meteors",
+        "params": {}
+       },
+       {
+        "id": "cl2",
+        "kind": "source",
+        "title": "clouds",
+        "ref": "clouds",
+        "code": "clouds",
+        "params": {},
+        "as": "input"
+       },
+       {
+        "id": "m15",
+        "kind": "filter",
+        "title": "mask",
+        "ref": "mask",
+        "code": "mask",
+        "params": {},
+        "input": "cl2"
+       },
+       {
+        "id": "m16",
+        "kind": "filter",
+        "title": "trails",
+        "ref": "trails",
+        "code": "trails",
+        "params": {}
+       }
+      ]
+     }
+    ]
+   },
+   "frames": [
+    "11ae2855f19169b1",
+    "10cddbcdcc979503",
+    "f452d66eb63a8c17",
+    "dbafc9dd02a53304",
+    "5c003a9f580143c9",
+    "774d46c7c6c1030a",
+    "5aeeea676795df05",
+    "c98cb80c76559beb",
+    "530fe15d9680f3bf",
+    "34031cee9a85e9ae",
+    "12ba2d4e862e4884",
+    "114400a83cd1ae10",
+    "2e4c28c8abd27001",
+    "b460d8d925fd812f",
+    "0fb40d2c4751a692",
+    "2642d967fa88b6a3",
+    "752a8264608ff5d5",
+    "488bca89a093be8d",
+    "d9687045ca6e03e6",
+    "e3a7c531044eb435",
+    "e7c77827046fe108",
+    "3ddc2701d192f219",
+    "1ad2098b2abb4b5b",
+    "6e4103abdc8f8e0e",
+    "7c6c7e947e961503",
+    "bd728ef488475b9b",
+    "769e655bec6fa883",
+    "dd947eebfdbaa7c9",
+    "7dfdc8c5bdffefd7",
+    "d9c0550e70a2aebf",
+    "def2e050665def9b",
+    "f5d0e48566aa1c15",
+    "998f76c5dd305bf8",
+    "d07f9ef6037a260f",
+    "2acc2c33b6efd36e",
+    "9f4ac1e942c07e76",
+    "1c8b0f75dea4149e",
+    "956136c5d2aa685f",
+    "23df7bef72877bea",
+    "35e6535da81238b5",
+    "9b9af4d5b322f825",
+    "525d821b67bc67d2",
+    "2a8013c7d6eba7dc",
+    "5722092fcc9ef64c",
+    "340db4cb0513d707",
+    "13e7f0a2b1ced6be",
+    "c59935f84af8da1d",
+    "3bf6eaf383dd66d7",
+    "8e84ffe34bd5aaff",
+    "19cad1533b3bee41",
+    "c69b11af523f1c98",
+    "b45a48cc256b9187",
+    "65e54df19edec311",
+    "9b1f2ef97121fff0",
+    "48a68e93a313f9b3",
+    "b04bca50fca4cfef",
+    "24dc1573abdb5248",
+    "3503014447221ca7",
+    "a1c5b490719c1a31",
+    "884800dfcfdaf64f"
+   ]
+  },
+  {
+   "name": "a composed look: mirror, meteors, a bound mask, tint, over a bed",
+   "look": {
+    "layers": [
+     {
+      "id": "l19",
+      "title": "Bed",
+      "groups": [
+       "cathedral"
+      ],
+      "blend": "add",
+      "level": 1,
+      "modules": [
+       {
+        "id": "m18",
+        "kind": "source",
+        "title": "palette-drift",
+        "ref": "palette-drift",
+        "code": "palette-drift",
+        "params": {}
+       }
+      ]
+     },
+     {
+      "id": "l23",
+      "title": "Composed",
+      "groups": [
+       "cathedral"
+      ],
+      "blend": "over",
+      "level": 0.8,
+      "modules": [
+       {
+        "id": "m20",
+        "kind": "warp",
+        "title": "mirror",
+        "ref": "mirror",
+        "code": "mirror",
+        "params": {
+         "along": true
+        }
+       },
+       {
+        "id": "met3",
+        "kind": "source",
+        "title": "meteors",
+        "ref": "meteors",
+        "code": "meteors",
+        "params": {}
+       },
+       {
+        "id": "cl3",
+        "kind": "source",
+        "title": "clouds",
+        "ref": "clouds",
+        "code": "clouds",
+        "params": {},
+        "as": "input"
+       },
+       {
+        "id": "m21",
+        "kind": "filter",
+        "title": "mask",
+        "ref": "mask",
+        "code": "mask",
+        "params": {
+         "cutoff": {
+          "mod": "global",
+          "name": "energy",
+          "from": 0.6,
+          "to": 0.2
+         }
+        },
+        "input": "cl3"
+       },
+       {
+        "id": "m22",
+        "kind": "filter",
+        "title": "tint",
+        "ref": "tint",
+        "code": "tint",
+        "params": {}
+       }
+      ],
+      "clips": [
+       {
+        "start": 0.2,
+        "end": 1.2,
+        "fadeIn": 0.3,
+        "fadeOut": 0.3
+       }
+      ]
+     }
+    ],
+    "globals": {
+     "energy": 0.4,
+     "palette": {
+      "name": "chapel",
+      "low": [
+       "#a30066",
+       "#d40063"
+      ],
+      "body": [
+       "#ff333c",
+       "#fd7f40",
+       "#fcae5c",
+       "#fbd182"
+      ],
+      "accent": [
+       "#2a39ff",
+       "#2380ff",
+       "#50b3ff"
+      ],
+      "high": [
+       "#f9e5c4"
+      ]
+     },
+     "macros": {
+      "storm": {
+       "value": 0.5,
+       "min": 0,
+       "max": 1
+      }
+     }
+    },
+    "automation": {
+     "energy": [
+      [
+       0,
+       0.2
+      ],
+      [
+       1,
+       1
+      ]
+     ]
+    }
+   },
+   "frames": [
+    "c7d0d324ef06acb3",
+    "c374aca2fab446fa",
+    "2f631ac5b60cafa2",
+    "264a76ce363300af",
+    "c3915f6865d827fc",
+    "7cbe6db750fc7f0d",
+    "f5cfb2f48a093ec7",
+    "89e0b860ccae12c8",
+    "f8503cf9521203f6",
+    "e35002f5c0ecd663",
+    "dde3bd32681df206",
+    "4d6e11db0353ab1d",
+    "3ba0f8e708c99441",
+    "01b223ccd7067cb3",
+    "fb0423a017ff043e",
+    "f440a619de6f45e9",
+    "7aac3632c4475b29",
+    "a926e38445b8131c",
+    "83e276086d7e8e89",
+    "e246335273eb5f25",
+    "f82d5630ea60f4a5",
+    "bce6f96e3a0805ab",
+    "8b07451b6f704f67",
+    "01261eb514811635",
+    "94b60454a0568e52",
+    "7628a0d0e0c74044",
+    "e1471d289a581a11",
+    "da906cef9fb4e973",
+    "53fc337b3ddd944f",
+    "7f77841926cb1c82",
+    "36f61480394bae38",
+    "2de47c0fa1d7bc92",
+    "f6e2917141f5059a",
+    "577cccf4fefaabdc",
+    "28e194d36ab3be36",
+    "64614abd43ed85ba",
+    "0664cc13e8369151",
+    "c748efe17fef75f0",
+    "3fe8c20f85fbd692",
+    "c34e4ed1fef8aa48",
+    "91a2bff51593e462",
+    "064846350c2fcc4c",
+    "5505a231459c8ec7",
+    "996115e694910e75",
+    "f66bc550e4f72461",
+    "008e2b7c08e5e7bb",
+    "441374c105074f86",
+    "3799a32df9f246cd",
+    "07952941a360d573",
+    "53693afe27ac50a4",
+    "5bf92da3b1ad4b6f",
+    "7ebb857358577c7e",
+    "11ed23147eeb4bdd",
+    "39d40d30d5a48d00",
+    "acf8e881a7562d34",
+    "e7faca2a374960be",
+    "da579832be99cf5d",
+    "e89ba6b3be65b45b",
+    "e4bb44f7103fb990",
+    "383d18482e8d023f"
+   ]
+  },
+  {
+   "name": "a warp before a blur reaches the stage after it; soften",
+   "look": {
+    "layers": [
+     {
+      "id": "l28",
+      "title": "Staged",
+      "groups": [
+       "arches",
+       "spires"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+       {
+        "id": "m24",
+        "kind": "warp",
+        "title": "mirror",
+        "ref": "mirror",
+        "code": "mirror",
+        "params": {
+         "along": true
+        }
+       },
+       {
+        "id": "met4",
+        "kind": "source",
+        "title": "meteors",
+        "ref": "meteors",
+        "code": "meteors",
+        "params": {}
+       },
+       {
+        "id": "m25",
+        "kind": "filter",
+        "title": "blur",
+        "ref": "blur",
+        "code": "blur",
+        "params": {
+         "radius": 0.3,
+         "mode": "wire"
+        }
+       },
+       {
+        "id": "cl4",
+        "kind": "source",
+        "title": "clouds",
+        "ref": "clouds",
+        "code": "clouds",
+        "params": {},
+        "as": "input"
+       },
+       {
+        "id": "m26",
+        "kind": "source",
+        "title": "counted",
+        "code": "counted",
+        "params": {},
+        "blend": "max"
+       },
+       {
+        "id": "m27",
+        "kind": "filter",
+        "title": "mask",
+        "ref": "mask",
+        "code": "mask",
+        "params": {},
+        "input": "cl4"
+       }
+      ],
+      "soften": {
+       "radius": 0.15,
+       "mode": "wire"
+      }
+     }
+    ]
+   },
+   "frames": [
+    "9f55b3caed9a67d5",
+    "c74fefc7c366d344",
+    "b86548f38f4f9b60",
+    "14e440129abd7b56",
+    "d42e49ae12616705",
+    "aefb184bbfd4a6b9",
+    "00cfe1598d85aaba",
+    "a7b689bbebcf21b1",
+    "99c1cd0c3645b382",
+    "d6bddf759342ed14",
+    "9832688f34f462ac",
+    "78cb88aee77c74ed",
+    "eb1fc64d9587f252",
+    "c3a0c36e38324722",
+    "9fc3631b5db2b01a",
+    "52c0502d555ee762",
+    "41e99d699429cef6",
+    "322648ea7fcf62a3",
+    "7fb2a2ff5edf42f6",
+    "7d7e13ebcf7dbaec",
+    "e3c4233e74b030cb",
+    "77ec1e7f6ec34253",
+    "867abfa8690faffd",
+    "fb609a104e1c5779",
+    "3c81732fef7f5265",
+    "9529e777db7c780f",
+    "00c76c3be243fb3d",
+    "a5b6566205fd7760",
+    "7917f2a95e8ccc4f",
+    "6c811e476cbc6245",
+    "f4c33b2daf8a3930",
+    "503032700af4c0b8",
+    "c539ea15867c3cd6",
+    "75f1b0b3087759a8",
+    "17bd6299567a86a0",
+    "04531c1d9f66eb72",
+    "377cc014fc9ae303",
+    "fbc5fa3098dda7ac",
+    "b359eff97d401d8b",
+    "52bd328777246351",
+    "dcd7aab3ca108564",
+    "a8e741b71ff037fc",
+    "a666c4b77e01d7f0",
+    "9a4c00b8c8e3043f",
+    "4a95136273da80c3",
+    "83478fb6e639670a",
+    "c1c3f2882542cb9c",
+    "0ee109af3d62e636",
+    "7aca0d5dc972e093",
+    "52c1a6543254bafd",
+    "3e3287af54a69257",
+    "5b9182bf0c3846a3",
+    "d5351084cfc560e5",
+    "3d9fcbce64cef273",
+    "a04ca776f533ee25",
+    "fffabd7a92f2d141",
+    "7dc79ccaa28c52ad",
+    "e2fc770562e5858e",
+    "d0d6af6459548339",
+    "14ef27c869fe8be8"
+   ]
+  },
+  {
+   "name": "a warp before trails reaches the source after them",
+   "look": {
+    "layers": [
+     {
+      "id": "l34",
+      "title": "After trails",
+      "groups": [
+       "cathedral"
+      ],
+      "blend": "add",
+      "level": 1,
+      "modules": [
+       {
+        "id": "m29",
+        "kind": "warp",
+        "title": "scroll",
+        "ref": "scroll",
+        "code": "scroll",
+        "params": {
+         "across": 0.3
+        }
+       },
+       {
+        "id": "m30",
+        "kind": "source",
+        "title": "meteors",
+        "ref": "meteors",
+        "code": "meteors",
+        "params": {}
+       },
+       {
+        "id": "m31",
+        "kind": "filter",
+        "title": "trails",
+        "ref": "trails",
+        "code": "trails",
+        "params": {}
+       },
+       {
+        "id": "m32",
+        "kind": "source",
+        "title": "rising-sweep",
+        "ref": "rising-sweep",
+        "code": "rising-sweep",
+        "params": {}
+       },
+       {
+        "id": "m33",
+        "kind": "filter",
+        "title": "sparkle",
+        "ref": "sparkle",
+        "code": "sparkle",
+        "params": {}
+       }
+      ]
+     }
+    ]
+   },
+   "frames": [
+    "930e7b9a6567dd87",
+    "a200c9a36d68d843",
+    "ed1ba65795ecaca1",
+    "94d9c43f7e3570b4",
+    "eb4b19a4c5813dab",
+    "b0227205f5139c88",
+    "24c35eca396ee6b0",
+    "d842d5378c06408a",
+    "00c2fb94647de144",
+    "13158333e1482bd6",
+    "9de51c3cd3f77742",
+    "956051fc0b887687",
+    "55ae51a234eef108",
+    "7ff308654d866601",
+    "c070b683431574d8",
+    "9e3cc459a451bade",
+    "e0a21e4b046d4632",
+    "02bab04c16922958",
+    "5f4b6021581cfc1e",
+    "eba00ba8109c81af",
+    "4988886dd29d2518",
+    "2bf8479b3eee9cbe",
+    "97722ec99781f6c5",
+    "33df0d1c54f9726a",
+    "b4eb53db7533fd87",
+    "730b6fbe80ac65d5",
+    "eabcf94aa8c4e7c1",
+    "631bbfd1b814ad26",
+    "2d52b5dcfe1c4e18",
+    "90549a4157abc692",
+    "91aa23b568318454",
+    "44c45a6ddc6017e8",
+    "b7376a5ade59206d",
+    "39cfb58cdf46a0a8",
+    "0f82b4c7777423d7",
+    "af30b02f97709ed8",
+    "349593817e903ade",
+    "4c135db4b218a782",
+    "0f0a7dced7be623d",
+    "c5e3d007225f9c5d",
+    "1c57eab9626b4950",
+    "af4074f7da5bedc5",
+    "0a669d11afea4559",
+    "fe89ef55ceee6ff3",
+    "d1748cc014377bbe",
+    "9319b643d2abd3ae",
+    "a4d000aa7757130a",
+    "f3e4c97923aae936",
+    "80bab3efa1461de5",
+    "1d0d0c153b5a9583",
+    "b7f8a63c444c3ff7",
+    "91bcd4f02a3bc6e6",
+    "a24f621d8165c213",
+    "2b9c6b8d75966fdc",
+    "b55d4983719eefe7",
+    "9386339ea6574f23",
+    "c266a68bc2070853",
+    "74828b37177d3cfc",
+    "11c67cea84241289",
+    "b8ae24211798278d"
+   ]
+  },
+  {
+   "name": "a warp between two sources, the second over",
+   "look": {
+    "layers": [
+     {
+      "id": "l38",
+      "title": "Mid over",
+      "groups": [
+       "cathedral"
+      ],
+      "blend": "add",
+      "level": 1,
+      "modules": [
+       {
+        "id": "m35",
+        "kind": "source",
+        "title": "palette-drift",
+        "ref": "palette-drift",
+        "code": "palette-drift",
+        "params": {}
+       },
+       {
+        "id": "m36",
+        "kind": "warp",
+        "title": "twist",
+        "ref": "twist",
+        "code": "twist",
+        "params": {}
+       },
+       {
+        "id": "m37",
+        "kind": "source",
+        "title": "disc",
+        "code": "disc",
+        "params": {},
+        "blend": "over"
+       }
+      ]
+     }
+    ]
+   },
+   "frames": [
+    "32f9a3db9df65c1c",
+    "fdebd4d1fd5442b7",
+    "f1637c034fa2fee2",
+    "af02c54a88796d79",
+    "3c99538cfa020177",
+    "d38de10d44fbcce7",
+    "22f7ac49da770a32",
+    "85e328d27761013b",
+    "23bd322913d390ee",
+    "37a4ef485b9afe27",
+    "6a17b18ba4aa4fa5",
+    "8accef11d3370121",
+    "f3b5bd9dec6b06f1",
+    "a4ab10c378e88eb7",
+    "aa7e825474c689d0",
+    "a2bd0ffc4d7fff08",
+    "8181804e25259329",
+    "e7357bb1bd8f7fdb",
+    "207b1412e656a9bc",
+    "5f8d694f22059567",
+    "89e50349f7f925c2",
+    "0b2d680e7796147e",
+    "8e3c1173c5a965d0",
+    "b1ad846261212edc",
+    "a3135dc7dfc67661",
+    "a334ac54ee73dab9",
+    "27b046b425027adb",
+    "01e5bde3efcd15ab",
+    "7c1c07fc1a2da5ab",
+    "e8dc2107353f190b",
+    "6d8c729ebdf14056",
+    "45e861b7729ba4b1",
+    "b4f405bd73b8f794",
+    "5eb98429eb879d53",
+    "d28a8002f8ea64d5",
+    "f624340a17c9382b",
+    "bef4219da1c72fa1",
+    "8f8578f76694d586",
+    "820c9bc21b23c376",
+    "958df0a30ff7a14c",
+    "6f9e18aa0250877a",
+    "977ef13bc541a034",
+    "581c60dbd0638bc8",
+    "b87a5f6b4d91bf43",
+    "085411dc485c0206",
+    "309c57a694085e70",
+    "4126c48aa377f68a",
+    "27d7685757a9a9f6",
+    "ad65ba0ea4948c74",
+    "05af6b9f9aae9b66",
+    "8a222cb8fcdbd72b",
+    "3e4a66998a1620a0",
+    "0ec6ca1303bc5ba8",
+    "ce50de3a3852532b",
+    "4a41c4626d11bad3",
+    "f614da48c94b7438",
+    "20ad5dfa05e77754",
+    "dd4c5c6339b0260f",
+    "a778d1fd859f7c60",
+    "92e5ad1dd81b6871"
+   ]
+  },
+  {
+   "name": "three runs bent differently, two of them shown, then a blur and a mask",
+   "look": {
+    "layers": [
+     {
+      "id": "l46",
+      "title": "Runs",
+      "groups": [
+       "cathedral"
+      ],
+      "blend": "add",
+      "level": 1,
+      "modules": [
+       {
+        "id": "m39",
+        "kind": "source",
+        "title": "plasma",
+        "ref": "plasma",
+        "code": "plasma",
+        "params": {},
+        "blend": "max"
+       },
+       {
+        "id": "m40",
+        "kind": "warp",
+        "title": "rotate",
+        "ref": "rotate",
+        "code": "rotate",
+        "params": {
+         "spin": 0.5
+        }
+       },
+       {
+        "id": "m41",
+        "kind": "source",
+        "title": "disc",
+        "code": "disc",
+        "params": {},
+        "blend": "over"
+       },
+       {
+        "id": "m42",
+        "kind": "warp",
+        "title": "mirror",
+        "ref": "mirror",
+        "code": "mirror",
+        "params": {
+         "upDown": true
+        }
+       },
+       {
+        "id": "cl5",
+        "kind": "source",
+        "title": "clouds",
+        "ref": "clouds",
+        "code": "clouds",
+        "params": {},
+        "as": "input"
+       },
+       {
+        "id": "m43",
+        "kind": "filter",
+        "title": "blur",
+        "ref": "blur",
+        "code": "blur",
+        "params": {
+         "radius": 0.3,
+         "mode": "space"
+        }
+       },
+       {
+        "id": "m44",
+        "kind": "filter",
+        "title": "mask",
+        "ref": "mask",
+        "code": "mask",
+        "params": {},
+        "input": "cl5"
+       },
+       {
+        "id": "m45",
+        "kind": "filter",
+        "title": "threshold",
+        "ref": "threshold",
+        "code": "threshold",
+        "params": {}
+       }
+      ]
+     }
+    ]
+   },
+   "frames": [
+    "27f47087d57b4a4b",
+    "f750ab5564df7205",
+    "b0d36c8abfe05433",
+    "cbc4c80231c9f751",
+    "a95683fce3030036",
+    "6a979dfe4008944c",
+    "1a975ea9bfac900b",
+    "d07fe373e949cde8",
+    "a871fb3200bc764b",
+    "5bc7200a44633476",
+    "87976483757905b4",
+    "6045544ef816ace2",
+    "083fd0c85952c4f1",
+    "7c9fe60bb74a5b9b",
+    "575730fa4789994b",
+    "1640eb2842735a0e",
+    "3fd1ed2fb75e2b13",
+    "6c5a2da8da8eeeef",
+    "b2094ab48f4216b8",
+    "ec5febbee87cf075",
+    "baeef541455575d0",
+    "7de44d5ab58cb35e",
+    "0ae1bb32b5c82156",
+    "dfc503a48678723b",
+    "b0d24320f5ff0a37",
+    "01097c2d11412ee9",
+    "8d84c3ff6705ef40",
+    "3367bc2fca6c0e69",
+    "2f1c610a265eff39",
+    "da1fed0c4b9812fc",
+    "bc3a2e93eb86d1d6",
+    "c4e19ea8c114cf13",
+    "8f055668c41e0458",
+    "7a0aca6acf47a765",
+    "53e1eea24dbda7db",
+    "04743e5137d70817",
+    "5a43779897e57cd7",
+    "07efc6ae21f24846",
+    "579a5ab2ba031215",
+    "8c8f88ff899a1599",
+    "37594325af449e1e",
+    "af188610a9593c66",
+    "79d30b5bb92e642b",
+    "ce3f2a58b7f1f214",
+    "f24bc8bec3e0c9e8",
+    "064ea0dcfd64564e",
+    "3064b33e72c84fc4",
+    "64f18d1cfeb5ee30",
+    "18c6b8a114255362",
+    "6bbc390eda105e06",
+    "5688e54f35edceca",
+    "caa7d24854d61fe8",
+    "05b388b799f94c1d",
+    "0b8a7c1d2016787d",
+    "4355e58a44727fe3",
+    "6128e6cdfed34e96",
+    "71d523caf1251d68",
+    "b4ea919540fa917c",
+    "1da0a44c9e584681",
+    "deb2728402787f9c"
+   ]
+  },
+  {
+   "name": "a warp between two sources that add",
+   "look": {
+    "layers": [
+     {
+      "id": "l50",
+      "title": "Mid add",
+      "groups": [
+       "cathedral"
+      ],
+      "blend": "add",
+      "level": 1,
+      "modules": [
+       {
+        "id": "m47",
+        "kind": "source",
+        "title": "aurora",
+        "ref": "aurora",
+        "code": "aurora",
+        "params": {}
+       },
+       {
+        "id": "m48",
+        "kind": "warp",
+        "title": "kaleidoscope",
+        "ref": "kaleidoscope",
+        "code": "kaleidoscope",
+        "params": {}
+       },
+       {
+        "id": "m49",
+        "kind": "source",
+        "title": "fireworks",
+        "ref": "fireworks",
+        "code": "fireworks",
+        "params": {}
+       }
+      ]
+     }
+    ]
+   },
+   "frames": [
+    "95385d973ade660b",
+    "f86dae9e35e06151",
+    "fefb969dd61e2057",
+    "9accf9192e070358",
+    "79a8558b98b9a5c5",
+    "9f5ca8b58f682b4c",
+    "0dec45a32362ef77",
+    "92b17e61b8888758",
+    "9c1c835dcf9abd06",
+    "335cb025fe6a5c16",
+    "1f182d28750ae067",
+    "2daafc8bfb92009a",
+    "327956f82748cb60",
+    "9db55f3c085cfaf0",
+    "39b27e530ab24221",
+    "fb285848faeed392",
+    "4488862e693c68d2",
+    "139a5219efa2636b",
+    "92fc23233a40a7d3",
+    "d8386459668c0f21",
+    "a5d1546173b45c84",
+    "b81f2d0177d358fe",
+    "53c6c548f5718aab",
+    "2466caf25f764839",
+    "5e3e2713bbbb733a",
+    "c5533d9a135b45aa",
+    "c40caadce479053d",
+    "f36d66ef83eceecb",
+    "08c8d5934e052934",
+    "bd24cb2b2a58b35f",
+    "ace05e9c20c4b0de",
+    "f54cd0caead4ae71",
+    "821f751183f17c23",
+    "e3d982ad59f86986",
+    "10094f7025d26a9e",
+    "447d5a6b570b2f23",
+    "ae25c7852df41b80",
+    "98b290282ab01fbc",
+    "d2a3aab1515f45d7",
+    "c8b215b1aa88e190",
+    "1d7bee9bb99d3e1e",
+    "bf37f7a90aecc901",
+    "754c84a1c0846a3f",
+    "d90d4ddb593175ed",
+    "59c1260b323c82c5",
+    "676865f088b3bb03",
+    "e3d1d8d385f48252",
+    "fb88fccac68ebe69",
+    "02a44eb58cb795ee",
+    "819aedcd42337258",
+    "5b270d41e63085e4",
+    "55583667e242ec26",
+    "7229c4ed7bb19113",
+    "50aab9b81425d0ef",
+    "649bbdb40d550e9a",
+    "f4e190c9bedaa786",
+    "d04f8c1025a4cd3d",
+    "ce7f5c5a10954cb1",
+    "eec2e2dadc7fdf16",
+    "7bcf279187b5c6ab"
+   ]
+  },
+  {
+   "name": "a warp between a source and a hue shift",
+   "look": {
+    "layers": [
+     {
+      "id": "l54",
+      "title": "Mid shift",
+      "groups": [
+       "cathedral"
+      ],
+      "blend": "add",
+      "level": 1,
+      "modules": [
+       {
+        "id": "m51",
+        "kind": "source",
+        "title": "bars",
+        "ref": "bars",
+        "code": "bars",
+        "params": {}
+       },
+       {
+        "id": "m52",
+        "kind": "warp",
+        "title": "mirror",
+        "ref": "mirror",
+        "code": "mirror",
+        "params": {}
+       },
+       {
+        "id": "m53",
+        "kind": "filter",
+        "title": "hue-shift",
+        "ref": "hue-shift",
+        "code": "hue-shift",
+        "params": {}
+       }
+      ]
+     }
+    ]
+   },
+   "frames": [
+    "12fe7027b517bb51",
+    "54247d2266619af2",
+    "21e783b4161871db",
+    "73a470bcc05c4f0f",
+    "d0c39281ac6e22ec",
+    "276fc5490aa7ec6d",
+    "f6ffe02f40814c5b",
+    "203adc105c396bb4",
+    "30ebaaeb8be2cc45",
+    "e2dcc1fa87fab555",
+    "15e0964cf9d025de",
+    "0f99028a8a2cfefb",
+    "3241c9227d316799",
+    "e43e65fd5571a9a4",
+    "416ad9af8bfd235b",
+    "2efd5670e1901630",
+    "70b414aca309626e",
+    "9e008528a4fdb525",
+    "035d91e69a709991",
+    "cf3cfb17ea3dd858",
+    "0c86b893b160a98d",
+    "bc679e085f6dbe39",
+    "f069e43a2dfbeea3",
+    "eb523bdda8196296",
+    "39bd1a14cf585972",
+    "a7b2c09148231ce7",
+    "ce3ccaa3920abd52",
+    "363857404893ccaf",
+    "faf9b30660eeeb63",
+    "87187019a75fadbc",
+    "2c25a36e0ecd3250",
+    "86322ad0ef967387",
+    "0e97f62c734135b8",
+    "677b8a15485a099a",
+    "178f5dfe06c339b2",
+    "39465d69d1da28f6",
+    "566cf9d4db1f3342",
+    "8c3771582ed56fe6",
+    "44db06f7e5fbebca",
+    "4658bb7cf8fbdd07",
+    "9a3727a9d3186cab",
+    "3618f38ab0db27be",
+    "f0e3a253c9e81501",
+    "7944024d6e7303e4",
+    "dcb32120b5086a4b",
+    "71be0af9f0922ef1",
+    "fe4ad2aae22fe079",
+    "291486f9065960c5",
+    "5107680c65fe8b53",
+    "91c88faa3a7e18fa",
+    "73d68f02d901375e",
+    "af922bc3ed6ff31a",
+    "982330bc8435c2a8",
+    "f6bb0f3e3ba58c17",
+    "5032039b9f3fc42f",
+    "1ac66518d458368e",
+    "60245d44df49d3ec",
+    "d54d9b72b8c4996c",
+    "b581fd5a6465741c",
+    "0833d9a706c61dc0"
+   ]
+  },
+  {
+   "name": "a warp after a source and a tint, before a source by max",
+   "look": {
+    "layers": [
+     {
+      "id": "l59",
+      "title": "Mid tint",
+      "groups": [
+       "cathedral"
+      ],
+      "blend": "add",
+      "level": 1,
+      "modules": [
+       {
+        "id": "m55",
+        "kind": "source",
+        "title": "clouds",
+        "ref": "clouds",
+        "code": "clouds",
+        "params": {}
+       },
+       {
+        "id": "m56",
+        "kind": "filter",
+        "title": "tint",
+        "ref": "tint",
+        "code": "tint",
+        "params": {}
+       },
+       {
+        "id": "m57",
+        "kind": "warp",
+        "title": "rotate",
+        "ref": "rotate",
+        "code": "rotate",
+        "params": {
+         "spin": 0.4
+        }
+       },
+       {
+        "id": "m58",
+        "kind": "source",
+        "title": "lighthouse",
+        "ref": "lighthouse",
+        "code": "lighthouse",
+        "params": {},
+        "blend": "max"
+       }
+      ]
+     }
+    ]
+   },
+   "frames": [
+    "54ac1f28cc1dcf4f",
+    "93d20b2d7bf07a2b",
+    "5ac630b4c1a1e877",
+    "b6a9e52f62ffe46a",
+    "87cc82f1dfe95dad",
+    "9ddc63aff3eccb1c",
+    "980b41fbbfdb3136",
+    "413afada244b92ff",
+    "3452f3366f096852",
+    "5805a078bd918641",
+    "c2383b41273b1106",
+    "49b06ba0fc1ce86f",
+    "6b1c439506ccef07",
+    "935b907ef361be01",
+    "0099ee2360f835a0",
+    "087a05f2f3dca45c",
+    "12889c23ab876a72",
+    "89fde31a112d8928",
+    "973f36af0a7647dc",
+    "0537812041df7cfe",
+    "4e2472ac639a66fb",
+    "05b765cf8dfa35af",
+    "4043a5d3e046eb1d",
+    "19442db168a38bd7",
+    "9fef832513cd365e",
+    "a24706bf4aec3e2a",
+    "8543b8e93e2defed",
+    "4672b048d8109085",
+    "6f2070af48dbd803",
+    "a8621b9fb35a7e8d",
+    "9330f9f962229c5a",
+    "fc748172129d5ee0",
+    "7129db9f1dceffd3",
+    "241f1748aaa6f58c",
+    "a1df4b8503d38099",
+    "ad949e366783a0ac",
+    "8cf8dd599198905b",
+    "d4e3cec07e85e0ae",
+    "129f0368f4ffb3c8",
+    "7eea26c9dbaab6f0",
+    "125f56abc2bd54e5",
+    "63b9bda2da9d6718",
+    "af0bc1eeb432f0e5",
+    "2e1d20191d35a528",
+    "1a1d1b932b031a98",
+    "1f0ec14070ba8ec6",
+    "441d5331d4655aac",
+    "83e2fbb2b4e87e21",
+    "51e6eafdbcf53048",
+    "cf0d1bf279300f43",
+    "6b063e2d780fe6f8",
+    "77b89064ea843550",
+    "a0a3a17fce849cf2",
+    "b1e8eb667adbef9c",
+    "1695c878f9ffa44d",
+    "4127ca87c3072f9b",
+    "b9de34cc278c1e01",
+    "27062a564ec178d3",
+    "6bb83f9d7215ed53",
+    "28762a26d7d9598f"
+   ]
+  },
+  {
+   "name": "a warp before a blur and a hue shift by angle",
+   "look": {
+    "layers": [
+     {
+      "id": "l64",
+      "title": "Round",
+      "groups": [
+       "cathedral"
+      ],
+      "blend": "add",
+      "level": 1,
+      "modules": [
+       {
+        "id": "m60",
+        "kind": "warp",
+        "title": "twist",
+        "ref": "twist",
+        "code": "twist",
+        "params": {}
+       },
+       {
+        "id": "m61",
+        "kind": "source",
+        "title": "galaxy",
+        "ref": "galaxy",
+        "code": "galaxy",
+        "params": {}
+       },
+       {
+        "id": "m62",
+        "kind": "filter",
+        "title": "blur",
+        "ref": "blur",
+        "code": "blur",
+        "params": {
+         "radius": 0.3,
+         "mode": "space"
+        }
+       },
+       {
+        "id": "m63",
+        "kind": "filter",
+        "title": "hue-shift",
+        "ref": "hue-shift",
+        "code": "hue-shift",
+        "params": {
+         "axis": 3
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "frames": [
+    "e818ea754f24b9a3",
+    "55ed5c638ced9262",
+    "e04fe04a92ba4d61",
+    "b2c970325936e799",
+    "c763e5a402e15572",
+    "1e0385ad105820f9",
+    "ade6ffa74a79e7ae",
+    "14545c25c371271d",
+    "81e816a97c487422",
+    "b0f6e4854a6c5fc0",
+    "ee1862345322fc37",
+    "cccb4ddef1315557",
+    "627e8ece9c28b331",
+    "699f6cd04397cb74",
+    "2a8cefb91f6b0d50",
+    "1f32142d0636644e",
+    "15d53e1c43bc753d",
+    "d19de5673c4afb9e",
+    "2c645e4e4e9ac23c",
+    "04cd8dea66f6d1dc",
+    "4e8e110ee4b42802",
+    "c0e08d2d3b3de0f3",
+    "11b7a467b469bbae",
+    "d8fd02035be559b1",
+    "76560eaa61268d17",
+    "a7d34370b96409ae",
+    "7a3ddbfdeaad968b",
+    "6ace22eb2e96e597",
+    "9062405a5883a9f7",
+    "35fcdb40696e3062",
+    "ccf315e24227a5db",
+    "f64623a82c4a4684",
+    "7f7b59481a04015b",
+    "abf58b561a41457a",
+    "1346658519c86728",
+    "a2257de77bef6d05",
+    "1caebb302b205c3d",
+    "f2fb4b092ea2e298",
+    "97dab6cf55d58c7d",
+    "661866d9bda53dbb",
+    "1fca9daa6eec8855",
+    "a66a5eedc38a55b6",
+    "fff5ae381e21e31f",
+    "d8bc7037221b5b73",
+    "445facd51363d7d3",
+    "7cfc6664eb6af487",
+    "a05cebb6675a9e18",
+    "0fd81390cad6f618",
+    "d7b500e2963625f6",
+    "0eb6987cb8e0e6f2",
+    "aa3391280bfe1b94",
+    "88488f22ffb3e9c3",
+    "54433bcd502be4f0",
+    "2e7e32da9757e13b",
+    "572224453111469b",
+    "edeccd5392c9b054",
+    "bacfffe700065439",
+    "c150d812e240b5ca",
+    "364050bb12ed31e2",
+    "1e19b83df41bc219"
+   ]
+  },
+  {
+   "name": "a disabled warp leads, an enabled one trails",
+   "look": {
+    "layers": [
+     {
+      "id": "l69",
+      "title": "Off",
+      "groups": [
+       "cathedral"
+      ],
+      "blend": "add",
+      "level": 1,
+      "modules": [
+       {
+        "id": "m65",
+        "kind": "warp",
+        "title": "mirror",
+        "ref": "mirror",
+        "code": "mirror",
+        "params": {},
+        "enabled": false
+       },
+       {
+        "id": "m66",
+        "kind": "source",
+        "title": "bars",
+        "ref": "bars",
+        "code": "bars",
+        "params": {}
+       },
+       {
+        "id": "m67",
+        "kind": "filter",
+        "title": "edge-fade",
+        "ref": "edge-fade",
+        "code": "edge-fade",
+        "params": {}
+       },
+       {
+        "id": "m68",
+        "kind": "warp",
+        "title": "scroll",
+        "ref": "scroll",
+        "code": "scroll",
+        "params": {
+         "up": 0.5
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "frames": [
+    "ad9098c8b8637aaf",
+    "8d442ad4c0328324",
+    "74930eea9a465069",
+    "5fbed2f20a6240ac",
+    "479ad74f603bb1ce",
+    "c8f6d3c23f696763",
+    "382c4e91386d8868",
+    "c147d223214a0084",
+    "c4e6b7189e07a269",
+    "c8d0fb5a9e0485fd",
+    "59c71a56605f0c18",
+    "fb1c9bc9a062f0e2",
+    "2ba0484283f06806",
+    "dab08360834301a5",
+    "421f2b63891b3a63",
+    "e305c11d315c8347",
+    "4ca945bd1f5b39ab",
+    "cf24bb6a61b42c32",
+    "b0db3ce71c5572b0",
+    "5eeb2940140f291c",
+    "3373a4237b350a65",
+    "4465abb6d76bdf95",
+    "ea4b8671801392c0",
+    "738d531bf5234ccd",
+    "b94d2862609fc484",
+    "cc32798de8f82f13",
+    "2d56ec7e093f09d1",
+    "8acacec7d5d8e039",
+    "6f95572ce3f9326f",
+    "fb38423b22053aa3",
+    "91b1d50f20326ef9",
+    "c0229da0ea39b7b1",
+    "340b56f6aefbbee0",
+    "c8ada9dcfc9c9f28",
+    "b5ea1b2dca30fdb0",
+    "38617ed37a323d95",
+    "65941dd85ec08e5f",
+    "a8ac6958579bab9d",
+    "e50347faf837ecea",
+    "beaf1abf6d82f94b",
+    "9f8921c89ea013d0",
+    "3a31059bb9855d22",
+    "571ffad52de5f45a",
+    "a0c4de815830cc59",
+    "a049fe80411effe2",
+    "eef25766903f31fb",
+    "c5ef0dcadc4eb587",
+    "ec3d5671c0580249",
+    "3b165cce38f64c94",
+    "d4bdef16b060e444",
+    "69eaeecbeaa9e3b5",
+    "35f5789d3597dd10",
+    "ee4b40d5bdabaef4",
+    "36098417a0b1783e",
+    "a6dedbdd3ebb89f4",
+    "dd62cfae5efa6ce0",
+    "8e787b93f49571e0",
+    "ccf3b49357ca0765",
+    "4b3310bb4cece5bf",
+    "145a34504dc60bb3"
+   ]
+  }
+ ]
+}

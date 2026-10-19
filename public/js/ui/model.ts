@@ -43,13 +43,13 @@ function pixel(p, t, P) {
   const v = pulse(fract(p.ly - t * P.speed), P.width);
   return scale(P.color, v);
 }
-`, warp: `// A new warp: it moves each pixel for the modules after it.
+`, warp: `// A new warp: it moves each pixel for everything above it.
 const params = {
   speed: { value: 0.1, min: -1, max: 1 },
 };
 
 function warp(q, t, P, G) {
-  // slide what comes after across the layer
+  // slide what is above across the layer
   q.lz = fract(q.lz + t * P.speed);
 }
 `, filter: `// A new filter: it reworks the chain's colour so far.
@@ -119,7 +119,8 @@ export function cleanModule(m: Partial<Module>): Module {
     params: m.params && typeof m.params === 'object' ? JSON.parse(JSON.stringify(m.params)) : {},
     ...(kind === 'filter' && m.input ? { input: String(m.input) } : {}),
     ...(kind === 'source' && m.as === 'input' ? { as: 'input' } : {}),
-    ...(isBlend(m.blend) ? { blend: m.blend } : {}), ...(m.enabled === false ? { enabled: false } : {}),
+    ...(isBlend(m.blend) || m.blend === 'under' ? { blend: m.blend } : {}),
+    ...(m.enabled === false ? { enabled: false } : {}),
   };
 }
 

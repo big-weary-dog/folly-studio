@@ -32,17 +32,6 @@ describe('module chains', () => {
     for (const t of [0, 1.25, 7.5]) assert.deepEqual(frame([chain], t).rgb, frame([old], t).rgb, `t=${t}`);
   });
 
-  test('a warp moves the pixel for the modules after it, not before', () => {
-    const lz = 'function pixel(p) { return [p.lz, 0, 0]; }';
-    const flip = { id: 'w', kind: 'warp', code: 'function warp(q) { q.lz = 1 - q.lz; }' };
-    const before = layerOf({ id: 'a', modules: [flip, src('s', lz)] });
-    const after = layerOf({ id: 'b', modules: [src('s', lz), flip] });
-    const plain = layerOf({ id: 'c', modules: [src('s', lz)] });
-    const k = before.idx[5];
-    assert.ok(near([frame([before], 0).rgb[3 * k]], [1 - frame([plain], 0).rgb[3 * k]], 1e-6));
-    assert.deepEqual(frame([after], 0).rgb, frame([plain], 0).rgb);
-  });
-
   test('sources combine over then add; an input-only source feeds a filter without drawing', () => {
     const blue = 'function pixel() { return [0, 0, 0.5]; }';
     const two = layerOf({ id: 'a', modules: [src('r', RED), src('b', blue)] });
@@ -173,10 +162,10 @@ describe('use()', () => {
 test('a composed look renders the same bytes every time, and reports its cost', () => {
   const look = { globals: { energy: 0.4, palette: palettes.palettes[0], macros: { storm: { value: 0.5 } } },
     automation: { energy: [[0, 0.2], [10, 1]] } };
-  const modules = [{ id: 'w', kind: 'warp', code: lib('mirror'), params: { along: true } }, src('met', lib('meteors')),
-    src('cl', lib('clouds'), { as: 'input' }), { id: 'mask', kind: 'filter', input: 'cl', code: lib('mask'),
-      params: { cutoff: { mod: 'global', name: 'energy', from: 0.6, to: 0.2 } } },
-    { id: 'tint', kind: 'filter', code: lib('tint') }];
+  const modules = [src('met', lib('meteors')), src('cl', lib('clouds'), { as: 'input' }), { id: 'mask', kind: 'filter',
+    input: 'cl', code: lib('mask'), params: { cutoff: { mod: 'global', name: 'energy', from: 0.6, to: 0.2 } } },
+  { id: 'tint', kind: 'filter', code: lib('tint') }, { id: 'w', kind: 'warp', code: lib('mirror'),
+    params: { along: true } }];
   const run = () => {
     const L = layerOf({ id: 'a', modules });
     const g = prepareLook(look);

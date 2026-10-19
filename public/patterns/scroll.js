@@ -1,5 +1,5 @@
 // Scroll: slides the layer, wrapping round: across, up, front to back (layer widths a second) or along every
-// strand (u and i together, so chases drawn after it drift along their wires).
+// strand (u and i together, so chases above it drift along their wires).
 const params = {
   across: { value: 0.1, min: -2, max: 2, step: 0.01, label: 'Left → right' },
   up: { value: 0, min: -2, max: 2, step: 0.01, label: 'Upward' },

@@ -26,10 +26,11 @@ const copy = <T>(v: T): T => (v == null ? v : JSON.parse(JSON.stringify(v)));
 const some = <T extends object>(o?: T | null) => (o && Object.keys(o).length ? copy(o) : null);
 const SHORT = '(max-height: 899px)';   // below this height the code editor starts folded
 
-/** The look as saved: what save() sends and what `dirty` compares. */
+/** The look as saved: what save() sends and what `dirty` compares; its chains follow the one rule (chain 2). */
 export function saveBody(l: Draft) {
   return { title: l.title.trim() || 'Untitled look', summary: l.summary || '', layers: l.layers.map(cleanLayer),
-    duration: cleanDuration(l.duration), bpm: l.bpm || null, globals: some(l.globals), automation: some(l.automation) };
+    duration: cleanDuration(l.duration), bpm: l.bpm || null, globals: some(l.globals), automation: some(l.automation),
+    chain: 2 as const };
 }
 
 export function createStudio(me: User | null) {

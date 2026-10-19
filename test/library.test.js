@@ -99,12 +99,12 @@ test('each source lands on the same frame played from the start as sought to, an
 describe('warps and filters in long chains', () => {
   const mod = (id, kind, extra = {}) => ({ id, kind, code: source(id), ...extra });
   const CHAINS = {
-    'repeat, mosaic and turn plasma, then map, shift, sparkle and fade it': [mod('radial-repeat', 'warp'),
-      mod('mosaic', 'warp'), mod('rotate', 'warp'), mod('plasma', 'source'), mod('gradient-map', 'filter'),
-      mod('hue-shift', 'filter'), mod('sparkle', 'filter'), mod('edge-fade', 'filter')],
-    'fold and swirl meteors, masked by clouds, with trails': [mod('mirror', 'warp'), mod('kaleidoscope', 'warp'),
-      mod('scroll', 'warp'), mod('twist', 'warp'), mod('meteors', 'source'), mod('clouds', 'source', { as: 'input' }),
-      mod('mask', 'filter', { input: 'clouds' }), mod('trails', 'filter')],
+    'plasma mapped, shifted, sparkled and faded, then turned, mosaicked and repeated': [mod('plasma', 'source'),
+      mod('gradient-map', 'filter'), mod('hue-shift', 'filter'), mod('sparkle', 'filter'), mod('edge-fade', 'filter'),
+      mod('rotate', 'warp'), mod('mosaic', 'warp'), mod('radial-repeat', 'warp')],
+    'meteors masked by clouds, swirled and folded, with trails': [mod('meteors', 'source'),
+      mod('clouds', 'source', { as: 'input' }), mod('mask', 'filter', { input: 'clouds' }), mod('twist', 'warp'),
+      mod('scroll', 'warp'), mod('kaleidoscope', 'warp'), mod('mirror', 'warp'), mod('trails', 'filter')],
     'every colour filter over bars': [mod('bars', 'source'), mod('threshold', 'filter'), mod('posterize', 'filter'),
       mod('invert', 'filter'), mod('tint', 'filter'), mod('gradient-map', 'filter'), mod('hue-shift', 'filter'),
       mod('sparkle', 'filter')],

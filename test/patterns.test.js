@@ -105,7 +105,7 @@ describe('each warp and filter, in a chain over a source', () => {
       assert.throws(() => compileModule(code, 'source'), /no function pixel/);
       const input = { id: 'in', kind: 'source', code: source('clouds'), as: 'input' };
       const mod = { id: 'm', kind, code, ...(kind === 'filter' ? { input: 'in' } : {}) };
-      const modules = kind === 'warp' ? [mod, base(kind)] : [base(kind), input, mod];
+      const modules = kind === 'warp' ? [base(kind), mod] : [base(kind), input, mod];
       const plain = prepareLayer(scene, { id: 'p', modules: [base(kind)] }, compileLayer({ modules: [base(kind)] }));
       const L = prepareLayer(scene, { id: name, modules }, compileLayer({ modules }));
       let changed = 0;

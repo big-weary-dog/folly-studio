@@ -103,10 +103,19 @@ colour. A stdlib (`noise`, `fbm`, `hsv`, `pal`, `beat`, `centres(tag)`, `use(nam
 
 ## 4. Composition and globals
 
-A layer is a **chain of modules**: warps move the pixel, sources draw, filters rework the colour so far, some
-by another source (meteors masked by clouds). Per pixel it is one pass with no intermediate buffers, so it costs
-no memory per frame and stays cheap on a phone. 59 library entries (41 sources, 7 warps, 11 filters) fill the
-shelves; hovering one (on a phone, Preview) auditions it in the 3D view without saving anything.
+A layer is a **chain of modules** under one rule: each works on everything above it, as in an image editor.
+Sources draw onto it, filters rework it, some by another source (meteors masked by clouds), and warps bend it: a
+warp goes after what it bends. Per pixel it is one pass with no intermediate buffers, so it costs no memory per frame
+and stays cheap on a phone: each module reads one of a few copies of the pixel, bent from the bottom up. 59 library
+entries (41 sources, 7 warps, 11 filters) fill the shelves; hovering one (on a phone, Preview) auditions it in the 3D
+view without saving anything.
+
+**One rule, and where warps stop.** Warps used to bend what came after them, the shader's order, while sources and
+filters worked on what came before: two directions in one list. Now all three read the same way. A blur or trails
+holds colours only at real LEDs, so a warp below one stops there: there is no colour at a bent position to read.
+Looks saved before are converted once, as they come in, to render as they did (SPEC "Looks" > chain): exact to the
+bit wherever it fits in 8 modules, with a radius-0 blur as a warp stop where two parts of a stage were bent
+differently, and `under`, a source drawn beneath what is above it, where turning two sources over is simpler.
 
 **Blur and soften.** The one thing a pixel cannot do alone is read its neighbours, so the core does it natively: the
 `blur` filter (radius in metres, along the wire, in space or both, an amount) and each layer's `soften`, a small
@@ -137,7 +146,8 @@ Palettes come from the same CSVs TouchDesigner uses, so a look and a TD show agr
   layer); blur in pattern code (portable, but slow, and a pattern could not see past its own pixel); hard-coded
   colours (no palettes to swap).
 - **Trade-off.** Filters see one pixel at a time: blur is the one spatial operation, and only the core's. No
-  layer can read another's output, and a warp before a blur runs again after it, so a warp must be pure.
+  layer can read another's output, and a warp cannot reach past a blur or trails: a stage below one that needs the
+  same bend takes a copy of the warp.
 
 <p><img src="docs/screenshots/phone-library.jpg" width="260" alt="Phone: auditioning Aurora from the library">
 <img src="docs/screenshots/phone-look.jpg" width="260" alt="Phone: the Look tab, globals and palette"></p>
