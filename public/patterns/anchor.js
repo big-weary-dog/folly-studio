@@ -4,8 +4,8 @@
 // whole rig's across, up and depth, so layers on different groups match.
 const params = {
   tag: { value: 'rose', type: 'choice', label: 'Group',
-    options: ['rose', 'window', 'tower', 'spire', 'spirelet', 'arch', 'arch-main', 'arch-mini', 'arch-quad',
-      'canopy', 'wash', 'front', 'back', 'left', 'right', 'all'],
+    options: ['rose', 'window', 'tower', 'spire', 'spirelet', 'arch', 'arch-main', 'arch-mini', 'arch-quad', 'ring',
+      'canopy', 'wash', 'flood', 'ground-level', 'front', 'back', 'left', 'right', 'all'],
     help: 'Which of the rig\'s tagged groups the centre moves to; all is the whole rig.' },
   which: { value: 'first', type: 'choice', options: ['first', 'nearest'], label: 'Which group',
     help: 'first centres on the first group with the tag; nearest centres each LED on its closest group.' },

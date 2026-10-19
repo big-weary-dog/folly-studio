@@ -127,7 +127,7 @@ export function settle(q: Q) {
 /** Whether module code may read a pixel's LED fields (or attr/is, which read its k): it names one as `.field` or a
  *  string, destructures an object, or reads a computed key. */
 export const readsLed = (code: string | undefined) => code === undefined
-  || /[.'"`](u|i|n|zone|zi|fixture|strand|ring|row|sector|petal|k|seed|attr|is)\b/.test(code)
+  || /[.'"`](u|i|n|zone|zi|fixture|strand|ring|row|sector|petal|k|seed|attr|is|part)\b/.test(code)
   || /\{[^{}]*\}\s*=[^=>]|\(\s*\{|\w\s*\[\s*[A-Za-z_$]/.test(code);
 
 /** move(q, lx, ly, lz): q samples the point (lx, ly, lz) of its frame. */

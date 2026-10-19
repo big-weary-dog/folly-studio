@@ -7,7 +7,7 @@ import { applyMods, finish, lookFrame, paramMods, prepareLook, resolveParams } f
 import type { G, PreparedLook, Values } from './globals.ts';
 import { composite } from './output.ts';
 import type { Picks } from './picks.ts';
-import { pixelsForGroups, type Scene, tagMask } from './scene.ts';
+import { pixelsForGroups, type Scene, tagMask, tagParts } from './scene.ts';
 import { blur, BLUR_MODES, blurState } from './spatial.ts';
 import { clamp, hex, isNum, RUN, TAU } from './stdlib.ts';
 import { layerEnvelope, normalizeClips } from './timeline.ts';
@@ -286,13 +286,14 @@ function runStaged(S: Scene, L: PreparedLayer, T: number, G: G, st: NonNullable<
   }
 }
 
-/** The pixel a layer's chain sees (SPEC "The pixel p"), reused for every LED; `attr` and `is` read its k. */
+/** The pixel a layer's chain sees (SPEC "The pixel p"), reused for every LED; `attr`, `is` and `part` read its k. */
 function makePixel(S: Scene) {
   const q = { x: 0, y: 0, z: 0, X: 0, Y: 0, Z: 0, lx: 0, ly: 0, lz: 0, a: 0, r: 0, u: 0, i: 0, n: 1, zone: '', zi: 0,
     fixture: 0, strand: 0, ring: 0, row: 0, sector: -1, petal: -1, k: 0, seed: 0,
     ox: 0, oy: 0, oz: 0, sx: 0, sy: 0, sz: 0, sr: 0, cy: 0, cz: 0, due: 0,
     attr: (name: string, d = 0): number => { const v = S.attrs.get(name); return v ? v[q.k] : d; },
-    is: (tag: string): boolean => tagMask(S, tag)[q.k] === 1 };
+    is: (tag: string): boolean => tagMask(S, tag)[q.k] === 1,
+    part: (tag: string): number => tagParts(S, tag).of[q.k]!, parts: (tag: string): number => tagParts(S, tag).n };
   return q;
 }
 /** The pixel `p` (SPEC "The pixel p"), as every module sees it. */

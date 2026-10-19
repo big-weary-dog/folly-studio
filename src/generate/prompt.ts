@@ -39,7 +39,7 @@ export { GLOBALS_GUIDE, PATTERN_GUIDE, TASTE } from './guide.ts';
 
 // The examples: sources on the library's rules (a direction, a gradient to a head, along the wire, state in frame()
 // with seeded colours) and a preset, a chain whose warps come after what they bend.
-const EXAMPLES = ['fire', 'arch-chase', 'fireworks', 'galaxy'];
+const EXAMPLES = ['fire', 'groups-in-turn', 'fireworks', 'galaxy'];
 
 /** The library's examples for the prompt, in that order; a library without them (a test's) gives its first sources,
  * by name. Deterministic. */
