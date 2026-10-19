@@ -52,14 +52,17 @@ const beatsLfo = (params: object | undefined | null): boolean => Object.values(p
 /** What a bake renders of a look. */
 type Renders = { layers?: readonly LayerInput[], globals?: unknown, automation?: unknown, bpm?: unknown };
 
+/** Code that reads the look's tempo (G.bpm). */
+const readsBpm = (code: unknown) => typeof code === 'string' && /\bG\s*\.\s*bpm\b/.test(code);
+
 /**
- * What a bake renders besides the duration: the plain `layers` when the look has no globals, no automation and
- * no LFO in beats (so older looks keep their hash), else { layers, globals, automation, bpm }.
+ * What a bake renders besides the duration: the plain `layers` when the look has no globals, no automation, no LFO
+ * in beats and no code that reads G.bpm (so older looks keep their hash), else { layers, globals, automation, bpm }.
  */
 export function renderFields(look: Renders | null | undefined) {
   const layers = look?.layers ?? [];
-  const beats = layers.some((l) => beatsLfo(l?.params) || (Array.isArray(l?.modules)
-    && l.modules.some((m) => beatsLfo(m?.params))));
+  const beats = layers.some((l) => beatsLfo(l?.params) || readsBpm(l?.code) || (Array.isArray(l?.modules)
+    && l.modules.some((m) => beatsLfo(m?.params) || readsBpm(m?.code))));
   if (!look?.globals && !look?.automation && !beats) return layers;
   return { layers, globals: look!.globals ?? null, automation: look!.automation ?? null,
     bpm: beats ? look!.bpm ?? null : null };

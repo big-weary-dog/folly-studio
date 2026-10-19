@@ -97,6 +97,7 @@ function modulate(p: Param, now: ParamValue | undefined, globals: string[], appl
         ['global', 'A global'], ['envelope', 'The clip envelope']])}</Field>
       <div class="mod-fields" hidden={f.mod !== 'lfo'}>
         <Field label="Shape">{select('shape', SHAPES.map((s) => [s, humanize(s)]))}</Field>
+        <div class="mod-fields" hidden={f.shape !== 'hold'}>{field('Hold (share of each cycle)', 'hold')}</div>
         {field('Cycles', 'rate')}
         <Field label="Per">{select('unit', [['hz', 'a second (Hz)'], ['beats', 'a beat']])}</Field>
         {field('Centre', 'center')}{field('Depth (±)', 'depth')}</div>

@@ -1,5 +1,6 @@
 // Compiling pattern and module source: the stdlib (and use()) as locals, browser globals shadowed, readable
 // errors; and the library that use() runs.
+import { type Clocks, newClocks } from './clocks.ts';
 import { type G, resolveParams, type Values } from './globals.ts';
 import { newPicks, type PickBlend, type Picks, pickText, readPick } from './picks.ts';
 import type { ModuleKind, Pixel } from './render.ts';
@@ -17,7 +18,7 @@ type RGBA = number[];
 export type Compiled = { kind: ModuleKind, params: ParamSchema, frame?: (t: number, P: Values, G: G) => void,
   spatial?: (typeof SPATIAL_OPS)[number],
   pixel?: (p: Pixel, t: number, P: Values, G: G) => unknown, warp?: (q: Pixel, t: number, P: Values, G: G) => void,
-  filter?: (c: RGBA, q: Pixel, t: number, P: Values, G: G, x?: RGBA) => unknown, picks: Picks };
+  filter?: (c: RGBA, q: Pixel, t: number, P: Values, G: G, x?: RGBA) => unknown, picks: Picks, clocks: Clocks };
 
 // Browser globals hidden from pattern code as undefined locals: defence in depth (the sandbox is the boundary).
 const SHADOWED = [
@@ -26,14 +27,16 @@ const SHADOWED = [
   'navigator', 'localStorage', 'sessionStorage', 'indexedDB', 'caches', 'Worker', 'SharedWorker',
   'BroadcastChannel', 'setTimeout', 'setInterval', 'requestAnimationFrame', 'queueMicrotask',
 ];
-// Each instance's scope: the stdlib, use(), and pal() and swatch() bound to its own colours (picks.ts).
-const scopeOf = (picks: Picks) => Object.freeze({ ...STDLIB, use, pal: picks.pal, swatch: picks.swatch });
-const SCOPE = scopeOf(newPicks());
+// Each instance's scope: the stdlib, use(), pal() and swatch() bound to its own colours (picks.ts), and clock() to its
+// own speeds (clocks.ts).
+const scopeOf = (picks: Picks, clocks: Clocks) => Object.freeze({ ...STDLIB, use, pal: picks.pal,
+  swatch: picks.swatch, clock: clocks.clock });
+const SCOPE = scopeOf(newPicks(), newClocks());
 const SPATIAL_OPS = Object.freeze(['blur'] as const);   // what `const spatial = …` may name (SPEC "Spatial modules")
 const CHOICE = /^[a-z][a-z0-9-]{0,31}$/;
 const PRELUDE =
   '"use strict";\n' +
-  `const { ${[...STDLIB_NAMES, 'use', 'swatch'].join(', ')} } = __stdlib;\n` +
+  `const { ${[...STDLIB_NAMES, 'use', 'swatch', 'clock'].join(', ')} } = __stdlib;\n` +
   `const ${SHADOWED.map((n) => `${n} = undefined`).join(', ')};\n` +
   'return (function () {\n';
 const EPILOGUE =
@@ -145,9 +148,9 @@ export function compileModule(code: string | undefined, kind: string = 'source')
     FACTORIES.set(code, factory);
   }
   let made: Record<string, unknown>;
-  const picks = newPicks();
+  const picks = newPicks(), clocks = newClocks();
   try {
-    made = factory(scopeOf(picks));
+    made = factory(scopeOf(picks, clocks));
   } catch (e) {
     throw new Error(`Error while loading the ${what}: ${describeError(e)}`, { cause: e });
   }
@@ -162,7 +165,8 @@ export function compileModule(code: string | undefined, kind: string = 'source')
   }
   const params = normalizeParams(made.params);
   picks.bind(params, null, {});
-  return { kind, [k[0]]: made[k[0]], frame: made.frame, params, picks, ...(spatial ? { spatial } : {}) } as Compiled;
+  return { kind, [k[0]]: made[k[0]], frame: made.frame, params, picks, clocks, ...(spatial ? { spatial } : {}) } as
+    Compiled;
 }
 
 /** Compile pattern source (a source module) → { pixel, frame, params }. */
@@ -182,7 +186,8 @@ function use(name: string, params?: Record<string, unknown>) {
   if (code === undefined) throw new Error(`use(): unknown library pattern "${name}"`);
   const m = compileModule(code, 'source');
   const P = resolveParams(m.params, params);
-  m.picks.bind(m.params, params, P);    // its roles: the calling layer's, as it runs
+  m.picks.bind(m.params, params, P);
+  m.clocks.bind(P, [], null);           // its params are values: clock(name) is value × T
   const pixel = m.pixel!, frame = m.frame;
   let last = NaN;
   return function used(p: Pixel, t: number) {

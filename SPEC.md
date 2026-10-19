@@ -167,7 +167,7 @@ const params = {
 function frame(t, P) {}            // optional: once per frame, before pixel()
 
 function pixel(p, t, P) {          // every LED, every frame
-  const x = p.ly * 3 - t * P.speed, c = swatch('colours', floor(x));
+  const x = p.ly * 3 - clock('speed'), c = swatch('colours', floor(x));
   c[3] = pulse(fract(x), 0.2);     // [r, g, b], each 0..1, and an optional alpha (coverage)
   return c;
 }
@@ -211,7 +211,8 @@ pick's or role's i-th colour, floored and wrapping),
 `palette(t)` (t 0..1 across the look palette's colours, low to high), `centres(tag)` (each group tagged
 `tag`: its `centre` as `[X, Y, Z]`, `[]` when none; call it in `frame` or `pixel`), `extent()` (the running layer's
 pixels' bounds in metres, `[[X0, Y0, Z0], [X1, Y1, Z1]]`, which `lx ly lz` map to 0..1: so a pattern can burst from
-a `centres()` point and still fill its layer), and `use(name, params?)` → a
+a `centres()` point and still fill its layer), `clock(name)` (how far number param `name`, a speed, has moved
+things: "Integrated clocks" below), and `use(name, params?)` → a
 function `(p, t) → colour` running library source `name` as its own instance (its `frame` runs once per new t;
 throws `unknown library pattern`). Colours are `[r, g, b]` arrays, 0..1.
 
@@ -273,7 +274,7 @@ every runtime. The Folly: 56 neighbours a LED in space and 25 along the wire, 3.
 ### Globals
 
 `G` holds the look's globals for this frame (sealed; refreshed every frame): `energy` (0..1, calm → busy),
-`speed`, `level`, `hue`, `saturation`, `palette` (`{ name, low, body, accent, high }`, each a frozen list of
+`speed`, `level`, `hue`, `saturation`, `bpm` (the look's tempo, 120 unset), `palette` (`{ name, low, body, accent, high }`, each a frozen list of
 `[r, g, b]`), and each macro's value by name (`G.storm`). The runtime applies `speed` (pattern `t` is the
 look's clock, ∫ speed dt, so a change never makes motion jump), `level` (master), `hue` and `saturation` (to the
 composite, per pixel) for free. Clips, automation and LFOs run on show time.
@@ -283,14 +284,26 @@ composite, per pixel) for free. Clips, automation and LFOs run on show time.
 A number param's value (in `params`, layer or module) may be a binding instead of a number, resolved once per
 frame per layer and held to the param's min..max (`from`/`to` default to them):
 
-- `{ mod: 'lfo', shape: 'sine'|'tri'|'saw'|'square', rate, unit: 'hz'|'beats', depth, center }`:
+- `{ mod: 'lfo', shape: 'sine'|'tri'|'saw'|'square'|'hold', rate, unit: 'hz'|'beats', depth, center, hold? }`:
   `center + depth × w(t × rate)`, `w` −1..1, beats at `look.bpm` (120 unset); `center` defaults to the
-  param's default, `depth` to a quarter of its range.
+  param's default, `depth` to a quarter of its range. `hold` starts at the bottom, eases up, holds at the top, eases
+  down and holds at the bottom; `hold` (0..1, default 0.5, at most 0.95) is the share of each cycle spent holding,
+  half at each end: an open, hold, close for a reveal.
 - `{ mod: 'global', name, from, to }`: `from + (to − from) × g`, `g` the global (`energy`, `speed`, `level`,
   `hue`, `saturation` or a macro) as 0..1 of its range.
 - `{ mod: 'envelope', from, to }`: by the layer's clip envelope (1 with no clips).
 
 A colour pick's `rotate` takes the same bindings (from 0, to 1, depth ¼ by default); it wraps rather than holds.
+
+### Integrated clocks
+
+`clock(name)` is ∫ P[name] dT, the distance a number param (a speed) has moved things since t = 0 in pattern time,
+per module instance; a module draws motion from it (`p.ly - clock('speed')`), never from `t × P.speed`, so a speed an
+LFO, a global or the envelope moves never makes the motion jump. A param with a fixed value gives value × T, exact. A
+bound one is summed over show time on a fixed grid from 0 (steps of 1/128 s, the trapezoid rule, each step the
+param's value then × the look's speed then, its automation included), kept per instance and started again when time
+goes back: a frame played to and the same frame sought to read the same clock, to the bit. A seek to 10 minutes sums
+76,800 steps (a few ms); playing adds about three a frame. A `use()` instance's params are values: value × T.
 
 ### Palettes
 
@@ -397,7 +410,8 @@ has alpha × level, `max` keeps the brighter channel, `multiply` tints what is b
 Sequencing lives on the look, xLights-style.
 
 - `look.duration`: seconds the look runs, then loops; 1–600, default 30 (absent = 30).
-- `look.bpm`: optional, 40–240; the editor's beat grid, and the tempo of LFOs in `beats` (nothing else).
+- `look.bpm`: optional, 40–240; the editor's beat grid, the tempo of LFOs in `beats`, and `G.bpm`. A bake's key
+  holds it when an LFO counts beats or a module's code reads `G.bpm`.
 - `layer.clips`: optional `[{ start, end, fadeIn = 0, fadeOut = 0 }]` in seconds (0–600, kept to
   the millisecond), ≤ 32 per layer, sorted, not overlapping (touching is fine). No or empty
   clips: the layer is always on (looks from before the timeline are unchanged).

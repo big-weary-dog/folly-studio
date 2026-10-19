@@ -65,7 +65,7 @@ function prepareChain(layer: LayerInput | null | undefined, compiled: Compiled |
   const modules = layerModules(layer);
   const list = Array.isArray(compiled) ? compiled : [compiled];
   if (list.length !== modules.length) throw new Error('prepareLayer: compile every module (compileLayer)');
-  const chain: Link[] = [], at = new Map<string | undefined, number>();
+  const chain: Link[] = [], at = new Map<string | undefined, number>(), clips = normalizeClips(layer?.clips);
   let shown = 0;
   for (const [i, m] of modules.entries()) {
     if (!isOn(m)) continue;
@@ -79,10 +79,11 @@ function prepareChain(layer: LayerInput | null | undefined, compiled: Compiled |
     if (kind === SOURCE && !hidden) shown++;
     const input = kind === FILTER ? at.get(m.input) ?? -1 : -1;
     if (kind === SOURCE) at.set(m.id, chain.length);
-    const P = resolveParams(c.params, m.params);
+    const P = resolveParams(c.params, m.params), mods = paramMods(c.params, m.params, c.picks?.rot);
     c.picks?.bind(c.params, m.params, P);
+    c.clocks?.bind(P, mods, clips);
     chain.push({ id: m.id ?? null, title: m.title || m.id || '', kind, fn, frame: c.frame || null,
-      P, mods: paramMods(c.params, m.params, c.picks?.rot), picks: c.picks || null, blend, hidden, input,
+      P, mods, picks: c.picks || null, blend, hidden, input,
       out: [0.5, 0, 0, 0], keep: null, end: kind === SPATIAL || isStageEnd(m), ix: 0, at: 0, from: -1, to: -1 });
   }
   return chain;

@@ -6,8 +6,8 @@ import { pickColour } from './picks.ts';
 import { clamp, DEFAULT_PALETTE, isNum, paletteColours, RUN, TAU } from './stdlib.ts';
 import type { PaletteColours, PaletteHex } from './stdlib.ts';
 
-/** G: the look's globals as patterns see them, its macros by name (SPEC "Globals"). */
-export type G = { energy: number, speed: number, level: number, hue: number, saturation: number,
+/** G: the look's globals as patterns see them, its tempo, its macros by name (SPEC "Globals"). */
+export type G = { energy: number, speed: number, level: number, hue: number, saturation: number, bpm: number,
   palette: PaletteColours, [macro: string]: number | PaletteColours };
 /** P: a module's param values (colours as [r, g, b], choices as their name). */
 export type Values = Record<string, number | boolean | number[] | string>;
@@ -26,7 +26,7 @@ export const MAX_POINTS = 256;
 const MACRO_NAME = /^[a-z][A-Za-z0-9_]{0,31}$/;
 /** May `name` be a macro: not one of G's own, nor anything every object has? */
 export const macroNameOk = (name: unknown): name is string => typeof name === 'string' && MACRO_NAME.test(name)
-  && !(name in GLOBALS) && name !== 'palette' && !(name in Object.prototype);
+  && !(name in GLOBALS) && name !== 'palette' && name !== 'bpm' && !(name in Object.prototype);
 
 /** Lenient: each global in range, a palette, macros: [{ name, value, min, max }]. */
 export function normalizeGlobals(g?: Globals | null) {
@@ -88,19 +88,26 @@ function lanesOf(automation: Automation | null | undefined, g: ReturnType<typeof
 export function prepareLook(look?: { globals?: Globals | null, automation?: Automation | null, bpm?: number | null }
   | null, previous?: Clock) {
   const g = normalizeGlobals(look?.globals);
-  const lanes = lanesOf(look?.automation, g);
-  const G: G = { energy: g.energy, speed: g.speed, level: g.level, hue: g.hue, saturation: g.saturation,
+  const lanes = lanesOf(look?.automation, g), bpm = isNum(look?.bpm) && look.bpm > 0 ? look.bpm : 120;
+  const G: G = { energy: g.energy, speed: g.speed, level: g.level, hue: g.hue, saturation: g.saturation, bpm,
     palette: paletteColours(g.palette) || paletteColours(DEFAULT_PALETTE)! };
   for (const m of g.macros) G[m.name] = m.value;
   Object.seal(G);
   const ranges = new Map<string, Range>([...Object.entries(GLOBALS), ...g.macros.map((m) => [m.name, m] as const)]);
+  const fixed = new Map<string, number>([...Object.keys(GLOBALS).map((k) => [k, G[k] as number] as const),
+    ...g.macros.map((m) => [m.name, m.value] as const)]);
   const L = {
-    G, g, lanes, bpm: isNum(look?.bpm) && look.bpm > 0 ? look.bpm : 120, palette: G.palette,
+    G, g, lanes, bpm, palette: G.palette,
     speedLane: lanes.find((l) => l.name === 'speed')?.points || null, offset: 0, lastT: NaN, T: 0,
     grade: new Float64Array(9), graded: false, level: NaN, hue: NaN, sat: NaN,
     norm(name: string) {
       const r = ranges.get(name);
       return r ? clamp(((G[name] as number) - r.min) / (r.max - r.min)) : 0;
+    },
+    /** A global or macro at show time t, 0..1 of its range: its lane there, else its value (integrated clocks). */
+    normAt(name: string, t: number) {
+      const r = ranges.get(name), lane = lanes.find((l) => l.name === name);
+      return r ? clamp(((lane ? automationAt(lane.points, t) : fixed.get(name)!) - r.min) / (r.max - r.min)) : 0;
     },
   };
   if (previous && Number.isFinite(previous.lastT)) {
@@ -124,13 +131,14 @@ export function lookFrame(L: PreparedLook, t: number) {
   L.lastT = t;
   const G = L.G, g = L.g;
   G.energy = g.energy; G.speed = g.speed; G.level = g.level; G.hue = g.hue; G.saturation = g.saturation;
-  G.palette = L.palette;
+  G.bpm = L.bpm; G.palette = L.palette;
   for (let i = 0; i < g.macros.length; i++) G[g.macros[i].name] = g.macros[i].value;
   for (let i = 0; i < L.lanes.length; i++) G[L.lanes[i].name] = automationAt(L.lanes[i].points, t);
   L.T = clockAt(L, t);
   setGrade(L, G.level, G.hue, G.saturation);
   RUN.G = G;
   RUN.palette = L.palette;
+  RUN.t = t; RUN.T = L.T; RUN.look = L;
 }
 
 const LUMA = [0.2126, 0.7152, 0.0722];
@@ -170,7 +178,7 @@ export function finish(rgb: Float32Array, n: number, L?: PreparedLook | null) {
   }
 }
 
-const SHAPES = ['sine', 'tri', 'saw', 'square'];
+const SHAPES = ['sine', 'tri', 'saw', 'square', 'hold'];
 const MODS: Record<string, number> = { lfo: 0, global: 1, envelope: 2 };
 /** Is v a binding ({ mod, … }) rather than a value? */
 export const isBinding = (v: unknown): v is Binding => v !== null && typeof v === 'object' && !Array.isArray(v)
@@ -215,35 +223,46 @@ export function paramMods(schema: ParamSchema | undefined, overrides: unknown, t
       key, into: d.type === 'number' ? null : turns!, kind: MODS[v.mod]!, lo: turn ? -1e6 : lo, hi: turn ? 1e6 : hi,
       from: num(b.from, lo), to: num(b.to, hi), name: String(b.name ?? ''),
       shape: Math.max(0, SHAPES.indexOf(b.shape as string)), rate: num(b.rate, 1), beats: b.unit === 'beats',
-      depth: num(b.depth, (hi - lo) / 4), center: num(b.center, dv),
+      depth: num(b.depth, (hi - lo) / 4), center: num(b.center, dv), hold: clamp(num(b.hold, 0.5), 0, 0.95),
     });
   }
   return out;
 }
 
-/** −1..1 at phase f (0..1): sine, triangle, saw or square. */
-function lfo(shape: number, f: number) {
+const ease = (x: number) => x * x * (3 - 2 * x);
+/** −1..1 at phase f (0..1): sine, triangle, saw, square, or hold: from the bottom it eases up, holds, eases down and
+ * holds, `hold` the share of the cycle spent holding (half at the top, half at the bottom). */
+function lfo(shape: number, f: number, hold: number) {
   switch (shape) {
     case 1: return 1 - 4 * Math.abs(f - 0.5);
     case 2: return 2 * f - 1;
     case 3: return f < 0.5 ? 1 : -1;
+    case 4: {
+      const r = (1 - hold) / 2, top = r + hold / 2;
+      return f < r ? 2 * ease(f / r) - 1 : f < top ? 1 : f < top + r ? 1 - 2 * ease((f - top) / r) : -1;
+    }
     default: return Math.sin(TAU * f);
   }
 }
 
+export type Mod = ReturnType<typeof paramMods>[number];
+/** A bound param's value at show time t, held to its range: `g` the global it reads (0..1), `env` the clip envelope. */
+export function modValue(m: Mod, t: number, g: number, env: number, look: PreparedLook) {
+  let v;
+  if (m.kind === 0) {
+    const ph = t * m.rate * (m.beats ? look.bpm / 60 : 1);
+    v = m.center + m.depth * lfo(m.shape, ph - Math.floor(ph), m.hold);
+  } else {
+    v = m.from + (m.to - m.from) * (m.kind === 1 ? g : env);
+  }
+  return v < m.lo ? m.lo : v > m.hi ? m.hi : v === v ? v : m.lo;
+}
+
 /** Each bound param's value this frame into P, a rotate's into its picks (t: show time; env: the clip envelope).
  * No allocation. */
-export function applyMods(mods: ReturnType<typeof paramMods>, P: Values, t: number, env: number,
-  look: PreparedLook) {
+export function applyMods(mods: readonly Mod[], P: Values, t: number, env: number, look: PreparedLook) {
   for (let i = 0; i < mods.length; i++) {
     const m = mods[i];
-    let v;
-    if (m.kind === 0) {
-      const ph = t * m.rate * (m.beats ? look.bpm / 60 : 1);
-      v = m.center + m.depth * lfo(m.shape, ph - Math.floor(ph));
-    } else {
-      v = m.from + (m.to - m.from) * (m.kind === 1 ? look.norm(m.name) : env);
-    }
-    (m.into || P)[m.key] = v < m.lo ? m.lo : v > m.hi ? m.hi : v === v ? v : m.lo;
+    (m.into || P)[m.key] = modValue(m, t, m.kind === 1 ? look.norm(m.name) : 0, env, look);
   }
 }

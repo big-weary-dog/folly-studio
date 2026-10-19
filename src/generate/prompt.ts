@@ -43,7 +43,7 @@ const params = {
 function frame(t, P) {}            // optional: once per frame, before pixel()
 
 function pixel(p, t, P) {          // every LED, every frame
-  const x = p.ly * 3 - t * P.speed, c = swatch('colours', floor(x));
+  const x = p.ly * 3 - clock('speed'), c = swatch('colours', floor(x));
   c[3] = pulse(fract(x), 0.2);     // [r, g, b], each 0..1, and an optional alpha: how much it covers
   return c;
 }
@@ -87,8 +87,9 @@ dist(x1,y1,z1,x2,y2,z2), pal(name, t) (t 0..1 along colour param name's pick), s
 wrapping: bands, seeded objects), palette(t) (the palette's colours, low to high), centres(tag) ([X, Y, Z] of each
 group with that tag, [] if none: call it inside pixel or frame),
 extent() (this layer's bounds in metres, [[X0, Y0, Z0], [X1, Y1, Z1]]: to place a centre in it, measure in metres,
-fill it), use(name, params?) (a library
-pattern as a function (p, t) → colour; call it at the top level). Colours are [r, g, b] arrays, 0..1.
+fill it), clock(name) (how far number param name, a speed, has moved things: draw motion from clock('speed'), not
+t × P.speed, so a modulated speed never jumps), use(name, params?) (a library pattern as a function (p, t) → colour;
+call it at the top level). Colours are [r, g, b] arrays, 0..1.
 
 Rules for code:
 - pixel() runs ~195,000 times a second: keep it cheap, no big allocations per call; put
@@ -114,7 +115,8 @@ everything above it, as in an image editor.
   declares \`const stage = 'spatial'\` or \`'history'\`): a warp below one does not reach above it.
 So "meteors only inside clouds, mirrored" is [source meteors, source clouds as input, filter mask with input = the
 clouds' id, warp mirror]. A module with a \`ref\` names the library entry it copies; still give its code.
-\`G\` holds the look's globals: G.energy (0..1, calm → busy), the palette, and each macro by name.`;
+\`G\` holds the look's globals: G.energy (0..1, calm → busy), G.bpm (the look's tempo), the palette, and each macro by
+name.`;
 
 export const TASTE = `- Colour at full strength. A palette sets hue, not brightness: saturated colours at full value.
   Warm colours at half brightness read as brown and olive.

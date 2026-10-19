@@ -74,6 +74,9 @@ describe('modulation', () => {
     assert.equal(makeBinding({ ...f, mod: '' }, p), null, 'nothing: its field sets it');
     assert.equal(bindingText(lfo!), 'LFO sine · 1 Hz');
     assert.equal(bindingText({ mod: 'global', name: 'storm', from: 20, to: 160 }), 'storm → 20–160');
+    const held = makeBinding({ ...bindingForm({ mod: 'lfo', shape: 'hold', hold: 0.3 }, p, globals) }, p);
+    assert.deepEqual([held?.mod, (held as { shape?: string }).shape, (held as { hold?: number }).hold],
+      ['lfo', 'hold', 0.3], 'the hold shape keeps its hold');
   });
 
   test('what a control shows: its value, the default, or nothing while bound', () => {

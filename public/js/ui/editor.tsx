@@ -118,6 +118,7 @@ const STDLIB: [string, string[][]][] = [
     ['soft(edge, x, width)', 'a step with no stair: 0 → 1 smoothly over width round edge'],
     ['band(x, centre, halfWidth, softness)', '1 within halfWidth of centre, its edges soft'],
     ['beat(t, bpm)', 'phase 0..1'], ['dist(x1,y1,z1, x2,y2,z2)', ''],
+    ["clock('speed')", 'how far param speed has moved things: modulate it and nothing jumps'],
   ]],
   ['Randomness', [
     ['hash(n)', 'stable 0..1'], ['rand(a, b?, c?)', 'stable 0..1'],
@@ -127,12 +128,12 @@ const STDLIB: [string, string[][]][] = [
     ['hsv(h, s, v)', ''], ['hsl(h, s, l)', ''], ['rgb(r, g, b)', ''], ["hex('#rrggbb')", ''],
     ['scale(c, k)', ''], ['add(c1, c2)', ''], ['gradient(t, [c0, c1, …])', ''],
     ['cosPalette(t, a, b, c, d)', 'Inigo Quilez palettes'],
-    ['pal(name, t)', "along a colour param's pick, or a role: 'low' 'body' 'accent' 'high'"],
+    ['pal(name, t)', "along a colour param's pick: pal('colours', t), first colour to last"],
     ['swatch(name, i)', 'its i-th colour, wrapping'], ['palette(t)', 'the palette, low to high'],
   ]],
   ['Composing', [
     ['use(name, params?)', 'a library source as (p, t) → colour; call it at the top'],
-    ['G', 'the look: G.energy 0..1, G.palette, each macro as G.name'],
+    ['G', 'the look: G.energy 0..1, G.bpm, G.palette, each macro as G.name'],
     ["centres('tower')", 'the middle [X, Y, Z] of each group tagged tower (in frame or pixel)'],
     ['extent()', 'this layer’s bounds in metres, [[X0, Y0, Z0], [X1, Y1, Z1]]'],
   ]],

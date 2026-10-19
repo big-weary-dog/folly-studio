@@ -7,8 +7,8 @@ export interface Param { kind: 'number' | 'color' | 'toggle' | 'choice'; value: 
   label: string; min: number; max: number; step: number; options: string[]; blend?: 'smooth' | 'step' }
 type Shape = NonNullable<Extract<Binding, { mod: 'lfo' }>['shape']>;
 export type BindingForm = { mod: '' | Binding['mod']; shape: Shape; rate: string; unit: string; center: string;
-  depth: string; name: string; from: string; to: string; eFrom: string; eTo: string };
-export const SHAPES: Shape[] = ['sine', 'tri', 'saw', 'square'];
+  depth: string; hold: string; name: string; from: string; to: string; eFrom: string; eTo: string };
+export const SHAPES: Shape[] = ['sine', 'tri', 'saw', 'square', 'hold'];
 
 /** Is v a param binding rather than a value? */
 export const isBinding = (v: unknown): v is Binding => !!v && typeof v === 'object' && !Array.isArray(v)
@@ -70,7 +70,7 @@ export function bindingForm(b: Partial<Binding>, p: Param, globals: string[]): B
   return { mod: b.mod || '', shape: SHAPES.includes(o.shape as Shape) ? o.shape as Shape : 'sine',
     rate: fmt(Number(o.rate ?? 0.25)), unit: o.unit === 'beats' ? 'beats' : 'hz',
     center: fmt(Number(o.center ?? p.value)),
-    depth: fmt(Number(o.depth ?? (p.max - p.min) / 4)),
+    depth: fmt(Number(o.depth ?? (p.max - p.min) / 4)), hold: fmt(Number(o.hold ?? 0.5)),
     name: globals.includes(o.name as string) ? o.name as string : globals[0], from, to, eFrom, eTo };
 }
 
@@ -79,7 +79,8 @@ export function makeBinding(f: BindingForm, p: Param): Binding | null {
   const n = (s: string, d: number) => { const v = parseFloat(s); return Number.isFinite(v) ? v : d; };
   if (f.mod === 'lfo') {
     return { mod: 'lfo', shape: f.shape, rate: n(f.rate, 1), unit: f.unit === 'beats' ? 'beats' : 'hz',
-      center: n(f.center, Number(p.value)), depth: n(f.depth, (p.max - p.min) / 4) };
+      center: n(f.center, Number(p.value)), depth: n(f.depth, (p.max - p.min) / 4),
+      ...(f.shape === 'hold' ? { hold: Math.min(1, Math.max(0, n(f.hold, 0.5))) } : {}) };
   }
   if (f.mod === 'global') return { mod: 'global', name: f.name, from: n(f.from, p.min), to: n(f.to, p.max) };
   return f.mod === 'envelope' ? { mod: 'envelope', from: n(f.eFrom, p.min), to: n(f.eTo, p.max) } : null;

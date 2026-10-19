@@ -72,8 +72,9 @@ const Clips = z.array(Clip, { error: 'clips must be an array.' }).max(MAX_CLIPS,
 const bound = z.number().min(-1e6).max(1e6).optional();
 /** A param bound to an LFO, a global or the clip envelope instead of a number (SPEC "Param bindings"). */
 export const Binding = z.discriminatedUnion('mod', [
-  z.strictObject({ mod: z.literal('lfo'), shape: z.enum(['sine', 'tri', 'saw', 'square']).optional(),
-    rate: bound, unit: z.enum(['hz', 'beats']).optional(), depth: bound, center: bound }),
+  z.strictObject({ mod: z.literal('lfo'), shape: z.enum(['sine', 'tri', 'saw', 'square', 'hold']).optional(),
+    rate: bound, unit: z.enum(['hz', 'beats']).optional(), depth: bound, center: bound,
+    hold: z.number().min(0).max(1).optional() }),
   z.strictObject({ mod: z.literal('global'), name: z.string().regex(/^[a-z][A-Za-z0-9_]{0,31}$/), from: bound,
     to: bound }),
   z.strictObject({ mod: z.literal('envelope'), from: bound, to: bound }),
