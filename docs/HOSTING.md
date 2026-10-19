@@ -96,7 +96,22 @@ STUDIO_GENERATOR_FALLBACK=sketch  # when the generator fails, and for deep ideas
 STUDIO_BAKE_SECONDS=120           # longest bake
 STUDIO_FRAMES_BROTLI_QUALITY=9
 STUDIO_FRAMES_MAX_BYTES=2GB
+STUDIO_FLASH_PER_SECOND=3         # the flash check: flashes a second allowed (WCAG 2.3.1: 3)
+STUDIO_FLASH_DELTA=0.1            # a flash's swing in relative luminance (WCAG: 0.1)
+STUDIO_FLASH_AREA=0.1             # share of the LEDs, or of the lit area from the front or side, that blocks
 ```
+
+### The flash check
+
+Bakes that flash fast over a large area cannot be marked reviewed, and the preview dims them. The three
+`STUDIO_FLASH_*` limits above default to WCAG's; out-of-range values fall back to the default. They apply to new
+bakes and to the preview's guard (the browser gets them from `/api/me`). A curator can still approve a flashing
+bake by giving a reason, which stays on the look with their name. Each person can turn the preview's dimming off
+for themselves with "Don't dim for me".
+
+`STUDIO_FLASH_CHECK=off` stops the check blocking or dimming anything (bakes still measure it and say so). It is
+for trying things on your own machine: **not for public deployments**, where it would show strobes to people with
+photosensitive epilepsy without warning.
 
 ## The Fleet foundry
 

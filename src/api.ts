@@ -3,7 +3,7 @@
 // the public ones needs a session. Logins are limited per IP, and failed ones per IP and username.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
-import { type Idea, IdeaBody, Login, Signup } from '../shared/schemas/api.ts';
+import { type FlashSettings, type Idea, IdeaBody, Login, Signup } from '../shared/schemas/api.ts';
 import { lookRoutes } from './api-looks.ts';
 import { type Auth, COOKIE_NAME, SESSION_TTL_MS } from './auth.ts';
 import type { Queue } from './app.ts';
@@ -45,9 +45,9 @@ export const newestBy = (field: string) => (a: Record<string, unknown>, b: Recor
 export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, adapterName?: string, log: Log,
   loaders: ReturnType<typeof createLoaders>, maxIdeasPerDay?: number, framesDir: string,
   bakes: ReturnType<typeof createBakeQueue>, frames: ReturnType<typeof createFramesCache>, secureCookies?: boolean,
-  rateLimit?: { max?: number, ipMax?: number, windowMs?: number } }) {
+  rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, flash: FlashSettings }) {
   const { store, auth, queue, adapterName = 'sketch', loaders, log, maxIdeasPerDay = MAX_IDEAS_PER_DAY } = o;
-  const { bakes, framesDir, frames, secureCookies = false } = o;
+  const { bakes, framesDir, frames, secureCookies = false, flash } = o;
   const limits = { max: 10, ipMax: 100, windowMs: 60_000, ...o.rateLimit };
   return async (api: FastifyInstance) => {
     api.addHook('onRequest', checkMutation);
@@ -75,12 +75,12 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, adapterNa
       const user = await run(req).catch(async (err) => { await perName(req); throw err; });
       auth.logout(req.cookies[COOKIE_NAME]);
       reply.setCookie(COOKIE_NAME, auth.createSession(user), cookie(SESSION_TTL_MS / 1000)).code(status);
-      return { user: auth.publicUser(user) };
+      return { user: auth.publicUser(user), flash };
     };
     const cookie = (maxAge: number) => ({ httpOnly: true, sameSite: 'lax' as const, path: '/', maxAge,
       secure: secureCookies });
     const dropFrames = (id: string) => removeFrames(framesDir, id).then(() => frames.prune());
-    const looks = lookRoutes({ store, auth, bakes, dropFrames });
+    const looks = lookRoutes({ store, auth, bakes, dropFrames, log });
 
     routes(api, {
       'POST /signup': [signIn(201, (req) => auth.signup(parse(Signup, req.body))), { public: true }],
@@ -90,7 +90,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, adapterNa
         reply.setCookie(COOKIE_NAME, '', cookie(0));
         return { ok: true };
       }, { public: true }],
-      'GET /me': async (req) => ({ user: auth.publicUser(req.user) }),
+      'GET /me': async (req) => ({ user: auth.publicUser(req.user), flash }),
 
       'GET /ideas': async (req) => ({ ideas: store.ideas.list((i) => i.owner === req.user!.id).reverse()
         .sort(newestBy('createdAt')) }),

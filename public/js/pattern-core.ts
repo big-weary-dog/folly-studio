@@ -10,8 +10,10 @@ export {
   resolveParams,
 } from './core/globals.ts';
 export type { G, PreparedLook, Values } from './core/globals.ts';
-export { flashRegions, groupsByTag, LARGE, pixelsForGroups, prepareScene, tagCentres, tagMask } from './core/scene.ts';
-export type { Region, Scene } from './core/scene.ts';
+export { groupsByTag, pixelsForGroups, prepareScene, tagCentres, tagMask } from './core/scene.ts';
+export type { Scene } from './core/scene.ts';
+export { FLASH, flashLimits, FlashWatch } from './core/flash.ts';
+export type { Flashes, FlashLimits } from './core/flash.ts';
 export {
   DEFAULT_DURATION, layerEnvelope, lookDuration, MAX_CLIPS, MAX_DURATION, MIN_DURATION, normalizeClips,
 } from './core/timeline.ts';

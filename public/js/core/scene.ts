@@ -1,5 +1,5 @@
 // The scene: a rig (SPEC "Rig") as typed arrays in the pattern frame (x depth front → back, y up, z left →
-// right), its fixtures, attrs, groups and tags, and the regions the flash checks watch.
+// right), its fixtures, attrs, groups and tags.
 import type { Rig, RigGroup } from '../../../shared/schemas/rig.ts';
 import { type Centres, hash } from './stdlib.ts';
 
@@ -171,35 +171,3 @@ export function tagCentres(scene: Scene, tag: string): Centres {
     }));
   })));
 }
-
-export const LARGE = Object.freeze({ share: 0.1, extent: 0.1, grid: 32 });
-
-/**
- * The flash checks' regions (SPEC "Baked frames"): the whole rig (idx null), then each lit top-level group, and
- * whether each is large: the whole, ≥ 10 % of the LEDs, or ≥ 10 % of the lit cells (1/32 of the bounds' diagonal)
- * seen from the front (z, y) or the side (x, y).
- */
-export function flashRegions(scene: Scene) {
-  const N = scene.count, root = scene.root;
-  const regions: { id: string, idx: Int32Array | null }[] = [{ id: root ? root.id : 'all', idx: null }];
-  for (const g of scene.groups) {
-    const idx = root && g.parent === root.id ? groupMembers(scene, g) : null;
-    if (idx?.length) regions.push({ id: g.id, idx: idx.slice() });
-  }
-  const { min: lo, max: hi } = scene.bounds, P = [scene.X, scene.Y, scene.Z];
-  const cell = Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) / LARGE.grid || 1;
-  const at = (k: number, a: number) => Math.floor((P[a]![k]! - lo[a]!) / cell);
-  const area = (idx: Int32Array | null, [u, v]: number[]) => {
-    const cells = new Set<number>();
-    for (let i = 0, n = idx ? idx.length : N; i < n; i++) {
-      const k = idx ? idx[i]! : i;
-      cells.add(at(k, u!) * 65536 + at(k, v!));
-    }
-    return cells.size;
-  };
-  const views = [[2, 1], [0, 1]];
-  const whole = views.map((view) => area(null, view));
-  return regions.map((r) => ({ ...r, large: !r.idx || r.idx.length >= LARGE.share * N
-    || views.some((view, i) => area(r.idx, view) >= LARGE.extent * whole[i]!) }));
-}
-export type Region = ReturnType<typeof flashRegions>[number];

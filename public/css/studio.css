@@ -75,6 +75,8 @@ body[data-view=studio] { overflow: hidden; }
   background: rgb(6 4 11 / .86); border: var(--came-s) solid var(--lead); box-shadow: 0 0 0 1px rgb(244 176 79 / .45); }
 .baked-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .flash-banner { color: var(--text); background: rgb(6 4 11 / .9); border: var(--came-s) solid var(--lead); }
+.flash-banner.off { top: auto; bottom: 10px; left: 10px; transform: none; flex-direction: row; gap: 10px;
+  padding: 4px 4px 4px 12px; font-size: 12.5px; text-align: left; }
 .baked-dot { color: var(--amber); }
 .sandbox-host { position: absolute; width: 1px; height: 1px; overflow: hidden; left: -10px; top: -10px; opacity: 0;
   pointer-events: none; }
@@ -240,7 +242,7 @@ input.param-num { flex: none; width: 64px; min-height: var(--hit, 30px); padding
 @keyframes breathe { 50% { opacity: .3; } }
 .bake-note { color: var(--text-3); font-size: 12.5px; }
 .bake-note.warn { color: #ffd99a; }
-.bake-report { --label-w: 80px; margin: 0; display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; }
+.bake-report { --label-w: 76px; margin: 0; display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; }
 .bake-report dd { margin: 0; font-variant-numeric: tabular-nums; }
 .plays-on, .bake-report > .field { align-items: baseline; }   /* text that wraps */
 .bake-report .ok dd { color: var(--emerald); }

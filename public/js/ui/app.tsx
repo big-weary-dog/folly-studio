@@ -8,7 +8,7 @@ import { api, statusOf } from '../api.ts';
 import type { User } from '../../../shared/schemas/api.ts';
 import { confirmDialog, cx, toast, Toasts } from './kit.tsx';
 import { Rose } from './rose.tsx';
-import { here, leaveGuard, navigate, router, setTitle, user, type ViewProps } from './session.ts';
+import { flash, here, leaveGuard, navigate, router, setTitle, user, type ViewProps } from './session.ts';
 
 interface Route {
   re: RegExp; name: string; title: string; load: () => Promise<ComponentType<ViewProps>>; public?: boolean;
@@ -166,7 +166,9 @@ export async function boot() {
   });
   window.addEventListener('beforeunload', (e) => { if (leaveGuard.isDirty?.()) e.preventDefault(); });
   try {
-    user.value = (await api.me()).user || null;
+    const me = await api.me();
+    user.value = me.user || null;
+    flash.value = me.flash ?? null;
   } catch (err) {
     if (statusOf(err) !== 401 && statusOf(err) !== 403) toast((err as Error).message, { kind: 'error' });
   }

@@ -6,12 +6,12 @@
 import { computed, effect, signal } from '@preact/signals';
 
 import type { LibraryEntry, Rig } from '../../../shared/schemas/rig.ts';
-import { statusOf } from '../api.ts';
+import { api, statusOf } from '../api.ts';
 import { FlashGuard } from '../flash-guard.ts';
 import { openFrameStream } from '../frames-stream.ts';
 import { Runtime } from '../runtime.ts';
 import { Viewer } from '../viewer.ts';
-import { signedOut } from './session.ts';
+import { flash, signedOut, user } from './session.ts';
 import { pref, toast } from './kit.tsx';
 import type { Studio } from './studio-store.ts';
 
@@ -20,6 +20,9 @@ const QUALITY = ['auto', 'full', 'lite', 'low'];
 const REDUCE = matchMedia('(prefers-reduced-motion: reduce)');
 const DIM = 0.15;
 const seenFlashing = new Set<string>();     // looks whose flashing someone chose to see, this session
+// "Dim fast-flashing previews": each person's choice on this browser, on unless they turned it off (even with reduced
+// motion, which otherwise keeps a flashing look dimmed).
+const dimKey = () => `studio.flashDim.${user.peek()?.id || 'anyone'}`;
 
 export function createPreview(st: Studio) {
   const msg = signal<{ text: string; error?: boolean } | null>({ text: 'Loading the rig…' });
@@ -27,6 +30,7 @@ export function createPreview(st: Studio) {
   const mode = signal<'playa' | 'points'>('points'), tier = signal<string | undefined>(undefined);
   const quality = signal(QUALITY.includes(pref('studio.quality') || '') ? pref('studio.quality') as string : 'auto');
   const ghost = signal(pref('studio.ghost') !== '0'), dimmed = signal(false), stats = signal('');
+  const flashing = signal(false), dimFlashes = signal(pref(dimKey()) !== '0');
   const bakedInfo = signal<{ seconds: number; bytes: number } | null>(null);
   const time = signal(0);
   const duration = computed(() => bakedInfo.value?.seconds ?? st.look.value.duration);
@@ -38,19 +42,23 @@ export function createPreview(st: Studio) {
   let heavyKey = '', bakedLoad = 0, pushTimer = 0, alive = true, io: IntersectionObserver | null = null;
   const disposers: (() => void)[] = [];
 
-  // Every frame shown goes through show(): the view dims, with a banner, while a large area flashes over 3 times a
-  // second (flash-guard.ts) or the look's bake says it does. "Show it anyway" lasts the session; reduced motion dims.
+  // Every frame shown goes through show(): the view dims, with a banner, while a large area flashes over the
+  // server's limit (flash-guard.ts) or the look's bake says it does, unless the check is off on this server or the
+  // person turned dimming off. "Show it anyway" lasts the session; reduced motion keeps it dimmed.
   const flashKey = () => `studio.flash.${st.look.peek().id || 'new'}`;
   const remembered = () => { try { return sessionStorage.getItem(flashKey()) === '1'; } catch { return false; } };
+  // Reads no signal (only peeks), so the effects below that call it follow only what they mean to.
   function setGuard(on: boolean) {
-    guarded = on;
-    dimmed.value = on && (REDUCE.matches || !(seenFlashing.has(flashKey()) || remembered()));
-    viewer?.setOption('gain', dimmed.value ? DIM : 1);
+    const dim = on && dimFlashes.peek() && (REDUCE.matches || !(seenFlashing.has(flashKey()) || remembered()));
+    flashing.value = guarded = on;
+    dimmed.value = dim;
+    viewer?.setOption('gain', dim ? DIM : 1);
   }
   function show(rgb: Float32Array, now: number) {
-    const flashing = !!guard?.observe(rgb, now)
-      || (st.server.peek()?.bake?.analysis?.flicker?.ok === false && !st.dirty.peek());
-    if (flashing !== guarded) setGuard(flashing);
+    const checked = flash.peek()?.check !== false;
+    const on = !!guard?.observe(rgb, now) || (checked && st.server.peek()?.bake?.analysis?.flicker?.ok === false
+      && !st.dirty.peek());
+    if (on !== guarded) setGuard(on);
     viewer?.setColors(rgb);
   }
 
@@ -93,7 +101,8 @@ export function createPreview(st: Studio) {
   }
 
   const p = {
-    msg, views, view, mode, tier, quality, ghost, dimmed, stats, bakedInfo, time, duration, kick, push,
+    msg, views, view, mode, tier, quality, ghost, dimmed, flashing, dimFlashes, stats, bakedInfo, time, duration, kick,
+    push,
     get runtime() { return runtime; },
     get viewer() { return viewer; },
     /** Per frame: fn(t, playing). Returns its removal. */
@@ -106,6 +115,12 @@ export function createPreview(st: Studio) {
     showAnyway() {
       seenFlashing.add(flashKey());
       try { sessionStorage.setItem(flashKey(), '1'); } catch { /* private mode: this page only */ }
+      setGuard(guarded);
+    },
+    /** Dim fast-flashing previews (this person, this browser), or not. */
+    setDimFlashes(on: boolean) {
+      dimFlashes.value = on;
+      pref(dimKey(), on ? '1' : '0');
       setGuard(guarded);
     },
     setGhost(on: boolean) {
@@ -129,7 +144,17 @@ export function createPreview(st: Studio) {
       const v = viewer = new Viewer(canvas, { views: rig.views || {}, defaultView: 'fit',
         onError: (text: string) => { msg.value = { text, error: true }; } });
       v.setRig(rig);
-      guard = new FlashGuard(rig);
+      // The guard takes the server's limits; with the check off there (local use), there is none.
+      if (!flash.peek()) api.me().then((m) => { flash.value = m.flash ?? null; }, () => {});
+      disposers.push(effect(() => {
+        const f = flash.value;
+        guard = f?.check === false ? null : new FlashGuard(rig, f);
+        setGuard(false);
+      }), effect(() => {
+        void user.value;
+        dimFlashes.value = pref(dimKey()) !== '0';
+        setGuard(guarded);
+      }));
       views.value = ['fit', ...Object.keys(rig.views || {})];
       v.onViewChange = (name) => { view.value = name; };
       view.value = v.currentView ?? null;

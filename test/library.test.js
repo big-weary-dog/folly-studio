@@ -131,3 +131,32 @@ describe('warps and filters in long chains', () => {
     });
   }
 });
+
+// The shockwave starts at the rose's centre, as the rig's own rose cells place it, wherever its layer lands.
+test('the shockwave bursts from the rose window\'s centre', () => {
+  const corners = folly.fixtures.filter((f) => f.kind === 'cells').flatMap((f) => f.render.cells.flat());
+  const span = (a) => { const v = corners.filter((_, i) => i % 3 === a); return [Math.min(...v), Math.max(...v)]; };
+  const centre = [0, 1, 2].map((a) => (span(a)[0] + span(a)[1]) / 2);    // the glass's middle: the Folly's axes
+  const rose = new Set(folly.fixtures.filter((f) => f.kind === 'cells')
+    .flatMap((f) => Array.from({ length: f.count }, (_, i) => f.start + i)));
+  const places = { 'the rose window': { groups: ['rose-window'] }, 'a ring': { groups: ['rose-ring-3'] },
+    'the whole Folly': { groups: ['cathedral'] }, 'the rose by tag': { tags: ['rose'] },
+    'arches and the rose': { groups: ['arches', 'rose-window'] } };
+  for (const [what, place] of Object.entries(places)) {
+    const L = prepareLayer(scene, { id: 's', ...place }, compilePattern(source('shockwave')));
+    const lum = (rgb, k) => 0.2126 * rgb[3 * k] + 0.7152 * rgb[3 * k + 1] + 0.0722 * rgb[3 * k + 2];
+    const peak = new Float64Array(scene.count).fill(-1), at = new Float64Array(scene.count);
+    const out = new Float32Array(scene.count * 3);
+    for (let t = 0; t < 1.98; t += 0.01) {       // the first wave (every 2 s): when does each LED peak?
+      const { rgb } = renderFrame(scene, [L], t, out);
+      for (const k of L.idx) if (lum(rgb, k) > peak[k] + 1e-9) [peak[k], at[k]] = [lum(rgb, k), t];
+    }
+    const first = Math.min(...Array.from(L.idx, (k) => at[k]));
+    const lit = [...L.idx].filter((k) => at[k] <= first + 1e-9);
+    const mid = [scene.X, scene.Y, scene.Z].map((P) => lit.reduce((s, k) => s + P[k], 0) / lit.length);
+    assert.ok(lit.every((k) => rose.has(k)), `${what}: the first lit are rose cells`);
+    assert.ok(lit.length >= 8, `${what}: a ring, not a spot (${lit.length} cells)`);
+    const off = Math.hypot(mid[0] - centre[0], mid[1] - centre[1], mid[2] - centre[2]);
+    assert.ok(off < 0.05, `${what}: the first lit surround a point ${off.toFixed(3)} m from the rose's centre`);
+  }
+});

@@ -249,6 +249,44 @@ describe('looks', () => {
     await assert.rejects(readFile(file), /ENOENT/);
   });
 
+  test('a curator approves a flashing bake only with a reason, which stays on the look', async () => {
+    const look = (await alice.post('/api/looks', { title: 'Finale', shared: true,
+      layers: [layer({ code: `// STROBE finale\n${PIXEL}` })] })).json.look;
+    assert.equal((await alice.post(`/api/looks/${look.id}/bake`)).status, 202);
+    await app.bakes.idle();
+    const put = (who, body) => who.put(`/api/looks/${look.id}`, body);
+    const plain = await put(carol, { reviewed: true });
+    assert.equal(plain.status, 409);
+    assert.match(plain.json.error, /needs a curator's reason/);
+    assert.equal((await put(carol, { reviewed: true, flashOverride: ' ok ' })).status, 400, 'a real reason');
+    assert.equal((await put(carol, { flashOverride: 'The finale, announced and fenced off.' })).status, 400,
+      'only with reviewed: true');
+    assert.equal((await put(bob, { reviewed: true, flashOverride: 'I like it a lot.' })).status, 403);
+
+    const ok = await put(carol, { reviewed: true, flashOverride: ' The finale, announced and fenced off. ' });
+    assert.equal(ok.status, 200, ok.text);
+    assert.equal(ok.json.look.reviewed, true);
+    const { flashOverride } = (await bob.get(`/api/looks/${look.id}`)).json.look;
+    assert.equal(flashOverride.reason, 'The finale, announced and fenced off.');
+    assert.equal(flashOverride.by, 'carol');
+    assert.ok(Date.parse(flashOverride.at) > 0);
+    assert.equal(ok.json.look.bake.ok, false, 'the bake still says it flashes');
+
+    assert.equal((await put(carol, { reviewed: false })).json.look.flashOverride, undefined);
+    await put(carol, { reviewed: true, flashOverride: 'The finale, announced and fenced off.' });
+    const edited = await put(alice, { layers: [layer({ level: 0.4 })] });
+    assert.equal(edited.json.look.reviewed, false);
+    assert.equal(edited.json.look.flashOverride, undefined, 'new code needs a fresh review');
+    // A look without flashing is approved as before; a reason given anyway is not kept.
+    const calm = (await alice.post('/api/looks', { title: 'Calm finale', shared: true,
+      layers: [layer({ code: `// calm finale\n${PIXEL}` })] })).json.look;
+    await alice.post(`/api/looks/${calm.id}/bake`);
+    await app.bakes.idle();
+    const calmOk = await carol.put(`/api/looks/${calm.id}`, { reviewed: true, flashOverride: 'Not needed here.' });
+    assert.equal(calmOk.json.look.reviewed, true);
+    assert.equal(calmOk.json.look.flashOverride, undefined);
+  });
+
   test('a failed flicker check from any box blocks review', async () => {
     const look = (await alice.post('/api/looks', { title: 'Fleet strobe', layers: [layer()], shared: true })).json.look;
     app.store.looks.update(look.id, {

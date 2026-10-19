@@ -6,7 +6,7 @@ import { describe, test } from 'vitest';
 
 import { ledRanges } from '../public/js/fseq.ts';
 import {
-  compilePattern, flashRegions, groupsByTag, pixelsForGroups, prepareLayer, prepareScene, renderFrame, tagCentres,
+  compilePattern, FlashWatch, groupsByTag, pixelsForGroups, prepareLayer, prepareScene, renderFrame, tagCentres,
   toChannels,
 } from '../public/js/pattern-core.ts';
 import { mini, RIGS } from './fixtures/rigs.js';
@@ -71,11 +71,9 @@ for (const [name, rig] of Object.entries(RIGS)) {
       assert.equal(used, scene.count * 3, 'the sparse ranges hold every LED\'s channels, and only them');
     });
 
-    test('flash regions: the whole, then each lit top-level group', () => {
-      const regions = flashRegions(scene);
-      assert.deepEqual(regions[0], { id: scene.root.id, idx: null, large: true });
+    test('the flash check watches the whole, then each top-level group', () => {
       const top = rig.groups.filter((g) => g.parent === scene.root.id).map((g) => g.id);
-      assert.deepEqual(regions.slice(1).map((r) => r.id), top);
+      assert.deepEqual(new FlashWatch(scene).ids, [scene.root.id, ...top]);
     });
   });
 }
@@ -114,6 +112,14 @@ describe('the mini rig: its own axes, attrs, tags and addressing', () => {
     assert.deepEqual(tagCentres(scene, 'rose'), [[-0.5, 1.35, 0]], 'a centre in rig axes, turned to the pattern frame');
     const { rgb: c } = probe('function pixel() { const o = centres("rose")[0]; return [o[0] + 1, o[1] / 2, 0]; }');
     assert.ok(Math.abs(c[0] - 0.5) < 1e-6 && Math.abs(c[1] - 0.675) < 1e-6);
+    // extent(): the layer's bounds in metres, in the pattern frame; lx ly lz map them to 0..1 (0.5 on a flat axis).
+    const { L, rgb: e } = probe(`function pixel(p) {
+      const lo = extent()[0], hi = extent()[1];
+      const at = (v, a) => (hi[a] - lo[a] > 1e-6 ? (v - lo[a]) / (hi[a] - lo[a]) : 0.5);
+      return [at(p.X, 0), at(p.Y, 1), at(p.Z, 2)];
+    }`, { tags: ['rose', 'flood'] });
+    L.idx.forEach((k, j) => assert.deepEqual([...e.subarray(3 * k, 3 * k + 3)].map((v) => v.toFixed(4)),
+      [L.lx[j], L.ly[j], L.lz[j]].map((v) => v.toFixed(4)), `LED ${k}`));
   });
 
   test('tags carry a look between rigs: unknown ids fall back to them, known ids win, no tags is an error', () => {

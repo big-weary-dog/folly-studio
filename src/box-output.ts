@@ -6,8 +6,8 @@ import { createHash } from 'node:crypto';
 import { constants as FS, promises as fs } from 'node:fs';
 import path from 'node:path';
 
-import { flashRegions, prepareScene } from '../public/js/pattern-core.ts';
-import type { Bake } from '../shared/schemas/api.ts';
+import { flashLimits, FlashWatch, prepareScene } from '../public/js/pattern-core.ts';
+import type { Bake, FlashSettings } from '../shared/schemas/api.ts';
 import type { Rig } from '../shared/schemas/rig.ts';
 import { analyzeFrames, DEFAULT_MAX_BYTES, flickerReason, flickerWarning, FseqError, parseFseq } from './frames.ts';
 import { inflateBlock } from './fseq-codec.ts';
@@ -80,18 +80,30 @@ export function cleanBoxStats(value: unknown): NonNullable<Bake['boxStats']> {
 }
 
 /**
- * Baked frames, parsed and analysed on the LED map → { bake, frames? (bytes to store) }. Large-area flashing
- * fails `ok`; flashing on small regions only sets `warning`.
+ * The flash check's settings from the environment (docs/HOSTING.md): STUDIO_FLASH_PER_SECOND, _DELTA and _AREA (each
+ * WCAG's default when unset or out of range), and STUDIO_FLASH_CHECK=off to stop it blocking anything (local use).
  */
-export function checkFrames(bytes: Uint8Array, { source, rig, maxBytes = DEFAULT_MAX_BYTES, boxStats }: {
-  source: Bake['source'], rig: Rig, maxBytes?: number, boxStats?: Bake['boxStats'] }) {
+export function flashSettings(env: NodeJS.ProcessEnv = process.env): FlashSettings {
+  const num = (v?: string) => (v?.trim() ? Number(v) : undefined);
+  const limits = flashLimits({ perSecond: num(env.STUDIO_FLASH_PER_SECOND), delta: num(env.STUDIO_FLASH_DELTA),
+    area: num(env.STUDIO_FLASH_AREA) });
+  return { check: !/^(off|0|false|no)$/i.test(env.STUDIO_FLASH_CHECK?.trim() || ''), ...limits };
+}
+
+/**
+ * Baked frames, parsed and analysed on the LED map → { bake, frames? (bytes to store) }. Large-area flashing
+ * fails `ok` (unless the check is off: then it is only a warning); flashing on small regions only sets `warning`.
+ */
+export function checkFrames(bytes: Uint8Array, { source, rig, maxBytes = DEFAULT_MAX_BYTES, boxStats,
+  flash = flashSettings() }: { source: Bake['source'], rig: Rig, maxBytes?: number, boxStats?: Bake['boxStats'],
+  flash?: FlashSettings }) {
   const bake: Bake = { source, status: 'done', ok: false, checkedAt: new Date().toISOString() };
   if (boxStats) bake.boxStats = boxStats;
   let analysis;
   try {
     const scene = prepareScene(rig);
     const parsed = parseFseq(bytes, { maxBytes, maxChannels: scene.frameChannels, decompress: inflateBlock });
-    analysis = analyzeFrames(parsed, scene, flashRegions(scene));
+    analysis = analyzeFrames(parsed, scene, new FlashWatch(scene, flash, { record: true }));
   } catch (err) {
     bake.status = 'failed';
     bake.reason = err instanceof FseqError ? `The baked frames were rejected: ${err.message.replace(/^frames: /, '')}.`
@@ -100,10 +112,10 @@ export function checkFrames(bytes: Uint8Array, { source, rig, maxBytes = DEFAULT
   }
   bake.analysis = analysis;
   bake.frames = { bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
-  bake.ok = analysis.flicker.ok;
-  if (!bake.ok) bake.reason = flickerReason(analysis);
-  const warning = flickerWarning(analysis);
-  if (warning) bake.warning = warning;
+  bake.ok = analysis.flicker.ok || !flash.check;
+  if (!analysis.flicker.ok) bake[bake.ok ? 'warning' : 'reason'] = flickerReason(analysis);
+  const warning = [bake.warning, flickerWarning(analysis)].filter(Boolean).join(' ');
+  if (warning) bake.warning = flash.check ? warning : `The flash check is off on this server. ${warning}`;
   return { bake, frames: bytes };
 }
 

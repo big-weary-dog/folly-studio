@@ -183,7 +183,8 @@ describe('fleet (experimental, stub CLI)', () => {
     assert.equal(look.bake.layersHash, layersHash(look.layers));
     assert.deepEqual(fs.readFileSync(path.join(framesDir, `${look.id}.fseq`)), frames);
     const parsed = parseFseq(fs.readFileSync(path.join(framesDir, `${look.id}.fseq`)));
-    assert.equal(analyzeFrames(parsed, patternCore.prepareScene(MAP)).frames, 80);
+    const scene = patternCore.prepareScene(MAP);
+    assert.equal(analyzeFrames(parsed, scene, new patternCore.FlashWatch(scene, null, { record: true })).frames, 80);
 
     // Without anywhere to put frames, the bake says so instead of pretending.
     const { adapter: again } = withBake('ok', frames);
@@ -314,7 +315,8 @@ describe('fleet-box/check.ts (boxed worker side, real runtime)', () => {
     assert.equal(stats.frames, 80);
     assert.equal(stats.selfCheck.flicker.ok, true);
     const scene = patternCore.prepareScene(map);
-    assert.deepEqual(analyzeFrames(parsed, scene, patternCore.flashRegions(scene)), stats.selfCheck);
+    assert.deepEqual(analyzeFrames(parsed, scene, new patternCore.FlashWatch(scene, null, { record: true })),
+      stats.selfCheck);
 
     // Blur and soften: the box bakes the layers the studio will store, a missing soften as the default.
     const lib = (n) => fs.readFileSync(path.join(STUDIO, `public/patterns/${n}.js`), 'utf8');
