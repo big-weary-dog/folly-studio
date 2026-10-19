@@ -12,7 +12,7 @@ import {
   SHAPES, shownValue,
 } from './bindings.ts';
 import { cx, Field, humanize, openDialog, Scrub } from './kit.tsx';
-import { type Colours, PickRow } from './picks.tsx';
+import { type Colours, type Help, PickRow } from './picks.tsx';
 import type { Studio } from './studio-store.ts';
 
 const GLOBAL_NAMES = ['energy', 'speed', 'level', 'hue', 'saturation'];
@@ -50,12 +50,12 @@ export function ParamsPanel({ st }: { st: Studio }) {
 function Control({ name, p, values, set, globals, colours, narrow }: { name: string; p: Param;
   values: Record<string, ParamValue>; set: (fn: (p: Record<string, ParamValue>) => void) => void;
   globals: () => string[]; colours: Colours; narrow: boolean }) {
-  const { has, bound, value } = shownValue(p, values, name);
+  const { has, bound, value } = shownValue(p, values, name), help = useHelp(p.label, p.help, narrow);
   const put = (v: ParamValue) => set((q) => { q[name] = v; });
   if (p.kind === 'color') {
     const turn = { ...p, label: `${p.label}: rotate`, value: 0, min: 0, max: 1, step: 0.01 };
     return <PickRow label={p.label} value={values[name]} dflt={p.value as string} blend={p.blend ?? 'step'}
-      colours={colours} narrow={narrow}
+      colours={colours} narrow={narrow} help={help}
       put={(v) => set((q) => { if (v === undefined) delete q[name]; else q[name] = v; })}
       modulate={(now, apply) => modulate({ ...turn, value: typeof now === 'number' ? now : 0 }, now, globals(), apply,
         'Turns 0 to 1, wrapping: one turn walks every colour of the pick once.')} />;
@@ -75,10 +75,22 @@ function Control({ name, p, values, set, globals, colours, narrow }: { name: str
       onChange={(e) => put(e.currentTarget.checked)} />);
   // Unused, the reset keeps its place (hidden), so a field never moves under the pointer.
   return (
-    <Field label={p.label} class={cx('param end', p.kind === 'toggle' && 'toggle')}>
-      {(id) => <>{field(id)}<button type="button" class={cx('param-reset', (!has || value === p.value) && 'unused')}
+    <Field label={p.label} class={cx('param end', p.kind === 'toggle' && 'toggle')} title={help.title}
+      hint={help.hint}>
+      {(id) => <>{field(id)}{help.button}
+        <button type="button" class={cx('param-reset', (!has || value === p.value) && 'unused')}
         title="Reset to default" aria-label={`Reset ${p.label} to default`}
         onClick={() => set((q) => { delete q[name]; })}>↺</button></>}</Field>);
+}
+
+/** A param's help (SPEC "Pattern code"): its row's hover text; on a touch screen, an ⓘ that opens it under the row. */
+function useHelp(label: string, help: string | undefined, narrow: boolean): Help {
+  const [open, setOpen] = useState(false);
+  if (!help) return {};
+  if (!narrow) return { title: help };
+  return { hint: open && <p class="field-hint param-help">{help}</p>,
+    button: <button type="button" class="param-info" aria-expanded={open} aria-label={`About ${label}`}
+      onClick={() => setOpen(!open)}>ⓘ</button> };
 }
 
 /** The modulate dialog for a number param (or a pick's rotate): an LFO, a global or the clip envelope, or nothing. */

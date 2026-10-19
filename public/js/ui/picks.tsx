@@ -107,20 +107,23 @@ function PickTile({ title, value, dflt, blend, colours, narrow, put }: Tile) {
   </div>;
 }
 
+/** A param's help as its row shows it (params.tsx useHelp): hover text, or an ⓘ and the text it opens. */
+export type Help = { title?: string; button?: ComponentChildren; hint?: ComponentChildren };
 type Modulate = (now: number | Binding | undefined, apply: (b: Binding | null) => void) => void;
 /** A colour param's row: its pick and colours (the tile), ∿ to move its rotate, ↺ to reset it. */
-export function PickRow({ label, modulate, ...tile }: Omit<Tile, 'title'> & { label: string; modulate: Modulate }) {
+export function PickRow({ label, modulate, help = {}, ...tile }: Omit<Tile, 'title'> & { label: string;
+  modulate: Modulate; help?: Help }) {
   const edit = readEdit(tile.value, tile.dflt), own = tile.value !== undefined;
   const smooth = (edit.blend ?? tile.blend) === 'smooth';
   const turn = (rotate?: Binding) => tile.put(editValue({ ...edit, rotate }, tile.blend));
-  return <Field label={label} class="param end pick">{(id) => <>
+  return <Field label={label} class="param end pick" title={help.title} hint={help.hint}>{(id) => <>
     <PickButton {...tile} id={id} title={label} label={`${label}: ${editText(edit)}`} class="pick-btn">
       <span class="pick-text">{editText(edit).replace(/\//g, ' / ')}</span>
       <Strip stops={played(tile.colours, tile.value, tile.dflt, tile.blend)} smooth={smooth} />
     </PickButton>
     <button type="button" class="param-mod" aria-pressed={isBinding(edit.rotate)} aria-label={`Turn ${label}`}
       title="Turn its colours: an LFO, a global or the clip envelope moves its rotate"
-      onClick={() => modulate(edit.rotate, (b) => turn(b ?? undefined))}>∿</button>
+      onClick={() => modulate(edit.rotate, (b) => turn(b ?? undefined))}>∿</button>{help.button}
     <button type="button" class={cx('param-reset', !own && 'unused')} title="Reset to default"
       aria-label={`Reset ${label} to default`} onClick={() => tile.put(undefined)}>↺</button></>}</Field>;
 }

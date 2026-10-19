@@ -172,7 +172,11 @@ function pixel(p, t, P) {          // every LED, every frame
 number `{ value, min, max, step? }`, `{ value: bool, type: 'toggle' }`,
 `{ value: pick, type: 'color', blend? }`: a pick names palette colours or literals ("Palettes" below), such as
 `'all'`, `'accent'` or `'#rrggbb'`; `{ value: 'name', type: 'choice', options: ['name', …] }` (≤ 16
-options, each `[a-z][a-z0-9-]{0,31}`; a value not among them takes the default).
+options, each `[a-z][a-z0-9-]{0,31}`; a value not among them takes the default). Any kind may carry `label` (its name in
+the Studio, a unit in parentheses: `'Speed (bars a second)'`) and `help` (≤ 300 characters: one or two sentences on
+what it does and how it looks low and high). The Studio shows `help` on hover over the param's row, and on a touch
+screen behind an ⓘ beside it; the generators' library docs give it as the param's effect. Every library param has
+`help`.
 
 ### The pixel `p`
 

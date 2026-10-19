@@ -113,8 +113,9 @@ export function buildDocs(catalog: Catalog, prose: ReadonlyMap<string, string> =
   }
   for (const m of catalog.modules.values()) {
     const p = read(m.name), said = bullets(section(p, 'Params'));
+    // The code's help first, then what the prose adds.
     const params = Object.entries(m.params).map(([n, d]) => `- ${paramHead(n, d)}: ${
-      said.get(n) ?? STOCK[n] ?? d.label ?? ''}`);
+      [d.help, said.get(n)].filter(Boolean).join(' ') || (STOCK[n] ?? d.label ?? '')}`);
     docs.set(`${kindDir(m.kind ?? 'source')}/${m.name}.md`, [
       `# ${m.name} — ${m.title ?? m.name} (${m.kind ?? 'source'}${m.category ? `, ${m.category}` : ''})`,
       lineOf(m.name, m.summary), p.about,
@@ -141,10 +142,13 @@ export const looksOf = (prose: ReadonlyMap<string, string>) => new Map([...prose
   .filter(([n]) => !INTROS.includes(n)).map(([n, t]): [string, string] => [n, parseProse(t).looks])
   .filter(([, l]) => l));
 
-/** Prose against the library: entries without prose (`missing`), and prose that names what the library lacks. */
+/** Prose against the library: entries without prose (`missing`), params without `help` (`unhelped`, `bars.speed`),
+ * and prose that names what the library lacks. */
 export function lintDocs(catalog: Catalog, prose: ReadonlyMap<string, string>) {
   const missing: string[] = [], errors: string[] = [];
   for (const name of [...catalog.modules.keys(), ...catalog.presets.keys()]) if (!prose.has(name)) missing.push(name);
+  const unhelped = [...catalog.modules.values()].flatMap((m) => Object.entries(m.params)
+    .filter(([, d]) => !d.help).map(([n]) => `${m.name}.${n}`));
   for (const [name, text] of prose) {
     if (INTROS.includes(name)) continue;
     const p = parseProse(text), m = catalog.modules.get(name), pr = catalog.presets.get(name);
@@ -164,5 +168,5 @@ export function lintDocs(catalog: Catalog, prose: ReadonlyMap<string, string>) {
       }
     }
   }
-  return { missing, errors };
+  return { missing, unhelped, errors };
 }

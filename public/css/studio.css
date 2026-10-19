@@ -216,9 +216,10 @@ input.tree-box { width: 16px; height: 16px; margin: 0 4px 0 2px; flex: none; cur
   color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .params-wrap, .params { display: flex; flex-direction: column; gap: 10px; }
 .layer-title-input { font-weight: 600; }
-.param-reset { min-width: var(--hit); min-height: var(--hit); padding: 0 4px; font-size: 15px; color: var(--text-3);
-  background: none; border: 0; cursor: pointer; }
-.param-reset:hover { color: var(--sand); }
+.param-reset, .param-info { min-width: var(--hit); min-height: var(--hit); padding: 0 4px; font-size: 15px;
+  color: var(--text-3); background: none; border: 0; cursor: pointer; }
+.param-reset:hover, .param-info[aria-expanded=true] { color: var(--sand); }
+.field.param > .param-help { flex: 1 1 100%; margin: 0; }
 .param-reset.unused { visibility: hidden; }
 .param-hex { font: 12.5px var(--mono); color: var(--text-2); }
 .params-foot { padding-top: 4px; }

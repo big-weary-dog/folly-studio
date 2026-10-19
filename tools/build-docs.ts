@@ -29,7 +29,8 @@ for (const [rel, text] of docs) {
   mkdirSync(path.dirname(path.join(out, rel)), { recursive: true });
   writeFileSync(path.join(out, rel), text);
 }
-const { missing, errors } = lintDocs(catalog, prose);
+const { missing, unhelped, errors } = lintDocs(catalog, prose);
 console.log(`${docs.size} docs in ${path.join(out, 'library')}`);
 if (missing.length) console.log(`no prose: ${missing.join(', ')}`);
+if (unhelped.length) console.log(`no help: ${unhelped.join(', ')}`);
 for (const e of errors) console.log(e);

@@ -50,10 +50,10 @@ tags; globals and bindings), `library/<kind>s/README.md` (a paragraph per module
 `library/<kind>s/<name>.md` (every param with its type, range, default, unit and effect; directions; pairings;
 pitfalls). The prose is hand-written in `library-docs/<name>.md` (front matter `looks:`, the line the summary
 shows; a paragraph; `## Params` with a line per param, `## Overrides` for a preset; `## Pairings`; `## Pitfalls`);
-types, ranges, defaults, options and units (the code's `label`) come from the catalogue, and recipes from the index,
+types, ranges, defaults, options, units (the code's `label`) and each param's `help` come from the catalogue, and recipes from the index,
 so the tree follows the library. `tools/build-docs.ts` writes it to a folder. A test fails when the prose names a
 param the code lacks or a module the library has not, or (once the library's renames have landed) a module has no
-prose. The models read it with one tool, `read_doc({ path })`: a path in the tree (`library/sources/bars.md`), at most
+prose or a param no `help`. The models read it with one tool, `read_doc({ path })`: a path in the tree (`library/sources/bars.md`), at most
 8 reads an answer, each read noted in the idea's log line; anything else is refused with the tree's index.
 
 **The render check** (`claude`, `codex`; `src/generate/check.ts`). Where the render box can run (`probe()` is ok),

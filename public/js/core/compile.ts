@@ -8,11 +8,14 @@ import { isNum, RUN, STDLIB, STDLIB_NAMES } from './stdlib.ts';
 import { STAGES } from './warps.ts';
 
 /** A pattern's params as its controls show them (SPEC "Pattern code"). */
-export type ParamSpec = { label?: string } & ({ type: 'number', value: number, min: number, max: number, step?: number }
+export type ParamSpec = { label?: string, help?: string } & (
+  { type: 'number', value: number, min: number, max: number, step?: number }
   | { type: 'toggle', value: boolean } | { type: 'color', value: string, blend?: PickBlend }
   | { type: 'choice', value: string, options: string[] });
 export type ParamSchema = Record<string, ParamSpec>;
 type RGBA = number[];
+/** The longest `help` a param keeps (SPEC "Pattern code"). */
+export const HELP_MAX = 300;
 /** What each kind defines (SPEC "Modules"); a module compiled: its function, `frame`, params, colours (picks), and
  * for a spatial filter its op (SPEC "Spatial modules"). */
 export type Compiled = { kind: ModuleKind, params: ParamSchema, frame?: (t: number, P: Values, G: G) => void,
@@ -74,7 +77,7 @@ export function describeError(err: unknown) {
   return line ? `${msg} (line ${line})` : msg;
 }
 
-/** A pattern's `params` as a JSON-safe schema: { name: { type, value, min?, max?, step?, label? } }. */
+/** A pattern's `params` as a JSON-safe schema: { name: { type, value, min?, max?, step?, label?, help? } }. */
 export function normalizeParams(raw: unknown): ParamSchema {
   const out: ParamSchema = {};
   if (raw === undefined || raw === null) return out;
@@ -113,6 +116,7 @@ export function normalizeParams(raw: unknown): ParamSchema {
       throw new Error(`param "${key}": unknown type "${d.type}" (number, toggle, color or choice)`);
     }
     if (typeof d.label === 'string') p.label = d.label;
+    if (typeof d.help === 'string' && d.help.trim()) p.help = d.help.trim().slice(0, HELP_MAX);
     out[key] = p;
   }
   return out;

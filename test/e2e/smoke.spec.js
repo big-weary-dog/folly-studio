@@ -125,6 +125,23 @@ for (const [name, device] of Object.entries(SIZES)) {
         await expect(pick).toContainText('accent1');
       });
 
+      await test.step("a param's help: its row's hover text, an ⓘ on the phone", async () => {
+        const help = 'What the smoke check says.';
+        await open('code', 'Code');
+        const code = page.locator('textarea.code:visible').first(), original = await code.inputValue();
+        await code.fill(original.replace(/label: '/, `help: '${help}', label: '`));
+        if (!wide) await page.locator('.tab[data-tab=layers]').click();
+        if (wide) {
+          await expect(page.locator(`.params .field.param[title="${help}"]:visible`)).toHaveCount(1, { timeout: 15_000 });
+        } else {
+          await page.locator('.params .param-info:visible').first().click({ timeout: 15_000 });
+          await expect(page.locator('.params .param-help:visible')).toHaveText(help);
+        }
+        await shot('help');
+        await open('code', 'Code');
+        await code.fill(original);
+      });
+
       await test.step('the pickers: a preset adds its layer; Add a module shows one kind', async () => {
         if (!wide) await page.locator('.tab[data-tab=layers]').click();
         await page.locator('.pane-layers button', { hasText: 'Add' }).first().click();

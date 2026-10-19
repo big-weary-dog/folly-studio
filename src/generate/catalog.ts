@@ -8,7 +8,7 @@ import type { LibraryEntry, ModuleEntry, PresetEntry } from '../../shared/schema
 
 export type ParamDecl = ({ type: 'number', value: number, min: number, max: number }
   | { type: 'color', value: string, blend?: string } | { type: 'toggle', value: boolean }
-  | { type: 'choice', value: string, options: string[] }) & { label?: string };
+  | { type: 'choice', value: string, options: string[] }) & { label?: string, help?: string };
 
 const isPreset = (e: LibraryEntry): e is PresetEntry => e.kind === 'preset';
 
@@ -45,7 +45,8 @@ export function readParams(code: string): Record<string, ParamDecl> {
   const out: Record<string, ParamDecl> = {};
   for (const [name, d] of Object.entries(raw as Record<string, Record<string, unknown>>)) {
     if (!d || typeof d !== 'object') continue;
-    const v = d.value, label = typeof d.label === 'string' ? { label: d.label } : {};
+    const v = d.value, label = { ...typeof d.label === 'string' ? { label: d.label } : {},
+      ...typeof d.help === 'string' && d.help.trim() ? { help: d.help.trim() } : {} };
     if (d.type === 'color' && typeof v === 'string') {
       out[name] = { type: 'color', value: v, ...(typeof d.blend === 'string' ? { blend: d.blend } : {}), ...label };
     } else if (d.type === 'toggle') out[name] = { type: 'toggle', value: v === true, ...label };

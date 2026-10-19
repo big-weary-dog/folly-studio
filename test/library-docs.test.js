@@ -9,7 +9,9 @@ import { createInterface } from 'node:readline';
 
 import { describe, test } from 'vitest';
 
-import { buildCatalog } from '../src/generate/catalog.ts';
+import { HELP_MAX, normalizeParams } from '../public/js/core/compile.ts';
+import { normaliseParam } from '../public/js/ui/bindings.ts';
+import { buildCatalog, readParams } from '../src/generate/catalog.ts';
 import { createClaudeAdapter } from '../src/generate/claude.ts';
 import { docCandidates, READ_CAP, readInside } from '../src/generate/doc-path.ts';
 import { buildDocs, lintDocs, loadProse, looksOf, parseProse } from '../src/generate/library-docs.ts';
@@ -45,6 +47,31 @@ describe('the prose', () => {
       assert.ok(titles.includes('Params') || titles.includes('Overrides'), `${name}: Params or Overrides`);
       assert.ok(titles.includes('Pitfalls'), `${name}: Pitfalls`);
     }
+  });
+});
+
+describe('param help', () => {
+  test('every library param has help', () => {
+    const { unhelped } = lintDocs(CATALOG, PROSE);
+    if (DOCS_STRICT) assert.deepEqual(unhelped, []);
+    else if (unhelped.length) console.warn(`params without help (warnings until studio-lib lands): ${unhelped.length}`);
+    assert.ok(Array.isArray(unhelped));
+  });
+
+  test('the core, the catalogue, the Studio and the docs keep it', () => {
+    const help = 'How fast the bars move. Low drifts; high races.';
+    const code = `const params = {\n  speed: { value: 0.4, min: -2, max: 2, label: 'Speed (bars a second)', help: '${help}' },
+  bars: { value: 4, min: 1, max: 16 },\n};\nfunction pixel() { return [0, 0, 0]; }`;
+    assert.equal(normalizeParams({ speed: { value: 1, help: `  ${help}  ` } }).speed.help, help);
+    assert.equal(normalizeParams({ speed: { value: 1, help: 'x'.repeat(999) } }).speed.help.length, HELP_MAX);
+    assert.equal(normalizeParams({ speed: { value: 1, help: ' ' } }).speed.help, undefined);
+    assert.equal(normaliseParam('speed', normalizeParams({ speed: { value: 1, help } }).speed).help, help);
+    assert.equal(readParams(code).speed.help, help);
+    const catalog = buildCatalog([{ name: 'bars', kind: 'source', title: 'Bars', code }]);
+    assert.deepEqual(lintDocs(catalog, new Map()).unhelped, ['bars.bars']);
+    const doc = buildDocs(catalog, new Map([['bars', '---\nlooks: bands\n---\nBands.\n## Params\n- speed: Also.\n']]))
+      .get('library/sources/bars.md');
+    assert.ok(doc.includes(`; bars a second): ${help} Also.\n`), 'help, then what the prose adds');
   });
 });
 
