@@ -1,13 +1,14 @@
 // The library as the generators' vocabulary: each module's params read statically from its `const params = {…}`
-// (a plain literal in every library file; anything else is refused, never evaluated), and the catalogue text the
-// prompt shows: one line a module, a preset as its recipe. Sorted by name, so its bytes stay the same between calls.
+// (a plain literal in every library file; anything else is refused, never evaluated), and the summary the prompt
+// shows: one line a module (what it looks like, its param names; the rest is in the docs), a preset as its recipe.
+// Sorted by name, so its bytes stay the same between calls.
 
 import { DIRECTIONS, MODULE_KINDS } from '../../public/js/pattern-core.ts';
 import type { LibraryEntry, ModuleEntry, PresetEntry } from '../../shared/schemas/rig.ts';
 
-export type ParamDecl = { type: 'number', value: number, min: number, max: number }
+export type ParamDecl = ({ type: 'number', value: number, min: number, max: number }
   | { type: 'color', value: string, blend?: string } | { type: 'toggle', value: boolean }
-  | { type: 'choice', value: string, options: string[] };
+  | { type: 'choice', value: string, options: string[] }) & { label?: string };
 
 const isPreset = (e: LibraryEntry): e is PresetEntry => e.kind === 'preset';
 
@@ -44,14 +45,14 @@ export function readParams(code: string): Record<string, ParamDecl> {
   const out: Record<string, ParamDecl> = {};
   for (const [name, d] of Object.entries(raw as Record<string, Record<string, unknown>>)) {
     if (!d || typeof d !== 'object') continue;
-    const v = d.value;
+    const v = d.value, label = typeof d.label === 'string' ? { label: d.label } : {};
     if (d.type === 'color' && typeof v === 'string') {
-      out[name] = { type: 'color', value: v, ...(typeof d.blend === 'string' ? { blend: d.blend } : {}) };
-    } else if (d.type === 'toggle') out[name] = { type: 'toggle', value: v === true };
+      out[name] = { type: 'color', value: v, ...(typeof d.blend === 'string' ? { blend: d.blend } : {}), ...label };
+    } else if (d.type === 'toggle') out[name] = { type: 'toggle', value: v === true, ...label };
     else if (d.type === 'choice' && Array.isArray(d.options) && typeof v === 'string') {
-      out[name] = { type: 'choice', value: v, options: d.options.map(String) };
+      out[name] = { type: 'choice', value: v, options: d.options.map(String), ...label };
     } else if (typeof v === 'number' && typeof d.min === 'number' && typeof d.max === 'number') {
-      out[name] = { type: 'number', value: v, min: d.min, max: d.max };
+      out[name] = { type: 'number', value: v, min: d.min, max: d.max, ...label };
     }
   }
   return out;
@@ -60,21 +61,12 @@ export function readParams(code: string): Record<string, ParamDecl> {
 export type Catalog = { modules: Map<string, ModuleEntry & { params: Record<string, ParamDecl> }>,
   presets: Map<string, PresetEntry>, text: string };
 
-const directions = DIRECTIONS.join(' ');
-const sameDirections = (o: string[]) => o.join(' ') === directions;
-const short = (n: number) => String(+n.toFixed(3));
-function formatParam(name: string, d: ParamDecl) {
-  switch (d.type) {
-    case 'number': return `${name}=${short(d.value)} (${short(d.min)}..${short(d.max)})`;
-    case 'color': return `${name}=${d.value} (pick${d.blend === 'smooth' ? ', smooth' : ''})`;
-    case 'toggle': return `${name}=${d.value} (on/off)`;
-    default: return `${name}=${d.value} (${sameDirections(d.options) ? 'direction' : d.options.join('|')})`;
-  }
-}
 const oneLine = (s: unknown) => String(s || '').replace(/\s+/g, ' ').trim();
 
-/** The library as data and as the prompt's text. Deterministic for a given library. */
-export function buildCatalog(library: readonly LibraryEntry[] = []): Catalog {
+/** The library as data and as the prompt's text; `looks`: a module's line from its docs, else its summary.
+ * Deterministic for a given library. */
+export function buildCatalog(library: readonly LibraryEntry[] = [], looks: ReadonlyMap<string, string> = new Map()):
+  Catalog {
   const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
   const modules = new Map(library.filter((e) => e && !isPreset(e) && typeof e.code === 'string').sort(byName)
     .map((e) => [e.name, { ...(e as ModuleEntry), params: readParams(e.code) }]));
@@ -83,13 +75,14 @@ export function buildCatalog(library: readonly LibraryEntry[] = []): Catalog {
   const kindOf = (e: ModuleEntry) => (MODULE_KINDS.includes(e.kind) ? e.kind : 'source');
   const sections = MODULE_KINDS.map((kind) => {
     const list = [...modules.values()].filter((m) => kindOf(m) === kind);
-    const lines = list.map((m) => `- ${m.name}: ${oneLine(m.summary)}${Object.keys(m.params).length ? ` | ${
-      Object.entries(m.params).map(([n, d]) => formatParam(n, d)).join(', ')}` : ''}`);
+    const lines = list.map((m) => `- ${m.name}: ${oneLine(looks.get(m.name) || m.summary)}${
+      Object.keys(m.params).length ? ` [${Object.keys(m.params).join(' ')}]` : ''}`);
     return list.length ? `${kind[0]!.toUpperCase()}${kind.slice(1)}s:\n${lines.join('\n')}` : '';
   }).filter(Boolean);
   if (presets.size) {
     const recipe = (p: PresetEntry) => p.layers.map((l) => l.modules.map((m) => m.ref).join(' → ')).join(' | ');
-    sections.push(`Presets:\n${[...presets.values()].map((p) => `- ${p.name}: ${recipe(p)} — ${oneLine(p.summary)}`)
+    sections.push(`Presets:\n${[...presets.values()].map((p) => `- ${p.name}: ${recipe(p)} — ${
+      oneLine(looks.get(p.name) || p.summary)}`)
       .join('\n')}`);
   }
   return { modules, presets, text: sections.join('\n\n') };

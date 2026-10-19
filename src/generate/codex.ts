@@ -5,19 +5,25 @@
 // same on every call (the provider caches it); the final message is written to a file and constrained by
 // --output-schema to the generated look's schema, made strict. The answer is untrusted data, read as the claude
 // adapter reads its own, then cleaned by validateLook; its code only ever runs in the sandbox or the render box.
+// The library docs reach the model through one MCP tool, read_doc (docs-mcp.ts), over the tree written once per
+// library under the work folder; with the shell off, they are all it can read.
 
+import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { GenerateError } from '../../shared/schemas/generated.ts';
 import type { Logger } from '../http.ts';
 import { parseJson, pickLook } from './claude.ts';
 import type { Context } from './index.ts';
+import { READ_CAP } from './doc-path.ts';
 import { findExecutable, runCommand } from './proc.ts';
 import { buildPrompt, buildRepairMessage, buildUserMessage } from './prompt.ts';
 
 const MAX_ANSWER_BYTES = 512 * 1024;
+const DOCS_SERVER = fileURLToPath(new URL('./docs-mcp.ts', import.meta.url));
 // Tools a look needs none of (codex features list, 0.160.1); an unknown name is ignored with a warning.
 const FEATURES_OFF = ['shell_tool', 'unified_exec', 'view_image', 'apps', 'plugins', 'multi_agent', 'browser_use',
   'computer_use', 'image_generation'];
@@ -70,12 +76,19 @@ export function createCodexAdapter(o: Options = {}) {
   const childEnv = Object.fromEntries(Object.entries(env).filter(([k]) => PASS_ENV.test(k)));
 
   /** The argument list for one call: the answer to `out`, the schema from `schemaFile` when there is one, `images`
-   * attached (a flag follows them: -i takes several). */
-  function argsFor(cwd: string, out: string, schemaFile: string | null, images: string[] = []) {
+   * attached (a flag follows them: -i takes several), the docs server over `docs` (the tree's folder) noting reads in
+   * `reads`. */
+  function argsFor(cwd: string, out: string, schemaFile: string | null, images: string[] = [],
+    docs?: { dir: string, reads: string }) {
     const args = ['exec', ...images.flatMap((f) => ['-i', f]), '--ephemeral', '--skip-git-repo-check', '--ignore-rules',
       '-s', 'read-only', '-C', cwd,
       '-m', cfg.model, '-o', out, '-c', 'web_search="disabled"', ...FEATURES_OFF.flatMap((f) => ['-c',
         `features.${f}=false`])];
+    if (docs) {
+      args.push('-c', `mcp_servers.docs.command=${JSON.stringify(process.execPath)}`, '-c', `mcp_servers.docs.args=${
+        JSON.stringify([DOCS_SERVER, docs.dir, docs.reads, String(READ_CAP)])}`,
+      '-c', 'mcp_servers.docs.default_tools_approval_mode="approve"');
+    }
     if (!cfg.userConfig) args.push('--ignore-user-config');
     if (cfg.effort) args.push('-c', `model_reasoning_effort="${cfg.effort}"`);
     if (schemaFile) args.push('--output-schema', schemaFile);
@@ -87,7 +100,7 @@ export function createCodexAdapter(o: Options = {}) {
     if (!command) {
       throw new GenerateError('The AI generator is not configured on this server.', `${cfg.bin} not found on PATH`);
     }
-    const { system, schema } = ctx.prompt?.() ?? buildPrompt(ctx);
+    const { system, schema, docs } = ctx.prompt?.() ?? buildPrompt(ctx);
     // A repair is a fresh run (codex keeps no session here): the same prefix, then the last answer and what was wrong.
     const repair = ctx.repair ? `\nYour answer was:\n${JSON.stringify(ctx.repair.answer)}\n\n`
       + `${ctx.repair.message ?? buildRepairMessage(ctx.repair.errors)}\n` : '';
@@ -103,9 +116,14 @@ export function createCodexAdapter(o: Options = {}) {
         await fs.writeFile(file, png);
         return file;
       }));
-      const ran = await runCommand({ ...command, args: [...command.args, ...argsFor(empty, out, schemaFile, images)],
+      const tree = docs?.size ? { dir: await writeDocs(cfg.workDir, docs), reads: path.join(job, 'reads.txt') }
+        : undefined;
+      const ran = await runCommand({ ...command, args: [...command.args, ...argsFor(empty, out, schemaFile, images,
+        tree)],
         input: `${system}\n\n${ctx.turn ?? buildUserMessage(ctx.text)}\n${repair}`, cwd: empty, env: childEnv,
         timeoutMs: cfg.timeoutMs, maxOutputBytes: cfg.maxOutputBytes, signal: ctx.signal });
+      if (tree) ctx.docsRead?.push(...(await fs.readFile(tree.reads, 'utf8').catch(() => '')).split('\n')
+        .filter(Boolean).slice(0, READ_CAP));
       const said = ran.tail.trim().split('\n').slice(-3).join(' | ').slice(0, 300);
       if (ran.killed === 'timeout') {
         throw new GenerateError('The AI generator took too long; please try again.', `codex: ${ran.ms} ms, no answer`);
@@ -127,6 +145,21 @@ export function createCodexAdapter(o: Options = {}) {
   }
 
   return { name: 'codex', generate, argsFor, config: cfg };
+}
+
+/** The docs tree's folder under `workDir` (`docs-<hash>`), written once per tree: into a fresh folder, then renamed,
+ * so a job never reads half a tree. */
+async function writeDocs(workDir: string, docs: ReadonlyMap<string, string>) {
+  const hash = createHash('sha256').update(JSON.stringify([...docs])).digest('hex').slice(0, 16);
+  const dir = path.join(workDir, `docs-${hash}`);
+  if (await fs.stat(dir).then(() => true, () => false)) return fs.realpath(dir);
+  const tmp = await fs.mkdtemp(path.join(workDir, 'docs-tmp-'));
+  for (const [rel, text] of docs) {
+    await fs.mkdir(path.dirname(path.join(tmp, rel)), { recursive: true });
+    await fs.writeFile(path.join(tmp, rel), text);
+  }
+  await fs.rename(tmp, dir).catch(() => fs.rm(tmp, { recursive: true, force: true })); // another job wrote it first
+  return fs.realpath(dir);
 }
 
 /** The final message, as untrusted data: a regular file, size-capped. */

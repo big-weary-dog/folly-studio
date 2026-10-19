@@ -6,7 +6,9 @@ import path from 'node:path';
 import { describe, test } from 'vitest';
 
 import { createQueue } from '../src/generate/index.ts';
-import { buildSystemPrompt, buildUserMessage, formatGroups, pickExamples } from '../src/generate/prompt.ts';
+import {
+  buildPrompt, buildSystemPrompt, buildUserMessage, formatGroups, pickExamples,
+} from '../src/generate/prompt.ts';
 import { BUILTIN_PATTERN, parseParams, sketchLook } from '../src/generate/sketch.ts';
 import { GenerateError, LIMITS, validateLook, wireSchema } from '../shared/schemas/generated.ts';
 import { byName, goodLayer, GROUPS, LIBRARY, queueSetup, quiet, RIG, STUDIO } from './fixtures/generate/shared.js';
@@ -203,11 +205,12 @@ describe('prompt', () => {
     assert.ok(pickExamples(LIBRARY).length <= 4);
   });
 
-  test('the prompt lists every library entry with its params, a preset as its chain, and stays small', () => {
-    const sys = buildSystemPrompt({ library: REAL, rig: RIG });
+  test('the prompt lists every library entry with its param names, a preset as its chain, and stays small', () => {
+    const sys = buildPrompt({ library: REAL, rig: RIG }).system;
     for (const p of REAL) assert.ok(sys.includes(`\n- ${p.name}: `), p.name);
     assert.ok(sys.includes('- starfield: colour-wash → clouds → sparkle — '), 'a preset as its chain');
-    assert.ok(sys.includes('speed=0.4 (-2..2), bars=4 (0.25..16)'), 'a module with its params');
+    assert.match(sys, /\n- bars: [^\n]+ \[[a-z ]*\bspeed bars\b[a-z ]*\]\n/, 'a module with its param names');
+    assert.ok(sys.includes('read_doc'), 'the docs, and how to read them');
     assert.match(sys, /# Worked compositions\nIdea: /);
     assert.ok(sys.length < 32_000, `the system prompt is ${sys.length} characters`);
   });
