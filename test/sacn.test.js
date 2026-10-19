@@ -215,8 +215,14 @@ describe('sending', () => {
     assert.equal(log.at(-1), 'end');
     assert.ok(log.filter((v) => typeof v === 'number').every((v, i, a) => i === 0 || v >= a[i - 1]), 'in order');
     log.length = 0;
-    await play(show, fake, { hold: 2, seconds: 0.03, fps: 400 }).done;
-    assert.ok(log.length > 2 && log.slice(0, -1).every((v) => v === 12), 'frame 2 (first channel 12) only');
+    await play(show, fake, { hold: 2, seconds: 0.03, fps: 400 }).done;   // the first frame at once, then the end
+    assert.ok(log.length >= 2 && log.slice(0, -1).every((v) => v === 12), 'frame 2 (first channel 12) only');
+    assert.equal(log.at(-1), 'end');
+    log.length = 0;                                     // and again and again: counted in ticks, not in time
+    let ticks = 0;
+    const held = play(show, fake, { hold: 2, fps: 400, onTick: () => ++ticks === 3 && held.stop() });
+    await held.done;
+    assert.deepEqual(log, [12, 12, 12, 'end']);
   });
 
   test('options: defaults, ranges and refusals', () => {

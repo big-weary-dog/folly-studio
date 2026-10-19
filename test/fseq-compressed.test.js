@@ -135,12 +135,11 @@ describe('compressed FSEQ', () => {
       const sizes = [];
       const compression = { type: codec, blocks: [{ frame: 0, bytes: bomb }] };
       const file = writeFseq({ frames: 80, ranges: RANGES, compression });
-      const t0 = Date.now();
       rejects(file, /block 1 does not inflate to its 80 frames \(480 bytes\)/, {
         decompress: (c, b, size) => (sizes.push(size), inflateBlock(c, b, size)),
       });
       assert.deepEqual(sizes, [480]);
-      assert.ok(Date.now() - t0 < 2000, 'stopped early');
+      assert.throws(() => inflateBlock(codec, bomb, 480), { code: 'ERR_BUFFER_TOO_LARGE' }, 'stopped at the cap');
     }
     // And one that holds less than it claims.
     const short = { frame: 0, bytes: zlib.deflateSync(Buffer.alloc(479)) };

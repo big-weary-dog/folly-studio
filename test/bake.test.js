@@ -88,13 +88,11 @@ describe('render box (bubblewrap)', () => {
 
   test('an infinite loop is killed by the wall clock, box and all', async () => {
     const box = createRenderBox({ seconds: 2, timeoutMs: 1500, frameTimeoutMs: 600_000, log: quiet });
-    const t0 = Date.now();
     const seen = new Map();
     const watch = setInterval(() => { for (const [pid, start] of ourBoxes()) seen.set(pid, start); }, 50);
     await assert.rejects(box.render({ layers: [layer('function pixel() { for (;;) {} }')] }),
       (e) => e instanceof BakeError && /longer than 2 s and was stopped/.test(e.reason))
       .finally(() => clearInterval(watch));
-    assert.ok(Date.now() - t0 < 10_000);
     assert.ok(seen.size > 0, 'the box was seen running');
     let left = [...seen].filter(alive);
     for (let i = 0; i < 40 && left.length; i++) {
@@ -102,11 +100,12 @@ describe('render box (bubblewrap)', () => {
       left = left.filter(alive);
     }
     assert.deepEqual(left, [], 'nothing from the box keeps running');
-    // Inside, a per-frame guard catches a hang first and names it.
-    const guarded = createRenderBox({ seconds: 2, frameTimeoutMs: 300, log: quiet });
+    // Inside, the per-frame guard catches a hang first and names it. Its own 2 s, as in every bake: loading the look
+    // and the frames before the hang take a few ms each, so a busy machine does not trip it first.
+    const guarded = createRenderBox({ seconds: 2, log: quiet });
     const hang = layer('function pixel(p, t) { while (t > 0.5) {} return [1, 0, 0]; }');
     await assert.rejects(guarded.render({ layers: [hang] }),
-      (e) => /took over 300 ms on the frame at t = 0\.5\d s/.test(e.reason));
+      (e) => /took over 2000 ms on the frame at t = 0\.5\d s/.test(e.reason));
   });
 
   test('pattern code reaches no fetch, require, process or Node realm', async () => {

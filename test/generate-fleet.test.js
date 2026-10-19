@@ -46,7 +46,7 @@ describe('fleet (experimental, stub CLI)', () => {
       model: 'gpt-6.1-sol',
       tmux: 'true',
       pollMs: 20,
-      timeoutMs: 3000,
+      timeoutMs: 60_000,   // a deadline only 'silent' reaches (its own 300 ms): never the machine's speed
       coreFile: path.join(dir, 'core.js'),
       rigFile: path.join(dir, 'rig.json'),
       log: quiet,
