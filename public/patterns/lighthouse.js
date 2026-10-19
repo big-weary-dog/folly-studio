@@ -1,31 +1,32 @@
-// Lighthouse: beams turn round the layer's vertical axis (atan2 of lz and lx; a flat layer, lx 0.5 all over,
-// turns in the façade by a), each a solid band of saturated colour with a crisp `edge`, never blended toward
-// white, leaving an afterglow (`glow`) through the trail colour. twist winds the beams with height.
+// Lighthouse: beams of colour turn round the layer, one colour each from Colours, each fading behind as it passes.
+// Plane is what they turn in: round an upright axis (plan; a flat layer turns in its façade), in the façade, or
+// from the side. Stripes fills between the beams instead, each stripe blending into the next. Twist winds them along
+// the axis (with height in plan).
 const params = {
-  speed: { value: 0.2, min: -2, max: 2, step: 0.01, label: 'Turns per second' },
-  beams: { value: 2, min: 1, max: 6, step: 1 },
-  width: { value: 0.22, min: 0.02, max: 0.5, step: 0.01, label: 'Beam width (share of the gap)' },
+  colours: { value: 'all', type: 'color', label: 'Colours' },
+  plane: { value: 'plan', type: 'choice', options: ['plan', 'facade', 'side'], label: 'Plane' },
+  profile: { value: 'beams', type: 'choice', options: ['beams', 'stripes'], label: 'Profile' },
+  speed: { value: 0.2, min: -2, max: 2, step: 0.01, label: 'Speed (turns a second)' },
+  beams: { value: 2, min: 1, max: 8, step: 1, label: 'Beams' },
+  width: { value: 0.22, min: 0.02, max: 0.5, step: 0.01, label: 'Width (share of the gap; stripes: blend)' },
   edge: { value: 0.015, min: 0.002, max: 0.2, step: 0.001, label: 'Edge softness' },
   glow: { value: 0.55, min: 0, max: 1, step: 0.01, label: 'Afterglow behind the beam' },
-  twist: { value: 0, min: -2, max: 2, step: 0.05, label: 'Twist with height' },
-  base: { value: '#14009e', type: 'color' },
-  trail: { value: '#d4006a', type: 'color' },
-  beam: { value: '#ffae00', type: 'color' },
+  twist: { value: 0, min: -2, max: 2, step: 0.05, label: 'Twist along the axis' },
 };
 
-let turn = 0;
-
-function frame(t, P) {
-  turn = t * P.speed;
-}
-
 function pixel(p, t, P) {
-  const flat = p.lx === 0.5;
-  const angle = (flat ? p.a : atan2(p.lz - 0.5, p.lx - 0.5) / TAU) + p.ly * P.twist;
-  const s = fract((angle - turn) * P.beams);              // 0 on a beam's centre line, rising ahead of it
-  const half = P.width / 2, d = min(s, 1 - s);
-  const behind = (P.speed < 0 ? s : 1 - s) - half;        // how far the beam has passed this LED
+  const plan = P.plane === 'plan' && p.lx !== 0.5, side = P.plane === 'side';
+  const angle = plan ? atan2(p.lz - 0.5, p.lx - 0.5) / TAU : side ? atan2(p.lx - 0.5, p.ly - 0.5) / TAU : p.a;
+  const along = P.plane === 'plan' ? p.ly : side ? p.lz : p.lx;
+  const x = (angle + along * P.twist - clock('speed')) * P.beams, k = floor(x), s = x - k;
+  if (P.profile === 'stripes') {
+    return mix(swatch('colours', k), swatch('colours', k + 1), smoothstep(1 - P.width, 1, s));
+  }
+  // s: 0 on beam k's centre line, rising toward beam k + 1. The beam just passed glows behind it.
+  const half = P.width / 2, d = min(s, 1 - s), near = s < 0.5 ? k : k + 1;
+  const behind = (P.speed < 0 ? s : 1 - s) - half;
   const after = behind > 0 && behind < 0.5 ? P.glow * exp(-behind * 8) : 0;
-  const c = mix(P.base, P.trail, after);
-  return mix(c, P.beam, smoothstep(half + P.edge, half, d));
+  const beam = smoothstep(half + P.edge, half, d), c = swatch('colours', beam > 0 ? near : P.speed < 0 ? k : k + 1);
+  c[3] = max(beam, after);
+  return c[3] > 0.002 ? c : null;
 }

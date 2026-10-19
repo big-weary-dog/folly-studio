@@ -12,8 +12,10 @@ import { Layers } from '../shared/schemas/look.ts';
 import { digest, LOOKS } from './fixtures/chains-v1.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const lib = (name) => read(`../public/patterns/${name}.js`);
-const KINDS = Object.fromEntries(JSON.parse(read('../public/patterns/index.json')).map((e) => [e.name, e.kind]));
+// The library as looks from before the one rule hold it (fixtures/library-v1.json).
+const LIB = JSON.parse(read('./fixtures/library-v1.json'));
+const lib = (name) => LIB[name].code;
+const KINDS = Object.fromEntries(Object.entries(LIB).map(([name, e]) => [name, e.kind]));
 /** Library module `name` with id `id` (default: the name). */
 const m = (name, extra = {}) => ({ id: name, kind: KINDS[name], title: name, ref: name, code: lib(name), params: {},
   ...extra });
