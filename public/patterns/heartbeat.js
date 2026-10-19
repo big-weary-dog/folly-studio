@@ -2,7 +2,8 @@
 // peaking in the last colour. Spread is how long a beat takes to cross the layer.
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth' },
-  direction: { value: 'out', type: 'choice', options: DIRECTIONS, label: 'Direction' },
+  direction: { value: 'out', type: 'choice', label: 'Direction',
+    options: ['up', 'down', 'right', 'left', 'back', 'front', 'out', 'in'] },
   spread: { value: 0.25, min: 0, max: 1, step: 0.01, label: 'Spread (seconds)' },
 };
 

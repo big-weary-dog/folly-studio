@@ -181,11 +181,12 @@ export function setLibrary(list?: readonly { name: string, code: string, kind?: 
 }
 
 // Sources the library retired, by the preset that replaced each (a preset is layers, which use() cannot run).
-const RETIRED: Record<string, string> = { aurora: 'Aurora', 'canopy-rain': 'Rain', 'depth-wave': 'Playa wave',
-  galaxy: 'Galaxy', marquee: 'Marquee', meteors: 'Meteors', 'nave-procession': 'Nave procession',
-  'palette-drift': 'Palette drift', pinwheel: 'Pinwheel', 'rising-sweep': 'Rising sweep', 'rose-bloom': 'Rose bloom',
-  'rose-chase': 'Rose chase', 'rose-ripple': 'Rose ripple', shimmer: 'Shimmer', snowflakes: 'Snowflakes',
-  snowstorm: 'Snowstorm', 'spire-helix': 'Tower helix', twinkle: 'Starfield', 'wash-breathe': 'Breathe' };
+const RETIRED: Record<string, string> = { aurora: 'Aurora', butterfly: 'Butterfly', 'canopy-rain': 'Rain',
+  'depth-wave': 'Playa wave', galaxy: 'Galaxy', marquee: 'Marquee', meteors: 'Meteors',
+  'nave-procession': 'Nave procession', 'palette-drift': 'Palette drift', pinwheel: 'Galaxy',
+  'rising-sweep': 'Rising sweep', 'rose-bloom': 'Rose bloom', 'rose-chase': 'Rose chase', 'rose-ripple': 'Rose ripple',
+  shimmer: 'Shimmer', snowflakes: 'Snowflakes', snowstorm: 'Snowstorm', 'spire-helix': 'Tower helix',
+  twinkle: 'Starfield', 'wash-breathe': 'Breathe' };
 
 /** use(name, params?): library source `name` as its own instance, a function (p, t) → colour ([0, 0, 0, 0] for
  * null). */

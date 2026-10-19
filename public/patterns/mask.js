@@ -5,7 +5,7 @@ const params = {
   by: { value: 'input', type: 'choice', options: ['input', 'self'], label: 'Brightness of' },
   amount: { value: 1, min: 0, max: 1, step: 0.01, label: 'Mask strength' },
   cutoff: { value: 0.35, min: 0, max: 1, step: 0.01, label: 'Brightness where it opens' },
-  softness: { value: 0.3, min: 0.01, max: 1, step: 0.01, label: 'Edge softness' },
+  softness: { value: 0.3, min: 0.01, max: 1, step: 0.01, label: 'Edge softness (share of brightness)' },
   invert: { value: false, type: 'toggle', label: 'Show where the input is dark' },
 };
 

@@ -2,8 +2,8 @@
 // Size is its radius as a share of the layer; Softness fades its edge.
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours' },
-  size: { value: 0.15, min: 0.01, max: 1, step: 0.01, label: 'Size' },
-  softness: { value: 0.6, min: 0, max: 1, step: 0.01, label: 'Softness' },
+  size: { value: 0.15, min: 0.01, max: 1, step: 0.01, label: 'Size (radius, share of the layer)' },
+  softness: { value: 0.6, min: 0, max: 1, step: 0.01, label: 'Softness (share of the size)' },
 };
 
 function pixel(p, t, P) {

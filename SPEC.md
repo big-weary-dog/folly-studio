@@ -217,7 +217,9 @@ things: "Integrated clocks" below), `DIRECTIONS` and `toward(p, direction)` ("Di
 
 A library module with a built-in orientation (it rises, falls, sweeps across, opens from the middle) says so with a
 `direction` choice param, `{ value: 'up', type: 'choice', options: DIRECTIONS, label: 'Direction' }`, its default
-the orientation it always had, so the UI and the generators see one convention. `DIRECTIONS` is `up down right left
+the orientation it always had, so the UI and the generators see one convention. Its options are the directions it
+draws distinctly, in `DIRECTIONS` order: a list literal when that is fewer than all (fire rises or falls or blows
+sideways; bars have no `out`: `in` at the opposite speed moves the same way, its colours in reverse order). `DIRECTIONS` is `up down right left
 back front out in round along`, and `toward(p, direction)` turns one into a coordinate, 0..1 across the layer: `up`
 ly, `down` 1 − ly, `right` lz (the viewer's right), `left` 1 − lz, `back` lx (front to back), `front` 1 − lx, `out` r,
 `in` 1 − r, `round` a (clockwise), `along` u. A free angle off it, where one makes sense, is an `angle` param in turns.
@@ -285,14 +287,19 @@ preset's layers from the library's modules (fresh ids, inputs followed), on the 
 above the selected layer; of its `globals` it adds the macros the look lacks and its palette where the look has none,
 and leaves the rest.
 
-The library, one idea a module. Sources: colour-wash, bars, plasma, clouds, fire, butterfly, spot, circles, wave,
-shockwave, lighthouse, curtain, single-strand (Chase), arch-chase, life, sparkle, streaks, ripple, lightning, fireworks,
-tendril, spire-rise, garlands, strobe, heartbeat. Warps: mirror, kaleidoscope, radial-repeat, mosaic, polar, anchor,
-rotate, scroll, twist, turbulence. Filters: tint, gradient-map, hue-shift, posterize, invert, mask, threshold, blur,
-edge-fade, trails. Presets: Water, Storm, Curtain reveal, and the **retired sources'**: twinkle's Starfield,
-depth-wave's Playa wave, canopy-rain's Rain, wash-breathe's Breathe, spire-helix's Tower helix, and by their own names
-palette-drift, shimmer, rising-sweep, nave-procession, meteors, marquee, pinwheel, galaxy, rose-ripple, rose-chase,
-rose-bloom, aurora, snowstorm, snowflakes. Saved looks keep their code; `use()` of a retired one names its preset.
+The library, one idea a module. Sources: colour-wash, bars, plasma, clouds, fire, spot, circles, wave, shockwave,
+lighthouse, curtain, single-strand (Chase), arch-chase, life, sparkle, streaks, ripple, lightning, fireworks, tendril,
+climb, garlands, strobe, heartbeat. Warps: mirror, kaleidoscope, radial-repeat, mosaic, polar, anchor, rotate, scroll,
+twist, turbulence. Filters: recolour, hue-shift, posterize, invert, mask, blur, edge-fade, trails. Presets: Water,
+Storm, Curtain reveal, and the **retired sources'**: twinkle's Starfield, depth-wave's Playa wave, canopy-rain's Rain,
+wash-breathe's Breathe, spire-helix's Tower helix, pinwheel's Galaxy, and by their own names palette-drift, shimmer,
+rising-sweep, nave-procession, meteors, marquee, galaxy, rose-ripple, rose-chase, rose-bloom, aurora, snowstorm,
+snowflakes, butterfly. Saved looks keep their code; `use()` of a retired one names its preset.
+
+**One name, one unit, one idea.** Params that mean the same thing are named the same across the library, each with
+its unit in its label: `size` a share of the layer (bigger is bigger), `speed` things a second (`spin` turns a
+second), `amount` how much of the effect is mixed in, `softness` a share of what it softens; a toggle
+is one word; a `plane` choice lists `facade side plan`.
 
 ### Spatial modules
 
@@ -385,8 +392,8 @@ and saturation grade the composite, literals included.
 **The library's colour rule.** A source has one colour param, `colours: { value: 'all', type: 'color', label:
 'Colours' }`, and names no role (roles lay out the pick tile for people). It maps what it draws onto positions in the
 pick: bands and seeded objects to `swatch('colours', i)`; a gradient or a tail to `pal('colours', t)`, first colour to
-last; a head or crest to the last colour; one colour at a time to `P.colours`. Recolouring filters (`tint`,
-`gradient-map`, `threshold`) take one `colours` pick too. Code from before this rule may still name roles in `pal()`.
+last; a head or crest to the last colour; one colour at a time to `P.colours`. The recolouring filter
+(`recolour`) takes one `colours` pick too. Code from before this rule may still name roles in `pal()`.
 
 ## Looks (what gets saved)
 

@@ -3,7 +3,8 @@
 // as a sphere.
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth' },
-  direction: { value: 'out', type: 'choice', options: DIRECTIONS, label: 'Direction' },
+  direction: { value: 'out', type: 'choice', label: 'Direction',
+    options: ['up', 'down', 'right', 'left', 'back', 'front', 'out', 'in'] },
   speed: { value: 0.5, min: 0.1, max: 2, step: 0.01, label: 'Speed (bursts a second)' },
   width: { value: 0.12, min: 0.02, max: 0.5, step: 0.01, label: 'Width' },
 };

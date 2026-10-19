@@ -3,8 +3,8 @@
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours' },
   speed: { value: 0.15, min: 0, max: 1, step: 0.01, label: 'Speed (crossings a second)' },
-  count: { value: 5, min: 1, max: 8, step: 1, label: 'Balls' },
-  size: { value: 0.12, min: 0.03, max: 0.4, step: 0.01, label: 'Size' },
+  count: { value: 5, min: 1, max: 8, step: 1, label: 'Count (balls)' },
+  size: { value: 0.12, min: 0.03, max: 0.4, step: 0.01, label: 'Size (radius, share of the layer)' },
 };
 
 const BZ = new Float64Array(8), BY = new Float64Array(8);

@@ -184,7 +184,7 @@ test('a composed look renders the same bytes every time, and reports its cost', 
   const modules = [src('met', lib('single-strand')), src('cl', lib('clouds'), { as: 'input' }), { id: 'mask',
     kind: 'filter', input: 'cl', code: lib('mask'), params: { cutoff: { mod: 'global', name: 'energy', from: 0.6,
       to: 0.2 } } },
-  { id: 'tint', kind: 'filter', code: lib('tint') }, { id: 'w', kind: 'warp', code: lib('mirror'),
+  { id: 'tint', kind: 'filter', code: lib('recolour') }, { id: 'w', kind: 'warp', code: lib('mirror'),
     params: { along: true } }];
   const run = () => {
     const L = layerOf({ id: 'a', modules });

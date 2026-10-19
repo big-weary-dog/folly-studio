@@ -2,7 +2,7 @@
 // head, the first at its tail. Length is how long a trail it keeps.
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth' },
-  speed: { value: 0.2, min: 0.05, max: 1, step: 0.01, label: 'Speed' },
+  speed: { value: 0.2, min: 0.05, max: 1, step: 0.01, label: 'Speed (wanders a second)' },
   tendrils: { value: 4, min: 1, max: 6, step: 1, label: 'Tendrils' },
   length: { value: 0.3, min: 0.05, max: 1, step: 0.01, label: 'Length' },
   width: { value: 0.08, min: 0.02, max: 0.3, step: 0.005, label: 'Width' },

@@ -3,7 +3,7 @@
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth' },
   speed: { value: 1, min: 0.25, max: 6, step: 0.05, label: 'Speed (arches a second)' },
-  count: { value: 5, min: 2, max: 40, step: 1, label: 'Arches in turn' },
+  count: { value: 5, min: 2, max: 40, step: 1, label: 'Count (arches in turn)' },
   fade: { value: 1.5, min: 0.2, max: 6, step: 0.1, label: 'Fade (turns)' },
 };
 

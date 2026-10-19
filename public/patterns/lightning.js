@@ -2,7 +2,7 @@
 // Under one strike a second, so it stays clear of the flash check. Jag is how much it zigzags.
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth' },
-  direction: { value: 'down', type: 'choice', options: DIRECTIONS, label: 'Direction' },
+  direction: { value: 'down', type: 'choice', options: ['up', 'down', 'right', 'left'], label: 'Direction' },
   speed: { value: 0.4, min: 0.1, max: 0.8, step: 0.01, label: 'Speed (strikes a second)' },
   width: { value: 0.035, min: 0.005, max: 0.08, step: 0.005, label: 'Bolt width' },
   jag: { value: 0.2, min: 0, max: 0.5, step: 0.01, label: 'Jag' },

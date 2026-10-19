@@ -27,13 +27,13 @@ const median = (a) => [...a].sort((x, y) => x - y)[a.length >> 1];
 const mod = (id, kind, extra = {}) => ({ id, kind, code: source(id), ...extra });
 const CHAINS = {
   'plasma mapped, sparkled, shifted, faded, turned, mosaicked, repeated': [mod('plasma', 'source'),
-    mod('gradient-map', 'filter'), mod('sparkle', 'source'), mod('hue-shift', 'filter'), mod('edge-fade', 'filter'),
+    mod('recolour', 'filter'), mod('sparkle', 'source'), mod('hue-shift', 'filter'), mod('edge-fade', 'filter'),
     mod('rotate', 'warp'), mod('mosaic', 'warp'), mod('radial-repeat', 'warp')],
   'a chase masked by clouds, swirled, folded, with trails': [mod('single-strand', 'source'),
     mod('clouds', 'source', { as: 'input' }), mod('mask', 'filter', { input: 'clouds' }), mod('twist', 'warp'),
     mod('scroll', 'warp'), mod('kaleidoscope', 'warp'), mod('mirror', 'warp'), mod('trails', 'filter')],
-  'every colour filter over bars': [mod('bars', 'source'), mod('threshold', 'filter'), mod('posterize', 'filter'),
-    mod('invert', 'filter'), mod('tint', 'filter'), mod('gradient-map', 'filter'), mod('sparkle', 'source'),
+  'every colour filter over bars': [mod('bars', 'source'), mod('mask', 'filter', { params: { by: 'self' } }),
+    mod('posterize', 'filter'), mod('invert', 'filter'), mod('recolour', 'filter'), mod('sparkle', 'source'),
     mod('hue-shift', 'filter')],
 };
 const KIND = Object.fromEntries(index.map((e) => [e.name, e.kind]));

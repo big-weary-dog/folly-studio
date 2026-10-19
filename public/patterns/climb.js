@@ -1,8 +1,8 @@
-// Spire rise: colour climbs each spire in Direction at Speed behind a head of the last colour, crowns the tip and
-// lifts away, tower by tower. Stagger is how far apart the towers start; Head its length.
+// Climb: colour climbs each group in Direction at Speed behind a head of the last colour, crowns its top and lifts
+// away, one after another. Stagger is how far apart the towers start; Head its length.
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth' },
-  direction: { value: 'up', type: 'choice', options: DIRECTIONS, label: 'Direction' },
+  direction: { value: 'up', type: 'choice', options: ['up', 'down'], label: 'Direction' },
   speed: { value: 0.25, min: 0.05, max: 1, step: 0.01, label: 'Speed (rises a second)' },
   stagger: { value: 0.15, min: 0, max: 1, step: 0.01, label: 'Stagger (share of a rise)' },
   head: { value: 0.06, min: 0.02, max: 0.3, step: 0.01, label: 'Head' },

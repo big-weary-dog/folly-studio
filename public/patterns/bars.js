@@ -4,7 +4,8 @@
 // (brightest in its middle) or comet (brightest at its front, fading behind).
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours' },
-  direction: { value: 'up', type: 'choice', options: DIRECTIONS, label: 'Direction' },
+  direction: { value: 'up', type: 'choice', label: 'Direction',
+    options: ['up', 'down', 'right', 'left', 'back', 'front', 'in', 'round', 'along'] },
   speed: { value: 0.4, min: -2, max: 2, step: 0.01, label: 'Speed (bars a second)' },
   bars: { value: 4, min: 0.25, max: 16, step: 0.25, label: 'Bars across the layer' },
   duty: { value: 1, min: 0.05, max: 1, step: 0.01, label: 'Duty (lit share of each bar)' },

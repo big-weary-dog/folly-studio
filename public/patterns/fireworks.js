@@ -4,7 +4,7 @@ const params = {
   colours: { value: 'all', type: 'color', label: 'Colours' },
   speed: { value: 0.45, min: 0.1, max: 1.5, step: 0.01, label: 'Speed (bursts a second, each shell)' },
   shells: { value: 4, min: 1, max: 6, step: 1, label: 'Shells' },
-  size: { value: 0.34, min: 0.1, max: 0.6, step: 0.01, label: 'Size' },
+  size: { value: 0.34, min: 0.1, max: 0.6, step: 0.01, label: 'Size (radius, share of the layer)' },
   sparks: { value: 12, min: 4, max: 32, step: 1, label: 'Sparks round a burst' },
 };
 

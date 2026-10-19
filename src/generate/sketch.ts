@@ -355,7 +355,7 @@ export function sketchLook({ text = '', library = [], groups = [] }: { text?: st
         const v = name in given ? given[name] : d.value;
         if (d.type !== 'number' || typeof v !== 'number' || !Number.isFinite(v)) continue;
         if (/bpm|tempo/i.test(name) && bpm) params[name] = clampTo(bpm, d);
-        else if (/speed|rate|pace/i.test(name) && pace !== 1) params[name] = round(clampTo(v * pace, d));
+        else if (/speed|rate|pace|spin/i.test(name) && pace !== 1) params[name] = round(clampTo(v * pace, d));
       }
       const names = Object.entries(decl).filter(([, d]) => d.type === 'color').map(([n]) => n);
       return colours ? { ...params, ...colourParams(names, unique, palette, here ? 0 : li) } : params;

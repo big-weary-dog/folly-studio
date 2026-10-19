@@ -2,7 +2,8 @@
 // Waves is how many fit across; Height is how far it swings.
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth' },
-  direction: { value: 'right', type: 'choice', options: DIRECTIONS, label: 'Direction' },
+  direction: { value: 'right', type: 'choice', label: 'Direction',
+    options: ['up', 'down', 'right', 'left', 'back', 'front', 'out', 'in', 'round'] },
   speed: { value: 0.3, min: -2, max: 2, step: 0.01, label: 'Speed (waves a second)' },
   shape: { value: 'sine', type: 'choice', options: ['sine', 'triangle', 'square'], label: 'Shape' },
   waves: { value: 1.5, min: 0.25, max: 8, step: 0.05, label: 'Waves across' },

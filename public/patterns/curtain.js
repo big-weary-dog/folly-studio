@@ -4,10 +4,11 @@
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth' },
   open: { value: 0.5, min: 0, max: 1, step: 0.01, label: 'Open' },
-  direction: { value: 'right', type: 'choice', options: DIRECTIONS, label: 'Direction' },
+  direction: { value: 'right', type: 'choice', label: 'Direction',
+    options: ['up', 'down', 'right', 'left', 'back', 'front'] },
   pleats: { value: 6, min: 0, max: 30, step: 1, label: 'Pleats across each half' },
   swag: { value: 0.35, min: 0, max: 1, step: 0.01, label: 'Swag' },
-  softness: { value: 0.03, min: 0, max: 0.3, step: 0.005, label: 'Edge softness' },
+  softness: { value: 0.03, min: 0, max: 0.3, step: 0.005, label: 'Edge softness (share of the layer)' },
 };
 
 function pixel(p, t, P) {

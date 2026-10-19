@@ -16,7 +16,7 @@
   {"key": "breathe", "words": "breathe breathes breathing breath breaths inhale exhale", "terms": "breath swell calm", "use": ["wash-breathe"]},
   {"key": "rave", "words": "techno music bass drum drums rave dance dancing beat beats bpm club", "terms": "beat bpm flash strobe", "use": ["strobe"]},
   {"key": "march", "words": "march marching procession parade", "terms": "procession march step", "use": ["nave-procession"]},
-  {"key": "spiral", "words": "spiral spirals swirl swirls swirling tornado vortex whirl whirlpool spin spinning twist twisting hypnotic kaleidoscope pinwheel windmill", "terms": "spiral swirl vortex spin twist kaleidoscope rotate", "use": ["pinwheel"]},
+  {"key": "spiral", "words": "spiral spirals swirl swirls swirling tornado vortex whirl whirlpool spin spinning twist twisting hypnotic kaleidoscope pinwheel windmill", "terms": "spiral swirl vortex spin twist kaleidoscope rotate", "use": ["galaxy"]},
   {"key": "helix", "words": "helix candy barber stripes striped", "terms": "helix spiral stripes", "use": ["spire-helix"]},
   {"key": "aurora", "words": "aurora auroras borealis northern", "terms": "aurora northern sky", "use": ["aurora"]},
   {"key": "sky", "words": "cloud clouds cloudy sky skies mist misty fog foggy haze smoke dream dreamy ethereal", "terms": "cloud sky mist fog noise", "use": ["clouds"]},

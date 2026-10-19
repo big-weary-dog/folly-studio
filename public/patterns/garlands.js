@@ -2,7 +2,7 @@
 // each row a colour from Colours. Sag is how deep each swag hangs.
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours' },
-  direction: { value: 'down', type: 'choice', options: DIRECTIONS, label: 'Direction' },
+  direction: { value: 'down', type: 'choice', options: ['up', 'down'], label: 'Direction' },
   speed: { value: 1.25, min: 0.25, max: 5, step: 0.05, label: 'Speed (rows a second)' },
   rows: { value: 5, min: 1, max: 12, step: 1, label: 'Rows' },
   swags: { value: 4, min: 1, max: 12, step: 1, label: 'Swags a row' },

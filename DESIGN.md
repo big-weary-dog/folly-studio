@@ -107,13 +107,13 @@ colour. A stdlib (`noise`, `fbm`, `hsv`, `pal`, `beat`, `centres(tag)`, `use(nam
 A layer is a **chain of modules** under one rule: each works on everything above it, as in an image editor.
 Sources draw onto it, filters rework it, some by another source (a chase masked by clouds), and warps bend it: a
 warp goes after what it bends. Per pixel it is one pass with no intermediate buffers, so it costs no memory per frame
-and stays cheap on a phone: each module reads one of a few copies of the pixel, bent from the bottom up. 45 library
-modules (25 sources, 10 warps, 10 filters) and 22 presets fill the pickers, by kind in one-line rows; hovering one (on
+and stays cheap on a phone: each module reads one of a few copies of the pixel, bent from the bottom up. 42 library
+modules (24 sources, 10 warps, 8 filters) and 22 presets fill the pickers, by kind in one-line rows; hovering one (on
 a phone, ▶) auditions it in the 3D view without saving anything.
 
 **One idea a module.** The library is single ideas that chains combine. A source that carried a bed, a second motion,
 a built-in warp or its own envelope became a **preset**, a recipe of layers of modules in the index (Starfield is
-colour wash → clouds → sparkle; Rose ripple is colour wash → bars out → anchor on the rose), and so did one another
+colour wash → clouds → sparkle; Rose ripple is colour wash → bars in → anchor on the rose), and so did one another
 module already drew (marquee is a chase with gaps). Four conventions make the pieces fit: one `colours` pick per
 source, read by position, so sources know nothing of palette roles; a `direction` from one shared list wherever a
 module has an orientation; motion from `clock('speed')`, a speed integrated over time (seeked to and played to, the
@@ -396,6 +396,9 @@ font. Copy is plain and says what happens ("Bake it in the render box to check i
 - **The AI works inside the schema.** It can make what a look can hold (≤ 4 layers, modules, globals, clips,
   automation), nothing else, and does not see the frames it makes.
 - **Not yet verified on FPP or in xLights**, the zstd downloads least of all (§7).
+- **Saved looks do not follow the library.** A look keeps the module code it was saved with, so renaming a module,
+  a param or a direction leaves saved looks on the old ones (one that no longer loads is reported, never fatal).
+  Migrating them is deferred until the library is stable.
 - **Single host.** One process, JSON files, one bake at a time: fine for tens of people, not hundreds.
 
 ## 15. Roadmap

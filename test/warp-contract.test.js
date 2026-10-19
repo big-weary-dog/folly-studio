@@ -17,7 +17,7 @@ const probe = (...f) => ({ id: 'p', kind: 'source',
 const mod = (name, params = {}) => ({ id: name, kind: index.find((e) => e.name === name).kind, code: lib(name),
   params });
 // Each warp at settings that move every pixel.
-const MOVES = { mirror: { leftRight: true, upDown: true }, kaleidoscope: { segments: 5, spin: 0.1 },
+const MOVES = { mirror: { across: true, height: true }, kaleidoscope: { segments: 5, spin: 0.1 },
   'radial-repeat': {}, mosaic: { cells: 5, leds: 4 }, polar: {}, anchor: { tag: 'arch' },
   rotate: { angle: 0.2 }, scroll: { speed: 0.3 }, twist: { swirl: 0.5 }, turbulence: { amount: 0.3 } };
 
@@ -57,7 +57,7 @@ for (const [rigName, rig] of Object.entries({ cog, folly })) {
       const chase = mod('single-strand'), bars = mod('bars');
       assert.notDeepEqual(frame([chase, mod('kaleidoscope')]), frame([chase]));
       assert.notDeepEqual(frame([bars, mod('scroll', { direction: 'along', speed: 0.3 })]), frame([bars]));
-      const ripple = mod('ripple'), anchor = mod('anchor', { tag: 'arch' }), fold = mod('mirror', { upDown: true });
+      const ripple = mod('ripple'), anchor = mod('anchor', { tag: 'arch' }), fold = mod('mirror', { height: true });
       for (const order of [[ripple, anchor, fold], [ripple, fold, anchor]]) {
         assert.notDeepEqual(frame(order), frame([ripple, anchor]), order.map((m) => m.id).join(' → '));
       }
