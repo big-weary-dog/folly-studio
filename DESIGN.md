@@ -117,6 +117,17 @@ A number param can be **modulated**: an LFO (Hz or beats), a global, or the clip
 frame per layer. **Automation lanes** move a global or macro over the look's time, linearly between points.
 Palettes come from the same CSVs TouchDesigner uses, so a look and a TD show agree on colour.
 
+**Picks.** A colour param holds a pick, not a hex: roles (`body`), slots by TD's names (`body2`), `all`,
+`rainbow` and literals, joined in order or dealt in turn (`body/accent`), stepped by default so bands stay
+distinct, with an optional range and a rotate any binding can turn (it crossfades at each step, so it never cuts).
+A layer's `palette` remaps its roles for all its modules, TD's pick per effect. The four roles stay the backbone:
+swapping the palette still restyles the look, and slots address the swatches a TD palette has. Picks resolve when a
+layer is prepared and when the palette changes, so per pixel `pal()` costs what it did; a bare `pal(role, t)` keeps
+its smooth ramp, so looks from before render as they did. Hue and saturation stay a grade on the composite.
+
+- **Alternatives.** xLights' palette per effect (any colour, but a new look palette means editing every effect);
+  one gradient sampled by position (no swatches); per-clip palettes (colour over time is rotate, automated).
+
 - **Alternatives.** Per-layer frame buffers with a node graph (spatial filters such as blur become possible, at a
   full frame per node per layer); hard-coded colours (no palettes to swap).
 - **Trade-off.** Filters see one pixel at a time: no blur or convolution, and no layer can read another's output.

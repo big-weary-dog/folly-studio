@@ -11,6 +11,7 @@ From the first design notes, now built (the DESIGN.md section in brackets):
 - The rig file: any installation, a tagged group tree, proven on a fictional rig too (§9).
 - Pattern code: space three ways, polar on the façade, along the wire, structure fields (§3).
 - Module chains, globals, palette roles from `td/palettes`, modulation, automation lanes; a library of 58 (§4).
+- Colour picks: every colour param takes roles, slots, literals, blend, range and rotate; layers remap roles (§4).
 - The timeline: clips with fades on show time, importing looks to sequence them (§5).
 - The sandboxed preview, the render box, curator review of baked frames, the flash checks and guard (§6).
 - Sparse `.fseq`, streamed frames, compressed downloads, `tools/sacn-play.ts`, the Mirage match (§7, §8).
@@ -30,6 +31,9 @@ From the first design notes, now built (the DESIGN.md section in brackets):
 5. **Timeline.** Automation of module params; crossfades between imported looks; markers for sections and cues
    (`folly_cues`, `shows/show.tsv`).
 6. **Power.** Apply the limit the bake already estimates (`estPeakAmps`), as `folly_output` caps white.
+7. **Library on picks.** Sources declare their colour slots with role defaults (bars' bands, single strand's head),
+   their fixed colours become roles with "classic" presets keeping the old ones, and merged sources pin colours
+   through picks.
 
 ## Later
 
