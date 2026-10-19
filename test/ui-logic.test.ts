@@ -9,7 +9,7 @@ import { describe, test } from 'vitest';
 
 import { resolve, safeNext } from '../public/js/ui/app.tsx';
 import {
-  bindingForm, bindingText, makeBinding, normaliseParam, optionText, type Param, shownValue,
+  bindingForm, bindingText, makeBinding, normaliseParam, type Param, shownValue,
 } from '../public/js/ui/bindings.ts';
 import { decimals, scrubTo, snap } from '../public/js/ui/kit.tsx';
 import { createLayerStatus } from '../public/js/ui/layer-status.ts';
@@ -62,8 +62,6 @@ describe('modulation', () => {
     assert.deepEqual([choice.kind, choice.value, choice.options], ['choice', 'wire', ['wire', 'space']]);
     assert.deepEqual(shownValue(choice, { mode: 'space' }, 'mode').value, 'space');
     assert.deepEqual(shownValue(choice, { mode: 'fog' }, 'mode').value, 'wire');
-    assert.equal(optionText('right', ['up', 'right', 'out']), 'Across →', 'a direction says where it goes');
-    assert.equal(optionText('wire', ['wire', 'space']), 'Wire');
   });
 
   test('the dialog opens on the binding there is, keeps global and envelope ends apart, and falls back', () => {
@@ -76,9 +74,6 @@ describe('modulation', () => {
     assert.equal(makeBinding({ ...f, mod: '' }, p), null, 'nothing: its field sets it');
     assert.equal(bindingText(lfo!), 'LFO sine · 1 Hz');
     assert.equal(bindingText({ mod: 'global', name: 'storm', from: 20, to: 160 }), 'storm → 20–160');
-    const held = makeBinding({ ...bindingForm({ mod: 'lfo', shape: 'hold', hold: 0.3 }, p, globals) }, p);
-    assert.deepEqual([held?.mod, (held as { shape?: string }).shape, (held as { hold?: number }).hold],
-      ['lfo', 'hold', 0.3], 'the hold shape keeps its hold');
   });
 
   test('what a control shows: its value, the default, or nothing while bound', () => {

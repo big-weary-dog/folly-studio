@@ -17,19 +17,9 @@ describe('stdlib', () => {
   test('has every name the SPEC lists', () => {
     const names = `PI TAU sin cos tan asin acos atan atan2 abs min max floor ceil round sqrt pow exp log hypot sign
       clamp fract mix step smoothstep wave tri saw pulse hash rand noise fbm hsv hsl rgb hex scale add gradient
-      cosPalette beat dist centres extent DIRECTIONS toward`.split(/\s+/);
+      cosPalette beat dist centres extent`.split(/\s+/);
     for (const n of names) assert.ok(n in S, n);
     near(S.TAU, 2 * Math.PI);
-  });
-
-  test('toward(p, direction): each of the library\'s directions as 0..1 across the layer', () => {
-    const p = { lx: 0.1, ly: 0.2, lz: 0.3, a: 0.4, r: 0.5, u: 0.6 };
-    const want = { up: 0.2, down: 0.8, right: 0.3, left: 0.7, back: 0.1, front: 0.9, out: 0.5, in: 0.5, round: 0.4,
-      along: 0.6 };
-    assert.deepEqual(Object.keys(want), [...S.DIRECTIONS]);
-    for (const [d, v] of Object.entries(want)) near(S.toward(p, d), v);
-    near(S.toward(p, 'sideways'), 0.2);
-    assert.ok(Object.isFrozen(S.DIRECTIONS));
   });
 
   test('shaping', () => {

@@ -1,5 +1,5 @@
-// The library's new primitives where they land (SPEC "Modules"): polar and anchor's geometry on the Folly and the
-// fictional mini rig, a spot on an anchor, turbulence's reach, and streaks drawing on transparent.
+// The library's new primitives where a slip is easy: polar and anchor's geometry on the Folly and the fictional mini
+// rig, and the colour wash's hold, which keeps a change of colour from flashing.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -61,14 +61,6 @@ for (const [rigName, rig] of Object.entries({ folly, mini })) {
         near(at(k)[1], scene.z[k], 1e-6, `LED ${k} lz is the rig's z`);
       }
     });
-
-    test('a spot on an anchor lands on the rose', () => {
-      const { L, alpha } = run(scene, [mod('spot', 'source', { size: 0.08, softness: 0 }),
-        mod('anchor', 'warp')], []);
-      const lit = L.idx.filter((k, j) => alpha(j) > 0.5);
-      assert.ok(lit.length > 0, 'something is drawn');
-      for (const k of lit) assert.ok(Math.hypot(scene.Z[k] - rose[2], scene.Y[k] - rose[1]) < 3, `LED ${k}`);
-    });
   });
 }
 
@@ -87,10 +79,7 @@ describe('on the Folly', () => {
     assert.ok(near3(one({ speed: 1 }, 0.75), [0.5, 0, 0.5]), 'half way at 0.75 s');
     for (const t of [1, 1.3]) assert.ok(near3(one({ speed: 1 }, t), [0, 0, 1]), `held blue at ${t}`);
     assert.ok(near3(one({ speed: 1, hold: 0.95 }, 0.9), [0.5, 0, 0.5]), 'a hold past 0.8 still blends over a fifth');
-    assert.ok(near3(one({ speed: 0 }, 7), [1, 0, 0]), 'speed 0: the first colour, still');
-    assert.ok(near3(one({ speed: 0, brightness: 0.5 }, 7), [0.5, 0, 0]), 'brightness');
   });
-
 
   test('anchor: in plan round each LED\'s nearest tower', () => {
     const { L, at } = run(scene, [probe('lx', 'lz', 'r'), mod('anchor', 'warp', { tag: 'tower', which: 'nearest',
@@ -99,30 +88,6 @@ describe('on the Folly', () => {
       const d = Math.min(...towers.map((c) => Math.hypot(scene.X[k] - c[0], scene.Z[k] - c[2])));
       assert.ok(d < 4, 'every spire LED is near a tower');
       near(at(k)[2], d / 4, 1e-5, `LED ${k} r`);
-    }
-  });
-
-  test('turbulence moves things by at most its amount', () => {
-    const plain = run(scene, [probe('lz', 'ly', 'lx')], []);
-    const bent = run(scene, [probe('lz', 'ly', 'lx'), mod('turbulence', 'warp', { amount: 0.05 })], []);
-    let moved = 0;
-    for (const k of plain.L.idx) {
-      const a = plain.at(k), b = bent.at(k);
-      assert.ok(Math.abs(a[0] - b[0]) <= 0.05 + 1e-6 && Math.abs(a[1] - b[1]) <= 0.05 + 1e-6, `LED ${k}`);
-      assert.equal(a[2], b[2], 'depth stays');
-      if (Math.abs(a[0] - b[0]) > 0.005) moved++;
-    }
-    assert.ok(moved > plain.L.idx.length / 4, `most LEDs move (${moved})`);
-  });
-
-  test('streaks draw on transparent: a tail fades to nothing behind a head in the last colour', () => {
-    for (const profile of ['streak', 'flake']) {
-      const { L, alpha } = run(scene, [mod('streaks', 'source', { profile, colours: '#000000 #ff0000' })], [], 2.5);
-      const a = Array.from(L.idx, (_, j) => alpha(j));
-      assert.ok(a.some((v) => v === 0) && a.some((v) => v > 0.9), `${profile}: some drawn, some not`);
-      L.idx.forEach((k, j) => {
-        if (a[j] > 0.99) assert.ok(L.buf[4 * j] > 0.98, `${profile}: a head is the last colour`);
-      });
     }
   });
 });

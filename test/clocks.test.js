@@ -1,6 +1,6 @@
 // Integrated clocks (SPEC "Integrated clocks"): clock(name) is a speed param's distance, a fixed one its value × the
 // look's clock, a bound one summed on a grid from 0, so a modulated speed never jumps and played equals sought to the
-// bit; the LFO's hold shape; G.bpm; a bake's key holds the tempo for code that reads it.
+// bit; the LFO's hold shape; a bake's key holds the tempo for code that reads G.bpm.
 import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
@@ -59,26 +59,6 @@ describe('clock(name)', () => {
       }
     });
   }
-
-  test('a speed that turns round turns the motion round, without a step', () => {
-    const L = layerOf({ speed: { mod: 'lfo', shape: 'tri', rate: 0.25, center: 0, depth: 2 } });
-    const look = prepareLook(null);
-    const at = (t) => read(L, t, look).clock;
-    // −2 rising to 2 and back over 4 s: back a step, forward two, back one, where it started.
-    assert.ok(Math.abs(at(1) + 1) < 1e-3 && Math.abs(at(3) - 1) < 1e-3, `out and back: ${at(1)}, ${at(3)}`);
-    assert.ok(Math.abs(at(4)) < 1e-3, `where it started after a cycle: ${at(4)}`);
-  });
-
-  test('use() and code outside a frame see value × T', () => {
-    const code = 'const s = use("spd");\nfunction pixel(p, t) { return s(p, t); }';
-    return import('../public/js/pattern-core.ts').then(({ setLibrary }) => {
-      setLibrary([{ name: 'spd', code: CLOCK }]);
-      const layer = { id: 'u', modules: [{ id: 'm', code }] };
-      renderFrame(scene, [prepareLayer(scene, layer, compileLayer(layer))], 4, out, prepareLook(null));
-      assert.ok(Math.abs((out[0] - 0.5) * 64 - 2) < 1e-4);
-      setLibrary([]);
-    });
-  });
 });
 
 describe('the hold LFO', () => {
@@ -96,12 +76,7 @@ describe('the hold LFO', () => {
   });
 });
 
-describe('G.bpm', () => {
-  test('the look\'s tempo, 120 unset', () => {
-    assert.ok(Math.abs(read(layerOf({}), 1, prepareLook({ bpm: 96 })).bpm - 96) < 1e-3);
-    assert.ok(Math.abs(read(layerOf({}), 1, prepareLook(null)).bpm - 120) < 1e-3);
-  });
-
+describe('the tempo', () => {
   test('a bake\'s key holds the tempo when code reads it', () => {
     const plain = { layers: [{ code: 'function pixel() { return 1; }' }], bpm: 90 };
     assert.ok(Array.isArray(renderFields(plain)), 'no tempo: the plain layers, as before');

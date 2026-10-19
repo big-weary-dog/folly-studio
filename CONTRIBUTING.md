@@ -154,7 +154,7 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `fleet-box/` | Checker and brief for a boxed Fleet worker |
 | `public/index.html`, `css/` | The app shell and its styles: `base.css` (tokens, layout and components) on every page; `pages`, `studio`, `viewer`, `timeline`, `compose` imported by their views' modules, so Vite loads them with them |
 | `public/sandbox.html`, `js/sandbox-relay.ts`, `js/sandbox-worker.ts` | The sandboxed pattern runner (SPEC "Sandbox protocol"): the page Vite inlines them into; the relay and watchdog; the Worker |
-| `public/js/pattern-core.ts`, `core/` | Pure: stdlib (with palettes), picks (colour picks, pal() and swatch() per module), compile, scene (the rig, its groups and tags), timeline, render (module chains, in stages round spatial modules), warps (the one rule: a warp bends what is above it, up to a stage end), output (compositing, DMX channels), spatial (the neighbour graph and the native blur), globals (with automation and param bindings), flash (the flash check, for bakes and the preview alike); re-exported with their types (`Scene`, `PreparedLayer`, `Pixel`, …); runs in the sandbox, the boxes and tests |
+| `public/js/pattern-core.ts`, `core/` | Pure: stdlib (with palettes), picks (colour picks, pal() and swatch() per module), clocks (clock(): a speed param's integrated distance), compile, scene (the rig, its groups and tags), timeline, render (module chains, in stages round spatial modules), warps (the one rule: a warp bends what is above it, up to a stage end), output (compositing, DMX channels), spatial (the neighbour graph and the native blur), globals (with automation and param bindings), flash (the flash check, for bakes and the preview alike); re-exported with their types (`Scene`, `PreparedLayer`, `Pixel`, …); runs in the sandbox, the boxes and tests |
 | `public/js/fseq.ts` | Pure: FSEQ v2 writer |
 | `public/js/frames-stream.ts` | Streamed playback of baked frames, and their pure decoder |
 | `public/js/runtime.ts` | App side of the sandbox: iframe, adaptive frame rate, watchdog; the protocol's messages as types |
@@ -163,7 +163,7 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `public/js/playa/` | The Playa view, loaded on first use: `geometry.ts` builds it from the rig's render hints, `renderer.ts` draws (light texture, spill, bloom, tone map, tiers), `glsl.ts` |
 | `public/js/main.tsx`, `api.ts` | The entry (renders the shell); the fetch wrapper, typed by `shared/schemas/` |
 | `public/js/ui/` | The UI, Preact components in TSX with signals for state. `app.tsx`: the shell, routing (history API, views loaded on first use) and the header, `session.ts` what views share with it (the user, navigation, the guard on unsaved edits); `auth`, `pages` (ideas, my looks, the gallery), `models` (the admins' Models page); `kit.tsx` toasts, dialogs, fields and helpers, `rose.tsx` the rose. The Studio: `studio.tsx` loads it, `studio-store.ts` holds its state (the look, replaced on each edit; the selection; layout) and saves, `studio-layout.tsx` lays out the panes; `preview.ts` drives the imperative 3D view and sandbox (one clock, the flash guard, baked playback) and `preview-view.tsx` wraps them; `layers`, `chain`, `params` (+ `bindings.ts`), `picks` (colour picks, + `pick-model.ts`), `editor`, `shelf` (auditions), `look-globals`, `bake`, `export`; the timeline is `timeline.tsx` (+ `-state`, `-tools`, `-input`, `-auto`, `-model`); `layer-status.ts` is what the sandbox says; `model.ts` the rig, library, the Studio's `Layer` (a chain) and its helpers |
-| `public/patterns/` | The built-in library (`index.json` with each entry's `kind` and `category`, + one file each): sources, warps and filters, also the AI's examples |
+| `public/patterns/` | The built-in library (`index.json` with each entry's `kind` and `category`, + one file each): sources, warps and filters, also the AI's examples; presets, recipes of them, in the index alone |
 | `tools/` | `build_rig.py` (+ `rig_render.py`: what Mirage draws), `build_palettes.py` (data), `sacn-play.ts`, `budgets.ts` (the checks oxlint lacks, with line budgets in `budgets.json`; oxlint's rules are `.oxlintrc.jsonc` at the root), `backup.ts`, `frames-bench.ts` (brotli quality against encode time, and each look's render time) |
 | `README.md`, `DESIGN.md`, `docs/` | What it is; what was built and why (`docs/screenshots/`); `docs/HOSTING.md`, hosting at home |
 | `test/` | Vitest suites (`vitest.config.js`; `skip-reporter.js` lists skips and why); `fixtures/` (`build.js`: a fresh build of the app for the tests that serve it); `e2e/`: the Playwright Test browser checks (`smoke`, `perf`, `e2e`) |
@@ -198,6 +198,31 @@ the line) silences that rule for that one line. It names its rules and the reaso
 rejects a silence without them, and any file- or block-wide `oxlint-disable`; oxlint reports one that silences
 nothing. `max-lines` and the budgets' checks cannot be silenced. Who may use `eval`, `node:vm` and `child_process` is
 a reviewed allowlist: the per-file overrides in `.oxlintrc.jsonc`.
+
+## The library
+
+A module is one idea; two ideas are two modules, and what they make together is a preset (SPEC "Library"). So a
+library module follows these rules (SPEC "Palettes", "Directions", "Integrated clocks", "Modules"):
+
+- **One `colours` pick**, `{ value: 'all', type: 'color', label: 'Colours' }`, read by position (`swatch('colours', i)`
+  for bands and seeded things, `pal('colours', t)` for a gradient or a tail, the last colour for a head,
+  `P.colours` for one colour at a time). Code never names a role; people choose the colours.
+- **An orientation is a param**: `direction` from `DIRECTIONS`, read with `toward(p, P.direction)`, its default
+  what the module always did; `angle` for a free angle off it. A centre is a place: the `anchor` warp.
+- **Motion from `clock('speed')`**, never `t × P.speed`, so a modulated speed never jumps. No hard-wired `G.energy`:
+  a person binds a param to it.
+- **Draw on transparent**: alpha is coverage, `null` is nothing, no painted background. `colour-wash` is the bed.
+- **Say it plainly.** A summary, a header comment and a label say what it draws and how it moves, in one short
+  sentence where they can, in the UI's words (Colours, Direction, Speed): "Bands of colour move in Direction.", not
+  "a tide of light". No imagery, no selling.
+
+## What to test
+
+Test where a regression is plausible and costly: determinism (played equals sought), the clock under modulation,
+what a look stores and how it migrates (schemas, conversions frozen byte for byte), geometry that is easy to get
+wrong, presets and their insertion, security. One representative case per behaviour, not a matrix. Do not test what
+restates the implementation: defaults, labels, every param of every module. A test that cannot fail is cost, not
+cover.
 
 ## Security invariants
 

@@ -106,9 +106,18 @@ colour. A stdlib (`noise`, `fbm`, `hsv`, `pal`, `beat`, `centres(tag)`, `use(nam
 A layer is a **chain of modules** under one rule: each works on everything above it, as in an image editor.
 Sources draw onto it, filters rework it, some by another source (meteors masked by clouds), and warps bend it: a
 warp goes after what it bends. Per pixel it is one pass with no intermediate buffers, so it costs no memory per frame
-and stays cheap on a phone: each module reads one of a few copies of the pixel, bent from the bottom up. 59 library
-entries (41 sources, 7 warps, 11 filters) fill the shelves; hovering one (on a phone, Preview) auditions it in the 3D
-view without saving anything.
+and stays cheap on a phone: each module reads one of a few copies of the pixel, bent from the bottom up. 63 library
+modules (43 sources, 10 warps, 10 filters) and 5 presets fill the pickers, by kind in one-line rows; hovering one (on
+a phone, ▶) auditions it in the 3D view without saving anything.
+
+**One idea a module.** The library is being cut down to single ideas that chains combine: a source with a bed, a
+second motion or a built-in warp becomes a **preset**, a recipe of layers of modules in the index (Palette drift is
+colour wash → hue shift → turbulence). Four conventions make the pieces fit: one `colours` pick per source, read by
+position, so sources know nothing of palette roles; a `direction` from one shared list wherever a module has an
+orientation; motion from `clock('speed')`, a speed integrated over time (seeked to and played to, the same to the
+bit), so binding a speed to energy or an LFO never jumps; and drawing on transparent, alpha as coverage over a
+colour-wash bed, so an element and its background are separate layers of one chain. Splitting costs per-pixel work
+(every module of a chain runs per pixel), so presets are timed in `npm run perf` beside the sources they replace.
 
 **One rule, and where warps stop.** Warps used to bend what came after them, the shader's order, while sources and
 filters worked on what came before: two directions in one list. Now all three read the same way. A blur or trails
