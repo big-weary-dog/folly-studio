@@ -1,9 +1,8 @@
 // The library's house style, beyond rendering at defaults (patterns.test.js): every source holds up under any
 // palette and energy, recolours with the look's palette where it reads one, and lands on the same frame whether
-// played from the start or sought to; the new warps and filters stack in long chains; all within the frame budget.
+// played from the start or sought to; the new warps and filters stack in long chains (their cost: npm run perf).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { performance } from 'node:perf_hooks';
 
 import { describe, test } from 'vitest';
 
@@ -124,10 +123,6 @@ describe('warps and filters in long chains', () => {
         for (let i = 0; i < rgb.length; i++) if (Math.abs(rgb[i] - a[i]) > 0.02) changed++;
       }
       assert.ok(changed > 0.2 * scene.count * 3 * 5, `the chain reworks its source (${changed})`);
-      const t0 = performance.now();
-      for (let f = 0; f < 20; f++) renderFrame(scene, [L], 40 + f / 40, out);
-      const ms = (performance.now() - t0) / 20;
-      assert.ok(ms < 25, `${ms.toFixed(1)} ms per frame for eight modules over the whole cathedral`);
     });
   }
 });

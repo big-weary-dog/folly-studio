@@ -27,7 +27,9 @@ npm run smoke                # the app in Chromium at 1366 × 768 and 390 × 844
                              #   page and an idea on a picked model (models.spec.js, a stand-in codex)
 npm run perf                 # the preview on an emulated phone: the look's cost against a reference workload, the
                              #   phone computing it above the 20 fps floor (where the runner keeps up), Playa's Auto
-                             #   stepping down on slow frames; software-GL fps only reported (test/e2e/perf.spec.js)
+                             #   stepping down on slow frames; software-GL fps only reported (test/e2e/perf.spec.js);
+                             #   a frame of each library source, three long chains and the whole library stacked,
+                             #   against the same reference (library-perf.spec.js; no unit test asserts a time in ms)
 npm run e2e                  # our .fseq through sACN and the relay into Mirage, every LED compared byte for byte
                              #   (test/e2e/mirage.spec.js; E2E_DEPS, relay/node_modules: see "Browser checks")
 ```
