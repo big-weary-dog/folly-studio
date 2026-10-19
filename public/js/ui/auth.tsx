@@ -50,10 +50,11 @@ export function Auth({ query }: ViewProps) {
         <form class="auth-form" novalidate aria-describedby={errId} onSubmit={submit}>
           <div class="seg" role="group" aria-label="Log in or sign up">
             {tab('login', 'Log in')}{tab('signup', 'Sign up')}</div>
-          <Field label="Username">{(id) => <input id={id} ref={name} type="text" name="username" autocomplete="username"
-            required autocapitalize="none" spellcheck={false} minlength={2} maxlength={40} />}</Field>
-          <Field label="Password" hint={signup && <p class="field-hint">At least 8 characters is a good idea. Usernames
-            are public in the gallery.</p>}>
+          <Field label="Username" stack>{(id) => <input id={id} ref={name} type="text" name="username"
+            autocomplete="username" required autocapitalize="none" spellcheck={false} minlength={2} maxlength={40} />}
+          </Field>
+          <Field label="Password" stack hint={signup && <p class="field-hint">At least 8 characters is a good idea.
+            Usernames are public in the gallery.</p>}>
             {(id) => <input id={id} ref={pass} name="password" type="password" required minlength={6}
               autocomplete={signup ? 'new-password' : 'current-password'} />}</Field>
           <p id={errId} class="form-error" role="alert" hidden={!error}>{error}</p>

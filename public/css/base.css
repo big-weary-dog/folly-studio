@@ -11,7 +11,7 @@
   --dust: #e9a9a1; --sand: #e8cf9f;
   --text: #f3e9da; --text-2: #cfbfae; --text-3: #a3949f; --error: #ffa9bb; --focus: #ffd98a;
   --tint: var(--sand); /* a section's glass: views, panes and states set it */
-  --radius: 3px; --header-h: 56px;
+  --radius: 3px; --header-h: 56px; --label-w: 96px; /* a field's label column */
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif;
   --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "DejaVu Sans Mono", monospace;
   --ease: cubic-bezier(.2, .7, .2, 1); --shadow: 0 12px 40px rgb(0 0 0 / .5);
@@ -242,8 +242,17 @@ input.switch::after { content: ''; position: absolute; top: 2px; left: 2px; widt
 input.switch:checked { background: color-mix(in srgb, var(--emerald) 28%, var(--night-1)); }
 input.switch:checked::after { transform: translateX(18px); color: var(--emerald); }
 input.switch:disabled { opacity: .5; cursor: default; }
-.field { display: flex; flex-direction: column; gap: 6px; }
-.field > label { font-size: 13px; color: var(--text-2); font-weight: 550; }
+/* A field (kit.tsx Field) is one row: its label, muted and compact, in a --label-w column, then the control filling
+   the rest. A label too long for it, or a .stack's, goes above; a .toggle's label takes the row, its switch the end. */
+.field { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.field > :first-child { flex: none; min-width: var(--label-w); max-width: 100%; font-size: 13px; color: var(--text-2); }
+.field > * + * { flex: 1 1 calc(100% - var(--label-w) - 11px); min-width: 0; }
+.field.stack > * { flex-basis: 100%; }
+.field.toggle > :first-child { flex: 1; min-width: 0; min-height: var(--hit); align-content: center; cursor: pointer; }
+.field.toggle > * + * { flex: none; }
+.field-control { display: flex; align-items: center; gap: 6px; }
+:where(.field-control) > :where(input:not([type=checkbox], [type=color]), select, textarea) { flex: 1; min-width: 0; }
+.field output { flex: none; min-width: 40px; text-align: right; font: 12px var(--mono); color: var(--text-2); }
 .field-hint { font-size: 12.5px; color: var(--text-3); }
 .form-error { color: var(--error); font-size: 14px; }
 @media (max-width: 899px) {

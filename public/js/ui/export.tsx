@@ -1,6 +1,6 @@
 // Exports and details, loaded on first use: the look as JSON, an xLights/FPP .fseq rendered in the sandbox, and the
 // look's title and summary.
-import { useId, useState } from 'preact/hooks';
+import { useState } from 'preact/hooks';
 
 import type { Runtime } from '../runtime.ts';
 import { confirmDialog, download, Field, openDialog, slugify, toast } from './kit.tsx';
@@ -29,7 +29,7 @@ export function details(st: Studio) {
       }}>
         <Field label="Title">{(id) => <input id={id} type="text" maxlength={120} value={title}
           onInput={(e) => setTitle(e.currentTarget.value)} />}</Field>
-        <Field label="Summary">{(id) => <textarea id={id} rows={4} maxlength={600} value={summary}
+        <Field label="Summary" stack>{(id) => <textarea id={id} rows={4} maxlength={600} value={summary}
           onInput={(e) => setSummary(e.currentTarget.value)} />}</Field>
         {L.ideaId && <p class="field-hint">Generated from one of your ideas.</p>}
         <div class="dialog-actions">
@@ -76,13 +76,10 @@ function packFrames(channels: Uint8Array, frames: number, frameSize: number, ran
   return channels.subarray(0, to);
 }
 
-function Slider({ label, value, out, set, disabled, ...range }: { label: string; value: number; out: string;
-  set: (v: number) => void; disabled: boolean; min: number; max: number; step: number }) {
-  const id = useId();
-  return <div class="field slider-field"><label for={id}>{label}</label>
-    <input type="range" id={id} {...range} value={String(value)} disabled={disabled}
-      onInput={(e) => set(Number(e.currentTarget.value))} /><output for={id}>{out}</output></div>;
-}
+const Slider = ({ label, value, out, set, disabled, ...range }: { label: string; value: number; out: string;
+  set: (v: number) => void; disabled: boolean; min: number; max: number; step: number }) =>
+  <Field label={label}>{(id) => <><input type="range" id={id} {...range} value={String(value)} disabled={disabled}
+    onInput={(e) => set(Number(e.currentTarget.value))} /><output for={id}>{out}</output></>}</Field>;
 
 function FseqForm({ close, runtime, title, channelCount, ranges, used, duration, running, write }: {
   close: (v?: boolean) => void; runtime: Runtime; title: string; channelCount: number; ranges: [number, number][];

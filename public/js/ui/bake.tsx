@@ -114,7 +114,7 @@ export function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
     + `${x.flaggedSeconds.length > 5 ? '…' : ''}`;
   const check = !f?.ok ? [`Flagged at ${f ? when(f) : ''}`, 'bad']
     : small ? [`Pass · ${small.regions.join(', ')} flash at ${when(small)}`, 'warn'] : ['Pass', 'ok'];
-  const row = (k: string, v: string, cls?: string) => <div class={cls}><dt>{k}</dt><dd>{v}</dd></div>;
+  const row = (k: string, v: string, cls?: string) => <div class={cx('field', cls)}><dt>{k}</dt><dd>{v}</dd></div>;
   const url = look && `/api/looks/${encodeURIComponent(look.id)}/frames`, done = bake?.status === 'done';
   const reason = error || (s.kind === 'failed' || s.kind === 'flagged' ? bake?.reason || '' : '');
   const warning = done && !error ? bake?.warning || '' : '', hasFrames = !!(bake?.frames && done);
@@ -136,7 +136,7 @@ export function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
         {row('Flash check', check[0], check[1])}
         {row('Peak', `${pct(a.peakBrightness)} white · ≈ ${a.estPeakAmps} A`)}
         {row('Length', `${a.seconds} s${bake?.frames?.bytes ? ` · ${mb(bake.frames.bytes)}` : ''}`)}
-        {hasFrames && url && <div><dt>Download</dt><dd><a href={url} download="">.fseq</a> · <a
+        {hasFrames && url && <div class="field"><dt>Download</dt><dd><a href={url} download="">.fseq</a> · <a
           href={`${url}?compress=1`} download="">compressed</a></dd></div>}</>}</dl>
       <p class="bake-reason" role="status" hidden={!reason}>{reason}</p>
       <p class="bake-warning" role="status" hidden={!warning}>{warning}</p>

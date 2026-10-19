@@ -102,24 +102,25 @@ export function confirmDialog(message: string, { title = 'Are you sure?', ok = '
   </> }).then(Boolean);
 }
 
-/** A `.field`: its label, then the control, which takes the id it is given. */
-export function Field({ label, children, hint }: { label: string; children: (id: string) => ComponentChildren;
-  hint?: ComponentChildren }) {
-  const id = useId();
-  return <div class="field"><label for={id}>{label}</label>{children(id)}{hint}</div>;
+/** A `.field`, one row: its label, then the control (given the label's id), or a read-only value. A label too long
+ * for the label column takes its own line; `stack` always does, for what one line cannot hold (multi-line text). */
+export function Field({ label, children, hint, stack, class: cls, title }: { label: ComponentChildren;
+  children: ComponentChildren | ((id: string) => ComponentChildren); hint?: ComponentChildren; stack?: boolean;
+  class?: string; title?: string }) {
+  const id = useId(), control = typeof children === 'function';
+  return (
+    <div class={cx('field', stack && 'stack', cls)} title={title}>
+      {control ? <label for={id}>{label}</label> : <span>{label}</span>}
+      <div class="field-control">{control ? children(id) : children}</div>{hint}</div>);
 }
 
 /** A labelled switch (a checkbox) showing `checked`, which only the caller's state changes. */
-export function Switch({ label, class: cls, checked, disabled, title, onChange }: { label: string; class: string;
-  checked: boolean; disabled?: boolean; title?: string; onChange: (on: boolean) => void }) {
-  const id = useId();
-  return (
-    <div class={cls} title={title}>
-      <input type="checkbox" class="switch" id={id} checked={checked} disabled={disabled}
-        onChange={(e) => { const on = e.currentTarget.checked; e.currentTarget.checked = checked; onChange(on); }} />
-      <label for={id}>{label}</label>
-    </div>);
-}
+export const Switch = ({ label, class: cls, checked, disabled, title, onChange }: { label: string; class: string;
+  checked: boolean; disabled?: boolean; title?: string; onChange: (on: boolean) => void }) =>
+  <Field label={label} class={cx('toggle', cls)} title={title}>{(id) => <input type="checkbox" class="switch" id={id}
+    checked={checked} disabled={disabled}
+    onChange={(e) => { const on = e.currentTarget.checked; e.currentTarget.checked = checked; onChange(on); }} />}
+  </Field>;
 
 /** A module loaded on first use, once `when` holds (null until it has loaded). */
 export function useLazy<T>(load: () => Promise<T>, when = true): T | null {

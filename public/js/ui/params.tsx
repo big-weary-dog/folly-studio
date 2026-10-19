@@ -2,14 +2,14 @@
 // pickers, `type: 'toggle'` switches. A number can be modulated (SPEC "Param bindings"): an LFO, a global (energy, a
 // macro…) or the clip envelope moves it every frame instead of its slider.
 import type { ComponentChildren } from 'preact';
-import { useId, useRef, useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 
 import type { ParamValue } from '../../../shared/schemas/look.ts';
 import {
   type BindingForm, bindingForm, bindingText, decimals, fmt, isBinding, makeBinding, normaliseParam, type Param, SHAPES,
   shownValue,
 } from './bindings.ts';
-import { Field, humanize, openDialog } from './kit.tsx';
+import { cx, Field, humanize, openDialog } from './kit.tsx';
 import type { Studio } from './studio-store.ts';
 
 const GLOBAL_NAMES = ['energy', 'speed', 'level', 'hue', 'saturation'];
@@ -41,44 +41,38 @@ export function ParamsPanel({ st }: { st: Studio }) {
     </div>);
 }
 
+/** A param's row; a number's slider, box and modulation take a line of their own under its label. */
 function Control({ name, p, values, set, globals }: { name: string; p: Param; values: Record<string, ParamValue>;
   set: (fn: (p: Record<string, ParamValue>) => void) => void; globals: () => string[] }) {
-  const id = useId(), box = useRef<HTMLInputElement>(null), { has, bound, value } = shownValue(p, values, name);
+  const box = useRef<HTMLInputElement>(null), { has, bound, value } = shownValue(p, values, name);
   const put = (v: ParamValue) => set((q) => { q[name] = v; });
-  let field;
-  if (p.kind === 'number') {
-    const fixed = (v: number) => v.toFixed(decimals(p.step));
-    field = <>
-      <input type="range" id={id} min={p.min} max={p.max} step={p.step} disabled={bound}
-        value={bound ? undefined : String(value)} onInput={(e) => put(Number(e.currentTarget.value))} />
-      <input type="number" class="param-num" ref={box} min={p.min} max={p.max} step={p.step}
-        aria-label={`${p.label} value`} disabled={bound}
-        value={document.activeElement === box.current ? undefined : bound ? '' : fixed(value as number)}
-        onChange={(e) => {
-          const v = parseFloat(e.currentTarget.value);
-          put(Number.isFinite(v) ? v : p.value);
-        }} />
-      <span class="param-chip" hidden={!bound}>{bound && bindingText(values[name] as never)}</span></>;
-  } else if (p.kind === 'color') {
-    field = <><input type="color" id={id} class="param-color" value={value as string}
-      onInput={(e) => put(e.currentTarget.value)} /><span class="param-hex">{value as string}</span></>;
-  } else {
-    field = <input type="checkbox" id={id} class="switch" checked={value as boolean}
-      onChange={(e) => put(e.currentTarget.checked)} />;
-  }
+  const fixed = (v: number) => v.toFixed(decimals(p.step));
+  const field = (id: string) => (p.kind === 'number' ? <>
+    <input type="range" id={id} min={p.min} max={p.max} step={p.step} disabled={bound}
+      value={bound ? undefined : String(value)} onInput={(e) => put(Number(e.currentTarget.value))} />
+    <input type="number" class="param-num" ref={box} min={p.min} max={p.max} step={p.step}
+      aria-label={`${p.label} value`} disabled={bound}
+      value={document.activeElement === box.current ? undefined : bound ? '' : fixed(value as number)}
+      onChange={(e) => {
+        const v = parseFloat(e.currentTarget.value);
+        put(Number.isFinite(v) ? v : p.value);
+      }} />
+    <span class="param-chip" hidden={!bound}>{bound && bindingText(values[name] as never)}</span>
+    <button type="button" class="param-mod" aria-pressed={bound} aria-label={`Modulate ${p.label}`}
+      title="Modulate: an LFO, a global or the clip envelope"
+      onClick={() => modulate(p, values[name], globals(), (b) => set((q) => {
+        if (b) q[name] = b; else delete q[name];
+      }))}>∿</button></>
+    : p.kind === 'color' ? <><input type="color" id={id} class="param-color" value={value as string}
+      onInput={(e) => put(e.currentTarget.value)} /><span class="param-hex">{value as string}</span></>
+    : <input type="checkbox" id={id} class="switch" checked={value as boolean}
+      onChange={(e) => put(e.currentTarget.checked)} />);
+  // Unused, the reset keeps its place (hidden), so a slider never narrows under the pointer.
   return (
-    <div class={`param param-${p.kind}`}>
-      <div class="param-head"><label for={id}>{p.label}</label>
-        {p.kind === 'number' && <button type="button" class="param-mod" aria-pressed={bound}
-          aria-label={`Modulate ${p.label}`} title="Modulate: an LFO, a global or the clip envelope"
-          onClick={() => modulate(p, values[name], globals(), (b) => set((q) => {
-            if (b) q[name] = b; else delete q[name];
-          }))}>
-          ∿</button>}
-        <button type="button" class="param-reset" title="Reset to default" aria-label={`Reset ${p.label} to default`}
-          hidden={!has || value === p.value} onClick={() => set((q) => { delete q[name]; })}>↺</button></div>
-      <div class="param-field">{field}</div>
-    </div>);
+    <Field label={p.label} stack={p.kind === 'number'} class={cx('param', p.kind === 'toggle' && 'toggle')}>
+      {(id) => <>{field(id)}<button type="button" class={cx('param-reset', (!has || value === p.value) && 'unused')}
+        title="Reset to default" aria-label={`Reset ${p.label} to default`}
+        onClick={() => set((q) => { delete q[name]; })}>↺</button></>}</Field>);
 }
 
 /** The modulate dialog for a number param: an LFO, a global or the clip envelope, or nothing. */
@@ -96,15 +90,15 @@ function modulate(p: Param, now: ParamValue | undefined, globals: string[], appl
       <Field label="Moved by">{select('mod', [['', 'Nothing: the slider sets it'], ['lfo', 'An LFO'],
         ['global', 'A global'], ['envelope', 'The clip envelope']])}</Field>
       <div class="mod-fields" hidden={f.mod !== 'lfo'}>
-        <div class="mod-row"><Field label="Shape">{select('shape', SHAPES.map((s) => [s, humanize(s)]))}</Field>
-          {field('Cycles', 'rate')}
-          <Field label="Per">{select('unit', [['hz', 'a second (Hz)'], ['beats', 'a beat']])}</Field></div>
-        <div class="mod-row">{field('Centre', 'center')}{field('Depth (±)', 'depth')}</div></div>
+        <Field label="Shape">{select('shape', SHAPES.map((s) => [s, humanize(s)]))}</Field>
+        {field('Cycles', 'rate')}
+        <Field label="Per">{select('unit', [['hz', 'a second (Hz)'], ['beats', 'a beat']])}</Field>
+        {field('Centre', 'center')}{field('Depth (±)', 'depth')}</div>
       <div class="mod-fields" hidden={f.mod !== 'global'}>
         <Field label="Global">{select('name', globals.map((g) => [g, humanize(g)]))}</Field>
-        <div class="mod-row">{field('At its lowest', 'from')}{field('At its highest', 'to')}</div></div>
-      <div class="mod-fields" hidden={f.mod !== 'envelope'}>
-        <div class="mod-row">{field('Outside clips', 'eFrom')}{field('Fully in', 'eTo')}</div></div>
+        {field('At its lowest', 'from')}{field('At its highest', 'to')}</div>
+      <div class="mod-fields" hidden={f.mod !== 'envelope'}>{field('Outside clips', 'eFrom')}{field('Fully in', 'eTo')}
+      </div>
       <div class="dialog-actions">
         <button type="button" class="btn ghost" onClick={() => close()}>Cancel</button>
         <button type="button" class="btn primary" onClick={() => { close(); apply(makeBinding(f, p)); }}>Apply</button>
