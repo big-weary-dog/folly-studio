@@ -1,5 +1,5 @@
-// Mosaic: snaps positions to blocks: `cells` across width, height and depth (and metres, angle, radius to
-// match), `leds` per block along each strand (1 keeps strands smooth). Flat layers stay flat.
+// Mosaic: snaps what is above it to blocks, Blocks across the layer's width, height and depth (and metres, angle and
+// radius to match), and LEDs per block along each strand (1 keeps strands smooth). Flat layers stay flat.
 const params = {
   cells: { value: 12, min: 2, max: 64, step: 1, label: 'Blocks across the layer' },
   leds: { value: 6, min: 1, max: 40, step: 1, label: 'LEDs per block along a strand' },

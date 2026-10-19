@@ -1,29 +1,30 @@
-// Garlands: rows of swags (parabolas between hooks) drape down the layer one by one, then fade, in body and
-// accent colours over the low colour; energy lights the hooks. rows, swags, sag, thick, every (seconds a row).
+// Garlands: rows of swags drape across the layer one after another in Direction at Speed, then fade and start again,
+// each row a colour from Colours. Sag is how deep each swag hangs.
 const params = {
-  rows: { value: 5, min: 1, max: 12, step: 1 },
-  swags: { value: 4, min: 1, max: 12, step: 1, label: 'Swags per row' },
-  sag: { value: 0.08, min: 0, max: 0.3, step: 0.005, label: 'Sag (share of the height)' },
-  thick: { value: 0.035, min: 0.01, max: 0.15, step: 0.005, label: 'Thickness' },
-  every: { value: 0.8, min: 0.2, max: 4, step: 0.05, label: 'Seconds per row' },
+  colours: { value: 'all', type: 'color', label: 'Colours' },
+  direction: { value: 'down', type: 'choice', options: DIRECTIONS, label: 'Direction' },
+  speed: { value: 1.25, min: 0.25, max: 5, step: 0.05, label: 'Speed (rows a second)' },
+  rows: { value: 5, min: 1, max: 12, step: 1, label: 'Rows' },
+  swags: { value: 4, min: 1, max: 12, step: 1, label: 'Swags a row' },
+  sag: { value: 0.08, min: 0, max: 0.3, step: 0.005, label: 'Sag' },
+  width: { value: 0.035, min: 0.01, max: 0.15, step: 0.005, label: 'Width' },
 };
 
-// The i-th band: body and accent colours in turn, spread along each role.
-const swatch = (i) => pal(i & 1 ? 'accent' : 'body', fract(i * 0.618));
-
-function pixel(p, t, P, G) {
-  const n = round(P.rows), ph = (t / P.every) % (n + 2);              // rows hung so far
-  const hook = fract(p.lz * P.swags) * 2 - 1;                          // −1 … 1 between two hooks
-  const y = p.ly + P.sag * (1 - hook * hook);                          // swags straightened out
-  const fade = 1 - smoothstep(n + 1, n + 2, ph);
+function pixel(p, t, P) {
+  const d = P.direction, n = round(P.rows), ph = clock('speed') % (n + 2);       // rows hung so far
+  const hook = fract((d === 'right' || d === 'left' ? p.ly : p.lz) * P.swags) * 2 - 1;  // −1 … 1 between two hooks
+  const y = 1 - toward(p, d) + P.sag * (1 - hook * hook);                       // swags straightened out
   const j0 = round((1 - y) * n - 0.5);
   let v = 0, row = 0;
   for (let j = j0 - 1; j <= j0 + 1; j++) {
     if (j < 0 || j >= n || ph < j) continue;
     const drop = smoothstep(0, 1, ph - j), at = 1 - (j + 0.5) / n + (1 - drop) * 0.25;
-    const k = smoothstep(P.thick, P.thick * 0.4, abs(y - at)) * drop;
+    const k = smoothstep(P.width, P.width * 0.4, abs(y - at)) * drop;
     if (k > v) { v = k; row = j; }
   }
-  const c = mix(pal('low', p.ly), swatch(row), v * fade);
-  return mix(c, pal('high'), v * fade * pulse(p.lz * P.swags, 0.08) * G.energy);
+  v *= 1 - smoothstep(n + 1, n + 2, ph);
+  if (v <= 0.002) return null;
+  const c = swatch('colours', row);
+  c[3] = v;
+  return c;
 }

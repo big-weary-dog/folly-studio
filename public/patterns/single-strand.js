@@ -1,4 +1,4 @@
-// Single strand: bands of colour chase along every strand, one colour each from Colours, a Gap of each left clear.
+// Chase: bands of colour chase along every strand at Speed, one colour each from Colours, a Gap of each left clear.
 // Mode: along, back and forth, out from each strand's middle, or in to it. Comet draws each band as a head (the last
 // colour) with a tail fading back through the others. Lap leaves that many clear LEDs after each pass; Scatter gives
 // each strand its own start and pace; Alternate runs every other strand the other way.

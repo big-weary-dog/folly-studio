@@ -11,7 +11,7 @@ const params = {
   width: { value: 0.22, min: 0.02, max: 0.5, step: 0.01, label: 'Width (share of the gap; stripes: blend)' },
   edge: { value: 0.015, min: 0.002, max: 0.2, step: 0.001, label: 'Edge softness' },
   glow: { value: 0.55, min: 0, max: 1, step: 0.01, label: 'Afterglow behind the beam' },
-  twist: { value: 0, min: -2, max: 2, step: 0.05, label: 'Twist along the axis' },
+  twist: { value: 0, min: -6, max: 6, step: 0.05, label: 'Twist along the axis (turns)' },
 };
 
 function pixel(p, t, P) {

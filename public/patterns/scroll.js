@@ -1,18 +1,19 @@
-// Scroll: slides the layer, wrapping round: across, up, front to back (layer widths a second) or along every
-// strand (u and i together, so chases above it drift along their wires).
+// Scroll: slides what is above it in Direction at Speed, wrapping round: across, up, front to back, round, out from
+// the centre, or along every strand (so chases above it drift along their wires).
 const params = {
-  across: { value: 0.1, min: -2, max: 2, step: 0.01, label: 'Left → right' },
-  up: { value: 0, min: -2, max: 2, step: 0.01, label: 'Upward' },
-  depth: { value: 0, min: -2, max: 2, step: 0.01, label: 'Front → back' },
-  along: { value: 0, min: -2, max: 2, step: 0.01, label: 'Along strands' },
+  direction: { value: 'right', type: 'choice', options: DIRECTIONS, label: 'Direction' },
+  speed: { value: 0.1, min: -2, max: 2, step: 0.01, label: 'Speed (layers a second)' },
 };
 
 function warp(q, t, P) {
-  if (P.across) q.lz = fract(q.lz - t * P.across);
-  if (P.up) q.ly = fract(q.ly - t * P.up);
-  if (P.depth) q.lx = fract(q.lx - t * P.depth);
-  if (P.along) {
-    q.u = fract(q.u - t * P.along);
+  const d = P.direction, s = d === 'down' || d === 'left' || d === 'front' || d === 'in' ? -clock('speed')
+    : clock('speed');
+  if (d === 'right' || d === 'left') q.lz = fract(q.lz - s);
+  else if (d === 'back' || d === 'front') q.lx = fract(q.lx - s);
+  else if (d === 'out' || d === 'in') q.r = fract(q.r - s);
+  else if (d === 'round') q.a = fract(q.a - s);
+  else if (d === 'along') {
+    q.u = fract(q.u - s);
     q.i = round(q.u * (q.n - 1));
-  }
+  } else q.ly = fract(q.ly - s);
 }

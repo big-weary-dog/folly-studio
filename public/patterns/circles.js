@@ -1,23 +1,25 @@
-// Circles: body and accent balls bounce round the layer and melt together where they meet (metaballs), rims
-// in the highlight over the low colour. count, size (energy swells them), speed (crossings a second).
+// Circles: balls drift and bounce round the layer at Speed, each a colour from Colours, melting together where they
+// meet.
 const params = {
+  colours: { value: 'all', type: 'color', label: 'Colours' },
+  speed: { value: 0.15, min: 0, max: 1, step: 0.01, label: 'Speed (crossings a second)' },
   count: { value: 5, min: 1, max: 8, step: 1, label: 'Balls' },
-  size: { value: 0.12, min: 0.03, max: 0.4, step: 0.01, label: 'Ball radius' },
-  speed: { value: 0.15, min: 0, max: 1, step: 0.01, label: 'Crossings a second' },
+  size: { value: 0.12, min: 0.03, max: 0.4, step: 0.01, label: 'Size' },
 };
 
 const BZ = new Float64Array(8), BY = new Float64Array(8);
 let n = 0, r2 = 0;
 
-function frame(t, P, G) {
-  n = round(P.count);
-  r2 = (P.size * (0.7 + 0.6 * G.energy)) ** 2;
+function frame(t, P) {
+  const s = clock('speed');
+  n = round(P.count); r2 = P.size * P.size;
   for (let i = 0; i < n; i++) {
-    BZ[i] = 0.08 + 0.84 * tri(t * P.speed * (0.6 + 0.8 * rand(i, 1)) + rand(i, 2));
-    BY[i] = 0.08 + 0.84 * tri(t * P.speed * (0.5 + 0.8 * rand(i, 3)) + rand(i, 4));
+    BZ[i] = 0.08 + 0.84 * tri(s * (0.6 + 0.8 * rand(i, 1)) + rand(i, 2));
+    BY[i] = 0.08 + 0.84 * tri(s * (0.5 + 0.8 * rand(i, 3)) + rand(i, 4));
   }
 }
 
+// Metaballs: each ball's field falls off with distance; where the sum passes 1 is inside, the nearest ball's colour.
 function pixel(p) {
   let f = 0, best = 0, b = 0;
   for (let i = 0; i < n; i++) {
@@ -26,7 +28,9 @@ function pixel(p) {
     f += w;
     if (w > best) { best = w; b = i; }
   }
-  const inside = b % 2 ? pal('accent', rand(b, 5)) : pal('body', rand(b, 6));
-  const c = mix(pal('low', p.ly), inside, smoothstep(0.75, 1.1, f));
-  return mix(c, pal('high'), exp(-(f - 0.9) * (f - 0.9) * 40) * 0.8);
+  const k = smoothstep(0.75, 1.1, f);
+  if (k <= 0.002) return null;
+  const c = swatch('colours', b);
+  c[3] = k;
+  return c;
 }

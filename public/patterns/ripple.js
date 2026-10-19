@@ -1,20 +1,21 @@
-// Ripple: drops land at seeded spots and spread accent rings with highlight crests, like rain on a pond
-// (xLights). every (seconds per slot; energy fills more slots), speed (layer widths a second), width.
+// Ripple: drops land at random spots and spread rings at Speed, each fading as it grows: strong crests in the last of
+// Colours, faint rings in the first. Drops is how many spread at once.
 const params = {
-  every: { value: 2.5, min: 0.5, max: 10, step: 0.1, label: 'Seconds between drops (each slot)' },
-  speed: { value: 0.25, min: 0.05, max: 1, step: 0.01, label: 'Ring speed' },
+  colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth' },
+  speed: { value: 0.25, min: 0.05, max: 1, step: 0.01, label: 'Speed (layers a second)' },
+  drops: { value: 5, min: 1, max: 8, step: 1, label: 'Drops at once' },
   width: { value: 0.05, min: 0.005, max: 0.15, step: 0.005, label: 'Ring width' },
 };
 
-const SLOTS = 8;
-const CZ = new Float64Array(SLOTS), CY = new Float64Array(SLOTS), AGE = new Float64Array(SLOTS);
+const REACH = 0.6;                                // how far a ring spreads before its drop lands again elsewhere
+const CZ = new Float64Array(8), CY = new Float64Array(8), R = new Float64Array(8);
 let on = 0;
 
-function frame(t, P, G) {
-  on = 2 + round(G.energy * 6);
+function frame(t, P) {
+  on = round(P.drops);
   for (let s = 0; s < on; s++) {
-    const x = t / P.every + rand(s, 7), c = floor(x);
-    AGE[s] = (x - c) * P.every;
+    const x = clock('speed') / REACH + rand(s, 7), c = floor(x);
+    R[s] = (x - c) * REACH;
     CZ[s] = 0.1 + 0.8 * rand(s, c, 1);
     CY[s] = 0.1 + 0.8 * rand(s, c, 2);
   }
@@ -23,11 +24,13 @@ function frame(t, P, G) {
 function pixel(p, t, P) {
   let v = 0;
   for (let s = 0; s < on; s++) {
-    const R = AGE[s] * P.speed, d = hypot(p.lz - CZ[s], p.ly - CY[s]);
-    if (d > R + 3 * P.width) continue;
-    const x = (d - R) / P.width, y = x + 4;
-    v += (exp(-x * x) + 0.5 * exp(-y * y)) * exp(-AGE[s] * 0.8);
+    const d = hypot(p.lz - CZ[s], p.ly - CY[s]);
+    if (d > R[s] + 3 * P.width) continue;
+    const x = (d - R[s]) / P.width;
+    v += exp(-x * x) * exp(-R[s] * 3.2);
   }
-  const c = mix(pal('low', 0.5 + 0.5 * sin(p.lz * 9 + p.ly * 5 + t * 0.3)), pal('accent', p.ly), min(1, v));
-  return mix(c, pal('high'), smoothstep(0.7, 1.2, v));
+  if (v < 0.004) return null;
+  const c = pal('colours', min(1, v));
+  c[3] = min(1, v);
+  return c;
 }

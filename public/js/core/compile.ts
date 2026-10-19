@@ -180,7 +180,8 @@ export function setLibrary(list?: readonly { name: string, code: string, kind?: 
   for (const e of list ?? []) if ((e.kind ?? 'source') === 'source') LIBRARY.set(e.name, e.code);
 }
 
-/** use(name, params?): library source `name` as its own instance, a function (p, t) → colour. */
+/** use(name, params?): library source `name` as its own instance, a function (p, t) → colour ([0, 0, 0, 0] for
+ * null). */
 function use(name: string, params?: Record<string, unknown>) {
   const code = LIBRARY.get(String(name));
   if (code === undefined) throw new Error(`use(): unknown library pattern "${name}"`);
@@ -192,6 +193,6 @@ function use(name: string, params?: Record<string, unknown>) {
   let last = NaN;
   return function used(p: Pixel, t: number) {
     if (t !== last) { last = t; m.picks.frame(); if (frame) frame(t, P, RUN.G!); }
-    return pixel(p, t, P, RUN.G!);
+    return pixel(p, t, P, RUN.G!) ?? [0, 0, 0, 0];     // nothing drawn: transparent, still a colour to work with
   };
 }

@@ -1,38 +1,37 @@
-// Fireworks: shells burst high into rings of sparks that sag and fade, body or accent with a white-hot heart,
-// over a night of the low colour at `sky`. every (seconds per slot; energy fills more slots), size, sparks.
+// Fireworks: shells burst high on the layer into rings of sparks that sag and fade, each its own colour from Colours.
+// Speed is bursts a second from each of Shells; Size is how far they spread.
 const params = {
-  every: { value: 2.2, min: 0.8, max: 8, step: 0.1, label: 'Seconds between bursts (each slot)' },
-  size: { value: 0.34, min: 0.1, max: 0.6, step: 0.01, label: 'Burst radius' },
+  colours: { value: 'all', type: 'color', label: 'Colours' },
+  speed: { value: 0.45, min: 0.1, max: 1.5, step: 0.01, label: 'Speed (bursts a second, each shell)' },
+  shells: { value: 4, min: 1, max: 6, step: 1, label: 'Shells' },
+  size: { value: 0.34, min: 0.1, max: 0.6, step: 0.01, label: 'Size' },
   sparks: { value: 12, min: 4, max: 32, step: 1, label: 'Sparks round a burst' },
-  sky: { value: 0.35, min: 0, max: 1, step: 0.01, label: 'Sky brightness' },
 };
 
-const SLOTS = 6;
-const CZ = new Float64Array(SLOTS), CY = new Float64Array(SLOTS), AGE = new Float64Array(SLOTS);
-const ID = new Float64Array(SLOTS);
+const CZ = new Float64Array(6), CY = new Float64Array(6), AGE = new Float64Array(6), ID = new Float64Array(6);
 let on = 0;
 
-function frame(t, P, G) {
-  on = 2 + round(G.energy * 4);
+function frame(t, P) {
+  on = round(P.shells);
   for (let s = 0; s < on; s++) {
-    const x = t / P.every + rand(s, 9), c = floor(x), a = (x - c) * P.every;
-    ID[s] = c * SLOTS + s;
-    AGE[s] = a;
+    const x = clock('speed') + rand(s, 9), c = floor(x), a = x - c;     // a: how far through its burst
+    ID[s] = c * 6 + s; AGE[s] = a;
     CZ[s] = 0.15 + 0.7 * rand(s, c, 1);
-    CY[s] = 0.5 + 0.35 * rand(s, c, 2) - 0.05 * a * a;          // the burst sags as it falls
+    CY[s] = 0.5 + 0.35 * rand(s, c, 2) - 0.24 * a * a;                  // the burst sags as it falls
   }
 }
 
 function pixel(p, t, P) {
-  let c = scale(pal('low', p.ly), P.sky);
+  let best = 0, id = 0;
   for (let s = 0; s < on; s++) {
-    const a = AGE[s], R = P.size * (1 - exp(-a * 3));
-    const dz = p.lz - CZ[s], dy = p.ly - CY[s], d = hypot(dz, dy);
+    const a = AGE[s], R = P.size * (1 - exp(-a * 6.6)), dz = p.lz - CZ[s], dy = p.ly - CY[s], d = hypot(dz, dy);
     if (d > R + 0.03) continue;
     const spark = pulse(atan2(dz, dy) / TAU * P.sparks + rand(ID[s], 3), 0.45);
-    const v = (spark * smoothstep(R * 0.2, R, d) + 0.25) * exp(-a * 0.9) + exp(-d * d * 300 - a * 6);
-    const hue = ID[s] % 2 ? pal('accent', rand(ID[s], 4)) : pal('body', rand(ID[s], 5));
-    c = mix(c, mix(hue, pal('high'), exp(-a * 5)), min(1, v * 1.5));
+    const v = (spark * smoothstep(R * 0.2, R, d) + 0.25) * exp(-a * 2) + exp(-d * d * 300 - a * 13);
+    if (v > best) { best = v; id = ID[s]; }
   }
+  if (best < 0.004) return null;
+  const c = swatch('colours', id);
+  c[3] = min(1, best * 1.5);
   return c;
 }

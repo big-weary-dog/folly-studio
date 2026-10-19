@@ -1,8 +1,8 @@
-// Invert: swaps light and dark, each colour for its opposite: night becomes day, embers ice. amount blends
-// from the original; hueOnly keeps the brightness and only turns the colour round the wheel.
+// Invert: swaps light and dark in what is above it, each colour for its opposite; Hue only keeps the brightness and
+// turns the colour round the wheel. Amount blends it with the colour it had.
 const params = {
-  amount: { value: 1, min: 0, max: 1, step: 0.01 },
-  hueOnly: { value: false, type: 'toggle', label: 'Keep brightness, turn the hue' },
+  amount: { value: 1, min: 0, max: 1, step: 0.01, label: 'Amount' },
+  hueOnly: { value: false, type: 'toggle', label: 'Hue only' },
 };
 
 function filter(c, q, t, P) {

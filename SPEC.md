@@ -213,9 +213,8 @@ pick's or role's i-th colour, floored and wrapping),
 pixels' bounds in metres, `[[X0, Y0, Z0], [X1, Y1, Z1]]`, which `lx ly lz` map to 0..1: so a pattern can burst from
 a `centres()` point and still fill its layer), `clock(name)` (how far number param `name`, a speed, has moved
 things: "Integrated clocks" below), `DIRECTIONS` and `toward(p, direction)` ("Directions" below), and
-`use(name, params?)` → a
-function `(p, t) → colour` running library source `name` as its own instance (its `frame` runs once per new t;
-throws `unknown library pattern`). Colours are `[r, g, b]` arrays, 0..1.
+`use(name, params?)` → `(p, t) → colour` (`[0, 0, 0, 0]` for null), library source `name` as its own instance (its
+`frame` runs once per new t; throws `unknown library pattern`). Colours are `[r, g, b]` arrays, 0..1.
 
 ### Directions
 
