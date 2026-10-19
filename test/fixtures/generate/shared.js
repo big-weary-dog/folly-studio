@@ -11,7 +11,7 @@ import { DEFAULT_MODEL } from '../../../src/generate/claude.ts';
 
 export const FIX = fileURLToPath(new URL('./', import.meta.url));
 export const STUDIO = fileURLToPath(new URL('../../../', import.meta.url));
-export const RIG = JSON.parse(fs.readFileSync(path.join(STUDIO, 'public/data/rig.json'), 'utf8'));
+export const RIG = JSON.parse(fs.readFileSync(path.join(STUDIO, 'public/data/rig-folly.json'), 'utf8'));
 export const GROUPS = RIG.groups;
 export const LIBRARY = JSON.parse(fs.readFileSync(path.join(FIX, 'library/index.json'), 'utf8'))
   .map((p) => ({ ...p, code: fs.readFileSync(path.join(FIX, 'library', `${p.name}.js`), 'utf8') }));

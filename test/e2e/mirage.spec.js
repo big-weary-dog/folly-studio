@@ -92,7 +92,7 @@ test('Studio → sACN → relay → Mirage, byte for byte', async ({ browser }, 
     await test.step('our LED map is the canonical CSV', () => {
       const canon = checkCanonical();
       md.push('## Studio LED map vs the canonical TouchDesigner CSV', '',
-        `rig.json ${canon.count} LEDs, td/data/all-pixels-positions.csv ${canon.rows} rows: `
+        `rig-folly.json ${canon.count} LEDs, td/data/all-pixels-positions.csv ${canon.rows} rows: `
         + `${canon.diffs.length} differ in zone, universe/channel or position `
         + `(max Δpos ${canon.posMax.toFixed(4)} m).`, '');
       expect.soft(canon.rows, 'CSV rows').toBe(canon.count);

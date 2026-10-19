@@ -46,7 +46,7 @@ const GROUPS = [['cathedral'], ['rose-window'], ['spires'], ['main-arch-3'], ['c
 const BLENDS = ['add', 'over', 'max', 'multiply'];
 
 test('the library: each source, the long chains and the whole stack, against the reference', () => {
-  const scene = prepareScene(JSON.parse(read('../../public/data/rig.json')));
+  const scene = prepareScene(JSON.parse(read('../../public/data/rig-folly.json')));
   const out = new Float32Array(scene.count * 3), time = timer(reference);
   /** A frame of these layers as a multiple of the reference: the median of PAIRS turns, warm. */
   const cost = (layers) => {

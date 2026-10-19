@@ -1,5 +1,5 @@
-// The Playa view's geometry comes from the rig's render hints alone: the Folly's rig and the fictional mini rig
-// (z up, floods aimed up) both build, in the view frame, with nothing non-finite in what goes to the GPU.
+// The Playa view's geometry comes from the rig's render hints alone: City of Gods, the Folly's rig and the fictional
+// mini rig (z up, floods aimed up) all build, in the view frame, with nothing non-finite in what goes to the GPU.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -10,7 +10,8 @@ import { tooSlow } from '../public/js/playa/renderer.ts';
 import { frameOf } from '../public/js/viewer.ts';
 
 const rig = (file) => JSON.parse(readFileSync(new URL(file, import.meta.url), 'utf8'));
-const FOLLY = rig('../public/data/rig.json');
+const FOLLY = rig('../public/data/rig-folly.json');
+const COG = rig('../public/data/rig.json');
 const MINI = rig('./fixtures/rigs/mini.json');
 
 function build(r) {
@@ -45,6 +46,15 @@ test('the Folly builds: a ribbon per tube pixel, a globe per bulb, glass per cel
   const wash = floods.find((f) => !f.render.cone.solid);
   const k = wash.start + wash.render.cone.dirs.findIndex((d) => d[1] < -0.5);
   assert.ok(k >= wash.start && g.spill[3 * k + 1] < FOLLY.pixels.pos[3 * k + 1] / 2);
+});
+
+test('City of Gods builds: its spirelets stand on the towers as lit cones, no beams; the towers are scaffold', () => {
+  const { g } = build(COG);
+  assert.ok(finite(g));
+  assert.equal(g.nbeam, 0);
+  assert.equal(g.nshell, pixels(COG, 'flood') * 72);
+  assert.equal(g.nstrip, pixels(COG, 'strip', (r) => !r.bulbs));
+  assert.ok(COG.structure.lines.length > 0);
 });
 
 test('the mini rig builds in its own axes: upright posts, a sagging lintel, floods aimed up', () => {

@@ -1,5 +1,5 @@
-// The rig (SPEC "Rig") through the core, on the Folly's and on a fictional mini rig (z up, GRB, 2 universes of 300
-// channels): nothing in the core, the addressing or the group rules assumes the Folly.
+// The rig (SPEC "Rig") through the core, on City of Gods, the Folly's and a fictional mini rig (z up, GRB, 2
+// universes of 300 channels): nothing in the core, the addressing or the group rules assumes the Folly.
 import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
@@ -46,7 +46,7 @@ for (const [name, rig] of Object.entries(RIGS)) {
         for (const k of pixelsForGroups(scene, [g.id])) assert.ok(parent.has(k), `${g.id} pixel ${k}`);
       }
       assert.deepEqual(groupsByTag(scene, 'all').map((g) => g.id), [scene.root.id]);
-      for (const tag of ['arch', 'rose', 'wash']) {
+      for (const tag of ['arch', 'rose', name === 'cog' ? 'spire' : 'wash']) {
         const found = groupsByTag(scene, tag);
         assert.ok(found.length, `${name} tags ${tag}`);
         assert.deepEqual(pixelsForGroups(scene, [], [tag]), pixelsForGroups(scene, found.map((g) => g.id)));

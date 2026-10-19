@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-"""Build studio/public/data/rig.json, the Gothic Folly as the studio sees it (SPEC "Rig").
+"""Build the rigs as the studio sees them (SPEC "Rig"): City of Gods, the default, as studio/public/data/rig.json
+from ../city-of-gods/pixel-map/ (tools/cog_rig.py), and the Gothic Folly's playa build as rig-folly.json from
+../pixel-map/.
 
-    python3 studio/tools/build_rig.py [--check]   # write it, or exit 1 if the committed file is stale
+    python3 studio/tools/build_rig.py [--check]   # write them, or exit 1 if a committed file is stale
 
 Every LED comes from td/python/make_pixel_csv.py's pixel_rows(), so the studio lights exactly the LEDs
-TouchDesigner, Mirage and the relay do: same order, universe/channel and places. This adds what the CSV
-does not keep: fixtures (an arch, a quad face, a spire strand, a rose petal...), learnt by wrapping
-make_pixel_csv's module-global `chain` generator (consecutive spirelet or wash pixels of one corner or
-chain merged), the rose's rings and petals as attrs, a tagged group tree, and the render hints and scaffold
-Mirage draws (tools/rig_render.py). Views: td/config/views.json. Output: td/config/output.json, universes from
-xlights/xlights_networks.xml.
+TouchDesigner, Mirage and the relay do from the same pixel map: same order, universe/channel and places. This adds
+what the CSV does not keep: fixtures (an arch, a quad face, a spire strand, a rose petal...), learnt by wrapping
+make_pixel_csv's module-global `chain` generator (consecutive spirelet or wash pixels of one corner or chain merged),
+the rose's rings and petals as attrs, a tagged group tree, and the render hints and scaffold Mirage draws
+(tools/rig_render.py). Views: td/config/views.json (City of Gods: its own). Output: td/config/output.json, universes
+from xlights/xlights_networks.xml.
 """
 import argparse
 import json
@@ -26,13 +28,14 @@ TD_PYTHON = os.path.join(REPO, 'td', 'python')
 PIXEL_MAP = os.path.join(REPO, 'pixel-map')
 TD_CONFIG = os.path.join(REPO, 'td', 'config')
 NETWORKS = os.path.join(REPO, 'xlights', 'xlights_networks.xml')
-OUT = os.path.join(STUDIO, 'public', 'data', 'rig.json')
+DATA = os.path.join(STUDIO, 'public', 'data')
 
 for p in (TD_PYTHON, HERE):
     if p not in sys.path:
         sys.path.insert(0, p)
 import make_pixel_csv as mpc  # noqa: E402  (needs the path above)
 import rig_render  # noqa: E402
+import cog_rig  # noqa: E402
 
 NAME = 'Gothic Folly 2026'
 ABOUT = ('The Gothic Folly is a full-scale LED cathedral built for Burning Man: a playa-facing portal of five '
@@ -75,16 +78,19 @@ def identity(zone, start, n):
     return None, zone, zone[:1].upper() + zone[1:].replace('-', ' ')
 
 
-def tagged_rows():
+def tagged_rows(pixel_map):
     """pixel_rows() plus, per row, its fixture index, and the fixtures."""
     fixtures, tags = [], []
-    original = mpc.chain
+    original, sources = mpc.chain, mpc.sources
 
     def chain(zone, start, places, channels, rows=None):
         n = sum(1 for f in fixtures if f['zone'] == zone) + 1
         key, fid, name = identity(zone, start, n)
         last = fixtures[-1] if fixtures else None
         if key is None or last is None or last['key'] != key or last['zone'] != zone:
+            if any(f['id'] == fid for f in fixtures):  # a corner's spirelet chained on after another corner's
+                k = start['label'].split('-')[-1]
+                fid, name = 'spirelet-%s-%s' % (start['corner'], k), 'Spirelet %s %s' % (start['corner'], k)
             fixtures.append({'id': fid, 'name': name, 'zone': zone, 'key': key, 'count': 0})
         index = len(fixtures) - 1
         for led in original(zone, start, places, channels, rows):
@@ -93,10 +99,11 @@ def tagged_rows():
             yield led
 
     mpc.chain = chain
+    mpc.sources = lambda pm: [s for s in sources(pm) if os.path.exists(os.path.join(pm, s[1]))]  # no canopy: none
     try:
-        rows = mpc.pixel_rows(PIXEL_MAP, output()['channelsPerUniverse'])
+        rows = mpc.pixel_rows(pixel_map, output()['channelsPerUniverse'])
     finally:
-        mpc.chain = original
+        mpc.chain, mpc.sources = original, sources
     if len(tags) != len(rows) or any(fixtures[tags[i]]['zone'] != r[0] for i, r in enumerate(rows)):
         raise SystemExit('fixture tags and pixel rows disagree')
     return rows, tags, fixtures
@@ -118,36 +125,41 @@ def m3(v):
     return float('%.3f' % float(v))
 
 
-def render_hints(fixtures, rows):
+def folly_scaffold():
+    """The Folly's scaffold, and its spirelet and wash cones."""
+    quads = dict((q, read(PIXEL_MAP, 'arch-led-positions-quad-%s.json' % q)) for q in QUADS)
+    towers = rig_render.towers(quads, read(PIXEL_MAP, 'wash-led-positions.json'))
+    return rig_render.structure(towers), rig_render.spirelet_cone, lambda mine: rig_render.wash_cone(mine, towers)
+
+
+def render_hints(fixtures, rows, pixel_map, spirelet_cone, wash_cone=None):
     """Each fixture's kind and render hints, as Mirage draws it."""
     strips = rig_render.strip_hints()
-    quads = dict((q, read(PIXEL_MAP, 'arch-led-positions-quad-%s.json' % q)) for q in QUADS)
-    wash = read(PIXEL_MAP, 'wash-led-positions.json')
-    towers = rig_render.towers(quads, wash)
-    spirelets = read(PIXEL_MAP, 'spires-corners-led-positions.json')['pixels']
-    cells = read(PIXEL_MAP, 'cell-polygons.json')['cells']
-    petals = read(PIXEL_MAP, 'window-data.json')['petals']
-    order = read(PIXEL_MAP, 'universe-map.json')['zones']['rose_window']['cell_order']
-    floods, first = {'wash': wash['pixels'], 'spirelet': spirelets}, {}
+    cells = read(pixel_map, 'cell-polygons.json')['cells']
+    petals = read(pixel_map, 'window-data.json')['petals']
+    order = read(pixel_map, 'universe-map.json')['zones']['rose_window']['cell_order']
+    floods, first = {'spirelet': read(pixel_map, 'spires-corners-led-positions.json')['pixels']}, {}
+    if wash_cone:
+        floods['wash'] = read(pixel_map, 'wash-led-positions.json')['pixels']
     for f in fixtures:
         zone, at = f['zone'], f['start']
         mine = floods.get(zone, [])[at - first.setdefault(zone, at):][:f['count']]
         if any(m3(a) != m3(b) for p, r in zip(mine, rows[at:]) for a, b in zip(p['position'], r[4:7])):
             raise SystemExit('%s: pixel-map order differs from the CSV' % f['id'])
         if zone == 'wash':
-            f.update(kind='flood', render={'cone': rig_render.wash_cone(mine, towers)})
+            f.update(kind='flood', render={'cone': wash_cone(mine)})
         elif zone == 'spirelet':
-            f.update(kind='flood', render={'cone': rig_render.spirelet_cone(mine)})
+            f.update(kind='flood', render={'cone': spirelet_cone(mine)})
         elif zone.startswith('rose-petal-'):
             petal = petals[int(zone[len('rose-petal-'):]) - 1]
             f.update(kind='cells', render={'cells': rig_render.rose_cells(mpc, cells, petal, order),
                                            'normal': [-1, 0, 0]})
         else:
             f.update(kind='strip', render=next(v for k, v in strips.items() if zone.startswith(k)))
-    return rig_render.structure(towers)
 
 
-def build_groups(zones, fixtures):
+def build_groups(zones, fixtures, pixel_map, drop=()):
+    """The group tree; `drop`: side tags that name no real place on this rig."""
     groups = []
 
     def add(gid, name, parent, tags=(), zones_=None, fixtures_=None, where=None, centre=None):
@@ -159,7 +171,7 @@ def build_groups(zones, fixtures):
         groups.append(g)
 
     like = lambda pattern: [z for z in zones if re.match(pattern, z)]
-    sides = lambda name: [s for s in ('front', 'back', 'left', 'right') if s in name.split('-')]
+    sides = lambda name: [s for s in ('front', 'back', 'left', 'right') if s in name.split('-') and s not in drop]
 
     add('cathedral', 'Cathedral', None, ['all'], zones)
     add('arches', 'Arches', 'cathedral', ['arch'], like(r'(main-arch|mini-arch-|quad-arch-)'))
@@ -180,7 +192,7 @@ def build_groups(zones, fixtures):
 
     add('spires', 'Spires', 'cathedral', ['spire'], like(r'spire-'))
     for zone in like(r'spire-'):
-        spire = read(PIXEL_MAP, 'spire-led-positions-%s.json' % zone[len('spire-'):])
+        spire = read(pixel_map, 'spire-led-positions-%s.json' % zone[len('spire-'):])
         centre = [m3((a + b) / 2) for a, b in zip(spire['base_center'], spire['apex'])]
         add(zone, 'Spire ' + zone[len('spire-'):], 'spires', ['tower'] + sides(zone), [zone], centre=centre)
     add('spirelets', 'Spirelets', 'cathedral', ['spirelet'], ['spirelet'])
@@ -194,10 +206,12 @@ def build_groups(zones, fixtures):
     for ring in range(1, 8):
         add('rose-ring-%d' % ring, 'Rose ring %d' % ring, 'rose-window', ['ring'], where={'ring': [ring]})
 
-    add('canopy', 'Canopy', 'cathedral', ['canopy'], ['canopy'])
-    leaves('canopy', 'canopy')
-    add('wash', 'Wash', 'cathedral', ['wash', 'flood'], ['wash'])
-    leaves('wash', 'wash')
+    if 'canopy' in zones:
+        add('canopy', 'Canopy', 'cathedral', ['canopy'], ['canopy'])
+        leaves('canopy', 'canopy')
+    if 'wash' in zones:
+        add('wash', 'Wash', 'cathedral', ['wash', 'flood'], ['wash'])
+        leaves('wash', 'wash')
 
     ids = [g['id'] for g in groups]
     if len(ids) != len(set(ids)):
@@ -205,8 +219,11 @@ def build_groups(zones, fixtures):
     return groups
 
 
-def build():
-    rows, tags, fixtures = tagged_rows()
+def build(which):
+    """The rig `which` ('cog' or 'folly')."""
+    cog = which == 'cog'
+    pixel_map = cog_rig.PIXEL_MAP if cog else PIXEL_MAP
+    rows, tags, fixtures = tagged_rows(pixel_map)
     zones = []
     for r in rows:
         if r[0] not in zones:
@@ -218,10 +235,19 @@ def build():
     for f in fixtures:
         f.update(start=start)
         start += f['count']
-    structure = render_hints(fixtures, rows)
+    if cog:
+        structure = cog_rig.structure(read(pixel_map, 'spires-corners-led-positions.json')['pixels'])
+        render_hints(fixtures, rows, pixel_map, cog_rig.spirelet_cone)
+    else:
+        structure, spirelet_cone, wash_cone = folly_scaffold()
+        render_hints(fixtures, rows, pixel_map, spirelet_cone, wash_cone)
+    groups = build_groups(zones, fixtures, pixel_map, drop=('back',) if cog else ())
+    if cog:
+        cog_rig.names(groups + fixtures)
     petal = lambda zone: int(zone[len('rose-petal-'):]) - 1 if zone.startswith('rose-petal-') else -1
     return {
-        'rig': 1, 'name': NAME, 'about': ABOUT, 'units': 'm', 'axes': {'up': '+y', 'front': '-x', 'right': '+z'},
+        'rig': 1, 'name': cog_rig.NAME if cog else NAME, 'about': cog_rig.ABOUT if cog else ABOUT,
+        'units': 'm', 'axes': {'up': '+y', 'front': '-x', 'right': '+z'},
         'output': output(), 'count': len(rows),
         'bounds': {'min': [min(pos[i::3]) for i in range(3)], 'max': [max(pos[i::3]) for i in range(3)]},
         'fixtures': [{k: f[k] for k in ('id', 'name', 'zone', 'kind', 'start', 'count', 'render')} for f in fixtures],
@@ -232,8 +258,8 @@ def build():
             'attrs': {'ring': [int(r[10]) if r[10] != '' else 0 for r in rows],
                       'sector': [petal(r[0]) for r in rows]},
         },
-        'groups': build_groups(zones, fixtures),
-        'views': read(TD_CONFIG, 'views.json')['views'],
+        'groups': groups,
+        'views': cog_rig.VIEWS if cog else read(TD_CONFIG, 'views.json')['views'],
         'structure': structure,
     }
 
@@ -261,27 +287,32 @@ def dumps(rig):
     return '\n'.join(lines + ['}']) + '\n'
 
 
+RIGS = {'cog': 'rig.json', 'folly': 'rig-folly.json'}
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
-    ap.add_argument('--check', action='store_true', help='exit 1 if %s is stale' % os.path.relpath(OUT, REPO))
-    ap.add_argument('--out', default=OUT, help='where to write (default: %(default)s)')
+    ap.add_argument('--check', action='store_true', help='exit 1 if a committed rig is stale')
+    ap.add_argument('--out', default=DATA, help='the folder to write them to (default: %(default)s)')
     args = ap.parse_args()
-    text = dumps(build())
-    old = open(args.out, encoding='utf-8').read() if os.path.exists(args.out) else None
-    if args.check:
-        if old != text:
-            print('%s is stale: run python3 studio/tools/build_rig.py' % os.path.relpath(args.out, REPO))
-            sys.exit(1)
-        print('%s is up to date' % os.path.relpath(args.out, REPO))
-        return
-    os.makedirs(os.path.dirname(args.out), exist_ok=True)
-    with open(args.out, 'w', encoding='utf-8', newline='\n') as f:
-        f.write(text)
-    rig = json.loads(text)
-    print('%d LEDs, %d fixtures, %d groups, %d scaffold lines -> %s (%s)'
-          % (rig['count'], len(rig['fixtures']), len(rig['groups']), len(rig['structure']['lines']),
-             os.path.relpath(args.out, REPO), 'unchanged' if old == text else 'written'))
-
+    stale = False
+    for which, name in RIGS.items():
+        out = os.path.join(args.out, name)
+        text = dumps(build(which))
+        old = open(out, encoding='utf-8').read() if os.path.exists(out) else None
+        if args.check:
+            stale = stale or old != text
+            print('%s %s' % (os.path.relpath(out, REPO), 'is up to date' if old == text
+                             else 'is stale: run python3 studio/tools/build_rig.py'))
+            continue
+        os.makedirs(args.out, exist_ok=True)
+        with open(out, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(text)
+        rig = json.loads(text)
+        print('%d LEDs, %d fixtures, %d groups, %d scaffold lines -> %s (%s)'
+              % (rig['count'], len(rig['fixtures']), len(rig['groups']), len(rig['structure']['lines']),
+                 os.path.relpath(out, REPO), 'unchanged' if old == text else 'written'))
+    sys.exit(1 if stale else 0)
 
 if __name__ == '__main__':
     main()

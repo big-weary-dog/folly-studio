@@ -15,7 +15,7 @@ import { LookCreate } from '../shared/schemas/api.ts';
 import { dropRemaps } from '../shared/schemas/look.ts';
 
 const here = (p) => new URL(p, import.meta.url);
-const rig = JSON.parse(readFileSync(here('../public/data/rig.json'), 'utf8'));
+const rig = JSON.parse(readFileSync(here('../public/data/rig-folly.json'), 'utf8'));
 const LIB = JSON.parse(readFileSync(here('./fixtures/library-v1.json'), 'utf8'));
 const scene = prepareScene(rig);
 const rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);

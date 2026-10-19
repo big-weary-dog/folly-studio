@@ -1,13 +1,13 @@
 // Looks for the end-to-end run, rendered in-process with pattern-core.ts and written with fseq.ts:
 // an address-test look that encodes each LED's identity in its colour, a zone-colour look, and a
-// moving library pattern. Only our own patterns run here.
+// moving library pattern, on the Folly's rig (rig-folly.json), which Mirage draws. Only our own patterns run here.
 import { readFileSync } from 'node:fs';
 
 import { compilePattern, prepareLayer, prepareScene, renderFrame, toChannels } from '../../public/js/pattern-core.ts';
 import { ledRanges, writeFseq } from '../../public/js/fseq.ts';
 
 const STUDIO = new URL('../../', import.meta.url);
-export const rig = JSON.parse(readFileSync(new URL('public/data/rig.json', STUDIO), 'utf8'));
+export const rig = JSON.parse(readFileSync(new URL('public/data/rig-folly.json', STUDIO), 'utf8'));
 const scene = prepareScene(rig);
 /** The rig as the harness reads it: each LED's zone and fixture index, its address and place; the views. */
 export const led = { count: rig.count, channelsPerUniverse: rig.output.channelsPerUniverse, zones: scene.zones,

@@ -22,7 +22,7 @@ export function loadCanonical() {
   });
 }
 
-/** Our rig.json against the canonical CSV, row by row: zone, address and position. */
+/** Our rig-folly.json against the canonical CSV, row by row: zone, address and position. */
 export function checkCanonical(csv = loadCanonical()) {
   const px = led.pixels;
   const diffs = [];

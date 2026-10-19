@@ -42,7 +42,8 @@ behind these rules.
   `out`), layers outside their clips are skipped before any pixel work, and the loop sleeps when
   nothing plays or changes. 4,870 LEDs at 40 fps leave no room for garbage.
 - **Every LED comes from `public/data/rig.json`**, and nothing else names the installation: code finds places
-  by the rig's group tags, never by the Folly's ids. The Folly's rig comes from `../pixel-map/` through
-  `npm run build-data`; never edit it by hand.
+  by the rig's group tags, never by the Folly's ids. It is City of Gods, from `../city-of-gods/pixel-map/`; the
+  Folly's playa build is `rig-folly.json`, from `../pixel-map/`. Both come from `npm run build-data`; never edit
+  them by hand.
 - **Comments and docs are brief and current.** Say what is and why, never how it got here.
 - **Commits are green**, and stage only `studio/` (plus `.github/workflows/studio.yml`).

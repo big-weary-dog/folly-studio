@@ -11,7 +11,7 @@ import {
 } from '../public/js/pattern-core.ts';
 
 const here = (p) => new URL(p, import.meta.url);
-const rig = JSON.parse(readFileSync(here('../public/data/rig.json'), 'utf8'));
+const rig = JSON.parse(readFileSync(here('../public/data/rig-folly.json'), 'utf8'));
 const index = JSON.parse(readFileSync(here('../public/patterns/index.json'), 'utf8'));
 const files = readdirSync(here('../public/patterns/')).filter((f) => f.endsWith('.js')).sort();
 const source = (name) => readFileSync(here(`../public/patterns/${name}.js`), 'utf8');

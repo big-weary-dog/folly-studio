@@ -21,7 +21,7 @@ npx oxlint src/app.ts        # oxlint alone, on a file or a folder
 npm test                     # vitest run: test/**/*.test.{js,ts} (vitest.config.js; a fresh build of the app
                              #   included), then every skipped test and why
 npx vitest run test/core.test.js     # one file (`-t <name>` for one test); `npm run test:watch` reruns on save
-npm run build-data           # rebuild public/data/rig.json from ../pixel-map/, palettes.json from ../td/palettes/
+npm run build-data           # rebuild public/data/rig.json (City of Gods) and rig-folly.json, palettes.json
 npm run smoke                # the app in Chromium at 1366 × 768 and 390 × 844: sign up, an idea, the Studio, a code
                              #   error, the timeline, a bake (Playwright Test, test/e2e/smoke.spec.js); the Models
                              #   page and an idea on a picked model (models.spec.js, a stand-in codex)
@@ -43,8 +43,8 @@ Codex CLI for Sol and Luna), `STUDIO_ADMINS` and `STUDIO_CURATORS` (usernames), 
 The render-box tests need bubblewrap (`apt install bubblewrap`) and unprivileged user
 namespaces. Without them they skip (`ctx.skip(condition, reason)`) and the run ends listing each skipped test and
 why (`test/skip-reporter.js`). The data tests need `python3`. Run
-`npm run build-data` after any change to `../pixel-map/`, `td/python/make_pixel_csv.py`, `td/config/` or Mirage's
-`src/config.js`; `test/data.test.js` fails while `rig.json` is stale. Never edit the Folly's by hand.
+`npm run build-data` after any change to `../city-of-gods/pixel-map/`, `../pixel-map/`, `td/python/make_pixel_csv.py`,
+`td/config/` or Mirage's `src/config.js`; `test/data.test.js` fails while a rig is stale. Never edit one by hand.
 
 ## Dependencies
 
@@ -128,7 +128,7 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
    Per-pixel numbers the patterns need (rings, sectors, rows) go in `pixels.attrs`.
 4. Replace `public/data/rig.json`, point `npm run build-data` at the new generator, and run `npm run check`:
    `test/rig.test.js` holds it to the core's rules. Tests that pin the Folly (`data.test.js`, `rig-folly.test.js`,
-   the counts in `core.test.js`) then read its rig from `test/fixtures/rigs/` instead.
+   the counts in `core.test.js`) read `rig-folly.json`; City of Gods is pinned by `rig-cog.test.js`.
 5. Saved looks keep working where their layers carry `tags`; ones that name only the old rig's group ids need
    their groups picked again.
 
@@ -165,7 +165,7 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `public/js/main.tsx`, `api.ts` | The entry (renders the shell); the fetch wrapper, typed by `shared/schemas/` |
 | `public/js/ui/` | The UI, Preact components in TSX with signals for state. `app.tsx`: the shell, routing (history API, views loaded on first use) and the header, `session.ts` what views share with it (the user, navigation, the guard on unsaved edits); `auth`, `pages` (ideas, my looks, the gallery), `models` (the admins' Models page); `kit.tsx` toasts, dialogs, fields and helpers, `rose.tsx` the rose. The Studio: `studio.tsx` loads it, `studio-store.ts` holds its state (the look, replaced on each edit; the selection; layout) and saves, `studio-layout.tsx` lays out the panes; `preview.ts` drives the imperative 3D view and sandbox (one clock, the flash guard, baked playback) and `preview-view.tsx` wraps them; `layers`, `chain`, `params` (+ `bindings.ts`), `picks` (colour picks, + `pick-model.ts`), `editor`, `shelf` (auditions), `look-globals`, `bake`, `export`; the timeline is `timeline.tsx` (+ `-state`, `-tools`, `-input`, `-auto`, `-model`); `layer-status.ts` is what the sandbox says; `model.ts` the rig, library, the Studio's `Layer` (a chain) and its helpers |
 | `public/patterns/` | The built-in library (`index.json` with each entry's `kind` and `category`, + one file each): sources, warps and filters, also the AI's examples; presets, recipes of them, in the index alone |
-| `tools/` | `build_rig.py` (+ `rig_render.py`: what Mirage draws), `build_palettes.py` (data), `sacn-play.ts`, `budgets.ts` (the checks oxlint lacks, with line budgets in `budgets.json`; oxlint's rules are `.oxlintrc.jsonc` at the root), `backup.ts`, `frames-bench.ts` (brotli quality against encode time, and each look's render time) |
+| `tools/` | `build_rig.py` (+ `cog_rig.py`: City of Gods; `rig_render.py`: what Mirage draws), `build_palettes.py` (data), `sacn-play.ts`, `budgets.ts` (the checks oxlint lacks, with line budgets in `budgets.json`; oxlint's rules are `.oxlintrc.jsonc` at the root), `backup.ts`, `frames-bench.ts` (brotli quality against encode time, and each look's render time) |
 | `README.md`, `DESIGN.md`, `docs/` | What it is; what was built and why (`docs/screenshots/`); `docs/HOSTING.md`, hosting at home |
 | `test/` | Vitest suites (`vitest.config.js`; `skip-reporter.js` lists skips and why); `fixtures/` (`build.js`: a fresh build of the app for the tests that serve it); `e2e/`: the Playwright Test browser checks (`smoke`, `perf`, `e2e`) |
 | `dist/` | What `npm run build` makes; not committed |
@@ -180,7 +180,7 @@ core's constants and data. oxlint checks all three, by import path.
 | Rule | Why |
 |---|---|
 | Source ≤ 400 lines, tests ≤ 600, library patterns ≤ 150 | Small modules have one job, review well, and fit an agent's context. Patterns are AI examples, so they stay short. Over a limit, split by responsibility; never raise it. |
-| Text files ≤ 64 KB (generated `rig.json` ≤ 1 MB), lines ≤ 120 | Diffs stay readable, and nothing large gets committed by accident. |
+| Text files ≤ 64 KB (generated rigs ≤ 1 MB), lines ≤ 120 | Diffs stay readable, and nothing large gets committed by accident. |
 | Final newline, no trailing spaces, tabs, CRLF or BOM; valid JSON; syntax | Clean diffs, and no surprises on another machine. |
 | `eval`, `Function`, `node:vm` only in the compiler (`core/compile.ts`), the render box and `tools/` | Code generation is how untrusted code gets in, so it lives only behind the sandbox. |
 | `child_process` only in `src/render-box.ts`, `src/generate/fleet.ts`, `src/generate/proc.ts` and `tools/` | Processes are started only to box untrusted work, or for a generator's one CLI call (an argument list, never a shell). |

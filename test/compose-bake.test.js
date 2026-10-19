@@ -18,7 +18,7 @@ import { createRenderBox } from '../src/render-box.ts';
 const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url));
 const lib = (name) => fs.readFileSync(path.join(PUBLIC, 'patterns', `${name}.js`), 'utf8');
 const MINI = fileURLToPath(new URL('./fixtures/rigs/mini.json', import.meta.url));
-const RIGS = { folly: path.join(PUBLIC, 'data/rig.json'), mini: MINI };
+const RIGS = { folly: path.join(PUBLIC, 'data/rig-folly.json'), cog: path.join(PUBLIC, 'data/rig.json'), mini: MINI };
 const readRig = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const SECONDS = 2;

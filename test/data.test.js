@@ -1,4 +1,5 @@
-// rig.json (the Folly's): shape, agreement with the canonical CSV, views and Mirage's geometry, and freshness.
+// rig-folly.json (the Folly's playa build): shape, agreement with the canonical CSV, views and Mirage's geometry, and
+// freshness (of rig.json too).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -9,7 +10,7 @@ import { test } from 'vitest';
 import { prepareScene } from '../public/js/pattern-core.ts';
 
 const here = (p) => new URL(p, import.meta.url);
-const text = readFileSync(here('../public/data/rig.json'), 'utf8');
+const text = readFileSync(here('../public/data/rig-folly.json'), 'utf8');
 const rig = JSON.parse(text);
 const csvLines = readFileSync(here('../../td/data/all-pixels-positions.csv'), 'utf8').trim().split(/\r?\n/);
 const header = csvLines[0].split(',');

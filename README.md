@@ -1,9 +1,9 @@
 # Folly Studio
 
-A web app where people describe a light show in a sentence, get it as pattern code in layers on the Gothic
-Folly's 4,870 LEDs, and shape it live on a model of the sculpture from a laptop or a phone. Looks that should play
-are baked to frames in a sandbox, checked for flashing, approved by a curator and exported as `.fseq` for FPP or
-xLights.
+A web app where people describe a light show in a sentence, get it as pattern code in layers on the Gothic Folly
+(City of Gods' 2,114 LEDs by default; the playa build's 4,870), and shape it live on a model of the sculpture from a
+laptop or a phone. Looks that should play are baked to frames in a sandbox, checked for flashing, approved by a
+curator and exported as `.fseq` for FPP or xLights.
 
 ![The Studio: groups, the Playa view, layers, a module chain and the timeline](docs/screenshots/laptop-studio.jpg)
 
@@ -20,7 +20,7 @@ npm run check          # typecheck, lint, then every test: green before anything
 npm run smoke          # the app in a browser at a laptop's and a phone's size, sign-up to bake
 npm run e2e            # the Mirage match: our .fseq through sACN into Mirage, every LED compared
 npm run perf           # the live preview on an emulated phone at 4× CPU slowdown
-npm run build-data     # rebuild public/data/rig.json from ../pixel-map/, palettes.json from ../td/palettes/
+npm run build-data     # rebuild public/data/rig.json (City of Gods) and rig-folly.json, palettes.json
 ```
 
 - Bakes need bubblewrap (`apt install bubblewrap`) and unprivileged user namespaces; without them baking is off.
@@ -31,8 +31,8 @@ npm run build-data     # rebuild public/data/rig.json from ../pixel-map/, palett
 - `smoke`, `perf` and `e2e` run on Playwright Test with its Chromium (`npx playwright install chromium`, or
   `PLAYWRIGHT_BROWSERS_PATH`); `e2e` also needs `E2E_DEPS` (a folder with `three@0.160.0`) and
   `relay/node_modules`.
-- Run `npm run build-data` after any change to `../pixel-map/` or the pixel CSV pipeline; never edit the
-  Folly's `rig.json` by hand.
+- Run `npm run build-data` after any change to `../city-of-gods/pixel-map/`, `../pixel-map/` or the pixel CSV
+  pipeline; never edit a rig by hand.
 
 ## Read next
 
