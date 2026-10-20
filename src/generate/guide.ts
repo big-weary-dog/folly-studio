@@ -141,7 +141,8 @@ One rule: each module works on everything above it, as in an image editor.
 - A source draws its element on transparent, onto what is above it: the first covers, later ones add (or give a
   \`blend\`: over, add, max, multiply, under). A source with \`as: "input"\` draws nothing itself: it feeds the filter
   whose \`input\` is its \`id\` (clouds as input, then mask with input = its id: what is above shows only in clouds).
-- A filter reworks everything above it; a warp bends everything above it, so a warp goes after what it bends.
+- A filter reworks everything above it; a warp bends everything above it, so a warp goes below what it bends
+  (later in the list).
 - A bed fills: colour-wash first in the chain, then the element with \`blend: "over"\`; or a colour-wash layer below.
   A bed under an element stays dim (its layer's level 0.15–0.35, or brightness 0.2–0.4), so the element reads.
 
@@ -185,4 +186,30 @@ export const EXAMPLES: Example[] = [
         { use: 'lightning', params: [v('colours', 'accent high')] },
         { use: 'clouds', id: 'sky', as: 'input', params: [v('cover', 0.6)] },
         { use: 'mask', input: 'sky' }] }] }) },
+  { idea: 'a storm that gathers: the sky darkens as bolts on the spires come faster, rain arriving at 20 s',
+    uses: ['colour-wash', 'lightning', 'streaks'], places: ['spire'],
+    look: (root, place) => ({ title: 'Gathering storm',
+      summary: 'One storm macro darkens the sky and quickens the bolts.',
+      duration: 60, globals: { macros: [{ name: 'storm', value: 0.2, min: 0, max: 1 }] },
+      automation: [{ name: 'storm', points: [[0, 0.2], [40, 1], [60, 1]] }],
+      layers: [
+        { title: 'Sky', groups: [root], blend: 'add', level: 0.3, modules: [{ use: 'colour-wash', params: [
+          v('colours', 'low'), v('brightness', { mod: 'global', name: 'storm', from: 0.5, to: 0.2 })] }] },
+        { title: 'Rain', groups: [root], blend: 'add', level: 0.6,
+          clips: [{ start: 20, end: 60, fadeIn: 6, fadeOut: 2 }],
+          modules: [{ use: 'streaks', params: [v('colours', 'body')] }] },
+        { title: 'Bolts', groups: [place('spire')], blend: 'add', level: 1, modules: [{ use: 'lightning', params: [
+          v('colours', 'accent high'), v('speed', { mod: 'global', name: 'storm', from: 0.1, to: 0.8 })] }] }] }) },
+  { idea: 'a procession through the arches over a breathing bed', uses: ['colour-wash', 'bars', 'in-turn'],
+    places: ['arch'],
+    look: (root, place) => ({ title: 'Arch procession', summary: 'Each arch fills along its wire in turn.',
+      layers: [
+        { title: 'Bed', groups: [root], blend: 'add', level: 1, modules: [{ use: 'colour-wash', params: [
+          v('colours', 'low'),
+          v('brightness', { mod: 'lfo', rate: 0.05, shape: 'sine', center: 0.3, depth: 0.1 })] }] },
+        { title: 'Procession', groups: [place('arch')], blend: 'over', level: 1, modules: [
+          { use: 'bars', params: [v('colours', 'body accent'), v('direction', 'along'), v('profile', 'smooth'),
+            v('speed', 0)] },
+          { use: 'in-turn', params: [v('tag', 'arch'), v('every', 0.8), v('gate', 'wipe'), v('direction', 'along'),
+            v('release', 2)] }] }] }) },
 ];

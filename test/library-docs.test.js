@@ -15,7 +15,10 @@ import { buildCatalog, readParams } from '../src/generate/catalog.ts';
 import { createClaudeAdapter } from '../src/generate/claude.ts';
 import { docCandidates, READ_CAP, readInside } from '../src/generate/doc-path.ts';
 import { buildDocs, lintDocs, loadProse, looksOf, parseProse } from '../src/generate/library-docs.ts';
+import { expand } from '../src/generate/expand.ts';
+import { EXAMPLES } from '../src/generate/guide.ts';
 import { buildPrompt } from '../src/generate/prompt.ts';
+import { validateLook } from '../shared/schemas/generated.ts';
 import { GROUPS, lookJson, quiet, sse, STUDIO, streamOf, tmp } from './fixtures/generate/shared.js';
 
 // On: a module without prose, prose naming what the library lacks, or a param without help fails. Off, each warns.
@@ -190,5 +193,31 @@ describe('read_doc', () => {
     assert.equal(results.content.at(-1).is_error, true, 'past the cap');
     assert.equal(docsRead.length, READ_CAP);
     assert.equal(docsRead[0], 'library/sources/bars.md');
+  });
+});
+
+describe('combining', () => {
+  test('library/README.md keeps what the prompt promises: chains, blends, inputs, globals, macros, time', () => {
+    const readme = DOCS.get('library/README.md'), heads = [...readme.matchAll(/^## (.+)$/gm)].map((m) => m[1]);
+    for (const h of ['Layers', 'Chains and the one rule', 'Presets', 'Bindings: motion and build', 'Globals',
+      'Macros: one dial for many params', 'Over time: duration, clips, automation', 'Timing across places',
+      'Layer or module?']) assert.ok(heads.includes(h), h);
+    for (const word of ['`blend`', '`as: "input"`', '"mod": "global"', 'clips', 'in-turn', 'nearest']) {
+      assert.ok(readme.includes(word), word);
+    }
+  });
+
+  test('every worked composition reaches the City of Gods prompt and expands and validates whole', () => {
+    const rig = JSON.parse(fs.readFileSync(path.join(STUDIO, 'public/data/rig.json'), 'utf8'));
+    const prompt = buildPrompt({ library: REAL, groups: rig.groups, prose: PROSE }).system;
+    const root = rig.groups.find((g) => g.parent == null).id;
+    const place = (tag) => rig.groups.find((g) => g.tags?.includes(tag)).id;
+    for (const e of EXAMPLES) {
+      const look = e.look(root, place);
+      assert.ok(prompt.includes(`Idea: ${e.idea}`), e.idea);
+      const out = expand(look, CATALOG);
+      assert.deepEqual([...out.errors, ...out.notes], [], e.idea);
+      assert.deepEqual(validateLook(out.look, { groups: rig.groups, library: REAL }).dropped, [], e.idea);
+    }
   });
 });

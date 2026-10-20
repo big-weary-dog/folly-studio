@@ -21,8 +21,9 @@ works on everything above it, as in an image editor.
   `under` (drawn beneath what is above). With `as: "input"` (and an `id`) it draws nothing itself and only feeds a
   filter whose `input` names it.
 - A **filter** reworks the colour of everything above it (recolour, fade, mask, blur, trails).
-- A **warp** bends where everything above it reads its pixel (fold, turn, slide, wrap), so a warp goes after what it
-  bends. `blur` and `trails` hold real LED colours and end a stage: a warp below one does not reach above it.
+- A **warp** bends where everything above it reads its pixel (fold, turn, slide, wrap), so a warp goes below what it
+  bends (later in the list). `blur` and `trails` hold real LED colours and end a stage: a warp below one does not
+  reach above it.
 - `anchor` moves the centre that `in`, `out`, `round`, polar and the rotations use; put it lowest of the warps.
 
 Example, "a chase only inside clouds, mirrored": single-strand, clouds (`id: "sky"`, `as: "input"`), mask
@@ -65,6 +66,42 @@ A look may set `globals`: `palette` (by name; every pick reads it), `speed` (0..
 `hue` (turns the whole look), `saturation`, `energy` (0..1, what bindings follow), `bpm`, and macros (named numbers
 bindings can follow). `automation` moves a global or macro over time: energy from 0.2 to 1 over a minute is a
 build. A palette sets hue, not brightness: choose one whose colours suit the idea and keep them at full strength.
+
+## Macros: one dial for many params
+A macro is a named number of the look's own (`globals.macros`, at most 16; a name like `storm`). Bind params in
+any layer to it and one automation lane moves them together: the storm darkens the bed while bolts come faster.
+`from`..`to` maps the macro's place in its own min..max onto the param.
+```json
+"globals": { "macros": [{ "name": "storm", "value": 0.2, "min": 0, "max": 1 }] },
+"automation": [{ "name": "storm", "points": [[0, 0.2], [40, 1]] }],
+"layers": [
+  { "modules": [{ "use": "colour-wash", "params": [{ "name": "brightness",
+    "value": { "mod": "global", "name": "storm", "from": 0.5, "to": 0.15 } }] }] },
+  { "modules": [{ "use": "lightning", "params": [{ "name": "speed",
+    "value": { "mod": "global", "name": "storm", "from": 0.1, "to": 0.8 } }] }] }]
+```
+A layer's `level` is not a param and cannot be bound: bind a source's brightness, density or speed instead.
+
+## Over time: duration, clips, automation
+- `duration` (seconds, 30 when unset) is how long the look runs before it loops.
+- A layer's `clips` `[{ "start", "end", "fadeIn", "fadeOut" }]` (seconds) are when it plays; with none it plays
+  throughout. Keep the bed clip-less and give the arrivals clips: a layer that enters at 20 s with a 4 s fade.
+- The envelope binding (`{ "mod": "envelope", "from": 0, "to": 1 }`) follows the clip's fade, so a param can grow
+  as its layer fades in.
+- `automation` moves globals and macros between points over the duration: a build, a drop, a calm ending.
+
+## Timing across places
+Some modules make the same effect play in several places, each its own copy:
+- **in-turn** plays what is above it once per group of a tag, one after another (`start`: forward, back, random,
+  together; `every` seconds apart), or at random drops: a procession through the arches, towers taking turns.
+- **anchor** with `which: nearest` gives every group of a tag its own centre at once: rings round each tower.
+- **scroll** with `petal` or `ring` steps the rose a whole petal or ring at a time.
+Each is a warp, below the sources it times; their docs give the params.
+
+## Layer or module?
+A new layer when the part goes on different places, plays in a different clip, or needs its own level or blend: a
+bed on the root, bolts on the spires. Another module in the same chain when it works on the same place: a second
+source over the first, a mask, a warp. At most 4 layers and 8 modules a layer.
 
 ## Safety and taste
 - Large areas flashing, strobing or cycling colour faster than about 3 Hz fail the flash check.

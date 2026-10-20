@@ -213,7 +213,7 @@ describe('prompt', () => {
       'a module with its params');
     assert.ok(sys.includes('read_doc'), 'the docs, and how to read them');
     assert.match(sys, /# Worked compositions\nIdea: /);
-    assert.ok(sys.length < 32_000, `the system prompt is ${sys.length} characters`);
+    assert.ok(sys.length < 34_000, `the system prompt is ${sys.length} characters`);
   });
 
   test('group tree is compact', () => {
