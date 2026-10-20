@@ -16,7 +16,7 @@ mirrored pattern.
 ## Pairings
 - Bars going `back` then rotate `side` with a small angle: waves rolling front to back, leaning with height (preset
   depth-wave).
-- Bars or curtain then rotate `facade` with spin: a turning fan; add **mirror** below for a symmetrical one.
+- Bars then rotate `facade` with spin: a turning fan; add **mirror** below for a symmetrical one.
 - Put **anchor** below it to turn round a group's middle.
 
 ## Pitfalls

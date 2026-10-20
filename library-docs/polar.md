@@ -13,8 +13,8 @@ wedges instead.
 - inward: On, rising sources fall inward.
 
 ## Pairings
-- Bars `right` then polar then twist (swirl ≈ −1): spiral arms (preset galaxy); a spot over the centre for a core.
-- Fire or climb then polar: flames or bars radiating from the centre like a sunburst.
+- Bars `right` then polar then twist (swirl ≈ −1): spiral arms (preset galaxy), with a core drawn above it.
+- Fire or bars `up` then polar: flames or bars radiating from the centre like a sunburst.
 - Then **anchor** (rose) as the last warp: the circle centred on the rose window.
 
 ## Pitfalls

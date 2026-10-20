@@ -2,7 +2,6 @@
 // it, up to the nearest stage end: a module that holds real LED colours (a blur, trails), which nothing below it
 // reaches past. Per pixel, each module reads one of a few copies of the pixel (slots), bent bottom-up.
 import type { Module } from '../../../shared/schemas/look.ts';
-import type { Pixel } from './render.ts';
 
 /** What a filter's `stage` may declare: it reads its neighbours (with a spatial op), or keeps colours across frames. */
 export const STAGES = Object.freeze(['spatial', 'history'] as const);
@@ -52,15 +51,4 @@ export function placeWarps<T extends Placed>(chain: T[], WARP_KIND: number, SPAT
     order.push(M);
   }
   return { order, slots };
-}
-
-/** The pixel `from` as `to` (their own attr and is read their own k). */
-export function copyPixel(to: Pixel, from: Pixel) {
-  to.x = from.x; to.y = from.y; to.z = from.z; to.X = from.X; to.Y = from.Y; to.Z = from.Z;
-  to.lx = from.lx; to.ly = from.ly; to.lz = from.lz; to.a = from.a; to.r = from.r;
-  to.u = from.u; to.i = from.i; to.n = from.n; to.zone = from.zone; to.zi = from.zi;
-  to.fixture = from.fixture; to.strand = from.strand; to.ring = from.ring; to.row = from.row;
-  to.sector = from.sector; to.petal = from.petal; to.k = from.k; to.seed = from.seed;
-  to.ox = from.ox; to.oy = from.oy; to.oz = from.oz; to.sx = from.sx; to.sy = from.sy; to.sz = from.sz; to.sr = from.sr;
-  to.cy = from.cy; to.cz = from.cz; to.due = from.due;
 }

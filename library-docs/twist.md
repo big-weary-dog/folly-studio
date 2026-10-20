@@ -14,8 +14,9 @@ at random.
 - spin: Turns a second; the default 0.05 turns slowly.
 
 ## Pairings
-- Bars `right` → polar → twist (swirl −2, spin 0) → spot over the centre: a galaxy.
-- Bars `right` or lighthouse on a tower layer, then twist with wind 1–3: barber-pole helices.
+- Bars `right` → polar → twist (swirl −2, spin 0), with a core drawn above it: a galaxy.
+- Any source on a tower layer, then twist with wind 0.5–1: it winds round each tower. For clean barber-pole
+  stripes use bars `orbit` with Twist (spire-helix).
 - Then **anchor** (rose) as the last warp: a whirlpool in the rose window.
 
 ## Pitfalls

@@ -14,7 +14,7 @@ shapes.
 - amount: 0.4–0.7 keeps some of the gradient under the bands.
 
 ## Pairings
-- After plasma, clouds or a smooth bars: contour-map bands of colour that flow.
+- After clouds or a smooth bars: contour-map bands of colour that flow.
 - With **mosaic** (a warp, after the source): blocks in a few hard colours, pixel art.
 
 ## Pitfalls

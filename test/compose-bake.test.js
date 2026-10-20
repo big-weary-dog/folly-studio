@@ -47,13 +47,13 @@ const LOOK = {
   ],
 };
 
-// Blur and soften (SPEC "Spatial modules"): a soft-edged bars layer, and a lighthouse blurred in space by an LFO.
+// Blur and soften (SPEC "Spatial modules"): a soft-edged bars layer, and orbiting bars blurred in space by an LFO.
 const BLURRED = {
   layers: [
     { id: 'bars', groups: ['arches'], tags: ['arch'], blend: 'add', level: 1, soften: { radius: 0.15, mode: 'wire' },
       modules: [{ id: 'b', kind: 'source', title: 'Bars', code: lib('bars'), params: { softness: 0 } }] },
     { id: 'rose', groups: ['rose-window'], tags: ['rose'], blend: 'over', level: 1, modules: [
-      { id: 'p', kind: 'source', title: 'Lighthouse', code: lib('lighthouse') },
+      { id: 'p', kind: 'source', title: 'Bars', code: lib('bars'), params: { direction: 'orbit', profile: 'comet' } },
       { id: 'bl', kind: 'filter', title: 'Blur', code: lib('blur'),
         params: { radius: { mod: 'lfo', rate: 0.5, center: 0.6, depth: 0.3 }, mode: 'both' } }] },
   ],

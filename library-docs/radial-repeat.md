@@ -14,7 +14,7 @@ directly, **kaleidoscope** repeats round the angle instead, **scroll** `out` sli
 - mirror: On gives a smooth, breathing in-out look; off shows a sharp edge where the source's rim meets its centre.
 
 ## Pairings
-- After plasma, clouds or fire: textured ripples. After a still colour-wash nothing changes; give it a source that
+- After clouds or fire: textured ripples. After a still colour-wash nothing changes; give it a source that
   varies with distance.
 - Put **anchor** (rose, `sphere` reach) below it: ripples from the rose over the whole portal.
 - Edge-fade on `out` after it fades the outer rings away.

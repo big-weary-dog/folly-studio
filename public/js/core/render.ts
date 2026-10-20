@@ -7,12 +7,14 @@ import { applyMods, finish, lookFrame, paramMods, prepareLook, resolveParams } f
 import type { G, PreparedLook, Values } from './globals.ts';
 import { composite } from './output.ts';
 import type { Picks } from './picks.ts';
-import { pixelsForGroups, type Scene, tagMask, tagParts } from './scene.ts';
+import { pixelsForGroups, type Scene } from './scene.ts';
 import { blur, BLUR_MODES, blurState } from './spatial.ts';
 import { clamp, hex, isNum, RUN, TAU } from './stdlib.ts';
 import { clipAt, layerEnvelope, normalizeClips, type Transition, wipeColours } from './timeline.ts';
 import { PLACE, readsLed, settle } from './place.ts';
-import { copyPixel, isStageEnd, placeWarps } from './warps.ts';
+import { copyPixel, makePixel, type Pixel, setPixel } from './pixel.ts';
+import { isStageEnd, placeWarps } from './warps.ts';
+export type { Pixel };
 
 export const MODULE_KINDS = Object.freeze(['source', 'warp', 'filter'] as const);
 export type ModuleKind = (typeof MODULE_KINDS)[number];
@@ -163,6 +165,7 @@ function runChain(S: Scene, L: PreparedLayer, T: number, G: G) {
   const qs = L.qs, warps = L.warps, nw = warps.length;
   let j = 0, M: PreparedLayer['chain'][number] | null = null;
   try {
+    RUN.dt = 0;
     for (let i = 0; i < n; i++) { M = chain[i]; if (M.frame) M.frame(T, M.P, G); }
     for (; j < m; j++) {
       const k = idx[j];
@@ -174,12 +177,14 @@ function runChain(S: Scene, L: PreparedLayer, T: number, G: G) {
         if (M.kind === WARP) continue;
         const q = qs[M.at];
         if (q.due) settle(q);
+        RUN.dt = q.dt;
         if (M.kind === SOURCE) {
-          const v = M.fn(q, T, M.P, G);
+          const v = M.fn(q, T + q.dt, M.P, G);
           if (!toColour(v, M.out, 1)) return fail(L, M, `pixel() returned ${said(v)} (NaN) at LED ${k}`);
+          M.out[3] *= q.gate;
           if (!M.hidden) blendInto(c, M.out, M.blend);
         } else {
-          const v = M.fn(c, q, T, M.P, G, M.input >= 0 ? chain[M.input].out : undefined);
+          const v = M.fn(c, q, T + q.dt, M.P, G, M.input >= 0 ? chain[M.input].out : undefined);
           if (!toColour(v, c, c[3])) return fail(L, M, `filter() returned ${said(v)} (NaN) at LED ${k}`);
         }
       }
@@ -201,22 +206,6 @@ function fail(L: PreparedLayer, M: PreparedLayer['chain'][number] | null, msg: s
   return L.modular && M ? `${M.title}: ${msg}` : msg;
 }
 
-/** q as pixel j of layer L (rig pixel k). */
-function setPixel(S: Scene, L: PreparedLayer, q: Pixel, j: number, k: number) {
-  q.x = S.x[k]; q.y = S.y[k]; q.z = S.z[k];
-  q.X = S.X[k]; q.Y = S.Y[k]; q.Z = S.Z[k];
-  q.lx = L.lx[j]; q.ly = L.ly[j]; q.lz = L.lz[j];
-  q.a = L.a[j]; q.r = L.r[j];
-  q.u = S.u[k]; q.i = S.i[k]; q.n = S.n[k];
-  const zi = S.zone[k];
-  q.zi = zi; q.zone = S.zones[zi]; q.fixture = q.strand = S.fixture[k];
-  q.ring = q.row = S.ring[k]; q.sector = q.petal = S.sector[k];
-  q.k = k; q.seed = S.seed[k];
-  const f = L.frame;
-  q.ox = f[0]; q.oy = f[1]; q.oz = f[2]; q.sx = f[3]; q.sy = f[4]; q.sz = f[5]; q.sr = f[6];
-  q.cy = f[7]; q.cz = f[8]; q.due = 0;
-}
-
 const load = (to: number[], from: Float64Array, o: number) => {
   to[0] = from[o]; to[1] = from[o + 1]; to[2] = from[o + 2]; to[3] = from[o + 3];
 };
@@ -229,7 +218,8 @@ function bend(qs: Pixel[], W: Link, T: number, G: G) {
   if (W.to !== W.from) copyPixel(qs[W.to], qs[W.from]);
   const q = qs[W.to];
   if (W.led && q.due) settle(q);
-  W.fn(q, T, W.P, G);
+  RUN.dt = q.dt;
+  W.fn(q, T + q.dt, W.P, G);
 }
 
 /**
@@ -242,6 +232,7 @@ function runStaged(S: Scene, L: PreparedLayer, T: number, G: G, st: NonNullable<
   const qs = L.qs, warps = L.warps, nw = warps.length;
   let from = 0, M: Link | null = null;
   try {
+    RUN.dt = 0;
     for (let i = 0; i < n; i++) { M = chain[i]; if (M.frame) M.frame(T, M.P, G); }
     for (;;) {
       let to = from;
@@ -258,13 +249,15 @@ function runStaged(S: Scene, L: PreparedLayer, T: number, G: G, st: NonNullable<
             if (M.kind === WARP) continue;
             const q = qs[M.at];
             if (q.due) settle(q);
+            RUN.dt = q.dt;
             if (M.kind === SOURCE) {
-              const v = M.fn(q, T, M.P, G);
+              const v = M.fn(q, T + q.dt, M.P, G);
               if (!toColour(v, M.out, 1)) return fail(L, M, `pixel() returned ${said(v)} (NaN) at LED ${k}`);
+              M.out[3] *= q.gate;
               if (M.keep) save(M.keep, o, M.out);
               if (!M.hidden) blendInto(c, M.out, M.blend);
             } else {
-              const v = M.fn(c, q, T, M.P, G, M.input >= 0 ? chain[M.input].out : undefined);
+              const v = M.fn(c, q, T + q.dt, M.P, G, M.input >= 0 ? chain[M.input].out : undefined);
               if (!toColour(v, c, c[3])) return fail(L, M, `filter() returned ${said(v)} (NaN) at LED ${k}`);
             }
           }
@@ -285,20 +278,6 @@ function runStaged(S: Scene, L: PreparedLayer, T: number, G: G, st: NonNullable<
     return fail(L, M, describeError(e));
   }
 }
-
-/** The pixel a layer's chain sees (SPEC "The pixel p"), reused for every LED; attr, is, part and partUp read its k. */
-function makePixel(S: Scene) {
-  const q = { x: 0, y: 0, z: 0, X: 0, Y: 0, Z: 0, lx: 0, ly: 0, lz: 0, a: 0, r: 0, u: 0, i: 0, n: 1, zone: '', zi: 0,
-    fixture: 0, strand: 0, ring: 0, row: 0, sector: -1, petal: -1, k: 0, seed: 0,
-    ox: 0, oy: 0, oz: 0, sx: 0, sy: 0, sz: 0, sr: 0, cy: 0, cz: 0, due: 0,
-    attr: (name: string, d = 0): number => { const v = S.attrs.get(name); return v ? v[q.k] : d; },
-    is: (tag: string): boolean => tagMask(S, tag)[q.k] === 1,
-    part: (tag: string): number => tagParts(S, tag).of[q.k]!, parts: (tag: string): number => tagParts(S, tag).n,
-    partUp: (tag: string): number => tagParts(S, tag).up[q.k]! };
-  return q;
-}
-/** The pixel `p` (SPEC "The pixel p"), as every module sees it. */
-export type Pixel = ReturnType<typeof makePixel>;
 
 /** A layer ready to render: its pixels, their lx/ly/lz (0.5 on a flat axis) and a/r, its chain and clips. */
 export function prepareLayer(scene: Scene, layer: LayerInput | null | undefined,

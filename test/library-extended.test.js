@@ -1,5 +1,5 @@
 // What the extended modules gained, where a slip is easy and shows: bars' bands as true swatches with no seam round
-// the circle, rotate's planes, spot's middle, life's colour by age.
+// the circle, rotate's planes, the layer's middle, life's colour by age.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -28,6 +28,16 @@ describe('bars', () => {
     across.L.idx.forEach((k, j) => assert.equal(hexOf(across.rgb(j)), ALL[Math.floor(across.L.lz[j] * 2)], `LED ${k}`));
   });
 
+  test('orbit turns round the upright axis in metres, and twist winds it with height', () => {
+    const { L, rgb } = run([mod('bars', 'source', { direction: 'orbit', bars: 3, twist: 1.5, speed: 0, softness: 0 })],
+      0);
+    const [ox, , oz] = L.frame, f = (k, j) => ((Math.atan2(scene.Z[k] - oz, ox - scene.X[k]) / (2 * Math.PI) + 1) % 1
+      + L.ly[j] * 1.5) * 3;
+    const off = Array.from(L.idx, (k, j) => [k, j]).filter(([k, j]) => Math.abs(f(k, j) - Math.round(f(k, j))) > 1e-6);
+    assert.ok(off.length > L.idx.length / 2);
+    for (const [k, j] of off) assert.equal(hexOf(rgb(j)), ALL[Math.floor(f(k, j)) % ALL.length], `LED ${k}`);
+  });
+
   test('round wraps whole: no partial bar at the seam', () => {
     const { L, rgb } = run([mod('bars', 'source', { direction: 'round', bars: 2.6, speed: 0, softness: 0 })], 0);
     const seam = L.idx.map((_, j) => j).filter((j) => L.a[j] > 0.98 || L.a[j] < 0.02);
@@ -49,8 +59,9 @@ test('rotate turns in its plane, in metres: a quarter turn in plan swaps depth a
   });
 });
 
-test('spot sits on the middle of the layer\'s LEDs (their mean), not its bounds\' middle', () => {
-  const { L, rgb } = run([mod('spot', 'source', { softness: 0 })]);
+test('a layer\'s centre (p.cy, p.cz) is the middle of its LEDs (their mean), not its bounds\' middle', () => {
+  const disc = 'function pixel(p) { return hypot(p.Y - p.cy, p.Z - p.cz) < 0.3 * p.sr ? [1, 1, 1, 1] : null; }';
+  const { L, rgb } = run([{ id: 'disc', kind: 'source', code: disc, params: {} }]);
   let Y = 0, Z = 0;
   L.idx.forEach((k) => { Y += scene.Y[k]; Z += scene.Z[k]; });
   Y /= L.idx.length; Z /= L.idx.length;
@@ -66,4 +77,10 @@ test('life colours by age: at the first generation every cell is newborn, so one
   };
   assert.equal(lit('age').size, 1);
   assert.ok(lit('along').size > 3 && lit('cell').size > 3);
+});
+
+test('life binary lights every LED in one of two colours: dead the pick\'s first, alive its last', () => {
+  const { L, rgb } = run([mod('life', 'source', { by: 'binary', smoothing: 0 })], 0);
+  const seen = new Set(Array.from(L.idx, (_, j) => (L.buf[4 * j + 3] === 1 ? hexOf(rgb(j)) : 'unlit')));
+  assert.deepEqual([...seen].sort(), [ALL[0], ALL.at(-1)].sort());
 });

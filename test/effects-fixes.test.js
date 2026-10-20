@@ -18,21 +18,6 @@ describe('clouds', () => {
   });
 });
 
-describe('curtain', () => {
-  test('it opens steadily all the way: open 0.9 still shows cloth, open 1 is clear', () => {
-    const shares = [0, 0.5, 0.75, 0.9, 1].map((open) => litShare(at(layerOf(['curtain', { open }]), 1), 0.002));
-    assert.ok(shares.every((s, i) => i === 0 || s < shares[i - 1]) && shares[3] > 0.02 && shares[4] === 0, `${shares}`);
-  });
-});
-
-describe('circles', () => {
-  test('balls blend their colours where they meet', () => {
-    const L = at(layerOf(['circles', { count: 3, size: 0.25 }]), 2), hues = new Set();
-    L.idx.forEach((_, j) => { const h = L.buf[4 * j + 3] > 0.5 && hue(L, j); if (h) hues.add(h); });
-    assert.ok(hues.size > 10, `${hues.size} colours`);
-  });
-});
-
 describe('chase', () => {
   // Spire strands (44 LEDs) at 20 LEDs a second: a bounce goes out over 2.2 s and comes back over the next 2.2.
   test('a bouncing comet flies head first both ways', () => {

@@ -58,7 +58,7 @@ Speeds are integrated, so binding a speed never makes the motion jump.
 ## Groups and tags
 Groups are the rig's places (ids in the prompt's group list); a layer's groups are a union. Tags say what a group is
 (`tower`, `spire`, `rose`, `arch`, `left`, `right` …): give each layer the tags it is meant for, so the look moves
-to another rig. Modules that find places themselves (`anchor`, `climb`) take a tag, never an id.
+to another rig. Modules that find places themselves (`anchor`, `in-turn`) take a tag, never an id.
 
 ## Globals
 A look may set `globals`: `palette` (by name; every pick reads it), `speed` (0..4, 1: scales every clock), `level`,

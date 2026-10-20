@@ -245,12 +245,12 @@ export function paletteColours(palette?: PaletteHex | null): PaletteColours | nu
 }
 
 const ORIGIN: Centres = Object.freeze([Object.freeze([0, 0, 0]), Object.freeze([0, 0, 0])]);
-/** Set by renderFrame for pal(), palette(), centres(), extent(), use() and clock(): the frame's show time t and
- * pattern time T, and the look (a PreparedLook). */
+/** Set by renderFrame for pal(), palette(), centres(), extent(), use() and clock(): the frame's show time t,
+ * pattern time T and the look (a PreparedLook); dt, the running module's pixel's time offset (an instance's, p.dt). */
 export const RUN: { G: G | null, palette: PaletteColours,
-  scene: { centresOf(tag: string): Centres, extent: Centres } | null, extent: Centres, t: number, T: number,
+  scene: { centresOf(tag: string): Centres, extent: Centres } | null, extent: Centres, t: number, T: number, dt: number,
   look: PreparedLook | null } = {
-  G: null, palette: paletteColours(DEFAULT_PALETTE)!, scene: null, extent: ORIGIN, t: 0, T: 0, look: null };
+  G: null, palette: paletteColours(DEFAULT_PALETTE)!, scene: null, extent: ORIGIN, t: 0, T: 0, dt: 0, look: null };
 
 export function ramp(list: Centres, t: number): RGB {
   const n = list.length;

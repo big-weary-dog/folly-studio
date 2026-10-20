@@ -14,7 +14,7 @@ after the source. **posterize** flattens colours instead of space; **mirror** an
 - leds: 4–8 on 40-LED strands; on short strands (rose cells, globes) a run is the whole strand.
 
 ## Pairings
-- After plasma, clouds or bars (smooth profile): moving colour in tiles that change step by step.
+- After clouds or bars (smooth profile): moving colour in tiles that change step by step.
 - Then **hue-shift** or **recolour**: each tile a different colour.
 - Over a dim bed blended under: blocks that light up from a grid.
 

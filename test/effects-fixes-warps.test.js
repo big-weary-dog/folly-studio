@@ -28,7 +28,8 @@ describe('anchor', () => {
 
 describe('rotate', () => {
   test('turns in metres: a round spot turned a quarter on the wide main arches keeps its size', () => {
-    const spot = ['spot', { size: 0.5, softness: 0 }];
+    const spot = ['disc', {},
+      'function pixel(p) { return hypot(p.Y - p.cy, p.Z - p.cz) < 0.5 * p.sr ? [1, 1, 1, 1] : null; }'];
     const still = litShare(at(layerOn(['main-arches'], spot, ['rotate', { angle: 0 }]), 1));
     const turned = litShare(at(layerOn(['main-arches'], spot, ['rotate', { angle: 0.25 }]), 1));
     assert.ok(Math.abs(turned - still) < 0.1 * still, `${still} → ${turned}`);
@@ -46,7 +47,8 @@ describe('twist', () => {
 
 describe('mask', () => {
   test('by self keys on luminance, so a cutoff cuts saturated colours too', () => {
-    const lit = litShare(at(layerOf(['plasma'], ['mask', { by: 'self', cutoff: 0.6, softness: 0.05 }]), 1), 0.5);
+    const mask = ['mask', { by: 'self', cutoff: 0.6, softness: 0.05 }];
+    const lit = litShare(at(layerOf(['bars', { profile: 'smooth' }], mask), 1), 0.5);
     assert.ok(lit < 0.8, `${lit}`);
   });
 });
@@ -68,13 +70,15 @@ describe('edge-fade', () => {
 });
 
 describe('trails', () => {
+  const glow = ['glow', {}, 'function pixel(p) { const d = hypot(p.Y - p.cy, p.Z - p.cz) / (0.3 * p.sr); '
+    + 'return d < 1 ? [1, 1, 1, 1 - d] : null; }'];
   test('a still soft spot keeps its soft edge, at 40 fps as at 20', () => {
     const shares = [40, 20].map((fps) => {
-      const L = layerOf(['spot', { size: 0.3, softness: 1 }], ['trails', { decay: 0.9 }]);
+      const L = layerOf(glow, ['trails', { decay: 0.9 }]);
       for (let f = 0; f <= 2 * fps; f++) at(L, f / fps);
       return litShare(L, 0.3);
     });
-    const alone = litShare(at(layerOf(['spot', { size: 0.3, softness: 1 }]), 2), 0.3);
+    const alone = litShare(at(layerOf(glow), 2), 0.3);
     assert.ok(shares.every((s) => Math.abs(s - alone) < 0.01), `${alone}: ${shares}`);
   });
 });

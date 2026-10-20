@@ -4,8 +4,8 @@ looks: Flickering flames licking up from one edge, hot at the roots, fading clea
 Noise flames rise from the layer's edge in Direction, the last colour of the pick at their roots and cooling through
 the earlier colours to clear at the ragged tips, flickering and boiling as they go. Use it for fire, heat and burning
 moments; target it at the groups that should burn (each tower, the ground-level arches). **clouds** is the same noise
-drifting rather than rising; **streaks** with a falling direction is rain; **climb** is a clean, staged rise up each
-group rather than a flicker.
+drifting rather than rising; **streaks** with a falling direction is rain; **bars** on `up` is a clean, steady
+rise rather than a flicker.
 
 ## Params
 - colours: Give it a warm pick in order, e.g. `#300000 #ff2000 #ff9000 #fff0a0`. The default `all` puts the palette's

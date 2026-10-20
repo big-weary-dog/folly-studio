@@ -5,7 +5,7 @@ The layer beats like a heart: a strong swell and a softer echo just after, lub-d
 tempo (60 a minute at 120 bpm), each spreading out from the centre and peaking in the last colour of the pick, clear
 between beats. It is locked to the look's bpm and has no speed of its own. Reach for it for tension, love themes and
 music-synced pulsing. **strobe** flashes hard rather than swelling; **shockwave** bursts a travelling front on its own
-clock; **spot** with its size on an lfo is a slow breathing glow.
+clock; **glow** with its edge-fade position on an lfo is a slow breathing glow.
 
 ## Params
 - colours: `low body high` or reds to white.

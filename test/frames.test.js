@@ -243,7 +243,13 @@ describe('flash check on looks: a wave a second is fine, a strobe is not', () =>
     const byte = (v) => Math.round(Math.min(1, Math.max(0, v)) * 255);
     return analyze(parseFseq(bake(real, seconds, (f, k) => [0, 1, 2].map((c) => byte(frames[f][3 * k + c])))), real);
   };
-  const shockwave = readFileSync(new URL('../public/patterns/shockwave.js', import.meta.url), 'utf8');
+  const lib = (name) => readFileSync(new URL(`../public/patterns/${name}.js`, import.meta.url), 'utf8');
+  // The Shockwave preset: a comet ring heading out of the rose, `every` seconds, `duty` thick.
+  const shockwave = (every, duty = 0.5, groups) => ({ id: 's', groups, modules: [
+    { id: 'b', kind: 'source', code: lib('bars'),
+      params: { direction: 'in', speed: -1 / every, bars: 1, profile: 'comet', duty } },
+    { id: 'e', kind: 'filter', code: lib('edge-fade'), params: { direction: 'in', position: 0.2, width: 0.8 } },
+    { id: 'a', kind: 'warp', code: lib('anchor'), params: { shape: 'sphere' } }] });
   const strobe = (hz) => `function pixel(p, t) { return floor(t * ${hz} * 2) % 2 ? 0 : 1; }`;
   const passes = (a, what) => {
     assert.equal(a.flicker.ok, true, `${what}: ${flickerReason(a)}`);
@@ -252,8 +258,8 @@ describe('flash check on looks: a wave a second is fine, a strobe is not', () =>
 
   test('shockwaves and pulses at 1 and 2 Hz pass, on the whole Folly and from the rose', () => {
     for (const every of [1, 0.5]) {
-      passes(check([{ id: 's', code: shockwave, params: { every } }]), `shockwave every ${every} s`);
-      passes(check([{ id: 's', code: shockwave, params: { every, width: 0.3 }, groups: ['rose-window'] }]),
+      passes(check([shockwave(every)]), `shockwave every ${every} s`);
+      passes(check([shockwave(every, 0.6, ['rose-window'])]),
         `shockwave on the rose every ${every} s`);
     }
     for (const hz of [1, 2]) {

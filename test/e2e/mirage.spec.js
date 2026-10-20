@@ -24,7 +24,7 @@ import { newContext, openMirage, showView, threeDir, viewFrom, waitForDrive } fr
 import { quietSacn, Stack } from './stack.mjs';
 
 const HTTP_PORT = Number(process.env.E2E_HTTP_PORT || 8765);
-const MOVING = process.env.E2E_PATTERN || 'plasma';
+const MOVING = process.env.E2E_PATTERN || 'clouds';
 const log = (m) => console.log(`e2e: ${m}`);
 let OUT;
 const file = (name, bytes) => {

@@ -1,5 +1,6 @@
 // Strobe: flashes the layer at Speed, each flash the next of Colours; 2 a second by default, and over 3 a second on a
-// large area fails the flash check. Length is the lit share of each flash; Scatter flashes only some strands.
+// large area fails the flash check. Length is the lit share of each flash; Scatter flashes only some strands;
+// Mixed gives each strand its own colour.
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours',
     help: 'Colours the flashes, stepping to the next colour in the list on each flash.' },
@@ -11,6 +12,8 @@ const params = {
     help: 'Lights only some strands on each flash, at random. 0 flashes everything; high flashes a scattered few.' },
   fade: { value: 0.15, min: 0, max: 0.25, step: 0.01, label: 'Fade out (share of each flash)',
     help: 'How long each flash fades out at its end. 0 cuts off hard; high tails off softly.' },
+  mixed: { value: false, type: 'toggle', label: 'Mixed colours',
+    help: 'On gives each strand a random colour from Colours each flash; off flashes them all in one colour.' },
 };
 
 function pixel(p, t, P) {
@@ -18,7 +21,7 @@ function pixel(p, t, P) {
   if (P.scatter > 0 && rand(p.fixture, n) < P.scatter * 0.9) return null;
   const on = 1 - soft(P.length - s / 2, x - n, s);          // full on the beat, fading out by the end of Length
   if (on <= 0.002) return null;
-  const c = swatch('colours', n);
+  const c = swatch('colours', P.mixed ? rand(p.fixture, n, 3) * 97 : n);
   c[3] = on;
   return c;
 }

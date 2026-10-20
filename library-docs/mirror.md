@@ -15,8 +15,8 @@ across is the preset butterfly. **kaleidoscope** folds round a centre into many 
 - along: The first half of each wire plays; the second echoes it backwards. Combines with the others.
 
 ## Pairings
-- After plasma, clouds or bars on `round`: instant symmetry (preset butterfly).
-- With `along` after single-strand or groups-in-turn: comets leave both feet of each arch and meet at the keystone.
+- After clouds or bars on `round`: instant symmetry (preset butterfly).
+- With `along` after single-strand or arch-chase: comets leave both feet of each arch and meet at the keystone.
 - Put **anchor** below it to fold round a group's middle (the rose) instead of the layer's.
 
 ## Pitfalls

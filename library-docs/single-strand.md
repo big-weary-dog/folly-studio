@@ -5,7 +5,7 @@ Bands of colour, or comets with fading tails, run along each strand from its sta
 are in LEDs, not layer shares, so the same setting crawls along a long main arch and races up a short spire strand.
 The classic xLights chase: marquee bulbs, meteors, a strand filling and emptying, colour running out from the middle of
 each arch. Reach for **bars** on `along` when the bands should be sized to each wire rather than in LEDs,
-**groups-in-turn** when whole groups should take turns, **streaks** on `along` for sparse random drips with tails.
+**in-turn** when whole groups should take turns, **streaks** on `along` for sparse random drips with tails.
 
 ## Params
 - colours: A pick like `"#00c8ff #ffffff"` gives a blue comet with a white head.

@@ -19,7 +19,7 @@ clouds becomes storm cover (preset storm). **edge-fade** fades toward an edge in
 - Smooth bars, then clouds `as: input`, then mask with input = the clouds' id, then a dark colour-wash with blend
   `under`: aurora (preset aurora).
 - A lightning or sparkle below the mask stays unmasked: elements over a masked bed (preset storm).
-- A bars or spot as input (moving): a window that sweeps across a texture.
+- A bars or glow as input (moving): a window that sweeps across a texture.
 
 ## Pitfalls
 - By `input` with no input named does nothing. The input must come before the mask in the chain and have an id.

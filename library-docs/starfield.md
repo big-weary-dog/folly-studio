@@ -3,7 +3,7 @@ looks: Pale blue and gold stars glinting over a dark blue sky with drifting viol
 ---
 A deep blue night with soft violet nebulae drifting slowly sideways, and half the LEDs glinting now and then as
 pale blue or gold stars: a **colour-wash**, **clouds** over it and pulse **sparkle** on top. Fixed colours, ignoring
-the palette. Quiet and spacious, for intros, night scenes or under a moon (**spot**). **shimmer** glitters
+the palette. Quiet and spacious, for intros, night scenes or under a moon (**glow**). **shimmer** glitters
 everywhere continuously; **meteors** adds motion along the wires.
 
 ## Overrides

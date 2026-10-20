@@ -29,8 +29,8 @@
   {"key": "rise", "words": "climb climbing rising rise ascend ascending", "terms": "rise climb sweep", "use": ["rising-sweep"]},
   {"key": "chase", "words": "chase chasing race racing running dart darting darts streak streaking zip zipping swim swimming fish", "terms": "chase run meteor", "use": ["single-strand"]},
   {"key": "fireworks", "words": "firework fireworks celebration celebrate party explosion explosions burst bursts", "terms": "fireworks burst spark celebration", "use": ["fireworks"]},
-  {"key": "festive", "words": "garland garlands christmas festive bunting holiday", "terms": "garland festive swag", "use": ["garlands"]},
-  {"key": "snake", "words": "snake snakes worm worms tendril tendrils vine vines serpent", "terms": "tendril snake worm", "use": ["tendril"]}
+  {"key": "festive", "words": "garland garlands christmas festive bunting holiday", "terms": "garland festive swag", "use": ["marquee"]},
+  {"key": "snake", "words": "snake snakes worm worms tendril tendrils vine vines serpent", "terms": "tendril snake worm", "use": ["meteors"]}
  ],
  "colours": {
   "red": "#ff0000",

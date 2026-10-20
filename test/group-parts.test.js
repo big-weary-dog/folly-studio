@@ -7,6 +7,7 @@ import { describe, test } from 'vitest';
 
 import { tagParts } from '../public/js/core/scene.ts';
 import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
+import { at, layerOf } from './fixtures/layers.js';
 import { cog, folly } from './fixtures/rigs.js';
 
 const here = (p) => new URL(p, import.meta.url);
@@ -41,33 +42,28 @@ describe('a tag\'s parts', () => {
   });
 });
 
-describe('groups in turn', () => {
-  // The mean light of each part at time t, from Groups in turn on City of Gods.
+describe('in-turn on groups', () => {
+  const white = ['white', {}, 'function pixel() { return [1, 1, 1, 1]; }'];
+  // The mean light of each part at time t, white through In turn on City of Gods.
   function light(params, t) {
-    const layer = { id: 'l', modules: [{ id: 'g', kind: 'source', code: lib('groups-in-turn'), params }] };
-    const L = prepareLayer(COG, layer, compileLayer(layer));
-    assert.deepEqual(renderFrame(COG, [L], t).errors, []);
+    const L = at(layerOf(white, ['in-turn', params]), t);
     const { of, n } = tagParts(COG, params.tag ?? 'arch'), sum = new Array(n).fill(0), count = new Array(n).fill(0);
     L.idx.forEach((k, j) => { if (of[k] >= 0) { sum[of[k]] += L.buf[4 * j + 3]; count[of[k]]++; } });
     return sum.map((s, i) => s / count[i]);
   }
   const brightest = (v) => v.indexOf(Math.max(...v));
 
-  test('each arch takes its turn, forward, back and to and fro', () => {
-    const at = (order, turn) => brightest(light({ fill: 'flash', fade: 0.2, speed: 1, order }, turn + 0.5));
+  test('each arch takes its turn, forward and back', () => {
+    const turn = (start, k) => brightest(light({ gate: 'flash', attack: 0, hold: 0.8, release: 0.1, start }, k + 0.5));
     const n = tagParts(COG, 'arch').n;
-    assert.deepEqual([0, 1, 2, n].map((k) => at('forward', k)), [0, 1, 2, 0]);
-    assert.deepEqual([0, 1, 2].map((k) => at('back', k)), [n - 1, n - 2, n - 3]);
-    assert.deepEqual([n - 2, n - 1, n, n + 1].map((k) => at('bounce', k)), [n - 2, n - 1, n - 2, n - 3]);
+    assert.deepEqual([0, 1, 2, n].map((k) => turn('forward', k)), [0, 1, 2, 0]);
+    assert.deepEqual([0, 1, 2].map((k) => turn('back', k)), [n - 1, n - 2, n - 3]);
   });
 
   test('wipe fills along the wire; pixels outside the tag stay dark', () => {
-    const v = light({ tag: 'tower', speed: 1, fade: 0.2 }, 0.3);
+    const v = light({ tag: 'tower', release: 0.2 }, 0.3);
     assert.ok(v[0] > 0.2 && v[0] < 0.6, `tower 0 part filled: ${v[0]}`);
-    const mods = [{ id: 'g', kind: 'source', code: lib('groups-in-turn'), params: { tag: 'tower' } }];
-    const layer = { id: 'l', modules: mods };
-    const L = prepareLayer(COG, layer, compileLayer(layer)), { of } = tagParts(COG, 'tower');
-    renderFrame(COG, [L], 0.3);
+    const L = at(layerOf(white, ['in-turn', { tag: 'tower' }]), 0.3), { of } = tagParts(COG, 'tower');
     L.idx.forEach((k, j) => { if (of[k] < 0) assert.equal(L.buf[4 * j + 3], 0, `LED ${k}`); });
   });
 });

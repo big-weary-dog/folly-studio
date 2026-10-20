@@ -11,6 +11,7 @@ without structure, **single-strand** for orderly motion along the wire.
 - speed: Generations a second. 2–6 reads as evolving; 10+ is a seethe.
 - era: In generations; short eras keep it lively, long ones let a rule settle.
 - by: Age counts how many of a cell's last 3 generations it lived, so blinking chaos cells walk the colours too.
+  Binary lights every LED: dead cells the pick's first colour, live ones its last (`low high`: magenta and cream).
 - density: 0.1–0.2 for sparse gliders, 0.5 for full chaos.
 
 ## Pairings
@@ -22,4 +23,6 @@ without structure, **single-strand** for orderly motion along the wire.
 - Odd rules (1, 51, …) bring empty runs alive: whole strands invert every generation. Above 6 a second that is
   large-area flashing and fails the flash check.
 - The pattern is only ever the current generation: rule 90's triangles never appear as a picture.
+- Binary keeps every LED lit, so a fast rule swaps large areas between the two colours: keep their brightness close
+  or the speed under 4.
 - Short strands (13–14 LEDs) wrap round and fall into short repeating loops; give them a short era.

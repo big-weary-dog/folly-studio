@@ -2,7 +2,8 @@
 // (30), triangles (90), gliders (110) or traffic (184, cells queueing along); it starts again after Era generations.
 // Colour by: Age (a live cell walks from the start of Colours to its end by how many of the last 3 generations it
 // lived, so even a blinking cell ages), Cell (each LED its own steady pick) or Along strand (one end of Colours at
-// one end of the strand, the other at the other).
+// one end of the strand, the other at the other) or Binary (two colours: dead cells the pick's first, live its last,
+// every LED lit).
 // Smoothing blends each cell into its neighbours and each generation into the next, so it flows instead of flickering.
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth',
@@ -11,8 +12,9 @@ const params = {
     help: 'How fast generations pass. Low drifts slowly; high churns quickly.' },
   rule: { value: 'chaos', type: 'choice', options: ['chaos', 'triangles', 'gliders', 'traffic'], label: 'Rule',
     help: 'Chaos looks random, triangles nests patterns, gliders sends shapes moving, traffic queues cells along.' },
-  by: { value: 'age', type: 'choice', options: ['age', 'cell', 'along'], label: 'Colour by (age, cell, along strand)',
-    help: 'Age walks cells from first colour to last as they live; cell gives each LED one; along spans the strand.' },
+  by: { value: 'age', type: 'choice', options: ['age', 'cell', 'along', 'binary'],
+    label: 'Colour by (age, cell, along strand, binary)',
+    help: 'Age walks cells first to last colour; cell: one per LED; along spans the strand; binary: dead or alive.' },
   smoothing: { value: 0.5, min: 0, max: 1, step: 0.01, label: 'Smoothing',
     help: 'How much cells blend into neighbours and the next generation. Zero is crisp and flickery; high flows.' },
   era: { value: 48, min: 8, max: 256, step: 1, label: 'Era (generations)',
@@ -57,6 +59,7 @@ function pixel(p, t, P) {
   const c = cells(p.fixture, p.n, era, g - era * len, P);
   const k = P.smoothing, i = p.i, l = i ? i - 1 : p.n - 1, r = i < p.n - 1 ? i + 1 : 0;
   const f = smoothstep(0, 0.1 + 0.9 * k, x - g), alive = mix(at(c.was, i, l, r, k), at(c.now, i, l, r, k), f);
+  if (P.by === 'binary') return mix(pal('colours', 0), pal('colours', 1), alive);
   if (alive <= 0.002) return null;
   const age = c.now[i] ? mix(c.aged[i], c.age[i], f) : c.aged[i];                    // a dying cell keeps its age
   const col = pal('colours', P.by === 'cell' ? p.seed : P.by === 'along' ? p.u : age / AGED);

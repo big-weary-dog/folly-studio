@@ -45,7 +45,7 @@ const LOOKS = ([
     { id: 'bed', code: source('colour-wash') },
     { id: 'chase', code: source('single-strand'), tags: ['arch'],
       clips: [{ start: 2, end: 14, fadeIn: 1, fadeOut: 2 }] },
-    { id: 'rose', code: source('lighthouse'), tags: ['rose'], blend: 'over',
+    { id: 'rose', code: source('bars'), tags: ['rose'], blend: 'over',
       clips: [{ start: 8, end: 20, fadeIn: 2 }] },
   ]],
   [NOISE, [{ id: 'n', // every channel a fresh random byte, every frame

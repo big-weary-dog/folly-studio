@@ -324,7 +324,7 @@ describe('fleet-box/check.ts (boxed worker side, real runtime)', () => {
       { title: 'bars', groups: ['arches'], blend: 'add', level: 1,
         modules: [{ id: 'b', kind: 'source', title: 'Bars', code: lib('bars'), params: { softness: 0 } }] },
       { title: 'rose', groups: ['rose-window'], blend: 'over', level: 1, soften: { radius: 0.5, mode: 'space' },
-        modules: [{ id: 'p', kind: 'source', title: 'Lighthouse', code: lib('lighthouse') },
+        modules: [{ id: 'p', kind: 'source', title: 'Bars', code: lib('bars'), params: { direction: 'orbit' } },
           { id: 'bl', kind: 'filter', title: 'Blur', code: lib('blur'), params: { radius: 0.3, mode: 'both' } }] }] };
     fs.writeFileSync(path.join(dir, 'blurred.json'), JSON.stringify(blurred));
     const soft = await run(dir, 'blurred.json', ['--bake', '--seconds', '1']);
@@ -337,7 +337,7 @@ describe('fleet-box/check.ts (boxed worker side, real runtime)', () => {
 
     // A tag choice naming a tag this rig has no group for warns (City of Gods has no canopy).
     const anchored = { title: 'A', summary: 's', layers: [{ title: 'spot', groups: ['arches'], blend: 'add', level: 1,
-      modules: [{ id: 's', kind: 'source', code: lib('spot') },
+      modules: [{ id: 's', kind: 'source', code: lib('bars') },
         { id: 'a', kind: 'warp', code: lib('anchor'), params: { tag: 'canopy' } }] }] };
     fs.writeFileSync(path.join(dir, 'anchored.json'), JSON.stringify(anchored));
     assert.match((await run(dir, 'anchored.json')).out, /module 2: tag canopy has no groups on this rig/);

@@ -57,9 +57,9 @@ for (const [rigName, rig] of Object.entries({ cog, folly })) {
       const chase = mod('single-strand'), bars = mod('bars');
       assert.notDeepEqual(frame([chase, mod('kaleidoscope')]), frame([chase]));
       assert.notDeepEqual(frame([bars, mod('scroll', { direction: 'along', speed: 0.3 })]), frame([bars]));
-      const ripple = mod('ripple'), anchor = mod('anchor', { tag: 'arch' }), fold = mod('mirror', { height: true });
-      for (const order of [[ripple, anchor, fold], [ripple, fold, anchor]]) {
-        assert.notDeepEqual(frame(order), frame([ripple, anchor]), order.map((m) => m.id).join(' → '));
+      const clouds = mod('clouds'), anchor = mod('anchor', { tag: 'arch' }), fold = mod('mirror', { height: true });
+      for (const order of [[clouds, anchor, fold], [clouds, fold, anchor]]) {
+        assert.notDeepEqual(frame(order), frame([clouds, anchor]), order.map((m) => m.id).join(' → '));
       }
     });
   });

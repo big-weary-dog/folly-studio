@@ -14,14 +14,14 @@ describe('the library', () => {
   test('has the sources, warps and filters, and a hash of them', () => {
     const kinds = new Set([...lib.entries.values()].map((e) => e.kind));
     assert.deepEqual([...kinds].sort(), ['filter', 'source', 'warp']);
-    assert.ok(lib.entries.has('plasma') && lib.entries.has('blur'));
+    assert.ok(lib.entries.has('clouds') && lib.entries.has('blur'));
     assert.match(lib.hash, /^[0-9a-f]{12}$/);
   });
 
   test("a look's modules run the library's code, whatever code the look carries", () => {
-    const look = resolveLook({ id: 'x', title: 'X', layers: [{ modules: [{ ref: 'plasma', code: 'evil()' }] }] } as
+    const look = resolveLook({ id: 'x', title: 'X', layers: [{ modules: [{ ref: 'clouds', code: 'evil()' }] }] } as
       PiLook, lib);
-    assert.equal(look.layers[0]!.modules![0]!.code, lib.entries.get('plasma')!.code);
+    assert.equal(look.layers[0]!.modules![0]!.code, lib.entries.get('clouds')!.code);
   });
 
   test('a module with no ref, or an unknown one, cannot play, and says so', () => {
@@ -32,12 +32,12 @@ describe('the library', () => {
   });
 
   test('globals are checked as Studio checks them, a palette by name resolved', () => {
-    const look = oneModule('p', 'plasma', {}, { globals: { palette: 'ember' } });
+    const look = oneModule('p', 'clouds', {}, { globals: { palette: 'ember' } });
     const pal = look.globals?.palette as { name: string, body: string[] };
     assert.equal(pal.name, 'ember');
     assert.ok(pal.body.length);
-    assert.throws(() => oneModule('p', 'plasma', {}, { globals: { palette: 'nope' } }), /palette/);
-    assert.throws(() => oneModule('p', 'plasma', {}, { globals: { live: ['nope'] } }), /globals/);
+    assert.throws(() => oneModule('p', 'clouds', {}, { globals: { palette: 'nope' } }), /palette/);
+    assert.throws(() => oneModule('p', 'clouds', {}, { globals: { live: ['nope'] } }), /globals/);
   });
 
   test("the Pi's own looks (a second dir) replace shipped ones by id; a broken file says why", () => {

@@ -4,7 +4,7 @@ looks: The layer repainted in new colours by brightness: shadows one colour, hig
 Every colour above it is replaced by a colour from Colours chosen by its brightness: dark parts take the first
 colours, bright parts the last, while (with Shade) light and dark stay where they were. A filter: it reworks the
 colour of everything above it in its chain, so it goes after the sources it repaints; sources below it keep their
-own colours. Reach for it to put a texture (plasma, clouds, fire, sparkle) into the show's palette, or to make one
+own colours. Reach for it to put a texture (clouds, fire, sparkle) into the show's palette, or to make one
 source read as a heat-map; **hue-shift** turns colours round the wheel by place instead of by brightness,
 **posterize** flattens colours without choosing new ones, **invert** flips them.
 
@@ -17,7 +17,7 @@ source read as a heat-map; **hue-shift** turns colours round the wheel by place 
 - drift: Colours a second, back and forth; 0.02–0.1 for a slowly changing palette.
 
 ## Pairings
-- After plasma, clouds or fire: the texture's shape in the palette's colours (a fire in blues).
+- After clouds or fire: the texture's shape in the palette's colours (a fire in blues).
 - After a whole chain of sources: one palette over everything, so mixed sources match.
 - Bind shift or drift to energy or an lfo: the colour mood moves with the music.
 

@@ -94,7 +94,7 @@ describe('each source', () => {
 
 describe('each warp and filter, in a chain over a source', () => {
   // Warps over a pattern drawn across the layer; filters over one that moves fast, on a dark sky.
-  const base = (kind) => ({ id: 'base', kind: 'source', code: source(kind === 'warp' ? 'plasma' : 'single-strand') });
+  const base = (kind) => ({ id: 'base', kind: 'source', code: source(kind === 'warp' ? 'clouds' : 'single-strand') });
   for (const { name, kind } of index.filter((e) => e.kind === 'warp' || e.kind === 'filter')) {
     test(name, () => {
       const code = source(name);

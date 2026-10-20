@@ -7,7 +7,10 @@
     "live": ["bpm", "drive", "ripple", "hue", "level"]
   },
   "layers": [
-    { "modules": [{ "ref": "plasma", "params": { "speed": { "mod": "global", "name": "drive", "from": 0.016, "to": 0.24 } } }] },
+    { "modules": [
+      { "ref": "bars", "params": { "direction": "right", "profile": "smooth", "bars": 24,
+        "speed": { "mod": "global", "name": "drive", "from": 0.05, "to": 0.7 } } },
+      { "ref": "turbulence", "params": { "amount": 0.5, "size": 0.3, "speed": 0.15 } }] },
     { "blend": "add", "level": 0.5, "modules": [{ "ref": "heartbeat",
       "params": { "colours": "all", "spread": { "mod": "global", "name": "ripple", "from": 0.6, "to": 1.2 } } }] }
   ]

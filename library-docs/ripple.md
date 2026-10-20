@@ -1,24 +1,23 @@
 ---
 looks: Rings spreading from random drops and fading as they grow, like rain on a pond.
 ---
-Drops land at random spots in the façade and spread rings at Speed, each ring fading as it widens until its drop lands
-somewhere new. Where rings cross they add, so crests brighten toward the last colour while faint rings sit in the
-first. Calm, watery, good on any broad surface. Reach for **bars** on `in` (or the preset rose-ripple) for steady rings
-from one centre, **shockwave** for a single burst, **fireworks** for bursts that throw sparks.
+Drops land at random spots in the façade and spread a ring each, fading as it widens until its drop lands somewhere
+new: **bars** on `in` with one pulse bar, timed per drop by **in-turn** (each `drops`). Where rings meet, the newer
+ring cuts the older one. Calm, watery, good on any broad surface. Reach for **rose-ripple** for steady rings from the
+rose, **shockwave** for a single burst, **fireworks** for bursts that throw sparks.
 
-## Params
-- colours: `"accent high"` for a moonlit pond.
-- speed: In layers a second. 0.1–0.3 is a pond; each drop lasts 0.6 ÷ speed seconds.
-- drops: 1–2 for occasional drops, 5–8 for steady rain.
-- width: 0.03–0.08; thinner breaks up on sparse LEDs, thicker turns rings into soft blooms.
+## Overrides
+- in-turn.drops: 1–2 for occasional drops, 5–8 for steady rain.
+- in-turn.every: seconds between drops; a drop lives drops × every (2.4 s). Change bars.speed with it: −1 ÷ that life.
+- in-turn.reach: how wide a ring spreads, a share of the layer's longer side.
+- bars.duty: the ring's width; 0.05 fine circles, 0.3 soft blooms.
+- bars.colours: `"accent high"` for a moonlit pond.
 
 ## Pairings
-- Blend `over` or `add` on a dim accent `colour-wash`: a pond surface.
+- Blend `over` on a dim accent `colour-wash`: a pond surface.
 - Then `blur` through space on sparse groups to keep rings continuous.
 - Under `streaks` falling on the same layer for rain hitting water.
 
 ## Pitfalls
-- Rings live in the façade plane (left-right and height), round in metres; depth is ignored, so towers seen from the
-  side show slices.
-- A drop vanishes at about 15% brightness when its next one lands; at high speed the cut is visible.
+- Rings live in the façade plane; towers seen from the side show slices.
 - Narrow layers (a single tower) show only arcs of each ring; it reads best on the rose, the arches or the whole rig.

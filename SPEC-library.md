@@ -52,6 +52,7 @@ screen behind an ⓘ beside it; the generators' library docs give it as the para
 | `part(tag)` `parts(tag)` `partUp(tag)` | which of `tag`'s parts holds the pixel (0 up, −1 none; the first that does), how many, and its height in that part (0 its foot, 1 its top; in none, the rig's): the parts are the groups tagged `tag`, or if one, its smallest groups (rig order; none empty) |
 | `k seed` | global index; a stable random 0..1 per LED |
 | `ox oy oz sx sy sz sr cy cz` | the frame `lx ly lz a r` are read in (metres): `l = 0.5 + (X − o) / 2s` per axis (a flat axis, s 0: 0.5), `a r` round `(cz, cy)` in the façade, `r` 1 at `sr`; `o` the layer's bounds' middle, `s` half its size, `cy cz` its LEDs' mean in the façade and `sr` its farthest LED from that mean, unless a warp re-frames it (anchor) |
+| `dt gate` | the pixel's own time and how much of it shows, 0 and 1 unless a warp sets them (in-turn): the modules above run at pattern time `T + dt` (their `t`, and `clock()`), and each source's alpha is multiplied by `gate` |
 
 ## Stdlib (globals inside pattern code)
 
@@ -110,6 +111,8 @@ round the point's cell and round that cell's nearest, ties to the lowest index);
 lookup: before a source or filter, `slide`, or a warp whose code may read one (names it as `.field` or a string, or
 `attr`, `is`, `part`, `partUp`; destructures an object; reads a computed key). A warp that re-frames (anchor: a new middle and
 reach, or with lineup the rig's) sets `ox oy oz sx sy sz sr cy cz` and recomputes `lx ly lz a r` from `X Y Z`, so the moves after it agree. A warp writes no position field any other way.
+A warp that times instances (in-turn) adds to `dt` and multiplies `gate`, never sets them outright; the modules
+above it, warps too, then run at `T + dt`, and a module's `frame()` still runs once a frame at `T`.
 
 All may define `params` and `frame(t, P, G)` (once per frame, before any pixel; state such as a trails buffer
 indexed by `p.k` lives at top level). A **stage end** is a filter that holds real LED colours, as its code declares
@@ -153,15 +156,16 @@ preset's layers from the library's modules (fresh ids, inputs followed), on the 
 above the selected layer; of its `globals` it adds the macros the look lacks and its palette where the look has none,
 and leaves the rest.
 
-The library, one idea a module. Sources: colour-wash, bars, plasma, clouds, fire, spot, circles, wave, shockwave,
-lighthouse, curtain, single-strand (Chase), groups-in-turn, random-fixtures, life, sparkle, streaks, ripple, lightning, fireworks, tendril,
-climb, garlands, strobe, heartbeat, picture. Warps: mirror, kaleidoscope, radial-repeat, mosaic, polar, anchor, rotate,
-scroll, twist, turbulence. Filters: recolour, hue-shift, posterize, stained-glass, invert, mask,
-blur, edge-fade, trails. Presets: Water, Storm, Curtain reveal, the rose's stained glass (gothic-jewel, backlit-glow,
-cathedral-sun), and the **retired sources'**: twinkle's Starfield, depth-wave's Playa wave, canopy-rain's Rain,
-wash-breathe's Breathe, spire-helix's Tower helix, arch-chase's Arch chase, pinwheel's Galaxy, and by their own names palette-drift, shimmer,
-rising-sweep, nave-procession, meteors, marquee, galaxy, rose-ripple, rose-chase, rose-bloom, aurora, snowstorm,
-snowflakes, butterfly. Saved looks keep their code; `use()` of a retired one names its preset.
+The library, one idea a module. Sources: colour-wash, bars, clouds, fire, single-strand (Chase), life, sparkle,
+streaks, lightning, fireworks, strobe, heartbeat, picture. Warps: mirror, kaleidoscope, radial-repeat, mosaic, polar,
+anchor, rotate, scroll, twist, turbulence, in-turn. Filters: recolour, hue-shift,
+posterize, stained-glass, invert, mask, blur, edge-fade, trails. Presets: Water, Storm, the rose's stained glass
+(gothic-jewel, backlit-glow, cathedral-sun), and the **retired sources'**: twinkle's Starfield, depth-wave's Playa
+wave, canopy-rain's Rain, wash-breathe's Breathe, spire-helix's Tower helix, arch-chase's and groups-in-turn's Arch
+chase, pinwheel's and
+galaxy's Galaxy, spot's Glow, random-fixtures' Glitch, curtain's Curtain reveal, and by their own names palette-drift,
+shimmer, rising-sweep, nave-procession, meteors, marquee, rose-ripple, rose-chase, rose-bloom, aurora, snowstorm,
+snowflakes, butterfly, plasma, shockwave, lighthouse, ripple; climb retired with none. Saved looks keep their code; `use()` of a retired one names its preset.
 
 **One name, one unit, one idea.** Params that mean the same thing are named the same across the library, each with
 its unit in its label: `size` a share of the layer (bigger is bigger), `speed` things a second (`spin` turns a
@@ -242,7 +246,9 @@ LFO, a global or the envelope moves never makes the motion jump. A param with a 
 bound one is summed over show time on a fixed grid from 0 (steps of 1/128 s, the trapezoid rule, each step the
 param's value then × the look's speed then, its automation included), kept per instance and started again when time
 goes back: a frame played to and the same frame sought to read the same clock, to the bit. A seek to 10 minutes sums
-76,800 steps (a few ms); playing adds about three a frame. A `use()` instance's params are values: value × T.
+76,800 steps (a few ms); playing adds about three a frame. A `use()` instance's params are values: value × T. On a
+pixel with a time offset (`p.dt`), `clock()` reads value × (T + dt) for a fixed value and, for a bound one, its sum at
+T plus dt × its rate now, so an instance's motion runs on its own time without a second sum.
 
 ## Palettes
 

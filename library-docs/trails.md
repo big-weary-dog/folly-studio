@@ -14,7 +14,7 @@ instead of time.
 
 ## Pairings
 - After sparkle, streaks or fireworks: twinkles and particles with tails; then a dim bed with blend `under`.
-- After a lighthouse or a spinning bars: light-painted circles.
+- After bars on `orbit` or `round` (lighthouse): light-painted circles.
 - After lightning with decay 0.2: strikes that glow out instead of cutting off.
 
 ## Pitfalls

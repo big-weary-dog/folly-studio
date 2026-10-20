@@ -64,7 +64,7 @@ describe('the engine', () => {
   test("a look that cannot play falls back to safe, saying why", () => {
     const r = engineOn();
     // Library code that does not compile (a bad pull): the look is resolved, but cannot play.
-    const bad = oneModule('bad', 'plasma');
+    const bad = oneModule('bad', 'clouds');
     bad.layers[0]!.modules![0]!.code = 'this is not js(';
     r.looks.set('bad', { look: bad, file: '' });
     r.engine.play('bad');
@@ -111,7 +111,7 @@ describe('the frame timer', () => {
 });
 
 test('the loop wraps at its duration and the beat carries on, a duration off the frame grid too', () => {
-  const r = engineOn([oneModule('odd', 'plasma', {}, { duration: 1.013, bpm: 120 })]);
+  const r = engineOn([oneModule('odd', 'clouds', {}, { duration: 1.013, bpm: 120 })]);
   r.engine.play('odd');
   r.run(0.3);
   r.engine.tap(0);
@@ -123,7 +123,7 @@ test('the loop wraps at its duration and the beat carries on, a duration off the
 });
 
 test('a bpm push still easing on the frame the loop wraps keeps the beat going, never jumping', () => {
-  const r = engineOn([oneModule('odd', 'plasma', {}, { duration: 1.013, bpm: 120, globals: { live: ['bpm'] } })]);
+  const r = engineOn([oneModule('odd', 'clouds', {}, { duration: 1.013, bpm: 120, globals: { live: ['bpm'] } })]);
   r.engine.play('odd');
   r.run(0.3);
   r.engine.tap(0);

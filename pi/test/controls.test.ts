@@ -26,7 +26,7 @@ describe('a look\'s controls', () => {
   });
 
   test('without globals.live, its macros and level', () => {
-    const look = oneModule('m', 'plasma', {}, { globals: { macros: { a: { value: 0.2 } } } });
+    const look = oneModule('m', 'clouds', {}, { globals: { macros: { a: { value: 0.2 } } } });
     assert.deepEqual(controlsOf(look, liveLook(look).look).map((c) => c.name), ['a', 'level']);
   });
 
@@ -46,7 +46,7 @@ describe('a look\'s controls', () => {
 });
 
 describe('time and tempo', () => {
-  const look = oneModule('s', 'plasma', {}, { globals: { live: ['speed', 'bpm'] } });
+  const look = oneModule('s', 'clouds', {}, { globals: { live: ['speed', 'bpm'] } });
 
   test('a speed change keeps the pattern clock where it is', () => {
     const live = liveLook(look);
@@ -95,7 +95,7 @@ describe('time and tempo', () => {
 });
 
 describe('an automated name', () => {
-  const look = oneModule('a', 'plasma', {}, {
+  const look = oneModule('a', 'clouds', {}, {
     globals: { macros: { drive: { value: 0, min: 0, max: 1 } }, live: ['drive'] },
     automation: { drive: [[0, 0], [10, 1]] },
   });

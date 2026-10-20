@@ -5,7 +5,7 @@ Turns the rose window into stained glass. Each of its 224 panes takes one colour
 alternate petals, each ring, alternate rings, heart against rim, a spiral, wedges, a checkerboard, a gradient heart to
 rim, or at random), lit by Backlight plus the brightness of whatever is above it in the chain. Leading darkens the
 edge panes where two colours meet, as lead lines do. Motion `glow` breathes each pane in its own time; `sweep` passes a
-band of sunlight across. A filter: alone on a layer it is a still window; after a source (**clouds**, **plasma**,
+band of sunlight across. A filter: alone on a layer it is a still window; after a source (**clouds**, **bars**,
 **fire**) the light behind the glass moves while its colours stay. **picture** draws a shape instead of a pattern;
 **posterize** and **recolour** keep the shapes of what is above.
 

@@ -6,7 +6,7 @@ like a water surface and stripes wobble like heat haze. A warp: it bends the mod
 blur or trails, so it goes after the source. Reach for it to make anything geometric feel organic: a still bar with a
 little turbulence is a rolling water surface (preset water), streaks with turbulence swirl like snow (preset
 snowstorm), a rainbow wash drifts (preset palette-drift). **twist** swirls in an orderly way round a centre,
-**scroll** slides evenly, **clouds** and **plasma** are noise as a source rather than a push.
+**scroll** slides evenly, **clouds** is noise as a source rather than a push.
 
 ## Params
 - amount: 0.03–0.1 ripples edges; the default 0.15 bends wide bars; 0.2+ tears shapes apart.

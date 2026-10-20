@@ -14,9 +14,9 @@ unevenly, **bars** and **single-strand** draw their own motion.
 ## Pairings
 - After a colour-wash with gradient colours or a smooth bars: a moving gradient across the façade.
 - After clouds (speed 0) on `right`: cloud banks blowing past; add **turbulence** for boil.
-- With `along` after a still sparkle or garlands: lights creep up every strand.
+- With `along` after a still sparkle: lights creep up every strand.
 
 ## Pitfalls
-- Wrapping shows a seam where the source's two edges meet, unless the source tiles (bars with whole numbers, plasma).
+- Wrapping shows a seam where the source's two edges meet, unless the source tiles (bars with whole numbers).
 - Speed above ~1 on a high-contrast source sweeps large areas fast; check the flash check.
 - On top of a source that already moves the same way, speeds add; opposite ways they cancel to a standstill.

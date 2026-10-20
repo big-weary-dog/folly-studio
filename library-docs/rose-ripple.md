@@ -17,7 +17,7 @@ everything. **rose-chase** keeps its rings and comets inside the rose; **shockwa
 - anchor.tag: ripple from another group (`tower` with which `nearest` for one set from each tower).
 
 ## Pairings
-- On the whole rig, with the rose itself in its own layer above (a **spot** or **rose-bloom**).
+- On the whole rig, with the rose itself in its own layer above (a **glow** or **rose-bloom**).
 - Bind bars.speed to energy (`from` −0.3 `to` −1.2) for ripples that quicken.
 
 ## Pitfalls

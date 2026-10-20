@@ -19,7 +19,7 @@ spire-helix); **polar** and **kaleidoscope** shape round the centre that anchor 
 
 ## Pairings
 - Bars on `in` (pulse, negative speed) then anchor `rose`, `sphere`: rings from the rose (preset rose-ripple).
-- Lighthouse in `stripes` then anchor `tower`, `nearest`, `plan`: helices round each spire (preset spire-helix).
+- Bars `orbit` with Twist, then anchor `tower`, `nearest`, `plan`: helices round each spire (preset spire-helix).
 - Kaleidoscope or radial-repeat, then anchor `rose`: a kaleidoscope in the window.
 - Edge-fade on `in` with a bound position, then anchor: the rose opens ring by ring (preset rose-bloom).
 
