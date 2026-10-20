@@ -132,6 +132,13 @@ input.macro-name { width: var(--label-w); min-height: var(--hit, 28px); padding:
   .studio[data-dock=look] .splitter, .studio[data-dock=look] .code-body, .studio[data-dock=look] .dock-code-only,
     .studio[data-dock=look] .tl-body, .studio[data-dock=look] .dock-tools { display: none !important; }
   .studio[data-dock=look]:not(.code-collapsed) .look-dock { display: block; max-height: min(34vh, 260px); }
+  /* Refine beside the globals, the palette first, so a short dock shows them all */
+  .studio[data-dock=look]:not(.code-collapsed) .look-dock:has(> .refine) { display: grid; gap: 0 24px;
+    grid-template-columns: minmax(284px, 1fr) minmax(0, 2fr); align-items: start; }
+  .look-dock .look-globals { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  .look-dock .globals-palette { order: -1; }
+  .look-dock .field:has(select) > :first-child { min-width: 0; }   /* the palette and model selects get the room */
+  .look-dock .refine-row .field { flex: 1 1 100%; }
   .studio[data-dock=look] .pane-code { --tint: var(--dust); }
   .dock-tab[data-dock=look] { --tint: var(--dust); }
 }

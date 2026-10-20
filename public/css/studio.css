@@ -1,11 +1,12 @@
 /* The Studio (loaded by js/ui/studio.tsx): one window leaded into panes round the 3D view, clear dark glass
-   so the LEDs carry the colour. Phones: the view on top, the panes under it as tabs. */
-body[data-view=studio] { overflow: hidden; }
+   so the LEDs carry the colour; wide, the side runs the window's full height (base.css stops the header at it).
+   Phones: the view on top, the panes under it as tabs. */
+body[data-view=studio] { --side-w: 330px; overflow: hidden; }
 .view-studio { height: calc(100dvh - var(--header-h)); }
 .studio { --code-h: 36%; position: relative; height: 100%; display: grid; background: var(--lead);
-  grid-template-columns: 248px minmax(0, 1fr) 330px;
+  grid-template-columns: clamp(248px, 16vw, 320px) minmax(0, 1fr) var(--side-w);
   grid-template-rows: auto auto minmax(0, 1fr) 5px minmax(120px, var(--code-h));
-  grid-template-areas: "bar bar bar" "notice notice notice" "groups viewer side" "groups split side" "groups code side";
+  grid-template-areas: "bar bar side" "notice notice side" "groups viewer side" "groups split side" "groups code side";
 }
 .studio.code-collapsed { grid-template-rows: auto auto minmax(0, 1fr) 0 auto; }
 .studio.code-collapsed .splitter, .studio.code-collapsed .code-body { display: none; }
@@ -25,7 +26,7 @@ body[data-view=studio] { overflow: hidden; }
 .pane-code { grid-area: code; --tint: var(--cobalt-t); border-top: var(--came) solid var(--lead); }
 .studio[data-dock=timeline] .pane-code { --tint: var(--violet); }
 .studio .studio-tabs, .studio .pane-look, .studio .view-compact, .studio .narrow-only { display: none; }
-.studio, .side, .pane-body, .layer, .param, .chain-row { position: relative; }
+.studio, .side, .pane-body, .layer, .param, .chain-row, .tree-row { position: relative; }
 .studio-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 6px 14px;
   background: var(--night-1); border-bottom: var(--came) solid var(--lead); }
 .bar-title { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; }
@@ -132,7 +133,8 @@ body[data-view=studio] { overflow: hidden; }
 .view-btn:hover, .tp-btn:hover, .tree-toggle:hover, .tree-pin:hover, .ms-btn:hover, .reference > summary:hover {
   color: var(--text); }
 @media (max-width: 1200px) {
-  .studio { grid-template-columns: 214px minmax(0, 1fr) 296px; }
+  body[data-view=studio] { --side-w: 296px; }
+  .studio { grid-template-columns: 214px minmax(0, 1fr) var(--side-w); }
   .tp-stats { display: none; }
 }
 /* groups: each zone keeps its glass down the tree */
@@ -145,7 +147,7 @@ body[data-view=studio] { overflow: hidden; }
 .tree-item:has(> [data-id=canopy]) { --zone: var(--violet); }
 .tree-item:has(> [data-id=wash]) { --zone: var(--amber); }
 .tree-row { display: flex; align-items: center; gap: 4px; min-height: var(--hit, 30px);
-  padding: 2px 4px 2px calc(4px + var(--depth, 0) * 14px); }
+  padding: 2px 4px 2px calc(4px + var(--depth, 0) * 10px); }
 .tree-row:hover, .tree-row:focus-within { background: var(--night-2); }
 .tree-row.pinned { background: color-mix(in srgb, var(--zone) 12%, var(--night-1));
   box-shadow: inset 2px 0 0 var(--zone); }
@@ -159,7 +161,7 @@ input.tree-box { width: 16px; height: 16px; margin: 0 4px 0 2px; flex: none; cur
 }
 .tree-box:disabled { cursor: default; }
 .tree-label { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 0; font-size: 13.5px;
-  color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+  color: var(--text-2); line-height: 1.25; overflow-wrap: anywhere; cursor: pointer; }
 .tree-label::before { --q: 7px; color: var(--zone); }
 .tree-row.checked .tree-label { color: var(--text); font-weight: 600; }
 .tree-count { font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
@@ -172,7 +174,9 @@ input.tree-box { width: 16px; height: 16px; margin: 0 4px 0 2px; flex: none; cur
 .tree-row:hover .tree-pin, .tree-row:focus-within .tree-pin, .tree-pin[aria-pressed=true], .tree-pin:focus-visible {
   opacity: 1; }
 .tree-pin[aria-pressed=true] { color: var(--zone); }
-@media (hover: none) { .tree-pin { opacity: .6; } }
+@media (hover: none) { .tree-pin { opacity: .6; } }   /* with a mouse, the pin shows over the count, not beside it */
+@media (hover: hover) { .tree-pin:not([aria-pressed=true]) { position: absolute; top: 3px; right: 4px;
+  background: var(--night-2); } }
 /* layers: panes of their blend's glass, a lancet of it down the edge */
 .layer-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .layer { --blend: var(--amber); padding: 6px 8px 6px 18px; cursor: pointer; border: var(--came-s) solid var(--lead);
