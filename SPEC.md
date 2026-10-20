@@ -457,6 +457,13 @@ In `SPEC-generators.md`, part of this contract: **Generators** (idea → look), 
 In `SPEC-live.md`, part of this contract: the shared `/live` stage, its socket (`/api/live/socket`), its state and
 the `/live/control` page.
 
+## The Pi preview
+
+With `PI_PREVIEW_URL` set (a dry-run Studio Live on loopback, started with `--base /pi`), `GET /pi`, `/pi/*` and the
+socket `/pi/ws` pass through to it unchanged, for signed-in admins only: no session is 401, a non-admin 403, and a
+socket from another origin 403. Pages keep the Pi's own CSP; a preview that is down is 502. The socket carries the
+Pi's protocol (`pi/src/protocol.ts`): text frames up to 1 KB from the page. Unset, there is no `/pi`.
+
 ## Baked frames
 
 Frames are the deliverable; the server never runs look code itself, it only parses and measures

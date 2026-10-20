@@ -11,6 +11,7 @@ export const DEFAULTS = {
   port: 4048,
   http: 4043,               // the control page (0: none)
   bind: '0.0.0.0',
+  base: '',                 // the page's path ('' = at /; '/pi' behind Studio's proxy, docs/HOSTING.md)
   pin: '',                  // a PIN the control page asks for before it changes anything ('' = none)
   looks: '',                // a folder of looks besides pi/looks and pi/local/looks
   look: 'heartbeat-plasma', // played at start
@@ -25,6 +26,7 @@ const HELP = `npm run pi -- [options]   (the Pi's live engine: looks to the ligh
   --dry-run          send nothing: print a stats line instead
   --host H --port P  where DDP goes (${DEFAULTS.host}:${DEFAULTS.port}, fppd)
   --http P           the control page's port (${DEFAULTS.http}; 0 for none); --bind A its address (${DEFAULTS.bind})
+  --base /PATH       serve the page under /PATH/ rather than at /
   --pin N            ask for this PIN before the page changes anything
   --looks DIR        play looks from DIR too (beside pi/looks and pi/local/looks)
   --look ID          the look to start on (${DEFAULTS.look}); --safe ID the flash guard's (${DEFAULTS.safe})
@@ -37,8 +39,8 @@ const HELP = `npm run pi -- [options]   (the Pi's live engine: looks to the ligh
 export function readConfig(argv: string[], configFile: string): Config | null {
   const { values } = parseArgs({ args: argv, strict: true, options: {
     'dry-run': { type: 'boolean' }, help: { type: 'boolean', short: 'h' }, config: { type: 'string' },
-    ...Object.fromEntries(['host', 'port', 'http', 'bind', 'pin', 'looks', 'look', 'safe', 'cap', 'headroom', 'gen',
-      'stats', 'seconds'].map((k) => [k, { type: 'string' as const }])),
+    ...Object.fromEntries(['host', 'port', 'http', 'bind', 'base', 'pin', 'looks', 'look', 'safe', 'cap', 'headroom',
+      'gen', 'stats', 'seconds'].map((k) => [k, { type: 'string' as const }])),
   } });
   if (values.help) { console.log(HELP); return null; }
   let file: Partial<Config> = {};
@@ -57,6 +59,7 @@ export function readConfig(argv: string[], configFile: string): Config | null {
     if (typeof n === 'number' && !Number.isFinite(n)) throw new Error(`${k} must be a number`);
     (cfg as Record<string, unknown>)[k] = n;
   }
+  if (cfg.base && !/^(\/[a-z0-9-]+)+$/.test(cfg.base)) throw new Error('base must be like /pi');
   if (!cfg.stats) cfg.stats = cfg.dryRun ? 5 : 60;
   return cfg;
 }

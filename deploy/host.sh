@@ -6,6 +6,9 @@
 #
 #   STUDIO_ENV_FILE   the settings, default ~/.config/folly-studio/studio.env (chmod 600)
 #   STUDIO_UNIT       the service's name, default folly-studio
+#
+# With PI_PREVIEW_URL in the env file, it also runs a dry-run Studio Live beside it as $STUDIO_UNIT-pi, for admins at
+# /pi (docs/HOSTING.md "The Pi's page"); without it, that unit is stopped.
 set -euo pipefail
 
 die() { echo "host: $*" >&2; exit 1; }
@@ -17,9 +20,15 @@ unit=${STUDIO_UNIT:-folly-studio}
 [ -f "$env_file" ] || die "no $env_file: write it first (docs/HOSTING.md \"Environment\")"
 [ "$(stat -c %a "$env_file")" = 600 ] || die "$env_file must be readable only by you: chmod 600 $env_file"
 # shellcheck disable=SC1090 # read in a subshell: only what the service needs to be found comes out
-read -r ref host port < <(set -a; . "$env_file"; echo "${STUDIO_REF:-origin/main} ${HOST:-127.0.0.1} ${PORT:-8780}")
+read -r ref host port pi_url < <(set -a; . "$env_file"
+  echo "${STUDIO_REF:-origin/main} ${HOST:-127.0.0.1} ${PORT:-8780} ${PI_PREVIEW_URL:-}")
 ref=${1:-$ref}
 case $host in 127.0.0.1|localhost|::1) ;; *) die "HOST=$host: keep the studio on loopback, the tunnel reaches it";; esac
+pi_port=
+if [ -n "$pi_url" ]; then
+  [[ $pi_url =~ ^http://127\.0\.0\.1:([0-9]+)/?$ ]] || die "PI_PREVIEW_URL=$pi_url: must be http://127.0.0.1:<port>"
+  pi_port=${BASH_REMATCH[1]}
+fi
 command -v systemctl >/dev/null && systemctl --user show-environment >/dev/null 2>&1 \
   || die "no systemd user session: in WSL, set [boot] systemd=true in /etc/wsl.conf and restart WSL"
 
@@ -60,9 +69,32 @@ TimeoutStopSec=20
 [Install]
 WantedBy=default.target
 EOF
+if [ -n "$pi_port" ]; then
+  # A dry run sends nothing to any lights; it is only the page, behind the studio's admin sign-in.
+  cat > "$units/$unit-pi.service" <<EOF
+# Written by studio/deploy/host.sh; run it again rather than editing this.
+[Unit]
+Description=Folly Studio Live, dry run, for the studio's /pi ($studio)
+
+[Service]
+WorkingDirectory=$studio
+ExecStart=$node pi/main.ts --dry-run --base /pi --bind 127.0.0.1 --http $pi_port --stats 3600
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+EOF
+fi
 systemctl --user daemon-reload
 systemctl --user enable --quiet "$unit"
 systemctl --user restart "$unit"
+if [ -n "$pi_port" ]; then
+  systemctl --user enable --quiet "$unit-pi"
+  systemctl --user restart "$unit-pi"
+elif [ -f "$units/$unit-pi.service" ]; then
+  systemctl --user disable --now --quiet "$unit-pi" || true
+fi
 
 url="http://${host/::1/[::1]}:$port"
 for _ in $(seq 60); do
@@ -77,6 +109,17 @@ if [ "$served" != "$commit" ]; then
 fi
 code=$(curl -s -o /dev/null -w '%{http_code}' -m 5 "$url/api/me")
 [ "$code" = 401 ] || die "$url/api/me answered $code, not 401"
+if [ -n "$pi_port" ]; then
+  for _ in $(seq 20); do
+    code=$(curl -s -o /dev/null -w '%{http_code}' -m 2 "http://127.0.0.1:$pi_port/pi/") || true
+    [ "$code" = 200 ] && break
+    sleep 0.5
+  done
+  [ "$code" = 200 ] || die "$unit-pi does not serve /pi/ on 127.0.0.1:$pi_port (journalctl --user -u $unit-pi)"
+  code=$(curl -s -o /dev/null -w '%{http_code}' -m 5 "$url/pi/")
+  [ "$code" = 401 ] || die "$url/pi/ answered $code without a session, not 401"
+  echo "host: $unit-pi serves the dry-run Pi page to admins at /pi/"
+fi
 
 # The tunnel's connector runs on Windows and reaches WSL through localhost forwarding: check that path too.
 if command -v curl.exe >/dev/null; then

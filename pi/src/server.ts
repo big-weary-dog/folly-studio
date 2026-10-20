@@ -1,6 +1,7 @@
 // The control page on the LAN (pi/README.md "The control page"): the page as built into pi/page/dist, and its socket
-// at /ws. A socket must come from the page's own origin; with a PIN set, it must say the PIN before anything it sends
-// changes the lights. Each socket is rate-limited as the live stage's are; the state goes to every socket ~10 a second.
+// at /ws, both under `base` when one is given (/pi/ and /pi/ws behind Studio's proxy, docs/HOSTING.md). A socket must
+// come from the page's own origin; with a PIN set, it must say the PIN before anything it sends changes the lights.
+// Each socket is rate-limited as the live stage's are; the state goes to every socket ~10 a second.
 import { timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
@@ -20,7 +21,7 @@ const DIST = fileURLToPath(new URL('../page/dist', import.meta.url));
 
 type Client = { ws: WebSocket, ok: boolean, tokens: number, at: number, over: number, warned: boolean };
 export type ServerOptions = { engine: Engine, state: () => PiState, pin: string, port: number, host: string,
-  dist?: string, log?: (line: string) => void, now?: () => number };
+  base?: string, dist?: string, log?: (line: string) => void, now?: () => number };
 
 const same = (a: string, b: string) => {
   const x = Buffer.from(a), y = Buffer.from(b);
@@ -36,7 +37,11 @@ export async function controlServer(o: ServerOptions) {
     reply.headers({ 'content-security-policy': CSP, 'x-content-type-options': 'nosniff',
       'referrer-policy': 'no-referrer', 'cache-control': 'no-cache' });
   });
-  await app.register(fastifyStatic, { root: o.dist ?? DIST, dotfiles: 'ignore', cacheControl: false });
+  const base = o.base ?? '';
+  await app.register(fastifyStatic, { root: o.dist ?? DIST, prefix: `${base}/`, dotfiles: 'ignore',
+    cacheControl: false });
+  // /pi to /pi/, so the page's relative URLs (its script, its socket) land under the base.
+  if (base) app.get(base, (_req, reply) => reply.redirect(`${base}/`, 301));
   await app.register(fastifyWebsocket, { options: { maxPayload: 1024 } });
 
   const say = (c: Client, m: ToPage) => { if (c.ws.readyState === 1) c.ws.send(JSON.stringify(m)); };
@@ -75,7 +80,7 @@ export async function controlServer(o: ServerOptions) {
   }
 
   const host = (h: string) => h.toLowerCase().replace(/:80$/, '');
-  app.get('/ws', {
+  app.get(`${base}/ws`, {
     websocket: true,
     // Browsers always send Origin on a socket: only this page's own may drive the lights (CSRF over WebSockets).
     preValidation: async (req, reply) => {

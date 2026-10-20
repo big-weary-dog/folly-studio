@@ -21,6 +21,7 @@ import { createRegistry } from './generate/models.ts';
 import { createLog, errorHandler, type Log } from './http.ts';
 import { createHub } from './live/hub.ts';
 import { liveSettings, playableLook, stageCopy } from './live/routes.ts';
+import { piPreview, previewTarget } from './pi-preview.ts';
 import { createRenderBox } from './render-box.ts';
 import { createLoaders, CSP_APP, DEFAULT_DIST_DIR, DEFAULT_PUBLIC_DIR, serveApp } from './static.ts';
 import { createStore } from './store.ts';
@@ -41,7 +42,8 @@ type Options = { dataDir?: string, publicDir?: string, distDir?: string, generat
   trustProxy?: boolean, log?: Log,
   rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, scrypt?: Cost, framesQuality?: number,
   framesMaxBytes?: number, generator?: Queue | ((deps: Deps) => Queue | Promise<Queue>),
-  renderBox?: Parameters<typeof createBakeQueue>[0]['box'], flash?: FlashSettings, live?: LiveSettings };
+  renderBox?: Parameters<typeof createBakeQueue>[0]['box'], flash?: FlashSettings, live?: LiveSettings,
+  piPreview?: string };
 
 /**
  * The server. `generator` and `renderBox` stand in for createQueue() and createRenderBox() (STUDIO_BAKE_*) in tests;
@@ -49,7 +51,7 @@ type Options = { dataDir?: string, publicDir?: string, distDir?: string, generat
  * `publicDir`: the sources (the library, the rig); `distDir`: the app as Vite built it, served as static files.
  * `trustProxy`: one proxy in front (a tunnel): the client's address and host are the ones it forwards. `flash`: the
  * flash check's settings (default: flashSettings(process.env)); `live`: who controls the live stage and what plays
- * (default: liveSettings(process.env)).
+ * (default: liveSettings(process.env)); `piPreview`: PI_PREVIEW_URL, a dry-run Studio Live shown to admins at /pi.
  */
 export async function createServer(opts: Options = {}) {
   const {
@@ -58,6 +60,7 @@ export async function createServer(opts: Options = {}) {
     log = createLog(), renderBox, framesQuality, framesMaxBytes, scrypt,
     flash = flashSettings(), live = liveSettings(),
   } = opts;
+  const piTarget = opts.piPreview ? previewTarget(opts.piPreview) : null;
 
   const store = await createStore(dataDir, { log, upgrade: { looks: upgradeStored } });
   const auth = createAuth({ store, curators, admins, cost: scrypt });
@@ -116,6 +119,7 @@ export async function createServer(opts: Options = {}) {
   await app.register(fastifyWebsocket, { options: { maxPayload: 16 * 1024 } });
   await app.register(apiRoutes({ store, auth, queue, models, loaders, log, access, framesDir, bakes,
     frames, rateLimit, secureCookies, flash, hub, live }), { prefix: '/api' });
+  if (piTarget) await app.register(piPreview({ auth, target: piTarget }));
   await serveApp(app, { distDir, log });
   await app.ready();
   const pruneTimer = setInterval(() => auth.pruneSessions(), 60 * 60 * 1000);

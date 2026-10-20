@@ -44,6 +44,8 @@ describe('settings', () => {
     assert.throws(() => readConfig([], bad), /bad\.json/);
     assert.throws(() => readConfig(['--config', none], none), /none\.json/);
     assert.throws(() => readConfig(['--nope'], none), /nope/);
+    assert.equal(readConfig(['--base', '/pi'], none)!.base, '/pi');
+    for (const b of ['pi', '/pi/', '/../x']) assert.throws(() => readConfig(['--base', b], none), /base must be/);
   });
 
   test('--help prints the options and runs nothing', () => {

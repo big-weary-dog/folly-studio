@@ -17,7 +17,10 @@ export function piSocket() {
   const send = (m: FromPage) => { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(m)); };
   function open() {
     status.value = 'connecting';
-    ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
+    // Beside the page, wherever it is served (/ws, or /pi/ws behind Studio's proxy).
+    const url = new URL('ws', location.href);
+    url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(url);
     ws.onopen = () => { wait = 500; status.value = 'open'; send({ type: 'hello', ...(pin ? { pin } : {}) }); };
     ws.onmessage = (e) => {
       const m = JSON.parse(String(e.data)) as ToPage;

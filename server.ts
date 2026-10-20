@@ -20,6 +20,8 @@
 //   STUDIO_FRAMES_MAX_BYTES       disk cap for baked frames, default 2GB (least recently used go first)
 //   STUDIO_FLASH_PER_SECOND, _DELTA, _AREA  the flash check's limits (WCAG: 3, 0.1, 0.1); STUDIO_FLASH_CHECK=off
 //                          stops it blocking review or dimming previews (local use only, never a public server)
+//   PI_PREVIEW_URL         a dry-run Studio Live on this machine (http://127.0.0.1:4043, started with --base /pi),
+//                          shown to admins at /pi (docs/HOSTING.md "The Pi's page")
 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -38,7 +40,8 @@ const app = await createServer({ dataDir, publicDir: path.join(here, 'public'), 
   curators: env.STUDIO_CURATORS || '', admins: env.STUDIO_ADMINS || '', secureCookies: on(env.STUDIO_SECURE_COOKIES),
   generatorName: env.STUDIO_GENERATOR || '',
   trustProxy: on(env.STUDIO_TRUST_PROXY), framesQuality: Number(env.STUDIO_FRAMES_BROTLI_QUALITY) || undefined,
-  framesMaxBytes: parseBytes(env.STUDIO_FRAMES_MAX_BYTES, undefined), flash: flashSettings(env) });
+  framesMaxBytes: parseBytes(env.STUDIO_FRAMES_MAX_BYTES, undefined), flash: flashSettings(env),
+  piPreview: env.PI_PREVIEW_URL || undefined });
 const addr = await app.listen(port, host);
 const where = `http://${host.includes(':') ? `[${host}]` : host}:${addr.port}/`;
 console.log(`[studio] Folly Studio on ${where} (data ${dataDir}, models ${app.models.file}, default `

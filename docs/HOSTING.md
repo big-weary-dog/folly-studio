@@ -159,6 +159,7 @@ STUDIO_FLASH_DELTA=0.1            # a flash's swing in relative luminance (WCAG:
 STUDIO_FLASH_AREA=0.1             # share of the LEDs, or of the lit area from the front or side, that blocks
 STUDIO_LIVE_CONTROL=curators      # who drives /live: curators (and admins), admins, or members (anyone signed in)
 STUDIO_LIVE_LOOKS=reviewed        # what may play on /live: reviewed looks, or any shared look
+PI_PREVIEW_URL=http://127.0.0.1:4043  # the Pi's control page, dry run, for admins at /pi (below); unset: no /pi
 ```
 
 Sign-up is open to anyone who reaches the page.
@@ -168,6 +169,16 @@ Sign-up is open to anyone who reaches the page.
 `/live` shows everyone signed in the same look at the same moment; `/live/control` drives it (SPEC-live). Its
 socket is `/api/live/socket` on the same host, which both tunnels carry as they are. Its state survives a restart
 in `live.json` in `STUDIO_DATA`. It has no flash guard yet: keep `STUDIO_LIVE_LOOKS=reviewed` on a public site.
+
+### The Pi's page
+
+`/pi/` shows Studio Live's control page (`pi/README.md`) to signed-in admins, so it can be tried away from the
+Pi's network. With `PI_PREVIEW_URL` set, `npm run host` also runs `folly-studio-pi`: `npm run pi -- --dry-run
+--base /pi` on that loopback port, which renders as the Pi would and sends nothing to any lights (the page says
+"Dry run"). Studio passes `/pi/` and its socket `/pi/ws` through to it, for admins only: a session-less visit is
+asked to sign in (401), anyone else is refused (403), and the socket must come from this site. The page keeps its
+own CSP. It drives only that dry run, never the Pi itself. Unset `PI_PREVIEW_URL` and run `npm run host` again to
+take it down.
 
 ### The flash check
 
