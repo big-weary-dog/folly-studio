@@ -20,6 +20,8 @@ const index = JSON.parse(readFileSync(here('../public/patterns/index.json'), 'ut
 const library = index.map((e) => LibraryEntry.parse(e)).map((e) => ({ ...e, code: e.kind === 'preset' ? ''
   : readFileSync(here(`../public/patterns/${e.name}.js`), 'utf8') })) as (ModuleEntry | PresetEntry)[];
 const presets = library.filter((e): e is PresetEntry => e.kind === 'preset');
+// Modules that hold real LED colours from frame to frame (trails, smoke, delay, replay, splash).
+const history = new Set(library.filter((e) => /^const stage = 'history'/m.test(e.code)).map((e) => e.name));
 const quiet = { warn() {}, error() {} };
 
 describe('the schema', () => {
@@ -84,19 +86,19 @@ for (const [rigName, rig] of Object.entries({ folly, mini })) {
     const scene = prepareScene(rig);
     for (const p of presets) {
       const make = () => presetLayers(p, library, rig)!.map((l) => prepareLayer(scene, l, compileLayer(l)));
-      const played = make(), look = prepareLook(null), rgb = new Float32Array(scene.count * 3);
-      let lit = 0;
+      const globals = withPresetGlobals(null, p), look = prepareLook({ globals });
+      const played = make(), rgb = new Float32Array(scene.count * 3), peak = new Float32Array(rgb.length);
       for (let f = 0; f <= 80; f++) {
         const { errors } = renderFrame(scene, played, f / 40, rgb, look);
         assert.deepEqual(errors, [], `${p.name} at frame ${f}`);
+        for (let i = 0; i < rgb.length; i++) peak[i] = Math.max(peak[i], rgb[i]);
       }
-      for (const v of rgb) {
-        assert.ok(Number.isFinite(v) && v >= 0 && v <= 1, p.name);
-        if (v > 0.05) lit++;
-      }
+      for (const v of rgb) assert.ok(Number.isFinite(v) && v >= 0 && v <= 1, p.name);
+      const lit = peak.filter((v) => v > 0.05).length;   // lit at some time: an accent flashes now and then
       assert.ok(lit > rgb.length * 0.05, `${p.name}: lit (${lit})`);
-      if (p.layers.some((l) => l.modules.some((m) => m.ref === 'trails'))) continue;   // an afterglow keeps history
-      const sought = renderFrame(scene, make(), 2, new Float32Array(scene.count * 3), prepareLook(null)).rgb;
+      if (p.layers.some((l) => l.modules.some((m) => history.has(m.ref)))) continue;   // a trail keeps what it saw
+      const fresh = new Float32Array(scene.count * 3);
+      const sought = renderFrame(scene, make(), 2, fresh, prepareLook({ globals })).rgb;
       assert.deepEqual(rgb, sought, `${p.name}: played and sought`);
     }
   });

@@ -194,7 +194,9 @@ anchor, reorder, rotate, scroll, twist, turbulence, in-turn. Filters: recolour, 
 stained-glass, mask, blur, edge-fade, trails, delay, smoke, replay, sort,
 splash, rhythm. Presets: Water, Storm, Kaleidoscope, Tunnel and
 Afterimage (mirror's Wedges and Rings, trails after lightning), the rose's stained glass
-(gothic-jewel, backlit-glow, cathedral-sun), and the **retired sources'**: twinkle's Starfield, depth-wave's Playa
+(gothic-jewel, backlit-glow, cathedral-sun); fire and smoke (Brushfire, Willow, Bonfire, Flash pots, Rising embers),
+the beat (Level meter, Climbing hits, Stutter, Out of step, Call and answer, Stepping rings), Daybreak, Chain
+reaction and Incense (Daybreak, Stutter and Rising embers each ride a macro they bring); and the **retired sources'**: twinkle's Starfield, depth-wave's Playa
 wave, canopy-rain's Rain, wash-breathe's Breathe, spire-helix's Tower helix, arch-chase's and groups-in-turn's Arch
 chase, pinwheel's and
 galaxy's Galaxy, spot's Glow, random-fixtures' Glitch, curtain's Curtain reveal, and by their own names palette-drift,
