@@ -47,13 +47,6 @@
 .chain-select { flex: 1; min-height: var(--hit, 26px); padding: 1px 26px 1px 6px; font-size: 12.5px; }
 .module-title-field { padding-top: 6px; border-top: var(--came-s) solid var(--lead); }
 .soften-field .soften-mode { flex: none; width: auto; min-height: var(--hit, 26px); font-size: 12.5px; }
-/* modulation: a ∿ beside a number, lit when something moves it */
-.param-mod { min-width: var(--hit, 26px); min-height: var(--hit, 26px); margin-left: auto; padding: 0 4px;
-  font-size: 15px; color: var(--text-3); background: none; border: 0; cursor: pointer; }
-.param-mod:hover { color: var(--sand); }
-.param-mod[aria-pressed=true] { color: var(--violet); text-shadow: 0 0 8px var(--violet); }
-.param-chip { flex: none; padding: 1px 6px; font: 11.5px var(--mono); color: var(--violet);
-  border: var(--came-s) solid var(--lead); background: color-mix(in srgb, var(--violet) 12%, var(--night-0)); }
 .mod-fields { display: contents; }
 /* colour picks: a pick's field is a number's size and well (input.scrub), its text over the colours it plays, lit
    along its foot as a scrub field's string is; and the tile that edits it (a sheet on a phone) */

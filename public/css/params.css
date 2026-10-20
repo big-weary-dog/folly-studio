@@ -1,0 +1,15 @@
+/* A module's params (loaded by js/ui/studio.tsx; js/ui/params.tsx): a row each, its field, then its buttons (∿ to
+   modulate, ⓘ for its help on a touch screen, ↺ to reset), and the help itself under the row. */
+.params-wrap, .params { display: flex; flex-direction: column; gap: 10px; }
+.param-mod, .param-info, .param-reset { min-width: var(--hit, 26px); min-height: var(--hit, 26px); padding: 0 4px;
+  font-size: 15px; color: var(--text-3); background: none; border: 0; cursor: pointer; }
+.param-mod { margin-left: auto; }
+.param-mod:hover, .param-reset:hover, .param-info[aria-expanded=true] { color: var(--sand); }
+/* modulation: the ∿ lit when something moves the number, and a chip saying what in place of its field */
+.param-mod[aria-pressed=true] { color: var(--violet); text-shadow: 0 0 8px var(--violet); }
+.param-chip { flex: none; padding: 1px 6px; font: 11.5px var(--mono); color: var(--violet);
+  border: var(--came-s) solid var(--lead); background: color-mix(in srgb, var(--violet) 12%, var(--night-0)); }
+.param-reset.unused { visibility: hidden; }
+.field.param > .param-help { flex: 1 1 100%; margin: 0; }
+.param-hex { font: 12.5px var(--mono); color: var(--text-2); }
+.params-foot { padding-top: 4px; }
