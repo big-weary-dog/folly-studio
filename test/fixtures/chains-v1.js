@@ -38,7 +38,7 @@ export const LOOKS = [
   '32c264f3098b912667df5a0d736c1da1abce246f323e8dc20522be30592a8409'],
   ['three warps lead plasma and four filters', { layers: [layer('Long', [m('radial-repeat'), m('mosaic'),
     m('rotate', { params: { spin: 0.3 } }), m('plasma'), m('gradient-map'), m('hue-shift'), m('sparkle'),
-    m('edge-fade')], { groups: [] })] },
+    m('edge-fade')], { groups: undefined })] },
   '3d8e2a805042f07616a4649efa3a3db671caaac14852ed78593ed27d2cd66a51'],
   ['four warps lead meteors masked by clouds, then trails', { layers: [layer('Trails', [m('mirror'),
     m('kaleidoscope'), m('scroll'), m('twist'), m('meteors', { id: 'met2' }), m('clouds', { id: 'cl2', as: 'input' }),

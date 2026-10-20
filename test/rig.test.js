@@ -38,7 +38,9 @@ for (const [name, rig] of Object.entries(RIGS)) {
     });
 
     test('the root holds every LED, groups sit in their parents, tags find groups outermost first', () => {
-      assert.equal(pixelsForGroups(scene, []).length, scene.count);
+      assert.equal(pixelsForGroups(scene).length, scene.count, 'none given: the root');
+      assert.equal(pixelsForGroups(scene, []).length, 0, 'none picked: nothing');
+      assert.ok(pixelsForGroups(scene, [], ['nothing-has-this']).length === 0);
       assert.equal(pixelsForGroups(scene, [scene.root.id]).length, scene.count);
       for (const g of rig.groups) {
         if (g.parent == null) continue;

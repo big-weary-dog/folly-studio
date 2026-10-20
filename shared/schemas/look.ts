@@ -138,12 +138,14 @@ export const Soften = z.strictObject({
 }, { error: 'soften must be { radius, mode }.' });
 
 /** An array of at most `max` of `item`; every failure says `error`. */
-const list = (item: (error: string) => z.ZodString, max: number, error: string) => z.array(item(error), { error })
-  .max(max).default([]);
+const array = (item: (error: string) => z.ZodString, max: number, error: string) => z.array(item(error), { error })
+  .max(max);
+const list = (...a: Parameters<typeof array>) => array(...a).default([]);
 const Layer = z.looseObject({
   id: z.string({ error: 'id must be 1–64 letters, digits or _.:-' }).regex(ID).optional(),
   title: Title.default(''), code: Code.optional(), params: Params.nullish(), modules: Modules.optional(),
-  groups: list((error) => z.string({ error }).min(1).max(64), 64, 'groups must be an array of group ids.'),
+  // None given: the rig's root; [] (and no tags): nothing.
+  groups: array((error) => z.string({ error }).min(1).max(64), 64, 'groups must be an array of group ids.').optional(),
   tags: list((error) => z.string({ error }).regex(TAG), 16, 'tags must be an array of at most 16 tags (a-z, 0-9, -).'),
   blend: Blend.default('add'), level: num(0, 1, 'level must be a number from 0 to 1.').default(1),
   clips: Clips.nullish(), soften: Soften.nullish(),
@@ -160,7 +162,7 @@ const Layer = z.looseObject({
   const extra = Object.fromEntries(Object.entries(flags).filter(([k, v]) => k.length <= 64
     && (typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v))
       || (typeof v === 'string' && v.length <= 200))).slice(0, 16));
-  return { id, title, ...(modules ? { modules } : { code: code!, params: params ?? {} }), groups,
+  return { id, title, ...(modules ? { modules } : { code: code!, params: params ?? {} }), ...(groups ? { groups } : {}),
     ...(tags.length ? { tags: [...new Set(tags)] } : {}), blend, level, ...(clips?.length ? { clips } : {}),
     ...(soften ? { soften } : {}), ...extra };
 });
@@ -176,7 +178,7 @@ export function dropRemaps<T>(layers: T[]): T[] {
   }) : layers;
 }
 
-/** A look's layers, bottom first (defaults: blend add, level 1, groups [] (the rig's root), ids l1, l2, …). */
+/** A look's layers, bottom first (defaults: blend add, level 1, no groups (the rig's root), ids l1, l2, …). */
 export const Layers = z.array(Layer, { error: 'layers must be an array.' })
   .max(MAX_LAYERS, `A look can have at most ${MAX_LAYERS} layers.`)
   .transform((list, ctx) => {
