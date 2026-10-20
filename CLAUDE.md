@@ -46,4 +46,4 @@ behind these rules.
   Folly's playa build is `rig-folly.json`, from `../pixel-map/`. Both come from `npm run build-data`; never edit
   them by hand.
 - **Comments and docs are brief and current.** Say what is and why, never how it got here.
-- **Commits are green**, and stage only `studio/` (plus `.github/workflows/studio.yml`).
+- **Commits are green**, and stage only `studio/`.

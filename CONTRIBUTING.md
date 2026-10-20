@@ -49,7 +49,7 @@ why (`test/skip-reporter.js`). The data tests need `python3`. Run
 ## Dependencies
 
 Use a dependency whenever it makes life easier. Pin the exact version (`npm install --save-exact`), commit
-`package-lock.json` (CI installs with `npm ci`), and add a line here saying why. They are installed at setup (and
+`package-lock.json` (checks install with `npm ci`), and add a line here saying why. They are installed at setup (and
 the browser's bundled at build time), never fetched at run time and never from a CDN: the app, the sandbox and the
 boxes work offline on the playa. What ships to the browser is measured against its budgets (below), and the
 sandbox and the boxes take only our own code and the stdlib.
@@ -79,13 +79,13 @@ sandbox and the boxes take only our own code and the stdlib.
 
 `npm run smoke`, `perf` and `e2e` are Playwright Test specs in `test/e2e/` (`playwright.config.js`, one test at a
 time, WebGL on SwiftShader). Chromium comes from `PLAYWRIGHT_BROWSERS_PATH` (`/opt/pw-browsers` is found without
-it) or from `npx playwright install chromium` (CI does this); it is never fetched while a check runs, and
+it) or from `npx playwright install chromium`; it is never fetched while a check runs, and
 `@playwright/test` moves only together with the browsers. `smoke` and `perf` start the real server on a temporary
 data folder and a fresh build (`test/e2e/studio.js`); `smoke` bakes, so it needs the render box. `e2e` needs
 `relay/node_modules` (`cd ../relay && npm install`), and three.js 0.160.0, which Mirage loads from a CDN: the spec
 serves it from a local copy (`page.route`) in `E2E_DEPS`, a folder where `npm install three@0.160.0` was run. three
-is not a devDependency on purpose: it would add 31 MB to every `npm ci`, CI's included, for a check that also needs
-the relay's own install and minutes of Mirage on software GL, and so runs by hand, not in CI. It refuses to start
+is not a devDependency on purpose: it would add 31 MB to every `npm ci` for a check that also needs
+the relay's own install and minutes of Mirage on software GL, and so runs by hand, not in `check`. It refuses to start
 while anything sends sACN to port 5568 (a player left running would play over its frames), and names what does.
 
 Each run writes its screenshots and traces to a folder of its own (`STUDIO_PW_OUT`, else a new
@@ -271,7 +271,6 @@ cover.
 - Interface changes update `SPEC.md` in the same commit. UI changes get a browser smoke test (`npm run smoke`,
   extended when the flow changes) and a screenshot in the PR (the smoke check saves one per step).
 - Never commit `data/`, `.fseq` renders, keys or a hand-edited Folly `rig.json`.
-- CI (`.github/workflows/studio.yml`) runs `npm ci`, the typecheck, the lint, every test, the build and
-  `npm run smoke` on every push and PR that touches `studio/`, `pixel-map/` or the pixel CSV pipeline, and flags
-  each skipped test, with its reason, as a warning. A separate job runs `npm run perf` and only reports.
+- There is no hosted CI: `npm run check` (and `npm run smoke` for UI changes) on your machine is the gate, and the
+  fleet runs the full suite again after each merge.
 - Commit `package-lock.json` with any change to `package.json`; never commit `dist/` or `node_modules/`.
