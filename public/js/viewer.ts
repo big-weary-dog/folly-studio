@@ -4,11 +4,13 @@
 //   eye = target + (−flat·cos A, d·sin E, +flat·sin A),  flat = d·cos E   (Angle 0: the playa side)
 // Its input: viewer-input.ts.
 import type { Rig } from '../../shared/schemas/rig.ts';
+import { LIGHT, type Light, previewChannels } from './core/light.ts';
 import type { Playa } from './playa/renderer.ts';
 import type { Venue, VenueGL } from './playa/venue.ts';
-import { basis, type Cam, clearLens, DEG, fitView, type View, viewToCam } from './viewer-camera.ts';
+import { basis, type Cam, clearLens, DEG, fitView, frameOf, type View, viewToCam } from './viewer-camera.ts';
 import { draw, initGL, type Program, upload } from './viewer-gl.ts';
 import { bindInput, type Drag } from './viewer-input.ts';
+export { frameOf } from './viewer-camera.ts';
 
 const MIN_EYE_Y = 0.25;      // keep the camera above the playa
 const MAX_ELEV = 89;
@@ -18,13 +20,12 @@ const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 /** A phone: a touch screen under the Studio's narrow width, where the preview draws its lightest. */
 export const isPhone = () => matchMedia('(pointer: coarse) and (max-width: 899px)').matches;
-/** The light left on LEDs outside a highlight, and outside a focus (a layer's groups being picked). */
-export const HI_DIM = 0.22, FOCUS_DIM = 0.02;
 
 export class Viewer {
   canvas!: HTMLCanvasElement; views!: Record<string, View>; onError!: (message: string) => void;
   rig: Rig | null = null; count = 0; positions: Float32Array | null = null; colors: Float32Array | null = null;
-  hiMask: Uint8Array | null = null; hiActive = false; hiDim = HI_DIM; hiTint = 1;
+  light: Light = LIGHT; shown: Float32Array | null = null; hiMask: Uint8Array | null = null; hiActive = false;
+  hiFocus = false; hiTint = 1;
   bounds?: { min: number[]; max: number[] }; toView = frameOf();
   center = [1, 0, -0.4]; mode: 'playa' | 'points' = 'points'; playa: Playa | null = null; quality = 'auto';
   dirty = true; raf = 0; last = 0; _asked = 0; destroyed = false; ok = false; dpr = 1; frozen = false;
@@ -108,6 +109,7 @@ export class Viewer {
     this.positions = new Float32Array(3 * n);
     for (let i = 0; i < n; i++) this.positions.set(T(pos, 3 * i), 3 * i);
     this.colors = new Float32Array(n * 3);
+    this.shown = new Float32Array(n * 3);
     this.hiMask = new Uint8Array(n);
     const [a, c] = [T(rig.bounds.min), T(rig.bounds.max)];
     const b = this.bounds = { min: a.map((x, i) => Math.min(x, c[i])), max: a.map((x, i) => Math.max(x, c[i])) };
@@ -177,11 +179,24 @@ export class Viewer {
     this._resize();
   }
 
-  /** rgb: count × 3, 0..1, transferred to us by the sandbox: kept, not copied. */
+  /** rgb: count × 3, 0..1, transferred to us by the sandbox: kept, not copied; `shown` is its light as the views
+   * show it (core/light.ts previewChannels). */
   setColors(rgb: Float32Array) {
     if (!this.colors || !rgb || rgb.length < this.count * 3) return;
     this.colors = rgb;
-    this._buffer(this.colorBuf, rgb, this.count * 3);
+    this._shade();
+  }
+
+  /** The light settings (SPEC "Light and output"): the preview transform's gamma, floor and display. */
+  setLight(light: Light) { this.light = light; this._shade(); }
+
+  get hiDim() { return this.light.preview[this.hiFocus ? 'focus' : 'highlight']; }   // the light left outside
+
+  _shade() {
+    if (!this.shown || !this.colors) return;
+    previewChannels(this.colors, this.light, this.shown, this.options.gain, this.hiActive ? this.hiMask : null,
+      this.hiDim);
+    this._buffer(this.colorBuf, this.shown, this.count * 3);
   }
 
   /** mask: 1 per highlighted LED, or null. A highlight tints its LEDs and dims the rest; `focus` (picking a layer's
@@ -189,10 +204,11 @@ export class Viewer {
   setHighlight(mask: Uint8Array | null, focus = false) {
     if (!this.hiMask) return;
     this.hiActive = !!mask;
-    this.hiDim = focus ? FOCUS_DIM : HI_DIM;
+    this.hiFocus = focus;
     this.hiTint = focus ? 0 : 1;
     for (let i = 0; i < this.count; i++) this.hiMask[i] = mask?.[i] ? 255 : 0;
     this._buffer(this.hiBuf, this.hiMask, this.count);
+    this._shade();
   }
 
   _buffer(buf: WebGLBuffer, data: Float32Array | Uint8Array, n: number) {
@@ -207,7 +223,7 @@ export class Viewer {
   setOption(key: keyof Viewer['options'], value: number) {
     if (this.options[key] === value) return;
     this.options[key] = value;
-    if (key === 'gain') this.playa?.light();
+    if (key === 'gain') this._shade();
     if (key === 'insetTop') this._refit();
     this.invalidate();
   }
@@ -381,13 +397,4 @@ export class Viewer {
     }
     if (this.tween || this.inertia || this._lensT < 1) this.invalidate();
   }
-}
-
-/** The rig's axes ({ up: '+y', front: '-x', right: '+z' }) → (p, offset) → [x, y, z] in the view frame. */
-export function frameOf(axes: Partial<Record<'up' | 'front' | 'right', string>> = {}) {
-  const ax = (s: string | undefined, d: number[], m = /^([+-]?)([xyz])$/.exec(s || '')) => (m
-    ? ['xyz'.indexOf(m[2]), m[1] === '-' ? -1 : 1] : d);
-  const f = ax(axes.front, [0, -1]), map = [[f[0], -f[1]], ax(axes.up, [1, 1]), ax(axes.right, [2, 1])];
-  const m = new Set(map.map((a) => a[0])).size === 3 ? map : [[0, 1], [1, 1], [2, 1]];
-  return (p: ArrayLike<number>, o = 0) => m.map(([i, sign]) => sign * p[o + i]);
 }

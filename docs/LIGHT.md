@@ -26,7 +26,9 @@ flowchart LR
   P --> X["F48: gamma None,<br/>port brightness 80 % / rose 70 %"]
   X --> LED["LEDs (light)"]
   E --> FPP["FPP → F48"] --> X
-  B --> V["Previews: Points, Playa<br/>(decode for the screen)"]
+  F --> V["Preview transform<br/>v^gamma unrounded × gain × dim × exposure"]
+  B --> V
+  V --> S["Points, Playa<br/>(one sRGB encode for the screen)"]
 ```
 
 ## Every correction
@@ -41,6 +43,13 @@ flowchart LR
 | The F48 (the controller's own settings) | Port brightness 80 % (ports 5–32), 70 % (the rose, 33–48); gamma None | The electrical and thermal backstop, set on the controller. Its gamma is None so ours is the only curve | On the Falcon only. The Light page records them, and Studio never applies them |
 | Bake checks (`src/frames.ts`, `core/flash.ts`) | Each baked byte → its light through the same curve (`ledLight`) | Dark, harsh, flashing and power are about light, not colour values | Follows the Light page; judged at full output (no caps or trims), with the settings the bake ran with |
 | The Pi's live flash guard | The same, × the master | Watches what actually goes out | Follows the Pi's light.json |
+| Preview transform (`core/light.ts` `previewChannels`, both views) | Each value's LED light, `v^gamma`, unrounded but off where the LEDs round to off, at least the floor | The views show what the LEDs give, not the colour values: a 50 % swatch shows 22 % of full's light on screen as on the sculpture | Follows Gamma and Floor. Balance and trims stay out: they make the LEDs match the swatches, which the screen already does |
+| Same, `gain` and the dims | Light × the flash guard's dim or the Live master; × the highlight's or the focus's dim outside it | Applied once, in light, before either view draws, so Points and Playa dim alike, and the Live master shows as the Pi gives it | Light page: Highlight dim (22 %), Focus dim (5 %) |
+| Same, `exposure` | Light × exposure | Where full drive sits on the screen. 0.85 is Playa's tone-map shoulder: below it every level shows in proportion; above, the top compresses (Playa) or clips (Points) | Light page: Exposure (default 85 %) |
+| Points (`viewer-gl.ts`) | A sprite whose profile peaks at 1; overlapping sprites take the brighter (max), not the sum | The sprite's centre is the LED's light; a sum of encoded halos overshot (+36 green on a full orange rig) | None |
+| Playa (`playa/`) | Each fixture's emission 1 at its brightest pixel (floods cast a share); bloom keeps light over 0.5 | Full drive at the default exposure stays under the shoulder; bloom is a camera's glow, added on top | Light page: Bloom (default 40 %, 0 is off) |
+| Both views' encode (`core/light.ts` `ENCODE`) | Light → sRGB code, one curve (Ian Taylor's fit, within a quarter of a code) | The screen decodes sRGB; a software renderer's pow is slow | None |
+| Both views' ghost | An unlit LED shows faintly (Show unlit), fading out as it lights | The rig's shape at night, never a tint under a lit LED | Show unlit, per browser |
 
 The F48's caps multiply after all of this: a full white on a port at 80 % is 80 % of the LEDs' rated light. The
 Light page shows them so the whole chain is in one place. Never set them in software too, or the sculpture is
@@ -52,8 +61,10 @@ dimmed twice.
 |---|---|---|---|---|---|---|---|
 | Sends (of 255) | 255 | 135 | 55 | 12 | 2 | 1 | 0 |
 | Light | 100 % | 52.9 % | 21.6 % | 4.7 % | 0.8 % | 0.4 % | 0 |
+| On screen, Points and Playa (exposure 0.85) | 237 | 179 | 119 | 57 | 17 | 6 | 0 |
 
-The Light page shows this table live as gamma and the floor change. `test/light.test.js` pins it.
+The Light page shows this table live as gamma, the floor and the exposure change. `test/light.test.js` pins it, and
+the probes below read the same pixels off the GPU.
 
 ### Why rounding once is not enough at the bottom
 
@@ -73,15 +84,27 @@ a bed at 0.15 or more.
 
 ## The previews
 
-The engine and the bakes stay in colour values, and the screen is an sRGB display, so the previews show what a
-camera sees of the LEDs only if they decode the same way. Today they disagree with the LEDs and each other:
+The engine and the bakes stay in colour values, and the screen is an sRGB display. So both views take each frame
+through the preview transform (above), once, and encode the light for the screen with one curve: what they show is
+the LEDs' light, in proportion, at the exposure.
 
-- **Points** draws the values as they are, but its sprite peaks at 1.15, so anything over 0.87 shows as one flat
-  full colour, and an unlit-LED "ghost" adds blue under every lit one.
-- **Playa** decodes to light and drives full output into its tone map's shoulder, so mid-tones show lighter,
-  relative to full, than the LEDs give them (0.5 shows about 1.4× too bright).
-- The highlight dims (`HI_DIM`, `FOCUS_DIM`) multiply colour values in Points and light in Playa, so the same dim
-  looks different in each.
+Measured with the real `Viewer` on the real rig (a lone strip LED, front view, its brightest pixel; the probes are in
+the fleet's reports, `lightfix/probe/`), before and after:
 
-The previews' fix (one decode with this page's gamma, dims applied once before either view, no clip or ghost, and
-bloom and exposure as labelled choices) comes next, with before-and-after pictures.
+| A lone LED | Points before | Playa before | Points after | Playa after |
+|---|---|---|---|---|
+| Orange `#ff8000` | 255, 161, 39 | 252, 128, 28 | 234, 118, 22 | 238, 120, 0 |
+| Orange at 50 % (the LEDs: 22 % of full's light) | 155, 92, 39 (33 %) | 150, 82, 35 (31 %) | 118, 56, 22 (22 %) | 120, 57, 0 (22 %) |
+| Orange, outside a focus | 16, 21, 36 | 53, 35, 33 | 56, 23, 21 | 58, 25, 0 |
+| Orange, outside a highlight | 70, 44, 25 | 152, 79, 34 | 116, 55, 21 | 120, 57, 0 |
+| Every LED orange (overlap) | 255, 197, 43 | 251, 128, 28 | 233, 117, 21 | 237, 119, 0 |
+
+- Points and Playa now agree within the sprite's sampling (a few codes), and a dim means the same in both.
+- Playa's figures are its Low tier. Full adds the bloom, a camera's glow: +9 on a lone full orange LED, +16 with
+  every LED lit, and nothing at 50 %.
+- No clip and no ghost under a lit LED: Points' blue (21) is the night sky behind it, Playa's is gone.
+- A 50 % swatch shows 22 % of full's light, as the LEDs give it; before, the views showed 31–33 %.
+- Full drive shows at 237, not 255: that is the exposure keeping the top in proportion. Exposure 100 % shows full as
+  the swatch (255) and compresses the top.
+- Playa's night (sky, haze, the playa's own light) is set as dark as the old tone map's toe left it; the toe itself
+  is gone, since it darkened the LEDs' own low light too.

@@ -7,6 +7,7 @@ import { computed, effect, signal } from '@preact/signals';
 
 import type { LibraryEntry, Rig } from '../../../shared/schemas/rig.ts';
 import { api, fetchJSON, statusOf } from '../api.ts';
+import { LIGHT, lightOf } from '../core/light.ts';
 import { FlashGuard } from '../flash-guard.ts';
 import { openFrameStream } from '../frames-stream.ts';
 import type { Venue } from '../playa/venue.ts';
@@ -161,11 +162,14 @@ export function createPreview(st: Studio) {
       const v = viewer = new Viewer(canvas, { views: rig.views || {}, defaultView: 'fit',
         onError: (text: string) => { msg.value = { text, error: true }; } });
       v.setRig(rig);
-      // The guard takes the server's limits; with the check off there (local use), there is none.
+      // The guard takes the server's limits; with the check off there (local use), there is none. It and the view
+      // take the light settings (the defaults until they come).
       if (!flash.peek()) api.me().then((m) => { flash.value = m.flash ?? null; }, () => {});
+      const light = signal(LIGHT);
+      api.light().then((l) => { light.value = lightOf(l); v.setLight(light.value); }, () => {});
       disposers.push(effect(() => {
         const f = flash.value;
-        guard = f?.check === false ? null : new FlashGuard(rig, f);
+        guard = f?.check === false ? null : new FlashGuard(rig, f, light.value);
         setGuard(false);
       }), effect(() => {
         void user.value;

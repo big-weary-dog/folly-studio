@@ -133,23 +133,30 @@ another installation writes its own (CONTRIBUTING "Adding a new installation").
 
 `new Viewer(canvas, { views, defaultView, onError })`; `setRig(rig)` maps the rig's axes onto the view frame (x
 front → back, y up, z left → right) for positions, bounds and views; `setColors(rgb)` takes each frame as the
-sandbox or the baked frames give it (count × 3, 0..1); `setHighlight(mask)`, `setView(name)`, `setOption(key, v)`
-(`ghost`, `gain` from the flash guard, `insetTop`), `setClear(rect)` (the part of the canvas a dialog leaves clear,
+sandbox or the baked frames give it (count × 3, 0..1); `setLight(light)` (the light settings); `setHighlight(mask)`,
+`setView(name)`, `setOption(key, v)` (`ghost`, `gain` from the flash guard or the Live master, `insetTop`),
+`setClear(rect)` (the part of the canvas a dialog leaves clear,
 CSS px: views centre there by a lens shift and Fit fills it; the first rect eases to Fit, null eases back to the view
 from before unless the camera moved meanwhile). It draws only when something changed. Two modes,
 `setMode('playa' | 'points')` (resolves to the mode shown; the Studio remembers it in `studio.render`, default
 Playa; the view's LEDs button is Points):
 
-- **Points** (LEDs): every LED a glowing sprite over a ground grid, its colour raw. The light fallback.
+Both modes show light, through one preview transform (`previewChannels`, core/light.ts), applied once before either
+draws: each value's light on the LEDs (`v^gamma`, unquantised; off where the LEDs round to off; the `floor`) × the
+`gain` × a highlight's dim outside it, all linear as the Pi's master is, × `exposure` (where full drive sits on the
+screen: 0.85, Playa's shoulder, by default). Balance and trims are left out: they make the LEDs match the swatches.
+The views encode light to sRGB for the screen with one encode; an unlit LED's faint ghost never shows under a lit one.
+
+- **Points** (LEDs): every LED a glowing sprite over a ground grid, the sprite's peak its light, overlapping sprites
+  the brighter of them (a max blend), not their sum. The light fallback.
 - **Playa**: Mirage's night playa, from the rig's render hints alone: `strip` a camera-facing ribbon per pixel
   (stepping pixel to pixel, as solid as fabric), `bulbs` globes on a wire, `points` sprites, `cells` lit glass,
   `flood` a soft beam or a lit shell; `structure.lines` a scaffold of one dim grey, unlit; a ground plane, sky and
   horizon. Each frame's light goes into one RGBA16F texture (no allocation) that the geometry samples by pixel index;
-  spill lights (pixels clustered once, summed each frame) light the playa; HDR, bloom, then a tone map on the peak
-  only, so saturated colours stay saturated. Colours are sRGB (as their swatches): the light is decoded to linear
-  before it goes in the texture. The tone map is linear to .7 of its range, then a shoulder; the emission puts full
-  drive in that shoulder, so mid-tones show lighter, relative to full, than the LEDs give them (docs/LIGHT.md
-  "The previews"). It needs float render targets, else the view stays on Points.
+  spill lights (pixels clustered once, summed each frame) light the playa; HDR, `bloom` (light over 0.5
+  glows, × the setting; 0 is off), then a tone map on the peak only, so saturated colours stay saturated: linear
+  to .85, then a shoulder. A fixture's brightest pixel shows its light, so at the default exposure the LEDs stay
+  linear, as they are. It needs float render targets, else the view stays on Points.
   `setQuality('auto' | 'full' | 'lite' | 'low')`: full (pixel ratio ≤ 2, half-res bloom, 16 spill lights), lite
   (≤ 1, quarter-res bloom, 6, tubes without the neighbour blend), low (≤ 1, no bloom, 4). Auto starts at full,
   lite on a touch screen, and steps down while the median of 24 frames takes over 30 ms.
@@ -182,7 +189,7 @@ How a colour value becomes light, the one explanation (docs/LIGHT.md has the why
 - **The checks judge the look at full output**: `gamma`, `balance` and `floor`, never the caps.
 
 The light settings, `shared/schemas/light.ts`, are stored once: `<STUDIO_DATA>/light.json`, written by the Light page
-(Admin) and read by Export, the bake checks and the preview; the Pi reads the same shape from `pi/light.json`
+(Admin) and read by Export, the bake checks and the previews; the Pi reads the same shape from `pi/light.json`
 (the Light page's "Download for the Pi"). Missing, unreadable or out of range, each field is its default:
 
 ```
@@ -190,7 +197,11 @@ The light settings, `shared/schemas/light.ts`, are stored once: `<STUDIO_DATA>/l
   balance: [1, 1, 1],      // 0..1 each: a colour's light trimmed down, to even out the whites
   floor: 0,                // 0..16: the least byte a lit channel sends (v ≥ 0.5/255); 0 lets the curve round to off
   trims: [],               // ≤ 32 of { tag, level 0..1 }: a group's light × level, by the rig's group tags
-  controller: [{ ports, brightness, gamma }] }   // ≤ 16: the controller's own settings, recorded, never applied
+  controller: [{ ports, brightness, gamma }],    // ≤ 16: the controller's own settings, recorded, never applied
+  preview: { exposure: 0.85, // 0.1..2: the screen light of full drive (above 0.85 Playa compresses; Points clips at 1)
+    bloom: 0.4,              // 0..1: Playa's glow round bright light; 0 is off
+    highlight: 0.22,         // 0..1: the light left outside a hover highlight
+    focus: 0.05 } }          // 0..1: the light left outside a layer's groups while picking them
 ```
 
 ## Pattern code and the library

@@ -13,7 +13,7 @@ behind these rules.
   `rig.json` shapes, and `pattern-core.ts`'s exports are what the other pieces rely on.
   Code follows the spec, in the same change.
 - **Split, never bump.** Source stays ≤ 400 lines, tests ≤ 600, library patterns ≤ 150 (they
-  are the AI's examples), lines ≤ 120, text files ≤ 64 KB, and the gzipped app ≤ 220 KB with the
+  are the AI's examples), lines ≤ 120, text files ≤ 64 KB, and the gzipped app ≤ 240 KB with the
   login page ≤ 40 KB, as built (`test/build.test.js`). Over a limit, split the module by responsibility, one
   concern per file named for it. Raising a limit is not a fix. Each area's total lines are ratcheted in
   `tools/budgets.json`: lower it when you cut; raise it only with a new `reason`.

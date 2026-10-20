@@ -61,3 +61,12 @@ export function clearLens(r: { x: number; y: number; w: number; h: number } | nu
   out[2] = Math.max(0.05, (x1 - x0) / w); out[3] = Math.max(0.05, (y1 - y0) / h);
   return out;
 }
+
+/** The rig's axes ({ up: '+y', front: '-x', right: '+z' }) → (p, offset) → [x, y, z] in the view frame. */
+export function frameOf(axes: Partial<Record<'up' | 'front' | 'right', string>> = {}) {
+  const ax = (s: string | undefined, d: number[], m = /^([+-]?)([xyz])$/.exec(s || '')) => (m
+    ? ['xyz'.indexOf(m[2]), m[1] === '-' ? -1 : 1] : d);
+  const f = ax(axes.front, [0, -1]), map = [[f[0], -f[1]], ax(axes.up, [1, 1]), ax(axes.right, [2, 1])];
+  const m = new Set(map.map((a) => a[0])).size === 3 ? map : [[0, 1], [1, 1], [2, 1]];
+  return (p: ArrayLike<number>, o = 0) => m.map(([i, sign]) => sign * p[o + i]);
+}

@@ -1,12 +1,12 @@
 // The Light page, for admins: the light settings (SPEC "Light and output", docs/LIGHT.md), the one stored place for
-// how the LEDs turn a colour value into light. Export, the bake checks and the preview read them; the Pi reads the
-// same file, downloaded here, as pi/light.json.
+// how the LEDs turn a colour value into light, and how the previews show it. Export, the bake checks and the previews
+// read them; the Pi reads the same file, downloaded here, as pi/light.json.
 import '../../css/pages.css';
 
 import { useEffect, useState } from 'preact/hooks';
 
 import { api, statusOf } from '../api.ts';
-import { LIGHT, type Light, lightByte, lightOf } from '../core/light.ts';
+import { encode, LIGHT, LIGHT_LIMITS, type Light, lightByte, lightOf, shownLight } from '../core/light.ts';
 import { cx, download, Field, Scrub, toast } from './kit.tsx';
 import { setTitle, signedOut } from './session.ts';
 
@@ -41,8 +41,8 @@ export function LightPage() {
     <div class="page light-page">
       <h1 class="page-title">Light</h1>
       <p class="lede">How the LEDs turn a colour into light. Looks are made in colour values, as their swatches; the
-        LEDs give light, so every value goes out as value<sup>gamma</sup>. Export and the bake checks use these now;
-        the Pi uses them once its <code>pi/light.json</code> is this file.</p>
+        LEDs give light, so every value goes out as value<sup>gamma</sup>. Export, the bake checks and the previews
+        use these now; the Pi uses them once its <code>pi/light.json</code> is this file.</p>
       <section class="models-panel" aria-label="The LEDs' curve">
         <Field label="Gamma" class="end" hint={<p class="field-hint">2.2 makes the LEDs match an sRGB screen; higher
           is darker mid-tones. Tune by eye at night, 2.2–2.6.</p>}>{(id) => <Scrub id={id} min={1} max={3}
@@ -57,6 +57,7 @@ export function LightPage() {
         </Field>
         <Curve light={draft} />
       </section>
+      <Preview draft={draft} set={set} />
       <Trims draft={draft} set={set} />
       <Controller draft={draft} set={set} />
       <p class="form-error" role="alert" hidden={!error}>{error}</p>
@@ -76,12 +77,35 @@ export function LightPage() {
 function Curve({ light }: { light: Light }) {
   const byte = (v: number) => lightByte(v, light);
   return <table class="light-curve">
-    <caption>A value's light on the LEDs (white, before balance)</caption>
+    <caption>A value's light on the LEDs (white, before balance), and on the previews' screen</caption>
     <thead><tr><th scope="row">Value</th>{SAMPLES.map((v) => <th key={v}>{`${Math.round(v * 100)}%`}</th>)}</tr>
     </thead>
     <tbody><tr><th scope="row">Sends</th>{SAMPLES.map((v) => <td key={v}>{byte(v)}</td>)}</tr>
       <tr><th scope="row">Light</th>{SAMPLES.map((v) => <td key={v}>{`${(byte(v) / 2.55).toFixed(1)}%`}</td>)}</tr>
+      <tr><th scope="row">On screen</th>{SAMPLES.map((v) => <td key={v}>
+        {Math.round(255 * encode(shownLight(v, light)))}</td>)}</tr>
     </tbody></table>;
+}
+
+/** How the previews show the light: the same curve, then these, the same in Points and Playa. */
+function Preview({ draft, set }: { draft: Light; set: (p: Partial<Light>) => void }) {
+  const P = draft.preview, edit = (patch: Partial<Light['preview']>) => set({ preview: { ...P, ...patch } });
+  const [e0, e1] = LIGHT_LIMITS.exposure;
+  const share = (key: 'bloom' | 'highlight' | 'focus', label: string, hint: string) => <Field label={label}
+    class="end" hint={<p class="field-hint">{hint}</p>}>{(id) => <Scrub id={id} min={0} max={100} step={1} unit="%"
+      value={Math.round(P[key] * 100)} set={(v) => edit({ [key]: v / 100 })} />}</Field>;
+  return <section class="models-panel" aria-label="The previews">
+    <p class="field-hint">The previews show each LED's light as this curve gives it, unrounded, then these. They never
+      change what the LEDs get.</p>
+    <Field label="Exposure" class="end" hint={<p class="field-hint">The screen light of full drive. 85 % keeps the
+      brightest LED below Playa's shoulder, so every level shows in proportion; more is brighter, and compresses
+      the top.</p>}>{(id) => <Scrub id={id} min={e0 * 100} max={e1 * 100} step={5} unit="%"
+        value={Math.round(P.exposure * 100)} set={(v) => edit({ exposure: v / 100 })} />}</Field>
+    {share('bloom', 'Bloom', 'Playa\'s glow round bright light, as a camera sees it. 0 is off: the LEDs\' own light '
+      + 'alone.')}
+    {share('highlight', 'Highlight dim', 'The light left on LEDs outside a hover highlight.')}
+    {share('focus', 'Focus dim', 'The light left outside a layer\'s groups while you pick them: dim, still readable.')}
+  </section>;
 }
 
 /** Each group's light × its level, after the curve (by the rig's group tags): to match a part that runs bright. */

@@ -81,8 +81,9 @@ sandbox and the boxes take only our own code and the stdlib.
 ### Browser checks
 
 `npm run smoke`, `perf` and `e2e` are Playwright Test specs in `test/e2e/` (`playwright.config.js`, one test at a
-time, WebGL on SwiftShader). Chromium comes from `PLAYWRIGHT_BROWSERS_PATH` (`/opt/pw-browsers` is found without
-it) or from `npx playwright install chromium`; it is never fetched while a check runs, and
+time, WebGL on SwiftShader; `smoke` and `e2e` unset `DISPLAY` and `WAYLAND_DISPLAY`, since headless Chromium can hang on
+a desktop display's, as under WSLg). Chromium comes from `PLAYWRIGHT_BROWSERS_PATH` (`/opt/pw-browsers` is found
+without it) or from `npx playwright install chromium`; it is never fetched while a check runs, and
 `@playwright/test` moves only together with the browsers. `smoke` and `perf` start the real server on a temporary
 data folder and a fresh build (`test/e2e/studio.js`); `smoke` bakes, so it needs the render box. `e2e` needs
 `relay/node_modules` (`cd ../relay && npm install`), and three.js 0.160.0, which Mirage loads from a CDN: the spec
@@ -266,7 +267,8 @@ cover.
   and for the ideas lever: Quick, Explore or Deep on the idea form with each level's time and line, kept per
   browser, and an idea's level and what it took (+0.7 KB). Raised to 200 KB by the owner's call (2026-10-20):
   headroom for features; views still split into chunks loaded on first use where that comes naturally. Raised to
-  220 KB by the owner's call (2026-10-20), for the frame buffer and more headroom.
+  220 KB by the owner's call (2026-10-20), for the frame buffer and more headroom. Raised to 240 KB by the owner's
+  call (2026-10-20): the previews' light and the Admin page took it to 221 KB; headroom again.
 - On the wire (`test/transfer.test.js`, the real server, the build and a model of a browser's cache): a cold
   Studio load (shell, modules, styles, sandbox, `rig.json`, API) ≤ 215 KB with br (255 KB gzip; raised from 205 and
   240 for the rhythm filter, with headroom, by the owner's standing call on size);

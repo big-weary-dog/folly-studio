@@ -1,7 +1,8 @@
 // Light (SPEC "Light and output", docs/LIGHT.md): the one place that knows how a colour value becomes light. Colours
 // are sRGB-encoded, as their swatches; the LEDs' PWM is linear light, and the Falcon's own gamma is None, so this is
 // the one curve between them. The settings' shape and defaults, the output transform (curve, balance, trims, floor,
-// a linear cap) and each byte's light for the checks all live here; nothing else reads `gamma`.
+// a linear cap), each byte's light for the checks and the previews' light and screen encode all live here; nothing
+// else reads `gamma`.
 import type { Scene } from './scene.ts';
 import { tagMask } from './scene.ts';
 import { isNum } from './stdlib.ts';
@@ -10,7 +11,11 @@ import { isNum } from './stdlib.ts';
  * pi/light.json) leave it out. `controller` records the Falcon's own settings (its port brightness is the electrical
  * backstop: ports 5-32 at 80 %, the rose's 33-48 at 70 %); it is never applied here, so nothing dims twice. */
 export type Light = { gamma: number, balance: [number, number, number], floor: number,
-  trims: { tag: string, level: number }[], controller: { ports: string, brightness: number, gamma: string }[] };
+  trims: { tag: string, level: number }[], controller: { ports: string, brightness: number, gamma: string }[],
+  preview: Preview };
+/** The previews' display: where full drive sits on the screen, Playa's bloom, the light left outside a highlight
+ * and outside a focus (a layer's groups being picked). */
+export type Preview = { exposure: number, bloom: number, highlight: number, focus: number };
 export const LIGHT: Readonly<Light> = Object.freeze<Light>({
   gamma: 2.2,
   balance: [1, 1, 1],
@@ -20,9 +25,11 @@ export const LIGHT: Readonly<Light> = Object.freeze<Light>({
     { ports: '5-32', brightness: 0.8, gamma: 'None' },
     { ports: '33-48 (rose)', brightness: 0.7, gamma: 'None' },
   ],
+  preview: { exposure: 0.85, bloom: 0.4, highlight: 0.22, focus: 0.05 },
 });
 /** Each setting's range, and how many trims and controller rows a record holds. */
-export const LIGHT_LIMITS = Object.freeze({ gamma: [1, 3], floor: [0, 16], trims: 32, controller: 16, text: 40 });
+export const LIGHT_LIMITS = Object.freeze({ gamma: [1, 3], floor: [0, 16], trims: 32, controller: 16, text: 40,
+  exposure: [0.1, 2] });
 
 const num = (v: unknown, lo: number, hi: number, d: number) => (isNum(v) ? Math.min(hi, Math.max(lo, v)) : d);
 const text = (v: unknown) => (typeof v === 'string' ? v.slice(0, LIGHT_LIMITS.text) : '');
@@ -36,7 +43,11 @@ export function lightOf(o?: unknown): Light {
     .map((t) => ({ tag: text(t.tag), level: num(t.level, 0, 1, 1) }));
   const controller = list(s.controller, LIGHT_LIMITS.controller)?.filter((c) => c && typeof c === 'object')
     .map((c) => ({ ports: text(c.ports), brightness: num(c.brightness, 0, 1, 1), gamma: text(c.gamma) }));
-  return { gamma: num(s.gamma, g0, g1, LIGHT.gamma),
+  const p = (s.preview && typeof s.preview === 'object' ? s.preview : {}) as Record<string, unknown>, P = LIGHT.preview;
+  const [e0, e1] = LIGHT_LIMITS.exposure, share = (k: keyof Preview) => num(p[k], 0, 1, P[k]);
+  const preview = { exposure: num(p.exposure, e0, e1, P.exposure), bloom: share('bloom'),
+    highlight: share('highlight'), focus: share('focus') };
+  return { gamma: num(s.gamma, g0, g1, LIGHT.gamma), preview,
     balance: LIGHT.balance.map((d, i) => num(b[i], 0, 1, d)) as Light['balance'],
     floor: Math.round(num(s.floor, f0, f1, LIGHT.floor)), trims: trims ?? [],
     controller: controller ?? LIGHT.controller.map((c) => ({ ...c })) };
@@ -91,3 +102,36 @@ export function ledLight(light: Light = LIGHT) {
   }
   return t;
 }
+
+/** The light a view shows for value `v` (0..1 of the screen's white): the LEDs' own at full output, v^gamma, not
+ * quantised but off where they round to off, and at least the floor, × the exposure. Balance and trims stay out:
+ * they make the LEDs match the swatches, which the screen already does. */
+export function shownLight(v: number, light: Light) {
+  return ledByte(v, light.gamma, 1, light.floor) ? Math.max(Math.min(1, v ** light.gamma), light.floor / 255)
+    * light.preview.exposure : 0;
+}
+
+/** A frame's light for the views, once, before either draws: shownLight × `gain` (the flash guard's dim, the Live
+ * master: linear, as the Pi's), × `dim` on each LED that `mask` leaves out (0 there; null: none). */
+export function previewChannels(rgb: ArrayLike<number>, light: Light, out: Float32Array, gain = 1,
+  mask: ArrayLike<number> | null = null, dim = 1) {
+  for (let k = 0, n = out.length / 3; k < n; k++) {
+    const g = mask && !mask[k] ? gain * dim : gain;
+    for (let c = 3 * k; c < 3 * k + 3; c++) out[c] = g > 0 ? shownLight(rgb[c], light) * g : 0;
+  }
+  return out;
+}
+
+/** Light (0..1) to the screen's sRGB code (0..1), as the views' shaders do (`ENCODE`): Ian Taylor's fit of the
+ * sRGB curve, within a quarter of a code of it, since a software renderer's pow is slow. */
+export function encode(x: number) {
+  const c = Math.min(1, Math.max(0, x)), s1 = Math.sqrt(c), s2 = Math.sqrt(s1);
+  return c < 0.0031308 ? 12.92 * c : 0.662 * s1 + 0.684 * s2 - 0.3236 * Math.sqrt(s2) - 0.02254 * c;
+}
+/** The views' one screen encode, GLSL: as `encode`. */
+export const ENCODE = `vec3 encode(vec3 c) {
+  c = clamp(c, 0., 1.);
+  vec3 s1 = sqrt(c), s2 = sqrt(s1);
+  return mix(12.92 * c, .662 * s1 + .684 * s2 - .3236 * sqrt(s2) - .02254 * c, step(.0031308, c));
+}
+`;

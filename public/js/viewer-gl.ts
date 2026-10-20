@@ -1,5 +1,6 @@
 // The viewer's WebGL2 side: shaders, matrices, buffers and the draw. Pure functions over a Viewer
 // (viewer.ts), which owns the state; nothing here allocates per frame.
+import { ENCODE } from './core/light.ts';
 import type { Viewer } from './viewer.ts';
 
 /** A linked program and its uniforms by name. */
@@ -54,7 +55,7 @@ uniform mat4 uViewProj;
 uniform float uScale;      // device px per metre at distance 1
 uniform float uSize;       // sprite diameter, metres
 uniform vec2 uPx;          // min, max sprite size in device px
-uniform float uGhost, uHiActive, uHiDim, uHiTint, uGain;
+uniform float uGhost, uHiActive, uHiTint;
 out vec3 vColor, vGhost;
 out float vHi;
 void main() {
@@ -65,8 +66,10 @@ void main() {
   // Far away, keep a minimum sprite but dim it so the energy stays about right.
   float k = clamp(px / uPx.x, 0.35, 1.0);
   float hi = aHi * uHiActive * uHiTint;
-  float sel = mix(1.0, mix(uHiDim, 1.0, aHi), uHiActive), ghost = mix(1.0, mix(0.22, 1.0, aHi), uHiActive);
-  vColor = aColor * uGain * k * sel;
+  // aColor is light, dims and all (Viewer.shown); an unlit LED's ghost fades out as it lights
+  float ghost = mix(1.0, mix(0.22, 1.0, aHi), uHiActive) * (1.0 - smoothstep(0.0, 0.02, max(aColor.r,
+    max(aColor.g, aColor.b))));
+  vColor = aColor * k;
   vGhost = mix(vec3(0.32, 0.40, 0.62) * uGhost * ghost, vec3(0.0), hi) * k;
   vHi = hi * k;
 }`;
@@ -76,6 +79,7 @@ precision mediump float;
 in vec3 vColor, vGhost;
 in float vHi;
 out vec4 outColor;
+${ENCODE}
 void main() {
   vec2 d = gl_PointCoord * 2.0 - 1.0;
   float r2 = dot(d, d);
@@ -84,8 +88,8 @@ void main() {
   float halo = exp(-r2 * 4.5) * (1.0 - r2);
   float r = sqrt(r2);
   float ring = smoothstep(0.16, 0.26, r) * (1.0 - smoothstep(0.30, 0.44, r));
-  vec3 c = vColor * (core * 0.95 + halo * 0.20)
-         + vGhost * exp(-r2 * 40.0)
+  // the light's profile peaks at 1, so the centre shows the LED's light; then the screen's encode
+  vec3 c = max(encode(vColor * (core * 0.83 + halo * 0.17)), vGhost * exp(-r2 * 40.0))
          + vec3(1.0, 0.70, 0.30) * ring * vHi * 0.55;
   outColor = vec4(c, 1.0);
 }`;
@@ -178,7 +182,7 @@ export function initGL(v: Viewer) {
 export function upload(v: Viewer) {
   const gl = v.gl;
   gl.bindVertexArray(v.vao);
-  const attrs = [[v.posBuf, v.positions, gl.STATIC_DRAW, 3, gl.FLOAT], [v.colorBuf, v.colors, gl.DYNAMIC_DRAW, 3,
+  const attrs = [[v.posBuf, v.positions, gl.STATIC_DRAW, 3, gl.FLOAT], [v.colorBuf, v.shown, gl.DYNAMIC_DRAW, 3,
     gl.FLOAT], [v.hiBuf, v.hiMask, gl.DYNAMIC_DRAW, 1, gl.UNSIGNED_BYTE]] as const;
   attrs.forEach(([buf, data, usage, size, type], i) => {
     gl.bindBuffer(gl.ARRAY_BUFFER, buf);
@@ -228,7 +232,7 @@ export function camera(v: Viewer) {
   return { vfov, Hf };
 }
 
-/** One frame: sky, venue props, grid, then the LEDs as additive sprites. */
+/** One frame: sky, venue props, grid, then the LEDs as sprites, each pixel the brightest over it. */
 export function draw(v: Viewer) {
   const gl = v.gl;
   const W = v.canvas.width, H = v.canvas.height;
@@ -264,9 +268,9 @@ export function draw(v: Viewer) {
 
   gl.disable(gl.DEPTH_TEST);
 
-  // LEDs, additive, over everything
+  // LEDs over everything: the brightest wins (sprites overlap in screen codes, where a sum would overshoot)
   if (v.count) {
-    gl.blendFunc(gl.ONE, gl.ONE);
+    gl.blendEquation(gl.MAX);
     gl.useProgram(v.points.p);
     const u = v.points.u;
     gl.uniformMatrix4fv(u.uViewProj, false, v.viewProj);
@@ -275,11 +279,10 @@ export function draw(v: Viewer) {
     gl.uniform2f(u.uPx, 2.5 * v.dpr, Math.min(v.maxPoint, 180 * v.dpr));
     gl.uniform1f(u.uGhost, v.options.ghost);
     gl.uniform1f(u.uHiActive, v.hiActive ? 1 : 0);
-    gl.uniform1f(u.uHiDim, v.hiDim);
     gl.uniform1f(u.uHiTint, v.hiTint);
-    gl.uniform1f(u.uGain, v.options.gain);
     gl.bindVertexArray(v.vao);
     gl.drawArrays(gl.POINTS, 0, v.count);
+    gl.blendEquation(gl.FUNC_ADD);
   }
   gl.bindVertexArray(null);
 }

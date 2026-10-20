@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 import type { Browser, Page } from 'playwright-core';
 
+import type { Light } from '../../public/js/pattern-core.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
 import type { Logger } from '../http.ts';
 import { type Camera, HEIGHT, WIDTH } from './motion.ts';
@@ -26,7 +27,8 @@ canvas{display:block;width:${WIDTH}px;height:${HEIGHT}px}</style><canvas></canva
 
 // public/js/preview-camera.ts's API (server code may not import it, even its types).
 declare global { interface Window { previewCamera: {
-  setup(rig: Rig, venue: unknown): Promise<{ mode: string, gpu: string }>, draw(leds: string): string } } }
+  setup(rig: Rig, venue: unknown, light?: Light): Promise<{ mode: string, gpu: string }>,
+  draw(leds: string): string } } }
 
 /** Software renderers draw it too, but slowly: the server asks for a GPU and says when it has none. */
 export const isSoftware = (gpu: string) => /swiftshader|llvmpipe|softpipe|software/i.test(gpu);
@@ -65,8 +67,9 @@ async function open(log: Logger) {
   }
 }
 
-/** The camera, and close() for shutdown. */
-export function playaCamera({ log = console, idleMs = IDLE_MS }: { log?: Logger, idleMs?: number } = {}) {
+/** The camera, and close() for shutdown. `loadLight`: the light settings, for the view's preview transform. */
+export function playaCamera({ log = console, idleMs = IDLE_MS, loadLight }: { log?: Logger, idleMs?: number,
+  loadLight?: () => Light } = {}) {
   let session: Promise<{ browser: Browser, page: Page }> | null = null, rigShown = '';
   let timer: ReturnType<typeof setTimeout> | undefined;
   const close = async () => {
@@ -81,11 +84,12 @@ export function playaCamera({ log = console, idleMs = IDLE_MS }: { log?: Logger,
     try {
       session ??= open(log);
       const { page } = await session;
-      const shown = JSON.stringify(rig);    // loadRig() reads it afresh each time
+      const light = loadLight?.(), shown = JSON.stringify([rig, light]);    // loadRig() reads it afresh each time
       if (rigShown !== shown) {
         const venue = JSON.parse(await fs.readFile(path.join(ROOT, 'public/data/venue.json'), 'utf8')
           .catch(() => 'null'));
-        const { mode, gpu } = await page.evaluate(([r, v]) => window.previewCamera.setup(r, v), [rig, venue] as const);
+        const { mode, gpu } = await page.evaluate(([r, v, l]) => window.previewCamera.setup(r, v, l),
+          [rig, venue, light] as const);
         if (mode !== 'playa') throw new Error(`no Playa view here (${gpu})`);
         log[isSoftware(gpu) ? 'warn' : 'info']?.(`[previews] camera on ${gpu}`);
         rigShown = shown;

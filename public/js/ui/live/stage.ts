@@ -6,6 +6,8 @@
 import { signal } from '@preact/signals';
 
 import type { LiveUpdate } from '../../../../shared/schemas/live.ts';
+import { api } from '../../api.ts';
+import { lightOf } from '../../core/light.ts';
 import { Runtime } from '../../runtime.ts';
 import { Viewer } from '../../viewer.ts';
 import { pref, toast } from '../kit.tsx';
@@ -137,6 +139,7 @@ export function createStage(sock: LiveSocket) {
       const v = viewer = new Viewer(canvas, { views: rig.views || {}, defaultView: 'fit',
         onError: (text) => { msg.value = { text, error: true }; } });
       v.setRig(rig);
+      api.light().then((l) => v.setLight(lightOf(l)), () => {});
       const quality = pref('studio.quality');
       v.setQuality(quality && quality !== 'auto' ? quality : matchMedia('(pointer: coarse)').matches ? 'low' : 'auto');
       await v.setMode(pref('studio.render') === 'points' ? 'points' : 'playa');

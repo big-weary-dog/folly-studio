@@ -104,7 +104,8 @@ export async function createServer(opts: Options = {}) {
     onFrames: (id) => { frames.encode(id); previews.want(id); } });
   frames.prune().then(() => frames.disk.enforce()).catch(() => {});
   // Gallery previews (SPEC "Gallery previews"), made in the same lane, after anything already queued at start.
-  const playa = (opts.previews ?? process.env.STUDIO_PREVIEWS) === 'front' ? null : playaCamera({ log });
+  const playa = (opts.previews ?? process.env.STUDIO_PREVIEWS) === 'front' ? null
+    : playaCamera({ log, loadLight: light.current });
   const previews = createPreviews({ dir: path.join(dataDir, 'previews'), store, box, framesDir, lane, log,
     loadRig, camera: playa?.camera ?? frontView() });
   previews.backfill().catch((err) => log.error?.('[previews] backfill:', err));

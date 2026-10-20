@@ -1,17 +1,20 @@
-// The Playa view's GLSL (renderer.ts draws with it). Light stays linear HDR until OUT. uL: each pixel's light
-// (rgb) and highlight (a), 512 a row; uHi: a highlight is on; uD: the light left outside it; uW: its warm tint; uG:
-// the ghost (unlit fixtures, faintly); uK: the emission, or a pass's parameter.
+// The Playa view's GLSL (renderer.ts draws with it). Light stays linear HDR until OUT. uL: each pixel's light, as
+// the views show it (Viewer.shown: dims and all), and highlight (a), 512 a row; uHi: a highlight is on; uW: its warm
+// tint; uG: the ghost (unlit fixtures, faintly, fading out as they light); uK: the emission, or a pass's parameter.
+import { ENCODE } from '../core/light.ts';
+
 const H = '#version 300 es\nprecision highp float;\nprecision highp int;\n';
 const LED = `uniform highp sampler2D uL;
-uniform float uHi, uD, uW, uG;
+uniform float uHi, uW, uG;
 uniform mat4 uVP;
 uniform vec3 uE;
 vec3 B;  // set by led(): the unlit base, and a warm tint when highlighted
 vec3 led(float i) {
   int k = int(i + .5);
   vec4 c = texelFetch(uL, ivec2(k & 511, k >> 9), 0);
-  B = vec3(.5, .56, .72) * uG + vec3(1, .7, .3) * .08 * c.a * uHi * uW;
-  return c.rgb * mix(1., mix(uD, 1., c.a), uHi);
+  B = vec3(.5, .56, .72) * uG * (1. - smoothstep(0., .02, max(c.r, max(c.g, c.b))))
+    + vec3(1, .7, .3) * .08 * c.a * uHi * uW;
+  return c.rgb;
 }
 `;
 const LIGHTS = 'uniform vec4 uLP[16];\nuniform vec3 uLC[16];\nuniform int uN;\n';
@@ -123,7 +126,7 @@ void main() {
 
 // The playa: dust under a faint moon, lit by the spill lights (softened by uLP.w), lost in the haze far off. Lit
 // per vertex (the rings are close where the pools are): soft light, cheap pixels.
-const HZ = 'vec3(.0033, .0048, .0116)';
+const HZ = 'vec3(.0013, .0024, .0081)';
 const GROUND = [`${H}${LIGHTS}uniform mat4 uVP;
 uniform vec3 uE;
 uniform float uK, uY;  // the playa's light, its height
@@ -138,7 +141,7 @@ void main() {
     c += uLC[i] * max(l.y, 0.) * inversesqrt(d) / d;
   }
   float haze = 1. - exp(-length(w.xz - uE.xz) * .006);
-  vC = mix(c * uK + vec3(.011, .0105, .0102), ${HZ}, haze);
+  vC = mix(c * uK + vec3(.0076, .0071, .0068), ${HZ}, haze);
   gl_Position = uVP * vec4(w, 1);
 }`, FS('  o = vec4(vC, 1);', 'in vec3 vC;\n')];
 
@@ -153,8 +156,8 @@ const UP = [SCREEN, FS(`  vec3 c = t(vec2(-2, 0)) + t(vec2(2, 0)) + t(vec2(0, -2
 
 // Out: Mirage's night sky (zenith to horizon, a faint band at the horizon) where nothing solid is (the scene's
 // alpha), the scene and its bloom; the tone map, on the peak only, so saturated colours stay saturated: as is up to
-// .7 (a lone colour shows as its swatch), a soft shoulder to 1, burning to white far past it, and a toe that keeps
-// the night dark; then sRGB, dither. vD: the view ray, from the projection (and its lens shift).
+// .85 (where full drive sits at the default exposure), a soft shoulder to 1, burning to white far past it; then the
+// screen's encode, dither. vD: the view ray, from the projection (and its lens shift).
 const OUT = [`${H}uniform mat4 uV, uP;
 out vec2 vU;
 out vec3 vD;
@@ -165,16 +168,13 @@ void main() {
   gl_Position = vec4(q, 0, 1);
 }`, FS(`  vec4 s = texture(uS, vU);
   float y = normalize(vD).y;
-  vec3 sky = mix(${HZ}, vec3(.0003, .0006, .0021), sqrt(max(y, 0.))) + ${HZ} * .8 * exp(-abs(y) * 60.);
+  vec3 sky = mix(${HZ}, vec3(.00002, .00006, .0006), sqrt(max(y, 0.))) + ${HZ} * .8 * exp(-abs(y) * 60.);
   vec3 c = s.rgb + sky * (1. - min(s.a, 1.)) + texture(uB, vU).rgb * uK;
   float p = max(c.r, max(c.g, c.b));
-  float film = p < .7 ? p : 1. - .3 * exp((.7 - p) / .3);
-  film *= film / (film + .005);
+  float film = p < .85 ? p : 1. - .15 * exp((.85 - p) / .15);
   c = p > 1e-6 ? film * mix(c / p, vec3(1), .35 * smoothstep(1.5, 16., p)) : vec3(0);
-  vec3 s1 = sqrt(c), s2 = sqrt(s1);  // sRGB, closely (Ian Taylor's fit): a software renderer's pow is slow
-  c = mix(12.92 * c, .662 * s1 + .684 * s2 - .3236 * sqrt(s2) - .02254 * c, step(.0031308, c));
-  o = vec4(c + (fract(52.98 * fract(dot(gl_FragCoord.xy, vec2(.06711, .00584)))) - .5) / 255., 1);`,
-'uniform sampler2D uS, uB;\nin vec2 vU;\nin vec3 vD;\n')];
+  o = vec4(encode(c) + (fract(52.98 * fract(dot(gl_FragCoord.xy, vec2(.06711, .00584)))) - .5) / 255., 1);`,
+`uniform sampler2D uS, uB;\nin vec2 vU;\nin vec3 vD;\n${ENCODE}`)];
 
 export const GLSL = { strip: STRIP, stripLite: [STRIP[0].replace('\n', '\n#define LITE\n'), STRIP[1]], point: POINT,
   cell: CELL, flood: FLOOD, line: LINE, ground: GROUND, down: DOWN, up: UP, out: OUT };

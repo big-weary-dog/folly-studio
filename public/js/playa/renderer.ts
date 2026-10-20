@@ -12,11 +12,11 @@ const TIERS = [
   { name: 'low', dpr: 1, bloom: 0, levels: 0, spill: 4, lite: 1 },
 ];
 const ROW = 512;            // pixels a row in the light texture (the shaders' k & 511, k >> 9)
-// Linear emission at full drive (Mirage's `emit`), the playa's share of the light, the bloom's threshold.
-const K = { strip: 1.4, point: 2.2, cell: 1, beam: 0.05, shell: 0.75, line: 0.2, ground: 0.25, bloom: 0.4,
-  venue: 0.6 };
-const HAZE = [0.0033, 0.0048, 0.0116];       // glsl.ts HZ: the venue fades into it
-const SPILL = 0.035, THRESHOLD = 1, SLOW_MS = 30;
+// Each fixture's emission (Mirage's `emit`): 1 shows its LEDs' light at its brightest pixel; floods cast a share of
+// it, the playa takes a share and the scaffold and venue have their own. The bloom keeps light over THRESHOLD.
+const K = { strip: 1, point: 0.9, cell: 1, beam: 0.036, shell: 0.54, line: 0.2, ground: 0.25, venue: 0.6 };
+const HAZE = [0.0013, 0.0024, 0.0081];       // glsl.ts HZ: the venue fades into it
+const SPILL = 0.035, THRESHOLD = 0.5, SLOW_MS = 30;
 const coarse = () => (matchMedia('(pointer: coarse)').matches ? 1 : 0);
 type Shader = keyof typeof GLSL;
 type Uniform = number | number[] | Float32Array;
@@ -148,25 +148,21 @@ function tier(pl: State, fresh = false) {
   v.invalidate();
 }
 
-// Colours are sRGB (as the swatches show them); light adds linearly, so each is decoded before it lights anything.
-const linear = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
-
-// Light (linear) × the flash guard's gain into the texture, and the spill lights summed from it: each sits where its
+// The light the views show (Viewer.shown) into the texture, and the spill lights summed from it: each sits where its
 // pixels' light is, or at their middle while they are dark.
 function upload(pl: State) {
-  const { gl, v, staging: L, spill: { acc, of, centre, lp, lc, n: lights } } = pl, gain = v.options.gain;
-  const { weight: w, spill: pos } = pl.geo, rgb = v.colors!, hiMask = v.hiMask!;
+  const { gl, v, staging: L, spill: { acc, of, centre, lp, lc, n: lights } } = pl;
+  const { weight: w, spill: pos } = pl.geo, shown = v.shown!, hiMask = v.hiMask!;
   acc.fill(0);
   for (let i = 0; i < v.count; i++) {
-    const c = 7 * of[i], hi = hiMask[i] ? 1 : 0;
-    const share = w[i] * (v.hiActive && !hi ? v.hiDim : 1);  // as the shaders dim
+    const c = 7 * of[i];
     let e = 0;
     for (let a = 0; a < 3; a++) {
-      const x = L[4 * i + a] = linear(rgb[3 * i + a]) * gain;
-      acc[c + a] += x * share;
-      e += x * share;
+      const x = L[4 * i + a] = shown[3 * i + a];
+      acc[c + a] += x * w[i];
+      e += x * w[i];
     }
-    L[4 * i + 3] = hi;
+    L[4 * i + 3] = hiMask[i] ? 1 : 0;
     for (let a = 0; a < 3; a++) acc[c + 3 + a] += pos[3 * i + a] * e;
     acc[c + 6] += e;
   }
@@ -184,7 +180,7 @@ function use(pl: State, name: Shader, extra: Uniforms = {}) {
   const { gl, v } = pl, s = pl.spill;
   const { p, u } = pl.progs[name] ||= program(gl, ...GLSL[name] as [string, string]);    // on first use
   gl.useProgram(p);
-  const set: Uniforms = { uVP: v.viewProj, uE: v._eyeV, uHi: v.hiActive ? 1 : 0, uD: v.hiDim, uW: v.hiTint,
+  const set: Uniforms = { uVP: v.viewProj, uE: v._eyeV, uHi: v.hiActive ? 1 : 0, uW: v.hiTint,
     uG: 0.006 + v.options.ghost * 0.12, 'uLP[0]': s.lp, 'uLC[0]': s.lc, ...extra };
   for (const [k, x] of Object.entries(set)) {
     if (!u[k]) continue;
@@ -265,5 +261,5 @@ function draw(pl: State) {
   gl.activeTexture(gl.TEXTURE1);
   gl.bindTexture(gl.TEXTURE_2D, (L[0] || pl.scene).tex);   // no bloom: uK is 0
   gl.activeTexture(gl.TEXTURE0);
-  screen(pl, 'out', null, pl.scene, { uK: L.length ? K.bloom : 0, uV: v._view, uP: v._proj });
+  screen(pl, 'out', null, pl.scene, { uK: L.length ? v.light.preview.bloom : 0, uV: v._view, uP: v._proj });
 }

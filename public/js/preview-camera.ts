@@ -2,6 +2,7 @@
 // Studio's own Viewer in its Playa view, from its default camera ('fit'), with the venue, at full quality. Each
 // picture is drawn on demand (the Viewer's own frame loop is off), then scaled down to the canvas's CSS size so the
 // 2× render smooths its edges.
+import type { Light } from './core/light.ts';
 import type { Venue } from './playa/venue.ts';
 import { Viewer } from './viewer.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
@@ -16,12 +17,13 @@ function gpu(gl: WebGL2RenderingContext) {
 }
 
 const api = {
-  async setup(rig: Rig, venue: Venue | null) {
+  async setup(rig: Rig, venue: Venue | null, light?: Light) {
     viewer?.destroy();                          // its context is lost: a new rig gets a new canvas
     const canvas = document.createElement('canvas');
     document.querySelector('canvas')!.replaceWith(canvas);
     const v = viewer = new Viewer(canvas, { defaultView: 'fit' });
     v.setRig(rig);
+    if (light) v.setLight(light);
     await v.setVenue(venue);
     v.setQuality('full');
     const mode = await v.setMode('playa');
