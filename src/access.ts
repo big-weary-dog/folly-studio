@@ -25,6 +25,8 @@ const DEFAULTS = GlobalLimits.parse({});
 
 /** A refusal: the status, the words, the account's access and, for 429, when to try again (s). */
 export type Refusal = { status: 403 | 429, error: string, access: Access, retryAfter?: number };
+/** Why a code was not redeemed: no such code, or no longer active. */
+export type Refused = { refused: 'unknown' | Exclude<Invite['state'], 'active'> };
 type Counted = { at: number, model?: string, paid: boolean, running: boolean };
 
 /** When a window of `ms` capped at `cap` has room for `uses` again, given its uses' times (ascending); 0: now. */
@@ -133,12 +135,14 @@ export function createAccess({ store, auth, models }: { store: Pick<Store, 'user
 
   return {
     state, check,
-    /** Redeem a code → the account's access, or null when it is no usable code (the attempt counts as failed). */
-    redeem(u: StoredUser, code: string): Access | null {
+    /** Redeem a code → the account's access, or why it is no usable code (the attempt counts as failed). */
+    redeem(u: StoredUser, code: string): Access | Refused {
       if (unlocked(u) && u.access?.unlockedAt) return state(u);
       const hash = sha256(normalise(code));
       const found = normalise(code).length === 12 ? store.invites.list((x) => x.hash === hash)[0] : undefined;
-      if (!found || inviteOf(found).state !== 'active') return null;
+      if (!found) return { refused: 'unknown' };
+      const now = inviteOf(found).state;
+      if (now !== 'active') return { refused: now };
       store.invites.update(found.id, { used: found.used + 1 });
       const access: UserAccess = { ...u.access, unlockedAt: new Date().toISOString(), invite: found.id };
       return state(store.users.update(u.id, { access })!);

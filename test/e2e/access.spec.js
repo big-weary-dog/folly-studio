@@ -1,7 +1,9 @@
 // npm run smoke, too: access to the paid models in a browser at a laptop's and a phone's size. A new account's idea
 // form starts on Sketch and shows the lock on a paid model with a code box; a wrong code is refused in place, a good
 // one unlocks it; a limit reached from elsewhere (a stale page) shows when the next idea may go; an admin makes a code
-// on the Access page. The paid models are a stand-in codex CLI (test/fixtures/generate/bin/codex).
+// on the Access page, with its invite link. The link (/#invite=CODE) signs a visitor up and redeems the code, or
+// redeems it at once when signed in, says why a bad one was refused, and leaves no code in the address or the tab.
+// The paid models are a stand-in codex CLI (test/fixtures/generate/bin/codex).
 import { fileURLToPath } from 'node:url';
 
 import { expect, test } from './studio.js';
@@ -82,10 +84,56 @@ for (const [name, device] of Object.entries(SIZES)) {
         await page.getByLabel('Uses').fill('5');
         await page.getByLabel('Expires in days').fill('14');
         await page.getByRole('button', { name: 'Make a code' }).click();
-        await expect(page.locator('.fresh-code code')).toHaveText(/^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+        const fresh = page.locator('.fresh-code code').first();
+        await expect(fresh).toHaveText(/^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+        await expect(page.locator('.invite-link')).toHaveText(`${studio.origin}/#invite=${await fresh.textContent()}`);
+        await page.getByRole('button', { name: 'Copy invite link' }).click();
+        await expect(page.locator('.toast-msg').last()).toHaveText(/Copied\.|Copy it by hand\./);
         await expect(page.locator('.access-row', { hasText: `Art crew (${name})` })).toContainText('0 of 5 used');
         await expect(page.locator('.access-row', { hasText: `guest-${name}` })).toContainText('unlocked');
         await shot('access');
+      });
+      expect(errors).toEqual([]);
+    });
+
+    test('an invite link: signed out, signed in, and a code that is used up', async ({ page, studio }, info) => {
+      const errors = [];
+      page.on('pageerror', (e) => errors.push(String(e)));
+      const shot = (step) => page.screenshot({ path: info.outputPath(`${step}.png`), timeout: 60_000 });
+      const { app } = studio, pick = page.locator('.model-pick select'), toast = page.locator('.toast-msg').last();
+      const link = (code) => `${studio.origin}/#invite=${encodeURIComponent(code)}`;
+      const kept = () => page.evaluate(() => sessionStorage.length);
+      const first = app.access.createInvite('keeper', { uses: 1 }).code;
+
+      await test.step('signed out: the sign-up screen says so, and signing up redeems it', async () => {
+        await page.goto(link(first));
+        await expect(page).toHaveURL(`${studio.origin}/login`);
+        await expect(page.locator('.auth-invited')).toContainText("You've been invited.");
+        await expect(page.getByRole('button', { name: 'Sign up' })).toHaveAttribute('aria-pressed', 'true');
+        await shot('invited');
+        await page.fill('input[name=username]', `linked-${name}`);
+        await page.fill('input[name=password]', 'correct horse');
+        await page.locator('form button[type=submit]').click();
+        await expect(toast).toHaveText('Invite accepted: you can use Sol and Luna.');
+        await expect(pick.locator('option')).toHaveText(['Sol', 'Luna', 'Sketch']);
+        await expect(page).toHaveURL(`${studio.origin}/ideas`);
+        expect(await kept()).toBe(0);
+        await shot('invite-accepted');
+      });
+
+      await test.step('signed in: a used-up code says so; a good one redeems at once', async () => {
+        await page.context().clearCookies();
+        await signUp(page, studio.origin, `later-${name}`);
+        await page.goto(link(first));
+        await expect(toast).toHaveText('Invite not accepted. That code is used up: ask for a new one.');
+        await expect(page).toHaveURL(`${studio.origin}/ideas`);
+        expect(await kept()).toBe(0);
+        await expect(pick.locator('option')).toHaveText(['Sol (invite)', 'Luna (invite)', 'Sketch']);
+        await shot('invite-refused');
+        await page.goto(link(app.access.createInvite('keeper', { uses: 1 }).code));
+        await expect(toast).toHaveText('Invite accepted: you can use Sol and Luna.');
+        await expect(pick.locator('option')).toHaveText(['Sol', 'Luna', 'Sketch']);
+        await expect(page).toHaveURL(`${studio.origin}/ideas`);
       });
       expect(errors).toEqual([]);
     });

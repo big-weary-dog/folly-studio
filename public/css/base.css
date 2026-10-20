@@ -361,6 +361,8 @@ input.switch:disabled { opacity: .5; cursor: default; }
   letter-spacing: .24em; text-transform: uppercase; }
 .kicker::before, .kicker::after { --q: 8px; color: var(--dust); }
 .auth-lede { text-align: center; color: var(--text-2); margin: 14px 0 26px; font-size: 14.5px; }
+.auth-invited { margin: -12px 0 22px; padding: 10px 14px; border-left: 4px solid var(--emerald); font-size: 13.5px;
+  background: color-mix(in srgb, var(--emerald) 10%, var(--night-1)); color: var(--text-2); }
 .auth-form { display: flex; flex-direction: column; gap: 16px; }
 .auth-form .btn { font-size: 15px; }
 

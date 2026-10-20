@@ -8,6 +8,7 @@ import { api, statusOf } from '../api.ts';
 import type { User } from '../../../shared/schemas/api.ts';
 import { confirmDialog, cx, toast, Toasts } from './kit.tsx';
 import { Rose } from './rose.tsx';
+import { redeemInvite, takeInvite } from './invite.ts';
 import { flash, here, leaveGuard, navigate, router, setTitle, user, type ViewProps } from './session.ts';
 
 interface Route {
@@ -177,6 +178,7 @@ export async function boot() {
     show();
   });
   window.addEventListener('beforeunload', (e) => { if (leaveGuard.isDirty?.()) e.preventDefault(); });
+  takeInvite();
   try {
     const me = await api.me();
     user.value = me.user || null;
@@ -184,6 +186,7 @@ export async function boot() {
   } catch (err) {
     if (statusOf(err) !== 401 && statusOf(err) !== 403) toast((err as Error).message, { kind: 'error' });
   }
+  if (user.value) await redeemInvite();
   document.body.classList.remove('booting');
   show();
 }

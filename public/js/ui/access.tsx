@@ -11,6 +11,10 @@ import { setTitle, signedOut } from './session.ts';
 
 const STATE_TAG: Record<Invite['state'], string> = { active: 'tag-emerald', used: '', expired: 'tag-amber',
   revoked: 'danger-text' };
+/** A link that signs the invitee up (or in) and redeems the code; the fragment keeps it out of server logs. */
+const linkOf = (code: string) => `${location.origin}/#invite=${encodeURIComponent(code)}`;
+const copy = (text: string) => navigator.clipboard.writeText(text)
+  .then(() => toast('Copied.', { kind: 'ok' }), () => toast('Copy it by hand.'));
 const day = (iso: string) => new Date(iso).toLocaleDateString([], { day: 'numeric', month: 'short' });
 
 export function AccessPage() {
@@ -46,9 +50,10 @@ export function AccessPage() {
         <NewCode made={(inv, code) => { setInvites((all) => [inv, ...(all || [])]); setFresh(code); }} fail={fail} />
         {fresh && <div class="fresh-code" role="status">
           <code>{fresh}</code>
-          <button class="btn small" type="button" onClick={() => navigator.clipboard.writeText(fresh)
-            .then(() => toast('Copied.', { kind: 'ok' }), () => toast('Copy it by hand.'))}>Copy</button>
-          <span>Shown once: copy it now. Only its hash is kept.</span></div>}
+          <button class="btn small" type="button" onClick={() => copy(fresh)}>Copy</button>
+          <button class="btn small" type="button" onClick={() => copy(linkOf(fresh))}>Copy invite link</button>
+          <span>Shown once: copy it now. Only its hash is kept.</span>
+          <code class="invite-link">{linkOf(fresh)}</code></div>}
         <ul class="access-list" aria-busy={!invites}>
           {invites?.map((inv) => <li key={inv.id} class="access-row">
             <span class="access-name">{inv.label || 'No label'}</span>

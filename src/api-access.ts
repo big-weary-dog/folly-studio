@@ -3,12 +3,18 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 import { InviteCreate, PersonPatch, Redeem } from '../shared/schemas/access.ts';
-import type { AccessControl, Refusal } from './access.ts';
+import type { AccessControl, Refusal, Refused } from './access.ts';
 import type { Auth } from './auth.ts';
 import { HttpError, parse } from './http.ts';
 import type { Store, StoredUser } from './store.ts';
 
 const WINDOW_MS = 15 * 60 * 1000;
+const WHY: Record<Refused['refused'], string> = {
+  unknown: 'That code is not valid: check it is typed or copied in full.',
+  used: 'That code is used up: ask for a new one.',
+  expired: 'That code has expired: ask for a new one.',
+  revoked: 'That code was revoked: ask for a new one.',
+};
 
 /** A refusal from POST /api/ideas: its words, and the account's access so the form can show why. */
 export const sendRefusal = (reply: FastifyReply, r: Refusal) => reply.code(r.status)
@@ -39,9 +45,9 @@ export function accessRoutes(api: FastifyInstance, { auth, access, store, limits
       }
       const { code } = parse(Redeem, req.body);
       const now = access.redeem(req.user as StoredUser, code);
-      if (!now) {
+      if ('refused' in now) {
         await perUser(req);
-        throw new HttpError(400, 'That code is not valid: it may be mistyped, used up, expired or revoked.');
+        throw new HttpError(400, WHY[now.refused]);
       }
       return { access: now };
     },

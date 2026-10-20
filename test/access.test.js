@@ -80,7 +80,8 @@ describe('access', () => {
     assert.equal((await idea(mo)).status, 201);
     assert.equal((await mo.post('/api/invite', { code: made.code })).status, 200, 'unlocked already: no change');
     const taken = await jo.post('/api/invite', { code: made.code });
-    assert.equal(taken.status, 400, 'its one use is spent');
+    assert.deepEqual([taken.status, taken.json.error], [400, 'That code is used up: ask for a new one.']);
+    assert.match((await jo.post('/api/invite', { code: 'AAAA-BBBB-CCCC' })).json.error, /^That code is not valid/);
     const listed = (await admin.get('/api/admin/invites')).json.invites.find((i) => i.id === made.invite.id);
     assert.deepEqual([listed.used, listed.state], [1, 'used']);
     const person = (await admin.get('/api/admin/people')).json.people.find((p) => p.id === mo.user.id);
@@ -98,14 +99,16 @@ describe('access', () => {
 
     const old = await code({ days: 1 });
     app.store.invites.update(old.invite.id, { expiresAt: new Date(Date.now() - 1000).toISOString() });
-    assert.equal((await c.post('/api/invite', { code: old.code })).status, 400);
+    const expired = await c.post('/api/invite', { code: old.code });
+    assert.deepEqual([expired.status, expired.json.error], [400, 'That code has expired: ask for a new one.']);
     assert.equal((await admin.get('/api/admin/invites')).json.invites.find((i) => i.id === old.invite.id).state,
       'expired');
 
     const gone = await code();
     const revoked = await admin.req('DELETE', `/api/admin/invites/${gone.invite.id}`);
     assert.deepEqual([revoked.status, revoked.json.invite.state], [200, 'revoked']);
-    assert.equal((await c.post('/api/invite', { code: gone.code })).status, 400);
+    assert.equal((await c.post('/api/invite', { code: gone.code })).json.error,
+      'That code was revoked: ask for a new one.');
     assert.equal((await admin.req('DELETE', '/api/admin/invites/nope')).status, 404);
     assert.equal((await c.get('/api/me')).json.access.unlocked, false);
     assert.equal((await admin.post('/api/admin/invites', { uses: 0 })).status, 400);
