@@ -405,7 +405,10 @@ browser's too:
   "automation": { "energy": [[0, 0.2], [20, 1]], "storm": [[0, 0], [30, 1]] } }
 ```
 
-`groups` is an array of the rig's group ids (union; none: the rig's root). `tags` (optional, ≤ 16 of
+`groups` is an array of the rig's group ids (union). Missing, the layer plays on the rig's root; `[]` (with no tags)
+is a valid pick that lights nothing. The groups tree ticks a group with every group under it and stores the outermost
+ticked ones; a parent with some of its subgroups ticked shows partly ticked, and one with all of them ticked is ticked
+itself. `tags` (optional, ≤ 16 of
 `[a-z0-9-]{1,32}`) make a layer portable: when it names no groups, or one this rig lacks, the layer takes its
 known ids plus every group carrying one of its tags (a rig without them lights nothing there); where all its
 ids are known, tags change nothing. An unknown id in a layer without tags is an error. Generators set both; editing a
@@ -602,6 +605,8 @@ POST   /api/looks/:id/refine { text?, model?, critique?, fix?: { layer, error } 
                                               one is pending on the look
 GET    /api/ideas/:id[?wait=<status>@<updatedAt>] → { idea }         mine only; with wait, an idea still pending and
                                               as given is answered when it changes, or after 25 s
+POST   /api/ideas/:id/undo                    → { idea }  mine only, a ready refinement: marks it `undone` (the
+                                              Studio has put its look back), so later refinements' history skips it
 GET    /api/models                            → { models: [{ id, label, paid }], default }  what this user may pick
 GET    /api/admin/models                      → { file, config, models: [{ id, available, note, warn? }], efforts,
                                               problem? }  admins only (403): the registry and what can run here
@@ -651,10 +656,11 @@ outside 0–600 s, and a duration outside 1–600 s, are refused with 400.
 `flash = { check, perSecond, delta, darker, area }`: the flash check's settings (Baked frames, Checks), for the
 preview's guard; `check: false` (`STUDIO_FLASH_CHECK=off`) means nothing is dimmed or blocked.
 `idea = { id, owner, text, status: 'queued'|'generating'|'ready'|'failed', model?, generator, by?, timing?, lookId?,
-refine?, changes?, error?, createdAt, updatedAt }`: `model` the registry id asked for, `generator` the one that made
+refine?, changes?, verdict?, undone?, error?, createdAt, updatedAt }`: `model` the registry id asked for, `generator` the one that made
 the look (the fallback's when it took over), `by` its label ("Opus"), `timing = { wait, prompt, request, parse,
 total, check?, critique? }` in ms. A refinement has `refine = { critique?, fix? }` and the look it changes as
-`lookId` from the start; `changes` (ready) says what changed.
+`lookId` from the start; `changes` (ready) says what changed, `verdict` how its critique round ended (`revised`,
+`unchanged`, …), and `undone: true` that it was undone.
 `look = { id, owner, ownerName, title, summary, layers, duration, bpm?, shared, ideaId?, reviewed, reviewedBy?,
 flashOverride?, bake?, chain, createdAt, updatedAt }`
 (`bake`: see Baked frames).

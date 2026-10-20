@@ -89,6 +89,14 @@ look stays as it was, as it does when the look was edited while it ran. A layer 
 `solo`) and its switched-off modules, which the model is not shown. One refinement per look at a time (409). Only
 Sketch and the prompted models refine (the foundry: 400).
 
+**Refine history.** A refinement's turn also carries the look's history, so a follow-up (`more`, `undo the red`)
+reads against what came before: the idea that made the look, then each earlier ready refinement of it, oldest
+first, as its request (or "a critique", "a fix of layer X") with its `changes` on one line and its critique
+`verdict`. An undone refinement (`POST /api/ideas/:id/undo`, which the Studio's Undo calls) is left out. The last 8
+entries that fit in 1,500 characters, the idea kept first; fenced as untrusted (`<history>`) and marked a record,
+not instructions. The prompted models read it; Sketch ignores it. Only requests and change lines, never answers or
+transcripts.
+
 - `sketch`: offline, keyword → the preset or source a theme names (`sketch-words.json`) + params, place words →
   tags. Colour words choose the palette nearest them in hue and become the nearest swatch's slot (`accent2`; none
   close: the colour itself): the pick of a source's (a preset's top source's) `colours`. A plain wash or a colour
@@ -138,8 +146,8 @@ changes (a file that does not parse is reported, and the last good one kept):
 `claude-opus-5-5`); `effort` one of the transport's (`claude`: low–max; `codex`: minimal–xhigh); `critique` turns on
 the critique round (Generators; `claude` and `codex` only); `roles` who may
 pick it (none: everyone); `concurrency` the jobs at once per transport (defaults claude 4, codex 2, sketch 4; the
-foundry always 1). The defaults: Opus (`claude-opus-5-5`, medium, the default), Sol (`gpt-6.1-sol`, low) and Luna
-(`gpt-6-luna`, low) through `codex`, and Sketch. A model can run when its transport can: `claude` with
+foundry always 1). The defaults: Opus (`claude-opus-5-5`, medium, the default; no critique), Sol (`gpt-6.1-sol`, low,
+critique `images`) and Luna (`gpt-6-luna`, low, critique `text`) through `codex`, and Sketch. A model can run when its transport can: `claude` with
 `ANTHROPIC_API_KEY`, `codex` with the CLI on PATH (`STUDIO_CODEX_BIN`; `warn` when no login is seen), `fleet` with
 `STUDIO_FOUNDRY=on`, `sketch` always. The idea form offers the models that are on, offered to the user's role and
 able to run, starting on the default when it is one of them (else the first); an account that may not use the paid

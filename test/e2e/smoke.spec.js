@@ -1,5 +1,6 @@
 // npm run smoke: the app in a browser, the way a person meets it, at a laptop's size and a phone's: sign up, an idea
-// the sketch generator turns into a look, the Studio in the Playa view with the sandbox running, a param dragged and
+// the sketch generator turns into a look, the Studio in the Playa view with the sandbox running, the groups tree's
+// ticks (a group with all under it, none at all), a param dragged and
 // stepped, a typo and a hang in the code (reported, paused by the watchdog, running again once fixed), the timeline,
 // a source's Colours played in an accent (the pick tile), a preset added from Add a layer and one kind of module
 // shown in Add a module, and a bake in the real render box (the laptop bakes from the Studio; the phone says to bake
@@ -76,6 +77,30 @@ for (const [name, device] of Object.entries(SIZES)) {
         await shot('studio');
       });
 
+      await test.step('the groups tree: a group ticks with all under it; none ticked lights nothing', async () => {
+        await page.locator('.layer-name:visible').first().click();
+        if (!wide) await page.locator('.tab[data-tab=groups]').click();
+        const top = page.locator('.tree > .tree-item > .tree-row > .tree-box').first();
+        const kid = page.locator('.tree > .tree-item > .tree-children > .tree-item > .tree-row > .tree-box').first();
+        const ticked = () => page.locator('.tree .tree-box').evaluateAll((bs) => bs.map((b) => b.checked));
+        if (await top.isChecked()) await top.click();
+        await top.click();
+        expect(await ticked()).not.toContain(false);
+        await top.click();
+        expect(await ticked()).not.toContain(true);
+        if (wide) await expect(page.locator('.plays-on')).toContainText('Nothing');
+        await kid.click();
+        await expect(top).toHaveJSProperty('indeterminate', true);
+        await kid.locator('xpath=..').locator('.tree-toggle').click();     // its subgroups, ticked with it
+        await shot('groups');
+        await top.click();
+        expect(await ticked()).not.toContain(false);
+        if (wide) return;
+        await page.locator('.tab[data-tab=layers]').click();
+        const back = page.locator('.phone-back:visible');
+        if (await back.count()) await back.click();      // the layer's settings: back to the list
+      });
+
       await test.step('a param is one field: dragged across, stepped by a key', async () => {
         await page.locator('.layer-name:visible').first().click();
         const field = page.locator('.params .scrub:visible').first(), min = await field.getAttribute('aria-valuemin');
@@ -132,7 +157,8 @@ for (const [name, device] of Object.entries(SIZES)) {
         await code.fill(original.replace(/label: '/, `help: '${help}', label: '`));
         if (!wide) await page.locator('.tab[data-tab=layers]').click();
         if (wide) {
-          await expect(page.locator(`.params .field.param[title="${help}"]:visible`)).toHaveCount(1, { timeout: 15_000 });
+          await expect(page.locator(`.params .field.param[title="${help}"]:visible`))
+            .toHaveCount(1, { timeout: 15_000 });
         } else {
           await page.locator('.params .param-info:visible').first().click({ timeout: 15_000 });
           await expect(page.locator('.params .param-help:visible')).toHaveText(help);

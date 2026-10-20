@@ -80,7 +80,7 @@ export type RefineAsk = { critique?: true, fix?: { layer: string, error: string 
  * label as shown ("by <label>"). */
 export type Idea = { id: string, owner: string, text: string, status: 'queued' | 'generating' | 'ready' | 'failed',
   model?: string, generator: string, by?: string, timing?: Timing, lookId?: string, refine?: RefineAsk,
-  changes?: string[], error?: string | null, createdAt: string, updatedAt: string };
+  changes?: string[], verdict?: string, undone?: true, error?: string | null, createdAt: string, updatedAt: string };
 export type LookCreate = z.input<typeof LookCreate>;
 export type LookPatch = z.input<typeof LookPatch>;
 /** A look as lists show it: what a card needs, no layers or code. */

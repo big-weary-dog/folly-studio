@@ -162,8 +162,6 @@ input.tree-box { width: 16px; height: 16px; margin: 0 4px 0 2px; flex: none; cur
   color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .tree-label::before { --q: 7px; color: var(--zone); }
 .tree-row.checked .tree-label { color: var(--text); font-weight: 600; }
-.tree-row.implied .tree-label { color: var(--text); }
-.tree-row.implied .tree-box { opacity: .55; }
 .tree-count { font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .tree-pin { --r: 7px; position: relative; width: var(--hit, 24px); height: var(--hit, 24px); flex: none; padding: 0;
   opacity: 0; color: var(--text-3); background: none; border: 0; cursor: pointer; }

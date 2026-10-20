@@ -60,7 +60,8 @@ describe('param help', () => {
 
   test('the core, the catalogue, the Studio and the docs keep it', () => {
     const help = 'How fast the bars move. Low drifts; high races.';
-    const code = `const params = {\n  speed: { value: 0.4, min: -2, max: 2, label: 'Speed (bars a second)', help: '${help}' },
+    const code = `const params = {
+  speed: { value: 0.4, min: -2, max: 2, label: 'Speed (bars a second)', help: '${help}' },
   bars: { value: 4, min: 1, max: 16 },\n};\nfunction pixel() { return [0, 0, 0]; }`;
     assert.equal(normalizeParams({ speed: { value: 1, help: `  ${help}  ` } }).speed.help, help);
     assert.equal(normalizeParams({ speed: { value: 1, help: 'x'.repeat(999) } }).speed.help.length, HELP_MAX);

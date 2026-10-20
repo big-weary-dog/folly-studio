@@ -26,9 +26,19 @@ const near = (a, b, eps, what) => assert.ok(Math.abs(a - b) <= eps, `${what}: ${
 for (const [rigName, rig] of Object.entries({ folly, mini })) {
   const scene = prepareScene(rig);
   describe(`on the ${rigName} rig`, () => {
+    test('no groups picked: nothing lit, through warps, filters and soften, with no error', () => {
+      const layer = { id: 'l', groups: [], soften: { radius: 0.5, mode: 'wire' },
+        modules: [mod('anchor', 'warp'), mod('polar', 'warp'), probe('lx', 'ly', 'r'), mod('blur', 'filter'),
+          mod('edge-fade', 'filter')] };
+      const L = prepareLayer(scene, layer, compileLayer(layer)), { rgb, errors } = renderFrame(scene, [L], 1.25);
+      assert.deepEqual(errors, []);
+      assert.equal(L.idx.length, 0);
+      assert.ok(rgb.every((v) => v === 0));
+    });
+
     test('polar: across reads the angle, up the radius (inward: one less it), repeated round', () => {
-      const plain = run(scene, [probe('lz', 'ly', 'r'), mod('polar', 'warp')], []);
-      const twice = run(scene, [probe('lz', 'ly', 'r'), mod('polar', 'warp', { repeats: 2, inward: true })], []);
+      const plain = run(scene, [probe('lz', 'ly', 'r'), mod('polar', 'warp')]);
+      const twice = run(scene, [probe('lz', 'ly', 'r'), mod('polar', 'warp', { repeats: 2, inward: true })]);
       plain.L.idx.forEach((k, j) => {
         const a = plain.L.a[j], r = plain.L.r[j];
         near(plain.at(k)[0], a, 1e-6, `LED ${k} across`);
@@ -40,7 +50,7 @@ for (const [rigName, rig] of Object.entries({ folly, mini })) {
 
     const [rose] = tagCentres(scene, 'rose');
     test('anchor: the façade round the rose, centred and reaching the layer\'s farthest corner', () => {
-      const { L, at } = run(scene, [probe('lz', 'ly', 'r'), mod('anchor', 'warp')], []);
+      const { L, at } = run(scene, [probe('lz', 'ly', 'r'), mod('anchor', 'warp')]);
       const dist = (k) => Math.hypot(scene.Z[k] - rose[2], scene.Y[k] - rose[1]);
       const reach = Math.max(...[0, 1].flatMap((i) => [0, 1].map((j) => Math.hypot(
         L.bounds[i ? 'max' : 'min'][2] - rose[2], L.bounds[j ? 'max' : 'min'][1] - rose[1]))));
@@ -54,7 +64,7 @@ for (const [rigName, rig] of Object.entries({ folly, mini })) {
     test('anchor: a sphere in metres, and lined up on the whole rig', () => {
       const reach = 6;
       const { L, at } = run(scene, [probe('x', 'lz', 'r'), mod('anchor', 'warp', { shape: 'sphere', reach,
-        lineup: true })], []);
+        lineup: true })]);
       for (const k of L.idx) {
         const d = Math.hypot(scene.X[k] - rose[0], scene.Y[k] - rose[1], scene.Z[k] - rose[2]) / reach;
         if (d <= 1) near(at(k)[2], d, 1e-5, `LED ${k} r`);
@@ -68,7 +78,7 @@ describe('on the Folly', () => {
   const scene = prepareScene(folly), towers = tagCentres(scene, 'tower');
   test('colour wash: the whole layer one colour, held, then blended into the next, never faster than a fifth', () => {
     const wash = (params, t) => run(scene, [mod('colour-wash', 'source', { colours: '#ff0000 #0000ff', ...params })],
-      [], t);
+      undefined, t);
     const one = (params, t) => {
       const { L, at, alpha } = wash(params, t), c = at(L.idx[0]);
       L.idx.forEach((k, j) => assert.ok(near3(at(k), c) && alpha(j) === 1, `t = ${t}: one opaque colour`));

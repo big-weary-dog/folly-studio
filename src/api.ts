@@ -182,6 +182,12 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         await changed(req, reply, idea);
         return { idea: own(req) };
       },
+      // An undone refinement (SPEC-generators "Refine history"): the Studio put its look back; history skips it.
+      'POST /ideas/:id/undo': async (req) => {
+        const idea = own(req);
+        if (!idea.refine || idea.status !== 'ready') throw new HttpError(409, 'Only a finished refinement is undone.');
+        return { idea: await store.ideas.update(idea.id, { undone: true }) };
+      },
       ...modelRoutes({ auth, models, access }),
       ...accessRoutes(api, { auth, access, store }),
       ...looks.routes,

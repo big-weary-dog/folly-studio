@@ -49,3 +49,11 @@ export function controlsOf(live: Live, t: number): Control[] {
     return { ...c, value: lane?.length ? automationAt(lane, t) : c.value, held: c.name in live.held };
   });
 }
+
+/** The faders at server time `now`, on to its loop first, as the stage rolls each frame: a page that waits for the
+ * next update would read the last loop's lane from its start. */
+export function controlsNow(live: Live, now: number) {
+  const { loop, t } = showTime(live, now);
+  roll(live, loop);
+  return controlsOf(live, t);
+}

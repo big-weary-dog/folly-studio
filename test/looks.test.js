@@ -40,7 +40,7 @@ describe('looks', () => {
     assert.equal(look.shared, false);
     assert.equal(look.reviewed, false);
     assert.equal('versions' in look, false);
-    assert.deepEqual(look.layers, [{ id: 'l1', title: '', code: PIXEL, groups: [], blend: 'add', level: 1,
+    assert.deepEqual(look.layers, [{ id: 'l1', title: '', code: PIXEL, blend: 'add', level: 1,
       params: {} }], 'no groups: the rig\'s root');
     const tagged = await alice.post('/api/looks', { title: 'Portable', layers: [layer({ tags: ['rose', 'rose'] })] });
     assert.deepEqual(tagged.json.look.layers[0].tags, ['rose']);
