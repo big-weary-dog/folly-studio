@@ -13,9 +13,6 @@ out or in. **polar** reshapes rather than folds.
 ## Pairings
 - `along` after **single-strand**: comets leave both feet of each arch and meet at the keystone.
 - **anchor** below it folds round a group's middle (the rose) instead of the layer's.
-- Nested shapes: **bars** `up` → **rotate** angle −0.03 → mirror wedges n (across off) → **anchor**: rings of
-  n-sided shapes (5 pentagons, 6 hexagons); the turn lines the bars up with a wedge's edge. On the rose, whose
-  LEDs sit on round rings, only 3 or 4 sides read; more look round.
 
 ## Pitfalls
 - Wedges sample a thin slice just clockwise of 12 o'clock: feed a source that varies with angle and distance, not
