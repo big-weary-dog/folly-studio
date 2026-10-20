@@ -15,13 +15,17 @@ const object = (properties: Schema, required: string[]) => ({ type: 'object', pr
   additionalProperties: false });
 const list = (items: Schema) => ({ type: 'array', items });
 
-/** A param's value: a number, toggle, word (a choice or a colour pick) or a binding (an LFO, a global, the clip's
- * envelope). */
+/** A picture (SPEC-library "Pictures"), its key as a list (expand.ts makes it the object the core reads). */
+const PICTURE = object({ grid: { type: 'string', enum: ['rose', 'square'] }, repeat: num,
+  key: list(object({ char: str, colour: str }, ['char', 'colour'])),
+  frames: list(object({ rows: list(str), hold: num }, ['rows'])) }, ['grid', 'key', 'frames']);
+/** A param's value: a number, toggle, word (a choice or a colour pick), a binding (an LFO, a global, the clip's
+ * envelope) or a picture. */
 const VALUE = { anyOf: [num, { type: 'boolean' }, str, object({
   mod: { type: 'string', enum: ['lfo', 'global', 'envelope'] },
   shape: { type: 'string', enum: ['sine', 'tri', 'saw', 'square', 'hold'] }, rate: num,
   unit: { type: 'string', enum: ['hz', 'beats'] }, depth: num, center: num, hold: num, name: str, from: num, to: num,
-}, ['mod'])] };
+}, ['mod']), PICTURE] };
 const PARAMS = list(object({ name: str, value: VALUE }, ['name', 'value']));
 
 /** The composition's JSON Schema, for structured output: group ids and tags as enums (from the generated look's),

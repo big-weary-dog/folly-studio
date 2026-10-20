@@ -1,6 +1,7 @@
 // What a model is shown of the frames it made (SPEC-generators "Critique"): the LEDs seen from the front (z across, y
 // up, the back drawn first) at a few times, as small PNGs, and a line a second with each top-level group's mean colour
-// and brightness, for models that read text only. Works on baked bytes from the render box; runs no look code.
+// and brightness, for models that read text only; and close-ups of the groups `closeUps` names (frames-closeup.ts).
+// Works on baked bytes from the render box; runs no look code.
 
 import { crc32, deflateSync } from 'node:zlib';
 
@@ -8,6 +9,7 @@ import { pixelsForGroups, prepareScene } from '../../public/js/pattern-core.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
 import { parseFseq } from '../frames.ts';
 import { inflateBlock } from '../fseq-codec.ts';
+import { cellsOf, drawCloseUp } from './frames-closeup.ts';
 
 const WIDTH = 360;
 type Parsed = ReturnType<typeof parseFseq>;
@@ -43,10 +45,11 @@ const hex = (r: number, g: number, b: number) => `#${[r, g, b].map((v) => Math.r
   .padStart(2, '0')).join('')}`;
 
 /**
- * Baked frames → { stills: PNG per time in `at` (seconds), timeline: text, a line a second }. Throws when the bytes
- * are not frames of this rig.
+ * Baked frames → { stills: PNG per time in `at` (seconds), closeUps: PNG per group in `closeUps` and time, timeline:
+ * text, a line a second }. Throws when the bytes are not frames of this rig.
  */
-export function viewFrames(bytes: Uint8Array, rig: Rig, { at = [1, 4, 7], stills = true } = {}) {
+export function viewFrames(bytes: Uint8Array, rig: Rig, { at = [1, 4.3, 7.6], stills = true,
+  closeUps = [] as readonly string[] } = {}) {
   const scene = prepareScene(rig);
   const parsed = parseFseq(bytes, { maxChannels: scene.frameChannels, decompress: inflateBlock });
   const [oR, oG, oB] = offsets(parsed, scene) as [Int32Array, Int32Array, Int32Array];
@@ -71,6 +74,13 @@ export function viewFrames(bytes: Uint8Array, rig: Rig, { at = [1, 4, 7], stills
     }
     return { at: s, png: png(W, H, img) };
   });
+  const near = !stills ? [] : closeUps.flatMap((group) => {
+    const cells = cellsOf(rig, scene, group);
+    return at.map((s) => {
+      const f = frameAt(s), c = drawCloseUp(cells, (k) => rgb(f, k));
+      return { at: s, group, png: png(c.width, c.height, c.rgb) };
+    });
+  });
   // The root's children (or the root), each a mean colour and brightness (0–100 % of white) a second.
   const tops = scene.groups.filter((g) => g.parent === scene.root?.id);
   const parts = (tops.length ? tops : scene.root ? [scene.root] : []).slice(0, 8)
@@ -85,5 +95,5 @@ export function viewFrames(bytes: Uint8Array, rig: Rig, { at = [1, 4, 7], stills
       return `${id} ${hex(r, g, b)} ${Math.round(((r + g + b) / 765) * 100)}%`;
     }).join(', ')}`);
   }
-  return { stills: pictures, timeline: lines.join('\n') };
+  return { stills: pictures, closeUps: near, timeline: lines.join('\n') };
 }

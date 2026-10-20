@@ -3,6 +3,7 @@
 import type { Automation, Binding, Globals, Range } from '../../../shared/schemas/look.ts';
 import type { ParamSchema } from './compile.ts';
 import { pickColour } from './picks.ts';
+import { type Picture, readPicture } from './picture.ts';
 import { clamp, DEFAULT_PALETTE, isNum, paletteColours, RUN, TAU } from './stdlib.ts';
 import type { PaletteColours, PaletteHex } from './stdlib.ts';
 
@@ -10,7 +11,7 @@ import type { PaletteColours, PaletteHex } from './stdlib.ts';
 export type G = { energy: number, speed: number, level: number, hue: number, saturation: number, bpm: number,
   palette: PaletteColours, [macro: string]: number | PaletteColours };
 /** P: a module's param values (colours as [r, g, b], choices as their name). */
-export type Values = Record<string, number | boolean | number[] | string>;
+export type Values = Record<string, number | boolean | number[] | string | Picture>;
 type Points = readonly (readonly number[])[];
 
 export const GLOBALS = Object.freeze({
@@ -200,6 +201,8 @@ export function resolveParams(schema: ParamSchema | undefined, overrides: unknow
       P[key] = !!v;
     } else if (d.type === 'choice') {
       P[key] = typeof v === 'string' && d.options.includes(v) ? v : d.value;
+    } else if (d.type === 'picture') {
+      P[key] = readPicture(v) ?? d.value;
     } else {
       const n = Number(v);
       P[key] = Number.isFinite(n) ? n : d.value;

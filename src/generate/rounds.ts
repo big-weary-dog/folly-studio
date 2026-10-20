@@ -3,10 +3,12 @@
 // repair round when the look throws in the box; then, when the model has it, one critique round on what rendered.
 // None of it is another use. A later round's answer is kept only when it expands and renders no worse.
 
+import { prepareScene } from '../../public/js/pattern-core.ts';
 import { validateLook } from '../../shared/schemas/generated.ts';
 import type { Catalog } from './catalog.ts';
 import { type Box, renderCheck, type Seen } from './check.ts';
 import { expand } from './expand.ts';
+import { closeUpGroups } from './frames-closeup.ts';
 import { viewFrames } from './frames-view.ts';
 import type { Adapter, Context, Repair } from './index.ts';
 import { buildCritiqueMessage } from './prompt.ts';
@@ -16,7 +18,7 @@ type Lane = Parameters<typeof renderCheck>[2]['lane'];
 export type Critique = 'images' | 'text';
 export type Rounds = Awaited<ReturnType<typeof compose>>;
 
-const CHECK_SECONDS = 2, CRITIQUE_SECONDS = 8, STILLS = [1, 4, 7];
+const CHECK_SECONDS = 2, CRITIQUE_SECONDS = 8, STILLS = [1, 4.3, 7.6]; // off whole seconds: a beat shows 2 frames
 const why = (err: unknown) => String((err as Error)?.message || err).slice(0, 160);
 
 /**
@@ -69,10 +71,13 @@ export async function compose(o: { adapter: Adapter, ctx: Context, catalog: Cata
     let outcome = 'skipped: over budget';
     if (t0 - o.startedAt <= o.budgetMs) {
       try {
-        const view = viewFrames(seen.bytes, ctx.rig, { at: STILLS, stills: o.critique === 'images' });
+        const view = viewFrames(seen.bytes, ctx.rig, { at: STILLS, stills: o.critique === 'images',
+          closeUps: closeUpGroups(look, prepareScene(ctx.rig)) });
         const message = buildCritiqueMessage({ idea: o.aim ?? ctx.text, timeline: view.timeline,
-          analysis: seen.analysis, stills: view.stills.map((s) => s.at) });
-        const next = made(await ask({ answer: cur.raw, errors: [], message, images: view.stills.map((s) => s.png) }));
+          analysis: seen.analysis, stills: view.stills.map((s) => s.at), closeUps: [...new Set(view.closeUps
+            .map((c) => c.group))] });
+        const images = [...view.stills, ...view.closeUps].map((s) => s.png);
+        const next = made(await ask({ answer: cur.raw, errors: [], message, images }));
         if (JSON.stringify(next.raw) === JSON.stringify(cur.raw)) outcome = 'unchanged';
         else if (next.x.errors.length) outcome = `kept: the revision named ${next.x.errors[0]!.message.slice(0, 60)}`;
         else {

@@ -29,7 +29,8 @@ function pixel(p, t, P) {          // every LED, every frame
 number `{ value, min, max, step? }`, `{ value: bool, type: 'toggle' }`,
 `{ value: pick, type: 'color', blend? }`: a pick names palette colours or literals ("Palettes" below), such as
 `'all'`, `'accent'` or `'#rrggbb'`; `{ value: 'name', type: 'choice', options: ['name', …] }` (≤ 16
-options, each `[a-z][a-z0-9-]{0,31}`; a value not among them takes the default). Any kind may carry `label` (its name in
+options, each `[a-z][a-z0-9-]{0,31}`; a value not among them takes the default); `{ value: picture, type: 'picture' }`
+("Pictures" below; no value: an empty one). Any kind may carry `label` (its name in
 the Studio, a unit in parentheses: `'Speed (bars a second)'`) and `help` (≤ 300 characters: one or two sentences on
 what it does and how it looks low and high). The Studio shows `help` on hover over the param's row, and on a touch
 screen behind an ⓘ beside it; the generators' library docs give it as the param's effect. Every library param has
@@ -154,9 +155,10 @@ and leaves the rest.
 
 The library, one idea a module. Sources: colour-wash, bars, plasma, clouds, fire, spot, circles, wave, shockwave,
 lighthouse, curtain, single-strand (Chase), groups-in-turn, random-fixtures, life, sparkle, streaks, ripple, lightning, fireworks, tendril,
-climb, garlands, strobe, heartbeat. Warps: mirror, kaleidoscope, radial-repeat, mosaic, polar, anchor, rotate, scroll,
-twist, turbulence. Filters: recolour, hue-shift, posterize, invert, mask, blur, edge-fade, trails. Presets: Water,
-Storm, Curtain reveal, and the **retired sources'**: twinkle's Starfield, depth-wave's Playa wave, canopy-rain's Rain,
+climb, garlands, strobe, heartbeat, picture. Warps: mirror, kaleidoscope, radial-repeat, mosaic, polar, anchor, rotate,
+scroll, twist, turbulence. Filters: recolour, hue-shift, posterize, stained-glass, invert, mask,
+blur, edge-fade, trails. Presets: Water, Storm, Curtain reveal, the rose's stained glass (gothic-jewel, backlit-glow,
+cathedral-sun), and the **retired sources'**: twinkle's Starfield, depth-wave's Playa wave, canopy-rain's Rain,
 wash-breathe's Breathe, spire-helix's Tower helix, arch-chase's Arch chase, pinwheel's Galaxy, and by their own names palette-drift, shimmer,
 rising-sweep, nave-procession, meteors, marquee, galaxy, rose-ripple, rose-chase, rose-bloom, aurora, snowstorm,
 snowflakes, butterfly. Saved looks keep their code; `use()` of a retired one names its preset.
@@ -165,6 +167,22 @@ snowflakes, butterfly. Saved looks keep their code; `use()` of a retired one nam
 its unit in its label: `size` a share of the layer (bigger is bigger), `speed` things a second (`spin` turns a
 second), `amount` how much of the effect is mixed in, `softness` a share of what it softens; a toggle
 is one word; a `plane` choice lists `facade side plan`.
+
+## Pictures
+
+A `picture` param's value is a picture as data, `{ grid, repeat?, key, frames }`, which the core checks
+(`pictureProblem`, `readPicture`) and hands to the pattern in `P` as given, frozen. Every engine passes it through
+untouched; the pattern draws it.
+
+| field | meaning |
+|---|---|
+| `grid` | `rose`: a row a ring (`p.ring`, 1 the heart; without one, `r` in seven bands), each row spread clockwise round its ring from the top petal's left edge (a sixteenth of a turn per petal); `square`: rows top to bottom, each spread left to right, laid flat over the layer (`ly`, `lz`) |
+| `repeat` | 1–16 (default 1): a rose row covers 1/`repeat` of the ring and repeats round it (16: a row is one petal) |
+| `key` | ≤ 16 entries, one printable ASCII character → a colour: a role or slot (`body`, `accent2`: a role's first colour, a slot wrapping) or `#rrggbb`, with an optional brightness `' N%'` (`'high 25%'`). `.` and space are clear and never keys |
+| `frames` | 1–16 of `{ rows, hold? }`: ≤ 128 rows of ≤ 128 characters, each in the key or clear; `hold` 1–64 ticks (default 1) |
+
+At most 32,768 characters as JSON. Each LED or pane takes the character at its centre. A look stores the picture in the module's params; a generator's composition gives
+its key as a list, `[{ char, colour }]`, which expansion makes the object.
 
 ## Spatial modules
 

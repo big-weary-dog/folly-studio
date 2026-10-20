@@ -1,9 +1,11 @@
 // Pure: a module's params as controls (SPEC "Pattern code") and number params' bindings (SPEC "Param bindings"):
 // the schema entry a control shows, a binding in a few words, and the binding the modulate dialog makes.
 import type { Binding, ParamValue } from '../../../shared/schemas/look.ts';
+import { type Picture, readPicture } from '../core/picture.ts';
 import { humanize } from './kit.tsx';
 
-export interface Param { kind: 'number' | 'color' | 'toggle' | 'choice'; value: number | string | boolean;
+export interface Param { kind: 'number' | 'color' | 'toggle' | 'choice' | 'picture';
+  value: number | string | boolean | Picture;
   label: string; min: number; max: number; step: number; options: string[]; blend?: 'smooth' | 'step'; help?: string }
 type Shape = NonNullable<Extract<Binding, { mod: 'lfo' }>['shape']>;
 export type BindingForm = { mod: '' | Binding['mod']; shape: Shape; rate: string; unit: string; center: string;
@@ -42,6 +44,10 @@ export function normaliseParam(key: string, raw: unknown): Param | null {
       ...(r.blend === 'smooth' || r.blend === 'step' ? { blend: r.blend } : {}) };
   }
   if (r.type === 'toggle') return { ...base, kind: 'toggle', value: !!v };
+  if (r.type === 'picture') {
+    const pic = readPicture(v);
+    return pic && { ...base, kind: 'picture', value: pic };
+  }
   if (r.type === 'choice' && Array.isArray(r.options) && r.options.length) {
     const options = r.options.map(String);
     return { ...base, kind: 'choice', value: options.includes(v as string) ? v as string : options[0], options };
@@ -67,6 +73,7 @@ export function shownValue(p: Param, values: Record<string, ParamValue>, key: st
     return { has, bound, value: bound ? NaN : has && Number.isFinite(Number(v)) ? Number(v) : p.value };
   }
   if (!has) return { has, bound: false, value: p.value };
+  if (p.kind === 'picture') return { has, bound: false, value: readPicture(v) ?? p.value };
   const own = p.kind === 'color' ? toHex(v) : p.kind !== 'choice' ? !!v : p.options.includes(v as string) ? v : p.value;
   return { has, bound: false, value: own as string | boolean };
 }

@@ -3,12 +3,13 @@
 // shows: one line a module (what it looks like, its param names; the rest is in the docs), a preset as its recipe.
 // Sorted by name, so its bytes stay the same between calls.
 
-import { DIRECTIONS, MODULE_KINDS } from '../../public/js/pattern-core.ts';
+import { DIRECTIONS, MODULE_KINDS, type Picture, readPicture } from '../../public/js/pattern-core.ts';
 import type { LibraryEntry, ModuleEntry, PresetEntry } from '../../shared/schemas/rig.ts';
 
 export type ParamDecl = ({ type: 'number', value: number, min: number, max: number }
   | { type: 'color', value: string, blend?: string } | { type: 'toggle', value: boolean }
-  | { type: 'choice', value: string, options: string[] }) & { label?: string, help?: string };
+  | { type: 'choice', value: string, options: string[] } | { type: 'picture', value: Picture })
+  & { label?: string, help?: string };
 
 const isPreset = (e: LibraryEntry): e is PresetEntry => e.kind === 'preset';
 
@@ -24,8 +25,8 @@ function paramsBlock(code: string) {
   return null;
 }
 
-/** A JS object literal of numbers, strings, booleans, arrays and DIRECTIONS → its value; null when it is anything
- * else (a call, an expression, a name). */
+/** A JS object literal of numbers, strings, booleans, arrays, objects and DIRECTIONS → its value; null when it is
+ * anything else (a call, an expression, a name). */
 function readLiteral(text: string): unknown {
   const json = text
     .replace(/'((?:[^'\\\n]|\\.)*)'/g, (_, s: string) => JSON.stringify(s.replace(/\\(.)/g, '$1')))
@@ -52,6 +53,8 @@ export function readParams(code: string): Record<string, ParamDecl> {
     } else if (d.type === 'toggle') out[name] = { type: 'toggle', value: v === true, ...label };
     else if (d.type === 'choice' && Array.isArray(d.options) && typeof v === 'string') {
       out[name] = { type: 'choice', value: v, options: d.options.map(String), ...label };
+    } else if (d.type === 'picture' && readPicture(v)) {
+      out[name] = { type: 'picture', value: readPicture(v)!, ...label };
     } else if (typeof v === 'number' && typeof d.min === 'number' && typeof d.max === 'number') {
       out[name] = { type: 'number', value: v, min: d.min, max: d.max, ...label };
     }

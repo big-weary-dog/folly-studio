@@ -1,10 +1,12 @@
 // A composition (composition.ts) → a generated look: each `use` becomes the library module's code with the params
 // given, each preset its layers (as the Studio adds one: its modules' params, blends and inputs, overrides on top, its
 // palette and macros where the look has none), each `ext:<name>` the extension's code. Reads index.json's entries and
-// the pattern files' text only; it never runs them. What the model can fix (an unknown name, a filter's missing input)
-// is an error with a path, for the repair round; a param out of range, unknown or of the wrong type is mended or
-// dropped with a note. A layer or module given as code (the old shape) passes through to validateLook as it was.
+// the pattern files' text only; it never runs them. What the model can fix (an unknown name, a filter's missing input,
+// a picture that breaks its rules) is an error with a path, for the repair round; a param out of range, unknown or of
+// the wrong type is mended or dropped with a note. A layer or module given as code (the old shape) passes through to
+// validateLook as it was.
 
+import { pictureProblem } from '../../public/js/pattern-core.ts';
 import type { Catalog, ParamDecl } from './catalog.ts';
 
 export type ExpandError = { path: string, code: string, message: string };
@@ -44,6 +46,12 @@ function paramsOf(v: unknown): Obj {
   return isObj(v) ? { ...v } : {};
 }
 
+/** A picture as the core reads it: the wire's key list, [{ char, colour }], made an object. */
+function pictureOf(v: unknown) {
+  if (!isObj(v) || !Array.isArray(v.key)) return v;
+  return { ...v, key: Object.fromEntries(v.key.filter(isObj).map((k) => [String(k.char), k.colour])) };
+}
+
 /** One param held to its declaration: the value to keep, or undefined (noted) to fall back to the default. */
 function checkParam(d: ParamDecl, v: unknown, at: string, notes: string[]) {
   if (isObj(v) && typeof v.mod === 'string') return d.type === 'number' ? v : (notes.push(`${at}: a binding on a ${
@@ -63,6 +71,7 @@ function checkParam(d: ParamDecl, v: unknown, at: string, notes: string[]) {
     return d.options.includes(String(v)) ? String(v) : (notes.push(`${at}: ${String(v).slice(0, 30)} is not one of ${
       d.options.join(' ')}`), undefined);
   }
+  if (d.type === 'picture') return v;   // fromLibrary refused a bad one
   return typeof v === 'string' || isObj(v) ? v : (notes.push(`${at}: not a colour pick`), undefined);
 }
 
@@ -89,10 +98,16 @@ export function expand(answer: unknown, catalog: Catalog) {
   /** A module of the library (by ref) with these params, held to its declarations. */
   function fromLibrary(ref: string, given: Obj, at: string, extra: Partial<Mod> = {}): Mod {
     const m = catalog.modules.get(ref)!, params: Obj = {};
-    for (const [name, v] of Object.entries(given)) {
+    for (let [name, v] of Object.entries(given)) {
       const d = m.params[name];
       if (!d) {
         notes.push(`${at}.params.${name}: ${ref} has no such param${nearest(name, Object.keys(m.params))}`);
+        continue;
+      }
+      if (d.type === 'picture') v = pictureOf(v);
+      const problem = d.type === 'picture' ? pictureProblem(v) : '';
+      if (problem) {
+        fail(`${at}.params.${name}`, 'bad_picture', problem);
         continue;
       }
       const kept = checkParam(d, v, `${at}.params.${name}`, notes);

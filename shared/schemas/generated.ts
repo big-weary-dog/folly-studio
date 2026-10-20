@@ -10,7 +10,7 @@ import {
 } from '../../public/js/pattern-core.ts';
 import type { Blend, BlurMode, ModuleKind, SourceBlend } from '../../public/js/pattern-core.ts';
 import {
-  automationFor, Binding, bytes, Globals as StrictGlobals, ID, ms, PALETTE_NAMES, Pick, problem, TAG,
+  automationFor, Binding, bytes, Globals as StrictGlobals, ID, ms, PALETTE_NAMES, Pick, PictureValue, problem, TAG,
 } from './look.ts';
 import type { Automation, Globals, Module, Range, Soften } from './look.ts';
 
@@ -79,7 +79,7 @@ function cleanPick(v: unknown) {
 // a colour's is a pick.
 const param = z.union([z.number(), z.boolean(), z.string().regex(/^[a-z][a-z0-9-]{0,31}$/),
   z.tuple([z.number(), z.number(), z.number()]).transform((c) => c.map((x) => clamp(x, 0, 1))), Binding,
-  z.unknown().transform((v, ctx) => cleanPick(v) ?? (ctx.addIssue('not a value'), z.NEVER))]);
+  PictureValue, z.unknown().transform((v, ctx) => cleanPick(v) ?? (ctx.addIssue('not a value'), z.NEVER))]);
 const params = z.record(z.string(), z.unknown()).catch({}).transform((p) => Object.fromEntries(Object.entries(p)
   .filter(([k]) => PARAM_NAME.test(k) && k !== '__proto__').flatMap(([k, v]) => {
     const r = param.safeParse(v);

@@ -42,7 +42,7 @@ const Composition = z.object({ title, summary, palette: z.enum(PALETTE_NAMES).op
   Expansion only reads `index.json` and the pattern files; it never runs them.
 - **Errors** are data with a path, for the model to read: `{ path: 'layers[1].modules[2].params.speed', code:
   'out_of_range', message: 'speed is -2..2; got 5' }`. Codes: `unknown_module`, `unknown_preset`, `unknown_param`,
-  `bad_type`, `out_of_range`, `bad_choice`, `bad_pick`, `bad_binding`, `bad_input`, `bends_nothing`, `too_many`.
+  `bad_type`, `out_of_range`, `bad_choice`, `bad_pick`, `bad_binding`, `bad_input`, `bad_picture`, `bends_nothing`, `too_many`.
 
 ## 3. The catalog
 

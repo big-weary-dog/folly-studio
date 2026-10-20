@@ -59,7 +59,7 @@ describe('settings', () => {
 test('a dry run plays, prints its stats and fades out on time', async () => {
   const main = fileURLToPath(new URL('../main.ts', import.meta.url));
   const { stdout } = await promisify(execFile)(process.execPath,
-    [main, '--dry-run', '--seconds', '2', '--stats', '1', '--config', file({})], { timeout: 20000 });
+    [main, '--dry-run', '--http', '0', '--seconds', '2', '--stats', '1', '--config', file({})], { timeout: 20000 });
   const lines = stdout.trim().split('\n');
   assert.match(lines[0]!, /DRY RUN, nothing sent, channels 1-70401 \(rose expanded\), rig .* 2114 px at 40 fps/);
   assert.match(stdout, /playing heartbeat-plasma/);
@@ -79,8 +79,8 @@ test('live into the simulator: every frame whole, the rose expanded, within the 
     }
     const port = /listening for DDP on 127\.0\.0\.1:(\d+)/.exec(out)![1]!;
     const main = fileURLToPath(new URL('../main.ts', import.meta.url));
-    await promisify(execFile)(process.execPath, [main, '--port', port, '--seconds', '2', '--look', 'fire',
-      '--config', file({})], { timeout: 30000 });
+    await promisify(execFile)(process.execPath, [main, '--port', port, '--http', '0', '--seconds', '2', '--look',
+      'fire', '--config', file({})], { timeout: 30000 });
     await new Promise((r) => setTimeout(r, 1100));   // a PNG written
   } finally {
     sim.kill('SIGINT');

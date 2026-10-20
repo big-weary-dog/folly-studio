@@ -5,6 +5,8 @@ export { DEFAULT_PALETTE, DIRECTIONS, PALETTE_ROLES, STDLIB, STDLIB_NAMES } from
 export type { Colour, Direction, PaletteColours, PaletteHex, PaletteRole, RGB } from './core/stdlib.ts';
 export { compileModule, compilePattern, describeError, normalizeParams, setLibrary } from './core/compile.ts';
 export { pickText, readPick } from './core/picks.ts';
+export { EMPTY_PICTURE, PICTURE_COLOUR, PICTURE_LIMITS, pictureProblem, readPicture } from './core/picture.ts';
+export type { Picture } from './core/picture.ts';
 export type { PickBlend, PickSpec } from './core/picks.ts';
 export type { Compiled, ParamSchema, ParamSpec } from './core/compile.ts';
 export {

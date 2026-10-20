@@ -6,7 +6,7 @@ import { z } from 'zod';
 import PALETTES from '../../public/data/palettes.json' with { type: 'json' };
 import {
   BLENDS, BLUR_MODES, DIRECTIONS, GLOBALS, macroNameOk, MAX_CLIPS, MAX_DURATION, MAX_LANES, MAX_MACROS, MAX_POINTS,
-  MAX_RADIUS, MODULE_KINDS, PALETTE_ROLES, SOURCE_BLENDS, TRANSITIONS,
+  MAX_RADIUS, MODULE_KINDS, PALETTE_ROLES, type Picture, pictureProblem, SOURCE_BLENDS, TRANSITIONS,
 } from '../../public/js/pattern-core.ts';
 
 export {
@@ -96,9 +96,11 @@ const unit = z.number({ error: UNIT }).min(0, UNIT).max(1, UNIT);
 const PickObject = z.strictObject({ pick: PickText, blend: oneOf('blend', ['step', 'smooth']).optional(),
   range: z.tuple([unit, unit]).optional(), rotate: z.union([unit, Binding]).optional() });
 export const Pick = z.union([PickText, PickObject]);
+/** A picture param's value (SPEC-library "Pictures"), held to the core's limits. */
+export const PictureValue = z.custom<Picture>((v) => !pictureProblem(v), { error: 'is not a picture.' });
 const ParamValue = z.union([z.number(), z.boolean(), z.string().max(200), z.array(z.number()).max(16), Binding,
-  PickObject]);
-/** Param overrides: values (numbers, toggles, colours as picks, '#hex' or [r, g, b]) or bindings. */
+  PickObject, PictureValue]);
+/** Param overrides: values (numbers, toggles, colours as picks, '#hex' or [r, g, b]), bindings or pictures. */
 const Param = z.custom<z.infer<typeof ParamValue>>((v) => ParamValue.safeParse(v).success,
   { error: 'has an unsupported value.' });
 export const Params = z.record(z.string().max(64), Param, { error: 'params must be an object.' })

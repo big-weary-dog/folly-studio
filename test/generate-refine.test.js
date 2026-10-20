@@ -7,15 +7,17 @@ import path from 'node:path';
 
 import { describe, test } from 'vitest';
 
-import { prepareScene } from '../public/js/pattern-core.ts';
+import { groupsByTag, pixelsForGroups, prepareScene } from '../public/js/pattern-core.ts';
 import { writeFseq } from '../public/js/fseq.ts';
 import { BakeError } from '../src/box-output.ts';
 import { buildCatalog } from '../src/generate/catalog.ts';
 import { renderCheck } from '../src/generate/check.ts';
 import { createClaudeAdapter } from '../src/generate/claude.ts';
 import { expand } from '../src/generate/expand.ts';
+import { cellsOf, closeUpGroups, drawCloseUp } from '../src/generate/frames-closeup.ts';
 import { viewFrames } from '../src/generate/frames-view.ts';
 import { createQueue } from '../src/generate/index.ts';
+import { buildCritiqueMessage } from '../src/generate/prompt.ts';
 import { decompose, diffCompositions } from '../src/generate/refine.ts';
 import { sketchRefine } from '../src/generate/sketch-refine.ts';
 import { PACE } from '../src/generate/sketch.ts';
@@ -114,6 +116,27 @@ describe('what the model sees of its frames', () => {
     assert.equal(lines.length, 3);
     assert.match(lines[0], /^0s \S+ #c80000 \d+%/);
     assert.deepEqual(viewFrames(frames(1), RIG, { stills: false }).stills, []);
+  });
+  test('a look on the rose also gets the rose up close, each LED its pane, and the critique says so', () => {
+    const scene = prepareScene(RIG), rose = groupsByTag(scene, 'rose').map((g) => g.id);
+    assert.ok(rose.length);
+    const all = GROUPS.map((g) => g.id);
+    const layer = (over) => ({ layers: [{ id: 'a', groups: [], modules: [{ params: {} }], ...over }] });
+    assert.deepEqual(closeUpGroups(layer({ tags: ['rose'] }), scene), rose);
+    assert.deepEqual(closeUpGroups(layer({ groups: all }), scene), []);
+    assert.deepEqual(closeUpGroups(layer({ groups: all, modules: [{ params: { centre: 'rose' } }] }), scene), rose);
+    const { stills, closeUps } = viewFrames(frames(3), RIG, { at: [1, 2], closeUps: rose });
+    assert.deepEqual(closeUps.map((c) => [c.at, c.group]), [[1, rose[0]], [2, rose[0]]]);
+    assert.deepEqual([...closeUps[0].png.subarray(0, 8)], [...stills[0].png.subarray(0, 8)]);
+    assert.equal(closeUps[0].png.readUInt32BE(16), 240);
+    assert.deepEqual(viewFrames(frames(1), RIG, { stills: false, closeUps: rose }).closeUps, []);
+    const cells = cellsOf(RIG, scene, rose[0]);
+    assert.equal(cells.length, pixelsForGroups(scene, rose[0]).length);
+    const { rgb } = drawCloseUp(cells, () => [255, 0, 0]);
+    assert.ok(rgb.some((v, i) => i % 3 === 0 && v === 255) && rgb.some((v, i) => i % 3 === 0 && v === 0));
+    assert.match(buildCritiqueMessage({ idea: 'an eye', timeline: '', stills: [1], closeUps: rose }),
+      new RegExp(`Then ${rose[0]} up close at the same times, each LED drawn as its glass pane`));
+    assert.doesNotMatch(buildCritiqueMessage({ idea: 'an eye', timeline: '', stills: [], closeUps: rose }), /up close/);
   });
 });
 
@@ -274,7 +297,7 @@ describe('the rounds in the queue', () => {
     assert.equal(done.status, 'ready', done.error);
     assert.equal(asks.length, 1, 'the look itself is the answer critiqued: no first ask');
     assert.equal(asks[0].images.length, 3);
-    assert.match(asks[0].message, /at 1, 4, 7 s/);
+    assert.match(asks[0].message, /at 1, 4.3, 7.6 s/);
     assert.deepEqual(box.jobs.map((j) => j.seconds), [8, 2]);
     assert.equal(typeof done.timing.critique, 'number');
     assert.equal(store.looks.get(look.id).layers[0].level, 0.5);

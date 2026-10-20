@@ -271,11 +271,14 @@ Return the whole look again as JSON with ${ask ? 'that change' : 'the fix'}: kee
 }
 
 /** The critique turn: what the look rendered to, and the ask to compare it with the idea and answer it again. */
-export function buildCritiqueMessage({ idea, timeline, analysis, stills }: { idea: unknown, timeline: string,
-  analysis?: { meanBrightness?: number, darkFraction?: number, flicker?: { ok?: boolean } }, stills: number[] }) {
+export function buildCritiqueMessage({ idea, timeline, analysis, stills, closeUps = [] }: { idea: unknown,
+  timeline: string, analysis?: { meanBrightness?: number, darkFraction?: number, flicker?: { ok?: boolean } },
+  stills: number[], closeUps?: string[] }) {
   const a = analysis ?? {}, pct = (v?: number) => (v == null ? '?' : `${Math.round(v * 100)}%`);
+  const near = stills.length && closeUps.length ? ` Then ${closeUps.join(', ')} up close at the same times, each LED`
+    + ' drawn as its glass pane: check there that a picture or pattern on it reads as meant.' : '';
   return `The studio rendered that look. ${stills.length ? `The images are the LEDs seen from the front at ${
-    stills.join(', ')} s (left to right on the rig is left to right in the image).` : ''}
+    stills.join(', ')} s (left to right on the rig is left to right in the image).${near}` : ''}
 Mean brightness ${pct(a.meanBrightness)} of white, ${pct(a.darkFraction)} of LEDs dark; ${a.flicker?.ok === false
     ? 'large areas FLASH too fast: slow them.' : 'no large-area flashing.'}
 Each top-level group's mean colour and brightness, a second at a time:

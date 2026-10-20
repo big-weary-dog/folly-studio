@@ -58,6 +58,7 @@ function paramHead(name: string, d: ParamDecl) {
   const what = d.type === 'number' ? `number ${num(d.min)}..${num(d.max)}, default ${num(d.value)}`
     : d.type === 'color' ? `pick, default \`${d.value}\`${d.blend === 'smooth' ? ', blended smooth' : ''}`
     : d.type === 'toggle' ? `on/off, default ${d.value ? 'on' : 'off'}`
+    : d.type === 'picture' ? `picture, default \`${JSON.stringify(d.value)}\``
     : `${d.options.join(' | ')}; default \`${d.value}\``;
   const u = unit(d);
   return `**${name}** (${what}${u ? `; ${u}` : ''})`;

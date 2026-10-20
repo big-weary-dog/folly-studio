@@ -6,6 +6,7 @@ import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 
 import type { ParamValue } from '../../../shared/schemas/look.ts';
+import type { Picture } from '../core/picture.ts';
 import { DEFAULT_PALETTE } from '../core/stdlib.ts';
 import {
   type BindingForm, bindingForm, bindingText, fmt, isBinding, makeBinding, normaliseParam, optionText, type Param,
@@ -13,6 +14,7 @@ import {
 } from './bindings.ts';
 import { cx, Field, humanize, openDialog, Scrub } from './kit.tsx';
 import { type Colours, type Help, PickRow } from './picks.tsx';
+import { PictureRow } from './picture-row.tsx';
 import type { Studio } from './studio-store.ts';
 
 const GLOBAL_NAMES = ['energy', 'speed', 'level', 'hue', 'saturation'];
@@ -59,6 +61,10 @@ function Control({ name, p, values, set, globals, colours, narrow }: { name: str
       put={(v) => set((q) => { if (v === undefined) delete q[name]; else q[name] = v; })}
       modulate={(now, apply) => modulate({ ...turn, value: typeof now === 'number' ? now : 0 }, now, globals(), apply,
         'Turns 0 to 1, wrapping: one turn walks every colour of the pick once.')} />;
+  }
+  if (p.kind === 'picture') {
+    return <PictureRow label={p.label} value={values[name]} dflt={p.value as Picture} palette={colours.palette}
+      help={help} put={(v) => set((q) => { if (v === undefined) delete q[name]; else q[name] = v; })} />;
   }
   const field = (id: string) => (p.kind === 'number' ? <>
     {bound ? <span class="param-chip">{bindingText(values[name] as never)}</span>

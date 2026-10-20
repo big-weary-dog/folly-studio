@@ -251,9 +251,10 @@ cover.
 
 ## Performance budgets
 
-- As built, gzipped: the app's scripts, styles and sandbox page (`dist/assets/`) ≤ 165 KB; the login page (the
+- As built, gzipped: the app's scripts, styles and sandbox page (`dist/assets/`) ≤ 166 KB; the login page (the
   shell, its entry and what that imports, the sign-in view) ≤ 40 KB. `test/build.test.js` measures both on a fresh
-  build. Views and their styles load on first use.
+  build. Views and their styles load on first use. Raised from 165 KB for pictures: a picture param kind,
+  checked in the engine with errors an agent repairs from, and edited in Studio (+2 KB).
 - On the wire (`test/transfer.test.js`, the real server, the build and a model of a browser's cache): a cold
   Studio load (shell, modules, styles, sandbox, `rig.json`, API) ≤ 205 KB with br (240 KB gzip);
   a reload, even a day later, sends only the shell and its API calls, each a 304 (assets have

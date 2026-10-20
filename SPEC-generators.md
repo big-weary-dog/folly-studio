@@ -63,14 +63,17 @@ expansion errors do (the error with the layer's path, `layers[1]: runtime: …`)
 layer that still throws is noted. No box (plain Windows): no check. The box's words are untrusted data, bounded
 before they reach a prompt.
 
-**Critique** (opt-in per model: `critique: "images" | "text"`, default off). With the box, the look is rendered for
-8 s instead of 2, and the model is shown what it made, once: 3 front-view stills (`frames-view.ts`: the LEDs seen
-from the front, at 1, 4 and 7 s, PNG, 360 px wide; `images` only), a line a second with each top-level group's mean
-colour and brightness, the frames' analysis (brightness, dark share, flashing), and the idea again. It answers the
-whole composition again, revised or not; that answer is expanded and checked (2 s), and kept only if it expands and
-renders without errors. It is part of the idea (no use), skipped when the idea has already taken 90 s
-(`STUDIO_CRITIQUE_BUDGET_MS`), and logged with its time. Claude gets the stills as image blocks, codex as `-i`
-attachments.
+**Critique** (opt-in per model: `critique: "images" | "text"`, default off). With the box, the look is rendered for 8
+s instead of 2, and the model is shown what it made, once: 3 front-view stills (`frames-view.ts`: the LEDs seen from
+the front, at 1, 4.3 and 7.6 s (off whole seconds, so a once-a-second beat shows two frames), PNG, 360 px wide;
+`images` only), with each rose up close at the same times when the look plays on one (`frames-closeup.ts`: a group
+tagged `rose` holding at least half of a layer's LEDs, or any group tagged `rose` when a module param names `rose`;
+each LED drawn as its fixture's `render.cells` pane, 240 px), a line a second with each top-level group's mean colour
+and brightness, the frames' analysis (brightness, dark share, flashing), and the idea again. It answers the whole
+composition again, revised or not; that answer is expanded and checked (2 s), and kept only if it expands and renders
+without errors. It is part of the idea (no use), skipped when the idea has already taken 90 s
+(`STUDIO_CRITIQUE_BUDGET_MS`), and logged with its time. Claude gets the stills and close-ups as image blocks, codex
+as `-i` attachments.
 
 **Refine** (SPEC "HTTP API": `POST /api/looks/:id/refine`). A follow-up on a saved look of one's own (`slower,
 more red, only the spires`) is an idea with `refine` and `lookId` set; it counts as one use like any idea. Its job
