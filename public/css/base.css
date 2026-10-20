@@ -90,7 +90,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offs
 @media (forced-colors: active) { .rose { forced-color-adjust: none; } }
 /* Panels: glass set in lead, tinted by --tint and lit from behind; pointed-arch (ogive) pieces;
    dialogs, menus, toasts; states as quatrefoils. */
-.compose, .idea, .card, .dialog, .menu, .toast, .viewer-msg, .library-item, .empty, .bake {
+.compose, .idea, .card, .dialog, .menu, .toast, .viewer-msg, .library-item, .empty {
   border: var(--came) solid var(--lead); border-radius: var(--radius);
   background: radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--tint) 12%, #0000), #0000 70%)
     color-mix(in srgb, var(--tint) 5%, var(--night-1));

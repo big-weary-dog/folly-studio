@@ -1,12 +1,12 @@
 // The Studio's panes: toolbar, groups, the 3D view, layers and settings, the bottom dock (code, timeline and look
-// tabs, a fold toggle, the splitter that sizes it), and the phones' tabs. The bake card, the timeline and the Look
-// panel sit in the dock or the groups pane on a wide screen, and in their own tabs on a phone.
+// tabs, a fold toggle, the splitter that sizes it), and the phones' tabs. The timeline and the Look panel sit in the
+// dock on a wide screen, and in their own tabs on a phone; Check & bake opens from Export (or the phone's Look tab).
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 import { api, statusOf } from '../api.ts';
 import type { Listed } from '../../../shared/schemas/api.ts';
 import { signedOut } from './session.ts';
-import { BakePanel } from './bake.tsx';
+import { openBake } from './bake.tsx';
 import { ChainPane } from './chain.tsx';
 import { CodeEditor } from './editor.tsx';
 import { cx, humanize, pref, Switch, useLazy } from './kit.tsx';
@@ -42,7 +42,6 @@ export function StudioLayout({ st, pv, tl, els }: Props & { els: Record<string, 
         <div class="pane-head"><h2 class="pane-title">Groups</h2>
           <span class="pane-sub">{st.selectedTitle.value ? `for ${st.selectedTitle.value}` : ''}</span></div>
         <div class="pane-body tree-wrap"><GroupsTree st={st} /></div>
-        <div class="bake-slot">{!narrow && <BakePanel st={st} pv={pv} />}</div>
       </section>
       <PreviewPane st={st} pv={pv} els={els} />
       <Splitter studio={root} setResizing={setResizing} />
@@ -111,6 +110,7 @@ function ExportMenu({ st, pv }: { st: Studio; pv: Preview }) {
         onClick={() => setOpen(!open)}>Export</button>
       <div class="menu" role="menu" ref={menu} hidden={!open} onKeyDown={onKey}>
         {item('Export .fseq…', () => exporter().then((m) => m.exportFseq(st, pv)), 'wide-only')}
+        {item('Check & bake…', () => openBake(st, pv))}
         {item('Export look JSON', () => exporter().then((m) => m.exportJson(st)))}
         {item('Look details…', () => exporter().then((m) => m.details(st)))}
       </div>
@@ -209,9 +209,9 @@ function LookTab({ st, pv }: { st: Studio; pv: Preview }) {
     <section class="pane pane-look" data-pane="look" aria-label="Look"><div class="pane-body look-body">
       {narrow && <RefinePanel st={st} />}
       <div class="globals-slot">{narrow && <Globals st={st} />}</div>
-      <div class="bake-slot">{narrow && <BakePanel st={st} pv={pv} />}</div>
       <Share st={st} cls="share-toggle big" />
       <div class="look-actions">
+        <button type="button" class="btn" onClick={() => openBake(st, pv)}>Check & bake</button>
         <button type="button" class="btn" onClick={() => exporter().then((m) => m.details(st))}>Look details</button>
         <button type="button" class="btn" onClick={() => exporter().then((m) => m.exportJson(st))}>
           Export look JSON</button>

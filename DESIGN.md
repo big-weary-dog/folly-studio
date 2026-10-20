@@ -222,7 +222,7 @@ counted where they happen: a swing of a group's light is credited to the cells t
 arch after arch flashes each place once a pass, not the arches over and over. Flashing over a large area (≥ 10 % of
 the LEDs, or of the lit area seen from the front or side) **blocks review**; flashing confined to small parts such as
 the spirelets only **warns**. A curator may still approve a flashing bake by **giving a reason**, kept on the look
-with their name and shown on its bake card. The live preview runs the same rule (`core/flash.ts`) on the frames it
+with their name and shown in its Check & bake. The live preview runs the same rule (`core/flash.ts`) on the frames it
 shows and dims a strobe, asking before showing it; with reduced motion it stays dimmed. Each person may turn the
 dimming off for themselves ("Don't dim for me"). The limits are the host's (`STUDIO_FLASH_*`, WCAG's by default);
 `STUDIO_FLASH_CHECK=off` is for local use only.
@@ -232,7 +232,7 @@ dimming off for themselves ("Don't dim for me"). The limits are the host's (`STU
 - **Trade-off.** Bakes need Linux or WSL2 with bubblewrap and unprivileged user namespaces; elsewhere baking is
   off and says why.
 
-![A curator's view: the bake report (flash check, peak power, size, downloads), reviewed, playing the baked frames](docs/screenshots/laptop-bake.jpg)
+![Check & bake from the Export menu: the bake report (flash check, peak power, length, downloads), playing the baked frames](docs/screenshots/laptop-bake.jpg)
 
 ## 7. Frames on the wire
 

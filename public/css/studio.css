@@ -15,9 +15,6 @@ body[data-view=studio] { --side-w: 330px; overflow: hidden; }
 .studio-bar { grid-area: bar; }
 .studio-notice { grid-area: notice; }
 .pane-groups { grid-area: groups; --tint: var(--emerald); border-right: var(--came) solid var(--lead); }
-.pane-groups > .bake-slot { flex: none; padding: 8px; background: var(--night-0);
-  border-top: var(--came) solid var(--lead); }
-.pane-groups > .bake-slot:empty { display: none; }
 .pane-viewer { grid-area: viewer; background: var(--void); }
 .splitter { grid-area: split; }
 .side { grid-area: side; display: flex; flex-direction: column; min-height: 0;
@@ -220,7 +217,7 @@ input.tree-box { width: 16px; height: 16px; margin: 0 4px 0 2px; flex: none; cur
 .layer-groups.layer-issue { color: #ffbccb; }
 .layer-title-input { font-weight: 600; }
 /* the bake card: its glass follows the verdict */
-.bake { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.bake { display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
 .bake[data-state=ok] { --tint: var(--emerald); }
 .bake[data-state=queued], .bake[data-state=running], .bake[data-state=warned] { --tint: var(--amber); }
 .bake[data-state=failed], .bake[data-state=flagged] { --tint: var(--ruby); }

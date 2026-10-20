@@ -577,6 +577,9 @@ z across, y up), without a browser; the tests and browser checks do.
 
 Frames are the deliverable; the server never runs look code itself, it only parses and measures
 bytes a box hands back. Anything a box says about itself is kept as `boxStats: { untrusted: true }`.
+In the Studio, Export → Check & bake… (the phone's Look tab: Check & bake) opens a dialog (`ui/bake.tsx`) that
+bakes the saved look, shows the checks (flash, peak power, length), plays the baked frames and, for a curator,
+marks the look reviewed.
 
 - **Boxes.** `render-box` (authoritative, any look): `src/render-box.ts` runs `render-box/render.ts`
   under bubblewrap (`--unshare-all`, no network, `--clearenv`, read-only node + its libraries +

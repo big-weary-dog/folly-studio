@@ -1,6 +1,6 @@
-// Bake (SPEC "Baked frames"): render the saved look in the server's render box, show what the checks found, play the
-// baked frames (no pattern code runs), and let a curator mark a passing look reviewed, or one that fails only the
-// flash check, with their reason.
+// Check & bake (SPEC "Baked frames"), a dialog from the Export menu: render the saved look in the server's render box,
+// show what the checks found, play the baked frames (no pattern code runs), and let a curator mark a passing look
+// reviewed, or one that fails only the flash check, with their reason.
 import { useEffect, useState } from 'preact/hooks';
 
 import { api, type ApiError, statusOf } from '../api.ts';
@@ -38,7 +38,12 @@ function thrown(bake: Bake | null) {
   return hit ? { id: String(hit.id ?? '').slice(0, 80), error: String(hit.firstError).slice(0, 400) } : null;
 }
 
-export function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
+/** Open Check & bake over the Studio; the preview's baked badge stays to go back to live once it closes. */
+export function openBake(st: Studio, pv: Preview) {
+  return openDialog({ title: 'Check & bake', className: 'bake-dialog', body: () => <BakePanel st={st} pv={pv} /> });
+}
+
+function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
   const me = user.value, curator = !!me && me.role !== 'member', id = st.lookId.value, server = st.server.value;
   const look = id && server ? { ...server, id } : null, bake = look?.bake || null, s = bakeState(bake);
   const dirty = st.dirty.value, playing = st.baked.value;
@@ -150,8 +155,7 @@ export function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
     : 'Editing the layers clears the bake.';
   return (
     <section class={cx('bake', !hasFrames && 'no-play')} data-state={s.kind} aria-label="Bake">
-      <div class="bake-head"><h2 class="pane-title">Bake</h2>
-        <span class="bake-pill" data-kind={s.kind}>{s.label}</span></div>
+      <div class="bake-head"><span class="bake-pill" data-kind={s.kind}>{s.label}</span></div>
       <p class={cx('bake-note', look && bake && dirty && !active && 'warn')}>{note}</p>
       <dl class="bake-report" hidden={!a}>{a && <>
         {row('Flash check', check[0], check[1])}
