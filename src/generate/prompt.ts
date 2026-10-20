@@ -127,9 +127,9 @@ export function formatExamples(examples: Library) {
 /** The whole installation's group: the root of the tree. */
 export const rootOf = (groups: Groups = []) => groups.find((g) => g && g.parent == null)?.id || 'all';
 
-/** The look's palettes, a line each: every role's slots, in order (`body2` is body's second). */
+/** The look's palettes, a line each: its theme, then every role's slots, in order (`body2` is body's second). */
 export function formatPalettes() {
-  return PALETTES.palettes.map((p) => `- ${p.name}: ${PALETTES.roles.map((r: string) => `${r} ${
+  return PALETTES.palettes.map((p) => `- ${p.name} (${p.theme}): ${PALETTES.roles.map((r: string) => `${r} ${
     ((p as unknown as Record<string, string[]>)[r] ?? []).join(' ')}`).join('; ')}`).join('\n');
 }
 

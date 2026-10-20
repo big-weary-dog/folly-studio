@@ -35,10 +35,10 @@ function renameMacro(L: Draft, from: string, to: string | null): Partial<Draft> 
     automation: Object.keys(auto).length ? auto : undefined, layers };
 }
 
-export function GlobalsPanel({ st, palettes }: { st: Studio; palettes: Palette[] }) {
+export function GlobalsPanel({ st, palettes }: { st: Studio; palettes: (Palette & { theme: string })[] }) {
   const L = st.look.value, g: Globals = L.globals || {}, lanes = L.automation || {};
   const set = (fn: (g: Globals) => void) => st.editGlobals((x) => { fn(x); return x; });
-  const named = g.palette?.name && palettes.some((p) => p.name === g.palette?.name);
+  const house = palettes.find((p) => p.name === g.palette?.name), named = !!house;
   const pal = g.palette || palettes.find((p) => p.name === 'chapel');
   function addMacro() {
     const macros = { ...g.macros };
@@ -65,7 +65,8 @@ export function GlobalsPanel({ st, palettes }: { st: Studio; palettes: Palette[]
             });
           }}>
           <option value="">Default (chapel)</option>
-          {palettes.map((p) => <option value={p.name}>{humanize(p.name)}</option>)}</select>}</Field>
+          {palettes.map((p) => <option value={p.name} title={p.theme}>{humanize(p.name)}</option>)}</select>}</Field>
+        {house && <span class="field-hint">{house.theme}</span>}
         {PALETTE_ROLES.map((r: string) => <Field label={humanize(r)}>{(pal?.[r as 'low'] || []).map((c, i) =>
           <span class="swatch" title={`${r}${i + 1} · ${c}`} style={{ backgroundColor: c }} />)}</Field>)}
       </section>

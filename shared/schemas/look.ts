@@ -200,8 +200,9 @@ export const Layers = z.array(Layer, { error: 'layers must be an array.' })
 
 const role = (r: string) => list((error) => z.string({ error }).regex(HEX), 16,
   `globals.palette.${r} must be up to 16 '#rrggbb' colours.`).transform((hex) => hex.map((c) => c.toLowerCase()));
+const HOUSE = PALETTES.palettes.map(({ theme: _, ...p }) => p); // a look stores the colours, not the theme
 const Palette = z.union([
-  z.string().transform((name, ctx) => structuredClone(PALETTES.palettes.find((p) => p.name === name))
+  z.string().transform((name, ctx) => structuredClone(HOUSE.find((p) => p.name === name))
     ?? (ctx.addIssue('no such palette'), z.NEVER)),
   z.object({ name: z.string().catch('').transform((n) => n.slice(0, 64)), low: role('low'), body: role('body'),
     accent: role('accent'), high: role('high') })

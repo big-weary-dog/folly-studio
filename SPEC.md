@@ -231,8 +231,10 @@ has alpha × level, `max` keeps the brighter channel, `multiply` tints what is b
   each once; absent, it offers the macros and `level`. Nothing else reads it.
 - **Automation**: `{ <global or macro>: [[t, v], …] }`, ≤ 16 lanes of ≤ 256 points, t 0–600 s ascending (to
   the ms); linear between points, held before the first and after the last; it replaces the static value.
-- `data/palettes.json` (`tools/build_palettes.py [--check]`, from `td/palettes/*.csv`; roles as `td/README.md`
-  "Colours"): `{ version: 1, roles: [low, body, accent, high], palettes: [{ name, low, body, accent, high }] }`.
+- `data/palettes.json` (`tools/build_palettes.py [--check]`, from `td/palettes/*.csv` and each one's line in
+  `td/palettes/themes.txt`; roles as `td/README.md` "Colours"):
+  `{ version: 1, roles: [low, body, accent, high], palettes: [{ name, theme, low, body, accent, high }] }`. A look
+  stores a palette's colours, not its theme.
 
 ### Timeline
 
@@ -268,7 +270,7 @@ Sequencing lives on the look, xLights-style.
   layer or one source, and Presets; one-line rows by category with a filter, the tab remembered for the session, each
   row auditioned in the 3D view), the code editor and
   params on the selected module (each number param can be modulated), and a Look panel of globals, the palette
-  (each swatch titled by its slot, `body2 · #fd7f40`) and macros. On a phone: globals and palette in the Look tab;
+  (its theme line under the menu; each swatch titled by its slot, `body2 · #fd7f40`) and macros. On a phone: globals and palette in the Look tab;
   the chain read-only but for enable and params.
 - Phones (≤ 899 px wide; `ui/phone/`, `css/phone.css`): the 3D view over one panel, switched by the tabs Layers,
   Time, Groups, Look and More. Layers lists one row a layer (name, mute, status); tapping one opens its settings in

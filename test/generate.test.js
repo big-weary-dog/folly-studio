@@ -85,8 +85,8 @@ describe('sketch', () => {
     assert.equal(look.layers.length, 1);
     assert.equal(look.layers[0].code, byName('embers').code);
     assert.deepEqual(look.layers[0].groups, ['spires']);
-    assert.deepEqual(look.layers[0].params, { color: 'body1' }, "red: the nearest swatch's slot");
-    assert.equal(look.globals.palette.name, 'chapel', 'the palette nearest red');
+    assert.deepEqual(look.layers[0].params, { color: 'body3' }, "red: the nearest swatch's slot");
+    assert.equal(look.globals.palette.name, 'ruby', 'the palette nearest red');
     assert.equal(look.title, 'Fire on the spires in red');
     assert.match(look.summary, /Sketched from the pattern library/);
     assert.match(look.summary, /AI generator can do much better/);
@@ -126,8 +126,8 @@ describe('sketch', () => {
   test('an empty library still gives a valid look', () => {
     const look = sketch('purple and gold fire', []);
     assert.equal(look.layers[0].code, BUILTIN_PATTERN.code);
-    assert.deepEqual(look.layers[0].params, { color: 'body6', color2: 'body2' });
-    assert.equal(look.globals.palette.name, 'prism', 'the palette with a purple and a gold');
+    assert.deepEqual(look.layers[0].params, { color: 'body4', color2: 'accent2' });
+    assert.equal(look.globals.palette.name, 'violet', 'the palette with a purple and a gold');
   });
 
   test('finds places by tag on any rig, by id and name where a rig has none, and keeps the tags', () => {
@@ -198,7 +198,7 @@ describe('prompt', () => {
     assert.equal(sys, buildSystemPrompt({ library: LIBRARY, rig: RIG }));
     for (const s of ['# The library', '# Composing a look', 'function pixel(p', 'cosPalette', 'beat(t, bpm)',
       'spire-front-left', 'rose-window — Rose window', 'Colour at full strength', 'Darkness is punctuation',
-      'fills what it lands on', '4,870', '40 fps', 'last resort', 'untrusted', '<idea>', '- carnival: low ']) {
+      'fills what it lands on', '4,870', '40 fps', 'last resort', 'untrusted', '<idea>', '- carnival (Every warm']) {
       assert.ok(sys.includes(s), `system prompt mentions ${s}`);
     }
     assert.ok(!sys.includes(byName('lighthouse').code.trim()), 'modules are named, not shown as code');

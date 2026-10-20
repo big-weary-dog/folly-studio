@@ -18,8 +18,8 @@ const once = <T>(load: () => Promise<T>) => {
   return () => (p ||= load().catch((err) => { p = null; throw err; }));
 };
 export const loadRig = once(() => fetchJSON<Rig>(new URL('../../data/rig.json', import.meta.url).href));
-/** [{ name, low, body, accent, high }] from data/palettes.json (td/palettes, by tools/build_palettes.py). */
-export const loadPalettes = once(() => fetchJSON<{ palettes?: Palette[] }>(
+/** [{ name, theme, low, body, accent, high }] from data/palettes.json (td/palettes, by tools/build_palettes.py). */
+export const loadPalettes = once(() => fetchJSON<{ palettes?: (Palette & { theme: string })[] }>(
   new URL('../../data/palettes.json', import.meta.url).href).then((d) => d.palettes || []));
 export const loadLibrary = once(() => api.library().then((r) => r.patterns || []));
 

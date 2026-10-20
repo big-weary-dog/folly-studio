@@ -5,6 +5,7 @@
 
 A palette file has a row per colour: `slot,colour`, the slot a role plus a number (low1, body2, accent1,
 high1). The role is what the colour is for (td/README.md "Colours"); the order within a role is kept.
+td/palettes/themes.txt gives each palette a one-line theme (`name: theme`), its mood for the generator.
 Format: studio/SPEC.md "Looks".
 """
 import argparse
@@ -18,6 +19,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 STUDIO = os.path.dirname(HERE)
 REPO = os.path.dirname(STUDIO)
 PALETTES = os.path.join(REPO, 'td', 'palettes')
+THEMES = os.path.join(PALETTES, 'themes.txt')
 OUT = os.path.join(STUDIO, 'public', 'data', 'palettes.json')
 ROLES = ['low', 'body', 'accent', 'high']
 SLOT = re.compile(r'^(low|body|accent|high)(\d+)$')
@@ -36,9 +38,19 @@ def read_palette(path):
     return {r: [c for _, c in sorted(roles[r])] for r in ROLES}
 
 
+def read_themes():
+    with open(THEMES, encoding='utf-8') as f:
+        rows = [line.split(':', 1) for line in f if line.strip() and not line.startswith('#')]
+    return {name.strip(): theme.strip() for name, theme in rows}
+
+
 def build():
     names = sorted(f[:-4] for f in os.listdir(PALETTES) if f.endswith('.csv'))
-    palettes = [dict(name=n, **read_palette(os.path.join(PALETTES, n + '.csv'))) for n in names]
+    themes = read_themes()
+    missing = [n for n in names if not themes.get(n)]
+    if missing:
+        raise SystemExit('td/palettes/themes.txt has no theme for %s' % ', '.join(missing))
+    palettes = [dict(name=n, theme=themes[n], **read_palette(os.path.join(PALETTES, n + '.csv'))) for n in names]
     return {'version': 1, 'roles': ROLES, 'palettes': palettes}
 
 
