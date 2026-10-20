@@ -2,22 +2,24 @@
 // parsed with these on the server; the browser takes the types (`import type`).
 import { z } from 'zod';
 
+import ACCOUNT from '../../public/data/account.json' with { type: 'json' };
 import { type Automation, Bpm, Duration, Globals, type Layer, Layers, LookTitle, Summary } from './look.ts';
 
 /** A body's `chain`: 2 when its chains follow the one rule; without it they are converted (SPEC "Looks"). */
 const Chain = z.literal(2, { error: 'chain must be 2 (warps bend what is above them).' }).optional();
 
 const bool = (name: string) => z.boolean({ error: `${name} must be true or false.` });
-const USERNAME = 'Username must be 3–32 characters: letters, digits, _ or -.';
-export const MAX_PASSWORD = 1024;
+const { usernameMin: USERNAME_MIN, usernameMax: USERNAME_MAX, passwordMin: PASSWORD_MIN,
+  passwordMax: MAX_PASSWORD } = ACCOUNT;
+const USERNAME = `Username must be ${USERNAME_MIN}–${USERNAME_MAX} characters: letters, digits, _ or -.`;
+const PASSWORD = `Password must be at least ${PASSWORD_MIN} characters.`;
 
 /** A username as stored: lower case, 3–32 of [a-z0-9_-]. */
 export const Username = z.string({ error: USERNAME }).trim().toLowerCase()
-  .regex(/^[a-z0-9_-]{3,32}$/, { error: USERNAME });
+  .regex(new RegExp(`^[a-z0-9_-]{${USERNAME_MIN},${USERNAME_MAX}}$`), { error: USERNAME });
 export const Signup = z.object({
   username: Username,
-  password: z.string({ error: 'Password must be at least 8 characters.' })
-    .min(8, { error: 'Password must be at least 8 characters.' })
+  password: z.string({ error: PASSWORD }).min(PASSWORD_MIN, { error: PASSWORD })
     .max(MAX_PASSWORD, { error: `Password must be at most ${MAX_PASSWORD} characters.` }),
 });
 /** A login never says which part was wrong: a malformed name or password is just a wrong one. */

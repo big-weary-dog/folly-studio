@@ -262,7 +262,7 @@ models[i].limits?: { "perHour"?, "perDay"?, "concurrent"? }
   `uses` 1–1000 (default 1), `days` 1–365 until it expires (none: never). Redeeming takes a use from a code that is
   not revoked, expired or used up and unlocks the account; an unlocked account redeeming changes nothing. Any other
   code is a 400 that says which: not valid (no such code), used up, expired or revoked. Attempts are limited per
-  account (5 failures in 15 minutes) and per address (20 in 15 minutes): 429 with `Retry-After`.
+  account (5 failures in 15 minutes) and per address (20 failures in 15 minutes): 429 with `Retry-After`.
 - An **invite link** is `/#invite=CODE` (the Access page offers it beside a new code): in the fragment, the code never
   reaches the server's logs or a Referer. The app takes it out of the address into the tab's sessionStorage, asks a
   signed-out visitor to sign up or in, then redeems it once and drops it, saying it was accepted or why not.

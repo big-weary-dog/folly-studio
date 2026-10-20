@@ -1,7 +1,8 @@
 // Accounts and sessions. Passwords: scrypt at OWASP's minimum cost (N = 2^17, r = 8, p = 1), a 16-byte salt each,
 // compared with timingSafeEqual. Each hash carries its parameters, so one made at an older cost still verifies, and
 // is made again at the current cost on its next successful login. Sessions: 32 random bytes in the `studio_session`
-// cookie for 30 days; the store only sees sha256(token), the session's id.
+// cookie for 30 days; the store only sees sha256(token), the session's id. At most HASH_SLOTS hashes run at once
+// (each takes 128 MiB) and HASH_QUEUE wait: past that, signup and login answer 429 rather than exhaust memory.
 import { createHash, randomBytes, scrypt as scryptCb, type ScryptOptions, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 
@@ -14,6 +15,7 @@ const scrypt = promisify(scryptCb) as (password: string, salt: Buffer, keylen: n
 export const COOKIE_NAME = 'studio_session';
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const MAX_SESSIONS_PER_USER = 20;
+export const HASH_SLOTS = 3, HASH_QUEUE = 30;
 export type Cost = { N: number, r: number, p: number };
 export const SCRYPT: Cost = Object.freeze({ N: 2 ** 17, r: 8, p: 1 });
 const KEYLEN = 64;
@@ -58,13 +60,30 @@ const names = (list: string | string[]) => new Set((typeof list === 'string' ? l
   .map((s) => String(s).trim().toLowerCase()).filter(Boolean));
 
 /**
- * createAuth({ store, curators, admins, cost }): accounts, roles and sessions (cookies and limits are the API's).
- * Admins (STUDIO_ADMINS) choose the models on offer, and are curators too.
+ * createAuth({ store, curators, admins, cost, slots, queue }): accounts, roles and sessions (cookies and limits are the
+ * API's). Admins (STUDIO_ADMINS) choose the models on offer, and are curators too.
  */
-export function createAuth({ store, curators = [], admins = [], cost = SCRYPT }: {
-  store: Pick<Store, 'users' | 'sessions'>, curators?: string | string[], admins?: string | string[], cost?: Cost }) {
+export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, slots = HASH_SLOTS,
+  queue = HASH_QUEUE }: {
+  store: Pick<Store, 'users' | 'sessions'>, curators?: string | string[], admins?: string | string[], cost?: Cost,
+  slots?: number, queue?: number }) {
   const curatorSet = names(curators), adminSet = names(admins);
   let dummyHash: Promise<string> | null = null; // checked for unknown users, so timing does not reveal them
+  let hashing = 0;
+  const waiting: (() => void)[] = [];
+  /** Runs `work` (its hashing) in one of the slots, after those waiting; 429 when the line is full too. */
+  async function slot<T>(work: () => Promise<T>) {
+    if (hashing >= slots) {
+      if (waiting.length >= queue) {
+        throw new HttpError(429, 'The server is busy: try again in a moment.', { 'Retry-After': '5' });
+      }
+      await new Promise<void>((go) => waiting.push(go));
+    } else hashing++;
+    try { return await work(); } finally {
+      const next = waiting.shift();
+      if (next) next(); else hashing--;
+    }
+  }
 
   const roleOf = (user: { username: string } | null): User['role'] => (!user ? 'member'
     : adminSet.has(user.username) ? 'admin' : curatorSet.has(user.username) ? 'curator' : 'member');
@@ -73,12 +92,12 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT }:
 
   async function signup({ username, password }: { username: string, password: string }) {
     if (findUser(username)) throw new HttpError(409, 'That username is taken.');
-    const passwordHash = await hashPassword(password, cost);
+    const passwordHash = await slot(() => hashPassword(password, cost));
     if (findUser(username)) throw new HttpError(409, 'That username is taken.'); // lost a race during scrypt
     return store.users.create({ username, passwordHash });
   }
 
-  async function login({ username, password }: { username: string | null, password: string }) {
+  const login = ({ username, password }: { username: string | null, password: string }) => slot(async () => {
     const user = username ? findUser(username) : null;
     dummyHash ??= hashPassword('not-a-real-password', cost);
     const ok = await verifyPassword(password, user ? user.passwordHash : await dummyHash);
@@ -87,7 +106,7 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT }:
       return store.users.update(user.id, { passwordHash: await hashPassword(password, cost) }) ?? user;
     }
     return user;
-  }
+  });
 
   /** A new session for `user` → its token; each user keeps at most 20, expired ones dropped. */
   function createSession(user: Stored) {

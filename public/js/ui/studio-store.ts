@@ -175,8 +175,9 @@ export function createStudio(me: User | null) {
       server.value = from;
     },
 
+    /** Saves the look: true once saved; false when it failed (and said so) or a save is already running. */
     async save() {
-      if (!ready.value || saving.value) return;
+      if (!ready.value || saving.value) return false;
       st.flush();
       const b = body.value, snap = JSON.stringify(b), L = look.value, create = !L.id || copyOnSave.value;
       saving.value = true;
@@ -202,8 +203,10 @@ export function createStudio(me: User | null) {
           st.adopt(from);
         });
         setTitle(b.title);
+        return true;
       } catch (err) {
         failed(err, 'Could not save: ');
+        return false;
       } finally {
         saving.value = false;
       }
@@ -216,7 +219,7 @@ export function createStudio(me: User | null) {
       }
       sharing.value = true;
       try {
-        if (!look.value.id || dirty.value) await st.save();
+        if ((!look.value.id || dirty.value) && !(await st.save())) return; // never share what did not save
         const id = look.value.id;
         if (!id) return;
         const { look: from } = await api.updateLook(id, { shared: on });

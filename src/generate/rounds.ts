@@ -7,6 +7,7 @@
 
 import { lookDuration, prepareScene } from '../../public/js/pattern-core.ts';
 import { validateLook } from '../../shared/schemas/generated.ts';
+import { monoNow } from '../clock.ts';
 import type { Catalog } from './catalog.ts';
 import { type Box, renderCheck, type Seen } from './check.ts';
 import { buildCritiqueMessage, buildNotesMessage, groupWarnings } from './critique-prompt.ts';
@@ -156,9 +157,9 @@ export async function compose(o: { adapter: Adapter, ctx: Context, catalog: Cata
 
   // Each round is held to the frames of what is kept: a revision kept is rendered again for the next.
   let critique: { ms: number, outcome: string } | undefined, shown = seen;
-  const t0 = Date.now(), outcomes: string[] = [];
+  const t0 = monoNow(), outcomes: string[] = [];
   for (let n = 0; n < (o.critiques ?? 1) && o.critique && shown?.bytes && ctx.rig && !o.stopping(); n++) {
-    if ((n > 0 || !o.revise) && Date.now() - o.startedAt > o.budgetMs) {
+    if ((n > 0 || !o.revise) && monoNow() - o.startedAt > o.budgetMs) {
       outcomes.push('skipped: over budget');
       break;
     }
@@ -192,6 +193,6 @@ export async function compose(o: { adapter: Adapter, ctx: Context, catalog: Cata
     round.end({ outcome, ...(warnings.length ? { warnings } : {}), notes: sent });
     outcomes.push(outcome);
   }
-  if (outcomes.length) critique = { ms: Date.now() - t0, outcome: outcomes.join(', ') };
+  if (outcomes.length) critique = { ms: monoNow() - t0, outcome: outcomes.join(', ') };
   return { raw: cur.raw, look, uses: cur.x.uses, rounds, check: seen ? checkMs : undefined, critique, seen };
 }

@@ -5,6 +5,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Listed } from '../../shared/schemas/api.ts';
 import type { LiveLook, LiveSettings } from '../../shared/schemas/live.ts';
 import type { Auth } from '../auth.ts';
+import { serverNow } from '../clock.ts';
 import { HttpError } from '../http.ts';
 import type { Store, StoredLook } from '../store.ts';
 import type { Hub } from './hub.ts';
@@ -34,7 +35,7 @@ export function liveRoutes({ store, auth, hub, settings, listed }: { store: Stor
     : settings.control === 'admins' ? auth.isAdmin(user) : auth.isCurator(user));
   const host = (h: string) => h.toLowerCase().replace(/:(80|443)$/, '');
   return async (api: FastifyInstance) => {
-    api.get('/live', (req) => ({ live: hub.live, now: Date.now(), control: mayControl(req.user!) }));
+    api.get('/live', (req) => ({ live: hub.live, now: serverNow(), control: mayControl(req.user!) }));
     api.get('/live/looks', (req) => {
       if (!mayControl(req.user!)) throw new HttpError(403, 'Only controllers pick what plays.');
       return { looks: store.looks.list((l) => playableLook(l, settings)).map(listed)

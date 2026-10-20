@@ -95,7 +95,7 @@ cut short (left queued or generating) resume at the next start, so a deploy neve
 install and restart may fail; a reload fixes them.
 
 - Another port: set `PORT` in the env file, run `npm run host`, and change the tunnel's URL to match.
-- Logs: `journalctl --user -u folly-studio -f`. Status: `systemctl --user status folly-studio`.
+- Logs: `journalctl --user -u folly-studio -f`. Status: `systemctl --user status folly-studio`. An unhandled error is logged there (`[studio] unhandled …`) and the server carries on.
 - Stop: `systemctl --user stop folly-studio` (`disable` too, to keep it off at boot).
 - The commit that is live, from anywhere: `https://folly.swampkat.com/build.json`.
 - The unit is written by the script, to `~/.config/systemd/user/folly-studio.service`: change the script, not it.
@@ -139,7 +139,7 @@ node attribute). People reach it without installing Tailscale.
 
 `npm run host` reads `~/.config/folly-studio/studio.env` (chmod 600; `STUDIO_ENV_FILE` names another). By hand:
 `set -a; . ~/.config/folly-studio/studio.env; set +a; npm start`. Every session running as your user can read it,
-so give the API key a spend limit.
+so give the API key a spend limit. On/off settings take `1`, `true`, `on` or `yes` (any case); anything else is off.
 
 ```sh
 HOST=127.0.0.1
@@ -266,7 +266,7 @@ again" sends a new idea.
 On the **Access** page (admins) make a code: a label for who it is for, how many people may redeem it, and how many
 days it lasts (blank: no expiry). It is shown once (only its hash is kept), so copy it then; revoke it any time. A
 person types it in the idea form's code box and their account is unlocked for good. Redeeming is limited to 5 wrong
-codes per account and 20 tries per address in 15 minutes. Under **People** you can unlock or lock someone by hand,
+codes per account and 20 wrong codes per address in 15 minutes; good codes never count. Under **People** you can unlock or lock someone by hand,
 **Reset** their count (their ideas so far stop counting), or give them their own **Limits** (blank fields keep the
 defaults).
 

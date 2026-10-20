@@ -1,6 +1,7 @@
 // Sign up / log in.
 import { useEffect, useId, useRef, useState } from 'preact/hooks';
 
+import ACCOUNT from '../../data/account.json' with { type: 'json' };
 import { api } from '../api.ts';
 import { pendingInvite, redeemInvite } from './invite.ts';
 import { navigate, user, type ViewProps } from './session.ts';
@@ -56,11 +57,13 @@ export function Auth({ query }: ViewProps) {
           <div class="seg" role="group" aria-label="Log in or sign up">
             {tab('login', 'Log in')}{tab('signup', 'Sign up')}</div>
           <Field label="Username" stack>{(id) => <input id={id} ref={name} type="text" name="username"
-            autocomplete="username" required autocapitalize="none" spellcheck={false} minlength={2} maxlength={40} />}
+            autocomplete="username" required autocapitalize="none" spellcheck={false}
+            minlength={ACCOUNT.usernameMin} maxlength={ACCOUNT.usernameMax} />}
           </Field>
-          <Field label="Password" stack hint={signup && <p class="field-hint">At least 8 characters is a good idea.
-            Usernames are public in the gallery.</p>}>
-            {(id) => <input id={id} ref={pass} name="password" type="password" required minlength={6}
+          <Field label="Password" stack hint={signup && <p class="field-hint">
+            At least {ACCOUNT.passwordMin} characters. Usernames are public in the gallery.</p>}>
+            {(id) => <input id={id} ref={pass} name="password" type="password" required
+              minlength={signup ? ACCOUNT.passwordMin : undefined}
               autocomplete={signup ? 'new-password' : 'current-password'} />}</Field>
           <p id={errId} class="form-error" role="alert" hidden={!error}>{error}</p>
           <button class={cx('btn primary wide', busy && 'busy')} type="submit" disabled={busy}>

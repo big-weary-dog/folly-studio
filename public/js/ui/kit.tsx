@@ -226,10 +226,15 @@ export const Switch = ({ label, class: cls, checked, disabled, title, onChange }
     onChange={(e) => { const on = e.currentTarget.checked; e.currentTarget.checked = checked; onChange(on); }} />}
   </Field>;
 
+/** A lazy part's loader: one that fails says so (loadFailed) and never settles, so nothing waits on it half-done. */
+export function lazy<T>(load: () => Promise<T>): () => Promise<T> {
+  return () => load().catch((err) => { loadFailed(err); return new Promise<T>(() => {}); });
+}
+
 /** A module loaded on first use, once `when` holds (null until it has loaded). */
 export function useLazy<T>(load: () => Promise<T>, when = true): T | null {
   const [mod, setMod] = useState<T | null>(null);
-  useEffect(() => { if (when && !mod) load().then((m) => setMod(() => m)); }, [when]);
+  useEffect(() => { if (when && !mod) lazy(load)().then((m) => setMod(() => m)); }, [when]);
   return mod;
 }
 

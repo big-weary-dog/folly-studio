@@ -9,6 +9,7 @@ import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
+import { monoNow } from '../clock.ts';
 import type { Logger } from '../http.ts';
 
 export type Usage = { input: number, cached: number, output: number, reasoning: number };
@@ -62,7 +63,7 @@ export function createIdeaLog(o: { dir?: string, meta: Record<string, unknown>, 
     note(more: Record<string, unknown>) { Object.assign(meta, more); save(); },
     /** A round begins: its calls and stills are recorded under it until end(). */
     begin(kind: string): Round {
-      const i = ++n, start = Date.now(), used = zero(), docs: string[] = [], stills: Record<string, unknown>[] = [];
+      const i = ++n, start = monoNow(), used = zero(), docs: string[] = [], stills: Record<string, unknown>[] = [];
       let calls = 0, ended = false;
       return {
         kind,
@@ -91,7 +92,7 @@ export function createIdeaLog(o: { dir?: string, meta: Record<string, unknown>, 
           if (ended) return;
           ended = true;
           rounds.push({ n: i, kind, start: new Date(start).toISOString(), end: new Date().toISOString(),
-            ms: Date.now() - start, calls, tokens: used, ...(docs.length ? { docs } : {}),
+            ms: monoNow() - start, calls, tokens: used, ...(docs.length ? { docs } : {}),
             ...(outcome ? { outcome } : {}), ...more, ...(notes?.length ? { notes } : {}),
             ...(stills.length ? { stills } : {}) });
           save();

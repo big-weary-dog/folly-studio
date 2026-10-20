@@ -8,7 +8,8 @@ export const MAX_VERSIONS = 20;
 /** The look's versions with what it is now added. */
 export function versionsWith(look: Look) {
   const prev = { title: look.title, summary: look.summary ?? '', layers: look.layers ?? [],
-    duration: look.duration ?? DEFAULT_DURATION, ...(look.globals ? { globals: look.globals } : {}),
+    duration: look.duration ?? DEFAULT_DURATION, ...(look.bpm ? { bpm: look.bpm } : {}),
+    ...(look.globals ? { globals: look.globals } : {}),
     ...(look.automation ? { automation: look.automation } : {}), savedAt: look.updatedAt };
   return [...(Array.isArray(look.versions) ? look.versions : []), prev].slice(-MAX_VERSIONS);
 }

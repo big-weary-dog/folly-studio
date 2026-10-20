@@ -29,7 +29,9 @@ live = { rev: 12,                       // +1 each change
 ```
 
 **Time.** Show time `τ = (server now − startedAt) / 1000`; `loop = ⌊τ / duration⌋`; the frame asked of the sandbox
-is `t = τ − loop × duration`. A viewer's server clock is its own plus the offset its pings measured.
+is `t = τ − loop × duration`. A viewer's server clock is its own plus the offset its pings measured. The server's
+"now" is its wall clock at boot plus monotonic time (`src/clock.ts`), so a host whose wall clock steps never jumps the
+stage.
 
 **Pushes are automation.** A push of value `v` for global or macro `name` arrives at server time `at`
 (+ a 30 ms lead, so viewers usually have it before it plays). In the loop's lane (made, at the first push, from
@@ -99,8 +101,8 @@ The live state is kept in `<data>/live.json`, written a second after a change, s
 
 ## Pages
 
-- `/live`: the Playa view of the stage, the look's title, who is controlling, the sync (clock ± ms, fps). On a
-  touch screen it starts on the Low tier. Pattern code runs only in the viewer's own sandbox.
+- `/live`: the Playa view of the stage, the look's title, who is controlling, the sync (clock ± ms, fps: for admins,
+  or with `?stats`). On a touch screen it starts on the Low tier. Pattern code runs only in the viewer's own sandbox.
 - `/live/control`: for controllers. Pick a look; Blackout; faders for energy, speed, level (intensity), hue,
   saturation and each macro (its min..max), each with ↺ to release it; per layer a level fader and a mute pad.
   Faders send at most 20 times a second while dragged, and the final value on release. Built from the look's data;

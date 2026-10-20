@@ -6,6 +6,7 @@ import { describe, test } from 'vitest';
 import { z } from 'zod';
 
 import { BLENDS, DEFAULT_SOFTEN, MODULE_KINDS, SOURCE_BLENDS } from '../public/js/pattern-core.ts';
+import ACCOUNT from '../public/data/account.json' with { type: 'json' };
 import { Login, Signup } from '../shared/schemas/api.ts';
 import { validateLook, wireSchema } from '../shared/schemas/generated.ts';
 import {
@@ -216,6 +217,12 @@ describe('the rig, the library index and accounts', () => {
       'Username must be 3–32 characters: letters, digits, _ or -.');
     assert.equal(check(Signup, { username: 'ana', password: 'x'.repeat(1025) }),
       'Password must be at most 1024 characters.');
+    const { usernameMin: USERNAME_MIN, usernameMax: USERNAME_MAX, passwordMin: PASSWORD_MIN } = ACCOUNT;
+    const at = (username: string, password: string) => Signup.safeParse({ username, password }).success;
+    const [name, pass] = [(n: number) => 'a'.repeat(n), (n: number) => 'x'.repeat(n)];
+    assert.deepEqual([at(name(USERNAME_MIN), pass(PASSWORD_MIN)), at(name(USERNAME_MIN - 1), pass(PASSWORD_MIN)),
+      at(name(USERNAME_MAX + 1), pass(PASSWORD_MIN)), at(name(USERNAME_MIN), pass(PASSWORD_MIN - 1))],
+    [true, false, false, false], 'the sign-up form shows the limits the schema holds');
     assert.deepEqual(Login.parse({ username: 'a b', password: 42 }), { username: null, password: '' });
     assert.deepEqual(Login.parse('nonsense'), { username: null, password: '' });
   });

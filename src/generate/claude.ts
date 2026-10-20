@@ -6,6 +6,7 @@
 
 import { GenerateError } from '../../shared/schemas/generated.ts';
 import type { Logger } from '../http.ts';
+import { monoNow } from '../clock.ts';
 import type { Context } from './index.ts';
 import { docCandidates, READ_CAP, READ_DOC_DESCRIPTION } from './doc-path.ts';
 import { docsBlock, givenAnswer } from './docs-turn.ts';
@@ -61,7 +62,7 @@ export function createClaudeAdapter(o: Options = {}) {
     const { body, headers, docs } = buildRequest({ text, library, rig, groups, prompt, turn, repair, schema, images,
       docsGiven });
     const messages = body.messages as object[];
-    const t0 = Date.now(), usage = { input: 0, cached: 0, output: 0, reasoning: 0 }, from = docsRead.length;
+    const t0 = monoNow(), usage = { input: 0, cached: 0, output: 0, reasoning: 0 }, from = docsRead.length;
     let reads = 0, reply: Block[] | undefined, failed = '';
     try {
       for (let calls = 1; ; calls++) {
@@ -86,7 +87,7 @@ export function createClaudeAdapter(o: Options = {}) {
       // The transcript for the idea log: every turn as sent (images as a placeholder: the log keeps them as stills).
       const turn = JSON.parse(JSON.stringify(messages, (k, v) => (k === 'source' && v?.type === 'base64'
         ? { type: 'base64', media_type: v.media_type, bytes: Buffer.byteLength(v.data ?? '', 'base64') } : v)));
-      ctx.round?.call({ ms: Date.now() - t0, system: (body.system as { text: string }[])[0]!.text, turn, reply,
+      ctx.round?.call({ ms: monoNow() - t0, system: (body.system as { text: string }[])[0]!.text, turn, reply,
         usage, docs: docsRead.slice(from), ...(failed ? { error: failed } : {}) });
     }
   }

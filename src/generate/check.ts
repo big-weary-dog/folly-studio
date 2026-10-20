@@ -7,6 +7,7 @@ import type { Bake } from '../../shared/schemas/api.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
 import { BakeError, checkFrames } from '../box-output.ts';
 import type { RenderBox } from '../render-box.ts';
+import { monoNow } from '../clock.ts';
 import type { ExpandError } from './expand.ts';
 
 export type Box = Pick<RenderBox, 'probe' | 'render'>;
@@ -42,18 +43,18 @@ function layerErrors(look: Look, reported: unknown): ExpandError[] {
 export async function renderCheck(box: Box | undefined, look: Look, { seconds, rig, lane, light }: { seconds: number,
   rig: Rig | null, lane?: Lane, light?: Light }): Promise<Seen | null> {
   if (!box || !(await box.probe().catch(() => ({ ok: false }))).ok) return null;
-  const t0 = Date.now(), job = { layers: look.layers as never, seconds, globals: look.globals,
+  const t0 = monoNow(), job = { layers: look.layers as never, seconds, globals: look.globals,
     automation: look.automation, bpm: look.bpm };
   try {
     const r = await (lane ? lane.run(() => box.render(job)) : box.render(job));
     const errors = layerErrors(look, r.boxStats?.reported);
     let analysis;
     if (rig) analysis = checkFrames(r.bytes, { source: 'render-box', rig, light }).bake.analysis;
-    return { errors, ms: Date.now() - t0, seconds: r.seconds, bytes: r.bytes, ...(analysis ? { analysis } : {}) };
+    return { errors, ms: monoNow() - t0, seconds: r.seconds, bytes: r.bytes, ...(analysis ? { analysis } : {}) };
   } catch (err) {
     if (!(err instanceof BakeError)) throw err;
     const errors = [...layerErrors(look, err.boxStats?.reported),
       { path: 'look', code: 'runtime', message: said(err.reason, 300) }];
-    return { errors, ms: Date.now() - t0, seconds: 0 };
+    return { errors, ms: monoNow() - t0, seconds: 0 };
   }
 }

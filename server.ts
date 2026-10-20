@@ -6,6 +6,7 @@
 //   STUDIO_DATA            data dir, default studio/data/
 //   STUDIO_CURATORS        comma-separated usernames with the curator role
 //   STUDIO_ADMINS          comma-separated usernames with the admin role (the Models panel; curators too)
+//   (On/off settings take 1, true, on or yes.)
 //   STUDIO_SECURE_COOKIES  1 → Secure session cookie (serve over https)
 //   STUDIO_MODELS          the model registry, default <STUDIO_DATA>/models.json (docs/HOSTING.md)
 //   STUDIO_GENERATOR       superseded by the registry: the default it starts with (claude, sketch or fleet)
@@ -30,18 +31,18 @@ import { fileURLToPath } from 'node:url';
 import { createServer } from './src/app.ts';
 import { parseBytes } from './src/bake.ts';
 import { flashSettings } from './src/box-output.ts';
+import { envFlag } from './src/env.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const env = process.env;
-const on = (v?: string) => v === '1' || v === 'true';
 const port = Number(env.PORT || 8780);
 const host = env.HOST || '127.0.0.1';
 const dataDir = path.resolve(env.STUDIO_DATA || path.join(here, 'data'));
 
 const app = await createServer({ dataDir, publicDir: path.join(here, 'public'), distDir: path.join(here, 'dist'),
-  curators: env.STUDIO_CURATORS || '', admins: env.STUDIO_ADMINS || '', secureCookies: on(env.STUDIO_SECURE_COOKIES),
-  generatorName: env.STUDIO_GENERATOR || '',
-  trustProxy: on(env.STUDIO_TRUST_PROXY), framesQuality: Number(env.STUDIO_FRAMES_BROTLI_QUALITY) || undefined,
+  curators: env.STUDIO_CURATORS || '', admins: env.STUDIO_ADMINS || '',
+  secureCookies: envFlag(env.STUDIO_SECURE_COOKIES), generatorName: env.STUDIO_GENERATOR || '',
+  trustProxy: envFlag(env.STUDIO_TRUST_PROXY), framesQuality: Number(env.STUDIO_FRAMES_BROTLI_QUALITY) || undefined,
   framesMaxBytes: parseBytes(env.STUDIO_FRAMES_MAX_BYTES, undefined), flash: flashSettings(env),
   piPreview: env.PI_PREVIEW_URL || undefined, ideaLogs: { keep: env.STUDIO_IDEA_LOGS ? Number(env.STUDIO_IDEA_LOGS)
     : undefined, maxBytes: parseBytes(env.STUDIO_IDEA_LOGS_MAX_BYTES, undefined) } });
@@ -66,3 +67,7 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
     }
   });
 }
+
+// One failed request or socket must not take the site down: log it and carry on.
+process.on('unhandledRejection', (err) => console.error('[studio] unhandled rejection:', err));
+process.on('uncaughtException', (err) => console.error('[studio] uncaught exception:', err));

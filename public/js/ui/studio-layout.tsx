@@ -10,7 +10,7 @@ import { openBake } from './bake.tsx';
 import { ChainPane } from './chain.tsx';
 import { DrawerSlot } from './drawer.tsx';
 import { CodeEditor } from './editor.tsx';
-import { cx, humanize, pref, Switch, useLazy } from './kit.tsx';
+import { cx, humanize, lazy, pref, Switch, useLazy } from './kit.tsx';
 import { ISSUE_LABELS } from './layer-status.ts';
 import { LayersPane } from './layers.tsx';
 import { loadPalettes } from './model.ts';
@@ -25,7 +25,7 @@ import { TimelineTools } from './timeline-tools.tsx';
 import { createPhone, MorePane, openOnTap, phoneAttrs, PhoneTabs, SettingsHead } from './phone/phone.tsx';
 
 type Props = { st: Studio; pv: Preview; tl: TimelineState };
-const exporter = () => import('./export.tsx');
+const exporter = lazy(() => import('./export.tsx'));
 
 /** The panes. It reads only what rarely changes, so an edit redraws the panes that show it, not the Studio. */
 export function StudioLayout({ st, pv, tl, els }: Props & { els: Record<string, HTMLElement> }) {

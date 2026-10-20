@@ -7,6 +7,7 @@ import { accessSync, constants, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 import { GenerateError } from '../../shared/schemas/generated.ts';
+import { monoNow } from '../clock.ts';
 
 export type Command = { cmd: string, args: string[] };
 
@@ -86,7 +87,7 @@ export function runCommand({ cmd, args, input = '', cwd, env, timeoutMs, idleMs,
   stdout }: Command & { input?: string, cwd: string, env: Env, timeoutMs: number, idleMs?: number,
     maxOutputBytes?: number, signal?: AbortSignal, stdout?: (chunk: Buffer) => void }): Promise<Ran> {
   return new Promise((resolve, reject) => {
-    const started = Date.now(), win = process.platform === 'win32';
+    const started = monoNow(), win = process.platform === 'win32';
     const child = spawn(cmd, args, { cwd, env, stdio: ['pipe', 'pipe', 'pipe'], detached: !win, windowsHide: true,
       shell: false });
     let bytes = 0, tail = '', killed: Ran['killed'] = null, done = false;
@@ -125,7 +126,7 @@ export function runCommand({ cmd, args, input = '', cwd, env, timeoutMs, idleMs,
         clearTimeout(late);
         child.stdout.destroy();
         child.stderr.destroy();
-        resolve({ code, signal: sig, killed, tail, ms: Date.now() - started });
+        resolve({ code, signal: sig, killed, tail, ms: monoNow() - started });
       };
       const late = setTimeout(settle, 250); // the last of its output, unless something still holds the pipes
       child.once('close', settle);

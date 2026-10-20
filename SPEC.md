@@ -459,7 +459,8 @@ present, same-origin. Errors are `{ error: "message" }` with a 4xx/5xx status. A
 256 KB (413 past it; empty is `{}`), checked by the shared schemas (`shared/schemas/api.ts`, `look.ts`): a 400 names
 the first problem ("Layer 2, clip 1: start must be a number of seconds from 0 to 600."). Unknown routes are 404, a
 known path's other methods 405 with `Allow`. Signing up or in is limited per client address (100 a minute) and, for
-failures, per address and username (10 a minute): 429 with `Retry-After`.
+failures, per address and username (10 a minute): 429 with `Retry-After`. Password hashes run 3 at once with 30
+waiting; past that, 429 "busy".
 
 ```
 POST   /api/signup   { username, password }   → { user, flash }     (sets cookie)
@@ -535,10 +536,11 @@ has the rest.
 its current layers; large-area flashing in any bake blocks (flashing on small regions only
 warns: `bake.warning`) unless the curator gives `flashOverride`, their reason (3–500 characters), with a render-box
 bake that fails only the flash check: it is kept as `look.flashOverride = { reason, by, at }` (and logged), and
-cleared with the review (400 without `reviewed: true`). Changing `layers`, `duration`, `globals` or `automation` (`null` clears either) makes
-a version (`{ title, summary, layers, duration, globals?, automation?, savedAt }`), drops the bake and its
-frames and clears `reviewed`; `bpm` (`null` clears it) does not. Clips that overlap or fall
-outside 0–600 s, and a duration outside 1–600 s, are refused with 400.
+cleared with the review (400 without `reviewed: true`). Changing `layers`, `duration`, `globals` or `automation`
+(`null` clears either) makes a version (`{ title, summary, layers, duration, bpm?, globals?, automation?, savedAt }`),
+drops the bake and its frames and clears `reviewed`; so does `bpm` (`null` clears it) on a look that moves to the beat
+(a bake's render fields hold it: a tempo nobody flash-checked), and elsewhere it is only a grid. Clips that overlap
+or fall outside 0–600 s, and a duration outside 1–600 s, are refused with 400.
 
 `user = { id, username, role: 'member' | 'curator' | 'admin' }` (curators listed in `STUDIO_CURATORS`, admins in
 `STUDIO_ADMINS`; an admin is also a curator).

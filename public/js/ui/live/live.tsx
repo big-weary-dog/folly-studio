@@ -1,5 +1,6 @@
-// /live: the shared stage, full bleed: the 3D view of what plays, its title, who is controlling, the sync, and for
-// controllers a way to the controller. Nothing here edits; pattern code runs only in this page's sandbox.
+// /live: the shared stage, full bleed: the 3D view of what plays, its title, who is controlling, the sync (for admins
+// or with ?stats), and for controllers a way to the controller. Nothing here edits; pattern code runs only in this
+// page's sandbox.
 import '../../../css/studio.css';
 import '../../../css/live.css';
 
@@ -8,7 +9,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import { reportPage } from '../bug-report.tsx';
 import { Rose } from '../rose.tsx';
 import { cx } from '../kit.tsx';
-import { setTitle } from '../session.ts';
+import { setTitle, user } from '../session.ts';
 import { liveSocket } from './socket.ts';
 import { createStage } from './stage.ts';
 
@@ -53,7 +54,8 @@ export function LivePage() {
           {live && <span class="live-sub live-driver">driven from {fromPi ? '/pi' : 'Live control'}</span>}
           {driving && <span class="live-sub">controlled by {driving}</span>}
           <span class="live-sub live-count">{who.viewers} watching</span>
-          <span class="live-stats" aria-hidden="true">{stage.stats}</span>
+          {(user.value?.role === 'admin' || new URLSearchParams(location.search).has('stats'))
+            && <span class="live-stats" aria-hidden="true">{stage.stats}</span>}
           {sock.control.value && <a class="btn small" href="/live/control">Control</a>}
         </div>
       </div>

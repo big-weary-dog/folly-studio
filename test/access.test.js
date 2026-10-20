@@ -116,7 +116,7 @@ describe('access', () => {
     assert.equal((await admin.post('/api/admin/invites', { uses: 0 })).status, 400);
   });
 
-  test('redeeming is limited: 5 failures per account, 20 tries per address, in 15 minutes', async () => {
+  test('redeeming is limited: 5 failures per account, 20 per address, in 15 minutes', async () => {
     const mo = await someone();
     for (let i = 0; i < 5; i++) assert.equal((await mo.post('/api/invite', { code: 'AAAA-BBBB-CCCC' })).status, 400);
     const valid = await code();
@@ -136,6 +136,17 @@ describe('access', () => {
       assert.deepEqual([...new Set(tries)], [400]);
       assert.equal((await people[0].post('/api/invite', { code: 'x' })).status, 429, 'the address has had 20');
     } finally { await ip.close(); }
+
+    const room = await startApp({ dataDir: path.join(fx.tmp, 'data-access-room'), admins: 'ada',
+      models: { env: { PATH: BIN } } });
+    try {
+      const host = await signup(room, 'ada');
+      const shared = (await host.post('/api/admin/invites', { uses: 30 })).json;
+      const people = await Promise.all(Array.from({ length: 22 }, (_, i) => signup(room, `room-${i}`)));
+      const redeemed = [];
+      for (const p of people) redeemed.push((await p.post('/api/invite', { code: shared.code })).status);
+      assert.deepEqual([...new Set(redeemed)], [200], 'good codes on one address are not counted');
+    } finally { await room.close(); }
   });
 
   test('limits: at once, an hour, a day; 429 with the access and Retry-After; one idea one use', async () => {

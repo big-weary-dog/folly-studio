@@ -135,7 +135,7 @@ export function Ideas() {
       setChoices(c);
       setAccess(m.access ?? null);
       setModel(c.default ?? '');
-    }).catch(() => {});
+    }).catch(() => setError("Couldn't load the AI models, so ideas use the default. Reload the page to pick one."));
     if (matchMedia('(pointer: fine)').matches && document.activeElement === document.body) {
       input.current?.focus({ preventScroll: true });
     }

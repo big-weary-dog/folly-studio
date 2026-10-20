@@ -18,6 +18,8 @@ import type { ModelEntry, Transport } from '../../shared/schemas/models.ts';
 import type { LibraryEntry, Rig, RigGroup } from '../../shared/schemas/rig.ts';
 import { layersHash, removeFrames, renderFields, saveFrames } from '../bake.ts';
 import { revisedFields } from '../look-versions.ts';
+import { monoNow } from '../clock.ts';
+import { envFlag } from '../env.ts';
 import type { Catalog } from './catalog.ts';
 import type { Box } from './check.ts';
 import { createClaudeAdapter } from './claude.ts';
@@ -77,10 +79,8 @@ function makeAdapter(via: string, m: ModelEntry | undefined, log: Logger, codexB
 }
 
 /** The foundry's settings from the environment: { on, wait, memoryCap() → Promise<boolean> }. */
-export function foundryFromEnv(env = process.env) {
-  const yes = (v?: string) => /^(on|1|true)$/i.test(v || '');
-  return { on: yes(env.STUDIO_FOUNDRY), wait: yes(env.STUDIO_FOUNDRY_WAIT), memoryCap: () => hasMemoryCap() };
-}
+export const foundryFromEnv = (env = process.env) => ({ on: envFlag(env.STUDIO_FOUNDRY),
+  wait: envFlag(env.STUDIO_FOUNDRY_WAIT), memoryCap: () => hasMemoryCap() });
 
 /**
  * The queue: enqueue(idea | id) → false when already queued; idle(), stop(), size, watch(id, fn). models: the registry
@@ -165,7 +165,7 @@ export function createQueue({
         active.delete(job.id);
         if (again === true && !stopping) {
           active.add(job.id);
-          l.jobs.push({ ...job, again: true, queuedAt: Date.now() });
+          l.jobs.push({ ...job, again: true, queuedAt: monoNow() });
         }
         pump();
         if (!busy()) waiters.splice(0).forEach((r) => r());
@@ -218,7 +218,7 @@ export function createQueue({
 
   /** The look from the route's adapter, validated, in rounds for a prompted model. */
   async function lookFrom(ctx: Context, by: Route, refine?: Refining & { critique?: true }, level: Explore = 'quick') {
-    const t0 = Date.now();
+    const t0 = monoNow();
     if (refine && !PROMPTED.has(by.via) && by.via !== 'sketch') {
       throw new GenerateError(`${by.label} cannot refine a look.`, `refine by ${by.via}`);
     }
@@ -242,7 +242,7 @@ export function createQueue({
         const raw = await adapter.generate(ctx);
         return { raw, look: validateLook(raw, ctx) };
       })();
-    return { ...out, used: by, request: Date.now() - t0, parse: 0 };
+    return { ...out, used: by, request: monoNow() - t0, parse: 0 };
   }
 
   const update = async (id: string, patch: Partial<Idea>) => {
@@ -255,7 +255,7 @@ export function createQueue({
     const idea = await store.ideas.get(id);
     if (!idea) return log.warn?.(`[generate] idea ${id} no longer exists`);
     if (idea.status === 'ready' && idea.lookId) return; // already done (re-enqueued after a restart)
-    const started = Date.now(), ac = new AbortController();
+    const started = monoNow(), ac = new AbortController();
     const open = (meta: Record<string, unknown>) => ideaLogs?.open(id, meta) ?? createIdeaLog({ meta });
     const journal = open({ request: idea.text, level: idea.refine ? undefined : idea.explore ?? 'explore',
       ...(idea.refine ? { refine: { lookId: idea.lookId, ...idea.refine } } : {}), model: r.id,
@@ -268,7 +268,7 @@ export function createQueue({
       const user = owner ? { id: owner.id, username: owner.username, role: owner.role } : { id: idea.owner };
       const base = await prepare();
       if (PROMPTED.has(r.via) || idea.refine) promptOf(base);
-      const prompt = Date.now() - started;
+      const prompt = monoNow() - started;
       const ctx: Context = { text: String(idea.text ?? ''), user, library: base.library, rig: base.rig, journal,
         groups: base.groups, light: loadLight?.(), idea: { id }, prompt: () => promptOf(base), signal: ac.signal,
         docsRead: [] };
@@ -286,7 +286,7 @@ export function createQueue({
       if (refine) {
         const kept = keepUntouched(refine.look.layers as typeof look.layers, refine.comp, out.raw, look.layers);
         const changes = await revise(refine.look, { ...look, layers: kept }, promptOf(base).catalog);
-        timing.total = Date.now() - queuedAt;
+        timing.total = monoNow() - queuedAt;
         outcome = { status: 'ready', lookId: refine.look.id };
         await update(id, { status: 'ready', generator: used.id, by: used.label, error: null, timing, changes, ...rounds,
           ...(out.critique ? { verdict: out.critique.outcome.slice(0, 80) } : {}) });
@@ -304,7 +304,7 @@ export function createQueue({
         shared: false, reviewed: false, ideaId: id, chain: CHAIN, ...(bake ? { bake } : {}),
       });
       if (bake?.frames) await keepFrames(saved.id, frames, bake);
-      timing.total = Date.now() - queuedAt;
+      timing.total = monoNow() - queuedAt;
       outcome = { status: 'ready', lookId: saved.id };
       await update(id, { status: 'ready', lookId: saved.id, generator: used.id, by: used.label, error: null, timing,
         ...rounds, ...(out.sketch?.took ? { took: out.sketch.took } : {}) });
@@ -374,7 +374,7 @@ export function createQueue({
         return false;
       }
       active.add(id);
-      lane(r.via).jobs.push({ id, route: r, queuedAt: Date.now() });
+      lane(r.via).jobs.push({ id, route: r, queuedAt: monoNow() });
       pump();
       return true;
     },

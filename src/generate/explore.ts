@@ -6,6 +6,7 @@
 
 import { type Explore } from '../../shared/schemas/api.ts';
 import { EFFORTS, type ModelEntry, type Transport } from '../../shared/schemas/models.ts';
+import { monoNow } from '../clock.ts';
 import {
   buildDeepMessage, buildSketchMessage, buildSynthesisMessage, buildTakeMessage, readSketches, SKETCH_SCHEMA,
   type Sketches,
@@ -38,7 +39,7 @@ export function boosted(via: Transport, entry: ModelEntry | undefined, level: Le
 /** The idea composed at `level`: the rounds' answer, and the sketch turn's time and outcome. */
 export async function explore(o: Options & { level: Level }) {
   let { ctx } = o;
-  const { level } = o, t0 = Date.now(), { critiques } = LEVELS[level];
+  const { level } = o, t0 = monoNow(), { critiques } = LEVELS[level];
   const mode = o.critique ?? 'images';
   let sketches: Sketches | null = null, failed = '';
   const round = ctx.journal?.begin('sketch') ?? NO_ROUND;
@@ -51,7 +52,7 @@ export async function explore(o: Options & { level: Level }) {
   }
   round.end({ outcome: failed ? `failed: ${failed}` : sketches!.takes.map((t) => t.name).join(', '),
     ...(sketches ? { took: sketches.synthesis.took, brief: sketches.synthesis.brief, docs: sketches.docs } : {}) });
-  const ms = Date.now() - t0;
+  const ms = monoNow() - t0;
   if (!sketches || o.stopping()) {
     o.log.warn?.(`[generate] idea ${ctx.idea?.id}: sketching failed (${failed || 'stopping'}); composing directly`);
     return { ...await compose(o), sketch: { ms, outcome: `failed: ${failed || 'stopping'}`, took: '' } };
@@ -78,7 +79,7 @@ export async function explore(o: Options & { level: Level }) {
   })));
   const images = built.flatMap((b) => b?.stills.map((st) => st.png) ?? []);
   const turn = buildDeepMessage(ctx.text, s, built.map((b) => b && { ...b, stills: b.stills.map((st) => st.at) }));
-  const takes = { ...sketch, ms: Date.now() - t0 };
+  const takes = { ...sketch, ms: monoNow() - t0 };
   return { ...await compose({ ...o, ctx: { ...ctx, turn, images }, aim, critique: mode, critiques, revise: true }),
     sketch: takes };
 }

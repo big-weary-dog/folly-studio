@@ -9,6 +9,7 @@ import type { WebSocket } from 'ws';
 import {
   FromClient, type FromServer, type Live, type LiveLook, type PiNow, type PiSource,
 } from '../../shared/schemas/live.ts';
+import { serverNow } from '../clock.ts';
 import type { Logger } from '../http.ts';
 import { applySet, emptyLive, switchTo } from './state.ts';
 
@@ -68,10 +69,10 @@ export async function createHub({ dataDir, playable, log = console }: { dataDir:
   };
   const say = (c: Client, msg: FromServer) => send(c, JSON.stringify(msg));
   const all = (msg: FromServer) => { const text = JSON.stringify(msg); for (const c of clients) send(c, text); };
-  const piMsg = (source: boolean): FromServer => ({ type: 'pi', at: Date.now(), now: piNow,
+  const piMsg = (source: boolean): FromServer => ({ type: 'pi', at: serverNow(), now: piNow,
     ...(source && piSource ? { source: piSource } : {}) });
   const state = (c: Client) => {
-    say(c, { type: 'state', live, now: Date.now(), control: c.control });
+    say(c, { type: 'state', live, now: serverNow(), control: c.control });
     if (live.driver === 'pi') say(c, piMsg(true));
   };
   /** Who drives the stage now; a change goes to every socket as a whole state. */
@@ -83,7 +84,7 @@ export async function createHub({ dataDir, playable, log = console }: { dataDir:
     save();
   }
   function presence(force = false) {
-    const now = Date.now();
+    const now = serverNow();
     for (const [name, at] of seen) if (now - at > PRESENT_MS) seen.delete(name);
     const controllers = [...seen.keys()].sort(), key = `${clients.size}|${controllers.join(',')}`;
     if (force || key !== presenceKey) all({ type: 'presence', viewers: clients.size, controllers });
@@ -103,13 +104,13 @@ export async function createHub({ dataDir, playable, log = console }: { dataDir:
   }
 
   function onMessage(c: Client, data: unknown) {
-    const now = Date.now();
+    const now = serverNow();
     if (!allowed(c, now)) return;
     let parsed;
     try { parsed = FromClient.safeParse(JSON.parse(String(data))); } catch { parsed = null; }
     if (!parsed?.success) return say(c, { type: 'error', error: 'That message is not one the stage takes.' });
     const msg = parsed.data;
-    if (msg.type === 'ping') return say(c, { type: 'pong', id: msg.id, now: Date.now() });
+    if (msg.type === 'ping') return say(c, { type: 'pong', id: msg.id, now: serverNow() });
     if (msg.type === 'sync') return state(c);
     if (!c.control) return say(c, { type: 'error', error: 'Only controllers can change the stage.' });
     seen.set(c.who.username, now);
@@ -127,6 +128,7 @@ export async function createHub({ dataDir, playable, log = console }: { dataDir:
       if (took) { live.driver = 'stage'; for (const x of clients) state(x); } else all(update);
     }
     if (took) for (const fn of drivers) fn('stage');
+    live.updatedAt = Date.now();                 // stored: the wall clock; show times run on serverNow()
     save();
     presence();
   }
@@ -142,7 +144,7 @@ export async function createHub({ dataDir, playable, log = console }: { dataDir:
     piNow(now: PiNow | null) {
       piNow = now;
       if (live.driver !== 'pi') return;
-      const key = JSON.stringify(now && { ...now, t: 0 }), at = Date.now();
+      const key = JSON.stringify(now && { ...now, t: 0 }), at = serverNow();
       if (key === piKey && at - piSentAt < PI_ANCHOR_MS) return;
       piKey = key;
       piSentAt = at;
@@ -157,9 +159,14 @@ export async function createHub({ dataDir, playable, log = console }: { dataDir:
     /** A socket that passed the session and origin checks. */
     join(ws: WebSocket, who: Who, control: boolean) {
       if (clients.size >= MAX_SOCKETS) { ws.close(1013, 'The stage is full.'); return; }
-      const c: Client = { ws, who, control, tokens: BURST, at: Date.now(), over: 0, switchedAt: 0, warned: false };
+      const c: Client = { ws, who, control, tokens: BURST, at: serverNow(), over: 0, switchedAt: 0, warned: false };
       clients.add(c);
-      ws.on('message', (data) => onMessage(c, data));
+      ws.on('message', (data) => {
+        try { onMessage(c, data); } catch (err) {
+          log.error?.('live: a message failed:', err);
+          say(c, { type: 'error', error: 'The stage could not take that: try again.' });
+        }
+      });
       ws.on('close', () => { clients.delete(c); presence(); });
       ws.on('error', () => ws.terminate());
       state(c);

@@ -180,6 +180,16 @@ describe('looks', () => {
     assert.equal(edited.json.look.reviewed, false);
     assert.equal(edited.json.look.bake, undefined);
     assert.equal((await carol.put(`/api/looks/${look.id}`, { reviewed: true })).status, 409);
+    // So does a new tempo on a look that moves to the beat. The old tempo is kept in the version.
+    const beat = 'function pixel(p, t, P, G) { return [G.bpm / 240, 0, 0]; }';
+    await alice.put(`/api/looks/${look.id}`, { layers: [layer({ code: beat })] });
+    assert.equal((await alice.post(`/api/looks/${look.id}/bake`)).status, 202);
+    await app.bakes.idle();
+    assert.equal((await carol.put(`/api/looks/${look.id}`, { reviewed: true })).status, 200);
+    await alice.put(`/api/looks/${look.id}`, { bpm: 120 });
+    const faster = await alice.put(`/api/looks/${look.id}?versions=1`, { bpm: 140 });
+    assert.deepEqual([faster.json.look.reviewed, faster.json.look.bake, faster.json.look.versions.at(-1).bpm],
+      [false, undefined, 120]);
 
     // A curator cannot review a private look of someone else.
     const priv = (await alice.post('/api/looks', { title: 'Private', layers: [layer()] })).json.look;

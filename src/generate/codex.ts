@@ -19,6 +19,8 @@ import { fileURLToPath } from 'node:url';
 
 import { GenerateError } from '../../shared/schemas/generated.ts';
 import type { Logger } from '../http.ts';
+import { monoNow } from '../clock.ts';
+import { envFlag } from '../env.ts';
 import { parseJson, pickLook } from './claude.ts';
 import { docsBlock } from './docs-turn.ts';
 import type { Context } from './index.ts';
@@ -82,7 +84,7 @@ export function createCodexAdapter(o: Options = {}) {
     idleMs: o.idleMs ?? num(env.STUDIO_CODEX_IDLE_MS, 180_000),
     workDir: path.resolve(o.workDir || env.STUDIO_CODEX_WORK || path.join(tmpdir(), 'folly-studio-codex')),
     schema: o.schema ?? env.STUDIO_CODEX_SCHEMA !== '0',
-    userConfig: o.userConfig ?? env.STUDIO_CODEX_USER_CONFIG === '1',
+    userConfig: o.userConfig ?? envFlag(env.STUDIO_CODEX_USER_CONFIG),
     maxOutputBytes: o.maxOutputBytes ?? 4 << 20, log: o.log || console,
   };
   const childEnv = Object.fromEntries(Object.entries(env).filter(([k]) => PASS_ENV.test(k)));
@@ -122,14 +124,14 @@ export function createCodexAdapter(o: Options = {}) {
     const job = await fs.mkdtemp(path.join(cfg.workDir, 'job-'));
     const given = (ctx.docsGiven ?? []).filter((p) => built.docs?.has(p));
     const turn = `${docsBlock(built.docs ?? new Map(), given)}${ctx.turn ?? buildUserMessage(ctx.text)}\n${repair}`;
-    let t0 = Date.now();
+    let t0 = monoNow();
     const reads: string[] = [], lines: Line[] = [], decoder = new StringDecoder('utf8');
     let partial = '';
     /** Each whole line of its events with when it arrived (ms into the call). */
     const heard = (b: Buffer) => {
       const parts = (partial + decoder.write(b)).split('\n');
       partial = parts.pop() ?? '';
-      lines.push(...parts.map((line) => ({ at: Date.now() - t0, line })));
+      lines.push(...parts.map((line) => ({ at: monoNow() - t0, line })));
     };
     const composing = !ctx.repair && !ctx.schema;
     const timeoutMs = Math.round(cfg.timeoutMs * (composing ? COMPOSE_SCALE[cfg.effort] ?? 1 : 1));
@@ -153,9 +155,9 @@ export function createCodexAdapter(o: Options = {}) {
       if (ran.killed === 'idle') { // stalled: its own process is gone; the stall goes in the log, and once more
         const { usage, items } = readEvents(lines), quietFor = `no events for ${Math.round(idleMs / 1000)} s`;
         cfg.log.warn?.(`[generate] idea ${ctx.idea?.id ?? '-'}: codex stalled (${quietFor}); trying again`);
-        ctx.round?.call({ ms: Date.now() - t0, system, turn, images: images.length, tools: items, usage, docs: [],
+        ctx.round?.call({ ms: monoNow() - t0, system, turn, images: images.length, tools: items, usage, docs: [],
           error: `stalled: ${quietFor}; tried again` });
-        [lines.length, partial, t0] = [0, '', Date.now()];
+        [lines.length, partial, t0] = [0, '', monoNow()];
         ran = await run();
       }
       if (tree) reads.push(...(await fs.readFile(tree.reads, 'utf8').catch(() => '')).split('\n')
@@ -186,7 +188,7 @@ export function createCodexAdapter(o: Options = {}) {
       throw err;
     } finally {
       const { usage, items } = readEvents(lines);
-      ctx.round?.call({ ms: Date.now() - t0, system, turn, images: images.length, reply: answer, tools: items, usage,
+      ctx.round?.call({ ms: monoNow() - t0, system, turn, images: images.length, reply: answer, tools: items, usage,
         docs: reads, ...(failed ? { error: failed } : {}) });
       await fs.rm(job, { recursive: true, force: true }).catch(() => {});
     }

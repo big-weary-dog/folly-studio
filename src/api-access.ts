@@ -37,16 +37,18 @@ export function accessRoutes(api: FastifyInstance, { auth, access, store, limits
   };
   return {
     'POST /invite': async (req: FastifyRequest) => {
-      const [ip, mine] = [await perIp(req), await perUser(req, { increment: false })];
-      const wait = !ip.isAllowed && ip.isExceeded ? ip.ttlInSeconds
+      // Only failures count, so a room on one wifi can all redeem a good code.
+      const [ip, mine] = [await perIp(req, { increment: false }), await perUser(req, { increment: false })];
+      const wait = !ip.isAllowed && ip.remaining === 0 ? ip.ttlInSeconds
         : !mine.isAllowed && mine.remaining === 0 ? mine.ttlInSeconds : 0;
       if (wait) {
         throw new HttpError(429, 'Too many tries. Try again in a few minutes.', { 'Retry-After': `${wait}` });
       }
-      const { code } = parse(Redeem, req.body);
+      let code;
+      try { ({ code } = parse(Redeem, req.body)); } catch (err) { await perIp(req); throw err; }
       const now = access.redeem(req.user as StoredUser, code);
       if ('refused' in now) {
-        await perUser(req);
+        await Promise.all([perUser(req), perIp(req)]);
         throw new HttpError(400, WHY[now.refused]);
       }
       return { access: now };

@@ -157,7 +157,7 @@ describe('codex', () => {
     const took = async (extra) => {
       const { adapter } = setup('hang', { timeoutMs: 400, effort: 'high' });
       const err = await refused(adapter.generate(ctx(extra)), /took too long/);
-      return Number(/codex: (\d+) ms/.exec(err.message)?.[1]);
+      return Number(/codex: (-?\d+) ms/.exec(err.message)?.[1]);
     };
     const compose = await took({}), repair = await took({ repair: { answer: {}, errors: [], message: 'Fix' } });
     assert.ok(compose >= 600 && repair >= 400 && repair < 600, `${compose} ms, ${repair} ms`);
@@ -174,7 +174,7 @@ describe('codex', () => {
   test('a second stall gives up as too long', async () => {
     const { adapter } = setup('hang', { idleMs: 300, timeoutMs: 60_000 });
     const err = await refused(adapter.generate(ctx()), /took too long/);
-    assert.ok(Number(/codex: (\d+) ms/.exec(err.message)?.[1]) < 1000, err.message);
+    assert.ok(Number(/codex: (-?\d+) ms/.exec(err.message)?.[1]) < 1000, err.message);
   });
 
   test('an abort (the server stopping) kills it too', async () => {

@@ -161,9 +161,9 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, log = con
       patch.shared = body.shared;
       if (body.shared && look.shared !== true) patch.sharedAt = new Date().toISOString();
     }
+    // What plays: the layers, how long the look runs, its globals and their automation (null clears those two), and
+    // its tempo when it moves to the beat (else bpm is only a grid). A change is a new version.
     if (body.bpm !== undefined) changed('bpm', body.bpm ?? undefined);
-    // What plays: the layers, how long the look runs, its globals and their automation (null clears those two).
-    // A change is a new version.
     if (body.layers !== undefined) changed('layers', body.layers, look.layers ?? []);
     if (body.duration !== undefined) changed('duration', body.duration, look.duration ?? DEFAULT_DURATION);
     if (body.globals !== undefined) changed('globals', body.globals ?? undefined);
@@ -171,7 +171,9 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, log = con
     if (body.automation !== undefined || 'globals' in patch) {
       changed('automation', lanes(body.automation === undefined ? look.automation ?? null : body.automation, globals));
     }
-    const layersChanged = ['layers', 'duration', 'globals', 'automation'].some((k) => k in patch);
+    const plays = (l: Look) => layersHash(renderFields(l));
+    const layersChanged = ['layers', 'duration', 'globals', 'automation'].some((k) => k in patch)
+      || ('bpm' in patch && plays(look) !== plays({ ...look, ...patch }));
     if (layersChanged) patch.versions = versionsWith(look);
     const unset: Partial<Look> = { summary: '', shared: false };
     const changes = (['title', 'summary', 'shared', 'bpm'] as const)
