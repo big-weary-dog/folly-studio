@@ -13,16 +13,33 @@ const here = (p) => new URL(p, import.meta.url);
 const read = (p) => JSON.parse(readFileSync(here(p), 'utf8'));
 const VENUE = read('../public/data/venue.json'), COG = read('../public/data/rig.json');
 
-test('the venue names City of Gods and stays clear of its LEDs', () => {
+const LEDS = Array.from({ length: COG.count }, (_, i) => COG.pixels.pos.slice(3 * i, 3 * i + 3));
+const TUBE = 0.15;   // the strips' drawn radius, metres: a prop this near an LED would hide it
+
+test('the venue names City of Gods and hides none of its LEDs', () => {
   assert.equal(VENUE.rig, COG.name);
-  const { min, max } = COG.bounds;
-  for (const b of VENUE.boxes) {
-    if (b.id === 'turf') continue;
-    const apart = [0, 1, 2].some((i) => b.max[i] <= min[i] || b.min[i] >= max[i]);
-    assert.ok(apart, `${b.id} overlaps the rig`);
+  for (const b of VENUE.boxes.filter((x) => x.id !== 'turf')) {
+    const hidden = LEDS.filter((p) => [0, 1, 2].every((i) => p[i] > b.min[i] - TUBE && p[i] < b.max[i] + TUBE));
+    assert.equal(hidden.length, 0, `${b.id} buries ${hidden.length} LEDs`);
   }
-  assert.ok(VENUE.boxes.find((b) => b.id === 'turf').max[1] < min[1], 'the turf lies under the lowest LED');
+  assert.ok(VENUE.boxes.find((b) => b.id === 'turf').max[1] < COG.bounds.min[1], 'the turf lies under the lowest LED');
   assert.ok(!('venue' in COG) && !JSON.stringify(COG.groups).includes('venue'), 'the rig knows nothing of it');
+});
+
+test('each mini arch stands across a dock\'s edge, the wall just outside it', () => {
+  const minis = COG.fixtures.filter((f) => f.zone.startsWith('mini-arch'));
+  assert.equal(minis.length, 2);
+  for (const f of minis) {
+    const z = LEDS.slice(f.start, f.start + f.count).map((p) => p[2]);
+    const [lo, hi] = [Math.min(...z), Math.max(...z)], left = hi < 0, outer = left ? lo : hi;
+    const wall = VENUE.boxes.find((b) => b.id === (left ? 'wall-left' : 'wall-right')).min[2];
+    assert.ok(Math.abs(wall - outer) < 0.5, `${f.id}: the wall ${Math.abs(wall - outer)} m from its outer side`);
+    const docks = VENUE.boxes.filter((b) => b.id.startsWith(left ? 'dock-left' : 'dock-right'));
+    for (const d of docks) {
+      const edge = left ? d.max[2] : d.min[2];
+      assert.ok(edge > lo && edge < hi, `${d.id}: its edge between ${f.id}'s legs`);
+    }
+  }
 });
 
 test('the mesh is finite triangles; a wall is one plane, facing the courtyard', () => {
