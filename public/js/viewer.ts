@@ -5,6 +5,7 @@
 // Its input: viewer-input.ts.
 import type { Rig } from '../../shared/schemas/rig.ts';
 import type { Playa } from './playa/renderer.ts';
+import type { Venue, VenueGL } from './playa/venue.ts';
 import { draw, initGL, type Program, upload } from './viewer-gl.ts';
 import { bindInput, type Drag } from './viewer-input.ts';
 
@@ -40,6 +41,7 @@ export class Viewer {
   center = [1, 0, -0.4]; mode: 'playa' | 'points' = 'points'; playa: Playa | null = null; quality = 'auto';
   dirty = true; raf = 0; last = 0; _asked = 0; destroyed = false; ok = false; dpr = 1;
   drag: Drag | null = null; unbind: () => void;
+  venueData: Venue | null = null; venue: VenueGL | null = null; venueOn = true; _venueAsk = 0;
   tween: { from: Cam; to: Cam; t: number } | null = null; inertia: { vx: number; vy: number } | null = null;
   defaultView: string | null; currentView?: string | null;
   onViewChange?: (name: string | null) => void; onRender?: (mode: 'playa' | 'points', tier?: string) => void;
@@ -98,6 +100,30 @@ export class Viewer {
     this.setView(this.defaultView, { animate: false });
     if (this.ok) upload(this);
     this.playa?.setRig();
+    if (this.venueData) void this._venue();
+    this.invalidate();
+  }
+
+  /** Props round the rig (SPEC "Venue"): scenery, never LEDs, shown when they name this rig; null for none. */
+  async setVenue(venue: Venue | null) {
+    this.venueData = venue;
+    await this._venue();
+  }
+
+  showVenue(on: boolean) {
+    this.venueOn = on;
+    this.invalidate();
+  }
+
+  async _venue() {
+    const d = this.venueData, ask = ++this._venueAsk;
+    this.venue?.destroy();
+    this.venue = null;
+    if (d && this.ok && d.rig === this.rig?.name) {
+      const { createVenue, venueMesh } = await import('./playa/venue.ts');     // on first use
+      if (this.destroyed || ask !== this._venueAsk) return;                    // a newer ask builds it
+      this.venue = createVenue(this.gl, venueMesh(d, this.toView));
+    }
     this.invalidate();
   }
 

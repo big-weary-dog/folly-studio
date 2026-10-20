@@ -85,12 +85,14 @@ function FlashBanner({ pv }: { pv: Preview }) {
     </div>);
 }
 
-/** Ghost (unlit LEDs shown faintly), then Playa | Points and the Playa's quality. */
+/** Ghost (unlit LEDs shown faintly), Venue (props round the rig), then Playa | Points and the Playa's quality. */
 function ViewTools({ pv }: { pv: Preview }) {
   const quality = pv.quality.value, tier = pv.tier.value;
   return <>
     <button type="button" class="view-btn ghost-btn" title="Show unlit LEDs faintly" aria-pressed={pv.ghost.value}
       onClick={() => pv.setGhost(!pv.ghost.peek())}>Ghost</button>
+    <button type="button" class="view-btn venue-btn" title="Show the venue round the rig: walls, walkways, ground"
+      aria-pressed={pv.venue.value} onClick={() => pv.setVenue(!pv.venue.peek())}>Venue</button>
     <div class="view-modes" role="group" aria-label="Render style">
       {(['playa', 'points'] as const).map((m) => <button type="button" class="view-btn mode-btn" data-mode={m}
         aria-pressed={pv.mode.value === m} onClick={() => pv.setMode(m)} title={m === 'playa'

@@ -6,9 +6,10 @@
 import { computed, effect, signal } from '@preact/signals';
 
 import type { LibraryEntry, Rig } from '../../../shared/schemas/rig.ts';
-import { api, statusOf } from '../api.ts';
+import { api, fetchJSON, statusOf } from '../api.ts';
 import { FlashGuard } from '../flash-guard.ts';
 import { openFrameStream } from '../frames-stream.ts';
+import type { Venue } from '../playa/venue.ts';
 import { Runtime } from '../runtime.ts';
 import { isPhone, Viewer } from '../viewer.ts';
 import { flash, signedOut, user } from './session.ts';
@@ -30,6 +31,7 @@ export function createPreview(st: Studio) {
   const mode = signal<'playa' | 'points'>('points'), tier = signal<string | undefined>(undefined);
   const quality = signal(QUALITY.includes(pref('studio.quality') || '') ? pref('studio.quality') as string : 'auto');
   const ghost = signal((pref('studio.ghost') ?? (isPhone() ? '0' : '1')) !== '0');   // phones start without
+  const venue = signal(pref('studio.venue') !== '0');
   const dimmed = signal(false), stats = signal('');
   const flashing = signal(false), dimFlashes = signal(pref(dimKey()) !== '0');
   const bakedInfo = signal<{ seconds: number; bytes: number } | null>(null);
@@ -102,8 +104,8 @@ export function createPreview(st: Studio) {
   }
 
   const p = {
-    msg, views, view, mode, tier, quality, ghost, dimmed, flashing, dimFlashes, stats, bakedInfo, time, duration, kick,
-    push,
+    msg, views, view, mode, tier, quality, ghost, venue, dimmed, flashing, dimFlashes, stats, bakedInfo, time, duration,
+    kick, push,
     get runtime() { return runtime; },
     get viewer() { return viewer; },
     /** Per frame: fn(t, playing). Returns its removal. */
@@ -128,6 +130,12 @@ export function createPreview(st: Studio) {
       ghost.value = on;
       viewer?.setOption('ghost', on ? 0.14 : 0);
       pref('studio.ghost', on ? '1' : '0');
+    },
+    /** The venue's props (walls, walkways, ground) round the rig, or not. */
+    setVenue(on: boolean) {
+      venue.value = on;
+      viewer?.showVenue(on);
+      pref('studio.venue', on ? '1' : '0');
     },
     async setMode(m: string) {
       pref('studio.render', m);
@@ -161,6 +169,9 @@ export function createPreview(st: Studio) {
       view.value = v.currentView ?? null;
       v.onRender = (m, t) => { mode.value = m; tier.value = t; };
       p.setGhost(ghost.value);
+      p.setVenue(venue.value);
+      fetchJSON<Venue>(new URL('../../data/venue.json', import.meta.url).href)
+        .then((d) => { if (alive) void v.setVenue(d); }, () => {});     // none: the rig alone
       v.setQuality(quality.value);
       p.setMode(pref('studio.render') === 'points' ? 'points' : 'playa');
       runtime = new Runtime({

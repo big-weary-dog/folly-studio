@@ -41,6 +41,10 @@ function multiply(out: Mat4, a: Mat4, b: Mat4) {
   return out;
 }
 
+const GRID_Y = 0.03;                     // over a venue's turf
+// Venue props in Points: gain over the sky, and their haze its colour.
+const VENUE_K = 2, VENUE_FOG = [0.03, 0.04, 0.08];
+
 const POINT_VS = `#version 300 es
 precision highp float;
 layout(location = 0) in vec3 aPos;
@@ -196,8 +200,8 @@ export function buildGrid(v: Viewer) {
   const data = [];
   for (let i = -R; i <= R; i += step) {
     const major = i % 10 === 0 ? 1 : 0;
-    data.push(cx + i, 0, cz - R, major, cx + i, 0, cz + R, major);
-    data.push(cx - R, 0, cz + i, major, cx + R, 0, cz + i, major);
+    data.push(cx + i, GRID_Y, cz - R, major, cx + i, GRID_Y, cz + R, major);
+    data.push(cx - R, GRID_Y, cz + i, major, cx + R, GRID_Y, cz + i, major);
   }
   v.gridCount = data.length / 4;
   gl.bindVertexArray(v.gridVao);
@@ -222,7 +226,7 @@ export function camera(v: Viewer) {
   return { vfov, Hf };
 }
 
-/** One frame: sky, grid, then the LEDs as additive sprites. */
+/** One frame: sky, venue props, grid, then the LEDs as additive sprites. */
 export function draw(v: Viewer) {
   const gl = v.gl;
   const W = v.canvas.width, H = v.canvas.height;
@@ -237,6 +241,16 @@ export function draw(v: Viewer) {
 
   const { vfov, Hf } = camera(v);
 
+  // venue props, solid; the grid just above the turf, hidden behind them
+  const venue = v.venueOn && v.venue;
+  if (venue) {
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthMask(true);
+    gl.clear(gl.DEPTH_BUFFER_BIT);
+    venue.draw(v.viewProj, v._eyeV, VENUE_K, VENUE_FOG);
+    gl.depthMask(false);
+  }
+
   // ground grid
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -246,7 +260,9 @@ export function draw(v: Viewer) {
   gl.bindVertexArray(v.gridVao);
   gl.drawArrays(gl.LINES, 0, v.gridCount);
 
-  // LEDs, additive
+  gl.disable(gl.DEPTH_TEST);
+
+  // LEDs, additive, over everything
   if (v.count) {
     gl.blendFunc(gl.ONE, gl.ONE);
     gl.useProgram(v.points.p);

@@ -13,7 +13,9 @@ const TIERS = [
 ];
 const ROW = 512;            // pixels a row in the light texture (the shaders' k & 511, k >> 9)
 // Linear emission at full drive (Mirage's `emit`), the playa's share of the light, the bloom's threshold.
-const K = { strip: 1.4, point: 2.2, cell: 1, beam: 0.05, shell: 0.75, line: 0.2, ground: 0.5, bloom: 0.4 };
+const K = { strip: 1.4, point: 2.2, cell: 1, beam: 0.05, shell: 0.75, line: 0.2, ground: 0.5, bloom: 0.4,
+  venue: 0.6 };
+const HAZE = [0.0033, 0.0048, 0.0116];       // glsl.ts HZ: the venue fades into it
 const SPILL = 0.035, THRESHOLD = 1, SLOW_MS = 30;
 const coarse = () => (matchMedia('(pointer: coarse)').matches ? 1 : 0);
 type Shader = keyof typeof GLSL;
@@ -234,6 +236,7 @@ function draw(pl: State) {
   // The solid things first (alpha 1: the sky shows where it stays 0), hiding what is behind them: the playa, tubes
   // and glass. Then light adds up over them: scaffold, floods, globes.
   pass('ground', 'ground', gl.TRIANGLES, pl.nground, { uK: K.ground, uY: pl.groundY });
+  if (v.venueOn && v.venue) v.venue.draw(v.viewProj, v._eyeV, K.venue, HAZE, true);
   pass(strip, 'strip', gl.TRIANGLES, 6 * g.nstrip, { uK: K.strip, uPx: 1 / px });
   pass('cell', 'cell', gl.TRIANGLES, g.ncell, { uK: K.cell });
   gl.depthMask(false);

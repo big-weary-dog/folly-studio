@@ -1,0 +1,25 @@
+{
+  "venue": 1,
+  "rig": "City of Gods 2026",
+  "about": "The courtyard round City of Gods, as unlit props for the 3D view (SPEC \"Venue\"): never LEDs. Metres, in the rig's axes and origin. Estimated from a site photo against the rig: walkway edges 0.7 m outside the mini arches' feet; docks 1.2 m high and 3 m deep, railings 1 m; the walls 23.3 m apart and 25 m tall (six storeys of 4.2 m), running 40 m in front of the portal and 35 m behind the rose.",
+  "boxes": [
+    { "id": "turf", "min": [-52, 0.02, -9.0], "max": [26, 0.02, 8.3], "faces": ["top"], "ground": true,
+      "color": [0.006, 0.016, 0.011] },
+    { "id": "dock-left", "min": [-52, 0, -12.0], "max": [26, 1.2, -9.0], "faces": ["top", "right", "front", "back"],
+      "color": [0.03, 0.03, 0.033] },
+    { "id": "dock-right", "min": [-52, 0, 8.3], "max": [26, 1.2, 11.3], "faces": ["top", "left", "front", "back"],
+      "color": [0.03, 0.03, 0.033] },
+    { "id": "wall-left", "min": [-52, 0, -12.0], "max": [26, 25, -12.0], "faces": ["right"],
+      "color": [0.03, 0.034, 0.042],
+      "windows": { "bay": 5, "storey": 4.2, "size": [3.4, 2.6], "from": 4.6, "rows": 5, "lit": 0.25 } },
+    { "id": "wall-right", "min": [-52, 0, 11.3], "max": [26, 25, 11.3], "faces": ["left"],
+      "color": [0.03, 0.034, 0.042],
+      "windows": { "bay": 5, "storey": 4.2, "size": [3.4, 2.6], "from": 4.6, "rows": 5, "lit": 0.25 } }
+  ],
+  "rails": [
+    { "id": "rail-left", "from": [-52, 1.2, -9.05], "to": [26, 1.2, -9.05], "height": 1.0, "posts": 2.5,
+      "color": [0.07, 0.075, 0.08] },
+    { "id": "rail-right", "from": [-52, 1.2, 8.35], "to": [26, 1.2, 8.35], "height": 1.0, "posts": 2.5,
+      "color": [0.07, 0.075, 0.08] }
+  ]
+}

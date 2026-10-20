@@ -6,6 +6,7 @@
 @media (max-width: 899px) {
   .studio .view-compact { gap: 6px; }
   .view-compact .view-select { min-width: 0; flex: 0 1 120px; }
-  .view-compact .ghost-btn, .view-compact .view-modes .view-btn { padding: 0 9px; font-size: 13px; }
+  .view-compact .ghost-btn, .view-compact .venue-btn,
+  .view-compact .view-modes .view-btn { padding: 0 9px; font-size: 13px; }
   .view-compact .view-modes .quality-btn { min-width: 0; }
 }
