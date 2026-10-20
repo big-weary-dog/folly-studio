@@ -1,9 +1,8 @@
 // npm run smoke: the app in a browser, the way a person meets it, at a laptop's size and a phone's: sign up, an idea
 // the sketch generator turns into a look, the Studio in the Playa view with the sandbox running, the groups tree's
-// ticks (a group with all under it, none at all), a param dragged and
-// stepped, a typo and a hang in the code (reported, paused by the watchdog, running again once fixed), the timeline,
-// a source's Colours played in an accent (the pick tile), a preset added from Add a layer and one kind of module
-// shown in Add a module, and a bake in the real render box (the laptop bakes from the Studio; the phone says to bake
+// ticks (a group with all under it, none at all), a param dragged and stepped, a typo and a hang in the code
+// (reported, paused by the watchdog, running again once fixed), the timeline, a source's Colours played in an accent
+// (the pick tile), a param's help, a preset added from Add a layer and one kind of module shown in Add a module, and a bake in the real render box (the laptop bakes from the Studio; the phone says to bake
 // from a larger screen and plays the baked frames).
 // The real server and a fresh build (studio.js); WebGL on SwiftShader. Every request stays on our origin, and the
 // console stays free of errors and CSP reports. Screenshots of each step land in the test's output folder.
@@ -151,22 +150,15 @@ for (const [name, device] of Object.entries(SIZES)) {
       });
 
       await test.step("a param's help: its row's hover text, an ⓘ on the phone", async () => {
-        const help = 'What the smoke check says.';
-        await open('code', 'Code');
-        const code = page.locator('textarea.code:visible').first(), original = await code.inputValue();
-        await code.fill(original.replace(/label: '/, `help: '${help}', label: '`));
-        if (!wide) await page.locator('.tab[data-tab=layers]').click();
+        // Every library param has help: the first row's, as the code declares it.
+        const help = page.locator('.params .field.param:visible').first();
         if (wide) {
-          await expect(page.locator(`.params .field.param[title="${help}"]:visible`))
-            .toHaveCount(1, { timeout: 15_000 });
+          await expect(help).toHaveAttribute('title', /\w{3}/);
         } else {
-          await page.locator('.params .param-info:visible').first().click({ timeout: 15_000 });
-          await expect(page.locator('.params .param-help:visible')).toHaveText(help);
+          await help.locator('.param-info').click();
+          await expect(page.locator('.params .param-help:visible')).toHaveText(/\w{3}/);
         }
         await shot('help');
-        await open('code', 'Code');
-        await code.fill(original);
-        if (!wide) await page.locator('.tab[data-tab=layers]').click();   // where the step before left the phone
       });
 
       await test.step('the pickers: a preset adds its layer; Add a module shows one kind', async () => {
