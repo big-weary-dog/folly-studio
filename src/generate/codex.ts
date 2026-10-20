@@ -100,7 +100,8 @@ export function createCodexAdapter(o: Options = {}) {
     if (!command) {
       throw new GenerateError('The AI generator is not configured on this server.', `${cfg.bin} not found on PATH`);
     }
-    const { system, schema, docs } = ctx.prompt?.() ?? buildPrompt(ctx);
+    const built = ctx.prompt?.() ?? buildPrompt(ctx), { system } = built;
+    const schema = ctx.schema ?? built.schema, docs = ctx.schema ? undefined : built.docs;
     // A repair is a fresh run (codex keeps no session here): the same prefix, then the last answer and what was wrong.
     const repair = ctx.repair ? `\nYour answer was:\n${JSON.stringify(ctx.repair.answer)}\n\n`
       + `${ctx.repair.message ?? buildRepairMessage(ctx.repair.errors)}\n` : '';
@@ -111,7 +112,7 @@ export function createCodexAdapter(o: Options = {}) {
       const out = path.join(job, 'answer.json');
       const schemaFile = cfg.schema ? path.join(job, 'schema.json') : null;
       if (schemaFile) await fs.writeFile(schemaFile, JSON.stringify(strictSchema(schema)));
-      const images = await Promise.all((ctx.repair?.images ?? []).map(async (png, i) => {
+      const images = await Promise.all([...ctx.images ?? [], ...ctx.repair?.images ?? []].map(async (png, i) => {
         const file = path.join(job, `still-${i + 1}.png`);
         await fs.writeFile(file, png);
         return file;
@@ -136,7 +137,7 @@ export function createCodexAdapter(o: Options = {}) {
         throw new GenerateError('The AI generator failed; please try again.', `codex exited ${ran.code ?? ran.signal}: `
           + said);
       }
-      const look = pickLook(dropNulls(parseJson(await readAnswer(out))));
+      const parsed = dropNulls(parseJson(await readAnswer(out))), look = ctx.schema ? parsed : pickLook(parsed);
       if (!look) throw new GenerateError('The AI returned a look the studio could not read.', 'codex: not a look');
       return look;
     } finally {

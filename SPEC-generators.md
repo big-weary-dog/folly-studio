@@ -75,6 +75,24 @@ without errors. It is part of the idea (no use), skipped when the idea has alrea
 (`STUDIO_CRITIQUE_BUDGET_MS`), and logged with its time. Claude gets the stills and close-ups as image blocks, codex
 as `-i` attachments.
 
+**Explore** (`claude`, `codex`; `src/generate/explore.ts`). A new idea (not a refinement) asks for one of three
+levels, `explore: 'quick' | 'explore' | 'deep'` (default `explore`; an idea that names none is Quick):
+- **Quick**: the rounds above, at the model's own effort.
+- **Explore**: effort raised to at least `high`. First a sketch turn in its own small schema (no look, no docs):
+  three takes that differ in which part of the installation leads (each other part answering in its own voice, never
+  one wash), motion, scale, colour and tempo, each named with what one would see; then a synthesis, `took` (one line:
+  what it takes from each take, by name) and `brief`. The synthesis is composed as the look (the sketches in the turn
+  as the model's own notes, never instructions), checked, and critiqued once on its stills (`images` unless the model
+  says `text`) held to the idea and the brief, a critique that must change the part furthest short of them. The
+  idea's `took` is saved for the Studio to show.
+- **Deep**: effort at least `xhigh`. The same sketch turn, then the three takes composed alone and rendered (8 s) at
+  once, then one look composed from their compositions, timelines and stills (two each, at 1 and 4.3 s), then two
+  such critiques, a revision kept rendered again for the next. It counts as `DEEP.uses` (2) of the allowance
+  (`shared/schemas/api.ts`; `DEEP.adminOnly` keeps it to admins).
+
+A sketch turn that fails or answers no three takes leaves the idea to the Quick rounds, logged. Explore stops starting
+critiques after 240 s, Deep after 480 s. The sketch turn's time is the idea's `timing.sketch`.
+
 **Refine** (SPEC "HTTP API": `POST /api/looks/:id/refine`). A follow-up on a saved look of one's own (`slower,
 more red, only the spires`) is an idea with `refine` and `lookId` set; it counts as one use like any idea. Its job
 reads the look as it is stored then and turns it back into a composition (`refine.ts`: a module whose code is still
@@ -174,7 +192,8 @@ models[i].limits?: { "perHour"?, "perDay"?, "concurrent"? }
   that model's ideas alone; a free model is limited only by its own (the default Sketch entry: 30 an hour, 100 a
   day). `dailyCeiling` counts everyone's paid ideas in 24 hours, a spend backstop. `inviteOnly: false` unlocks
   everyone (a private server). A cap of 0 allows none: its 429 has no `Retry-After` and no `nextAt`.
-- **One idea is one use**, counted when POST /api/ideas (or a look's refine) accepts it, whatever comes of it:
+- **One idea is one use** (a Deep idea `DEEP.uses`: SPEC-generators "Explore"; with room for fewer, it is refused),
+  counted when POST /api/ideas (or a look's refine) accepts it, whatever comes of it:
   retries, the fallback, and any repair, check or critique inside its job add nothing; "Try again" sends a new idea.
   The check and the create are one synchronous step, so two requests cannot both take the last use.
 - A stored user may hold `access = { unlockedAt?, invite?, by?, limits?, resetAt? }`: `invite` the code's id that

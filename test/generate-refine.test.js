@@ -2,15 +2,11 @@
 // look decomposed to its composition and the diff of two, sketch's word edits, what a model is shown of its frames,
 // the render check on a stand-in box, and the queue's runtime repair, critique and refinement rounds.
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
 
 import { describe, test } from 'vitest';
 
 import { groupsByTag, pixelsForGroups, prepareScene } from '../public/js/pattern-core.ts';
-import { writeFseq } from '../public/js/fseq.ts';
 import { BakeError } from '../src/box-output.ts';
-import { buildCatalog } from '../src/generate/catalog.ts';
 import { renderCheck } from '../src/generate/check.ts';
 import { createClaudeAdapter } from '../src/generate/claude.ts';
 import { expand } from '../src/generate/expand.ts';
@@ -22,39 +18,15 @@ import { decompose, diffCompositions } from '../src/generate/refine.ts';
 import { sketchRefine } from '../src/generate/sketch-refine.ts';
 import { PACE } from '../src/generate/sketch.ts';
 import { validateLook } from '../shared/schemas/generated.ts';
-import { GROUPS, queueSetup, RIG, STUDIO } from './fixtures/generate/shared.js';
+import { CATALOG, frames, REAL, stubBox } from './fixtures/generate/box.js';
+import { GROUPS, queueSetup, RIG } from './fixtures/generate/shared.js';
 
-const DIR = path.join(STUDIO, 'public/patterns');
-const REAL = JSON.parse(fs.readFileSync(path.join(DIR, 'index.json'), 'utf8')).map((p) => ({ ...p,
-  code: p.kind === 'preset' ? '' : fs.readFileSync(path.join(DIR, `${p.name}.js`), 'utf8') }));
-const CATALOG = buildCatalog(REAL);
-const SCENE = prepareScene(RIG);
 /** A library source with a pace param (speed, rate…), and that param. */
 const [PACED, PACE_PARAM] = [...CATALOG.modules].flatMap(([name, m]) => (m.kind === 'source' ? Object.entries(m.params)
   .filter(([p, d]) => d.type === 'number' && PACE.test(p)).map(([p]) => [name, p]) : []))[0];
 const answer = (extra = {}) => ({ title: 'Tide', summary: 'A slow swell', layers: [{ title: 'Swell',
   groups: ['cathedral'], blend: 'add', level: 0.8, modules: [{ use: PACED, params: [] }] }], ...extra });
 const lookOf = (raw) => validateLook(expand(raw, CATALOG).look, { groups: GROUPS, library: REAL });
-
-/** `seconds` of frames on the rig, every LED `rgb` (NaN-free; the stand-in box's). */
-function frames(seconds, rgb = [200, 0, 0]) {
-  const cc = SCENE.frameChannels, n = Math.round(seconds * 40), data = new Uint8Array(cc * n);
-  for (let f = 0; f < n; f++) {
-    for (let k = 0; k < SCENE.count; k++) {
-      for (let c = 0; c < 3; c++) if (SCENE.addr[k] >= 0) data[f * cc + SCENE.addr[k] + SCENE.order[c]] = rgb[c];
-    }
-  }
-  return Buffer.from(writeFseq({ channelCount: cc, frames: n, data }));
-}
-/** A stand-in render box: each render's job kept; `reports(job, n)` → what the box says of the nth. */
-function stubBox(reports = () => ({ ok: true })) {
-  const jobs = [];
-  return { jobs, probe: async () => ({ ok: true }), async render(job) {
-    jobs.push(job);
-    return { bytes: frames(job.seconds), boxStats: { untrusted: true, reported: reports(job, jobs.length) },
-      ms: 1, seconds: job.seconds };
-  } };
-}
 
 describe('decompose and diff', () => {
   test('a module still its ref\'s is the ref again, with the params the catalogue declares; edited code an extension',

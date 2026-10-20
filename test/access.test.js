@@ -7,6 +7,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
+import { DEEP } from '../shared/schemas/api.ts';
 import { HOUR_MS } from '../src/access.ts';
 import { FIX } from './fixtures/generate/shared.js';
 import { client, fx, signup, startApp, useFixture } from './fixtures/server.js';
@@ -161,6 +162,27 @@ describe('access', () => {
     assert.equal(app.access.check(u, sol, Date.now() + HOUR_MS + 1000), null);
     assert.equal(app.access.state(u, Date.now() + HOUR_MS + 1000).left.day, 14);
     assert.equal((await idea(mo, 'sketch')).status, 201, 'Sketch has its own');
+  });
+
+  test('a Deep idea counts as DEEP.uses, and is refused with room for only one', async () => {
+    const mo = await someone();
+    await unlock(mo);
+    await admin.put(`/api/admin/people/${mo.user.id}`, { limits: { perHour: 4 } });
+    const deep = (text) => mo.post('/api/ideas', { text, model: 'sol', explore: 'deep' });
+    const made = await deep('the rose opening');
+    assert.equal(made.status, 201, made.json.error);
+    assert.equal(made.json.idea.explore, 'deep');
+    finish(mo);
+    assert.equal((await mo.get('/api/me')).json.access.left.hour, 4 - DEEP.uses);
+    assert.equal((await idea(mo)).status, 201);
+    finish(mo);
+    const refused = await deep('the spires answering');
+    assert.equal(refused.status, 429);
+    assert.match(refused.json.error, /^A Deep idea counts as 2, and you have 1 left this hour\. Try again in 60 min/);
+    const plain = await mo.post('/api/ideas', { text: 'one use left', model: 'sol', explore: 'explore' });
+    assert.equal(plain.status, 201, 'Explore is one use');
+    assert.equal((await mo.post('/api/ideas', { text: 'free', model: 'sketch', explore: 'deep' })).json.idea.explore,
+      undefined, 'only the prompted models explore');
   });
 
   test('an admin raises or resets one person; a model may cap itself; a ceiling holds everyone', async () => {

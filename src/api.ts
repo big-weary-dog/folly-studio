@@ -3,7 +3,7 @@
 // every route but the public ones needs a session. Logins are limited per IP, and failed ones per IP and username.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
-import { type FlashSettings, type Idea, IdeaBody, Login, RefineBody, Signup } from '../shared/schemas/api.ts';
+import { DEEP, type FlashSettings, type Idea, IdeaBody, Login, RefineBody, Signup } from '../shared/schemas/api.ts';
 import type { AccessControl } from './access.ts';
 import { accessRoutes, sendRefusal } from './api-access.ts';
 import { lookRoutes } from './api-looks.ts';
@@ -133,14 +133,19 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       'GET /ideas': async (req) => ({ ideas: store.ideas.list((i) => i.owner === req.user!.id).reverse()
         .sort(newestBy('createdAt')) }),
       'POST /ideas': async (req, reply) => {
-        const { text, model } = parse(IdeaBody, req.body);
+        const { text, model, explore: asked } = parse(IdeaBody, req.body);
         const picked = models.pick(model, auth.roleOf(req.user), { paid: access.state(req.user!).unlocked });
         if ('error' in picked) throw new HttpError(400, picked.error);
-        const refused = access.check(req.user!, picked.entry); // no await from here to the create: one step
+        // Only the prompted models explore (SPEC-generators "Explore"); the others' ideas say nothing of it.
+        const explore = ['claude', 'codex'].includes(picked.entry.via) ? asked : undefined;
+        if (explore === 'deep' && DEEP.adminOnly && auth.roleOf(req.user) !== 'admin') {
+          throw new HttpError(403, 'Deep is for admins for now; try Explore.');
+        }
+        const refused = access.check(req.user!, picked.entry, Date.now(), explore); // no await to the create
         if (refused) return sendRefusal(reply, refused);
         const { id: chosen, label } = picked.entry;
         const idea = store.ideas.create({ owner: req.user!.id, text, status: 'queued', model: chosen, generator: chosen,
-          by: label });
+          by: label, ...(explore ? { explore } : {}) });
         enqueueIdea({ queue, store, log }, idea);
         reply.code(201);
         return { idea: store.ideas.get(idea.id) ?? idea };

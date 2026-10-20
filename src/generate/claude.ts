@@ -52,17 +52,17 @@ export function createClaudeAdapter(o: Options = {}) {
   if (!EFFORTS.has(cfg.effort)) cfg.effort = 'medium';
 
   async function generate({ text, library = [], rig, groups = rig?.groups || [], prompt, turn, repair, signal,
-    docsRead = [] }: Context) {
+    docsRead = [], schema, images }: Context) {
     if (!cfg.apiKey) {
       throw new GenerateError('The AI generator is not configured on this server.', 'no ANTHROPIC_API_KEY');
     }
-    const { body, headers, docs } = buildRequest({ text, library, rig, groups, prompt, turn, repair });
+    const { body, headers, docs } = buildRequest({ text, library, rig, groups, prompt, turn, repair, schema, images });
     const messages = body.messages as object[];
     let reads = 0;
     for (let calls = 1; ; calls++) {
       const message = await callRetrying(body, headers, signal);
       const asks = (message.content ?? []).filter((b) => b.type === 'tool_use');
-      if (message.stop_reason !== 'tool_use' || !asks.length) return readLook(message);
+      if (message.stop_reason !== 'tool_use' || !asks.length) return readLook(message, !!schema);
       if (calls >= MAX_CALLS) throw new GenerateError('The AI generator failed; please try again.', 'too many calls');
       messages.push({ role: 'assistant', content: message.content },
         { role: 'user', content: asks.map((b) => ({ type: 'tool_result', tool_use_id: b.id,
@@ -86,19 +86,23 @@ export function createClaudeAdapter(o: Options = {}) {
     }
   }
 
-  function buildRequest({ text, library, rig, groups, prompt, turn, repair }: Pick<Context, 'text' | 'library'
-    | 'rig' | 'groups'> & Partial<Pick<Context, 'prompt' | 'turn' | 'repair'>>) {
-    const { system, schema, docs = new Map<string, string>() } = prompt?.() ?? buildPrompt({ library, rig, groups });
+  function buildRequest({ text, library, rig, groups, prompt, turn, repair, schema: asked, images: first = [] }:
+    Pick<Context, 'text' | 'library' | 'rig' | 'groups'> & Partial<Pick<Context, 'prompt' | 'turn' | 'repair'
+    | 'schema' | 'images'>>) {
+    const built = prompt?.() ?? buildPrompt({ library, rig, groups }), { system } = built;
+    const schema = asked ?? built.schema, docs = asked ? new Map<string, string>() : built.docs ?? new Map();
     const said = repair?.message ?? buildRepairMessage(repair?.errors ?? []);
-    const images = (repair?.images ?? []).map((png) => ({ type: 'image', source: { type: 'base64',
+    const blocks = (pngs: Uint8Array[]) => pngs.map((png) => ({ type: 'image', source: { type: 'base64',
       media_type: 'image/png', data: Buffer.from(png).toString('base64') } }));
+    const withImages = (pngs: Uint8Array[], t: string) => (pngs.length ? [...blocks(pngs), { type: 'text', text: t }]
+      : t);
     const turns = repair ? [{ role: 'assistant', content: JSON.stringify(repair.answer) },
-      { role: 'user', content: images.length ? [...images, { type: 'text', text: said }] : said }] : [];
+      { role: 'user', content: withImages(repair.images ?? [], said) }] : [];
     const body: Record<string, unknown> = {
       model: cfg.model, max_tokens: cfg.maxTokens, stream: true, thinking: { type: 'adaptive' },
       output_config: { effort: cfg.effort, format: { type: 'json_schema', schema } },
       system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-      messages: [{ role: 'user', content: turn ?? buildUserMessage(text) }, ...turns],
+      messages: [{ role: 'user', content: withImages(first, turn ?? buildUserMessage(text)) }, ...turns],
       ...(docs.size ? { tools: [READ_DOC] } : {}),
     };
     const headers: Record<string, string> = { 'content-type': 'application/json', 'x-api-key': cfg.apiKey!,
@@ -240,8 +244,8 @@ function toUserError(err: unknown) {
   return new GenerateError(`The AI generator ${why}`, (err as Error)?.message);
 }
 
-/** Pull the look JSON out of a final message. */
-function readLook(message: Message) {
+/** Pull the look JSON out of a final message (`raw`: the answer to another schema, as it parsed). */
+function readLook(message: Message, raw = false) {
   const stop = message?.stop_reason;
   if (stop === 'refusal') throw new GenerateError('The AI declined this idea. Try describing it differently.', stop);
   if (stop === 'max_tokens') {
@@ -255,7 +259,7 @@ function readLook(message: Message) {
   const candidates = [texts(0)];
   if (lastFallback >= 0) candidates.push(texts(lastFallback + 1));
   for (const t of candidates) {
-    const look = pickLook(parseJson(t));
+    const look = raw ? parseJson(t) : pickLook(parseJson(t));
     if (look) return look;
   }
   const detail = `unparseable output, stop_reason ${stop}`;

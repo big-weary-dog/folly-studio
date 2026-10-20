@@ -1,14 +1,14 @@
 // Who may use the paid models, and how much (SPEC "Access"). A paid model (any via but sketch) needs an unlocked
 // account: an invite code redeemed, an admin's say, or `inviteOnly: false`. Each account's ideas are counted when
-// POST /api/ideas accepts them (one idea, one use, whatever its job does), over rolling hours and days, against the
-// registry's limits, a model's own, and a daily ceiling across everyone. Admins are exempt. Invite codes are kept as
-// sha256 of the code: the code is answered once, at creation.
+// POST /api/ideas accepts them (one idea, one use, whatever its job does; a Deep idea DEEP.uses), over rolling hours
+// and days, against the registry's limits, a model's own, and a daily ceiling across everyone. Admins are exempt.
+// Invite codes are kept as sha256 of the code: the code is answered once, at creation.
 import { randomInt } from 'node:crypto';
 
 import {
   type Access, GlobalLimits, type Invite, type Person, type PersonLimits, type Used, type UserAccess,
 } from '../shared/schemas/access.ts';
-import type { Idea } from '../shared/schemas/api.ts';
+import { DEEP, type Explore, type Idea } from '../shared/schemas/api.ts';
 import { isPaid, type ModelEntry } from '../shared/schemas/models.ts';
 import { type Auth, sha256 } from './auth.ts';
 import type { Registry } from './generate/models.ts';
@@ -27,9 +27,11 @@ const DEFAULTS = GlobalLimits.parse({});
 export type Refusal = { status: 403 | 429, error: string, access: Access, retryAfter?: number };
 type Counted = { at: number, model?: string, paid: boolean, running: boolean };
 
-/** When a window of `ms` capped at `cap` has room again, given its uses' times (ascending); 0: it has room now. */
-const freesAt = (times: number[], cap: number, ms: number) => (times.length < cap ? 0
-  : cap > 0 ? times[times.length - cap]! + ms : Infinity);
+/** When a window of `ms` capped at `cap` has room for `uses` again, given its uses' times (ascending); 0: now. */
+const freesAt = (times: number[], cap: number, ms: number, uses = 1) => (times.length + uses <= cap ? 0
+  : cap >= uses ? times[times.length - cap + uses - 1]! + ms : Infinity);
+/** The uses one idea counts as. */
+const usesOf = (explore?: Explore) => (explore === 'deep' ? DEEP.uses : 1);
 
 export function createAccess({ store, auth, models }: { store: Pick<Store, 'users' | 'ideas' | 'invites'>,
   auth: Auth, models: Registry }) {
@@ -50,8 +52,9 @@ export function createAccess({ store, auth, models }: { store: Pick<Store, 'user
   /** This account's ideas that count: in the last day and since its reset, and any still being made. */
   function counted(u: StoredUser, now: number): Counted[] {
     const from = Math.max(now - DAY_MS, Date.parse(u.access?.resetAt ?? '') || 0);
-    return store.ideas.list((i) => i.owner === u.id).map((i) => ({ at: Date.parse(i.createdAt), model: i.model,
-      paid: paid(i), running: i.status === 'queued' || i.status === 'generating' }))
+    return store.ideas.list((i) => i.owner === u.id).flatMap((i) => Array.from({ length: usesOf(i.explore) },
+      (_, n) => ({ at: Date.parse(i.createdAt), model: i.model, paid: paid(i),
+        running: n === 0 && (i.status === 'queued' || i.status === 'generating') })))
       .filter((c) => c.at > from || c.running);
   }
   const usedOf = (list: Counted[], now: number): Used & { hours: number[], days: number[] } => {
@@ -60,7 +63,7 @@ export function createAccess({ store, auth, models }: { store: Pick<Store, 'user
     return { hour: hours.length, day: days.length, running: list.filter((c) => c.running).length, hours, days };
   };
   const ceilingTimes = (now: number) => store.ideas.list((i) => Date.parse(i.createdAt) > now - DAY_MS && paid(i))
-    .map((i) => Date.parse(i.createdAt)).sort((a, b) => a - b);
+    .flatMap((i) => Array(usesOf(i.explore)).fill(Date.parse(i.createdAt)) as number[]).sort((a, b) => a - b);
 
   /** GET /api/me's `access`. */
   function state(u: StoredUser, now = Date.now()): Access {
@@ -83,10 +86,10 @@ export function createAccess({ store, auth, models }: { store: Pick<Store, 'user
       ...(full ? { full: true } : {}), ...(Object.keys(own).length ? { models: own } : {}) };
   }
 
-  /** Why `u` may not send an idea to `m` now, or null. Runs with the create, no await between. */
-  function check(u: StoredUser, m: ModelEntry, now = Date.now()): Refusal | null {
+  /** Why `u` may not send an idea to `m` (at `explore`) now, or null. Runs with the create, no await between. */
+  function check(u: StoredUser, m: ModelEntry, now = Date.now(), explore?: Explore): Refusal | null {
     if (exempt(u)) return null;
-    const access = state(u, now), list = counted(u, now);
+    const access = state(u, now), list = counted(u, now), uses = usesOf(explore);
     // A cap of 0 never frees (at is Infinity): no Retry-After, no "try again".
     const refuse = (status: 403 | 429, error: string, at = 0): Refusal => ({ status, error, access,
       ...(status === 429 && Number.isFinite(at)
@@ -106,13 +109,16 @@ export function createAccess({ store, auth, models }: { store: Pick<Store, 'user
       [caps?.perDay, pool.days, DAY_MS, 'today'], [own.perHour, of.hours, HOUR_MS, `on ${m.label} this hour`],
       [own.perDay, of.days, DAY_MS, `on ${m.label} today`]] as const) {
       if (cap === 0) return none(when);
-      if (cap != null && times.length >= cap) {
-        const at = freesAt(times, cap, ms);
-        return refuse(429, `That's your ${cap} ideas ${when}.${later(at)}`, at);
+      if (cap != null && times.length + uses > cap) {
+        const at = freesAt(times, cap, ms, uses);
+        return refuse(429, uses > 1 && times.length < cap
+          ? `A Deep idea counts as ${uses}, and you have ${cap - times.length} left ${when}.${later(at)}`
+          : `That's your ${cap} ideas ${when}.${later(at)}`, at);
       }
     }
-    if (caps && access.full) {
-      const at = freesAt(ceilingTimes(now), limits().dailyCeiling, DAY_MS);
+    const ceiling = ceilingTimes(now);
+    if (caps && ceiling.length + uses > limits().dailyCeiling) {
+      const at = freesAt(ceiling, limits().dailyCeiling, DAY_MS, uses);
       return refuse(429, `The AI models have done all they can for today. Sketch is still free.${later(at)}`, at);
     }
     return null;

@@ -25,6 +25,11 @@ export const Login = z.object({
   username: Username.nullable().catch(null), password: z.string().max(MAX_PASSWORD).catch(''),
 }).catch({ username: null, password: '' });
 
+/** How much a generator explores before it commits (SPEC-generators "Explore"); an idea without one is quick. */
+export const EXPLORE = ['quick', 'explore', 'deep'] as const;
+export type Explore = typeof EXPLORE[number];
+/** What a Deep idea costs: `uses` against an account's limits, and whether only admins may ask for it. */
+export const DEEP = { uses: 2, adminOnly: false };
 export const IdeaBody = z.object({
   text: z.string({ error: 'Describe the idea in 3–2000 characters.' }).trim()
     .min(3, { error: 'Describe the idea in 3–2000 characters.' })
@@ -32,6 +37,7 @@ export const IdeaBody = z.object({
   /** A model id (shared/schemas/models.ts); none: the registry's default. */
   model: z.string({ error: 'model must name one of the models.' })
     .max(32, { error: 'model must name one of the models.' }).optional(),
+  explore: z.enum(EXPLORE, { error: 'explore must be quick, explore or deep.' }).default('explore'),
 });
 /** POST /api/looks/:id/refine: the change asked for; or a critique, or a runtime error to fix, with no text. */
 export const RefineBody = z.object({
@@ -73,14 +79,16 @@ export type FlashOverride = { reason: string, by: string, at: string };
 /** Where a generation's time went, in ms: in the queue, building the prompt, the model's request, parsing; the render
  * check and the critique round, when they ran. */
 export type Timing = { wait: number, prompt: number, request: number, parse: number, total: number, check?: number,
-  critique?: number };
+  critique?: number, sketch?: number };
 /** What a refinement asks besides its text (SPEC-generators "Refine"). */
 export type RefineAsk = { critique?: true, fix?: { layer: string, error: string } };
 /** `model`: the model asked for; `generator`: the one that made the look (a fallback's, if it took over); `by`: its
- * label as shown ("by <label>"). */
+ * label as shown ("by <label>"); `explore`: how much it explores (a prompted model's); `took`: what its look took from
+ * each sketch. */
 export type Idea = { id: string, owner: string, text: string, status: 'queued' | 'generating' | 'ready' | 'failed',
-  model?: string, generator: string, by?: string, timing?: Timing, lookId?: string, refine?: RefineAsk,
-  changes?: string[], verdict?: string, undone?: true, error?: string | null, createdAt: string, updatedAt: string };
+  model?: string, generator: string, by?: string, explore?: Explore, took?: string, timing?: Timing, lookId?: string,
+  refine?: RefineAsk, changes?: string[], verdict?: string, undone?: true, error?: string | null, createdAt: string,
+  updatedAt: string };
 export type LookCreate = z.input<typeof LookCreate>;
 export type LookPatch = z.input<typeof LookPatch>;
 /** A look as lists show it: what a card needs, no layers or code. */

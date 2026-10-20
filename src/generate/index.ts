@@ -11,9 +11,9 @@
 import path from 'node:path';
 
 import { CHAIN } from '../../shared/chain-order.ts';
-import type { Bake, Idea } from '../../shared/schemas/api.ts';
+import type { Bake, Explore, Idea } from '../../shared/schemas/api.ts';
 import { GenerateError, validateLook } from '../../shared/schemas/generated.ts';
-import type { ModelEntry } from '../../shared/schemas/models.ts';
+import type { ModelEntry, Transport } from '../../shared/schemas/models.ts';
 import type { LibraryEntry, Rig, RigGroup } from '../../shared/schemas/rig.ts';
 import { layersHash, removeFrames, renderFields, saveFrames } from '../bake.ts';
 import { revisedFields } from '../look-versions.ts';
@@ -22,6 +22,7 @@ import type { Box } from './check.ts';
 import { createClaudeAdapter } from './claude.ts';
 import { createCodexAdapter } from './codex.ts';
 import type { ExpandError, Uses } from './expand.ts';
+import { boosted, explore, LEVELS } from './explore.ts';
 import { createFleetAdapter, hasMemoryCap } from './fleet.ts';
 import type { Registry } from './models.ts';
 import { buildPrompt, buildRefineMessage } from './prompt.ts';
@@ -43,12 +44,15 @@ export type Prompt = { system: string, schema: Record<string, unknown>, catalog:
  * given, is the whole turn instead: a critique, with its stills as PNGs in `images`). */
 export type Repair = { answer: unknown, errors: ExpandError[], message?: string, images?: Uint8Array[] };
 /** What an adapter is given (SPEC "Generators"), and what makes a look of it: raw output, cleaned by validateLook.
- * `docsRead`: where an adapter notes each library doc the model read, for the log. */
+ * `docsRead`: where an adapter notes each library doc the model read, for the log; `schema`: an answer to this schema
+ * instead of a look (no docs; returned as it parsed); `images`: PNGs shown with the first turn. */
 export type Context = { text: string, user: { id: string, username?: string, role?: string },
   library: LibraryEntry[], rig: Rig | null, groups: RigGroup[], idea?: { id: string }, prompt?: () => Prompt,
-  turn?: string, repair?: Repair, signal?: AbortSignal, docsRead?: string[] };
+  turn?: string, repair?: Repair, signal?: AbortSignal, docsRead?: string[], schema?: Record<string, unknown>,
+  images?: Uint8Array[] };
 export type Adapter = { name?: string, generate(ctx: Context): unknown };
 type Route = { id: string, label: string, via: string, entry?: ModelEntry };
+type Explored = Awaited<ReturnType<typeof explore>>;
 type Job = { id: string, route: Route, queuedAt: number };
 const LABELS: Record<string, string> = { sketch: 'Sketch', claude: 'Claude', codex: 'Codex', fleet: 'Fleet' };
 const PROMPTED = new Set(['claude', 'codex']);
@@ -67,8 +71,9 @@ const describeUses = (u: Uses) => (u === NO_USES ? 'not composed'
 const dropped = (notes: string[]) => (notes.length ? `; ${notes.length} noted: ${notes.slice(0, 3).join('; ')}`
   .slice(0, 240) : '');
 const secs = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
-/** The rounds for the log: `1 repair, check 0.6 s, critique 12.0 s revised`. */
-const describeRounds = (o: Partial<Rounds>) => [o.rounds && `${o.rounds} repair`, o.check !== undefined
+/** The rounds for the log: `sketch 9.0 s (A, B, C), 1 repair, check 0.6 s, critique 12.0 s revised`. */
+const describeRounds = (o: Partial<Explored>) => [o.sketch && `sketch ${secs(o.sketch.ms)} (${o.sketch.outcome})`,
+  o.rounds && `${o.rounds} repair`, o.check !== undefined
   && `check ${secs(o.check)}`, o.critique && `critique ${secs(o.critique.ms)} ${o.critique.outcome}`]
   .filter(Boolean).map((s) => `, ${s}`).join('');
 
@@ -218,7 +223,7 @@ export function createQueue({
 
   /** The look from the route's adapter, validated, in rounds for a prompted model; the fallback tries when that one
    * fails (not for a refinement: its look stays as it was). */
-  async function lookFrom(ctx: Context, r: Route, refine?: Refining & { critique?: true }) {
+  async function lookFrom(ctx: Context, r: Route, refine?: Refining & { critique?: true }, level: Explore = 'quick') {
     const t0 = Date.now();
     const attempt = async (by: Route) => {
       if (refine && !PROMPTED.has(by.via) && by.via !== 'sketch') {
@@ -229,8 +234,11 @@ export function createQueue({
       const rounds = (a: Adapter, o: { critique?: Critique, box?: Box }) => compose({ adapter: a, ctx, catalog:
         catalog!, ...o, lane: bakeLane, aim: refine?.aim, start: refine?.start, startedAt: t0,
         budgetMs: critiqueBudgetMs, stopping: () => stopping, log });
-      const out: Partial<Rounds> & Pick<Rounds, 'raw' | 'look'> = PROMPTED.has(by.via) && catalog && ctx.prompt
-        ? await rounds(adapter, { critique: mode, box })
+      const lv = PROMPTED.has(by.via) && catalog && ctx.prompt && !refine && level !== 'quick' ? level : null;
+      const out: Partial<Explored> & Pick<Rounds, 'raw' | 'look'> = lv ? await explore({ adapter: adapterFor({
+        ...by, entry: boosted(by.via as Transport, by.entry, lv) }), ctx, catalog: catalog!, critique: mode, box,
+        lane: bakeLane, startedAt: t0, budgetMs: LEVELS[lv].budgetMs, stopping: () => stopping, log, level: lv })
+        : PROMPTED.has(by.via) && catalog && ctx.prompt ? await rounds(adapter, { critique: mode, box })
         : refine && catalog && by.via === 'sketch'
           ? await rounds({ generate: () => sketchRefine(refine.comp, ctx.text, { ...ctx, catalog }) }, {})
         : await (async () => {
@@ -274,10 +282,10 @@ export function createQueue({
         groups: base.groups, idea: { id }, prompt: () => promptOf(base), signal: ac.signal, docsRead: [] };
       const refine = idea.refine ? { ...refining(idea, promptOf(base).catalog), ...idea.refine } : undefined;
       if (refine) ctx.turn = buildRefineMessage(refine.comp, idea.text, idea.refine?.fix, refine.history);
-      const out = await lookFrom(ctx, r, refine), { look, used, request, failed } = out;
+      const out = await lookFrom(ctx, r, refine, idea.explore), { look, used, request, failed } = out;
       const timing = { wait: started - queuedAt, prompt, request, parse: out.parse, total: 0,
         ...(out.check !== undefined ? { check: out.check } : {}),
-        ...(out.critique ? { critique: out.critique.ms } : {}) };
+        ...(out.critique ? { critique: out.critique.ms } : {}), ...(out.sketch ? { sketch: out.sketch.ms } : {}) };
       const read = PROMPTED.has(used.via) ? ctx.docsRead : undefined;
       const how = `${describeRounds(out)}; ${describeUses(out.uses ?? NO_USES)}${describeDocs(read)}${
         dropped(look.dropped)}`;
@@ -300,7 +308,8 @@ export function createQueue({
       });
       if (bake?.frames) await keepFrames(saved.id, frames, bake);
       timing.total = Date.now() - queuedAt;
-      await update(id, { status: 'ready', lookId: saved.id, generator: used.id, by: used.label, error: null, timing });
+      await update(id, { status: 'ready', lookId: saved.id, generator: used.id, by: used.label, error: null, timing,
+        ...(out.sketch?.took ? { took: out.sketch.took } : {}) });
       log.info?.(`[generate] idea ${id} ready via ${used.id}${failed ? ` after ${failed}` : ''} in ${timing.total} ms `
         + `(queued ${timing.wait}, request ${request}${how}; look ${saved.id})`);
     } catch (err) {

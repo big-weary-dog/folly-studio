@@ -376,11 +376,13 @@ POST   /api/logout                            → { ok: true }
 GET    /api/me                                → { user, flash, access } | 401
 POST   /api/invite   { code }                 → { access }           redeem an invite code (SPEC "Access")
 GET    /api/ideas                             → { ideas: [idea] }    mine, newest first
-POST   /api/ideas    { text, model? }         → { idea }             queued for generation on that model (none: the
+POST   /api/ideas    { text, model?, explore? } → { idea }           queued for generation on that model (none: the
                                               default this user gets); 400 when it is unknown, off, not offered
                                               to their role, or cannot run here; 403 { error, access } when it is
                                               paid and the account is locked; 429 { error, access } + Retry-After
-                                              at a limit (SPEC "Access")
+                                              at a limit (SPEC "Access"); `explore` quick | explore (default) |
+                                              deep, kept on a prompted model's idea (SPEC-generators "Explore");
+                                              403 for deep while it is admins' only
 POST   /api/looks/:id/refine { text?, model?, critique?, fix?: { layer, error } } → 201 { idea }  owner only: a
                                               refinement of the saved look (SPEC-generators "Refine"); text 2–1000
                                               unless critique or fix; refused as POST /api/ideas is; 409 while
@@ -437,10 +439,11 @@ outside 0–600 s, and a duration outside 1–600 s, are refused with 400.
 `access`, `invite` and `person`: SPEC "Access".
 `flash = { check, perSecond, delta, darker, area }`: the flash check's settings (Baked frames, Checks), for the
 preview's guard; `check: false` (`STUDIO_FLASH_CHECK=off`) means nothing is dimmed or blocked.
-`idea = { id, owner, text, status: 'queued'|'generating'|'ready'|'failed', model?, generator, by?, timing?, lookId?,
-refine?, changes?, verdict?, undone?, error?, createdAt, updatedAt }`: `model` the registry id asked for, `generator` the one that made
+`idea = { id, owner, text, status: 'queued'|'generating'|'ready'|'failed', model?, generator, by?, explore?, took?,
+timing?, lookId?, refine?, changes?, verdict?, undone?, error?, createdAt, updatedAt }`: `model` the registry id asked for, `generator` the one that made
 the look (the fallback's when it took over), `by` its label ("Opus"), `timing = { wait, prompt, request, parse,
-total, check?, critique? }` in ms. A refinement has `refine = { critique?, fix? }` and the look it changes as
+total, check?, critique?, sketch? }` in ms; `explore` the level it was made at and `took` what its look took from
+each sketch (SPEC-generators "Explore"). A refinement has `refine = { critique?, fix? }` and the look it changes as
 `lookId` from the start; `changes` (ready) says what changed, `verdict` how its critique round ended (`revised`,
 `unchanged`, …), and `undone: true` that it was undone.
 `look = { id, owner, ownerName, title, summary, layers, duration, bpm?, shared, ideaId?, reviewed, reviewedBy?,
