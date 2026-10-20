@@ -64,6 +64,8 @@ export const api = {
   createLook: (look: LookCreate) => request<{ look: Look }>('POST', '/api/looks', look),
   updateLook: (id: string, patch: LookPatch) => request<{ look: Look }>('PUT', `/api/looks/${enc(id)}`, patch),
   deleteLook: (id: string) => request('DELETE', `/api/looks/${enc(id)}`),
+  /** A refinement undone: its look was put back (SPEC-generators "Refine history"). */
+  undoRefine: (id: string) => request<{ idea: Idea }>('POST', `/api/ideas/${enc(id)}/undo`),
   /** A refinement of one's own look (SPEC-generators "Refine"): its idea, to follow with idea(). */
   refine: (id: string, body: { text?: string, model?: string, critique?: true,
     fix?: { layer: string, error: string } }) => request<{ idea: Idea }>('POST', `/api/looks/${enc(id)}/refine`, body),

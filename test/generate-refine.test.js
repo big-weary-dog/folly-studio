@@ -83,6 +83,8 @@ describe('decompose and diff', () => {
     assert.match(lines, /\+ .*Glow/);
     assert.match(lines, /palette/);
     assert.deepEqual(diffCompositions(a, structuredClone(a)), []);
+    const picked = { ...a, globals: { palette: { colors: ['#ff0000'] } } };
+    assert.deepEqual(diffCompositions(picked, structuredClone(picked)), [], 'an equal palette object is no change');
   });
 });
 
@@ -198,6 +200,33 @@ describe('the rounds in the queue', () => {
     assert.equal(store.looks.list().length, 1, 'no new look');
   });
 
+  test('a later refinement is told the look\'s history; an undone one is left out', async () => {
+    const turns = [];
+    let level = 0.8;
+    const claude = async (ctx) => {
+      turns.push(ctx.turn);
+      return answer({ layers: [{ ...answer().layers[0], level: level /= 2 }] });
+    };
+    const { store, user, queue } = onClaude(claude, stubBox());
+    const made = store.ideas.create({ owner: user.id, text: 'A slow tide', status: 'ready', generator: 'claude' });
+    const look = store.looks.create({ owner: user.id, ...lookOf(answer()), ideaId: made.id });
+    const refine = async (text) => {
+      const i = store.ideas.create({ owner: user.id, text, status: 'queued', generator: 'claude', lookId: look.id,
+        refine: {} });
+      queue.enqueue(i);
+      await queue.idle();
+      return i;
+    };
+    const one = await refine('dimmer');
+    await refine('dimmer still');
+    assert.match(turns[0], /<history>\nThe idea: "A slow tide"\n<\/history>/);
+    assert.match(turns[1], /The idea: "A slow tide"\nThen "dimmer" → .*level 0\.8 → 0\.4\n<\/history>/);
+    store.ideas.update(one.id, { undone: true });
+    await refine('brighter');
+    assert.doesNotMatch(turns[2], /Then "dimmer" →/);
+    assert.match(turns[2], /Then "dimmer still" →/);
+  });
+
   test('a muted layer and a switched-off module stay so; an edit made meanwhile is never overwritten', async () => {
     let edit = null;
     const claude = async () => {
@@ -249,6 +278,7 @@ describe('the rounds in the queue', () => {
     assert.deepEqual(box.jobs.map((j) => j.seconds), [8, 2]);
     assert.equal(typeof done.timing.critique, 'number');
     assert.equal(store.looks.get(look.id).layers[0].level, 0.5);
+    assert.equal(done.verdict, 'revised');
   });
 
   test('sketch refines in words, or fails and leaves the look as it was', async () => {
