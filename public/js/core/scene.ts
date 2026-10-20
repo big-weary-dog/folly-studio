@@ -132,7 +132,8 @@ export function groupsByTag(scene: Scene, tag: string) {
 
 /**
  * A layer's pixels (ascending, unique): its group ids; when it names none, or one this rig lacks, the known ones
- * plus the groups tagged with any of `tags`; nothing at all: the root. An unknown id without tags throws.
+ * plus the groups tagged with any of `tags`. No ids given: the root; none picked ([], no tags): nothing. An unknown id
+ * without tags throws.
  */
 type Ids = readonly string[] | null | undefined;
 export function pixelsForGroups(scene: Scene, ids?: string | Ids, tags?: Ids) {
@@ -142,7 +143,8 @@ export function pixelsForGroups(scene: Scene, ids?: string | Ids, tags?: Ids) {
     const tagged = Array.isArray(tags) && tags.length ? tags.flatMap((t) => groupsByTag(scene, t)) : null;
     if (tagged) use = use.concat(tagged.map((g) => g.id));
     else if (list.length) throw new Error(`unknown group "${list.find((id) => !scene.groupById.has(id))}"`);
-    else use = [scene.root?.id];
+    else if (ids == null) use = [scene.root?.id];
+    else return new Int32Array(0);
   }
   if (use.length === 1) return members(scene, use[0]).slice();
   const mask = new Uint8Array(scene.count);

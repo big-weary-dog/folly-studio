@@ -82,8 +82,12 @@ export function createStudio(me: User | null) {
     });
     return { layers, extra: { globals: L.globals, automation: L.automation, bpm: L.bpm || undefined } };
   });
-  const groupNames = (ids?: string[]) => (ids?.length ? ids.map((id) => data.index?.byId.get(id)?.name || id).join(', ')
-    : data.index?.byId.get(data.index.root)?.name || 'Everything');
+  /** Where a layer plays: its groups' names; none given: the whole rig; none picked: its tags, else nothing. */
+  const groupNames = (ids?: string[], tags?: string[]) => {
+    if (ids?.length) return ids.map((id) => data.index?.byId.get(id)?.name || id).join(', ');
+    if (tags?.length) return tags.map((t) => `#${t}`).join(', ');
+    return ids ? 'Nothing' : data.index?.byId.get(data.index.root)?.name || 'Everything';
+  };
 
   const st = {
     look, server, saved, ready, saving, sharing, copyOnSave, selectedId, picked, muted, solo, heavy, hoverGroup,

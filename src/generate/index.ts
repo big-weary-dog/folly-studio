@@ -36,16 +36,17 @@ import type { Store, StoredLook } from '../store.ts';
 export { GenerateError, validateLook };
 
 const FALLBACK_ERROR = 'Something went wrong while turning this idea into a look.';
-/** The guide, the output schema and the catalog: built once per library and rig, the same bytes on every call (so it
- * caches). */
-export type Prompt = { system: string, schema: Record<string, unknown>, catalog: Catalog };
+/** The guide, the output schema, the catalog and the library docs (path → markdown): built once per library and rig,
+ * the same bytes on every call (so it caches). */
+export type Prompt = { system: string, schema: Record<string, unknown>, catalog: Catalog, docs?: Map<string, string> };
 /** A follow-up turn: the model's previous answer and what expanding or rendering it found wrong (`message`, when
  * given, is the whole turn instead: a critique, with its stills as PNGs in `images`). */
 export type Repair = { answer: unknown, errors: ExpandError[], message?: string, images?: Uint8Array[] };
-/** What an adapter is given (SPEC "Generators"), and what makes a look of it: raw output, cleaned by validateLook. */
+/** What an adapter is given (SPEC "Generators"), and what makes a look of it: raw output, cleaned by validateLook.
+ * `docsRead`: where an adapter notes each library doc the model read, for the log. */
 export type Context = { text: string, user: { id: string, username?: string, role?: string },
   library: LibraryEntry[], rig: Rig | null, groups: RigGroup[], idea?: { id: string }, prompt?: () => Prompt,
-  turn?: string, repair?: Repair, signal?: AbortSignal };
+  turn?: string, repair?: Repair, signal?: AbortSignal, docsRead?: string[] };
 export type Adapter = { name?: string, generate(ctx: Context): unknown };
 type Route = { id: string, label: string, via: string, entry?: ModelEntry };
 type Job = { id: string, route: Route, queuedAt: number };
@@ -55,6 +56,9 @@ const LANE_DEFAULTS: Record<string, number> = { claude: 4, codex: 2, sketch: 4 }
 const NO_USES: Uses = { library: 0, extensions: 0, code: 0 };
 const CRITIQUE_BUDGET_MS = Number(process.env.STUDIO_CRITIQUE_BUDGET_MS) || 90_000;
 
+/** The docs a prompted model read, for the log: `; docs 2 (sources/bars, warps/README)`. */
+const describeDocs = (read?: string[]) => (!read ? '' : read.length
+  ? `; docs ${read.length} (${read.map((p) => p.replace(/^library\/|\.md$/g, '')).join(', ')})` : '; docs none');
 /** What a look was made of, for the log: `3 library, 1 extension`. */
 const describeUses = (u: Uses) => (u === NO_USES ? 'not composed'
   : [`${u.library} library`, u.extensions && `${u.extensions} extension`, u.code && `${u.code} code`]
@@ -267,14 +271,16 @@ export function createQueue({
       if (PROMPTED.has(r.via) || idea.refine) promptOf(base);
       const prompt = Date.now() - started;
       const ctx: Context = { text: String(idea.text ?? ''), user, library: base.library, rig: base.rig,
-        groups: base.groups, idea: { id }, prompt: () => promptOf(base), signal: ac.signal };
+        groups: base.groups, idea: { id }, prompt: () => promptOf(base), signal: ac.signal, docsRead: [] };
       const refine = idea.refine ? { ...refining(idea, promptOf(base).catalog), ...idea.refine } : undefined;
       if (refine) ctx.turn = buildRefineMessage(refine.comp, idea.text, idea.refine?.fix, refine.history);
       const out = await lookFrom(ctx, r, refine), { look, used, request, failed } = out;
       const timing = { wait: started - queuedAt, prompt, request, parse: out.parse, total: 0,
         ...(out.check !== undefined ? { check: out.check } : {}),
         ...(out.critique ? { critique: out.critique.ms } : {}) };
-      const how = `${describeRounds(out)}; ${describeUses(out.uses ?? NO_USES)}${dropped(look.dropped)}`;
+      const read = PROMPTED.has(used.via) ? ctx.docsRead : undefined;
+      const how = `${describeRounds(out)}; ${describeUses(out.uses ?? NO_USES)}${describeDocs(read)}${
+        dropped(look.dropped)}`;
       if (refine) {
         const changes = await revise(refine.look, look, promptOf(base).catalog);
         timing.total = Date.now() - queuedAt;

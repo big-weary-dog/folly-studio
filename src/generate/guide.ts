@@ -131,7 +131,7 @@ Compose each layer from the library below, by name; the studio fills in the code
 - \`preset\`: a ready recipe, by name, with \`overrides\` [{ module, name, value }] for any of its modules' params
   (module: the module's name, \`bars#2\` for its second bars); or
 - \`modules\`: a chain, listed top to bottom, each { use: "<module>", params: [{ name, value }] }, giving only the
-  params you change from the defaults the library lists (\`name=default (range)\`).
+  params you change from their defaults (each module's docs give its params' ranges and defaults).
 
 One rule: each module works on everything above it, as in an image editor.
 - A source draws its element on transparent, onto what is above it: the first covers, later ones add (or give a

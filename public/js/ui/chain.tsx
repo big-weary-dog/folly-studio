@@ -35,7 +35,7 @@ export function ChainPane({ st, pv }: Props) {
           }} onBlur={() => {
             if (l && !st.selected.peek()?.title.trim()) st.editLayer(l.id, () => ({ title: 'Layer' }));
           }} />}</Field>
-        <Field label="Plays on" class="plays-on">{l ? st.groupNames(l.groups) : '—'}
+        <Field label="Plays on" class="plays-on">{l ? st.groupNames(l.groups, l.tags) : '—'}
           <button type="button" class="btn small ghost narrow-only" onClick={() => st.setTab('groups')}>Change</button>
         </Field>
         <div class="chain-host"><Chain st={st} pv={pv} /></div>

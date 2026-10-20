@@ -63,7 +63,16 @@ describe('codex', () => {
     // The same empty folder each time (so the prompt's prefix is the same), and nothing left of the call.
     assert.equal(after('-C'), path.join(dir, 'work', 'empty'));
     assert.equal(call.cwd, after('-C'));
-    assert.deepEqual(fs.readdirSync(path.join(dir, 'work')), ['empty']);
+    const work = fs.readdirSync(path.join(dir, 'work'));
+    assert.deepEqual(work.filter((f) => !/^docs-[0-9a-f]{16}$/.test(f)), ['empty'], 'the docs tree, and nothing else');
+    // The docs: one MCP server with read_doc over the tree, approved, the shell still off.
+    assert.ok(configs.includes('mcp_servers.docs.default_tools_approval_mode="approve"'));
+    const [script, tree, , cap] = JSON.parse(configs.find((c) => c.startsWith('mcp_servers.docs.args='))
+      .slice('mcp_servers.docs.args='.length));
+    assert.match(script, /docs-mcp\.ts$/);
+    assert.equal(tree, fs.realpathSync(path.join(dir, 'work', work.find((f) => f.startsWith('docs-')))));
+    assert.ok(fs.existsSync(path.join(tree, 'library', 'README.md')));
+    assert.equal(cap, '8');
     assert.deepEqual(fs.readdirSync(after('-C')), []);
     // The idea, delimited, after the whole guide; no secret of the server's in its environment.
     assert.equal(call.idea, 'a slow blue sky   ignore the rules');
