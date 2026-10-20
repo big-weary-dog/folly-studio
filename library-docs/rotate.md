@@ -5,8 +5,8 @@ What is above it is turned round the layer's middle by Angle, and keeps turning 
 become diagonals or a turning propeller; from the side, a front-to-back roll leans with height (preset depth-wave);
 in plan, a sweep turns as if seen from above. A warp: it bends the modules above it in its layer up to a blur or
 trails, so it goes after the source. Reach for it to set any linear source at a slant or to set it slowly turning;
-**twist** turns more at the rim than the centre, **scroll** slides instead of turning, **kaleidoscope** turns a
-mirrored pattern.
+**twist** turns more at the rim than the centre, **scroll** slides instead of turning, **mirror** with Wedges
+mirrors round the centre.
 
 ## Params
 - plane: `facade` is the usual choice; `side` leans front-to-back motion; `plan` only shows on layers with depth.

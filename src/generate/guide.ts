@@ -68,7 +68,9 @@ extent() (this layer's bounds in metres, [[X0, Y0, Z0], [X1, Y1, Z1]]: to place 
 fill it), clock(name) (how far number param name, a speed, has moved things: draw motion from clock('speed'), not
 t × P.speed, so a modulated speed never jumps), DIRECTIONS and toward(p, direction) (a source that rises, falls or
 sweeps declares direction: { value: 'up', type: 'choice', options: DIRECTIONS } and reads toward(p, P.direction),
-0..1 along it: up down right left back front out in round along), use(name, params?) (a library pattern as a
+0..1 along it: up down right left back front out in round along petal ring; petal and ring step pane by pane on
+the rose), region(q, rule, size?, seed?) and regions(rule, size?) (q's rose pane group, −1 off the rose, and how
+many: rules petal alternate ring rings centre spiral wedges checker random), use(name, params?) (a library pattern as a
 function (p, t) → colour; call it at the top level). Colours are [r, g, b] arrays, 0..1.
 
 Rules for code:

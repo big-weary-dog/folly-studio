@@ -368,7 +368,7 @@ export function renderFrame(scene: Scene, layers: readonly (PreparedLayer | null
     const err = L.stages ? runStaged(scene, L, T, G, L.stages) : runChain(scene, L, T, G);
     if (err) errors.push(L.modular ? { id: L.id, module: L.failed, error: err } : { id: L.id, error: err });
     else {
-      if (wipe) wipeColours(L.buf, L, scene.u, wipe as Transition, env, t > (clip!.start + clip!.end) / 2);
+      if (wipe) wipeColours(L.buf, L, scene, wipe as Transition, env, t > (clip!.start + clip!.end) / 2);
       composite(rgb, L, level);
     }
     L.ms = clock() - t0;

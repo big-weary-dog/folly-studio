@@ -1,26 +1,23 @@
 ---
-looks: Mirrored wedges round the centre, like a kaleidoscope, slowly turning.
+looks: A turning star of mirrored wedges round the rose window, spreading over the façade.
 ---
-What is above it is cut into wedges round the layer's centre, each wedge two mirror-image halves, and the fold lines
-turn at Spin. A warp: it bends the modules above it in its layer (up to a blur or trails), so it goes after the
-source. Only a thin sliver of the source, just clockwise of 12 o'clock and out from the centre, is ever shown, so feed
-it something that changes with distance and time: clouds or bars on `in`. Made for the rose window (put
-**anchor** below it); **mirror** folds across a straight line, **radial-repeat** repeats in rings rather than
-wedges, **twist** swirls without repeating.
+Pulse **bars** on `round` (16 thin spokes in every palette colour) swirled by **twist** into curved spokes over a `low`
+bed, folded by **mirror** into 8 mirrored wedges whose edges sit on the rose's petal edges, turned slowly by
+**scroll** `round` (a turn every 50 seconds) and centred on the rose by **anchor**. On the rose it is an eight-point
+star; on the arches it zigzags. **tunnel** repeats in rings instead; **galaxy** winds spiral arms without folding.
 
-## Params
-- segments: Whole numbers, each mirrored in two, so 6 shows 12 pieces. Matching the rose's 16 petals (16 or 8) locks the
-  pattern to the window; 3–4 gives big bold shapes.
-- spin: Negative is anticlockwise. 0.01–0.05 is stately; above ~0.2 the whole rig rotates noticeably.
+## Overrides
+- mirror.wedges: how many wedges; 2, 4, 8 or 16 fit the rose's petals, 3–6 bold shapes on the façade.
+- scroll.speed: turns a second; 0 holds the star still, negative turns it the other way.
+- twist.swirl: how far the spokes curve; 0 straight spokes, 2 tight spirals.
+- bars.speed: how fast the pattern flows within each wedge; bars.bars and bars.duty its detail.
+- bars.colours: the wedges' colours; colour-wash.colours the space behind.
+- anchor.tag: the group it turns round.
 
 ## Pairings
-- After clouds or bars on `in`, then **anchor** (rose) at the bottom: a living rose window.
-- After bars on `in` or `out` with pulse profile: concentric rings stay rings; add **twist** above or below for
-  spiralling petals.
-- Recolour or hue-shift after it to colour the wedges by brightness or angle.
+- On the whole rig, as the look's centrepiece; a dim **starfield** or **shimmer** layer under it.
+- Bind scroll.speed to energy for a star that spins up with the music.
 
 ## Pitfalls
-- Sources that change only across the layer (bars `right`) look like a still star, since the sliver it reads
-  is narrow; move the source in time or use one that varies with distance.
-- Works in the façade plane: on towers and spires depth is ignored, so their front and back look the same.
-- High segments on sparse areas (the arches' outer edges) alias into noise; keep ≤ 8 on a whole-rig layer.
+- More than 8 wedges on a whole-rig layer breaks into speckle on the sparse arches.
+- A source that changes only across the layer shows almost one colour: the wedges read a thin slice of it.

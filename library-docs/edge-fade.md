@@ -9,7 +9,8 @@ filter: it reworks what is above it in its chain, by transparency; sources below
 direction; **bars** with one bar draws a moving edge itself.
 
 ## Params
-- direction: Down fades in from the top; out from the centre, in from the rim, along from each wire's start.
+- direction: Down fades in from the top; out from the centre, in from the rim, along from each wire's start; `petal`
+  and `ring` a whole rose petal or ring at a time (bind Position with a narrow Width: the rose opening petal by petal).
 - position: 0 shows everything, 1 hides it; the default 0.25 fades in over the first third. Bind it for a wipe.
 - width: 0.05–0.1 a crisp edge (a wipe); 0.3–0.6 a soft gradient.
 - both: The far edge moves in with the near one, narrowing the band between them.

@@ -1,16 +1,18 @@
 ---
 looks: Colours turned round the colour wheel across the layer: one colour becomes a rainbow.
 ---
-Every colour above it is turned round the colour wheel by an amount that grows along Direction (Spread) and over time
-(Speed), keeping its brightness, so one red becomes a rainbow sweeping across the portal, and a whole palette slowly
+Every colour above it is turned round the colour wheel by an amount that grows along Direction (Spread), over time
+(Speed) and by a fixed Offset, keeping its brightness, so one red becomes a rainbow sweeping across the portal, and a whole palette slowly
 cycles. A filter: it reworks the colour of everything above it in its chain, so it goes after the sources; sources
 below it keep their colours. Reach for it to add a moving spectrum to any single-colour source, or to cycle a look's
 colours over a song; **recolour** chooses colours by brightness from a palette, **colour-wash** with `rainbow`
-changes the whole layer at once, **invert** flips colours.
+changes the whole layer at once.
 
 ## Params
-- direction: `round` makes a colour wheel round the centre; `along` runs along each wire.
+- direction: `round` makes a colour wheel round the centre; `along` runs along each wire; `petal` or `ring` steps
+  one hue a rose petal or ring, never smearing within one.
 - spread: Turns of the wheel across the layer. 1 shows the full spectrum once; 0.2–0.4 a gentle shading.
+- offset: A fixed turn. 0.5 with spread 0 and speed 0 turns every colour to its opposite hue (red to cyan).
 - speed: Turns a second; 0.02–0.1 cycles slowly. Combined with spread it makes the rainbow move along Direction.
 
 ## Pairings

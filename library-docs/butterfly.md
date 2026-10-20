@@ -4,7 +4,8 @@ looks: Flowing, swirling colour folded left to right, so both halves move as mir
 The **plasma** field (smooth **bars** pushed around by **turbulence**), mirrored by **mirror** so the right half of
 the layer repeats the left like a pair of wings. Slow, psychedelic and symmetrical: on the whole rig the two towers and the two sides of the
 portal move as mirror images round the rose. Reach for it as a busy, trippy bed. **palette-drift** is the calm
-version (one colour moving over the whole layer); **kaleidoscope** or **radial-repeat** fold into more than two.
+version (one colour moving over the whole layer); **kaleidoscope** and **tunnel** fold into more
+than two.
 
 ## Overrides
 - bars.bars: colour bands across the layer; 8 broad blobs per wing, 24 busy marbling.

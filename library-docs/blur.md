@@ -16,7 +16,7 @@ smears over time rather than space; **edge-fade** softens one edge of the layer.
 ## Pairings
 - After single-strand, arch-chase or bars with a step profile: smooth movement without stepping.
 - After sparkle with `space`: twinkles that bloom; follow with a sharp sparkle below it for sharp highlights.
-- After mosaic or posterize: softened blocks or bands.
+- After mosaic or recolour Steps: softened runs or bands.
 
 ## Pitfalls
 - Blur hides warps below it from what is above: put warps above the blur, not below.

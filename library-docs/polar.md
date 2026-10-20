@@ -5,8 +5,8 @@ What is above it is wrapped round the layer's centre: its across (left to right)
 clockwise from 12 o'clock, and its up becomes the distance out. So bars going right become turning spokes, bars going
 up become rings moving out, and a fire becomes a sun. A warp: it bends the modules above it in its layer up to a blur
 or trails, so it goes after the source. Reach for it to make radial looks from any linear source; **anchor** below it
-moves the centre to the rose, **twist** after it curls spokes into spirals (preset galaxy), **kaleidoscope** mirrors
-wedges instead.
+moves the centre to the rose, **twist** after it curls spokes into spirals (preset galaxy), **mirror** with Wedges
+folds into wedges instead.
 
 ## Params
 - repeats: 2–4 makes several spokes from one bar.

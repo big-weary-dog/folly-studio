@@ -28,12 +28,12 @@ const mod = (id, kind, extra = {}) => ({ id, kind, code: source(id), ...extra })
 const CHAINS = {
   'clouds mapped, sparkled, shifted, faded, turned, mosaicked, repeated': [mod('clouds', 'source'),
     mod('recolour', 'filter'), mod('sparkle', 'source'), mod('hue-shift', 'filter'), mod('edge-fade', 'filter'),
-    mod('rotate', 'warp'), mod('mosaic', 'warp'), mod('radial-repeat', 'warp')],
+    mod('rotate', 'warp'), mod('mosaic', 'warp'), mod('mirror', 'warp', { params: { rings: 4 } })],
   'a chase masked by clouds, swirled, folded, with trails': [mod('single-strand', 'source'),
     mod('clouds', 'source', { as: 'input' }), mod('mask', 'filter', { input: 'clouds' }), mod('twist', 'warp'),
-    mod('scroll', 'warp'), mod('kaleidoscope', 'warp'), mod('mirror', 'warp'), mod('trails', 'filter')],
+    mod('scroll', 'warp'), mod('mirror', 'warp', { params: { wedges: 6 } }), mod('trails', 'filter')],
   'every colour filter over bars': [mod('bars', 'source'), mod('mask', 'filter', { params: { by: 'self' } }),
-    mod('posterize', 'filter'), mod('invert', 'filter'), mod('recolour', 'filter'), mod('sparkle', 'source'),
+    mod('recolour', 'filter', { params: { steps: 4 } }), mod('sparkle', 'source'),
     mod('hue-shift', 'filter')],
 };
 const KIND = Object.fromEntries(index.map((e) => [e.name, e.kind]));

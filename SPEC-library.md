@@ -72,7 +72,7 @@ pick's or role's i-th colour, floored and wrapping),
 `tag`: its `centre` as `[X, Y, Z]`, `[]` when none; call it in `frame` or `pixel`), `extent()` (the running layer's
 pixels' bounds in metres, `[[X0, Y0, Z0], [X1, Y1, Z1]]`, which `lx ly lz` map to 0..1: so a pattern can burst from
 a `centres()` point and still fill its layer; `extent('rig')` the whole rig's, which `x y z` map), `clock(name)` (how far number param `name`, a speed, has moved
-things: "Integrated clocks" below), `DIRECTIONS` and `toward(p, direction)` ("Directions" below), and
+things: "Integrated clocks" below), `DIRECTIONS` and `toward(p, direction)`, `region(q, rule, size = 1, seed = 0)` and `regions(rule, size = 1)` ("Directions" below), and
 `move(q, lx, ly, lz)`, `turn(q, a, r)` and `slide(q, u)` (the warp contract below), `use(name, params?)` → `(p, t) → colour` (`[0, 0, 0, 0]` for null), library source `name` as its own instance (its
 `frame` runs once per new t; throws `unknown library pattern`, or names a retired one's preset). Colours are
 `[r, g, b]` arrays, 0..1.
@@ -84,9 +84,13 @@ A library module with a built-in orientation (it rises, falls, sweeps across, op
 the orientation it always had, so the UI and the generators see one convention. Its options are the directions it
 draws distinctly, in `DIRECTIONS` order: a list literal when that is fewer than all (fire rises or falls or blows
 sideways; bars have no `out`: `in` at the opposite speed moves the same way, its colours in reverse order). `DIRECTIONS` is `up down right left
-back front out in round along`, and `toward(p, direction)` turns one into a coordinate, 0..1 across the layer: `up`
+back front out in round along petal ring`, and `toward(p, direction)` turns one into a coordinate, 0..1 across the layer: `up`
 ly, `down` 1 − ly, `right` lz (the viewer's right), `left` 1 − lz, `back` lx (front to back), `front` 1 − lx, `out` r,
-`in` 1 − r, `round` a (clockwise), `along` u. A free angle off it, where one makes sense, is an `angle` param in turns.
+`in` 1 − r, `round` a (clockwise), `along` u, `petal` (sector + 0.5) / 16 and `ring` (ring − 0.5) / 7: a step a petal
+(clockwise) or a ring (heart to rim) on the rose, `round` and `out` off it. A clip's wipe reads them too. On the rose,
+`region(q, rule, size, seed)` is q's pane group by a rule (`petal`, `alternate`, `ring`, `rings`, `centre`, `spiral`,
+`wedges`, `checker` or `random`; size is petals a group for spiral, wedges and checker; seed picks random's), 0 up to
+`regions(rule, size)`, or −1 off the rose: mask's `by: region` and stained glass use it. A free angle off it, where one makes sense, is an `angle` param in turns.
 A centre is a location, not an orientation: the `anchor` warp moves it.
 
 ## Modules: a layer is a chain
@@ -157,9 +161,10 @@ above the selected layer; of its `globals` it adds the macros the look lacks and
 and leaves the rest.
 
 The library, one idea a module. Sources: colour-wash, bars, clouds, fire, single-strand (Chase), life, sparkle,
-streaks, lightning, fireworks, strobe, heartbeat, picture. Warps: mirror, kaleidoscope, radial-repeat, mosaic, polar,
+streaks, lightning, fireworks, strobe, heartbeat, picture. Warps: mirror, mosaic, polar,
 anchor, rotate, scroll, twist, turbulence, in-turn. Filters: recolour, hue-shift,
-posterize, stained-glass, invert, mask, blur, edge-fade, trails. Presets: Water, Storm, the rose's stained glass
+stained-glass, mask, blur, edge-fade, trails. Presets: Water, Storm, Kaleidoscope, Tunnel and
+Afterimage (mirror's Wedges and Rings, trails after lightning), the rose's stained glass
 (gothic-jewel, backlit-glow, cathedral-sun), and the **retired sources'**: twinkle's Starfield, depth-wave's Playa
 wave, canopy-rain's Rain, wash-breathe's Breathe, spire-helix's Tower helix, arch-chase's and groups-in-turn's Arch
 chase, pinwheel's and

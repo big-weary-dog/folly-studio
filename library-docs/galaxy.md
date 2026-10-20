@@ -13,7 +13,6 @@ best on the rose or the whole façade. **rose-chase** is comets on circles; **li
 - bars#2.duty: arm width; 0.3 thin arms, 0.9 nearly touching.
 - bars#2.colours: the arms' colours, dealt in turn.
 - twist.swirl: how tightly the arms wind; 0 straight spokes, ±2 (the stock −2) tight spirals; the sign is the hand.
-- twist.spin: turns the whole spiral as well; usually leave 0 and use bars#2.speed.
 - polar.repeats: copies of the pattern round the circle, multiplying the arms.
 - edge-fade.position: the core's size; 0.88 a small core, 0.98 all but removes it. bars.colours its colour.
 - colour-wash.colours: the space behind.

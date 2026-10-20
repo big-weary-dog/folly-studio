@@ -39,7 +39,7 @@ describe('rotate', () => {
 describe('twist', () => {
   test('wind winds each tower round itself: neither tower takes the other side\'s colour', () => {
     const sides = 'function pixel(p) { return p.Z < p.oz ? [1, 0, 0, 1] : [0, 0, 1, 1]; }';
-    const L = at(layerOn(['spires'], ['sides', {}, sides], ['twist', { swirl: 0, spin: 0, wind: 0.5 }]), 1);
+    const L = at(layerOn(['spires'], ['sides', {}, sides], ['twist', { swirl: 0, wind: 0.5 }]), 1);
     const plain = at(layerOn(['spires'], ['sides', {}, sides]), 1);
     assert.ok(diff(L, plain) < 1e-6, `${diff(L, plain)}`);
   });

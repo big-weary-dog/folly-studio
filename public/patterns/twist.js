@@ -1,12 +1,10 @@
-// Twist: swirls what is above it round the layer's centre, more toward the rim, turning at Spin; and winds it round
-// each tower's upright axis (the layer's middle with no towers), more the higher up, so towers spiral. All in turns.
+// Twist: swirls what is above it round the layer's centre, more toward the rim; and winds it round each tower's
+// upright axis (the layer's middle with no towers), more the higher up, so towers spiral. All in turns.
 const params = {
   swirl: { value: 0.25, min: -2, max: 2, step: 0.01, label: 'Swirl (turns at the rim)',
     help: 'How far the rim turns against the centre. 0 leaves it straight; more twists a spiral; negative reverses.' },
   wind: { value: 0, min: -1, max: 1, step: 0.01, label: 'Wind with height (turns)',
     help: 'Winds round each tower, more the higher up, so the towers spiral. 0 is off; negative winds back.' },
-  spin: { value: 0.05, min: -0.5, max: 0.5, step: 0.01, label: 'Spin (turns a second)',
-    help: 'Keeps the swirl turning round the centre. 0 holds still; higher turns faster; negative the other way.' },
 };
 
 let towers = [];
@@ -15,7 +13,7 @@ const at = (d, h) => 0.5 + d / (2 * h || 1);       // metres from the frame's mi
 function frame(t, P) { towers = centres('tower'); }
 
 function warp(q, t, P) {
-  if (P.swirl || P.spin) turn(q, q.a + P.swirl * q.r + clock('spin'), q.r);
+  if (P.swirl) turn(q, q.a + P.swirl * q.r, q.r);
   if (P.wind) {                                     // round the nearest tower's upright axis, in metres
     let cx = q.ox, cz = q.oz, best = Infinity;
     for (const k of towers) {

@@ -281,12 +281,13 @@ function extent(of?: string) { return of === 'rig' ? RUN.scene?.extent ?? ORIGIN
 
 /** The library's directions (SPEC "Directions"): the options of every `direction` choice param, in this order. */
 export const DIRECTIONS = Object.freeze(['up', 'down', 'right', 'left', 'back', 'front', 'out', 'in', 'round',
-  'along'] as const);
+  'along', 'petal', 'ring'] as const);
 export type Direction = (typeof DIRECTIONS)[number];
-type Placed = { lx: number, ly: number, lz: number, a: number, r: number, u: number };
+type Placed = { lx: number, ly: number, lz: number, a: number, r: number, u: number, sector?: number, ring?: number };
 /** toward(p, direction): how far p is along a direction, 0..1 across the layer: up ly, down 1 − ly, right lz (the
  * viewer's right), left 1 − lz, back lx (front to back), front 1 − lx, out r, in 1 − r, round a (clockwise), along
- * u (each strand from its start); anything else, up. */
+ * u (each strand from its start), petal (sector + 0.5) / 16 and ring (ring − 0.5) / 7 on the rose (a step a petal,
+ * clockwise, or a ring, heart to rim; round and out off it); anything else, up. */
 export function toward(p: Placed, direction: string) {
   switch (direction) {
     case 'down': return 1 - p.ly;
@@ -298,7 +299,41 @@ export function toward(p: Placed, direction: string) {
     case 'in': return 1 - p.r;
     case 'round': return p.a;
     case 'along': return p.u;
+    case 'petal': return p.sector! >= 0 ? (p.sector! + 0.5) / 16 : p.a;
+    case 'ring': return p.ring! > 0 ? (p.ring! - 0.5) / 7 : p.r;
     default: return p.ly;
+  }
+}
+
+type Pane = { sector: number, ring: number };
+/** region(q, rule, size, seed): q's rose pane group (petal `sector` 0–15 on `ring` 1–7) by a rule (SPEC "Directions"),
+ * 0 up to regions(rule, size), −1 off the rose. size is petals a group for spiral, wedges and checker; seed picks
+ * random's arrangement. */
+function region(q: Pane, rule: string, size = 1, seed = 0) {
+  const s = q.sector, j = q.ring - 1, w = Math.max(1, Math.round(size));
+  if (!(s >= 0) || !(j >= 0)) return -1;
+  switch (rule) {
+    case 'petal': return s;
+    case 'alternate': return s % 2;
+    case 'ring': return j;
+    case 'rings': return j % 2;
+    case 'centre': return j < 1 ? 0 : j < 4 ? 1 : 2;
+    case 'spiral': return Math.floor(((s + j) % 16) / w);
+    case 'wedges': return Math.floor(s / w);
+    case 'checker': return (Math.floor(s / w) + j) % 2;
+    default: return Math.floor(hash(s * 7 + j * 131 + seed * 977) * 64);
+  }
+}
+/** regions(rule, size): how many indices region() gives by that rule. */
+function regions(rule: string, size = 1) {
+  const w = Math.max(1, Math.round(size));
+  switch (rule) {
+    case 'petal': return 16;
+    case 'ring': return 7;
+    case 'centre': return 3;
+    case 'spiral': case 'wedges': return Math.ceil(16 / w);
+    case 'alternate': case 'rings': case 'checker': return 2;
+    default: return 64;
   }
 }
 
@@ -309,7 +344,7 @@ export const STDLIB = Object.freeze({
   round: Math.round, sqrt: Math.sqrt, pow: Math.pow, exp: Math.exp, log: Math.log, hypot: Math.hypot, sign: Math.sign,
   clamp, fract, mix, step, smoothstep, soft, band, wave, tri, saw, pulse, hash, rand, noise, fbm,
   hsv, hsl, rgb, hex, scale, add, gradient, cosPalette, pal, palette, centres, extent, beat, dist, DIRECTIONS, toward,
-  move, turn, slide,
+  region, regions, move, turn, slide,
 });
 export const STDLIB_NAMES = Object.freeze(Object.keys(STDLIB));
 export const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);

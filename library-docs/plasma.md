@@ -16,8 +16,8 @@ energy. **clouds** is the calm, soft relative with clear gaps; **palette-drift**
 - turbulence.size: a swirl's size; 0.15 fine curls, 0.5 broad bends.
 
 ## Pairings
-- Add **mirror** (across) for symmetrical wings (**butterfly**), or **kaleidoscope** round the rose for a mandala.
-- Add **posterize** for flat poster bands of colour.
+- Add **mirror** (across) for symmetrical wings (**butterfly**), or **mirror** Wedges round the rose for a mandala.
+- Add **recolour** with Steps for flat poster bands of colour.
 
 ## Pitfalls
 - It covers the whole layer opaquely, so a bed under it is wasted; it is the bed.

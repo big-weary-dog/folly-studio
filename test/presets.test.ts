@@ -95,6 +95,7 @@ for (const [rigName, rig] of Object.entries({ folly, mini })) {
         if (v > 0.05) lit++;
       }
       assert.ok(lit > rgb.length * 0.05, `${p.name}: lit (${lit})`);
+      if (p.layers.some((l) => l.modules.some((m) => m.ref === 'trails'))) continue;   // an afterglow keeps history
       const sought = renderFrame(scene, make(), 2, new Float32Array(scene.count * 3), prepareLook(null)).rgb;
       assert.deepEqual(rgb, sought, `${p.name}: played and sought`);
     }

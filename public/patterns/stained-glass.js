@@ -24,17 +24,11 @@ const params = {
     help: 'How much glass. 0 leaves what is above as it was; 1 is all glass.' },
 };
 
-// Which pane colour a petal s on ring j (0 the heart) takes.
+// Which pane colour a petal s on ring j (0 the heart) takes: the stdlib's region(), on or off the rose.
+const at = { sector: 0, ring: 1 };
 function pane(rule, s, j, w, seed) {
-  if (rule === 'petal') return s;
-  if (rule === 'alternate') return s % 2;
-  if (rule === 'ring') return j;
-  if (rule === 'rings') return j % 2;
-  if (rule === 'centre') return j < 1 ? 0 : j < 4 ? 1 : 2;
-  if (rule === 'spiral') return floor((s + j) / w);
-  if (rule === 'wedges') return floor(s / w);
-  if (rule === 'checker') return (floor(s / w) + j) % 2;
-  return floor(hash(s * 7 + j * 131 + seed * 977) * 64);
+  at.sector = s; at.ring = j + 1;
+  return region(at, rule, w, seed);
 }
 
 const out = [0, 0, 0, 1];

@@ -36,14 +36,17 @@ export function transitionWeight(kind: string, direction: string, e: number, p: 
   return clamp((e * (1 + s) - (out ? 1 - x : x)) / s);
 }
 
-const at = { lx: 0, ly: 0, lz: 0, a: 0, r: 0, u: 0 };
+const at = { lx: 0, ly: 0, lz: 0, a: 0, r: 0, u: 0, sector: -1, ring: 0 };
 type Num = ArrayLike<number>;
 type Placed = { idx: Int32Array, lx: Num, ly: Num, lz: Num, a: Num, r: Num };
-/** A wipe on a layer's colours (rgba, the layer's pixels in order; u: the scene's) at envelope e: each alpha × its
- * transitionWeight. No allocation. */
-export function wipeColours(buf: Float64Array, L: Placed, u: Num, w: Transition, e: number, out: boolean) {
+/** A wipe on a layer's colours (rgba, the layer's pixels in order; S: the scene's u, sector and ring) at envelope
+ * e: each alpha × its transitionWeight. No allocation. */
+export function wipeColours(buf: Float64Array, L: Placed, S: { u: Num, sector: Num, ring: Num }, w: Transition,
+  e: number, out: boolean) {
   for (let j = 0; j < L.idx.length; j++) {
-    at.lx = L.lx[j]!; at.ly = L.ly[j]!; at.lz = L.lz[j]!; at.a = L.a[j]!; at.r = L.r[j]!; at.u = u[L.idx[j]!]!;
+    const k = L.idx[j]!;
+    at.lx = L.lx[j]!; at.ly = L.ly[j]!; at.lz = L.lz[j]!; at.a = L.a[j]!; at.r = L.r[j]!;
+    at.u = S.u[k]!; at.sector = S.sector[k]!; at.ring = S.ring[k]!;
     buf[4 * j + 3]! *= transitionWeight('wipe', w.direction, e, at, out, w.softness);
   }
 }

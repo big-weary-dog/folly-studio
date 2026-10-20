@@ -7,7 +7,7 @@ rim, or at random), lit by Backlight plus the brightness of whatever is above it
 edge panes where two colours meet, as lead lines do. Motion `glow` breathes each pane in its own time; `sweep` passes a
 band of sunlight across. A filter: alone on a layer it is a still window; after a source (**clouds**, **bars**,
 **fire**) the light behind the glass moves while its colours stay. **picture** draws a shape instead of a pattern;
-**posterize** and **recolour** keep the shapes of what is above.
+**recolour** keeps the shapes of what is above.
 
 ## Params
 - rule: `petal` a colour each petal; `alternate` and `rings` two colours; `centre` heart, middle and rim; `spiral`,
