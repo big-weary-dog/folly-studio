@@ -38,11 +38,23 @@ the overrides on top, its palette and macros where the look has none). An unknow
 input, and an empty layer, are errors with a path (`layers[1].modules[0].use: barz is not a library module (did you
 mean bars?)`); they get one repair round inside the idea (the same model, its answer and the errors; it is not
 another use), after which what expanded is kept and the rest noted. `validateLook` then cleans the result as
-any look; a layer given as code (the old shape) passes through to it. The prompt shows the library as a catalogue
-sorted by name (a module and its params on one line, a preset as its recipe), the palettes, the groups, show taste,
-and worked compositions (each only where the library and the rig's tags have what it names). The queue logs one
-line per idea or refinement: its route, timings, repair rounds, the check and critique, how many library modules,
-extensions and code it used, and the first notes.
+any look; a layer given as code (the old shape) passes through to it. The prompt shows the library as a summary
+sorted by name (a module on one line: what it looks like and its param names in brackets; a preset as its recipe),
+the palettes, the groups, show taste, and worked compositions (each only where the library and the rig's tags have
+what it names). The queue logs one line per idea or refinement: its route, timings, repair rounds, the check and
+critique, how many library modules, extensions and code it used, the docs it read, and the first notes.
+
+**Library docs** (`src/generate/library-docs.ts`). Beside the prompt, once per library, the server builds a tree of
+markdown: `library/README.md` (how layers, sources, warps, filters and presets combine; blends; inputs; groups and
+tags; globals and bindings), `library/<kind>s/README.md` (a paragraph per module of that kind) and
+`library/<kind>s/<name>.md` (every param with its type, range, default, unit and effect; directions; pairings;
+pitfalls). The prose is hand-written in `library-docs/<name>.md` (front matter `looks:`, the line the summary
+shows; a paragraph; `## Params` with a line per param, `## Overrides` for a preset; `## Pairings`; `## Pitfalls`);
+types, ranges, defaults, options and units (the code's `label`) come from the catalogue, and recipes from the index,
+so the tree follows the library. `tools/build-docs.ts` writes it to a folder. A test fails when the prose names a
+param the code lacks or a module the library has not, or (once the library's renames have landed) a module has no
+prose. The models read it with one tool, `read_doc({ path })`: a path in the tree (`library/sources/bars.md`), at most
+8 reads an answer, each read noted in the idea's log line; anything else is refused with the tree's index.
 
 **The render check** (`claude`, `codex`; `src/generate/check.ts`). Where the render box can run (`probe()` is ok),
 the expanded look is rendered for 2 s in the box, in the bakes' lane, before it is saved. A look the box cannot load,
@@ -84,13 +96,18 @@ Sketch and the prompted models refine (the foundry: 400).
   colour-wash bed on the root; a place or side the rig has no group for lands on the root. Always available.
 - `claude`: one Messages API call with the prompt as the system prompt (cached: the same bytes on every call), and
   structured output whose JSON Schema is the composition's (`compositionSchema(groups, catalog)`: the place fields
-  `wireSchema(groups)` gives, group ids, tags and preset names as enums). A repair is the same call with the
+  `wireSchema(groups)` gives, group ids, tags and preset names as enums), and `read_doc` as a tool: a tool call is
+  answered from the tree and the call made again (its thinking and tool turns kept), at most 12 calls. A repair is the same call with the
   answer as an assistant turn and the errors in a user turn; a critique likewise, its stills as image blocks; a
   refinement's user turn is the look's composition and the request.
 - `codex`: one `codex exec` call (the Codex CLI, signed in with `codex login`): `--ephemeral --skip-git-repo-check
   --ignore-user-config --ignore-rules -s read-only -C <an empty folder> -m <model> -o <answer file> --output-schema
   <the composition's schema, strict> -c model_reasoning_effort="<effort>" -c web_search="disabled" -c features.<tool>=false
-  … [-i <still> …] -`, the prompt on stdin (the guide first, the idea last; a repair, refinement or critique
+  … -c mcp_servers.docs.command=<node> -c mcp_servers.docs.args=[docs-mcp.ts, <tree>, <reads file>, 8] -c
+  mcp_servers.docs.default_tools_approval_mode="approve" [-i <still> …] -`, the prompt on stdin. The shell stays
+  off, so the model reads nothing but the docs: `docs-mcp.ts` is a stdlib-only MCP server on stdio with the one tool
+  `read_doc`, serving the tree as written under the work folder (`docs-<hash>/`), a path's real path (symlinks
+  followed) inside it; each read is appended to the job's reads file (the guide first, the idea last; a repair, refinement or critique
   adds its turn after the idea, as a fresh run, a critique's stills as `-i` attachments). Started from an argument list, never a shell (on Windows
   an npm `codex.cmd` shim is read for the script it runs); its environment is only what the CLI needs; its whole
   process tree is killed on a wall clock (`timeoutSeconds`, else `STUDIO_CODEX_TIMEOUT_MS`, 300 s), past 4 MB of

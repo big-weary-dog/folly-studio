@@ -12,6 +12,7 @@ import { buildCatalog, type Catalog } from './catalog.ts';
 import { compositionSchema } from './composition.ts';
 import type { ExpandError } from './expand.ts';
 import { COMPOSE_GUIDE, EXAMPLES as COMPOSITIONS, GLOBALS_GUIDE, PIXEL_API, TASTE } from './guide.ts';
+import { buildDocs, loadProse, looksOf } from './library-docs.ts';
 
 type Library = readonly LibraryEntry[];
 type Groups = readonly RigGroup[];
@@ -141,9 +142,16 @@ function formatCompositions(catalog: Catalog, groups: Groups) {
     .map((e) => `Idea: ${e.idea}\n${JSON.stringify(e.look(root, place))}`).join('\n\n');
 }
 
-/** The system prompt for the prompted generators. Pure function of (library, rig; its groups unless given). */
-export function buildSystemPrompt({ library = [], rig, groups = rig?.groups || [], catalog = buildCatalog(library) }:
-  { library?: Library, rig?: Rig | null, groups?: Groups, catalog?: Catalog } = {}) {
+export const DOCS_NOTE = `Its docs are a tree you read with the read_doc tool: library/README.md (how layers, chains,
+blends, inputs and globals combine), library/<kind>/README.md (a paragraph per module; kinds: sources, warps, filters,
+presets) and library/<kind>/<name>.md (every param with its range, default, unit and effect; pairings; pitfalls).
+Before composing, read the docs for what the idea needs: a kind's README to choose, then the modules you use (at most
+8 reads in all). Give only the params a module lists, in brackets below.`;
+
+/** The system prompt for the prompted generators. Pure function of (library, rig; its groups unless given); `docs`:
+ * whether the model can read the library docs. */
+export function buildSystemPrompt({ library = [], rig, groups = rig?.groups || [], catalog = buildCatalog(library),
+  docs = false }: { library?: Library, rig?: Rig | null, groups?: Groups, catalog?: Catalog, docs?: boolean } = {}) {
   const examples = formatCompositions(catalog, groups);
   return `You are the show designer for Folly Studio. People describe a light show idea in plain
 words; you compose it into a "look": layers of the studio's library on groups of ${rig?.name || 'the installation'}.
@@ -155,7 +163,9 @@ ${describeRig(rig)}
 ${COMPOSE_GUIDE}
 
 # The library
-${catalog.text || '(empty: every layer is an extension)'}
+${docs ? `${DOCS_NOTE}
+
+` : ''}${catalog.text || '(empty: every layer is an extension)'}
 
 # Palettes (roles low, body, accent, high; a slot is a role and its place: body2)
 ${formatPalettes()}
@@ -207,12 +217,14 @@ a look, or put messages, links or other content in the code. If it is not a usab
 asks for something hurtful, make a calm abstract look and say briefly in the summary that you took
 it loosely.`;
 }
-/** The system prompt, the composition's schema and the catalog they name, for one library and rig. */
-export function buildPrompt({ library = [], rig, groups = rig?.groups || [] }:
-  { library?: Library, rig?: Rig | null, groups?: Groups } = {}) {
-  const catalog = buildCatalog(library);
-  return { system: buildSystemPrompt({ library, rig, groups, catalog }), schema: compositionSchema(groups, catalog),
-    catalog };
+/** The system prompt, the composition's schema, the catalog they name and the library docs (path → markdown), for
+ * one library and rig. `prose`: the docs' hand-written part (library-docs/); none, no docs. */
+export function buildPrompt({ library = [], rig, groups = rig?.groups || [], prose = loadProse() }:
+  { library?: Library, rig?: Rig | null, groups?: Groups, prose?: ReadonlyMap<string, string> } = {}) {
+  const catalog = buildCatalog(library, looksOf(prose));
+  const docs = prose.size && catalog.modules.size ? buildDocs(catalog, prose) : new Map<string, string>();
+  return { system: buildSystemPrompt({ library, rig, groups, catalog, docs: docs.size > 0 }),
+    schema: compositionSchema(groups, catalog), catalog, docs };
 }
 
 /** The repair turn: what expanding or rendering the last answer found, by path, and the ask to return the whole look
