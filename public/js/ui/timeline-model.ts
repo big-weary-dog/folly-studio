@@ -1,4 +1,4 @@
-// Timeline edits as pure functions (SPEC "Timeline"): clips [{ start, end, fadeIn, fadeOut }] in seconds, sorted,
+// Timeline edits as pure functions (SPEC "Timeline"): clips [{ start, end, fadeIn, fadeOut, transition? }], sorted,
 // not overlapping. Each edit returns new arrays and keeps those rules, so the server accepts what the editor makes.
 import { DEFAULT_DURATION, MAX_CLIPS, MAX_DURATION, MIN_DURATION } from '../core/timeline.ts';
 import type { Clip } from '../../../shared/schemas/look.ts';
@@ -31,10 +31,11 @@ export function snapStep(mode: string, bpm?: number | null) {
 
 export const snap = (t: number, step: number) => (step > 0 ? Math.round(t / step) * step : t);
 
-/** Every field, to the ms. Fades that overrun a short clip stay: playback shrinks them (shownFades). */
+/** Every field, times to the ms. Fades that overrun a short clip stay: playback shrinks them (shownFades). */
 export function fitClip(c: Clip): Clip {
   const fade = (v: number) => ms(clamp(+v || 0, 0, MAX_DURATION));
-  return { start: ms(c.start), end: ms(c.end), fadeIn: fade(c.fadeIn), fadeOut: fade(c.fadeOut) };
+  const out: Clip = { start: ms(c.start), end: ms(c.end), fadeIn: fade(c.fadeIn), fadeOut: fade(c.fadeOut) };
+  return c.transition ? { ...out, transition: c.transition } : out;
 }
 
 /** [fadeIn, fadeOut] as they play: shrunk in proportion when they overrun the clip. */
@@ -94,7 +95,7 @@ export function editClip(clips: Clip[], i: number, patch: Partial<Clip>, limit =
   const old = clips[i];
   const c = { ...old, ...patch };
   for (const k of ['start', 'end', 'fadeIn', 'fadeOut'] as const) if (!Number.isFinite(+c[k])) return null;
-  const keep = { fadeIn: +c.fadeIn, fadeOut: +c.fadeOut };
+  const keep = { fadeIn: +c.fadeIn, fadeOut: +c.fadeOut, transition: c.transition };
   const both = patch.start !== undefined && patch.end !== undefined;
   let start = +c.start, end = +c.end;
   if (start >= end && !both) {
@@ -184,3 +185,15 @@ export function clock(t: number) {
   const whole = Math.floor(s), frac = ms(s - whole);
   return `${m}:${String(whole).padStart(2, '0')}${frac ? String(frac).slice(1, 4) : ''}`;
 }
+
+/** The transitions a clip can take (SPEC "Timeline"): a fade, or a wipe across one of these directions. */
+export const WIPES = ['right', 'left', 'up', 'down', 'out', 'in'] as const;
+/** Clip i with transition `kind` ('fade' or 'wipe:<direction>'). */
+export function setTransition(clips: Clip[], i: number, kind: string) {
+  const [, dir] = kind.split(':'), { transition: _, ...c } = clips[i];
+  const direction = WIPES.find((d) => d === dir);
+  return replace(clips, i, direction ? { ...c, transition: { kind: 'wipe', direction } } : c);
+}
+/** A clip's transition as setTransition names it. */
+export const transitionKey = (c: Clip) => (c.transition?.kind === 'wipe' ? `wipe:${c.transition.direction ?? 'right'}`
+  : 'fade');

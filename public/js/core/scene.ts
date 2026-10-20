@@ -161,6 +161,30 @@ export function tagMask(scene: Scene, tag: string) {
   });
 }
 
+/**
+ * `tag`'s parts (SPEC "The pixel p"): the groups tagged `tag`, or, when one group is, its smallest groups (rig order).
+ * `of`: each pixel's part, −1 in none (the first part that holds it; empty parts are dropped); `n` how many (cached).
+ */
+export function tagParts(scene: Scene, tag: string) {
+  return cached(scene, `%${tag}`, () => {
+    const tagged = groupsByTag(scene, tag), seen = new Set<string>();
+    const leaves = (g: RigGroup): RigGroup[] => {
+      if (seen.has(g.id)) return [];
+      seen.add(g.id);
+      const kids = scene.groups.filter((c) => c.parent === g.id);
+      return kids.length ? kids.flatMap(leaves) : [g];
+    };
+    const of = new Int32Array(scene.count).fill(-1);
+    let n = 0;
+    for (const g of tagged.length === 1 ? leaves(tagged[0]!) : tagged) {
+      let held = 0;
+      for (const k of groupMembers(scene, g)) if (of[k]! < 0) { of[k] = n; held = 1; }
+      n += held;
+    }
+    return { of, n };
+  });
+}
+
 /** Each group tagged `tag`: its `centre` (else its pixels' middle) as a frozen [X, Y, Z] (cached). */
 export function tagCentres(scene: Scene, tag: string): Centres {
   return cached(scene, `@${tag}`, () => Object.freeze(groupsByTag(scene, tag).map((g) => {

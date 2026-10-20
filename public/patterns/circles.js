@@ -1,10 +1,14 @@
 // Circles: balls drift and bounce round the layer at Speed, each a colour from Colours, melting together where they
 // meet.
 const params = {
-  colours: { value: 'all', type: 'color', label: 'Colours' },
-  speed: { value: 0.15, min: 0, max: 1, step: 0.01, label: 'Speed (crossings a second)' },
-  count: { value: 5, min: 1, max: 8, step: 1, label: 'Balls' },
-  size: { value: 0.12, min: 0.03, max: 0.4, step: 0.01, label: 'Size' },
+  colours: { value: 'all', type: 'color', label: 'Colours',
+    help: 'Which palette colours the balls, one colour a ball.' },
+  speed: { value: 0.15, min: 0, max: 1, step: 0.01, label: 'Speed (crossings a second)',
+    help: 'How fast the balls drift and bounce. 0 holds them still; high darts them about.' },
+  count: { value: 5, min: 1, max: 8, step: 1, label: 'Count (balls)',
+    help: 'How many balls there are. One drifts alone; more crowd together and merge into blobs.' },
+  size: { value: 0.12, min: 0.03, max: 0.4, step: 0.01, label: 'Size (radius, share of the layer)',
+    help: 'How big each ball is. Small gives dots; large gives big blobs that merge often.' },
 };
 
 const BZ = new Float64Array(8), BY = new Float64Array(8);

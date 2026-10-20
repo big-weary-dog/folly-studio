@@ -18,9 +18,8 @@ import { buildDocs, lintDocs, loadProse, looksOf, parseProse } from '../src/gene
 import { buildPrompt } from '../src/generate/prompt.ts';
 import { GROUPS, lookJson, quiet, sse, STUDIO, streamOf, tmp } from './fixtures/generate/shared.js';
 
-// Off until the library's renames (studio-lib) are in the base: the prose is written for the library as it will be,
-// so until then a gap either way is a warning. On, it is a failure.
-const DOCS_STRICT = false;
+// On: a module without prose, prose naming what the library lacks, or a param without help fails. Off, each warns.
+const DOCS_STRICT = true;
 
 const DIR = path.join(STUDIO, 'public/patterns');
 const REAL = JSON.parse(fs.readFileSync(path.join(DIR, 'index.json'), 'utf8')).map((p) => ({ ...p,

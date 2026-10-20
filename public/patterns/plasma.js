@@ -1,9 +1,12 @@
 // Plasma: a field of four sine waves flowing at Speed, coloured back and forth through Colours.
-// Detail is how many waves cross the layer.
+// Size is a wave's, as a share of the layer.
 const params = {
-  colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth' },
-  speed: { value: 0.6, min: 0, max: 3, step: 0.01, label: 'Speed' },
-  scale: { value: 6, min: 1, max: 20, step: 0.1, label: 'Detail' },
+  colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth',
+    help: 'The palette the plasma flows through, back and forth.' },
+  speed: { value: 0.6, min: 0, max: 3, step: 0.01, label: 'Speed (waves a second)',
+    help: 'How fast the waves flow. Zero freezes them; high churns quickly.' },
+  size: { value: 0.17, min: 0.05, max: 1, step: 0.01, label: 'Size (share of the layer)',
+    help: 'How big each wave is. Low gives fine, busy ripples; high gives broad, slow swells.' },
 };
 
 let s = 0, cx = 0.5, cy = 0.5;
@@ -15,7 +18,7 @@ function frame() {
 }
 
 function pixel(p, t, P) {
-  const k = P.scale;
+  const k = 1 / P.size;
   const v = sin(p.lz * k * 1.3 + s) + sin(p.ly * k * 1.7 - s * 1.3) + sin((p.lz + p.ly + p.lx) * k * 0.9 + s * 0.7)
     + sin(hypot(p.lz - cx, p.ly - cy) * k * 2.2 - s * 1.1);
   return pal('colours', tri(v / 4 + 0.5));

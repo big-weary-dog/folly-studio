@@ -4,12 +4,14 @@
 import { useEffect, useId, useState } from 'preact/hooks';
 
 import { api, statusOf } from '../api.ts';
-import type { Clip } from '../../../shared/schemas/look.ts';
 import type { Listed } from '../../../shared/schemas/api.ts';
 import { signedOut } from './session.ts';
 import { cx, openDialog } from './kit.tsx';
 import type { Studio } from './studio-store.ts';
-import { cleanBpm, cleanDuration, clock, DEFAULT_DURATION, editClip, MAX_DURATION } from './timeline-model.ts';
+import { optionText } from './bindings.ts';
+import {
+  cleanBpm, cleanDuration, clock, DEFAULT_DURATION, editClip, MAX_DURATION, setTransition, transitionKey, WIPES,
+} from './timeline-model.ts';
 import type { TimelineState } from './timeline-state.ts';
 
 const SNAPS = [['grid', 'Snap ¼ s'], ['beat', 'Snap beats'], ['off', 'No snap']];
@@ -77,19 +79,28 @@ export function TimelineTools({ st, tl, inspector }: Props & { inspector?: boole
 /** The selected clip's numbers. */
 export function Inspector({ st, tl }: Props) {
   const s = tl.selected.value, layer = st.selected.value;
-  const edit = (key: keyof Clip) => (typed: string, el: HTMLInputElement) => {
+  type Time = 'start' | 'end' | 'fadeIn' | 'fadeOut';
+  const edit = (key: Time) => (typed: string, el: HTMLInputElement) => {
     const now = tl.selected.peek();
     if (!now) return;
     const next = editClip(now.layer.clips || [], now.index, { [key]: Number(typed) }, tl.limit(now.clip));
     if (next) tl.setClips(now.layer.id, next); else el.value = show(now.clip[key]);
   };
-  const field = (key: keyof Clip, label: string) => <Num key={key} label={label} keep min={0} max={MAX_DURATION}
+  const field = (key: Time, label: string) => <Num key={key} label={label} keep min={0} max={MAX_DURATION}
     step={0.05} title={`${label}, in seconds`} value={s ? s.clip[key] : null} disabled={!s} commit={edit(key)} />;
   return (
     <div class={cx('tl-inspector', !s && 'none')} role="group" aria-label="Selected clip">
       <span class="tl-clip-name">{s ? `${s.layer.title || 'Layer'} · clip ${s.index + 1}/${s.layer.clips?.length}`
         : layer ? `${layer.title || 'Layer'}: tap a clip to edit it` : 'No layer selected'}</span>
       {field('start', 'Start')}{field('end', 'End')}{field('fadeIn', 'Fade in')}{field('fadeOut', 'Fade out')}
+      <select class="tl-transition" aria-label="How the fades show" title="How the fades show" disabled={!s}
+        value={s ? transitionKey(s.clip) : 'fade'} onChange={(e) => {
+          const now = tl.selected.peek();
+          if (now) tl.setClips(now.layer.id, setTransition(now.layer.clips || [], now.index, e.currentTarget.value));
+        }}>
+        <option value="fade">Fade</option>
+        {WIPES.map((d) => <option value={`wipe:${d}`}>{`Wipe ${optionText(d, [...WIPES])}`}</option>)}
+      </select>
       {st.narrow.value && <AddClip st={st} tl={tl} />}
       <Btn text="Remove" label="Remove this clip (Delete)" cls="tl-btn tl-del" disabled={!s}
         onClick={tl.removeSelected} />

@@ -4,12 +4,17 @@
 // whole rig's across, up and depth, so layers on different groups match.
 const params = {
   tag: { value: 'rose', type: 'choice', label: 'Group',
-    options: ['rose', 'window', 'tower', 'spire', 'spirelet', 'arch', 'arch-main', 'arch-mini', 'arch-quad',
-      'canopy', 'wash', 'front', 'back', 'left', 'right', 'all'] },
-  which: { value: 'first', type: 'choice', options: ['first', 'nearest'], label: 'Which group' },
-  shape: { value: 'facade', type: 'choice', options: ['facade', 'plan', 'sphere'], label: 'Shape' },
-  reach: { value: 0, min: 0, max: 30, step: 0.5, label: 'Reach (metres; 0: the layer)' },
-  lineup: { value: false, type: 'toggle', label: 'Line up with other layers' },
+    options: ['rose', 'window', 'tower', 'spire', 'spirelet', 'arch', 'arch-main', 'arch-mini', 'arch-quad', 'ring',
+      'canopy', 'wash', 'flood', 'ground-level', 'front', 'back', 'left', 'right', 'all'],
+    help: 'Which of the rig\'s tagged groups the centre moves to; all is the whole rig.' },
+  which: { value: 'first', type: 'choice', options: ['first', 'nearest'], label: 'Which group',
+    help: 'first centres on the first group with the tag; nearest centres each LED on its closest group.' },
+  shape: { value: 'facade', type: 'choice', options: ['facade', 'plan', 'sphere'], label: 'Shape',
+    help: 'facade rings round the centre on the front face; plan rings round an upright axis; sphere grows outward.' },
+  reach: { value: 0, min: 0, max: 30, step: 0.5, label: 'Reach (metres; 0: the layer)',
+    help: 'How far out counts as the edge. Small packs what is above round the group; large spreads it wide.' },
+  lineup: { value: false, type: 'toggle', label: 'Line up with other layers',
+    help: 'On keeps the across, up and depth of the whole rig, so layers on different groups match up.' },
 };
 
 let list = [], R = 1;
@@ -52,7 +57,8 @@ function warp(q, t, P) {
   q.a = fract(plan ? atan2(dz, -dx) / TAU : atan2(dz, dy) / TAU);  // plan: 0 toward the front, ¼ toward the right
   q.r = metric(P.shape, dx, dy, dz) / R;
   if (P.lineup) { q.lx = q.x; q.ly = q.y; q.lz = q.z; return; }
-  q.lz = 0.5 + dz / (2 * R);
-  if (P.shape !== 'facade') q.lx = 0.5 + dx / (2 * R);
-  if (!plan) q.ly = 0.5 + dy / (2 * R);
+  // A new frame (SPEC "Modules"): the moves of the warps after this one read the group's middle and reach.
+  q.cy = c[1]; q.cz = c[2]; q.oz = c[2]; q.sz = q.sr = R; q.lz = 0.5 + dz / (2 * R);
+  if (P.shape !== 'facade') { q.ox = c[0]; q.sx = R; q.lx = 0.5 + dx / (2 * R); }
+  if (!plan) { q.oy = c[1]; q.sy = R; q.ly = 0.5 + dy / (2 * R); }
 }

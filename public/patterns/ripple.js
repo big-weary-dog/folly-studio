@@ -1,10 +1,14 @@
 // Ripple: drops land at random spots and spread rings at Speed, each fading as it grows: strong crests in the last of
 // Colours, faint rings in the first. Drops is how many spread at once.
 const params = {
-  colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth' },
-  speed: { value: 0.25, min: 0.05, max: 1, step: 0.01, label: 'Speed (layers a second)' },
-  drops: { value: 5, min: 1, max: 8, step: 1, label: 'Drops at once' },
-  width: { value: 0.05, min: 0.005, max: 0.15, step: 0.005, label: 'Ring width' },
+  colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth',
+    help: 'Colours the rings: young rings near their drop take the last colour, wide fading ones drift to the first.' },
+  speed: { value: 0.25, min: 0.05, max: 1, step: 0.01, label: 'Speed (layers a second)',
+    help: 'How fast rings spread. Low swells gently; high sends rings racing out and new drops landing more often.' },
+  drops: { value: 5, min: 1, max: 8, step: 1, label: 'Drops at once',
+    help: 'How many rings spread at once, each from its own random spot. Low is a lone drop; high a downpour.' },
+  width: { value: 0.05, min: 0.005, max: 0.15, step: 0.005, label: 'Ring width',
+    help: 'How thick each ring is. Low draws fine sharp circles; high draws broad soft swells.' },
 };
 
 const REACH = 0.6;                                // how far a ring spreads before its drop lands again elsewhere

@@ -48,6 +48,8 @@ export const PIXEL_API = `The pixel \`p\`:
 - \`ring sector\`: ring and sector where the installation has them (a rose window's ring and petal), else 0 / −1;
   \`attr(name)\`: any other per-pixel number it defines
 - \`is(tag)\`: true on pixels in a group with that tag (the tags are listed with the groups)
+- \`part(tag) parts(tag)\`: which of \`tag\`'s parts holds the pixel (0 up, −1 none) and how many: the groups tagged
+  \`tag\`, or when only one is, its smallest groups (each arch of the arches), in the installation's order
 - \`k seed\`: global index; a stable random 0..1 per LED
 
 Stdlib (globals): PI TAU sin cos tan asin acos atan atan2 abs min max floor ceil round sqrt pow

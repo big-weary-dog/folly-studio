@@ -17,7 +17,8 @@ export type { Scene } from './core/scene.ts';
 export { FLASH, flashLimits, FlashWatch } from './core/flash.ts';
 export type { Flashes, FlashLimits } from './core/flash.ts';
 export {
-  DEFAULT_DURATION, layerEnvelope, lookDuration, MAX_CLIPS, MAX_DURATION, MIN_DURATION, normalizeClips,
+  DEFAULT_DURATION, layerEnvelope, lookDuration, MAX_CLIPS, MAX_DURATION, MIN_DURATION, normalizeClips, TRANSITIONS,
+  transitionWeight,
 } from './core/timeline.ts';
 export {
   BLENDS, compileLayer, layerModules, MODULE_KINDS, prepareLayer, renderFrame, SOURCE_BLENDS,

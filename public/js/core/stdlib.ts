@@ -1,6 +1,8 @@
 // The stdlib pattern code sees as globals (SPEC "Stdlib"), helpers the core shares, the look's palette (SPEC
-// "Globals") and RUN, what the frame being rendered shares with pattern code. No imports but types.
+// "Globals") and RUN, what the frame being rendered shares with pattern code. No imports but types and the warp
+// contract (place.ts).
 import type { G, PreparedLook } from './globals.ts';
+import { move, slide, turn } from './place.ts';
 
 /** A colour: [r, g, b] each 0..1; what patterns may give one as: an array, '#rrggbb' or a grey level. */
 export type RGB = [number, number, number];
@@ -282,7 +284,7 @@ type Placed = { lx: number, ly: number, lz: number, a: number, r: number, u: num
 /** toward(p, direction): how far p is along a direction, 0..1 across the layer: up ly, down 1 − ly, right lz (the
  * viewer's right), left 1 − lz, back lx (front to back), front 1 − lx, out r, in 1 − r, round a (clockwise), along
  * u (each strand from its start); anything else, up. */
-function toward(p: Placed, direction: string) {
+export function toward(p: Placed, direction: string) {
   switch (direction) {
     case 'down': return 1 - p.ly;
     case 'right': return p.lz;
@@ -304,6 +306,7 @@ export const STDLIB = Object.freeze({
   round: Math.round, sqrt: Math.sqrt, pow: Math.pow, exp: Math.exp, log: Math.log, hypot: Math.hypot, sign: Math.sign,
   clamp, fract, mix, step, smoothstep, soft, band, wave, tri, saw, pulse, hash, rand, noise, fbm,
   hsv, hsl, rgb, hex, scale, add, gradient, cosPalette, pal, palette, centres, extent, beat, dist, DIRECTIONS, toward,
+  move, turn, slide,
 });
 export const STDLIB_NAMES = Object.freeze(Object.keys(STDLIB));
 export const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);

@@ -19,7 +19,7 @@ export const colourOf = (w: string) => COLOURS[w] || (w.endsWith('s') && COLOURS
 const WARM_WHITE = WORDS.warmWhite;
 export const [SLOW, FAST, STOP] = [WORDS.slow, WORDS.fast, WORDS.stop].map((w) => new Set(w.split(' ')));
 /** A param that sets a pace, by its name. */
-export const PACE = /speed|rate|pace/i;
+export const PACE = /speed|rate|pace|spin/i;
 
 // Place phrases → the tags that find their groups (the first tag the rig uses wins), else group ids and names
 // matching `match`. Order matters: longer phrases first, so "main arches" is not also read as "arches".

@@ -1,12 +1,13 @@
-// Trails: a fading afterglow behind whatever moves. A buffer by p.k remembers each LED's light, decaying to Decay
-// after a second; it shows the brighter of now and what is left. Time going back clears it. A stage end: it keeps
-// real LED colours from frame to frame, so no warp below it bends what is above it.
+// Trails: a fading afterglow behind whatever moves. A buffer by p.k remembers each LED's light, fading by Decay a
+// second (by alpha, so its colour holds and what is below shows through); what is drawn now goes over it. Time going
+// back clears it. A stage end: it keeps real LED colours from frame to frame, so no warp below it bends what is above.
 const stage = 'history';
 const params = {
-  decay: { value: 0.15, min: 0, max: 0.95, step: 0.01, label: 'Left after one second' },
+  decay: { value: 0.15, min: 0, max: 0.95, step: 0.01, label: 'Left after one second',
+    help: 'How much of the afterglow is left a second later. 0 leaves no trail; high leaves long, lingering smears.' },
 };
 
-let mem = new Float32Array(3 * 5000);
+let mem = new Float32Array(4 * 5000);    // premultiplied rgb and alpha
 let last = NaN, keep = 0;
 
 function frame(t, P) {
@@ -16,16 +17,17 @@ function frame(t, P) {
 }
 
 function filter(c, q, t, P) {
-  const o = 3 * q.k;
-  if (o + 2 >= mem.length) {             // more LEDs than expected: grow once
-    const more = new Float32Array(o + 3000);
+  const o = 4 * q.k, a = c[3];
+  if (o + 3 >= mem.length) {             // more LEDs than expected: grow once
+    const more = new Float32Array(o + 4000);
     more.set(mem);
     mem = more;
   }
+  const left = keep * (1 - a), out = a + mem[o + 3] * left;
   for (let i = 0; i < 3; i++) {
-    const now = c[i] * c[3], held = mem[o + i] * keep;
-    c[i] = mem[o + i] = now > held ? now : held;
+    mem[o + i] = c[i] * a + mem[o + i] * left;
+    c[i] = out > 0 ? mem[o + i] / out : 0;
   }
-  c[3] = 1;
+  mem[o + 3] = c[3] = out;
   return c;
 }

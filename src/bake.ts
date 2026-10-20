@@ -46,9 +46,10 @@ export function bakeSeconds(look: { duration?: unknown } | null | undefined, max
   return Math.min(max, Number.isFinite(d) && d > 0 ? d : DEFAULT_DURATION);
 }
 
-// An LFO in beats: a number param's binding, or a colour pick's rotate (SPEC "Palettes").
+// A binding that counts beats (an LFO in beats, or the tempo): a number param's, or a colour pick's rotate.
 const beatsLfo = (params: object | undefined | null): boolean => Object.values(params || {})
-  .some((v) => v && typeof v === 'object' && (v.mod === 'lfo' ? v.unit === 'beats' : beatsLfo({ r: v.rotate })));
+  .some((v) => v && typeof v === 'object' && (v.mod === 'lfo' ? v.unit === 'beats' : v.mod === 'beats'
+    || beatsLfo({ r: v.rotate })));
 /** What a bake renders of a look. */
 type Renders = { layers?: readonly LayerInput[], globals?: unknown, automation?: unknown, bpm?: unknown };
 

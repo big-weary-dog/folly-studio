@@ -5,8 +5,8 @@ import { z } from 'zod';
 
 import PALETTES from '../../public/data/palettes.json' with { type: 'json' };
 import {
-  BLENDS, BLUR_MODES, GLOBALS, macroNameOk, MAX_CLIPS, MAX_DURATION, MAX_LANES, MAX_MACROS, MAX_POINTS, MAX_RADIUS,
-  MODULE_KINDS, PALETTE_ROLES, SOURCE_BLENDS,
+  BLENDS, BLUR_MODES, DIRECTIONS, GLOBALS, macroNameOk, MAX_CLIPS, MAX_DURATION, MAX_LANES, MAX_MACROS, MAX_POINTS,
+  MAX_RADIUS, MODULE_KINDS, PALETTE_ROLES, SOURCE_BLENDS, TRANSITIONS,
 } from '../../public/js/pattern-core.ts';
 
 export {
@@ -56,6 +56,10 @@ export function problem(error: z.ZodError): string {
 const Clip = z.object({
   start: seconds('start'), end: seconds('end'), fadeIn: seconds('fadeIn').default(0),
   fadeOut: seconds('fadeOut').default(0),
+  transition: z.strictObject({ kind: oneOf('transition.kind', TRANSITIONS),
+    direction: oneOf('transition.direction', DIRECTIONS).optional(),
+    softness: num(0.001, 1, 'transition.softness must be a number from 0.001 to 1.').optional(),
+  }, { error: 'transition must be { kind, direction?, softness? }.' }).optional(),
 }, { error: 'must be an object.' }).refine((c) => c.end > c.start, 'end must be after start.');
 
 /** A layer's clips (SPEC "Timeline"): sorted by start; overlaps refused (touching is fine). */
@@ -70,7 +74,7 @@ const Clips = z.array(Clip, { error: 'clips must be an array.' }).max(MAX_CLIPS,
   });
 
 const bound = z.number().min(-1e6).max(1e6).optional();
-/** A param bound to an LFO, a global or the clip envelope instead of a number (SPEC "Param bindings"). */
+/** A param bound to an LFO, a global, the clip envelope or the tempo instead of a number (SPEC "Param bindings"). */
 export const Binding = z.discriminatedUnion('mod', [
   z.strictObject({ mod: z.literal('lfo'), shape: z.enum(['sine', 'tri', 'saw', 'square', 'hold']).optional(),
     rate: bound, unit: z.enum(['hz', 'beats']).optional(), depth: bound, center: bound,
@@ -78,6 +82,7 @@ export const Binding = z.discriminatedUnion('mod', [
   z.strictObject({ mod: z.literal('global'), name: z.string().regex(/^[a-z][A-Za-z0-9_]{0,31}$/), from: bound,
     to: bound }),
   z.strictObject({ mod: z.literal('envelope'), from: bound, to: bound }),
+  z.strictObject({ mod: z.literal('beats'), per: bound }),
 ]);
 
 // A colour pick (SPEC "Palettes"): roles, slots, all, rainbow and '#rrggbb', joined by spaces or dealt by '/'.

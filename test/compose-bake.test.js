@@ -41,7 +41,7 @@ const LOOK = {
       { id: 'cl', kind: 'source', title: 'Clouds', code: lib('clouds'), as: 'input' },
       { id: 'mask', kind: 'filter', title: 'Mask', code: lib('mask'), input: 'cl',
         params: { cutoff: { mod: 'global', name: 'storm', from: 0.6, to: 0.2 } } },
-      { id: 'tint', kind: 'filter', title: 'Tint', code: lib('tint') },
+      { id: 'tint', kind: 'filter', title: 'Recolour', code: lib('recolour') },
       { id: 'w', kind: 'warp', title: 'Mirror', code: lib('mirror'), params: { along: true } },
     ] },
   ],
