@@ -5,9 +5,10 @@
 .dock-tools .btn { margin-left: 0; }
 .tl-body { display: flex; flex-direction: column; flex: none; min-height: 0; }
 @media (min-width: 900px) {
-  .studio[data-dock=timeline] { grid-template-rows: auto auto minmax(0, 1fr) 0 auto; }
-  .studio[data-dock=timeline] .splitter, .studio[data-dock=timeline] .code-body,
-    .studio[data-dock=timeline] .dock-code-only { display: none !important; }
+  .studio[data-dock=timeline] .code-body, .studio[data-dock=timeline] .dock-code-only { display: none !important; }
+  .studio[data-dock=timeline] .tl-body { flex: 1; }
+  .tl-body > .tl { flex: 1; min-height: 0; }
+  .tl-body .tl-scroll { flex: 1; max-height: none; }
   .studio[data-dock=code] .tl-body, .studio[data-dock=code] .dock-tools, .studio.code-collapsed .tl-body,
     .studio.code-collapsed .dock-tools { display: none; }
   .studio[data-dock=timeline] .dock-issue:not([hidden]) { display: inline-flex; }
@@ -15,7 +16,7 @@
 }
 .tl { --tl-row: 22px; --tl-ruler: 16px; --tl-tick: #4d4258; position: relative; display: flex; flex-direction: column;
   min-width: 0; }
-.tl-scroll { position: relative; overflow: auto; max-height: min(30vh, 200px); outline: none;
+.tl-scroll { position: relative; overflow: auto; outline: none;
   background: var(--night-0); overscroll-behavior: contain; scrollbar-width: thin; scrollbar-gutter: stable;
   scrollbar-color: var(--night-4) transparent; }
 .tl-scroll:focus-visible { box-shadow: inset 0 0 0 2px var(--focus); }

@@ -5,7 +5,8 @@ body[data-view=studio] { --side-w: 330px; overflow: hidden; }
 .view-studio { height: calc(100dvh - var(--header-h)); }
 .studio { --code-h: 36%; position: relative; height: 100%; display: grid; background: var(--lead);
   grid-template-columns: clamp(248px, 16vw, 320px) minmax(0, 1fr) var(--side-w);
-  grid-template-rows: auto auto minmax(0, 1fr) 5px minmax(120px, var(--code-h));
+  /* the dock: one height on every tab, at least 220px, leaving the 3D view room */
+  grid-template-rows: auto auto minmax(0, 1fr) 5px min(max(220px, var(--code-h)), calc(100% - 260px));
   grid-template-areas: "bar bar side" "notice notice side" "groups viewer side" "groups split side" "groups code side";
 }
 .studio.code-collapsed { grid-template-rows: auto auto minmax(0, 1fr) 0 auto; }

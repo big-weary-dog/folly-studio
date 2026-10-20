@@ -270,15 +270,22 @@ Sequencing lives on the look, xLights-style.
 - The Studio edits it in a Timeline panel (`ui/timeline*.tsx`): docked under the 3D view beside
   Code on a wide screen (drag, trim, fade, zoom, snap to ¼ s or beats), a Time tab on a phone
   (the selected clip's numbers). The editor's edits (`ui/timeline-model.ts`, pure) keep every
-  rule above, so what it saves the API accepts. Under the layers, a lane per automated global (energy, macros):
-  click to add a point, drag to move it, double-click to remove it.
+  rule above, so what it saves the API accepts. Under the layers, a lane per modulator (`ui/timeline-mods.tsx`): its
+  value over the show (0..1 of its range, as it plays: pace, swing and lanes in), its name and what it drives in the
+  lane's head, which opens it on the Look panel; the group folds to its head (kept per browser). Under those, a lane per
+  automated global (energy, macros): click to add a point, drag to move it, double-click to remove it. The bottom
+  dock (Code, Timeline, Look) is one height on every tab: a share of the Studio's height (36%, at least 220 px, the
+  3D view keeping at least 200 px), dragged by the splitter above it and kept per browser.
 - Composition (`ui/chain.tsx`, `ui/params.tsx`, `ui/shelf.tsx`, `ui/look-globals.tsx`): the selected layer's
   module chain (kind badge, enable, reorder, delete, a filter's input), its Soften row (radius and mode; new layers
   start at `DEFAULT_SOFTEN`), the pickers (Add a module: tabs Sources, Warps, Filters; Add a layer: Blank, a blank
   layer or one source, and Presets; one-line rows by category with a filter, the tab remembered for the session, each
   row auditioned in the 3D view), the code editor and
   params on the selected module (each number param can be modulated), and a Look panel of globals, the palette
-  (its theme line under the menu; each swatch titled by its slot, `body2 · #fd7f40`) and macros. Modulating is in
+  (its theme line under the menu; each swatch titled by its slot, `body2 · #fd7f40`), its modulators and its faders
+  (macros without a mod; `ui/look-mods.tsx`). A modulator is a card: its name to rename, how it moves, its value now,
+  ∿ to edit it, × to delete it, and a chip for each param it drives (layer › param), which selects that layer and
+  module and opens the param's ∿; a fader's row lists what it drives, paces or swings the same way. Modulating is in
   place (`ui/modulate.tsx`, `ui/mod-live.tsx`): ∿ opens a popover beside the row, not a modal (a sheet on a phone);
   kinds LFO (its wave over two cycles in the param's range with the playhead, shape, rate pills from ¼ beat to 4
   bars or Hz, Rate × and Swing × a fader, From/To; a new one swings a quarter of the range round the field's value),

@@ -1,5 +1,6 @@
 // The timeline (SPEC "Timeline"): a row per layer, top first, clips on a ruler, a playhead (all that moves per
-// frame, through a ref). Wide: dragged in the dock (timeline-input.ts); phones: strips and the clip's numbers.
+// frame, through a ref), then the modulators' lanes and the automation's. Wide: dragged in the dock
+// (timeline-input.ts); phones: strips and the clip's numbers.
 import '../../css/timeline.css';
 
 import { computed, effect, useSignalEffect } from '@preact/signals';
@@ -113,6 +114,7 @@ export function Timeline({ st, pv, tl }: { st: Studio; pv: Preview; tl: Timeline
             <div class="tl-ruler" title="Click or drag to move the playhead">
               <canvas class="tl-ruler-canvas" ref={canvas} aria-hidden="true" /></div></div>
           <div class="tl-rows">{[...layers].reverse().map((l) => <Row key={l.id} l={l} st={st} tl={tl} />)}</div>
+          <Modulators st={st} tl={tl} />
           <Automation st={st} tl={tl} />
           <div class="tl-playhead" ref={head} aria-hidden="true" />
         </div>
@@ -148,6 +150,13 @@ function Row({ l, st, tl }: { l: Layer; st: Studio; tl: TimelineState }) {
         })}
       </div>
     </div>);
+}
+
+// Modulator lanes (timeline-mods.tsx) load once a look has a modulator.
+function Modulators({ st, tl }: { st: Studio; tl: TimelineState }) {
+  const has = Object.values(st.look.value.globals?.macros ?? {}).some((m) => m.mod);
+  const mod = useLazy(() => import('./timeline-mods.tsx'), has);
+  return mod && has ? <mod.ModLanes st={st} tl={tl} /> : null;
 }
 
 // Automation lanes (timeline-auto.tsx) load once a look has some or asks for some.

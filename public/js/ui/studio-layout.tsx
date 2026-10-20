@@ -146,7 +146,8 @@ function DockIssue({ st }: { st: Studio }) {
   return <span class="dock-issue" data-kind={p?.kind} hidden={!p}>{p && ISSUE_LABELS[p.kind]}</span>;
 }
 
-/** The splitter sizes the code editor (a share of the Studio's height), set on the Studio's style directly. */
+/** The splitter sizes the dock, one height on every tab (a share of the Studio's height, kept per browser), set on
+ * the Studio's style directly. */
 function Splitter({ studio, setResizing }: { studio: { current: HTMLDivElement | null };
   setResizing: (on: boolean) => void }) {
   const [now, setNow] = useState(() => { const v = Number(pref('studio.split')); return v >= 15 && v <= 75 ? v : 0; });
@@ -159,7 +160,8 @@ function Splitter({ studio, setResizing }: { studio: { current: HTMLDivElement |
   useLayoutEffect(() => { if (now) studio.current?.style.setProperty('--code-h', `${now}%`); }, []);
   const end = () => { if (drag.current) { drag.current = null; setResizing(false); } };
   return (
-    <div class="splitter" role="separator" aria-orientation="horizontal" tabindex={0} aria-label="Resize code editor"
+    <div class="splitter" role="separator" aria-orientation="horizontal" tabindex={0}
+      aria-label="Resize the bottom panel"
       aria-valuemin={15} aria-valuemax={75} aria-valuenow={now ? Math.round(now) : undefined}
       onPointerDown={(e) => {
         const s = studio.current, pane = s?.querySelector('.pane-code');

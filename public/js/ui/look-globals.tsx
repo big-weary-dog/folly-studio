@@ -1,7 +1,8 @@
 // The Look panel (SPEC "Globals"): fields for the look's speed, level, hue, saturation and energy, a palette picker
-// showing its roles, and macros to add, rename and set (their range: as the API or a generator gave it). Wide: a tab
-// of the bottom dock; phones: the Look tab (macros are set there, not added). It keeps in look.globals only what
-// differs from the defaults. Loaded when the Look tab first shows.
+// showing its roles, the look's modulators (look-mods.tsx), and faders (macros that do not move by themselves) to add,
+// rename and set (their range: as the API or a generator gave it), each saying what it drives. Wide: a tab of the
+// bottom dock; phones: the Look tab (faders are set there, not added). It keeps in look.globals only what differs
+// from the defaults. Loaded when the Look tab first shows.
 import { useId } from 'preact/hooks';
 
 import { GLOBALS, macroNameOk } from '../core/globals.ts';
@@ -9,6 +10,8 @@ import { PALETTE_ROLES } from '../core/stdlib.ts';
 import type { Globals, Palette } from '../../../shared/schemas/look.ts';
 import { cx, Field, humanize, Scrub } from './kit.tsx';
 import { renameMacro } from './look-globals-edit.ts';
+import { Drives, ModulatorCards } from './look-mods.tsx';
+import { macroUses, type Use } from './mod-uses.ts';
 import type { Studio } from './studio-store.ts';
 
 const HELP: Record<string, string> = { speed: 'How fast every pattern runs; changes never jump',
@@ -22,6 +25,7 @@ export function GlobalsPanel({ st, palettes }: { st: Studio; palettes: (Palette 
   const set = (fn: (g: Globals) => void) => st.editGlobals((x) => { fn(x); return x; });
   const house = palettes.find((p) => p.name === g.palette?.name), named = !!house;
   const pal = g.palette || palettes.find((p) => p.name === 'chapel');
+  const uses = macroUses(L), all = Object.entries(g.macros || {}), mods = all.filter(([, m]) => m.mod);
   function addMacro() {
     const macros = { ...g.macros };
     let n = 1;
@@ -52,11 +56,16 @@ export function GlobalsPanel({ st, palettes }: { st: Studio; palettes: (Palette 
         {PALETTE_ROLES.map((r: string) => <Field label={humanize(r)}>{(pal?.[r as 'low'] || []).map((c, i) =>
           <span class="swatch" title={`${r}${i + 1} · ${c}`} style={{ backgroundColor: c }} />)}</Field>)}
       </section>
-      <section class="globals-macros" aria-label="Macros">
-        <div class="globals-h-row"><h3 class="globals-h">Macros</h3>
+      {mods.length > 0 && <section class="globals-mods" aria-label="Modulators">
+        <div class="globals-h-row"><h3 class="globals-h">Modulators</h3>
+          <span class="mod-note">macros that move by themselves; params follow them in step</span></div>
+        <ModulatorCards st={st} mods={mods} uses={uses} /></section>}
+      <section class="globals-macros" aria-label="Faders">
+        <div class="globals-h-row"><h3 class="globals-h">{mods.length ? 'Faders' : 'Macros'}</h3>
           <button type="button" class="btn small wide-only" onClick={addMacro}>+ Macro</button></div>
-        <ul class="macro-list">{Object.entries(g.macros || {}).map(([name, m]) => <MacroRow key={name} name={name} m={m}
-          automated={!!lanes[name]} rename={(to) => st.edit((look) => renameMacro(look, name, to))}
+        <ul class="macro-list">{all.filter(([, m]) => !m.mod).map(([name, m]) => <MacroRow key={name} name={name}
+          m={m} automated={!!lanes[name]} uses={uses.get(name) ?? []} st={st}
+          rename={(to) => st.edit((look) => renameMacro(look, name, to))}
           set={(value) => set((x) => { x.macros = { ...x.macros, [name]: { ...m, value } }; })}
           taken={(to) => !macroNameOk(to) || !!g.macros?.[to]} />)}</ul>
       </section>
@@ -74,8 +83,9 @@ function Row({ name, d, value, automated, set }: { name: string; d: Macro; value
         aria-label={`Reset ${name} to default`} onClick={() => set(d.value)}>↺</button></>}</Field>);
 }
 
-function MacroRow({ name, m, automated, rename, set, taken }: { name: string; m: Macro; automated: boolean;
-  rename: (to: string | null) => void; set: (v: number) => void; taken: (to: string) => boolean }) {
+function MacroRow({ name, m, automated, rename, set, taken, uses, st }: { name: string; m: Macro; automated: boolean;
+  rename: (to: string | null) => void; set: (v: number) => void; taken: (to: string) => boolean; uses: Use[];
+  st: Studio }) {
   const id = useId();
   return (   // a field whose label is its name, to edit
     <li class="field macro">
@@ -91,5 +101,6 @@ function MacroRow({ name, m, automated, rename, set, taken }: { name: string; m:
           disabled={automated} />
         <button type="button" class="icon-btn wide-only" aria-label={`Delete ${name}`} onClick={() => rename(null)}>
           ×</button></div>
+      <Drives st={st} uses={uses} />
     </li>);
 }

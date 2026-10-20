@@ -11,6 +11,7 @@ import { validateLook } from '../shared/schemas/generated.ts';
 import { Globals } from '../shared/schemas/look.ts';
 import { renderFields } from '../src/bake.ts';
 import { freeName, renameMacro } from '../public/js/ui/look-globals-edit.ts';
+import { macroUses, moveText, useText } from '../public/js/ui/mod-uses.ts';
 
 const wobble = { value: 0, min: 0, max: 1, mod: { mod: 'lfo', shape: 'saw', rate: 0.5, center: 0.5, depth: 0.5 } };
 const at = (look, t, name) => { const L = prepareLook(look); lookFrame(L, t); return L.G[name]; };
@@ -133,4 +134,20 @@ test('a generator\'s modulators: kept with their mod and the bpm; one that follo
   assert.equal(out.globals.macros.echo.mod, undefined);
   assert.equal(out.globals.macros.clip.mod, undefined);
   assert.equal(out.dropped.length, 2, out.dropped.join('; '));
+});
+
+test('what drives what: params following a macro, LFOs it swings or paces, a colour\'s rotate, other macros', () => {
+  const breath = { mod: 'lfo', shape: 'sine', rate: 0.25, unit: 'beats', center: 0.5, depth: 0.5, pace: 'storm' };
+  const look = { globals: { macros: { storm: { value: 1, min: 0, max: 4 }, breath: { value: 0.5, min: 0, max: 1,
+    mod: breath } } }, layers: [{ id: 'a', modules: [{ id: 'm', params: {
+    level: { mod: 'global', name: 'breath', from: 0.2, to: 0.6 },
+    hue: { mod: 'lfo', rate: 1, amount: 'storm' },
+    tint: { role: 'body', rotate: { mod: 'global', name: 'breath' } }, size: 3 } }] }] };
+  const uses = macroUses(look);
+  assert.deepEqual(uses.get('breath')?.map((u) => [u.how, u.layer, u.module, u.key]),
+    [['follows', 'a', 'm', 'level'], ['follows', 'a', 'm', 'tint']]);
+  assert.deepEqual(uses.get('storm')?.map((u) => [u.how, u.key ?? u.macro]), [['swing', 'hue'], ['pace', 'breath']]);
+  assert.equal(useText(uses.get('storm')[1], 'breath'), 'pace of breath');
+  assert.equal(moveText(breath), '∿ sine 1 bar × storm');
+  assert.equal(moveText({ ...breath, pace: undefined, amount: 'energy' }), '∿ sine 1 bar · swing × energy');
 });
