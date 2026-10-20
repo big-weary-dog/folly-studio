@@ -1,6 +1,7 @@
 // Compiling pattern and module source: the stdlib (and use()) as locals, browser globals shadowed, readable
 // errors; and the library that use() runs.
 import { type Clocks, newClocks } from './clocks.ts';
+import { HISTORY_MAX, type History, newHistory } from './history.ts';
 import { type G, resolveParams, type Values } from './globals.ts';
 import { newPicks, type PickBlend, type Picks, pickText, readPick } from './picks.ts';
 import { EMPTY_PICTURE, type Picture, pictureProblem, readPicture } from './picture.ts';
@@ -18,9 +19,9 @@ type RGBA = number[];
 /** The longest `help` a param keeps (SPEC "Pattern code"). */
 export const HELP_MAX = 300;
 /** What each kind defines (SPEC "Modules"); a module compiled: its function, `frame`, params, colours (picks), and
- * for a spatial filter its op (SPEC "Spatial modules"). */
+ * for a spatial filter its op (SPEC "Spatial modules"); for one that keeps the frames above it, their buffer. */
 export type Compiled = { kind: ModuleKind, params: ParamSchema, frame?: (t: number, P: Values, G: G) => void,
-  spatial?: (typeof SPATIAL_OPS)[number],
+  spatial?: (typeof SPATIAL_OPS)[number], history?: History,
   pixel?: (p: Pixel, t: number, P: Values, G: G) => unknown, warp?: (q: Pixel, t: number, P: Values, G: G) => void,
   filter?: (c: RGBA, q: Pixel, t: number, P: Values, G: G, x?: RGBA) => unknown, picks: Picks, clocks: Clocks,
   bright?: boolean, upgrade?: (saved: Record<string, unknown>) => unknown };
@@ -45,18 +46,18 @@ const SHADOWED = [
   'fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource', 'importScripts', 'self', 'window',
   'globalThis', 'document', 'parent', 'top', 'opener', 'frames', 'postMessage', 'location',
   'navigator', 'localStorage', 'sessionStorage', 'indexedDB', 'caches', 'Worker', 'SharedWorker',
-  'BroadcastChannel', 'setTimeout', 'setInterval', 'requestAnimationFrame', 'queueMicrotask',
+  'BroadcastChannel', 'history', 'setTimeout', 'setInterval', 'requestAnimationFrame', 'queueMicrotask',
 ];
-// Each instance's scope: the stdlib, use(), pal() and swatch() bound to its own colours (picks.ts), and clock() to its
-// own speeds (clocks.ts).
-const scopeOf = (picks: Picks, clocks: Clocks) => Object.freeze({ ...STDLIB, use, pal: picks.pal,
-  swatch: picks.swatch, clock: clocks.clock });
-const SCOPE = scopeOf(newPicks(), newClocks());
+// Each instance's scope: the stdlib, use(), pal() and swatch() bound to its own colours (picks.ts), clock() to its
+// own speeds (clocks.ts) and past() to its own frames (history.ts).
+const scopeOf = (picks: Picks, clocks: Clocks, frames: History) => Object.freeze({ ...STDLIB, use, pal: picks.pal,
+  swatch: picks.swatch, clock: clocks.clock, past: frames.past });
+const SCOPE = scopeOf(newPicks(), newClocks(), newHistory());
 const SPATIAL_OPS = Object.freeze(['blur'] as const);   // what `const spatial = …` may name (SPEC "Spatial modules")
 const CHOICE = /^[a-z][a-z0-9-]{0,31}$/;
 const PRELUDE =
   '"use strict";\n' +
-  `const { ${[...STDLIB_NAMES, 'use', 'swatch', 'clock'].join(', ')} } = __stdlib;\n` +
+  `const { ${[...STDLIB_NAMES, 'use', 'swatch', 'clock', 'past'].join(', ')} } = __stdlib;\n` +
   `const ${SHADOWED.map((n) => `${n} = undefined`).join(', ')};\n` +
   'return (function () {\n';
 const EPILOGUE =
@@ -65,6 +66,7 @@ const EPILOGUE =
   ' frame: typeof frame === "function" ? frame : undefined,' +
   ' upgrade: typeof upgrade === "function" ? upgrade : undefined,' +
   ' spatial: typeof spatial === "string" ? spatial : undefined, stage: typeof stage === "string" ? stage : undefined,' +
+  ' history: typeof history === "undefined" ? undefined : history,' +
   ' params: typeof params === "undefined" ? undefined : params };\n})();';
 
 // Where pattern line 1 lands in the generated function, probed once, so errors say "line N" in every engine.
@@ -175,9 +177,9 @@ export function compileModule(code: string | undefined, kind: string = 'source')
     FACTORIES.set(code, factory);
   }
   let made: Record<string, unknown>;
-  const picks = newPicks(), clocks = newClocks();
+  const picks = newPicks(), clocks = newClocks(), frames = newHistory();
   try {
-    made = factory(scopeOf(picks, clocks));
+    made = factory(scopeOf(picks, clocks, frames));
   } catch (e) {
     throw new Error(`Error while loading the ${what}: ${describeError(e)}`, { cause: e });
   }
@@ -190,11 +192,19 @@ export function compileModule(code: string | undefined, kind: string = 'source')
   if (stage !== undefined && (!STAGES.includes(stage as never) || (stage === 'spatial') !== !!spatial)) {
     throw new Error("stage must be 'history', or 'spatial' beside a spatial op (const spatial = 'blur')");
   }
+  const history = kind === 'filter' ? made.history : undefined;
+  if (history !== undefined) {
+    if (!isNum(history) || !(history > 0 && history <= HISTORY_MAX) || stage !== 'history') {
+      throw new Error(`history must be seconds, above 0 and at most ${HISTORY_MAX}, in a stage 'history' filter`);
+    }
+    frames.keep(history);
+  }
   const own = normalizeParams(made.params), bright = kind === 'source' && !('brightness' in own);
   const params = kind === 'source' ? withSourceParams(own) : own;
   picks.bind(params, null, {});
   return { kind, [k[0]]: made[k[0]], frame: made.frame, params, picks, clocks, ...(spatial ? { spatial } : {}),
-    ...(bright ? { bright } : {}), ...(made.upgrade ? { upgrade: made.upgrade } : {}) } as Compiled;
+    ...(history !== undefined ? { history: frames } : {}), ...(bright ? { bright } : {}),
+    ...(made.upgrade ? { upgrade: made.upgrade } : {}) } as Compiled;
 }
 
 /** A module's saved params as its code reads them now: its upgrade() of a copy (SPEC "Pattern code"), or as saved

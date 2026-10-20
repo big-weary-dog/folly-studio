@@ -167,7 +167,8 @@ button shows or hides it (default on, kept per browser).
 
 In `SPEC-library.md`, part of this contract: **Pattern code** (what people and the AI write), **The pixel `p`**,
 **Stdlib**, **Directions**, **Modules** (a layer is a chain; the warp contract), **Library**, **Spatial modules**,
-**Globals**, **Param bindings**, **Integrated clocks** and **Palettes**. `SPEC "<one of those>"` means that file.
+**History**, **Globals**, **Param bindings**, **Integrated clocks** and **Palettes**. `SPEC "<one of those>"` means
+that file.
 
 ## Looks (what gets saved)
 

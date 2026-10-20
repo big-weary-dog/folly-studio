@@ -71,7 +71,9 @@ sweeps declares direction: { value: 'up', type: 'choice', options: DIRECTIONS } 
 0..1 along it: up down right left back front out in clockwise counterclockwise along petal ring (clockwise as seen
 from the front); petal and ring step pane by pane on
 the rose), region(q, rule, size?, seed?) and regions(rule, size?) (q's rose pane group, −1 off the rose, and how
-many: rules petal alternate ring rings centre spiral wedges checker random), use(name, params?) (a library pattern as a
+many: rules petal alternate ring rings centre spiral wedges checker random), past(ago) (in a filter that declares
+const stage = 'history' and const history = <seconds, up to 8>: what was above it at this LED ago seconds back, the
+frames the core keeps for it), use(name, params?) (a library pattern as a
 function (p, t) → colour; call it at the top level). Colours are [r, g, b] arrays, 0..1.
 
 Rules for code:
@@ -95,7 +97,7 @@ everything above it, as in an image editor.
 - \`filter\`: \`function filter(c, q, t, P, G, x)\` reworks everything above it, c = [r, g, b, a] (change it and
   return it); x is the colour of the source its \`input\` names (an earlier module's id).
 - \`warp\`: \`function warp(q, t, P, G)\` bends everything above it: it changes q (a copy of p: lx ly lz a r u i …)
-  for the modules above it. So a warp goes after what it bends. A blur or trails holds real LED colours (its code
+  for the modules above it. So a warp goes after what it bends. A blur, trails or delay holds real LED colours (its code
   declares \`const stage = 'spatial'\` or \`'history'\`): a warp below one does not reach above it.
 So "a chase only inside clouds, mirrored" is [source single-strand, source clouds as input, filter mask with input =
 the clouds' id, warp mirror]. A module with a \`ref\` names the library entry it copies; still give its code. A preset

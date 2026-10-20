@@ -130,7 +130,7 @@
       // Library patterns are scripts the compiler reads by name, and their signatures are the API the AI copies.
       "files": ["public/patterns/**", "test/fixtures/generate/library/**"],
       "rules": {
-        "no-unused-vars": ["error", { "varsIgnorePattern": "^(?:params|pixel|warp|filter|frame|spatial|stage|upgrade)$", "args": "none" }]
+        "no-unused-vars": ["error", { "varsIgnorePattern": "^(?:params|pixel|warp|filter|frame|spatial|stage|history|upgrade)$", "args": "none" }]
       }
     },
     { "files": ["public/patterns/**"], "rules": { "max-lines": ["error", { "max": 150 }] } },

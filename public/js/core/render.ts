@@ -60,11 +60,12 @@ export function compileLayer(layer?: LayerInput | null) {
 /** The runnable chain: enabled modules with their function, params, bindings, blend, input (index or −1), whether
  * it ends a stage, and the slots of the pixel it reads (placeWarps). */
 type Fn = (...a: unknown[]) => unknown;
-// keep: a source's colours for a filter in a later stage (SPEC "Spatial modules"); picks: its colours.
+// keep: a source's colours for a filter in a later stage (SPEC "Spatial modules"); picks: its colours; ring: the
+// frames above it (SPEC "History").
 type Link = { id: string | null, title: string, kind: number, fn: Fn, frame: Compiled['frame'] | null, P: Values,
   mods: ReturnType<typeof paramMods>, picks: Picks | null, blend: number, hidden: boolean, input: number,
   out: number[], keep: Float64Array | null, end: boolean, ix: number, at: number, from: number, to: number,
-  led: boolean, bright: boolean };
+  led: boolean, bright: boolean, ring: Compiled['history'] | null };
 function prepareChain(layer: LayerInput | null | undefined, compiled: Compiled | readonly (Compiled | null)[]) {
   const modules = layerModules(layer);
   const list = Array.isArray(compiled) ? compiled : [compiled];
@@ -90,7 +91,7 @@ function prepareChain(layer: LayerInput | null | undefined, compiled: Compiled |
     chain.push({ id: m.id ?? null, title: m.title || m.id || '', kind, fn, frame: c.frame || null,
       P, mods, picks: c.picks || null, blend, hidden, input,
       out: [0.5, 0, 0, 0], keep: null, end: kind === SPATIAL || isStageEnd(m), ix: 0, at: 0, from: -1, to: -1,
-      led: kind !== WARP || readsLed(m.code), bright: kind === SOURCE && !!c.bright });
+      led: kind !== WARP || readsLed(m.code), bright: kind === SOURCE && !!c.bright, ring: c.history ?? null });
   }
   return chain;
 }
@@ -105,7 +106,8 @@ function prepareStages(S: Scene, layer: LayerInput | null | undefined, chain: Li
     const mode = BLUR_MODES.includes(s.mode as never) ? s.mode as string : 'wire';
     chain.push({ id: null, title: 'Soften', kind: SPATIAL, fn: (c) => c, frame: null, mods: [], picks: null,
       blend: OVER, P: { radius: Number(s.radius), mode, amount: 1 }, hidden: false, input: -1,
-      out: [0, 0, 0, 0], keep: null, end: true, ix: chain.length, at: 0, from: -1, to: -1, led: false, bright: false });
+      out: [0, 0, 0, 0], keep: null, end: true, ix: chain.length, at: 0, from: -1, to: -1, led: false, bright: false,
+      ring: null });
   }
   if (!chain.some((M) => M.kind === SPATIAL)) return null;
   const m = idx.length;
@@ -170,7 +172,7 @@ function runChain(S: Scene, L: PreparedLayer, T: number, G: G) {
   let j = 0, M: PreparedLayer['chain'][number] | null = null;
   try {
     RUN.dt = 0;
-    for (let i = 0; i < n; i++) { M = chain[i]; if (M.frame) M.frame(T, M.P, G); }
+    for (let i = 0; i < n; i++) { M = chain[i]; M.ring?.advance(T, m); if (M.frame) M.frame(T, M.P, G); }
     for (; j < m; j++) {
       const k = idx[j];
       setPixel(S, L, q, j, k);
@@ -189,6 +191,7 @@ function runChain(S: Scene, L: PreparedLayer, T: number, G: G) {
           if (M.bright) dim(M.out, M.P.brightness as number);
           if (!M.hidden) blendInto(c, M.out, M.blend);
         } else {
+          M.ring?.record(j, c);
           const v = M.fn(c, q, T + q.dt, M.P, G, M.input >= 0 ? chain[M.input].out : undefined);
           if (!toColour(v, c, c[3])) return fail(L, M, `filter() returned ${said(v)} (NaN) at LED ${k}`);
         }
@@ -238,7 +241,7 @@ function runStaged(S: Scene, L: PreparedLayer, T: number, G: G, st: NonNullable<
   let from = 0, M: Link | null = null;
   try {
     RUN.dt = 0;
-    for (let i = 0; i < n; i++) { M = chain[i]; if (M.frame) M.frame(T, M.P, G); }
+    for (let i = 0; i < n; i++) { M = chain[i]; M.ring?.advance(T, m); if (M.frame) M.frame(T, M.P, G); }
     for (;;) {
       let to = from;
       while (to < n && chain[to].kind !== SPATIAL) to++;
@@ -263,6 +266,7 @@ function runStaged(S: Scene, L: PreparedLayer, T: number, G: G, st: NonNullable<
               if (M.keep) save(M.keep, o, M.out);
               if (!M.hidden) blendInto(c, M.out, M.blend);
             } else {
+              M.ring?.record(j, c);
               const v = M.fn(c, q, T + q.dt, M.P, G, M.input >= 0 ? chain[M.input].out : undefined);
               if (!toColour(v, c, c[3])) return fail(L, M, `filter() returned ${said(v)} (NaN) at LED ${k}`);
             }

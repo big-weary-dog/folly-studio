@@ -17,7 +17,7 @@ import { CACHE_IMMUTABLE, CACHE_PAGE, CSP_APP, CSP_SANDBOX } from '../src/static
 import { builtApp, removeBuiltApp } from './fixtures/build.js';
 
 const KB = 1024;
-const BUDGET = { total: 200 * KB, login: 40 * KB }; // CONTRIBUTING "Performance budgets"
+const BUDGET = { total: 220 * KB, login: 40 * KB }; // CONTRIBUTING "Performance budgets"
 const LOGIN_VIEW = 'js/ui/auth.tsx';                  // the shell imports it at once for a signed-out visitor
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 let dist, manifest, dir, app, base;

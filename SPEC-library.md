@@ -88,7 +88,8 @@ pick's or role's i-th colour, floored and wrapping),
 pixels' bounds in metres, `[[X0, Y0, Z0], [X1, Y1, Z1]]`, which `lx ly lz` map to 0..1: so a pattern can burst from
 a `centres()` point and still fill its layer; `extent('rig')` the whole rig's, which `x y z` map), `clock(name)` (how far number param `name`, a speed, has moved
 things: "Integrated clocks" below), `DIRECTIONS` and `toward(p, direction)`, `region(q, rule, size = 1, seed = 0)` and `regions(rule, size = 1)` ("Directions" below), and
-`move(q, lx, ly, lz)`, `turn(q, a, r)` and `slide(q, u)` (the warp contract below), `use(name, params?)` → `(p, t) → colour` (`[0, 0, 0, 0]` for null), library source `name` as its own instance (its
+`move(q, lx, ly, lz)`, `turn(q, a, r)` and `slide(q, u)` (the warp contract below), `past(ago)` (in a filter that
+keeps history: what was above it at this LED `ago` seconds back, "History" below), `use(name, params?)` → `(p, t) → colour` (`[0, 0, 0, 0]` for null), library source `name` as its own instance (its
 `frame` runs once per new t; throws `unknown library pattern`, or names a retired one's preset). Colours are
 `[r, g, b]` arrays, 0..1.
 
@@ -141,7 +142,9 @@ All may define `params` and `frame(t, P, G)` (once per frame, before any pixel; 
 indexed by `p.k` lives at top level). A **stage end** is a filter that holds real LED colours, as its code declares
 at the top level: `const stage = 'spatial'` (it reads its neighbours: a spatial op, below, is one anyway) or
 `const stage = 'history'` (it keeps colours from frame to frame, as trails does); any other value does not compile.
-`isStageEnd` in the core reads the declaration, for the runtime, the converter and the chain's drawing alike. A warp
+`isStageEnd` in the core reads the declaration, for the runtime, the converter and the chain's drawing alike. A
+`'history'` filter may also declare `const history = <seconds>` (above 0, at most 8): the core keeps that long of what
+is above it ("History" below). A warp
 bends the modules between itself and the nearest stage end above it, never the stage end or anything above that:
 those colours exist only at real LEDs.
 
@@ -182,7 +185,7 @@ and leaves the rest.
 The library, one idea a module. Sources: colour-wash, bars, clouds, fire, single-strand (Chase), life, sparkle,
 streaks, lightning, fireworks, strobe, heartbeat, picture. Warps: mirror, mosaic, polar,
 anchor, rotate, scroll, twist, turbulence, in-turn. Filters: recolour, hue-shift,
-stained-glass, mask, blur, edge-fade, trails. Presets: Water, Storm, Kaleidoscope, Tunnel and
+stained-glass, mask, blur, edge-fade, trails, delay. Presets: Water, Storm, Kaleidoscope, Tunnel and
 Afterimage (mirror's Wedges and Rings, trails after lightning), the rose's stained glass
 (gothic-jewel, backlit-glow, cathedral-sun), and the **retired sources'**: twinkle's Starfield, depth-wave's Playa
 wave, canopy-rain's Rain, wash-breathe's Breathe, spire-helix's Tower helix, arch-chase's and groups-in-turn's Arch
@@ -235,6 +238,17 @@ the boxes on the first spatial layer): in **space**, every pixel within 1.5 m (a
 the **wire**, each pixel of the same fixture within 1.5 m of wire (at most 64 each way). Distances are kept to 2⁻²⁰ m
 and each list is sorted nearest first (ties by index), so a blur stops at its radius and sums in the same order in
 every runtime. The Folly: 56 neighbours a LED in space and 25 along the wire, 3.2 MB, built in about 50 ms.
+
+## History
+
+A filter that declares `const stage = 'history'` and `const history = <seconds>` (≤ 8) gets a frame buffer, one per
+instance (core `history.ts`): every frame, before its `filter()` runs at an LED, the core keeps `c` there. Frames sit
+on a grid of 40 a second (a grid time between two renders keeps their blend, by alpha), as bytes, so 2 s of the
+whole rig is about 1.6 MB. `past(ago)` in that filter is `[r, g, b, a]` (reused: read it, do not keep it), what was
+above it at the current LED `ago` seconds back in pattern time, held to 0..`history`: 0 is `c` exactly; between grid
+times it blends the two round it, so any render rate plays the same. Time going back, or forward more than half a
+second, starts the buffer again; a reading further back than what it holds gets the oldest frame it has. `past()`
+anywhere else throws. Delay reads one time per LED; others read one per frame for every LED.
 
 ## Globals
 
