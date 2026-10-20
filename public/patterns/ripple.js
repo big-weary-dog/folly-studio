@@ -1,5 +1,6 @@
 // Ripple: drops land at random spots and spread rings at Speed, each fading as it grows: strong crests in the last of
-// Colours, faint rings in the first. Drops is how many spread at once.
+// Colours, faint rings toward the first. Rings are round, measured in the layer's longer side; Drops is how many
+// spread at once.
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth',
     help: 'Colours the rings: young rings near their drop take the last colour, wide fading ones drift to the first.' },
@@ -26,15 +27,16 @@ function frame(t, P) {
 }
 
 function pixel(p, t, P) {
+  const u = 2 * max(p.sy, p.sz) || 1, z = (p.Z - p.oz) / u, y = (p.Y - p.oy) / u;     // round, in metres
   let v = 0;
   for (let s = 0; s < on; s++) {
-    const d = hypot(p.lz - CZ[s], p.ly - CY[s]);
+    const d = hypot(z - (CZ[s] - 0.5) * 2 * p.sz / u, y - (CY[s] - 0.5) * 2 * p.sy / u);
     if (d > R[s] + 3 * P.width) continue;
     const x = (d - R[s]) / P.width;
     v += exp(-x * x) * exp(-R[s] * 3.2);
   }
   if (v < 0.004) return null;
-  const c = pal('colours', min(1, v));
+  const c = pal('colours', 0.3 + 0.7 * min(1, v));
   c[3] = min(1, v);
   return c;
 }

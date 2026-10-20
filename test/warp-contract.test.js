@@ -34,7 +34,7 @@ for (const [rigName, rig] of Object.entries({ cog, folly })) {
       const x = `(q.X - ${scene.bounds.min[0]}) / ${scene.bounds.max[0] - scene.bounds.min[0]}`;
       const check = { id: 'c', kind: 'source', code: `function pixel(q) {
         const ex = abs(q.x - ${x}), el = q.sz > 0 ? abs(q.lz - 0.5 - (q.Z - q.oz) / (2 * q.sz)) : 0;
-        const er = q.sr > 0 ? abs(q.r - hypot(q.Z - q.oz, q.Y - q.oy) / q.sr) : 0;
+        const er = q.sr > 0 ? abs(q.r - hypot(q.Z - q.cz, q.Y - q.cy) / q.sr) : 0;
         return [ex > 1e-6 ? 1 : 0, el > 1e-6 ? 1 : 0, er > 1e-6 ? 1 : 0]; }` };
       for (const w of WARPS) {
         if (w === 'anchor') continue;                    // it re-frames: its own a and r (plan, sphere) by design

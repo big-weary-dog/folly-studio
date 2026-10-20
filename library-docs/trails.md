@@ -2,14 +2,15 @@
 looks: A fading afterglow behind everything that moves: comet tails, light smears.
 ---
 Every LED remembers its light and lets it fade slowly (by Decay, the share left after a second), so moving sparks,
-bars and chases leave glowing tails, and flashes linger. It fades by transparency, so the trail keeps its colour while
+bars and chases leave glowing tails, and flashes linger; each LED shows the stronger of now and its afterglow, so
+still soft edges stay soft. It fades by transparency, so the trail keeps its colour while
 what is below shows through. A filter that holds real LED colours from frame to frame: it ends a stage, so warps
 below it do not bend what is above it. Reach for it to lengthen any moving element (sparkle, streaks, fireworks,
 lightning) into smears; **bars** `comet` and **single-strand** draw their own tails, **blur** smears in space
 instead of time.
 
 ## Params
-- decay: 0.05–0.2 gives short tails; 0.5–0.8 long, ghostly smears.
+- decay: The default 0.05 gives short tails, even on a dense chase; 0.5–0.8 long, ghostly smears.
 
 ## Pairings
 - After sparkle, streaks or fireworks: twinkles and particles with tails; then a dim bed with blend `under`.

@@ -12,7 +12,8 @@ each arch. Reach for **bars** on `along` when the bands should be sized to each 
 - speed: LEDs a second. 20 is a walk, 60–100 a race on long strands; a 13-LED strand is crossed in under a second at 20.
 - size: In LEDs, or the room each comet gets. 3–6 for marquee bulbs, 10–30 for runs, 100+ for one comet a strand.
 - gap: Bands only. 0.5–0.7 reads as spaced bulbs.
-- mode: `out` starts at the middle of an arch's top; `bounce` slides the pattern a strand's length and back.
+- mode: `out` starts at the middle of an arch's top; `bounce` slides the pattern a strand's length and back, comets
+  turning head first each way.
 - tail: In LEDs. Keep it below size or tails run into the comet behind.
 - lap: In LEDs; 50–100 for meteors.
 - scatter: Pace varies by up to ±30%.

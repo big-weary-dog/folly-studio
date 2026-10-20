@@ -246,8 +246,9 @@ export function paletteColours(palette?: PaletteHex | null): PaletteColours | nu
 const ORIGIN: Centres = Object.freeze([Object.freeze([0, 0, 0]), Object.freeze([0, 0, 0])]);
 /** Set by renderFrame for pal(), palette(), centres(), extent(), use() and clock(): the frame's show time t and
  * pattern time T, and the look (a PreparedLook). */
-export const RUN: { G: G | null, palette: PaletteColours, scene: { centresOf(tag: string): Centres } | null,
-  extent: Centres, t: number, T: number, look: PreparedLook | null } = {
+export const RUN: { G: G | null, palette: PaletteColours,
+  scene: { centresOf(tag: string): Centres, extent: Centres } | null, extent: Centres, t: number, T: number,
+  look: PreparedLook | null } = {
   G: null, palette: paletteColours(DEFAULT_PALETTE)!, scene: null, extent: ORIGIN, t: 0, T: 0, look: null };
 
 export function ramp(list: Centres, t: number): RGB {
@@ -273,8 +274,9 @@ export type Centres = readonly (readonly number[])[];
 const NONE: Centres = Object.freeze([]);
 function centres(tag: string) { return RUN.scene ? RUN.scene.centresOf(String(tag)) : NONE; }
 /** extent(): the running layer's pixels' bounds in metres, [[X0, Y0, Z0], [X1, Y1, Z1]] (frozen; lx ly lz map them
- * to 0..1), so a pattern can place a point from centres() in its layer and size itself to it. */
-function extent() { return RUN.extent; }
+ * to 0..1), so a pattern can place a point from centres() in its layer and size itself to it; extent('rig'): the
+ * whole rig's (x y z map them). */
+function extent(of?: string) { return of === 'rig' ? RUN.scene?.extent ?? ORIGIN : RUN.extent; }
 
 /** The library's directions (SPEC "Directions"): the options of every `direction` choice param, in this order. */
 export const DIRECTIONS = Object.freeze(['up', 'down', 'right', 'left', 'back', 'front', 'out', 'in', 'round',

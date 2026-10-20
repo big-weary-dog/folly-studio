@@ -21,5 +21,5 @@ its own place every time. Celebration, finales, New Year. Reach for **ripple** f
 ## Pitfalls
 - Bursts sit in the upper half of the layer; on the whole rig that is mostly towers and spires, where sparse strands
   break rings into dots. Best on the rose, the arches or a tall dense layer.
-- A burst cuts out at about 15% brightness when its shell fires again; at high speed the cut shows.
+- Each burst's colour is the next of the pick for that shell, so a short pick repeats every few bursts.
 - Many shells at high speed on a small layer is a flickering mess; drop shells as speed rises.

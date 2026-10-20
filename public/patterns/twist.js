@@ -1,19 +1,28 @@
-// Twist: swirls what is above it round the layer's centre, more toward the rim, turning at Spin; and winds depth
-// round height, so towers and spires spiral. All in turns.
+// Twist: swirls what is above it round the layer's centre, more toward the rim, turning at Spin; and winds it round
+// each tower's upright axis (the layer's middle with no towers), more the higher up, so towers spiral. All in turns.
 const params = {
-  swirl: { value: 0.25, min: -1, max: 1, step: 0.01, label: 'Swirl (turns at the rim)',
+  swirl: { value: 0.25, min: -2, max: 2, step: 0.01, label: 'Swirl (turns at the rim)',
     help: 'How far the rim turns against the centre. 0 leaves it straight; more twists a spiral; negative reverses.' },
   wind: { value: 0, min: -1, max: 1, step: 0.01, label: 'Wind with height (turns)',
-    help: 'Turns depth round height, more the higher up, so 3D towers spiral. 0 is off; negative winds back.' },
+    help: 'Winds round each tower, more the higher up, so the towers spiral. 0 is off; negative winds back.' },
   spin: { value: 0.05, min: -0.5, max: 0.5, step: 0.01, label: 'Spin (turns a second)',
     help: 'Keeps the swirl turning round the centre. 0 holds still; higher turns faster; negative the other way.' },
 };
 
+let towers = [];
+const at = (d, h) => 0.5 + d / (2 * h || 1);       // metres from the frame's middle, back to its 0..1
+
+function frame(t, P) { towers = centres('tower'); }
+
 function warp(q, t, P) {
   if (P.swirl || P.spin) turn(q, q.a + P.swirl * q.r + clock('spin'), q.r);
-  if (P.wind) {
-    const w = TAU * P.wind * q.ly, s = sin(w), c = cos(w);
-    const dz = q.lz - 0.5, dx = q.lx - 0.5;
-    move(q, 0.5 + dz * s + dx * c, q.ly, 0.5 + dz * c - dx * s);
+  if (P.wind) {                                     // round the nearest tower's upright axis, in metres
+    let cx = q.ox, cz = q.oz, best = Infinity;
+    for (const k of towers) {
+      const d = hypot(q.X - k[0], q.Z - k[2]);
+      if (d < best) { best = d; cx = k[0]; cz = k[2]; }
+    }
+    const w = TAU * P.wind * q.ly, s = sin(w), c = cos(w), dz = q.Z - cz, dx = q.X - cx;
+    move(q, at(cx + dz * s + dx * c - q.ox, q.sx), q.ly, at(cz + dz * c - dx * s - q.oz, q.sz));
   }
 }

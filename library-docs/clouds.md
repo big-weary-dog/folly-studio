@@ -10,8 +10,9 @@ kind of noise rising and burning out; **turbulence** pushes an existing pattern 
 - colours: A dark-to-light pick reads as cloud; a single colour gives even, wispy clouds.
 - direction: Back and front move them in depth, which on a shallow layer reads as clouds slowly changing shape rather
   than travelling.
-- speed: In cloud sizes a second, so big clouds move faster across the layer. 0.03–0.1 is a sky; 0.3+ is a gale.
-- cover: 0 is clear sky (nothing drawn), 0.5 half, 1 overcast; 0.3–0.6 for distinct clouds.
+- speed: In cloud sizes a second, the same in every direction, so big clouds move faster across the layer. 0.03–0.1 is
+  a sky; 0.3+ is a gale.
+- cover: Roughly the lit share: 0 is a few wisps, 0.5 half, 1 overcast; 0.3–0.7 for distinct clouds.
 - size: A share of the layer. 0.2–0.5 for a few clouds; below 0.2 it breaks into mottling.
 
 ## Pairings

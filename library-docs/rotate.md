@@ -21,6 +21,4 @@ mirrored pattern.
 
 ## Pitfalls
 - The default angle is 45°, not 0: add it and the look tilts at once. Set angle 0 for spin only.
-- It turns the layer's 0..1 box, not metres: on the wide, short portal a 45° setting looks much flatter, and turning
-  stretches the source as it goes round.
 - Corners turn outside the source's box, where some sources repeat, clamp or go dark.

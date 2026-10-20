@@ -7,8 +7,8 @@ Christmas or fairground look, a theatrical dressing of the façade. Reach for **
 continuously, **wave** for one line rolling across, **curtain** for a pleated reveal.
 
 ## Params
-- colours: Each row is flat; `body/accent` alternates two families.
-- direction: With `up` the swags arch upward instead of hanging.
+- colours: Each row is flat, and the rows move on a colour each cycle; `body/accent` alternates two families.
+- direction: With `up` the rows are hung from the bottom, the swags still hanging.
 - speed: Rows a second. 0.5–1.5 for a calm dressing; a full cycle takes (rows + 2) ÷ speed seconds.
 - rows: 3–6 on the whole rig; more rows need a taller, denser layer.
 - swags: 2–5; many swags on a narrow layer turn into a zigzag.

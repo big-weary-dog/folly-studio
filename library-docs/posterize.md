@@ -1,23 +1,24 @@
 ---
-looks: Colours rounded to a few flat steps: banded gradients, poster-like hard colours.
+looks: Colours snapped to a few flat bands of the palette: banded gradients, hard colours.
 ---
-Each red, green and blue channel of the colour above it is rounded to Steps levels, so smooth gradients turn into
-bands and soft blends into a handful of hard colours; at 2 every LED is one of eight saturated colours (or black). A
-filter: it reworks the colour of everything above it in its chain, so it goes after the sources. Reach for it for a
-retro, 8-bit or graphic look, or to give a smooth texture crisp edges; **mosaic** flattens space into blocks instead
-of colour into steps, **recolour** picks new colours, **mask** with `self` cuts shapes rather than banding colours.
+Snaps the colour above it to Steps flat bands by its brightness: the darkest band takes the first of Colours, the
+brightest the last, each as bright as its step. Smooth gradients turn into contour bands and soft blends into a
+handful of hard colours, all from your palette. A filter: it reworks the colour of everything above it in its chain,
+so it goes after the sources. Reach for it for a retro, graphic look, or to give a smooth texture crisp edges;
+**mosaic** flattens space into blocks instead, **recolour** maps colours without banding, **mask** with `self` cuts
+shapes.
 
 ## Params
-- steps: 2 gives harsh primary colours, 3–4 clear banding; 6+ is barely visible.
-- amount: 0.4–0.7 keeps some of the gradient under the steps.
+- colours: Any pick; `accent high` gives two-tone bands, `all` walks the whole palette from dark to bright.
+- steps: 2 is hard light and dark, 3–5 clear banding; 8+ is barely visible.
+- amount: 0.4–0.7 keeps some of the gradient under the bands.
 
 ## Pairings
 - After plasma, clouds or a smooth bars: contour-map bands of colour that flow.
-- After hue-shift: rainbow stripes with hard edges.
 - With **mosaic** (a warp, after the source): blocks in a few hard colours, pixel art.
 
 ## Pitfalls
-- Dim colours round to black and the edges of fades jump to a level: smooth fades and pulses become steps that pop
-  on and off, which on large areas can trip the flash check. Use amount < 1 on pulsing sources.
+- Dim colours fall in the darkest band and fades jump band to band: smooth pulses become steps that pop on and off,
+  which on large areas can trip the flash check. Use amount < 1 on pulsing sources.
+- Hue is replaced, not kept: whatever colours come in, the bands are Colours'.
 - Hard band edges alias on sparse LEDs; a blur after it softens them again.
-- Colours are rounded per channel, so a palette colour may become a different hue.

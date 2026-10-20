@@ -286,14 +286,15 @@ function runStaged(S: Scene, L: PreparedLayer, T: number, G: G, st: NonNullable<
   }
 }
 
-/** The pixel a layer's chain sees (SPEC "The pixel p"), reused for every LED; `attr`, `is` and `part` read its k. */
+/** The pixel a layer's chain sees (SPEC "The pixel p"), reused for every LED; attr, is, part and partUp read its k. */
 function makePixel(S: Scene) {
   const q = { x: 0, y: 0, z: 0, X: 0, Y: 0, Z: 0, lx: 0, ly: 0, lz: 0, a: 0, r: 0, u: 0, i: 0, n: 1, zone: '', zi: 0,
     fixture: 0, strand: 0, ring: 0, row: 0, sector: -1, petal: -1, k: 0, seed: 0,
     ox: 0, oy: 0, oz: 0, sx: 0, sy: 0, sz: 0, sr: 0, cy: 0, cz: 0, due: 0,
     attr: (name: string, d = 0): number => { const v = S.attrs.get(name); return v ? v[q.k] : d; },
     is: (tag: string): boolean => tagMask(S, tag)[q.k] === 1,
-    part: (tag: string): number => tagParts(S, tag).of[q.k]!, parts: (tag: string): number => tagParts(S, tag).n };
+    part: (tag: string): number => tagParts(S, tag).of[q.k]!, parts: (tag: string): number => tagParts(S, tag).n,
+    partUp: (tag: string): number => tagParts(S, tag).up[q.k]! };
   return q;
 }
 /** The pixel `p` (SPEC "The pixel p"), as every module sees it. */
@@ -316,7 +317,8 @@ export function prepareLayer(scene: Scene, layer: LayerInput | null | undefined,
     if (Z < z0) z0 = Z; if (Z > z1) z1 = Z;
   }
   const norm = (v: number, lo: number, hi: number) => (hi - lo > 1e-6 ? (v - lo) / (hi - lo) : 0.5);
-  const cy = (y0 + y1) / 2, cz = (z0 + z1) / 2;
+  // a r turn round the LEDs' mean (on City of Gods the rose), not the bounds' middle 1.7 m above it.
+  const cy = m ? sy / m : 0, cz = m ? sz / m : 0;
   const lx = new Float64Array(m), ly = new Float64Array(m), lz = new Float64Array(m);
   const a = new Float64Array(m), r = new Float64Array(m);
   let rmax = 0;
@@ -339,8 +341,8 @@ export function prepareLayer(scene: Scene, layer: LayerInput | null | undefined,
     idx, lx, ly, lz, a, r,
     bounds: { min: [x0, y0, z0], max: [x1, y1, z1] },
     near: null as ((X: number, Y: number, Z: number) => number) | null,     // place.ts, on the first move
-    frame: Float64Array.of((x0 + x1) / 2, cy, cz, (x1 - x0) / 2, (y1 - y0) / 2, (z1 - z0) / 2, rmax,
-      m ? sy / m : 0, m ? sz / m : 0),                                   // then the middle of the LEDs
+    frame: Float64Array.of((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, (x1 - x0) / 2, (y1 - y0) / 2, (z1 - z0) / 2,
+      rmax, cy, cz),                                                     // then a r's centre: the middle of the LEDs
     extent: Object.freeze([corner([x0, y0, z0]), corner([x1, y1, z1])]),  // extent()
     chain, modular: Array.isArray(layer?.modules), failed: null as string | null,
     blend: isBlend(layer?.blend) ? layer.blend : 'add', level: isNum(layer?.level) ? clamp(layer.level) : 1,

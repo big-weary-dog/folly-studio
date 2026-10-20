@@ -1,5 +1,5 @@
 // Garlands: rows of swags drape across the layer one after another in Direction at Speed, then fade and start again,
-// each row a colour from Colours. Sag is how deep each swag hangs.
+// each row a colour from Colours, moving on a colour each time round. Sag is how deep each swag hangs.
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours',
     help: 'Which palette colours the rows, one colour a row.' },
@@ -18,9 +18,9 @@ const params = {
 };
 
 function pixel(p, t, P) {
-  const d = P.direction, n = round(P.rows), ph = clock('speed') % (n + 2);       // rows hung so far
-  const hook = fract((d === 'right' || d === 'left' ? p.ly : p.lz) * P.swags) * 2 - 1;  // −1 … 1 between two hooks
-  const y = 1 - toward(p, d) + P.sag * (1 - hook * hook);                       // swags straightened out
+  const d = P.direction, n = round(P.rows), go = clock('speed') / (n + 2), ph = fract(go) * (n + 2);  // rows so far
+  const hook = fract(p.lz * P.swags) * 2 - 1;                                     // −1 … 1 between two hooks
+  const y = 1 - toward(p, d) + (d === 'up' ? -P.sag : P.sag) * (1 - hook * hook);  // swags straightened out
   const j0 = round((1 - y) * n - 0.5);
   let v = 0, row = 0;
   for (let j = j0 - 1; j <= j0 + 1; j++) {
@@ -31,7 +31,7 @@ function pixel(p, t, P) {
   }
   v *= 1 - smoothstep(n + 1, n + 2, ph);
   if (v <= 0.002) return null;
-  const c = swatch('colours', row);
+  const c = swatch('colours', row + floor(go) * n);
   c[3] = v;
   return c;
 }

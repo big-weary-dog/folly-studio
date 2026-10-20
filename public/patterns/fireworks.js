@@ -20,7 +20,7 @@ function frame(t, P) {
   on = round(P.shells);
   for (let s = 0; s < on; s++) {
     const x = clock('speed') + rand(s, 9), c = floor(x), a = x - c;     // a: how far through its burst
-    ID[s] = c * 6 + s; AGE[s] = a;
+    ID[s] = c * 7 + s; AGE[s] = a;                                      // 7: shells walk a pick of any size
     CZ[s] = 0.15 + 0.7 * rand(s, c, 1);
     CY[s] = 0.5 + 0.35 * rand(s, c, 2) - 0.24 * a * a;                  // the burst sags as it falls
   }
@@ -31,8 +31,8 @@ function pixel(p, t, P) {
   for (let s = 0; s < on; s++) {
     const a = AGE[s], R = P.size * (1 - exp(-a * 6.6)), dz = p.lz - CZ[s], dy = p.ly - CY[s], d = hypot(dz, dy);
     if (d > R + 0.03) continue;
-    const spark = pulse(atan2(dz, dy) / TAU * P.sparks + rand(ID[s], 3), 0.45);
-    const v = (spark * smoothstep(R * 0.2, R, d) + 0.25) * exp(-a * 2) + exp(-d * d * 300 - a * 13);
+    const spark = pulse(atan2(dz, dy) / TAU * P.sparks + rand(ID[s], 3), 0.12);
+    const v = (spark * smoothstep(R * 0.2, R, d) + 0.06) * exp(-a * 4) + exp(-d * d * 300 - a * 13);
     if (v > best) { best = v; id = ID[s]; }
   }
   if (best < 0.004) return null;

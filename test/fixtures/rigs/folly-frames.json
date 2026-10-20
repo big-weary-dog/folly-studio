@@ -1,5 +1,5 @@
 {
- "_about": "Frozen at b5d9258 (cathedral.json era) by rendering each look as the bake does (t = f / 40, default gamma and brightness) and hashing its full DMX frames. test/rig-folly.test.js renders them again on rig.json.",
+ "_about": "Frozen at b5d9258 (cathedral.json era) by rendering each look as the bake does (t = f / 40, default gamma and brightness) and hashing its full DMX frames. test/rig-folly.test.js renders them again on rig.json. Re-made when a r moved to the LEDs' mean (the effects audit's core fix).",
  "frames": 100,
  "every": 10,
  "looks": [
@@ -116,18 +116,18 @@
      }
     ]
    },
-   "sha256": "726dc855370ce511d791fc25af376c4d6f8d64cd11361bf75619092b27c28398",
+   "sha256": "116bf5900397b0b55c3b85c593fc35beb2a8734abb79d56e4c338abe450fb8ff",
    "sampled": {
-    "0": "b98b12c653ad5ffd",
-    "10": "dad12e7404f73ac0",
-    "20": "ec6c200796cffcd6",
-    "30": "6c01c935e0acabfb",
-    "40": "3f0208f35215df9c",
-    "50": "4be10a2f0baba013",
-    "60": "1f9537497b084ade",
-    "70": "70521fef2f3e573a",
-    "80": "7e3f6adbb7d96ea7",
-    "90": "5f05b5e6ae63f9e3"
+    "0": "5c6133f8e46bd0e7",
+    "10": "c3a394b24cc8f9ae",
+    "20": "f1fd17c12034700d",
+    "30": "a237f2b0eb7f1309",
+    "40": "087ef0c9e6364d5b",
+    "50": "479bc605d29c9544",
+    "60": "a28972e31593475e",
+    "70": "2d6e524415864617",
+    "80": "042c7e1031bf4e67",
+    "90": "a5025ff8a9555d10"
    },
    "litChannels": 718600
   },
@@ -316,18 +316,18 @@
      }
     ]
    },
-   "sha256": "40bd9e3b902ff9346d4a4e0928b7d0af46baaadbf0033e0455175055369b420c",
+   "sha256": "d60ca06e1a68fca1661114ed54a6dfa347abfb41541dca4388971353b9d41904",
    "sampled": {
-    "0": "a96fbafa28ac4bfe",
-    "10": "2ca221271bd8e41a",
-    "20": "97afa473cd2e4803",
-    "30": "5ff2905ee5eaed14",
-    "40": "a8a7f4290a844e3e",
-    "50": "676695e3787cf5bb",
-    "60": "f5567a508734a834",
-    "70": "98cb7d17a7f66d05",
-    "80": "b90efa52e65948ba",
-    "90": "9dba7d7bc4ea8f16"
+    "0": "0c429b2042a045f5",
+    "10": "c8707906a675d53e",
+    "20": "8b795aac7d703ec0",
+    "30": "ae72fb2859409c41",
+    "40": "628bebdc8d58aa16",
+    "50": "87e8304fca6cb664",
+    "60": "c056fd22b2654dba",
+    "70": "84139ccc40484520",
+    "80": "534c2e0cea657bc0",
+    "90": "b4b85fead7c95961"
    },
    "litChannels": 1253564
   }

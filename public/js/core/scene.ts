@@ -48,6 +48,7 @@ export function prepareScene(rig: Rig) {
     tagCache: new Map<string, unknown>(), X: F(), Y: F(), Z: F(), x: F(), y: F(), z: F(), zone: I(), fixture: I(),
     ring: attrs.get('ring') || F(), sector: attrs.get('sector') || F().fill(-1),
     u: F(), i: I(), n: I(), seed: F(), addr: I(), centresOf: (tag: string): Centres => tagCentres(s, tag),
+    extent: Object.freeze([Object.freeze([...lo]), Object.freeze([...hi])]) as Centres,      // extent('rig')
   };
   let next = 0;
   rig.fixtures.forEach((f, j) => {
@@ -163,7 +164,8 @@ export function tagMask(scene: Scene, tag: string) {
 
 /**
  * `tag`'s parts (SPEC "The pixel p"): the groups tagged `tag`, or, when one group is, its smallest groups (rig order).
- * `of`: each pixel's part, −1 in none (the first part that holds it; empty parts are dropped); `n` how many (cached).
+ * `of`: each pixel's part, −1 in none (the first part that holds it; empty parts are dropped); `n` how many; `up` its
+ * height in its part, 0 at the foot to 1 at the top (in none: the rig's) (cached).
  */
 export function tagParts(scene: Scene, tag: string) {
   return cached(scene, `%${tag}`, () => {
@@ -181,7 +183,19 @@ export function tagParts(scene: Scene, tag: string) {
       for (const k of groupMembers(scene, g)) if (of[k]! < 0) { of[k] = n; held = 1; }
       n += held;
     }
-    return { of, n };
+    // up: each pixel's height in its part, 0 at the part's foot to 1 at its top (in none: the rig's).
+    const lo = new Float64Array(n + 1).fill(Infinity), hi = new Float64Array(n + 1).fill(-Infinity);
+    for (let k = 0; k < scene.count; k++) {
+      const j = of[k]! < 0 ? n : of[k]!, Y = scene.Y[k]!;
+      if (Y < lo[j]!) lo[j] = Y;
+      if (Y > hi[j]!) hi[j] = Y;
+    }
+    const up = new Float32Array(scene.count);
+    for (let k = 0; k < scene.count; k++) {
+      const j = of[k]! < 0 ? n : of[k]!, h = hi[j]! - lo[j]!;
+      up[k] = h > 1e-6 ? (scene.Y[k]! - lo[j]!) / h : 0.5;
+    }
+    return { of, n, up };
   });
 }
 

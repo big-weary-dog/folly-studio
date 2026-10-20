@@ -10,9 +10,9 @@ direction; **bars** with one bar draws a moving edge itself.
 
 ## Params
 - direction: Down fades in from the top; out from the centre, in from the rim, along from each wire's start.
-- position: 0..1 along Direction; 1 hides everything. Bind it to an lfo or a cue for a wipe.
+- position: 0 shows everything, 1 hides it; the default 0.25 fades in over the first third. Bind it for a wipe.
 - width: 0.05–0.1 a crisp edge (a wipe); 0.3–0.6 a soft gradient.
-- both: The far edge stays at the layer's end while Position moves the near one.
+- both: The far edge moves in with the near one, narrowing the band between them.
 - invert: With a moving Position it is a fill level.
 
 ## Pairings

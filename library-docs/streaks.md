@@ -9,8 +9,7 @@ each wire, **sparkle** for points that stay put, **lightning** for one dramatic 
 
 ## Params
 - colours: `"accent high"` gives blue tails with white heads.
-- direction: `down` for rain, `up` for embers; `along` drips along each wire, `out` spokes from the centre, `round`
-  circles it.
+- direction: `down` for rain, `up` for embers; `along` drips along each wire.
 - angle: In turns; 0.1–0.15 for wind-driven rain or snow.
 - speed: Roughly layers a second, each streak ±40%. 0.1–0.2 for flakes, 0.6–1 for rain, 2+ for a downpour.
 - lanes: 20–40 for rain on the whole rig; fewer lanes make bigger flakes.
@@ -25,6 +24,5 @@ each wire, **sparkle** for points that stay put, **lightning** for one dramatic 
 
 ## Pitfalls
 - The head is a hard edge; with few lanes on sparse LEDs it hops from LED to LED. More lanes and a longer tail help.
-- tail does nothing on flake; sway does nothing on streak. angle is meant for the straight directions; on `out`,
-  `round` or `along` it mixes unlike coordinates.
+- tail does nothing on flake; sway does nothing on streak. On `along` angle mixes unlike coordinates; keep it 0.
 - A thin layer with many lanes leaves most lanes on no LEDs at all: match lanes to how many LEDs lie across.

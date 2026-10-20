@@ -1,10 +1,10 @@
 ---
 looks: A slow rainbow gradient rising up the layer, swirled by noise, its hues drifting round.
 ---
-The whole layer drifts round the colour wheel: **colour-wash** moves smoothly through `rainbow` (one colour every
-eight seconds, never holding), **hue-shift** spreads a quarter turn of hue from the ground to the top so it reads as
-a gradient, and **turbulence** swirls the gradient's lines slowly. The calmest full-coverage bed in the library, for
-openings, ambient stretches and under sparse elements. **butterfly** is busier and symmetrical; a plain
+The whole layer drifts through the palette: **colour-wash** moves smoothly through `all` the palette's colours (one
+every eight seconds, never holding), **hue-shift** spreads a quarter turn of hue from the ground to the top so it
+reads as a gradient, and **turbulence** swirls the gradient's lines slowly. The calmest full-coverage bed in the
+library, for openings, ambient stretches and under sparse elements. **butterfly** is busier and symmetrical; a plain
 **colour-wash** changes the layer all at once with no gradient.
 
 ## Overrides
@@ -26,5 +26,5 @@ openings, ambient stretches and under sparse elements. **butterfly** is busier a
 - Bind colour-wash.brightness to energy (`from` 0.2 `to` 1) so the bed lifts as the show builds.
 
 ## Pitfalls
-- `rainbow` and a large hue-shift spread override the look's palette; use roles if the palette matters.
+- A large hue-shift spread leaves the look's palette; keep it small if the palette matters.
 - hue-shift rotates the colour, so a palette of whites and greys barely changes.

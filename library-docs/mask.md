@@ -9,7 +9,7 @@ clouds becomes storm cover (preset storm). **edge-fade** fades toward an edge in
 **posterize** bands colours rather than cutting them.
 
 ## Params
-- by: `input` reads the source named by `input`. With `self`, faint parts of a busy texture vanish.
+- by: `input` reads the source named by `input`. `self` keys on luminance: dark blues go before yellows.
 - amount: 0.6–0.8 leaves a dim ghost (preset storm uses 0.8).
 - cutoff: 0.2 shows nearly everywhere the input is lit.
 - softness: A share of brightness. 0.05 is a hard cut-out; 0.3–0.5 gives soft, cloud-like edges.

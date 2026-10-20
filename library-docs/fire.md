@@ -11,7 +11,8 @@ group rather than a flicker.
 - colours: Give it a warm pick in order, e.g. `#300000 #ff2000 #ff9000 #fff0a0`. The default `all` puts the palette's
   lowest colour at the tips.
 - speed: 0.6–1.5 is a hearth; 3–4 a blaze.
-- height: About this share of the layer, raggedly. 0.4 hugs the base; 1–1.5 fills it.
+- height: About this share of the layer, raggedly. 0.3–0.5 reads as flames; 1–1.5 fills it as a blaze.
+- embers: Sparks rise above the flames up to 2.5 × height; 0.3 is a few, 1 a stream.
 - size: A share of the layer. 0.2–0.4 for distinct tongues; above 1 one slow sheet.
 
 ## Pairings

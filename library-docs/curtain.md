@@ -8,11 +8,12 @@ shape) or to the clip's envelope to draw it for an opening reveal. **edge-fade**
 **bars** with duty bound makes a plain sliding block.
 
 ## Params
-- colours: The cloth's shades walk the first three quarters of the pick. `low body` gives a dark velvet with a lit hem.
-- open: 0.5 is half open. Bind it; a fixed value is a still curtain.
-- direction: Only the axis matters: right and left look the same, as do up and down. Back or front parts it in depth.
+- colours: The cloth runs through the pick from its edge to the sides, its pleats shaded darker. `low body` gives a
+  dark velvet with a lit hem.
+- open: 0.5 is half open, 1 fully clear. Bind it; a fixed value is a still curtain.
+- direction: Right parts it sideways, up top and bottom, back in depth.
 - pleats: 4–8 read on the arches. More fold together as it opens.
-- swag: 0.35 gives classic tie-backs. Made for right/left.
+- swag: 0.35 gives classic tie-backs; it eases off as the curtain opens fully. Made for right.
 - softness: A share of the layer; 0.02–0.05 crisp, 0.2 a soft fade. 0 aliases on sparse LEDs.
 
 ## Pairings
@@ -22,5 +23,5 @@ shape) or to the clip's envelope to draw it for an opening reveal. **edge-fade**
 - Layers beneath it: the reveal is only as good as what is under; put the show's main look below.
 
 ## Pitfalls
-- Swag uses height whatever the direction, so with up/down it skews the opening rather than tying back.
+- Swag uses height whatever the direction, so with up it skews the opening rather than tying back.
 - On sparse LEDs, many pleats alias into noise; keep pleats ≤ 8 on spires and globes.

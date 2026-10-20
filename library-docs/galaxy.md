@@ -1,17 +1,17 @@
 ---
 looks: Spiral arms slowly turning round a bright core over a base colour.
 ---
-Three soft spiral arms in `accent` and `body` turn slowly round the layer's centre, about one turn every 30 seconds,
+Two soft spiral arms in `accent` and `body` turn slowly round the layer's centre, about one turn every 20 seconds,
 over a `low` bed, with a glowing `high` core in the middle. Pulse **bars** made into spokes by **polar**, wound into
 spirals by **twist**, then a **spot** for the core (after the warps, so it stays round). Cosmic, hypnotic, centred:
 best on the rose or the whole façade. **rose-chase** is comets on circles; **lighthouse** is straight beams.
 
 ## Overrides
 - bars.bars: the number of arms; keep it whole, or a seam shows at 12 o'clock.
-- bars.speed: how fast the arms turn (bars a second: 0.1 with 3 arms is one turn in 30 s); negative reverses.
+- bars.speed: how fast the arms turn (bars a second: 0.1 with 2 arms is one turn in 20 s); negative reverses.
 - bars.duty: arm width; 0.3 thin arms, 0.9 nearly touching.
 - bars.colours: the arms' colours, dealt in turn.
-- twist.swirl: how tightly the arms wind; 0 for straight spokes, ±1 for tight spirals; the sign is the hand.
+- twist.swirl: how tightly the arms wind; 0 straight spokes, ±2 (the stock −2) tight spirals; the sign is the hand.
 - twist.spin: turns the whole spiral as well; usually leave 0 and use bars.speed.
 - polar.repeats: copies of the pattern round the circle, multiplying the arms.
 - spot.size: the core's radius as a share of the layer; spot.colours its colour; 0.01 all but removes it.
@@ -25,4 +25,3 @@ best on the rose or the whole façade. **rose-chase** is comets on circles; **li
 ## Pitfalls
 - The centre is the middle of the layer's bounds, not the rose, unless anchored.
 - Near the core the arms crowd into mush on few LEDs; the spot hides it, so keep size above ~0.08.
-- The stock swirl (−1.2) is beyond twist's −1..1 range; an override is held to it, so −1 is the tightest you get.

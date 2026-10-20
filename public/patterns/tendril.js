@@ -9,13 +9,13 @@ const params = {
     help: 'How many wander at once. 1 is a lone tendril; 6 a tangle.' },
   length: { value: 0.3, min: 0.05, max: 1, step: 0.01, label: 'Length',
     help: 'How long a trail each keeps behind its head. Low is a short worm; high a long snaking body.' },
-  width: { value: 0.08, min: 0.02, max: 0.3, step: 0.005, label: 'Width',
+  width: { value: 0.12, min: 0.02, max: 0.3, step: 0.005, label: 'Width',
     help: 'How thick the head is (the body tapers behind it). Low is a thin thread; high a fat, bold stroke.' },
 };
 
 const K = 20, Y = new Float64Array(6 * K), Z = new Float64Array(6 * K);
 let n = 0;
-const at = (v) => clamp(0.5 + (v - 0.5) * 2.4);
+const at = (v) => tri((0.5 + (v - 0.5) * 1.6) / 2);   // noise stretched over the layer, folded back at its edges
 
 // Each tendril's last K points along its noise path: the head now, the rest behind it.
 function frame(t, P) {

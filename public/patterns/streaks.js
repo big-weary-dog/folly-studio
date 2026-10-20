@@ -4,15 +4,15 @@
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth',
     help: 'Colours each streak along its length: the head takes the last colour, the tail fades back to the first.' },
-  direction: { value: 'down', type: 'choice', options: DIRECTIONS, label: 'Direction',
-    help: 'Up, down, across, front to back, round, in or out from the centre, or along strands.' },
+  direction: { value: 'down', type: 'choice', options: ['up', 'down', 'right', 'left', 'along'], label: 'Direction',
+    help: 'Up, down, across, or along strands.' },
   angle: { value: 0, min: -0.25, max: 0.25, step: 0.01, label: 'Angle off Direction (turns)',
     help: 'Tilts the fall. 0 falls straight; higher slants it like rain in wind; negative slants the other way.' },
   speed: { value: 0.6, min: 0, max: 3, step: 0.01, label: 'Speed (layers a second)',
     help: 'How fast streaks fall (each lane varies a little). 0 freezes them; high pours them through quickly.' },
   lanes: { value: 40, min: 4, max: 120, step: 1, label: 'Lanes',
     help: 'How many lanes fit across. Low gives a few broad streaks; high many thin ones.' },
-  density: { value: 0.5, min: 0, max: 1, step: 0.01, label: 'Share of lanes in use',
+  density: { value: 0.8, min: 0, max: 1, step: 0.01, label: 'Share of lanes in use',
     help: 'How many lanes are falling. Low is a light drizzle; 1 fills every lane.' },
   tail: { value: 0.15, min: 0.005, max: 0.6, step: 0.005, label: 'Tail (share of the layer)',
     help: 'How long each streak tail fades over. Low is short sharp dashes; high long glowing trails.' },
@@ -24,10 +24,8 @@ const params = {
     help: 'How far flakes drift side to side as they fall (flake only). 0 drops straight; high weaves widely.' },
 };
 
-// The coordinate across a direction: across for up, down, back and front; up for right and left; the angle for out
-// and in; the radius for round; each strand its own lane along them.
-const across = (p, d) => (d === 'right' || d === 'left' ? p.ly : d === 'out' || d === 'in' ? p.a
-  : d === 'round' ? p.r : d === 'along' ? fract(p.fixture * 0.618) : p.lz);
+// The coordinate across a direction: across for up and down; up for right and left; each strand its own lane along.
+const across = (p, d) => (d === 'right' || d === 'left' ? p.ly : d === 'along' ? fract(p.fixture * 0.618) : p.lz);
 
 function pixel(p, t, P) {
   const d = P.direction, w = TAU * P.angle, s = sin(w), c = cos(w), a0 = toward(p, d), b0 = across(p, d);
@@ -48,7 +46,7 @@ function pixel(p, t, P) {
     }
   }
   if (v < 0.004) return null;
-  const col = pal('colours', v);
+  const col = pal('colours', 0.35 + 0.65 * v);                       // the tail fades by alpha, not twice
   col[3] = v;
   return col;
 }

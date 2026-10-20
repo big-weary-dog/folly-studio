@@ -1,7 +1,7 @@
 ---
 looks: Rainbow rings spreading out from the rose window through the whole building.
 ---
-Soft rings of colour, each the next of the `rainbow`, spread outward from the rose window across the whole layer
+Soft rings of colour, `body` and `accent` in turn, spread outward from the rose window across the whole layer
 over a `low` bed, about four metres a second: pulse **bars** on `in` with a negative speed, centred on the rose by
 **anchor** measuring in a sphere out to 30 metres. Use it on the whole rig to make the rose the source of
 everything. **rose-chase** keeps its rings and comets inside the rose; **shockwave** is a single burst.
@@ -11,7 +11,7 @@ everything. **rose-chase** keeps its rings and comets inside the rose; **shockwa
 - bars.bars: rings within the reach; 5 over 30 m is one every 6 m; 10 for tight ripples.
 - bars.duty: ring thickness; 0.2 thin, 1 rings back to back.
 - bars.profile: `comet` for a bright leading edge; `step` for flat bands.
-- bars.colours: `rainbow` ignores the palette; `body accent` or `all` follow it.
+- bars.colours: `all` for every palette colour; `rainbow` ignores the palette.
 - anchor.reach: metres counted as the edge; smaller packs the rings tighter, 0 uses the layer's farthest corner.
 - anchor.shape: `facade` ignores depth (rings on the façade); `plan` makes rings on the ground round an upright axis.
 - anchor.tag: ripple from another group (`tower` with which `nearest` for one set from each tower).

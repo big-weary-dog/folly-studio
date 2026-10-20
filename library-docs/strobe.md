@@ -12,8 +12,8 @@ then.
 - speed: Flashes a second; 2 is the default. Above 3 on a large area fails the flash check. For one a beat use the tempo
   ÷ 60 (2 at 120 bpm).
 - length: 0.05–0.15 is a crisp strobe, 0.5 half on, half off.
-- scatter: Chosen anew each flash; 1 leaves about one LED in ten.
-- fade: Capped at length.
+- scatter: Whole strands, chosen anew each flash; 1 leaves about one strand in ten.
+- fade: Capped at length; at the default 0.15 a flash is all fade.
 
 ## Pairings
 - Over the look's main element (`blend: "over"` or `add`), with its level bound to an lfo or the clip envelope so it

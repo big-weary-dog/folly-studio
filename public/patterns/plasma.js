@@ -3,22 +3,22 @@
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth',
     help: 'The palette the plasma flows through, back and forth.' },
-  speed: { value: 0.6, min: 0, max: 3, step: 0.01, label: 'Speed (waves a second)',
+  speed: { value: 0.1, min: 0, max: 0.5, step: 0.01, label: 'Speed (waves a second)',
     help: 'How fast the waves flow. Zero freezes them; high churns quickly.' },
-  size: { value: 0.17, min: 0.05, max: 1, step: 0.01, label: 'Size (share of the layer)',
+  size: { value: 1.07, min: 0.3, max: 4, step: 0.01, label: 'Size (share of the layer)',
     help: 'How big each wave is. Low gives fine, busy ripples; high gives broad, slow swells.' },
 };
 
 let s = 0, cx = 0.5, cy = 0.5;
 
 function frame() {
-  s = clock('speed');
+  s = TAU * clock('speed');
   cx = 0.5 + 0.35 * sin(s * 0.5);       // the fourth wave's centre wanders
   cy = 0.5 + 0.35 * cos(s * 0.37);
 }
 
 function pixel(p, t, P) {
-  const k = 1 / P.size;
+  const k = TAU / P.size;
   const v = sin(p.lz * k * 1.3 + s) + sin(p.ly * k * 1.7 - s * 1.3) + sin((p.lz + p.ly + p.lx) * k * 0.9 + s * 0.7)
     + sin(hypot(p.lz - cx, p.ly - cy) * k * 2.2 - s * 1.1);
   return pal('colours', tri(v / 4 + 0.5));

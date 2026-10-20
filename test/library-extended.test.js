@@ -36,13 +36,16 @@ describe('bars', () => {
   });
 });
 
-test('rotate turns in its plane: a quarter turn in plan swaps depth and across', () => {
-  const probe = { id: 'p', kind: 'source', code: 'function pixel(q) { return [q.lx, q.lz, q.ly]; }' };
+test('rotate turns in its plane, in metres: a quarter turn in plan swaps depth and across', () => {
+  // The probe reads the turned point in metres from the frame's middle, over 40 m so it stays in 0..1.
+  const probe = { id: 'p', kind: 'source',
+    code: 'function pixel(q) { return [0.5 + (q.X - q.ox) / 40, 0.5 + (q.Z - q.oz) / 40, q.ly]; }' };
   const { L, rgb } = run([probe, mod('rotate', 'warp', { plane: 'plan', angle: 0.25 })]);
+  const [ox, , oz] = L.frame;
   L.idx.forEach((k, j) => {
     const [x, z, y] = rgb(j);
-    assert.ok(Math.abs(x - (1 - L.lz[j])) < 1e-9 && Math.abs(z - L.lx[j]) < 1e-9 && Math.abs(y - L.ly[j]) < 1e-9,
-      `LED ${k}`);
+    assert.ok(Math.abs(x - (0.5 - (scene.Z[k] - oz) / 40)) < 1e-9 && Math.abs(z - (0.5 + (scene.X[k] - ox) / 40)) < 1e-9
+      && Math.abs(y - L.ly[j]) < 1e-9, `LED ${k}`);
   });
 });
 

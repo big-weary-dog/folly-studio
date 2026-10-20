@@ -18,6 +18,7 @@ from one centre, **shockwave** for a single burst, **fireworks** for bursts that
 - Under `streaks` falling on the same layer for rain hitting water.
 
 ## Pitfalls
-- Rings live in the façade plane (left-right and height); depth is ignored, so towers seen from the side show slices.
+- Rings live in the façade plane (left-right and height), round in metres; depth is ignored, so towers seen from the
+  side show slices.
 - A drop vanishes at about 15% brightness when its next one lands; at high speed the cut is visible.
 - Narrow layers (a single tower) show only arcs of each ring; it reads best on the rose, the arches or the whole rig.

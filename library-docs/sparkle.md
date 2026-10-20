@@ -10,7 +10,8 @@ layer. Reach for **life** for structured flicker along strands, **streaks** when
 - colours: `high` gives white stars, a few hexes warm and cool.
 - density: 0.1–0.3 for stars, 1 for an all-over shimmer.
 - rate: Glints a second per LED, each LED ±50% of it. 0.2–0.6 for stars, 4–10 for glitter in smooth mode.
-- length: A share of each LED's cycle. 0.05 is a sharp twinkle; 0.5 never goes dark, a slow breathing.
+- colours: In pulse mode each glint picks a new colour; in smooth each LED keeps one.
+- length: The lit share of each LED's cycle. 0.1–0.25 is a glint; 1 never goes dark, a slow breathing.
 
 ## Pairings
 - Last in a chain with blend `over` or `add` on any bed: stars over a dark sky (starfield), glitter over a walk of body

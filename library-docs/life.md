@@ -10,6 +10,7 @@ without structure, **single-strand** for orderly motion along the wire.
 ## Params
 - speed: Generations a second. 2–6 reads as evolving; 10+ is a seethe.
 - era: In generations; short eras keep it lively, long ones let a rule settle.
+- by: Age counts how many of a cell's last 3 generations it lived, so blinking chaos cells walk the colours too.
 - density: 0.1–0.2 for sparse gliders, 0.5 for full chaos.
 
 ## Pairings

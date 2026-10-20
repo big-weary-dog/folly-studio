@@ -104,7 +104,7 @@ function reframe(q: Q, X: number, Y: number, Z: number) {
   q.lx = q.sx > 0 ? 0.5 + (X - q.ox) / (2 * q.sx) : 0.5;
   q.ly = q.sy > 0 ? 0.5 + (Y - q.oy) / (2 * q.sy) : 0.5;
   q.lz = q.sz > 0 ? 0.5 + (Z - q.oz) / (2 * q.sz) : 0.5;
-  const dz = Z - q.oz, dy = Y - q.oy, a = Math.atan2(dz, dy) / ROUND;
+  const dz = Z - q.cz, dy = Y - q.cy, a = Math.atan2(dz, dy) / ROUND;
   q.a = a < 0 ? a + 1 : a;
   q.r = q.sr > 0 ? Math.sqrt(dz * dz + dy * dy) / q.sr : 0;
 }
@@ -127,7 +127,7 @@ export function settle(q: Q) {
 /** Whether module code may read a pixel's LED fields (or attr/is, which read its k): it names one as `.field` or a
  *  string, destructures an object, or reads a computed key. */
 export const readsLed = (code: string | undefined) => code === undefined
-  || /[.'"`](u|i|n|zone|zi|fixture|strand|ring|row|sector|petal|k|seed|attr|is|part)\b/.test(code)
+  || /[.'"`](u|i|n|zone|zi|fixture|strand|ring|row|sector|petal|k|seed|attr|is|part|partUp)\b/.test(code)
   || /\{[^{}]*\}\s*=[^=>]|\(\s*\{|\w\s*\[\s*[A-Za-z_$]/.test(code);
 
 /** move(q, lx, ly, lz): q samples the point (lx, ly, lz) of its frame. */
@@ -135,9 +135,9 @@ export function move(q: Q, lx: number, ly: number, lz: number) {
   goTo(q, q.ox + (lx - 0.5) * 2 * q.sx, q.oy + (ly - 0.5) * 2 * q.sy, q.oz + (lz - 0.5) * 2 * q.sz);
 }
 
-/** turn(q, a, r): q samples angle a, radius r round its frame's middle, in the façade (its depth stays). */
+/** turn(q, a, r): q samples angle a, radius r round its frame's centre (cy, cz), in the façade (its depth stays). */
 export function turn(q: Q, a: number, r: number) {
-  goTo(q, q.X, q.oy + r * q.sr * Math.cos(ROUND * a), q.oz + r * q.sr * Math.sin(ROUND * a));
+  goTo(q, q.X, q.cy + r * q.sr * Math.cos(ROUND * a), q.cz + r * q.sr * Math.sin(ROUND * a));
   q.a = a - Math.floor(a); q.r = r;
 }
 

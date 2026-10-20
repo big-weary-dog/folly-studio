@@ -1,17 +1,17 @@
 ---
-looks: The layer broken into flat blocks of one colour each, like big pixels.
+looks: The layer broken into flat pieces: blocks like big pixels, or runs along each strand.
 ---
-The space of the layer is cut into a grid, Blocks along each of width, height and depth, and every LED in a block
-takes the colour of the block's middle, so smooth sources become chunky tiles that step rather than glide. A warp: it
-bends the modules above it in its layer up to a blur or trails, so it goes after the source. Reach for it for a retro,
-pixel-art or digital look, or to make a busy texture read from far away. **posterize** flattens colours instead of
-space; **mirror** and **kaleidoscope** fold rather than snap.
+Snaps what is above it in its layer to flat pieces, so smooth sources become chunky tiles that step rather than glide.
+Blocks cuts the layer's space into a grid, Blocks along each of width, height and depth, every LED in a block taking
+the colour at its middle. Runs breaks each strand into runs of LEDs per run, each run one colour, which reads on
+sparse rigs where blocks fall between wires. A warp: it bends the modules above it up to a blur or trails, so it goes
+after the source. **posterize** flattens colours instead of space; **mirror** and **kaleidoscope** fold instead.
 
 ## Params
-- cells: The grid follows the layer's box, so on the wide portal blocks are wider than tall. 6–12 reads as tiles from a
-  distance; above ~30 it hardly differs from no mosaic.
-- leds: Every LED in a block already shares one sample, so in practice it only nudges where each block takes its colour;
-  leave it at the default.
+- shape: `runs` for strands and arches, where a grid's blocks hold one or two LEDs each.
+- cells: The grid follows the layer's box, so on a wide layer blocks are wider than tall. 6–12 reads as tiles from
+  a distance; above ~30 it hardly differs from no mosaic.
+- leds: 4–8 on 40-LED strands; on short strands (rose cells, globes) a run is the whole strand.
 
 ## Pairings
 - After plasma, clouds or bars (smooth profile): moving colour in tiles that change step by step.

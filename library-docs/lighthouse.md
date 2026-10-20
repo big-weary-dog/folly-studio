@@ -8,7 +8,8 @@ clock in the front plane, `side` turns seen from the side. Reach for **bars** on
 **kaleidoscope** to make mirrored wedges of another pattern, **twist** to wind an existing pattern into a spiral.
 
 ## Params
-- plane: With `plan` the beams sweep across the front and round the back; a layer with no depth falls back to `facade`.
+- plane: With `plan` the beams sweep across the front and round the back, their angle in metres round the layer's
+  middle; a layer with no width falls back to `facade`.
 - spin: Turns a second; positive is clockwise. 0.1–0.3 is stately.
 - width: For beams, a share of the gap between beams: 0.05 a needle, 0.5 half lit. For stripes, 0.5 is smooth, 0.05 hard
   edges.

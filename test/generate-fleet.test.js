@@ -335,6 +335,13 @@ describe('fleet-box/check.ts (boxed worker side, real runtime)', () => {
     const want = bakeLoop(40, here.packed, () => here.next(), 40).data;
     assert.ok(Buffer.from(parseFseq(fs.readFileSync(path.join(dir, 'frames.fseq'))).data).equals(Buffer.from(want)));
 
+    // A tag choice naming a tag this rig has no group for warns (City of Gods has no canopy).
+    const anchored = { title: 'A', summary: 's', layers: [{ title: 'spot', groups: ['arches'], blend: 'add', level: 1,
+      modules: [{ id: 's', kind: 'source', code: lib('spot') },
+        { id: 'a', kind: 'warp', code: lib('anchor'), params: { tag: 'canopy' } }] }] };
+    fs.writeFileSync(path.join(dir, 'anchored.json'), JSON.stringify(anchored));
+    assert.match((await run(dir, 'anchored.json')).out, /module 2: tag canopy has no groups on this rig/);
+
     fs.writeFileSync(path.join(dir, 'strobe.json'), JSON.stringify({
       title: 'Strobe', summary: 's',
       layers: [{ title: 'flash', groups: ['cathedral'], blend: 'add', level: 1,

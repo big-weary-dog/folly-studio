@@ -24,8 +24,8 @@ const params = {
 };
 
 function pixel(p, t, P) {
-  const plan = P.plane === 'plan' && p.lx !== 0.5, side = P.plane === 'side';
-  const angle = plan ? atan2(p.lz - 0.5, p.lx - 0.5) / TAU : side ? atan2(p.lx - 0.5, p.ly - 0.5) / TAU : p.a;
+  const plan = P.plane === 'plan' && p.sx > 0, side = P.plane === 'side';     // angles in metres round the middle
+  const angle = plan ? atan2(p.Z - p.oz, p.X - p.ox) / TAU : side ? atan2(p.X - p.ox, p.Y - p.oy) / TAU : p.a;
   const along = P.plane === 'plan' ? p.ly : side ? p.lz : p.lx;
   const x = (angle + along * P.twist - clock('spin')) * P.beams, k = floor(x), s = x - k;
   if (P.profile === 'stripes') {

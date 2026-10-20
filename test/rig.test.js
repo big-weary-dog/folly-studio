@@ -122,6 +122,12 @@ describe('the mini rig: its own axes, attrs, tags and addressing', () => {
     }`, { tags: ['rose', 'flood'] });
     L.idx.forEach((k, j) => assert.deepEqual([...e.subarray(3 * k, 3 * k + 3)].map((v) => v.toFixed(4)),
       [L.lx[j], L.ly[j], L.lz[j]].map((v) => v.toFixed(4)), `LED ${k}`));
+    // extent('rig'): the whole rig's, which x y z map.
+    const { L: R, rgb: r } = probe(`function pixel(p) {
+      const lo = extent('rig')[0], hi = extent('rig')[1], f = (v, a) => (v - lo[a]) / (hi[a] - lo[a] || 1);
+      return [abs(f(p.X, 0) - p.x), abs(f(p.Y, 1) - p.y), abs(f(p.Z, 2) - p.z)];
+    }`, { tags: ['rose'] });
+    R.idx.forEach((k) => assert.ok([...r.subarray(3 * k, 3 * k + 3)].every((v) => v < 1e-6), `LED ${k}`));
   });
 
   test('tags carry a look between rigs: unknown ids fall back to them, known ids win, no tags is an error', () => {

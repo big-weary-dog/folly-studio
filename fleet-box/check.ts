@@ -134,6 +134,14 @@ layers.slice(0, LIMITS.layers).forEach((layer: any, i: number) => {
   };
   let compiled;
   try { compiled = core.compileLayer(l); } catch (e) { return errors.push(`${name}: does not compile: ${why(e)}`); }
+  // A tag choice (anchor, groups-in-turn) naming a tag no group on this rig has does nothing.
+  compiled.forEach((c, j) => {
+    const spec = c?.params.tag, given = (chain ? modules[j]?.params : layer.params)?.tag;
+    if (spec?.type !== 'choice') return;
+    const tag = spec.options.includes(given) ? given : spec.value;
+    const what = chain ? `${name}, module ${j + 1}` : name;
+    if (!core.groupsByTag(scene, tag).length) warnings.push(`${what}: tag ${tag} has no groups on this rig`);
+  });
   try {
     prepared.push(core.prepareLayer(scene, l, compiled));
     runnable.push(l);

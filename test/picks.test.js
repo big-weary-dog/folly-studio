@@ -39,12 +39,12 @@ const swatches = (s, n) => Array.from({ length: n }, (_, i) => s.swatch('c', i))
 describe('pal(role, t) as before', () => {
   // Frozen from the runtime before picks: float frames at t = 0, 1.3 and 7.9 s, default params, under chapel and a
   // palette with empty roles (sha256, 16 hex), of the library as it was (fixtures/library-v1.json): code that names
-  // roles, as saved looks and AI code do.
+  // roles, as saved looks and AI code do. Pinwheel, galaxy and rose-bloom re-made when a r moved to the LEDs' mean.
   const FROZEN = {
     'colour-wash': ['dd699f1a7145cd66', '916774580d47ea34'], garlands: ['07f54027c1481f7c', '36cfd86ee5122fa6'],
-    pinwheel: ['daba5b0ba5e91e17', '23cf4713b08a39c6'], wave: ['4719bcc5def8f1c5', '59e1545246665aa1'],
-    shimmer: ['8684d0c029f8c471', 'e4e32aae3ab294ef'], galaxy: ['d06d1fd2029b12a5', '42f7d49419b1453b'],
-    'rose-bloom': ['8f67d18f3ec20770', 'd73e300776daa2ef'], 'canopy-rain': ['e78f0c79325c79b8', 'a24d49b2eaacc6fd'],
+    pinwheel: ['eb321a37c8166c45', 'a49fe1b789b5faf7'], wave: ['4719bcc5def8f1c5', '59e1545246665aa1'],
+    shimmer: ['8684d0c029f8c471', 'e4e32aae3ab294ef'], galaxy: ['394073bae7a47ef5', 'a493cbc6a9da800c'],
+    'rose-bloom': ['9e0750704596e9e4', 'c3398b10b074aa49'], 'canopy-rain': ['e78f0c79325c79b8', 'a24d49b2eaacc6fd'],
     'wash-breathe': ['0dda983da4a43b5c', '2ed1cdb36acda0c4'], circles: ['dd95860b19eb859d', '4d85b0b2a6924573'],
     'arch-chase': ['37fdb44f97a240b9', 'bf8f7ada484978ab'], butterfly: ['f7e3d085dd53f595', '570aa6daf5887bdf'],
   };

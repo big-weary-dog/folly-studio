@@ -7,8 +7,9 @@ is drawn between balls, so it wants a bed below. Reach for it for lava-lamp, pla
 still disc; **tendril** draws wandering trails rather than blobs; **ripple** spreads rings from random drops.
 
 ## Params
-- colours: The default `all` gives the first balls the palette's lowest colours; prefer `body accent` or `rainbow`.
-- speed: 0.05–0.15 is a lava lamp; 0.5+ is a busy bounce.
+- colours: Ball i takes the pick's i-th colour, so `all` gives the first balls its lowest; prefer `body accent` or
+  `rainbow`. Touching balls blend their colours.
+- speed: Crossings a second, each ball ±40%. 0.1–0.3 is a lava lamp; 0.6+ is a busy bounce.
 - count: 1–8. 3–5 reads clearly; 8 with a large size merges into one big blob.
 - size: A share of the layer. 0.08–0.15 for distinct balls; 0.25+ and they are always merged.
 

@@ -10,7 +10,7 @@ const params = {
     help: 'Which way the flames rise; up burns from the ground, the others from the opposite edge.' },
   speed: { value: 1.2, min: 0, max: 4, step: 0.05, label: 'Speed (flickers a second)',
     help: 'How fast the flames flicker and climb. 0 freezes them; high is a fierce, fast blaze.' },
-  height: { value: 0.75, min: 0.2, max: 1.5, step: 0.01, label: 'Height',
+  height: { value: 0.45, min: 0.2, max: 1.5, step: 0.01, label: 'Height',
     help: 'How far the flames reach across the layer. Low keeps them near their edge; high licks past it.' },
   size: { value: 0.33, min: 0.12, max: 2, step: 0.01, label: 'Size (share of the layer)',
     help: 'How big each tongue of flame is. Small gives a busy flicker; large gives broad, rolling flames.' },
@@ -22,9 +22,10 @@ function pixel(p, t, P) {
   const s = 1 / P.size, d = P.direction, y = toward(p, d), across = d === 'right' || d === 'left' ? p.ly : p.lz;
   const w = clock('speed'), h = fbm(across * s, y * s * 1.4 - w, p.lx * s + w * 0.17);
   const heat = clamp(h * 1.6 - y / P.height + 0.25);
-  if (heat <= 0.01) {                       // above the flames: embers drift up, faster than the flames, and die out
-    const e = noise(across * s * 5, y * s * 3 - w * 2, p.lx * s * 5) + (P.embers - 1) * 0.35;
-    const v = smoothstep(0.6, 0.75, e) * (1 - smoothstep(0, P.height * 1.3, y));
+  if (heat <= 0.01) {                       // above the flames: embers rise up lanes as glints, dying out by `top`
+    const top = min(1, 2.5 * P.height), lane = floor(across * 24), e = rand(lane, 5) + w * 0.4 - y * 2;
+    if (y > top || rand(lane, round(e), 6) > P.embers * 0.6) return null;
+    const v = pulse(e, 0.08) * (1 - smoothstep(top * 0.5, top, y));
     if (v <= 0.01) return null;
     const c = pal('tips', 1 - v);
     c[3] = v;

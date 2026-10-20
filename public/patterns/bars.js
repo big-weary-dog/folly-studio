@@ -16,7 +16,7 @@ const params = {
     help: 'How much of each bar lights, the rest clear. 1 fills edge to edge; low leaves slivers with wide gaps.' },
   profile: { value: 'step', type: 'choice', options: ['step', 'smooth', 'pulse', 'comet'], label: 'Profile',
     help: 'step: flat bands; smooth: each blends into the next; pulse: bright middles; comet: bright fronts.' },
-  softness: { value: 0.2, min: 0, max: 1, step: 0.01, label: 'Edge softness (share of a bar)',
+  softness: { value: 0.2, min: 0, max: 1, step: 0.01, label: 'Edge softness (step only; share of a bar)',
     help: 'How blurred the edges of step bars are. 0 is a hard cut; high fades each bar softly into the next.' },
 };
 

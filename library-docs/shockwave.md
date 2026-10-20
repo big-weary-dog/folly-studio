@@ -19,6 +19,6 @@ place to the tempo; **bars** on `in` with a negative speed gives steady, evenly 
 
 ## Pitfalls
 - Every burst lights most of the layer at once; at speed 2 on the whole rig it nears the 3 Hz flash limit.
-- The front leaves the layer about halfway through each burst; the rest is only the fading glow, so short gaps feel
-  slow at low speed.
+- The front leaves the layer about halfway through each burst and its short wake fades behind it; at low speed the
+  layer then waits dark for the next burst.
 - It runs on its own clock, not locked to the beat; heartbeat is the one tied to the tempo.

@@ -2,9 +2,10 @@
 looks: A colour swells up from the ground over a base colour, then sinks back like a breath.
 ---
 The layer breathes: a `body` colour rises from the ground until it fills the layer, then drains back down, about one
-breath every six seconds, over the `low` colour beneath. A **colour-wash** is faded by **edge-fade** whose position
-rides a sine LFO, and a second **colour-wash** sits under it. A calm, organic bed for ambient moments or a held
-chord. **rising-sweep** sends a band up repeatedly instead of filling; **rose-bloom** opens from a centre and holds.
+breath every six seconds, over the `low` colour, dimmed, beneath. A **colour-wash** is faded by **edge-fade** whose
+position rides a sine LFO, and a second **colour-wash** sits under it. A calm, organic bed for ambient moments or a
+held chord. **rising-sweep** sends a band up repeatedly instead of filling; **rose-bloom** opens from a centre and
+holds.
 
 ## Overrides
 - edge-fade.position: the breath. Its LFO's `rate` sets the tempo (0.17 Hz ≈ 6 s; 0.1 for slower, or
@@ -13,7 +14,7 @@ chord. **rising-sweep** sends a band up repeatedly instead of filling; **rose-bl
 - edge-fade.direction: where it swells from. `down` pours from the top; `out` swells from the layer's centre;
   `in` closes from the rim.
 - colour-wash.colours: the swelling colour; colour-wash.speed moves it slowly through its pick (0 to hold one).
-- colour-wash#2.colours: the colour underneath.
+- colour-wash#2.colours and colour-wash#2.brightness: the colour underneath and how dim it is (0.3).
 
 ## Pairings
 - On the whole rig as the base layer, with an element layer above.
@@ -21,5 +22,5 @@ chord. **rising-sweep** sends a band up repeatedly instead of filling; **rose-bl
 - Bind the LFO's rate to a macro for a breath that quickens as the show builds.
 
 ## Pitfalls
-- The LFO overshoots the position range (−0.1 to 1.0) and is held to 0–1, so it lingers a moment full and empty.
+- The LFO spans the whole position range (0 to 1), so each breath empties the layer and fills it fully.
 - Faster than about 0.5 Hz it stops reading as a breath and becomes a whole-rig pulse; keep well under 3 Hz.

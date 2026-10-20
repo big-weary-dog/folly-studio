@@ -20,10 +20,10 @@ function play(modules, t, fps = 40) {
 }
 const near = (a, b, what) => a.forEach((v, i) => assert.ok(Math.abs(v - b[i]) < 1e-4, `${what}: ${a} ≉ ${b}`));
 
-test('mask by self: below the level transparent, the colour kept', () => {
-  const dim = src('return [0.3, 0.2, 0.1];'), bright = src('return [0.9, 0.5, 0.1];');
-  near(play([dim, filter('mask', { by: 'self', cutoff: 0.6, softness: 0.1 })], 0), [0.3, 0.2, 0.1, 0], 'mask, dim');
-  near(play([bright, filter('mask', { by: 'self', cutoff: 0.6, softness: 0.1 })], 0), [0.9, 0.5, 0.1, 1], 'mask');
+test('mask by self: below the level (of luminance) transparent, the colour kept', () => {
+  const dim = src('return [0.3, 0.2, 0.1];'), bright = src('return [0.9, 0.5, 0.1];');   // luminance 0.21, 0.56
+  near(play([dim, filter('mask', { by: 'self', cutoff: 0.4, softness: 0.1 })], 0), [0.3, 0.2, 0.1, 0], 'mask, dim');
+  near(play([bright, filter('mask', { by: 'self', cutoff: 0.4, softness: 0.1 })], 0), [0.9, 0.5, 0.1, 1], 'mask');
 });
 
 test('trails: transparent where nothing was, a fading colour that keeps its hue, the same at 20 and 40 fps', () => {

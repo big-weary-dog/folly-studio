@@ -9,14 +9,14 @@ const params = {
     help: 'Keeps it turning on top of Angle. 0 holds still; higher spins faster; negative spins the other way.' },
 };
 
+const at = (d, h) => 0.5 + d / (2 * h || 1);       // metres from the frame's middle, back to its 0..1
+
 function warp(q, t, P) {
-  const turn = P.angle + clock('spin'), s = sin(TAU * turn), c = cos(TAU * turn);
-  if (P.plane === 'facade') {
-    const dz = q.lz - 0.5, dy = q.ly - 0.5;
-    move(q, q.lx, 0.5 + dz * s + dy * c, 0.5 + dz * c - dy * s);
-  } else {
-    const dx = q.lx - 0.5, d2 = P.plane === 'side' ? q.ly - 0.5 : q.lz - 0.5;
-    const x = 0.5 + dx * c - d2 * s, y = 0.5 + dx * s + d2 * c;
-    if (P.plane === 'side') move(q, x, y, q.lz); else move(q, x, q.ly, y);
-  }
+  // Turned in metres round the frame's middle, so shapes keep their proportions on a layer that is not square.
+  const turn = P.angle + clock('spin'), s = sin(TAU * turn), c = cos(TAU * turn), f = P.plane === 'facade';
+  const side = P.plane === 'side', du = f ? q.Z - q.oz : q.X - q.ox, dv = f || side ? q.Y - q.oy : q.Z - q.oz;
+  const u = du * c - dv * s, v = du * s + dv * c;
+  if (f) move(q, q.lx, at(v, q.sy), at(u, q.sz));
+  else if (side) move(q, at(u, q.sx), at(v, q.sy), q.lz);
+  else move(q, at(u, q.sx), q.ly, at(v, q.sz));
 }

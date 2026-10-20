@@ -1,7 +1,8 @@
 // Life: a one-dimensional cellular automaton lives along every strand, a generation at a time at Speed. Rule: chaos
 // (30), triangles (90), gliders (110) or traffic (184, cells queueing along); it starts again after Era generations.
-// Colour by: Age (a cell is born at the start of Colours and walks to its end over 3 generations alive), Cell (each
-// LED its own steady pick) or Along strand (one end of Colours at one end of the strand, the other at the other).
+// Colour by: Age (a live cell walks from the start of Colours to its end by how many of the last 3 generations it
+// lived, so even a blinking cell ages), Cell (each LED its own steady pick) or Along strand (one end of Colours at
+// one end of the strand, the other at the other).
 // Smoothing blends each cell into its neighbours and each generation into the next, so it flows instead of flickering.
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth',
@@ -26,10 +27,10 @@ const RULES = { chaos: 30, triangles: 90, gliders: 110, traffic: 184 }, AGED = 3
 function cells(s, n, era, gen, P) {
   let c = runs[s];
   if (!c || c.now.length !== n) c = runs[s] = { era: -1, gen: 0, now: new Uint8Array(n), was: new Uint8Array(n),
-    age: new Uint16Array(n), aged: new Uint16Array(n) };
+    age: new Uint8Array(n), aged: new Uint8Array(n), hist: new Uint8Array(n) };
   if (c.era !== era || c.gen > gen) {
     for (let i = 0; i < n; i++) c.now[i] = rand(s, i, era) < P.density ? 1 : 0;
-    c.was.set(c.now); c.age.fill(0); c.aged.fill(0);
+    c.was.set(c.now); c.age.fill(0); c.aged.fill(0); c.hist.set(c.now);
     c.era = era; c.gen = 0;
   }
   const rule = RULES[P.rule] ?? 30;
@@ -39,7 +40,9 @@ function cells(s, n, era, gen, P) {
     for (let i = 0; i < n; i++) {
       const l = w[i ? i - 1 : n - 1], r = w[i < n - 1 ? i + 1 : 0];
       c.now[i] = (rule >> ((l << 2) | (w[i] << 1) | r)) & 1;
-      c.age[i] = c.now[i] && w[i] ? min(c.age[i] + 1, AGED) : 0;      // generations alive, from 0 at birth
+      const h = c.hist[i];                                     // the last 3 generations, newest in bit 0
+      c.age[i] = c.now[i] ? (h & 1) + ((h >> 1) & 1) + (h >> 2) : 0;
+      c.hist[i] = ((h << 1) | c.now[i]) & 7;
     }
   }
   return c;
@@ -55,7 +58,7 @@ function pixel(p, t, P) {
   const k = P.smoothing, i = p.i, l = i ? i - 1 : p.n - 1, r = i < p.n - 1 ? i + 1 : 0;
   const f = smoothstep(0, 0.1 + 0.9 * k, x - g), alive = mix(at(c.was, i, l, r, k), at(c.now, i, l, r, k), f);
   if (alive <= 0.002) return null;
-  const age = c.now[i] ? (c.was[i] ? mix(c.aged[i], c.age[i], f) : 0) : c.aged[i];   // a dying cell keeps its age
+  const age = c.now[i] ? mix(c.aged[i], c.age[i], f) : c.aged[i];                    // a dying cell keeps its age
   const col = pal('colours', P.by === 'cell' ? p.seed : P.by === 'along' ? p.u : age / AGED);
   col[3] = alive;
   return col;

@@ -42,15 +42,15 @@ screen behind an ⓘ beside it; the generators' library docs give it as the para
 | `x y z` | 0..1 across the whole rig (depth front → back, height, left → right) |
 | `X Y Z` | metres, on the same axes |
 | `lx ly lz` | 0..1 across the pixels this layer targets (so a pattern fills what it lands on) |
-| `a r` | angle 0..1 (clockwise from 12 o'clock, seen from the front) and radius 0..1, in the façade (z–y) plane round the centre of this layer's pixels |
+| `a r` | angle 0..1 (clockwise from 12 o'clock, seen from the front) and radius 0..1, in the façade (z–y) plane round the middle of this layer's LEDs (their mean: on City of Gods the rose) |
 | `u i n` | position 0..1 along its fixture, index along it, fixture length |
 | `zone zi fixture` | zone name, zone index, fixture index (`strand`: the same) |
 | `ring sector` | the rig's `ring` and `sector` attrs, 0 / −1 where it has none (the Folly's rose: ring 1–7, petal 0–15); `row petal` are the same |
 | `attr(name, d = 0)` | the rig's per-pixel attr `name`, `d` where it has none |
 | `is(tag)` | true when the pixel is in a group tagged `tag` |
-| `part(tag)` `parts(tag)` | which of `tag`'s parts holds the pixel (0 up, −1 none; the first that does) and how many: the groups tagged `tag`, or if one, its smallest groups (rig order; none empty) |
+| `part(tag)` `parts(tag)` `partUp(tag)` | which of `tag`'s parts holds the pixel (0 up, −1 none; the first that does), how many, and its height in that part (0 its foot, 1 its top; in none, the rig's): the parts are the groups tagged `tag`, or if one, its smallest groups (rig order; none empty) |
 | `k seed` | global index; a stable random 0..1 per LED |
-| `ox oy oz sx sy sz sr cy cz` | the frame `lx ly lz a r` are read in (metres): `l = 0.5 + (X − o) / 2s` per axis (a flat axis, s 0: 0.5), `a r` round `(oz, oy)` in the façade, `r` 1 at `sr`; `cy cz` the middle of the LEDs in the façade (their mean: spot and heartbeat centre there); the layer's bounds' middle, half its size, its farthest pixel from that middle and its LEDs' mean, unless a warp re-frames it (anchor) |
+| `ox oy oz sx sy sz sr cy cz` | the frame `lx ly lz a r` are read in (metres): `l = 0.5 + (X − o) / 2s` per axis (a flat axis, s 0: 0.5), `a r` round `(cz, cy)` in the façade, `r` 1 at `sr`; `o` the layer's bounds' middle, `s` half its size, `cy cz` its LEDs' mean in the façade and `sr` its farthest LED from that mean, unless a warp re-frames it (anchor) |
 
 ## Stdlib (globals inside pattern code)
 
@@ -69,7 +69,7 @@ pick's or role's i-th colour, floored and wrapping),
 `palette(t)` (t 0..1 across the look palette's colours, low to high), `centres(tag)` (each group tagged
 `tag`: its `centre` as `[X, Y, Z]`, `[]` when none; call it in `frame` or `pixel`), `extent()` (the running layer's
 pixels' bounds in metres, `[[X0, Y0, Z0], [X1, Y1, Z1]]`, which `lx ly lz` map to 0..1: so a pattern can burst from
-a `centres()` point and still fill its layer), `clock(name)` (how far number param `name`, a speed, has moved
+a `centres()` point and still fill its layer; `extent('rig')` the whole rig's, which `x y z` map), `clock(name)` (how far number param `name`, a speed, has moved
 things: "Integrated clocks" below), `DIRECTIONS` and `toward(p, direction)` ("Directions" below), and
 `move(q, lx, ly, lz)`, `turn(q, a, r)` and `slide(q, u)` (the warp contract below), `use(name, params?)` → `(p, t) → colour` (`[0, 0, 0, 0]` for null), library source `name` as its own instance (its
 `frame` runs once per new t; throws `unknown library pattern`, or names a retired one's preset). Colours are
@@ -107,8 +107,8 @@ LED (`u i n`, `k seed`, `zone zi fixture`, `ring sector`, so `is()` and `attr()`
 round the point's cell and round that cell's nearest, ties to the lowest index);
 `slide` sets them all from that LED. The LED fields are looked up when next read, so a stack of warps pays for one
 lookup: before a source or filter, `slide`, or a warp whose code may read one (names it as `.field` or a string, or
-`attr`, `is`, `part`; destructures an object; reads a computed key). A warp that re-frames (anchor: a new middle and
-reach) sets `ox oy oz sx sy sz sr cy cz` and recomputes `lx ly lz a r` from `X Y Z`, so the moves after it agree. A warp writes no position field any other way.
+`attr`, `is`, `part`, `partUp`; destructures an object; reads a computed key). A warp that re-frames (anchor: a new middle and
+reach, or with lineup the rig's) sets `ox oy oz sx sy sz sr cy cz` and recomputes `lx ly lz a r` from `X Y Z`, so the moves after it agree. A warp writes no position field any other way.
 
 All may define `params` and `frame(t, P, G)` (once per frame, before any pixel; state such as a trails buffer
 indexed by `p.k` lives at top level). A **stage end** is a filter that holds real LED colours, as its code declares
@@ -137,7 +137,7 @@ is `[colour-wash, element with blend: 'over']`, `mix(bed, element, alpha)` exact
 itself drew; with filters that should rework the element alone, `[element, filters…, colour-wash with blend:
 'under']`. Alone on a layer an element shows over black, as one that painted black would. A filter that hides or fades
 (mask, edge-fade, trails) does so by alpha too: what it hides is transparent, never black. `mask` reads the brightness
-of its input, or with `by: 'self'` of what is above it (so it keeps what is bright). Older code may
+of its input, or with `by: 'self'` the luminance of what is above it (so it keeps what is bright). Older code may
 still paint a background.
 
 ## Library

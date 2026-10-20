@@ -16,7 +16,7 @@ const params = {
 function pixel(p, t, P) {
   const a = fract(clock('speed')), R = 1.2 * (1 - (1 - a) ** 3);          // how far the front has come
   const x = (R - toward(p, P.direction)) / (P.width * (0.5 + a));         // > 0 behind the front
-  const v = max(exp(-x * x * 4), x > 0 ? exp(-x * 0.3) : 0), k = v * (1 - a * a * a);
+  const v = max(exp(-x * x * 4), x > 0 ? exp(-x * 1.5) : 0), k = v * (1 - a) ** 2;      // a short wake
   if (k < 0.004) return null;
   const c = pal('colours', v);
   c[3] = k;

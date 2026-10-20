@@ -1,10 +1,10 @@
 ---
-looks: A still round disc or soft glow of one colour at the centre, or on each anchored group.
+looks: A still round disc or soft glow at the centre, or on each anchored group.
 ---
-A single round spot of one colour sits at the layer's centre, hard-edged or fading softly out from its middle, and
-draws nothing beyond it. It does not move by itself: put `anchor` after it to place it on the rose, a tower or each
-tower, and bind size to an LFO to make it breathe. Reach for **heartbeat** when the glow should pulse to the tempo,
-**shockwave** for a ring bursting out, **circles** for several moving balls.
+A single round spot sits at the middle of the layer's LEDs, the last of its colours at the heart, hard-edged or fading
+softly out to its edge, and draws nothing beyond it. It does not move by itself: put `anchor` after it to place it on
+the rose, a tower or each tower, and bind size to an LFO to make it breathe. Reach for **heartbeat** when the glow
+should pulse to the tempo, **shockwave** for a ring bursting out, **circles** for several moving balls.
 
 ## Params
 - size: A share of the layer (or of the anchor's reach). 0.1–0.2 is a hub; 0.5+ floods most of it.
@@ -17,4 +17,4 @@ tower, and bind size to an LFO to make it breathe. Reach for **heartbeat** when 
 
 ## Pitfalls
 - Softness 0 leaves a stair-stepped edge on sparse LEDs; keep ≥ 0.3 unless the rings of the rose line it up.
-- Only the first colour of the pick is used; a multi-colour pick does nothing more.
+- A multi-colour pick paints rings: the last colour at the heart, the first at the edge. `accent` is one family.

@@ -9,21 +9,21 @@ const params = {
     help: 'How fast bands move along each strand. Low crawls; high streaks by; negative runs them the other way.' },
   size: { value: 10, min: 1, max: 120, step: 1, label: 'LEDs per band',
     help: 'How long each band is. Low makes short dashes; high makes long stretches of one colour.' },
-  gap: { value: 0.3, min: 0, max: 0.95, step: 0.01, label: 'Gap (share of each band)',
+  gap: { value: 0.3, min: 0, max: 0.95, step: 0.01, label: 'Gap (bands only; share of each band)',
     help: 'How much of each band is left dark. 0 runs colours end to end; high leaves short flecks with wide gaps.' },
   mode: { value: 'along', type: 'choice', options: ['along', 'bounce', 'out', 'in'], label: 'Mode',
     help: 'Along runs end to end; bounce sweeps back and forth; out spreads from each strand middle; in closes in.' },
   profile: { value: 'bands', type: 'choice', options: ['bands', 'comet'], label: 'Profile',
     help: 'Bands draws solid blocks of colour; comet draws each band as a bright head with a fading tail.' },
-  tail: { value: 10, min: 1, max: 60, step: 1, label: 'Comet tail (LEDs)',
+  tail: { value: 10, min: 1, max: 60, step: 1, label: 'Comet tail (comet only; LEDs)',
     help: 'How far a comet tail fades over (comet only). Low is a short sharp tail; high a long glowing trail.' },
-  lap: { value: 0, min: 0, max: 300, step: 1, label: 'Lap (clear LEDs after each pass)',
+  lap: { value: 0, min: 0, max: 300, step: 1, label: 'Lap (not in bounce; clear LEDs after a pass)',
     help: 'Dark LEDs after each pass, so comets come in waves. 0 loops without a break; high leaves long pauses.' },
   scatter: { value: 0, min: 0, max: 1, step: 0.01, label: 'Scatter',
     help: 'Gives each strand its own start and pace. 0 keeps all strands in step; 1 sets them all out of sync.' },
   alternate: { value: false, type: 'toggle', label: 'Alternate strands',
     help: 'On runs every other strand the opposite way, for a zigzag; off runs all strands the same way.' },
-  softness: { value: 1.5, min: 0, max: 10, step: 0.1, label: 'Edge softness (LEDs)',
+  softness: { value: 1.5, min: 0, max: 10, step: 0.1, label: 'Edge softness (LEDs; comet: up to 1)',
     help: 'How gradually band edges blend. 0 gives hard cuts between colours; high blurs them into soft fades.' },
 };
 
@@ -32,7 +32,8 @@ function pixel(p, t, P) {
   const i = P.alternate && s % 2 ? n - 1 - p.i : p.i;
   const x = m === 'out' ? abs(i - h) : m === 'in' ? h - abs(i - h) : i;
   const run = clock('speed') * (1 + sc * 0.6 * (rand(s, 3) - 0.5)) + sc * rand(s, 1) * (n + P.lap);
-  let at = x - (m === 'bounce' ? tri(run / (2 * n)) * n : run);
+  const sweep = run / (2 * n);
+  let at = x - (m === 'bounce' ? tri(sweep) * n : run);
   if (P.lap > 0 && m !== 'bounce') {                 // a pass (whole comets), then the lap clear
     const L = n + P.lap;
     at -= floor(at / L) * L;
@@ -41,7 +42,8 @@ function pixel(p, t, P) {
   const f = at / P.size;
   if (P.profile === 'comet') {
     // Each band's head at its front (the way it moves), its tail behind: the head the last colour.
-    const b = floor(f), behind = (P.speed < 0 ? f - b : b + 1 - f) * P.size - 0.5;
+    const back = m === 'bounce' ? (fract(sweep) < 0.5) !== (P.speed > 0) : P.speed < 0;   // a bounce turns about
+    const b = floor(f), behind = (back ? f - b : b + 1 - f) * P.size - 0.5;
     const v = exp(-max(0, behind) / P.tail) * soft(0, behind + 0.5, min(1, P.softness));
     if (v < 0.004) return null;
     const c = pal('colours', v);
