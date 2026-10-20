@@ -132,6 +132,8 @@ export async function createServer(opts: Options = {}) {
       return app.server.address() as { port: number, address: string, family: string };
     },
     async close() {
+      // First, so a call the stop cuts is never taken for a failed idea; its idea queues again at the next start.
+      queue.stop?.();
       clearInterval(pruneTimer);
       await hub.close();
       await app.close();
@@ -143,7 +145,6 @@ export async function createServer(opts: Options = {}) {
         await Promise.race([idle, giveUp]);
         clearTimeout(timer);
       }
-      queue.stop?.(); // calls still running are cut (a codex process with them); their ideas queue again at start
       await frames.close();
       await store.flush();
     },

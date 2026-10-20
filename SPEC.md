@@ -452,7 +452,7 @@ outside 0–600 s, and a duration outside 1–600 s, are refused with 400.
 preview's guard; `check: false` (`STUDIO_FLASH_CHECK=off`) means nothing is dimmed or blocked.
 `idea = { id, owner, text, status: 'queued'|'generating'|'ready'|'failed', model?, generator, by?, explore?, took?,
 timing?, lookId?, refine?, changes?, verdict?, undone?, error?, createdAt, updatedAt }`: `model` the registry id asked for, `generator` the one that made
-the look (the fallback's when it took over), `by` its label ("Opus"), `timing = { wait, prompt, request, parse,
+the look (the one-shot generator's when the foundry was off or busy), `by` its label ("Opus"), `timing = { wait, prompt, request, parse,
 total, check?, critique?, sketch? }` in ms; `explore` the level it was made at and `took` what its look took from
 each sketch (SPEC-generators "Explore"). A refinement has `refine = { critique?, fix? }` and the look it changes as
 `lookId` from the start; `changes` (ready) says what changed, `verdict` how its critique round ended (`revised`,

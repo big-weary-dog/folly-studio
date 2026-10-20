@@ -2,7 +2,7 @@
 // model's transport lane (claude, codex, sketch, fleet), each lane with its own concurrency, so a slow call on one
 // never holds up another. A job: idea 'generating', the adapter turns the text into a look, validateLook
 // (shared/schemas/generated.ts) cleans it, the look is saved and the idea 'ready' with where the time went, or
-// 'failed' with a user-safe error. The fallback (STUDIO_GENERATOR_FALLBACK) takes over when a model fails.
+// 'failed' with a user-safe error (the Studio offers "Try again"): no other generator stands in for a failed one.
 // An adapter may also return `bake` (a checkFrames record, kept on the look) and `frames` (stored).
 // The Fleet foundry (via fleet) is opt-in, STUDIO_FOUNDRY=on, one job at a time. While it is off or busy, its ideas
 // go to the one-shot generator (STUDIO_GENERATOR_FALLBACK, else sketch), or wait for it with STUDIO_FOUNDRY_WAIT=1.
@@ -24,6 +24,7 @@ import { createCodexAdapter } from './codex.ts';
 import type { ExpandError, Uses } from './expand.ts';
 import { boosted, explore, LEVELS } from './explore.ts';
 import { createFleetAdapter, hasMemoryCap } from './fleet.ts';
+import { Interrupted } from './proc.ts';
 import type { Registry } from './models.ts';
 import { buildPrompt, buildRefineMessage } from './prompt.ts';
 import { refineHistory } from './refine-history.ts';
@@ -53,7 +54,7 @@ export type Context = { text: string, user: { id: string, username?: string, rol
 export type Adapter = { name?: string, generate(ctx: Context): unknown };
 type Route = { id: string, label: string, via: string, entry?: ModelEntry };
 type Explored = Awaited<ReturnType<typeof explore>>;
-type Job = { id: string, route: Route, queuedAt: number };
+type Job = { id: string, route: Route, queuedAt: number, again?: true };
 const LABELS: Record<string, string> = { sketch: 'Sketch', claude: 'Claude', codex: 'Codex', fleet: 'Fleet' };
 const PROMPTED = new Set(['claude', 'codex']);
 const LANE_DEFAULTS: Record<string, number> = { claude: 4, codex: 2, sketch: 4 };
@@ -99,20 +100,22 @@ export function foundryFromEnv(env = process.env) {
  * registry (an idea's `model` picks the route); adapterName: STUDIO_GENERATOR, the route of an idea that names no
  * model; adapters: transport → { generate } or a function, in place of the built-in ones;
  * concurrency: STUDIO_GENERATOR_CONCURRENCY, per lane where the registry says nothing; fallbackName:
- * STUDIO_GENERATOR_FALLBACK, a model or transport tried when one fails (and the foundry's one-shot generator);
+ * STUDIO_GENERATOR_FALLBACK, the foundry's one-shot generator (a model or transport; else sketch);
  * loadVersion: changes when the library or rig does (the prompt is built again only then); box and lane: the render
- * box and the bakes' lane, for the render check and critique (none: no check).
+ * box and the bakes' lane, for the render check and critique (none: no check); interruptGraceMs: how long a call
+ * cut by a stray stop signal waits for the server's own stop before it runs again.
  */
 export function createQueue({
   store, loadLibrary = () => [], loadRig = () => null, loadVersion, models, adapterName = process.env.STUDIO_GENERATOR
     || 'sketch', log = console, adapters = {}, concurrency = Number(process.env.STUDIO_GENERATOR_CONCURRENCY) || 0,
   fallbackName = process.env.STUDIO_GENERATOR_FALLBACK || '', framesDir, foundry = foundryFromEnv(), codexBin, box,
-  lane: bakeLane, critiqueBudgetMs = CRITIQUE_BUDGET_MS,
+  lane: bakeLane, critiqueBudgetMs = CRITIQUE_BUDGET_MS, interruptGraceMs = 2000,
 }: { store: Pick<Store, 'ideas' | 'looks'> & Partial<Store>, loadLibrary?: () => LibraryEntry[],
   loadRig?: () => Rig | null | Promise<Rig | null>, loadVersion?: () => string, models?: Registry,
   adapterName?: string, log?: Logger, adapters?: Record<string, Adapter | Adapter['generate']>, concurrency?: number,
   fallbackName?: string, framesDir?: string, foundry?: Partial<ReturnType<typeof foundryFromEnv>>,
-  codexBin?: string, box?: Box, lane?: Parameters<typeof compose>[0]['lane'], critiqueBudgetMs?: number }) {
+  codexBin?: string, box?: Box, lane?: Parameters<typeof compose>[0]['lane'], critiqueBudgetMs?: number,
+  interruptGraceMs?: number }) {
   const framesHome = framesDir ?? (store.dataDir ? path.join(store.dataDir, 'frames') : '');
   const transports = new Set(['sketch', 'claude', 'codex', 'fleet', ...Object.keys(adapters)]);
   const made = new Map<string, Adapter>();
@@ -163,15 +166,20 @@ export function createQueue({
   const waiters: (() => void)[] = [];
   let stopping = false;
   const busy = () => [...lanes.values()].some((l) => l.running || l.jobs.length);
+  const pending = () => [...lanes.values()].reduce((n, l) => n + l.running + l.jobs.length, 0);
   const notify = (id: string) => watchers.get(id)?.forEach((fn) => fn());
 
-  function start(l: { running: number }, job: Job) {
+  function start(l: { running: number, jobs: Job[] }, job: Job) {
     l.running++;
     runJob(job)
       .catch((err) => log.error?.(`[generate] job ${job.id} crashed: ${err?.stack || err}`))
-      .finally(() => {
+      .then((again) => {
         l.running--;
         active.delete(job.id);
+        if (again === true && !stopping) {
+          active.add(job.id);
+          l.jobs.push({ ...job, again: true, queuedAt: Date.now() });
+        }
         pump();
         if (!busy()) waiters.splice(0).forEach((r) => r());
       });
@@ -221,43 +229,29 @@ export function createQueue({
     return { look, comp, aim, history, ...(!idea.text && !idea.refine?.fix ? { start: comp } : {}) };
   }
 
-  /** The look from the route's adapter, validated, in rounds for a prompted model; the fallback tries when that one
-   * fails (not for a refinement: its look stays as it was). */
-  async function lookFrom(ctx: Context, r: Route, refine?: Refining & { critique?: true }, level: Explore = 'quick') {
+  /** The look from the route's adapter, validated, in rounds for a prompted model. */
+  async function lookFrom(ctx: Context, by: Route, refine?: Refining & { critique?: true }, level: Explore = 'quick') {
     const t0 = Date.now();
-    const attempt = async (by: Route) => {
-      if (refine && !PROMPTED.has(by.via) && by.via !== 'sketch') {
-        throw new GenerateError(`${by.label} cannot refine a look.`, `refine by ${by.via}`);
-      }
-      const adapter = adapterFor(by), catalog = PROMPTED.has(by.via) || refine ? ctx.prompt?.().catalog : undefined;
-      const mode: Critique | undefined = by.entry?.critique ?? (refine?.critique ? 'images' : undefined);
-      const rounds = (a: Adapter, o: { critique?: Critique, box?: Box }) => compose({ adapter: a, ctx, catalog:
-        catalog!, ...o, lane: bakeLane, aim: refine?.aim, start: refine?.start, startedAt: t0,
-        budgetMs: critiqueBudgetMs, stopping: () => stopping, log });
-      const lv = PROMPTED.has(by.via) && catalog && ctx.prompt && !refine && level !== 'quick' ? level : null;
-      const out: Partial<Explored> & Pick<Rounds, 'raw' | 'look'> = lv ? await explore({ adapter: adapterFor({
-        ...by, entry: boosted(by.via as Transport, by.entry, lv) }), ctx, catalog: catalog!, critique: mode, box,
-        lane: bakeLane, startedAt: t0, budgetMs: LEVELS[lv].budgetMs, stopping: () => stopping, log, level: lv })
-        : PROMPTED.has(by.via) && catalog && ctx.prompt ? await rounds(adapter, { critique: mode, box })
-        : refine && catalog && by.via === 'sketch'
-          ? await rounds({ generate: () => sketchRefine(refine.comp, ctx.text, { ...ctx, catalog }) }, {})
-        : await (async () => {
-          const raw = await adapter.generate(ctx);
-          return { raw, look: validateLook(raw, ctx) };
-        })();
-      return { ...out, used: by, request: Date.now() - t0, parse: 0, failed: '' };
-    };
-    try {
-      return await attempt(r);
-    } catch (err) {
-      if (!fallback || fallback.id === r.id || stopping || refine) throw err;
-      log.warn?.(`[generate] ${r.id} failed for idea ${ctx.idea?.id} (${(err as Error)?.message}); `
-        + `trying ${fallback.id}`);
-      const out = await attempt(fallback);
-      const why = err instanceof GenerateError ? err.userMessage : 'The AI generator was unavailable.';
-      out.look.summary = `${why} ${out.look.summary}`.slice(0, 400);
-      return { ...out, failed: `${r.id} failed` };
+    if (refine && !PROMPTED.has(by.via) && by.via !== 'sketch') {
+      throw new GenerateError(`${by.label} cannot refine a look.`, `refine by ${by.via}`);
     }
+    const adapter = adapterFor(by), catalog = PROMPTED.has(by.via) || refine ? ctx.prompt?.().catalog : undefined;
+    const mode: Critique | undefined = by.entry?.critique ?? (refine?.critique ? 'images' : undefined);
+    const rounds = (a: Adapter, o: { critique?: Critique, box?: Box }) => compose({ adapter: a, ctx, catalog:
+      catalog!, ...o, lane: bakeLane, aim: refine?.aim, start: refine?.start, startedAt: t0,
+      budgetMs: critiqueBudgetMs, stopping: () => stopping, log });
+    const lv = PROMPTED.has(by.via) && catalog && ctx.prompt && !refine && level !== 'quick' ? level : null;
+    const out: Partial<Explored> & Pick<Rounds, 'raw' | 'look'> = lv ? await explore({ adapter: adapterFor({
+      ...by, entry: boosted(by.via as Transport, by.entry, lv) }), ctx, catalog: catalog!, critique: mode, box,
+      lane: bakeLane, startedAt: t0, budgetMs: LEVELS[lv].budgetMs, stopping: () => stopping, log, level: lv })
+      : PROMPTED.has(by.via) && catalog && ctx.prompt ? await rounds(adapter, { critique: mode, box })
+      : refine && catalog && by.via === 'sketch'
+        ? await rounds({ generate: () => sketchRefine(refine.comp, ctx.text, { ...ctx, catalog }) }, {})
+      : await (async () => {
+        const raw = await adapter.generate(ctx);
+        return { raw, look: validateLook(raw, ctx) };
+      })();
+    return { ...out, used: by, request: Date.now() - t0, parse: 0 };
   }
 
   const update = async (id: string, patch: Partial<Idea>) => {
@@ -265,7 +259,8 @@ export function createQueue({
     notify(id);
   };
 
-  async function runJob({ id, route: r, queuedAt }: Job) {
+  /** One idea's job → true when it should run once more (it was interrupted). */
+  async function runJob({ id, route: r, queuedAt, again }: Job) {
     const idea = await store.ideas.get(id);
     if (!idea) return log.warn?.(`[generate] idea ${id} no longer exists`);
     if (idea.status === 'ready' && idea.lookId) return; // already done (re-enqueued after a restart)
@@ -282,7 +277,7 @@ export function createQueue({
         groups: base.groups, idea: { id }, prompt: () => promptOf(base), signal: ac.signal, docsRead: [] };
       const refine = idea.refine ? { ...refining(idea, promptOf(base).catalog), ...idea.refine } : undefined;
       if (refine) ctx.turn = buildRefineMessage(refine.comp, idea.text, idea.refine?.fix, refine.history);
-      const out = await lookFrom(ctx, r, refine, idea.explore), { look, used, request, failed } = out;
+      const out = await lookFrom(ctx, r, refine, idea.explore), { look, used, request } = out;
       const timing = { wait: started - queuedAt, prompt, request, parse: out.parse, total: 0,
         ...(out.check !== undefined ? { check: out.check } : {}),
         ...(out.critique ? { critique: out.critique.ms } : {}), ...(out.sketch ? { sketch: out.sketch.ms } : {}) };
@@ -310,10 +305,17 @@ export function createQueue({
       timing.total = Date.now() - queuedAt;
       await update(id, { status: 'ready', lookId: saved.id, generator: used.id, by: used.label, error: null, timing,
         ...(out.sketch?.took ? { took: out.sketch.took } : {}) });
-      log.info?.(`[generate] idea ${id} ready via ${used.id}${failed ? ` after ${failed}` : ''} in ${timing.total} ms `
+      log.info?.(`[generate] idea ${id} ready via ${used.id} in ${timing.total} ms `
         + `(queued ${timing.wait}, request ${request}${how}; look ${saved.id})`);
     } catch (err) {
+      // A stop that reached the call before the server (a service stop signals the whole group) is still a stop.
+      if (err instanceof Interrupted && !stopping) await new Promise((r) => setTimeout(r, interruptGraceMs));
       if (stopping) return; // left as it is: the next start queues it again
+      if (err instanceof Interrupted && !again) {
+        log.warn?.(`[generate] idea ${id}: ${err.message}; trying it again`);
+        await update(id, { status: 'queued' });
+        return true;
+      }
       log.warn?.(`[generate] ${idea.refine ? 'refinement' : 'idea'} ${id} failed via ${r.id}: ${
         (err as Error)?.message || err}`);
       const error = err instanceof GenerateError ? err.userMessage : FALLBACK_ERROR;
@@ -377,12 +379,15 @@ export function createQueue({
     },
     /** Stop: nothing new starts, and running calls are cut (their ideas are queued again at the next start). */
     stop() {
+      if (!stopping && busy()) {
+        log.info?.(`[generate] stopping: ${pending()} ideas left queued or cut short; they resume at the next start`);
+      }
       stopping = true;
       for (const l of lanes.values()) l.jobs.splice(0).forEach((j) => active.delete(j.id));
       running.forEach((ac) => ac.abort());
       if (!busy()) waiters.splice(0).forEach((r) => r());
     },
     idle: () => (!busy() ? Promise.resolve() : new Promise<void>((r) => waiters.push(r))),
-    get size() { return [...lanes.values()].reduce((n, l) => n + l.running + l.jobs.length, 0); },
+    get size() { return pending(); },
   };
 }

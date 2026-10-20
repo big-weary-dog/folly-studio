@@ -77,8 +77,8 @@ filter's `input` names an earlier source; that each warp has something above it 
 **Repair**: on errors, the previous answer and the error list go back to the model as the next user turn. For
 claude, that is a second message in the same conversation, so the cached system prompt is reused. For codex, it is
 a second `codex exec`, with the guide, the idea, the previous answer and the errors on stdin. Allow up to
-`STUDIO_REPAIR_ROUNDS` rounds (default 2), then the fallback takes over as today (`STUDIO_GENERATOR_FALLBACK`,
-usually sketch). Log each round, and add `rounds` and `repair` (ms) to `idea.timing`. Some faults need a render to
+`STUDIO_REPAIR_ROUNDS` rounds (default 2), then the idea fails with "Try again" (no other generator stands in).
+Log each round, and add `rounds` and `repair` (ms) to `idea.timing`. Some faults need a render to
 show up: NaN, a dark look, flashing, a slow frame. Those are §5.
 
 ## 5. The loop in a Fleet worker, with what exists today

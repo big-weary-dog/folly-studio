@@ -8,6 +8,7 @@ import path from 'node:path';
 import { describe, test } from 'vitest';
 
 import { createCodexAdapter, dropNulls, strictSchema } from '../src/generate/codex.ts';
+import { Interrupted } from '../src/generate/proc.ts';
 import { GenerateError, validateLook, wireSchema } from '../shared/schemas/generated.ts';
 import { FIX, GROUPS, LIBRARY, quiet, tmp } from './fixtures/generate/shared.js';
 
@@ -116,6 +117,12 @@ describe('codex', () => {
     await refused(setup('flood', { maxOutputBytes: 64 * 1024 }).adapter.generate(ctx()), /could not read/);
     const missing = createCodexAdapter({ env: { PATH: '/nowhere' }, log: quiet, model: 'm' });
     await refused(missing.generate(ctx()), /not configured on this server/);
+  });
+
+  test('a stop signal we did not send (a service stop reaching codex) is an interruption, not a failure', async () => {
+    const err = await refused(setup('term').adapter.generate(ctx()), /stopped before it finished/);
+    assert.ok(err instanceof Interrupted);
+    assert.match(err.message, /SIGTERM, not sent by us/);
   });
 
   test('an answer over 512 KB is refused unread', async () => {

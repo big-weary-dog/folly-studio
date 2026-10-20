@@ -19,7 +19,7 @@ import type { Logger } from '../http.ts';
 import { parseJson, pickLook } from './claude.ts';
 import type { Context } from './index.ts';
 import { READ_CAP } from './doc-path.ts';
-import { findExecutable, runCommand } from './proc.ts';
+import { findExecutable, Interrupted, runCommand, STOP_SIGNALS } from './proc.ts';
 import { buildPrompt, buildRepairMessage, buildUserMessage } from './prompt.ts';
 
 const MAX_ANSWER_BYTES = 512 * 1024;
@@ -130,6 +130,9 @@ export function createCodexAdapter(o: Options = {}) {
         throw new GenerateError('The AI generator took too long; please try again.', `codex: ${ran.ms} ms, no answer`);
       }
       if (ran.killed === 'abort') throw new GenerateError('The idea was stopped before it finished.', 'codex: aborted');
+      if (!ran.killed && ran.signal && STOP_SIGNALS.has(ran.signal)) {
+        throw new Interrupted('The idea was stopped before it finished.', `codex: ${ran.signal}, not sent by us`);
+      }
       if (ran.killed === 'output') {
         throw new GenerateError('The AI returned a look the studio could not read.', 'codex: too much output');
       }

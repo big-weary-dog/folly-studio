@@ -330,7 +330,7 @@ describe('queue', () => {
     assert.equal(store.looks.list().length, 0);
   });
 
-  test('an unknown generator falls back to sketch; an optional fallback rescues failures', async () => {
+  test('an unknown generator falls back to sketch; a failed one is never stood in for', async () => {
     const errors = [];
     const { store, idea, queue } = setup({ adapterName: 'claud', log: { ...quiet, error: (m) => errors.push(m) } });
     assert.equal(queue.adapterName, 'sketch');
@@ -346,8 +346,8 @@ describe('queue', () => {
     r.queue.enqueue(j);
     await r.queue.idle();
     const doneJ = r.store.ideas.get(j.id);
-    assert.equal(doneJ.status, 'ready');
-    assert.equal(doneJ.generator, 'sketch');
-    assert.match(r.store.looks.get(doneJ.lookId).summary, /^The AI generator is busy right now\. Sketched/);
+    assert.deepEqual([doneJ.status, doneJ.error, doneJ.lookId], ['failed', 'The AI generator is busy right now.',
+      undefined]);
+    assert.equal(r.store.looks.list().length, 0);
   });
 });

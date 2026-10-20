@@ -1,6 +1,6 @@
 // The queue with the model registry: each idea on its own model's transport (the real claude adapter on a mocked
 // fetch, the real codex adapter on the stand-in CLI), the prompt built once and sent byte for byte the same, the
-// fallback, a lane per transport, timing, watching, and stopping.
+// failures, a lane per transport, timing, watching, stopping, and calls a stray stop signal cut.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,6 +9,7 @@ import { afterEach, describe, test } from 'vitest';
 
 import { createQueue } from '../src/generate/index.ts';
 import { createRegistry } from '../src/generate/models.ts';
+import { Interrupted } from '../src/generate/proc.ts';
 import {
   FIX, goodLayer, jsonRes, LIBRARY, lookJson, queueSetup, quiet, sse, streamOf, tmp,
 } from './fixtures/generate/shared.js';
@@ -79,7 +80,7 @@ describe('the queue with models', () => {
     assert.equal(loads, 2);
   });
 
-  test('a model that fails hands the idea to the fallback, which says why', async () => {
+  test('a model that fails fails the idea, saying why, even with a fallback named', async () => {
     process.env.ANTHROPIC_API_KEY = 'sk-test';
     globalThis.fetch = async () => jsonRes(401, { error: { type: 'authentication_error', message: 'bad key' } });
     const { store, idea, queue } = routed({ fallbackName: 'sketch' });
@@ -87,8 +88,9 @@ describe('the queue with models', () => {
     queue.enqueue(i.id);
     await queue.idle();
     const done = store.ideas.get(i.id);
-    assert.deepEqual([done.status, done.model, done.generator, done.by], ['ready', 'opus', 'sketch', 'Sketch']);
-    assert.match(store.looks.get(done.lookId).summary, /^The AI generator is misconfigured on this server\. /);
+    assert.deepEqual([done.status, done.model, done.lookId], ['failed', 'opus', undefined]);
+    assert.match(done.error, /^The AI generator is misconfigured on this server\./);
+    assert.equal(store.looks.list().length, 0);
   });
 
   test('a lane per transport: Opus never waits behind Sol, and each lane keeps its own limit', async () => {
@@ -132,5 +134,40 @@ describe('the queue with models', () => {
     assert.equal(queue.size, 0);
     assert.equal(queue.enqueue(idea('after stop', 'sketch').id), false);
     unwatch();
+  });
+
+  test('a call a stray stop signal cut runs once more; cut again, its idea fails', async () => {
+    let calls = 0;
+    const cut = () => new Interrupted('The idea was stopped before it finished.', 'codex: SIGTERM, not sent by us');
+    const codex = async ({ text }) => {
+      calls++;
+      if (text === 'twice' || calls === 1) throw cut();
+      return { title: text, layers: [goodLayer()] };
+    };
+    const { store, idea, queue } = routed({ adapters: { codex }, interruptGraceMs: 1 });
+    const once = idea('once', 'sol');
+    queue.enqueue(once.id);
+    await queue.idle();
+    assert.deepEqual([store.ideas.get(once.id).status, calls], ['ready', 2]);
+    const twice = idea('twice', 'sol');
+    queue.enqueue(twice.id);
+    await queue.idle();
+    assert.deepEqual([store.ideas.get(twice.id).status, store.ideas.get(twice.id).error],
+      ['failed', 'The idea was stopped before it finished.']);
+  });
+
+  test('a stop that follows a stray signal within the grace leaves the idea for the next start', async () => {
+    let calls = 0;
+    const codex = async () => {
+      calls++;
+      throw new Interrupted('The idea was stopped before it finished.', 'codex: SIGTERM, not sent by us');
+    };
+    const { store, idea, queue } = routed({ adapters: { codex }, interruptGraceMs: 200 });
+    const i = idea('cut', 'sol');
+    queue.enqueue(i.id);
+    for (let n = 0; n < 50 && !calls; n++) await new Promise((r) => setTimeout(r, 5));
+    queue.stop();
+    await queue.idle();
+    assert.deepEqual([store.ideas.get(i.id).status, calls], ['generating', 1]);
   });
 });

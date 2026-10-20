@@ -6,7 +6,15 @@ import { spawn } from 'node:child_process';
 import { accessSync, constants, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
+import { GenerateError } from '../../shared/schemas/generated.ts';
+
 export type Command = { cmd: string, args: string[] };
+
+/** The call was cut by a signal this server did not send (a service stop reaching the whole group, a kill by hand):
+ * not the model's failure, so the idea is not failed for it. */
+export class Interrupted extends GenerateError {}
+/** Signals that stop a process rather than report a fault in it. */
+export const STOP_SIGNALS = new Set(['SIGTERM', 'SIGINT', 'SIGHUP']);
 type Env = Record<string, string | undefined>;
 
 const isFile = (file: string) => {

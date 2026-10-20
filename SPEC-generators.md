@@ -10,8 +10,10 @@ and who may use the paid ones, how much.
 globals?, automation?, layers, extensions? }` (`groups`: the rig's; `prompt()`: the system prompt, the output schema
 and the library's catalog, built once per library and rig; `repair`: the last answer and its errors, below;
 `signal`: aborted when the server stops). `claude` and `codex` return a composition (below); the others a look. Each idea names a model of the registry (below); its job runs in
-that model's transport lane, each lane with its own concurrency, and `STUDIO_GENERATOR_FALLBACK` (a model or
-transport, usually `sketch`) takes over when it fails. An idea that names no model (from before the registry) goes
+that model's transport lane, each lane with its own concurrency. When it fails, the idea is `failed` with a user-safe
+error (the Studio offers "Try again"): no other generator stands in. A call cut by a stop signal the server did not
+send (a service stop reaching the whole group) runs once more after a 2 s grace, or, when the server is stopping
+after all, is left `generating` for the next start to queue again; cut twice, it fails. An idea that names no model (from before the registry) goes
 to `STUDIO_GENERATOR`'s transport. Generators find places by the rig's
 tags (falling back to group ids and names), describe the installation from the rig (`about`, its fixtures and
 groups), and give layers the tags they meant beside the ids. The result is cleaned by `validateLook`
@@ -196,7 +198,7 @@ models[i].limits?: { "perHour"?, "perDay"?, "concurrent"? }
   everyone (a private server). A cap of 0 allows none: its 429 has no `Retry-After` and no `nextAt`.
 - **One idea is one use** (a Deep idea `DEEP.uses`: SPEC-generators "Explore"; with room for fewer, it is refused),
   counted when POST /api/ideas (or a look's refine) accepts it, whatever comes of it:
-  retries, the fallback, and any repair, check or critique inside its job add nothing; "Try again" sends a new idea.
+  retries and any repair, check or critique inside its job add nothing; "Try again" sends a new idea.
   The check and the create are one synchronous step, so two requests cannot both take the last use.
 - A stored user may hold `access = { unlockedAt?, invite?, by?, limits?, resetAt? }`: `invite` the code's id that
   unlocked it, `by` the admin who did; `limits` an admin's override of the global three for this person; ideas

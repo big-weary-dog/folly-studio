@@ -89,8 +89,9 @@ What was checked on this machine (WSL 2.4, NAT networking, `systemd=true` in `/e
 `cd ~/folly-studio/studio && npm run host` again, or `npm run host -- <ref>` for another commit or branch
 (default `STUDIO_REF`, else `origin/main`). It refuses a checkout with uncommitted changes, then: fetches and checks
 out the ref, `npm ci`, builds, writes `dist/build.json` (`{ commit, builtAt }`), writes and restarts the unit, and
-checks that `/build.json` names the commit, `/api/me` answers 401, and Windows reaches it too. The server saves
-and closes on the restart's SIGTERM; ideas cut short queue again at start. Requests during the few seconds of
+checks that `/build.json` names the commit, `/api/me` answers 401, and Windows reaches it too. The unit's `KillMode=mixed`
+sends the restart's SIGTERM to the server alone: it stops its generator calls, saves and closes, and the ideas it
+cut short (left queued or generating) resume at the next start, so a deploy never fails an idea in progress. Requests during the few seconds of
 install and restart may fail; a reload fixes them.
 
 - Another port: set `PORT` in the env file, run `npm run host`, and change the tunnel's URL to match.
@@ -150,7 +151,7 @@ STUDIO_TRUST_PROXY=1              # client IP (login limits) and host from the t
 STUDIO_CURATORS=alice,bob         # who may mark looks reviewed
 STUDIO_ADMINS=you                 # the Models and Access pages (models, invite codes); admins are curators too
 ANTHROPIC_API_KEY=sk-ant-...      # for Opus: a key with a spend limit
-STUDIO_GENERATOR_FALLBACK=sketch  # when a model fails, and for deep ideas while the foundry is off
+STUDIO_GENERATOR_FALLBACK=sketch  # for deep ideas while the foundry is off or busy
 STUDIO_BAKE_SECONDS=120           # longest bake
 STUDIO_FRAMES_BROTLI_QUALITY=9
 STUDIO_FRAMES_MAX_BYTES=2GB
@@ -247,7 +248,7 @@ are exempt from both. The `limits` block above holds the defaults; tune them in 
 The hour and day are rolling (the last 60 minutes, the last 24 hours), and a person's paid ideas share one
 allowance. A model may also say `"limits": { "perHour", "perDay", "concurrent" }`, a cap counted on that model's
 ideas alone (Sketch's 30 an hour and 100 a day keep a script from filling the disk). **One idea is one use**, counted
-when it is accepted, whatever comes of it: a retry, the fallback or any repair inside it adds nothing, and "Try
+when it is accepted, whatever comes of it: a retry or any repair inside it adds nothing, and "Try
 again" sends a new idea.
 
 On the **Access** page (admins) make a code: a label for who it is for, how many people may redeem it, and how many
