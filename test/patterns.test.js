@@ -48,6 +48,14 @@ test('index.json lists every pattern file, once, and its presets (no file), each
   }
 });
 
+test('every choice lists at most 16 options (SPEC-library), so none is cut off where the compiler stops', () => {
+  for (const f of files) {
+    for (const [, list] of source(f.slice(0, -3)).matchAll(/options: \[([^\]]*)\]/g)) {
+      assert.ok(list.match(/'[^']*'/g).length <= 16, `${f}: ${list.replace(/\s+/g, ' ')}`);
+    }
+  }
+});
+
 describe('each source', () => {
   for (const { name } of sources) {
     test(name, () => {

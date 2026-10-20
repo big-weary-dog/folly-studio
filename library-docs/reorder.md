@@ -10,7 +10,7 @@ filters it orders; **anchor** moves a centre instead.
 ## Params
 - by: `wires` for ripples and growth along the rig; `strands` for a chase that runs the whole rig as one strand.
 - from: a tag starts at each of its groups' hearts (the rose's centre, each tower's middle); `bottom` grows from each
-  piece's feet, `top` falls from its tops.
+  piece's feet, `top` falls from its tops. `rose` stands for the window and its rings too: they share its heart.
 - reach: 0 makes the farthest wire the edge. Less packs the order near `from`; LEDs past it repeat or go dark.
 - amount: 0.3–0.6 bends a straight-line ring toward the wiring without losing its shape.
 - seed: A stepped LFO on it deals a new shuffle each step.

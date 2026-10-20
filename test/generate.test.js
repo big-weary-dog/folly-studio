@@ -218,10 +218,10 @@ describe('prompt', () => {
     assert.ok(!sys.includes('cosPalette') && sys.includes('library/extensions.md'), 'the API is a page, read for code');
     assert.match(sys, /# Worked compositions\nIdea: /);
     // What every compose, repair and critique call carries: the system prompt and the docs a turn gets unasked (none:
-    // the READMEs say again what the prompt does). ~28,700 with headroom for the modules still coming; the sketch call
-    // carries the system prompt and its own turn.
+    // the READMEs say again what the prompt does). ~28,700 with headroom for the modules still coming, and 33,000 as
+    // the preset catalog lines grow with the library; the sketch call carries the system prompt and its own turn.
     const always = sys.length + docsBlock(docs, pickDocs(docs, [])).length;
-    assert.ok(always < 32_000, `the system prompt and core docs are ${always} characters`);
+    assert.ok(always < 33_000, `the system prompt and core docs are ${always} characters`);
     const sketch = sys.length + buildSketchMessage('an idea', RIG.groups).length;
     assert.ok(sketch < 33_500, `the sketch call is ${sketch} characters`);
   });
