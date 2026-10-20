@@ -187,7 +187,7 @@ The library, one idea a module. Sources: colour-wash, bars, clouds, fire, single
 sparkle,
 streaks, lightning, fireworks, strobe, heartbeat, picture. Warps: mirror, mosaic, polar,
 anchor, rotate, scroll, twist, turbulence, in-turn. Filters: recolour, hue-shift,
-stained-glass, mask, blur, edge-fade, trails, delay. Presets: Water, Storm, Kaleidoscope, Tunnel and
+stained-glass, mask, blur, edge-fade, trails, delay, smoke, replay, sort. Presets: Water, Storm, Kaleidoscope, Tunnel and
 Afterimage (mirror's Wedges and Rings, trails after lightning), the rose's stained glass
 (gothic-jewel, backlit-glow, cathedral-sun), and the **retired sources'**: twinkle's Starfield, depth-wave's Playa
 wave, canopy-rain's Rain, wash-breathe's Breathe, spire-helix's Tower helix, arch-chase's and groups-in-turn's Arch
@@ -219,8 +219,9 @@ its key as a list, `[{ char, colour }]`, which expansion makes the object.
 
 ## Spatial modules
 
-A filter whose code sets `const spatial = 'blur'` is a **spatial** module: the core's native blur, which reads the
-neighbours' colours (its `filter`, the identity, is what a core without it runs). The library's `blur` is one;
+A filter whose code sets `const spatial = 'blur'` (or `'sort'`, below) is a **spatial** module: the core's native
+op, which reads the neighbours' colours (its `filter`, the identity, is what a core without it runs). The library's
+`blur` is one;
 `layer.soften` (`{ radius, mode }`) is one more at the end of the chain, `amount` 1. Its params: `radius` (metres,
 0–1.5; along the wire, metres of wire), `mode` (a choice: `wire`, the pixels of its own fixture by their distance
 along it; `space`, every pixel within the radius; `both`, the two kernels summed) and `amount` (0–1, its mix with the
@@ -228,6 +229,13 @@ unblurred colour), modulated like any number param. Each pixel becomes the weigh
 **in the layer** (outside its groups nothing counts, so the selection's edges do not darken), weights
 `exp(−2 (d / radius)²)` (e⁻² at the radius), the colour premultiplied by its alpha. `radius` or `amount` 0 leaves it
 exactly as it was.
+
+`const spatial = 'sort'` (core `sort.ts`; the library's `sort`) sorts along each fixture: a run is consecutive LEDs
+of one fixture in the layer whose luminance × alpha is at least `cutoff` (0–1); darker ones stay and end runs (0: whole strands). In each
+run the colours (rgba) are ranked by `by` (`brightness`, that luminance, or `colour`, hue 0..1 with grey 0, in steps
+of 2⁻¹⁶, ties by place) and the places by `direction`: `up` by height (to the millimetre, ties by place), `down` its
+reverse, `end` along the wire, `start` its reverse; the n-th lowest colour goes to the n-th lowest place, then mixed
+with the unsorted colour by `amount`. `amount` 0 leaves it exactly as it was.
 
 A chain with no spatial module runs in the one pass above, unchanged. One with spatial modules runs in stages: every
 pixel of the layer through the modules up to the first, into a buffer prepareLayer allocated (`c`, unclamped); the
@@ -267,7 +275,8 @@ whole rig is about 1.6 MB. `past(ago)` in that filter is `[r, g, b, a]` (reused:
 above it at the current LED `ago` seconds back in pattern time, held to 0..`history`: 0 is `c` exactly; between grid
 times it blends the two round it, so any render rate plays the same. Time going back, or forward more than half a
 second, starts the buffer again; a reading further back than what it holds gets the oldest frame it has. `past()`
-anywhere else throws. Delay reads one time per LED; others read one per frame for every LED.
+anywhere else throws. Delay reads one time per LED; replay one per frame for every LED. Smoke and trails keep their
+own buffer by `p.k` (their own output, fed back), not this one.
 
 ## Globals
 

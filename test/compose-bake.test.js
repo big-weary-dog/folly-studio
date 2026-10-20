@@ -109,3 +109,25 @@ test('the render box bakes blur and soften to the same bytes as the core here', 
   assert.ok(here.some((v) => v > 0));
   assert.ok(Buffer.from(parsed.data).equals(Buffer.from(here)), 'the box and the core bake the same bytes');
 });
+
+// Smoke, replay and sort: their own trail, the frame buffer and the sort op, baked alike.
+const TIMED = {
+  layers: [
+    { id: 'arch', groups: ['arches'], tags: ['arch'], blend: 'add', level: 1, modules: [
+      { id: 's', kind: 'source', title: 'Sparkle', code: lib('sparkle') },
+      { id: 'sm', kind: 'filter', title: 'Smoke', code: lib('smoke') },
+      { id: 'so', kind: 'filter', title: 'Sort', code: lib('sort'), params: { cutoff: 0.02 } }] },
+    { id: 'rose', groups: ['rose-window'], tags: ['rose'], blend: 'over', level: 1, modules: [
+      { id: 'p', kind: 'source', title: 'Bars', code: lib('bars'), params: { direction: 'orbit' } },
+      { id: 'r', kind: 'filter', title: 'Replay', code: lib('replay'), params: { play: 'bounce', length: 1 } }] },
+  ],
+};
+
+test('the render box bakes smoke, replay and sort to the same bytes as the core here', async ({ skip }) => {
+  skip(!probe.ok, unavailable);
+  const box = createRenderBox({ seconds: SECONDS, rigFile: RIGS.folly, log: quiet });
+  const { bytes } = await box.render({ layers: TIMED.layers, seconds: SECONDS });
+  const here = bakeHere(TIMED).data;
+  assert.ok(here.some((v) => v > 0));
+  assert.ok(Buffer.from(parseFseq(bytes).data).equals(Buffer.from(here)), 'the box and the core bake the same bytes');
+});

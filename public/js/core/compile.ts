@@ -53,7 +53,8 @@ const SHADOWED = [
 const scopeOf = (picks: Picks, clocks: Clocks, frames: History) => Object.freeze({ ...STDLIB, use, pal: picks.pal,
   swatch: picks.swatch, clock: clocks.clock, past: frames.past });
 const SCOPE = scopeOf(newPicks(), newClocks(), newHistory());
-const SPATIAL_OPS = Object.freeze(['blur'] as const);   // what `const spatial = …` may name (SPEC "Spatial modules")
+// What `const spatial = …` may name (SPEC "Spatial modules")
+const SPATIAL_OPS = Object.freeze(['blur', 'sort'] as const);
 const CHOICE = /^[a-z][a-z0-9-]{0,31}$/;
 const PRELUDE =
   '"use strict";\n' +

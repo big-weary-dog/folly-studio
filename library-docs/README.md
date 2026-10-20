@@ -19,10 +19,11 @@ works on everything above it, as in an image editor.
   background. The first source covers; later ones add, unless given a `blend`: `over`, `add`, `max`, `multiply`, or
   `under` (drawn beneath what is above). With `as: "input"` (and an `id`) it draws nothing itself and only feeds a
   filter whose `input` names it.
-- A **filter** reworks the colour of everything above it (recolour, fade, mask, blur, trails, delay).
+- A **filter** reworks the colour of everything above it (recolour, fade, mask, blur, trails, delay, smoke, replay,
+  sort).
 - A **warp** bends where everything above it reads its pixel (fold, turn, slide, wrap), so a warp goes below what it
-  bends (later in the list). `blur`, `trails` and `delay` hold real LED colours and end a stage: a warp below one
-  does not reach above it.
+  bends (later in the list). `blur`, `trails`, `delay`, `smoke`, `replay` and `sort` hold real LED colours and end a
+  stage: a warp below one does not reach above it.
 - `anchor` moves the centre that `in`, `out`, the turning directions, polar and the rotations use; put it lowest of
   the warps.
 

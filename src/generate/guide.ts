@@ -97,8 +97,9 @@ everything above it, as in an image editor.
 - \`filter\`: \`function filter(c, q, t, P, G, x)\` reworks everything above it, c = [r, g, b, a] (change it and
   return it); x is the colour of the source its \`input\` names (an earlier module's id).
 - \`warp\`: \`function warp(q, t, P, G)\` bends everything above it: it changes q (a copy of p: lx ly lz a r u i …)
-  for the modules above it. So a warp goes after what it bends. A blur, trails or delay holds real LED colours (its code
-  declares \`const stage = 'spatial'\` or \`'history'\`): a warp below one does not reach above it.
+  for the modules above it. So a warp goes after what it bends. A blur, trails, delay, smoke, replay or sort holds real
+  LED colours (its code declares \`const stage = 'spatial'\` or \`'history'\`): a warp below one does not reach above
+  it.
 So "a chase only inside clouds, mirrored" is [source single-strand, source clouds as input, filter mask with input =
 the clouds' id, warp mirror]. A module with a \`ref\` names the library entry it copies; still give its code. A preset
 is such a chain, ready made: copy its modules, each with its library entry's code.

@@ -8,6 +8,7 @@ import type { G, PreparedLook, Values } from './globals.ts';
 import { composite } from './output.ts';
 import type { Picks } from './picks.ts';
 import { pixelsForGroups, type Scene } from './scene.ts';
+import { sortStrands } from './sort.ts';
 import { blur, BLUR_MODES, blurState } from './spatial.ts';
 import { clamp, hex, isNum, RUN, TAU } from './stdlib.ts';
 import { clipAt, layerEnvelope, normalizeClips, type Transition, wipeColours } from './timeline.ts';
@@ -60,12 +61,12 @@ export function compileLayer(layer?: LayerInput | null) {
 /** The runnable chain: enabled modules with their function, params, bindings, blend, input (index or −1), whether
  * it ends a stage, and the slots of the pixel it reads (placeWarps). */
 type Fn = (...a: unknown[]) => unknown;
-// keep: a source's colours for a filter in a later stage (SPEC "Spatial modules"); picks: its colours; ring: the
-// frames above it (SPEC "History").
+// keep: a source's colours for a filter in a later stage (SPEC "Spatial modules"); op: a spatial one's; picks: its
+// colours; ring: the frames above it (SPEC "History").
 type Link = { id: string | null, title: string, kind: number, fn: Fn, frame: Compiled['frame'] | null, P: Values,
   mods: ReturnType<typeof paramMods>, picks: Picks | null, blend: number, hidden: boolean, input: number,
   out: number[], keep: Float64Array | null, end: boolean, ix: number, at: number, from: number, to: number,
-  led: boolean, bright: boolean, ring: Compiled['history'] | null };
+  led: boolean, bright: boolean, ring: Compiled['history'] | null, op: Compiled['spatial'] | null };
 function prepareChain(layer: LayerInput | null | undefined, compiled: Compiled | readonly (Compiled | null)[]) {
   const modules = layerModules(layer);
   const list = Array.isArray(compiled) ? compiled : [compiled];
@@ -91,7 +92,8 @@ function prepareChain(layer: LayerInput | null | undefined, compiled: Compiled |
     chain.push({ id: m.id ?? null, title: m.title || m.id || '', kind, fn, frame: c.frame || null,
       P, mods, picks: c.picks || null, blend, hidden, input,
       out: [0.5, 0, 0, 0], keep: null, end: kind === SPATIAL || isStageEnd(m), ix: 0, at: 0, from: -1, to: -1,
-      led: kind !== WARP || readsLed(m.code), bright: kind === SOURCE && !!c.bright, ring: c.history ?? null });
+      led: kind !== WARP || readsLed(m.code), bright: kind === SOURCE && !!c.bright, ring: c.history ?? null,
+      op: c.spatial ?? null });
   }
   return chain;
 }
@@ -107,7 +109,7 @@ function prepareStages(S: Scene, layer: LayerInput | null | undefined, chain: Li
     chain.push({ id: null, title: 'Soften', kind: SPATIAL, fn: (c) => c, frame: null, mods: [], picks: null,
       blend: OVER, P: { radius: Number(s.radius), mode, amount: 1 }, hidden: false, input: -1,
       out: [0, 0, 0, 0], keep: null, end: true, ix: chain.length, at: 0, from: -1, to: -1, led: false, bright: false,
-      ring: null });
+      ring: null, op: 'blur' });
   }
   if (!chain.some((M) => M.kind === SPATIAL)) return null;
   const m = idx.length;
@@ -281,7 +283,8 @@ function runStaged(S: Scene, L: PreparedLayer, T: number, G: G, st: NonNullable<
       }
       if (to >= n) return null;
       M = chain[to];
-      blur(S, idx, st, sb, M.P.radius, M.P.mode, M.P.amount);
+      if (M.op === 'sort') sortStrands(S, idx, sb, M.P.by, M.P.direction, M.P.cutoff, M.P.amount);
+      else blur(S, idx, st, sb, M.P.radius, M.P.mode, M.P.amount);
       from = to + 1;
     }
   } catch (e) {
