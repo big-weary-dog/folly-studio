@@ -100,7 +100,9 @@ export function createAccess({ store, auth, models }: { store: Pick<Store, 'user
       ? ` Try again in ${Math.max(1, Math.round((at - now) / 60_000))} min.` : '');
     const none = (what: string) => refuse(429, `Your allowance for ideas ${what} is 0: ask an admin.`, Infinity);
     const caps = isPaid(m) ? capsOf(u) : null;
-    if (caps && !access.unlocked) return refuse(403, `${m.label} needs an invite code. Sketch is free for everyone.`);
+    if (caps && !access.unlocked) {
+      return refuse(403, `${m.label} needs an invite code. Browsing, editing and the gallery are free.`);
+    }
     const own = m.limits ?? {}, of = usedOf(list.filter((c) => c.model === m.id), now);
     const pool = caps ? usedOf(list.filter((c) => c.paid), now) : of;
     if (caps?.concurrent === 0 || own.concurrent === 0) return none('at once');
@@ -121,7 +123,7 @@ export function createAccess({ store, auth, models }: { store: Pick<Store, 'user
     const ceiling = ceilingTimes(now);
     if (caps && ceiling.length + uses > limits().dailyCeiling) {
       const at = freesAt(ceiling, limits().dailyCeiling, DAY_MS, uses);
-      return refuse(429, `The AI models have done all they can for today. Sketch is still free.${later(at)}`, at);
+      return refuse(429, `The AI models have done all they can for today.${later(at)}`, at);
     }
     return null;
   }

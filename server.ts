@@ -9,9 +9,9 @@
 //   STUDIO_SECURE_COOKIES  1 → Secure session cookie (serve over https)
 //   STUDIO_MODELS          the model registry, default <STUDIO_DATA>/models.json (docs/HOSTING.md)
 //   STUDIO_GENERATOR       superseded by the registry: the default it starts with (claude, sketch or fleet)
-//   STUDIO_GENERATOR_FALLBACK  a model or transport tried when one fails (sketch)
-//   STUDIO_FOUNDRY         on → fleet runs, one job at a time; else deep ideas go to STUDIO_GENERATOR_FALLBACK
-//                          (default sketch); STUDIO_FOUNDRY_WAIT=1 → they wait for the foundry instead
+//   STUDIO_GENERATOR_FALLBACK  a model or transport foundry ideas go to while it is off or busy (none: they fail
+//                          while it is off, wait while busy)
+//   STUDIO_FOUNDRY         on → fleet runs, one job at a time; STUDIO_FOUNDRY_WAIT=1 → while busy, wait anyway
 //   STUDIO_TRUST_PROXY     1 → one proxy in front (a tunnel): client IP and host from what it forwards
 //   STUDIO_BAKE_SECONDS    longest render-box bake, default 120 (also STUDIO_BAKE_TIMEOUT, _CPU, _NICE (10),
 //                          _TASKS, _MEMORY, _MAX_FRAMES: see src/render-box.ts; needs bubblewrap)

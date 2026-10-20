@@ -1,9 +1,9 @@
 // npm run smoke, too: access to the paid models in a browser at a laptop's and a phone's size. A new account's idea
-// form starts on Sketch and shows the lock on a paid model with a code box; a wrong code is refused in place, a good
-// one unlocks it; a limit reached from elsewhere (a stale page) shows when the next idea may go; an admin makes a code
-// on the Access page, with its invite link. The link (/#invite=CODE) signs a visitor up and redeems the code, or
-// redeems it at once when signed in, says why a bad one was refused, and leaves no code in the address or the tab.
-// The paid models are a stand-in codex CLI (test/fixtures/generate/bin/codex).
+// form offers no Sketch (admins' alone) and shows the lock with a code box and what stays free; a wrong code is
+// refused in place, a good one unlocks it; a limit reached from elsewhere (a stale page) shows when the next idea may
+// go; an admin makes a code on the Access page, with its invite link. The link (/#invite=CODE) signs a visitor up and
+// redeems the code, or redeems it at once when signed in, says why a bad one was refused, and leaves no code in the
+// address or the tab. The paid models are a stand-in codex CLI (test/fixtures/generate/bin/codex).
 import { fileURLToPath } from 'node:url';
 
 import { expect, test } from './studio.js';
@@ -36,13 +36,13 @@ for (const [name, device] of Object.entries(SIZES)) {
       const { app } = studio, pick = page.locator('.model-pick select'), gate = page.locator('.gate');
       const submit = page.getByRole('button', { name: 'Turn it into a look' });
 
-      await test.step('a new account starts on Sketch; a paid model shows the lock and a code box', async () => {
+      await test.step('a new account is offered no Sketch: the lock, a code box, and what is free', async () => {
         await signUp(page, studio.origin, `guest-${name}`);
-        await expect(pick).toHaveValue('sketch');
-        await expect(pick.locator('option')).toHaveText(['Sol (invite)', 'Luna (invite)', 'Sketch']);
-        await pick.selectOption('sol');
-        await expect(gate).toContainText('Sol needs an invite code.');
-        await expect(gate).toContainText('Sketch is free for everyone.');
+        await expect(pick).toHaveValue('sol');
+        await expect(pick.locator('option')).toHaveText(['Sol (invite)', 'Luna (invite)']);
+        await expect(gate).toContainText('Turning ideas into looks needs an invite code.');
+        await expect(gate).toContainText('Browsing, editing and the gallery are free.');
+        await expect(page.locator('main')).not.toContainText('Sketch');
         await expect(submit).toHaveCount(0);
         await page.fill('textarea.idea-input', 'Embers rising up the spires');
         await shot('locked');
@@ -57,11 +57,11 @@ for (const [name, device] of Object.entries(SIZES)) {
         await page.fill('#invite-code', code.toLowerCase());
         await page.getByRole('button', { name: 'Unlock' }).click();
         await expect(page.locator('.gate-left')).toHaveText('6 left this hour · 20 today');
-        await expect(pick.locator('option')).toHaveText(['Sol', 'Luna', 'Sketch']);
+        await expect(pick.locator('option')).toHaveText(['Sol', 'Luna']);
         await shot('unlocked');
       });
 
-      await test.step('a limit reached elsewhere (a stale page) shows on submit as the wait, with Sketch', async () => {
+      await test.step('a limit reached elsewhere (a stale page) shows on submit as the wait', async () => {
         const me = app.store.users.list((u) => u.username === `guest-${name}`)[0];
         app.access.patch(me, 'keeper', { limits: { perHour: 1 } });
         app.store.ideas.create({ owner: me.id, text: 'from another tab', model: 'sol', status: 'ready' });
@@ -71,9 +71,6 @@ for (const [name, device] of Object.entries(SIZES)) {
         await expect(submit).toBeDisabled();
         await expect(page.locator('.idea-form > .form-error')).toBeHidden();
         await shot('at-limit');
-        await page.getByRole('button', { name: 'Use Sketch' }).click();
-        await expect(pick).toHaveValue('sketch');
-        await expect(submit).toBeEnabled();
       });
 
       await test.step('an admin makes a code on the Access page', async () => {
@@ -115,7 +112,7 @@ for (const [name, device] of Object.entries(SIZES)) {
         await page.fill('input[name=password]', 'correct horse');
         await page.locator('form button[type=submit]').click();
         await expect(toast).toHaveText('Invite accepted: you can use Sol and Luna.');
-        await expect(pick.locator('option')).toHaveText(['Sol', 'Luna', 'Sketch']);
+        await expect(pick.locator('option')).toHaveText(['Sol', 'Luna']);
         await expect(page).toHaveURL(`${studio.origin}/ideas`);
         expect(await kept()).toBe(0);
         await shot('invite-accepted');
@@ -128,11 +125,11 @@ for (const [name, device] of Object.entries(SIZES)) {
         await expect(toast).toHaveText('Invite not accepted. That code is used up: ask for a new one.');
         await expect(page).toHaveURL(`${studio.origin}/ideas`);
         expect(await kept()).toBe(0);
-        await expect(pick.locator('option')).toHaveText(['Sol (invite)', 'Luna (invite)', 'Sketch']);
+        await expect(pick.locator('option')).toHaveText(['Sol (invite)', 'Luna (invite)']);
         await shot('invite-refused');
         await page.goto(link(app.access.createInvite('keeper', { uses: 1 }).code));
         await expect(toast).toHaveText('Invite accepted: you can use Sol and Luna.');
-        await expect(pick.locator('option')).toHaveText(['Sol', 'Luna', 'Sketch']);
+        await expect(pick.locator('option')).toHaveText(['Sol', 'Luna']);
         await expect(page).toHaveURL(`${studio.origin}/ideas`);
       });
       expect(errors).toEqual([]);

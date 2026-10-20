@@ -34,7 +34,7 @@ for (const [name, device] of Object.entries(SIZES)) {
       await test.step('Explore to start, Deep off; a pick is kept', async () => {
         await expect(levels).toHaveText(['Quick~1 min', 'Explore~5 min']);
         await expect(pressed).toHaveText(/^Explore/);
-        await expect(hint).toContainText('Sketches 3 different takes');
+        await expect(hint).toContainText('Drafts 3 different takes');
         await page.fill('textarea.idea-input', 'The rose window blooms like a sunrise');
         await shot('explore');
         await levels.filter({ hasText: 'Quick' }).click();

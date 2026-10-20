@@ -1,11 +1,12 @@
-// npm run smoke, too: refining a look at a laptop's and a phone's size (SPEC-generators "Refine"). Sketch (offline)
-// makes the look and then refines it in words; the Refine box shows what changed, and Undo puts it back.
+// npm run smoke, too: refining a look at a laptop's and a phone's size (SPEC-generators "Refine"). Sketch (offline,
+// so an admin's) makes the look and then refines it in words; the Refine box shows what changed, and Undo puts it back.
 import { expect, test } from './studio.js';
 
 const SIZES = {
   laptop: { viewport: { width: 1366, height: 768 } },
   phone: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
 };
+test.use({ serverOptions: { admins: 'refine-laptop,refine-phone' } });
 
 for (const [name, device] of Object.entries(SIZES)) {
   test.describe(`${name}, ${device.viewport.width} × ${device.viewport.height}`, () => {

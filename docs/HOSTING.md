@@ -151,7 +151,7 @@ STUDIO_TRUST_PROXY=1              # client IP (login limits) and host from the t
 STUDIO_CURATORS=alice,bob         # who may mark looks reviewed
 STUDIO_ADMINS=you                 # the Models and Access pages (models, invite codes); admins are curators too
 ANTHROPIC_API_KEY=sk-ant-...      # for Opus: a key with a spend limit
-STUDIO_GENERATOR_FALLBACK=sketch  # for deep ideas while the foundry is off or busy
+STUDIO_GENERATOR_FALLBACK=sol     # optional: foundry ideas go here while it is off or busy (else wait, or fail)
 STUDIO_BAKE_SECONDS=120           # longest bake
 STUDIO_FRAMES_BROTLI_QUALITY=9
 STUDIO_FRAMES_MAX_BYTES=2GB
@@ -243,8 +243,10 @@ explore idea's is about 0.25 MB, a third of it the stills. `STUDIO_IDEA_LOGS=300
 
 ### Invites and limits
 
-Anyone can sign up, browse, edit, preview and use Sketch. The **paid** models (every `via` but `sketch`: they spend
-your API money or your Codex and Fleet capacity) need an **invite code**, and each person's use is limited. Admins
+Anyone can sign up, browse, edit, preview and use the gallery. The **paid** models (every `via` but `sketch`: they
+spend your API money or your Codex and Fleet capacity) need an **invite code**, and each person's use is limited.
+Sketch, the free one, is for admins alone (`SKETCH_FOR_EVERYONE` in `shared/schemas/models.ts`), whatever the file
+says: its looks fall short. Its switch on the Models page stays, so it can come back. Admins
 are exempt from both. The `limits` block above holds the defaults; tune them in the file, and they apply at once:
 
 | Setting | Default | Why |
@@ -292,8 +294,8 @@ The code a model writes is data: it only ever runs in the browser's sandbox and 
 
 A model with `"via": "fleet"` (`STUDIO_GENERATOR=fleet` adds one, `foundry`, when the registry is first written)
 sends ideas to a boxed Fleet worker (`fleet up`, boxed Codex). It runs only with `STUDIO_FOUNDRY=on`, one job at a
-time. While the foundry is busy, the next idea goes to `STUDIO_GENERATOR_FALLBACK`, or waits with
-`STUDIO_FOUNDRY_WAIT=1`. Fleet puts each box in a systemd user scope with a memory cap, which works under WSL with
+time. While the foundry is busy the next idea waits, and while it is off its ideas fail, saying so; with
+`STUDIO_GENERATOR_FALLBACK` set they go there instead (while busy, unless `STUDIO_FOUNDRY_WAIT=1`). Fleet puts each box in a systemd user scope with a memory cap, which works under WSL with
 `systemd=true` (as here: the user manager has the memory and pids controllers). On a host without a systemd user
 session (WSL without systemd, containers), Fleet's boxes get CPU and task limits but **no memory cap**, and the
 studio says so in its log at start: a runaway worker can use all of your RAM. Prefer another machine for the

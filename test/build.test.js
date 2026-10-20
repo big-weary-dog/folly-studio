@@ -44,7 +44,8 @@ beforeAll(async () => {
   dist = await builtApp();
   manifest = JSON.parse(readFileSync(path.join(dist, '.vite/manifest.json'), 'utf8'));
   dir = await mkdtemp(path.join(tmpdir(), 'studio-build-'));
-  app = await createServer({ dataDir: dir, distDir: dist, generator: { enqueue() {} }, log: quiet });
+  app = await createServer({ dataDir: dir, distDir: dist, generator: { enqueue() {} }, log: quiet,
+    admins: 'wire' }); // Sketch, the one model here, is admins' alone
   base = `http://127.0.0.1:${(await app.listen(0)).port}`;
 });
 afterAll(async () => {

@@ -198,8 +198,9 @@ transcripts.
   also bakes (`node check.ts --bake`); the adapter reads its `look.json` (title, summary, duration, layers, globals,
   automation, bpm) and returns it with `bake` + `frames` (see below), and
   the queue stores them with the look. This foundry is opt-in: it runs only with `STUDIO_FOUNDRY=on`,
-  one job at a time in a slot of its own. While it is off or busy, its ideas go to the one-shot
-  generator (`STUDIO_GENERATOR_FALLBACK`, else `sketch`), or wait for it with `STUDIO_FOUNDRY_WAIT=1`.
+  one job at a time in a slot of its own. While it is busy its ideas wait; while it is off they fail ("Fleet is off
+  right now; try another model."). `STUDIO_GENERATOR_FALLBACK` opts into a one-shot generator instead (while busy,
+  unless `STUDIO_FOUNDRY_WAIT=1`). No idea falls back to Sketch unasked: an idea whose model is gone fails too.
   Without a systemd user bus (`systemd-run --user --scope` fails, as on WSL) Fleet's boxes have no
   memory cap, and the server warns at start.
 
@@ -223,17 +224,20 @@ pick it (none: everyone); `concurrency` the jobs at once per transport (defaults
 foundry always 1). The defaults: Opus (`claude-opus-5-5`, medium, the default; no critique), Sol (`gpt-6.1-sol`, low,
 critique `images`) and Luna (`gpt-6-luna`, low, critique `text`) through `codex`, and Sketch. A model can run when its transport can: `claude` with
 `ANTHROPIC_API_KEY`, `codex` with the CLI on PATH (`STUDIO_CODEX_BIN`; `warn` when no login is seen), `fleet` with
-`STUDIO_FOUNDRY=on`, `sketch` always. The idea form offers the models that are on, offered to the user's role and
-able to run, starting on the default when it is one of them (else the first); an account that may not use the paid
-models (Access) starts on the first free one, and an idea sent without a model gets that same default. When the
-file is first written, `STUDIO_GENERATOR` (`claude`,
-`sketch`, `fleet`) names its default.
+`STUDIO_FOUNDRY=on`, `sketch` always. Sketch is offered to admins alone while `SKETCH_FOR_EVERYONE`
+(`shared/schemas/models.ts`) is false, as it is: whatever the file says, everyone else's form leaves it out and the
+API refuses it ("Sketch is not offered to your account."). The idea form offers the models that are on, offered to
+the user's role and able to run, starting on the default when it is one of them (else the first); an account that
+may not use the paid models (Access) starts on the first free one, if any, and an idea sent without a model gets
+that same default. When the file is first written, `STUDIO_GENERATOR` (`claude`, `sketch`, `fleet`) names its
+default.
 
 ## Access (invite codes and limits)
 
-Anyone may sign up, browse, edit, preview and use Sketch. A **paid** model (any `via` but `sketch`: it spends money
-or the owner's capacity) needs an **unlocked** account, and every account's ideas are **limited**. Admins are exempt
-from both. The registry's `limits` (defaults below) and each model's own `limits` set them:
+Anyone may sign up, browse, edit, preview and use the gallery; turning ideas into looks needs an invite code, as
+Sketch, the one free model, is offered to admins alone (Models). A **paid** model (any `via` but `sketch`: it spends
+money or the owner's capacity) needs an **unlocked** account, and every account's ideas are **limited**. Admins are
+exempt from both. The registry's `limits` (defaults below) and each model's own `limits` set them:
 
 ```
 "limits"?: { "inviteOnly": true, "perHour": 6, "perDay": 20, "concurrent": 2, "dailyCeiling": 200 }

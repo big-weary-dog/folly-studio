@@ -28,7 +28,8 @@ beforeAll(async () => {
   const dist = await builtApp();
   manifest = JSON.parse(await readFile(path.join(dist, '.vite/manifest.json'), 'utf8'));
   dir = await mkdtemp(path.join(os.tmpdir(), 'studio-transfer-'));
-  app = await createServer({ dataDir: dir, distDir: dist, generator: { enqueue() {} }, log: quiet });
+  app = await createServer({ dataDir: dir, distDir: dist, generator: { enqueue() {} }, log: quiet,
+    admins: 'wire' }); // Sketch, the one model here, is admins' alone
   port = (await app.listen(0)).port;
   const res = await request(port, '/api/signup', { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ username: 'wire', password: 'correct horse' }) });

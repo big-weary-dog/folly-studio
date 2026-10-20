@@ -8,8 +8,8 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 
 import {
-  type AdminModels, EFFORTS, isPaid, type ModelChoices, type ModelEntry, type ModelsConfig, readModels, type Role,
-  type Transport,
+  type AdminModels, EFFORTS, isPaid, type ModelChoices, type ModelEntry, type ModelsConfig, offeredTo, readModels,
+  type Role, type Transport,
 } from '../../shared/schemas/models.ts';
 import { LIMITS } from '../../shared/schemas/access.ts';
 import type { Logger } from '../http.ts';
@@ -107,7 +107,7 @@ export function createRegistry({ file, env = process.env, log = console, legacy 
       : { available: true, warn: true, note: 'Codex CLI found; no login seen (run codex login).' };
   }
 
-  const allowed = (m: ModelEntry, role: Role) => !m.roles || m.roles.includes(role);
+  const allowed = offeredTo;
   const usable = (m: ModelEntry, role: Role) => m.enabled && allowed(m, role) && status(m).available;
   /** What `role` may pick, and the one the form starts on: the default, else the first; for someone who may not use
    * the paid models (`paid: false`, a locked account), the first free one. */

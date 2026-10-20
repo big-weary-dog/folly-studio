@@ -84,6 +84,12 @@ export function readModels(json: unknown): { config: ModelsConfig } | { error: s
  * idea's explore level (SPEC-generators "Explore"). */
 export type ModelChoice = { id: string, label: string, paid: boolean, explores?: true };
 export const isPaid = (m: { via: Transport }) => m.via !== 'sketch';
+/** Whether Sketch is offered to people other than admins. Off: its looks fall short, so it stays in the registry
+ * (and on the Models page) for admins alone, whatever the file says. */
+export const SKETCH_FOR_EVERYONE = false;
+/** Whether `role` may pick `m`: its `roles`, and Sketch only where it is offered. */
+export const offeredTo = (m: { via: Transport, roles?: readonly Role[] }, role: Role) =>
+  (m.via !== 'sketch' || SKETCH_FOR_EVERYONE || role === 'admin') && (!m.roles || m.roles.includes(role));
 /** `deep` (while Deep is on): what a Deep idea counts as, and whether it is admins' only. */
 export type ModelChoices = { models: ModelChoice[], default: string | null, deep?: { uses: number,
   adminOnly: boolean } };

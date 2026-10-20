@@ -1,6 +1,7 @@
 // Playwright Test fixtures for the smoke and perf specs: `studio`, the real server (src/app.ts) on a temporary data
 // folder, serving a fresh build of the app (test/fixtures/build.js), one per worker; `serverOptions` are its
-// createServer() options (the perf check turns the generator and the render box off).
+// createServer() options (the perf check turns the generator and the render box off). Without its own `models`, a spec
+// gets no real codex or Claude, whatever this machine has: Sketch, an admin's, is the one model.
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -17,7 +18,8 @@ export const test = base.extend({
   serverOptions: [{}, { scope: 'worker', option: true }],
   studio: [async ({ serverOptions }, use) => {
     const dataDir = await mkdtemp(path.join(os.tmpdir(), 'studio-browser-'));
-    const app = await createServer({ dataDir, distDir: await builtApp(), log: quiet, ...serverOptions });
+    const app = await createServer({ dataDir, distDir: await builtApp(), log: quiet,
+      models: { codexBin: 'no-codex-here', env: {} }, ...serverOptions });
     const { port } = await app.listen(0, '127.0.0.1');
     await use({ app, origin: `http://127.0.0.1:${port}` });
     await app.close();

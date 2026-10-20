@@ -1,5 +1,5 @@
 // The idea form's gate on the paid models (SPEC "Access"): a locked account sees why, a box for an invite code and
-// Sketch, which is free; an unlocked one sees what it has left, and at a limit when the next idea may go.
+// the free model, when one is offered; an unlocked one sees what it has left, and at a limit when the next idea may go.
 import { useState } from 'preact/hooks';
 
 import { api, statusOf } from '../api.ts';
@@ -37,15 +37,17 @@ export function gateOf(access: Access | null, model: ModelChoice | undefined, no
   return { kind: 'open', text: `${hour} left this hour · ${day} today` };
 }
 
-/** The gate under the idea form's actions; `sketch` switches the form to the free model, when there is one. */
-export function AccessGate({ gate, model, paidLabels, sketch, onAccess }: { gate: Gate, model?: ModelChoice,
-  paidLabels: string, sketch?: () => void, onAccess: (a: Access) => void }) {
+/** The gate under the idea form's actions; `free` is the free model this account is offered, if any, and `useFree`
+ * switches the form to it. */
+export function AccessGate({ gate, model, paidLabels, free, useFree, onAccess }: { gate: Gate, model?: ModelChoice,
+  paidLabels: string, free?: ModelChoice, useFree?: () => void, onAccess: (a: Access) => void }) {
   const [code, setCode] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState('');
   if (gate.kind === 'free' || gate.kind === 'exempt') return null;
-  const useSketch = sketch && <button class="btn ghost small" type="button" onClick={sketch}>Use Sketch</button>;
+  const freeButton = free && useFree
+    && <button class="btn ghost small" type="button" onClick={useFree}>{`Use ${free.label}`}</button>;
   if (gate.kind === 'open') return <p class="gate-left" aria-live="polite">{gate.text}</p>;
   if (gate.kind === 'wait') {
-    return <div class="gate gate-wait" role="status"><p>{gate.text}</p>{useSketch}</div>;
+    return <div class="gate gate-wait" role="status"><p>{gate.text}</p>{freeButton}</div>;
   }
   async function redeem() {
     if (!code.trim()) return setError('Enter the code you were given.');
@@ -63,8 +65,10 @@ export function AccessGate({ gate, model, paidLabels, sketch, onAccess }: { gate
   }
   return (
     <div class="gate gate-locked" role="group" aria-labelledby="gate-why">
-      <p id="gate-why"><strong>{model?.label} needs an invite code.</strong>{` ${paidLabels} are invite only; `}
-        Sketch is free for everyone.</p>
+      <p id="gate-why">{free ? <><strong>{model?.label} needs an invite code.</strong>
+        {` ${paidLabels} are invite only; ${free.label} is free for everyone.`}</>
+        : <><strong>Turning ideas into looks needs an invite code.</strong>
+          {' Browsing, editing and the gallery are free.'}</>}</p>
       <div class="gate-row">
         <label for="invite-code" class="sr-only">Invite code</label>
         <input id="invite-code" type="text" class="gate-code" value={code} placeholder="XXXX-XXXX-XXXX" maxlength={64}
@@ -72,7 +76,7 @@ export function AccessGate({ gate, model, paidLabels, sketch, onAccess }: { gate
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); redeem(); } }} />
         <button class={cx('btn primary small', busy && 'busy')} type="button" disabled={busy} onClick={redeem}>
           Unlock</button>
-        {useSketch}
+        {freeButton}
       </div>
       <p class="form-error" role="alert" hidden={!error}>{error}</p>
     </div>);

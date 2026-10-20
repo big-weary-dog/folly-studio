@@ -17,6 +17,8 @@ const SIZES = {
 const IDEA = 'Rising embers drift up the spires while the rose window glows';
 const HANG = 'function pixel(p, t) {\n  while (true) {}\n}\n';
 const BAKE = /^(?:Save & bake|Bake|Bake again)$/;
+// Admins: Sketch, the one model here (studio.js), is offered to them alone.
+test.use({ serverOptions: { admins: 'smoke-laptop,smoke-phone' } });
 
 for (const [name, device] of Object.entries(SIZES)) {
   test.describe(`${name}, ${device.viewport.width} × ${device.viewport.height}`, () => {

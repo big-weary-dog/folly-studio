@@ -4,8 +4,8 @@
 // (shared/schemas/generated.ts) cleans it, the look is saved and the idea 'ready' with where the time went, or
 // 'failed' with a user-safe error (the Studio offers "Try again"): no other generator stands in for a failed one.
 // An adapter may also return `bake` (a checkFrames record, kept on the look) and `frames` (stored).
-// The Fleet foundry (via fleet) is opt-in, STUDIO_FOUNDRY=on, one job at a time. While it is off or busy, its ideas
-// go to the one-shot generator (STUDIO_GENERATOR_FALLBACK, else sketch), or wait for it with STUDIO_FOUNDRY_WAIT=1.
+// The Fleet foundry (via fleet) is opt-in, STUDIO_FOUNDRY=on, one job at a time: busy, its ideas wait; off, they fail.
+// STUDIO_GENERATOR_FALLBACK opts into a one-shot instead (busy too, unless STUDIO_FOUNDRY_WAIT=1); never Sketch.
 // An idea that names no model (from before the registry) goes to STUDIO_GENERATOR's transport.
 
 import path from 'node:path';
@@ -127,11 +127,11 @@ export function createQueue({
     primary = 'sketch';
   }
   const fallback = fallbackName ? route(fallbackName) : null;
-  const oneShot = fallback && fallback.via !== 'fleet' ? fallback : route('sketch')!;
+  const oneShot = fallback && fallback.via !== 'fleet' ? fallback : null;
   const deep = primary === 'fleet' || !!models?.config().models.some((m) => m.via === 'fleet' && m.enabled);
   const foundryOn = deep && foundry.on === true;
   if (deep && !foundryOn) {
-    log.warn?.(`[generate] the Fleet foundry is off (STUDIO_FOUNDRY=on runs it); ideas go to ${oneShot.id}`);
+    log.warn?.(`[generate] the foundry is off (STUDIO_FOUNDRY=on); ideas go to ${oneShot?.id ?? 'none: they fail'}`);
   }
   if (foundryOn) {
     Promise.resolve(foundry.memoryCap?.()).then((capped) => {
@@ -174,7 +174,7 @@ export function createQueue({
 
   function pump() {
     const foundryLane = lanes.get('fleet');
-    if (foundryLane?.running && foundryLane.jobs.length && !foundry.wait) { // the foundry is busy: one-shot instead
+    if (oneShot && foundryLane?.running && foundryLane.jobs.length && !foundry.wait) { // busy: the one-shot instead
       lane(oneShot.via).jobs.push(...foundryLane.jobs.splice(0).map((j) => ({ ...j, route: oneShot })));
     }
     for (const [via, l] of lanes) while (l.jobs.length && l.running < limitOf(via)) start(l, l.jobs.shift()!);
@@ -362,17 +362,17 @@ export function createQueue({
   }
 
   return {
-    adapterName: deep && !foundryOn && primary === 'fleet' ? oneShot.id : primary, foundry: foundryOn,
+    adapterName: deep && !foundryOn && primary === 'fleet' ? oneShot?.id ?? primary : primary, foundry: foundryOn,
     enqueue(idea: { id: string, model?: string } | string) {
       const id = typeof idea === 'object' && idea ? idea.id : idea;
       if (id == null || active.has(id) || stopping) return false;
       const wanted = (typeof idea === 'object' ? idea.model : undefined) ?? store.ideas.get(id)?.model;
-      let r = route(wanted || primary);
-      if (!r) {
-        log.warn?.(`[generate] idea ${id} asks for an unknown model "${wanted}"; using sketch`);
-        r = route('sketch')!;
+      const asked = route(wanted || primary), r = asked?.via === 'fleet' && !foundryOn ? oneShot : asked;
+      if (!r) { // never Sketch in its place: it is offered to admins alone
+        const error = asked ? `${asked.label} is off right now; try another model.` : 'Its model is gone; try another.';
+        void update(id, { status: 'failed', error });
+        return false;
       }
-      if (r.via === 'fleet' && !foundryOn) r = oneShot;
       active.add(id);
       lane(r.via).jobs.push({ id, route: r, queuedAt: Date.now() });
       pump();

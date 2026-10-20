@@ -21,7 +21,7 @@ describe('server', () => {
   let app;
   beforeAll(async () => {
     app = await startApp({ dataDir: path.join(fx.tmp, 'data-main'), curators: 'Carol, other',
-      renderBox: fakeBox() });
+      admins: 'csrf-alice, idea-alice, idea-bob', renderBox: fakeBox() });
   });
   afterAll(async () => {
     await app.close();
@@ -149,8 +149,7 @@ describe('server', () => {
   describe('CSRF and request limits', () => {
     let alice;
     beforeAll(async () => {
-      alice = client(app);
-      assert.equal((await alice.post('/api/login', { username: 'alice', password: 'correct horse' })).status, 200);
+      alice = await signup(app, 'csrf-alice'); // an admin: Sketch, the one model here, is admins' alone
     });
 
     test('mutations need Content-Type: application/json', async () => {
@@ -252,14 +251,14 @@ describe('server', () => {
       assert.equal((await alice.get('/api/ideas/does-not-exist')).status, 404);
     });
 
-    test('Sketch is free, but limited: 30 ideas an hour', async () => {
+    test('Sketch is for admins alone, whatever the models file says', async () => {
       const dave = await signup(app, 'idea-dave');
-      for (let i = 0; i < 30; i++) {
-        const r = await dave.post('/api/ideas', { text: `idea number ${i}` });
-        assert.equal(r.status, 201, `idea ${i}`);
-      }
-      assert.equal((await dave.post('/api/ideas', { text: 'one too many' })).status, 429);
-      assert.equal((await bob.post('/api/ideas', { text: 'bob still can' })).status, 201);
+      const asked = await dave.post('/api/ideas', { text: 'a sketch please', model: 'sketch' });
+      assert.deepEqual([asked.status, asked.json.error], [400, 'Sketch is not offered to your account.']);
+      const plain = await dave.post('/api/ideas', { text: 'whatever runs' });
+      assert.deepEqual([plain.status, plain.json.error], [400, 'No model is available right now.'], 'no key, no codex');
+      assert.deepEqual((await dave.get('/api/models')).json.models, []);
+      assert.equal((await bob.post('/api/ideas', { text: 'an admin still can' })).status, 201);
     });
   });
 

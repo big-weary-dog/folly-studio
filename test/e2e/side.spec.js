@@ -3,7 +3,8 @@
 // divider sizes the split; the view is kept per browser. Screenshots of each land in the test's output folder.
 import { expect, test } from './studio.js';
 
-test.use({ viewport: { width: 1366, height: 768 } });
+// An admin: Sketch, the one model here (studio.js), is offered to admins alone.
+test.use({ viewport: { width: 1366, height: 768 }, serverOptions: { admins: 'side-laptop' } });
 
 test('layers and settings expand, collapse, resize and stay so', async ({ page, studio }, info) => {
   const errors = [];

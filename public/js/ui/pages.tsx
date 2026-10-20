@@ -23,7 +23,7 @@ const MAX_LEN = 2000;
 // How much a paid model explores (SPEC-generators "Explore"): its name, rough time and what it does.
 const LEVELS: Record<Explore, [string, string, string]> = {
   quick: ['Quick', '~1 min', 'One composition, checked in the render box, looked at once when the model can.'],
-  explore: ['Explore', '~5 min', 'Sketches 3 different takes, keeps the best of each, then looks at the render and '
+  explore: ['Explore', '~5 min', 'Drafts 3 different takes, keeps the best of each, then looks at the render and '
     + 'revises it.'],
   deep: ['Deep', '~13 min', 'Builds all 3 takes and renders them side by side, composes from what worked, then revises '
     + 'twice.'],
@@ -121,7 +121,7 @@ export function Ideas() {
   const free = choices?.models.find((m) => !m.paid);
   const paidLabels = listed((choices?.models ?? []).filter((m) => m.paid).map((m) => m.label));
   const gate = gateOf(access, chosen);
-  const sketch = free && free.id !== chosen?.id && pickable ? () => setModel(free.id) : undefined;
+  const useFree = free && free.id !== chosen?.id && pickable ? () => setModel(free.id) : undefined;
   // The paid models explore; Deep only while it is on and this account may ask for it.
   const deep = choices?.deep, levels = (Object.keys(LEVELS) as Explore[]).filter((l) => l !== 'deep'
     || (deep && (!deep.adminOnly || user.value?.role === 'admin')));
@@ -207,8 +207,8 @@ export function Ideas() {
             {gate.kind !== 'locked' && <button class={cx('btn primary', busy && 'busy')} type="submit"
               disabled={busy || gate.kind === 'wait'}>Turn it into a look</button>}
           </div>
-          {gate.kind !== 'open' && <AccessGate gate={gate} model={chosen} paidLabels={paidLabels} sketch={sketch}
-            onAccess={setAccess} />}
+          {gate.kind !== 'open' && <AccessGate gate={gate} model={chosen} paidLabels={paidLabels} free={free}
+            useFree={useFree} onAccess={setAccess} />}
         </form>
       </section>
       <section class="ideas-section" aria-labelledby="my-ideas-h">

@@ -74,7 +74,7 @@ describe('looks', () => {
   });
 
   test('ideaId must be my idea', async () => {
-    const idea = (await alice.post('/api/ideas', { text: 'linked idea' })).json.idea;
+    const idea = app.store.ideas.create({ owner: alice.user.id, text: 'linked idea', status: 'ready' });
     const ok = await alice.post('/api/looks', { title: 'From idea', layers: [layer()], ideaId: idea.id });
     assert.equal(ok.status, 201);
     assert.equal(ok.json.look.ideaId, idea.id);

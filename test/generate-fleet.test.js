@@ -396,21 +396,43 @@ describe('the Fleet foundry is opt-in', () => {
   }
   const settle = () => new Promise((r) => setTimeout(r, 20));
 
-  test('off by default: deep ideas go to the one-shot generator, and the log says why', async () => {
+  test('off by default: deep ideas fail, saying so, never Sketch; a fallback the env names takes them', async () => {
     assert.deepEqual({ ...foundryFromEnv({}), memoryCap: 0 }, { on: false, wait: false, memoryCap: 0 });
     assert.equal(foundryFromEnv({ STUDIO_FOUNDRY: 'on', STUDIO_FOUNDRY_WAIT: '1' }).on, true);
-    const { queue, idea, ran, warnings, store } = foundryQueue({ on: false });
+    const off = foundryQueue({ on: false });
+    const i = off.idea('embers');
+    assert.equal(off.queue.enqueue(i), false);
+    await settle();
+    assert.deepEqual(off.ran, []);
+    assert.deepEqual([off.store.ideas.get(i.id).status, off.store.ideas.get(i.id).error],
+      ['failed', 'Fleet is off right now; try another model.']);
+    assert.match(off.warnings.join('\n'), /foundry is off \(STUDIO_FOUNDRY=on\); ideas go to none: they fail/);
+    const gone = off.idea('a model since removed');
+    assert.equal(off.queue.enqueue({ id: gone.id, model: 'gone' }), false);
+    await settle();
+    assert.equal(off.store.ideas.get(gone.id).error, 'Its model is gone; try another.');
+
+    const { queue, idea, ran, warnings, store } = foundryQueue({ on: false }, { fallbackName: 'sketch' });
     assert.equal(queue.adapterName, 'sketch');
-    const i = idea('embers');
-    queue.enqueue(i);
+    const j = idea('embers');
+    queue.enqueue(j);
     await queue.idle();
     assert.deepEqual(ran, [['sketch', 'embers']]);
-    assert.equal(store.ideas.get(i.id).generator, 'sketch');
-    assert.match(warnings.join('\n'), /foundry is off \(STUDIO_FOUNDRY=on runs it\); ideas go to sketch/);
+    assert.equal(store.ideas.get(j.id).generator, 'sketch');
+    assert.match(warnings.join('\n'), /foundry is off \(STUDIO_FOUNDRY=on\); ideas go to sketch/);
   });
 
-  test('on: one job at a time; while busy the next goes one-shot, or waits with STUDIO_FOUNDRY_WAIT', async () => {
-    const busy = foundryQueue({ on: true, memoryCap: async () => true });
+  test('on: one job at a time; while busy the next waits, or goes to a fallback the env names', async () => {
+    const queued = foundryQueue({ on: true, memoryCap: async () => true });
+    queued.queue.enqueue(queued.idea('first'));
+    queued.queue.enqueue(queued.idea('second'));
+    await settle();
+    assert.deepEqual(queued.ran, [['fleet', 'first']]);
+    queued.release();
+    await queued.queue.idle();
+    assert.deepEqual(queued.ran, [['fleet', 'first'], ['fleet', 'second']]);
+
+    const busy = foundryQueue({ on: true, memoryCap: async () => true }, { fallbackName: 'sketch' });
     busy.queue.enqueue(busy.idea('first'));
     busy.queue.enqueue(busy.idea('second'));
     await settle();
@@ -419,7 +441,7 @@ describe('the Fleet foundry is opt-in', () => {
     await busy.queue.idle();
     assert.deepEqual(busy.warnings, [], 'a memory cap: no warning');
 
-    const waiting = foundryQueue({ on: true, wait: true, memoryCap: async () => true });
+    const waiting = foundryQueue({ on: true, wait: true, memoryCap: async () => true }, { fallbackName: 'sketch' });
     waiting.queue.enqueue(waiting.idea('first'));
     waiting.queue.enqueue(waiting.idea('second'));
     await settle();

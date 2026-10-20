@@ -1,6 +1,7 @@
-// Access (SPEC "Access"): paid models need an unlocked account, Sketch never does; invite codes are stored hashed,
-// redeemed once, refused when used up, expired or revoked, and tried a limited number of times; each account's ideas
-// are limited (an hour, a day, at once, a model's own, a ceiling for everyone), admins exempt or overriding.
+// Access (SPEC "Access"): paid models need an unlocked account, and Sketch is for admins alone; invite codes are
+// stored hashed, redeemed once, refused when used up, expired or revoked, and tried a limited number of times; each
+// account's ideas are limited (an hour, a day, at once, a model's own, a ceiling for everyone), admins exempt or
+// overriding.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -37,23 +38,24 @@ describe('access', () => {
   });
   afterAll(() => app?.close());
 
-  test('a locked account is refused the paid models (403, with its access), never Sketch', async () => {
+  test('a locked account is refused the paid models (403, with its access), and offered no Sketch', async () => {
     const mo = await someone();
     const me = (await mo.get('/api/me')).json.access;
     assert.deepEqual([me.unlocked, me.exempt, me.inviteOnly, me.limits, me.left], [false, false, true,
       { perHour: 6, perDay: 20, concurrent: 2 }, { hour: 6, day: 20, running: 2 }]);
     const refused = await idea(mo);
     assert.equal(refused.status, 403);
-    assert.equal(refused.json.error, 'Sol needs an invite code. Sketch is free for everyone.');
+    assert.equal(refused.json.error, 'Sol needs an invite code. Browsing, editing and the gallery are free.');
     assert.equal(refused.json.access.unlocked, false);
-    assert.equal((await idea(mo, 'sketch')).status, 201);
-    assert.equal((await mo.get('/api/me')).json.access.left.hour, 6, 'Sketch spends none of the allowance');
+    const sketch = await idea(mo, 'sketch');
+    assert.deepEqual([sketch.status, sketch.json.error], [400, 'Sketch is not offered to your account.']);
     assert.equal((await idea(admin)).status, 201, 'admins are exempt');
-    // A locked account's default is the free model, on the server and so in the form; unlocked, the usual one.
-    assert.equal((await mo.get('/api/models')).json.default, 'sketch');
-    const plain = await mo.post('/api/ideas', { text: 'a slow wash' });
-    assert.equal(plain.status, 201, plain.json.error);
-    assert.equal(plain.json.idea.model, 'sketch');
+    assert.equal((await idea(admin, 'sketch')).status, 201, 'and may use Sketch');
+    // A locked account has no free model: its default is the usual one, which it is refused.
+    const offered = (await mo.get('/api/models')).json;
+    assert.deepEqual([offered.default, offered.models.some((m) => m.id === 'sketch')], ['sol', false]);
+    assert.equal((await mo.post('/api/ideas', { text: 'a slow wash' })).status, 403);
+    assert.equal((await mo.get('/api/me')).json.access.left.hour, 6, 'a refusal spends none of the allowance');
     assert.equal((await admin.get('/api/models')).json.default, 'sol');
     assert.equal((await unlock(mo)).status, 200);
     assert.equal((await mo.get('/api/models')).json.default, 'sol');
@@ -164,7 +166,6 @@ describe('access', () => {
     const u = app.store.users.get(mo.user.id), sol = app.models.get('sol');
     assert.equal(app.access.check(u, sol, Date.now() + HOUR_MS + 1000), null);
     assert.equal(app.access.state(u, Date.now() + HOUR_MS + 1000).left.day, 14);
-    assert.equal((await idea(mo, 'sketch')).status, 201, 'Sketch has its own');
   });
 
   test('Deep is refused while it is off; an idea that asks nothing explores', async () => {
@@ -196,8 +197,8 @@ describe('access', () => {
     assert.match(refused.json.error, /^A Deep idea counts as 2, and you have 1 left this hour\. Try again in 60 min/);
     const plain = await mo.post('/api/ideas', { text: 'one use left', model: 'sol', explore: 'explore' });
     assert.equal(plain.status, 201, 'Explore is one use');
-    assert.equal((await mo.post('/api/ideas', { text: 'free', model: 'sketch', explore: 'deep' })).json.idea.explore,
-      undefined, 'only the prompted models explore');
+    assert.equal((await admin.post('/api/ideas', { text: 'free', model: 'sketch', explore: 'deep' })).json.idea
+      .explore, undefined, 'only the prompted models explore');
   });
 
   test('an admin raises or resets one person; a model may cap itself; a ceiling holds everyone', async () => {
@@ -239,10 +240,9 @@ describe('access', () => {
     await setLimits({ dailyCeiling: paid });
     const full = await idea(mo);
     assert.equal(full.status, 429);
-    assert.match(full.json.error, /^The AI models have done all they can for today\. Sketch is still free\./);
+    assert.match(full.json.error, /^The AI models have done all they can for today\. Try again in \d+ min\.$/);
     assert.equal(full.json.access.full, true);
     assert.equal((await idea(admin)).status, 201, 'admins still may');
-    assert.equal((await idea(mo, 'sketch')).status, 201);
 
     await setLimits({ inviteOnly: false, dailyCeiling: 1000 });
     const open = await someone();

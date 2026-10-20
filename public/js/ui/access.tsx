@@ -42,8 +42,8 @@ export function AccessPage() {
   return (
     <div class="page access-page">
       <h1 class="page-title">Access</h1>
-      <p class="lede">Anyone can sign up and use Sketch. The paid models need an invite code, and each person's use is
-        limited by <code>limits</code> in the models file.</p>
+      <p class="lede">Anyone can sign up to browse, edit and use the gallery. Turning ideas into looks needs an invite
+        code, and each person's use is limited by <code>limits</code> in the models file.</p>
       {error && <p class="form-error" role="alert">{error}</p>}
       <section class="access-panel" aria-labelledby="codes-h">
         <h2 id="codes-h">Invite codes</h2>
