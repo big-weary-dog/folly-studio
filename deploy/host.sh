@@ -45,6 +45,8 @@ commit=$(git -C "$root" rev-parse HEAD)
 
 cd "$studio"
 npm ci --no-audit --no-fund --loglevel=error
+# The gallery previews' camera (src/previews/playa.ts): a headless Chromium, kept in ~/.cache/ms-playwright.
+node node_modules/playwright-core/cli.js install chromium-headless-shell >/dev/null
 npm run --silent build >/dev/null
 # What the check below asks for, and what anyone can ask the hosted studio for: /build.json.
 printf '{ "commit": "%s", "builtAt": "%s" }\n' "$commit" "$(date -u +%FT%TZ)" > dist/build.json

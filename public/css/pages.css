@@ -128,6 +128,16 @@
     repeating-linear-gradient(58deg, #0000 0 16px, rgb(7 5 11 / .6) 16px 17.5px),
     repeating-linear-gradient(-58deg, #0000 0 16px, rgb(7 5 11 / .6) 16px 17.5px); }
 .card:hover .card-art { filter: brightness(1.35) saturate(1.2); }
+/* a look's preview plays in one wide pointed window, the LEDs on black and whole (contain, set low under the arch) */
+.card:has(.has-preview) { --art-h: 224px; }
+.card-art.has-preview { --arch: 64px; background: #000; filter: none;
+  mask: radial-gradient(200% 115.5% at 200% 100%, #000 calc(100% - 1px), #0000) 0 0 / 50% var(--arch),
+    radial-gradient(200% 115.5% at -100% 100%, #000 calc(100% - 1px), #0000) 100% 0 / 50% var(--arch),
+    linear-gradient(#000 0 0) 0 var(--arch) / 100% 100%; mask-repeat: no-repeat; }
+.card-art.has-preview::before { display: none; }
+.card-art picture, .card-art img { position: absolute; inset: 0; display: block; width: 100%; height: 100%;
+  object-fit: contain; object-position: 50% 100%; }
+.card:hover .card-art.has-preview { filter: brightness(1.2); }
 .card-body { flex: 1; padding: 14px 16px 6px; }
 .card-title { font-size: 18px; }
 .card-title a { display: block; padding: 2px 0; color: var(--text); text-decoration: none; }
@@ -144,6 +154,9 @@
     background: linear-gradient(var(--lead) 0 0) 0 0 / 104px 100% no-repeat,
       color-mix(in srgb, var(--tint) 5%, var(--night-1)); }
   .card-art { --a: 26px; --o: 12px; --ac: 30px; grid-row: span 2; height: auto; min-height: 120px; margin: 8px; }
+  .card:has(.has-preview) { grid-template-columns: 150px 1fr;
+    background-size: 150px 100%, auto; }
+  .card-art.has-preview { --arch: 40px; min-height: 160px; }
   .card-body { padding: 12px 14px 4px; }
   .card-actions { padding: 8px 14px 14px; }
 }

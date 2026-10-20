@@ -24,6 +24,9 @@ import { createHub } from './live/hub.ts';
 import { piFeed } from './live/pi-feed.ts';
 import { liveSettings, playableLook, stageCopy } from './live/routes.ts';
 import { piPreview, previewTarget } from './pi-preview.ts';
+import { createPreviews } from './previews/index.ts';
+import { frontView } from './previews/motion.ts';
+import { playaCamera } from './previews/playa.ts';
 import { createRenderBox } from './render-box.ts';
 import { createLoaders, CSP_APP, DEFAULT_DIST_DIR, DEFAULT_PUBLIC_DIR, serveApp } from './static.ts';
 import { createStore } from './store.ts';
@@ -45,7 +48,7 @@ type Options = { dataDir?: string, publicDir?: string, distDir?: string, generat
   rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, scrypt?: Cost, framesQuality?: number,
   framesMaxBytes?: number, generator?: Queue | ((deps: Deps) => Queue | Promise<Queue>),
   renderBox?: Parameters<typeof createBakeQueue>[0]['box'], flash?: FlashSettings, live?: LiveSettings,
-  piPreview?: string, ideaLogs?: { keep?: number, maxBytes?: number } };
+  piPreview?: string, ideaLogs?: { keep?: number, maxBytes?: number }, previews?: string };
 
 /**
  * The server. `generator` and `renderBox` stand in for createQueue() and createRenderBox() (STUDIO_BAKE_*) in tests;
@@ -54,7 +57,8 @@ type Options = { dataDir?: string, publicDir?: string, distDir?: string, generat
  * `trustProxy`: one proxy in front (a tunnel): the client's address and host are the ones it forwards. `flash`: the
  * flash check's settings (default: flashSettings(process.env)); `live`: who controls the live stage and what plays
  * (default: liveSettings(process.env)); `piPreview`: PI_PREVIEW_URL, a dry-run Studio Live shown to admins at /pi;
- * `ideaLogs`: how many ideas' logs to keep and their disk cap (STUDIO_IDEA_LOGS, STUDIO_IDEA_LOGS_MAX_BYTES).
+ * `ideaLogs`: how many ideas' logs to keep and their disk cap (STUDIO_IDEA_LOGS, STUDIO_IDEA_LOGS_MAX_BYTES);
+ * `previews`: the gallery previews' camera, 'playa' (the default) or 'front' (STUDIO_PREVIEWS).
  */
 export async function createServer(opts: Options = {}) {
   const {
@@ -88,8 +92,13 @@ export async function createServer(opts: Options = {}) {
     rebake: (look) => bakes.restore(look) });
   const rigFile = path.join(publicDir, 'data', 'rig.json');
   const bakes = createBakeQueue({ store, box, framesDir, rigFile, log, lane, flash,
-    onFrames: (id) => frames.encode(id) });
+    onFrames: (id) => { frames.encode(id); previews.want(id); } });
   frames.prune().then(() => frames.disk.enforce()).catch(() => {});
+  // Gallery previews (SPEC "Gallery previews"), made in the same lane, after anything already queued at start.
+  const playa = (opts.previews ?? process.env.STUDIO_PREVIEWS) === 'front' ? null : playaCamera({ log });
+  const previews = createPreviews({ dir: path.join(dataDir, 'previews'), store, box, framesDir, lane, log,
+    loadRig, camera: playa?.camera ?? frontView() });
+  previews.backfill().catch((err) => log.error?.('[previews] backfill:', err));
   const hub = await createHub({ dataDir, log, playable: (id) => {
     const look = store.looks.get(id);
     if (!look || !playableLook(look, live)) {
@@ -122,7 +131,7 @@ export async function createServer(opts: Options = {}) {
   await app.register(fastifyRateLimit, { global: false });
   await app.register(fastifyWebsocket, { options: { maxPayload: 16 * 1024 } });
   await app.register(apiRoutes({ store, auth, queue, models, loaders, log, access, framesDir, bakes,
-    frames, rateLimit, secureCookies, flash, hub, live, ideaLogs }), { prefix: '/api' });
+    frames, rateLimit, secureCookies, flash, hub, live, ideaLogs, previews }), { prefix: '/api' });
   if (piTarget) await app.register(piPreview({ auth, target: piTarget, hub }));
   // The live stage follows the dry run whenever /pi was the last thing used (SPEC-live "Following /pi").
   if (piTarget) {
@@ -135,7 +144,7 @@ export async function createServer(opts: Options = {}) {
   pruneTimer.unref();
 
   return {
-    app, server: app.server, store, auth, access, queue, bakes, frames, loaders, models, adapterName, hub,
+    app, server: app.server, store, auth, access, queue, bakes, frames, previews, loaders, models, adapterName, hub,
     async listen(port = 0, host = '127.0.0.1') {
       await app.listen({ port, host });
       return app.server.address() as { port: number, address: string, family: string };
@@ -147,13 +156,16 @@ export async function createServer(opts: Options = {}) {
       await hub.close();
       await app.close();
       bakes.stop();
+      previews.stop();
       if (typeof queue.idle === 'function') {
         let timer: NodeJS.Timeout | undefined;
         const giveUp = new Promise((r) => (timer = setTimeout(r, 5000)).unref());
-        const idle = Promise.all([Promise.resolve(queue.idle()).catch(() => {}), bakes.idle(), frames.idle()]);
+        const idle = Promise.all([Promise.resolve(queue.idle()).catch(() => {}), bakes.idle(), frames.idle(),
+          previews.idle()]);
         await Promise.race([idle, giveUp]);
         clearTimeout(timer);
       }
+      await playa?.close();
       await frames.close();
       await store.flush();
     },

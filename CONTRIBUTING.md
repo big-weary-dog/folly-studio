@@ -74,6 +74,8 @@ sandbox and the boxes take only our own code and the stdlib.
 | `@fastify/static` 10.1.6 | Serves `dist/`: the build's precompressed copies, ETags and Last-Modified, ranges, no dotfiles |
 | `@fastify/websocket` 11.3.1 | The live stage's socket: the upgrade runs through Fastify's hooks, so the session and Origin are checked as on any route |
 | `@fastify/accept-negotiator` 2.1.1 | br or gzip from Accept-Encoding (q values, `*`) for API JSON and frame chunks, as @fastify/static picks |
+| `playwright-core` 1.56.1 | Runs the headless Chromium that draws the gallery previews in the Playa view (`deploy/host.sh` installs its headless shell); the same version `@playwright/test` uses |
+| `sharp` 0.35.5 | Writes the gallery previews' animated WebP from raw frames (prebuilt libvips; no ffmpeg on the host) |
 
 ### Browser checks
 

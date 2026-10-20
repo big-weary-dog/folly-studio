@@ -1,5 +1,6 @@
 // The list pages. Ideas: describe a show, watch it turn into a look, open it in the Studio. My looks and the
-// Gallery: cards that open in the Studio (lists carry metadata only; the Studio fetches a look).
+// Gallery: cards that open in the Studio (lists carry metadata only; the Studio fetches a look). A card with a
+// preview plays it through its glass, or shows its still under reduced motion (SPEC "Gallery previews").
 import '../../css/pages.css';
 
 import { useEffect, useRef, useState } from 'preact/hooks';
@@ -34,6 +35,7 @@ const remembered = (): Explore => { const v = pref(EXPLORE_KEY); return v && v i
 const POLL_FIRST_MS = 2000, POLL_MAX_MS = 10_000;
 const isPending = (i: Idea) => i.status === 'queued' || i.status === 'generating';
 const studioHref = (id: string) => `/studio/${encodeURIComponent(id)}`;
+const previewHref = (l: Listed) => `/api/looks/${encodeURIComponent(l.id)}/preview/${l.preview}`;
 /** "Opus, Sol and Luna". */
 const listed = (names: string[]) => names.length < 2 ? names.join('')
   : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
@@ -307,7 +309,13 @@ function Card({ look, gallery, remove }: { look: Listed; gallery: boolean; remov
   const n = look.layerCount ?? 0, href = studioHref(look.id);
   return (
     <li class="card">
-      <div class="card-art" aria-hidden="true" style={{ '--art': jewelGradient(look.id + look.title) }} />
+      <div class={cx('card-art', look.preview && 'has-preview')} aria-hidden="true"
+        style={{ '--art': jewelGradient(look.id + look.title) }}>
+        {look.preview && <picture>
+          <source media="(prefers-reduced-motion: reduce)" srcset={`${previewHref(look)}-still.webp`} />
+          <img src={`${previewHref(look)}.webp`} alt="" loading="lazy" decoding="async" />
+        </picture>}
+      </div>
       <div class="card-body">
         <h2 class="card-title"><a href={href}>{look.title || 'Untitled look'}</a></h2>
         {look.summary && <p class="card-summary">{look.summary}</p>}

@@ -201,6 +201,7 @@ describe('looks', () => {
 
     assert.equal((await bob.post(`/api/looks/${strobe.id}/bake`)).status, 403, 'not the owner, not a curator');
     assert.equal((await bob.post(`/api/looks/${calm.id}/bake`)).status, 404, 'private');
+    await app.previews.idle(); // the shared look's gallery preview renders it too
     const before = box.renders;
     const queued = await alice.post(`/api/looks/${strobe.id}/bake`);
     assert.equal(queued.status, 202);

@@ -98,7 +98,7 @@ export type LookPatch = z.input<typeof LookPatch>;
 /** A look as lists show it: what a card needs, no layers or code. */
 export type Listed = { id: string, owner: string, ownerName: string, title: string, summary: string, duration: number,
   layerCount: number, shared: boolean, reviewed: boolean, bpm?: number, sharedAt?: string, ideaId?: string,
-  createdAt: string, updatedAt: string };
+  preview?: string, createdAt: string, updatedAt: string };
 /** A look as GET /api/looks/:id answers. */
 export type Look = Omit<Listed, 'layerCount'> & { layers: Layer[], globals?: z.infer<typeof Globals>,
   automation?: Automation, versionCount: number, bake?: Bake | null, reviewedBy?: string,

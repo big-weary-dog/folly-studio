@@ -467,6 +467,8 @@ GET    /api/looks/:id/frames/wire             → 302 to its manifest; 202 { pen
                                               (or baked again)
 GET    /api/looks/:id/frames/:hash/manifest   → the stream manifest (immutable)        mine, or shared
 GET    /api/looks/:id/frames/:hash/:n         → stream chunk n (immutable; br/gzip)  mine, or shared
+GET    /api/looks/:id/preview/:key.webp       → the gallery preview (image/webp, immutable)  mine, or shared;
+                                              `:key-still.webp` its still; 404 unless `key` is `listed.preview`
 GET    /api/library                           → { patterns: [{ name, title, summary, tags, kind, category, code }] }
                                               (a preset: kind 'preset', its layers and globals?, code '')
 ```
@@ -475,7 +477,8 @@ API `GET`s answer `Cache-Control: private, no-cache` with an ETag (a reload or a
 empty 304); other responses are `no-store`. JSON bodies of 1 KB or more are sent br (quality 5) or gzip
 when the request accepts it, with `Vary: Accept-Encoding`; the ETag is the uncompressed body's. A list
 holds `listed = { id, owner, ownerName, title, summary, duration, layerCount, shared, reviewed, bpm?, sharedAt?,
-ideaId?, createdAt, updatedAt }`; `GET /api/looks/:id` has the rest.
+ideaId?, preview?, createdAt, updatedAt }` (`preview`: its gallery preview's key, when it has one); `GET /api/looks/:id`
+has the rest.
 
 `PUT reviewed: true` answers 409 with the reason unless the look has a passing render-box bake of
 its current layers; large-area flashing in any bake blocks (flashing on small regions only
@@ -519,6 +522,26 @@ With `PI_PREVIEW_URL` set (a dry-run Studio Live on loopback, started with `--ba
 socket `/pi/ws` pass through to it unchanged, for signed-in admins only: no session is 401, a non-admin 403, and a
 socket from another origin 403. Pages keep the Pi's own CSP; a preview that is down is 502. The socket carries the
 Pi's protocol (`pi/src/protocol.ts`): text frames up to 1 KB from the page. Unset, there is no `/pi`.
+
+## Gallery previews
+
+Each shared look gets a looping preview for its card (`src/previews/`): the Playa view from the Studio's default
+camera ('fit'), with the venue, at full quality, 260 × 228 px (drawn at 2× and scaled down), sampled at ~13 fps, over the 5 s that move the most (mean change from one
+sample to the next, plus a tenth of the mean brightness so a dark stretch loses), its last 0.5 s crossfaded into its
+first so it loops; an animated WebP (sharp; quality 50, else 40 or 30 to stay within 300 KB), and a WebP still (the
+window's brightest sample) for reduced motion. They are made off the request path, one look at a time, when a look
+is shared or a shared look changes (and for every shared look at start, the gallery's top first): from the look's
+bake when that is current (a look being baked waits for it), else from the render box (at most 60 s, in the bake
+lane). Kept in `<STUDIO_DATA>/previews/<lookId>-<key>.webp` and `-<key>-still.webp`, `key` naming what it renders;
+a look keeps its old preview until the new one is written, and previews of looks no longer shared go at the next
+start. A look without one shows its card's glass.
+
+The camera is the app's own Viewer (`public/js/preview-camera.ts`) in a headless Chromium (playwright-core's
+headless shell, `src/previews/playa.ts`), started on first use and closed after a minute idle: no window, its own
+profile, no port; it serves itself the viewer's source with the types stripped, so it needs no build. It asks for
+the GPU (ANGLE on EGL, with no display; under WSL, Mesa's d3d12 driver when `/dev/dxg` is there) and logs the renderer it got,
+as a warning when that is a software one. `STUDIO_PREVIEWS=front` draws them flat instead (the LEDs from the front:
+z across, y up), without a browser; the tests and browser checks do.
 
 ## Baked frames
 

@@ -17,6 +17,7 @@ import { framesRoutes } from './frames-http.ts';
 import type { IdeaLogs } from './generate/idea-log.ts';
 import type { Registry } from './generate/models.ts';
 import type { Hub } from './live/hub.ts';
+import type { createPreviews } from './previews/index.ts';
 import { liveRoutes } from './live/routes.ts';
 import { checkMutation, HttpError, type Log, type Logger, parse, routes, sendJson } from './http.ts';
 import type { LiveSettings } from '../shared/schemas/live.ts';
@@ -56,7 +57,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
   loaders: ReturnType<typeof createLoaders>, access: AccessControl, framesDir: string,
   bakes: ReturnType<typeof createBakeQueue>, frames: ReturnType<typeof createFramesCache>, secureCookies?: boolean,
   rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, flash: FlashSettings, hub: Hub,
-  live: LiveSettings, ideaLogs: IdeaLogs }) {
+  live: LiveSettings, ideaLogs: IdeaLogs, previews?: ReturnType<typeof createPreviews> }) {
   const { store, auth, queue, models, loaders, log, access } = o;
   const { bakes, framesDir, frames, secureCookies = false, flash } = o;
   const limits = { max: 10, ipMax: 100, windowMs: 60_000, ...o.rateLimit };
@@ -91,7 +92,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
     const cookie = (maxAge: number) => ({ httpOnly: true, sameSite: 'lax' as const, path: '/', maxAge,
       secure: secureCookies });
     const dropFrames = (id: string) => removeFrames(framesDir, id).then(() => frames.prune());
-    const looks = lookRoutes({ store, auth, bakes, dropFrames, log });
+    const looks = lookRoutes({ store, auth, bakes, dropFrames, previews: o.previews, log });
     const own = (req: FastifyRequest) => {
       const idea = store.ideas.get((req.params as { id: string }).id);
       if (!idea || idea.owner !== req.user!.id) throw new HttpError(404, 'Idea not found.');

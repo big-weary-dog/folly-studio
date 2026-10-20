@@ -83,6 +83,7 @@ test('the props are the view\'s alone: nothing else reads venue.json', () => {
   };
   for (const d of ['public/js', 'src', 'shared', 'pi', 'render-box', 'tools']) walk(new URL(d, root).pathname);
   const rel = hits.map((p) => path.relative(new URL('.', root).pathname, p)).sort();
-  assert.deepEqual(rel, ['public/js/playa/renderer.ts', 'public/js/playa/venue.ts', 'public/js/ui/preview-view.tsx',
-    'public/js/ui/preview.ts', 'public/js/viewer-gl.ts', 'public/js/viewer.ts']);
+  assert.deepEqual(rel, ['public/js/playa/renderer.ts', 'public/js/playa/venue.ts', 'public/js/preview-camera.ts',
+    'public/js/ui/preview-view.tsx', 'public/js/ui/preview.ts', 'public/js/viewer-gl.ts', 'public/js/viewer.ts',
+    'src/previews/playa.ts']);   // the gallery previews' camera is the view too
 });

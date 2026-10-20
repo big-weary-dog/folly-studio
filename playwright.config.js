@@ -18,6 +18,8 @@ const SWIFTSHADER = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '
 // Screenshots and traces, a folder per run (made here, in the runner; its workers inherit the name), so runs side by
 // side never share or clean each other's files. CI names its own.
 process.env.STUDIO_PW_OUT ||= mkdtempSync(path.join(os.tmpdir(), `${OUT_PREFIX}${process.pid}-`));
+// Servers started here draw gallery previews flat, without a browser of their own.
+process.env.STUDIO_PREVIEWS ||= 'front';
 
 export default defineConfig({
   testDir: 'test/e2e',

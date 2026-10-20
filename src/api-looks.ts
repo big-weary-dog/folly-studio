@@ -1,6 +1,8 @@
-// The looks routes of the HTTP API (SPEC "HTTP API"): list, create, read, edit (with versions and review), delete
-// and bake. Who may see a look: its owner, or anyone signed in when it is shared. Bodies are checked by the shared
-// schemas (shared/schemas/api.ts, look.ts); chains from before the one rule are converted (shared/chain-order.ts).
+// The looks routes of the HTTP API (SPEC "HTTP API"): list, create, read, edit (with versions and review), delete,
+// bake and the gallery preview (SPEC "Gallery previews"). Who may see a look: its owner, or anyone signed in when it
+// is shared. Bodies are checked by the shared schemas (shared/schemas/api.ts, look.ts); chains from before the one
+// rule are converted (shared/chain-order.ts).
+import { promises as fs } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
@@ -14,8 +16,10 @@ import { newestBy } from './api.ts';
 import type { Auth } from './auth.ts';
 import { type createBakeQueue, layersHash, renderFields, reviewBlocker } from './bake.ts';
 import { BakeError } from './box-output.ts';
-import { HttpError, type Logger, parse } from './http.ts';
+import { etagMatches, HttpError, type Logger, parse } from './http.ts';
 import { versionsWith } from './look-versions.ts';
+import type { createPreviews } from './previews/index.ts';
+import { CACHE_IMMUTABLE } from './static.ts';
 import type { Store, StoredLook as Look } from './store.ts';
 
 export const MAX_LOOKS_PER_USER = 500;
@@ -67,8 +71,9 @@ export function upgradeStored(stored: Look): Look {
 const lanes = (automation: unknown, globals: Globals | null | undefined) =>
   parse(z.object({ automation: automationFor(globals) }), { automation }).automation ?? undefined;
 
-export function lookRoutes({ store, auth, bakes, dropFrames, log = console }: { store: Store, auth: Auth,
-  bakes: ReturnType<typeof createBakeQueue>, dropFrames: (id: string) => Promise<unknown>, log?: Logger }) {
+export function lookRoutes({ store, auth, bakes, dropFrames, previews, log = console }: { store: Store, auth: Auth,
+  bakes: ReturnType<typeof createBakeQueue>, dropFrames: (id: string) => Promise<unknown>,
+  previews?: Pick<ReturnType<typeof createPreviews>, 'want' | 'keyOf' | 'file'>, log?: Logger }) {
   const ownerName = (id: string) => store.users.get(id)?.username ?? '';
 
   function presentLook(look: Look, { versions = false } = {}) {
@@ -81,14 +86,17 @@ export function lookRoutes({ store, auth, bakes, dropFrames, log = console }: { 
     };
   }
 
-  /** A look as lists show it: what a card needs, no layers or code (GET /api/looks/:id has those). */
+  /** A look as lists show it: what a card needs, no layers or code (GET /api/looks/:id has those). A shared look
+   * whose preview is missing or stale is queued for one. */
   function listed(look: Look): Listed {
+    if (look.shared === true) previews?.want(look.id);
+    const preview = previews?.keyOf(look.id);
     return { id: look.id, owner: look.owner, ownerName: ownerName(look.owner) || look.ownerName || '',
       title: look.title, summary: look.summary ?? '', duration: look.duration ?? DEFAULT_DURATION,
       layerCount: Array.isArray(look.layers) ? look.layers.length : 0, shared: look.shared === true,
       reviewed: look.reviewed === true, createdAt: look.createdAt, updatedAt: look.updatedAt,
       ...Object.fromEntries((['bpm', 'sharedAt', 'ideaId'] as const).filter((k) => look[k] != null)
-        .map((k) => [k, look[k]])) };
+        .map((k) => [k, look[k]])), ...(preview ? { preview } : {}) };
   }
 
   function visibleLook(id: string, user: User): Look {
@@ -126,7 +134,9 @@ export function lookRoutes({ store, auth, bakes, dropFrames, log = console }: { 
       throw new HttpError(429, `You have ${MAX_LOOKS_PER_USER} looks; delete some first.`);
     }
     reply.code(201);
-    return { look: presentLook(store.looks.create(look)) };
+    const made = store.looks.create(look);
+    previews?.want(made.id);
+    return { look: presentLook(made) };
   }
 
   async function edit(req: Req) {
@@ -193,6 +203,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, log = console }: { 
     }
     const updated = Object.keys(patch).length ? store.looks.update(id, patch)! : look;
     if ('bake' in patch) await dropFrames(id);
+    previews?.want(id);
     return { look: presentLook(updated, { versions: versionsFor(req, look) }) };
   }
 
@@ -225,6 +236,19 @@ export function lookRoutes({ store, auth, bakes, dropFrames, log = console }: { 
     return { look: presentLook(look, { versions: versionsFor(req, look) }) };
   }
 
+  /** The look's gallery preview (`<key>.webp`) or its still (`<key>-still.webp`), immutable. */
+  async function preview(req: FastifyRequest<{ Params: { id: string, name: string } }>, reply: FastifyReply) {
+    const { id, name } = req.params;
+    visibleLook(id, req.user!);
+    const file = previews?.file(id, name);
+    const body = file && await fs.readFile(file).catch(() => null);
+    if (!body) throw new HttpError(404, 'No such preview.');
+    const headers = { 'cache-control': CACHE_IMMUTABLE.replace('public', 'private'), etag: `"${name}"` };
+    if (etagMatches(req.headers['if-none-match'], headers.etag)) return reply.headers(headers).code(304).send();
+    return reply.headers(headers).type('image/webp').send(body);
+  }
+
   return { visibleLook, listed, routes: { 'GET /looks': list, 'POST /looks': create, 'GET /looks/:id': read,
-    'PUT /looks/:id': edit, 'DELETE /looks/:id': remove, 'POST /looks/:id/bake': bake } };
+    'PUT /looks/:id': edit, 'DELETE /looks/:id': remove, 'POST /looks/:id/bake': bake,
+    'GET /looks/:id/preview/:name': preview } };
 }
