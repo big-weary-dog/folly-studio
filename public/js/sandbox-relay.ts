@@ -20,7 +20,7 @@ type Job = { at: number; overdue?: boolean; internal?: boolean; answered?: boole
 type FromWorker = { type: 'ready' | 'compiled' | 'frame' | 'rendered' | 'progress' | 'compiling' | 'error';
   id?: string; seq?: number; done?: number; layers?: unknown; rgb?: unknown; errors?: unknown; ms?: number;
   layerMs?: unknown; channels?: unknown; frames?: number; channelCount?: number; request?: string; error?: unknown };
-type Reported = { id?: string; ok?: unknown; error?: unknown; params?: unknown; modules?: unknown };
+type Reported = { id?: string; ok?: unknown; error?: unknown; params?: unknown; upgraded?: unknown; modules?: unknown };
 /** Why a layer is held back: it hung (until its code changes), or its top-level code did (`load`). */
 type Paused = { error: string; code?: string; params?: object; load?: true };
 
@@ -225,7 +225,7 @@ function compiledReport(layers: Layer[], report: unknown) {
     return { id: l.id, ok: !!r.ok, params: r.params && typeof r.params === 'object' ? r.params : {},
       modules: ((Array.isArray(r.modules) ? r.modules : []) as Reported[]).filter((x) => x && typeof x === 'object')
         .map((x) => ({ id: x.id, ok: !!x.ok, params: x.params && typeof x.params === 'object' ? x.params : {},
-          ...(x.ok ? {} : { error: String(x.error || 'error') }) })),
+          ...(x.ok ? { upgraded: x.upgraded } : { error: String(x.error || 'error') }) })),
       ...(r.ok ? {} : { error: String(r.error || 'error') }) };
   });
 }

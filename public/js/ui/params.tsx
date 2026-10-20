@@ -8,7 +8,7 @@ import { useState } from 'preact/hooks';
 import type { Binding, ParamValue } from '../../../shared/schemas/look.ts';
 import type { Picture } from '../core/picture.ts';
 import { DEFAULT_PALETTE } from '../core/stdlib.ts';
-import { normaliseParam, optionText, type Param, shownValue } from './bindings.ts';
+import { normaliseParam, optionText, type Param, shownValue, upgradedOf } from './bindings.ts';
 import { cx, Field, Scrub } from './kit.tsx';
 import { addModulator, modulatorEdits } from './look-globals-edit.ts';
 import { BoundChip, ModButton, type ModCtx } from './modulate.tsx';
@@ -22,7 +22,7 @@ export function ParamsPanel({ st }: { st: Studio }) {
   const l = st.selected.value, m = st.module.value;
   const hint = (...kids: ComponentChildren[]) => <div class="params"><p class="pane-hint">{kids}</p></div>;
   if (!l || !m) return hint('Select a layer to see its settings.');
-  const { schema, note } = st.status.params(l.id, m);
+  const { schema, note, upgraded } = st.status.params(l.id, m);
   const entries = Object.entries(schema || {}).map(([k, raw]) => [k, normaliseParam(k, raw)] as const)
     .filter((e): e is [string, Param] => !!e[1]);
   if (note) return hint(note);
@@ -30,9 +30,11 @@ export function ParamsPanel({ st }: { st: Studio }) {
     return hint('This pattern has no params. Declare ', <code>const params = {'{ … }'}</code>,
       ' in its code to set them here.');
   }
-  const values = m.params || {};
+  // Params saved for an earlier version show (and are written on an edit) as its upgrade() reads them.
+  const fresh = (saved: Record<string, ParamValue> = {}) => ({ ...saved, ...upgradedOf(upgraded, schema, saved) });
+  const values = fresh(m.params);
   const set = (fn: (p: Record<string, ParamValue>) => void) => st.editModule(l.id, m.id, (mod) => {
-    const params = { ...mod.params };
+    const params = fresh(mod.params);
     fn(params);
     return { params };
   });

@@ -38,9 +38,9 @@ describe('catalog', () => {
     assert.deepEqual(names, [...names].sort((a, b) => a.localeCompare(b)));
     assert.equal(CATALOG.modules.size + CATALOG.presets.size, REAL.length);
     assert.equal(buildCatalog([...REAL].reverse()).text, CATALOG.text);
-    assert.match(CATALOG.text, /^Sources:\n/);
+    assert.match(CATALOG.text, /^Sources \(each also has brightness 0–1 \(1\)\):\n/, 'Brightness said once');
     assert.match(CATALOG.text,
-      /\n- bars: [^\n]+ \[colours colour \(all\); direction up\|down[a-z|]* \(up\); speed -2–2 \(0\.4\);/,
+      /\n- bars: [^\n]+ \[colours colour \(all\); direction up\|down[a-z|-]* \(up\); speed -2–2 \(0\.4\);/,
       'its params, each with its range or choices and default');
     assert.equal(buildCatalog(REAL, new Map([['bars', 'Stripes.']])).text.match(/\n- bars: (\S+)/)?.[1], 'Stripes.',
       'its line from the docs');
@@ -68,7 +68,9 @@ describe('catalog', () => {
 describe('worked compositions', () => {
   test('an example placed on a tag shows only on a rig that has it; the rest place on its root', () => {
     const sys = buildSystemPrompt({ library: REAL, rig: RIG });
-    for (const t of ['"preset":"rain"', '"direction","value":"round"', '"input":"sky"']) assert.ok(sys.includes(t), t);
+    for (const t of ['"preset":"rain"', '"direction","value":"clockwise"', '"input":"sky"']) {
+      assert.ok(sys.includes(t), t);
+    }
     // A rig with none of the Folly's places (City of Gods drops canopy, wash, flood and back; here rose and spire too).
     const bare = GROUPS.map((g) => ({ ...g, tags: (g.tags ?? []).filter((t) => !/^(rose|spire|canopy|wash|flood|back)/
       .test(t)) }));
@@ -82,19 +84,32 @@ describe('expand', () => {
   test('a chain of library modules gets their code, params held to their declarations', () => {
     const x = expand(answer([layer({ modules: [
       { use: 'bars', params: [{ name: 'speed', value: 9 }, { name: 'profile', value: 'comet' },
-        { name: 'nope', value: 1 }, { name: 'direction', value: 'round' }] },
+        { name: 'nope', value: 1 }, { name: 'direction', value: 'clockwise' }] },
       { use: 'bars', params: [{ name: 'speed', value: { mod: 'global', name: 'energy' } }] },
     ] })]), CATALOG);
     assert.deepEqual(x.errors, []);
     const [a, b] = x.look.layers[0].modules;
     assert.equal(a.code, CATALOG.modules.get('bars').code);
-    assert.deepEqual(a.params, { speed: 2, profile: 'comet', direction: 'round' });
+    assert.deepEqual(a.params, { speed: 2, profile: 'comet', direction: 'clockwise' });
     assert.equal(b.id, 'bars-2');
     assert.deepEqual(b.params.speed, { mod: 'global', name: 'energy' });
     assert.ok(x.notes.some((n) => /9 held to -2\.\.2/.test(n)) && x.notes.some((n) => /no such param/.test(n)));
     assert.deepEqual(x.uses, { library: 2, extensions: 0, code: 0 });
     const look = validateLook(x.look, { groups: GROUPS });
     assert.equal(look.layers[0].modules.length, 2);
+  });
+
+  test('round and orbit, from before both ways were named, are read as their new words with a note', () => {
+    const x = expand(answer([layer({ modules: [
+      { use: 'bars', params: [{ name: 'direction', value: 'round' }] },
+      { use: 'bars', params: [{ name: 'direction', value: 'orbit' }] },
+      { use: 'scroll', params: [{ name: 'direction', value: 'orbit' }] },
+    ] })]), CATALOG);
+    assert.deepEqual(x.errors, []);
+    assert.deepEqual(x.look.layers[0].modules.map((m) => m.params.direction), ['clockwise', 'orbit-counterclockwise',
+      undefined], 'scroll has no orbit');
+    assert.ok(x.notes.some((n) => /round is now clockwise/.test(n)));
+    assert.ok(x.notes.some((n) => /orbit is not one of/.test(n)));
   });
 
   test('a preset becomes its layers, overrides on top, its palette where the look has none', () => {

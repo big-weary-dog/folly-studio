@@ -27,7 +27,7 @@ export type Extra = { globals?: Globals | null; automation?: Automation | null; 
 
 type Compiled = { id: string; ok: boolean; error?: string; params: Record<string, unknown> };   // params: untrusted
 /** A layer's compile report (SPEC "Sandbox protocol"), each module's code added. */
-export type Report = Compiled & { modules: (Compiled & { code: string })[] };
+export type Report = Compiled & { modules: (Compiled & { code: string; upgraded?: unknown })[] };
 /** A layer (or one of its modules) that failed this frame. */
 export type FrameError = { id: string; module?: string; error: string };
 /** What the sandbox page says; it is checked as it arrives. */

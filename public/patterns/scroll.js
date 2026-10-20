@@ -1,19 +1,27 @@
-// Scroll: slides what is above it in Direction at Speed, wrapping round: across, up, front to back, round, out from
-// the centre, along every strand (so chases above it drift along their wires), or a petal or ring at a time.
+// Scroll: slides what is above it in Direction at Speed, wrapping round: across, up, front to back, clockwise or
+// counterclockwise (seen from the front), out from or in to the centre, along every strand (so chases above it drift
+// along their wires), or a petal or ring at a time.
 const params = {
   direction: { value: 'right', type: 'choice', options: DIRECTIONS, label: 'Direction',
-    help: 'Which way it slides: across, up, front to back, round, in, out, along each strand, by petal or ring.' },
+    help: 'Which way it slides: across, up, front to back, clockwise, out, in, along each strand, by petal or ring.' },
   speed: { value: 0.1, min: -2, max: 2, step: 0.01, label: 'Speed (layers a second)',
     help: 'How fast it slides and wraps round. Near 0 creeps; high races; negative slides the opposite way.' },
 };
 
+// Saved before both ways were named: round was clockwise.
+function upgrade(s) {
+  if (s.direction === 'round') s.direction = 'clockwise';
+  return s;
+}
+
 function warp(q, t, P) {
-  const d = P.direction, s = d === 'down' || d === 'left' || d === 'front' || d === 'in' ? -clock('speed')
+  const d = P.direction, s = d === 'down' || d === 'left' || d === 'front' || d === 'in'
+    || d === 'counterclockwise' ? -clock('speed')
     : d === 'petal' ? floor(clock('speed') * 16) / 16 : d === 'ring' ? floor(clock('speed') * 7) / 7 : clock('speed');
   if (d === 'right' || d === 'left') move(q, q.lx, q.ly, fract(q.lz - s));
   else if (d === 'back' || d === 'front') move(q, fract(q.lx - s), q.ly, q.lz);
   else if (d === 'out' || d === 'in' || d === 'ring') turn(q, q.a, fract(q.r - s));
-  else if (d === 'round' || d === 'petal') turn(q, fract(q.a - s), q.r);
+  else if (d === 'clockwise' || d === 'counterclockwise' || d === 'petal') turn(q, fract(q.a - s), q.r);
   else if (d === 'along') slide(q, fract(q.u - s));
   else move(q, q.lx, fract(q.ly - s), q.lz);
 }

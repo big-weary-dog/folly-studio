@@ -4,7 +4,7 @@
 // the docs), a preset as its recipe.
 // Sorted by name, so its bytes stay the same between calls.
 
-import { DIRECTIONS, MODULE_KINDS, type Picture, readPicture } from '../../public/js/pattern-core.ts';
+import { DIRECTIONS, MODULE_KINDS, type Picture, readPicture, withSourceParams } from '../../public/js/pattern-core.ts';
 import type { LibraryEntry, ModuleEntry, PresetEntry } from '../../shared/schemas/rig.ts';
 
 export type ParamDecl = ({ type: 'number', value: number, min: number, max: number }
@@ -84,16 +84,22 @@ export function buildCatalog(library: readonly LibraryEntry[] = [], looks: Reado
   Catalog {
   const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
   const modules = new Map(library.filter((e) => e && !isPreset(e) && typeof e.code === 'string').sort(byName)
-    .map((e) => [e.name, { ...(e as ModuleEntry), params: readParams(e.code) }]));
+    .map((e) => [e.name, { ...(e as ModuleEntry), params: (e.kind ?? 'source') === 'source'
+      ? withSourceParams(readParams(e.code)) as Record<string, ParamDecl> : readParams(e.code) }]));
   const presets = new Map(library.filter((e): e is PresetEntry => !!e && isPreset(e)).sort(byName)
     .filter((p) => p.layers.every((l) => l.modules.every((m) => modules.has(m.ref)))).map((p) => [p.name, p]));
+  const COMMON = withSourceParams({}) as Record<string, ParamDecl>;
   const kindOf = (e: ModuleEntry) => (MODULE_KINDS.includes(e.kind) ? e.kind : 'source');
   const sections = MODULE_KINDS.map((kind) => {
     const list = [...modules.values()].filter((m) => kindOf(m) === kind);
+    // every source's own params; the common ones (Brightness) said once, in the heading
+    const shown = (m: ModuleEntry & { params: Record<string, ParamDecl> }) => Object.entries(m.params)
+      .filter(([k, d]) => !(kind === 'source' && JSON.stringify(d) === JSON.stringify(COMMON[k])));
     const lines = list.map((m) => `- ${m.name}: ${oneLine(looks.get(m.name) || m.summary)}${
-      Object.keys(m.params).length ? ` [${Object.entries(m.params).map(([k, d]) => describeParam(k, d)).join('; ')}]`
-        : ''}`);
-    return list.length ? `${kind[0]!.toUpperCase()}${kind.slice(1)}s:\n${lines.join('\n')}` : '';
+      shown(m).length ? ` [${shown(m).map(([k, d]) => describeParam(k, d)).join('; ')}]` : ''}`);
+    const head = kind === 'source' ? ` (each also has ${Object.entries(COMMON).map(([k, d]) => describeParam(k, d))
+      .join('; ')})` : '';
+    return list.length ? `${kind[0]!.toUpperCase()}${kind.slice(1)}s${head}:\n${lines.join('\n')}` : '';
   }).filter(Boolean);
   if (presets.size) {
     const recipe = (p: PresetEntry) => p.layers.map((l) => l.modules.map((m) => m.ref).join(' → ')).join(' | ');

@@ -4,7 +4,7 @@
 import {
   type Compiled, compileModule, correctChannels, correctionOf, correctionTable, layerModules, neighbourGraph,
   prepareLayer, type PreparedLayer, type PreparedLook, prepareLook, prepareScene, renderFrame, type Scene, setLibrary,
-  toChannels,
+  toChannels, upgradedParams,
 } from './pattern-core.ts';
 import { setLive } from './live-set.ts';
 import type { Extra, ToSandbox } from './runtime.ts';
@@ -56,7 +56,8 @@ function onLook(msg: Message<'look'>) {
       const entry = compiled(id, m, keep);
       const schema = entry.compiled ? entry.compiled.params : {};
       if ((m.kind ?? 'source') === 'source' && !params) params = schema;
-      modules.push(entry.compiled ? { id: m.id, ok: true, params: schema }
+      const upgraded = entry.compiled && upgradedParams(entry.compiled, m.params);
+      modules.push(entry.compiled ? { id: m.id, ok: true, params: schema, ...(upgraded ? { upgraded } : {}) }
         : { id: m.id, ok: false, error: entry.error, params: schema });
       if (!entry.compiled && m.enabled !== false) {
         error ||= modular ? `${m.title || m.id}: ${entry.error}` : entry.error;

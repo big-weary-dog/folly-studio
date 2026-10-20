@@ -6,7 +6,8 @@ import { humanize } from './kit.tsx';
 
 export interface Param { kind: 'number' | 'color' | 'toggle' | 'choice' | 'picture';
   value: number | string | boolean | Picture;
-  label: string; min: number; max: number; step: number; options: string[]; blend?: 'smooth' | 'step'; help?: string }
+  label: string; min: number; max: number; step: number; options: string[]; blend?: 'smooth' | 'step'; help?: string;
+  unit?: 'minute' }
 type Shape = NonNullable<Extract<Binding, { mod: 'lfo' }>['shape']>;
 export type BindingForm = { mod: '' | Binding['mod']; shape: Shape; rate: string; unit: string; lo: string;
   hi: string; hold: string; amount: string; pace: string; name: string; from: string; to: string; eFrom: string;
@@ -16,7 +17,8 @@ export const SHAPES: Shape[] = ['sine', 'tri', 'saw', 'square', 'hold'];
 /** A choice option as the UI says it: the library's directions (SPEC "Directions") with arrows, else humanized. */
 const DIRECTION_TEXT: Record<string, string> = { up: 'Up ↑', down: 'Down ↓', right: 'Across →', left: 'Across ←',
   back: 'Front → back', front: 'Back → front', out: 'Out from the centre', in: 'In to the centre',
-  round: 'Round, clockwise', along: 'Along the strands' };
+  clockwise: 'Clockwise ↻', counterclockwise: 'Counterclockwise ↺', along: 'Along the strands',
+  'orbit-clockwise': 'Orbit, clockwise from above', 'orbit-counterclockwise': 'Orbit, counterclockwise from above' };
 export const optionText = (key: string, options: string[]) => (options.every((o) => o in DIRECTION_TEXT)
   ? DIRECTION_TEXT[key] : humanize(key));
 
@@ -69,7 +71,8 @@ export function normaliseParam(key: string, raw: unknown): Param | null {
   if (typeof v !== 'number') return null;
   const min = Number.isFinite(r.min) ? r.min as number : 0, max = Number(r.max) > min ? r.max as number : min + 1;
   const x = (max - min) / 200, p = 10 ** Math.floor(Math.log10(x)), nice = (x / p < 2 ? 1 : x / p < 5 ? 2 : 5) * p;
-  return { ...base, kind: 'number', value: v, min, max, step: Number(r.step) > 0 ? r.step as number : nice };
+  return { ...base, kind: 'number', value: v, min, max, step: Number(r.step) > 0 ? r.step as number : nice,
+    ...(r.unit === 'minute' ? { unit: 'minute' as const } : {}) };
 }
 
 /** A colour value ('#rrggbb' or [r, g, b] 0..1) as '#rrggbb'. */
@@ -127,10 +130,11 @@ export function makeBinding(f: BindingForm, p: Param): Binding | null {
   return f.mod === 'envelope' ? { mod: 'envelope', from: n(f.eFrom, p.min), to: n(f.eTo, p.max) } : null;
 }
 
-/** A tempo binding in words: what `per` comes to at `bpm`, and whether the param's range holds it. */
+/** A tempo binding in words: what `per` comes to at `bpm` (a second, or a minute on a `unit: 'minute'` param), and
+ * whether the param's range holds it. */
 export function tempoNote(per: number, bpm: number, p: Param) {
-  const v = per * bpm / 60;
-  return { text: `= ${fmt(v)} a second at ${bpm} BPM`, out: v < p.min || v > p.max };
+  const minute = p.unit === 'minute', v = per * bpm / (minute ? 1 : 60);
+  return { text: `= ${fmt(v)} a ${minute ? 'minute' : 'second'} at ${bpm} BPM`, out: v < p.min || v > p.max };
 }
 
 /** A modulator's LFO shared out of a param's (SPEC "Globals"): the macro's 0..1 swing, and the param's binding to it
@@ -139,4 +143,13 @@ export function shareLfo(b: Extract<Binding, { mod: 'lfo' }>, p: Param, name: st
   const c = b.center ?? Number(p.value), d = b.depth ?? (p.max - p.min) / 4;
   return { mod: { ...b, center: 0.5, depth: 0.5 } as Binding,
     binding: { mod: 'global', name, from: c - d, to: c + d } as Binding };
+}
+
+/** What upgrade() changed (SPEC-library "Pattern code"), for the params the schema declares whose saved value is
+ * still what it changed (an edit since wins): the sandbox's report, so untrusted. */
+export function upgradedOf(up: unknown, schema: Record<string, unknown> | null, saved: Record<string, unknown>) {
+  const json = (v: unknown) => JSON.stringify(v);
+  return Object.fromEntries(Object.entries(up && typeof up === 'object' ? up : {})
+    .filter(([k, v]) => schema && k in schema && Array.isArray(v) && json(v[0]) === json(saved[k]))
+    .map(([k, v]) => [k, v[1]])) as Record<string, ParamValue>;
 }

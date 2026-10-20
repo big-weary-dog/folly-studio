@@ -234,7 +234,9 @@ export function resolveParams(schema: ParamSchema | undefined, overrides: unknow
     } else if (d.type === 'toggle') {
       P[key] = !!v;
     } else if (d.type === 'choice') {
-      P[key] = typeof v === 'string' && d.options.includes(v) ? v : d.value;
+      // round, saved before clockwise, stays for the code saved with it (toward() reads it as clockwise)
+      const old = v === 'round' && d.options.includes('clockwise');
+      P[key] = typeof v === 'string' && (d.options.includes(v) || old) ? v : d.value;
     } else if (d.type === 'picture') {
       P[key] = readPicture(v) ?? d.value;
     } else {
@@ -257,6 +259,7 @@ export function paramMods(schema: ParamSchema | undefined, overrides: unknown, t
     const v = d.type === 'number' ? own : turn;
     const m = d.type === 'number' ? modOf(key, v, d.min, d.max, d.value, null)
       : turn ? modOf(key, v, -1e6, 1e6, 0, turns!, 0, 1) : null;
+    if (m && d.type === 'number' && d.unit === 'minute') m.per *= 60;     // a speed a minute: per × bpm
     if (m) out.push(m);
   }
   return out;

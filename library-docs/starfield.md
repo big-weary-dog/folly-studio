@@ -5,8 +5,8 @@ Quiet night sky for intros and night scenes. **shimmer** glitters continuously; 
 
 ## Overrides
 - sparkle.density: 0.15 sparse, 0.8 dense.
-- sparkle.rate: 0.35 calm, 1.5 busy.
-- sparkle.length: 0.05 pinpricks, 0.3 slow swells.
+- sparkle.often: 21 calm, 90 busy.
+- sparkle.flash: 0.1 pinpricks, 0.3 slow swells.
 - clouds.cover: 0 clear, 0.8 mostly nebula.
 - clouds.colours: the haze. colour-wash.colours: the sky.
 

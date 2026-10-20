@@ -12,6 +12,12 @@ const params = {
     help: 'How fast the hues roll round the wheel. Zero holds still; negative rolls the other way.' },
 };
 
+// Saved before both ways were named: round was clockwise.
+function upgrade(s) {
+  if (s.direction === 'round') s.direction = 'clockwise';
+  return s;
+}
+
 function filter(c, q, t, P) {
   const turn = TAU * (toward(q, P.direction) * P.spread + P.offset + clock('speed'));
   const cs = cos(turn), s = sin(turn) / sqrt(3), k = (1 - cs) / 3;

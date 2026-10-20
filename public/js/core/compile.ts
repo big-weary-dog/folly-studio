@@ -5,12 +5,12 @@ import { type G, resolveParams, type Values } from './globals.ts';
 import { newPicks, type PickBlend, type Picks, pickText, readPick } from './picks.ts';
 import { EMPTY_PICTURE, type Picture, pictureProblem, readPicture } from './picture.ts';
 import type { ModuleKind, Pixel } from './render.ts';
-import { isNum, RUN, STDLIB, STDLIB_NAMES } from './stdlib.ts';
+import { hex, isNum, RUN, STDLIB, STDLIB_NAMES } from './stdlib.ts';
 import { STAGES } from './warps.ts';
 
 /** A pattern's params as its controls show them (SPEC "Pattern code"). */
 export type ParamSpec = { label?: string, help?: string } & (
-  { type: 'number', value: number, min: number, max: number, step?: number }
+  { type: 'number', value: number, min: number, max: number, step?: number, unit?: 'minute' }
   | { type: 'toggle', value: boolean } | { type: 'color', value: string, blend?: PickBlend }
   | { type: 'choice', value: string, options: string[] } | { type: 'picture', value: Picture });
 export type ParamSchema = Record<string, ParamSpec>;
@@ -22,7 +22,23 @@ export const HELP_MAX = 300;
 export type Compiled = { kind: ModuleKind, params: ParamSchema, frame?: (t: number, P: Values, G: G) => void,
   spatial?: (typeof SPATIAL_OPS)[number],
   pixel?: (p: Pixel, t: number, P: Values, G: G) => unknown, warp?: (q: Pixel, t: number, P: Values, G: G) => void,
-  filter?: (c: RGBA, q: Pixel, t: number, P: Values, G: G, x?: RGBA) => unknown, picks: Picks, clocks: Clocks };
+  filter?: (c: RGBA, q: Pixel, t: number, P: Values, G: G, x?: RGBA) => unknown, picks: Picks, clocks: Clocks,
+  bright?: boolean, upgrade?: (saved: Record<string, unknown>) => unknown };
+/** The params every source has, which the core applies to what pixel() returns (SPEC "Pattern code"); a source that
+ * declares one of its own name applies its own. */
+export const SOURCE_PARAMS: Readonly<ParamSchema> = Object.freeze({ brightness: { type: 'number', value: 1, min: 0,
+  max: 1, step: 0.01, label: 'Brightness',
+  help: 'How bright the source is, its colours scaled toward black. 1 is as drawn; lower dims it under the rest.' } });
+/** A source's params and then the SOURCE_PARAMS it does not declare itself. */
+export const withSourceParams = <T extends object>(params: T): T & ParamSchema => ({ ...params, ...Object.fromEntries(
+  Object.entries(SOURCE_PARAMS).filter(([n]) => !(n in params)).map(([n, d]) => [n, { ...d }])) });
+/** v (a pixel() result) with its rgb times b, alpha kept; v itself at b = 1. */
+export function dimmed(v: unknown, b: number) {
+  if (b === 1 || v === undefined || v === null) return v;
+  if (typeof v === 'number') return v * b;
+  const c = (typeof v === 'string' ? hex(v) : v) as ArrayLike<number>;
+  return c.length > 3 ? [c[0]! * b, c[1]! * b, c[2]! * b, c[3]] : [c[0]! * b, c[1]! * b, c[2]! * b];
+}
 
 // Browser globals hidden from pattern code as undefined locals: defence in depth (the sandbox is the boundary).
 const SHADOWED = [
@@ -47,6 +63,7 @@ const EPILOGUE =
   '\n;return { pixel: typeof pixel === "function" ? pixel : undefined,' +
   ' warp: typeof warp === "function" ? warp : undefined, filter: typeof filter === "function" ? filter : undefined,' +
   ' frame: typeof frame === "function" ? frame : undefined,' +
+  ' upgrade: typeof upgrade === "function" ? upgrade : undefined,' +
   ' spatial: typeof spatial === "string" ? spatial : undefined, stage: typeof stage === "string" ? stage : undefined,' +
   ' params: typeof params === "undefined" ? undefined : params };\n})();';
 
@@ -117,6 +134,7 @@ export function normalizeParams(raw: unknown): ParamSchema {
       p = { type, value, min: isNum(d.min) ? d.min : Math.min(0, value),
         max: isNum(d.max) ? d.max : Math.max(1, value) };
       if (isNum(d.step) && d.step > 0) p.step = d.step;
+      if (d.unit === 'minute') p.unit = d.unit;
     } else {
       throw new Error(`param "${key}": unknown type "${d.type}" (number, toggle, color, choice or picture)`);
     }
@@ -172,10 +190,32 @@ export function compileModule(code: string | undefined, kind: string = 'source')
   if (stage !== undefined && (!STAGES.includes(stage as never) || (stage === 'spatial') !== !!spatial)) {
     throw new Error("stage must be 'history', or 'spatial' beside a spatial op (const spatial = 'blur')");
   }
-  const params = normalizeParams(made.params);
+  const own = normalizeParams(made.params), bright = kind === 'source' && !('brightness' in own);
+  const params = kind === 'source' ? withSourceParams(own) : own;
   picks.bind(params, null, {});
-  return { kind, [k[0]]: made[k[0]], frame: made.frame, params, picks, clocks, ...(spatial ? { spatial } : {}) } as
-    Compiled;
+  return { kind, [k[0]]: made[k[0]], frame: made.frame, params, picks, clocks, ...(spatial ? { spatial } : {}),
+    ...(bright ? { bright } : {}), ...(made.upgrade ? { upgrade: made.upgrade } : {}) } as Compiled;
+}
+
+/** A module's saved params as its code reads them now: its upgrade() of a copy (SPEC "Pattern code"), or as saved
+ * when it has none, or it throws or returns no object. */
+export function upgradeParams(c: Compiled, saved: unknown) {
+  if (!c.upgrade || !saved || typeof saved !== 'object') return saved;
+  try {
+    const v = c.upgrade({ ...saved as Record<string, unknown> });
+    return v && typeof v === 'object' && !Array.isArray(v) ? v : saved;
+  } catch {
+    return saved;
+  }
+}
+
+/** The params a module's upgrade() changes, each as [saved, upgraded] (none without one): the Settings panel shows,
+ * and edits from, the upgraded value while the saved one is still what it changed. */
+export function upgradedParams(c: Compiled, saved: unknown): Record<string, [unknown, unknown]> | undefined {
+  const s = saved && typeof saved === 'object' ? saved as Record<string, unknown> : {};
+  const up = upgradeParams(c, s) as Record<string, unknown>, json = (v: unknown) => JSON.stringify(v);
+  const changed = Object.keys(up).filter((k) => up[k] !== undefined && json(up[k]) !== json(s[k]));
+  return changed.length ? Object.fromEntries(changed.map((k) => [k, [s[k], up[k]]])) : undefined;
 }
 
 /** Compile pattern source (a source module) → { pixel, frame, params }. */
@@ -207,14 +247,14 @@ function use(name: string, params?: Record<string, unknown>) {
     throw new Error(now ? `use(): "${name}" is retired: add the ${now} preset instead`
       : `use(): unknown library pattern "${name}"`);
   }
-  const m = compileModule(code, 'source');
-  const P = resolveParams(m.params, params);
-  m.picks.bind(m.params, params, P);
+  const m = compileModule(code, 'source'), saved = upgradeParams(m, params) as Record<string, unknown> | undefined;
+  const P = resolveParams(m.params, saved);
+  m.picks.bind(m.params, saved, P);
   m.clocks.bind(P, [], null);           // its params are values: clock(name) is value × T
-  const pixel = m.pixel!, frame = m.frame;
+  const pixel = m.pixel!, frame = m.frame, b = m.bright ? P.brightness as number : 1;
   let last = NaN;
   return function used(p: Pixel, t: number) {
     if (t !== last) { last = t; m.picks.frame(); if (frame) frame(t, P, RUN.G!); }
-    return pixel(p, t, P, RUN.G!) ?? [0, 0, 0, 0];     // nothing drawn: transparent, still a colour to work with
+    return dimmed(pixel(p, t, P, RUN.G!), b) ?? [0, 0, 0, 0];   // nothing drawn: transparent, still a colour
   };
 }

@@ -68,7 +68,8 @@ extent() (this layer's bounds in metres, [[X0, Y0, Z0], [X1, Y1, Z1]]: to place 
 fill it), clock(name) (how far number param name, a speed, has moved things: draw motion from clock('speed'), not
 t × P.speed, so a modulated speed never jumps), DIRECTIONS and toward(p, direction) (a source that rises, falls or
 sweeps declares direction: { value: 'up', type: 'choice', options: DIRECTIONS } and reads toward(p, P.direction),
-0..1 along it: up down right left back front out in round along petal ring; petal and ring step pane by pane on
+0..1 along it: up down right left back front out in clockwise counterclockwise along petal ring (clockwise as seen
+from the front); petal and ring step pane by pane on
 the rose), region(q, rule, size?, seed?) and regions(rule, size?) (q's rose pane group, −1 off the rose, and how
 many: rules petal alternate ring rings centre spiral wedges checker random), use(name, params?) (a library pattern as a
 function (p, t) → colour; call it at the top level). Colours are [r, g, b] arrays, 0..1.
@@ -150,9 +151,10 @@ One rule: each module works on everything above it, as in an image editor.
   A bed under an element stays dim (its layer's level 0.15–0.35, or brightness 0.2–0.4), so the element reads.
 
 Values: numbers within the listed range; on/off; a choice by its word (a direction is one of up down right left
-back front out in round along: \`out\` and \`round\` go from and round the layer's centre, \`along\` runs along
-each wire). A colour (\`pick\`) is a pick of the look's palette: \`all\` (low to high), a role (\`low\` \`body\`
-\`accent\` \`high\`), a slot (\`accent2\`), \`rainbow\` or \`#rrggbb\`, joined by spaces in order or dealt in turn
+back front out in clockwise counterclockwise along: \`out\` and \`in\` go from and to the layer's centre,
+\`clockwise\` and \`counterclockwise\` round it as seen from the front, \`along\` runs along each wire). A colour
+(\`pick\`) is a pick of the look's palette: \`all\` (low to high), a role (\`low\` \`body\` \`accent\` \`high\`),
+a slot (\`accent2\`), \`rainbow\` or \`#rrggbb\`, joined by spaces in order or dealt in turn
 with / (\`"accent high"\`, \`"body/accent"\`). Any number param may instead be bound: \`{ "mod": "lfo", "rate": 0.2,
 "shape": "sine", "center": 0.5, "depth": 0.5 }\` (Hz, or \`"unit": "beats"\`: cycles a beat; \`"pace"\` and
 \`"amount"\` name a fader that speeds it or scales its swing), \`{ "mod": "global", "name": "energy", "from": 0.2,
@@ -183,7 +185,7 @@ export const EXAMPLES: Example[] = [
         { title: 'Bed', groups: [root], blend: 'add', level: 0.25,
           modules: [{ use: 'colour-wash', params: [v('colours', 'low'), v('speed', 0)] }] },
         { title: 'Comet', groups: [place('rose')], blend: 'over', level: 1, modules: [{ use: 'bars', params: [
-          v('colours', 'accent high'), v('direction', 'round'), v('bars', 1), v('profile', 'comet'),
+          v('colours', 'accent high'), v('direction', 'clockwise'), v('bars', 1), v('profile', 'comet'),
           v('speed', { mod: 'global', name: 'energy', from: 0.15, to: 0.6 })] }] }] }) },
   { idea: 'lightning only inside drifting storm clouds on the spires', uses: ['lightning', 'clouds', 'mask'],
     places: ['spire'],

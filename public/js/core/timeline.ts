@@ -1,6 +1,6 @@
 // The timeline (SPEC "Timeline"): a look lasts `duration` seconds; a layer with clips is lit only inside them.
 import type { Clip } from '../../../shared/schemas/look.ts';
-import { clamp, type Direction, DIRECTIONS, isNum, toward } from './stdlib.ts';
+import { clamp, type Direction, DIRECTIONS, isNum, OLD_DIRECTIONS, toward } from './stdlib.ts';
 
 export const DEFAULT_DURATION = 30;
 export const MIN_DURATION = 1;
@@ -20,7 +20,8 @@ export type Transition = { kind: (typeof TRANSITIONS)[number], direction: Direct
 export function normalizeTransition(v: unknown): Transition | null {
   const o = v && typeof v === 'object' ? v as Record<string, unknown> : null;
   if (o?.kind !== 'wipe') return null;
-  const direction = (DIRECTIONS as readonly unknown[]).includes(o.direction) ? o.direction as Direction : 'right';
+  const known = [...DIRECTIONS, ...OLD_DIRECTIONS] as readonly unknown[];
+  const direction = known.includes(o.direction) ? o.direction as Direction : 'right';
   return { kind: 'wipe', direction, softness: isNum(o.softness) ? clamp(o.softness, 0.001, 1) : 0.1 };
 }
 

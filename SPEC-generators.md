@@ -36,7 +36,8 @@ library draws the idea, `why` naming what it tried. A value is a number, on/off,
 binding (`{ mod: lfo | global | envelope, … }`, on number params only). `src/generate/expand.ts` turns it into a look:
 each `use` becomes the module's code with its params, held to the declarations read statically from its `const
 params` (`catalog.ts`; never evaluated): a number out of range is clamped, an unknown or ill-typed param dropped,
-each with a note in `dropped`. More than 8 such notes get a round of their own (the notes, and the ask to fit
+a direction from before both ways were named (`round`, bars' `orbit`) made its new word as the module's `upgrade`
+reads it, each with a note in `dropped`. More than 8 such notes get a round of their own (the notes, and the ask to fit
 each param to the library); its answer is kept only when it expands with no errors and fewer notes. A preset becomes its layers as the Studio adds one (its params, blends and inputs,
 the overrides on top, its palette and macros where the look has none). An unknown module, preset, extension or
 input, and an empty layer, are errors with a path (`layers[1].modules[0].use: barz is not a library module (did you

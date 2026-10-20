@@ -7,7 +7,7 @@ The standard bed: at speed 0 it is one still colour covering the whole layer. Us
 ## Params
 - speed: 0 is the usual bed; 0.05–0.2 a calm drift.
 - hold: 0.8 snaps over the last fifth.
-- brightness: 0.3–0.5 for a dim bed under other sources.
+- brightness: every source's own; 0.3–0.5 for a dim bed under other sources.
 
 ## Pairings
 - First in the chain, the next source `blend: "over"`.

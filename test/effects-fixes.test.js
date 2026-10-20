@@ -1,8 +1,11 @@
 // The effects audit's small fixes on City of Gods: what each source's params now promise.
 import assert from 'node:assert/strict';
 
+import { readFileSync } from 'node:fs';
+
 import { describe, test } from 'vitest';
 
+import { compileModule, upgradedParams } from '../public/js/pattern-core.ts';
 import { at, COG, layerOf, litShare } from './fixtures/layers.js';
 
 /** Each lit LED's colour over its brightest channel, as a key. */
@@ -40,7 +43,7 @@ describe('chase', () => {
 
 describe('sparkle', () => {
   test('a pulse glint takes a new colour each time', () => {
-    const L = layerOf(['sparkle', { rate: 2 }]), seen = new Map();
+    const L = layerOf(['sparkle', { often: 120 }]), seen = new Map();
     for (let f = 0; f < 200; f++) {
       at(L, f / 20).idx.forEach((k, j) => {
         const h = L.buf[4 * j + 3] > 0.5 && hue(L, j);
@@ -49,6 +52,26 @@ describe('sparkle', () => {
     }
     const many = [...seen.values()].filter((s) => s.size > 1).length;
     assert.ok(many > seen.size / 2, `${many} of ${seen.size} LEDs changed colour`);
+  });
+
+  test('saved mode, length, sharp and rate read as Flash and How often', () => {
+    const same = (old, now) => [0.4, 3.3].forEach((t) => assert.deepEqual(Array.from(at(layerOf(['sparkle', old]),
+      t).buf), Array.from(at(layerOf(['sparkle', now]), t).buf), JSON.stringify(old)));
+    same({ mode: 'smooth', rate: 4, sharp: 3 }, { often: 240, flash: 0.6 + 0.4 * 5 / 7 });
+    same({ rate: 2, length: 0.02 }, { often: 120, flash: 0 });
+    same({ length: 1 }, { flash: 0.5 });
+    same({ rate: { mod: 'beats', per: 2 } }, { often: { mod: 'beats', per: 2 } });
+  });
+
+  test('Settings is told what upgrade() added, so its sliders start where the look plays', () => {
+    const c = compileModule(readFileSync(new URL('../public/patterns/sparkle.js', import.meta.url), 'utf8'), 'source');
+    assert.deepEqual(upgradedParams(c, { mode: 'smooth', rate: 4, sharp: 3 }),
+      { often: [undefined, 240], flash: [undefined, 0.6 + 0.4 * 5 / 7] });
+    const bars = compileModule(readFileSync(new URL('../public/patterns/bars.js', import.meta.url), 'utf8'), 'source');
+    assert.deepEqual(upgradedParams(bars, { direction: 'orbit', speed: 1 }),
+      { direction: ['orbit', 'orbit-counterclockwise'] }, 'a changed value, with what it was');
+    assert.equal(upgradedParams(c, { often: 30, flash: 0.1 }), undefined, 'saved as now: nothing added');
+    assert.equal(upgradedParams(compileModule('function pixel() { return 1; }', 'source'), { k: 1 }), undefined);
   });
 });
 

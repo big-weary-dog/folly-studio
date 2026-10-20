@@ -2,13 +2,14 @@
 looks: Bands of colour sweeping one way: flat, smooth, pulsing or comet-tailed.
 ---
 The plainest, most flexible moving source: one smooth bar is a slow tide, pulse bars on `in` are rings, comets on
-`round` chase a circle, on `orbit` sweep like a lighthouse. Use **single-strand** to follow each wire,
-**colour-wash** to change the whole layer at once.
+`clockwise` chase a circle, on `orbit-counterclockwise` sweep like a lighthouse. Use **single-strand** to follow each
+wire, **colour-wash** to change the whole layer at once.
 
 ## Params
-- direction: With `in`, negative speed sends rings outward. `orbit` turns round the layer's middle (or each group's
-  after **anchor** `plan`).
-- bars: Rounded to whole numbers on `round` and `orbit`.
+- direction: Named both ways: `out`/`in`, `clockwise`/`counterclockwise` (from the front), `orbit-clockwise`/
+  `orbit-counterclockwise` (from above, round the layer's middle or each group's after **anchor** `plan`). Negative
+  speed runs any of them the other way.
+- bars: Rounded to whole numbers on the turning ways and orbits.
 - softness: Keep ≥ 0.1; 0 aliases on sparse LEDs.
 - profile: `comet` needs duty < 1 to show a tail.
 

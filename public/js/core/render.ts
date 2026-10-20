@@ -2,7 +2,7 @@
 // it: sources draw and combine, filters rework the colour, warps bend the pixel, warps.ts), or in stages round its
 // spatial modules (SPEC "Spatial modules"); blended into a frame (output.ts), graded by the look's globals.
 import type { Module } from '../../../shared/schemas/look.ts';
-import { type Compiled, compileModule, describeError } from './compile.ts';
+import { type Compiled, compileModule, describeError, upgradeParams } from './compile.ts';
 import { applyMods, finish, lookFrame, paramMods, prepareLook, resolveParams } from './globals.ts';
 import type { G, PreparedLook, Values } from './globals.ts';
 import { composite } from './output.ts';
@@ -64,7 +64,7 @@ type Fn = (...a: unknown[]) => unknown;
 type Link = { id: string | null, title: string, kind: number, fn: Fn, frame: Compiled['frame'] | null, P: Values,
   mods: ReturnType<typeof paramMods>, picks: Picks | null, blend: number, hidden: boolean, input: number,
   out: number[], keep: Float64Array | null, end: boolean, ix: number, at: number, from: number, to: number,
-  led: boolean };
+  led: boolean, bright: boolean };
 function prepareChain(layer: LayerInput | null | undefined, compiled: Compiled | readonly (Compiled | null)[]) {
   const modules = layerModules(layer);
   const list = Array.isArray(compiled) ? compiled : [compiled];
@@ -83,13 +83,14 @@ function prepareChain(layer: LayerInput | null | undefined, compiled: Compiled |
     if (kind === SOURCE && !hidden) shown++;
     const input = kind === FILTER ? at.get(m.input) ?? -1 : -1;
     if (kind === SOURCE) at.set(m.id, chain.length);
-    const P = resolveParams(c.params, m.params), mods = paramMods(c.params, m.params, c.picks?.rot);
-    c.picks?.bind(c.params, m.params, P);
+    const saved = upgradeParams(c, m.params) as Module['params'];
+    const P = resolveParams(c.params, saved), mods = paramMods(c.params, saved, c.picks?.rot);
+    c.picks?.bind(c.params, saved, P);
     c.clocks?.bind(P, mods, clips);
     chain.push({ id: m.id ?? null, title: m.title || m.id || '', kind, fn, frame: c.frame || null,
       P, mods, picks: c.picks || null, blend, hidden, input,
       out: [0.5, 0, 0, 0], keep: null, end: kind === SPATIAL || isStageEnd(m), ix: 0, at: 0, from: -1, to: -1,
-      led: kind !== WARP || readsLed(m.code) });
+      led: kind !== WARP || readsLed(m.code), bright: kind === SOURCE && !!c.bright });
   }
   return chain;
 }
@@ -104,7 +105,7 @@ function prepareStages(S: Scene, layer: LayerInput | null | undefined, chain: Li
     const mode = BLUR_MODES.includes(s.mode as never) ? s.mode as string : 'wire';
     chain.push({ id: null, title: 'Soften', kind: SPATIAL, fn: (c) => c, frame: null, mods: [], picks: null,
       blend: OVER, P: { radius: Number(s.radius), mode, amount: 1 }, hidden: false, input: -1,
-      out: [0, 0, 0, 0], keep: null, end: true, ix: chain.length, at: 0, from: -1, to: -1, led: false });
+      out: [0, 0, 0, 0], keep: null, end: true, ix: chain.length, at: 0, from: -1, to: -1, led: false, bright: false });
   }
   if (!chain.some((M) => M.kind === SPATIAL)) return null;
   const m = idx.length;
@@ -157,6 +158,9 @@ function blendInto(c: number[], o: number[], mode: number) {
   }
 }
 
+/** A source's colour times its Brightness (SPEC "Pattern code"), alpha kept. */
+const dim = (o: number[], b: number) => { o[0] *= b; o[1] *= b; o[2] *= b; };
+
 const said = (v: unknown) => (Array.isArray(v) ? `[${Array.from(v).slice(0, 4).join(', ')}]` : String(v));
 
 /** Layer L's chain at pattern time T into L.buf (rgba) → null, or an error (its module in L.failed). */
@@ -182,6 +186,7 @@ function runChain(S: Scene, L: PreparedLayer, T: number, G: G) {
           const v = M.fn(q, T + q.dt, M.P, G);
           if (!toColour(v, M.out, 1)) return fail(L, M, `pixel() returned ${said(v)} (NaN) at LED ${k}`);
           M.out[3] *= q.gate;
+          if (M.bright) dim(M.out, M.P.brightness as number);
           if (!M.hidden) blendInto(c, M.out, M.blend);
         } else {
           const v = M.fn(c, q, T + q.dt, M.P, G, M.input >= 0 ? chain[M.input].out : undefined);
@@ -254,6 +259,7 @@ function runStaged(S: Scene, L: PreparedLayer, T: number, G: G, st: NonNullable<
               const v = M.fn(q, T + q.dt, M.P, G);
               if (!toColour(v, M.out, 1)) return fail(L, M, `pixel() returned ${said(v)} (NaN) at LED ${k}`);
               M.out[3] *= q.gate;
+              if (M.bright) dim(M.out, M.P.brightness as number);
               if (M.keep) save(M.keep, o, M.out);
               if (!M.hidden) blendInto(c, M.out, M.blend);
             } else {

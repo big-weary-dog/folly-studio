@@ -280,12 +280,15 @@ function centres(tag: string) { return RUN.scene ? RUN.scene.centresOf(String(ta
 function extent(of?: string) { return of === 'rig' ? RUN.scene?.extent ?? ORIGIN : RUN.extent; }
 
 /** The library's directions (SPEC "Directions"): the options of every `direction` choice param, in this order. */
-export const DIRECTIONS = Object.freeze(['up', 'down', 'right', 'left', 'back', 'front', 'out', 'in', 'round',
-  'along', 'petal', 'ring'] as const);
-export type Direction = (typeof DIRECTIONS)[number];
+export const DIRECTIONS = Object.freeze(['up', 'down', 'right', 'left', 'back', 'front', 'out', 'in', 'clockwise',
+  'counterclockwise', 'along', 'petal', 'ring'] as const);
+/** Directions saved before today's words, still read but never offered: round is clockwise. */
+export const OLD_DIRECTIONS = Object.freeze(['round'] as const);
+export type Direction = (typeof DIRECTIONS)[number] | (typeof OLD_DIRECTIONS)[number];
 type Placed = { lx: number, ly: number, lz: number, a: number, r: number, u: number, sector?: number, ring?: number };
 /** toward(p, direction): how far p is along a direction, 0..1 across the layer: up ly, down 1 − ly, right lz (the
- * viewer's right), left 1 − lz, back lx (front to back), front 1 − lx, out r, in 1 − r, round a (clockwise), along
+ * viewer's right), left 1 − lz, back lx (front to back), front 1 − lx, out r, in 1 − r, clockwise a (as seen from the
+ * front; round, saved before, too), counterclockwise 1 − a, along
  * u (each strand from its start), petal (sector + 0.5) / 16 and ring (ring − 0.5) / 7 on the rose (a step a petal,
  * clockwise, or a ring, heart to rim; round and out off it); anything else, up. */
 export function toward(p: Placed, direction: string) {
@@ -297,7 +300,8 @@ export function toward(p: Placed, direction: string) {
     case 'front': return 1 - p.lx;
     case 'out': return p.r;
     case 'in': return 1 - p.r;
-    case 'round': return p.a;
+    case 'clockwise': case 'round': return p.a;
+    case 'counterclockwise': return 1 - p.a;
     case 'along': return p.u;
     case 'petal': return p.sector! >= 0 ? (p.sector! + 0.5) / 16 : p.a;
     case 'ring': return p.ring! > 0 ? (p.ring! - 0.5) / 7 : p.r;

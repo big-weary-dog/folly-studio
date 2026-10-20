@@ -14,6 +14,12 @@ const params = {
     help: 'On flips it: what was clear shows and what showed fades away; off fades the edge as usual.' },
 };
 
+// Saved before both ways were named: round was clockwise.
+function upgrade(s) {
+  if (s.direction === 'round') s.direction = 'clockwise';
+  return s;
+}
+
 function filter(c, q, t, P) {
   const at = toward(q, P.direction), edge = P.position * (1 + P.width) - P.width;   // -width: all shown; 1: none
   let k = smoothstep(0, P.width, at - edge);

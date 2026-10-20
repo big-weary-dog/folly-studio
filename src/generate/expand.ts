@@ -9,6 +9,9 @@
 import { pictureProblem } from '../../public/js/pattern-core.ts';
 import type { Catalog, ParamDecl } from './catalog.ts';
 
+// Words from before both ways were named, as the modules' upgrade() reads them: what old docs and habits still write.
+const OLD_CHOICES: Record<string, string> = { round: 'clockwise', orbit: 'orbit-counterclockwise' };
+
 export type ExpandError = { path: string, code: string, message: string };
 export type Uses = { library: number, extensions: number, code: number };
 type Obj = Record<string, unknown>;
@@ -68,6 +71,10 @@ function checkParam(d: ParamDecl, v: unknown, at: string, notes: string[]) {
     return v === 'true' || v === 'false' ? v === 'true' : (notes.push(`${at}: not on or off`), undefined);
   }
   if (d.type === 'choice') {
+    const now = OLD_CHOICES[String(v)];
+    if (now && !d.options.includes(String(v)) && d.options.includes(now)) {
+      return (notes.push(`${at}: ${String(v)} is now ${now}`), now);
+    }
     return d.options.includes(String(v)) ? String(v) : (notes.push(`${at}: ${String(v).slice(0, 30)} is not one of ${
       d.options.join(' ')}`), undefined);
   }

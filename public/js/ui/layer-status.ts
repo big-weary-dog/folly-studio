@@ -17,7 +17,8 @@ const hungOr = (msg: string, kind: 'compile' | 'runtime') => (HUNG_RE.test(msg) 
 const K = (layerId: string, moduleId: string) => `${layerId}/${moduleId}`;
 
 export function createLayerStatus(layerById: (id: string) => Layer | null, silent: (id: string) => boolean) {
-  const compiled = new Map<string, { ok: boolean; params: Record<string, unknown>; code: string }>();
+  const compiled = new Map<string, { ok: boolean; params: Record<string, unknown>; code: string;
+    upgraded?: unknown }>();
   const good = new Map<string, string>();                            // module key → last code that compiled
   const bad = new Map<string, { code: string; error: string }>();    // module key → newest code that failed
   const schemas = new Map<string, Record<string, unknown>>();        // module key → last good params schema
@@ -36,7 +37,7 @@ export function createLayerStatus(layerById: (id: string) => Layer | null, silen
         let moduleFailed = false;
         for (const mr of r.modules) {
           const key = K(r.id, mr.id), m = l?.modules.find((x) => x.id === mr.id);
-          compiled.set(key, { ok: mr.ok, params: mr.params, code: mr.code });
+          compiled.set(key, { ok: mr.ok, params: mr.params, code: mr.code, upgraded: mr.upgraded });
           if (mr.ok) {
             good.set(key, mr.code);
             schemas.set(key, mr.params);
@@ -119,14 +120,15 @@ export function createLayerStatus(layerById: (id: string) => Layer | null, silen
       return err ? { kind: 'compile', message: err } : null;
     },
 
-    /** A module's params schema, and a note when there is none. */
+    /** A module's params schema, the params its upgrade() adds to the saved ones (untrusted), and a note when there
+     * is no schema. */
     params(layerId: string, m: Module) {
       void rev.value;
       const key = K(layerId, m.id), c = compiled.get(key);
       const schema = (c?.ok && c.params) || schemas.get(key) || null;
       const note = bad.has(key) && !schemas.get(key) ? 'Fix the code’s error to get its controls.'
         : !c && !schema ? 'Compiling…' : '';
-      return { schema, note };
+      return { schema, note, upgraded: c?.ok ? c.upgraded : undefined };
     },
   };
   return S;

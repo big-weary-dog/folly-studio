@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs';
 import { describe, test } from 'vitest';
 
 import {
-  STDLIB, compilePattern, prepareScene, prepareLayer, renderFrame, toChannels, pixelsForGroups,
+  STDLIB, compilePattern, prepareScene, prepareLayer, renderFrame, setLibrary, SOURCE_PARAMS, toChannels,
+  pixelsForGroups,
 } from '../public/js/pattern-core.ts';
 import { folly as rig } from './fixtures/rigs.js';
 
@@ -113,6 +114,7 @@ describe('compilePattern', () => {
       color: { type: 'color', value: '#ff6a00' },
       on: { type: 'toggle', value: true },
       n: { type: 'number', value: 3, min: 0, max: 3 },
+      ...SOURCE_PARAMS,
     });
     assert.deepEqual(JSON.parse(JSON.stringify(c.params)), c.params, 'params are JSON-safe');
   });
@@ -264,6 +266,31 @@ describe('renderFrame', () => {
     nearC(Array.from(renderFrame(scene, [layer(code, { params: { k: 1, c: '#00ff00' } })], 0).rgb.slice(0, 3)), [0, 1,
       0]);
     nearC(Array.from(renderFrame(scene, [layer(code, { params: { c: [0, 0, 1] } })], 0).rgb.slice(0, 3)), [0, 0, 0.5]);
+  });
+
+  test('every source has Brightness, applied by the core unless it declares its own', () => {
+    const at0 = (code, params) => Array.from(renderFrame(scene, [layer(code, { params })], 0).rgb.slice(0, 3));
+    assert.deepEqual(Object.keys(compilePattern(solid(1, 1, 1)).params), ['brightness']);
+    nearC(at0(solid(0.8, 0.4, 0.2)), [0.8, 0.4, 0.2]);                        // a look without it reads 1
+    nearC(at0(solid(0.8, 0.4, 0.2), { brightness: 0.5 }), [0.4, 0.2, 0.1]);
+    const own = `const params = { brightness: { value: 1, min: 0, max: 1 } };
+      function pixel(p, t, P) { return [1, P.brightness, 0]; }`;
+    assert.equal(compilePattern(own).params.brightness.max, 1);
+    nearC(at0(own, { brightness: 0.25 }), [1, 0.25, 0]);                    // its own, never dimmed twice
+    setLibrary([{ name: 'red', code: solid(1, 0, 0) }]);
+    nearC(at0("const r = use('red', { brightness: 0.5 }); function pixel(p, t) { return r(p, t); }"), [0.5, 0, 0]);
+    setLibrary([]);
+  });
+
+  test('upgrade(saved) reads a module\'s saved params as its code does now; a throw keeps them', () => {
+    const at0 = (up, params) => Array.from(renderFrame(scene, [layer(`${up}
+      const params = { k: { value: 0, min: 0, max: 1 } }; function pixel(p, t, P) { return [P.k, 0, 0]; }`,
+    { params })], 0).rgb.slice(0, 3));
+    nearC(at0('function upgrade(s) { if (s.old !== undefined) s.k = s.old / 2; return s; }', { old: 0.8 }),
+      [0.4, 0, 0]);
+    nearC(at0('function upgrade(s) { return s; }', { k: 0.3 }), [0.3, 0, 0]);
+    nearC(at0('function upgrade() { throw 1; }', { k: 0.3 }), [0.3, 0, 0]);
+    nearC(at0('function upgrade() { return 5; }', { k: 0.3 }), [0.3, 0, 0]);
   });
 
   test('throwing and NaN layers go black and are reported once', () => {

@@ -6,7 +6,7 @@ import { z } from 'zod';
 import PALETTES from '../../public/data/palettes.json' with { type: 'json' };
 import {
   BLENDS, BLUR_MODES, DIRECTIONS, GLOBALS, macroNameOk, MAX_CLIPS, MAX_DURATION, MAX_LANES, MAX_MACROS, MAX_POINTS,
-  MAX_RADIUS, MODULE_KINDS, PALETTE_ROLES, type Picture, pictureProblem, SOURCE_BLENDS, TRANSITIONS,
+  MAX_RADIUS, MODULE_KINDS, OLD_DIRECTIONS, PALETTE_ROLES, type Picture, pictureProblem, SOURCE_BLENDS, TRANSITIONS,
 } from '../../public/js/pattern-core.ts';
 
 export {
@@ -57,7 +57,7 @@ const Clip = z.object({
   start: seconds('start'), end: seconds('end'), fadeIn: seconds('fadeIn').default(0),
   fadeOut: seconds('fadeOut').default(0),
   transition: z.strictObject({ kind: oneOf('transition.kind', TRANSITIONS),
-    direction: oneOf('transition.direction', DIRECTIONS).optional(),
+    direction: oneOf('transition.direction', [...DIRECTIONS, ...OLD_DIRECTIONS]).optional(),
     softness: num(0.001, 1, 'transition.softness must be a number from 0.001 to 1.').optional(),
   }, { error: 'transition must be { kind, direction?, softness? }.' }).optional(),
 }, { error: 'must be an object.' }).refine((c) => c.end > c.start, 'end must be after start.');

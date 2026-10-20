@@ -81,6 +81,14 @@ function pixel(p, t, P) { return [P.speed / 10, 0, 0]; }`;
     assert.ok(Math.abs(value({ mod: 'beats' }, undefined) - 2) < 1e-5);
     assert.equal(Math.round(value({ mod: 'beats', per: 8 }, 120)), 10);
   });
+  test("a speed a minute (unit: 'minute') counts per × the tempo", () => {
+    const code = `const params = { often: { value: 1, min: 0, max: 1000, unit: 'minute' } };
+function pixel(p, t, P) { return [P.often / 1000, 0, 0]; }`;
+    const often = { mod: 'beats', per: 2 }, layer = { id: 'l', modules: [{ id: 's', kind: 'source', code,
+      params: { often } }] };
+    const L = prepareLayer(scene, layer, compileLayer(layer));
+    assert.ok(Math.abs(renderFrame(scene, [L], 1, null, prepareLook({ bpm: 90 })).rgb[3 * L.idx[0]] - 0.18) < 1e-5);
+  });
   test('the dialog makes and names it', () => {
     const p = { kind: 'number', value: 1, label: 'Speed', min: 0, max: 10, step: 0.1, options: [] };
     const f = { ...bindingForm({}, p, ['energy']), mod: 'beats', per: '0.5' };

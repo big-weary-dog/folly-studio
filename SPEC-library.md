@@ -6,8 +6,8 @@ and the HTTP API stay in `SPEC.md`.
 
 ## Pattern code
 
-A pattern is a plain script (not a module). It defines `pixel`, and optionally `params` and
-`frame`. Everything in the stdlib is in scope as globals.
+A pattern is a plain script (not a module). It defines `pixel`, and optionally `params`, `frame` and `upgrade`.
+Everything in the stdlib is in scope as globals.
 
 ```js
 // Rising bands: bands of colour move up the layer.
@@ -26,7 +26,7 @@ function pixel(p, t, P) {          // every LED, every frame
 ```
 
 `P` holds each param's current value (`color` params arrive as `[r,g,b]`). Param kinds:
-number `{ value, min, max, step? }`, `{ value: bool, type: 'toggle' }`,
+number `{ value, min, max, step?, unit? }` (`unit: 'minute'`: a speed counted a minute, "Param bindings"), `{ value: bool, type: 'toggle' }`,
 `{ value: pick, type: 'color', blend? }`: a pick names palette colours or literals ("Palettes" below), such as
 `'all'`, `'accent'` or `'#rrggbb'`; `{ value: 'name', type: 'choice', options: ['name', …] }` (≤ 16
 options, each `[a-z][a-z0-9-]{0,31}`; a value not among them takes the default); `{ value: picture, type: 'picture' }`
@@ -35,6 +35,21 @@ the Studio, a unit in parentheses: `'Speed (bars a second)'`) and `help` (≤ 30
 what it does and how it looks low and high). The Studio shows `help` on hover over the param's row, and on a touch
 screen behind an ⓘ beside it; the generators' library docs give it as the param's effect. Every library param has
 `help`.
+
+Every source also has `brightness` (`SOURCE_PARAMS`: 0–1, default 1, label Brightness), after its own params: the core
+scales the rgb of what `pixel()` returns by it (alpha kept), in a layer and in `use()`, so it binds like any param
+(an LFO, a global, the envelope) and a look without it reads 1. A source that declares its own `brightness` keeps it
+and applies it itself. The Studio shows it with the rest, and the generators' catalogue lists it on every source.
+
+`upgrade(saved)` (optional) reads params saved for an earlier version of the module: the core hands it a copy of a
+module's saved params before resolving them, in a layer and in `use()`, and uses the object it returns (the saved
+params as they are if it throws or returns no object). A module whose params were renamed or re-ranged maps the old
+ones there, so a look that plays it from the library (a preset, the Pi following a look) plays as it did, with no
+migration. Sparkle maps its old `mode`, `length`, `sharp` and `rate` so; bars, scroll, edge-fade and hue-shift a
+`round` direction (and bars an `orbit`). The sandbox reports each param `upgrade` changed as `[saved, upgraded]`
+(`upgraded`, SPEC "Sandbox protocol"), and the Settings panel shows the upgraded value, and writes it with the first
+edit, while the saved one is still what it changed, so a slider starts where the look plays and a stale report never
+undoes an edit.
 
 ## The pixel `p`
 
@@ -83,11 +98,15 @@ A library module with a built-in orientation (it rises, falls, sweeps across, op
 `direction` choice param, `{ value: 'up', type: 'choice', options: DIRECTIONS, label: 'Direction' }`, its default
 the orientation it always had, so the UI and the generators see one convention. Its options are the directions it
 draws distinctly, in `DIRECTIONS` order: a list literal when that is fewer than all (fire rises or falls or blows
-sideways; bars have no `out`: `in` at the opposite speed moves the same way, its colours in reverse order). `DIRECTIONS` is `up down right left
-back front out in round along petal ring`, and `toward(p, direction)` turns one into a coordinate, 0..1 across the layer: `up`
-ly, `down` 1 − ly, `right` lz (the viewer's right), `left` 1 − lz, `back` lx (front to back), `front` 1 − lx, `out` r,
-`in` 1 − r, `round` a (clockwise), `along` u, `petal` (sector + 0.5) / 16 and `ring` (ring − 0.5) / 7: a step a petal
-(clockwise) or a ring (heart to rim) on the rose, `round` and `out` off it. A clip's wipe reads them too. On the rose,
+sideways). Each way is named both ways, so a negative speed is never the only way to reverse (bars add
+`orbit-clockwise` and `orbit-counterclockwise`, round an upright axis as seen from above). `DIRECTIONS` is `up down
+right left back front out in clockwise counterclockwise along petal ring`, and `toward(p, direction)` turns one into a
+coordinate, 0..1 across the layer: `up` ly, `down` 1 − ly, `right` lz (the viewer's right), `left` 1 − lz, `back` lx
+(front to back), `front` 1 − lx, `out` r, `in` 1 − r, `clockwise` a (as seen from the front), `counterclockwise` 1 −
+a, `along` u, `petal` (sector + 0.5) / 16 and `ring` (ring − 0.5) / 7: a step a petal (clockwise) or a ring (heart to
+rim) on the rose, `clockwise` and `out` off it. A clip's wipe reads them too. `round`, saved before the two turning
+words, is still read as `clockwise` (`OLD_DIRECTIONS`: `toward`, a clip's wipe, and a choice whose options have
+`clockwise` keep it), never offered; a library module's `upgrade` maps it. On the rose,
 `region(q, rule, size, seed)` is q's pane group by a rule (`petal`, `alternate`, `ring`, `rings`, `centre`, `spiral`,
 `wedges`, `checker` or `random`; size is petals a group for spiral, wedges and checker; seed picks random's), 0 up to
 `regions(rule, size)`, or −1 off the rose: mask's `by: region` and stained glass use it. A free angle off it, where one makes sense, is an `angle` param in turns.
@@ -242,7 +261,7 @@ frame per layer and held to the param's min..max (`from`/`to` default to them):
   `hue`, `saturation`, a macro or a modulator: SPEC "Globals") as 0..1 of its range.
 - `{ mod: 'envelope', from, to }`: by the layer's clip envelope (1 with no clips).
 - `{ mod: 'beats', per = 1 }`: `per × bpm / 60`, so a speed counts per beat at the look's tempo (120 unset): a
-  "rises a second" param bound to it rises `per` a beat.
+  "rises a second" param bound to it rises `per` a beat. On a param with `unit: 'minute'` it is `per × bpm`.
 
 A colour pick's `rotate` takes the same bindings (from 0, to 1, depth ¼ by default); it wraps rather than holds.
 

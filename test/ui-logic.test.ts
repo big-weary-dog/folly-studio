@@ -10,7 +10,7 @@ import { describe, test } from 'vitest';
 import { resolve, safeNext } from '../public/js/ui/app.tsx';
 import { gateOf } from '../public/js/ui/idea-access.tsx';
 import {
-  bindingForm, bindingText, makeBinding, normaliseParam, type Param, shownValue, tempoNote,
+  bindingForm, bindingText, makeBinding, normaliseParam, type Param, shownValue, tempoNote, upgradedOf,
 } from '../public/js/ui/bindings.ts';
 import { decimals, scrubTo, snap } from '../public/js/ui/kit.tsx';
 import { createLayerStatus } from '../public/js/ui/layer-status.ts';
@@ -97,6 +97,8 @@ describe('modulation', () => {
     assert.equal(f.per, '0.075');
     assert.deepEqual(tempoNote(0.075, 120, clouds), { text: '= 0.15 a second at 120 BPM', out: false });
     assert.equal(tempoNote(1, 120, clouds).out, true, '2 a second: beyond its range');
+    const often = normaliseParam('often', { value: 36, min: 0, max: 1200, unit: 'minute' }) as Param;
+    assert.deepEqual(tempoNote(0.5, 120, often), { text: '= 60 a minute at 120 BPM', out: false }, 'a speed a minute');
   });
 
   test('what a control shows: its value, the default, or nothing while bound', () => {
@@ -220,6 +222,14 @@ describe('the timeline on the Studio\'s state', () => {
 });
 
 describe('what the sandbox says', () => {
+  test('Settings shows what upgrade() changed while the saved value is still what it changed', () => {
+    const schema = { direction: {}, often: {} }, up = { direction: ['round', 'clockwise'], often: [undefined, 60],
+      gone: [undefined, 1] };
+    assert.deepEqual(upgradedOf(up, schema, { direction: 'round' }), { direction: 'clockwise', often: 60 });
+    assert.deepEqual(upgradedOf(up, schema, { direction: 'up', often: 30 }), {}, 'edited since: the edit wins');
+    assert.deepEqual(upgradedOf('junk', schema, {}), {});
+  });
+
   const m = { id: 'm', kind: 'source' as const, title: 'S', code: 'good', params: {} };
   const L: Layer = { ...layer('a'), modules: [m] };
   const reply = (code: string, ok: boolean) => [{ id: 'a', ok, params: {}, modules: [{ id: 'm', ok, code,
@@ -237,7 +247,8 @@ describe('what the sandbox says', () => {
     assert.deepEqual(status.problem('a', look.modules[0]), { kind: 'compile', message: 'SyntaxError', running: true });
     assert.equal(status.compiled(reply('good', true)), false, 'the good code compiles: no loop');
     assert.equal(status.of('a').kind, 'compile', 'the module is still broken');
-    assert.deepEqual(status.params('a', look.modules[0]), { schema: { k: { value: 1 } }, note: '' });
+    assert.deepEqual(status.params('a', look.modules[0]),
+      { schema: { k: { value: 1 } }, note: '', upgraded: undefined });
     look = L;
     assert.equal(status.of('a').kind, 'ok', 'fixed');
   });

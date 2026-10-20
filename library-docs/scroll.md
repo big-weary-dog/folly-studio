@@ -2,8 +2,8 @@
 looks: The whole layer sliding steadily one way and wrapping round, like a scrolling banner.
 ---
 Slides what is above it and wraps it round; goes after the source. Sets a still source (frozen clouds, a gradient, a
-mosaic) in motion; `petal` and `ring` step a whole rose petal or ring at a time. **rotate** turns, **turbulence**
-pushes unevenly.
+mosaic) in motion; `clockwise` and `counterclockwise` (as seen from the front) turn it, `petal` and `ring` step a
+whole rose petal or ring at a time. **rotate** turns, **turbulence** pushes unevenly.
 
 ## Params
 - speed: 0.02–0.2 is a drift.

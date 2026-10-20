@@ -170,7 +170,9 @@ function QuickReference({ onInsert }: { onInsert: (text: string) => void }) {
       <div class="ref-body">
         <section><h3>Shape of a pattern</h3><pre class="ref-code">{SKELETON}</pre>
           <p class="ref-note">Colours are <code>[r, g, b]</code> arrays, 0..1. <code>P</code> holds each param’s
-            value; colour params arrive as <code>[r, g, b]</code>.</p></section>
+            value; colour params arrive as <code>[r, g, b]</code>. Every source also has a Brightness
+            (<code>brightness</code>, 0..1) the Studio applies to what <code>pixel()</code> returns; declare your
+            own to handle it yourself.</p></section>
         <section><h3>The pixel p</h3>
           <dl class="ref-fields">{FIELDS.map(([k, v]) => <>
             <dt>{k.split(' ').map((n) => name(`p.${n}`))}</dt><dd>{v}</dd></>)}</dl></section>
