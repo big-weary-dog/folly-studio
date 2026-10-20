@@ -10,7 +10,7 @@ const params = {
     help: 'How fast ripples travel, in LEDs a second along a strand. Low rolls slowly; high races.' },
   fade: { value: 0.4, min: 0, max: 1, step: 0.01, label: 'Fade',
     help: 'How quickly ripples die out. 0 sloshes on; 1 lets each one die within about a second.' },
-  strength: { value: 1, min: 0, max: 3, step: 0.05, label: 'Strength',
+  strength: { value: 2, min: 0, max: 3, step: 0.05, label: 'Strength',
     help: 'How hard a brightening pushes the water. Low makes faint rings; high makes every hit splash.' },
   show: { value: 'both', type: 'choice', options: ['both', 'ripples'], label: 'Show',
     help: 'both adds the ripples on top of what is above; ripples shows just the water.' },

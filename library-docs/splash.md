@@ -9,12 +9,13 @@ puts the ripples over what is above, or alone. Same water as **waves**, set off 
 ## Params
 - speed: LEDs a second along a strand: 10–20 rolls, 40+ races.
 - fade: 0.2–0.4 lets ripples run far; 0.7+ keeps them close to what set them off.
-- strength: 0.5 faint rings; 1 clear; 2+ every hit splashes.
+- strength: 1 faint rings; 2 clear from across the site; 3 every hit splashes.
 - show: `ripples` alone over a sparse source is the cleanest; `both` keeps what is above.
 
 ## Pairings
-- **sparkle** (how many low, flash short) → splash `ripples`: every glint rings out.
+- **strobe** (scatter 1, speed 1) → splash `ripples`: each piece's flash rings out through the wiring in its colour.
 - **strobe** on the beat → splash: the map shivers on each hit.
+- **sparkle** (how many low, flash short) → splash `ripples`: every glint rings out, faint from afar.
 - **single-strand** comets → splash, strength 0.5: a wake ahead and behind.
 
 ## Pitfalls
