@@ -19,7 +19,10 @@ const answer = (level = 0.8) => ({ title: 'Tide', summary: 'A slow swell', layer
 const take = (name) => ({ name, lead: 'the rose', motion: 'rising', scale: 'one gesture', colour: 'blue low, gold high',
   tempo: 'slow, then quick', take: `${name}: the rose fills from below.` });
 const SKETCHES = { takes: [take('Tide'), take('Ember'), take('Lattice')],
-  synthesis: { took: 'the rise from Tide, the gold from Ember, the spires from Lattice', brief: 'The rose rises.' } };
+  synthesis: { took: 'the rise from Tide, the gold from Ember, the spires from Lattice', brief: 'The rose rises.' },
+  docs: [PACED, 'library/warps/mirror.md', '../secrets', PACED] };
+const CORE = ['library/README.md', 'library/filters/README.md', 'library/presets/README.md',
+  'library/sources/README.md', 'library/warps/README.md'];
 
 /** A queue on claude's lane whose model answers sketch turns with `sketches` and looks a little dimmer each time. */
 function exploring(level, sketches = async () => SKETCHES) {
@@ -43,7 +46,8 @@ describe('the sketch turn', () => {
     assert.match(turn, /three takes/);
     assert.match(turn, /Rose window/);
     assert.match(turn, /never one wash/);
-    assert.deepEqual(SKETCH_SCHEMA.required, ['takes', 'synthesis']);
+    assert.match(turn, /docs: the page of every/);
+    assert.deepEqual(SKETCH_SCHEMA.required, ['takes', 'synthesis', 'docs']);
     assert.equal(SKETCH_SCHEMA.properties.takes.minItems, 3);
   });
 
@@ -78,6 +82,10 @@ describe('exploring in the queue', () => {
     assert.match(asks[1].turn, /Compose the synthesis/);
     assert.match(asks[2].repair.message, /falls furthest short/);
     assert.match(asks[2].repair.message, /The plan: The rose rises\./, 'the critique holds it to the plan too');
+    assert.equal(asks[0].docsGiven, undefined, 'the sketch carries no docs');
+    const given = [...CORE, `library/sources/${PACED}.md`, 'library/warps/mirror.md'];
+    assert.deepEqual(asks[1].docsGiven, given, 'the core, then the pages the sketch named, found, once each');
+    assert.deepEqual(asks[2].docsGiven, given, 'the critique carries the same pages');
     assert.deepEqual(box.jobs.map((j) => j.seconds), [30, 2], 'the whole look');
     assert.equal(idea.took, SKETCHES.synthesis.took);
     assert.equal(typeof idea.timing.sketch, 'number');
@@ -122,6 +130,7 @@ describe('exploring in the queue', () => {
       assert.equal(idea.status, 'ready', idea.error);
       assert.equal(asks.length, 2);
       assert.doesNotMatch(asks[1].turn ?? '', /<sketches>/);
+      assert.deepEqual(asks[1].docsGiven, CORE, 'no sketch: the core');
       assert.equal(idea.took, undefined);
       assert.equal(typeof idea.timing.sketch, 'number');
     }

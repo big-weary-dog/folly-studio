@@ -62,6 +62,10 @@ export function diffCompositions(a: Composition, b: Composition): string[] {
   const out: string[] = [], same = (x: unknown, y: unknown) => JSON.stringify(x) === JSON.stringify(y);
   const pa = (a.globals as Obj | undefined)?.palette, pb = (b.globals as Obj | undefined)?.palette;
   if (pb && JSON.stringify(pa) !== JSON.stringify(pb)) out.push(`palette: ${show(pa ?? 'default')} → ${show(pb)}`);
+  for (const k of ['speed', 'level', 'hue', 'saturation', 'energy']) {
+    const ga = (a.globals as Obj | undefined)?.[k], gb = (b.globals as Obj | undefined)?.[k];
+    if (gb !== undefined && !same(ga, gb)) out.push(`${k}: ${show(ga ?? 'default')} → ${show(gb)}`);
+  }
   if (b.duration !== undefined && a.duration !== b.duration) {
     out.push(`duration: ${a.duration ?? 30} → ${b.duration} s`);
   }

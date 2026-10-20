@@ -8,7 +8,7 @@ import { fence, rootOf } from './prompt.ts';
 
 const AXES = ['lead', 'motion', 'scale', 'colour', 'tempo'] as const;
 export type Take = Record<'name' | typeof AXES[number] | 'take', string>;
-export type Sketches = { takes: Take[], synthesis: { took: string, brief: string } };
+export type Sketches = { takes: Take[], synthesis: { took: string, brief: string }, docs: string[] };
 
 const str = (description: string) => ({ type: 'string', description });
 const closed = (properties: Record<string, object>) => ({ type: 'object', properties,
@@ -22,6 +22,7 @@ export const SKETCH_SCHEMA = closed({
     take: str('what someone standing in front sees, in two or three sentences') }) },
   synthesis: closed({ took: str('one line: what it takes from each take, by name'),
     brief: str('the one look, in three to five concrete sentences') }),
+  docs: { type: 'array', maxItems: 13, items: str('a library doc path: library/<kind>/<name>.md') },
 });
 
 /** The parts of the installation that can each have a voice: the root's children, by name. */
@@ -48,7 +49,9 @@ Write three takes on it that are genuinely different looks, not three versions o
 - tempo: slow and spacious or quick and busy, and how it changes through the look.
 
 Then the synthesis: the best parts of the three as one look. took: one line saying what it takes from each take, by
-name. brief: that look in three to five concrete sentences (places, motion, colours, tempo). Return JSON.`;
+name. brief: that look in three to five concrete sentences (places, motion, colours, tempo). docs: the page of every
+source, warp, filter and preset you might use in it, as library/<kind>/<name>.md (up to 13): they come whole with the
+next turn, with each kind's README, so name generously. Return JSON.`;
 }
 
 /** The sketches as notes for a later turn. */
@@ -110,8 +113,8 @@ Compare the takes as they rendered, with each other and with the idea. Compose o
 }
 
 const TAGS = /<\/?\s*(idea|sketches|request|history)\b[^>]*>/gi;
-/** The sketch turn's answer, bounded (the turns' own fences taken out), or null when it is not three takes and a
- * synthesis. */
+/** The sketch turn's answer, bounded (the turns' own fences taken out; docs as paths, checked when picked), or null
+ * when it is not three takes and a synthesis. */
 export function readSketches(raw: unknown): Sketches | null {
   const o = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
   const cut = (v: unknown, n: number) => (typeof v === 'string' ? v.replace(TAGS, ' ').replace(/\s+/g, ' ').trim()
@@ -123,5 +126,7 @@ export function readSketches(raw: unknown): Sketches | null {
   });
   const syn = o.synthesis && typeof o.synthesis === 'object' ? o.synthesis as Record<string, unknown> : {};
   const synthesis = { took: cut(syn.took, 300), brief: cut(syn.brief, 800) };
-  return takes.length === 3 && takes.every((t) => t.name && t.take) && synthesis.brief ? { takes, synthesis } : null;
+  const docs = (Array.isArray(o.docs) ? o.docs : []).slice(0, 13).map((d) => cut(d, 120)).filter(Boolean);
+  return takes.length === 3 && takes.every((t) => t.name && t.take) && synthesis.brief ? { takes, synthesis, docs }
+    : null;
 }

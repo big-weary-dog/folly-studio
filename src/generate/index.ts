@@ -31,6 +31,7 @@ import type { Registry } from './models.ts';
 import { buildPrompt, buildRefineMessage } from './prompt.ts';
 import { refineHistory } from './refine-history.ts';
 import { type Composition, decompose, diffCompositions, keepSwitches } from './refine.ts';
+import { keepUntouched } from './edits.ts';
 import { compose, type Critique, type Rounds } from './rounds.ts';
 import { sketchRefine } from './sketch-refine.ts';
 import { sketchLook } from './sketch.ts';
@@ -47,13 +48,13 @@ export type Prompt = { system: string, schema: Record<string, unknown>, catalog:
  * given, is the whole turn instead: a critique, with its stills as PNGs in `images`). */
 export type Repair = { answer: unknown, errors: ExpandError[], message?: string, images?: Uint8Array[] };
 /** What an adapter is given (SPEC "Generators"), and what makes a look of it: raw output, cleaned by validateLook.
- * `docsRead`: where an adapter notes each library doc the model read, for the log; `schema`: an answer to this schema
- * instead of a look (no docs; returned as it parsed); `images`: PNGs shown with the first turn; `journal`: the idea's
- * log, and `round`: the round a call belongs to (an adapter records each call there). */
+ * `docsRead`: where an adapter notes each library doc the model read, for the log; `docsGiven`: the docs its turn
+ * carries (docs-turn.ts); `schema`: an answer to this schema instead of a look (no read_doc; returned as it parsed);
+ * `images`: PNGs shown with the first turn; `journal`: the idea's log, and `round`: its round (calls go there). */
 export type Context = { text: string, user: { id: string, username?: string, role?: string },
   library: LibraryEntry[], rig: Rig | null, groups: RigGroup[], idea?: { id: string }, prompt?: () => Prompt,
-  turn?: string, repair?: Repair, signal?: AbortSignal, docsRead?: string[], schema?: Record<string, unknown>,
-  images?: Uint8Array[], journal?: Pick<IdeaLog, 'begin' | 'note'>, round?: Round };
+  turn?: string, repair?: Repair, signal?: AbortSignal, docsRead?: string[], docsGiven?: string[],
+  schema?: Record<string, unknown>, images?: Uint8Array[], journal?: Pick<IdeaLog, 'begin' | 'note'>, round?: Round };
 export type Adapter = { name?: string, generate(ctx: Context): unknown };
 type Route = { id: string, label: string, via: string, entry?: ModelEntry };
 type Explored = Awaited<ReturnType<typeof explore>>;
@@ -223,8 +224,8 @@ export function createQueue({
     }
     const adapter = adapterFor(by), catalog = PROMPTED.has(by.via) || refine ? ctx.prompt?.().catalog : undefined;
     const mode: Critique | undefined = by.entry?.critique ?? (refine?.critique ? 'images' : undefined);
-    const rounds = (a: Adapter, o: { critique?: Critique, box?: Box }) => compose({ adapter: a, ctx, catalog:
-      catalog!, ...o, lane: bakeLane, aim: refine?.aim, start: refine?.start, startedAt: t0,
+    const rounds = (a: Adapter, o: { critique?: Critique, box?: Box, edit?: Composition }) => compose({ adapter: a,
+      ctx, catalog: catalog!, ...o, lane: bakeLane, aim: refine?.aim, start: refine?.start, startedAt: t0,
       budgetMs: critiqueBudgetMs, stopping: () => stopping, log });
     const lv = PROMPTED.has(by.via) && catalog && ctx.prompt && !refine && level !== 'quick' ? level : null;
     const entry = lv ? boosted(by.via as Transport, by.entry, lv) : by.entry;
@@ -233,7 +234,8 @@ export function createQueue({
     const out: Partial<Explored> & Pick<Rounds, 'raw' | 'look'> = lv ? await explore({
       adapter: adapterFor({ ...by, entry }), ctx, catalog: catalog!, critique: mode, box,
       lane: bakeLane, startedAt: t0, budgetMs: LEVELS[lv].budgetMs, stopping: () => stopping, log, level: lv })
-      : PROMPTED.has(by.via) && catalog && ctx.prompt ? await rounds(adapter, { critique: mode, box })
+      : PROMPTED.has(by.via) && catalog && ctx.prompt ? await rounds(adapter, { critique: mode, box,
+        edit: refine?.start ? undefined : refine?.comp })
       : refine && catalog && by.via === 'sketch'
         ? await rounds({ generate: () => sketchRefine(refine.comp, ctx.text, { ...ctx, catalog }) }, {})
       : await (async () => {
@@ -281,7 +283,8 @@ export function createQueue({
       const how = `${describeRounds(out)}; ${describeUses(out.uses ?? NO_USES)}${describeDocs(read)}${
         dropped(look.dropped)}`;
       if (refine) {
-        const changes = await revise(refine.look, look, promptOf(base).catalog);
+        const kept = keepUntouched(refine.look.layers as typeof look.layers, refine.comp, out.raw, look.layers);
+        const changes = await revise(refine.look, { ...look, layers: kept }, promptOf(base).catalog);
         timing.total = Date.now() - queuedAt;
         outcome = { status: 'ready', lookId: refine.look.id };
         await update(id, { status: 'ready', generator: used.id, by: used.label, error: null, timing, changes, ...rounds,

@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { GenerateError } from '../../shared/schemas/generated.ts';
 import type { Logger } from '../http.ts';
 import { parseJson, pickLook } from './claude.ts';
+import { docsBlock } from './docs-turn.ts';
 import type { Context } from './index.ts';
 import { READ_CAP } from './doc-path.ts';
 import { findExecutable, Interrupted, runCommand, STOP_SIGNALS } from './proc.ts';
@@ -32,6 +33,9 @@ const FEATURES_OFF = ['shell_tool', 'unified_exec', 'view_image', 'apps', 'plugi
 // A composition (not a repair, critique or sketch) writes the whole look from scratch, and higher effort reasons
 // longer: its wall clock is the call's, times this.
 const COMPOSE_SCALE: Record<string, number> = { high: 1.5, xhigh: 2 };
+// A call with no event for this long has stalled (the longest quiet stretch of a healthy one, measured: 143 s, a
+// composition at high writing 6k tokens); xhigh writes longer. Its process is killed and the call tried once more.
+const IDLE_SCALE: Record<string, number> = { xhigh: 2 };
 // What the CLI needs from the environment (its home, login, proxy, the OS); nothing else of the server's reaches it.
 const PASS_ENV = new RegExp(`^(?:${['PATH', 'PATHEXT', 'HOME', 'USERPROFILE', 'APPDATA', 'LOCALAPPDATA', 'HOMEDRIVE',
   'HOMEPATH', 'SYSTEMROOT', 'SYSTEMDRIVE', 'WINDIR', 'COMSPEC', 'TEMP', 'TMP', 'TMPDIR', 'USER', 'LOGNAME', 'LANG',
@@ -64,16 +68,17 @@ export function dropNulls(v: unknown): unknown {
 }
 
 // Options (environment): bin (STUDIO_CODEX_BIN, "codex"), model, effort, timeoutMs (STUDIO_CODEX_TIMEOUT_MS, 300000;
-// a composition's scaled by effort: COMPOSE_SCALE),
+// a composition's scaled by effort: COMPOSE_SCALE), idleMs (STUDIO_CODEX_IDLE_MS, 180000, scaled by IDLE_SCALE),
 // workDir (STUDIO_CODEX_WORK, <tmp>/folly-studio-codex), schema (STUDIO_CODEX_SCHEMA=0: no --output-schema),
 // userConfig (STUDIO_CODEX_USER_CONFIG=1: read ~/.codex/config.toml after all).
 type Options = Partial<{ env: NodeJS.ProcessEnv, bin: string, model: string, effort: string, timeoutMs: number,
-  workDir: string, schema: boolean, userConfig: boolean, maxOutputBytes: number, log: Logger }>;
+  idleMs: number, workDir: string, schema: boolean, userConfig: boolean, maxOutputBytes: number, log: Logger }>;
 export function createCodexAdapter(o: Options = {}) {
   const env = o.env || process.env;
   const cfg = {
     bin: o.bin || env.STUDIO_CODEX_BIN || 'codex', model: o.model || 'gpt-6.1-sol', effort: o.effort || '',
     timeoutMs: o.timeoutMs ?? num(env.STUDIO_CODEX_TIMEOUT_MS, 300_000),
+    idleMs: o.idleMs ?? num(env.STUDIO_CODEX_IDLE_MS, 180_000),
     workDir: path.resolve(o.workDir || env.STUDIO_CODEX_WORK || path.join(tmpdir(), 'folly-studio-codex')),
     schema: o.schema ?? env.STUDIO_CODEX_SCHEMA !== '0',
     userConfig: o.userConfig ?? env.STUDIO_CODEX_USER_CONFIG === '1',
@@ -85,14 +90,14 @@ export function createCodexAdapter(o: Options = {}) {
    * attached (a flag follows them: -i takes several), the docs server over `docs` (the tree's folder) noting reads in
    * `reads`. */
   function argsFor(cwd: string, out: string, schemaFile: string | null, images: string[] = [],
-    docs?: { dir: string, reads: string }) {
+    docs?: { dir: string, reads: string, given?: readonly string[] }) {
     const args = ['exec', ...images.flatMap((f) => ['-i', f]), '--json', '--ephemeral', '--skip-git-repo-check',
       '--ignore-rules', '-s', 'read-only', '-C', cwd,
       '-m', cfg.model, '-o', out, '-c', 'web_search="disabled"', ...FEATURES_OFF.flatMap((f) => ['-c',
         `features.${f}=false`])];
     if (docs) {
       args.push('-c', `mcp_servers.docs.command=${JSON.stringify(process.execPath)}`, '-c', `mcp_servers.docs.args=${
-        JSON.stringify([DOCS_SERVER, docs.dir, docs.reads, String(READ_CAP)])}`,
+        JSON.stringify([DOCS_SERVER, docs.dir, docs.reads, String(READ_CAP), (docs.given ?? []).join(',')])}`,
       '-c', 'mcp_servers.docs.default_tools_approval_mode="approve"');
     }
     if (!cfg.userConfig) args.push('--ignore-user-config');
@@ -114,7 +119,9 @@ export function createCodexAdapter(o: Options = {}) {
     const empty = path.join(cfg.workDir, 'empty');
     await fs.mkdir(empty, { recursive: true });
     const job = await fs.mkdtemp(path.join(cfg.workDir, 'job-'));
-    const turn = `${ctx.turn ?? buildUserMessage(ctx.text)}\n${repair}`, t0 = Date.now();
+    const given = (ctx.docsGiven ?? []).filter((p) => built.docs?.has(p));
+    const turn = `${docsBlock(built.docs ?? new Map(), given)}${ctx.turn ?? buildUserMessage(ctx.text)}\n${repair}`;
+    let t0 = Date.now();
     const reads: string[] = [], lines: Line[] = [], decoder = new StringDecoder('utf8');
     let partial = '';
     /** Each whole line of its events with when it arrived (ms into the call). */
@@ -135,18 +142,27 @@ export function createCodexAdapter(o: Options = {}) {
         await fs.writeFile(file, png);
         return file;
       }));
-      const tree = docs?.size ? { dir: await writeDocs(cfg.workDir, docs), reads: path.join(job, 'reads.txt') }
-        : undefined;
-      const ran = await runCommand({ ...command, args: [...command.args, ...argsFor(empty, out, schemaFile, images,
-        tree)],
-        input: `${system}\n\n${turn}`, cwd: empty, env: childEnv, timeoutMs,
-        maxOutputBytes: cfg.maxOutputBytes, signal: ctx.signal, stdout: heard });
+      const tree = docs?.size ? { dir: await writeDocs(cfg.workDir, docs), reads: path.join(job, 'reads.txt'),
+        given } : undefined;
+      const idleMs = Math.round(cfg.idleMs * (IDLE_SCALE[cfg.effort] ?? 1));
+      const run = () => runCommand({ ...command, args: [...command.args, ...argsFor(empty, out, schemaFile, images,
+        tree)], input: `${system}\n\n${turn}`, cwd: empty, env: childEnv, timeoutMs, idleMs,
+      maxOutputBytes: cfg.maxOutputBytes, signal: ctx.signal, stdout: heard });
+      let ran = await run();
+      if (ran.killed === 'idle') { // stalled: its own process is gone; the stall goes in the log, and once more
+        const { usage, items } = readEvents(lines), quietFor = `no events for ${Math.round(idleMs / 1000)} s`;
+        cfg.log.warn?.(`[generate] idea ${ctx.idea?.id ?? '-'}: codex stalled (${quietFor}); trying again`);
+        ctx.round?.call({ ms: Date.now() - t0, system, turn, images: images.length, tools: items, usage, docs: [],
+          error: `stalled: ${quietFor}; tried again` });
+        [lines.length, partial, t0] = [0, '', Date.now()];
+        ran = await run();
+      }
       if (tree) reads.push(...(await fs.readFile(tree.reads, 'utf8').catch(() => '')).split('\n')
         .filter(Boolean).slice(0, READ_CAP));
       ctx.docsRead?.push(...reads);
       const said = [ran.tail.trim(), ...readEvents(lines).errors].join('\n').trim().split('\n').slice(-3).join(' | ')
         .slice(0, 300);
-      if (ran.killed === 'timeout') {
+      if (ran.killed === 'timeout' || ran.killed === 'idle') {
         throw new GenerateError('The AI generator took too long; please try again.', `codex: ${ran.ms} ms, no answer`);
       }
       if (ran.killed === 'abort') throw new GenerateError('The idea was stopped before it finished.', 'codex: aborted');

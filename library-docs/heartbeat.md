@@ -1,23 +1,17 @@
 ---
 looks: A lub-dub glow swelling out from the centre, two beats of the tempo per heartbeat.
 ---
-The layer beats like a heart: a strong swell and a softer echo just after, lub-dub, once every two beats of the look's
-tempo (60 a minute at 120 bpm), each spreading out from the centre and peaking in the last colour of the pick, clear
-between beats. It is locked to the look's bpm and has no speed of its own. Reach for it for tension, love themes and
-music-synced pulsing. **strobe** flashes hard rather than swelling; **shockwave** bursts a travelling front on its own
-clock; **glow** with its edge-fade position on an lfo is a slow breathing glow.
+A strong swell and a softer echo, once every two beats of the look's bpm (it has no speed of its own), clear between.
+For tension, love themes and music-synced pulsing. **strobe** flashes hard; **shockwave** bursts on its own clock.
 
 ## Params
-- colours: `low body high` or reds to white.
-- direction: With `anchor`, `out` starts from the rose. Up, down, right, left, back and front sweep across.
-- spread: In seconds. 0.2–0.4 is a visible swell outward; near 1 at 120 bpm the far edge is a full heartbeat behind, so
-  the next beat starts as the last one reaches it.
+- direction: With **anchor**, `out` starts from the rose.
+- spread: 0.2–0.4 a visible swell.
 
 ## Pairings
-- Over a dark `colour-wash` bed (`blend: "over"`) so the pause between beats keeps a colour.
-- Then `anchor` (tag `rose`) to beat from the rose window; shape `sphere` to swell through the towers too.
-- Target the rose alone with spread 0.3 as a heart over a calmer whole-rig look.
+- Over a dark **colour-wash** bed so the pause keeps a colour.
+- Then **anchor** `rose`, shape `sphere`: beats through the towers from the rose.
 
 ## Pitfalls
-- The rate comes only from the look's bpm; to slow the heart, lower the tempo.
-- Spread 0 at fast tempos (above ~180 bpm) pulses the whole layer near 3 times a second: flash risk.
+- To slow it, lower the tempo.
+- Spread 0 above ~180 bpm pulses the whole layer near 3 Hz: flash risk.

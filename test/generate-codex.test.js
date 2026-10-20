@@ -163,6 +163,20 @@ describe('codex', () => {
     assert.ok(compose >= 600 && repair >= 400 && repair < 600, `${compose} ms, ${repair} ms`);
   });
 
+  test('a call quiet past idleMs is killed, logged as a stall and tried once more', async () => {
+    const { adapter, dir } = setup('stall-once', { idleMs: 400 }), calls = [];
+    const answer = await adapter.generate(ctx({ round: { call: (c) => calls.push(c) } }));
+    assert.ok(answer);
+    assert.match(calls[0].error, /stalled: no events for 0 s; tried again/);
+    assert.deepEqual(await stillRunning([Number(fs.readFileSync(path.join(dir, 'pids.stalled'), 'utf8'))]), []);
+  });
+
+  test('a second stall gives up as too long', async () => {
+    const { adapter } = setup('hang', { idleMs: 300, timeoutMs: 60_000 });
+    const err = await refused(adapter.generate(ctx()), /took too long/);
+    assert.ok(Number(/codex: (\d+) ms/.exec(err.message)?.[1]) < 1000, err.message);
+  });
+
   test('an abort (the server stopping) kills it too', async () => {
     const { adapter, dir } = setup('hang');
     const ac = new AbortController();

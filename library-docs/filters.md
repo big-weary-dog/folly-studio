@@ -1,3 +1,5 @@
-Filters rework colour: each takes the colour of everything above it in the chain and changes it: recolour from a
-pick (or in flat Steps), turn hues, cut by an input source (mask), fade toward an edge, soften across neighbours (blur)
-or leave an afterglow (trails). blur and trails hold real LED colours, so a warp below them does not reach above.
+Filters rework the colour of everything above them in the chain, so they go after the sources.
+
+- Colour: recolour (from a pick, or flat Steps), hue-shift.
+- Cut and fade: mask (by an input source), edge-fade.
+- Soften: blur (space), trails (time). These hold real LED colours, so warps below them don't reach above.

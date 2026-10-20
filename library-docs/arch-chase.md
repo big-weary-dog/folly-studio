@@ -1,16 +1,14 @@
 ---
 looks: The arches light one after another, each filling along its wire, then fading.
 ---
-**bars** along each wire, timed by **in-turn** on the arches: each arch fills along its wire, then fades while the
-next one fills, bay by bay. Use it for a procession through the arches; copy its recipe into `modules` to change the
-tag or the gate.
+A procession through the arches, bay by bay. Copy the recipe into `modules` to change the tag.
 
 ## Overrides
-- in-turn.every: seconds from one arch to the next; 0.5–1 is stately, 0.3 a brisk procession.
-- in-turn.release: 0.5 leaves only the current arch; 3+ leaves a long wake.
-- in-turn.gate: `flash` lights each arch whole at once; `pass` sends a band up each arch.
-- in-turn.start: `back` reverses the procession; `random` lights arches out of order.
-- in-turn.attack: how long each arch takes to fill.
+- in-turn.every: seconds between arches; 0.5–1 stately, 0.3 brisk.
+- in-turn.release: 0.5 leaves only the current arch lit; 3+ a long wake.
+- in-turn.gate: `flash` lights each arch whole; `pass` sends a band up it.
+- in-turn.start: `back` reverses; `random` shuffles the order.
+- in-turn.attack: time for each arch to fill.
 
 ## Pitfalls
-- Few arches with `flash` and short attack and release flash whole arches fast enough to fail the flash check.
+- `flash` with short attack and release can fail the flash check.

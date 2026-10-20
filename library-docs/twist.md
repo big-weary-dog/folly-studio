@@ -1,25 +1,15 @@
 ---
 looks: The layer swirled round its centre like a whirlpool; each tower wound into a spiral.
 ---
-What is above it is turned round the layer's centre more toward the rim than at the middle, so straight spokes and
-stripes curl into a spiral. Wind separately turns it round each tower's upright
-axis, more the higher up, so on every tower a stripe winds round as it climbs. A warp: it bends the modules above it
-in its layer up to a blur or trails, so it goes after the source; after **polar** it curls spokes into spiral arms
-(preset galaxy). **rotate** turns everything by the same angle, **mirror** with Wedges folds into wedges, **turbulence** swirls
-at random.
+Place it after the source. **rotate** turns all by one angle; **mirror** folds into wedges; **turbulence** swirls at
+random.
 
 ## Params
-- swirl: In turns at the rim (none at the centre). ±0.25 is a gentle curl, ±1 a tight spiral, ±2 the tightest.
-- wind: 1 winds a stripe once round each tower; with no towers, round the layer's middle. Needs depth.
+- wind: on a flat layer it squeezes and flips instead; LEDs wind round their nearest tower.
 
 ## Pairings
-- Bars `right` → polar → twist (swirl −2), with a core drawn above it: a galaxy.
-- Then **scroll** `round` to turn the whole swirl.
-- Any source on a tower layer, then twist with wind 0.5–1: it winds round each tower. For clean barber-pole
-  stripes use bars `orbit` with Twist (spire-helix).
-- Then **anchor** (rose) as the last warp: a whirlpool in the rose window.
+- After **polar** (swirl −2): spiral arms (**galaxy**); then **scroll** `clockwise` or `counterclockwise` to turn it.
+- Then **anchor** (rose) as the last warp: a whirlpool in the rose.
 
 ## Pitfalls
-- Wind on a flat layer (the arches alone) does not spiral; it squeezes and flips the pattern across with height.
-- Wind takes each LED to its nearest tower: LEDs between two towers (the spirelets) wind round whichever is closer.
-- A large swirl on sparse LEDs near the rim breaks fine detail into speckle; keep the source's features big.
+- Large swirl on sparse rim LEDs speckles; keep source features big.

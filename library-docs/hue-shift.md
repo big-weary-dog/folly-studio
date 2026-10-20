@@ -1,27 +1,18 @@
 ---
 looks: Colours turned round the colour wheel across the layer: one colour becomes a rainbow.
 ---
-Every colour above it is turned round the colour wheel by an amount that grows along Direction (Spread), over time
-(Speed) and by a fixed Offset, keeping its brightness, so one red becomes a rainbow sweeping across the portal, and a whole palette slowly
-cycles. A filter: it reworks the colour of everything above it in its chain, so it goes after the sources; sources
-below it keep their colours. Reach for it to add a moving spectrum to any single-colour source, or to cycle a look's
-colours over a song; **recolour** chooses colours by brightness from a palette, **colour-wash** with `rainbow`
-changes the whole layer at once.
+Adds a moving spectrum to a single-colour source, or cycles a look's colours, keeping brightness. **recolour** picks
+colours by brightness from a palette; **colour-wash** `rainbow` changes the whole layer at once.
 
 ## Params
-- direction: `round` makes a colour wheel round the centre; `along` runs along each wire; `petal` or `ring` steps
-  one hue a rose petal or ring, never smearing within one.
-- spread: Turns of the wheel across the layer. 1 shows the full spectrum once; 0.2–0.4 a gentle shading.
-- offset: A fixed turn. 0.5 with spread 0 and speed 0 turns every colour to its opposite hue (red to cyan).
-- speed: Turns a second; 0.02–0.1 cycles slowly. Combined with spread it makes the rainbow move along Direction.
+- direction: `petal` or `ring` gives one hue per rose petal or ring.
+- spread: 0.2–0.4 a gentle shading; 1 the full spectrum once.
+- speed: 0.02–0.1 cycles slowly; with spread, the rainbow moves along Direction.
 
 ## Pairings
-- After a one-colour source (bars, single-strand, sparkle): a rainbow of them.
-- After a rainbow colour-wash, then **turbulence**: hues drifting unevenly (preset palette-drift).
-- On `round` after anything, then **anchor** (rose): a colour wheel centred on the rose.
+- `round`, then **anchor** on the rose: a colour wheel centred on it.
 
 ## Pitfalls
-- White, grey and black have no hue and do not change; pale colours change only a little. Feed it saturated colours.
-- It ignores the show palette: a full turn passes through every hue, clashing with a curated palette. Keep spread and
-  speed small to stay near it.
-- Fast speed (above ~0.5) on a big bright area reads as colour flicker.
+- White, grey and black don't change; pale colours barely. Feed it saturated colours.
+- It ignores the palette; keep spread and speed small to stay near it.
+- Speed above ~0.5 on a big bright area reads as flicker.

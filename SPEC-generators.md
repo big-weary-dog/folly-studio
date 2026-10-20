@@ -65,15 +65,22 @@ input; codex: from its `--json` events), and they and a line per round are saved
 
 **Library docs** (`src/generate/library-docs.ts`). Beside the prompt, once per library, the server builds a tree of
 markdown: `library/README.md` (how layers, sources, warps, filters and presets combine; blends; inputs; groups and
-tags; globals and bindings), `library/<kind>s/README.md` (a paragraph per module of that kind) and
+tags; globals and bindings), `library/<kind>s/README.md` (the kind, and its modules by category, names only) and
 `library/<kind>s/<name>.md` (every param with its type, range, default, unit and effect; directions; pairings;
 pitfalls). The prose is hand-written in `library-docs/<name>.md` (front matter `looks:`, the line the summary
 shows; a paragraph; `## Params` with a line per param, `## Overrides` for a preset; `## Pairings`; `## Pitfalls`);
 types, ranges, defaults, options, units (the code's `label`) and each param's `help` come from the catalogue, and recipes from the index,
 so the tree follows the library. `tools/build-docs.ts` writes it to a folder. A test fails when the prose names a
 param the code lacks or a module the library has not, or (once the library's renames have landed) a module has no
-prose or a param no `help`. The models read it with one tool, `read_doc({ path })`: a path in the tree (`library/sources/bars.md`), at most
-8 reads an answer, each read noted in the idea's log line; anything else is refused with the tree's index.
+prose or a param no `help`. The prose is kept short: a page says only what the code's help does not.
+
+The docs reach the model in its turn (`src/generate/docs-turn.ts`), never the cached system prompt: the pages an idea
+needs, each whole in a `<doc path="…">`, before the turn's text: always the core (`library/README.md` and each
+kind's README), then for Explore and Deep the pages the sketch turn named (`docs`, read leniently as `read_doc` reads
+paths, found in the tree, once each), for a refinement the pages of the modules its look uses; at most 18 in all. Every later call of the idea (repair, notes, runtime,
+critique) carries the same pages again; the idea's log notes them (`docsGiven`). The `read_doc({ path })` tool stays
+for a page not given: a path in the tree (`library/sources/bars.md`), at most 8 reads an answer, each read noted in
+the idea's log line; a page the turn carries is declined unread, and anything else is refused.
 
 **The render check** (`claude`, `codex`; `src/generate/check.ts`). Where the render box can run (`probe()` is ok),
 the expanded look is rendered for 2 s in the box, in the bakes' lane, before it is saved. A look the box cannot load,
@@ -100,7 +107,8 @@ as `-i` attachments.
 **Explore** (`claude`, `codex`; `src/generate/explore.ts`). A new idea (not a refinement) asks for one of three
 levels, `explore: 'quick' | 'explore' | 'deep'` (default `explore`, as is an idea that names none):
 - **Quick**: the rounds above, at the model's own effort.
-- **Explore**: effort raised to at least `high`. First a sketch turn in its own small schema (no look, no docs):
+- **Explore**: effort raised to at least `high`. First a sketch turn in its own small schema (no look, no docs; it
+  names the doc pages composing it needs, `docs`, which every later turn carries):
   three takes that differ in which part of the installation leads (each other part answering in its own voice, never
   one wash), motion, scale, colour and tempo, each named with what one would see; then a synthesis, `took` (one line:
   what it takes from each take, by name) and `brief`. The synthesis is composed as the look (the sketches in the turn
@@ -122,11 +130,18 @@ more red, only the spires`) is an idea with `refine` and `lookId` set; it counts
 reads the look as it is stored then and turns it back into a composition (`refine.ts`: a module whose code is still
 its library ref's becomes `{ use: ref, params }`, from the catalogue's declarations; other code becomes an
 extension), which goes to the model with the request (fenced as untrusted, in the user turn; the system prompt is
-the same cached one). The answer is expanded, repaired, checked and (when the model has it) critiqued as an idea is,
+the same cached one). The model answers with edits to that composition (`edits.ts`, its own schema: `{ edits }` or
+`{ rewrite: <the whole composition> }`), each by path (`layers/Rose/modules/bars/params/speed`, a list's item by its
+title, id, name or use, else index): `set`, `remove`, `insert`, `add_layer`, `remove_layer`, `move_layer`,
+`replace_layer`; a value is typed as the composition types a param's (never JSON in a string) and `insert` takes a
+`module`. The server applies them in order to a copy; an edit that does not apply (a path that leads nowhere, a
+key the composition has no field for, an unknown op) is skipped and named with why, and one `edits` repair round sends
+the list back (its answer kept when fewer fail). A layer the edits left as it was is saved as it was stored, byte for
+byte. The result is expanded, repaired, checked and (when the model has it) critiqued as an idea is,
 and saved onto the look as an edit through the API's rules (a version of what was there, the bake and review
 cleared). `idea.changes` lists what changed, at most 24 lines, from comparing the two compositions (`Fire: speed 0.4 →
-0.2`, `+ layer Sparkle (sparkle)`, `− layer Bed`). `refine.critique` asks for a critique round on the look as it is
-(any model with the box; the request may be empty); `refine.fix = { layer, error }` sends a runtime error the
+0.2`, `+ layer Sparkle (sparkle)`, `− layer Bed`, `speed: default → 0.8`). `refine.critique` asks for a critique
+round on the look as it is (any model with the box; the request may be empty); `refine.fix = { layer, error }` sends a runtime error the
 Studio or a bake saw, for a fix. Sketch refines by its words: faster/slower, brighter/dimmer, a colour word (the
 palette), `add <theme>` (a layer), `only the <place>` (the layers' places); a request with none of those fails
 with "Sketch can't make that change; try another model". A refinement has no fallback: when its model fails, the
@@ -150,13 +165,14 @@ transcripts.
 - `claude`: one Messages API call with the prompt as the system prompt (cached: the same bytes on every call), and
   structured output whose JSON Schema is the composition's (`compositionSchema(groups, catalog)`: the place fields
   `wireSchema(groups)` gives, group ids, tags and preset names as enums), and `read_doc` as a tool: a tool call is
-  answered from the tree and the call made again (its thinking and tool turns kept), at most 12 calls. A repair is the same call with the
+  answered from the tree and the call made again (its thinking and tool turns kept), at most 12 calls; the docs given
+  open the first user turn. A repair is the same call with the
   answer as an assistant turn and the errors in a user turn; a critique likewise, its stills as image blocks; a
   refinement's user turn is the look's composition and the request.
 - `codex`: one `codex exec` call (the Codex CLI, signed in with `codex login`): `[-i <still> …] --json --ephemeral --skip-git-repo-check
   --ignore-user-config --ignore-rules -s read-only -C <an empty folder> -m <model> -o <answer file> --output-schema
   <the composition's schema, strict> -c model_reasoning_effort="<effort>" -c web_search="disabled" -c features.<tool>=false
-  … -c mcp_servers.docs.command=<node> -c mcp_servers.docs.args=[docs-mcp.ts, <tree>, <reads file>, 8] -c
+  … -c mcp_servers.docs.command=<node> -c mcp_servers.docs.args=[docs-mcp.ts, <tree>, <reads file>, 8, <given paths, comma-separated>] -c
   mcp_servers.docs.default_tools_approval_mode="approve" -`, the prompt on stdin; its `--json` events on stdout give
   the idea log its items and usage. The shell stays
   off, so the model reads nothing but the docs: `docs-mcp.ts` is a stdlib-only MCP server on stdio with the one tool
@@ -166,7 +182,9 @@ transcripts.
   an npm `codex.cmd` shim is read for the script it runs); its environment is only what the CLI needs; its whole
   process tree is killed on a wall clock (`timeoutSeconds`, else `STUDIO_CODEX_TIMEOUT_MS`, 300 s; a composition,
   not a repair, critique or sketch, gets 1.5 times it at `high` effort and twice it at `xhigh`), past 4 MB of
-  output, or when the server stops. The answer, at most 512 KB, is read as untrusted data like `claude`'s.
+  output, or when the server stops. A call that writes no event for `STUDIO_CODEX_IDLE_MS` (180 s, twice it at
+  `xhigh`; a healthy call's longest quiet stretch measured 143 s) has stalled: its tree is killed, the stall
+  logged as a call of the idea, and the call tried once more; a second stall fails as too long. The answer, at most 512 KB, is read as untrusted data like `claude`'s.
 - `fleet`: hands the idea to a boxed Fleet worker as an untrusted brief (experimental), in a workspace holding
   copies of the modules `check.ts` imports (the core's, `fseq.ts`, `frames.ts`), as they are. The worker
   also bakes (`node check.ts --bake`); the adapter reads its `look.json` (title, summary, duration, layers, globals,

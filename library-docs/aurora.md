@@ -1,26 +1,21 @@
 ---
 looks: Soft green-to-violet curtains of light drifting across a dark blue sky.
 ---
-Soft patches of colour drift sideways across a deep blue sky, green at the bottom fading through cyan to violet at
-the top, like the northern lights: a still smooth **bars** gradient seen only through drifting **clouds** (as an
-input to **mask**), over a **colour-wash** drawn `under`. Calm, slow and night-time. **clouds** alone gives billows
-in palette colours; **starfield** is points not curtains; **palette-drift** fills the layer with no sky.
+Northern lights: a still **bars** gradient seen through drifting **clouds** (mask input) over a dim sky wash. Calm,
+night-time. **clouds** alone billows in palette colours; **starfield** is points, not curtains.
 
 ## Overrides
-- bars.colours: the curtain colours, ground to top; set roles (`body accent high`) to follow the palette.
-- bars.speed: 0 holds the gradient; 0.1 makes colours climb slowly through the curtains.
-- bars.bars: colour bands up the layer; 2 with three colours is one ramp.
-- clouds.cover: how much of the sky the curtains fill; 0.3 wisps, 0.8 nearly all.
-- clouds.speed, clouds.size and clouds.direction: drift rate, curtain size, and which way (`up` for rising veils).
-- mask.softness: curtain edges; 0.24 soft, 0.05 crisp.
-- mask.cutoff: raise to thin the curtains.
+- bars.colours: curtain colours, ground to top.
+- bars.speed: 0.1 makes colours climb through the curtains.
+- clouds.cover: 0.3 wisps, 0.8 nearly all the sky.
+- clouds.direction: `up` for rising veils.
+- mask.softness: 0.24 soft edges, 0.05 crisp.
 - colour-wash.colours: the sky.
 
 ## Pairings
-- With a sparse **sparkle** layer above (`high`, density 0.15) for stars in the gaps.
-- Bind clouds.cover to energy so the aurora spreads as the music builds.
+- A sparse **sparkle** layer above (`high`, density 0.15) for stars.
+- Bind clouds.cover to energy so it spreads as the music builds.
 
 ## Pitfalls
-- The mask reads the clouds' brightness, coloured by the palette (`all`): a dark palette thins the curtains. Set
-  clouds.colours to `#ffffff` so only cover decides.
-- Hex colours ignore the look's palette.
+- The mask reads the clouds' palette-coloured brightness: a dark palette thins the curtains. Set clouds.colours to
+  `#ffffff` so only cover decides.

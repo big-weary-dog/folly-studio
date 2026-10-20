@@ -23,8 +23,9 @@ export function docCandidates(raw: unknown): string[] {
 export const READ_CAP = 8;
 
 export const READ_DOC_DESCRIPTION = 'Read one file of the library docs: library/README.md (how the pieces combine), '
-  + 'library/<kind>/README.md (a paragraph per module; kinds: sources, warps, filters, presets) or '
-  + 'library/<kind>/<name>.md (a module\'s params, pairings and pitfalls). At most 8 reads.';
+  + 'library/<kind>/README.md (its modules by category; kinds: sources, warps, filters, presets) or '
+  + 'library/<kind>/<name>.md (a module\'s params, pairings and pitfalls). Only for a page the turn does not carry; '
+  + 'at most 8 reads.';
 
 /** The text of the first candidate that is a regular file whose real path is inside `dir` (itself a real path),
  * with its tree path; null if none. */

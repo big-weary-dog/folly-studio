@@ -72,17 +72,19 @@ export function killTree(pid: number | undefined, platform = process.platform) {
   }
 }
 
-export type Ran = { code: number | null, signal: string | null, killed: 'timeout' | 'abort' | 'output' | null,
+export type Ran = { code: number | null, signal: string | null,
+  killed: 'timeout' | 'idle' | 'abort' | 'output' | null,
   tail: string, ms: number };
 
 /**
  * Run `cmd args` in `cwd` with `input` on stdin. Resolves when it exits (its tree killed then too, so nothing it left
  * behind lingers), with the last 4 KB it wrote to stderr (and to stdout, unless `stdout` takes all of that).
- * Rejects only when it cannot start.
+ * `idleMs`: its tree is killed too when it writes nothing to stdout for that long (a call that stalled). Rejects only
+ * when it cannot start.
  */
-export function runCommand({ cmd, args, input = '', cwd, env, timeoutMs, maxOutputBytes = 4 << 20, signal, stdout }:
-  Command & { input?: string, cwd: string, env: Env, timeoutMs: number, maxOutputBytes?: number,
-    signal?: AbortSignal, stdout?: (chunk: Buffer) => void }): Promise<Ran> {
+export function runCommand({ cmd, args, input = '', cwd, env, timeoutMs, idleMs, maxOutputBytes = 4 << 20, signal,
+  stdout }: Command & { input?: string, cwd: string, env: Env, timeoutMs: number, idleMs?: number,
+    maxOutputBytes?: number, signal?: AbortSignal, stdout?: (chunk: Buffer) => void }): Promise<Ran> {
   return new Promise((resolve, reject) => {
     const started = Date.now(), win = process.platform === 'win32';
     const child = spawn(cmd, args, { cwd, env, stdio: ['pipe', 'pipe', 'pipe'], detached: !win, windowsHide: true,
@@ -92,6 +94,12 @@ export function runCommand({ cmd, args, input = '', cwd, env, timeoutMs, maxOutp
       if (!killed && !done) { killed = why; killTree(child.pid); }
     };
     const timer = setTimeout(() => kill('timeout'), timeoutMs);
+    let idle: NodeJS.Timeout | undefined;
+    const quiet = () => {
+      clearTimeout(idle);
+      if (idleMs) idle = setTimeout(() => kill('idle'), idleMs);
+    };
+    quiet();
     const onAbort = () => kill('abort');
     signal?.addEventListener('abort', onAbort, { once: true });
     const take = (buf: Buffer, keep = true) => {
@@ -99,13 +107,14 @@ export function runCommand({ cmd, args, input = '', cwd, env, timeoutMs, maxOutp
       if (keep) tail = (tail + buf.toString('utf8')).slice(-4096);
       if (bytes > maxOutputBytes) kill('output');
     };
-    child.stdout.on('data', (buf: Buffer) => { stdout?.(buf); take(buf, !stdout); });
+    child.stdout.on('data', (buf: Buffer) => { quiet(); stdout?.(buf); take(buf, !stdout); });
     child.stderr.on('data', (buf: Buffer) => take(buf));
     child.stdin.on('error', () => {}); // it may exit before reading everything
     child.stdin.end(input);
     const finish = () => {
       done = true;
       clearTimeout(timer);
+      clearTimeout(idle);
       signal?.removeEventListener('abort', onAbort);
     };
     child.on('error', (err) => { finish(); reject(err); });

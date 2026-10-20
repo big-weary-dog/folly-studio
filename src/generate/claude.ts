@@ -8,6 +8,7 @@ import { GenerateError } from '../../shared/schemas/generated.ts';
 import type { Logger } from '../http.ts';
 import type { Context } from './index.ts';
 import { docCandidates, READ_CAP, READ_DOC_DESCRIPTION } from './doc-path.ts';
+import { docsBlock, givenAnswer } from './docs-turn.ts';
 import { buildPrompt, buildRepairMessage, buildUserMessage } from './prompt.ts';
 
 export const DEFAULT_MODEL = 'claude-opus-5-5';
@@ -53,11 +54,12 @@ export function createClaudeAdapter(o: Options = {}) {
 
   async function generate(ctx: Context) {
     const { text, library = [], rig, groups = rig?.groups || [], prompt, turn, repair, signal, docsRead = [], schema,
-      images } = ctx;
+      images, docsGiven = [] } = ctx;
     if (!cfg.apiKey) {
       throw new GenerateError('The AI generator is not configured on this server.', 'no ANTHROPIC_API_KEY');
     }
-    const { body, headers, docs } = buildRequest({ text, library, rig, groups, prompt, turn, repair, schema, images });
+    const { body, headers, docs } = buildRequest({ text, library, rig, groups, prompt, turn, repair, schema, images,
+      docsGiven });
     const messages = body.messages as object[];
     const t0 = Date.now(), usage = { input: 0, cached: 0, output: 0, reasoning: 0 }, from = docsRead.length;
     let reads = 0, reply: Block[] | undefined, failed = '';
@@ -74,7 +76,8 @@ export function createClaudeAdapter(o: Options = {}) {
         if (calls >= MAX_CALLS) throw new GenerateError('The AI generator failed; please try again.', 'too many calls');
         messages.push({ role: 'assistant', content: message.content },
           { role: 'user', content: asks.map((b) => ({ type: 'tool_result', tool_use_id: b.id,
-            ...readDoc(docs, (b.input as { path?: unknown } | undefined)?.path, reads++ < READ_CAP, docsRead) })) });
+            ...readDoc(docs, (b.input as { path?: unknown } | undefined)?.path, reads++ < READ_CAP, docsRead,
+              docsGiven) })) });
       }
     } catch (err) {
       failed = String((err as Error)?.message || err);
@@ -104,11 +107,12 @@ export function createClaudeAdapter(o: Options = {}) {
     }
   }
 
-  function buildRequest({ text, library, rig, groups, prompt, turn, repair, schema: asked, images: first = [] }:
-    Pick<Context, 'text' | 'library' | 'rig' | 'groups'> & Partial<Pick<Context, 'prompt' | 'turn' | 'repair'
-    | 'schema' | 'images'>>) {
+  function buildRequest({ text, library, rig, groups, prompt, turn, repair, schema: asked, images: first = [],
+    docsGiven = [] }: Pick<Context, 'text' | 'library' | 'rig' | 'groups'> & Partial<Pick<Context, 'prompt' | 'turn'
+    | 'repair' | 'schema' | 'images' | 'docsGiven'>>) {
     const built = prompt?.() ?? buildPrompt({ library, rig, groups }), { system } = built;
-    const schema = asked ?? built.schema, docs = asked ? new Map<string, string>() : built.docs ?? new Map();
+    const tree = built.docs ?? new Map<string, string>(), given = docsBlock(tree, docsGiven);
+    const schema = asked ?? built.schema, docs = asked ? new Map<string, string>() : tree;
     const said = repair?.message ?? buildRepairMessage(repair?.errors ?? []);
     const blocks = (pngs: Uint8Array[]) => pngs.map((png) => ({ type: 'image', source: { type: 'base64',
       media_type: 'image/png', data: Buffer.from(png).toString('base64') } }));
@@ -120,7 +124,7 @@ export function createClaudeAdapter(o: Options = {}) {
       model: cfg.model, max_tokens: cfg.maxTokens, stream: true, thinking: { type: 'adaptive' },
       output_config: { effort: cfg.effort, format: { type: 'json_schema', schema } },
       system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-      messages: [{ role: 'user', content: withImages(first, turn ?? buildUserMessage(text)) }, ...turns],
+      messages: [{ role: 'user', content: withImages(first, given + (turn ?? buildUserMessage(text))) }, ...turns],
       ...(docs.size ? { tools: [READ_DOC] } : {}),
     };
     const headers: Record<string, string> = { 'content-type': 'application/json', 'x-api-key': cfg.apiKey!,
@@ -244,12 +248,15 @@ async function readStream(body: ReadableStream<Uint8Array>) {
 }
 
 /** A read_doc call's answer from the tree: the doc, or why not (the tree's README names the rest). */
-function readDoc(docs: ReadonlyMap<string, string>, raw: unknown, allowed: boolean, read: string[]) {
+function readDoc(docs: ReadonlyMap<string, string>, raw: unknown, allowed: boolean, read: string[],
+  given: readonly string[]) {
   if (!allowed) return { content: `The limit of ${READ_CAP} reads is reached: compose the look now.`, is_error: true };
   const path = docCandidates(raw).find((p) => docs.has(p));
   if (!path) {
-    return { content: `No such doc: ${String(raw).slice(0, 80)}. Start at library/README.md.`, is_error: true };
+    return { content: `No such doc: ${String(raw).slice(0, 80)}: a module's page is library/<kind>/<name>.md.`,
+      is_error: true };
   }
+  if (given.includes(path)) return { content: givenAnswer(path), is_error: true };
   read.push(path);
   return { content: docs.get(path)! };
 }

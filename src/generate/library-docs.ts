@@ -1,6 +1,7 @@
-// The library's docs for the AI builders (SPEC-generators "Library docs"): a tree of markdown the models read with
-// read_doc. Prose is hand-written per module in library-docs/<name>.md; types, ranges, defaults, options and units
-// come from the catalogue and recipes from the index, so the tree follows the library and never drifts from it.
+// The library's docs for the AI builders (SPEC-generators "Library docs"): a tree of markdown whose pages an idea's
+// turns carry (docs-turn.ts), the rest read with read_doc. Prose is hand-written per module in library-docs/<name>.md;
+// types, ranges, defaults, options and units come from the catalogue and recipes from the index, so the tree follows
+// the library and never drifts from it.
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -98,19 +99,21 @@ const passOn = (p: Prose, skip: string[]) => p.sections.filter((s) => !skip.incl
 export function buildDocs(catalog: Catalog, prose: ReadonlyMap<string, string> = new Map()): Docs {
   const docs: Docs = new Map(), read = (name: string) => parseProse(prose.get(name) ?? '');
   const lineOf = (name: string, summary?: string) => read(name).looks || String(summary ?? '').trim();
-  const kinds: [string, { name: string, title?: string, summary?: string }[]][] = [
+  const kinds: [string, { name: string, category?: string }[]][] = [
     ...MODULE_KINDS.map((k) => [k, [...catalog.modules.values()].filter((m) => (m.kind ?? 'source') === k)] as
       [string, { name: string }[]]),
     ['preset', [...catalog.presets.values()]]];
+  // A kind's README is its intro and its entries by category, names only: each page says the rest.
   for (const [kind, list] of kinds) {
-    const index = list.map((m) => {
-      const p = read(m.name);
-      return `## ${m.name}${m.title ? ` — ${m.title}` : ''}\n${lineOf(m.name, m.summary)}${p.about ? `\n\n${p.about}`
-        : ''}\nDocs: ${kindDir(kind)}/${m.name}.md`;
-    });
-    const intro = read(`${kind}s`);
+    const byCategory = new Map<string, string[]>();
+    for (const { name, category = 'other' } of list) {
+      byCategory.set(category, [...byCategory.get(category) ?? [], name]);
+    }
+    const intro = read(`${kind}s`), index = `## By category
+${[...byCategory].map(([c, names]) => `- ${c}: ${
+      names.join(', ')}`).join('\n')}\n\nEach is ${kindDir(kind)}/<name>.md.`;
     docs.set(`${kindDir(kind)}/README.md`, [`# ${kind[0]!.toUpperCase()}${kind.slice(1)}s`, intro.about,
-      ...passOn(intro, []), ...index].filter(Boolean).join('\n\n') + '\n');
+      ...passOn(intro, []), index].filter(Boolean).join('\n\n') + '\n');
   }
   for (const m of catalog.modules.values()) {
     const p = read(m.name), said = bullets(section(p, 'Params'));
@@ -133,7 +136,7 @@ export function buildDocs(catalog: Catalog, prose: ReadonlyMap<string, string> =
   const top = read('README'), count = (dir: string) => [...docs.keys()]
     .filter((k) => k.startsWith(`${dir}/`) && !k.endsWith('README.md')).length;
   docs.set('library/README.md', [`# The library`, top.about, ...passOn(top, []), `## The tree\n${
-    kinds.map(([k]) => `- ${kindDir(k)}/README.md: ${count(kindDir(k))} ${k}s, a paragraph each`).join('\n')}`]
+    kinds.map(([k]) => `- ${kindDir(k)}/README.md: ${count(kindDir(k))} ${k}s by category`).join('\n')}`]
     .filter(Boolean).join('\n\n') + '\n');
   return new Map([...docs].sort(([a], [b]) => a.localeCompare(b)));
 }

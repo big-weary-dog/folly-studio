@@ -45,17 +45,18 @@ describe('decompose and diff', () => {
       assert.equal(edited.extensions[0].code, look.layers[0].modules[0].code);
     });
 
-  test('what changed, in words: a param, a level, a layer added, the palette', () => {
+  test('what changed, in words: a param, a level, a layer added, the palette, the speed', () => {
     const a = decompose(lookOf(answer()), CATALOG), b = structuredClone(a);
     b.layers[0].modules[0].params.push({ name: PACE_PARAM, value: 0.1 });
     b.layers[0].level = 0.5;
     b.layers.push({ ...structuredClone(a.layers[0]), title: 'Glow' });
-    b.globals = { palette: 'ember' };
+    b.globals = { palette: 'ember', speed: 0.8 };
     const lines = diffCompositions(a, b).join('\n');
     assert.match(lines, new RegExp(`${PACE_PARAM} default → 0\\.1`));
     assert.match(lines, /level/);
     assert.match(lines, /\+ .*Glow/);
     assert.match(lines, /palette/);
+    assert.match(lines, /speed: default → 0.8/);
     assert.deepEqual(diffCompositions(a, structuredClone(a)), []);
     const picked = { ...a, globals: { palette: { colors: ['#ff0000'] } } };
     assert.deepEqual(diffCompositions(picked, structuredClone(picked)), [], 'an equal palette object is no change');
@@ -199,6 +200,31 @@ describe('the rounds in the queue', () => {
     assert.equal(after.versions.length, 1);
     assert.equal(store.looks.list().length, 1, 'no new look');
   });
+
+  test('a refinement answers edits: applied to the composition, one that fails sent back once, the rest kept as stored',
+    async () => {
+      const asks = [];
+      const claude = async (ctx) => {
+        asks.push(ctx);
+        return asks.length === 1 ? { edits: [{ op: 'set', path: 'layers/Glow/levl', value: '0.4' }] }
+          : { edits: [{ op: 'set', path: 'layers/Glow/level', value: '0.4' }] };
+      };
+      const { store, user, queue } = onClaude(claude, stubBox());
+      const made = lookOf(answer({ layers: [answer().layers[0], { ...answer().layers[0], title: 'Glow' }] }));
+      const look = store.looks.create({ owner: user.id, ...made });
+      const i = store.ideas.create({ owner: user.id, text: 'dim the glow', status: 'queued', generator: 'claude',
+        lookId: look.id, refine: {} });
+      queue.enqueue(i);
+      await queue.idle();
+      const done = store.ideas.get(i.id), after = store.looks.get(look.id);
+      assert.equal(done.status, 'ready', done.error);
+      assert.match(asks[0].turn, /"edits"/);
+      assert.ok(asks[0].schema.properties.edits && asks[0].schema.properties.rewrite, 'the edits schema');
+      assert.match(asks[1].repair.message, /edits\[0\] set layers\/Glow\/levl: levl is not a field of a look/);
+      assert.deepEqual(done.changes, ['Glow: level 0.8 → 0.4']);
+      assert.equal(JSON.stringify(after.layers[0]), JSON.stringify(look.layers[0]), 'untouched: byte for byte');
+      assert.equal(after.layers[1].level, 0.4);
+    });
 
   test('a later refinement is told the look\'s history; an undone one is left out', async () => {
     const turns = [];

@@ -1,11 +1,10 @@
-How the library's pieces make a look. Read this once, then a kind's README to choose, then the docs of the modules
-you use.
+How the library's pieces make a look. Each kind's README lists its modules by category; each module has its page.
 
 ## Layers
 A look is a stack of 1 to 4 layers, composited bottom (first) to top. Each layer lands on a union of groups (its
 `groups`, by id) and fills what it lands on: a source's coordinates run 0..1 across the layer's own LEDs, so the
 same chain fits a tower or the whole rig. Usual shape: a calm bed on the root group, then one or two layers on the
-places the idea names. `level` (0..1) scales the whole layer; a bed under an element usually sits at 0.15–0.35.
+places the idea names. `level` (0..1) scales the whole layer.
 
 Layer blends, how a layer meets the layers below:
 - `add`: sums light. Brightens; colours mix toward white. Good for sparkles, beams and anything mostly dark.
@@ -24,7 +23,8 @@ works on everything above it, as in an image editor.
 - A **warp** bends where everything above it reads its pixel (fold, turn, slide, wrap), so a warp goes below what it
   bends (later in the list). `blur` and `trails` hold real LED colours and end a stage: a warp below one does not
   reach above it.
-- `anchor` moves the centre that `in`, `out`, `round`, polar and the rotations use; put it lowest of the warps.
+- `anchor` moves the centre that `in`, `out`, the turning directions, polar and the rotations use; put it lowest of
+  the warps.
 
 Example, "a chase only inside clouds, mirrored": single-strand, clouds (`id: "sky"`, `as: "input"`), mask
 (`input: "sky"`), mirror.
@@ -40,8 +40,9 @@ second bars. Start from a preset when one is the idea, or copy its recipe into `
 ## Values
 - Numbers within the param's range (out of range is clamped). On/off for toggles; a word for a choice.
 - Directions: `up down right left back front` along the layer's axes (back is away from the front); `out` and `in`
-  from and to the layer's centre (or the anchor's), `round` circling it, `along` following each wire. Each module
-  lists the directions it supports.
+  from and to the layer's centre (or the anchor's), `clockwise` and `counterclockwise` circling it (as seen from the
+  front), bars' `orbit-clockwise` and `orbit-counterclockwise` round an upright axis (as seen from above), `along`
+  following each wire. Each module lists the ones it takes.
 - Colours (`colours`, a pick): `all` (the palette low to high), a role (`low` `body` `accent` `high`), a slot
   (`accent2`), `rainbow`, or `#rrggbb`; joined by spaces in order (`"accent high"`) or dealt in turn with `/`
   (`"body/accent"`). A source draws only from its one pick and reads it by position: bands take colours in turn, a
@@ -55,7 +56,7 @@ Any number param may be bound instead of set:
   holds it at its centre); `"pace": "<fader>"` multiplies its rate by one (a storm that quickens it), never jumping.
 - `{ "mod": "global", "name": "energy", "from": 0.2, "to": 1 }`: follows a global, macro or modulator. Library
   sources never read energy themselves: bind density, speed or level to it to build.
-- `{ "mod": "envelope", "from": 0, "to": 1 }`: the layer clip's fade.
+- `{ "mod": "envelope", "from": 0, "to": 1 }`: the layer clip's fade, so a param grows as its layer fades in.
 - `{ "mod": "beats", "per": 0.5 }`: keeps time: the param is `per` × the beats a second, so a speed follows the bpm.
 Speeds are integrated, so binding a speed never makes the motion jump.
 
@@ -68,23 +69,15 @@ to another rig. Modules that find places themselves (`anchor`, `in-turn`) take a
 A look may set `globals`: `palette` (by name; every pick reads it), `speed` (0..4, 1: scales every clock), `level`,
 `hue` (turns the whole look), `saturation`, `energy` (0..1, what bindings follow), and macros (named numbers
 bindings can follow). `bpm` (40–240, 120 when unset) sits beside `globals`, not in it: the look's tempo, which LFOs
-in beats and tempo bindings keep. `automation` moves a global or macro over time: energy from 0.2 to 1 over a minute is a
-build. A palette sets hue, not brightness: choose one whose colours suit the idea and keep them at full strength.
+in beats and tempo bindings keep. `automation` moves a global or macro between points over the duration: energy from
+0.2 to 1 over a minute is a build. A palette sets hue, not brightness: choose one whose colours suit the idea and
+keep them at full strength.
 
 ## Macros: one dial for many params
 A macro is a named number of the look's own (`globals.macros`, at most 16; a name like `storm`). Bind params in
 any layer to it and one automation lane moves them together: the storm darkens the bed while bolts come faster.
-`from`..`to` maps the macro's place in its own min..max onto the param.
-```json
-"globals": { "macros": [{ "name": "storm", "value": 0.2, "min": 0, "max": 1 }] },
-"automation": [{ "name": "storm", "points": [[0, 0.2], [40, 1]] }],
-"layers": [
-  { "modules": [{ "use": "colour-wash", "params": [{ "name": "brightness",
-    "value": { "mod": "global", "name": "storm", "from": 0.5, "to": 0.15 } }] }] },
-  { "modules": [{ "use": "lightning", "params": [{ "name": "speed",
-    "value": { "mod": "global", "name": "storm", "from": 0.1, "to": 0.8 } }] }] }]
-```
-A layer's `level` is not a param and cannot be bound: bind a source's brightness, density or speed instead.
+`from`..`to` maps the macro's place in its own min..max onto the param (the example below). A
+layer's `level` is not a param and cannot be bound: bind a source's brightness, density or speed instead.
 
 ## Modulators: things that move together
 A macro with a `mod` (an LFO or a tempo pulse) is a modulator: it moves by itself, and every param bound to it
@@ -111,9 +104,6 @@ it runs. Prefer one modulator to the same LFO repeated: copies only stay in step
 - `duration` (seconds, 30 when unset) is how long the look runs before it loops.
 - A layer's `clips` `[{ "start", "end", "fadeIn", "fadeOut" }]` (seconds) are when it plays; with none it plays
   throughout. Keep the bed clip-less and give the arrivals clips: a layer that enters at 20 s with a 4 s fade.
-- The envelope binding (`{ "mod": "envelope", "from": 0, "to": 1 }`) follows the clip's fade, so a param can grow
-  as its layer fades in.
-- `automation` moves globals and macros between points over the duration: a build, a drop, a calm ending.
 
 ## Timing across places
 Some modules make the same effect play in several places, each its own copy:
@@ -126,7 +116,7 @@ Each is a warp, below the sources it times; their docs give the params.
 ## Layer or module?
 A new layer when the part goes on different places, plays in a different clip, or needs its own level or blend: a
 bed on the root, bolts on the spires. Another module in the same chain when it works on the same place: a second
-source over the first, a mask, a warp. At most 4 layers and 8 modules a layer.
+source over the first, a mask, a warp.
 
 ## Safety and taste
 - Large areas flashing, strobing or cycling colour faster than about 3 Hz fail the flash check.

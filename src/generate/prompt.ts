@@ -11,6 +11,7 @@ import type { LibraryEntry, Rig, RigGroup } from '../../shared/schemas/rig.ts';
 import { buildCatalog, type Catalog } from './catalog.ts';
 import { compositionSchema } from './composition.ts';
 import type { ExpandError } from './expand.ts';
+import { EDITS_GUIDE } from './edits.ts';
 import { COMPOSE_GUIDE, EXAMPLES as COMPOSITIONS, GLOBALS_GUIDE, PIXEL_API, TASTE } from './guide.ts';
 import { buildDocs, loadProse, looksOf } from './library-docs.ts';
 
@@ -142,11 +143,11 @@ function formatCompositions(catalog: Catalog, groups: Groups) {
     .map((e) => `Idea: ${e.idea}\n${JSON.stringify(e.look(root, place))}`).join('\n\n');
 }
 
-export const DOCS_NOTE = `Its docs are a tree you read with the read_doc tool: library/README.md (how layers, chains,
-blends, inputs and globals combine), library/<kind>/README.md (a paragraph per module; kinds: sources, warps, filters,
-presets) and library/<kind>/<name>.md (every param with its range, default, unit and effect; pairings; pitfalls).
-Before composing, read the docs for what the idea needs: a kind's README to choose, then the modules you use (at most
-8 reads in all). Give only the params a module lists, in brackets below.`;
+export const DOCS_NOTE = `Its docs are a tree: library/README.md (how layers, chains, blends, inputs and globals
+combine), library/<kind>/README.md (the kind, and its modules by category; kinds: sources, warps, filters, presets) and
+library/<kind>/<name>.md (every param with its range, default, unit and effect; pairings; pitfalls). The pages an idea
+needs come with its turn, each in a <doc>: read them there. The read_doc tool is for a page not given (at most 8
+reads). Give only the params a module lists, in brackets below.`;
 
 /** The system prompt for the prompted generators. Pure function of (library, rig; its groups unless given); `docs`:
  * whether the model can read the library docs. */
@@ -244,8 +245,8 @@ everything else as it was.`;
 export const fence = (text: unknown, tag: string, max: number) => String(text ?? '')
   .replace(new RegExp(`<\\/?\\s*${tag}\\b[^>]*>`, 'gi'), ' ').trim().slice(0, max);
 
-/** A refinement's user turn: the look as it is, as a composition, its history (refine-history.ts), and the change
- * asked for (untrusted, fenced), or a runtime error to fix. */
+/** A refinement's user turn: the look as it is, as a composition, its history (refine-history.ts), the change asked
+ * for (untrusted, fenced) or a runtime error to fix, and how to answer: edits to the composition (edits.ts). */
 export function buildRefineMessage(composition: unknown, request: unknown, fix?: { layer: string, error: string },
   history?: string) {
   const ask = fence(request, 'request', 1000), past = fence(history, 'history', 2000);
@@ -267,8 +268,9 @@ ${ask}
 ` : ''}${fix ? `${ask ? '\n' : ''}When the studio played it, layer "${fence(fix.layer, 'request', 80)}" failed: ${
   fence(fix.error, 'request', 300)}. Fix that.
 ` : ''}
-Return the whole look again as JSON with ${ask ? 'that change' : 'the fix'}: keep what was not asked about as it is
-(its layers, params, places and title), and change only what the request needs.`;
+Make ${ask ? 'that change' : 'the fix'}, and only what ${ask ? 'the request' : 'it'} needs.
+
+${EDITS_GUIDE}`;
 }
 
 /** The user turn: the idea, clearly delimited. Tags inside the idea are neutralised. */

@@ -10,11 +10,14 @@ import { validateLook } from '../../shared/schemas/generated.ts';
 import type { Catalog } from './catalog.ts';
 import { type Box, renderCheck, type Seen } from './check.ts';
 import { buildCritiqueMessage, buildNotesMessage, groupWarnings } from './critique-prompt.ts';
+import { pickDocs } from './docs-turn.ts';
+import { applyEdits, buildEditsRepairMessage, editsSchema, fieldsOf } from './edits.ts';
 import { expand } from './expand.ts';
 import { closeUpGroups } from './frames-closeup.ts';
 import { viewFrames } from './frames-view.ts';
 import { NO_ROUND, type Round } from './idea-log.ts';
 import type { Adapter, Context, Repair } from './index.ts';
+import type { Composition } from './refine.ts';
 import type { Logger } from '../http.ts';
 
 type Lane = Parameters<typeof renderCheck>[2]['lane'];
@@ -31,24 +34,36 @@ export const stillTimes = (seconds: number, at: readonly number[] = STILLS) => a
   return Number.isInteger(t) ? t + 0.3 : t;
 });
 
+/** The idea's context with the docs its turns carry (docs-turn.ts): those given (the sketch's), else the core and,
+ * for a refinement, the pages of the modules its look uses; noted in the idea's log. */
+function withDocs(ctx: Context, edit?: Composition): Context {
+  const tree = ctx.prompt?.().docs;
+  if (!tree?.size) return ctx;
+  const uses = edit?.layers.flatMap((l) => l.modules.map((m) => m.use.replace(/^ext:.*/, ''))) ?? [];
+  const docsGiven = ctx.docsGiven ?? pickDocs(tree, uses);
+  ctx.journal?.note({ docsGiven });
+  return { ...ctx, docsGiven };
+}
+
 /**
  * A look from `adapter` in rounds. `start`: an answer to begin from instead of asking (a critique of a saved look);
  * `aim`: what the critique holds the frames to (the idea); `budgetMs`: past this since `startedAt`, no critique;
  * `critiques`: how many rounds (1; 0 renders for one but asks none); `revise`: each must change the weakest part,
  * and the first runs whatever the budget (an exploring idea is always revised once); `kind`: the first round's name
- * in the log (compose).
+ * in the log (compose); `edit`: a refinement's composition, which the first round answers with edits to (edits.ts).
  */
 export async function compose(o: { adapter: Adapter, ctx: Context, catalog: Catalog, box?: Box, lane?: Lane,
   critique?: Critique, aim?: string, start?: unknown, startedAt: number, budgetMs: number, stopping: () => boolean,
-  log: Logger, critiques?: number, revise?: boolean, kind?: string }) {
-  const { adapter, ctx, catalog } = o, id = ctx.idea?.id;
+  log: Logger, critiques?: number, revise?: boolean, kind?: string, edit?: Composition }) {
+  const { adapter, catalog } = o, ctx = withDocs(o.ctx, o.edit), id = ctx.idea?.id;
   /** One round's call (`first` sees the round before it starts): its answer, and the round, for the caller to end
    * with what came of it. */
-  const ask = async (kind: string, repair?: Repair, first?: (r: Round) => void) => {
+  const ask = async (kind: string, repair?: Repair, first?: (r: Round) => void, schema?: Context['schema']) => {
     const round = ctx.journal?.begin(kind) ?? NO_ROUND;
     first?.(round);
     try {
-      return { raw: await adapter.generate({ ...ctx, ...(repair ? { repair } : {}), round }), round };
+      return { raw: await adapter.generate({ ...ctx, ...(repair ? { repair } : {}), ...(schema ? { schema } : {}),
+        round }), round };
     } catch (err) {
       round.end({ outcome: `failed: ${why(err)}` });
       throw err;
@@ -64,7 +79,28 @@ export async function compose(o: { adapter: Adapter, ctx: Context, catalog: Cata
     { seconds, rig: ctx.rig, lane: o.lane });
   const expanded = (x: ReturnType<typeof expand>) => `${x.errors.length} errors, ${x.notes.length} params changed`;
   let cur, rounds = 0;
+  /** A refinement's first round: edits to `base`, applied; one more round when some do not apply. */
+  const edited = async (base: Composition) => {
+    const comp = ctx.prompt?.().schema ?? {}, schema = editsSchema(comp), fields = fieldsOf(comp);
+    const did = (n: number) => `${n} edits did not apply`, a = await ask('compose', undefined, undefined, schema);
+    let got = applyEdits(base, a.raw, fields);
+    a.round.end({ outcome: got.failed.length ? did(got.failed.length) : 'applied', notes: got.failed });
+    if (got.failed.length && !o.stopping()) {
+      rounds++;
+      try {
+        const reason = got.failed, message = buildEditsRepairMessage(reason);
+        const b = await ask('edits', { answer: a.raw, errors: [], message }, undefined, schema), next = applyEdits(base,
+          b.raw, fields);
+        b.round.end({ outcome: next.failed.length ? did(next.failed.length) : 'applied', reason, notes: next.failed });
+        if (next.failed.length <= reason.length) got = next;
+      } catch (err) {
+        o.log.warn?.(`[generate] idea ${id}: edits repair failed (${why(err)})`);
+      }
+    }
+    return got.comp;
+  };
   if (o.start !== undefined) cur = made(o.start);
+  else if (o.edit) cur = made(await edited(o.edit));
   else {
     const a = await ask(o.kind ?? 'compose');
     cur = made(a.raw);

@@ -86,7 +86,8 @@ describe('the tree', () => {
       const doc = DOCS.get(`library/${m.kind}s/${m.name}.md`);
       assert.ok(doc, m.name);
       for (const name of Object.keys(m.params)) assert.ok(doc.includes(`- **${name}** (`), `${m.name}.${name}`);
-      assert.ok(DOCS.get(`library/${m.kind}s/README.md`).includes(`\n## ${m.name}`), `${m.name} in its README`);
+      assert.match(DOCS.get(`library/${m.kind}s/README.md`), new RegExp(`\n- [^:\n]+: (.+, )?${m.name}(,|\n)`),
+        `${m.name} in its README's index`);
     }
     for (const p of CATALOG.presets.keys()) assert.match(DOCS.get(`library/presets/${p}.md`), /## Recipe\n/, p);
     const bars = DOCS.get('library/sources/bars.md');
@@ -128,13 +129,15 @@ describe('read_doc', () => {
     assert.equal(readInside(dir, `library/up/${path.basename(outside, '.md')}`), null);
   });
 
-  test('codex\'s MCP server: one tool, the tree only, at most the cap, each read noted', async () => {
+  test('codex\'s MCP server: one tool, the tree only, at most the cap, each read noted, none of a page given',
+    async () => {
     const dir = fs.realpathSync(tmp('mcp')), reads = path.join(dir, 'reads.txt'), tree = path.join(dir, 'tree');
     for (const [rel, text] of DOCS) {
       fs.mkdirSync(path.dirname(path.join(tree, rel)), { recursive: true });
       fs.writeFileSync(path.join(tree, rel), text);
     }
-    const child = spawn(process.execPath, [path.join(STUDIO, 'src/generate/docs-mcp.ts'), tree, reads, '2'],
+    const child = spawn(process.execPath, [path.join(STUDIO, 'src/generate/docs-mcp.ts'), tree, reads, '2',
+      'library/warps/README.md'],
       { stdio: ['pipe', 'pipe', 'inherit'] });
     const answers = createInterface({ input: child.stdout })[Symbol.asyncIterator]();
     let id = 0;
@@ -150,6 +153,7 @@ describe('read_doc', () => {
       assert.equal((await read('library/README.md')).content[0].text, DOCS.get('library/README.md'));
       assert.equal((await read('../reads.txt')).isError, true);
       assert.equal((await read('sources/bars')).isError, false);
+      assert.match((await read('warps')).content[0].text, /in the turn already/, 'given: no read');
       assert.match((await read('library/README.md')).content[0].text, /limit of 2 reads/);
       assert.equal(fs.readFileSync(reads, 'utf8'), 'library/README.md\nlibrary/sources/bars.md\n');
     } finally {

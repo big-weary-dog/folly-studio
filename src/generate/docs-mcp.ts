@@ -1,23 +1,26 @@
 // The codex adapter's one tool: a stdio MCP server (newline-delimited JSON-RPC) with `read_doc`, serving the library
 // docs as written under <root>, and nothing else. Codex starts it for a call (SPEC-generators "codex"); the shell
 // stays off, so this is all the model can read. A path must name a file whose real path (symlinks followed) is inside
-// the root; each read is appended to <reads>, at most <cap> reads.
-//   node docs-mcp.ts <root> <reads file> [cap]
+// the root; each read is appended to <reads>, at most <cap> reads; a page the turn carries (<given>) is not read again.
+//   node docs-mcp.ts <root> <reads file> [cap] [given,paths]
 
 import { appendFileSync, realpathSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 
 import { READ_CAP, READ_DOC_DESCRIPTION, readInside } from './doc-path.ts';
+import { givenAnswer } from './docs-turn.ts';
 
-const [rootArg = '', readsFile = '', capArg] = process.argv.slice(2);
-const root = realpathSync(rootArg), cap = Number(capArg) || READ_CAP;
+const [rootArg = '', readsFile = '', capArg, givenArg = ''] = process.argv.slice(2);
+const root = realpathSync(rootArg), cap = Number(capArg) || READ_CAP, given = givenArg.split(',').filter(Boolean);
 let reads = 0;
 
 function call(args: Record<string, unknown> | undefined) {
-  if (reads >= cap) return { text: `The limit of ${cap} reads is reached: compose the look now.`, error: true };
   const found = readInside(root, args?.path);
+  if (found && given.includes(found.rel)) return { text: givenAnswer(found.rel), error: true };
+  if (reads >= cap) return { text: `The limit of ${cap} reads is reached: compose the look now.`, error: true };
   if (!found) {
-    return { text: `No such doc: ${String(args?.path).slice(0, 80)}. Start at library/README.md.`, error: true };
+    return { text: `No such doc: ${String(args?.path).slice(0, 80)}: a module's page is library/<kind>/<name>.md.`,
+      error: true };
   }
   reads++;
   appendFileSync(readsFile, `${found.rel}\n`);

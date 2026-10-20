@@ -12,6 +12,7 @@ import {
 } from './explore-prompt.ts';
 import { viewFrames } from './frames-view.ts';
 import { NO_ROUND } from './idea-log.ts';
+import { pickDocs } from './docs-turn.ts';
 import { compose, stillTimes } from './rounds.ts';
 
 type Options = Parameters<typeof compose>[0];
@@ -36,7 +37,8 @@ export function boosted(via: Transport, entry: ModelEntry | undefined, level: Le
 
 /** The idea composed at `level`: the rounds' answer, and the sketch turn's time and outcome. */
 export async function explore(o: Options & { level: Level }) {
-  const { ctx, level } = o, t0 = Date.now(), { critiques } = LEVELS[level];
+  let { ctx } = o;
+  const { level } = o, t0 = Date.now(), { critiques } = LEVELS[level];
   const mode = o.critique ?? 'images';
   let sketches: Sketches | null = null, failed = '';
   const round = ctx.journal?.begin('sketch') ?? NO_ROUND;
@@ -48,13 +50,15 @@ export async function explore(o: Options & { level: Level }) {
     failed = why(err);
   }
   round.end({ outcome: failed ? `failed: ${failed}` : sketches!.takes.map((t) => t.name).join(', '),
-    ...(sketches ? { took: sketches.synthesis.took, brief: sketches.synthesis.brief } : {}) });
+    ...(sketches ? { took: sketches.synthesis.took, brief: sketches.synthesis.brief, docs: sketches.docs } : {}) });
   const ms = Date.now() - t0;
   if (!sketches || o.stopping()) {
     o.log.warn?.(`[generate] idea ${ctx.idea?.id}: sketching failed (${failed || 'stopping'}); composing directly`);
     return { ...await compose(o), sketch: { ms, outcome: `failed: ${failed || 'stopping'}`, took: '' } };
   }
-  const aim = `${ctx.text}\n\nThe plan: ${sketches.synthesis.brief}`;
+  const aim = `${ctx.text}\n\nThe plan: ${sketches.synthesis.brief}`, tree = ctx.prompt?.().docs;
+  // The pages the sketch named come with every later turn (docs-turn.ts); none named, the core.
+  if (tree && sketches.docs.length) ctx = { ...ctx, docsGiven: pickDocs(tree, sketches.docs) };
   const sketch = { ms, outcome: `${sketches.takes.map((t) => t.name).join(', ')}`,
     took: sketches.synthesis.took };
   if (level === 'explore') {
