@@ -34,8 +34,8 @@ export const stillTimes = (seconds: number, at: readonly number[] = STILLS) => a
   return Number.isInteger(t) ? t + 0.3 : t;
 });
 
-/** The idea's context with the docs its turns carry (docs-turn.ts): those given (the sketch's), else the core and,
- * for a refinement, the pages of the modules its look uses; noted in the idea's log. */
+/** The idea's context with the docs its turns carry (docs-turn.ts): those given (the sketch's), else, for a
+ * refinement, the pages of the modules its look uses; noted in the idea's log. */
 function withDocs(ctx: Context, edit?: Composition): Context {
   const tree = ctx.prompt?.().docs;
   if (!tree?.size) return ctx;

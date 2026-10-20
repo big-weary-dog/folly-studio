@@ -1,7 +1,7 @@
 // The library's docs for the AI builders (SPEC-generators "Library docs"): a tree of markdown whose pages an idea's
-// turns carry (docs-turn.ts), the rest read with read_doc. Prose is hand-written per module in library-docs/<name>.md;
-// types, ranges, defaults, options and units come from the catalogue and recipes from the index, so the tree follows
-// the library and never drifts from it.
+// turns carry (docs-turn.ts), the rest read with read_doc; library/extensions.md (guide.ts) is how to write code.
+// Prose is hand-written per module in library-docs/<name>.md; types, ranges, defaults, options and units come from
+// the catalogue and recipes from the index, so the tree follows the library and never drifts from it.
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { MODULE_KINDS } from '../../public/js/pattern-core.ts';
 import type { PresetEntry } from '../../shared/schemas/rig.ts';
 import type { Catalog, ParamDecl } from './catalog.ts';
+import { extensionsPage } from './guide.ts';
 
 export const PROSE_DIR = fileURLToPath(new URL('../../library-docs/', import.meta.url));
 /** Prose files that are not a module's: the tree's README and each kind's intro. */
@@ -96,8 +97,9 @@ const kindDir = (kind: string) => `library/${kind}s`;
 const passOn = (p: Prose, skip: string[]) => p.sections.filter((s) => !skip.includes(s.title))
   .map((s) => `## ${s.title}\n${s.body}`);
 
-/** The whole tree, path → markdown. Pure: the same library and prose give the same bytes. */
-export function buildDocs(catalog: Catalog, prose: ReadonlyMap<string, string> = new Map()): Docs {
+/** The whole tree, path → markdown. Pure: the same library and prose give the same bytes. `perSecond`: how often
+ * pixel() runs on the rig, for the extensions page. */
+export function buildDocs(catalog: Catalog, prose: ReadonlyMap<string, string> = new Map(), perSecond = 0): Docs {
   const docs: Docs = new Map(), read = (name: string) => parseProse(prose.get(name) ?? '');
   const lineOf = (name: string, summary?: string) => read(name).looks || String(summary ?? '').trim();
   const kinds: [string, { name: string, category?: string }[]][] = [
@@ -137,8 +139,10 @@ ${[...byCategory].map(([c, names]) => `- ${c}: ${
   const top = read('README'), count = (dir: string) => [...docs.keys()]
     .filter((k) => k.startsWith(`${dir}/`) && !k.endsWith('README.md')).length;
   docs.set('library/README.md', [`# The library`, top.about, ...passOn(top, []), `## The tree\n${
-    kinds.map(([k]) => `- ${kindDir(k)}/README.md: ${count(kindDir(k))} ${k}s by category`).join('\n')}`]
+    kinds.map(([k]) => `- ${kindDir(k)}/README.md: ${count(kindDir(k))} ${k}s by category`).join('\n')}
+- library/extensions.md: writing an extension's code, when nothing here draws the idea`]
     .filter(Boolean).join('\n\n') + '\n');
+  docs.set('library/extensions.md', extensionsPage(perSecond));
   return new Map([...docs].sort(([a], [b]) => a.localeCompare(b)));
 }
 

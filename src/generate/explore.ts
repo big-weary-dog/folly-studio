@@ -57,7 +57,7 @@ export async function explore(o: Options & { level: Level }) {
     return { ...await compose(o), sketch: { ms, outcome: `failed: ${failed || 'stopping'}`, took: '' } };
   }
   const aim = `${ctx.text}\n\nThe plan: ${sketches.synthesis.brief}`, tree = ctx.prompt?.().docs;
-  // The pages the sketch named come with every later turn (docs-turn.ts); none named, the core.
+  // The pages the sketch named come with every later turn (docs-turn.ts).
   if (tree && sketches.docs.length) ctx = { ...ctx, docsGiven: pickDocs(tree, sketches.docs) };
   const sketch = { ms, outcome: `${sketches.takes.map((t) => t.name).join(', ')}`,
     took: sketches.synthesis.took };

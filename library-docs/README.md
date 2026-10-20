@@ -3,8 +3,8 @@ How the library's pieces make a look. Each kind's README lists its modules by ca
 ## Layers
 A look is a stack of 1 to 4 layers, composited bottom (first) to top. Each layer lands on a union of groups (its
 `groups`, by id) and fills what it lands on: a source's coordinates run 0..1 across the layer's own LEDs, so the
-same chain fits a tower or the whole rig. Usual shape: a calm bed on the root group, then one or two layers on the
-places the idea names. `level` (0..1) scales the whole layer.
+same chain fits a tower or the whole rig. Usual shape: a calm bed on the root group under the places the idea names;
+or, when each part has a layer of its own, the bed first in each part's chain. `level` (0..1) scales the whole layer.
 
 Layer blends, how a layer meets the layers below:
 - `add`: sums light. Brightens; colours mix toward white. Good for sparkles, beams and anything mostly dark.
@@ -13,7 +13,7 @@ Layer blends, how a layer meets the layers below:
 - `multiply`: tints what is below; a dark layer darkens. A colour cast over everything.
 
 ## Chains and the one rule
-A layer is a chain of modules listed top to bottom (at most 8), or a preset (a ready chain). One rule: each module
+A layer is a chain of modules listed top to bottom (at most 6), or a preset (a ready chain). One rule: each module
 works on everything above it, as in an image editor.
 - A **source** draws its element on transparent onto what is above it. Alpha is how much it covers; it paints no
   background. The first source covers; later ones add, unless given a `blend`: `over`, `add`, `max`, `multiply`, or

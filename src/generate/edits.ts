@@ -43,7 +43,8 @@ has them (0.2, "ember", a binding { "mod": "lfo", "rate": 0.1 }) or a list (["sp
 - set { path, value }: a key, or a list item (a param not given yet is added: params/speed sets its value).
 - remove { path }: a key or a list item (a param back to its default).
 - insert { path, module, at? }: a module into the chain at path ("layers/Rose/modules"), at index at, else at the
-  end; or { path, value, at? } for an item of another list.
+  end; or { path, value, at? } for an item of another list. A list the look lacks ("globals/macros", "automation")
+  is made: insert into it, never set a path inside it first.
 - add_layer { layer, at? }: a new layer, on top unless at says where (0 is the bottom).
 - remove_layer { path }, move_layer { path, at }, replace_layer { path, layer }: path names the layer ("Rose").
 When the request remakes most of the look, answer { "rewrite": <the whole composition> } instead.`;
@@ -152,10 +153,12 @@ function remove(root: Obj, path: unknown) {
   return '';
 }
 
-/** The list a path names (`layers` for the layer ops). */
-function listAt(root: Obj, path: unknown): unknown[] | string {
-  const w = walk(root, path);
+/** The list a path names (`layers` for the layer ops). `make`: a list the look lacks (`globals/macros`, `automation`)
+ * is made empty, when its key is a field of a look. */
+function listAt(root: Obj, path: unknown, make = false, fields?: Set<string>): unknown[] | string {
+  const w = walk(root, path, make);
   if (typeof w === 'string') return w;
+  if (make && isObj(w.at) && !Object.hasOwn(w.at, w.key) && (!fields || fields.has(w.key))) w.at[w.key] = [];
   const v = Array.isArray(w.at) ? w.at[find(w.at, w.key)] : w.at[w.key];
   return Array.isArray(v) ? v : `${segments(path).join('/')} is not a list`;
 }
@@ -171,9 +174,9 @@ function apply(root: Obj, e: Edit, fields?: Set<string>): string {
   if (e.op === 'set') return set(root, e.path, e.value, fields);
   if (e.op === 'remove') return remove(root, e.path);
   if (e.op === 'insert') {
-    const list = listAt(root, e.path);
-    if (typeof list === 'string') return list;
     if (e.value === undefined && e.module === undefined) return 'no module or value';
+    const list = listAt(root, e.path, true, fields);
+    if (typeof list === 'string') return list;
     const item = parse(e.module ?? e.value);
     if ('error' in item) return item.error;
     list.splice(place(list, e.at), 0, item.ok);

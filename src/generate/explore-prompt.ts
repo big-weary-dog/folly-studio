@@ -50,8 +50,8 @@ Write three takes on it that are genuinely different looks, not three versions o
 
 Then the synthesis: the best parts of the three as one look. took: one line saying what it takes from each take, by
 name. brief: that look in three to five concrete sentences (places, motion, colours, tempo). docs: the page of every
-source, warp, filter and preset you might use in it, as library/<kind>/<name>.md (up to 13): they come whole with the
-next turn, with each kind's README, so name generously. Return JSON.`;
+source, warp, filter and preset you might use in it, as library/<kind>/<name>.md (up to 13), and library/extensions.md
+if nothing in the library draws part of it: they come whole with the next turn, so name generously. Return JSON.`;
 }
 
 /** The sketches as notes for a later turn. */

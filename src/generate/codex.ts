@@ -2,10 +2,11 @@
 // and ephemeral (no session files); the user's config.toml and rules skipped; a read-only sandbox in a folder kept
 // empty for the purpose, with Codex's command, browsing and image tools turned off, so the model can only answer; the
 // git check skipped; its events (--json) are read for the idea log (usage, tool calls, each item's times). The prompt
-// goes on stdin, the static guide first and the idea last, so its long prefix is the same on every call (the provider
-// caches it); the final message is written to a file and constrained by --output-schema to the generated look's
-// schema, made strict. The answer is untrusted data, read as the claude adapter reads its own, then cleaned by
-// validateLook; its code only ever runs in the sandbox or the render box.
+// goes on stdin, the static guide first and the idea last, so its long prefix is the same on every call (a separate
+// `codex exec` reports no cache hits, so every call pays for it whole: keep it lean); the final message is written to
+// a file and constrained by --output-schema to the generated look's schema, made strict. The answer is untrusted
+// data, read as the claude adapter reads its own, then cleaned by validateLook; its code only ever runs in the sandbox
+// or the render box.
 // The library docs reach the model through one MCP tool, read_doc (docs-mcp.ts), over the tree written once per
 // library under the work folder; with the shell off, they are all it can read.
 

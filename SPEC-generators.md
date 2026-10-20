@@ -48,7 +48,9 @@ any look; a layer given as code (the old shape) passes through to it. The prompt
 sorted by name (a module on one line: what it looks like and its params in brackets, each as `name lo–hi (default)`,
 `name a|b (default)`, `name on/off (default)` or `name colour (default)`; a preset as its recipe),
 the palettes, the groups, show taste, and worked compositions (each only where the library and the rig's tags have
-what it names). The queue logs one line per idea or refinement: its route, timings, repair rounds, the check and
+what it names). The pattern API is not in it: an extension reads `library/extensions.md` (with no docs, the page is
+in the prompt). The system prompt and the docs a turn gets unasked stay under 32,000 characters together
+(`test/generate.test.js`). The queue logs one line per idea or refinement: its route, timings, repair rounds, the check and
 critique, how many library modules, extensions and code it used, the docs it read, and the first notes.
 
 **The idea log** (`src/generate/idea-log.ts`). Each idea and refinement (under its own id) also leaves a record on
@@ -69,7 +71,8 @@ input; codex: from its `--json` events), and they and a line per round are saved
 markdown: `library/README.md` (how layers, sources, warps, filters and presets combine; blends; inputs; groups and
 tags; globals and bindings), `library/<kind>s/README.md` (the kind, and its modules by category, names only) and
 `library/<kind>s/<name>.md` (every param with its type, range, default, unit and effect; directions; pairings;
-pitfalls). The prose is hand-written in `library-docs/<name>.md` (front matter `looks:`, the line the summary
+pitfalls), and `library/extensions.md` (from `guide.ts`: how an extension is declared and written, the pixel, the
+stdlib and the rules for code, with how often `pixel()` runs on the rig). The prose is hand-written in `library-docs/<name>.md` (front matter `looks:`, the line the summary
 shows; a paragraph; `## Params` with a line per param, `## Overrides` for a preset; `## Pairings`; `## Pitfalls`);
 types, ranges, defaults, options, units (the code's `label`) and each param's `help` come from the catalogue, and recipes from the index,
 so the tree follows the library. `tools/build-docs.ts` writes it to a folder. A test fails when the prose names a
@@ -77,9 +80,10 @@ param the code lacks or a module the library has not, or (once the library's ren
 prose or a param no `help`. The prose is kept short: a page says only what the code's help does not.
 
 The docs reach the model in its turn (`src/generate/docs-turn.ts`), never the cached system prompt: the pages an idea
-needs, each whole in a `<doc path="…">`, before the turn's text: always the core (`library/README.md` and each
-kind's README), then for Explore and Deep the pages the sketch turn named (`docs`, read leniently as `read_doc` reads
-paths, found in the tree, once each), for a refinement the pages of the modules its look uses; at most 18 in all. Every later call of the idea (repair, notes, runtime,
+needs, each whole in a `<doc path="…">`, before the turn's text: for Explore and Deep the pages the sketch turn named
+(`docs`, read leniently as `read_doc` reads paths, found in the tree, once each), for a refinement the pages of the
+modules its look uses; at most 18 in all; a Quick idea none. The READMEs are not given unasked: the system prompt says
+what they do. Every later call of the idea (repair, notes, runtime,
 critique) carries the same pages again; the idea's log notes them (`docsGiven`). The `read_doc({ path })` tool stays
 for a page not given: a path in the tree (`library/sources/bars.md`), at most 8 reads an answer, each read noted in
 the idea's log line; a page the turn carries is declined unread, and anything else is refused.
@@ -136,7 +140,8 @@ the same cached one). The model answers with edits to that composition (`edits.t
 `{ rewrite: <the whole composition> }`), each by path (`layers/Rose/modules/bars/params/speed`, a list's item by its
 title, id, name or use, else index): `set`, `remove`, `insert`, `add_layer`, `remove_layer`, `move_layer`,
 `replace_layer`; a value is typed as the composition types a param's (never JSON in a string) and `insert` takes a
-`module`. The server applies them in order to a copy; an edit that does not apply (a path that leads nowhere, a
+`module`; an `insert` into a list the look lacks (`globals/macros`, `automation`) makes it, when its key is a field
+of a look. The server applies them in order to a copy; an edit that does not apply (a path that leads nowhere, a
 key the composition has no field for, an unknown op) is skipped and named with why, and one `edits` repair round sends
 the list back (its answer kept when fewer fail). A layer the edits left as it was is saved as it was stored, byte for
 byte. The result is expanded, repaired, checked and (when the model has it) critiqued as an idea is,
@@ -164,7 +169,8 @@ transcripts.
   close: the colour itself): the pick of a source's (a preset's top source's) `colours`. A plain wash or a colour
   word (`wash`, `rainbow`) gives way to another theme in its clause; a look placed only on zones gets a dim
   colour-wash bed on the root; a place or side the rig has no group for lands on the root. Always available.
-- `claude`: one Messages API call with the prompt as the system prompt (cached: the same bytes on every call), and
+- `claude`: one Messages API call with the prompt as the system prompt (cached: the same bytes on every call; with
+  docs given, the first user turn, the same on every round of an idea, is a second cache point), and
   structured output whose JSON Schema is the composition's (`compositionSchema(groups, catalog)`: the place fields
   `wireSchema(groups)` gives, group ids, tags and preset names as enums), and `read_doc` as a tool: a tool call is
   answered from the tree and the call made again (its thinking and tool turns kept), at most 12 calls; the docs given

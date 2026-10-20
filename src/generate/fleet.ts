@@ -17,7 +17,7 @@ import { DEFAULT_BAKE_SECONDS, framesBytesFor, parseBytes, parseDuration } from 
 import { type BakeError, checkFrames, cleanBoxStats, failedBake, flashSettings, readUntrusted } from '../box-output.ts';
 import { moduleFiles } from '../core-script.ts';
 import {
-  describeRig, formatExamples, formatGroups, GROUPS_NOTE, PATTERN_GUIDE, pickExamples, rootOf, TASTE,
+  describeRig, formatExamples, formatGroups, GROUPS_NOTE, patternGuide, pickExamples, pixelRate, rootOf, TASTE,
 } from './prompt.ts';
 import type { Logger } from '../http.ts';
 import type { Context } from './index.ts';
@@ -74,7 +74,8 @@ export function renderBrief(template: string, { text, library = [], rig, groups 
   Partial<Context> & { lookPath: string }) {
   const dir = path.dirname(lookPath);
   const vals: Record<string, string> = {
-    IDEA: fenceUntrusted(String(text ?? '').slice(0, 4000)), LOOK_PATH: lookPath, PATTERN_GUIDE, TASTE,
+    IDEA: fenceUntrusted(String(text ?? '').slice(0, 4000)), LOOK_PATH: lookPath, TASTE,
+    PATTERN_GUIDE: patternGuide(pixelRate(rig)),
     RIG: describeRig(rig), NAME: rig?.name || 'the installation', ROOT: rootOf(groups),
     GROUPS_NOTE, FRAMES_PATH: path.join(dir, 'frames.fseq'), STATS_PATH: path.join(dir, 'stats.json'),
     GROUPS: formatGroups(groups) || rootOf(groups),

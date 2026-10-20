@@ -24,8 +24,8 @@ export const READ_CAP = 8;
 
 export const READ_DOC_DESCRIPTION = 'Read one file of the library docs: library/README.md (how the pieces combine), '
   + 'library/<kind>/README.md (its modules by category; kinds: sources, warps, filters, presets) or '
-  + 'library/<kind>/<name>.md (a module\'s params, pairings and pitfalls). Only for a page the turn does not carry; '
-  + 'at most 8 reads.';
+  + 'library/<kind>/<name>.md (a module\'s params, pairings and pitfalls) or library/extensions.md (writing an '
+  + `extension's code). Only for a page the turn does not carry; at most ${READ_CAP} reads.`;
 
 /** The text of the first candidate that is a regular file whose real path is inside `dir` (itself a real path),
  * with its tree path; null if none. */

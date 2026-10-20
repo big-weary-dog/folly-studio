@@ -9,6 +9,8 @@ import { createQueue } from '../src/generate/index.ts';
 import {
   buildPrompt, buildSystemPrompt, buildUserMessage, formatGroups, pickExamples,
 } from '../src/generate/prompt.ts';
+import { docsBlock, pickDocs } from '../src/generate/docs-turn.ts';
+import { buildSketchMessage } from '../src/generate/explore-prompt.ts';
 import { BUILTIN_PATTERN, parseParams, sketchLook } from '../src/generate/sketch.ts';
 import { GenerateError, LIMITS, validateLook, wireSchema } from '../shared/schemas/generated.ts';
 import { byName, goodLayer, GROUPS, LIBRARY, queueSetup, quiet, RIG, STUDIO } from './fixtures/generate/shared.js';
@@ -193,12 +195,13 @@ describe('sketch', () => {
 });
 
 describe('prompt', () => {
-  test('system prompt carries the library, API, groups, taste and examples, and is stable', () => {
+  test('the system prompt: library, groups, taste, examples (the API too, with no docs); stable', () => {
     const sys = buildSystemPrompt({ library: LIBRARY, rig: RIG });
     assert.equal(sys, buildSystemPrompt({ library: LIBRARY, rig: RIG }));
     for (const s of ['# The library', '# Composing a look', 'function pixel(p', 'cosPalette', 'beat(t, bpm)',
-      'spire-front-left', 'rose-window — Rose window', 'Colour at full strength', 'Darkness is punctuation',
-      'fills what it lands on', '4,870', '40 fps', 'last resort', 'untrusted', '<idea>', '- carnival (Every warm']) {
+      'spire-front-left', 'rose-window — Rose window', 'Saturated colours at full value', 'Darkness is punctuation',
+      'fills what it lands on', '4,870', '40 fps', 'about 195,000 times a second', 'last resort', 'untrusted', '<idea>',
+      '- carnival (Every warm']) {
       assert.ok(sys.includes(s), `system prompt mentions ${s}`);
     }
     assert.ok(!sys.includes(byName('lighthouse').code.trim()), 'modules are named, not shown as code');
@@ -206,17 +209,21 @@ describe('prompt', () => {
   });
 
   test('the prompt lists every library entry with its param names, a preset as its chain, and stays small', () => {
-    const sys = buildPrompt({ library: REAL, rig: RIG }).system;
+    const { system: sys, docs } = buildPrompt({ library: REAL, rig: RIG });
     for (const p of REAL) assert.ok(sys.includes(`\n- ${p.name}: `), p.name);
     assert.ok(sys.includes('- starfield: colour-wash → clouds → sparkle — '), 'a preset as its chain');
-    assert.match(sys, /\n- bars: [^\n]+ \[[^\]\n]*; speed -2–2 \(0\.4\); bars 0\.25–16 \(4\);/,
+    assert.match(sys, /\n- bars: [^\n]+ \[(?:[^\]\n]*; )?speed -2–2 \(0\.4\); bars 0\.25–16 \(4\);/,
       'a module with its params');
     assert.ok(sys.includes('read_doc'), 'the docs, and how to read them');
+    assert.ok(!sys.includes('cosPalette') && sys.includes('library/extensions.md'), 'the API is a page, read for code');
     assert.match(sys, /# Worked compositions\nIdea: /);
-    // Headroom over ~34,400: the catalogue's params (each source's Brightness, said once; heartbeat's tempo and
-    // sparkle's often and flash), Direction named both ways and the neighbour modules (waves, fireflies, splash)
-    // earn their place in every call, with room for the modules still coming.
-    assert.ok(sys.length < 40_000, `the system prompt is ${sys.length} characters`);
+    // What every compose, repair and critique call carries: the system prompt and the docs a turn gets unasked (none:
+    // the READMEs say again what the prompt does). ~28,700 with headroom for the modules still coming; the sketch call
+    // carries the system prompt and its own turn.
+    const always = sys.length + docsBlock(docs, pickDocs(docs, [])).length;
+    assert.ok(always < 32_000, `the system prompt and core docs are ${always} characters`);
+    const sketch = sys.length + buildSketchMessage('an idea', RIG.groups).length;
+    assert.ok(sketch < 33_500, `the sketch call is ${sketch} characters`);
   });
 
   test('group tree is compact', () => {

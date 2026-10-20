@@ -1,6 +1,6 @@
 // The text the generators work from: how pattern code is written (the pattern guide, whole for the Fleet worker's
-// brief; its API part for extensions), how a look is composed from the library, show taste, the globals, and the
-// composition examples. Static: the same bytes on every call, so the prompt caches.
+// brief; with how an extension is declared, library/extensions.md), how a look is composed from the library, show
+// taste, the globals and time, and the composition examples. The same bytes for a rig on every call, so they cache.
 
 import { LIMITS } from '../../shared/schemas/generated.ts';
 import { PALETTE_NAMES } from '../../shared/schemas/look.ts';
@@ -37,8 +37,8 @@ objects (the i-th colour, wrapping); pal('colours', t) for a gradient or a tail 
 pal('colours', 1), the last, for a head, crest or heart; P.colours for one colour at a time. Blend is 'step'
 (default: distinct colours) or 'smooth' (a ramp): declare \`blend: 'smooth'\` when the idea is a gradient.`;
 
-/** The pixel, the stdlib and the rules for code: what an extension needs. */
-export const PIXEL_API = `The pixel \`p\`:
+/** The pixel, the stdlib and the rules for code: what an extension needs. `perSecond`: LEDs × fps on the rig. */
+export const pixelApi = (perSecond = 0) => `The pixel \`p\`:
 - \`x y z\`: 0..1 across the whole installation (depth, height, left→right); \`X Y Z\`: metres
 - \`lx ly lz\`: 0..1 across the pixels this layer targets (so a pattern fills what it lands on)
 - \`a r\`: angle 0..1 (clockwise from 12 o'clock, seen from the front) and radius 0..1, in the
@@ -77,7 +77,8 @@ frames the core keeps for it), use(name, params?) (a library pattern as a
 function (p, t) → colour; call it at the top level). Colours are [r, g, b] arrays, 0..1.
 
 Rules for code:
-- pixel() runs ~195,000 times a second: keep it cheap, no big allocations per call; put
+- pixel() runs for every LED, every frame${perSecond ? ` (about ${(Math.round(perSecond / 1000) * 1000)
+    .toLocaleString('en')} times a second here)` : ''}: keep it cheap, no big allocations per call; put
   per-frame work (particles, state, cellular automata) in frame() and top-level variables.
 - No network, DOM, timers, imports, eval or Math.random: use rand/hash/noise/seed so a look
   is the same every time it plays. Return finite numbers only.
@@ -97,9 +98,9 @@ everything above it, as in an image editor.
 - \`filter\`: \`function filter(c, q, t, P, G, x)\` reworks everything above it, c = [r, g, b, a] (change it and
   return it); x is the colour of the source its \`input\` names (an earlier module's id).
 - \`warp\`: \`function warp(q, t, P, G)\` bends everything above it: it changes q (a copy of p: lx ly lz a r u i …)
-  for the modules above it. So a warp goes after what it bends. A blur, trails, delay, smoke, replay or sort holds real
-  LED colours (its code declares \`const stage = 'spatial'\` or \`'history'\`): a warp below one does not reach above
-  it.
+  for the modules above it. So a warp goes after what it bends. A blur, trails, delay, smoke, replay, sort or splash
+  holds real LED colours (its code declares \`const stage = 'spatial'\` or \`'history'\`): a warp below one does not
+  reach above it.
 So "a chase only inside clouds, mirrored" is [source single-strand, source clouds as input, filter mask with input =
 the clouds' id, warp mirror]. A module with a \`ref\` names the library entry it copies; still give its code. A preset
 is such a chain, ready made: copy its modules, each with its library entry's code.
@@ -111,64 +112,83 @@ name. A library source never reads G.energy: to make something busier with energ
 \`"density": { "mod": "global", "name": "energy", "from": 0.3, "to": 1 }\` (or to an LFO,
 \`{ "mod": "lfo", "rate": 0.2 }\`).`;
 
-export const PATTERN_GUIDE = `${CODE_INTRO}\n\n${PIXEL_API}\n\n${CHAIN_GUIDE}`;
+/** The whole pattern guide, for a brief that writes code (the Fleet worker's). */
+export const patternGuide = (perSecond = 0) => `${CODE_INTRO}\n\n${pixelApi(perSecond)}\n\n${CHAIN_GUIDE}`;
 
-export const TASTE = `- Colour at full strength. A palette sets hue, not brightness: saturated colours at full value.
-  Warm colours at half brightness read as brown and olive.
-- Darkness is punctuation. Movement comes from colour moving, not LEDs going out: a sweep
-  leaves no gaps, a pulse swells rather than dipping to black. Nothing is dimmed unless asked.
-- A pattern fills what it lands on: work in lx/ly/lz, a/r and u, so the pattern spans its
-  own groups.
-- Every LED has a look. Parts that belong together share one; give the whole installation a
-  base (a colour-wash bed, or a layer below) unless the idea wants darkness.
-- Colours come from the palette: each source's one \`colours\` param, read by position. To colour a layer, set its
-  pick in params (\`"colours": "accent2 accent3"\`); a hex only when the idea names a colour.
+/** library/extensions.md: how an extension is written, read only when a look needs one. */
+export const extensionsPage = (perSecond = 0) => `# Extensions
+
+An extension is a last resort: code you write when nothing in the library draws the idea. Declare it in the look's
+\`extensions\` as { name, kind, summary, why, code }, \`why\` naming the modules you tried and what they lack, and use
+it in a chain as { "use": "ext:<name>" } like any module.
+
+Its code is a plain script (no import/export) defining its kind's function: a source \`function pixel(p, t, P, G)\`
+returning [r, g, b, alpha] (0..1) or null where it draws nothing; a filter \`function filter(c, q, t, P, G, x)\`
+reworking c = [r, g, b, a] (x: its input's colour); a warp \`function warp(q, t, P, G)\` changing q, a copy of the
+pixel. Params: \`const params = { speed: { value: 0.4, min: 0, max: 2 }, colours: { value: 'all', type: 'color' } }\`,
+read as P.speed; a source draws only from its one \`colours\` param, with swatch('colours', i) or pal('colours', t);
+motion from clock('speed'). A pattern fills what it lands on: work in lx/ly/lz, a/r and u, so it spans its own
+groups.
+
+${pixelApi(perSecond)}
+`;
+
+export const TASTE = `- Saturated colours at full value: a palette sets hue, not brightness (half-bright warm reads as
+  brown). Dim only a bed.
+- Darkness is punctuation: colour moves, LEDs never go out. A sweep leaves no gaps, a pulse swells rather than
+  dipping to black, an element is mostly lit. A dim or mostly dark look reads as broken.
+- Put the idea where it says. Every other part gets a calm voice of its own, or the bed: every LED has a look.
+- Motion the idea names (climbing, chasing, breathing) comes from a module that moves that way.
+- Sparse places (spire strands, the rose's cells) alias: soft edges, fewer and wider features.
 - Safety: no large-area flashing, strobing or colour cycling faster than about 3 Hz.`;
 
-export const GLOBALS_GUIDE = `A look may set globals: speed (0..4, 1), level (0..1), hue (−0.5..0.5 turns), saturation
-(0..2, 1), energy (0..1, 0.5), palette (one of ${PALETTE_NAMES.join(', ')}: picks, pal() and palette() read it,
-so a look in palette colours follows the one picked), and macros [{ name, value, min, max, mod? }] that
-patterns read as G.<name>. automation [{ name, points: [[seconds, value], …] }] moves a global or macro over
-time, linearly between points: energy that builds from 0.2 to 1 over a minute, a storm macro that rises.
-A macro with a mod (an LFO) is a modulator: it moves by itself, and every param bound to it
-follows in step; its pace and amount name a fader (a global, or a macro without a mod), never a modulator. bpm
-(40–240, default 120) sits beside globals: the tempo LFOs in beats and beat-synced speeds keep.`;
+export const GLOBALS_GUIDE = `\`globals\`: palette (${PALETTE_NAMES.length} below, by name), speed (0..4, 1), level,
+hue (−0.5..0.5 turns), saturation (0..2, 1), energy (0..1, 0.5), macros [{ name, value, min, max, mod? }]. \`bpm\`
+(40–240, 120) sits beside globals. \`automation\` [{ name, points: [[seconds, value], …] }] moves a global or macro
+linearly: energy 0.2 → 1 over a minute is a build. A macro is one dial for many params: bind them to it (a storm macro
+dims the bed while bolts quicken). A macro with a \`mod\` (an LFO) is a modulator: all bound to it move in step. Give
+one min 0, max 1, center 0.5, depth 0.5; its pace and amount name a fader (a global or a plain macro), never a
+modulator. One modulator, not the same LFO repeated.
+\`duration\` (seconds, 30 unless set, at most ${LIMITS.duration}) loops. For a progression ("calm, a storm, embers")
+set it (30–120) and give the layers that come and go \`clips\` [{ start, end, fadeIn, fadeOut }], not overlapping,
+with fades of a few seconds; the bed has none, so the rig never goes dark between sections.`;
 
-export const COMPOSE_GUIDE = `A look is a stack of 1 to ${LIMITS.layers} layers, composited bottom (first) to top,
-each on a union of groups. Blend: \`add\` sums light, \`over\` covers what is below where the layer draws,
-\`max\` keeps the brighter, \`multiply\` tints. \`level\` is 0..1, usually 1.
+export const COMPOSE_GUIDE = `A look is 1 to ${LIMITS.layers} layers, composited bottom (first) to top, each on a
+union of groups. Layer blend: \`add\` sums light, \`over\` covers what is below where the layer draws, \`max\` keeps
+the brighter, \`multiply\` tints. \`level\` is 0..1, usually 1.
 
-Compose each layer from the library below, by name; the studio fills in the code. A layer is either
-- \`preset\`: a ready recipe, by name, with \`overrides\` [{ module, name, value }] for any of its modules' params
-  (module: the module's name, \`bars#2\` for its second bars); or
-- \`modules\`: a chain, listed top to bottom, each { use: "<module>", params: [{ name, value }] }, giving only the
-  params you change from their defaults (each module's docs give its params' ranges and defaults).
+A layer is a \`preset\` (a ready chain by name, with \`overrides\` [{ module, name, value }]; \`bars#2\` is its second
+bars) or \`modules\`: a chain of up to ${LIMITS.modules}, listed top to bottom, each { use, params: [{ name, value }] }
+giving only the params you change.
 
 One rule: each module works on everything above it, as in an image editor.
-- A source draws its element on transparent, onto what is above it: the first covers, later ones add (or give a
-  \`blend\`: over, add, max, multiply, under). A source with \`as: "input"\` draws nothing itself: it feeds the filter
-  whose \`input\` is its \`id\` (clouds as input, then mask with input = its id: what is above shows only in clouds).
-- A filter reworks everything above it; a warp bends everything above it, so a warp goes below what it bends
-  (later in the list).
-- A bed fills: colour-wash first in the chain, then the element with \`blend: "over"\`; or a colour-wash layer below.
-  A bed under an element stays dim (its layer's level 0.15–0.35, or brightness 0.2–0.4), so the element reads.
+- A source draws its element on transparent onto what is above it: the first covers, later ones add (or take a
+  \`blend\`: over, add, max, multiply, under). With an \`id\` and \`as: "input"\` it draws nothing and feeds the filter
+  whose \`input\` names it (clouds as input, then mask: what is above shows only in the clouds).
+- A filter reworks everything above it. A warp bends everything above it, so it goes below what it bends; anchor
+  lowest of the warps. blur, trails, delay, smoke, replay, sort and splash hold real colours: a warp below one does
+  not reach above it.
+- A bed is a dim colour-wash (level 0.15–0.35, or brightness 0.2–0.4) so the element reads: a layer on the root, or,
+  when each part has a layer of its own, first in that part's chain with the element after it \`blend: "over"\`.
+- A new layer when a part goes on other places, plays in another clip or needs its own level; another module when
+  it works on the same place.
 
-Values: numbers within the listed range; on/off; a choice by its word (a direction is one of up down right left
-back front out in clockwise counterclockwise along: \`out\` and \`in\` go from and to the layer's centre,
-\`clockwise\` and \`counterclockwise\` round it as seen from the front, \`along\` runs along each wire). A colour
-(\`pick\`) is a pick of the look's palette: \`all\` (low to high), a role (\`low\` \`body\` \`accent\` \`high\`),
-a slot (\`accent2\`), \`rainbow\` or \`#rrggbb\`, joined by spaces in order or dealt in turn
-with / (\`"accent high"\`, \`"body/accent"\`). Any number param may instead be bound: \`{ "mod": "lfo", "rate": 0.2,
-"shape": "sine", "center": 0.5, "depth": 0.5 }\` (Hz, or \`"unit": "beats"\`: cycles a beat; \`"pace"\` and
-\`"amount"\` name a fader that speeds it or scales its swing), \`{ "mod": "global", "name": "energy", "from": 0.2,
-"to": 1 }\` (or a macro's or modulator's name), or, on a speed, \`{ "mod": "beats", "per": 0.5 }\` (in time
-with the beat: per × beats a second). To move params as one (breathe, pulse, sway together),
-bind them all to one modulator: a macro with a mod.
+Values: a number within its range; on/off; a choice by its word. \`out\` and \`in\` run from and to the layer's
+centre (or the anchor's), \`clockwise\` and \`counterclockwise\` round it seen from the front, \`along\` each wire. A
+colour pick: \`all\`, a role (\`low\` \`body\` \`accent\` \`high\`), a slot (\`accent2\`), \`rainbow\` or \`#rrggbb\`
+(only for a colour the idea names); joined by spaces in order, or with / dealt in turn. A source reads its pick by
+position: bands in turn, a gradient first to last, a head or crest the last.
+Any number param may be bound instead:
+- \`{ "mod": "lfo", "rate": 0.2, "shape": "sine", "center": 0.5, "depth": 0.5 }\`: Hz, or with \`"unit": "beats"\`
+  cycles a beat (0.25: once a bar); shape \`hold\` steps; \`"pace"\` and \`"amount"\` name a fader that quickens it
+  or scales its swing.
+- \`{ "mod": "global", "name": "energy", "from": 0.2, "to": 1 }\`: follows a global, macro or modulator. Library
+  sources never read energy: bind their density, speed or brightness to it to build.
+- on a speed, \`{ "mod": "beats", "per": 0.5 }\`: per × the beats a second, in time with the beat.
+A layer's level cannot be bound: bind a source's brightness.
 
-Choose in this order: a preset that is the idea; else a chain of modules (a bed, the element, a warp or filter to
-shape it; a preset's recipe is a good start); place it with groups. Only when nothing in the library can draw the
-idea, write an extension: { name, kind, summary, why, code }, \`why\` naming the modules you tried and what they lack,
-used as { use: "ext:<name>" } like any module (see Extensions). Most looks need none.`;
+Choose a preset that is the idea; else a chain (a bed, the element, a warp or filter to shape it; a preset's recipe
+is a good start); place it with groups. An extension only when nothing in the library can draw it.`;
 
 type Example = { idea: string, uses: string[], places?: string[],
   look: (root: string, place: (tag: string) => string) => object };
@@ -176,12 +196,6 @@ const v = (name: string, value: unknown) => ({ name, value });
 /** Worked compositions; each is shown only when the library has every name it uses and the rig every tag it places
  * on. */
 export const EXAMPLES: Example[] = [
-  { idea: 'gentle rain over the whole cathedral, heavier as the night builds', uses: ['rain', 'streaks'],
-    look: (root) => ({ title: 'Night rain', summary: 'Rain falls over the whole building, heavier as energy builds.',
-      duration: 60, globals: { palette: 'vapour', energy: 0.3 }, automation: [{ name: 'energy', points: [[0, 0.3],
-        [60, 0.9]] }],
-      layers: [{ title: 'Rain', groups: [root], blend: 'add', level: 1, preset: 'rain',
-        overrides: [{ module: 'streaks', name: 'speed', value: 0.7 }] }] }) },
   { idea: 'a comet circling the rose window over a dark bed', uses: ['colour-wash', 'bars'], places: ['rose'],
     look: (root, place) => ({ title: 'Rose comet', summary: 'A comet runs round the rose window over a deep bed.',
       layers: [

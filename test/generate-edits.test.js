@@ -62,6 +62,16 @@ describe('applyEdits', () => {
     assert.equal('duration' in comp, false);
   });
 
+  test('insert: a list the look lacks (macros, automation) is made; a key no look has is not', () => {
+    const storm = { name: 'storm', value: 0.2, min: 0, max: 1 }, lane = { name: 'storm', points: [[0, 0.2], [30, 1]] };
+    const { comp, failed } = run({ op: 'insert', path: 'globals/macros', value: storm },
+      { op: 'insert', path: 'automation', value: lane }, { op: 'insert', path: 'layers/Rose/modlues', value: {} });
+    assert.deepEqual(comp.globals, { macros: [storm] });
+    assert.deepEqual(comp.automation, [lane]);
+    assert.deepEqual(failed, ['edits[2] insert layers/Rose/modlues: layers/Rose/modlues is not a list']);
+    assert.equal('modlues' in comp.layers[1], false);
+  });
+
   test('the layer ops: add (on top, or at), move, replace, remove; by title, index or a layers/ path', () => {
     const layer = { title: 'Sparks', groups: ['spires'], blend: 'add', level: 1, modules: [{ use: 'sparkle' }] };
     const top = run({ op: 'add_layer', layer }).comp;

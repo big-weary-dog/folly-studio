@@ -38,9 +38,11 @@ describe('catalog', () => {
     assert.deepEqual(names, [...names].sort((a, b) => a.localeCompare(b)));
     assert.equal(CATALOG.modules.size + CATALOG.presets.size, REAL.length);
     assert.equal(buildCatalog([...REAL].reverse()).text, CATALOG.text);
-    assert.match(CATALOG.text, /^Sources \(each also has brightness 0–1 \(1\)\):\n/, 'Brightness said once');
+    assert.match(CATALOG.text, /^Sources \(each also has colours colour \(all\); brightness 0–1 \(1\)\):\n/,
+      'Brightness, and colours when all, said once');
+    assert.match(CATALOG.text, /\n- heartbeat: [^\n]+\[colours colour \(low body high\);/, 'colours not all, shown');
     assert.match(CATALOG.text,
-      /\n- bars: [^\n]+ \[colours colour \(all\); direction up\|down[a-z|-]* \(up\); speed -2–2 \(0\.4\);/,
+      /\n- bars: [^\n]+ \[direction up\|down[a-z|-]* \(up\); speed -2–2 \(0\.4\);/,
       'its params, each with its range or choices and default');
     assert.equal(buildCatalog(REAL, new Map([['bars', 'Stripes.']])).text.match(/\n- bars: (\S+)/)?.[1], 'Stripes.',
       'its line from the docs');
@@ -68,14 +70,14 @@ describe('catalog', () => {
 describe('worked compositions', () => {
   test('an example placed on a tag shows only on a rig that has it; the rest place on its root', () => {
     const sys = buildSystemPrompt({ library: REAL, rig: RIG });
-    for (const t of ['"preset":"rain"', '"direction","value":"clockwise"', '"input":"sky"']) {
+    for (const t of ['"title":"Storm breath"', '"direction","value":"clockwise"', '"input":"sky"']) {
       assert.ok(sys.includes(t), t);
     }
     // A rig with none of the Folly's places (City of Gods drops canopy, wash, flood and back; here rose and spire too).
     const bare = GROUPS.map((g) => ({ ...g, tags: (g.tags ?? []).filter((t) => !/^(rose|spire|canopy|wash|flood|back)/
       .test(t)) }));
     const other = buildSystemPrompt({ library: REAL, rig: { ...RIG, groups: bare }, groups: bare });
-    assert.ok(other.includes('"preset":"rain"') && !other.includes('"input":"sky"'));
+    assert.ok(other.includes('"title":"Storm breath"') && !other.includes('"input":"sky"'));
     assert.ok(!/canopy|"wash"|flood/.test(other.slice(other.indexOf('# Worked compositions'))));
   });
 });

@@ -96,13 +96,15 @@ export function buildCatalog(library: readonly LibraryEntry[] = [], looks: Reado
   const kindOf = (e: ModuleEntry) => (MODULE_KINDS.includes(e.kind) ? e.kind : 'source');
   const sections = MODULE_KINDS.map((kind) => {
     const list = [...modules.values()].filter((m) => kindOf(m) === kind);
-    // every source's own params; the common ones (Brightness) said once, in the heading
+    // every source's own params; the common ones (Brightness, and colours when it is `all`) said once, in the heading
+    const common = (k: string, d: ParamDecl) => JSON.stringify(d) === JSON.stringify(COMMON[k])
+      || (k === 'colours' && d.type === 'color' && d.value === 'all');
     const shown = (m: ModuleEntry & { params: Record<string, ParamDecl> }) => Object.entries(m.params)
-      .filter(([k, d]) => !(kind === 'source' && JSON.stringify(d) === JSON.stringify(COMMON[k])));
+      .filter(([k, d]) => !(kind === 'source' && common(k, d)));
     const lines = list.map((m) => `- ${m.name}: ${oneLine(looks.get(m.name) || m.summary)}${
       shown(m).length ? ` [${shown(m).map(([k, d]) => describeParam(k, d)).join('; ')}]` : ''}`);
-    const head = kind === 'source' ? ` (each also has ${Object.entries(COMMON).map(([k, d]) => describeParam(k, d))
-      .join('; ')})` : '';
+    const head = kind === 'source' ? ` (each also has colours colour (all); ${Object.entries(COMMON)
+      .map(([k, d]) => describeParam(k, d)).join('; ')})` : '';
     return list.length ? `${kind[0]!.toUpperCase()}${kind.slice(1)}s${head}:\n${lines.join('\n')}` : '';
   }).filter(Boolean);
   if (presets.size) {

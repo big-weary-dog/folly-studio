@@ -118,13 +118,16 @@ export function createClaudeAdapter(o: Options = {}) {
       media_type: 'image/png', data: Buffer.from(png).toString('base64') } }));
     const withImages = (pngs: Uint8Array[], t: string) => (pngs.length ? [...blocks(pngs), { type: 'text', text: t }]
       : t);
+    // The first turn is the same on every round of an idea: with the docs in it, its end is a second cache point.
+    const opening = given ? [...blocks(first), { type: 'text', text: given + (turn ?? buildUserMessage(text)),
+      cache_control: { type: 'ephemeral' } }] : withImages(first, turn ?? buildUserMessage(text));
     const turns = repair ? [{ role: 'assistant', content: JSON.stringify(repair.answer) },
       { role: 'user', content: withImages(repair.images ?? [], said) }] : [];
     const body: Record<string, unknown> = {
       model: cfg.model, max_tokens: cfg.maxTokens, stream: true, thinking: { type: 'adaptive' },
       output_config: { effort: cfg.effort, format: { type: 'json_schema', schema } },
       system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-      messages: [{ role: 'user', content: withImages(first, given + (turn ?? buildUserMessage(text))) }, ...turns],
+      messages: [{ role: 'user', content: opening }, ...turns],
       ...(docs.size ? { tools: [READ_DOC] } : {}),
     };
     const headers: Record<string, string> = { 'content-type': 'application/json', 'x-api-key': cfg.apiKey!,
