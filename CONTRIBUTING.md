@@ -267,7 +267,8 @@ cover.
   headroom for features; views still split into chunks loaded on first use where that comes naturally. Raised to
   220 KB by the owner's call (2026-10-20), for the frame buffer and more headroom.
 - On the wire (`test/transfer.test.js`, the real server, the build and a model of a browser's cache): a cold
-  Studio load (shell, modules, styles, sandbox, `rig.json`, API) ≤ 205 KB with br (240 KB gzip);
+  Studio load (shell, modules, styles, sandbox, `rig.json`, API) ≤ 215 KB with br (255 KB gzip; raised from 205 and
+  240 for the rhythm filter, with headroom, by the owner's standing call on size);
   a reload, even a day later, sends only the shell and its API calls, each a 304 (assets have
   content-hashed names, kept a year); lists carry no code, and idea polls back off.
 - The Folly's 4,870 LEDs at 40 fps: the render loop allocates nothing per frame (reuse typed arrays, pass

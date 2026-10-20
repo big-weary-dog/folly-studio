@@ -60,6 +60,7 @@ function paramHead(name: string, d: ParamDecl) {
     : d.type === 'color' ? `pick, default \`${d.value}\`${d.blend === 'smooth' ? ', blended smooth' : ''}`
     : d.type === 'toggle' ? `on/off, default ${d.value ? 'on' : 'off'}`
     : d.type === 'picture' ? `picture, default \`${JSON.stringify(d.value)}\``
+    : d.type === 'text' ? `text, default \`${d.value}\``
     : `${d.options.join(' | ')}; default \`${d.value}\``;
   const u = unit(d);
   return `**${name}** (${what}${u ? `; ${u}` : ''})`;

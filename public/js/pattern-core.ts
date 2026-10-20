@@ -14,7 +14,7 @@ export type { PickBlend, PickSpec } from './core/picks.ts';
 export type { Compiled, ParamSchema, ParamSpec } from './core/compile.ts';
 export {
   automationAt, GLOBALS, isBinding, macroNameOk, MAX_LANES, MAX_MACROS, MAX_POINTS, normalizeGlobals, prepareLook,
-  resolveParams,
+  readText, resolveParams, TEXT_MAX,
 } from './core/globals.ts';
 export type { G, PreparedLook, Values } from './core/globals.ts';
 export { groupsByTag, pixelsForGroups, prepareScene, tagCentres, tagMask } from './core/scene.ts';

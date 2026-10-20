@@ -1,10 +1,11 @@
 // Pure: a module's params as controls (SPEC "Pattern code") and number params' bindings (SPEC "Param bindings"):
 // the schema entry a control shows, a binding in a few words, and the binding the modulate dialog makes.
 import type { Binding, ParamValue } from '../../../shared/schemas/look.ts';
+import { readText } from '../core/globals.ts';
 import { type Picture, readPicture } from '../core/picture.ts';
 import { humanize } from './kit.tsx';
 
-export interface Param { kind: 'number' | 'color' | 'toggle' | 'choice' | 'picture';
+export interface Param { kind: 'number' | 'color' | 'toggle' | 'choice' | 'picture' | 'text';
   value: number | string | boolean | Picture;
   label: string; min: number; max: number; step: number; options: string[]; blend?: 'smooth' | 'step'; help?: string;
   unit?: 'minute' }
@@ -64,6 +65,7 @@ export function normaliseParam(key: string, raw: unknown): Param | null {
     const pic = readPicture(v);
     return pic && { ...base, kind: 'picture', value: pic };
   }
+  if (r.type === 'text') return { ...base, kind: 'text', value: readText(v) ?? '' };
   if (r.type === 'choice' && Array.isArray(r.options) && r.options.length) {
     const options = r.options.map(String);
     return { ...base, kind: 'choice', value: options.includes(v as string) ? v as string : options[0], options };
@@ -91,6 +93,7 @@ export function shownValue(p: Param, values: Record<string, ParamValue>, key: st
   }
   if (!has) return { has, bound: false, value: p.value };
   if (p.kind === 'picture') return { has, bound: false, value: readPicture(v) ?? p.value };
+  if (p.kind === 'text') return { has, bound: false, value: readText(v) ?? p.value as string };
   const own = p.kind === 'color' ? toHex(v) : p.kind !== 'choice' ? !!v : p.options.includes(v as string) ? v : p.value;
   return { has, bound: false, value: own as string | boolean };
 }

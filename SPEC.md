@@ -207,7 +207,7 @@ has alpha × level, `max` keeps the brighter channel, `multiply` tints what is b
 
 - **Modules**: 1–8 per layer, ids unique in it (`[A-Za-z0-9_.:-]{1,64}`), `code` ≤ 20 kB each and always
   stored (looks stay self-contained for the boxes); `ref` names the library entry it came from; `params`
-  override the code's defaults; `enabled: false` skips it; `input` names an earlier source; `as` is only
+  override the code's defaults (≤ 64; a string ≤ 256 characters: a pick, a choice or text); `enabled: false` skips it; `input` names an earlier source; `as` is only
   `'input'`; `blend` as for layers, or `under` (a source's only). A layer with `code` (+ `params`) and no `modules`
   is a one-source chain and renders exactly as before.
 - **chain**: `2`, the one rule (SPEC-library "Modules"). Before it a warp bent the modules after it, on through blurs and
@@ -365,7 +365,8 @@ hung layer).
 `STDLIB`, `compilePattern(code) → { kind, pixel, frame, params }` (throws on syntax error / no `pixel`),
 `compileModule(code, kind) → { kind, pixel | warp | filter, frame, params, picks }` (`picks`: the instance's colours,
 SPEC-library "Palettes"), `readPick(value) → { groups, blend, range, rotate } | null` and `pickText(groups)` (a pick read leniently,
-and as text), `layerModules(layer) → modules`
+and as text), `readText(value) → string | null` (a text param's value: printable ASCII, at most `TEXT_MAX`, 256,
+characters), `layerModules(layer) → modules`
 (a legacy layer → one source), `compileLayer(layer) → compiled[]` (throws `title: error`), `setLibrary([{ name,
 code }])`, `prepareScene(rig) → scene` (throws on a malformed rig), `groupsByTag(scene, tag) → [group]` (outermost
 first), `pixelsForGroups(scene, ids, tags?) → Int32Array` (a layer's rule above), `tagMask(scene, tag) → Uint8Array`,

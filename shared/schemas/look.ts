@@ -98,7 +98,7 @@ const PickObject = z.strictObject({ pick: PickText, blend: oneOf('blend', ['step
 export const Pick = z.union([PickText, PickObject]);
 /** A picture param's value (SPEC-library "Pictures"), held to the core's limits. */
 export const PictureValue = z.custom<Picture>((v) => !pictureProblem(v), { error: 'is not a picture.' });
-const ParamValue = z.union([z.number(), z.boolean(), z.string().max(200), z.array(z.number()).max(16), Binding,
+const ParamValue = z.union([z.number(), z.boolean(), z.string().max(256), z.array(z.number()).max(16), Binding,
   PickObject, PictureValue]);
 /** Param overrides: values (numbers, toggles, colours as picks, '#hex' or [r, g, b]), bindings or pictures. */
 const Param = z.custom<z.infer<typeof ParamValue>>((v) => ParamValue.safeParse(v).success,

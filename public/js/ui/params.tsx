@@ -6,6 +6,7 @@ import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 
 import type { Binding, ParamValue } from '../../../shared/schemas/look.ts';
+import { readText, TEXT_MAX } from '../core/globals.ts';
 import type { Picture } from '../core/picture.ts';
 import { DEFAULT_PALETTE } from '../core/stdlib.ts';
 import { BeatClock } from './beat-clock.tsx';
@@ -85,6 +86,11 @@ function Control({ name, p, values, set, ctx, colours, narrow }: { name: string;
     {clock}
     <ModButton p={p} value={values[name]} now={bound ? p.value as number : value as number} ctx={ctx} put={putOr}
       label={`Modulate ${label}`} title={TITLE} /></>
+    : p.kind === 'text' ? <input type="text" id={id} class="param-text" value={value as string} maxLength={TEXT_MAX}
+      spellcheck={false} autocomplete="off" onChange={(e) => {
+        const v = readText(e.currentTarget.value);
+        if (v === null) e.currentTarget.value = value as string; else put(v);
+      }} />
     : p.kind === 'choice' ? <select id={id} class="param-choice" value={value as string}
       onChange={(e) => put(e.currentTarget.value)}>
       {p.options.map((o) => <option value={o}>{optionText(o, p.options)}</option>)}</select>

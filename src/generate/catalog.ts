@@ -9,7 +9,8 @@ import type { LibraryEntry, ModuleEntry, PresetEntry } from '../../shared/schema
 
 export type ParamDecl = ({ type: 'number', value: number, min: number, max: number }
   | { type: 'color', value: string, blend?: string } | { type: 'toggle', value: boolean }
-  | { type: 'choice', value: string, options: string[] } | { type: 'picture', value: Picture })
+  | { type: 'choice', value: string, options: string[] } | { type: 'picture', value: Picture }
+  | { type: 'text', value: string })
   & { label?: string, help?: string };
 
 const isPreset = (e: LibraryEntry): e is PresetEntry => e.kind === 'preset';
@@ -56,6 +57,8 @@ export function readParams(code: string): Record<string, ParamDecl> {
       out[name] = { type: 'choice', value: v, options: d.options.map(String), ...label };
     } else if (d.type === 'picture' && readPicture(v)) {
       out[name] = { type: 'picture', value: readPicture(v)!, ...label };
+    } else if (d.type === 'text' && typeof v === 'string') {
+      out[name] = { type: 'text', value: v, ...label };
     } else if (typeof v === 'number' && typeof d.min === 'number' && typeof d.max === 'number') {
       out[name] = { type: 'number', value: v, min: d.min, max: d.max, ...label };
     }
@@ -75,6 +78,7 @@ export function describeParam(name: string, d: ParamDecl) {
   if (d.type === 'toggle') return `${name} on/off (${d.value ? 'on' : 'off'})`;
   if (d.type === 'choice') return `${name} ${d.options.join('|')} (${d.value})`;
   if (d.type === 'color') return `${name} colour (${d.value})`;
+  if (d.type === 'text') return `${name} text (${d.value})`;
   return `${name} picture`;
 }
 

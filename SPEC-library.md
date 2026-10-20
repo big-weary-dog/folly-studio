@@ -30,7 +30,8 @@ number `{ value, min, max, step?, unit? }` (`unit: 'minute'`: a speed counted a 
 `{ value: pick, type: 'color', blend? }`: a pick names palette colours or literals ("Palettes" below), such as
 `'all'`, `'accent'` or `'#rrggbb'`; `{ value: 'name', type: 'choice', options: ['name', …] }` (≤ 16
 options, each `[a-z][a-z0-9-]{0,31}`; a value not among them takes the default); `{ value: picture, type: 'picture' }`
-("Pictures" below; no value: an empty one). Any kind may carry `label` (its name in
+("Pictures" below; no value: an empty one); `{ value: 'text', type: 'text' }` (≤ 256 printable ASCII characters, a
+value that is not takes the default; the pattern reads it: rhythm's steps, a tag list). Any kind may carry `label` (its name in
 the Studio, a unit in parentheses: `'Speed (bars a second)'`) and `help` (≤ 300 characters: one or two sentences on
 what it does and how it looks low and high). The Studio shows `help` on hover over the param's row, and on a touch
 screen behind an ⓘ beside it; the generators' library docs give it as the param's effect. Every library param has
@@ -189,7 +190,7 @@ waves, fireflies, sparkle,
 streaks, lightning, fireworks, strobe, heartbeat, picture. Warps: mirror, mosaic, polar,
 anchor, rotate, scroll, twist, turbulence, in-turn. Filters: recolour, hue-shift,
 stained-glass, mask, blur, edge-fade, trails, delay, smoke, replay, sort,
-splash. Presets: Water, Storm, Kaleidoscope, Tunnel and
+splash, rhythm. Presets: Water, Storm, Kaleidoscope, Tunnel and
 Afterimage (mirror's Wedges and Rings, trails after lightning), the rose's stained glass
 (gothic-jewel, backlit-glow, cathedral-sun), and the **retired sources'**: twinkle's Starfield, depth-wave's Playa
 wave, canopy-rain's Rain, wash-breathe's Breathe, spire-helix's Tower helix, arch-chase's and groups-in-turn's Arch

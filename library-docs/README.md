@@ -20,7 +20,7 @@ works on everything above it, as in an image editor.
   `under` (drawn beneath what is above). With `as: "input"` (and an `id`) it draws nothing itself and only feeds a
   filter whose `input` names it.
 - A **filter** reworks the colour of everything above it (recolour, fade, mask, blur, trails, delay, smoke, replay,
-  sort, splash).
+  sort, splash, rhythm).
 - A **warp** bends where everything above it reads its pixel (fold, turn, slide, wrap), so a warp goes below what it
   bends (later in the list). `blur`, `trails`, `delay`, `smoke`, `replay`, `sort` and `splash` hold real LED colours
   and end a stage: a warp below one does not reach above it.

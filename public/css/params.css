@@ -4,6 +4,8 @@
 .param-mod, .param-info, .param-reset { min-width: var(--hit, 26px); min-height: var(--hit, 26px); padding: 0 4px;
   font-size: 15px; color: var(--text-3); background: none; border: 0; cursor: pointer; }
 .param-mod { margin-left: auto; }
+/* a text param (a rhythm's steps): monospace so the steps line up */
+.param-text { flex: 1 1 220px; min-width: 96px; font: 13px var(--mono); letter-spacing: .04em; }
 .param-mod:hover, .param-reset:hover, .param-info[aria-expanded=true] { color: var(--sand); }
 /* modulation: the ∿ lit when something moves the number, and a chip saying what in place of its field */
 .param-mod[aria-pressed=true] { color: var(--violet); text-shadow: 0 0 8px var(--violet); }

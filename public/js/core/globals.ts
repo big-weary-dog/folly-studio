@@ -215,6 +215,12 @@ export function finish(rgb: Float32Array, n: number, L?: PreparedLook | null) {
   }
 }
 
+/** A text param's longest value (SPEC "Pattern code"). */
+export const TEXT_MAX = 256;
+/** A text param's value: printable ASCII, at most TEXT_MAX characters, else null. */
+export const readText = (v: unknown) => (typeof v === 'string' && v.length <= TEXT_MAX && /^[ -~]*$/.test(v) ? v
+  : null);
+
 const SHAPES = ['sine', 'tri', 'saw', 'square', 'hold'];
 const MODS: Record<string, number> = { lfo: 0, global: 1, envelope: 2, beats: 3 };
 /** Is v a binding ({ mod, … }) rather than a value? */
@@ -239,6 +245,8 @@ export function resolveParams(schema: ParamSchema | undefined, overrides: unknow
       P[key] = typeof v === 'string' && (d.options.includes(v) || old) ? v : d.value;
     } else if (d.type === 'picture') {
       P[key] = readPicture(v) ?? d.value;
+    } else if (d.type === 'text') {
+      P[key] = readText(v) ?? d.value;
     } else {
       const n = Number(v);
       P[key] = Number.isFinite(n) ? n : d.value;

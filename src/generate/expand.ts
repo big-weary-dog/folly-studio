@@ -6,7 +6,7 @@
 // the wrong type is mended or dropped with a note. A layer or module given as code (the old shape) passes through to
 // validateLook as it was.
 
-import { pictureProblem } from '../../public/js/pattern-core.ts';
+import { pictureProblem, readText, TEXT_MAX } from '../../public/js/pattern-core.ts';
 import type { Catalog, ParamDecl } from './catalog.ts';
 
 // Words from before both ways were named, as the modules' upgrade() reads them: what old docs and habits still write.
@@ -79,6 +79,9 @@ function checkParam(d: ParamDecl, v: unknown, at: string, notes: string[]) {
       d.options.join(' ')}`), undefined);
   }
   if (d.type === 'picture') return v;   // fromLibrary refused a bad one
+  if (d.type === 'text') {
+    return readText(v) ?? (notes.push(`${at}: not text of at most ${TEXT_MAX} printable characters`), undefined);
+  }
   return typeof v === 'string' || isObj(v) ? v : (notes.push(`${at}: not a colour pick`), undefined);
 }
 

@@ -2,7 +2,7 @@
 // errors; and the library that use() runs.
 import { type Clocks, newClocks } from './clocks.ts';
 import { HISTORY_MAX, type History, newHistory } from './history.ts';
-import { type G, resolveParams, type Values } from './globals.ts';
+import { type G, readText, resolveParams, TEXT_MAX, type Values } from './globals.ts';
 import { newPicks, type PickBlend, type Picks, pickText, readPick } from './picks.ts';
 import { EMPTY_PICTURE, type Picture, pictureProblem, readPicture } from './picture.ts';
 import type { ModuleKind, Pixel } from './render.ts';
@@ -13,7 +13,8 @@ import { STAGES } from './warps.ts';
 export type ParamSpec = { label?: string, help?: string } & (
   { type: 'number', value: number, min: number, max: number, step?: number, unit?: 'minute' }
   | { type: 'toggle', value: boolean } | { type: 'color', value: string, blend?: PickBlend }
-  | { type: 'choice', value: string, options: string[] } | { type: 'picture', value: Picture });
+  | { type: 'choice', value: string, options: string[] } | { type: 'picture', value: Picture }
+  | { type: 'text', value: string });
 export type ParamSchema = Record<string, ParamSpec>;
 type RGBA = number[];
 /** The longest `help` a param keeps (SPEC "Pattern code"). */
@@ -131,6 +132,10 @@ export function normalizeParams(raw: unknown): ParamSchema {
       const value = d.value === undefined ? EMPTY_PICTURE : readPicture(d.value);
       if (!value) throw new Error(`param "${key}": ${pictureProblem(d.value)}`);
       p = { type, value };
+    } else if (type === 'text') {
+      const value = d.value === undefined ? '' : readText(d.value);
+      if (value === null) throw new Error(`param "${key}": text is at most ${TEXT_MAX} printable characters`);
+      p = { type, value };
     } else if (type === 'number') {
       const value = d.value === undefined ? 0 : Number(d.value);
       if (!Number.isFinite(value)) throw new Error(`param "${key}": value must be a number`);
@@ -139,7 +144,7 @@ export function normalizeParams(raw: unknown): ParamSchema {
       if (isNum(d.step) && d.step > 0) p.step = d.step;
       if (d.unit === 'minute') p.unit = d.unit;
     } else {
-      throw new Error(`param "${key}": unknown type "${d.type}" (number, toggle, color, choice or picture)`);
+      throw new Error(`param "${key}": unknown type "${d.type}" (number, toggle, color, choice, picture or text)`);
     }
     if (typeof d.label === 'string') p.label = d.label;
     if (typeof d.help === 'string' && d.help.trim()) p.help = d.help.trim().slice(0, HELP_MAX);

@@ -5,6 +5,7 @@ Filters rework the colour of everything above them in the chain, so they go afte
 - Soften: blur (space), trails (time).
 - Time: delay (later along a direction), smoke (a trail that drifts), replay (the last moments again), splash
   (ripples where it brightens).
+- Beat: rhythm (gates or pumps it to steps of the look's bpm, a drum line a place).
 - Rearrange: sort (the bright light slides to one end of each strand).
 
 Blur, trails, delay, smoke, replay, sort and splash hold real LED colours, so warps below them don't reach above.
