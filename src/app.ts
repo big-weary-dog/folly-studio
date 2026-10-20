@@ -20,6 +20,7 @@ import { createQueue, foundryFromEnv } from './generate/index.ts';
 import { createRegistry } from './generate/models.ts';
 import { createLog, errorHandler, type Log } from './http.ts';
 import { createHub } from './live/hub.ts';
+import { piFeed } from './live/pi-feed.ts';
 import { liveSettings, playableLook, stageCopy } from './live/routes.ts';
 import { piPreview, previewTarget } from './pi-preview.ts';
 import { createRenderBox } from './render-box.ts';
@@ -119,7 +120,12 @@ export async function createServer(opts: Options = {}) {
   await app.register(fastifyWebsocket, { options: { maxPayload: 16 * 1024 } });
   await app.register(apiRoutes({ store, auth, queue, models, loaders, log, access, framesDir, bakes,
     frames, rateLimit, secureCookies, flash, hub, live }), { prefix: '/api' });
-  if (piTarget) await app.register(piPreview({ auth, target: piTarget }));
+  if (piTarget) await app.register(piPreview({ auth, target: piTarget, hub }));
+  // The live stage follows the dry run whenever /pi was the last thing used (SPEC-live "Following /pi").
+  if (piTarget) {
+    const feed = piFeed({ target: piTarget, onNow: hub.piNow, onSource: hub.piSource });
+    app.addHook('onClose', async () => feed.close());
+  }
   await serveApp(app, { distDir, log });
   await app.ready();
   const pruneTimer = setInterval(() => auth.pruneSessions(), 60 * 60 * 1000);

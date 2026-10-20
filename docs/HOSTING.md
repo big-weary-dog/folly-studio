@@ -178,8 +178,9 @@ Pi's network. With `PI_PREVIEW_URL` set, `npm run host` also runs `folly-studio-
 --base /pi` on that loopback port, which renders as the Pi would and sends nothing to any lights (the page says
 "Dry run"). Studio passes `/pi/` and its socket `/pi/ws` through to it, for admins only: a session-less visit is
 asked to sign in (401), anyone else is refused (403), and the socket must come from this site. The page keeps its
-own CSP. It drives only that dry run, never the Pi itself. Unset `PI_PREVIEW_URL` and run `npm run host` again to
-take it down.
+own CSP. It drives only that dry run, never the Pi itself. Using a control there makes Studio's Live tab play what the
+dry run plays, for every viewer, until a curator uses Live control again (SPEC-live "Following /pi"); both pages say
+which drives. Unset `PI_PREVIEW_URL` and run `npm run host` again to take it down.
 
 ### The flash check
 

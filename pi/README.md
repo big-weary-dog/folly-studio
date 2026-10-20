@@ -37,6 +37,9 @@ dry and when the flash guard has cut to `safe` (the safe look plays until someon
 - No PIN by default. `--pin 2468` (or `"pin"` in `pi/config.json`) makes the page ask for it before it changes
   anything; five wrong ones lock the page out for a minute.
 - `--http 0` turns the page off; `--bind 127.0.0.1` keeps it to the Pi itself.
+- The socket also sends what plays (`source`: the look, its modules by ref, at each change) and its clock in the
+  state, so Studio's Live tab can follow a dry run behind Studio's `/pi` (SPEC-live "Following /pi"). The Pi itself
+  connects to nothing and needs no setting for it.
 - The page is Preact on Studio's own components and styles (`pi/page/`). Changed, run `npm run pi:page` and commit
   `pi/page/dist`; `pi/test/page.test.ts` fails while it is stale.
 

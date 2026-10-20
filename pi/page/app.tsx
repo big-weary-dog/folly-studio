@@ -77,6 +77,8 @@ export function App() {
         {s.switching && <span class="pi-sub">→ {s.looks.find((l) => l.id === s.switching)?.title}</span>}
       </div>
       {s.out.dryRun && <p class="pi-banner">Dry run: nothing is sent to the lights.</p>}
+      {sock.driver.value && <p class="pi-driver" role="status">Studio's Live tab: {sock.driver.value === 'pi'
+        ? 'driven from /pi.' : 'driven from Live control. Use a control here to take it.'}</p>}
       {s.tripped && <p class="pi-banner trip" role="alert">The flash guard caught {s.looks.find((l) => l.id
         === s.tripped!.look)?.title ?? s.tripped.look} flashing, so the safe look is playing. Pick a look to go on.</p>}
       {sock.error.value && <p class="pi-error" role="alert" onClick={() => { sock.error.value = ''; }}>

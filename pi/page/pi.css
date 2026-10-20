@@ -6,6 +6,7 @@ body { margin: 0; min-height: 100dvh; background: var(--night-0); color: var(--t
 .pi-banner { margin: 0; padding: 10px 12px; font-size: 14px; color: var(--text); border-radius: var(--radius);
   background: color-mix(in srgb, var(--amber) 22%, var(--night-2)); border: var(--came-s) solid var(--lead); }
 .pi-banner.trip { background: color-mix(in srgb, var(--ruby) 35%, var(--night-2)); font-weight: 600; }
+.pi-driver { margin: 0; color: var(--text-2); font-size: 14px; }
 .pi-error { margin: 0; color: var(--error); font-size: 14px; }
 .pi-tempo { display: flex; gap: 8px; }
 .pi-tap { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 64px; padding: 0 12px;

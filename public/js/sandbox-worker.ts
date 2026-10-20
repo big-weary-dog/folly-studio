@@ -5,6 +5,7 @@ import {
   type Compiled, compileModule, layerModules, neighbourGraph, prepareLayer, type PreparedLayer, type PreparedLook,
   prepareLook, prepareScene, renderFrame, type Scene, setLibrary, toChannels,
 } from './pattern-core.ts';
+import { setLive } from './live-set.ts';
 import type { Extra, ToSandbox } from './runtime.ts';
 
 type Message<T> = Extract<ToSandbox, { type: T }>;
@@ -79,6 +80,7 @@ function onLook(msg: Message<'look'>) {
 
 function onFrame(msg: Message<'frame'>) {
   const started = now();
+  if (msg.set && live) setLive(live, msg.set);
   const rgb = new Float32Array(scene ? scene.count * 3 : 0);
   const errors = scene ? renderFrame(scene, prepared, +msg.t || 0, rgb, live || undefined).errors : [];
   for (let i = 0; i < prepared.length; i++) layerMs[String(prepared[i].id)] = prepared[i].ms;

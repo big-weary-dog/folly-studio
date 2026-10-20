@@ -24,7 +24,8 @@ live = { rev: 12,                       // +1 each change
   lanes: { energy: [[0, 0.5], [4.21, 0.5], [4.26, 0.8]] },   // this loop's live automation (show time, value)
   drop: ['storm'],                      // released: back to the look's own value from the next loop
   layers: { l1: { level: 0.4, muted: false } }, blackout: false,
-  by: { id, username } | null, updatedAt }
+  by: { id, username } | null, updatedAt,
+  driver: 'stage' }                     // or 'pi': the stage follows /pi's engine (below)
 ```
 
 **Time.** Show time `τ = (server now − startedAt) / 1000`; `loop = ⌊τ / duration⌋`; the frame asked of the sandbox
@@ -54,6 +55,7 @@ Needs a session (401 before the upgrade) and a same-origin `Origin` (403). JSON 
 | `{ type: 'sync' }` | `{ type: 'state', live, now, control }` (on connect, a switch, a sync; `control`: may this person) |
 | controllers: `{ type: 'set', values?: { <name>: n }, release?: [name], layers?: { <id>: { level?, muted? } }, blackout? }` | `{ type: 'update', rev, at, loop, held, drop, lanes: { <name>: points \| null }, layers?, blackout?, by }` (changed lanes only; null: gone) |
 | controllers: `{ type: 'play', lookId }` | `{ type: 'presence', viewers, controllers: [username] }` (controllers: pushed in the last 30 s) |
+| | `{ type: 'pi', at, now, source? }` (while `driver` is `pi`: below) |
 | | `{ type: 'error', error }` (refused; the socket stays open) |
 
 An update whose `rev` is not the viewer's + 1 makes it ask `sync`. Limits per socket: 30 messages a second (a
@@ -61,6 +63,30 @@ burst of 60; past it messages are dropped with one error); a switch every 2 s; p
 is closed (1008). At most 200 sockets (1013 past it). The server pings every 25 s (Cloudflare closes idle sockets at
 100 s). Clients reconnect after 0.5 s, doubling to 8 s, with jitter, and get the whole state again.
 `set` names only the look's globals (`energy speed level hue saturation`) and macros; `layers` only its layer ids.
+
+## Following /pi
+
+With `PI_PREVIEW_URL` set (docs/HOSTING.md "The Pi's page"), the stage can follow that dry-run engine: the last to use
+a control drives. A control used on `/pi` (play, set, tap, level, blackout, as the proxy passes it) makes `driver`
+`pi`; a controller's next accepted `play` or `set` makes it `stage` again. Each change goes to every socket as a whole
+`state`. `/pi`'s page gets `{ type: 'driver', from: 'pi' | 'live' }` from the proxy after the Pi's hello and at each
+change; the Pi alone never sends it.
+
+The server holds one socket to the engine's `/pi/ws` (from 127.0.0.1, its own origin; reconnecting after 1 s,
+doubling to 10 s), and while `pi` drives sends on what it says (`shared/schemas/live.ts`):
+- `source: { rev, id, title, duration, bpm?, globals, automation, layers }`: what plays, its modules by library `ref`
+  with no code (each viewer has our library). On joining, at a switch, and when a push takes a name off its lane
+  (`rev` moves: the engine's look is prepared again).
+- `now: { rev, t, bpm, beat0, offset, values, gain }` at server time `at`: show time t, the tempo, downbeat and look
+  clock's offset, the values of the look's live controls, and the output's gain (master × blackout × a switch's dip,
+  as eased). Sent when anything but t changed, else every 2 s; null while the engine is down.
+
+A viewer plays `source` (fresh clock) and sets `now`'s values, tempo and clock in place before a frame (the sandbox's
+`frame.set`), as the engine sets them, so clocks bound to them run on as the engine's do; the view's gain is `gain`.
+Show time is `t + (server now − at)`, wrapped by the duration, anchored once and moved only when it slips past 100 ms,
+so frames never step back. A viewer that sets each frame's values renders the engine's bytes
+(`pi/test/follow.test.ts`); at 10 a second, frames match while nothing moves, and a viewer joining mid-loop has its
+bound clocks from its own start until the loop wraps. The flash guard's dip to `safe` is a switch like any other.
 
 ## HTTP
 

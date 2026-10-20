@@ -26,7 +26,7 @@ export function ControlPage() {
     const timer = setInterval(() => tick((n) => n + 1), TICK_MS);
     // This page has no stage of its own, so an update's layers and blackout show at once.
     const unlisten = sock.listen((u) => {
-      if (u === 'state' || !sock.live) return;
+      if (typeof u === 'string' || !sock.live) return;
       if (u.layers) sock.live.layers = u.layers;
       if (u.blackout !== undefined) sock.live.blackout = u.blackout;
     });
@@ -59,6 +59,9 @@ export function ControlPage() {
         <h1>{look ? look.title : 'Nothing playing'}</h1>
         <a class="btn small ghost" href="/live">Watch</a>
       </div>
+      <p class={cx('lc-driver', live?.driver === 'pi' && 'pi')} role="status">
+        {live?.driver === 'pi' ? 'Live is driven from /pi. Use a control here to take it back.'
+          : 'Live is driven from Live control.'}</p>
       <div class="lc-play">
         <select aria-label="Look to play" value={pick} onChange={(e) => setPick(e.currentTarget.value)}>
           <option value="">{looks ? (looks.length ? 'Pick a look…' : 'No looks may play yet') : 'Loading…'}</option>

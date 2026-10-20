@@ -302,7 +302,7 @@ scope (it inherits the CSP, so no network either), relays messages to it and kee
 |---|---|
 | `{ type: 'init', rig, library? }` + a `MessagePort` (library: `[{ name, code }]` sources for `use`) | `{ type: 'ready' }` (also sent once on load, before init) |
 | `{ type: 'look', layers, globals?, automation?, bpm?, clock? }` (as saved; `clock: 'fresh'`: the clock not continued from the look before, SPEC-live) | `{ type: 'compiled', layers: [{ id, ok, error?, params, modules: [{ id, ok, error?, params }] }] }` (`params`: the first source's schema) |
-| `{ type: 'frame', seq, t }` | `{ type: 'frame', seq, rgb: Float32Array(count×3), errors: [{ id, module?, error }], ms, layerMs: { <layer id>: ms } }` (rgb transferred; `ms` the frame's, `layerMs` each layer's, timed in the worker) |
+| `{ type: 'frame', seq, t, set? }` | `{ type: 'frame', seq, rgb: Float32Array(count×3), errors: [{ id, module?, error }], ms, layerMs: { <layer id>: ms } }` (rgb transferred; `ms` the frame's, `layerMs` each layer's, timed in the worker) |
 | `{ type: 'render', seq, start, frames, fps, gamma, brightness }` | `{ type: 'progress', seq, done }` … then `{ type: 'rendered', seq, channels: Uint8Array(frames × frame channels) }` |
 
 Compute is decoupled from drawing: the app keeps one `frame` request in flight and asks at 40 fps, stepping down to
@@ -311,6 +311,8 @@ well under the faster rate's; the 3D view draws at display rate when something c
 whose smoothed `layerMs` is over 40 % of a 40 fps frame's budget (8 ms) is marked heavy on its card.
 A layer that throws or returns NaN goes black for that frame and is reported in `errors`. Live frames keep
 the look's clock continuous across a new look (`prepareLook(look, previous)`); renders start it afresh, as bakes do.
+A frame's `set: { values, bpm, beat0, offset }` is set in place on the prepared look first, as a live engine sets its
+own (`js/live-set.ts`; SPEC-live "Following /pi"): globals and macros by name, the tempo, the downbeat, the clock.
 Watchdog (the page's): a frame, live or exported, running over 1 s, or new code compiling for
 over 0.7 s, has hung. The page terminates the worker, finds the layer to blame (the one being
 compiled, or each layer run alone for one frame in a throwaway worker), starts a fresh worker

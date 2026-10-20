@@ -6,6 +6,8 @@ import { FlashGuard } from '../../public/js/flash-guard.ts';
 import {
   compileLayer, prepareLayer, type PreparedLayer, prepareScene, renderFrame, setLibrary, toChannels,
 } from '../../public/js/pattern-core.ts';
+import type { PiSource } from '../../shared/schemas/live.ts';
+import type { Layer } from '../../shared/schemas/look.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
 import { liveLook, type LiveLook } from './controls.ts';
 import type { Library, PiLook } from './library.ts';
@@ -31,6 +33,7 @@ export function createEngine(o: EngineOptions) {
   const fade: Ease = { now: 0, to: 1, secs: FADE.switch };
   let playing: { id: string, look: PiLook, live: LiveLook, layers: PreparedLayer[], errors: number } | null = null;
   let pending: string | null = null, frame = 0, tripped: { at: string, look: string } | null = null;
+  let rev = 0, source: PiSource | null = null;      // rev: +1 at each switch, and each push that leaves a lane
   const stats = { frames: 0, late: 0, renderMs: 0, worstMs: 0, layerErrors: 0, lastError: '' };
 
   /** The look by id, compiled and prepared; throws, saying why, if it cannot play. */
@@ -51,6 +54,7 @@ export function createEngine(o: EngineOptions) {
     }
     frame = 0;
     fade.to = 1;
+    rev++;
     log(`playing ${playing.id} (${playing.look.title})`);
   }
 
@@ -100,19 +104,36 @@ export function createEngine(o: EngineOptions) {
       fade.to = 0;
       return true;
     },
-    set: (name: string, v: number) => !!playing && playing.live.set(name, v, frame * dt),
+    set(name: string, v: number) {
+      if (!playing) return false;
+      const before = playing.live.automation, ok = playing.live.set(name, v, frame * dt);
+      if (playing.live.automation !== before) rev++;
+      return ok;
+    },
     tap: (ms: number) => (playing ? playing.live.tap(frame * dt, ms) : NaN),
     level(v: number) { master.to = Math.min(1, Math.max(0, v)); },
     blackout(on: boolean) { black.to = on ? 0 : 1; },
     /** Fade everything out over `secs` (on exit). */
     fadeOut(secs = FADE.exit) { master.secs = secs; master.to = 0; },
     state: () => ({
-      look: playing && { id: playing.id, title: playing.look.title, t: frame * dt,
+      look: playing && { id: playing.id, rev, title: playing.look.title, t: frame * dt,
         duration: playing.look.duration || 30,
         bpm: playing.live.look.bpm, beats: (frame * dt - playing.live.look.beat0) * playing.live.look.bpm / 60,
+        offset: playing.live.look.offset, beat0: playing.live.look.beat0,
         controls: playing.live.controls.map((c) => ({ ...c })) },
+      gain: master.now * black.now * fade.now,
       level: master.to, blackout: black.to === 0, tripped, switching: pending,
     }),
+    /** What plays, for a viewer to render it too: its modules by ref (the viewer has the library), no code. */
+    source(): PiSource | null {
+      if (!playing) return null;
+      if (source?.rev === rev) return source;
+      const { id, look, live } = playing;
+      const layers = look.layers.map((l) => ({ ...l, modules: (l.modules ?? []).map(({ code: _, ...m }) => m) }));
+      source = { rev, id, title: look.title, duration: look.duration || 30, ...(look.bpm ? { bpm: look.bpm } : {}),
+        globals: look.globals ?? null, automation: live.automation, layers: layers as Layer[] };
+      return source;
+    },
   };
 }
 export type Engine = ReturnType<typeof createEngine>;

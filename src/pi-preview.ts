@@ -1,13 +1,20 @@
 // /pi on Studio's own site (docs/HOSTING.md "The Pi's page"): a dry-run Studio Live on this machine, at PI_PREVIEW_URL
 // and started with `--base /pi`, passed through to signed-in admins only. Dry run or not, it is a control surface.
+// Using one of its controls makes it drive the live stage (SPEC-live "Following /pi"); its page is told who drives.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import WebSocket from 'ws';
 
 import { COOKIE_NAME, type createAuth } from './auth.ts';
+import type { Hub } from './live/hub.ts';
 
 const BASE = '/pi', TIMEOUT_MS = 5000;
 // What the Pi's answer keeps: its own CSP (the page's, in place of the app's), and what the browser needs to use it.
 const KEEP = ['content-type', 'content-security-policy', 'cache-control', 'location', 'etag', 'last-modified'];
+// What the page sends that changes what plays (pi/src/protocol.ts): any of these makes /pi drive the stage.
+const CONTROLS = new Set(['play', 'set', 'tap', 'level', 'blackout']);
+const controlOf = (text: string) => {
+  try { return CONTROLS.has(JSON.parse(text)?.type); } catch { return false; }
+};
 
 type Auth = ReturnType<typeof createAuth>;
 
@@ -20,7 +27,8 @@ export function previewTarget(url: string) {
   return u;
 }
 
-export function piPreview({ auth, target }: { auth: Auth, target: URL }) {
+export function piPreview({ auth, target, hub }: { auth: Auth, target: URL,
+  hub?: Pick<Hub, 'live' | 'piDrove' | 'onDriver'> }) {
   const host = (h: string) => h.toLowerCase().replace(/:(80|443)$/, '');
   /** Admins only: no session goes to sign in (the app's page), a member is refused. */
   const admin = async (req: FastifyRequest, reply: FastifyReply) => {
@@ -61,18 +69,33 @@ export function piPreview({ auth, target }: { auth: Auth, target: URL }) {
       const early: string[] = [];
       const code = (c: number) => (c >= 1000 && c < 5000 && c !== 1005 && c !== 1006 ? c : 1000);
       // Text frames only, as the page sends; the Pi holds them to its own 1 KB and meters them.
+      const driver = (from: 'stage' | 'pi') => {
+        const msg = { type: 'driver', from: from === 'pi' ? 'pi' : 'live' };
+        if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(msg));
+      };
+      const unlisten = hub?.onDriver(driver);
       socket.on('message', (d, binary) => {
         if (binary) { socket.close(1008, 'Not a message this page sends'); return; }
-        if (up.readyState === WebSocket.OPEN) up.send(String(d));
-        else if (up.readyState === WebSocket.CONNECTING && early.length < 8) early.push(String(d));
+        const text = String(d);
+        if (up.readyState === WebSocket.OPEN) up.send(text);
+        else if (up.readyState === WebSocket.CONNECTING && early.length < 8) early.push(text);
+        else return;
+        if (hub && controlOf(text)) hub.piDrove();
       });
       up.on('open', () => { for (const m of early.splice(0)) up.send(m); });
-      up.on('message', (d, binary) => { if (socket.readyState === WebSocket.OPEN) socket.send(d, { binary }); });
+      let told = false;     // who drives, after the Pi's first word (its hello)
+      up.on('message', (d, binary) => {
+        if (socket.readyState === WebSocket.OPEN) socket.send(d, { binary });
+        if (hub && !told) { told = true; driver(hub.live.driver); }
+      });
       up.on('close', (c) => { if (socket.readyState < WebSocket.CLOSING) socket.close(code(c)); });
       const down = (why: string) => { if (socket.readyState < WebSocket.CLOSING) socket.close(1011, why); };
       up.on('error', () => down('The Pi preview is down'));
       up.on('unexpected-response', () => { up.terminate(); down('The Pi preview refused'); });
-      socket.on('close', () => { if (up.readyState === WebSocket.CONNECTING) up.terminate(); else up.close(); });
+      socket.on('close', () => {
+        unlisten?.();
+        if (up.readyState === WebSocket.CONNECTING) up.terminate(); else up.close();
+      });
       socket.on('error', () => socket.terminate());
     });
   };

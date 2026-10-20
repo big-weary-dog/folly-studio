@@ -21,9 +21,11 @@ export function LivePage() {
     return () => { stage.destroy(); sock.close(); };
   }, []);
   void sock.rev.value;
-  const live = sock.live, look = live?.look, msg = stage.msg.value, who = sock.presence.value;
+  const live = sock.live, msg = stage.msg.value, who = sock.presence.value, fromPi = live?.driver === 'pi';
+  // While /pi drives, its look (the Pi's own, so no owner) stands in for the stage's.
+  const pi = fromPi ? sock.pi.value?.source : null, look = fromPi ? pi : live?.look;
   useEffect(() => { setTitle(look ? `Live: ${look.title}` : 'Live'); }, [look?.title]);
-  const driving = who.controllers.length ? who.controllers.join(', ') : live?.by?.username;
+  const driving = fromPi ? null : who.controllers.length ? who.controllers.join(', ') : live?.by?.username;
   return (
     <section class="live-page" aria-label="Live stage">
       <div class="viewer live-viewer">
@@ -33,9 +35,10 @@ export function LivePage() {
         <div class="live-bar">
           <span class={cx('live-dot', sock.status.value)} title={`Connection: ${sock.status.value}`} />
           <span class="live-title">{look ? look.title : 'Live'}</span>
-          {look?.ownerName && <span class="live-sub">by {look.ownerName}</span>}
-          {stage.blackout.value && <span class="tag tag-ruby">Blackout</span>}
+          {live?.look && !fromPi && live.look.ownerName && <span class="live-sub">by {live.look.ownerName}</span>}
+          {!fromPi && stage.blackout.value && <span class="tag tag-ruby">Blackout</span>}
           <span class="live-spacer" />
+          {live && <span class="live-sub live-driver">driven from {fromPi ? '/pi' : 'Live control'}</span>}
           {driving && <span class="live-sub">controlled by {driving}</span>}
           <span class="live-sub live-count">{who.viewers} watching</span>
           <span class="live-stats" aria-hidden="true">{stage.stats}</span>

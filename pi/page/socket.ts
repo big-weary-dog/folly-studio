@@ -12,6 +12,7 @@ export function piSocket() {
   const status = signal<'connecting' | 'open' | 'closed'>('connecting');
   const state = signal<PiState | null>(null), at = signal(0);
   const needPin = signal(false), error = signal('');
+  const driver = signal<'pi' | 'live' | null>(null);   // behind Studio's proxy: who drives its Live tab
   let ws: WebSocket | null = null, wait = 500, pin = stored(), closed = false;
 
   const send = (m: FromPage) => { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(m)); };
@@ -31,7 +32,9 @@ export function piSocket() {
       } else if (m.type === 'state') {
         state.value = m.state;
         at.value = performance.now();
-      } else {
+      } else if (m.type === 'driver') {
+        driver.value = m.from;
+      } else if (m.type === 'error') {
         error.value = m.error;
       }
     };
@@ -44,7 +47,7 @@ export function piSocket() {
   }
   open();
   return {
-    status, state, at, needPin, error, send,
+    status, state, at, needPin, error, driver, send,
     unlock(p: string) { pin = p; store(p); error.value = ''; send({ type: 'hello', pin: p }); },
     close() { closed = true; ws?.close(); },
   };

@@ -71,6 +71,8 @@ export function liveLook(look: PiLook, previous?: PreparedLook) {
 
   return {
     get look() { return L; },
+    /** The look's automation as it plays: a pushed name has left it. */
+    get automation() { return automation; },
     controls,
     set(name: string, v: number, t: number) {
       const c = byName.get(name);

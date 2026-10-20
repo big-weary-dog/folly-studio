@@ -1,7 +1,8 @@
 // The control page on the LAN (pi/README.md "The control page"): the page as built into pi/page/dist, and its socket
 // at /ws, both under `base` when one is given (/pi/ and /pi/ws behind Studio's proxy, docs/HOSTING.md). A socket must
 // come from the page's own origin; with a PIN set, it must say the PIN before anything it sends changes the lights.
-// Each socket is rate-limited as the live stage's are; the state goes to every socket ~10 a second.
+// Each socket is rate-limited as the live stage's are; the state goes to every socket ~10 a second, and what plays
+// (the source, for Studio's Live tab) when it changes.
 import { timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
@@ -68,6 +69,8 @@ export async function controlServer(o: ServerOptions) {
       c.ok = p.ok;
       say(c, { type: 'hello', ok: p.ok, needPin: !!o.pin, ...(p.error ? { error: p.error } : {}) });
       if (p.ok) say(c, { type: 'state', state: o.state() });
+      const source = o.engine.source();
+      if (p.ok && source) say(c, { type: 'source', source });
       return;
     }
     if (!c.ok) { say(c, { type: 'error', error: 'Say the PIN first.' }); return; }
@@ -97,10 +100,19 @@ export async function controlServer(o: ServerOptions) {
     ws.on('error', () => ws.terminate());
   });
 
+  let sent: object | null = null;
   const timer = setInterval(() => {
     if (!clients.size) return;
+    // The source when it changed (a switch, a push off a lane), then the state.
+    const source = o.engine.source(), fresh = source !== sent;
+    sent = source;
+    const src = source && fresh ? JSON.stringify({ type: 'source', source } satisfies ToPage) : '';
     const msg = JSON.stringify({ type: 'state', state: o.state() } satisfies ToPage);
-    for (const c of clients) if (c.ok && c.ws.readyState === 1 && c.ws.bufferedAmount < 1 << 18) c.ws.send(msg);
+    for (const c of clients) {
+      if (!c.ok || c.ws.readyState !== 1 || c.ws.bufferedAmount >= 1 << 18) continue;
+      if (src) c.ws.send(src);
+      c.ws.send(msg);
+    }
   }, STATE_MS);
 
   await app.listen({ port: o.port, host: o.host });

@@ -12,7 +12,7 @@ type By = NonNullable<Live['by']>;
 type Range = { min: number, max: number, value: number };
 
 export const emptyLive = (): Live => ({ rev: 0, look: null, startedAt: 0, loop: 0, held: {}, lanes: {}, drop: [],
-  layers: {}, blackout: false, by: null, updatedAt: 0 });
+  layers: {}, blackout: false, by: null, updatedAt: 0, driver: 'stage' });
 
 /** The loop and the show time in it at server time `now` (ms). */
 export function showTime(live: Pick<Live, 'look' | 'startedAt'>, now: number) {

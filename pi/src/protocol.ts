@@ -2,6 +2,8 @@
 // the Pi sends back about ten times a second. Shared by the server and the page.
 import { z } from 'zod';
 
+import type { PiSource } from '../../shared/schemas/live.ts';
+
 export const FromPage = z.discriminatedUnion('type', [
   z.object({ type: z.literal('hello'), pin: z.string().max(32).optional() }),
   z.object({ type: z.literal('play'), id: z.string().max(64) }),
@@ -15,8 +17,11 @@ export type FromPage = z.infer<typeof FromPage>;
 
 export type Control = { name: string, min: number, max: number, value: number, kind: 'global' | 'macro' | 'bpm' };
 export type PiState = {
-  look: { id: string, title: string, t: number, duration: number, bpm: number, beats: number,
-    controls: Control[] } | null,
+  /** rev: its source's (below); offset and beat0: the prepared look's clock, so a viewer renders the same frame. */
+  look: { id: string, rev: number, title: string, t: number, duration: number, bpm: number, beats: number,
+    offset: number, beat0: number, controls: Control[] } | null,
+  /** The output's gain now: the master, blackout and a switch's dip, each as eased. */
+  gain: number,
   level: number, blackout: boolean, tripped: { at: string, look: string } | null, switching: string | null,
   looks: { id: string, title: string, playable: boolean, error?: string }[],
   out: { dryRun: boolean, fps: number, renderMs: number, genW: number, genPeakW: number, gen: number, cut: number,
@@ -25,4 +30,8 @@ export type PiState = {
 export type ToPage =
   | { type: 'hello', ok: boolean, needPin: boolean, error?: string }
   | { type: 'state', state: PiState }
+  /** What plays (layers by ref, no code), on hello and at each change: for Studio's Live tab following /pi. */
+  | { type: 'source', source: PiSource }
+  /** Behind Studio's proxy only: who drives its Live tab, this page or Live control. */
+  | { type: 'driver', from: 'pi' | 'live' }
   | { type: 'error', error: string };

@@ -1,10 +1,12 @@
 // The live stage's socket (SPEC-live "Socket"): the state and its updates, the server's clock (the ping with the
-// shortest round trip of the last eight), presence, and reconnecting after 0.5 s, doubling to 8 s, with jitter.
+// shortest round trip of the last eight), presence, /pi's engine while it drives, and reconnecting after 0.5 s,
+// doubling to 8 s, with jitter.
 import { signal } from '@preact/signals';
 
 import type { FromClient, FromServer, Live, LiveUpdate } from '../../../../shared/schemas/live.ts';
 import { api, statusOf } from '../../api.ts';
 import { signedOut } from '../session.ts';
+import type { Pi } from './follow-pi.ts';
 import { applyUpdate } from './lanes.ts';
 
 const PINGS = 8, PING_GAP_MS = 120, RESYNC_MS = 30_000, FIRST_WAIT_MS = 500, MAX_WAIT_MS = 8000;
@@ -15,10 +17,11 @@ export function liveSocket() {
   const control = signal(false), error = signal('');
   const presence = signal<{ viewers: number, controllers: string[] }>({ viewers: 0, controllers: [] });
   const clock = signal<{ offset: number, rtt: number } | null>(null);
+  const pi = signal<Pi | null>(null);   // what /pi's engine plays, while it drives
   const sent = new Map<number, number>();
   let live: Live | null = null, ws: WebSocket | null = null, wait = FIRST_WAIT_MS, timer = 0, pingTimer = 0;
   let samples: { offset: number, rtt: number }[] = [], pingId = 0, fails = 0, alive = true;
-  const listeners = new Set<(why: 'state' | LiveUpdate) => void>();
+  const listeners = new Set<(why: 'state' | 'pi' | LiveUpdate) => void>();
 
   const send = (msg: FromClient) => { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg)); };
   function pings() {
@@ -52,6 +55,9 @@ export function liveSocket() {
         if (!live || !applyUpdate(live, m)) return send({ type: 'sync' });
         rev.value++;
         return listeners.forEach((fn) => fn(m));
+      case 'pi':
+        pi.value = { at: m.at, now: m.now, source: m.source ?? pi.peek()?.source ?? null };
+        return listeners.forEach((fn) => fn('pi'));
       case 'presence': presence.value = { viewers: m.viewers, controllers: m.controllers }; return undefined;
       case 'error': error.value = m.error; return undefined;
       default: return undefined;
@@ -78,13 +84,16 @@ export function liveSocket() {
   connect();
 
   return {
-    status, rev, control, error, presence, clock,
+    status, rev, control, error, presence, clock, pi,
     get live() { return live; },
     /** The server's time now, in epoch ms, as well as the pings tell. */
     now: () => Date.now() + (clock.peek()?.offset ?? 0),
     send,
-    /** fn('state') on a new state, fn(update) on each update. Returns its removal. */
-    listen(fn: (why: 'state' | LiveUpdate) => void) { listeners.add(fn); return () => { listeners.delete(fn); }; },
+    /** fn('state') on a new state, fn(update) on each update, fn('pi') on news of /pi. Returns its removal. */
+    listen(fn: (why: 'state' | 'pi' | LiveUpdate) => void) {
+      listeners.add(fn);
+      return () => { listeners.delete(fn); };
+    },
     close() {
       alive = false;
       clearTimeout(timer);

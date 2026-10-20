@@ -32,12 +32,21 @@ export type LiveLook = { id: string, title: string, ownerName: string, layers: L
   bpm?: number, globals?: Globals | null, automation?: Automation | null };
 export type Live = { rev: number, look: LiveLook | null, startedAt: number, loop: number,
   held: Record<string, number>, lanes: Record<string, Points>, drop: string[], layers: Record<string, LiveLayer>,
-  blackout: boolean, by: { id: string, username: string } | null, updatedAt: number };
+  blackout: boolean, by: { id: string, username: string } | null, updatedAt: number,
+  /** Who drives the stage: its controllers, or /pi's engine (SPEC-live "Following /pi"); the last to use one. */
+  driver: 'stage' | 'pi' };
 /** A change: the lanes that changed (null: gone), the whole `held` and `drop`. */
 export type LiveUpdate = { type: 'update', rev: number, at: number, loop: number, held: Live['held'],
   drop: string[], lanes: Record<string, Points | null>, layers?: Live['layers'], blackout?: boolean,
   by: Live['by'] };
+/** What /pi's engine plays, sent when it changes: the look with its modules by library ref, and its automation. */
+export type PiSource = { rev: number, id: string, title: string, duration: number, bpm?: number,
+  globals?: Globals | null, automation?: Automation | null, layers: Layer[] };
+/** How it plays it at server time `at`: show time t, the clock (offset, beat0, bpm), the values pushed, the gain. */
+export type PiNow = { rev: number, t: number, bpm: number, beat0: number, offset: number,
+  values: Record<string, number>, gain: number };
 export type FromServer = { type: 'pong', id: number, now: number }
+  | { type: 'pi', at: number, now: PiNow | null, source?: PiSource }
   | { type: 'state', live: Live, now: number, control: boolean } | LiveUpdate
   | { type: 'presence', viewers: number, controllers: string[] } | { type: 'error', error: string };
 

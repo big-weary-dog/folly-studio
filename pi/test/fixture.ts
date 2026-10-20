@@ -29,5 +29,7 @@ export function engineOn(extra: PiLook[] = []) {
     /** Plays `secs` of frames. */
     run(secs: number) { for (let i = 0; i < Math.round(secs * engine.fps); i++) engine.tick(); },
     lit: () => last.reduce((s, v) => s + v, 0),
+    /** The last frame's channels. */
+    last: () => last,
   };
 }

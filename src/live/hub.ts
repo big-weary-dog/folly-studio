@@ -1,17 +1,21 @@
 // The live stage's sockets (SPEC-live "Socket"): one state, kept in <data>/live.json; every change broadcast as one
-// JSON string to every open socket; pings answered with the server's clock; presence; limits per socket.
+// JSON string to every open socket; pings answered with the server's clock; presence; limits per socket. While /pi's
+// engine drives the stage (its last control used was /pi's), what it plays goes to every socket instead.
 import { promises as fsp } from 'node:fs';
 import path from 'node:path';
 
 import type { WebSocket } from 'ws';
 
-import { FromClient, type FromServer, type Live, type LiveLook } from '../../shared/schemas/live.ts';
+import {
+  FromClient, type FromServer, type Live, type LiveLook, type PiNow, type PiSource,
+} from '../../shared/schemas/live.ts';
 import type { Logger } from '../http.ts';
 import { applySet, emptyLive, switchTo } from './state.ts';
 
 export const MAX_SOCKETS = 200;
 const RATE = 30, BURST = 60, SWITCH_MS = 2000, KEEPALIVE_MS = 25_000, PRESENT_MS = 30_000, SAVE_MS = 1000;
 const MAX_BUFFERED = 1 << 20;      // a socket this far behind is dropped rather than queued for
+const PI_ANCHOR_MS = 2000;         // /pi's show time goes out at least this often while nothing else changes
 type Who = { id: string, username: string };
 type Client = { ws: WebSocket, who: Who, control: boolean, tokens: number, at: number, over: number,
   switchedAt: number, warned: boolean };
@@ -46,6 +50,8 @@ export async function createHub({ dataDir, playable, log = console }: { dataDir:
   }
   const clients = new Set<Client>(), seen = new Map<string, number>();
   let saveTimer: NodeJS.Timeout | null = null, presenceKey = '';
+  let piNow: PiNow | null = null, piSource: PiSource | null = null, piKey = '', piSentAt = 0;
+  const drivers = new Set<(from: Live['driver']) => void>();
 
   const save = () => {
     saveTimer ??= setTimeout(() => {
@@ -62,7 +68,20 @@ export async function createHub({ dataDir, playable, log = console }: { dataDir:
   };
   const say = (c: Client, msg: FromServer) => send(c, JSON.stringify(msg));
   const all = (msg: FromServer) => { const text = JSON.stringify(msg); for (const c of clients) send(c, text); };
-  const state = (c: Client) => say(c, { type: 'state', live, now: Date.now(), control: c.control });
+  const piMsg = (source: boolean): FromServer => ({ type: 'pi', at: Date.now(), now: piNow,
+    ...(source && piSource ? { source: piSource } : {}) });
+  const state = (c: Client) => {
+    say(c, { type: 'state', live, now: Date.now(), control: c.control });
+    if (live.driver === 'pi') say(c, piMsg(true));
+  };
+  /** Who drives the stage now; a change goes to every socket as a whole state. */
+  function drive(from: Live['driver']) {
+    if (live.driver === from) return;
+    live = { ...live, driver: from, rev: live.rev + 1, updatedAt: Date.now() };
+    for (const c of clients) state(c);
+    for (const fn of drivers) fn(from);
+    save();
+  }
   function presence(force = false) {
     const now = Date.now();
     for (const [name, at] of seen) if (now - at > PRESENT_MS) seen.delete(name);
@@ -94,6 +113,7 @@ export async function createHub({ dataDir, playable, log = console }: { dataDir:
     if (msg.type === 'sync') return state(c);
     if (!c.control) return say(c, { type: 'error', error: 'Only controllers can change the stage.' });
     seen.set(c.who.username, now);
+    const took = live.driver === 'pi';           // a controller's change takes the stage back from /pi
     if (msg.type === 'play') {
       if (now - c.switchedAt < SWITCH_MS) return say(c, { type: 'error', error: 'One look every 2 seconds.' });
       const look = playable(msg.lookId);
@@ -104,8 +124,9 @@ export async function createHub({ dataDir, playable, log = console }: { dataDir:
     } else {
       const update = applySet(live, msg, c.who, now);
       if ('error' in update) return say(c, { type: 'error', error: update.error });
-      all(update);
+      if (took) { live.driver = 'stage'; for (const x of clients) state(x); } else all(update);
     }
+    if (took) for (const fn of drivers) fn('stage');
     save();
     presence();
   }
@@ -113,6 +134,26 @@ export async function createHub({ dataDir, playable, log = console }: { dataDir:
   return {
     get live() { return live; },
     get size() { return clients.size; },
+    /** /pi's engine was used: it drives the stage from now on, until a controller's next change. */
+    piDrove: () => drive('pi'),
+    /** fn(driver) at each change of who drives. Returns its removal. */
+    onDriver(fn: (from: Live['driver']) => void) { drivers.add(fn); return () => { drivers.delete(fn); }; },
+    /** What /pi's engine plays now (null: nothing, or it is down); sent on while it drives, when it changed. */
+    piNow(now: PiNow | null) {
+      piNow = now;
+      if (live.driver !== 'pi') return;
+      const key = JSON.stringify(now && { ...now, t: 0 }), at = Date.now();
+      if (key === piKey && at - piSentAt < PI_ANCHOR_MS) return;
+      piKey = key;
+      piSentAt = at;
+      all(piMsg(false));
+    },
+    /** What /pi's engine switched to (or how its automation changed). */
+    piSource(source: PiSource) {
+      piSource = source;
+      piKey = '';
+      if (live.driver === 'pi') all(piMsg(true));
+    },
     /** A socket that passed the session and origin checks. */
     join(ws: WebSocket, who: Who, control: boolean) {
       if (clients.size >= MAX_SOCKETS) { ws.close(1013, 'The stage is full.'); return; }
