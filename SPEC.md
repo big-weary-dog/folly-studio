@@ -178,7 +178,10 @@ browser's too:
   "automation": { "energy": [[0, 0.2], [20, 1]], "storm": [[0, 0], [30, 1]] } }
 ```
 
-`groups` is an array of the rig's group ids (union; none: the rig's root). `tags` (optional, ≤ 16 of
+`groups` is an array of the rig's group ids (union). Missing, the layer plays on the rig's root; `[]` (with no tags)
+is a valid pick that lights nothing. The groups tree ticks a group with every group under it and stores the outermost
+ticked ones; a parent with some of its subgroups ticked shows partly ticked, and one with all of them ticked is ticked
+itself. `tags` (optional, ≤ 16 of
 `[a-z0-9-]{1,32}`) make a layer portable: when it names no groups, or one this rig lacks, the layer takes its
 known ids plus every group carrying one of its tags (a rig without them lights nothing there); where all its
 ids are known, tags change nothing. An unknown id in a layer without tags is an error. Generators set both; editing a
@@ -221,14 +224,19 @@ Sequencing lives on the look, xLights-style.
 
 - `look.duration`: seconds the look runs, then loops; 1–600, default 30 (absent = 30).
 - `look.bpm`: optional, 40–240; the editor's beat grid, the tempo of LFOs in `beats`, and `G.bpm`. A bake's key
-  holds it when an LFO counts beats or a module's code reads `G.bpm`.
-- `layer.clips`: optional `[{ start, end, fadeIn = 0, fadeOut = 0 }]` in seconds (0–600, kept to
+  holds it when a binding counts beats or a module's code reads `G.bpm`.
+- `layer.clips`: optional `[{ start, end, fadeIn = 0, fadeOut = 0, transition? }]` in seconds (0–600, kept to
   the millisecond), ≤ 32 per layer, sorted, not overlapping (touching is fine). No or empty
   clips: the layer is always on (looks from before the timeline are unchanged).
 - A clip only scales the layer's level by its envelope: 0 outside `[start, end)`, ramping
   linearly 0 → 1 over `fadeIn` and 1 → 0 over `fadeOut` (when the fades add up to more than
   the clip, both shrink in proportion). Where the envelope is 0 the layer does not run at all
   (no `frame()`, no `pixel()`). Pattern `t` stays show time, so motion is continuous across cuts.
+- A clip's `transition` (`{ kind: 'fade' | 'wipe', direction = 'right', softness = 0.1 }`, default fade) is how its
+  fades show. `fade` scales the level, as above; `wipe` keeps the level and lights the layer's pixels across
+  `direction` (a library direction, read as `toward`) as the envelope rises, behind an edge `softness` wide, and
+  on the way out carries on across, so the layer leaves from the side it came in. `transitionWeight(kind, direction,
+  e, p, out?, softness?)` (`core/timeline.ts`, pure) is a pixel's share at envelope `e`; the live stage uses it too.
 - Sequencing whole looks = importing another look's layers into this one, then placing clips.
 - Preview loops over `duration`; bakes and `.fseq` exports render `duration` from t = 0.
 - The Studio edits it in a Timeline panel (`ui/timeline*.tsx`): docked under the 3D view beside
@@ -312,13 +320,13 @@ first), `pixelsForGroups(scene, ids, tags?) → Int32Array` (a layer's rule abov
 `neighbourGraph(scene) → { space, wire }` (each CSR: pixel k's neighbours `nb[off[k]]…nb[off[k + 1] − 1]` at
 distances `d`, nearest first; Int32Array, Int32Array, Float32Array; cached on the scene), `MAX_RADIUS` (1.5),
 `BLUR_MODES`, `DEFAULT_SOFTEN`, `prepareLook({ globals, automation, bpm }, previous?) → look`,
-`renderFrame(scene, preparedLayers, t, out?, look?) → { rgb, errors }` (level × `layerEnvelope`; skips layers at
-0; allocation-free per layer; sets each prepared layer's `ms`, its time this frame), `normalizeGlobals(globals)`, `automationAt(points, t)`, `PALETTE_ROLES`,
+`renderFrame(scene, preparedLayers, t, out?, look?) → { rgb, errors }` (level × `layerEnvelope`, or a wipe's
+`transitionWeight` per pixel; skips layers at 0; allocation-free per layer; sets each prepared layer's `ms`, its time this frame), `normalizeGlobals(globals)`, `automationAt(points, t)`, `PALETTE_ROLES`,
 `DEFAULT_PALETTE`, `MODULE_KINDS`, `GLOBALS`,
 `toChannels(scene, rgb, out?, { gamma = 1, brightness = 1 }) → Uint8Array(frame channels)` (in the rig's colour
 order), and for the
 timeline `layerEnvelope(clips, t) → 0..1`, `normalizeClips(clips) → clips | null` (lenient: drops
-bad and overlapping clips), `lookDuration(look) → seconds`, `DEFAULT_DURATION` `MIN_DURATION`
+bad and overlapping clips), `transitionWeight(…)` and `TRANSITIONS` (above), `lookDuration(look) → seconds`, `DEFAULT_DURATION` `MIN_DURATION`
 `MAX_DURATION` `MAX_CLIPS`.
 
 `fseq.ts` exports `writeFseq({ channelCount?, frames, stepMs = 25, data: Uint8Array, media?, ranges?, compression? })

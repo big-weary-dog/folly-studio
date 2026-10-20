@@ -19,6 +19,7 @@ describe('the registry file', () => {
   test('first run writes the defaults: Opus (the default), Sol, Luna and Sketch', () => {
     const dir = tmp('models'), r = registry(dir);
     assert.deepEqual(read(dir), DEFAULT_MODELS);
+    assert.deepEqual(r.config().models.map((m) => m.critique), [undefined, 'images', 'text', undefined]);
     assert.deepEqual(r.config().models.map((m) => [m.id, m.via, m.model]), [['opus', 'claude', 'claude-opus-5-5'],
       ['sol', 'codex', 'gpt-6.1-sol'], ['luna', 'codex', 'gpt-6-luna'], ['sketch', 'sketch', undefined]]);
     assert.equal(r.defaultId(), 'opus');

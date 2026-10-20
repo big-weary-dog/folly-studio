@@ -38,11 +38,12 @@ describe('the API look', () => {
     assert.match(String(layers([{ code: PIXEL, blend: 'under' }])), /^Layer 1: blend must be one of add, over/);
   });
 
-  test('defaults, ids, tags kept once, empty clips stored as none', () => {
+  test('defaults, ids, tags kept once, empty clips stored as none, groups none given or none picked', () => {
     const out = layers([{ code: PIXEL, tags: ['rose', 'rose'], clips: [] },
-      { modules: [{ code: PIXEL }, { kind: 'filter', code: 'function filter(c) { return c; }', enabled: true }] }]);
+      { modules: [{ code: PIXEL }, { kind: 'filter', code: 'function filter(c) { return c; }', enabled: true }],
+        groups: [] }]);
     assert.deepEqual(out, { layers: [
-      { id: 'l1', title: '', code: PIXEL, params: {}, groups: [], tags: ['rose'], blend: 'add', level: 1 },
+      { id: 'l1', title: '', code: PIXEL, params: {}, tags: ['rose'], blend: 'add', level: 1 },
       { id: 'l2', title: '', modules: [
         { id: 'm1', kind: 'source', title: '', code: PIXEL, params: {} },
         { id: 'm2', kind: 'filter', title: '', code: 'function filter(c) { return c; }', params: {} },
@@ -107,7 +108,7 @@ describe('the API look', () => {
 describe("a generator's look, cleaned", () => {
   const groups = [{ id: 'all', parent: null, tags: ['all'] }, { id: 'rose', parent: 'all', tags: ['rose'] }];
 
-  test('unknown group ids go; with tags the layer is placed by them, else on the root', () => {
+  test('unknown group ids go; with tags the layer is placed by them, else on the root; [] is kept', () => {
     const look = validateLook({ layers: [
       { code: PIXEL, groups: ['nope'], tags: ['rose', 'Not a tag', 'rose'] },
       { code: PIXEL, groups: ['nope', ' rose '] },
@@ -115,6 +116,8 @@ describe("a generator's look, cleaned", () => {
     ] }, { groups });
     assert.deepEqual(look.layers.map((l) => [l.groups, l.tags]), [[[], ['rose']], [['rose'], undefined],
       [['all'], undefined]]);
+    const none = validateLook({ layers: [{ code: PIXEL, groups: [] }, { code: PIXEL }] }, { groups });
+    assert.deepEqual(none.layers.map((l) => l.groups), [[], ['all']], 'none picked stays none; none given: the root');
     assert.deepEqual(look.dropped, []);
   });
 

@@ -179,7 +179,7 @@ export function finish(rgb: Float32Array, n: number, L?: PreparedLook | null) {
 }
 
 const SHAPES = ['sine', 'tri', 'saw', 'square', 'hold'];
-const MODS: Record<string, number> = { lfo: 0, global: 1, envelope: 2 };
+const MODS: Record<string, number> = { lfo: 0, global: 1, envelope: 2, beats: 3 };
 /** Is v a binding ({ mod, … }) rather than a value? */
 export const isBinding = (v: unknown): v is Binding => v !== null && typeof v === 'object' && !Array.isArray(v)
   && typeof (v as Binding).mod === 'string';
@@ -224,6 +224,7 @@ export function paramMods(schema: ParamSchema | undefined, overrides: unknown, t
       from: num(b.from, lo), to: num(b.to, hi), name: String(b.name ?? ''),
       shape: Math.max(0, SHAPES.indexOf(b.shape as string)), rate: num(b.rate, 1), beats: b.unit === 'beats',
       depth: num(b.depth, (hi - lo) / 4), center: num(b.center, dv), hold: clamp(num(b.hold, 0.5), 0, 0.95),
+      per: num(b.per, 1),
     });
   }
   return out;
@@ -246,12 +247,15 @@ function lfo(shape: number, f: number, hold: number) {
 }
 
 export type Mod = ReturnType<typeof paramMods>[number];
-/** A bound param's value at show time t, held to its range: `g` the global it reads (0..1), `env` the clip envelope. */
+/** A bound param's value at show time t, held to its range: `g` the global it reads (0..1), `env` the clip envelope;
+ * a `beats` one is per × the tempo. */
 export function modValue(m: Mod, t: number, g: number, env: number, look: PreparedLook) {
   let v;
   if (m.kind === 0) {
     const ph = t * m.rate * (m.beats ? look.bpm / 60 : 1);
     v = m.center + m.depth * lfo(m.shape, ph - Math.floor(ph), m.hold);
+  } else if (m.kind === 3) {
+    v = m.per * look.bpm / 60;
   } else {
     v = m.from + (m.to - m.from) * (m.kind === 1 ? g : env);
   }

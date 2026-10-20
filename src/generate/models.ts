@@ -20,8 +20,10 @@ export const DEFAULT_MODELS: ModelsConfig = {
   default: 'opus',
   models: [
     { id: 'opus', label: 'Opus', via: 'claude', model: 'claude-opus-5-5', effort: 'medium', enabled: true },
-    { id: 'sol', label: 'Sol', via: 'codex', model: 'gpt-6.1-sol', effort: 'low', enabled: true },
-    { id: 'luna', label: 'Luna', via: 'codex', model: 'gpt-6-luna', effort: 'low', enabled: true },
+    { id: 'sol', label: 'Sol', via: 'codex', model: 'gpt-6.1-sol', effort: 'low', critique: 'images',
+      enabled: true },
+    { id: 'luna', label: 'Luna', via: 'codex', model: 'gpt-6-luna', effort: 'low', critique: 'text',
+      enabled: true },
     { id: 'sketch', label: 'Sketch', via: 'sketch', enabled: true, limits: { perHour: 30, perDay: 100 } },
   ],
   concurrency: { claude: 4, codex: 2 },

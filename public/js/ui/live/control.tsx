@@ -10,7 +10,7 @@ import { api } from '../../api.ts';
 import { cx, humanize, toast } from '../kit.tsx';
 import { setTitle } from '../session.ts';
 import { Fader } from './fader.tsx';
-import { controlsOf, showTime } from './lanes.ts';
+import { controlsNow } from './lanes.ts';
 import { liveSocket } from './socket.ts';
 
 const TICK_MS = 250;     // lanes move: the faders follow them this often
@@ -51,7 +51,6 @@ export function ControlPage() {
         <a class="btn" href="/live">Watch the stage</a>
       </section>);
   }
-  const t = live && look ? showTime(live, sock.now()).t : 0;
   const set = (values: Record<string, number>) => sock.send({ type: 'set', values });
   return (
     <section class="live-control">
@@ -73,9 +72,9 @@ export function ControlPage() {
         {live?.blackout ? 'Blackout on' : 'Blackout'}</button>
       {live && look && <>
         <h2>Look</h2>
-        {controlsOf(live, t).map((c) => <Fader key={`${look.id}:${c.name}`} label={LABELS[c.name] ?? humanize(c.name)}
-          min={c.min} max={c.max} value={c.value} held={c.held} onSet={(v) => set({ [c.name]: v })}
-          onRelease={() => sock.send({ type: 'set', release: [c.name] })} />)}
+        {controlsNow(live, sock.now()).map((c) => <Fader key={`${look.id}:${c.name}`}
+          label={LABELS[c.name] ?? humanize(c.name)} min={c.min} max={c.max} value={c.value} held={c.held}
+          onSet={(v) => set({ [c.name]: v })} onRelease={() => sock.send({ type: 'set', release: [c.name] })} />)}
         <h2>Layers</h2>
         {look.layers.map((l) => {
           const s = live.layers[l.id] ?? {};

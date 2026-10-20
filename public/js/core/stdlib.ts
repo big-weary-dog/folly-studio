@@ -284,7 +284,7 @@ type Placed = { lx: number, ly: number, lz: number, a: number, r: number, u: num
 /** toward(p, direction): how far p is along a direction, 0..1 across the layer: up ly, down 1 − ly, right lz (the
  * viewer's right), left 1 − lz, back lx (front to back), front 1 − lx, out r, in 1 − r, round a (clockwise), along
  * u (each strand from its start); anything else, up. */
-function toward(p: Placed, direction: string) {
+export function toward(p: Placed, direction: string) {
   switch (direction) {
     case 'down': return 1 - p.ly;
     case 'right': return p.lz;

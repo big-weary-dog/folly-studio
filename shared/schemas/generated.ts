@@ -164,8 +164,12 @@ function chain(list: (z.infer<ReturnType<typeof moduleOf>> | Dropped)[], notes: 
 type Group = { id?: unknown, parent?: unknown, tags?: unknown };
 const layerOf = (library: Library, known: Set<string>, root: string, groupTags: string[]) => z.object({
   title: text(LIMITS.layerTitle),
-  groups: z.preprocess((g) => (isString(g) ? [g] : g), z.array(z.unknown())).catch([])
-    .transform((g) => [...new Set(g.filter(isString).map((x) => x.trim()).filter((x) => known.has(x)))])
+  // [] stays (none picked); missing, malformed or all unknown: null, placed below.
+  groups: z.preprocess((g) => (isString(g) ? [g] : g), z.array(z.unknown())).nullable().catch(null)
+    .transform((g) => {
+      const ids = g && [...new Set(g.filter(isString).map((x) => x.trim()).filter((x) => known.has(x)))];
+      return ids && (ids.length || !g!.length) ? ids : null;
+    })
     .meta({ items: known.size <= 400 ? { type: 'string', enum: [...new Set([root, ...known])] } : { type: 'string' } }),
   tags: tags.meta({ items: groupTags.length ? { type: 'string', enum: groupTags } : { type: 'string' } }),
   blend, level, clips, soften, code: z.unknown().optional().meta({ type: 'string' }), params,
@@ -182,8 +186,9 @@ const layerOf = (library: Library, known: Set<string>, root: string, groupTags: 
     if (!checked.success) return (ctx.addIssue(checked.error.issues[0].message), z.NEVER);
     own = { code: checked.data, params: l.params };
   }
-  // Known group ids; none: the root, or nothing when tags say where it goes (SPEC "Looks").
-  const groups = l.groups.length ? l.groups : l.tags.length ? [] : [root];
+  // Known group ids, [] included (the layer lights nothing); none usable: where the tags say, else the root (SPEC
+  // "Looks").
+  const groups = l.groups ?? (l.tags.length ? [] : [root]);
   return { title: l.title, ...own, groups, ...(l.tags.length ? { tags: l.tags } : {}), blend: l.blend,
     level: l.level, ...(l.clips.clips.length ? { clips: l.clips.clips } : {}), soften: l.soften, notes };
 });

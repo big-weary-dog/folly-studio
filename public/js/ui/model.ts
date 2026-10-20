@@ -83,7 +83,7 @@ const rootId = (rig: Rig | null) => (rig?.groups || []).find((g) => g.parent == 
 export function makeLayer({ title = 'Layer', groups, tags, blend = 'add', level = 1, clips, modules, soften }:
   Partial<Layer>, rig: Rig | null): Layer {
   return { id: randomId('l'), title, modules: modules?.length ? cloneModules(modules) : [makeModule({ title })],
-    groups: groups?.length ? [...groups] : tags?.length ? [] : [rootId(rig)],
+    groups: groups ? [...groups] : tags?.length ? [] : [rootId(rig)],
     ...(tags?.length ? { tags: [...tags] } : {}), blend, level,
     ...(clips?.length ? { clips: clips.map((c) => ({ ...c })) } : {}), ...(soften ? { soften: { ...soften } } : {}) };
 }
@@ -195,7 +195,7 @@ const modulesOf = (l: RawLayer): Partial<Module>[] => (Array.isArray(l.modules) 
 export function cleanLayer(l: RawLayer): Layer {
   return {
     id: String(l.id), title: String(l.title || 'Layer'), modules: modulesOf(l).map(cleanModule),
-    groups: Array.isArray(l.groups) ? [...l.groups] : [], ...(l.tags?.length ? { tags: [...l.tags] } : {}),
+    ...(Array.isArray(l.groups) ? { groups: [...l.groups] } : {}), ...(l.tags?.length ? { tags: [...l.tags] } : {}),
     blend: isBlend(l.blend) ? l.blend : 'add',
     level: Number.isFinite(Number(l.level)) ? Math.min(1, Math.max(0, Number(l.level))) : 1,
     // Timeline clips pass through untouched (the server validates them).
@@ -213,7 +213,7 @@ export function normaliseLayers(layers: unknown, rig: Rig | null) {
     seen.add(c.id);
     const mods = new Set<string>();
     for (const m of c.modules) { if (mods.has(m.id)) m.id = randomId('m'); mods.add(m.id); }
-    if (!c.groups.length && !c.tags) c.groups = [rootId(rig)];
+    c.groups ??= c.tags ? [] : [rootId(rig)];      // none given: the whole rig; [] stays: nothing
     return c;
   });
 }

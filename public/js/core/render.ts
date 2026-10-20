@@ -10,7 +10,7 @@ import type { Picks } from './picks.ts';
 import { pixelsForGroups, type Scene, tagMask, tagParts } from './scene.ts';
 import { blur, BLUR_MODES, blurState } from './spatial.ts';
 import { clamp, hex, isNum, RUN, TAU } from './stdlib.ts';
-import { layerEnvelope, normalizeClips } from './timeline.ts';
+import { clipAt, layerEnvelope, normalizeClips, type Transition, wipeColours } from './timeline.ts';
 import { PLACE, readsLed, settle } from './place.ts';
 import { copyPixel, isStageEnd, placeWarps } from './warps.ts';
 
@@ -374,8 +374,9 @@ export function renderFrame(scene: Scene, layers: readonly (PreparedLayer | null
     const L = list[n];
     if (!L || !L.chain) continue;
     L.ms = 0;
-    const env = L.clips ? layerEnvelope(L.clips, t) : 1, level = L.enabled ? L.level * env : 0;
-    if (!(level > 0)) continue;
+    const env = L.clips ? layerEnvelope(L.clips, t) : 1, clip = env < 1 ? clipAt(L.clips, t) : null;
+    const wipe = clip?.transition, level = L.enabled ? L.level * (wipe ? 1 : env) : 0;
+    if (!(level > 0 && env > 0)) continue;
     const t0 = clock();
     RUN.extent = L.extent; PLACE.layer = L;
     for (let i = 0; i < L.chain.length; i++) {
@@ -385,7 +386,10 @@ export function renderFrame(scene: Scene, layers: readonly (PreparedLayer | null
     }
     const err = L.stages ? runStaged(scene, L, T, G, L.stages) : runChain(scene, L, T, G);
     if (err) errors.push(L.modular ? { id: L.id, module: L.failed, error: err } : { id: L.id, error: err });
-    else composite(rgb, L, level);
+    else {
+      if (wipe) wipeColours(L.buf, L, scene.u, wipe as Transition, env, t > (clip!.start + clip!.end) / 2);
+      composite(rgb, L, level);
+    }
     L.ms = clock() - t0;
   }
   finish(rgb, N * 3, LK);

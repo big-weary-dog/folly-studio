@@ -94,7 +94,7 @@ function modulate(p: Param, now: ParamValue | undefined, globals: string[], appl
     return <>
       <p class="dialog-text">{range}</p>
       <Field label="Moved by">{select('mod', [['', 'Nothing: its field sets it'], ['lfo', 'An LFO'],
-        ['global', 'A global'], ['envelope', 'The clip envelope']])}</Field>
+        ['global', 'A global'], ['envelope', 'The clip envelope'], ['beats', 'The tempo (a speed per beat)']])}</Field>
       <div class="mod-fields" hidden={f.mod !== 'lfo'}>
         <Field label="Shape">{select('shape', SHAPES.map((s) => [s, humanize(s)]))}</Field>
         <div class="mod-fields" hidden={f.shape !== 'hold'}>{field('Hold (share of each cycle)', 'hold')}</div>
@@ -104,6 +104,7 @@ function modulate(p: Param, now: ParamValue | undefined, globals: string[], appl
       <div class="mod-fields" hidden={f.mod !== 'global'}>
         <Field label="Global">{select('name', globals.map((g) => [g, humanize(g)]))}</Field>
         {field('At its lowest', 'from')}{field('At its highest', 'to')}</div>
+      <div class="mod-fields" hidden={f.mod !== 'beats'}>{field('How many a beat', 'per')}</div>
       <div class="mod-fields" hidden={f.mod !== 'envelope'}>{field('Outside clips', 'eFrom')}{field('Fully in', 'eTo')}
       </div>
       <div class="dialog-actions">

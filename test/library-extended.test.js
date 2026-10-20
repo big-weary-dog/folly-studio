@@ -12,7 +12,7 @@ const here = (p) => new URL(p, import.meta.url);
 const lib = (name) => readFileSync(here(`../public/patterns/${name}.js`), 'utf8');
 const scene = prepareScene(folly);
 const mod = (name, kind, params = {}, extra = {}) => ({ id: name, kind, code: lib(name), params, ...extra });
-function run(mods, t = 1.25, groups = []) {
+function run(mods, t = 1.25, groups) {
   const layer = { id: 'l', groups, modules: mods }, L = prepareLayer(scene, layer, compileLayer(layer));
   assert.deepEqual(renderFrame(scene, [L], t).errors, []);
   return { L, rgb: (j) => Array.from(L.buf.subarray(4 * j, 4 * j + 3)) };

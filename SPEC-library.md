@@ -149,7 +149,7 @@ above the selected layer; of its `globals` it adds the macros the look lacks and
 and leaves the rest.
 
 The library, one idea a module. Sources: colour-wash, bars, plasma, clouds, fire, spot, circles, wave, shockwave,
-lighthouse, curtain, single-strand (Chase), groups-in-turn, life, sparkle, streaks, ripple, lightning, fireworks, tendril,
+lighthouse, curtain, single-strand (Chase), groups-in-turn, random-fixtures, life, sparkle, streaks, ripple, lightning, fireworks, tendril,
 climb, garlands, strobe, heartbeat. Warps: mirror, kaleidoscope, radial-repeat, mosaic, polar, anchor, rotate, scroll,
 twist, turbulence. Filters: recolour, hue-shift, posterize, invert, mask, blur, edge-fade, trails. Presets: Water,
 Storm, Curtain reveal, and the **retired sources'**: twinkle's Starfield, depth-wave's Playa wave, canopy-rain's Rain,
@@ -207,6 +207,8 @@ frame per layer and held to the param's min..max (`from`/`to` default to them):
 - `{ mod: 'global', name, from, to }`: `from + (to − from) × g`, `g` the global (`energy`, `speed`, `level`,
   `hue`, `saturation` or a macro) as 0..1 of its range.
 - `{ mod: 'envelope', from, to }`: by the layer's clip envelope (1 with no clips).
+- `{ mod: 'beats', per = 1 }`: `per × bpm / 60`, so a speed counts per beat at the look's tempo (120 unset): a
+  "rises a second" param bound to it rises `per` a beat.
 
 A colour pick's `rotate` takes the same bindings (from 0, to 1, depth ¼ by default); it wraps rather than holds.
 

@@ -1,5 +1,6 @@
 // npm run smoke: the app in a browser, the way a person meets it, at a laptop's size and a phone's: sign up, an idea
-// the sketch generator turns into a look, the Studio in the Playa view with the sandbox running, a param dragged and
+// the sketch generator turns into a look, the Studio in the Playa view with the sandbox running, the groups tree's
+// ticks (a group with all under it, none at all), a param dragged and
 // stepped, a typo and a hang in the code (reported, paused by the watchdog, running again once fixed), the timeline,
 // a source's Colours played in an accent (the pick tile), a preset added from Add a layer and one kind of module
 // shown in Add a module, and a bake in the real render box (the laptop bakes from the Studio; the phone says to bake
@@ -74,6 +75,30 @@ for (const [name, device] of Object.entries(SIZES)) {
         const canvas = await page.locator('canvas:visible').first().evaluate((c) => [c.width, c.height]);
         expect(canvas.every((n) => n > 0), `the 3D view's canvas is ${canvas.join(' × ')}`).toBe(true);
         await shot('studio');
+      });
+
+      await test.step('the groups tree: a group ticks with all under it; none ticked lights nothing', async () => {
+        await page.locator('.layer-name:visible').first().click();
+        if (!wide) await page.locator('.tab[data-tab=groups]').click();
+        const top = page.locator('.tree > .tree-item > .tree-row > .tree-box').first();
+        const kid = page.locator('.tree > .tree-item > .tree-children > .tree-item > .tree-row > .tree-box').first();
+        const ticked = () => page.locator('.tree .tree-box').evaluateAll((bs) => bs.map((b) => b.checked));
+        if (await top.isChecked()) await top.click();
+        await top.click();
+        expect(await ticked()).not.toContain(false);
+        await top.click();
+        expect(await ticked()).not.toContain(true);
+        if (wide) await expect(page.locator('.plays-on')).toContainText('Nothing');
+        await kid.click();
+        await expect(top).toHaveJSProperty('indeterminate', true);
+        await kid.locator('xpath=..').locator('.tree-toggle').click();     // its subgroups, ticked with it
+        await shot('groups');
+        await top.click();
+        expect(await ticked()).not.toContain(false);
+        if (wide) return;
+        await page.locator('.tab[data-tab=layers]').click();
+        const back = page.locator('.phone-back:visible');
+        if (await back.count()) await back.click();      // the layer's settings: back to the list
       });
 
       await test.step('a param is one field: dragged across, stepped by a key', async () => {

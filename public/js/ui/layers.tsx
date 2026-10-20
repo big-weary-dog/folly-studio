@@ -10,6 +10,7 @@ import {
   BLEND_MODES, cleanLayer, isPreset, type Layer, layerFromPattern, makeLayer, newLayer, presetLayers, withPresetGlobals,
 } from './model.ts';
 import type { Preview } from './preview.ts';
+import { groupChecked, groupPartial, toggleGroup } from './groups-model.ts';
 import type { Entry } from './shelf.tsx';
 import type { Studio } from './studio-store.ts';
 
@@ -52,7 +53,7 @@ export function LayersPane({ st, pv }: Props) {
   // layers above the selected one, with the globals it needs.
   const made = (e: Entry) => (isPreset(e) ? presetLayers(e, st.data.library, st.data.rig) : null);
   const add = () => import('./shelf.tsx').then(({ openShelf }) => openShelf({
-    mode: 'layer', library: st.data.library, audition: { pv, layer: l || { groups: [] }, layers: made },
+    mode: 'layer', library: st.data.library, audition: { pv, layer: l || {}, layers: made },
     onPick: (e) => {
       if (isPreset(e)) {
         const list = made(e);
@@ -122,12 +123,12 @@ function LayerRow({ l, index, st }: { l: Layer; index: number; st: Studio }) {
           {BLEND_MODES.map((b) => <option value={b.value} title={b.help}>{b.label}</option>)}</select>
         <Scrub label={`Level for ${title}`} min={0} max={100} step={1} unit="%" value={Math.round(l.level * 100)}
           set={(v) => st.editLayer(id, () => ({ level: v / 100 }))} /></div>
-      <span class="layer-groups">{st.groupNames(l.groups)}</span>
+      <span class="layer-groups">{st.groupNames(l.groups, l.tags)}</span>
     </li>);
 }
 
 export function GroupsTree({ st }: { st: Studio }) {
-  const index = st.data.index, picked = useComputed(() => st.selected.value?.groups.join('\n') ?? null).value;
+  const index = st.data.index, picked = useComputed(() => st.selected.value?.groups?.join('\n') ?? null).value;
   const [open, setOpen] = useState<ReadonlySet<string> | null>(null);
   // The top of the tree starts open; the branches that hold the layer's groups open so they are visible.
   useLayoutEffect(() => {
@@ -137,20 +138,15 @@ export function GroupsTree({ st }: { st: Studio }) {
     if (add.length || !open) setOpen(new Set([...was, ...add]));
   }, [picked, index]);
   if (!index || !open) return null;
-  const sel = new Set(picked?.split('\n') || []), partial = new Set([...sel].flatMap((g) => index.ancestors(g)));
+  const sel = new Set(picked ? picked.split('\n') : []);
   const toggle = (id: string, on: boolean) => {
     const l = st.selected.peek();
-    if (!l) return;
-    const set = new Set(l.groups);
-    if (on) set.add(id); else set.delete(id);
-    // picked by hand: no longer a portable guess
-    if (set.size) st.editLayer(l.id, () => ({ groups: [...set], tags: undefined }));
-    else toast('A layer needs at least one group. Tick another group first.', { kind: 'warn' });
+    // picked by hand: no longer a portable guess; none is fine (the layer lights nothing)
+    if (l) st.editLayer(l.id, () => ({ groups: toggleGroup(l.groups ?? [], index, id, on), tags: undefined }));
   };
   const item = (g: RigGroup, depth: number) => {
     const kids = index.children.get(g.id) || [], expanded = open.has(g.id);
-    const checked = sel.has(g.id), pinned = st.pinnedGroup.value === g.id, boxId = `grp-${g.id}`;
-    const implied = !checked && index.ancestors(g.id).some((a) => sel.has(a));
+    const checked = groupChecked(sel, index, g.id), pinned = st.pinnedGroup.value === g.id, boxId = `grp-${g.id}`;
     const expand = () => {
       const next = new Set(open);
       if (!next.delete(g.id)) next.add(g.id);
@@ -158,14 +154,14 @@ export function GroupsTree({ st }: { st: Studio }) {
     };
     return (
       <li class="tree-item">
-        <div class={cx('tree-row', pinned && 'pinned', checked && 'checked', implied && 'implied')} data-id={g.id}
+        <div class={cx('tree-row', pinned && 'pinned', checked && 'checked')} data-id={g.id}
           style={{ '--depth': String(depth) }} onPointerEnter={() => { st.hoverGroup.value = g.id; }}
           onFocusIn={() => { st.hoverGroup.value = g.id; }}>
           {kids.length ? <button type="button" class="tree-toggle" aria-expanded={expanded} onClick={expand}
             aria-label={`${expanded ? 'Collapse' : 'Expand'} ${g.name}`} />
             : <span class="tree-toggle spacer" aria-hidden="true" />}
           <input type="checkbox" id={boxId} class="tree-box" checked={checked} disabled={picked === null}
-            indeterminate={!checked && partial.has(g.id)} onChange={(e) => {
+            indeterminate={groupPartial(sel, index, g.id)} onChange={(e) => {
               const on = e.currentTarget.checked;
               e.currentTarget.checked = checked;    // the look decides
               toggle(g.id, on);

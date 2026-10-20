@@ -5,8 +5,8 @@ import { z } from 'zod';
 
 import PALETTES from '../../public/data/palettes.json' with { type: 'json' };
 import {
-  BLENDS, BLUR_MODES, GLOBALS, macroNameOk, MAX_CLIPS, MAX_DURATION, MAX_LANES, MAX_MACROS, MAX_POINTS, MAX_RADIUS,
-  MODULE_KINDS, PALETTE_ROLES, SOURCE_BLENDS,
+  BLENDS, BLUR_MODES, DIRECTIONS, GLOBALS, macroNameOk, MAX_CLIPS, MAX_DURATION, MAX_LANES, MAX_MACROS, MAX_POINTS,
+  MAX_RADIUS, MODULE_KINDS, PALETTE_ROLES, SOURCE_BLENDS, TRANSITIONS,
 } from '../../public/js/pattern-core.ts';
 
 export {
@@ -56,6 +56,10 @@ export function problem(error: z.ZodError): string {
 const Clip = z.object({
   start: seconds('start'), end: seconds('end'), fadeIn: seconds('fadeIn').default(0),
   fadeOut: seconds('fadeOut').default(0),
+  transition: z.strictObject({ kind: oneOf('transition.kind', TRANSITIONS),
+    direction: oneOf('transition.direction', DIRECTIONS).optional(),
+    softness: num(0.001, 1, 'transition.softness must be a number from 0.001 to 1.').optional(),
+  }, { error: 'transition must be { kind, direction?, softness? }.' }).optional(),
 }, { error: 'must be an object.' }).refine((c) => c.end > c.start, 'end must be after start.');
 
 /** A layer's clips (SPEC "Timeline"): sorted by start; overlaps refused (touching is fine). */
@@ -70,7 +74,7 @@ const Clips = z.array(Clip, { error: 'clips must be an array.' }).max(MAX_CLIPS,
   });
 
 const bound = z.number().min(-1e6).max(1e6).optional();
-/** A param bound to an LFO, a global or the clip envelope instead of a number (SPEC "Param bindings"). */
+/** A param bound to an LFO, a global, the clip envelope or the tempo instead of a number (SPEC "Param bindings"). */
 export const Binding = z.discriminatedUnion('mod', [
   z.strictObject({ mod: z.literal('lfo'), shape: z.enum(['sine', 'tri', 'saw', 'square', 'hold']).optional(),
     rate: bound, unit: z.enum(['hz', 'beats']).optional(), depth: bound, center: bound,
@@ -78,6 +82,7 @@ export const Binding = z.discriminatedUnion('mod', [
   z.strictObject({ mod: z.literal('global'), name: z.string().regex(/^[a-z][A-Za-z0-9_]{0,31}$/), from: bound,
     to: bound }),
   z.strictObject({ mod: z.literal('envelope'), from: bound, to: bound }),
+  z.strictObject({ mod: z.literal('beats'), per: bound }),
 ]);
 
 // A colour pick (SPEC "Palettes"): roles, slots, all, rainbow and '#rrggbb', joined by spaces or dealt by '/'.
@@ -138,12 +143,14 @@ export const Soften = z.strictObject({
 }, { error: 'soften must be { radius, mode }.' });
 
 /** An array of at most `max` of `item`; every failure says `error`. */
-const list = (item: (error: string) => z.ZodString, max: number, error: string) => z.array(item(error), { error })
-  .max(max).default([]);
+const array = (item: (error: string) => z.ZodString, max: number, error: string) => z.array(item(error), { error })
+  .max(max);
+const list = (...a: Parameters<typeof array>) => array(...a).default([]);
 const Layer = z.looseObject({
   id: z.string({ error: 'id must be 1–64 letters, digits or _.:-' }).regex(ID).optional(),
   title: Title.default(''), code: Code.optional(), params: Params.nullish(), modules: Modules.optional(),
-  groups: list((error) => z.string({ error }).min(1).max(64), 64, 'groups must be an array of group ids.'),
+  // None given: the rig's root; [] (and no tags): nothing.
+  groups: array((error) => z.string({ error }).min(1).max(64), 64, 'groups must be an array of group ids.').optional(),
   tags: list((error) => z.string({ error }).regex(TAG), 16, 'tags must be an array of at most 16 tags (a-z, 0-9, -).'),
   blend: Blend.default('add'), level: num(0, 1, 'level must be a number from 0 to 1.').default(1),
   clips: Clips.nullish(), soften: Soften.nullish(),
@@ -160,7 +167,7 @@ const Layer = z.looseObject({
   const extra = Object.fromEntries(Object.entries(flags).filter(([k, v]) => k.length <= 64
     && (typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v))
       || (typeof v === 'string' && v.length <= 200))).slice(0, 16));
-  return { id, title, ...(modules ? { modules } : { code: code!, params: params ?? {} }), groups,
+  return { id, title, ...(modules ? { modules } : { code: code!, params: params ?? {} }), ...(groups ? { groups } : {}),
     ...(tags.length ? { tags: [...new Set(tags)] } : {}), blend, level, ...(clips?.length ? { clips } : {}),
     ...(soften ? { soften } : {}), ...extra };
 });
@@ -176,7 +183,7 @@ export function dropRemaps<T>(layers: T[]): T[] {
   }) : layers;
 }
 
-/** A look's layers, bottom first (defaults: blend add, level 1, groups [] (the rig's root), ids l1, l2, …). */
+/** A look's layers, bottom first (defaults: blend add, level 1, no groups (the rig's root), ids l1, l2, …). */
 export const Layers = z.array(Layer, { error: 'layers must be an array.' })
   .max(MAX_LAYERS, `A look can have at most ${MAX_LAYERS} layers.`)
   .transform((list, ctx) => {

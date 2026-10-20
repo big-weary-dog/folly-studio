@@ -7,7 +7,7 @@ export interface Param { kind: 'number' | 'color' | 'toggle' | 'choice'; value: 
   label: string; min: number; max: number; step: number; options: string[]; blend?: 'smooth' | 'step' }
 type Shape = NonNullable<Extract<Binding, { mod: 'lfo' }>['shape']>;
 export type BindingForm = { mod: '' | Binding['mod']; shape: Shape; rate: string; unit: string; center: string;
-  depth: string; hold: string; name: string; from: string; to: string; eFrom: string; eTo: string };
+  depth: string; hold: string; name: string; from: string; to: string; eFrom: string; eTo: string; per: string };
 export const SHAPES: Shape[] = ['sine', 'tri', 'saw', 'square', 'hold'];
 
 /** A choice option as the UI says it: the library's directions (SPEC "Directions") with arrows, else humanized. */
@@ -23,9 +23,10 @@ export const isBinding = (v: unknown): v is Binding => !!v && typeof v === 'obje
 export const fmt = (v: number) => String(Math.round(v * 1000) / 1000);
 const HEX = /^#[0-9a-f]{6}$/i;
 
-/** A binding in a few words: "LFO sine · 0.25 Hz", "energy → 0–2", "envelope → 0–1". */
+/** A binding in a few words: "LFO sine · 0.25 Hz", "energy → 0–2", "envelope → 0–1", "1 a beat". */
 export function bindingText(b: Binding) {
   if (b.mod === 'lfo') return `LFO ${b.shape || 'sine'} · ${fmt(b.rate ?? 1)} ${b.unit === 'beats' ? '/beat' : 'Hz'}`;
+  if (b.mod === 'beats') return `${fmt(b.per ?? 1)} a beat`;
   const range = b.from !== undefined || b.to !== undefined ? ` → ${fmt(b.from ?? 0)}–${fmt(b.to ?? 1)}` : '';
   return `${b.mod === 'global' ? b.name : 'envelope'}${range}`;
 }
@@ -78,7 +79,8 @@ export function bindingForm(b: Partial<Binding>, p: Param, globals: string[]): B
     rate: fmt(Number(o.rate ?? 0.25)), unit: o.unit === 'beats' ? 'beats' : 'hz',
     center: fmt(Number(o.center ?? p.value)),
     depth: fmt(Number(o.depth ?? (p.max - p.min) / 4)), hold: fmt(Number(o.hold ?? 0.5)),
-    name: globals.includes(o.name as string) ? o.name as string : globals[0], from, to, eFrom, eTo };
+    name: globals.includes(o.name as string) ? o.name as string : globals[0], from, to, eFrom, eTo,
+    per: fmt(Number(o.per ?? 1)) };
 }
 
 /** The binding the dialog's fields make (null: its field sets it); a number that does not parse takes its default. */
@@ -90,5 +92,6 @@ export function makeBinding(f: BindingForm, p: Param): Binding | null {
       ...(f.shape === 'hold' ? { hold: Math.min(1, Math.max(0, n(f.hold, 0.5))) } : {}) };
   }
   if (f.mod === 'global') return { mod: 'global', name: f.name, from: n(f.from, p.min), to: n(f.to, p.max) };
+  if (f.mod === 'beats') return { mod: 'beats', per: n(f.per, 1) };
   return f.mod === 'envelope' ? { mod: 'envelope', from: n(f.eFrom, p.min), to: n(f.eTo, p.max) } : null;
 }
