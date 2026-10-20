@@ -15,7 +15,7 @@ export const DEFAULT_MAX_BYTES = 64 * 1024 * 1024;
 // judges it. Only large-area flashing blocks review; flashing confined to small places is a warning. Red flash: not
 // checked.
 // Everything is measured in the light the LEDs give: bakes hold encoded bytes, so each is decoded by the LEDs'
-// correction (the core's ledLight) first.
+// output transform (the core's ledLight) first.
 // Power: WS281x pixels draw about 20 mA per channel at full, at 5 V: an estimate for sizing supplies.
 export const AMPS_PER_CHANNEL = 0.02;
 const DARK = 0.01; // a pixel is dark when every channel gives under 1 % of its light (encoded, below about 0.12)

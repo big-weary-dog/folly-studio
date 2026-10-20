@@ -76,7 +76,7 @@ export async function compose(o: { adapter: Adapter, ctx: Context, catalog: Cata
     return look;
   };
   const check = (look: ReturnType<typeof valid>, seconds: number) => renderCheck(o.box, look,
-    { seconds, rig: ctx.rig, lane: o.lane });
+    { seconds, rig: ctx.rig, lane: o.lane, light: ctx.light });
   const expanded = (x: ReturnType<typeof expand>) => `${x.errors.length} errors, ${x.notes.length} params changed`;
   let cur, rounds = 0;
   /** A refinement's first round: edits to `base`, applied; one more round when some do not apply. */
@@ -166,7 +166,7 @@ export async function compose(o: { adapter: Adapter, ctx: Context, catalog: Cata
     try {
       const aim = o.aim ?? ctx.text, seconds = shown.seconds || lookDuration(look);
       const view = viewFrames(shown.bytes, ctx.rig, { at: stillTimes(seconds), stills: o.critique === 'images',
-        closeUps: closeUpGroups(look, prepareScene(ctx.rig)) });
+        light: ctx.light, closeUps: closeUpGroups(look, prepareScene(ctx.rig)) });
       warnings = groupWarnings(view.groups, ctx.groups, aim);
       const message = buildCritiqueMessage({ idea: aim, timeline: view.timeline, analysis: shown.analysis,
         stills: view.stills.map((s) => s.at), closeUps: [...new Set(view.closeUps.map((c) => c.group))], seconds,

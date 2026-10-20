@@ -55,7 +55,7 @@ studio/
     sandbox.html          the sandboxed pattern runner's page (a template: the build inlines its relay and Worker)
     js/
       pattern-core.ts     pure: stdlib, compile, scene prep, renderFrame, toChannels, the flash check, re-exported from
-                          core/{stdlib,compile,scene,timeline,render,output,spatial,globals,flash}.ts (sandbox, boxes,
+                          core/{stdlib,compile,scene,timeline,render,output,light,spatial,globals,flash}.ts (sandbox, boxes,
                           Node tests)
       sandbox-relay.ts    the sandbox page's script: relay + watchdog
       sandbox-worker.ts   the sandbox's Worker: runs a look's layers on the core
@@ -147,8 +147,9 @@ Playa; the view's LEDs button is Points):
   horizon. Each frame's light goes into one RGBA16F texture (no allocation) that the geometry samples by pixel index;
   spill lights (pixels clustered once, summed each frame) light the playa; HDR, bloom, then a tone map on the peak
   only, so saturated colours stay saturated. Colours are sRGB (as their swatches): the light is decoded to linear
-  before it goes in the texture, and the tone map leaves a lone colour as it is (as is to .7 of full, then a
-  shoulder), so a wash looks like its swatch. It needs float render targets, else the view stays on Points.
+  before it goes in the texture. The tone map is linear to .7 of its range, then a shoulder; the emission puts full
+  drive in that shoulder, so mid-tones show lighter, relative to full, than the LEDs give them (docs/LIGHT.md
+  "The previews"). It needs float render targets, else the view stays on Points.
   `setQuality('auto' | 'full' | 'lite' | 'low')`: full (pixel ratio ≤ 2, half-res bloom, 16 spill lights), lite
   (≤ 1, quarter-res bloom, 6, tubes without the neighbour blend), low (≤ 1, no bloom, 4). Auto starts at full,
   lite on a touch screen, and steps down while the median of 24 frames takes over 30 ms.
@@ -164,6 +165,33 @@ it), `rails` (`from`, `to` along the foot, `height`, a post every `posts` metres
 `faces` as a box's: a standard where two meet, a ledger along each at every height in `levels`, a brace across each
 lift; a face shared with the rig's own scaffold left out). The Studio's Venue
 button shows or hides it (default on, kept per browser).
+
+## Light and output
+
+How a colour value becomes light, the one explanation (docs/LIGHT.md has the why, the diagram and every number):
+
+- **The engine works in encoded values**, 0..1, the swatches' own sRGB numbers. Every dim, opacity, level, Amount,
+  fade and blend multiplies or mixes those, so a slider is perceptual: 0.5 looks about half, and is 22 % of the light.
+- **The LEDs give linear light.** One output transform turns a value into an output byte, in float, then rounds:
+  `byte = round(255 · min(1, v^gamma · balance[colour] · trim[LED] · cap))`, then a lit channel never below `floor`.
+  The Falcon's own gamma is None, so this is the only curve. Export's .fseq and the Pi use it; bakes and the preview
+  keep the encoded values (`toChannels`), and the bake checks decode those bytes through the same curve (`ledLight`).
+- **Caps are linear and come after the curve**: the Pi's master, blackout and fade, Export's Brightness and each
+  group's `trim` scale light, as WLED's and FPP's brightness do, so dimming never shifts a colour's hue. The Falcon's
+  port brightness (80 %, the rose's 70 %) is the electrical backstop, set on the controller and never repeated here.
+- **The checks judge the look at full output**: `gamma`, `balance` and `floor`, never the caps.
+
+The light settings, `shared/schemas/light.ts`, are stored once: `<STUDIO_DATA>/light.json`, written by the Light page
+(admins) and read by Export, the bake checks and the preview; the Pi reads the same shape from `pi/light.json`
+(the Light page's "Download for the Pi"). Missing, unreadable or out of range, each field is its default:
+
+```
+{ gamma: 2.2,              // 1..3: light = v^gamma
+  balance: [1, 1, 1],      // 0..1 each: a colour's light trimmed down, to even out the whites
+  floor: 0,                // 0..16: the least byte a lit channel sends (v ≥ 0.5/255); 0 lets the curve round to off
+  trims: [],               // ≤ 32 of { tag, level 0..1 }: a group's light × level, by the rig's group tags
+  controller: [{ ports, brightness, gamma }] }   // ≤ 16: the controller's own settings, recorded, never applied
+```
 
 ## Pattern code and the library
 
@@ -348,7 +376,7 @@ scope (it inherits the CSP, so no network either), relays messages to it and kee
 | `{ type: 'init', rig, library? }` + a `MessagePort` (library: `[{ name, code }]` sources for `use`) | `{ type: 'ready' }` (also sent once on load, before init) |
 | `{ type: 'look', layers, globals?, automation?, bpm?, clock? }` (as saved; `clock: 'fresh'`: the clock not continued from the look before, SPEC-live) | `{ type: 'compiled', layers: [{ id, ok, error?, params, modules: [{ id, ok, error?, params, upgraded? }] }] }` (`params`: the first source's schema; `upgraded`: each param a module's `upgrade()` changes, `[saved, upgraded]`, SPEC-library) |
 | `{ type: 'frame', seq, t, set? }` | `{ type: 'frame', seq, rgb: Float32Array(count×3), errors: [{ id, module?, error }], ms, layerMs: { <layer id>: ms } }` (rgb transferred; `ms` the frame's, `layerMs` each layer's, timed in the worker) |
-| `{ type: 'render', seq, start, frames, fps, brightness, correction: { gamma, balance } }` | `{ type: 'progress', seq, done }` … then `{ type: 'rendered', seq, channels: Uint8Array(frames × frame channels) }` |
+| `{ type: 'render', seq, start, frames, fps, brightness, light }` (light: the settings, Light and output; brightness: a linear cap) | `{ type: 'progress', seq, done }` … then `{ type: 'rendered', seq, channels: Uint8Array(frames × frame channels) }` |
 
 Compute is decoupled from drawing: the app keeps one `frame` request in flight and asks at 40 fps, stepping down to
 30 and then 20 while the worker's `ms` (smoothed) is over budget, 80 % of the frame interval, and back up once it is
@@ -377,7 +405,7 @@ characters), `layerModules(layer) → modules`
 (a legacy layer → one source), `compileLayer(layer) → compiled[]` (throws `title: error`), `setLibrary([{ name,
 code }])`, `prepareScene(rig) → scene` (throws on a malformed rig), `groupsByTag(scene, tag) → [group]` (outermost
 first), `pixelsForGroups(scene, ids, tags?) → Int32Array` (a layer's rule above), `tagMask(scene, tag) → Uint8Array`,
-`tagCentres(scene, tag) → [[X, Y, Z]]`, `FLASH` (the default limits), `ledLight(correction?) → Float32Array(768)` (each output byte's light per colour), `flashLimits(partial?) → limits` and
+`tagCentres(scene, tag) → [[X, Y, Z]]`, `FLASH` (the default limits), `flashLimits(partial?) → limits` and
 `new FlashWatch(scene, limits?, { record? })` (Baked frames, Checks), `prepareLayer(scene, layer, compiled | compiled[])
 → prepared`
 (keeps `normalizeClips(layer.clips)`; a chain with spatial modules or `soften` gets its stage buffers here),
@@ -387,11 +415,12 @@ distances `d`, nearest first; Int32Array, Int32Array, Float32Array; cached on th
 `renderFrame(scene, preparedLayers, t, out?, look?) → { rgb, errors }` (level × `layerEnvelope`, or a wipe's
 `transitionWeight` per pixel; skips layers at 0; allocation-free per layer; sets each prepared layer's `ms`, its time this frame), `normalizeGlobals(globals)`, `automationAt(points, t)`, `PALETTE_ROLES`,
 `DEFAULT_PALETTE`, `MODULE_KINDS`, `GLOBALS`,
-`toChannels(scene, rgb, out?, { brightness = 1 }) → Uint8Array(frame channels)` (in the rig's colour
-order, the colours as previewed); the LEDs' colour correction, `OUTPUT_CORRECTION` (`{ gamma: 2.2, balance: [1, 1,
-1] }`, the one place it is set: sRGB colours out to linear LEDs, the Falcon's own gamma None; balance only trims),
-`correctionOf(settings)` (bounded), `correctionTable(correction)` and `correctChannels(scene, channels, table, out?)`,
-which the Export dialog's .fseq and the Pi's output apply (bakes and Live stay as previewed), and for the
+`toChannels(scene, rgb, out?) → Uint8Array(frame channels)` (in the rig's colour order, the colours as previewed:
+bakes and Live), the output transform (Light and output; `core/light.ts`, the only module that reads the settings'
+fields): `LIGHT` (the defaults), `lightOf(settings)` (bounded, defaults where missing), `prepareLight(scene, light?)`,
+`lightByte(v, light) → 0..255` (the curve alone, white, for showing it), `ledChannels(scene, rgb, prepared, out?, cap = 1) →
+Uint8Array(frame channels)` (the Export dialog's .fseq and the Pi's output) and `ledLight(light?) → Float32Array(768)`
+(each encoded byte's light per colour, 0..1, as the LEDs give it at full output), and for the
 timeline `layerEnvelope(clips, t) → 0..1`, `normalizeClips(clips) → clips | null` (lenient: drops
 bad and overlapping clips), `transitionWeight(…)` and `TRANSITIONS` (above), `lookDuration(look) → seconds`, `DEFAULT_DURATION` `MIN_DURATION`
 `MAX_DURATION` `MAX_CLIPS`.
@@ -459,6 +488,9 @@ GET    /api/admin/models                      → { file, config, models: [{ id,
                                               problem? }  admins only (403): the registry and what can run here
 PUT    /api/admin/models  config              → the same, after writing the registry file; admins only; 400 names
                                               the first problem
+GET    /api/light                             → light  the light settings (Light and output), defaults where unset
+PUT    /api/admin/light  light                → light, after writing <STUDIO_DATA>/light.json; admins only; 400 names
+                                              the field
 GET    /api/admin/ideas/:id/log               → { idea, calls, system, stills }  admins only (403): an idea's or
                                               refinement's log (SPEC-generators "The idea log"); 404 when none
 GET    /api/admin/ideas/:id/log/stills/:name  → image/png  admins only; `name` as the log lists it (400 otherwise)
@@ -622,7 +654,7 @@ marks the look reviewed.
   maxDataBytes before anything is inflated, and each block inflate to exactly its frames, so a
   decompression bomb is refused. Empty index entries may only pad its end (FPP preallocates).
   `analyzeFrames(parsed, scene, watch, light)` (the core's `prepareScene(rig)`, a recording `FlashWatch` and
-  `ledLight()`; frames.ts imports only types, so the Fleet box runs a copy) → `{ frames, seconds, fps, peakBrightness,
+  `ledLight(light)`, the light settings when it bakes; frames.ts imports only types, so the Fleet box runs a copy) → `{ frames, seconds, fps, peakBrightness,
   meanBrightness, darkFraction, estPeakAmps (20 mA/channel at 5 V), coverage, flicker: { maxHz, flaggedSeconds,
   regions, ok, small: { maxHz, flaggedSeconds, regions }, limits: { perSecond, delta, area } } }`. All of it is in
   the LEDs' light: each byte is decoded by the output correction (`v^gamma`, Output) first, so brightness, power

@@ -12,6 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { GenerateError } from '../../shared/schemas/generated.ts';
+import type { Light } from '../../public/js/pattern-core.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
 import { DEFAULT_BAKE_SECONDS, framesBytesFor, parseBytes, parseDuration } from '../bake.ts';
 import { type BakeError, checkFrames, cleanBoxStats, failedBake, flashSettings, readUntrusted } from '../box-output.ts';
@@ -172,7 +173,8 @@ export function createFleetAdapter(o: Options = {}) {
       .catch(() => {});
   }
 
-  async function prepareWorkspace(name: string, ws: string, ctx: Pick<Context, 'text' | 'library' | 'rig' | 'groups'>) {
+  async function prepareWorkspace(name: string, ws: string,
+    ctx: Pick<Context, 'text' | 'library' | 'rig' | 'groups' | 'light'>) {
     for (const f of [...Object.values(cfg.modules), cfg.briefTemplate, cfg.patternsDir, ...Object.values(cfg.copies)]) {
       if (!(await exists(f))) {
         throw new GenerateError('The Fleet generator is not set up on this server.', `missing ${f}`);
@@ -194,6 +196,8 @@ export function createFleetAdapter(o: Options = {}) {
     }
     for (const [name, entry] of Object.entries(cfg.modules)) await copyModule(entry, ws, name);
     await fs.writeFile(path.join(ws, 'package.json'), '{ "private": true, "type": "module" }\n');
+    // The light settings, so the box's own check measures the light the studio's will.
+    await fs.writeFile(path.join(ws, 'light.json'), `${JSON.stringify(ctx.light ?? null)}\n`);
     const git = (args: string[]) => run(cfg.git, args, { cwd: ws, timeoutMs: 30_000 });
     await git(['init', '-q', '-b', 'main']);
     await git(['add', '-A']);
@@ -224,11 +228,11 @@ export function createFleetAdapter(o: Options = {}) {
     }
   }
 
-  async function generate({ text, library = [], rig, groups = rig?.groups || [], idea }: Context) {
+  async function generate({ text, library = [], rig, groups = rig?.groups || [], idea, light }: Context) {
     const name = workerName(idea?.id ?? Date.now().toString(36));
     await fs.mkdir(cfg.workDir, { recursive: true });
     const ws = path.join(await fs.realpath(cfg.workDir), name);
-    const lookPath = await prepareWorkspace(name, ws, { text, library, rig, groups });
+    const lookPath = await prepareWorkspace(name, ws, { text, library, rig, groups, light });
     const state = path.join(fleetHome, name);
     const deadline = Date.now() + cfg.timeoutMs;
     try {
@@ -257,7 +261,7 @@ export function createFleetAdapter(o: Options = {}) {
       if (named && path.resolve(named) !== lookPath) {
         say('warn', `${name} reported ${named.slice(0, 200)}; reading ${lookPath} only`);
       }
-      return { ...(await readLook(lookPath)), ...(await readBake(ws)) };
+      return { ...(await readLook(lookPath)), ...(await readBake(ws, light)) };
     } finally {
       // Also after a failed spawn: fleet keeps a worker that never started as live, in its window.
       await cleanup(name, ws);
@@ -266,7 +270,7 @@ export function createFleetAdapter(o: Options = {}) {
 
   let rig: Rig;
   // The worker's bake, checked here as data; problems never fail the idea (the look is saved, bake.ok false).
-  async function readBake(ws: string) {
+  async function readBake(ws: string, light?: Light) {
     const source = 'fleet-box';
     const boxStats = await readUntrusted(path.join(ws, 'stats.json'), { maxBytes: 64 * 1024, within: ws })
       .then((raw) => cleanBoxStats(JSON.parse(raw.toString('utf8'))), () => undefined); // advisory only
@@ -280,7 +284,8 @@ export function createFleetAdapter(o: Options = {}) {
     try { rig ||= JSON.parse(await fs.readFile(cfg.rigFile, 'utf8')); } catch {
       return { bake: failedBake(source, 'The rig could not be read to check the frames.') };
     }
-    const out = checkFrames(bytes, { source, rig, maxBytes: cfg.maxFramesBytes, boxStats, flash: flashSettings(env) });
+    const out = checkFrames(bytes, { source, rig, maxBytes: cfg.maxFramesBytes, boxStats, flash: flashSettings(env),
+      light });
     if (!out.bake.ok) say('warn', `bake from ${path.basename(ws)}: ${out.bake.reason}`);
     return out;
   }

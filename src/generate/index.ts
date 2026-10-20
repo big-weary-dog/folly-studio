@@ -11,6 +11,7 @@
 import path from 'node:path';
 
 import { CHAIN } from '../../shared/chain-order.ts';
+import type { Light } from '../../public/js/pattern-core.ts';
 import type { Bake, Explore, Idea } from '../../shared/schemas/api.ts';
 import { GenerateError, validateLook } from '../../shared/schemas/generated.ts';
 import type { ModelEntry, Transport } from '../../shared/schemas/models.ts';
@@ -52,8 +53,8 @@ export type Repair = { answer: unknown, errors: ExpandError[], message?: string,
  * carries (docs-turn.ts); `schema`: an answer to this schema instead of a look (no read_doc; returned as it parsed);
  * `images`: PNGs shown with the first turn; `journal`: the idea's log, and `round`: its round (calls go there). */
 export type Context = { text: string, user: { id: string, username?: string, role?: string },
-  library: LibraryEntry[], rig: Rig | null, groups: RigGroup[], idea?: { id: string }, prompt?: () => Prompt,
-  turn?: string, repair?: Repair, signal?: AbortSignal, docsRead?: string[], docsGiven?: string[],
+  library: LibraryEntry[], rig: Rig | null, groups: RigGroup[], light?: Light, idea?: { id: string }, turn?: string,
+  prompt?: () => Prompt, repair?: Repair, signal?: AbortSignal, docsRead?: string[], docsGiven?: string[],
   schema?: Record<string, unknown>, images?: Uint8Array[], journal?: Pick<IdeaLog, 'begin' | 'note'>, round?: Round };
 export type Adapter = { name?: string, generate(ctx: Context): unknown };
 type Route = { id: string, label: string, via: string, entry?: ModelEntry };
@@ -82,25 +83,24 @@ export function foundryFromEnv(env = process.env) {
 }
 
 /**
- * The queue: enqueue(idea | id) → false when already queued; idle(), stop(), size, watch(id, fn). models: the
- * registry (an idea's `model` picks the route); adapterName: STUDIO_GENERATOR, the route of an idea that names no
- * model; adapters: transport → { generate } or a function, in place of the built-in ones;
- * concurrency: STUDIO_GENERATOR_CONCURRENCY, per lane where the registry says nothing; fallbackName:
- * STUDIO_GENERATOR_FALLBACK, the foundry's one-shot generator (a model or transport; else sketch);
- * loadVersion: changes when the library or rig does (the prompt is built again only then); box and lane: the render
- * box and the bakes' lane, for the render check and critique (none: no check); interruptGraceMs: how long a call
- * cut by a stray stop signal waits for the server's own stop before it runs again; ideaLogs: where each idea's log
- * goes (none: counted in memory only).
+ * The queue: enqueue(idea | id) → false when already queued; idle(), stop(), size, watch(id, fn). models: the registry
+ * (an idea's `model` picks the route); adapterName: STUDIO_GENERATOR, the route of an idea that names no model;
+ * adapters: transport → { generate } or a function, over the built-in ones; concurrency: STUDIO_GENERATOR_CONCURRENCY,
+ * per lane where the registry says nothing; fallbackName: STUDIO_GENERATOR_FALLBACK, the foundry's one-shot generator
+ * (a model or transport; else sketch); loadVersion: changes when the library or rig does (the prompt is built again
+ * only then); box and lane: the render box and the bakes' lane, for the render check and critique (none: no check);
+ * interruptGraceMs: how long a call cut by a stray stop signal waits for the server's own stop before it runs again;
+ * ideaLogs: where each idea's log goes (none: in memory).
  */
 export function createQueue({
-  store, loadLibrary = () => [], loadRig = () => null, loadVersion, models, adapterName = process.env.STUDIO_GENERATOR
-    || 'sketch', log = console, adapters = {}, concurrency = Number(process.env.STUDIO_GENERATOR_CONCURRENCY) || 0,
-  fallbackName = process.env.STUDIO_GENERATOR_FALLBACK || '', framesDir, foundry = foundryFromEnv(), codexBin, box,
-  lane: bakeLane, critiqueBudgetMs = CRITIQUE_BUDGET_MS, interruptGraceMs = 2000, ideaLogs,
+  store, loadLibrary = () => [], loadRig = () => null, loadLight, loadVersion, models, log = console, adapters = {},
+  adapterName = process.env.STUDIO_GENERATOR || 'sketch', fallbackName = process.env.STUDIO_GENERATOR_FALLBACK || '',
+  concurrency = Number(process.env.STUDIO_GENERATOR_CONCURRENCY) || 0, framesDir, foundry = foundryFromEnv(), codexBin,
+  box, lane: bakeLane, critiqueBudgetMs = CRITIQUE_BUDGET_MS, interruptGraceMs = 2000, ideaLogs,
 }: { store: Pick<Store, 'ideas' | 'looks'> & Partial<Store>, loadLibrary?: () => LibraryEntry[],
-  loadRig?: () => Rig | null | Promise<Rig | null>, loadVersion?: () => string, models?: Registry,
-  adapterName?: string, log?: Logger, adapters?: Record<string, Adapter | Adapter['generate']>, concurrency?: number,
-  fallbackName?: string, framesDir?: string, foundry?: Partial<ReturnType<typeof foundryFromEnv>>,
+  loadRig?: () => Rig | null | Promise<Rig | null>, loadLight?: () => Light, loadVersion?: () => string,
+  models?: Registry, adapterName?: string, log?: Logger, adapters?: Record<string, Adapter | Adapter['generate']>,
+  concurrency?: number, fallbackName?: string, framesDir?: string, foundry?: Partial<ReturnType<typeof foundryFromEnv>>,
   codexBin?: string, box?: Box, lane?: Parameters<typeof compose>[0]['lane'], critiqueBudgetMs?: number,
   interruptGraceMs?: number, ideaLogs?: IdeaLogs }) {
   const framesHome = framesDir ?? (store.dataDir ? path.join(store.dataDir, 'frames') : '');
@@ -269,8 +269,9 @@ export function createQueue({
       const base = await prepare();
       if (PROMPTED.has(r.via) || idea.refine) promptOf(base);
       const prompt = Date.now() - started;
-      const ctx: Context = { text: String(idea.text ?? ''), user, library: base.library, rig: base.rig,
-        groups: base.groups, idea: { id }, prompt: () => promptOf(base), signal: ac.signal, docsRead: [], journal };
+      const ctx: Context = { text: String(idea.text ?? ''), user, library: base.library, rig: base.rig, journal,
+        groups: base.groups, light: loadLight?.(), idea: { id }, prompt: () => promptOf(base), signal: ac.signal,
+        docsRead: [] };
       const refine = idea.refine ? { ...refining(idea, promptOf(base).catalog), ...idea.refine } : undefined;
       if (refine) ctx.turn = buildRefineMessage(refine.comp, idea.text, idea.refine?.fix, refine.history);
       const out = await lookFrom(ctx, r, refine, idea.explore), { look, used, request } = out;

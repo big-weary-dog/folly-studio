@@ -1,8 +1,8 @@
 // The flash check (SPEC "Baked frames" > Checks, DESIGN §6): WCAG 2.3.1's three flashes a second, for a sculpture,
 // on big swings only. The bake check (src/frames.ts) and the preview's guard (flash-guard.ts) both run it, on the light
-// the LEDs give (ledLight), each LED's brightest channel: luminance would make a full red or blue strobe a small swing,
-// and saturated red flashing is a known trigger (WCAG's separate red flash rule). Pure; nothing allocated per frame
-// unless it records a report.
+// the LEDs give (light.ts's ledLight), each LED's brightest channel: luminance would make a full red or blue strobe a
+// small swing, and saturated red flashing is a known trigger (WCAG's separate red flash rule). Pure; nothing allocated
+// per frame unless it records a report.
 //
 // Regions (the whole rig, each top-level group) watch their mean light for swings: a change of ≥ delta that then
 // turns back by ≥ delta, a transition as WCAG counts one. A swing is credited to the parts that made it (the region's
@@ -11,7 +11,6 @@
 // seen from the front or the side. Transitions are counted where they happen, per cell, and a flash is a pair of
 // them: over `perSecond` in any second is flashing. So a wave that crosses the arches in turn flashes each place once
 // a pass, where one mean over all the arches would rise and fall with each arch it crossed.
-import { OUTPUT_CORRECTION, type OutputCorrection } from './output.ts';
 import { pixelsForGroups, type Scene } from './scene.ts';
 
 /** The defaults: over 3 flashes in any second (WCAG 2.3.1), each a swing of ≥ half the LEDs' light with the darker
@@ -31,14 +30,6 @@ export function flashLimits(o?: Partial<FlashLimits> | null): FlashLimits {
     if (typeof v === 'number' && v >= lo && v <= hi) out[k] = v;
   }
   return out;
-}
-
-/** The light each output byte gives, 0..1 of full, per colour (r, g, b: 256 each): the LEDs' correction (v^gamma ×
- * balance, core/output.ts), so the checks judge what the LEDs show, not the encoded values. */
-export function ledLight(c: OutputCorrection = OUTPUT_CORRECTION) {
-  const t = new Float32Array(768);
-  for (let k = 0; k < 3; k++) for (let v = 0; v < 256; v++) t[256 * k + v] = (v / 255) ** c.gamma * c.balance[k];
-  return t;
 }
 
 /** The regions that watch for swings: the whole rig (idx null), then each top-level group with LEDs. */

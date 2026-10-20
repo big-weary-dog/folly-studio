@@ -47,9 +47,11 @@ dry and when the flash guard has cut to `safe` (the safe look plays until someon
 
 - Defaults, then `pi/config.json` (the Pi's own, gitignored, so `git pull` never touches it), then flags. For
   example `{ "look": "fire", "gen": 4000 }`.
-- The LEDs' colour correction (`--gamma`, `--balance R,G,B`; default 2.2 and 1,1,1, from `core/output.ts`) bends
-  the colours on the way out only, so the Live tab and the engine's frames stay the look's own. The F48s are set to
-  Gamma None, so this is the only gamma; balance only trims a colour down (brightness stays the Falcon's cap).
+- The light settings (`--light FILE`, default `pi/light.json`, gitignored): Studio's Light page's "Download for the
+  Pi", the same record Export and the bake checks use (SPEC "Light and output", docs/LIGHT.md). Missing, it is the
+  defaults (gamma 2.2, no balance, floor or trims). They bend the colours on the way out only, so the Live tab and the
+  engine's frames stay the look's own; the master, blackout and fades scale the light after the curve. The F48s are
+  set to Gamma None, so this is the only gamma; their port brightness stays the electrical cap.
 - Looks are `pi/looks/<id>.json`, plus the Pi's own `pi/local/looks/` (gitignored; one there replaces a shipped
   look with the same id). A look is Studio's look whose modules name library entries by `ref`; the code always
   comes from the library. `globals.live` lists the controls it offers.

@@ -23,6 +23,8 @@ unit=${STUDIO_UNIT:-folly-studio}
 read -r ref host port pi_url < <(set -a; . "$env_file"
   echo "${STUDIO_REF:-origin/main} ${HOST:-127.0.0.1} ${PORT:-8780} ${PI_PREVIEW_URL:-}")
 ref=${1:-$ref}
+# shellcheck disable=SC1090 # the light settings, which the dry-run Pi reads too (SPEC "Light and output")
+light="$(set -a; . "$env_file"; echo "${STUDIO_DATA:-$studio/data}")/light.json"
 case $host in 127.0.0.1|localhost|::1) ;; *) die "HOST=$host: keep the studio on loopback, the tunnel reaches it";; esac
 pi_port=
 if [ -n "$pi_url" ]; then
@@ -82,7 +84,7 @@ Description=Folly Studio Live, dry run, for the studio's /pi ($studio)
 
 [Service]
 WorkingDirectory=$studio
-ExecStart=$node pi/main.ts --dry-run --base /pi --bind 127.0.0.1 --http $pi_port --stats 3600
+ExecStart=$node pi/main.ts --dry-run --base /pi --bind 127.0.0.1 --http $pi_port --stats 3600 --light "$light"
 Restart=always
 RestartSec=5
 

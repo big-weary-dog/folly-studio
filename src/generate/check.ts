@@ -2,6 +2,7 @@
 // before it is saved, so a look that cannot load, a layer that throws or gives NaN, or a slow one goes back to the
 // model with the box's words. What the box says is untrusted: bounded and read as data. No box: no check (null).
 
+import type { Light } from '../../public/js/pattern-core.ts';
 import type { Bake } from '../../shared/schemas/api.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
 import { BakeError, checkFrames } from '../box-output.ts';
@@ -38,8 +39,8 @@ function layerErrors(look: Look, reported: unknown): ExpandError[] {
 }
 
 /** Render `look` for `seconds` in the box (in `lane`, the bakes' turn) → what it showed; null when there is no box. */
-export async function renderCheck(box: Box | undefined, look: Look, { seconds, rig, lane }: { seconds: number,
-  rig: Rig | null, lane?: Lane }): Promise<Seen | null> {
+export async function renderCheck(box: Box | undefined, look: Look, { seconds, rig, lane, light }: { seconds: number,
+  rig: Rig | null, lane?: Lane, light?: Light }): Promise<Seen | null> {
   if (!box || !(await box.probe().catch(() => ({ ok: false }))).ok) return null;
   const t0 = Date.now(), job = { layers: look.layers as never, seconds, globals: look.globals,
     automation: look.automation, bpm: look.bpm };
@@ -47,7 +48,7 @@ export async function renderCheck(box: Box | undefined, look: Look, { seconds, r
     const r = await (lane ? lane.run(() => box.render(job)) : box.render(job));
     const errors = layerErrors(look, r.boxStats?.reported);
     let analysis;
-    if (rig) analysis = checkFrames(r.bytes, { source: 'render-box', rig }).bake.analysis;
+    if (rig) analysis = checkFrames(r.bytes, { source: 'render-box', rig, light }).bake.analysis;
     return { errors, ms: Date.now() - t0, seconds: r.seconds, bytes: r.bytes, ...(analysis ? { analysis } : {}) };
   } catch (err) {
     if (!(err instanceof BakeError)) throw err;

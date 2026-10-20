@@ -4,6 +4,7 @@ import type {
   Bake, Explore, FlashSettings, Idea, Listed, Look, LookCreate, LookPatch, User,
 } from '../../shared/schemas/api.ts';
 import type { Access, Invite, Person, PersonLimits } from '../../shared/schemas/access.ts';
+import type { LightSettings } from '../../shared/schemas/light.ts';
 import type { AdminModels, ModelChoices, ModelsConfig } from '../../shared/schemas/models.ts';
 import type { ReportBody, ReportSummary } from '../../shared/schemas/report.ts';
 import type { LibraryEntry } from '../../shared/schemas/rig.ts';
@@ -61,6 +62,8 @@ export const api = {
     request<{ person: Person }>('PUT', `/api/admin/people/${enc(id)}`, patch),
   adminModels: () => request<AdminModels>('GET', '/api/admin/models'),
   saveModels: (config: ModelsConfig) => request<AdminModels>('PUT', '/api/admin/models', config),
+  light: () => request<LightSettings>('GET', '/api/light'),
+  saveLight: (light: LightSettings) => request<LightSettings>('PUT', '/api/admin/light', light),
 
   looks: (scope: 'mine' | 'gallery' = 'mine') => request<{ looks?: Listed[] }>('GET',
     `/api/looks?scope=${enc(scope)}`),

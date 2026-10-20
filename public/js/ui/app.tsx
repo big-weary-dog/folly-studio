@@ -33,6 +33,8 @@ const ROUTES: Route[] = [
     load: () => import('./live/control.tsx').then((m) => m.ControlPage) },
   { re: /^\/models\/?$/, name: 'models', title: 'Models', nav: '/models',
     load: () => import('./models.tsx').then((m) => m.Models) },
+  { re: /^\/light\/?$/, name: 'light', title: 'Light', nav: '/light',
+    load: () => import('./light.tsx').then((m) => m.LightPage) },
   { re: /^\/reports\/?$/, name: 'reports', title: 'Reports', nav: '/reports',
     load: () => import('./reports.tsx').then((m) => m.ReportsPage) },
   { re: /^\/access\/?$/, name: 'access', title: 'Access', nav: '/access',
@@ -105,7 +107,7 @@ async function logout() {
 
 const NAV = [['/ideas', 'Ideas'], ['/studio', 'Studio'], ['/looks', 'My looks'], ['/gallery', 'Gallery'],
   ['/live', 'Live']];
-const ADMIN_NAV = [...NAV, ['/models', 'Models'], ['/access', 'Access'], ['/reports', 'Reports']];
+const ADMIN_NAV = [...NAV, ['/models', 'Models'], ['/light', 'Light'], ['/access', 'Access'], ['/reports', 'Reports']];
 
 /** The user menu drops under its button at a desktop's width; on a phone it sits open in the nav panel. */
 function placeUserMenu(e: { newState: string; currentTarget: HTMLElement }) {

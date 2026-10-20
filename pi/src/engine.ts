@@ -1,12 +1,13 @@
 // The Pi's engine: plays one look at a time on the rig, fixed-step at the rig's fps (so stateful patterns never drift),
-// on a drift-free timer. Each frame: the look's live controls eased, rendered by the core, the master level and
-// blackout applied, watched by the flash guard (a strobe dips to the safe look and holds there until someone picks a
-// look again), then the rig's channels to `output`. Look switches dip through black.
+// on a drift-free timer. Each frame: the look's live controls eased, rendered by the core, watched by the flash guard
+// (a strobe dips to the safe look and holds there until someone picks a look again), then out through the LEDs'
+// output transform (core/light.ts: v^gamma, × the master, blackout and fade as a linear cap after the curve, so
+// dimming never shifts a hue) as the rig's channels to `output`. Look switches dip through black.
 import { FlashGuard } from '../../public/js/flash-guard.ts';
 import {
-  compileLayer, prepareLayer, type PreparedLayer, prepareScene, renderFrame, setLibrary, toChannels,
+  compileLayer, type Light, ledChannels, prepareLayer, type PreparedLayer, prepareLight, prepareScene,
+  renderFrame, setLibrary,
 } from '../../public/js/pattern-core.ts';
-import type { OutputCorrection } from '../../public/js/core/output.ts';
 import type { PiSource } from '../../shared/schemas/live.ts';
 import type { Layer } from '../../shared/schemas/look.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
@@ -23,12 +24,13 @@ const ease = (e: Ease, dt: number) => {
 
 export type EngineOptions = { rig: Rig, lib: Library, looks: () => Map<string, { look: PiLook | null, error?: string }>,
   safe: string, output: (cells: Uint8Array) => void, log?: (line: string) => void, now?: () => number,
-  correction?: OutputCorrection };   // the LEDs' correction, so the flash guard judges the light they give
+  light?: Light };   // the light settings (pi/light.json): the output transform, and the light the flash guard judges
 
 export function createEngine(o: EngineOptions) {
   const scene = prepareScene(o.rig), fps = scene.fps, dt = 1 / fps;
   const rgb = new Float32Array(scene.count * 3), cells = new Uint8Array(scene.frameChannels);
-  const guard = new FlashGuard(o.rig, null, o.correction), log = o.log ?? (() => {});
+  const guard = new FlashGuard(o.rig, null, o.light), log = o.log ?? (() => {});
+  const light = prepareLight(scene, o.light);
   const now = o.now ?? (() => performance.now());
   setLibrary([...o.lib.entries.values()]);
   const master: Ease = { now: 1, to: 1, secs: FADE.level }, black: Ease = { now: 1, to: 1, secs: FADE.blackout };
@@ -77,15 +79,13 @@ export function createEngine(o: EngineOptions) {
     const out = renderFrame(scene, p.layers, t, rgb, p.live.look);
     if (out.errors.length) { stats.layerErrors++; stats.lastError = out.errors[0]!.error; }
     const gain = ease(master, dt) * ease(black, dt) * ease(fade, dt);
-    if (gain < 1) for (let i = 0; i < rgb.length; i++) rgb[i]! *= gain;
-    if (guard.observe(rgb, stats.frames * 1000 / fps) && !tripped && p.id !== o.safe) {
+    if (guard.observe(rgb, stats.frames * 1000 / fps, gain) && !tripped && p.id !== o.safe) {
       tripped = { at: new Date().toISOString(), look: p.id };
       log(`flash guard: ${p.id} flashed; dipping to ${o.safe} until a look is picked`);
       pending = o.safe;
       fade.to = 0;
     }
-    toChannels(scene, rgb, cells);
-    o.output(cells);
+    o.output(ledChannels(scene, rgb, light, cells, gain));
     frame++;
     stats.frames++;
     const ms = now() - t0;

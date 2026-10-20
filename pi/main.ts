@@ -6,11 +6,11 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { correctionOf, correctionTable } from '../public/js/core/output.ts';
+import { lightOf } from '../public/js/core/light.ts';
 import { readConfig } from './src/config.ts';
 import { createEngine } from './src/engine.ts';
 import { readLibrary, readLooks } from './src/library.ts';
-import { correctedCells, createOutput } from './src/output.ts';
+import { createOutput } from './src/output.ts';
 import type { PowerTable } from './src/power.ts';
 import type { PiState } from './src/protocol.ts';
 import { runLoop } from './src/run.ts';
@@ -20,6 +20,13 @@ import { statsLine } from './src/stats.ts';
 const at = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 const json = (p: string) => JSON.parse(readFileSync(at(p), 'utf8'));
 const log = (line: string) => console.log(`studio-pi: ${line}`);
+/** The light settings file as JSON; null when there is none (the defaults). A broken one stops the start. */
+const readLight = (file: string) => {
+  try { return JSON.parse(readFileSync(path.resolve(path.dirname(at('./main.ts')), file), 'utf8')); } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    throw new Error(`${file}: ${(e as Error).message}`, { cause: e });
+  }
+};
 
 const cfg = readConfig(process.argv.slice(2), at('./config.json'));
 if (cfg) await main(cfg);
@@ -31,12 +38,11 @@ async function main(c: NonNullable<typeof cfg>) {
   for (const [id, l] of looks) if (l.error) log(`look ${id} cannot play: ${l.error}`);
   if (!looks.get(c.safe)?.look) throw new Error(`the safe look ${c.safe} cannot play`);
   const output = createOutput({ table, power: c, dryRun: c.dryRun, host: c.host, port: c.port });
-  // The LEDs' colour correction on the way out only: the engine's frames (and the Live tab's) stay the look's own.
-  const correction = correctionOf({ gamma: c.gamma, balance: c.balance.split(',').map(Number) });
-  const fix = correctionTable(correction);
-  const engine = createEngine({ rig, lib, looks: () => looks, safe: c.safe, log, correction,
-    output: (cells) => output.send(correct(cells)) });    // first called by the loop, below
-  const correct = correctedCells(engine.scene, fix);
+  // The light settings (SPEC "Light and output"): Studio's Light page downloads them as pi/light.json; missing, the
+  // defaults. On the way out only: the engine's frames (and the Live tab's) stay the look's own.
+  const light = lightOf(readLight(c.light));
+  const engine = createEngine({ rig, lib, looks: () => looks, safe: c.safe, log, light,
+    output: (cells) => output.send(cells) });
   // The rig's pixels must sit within the cells the expansion reads (its declared universes run past them, unused).
   const cellsEnd = Math.min(...table.petals.map((p) => p.exp));
   if (Math.max(...engine.scene.addr) + table.cellChannels > cellsEnd) throw new Error('the rig overlaps the rose');
@@ -44,7 +50,7 @@ async function main(c: NonNullable<typeof cfg>) {
   const to = c.dryRun ? 'DRY RUN, nothing sent' : `DDP ${c.host}:${c.port}`;
   log(`${to}, channels 1-${table.channels} (rose expanded), `
     + `rig ${rig.name} ${rig.count} px at ${engine.fps} fps, power cap ${c.cap} gen ${c.gen} W, library ${lib.hash}, `
-    + `${[...looks.values()].filter((l) => l.look).length} looks`);
+    + `${[...looks.values()].filter((l) => l.look).length} looks, gamma ${light.gamma}`);
   engine.play(looks.get(c.look)?.look ? c.look : c.safe);
 
   const loop = runLoop(engine, engine.fps);

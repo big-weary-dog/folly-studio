@@ -6,8 +6,8 @@ import { describe, test } from 'vitest';
 
 import { ledRanges } from '../public/js/fseq.ts';
 import {
-  compilePattern, correctChannels, correctionOf, correctionTable, FlashWatch, groupsByTag, OUTPUT_CORRECTION,
-  pixelsForGroups, prepareLayer, prepareScene, renderFrame, tagCentres, toChannels,
+  compilePattern, FlashWatch, groupsByTag, LIGHT, ledChannels, lightOf, pixelsForGroups, prepareLayer, prepareLight,
+  prepareScene, renderFrame, tagCentres, toChannels,
 } from '../public/js/pattern-core.ts';
 import { mini, RIGS } from './fixtures/rigs.js';
 
@@ -151,14 +151,13 @@ describe('the mini rig: its own axes, attrs, tags and addressing', () => {
     assert.equal(toChannels(scene, rgb).indexOf(255), 300);
   });
 
-  test("the LEDs' correction: gamma on each channel, balance trimming each colour in the rig's order", () => {
+  test("the LEDs' curve: gamma on each channel, balance trimming each colour in the rig's order", () => {
     const rgb = new Float32Array(scene.count * 3).fill(0);
     rgb.set([1, 0.5, 1]);                               // LED 0: G R B → 0.5, 1, 1
-    const ch = correctChannels(scene, toChannels(scene, rgb), correctionTable(correctionOf({ gamma: 2,
-      balance: [0.5, 1, 1] })));
+    const ch = ledChannels(scene, rgb, prepareLight(scene, lightOf({ gamma: 2, balance: [0.5, 1, 1] })));
     assert.deepEqual(Array.from(ch.subarray(0, 3)), [64, 128, 255]);
-    assert.deepEqual(correctionOf({ gamma: 9, balance: [2, -1, 'x'] }), { gamma: 3, balance: [1, 0, 1] });
-    assert.deepEqual(correctionOf(), OUTPUT_CORRECTION);
+    assert.deepEqual(lightOf({ gamma: 9, balance: [2, -1, 'x'] }), { ...LIGHT, gamma: 3, balance: [1, 0, 1] });
+    assert.deepEqual(lightOf(), LIGHT);
   });
 });
 

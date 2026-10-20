@@ -33,7 +33,7 @@ export default defineConfig({
   reporter: process.env.CI ? [['list'], ['github']] : [['list']],
   use: { browserName: 'chromium', launchOptions: { args: SWIFTSHADER }, trace: 'retain-on-failure' },
   projects: [
-    { name: 'smoke', testMatch: ['smoke.spec.js', 'models.spec.js', 'access.spec.js', 'live.spec.js',
+    { name: 'smoke', testMatch: ['smoke.spec.js', 'models.spec.js', 'light.spec.js', 'access.spec.js', 'live.spec.js',
       'refine.spec.js', 'side.spec.js', 'pi.spec.js', 'explore.spec.js',
       'live-pi.spec.js', 'loop.spec.js', 'mods.spec.js', 'mod-pop.spec.js', 'report.spec.js'],
       timeout: 5 * 60_000 },

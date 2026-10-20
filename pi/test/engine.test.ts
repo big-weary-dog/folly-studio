@@ -5,9 +5,7 @@ import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
-import { correctChannels, correctionTable } from '../../public/js/core/output.ts';
 import { FADE } from '../src/engine.ts';
-import { correctedCells } from '../src/output.ts';
 import { runLoop } from '../src/run.ts';
 import { engineOn, oneModule } from './fixture.ts';
 
@@ -27,14 +25,17 @@ describe('the engine', () => {
     assert.equal(r.engine.play('nope'), false);
   });
 
-  test('the LEDs get the colour correction, and the engine keeps the look as it is', () => {
-    const r = engineOn(), fix = correctionTable({ gamma: 2.2, balance: [1, 0.9, 0.8] });
-    r.engine.play('fire');
-    r.run(2);
-    const raw = r.last().slice(), out = correctedCells(r.engine.scene, fix)(r.last());
-    assert.deepEqual(r.last(), raw);
-    assert.deepEqual(out, correctChannels(r.engine.scene, raw.slice(), fix));
-    assert.notDeepEqual(out, raw);
+  test('the LEDs get the output transform: v^gamma, and the master as a linear cap after it, keeping hue', () => {
+    const orange = oneModule('orange', 'colour-wash', { colours: '#ff8000', speed: 0 });
+    const r = engineOn([orange], { gamma: 2.2, balance: [1, 0.9, 0.8] });
+    r.engine.play('orange');
+    r.run(1);
+    const k = r.engine.scene.addr[0]!, o = r.engine.scene.order, at = () => [0, 1, 2].map((c) => r.last()[k + o[c]!]!);
+    // 0x80/255 = 0.502: 0.502^2.2 × 0.9 × 255 = 50; blue 0 stays 0.
+    assert.deepEqual(at(), [255, 50, 0]);
+    r.engine.level(0.5);
+    r.run(FADE.level + 0.05);
+    assert.deepEqual(at(), [128, 25, 0]);   // half the light on each colour: the same orange
   });
 
   test('a strobe trips the flash guard: down to safe, held there until a look is picked', () => {

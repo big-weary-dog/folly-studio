@@ -2,9 +2,8 @@
 // Vite builds it with the core into one classic script inside sandbox.html, which starts it as a Worker from a Blob.
 // It exports nothing: it is a script.
 import {
-  type Compiled, compileModule, correctChannels, correctionOf, correctionTable, layerModules, linkMap,
-  prepareLayer, type PreparedLayer, type PreparedLook, prepareLook, prepareScene, renderFrame, type Scene, setLibrary,
-  toChannels, upgradedParams,
+  type Compiled, compileModule, layerModules, ledChannels, lightOf, linkMap, prepareLayer, type PreparedLayer,
+  type PreparedLook, prepareLight, prepareLook, prepareScene, renderFrame, type Scene, setLibrary, upgradedParams,
 } from './pattern-core.ts';
 import { setLive } from './live-set.ts';
 import type { Extra, ToSandbox } from './runtime.ts';
@@ -94,7 +93,7 @@ function onRender(msg: Message<'render'>) {
   const frames = Math.max(0, Math.floor(+msg.frames || 0));
   const fps = +msg.fps > 0 ? +msg.fps : scene.fps;
   const start = +msg.start || 0;
-  const opts = { brightness: msg.brightness }, table = correctionTable(correctionOf(msg.correction));
+  const light = prepareLight(scene, lightOf(msg.light)), cap = +msg.brightness >= 0 ? +msg.brightness : 1;
   const size = scene.frameChannels;
   const channels = new Uint8Array(frames * size);
   const rgb = new Float32Array(scene.count * 3);
@@ -103,7 +102,7 @@ function onRender(msg: Message<'render'>) {
   for (let f = 0; f < frames; f++) {
     const { errors } = renderFrame(scene, prepared, start + f / fps, rgb, look);
     for (const e of errors) if (!seen.has(e.id)) seen.set(e.id, e.error);
-    correctChannels(scene, toChannels(scene, rgb, channels.subarray(f * size, (f + 1) * size), opts), table);
+    ledChannels(scene, rgb, light, channels.subarray(f * size, (f + 1) * size), cap);
     post({ type: 'progress', seq: msg.seq, done: f + 1 });   // the page's watchdog counts these
   }
   const errors = [...seen].map(([id, error]) => ({ id, error }));

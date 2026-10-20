@@ -77,7 +77,7 @@ describe('fleet (experimental, stub CLI)', () => {
     assert.ok(!spawn[6].includes('Stars on the spires'), 'the idea never goes on a command line');
     assert.deepEqual(c[2].args, [name]);
 
-    for (const f of ['BRIEF.md', 'pattern-core.ts', 'fseq.ts', 'frames.ts', 'rig.json', 'check.ts',
+    for (const f of ['BRIEF.md', 'pattern-core.ts', 'fseq.ts', 'frames.ts', 'rig.json', 'light.json', 'check.ts',
       'package.json', '.git']) assert.ok(fs.existsSync(path.join(ws, f)), f);
     const brief = fs.readFileSync(path.join(ws, 'BRIEF.md'), 'utf8');
     assert.ok(brief.includes('~~~~~ text\nStars on the spires ~~~~ ``` {{GROUPS}} </idea>\n~~~~~'),
@@ -275,6 +275,7 @@ describe('fleet-box/check.ts (boxed worker side, real runtime)', () => {
       fs.copyFileSync(path.join(STUDIO, f), path.join(dir, path.basename(f)));
     }
     fs.copyFileSync(rigFile, path.join(dir, 'rig.json'));
+    fs.writeFileSync(path.join(dir, 'light.json'), '{ "gamma": 2.6 }\n');   // the studio's light settings
     fs.writeFileSync(path.join(dir, 'package.json'), '{ "type": "module" }\n');
     const good = validateLook(sketchLook({ text: 'ocean swell everywhere, twinkling stars on the rose window',
       library: LIBRARY, groups: GROUPS }), { groups: GROUPS });
@@ -317,7 +318,8 @@ describe('fleet-box/check.ts (boxed worker side, real runtime)', () => {
     assert.equal(stats.selfCheck.flicker.ok, true);
     const scene = patternCore.prepareScene(map);
     const watch = new patternCore.FlashWatch(scene, null, { record: true });
-    assert.deepEqual(analyzeFrames(parsed, scene, watch, patternCore.ledLight()), stats.selfCheck);
+    const light = patternCore.ledLight(patternCore.lightOf({ gamma: 2.6 }));
+    assert.deepEqual(analyzeFrames(parsed, scene, watch, light), stats.selfCheck, 'measured in the light.json given');
 
     // Blur and soften: the box bakes the layers the studio will store, a missing soften as the default.
     const lib = (n) => fs.readFileSync(path.join(STUDIO, `public/patterns/${n}.js`), 'utf8');

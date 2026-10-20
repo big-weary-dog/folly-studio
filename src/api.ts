@@ -7,6 +7,7 @@ import { DEEP, type FlashSettings, type Idea, IdeaBody, Login, RefineBody, Signu
 import type { AccessControl } from './access.ts';
 import { accessRoutes, sendRefusal } from './api-access.ts';
 import { ideaLogRoutes } from './api-idea-log.ts';
+import { lightRoutes } from './api-light.ts';
 import { reportRoutes } from './api-reports.ts';
 import { lookRoutes } from './api-looks.ts';
 import { modelRoutes } from './api-models.ts';
@@ -17,6 +18,7 @@ import type { createFramesCache } from './frames-cache.ts';
 import { framesRoutes } from './frames-http.ts';
 import type { IdeaLogs } from './generate/idea-log.ts';
 import type { Registry } from './generate/models.ts';
+import type { LightStore } from './light.ts';
 import type { Reports } from './reports/store.ts';
 import type { Hub } from './live/hub.ts';
 import type { createPreviews } from './previews/index.ts';
@@ -60,7 +62,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
   bakes: ReturnType<typeof createBakeQueue>, frames: ReturnType<typeof createFramesCache>, secureCookies?: boolean,
   rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, flash: FlashSettings, hub: Hub,
   live: LiveSettings, ideaLogs: IdeaLogs, previews?: ReturnType<typeof createPreviews>, reports: Reports,
-  build: string, tail: () => unknown[] }) {
+  build: string, tail: () => unknown[], light: LightStore }) {
   const { store, auth, queue, models, loaders, log, access } = o;
   const { bakes, framesDir, frames, secureCookies = false, flash } = o;
   const limits = { max: 10, ipMax: 100, windowMs: 60_000, ...o.rateLimit };
@@ -202,6 +204,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         return { idea: await store.ideas.update(idea.id, { undone: true }) };
       },
       ...modelRoutes({ auth, models, access }),
+      ...lightRoutes({ auth, light: o.light }),
       ...ideaLogRoutes({ auth, logs: o.ideaLogs }),
       ...reports,
       ...accessRoutes(api, { auth, access, store }),

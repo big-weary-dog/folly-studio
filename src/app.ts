@@ -20,6 +20,7 @@ import { createQueue, foundryFromEnv } from './generate/index.ts';
 import { createIdeaLogs } from './generate/idea-log.ts';
 import { createRegistry } from './generate/models.ts';
 import { createLog, errorHandler, keepTail, type Log } from './http.ts';
+import { createLightStore } from './light.ts';
 import { createHub } from './live/hub.ts';
 import { piFeed } from './live/pi-feed.ts';
 import { liveSettings, playableLook, stageCopy } from './live/routes.ts';
@@ -83,6 +84,7 @@ export async function createServer(opts: Options = {}) {
   const models = createRegistry({ file: opts.models?.file || env.STUDIO_MODELS || path.join(dataDir, 'models.json'),
     env, log, legacy: generatorName, foundryOn: foundryFromEnv(env).on, codexBin });
   const access = createAccess({ store, auth, models });
+  const light = createLightStore({ file: path.join(dataDir, 'light.json'), log });
   const box = renderBox || createRenderBox({ publicDir, log });
   // Baked frames are encoded for streaming as soon as they are stored (src/frames-cache.ts); bakes, those encodes
   // and the generators' render checks take turns at low priority, and evicted frames are baked again on demand.
@@ -90,15 +92,15 @@ export async function createServer(opts: Options = {}) {
   const ideaLogs = createIdeaLogs({ dir: path.join(dataDir, 'ideas-log'), ...opts.ideaLogs, log });
   const reports = createReports({ dir: path.join(dataDir, 'reports'), ...opts.reports, log });
   void reports.sweep();
-  const deps = { store, loadLibrary, loadRig, loadVersion: loaders.version, models, codexBin, log, box, lane, ideaLogs,
-    adapterName: generatorName || 'sketch' };
+  const deps = { store, loadLibrary, loadRig, loadLight: light.current, loadVersion: loaders.version, models, codexBin,
+    log, box, lane, ideaLogs, adapterName: generatorName || 'sketch' };
   const queue: Queue = typeof generator === 'function' ? await generator(deps) : generator || createQueue(deps);
   const adapterName = models.defaultId();
   const framesDir = path.join(dataDir, 'frames');
   const frames = createFramesCache({ framesDir, store, log, quality: framesQuality, maxBytes: framesMaxBytes, lane,
     rebake: (look) => bakes.restore(look) });
   const rigFile = path.join(publicDir, 'data', 'rig.json');
-  const bakes = createBakeQueue({ store, box, framesDir, rigFile, log, lane, flash,
+  const bakes = createBakeQueue({ store, box, framesDir, rigFile, log, lane, flash, loadLight: light.current,
     onFrames: (id) => { frames.encode(id); previews.want(id); } });
   frames.prune().then(() => frames.disk.enforce()).catch(() => {});
   // Gallery previews (SPEC "Gallery previews"), made in the same lane, after anything already queued at start.
@@ -138,7 +140,7 @@ export async function createServer(opts: Options = {}) {
   await app.register(fastifyRateLimit, { global: false });
   await app.register(fastifyWebsocket, { options: { maxPayload: 16 * 1024 } });
   await app.register(apiRoutes({ store, auth, queue, models, loaders, log, access, framesDir, bakes,
-    frames, rateLimit, secureCookies, flash, hub, live, ideaLogs, previews, reports,
+    frames, rateLimit, secureCookies, flash, hub, live, ideaLogs, previews, reports, light,
     build: buildSha(path.dirname(fileURLToPath(import.meta.url))), tail: log.tail }), { prefix: '/api' });
   if (piTarget) await app.register(piPreview({ auth, target: piTarget, hub }));
   // The live stage follows the dry run whenever /pi was the last thing used (SPEC-live "Following /pi").

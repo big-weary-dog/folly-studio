@@ -6,7 +6,7 @@ import type { Automation, Globals } from '../../shared/schemas/look.ts';
 import type { LibraryEntry, Rig } from '../../shared/schemas/rig.ts';
 import SANDBOX_URL from '../sandbox.html?sandbox';
 import type { LiveSet } from './live-set.ts';
-import type { LayerInput, OutputCorrection } from './pattern-core.ts';
+import type { LayerInput, Light } from './pattern-core.ts';
 import type { Layer } from './ui/model.ts';
 
 const LOAD_MS = 6000, INIT_MS = 1500;  // no `ready` by then: init anyway; then carry on (a look's `compiled` tells)
@@ -41,7 +41,7 @@ export type ToSandbox = { type: 'init'; rig: Rig; library: Pick<LibraryEntry, 'n
   | ({ type: 'look'; layers: (LayerInput & { id: string })[] } & Extra)
   | { type: 'frame'; seq: number; t: number; set?: LiveSet }
   | { type: 'render'; seq: number; start: number; frames: number; fps: number; brightness: number;
-    correction: OutputCorrection };
+    light: Light };
 type Status = 'loading' | 'ready' | 'warning' | 'dead';
 type Frame = { seq: number; t: number; look: number };
 type Render = { seq: number; frames: number; resolve: (c: Uint8Array) => void; reject: (e: Error) => void;
@@ -126,14 +126,14 @@ export class Runtime {
   }
 
   /** Render frames for export → Uint8Array(frames × channelsPerFrame). */
-  render({ start = 0, frames, fps = 40, brightness = 1, correction, onProgress }: { start?: number; frames: number;
-    fps?: number; brightness?: number; correction: OutputCorrection; onProgress?: Render['onProgress'] }) {
+  render({ start = 0, frames, fps = 40, brightness = 1, light, onProgress }: { start?: number; frames: number;
+    fps?: number; brightness?: number; light: Light; onProgress?: Render['onProgress'] }) {
     return new Promise<Uint8Array>((resolve, reject) => {
       if (this.phase !== 'ready') return reject(new Error('The pattern engine is not ready yet.'));
       if (this.render_) return reject(new Error('An export is already running.'));
       if (this.lookDirty) this._sendLook();
       const seq = ++this.seq;
-      this._post({ type: 'render', seq, start, frames, fps, brightness, correction });
+      this._post({ type: 'render', seq, start, frames, fps, brightness, light });
       this.render_ = { seq, resolve, reject, onProgress, frames };
     });
   }

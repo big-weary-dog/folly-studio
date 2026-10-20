@@ -6,7 +6,7 @@
 
 import { crc32, deflateSync } from 'node:zlib';
 
-import { ledLight, pixelsForGroups, prepareScene } from '../../public/js/pattern-core.ts';
+import { type Light, ledLight, pixelsForGroups, prepareScene } from '../../public/js/pattern-core.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
 import { parseFseq } from '../frames.ts';
 import { inflateBlock } from '../fseq-codec.ts';
@@ -48,10 +48,11 @@ const hex = (r: number, g: number, b: number) => `#${[r, g, b].map((v) => Math.r
 /**
  * Baked frames → { stills: PNG per time in `at` (seconds), closeUps: PNG per group in `closeUps` and time, timeline:
  * text, 30 lines across the frames, groups: each top-level group's mean brightness over those lines (0–1) }. Throws
- * when the bytes are not frames of this rig.
+ * when the bytes are not frames of this rig. Brightness is the LEDs' light, by `light` (the settings; the defaults
+ * without).
  */
 export function viewFrames(bytes: Uint8Array, rig: Rig, { at = [1, 4.3, 7.6], stills = true,
-  closeUps = [] as readonly string[] } = {}) {
+  closeUps = [] as readonly string[], light = undefined as Light | undefined } = {}) {
   const scene = prepareScene(rig);
   const parsed = parseFseq(bytes, { maxChannels: scene.frameChannels, decompress: inflateBlock });
   const [oR, oG, oB] = offsets(parsed, scene) as [Int32Array, Int32Array, Int32Array];
@@ -88,14 +89,14 @@ export function viewFrames(bytes: Uint8Array, rig: Rig, { at = [1, 4.3, 7.6], st
   const parts = (tops.length ? tops : scene.root ? [scene.root] : []).slice(0, 8)
     .map((g) => ({ id: g.id, px: pixelsForGroups(scene, g.id) })).filter((p) => p.px.length);
   const lines: string[] = [], span = (F * stepMs) / 1000, step = Math.max(0.5, span / 30), means = parts.map(() => 0);
-  const light = ledLight();
+  const table = ledLight(light);
   const count = Math.max(1, Math.floor(span / step));
   for (let n = 0; n < count; n++) {
     const f = frameAt((n + 0.5) * step);
     lines.push(`${+(n * step).toFixed(1)}s ${parts.map(({ id, px }, i) => {
       const sum = [0, 0, 0];
       let lit = 0;
-      for (const k of px) rgb(f, k).forEach((v, ch) => { sum[ch]! += v; lit += light[256 * ch + v]!; });
+      for (const k of px) rgb(f, k).forEach((v, ch) => { sum[ch]! += v; lit += table[256 * ch + v]!; });
       const [r, g, b] = sum.map((v) => v / px.length) as [number, number, number];
       means[i]! += lit / (3 * px.length) / count;
       return `${id} ${hex(r, g, b)} ${Math.round((lit / (3 * px.length)) * 100)}%`;

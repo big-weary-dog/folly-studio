@@ -8,4 +8,5 @@
 /dist/
 # The Pi's own settings and looks (pi/README.md): git pull never touches them
 /pi/config.json
+/pi/light.json
 /pi/local/

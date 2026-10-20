@@ -102,6 +102,18 @@
 .model-off::before { color: var(--ruby); }
 .models-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 @media (max-width: 899px) { .models-panel { margin-top: 20px; padding: 2px 14px; } }
+/* The Light page (js/ui/light.tsx, admins): the models' panels, amber glass; the curve as a table of numbers. */
+.light-page, .main-nav a[href="/light"] { --tint: var(--amber); }
+.light-page { max-width: 780px; }
+.light-curve { width: 100%; margin: 12px 0; border-collapse: collapse; font-size: 13px;
+  font-variant-numeric: tabular-nums; }
+.light-curve caption { padding-bottom: 6px; color: var(--text-3); text-align: start; }
+.light-curve th, .light-curve td { padding: 4px 6px; text-align: end; }
+.light-curve th[scope="row"] { color: var(--text-2); font-weight: 500; text-align: start; }
+.light-curve tbody tr { border-top: 1px solid rgb(255 236 214 / .08); }
+.light-curve :is(th, td):not([scope]) { white-space: nowrap; }
+.light-page .models-actions { flex-wrap: wrap; }
+@media (max-width: 899px) { .light-curve { font-size: 11px; } .light-curve th, .light-curve td { padding: 4px 2px; } }
 /* My looks and the Gallery: each look is a triple-lancet window glazed in
    its own colours (--art, from jewelGradient in js/ui/kit.tsx) above a pane of text. */
 .card-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 20px;

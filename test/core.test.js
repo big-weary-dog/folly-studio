@@ -357,17 +357,16 @@ describe('toChannels', () => {
     assert.equal(toChannels(scene, rgb).indexOf(255) + 1, 19381);
   });
 
-  test('brightness, rounded and clamped', () => {
+  test('rounded and clamped', () => {
     const rgb = new Float32Array(scene.count * 3);
     rgb[0] = 0.5; rgb[1] = 2; rgb[2] = -1;
     const base = scene.addr[0];
-    const at = (opts) => Array.from(toChannels(scene, rgb, undefined, opts).slice(base, base + 3));
+    const at = () => Array.from(toChannels(scene, rgb).slice(base, base + 3));
     assert.deepEqual(at(), [128, 255, 0]);
-    assert.deepEqual(at({ brightness: 0.5 }), [64, 255, 0]);
     rgb[0] = NaN;
     assert.deepEqual(at(), [0, 255, 0]);
     const out = new Uint8Array(40800).fill(9);
-    assert.equal(toChannels(scene, rgb, out, {}), out);
+    assert.equal(toChannels(scene, rgb, out), out);
     assert.equal(out[0], 0, 'unused channels cleared');
   });
 });

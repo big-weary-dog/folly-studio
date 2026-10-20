@@ -3,6 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
+import { lightOf, type Light } from '../../public/js/core/light.ts';
 import { createEngine } from '../src/engine.ts';
 import { type PiLook, readLibrary, readLooks, resolveLook } from '../src/library.ts';
 
@@ -16,14 +17,15 @@ export const shipped = () => readLooks([LOOKS], lib);
 export const oneModule = (id: string, ref: string, params = {}, more: Record<string, unknown> = {}) =>
   resolveLook({ id, title: id, duration: 30, layers: [{ modules: [{ ref, params }] }], ...more } as PiLook, lib);
 
-/** An engine on the shipped looks plus `extra`; `frames` holds the last frame's channels and `lit` their sum. */
-export function engineOn(extra: PiLook[] = []) {
+/** An engine on the shipped looks plus `extra`, out through `light` (the defaults where unset); `frames` holds the
+ * last frame's channels and `lit` their sum. */
+export function engineOn(extra: PiLook[] = [], light?: Partial<Light>) {
   const looks = shipped();
   for (const l of extra) looks.set(l.id, { look: l, file: '' });
   const log: string[] = [];
   let last: Uint8Array = new Uint8Array(0), t = 0;
   const engine = createEngine({ rig, lib, looks: () => looks, safe: 'safe', log: (l) => log.push(l),
-    output: (cells) => { last = cells; }, now: () => t++ });
+    light: lightOf(light), output: (cells) => { last = cells; }, now: () => t++ });
   return {
     engine, log, looks,
     /** Plays `secs` of frames. */

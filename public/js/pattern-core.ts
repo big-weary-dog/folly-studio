@@ -19,7 +19,7 @@ export {
 export type { G, PreparedLook, Values } from './core/globals.ts';
 export { groupsByTag, pixelsForGroups, prepareScene, tagCentres, tagMask } from './core/scene.ts';
 export type { Scene } from './core/scene.ts';
-export { FLASH, flashLimits, FlashWatch, ledLight } from './core/flash.ts';
+export { FLASH, flashLimits, FlashWatch } from './core/flash.ts';
 export type { Flashes, FlashLimits } from './core/flash.ts';
 export {
   DEFAULT_DURATION, layerEnvelope, lookDuration, MAX_CLIPS, MAX_DURATION, MIN_DURATION, normalizeClips, TRANSITIONS,
@@ -30,8 +30,9 @@ export {
 } from './core/render.ts';
 export { isStageEnd, stageOf, STAGES } from './core/warps.ts';
 export {
-  correctChannels, correctionOf, correctionTable, OUTPUT_CORRECTION, type OutputCorrection, toChannels,
-} from './core/output.ts';
+  LIGHT, type Light, LIGHT_LIMITS, ledChannels, ledLight, lightByte, lightOf, type PreparedLight, prepareLight,
+} from './core/light.ts';
+export { toChannels } from './core/output.ts';
 export { BLUR_MODES, DEFAULT_SOFTEN, MAX_RADIUS, neighbourGraph } from './core/spatial.ts';
 export type { BlurMode, Neighbours } from './core/spatial.ts';
 export { layerLinks, linkMap, waveStep } from './core/links.ts';

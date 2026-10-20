@@ -238,7 +238,11 @@ async function bake() {
     const { analyzeFrames, flickerReason, flickerWarning, parseFseq }: typeof Frames =
       await import(beside('frames.ts'));
     const watch = new core.FlashWatch(scene, null, { record: true });
-    const a = analyzeFrames(parseFseq(fseq, { maxChannels: scene.frameChannels }), scene, watch, core.ledLight());
+    // The studio's light settings (light.json beside this file; the defaults without it).
+    const lit = existsSync(new URL('./light.json', import.meta.url))
+      ? JSON.parse(readFileSync(new URL('./light.json', import.meta.url), 'utf8')) : null;
+    const a = analyzeFrames(parseFseq(fseq, { maxChannels: scene.frameChannels }), scene, watch,
+      core.ledLight(core.lightOf(lit)));
     stats.selfCheck = a;
     const pct = (v: number) => `${Math.round(v * 100)}%`;
     console.log(`frames: peak ${pct(a.peakBrightness)} of all-white (≈ ${a.estPeakAmps} A at 5 V), mean `

@@ -136,7 +136,7 @@ ${pixelApi(perSecond)}
 `;
 
 export const TASTE = `- Saturated colours at full value: a palette sets hue, not brightness (half-bright warm reads as
-  brown). Dim only a bed.
+  brown). Dim only a bed, never under 0.15: below about 0.06 an LED is off.
 - Darkness is punctuation: colour moves, LEDs never go out. A sweep leaves no gaps, a pulse swells rather than
   dipping to black, an element is mostly lit. A dim or mostly dark look reads as broken.
 - Put the idea where it says. Every other part gets a calm voice of its own, or the bed: every LED has a look.

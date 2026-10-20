@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
-import { DEFAULT_DURATION, type LayerInput } from '../public/js/pattern-core.ts';
+import { DEFAULT_DURATION, type LayerInput, type Light } from '../public/js/pattern-core.ts';
 import type { Bake, FlashSettings } from '../shared/schemas/api.ts';
 import type { Rig } from '../shared/schemas/rig.ts';
 import { BakeError, checkFrames, failedBake } from './box-output.ts';
@@ -154,12 +154,14 @@ export async function removeFrames(dir: string | undefined, lookId: string) {
  * The bake queue: request(lookId) → its bake record, restore(look), idle(), stop(), size. A bake renders the look's
  * render fields and duration as they are when it starts, and is kept only if they are unchanged when it ends;
  * onFrames(lookId) then hears of it. restore() bakes frames that were evicted again, keeping the record when
- * the bytes come out the same. request() throws BakeError with `status` 503 (no box) or 429 (full).
+ * the bytes come out the same. request() throws BakeError with `status` 503 (no box) or 429 (full). loadLight: the
+ * light settings (the light store's current), read as each bake is checked.
  */
 export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16, log = console, onFrames,
-  lane = createLane(), flash }: { store: Pick<Store, 'looks'>, box: Pick<RenderBox, 'probe' | 'render'> & {
+  lane = createLane(), flash, loadLight }: { store: Pick<Store, 'looks'>, box: Pick<RenderBox, 'probe' | 'render'> & {
   stop?(): void, config?: Partial<RenderBox['config']> }, framesDir: string, rigFile: string, maxQueue?: number,
-  log?: Logger, onFrames?: (id: string) => unknown, lane?: ReturnType<typeof createLane>, flash?: FlashSettings }) {
+  log?: Logger, onFrames?: (id: string) => unknown, lane?: ReturnType<typeof createLane>, flash?: FlashSettings,
+  loadLight?: () => Light }) {
   const source = 'render-box';
   const pending: string[] = [];
   const asking = new Set<string>();    // ids between request() and the queue, so a double click is one bake
@@ -214,7 +216,7 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
     try {
       const { bytes, boxStats } = await lane.run(() => box.render({ layers: look.layers ?? [], seconds, ...extra }));
       out = checkFrames(bytes, { source, rig: await loadRig(), maxBytes: box.config?.maxFramesBytes, boxStats,
-        flash });
+        flash, light: loadLight?.() });
     } catch (err) {
       if (!(err instanceof BakeError)) log.error?.(`[bake] look ${id}:`, err);
       const reason = err instanceof BakeError ? err.reason : 'The render box failed.';

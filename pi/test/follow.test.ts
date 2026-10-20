@@ -8,7 +8,7 @@ import { describe, test } from 'vitest';
 import WebSocket from 'ws';
 
 import {
-  compileLayer, prepareLayer, prepareLook, prepareScene, renderFrame, toChannels,
+  compileLayer, LIGHT, ledChannels, prepareLayer, prepareLight, prepareLook, prepareScene, renderFrame,
 } from '../../public/js/pattern-core.ts';
 import { setLive } from '../../public/js/live-set.ts';
 import { piExtra, piLayers, piSet } from '../../public/js/ui/live/follow-pi.ts';
@@ -26,14 +26,14 @@ const scene = prepareScene(rig);
 function viewer(r: ReturnType<typeof engineOn>) {
   const source = r.engine.source()!, rgb = new Float32Array(scene.count * 3), out = new Uint8Array(scene.frameChannels);
   const layers = piLayers(source, [...lib.entries.values()]).map((l) => prepareLayer(scene, l, compileLayer(l)));
-  const L = prepareLook(piExtra(source));
+  const L = prepareLook(piExtra(source)), light = prepareLight(scene, LIGHT);
   return {
     rev: source.rev,
     frame() {
       const now = piNowOf(r.engine.state() as unknown as PiState)!;
       setLive(L, piSet(now));
       renderFrame(scene, layers, now.t - 1 / r.engine.fps, rgb, L);
-      return toChannels(scene, rgb, out);
+      return ledChannels(scene, rgb, light, out);
     },
   };
 }

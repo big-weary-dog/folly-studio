@@ -70,7 +70,7 @@ export async function explore(o: Options & { level: Level }) {
   const built = await Promise.all(s.takes.map((_, i) => compose({ ...o, ctx: { ...ctx,
     turn: buildTakeMessage(ctx.text, s, i) }, critique: mode, critiques: 0, kind: 'take' }).then((b) => {
     const view = b.seen?.bytes && ctx.rig ? viewFrames(b.seen.bytes, ctx.rig, {
-      at: stillTimes(b.seen.seconds, TAKE_STILLS), stills: mode === 'images', closeUps: [] }) : null;
+      at: stillTimes(b.seen.seconds, TAKE_STILLS), stills: mode === 'images', closeUps: [], light: ctx.light }) : null;
     return { answer: b.raw, timeline: view?.timeline ?? '(not rendered)', stills: view?.stills ?? [] };
   }, (err) => {
     o.log.warn?.(`[generate] idea ${ctx.idea?.id}: take ${i + 1} failed (${why(err)})`);

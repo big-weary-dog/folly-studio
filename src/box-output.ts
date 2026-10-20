@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { constants as FS, promises as fs } from 'node:fs';
 import path from 'node:path';
 
-import { flashLimits, FlashWatch, ledLight, prepareScene } from '../public/js/pattern-core.ts';
+import { flashLimits, FlashWatch, type Light, ledLight, prepareScene } from '../public/js/pattern-core.ts';
 import type { Bake, FlashSettings } from '../shared/schemas/api.ts';
 import type { Rig } from '../shared/schemas/rig.ts';
 import { analyzeFrames, DEFAULT_MAX_BYTES, flickerReason, flickerWarning, FseqError, parseFseq } from './frames.ts';
@@ -93,17 +93,18 @@ export function flashSettings(env: NodeJS.ProcessEnv = process.env): FlashSettin
 /**
  * Baked frames, parsed and analysed on the LED map → { bake, frames? (bytes to store) }. Large-area flashing
  * fails `ok` (unless the check is off: then it is only a warning); flashing on small regions only sets `warning`.
+ * `light`: the light settings the LEDs' light is measured by (the stored ones; LIGHT by default).
  */
 export function checkFrames(bytes: Uint8Array, { source, rig, maxBytes = DEFAULT_MAX_BYTES, boxStats,
-  flash = flashSettings() }: { source: Bake['source'], rig: Rig, maxBytes?: number, boxStats?: Bake['boxStats'],
-  flash?: FlashSettings }) {
+  flash = flashSettings(), light }: { source: Bake['source'], rig: Rig, maxBytes?: number,
+  boxStats?: Bake['boxStats'], flash?: FlashSettings, light?: Light }) {
   const bake: Bake = { source, status: 'done', ok: false, checkedAt: new Date().toISOString() };
   if (boxStats) bake.boxStats = boxStats;
   let analysis;
   try {
     const scene = prepareScene(rig);
     const parsed = parseFseq(bytes, { maxBytes, maxChannels: scene.frameChannels, decompress: inflateBlock });
-    analysis = analyzeFrames(parsed, scene, new FlashWatch(scene, flash, { record: true }), ledLight());
+    analysis = analyzeFrames(parsed, scene, new FlashWatch(scene, flash, { record: true }), ledLight(light));
   } catch (err) {
     bake.status = 'failed';
     bake.reason = err instanceof FseqError ? `The baked frames were rejected: ${err.message.replace(/^frames: /, '')}.`
