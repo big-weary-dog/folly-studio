@@ -32,7 +32,7 @@ export default defineConfig({
   use: { browserName: 'chromium', launchOptions: { args: SWIFTSHADER }, trace: 'retain-on-failure' },
   projects: [
     { name: 'smoke', testMatch: ['smoke.spec.js', 'models.spec.js', 'access.spec.js', 'live.spec.js',
-      'refine.spec.js', 'side.spec.js', 'pi.spec.js'],
+      'refine.spec.js', 'side.spec.js', 'pi.spec.js', 'explore.spec.js'],
       timeout: 5 * 60_000 },
     { name: 'perf', testMatch: ['perf.spec.js', 'library-perf.spec.js'], timeout: 5 * 60_000 },
     { name: 'e2e', testMatch: 'mirage.spec.js', timeout: 20 * 60_000 },

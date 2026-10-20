@@ -251,12 +251,14 @@ cover.
 
 ## Performance budgets
 
-- As built, gzipped: the app's scripts, styles and sandbox page (`dist/assets/`) ≤ 169 KB; the login page (the
+- As built, gzipped: the app's scripts, styles and sandbox page (`dist/assets/`) ≤ 170 KB; the login page (the
   shell, its entry and what that imports, the sign-in view) ≤ 40 KB. `test/build.test.js` measures both on a fresh
   build. Views and their styles load on first use. Raised from 165 KB for pictures: a picture param kind,
   checked in the engine with errors an agent repairs from, and edited in Studio (+2 KB); then for the ideas API
   (+0.5 KB) and the venue's props round the rig in the 3D view, a chunk loaded on first use (+1.6 KB); and
-  for rose regions, the stdlib's region() and regions(), which mask and stained glass share (+282 B).
+  for rose regions, the stdlib's region() and regions(), which mask and stained glass share (+282 B);
+  and for the ideas lever: Quick, Explore or Deep on the idea form with each level's time and line, kept per
+  browser, and an idea's level and what it took (+0.7 KB).
 - On the wire (`test/transfer.test.js`, the real server, the build and a model of a browser's cache): a cold
   Studio load (shell, modules, styles, sandbox, `rig.json`, API) ≤ 205 KB with br (240 KB gzip);
   a reload, even a day later, sends only the shell and its API calls, each a 304 (assets have

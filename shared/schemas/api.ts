@@ -25,11 +25,12 @@ export const Login = z.object({
   username: Username.nullable().catch(null), password: z.string().max(MAX_PASSWORD).catch(''),
 }).catch({ username: null, password: '' });
 
-/** How much a generator explores before it commits (SPEC-generators "Explore"); an idea without one is quick. */
+/** How much a generator explores before it commits (SPEC-generators "Explore"); an idea without one explores. */
 export const EXPLORE = ['quick', 'explore', 'deep'] as const;
 export type Explore = typeof EXPLORE[number];
-/** What a Deep idea costs: `uses` against an account's limits, and whether only admins may ask for it. */
-export const DEEP = { uses: 2, adminOnly: false };
+/** What a Deep idea costs: `uses` against an account's limits; whether only admins may ask for it; whether anyone
+ * may (off: the API refuses it and the Studio does not offer it). */
+export const DEEP = { uses: 2, adminOnly: false, enabled: false };
 export const IdeaBody = z.object({
   text: z.string({ error: 'Describe the idea in 3–2000 characters.' }).trim()
     .min(3, { error: 'Describe the idea in 3–2000 characters.' })
@@ -37,7 +38,7 @@ export const IdeaBody = z.object({
   /** A model id (shared/schemas/models.ts); none: the registry's default. */
   model: z.string({ error: 'model must name one of the models.' })
     .max(32, { error: 'model must name one of the models.' }).optional(),
-  explore: z.enum(EXPLORE, { error: 'explore must be quick, explore or deep.' }).default('quick'),
+  explore: z.enum(EXPLORE, { error: 'explore must be quick, explore or deep.' }).default('explore'),
 });
 /** POST /api/looks/:id/refine: the change asked for; or a critique, or a runtime error to fix, with no text. */
 export const RefineBody = z.object({

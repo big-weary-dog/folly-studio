@@ -6,11 +6,11 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 
 import { api, statusOf } from '../api.ts';
 import type { Access } from '../../../shared/schemas/access.ts';
-import type { Idea, Listed } from '../../../shared/schemas/api.ts';
+import type { Explore, Idea, Listed } from '../../../shared/schemas/api.ts';
 import type { ModelChoices } from '../../../shared/schemas/models.ts';
 import { navigate, setTitle, signedOut, user, type ViewProps } from './session.ts';
 import { AccessGate, gateOf } from './idea-access.tsx';
-import { confirmDialog, cx, jewelGradient, timeAgo, toast } from './kit.tsx';
+import { confirmDialog, cx, jewelGradient, pref, timeAgo, toast } from './kit.tsx';
 import { Rose } from './rose.tsx';
 
 const EXAMPLES = ['Rising embers drift up the spires', 'A coral reef breathing in slow blues and pinks',
@@ -19,6 +19,16 @@ const EXAMPLES = ['Rising embers drift up the spires', 'A coral reef breathing i
 const STATUS: Record<string, [string, string]> = { queued: ['Queued', 'pending'], generating: ['Generating', 'pending'],
   ready: ['Ready', 'ok'], failed: ['Failed', 'bad'] };
 const MAX_LEN = 2000;
+// How much a paid model explores (SPEC-generators "Explore"): its name, rough time and what it does.
+const LEVELS: Record<Explore, [string, string, string]> = {
+  quick: ['Quick', '~1 min', 'One composition, checked in the render box, looked at once when the model can.'],
+  explore: ['Explore', '~5 min', 'Sketches 3 different takes, keeps the best of each, then looks at the render and '
+    + 'revises it.'],
+  deep: ['Deep', '~13 min', 'Builds all 3 takes and renders them side by side, composes from what worked, then revises '
+    + 'twice.'],
+};
+const EXPLORE_KEY = 'studio.explore';
+const remembered = (): Explore => { const v = pref(EXPLORE_KEY); return v && v in LEVELS ? v as Explore : 'explore'; };
 // While an idea is being made it is followed by long polls: the server answers when it changes, or after 25 s. One
 // that answers at once and unchanged is asked again after 2 s, then 1.5× as long each time, up to 10 s.
 const POLL_FIRST_MS = 2000, POLL_MAX_MS = 10_000;
@@ -76,7 +86,7 @@ export function Ideas() {
   const [ideas, setIdeas] = useState<Idea[] | null>(null);
   const [text, setText] = useState(''), [error, setError] = useState(''), [busy, setBusy] = useState(false);
   const [choices, setChoices] = useState<ModelChoices | null>(null), [model, setModel] = useState('');
-  const [access, setAccess] = useState<Access | null>(null);
+  const [access, setAccess] = useState<Access | null>(null), [explore, setExplore] = useState(remembered);
   const refresh = () => api.me().then((m) => setAccess(m.access ?? null), () => {});
   const input = useRef<HTMLTextAreaElement>(null), form = useRef<HTMLFormElement>(null);
   const known = useRef(new Map<string, string>());        // id → status, to notice when one becomes ready
@@ -110,6 +120,11 @@ export function Ideas() {
   const paidLabels = listed((choices?.models ?? []).filter((m) => m.paid).map((m) => m.label));
   const gate = gateOf(access, chosen);
   const sketch = free && free.id !== chosen?.id && pickable ? () => setModel(free.id) : undefined;
+  // The paid models explore; Deep only while it is on and this account may ask for it.
+  const deep = choices?.deep, levels = (Object.keys(LEVELS) as Explore[]).filter((l) => l !== 'deep'
+    || (deep && (!deep.adminOnly || user.value?.role === 'admin')));
+  const level = levels.includes(explore) ? explore : 'explore';
+  const pickLevel = (l: Explore) => { setExplore(l); pref(EXPLORE_KEY, l); };
   useEffect(() => {
     setTitle('Ideas');
     load();
@@ -137,7 +152,7 @@ export function Ideas() {
     if (gate.kind === 'locked' || gate.kind === 'wait') return;
     setBusy(true);
     try {
-      const { idea } = await api.createIdea(t, pickable ? model : undefined);
+      const { idea } = await api.createIdea(t, pickable ? model : undefined, chosen?.explores ? level : undefined);
       setText('');
       known.current.set(idea.id, idea.status);
       setIdeas((all) => [idea, ...(all || []).filter((i) => i.id !== idea.id)]);
@@ -171,6 +186,13 @@ export function Ideas() {
             <div class="chips" role="group" aria-label="Example ideas">
               {EXAMPLES.map((ex) => <button type="button" class="chip" onClick={() => prefill(ex)}>{ex}</button>)}
             </div></div>
+          {chosen?.explores && gate.kind !== 'locked' && <div class="explore">
+            <div class="explore-row"><span id="explore-h">Exploring</span>
+              <div class="seg" role="group" aria-labelledby="explore-h">
+                {levels.map((l) => <button key={l} type="button" class="seg-btn" aria-pressed={l === level}
+                  onClick={() => pickLevel(l)}>{LEVELS[l][0]}<small>{LEVELS[l][1]}</small></button>)}</div></div>
+            <p class="explore-hint">{LEVELS[level][2]}{level === 'deep' && deep && deep.uses > 1
+              ? ` Counts as ${deep.uses} ideas.` : ''}</p></div>}
           <p class="form-error" role="alert" hidden={!error}>{error}</p>
           <div class="idea-form-actions">
             <span class="char-count" aria-live="off">{`${text.length} / ${MAX_LEN}`}</span>
@@ -212,8 +234,10 @@ function IdeaRow({ idea, retry }: { idea: Idea; retry: () => void }) {
         <div class="idea-meta">
           <span class={`status status-${cls}`}><span class="status-dot" aria-hidden="true" />{label}</span>
           {by && <span class="meta-item">{by}</span>}
+          {idea.explore && idea.explore !== 'quick' && <span class="meta-item">{LEVELS[idea.explore][0]}</span>}
           <time class="meta-item" dateTime={idea.createdAt || ''}>{timeAgo(idea.createdAt)}</time>
         </div>
+        {idea.status === 'ready' && idea.took && <p class="idea-took">Took {idea.took}</p>}
         {idea.status === 'failed' && idea.error && <p class="idea-error">{idea.error}</p>}
       </div>
       <div class="idea-actions">

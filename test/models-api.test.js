@@ -35,9 +35,10 @@ describe('models API', () => {
   });
 
   test('everyone signed in sees what they may pick; the registry is for admins only', async () => {
+    const explores = { paid: true, explores: true };
     assert.deepEqual((await member.get('/api/models')).json, { default: 'sketch', models: [{ id: 'sol', label: 'Sol',
-      paid: true }, { id: 'luna', label: 'Luna', paid: true }, { id: 'sketch', label: 'Sketch', paid: false }] },
-      'no API key here: no Opus; a locked account starts on Sketch');
+      ...explores }, { id: 'luna', label: 'Luna', ...explores }, { id: 'sketch', label: 'Sketch', paid: false }] },
+    'no API key here: no Opus; a locked account starts on Sketch; Deep is off, so no deep');
     assert.equal((await admin.get('/api/models')).json.default, 'sol', 'the default the file names can run: Sol');
     assert.equal((await client(app).get('/api/models')).status, 401);
     assert.equal((await member.get('/api/admin/models')).status, 403);

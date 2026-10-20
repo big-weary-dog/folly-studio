@@ -26,6 +26,13 @@
 .model-pick { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 13px; }
 .model-pick select { min-height: var(--hit, 36px); }
 .char-count { margin-right: auto; }
+/* how much a paid model explores: three panes of the app's .seg, the chosen one's line under them */
+.explore { display: flex; flex-direction: column; gap: 6px; }
+.explore-row { display: flex; flex-wrap: wrap; align-items: end; gap: 4px 14px; }
+.explore-row > span { padding-bottom: 12px; color: var(--text-2); font-size: 13px; }
+.explore .seg { flex: 1 1 280px; max-width: 460px; margin: 0; }
+.explore .seg-btn small { display: block; color: var(--text-3); font-size: 12px; font-weight: 400; }
+.explore-hint { color: var(--text-2); font-size: 13px; }
 /* the paid models' gate (js/ui/idea-access.tsx): a locked account's code box, a limit's wait, what is left */
 .gate { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; color: var(--text-2); font-size: 14px;
   border: var(--came-s) solid var(--lead); border-left: 4px solid var(--tint);
@@ -53,6 +60,7 @@
 .idea-text { font-size: 15.5px; overflow-wrap: anywhere; }
 .idea-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 6px; font-size: 12.5px;
   color: var(--text-3); }
+.idea-took { margin-top: 6px; color: var(--text-2); font-size: 13px; }
 .idea-error { margin-top: 6px; color: var(--error); font-size: 13px; }
 .idea-actions { padding-right: 16px; }
 .idea-actions:empty { display: none; }

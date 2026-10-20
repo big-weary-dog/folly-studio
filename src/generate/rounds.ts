@@ -25,7 +25,8 @@ const why = (err: unknown) => String((err as Error)?.message || err).slice(0, 16
 /**
  * A look from `adapter` in rounds. `start`: an answer to begin from instead of asking (a critique of a saved look);
  * `aim`: what the critique holds the frames to (the idea); `budgetMs`: past this since `startedAt`, no critique;
- * `critiques`: how many rounds (1; 0 renders for one but asks none); `revise`: each must change the weakest part.
+ * `critiques`: how many rounds (1; 0 renders for one but asks none); `revise`: each must change the weakest part,
+ * and the first runs whatever the budget (an exploring idea is always revised once).
  */
 export async function compose(o: { adapter: Adapter, ctx: Context, catalog: Catalog, box?: Box, lane?: Lane,
   critique?: Critique, aim?: string, start?: unknown, startedAt: number, budgetMs: number, stopping: () => boolean,
@@ -71,7 +72,7 @@ export async function compose(o: { adapter: Adapter, ctx: Context, catalog: Cata
   let critique: { ms: number, outcome: string } | undefined, shown = seen;
   const t0 = Date.now(), outcomes: string[] = [];
   for (let n = 0; n < (o.critiques ?? 1) && o.critique && shown?.bytes && ctx.rig && !o.stopping(); n++) {
-    if (Date.now() - o.startedAt > o.budgetMs) {
+    if ((n > 0 || !o.revise) && Date.now() - o.startedAt > o.budgetMs) {
       outcomes.push('skipped: over budget');
       break;
     }

@@ -1,6 +1,8 @@
 // HTTP API client (SPEC "HTTP API"): JSON in and out, cookie session. A non-2xx response throws an ApiError with the
 // server's message and `status` (0: the server could not be reached).
-import type { Bake, FlashSettings, Idea, Listed, Look, LookCreate, LookPatch, User } from '../../shared/schemas/api.ts';
+import type {
+  Bake, Explore, FlashSettings, Idea, Listed, Look, LookCreate, LookPatch, User,
+} from '../../shared/schemas/api.ts';
 import type { Access, Invite, Person, PersonLimits } from '../../shared/schemas/access.ts';
 import type { AdminModels, ModelChoices, ModelsConfig } from '../../shared/schemas/models.ts';
 import type { LibraryEntry } from '../../shared/schemas/rig.ts';
@@ -44,7 +46,8 @@ export const api = {
   /** `wait`: the idea's `status@updatedAt` as last seen; the server answers when that changes (or after 25 s). */
   idea: (id: string, wait?: string) => request<{ idea?: Idea }>('GET',
     `/api/ideas/${enc(id)}${wait ? `?wait=${enc(wait)}` : ''}`),
-  createIdea: (text: string, model?: string) => request<{ idea: Idea }>('POST', '/api/ideas', { text, model }),
+  createIdea: (text: string, model?: string, explore?: Explore) => request<{ idea: Idea }>('POST', '/api/ideas',
+    { text, model, explore }),
   models: () => request<ModelChoices>('GET', '/api/models'),
   /** Redeem an invite code: the account's access once unlocked. */
   redeem: (code: string) => request<{ access: Access }>('POST', '/api/invite', { code }),

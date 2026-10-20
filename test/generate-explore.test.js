@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'vitest';
 
 import { buildSketchMessage, readSketches, SKETCH_SCHEMA } from '../src/generate/explore-prompt.ts';
-import { boosted } from '../src/generate/explore.ts';
+import { boosted, LEVELS } from '../src/generate/explore.ts';
 import { createQueue } from '../src/generate/index.ts';
 import { PACE } from '../src/generate/sketch.ts';
 import { CATALOG, REAL, stubBox } from './fixtures/generate/box.js';
@@ -98,6 +98,20 @@ describe('exploring in the queue', () => {
     assert.ok(asks.slice(5).every((a) => /falls furthest short/.test(a.repair.message)));
     assert.deepEqual(box.jobs.map((j) => j.seconds), [8, 8, 8, 8, 8, 2], 'a revision kept is seen again at length');
     assert.equal(idea.took, SKETCHES.synthesis.took);
+  });
+
+  test('past its budget, an exploring idea is still revised once, but starts no second critique', async () => {
+    const budget = LEVELS.deep.budgetMs;
+    LEVELS.deep.budgetMs = 0;
+    try {
+      const { asks, done } = exploring('deep');
+      const idea = await done();
+      assert.equal(idea.status, 'ready', idea.error);
+      assert.equal(asks.length, 6);
+      assert.match(asks[5].repair.message, /falls furthest short/);
+    } finally {
+      LEVELS.deep.budgetMs = budget;
+    }
   });
 
   test('a sketch turn that fails, or answers no three takes, leaves the idea to the quick rounds', async () => {

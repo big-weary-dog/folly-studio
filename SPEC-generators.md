@@ -76,7 +76,7 @@ without errors. It is part of the idea (no use), skipped when the idea has alrea
 as `-i` attachments.
 
 **Explore** (`claude`, `codex`; `src/generate/explore.ts`). A new idea (not a refinement) asks for one of three
-levels, `explore: 'quick' | 'explore' | 'deep'` (default `quick`, as is an idea that names none):
+levels, `explore: 'quick' | 'explore' | 'deep'` (default `explore`, as is an idea that names none):
 - **Quick**: the rounds above, at the model's own effort.
 - **Explore**: effort raised to at least `high`. First a sketch turn in its own small schema (no look, no docs):
   three takes that differ in which part of the installation leads (each other part answering in its own voice, never
@@ -88,10 +88,12 @@ levels, `explore: 'quick' | 'explore' | 'deep'` (default `quick`, as is an idea 
 - **Deep**: effort at least `xhigh`. The same sketch turn, then the three takes composed alone and rendered (8 s) at
   once, then one look composed from their compositions, timelines and stills (two each, at 1 and 4.3 s), then two
   such critiques, a revision kept rendered again for the next. It counts as `DEEP.uses` (2) of the allowance
-  (`shared/schemas/api.ts`; `DEEP.adminOnly` keeps it to admins).
+  (`shared/schemas/api.ts`; `DEEP.adminOnly` keeps it to admins). It is off for now (`DEEP.enabled`): the API
+  refuses it (400) and `GET /api/models` names no `deep`, so the Studio does not offer it.
 
-A sketch turn that fails or answers no three takes leaves the idea to the Quick rounds, logged. Explore stops starting
-critiques after 240 s, Deep after 480 s. The sketch turn's time is the idea's `timing.sketch`.
+A sketch turn that fails or answers no three takes leaves the idea to the Quick rounds, logged. The first critique always
+runs; Deep starts its second only within 720 s. The sketch turn's time (Deep: with its three takes built and rendered)
+is the idea's `timing.sketch`.
 
 **Refine** (SPEC "HTTP API": `POST /api/looks/:id/refine`). A follow-up on a saved look of one's own (`slower,
 more red, only the spires`) is an idea with `refine` and `lookId` set; it counts as one use like any idea. Its job

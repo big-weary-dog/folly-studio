@@ -113,7 +113,7 @@ export function createRegistry({ file, env = process.env, log = console, legacy 
    * the paid models (`paid: false`, a locked account), the first free one. */
   function choices(role: Role, { paid = true } = {}): ModelChoices {
     const c = current(), models = c.models.filter((m) => usable(m, role)).map((m) => ({ id: m.id,
-      label: m.label, paid: isPaid(m) }));
+      label: m.label, paid: isPaid(m), ...(['claude', 'codex'].includes(m.via) ? { explores: true as const } : {}) }));
     const open = paid ? models : models.filter((m) => !m.paid);
     return { models, default: open.find((m) => m.id === c.default)?.id ?? open[0]?.id ?? models.find((m) =>
       m.id === c.default)?.id ?? models[0]?.id ?? null };

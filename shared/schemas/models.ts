@@ -80,10 +80,13 @@ export function readModels(json: unknown): { config: ModelsConfig } | { error: s
 }
 
 // What the API answers with. GET /api/models: what this user may pick, and which one the form starts on.
-/** `paid`: it spends money or capacity (any via but sketch), so it needs an unlocked account. */
-export type ModelChoice = { id: string, label: string, paid: boolean };
+/** `paid`: it spends money or capacity (any via but sketch), so it needs an unlocked account; `explores`: it takes an
+ * idea's explore level (SPEC-generators "Explore"). */
+export type ModelChoice = { id: string, label: string, paid: boolean, explores?: true };
 export const isPaid = (m: { via: Transport }) => m.via !== 'sketch';
-export type ModelChoices = { models: ModelChoice[], default: string | null };
+/** `deep` (while Deep is on): what a Deep idea counts as, and whether it is admins' only. */
+export type ModelChoices = { models: ModelChoice[], default: string | null, deep?: { uses: number,
+  adminOnly: boolean } };
 /** GET /api/admin/models: the file, its contents, whether each model can run here, and each transport's efforts. */
 export type ModelState = { id: string, available: boolean, note: string, warn?: boolean };
 export type AdminModels = { file: string, config: ModelsConfig, models: ModelState[], efforts: typeof EFFORTS,

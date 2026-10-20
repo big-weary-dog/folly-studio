@@ -16,10 +16,10 @@ import { compose } from './rounds.ts';
 type Options = Parameters<typeof compose>[0];
 type Level = Exclude<Explore, 'quick'>;
 
-/** Each level's least effort, critique rounds and the time past which no critique starts. */
+/** Each level's least effort, critique rounds and the time past which no critique but the first starts. */
 export const LEVELS: Record<Level, { effort: string, critiques: number, budgetMs: number }> = {
-  explore: { effort: 'high', critiques: 1, budgetMs: 240_000 },
-  deep: { effort: 'xhigh', critiques: 2, budgetMs: 480_000 },
+  explore: { effort: 'high', critiques: 1, budgetMs: 360_000 },
+  deep: { effort: 'xhigh', critiques: 2, budgetMs: 720_000 },
 };
 const TAKE_STILLS = [1, 4.3];
 const why = (err: unknown) => String((err as Error)?.message || err).slice(0, 160);
@@ -70,6 +70,7 @@ export async function explore(o: Options & { level: Level }) {
   })));
   const images = built.flatMap((b) => b?.stills.map((st) => st.png) ?? []);
   const turn = buildDeepMessage(ctx.text, s, built.map((b) => b && { ...b, stills: b.stills.map((st) => st.at) }));
+  const takes = { ...sketch, ms: Date.now() - t0 };
   return { ...await compose({ ...o, ctx: { ...ctx, turn, images }, aim, critique: mode, critiques, revise: true }),
-    sketch: { ...sketch, ms: Date.now() - t0 } };
+    sketch: takes };
 }

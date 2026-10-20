@@ -2,6 +2,7 @@
 // whether each model can run here, and saving it. Mutations pass the API's CSRF check like every other.
 import type { FastifyRequest } from 'fastify';
 
+import { DEEP } from '../shared/schemas/api.ts';
 import type { AccessControl } from './access.ts';
 import type { Auth } from './auth.ts';
 import type { Registry } from './generate/models.ts';
@@ -15,8 +16,8 @@ export function modelRoutes({ auth, models, access }: { auth: Auth, models: Regi
   };
   return {
     // A locked account starts on the free model.
-    'GET /models': async (req: FastifyRequest) => models.choices(auth.roleOf(req.user),
-      { paid: access.state(req.user as Stored).unlocked }),
+    'GET /models': async (req: FastifyRequest) => ({ ...models.choices(auth.roleOf(req.user),
+      { paid: access.state(req.user as Stored).unlocked }), ...(DEEP.enabled ? { deep: DEEP } : {}) }),
     'GET /admin/models': async (req: FastifyRequest) => {
       admin(req);
       return models.admin();

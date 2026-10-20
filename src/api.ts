@@ -138,6 +138,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         if ('error' in picked) throw new HttpError(400, picked.error);
         // Only the prompted models explore (SPEC-generators "Explore"); the others' ideas say nothing of it.
         const explore = ['claude', 'codex'].includes(picked.entry.via) ? asked : undefined;
+        if (explore === 'deep' && !DEEP.enabled) throw new HttpError(400, 'Deep is off for now; try Explore.');
         if (explore === 'deep' && DEEP.adminOnly && auth.roleOf(req.user) !== 'admin') {
           throw new HttpError(403, 'Deep is for admins for now; try Explore.');
         }

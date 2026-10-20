@@ -164,7 +164,18 @@ describe('access', () => {
     assert.equal((await idea(mo, 'sketch')).status, 201, 'Sketch has its own');
   });
 
-  test('a Deep idea counts as DEEP.uses, and is refused with room for only one', async () => {
+  test('Deep is refused while it is off; an idea that asks nothing explores', async () => {
+    const mo = await someone();
+    await unlock(mo);
+    const refused = await mo.post('/api/ideas', { text: 'the rose opening', model: 'sol', explore: 'deep' });
+    assert.equal(refused.status, 400);
+    assert.equal(refused.json.error, 'Deep is off for now; try Explore.');
+    assert.equal((await idea(mo)).json.idea.explore, 'explore');
+  });
+
+  test('a Deep idea (while on) counts as DEEP.uses, and is refused with room for only one', async (ctx) => {
+    DEEP.enabled = true;
+    ctx.onTestFinished(() => { DEEP.enabled = false; });
     const mo = await someone();
     await unlock(mo);
     await admin.put(`/api/admin/people/${mo.user.id}`, { limits: { perHour: 4 } });
@@ -174,7 +185,8 @@ describe('access', () => {
     assert.equal(made.json.idea.explore, 'deep');
     finish(mo);
     assert.equal((await mo.get('/api/me')).json.access.left.hour, 4 - DEEP.uses);
-    assert.equal((await idea(mo)).json.idea.explore, 'quick', 'an idea that asks nothing is Quick');
+    assert.equal((await mo.post('/api/ideas', { text: 'quick', model: 'sol', explore: 'quick' })).json.idea.explore,
+      'quick');
     finish(mo);
     const refused = await deep('the spires answering');
     assert.equal(refused.status, 429);
