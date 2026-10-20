@@ -91,7 +91,7 @@ ${notes(s)}
 Compose take ${'ABC'[i]} ("${t.name}") alone, as a look in its own right. Return the look as JSON.`;
 }
 
-/** Deep's synthesis turn: each take as it was built (its composition, and its frames a second at a time; its stills
+/** Deep's synthesis turn: each take as it was built (its composition, and 30 samples across its frames; its stills
  * attached, in order), and the ask for one look keeping the best of them. */
 export function buildDeepMessage(idea: unknown, s: Sketches, built: ({ answer: unknown, timeline: string,
   stills: number[] } | null)[]) {
@@ -103,7 +103,7 @@ You sketched three takes on it, and the studio built and rendered each: your own
 ${notes(s)}
 
 ${built.map((b, i) => `## Take ${'ABC'[i]}\n${b ? `${JSON.stringify(b.answer)}\nEach top-level group's mean colour and \
-brightness, a second at a time:\n${b.timeline}` : '(it could not be built)'}`).join('\n\n')}
+brightness, across its length:\n${b.timeline}` : '(it could not be built)'}`).join('\n\n')}
 ${shown.length ? `\nThe images are the LEDs seen from the front: ${shown.join('; ')}, in that order.\n` : ''}
 Compare the takes as they rendered, with each other and with the idea. Compose one look that keeps the best of them
 (the synthesis is a guide; follow what rendered best). Return the look as JSON.`;

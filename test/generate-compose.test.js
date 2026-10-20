@@ -39,7 +39,9 @@ describe('catalog', () => {
     assert.equal(CATALOG.modules.size + CATALOG.presets.size, REAL.length);
     assert.equal(buildCatalog([...REAL].reverse()).text, CATALOG.text);
     assert.match(CATALOG.text, /^Sources:\n/);
-    assert.match(CATALOG.text, /\n- bars: [^\n]+ \[colours direction speed [a-z ]+\]\n/, 'its param names');
+    assert.match(CATALOG.text,
+      /\n- bars: [^\n]+ \[colours colour \(all\); direction up\|down[a-z|]* \(up\); speed -2–2 \(0\.4\);/,
+      'its params, each with its range or choices and default');
     assert.equal(buildCatalog(REAL, new Map([['bars', 'Stripes.']])).text.match(/\n- bars: (\S+)/)?.[1], 'Stripes.',
       'its line from the docs');
     assert.match(CATALOG.text, /\n- starfield: colour-wash → clouds → sparkle — /);

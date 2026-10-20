@@ -35,16 +35,32 @@ library draws the idea, `why` naming what it tried. A value is a number, on/off,
 binding (`{ mod: lfo | global | envelope, … }`, on number params only). `src/generate/expand.ts` turns it into a look:
 each `use` becomes the module's code with its params, held to the declarations read statically from its `const
 params` (`catalog.ts`; never evaluated): a number out of range is clamped, an unknown or ill-typed param dropped,
-each with a note in `dropped`. A preset becomes its layers as the Studio adds one (its params, blends and inputs,
+each with a note in `dropped`. More than 8 such notes get a round of their own (the notes, and the ask to fit
+each param to the library); its answer is kept only when it expands with no errors and fewer notes. A preset becomes its layers as the Studio adds one (its params, blends and inputs,
 the overrides on top, its palette and macros where the look has none). An unknown module, preset, extension or
 input, and an empty layer, are errors with a path (`layers[1].modules[0].use: barz is not a library module (did you
 mean bars?)`); they get one repair round inside the idea (the same model, its answer and the errors; it is not
 another use), after which what expanded is kept and the rest noted. `validateLook` then cleans the result as
 any look; a layer given as code (the old shape) passes through to it. The prompt shows the library as a summary
-sorted by name (a module on one line: what it looks like and its param names in brackets; a preset as its recipe),
+sorted by name (a module on one line: what it looks like and its params in brackets, each as `name lo–hi (default)`,
+`name a|b (default)`, `name on/off (default)` or `name colour (default)`; a preset as its recipe),
 the palettes, the groups, show taste, and worked compositions (each only where the library and the rig's tags have
 what it names). The queue logs one line per idea or refinement: its route, timings, repair rounds, the check and
 critique, how many library modules, extensions and code it used, the docs it read, and the first notes.
+
+**The idea log** (`src/generate/idea-log.ts`). Each idea and refinement (under its own id) also leaves a record on
+disk, in `<STUDIO_DATA>/ideas-log/<id>/`, written as it runs: `idea.json` (the request, level, model, its name and
+effort; each round's kind (`compose`, `sketch`, `take`, `repair`, `notes`, `runtime`, `critique`), start and end,
+calls, tokens, docs read, outcome, the reason a repair ran, expand's notes and a critique's group warnings; then the
+outcome, `ready` with the look, `failed` with the error and its detail, or `interrupted`), rewritten as each round
+ends; `calls.jsonl`, a line per model call (the user turn, images by size, the reply, codex's items with when each
+started and completed (`from`, `at`: ms into the call), usage, docs read; the system prompt by hash, kept once as
+`system-<hash>.txt`); and `stills/<round>-<kind>-<n>.png`, the images the model was shown. A run cut short and queued again adds to its log (rounds from 101, the first record kept as
+`earlier`). The newest `STUDIO_IDEA_LOGS` (300; 0: none) within `STUDIO_IDEA_LOGS_MAX_BYTES` (500 MB) are kept, the
+oldest removed when a log opens. Tokens are `{ input, cached, output }` (claude: cache reads and writes count as
+input; codex: from its `--json` events), and they and a line per round are saved on the idea (`timing.tokens`,
+`rounds`). Admins read a log at `GET /api/admin/ideas/:id/log` and its stills by name; the Studio links it
+("Log") on an idea's row for them.
 
 **Library docs** (`src/generate/library-docs.ts`). Beside the prompt, once per library, the server builds a tree of
 markdown: `library/README.md` (how layers, sources, warps, filters and presets combine; blends; inputs; groups and
@@ -65,13 +81,16 @@ expansion errors do (the error with the layer's path, `layers[1]: runtime: …`)
 layer that still throws is noted. No box (plain Windows): no check. The box's words are untrusted data, bounded
 before they reach a prompt.
 
-**Critique** (opt-in per model: `critique: "images" | "text"`, default off). With the box, the look is rendered for 8
-s instead of 2, and the model is shown what it made, once: 3 front-view stills (`frames-view.ts`: the LEDs seen from
-the front, at 1, 4.3 and 7.6 s (off whole seconds, so a once-a-second beat shows two frames), PNG, 360 px wide;
+**Critique** (opt-in per model: `critique: "images" | "text"`, default off). With the box, the look is rendered for its
+whole length (its `duration`, else 30 s) instead of 2 s, and the model is shown what it made, once: 4 front-view
+stills (`frames-view.ts`: the LEDs seen from the front, at 5, 35, 65 and 95 % of it, each named with its time, off
+whole seconds so a once-a-second beat shows two frames), PNG, 360 px wide;
 `images` only), with each rose up close at the same times when the look plays on one (`frames-closeup.ts`: a group
 tagged `rose` holding at least half of a layer's LEDs, or any group tagged `rose` when a module param names `rose`;
-each LED drawn as its fixture's `render.cells` pane, 240 px), a line a second with each top-level group's mean colour
-and brightness, the frames' analysis (brightness, dark share, flashing), and the idea again. It answers the whole
+each LED drawn as its fixture's `render.cells` pane, 240 px), a timeline of 30 lines across the look (each at least
+0.5 s apart) with each top-level group's mean colour and brightness, a warning for each top-level group dark (under
+20 % on average) or harsh (over 80 %) beside what the idea says of it, the params expand changed (so the frames show
+those values, not the model's), the frames' analysis (brightness, dark share, flashing), and the idea again. It answers the whole
 composition again, revised or not; that answer is expanded and checked (2 s), and kept only if it expands and renders
 without errors. It is part of the idea (no use), skipped when the idea has already taken 90 s
 (`STUDIO_CRITIQUE_BUDGET_MS`), and logged with its time. Claude gets the stills and close-ups as image blocks, codex
@@ -88,7 +107,7 @@ levels, `explore: 'quick' | 'explore' | 'deep'` (default `explore`, as is an ide
   says `text`) held to the idea and the brief, a critique that must change the part furthest short of them. The
   idea's `took` is saved for the Studio to show.
 - **Deep**: effort at least `xhigh`. The same sketch turn, then the three takes composed alone and rendered (8 s) at
-  once, then one look composed from their compositions, timelines and stills (two each, at 1 and 4.3 s), then two
+  once, then one look composed from their compositions, timelines and stills (two each, at 30 and 70 % of it), then two
   such critiques, a revision kept rendered again for the next. It counts as `DEEP.uses` (2) of the allowance
   (`shared/schemas/api.ts`; `DEEP.adminOnly` keeps it to admins). It is off for now (`DEEP.enabled`): the API
   refuses it (400) and `GET /api/models` names no `deep`, so the Studio does not offer it.
@@ -133,17 +152,19 @@ transcripts.
   answered from the tree and the call made again (its thinking and tool turns kept), at most 12 calls. A repair is the same call with the
   answer as an assistant turn and the errors in a user turn; a critique likewise, its stills as image blocks; a
   refinement's user turn is the look's composition and the request.
-- `codex`: one `codex exec` call (the Codex CLI, signed in with `codex login`): `--ephemeral --skip-git-repo-check
+- `codex`: one `codex exec` call (the Codex CLI, signed in with `codex login`): `[-i <still> …] --json --ephemeral --skip-git-repo-check
   --ignore-user-config --ignore-rules -s read-only -C <an empty folder> -m <model> -o <answer file> --output-schema
   <the composition's schema, strict> -c model_reasoning_effort="<effort>" -c web_search="disabled" -c features.<tool>=false
   … -c mcp_servers.docs.command=<node> -c mcp_servers.docs.args=[docs-mcp.ts, <tree>, <reads file>, 8] -c
-  mcp_servers.docs.default_tools_approval_mode="approve" [-i <still> …] -`, the prompt on stdin. The shell stays
+  mcp_servers.docs.default_tools_approval_mode="approve" -`, the prompt on stdin; its `--json` events on stdout give
+  the idea log its items and usage. The shell stays
   off, so the model reads nothing but the docs: `docs-mcp.ts` is a stdlib-only MCP server on stdio with the one tool
   `read_doc`, serving the tree as written under the work folder (`docs-<hash>/`), a path's real path (symlinks
   followed) inside it; each read is appended to the job's reads file (the guide first, the idea last; a repair, refinement or critique
   adds its turn after the idea, as a fresh run, a critique's stills as `-i` attachments). Started from an argument list, never a shell (on Windows
   an npm `codex.cmd` shim is read for the script it runs); its environment is only what the CLI needs; its whole
-  process tree is killed on a wall clock (`timeoutSeconds`, else `STUDIO_CODEX_TIMEOUT_MS`, 300 s), past 4 MB of
+  process tree is killed on a wall clock (`timeoutSeconds`, else `STUDIO_CODEX_TIMEOUT_MS`, 300 s; a composition,
+  not a repair, critique or sketch, gets 1.5 times it at `high` effort and twice it at `xhigh`), past 4 MB of
   output, or when the server stops. The answer, at most 512 KB, is read as untrusted data like `claude`'s.
 - `fleet`: hands the idea to a boxed Fleet worker as an untrusted brief (experimental), in a workspace holding
   copies of the modules `check.ts` imports (the core's, `fseq.ts`, `frames.ts`), as they are. The worker

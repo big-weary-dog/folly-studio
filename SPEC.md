@@ -419,6 +419,9 @@ GET    /api/admin/models                      → { file, config, models: [{ id,
                                               problem? }  admins only (403): the registry and what can run here
 PUT    /api/admin/models  config              → the same, after writing the registry file; admins only; 400 names
                                               the first problem
+GET    /api/admin/ideas/:id/log               → { idea, calls, system, stills }  admins only (403): an idea's or
+                                              refinement's log (SPEC-generators "The idea log"); 404 when none
+GET    /api/admin/ideas/:id/log/stills/:name  → image/png  admins only; `name` as the log lists it (400 otherwise)
 GET    /api/admin/invites                     → { invites: [invite] }  admins only, as are the four below
 POST   /api/admin/invites { label?, uses?, days? } → 201 { invite, code }  the code is shown only here
 DELETE /api/admin/invites/:id                 → { invite }           revoked (kept, so the list says so)
@@ -463,9 +466,10 @@ outside 0–600 s, and a duration outside 1–600 s, are refused with 400.
 `flash = { check, perSecond, delta, darker, area }`: the flash check's settings (Baked frames, Checks), for the
 preview's guard; `check: false` (`STUDIO_FLASH_CHECK=off`) means nothing is dimmed or blocked.
 `idea = { id, owner, text, status: 'queued'|'generating'|'ready'|'failed', model?, generator, by?, explore?, took?,
-timing?, lookId?, refine?, changes?, verdict?, undone?, error?, createdAt, updatedAt }`: `model` the registry id asked for, `generator` the one that made
+timing?, rounds?, lookId?, refine?, changes?, verdict?, undone?, error?, createdAt, updatedAt }`: `model` the registry id asked for, `generator` the one that made
 the look (the one-shot generator's when the foundry was off or busy), `by` its label ("Opus"), `timing = { wait, prompt, request, parse,
-total, check?, critique?, sketch? }` in ms; `explore` the level it was made at and `took` what its look took from
+total, check?, critique?, sketch?, tokens? }` in ms (`tokens = { input, cached, output }`); `rounds = [{ kind, ms,
+outcome? }]` its model's rounds (SPEC-generators "The idea log"); `explore` the level it was made at and `took` what its look took from
 each sketch (SPEC-generators "Explore"). A refinement has `refine = { critique?, fix? }` and the look it changes as
 `lookId` from the start; `changes` (ready) says what changed, `verdict` how its critique round ended (`revised`,
 `unchanged`, …), and `undone: true` that it was undone.

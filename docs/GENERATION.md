@@ -149,6 +149,7 @@ module, with no `ref`, marked `generated`. Its code never runs on the server out
 7. Fleet: `check.ts --compose`, `still.ts`, the workspace copies, `readLook` keeping globals, a new `BRIEF.md`
    around the loop in §5, and one shared `LIMITS`.
 8. Done for claude and codex: the render check in the box (`check.ts`), a runtime repair round, an opt-in critique
-   on stills and per-group lines (`rounds.ts`, `frames-view.ts`), and refining a saved look (`refine.ts`, the
-   Studio's "Ask the AI to fix it" and Refine box). Still to do: `unchecked` on Windows.
+   on stills across the whole look and per-group lines (`rounds.ts`, `frames-view.ts`), and refining a saved look
+   (`refine.ts`, the Studio's "Ask the AI to fix it" and Refine box); each idea's rounds on disk (`idea-log.ts`).
+   Still to do: `unchecked` on Windows.
 9. SPEC ("Generators", "Looks"), HOSTING (`STUDIO_REPAIR_ROUNDS`), README pointers.

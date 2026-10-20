@@ -49,6 +49,23 @@ describe('claude', () => {
     assert.ok(body.messages[0].content.includes(`<idea>\n${idea}\n</idea>`));
   });
 
+  test('each call goes to the idea log: usage summed (cache reads and writes are input), images by size only',
+    async () => {
+      const events = streamOf(lookJson());
+      events[0].message.usage = { input_tokens: 40, cache_read_input_tokens: 9000, cache_creation_input_tokens: 500 };
+      const adapter = createClaudeAdapter({ env: {}, apiKey: 'k', log: quiet, fetch: async () => sse(events) });
+      const got = [];
+      await adapter.generate({ text: 'reef', library: LIBRARY, groups: GROUPS, round: { call: (c) => got.push(c) },
+        repair: { answer: { title: 'T' }, errors: [], message: 'Look', images: [new Uint8Array(70)] } });
+      assert.equal(got.length, 1);
+      assert.deepEqual(got[0].usage, { input: 9540, cached: 9000, output: 9, reasoning: 0 });
+      assert.match(JSON.stringify(got[0].reply), /Reef/);
+      assert.ok(got[0].system.length > 10_000);
+      const image = JSON.stringify(got[0].turn).match(/"type":"image"[^}]*}/)?.[0] ?? JSON.stringify(got[0].turn);
+      assert.match(image, /"bytes":70/);
+      assert.ok(!JSON.stringify(got[0].turn).includes('"data"'), 'no image data in the log');
+    });
+
   test('model and effort come from the environment; fallbacks only where supported', () => {
     const a = createClaudeAdapter({ env: { ANTHROPIC_API_KEY: 'k', STUDIO_CLAUDE_MODEL: 'claude-haiku-5-5',
       STUDIO_CLAUDE_EFFORT: 'low' } });

@@ -78,17 +78,20 @@ export type FlashSettings = { check: boolean, perSecond: number, delta: number, 
 /** A curator's approval of a look whose bake fails the flash check: why, who, when. */
 export type FlashOverride = { reason: string, by: string, at: string };
 /** Where a generation's time went, in ms: in the queue, building the prompt, the model's request, parsing; the render
- * check and the critique round, when they ran. */
+ * check and the critique round, when they ran; and the tokens its calls used (`input` counts the `cached`). */
 export type Timing = { wait: number, prompt: number, request: number, parse: number, total: number, check?: number,
-  critique?: number, sketch?: number };
+  critique?: number, sketch?: number, tokens?: { input: number, cached: number, output: number } };
+/** One round of a prompted model's idea (SPEC-generators "The idea log"): compose, repair, critique, … */
+export type IdeaRound = { kind: string, ms: number, outcome?: string };
 /** What a refinement asks besides its text (SPEC-generators "Refine"). */
 export type RefineAsk = { critique?: true, fix?: { layer: string, error: string } };
 /** `model`: the model asked for; `generator`: the one that made the look (a fallback's, if it took over); `by`: its
  * label as shown ("by <label>"); `explore`: how much it explores (a prompted model's); `took`: what its look took from
- * each sketch. */
+ * each sketch; `rounds`: what its rounds did. */
 export type Idea = { id: string, owner: string, text: string, status: 'queued' | 'generating' | 'ready' | 'failed',
   model?: string, generator: string, by?: string, explore?: Explore, took?: string, timing?: Timing, lookId?: string,
   refine?: RefineAsk, changes?: string[], verdict?: string, undone?: true, error?: string | null, createdAt: string,
+  rounds?: IdeaRound[],
   updatedAt: string };
 export type LookCreate = z.input<typeof LookCreate>;
 export type LookPatch = z.input<typeof LookPatch>;

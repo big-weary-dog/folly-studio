@@ -17,6 +17,7 @@ import { createBakeQueue, createLane } from './bake.ts';
 import { flashSettings } from './box-output.ts';
 import { createFramesCache } from './frames-cache.ts';
 import { createQueue, foundryFromEnv } from './generate/index.ts';
+import { createIdeaLogs } from './generate/idea-log.ts';
 import { createRegistry } from './generate/models.ts';
 import { createLog, errorHandler, type Log } from './http.ts';
 import { createHub } from './live/hub.ts';
@@ -44,7 +45,7 @@ type Options = { dataDir?: string, publicDir?: string, distDir?: string, generat
   rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, scrypt?: Cost, framesQuality?: number,
   framesMaxBytes?: number, generator?: Queue | ((deps: Deps) => Queue | Promise<Queue>),
   renderBox?: Parameters<typeof createBakeQueue>[0]['box'], flash?: FlashSettings, live?: LiveSettings,
-  piPreview?: string };
+  piPreview?: string, ideaLogs?: { keep?: number, maxBytes?: number } };
 
 /**
  * The server. `generator` and `renderBox` stand in for createQueue() and createRenderBox() (STUDIO_BAKE_*) in tests;
@@ -52,7 +53,8 @@ type Options = { dataDir?: string, publicDir?: string, distDir?: string, generat
  * `publicDir`: the sources (the library, the rig); `distDir`: the app as Vite built it, served as static files.
  * `trustProxy`: one proxy in front (a tunnel): the client's address and host are the ones it forwards. `flash`: the
  * flash check's settings (default: flashSettings(process.env)); `live`: who controls the live stage and what plays
- * (default: liveSettings(process.env)); `piPreview`: PI_PREVIEW_URL, a dry-run Studio Live shown to admins at /pi.
+ * (default: liveSettings(process.env)); `piPreview`: PI_PREVIEW_URL, a dry-run Studio Live shown to admins at /pi;
+ * `ideaLogs`: how many ideas' logs to keep and their disk cap (STUDIO_IDEA_LOGS, STUDIO_IDEA_LOGS_MAX_BYTES).
  */
 export async function createServer(opts: Options = {}) {
   const {
@@ -76,7 +78,8 @@ export async function createServer(opts: Options = {}) {
   // Baked frames are encoded for streaming as soon as they are stored (src/frames-cache.ts); bakes, those encodes
   // and the generators' render checks take turns at low priority, and evicted frames are baked again on demand.
   const lane = createLane();
-  const deps = { store, loadLibrary, loadRig, loadVersion: loaders.version, models, codexBin, log, box, lane,
+  const ideaLogs = createIdeaLogs({ dir: path.join(dataDir, 'ideas-log'), ...opts.ideaLogs, log });
+  const deps = { store, loadLibrary, loadRig, loadVersion: loaders.version, models, codexBin, log, box, lane, ideaLogs,
     adapterName: generatorName || 'sketch' };
   const queue: Queue = typeof generator === 'function' ? await generator(deps) : generator || createQueue(deps);
   const adapterName = models.defaultId();
@@ -119,7 +122,7 @@ export async function createServer(opts: Options = {}) {
   await app.register(fastifyRateLimit, { global: false });
   await app.register(fastifyWebsocket, { options: { maxPayload: 16 * 1024 } });
   await app.register(apiRoutes({ store, auth, queue, models, loaders, log, access, framesDir, bakes,
-    frames, rateLimit, secureCookies, flash, hub, live }), { prefix: '/api' });
+    frames, rateLimit, secureCookies, flash, hub, live, ideaLogs }), { prefix: '/api' });
   if (piTarget) await app.register(piPreview({ auth, target: piTarget, hub }));
   // The live stage follows the dry run whenever /pi was the last thing used (SPEC-live "Following /pi").
   if (piTarget) {

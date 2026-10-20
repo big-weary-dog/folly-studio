@@ -55,10 +55,12 @@ describe('the queue with models', () => {
     assert.deepEqual(done.map((i) => [i.status, i.generator, i.by, store.looks.get(i.lookId).chain]), [
       ['ready', 'opus', 'Opus', 2], ['ready', 'sol', 'Sol', 2], ['ready', 'luna', 'Luna', 2],
       ['ready', 'sketch', 'Sketch', 2], ['ready', 'opus', 'Opus', 2]]);
-    for (const { timing } of done) {
+    for (const { timing: { tokens, ...timing }, generator } of done) {
       assert.deepEqual(Object.keys(timing), ['wait', 'prompt', 'request', 'parse', 'total']);
       assert.ok(Object.values(timing).every((ms) => Number.isInteger(ms) && ms >= 0));
       assert.ok(timing.total >= timing.request);
+      assert.equal(Object.keys(tokens ?? {}).join(), generator === 'sketch' ? '' : 'input,cached,output',
+        'a prompted model\'s tokens');
     }
     // Through claude: its model and effort, and a cached system prompt sent byte for byte the same both times.
     assert.equal(bodies.length, 2);

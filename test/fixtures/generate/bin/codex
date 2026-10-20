@@ -3,7 +3,8 @@
 // It reads the prompt from stdin, logs its arguments to CODEX_FAKE_LOG (a JSON line), and per CODEX_FAKE_MODE:
 // ok (default) writes a look to the -o file; slow does so after CODEX_FAKE_DELAY ms; bad writes something not JSON;
 // fail exits 2; term is stopped by SIGTERM (a service stop reaching it); huge writes a 600 KB answer; flood floods stdout; hang starts a child (its pid to CODEX_FAKE_PIDS)
-// and waits forever. A sketch turn (SPEC-generators "Explore") is answered with three takes and a synthesis.
+// and waits forever. A sketch turn (SPEC-generators "Explore") is answered with three takes and a synthesis. With
+// --json, its events go to stdout as the real one's do: a reasoning item and the turn's usage.
 import { spawn } from 'node:child_process';
 import { appendFileSync, writeFileSync } from 'node:fs';
 
@@ -39,4 +40,11 @@ process.stdin.on('end', async () => {
     synthesis: { took: 'the drift from Tide, the blue from Haze', brief: 'Blue light drifts up the spires.' } };
   const answer = /Before composing a look, sketch/.test(prompt) ? sketches : look;
   if (mode === 'ok' || mode === 'slow') writeFileSync(out, JSON.stringify(answer));
+  if (args.includes('--json')) {
+    const events = [{ type: 'thread.started', thread_id: 't1' }, { type: 'turn.started' },
+      { type: 'item.started', item: { id: 'item_0', type: 'reasoning', text: '' } }, { type: 'item.completed', item: { id: 'item_0', type: 'reasoning', text: 'Blue, slow.' } },
+      { type: 'turn.completed', usage: { input_tokens: 1200, cached_input_tokens: 1000, output_tokens: 80,
+        reasoning_output_tokens: 30 } }];
+    process.stdout.write(events.map((e) => `${JSON.stringify(e)}\n`).join(''));
+  }
 });

@@ -6,6 +6,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { DEEP, type FlashSettings, type Idea, IdeaBody, Login, RefineBody, Signup } from '../shared/schemas/api.ts';
 import type { AccessControl } from './access.ts';
 import { accessRoutes, sendRefusal } from './api-access.ts';
+import { ideaLogRoutes } from './api-idea-log.ts';
 import { lookRoutes } from './api-looks.ts';
 import { modelRoutes } from './api-models.ts';
 import { type Auth, COOKIE_NAME, SESSION_TTL_MS } from './auth.ts';
@@ -13,6 +14,7 @@ import type { Queue } from './app.ts';
 import { type createBakeQueue, removeFrames } from './bake.ts';
 import type { createFramesCache } from './frames-cache.ts';
 import { framesRoutes } from './frames-http.ts';
+import type { IdeaLogs } from './generate/idea-log.ts';
 import type { Registry } from './generate/models.ts';
 import type { Hub } from './live/hub.ts';
 import { liveRoutes } from './live/routes.ts';
@@ -54,7 +56,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
   loaders: ReturnType<typeof createLoaders>, access: AccessControl, framesDir: string,
   bakes: ReturnType<typeof createBakeQueue>, frames: ReturnType<typeof createFramesCache>, secureCookies?: boolean,
   rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, flash: FlashSettings, hub: Hub,
-  live: LiveSettings }) {
+  live: LiveSettings, ideaLogs: IdeaLogs }) {
   const { store, auth, queue, models, loaders, log, access } = o;
   const { bakes, framesDir, frames, secureCookies = false, flash } = o;
   const limits = { max: 10, ipMax: 100, windowMs: 60_000, ...o.rateLimit };
@@ -195,6 +197,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         return { idea: await store.ideas.update(idea.id, { undone: true }) };
       },
       ...modelRoutes({ auth, models, access }),
+      ...ideaLogRoutes({ auth, logs: o.ideaLogs }),
       ...accessRoutes(api, { auth, access, store }),
       ...looks.routes,
       ...framesRoutes({ framesDir, cache: frames, visibleLook: looks.visibleLook }),

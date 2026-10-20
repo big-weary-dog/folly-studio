@@ -271,33 +271,6 @@ Return the whole look again as JSON with ${ask ? 'that change' : 'the fix'}: kee
 (its layers, params, places and title), and change only what the request needs.`;
 }
 
-/** The critique turn: what the look rendered to, and the ask to compare it with the idea and answer it again
- * (`revise`: changing the part that falls furthest short, rather than returning it unchanged). */
-export function buildCritiqueMessage({ idea, timeline, analysis, stills, closeUps = [], revise }: { idea: unknown,
-  timeline: string, analysis?: { meanBrightness?: number, darkFraction?: number, flicker?: { ok?: boolean } },
-  stills: number[], closeUps?: string[], revise?: boolean }) {
-  const a = analysis ?? {}, pct = (v?: number) => (v == null ? '?' : `${Math.round(v * 100)}%`);
-  const near = stills.length && closeUps.length ? ` Then ${closeUps.join(', ')} up close at the same times, each LED`
-    + ' drawn as its glass pane: check there that a picture or pattern on it reads as meant.' : '';
-  return `The studio rendered that look. ${stills.length ? `The images are the LEDs seen from the front at ${
-    stills.join(', ')} s (left to right on the rig is left to right in the image).${near}` : ''}
-Mean brightness ${pct(a.meanBrightness)} of white, ${pct(a.darkFraction)} of LEDs dark; ${a.flicker?.ok === false
-    ? 'large areas FLASH too fast: slow them.' : 'no large-area flashing.'}
-Each top-level group's mean colour and brightness, a second at a time:
-${timeline}
-
-The idea was:
-<idea>
-${fence(idea, 'idea', 1000)}
-</idea>
-
-Compare what rendered with the idea: the places lit, the colours, the motion, the brightness (a dim or mostly dark
-look reads as broken; a whole rig at full white is harsh). ${revise ? `Find the part that falls furthest short of the
-idea, or would most lift it (a place with no voice of its own, motion that does not read, a colour off the idea, a
-tempo that never changes), and change that. Return the whole look again as JSON, revised.` : `Then return the whole
-look again as JSON, revised where it falls short; if it already matches, return it unchanged.`}`;
-}
-
 /** The user turn: the idea, clearly delimited. Tags inside the idea are neutralised. */
 export function buildUserMessage(text: unknown) {
   const idea = String(text ?? '')

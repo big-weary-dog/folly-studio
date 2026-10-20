@@ -230,7 +230,12 @@ default when the file is first written.
 is faster. Each transport has its own lane (`concurrency`), so an Opus idea never waits behind a Sol one. The
 system prompt is built once per library and rig and sent the same, byte for byte, every time, so Anthropic's prompt
 cache (and OpenAI's prefix caching, for Codex) can serve it after the first idea. The log says where each idea's
-time went (`queued … prompt … request … parse`), and so does the idea's `timing` in `ideas.json`.
+time went (`queued … prompt … request … parse`), and so does the idea's `timing` in `ideas.json`, with its tokens.
+
+**The idea log.** Each idea leaves a record of what its model was asked, answered and shown in
+`STUDIO_DATA/ideas-log/<id>/` (SPEC-generators "The idea log"); an admin opens it from the idea's "Log" link. An
+explore idea's is about 0.25 MB, a third of it the stills. `STUDIO_IDEA_LOGS=300` keeps the newest 300 (`0` writes none) and
+`STUDIO_IDEA_LOGS_MAX_BYTES=500MB` caps them all; older ones are removed as new ones start.
 
 ### Invites and limits
 

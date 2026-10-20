@@ -77,11 +77,12 @@ export type Ran = { code: number | null, signal: string | null, killed: 'timeout
 
 /**
  * Run `cmd args` in `cwd` with `input` on stdin. Resolves when it exits (its tree killed then too, so nothing it left
- * behind lingers), with the last 4 KB it wrote to stdout and stderr; rejects only when it cannot start.
+ * behind lingers), with the last 4 KB it wrote to stderr (and to stdout, unless `stdout` takes all of that).
+ * Rejects only when it cannot start.
  */
-export function runCommand({ cmd, args, input = '', cwd, env, timeoutMs, maxOutputBytes = 4 << 20, signal }:
+export function runCommand({ cmd, args, input = '', cwd, env, timeoutMs, maxOutputBytes = 4 << 20, signal, stdout }:
   Command & { input?: string, cwd: string, env: Env, timeoutMs: number, maxOutputBytes?: number,
-    signal?: AbortSignal }): Promise<Ran> {
+    signal?: AbortSignal, stdout?: (chunk: Buffer) => void }): Promise<Ran> {
   return new Promise((resolve, reject) => {
     const started = Date.now(), win = process.platform === 'win32';
     const child = spawn(cmd, args, { cwd, env, stdio: ['pipe', 'pipe', 'pipe'], detached: !win, windowsHide: true,
@@ -93,13 +94,13 @@ export function runCommand({ cmd, args, input = '', cwd, env, timeoutMs, maxOutp
     const timer = setTimeout(() => kill('timeout'), timeoutMs);
     const onAbort = () => kill('abort');
     signal?.addEventListener('abort', onAbort, { once: true });
-    const take = (buf: Buffer) => {
+    const take = (buf: Buffer, keep = true) => {
       bytes += buf.length;
-      tail = (tail + buf.toString('utf8')).slice(-4096);
+      if (keep) tail = (tail + buf.toString('utf8')).slice(-4096);
       if (bytes > maxOutputBytes) kill('output');
     };
-    child.stdout.on('data', take);
-    child.stderr.on('data', take);
+    child.stdout.on('data', (buf: Buffer) => { stdout?.(buf); take(buf, !stdout); });
+    child.stderr.on('data', (buf: Buffer) => take(buf));
     child.stdin.on('error', () => {}); // it may exit before reading everything
     child.stdin.end(input);
     const finish = () => {

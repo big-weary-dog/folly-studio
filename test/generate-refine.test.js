@@ -13,7 +13,7 @@ import { expand } from '../src/generate/expand.ts';
 import { cellsOf, closeUpGroups, drawCloseUp } from '../src/generate/frames-closeup.ts';
 import { viewFrames } from '../src/generate/frames-view.ts';
 import { createQueue } from '../src/generate/index.ts';
-import { buildCritiqueMessage } from '../src/generate/prompt.ts';
+import { buildCritiqueMessage } from '../src/generate/critique-prompt.ts';
 import { decompose, diffCompositions } from '../src/generate/refine.ts';
 import { sketchRefine } from '../src/generate/sketch-refine.ts';
 import { PACE } from '../src/generate/sketch.ts';
@@ -80,13 +80,17 @@ describe('sketch refines', () => {
 });
 
 describe('what the model sees of its frames', () => {
-  test('front-view PNGs at the times asked for, and a line a second per top group', () => {
-    const { stills, timeline } = viewFrames(frames(3), RIG, { at: [1, 2] });
+  test('front-view PNGs at the times asked for, 30 lines across the frames (none closer than 0.5 s) per top group',
+    () => {
+    const { stills, timeline, groups } = viewFrames(frames(3), RIG, { at: [1, 2] });
     assert.deepEqual(stills.map((s) => s.at), [1, 2]);
     assert.deepEqual([...stills[0].png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
     const lines = timeline.split('\n');
-    assert.equal(lines.length, 3);
+    assert.equal(lines.length, 6);
     assert.match(lines[0], /^0s \S+ #c80000 \d+%/);
+    assert.match(lines[1], /^0\.5s /);
+    assert.ok(groups.length && groups.every((g) => g.mean > 0 && g.mean < 1), 'each top group\'s mean');
+    assert.equal(viewFrames(frames(20), RIG, { stills: false }).timeline.split('\n')[1].split(' ')[0], '0.7s');
     assert.deepEqual(viewFrames(frames(1), RIG, { stills: false }).stills, []);
   });
   test('a look on the rose also gets the rose up close, each LED its pane, and the critique says so', () => {
@@ -106,8 +110,9 @@ describe('what the model sees of its frames', () => {
     assert.equal(cells.length, pixelsForGroups(scene, rose[0]).length);
     const { rgb } = drawCloseUp(cells, () => [255, 0, 0]);
     assert.ok(rgb.some((v, i) => i % 3 === 0 && v === 255) && rgb.some((v, i) => i % 3 === 0 && v === 0));
-    assert.match(buildCritiqueMessage({ idea: 'an eye', timeline: '', stills: [1], closeUps: rose }),
-      new RegExp(`Then ${rose[0]} up close at the same times, each LED drawn as its glass pane`));
+    assert.match(buildCritiqueMessage({ idea: 'an eye', timeline: '', stills: [1, 2], closeUps: rose }),
+      new RegExp(`1\\. the front at 1 s; 2\\. the front at 2 s; 3\\. ${rose[0]} up close at 1 s; ` +
+        `4\\. ${rose[0]} up close at 2 s`));
     assert.doesNotMatch(buildCritiqueMessage({ idea: 'an eye', timeline: '', stills: [], closeUps: rose }), /up close/);
   });
 });
@@ -268,9 +273,11 @@ describe('the rounds in the queue', () => {
     const done = store.ideas.get(i.id);
     assert.equal(done.status, 'ready', done.error);
     assert.equal(asks.length, 1, 'the look itself is the answer critiqued: no first ask');
-    assert.equal(asks[0].images.length, 3);
-    assert.match(asks[0].message, /at 1, 4.3, 7.6 s/);
-    assert.deepEqual(box.jobs.map((j) => j.seconds), [8, 2]);
+    assert.equal(asks[0].images.length, 4);
+    assert.match(asks[0].message,
+      /all 30 s of it\. The images, in order: 1\. the front at 1\.5 s; 2\. the front at 10\.5 s; /);
+    assert.match(asks[0].message, /3\. the front at 19\.5 s; 4\. the front at 28\.5 s/);
+    assert.deepEqual(box.jobs.map((j) => j.seconds), [30, 2], 'the whole look, then the revision\'s check');
     assert.equal(typeof done.timing.critique, 'number');
     assert.equal(store.looks.get(look.id).layers[0].level, 0.5);
     assert.equal(done.verdict, 'revised');

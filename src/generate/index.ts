@@ -21,9 +21,11 @@ import type { Catalog } from './catalog.ts';
 import type { Box } from './check.ts';
 import { createClaudeAdapter } from './claude.ts';
 import { createCodexAdapter } from './codex.ts';
-import type { ExpandError, Uses } from './expand.ts';
+import type { ExpandError } from './expand.ts';
 import { boosted, explore, LEVELS } from './explore.ts';
 import { createFleetAdapter, hasMemoryCap } from './fleet.ts';
+import { createIdeaLog, type IdeaLog, type IdeaLogs, type Outcome, type Round } from './idea-log.ts';
+import { describeDocs, describeRounds, describeUses, dropped, NO_USES } from './log-line.ts';
 import { Interrupted } from './proc.ts';
 import type { Registry } from './models.ts';
 import { buildPrompt, buildRefineMessage } from './prompt.ts';
@@ -46,11 +48,12 @@ export type Prompt = { system: string, schema: Record<string, unknown>, catalog:
 export type Repair = { answer: unknown, errors: ExpandError[], message?: string, images?: Uint8Array[] };
 /** What an adapter is given (SPEC "Generators"), and what makes a look of it: raw output, cleaned by validateLook.
  * `docsRead`: where an adapter notes each library doc the model read, for the log; `schema`: an answer to this schema
- * instead of a look (no docs; returned as it parsed); `images`: PNGs shown with the first turn. */
+ * instead of a look (no docs; returned as it parsed); `images`: PNGs shown with the first turn; `journal`: the idea's
+ * log, and `round`: the round a call belongs to (an adapter records each call there). */
 export type Context = { text: string, user: { id: string, username?: string, role?: string },
   library: LibraryEntry[], rig: Rig | null, groups: RigGroup[], idea?: { id: string }, prompt?: () => Prompt,
   turn?: string, repair?: Repair, signal?: AbortSignal, docsRead?: string[], schema?: Record<string, unknown>,
-  images?: Uint8Array[] };
+  images?: Uint8Array[], journal?: Pick<IdeaLog, 'begin' | 'note'>, round?: Round };
 export type Adapter = { name?: string, generate(ctx: Context): unknown };
 type Route = { id: string, label: string, via: string, entry?: ModelEntry };
 type Explored = Awaited<ReturnType<typeof explore>>;
@@ -58,25 +61,7 @@ type Job = { id: string, route: Route, queuedAt: number, again?: true };
 const LABELS: Record<string, string> = { sketch: 'Sketch', claude: 'Claude', codex: 'Codex', fleet: 'Fleet' };
 const PROMPTED = new Set(['claude', 'codex']);
 const LANE_DEFAULTS: Record<string, number> = { claude: 4, codex: 2, sketch: 4 };
-const NO_USES: Uses = { library: 0, extensions: 0, code: 0 };
 const CRITIQUE_BUDGET_MS = Number(process.env.STUDIO_CRITIQUE_BUDGET_MS) || 90_000;
-
-/** The docs a prompted model read, for the log: `; docs 2 (sources/bars, warps/README)`. */
-const describeDocs = (read?: string[]) => (!read ? '' : read.length
-  ? `; docs ${read.length} (${read.map((p) => p.replace(/^library\/|\.md$/g, '')).join(', ')})` : '; docs none');
-/** What a look was made of, for the log: `3 library, 1 extension`. */
-const describeUses = (u: Uses) => (u === NO_USES ? 'not composed'
-  : [`${u.library} library`, u.extensions && `${u.extensions} extension`, u.code && `${u.code} code`]
-    .filter(Boolean).join(', '));
-/** The first few notes of what was dropped or mended, cut short: the log stays one line. */
-const dropped = (notes: string[]) => (notes.length ? `; ${notes.length} noted: ${notes.slice(0, 3).join('; ')}`
-  .slice(0, 240) : '');
-const secs = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
-/** The rounds for the log: `sketch 9.0 s (A, B, C), 1 repair, check 0.6 s, critique 12.0 s revised`. */
-const describeRounds = (o: Partial<Explored>) => [o.sketch && `sketch ${secs(o.sketch.ms)} (${o.sketch.outcome})`,
-  o.rounds && `${o.rounds} repair`, o.check !== undefined
-  && `check ${secs(o.check)}`, o.critique && `critique ${secs(o.critique.ms)} ${o.critique.outcome}`]
-  .filter(Boolean).map((s) => `, ${s}`).join('');
 
 /** A transport's adapter for one model: its model string, effort and limits from the registry. */
 function makeAdapter(via: string, m: ModelEntry | undefined, log: Logger, codexBin?: string): Adapter {
@@ -103,19 +88,20 @@ export function foundryFromEnv(env = process.env) {
  * STUDIO_GENERATOR_FALLBACK, the foundry's one-shot generator (a model or transport; else sketch);
  * loadVersion: changes when the library or rig does (the prompt is built again only then); box and lane: the render
  * box and the bakes' lane, for the render check and critique (none: no check); interruptGraceMs: how long a call
- * cut by a stray stop signal waits for the server's own stop before it runs again.
+ * cut by a stray stop signal waits for the server's own stop before it runs again; ideaLogs: where each idea's log
+ * goes (none: counted in memory only).
  */
 export function createQueue({
   store, loadLibrary = () => [], loadRig = () => null, loadVersion, models, adapterName = process.env.STUDIO_GENERATOR
     || 'sketch', log = console, adapters = {}, concurrency = Number(process.env.STUDIO_GENERATOR_CONCURRENCY) || 0,
   fallbackName = process.env.STUDIO_GENERATOR_FALLBACK || '', framesDir, foundry = foundryFromEnv(), codexBin, box,
-  lane: bakeLane, critiqueBudgetMs = CRITIQUE_BUDGET_MS, interruptGraceMs = 2000,
+  lane: bakeLane, critiqueBudgetMs = CRITIQUE_BUDGET_MS, interruptGraceMs = 2000, ideaLogs,
 }: { store: Pick<Store, 'ideas' | 'looks'> & Partial<Store>, loadLibrary?: () => LibraryEntry[],
   loadRig?: () => Rig | null | Promise<Rig | null>, loadVersion?: () => string, models?: Registry,
   adapterName?: string, log?: Logger, adapters?: Record<string, Adapter | Adapter['generate']>, concurrency?: number,
   fallbackName?: string, framesDir?: string, foundry?: Partial<ReturnType<typeof foundryFromEnv>>,
   codexBin?: string, box?: Box, lane?: Parameters<typeof compose>[0]['lane'], critiqueBudgetMs?: number,
-  interruptGraceMs?: number }) {
+  interruptGraceMs?: number, ideaLogs?: IdeaLogs }) {
   const framesHome = framesDir ?? (store.dataDir ? path.join(store.dataDir, 'frames') : '');
   const transports = new Set(['sketch', 'claude', 'codex', 'fleet', ...Object.keys(adapters)]);
   const made = new Map<string, Adapter>();
@@ -241,8 +227,11 @@ export function createQueue({
       catalog!, ...o, lane: bakeLane, aim: refine?.aim, start: refine?.start, startedAt: t0,
       budgetMs: critiqueBudgetMs, stopping: () => stopping, log });
     const lv = PROMPTED.has(by.via) && catalog && ctx.prompt && !refine && level !== 'quick' ? level : null;
-    const out: Partial<Explored> & Pick<Rounds, 'raw' | 'look'> = lv ? await explore({ adapter: adapterFor({
-      ...by, entry: boosted(by.via as Transport, by.entry, lv) }), ctx, catalog: catalog!, critique: mode, box,
+    const entry = lv ? boosted(by.via as Transport, by.entry, lv) : by.entry;
+    ctx.journal?.note({ model: by.id, via: by.via, ...(entry?.model ? { name: entry.model } : {}),
+      ...(entry?.effort ? { effort: entry.effort } : {}) });
+    const out: Partial<Explored> & Pick<Rounds, 'raw' | 'look'> = lv ? await explore({
+      adapter: adapterFor({ ...by, entry }), ctx, catalog: catalog!, critique: mode, box,
       lane: bakeLane, startedAt: t0, budgetMs: LEVELS[lv].budgetMs, stopping: () => stopping, log, level: lv })
       : PROMPTED.has(by.via) && catalog && ctx.prompt ? await rounds(adapter, { critique: mode, box })
       : refine && catalog && by.via === 'sketch'
@@ -265,6 +254,11 @@ export function createQueue({
     if (!idea) return log.warn?.(`[generate] idea ${id} no longer exists`);
     if (idea.status === 'ready' && idea.lookId) return; // already done (re-enqueued after a restart)
     const started = Date.now(), ac = new AbortController();
+    const open = (meta: Record<string, unknown>) => ideaLogs?.open(id, meta) ?? createIdeaLog({ meta });
+    const journal = open({ request: idea.text, level: idea.refine ? undefined : idea.explore ?? 'explore',
+      ...(idea.refine ? { refine: { lookId: idea.lookId, ...idea.refine } } : {}), model: r.id,
+      attempt: again ? 2 : 1 });
+    let outcome: Outcome = { status: 'interrupted' };
     running.add(ac);
     await update(id, { status: 'generating', generator: r.id, by: r.label, error: null });
     try {
@@ -274,11 +268,13 @@ export function createQueue({
       if (PROMPTED.has(r.via) || idea.refine) promptOf(base);
       const prompt = Date.now() - started;
       const ctx: Context = { text: String(idea.text ?? ''), user, library: base.library, rig: base.rig,
-        groups: base.groups, idea: { id }, prompt: () => promptOf(base), signal: ac.signal, docsRead: [] };
+        groups: base.groups, idea: { id }, prompt: () => promptOf(base), signal: ac.signal, docsRead: [], journal };
       const refine = idea.refine ? { ...refining(idea, promptOf(base).catalog), ...idea.refine } : undefined;
       if (refine) ctx.turn = buildRefineMessage(refine.comp, idea.text, idea.refine?.fix, refine.history);
       const out = await lookFrom(ctx, r, refine, idea.explore), { look, used, request } = out;
+      const { tokens, rounds: done } = journal.summary(), rounds = done.length ? { rounds: done } : {};
       const timing = { wait: started - queuedAt, prompt, request, parse: out.parse, total: 0,
+        ...(tokens ? { tokens } : {}),
         ...(out.check !== undefined ? { check: out.check } : {}),
         ...(out.critique ? { critique: out.critique.ms } : {}), ...(out.sketch ? { sketch: out.sketch.ms } : {}) };
       const read = PROMPTED.has(used.via) ? ctx.docsRead : undefined;
@@ -287,7 +283,8 @@ export function createQueue({
       if (refine) {
         const changes = await revise(refine.look, look, promptOf(base).catalog);
         timing.total = Date.now() - queuedAt;
-        await update(id, { status: 'ready', generator: used.id, by: used.label, error: null, timing, changes,
+        outcome = { status: 'ready', lookId: refine.look.id };
+        await update(id, { status: 'ready', generator: used.id, by: used.label, error: null, timing, changes, ...rounds,
           ...(out.critique ? { verdict: out.critique.outcome.slice(0, 80) } : {}) });
         return log.info?.(`[generate] refinement ${id} ready via ${used.id} in ${timing.total} ms (request ${request}`
           + `${how}; ${changes.length} changes; look ${refine.look.id})`);
@@ -303,13 +300,15 @@ export function createQueue({
       });
       if (bake?.frames) await keepFrames(saved.id, frames, bake);
       timing.total = Date.now() - queuedAt;
+      outcome = { status: 'ready', lookId: saved.id };
       await update(id, { status: 'ready', lookId: saved.id, generator: used.id, by: used.label, error: null, timing,
-        ...(out.sketch?.took ? { took: out.sketch.took } : {}) });
+        ...rounds, ...(out.sketch?.took ? { took: out.sketch.took } : {}) });
       log.info?.(`[generate] idea ${id} ready via ${used.id} in ${timing.total} ms `
         + `(queued ${timing.wait}, request ${request}${how}; look ${saved.id})`);
     } catch (err) {
       // A stop that reached the call before the server (a service stop signals the whole group) is still a stop.
       if (err instanceof Interrupted && !stopping) await new Promise((r) => setTimeout(r, interruptGraceMs));
+      outcome = { status: 'interrupted', detail: String((err as Error)?.message || err).slice(0, 500) };
       if (stopping) return; // left as it is: the next start queues it again
       if (err instanceof Interrupted && !again) {
         log.warn?.(`[generate] idea ${id}: ${err.message}; trying it again`);
@@ -319,8 +318,11 @@ export function createQueue({
       log.warn?.(`[generate] ${idea.refine ? 'refinement' : 'idea'} ${id} failed via ${r.id}: ${
         (err as Error)?.message || err}`);
       const error = err instanceof GenerateError ? err.userMessage : FALLBACK_ERROR;
-      await update(id, { status: 'failed', error });
+      outcome = { status: 'failed', error, detail: String((err as Error)?.message || err).slice(0, 500) };
+      const { rounds } = journal.summary();
+      await update(id, { status: 'failed', error, ...(rounds.length ? { rounds } : {}) });
     } finally {
+      await journal.finish(outcome);
       running.delete(ac);
     }
   }

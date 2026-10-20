@@ -1,10 +1,11 @@
 // codex: one call through the Codex CLI (`codex exec`), signed in with its own login (`codex login`). Non-interactive
 // and ephemeral (no session files); the user's config.toml and rules skipped; a read-only sandbox in a folder kept
 // empty for the purpose, with Codex's command, browsing and image tools turned off, so the model can only answer; the
-// git check skipped. The prompt goes on stdin, the static guide first and the idea last, so its long prefix is the
-// same on every call (the provider caches it); the final message is written to a file and constrained by
-// --output-schema to the generated look's schema, made strict. The answer is untrusted data, read as the claude
-// adapter reads its own, then cleaned by validateLook; its code only ever runs in the sandbox or the render box.
+// git check skipped; its events (--json) are read for the idea log (usage, tool calls, each item's times). The prompt
+// goes on stdin, the static guide first and the idea last, so its long prefix is the same on every call (the provider
+// caches it); the final message is written to a file and constrained by --output-schema to the generated look's
+// schema, made strict. The answer is untrusted data, read as the claude adapter reads its own, then cleaned by
+// validateLook; its code only ever runs in the sandbox or the render box.
 // The library docs reach the model through one MCP tool, read_doc (docs-mcp.ts), over the tree written once per
 // library under the work folder; with the shell off, they are all it can read.
 
@@ -12,6 +13,7 @@ import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { StringDecoder } from 'node:string_decoder';
 import { fileURLToPath } from 'node:url';
 
 import { GenerateError } from '../../shared/schemas/generated.ts';
@@ -27,6 +29,9 @@ const DOCS_SERVER = fileURLToPath(new URL('./docs-mcp.ts', import.meta.url));
 // Tools a look needs none of (codex features list, 0.160.1); an unknown name is ignored with a warning.
 const FEATURES_OFF = ['shell_tool', 'unified_exec', 'view_image', 'apps', 'plugins', 'multi_agent', 'browser_use',
   'computer_use', 'image_generation'];
+// A composition (not a repair, critique or sketch) writes the whole look from scratch, and higher effort reasons
+// longer: its wall clock is the call's, times this.
+const COMPOSE_SCALE: Record<string, number> = { high: 1.5, xhigh: 2 };
 // What the CLI needs from the environment (its home, login, proxy, the OS); nothing else of the server's reaches it.
 const PASS_ENV = new RegExp(`^(?:${['PATH', 'PATHEXT', 'HOME', 'USERPROFILE', 'APPDATA', 'LOCALAPPDATA', 'HOMEDRIVE',
   'HOMEPATH', 'SYSTEMROOT', 'SYSTEMDRIVE', 'WINDIR', 'COMSPEC', 'TEMP', 'TMP', 'TMPDIR', 'USER', 'LOGNAME', 'LANG',
@@ -58,7 +63,8 @@ export function dropNulls(v: unknown): unknown {
   return Object.fromEntries(Object.entries(v).filter(([, x]) => x !== null).map(([k, x]) => [k, dropNulls(x)]));
 }
 
-// Options (environment): bin (STUDIO_CODEX_BIN, "codex"), model, effort, timeoutMs (STUDIO_CODEX_TIMEOUT_MS, 300000),
+// Options (environment): bin (STUDIO_CODEX_BIN, "codex"), model, effort, timeoutMs (STUDIO_CODEX_TIMEOUT_MS, 300000;
+// a composition's scaled by effort: COMPOSE_SCALE),
 // workDir (STUDIO_CODEX_WORK, <tmp>/folly-studio-codex), schema (STUDIO_CODEX_SCHEMA=0: no --output-schema),
 // userConfig (STUDIO_CODEX_USER_CONFIG=1: read ~/.codex/config.toml after all).
 type Options = Partial<{ env: NodeJS.ProcessEnv, bin: string, model: string, effort: string, timeoutMs: number,
@@ -80,8 +86,8 @@ export function createCodexAdapter(o: Options = {}) {
    * `reads`. */
   function argsFor(cwd: string, out: string, schemaFile: string | null, images: string[] = [],
     docs?: { dir: string, reads: string }) {
-    const args = ['exec', ...images.flatMap((f) => ['-i', f]), '--ephemeral', '--skip-git-repo-check', '--ignore-rules',
-      '-s', 'read-only', '-C', cwd,
+    const args = ['exec', ...images.flatMap((f) => ['-i', f]), '--json', '--ephemeral', '--skip-git-repo-check',
+      '--ignore-rules', '-s', 'read-only', '-C', cwd,
       '-m', cfg.model, '-o', out, '-c', 'web_search="disabled"', ...FEATURES_OFF.flatMap((f) => ['-c',
         `features.${f}=false`])];
     if (docs) {
@@ -108,11 +114,23 @@ export function createCodexAdapter(o: Options = {}) {
     const empty = path.join(cfg.workDir, 'empty');
     await fs.mkdir(empty, { recursive: true });
     const job = await fs.mkdtemp(path.join(cfg.workDir, 'job-'));
+    const turn = `${ctx.turn ?? buildUserMessage(ctx.text)}\n${repair}`, t0 = Date.now();
+    const reads: string[] = [], lines: Line[] = [], decoder = new StringDecoder('utf8');
+    let partial = '';
+    /** Each whole line of its events with when it arrived (ms into the call). */
+    const heard = (b: Buffer) => {
+      const parts = (partial + decoder.write(b)).split('\n');
+      partial = parts.pop() ?? '';
+      lines.push(...parts.map((line) => ({ at: Date.now() - t0, line })));
+    };
+    const composing = !ctx.repair && !ctx.schema;
+    const timeoutMs = Math.round(cfg.timeoutMs * (composing ? COMPOSE_SCALE[cfg.effort] ?? 1 : 1));
+    let answer: unknown, failed = '', images: string[] = [];
     try {
       const out = path.join(job, 'answer.json');
       const schemaFile = cfg.schema ? path.join(job, 'schema.json') : null;
       if (schemaFile) await fs.writeFile(schemaFile, JSON.stringify(strictSchema(schema)));
-      const images = await Promise.all([...ctx.images ?? [], ...ctx.repair?.images ?? []].map(async (png, i) => {
+      images = await Promise.all([...ctx.images ?? [], ...ctx.repair?.images ?? []].map(async (png, i) => {
         const file = path.join(job, `still-${i + 1}.png`);
         await fs.writeFile(file, png);
         return file;
@@ -121,11 +139,13 @@ export function createCodexAdapter(o: Options = {}) {
         : undefined;
       const ran = await runCommand({ ...command, args: [...command.args, ...argsFor(empty, out, schemaFile, images,
         tree)],
-        input: `${system}\n\n${ctx.turn ?? buildUserMessage(ctx.text)}\n${repair}`, cwd: empty, env: childEnv,
-        timeoutMs: cfg.timeoutMs, maxOutputBytes: cfg.maxOutputBytes, signal: ctx.signal });
-      if (tree) ctx.docsRead?.push(...(await fs.readFile(tree.reads, 'utf8').catch(() => '')).split('\n')
+        input: `${system}\n\n${turn}`, cwd: empty, env: childEnv, timeoutMs,
+        maxOutputBytes: cfg.maxOutputBytes, signal: ctx.signal, stdout: heard });
+      if (tree) reads.push(...(await fs.readFile(tree.reads, 'utf8').catch(() => '')).split('\n')
         .filter(Boolean).slice(0, READ_CAP));
-      const said = ran.tail.trim().split('\n').slice(-3).join(' | ').slice(0, 300);
+      ctx.docsRead?.push(...reads);
+      const said = [ran.tail.trim(), ...readEvents(lines).errors].join('\n').trim().split('\n').slice(-3).join(' | ')
+        .slice(0, 300);
       if (ran.killed === 'timeout') {
         throw new GenerateError('The AI generator took too long; please try again.', `codex: ${ran.ms} ms, no answer`);
       }
@@ -142,8 +162,15 @@ export function createCodexAdapter(o: Options = {}) {
       }
       const parsed = dropNulls(parseJson(await readAnswer(out))), look = ctx.schema ? parsed : pickLook(parsed);
       if (!look) throw new GenerateError('The AI returned a look the studio could not read.', 'codex: not a look');
+      answer = parsed;
       return look;
+    } catch (err) {
+      failed = String((err as Error)?.message || err);
+      throw err;
     } finally {
+      const { usage, items } = readEvents(lines);
+      ctx.round?.call({ ms: Date.now() - t0, system, turn, images: images.length, reply: answer, tools: items, usage,
+        docs: reads, ...(failed ? { error: failed } : {}) });
       await fs.rm(job, { recursive: true, force: true }).catch(() => {});
     }
   }
@@ -164,6 +191,34 @@ async function writeDocs(workDir: string, docs: ReadonlyMap<string, string>) {
   }
   await fs.rename(tmp, dir).catch(() => fs.rm(tmp, { recursive: true, force: true })); // another job wrote it first
   return fs.realpath(dir);
+}
+
+type Line = { at: number, line: string };
+/** `codex exec --json`'s events (JSONL on stdout, each line with when it arrived): the turn's usage, the items it
+ * completed (reasoning, tool calls, messages) for the idea log, each with `at` (ms into the call when it completed)
+ * and `from` (when it started, when codex says), and any error it reported. */
+export function readEvents(lines: Line[]) {
+  const usage = { input: 0, cached: 0, output: 0, reasoning: 0 }, items: unknown[] = [], errors: string[] = [];
+  const started = new Map<unknown, number>();
+  for (const { at, line } of lines) {
+    let ev;
+    try { ev = JSON.parse(line); } catch { continue; }
+    if (ev?.type === 'item.started' && ev.item) started.set(ev.item.id, at);
+    else if (ev?.type === 'item.completed' && ev.item) {
+      const from = started.get(ev.item.id);
+      items.push({ ...ev.item, at, ...(from === undefined ? {} : { from }) });
+    }
+    else if (ev?.type === 'turn.completed' && ev.usage) {
+      const u = ev.usage;
+      usage.input += Number(u.input_tokens) || 0;
+      usage.cached += Number(u.cached_input_tokens) || 0;
+      usage.output += Number(u.output_tokens) || 0;
+      usage.reasoning += Number(u.reasoning_output_tokens) || 0;
+    } else if (ev?.type === 'error' || ev?.type === 'turn.failed') {
+      errors.push(String(ev.message ?? ev.error?.message ?? '').slice(0, 300));
+    }
+  }
+  return { usage, items, errors: errors.filter(Boolean) };
 }
 
 /** The final message, as untrusted data: a regular file, size-capped. */

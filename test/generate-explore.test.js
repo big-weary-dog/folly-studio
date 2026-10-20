@@ -78,7 +78,7 @@ describe('exploring in the queue', () => {
     assert.match(asks[1].turn, /Compose the synthesis/);
     assert.match(asks[2].repair.message, /falls furthest short/);
     assert.match(asks[2].repair.message, /The plan: The rose rises\./, 'the critique holds it to the plan too');
-    assert.deepEqual(box.jobs.map((j) => j.seconds), [8, 2]);
+    assert.deepEqual(box.jobs.map((j) => j.seconds), [30, 2], 'the whole look');
     assert.equal(idea.took, SKETCHES.synthesis.took);
     assert.equal(typeof idea.timing.sketch, 'number');
     assert.equal(typeof idea.timing.critique, 'number');
@@ -92,11 +92,12 @@ describe('exploring in the queue', () => {
     assert.deepEqual(turns.slice(1, 4).map((t) => t.match(/Compose take (\w)/)[1]).sort(), ['A', 'B', 'C']);
     const final = asks[4];
     assert.match(final.turn, /## Take A\n\{/);
-    assert.match(final.turn, /take A at 1, 4\.3 s; take B at 1, 4\.3 s; take C at 1, 4\.3 s, in that order/);
+    assert.match(final.turn, /take A at 9.3, 21.3 s; take B at 9.3, 21.3 s; take C at 9.3, 21.3 s, in that order/);
     assert.equal(final.images.length, 6);
     assert.equal(asks.length, 7);
     assert.ok(asks.slice(5).every((a) => /falls furthest short/.test(a.repair.message)));
-    assert.deepEqual(box.jobs.map((j) => j.seconds), [8, 8, 8, 8, 8, 2], 'a revision kept is seen again at length');
+    assert.deepEqual(box.jobs.map((j) => j.seconds), [30, 30, 30, 30, 30, 2],
+      'a revision kept is seen again at length');
     assert.equal(idea.took, SKETCHES.synthesis.took);
   });
 

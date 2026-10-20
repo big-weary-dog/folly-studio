@@ -11,7 +11,8 @@ import {
   type Sketches,
 } from './explore-prompt.ts';
 import { viewFrames } from './frames-view.ts';
-import { compose } from './rounds.ts';
+import { NO_ROUND } from './idea-log.ts';
+import { compose, stillTimes } from './rounds.ts';
 
 type Options = Parameters<typeof compose>[0];
 type Level = Exclude<Explore, 'quick'>;
@@ -21,7 +22,7 @@ export const LEVELS: Record<Level, { effort: string, critiques: number, budgetMs
   explore: { effort: 'high', critiques: 1, budgetMs: 360_000 },
   deep: { effort: 'xhigh', critiques: 2, budgetMs: 720_000 },
 };
-const TAKE_STILLS = [1, 4.3];
+const TAKE_STILLS = [0.3, 0.7]; // of each take's length
 const why = (err: unknown) => String((err as Error)?.message || err).slice(0, 160);
 
 /** The model entry as `level` runs it: its effort raised to the level's, where its transport has that one. */
@@ -38,13 +39,16 @@ export async function explore(o: Options & { level: Level }) {
   const { ctx, level } = o, t0 = Date.now(), { critiques } = LEVELS[level];
   const mode = o.critique ?? 'images';
   let sketches: Sketches | null = null, failed = '';
+  const round = ctx.journal?.begin('sketch') ?? NO_ROUND;
   try {
     sketches = readSketches(await o.adapter.generate({ ...ctx, turn: buildSketchMessage(ctx.text, ctx.groups),
-      schema: SKETCH_SCHEMA }));
+      schema: SKETCH_SCHEMA, round }));
     if (!sketches) failed = 'not three takes';
   } catch (err) {
     failed = why(err);
   }
+  round.end({ outcome: failed ? `failed: ${failed}` : sketches!.takes.map((t) => t.name).join(', '),
+    ...(sketches ? { took: sketches.synthesis.took, brief: sketches.synthesis.brief } : {}) });
   const ms = Date.now() - t0;
   if (!sketches || o.stopping()) {
     o.log.warn?.(`[generate] idea ${ctx.idea?.id}: sketching failed (${failed || 'stopping'}); composing directly`);
@@ -60,9 +64,9 @@ export async function explore(o: Options & { level: Level }) {
   // Deep: the takes built at once (rendered as a critique would see them, none asked), then one look from them.
   const s = sketches;
   const built = await Promise.all(s.takes.map((_, i) => compose({ ...o, ctx: { ...ctx,
-    turn: buildTakeMessage(ctx.text, s, i) }, critique: mode, critiques: 0 }).then((b) => {
-    const view = b.seen?.bytes && ctx.rig ? viewFrames(b.seen.bytes, ctx.rig, { at: TAKE_STILLS,
-      stills: mode === 'images', closeUps: [] }) : null;
+    turn: buildTakeMessage(ctx.text, s, i) }, critique: mode, critiques: 0, kind: 'take' }).then((b) => {
+    const view = b.seen?.bytes && ctx.rig ? viewFrames(b.seen.bytes, ctx.rig, {
+      at: stillTimes(b.seen.seconds, TAKE_STILLS), stills: mode === 'images', closeUps: [] }) : null;
     return { answer: b.raw, timeline: view?.timeline ?? '(not rendered)', stills: view?.stills ?? [] };
   }, (err) => {
     o.log.warn?.(`[generate] idea ${ctx.idea?.id}: take ${i + 1} failed (${why(err)})`);

@@ -1,6 +1,7 @@
 // The library as the generators' vocabulary: each module's params read statically from its `const params = {…}`
 // (a plain literal in every library file; anything else is refused, never evaluated), and the summary the prompt
-// shows: one line a module (what it looks like, its param names; the rest is in the docs), a preset as its recipe.
+// shows: one line a module (what it looks like, its params with their ranges or choices and defaults; the rest is in
+// the docs), a preset as its recipe.
 // Sorted by name, so its bytes stay the same between calls.
 
 import { DIRECTIONS, MODULE_KINDS, type Picture, readPicture } from '../../public/js/pattern-core.ts';
@@ -66,6 +67,16 @@ export type Catalog = { modules: Map<string, ModuleEntry & { params: Record<stri
   presets: Map<string, PresetEntry>, text: string };
 
 const oneLine = (s: unknown) => String(s || '').replace(/\s+/g, ' ').trim();
+const n = (v: number) => String(+v.toFixed(3));
+
+/** A param as the catalogue line shows it: `speed 0–2 (0.5)`, `mirror on/off (off)`, `dir up|down (up)`. */
+export function describeParam(name: string, d: ParamDecl) {
+  if (d.type === 'number') return `${name} ${n(d.min)}–${n(d.max)} (${n(d.value)})`;
+  if (d.type === 'toggle') return `${name} on/off (${d.value ? 'on' : 'off'})`;
+  if (d.type === 'choice') return `${name} ${d.options.join('|')} (${d.value})`;
+  if (d.type === 'color') return `${name} colour (${d.value})`;
+  return `${name} picture`;
+}
 
 /** The library as data and as the prompt's text; `looks`: a module's line from its docs, else its summary.
  * Deterministic for a given library. */
@@ -80,7 +91,8 @@ export function buildCatalog(library: readonly LibraryEntry[] = [], looks: Reado
   const sections = MODULE_KINDS.map((kind) => {
     const list = [...modules.values()].filter((m) => kindOf(m) === kind);
     const lines = list.map((m) => `- ${m.name}: ${oneLine(looks.get(m.name) || m.summary)}${
-      Object.keys(m.params).length ? ` [${Object.keys(m.params).join(' ')}]` : ''}`);
+      Object.keys(m.params).length ? ` [${Object.entries(m.params).map(([k, d]) => describeParam(k, d)).join('; ')}]`
+        : ''}`);
     return list.length ? `${kind[0]!.toUpperCase()}${kind.slice(1)}s:\n${lines.join('\n')}` : '';
   }).filter(Boolean);
   if (presets.size) {

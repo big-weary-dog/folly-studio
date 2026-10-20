@@ -51,22 +51,40 @@ export function createClaudeAdapter(o: Options = {}) {
   };
   if (!EFFORTS.has(cfg.effort)) cfg.effort = 'medium';
 
-  async function generate({ text, library = [], rig, groups = rig?.groups || [], prompt, turn, repair, signal,
-    docsRead = [], schema, images }: Context) {
+  async function generate(ctx: Context) {
+    const { text, library = [], rig, groups = rig?.groups || [], prompt, turn, repair, signal, docsRead = [], schema,
+      images } = ctx;
     if (!cfg.apiKey) {
       throw new GenerateError('The AI generator is not configured on this server.', 'no ANTHROPIC_API_KEY');
     }
     const { body, headers, docs } = buildRequest({ text, library, rig, groups, prompt, turn, repair, schema, images });
     const messages = body.messages as object[];
-    let reads = 0;
-    for (let calls = 1; ; calls++) {
-      const message = await callRetrying(body, headers, signal);
-      const asks = (message.content ?? []).filter((b) => b.type === 'tool_use');
-      if (message.stop_reason !== 'tool_use' || !asks.length) return readLook(message, !!schema);
-      if (calls >= MAX_CALLS) throw new GenerateError('The AI generator failed; please try again.', 'too many calls');
-      messages.push({ role: 'assistant', content: message.content },
-        { role: 'user', content: asks.map((b) => ({ type: 'tool_result', tool_use_id: b.id,
-          ...readDoc(docs, (b.input as { path?: unknown } | undefined)?.path, reads++ < READ_CAP, docsRead) })) });
+    const t0 = Date.now(), usage = { input: 0, cached: 0, output: 0, reasoning: 0 }, from = docsRead.length;
+    let reads = 0, reply: Block[] | undefined, failed = '';
+    try {
+      for (let calls = 1; ; calls++) {
+        const message = await callRetrying(body, headers, signal);
+        const u = message.usage ?? {}, cached = Number(u.cache_read_input_tokens) || 0;
+        usage.input += (Number(u.input_tokens) || 0) + cached + (Number(u.cache_creation_input_tokens) || 0);
+        usage.cached += cached;
+        usage.output += Number(u.output_tokens) || 0;
+        reply = message.content;
+        const asks = (message.content ?? []).filter((b) => b.type === 'tool_use');
+        if (message.stop_reason !== 'tool_use' || !asks.length) return readLook(message, !!schema);
+        if (calls >= MAX_CALLS) throw new GenerateError('The AI generator failed; please try again.', 'too many calls');
+        messages.push({ role: 'assistant', content: message.content },
+          { role: 'user', content: asks.map((b) => ({ type: 'tool_result', tool_use_id: b.id,
+            ...readDoc(docs, (b.input as { path?: unknown } | undefined)?.path, reads++ < READ_CAP, docsRead) })) });
+      }
+    } catch (err) {
+      failed = String((err as Error)?.message || err);
+      throw err;
+    } finally {
+      // The transcript for the idea log: every turn as sent (images as a placeholder: the log keeps them as stills).
+      const turn = JSON.parse(JSON.stringify(messages, (k, v) => (k === 'source' && v?.type === 'base64'
+        ? { type: 'base64', media_type: v.media_type, bytes: Buffer.byteLength(v.data ?? '', 'base64') } : v)));
+      ctx.round?.call({ ms: Date.now() - t0, system: (body.system as { text: string }[])[0]!.text, turn, reply,
+        usage, docs: docsRead.slice(from), ...(failed ? { error: failed } : {}) });
     }
   }
 
@@ -159,9 +177,9 @@ async function httpError(res: Response) {
 /** Read a Messages API SSE stream into a message object ({ model, stop_reason, content }). */
 type Block = { type?: string, text?: string, thinking?: string, signature?: string, id?: string, input?: unknown,
   json?: string };
-type Message = { model?: string, stop_reason?: string | null, content?: Block[] };
+type Message = { model?: string, stop_reason?: string | null, content?: Block[], usage?: Record<string, unknown> };
 async function readStream(body: ReadableStream<Uint8Array>) {
-  const msg: Required<Message> = { model: '', stop_reason: null, content: [] };
+  const msg: Required<Message> = { model: '', stop_reason: null, content: [], usage: {} };
   const reader = body.getReader(), dec = new TextDecoder();
   let done = false, buf = '';
   const handle = (raw: string) => {
@@ -173,6 +191,7 @@ async function readStream(body: ReadableStream<Uint8Array>) {
     switch (ev.type) {
       case 'message_start':
         msg.model = ev.message?.model || '';
+        Object.assign(msg.usage, ev.message?.usage);
         break;
       case 'content_block_start':
         msg.content[ev.index] = { ...ev.content_block };
@@ -197,6 +216,7 @@ async function readStream(body: ReadableStream<Uint8Array>) {
       }
       case 'message_delta':
         if (ev.delta?.stop_reason) msg.stop_reason = ev.delta.stop_reason;
+        Object.assign(msg.usage, ev.usage); // its output_tokens are the message's, so far
         break;
       case 'message_stop':
         done = true;

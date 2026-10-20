@@ -88,10 +88,27 @@ describe('codex', () => {
     await adapter.generate(ctx({ repair: { answer: { title: 'T' }, errors: [], message: 'Look at the frames',
       images: [new Uint8Array([1]), new Uint8Array([2])] } }));
     const { args } = calls()[0];
-    assert.deepEqual([args[1], args[3], args[5]], ['-i', '-i', '--ephemeral']);
+    assert.deepEqual([args[1], args[3], args[5]], ['-i', '-i', '--json']);
     assert.match(args[2], /still-1\.png$/);
     assert.match(args[4], /still-2\.png$/);
   });
+
+  test('each call goes to the idea log from its --json events: the turn (the system prompt apart), usage, items',
+    async () => {
+      const { adapter } = setup(), got = [];
+      await adapter.generate(ctx({ round: { call: (c) => got.push(c) } }));
+      assert.equal(got.length, 1);
+      assert.deepEqual(got[0].usage, { input: 1200, cached: 1000, output: 80, reasoning: 30 });
+      assert.deepEqual(got[0].tools.map((i) => i.type), ['reasoning']);
+      const [{ at, from }] = got[0].tools;
+      assert.ok(Number.isInteger(at) && Number.isInteger(from) && from <= at && at <= got[0].ms, 'when it ran');
+      assert.match(got[0].turn, /^Design a look[^]*<idea>/);
+      assert.ok(got[0].system.length > 10_000 && !got[0].system.includes('a slow blue sky'));
+      assert.equal(got[0].reply.title, 'Codex sky');
+      const failed = setup('fail'), seen = [];
+      await refused(failed.adapter.generate(ctx({ round: { call: (c) => seen.push(c) } })), /failed/);
+      assert.match(seen[0].error, /exited 2/);
+    });
 
   test('the output schema is the look\'s, made strict: every property required, the optional ones nullable', () => {
     const strict = strictSchema(wireSchema(GROUPS));
@@ -134,6 +151,16 @@ describe('codex', () => {
     const { adapter, dir } = setup('hang', { timeoutMs: 1500 });
     await refused(adapter.generate(ctx()), /took too long/);
     assert.deepEqual(await stillRunning(fs.readFileSync(path.join(dir, 'pids'), 'utf8').split(' ').map(Number)), []);
+  });
+
+  test('a composition at high effort gets half as long again; a repair, the call\'s own wall clock', async () => {
+    const took = async (extra) => {
+      const { adapter } = setup('hang', { timeoutMs: 400, effort: 'high' });
+      const err = await refused(adapter.generate(ctx(extra)), /took too long/);
+      return Number(/codex: (\d+) ms/.exec(err.message)?.[1]);
+    };
+    const compose = await took({}), repair = await took({ repair: { answer: {}, errors: [], message: 'Fix' } });
+    assert.ok(compose >= 600 && repair >= 400 && repair < 600, `${compose} ms, ${repair} ms`);
   });
 
   test('an abort (the server stopping) kills it too', async () => {

@@ -18,6 +18,8 @@
 //   STUDIO_FRAMES_BROTLI_QUALITY  baked frames' brotli quality for streaming, default 9 (11: ~12 % smaller,
 //                          ~13× the CPU)
 //   STUDIO_FRAMES_MAX_BYTES       disk cap for baked frames, default 2GB (least recently used go first)
+//   STUDIO_IDEA_LOGS       how many ideas' logs to keep (<STUDIO_DATA>/ideas-log), default 300; 0 → none written
+//   STUDIO_IDEA_LOGS_MAX_BYTES  their disk cap, default 500MB (the oldest go first)
 //   STUDIO_FLASH_PER_SECOND, _DELTA, _AREA  the flash check's limits (WCAG: 3, 0.1, 0.1); STUDIO_FLASH_CHECK=off
 //                          stops it blocking review or dimming previews (local use only, never a public server)
 //   PI_PREVIEW_URL         a dry-run Studio Live on this machine (http://127.0.0.1:4043, started with --base /pi),
@@ -41,7 +43,8 @@ const app = await createServer({ dataDir, publicDir: path.join(here, 'public'), 
   generatorName: env.STUDIO_GENERATOR || '',
   trustProxy: on(env.STUDIO_TRUST_PROXY), framesQuality: Number(env.STUDIO_FRAMES_BROTLI_QUALITY) || undefined,
   framesMaxBytes: parseBytes(env.STUDIO_FRAMES_MAX_BYTES, undefined), flash: flashSettings(env),
-  piPreview: env.PI_PREVIEW_URL || undefined });
+  piPreview: env.PI_PREVIEW_URL || undefined, ideaLogs: { keep: env.STUDIO_IDEA_LOGS ? Number(env.STUDIO_IDEA_LOGS)
+    : undefined, maxBytes: parseBytes(env.STUDIO_IDEA_LOGS_MAX_BYTES, undefined) } });
 const addr = await app.listen(port, host);
 const where = `http://${host.includes(':') ? `[${host}]` : host}:${addr.port}/`;
 console.log(`[studio] Folly Studio on ${where} (data ${dataDir}, models ${app.models.file}, default `

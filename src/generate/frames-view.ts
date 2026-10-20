@@ -1,6 +1,7 @@
 // What a model is shown of the frames it made (SPEC-generators "Critique"): the LEDs seen from the front (z across, y
-// up, the back drawn first) at a few times, as small PNGs, and a line a second with each top-level group's mean colour
-// and brightness, for models that read text only; and close-ups of the groups `closeUps` names (frames-closeup.ts).
+// up, the back drawn first) at a few times, as small PNGs, and 30 lines across the frames (none closer than 0.5 s)
+// with each top-level group's mean colour and brightness, for models that read text only (and each one's mean over
+// them, for the critique's warnings); and close-ups of the groups `closeUps` names (frames-closeup.ts).
 // Works on baked bytes from the render box; runs no look code.
 
 import { crc32, deflateSync } from 'node:zlib';
@@ -46,7 +47,8 @@ const hex = (r: number, g: number, b: number) => `#${[r, g, b].map((v) => Math.r
 
 /**
  * Baked frames → { stills: PNG per time in `at` (seconds), closeUps: PNG per group in `closeUps` and time, timeline:
- * text, a line a second }. Throws when the bytes are not frames of this rig.
+ * text, 30 lines across the frames, groups: each top-level group's mean brightness over those lines (0–1) }. Throws
+ * when the bytes are not frames of this rig.
  */
 export function viewFrames(bytes: Uint8Array, rig: Rig, { at = [1, 4.3, 7.6], stills = true,
   closeUps = [] as readonly string[] } = {}) {
@@ -85,15 +87,18 @@ export function viewFrames(bytes: Uint8Array, rig: Rig, { at = [1, 4.3, 7.6], st
   const tops = scene.groups.filter((g) => g.parent === scene.root?.id);
   const parts = (tops.length ? tops : scene.root ? [scene.root] : []).slice(0, 8)
     .map((g) => ({ id: g.id, px: pixelsForGroups(scene, g.id) })).filter((p) => p.px.length);
-  const lines: string[] = [];
-  for (let s = 0; s < Math.min(30, (F * stepMs) / 1000); s++) {
-    const f = frameAt(s + 0.5);
-    lines.push(`${s}s ${parts.map(({ id, px }) => {
+  const lines: string[] = [], span = (F * stepMs) / 1000, step = Math.max(0.5, span / 30), means = parts.map(() => 0);
+  const count = Math.max(1, Math.floor(span / step));
+  for (let n = 0; n < count; n++) {
+    const f = frameAt((n + 0.5) * step);
+    lines.push(`${+(n * step).toFixed(1)}s ${parts.map(({ id, px }, i) => {
       const sum = [0, 0, 0];
       for (const k of px) rgb(f, k).forEach((v, ch) => { sum[ch]! += v; });
       const [r, g, b] = sum.map((v) => v / px.length) as [number, number, number];
+      means[i]! += (r + g + b) / 765 / count;
       return `${id} ${hex(r, g, b)} ${Math.round(((r + g + b) / 765) * 100)}%`;
     }).join(', ')}`);
   }
-  return { stills: pictures, closeUps: near, timeline: lines.join('\n') };
+  return { stills: pictures, closeUps: near, timeline: lines.join('\n'),
+    groups: parts.map((p, i) => ({ id: p.id, mean: means[i]! })) };
 }
