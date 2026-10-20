@@ -5,7 +5,7 @@
 import type { RigGroup } from '../../shared/schemas/rig.ts';
 import { fence } from './prompt.ts';
 
-const DARK = 0.2, HARSH = 0.8, MAX_NOTES = 12;
+const DARK = 0.03, HARSH = 0.6, MAX_NOTES = 12; // of the LEDs' light: about 20 % and 80 % of a colour's value
 const pct = (v?: number) => (v == null ? '?' : `${Math.round(v * 100)}%`);
 
 /** The aim's clauses that name a group (its name, id or tags, singular or plural), cut short; '' when none does. */
@@ -19,7 +19,7 @@ function aimSays(aim: string, g: Pick<RigGroup, 'id' | 'name' | 'tags'> | undefi
     .slice(0, 160);
 }
 
-/** A line per top-level group whose mean brightness is below 20 % (dark) or above 80 % (harsh), with the aim's words
+/** A line per top-level group whose mean light is below DARK (3 %) or above HARSH (60 %), with the aim's words
  * about it. */
 export function groupWarnings(means: readonly { id: string, mean: number }[], groups: readonly RigGroup[],
   aim: string) {
@@ -57,10 +57,10 @@ export function buildCritiqueMessage({ idea, timeline, analysis, stills, closeUp
   return `The studio rendered that look${seconds ? `, all ${+seconds.toFixed(1)} s of it` : ''}. ${images.length
     ? `The images, in order: ${images.join('; ')} (left to right on the rig is left to right in the image).${near}`
     : ''}
-Mean brightness ${pct(a.meanBrightness)} of white, ${pct(a.darkFraction)} of LEDs dark; ${a.flicker?.ok === false
+Mean light ${pct(a.meanBrightness)} of full white, ${pct(a.darkFraction)} of LEDs dark; ${a.flicker?.ok === false
     ? 'large areas FLASH too fast: slow them.' : 'no large-area flashing.'}
 ${warnings.length ? `Groups to look at (on average over the look):\n${warnings.join('\n')}`
-    : 'Every top-level group is between 20% and 80% on average.'}
+    : `Every top-level group is between ${pct(DARK)} and ${pct(HARSH)} of full light on average.`}
 Each top-level group's mean colour and brightness, every ${+step.toFixed(1)} s:
 ${timeline}
 ${notes.length ? `

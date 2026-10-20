@@ -32,8 +32,9 @@ async function main(c: NonNullable<typeof cfg>) {
   if (!looks.get(c.safe)?.look) throw new Error(`the safe look ${c.safe} cannot play`);
   const output = createOutput({ table, power: c, dryRun: c.dryRun, host: c.host, port: c.port });
   // The LEDs' colour correction on the way out only: the engine's frames (and the Live tab's) stay the look's own.
-  const fix = correctionTable(correctionOf({ gamma: c.gamma, balance: c.balance.split(',').map(Number) }));
-  const engine = createEngine({ rig, lib, looks: () => looks, safe: c.safe, log,
+  const correction = correctionOf({ gamma: c.gamma, balance: c.balance.split(',').map(Number) });
+  const fix = correctionTable(correction);
+  const engine = createEngine({ rig, lib, looks: () => looks, safe: c.safe, log, correction,
     output: (cells) => output.send(correct(cells)) });    // first called by the loop, below
   const correct = correctedCells(engine.scene, fix);
   // The rig's pixels must sit within the cells the expansion reads (its declared universes run past them, unused).

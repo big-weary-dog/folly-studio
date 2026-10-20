@@ -20,7 +20,7 @@
 //   STUDIO_FRAMES_MAX_BYTES       disk cap for baked frames, default 2GB (least recently used go first)
 //   STUDIO_IDEA_LOGS       how many ideas' logs to keep (<STUDIO_DATA>/ideas-log), default 300; 0 → none written
 //   STUDIO_IDEA_LOGS_MAX_BYTES  their disk cap, default 500MB (the oldest go first)
-//   STUDIO_FLASH_PER_SECOND, _DELTA, _AREA  the flash check's limits (WCAG: 3, 0.1, 0.1); STUDIO_FLASH_CHECK=off
+//   STUDIO_FLASH_PER_SECOND, _DELTA, _AREA  the flash check's limits (3, 0.5, 0.25); STUDIO_FLASH_CHECK=off
 //                          stops it blocking review or dimming previews (local use only, never a public server)
 //   PI_PREVIEW_URL         a dry-run Studio Live on this machine (http://127.0.0.1:4043, started with --base /pi),
 //                          shown to admins at /pi (docs/HOSTING.md "The Pi's page")

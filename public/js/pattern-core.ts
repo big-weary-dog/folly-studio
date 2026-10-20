@@ -19,7 +19,7 @@ export {
 export type { G, PreparedLook, Values } from './core/globals.ts';
 export { groupsByTag, pixelsForGroups, prepareScene, tagCentres, tagMask } from './core/scene.ts';
 export type { Scene } from './core/scene.ts';
-export { FLASH, flashLimits, FlashWatch } from './core/flash.ts';
+export { FLASH, flashLimits, FlashWatch, ledLight } from './core/flash.ts';
 export type { Flashes, FlashLimits } from './core/flash.ts';
 export {
   DEFAULT_DURATION, layerEnvelope, lookDuration, MAX_CLIPS, MAX_DURATION, MIN_DURATION, normalizeClips, TRANSITIONS,

@@ -218,14 +218,17 @@ itself is kept marked untrusted.
 look's current layers; any edit clears the bake and the review. A curator judges bytes that cannot change, not
 code that might behave differently at showtime.
 
-**Flash checks** adapt WCAG 2.3.1 (general flash: more than 3 flashes in any second) to a sculpture. Flashes are
+**Flash checks** adapt WCAG 2.3.1 (general flash: more than 3 flashes in any second) to a sculpture, and catch only
+big, fast, wide flashing: a flash is a swing of at least half the LEDs' light (measured as light, through the output
+correction, on each LED's brightest channel so a saturated red or blue strobe counts in full, as WCAG's red flash
+rule asks), where WCAG counts a tenth, which would stop most lively looks. Flashes are
 counted where they happen: a swing of a group's light is credited to the cells that made it, so a shockwave crossing
-arch after arch flashes each place once a pass, not the arches over and over. Flashing over a large area (≥ 10 % of
+arch after arch flashes each place once a pass, not the arches over and over. Flashing over a large area (≥ 25 % of
 the LEDs, or of the lit area seen from the front or side) **blocks review**; flashing confined to small parts such as
 the spirelets only **warns**. A curator may still approve a flashing bake by **giving a reason**, kept on the look
 with their name and shown in its Check & bake. The live preview runs the same rule (`core/flash.ts`) on the frames it
 shows and dims a strobe, asking before showing it; with reduced motion it stays dimmed. Each person may turn the
-dimming off for themselves ("Don't dim for me"). The limits are the host's (`STUDIO_FLASH_*`, WCAG's by default);
+dimming off for themselves ("Don't dim for me"). The limits are the host's (`STUDIO_FLASH_*`);
 `STUDIO_FLASH_CHECK=off` is for local use only.
 
 - **Alternatives.** `node:vm` alone (not a security boundary), isolated-vm (a native dependency), containers or

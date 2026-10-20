@@ -238,7 +238,7 @@ async function bake() {
     const { analyzeFrames, flickerReason, flickerWarning, parseFseq }: typeof Frames =
       await import(beside('frames.ts'));
     const watch = new core.FlashWatch(scene, null, { record: true });
-    const a = analyzeFrames(parseFseq(fseq, { maxChannels: scene.frameChannels }), scene, watch);
+    const a = analyzeFrames(parseFseq(fseq, { maxChannels: scene.frameChannels }), scene, watch, core.ledLight());
     stats.selfCheck = a;
     const pct = (v: number) => `${Math.round(v * 100)}%`;
     console.log(`frames: peak ${pct(a.peakBrightness)} of all-white (≈ ${a.estPeakAmps} A at 5 V), mean `

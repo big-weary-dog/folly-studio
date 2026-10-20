@@ -156,8 +156,8 @@ STUDIO_BAKE_SECONDS=120           # longest bake
 STUDIO_FRAMES_BROTLI_QUALITY=9
 STUDIO_FRAMES_MAX_BYTES=2GB
 STUDIO_FLASH_PER_SECOND=3         # the flash check: flashes a second allowed (WCAG 2.3.1: 3)
-STUDIO_FLASH_DELTA=0.1            # a flash's swing in relative luminance (WCAG: 0.1)
-STUDIO_FLASH_AREA=0.1             # share of the LEDs, or of the lit area from the front or side, that blocks
+STUDIO_FLASH_DELTA=0.5            # a flash's swing, as a share of the LEDs' full light (WCAG: 0.1)
+STUDIO_FLASH_AREA=0.25            # share of the LEDs, or of the lit area from the front or side, that blocks
 STUDIO_LIVE_CONTROL=curators      # who drives /live: curators (and admins), admins, or members (anyone signed in)
 STUDIO_LIVE_LOOKS=reviewed        # what may play on /live: reviewed looks, or any shared look
 PI_PREVIEW_URL=http://127.0.0.1:4043  # the Pi's control page, dry run, for admins at /pi (below); unset: no /pi
@@ -184,8 +184,12 @@ which drives. Unset `PI_PREVIEW_URL` and run `npm run host` again to take it dow
 
 ### The flash check
 
-Bakes that flash fast over a large area cannot be marked reviewed, and the preview dims them. The three
-`STUDIO_FLASH_*` limits above default to WCAG's; out-of-range values fall back to the default. They apply to new
+Bakes that flash big and fast over a large area cannot be marked reviewed, and the preview dims them. Swings are
+measured in the light the LEDs give (decoded by the output correction), not in colour values, and on each LED's
+brightest channel, so a full red or blue strobe counts as fully as a white one. The three
+`STUDIO_FLASH_*` limits above are the defaults: WCAG's three flashes a second, but only swings of half the light
+over a quarter of the rig, so lively looks pass and real strobes do not. Set `STUDIO_FLASH_DELTA=0.1` and
+`STUDIO_FLASH_AREA=0.1` for WCAG's own; out-of-range values fall back to the default. They apply to new
 bakes and to the preview's guard (the browser gets them from `/api/me`). A curator can still approve a flashing
 bake by giving a reason, which stays on the look with their name. Each person can turn the preview's dimming off
 for themselves with "Don't dim for me".

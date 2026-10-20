@@ -6,7 +6,7 @@
 
 import { crc32, deflateSync } from 'node:zlib';
 
-import { pixelsForGroups, prepareScene } from '../../public/js/pattern-core.ts';
+import { ledLight, pixelsForGroups, prepareScene } from '../../public/js/pattern-core.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
 import { parseFseq } from '../frames.ts';
 import { inflateBlock } from '../fseq-codec.ts';
@@ -83,20 +83,22 @@ export function viewFrames(bytes: Uint8Array, rig: Rig, { at = [1, 4.3, 7.6], st
       return { at: s, group, png: png(c.width, c.height, c.rgb) };
     });
   });
-  // The root's children (or the root), each a mean colour and brightness (0–100 % of white) a second.
+  // The root's children (or the root), each a mean colour and brightness (0–100 % of white, in the LEDs' light).
   const tops = scene.groups.filter((g) => g.parent === scene.root?.id);
   const parts = (tops.length ? tops : scene.root ? [scene.root] : []).slice(0, 8)
     .map((g) => ({ id: g.id, px: pixelsForGroups(scene, g.id) })).filter((p) => p.px.length);
   const lines: string[] = [], span = (F * stepMs) / 1000, step = Math.max(0.5, span / 30), means = parts.map(() => 0);
+  const light = ledLight();
   const count = Math.max(1, Math.floor(span / step));
   for (let n = 0; n < count; n++) {
     const f = frameAt((n + 0.5) * step);
     lines.push(`${+(n * step).toFixed(1)}s ${parts.map(({ id, px }, i) => {
       const sum = [0, 0, 0];
-      for (const k of px) rgb(f, k).forEach((v, ch) => { sum[ch]! += v; });
+      let lit = 0;
+      for (const k of px) rgb(f, k).forEach((v, ch) => { sum[ch]! += v; lit += light[256 * ch + v]!; });
       const [r, g, b] = sum.map((v) => v / px.length) as [number, number, number];
-      means[i]! += (r + g + b) / 765 / count;
-      return `${id} ${hex(r, g, b)} ${Math.round(((r + g + b) / 765) * 100)}%`;
+      means[i]! += lit / (3 * px.length) / count;
+      return `${id} ${hex(r, g, b)} ${Math.round((lit / (3 * px.length)) * 100)}%`;
     }).join(', ')}`);
   }
   return { stills: pictures, closeUps: near, timeline: lines.join('\n'),

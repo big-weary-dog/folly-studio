@@ -1,25 +1,29 @@
-// The flash check (SPEC "Baked frames" > Checks, DESIGN §6): WCAG 2.3.1's general flash threshold, for a sculpture.
-// The bake check (src/frames.ts) and the preview's guard (flash-guard.ts) both run it. Pure; nothing allocated per
-// frame unless it records a report.
+// The flash check (SPEC "Baked frames" > Checks, DESIGN §6): WCAG 2.3.1's three flashes a second, for a sculpture,
+// on big swings only. The bake check (src/frames.ts) and the preview's guard (flash-guard.ts) both run it, on the light
+// the LEDs give (ledLight), each LED's brightest channel: luminance would make a full red or blue strobe a small swing,
+// and saturated red flashing is a known trigger (WCAG's separate red flash rule). Pure; nothing allocated per frame
+// unless it records a report.
 //
-// Regions (the whole rig, each top-level group) watch their mean luminance for swings: a change of ≥ delta that then
+// Regions (the whole rig, each top-level group) watch their mean light for swings: a change of ≥ delta that then
 // turns back by ≥ delta, a transition as WCAG counts one. A swing is credited to the parts that made it (the region's
 // LEDs in each cell of a grid 1/32 of the bounds' diagonal) that changed by ≥ delta between its two extremes
 // themselves, the darker side below `darker`; it is large when they cover ≥ `area` of the LEDs, or of the lit cells
 // seen from the front or the side. Transitions are counted where they happen, per cell, and a flash is a pair of
 // them: over `perSecond` in any second is flashing. So a wave that crosses the arches in turn flashes each place once
 // a pass, where one mean over all the arches would rise and fall with each arch it crossed.
+import { OUTPUT_CORRECTION, type OutputCorrection } from './output.ts';
 import { pixelsForGroups, type Scene } from './scene.ts';
 
-/** WCAG 2.3.1 defaults: over 3 flashes in any second, swings of ≥ 10 % with the darker side below 0.8, over ≥ 10 % of
- * the rig (its LEDs, or its lit area from the front or the side). */
-export const FLASH = Object.freeze({ perSecond: 3, delta: 0.1, darker: 0.8, area: 0.1 });
+/** The defaults: over 3 flashes in any second (WCAG 2.3.1), each a swing of ≥ half the LEDs' light with the darker
+ * side below 0.8, over ≥ 25 % of the rig (its LEDs, or its lit area from the front or the side). Only big, fast,
+ * wide flashing counts; WCAG's 10 % swings and areas would stop most lively looks. */
+export const FLASH = Object.freeze({ perSecond: 3, delta: 0.5, darker: 0.8, area: 0.25 });
 export type FlashLimits = { perSecond: number, delta: number, darker: number, area: number };
 const GRID = 32, WINDOW = 1000, EPS = 1e-9;
 const RANGE: Record<keyof FlashLimits, [number, number]> = {
   perSecond: [0.5, 20], delta: [0.01, 1], darker: [0.01, 1], area: [0.001, 1] };
 
-/** Limits from partial settings, each held to a sane range (else its WCAG default). */
+/** Limits from partial settings, each held to a sane range (else its default). */
 export function flashLimits(o?: Partial<FlashLimits> | null): FlashLimits {
   const out: FlashLimits = { ...FLASH };
   for (const k of Object.keys(RANGE) as (keyof FlashLimits)[]) {
@@ -27,6 +31,14 @@ export function flashLimits(o?: Partial<FlashLimits> | null): FlashLimits {
     if (typeof v === 'number' && v >= lo && v <= hi) out[k] = v;
   }
   return out;
+}
+
+/** The light each output byte gives, 0..1 of full, per colour (r, g, b: 256 each): the LEDs' correction (v^gamma ×
+ * balance, core/output.ts), so the checks judge what the LEDs show, not the encoded values. */
+export function ledLight(c: OutputCorrection = OUTPUT_CORRECTION) {
+  const t = new Float32Array(768);
+  for (let k = 0; k < 3; k++) for (let v = 0; v < 256; v++) t[256 * k + v] = (v / 255) ** c.gamma * c.balance[k];
+  return t;
 }
 
 /** The regions that watch for swings: the whole rig (idx null), then each top-level group with LEDs. */
@@ -44,8 +56,9 @@ export function flashRegions(scene: Scene) {
 export type Flashes = { maxHz: number, flaggedSeconds: number[], regions: string[] };
 
 /**
- * new FlashWatch(scene, limits?, { record }); watch.frame(lum, ms) per frame (lum: each LED's relative luminance
- * 0..1) → true when a large area has just been found flashing. With `record`, report() → { large, small }.
+ * new FlashWatch(scene, limits?, { record }); watch.frame(lum, ms) per frame (lum: each LED's light, its
+ * brightest channel, 0..1) → true when a large area has just been found flashing. With `record`, report() →
+ * { large, small }.
  */
 export class FlashWatch {
   limits: FlashLimits; ids: string[]; flagged = false;
@@ -124,8 +137,8 @@ export class FlashWatch {
     this.flagged = false;
   }
 
-  /** One frame: lum[k] is LED k's relative luminance (0..1), at `ms`. True when a large area has just been found
-   * flashing. */
+  /** One frame: lum[k] is LED k's light (its brightest channel, 0..1), at `ms`. True when a large area has just been
+   * found flashing. */
   frame(lum: ArrayLike<number>, ms: number) {
     const sum = this.sum, v = this.v, partN = this.partN, parts = this.parts;
     this.flagged = false;

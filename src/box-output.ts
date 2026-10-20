@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { constants as FS, promises as fs } from 'node:fs';
 import path from 'node:path';
 
-import { flashLimits, FlashWatch, prepareScene } from '../public/js/pattern-core.ts';
+import { flashLimits, FlashWatch, ledLight, prepareScene } from '../public/js/pattern-core.ts';
 import type { Bake, FlashSettings } from '../shared/schemas/api.ts';
 import type { Rig } from '../shared/schemas/rig.ts';
 import { analyzeFrames, DEFAULT_MAX_BYTES, flickerReason, flickerWarning, FseqError, parseFseq } from './frames.ts';
@@ -81,7 +81,7 @@ export function cleanBoxStats(value: unknown): NonNullable<Bake['boxStats']> {
 
 /**
  * The flash check's settings from the environment (docs/HOSTING.md): STUDIO_FLASH_PER_SECOND, _DELTA and _AREA (each
- * WCAG's default when unset or out of range), and STUDIO_FLASH_CHECK=off to stop it blocking anything (local use).
+ * FLASH's when unset or out of range), and STUDIO_FLASH_CHECK=off to stop it blocking anything (local use).
  */
 export function flashSettings(env: NodeJS.ProcessEnv = process.env): FlashSettings {
   const num = (v?: string) => (v?.trim() ? Number(v) : undefined);
@@ -103,7 +103,7 @@ export function checkFrames(bytes: Uint8Array, { source, rig, maxBytes = DEFAULT
   try {
     const scene = prepareScene(rig);
     const parsed = parseFseq(bytes, { maxBytes, maxChannels: scene.frameChannels, decompress: inflateBlock });
-    analysis = analyzeFrames(parsed, scene, new FlashWatch(scene, flash, { record: true }));
+    analysis = analyzeFrames(parsed, scene, new FlashWatch(scene, flash, { record: true }), ledLight());
   } catch (err) {
     bake.status = 'failed';
     bake.reason = err instanceof FseqError ? `The baked frames were rejected: ${err.message.replace(/^frames: /, '')}.`

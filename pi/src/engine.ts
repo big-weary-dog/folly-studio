@@ -6,6 +6,7 @@ import { FlashGuard } from '../../public/js/flash-guard.ts';
 import {
   compileLayer, prepareLayer, type PreparedLayer, prepareScene, renderFrame, setLibrary, toChannels,
 } from '../../public/js/pattern-core.ts';
+import type { OutputCorrection } from '../../public/js/core/output.ts';
 import type { PiSource } from '../../shared/schemas/live.ts';
 import type { Layer } from '../../shared/schemas/look.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
@@ -21,12 +22,13 @@ const ease = (e: Ease, dt: number) => {
 };
 
 export type EngineOptions = { rig: Rig, lib: Library, looks: () => Map<string, { look: PiLook | null, error?: string }>,
-  safe: string, output: (cells: Uint8Array) => void, log?: (line: string) => void, now?: () => number };
+  safe: string, output: (cells: Uint8Array) => void, log?: (line: string) => void, now?: () => number,
+  correction?: OutputCorrection };   // the LEDs' correction, so the flash guard judges the light they give
 
 export function createEngine(o: EngineOptions) {
   const scene = prepareScene(o.rig), fps = scene.fps, dt = 1 / fps;
   const rgb = new Float32Array(scene.count * 3), cells = new Uint8Array(scene.frameChannels);
-  const guard = new FlashGuard(o.rig), log = o.log ?? (() => {});
+  const guard = new FlashGuard(o.rig, null, o.correction), log = o.log ?? (() => {});
   const now = o.now ?? (() => performance.now());
   setLibrary([...o.lib.entries.values()]);
   const master: Ease = { now: 1, to: 1, secs: FADE.level }, black: Ease = { now: 1, to: 1, secs: FADE.blackout };

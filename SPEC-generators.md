@@ -102,8 +102,8 @@ whole seconds so a once-a-second beat shows two frames), PNG, 360 px wide;
 `images` only), with each rose up close at the same times when the look plays on one (`frames-closeup.ts`: a group
 tagged `rose` holding at least half of a layer's LEDs, or any group tagged `rose` when a module param names `rose`;
 each LED drawn as its fixture's `render.cells` pane, 240 px), a timeline of 30 lines across the look (each at least
-0.5 s apart) with each top-level group's mean colour and brightness, a warning for each top-level group dark (under
-20 % on average) or harsh (over 80 %) beside what the idea says of it, the params expand changed (so the frames show
+0.5 s apart) with each top-level group's mean colour and brightness (in the LEDs' light), a warning for each top-level group
+dark (under 3 % of full light on average, about 20 % of a colour's value) or harsh (over 60 %, about 80 %) beside what the idea says of it, the params expand changed (so the frames show
 those values, not the model's), the frames' analysis (brightness, dark share, flashing), and the idea again. It answers the whole
 composition again, revised or not; that answer is expanded and checked (2 s), and kept only if it expands and renders
 without errors. It is part of the idea (no use), skipped when the idea has already taken 90 s

@@ -40,7 +40,7 @@ describe('server', () => {
       const me = await c.get('/api/me');
       assert.equal(me.status, 200);
       assert.deepEqual(me.json.user, r.json.user);
-      assert.deepEqual(me.json.flash, { check: true, perSecond: 3, delta: 0.1, darker: 0.8, area: 0.1 },
+      assert.deepEqual(me.json.flash, { check: true, perSecond: 3, delta: 0.5, darker: 0.8, area: 0.25 },
         'the flash check\'s limits, for the preview\'s guard');
       assert.equal(me.headers.get('cache-control'), 'private, no-cache', 'kept, but revalidated every time');
 

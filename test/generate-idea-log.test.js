@@ -160,9 +160,9 @@ describe('what the critique is told', () => {
   test('a group too dark or too harsh, with what the aim says of it', () => {
     const groups = [{ id: 'spires', name: 'Spires', tags: ['spire'] }, { id: 'rose', name: 'Rose window' },
       { id: 'nave', name: 'Nave' }];
-    const lines = groupWarnings([{ id: 'spires', mean: 0.05 }, { id: 'rose', mean: 0.9 }, { id: 'nave', mean: 0.5 }],
+    const lines = groupWarnings([{ id: 'spires', mean: 0.02 }, { id: 'rose', mean: 0.9 }, { id: 'nave', mean: 0.5 }],
       groups, 'Lightning on the spires. A calm sea below');
-    assert.deepEqual(lines, ['- spires: dark, 5% on average; the aim says of it: "Lightning on the spires"',
+    assert.deepEqual(lines, ['- spires: dark, 2% on average; the aim says of it: "Lightning on the spires"',
       '- rose: harsh, 90% on average; the aim does not name it']);
     const message = buildCritiqueMessage({ idea: 'x', timeline: '0s ...', stills: [1.5, 10.5], seconds: 30,
       warnings: lines, notes: ['layers[0].modules[0].params.speed: 9 held to -2..2'] });
@@ -170,7 +170,7 @@ describe('what the critique is told', () => {
     assert.match(message, /- spires: dark/);
     assert.match(message, /Your params were changed[^]*speed: 9 held to -2\.\.2/);
     assert.match(buildCritiqueMessage({ idea: 'x', timeline: '', stills: [1.5], seconds: 30 }),
-      /Every top-level group is between 20% and 80% on average\./);
+      /Every top-level group is between 3% and 60% of full light on average\./);
   });
 
   test('the catalogue gives each param its range, choices or kind, and its default', () => {

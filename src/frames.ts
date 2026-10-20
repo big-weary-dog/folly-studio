@@ -11,12 +11,14 @@ export const UNIVERSES = 80;
 export const MAX_CHANNELS = UNIVERSES * CHANNELS_PER_UNIVERSE; // 40,800
 export const DEFAULT_MAX_BYTES = 64 * 1024 * 1024;
 
-// Photosensitivity: WCAG 2.3.1's general flash threshold for a building, as the core's FlashWatch (core/flash.ts)
+// Photosensitivity: fast, big, wide flashing (WCAG 2.3.1's three a second), as the core's FlashWatch (core/flash.ts)
 // judges it. Only large-area flashing blocks review; flashing confined to small places is a warning. Red flash: not
 // checked.
+// Everything is measured in the light the LEDs give: bakes hold encoded bytes, so each is decoded by the LEDs'
+// correction (the core's ledLight) first.
 // Power: WS281x pixels draw about 20 mA per channel at full, at 5 V: an estimate for sizing supplies.
 export const AMPS_PER_CHANNEL = 0.02;
-const DARK = 10; // a pixel is dark when every channel is below this (about 4 %)
+const DARK = 0.01; // a pixel is dark when every channel gives under 1 % of its light (encoded, below about 0.12)
 const CODECS = ['none', 'zstd', 'zlib']; // FSEQ v2 compression types 0, 1, 2
 
 export class FseqError extends Error { name = 'FseqError'; }
@@ -156,9 +158,10 @@ function inflateBlocks(b: Bytes, { compression, blocks, dataOffset, channelCount
 export type Parsed = ReturnType<typeof parseFseq>;
 const round = (v: number, places: number) => Math.round(v * 10 ** places) / 10 ** places;
 
-/** What the frames show on the scene: one pass, no allocation per frame. `watch`: the core's FlashWatch for the scene,
- * recording (new FlashWatch(scene, limits, { record: true })). Channels the file does not hold count as off. */
-export function analyzeFrames(parsed: Parsed, scene: Scene, watch: FlashWatch): Analysis {
+/** What the frames show on the scene, in LED light: one pass, no allocation per frame. `watch`: the core's FlashWatch
+ * for the scene, recording (new FlashWatch(scene, limits, { record: true })); `light`: the core's ledLight(), each
+ * byte's light. Channels the file does not hold count as off. */
+export function analyzeFrames(parsed: Parsed, scene: Scene, watch: FlashWatch, light: ArrayLike<number>): Analysis {
   const { data, channelCount: cc, frameCount: F, stepMs, ranges } = parsed;
   const N = scene.count;
   const [cR, cG, cB] = scene.order as [number, number, number];
@@ -183,13 +186,13 @@ export function analyzeFrames(parsed: Parsed, scene: Scene, watch: FlashWatch): 
     const base = f * cc;
     let sum = 0;
     for (let k = 0; k < N; k++) {
-      const r = oR[k] >= 0 ? data[base + oR[k]] : 0;
-      const g = oG[k] >= 0 ? data[base + oG[k]] : 0;
-      const b = oB[k] >= 0 ? data[base + oB[k]] : 0;
+      // Bytes are encoded values; light[] is what the LEDs make of them, linear and 0..1.
+      const r = light[oR[k] >= 0 ? data[base + oR[k]] : 0];
+      const g = light[256 + (oG[k] >= 0 ? data[base + oG[k]] : 0)];
+      const b = light[512 + (oB[k] >= 0 ? data[base + oB[k]] : 0)];
       sum += r + g + b;
       if (r < DARK && g < DARK && b < DARK) dark++;
-      // Relative luminance. LED PWM values are already linear light, so no sRGB decoding.
-      lum[k] = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+      lum[k] = r > g ? (r > b ? r : b) : g > b ? g : b; // its brightest channel: a red strobe is a full swing
     }
     if (sum > peak) peak = sum;
     total += sum;
@@ -202,9 +205,9 @@ export function analyzeFrames(parsed: Parsed, scene: Scene, watch: FlashWatch): 
     frames: F, seconds: round(seconds, 3), fps: round(1000 / stepMs, 2), channels: cc, sparse: parsed.sparse === true,
     pixels: N,
     coverage: round(covered / (3 * N), 3), // share of the LED map's channels the file holds
-    peakBrightness: round(peak / (765 * N), 3), // brightest frame, as a share of all-white
-    meanBrightness: round(total / (765 * N * F), 3), darkFraction: round(dark / (N * F), 3),
-    estPeakAmps: round((peak / 255) * AMPS_PER_CHANNEL, 1),
+    peakBrightness: round(peak / (3 * N), 3), // brightest frame's light, as a share of all-white
+    meanBrightness: round(total / (3 * N * F), 3), darkFraction: round(dark / (N * F), 3),
+    estPeakAmps: round(peak * AMPS_PER_CHANNEL, 1),
     flicker: { ...large, ok: large.regions.length === 0, small, limits: { perSecond, delta, area } },
   };
 }

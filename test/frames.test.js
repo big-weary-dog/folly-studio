@@ -6,7 +6,7 @@ import { describe, test } from 'vitest';
 
 import { ledRanges, writeFseq } from '../public/js/fseq.ts';
 import {
-  compileLayer, FlashWatch, pixelsForGroups, prepareLayer, prepareLook, prepareScene, renderFrame,
+  compileLayer, FlashWatch, ledLight, pixelsForGroups, prepareLayer, prepareLook, prepareScene, renderFrame,
 } from '../public/js/pattern-core.ts';
 import { checkFrames, flashSettings } from '../src/box-output.ts';
 import { analyzeFrames, FseqError, flickerReason, flickerWarning, MAX_CHANNELS, parseFseq } from '../src/frames.ts';
@@ -36,10 +36,10 @@ function smallRig() {
   };
 }
 
-/** analyzeFrames on a rig, as the server calls it (limits: the flash check's, WCAG's by default). */
+/** analyzeFrames on a rig, as the server calls it (limits: the flash check's, FLASH by default). */
 function analyze(parsed, rig, limits) {
   const scene = prepareScene(rig);
-  return analyzeFrames(parsed, scene, new FlashWatch(scene, limits, { record: true }));
+  return analyzeFrames(parsed, scene, new FlashWatch(scene, limits, { record: true }), ledLight());
 }
 const usedRanges = ledRanges;
 
@@ -137,12 +137,12 @@ describe('analyzeFrames', () => {
     assert.deepEqual(a.flicker.flaggedSeconds, [0, 1, 2, 3, 4]);
     assert.deepEqual(a.flicker.regions, ['parts', 'spire'], 'the 5-LED spire flashes with the rest: one large area');
     assert.deepEqual(a.flicker.small.regions, []);
-    assert.deepEqual(a.flicker.limits, { perSecond: 3, delta: 0.1, area: 0.1 });
+    assert.deepEqual(a.flicker.limits, { perSecond: 3, delta: 0.5, area: 0.25 });
     assert.match(flickerReason(a),
       /up to 10 flashes a second \(over 3 .* around 0 s, 1 s, 2 s, 3 s, 4 s, on parts, spire\./);
   });
 
-  test('passes a slow 0.5 Hz breathe, 3 Hz exactly, and bright shimmer', () => {
+  test('passes a slow 0.5 Hz breathe, 3 Hz exactly, bright shimmer and swings under half the light', () => {
     const breathe = analyze(parseFseq(bake(C, 10,
       (f) => gray(Math.round(127.5 - 127.5 * Math.cos(Math.PI * (f / 40)))))), C);
     assert.equal(breathe.flicker.ok, true);
@@ -155,8 +155,20 @@ describe('analyzeFrames', () => {
     // Changes that never go darker than 0.8 relative luminance are not flashes.
     const shimmer = analyze(parseFseq(bake(C, 3, (f) => gray(f % 2 ? 255 : 220))), C);
     assert.equal(shimmer.flicker.ok, true);
-    // Small changes (under 10 % of full) are not flashes either.
-    assert.equal(analyze(parseFseq(bake(C, 3, (f) => gray(f % 2 ? 100 : 80))), C).flicker.ok, true);
+    // Swings under half the LEDs' light are not flashes either: 0.20 ↔ 0.35 is 3 % ↔ 10 % of it, 0.90 ↔ 0.99 is
+    // 79 % ↔ 98 %. Each is measured in light, so with a tenth as the limit the bright one flashes and the dim one not.
+    const dim = bake(C, 3, (f) => gray(square(5)(f) ? 89 : 51));
+    const bright = bake(C, 3, (f) => gray(square(5)(f) ? 252 : 230));
+    assert.equal(analyze(parseFseq(dim), C).flicker.ok, true);
+    assert.equal(analyze(parseFseq(bright), C).flicker.ok, true);
+    assert.equal(analyze(parseFseq(dim), C, { delta: 0.1 }).flicker.ok, true);
+    assert.equal(analyze(parseFseq(bright), C, { delta: 0.1 }).flicker.ok, false);
+    // An LED's light is its brightest channel: full red, blue or orange flashing is a full swing.
+    for (const c of [[255, 0, 0], [0, 0, 255], [255, 128, 0]]) {
+      assert.equal(analyze(parseFseq(bake(C, 3, (f) => (square(5)(f) ? c : gray(0)))), C).flicker.ok, false, `${c}`);
+    }
+    // A swing of half the light: 0.3 ↔ 0.9 (7 % ↔ 79 %).
+    assert.equal(analyze(parseFseq(bake(C, 3, (f) => gray(square(5)(f) ? 230 : 77))), C).flicker.ok, false);
   });
 
   test('a strobe on a small top-level group alone is a warning, not a block', () => {
@@ -183,6 +195,13 @@ describe('analyzeFrames', () => {
     const red = analyze(parseFseq(bake(C, 0.5, () => [255, 0, 0])), C);
     assert.equal(red.peakBrightness, 0.333);
     assert.equal(red.estPeakAmps, 2);
+    // In the LEDs' light (v^2.2): half the code is about a fifth of the light, and 0.06 is dark.
+    const grey = analyze(parseFseq(bake(C, 0.5, () => gray(128))), C);
+    assert.equal(grey.peakBrightness, 0.22);
+    assert.equal(grey.meanBrightness, 0.22);
+    assert.equal(grey.estPeakAmps, 1.3);
+    assert.equal(grey.darkFraction, 0);
+    assert.equal(analyze(parseFseq(bake(C, 0.5, () => gray(15))), C).darkFraction, 1);
     // A file holding only universe 1 leaves the spire's channels out (and dark).
     const part = writeFseq({ frames: 1, data: new Uint8Array(285).fill(255), ranges: [[0, 285]] });
     const a = analyze(parseFseq(part), C);
@@ -212,24 +231,24 @@ describe('flicker on the Folly: large regions block, small ones warn', () => {
     return analyze(parseFseq(bake(real, 2, (f, k) => (inside.has(k) ? gray(square(8)(f)) : gray(40)))), real);
   };
 
-  test('large: ≥ 10 % of the LEDs, or ≥ 10 % of the lit area from the front or side', () => {
+  test('large: ≥ 25 % of the LEDs, or ≥ 25 % of the lit area from the front or side', () => {
     const verdict = (id) => {
       const a = strobeOn(id);
       return !a.flicker.ok ? 'blocks' : a.flicker.small.regions.length ? 'warns' : 'passes';
     };
     const ids = ['arches', 'spires', 'spirelets', 'rose-window', 'canopy', 'wash'];
     assert.deepEqual(Object.fromEntries(ids.map((id) => [id, verdict(id)])), { arches: 'blocks', spires: 'blocks',
-      spirelets: 'warns', 'rose-window': 'blocks', canopy: 'blocks', wash: 'warns' });
+      spirelets: 'warns', 'rose-window': 'warns', canopy: 'blocks', wash: 'warns' });
   });
 
-  test('the 20 spirelets strobing: a warning the curator sees; the rose window strobing: blocked', () => {
+  test('the 20 spirelets or the rose window strobing: a warning the curator sees', () => {
     const spirelets = strobeOn('spirelets');
     assert.equal(spirelets.flicker.ok, true);
     assert.deepEqual(spirelets.flicker.small.regions, ['spirelets']);
     assert.match(flickerWarning(spirelets), /small parts only \(spirelets\)/);
     const rose = strobeOn('rose-window');
-    assert.equal(rose.flicker.ok, false, 'a 6 m disc facing the playa is a large area');
-    assert.deepEqual(rose.flicker.regions, ['rose-window']);
+    assert.equal(rose.flicker.ok, true, 'a 6 m disc is under a quarter of the rig, front or side');
+    assert.deepEqual(rose.flicker.small.regions, ['rose-window']);
   });
 });
 
@@ -280,26 +299,26 @@ describe('flash check on looks: a wave a second is fine, a strobe is not', () =>
 });
 
 describe('the flash check\'s settings', () => {
-  test('from the environment: WCAG\'s by default, each limit only in range, and off for local use', () => {
-    const wcag = { check: true, perSecond: 3, delta: 0.1, darker: 0.8, area: 0.1 };
-    assert.deepEqual(flashSettings({}), wcag);
+  test('from the environment: FLASH by default, each limit only in range, and off for local use', () => {
+    const defaults = { check: true, perSecond: 3, delta: 0.5, darker: 0.8, area: 0.25 };
+    assert.deepEqual(flashSettings({}), defaults);
     const env = (perSecond, delta, area) => ({ STUDIO_FLASH_PER_SECOND: perSecond, STUDIO_FLASH_DELTA: delta,
       STUDIO_FLASH_AREA: area });
-    assert.deepEqual(flashSettings(env('5', '0.2', '.25')), { ...wcag, perSecond: 5, delta: 0.2, area: 0.25 });
-    assert.deepEqual(flashSettings(env('lots', '0', '7')), wcag);
+    assert.deepEqual(flashSettings(env('5', '0.2', '.1')), { ...defaults, perSecond: 5, delta: 0.2, area: 0.1 });
+    assert.deepEqual(flashSettings(env('lots', '0', '7')), defaults);
     assert.equal(flashSettings({ STUDIO_FLASH_CHECK: 'off' }).check, false);
     assert.equal(flashSettings({ STUDIO_FLASH_CHECK: 'on' }).check, true);
   });
 
   test('checked frames use them; with the check off, large-area flashing is only a warning', () => {
     const bytes = bake(C, 2, (f) => gray(square(4)(f)));
-    const wcag = checkFrames(bytes, { source: 'render-box', rig: C, flash: flashSettings({}) }).bake;
-    assert.equal(wcag.ok, false);
-    assert.match(wcag.reason, /up to 4 flashes a second \(over 3 /);
+    const strict = checkFrames(bytes, { source: 'render-box', rig: C, flash: flashSettings({}) }).bake;
+    assert.equal(strict.ok, false);
+    assert.match(strict.reason, /up to 4 flashes a second \(over 3 /);
     const relaxed = checkFrames(bytes, { source: 'render-box', rig: C,
       flash: flashSettings({ STUDIO_FLASH_PER_SECOND: '4' }) }).bake;
     assert.equal(relaxed.ok, true);
-    assert.deepEqual(relaxed.analysis.flicker.limits, { perSecond: 4, delta: 0.1, area: 0.1 });
+    assert.deepEqual(relaxed.analysis.flicker.limits, { perSecond: 4, delta: 0.5, area: 0.25 });
     const off = checkFrames(bytes, { source: 'render-box', rig: C,
       flash: flashSettings({ STUDIO_FLASH_CHECK: 'off' }) }).bake;
     assert.equal(off.ok, true);

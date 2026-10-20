@@ -32,7 +32,7 @@ const results = workerData.names.map((n) => {
     errors += next().length;
     data.set(packed, f * packed.length);
   }
-  const { flicker } = analyzeFrames(parseFseq(writeFseq({ frames, data, ranges })), scene, watch);
+  const { flicker } = analyzeFrames(parseFseq(writeFseq({ frames, data, ranges })), scene, watch, core.ledLight());
   return { name, ok: flicker.ok, maxHz: flicker.maxHz, small: flicker.small.regions, errors };
 });
 parentPort.postMessage(results);

@@ -375,7 +375,7 @@ characters), `layerModules(layer) → modules`
 (a legacy layer → one source), `compileLayer(layer) → compiled[]` (throws `title: error`), `setLibrary([{ name,
 code }])`, `prepareScene(rig) → scene` (throws on a malformed rig), `groupsByTag(scene, tag) → [group]` (outermost
 first), `pixelsForGroups(scene, ids, tags?) → Int32Array` (a layer's rule above), `tagMask(scene, tag) → Uint8Array`,
-`tagCentres(scene, tag) → [[X, Y, Z]]`, `FLASH` (WCAG's limits), `flashLimits(partial?) → limits` and
+`tagCentres(scene, tag) → [[X, Y, Z]]`, `FLASH` (the default limits), `ledLight(correction?) → Float32Array(768)` (each output byte's light per colour), `flashLimits(partial?) → limits` and
 `new FlashWatch(scene, limits?, { record? })` (Baked frames, Checks), `prepareLayer(scene, layer, compiled | compiled[])
 → prepared`
 (keeps `normalizeClips(layer.clips)`; a chain with spatial modules or `soften` gets its stage buffers here),
@@ -619,19 +619,23 @@ marks the look reviewed.
   start at frame 0 and ascend, its lengths fill the data exactly, frames × channels ≤
   maxDataBytes before anything is inflated, and each block inflate to exactly its frames, so a
   decompression bomb is refused. Empty index entries may only pad its end (FPP preallocates).
-  `analyzeFrames(parsed, scene, watch)` (the core's `prepareScene(rig)` and a recording `FlashWatch`; frames.ts
-  imports only types, so the Fleet box runs a copy) → `{ frames, seconds, fps, peakBrightness, meanBrightness,
-  darkFraction, estPeakAmps (20 mA/channel at 5 V), coverage, flicker: { maxHz, flaggedSeconds,
-  regions, ok, small: { maxHz, flaggedSeconds, regions }, limits: { perSecond, delta, area } } }`.
-  Flicker (`core/flash.ts`, which the preview's guard runs too): WCAG 2.3.1 general flash, a flash being a pair of
-  opposing swings of ≥ `delta` relative luminance (0.1) with the darker side < 0.8, over `perSecond` (3) in any
-  1 s. The whole rig and each top-level group watch their mean for swings; each swing is credited to the parts
-  that made it (the group's LEDs in each grid cell 1/32 of the bounds' diagonal that changed by `delta` themselves
-  between its extremes) and is large when they cover ≥ `area` (0.1) of the LEDs, or of the lit cells seen from the
+  `analyzeFrames(parsed, scene, watch, light)` (the core's `prepareScene(rig)`, a recording `FlashWatch` and
+  `ledLight()`; frames.ts imports only types, so the Fleet box runs a copy) → `{ frames, seconds, fps, peakBrightness,
+  meanBrightness, darkFraction, estPeakAmps (20 mA/channel at 5 V), coverage, flicker: { maxHz, flaggedSeconds,
+  regions, ok, small: { maxHz, flaggedSeconds, regions }, limits: { perSecond, delta, area } } }`. All of it is in
+  the LEDs' light: each byte is decoded by the output correction (`v^gamma`, Output) first, so brightness, power
+  and darkness (every channel under 1 % of its light) are what the LEDs give, not the colour values.
+  Flicker (`core/flash.ts`, which the preview's guard runs too, on the same light): WCAG 2.3.1's general flash rate
+  on big swings only, a flash being a pair of opposing swings of ≥ `delta` (0.5: half the light; WCAG's is 0.1)
+  with the darker side < 0.8, over `perSecond` (3) in any 1 s. An LED's light here is its brightest channel, not
+  its luminance, so a full red, blue or orange strobe is a full swing (saturated red flashing is a known trigger:
+  WCAG's red flash rule). The whole rig and each top-level
+  group watch their mean for swings; each swing is credited to the parts that made it (the group's LEDs in each
+  grid cell 1/32 of the bounds' diagonal that changed by `delta` themselves between its extremes) and is large when they cover ≥ `area` (0.25) of the LEDs, or of the lit cells seen from the
   front or the side. Flashes are counted per cell (a later change of direction), so a wave crossing the rig flashes
   each place once a pass. Flashing over the limit on a large area fails `ok` (`regions`: the top-level groups where);
-  elsewhere alone (on the real map: spirelets, wash) it goes to `small`, a warning. The limits come from
-  `STUDIO_FLASH_PER_SECOND`, `_DELTA` and `_AREA` (`flashSettings(env)`, `src/box-output.ts`; WCAG's when unset or
+  elsewhere alone (on the real map: spirelets, rose window, wash) it goes to `small`, a warning. The limits come from
+  `STUDIO_FLASH_PER_SECOND`, `_DELTA` and `_AREA` (`flashSettings(env)`, `src/box-output.ts`; `FLASH` when unset or
   out of range); `STUDIO_FLASH_CHECK=off` (local use, never a public server) still measures, but large-area
   flashing only warns.
 - **Stored.** `<STUDIO_DATA>/frames/<lookId>.fseq` and `look.bake = { source, status:

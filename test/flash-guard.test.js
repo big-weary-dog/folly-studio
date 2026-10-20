@@ -1,13 +1,14 @@
 // public/js/flash-guard.ts: the Studio's live flash guard reaches the same verdicts as the bake check
-// (src/frames.ts) on the Folly's rig, with the same limits: large-area flashing over three a second dims the
-// preview; slow change, small shimmer, flashing on small regions alone and a wave crossing the building do not.
+// (src/frames.ts) on the Folly's rig, with the same limits, in the light the LEDs give: big swings over a large area,
+// over three a second, dim the preview; slow change, small swings, flashing on small regions alone and a wave crossing
+// the building do not.
 import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
 import { FlashGuard } from '../public/js/flash-guard.ts';
 import { ledRanges, writeFseq } from '../public/js/fseq.ts';
-import { FlashWatch, pixelsForGroups, prepareScene, tagCentres } from '../public/js/pattern-core.ts';
+import { FlashWatch, ledLight, pixelsForGroups, prepareScene, tagCentres } from '../public/js/pattern-core.ts';
 import { analyzeFrames, parseFseq } from '../src/frames.ts';
 import { folly as rig } from './fixtures/rigs.js';
 
@@ -23,10 +24,12 @@ const square = (hz) => (t) => (Math.floor(t * hz * 2) % 2 ? 0 : 1);
 const [O] = tagCentres(scene, 'rose');
 const far = Float64Array.from({ length: N },
   (_, k) => Math.hypot(scene.X[k] - O[0], scene.Y[k] - O[1], scene.Z[k] - O[2]));
+const rgbOf = (v) => (typeof v === 'number' ? [v, v, v] : v);
+const colourStrobe = (c) => (t) => (square(5)(t) ? c : [0, 0, 0]);
 const burst = (hz) => (t, k) => Math.exp(-(((far[k] - 25 * ((t * hz) % 1)) / 1.5) ** 2));
 
 /**
- * Both verdicts for `seconds` of a look: level(t, k) → 0..1 grey. The guard sees frames at `fps`
+ * Both verdicts for `seconds` of a look: level(t, k) → 0..1 grey, or [r, g, b]. The guard sees frames at `fps`
  * (what a slow preview shows); the bake check sees 40 fps.
  */
 function verdicts(level, { seconds = 3, fps = 40, limits } = {}) {
@@ -35,7 +38,7 @@ function verdicts(level, { seconds = 3, fps = 40, limits } = {}) {
   let dimmed = false;
   for (let f = 0; f < seconds * fps; f++) {
     const t = f / fps;
-    for (let k = 0; k < N; k++) rgb.fill(level(t, k), 3 * k, 3 * k + 3);
+    for (let k = 0; k < N; k++) rgb.set(rgbOf(level(t, k)), 3 * k);
     dimmed = guard.observe(rgb, t * 1000) || dimmed;
   }
   const ranges = ledRanges(rig);
@@ -46,12 +49,12 @@ function verdicts(level, { seconds = 3, fps = 40, limits } = {}) {
   for (let f = 0; f < frames; f++) {
     for (let k = 0; k < N; k++) {
       const a = scene.addr[k];
-      const v = Math.round(level(f / 40, k) * 255);
-      data[f * cc + at[a]] = data[f * cc + at[a + 1]] = data[f * cc + at[a + 2]] = v;
+      const c = rgbOf(level(f / 40, k));
+      for (let i = 0; i < 3; i++) data[f * cc + at[a + scene.order[i]]] = Math.round(c[i] * 255);
     }
   }
   const watch = new FlashWatch(scene, limits, { record: true });
-  const blocked = !analyzeFrames(parseFseq(writeFseq({ frames, data, ranges })), scene, watch).flicker.ok;
+  const blocked = !analyzeFrames(parseFseq(writeFseq({ frames, data, ranges })), scene, watch, ledLight()).flicker.ok;
   return { dimmed, blocked };
 }
 
@@ -64,12 +67,20 @@ describe('the Studio flash guard', () => {
       'white strobe, 3 Hz (WCAG allows three)': [(t) => square(3)(t), false],
       'slow breathe, 0.5 Hz': [(t) => 0.5 - 0.5 * Math.cos(Math.PI * t), false],
       'bright shimmer above 0.8': [(t) => (Math.floor(t * 40) % 2 ? 1 : 0.86), false],
-      'rose window strobe, 8 Hz': [(t, k) => (inRose(k) ? square(8)(t) : 0.15), true],
+      'rose window strobe, 8 Hz (under a quarter of the rig)': [(t, k) => (inRose(k) ? square(8)(t) : 0.15), false],
+      'dim flicker 0.20 ↔ 0.35, 5 Hz (LEDs 3 % ↔ 10 %)': [(t) => (square(5)(t) ? 0.35 : 0.2), false],
+      'bright flicker 0.90 ↔ 0.99, 5 Hz (LEDs 79 % ↔ 98 %: a swing under half)': [(t) => (square(5)(t) ? 0.99 : 0.9),
+        false],
+      'mid strobe 0.3 ↔ 0.9, 5 Hz (LEDs 7 % ↔ 79 %)': [(t) => (square(5)(t) ? 0.9 : 0.3), true],
+      // An LED's light is its brightest channel, so a full colour strobe is a full swing, however low its luminance.
+      'red strobe, 5 Hz': [colourStrobe([1, 0, 0]), true],
+      'blue strobe, 5 Hz': [colourStrobe([0, 0, 1]), true],
+      'orange strobe, 5 Hz': [colourStrobe([1, 0.5, 0]), true],
       'spirelets strobe, 8 Hz (a small region: a warning only)': [(t, k) => (inSpirelets(k) ? square(8)(t) : 0.15),
         false],
       'a burst from the rose, 1 Hz': [burst(1), false],
       'a burst from the rose, 2 Hz (crossing arches and spires in turn)': [burst(2), false],
-      'a burst from the rose, 5 Hz': [burst(5), true],
+      'a burst from the rose, 5 Hz (a thin shell: under a quarter of the rig at once)': [burst(5), false],
     };
     for (const [name, [level, expected]] of Object.entries(cases)) {
       const { dimmed, blocked } = verdicts(level);
@@ -82,11 +93,13 @@ describe('the Studio flash guard', () => {
     const strobe4 = (t) => square(4)(t);
     assert.deepEqual(verdicts(strobe4, { limits: { perSecond: 5 } }), { dimmed: false, blocked: false });
     const rose = (t, k) => (inRose(k) ? square(8)(t) : 0.15);
-    assert.deepEqual(verdicts(rose, { limits: { area: 0.5 } }), { dimmed: false, blocked: false },
-      'the rose is under half the rig');
-    const dim = (t) => 0.3 + 0.15 * square(5)(t);
-    assert.deepEqual(verdicts(dim), { dimmed: true, blocked: true });
-    assert.deepEqual(verdicts(dim, { limits: { delta: 0.2 } }), { dimmed: false, blocked: false });
+    assert.deepEqual(verdicts(rose, { limits: { area: 0.1 } }), { dimmed: true, blocked: true },
+      'the rose is over a tenth of the rig');
+    // WCAG's 10 % swings, judged in LED light: the bright flicker swings 0.19, the dim one 0.07.
+    const wcag = { delta: 0.1, area: 0.1 };
+    assert.deepEqual(verdicts((t) => (square(5)(t) ? 0.99 : 0.9), { limits: wcag }), { dimmed: true, blocked: true });
+    assert.deepEqual(verdicts((t) => (square(5)(t) ? 0.35 : 0.2), { limits: wcag }),
+      { dimmed: false, blocked: false });
   });
 
   test('a slow preview still catches a strobe it can see, and lets go after it stops', () => {
