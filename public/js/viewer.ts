@@ -6,16 +6,10 @@
 import type { Rig } from '../../shared/schemas/rig.ts';
 import type { Playa } from './playa/renderer.ts';
 import type { Venue, VenueGL } from './playa/venue.ts';
+import { basis, type Cam, clearLens, DEG, fitView, type View, viewToCam } from './viewer-camera.ts';
 import { draw, initGL, type Program, upload } from './viewer-gl.ts';
 import { bindInput, type Drag } from './viewer-input.ts';
 
-/** A camera as td/config/views.json and a rig's `views` give it. */
-export type View = { Target?: number[]; Distance?: number; Angle?: number; Elevation?: number; Fov?: number;
-  Eyelock?: boolean };
-type Cam = { target: number[]; distance: number; angle: number; elevation: number; fov: number };
-
-const DEG = Math.PI / 180;
-const EYE_HEIGHT = 1.7;      // folly_view's default Eye Height for Eyelock views
 const MIN_EYE_Y = 0.25;      // keep the camera above the playa
 const MAX_ELEV = 89;
 const TWEEN_S = 0.9;
@@ -24,16 +18,6 @@ const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 /** A phone: a touch screen under the Studio's narrow width, where the preview draws its lightest. */
 export const isPhone = () => matchMedia('(pointer: coarse) and (max-width: 899px)').matches;
-/** Forward, right and up for an angle and elevation in degrees. */
-function basis(angle: number, elevation: number) {
-  const a = angle * DEG, e = elevation * DEG;
-  const fwd = [Math.cos(e) * Math.cos(a), -Math.sin(e), -Math.cos(e) * Math.sin(a)];
-  const right = [Math.sin(a), 0, Math.cos(a)];
-  const up = [right[1] * fwd[2] - right[2] * fwd[1], right[2] * fwd[0] - right[0] * fwd[2],
-    right[0] * fwd[1] - right[1] * fwd[0]]; // right × forward
-  return { fwd, right, up };
-}
-
 /** The light left on LEDs outside a highlight, and outside a focus (a layer's groups being picked). */
 export const HI_DIM = 0.22, FOCUS_DIM = 0.02;
 
@@ -51,6 +35,10 @@ export class Viewer {
   onViewChange?: (name: string | null) => void; onRender?: (mode: 'playa' | 'points', tier?: string) => void;
   // insetTop: CSS px at the top kept clear for buttons over the view; views frame the rest.
   options = { ghost: 0.14, size: 0.42, gain: 1, insetTop: 0 };
+  // clear: CSS px of the canvas a dialog leaves clear (setClear); the lens eases views' centre there and back.
+  clear: { x: number; y: number; w: number; h: number } | null = null;
+  _before: { name: string | null; view: View } | null = null; _lensFrom = [0, 0]; _lensT = 1; _lensV = [0, 0, 1, 1];
+  _lensNow = [0, 0];
   cam: Cam = { target: [0.9, 9.3, -0.4], distance: 42, angle: 25, elevation: 12, fov: 45 };
   viewProj = new Float32Array(16); _proj = new Float32Array(16); _view = new Float32Array(16);
   _eyeV = [0, 0, 0]; _up = [0, 1, 0];
@@ -252,25 +240,47 @@ export class Viewer {
     this.invalidate();
   }
 
-  /** On "fit", frame the cathedral again (after a resize or a new inset). */
+  /** On "fit", frame the cathedral again (after a resize, a new inset or a new clear rect). */
   _refit() { if (this.currentView === 'fit' && !this.drag) this.setView('fit', { animate: false }); }
 
-  /** A view with every LED inside this canvas. */
+  /** A view with every LED inside this canvas' frame, or the part of it `clear` leaves. */
   _fitView(angle = 28, elevation = 9, fov = 50): View | null {
-    const b = this.bounds, P = this.positions;
-    if (!b || !P) return null;
-    const target = [0, 1, 2].map((i) => (b.min[i] + b.max[i]) / 2);
+    if (!this.bounds || !this.positions) return null;
     const tanV = Math.tan(this._vfov(fov) / 2), tanH = tanV * (this.canvas.width / this._frameH() || 16 / 9);
-    const { fwd, right, up } = basis(angle, elevation);
-    let d = 5;
-    for (let i = 0; i < P.length; i += 3) {
-      const ox = P[i] - target[0], oy = P[i + 1] - target[1], oz = P[i + 2] - target[2];
-      const of = ox * fwd[0] + oy * fwd[1] + oz * fwd[2];
-      const or = ox * right[0] + oz * right[2];
-      const ou = ox * up[0] + oy * up[1] + oz * up[2];
-      d = Math.max(d, Math.abs(or) / tanH - of, Math.abs(ou) / tanV - of);
+    const l = this._clearLens();
+    return fitView(this.positions, this.bounds, tanH, tanV, l[2], l[3], angle, elevation, fov);
+  }
+
+  /** Views centre in `rect` (CSS px of the canvas: what a dialog over it leaves clear), and Fit fills it. The first
+   * rect frames the rig there; null goes back to the view from before, unless the camera was moved meanwhile. */
+  setClear(rect: Viewer['clear'], { animate = true } = {}) {
+    const was = this.clear, back = this._before, now = this._lens();
+    this._lensFrom[0] = now[0]; this._lensFrom[1] = now[1];
+    this.clear = rect;
+    this._lensT = animate && !this.reduced.matches ? 0 : 1;
+    if (rect && !was) {
+      const c = this.tween?.to || this.cam;
+      this._before = { name: this.currentView ?? null, view: { Target: [...c.target], Distance: c.distance,
+        Angle: c.angle, Elevation: c.elevation, Fov: c.fov } };
+      this.setView('fit', { animate });
+    } else if (rect) {
+      if (this.currentView === 'fit' && !this.drag) this.setView('fit', { animate });
+    } else if (back) {
+      this._before = null;
+      if (this.currentView === 'fit') this.setView(back.name ?? back.view, { animate });
     }
-    return { Target: target, Distance: d * 1.06, Angle: angle, Elevation: elevation, Fov: fov, Eyelock: false };
+    this.invalidate();
+  }
+
+  _clearLens(out = this._lensV) {
+    return clearLens(this.clear, this.canvas.width / this.dpr, this.options.insetTop, this._frameH() / this.dpr, out);
+  }
+
+  /** Where views centre now, in the frame's NDC (viewer-gl.ts shifts the lens there). */
+  _lens(out = this._lensNow) {
+    const g = this._clearLens(), f = this._lensFrom, k = ease(this._lensT);
+    out[0] = lerp(f[0], g[0], k); out[1] = lerp(f[1], g[1], k);
+    return out;
   }
 
   resetView() { this.setView(this.defaultView || 'fit'); }
@@ -362,13 +372,14 @@ export class Viewer {
       ine.vx *= decay; ine.vy *= decay;
       if (Math.hypot(ine.vx, ine.vy) < 0.05) this.inertia = null;
     }
+    if (this._lensT < 1) { this._lensT = Math.min(1, this._lensT + dt / TWEEN_S); this.dirty = true; }
     if (this.dirty && this.ok) {
       this.dirty = false;
       const playa = this.mode === 'playa' && this.playa;
       if (playa) playa.draw(); else draw(this);
       if (playa) playa.sample(performance.now() - this._asked);   // asked to drawn: the GPU's backlog shows here
     }
-    if (this.tween || this.inertia) this.invalidate();
+    if (this.tween || this.inertia || this._lensT < 1) this.invalidate();
   }
 }
 
@@ -379,16 +390,4 @@ export function frameOf(axes: Partial<Record<'up' | 'front' | 'right', string>> 
   const f = ax(axes.front, [0, -1]), map = [[f[0], -f[1]], ax(axes.up, [1, 1]), ax(axes.right, [2, 1])];
   const m = new Set(map.map((a) => a[0])).size === 3 ? map : [[0, 1], [1, 1], [2, 1]];
   return (p: ArrayLike<number>, o = 0) => m.map(([i, sign]) => sign * p[o + i]);
-}
-
-/** Views from views.json → orbit state. Eyelock views stand at eye height. */
-function viewToCam(v: View): Cam {
-  const target = [...(v.Target || [0.9, 9.3, -0.4])];
-  const d = v.Distance ?? 40, angle = v.Angle ?? 0, fov = v.Fov ?? 45;
-  if (v.Eyelock) {
-    const dy = EYE_HEIGHT - target[1];
-    const flat = Math.sqrt(Math.max(d * d - dy * dy, 0.25));
-    return { target, distance: Math.hypot(flat, dy), angle, elevation: Math.atan2(dy, flat) / DEG, fov };
-  }
-  return { target, distance: d, angle, elevation: v.Elevation ?? 0, fov };
 }

@@ -215,12 +215,14 @@ export function buildGrid(v: Viewer) {
 }
 
 /** v.viewProj (and v._proj, v._view, v._eyeV) for this frame. The frame is the canvas below the inset: a lens
- * shift moves its centre down, same scale. */
+ * shift moves its centre down, same scale, and on to the middle of what a dialog leaves clear (v._lens). */
 export function camera(v: Viewer) {
   const W = v.canvas.width, H = v.canvas.height, vfov = v._vfov(), Hf = v._frameH();
   perspective(v._proj, vfov, W / Hf, 0.05, 900);
   v._proj[5] *= Hf / H;
-  v._proj[9] = (H - Hf) / H;
+  const lens = v._lens();
+  v._proj[8] = -lens[0];
+  v._proj[9] = (H - Hf - lens[1] * Hf) / H;
   lookAt(v._view, v._eye(), v.cam.target, v._up);
   multiply(v.viewProj, v._proj, v._view);
   return { vfov, Hf };

@@ -6,6 +6,8 @@
 // Add a layer also picks where the new layer plays: the groups tree beside the list (on a phone, behind its Plays on
 // button), starting on the whole rig. The audition plays on those groups, the view dims the rest as the Groups drawer
 // does, and picking gives them to the new layer; closing forgets them.
+// While either is open the 3D view frames the rig in the biggest part of it the shelf leaves clear (on a phone's
+// sheet, only once there is room: while previewing or picking groups), and closing puts the view back.
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 import type { Module } from '../../../shared/schemas/look.ts';
@@ -36,6 +38,17 @@ const remembered = (mode: string): Tab | null => {
 const remember = (mode: string, tab: Tab) => {
   try { sessionStorage.setItem(`shelf-${mode}`, tab); } catch { /* storage off: the default next time */ }
 };
+
+/** The biggest part of the canvas the dialog leaves clear, in CSS px of the canvas; null when it is too small. */
+function clearOf(canvas: HTMLElement, dlg: HTMLElement) {
+  const c = canvas.getBoundingClientRect(), d = dlg.getBoundingClientRect(), W = c.width, H = c.height;
+  const at = (v: number, max: number) => Math.round(Math.min(max, Math.max(0, v)));
+  const l = at(d.left - c.left, W), r = at(d.right - c.left, W), t = at(d.top - c.top, H), b = at(d.bottom - c.top, H);
+  const parts = r > l && b > t ? [{ x: 0, y: 0, w: l, h: H }, { x: r, y: 0, w: W - r, h: H },
+    { x: 0, y: 0, w: W, h: t }, { x: 0, y: b, w: W, h: H - b }] : [{ x: 0, y: 0, w: W, h: H }];
+  const best = parts.reduce((a, p) => (p.w * p.h > a.w * a.h ? p : a));
+  return best.w >= 120 && best.h >= 120 ? { ...best, w: Math.round(best.w), h: Math.round(best.h) } : null;
+}
 
 /** The audition: the look the app sent is kept, and put back unless something was picked. */
 export function auditioner({ pv, layer, moduleId, layers }: Partial<Audition> = {}) {
@@ -90,15 +103,30 @@ export function openShelf({ library, onPick, audition, mode, st }: { library: Li
     onClose: () => {
       if (!picked) A.now(null);
       if (where) where.newGroups.value = where.hoverGroup.value = where.pinnedGroup.value = null;
+      audition?.pv.viewer?.setClear(null);
     }, body: (close) => {
       const [tried, setTried] = useState<Entry | null>(null), [query, setQuery] = useState('');
       const [groups, setGroups] = useState(() => [root!]), [placing, setPlacing] = useState(false);
       const [tab, setTab] = useState<Tab>(() => tabs.find(([t]) => t === remembered(mode))?.[0] ?? tabs[0][0]);
       const hovered = useRef<Entry | null>(null), bar = useRef<HTMLDivElement>(null);
+      const reframe = useRef<(animate: boolean) => void>(() => {});
+      useLayoutEffect(() => {
+        const v = audition?.pv.viewer, d = bar.current?.closest('dialog');
+        if (!v || !d) return;
+        let last = '';
+        reframe.current = (animate) => {
+          const r = clearOf(v.canvas, d), key = JSON.stringify(r);
+          if (key !== last) { last = key; v.setClear(r, { animate }); }
+        };
+        const ro = new ResizeObserver(() => reframe.current(false));     // a resize keeps the framing, at once
+        ro.observe(d); ro.observe(v.canvas);
+        return () => ro.disconnect();
+      }, []);
       useLayoutEffect(() => {
         const d = bar.current?.closest('dialog');
         d?.classList.toggle('is-trying', !!tried);
         d?.classList.toggle('is-placing', placing);
+        reframe.current(true);
       }, [tried, placing]);
       const pick = (e: Entry) => { picked = true; A.drop(); close(); onPick(e, where ? groups : undefined); };
       const regroup = (g: string[]) => { setGroups(g); A.regroup(g); if (where) where.newGroups.value = g; };

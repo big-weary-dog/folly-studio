@@ -134,7 +134,9 @@ another installation writes its own (CONTRIBUTING "Adding a new installation").
 `new Viewer(canvas, { views, defaultView, onError })`; `setRig(rig)` maps the rig's axes onto the view frame (x
 front → back, y up, z left → right) for positions, bounds and views; `setColors(rgb)` takes each frame as the
 sandbox or the baked frames give it (count × 3, 0..1); `setHighlight(mask)`, `setView(name)`, `setOption(key, v)`
-(`ghost`, `gain` from the flash guard, `insetTop`). It draws only when something changed. Two modes,
+(`ghost`, `gain` from the flash guard, `insetTop`), `setClear(rect)` (the part of the canvas a dialog leaves clear,
+CSS px: views centre there by a lens shift and Fit fills it; the first rect eases to Fit, null eases back to the view
+from before unless the camera moved meanwhile). It draws only when something changed. Two modes,
 `setMode('playa' | 'points')` (resolves to the mode shown; the Studio remembers it in `studio.render`, default
 Playa; the view's LEDs button is Points):
 

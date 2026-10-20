@@ -110,7 +110,9 @@ warp goes after what it bends. Per pixel it is one pass with no intermediate buf
 and stays cheap on a phone: each module reads one of a few copies of the pixel, bent from the bottom up. 42 library
 modules (24 sources, 10 warps, 8 filters) and 22 presets fill the pickers, by kind in one-line rows; hovering one (on
 a phone, ▶) auditions it in the 3D view without saving anything. Add a layer shows the groups tree beside its list, so
-a module or preset is tried where it will play, the rest dimmed, before it is added there.
+a module or preset is tried where it will play, the rest dimmed, before it is added there. While a picker is open the
+3D view frames the whole rig, centred, in the part of it the picker leaves clear (beside it; on a phone, above the
+sheet once there is room), and closing it eases back to the view from before.
 
 **One idea a module.** The library is single ideas that chains combine. A source that carried a bed, a second motion,
 a built-in warp or its own envelope became a **preset**, a recipe of layers of modules in the index (Starfield is
