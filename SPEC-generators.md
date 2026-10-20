@@ -138,8 +138,8 @@ changes (a file that does not parse is reported, and the last good one kept):
 `claude-opus-5-5`); `effort` one of the transport's (`claude`: low–max; `codex`: minimal–xhigh); `critique` turns on
 the critique round (Generators; `claude` and `codex` only); `roles` who may
 pick it (none: everyone); `concurrency` the jobs at once per transport (defaults claude 4, codex 2, sketch 4; the
-foundry always 1). The defaults: Opus (`claude-opus-5-5`, medium, the default), Sol (`gpt-6.1-sol`, low) and Luna
-(`gpt-6-luna`, low) through `codex`, and Sketch. A model can run when its transport can: `claude` with
+foundry always 1). The defaults: Opus (`claude-opus-5-5`, medium, the default; no critique), Sol (`gpt-6.1-sol`, low,
+critique `images`) and Luna (`gpt-6-luna`, low, critique `text`) through `codex`, and Sketch. A model can run when its transport can: `claude` with
 `ANTHROPIC_API_KEY`, `codex` with the CLI on PATH (`STUDIO_CODEX_BIN`; `warn` when no login is seen), `fleet` with
 `STUDIO_FOUNDRY=on`, `sketch` always. The idea form offers the models that are on, offered to the user's role and
 able to run, starting on the default when it is one of them (else the first); an account that may not use the paid
