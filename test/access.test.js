@@ -174,7 +174,7 @@ describe('access', () => {
     assert.equal(made.json.idea.explore, 'deep');
     finish(mo);
     assert.equal((await mo.get('/api/me')).json.access.left.hour, 4 - DEEP.uses);
-    assert.equal((await idea(mo)).status, 201);
+    assert.equal((await idea(mo)).json.idea.explore, 'quick', 'an idea that asks nothing is Quick');
     finish(mo);
     const refused = await deep('the spires answering');
     assert.equal(refused.status, 429);

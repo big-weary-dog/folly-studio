@@ -37,7 +37,7 @@ export const IdeaBody = z.object({
   /** A model id (shared/schemas/models.ts); none: the registry's default. */
   model: z.string({ error: 'model must name one of the models.' })
     .max(32, { error: 'model must name one of the models.' }).optional(),
-  explore: z.enum(EXPLORE, { error: 'explore must be quick, explore or deep.' }).default('explore'),
+  explore: z.enum(EXPLORE, { error: 'explore must be quick, explore or deep.' }).default('quick'),
 });
 /** POST /api/looks/:id/refine: the change asked for; or a critique, or a runtime error to fix, with no text. */
 export const RefineBody = z.object({

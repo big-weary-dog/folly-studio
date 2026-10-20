@@ -76,7 +76,7 @@ without errors. It is part of the idea (no use), skipped when the idea has alrea
 as `-i` attachments.
 
 **Explore** (`claude`, `codex`; `src/generate/explore.ts`). A new idea (not a refinement) asks for one of three
-levels, `explore: 'quick' | 'explore' | 'deep'` (default `explore`; an idea that names none is Quick):
+levels, `explore: 'quick' | 'explore' | 'deep'` (default `quick`, as is an idea that names none):
 - **Quick**: the rounds above, at the model's own effort.
 - **Explore**: effort raised to at least `high`. First a sketch turn in its own small schema (no look, no docs):
   three takes that differ in which part of the installation leads (each other part answering in its own voice, never

@@ -380,7 +380,7 @@ POST   /api/ideas    { text, model?, explore? } → { idea }           queued fo
                                               default this user gets); 400 when it is unknown, off, not offered
                                               to their role, or cannot run here; 403 { error, access } when it is
                                               paid and the account is locked; 429 { error, access } + Retry-After
-                                              at a limit (SPEC "Access"); `explore` quick | explore (default) |
+                                              at a limit (SPEC "Access"); `explore` quick (default) | explore |
                                               deep, kept on a prompted model's idea (SPEC-generators "Explore");
                                               403 for deep while it is admins' only
 POST   /api/looks/:id/refine { text?, model?, critique?, fix?: { layer, error } } → 201 { idea }  owner only: a
