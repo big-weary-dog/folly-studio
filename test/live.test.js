@@ -8,6 +8,7 @@ import WebSocket from 'ws';
 
 import { MAX_LANES } from '../public/js/pattern-core.ts';
 import * as twin from '../public/js/ui/live/lanes.ts';
+import { meter } from '../src/live/hub.ts';
 import { liveSettings, playableLook } from '../src/live/routes.ts';
 import { applySet, emptyLive, LEAD_MS, RAMP, roll, showTime, switchTo } from '../src/live/state.ts';
 import { fakeBox, fx, layer, signup, startApp, useFixture } from './fixtures/server.js';
@@ -116,6 +117,23 @@ describe('live state', () => {
     assert.deepEqual(c.find((x) => x.name === 'level'), { name: 'level', min: 0, max: 1, value: 0.25, held: true });
     assert.equal(c.find((x) => x.name === 'speed').value, 1.5);
     assert.deepEqual(c.find((x) => x.name === 'swell'), { name: 'swell', min: 0, max: 4, value: 1, held: false });
+    const next = twin.controlsNow(live, live.startedAt + 10_500).find((x) => x.name === 'level');
+    assert.equal(next.value, 0.25, 'into the next loop with no update: the pushed value, held');
+    assert.equal(live.loop, 1);
+  });
+
+  test('a flood closes however it is spaced; a steady sender just over the rate never does', () => {
+    const run = (n, gap) => {
+      const c = { tokens: 60, at: 0, over: 0, warned: false }, seen = [];
+      for (let i = 0; i < n; i++) seen.push(meter(c, i * gap));
+      return seen;
+    };
+    // 0.2 ms apart, a token comes back every 165 messages: that must not forgive the run of drops.
+    const slow = run(2000, 0.2);
+    assert.equal(slow.filter((v) => v === 'warn').length, 1, 'warned once');
+    assert.ok(slow.includes('close'), 'closed');
+    assert.ok(run(400, 0).includes('close'), 'all at once: closed');
+    assert.ok(!run(2000, 1000 / 100).includes('close'), 'at 100 a second: dropped, never closed');
   });
 
   test('settings', () => {

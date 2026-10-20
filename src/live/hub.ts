@@ -15,6 +15,22 @@ const MAX_BUFFERED = 1 << 20;      // a socket this far behind is dropped rather
 type Who = { id: string, username: string };
 type Client = { ws: WebSocket, who: Who, control: boolean, tokens: number, at: number, over: number,
   switchedAt: number, warned: boolean };
+type Meter = Pick<Client, 'tokens' | 'at' | 'over' | 'warned'>;
+/** A socket's token bucket at `now` (ms), a message in: ok, or dropped (warn: the first of a run). Dropped ones leak
+ * away at 4 × RATE, so a refilled token forgives nothing; past 2 s of that (far over it) closes the socket, however
+ * the messages are spaced. */
+export function meter(c: Meter, now: number): 'ok' | 'drop' | 'warn' | 'close' {
+  const dt = (now - c.at) / 1000;
+  c.tokens = Math.min(BURST, c.tokens + dt * RATE);
+  c.over = Math.max(0, c.over - dt * RATE * 4);
+  c.at = now;
+  if (c.tokens >= 1) { c.tokens--; if (!c.over) c.warned = false; return 'ok'; }
+  if (++c.over > RATE * 4 * 2) return 'close';
+  if (c.warned) return 'drop';
+  c.warned = true;
+  return 'warn';
+}
+
 /** Finds a look a controller may play, as the stage copies it, or says why not. */
 export type Playable = (lookId: string) => LiveLook | { error: string };
 
@@ -60,15 +76,11 @@ export async function createHub({ dataDir, playable, log = console }: { dataDir:
   }, KEEPALIVE_MS);
   keepalive.unref();
 
-  /** A token bucket per socket: false drops the message; far over it for 2 s closes the socket. */
   function allowed(c: Client, now: number) {
-    c.tokens = Math.min(BURST, c.tokens + ((now - c.at) / 1000) * RATE);
-    c.at = now;
-    if (c.tokens >= 1) { c.tokens--; c.over = 0; c.warned = false; return true; }
-    c.over++;
-    if (c.over > RATE * 4 * 2) c.ws.close(1008, 'Too many messages.');
-    else if (!c.warned) { c.warned = true; say(c, { type: 'error', error: 'Too many changes at once: slow down.' }); }
-    return false;
+    const v = meter(c, now);
+    if (v === 'close') c.ws.close(1008, 'Too many messages.');
+    else if (v === 'warn') say(c, { type: 'error', error: 'Too many changes at once: slow down.' });
+    return v === 'ok';
   }
 
   function onMessage(c: Client, data: unknown) {
