@@ -3,7 +3,7 @@
 // next strand of its zone every metre where they run side by side, so the main arches neighbour each other. Pieces
 // far apart stay apart. Found once per scene from the rig's positions; links() hands pattern code a layer's share.
 import { PLACE } from './place.ts';
-import type { Scene } from './scene.ts';
+import { type Scene, tagParts } from './scene.ts';
 import { MAX_RADIUS, neighbourGraph } from './spatial.ts';
 
 /** Metres: a strand's next LED further than this is a separate piece (floods); other strands this close touch. */
@@ -16,7 +16,7 @@ export type LinkMap = { off: Int32Array, nb: Int32Array };
 /** What links() gives a pattern: the map within the running layer (its pixels, rig indices, in idx), rows by k. */
 export type Links = Readonly<LinkMap & { count: number, idx: Int32Array }>;
 const MAPS = new WeakMap<Scene, LinkMap>();
-const LAYERS = new WeakMap<object, Links>();
+const LAYERS = new WeakMap<object, Map<string, Links>>();
 
 /** The rig's neighbour map (built once per scene). */
 export function linkMap(S: Scene) {
@@ -74,13 +74,64 @@ export function layerLinks(S: Scene, idx: Int32Array): Links {
   return Object.freeze({ count: N, idx, off, nb: Int32Array.from(nb) });
 }
 
+/** The map between `tag`'s parts within a layer: a part (by its index) per row, linked where their LEDs link. */
+export function partLinks(S: Scene, idx: Int32Array, tag: string): Links {
+  const g = layerLinks(S, idx), { of, n } = tagParts(S, tag), pairs = new Set<number>(), has = new Uint8Array(n);
+  for (const k of idx) {
+    const a = of[k];
+    if (a < 0) continue;
+    has[a] = 1;
+    for (let e = g.off[k]; e < g.off[k + 1]; e++) {
+      const b = of[g.nb[e]];
+      if (b >= 0 && b !== a) pairs.add(a * n + b);
+    }
+  }
+  const off = new Int32Array(n + 1), nb = [...pairs].sort((x, y) => x - y);
+  for (const p of nb) off[Math.floor(p / n) + 1]++;
+  for (let a = 0; a < n; a++) off[a + 1] += off[a];
+  return Object.freeze({ count: n, idx: Int32Array.from(has.keys()).filter((a) => has[a]),
+    off, nb: Int32Array.from(nb, (p) => p % n) });
+}
+
 const NO_LINKS: Links = Object.freeze({ count: 0, idx: new Int32Array(0), off: new Int32Array(1),
   nb: new Int32Array(0) });
-/** links(): the running layer's neighbour map (SPEC "The neighbour map"), the same object every frame; read only. */
-export function links(): Links {
-  const S = PLACE.scene, L = PLACE.layer;
+/**
+ * links(tag?): the running layer's neighbour map (SPEC "The neighbour map"), the same object every frame; read only.
+ * With a tag, the map between its parts (rows by p.part(tag)).
+ */
+export function links(tag?: string): Links {
+  const S = PLACE.scene, L = PLACE.layer, key = tag === undefined ? '' : String(tag);
   if (!S || !L) return NO_LINKS;
-  let m = LAYERS.get(L);
-  if (!m) LAYERS.set(L, m = layerLinks(S, L.idx));
+  let byTag = LAYERS.get(L), m = byTag?.get(key);
+  if (!byTag) LAYERS.set(L, byTag = new Map());
+  if (!m) byTag.set(key, m = key ? partLinks(S, L.idx, key) : layerLinks(S, L.idx));
   return m;
+}
+
+/**
+ * waveStep(L, h, v, speed, settle, bounce): one step of the wave equation on a links() map, for Waves and Splash.
+ * h and v (by k) are each LED's height and how fast it moves; each is pulled toward its neighbours' mean, so a ripple
+ * travels `speed` links a step (substepped above half a link) and loses `settle` of its motion a step. A strand's end
+ * (one link) sends back `bounce` of a ripple and lets the rest run out (a one-way edge).
+ */
+export function waveStep(L: Links, h: Float32Array, v: Float32Array, speed: number, settle: number, bounce: number) {
+  const { idx, off, nb } = L, m = idx.length, n = Math.max(1, Math.ceil(speed / 0.5)), c = speed / n;
+  const c2 = 2 * c * c, keep = 1 - Math.min(1, Math.max(0, settle)) / n, out = (c - 1) / (c + 1);
+  const b = 1 - (1 - Math.min(1, Math.max(0, bounce))) ** 3;       // so what comes back runs about as bounce
+  for (let s = 0; s < n; s++) {
+    for (let i = 0; i < m; i++) {
+      const k = idx[i], e0 = off[k], e1 = off[k + 1];
+      if (e0 === e1) continue;
+      let sum = 0;
+      for (let e = e0; e < e1; e++) sum += h[nb[e]];
+      v[k] = (v[k] + c2 * (sum / (e1 - e0) - h[k])) * keep;
+    }
+    for (let i = 0; i < m; i++) {                          // the ends (one link): part bounce, part a one-way edge
+      const k = idx[i], j = nb[off[k]];
+      if (off[k + 1] - off[k] !== 1) continue;
+      const free = h[j] + out * (h[j] + v[j] - h[k]) - h[k];   // the edge a ripple runs out of
+      v[k] = b * v[k] + (1 - b) * free;
+    }
+    for (let i = 0; i < m; i++) h[idx[i]] += v[idx[i]];
+  }
 }

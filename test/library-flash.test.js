@@ -11,10 +11,10 @@ import { test } from 'vitest';
 const index = JSON.parse(readFileSync(new URL('../public/patterns/index.json', import.meta.url), 'utf8'));
 const MAY_WARN = new Set(['strobe']);
 
-function bake(names) {
+function bake(names, seconds = 10) {
   return new Promise((resolve, reject) => {
     const w = new Worker(new URL('./fixtures/library-bake.js', import.meta.url),
-      { workerData: { names, seconds: 10 } });
+      { workerData: { names, seconds } });
     w.once('message', resolve);
     w.once('error', reject);
   });
@@ -24,7 +24,7 @@ test('no library source flashes a large area at its defaults', async () => {
   const names = index.filter((e) => e.kind === 'source').map((e) => e.name);
   const n = Math.max(1, Math.min(2, availableParallelism() - 1));     // leave the other test files room
   const shares = Array.from({ length: n }, (_, i) => names.filter((_, j) => j % n === i));
-  const results = (await Promise.all(shares.map(bake))).flat();
+  const results = (await Promise.all(shares.map((s) => bake(s)))).flat();
   assert.equal(results.length, names.length);
   for (const r of results) {
     assert.equal(r.errors, 0, `${r.name}: errors while baking`);
@@ -33,4 +33,11 @@ test('no library source flashes a large area at its defaults', async () => {
   }
   const strobe = results.find((r) => r.name === 'strobe');
   console.info(`strobe: ${strobe.maxHz} flashes a second at most, on a large area`);
+});
+
+test('fireflies all in step, at their fastest and longest, stay under it', async () => {
+  const params = { pull: 0.5, rate: 90, spread: 0, scatter: 0, flash: 1 };
+  const results = await bake([{ name: 'fireflies', params }, { name: 'fireflies', params: { ...params, by: 'arch' } }],
+    20);
+  for (const r of results) assert.ok(r.ok && r.errors === 0, `fireflies: ${r.maxHz} a second, ${r.errors} errors`);
 });

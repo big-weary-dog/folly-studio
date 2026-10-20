@@ -4,10 +4,10 @@ import assert from 'node:assert/strict';
 
 import { test } from 'vitest';
 
-import { compileLayer, linkMap, prepareLayer, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
+import { compileLayer, linkMap, prepareLayer, prepareScene, renderFrame, waveStep } from '../public/js/pattern-core.ts';
 import { folly } from './fixtures/rigs.js';
 
-/** A rig of fixtures given as [id, zone, points]: y up, z right, one group per fixture under `all`. */
+/** A rig of fixtures given as [id, zone, points]: y up, z right, one group per fixture (tagged piece) under `all`. */
 function rigOf(fixtures) {
   const pos = fixtures.flatMap(([, , pts]) => pts.flat()), count = pos.length / 3;
   let start = 0;
@@ -17,7 +17,7 @@ function rigOf(fixtures) {
       count: pts.length })),
     pixels: { universe: Array(count).fill(1), channel: Array.from({ length: count }, (_, k) => 1 + 3 * k), pos },
     groups: [{ id: 'all', parent: null },
-      ...fixtures.map(([id]) => ({ id: `g-${id}`, parent: 'all', fixtures: [id] }))] };
+      ...fixtures.map(([id]) => ({ id: `g-${id}`, parent: 'all', fixtures: [id], tags: ['piece'] }))] };
 }
 const line = (n, at) => Array.from({ length: n }, (_, i) => at(i));
 // Two arches 1 m apart (a zone), a post touching the first's end, two floods 2 m apart.
@@ -70,4 +70,31 @@ test('on the Folly: each main arch neighbours the next; the mini arches stand ap
     }
   }
   for (let i = 1; i < 5; i++) assert.ok(across.has(`main-arch-${i} main-arch-${i + 1}`), `main arch ${i} to ${i + 1}`);
+});
+
+test('links(tag) links a tag\'s parts where their LEDs link', () => {
+  const code = `function pixel(p) { const L = links('piece'), u = p.part('piece');
+    return [(L.off[u + 1] - L.off[u]) / 4, L.count / 8, L.idx.length / 8]; }`;
+  const layer = { id: 'l', groups: ['all'], modules: [{ id: 'm', kind: 'source', code }] };
+  const { rgb } = renderFrame(S, [prepareLayer(S, layer, compileLayer(layer))], 0);
+  assert.deepEqual([0, 30, 60, 70].map((k) => rgb[3 * k] * 4), [2, 1, 1, 0], 'a: b and the post; floods: none');
+  assert.equal(rgb[1], 0.5, 'four parts');
+  assert.equal(rgb[2], 0.5, 'all four in the layer');
+});
+
+test('waveStep: a ripple runs along a strand and bounces off its end, or runs out', () => {
+  const n = 120, off = Int32Array.from({ length: n + 1 }, (_, k) => Math.max(0, 2 * k - 1) - (k === n ? 1 : 0));
+  const nb = Int32Array.from({ length: 2 * n - 2 },
+    (_, e) => (e === 0 ? 1 : Math.floor((e + 1) / 2) + (e % 2 ? -1 : 1)));
+  const L = { count: n, idx: Int32Array.from({ length: n }, (_, k) => k), off, nb };
+  const left = (bounce) => {
+    const h = new Float32Array(n), v = new Float32Array(n);
+    for (let d = -3; d <= 3; d++) h[60 + d] = (1 - (d / 3) ** 2) ** 2;
+    const energy = () => h.reduce((a, x) => a + x * x, 0) + v.reduce((a, x) => a + x * x, 0), start = energy();
+    for (let s = 0; s < 240; s++) waveStep(L, h, v, 0.5, 0, bounce);
+    return energy() / start;
+  };
+  assert.ok(left(1) > 0.4, `bounce 1 keeps it: ${left(1)}`);
+  assert.ok(left(0) < 0.01, `bounce 0 lets it run out: ${left(0)}`);
+  assert.ok(left(0.5) > left(0) && left(0.5) < left(1), 'between');
 });

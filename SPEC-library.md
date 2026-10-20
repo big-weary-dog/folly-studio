@@ -90,8 +90,9 @@ a `centres()` point and still fill its layer; `extent('rig')` the whole rig's, w
 things: "Integrated clocks" below), `DIRECTIONS` and `toward(p, direction)`, `region(q, rule, size = 1, seed = 0)` and `regions(rule, size = 1)` ("Directions" below), and
 `move(q, lx, ly, lz)`, `turn(q, a, r)` and `slide(q, u)` (the warp contract below), `past(ago)` (in a filter that
 keeps history: what was above it at this LED `ago` seconds back, "History" below), `use(name, params?)` → `(p, t) → colour` (`[0, 0, 0, 0]` for null), library source `name` as its own instance (its
-`frame` runs once per new t; throws `unknown library pattern`, or names a retired one's preset), `links()` (the
-running layer's neighbour map: "The neighbour map" below). Colours are
+`frame` runs once per new t; throws `unknown library pattern`, or names a retired one's preset), `links(tag?)` (the
+running layer's neighbour map, or its tag's parts': "The neighbour map" below), `waveStep(L, h, v, speed,
+settle, bounce)` (one step of water on a map). Colours are
 `[r, g, b]` arrays, 0..1.
 
 ## Directions
@@ -184,10 +185,11 @@ above the selected layer; of its `globals` it adds the macros the look lacks and
 and leaves the rest.
 
 The library, one idea a module. Sources: colour-wash, bars, clouds, fire, single-strand (Chase), life, wildfire,
-sparkle,
+waves, fireflies, sparkle,
 streaks, lightning, fireworks, strobe, heartbeat, picture. Warps: mirror, mosaic, polar,
 anchor, rotate, scroll, twist, turbulence, in-turn. Filters: recolour, hue-shift,
-stained-glass, mask, blur, edge-fade, trails, delay, smoke, replay, sort. Presets: Water, Storm, Kaleidoscope, Tunnel and
+stained-glass, mask, blur, edge-fade, trails, delay, smoke, replay, sort,
+splash. Presets: Water, Storm, Kaleidoscope, Tunnel and
 Afterimage (mirror's Wedges and Rings, trails after lightning), the rose's stained glass
 (gothic-jewel, backlit-glow, cathedral-sun), and the **retired sources'**: twinkle's Starfield, depth-wave's Playa
 wave, canopy-rain's Rain, wash-breathe's Breathe, spire-helix's Tower helix, arch-chase's and groups-in-turn's Arch
@@ -251,7 +253,7 @@ every runtime. The Folly: 56 neighbours a LED in space and 25 along the wire, 3.
 
 ## The neighbour map
 
-Which LEDs touch which, for modules whose light passes from LED to LED (wildfire). Found once per scene from the rig's
+Which LEDs touch which, for modules whose light passes from LED to LED (wildfire, waves, fireflies, splash). Found once per scene from the rig's
 positions (`linkMap(scene)`, built with the spatial neighbours: the sandbox's worker at `init`), undirected:
 
 - **along a strand**: each LED and the next of its fixture, unless they are over 1 m apart (floods stay apart);
@@ -265,6 +267,12 @@ layer's share, the same frozen object every frame of a prepared layer: `{ count,
 index `k` (0 up to `count`), neighbours sorted by index, only pixels in the layer (`idx`, its pixels) and only
 neighbours in it; read only. A stateful module keeps its arrays by `p.k`, steps them in `frame()` on a fixed grid of
 `clock()` steps (so a frame played to and one sought to agree), and starts again when time goes back or jumps far.
+
+`links(tag)` is the map between the tag's parts in the layer (rows by `p.part(tag)`, 0 up to the tag's part count;
+`idx` the parts present), two parts linked where any of their LEDs link, so a module can treat each arch or spire
+as one cell. `waveStep(L, h, v, speed, settle, bounce)` steps water on a map in place (Waves, Splash): `h` and `v`,
+by row, each row pulled toward its neighbours' mean; `speed` links a step (substepped at half a link), `settle` the
+share of motion lost a step, and at a strand's end (one link) `bounce` the share sent back, the rest let run out.
 
 ## History
 

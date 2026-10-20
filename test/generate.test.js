@@ -214,8 +214,9 @@ describe('prompt', () => {
     assert.ok(sys.includes('read_doc'), 'the docs, and how to read them');
     assert.match(sys, /# Worked compositions\nIdea: /);
     // Headroom over ~34,400: the catalogue's params (each source's Brightness, said once; heartbeat's tempo and
-    // sparkle's often and flash) and Direction named both ways earn their place in every call.
-    assert.ok(sys.length < 36_000, `the system prompt is ${sys.length} characters`);
+    // sparkle's often and flash), Direction named both ways and the neighbour modules (waves, fireflies, splash)
+    // earn their place in every call, with room for the modules still coming.
+    assert.ok(sys.length < 40_000, `the system prompt is ${sys.length} characters`);
   });
 
   test('group tree is compact', () => {

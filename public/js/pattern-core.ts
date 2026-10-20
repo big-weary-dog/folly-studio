@@ -34,6 +34,6 @@ export {
 } from './core/output.ts';
 export { BLUR_MODES, DEFAULT_SOFTEN, MAX_RADIUS, neighbourGraph } from './core/spatial.ts';
 export type { BlurMode, Neighbours } from './core/spatial.ts';
-export { layerLinks, linkMap } from './core/links.ts';
+export { layerLinks, linkMap, waveStep } from './core/links.ts';
 export type { LinkMap, Links } from './core/links.ts';
 export type { Blend, LayerInput, ModuleKind, Pixel, PreparedLayer, SourceBlend } from './core/render.ts';
