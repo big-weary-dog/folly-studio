@@ -1,6 +1,6 @@
-// The 3D view's pane: the canvas the viewer draws on, the camera views, Ghost, Playa | Points and the Playa's
-// quality (Auto: by device, then stepping down while frames are slow), the messages over the view (loading, baked
-// frames, the flash guard), and the transport. The time and the stats are signals bound straight to their text.
+// The 3D view's pane: the canvas the viewer draws on, the camera views, Show unlit, Venue, LEDs and the realistic
+// view's quality (Auto: by device, then stepping down while frames are slow), the messages over the view (loading,
+// baked frames, the flash guard), and the transport. The time and the stats are signals bound straight to their text.
 import '../../css/viewer.css';
 
 import { useComputed, useSignalEffect } from '@preact/signals';
@@ -85,21 +85,20 @@ function FlashBanner({ pv }: { pv: Preview }) {
     </div>);
 }
 
-/** Ghost (unlit LEDs shown faintly), Venue (props round the rig), then Playa | Points and the Playa's quality. */
+/** Show unlit (unlit LEDs shown faintly), Venue (props round the rig), LEDs (every LED a point, not the realistic
+ * view) and the realistic view's quality. */
 function ViewTools({ pv }: { pv: Preview }) {
-  const quality = pv.quality.value, tier = pv.tier.value;
+  const quality = pv.quality.value, tier = pv.tier.value, leds = pv.mode.value === 'points';
   return <>
-    <button type="button" class="view-btn ghost-btn" title="Show unlit LEDs faintly" aria-pressed={pv.ghost.value}
-      onClick={() => pv.setGhost(!pv.ghost.peek())}>Ghost</button>
+    <button type="button" class="view-btn unlit-btn" title="Show unlit LEDs faintly" aria-pressed={pv.ghost.value}
+      onClick={() => pv.setGhost(!pv.ghost.peek())}>Show unlit</button>
     <button type="button" class="view-btn venue-btn" title="Show the venue round the rig: walls, walkways, ground"
       aria-pressed={pv.venue.value} onClick={() => pv.setVenue(!pv.venue.peek())}>Venue</button>
     <div class="view-modes" role="group" aria-label="Render style">
-      {(['playa', 'points'] as const).map((m) => <button type="button" class="view-btn mode-btn" data-mode={m}
-        aria-pressed={pv.mode.value === m} onClick={() => pv.setMode(m)} title={m === 'playa'
-          ? 'The night playa: glowing tubes, glass and floods' : 'Every LED a point of light: the lightest view'}>
-        {cap(m)}</button>)}
-      <button type="button" class="view-btn quality-btn" hidden={pv.mode.value !== 'playa'} onClick={pv.nextQuality}
-        title={`Playa quality: ${quality}${tier && quality === 'auto' ? `, now ${tier}` : ''}. Click to change.`}>
+      <button type="button" class="view-btn leds-btn" aria-pressed={leds} onClick={() => pv.setMode(leds ? 'playa'
+        : 'points')} title="Every LED a point of light, in its exact colour: the lightest view">LEDs</button>
+      <button type="button" class="view-btn quality-btn" hidden={leds} onClick={pv.nextQuality}
+        title={`Quality: ${quality}${tier && quality === 'auto' ? `, now ${tier}` : ''}. Click to change.`}>
         {cap(quality)}</button>
     </div></>;
 }

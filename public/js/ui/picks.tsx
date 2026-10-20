@@ -39,11 +39,20 @@ type Tile = { title: string; value: unknown; dflt: string; blend: PickBlend; col
 function PickButton({ id, label, class: cls, children, ...tile }: Tile & { id?: string; label: string; class: string;
   children: ComponentChildren }) {
   const pop = useId();
-  // Below the button, or above it when the room is there; the width is the tile's (CSS), so nothing is measured.
+  // In the side panel: to its left, over the 3D view, level with the button, so it never covers the panel (its
+  // + Module). Elsewhere: below the button, or above it when the room is there. The width is the tile's (CSS), so
+  // nothing is measured.
   const place = (e: { newState: string; currentTarget: HTMLElement }) => {
     const s = e.currentTarget.style;
     if (e.newState !== 'open' || tile.narrow) { s.top = s.left = s.bottom = s.maxHeight = ''; return; }
-    const r = (document.querySelector(`[popovertarget="${pop}"]`) as HTMLElement).getBoundingClientRect();
+    const btn = document.querySelector(`[popovertarget="${pop}"]`) as HTMLElement, r = btn.getBoundingClientRect();
+    const side = btn.closest('.side')?.getBoundingClientRect();
+    if (side && side.left >= 336) {
+      const top = Math.max(8, Math.min(r.top, innerHeight - 420));
+      Object.assign(s, { left: `${side.left - 328}px`, top: `${top}px`, bottom: '',
+        maxHeight: `${innerHeight - top - 8}px` });
+      return;
+    }
     const below = innerHeight - r.bottom, up = below < 300 && r.top > below;
     s.left = `${Math.max(8, Math.min(r.left, innerWidth - 328))}px`;
     s.top = up ? '' : `${r.bottom + 4}px`;

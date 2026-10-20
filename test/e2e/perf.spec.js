@@ -223,7 +223,8 @@ async function measure(browser, origin, cookie, lookId, run, rate) {
   const p = await page.evaluate(() => window.perfProbe);
   const stats = await page.locator('.tp-stats').textContent();
   const heavy = await page.locator('.layer-heavy:not([hidden])').count();
-  const mode = await page.locator('.view-modes .mode-btn[aria-pressed=true]').first().getAttribute('data-mode');
+  const leds = await page.locator('.view-modes .leds-btn').first().getAttribute('aria-pressed');
+  const mode = leds === 'true' ? 'points' : 'playa';
   const title = await page.locator('.view-modes .quality-btn').first().getAttribute('title');
   await context.close();
   // Frames per second, second by second over the window, and the median second's.

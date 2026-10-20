@@ -319,8 +319,8 @@ texture that all geometry samples by pixel index, with no allocation per frame.
 | Lite | 1 | quarter-res | 6 | at start, on a touch screen |
 | Low | 1 | none | 4 | while the median of 24 frames takes over 30 ms |
 
-On a phone the view draws its lightest: no scaffold lines in Lite or Low, Ghost off until asked for, and Points at a
-pixel ratio of 1; the Studio's light view keeps the panel under it to one thing at a time (SPEC "Timeline" > Phones).
+On a phone the view draws its lightest: no scaffold lines in Lite or Low, Show unlit off until asked for, and LEDs
+(Points) at a pixel ratio of 1; the Studio's light view keeps the panel under it to one thing at a time (SPEC "Timeline" > Phones).
 
 **Points** (every LED a sprite) is the fallback when a browser cannot render to float targets, and the lightest
 view by choice. Skipped from Mirage, on purpose: three.js (size, CDN), walk mode, the sun's path and time of day,

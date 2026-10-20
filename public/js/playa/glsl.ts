@@ -159,8 +159,9 @@ const UP = [SCREEN, FS(`  vec3 c = t(vec2(-2, 0)) + t(vec2(2, 0)) + t(vec2(0, -2
   o = vec4(c / 12., 1);`, SAMPLE)];
 
 // Out: Mirage's night sky (zenith to horizon, a faint band at the horizon) where nothing solid is (the scene's
-// alpha), the scene and its bloom; Mirage's tone map (on the peak only, so saturated colours stay saturated,
-// burning to white far past 1), sRGB, dither. vD: the view ray, from the projection (and its lens shift).
+// alpha), the scene and its bloom; the tone map, on the peak only, so saturated colours stay saturated: as is up to
+// .7 (a lone colour shows as its swatch), a soft shoulder to 1, burning to white far past it, and a toe that keeps
+// the night dark; then sRGB, dither. vD: the view ray, from the projection (and its lens shift).
 const OUT = [`${H}uniform mat4 uV, uP;
 out vec2 vU;
 out vec3 vD;
@@ -174,7 +175,8 @@ void main() {
   vec3 sky = mix(${HZ}, vec3(.0003, .0006, .0021), sqrt(max(y, 0.))) + ${HZ} * .8 * exp(-abs(y) * 60.);
   vec3 c = s.rgb + sky * (1. - min(s.a, 1.)) + texture(uB, vU).rgb * uK;
   float p = max(c.r, max(c.g, c.b));
-  float film = clamp((p * (2.51 * p + .03)) / (p * (2.43 * p + .59) + .14), 0., 1.);
+  float film = p < .7 ? p : 1. - .3 * exp((.7 - p) / .3);
+  film *= film / (film + .005);
   c = p > 1e-6 ? film * mix(c / p, vec3(1), .35 * smoothstep(1.5, 16., p)) : vec3(0);
   vec3 s1 = sqrt(c), s2 = sqrt(s1);  // sRGB, closely (Ian Taylor's fit): a software renderer's pow is slow
   c = mix(12.92 * c, .662 * s1 + .684 * s2 - .3236 * sqrt(s2) - .02254 * c, step(.0031308, c));

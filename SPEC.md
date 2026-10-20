@@ -135,15 +135,18 @@ another installation writes its own (CONTRIBUTING "Adding a new installation").
 front → back, y up, z left → right) for positions, bounds and views; `setColors(rgb)` takes each frame as the
 sandbox or the baked frames give it (count × 3, 0..1); `setHighlight(mask)`, `setView(name)`, `setOption(key, v)`
 (`ghost`, `gain` from the flash guard, `insetTop`). It draws only when something changed. Two modes,
-`setMode('playa' | 'points')` (resolves to the mode shown; the Studio remembers it, default Playa):
+`setMode('playa' | 'points')` (resolves to the mode shown; the Studio remembers it in `studio.render`, default
+Playa; the view's LEDs button is Points):
 
-- **Points**: every LED a glowing sprite over a ground grid. The light fallback.
+- **Points** (LEDs): every LED a glowing sprite over a ground grid, its colour raw. The light fallback.
 - **Playa**: Mirage's night playa, from the rig's render hints alone: `strip` a camera-facing ribbon per pixel
   (stepping pixel to pixel, as solid as fabric), `bulbs` globes on a wire, `points` sprites, `cells` lit glass,
   `flood` a soft beam or a lit shell; `structure.lines` a faint scaffold; a ground plane, sky and horizon. Each
   frame's light goes into one RGBA16F texture (no allocation) that the geometry samples by pixel index; spill lights
-  (pixels clustered once, summed each frame) light the playa and scaffold; HDR, bloom, then Mirage's tone map on the
-  peak only, so saturated colours stay saturated. It needs float render targets, else the view stays on Points.
+  (pixels clustered once, summed each frame) light the playa and scaffold; HDR, bloom, then a tone map on the peak
+  only, so saturated colours stay saturated. Colours are sRGB (as their swatches): the light is decoded to linear
+  before it goes in the texture, and the tone map leaves a lone colour as it is (as is to .7 of full, then a
+  shoulder), so a wash looks like its swatch. It needs float render targets, else the view stays on Points.
   `setQuality('auto' | 'full' | 'lite' | 'low')`: full (pixel ratio ≤ 2, half-res bloom, 16 spill lights), lite
   (≤ 1, quarter-res bloom, 6, tubes without the neighbour blend), low (≤ 1, no bloom, 4). Auto starts at full,
   lite on a touch screen, and steps down while the median of 24 frames takes over 30 ms.
@@ -271,9 +274,9 @@ Sequencing lives on the look, xLights-style.
   Time, Groups, Look and More. Layers lists one row a layer (name, mute, status); tapping one opens its settings in
   the same panel (‹ Layers back, its name, mute and solo, plays on, the chain, the params). The light view hides
   blend, level, solo and moving up or down on the rows, the layer and module names and Soften in the settings, the
-  automation lanes and the 3D view's style buttons; More holds the code editor, the 3D view's Ghost, style and
-  quality, and Full detail, which shows them all again (kept per browser). On a phone the preview starts without
-  Ghost, the Playa view drops the scaffold lines, and Points draws at a pixel ratio of 1.
+  automation lanes and the 3D view's style buttons; More holds the code editor, the 3D view's Show unlit, LEDs
+  and quality, and Full detail, which shows them all again (kept per browser). On a phone the preview starts without
+  Show unlit, the Playa view drops the scaffold lines, and Points draws at a pixel ratio of 1.
 - Colours (`ui/picks.tsx`, `ui/pick-model.ts`; SPEC-library "Palettes"): a colour param is one row like a number's: its pick in
   a field the size of a number's (`kit.tsx` Scrub), its text over the colours it plays (the field opens the pick
   tile), ∿ to move its rotate (the modulate dialog), ↺. The tile is TD's pick: a row per role (a box for the whole
@@ -303,7 +306,7 @@ scope (it inherits the CSP, so no network either), relays messages to it and kee
 | `{ type: 'init', rig, library? }` + a `MessagePort` (library: `[{ name, code }]` sources for `use`) | `{ type: 'ready' }` (also sent once on load, before init) |
 | `{ type: 'look', layers, globals?, automation?, bpm?, clock? }` (as saved; `clock: 'fresh'`: the clock not continued from the look before, SPEC-live) | `{ type: 'compiled', layers: [{ id, ok, error?, params, modules: [{ id, ok, error?, params }] }] }` (`params`: the first source's schema) |
 | `{ type: 'frame', seq, t, set? }` | `{ type: 'frame', seq, rgb: Float32Array(count×3), errors: [{ id, module?, error }], ms, layerMs: { <layer id>: ms } }` (rgb transferred; `ms` the frame's, `layerMs` each layer's, timed in the worker) |
-| `{ type: 'render', seq, start, frames, fps, gamma, brightness }` | `{ type: 'progress', seq, done }` … then `{ type: 'rendered', seq, channels: Uint8Array(frames × frame channels) }` |
+| `{ type: 'render', seq, start, frames, fps, brightness, correction: { gamma, balance } }` | `{ type: 'progress', seq, done }` … then `{ type: 'rendered', seq, channels: Uint8Array(frames × frame channels) }` |
 
 Compute is decoupled from drawing: the app keeps one `frame` request in flight and asks at 40 fps, stepping down to
 30 and then 20 while the worker's `ms` (smoothed) is over budget, 80 % of the frame interval, and back up once it is
@@ -340,8 +343,11 @@ distances `d`, nearest first; Int32Array, Int32Array, Float32Array; cached on th
 `renderFrame(scene, preparedLayers, t, out?, look?) → { rgb, errors }` (level × `layerEnvelope`, or a wipe's
 `transitionWeight` per pixel; skips layers at 0; allocation-free per layer; sets each prepared layer's `ms`, its time this frame), `normalizeGlobals(globals)`, `automationAt(points, t)`, `PALETTE_ROLES`,
 `DEFAULT_PALETTE`, `MODULE_KINDS`, `GLOBALS`,
-`toChannels(scene, rgb, out?, { gamma = 1, brightness = 1 }) → Uint8Array(frame channels)` (in the rig's colour
-order), and for the
+`toChannels(scene, rgb, out?, { brightness = 1 }) → Uint8Array(frame channels)` (in the rig's colour
+order, the colours as previewed); the LEDs' colour correction, `OUTPUT_CORRECTION` (`{ gamma: 2.2, balance: [1, 1,
+1] }`, the one place it is set: sRGB colours out to linear LEDs, the Falcon's own gamma None; balance only trims),
+`correctionOf(settings)` (bounded), `correctionTable(correction)` and `correctChannels(scene, channels, table, out?)`,
+which the Export dialog's .fseq and the Pi's output apply (bakes and Live stay as previewed), and for the
 timeline `layerEnvelope(clips, t) → 0..1`, `normalizeClips(clips) → clips | null` (lenient: drops
 bad and overlapping clips), `transitionWeight(…)` and `TRANSITIONS` (above), `lookDuration(look) → seconds`, `DEFAULT_DURATION` `MIN_DURATION`
 `MAX_DURATION` `MAX_CLIPS`.

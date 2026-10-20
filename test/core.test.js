@@ -330,15 +330,13 @@ describe('toChannels', () => {
     assert.equal(toChannels(scene, rgb).indexOf(255) + 1, 19381);
   });
 
-  test('brightness, then gamma, rounded and clamped', () => {
+  test('brightness, rounded and clamped', () => {
     const rgb = new Float32Array(scene.count * 3);
     rgb[0] = 0.5; rgb[1] = 2; rgb[2] = -1;
     const base = scene.addr[0];
     const at = (opts) => Array.from(toChannels(scene, rgb, undefined, opts).slice(base, base + 3));
     assert.deepEqual(at(), [128, 255, 0]);
     assert.deepEqual(at({ brightness: 0.5 }), [64, 255, 0]);
-    assert.deepEqual(at({ gamma: 2 }), [64, 255, 0]);
-    assert.deepEqual(at({ gamma: 2, brightness: 0.5 }), [16, 255, 0]);
     rgb[0] = NaN;
     assert.deepEqual(at(), [0, 255, 0]);
     const out = new Uint8Array(40800).fill(9);

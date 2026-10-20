@@ -129,7 +129,7 @@ test('the whole library stacked renders cleanly, into the buffer it is given', (
     const { rgb, errors } = renderFrame(scene, layers, 3 + f / 40, out);
     assert.deepEqual(errors, []);
     assert.equal(rgb, out, 'no new frame buffer');
-    toChannels(scene, rgb, ch, { gamma: 2.2, brightness: 0.8 });
+    toChannels(scene, rgb, ch, { brightness: 0.8 });
   }
   check(out, 'stack');
 });

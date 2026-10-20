@@ -1,9 +1,17 @@
 // The rig's channels to the lights: the rose expanded, the power compressor (pi/src/power.ts), then DDP to fppd, or,
 // in a dry run, nothing sent and the numbers kept for the stats line.
+import { correctChannels } from '../../public/js/core/output.ts';
+import type { Scene } from '../../public/js/core/scene.ts';
 import { ddpSender } from './ddp.ts';
 import { expandRose, type PowerOptions, type PowerTable, powerLimiter } from './power.ts';
 
 export type OutputOptions = { table: PowerTable, power: PowerOptions, dryRun: boolean, host: string, port: number };
+
+/** The LEDs' colour correction (core/output.ts) into a buffer of its own, so the engine's frame stays the look's. */
+export function correctedCells(scene: Scene, table: Uint8Array) {
+  const out = new Uint8Array(scene.frameChannels);
+  return (cells: Uint8Array) => correctChannels(scene, cells, table, out);
+}
 
 export function createOutput(o: OutputOptions) {
   const frame = new Uint8Array(o.table.channels), limiter = powerLimiter(o.table, o.power);

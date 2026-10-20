@@ -5,7 +5,9 @@ import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
+import { correctChannels, correctionTable } from '../../public/js/core/output.ts';
 import { FADE } from '../src/engine.ts';
+import { correctedCells } from '../src/output.ts';
 import { runLoop } from '../src/run.ts';
 import { engineOn, oneModule } from './fixture.ts';
 
@@ -23,6 +25,16 @@ describe('the engine', () => {
     assert.equal(r.engine.state().look?.id, 'beat-bars');
     assert.ok(r.engine.state().look!.t < 0.1);
     assert.equal(r.engine.play('nope'), false);
+  });
+
+  test('the LEDs get the colour correction, and the engine keeps the look as it is', () => {
+    const r = engineOn(), fix = correctionTable({ gamma: 2.2, balance: [1, 0.9, 0.8] });
+    r.engine.play('fire');
+    r.run(2);
+    const raw = r.last().slice(), out = correctedCells(r.engine.scene, fix)(r.last());
+    assert.deepEqual(r.last(), raw);
+    assert.deepEqual(out, correctChannels(r.engine.scene, raw.slice(), fix));
+    assert.notDeepEqual(out, raw);
   });
 
   test('a strobe trips the flash guard: down to safe, held there until a look is picked', () => {

@@ -1,14 +1,16 @@
 // The Pi's live engine (pi/README.md): `npm run pi` from studio/. Looks from pi/looks (and pi/local/looks), our
-// library from public/patterns, the rig from public/data/rig.json; out as DDP to fppd at 40 fps, the rose expanded and
-// the power compressor applied, or with --dry-run nothing sent and a stats line printed.
+// library from public/patterns, the rig from public/data/rig.json; out as DDP to fppd at 40 fps, colour-corrected for
+// the LEDs, the rose expanded and the power compressor applied, or with --dry-run nothing sent and a stats line
+// printed.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { correctionOf, correctionTable } from '../public/js/core/output.ts';
 import { readConfig } from './src/config.ts';
 import { createEngine } from './src/engine.ts';
 import { readLibrary, readLooks } from './src/library.ts';
-import { createOutput } from './src/output.ts';
+import { correctedCells, createOutput } from './src/output.ts';
 import type { PowerTable } from './src/power.ts';
 import type { PiState } from './src/protocol.ts';
 import { runLoop } from './src/run.ts';
@@ -29,7 +31,11 @@ async function main(c: NonNullable<typeof cfg>) {
   for (const [id, l] of looks) if (l.error) log(`look ${id} cannot play: ${l.error}`);
   if (!looks.get(c.safe)?.look) throw new Error(`the safe look ${c.safe} cannot play`);
   const output = createOutput({ table, power: c, dryRun: c.dryRun, host: c.host, port: c.port });
-  const engine = createEngine({ rig, lib, looks: () => looks, safe: c.safe, output: output.send, log });
+  // The LEDs' colour correction on the way out only: the engine's frames (and the Live tab's) stay the look's own.
+  const fix = correctionTable(correctionOf({ gamma: c.gamma, balance: c.balance.split(',').map(Number) }));
+  const engine = createEngine({ rig, lib, looks: () => looks, safe: c.safe, log,
+    output: (cells) => output.send(correct(cells)) });    // first called by the loop, below
+  const correct = correctedCells(engine.scene, fix);
   // The rig's pixels must sit within the cells the expansion reads (its declared universes run past them, unused).
   const cellsEnd = Math.min(...table.petals.map((p) => p.exp));
   if (Math.max(...engine.scene.addr) + table.cellChannels > cellsEnd) throw new Error('the rig overlaps the rose');

@@ -69,8 +69,8 @@ for (const [name, device] of Object.entries(SIZES)) {
 
       await test.step('the Studio, in the Playa view, with the sandbox running', async () => {
         await expect(page.locator('iframe.sandbox-frame')).toHaveAttribute('src', /^\/assets\/sandbox-[\w-]+\.html$/);
-        await expect(page.locator('.mode-btn[data-mode=playa]').first())
-          .toHaveAttribute('aria-pressed', 'true', { timeout: 30_000 });
+        await expect(page.locator('.view-modes .leds-btn').first())
+          .toHaveAttribute('aria-pressed', 'false', { timeout: 30_000 });
         await expect(page.locator('.tp-stats')).toHaveText(/\d+ fps/, { timeout: 30_000 });
         const canvas = await page.locator('canvas:visible').first().evaluate((c) => [c.width, c.height]);
         expect(canvas.every((n) => n > 0), `the 3D view's canvas is ${canvas.join(' × ')}`).toBe(true);

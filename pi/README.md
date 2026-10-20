@@ -47,6 +47,9 @@ dry and when the flash guard has cut to `safe` (the safe look plays until someon
 
 - Defaults, then `pi/config.json` (the Pi's own, gitignored, so `git pull` never touches it), then flags. For
   example `{ "look": "fire", "gen": 4000 }`.
+- The LEDs' colour correction (`--gamma`, `--balance R,G,B`; default 2.2 and 1,1,1, from `core/output.ts`) bends
+  the colours on the way out only, so the Live tab and the engine's frames stay the look's own. The F48s are set to
+  Gamma None, so this is the only gamma; balance only trims a colour down (brightness stays the Falcon's cap).
 - Looks are `pi/looks/<id>.json`, plus the Pi's own `pi/local/looks/` (gitignored; one there replaces a shipped
   look with the same id). A look is Studio's look whose modules name library entries by `ref`; the code always
   comes from the library. `globals.live` lists the controls it offers.

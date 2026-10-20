@@ -56,7 +56,7 @@ export function SettingsHead({ st, ph }: { st: Studio; ph: Phone }) {
 
 /** More: what the light view keeps out of the way. */
 export function MorePane({ st, pv, ph }: { st: Studio; pv: Preview; ph: Phone }) {
-  const playa = pv.mode.value === 'playa';
+  const leds = pv.mode.value === 'points';
   return (
     <section class="pane pane-more" data-pane="more" aria-label="More"><div class="pane-body more-body">
       <h3 class="look-h">Editing</h3>
@@ -67,11 +67,11 @@ export function MorePane({ st, pv, ph }: { st: Studio; pv: Preview; ph: Phone })
           pref('studio.phoneDetail', on ? '1' : '0');
         }} />
       <h3 class="look-h">3D view</h3>
-      <Switch label="Ghost: show unlit LEDs faintly" class="more-row" checked={pv.ghost.value}
+      <Switch label="Show unlit: unlit LEDs, faintly" class="more-row" checked={pv.ghost.value}
         onChange={(on) => pv.setGhost(on)} />
-      <Switch label="Points: every LED a dot, the lightest view" class="more-row" checked={!playa}
+      <Switch label="LEDs: every LED a dot in its exact colour, the lightest view" class="more-row" checked={leds}
         onChange={(on) => pv.setMode(on ? 'points' : 'playa')} />
-      <div class="field more-row" hidden={!playa}><span>Playa quality</span>
+      <div class="field more-row" hidden={leds}><span>Quality</span>
         <button type="button" class="btn small" onClick={pv.nextQuality}>{humanize(pv.quality.value)}
           {pv.quality.value === 'auto' && pv.tier.value ? ` (${pv.tier.value})` : ''}</button></div>
     </div></section>);

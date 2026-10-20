@@ -26,7 +26,7 @@
 
   /* Light: what Full detail (More) shows again. */
   .studio[data-detail=light] :is(.layer-bottom, .layer-groups, .layer-index, .layer .ms-btn.solo,
-    .pane-layers .icon-btn[aria-label^=Move], .view-compact .ghost-btn, .view-compact .venue-btn,
+    .pane-layers .icon-btn[aria-label^=Move], .view-compact .unlit-btn, .view-compact .venue-btn,
     .view-compact .view-modes, .tl-auto, .soften-field, .module-title-field,
     .params-wrap > .field:has(.layer-title-input)) { display: none !important; }
   .studio[data-detail=light] .layer { display: flex; align-items: center; min-height: 56px; padding: 4px 8px 4px 18px; }

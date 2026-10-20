@@ -60,7 +60,8 @@
 .pick-strip { display: flex; flex: none; width: 40px; height: 14px; border: 1px solid var(--lead); }
 .pick-strip i { flex: 1; }
 .pick-pop { position: fixed; inset: auto; width: 320px; margin: 0; padding: 10px 12px; overflow: auto;
-  color: var(--text); background: var(--night-1); border: var(--came) solid var(--lead); box-shadow: var(--shadow); }
+  color: var(--text); background: var(--night-1); border: var(--came) solid var(--sand);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / .6), var(--shadow); }
 .pick-tile { display: flex; flex-direction: column; gap: 8px; }
 .pick-head, .pick-role, .pick-more, .pick-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .pick-head strong { flex: 1; font-size: 13px; color: var(--sand); }

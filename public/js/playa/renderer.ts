@@ -148,7 +148,10 @@ function tier(pl: State, fresh = false) {
   v.invalidate();
 }
 
-// Light × the flash guard's gain into the texture, and the spill lights summed from it: each sits where its
+// Colours are sRGB (as the swatches show them); light adds linearly, so each is decoded before it lights anything.
+const linear = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+
+// Light (linear) × the flash guard's gain into the texture, and the spill lights summed from it: each sits where its
 // pixels' light is, or at their middle while they are dark.
 function upload(pl: State) {
   const { gl, v, staging: L, spill: { acc, of, centre, lp, lc, n: lights } } = pl, gain = v.options.gain;
@@ -158,7 +161,7 @@ function upload(pl: State) {
     const c = 7 * of[i], hi = hiMask[i] ? 1 : 0, share = w[i] * (v.hiActive && !hi ? 0.22 : 1);  // as the shaders dim
     let e = 0;
     for (let a = 0; a < 3; a++) {
-      const x = L[4 * i + a] = rgb[3 * i + a] * gain;
+      const x = L[4 * i + a] = linear(rgb[3 * i + a]) * gain;
       acc[c + a] += x * share;
       e += x * share;
     }

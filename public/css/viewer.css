@@ -1,12 +1,11 @@
-/* the 3D view's render style: Playa | Points, then the Playa's quality */
+/* the 3D view's render style: LEDs (points), else the realistic view's quality */
 .view-modes { display: flex; pointer-events: auto; }
-.view-modes .mode-btn + .mode-btn { border-left-width: 0; }
 .view-modes .quality-btn { margin-left: 4px; min-width: 52px; font-weight: 500; }
 .view-modes .quality-btn[hidden] { display: none; }
 @media (max-width: 899px) {
   .studio .view-compact { gap: 6px; }
   .view-compact .view-select { min-width: 0; flex: 0 1 120px; }
-  .view-compact .ghost-btn, .view-compact .venue-btn,
+  .view-compact .unlit-btn, .view-compact .venue-btn,
   .view-compact .view-modes .view-btn { padding: 0 9px; font-size: 13px; }
   .view-compact .view-modes .quality-btn { min-width: 0; }
 }

@@ -47,9 +47,16 @@ export function toast(message: string, { kind = 'info', timeout = 4200, action }
   return close;
 }
 
-/** A lazy part of the app failed to load: most likely a deploy replaced its file, so a reload fetches the new one. */
-export const loadFailed = () => toast('Folly Studio was updated. Reload to carry on.',
-  { kind: 'error', timeout: 0, action: { label: 'Reload', onClick: () => location.reload() } });
+let loadToast = false;
+/** A lazy part of the app failed to load: most likely a deploy replaced its file, so a reload fetches the new one.
+ *  One toast however many parts fail. */
+export function loadFailed(err?: unknown) {
+  console.error(err);
+  if (loadToast) return;
+  loadToast = true;
+  toast('Folly Studio was updated. Reload to carry on.',
+    { kind: 'error', timeout: 0, action: { label: 'Reload', onClick: () => location.reload() } });
+}
 
 export const Toasts = () => (
   <div id="toasts" class="toasts" aria-live="polite">
