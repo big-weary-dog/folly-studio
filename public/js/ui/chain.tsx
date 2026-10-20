@@ -11,6 +11,7 @@ import {
 import { ParamsPanel } from './params.tsx';
 import type { Preview } from './preview.ts';
 import type { Entry } from './shelf.tsx';
+import { SideExpand, SideFold } from './side-panels.tsx';
 import { SoftenRow } from './soften.tsx';
 import type { Studio } from './studio-store.ts';
 
@@ -26,7 +27,8 @@ export function ChainPane({ st, pv }: Props) {
   const l = st.selected.value, m = st.module.value;
   return (
     <section class="pane pane-params" data-pane="params" aria-label="Layer settings">
-      <div class="pane-head"><h2 class="pane-title">Settings</h2></div>
+      <div class="pane-head"><h2 class="pane-title"><SideFold st={st} panel="params" /></h2>
+        <SideExpand st={st} panel="params" /></div>
       <div class="pane-body params-wrap">
         <Field label="Layer name">{(id) => <input type="text" id={id} class="layer-title-input" maxlength={80}
           spellcheck={false} value={l?.title ?? ''} disabled={!l} onInput={(e) => {

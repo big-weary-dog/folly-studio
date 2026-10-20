@@ -22,6 +22,8 @@ export interface Draft { id: string | null; title: string; summary: string; laye
 export const TABS = ['layers', 'code', 'time', 'groups', 'look', 'more'] as const;
 export type Tab = typeof TABS[number];
 export type Dock = 'code' | 'timeline' | 'look';
+/** The side column, wide: Layers over Settings (split), or one taking it all and the other down to its head. */
+export type SideView = 'split' | 'layers' | 'params';
 const copy = <T>(v: T): T => (v == null ? v : JSON.parse(JSON.stringify(v)));
 const some = <T extends object>(o?: T | null) => (o && Object.keys(o).length ? copy(o) : null);
 const SHORT = '(max-height: 899px)';   // below this height the code editor starts folded
@@ -49,6 +51,8 @@ export function createStudio(me: User | null) {
   const dock = signal(knownDock(pref('studio.dock'))), wasFolded = pref('studio.dockFolded');
   const tab = signal<Tab>(TABS.includes(pref('studio.tab') as Tab) ? pref('studio.tab') as Tab : 'layers');
   const folded = signal(wasFolded === null ? dock.value === 'code' && matchMedia(SHORT).matches : wasFolded === '1');
+  const side = signal<SideView>(['layers', 'params'].includes(pref('studio.side') ?? '')
+    ? pref('studio.side') as SideView : 'split');
   const fallbackRev = signal(0);       // a module fell back to its last good code: send the look again
   const data = { rig: null as Rig | null, index: null as GroupIndex | null, library: [] as LibraryEntry[] };
   const clock = { t: 0, typingUntil: 0 };       // show time (per frame, not a signal); when code edits settle
@@ -91,7 +95,7 @@ export function createStudio(me: User | null) {
 
   const st = {
     look, server, saved, ready, saving, sharing, copyOnSave, selectedId, picked, muted, solo, heavy, hoverGroup,
-    pinnedGroup, narrow, dock, tab, folded, fallbackRev, data, clock, playing, speed, baked, status, body, dirty,
+    pinnedGroup, narrow, dock, tab, folded, side, fallbackRev, data, clock, playing, speed, baked, status, body, dirty,
     selected, module, sandboxLook, layerById, silent, groupNames, selectedTitle, codeFor, problem, lookId,
     /** Hooks the preview sets: an edit happened (baked playback stops); flush pending code to the sandbox. */
     onEdit: () => {}, flush: () => {},
@@ -129,6 +133,7 @@ export function createStudio(me: User | null) {
       if (unfold) st.fold(false);
     },
     fold(on: boolean) { folded.value = on; pref('studio.dockFolded', on ? '1' : '0'); },
+    showSide(v: SideView) { side.value = v; pref('studio.side', v); },
 
     /** The rig, the library and the look are here: set the look up. */
     setup(rig: Rig, library: LibraryEntry[], from: Look | null) {

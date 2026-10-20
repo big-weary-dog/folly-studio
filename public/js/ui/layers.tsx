@@ -10,6 +10,7 @@ import {
   BLEND_MODES, cleanLayer, isPreset, type Layer, layerFromPattern, makeLayer, newLayer, presetLayers, withPresetGlobals,
 } from './model.ts';
 import type { Preview } from './preview.ts';
+import { SideExpand, SideFold } from './side-panels.tsx';
 import { groupChecked, groupPartial, toggleGroup } from './groups-model.ts';
 import type { Entry } from './shelf.tsx';
 import type { Studio } from './studio-store.ts';
@@ -70,7 +71,7 @@ export function LayersPane({ st, pv }: Props) {
     } }));
   return (
     <section class="pane pane-layers" data-pane="layers" aria-label="Layers">
-      <div class="pane-head"><h2 class="pane-title">Layers</h2>
+      <div class="pane-head"><h2 class="pane-title"><SideFold st={st} panel="layers" /></h2>
         <div class="pane-tools">
           {icon('Move layer up', 'Move up (toward the top)', '↑', !l || i >= layers.length - 1, () => move(+1))}
           {icon('Move layer down', 'Move down (toward the bottom)', '↓', !l || i <= 0, () => move(-1))}
@@ -80,7 +81,7 @@ export function LayersPane({ st, pv }: Props) {
           {icon('Delete layer', 'Delete layer', '🗑', !l, remove)}
           <button type="button" class="btn small primary" title="Add a layer from the library" onClick={add}>
             + Add</button>
-        </div></div>
+        </div><SideExpand st={st} panel="layers" /></div>
       <div class="pane-body">
         <ol class="layer-list" aria-label="Layers, top first">
           {layers.map((x, n) => <LayerRow key={x.id} l={x} index={n} st={st} />).reverse()}</ol>

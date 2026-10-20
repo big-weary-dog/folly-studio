@@ -4,6 +4,7 @@
 import '../../css/compose.css'; // before studio.css, which refines some of its rules
 import '../../css/studio.css';
 import '../../css/params.css';
+import '../../css/side.css';
 
 import { useEffect, useState } from 'preact/hooks';
 

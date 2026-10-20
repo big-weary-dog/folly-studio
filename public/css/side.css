@@ -1,0 +1,34 @@
+/* The Studio's side on a wide screen (js/ui/side-panels.tsx): Layers over Settings with a divider between them, or
+   one panel taking the column and the other folded to its head. Its title folds it, the tinted mark turned a chevron;
+   ⤢ ends its head. Phones keep their tabs. */
+.side-fold { display: flex; align-items: center; gap: 8px; margin: -4px -6px; padding: 4px 6px; color: inherit;
+  font: inherit; letter-spacing: inherit; text-transform: inherit; background: none; border: 0; border-radius: 4px;
+  cursor: pointer; }
+.side-fold:hover { color: var(--text); background: var(--night-3); }
+.side-fold::before { content: ''; width: 6px; height: 6px; margin: 0 2px 3px 1px; border: solid var(--tint);
+  border-width: 0 2px 2px 0; transform: rotate(45deg); transition: transform .15s; }
+.side-fold[aria-expanded=false]::before { margin: 0 3px 0 0; transform: rotate(-45deg); }
+.side .pane-title:has(.side-fold)::before { display: none; }
+.side-expand { margin-left: auto; width: var(--hit, 26px); height: var(--hit, 26px); flex: none; font-size: 15px; }
+.pane-tools + .side-expand { margin-left: 0; }
+.side-divider { position: relative; flex: none; height: 7px; background: var(--lead); cursor: row-resize;
+  touch-action: none; }
+.side-divider::after { content: ''; position: absolute; inset: 1px calc(50% - 16px);
+  background: radial-gradient(circle, var(--text-3) 0 1.5px, #0000 2px) 0 50% / 11px 5px; }
+.side-divider:hover::after, .side-divider:focus-visible::after {
+  background-image: radial-gradient(circle, var(--amber) 0 1.5px, #0000 2px); }
+@media (min-width: 900px) {
+  .side .pane-head { gap: 6px; padding-right: 6px; cursor: pointer; }
+  .side .pane-tools .icon-btn { width: var(--hit, 28px); }
+  .side[data-side=split] .pane-params { border-top: 0; }
+  .side.sized[data-side=split] .pane-layers { flex: 0 0 var(--layers-h); max-height: none; }
+  .side[data-side=layers] .pane-layers { flex: 1 1 0; max-height: none; }
+  .side[data-side=params] .pane-layers, .side[data-side=layers] .pane-params { flex: none; max-height: none; }
+  .side[data-side=params] .pane-layers > :not(.pane-head), .side[data-side=layers] .pane-params > :not(.pane-head),
+    .side[data-side=params] .pane-layers .pane-tools, .side:not([data-side=split]) .side-divider { display: none; }
+}
+@media (min-width: 900px) and (max-width: 1200px) {        /* a narrower side: the layer tools tighten to fit */
+  .side .pane-head { padding-left: 10px; }
+  .side .pane-tools .icon-btn { width: var(--hit, 24px); }
+  .side .pane-tools .btn.small { padding: 3px 8px; }
+}
