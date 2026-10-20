@@ -4,7 +4,7 @@
 // each module joins it (a source by how it combines), and each warp and filter spans what it works on, everything above
 // it.
 import type { Module } from '../../../shared/schemas/look.ts';
-import { cx, Field, toast } from './kit.tsx';
+import { cx, Field, loadFailed, toast } from './kit.tsx';
 import {
   BLEND_MODES, chainWires, insertModule, KIND_LABELS, makeModule, moduleFromLibrary, type Reach,
 } from './model.ts';
@@ -83,7 +83,8 @@ function Chain({ st, pv }: Props) {
     return list;
   });
   const shelf = () => import('./shelf.tsx').then(({ openShelf }) => openShelf({ mode: 'module',
-    library: st.data.library, onPick: add, audition: { pv, layer: l || undefined, moduleId: sel?.id } }));
+    library: st.data.library, onPick: add, audition: { pv, layer: l || undefined, moduleId: sel?.id } }))
+    .catch(loadFailed);
   const { first, joins, reaches } = chainWires(mods), at = sel ? mods.indexOf(sel) : -1;
   return (
     <section class="chain" aria-label="Module chain">

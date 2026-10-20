@@ -16,10 +16,13 @@
 .tl { --tl-row: 22px; --tl-ruler: 16px; --tl-tick: #4d4258; position: relative; display: flex; flex-direction: column;
   min-width: 0; }
 .tl-scroll { position: relative; overflow: auto; max-height: min(30vh, 200px); outline: none;
-  background: var(--night-0); overscroll-behavior: contain; scrollbar-width: thin;
+  background: var(--night-0); overscroll-behavior: contain; scrollbar-width: thin; scrollbar-gutter: stable;
   scrollbar-color: var(--night-4) transparent; }
 .tl-scroll:focus-visible { box-shadow: inset 0 0 0 2px var(--focus); }
-.tl-inner { position: relative; width: calc(var(--tl-names, 0px) + var(--tl-w, 100%)); min-width: 100%; }
+/* Clipped across: the playhead (and its lozenge) at the look's end never widens what scrolls, which would add a
+   scrollbar, shrink the view and re-fit the zoom on every loop. */
+.tl-inner { position: relative; width: calc(var(--tl-names, 0px) + var(--tl-w, 100%)); min-width: 100%;
+  overflow-x: clip; }
 .tl-head-row { position: sticky; top: 0; z-index: 4; display: flex; height: var(--tl-ruler); background: var(--night-1);
   box-shadow: 0 var(--came-s) 0 var(--lead); }
 .tl-corner, .tl-name { position: sticky; left: 0; flex: none; width: var(--tl-names); background: var(--night-1);

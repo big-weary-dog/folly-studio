@@ -5,7 +5,7 @@ import { useComputed } from '@preact/signals';
 import { useId, useLayoutEffect, useState } from 'preact/hooks';
 
 import type { RigGroup } from '../../../shared/schemas/rig.ts';
-import { cx, Scrub, toast } from './kit.tsx';
+import { cx, loadFailed, Scrub, toast } from './kit.tsx';
 import {
   BLEND_MODES, cleanLayer, isPreset, type Layer, layerFromPattern, makeLayer, newLayer, presetLayers, withPresetGlobals,
 } from './model.ts';
@@ -68,7 +68,7 @@ export function LayersPane({ st, pv }: Props) {
       if (!('blank' in e)) return;    // a blank layer is for writing code
       st.setTab('code', { onlyNarrow: true });
       if (!st.narrow.peek()) st.showDock('code');
-    } }));
+    } })).catch(loadFailed);
   return (
     <section class="pane pane-layers" data-pane="layers" aria-label="Layers">
       <div class="pane-head"><h2 class="pane-title"><SideFold st={st} panel="layers" /></h2>
@@ -92,6 +92,9 @@ export function LayersPane({ st, pv }: Props) {
 function LayerRow({ l, index, st }: { l: Layer; index: number; st: Studio }) {
   const id = l.id, status = st.status.of(id), title = l.title || 'Layer';
   const said = STATUS_TEXT[status.kind] || status.kind;
+  // A failing layer adds nothing while the rest play on; its line says why, in place of its groups (the same height,
+  // so an error that comes and goes never moves the panel).
+  const failing = status.kind === 'compile' || status.kind === 'runtime' || status.kind === 'hung';
   const muted = st.muted.value.has(id), soloed = st.solo.value.has(id), selected = id === st.selectedId.value;
   const ms = st.heavy.value.get(id), blendId = useId(), select = () => st.select(id);
   return (
@@ -124,7 +127,8 @@ function LayerRow({ l, index, st }: { l: Layer; index: number; st: Studio }) {
           {BLEND_MODES.map((b) => <option value={b.value} title={b.help}>{b.label}</option>)}</select>
         <Scrub label={`Level for ${title}`} min={0} max={100} step={1} unit="%" value={Math.round(l.level * 100)}
           set={(v) => st.editLayer(id, () => ({ level: v / 100 }))} /></div>
-      <span class="layer-groups">{st.groupNames(l.groups, l.tags)}</span>
+      <span class={cx('layer-groups', failing && 'layer-issue')}>
+        {failing ? `${said}${status.message ? `: ${status.message}` : ''}` : st.groupNames(l.groups, l.tags)}</span>
     </li>);
 }
 
