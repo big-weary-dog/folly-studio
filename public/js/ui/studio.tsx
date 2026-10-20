@@ -12,7 +12,9 @@ import { api, statusOf } from '../api.ts';
 import { leaveGuard, replaceUrl, setTitle, signedOut, user, type ViewProps } from './session.ts';
 import { toast } from './kit.tsx';
 import { loadLibrary, loadRig } from './model.ts';
+import { reportPage } from './bug-report.tsx';
 import { createPreview } from './preview.ts';
+import { loadReport, studioReport } from './report-studio.ts';
 import { StudioLayout } from './studio-layout.tsx';
 import { createStudio } from './studio-store.ts';
 import { createTimeline } from './timeline-state.ts';
@@ -29,7 +31,7 @@ async function loadLook(id?: string) {
   }
 }
 
-export function Studio({ params }: ViewProps) {
+export function Studio({ params, query }: ViewProps) {
   const [ctx] = useState(() => {
     const st = createStudio(user.peek()), pv = createPreview(st);
     return { st, pv, tl: createTimeline(st, pv), els: {} as Record<'canvas' | 'sandbox' | 'viewer', HTMLElement> };
@@ -44,10 +46,15 @@ export function Studio({ params }: ViewProps) {
       toast(`Library unavailable: ${err.message}`, { kind: 'error' });
       return [];
     });
-    Promise.all([loadRig(), library, loadLook(params.lookId)]).then(([rig, lib, look]) => {
+    const unreport = reportPage('studio', studioReport(st, pv, ctx.tl));
+    // ?report=<id> (admins): a bug report's moment, replayed (report-studio.ts).
+    const replay = query.get('report') ? loadReport(query.get('report')!) : null;
+    const look = replay ? replay.then((r) => r.look) : loadLook(params.lookId);
+    Promise.all([loadRig(), library, look]).then(async ([rig, lib, from]) => {
       if (!alive) return;
-      st.setup(rig, lib, look);
+      st.setup(rig, lib, from);
       pv.start(els.canvas as HTMLCanvasElement, els.sandbox, els.viewer, rig, lib);
+      if (replay) await (await replay).apply(st, pv, ctx.tl);
     }).catch((err) => {
       if (!alive) return;
       if (statusOf(err) === 401) return signedOut();
@@ -65,6 +72,7 @@ export function Studio({ params }: ViewProps) {
     document.addEventListener('keydown', onKey);
     return () => {
       alive = false;
+      unreport();
       delete leaveGuard.isDirty;
       delete leaveGuard.discard;
       document.removeEventListener('keydown', onKey);

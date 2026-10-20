@@ -5,6 +5,7 @@ import type {
 } from '../../shared/schemas/api.ts';
 import type { Access, Invite, Person, PersonLimits } from '../../shared/schemas/access.ts';
 import type { AdminModels, ModelChoices, ModelsConfig } from '../../shared/schemas/models.ts';
+import type { ReportBody, ReportSummary } from '../../shared/schemas/report.ts';
 import type { LibraryEntry } from '../../shared/schemas/rig.ts';
 
 export type ApiError = Error & { status: number; data?: unknown };
@@ -75,6 +76,12 @@ export const api = {
   bake: (id: string) => request<{ bake: Bake }>('POST', `/api/looks/${enc(id)}/bake`, {}),
 
   liveLooks: () => request<{ looks: Listed[] }>('GET', '/api/live/looks'),
+
+  /** An F8 bug report (SPEC "Bug reports"); 413 when it is too big. */
+  report: (report: ReportBody) => request<{ id: string }>('POST', '/api/reports', report),
+  reports: () => request<{ reports: ReportSummary[] }>('GET', '/api/admin/reports'),
+  bugReport: (id: string) => request<{ report: ReportBody & Record<string, unknown> }>('GET',
+    `/api/admin/reports/${enc(id)}`),
 
   library: () => request<{ patterns?: LibraryEntry[] }>('GET', '/api/library'),
 };

@@ -21,6 +21,7 @@ export function liveSocket() {
   const sent = new Map<number, number>();
   let live: Live | null = null, ws: WebSocket | null = null, wait = FIRST_WAIT_MS, timer = 0, pingTimer = 0;
   let samples: { offset: number, rtt: number }[] = [], pingId = 0, fails = 0, alive = true;
+  let held: FromServer[] | null = null;     // a bug report's pause: messages wait here, then apply in order
   const listeners = new Set<(why: 'state' | 'pi' | LiveUpdate) => void>();
 
   const send = (msg: FromClient) => { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg)); };
@@ -68,7 +69,11 @@ export function liveSocket() {
     status.value = 'connecting';
     const s = ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/live/socket`);
     s.onopen = () => { status.value = 'open'; wait = FIRST_WAIT_MS; fails = 0; samples = []; pings(); };
-    s.onmessage = (e) => { try { onMessage(JSON.parse(String(e.data))); } catch { /* not ours: ignored */ } };
+    s.onmessage = (e) => {
+      let m: FromServer;
+      try { m = JSON.parse(String(e.data)); } catch { return; /* not ours: ignored */ }
+      if (held && m.type !== 'pong') held.push(m); else onMessage(m);
+    };
     s.onclose = () => {
       if (ws !== s) return;
       ws = null;
@@ -89,6 +94,12 @@ export function liveSocket() {
     /** The server's time now, in epoch ms, as well as the pings tell. */
     now: () => Date.now() + (clock.peek()?.offset ?? 0),
     send,
+    /** Holds the stage's updates (on) or applies those held, in order (off). */
+    hold(on: boolean) {
+      const was = held;
+      held = on ? held ?? [] : null;
+      if (!on) was?.forEach(onMessage);
+    },
     /** fn('state') on a new state, fn(update) on each update, fn('pi') on news of /pi. Returns its removal. */
     listen(fn: (why: 'state' | 'pi' | LiveUpdate) => void) {
       listeners.add(fn);

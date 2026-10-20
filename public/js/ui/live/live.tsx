@@ -5,6 +5,7 @@ import '../../../css/live.css';
 
 import { useEffect, useRef } from 'preact/hooks';
 
+import { reportPage } from '../bug-report.tsx';
 import { Rose } from '../rose.tsx';
 import { cx } from '../kit.tsx';
 import { setTitle } from '../session.ts';
@@ -18,7 +19,18 @@ export function LivePage() {
   const canvas = useRef<HTMLCanvasElement>(null), host = useRef<HTMLDivElement>(null);
   useEffect(() => {
     stage.start(canvas.current!, host.current!);
-    return () => { stage.destroy(); sock.close(); };
+    // Its part in a bug report (SPEC "Bug reports"): the stage as this page has it; paused, updates are held.
+    const unreport = reportPage('live', {
+      read: () => {
+        const l = sock.live;
+        return { rev: sock.rev.peek(), status: sock.status.peek(), driver: l?.driver, control: sock.control.peek(),
+          look: l?.look && { id: l.look.id, title: l.look.title }, blackout: stage.blackout.peek(), t: stage.t.peek(),
+          presence: sock.presence.peek(), clock: sock.clock.peek(), stats: stage.stats.peek() };
+      },
+      freeze: (on) => { sock.hold(on); stage.freeze(on); },
+      shot: () => stage.viewer?.snapshot() ?? null,
+    });
+    return () => { unreport(); stage.destroy(); sock.close(); };
   }, []);
   void sock.rev.value;
   const live = sock.live, msg = stage.msg.value, who = sock.presence.value, fromPi = live?.driver === 'pi';

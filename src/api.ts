@@ -7,6 +7,7 @@ import { DEEP, type FlashSettings, type Idea, IdeaBody, Login, RefineBody, Signu
 import type { AccessControl } from './access.ts';
 import { accessRoutes, sendRefusal } from './api-access.ts';
 import { ideaLogRoutes } from './api-idea-log.ts';
+import { reportRoutes } from './api-reports.ts';
 import { lookRoutes } from './api-looks.ts';
 import { modelRoutes } from './api-models.ts';
 import { type Auth, COOKIE_NAME, SESSION_TTL_MS } from './auth.ts';
@@ -16,6 +17,7 @@ import type { createFramesCache } from './frames-cache.ts';
 import { framesRoutes } from './frames-http.ts';
 import type { IdeaLogs } from './generate/idea-log.ts';
 import type { Registry } from './generate/models.ts';
+import type { Reports } from './reports/store.ts';
 import type { Hub } from './live/hub.ts';
 import type { createPreviews } from './previews/index.ts';
 import { liveRoutes } from './live/routes.ts';
@@ -57,7 +59,8 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
   loaders: ReturnType<typeof createLoaders>, access: AccessControl, framesDir: string,
   bakes: ReturnType<typeof createBakeQueue>, frames: ReturnType<typeof createFramesCache>, secureCookies?: boolean,
   rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, flash: FlashSettings, hub: Hub,
-  live: LiveSettings, ideaLogs: IdeaLogs, previews?: ReturnType<typeof createPreviews> }) {
+  live: LiveSettings, ideaLogs: IdeaLogs, previews?: ReturnType<typeof createPreviews>, reports: Reports,
+  build: string, tail: () => unknown[] }) {
   const { store, auth, queue, models, loaders, log, access } = o;
   const { bakes, framesDir, frames, secureCookies = false, flash } = o;
   const limits = { max: 10, ipMax: 100, windowMs: 60_000, ...o.rateLimit };
@@ -122,6 +125,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       reply.raw.once('close', wake); // the client went away
     });
 
+    const reports = reportRoutes(api, { auth, reports: o.reports, build: o.build, tail: o.tail });
     await api.register(liveRoutes({ store, auth, hub: o.hub, settings: o.live, listed: looks.listed }));
     routes(api, {
       'POST /signup': [signIn(201, (req) => auth.signup(parse(Signup, req.body))), { public: true }],
@@ -199,6 +203,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       },
       ...modelRoutes({ auth, models, access }),
       ...ideaLogRoutes({ auth, logs: o.ideaLogs }),
+      ...reports,
       ...accessRoutes(api, { auth, access, store }),
       ...looks.routes,
       ...framesRoutes({ framesDir, cache: frames, visibleLook: looks.visibleLook }),

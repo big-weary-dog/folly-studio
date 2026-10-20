@@ -1,0 +1,35 @@
+/* The bug report form (ui/bug-report.tsx): over the frozen view, which stays visible behind it. */
+.dialog.report-dialog { --tint: var(--amber); width: min(480px, calc(100vw - 24px)); }
+.report-dialog::backdrop { background: rgb(6 4 11 / .25); }
+.report-form { display: flex; flex-direction: column; gap: 10px; }
+.report-label { font-weight: 600; }
+.report-note { width: 100%; resize: vertical; min-height: 96px; }
+.report-shot { display: flex; align-items: center; gap: 10px; color: var(--text-2); }
+.report-thumb { width: 96px; margin-left: auto; border-radius: var(--radius); border: var(--came-s) solid var(--lead); }
+.report-about { font-size: 13px; }
+.report-status { margin-right: auto; align-self: center; color: var(--text-2); font-size: 13px; }
+
+/* The Reports page (ui/reports.tsx): a row per report, its shot, note and who; one opens to the rest. */
+.reports-page { max-width: 1040px; }
+.report-list { list-style: none; margin: 24px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.report-row { --tint: var(--cobalt-t); border: var(--came) solid var(--lead); border-radius: var(--radius);
+  background: color-mix(in srgb, var(--tint) 5%, var(--night-1)); box-shadow: var(--bevel), var(--rim); }
+.report-row.open { --tint: var(--amber); }
+.report-head { display: flex; gap: 14px; align-items: center; width: 100%; padding: 10px 12px; text-align: left;
+  background: none; border: 0; cursor: pointer; }
+.report-head:hover .report-row-note { text-decoration: underline dotted; text-underline-offset: 4px; }
+.report-row-shot { flex: none; width: 128px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius);
+  background: var(--void); border: var(--came-s) solid var(--lead); }
+.report-row-text { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.report-row-note { color: var(--text); font-size: 15.5px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+.report-row-meta { color: var(--text-3); font-size: 13px; overflow-wrap: anywhere; }
+.report-detail { display: flex; flex-direction: column; gap: 12px; padding: 4px 14px 16px; }
+.report-note-full { white-space: pre-wrap; color: var(--text); }
+.report-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.report-build { color: var(--text-3); font-size: 12.5px; margin-left: auto; }
+.report-detail-shot { max-width: 100%; border-radius: var(--radius); border: var(--came-s) solid var(--lead); }
+.report-detail summary { cursor: pointer; color: var(--text-2); }
+.report-pre { max-height: 60vh; overflow: auto; margin-top: 8px; padding: 10px; font: 12px/1.45 var(--mono);
+  background: var(--night-0); border-radius: var(--radius); white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 599px) { .report-row-shot { width: 84px; } .report-build { margin-left: 0; } }

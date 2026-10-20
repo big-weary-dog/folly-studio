@@ -120,7 +120,8 @@ export function createStage(sock: LiveSocket) {
     // Nothing on stage: asleep until the socket says otherwise.
     if (live?.look || pi || pending.length) kick();
   }
-  const kick = () => { if (!raf && alive && runtime) raf = requestAnimationFrame(loop); };
+  let frozen = false;
+  const kick = () => { if (!raf && alive && !frozen && runtime) raf = requestAnimationFrame(loop); };
 
   return {
     msg, stats, blackout, t,
@@ -160,6 +161,14 @@ export function createStage(sock: LiveSocket) {
       });
       runtime.start(rig, library.filter((e) => (e.kind || 'source') === 'source').map(({ name, code }) => ({ name,
         code })));
+      kick();
+    },
+    /** A bug report's pause (SPEC "Bug reports"): the loop and the 3D view stop until thawed. */
+    freeze(on: boolean) {
+      frozen = on;
+      cancelAnimationFrame(raf);
+      raf = 0;
+      viewer?.freeze(on);
       kick();
     },
     destroy() {

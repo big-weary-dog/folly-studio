@@ -7,6 +7,7 @@ import { useLayoutEffect, useState } from 'preact/hooks';
 import { api, statusOf } from '../api.ts';
 import type { User } from '../../../shared/schemas/api.ts';
 import { confirmDialog, cx, toast, Toasts } from './kit.tsx';
+import { fileBugReport } from './bug-report.tsx';
 import { Rose } from './rose.tsx';
 import { redeemInvite, takeInvite } from './invite.ts';
 import { flash, here, leaveGuard, navigate, router, setTitle, user, type ViewProps } from './session.ts';
@@ -32,6 +33,8 @@ const ROUTES: Route[] = [
     load: () => import('./live/control.tsx').then((m) => m.ControlPage) },
   { re: /^\/models\/?$/, name: 'models', title: 'Models', nav: '/models',
     load: () => import('./models.tsx').then((m) => m.Models) },
+  { re: /^\/reports\/?$/, name: 'reports', title: 'Reports', nav: '/reports',
+    load: () => import('./reports.tsx').then((m) => m.ReportsPage) },
   { re: /^\/access\/?$/, name: 'access', title: 'Access', nav: '/access',
     load: () => import('./access.tsx').then((m) => m.AccessPage) },
 ];
@@ -102,7 +105,15 @@ async function logout() {
 
 const NAV = [['/ideas', 'Ideas'], ['/studio', 'Studio'], ['/looks', 'My looks'], ['/gallery', 'Gallery'],
   ['/live', 'Live']];
-const ADMIN_NAV = [...NAV, ['/models', 'Models'], ['/access', 'Access']];
+const ADMIN_NAV = [...NAV, ['/models', 'Models'], ['/access', 'Access'], ['/reports', 'Reports']];
+
+/** The user menu drops under its button at a desktop's width; on a phone it sits open in the nav panel. */
+function placeUserMenu(e: { newState: string; currentTarget: HTMLElement }) {
+  const r = document.getElementById('user-menu-btn')?.getBoundingClientRect();
+  if (e.newState === 'open' && r) {
+    Object.assign(e.currentTarget.style, { top: `${r.bottom + 6}px`, right: `${innerWidth - r.right}px` });
+  }
+}
 
 function Header({ me, nav }: { me: User; nav?: string }) {
   const [open, setOpen] = useState(false);
@@ -135,9 +146,16 @@ function Header({ me, nav }: { me: User; nav?: string }) {
         </nav>
         <div class="user-box">
           <span class="user-name">{me.username}</span>
+          <button class="user-menu-btn" id="user-menu-btn" type="button" popovertarget="user-menu"
+            aria-haspopup="menu"><span class="user-name">{me.username}</span></button>
           {me.role === 'admin' ? <span class="tag tag-sapphire">Admin</span>
             : me.role === 'curator' && <span class="tag tag-amber">Curator</span>}
-          <button class="btn ghost small" type="button" onClick={logout}>Log out</button>
+          <div class="user-menu" id="user-menu" popover="auto" onBeforeToggle={placeUserMenu}
+            onClick={(e) => { if ((e.target as Element).closest('.btn')) e.currentTarget.hidePopover?.(); }}>
+            <button class="btn ghost small report-btn" type="button" title="Report a problem (F8)"
+              onClick={() => { setOpen(false); void fileBugReport(); }}>Report a problem</button>
+            <button class="btn ghost small" type="button" onClick={logout}>Log out</button>
+          </div>
         </div>
       </div>
     </header>);

@@ -2,8 +2,10 @@
 import { render } from 'preact';
 
 import { App, boot } from './ui/app.tsx';
+import { installBugReport } from './ui/bug-report.tsx';
 import { loadFailed } from './ui/kit.tsx';
 
+installBugReport();
 const root = document.getElementById('app') as HTMLElement;
 root.replaceChildren();
 render(<App />, root);

@@ -41,7 +41,7 @@
             { "name": "node:child_process", "message": "processes only box untrusted work" }
           ],
           "patterns": [{ "group": ["**/public/**", "!**/public/js/pattern-core.*", "!**/public/js/fseq.*",
-            "!**/public/**/*.json"], "message": "server code takes only pattern-core, fseq and data from public/" }]
+            "!**/public/js/scrub.*", "!**/public/**/*.json"], "message": "server code takes only pattern-core, fseq, scrub and data from public/" }]
         }]
       }
     },
@@ -54,7 +54,7 @@
             { "name": "node:vm", "message": "code generation lives only in the pattern compiler and the render box" }
           ],
           "patterns": [{ "group": ["**/public/**", "!**/public/js/pattern-core.*", "!**/public/js/fseq.*",
-            "!**/public/**/*.json"], "message": "server code takes only pattern-core, fseq and data from public/" }]
+            "!**/public/js/scrub.*", "!**/public/**/*.json"], "message": "server code takes only pattern-core, fseq, scrub and data from public/" }]
         }]
       }
     },

@@ -39,7 +39,7 @@ export class Viewer {
   rig: Rig | null = null; count = 0; positions: Float32Array | null = null; colors: Float32Array | null = null;
   hiMask: Uint8Array | null = null; hiActive = false; bounds?: { min: number[]; max: number[] }; toView = frameOf();
   center = [1, 0, -0.4]; mode: 'playa' | 'points' = 'points'; playa: Playa | null = null; quality = 'auto';
-  dirty = true; raf = 0; last = 0; _asked = 0; destroyed = false; ok = false; dpr = 1;
+  dirty = true; raf = 0; last = 0; _asked = 0; destroyed = false; ok = false; dpr = 1; frozen = false;
   drag: Drag | null = null; unbind: () => void;
   venueData: Venue | null = null; venue: VenueGL | null = null; venueOn = true; _venueAsk = 0;
   tween: { from: Cam; to: Cam; t: number } | null = null; inertia: { vx: number; vy: number } | null = null;
@@ -75,9 +75,37 @@ export class Viewer {
   /** Draw on the next animation frame. */
   invalidate() {
     this.dirty = true;
-    if (!this.raf && !this.destroyed) {
+    if (!this.raf && !this.destroyed && !this.frozen) {
       this.raf = requestAnimationFrame(this._tick);
       this._asked = performance.now();
+    }
+  }
+
+  /** Frozen, nothing draws (orbits and colours wait) until thawed: a bug report's pause (SPEC "Bug reports"). */
+  freeze(on: boolean) {
+    this.frozen = on;
+    cancelAnimationFrame(this.raf);
+    this.raf = 0;
+    this.last = 0;
+    if (!on) this.invalidate();
+  }
+
+  /** The view drawn now and read in the same task (the drawing buffer is not kept past it), as a JPEG data URL at
+   * most `width` px wide; null when it cannot be read. */
+  snapshot(width = 960) {
+    if (!this.ok || this.destroyed) return null;
+    try {
+      this.dirty = true;
+      const playa = this.mode === 'playa' && this.playa;
+      if (playa) playa.draw(); else draw(this);
+      this.dirty = false;
+      const c = this.canvas, k = Math.min(1, width / c.width), out = document.createElement('canvas');
+      out.width = Math.round(c.width * k);
+      out.height = Math.round(c.height * k);
+      out.getContext('2d')?.drawImage(c, 0, 0, out.width, out.height);
+      return out.toDataURL('image/jpeg', 0.8);
+    } catch {
+      return null;
     }
   }
 
@@ -306,7 +334,7 @@ export class Viewer {
 
   _loop(now: number) {
     this.raf = 0;
-    if (this.destroyed) return;
+    if (this.destroyed || this.frozen) return;
     // After an idle spell the first step is one ordinary frame, not the whole gap.
     const dt = this.last && now - this.last < 100 ? (now - this.last) / 1000 : 1 / 60;
     this.last = now;

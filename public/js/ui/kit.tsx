@@ -31,6 +31,8 @@ interface ToastItem extends ToastOptions {
 }
 const toasts = signal<ToastItem[]>([]);
 let toastId = 0;
+/** The last 50 toasts shown, oldest first, for bug reports. */
+export const toastHistory: { at: string; kind: ToastKind; message: string }[] = [];
 
 /** Shows a message; returns its close(). */
 export function toast(message: string, { kind = 'info', timeout = 4200, action }: ToastOptions = {}) {
@@ -44,6 +46,8 @@ export function toast(message: string, { kind = 'info', timeout = 4200, action }
     setTimeout(() => { toasts.value = toasts.value.filter((x) => x !== t); }, reducedMotion() ? 0 : 180);
   }
   toasts.value = [...toasts.value, t];
+  toastHistory.push({ at: new Date().toISOString(), kind, message });
+  if (toastHistory.length > 50) toastHistory.shift();
   return close;
 }
 
@@ -85,7 +89,8 @@ export function openDialog<T>({ title, className, dismissable = true, onClose, b
     const closed = () => { render(null, host); host.remove(); onClose?.(result); resolve(result); };
     const Content = () => <>{body(close)}</>;
     function Dialog() {
-      const ref = useRef<HTMLDialogElement>(null), titleId = useId();
+      // Not useId: this is a render root of its own, whose ids would repeat the app's.
+      const ref = useRef<HTMLDialogElement>(null), [titleId] = useState(() => randomId('dlg-'));
       useLayoutEffect(() => { dlg = ref.current; dlg?.showModal(); }, []);
       return (
         <dialog ref={ref} class={cx('dialog', className)} aria-labelledby={titleId} onClose={closed}

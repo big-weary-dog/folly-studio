@@ -8,6 +8,7 @@ import type { FastifyError, FastifyInstance, FastifyReply, FastifyRequest, Route
 import type { z } from 'zod';
 
 import { problem } from '../shared/schemas/look.ts';
+import { scrubText } from '../public/js/scrub.ts';
 
 type Say = (...a: unknown[]) => void;
 export type Log = Say & { info: Say, debug: Say, warn: Say, error: Say };
@@ -130,4 +131,22 @@ export function routes(app: FastifyInstance, table: Record<string, Handler | [Ha
       throw new HttpError(405, 'Method not allowed.', { Allow: methods.join(', ') });
     } });
   }
+}
+
+export type LogLine = { at: string, level: 'warn' | 'error', text: string };
+const lineOf = (a: unknown) => {
+  if (a instanceof Error) return a.stack ?? a.message;
+  if (typeof a === 'string') return a;
+  try { return JSON.stringify(a); } catch { return String(a); }
+};
+/** `log`, keeping its last `size` warn and error lines (scrubbed) for bug reports (SPEC "Bug reports"). */
+export function keepTail(log: Log, size = 100): Log & { tail(): LogLine[] } {
+  const lines: LogLine[] = [];
+  const keep = (level: LogLine['level'], say: Say) => (...a: unknown[]) => {
+    lines.push({ at: new Date().toISOString(), level, text: scrubText(a.map(lineOf).join(' ')) });
+    if (lines.length > size) lines.shift();
+    say?.(...a);
+  };
+  return Object.assign((...a: unknown[]) => log(...a), log, { warn: keep('warn', log.warn),
+    error: keep('error', log.error), tail: () => [...lines] });
 }

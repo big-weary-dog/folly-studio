@@ -19,7 +19,7 @@ import { createFramesCache } from './frames-cache.ts';
 import { createQueue, foundryFromEnv } from './generate/index.ts';
 import { createIdeaLogs } from './generate/idea-log.ts';
 import { createRegistry } from './generate/models.ts';
-import { createLog, errorHandler, type Log } from './http.ts';
+import { createLog, errorHandler, keepTail, type Log } from './http.ts';
 import { createHub } from './live/hub.ts';
 import { piFeed } from './live/pi-feed.ts';
 import { liveSettings, playableLook, stageCopy } from './live/routes.ts';
@@ -28,6 +28,8 @@ import { createPreviews } from './previews/index.ts';
 import { frontView } from './previews/motion.ts';
 import { playaCamera } from './previews/playa.ts';
 import { createRenderBox } from './render-box.ts';
+import { buildSha } from './reports/build.ts';
+import { createReports } from './reports/store.ts';
 import { createLoaders, CSP_APP, DEFAULT_DIST_DIR, DEFAULT_PUBLIC_DIR, serveApp } from './static.ts';
 import { createStore } from './store.ts';
 import type { FlashSettings } from '../shared/schemas/api.ts';
@@ -48,7 +50,8 @@ type Options = { dataDir?: string, publicDir?: string, distDir?: string, generat
   rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, scrypt?: Cost, framesQuality?: number,
   framesMaxBytes?: number, generator?: Queue | ((deps: Deps) => Queue | Promise<Queue>),
   renderBox?: Parameters<typeof createBakeQueue>[0]['box'], flash?: FlashSettings, live?: LiveSettings,
-  piPreview?: string, ideaLogs?: { keep?: number, maxBytes?: number }, previews?: string };
+  piPreview?: string, ideaLogs?: { keep?: number, maxBytes?: number }, previews?: string,
+  reports?: { keep?: number, maxBytes?: number, days?: number } };
 
 /**
  * The server. `generator` and `renderBox` stand in for createQueue() and createRenderBox() (STUDIO_BAKE_*) in tests;
@@ -64,9 +67,11 @@ export async function createServer(opts: Options = {}) {
   const {
     dataDir = DEFAULT_DATA_DIR, publicDir = DEFAULT_PUBLIC_DIR, distDir = DEFAULT_DIST_DIR, generator,
     generatorName = '', curators = [], admins = [], secureCookies = false, rateLimit, trustProxy = false,
-    log = createLog(), renderBox, framesQuality, framesMaxBytes, scrypt,
+    renderBox, framesQuality, framesMaxBytes, scrypt,
     flash = flashSettings(), live = liveSettings(),
   } = opts;
+  // Its last warn and error lines go with each bug report.
+  const log = keepTail(opts.log ?? createLog());
   const piTarget = opts.piPreview ? previewTarget(opts.piPreview) : null;
 
   const store = await createStore(dataDir, { log, upgrade: { looks: upgradeStored } });
@@ -83,6 +88,8 @@ export async function createServer(opts: Options = {}) {
   // and the generators' render checks take turns at low priority, and evicted frames are baked again on demand.
   const lane = createLane();
   const ideaLogs = createIdeaLogs({ dir: path.join(dataDir, 'ideas-log'), ...opts.ideaLogs, log });
+  const reports = createReports({ dir: path.join(dataDir, 'reports'), ...opts.reports, log });
+  void reports.sweep();
   const deps = { store, loadLibrary, loadRig, loadVersion: loaders.version, models, codexBin, log, box, lane, ideaLogs,
     adapterName: generatorName || 'sketch' };
   const queue: Queue = typeof generator === 'function' ? await generator(deps) : generator || createQueue(deps);
@@ -131,7 +138,8 @@ export async function createServer(opts: Options = {}) {
   await app.register(fastifyRateLimit, { global: false });
   await app.register(fastifyWebsocket, { options: { maxPayload: 16 * 1024 } });
   await app.register(apiRoutes({ store, auth, queue, models, loaders, log, access, framesDir, bakes,
-    frames, rateLimit, secureCookies, flash, hub, live, ideaLogs, previews }), { prefix: '/api' });
+    frames, rateLimit, secureCookies, flash, hub, live, ideaLogs, previews, reports,
+    build: buildSha(path.dirname(fileURLToPath(import.meta.url))), tail: log.tail }), { prefix: '/api' });
   if (piTarget) await app.register(piPreview({ auth, target: piTarget, hub }));
   // The live stage follows the dry run whenever /pi was the last thing used (SPEC-live "Following /pi").
   if (piTarget) {
@@ -140,7 +148,7 @@ export async function createServer(opts: Options = {}) {
   }
   await serveApp(app, { distDir, log });
   await app.ready();
-  const pruneTimer = setInterval(() => auth.pruneSessions(), 60 * 60 * 1000);
+  const pruneTimer = setInterval(() => { auth.pruneSessions(); void reports.sweep(); }, 60 * 60 * 1000);
   pruneTimer.unref();
 
   return {

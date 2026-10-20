@@ -6,12 +6,14 @@ import { fileURLToPath } from 'node:url';
 import { preact } from '@preact/preset-vite';
 import { defineConfig } from 'vite';
 
+import { buildSha } from './src/reports/build.ts';
 import { precompress } from './tools/vite-compress.ts';
 import { sandboxPage } from './tools/vite-sandbox.ts';
 
 export default defineConfig({
   root: fileURLToPath(new URL('./public', import.meta.url)),
   publicDir: false, // public/ is the source root here, not a folder copied as it is
+  define: { __BUILD__: JSON.stringify(buildSha(fileURLToPath(new URL('.', import.meta.url)))) }, // bug reports
   plugins: [preact(), sandboxPage(), precompress()], // .tsx: JSX for Preact (Oxc), and its HMR in dev
   // The browser's Host header goes through unchanged: the API checks a mutation's Origin against it.
   server: { host: '127.0.0.1', proxy: { '/api': { target: `http://127.0.0.1:${process.env.PORT || 8780}` } } },
