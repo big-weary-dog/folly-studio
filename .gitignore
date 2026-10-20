@@ -6,3 +6,6 @@
 # npm ci installs these; npm run build writes the app here
 /node_modules/
 /dist/
+# The Pi's own settings and looks (pi/README.md): git pull never touches them
+/pi/config.json
+/pi/local/

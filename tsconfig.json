@@ -18,6 +18,6 @@
     "jsxImportSource": "preact",
     "skipLibCheck": true
   },
-  "include": ["*.js", "src", "shared", "public/js", "render-box", "fleet-box", "tools", "test"],
+  "include": ["*.js", "src", "shared", "public/js", "render-box", "fleet-box", "tools", "test", "pi"],
   "exclude": ["node_modules", "dist", "public/patterns"]
 }

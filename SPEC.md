@@ -213,6 +213,8 @@ has alpha × level, `max` keeps the brighter channel, `multiply` tints what is b
   0..2 (1), `energy` 0..1 (0.5); `palette` as role lists (≤ 16 `#rrggbb` each; a bare name from
   `data/palettes.json` is filled in on save; default `chapel`); `macros` ≤ 16, names
   `[a-z][A-Za-z0-9_]{0,31}` other than G's own, `{ value, min = 0, max = 1 }`.
+  `live`: the names a live engine (the Pi, SPEC-pi) offers as controls: globals, the look's macros and `bpm`,
+  each once; absent, it offers the macros and `level`. Nothing else reads it.
 - **Automation**: `{ <global or macro>: [[t, v], …] }`, ≤ 16 lanes of ≤ 256 points, t 0–600 s ascending (to
   the ms); linear between points, held before the first and after the last; it replaces the static value.
 - `data/palettes.json` (`tools/build_palettes.py [--check]`, from `td/palettes/*.csv`; roles as `td/README.md`
@@ -225,6 +227,8 @@ Sequencing lives on the look, xLights-style.
 - `look.duration`: seconds the look runs, then loops; 1–600, default 30 (absent = 30).
 - `look.bpm`: optional, 40–240; the editor's beat grid, the tempo of LFOs in `beats`, and `G.bpm`. A bake's key
   holds it when a binding counts beats or a module's code reads `G.bpm`.
+  Beats count from the look's downbeat `beat0` (a PreparedLook field, 0: show time 0), which only a live engine
+  moves (tap tempo); `beat()` and LFOs in `beats` read it, so bakes are unchanged.
 - `layer.clips`: optional `[{ start, end, fadeIn = 0, fadeOut = 0, transition? }]` in seconds (0–600, kept to
   the millisecond), ≤ 32 per layer, sorted, not overlapping (touching is fine). No or empty
   clips: the layer is always on (looks from before the timeline are unchanged).

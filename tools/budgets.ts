@@ -13,7 +13,7 @@ const KB = 1024;
 const MAX_BYTES = 64 * KB, MAX_LINE = 120;
 // generated, committed data
 const CAPS: Record<string, number> = { 'public/data/rig.json': 1024 * KB, 'public/data/rig-folly.json': 1024 * KB };
-const SKIP = /^(?:data|dist)\/|^package-lock\.json$/;
+const SKIP = /^(?:data|dist|pi\/page\/dist)\/|^package-lock\.json$/;
 const CODE = /\.(?:[cm]?[jt]sx?|css|html|py)$/, LINTED = /\.[cm]?[jt]sx?$/, TABLESS = /\.(?:[cm]?[jt]sx?|css|html)$/;
 const SECRET = /\bsk-ant-[\w-]{16,}|\bAKIA[0-9A-Z]{16}\b|-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----/;
 const REMOTE = new RegExp(String.raw`(?:<(?:script|link|iframe|img)\b[^>]*?\b(?:src|href)\s*=\s*|@import\s+|\burl\(\s*)`

@@ -22,6 +22,9 @@
     "smoke": "playwright test --project=smoke",
     "backup": "node tools/backup.ts",
     "host": "bash deploy/host.sh",
+    "pi": "node --experimental-strip-types pi/main.ts",
+    "pi:sim": "node --experimental-strip-types pi/sim.ts",
+    "pi:page": "vite build -c pi/vite.config.js",
     "build-data": "python3 tools/build_rig.py && python3 tools/build_palettes.py"
   },
   "devDependencies": {

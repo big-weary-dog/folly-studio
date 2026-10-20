@@ -5,6 +5,8 @@
   "plugins": ["eslint", "typescript", "unicorn", "oxc", "vitest"],
   "categories": { "correctness": "error", "suspicious": "error" },
   "options": { "reportUnusedDisableDirectives": "error" },
+  // The Pi's control page as built (committed: the Pi installs no Vite).
+  "ignorePatterns": ["pi/page/dist/**"],
   "rules": {
     "max-lines": ["error", { "max": 400 }],
     "no-eval": "error",
@@ -140,10 +142,10 @@
         { "name": "node:child_process", "message": "processes only box untrusted work" }
       ] }] }
     },
-    { "files": ["tools/**"], "rules": { "no-restricted-imports": "off" } },
+    { "files": ["tools/**", "pi/tools/**"], "rules": { "no-restricted-imports": "off" } },
     {
       // Tests may run code and processes; they are outside the capability rules.
-      "files": ["test/**"],
+      "files": ["test/**", "pi/test/**"],
       "rules": {
         "max-lines": ["error", { "max": 600 }],
         "no-restricted-imports": "off", "no-eval": "off", "no-new-func": "off", "no-implied-eval": "off",

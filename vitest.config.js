@@ -10,7 +10,7 @@ import viteConfig from './vite.config.js';
 export default mergeConfig(viteConfig, defineConfig({
   root: fileURLToPath(new URL('.', import.meta.url)),
   test: {
-    include: ['test/**/*.test.{js,ts}'],
+    include: ['test/**/*.test.{js,ts}', 'pi/test/**/*.test.{js,ts}'],
     // Each file in a fresh process of its own: tests start servers, worker threads and render boxes, and read their
     // own threads' nice values from /proc/self. One file per spare CPU, and two on a 2-CPU runner: much of the suite
     // waits on servers and boxes (62 s there against 110 s one at a time), the boxes run at nice 10, and no test

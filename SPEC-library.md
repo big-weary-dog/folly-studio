@@ -62,7 +62,7 @@ of `centre`, else 0, each edge a `soft` one `softness` wide), `wave(x)` = ½+½�
 (1 near 0 falling to 0 at ±width, wrapping), `hash(n)` and `rand(a, b?, c?)` (stable 0..1),
 `noise(x, y?, z?, w?)` (smooth 0..1), `fbm(x, y, z, octaves=4)`, `hsv(h, s, v)`, `hsl(h, s, l)`,
 `rgb(r, g, b)`, `hex('#rrggbb')`, `scale(c, k)`, `add(c1, c2)`, `gradient(t, [c0, c1, ...])`,
-`cosPalette(t, a, b, c, d)` (Inigo Quilez), `beat(t, bpm)` (phase 0..1), `dist(x1,y1,z1,x2,y2,z2)`,
+`cosPalette(t, a, b, c, d)` (Inigo Quilez), `beat(t, bpm)` (phase 0..1 from the downbeat), `dist(x1,y1,z1,x2,y2,z2)`,
 `pal(name, t = 0)` (t 0..1 along colour param `name`'s pick; a bare role `low|body|accent|high`, in code from
 before one colour param, walks the look palette's role; unknown or empty → `body`), `swatch(name, i)` (the same
 pick's or role's i-th colour, floored and wrapping),

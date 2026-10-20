@@ -94,10 +94,12 @@ export function prepareLook(look?: { globals?: Globals | null, automation?: Auto
   for (const m of g.macros) G[m.name] = m.value;
   Object.seal(G);
   const ranges = new Map<string, Range>([...Object.entries(GLOBALS), ...g.macros.map((m) => [m.name, m] as const)]);
-  const fixed = new Map<string, number>([...Object.keys(GLOBALS).map((k) => [k, G[k] as number] as const),
-    ...g.macros.map((m) => [m.name, m.value] as const)]);
+  // Where each name's static value lives (read when used, so a live engine may set it in place).
+  const fixed = new Map<string, () => number>([
+    ...Object.keys(GLOBALS).map((k) => [k, () => g[k as keyof typeof GLOBALS]] as const),
+    ...g.macros.map((m) => [m.name, () => m.value] as const)]);
   const L = {
-    G, g, lanes, bpm, palette: G.palette,
+    G, g, lanes, bpm, palette: G.palette, beat0: 0,
     speedLane: lanes.find((l) => l.name === 'speed')?.points || null, offset: 0, lastT: NaN, T: 0,
     grade: new Float64Array(9), graded: false, level: NaN, hue: NaN, sat: NaN,
     norm(name: string) {
@@ -107,7 +109,7 @@ export function prepareLook(look?: { globals?: Globals | null, automation?: Auto
     /** A global or macro at show time t, 0..1 of its range: its lane there, else its value (integrated clocks). */
     normAt(name: string, t: number) {
       const r = ranges.get(name), lane = lanes.find((l) => l.name === name);
-      return r ? clamp(((lane ? automationAt(lane.points, t) : fixed.get(name)!) - r.min) / (r.max - r.min)) : 0;
+      return r ? clamp(((lane ? automationAt(lane.points, t) : fixed.get(name)!()) - r.min) / (r.max - r.min)) : 0;
     },
   };
   if (previous && Number.isFinite(previous.lastT)) {
@@ -252,7 +254,7 @@ export type Mod = ReturnType<typeof paramMods>[number];
 export function modValue(m: Mod, t: number, g: number, env: number, look: PreparedLook) {
   let v;
   if (m.kind === 0) {
-    const ph = t * m.rate * (m.beats ? look.bpm / 60 : 1);
+    const ph = (m.beats ? t - look.beat0 : t) * m.rate * (m.beats ? look.bpm / 60 : 1);
     v = m.center + m.depth * lfo(m.shape, ph - Math.floor(ph), m.hold);
   } else if (m.kind === 3) {
     v = m.per * look.bpm / 60;

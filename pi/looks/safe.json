@@ -1,0 +1,6 @@
+{
+  "title": "Safe: dim colour wash",
+  "duration": 60,
+  "globals": { "level": 0.3, "palette": "chapel" },
+  "layers": [{ "modules": [{ "ref": "colour-wash", "params": { "speed": 0.05, "hold": 0.6 } }] }]
+}

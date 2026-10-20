@@ -1,0 +1,18 @@
+# Folly Studio Live as a systemd unit on the FPP Pi (pi/INSTALL.md). The ops hub starts and stops it; it is
+# installed but not enabled at boot, like folly-mix, so it never comes up sending DDP over the night show.
+[Unit]
+Description=Folly Studio Live (live looks for the Gothic Folly)
+After=network-online.target fppd.service
+Wants=network-online.target
+
+[Service]
+User=fpp
+WorkingDirectory=/home/fpp/show-builder/studio
+# --experimental-strip-types: Node 22.18 strips types by default; the flag lets an older Node 22 run it too.
+ExecStart=/usr/bin/node --experimental-strip-types pi/main.ts
+# SIGTERM fades to black over about a second, then sends black frames and exits.
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

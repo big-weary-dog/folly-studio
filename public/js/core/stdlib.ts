@@ -203,7 +203,8 @@ function cosPalette(t: number, a: Channels, b: Channels, c: Channels, d: Channel
   return out;
 }
 
-function beat(t: number, bpm = 120) { const x = t * bpm / 60; return x - Math.floor(x); }
+/** The beat's phase 0..1 at show time t, counted from the look's downbeat (beat0: 0 but in a live engine). */
+function beat(t: number, bpm = 120) { const x = (t - (RUN.look?.beat0 ?? 0)) * bpm / 60; return x - Math.floor(x); }
 
 /** dist(x1, y1, z1, x2, y2, z2), or in 2D dist(x1, y1, x2, y2). */
 function dist(x1: number, y1: number, z1: number, x2: number, y2?: number, z2?: number) {

@@ -216,6 +216,10 @@ const Macro = z.object({ value: z.number({ error: VALUE }).optional(), min: num(
 const MACRO_RULE = 'a name is a lowercase letter, then letters, digits or _, and not one of energy, speed, level, hue, '
   + 'saturation or palette.';
 
+// What a live engine offers as controls (SPEC "Globals"): names of globals, macros and bpm, each once.
+const MAX_LIVE = Object.keys(GLOBALS).length + MAX_MACROS + 1;
+const LIVE_RULE = "globals.live lists globals, the look's macros or bpm, each once.";
+
 const global = (name: keyof typeof GLOBALS) => num(GLOBALS[name].min, GLOBALS[name].max,
   `globals.${name} must be a number from ${GLOBALS[name].min} to ${GLOBALS[name].max}.`).transform(round).optional();
 /** A look's globals (all optional): the built-ins in range, a palette, macros. null clears them. */
@@ -225,8 +229,11 @@ export const Globals = z.strictObject({
   macros: z.record(z.string().refine(macroNameOk, MACRO_RULE), Macro,
     { error: 'globals.macros must be an object of { value, min, max }.' })
     .refine((m) => Object.keys(m).length <= MAX_MACROS, `At most ${MAX_MACROS} macros.`).optional(),
+  live: z.array(z.string(), { error: LIVE_RULE }).max(MAX_LIVE, LIVE_RULE).optional(),
 }, { error: (iss) => (iss.code === 'unrecognized_keys' ? `globals.${String(iss.keys[0]).slice(0, 40)} is not a global.`
-  : 'globals must be an object.') }).nullable();
+  : 'globals must be an object.') }).nullable()
+  .refine((g) => !g?.live?.some((n, i, all) => all.indexOf(n) !== i
+    || !(Object.hasOwn(GLOBALS, n) || n === 'bpm' || Object.hasOwn(g.macros ?? {}, n))), LIVE_RULE);
 
 const lane = ({ min, max }: Range) => {
   const each = `each point is [seconds 0–${MAX_DURATION}, value ${min}–${max}].`;
