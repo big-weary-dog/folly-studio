@@ -3,14 +3,19 @@
 // remembered for the session. Hovering or focusing a row (on a phone, its ▶) auditions it in the 3D view as a
 // temporary look sent to the sandbox: a source or preset as layers on top, a warp or filter in the selected layer's
 // chain where picking puts it. Leaving it, Escape or closing sends back the look exactly as it was; picking adds it.
+// Add a layer also picks where the new layer plays: the groups tree beside the list (on a phone, behind its Plays on
+// button), starting on the whole rig. The audition plays on those groups, the view dims the rest as the Groups drawer
+// does, and picking gives them to the new layer; closing forgets them.
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 import type { Module } from '../../../shared/schemas/look.ts';
 import type { LibraryEntry } from '../../../shared/schemas/rig.ts';
 import { DEFAULT_SOFTEN } from '../core/spatial.ts';
+import { GroupsTree } from './groups-drawer.tsx';
 import { cx, humanize, openDialog } from './kit.tsx';
 import { insertModule, isPreset, type Layer } from './model.ts';
 import type { Preview } from './preview.ts';
+import type { Studio } from './studio-store.ts';
 
 type Kind = Module['kind'];
 type Blank = { kind: Kind; blank: true; name?: undefined; title?: undefined; code?: undefined; summary?: undefined };
@@ -33,21 +38,23 @@ const remember = (mode: string, tab: Tab) => {
 };
 
 /** The audition: the look the app sent is kept, and put back unless something was picked. */
-function auditioner({ pv, layer, moduleId, layers }: Partial<Audition> = {}) {
+export function auditioner({ pv, layer, moduleId, layers }: Partial<Audition> = {}) {
   let saved: { layers: Layer[]; extra: object } | null = null, mine: Layer[] | null = null, timer = 0;
+  let shown: Entry | null = null, groups: string[] | undefined;    // a new layer's groups, once picked
   const show = (e: Entry) => {
     const r = pv?.runtime;
+    shown = e;
     if (!r?.ready || !layer || 'blank' in e) return;
     if (!saved || r.layers !== mine) saved = { layers: r.layers, extra: r.extra };   // the look as the app sent it
     if (isPreset(e)) {
       const made = layers?.(e);
       if (!made) return;
-      mine = [...saved.layers, ...made.map((l, i) => ({ ...l, id: `${TRY}${i}` }))];
+      mine = [...saved.layers, ...made.map((l, i) => ({ ...l, id: `${TRY}${i}`, ...(groups ? { groups } : {}) }))];
     } else {
       const m: Module = { id: TRY, kind: e.kind || 'source', title: e.title || e.name, code: e.code, params: {} };
       mine = m.kind === 'source'
-        ? [...saved.layers, { id: TRY, title: m.title, groups: layer.groups, blend: 'over', level: 1, modules: [m],
-          soften: { ...DEFAULT_SOFTEN } }]                              // as a new layer would be
+        ? [...saved.layers, { id: TRY, title: m.title, groups: groups ?? layer.groups, blend: 'over', level: 1,
+          modules: [m], soften: { ...DEFAULT_SOFTEN } }]                // as a new layer would be
         : saved.layers.map((l) => (l.id !== layer.id ? l : { ...l, modules: insertModule(l.modules, m, moduleId),
           enabled: true, level: l.level || 1, clips: undefined }));
     }
@@ -57,29 +64,44 @@ function auditioner({ pv, layer, moduleId, layers }: Partial<Audition> = {}) {
   const restore = () => {
     const r = pv?.runtime;
     if (saved && r && r.layers === mine) { r.setLook(saved.layers, saved.extra); pv?.kick(); }
-    saved = mine = null;
+    saved = mine = shown = null;
   };
   const later = (fn: () => void, ms: number) => { clearTimeout(timer); timer = window.setTimeout(fn, ms); };
   return {
     want: (e: Entry | null) => later(() => (e ? show(e) : restore()), e ? 120 : 80), // gliding skips the restore
     now: (e: Entry | null) => { clearTimeout(timer); if (e) show(e); else restore(); },
-    drop: () => { clearTimeout(timer); saved = mine = null; },           // picked: the app sends the real look next
+    drop: () => { clearTimeout(timer); saved = mine = shown = null; },   // picked: the app sends the real look next
+    hold: () => clearTimeout(timer),                                     // into the groups: what is auditioned stays
+    /** The new layer's groups changed: what is auditioned plays on them. */
+    regroup: (g: string[]) => { groups = g; if (shown && mine && pv?.runtime?.layers === mine) show(shown); },
   };
 }
 
-/** Add a module (`mode: 'module'`) or Add a layer (`'layer'`). */
-export function openShelf({ library, onPick, audition, mode }: { library: LibraryEntry[];
-  onPick: (e: Entry) => void; audition?: Audition; mode: 'module' | 'layer' }) {
-  const A = auditioner(audition), tabs = TABS[mode];
+/** Add a module (`mode: 'module'`) or Add a layer (`'layer'`; given `st`, with the new layer's groups, handed to
+ * `onPick`). */
+export function openShelf({ library, onPick, audition, mode, st }: { library: LibraryEntry[];
+  onPick: (e: Entry, groups?: string[]) => void; audition?: Audition; mode: 'module' | 'layer'; st?: Studio }) {
+  const A = auditioner(audition), tabs = TABS[mode], root = st?.data.index?.root;
+  const where = mode === 'layer' && st && root ? st : null;
   let picked = false;
   const title = mode === 'layer' ? 'Add a layer' : 'Add a module';
-  return openDialog({ title, className: 'library-dialog shelf-dialog',
-    onClose: () => { if (!picked) A.now(null); }, body: (close) => {
+  if (where) { where.newGroups.value = [root!]; A.regroup([root!]); }
+  return openDialog({ title, className: cx('library-dialog shelf-dialog', where && 'has-groups'),
+    onClose: () => {
+      if (!picked) A.now(null);
+      if (where) where.newGroups.value = where.hoverGroup.value = where.pinnedGroup.value = null;
+    }, body: (close) => {
       const [tried, setTried] = useState<Entry | null>(null), [query, setQuery] = useState('');
+      const [groups, setGroups] = useState(() => [root!]), [placing, setPlacing] = useState(false);
       const [tab, setTab] = useState<Tab>(() => tabs.find(([t]) => t === remembered(mode))?.[0] ?? tabs[0][0]);
       const hovered = useRef<Entry | null>(null), bar = useRef<HTMLDivElement>(null);
-      useLayoutEffect(() => { bar.current?.closest('dialog')?.classList.toggle('is-trying', !!tried); }, [tried]);
-      const pick = (e: Entry) => { picked = true; A.drop(); close(); onPick(e); };
+      useLayoutEffect(() => {
+        const d = bar.current?.closest('dialog');
+        d?.classList.toggle('is-trying', !!tried);
+        d?.classList.toggle('is-placing', placing);
+      }, [tried, placing]);
+      const pick = (e: Entry) => { picked = true; A.drop(); close(); onPick(e, where ? groups : undefined); };
+      const regroup = (g: string[]) => { setGroups(g); A.regroup(g); if (where) where.newGroups.value = g; };
       const want = (e: Entry | null) => { if (!tried) A.want(e); };     // a phone's preview holds until Add or Back
       const trying = (e: Entry | null) => { A.now(e); setTried(e); };
       const words = query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -114,7 +136,15 @@ export function openShelf({ library, onPick, audition, mode }: { library: Librar
       const inCat = (c: string) => list.filter((e) => !('blank' in e) && ((e as LibraryEntry).category || 'other')
         === c);
       const text = tabs.find(([t]) => t === tab)![2];
+      const playsOn = where && <button type="button" class="btn small shelf-where" onClick={() => setPlacing(true)}
+        title="Choose the groups the new layer plays on">Plays on: {where.groupNames(groups)}</button>;
       return <>
+        {where && <section class="shelf-groups" aria-label="Plays on" onPointerEnter={A.hold} onFocusIn={A.hold}>
+          <div class="drawer-head"><h3 class="drawer-title">Groups · new layer</h3>
+            <button type="button" class="btn small shelf-back" onClick={() => setPlacing(false)}>Done</button></div>
+          <div class="tree-wrap"><GroupsTree st={where} groups={groups} set={regroup} /></div></section>}
+        <div class="shelf-main">
+        {playsOn}
         <div class="shelf-head">
           <div class="shelf-tabs" role="tablist" aria-label="Kind">{tabs.map(([t, label]) => {
             const n = query ? entriesOf(t).filter((e) => !('blank' in e) && shows(e)).length : 0;
@@ -132,8 +162,10 @@ export function openShelf({ library, onPick, audition, mode }: { library: Librar
           {mode === 'module' && <ul class="shelf-list">{blanks.map(row)}</ul>}
           <p class="pane-hint" hidden={list.some(shows)}>Nothing here matches. Try another tab.</p>
         </div>
+        </div>
         <div class="shelf-bar" ref={bar} hidden={!tried}><span>Previewing <b>{tried?.title}</b>
           {tried && !('blank' in tried) && <small class="shelf-said">{tried.summary}</small>}</span>
+          {playsOn}
           <button type="button" class="btn small primary" onClick={() => { if (tried) pick(tried); }}>Add</button>
           <button type="button" class="btn small" onClick={() => trying(null)}>Back</button></div>
       </>;

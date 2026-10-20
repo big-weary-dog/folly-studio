@@ -1,7 +1,7 @@
 // A layer's groups (SPEC "Looks": layer.groups): the settings' "Plays on" opens a drawer beside the 3D view holding
 // the groups tree, where checkboxes say which groups the selected layer plays on and hovering or focusing a row (or
 // its pin) lights its LEDs on the model. While it is open the view shows where the layer plays and dims the rest.
-import { useComputed } from '@preact/signals';
+// Add a layer (shelf.tsx) shows the same tree for the layer it adds.
 import { useEffect, useLayoutEffect, useState } from 'preact/hooks';
 
 import type { RigGroup } from '../../../shared/schemas/rig.ts';
@@ -21,12 +21,18 @@ export function PlaysOn({ st }: { st: Studio }) {
     <button type="button" class="btn small plays-on-btn" disabled={!l} aria-expanded={d.open} onClick={d.toggle}
       title="Choose the groups this layer plays on">{l ? st.groupNames(l.groups, l.tags) : '—'}</button>
     <Drawer d={d} title={`Groups · ${l?.title ?? ''}`} class="groups-drawer">
-      <div class="tree-wrap"><GroupsTree st={st} /></div></Drawer>
+      <div class="tree-wrap"><GroupsTree st={st} groups={l?.groups ?? null} set={(groups) => {
+        // picked by hand: no longer a portable guess; none is fine (the layer lights nothing)
+        if (l) st.editLayer(l.id, () => ({ groups, tags: undefined }));
+      }} /></div></Drawer>
   </Field>;
 }
 
-function GroupsTree({ st }: { st: Studio }) {
-  const index = st.data.index, picked = useComputed(() => st.selected.value?.groups?.join('\n') ?? null).value;
+/** The groups tree: `groups` ticked (null: nothing to pick for), `set` given the groups a tick makes. Hovering or
+ * focusing a row, or pinning it, lights it on the model. */
+export function GroupsTree({ st, groups, set }: { st: Studio; groups: readonly string[] | null;
+  set: (groups: string[]) => void }) {
+  const index = st.data.index, picked = groups?.join('\n') ?? null;
   const [open, setOpen] = useState<ReadonlySet<string> | null>(null);
   // The top of the tree starts open; the branches that hold the layer's groups open so they are visible.
   useLayoutEffect(() => {
@@ -37,11 +43,7 @@ function GroupsTree({ st }: { st: Studio }) {
   }, [picked, index]);
   if (!index || !open) return null;
   const sel = new Set(picked ? picked.split('\n') : []);
-  const toggle = (id: string, on: boolean) => {
-    const l = st.selected.peek();
-    // picked by hand: no longer a portable guess; none is fine (the layer lights nothing)
-    if (l) st.editLayer(l.id, () => ({ groups: toggleGroup(l.groups ?? [], index, id, on), tags: undefined }));
-  };
+  const toggle = (id: string, on: boolean) => { if (groups) set(toggleGroup(groups, index, id, on)); };
   const item = (g: RigGroup, depth: number) => {
     const kids = index.children.get(g.id) || [], expanded = open.has(g.id);
     const checked = groupChecked(sel, index, g.id), pinned = st.pinnedGroup.value === g.id, boxId = `grp-${g.id}`;

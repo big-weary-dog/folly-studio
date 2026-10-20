@@ -2,9 +2,9 @@
 // the sketch generator turns into a look, the Studio in the Playa view with the sandbox running, a layer's Groups
 // drawer's ticks (a group with all under it, none at all), a param dragged and stepped, a typo and a hang in the code
 // (reported, paused by the watchdog, running again once fixed), the timeline, a source's Colours played in an accent
-// (the pick tile), a param's help, a preset added from Add a layer and one kind of module shown in Add a module, and
-// a bake in the real render box in Check & bake (the laptop opens it from Export and bakes; the phone, from its Look
-// tab, says to bake from a larger screen and plays the baked frames).
+// (the pick tile), a param's help, a preset added from Add a layer on the groups picked there and one kind of module
+// shown in Add a module, and a bake in the real render box in Check & bake (the laptop opens it from Export and bakes;
+// the phone, from its Look tab, says to bake from a larger screen and plays the baked frames).
 // The real server and a fresh build (studio.js); WebGL on SwiftShader. Every request stays on our origin, and the
 // console stays free of errors and CSP reports. Screenshots of each step land in the test's output folder.
 import { createRenderBox } from '../../src/render-box.ts';
@@ -165,14 +165,34 @@ for (const [name, device] of Object.entries(SIZES)) {
         await shot('help');
       });
 
-      await test.step('the pickers: a preset adds its layer; Add a module shows one kind', async () => {
+      await test.step('the pickers: a preset adds its layer where picked; Add a module shows one kind', async () => {
         if (!wide) await page.locator('.tab[data-tab=layers]').click();
-        await page.locator('.pane-layers button', { hasText: 'Add' }).first().click();
-        const picker = page.locator('dialog.shelf-dialog[open]');
+        const add = page.locator('.pane-layers button', { hasText: 'Add' }).first();
+        await add.click();
+        const picker = page.locator('dialog.shelf-dialog[open]'), tree = picker.locator('.shelf-groups');
+        await expect(picker.locator('.shelf-where:visible')).toHaveCount(wide ? 0 : 1);
+        await expect(tree).toBeVisible({ visible: wide });
+        await page.keyboard.press('Escape');                                 // closed: nothing kept
+        await add.click();
+        if (!wide) await picker.locator('.shelf-where:visible').click();
+        const top = tree.locator('.tree > .tree-item > .tree-row'), kid = top.locator('xpath=..')
+          .locator('.tree-children > .tree-item > .tree-row').first();
+        await expect(top.locator('.tree-box')).toBeChecked();                // the whole rig, as Add gives it
+        await top.locator('.tree-box').click();
+        await kid.locator('.tree-box').click();
+        const where = await kid.locator('.tree-label').textContent();
+        await shot('add-groups');
+        if (!wide) {
+          await expect(picker.locator('.shelf-main')).toBeHidden();
+          await tree.getByRole('button', { name: 'Done' }).click();
+          await expect(picker.locator('.shelf-where:visible')).toHaveText(`Plays on: ${where}`);
+        }
         await picker.getByRole('tab', { name: 'Presets' }).click();
         await shot('presets');
         await picker.locator('.shelf-row', { hasText: 'Palette drift' }).click();
         await expect(page.locator('.layer-name:visible', { hasText: 'Palette drift' })).toHaveCount(1);
+        await page.locator('.layer-name:visible', { hasText: 'Palette drift' }).click();
+        await expect(page.locator('.plays-on-btn:visible')).toHaveText(where);
         if (!wide) return;
         await page.locator('.chain-add').click();
         await picker.getByRole('tab', { name: 'Warps' }).click();

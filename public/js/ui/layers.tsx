@@ -46,21 +46,22 @@ export function LayersPane({ st, pv }: Props) {
     toast(`Deleted “${l.title}”.`, { action: { label: 'Undo', onClick: () => insertLayer(st, l,
       Math.min(i, st.look.peek().layers.length)) } });
   }
-  // Add a layer (shelf.tsx): a blank one, one source (auditioned over the selected layer's groups), or a preset's
-  // layers above the selected one, with the globals it needs.
+  // Add a layer (shelf.tsx): a blank one, one source, or a preset's layers above the selected one, with the globals it
+  // needs; each on the groups picked in the shelf.
   const made = (e: Entry) => (isPreset(e) ? presetLayers(e, st.data.library, st.data.rig) : null);
   const add = () => import('./shelf.tsx').then(({ openShelf }) => openShelf({
-    mode: 'layer', library: st.data.library, audition: { pv, layer: l || {}, layers: made },
-    onPick: (e) => {
+    mode: 'layer', library: st.data.library, audition: { pv, layer: l || {}, layers: made }, st,
+    onPick: (e, groups) => {
       if (isPreset(e)) {
-        const list = made(e);
+        const list = made(e)?.map((x) => (groups ? { ...x, groups: [...groups] } : x));
         if (!list) return toast(`${e.title} needs a module this library lacks.`, { kind: 'warn' });
         const at = st.selected.peek() ? st.look.peek().layers.indexOf(st.selected.peek()!) + 1 : undefined;
         if (e.globals) st.edit((L) => ({ globals: withPresetGlobals(L.globals, e) }));
         list.forEach((layer, i) => insertLayer(st, layer, at === undefined ? undefined : at + i));
         return;
       }
-      insertLayer(st, 'blank' in e ? newLayer({ title: 'New layer' }, st.data.rig) : layerFromPattern(e, st.data.rig));
+      const one = 'blank' in e ? newLayer({ title: 'New layer' }, st.data.rig) : layerFromPattern(e, st.data.rig);
+      insertLayer(st, groups ? { ...one, groups } : one);
       if (!('blank' in e)) return;    // a blank layer is for writing code
       st.setTab('code', { onlyNarrow: true });
       if (!st.narrow.peek()) st.showDock('code');

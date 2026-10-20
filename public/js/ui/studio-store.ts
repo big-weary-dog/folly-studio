@@ -47,8 +47,10 @@ export function createStudio(me: User | null) {
   const heavy = signal<ReadonlyMap<string, number>>(new Map());   // layers too slow for a phone's 40 fps: ms a frame
   const hoverGroup = signal<string | null>(null), pinnedGroup = signal<string | null>(null);
   const groupsFor = signal<string | null>(null);     // the layer whose groups are being picked: the view focuses them
-  /** That layer's [groups, tags] as JSON, so the view refocuses only when they change. */
+  const newGroups = signal<string[] | null>(null);   // a layer being added (the shelf): the groups picked for it
+  /** The [groups, tags] being picked, as JSON, so the view refocuses only when they change. */
   const focusKey = computed(() => {
+    if (newGroups.value) return JSON.stringify([newGroups.value, null]);
     const l = groupsFor.value && look.value.layers.find((x) => x.id === groupsFor.value);
     return l ? JSON.stringify([l.groups ?? null, l.tags ?? null]) : null;
   });
@@ -101,8 +103,8 @@ export function createStudio(me: User | null) {
 
   const st = {
     look, server, saved, ready, saving, sharing, copyOnSave, selectedId, picked, muted, solo, heavy, hoverGroup,
-    pinnedGroup, groupsFor, focusKey, narrow, dock, tab, folded, side, fallbackRev, data, clock, playing, speed, baked,
-    status, body, dirty, selected, module, sandboxLook, layerById, silent, groupNames, codeFor, problem,
+    pinnedGroup, groupsFor, newGroups, focusKey, narrow, dock, tab, folded, side, fallbackRev, data, clock, playing,
+    speed, baked, status, body, dirty, selected, module, sandboxLook, layerById, silent, groupNames, codeFor, problem,
     lookId,
     /** Hooks the preview sets: an edit happened (baked playback stops); flush pending code to the sandbox. */
     onEdit: () => {}, flush: () => {},

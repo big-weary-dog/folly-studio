@@ -113,6 +113,16 @@
 .shelf-said { display: block; color: var(--text-3); }
 .shelf-dialog.is-trying .dialog-head, .shelf-dialog.is-trying .dialog-body > :not(.shelf-bar) { display: none; }
 .shelf-dialog.is-trying::backdrop { background: none; }
+/* Add a layer: where the new layer plays, the groups tree as the Groups drawer shows it, left of the list; on a phone,
+   behind its Plays on button, in place of the list */
+.dialog.shelf-dialog.has-groups { width: min(760px, calc(100vw - 24px)); height: min(640px, calc(100dvh - 40px)); }
+.has-groups .dialog-body { display: grid; grid-template: 1fr auto / minmax(0, 280px) minmax(0, 1fr); }
+.shelf-groups { grid-row: 1 / -1; display: flex; flex-direction: column; min-height: 0;
+  border: var(--came-s) solid var(--lead); background: var(--night-1); }
+.shelf-groups .tree-wrap { flex: 1; min-height: 0; overflow: auto; }
+.shelf-main { display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; }
+.shelf-where, .shelf-back { display: none; }
+.shelf-dialog.is-trying.is-placing .dialog-body > .shelf-groups { display: flex; }
 /* the look's globals: sliders, the palette's roles as glass, macros */
 .look-globals { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px 24px; }
 .look-globals section { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
@@ -177,6 +187,17 @@ button.tl-mods-fold { gap: 4px; color: var(--sand); white-space: nowrap; cursor:
 .tl-auto-dot:hover { fill: var(--violet); }
 @media (max-width: 899px) {
   .dialog.shelf-dialog { width: 100vw; max-width: none; max-height: 80dvh; margin: auto 0 0; }
+  .dialog.shelf-dialog.has-groups { width: 100vw; height: fit-content; }
+  .has-groups .dialog-body { display: flex; }
+  .shelf-where, .shelf-back { display: inline-flex; }
+  .shelf-main > .shelf-where { align-self: flex-start; }
+  .has-groups:not(.is-placing) .shelf-groups, .is-placing .shelf-main { display: none; }
+  .dialog.shelf-dialog.is-placing { max-height: 55dvh; }      /* the drawer's height: the audition shows above it */
+  .is-placing .shelf-groups { flex: 1; }
+  .shelf-dialog.is-placing::backdrop { background: none; }
+  .has-groups .shelf-bar { flex-wrap: wrap; }
+  .has-groups .shelf-bar span { flex-basis: 100%; }
+  .has-groups .shelf-bar .shelf-where { flex: 1; min-width: 0; }
   .globals-slot:empty { display: none; }
   .look-globals { grid-template-columns: 1fr; }
   .mod-card-head { flex-wrap: wrap; }
