@@ -42,11 +42,28 @@ test('each mini arch stands across a dock\'s edge, the wall just outside it', ()
   }
 });
 
+test('a 6 ft bay by each tower runs to the wall and holds its outer spirelet, from the dock', () => {
+  const lone = COG.fixtures.filter((f) => f.kind === 'flood' && f.count === 1).map((f) => LEDS[f.start]);
+  const towerZ = new Set(COG.structure.lines.flatMap((l) => [l[2], l[5]]));
+  assert.equal(lone.length, 2);
+  for (const p of lone) {
+    const left = p[2] < 0, bay = VENUE.scaffold.find((s) => s.id === (left ? 'bay-left' : 'bay-right'));
+    const wall = VENUE.boxes.find((b) => b.id === (left ? 'wall-left' : 'wall-right')).min[2];
+    const [inner, outer] = left ? [bay.max[2], bay.min[2]] : [bay.min[2], bay.max[2]];
+    assert.ok(Math.abs(Math.abs(outer - inner) - 1.83) < 0.01 && towerZ.has(inner), `${bay.id}: one bay off the tower`);
+    assert.ok(Math.abs(wall - outer) < 0.5, `${bay.id}: ${Math.abs(wall - outer)} m short of the wall`);
+    assert.ok([0, 2].every((i) => p[i] >= bay.min[i] - 0.05 && p[i] <= bay.max[i] + 0.05), `${bay.id} under it`);
+    assert.ok(p[1] - bay.max[1] > 0 && p[1] - bay.max[1] < 0.3, `${bay.id}: its top just under the spirelet`);
+    const back = VENUE.boxes.find((b) => b.id === (left ? 'dock-left-back' : 'dock-right-back'));
+    assert.ok(inner > back.min[2] && inner < back.max[2], `${bay.id}: the pole off the tower rests on the dock`);
+  }
+});
+
 test('the mesh is finite triangles; a wall is one plane, facing the courtyard', () => {
   const T = frameOf(COG.axes), { mesh, solid } = venueMesh(VENUE, T);
   assert.ok(mesh.length > 0 && mesh.length % (3 * STRIDE) === 0 && mesh.every(Number.isFinite));
   assert.equal(mesh.length / STRIDE - solid, 6, 'the turf last: one plane');
-  const wall = { ...VENUE, boxes: VENUE.boxes.filter((b) => b.id === 'wall-left'), rails: [] };
+  const wall = { ...VENUE, boxes: VENUE.boxes.filter((b) => b.id === 'wall-left'), rails: [], scaffold: [] };
   const { mesh: m } = venueMesh(wall, T), v = (k) => [0, 1, 2].map((i) => m[k * STRIDE + i]);
   assert.equal(m.length, 6 * STRIDE, 'two triangles');
   const [a, b, c] = [v(0), v(1), v(2)], e1 = b.map((x, i) => x - a[i]), e2 = c.map((x, i) => x - a[i]);

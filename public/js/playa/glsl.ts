@@ -114,19 +114,12 @@ void main() {
   vec3 beam = vC * uK * f * f * t * t * smoothstep(0., .06, vT) / (1. + 3. * vT);
   o = vec4(uSo > 0. ? shell : beam, 1);`, 'flat in vec3 vC, vB;\nin vec3 vN, vV;\nin float vT;\nuniform float uSo;\n')];
 
-// The scaffold: faint, lit by the spill lights.
-const LINE = [`${H}${LIGHTS}uniform mat4 uVP;
+// The scaffold: one dim grey wherever it stands, the same as the props' scaffold bays.
+const LINE = [`${H}uniform mat4 uVP;
 layout(location=0) in vec3 aP;
-out vec3 vC;
 void main() {
-  vC = vec3(.004, .0045, .006);
-  for (int i = 0; i < 16; i++) {
-    if (i >= uN) break;
-    vec3 l = uLP[i].xyz - aP;
-    vC += uLC[i] / (dot(l, l) + uLP[i].w);
-  }
   gl_Position = uVP * vec4(aP, 1);
-}`, FS('  o = vec4(vC * uK, 1);', 'in vec3 vC;\n')];
+}`, FS('  o = vec4(vec3(.19, .2, .21) * uK, 1);')];
 
 // The playa: dust under a faint moon, lit by the spill lights (softened by uLP.w), lost in the haze far off. Lit
 // per vertex (the rings are close where the pools are): soft light, cheap pixels.

@@ -13,7 +13,7 @@ const TIERS = [
 ];
 const ROW = 512;            // pixels a row in the light texture (the shaders' k & 511, k >> 9)
 // Linear emission at full drive (Mirage's `emit`), the playa's share of the light, the bloom's threshold.
-const K = { strip: 1.4, point: 2.2, cell: 1, beam: 0.05, shell: 0.75, line: 0.2, ground: 0.5, bloom: 0.4,
+const K = { strip: 1.4, point: 2.2, cell: 1, beam: 0.05, shell: 0.75, line: 0.2, ground: 0.25, bloom: 0.4,
   venue: 0.6 };
 const HAZE = [0.0033, 0.0048, 0.0116];       // glsl.ts HZ: the venue fades into it
 const SPILL = 0.035, THRESHOLD = 1, SLOW_MS = 30;

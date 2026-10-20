@@ -141,9 +141,9 @@ Playa; the view's LEDs button is Points):
 - **Points** (LEDs): every LED a glowing sprite over a ground grid, its colour raw. The light fallback.
 - **Playa**: Mirage's night playa, from the rig's render hints alone: `strip` a camera-facing ribbon per pixel
   (stepping pixel to pixel, as solid as fabric), `bulbs` globes on a wire, `points` sprites, `cells` lit glass,
-  `flood` a soft beam or a lit shell; `structure.lines` a faint scaffold; a ground plane, sky and horizon. Each
-  frame's light goes into one RGBA16F texture (no allocation) that the geometry samples by pixel index; spill lights
-  (pixels clustered once, summed each frame) light the playa and scaffold; HDR, bloom, then a tone map on the peak
+  `flood` a soft beam or a lit shell; `structure.lines` a scaffold of one dim grey, unlit; a ground plane, sky and
+  horizon. Each frame's light goes into one RGBA16F texture (no allocation) that the geometry samples by pixel index;
+  spill lights (pixels clustered once, summed each frame) light the playa; HDR, bloom, then a tone map on the peak
   only, so saturated colours stay saturated. Colours are sRGB (as their swatches): the light is decoded to linear
   before it goes in the texture, and the tone map leaves a lone colour as it is (as is to .7 of full, then a
   shoulder), so a wash looks like its swatch. It needs float render targets, else the view stays on Points.
@@ -158,7 +158,9 @@ Metres in the rig's axes and origin: `boxes` (`min`, `max`, linear `color`; `fac
 `left`, `right`, `top`, `bottom`, draws only those, so a wall is one plane facing the courtyard that a camera outside
 sees through; `windows`: a `bay` × `storey` grid of `size` windows from `from` metres up, `rows` high, a `lit`
 share warm-lit; `ground`: in the Playa view it tints the lit playa, added, rather than hiding the LEDs' light on
-it) and `rails` (`from`, `to` along the foot, `height`, a post every `posts` metres). The Studio's Venue
+it), `rails` (`from`, `to` along the foot, `height`, a post every `posts` metres) and `scaffold` bays (`min`, `max`,
+`faces` as a box's: a standard where two meet, a ledger along each at every height in `levels`, a brace across each
+lift; a face shared with the rig's own scaffold left out). The Studio's Venue
 button shows or hides it (default on, kept per browser).
 
 ## Pattern code and the library

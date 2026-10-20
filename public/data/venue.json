@@ -1,7 +1,7 @@
 {
   "venue": 1,
   "rig": "City of Gods 2026",
-  "about": "The courtyard round City of Gods, as unlit props for the 3D view (SPEC \"Venue\"): never LEDs. Metres, in the rig's axes and origin. Estimated from a site photo against the rig: each mini arch stands across a loading dock's edge, its outer leg on the dock (1.2 m high, 3 m deep, railings 1 m) and the wall just outside it; the dock is cut where that leg stands, since the pixel map puts both legs' LEDs at the ground. The walls 16.5 m apart and 25 m tall (six storeys of 4.2 m), running 40 m in front of the portal and 35 m behind the rose.",
+  "about": "The courtyard round City of Gods, as unlit props for the 3D view (SPEC \"Venue\"): never LEDs. Metres, in the rig's axes and origin. Estimated from a site photo against the rig: each mini arch stands across a loading dock's edge, its outer leg on the dock (1.2 m high, 3 m deep, railings 1 m) and the wall just outside it; the dock is cut where that leg stands, since the pixel map puts both legs' LEDs at the ground. A 6 ft (1.83 m) scaffold bay beside each tower runs out to the wall and holds up the outer spirelet; the pole between tower and bay rests on the dock. The walls 16.5 m apart and 25 m tall (six storeys of 4.2 m), running 40 m in front of the portal and 35 m behind the rose.",
   "boxes": [
     { "id": "turf", "min": [-52, 0.02, -5.6], "max": [26, 0.02, 4.88], "faces": ["top"], "ground": true,
       "color": [0.006, 0.016, 0.011] },
@@ -27,11 +27,17 @@
   "rails": [
     { "id": "rail-left-front", "from": [-52, 1.2, -5.65], "to": [-12.61, 1.2, -5.65], "height": 1.0, "posts": 2.5,
       "color": [0.07, 0.075, 0.08] },
-    { "id": "rail-left-back", "from": [-12.01, 1.2, -5.65], "to": [26, 1.2, -5.65], "height": 1.0, "posts": 2.5,
+    { "id": "rail-left-back", "from": [-9.87, 1.2, -5.65], "to": [26, 1.2, -5.65], "height": 1.0, "posts": 2.5,
       "color": [0.07, 0.075, 0.08] },
     { "id": "rail-right-front", "from": [-52, 1.2, 4.93], "to": [-12.61, 1.2, 4.93], "height": 1.0, "posts": 2.5,
       "color": [0.07, 0.075, 0.08] },
-    { "id": "rail-right-back", "from": [-12.01, 1.2, 4.93], "to": [26, 1.2, 4.93], "height": 1.0, "posts": 2.5,
+    { "id": "rail-right-back", "from": [-9.87, 1.2, 4.93], "to": [26, 1.2, 4.93], "height": 1.0, "posts": 2.5,
       "color": [0.07, 0.075, 0.08] }
+  ],
+  "scaffold": [
+    { "id": "bay-left", "min": [-12.31, 0, -8.29], "max": [-9.87, 8.5, -6.46], "faces": ["front", "back", "left"],
+      "levels": [0.15, 2.07, 4.13, 6.2, 8.5], "color": [0.07, 0.075, 0.08] },
+    { "id": "bay-right", "min": [-12.31, 0, 5.74], "max": [-9.87, 8.5, 7.57], "faces": ["front", "back", "right"],
+      "levels": [0.15, 2.07, 4.13, 6.2, 8.5], "color": [0.07, 0.075, 0.08] }
   ]
 }

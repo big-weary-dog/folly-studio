@@ -1,6 +1,7 @@
 // Venue props (SPEC "Venue"): unlit scenery round the rig from data/venue.json, drawn dim in both views. Never LEDs:
 // nothing but the view reads them. Boxes, flat-shaded per face (a face list makes a plane: a wall shows only its
-// courtyard side, so a camera outside sees through it), a facade's windows drawn in the shader, and railings.
+// courtyard side, so a camera outside sees through it), a facade's windows drawn in the shader, railings and
+// scaffold bays.
 import { program } from '../viewer-gl.ts';
 
 type V3 = [number, number, number];
@@ -10,6 +11,7 @@ export type Venue = {
   venue: 1; rig: string; about?: string;
   boxes?: { id: string; min: V3; max: V3; color: V3; faces?: Face[]; windows?: Windows; ground?: boolean }[];
   rails?: { id: string; from: V3; to: V3; height: number; posts: number; color: V3 }[];
+  scaffold?: { id: string; min: V3; max: V3; faces: Face[]; levels: number[]; color: V3 }[];
 };
 export type VenueGL = ReturnType<typeof createVenue>;
 
@@ -18,7 +20,7 @@ export type VenueGL = ReturnType<typeof createVenue>;
 export const STRIDE = 14;
 const FACES: Record<Face, V3> = { front: [-1, 0, 0], back: [1, 0, 0], left: [0, 0, -1], right: [0, 0, 1],
   top: [0, 1, 0], bottom: [0, -1, 0] };
-const RAIL = 0.025, POST = 0.03;      // half thicknesses, metres
+const RAIL = 0.025, POST = 0.03, TUBE = 0.024;      // half thicknesses, metres (TUBE: the rig's scaffold)
 const NO_WINDOWS = [0, 0, 0, 0, 0, 0];
 
 const add = (a: number[], b: number[], k = 1) => a.map((x, i) => x + k * b[i]);
@@ -62,17 +64,41 @@ export function venueMesh(venue: Venue, T: (p: ArrayLike<number>) => number[]) {
       b.windows && { min, w: b.windows });
   };
   boxes.filter((b) => !b.ground).forEach(box);
+  const all = () => true;
+  /** A square tube of half thickness r from a to b (view frame). */
+  const tube = (a: number[], b: number[], r: number, color: V3) => {
+    const d = add(b, a, -1), len = Math.hypot(...d);
+    if (!len) return;
+    const u = unit(d), side = unit(Math.abs(u[1]) > 0.99 ? [1, 0, 0] : cross(u, [0, 1, 0])), up = cross(side, u);
+    cuboid(out, add(a, d, 0.5), [u.map((x) => x * len / 2), up.map((x) => x * r), side.map((x) => x * r)], color, all);
+  };
   for (const r of venue.rails || []) {
-    const from = T(r.from), d = add(T(r.to), from, -1), len = Math.hypot(...d);
+    const from = T(r.from), to = T(r.to), d = add(to, from, -1), len = Math.hypot(...d);
+    const lift = (k: number) => [0, k, 0];
     if (!len) continue;
-    const u = unit(d), side = unit(cross(u, [0, 1, 0])), all = () => true;
-    for (const h of [r.height, r.height / 2]) {
-      cuboid(out, add(add(from, d, 0.5), [0, h, 0]), [u.map((x) => x * len / 2), [0, RAIL, 0],
-        side.map((x) => x * RAIL)], r.color, all);
-    }
+    for (const h of [r.height, r.height / 2]) tube(add(from, lift(h)), add(to, lift(h)), RAIL, r.color);
     for (let t = 0; t <= len + 1e-6; t += r.posts) {
-      cuboid(out, add(add(from, u, t), [0, r.height / 2, 0]), [u.map((x) => x * POST), [0, r.height / 2, 0],
-        side.map((x) => x * POST)], r.color, all);
+      const foot = add(from, d, t / len);
+      tube(foot, add(foot, lift(r.height)), POST, r.color);
+    }
+  }
+  // A bay: a standard where two of its faces meet, a ledger along each face at each level, a brace across each lift
+  // of a face (alternating), all in the rig's axes.
+  for (const s of venue.scaffold || []) {
+    const has = (f: Face) => s.faces.includes(f), [x0, , z0] = s.min, [x1, top, z1] = s.max;
+    const edges: [Face, number[], number[]][] = [['front', [x0, z0], [x0, z1]], ['back', [x1, z0], [x1, z1]],
+      ['left', [x0, z0], [x1, z0]], ['right', [x0, z1], [x1, z1]]];
+    const at = (p: number[], y: number) => T([p[0], y, p[1]]);
+    for (const [x, fx] of [[x0, 'front'], [x1, 'back']] as const) {
+      for (const [z, fz] of [[z0, 'left'], [z1, 'right']] as const) {
+        if (has(fx) && has(fz)) tube(at([x, z], s.min[1]), at([x, z], top), TUBE, s.color);
+      }
+    }
+    for (const [, a, b] of edges.filter(([f]) => has(f))) {
+      s.levels.forEach((y, k) => {
+        tube(at(a, y), at(b, y), TUBE, s.color);
+        if (k) tube(at(k % 2 ? a : b, s.levels[k - 1]), at(k % 2 ? b : a, y), TUBE, s.color);
+      });
     }
   }
   const solid = out.length / STRIDE;
