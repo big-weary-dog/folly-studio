@@ -113,6 +113,28 @@ export function confirmDialog(message: string, { title = 'Are you sure?', ok = '
   </> }).then(Boolean);
 }
 
+/** Places popover `pop` (as it opens) beside the button that opens it, `width` px wide (CSS sets it; nothing is
+ * measured); a phone's is a sheet (CSS). In the side panel: to its left, over the 3D view, level with the button, so
+ * it never covers the panel. Elsewhere: below the button, or above it when the room is there. */
+export function placePopover(e: { newState: string; currentTarget: HTMLElement }, pop: string, width: number,
+  narrow: boolean) {
+  const s = e.currentTarget.style;
+  if (e.newState !== 'open' || narrow) { s.top = s.left = s.bottom = s.maxHeight = ''; return; }
+  const btn = document.querySelector(`[popovertarget="${pop}"]`) as HTMLElement, r = btn.getBoundingClientRect();
+  const side = btn.closest('.side')?.getBoundingClientRect();
+  if (side && side.left >= width + 16) {
+    const top = Math.max(8, Math.min(r.top, innerHeight - 420));
+    Object.assign(s, { left: `${side.left - width - 8}px`, top: `${top}px`, bottom: '',
+      maxHeight: `${innerHeight - top - 8}px` });
+    return;
+  }
+  const below = innerHeight - r.bottom, up = below < 300 && r.top > below;
+  s.left = `${Math.max(8, Math.min(r.left, innerWidth - width - 8))}px`;
+  s.top = up ? '' : `${r.bottom + 4}px`;
+  s.bottom = up ? `${innerHeight - r.top + 4}px` : '';
+  s.maxHeight = `${(up ? r.top : below) - 12}px`;
+}
+
 /** A `.field`, one row: its label, then the control (given the label's id), or a read-only value. A label too long
  * for the label column takes its own line; `stack` always does, for what one line cannot hold (multi-line text). */
 export function Field({ label, children, hint, stack, class: cls, title }: { label: ComponentChildren;

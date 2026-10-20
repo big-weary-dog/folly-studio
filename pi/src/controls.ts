@@ -13,7 +13,7 @@ export type Control = { name: string, min: number, max: number, value: number, k
 
 /** The controls a look offers, in its order, with their current values on `L`. */
 export function controlsOf(look: PiLook, L: PreparedLook): Control[] {
-  const macros = L.g.macros, live = look.globals?.live ?? [...macros.map((m) => m.name), 'level'];
+  const macros = L.g.macros, live = look.globals?.live ?? [...macros.filter((m) => !m.mod).map((m) => m.name), 'level'];
   const out: Control[] = [];
   for (const name of live) {
     if (name === 'bpm') out.push({ name, ...BPM, value: L.bpm, kind: 'bpm' });
@@ -49,22 +49,30 @@ export function liveLook(look: PiLook, previous?: PreparedLook) {
       if (c.name === 'speed' && !L.speedLane) L.offset += (L.g.speed - v) * at;
       L.g[c.name as keyof typeof GLOBALS] = v;
     } else {
-      L.g.macros.find((m) => m.name === c.name)!.value = v;
+      const m = L.g.macros.find((x) => x.name === c.name)!;
+      L.repace(c.name, m.value, v, at);
+      m.value = v;
     }
     c.value = v;
   }
 
-  /** A pushed name the look automates leaves its lane, starting from the lane's value now. */
+  /** A pushed name the look automates or modulates leaves its lane or its mod, starting from its value now; what
+   * it paces goes on unbroken. */
   function release(name: string, t: number) {
-    if (!(name in automation)) return;
+    const moved = L.g.macros.find((m) => m.name === name)?.mod;
+    if (!(name in automation) && !moved) return;
     const now = L.normAt(name, t), c = byName.get(name)!, value = c.min + now * (c.max - c.min);
     const { [name]: _, ...rest } = automation;
     automation = rest;
-    const macros = Object.fromEntries(L.g.macros.map((m) => [m.name, { value: m.value, min: m.min, max: m.max }]));
+    const macros = Object.fromEntries(L.g.macros.map((m) => [m.name, { value: m.value, min: m.min, max: m.max,
+      ...m.mod && m.name !== name ? { mod: m.mod } : {} }]));
     const globals = { ...look.globals, ...Object.fromEntries(Object.keys(GLOBALS).map((k) => [k, L.g[k as keyof
       typeof GLOBALS]])), macros };
     const next = prepareLook({ ...look, globals, automation }, L);
     Object.assign(next, { bpm: L.bpm, beat0: L.beat0 });
+    for (const n of [...Object.keys(GLOBALS), ...Object.keys(macros)]) {
+      next.paceOffset.set(n, (next.paceOffset.get(n) ?? 0) + L.paceAt(n, t) - next.paceAt(n, t));
+    }
     L = next;
     write(c, value, t);
   }

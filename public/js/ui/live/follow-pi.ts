@@ -25,7 +25,7 @@ export const piExtra = (source: PiSource): Extra => ({ globals: source.globals, 
 
 /** What the engine has set on its look now, for the sandbox to set in place before a frame. */
 export const piSet = (now: PiNow): LiveSet => ({ values: now.values, bpm: now.bpm, beat0: now.beat0,
-  offset: now.offset });
+  offset: now.offset, paces: now.paces });
 
 /** The show-time anchor: the server's epoch ms of show time 0 in the loop, kept per source rev. */
 export function piClock() {

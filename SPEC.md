@@ -228,9 +228,15 @@ has alpha × level, `max` keeps the brighter channel, `multiply` tints what is b
 - **Globals** (all optional): `speed` 0..4 (1), `level` 0..1 (1), `hue` −0.5..0.5 turns (0), `saturation`
   0..2 (1), `energy` 0..1 (0.5); `palette` as role lists (≤ 16 `#rrggbb` each; a bare name from
   `data/palettes.json` is filled in on save; default `chapel`); `macros` ≤ 16, names
-  `[a-z][A-Za-z0-9_]{0,31}` other than G's own, `{ value, min = 0, max = 1 }`.
+  `[a-z][A-Za-z0-9_]{0,31}` other than G's own, `{ value, min = 0, max = 1, mod? }`. A macro with a `mod` (an LFO
+  or tempo binding, SPEC-library "Param bindings"; never the envelope) is a **modulator**: it moves by itself each
+  frame, `value` its value when the mod is lifted, and params bound to it (`{ mod: 'global', name }`) follow it in
+  step. Each frame a lane wins over the mod, the mod over the value. One level only: a modulator follows faders
+  (globals, or macros without a mod): a global binding, or an LFO's `amount` or `pace`, naming a modulator is
+  refused by the schema and dropped by the core.
   `live`: the names a live engine (the Pi, SPEC-pi) offers as controls: globals, the look's macros and `bpm`,
-  each once; absent, it offers the macros and `level`. Nothing else reads it.
+  each once; absent, it offers the macros without a mod and `level`. A modulator it lists is released from its mod
+  while a control holds it. Nothing else reads it.
 - **Automation**: `{ <global or macro>: [[t, v], …] }`, ≤ 16 lanes of ≤ 256 points, t 0–600 s ascending (to
   the ms); linear between points, held before the first and after the last; it replaces the static value.
 - `data/palettes.json` (`tools/build_palettes.py [--check]`, from `td/palettes/*.csv` and each one's line in
@@ -272,7 +278,19 @@ Sequencing lives on the look, xLights-style.
   layer or one source, and Presets; one-line rows by category with a filter, the tab remembered for the session, each
   row auditioned in the 3D view), the code editor and
   params on the selected module (each number param can be modulated), and a Look panel of globals, the palette
-  (its theme line under the menu; each swatch titled by its slot, `body2 · #fd7f40`) and macros. On a phone: globals and palette in the Look tab;
+  (its theme line under the menu; each swatch titled by its slot, `body2 · #fd7f40`) and macros. Modulating is in
+  place (`ui/modulate.tsx`, `ui/mod-live.tsx`): ∿ opens a popover beside the row, not a modal (a sheet on a phone);
+  kinds LFO (its wave over two cycles in the param's range with the playhead, shape, rate pills from ¼ beat to 4
+  bars or Hz, Rate × and Swing × a fader, From/To; a new one swings a quarter of the range round the field's value),
+  Modulator / macro (the look's modulators with their value now, its faders, its globals; at its lowest, at its
+  highest), Envelope, Tempo (`per` that keeps the field's value at the look's bpm, saying what it comes to a second
+  and warning out of range), Off. Each change applies as it is made; Revert puts back what was there when it opened.
+  "Share this LFO as a modulator…" makes the LFO a new modulator, named from where the layer plays and the param
+  (`roseSpeed`), and binds the param to it. With a modulator picked, the popover renames it and its own ∿ (LFO,
+  Tempo, Macro: following a fader, Off) sets how it moves, for every param that follows it. A bound row shows a live
+  chip: what moves it, its range, its value now and a bar. Renaming a macro carries its lane, its bindings, a
+  colour's rotate and the modulators that follow it; deleting it
+  drops them. On a phone: globals and palette in the Look tab;
   the chain read-only but for enable and params.
 - Phones (≤ 899 px wide; `ui/phone/`, `css/phone.css`): the 3D view over one panel, switched by the tabs Layers,
   Time, Groups, Look and More. Layers lists one row a layer (name, mute, status); tapping one opens its settings in
@@ -283,7 +301,7 @@ Sequencing lives on the look, xLights-style.
   Show unlit, the Playa view drops the scaffold lines, and Points draws at a pixel ratio of 1.
 - Colours (`ui/picks.tsx`, `ui/pick-model.ts`; SPEC-library "Palettes"): a colour param is one row like a number's: its pick in
   a field the size of a number's (`kit.tsx` Scrub), its text over the colours it plays (the field opens the pick
-  tile), ∿ to move its rotate (the modulate dialog), ↺. The tile is TD's pick: a row per role (a box for the whole
+  tile), ∿ to move its rotate (the same popover), ↺. The tile is TD's pick: a row per role (a box for the whole
   role, a cell per slot), the whole palette, rainbow, custom colours, then whether roles alternate (`/`), blend, and
   range and rotate as number fields. On a phone the tile is a sheet with the palette's roles and a custom colour; the
   whole palette, rainbow, blend, range and rotate show when set.
@@ -318,8 +336,9 @@ well under the faster rate's; the 3D view draws at display rate when something c
 whose smoothed `layerMs` is over 40 % of a 40 fps frame's budget (8 ms) is marked heavy on its card.
 A layer that throws or returns NaN goes black for that frame and is reported in `errors`. Live frames keep
 the look's clock continuous across a new look (`prepareLook(look, previous)`); renders start it afresh, as bakes do.
-A frame's `set: { values, bpm, beat0, offset }` is set in place on the prepared look first, as a live engine sets its
-own (`js/live-set.ts`; SPEC-live "Following /pi"): globals and macros by name, the tempo, the downbeat, the clock.
+A frame's `set: { values, bpm, beat0, offset, paces? }` is set in place on the prepared look first, as a live engine sets its
+own (`js/live-set.ts`; SPEC-live "Following /pi"): globals and macros by name, the tempo, the downbeat, the clock, and `paces` (each pace fader's phase offset, so a
+modulator's LFO stays where the Pi has it).
 Watchdog (the page's): a frame, live or exported, running over 1 s, or new code compiling for
 over 0.7 s, has hung. The page terminates the worker, finds the layer to blame (the one being
 compiled, or each layer run alone for one frame in a throwaway worker), starts a fresh worker

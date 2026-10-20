@@ -9,6 +9,55 @@
 .param-mod[aria-pressed=true] { color: var(--violet); text-shadow: 0 0 8px var(--violet); }
 .param-chip { flex: none; padding: 1px 6px; font: 11.5px var(--mono); color: var(--violet);
   border: var(--came-s) solid var(--lead); background: color-mix(in srgb, var(--violet) 12%, var(--night-0)); }
+/* a bound row's chip: what moves it and its range, its value now, a bar lit as far as it */
+.field-control > .param-chip { position: relative; display: flex; align-items: center; gap: 6px; flex: 0 1 auto;
+  width: 220px; min-width: 96px; min-height: var(--hit, 30px); overflow: hidden; }
+.chip-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip-val { flex: none; color: var(--text); font-variant-numeric: tabular-nums; }
+.chip-bar { position: absolute; left: 0; bottom: 0; height: 2px; background: currentColor; }
+.param-chip.mod-global { color: var(--violet); }
+.param-chip.mod-lfo { color: var(--cobalt-t); background: color-mix(in srgb, var(--cobalt) 14%, var(--night-0)); }
+.param-chip.mod-envelope { color: var(--emerald); background: color-mix(in srgb, var(--emerald) 10%, var(--night-0)); }
+.param-chip.mod-beats { color: var(--amber); background: color-mix(in srgb, var(--amber) 10%, var(--night-0)); }
+/* ∿'s popover: beside the row, not modal (the 3D view stays live); on a phone a sheet over half the screen */
+.mod-pop { position: fixed; inset: auto; width: 380px; margin: 0; padding: 10px 12px; overflow: auto;
+  color: var(--text); background: var(--night-1); border: var(--came) solid var(--sand);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / .6), var(--shadow); }
+.mod-panel { display: flex; flex-direction: column; gap: 8px; }
+.mod-panel .field > label, .mod-panel .field > span { flex: 0 0 64px; }
+.mod-head { display: flex; align-items: center; gap: 6px; }
+.mod-head strong { flex: 1; font-size: 13px; color: var(--sand); }
+.mod-kinds, .mod-pills { display: flex; flex-wrap: wrap; gap: 4px; }
+.mod-seg[aria-pressed=true] { color: var(--night-0); background: var(--sand); }
+.mod-panel input.mod-num { flex: 0 1 72px; width: 72px; }
+.mod-note { font-size: 12px; color: var(--text-3); margin: 0; }
+.mod-warn { color: var(--amber); }
+.mod-wave { width: 100%; height: 64px; background: var(--night-0); border: 1px solid var(--lead); }
+.mod-wave text { font: 9px var(--mono); fill: var(--text-3); }
+.mod-band { fill: color-mix(in srgb, var(--cobalt) 18%, transparent); }
+.mod-mid { stroke: rgb(255 255 255 / .12); }
+.mod-line { fill: none; stroke: var(--cobalt-t); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.mod-dot { fill: var(--amber); }
+/* what a param can follow: modulators and faders with their value now, then the look's globals */
+.mod-list { display: flex; flex-direction: column; gap: 4px; }
+.mod-list-h { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+.mod-pick { display: flex; align-items: center; gap: 8px; min-height: var(--hit, 28px); padding: 2px 8px;
+  font: 12px var(--mono); color: var(--text); text-align: left; background: var(--night-0);
+  border: 1px solid var(--lead); cursor: pointer; }
+.mod-pick[aria-pressed=true] { border-color: var(--violet); background: color-mix(in srgb, var(--violet) 14%,
+  var(--night-0)); }
+.mod-glyph { flex: none; width: 1.2em; color: var(--violet); }
+.mod-pick-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mod-now { flex: none; width: 56px; height: 4px; background: var(--lead); }
+.mod-now > i { display: block; height: 100%; background: var(--violet); }
+.mod-panel select.mod-fader { flex: 0 1 120px; }
+.mod-share { align-self: flex-start; }
+.mod-edit { display: flex; align-items: center; gap: 8px; }
+.mod-edit .mod-name { width: 12ch; font: 12px var(--mono); }
+@media (max-width: 899px) {
+  .mod-pop.sheet { inset: auto 0 0; width: 100%; max-height: 55dvh; border-width: var(--came) 0 0; }
+  .field-control > .param-chip { width: 180px; }
+}
 .param-reset.unused { visibility: hidden; }
 .field.param > .param-help { flex: 1 1 100%; margin: 0; }
 .param-hex { font: 12.5px var(--mono); color: var(--text-2); }

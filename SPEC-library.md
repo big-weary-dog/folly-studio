@@ -230,13 +230,16 @@ composite, per pixel) for free. Clips, automation and LFOs run on show time.
 A number param's value (in `params`, layer or module) may be a binding instead of a number, resolved once per
 frame per layer and held to the param's min..max (`from`/`to` default to them):
 
-- `{ mod: 'lfo', shape: 'sine'|'tri'|'saw'|'square'|'hold', rate, unit: 'hz'|'beats', depth, center, hold? }`:
-  `center + depth × w(t × rate)`, `w` −1..1, beats at `look.bpm` (120 unset); `center` defaults to the
-  param's default, `depth` to a quarter of its range. `hold` starts at the bottom, eases up, holds at the top, eases
+- `{ mod: 'lfo', shape: 'sine'|'tri'|'saw'|'square'|'hold', rate, unit: 'hz'|'beats', depth, center, hold?,
+  amount?, pace? }`: `center + depth × w(t × rate)`, `w` −1..1, beats at `look.bpm` (120 unset; `rate` then cycles
+  a beat, phase 0 on the downbeat); `center` defaults to the param's default, `depth` to a quarter of its range (the
+  Studio shows them as From/To, `center ∓ depth`). `amount` (a global's or macro's name) scales `depth` by its value
+  0..1 of its range; `pace` multiplies the rate by its value, the phase running on its integral (exact over a lane,
+  so speeding up never jumps the wave; a live push keeps it continuous). `hold` starts at the bottom, eases up, holds at the top, eases
   down and holds at the bottom; `hold` (0..1, default 0.5, at most 0.95) is the share of each cycle spent holding,
   half at each end: an open, hold, close for a reveal.
 - `{ mod: 'global', name, from, to }`: `from + (to − from) × g`, `g` the global (`energy`, `speed`, `level`,
-  `hue`, `saturation` or a macro) as 0..1 of its range.
+  `hue`, `saturation`, a macro or a modulator: SPEC "Globals") as 0..1 of its range.
 - `{ mod: 'envelope', from, to }`: by the layer's clip envelope (1 with no clips).
 - `{ mod: 'beats', per = 1 }`: `per × bpm / 60`, so a speed counts per beat at the look's tempo (120 unset): a
   "rises a second" param bound to it rises `per` a beat.

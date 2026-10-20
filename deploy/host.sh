@@ -62,7 +62,7 @@ WorkingDirectory=$studio
 EnvironmentFile=$env_file
 Environment=PATH=$(dirname "$node"):$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=$node server.ts
-Restart=on-failure
+Restart=always
 RestartSec=5
 TimeoutStopSec=20
 # A stop signals the server alone, which stops its generator calls itself and leaves their ideas for the next start.
@@ -81,7 +81,7 @@ Description=Folly Studio Live, dry run, for the studio's /pi ($studio)
 [Service]
 WorkingDirectory=$studio
 ExecStart=$node pi/main.ts --dry-run --base /pi --bind 127.0.0.1 --http $pi_port --stats 3600
-Restart=on-failure
+Restart=always
 RestartSec=5
 
 [Install]

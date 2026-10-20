@@ -6,7 +6,7 @@
 // On an overrun it terminates the worker, blames a layer (the one compiling, or each run alone in a throwaway
 // worker), reports it as hung, and starts a fresh worker with the others. It exports nothing: it is a script.
 import type { Rig } from '../../shared/schemas/rig.ts';
-import type { LiveSet } from './live-set.ts';
+import { liveSetOf } from './live-set.ts';
 import type { Extra, FrameError, ToSandbox } from './runtime.ts';
 
 type Layer = Extract<ToSandbox, { type: 'look' }>['layers'][number];
@@ -85,11 +85,6 @@ const codeOf = (l: Layer) => (Array.isArray(l.modules)
   : typeof l.code === 'string' ? l.code : '');
 const lookExtra = (m: Extra): Extra => ({ globals: m.globals, automation: m.automation, bpm: m.bpm,
   ...(m.clock === 'fresh' ? { clock: m.clock } : {}) });
-const fin = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
-/** A frame's values to set in place, numbers only. */
-const liveSetOf = (s: LiveSet | undefined): LiveSet | null => (s && typeof s === 'object' ? { bpm: fin(s.bpm),
-  beat0: fin(s.beat0), offset: fin(s.offset), values: Object.fromEntries(Object.entries(s.values ?? {})
-    .filter(([, v]) => typeof v === 'number' && Number.isFinite(v))) } : null);
 const enabled = (l: Layer) => l.enabled !== false
   && (typeof l.level === 'number' && Number.isFinite(l.level) ? l.level > 0 : true);
 

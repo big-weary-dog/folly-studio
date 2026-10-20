@@ -8,7 +8,7 @@ import type { Binding, Pick } from '../../../shared/schemas/look.ts';
 import { type PickBlend, plainRoles, stopsFor } from '../core/picks.ts';
 import { DEFAULT_PALETTE, type PaletteHex, paletteColours } from '../core/stdlib.ts';
 import { bindingText, fmt, isBinding } from './bindings.ts';
-import { cx, Field, humanize, Scrub, Switch } from './kit.tsx';
+import { cx, Field, humanize, placePopover, Scrub, Switch } from './kit.tsx';
 import {
   editText, editValue, type PickEdit, readEdit, rolesOf, roleState, toggleRole, toggleSlot, toggleToken,
 } from './pick-model.ts';
@@ -39,26 +39,7 @@ type Tile = { title: string; value: unknown; dflt: string; blend: PickBlend; col
 function PickButton({ id, label, class: cls, children, ...tile }: Tile & { id?: string; label: string; class: string;
   children: ComponentChildren }) {
   const pop = useId();
-  // In the side panel: to its left, over the 3D view, level with the button, so it never covers the panel (its
-  // + Module). Elsewhere: below the button, or above it when the room is there. The width is the tile's (CSS), so
-  // nothing is measured.
-  const place = (e: { newState: string; currentTarget: HTMLElement }) => {
-    const s = e.currentTarget.style;
-    if (e.newState !== 'open' || tile.narrow) { s.top = s.left = s.bottom = s.maxHeight = ''; return; }
-    const btn = document.querySelector(`[popovertarget="${pop}"]`) as HTMLElement, r = btn.getBoundingClientRect();
-    const side = btn.closest('.side')?.getBoundingClientRect();
-    if (side && side.left >= 336) {
-      const top = Math.max(8, Math.min(r.top, innerHeight - 420));
-      Object.assign(s, { left: `${side.left - 328}px`, top: `${top}px`, bottom: '',
-        maxHeight: `${innerHeight - top - 8}px` });
-      return;
-    }
-    const below = innerHeight - r.bottom, up = below < 300 && r.top > below;
-    s.left = `${Math.max(8, Math.min(r.left, innerWidth - 328))}px`;
-    s.top = up ? '' : `${r.bottom + 4}px`;
-    s.bottom = up ? `${innerHeight - r.top + 4}px` : '';
-    s.maxHeight = `${(up ? r.top : below) - 12}px`;
-  };
+  const place = (e: { newState: string; currentTarget: HTMLElement }) => placePopover(e, pop, 320, tile.narrow);
   return <>
     <button type="button" id={id} class={cls} popovertarget={pop} aria-label={label} title={label}>{children}</button>
     <div id={pop} popover="auto" class={cx('pick-pop', tile.narrow && 'sheet')} onBeforeToggle={place}>
@@ -118,21 +99,21 @@ function PickTile({ title, value, dflt, blend, colours, narrow, put }: Tile) {
 
 /** A param's help as its row shows it (params.tsx useHelp): hover text, or an ⓘ and the text it opens. */
 export type Help = { title?: string; button?: ComponentChildren; hint?: ComponentChildren };
-type Modulate = (now: number | Binding | undefined, apply: (b: Binding | null) => void) => void;
-/** A colour param's row: its pick and colours (the tile), ∿ to move its rotate, ↺ to reset it. */
-export function PickRow({ label, modulate, help = {}, ...tile }: Omit<Tile, 'title'> & { label: string;
-  modulate: Modulate; help?: Help }) {
+type Turn = (now: number | Binding | undefined, put: (v: unknown) => void) => ComponentChildren;
+/** A colour param's row: its pick and colours (the tile), ∿ to move its rotate (`turn`: the button and its popover),
+ * ↺ to reset it. */
+export function PickRow({ label, turn, help = {}, ...tile }: Omit<Tile, 'title'> & { label: string; turn: Turn;
+  help?: Help }) {
   const edit = readEdit(tile.value, tile.dflt), own = tile.value !== undefined;
   const smooth = (edit.blend ?? tile.blend) === 'smooth';
-  const turn = (rotate?: Binding) => tile.put(editValue({ ...edit, rotate }, tile.blend));
+  const rotate = (v: unknown) => tile.put(editValue({ ...edit, rotate: typeof v === 'number' || isBinding(v) ? v
+    : undefined }, tile.blend));
   return <Field label={label} class="param end pick" title={help.title} hint={help.hint}>{(id) => <>
     <PickButton {...tile} id={id} title={label} label={`${label}: ${editText(edit)}`} class="pick-btn">
       <span class="pick-text">{editText(edit).replace(/\//g, ' / ')}</span>
       <Strip stops={played(tile.colours, tile.value, tile.dflt, tile.blend)} smooth={smooth} />
     </PickButton>
-    <button type="button" class="param-mod" aria-pressed={isBinding(edit.rotate)} aria-label={`Turn ${label}`}
-      title="Turn its colours: an LFO, a global or the clip envelope moves its rotate"
-      onClick={() => modulate(edit.rotate, (b) => turn(b ?? undefined))}>∿</button>{help.button}
+    {turn(edit.rotate, rotate)}{help.button}
     <button type="button" class={cx('param-reset', !own && 'unused')} title="Reset to default"
       aria-label={`Reset ${label} to default`} onClick={() => tile.put(undefined)}>↺</button></>}</Field>;
 }

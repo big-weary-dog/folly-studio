@@ -170,4 +170,19 @@ describe('queue', () => {
     const kept = s.store.looks.get(s.store.ideas.get(j.id).lookId);
     assert.deepEqual(kept.layers.map((l) => l.modules[0].ref), ['bars']);
   });
+
+  test('the saved look keeps the bpm and a modulator the composition gave', async () => {
+    const breath = { mod: 'lfo', shape: 'sine', rate: 0.25, unit: 'beats', center: 0.5, depth: 0.5 };
+    const claude = async () => answer([layer({ modules: [{ use: 'colour-wash', params: [{ name: 'brightness',
+      value: { mod: 'global', name: 'breath', from: 0.2, to: 0.6 } }] }] })],
+    { bpm: 100, globals: { macros: [{ name: 'breath', value: 0.5, min: 0, max: 1, mod: breath }] } });
+    const { store, idea, queue } = queueSetup(createQueue, { adapterName: 'claude', adapters: { claude },
+      loadLibrary: () => REAL });
+    const i = idea('everything breathes at 100 bpm');
+    queue.enqueue(i);
+    await queue.idle();
+    const look = store.looks.get(store.ideas.get(i.id).lookId);
+    assert.equal(look.bpm, 100);
+    assert.deepEqual(look.globals.macros.breath.mod, breath);
+  });
 });

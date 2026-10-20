@@ -296,6 +296,7 @@ export function createQueue({
         layers: look.layers,
         ...(look.duration !== undefined ? { duration: look.duration } : {}),
         ...(look.globals ? { globals: look.globals } : {}), ...(look.automation ? { automation: look.automation } : {}),
+        ...(look.bpm !== undefined ? { bpm: look.bpm } : {}),
         shared: false, reviewed: false, ideaId: id, chain: CHAIN, ...(bake ? { bake } : {}),
       });
       if (bake?.frames) await keepFrames(saved.id, frames, bake);
@@ -337,7 +338,7 @@ export function createQueue({
     }
     const next = { layers: keepSwitches(now.layers as Record<string, unknown>[], look.layers),
       duration: look.duration ?? now.duration, globals: look.globals ?? now.globals,
-      automation: look.automation ?? now.automation };
+      automation: look.automation ?? now.automation, bpm: look.bpm ?? now.bpm };
     const changes = diffCompositions(decompose(now, catalog), decompose({ ...now, ...next }, catalog));
     if (!changes.length) return changes;
     await store.looks.update(lookId, { ...revisedFields(now), ...next, chain: CHAIN });

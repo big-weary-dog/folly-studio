@@ -10,7 +10,7 @@ import { describe, test } from 'vitest';
 import { resolve, safeNext } from '../public/js/ui/app.tsx';
 import { gateOf } from '../public/js/ui/idea-access.tsx';
 import {
-  bindingForm, bindingText, makeBinding, normaliseParam, type Param, shownValue,
+  bindingForm, bindingText, makeBinding, normaliseParam, type Param, shownValue, tempoNote,
 } from '../public/js/ui/bindings.ts';
 import { decimals, scrubTo, snap } from '../public/js/ui/kit.tsx';
 import { createLayerStatus } from '../public/js/ui/layer-status.ts';
@@ -68,11 +68,35 @@ describe('modulation', () => {
     assert.deepEqual([f.mod, f.name, f.from, f.to, f.eFrom, f.eTo], ['global', 'storm', '20', '160', '5', '200']);
     assert.deepEqual(makeBinding({ ...f, mod: 'envelope' }, p), { mod: 'envelope', from: 5, to: 200 });
     assert.equal(bindingForm({}, p, globals).name, 'energy', 'an unknown name takes the first global');
-    const lfo = makeBinding({ ...bindingForm({}, p, globals), mod: 'lfo', rate: 'fast', depth: '' }, p);
-    assert.deepEqual(lfo, { mod: 'lfo', shape: 'sine', rate: 1, unit: 'hz', center: 60, depth: 48.75 });
+    const lfo = makeBinding({ ...bindingForm({}, p, globals), mod: 'lfo', rate: 'fast', hi: '' }, p);
+    assert.deepEqual(lfo, { mod: 'lfo', shape: 'sine', rate: 1, unit: 'beats', center: 105.625, depth: 94.375 },
+      'a new LFO counts beats; an unparsed end takes the range\'s');
     assert.equal(makeBinding({ ...f, mod: '' }, p), null, 'nothing: its field sets it');
-    assert.equal(bindingText(lfo!), 'LFO sine · 1 Hz');
-    assert.equal(bindingText({ mod: 'global', name: 'storm', from: 20, to: 160 }), 'storm → 20–160');
+    assert.equal(bindingText(lfo!, p), '∿ sine 1 beat · 11.25…200');
+    const slow = makeBinding(bindingForm({ mod: 'lfo', rate: 0.0625, unit: 'beats' }, p, globals), p);
+    assert.equal((slow as { rate: number }).rate, 0.0625, '4 bars stays exact');
+    assert.equal(bindingText({ mod: 'lfo', unit: 'hz', rate: 0.25, shape: 'tri', center: 0, depth: 1 }),
+      '⋀ tri 0.25 Hz · -1…1');
+    assert.equal(bindingText({ mod: 'lfo', unit: 'beats', rate: 1 / 3, center: 0, depth: 1 }),
+      '∿ sine every 3 beats · -1…1');
+    assert.equal(bindingText({ mod: 'global', name: 'storm', from: 20, to: 160 }), '◆ storm · 20…160');
+  });
+
+  test('From/To: a new LFO swings a quarter of the range round the field\'s value; an old one shows its ends', () => {
+    const f = bindingForm({}, p, globals, 190);
+    assert.deepEqual([f.lo, f.hi, f.unit, f.rate], ['141.25', '200', 'beats', '0.25'], 'held to the range; 1 bar');
+    const g = bindingForm({ mod: 'lfo', center: 40, depth: 10 }, p, globals);
+    assert.deepEqual([g.lo, g.hi, g.unit], ['30', '50', 'hz']);
+    assert.deepEqual(makeBinding({ ...g, lo: '95', hi: '20' }, p), { mod: 'lfo', shape: 'sine', rate: 0.25,
+      unit: 'hz', center: 57.5, depth: -37.5 }, 'From above To runs the wave upside down');
+  });
+
+  test('a new tempo binding keeps the field\'s value and says what it comes to at the look\'s tempo', () => {
+    const clouds = normaliseParam('speed', { value: 0.15, min: 0, max: 1 }) as Param;
+    const f = bindingForm({}, clouds, globals, 0.15, 120);
+    assert.equal(f.per, '0.075');
+    assert.deepEqual(tempoNote(0.075, 120, clouds), { text: '= 0.15 a second at 120 BPM', out: false });
+    assert.equal(tempoNote(1, 120, clouds).out, true, '2 a second: beyond its range');
   });
 
   test('what a control shows: its value, the default, or nothing while bound', () => {

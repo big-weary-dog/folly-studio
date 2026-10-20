@@ -289,8 +289,8 @@ function readLook(message: Message, raw = false) {
 /** A look's fields from a parsed answer; null when it is not an object. The codex adapter reads its answer so too. */
 export function pickLook(look: unknown) {
   if (!look || typeof look !== 'object' || Array.isArray(look)) return null;
-  const { title, summary, duration, globals, automation, layers, extensions } = look as Record<string, unknown>;
-  return { title, summary, duration, globals, automation, layers, extensions };
+  const { title, summary, duration, bpm, globals, automation, layers, extensions } = look as Record<string, unknown>;
+  return { title, summary, duration, bpm, globals, automation, layers, extensions };
 }
 
 /** JSON from text, or from its outermost {…} when something surrounds it; null when neither parses. */

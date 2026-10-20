@@ -10,7 +10,7 @@ type Param = { name: string, value: unknown };
 type Use = { use: string, id?: string, params: Param[], blend?: string, input?: string, as?: string };
 type Extension = { name: string, kind: string, summary: string, why: string, code: string };
 export type Composition = { title: string, summary: string, duration?: number, globals?: Obj, automation?: unknown,
-  layers: (Obj & { modules: Use[] })[], extensions?: Extension[] };
+  bpm?: number, layers: (Obj & { modules: Use[] })[], extensions?: Extension[] };
 
 const isObj = (v: unknown): v is Obj => !!v && typeof v === 'object' && !Array.isArray(v);
 const norm = (code: unknown) => String(code ?? '').replace(/\s+/g, ' ').trim();
@@ -45,6 +45,7 @@ export function decompose(look: Obj, catalog: Catalog): Composition {
   return { title: String(look.title ?? ''), summary: String(look.summary ?? ''),
     ...(typeof look.duration === 'number' ? { duration: look.duration } : {}),
     ...(isObj(look.globals) ? { globals: look.globals } : {}),
+    ...(typeof look.bpm === 'number' ? { bpm: look.bpm } : {}),
     ...(look.automation != null ? { automation: look.automation } : {}), layers,
     ...(extensions.length ? { extensions } : {}) };
 }

@@ -13,6 +13,7 @@ export type G = { energy: number, speed: number, level: number, hue: number, sat
 /** P: a module's param values (colours as [r, g, b], choices as their name). */
 export type Values = Record<string, number | boolean | number[] | string | Picture>;
 type Points = readonly (readonly number[])[];
+type MacroMod = NonNullable<NonNullable<Globals['macros']>[string]['mod']>;
 
 export const GLOBALS = Object.freeze({
   speed: Object.freeze({ value: 1, min: 0, max: 4 }),
@@ -35,13 +36,27 @@ export function normalizeGlobals(g?: Globals | null) {
   const out = Object.fromEntries(Object.entries(GLOBALS).map(([k, d]) => [k, isNum(src[k]) ? clamp(src[k], d.min, d.max)
     : d.value])) as Record<keyof typeof GLOBALS, number>;
   const palette: PaletteHex = src.palette && typeof src.palette === 'object' ? src.palette : DEFAULT_PALETTE;
-  const macros: (Range & { name: string, value: number })[] = [];
-  for (const [name, m] of Object.entries(src.macros && typeof src.macros === 'object' ? src.macros : {})) {
+  const macros: (Range & { name: string, value: number, mod?: MacroMod })[] = [];
+  const given = src.macros && typeof src.macros === 'object' ? src.macros : {};
+  for (const [name, m] of Object.entries(given)) {
     if (macros.length >= MAX_MACROS || !macroNameOk(name) || !m || typeof m !== 'object') continue;
     const min = isNum(m.min) ? m.min : 0, max = isNum(m.max) && m.max > min ? m.max : min + 1;
-    macros.push({ name, min, max, value: isNum(m.value) ? clamp(m.value, min, max) : min });
+    const mod = fader(m.mod, given);
+    macros.push({ name, min, max, value: isNum(m.value) ? clamp(m.value, min, max) : min, ...mod ? { mod } : {} });
   }
   return { ...out, palette, macros };
+}
+
+/** A macro's own binding, if it makes it a modulator: an LFO, the tempo or a global, never the clip envelope, and
+ * naming only faders (globals, or macros without a binding), so a modulator never follows a modulator. */
+function fader(b: unknown, macros: Record<string, { mod?: unknown } | undefined>): MacroMod | undefined {
+  if (!isBinding(b) || !['lfo', 'beats', 'global'].includes(b.mod)) return undefined;
+  const ok = (n: unknown) => typeof n === 'string' && (n in GLOBALS || (Object.hasOwn(macros, n)
+    && !isBinding(macros[n]?.mod)));
+  if (b.mod === 'global' && !ok(b.name)) return undefined;
+  if (b.mod !== 'lfo') return b as MacroMod;
+  const { amount, pace, ...rest } = b;
+  return { ...rest, ...ok(amount) ? { amount } : {}, ...ok(pace) ? { pace } : {} };
 }
 
 /** A lane's value at t: linear between [t, v] points, held at the ends. */
@@ -99,18 +114,36 @@ export function prepareLook(look?: { globals?: Globals | null, automation?: Auto
   const fixed = new Map<string, () => number>([
     ...Object.keys(GLOBALS).map((k) => [k, () => g[k as keyof typeof GLOBALS]] as const),
     ...g.macros.map((m) => [m.name, () => m.value] as const)]);
+  const laneOf = new Map(lanes.map((l) => [l.name, l.points]));
+  // Modulators: macros a binding moves (SPEC "Globals"), unless a lane does.
+  const moving = g.macros.flatMap((m) => (m.mod && !laneOf.has(m.name)
+    ? [[m.name, modOf(m.name, m.mod, m.min, m.max, m.value, null)!] as const] : []));
+  const movingOf = new Map(moving), paceOffset = new Map<string, number>();
   const L = {
-    G, g, lanes, bpm, palette: G.palette, beat0: 0,
+    G, g, lanes, bpm, palette: G.palette, beat0: 0, moving,
     speedLane: lanes.find((l) => l.name === 'speed')?.points || null, offset: 0, lastT: NaN, T: 0,
-    grade: new Float64Array(9), graded: false, level: NaN, hue: NaN, sat: NaN,
+    grade: new Float64Array(9), graded: false, level: NaN, hue: NaN, sat: NaN, paceOffset,
     norm(name: string) {
       const r = ranges.get(name);
       return r ? clamp(((G[name] as number) - r.min) / (r.max - r.min)) : 0;
     },
-    /** A global or macro at show time t, 0..1 of its range: its lane there, else its value (integrated clocks). */
-    normAt(name: string, t: number) {
-      const r = ranges.get(name), lane = lanes.find((l) => l.name === name);
-      return r ? clamp(((lane ? automationAt(lane.points, t) : fixed.get(name)!()) - r.min) / (r.max - r.min)) : 0;
+    /** A global or macro at show time t, 0..1 of its range: its lane there, its modulator's value, else its value
+     * (integrated clocks). */
+    normAt(name: string, t: number): number {
+      const r = ranges.get(name), lane = laneOf.get(name), m = lane ? undefined : movingOf.get(name);
+      if (!r) return 0;
+      return clamp(((lane ? automationAt(lane, t) : m ? L.modAt(m, t) : fixed.get(name)!()) - r.min) / (r.max - r.min));
+    },
+    /** A modulator's binding at show time t. */
+    modAt(m: Mod, t: number): number { return modValue(m, t, m.kind === 1 ? L.normAt(m.name, t) : 0, 1, L); },
+    /** ∫ from 0 to t of a fader's value, what a `pace` multiplies an LFO's phase by: exact on a lane. */
+    paceAt(name: string, t: number): number {
+      const lane = laneOf.get(name), f = fixed.get(name);
+      return lane ? integral(lane, t) : f ? f() * t + (paceOffset.get(name) ?? 0) : t;
+    },
+    /** A live engine set fader `name` from `from` to `to` at show time `at`: what it paces goes on unbroken. */
+    repace(name: string, from: number, to: number, at: number) {
+      paceOffset.set(name, (paceOffset.get(name) ?? 0) + (from - to) * at);
     },
   };
   if (previous && Number.isFinite(previous.lastT)) {
@@ -130,13 +163,14 @@ function clockAt(L: Clock, t: number) {
 
 /** Frame t: G (statics, then automation), the clock, the grade, RUN. No allocation. */
 export function lookFrame(L: PreparedLook, t: number) {
-  if (t < L.lastT) L.offset = 0;      // looped, restarted or sought back: back on the canonical clock
+  if (t < L.lastT) { L.offset = 0; L.paceOffset.clear(); }   // looped, restarted or sought back: the canonical clocks
   L.lastT = t;
   const G = L.G, g = L.g;
   G.energy = g.energy; G.speed = g.speed; G.level = g.level; G.hue = g.hue; G.saturation = g.saturation;
   G.bpm = L.bpm; G.palette = L.palette;
   for (let i = 0; i < g.macros.length; i++) G[g.macros[i].name] = g.macros[i].value;
   for (let i = 0; i < L.lanes.length; i++) G[L.lanes[i].name] = automationAt(L.lanes[i].points, t);
+  for (let i = 0; i < L.moving.length; i++) G[L.moving[i][0]] = L.modAt(L.moving[i][1], t);
   L.T = clockAt(L, t);
   setGrade(L, G.level, G.hue, G.saturation);
   RUN.G = G;
@@ -214,25 +248,32 @@ export function resolveParams(schema: ParamSchema | undefined, overrides: unknow
 /** The bound number params, for applyMods; with `turns` (a module's picks.rot), colour params' bound rotates too,
  * 0..1 by default and wrapping rather than held. */
 export function paramMods(schema: ParamSchema | undefined, overrides: unknown, turns?: Values) {
-  const out = [];
+  const out: Mod[] = [];
   const o = (overrides && typeof overrides === 'object' ? overrides : {}) as Record<string, unknown>;
   for (const [key, d] of Object.entries(schema || {})) {
     const own = Object.prototype.hasOwnProperty.call(o, key) ? o[key] : null;
     const turn = turns && d.type === 'color' && own && typeof own === 'object' ? (own as { rotate?: unknown }).rotate
       : null;
     const v = d.type === 'number' ? own : turn;
-    if (!isBinding(v) || !(v.mod in MODS)) continue;
-    const b = v as Record<string, unknown>, [lo, hi, dv] = d.type === 'number' ? [d.min, d.max, d.value] : [0, 1, 0];
-    const num = (x: unknown, dflt: number) => (isNum(x) ? x : dflt);
-    out.push({
-      key, into: d.type === 'number' ? null : turns!, kind: MODS[v.mod]!, lo: turn ? -1e6 : lo, hi: turn ? 1e6 : hi,
-      from: num(b.from, lo), to: num(b.to, hi), name: String(b.name ?? ''),
-      shape: Math.max(0, SHAPES.indexOf(b.shape as string)), rate: num(b.rate, 1), beats: b.unit === 'beats',
-      depth: num(b.depth, (hi - lo) / 4), center: num(b.center, dv), hold: clamp(num(b.hold, 0.5), 0, 0.95),
-      per: num(b.per, 1),
-    });
+    const m = d.type === 'number' ? modOf(key, v, d.min, d.max, d.value, null)
+      : turn ? modOf(key, v, -1e6, 1e6, 0, turns!, 0, 1) : null;
+    if (m) out.push(m);
   }
   return out;
+}
+
+/** A binding prepared for modValue: `key` the param (or macro) it sets, in `into` (null: P), held to lo..hi; `from`,
+ * `to` and the depth default over flo..fhi (a rotate's 0..1), the centre to `dv`. Null: not a binding. */
+function modOf(key: string, v: unknown, lo: number, hi: number, dv: number, into: Values | null, flo = lo, fhi = hi) {
+  if (!isBinding(v) || !(v.mod in MODS)) return null;
+  const b = v as Record<string, unknown>, num = (x: unknown, dflt: number) => (isNum(x) ? x : dflt);
+  const name = (x: unknown) => (typeof x === 'string' ? x : '');
+  return {
+    key, into, kind: MODS[v.mod]!, lo, hi, from: num(b.from, flo), to: num(b.to, fhi), name: name(b.name),
+    shape: Math.max(0, SHAPES.indexOf(b.shape as string)), rate: num(b.rate, 1), beats: b.unit === 'beats',
+    depth: num(b.depth, (fhi - flo) / 4), center: num(b.center, dv), hold: clamp(num(b.hold, 0.5), 0, 0.95),
+    per: num(b.per, 1), amount: name(b.amount), pace: name(b.pace),
+  };
 }
 
 const ease = (x: number) => x * x * (3 - 2 * x);
@@ -251,14 +292,17 @@ function lfo(shape: number, f: number, hold: number) {
   }
 }
 
-export type Mod = ReturnType<typeof paramMods>[number];
+export type Mod = NonNullable<ReturnType<typeof modOf>>;
 /** A bound param's value at show time t, held to its range: `g` the global it reads (0..1), `env` the clip envelope;
- * a `beats` one is per × the tempo. */
+ * a `beats` one is per × the tempo. An LFO's `amount` scales its swing by a global (0..1); its `pace` runs its
+ * phase at its rate × a fader's value, integrated, so turning the fader never jumps the wave. */
 export function modValue(m: Mod, t: number, g: number, env: number, look: PreparedLook) {
   let v;
   if (m.kind === 0) {
-    const ph = (m.beats ? t - look.beat0 : t) * m.rate * (m.beats ? look.bpm / 60 : 1);
-    v = m.center + m.depth * lfo(m.shape, ph - Math.floor(ph), m.hold);
+    const per = m.rate * (m.beats ? look.bpm / 60 : 1), from = m.beats ? look.beat0 : 0;
+    const ph = per * (m.pace ? look.paceAt(m.pace, t) - (from ? look.paceAt(m.pace, from) : 0) : t - from);
+    const depth = m.amount ? m.depth * look.normAt(m.amount, t) : m.depth;
+    v = m.center + depth * lfo(m.shape, ph - Math.floor(ph), m.hold);
   } else if (m.kind === 3) {
     v = m.per * look.bpm / 60;
   } else {

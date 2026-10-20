@@ -10,7 +10,8 @@ import {
 } from '../../public/js/pattern-core.ts';
 import type { Blend, BlurMode, ModuleKind, SourceBlend } from '../../public/js/pattern-core.ts';
 import {
-  automationFor, Binding, bytes, Globals as StrictGlobals, ID, ms, PALETTE_NAMES, Pick, PictureValue, problem, TAG,
+  automationFor, Binding, bytes, follows, Globals as StrictGlobals, ID, ms, PALETTE_NAMES, Pick, PictureValue, problem,
+  TAG,
 } from './look.ts';
 import type { Automation, Globals, Module, Range, Soften } from './look.ts';
 
@@ -196,8 +197,14 @@ const layerOf = (library: Library, known: Set<string>, root: string, groupTags: 
 const range = (d: Range) => z.number().transform((v) => clamp(v, d.min, d.max)).optional()
   .catch(undefined);
 const maybe = z.number().optional().catch(undefined);
-const macro = z.object({ name: z.unknown().optional().meta({ type: 'string' }), value: maybe, min: maybe, max: maybe })
-  .meta({ required: ['name', 'value', 'min', 'max'] });
+const str = { type: 'string' }, number = { type: 'number' };
+/** A modulator's mod as the model sees it: an LFO (its amount and pace a fader's name) or the tempo pulse. */
+export const MOD_WIRE = { type: 'object', properties: { mod: { type: 'string', enum: ['lfo', 'beats'] },
+  shape: { type: 'string', enum: ['sine', 'tri', 'saw', 'square', 'hold'] }, rate: number,
+  unit: { type: 'string', enum: ['hz', 'beats'] }, center: number, depth: number, hold: number, amount: str, pace: str,
+  per: number }, required: ['mod'] };
+const macro = z.object({ name: z.unknown().optional().meta({ type: 'string' }), value: maybe, min: maybe, max: maybe,
+  mod: z.unknown().optional().meta(MOD_WIRE) }).meta({ required: ['name', 'value', 'min', 'max'] });
 /** Globals as the model gives them (macros a list or a map, the palette by name) → stored, or undefined. */
 const globalsOf = z.object({
   speed: range(GLOBALS.speed), level: range(GLOBALS.level), hue: range(GLOBALS.hue),
@@ -217,14 +224,22 @@ function cleanGlobals(g: z.infer<typeof globalsOf>, notes: string[]): Globals | 
   const name = isString(p) ? p.trim().toLowerCase() : (p as { name?: unknown } | null)?.name;
   if (isString(name) && PALETTE_NAMES.includes(name)) out.palette = name;
   else if (p != null) notes.push(`palette ${String(name).slice(0, 30)} is not one of ${PALETTE_NAMES.join(', ')}`);
-  const macros: Record<string, { value: number, min: number, max: number }> = {};
+  const macros: Record<string, { value: number, min: number, max: number, mod?: z.infer<typeof Binding> }> = {};
   for (const m of g.macros.slice(0, MAX_MACROS)) {
     if (isDropped(m) || !macroNameOk(m.name)) {
       notes.push(`macro ${isDropped(m) ? '?' : String(m.name).slice(0, 30)}: not a usable name`);
       continue;
     }
     const min = m.min ?? 0, max = m.max !== undefined && m.max > min ? m.max : min + 1;
-    macros[m.name] = { value: clamp(m.value ?? min, min, max), min, max };
+    const mod = m.mod == null ? undefined : Binding.safeParse(m.mod).data;
+    const bad = m.mod != null && (!mod || mod.mod === 'envelope');
+    if (bad) notes.push(`macro ${m.name}: its mod is not an LFO, beats or a global binding`);
+    macros[m.name] = { value: clamp(m.value ?? min, min, max), min, max,
+      ...mod && mod.mod !== 'envelope' ? { mod } : {} };
+  }
+  for (const [name, m] of Object.entries(macros)) {   // one level: a modulator follows faders only
+    const bad = m.mod && follows(m.mod).find((n) => !(n in GLOBALS) && !(Object.hasOwn(macros, n) && !macros[n].mod));
+    if (bad) { notes.push(`macro ${name}: follows ${bad}, which is not a fader, so it does not move`); delete m.mod; }
   }
   if (Object.keys(macros).length) out.macros = macros;
   return strict('globals', StrictGlobals, out, notes) ?? undefined;
@@ -265,15 +280,16 @@ export function generatedLook({ groups = [], library = [] }: { groups?: Group[],
     title: text(LIMITS.title), summary: text(LIMITS.summary),
     duration: time.transform((d) => ms(clamp(d, 1, LIMITS.duration))).optional().catch(undefined),
     globals: globalsOf.optional().catch(undefined), automation: automationOf.optional(),
+    bpm: z.number().transform((b) => Math.round(clamp(b, 40, 240))).optional().catch(undefined),
     layers: z.array(orDrop(layerOf(library, known, isString(root) ? root : 'all', groupTags))).catch([]),
   }, { error: 'The generator returned something that is not a look.' })
     .meta({ required: ['title', 'summary', 'layers'] });
 }
 
 /**
- * A generator's output, `{ title, summary, duration?, globals?, automation?, layers: [{ title, groups, tags?, blend,
- * level, clips?, code + params? | modules }] }`, validated and normalised → the look as stored, with `dropped`:
- * why each dropped thing went. Throws GenerateError when nothing usable is left.
+ * A generator's output, `{ title, summary, duration?, globals?, automation?, bpm?, layers: [{ title, groups, tags?,
+ * blend, level, clips?, code + params? | modules }] }`, validated and normalised → the look as stored, with
+ * `dropped`: why each dropped thing went. Throws GenerateError when nothing usable is left.
  */
 export function validateLook(raw: unknown, ctx: { groups?: Group[], library?: Library } = {}) {
   const r = generatedLook(ctx).safeParse(raw);
@@ -287,11 +303,12 @@ export function validateLook(raw: unknown, ctx: { groups?: Group[], library?: Li
     const why = dropped.length ? dropped[0].replace(/^layer \d+: /, '') : 'no layers';
     throw new GenerateError('The generator did not produce a usable pattern.', why);
   }
-  const { title, summary, duration } = r.data;
+  const { title, summary, duration, bpm } = r.data;
   const globals = r.data.globals && cleanGlobals(r.data.globals, dropped);
   const automation = r.data.automation && cleanAutomation(r.data.automation, globals, dropped);
   return { title: title || 'Untitled look', summary, ...(duration !== undefined ? { duration } : {}), layers,
-    ...(globals ? { globals } : {}), ...(automation ? { automation } : {}), dropped };
+    ...(globals ? { globals } : {}), ...(automation ? { automation } : {}), ...(bpm !== undefined ? { bpm } : {}),
+    dropped };
 }
 
 const KEEP = new Set(['type', 'properties', 'required', 'items', 'enum', 'const', 'anyOf', 'description']);

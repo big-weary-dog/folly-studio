@@ -85,7 +85,7 @@ function pixel(p, t, P) { return [P.speed / 10, 0, 0]; }`;
     const p = { kind: 'number', value: 1, label: 'Speed', min: 0, max: 10, step: 0.1, options: [] };
     const f = { ...bindingForm({}, p, ['energy']), mod: 'beats', per: '0.5' };
     assert.deepEqual(makeBinding(f, p), { mod: 'beats', per: 0.5 });
-    assert.equal(bindingText({ mod: 'beats', per: 0.5 }), '0.5 a beat');
+    assert.equal(bindingText({ mod: 'beats', per: 0.5 }), '♩ 0.5 a beat');
   });
   test('a bake\'s key holds the tempo when a param counts beats', () => {
     const look = (speed) => ({ bpm: 90, layers: [{ id: 'a', modules: [{ id: 's', code, params: { speed } }] }] });

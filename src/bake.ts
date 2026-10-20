@@ -46,7 +46,8 @@ export function bakeSeconds(look: { duration?: unknown } | null | undefined, max
   return Math.min(max, Number.isFinite(d) && d > 0 ? d : DEFAULT_DURATION);
 }
 
-// A binding that counts beats (an LFO in beats, or the tempo): a number param's, or a colour pick's rotate.
+// A binding that counts beats (an LFO in beats, or the tempo): a number param's, a colour pick's rotate or a
+// modulator's (a macro's mod).
 const beatsLfo = (params: object | undefined | null): boolean => Object.values(params || {})
   .some((v) => v && typeof v === 'object' && (v.mod === 'lfo' ? v.unit === 'beats' : v.mod === 'beats'
     || beatsLfo({ r: v.rotate })));
@@ -62,8 +63,10 @@ const readsBpm = (code: unknown) => typeof code === 'string' && /\bG\s*\.\s*bpm\
  */
 export function renderFields(look: Renders | null | undefined) {
   const layers = look?.layers ?? [];
+  const macros = (look?.globals as { macros?: Record<string, { mod?: unknown }> } | null)?.macros;
   const beats = layers.some((l) => beatsLfo(l?.params) || readsBpm(l?.code) || (Array.isArray(l?.modules)
-    && l.modules.some((m) => beatsLfo(m?.params) || readsBpm(m?.code))));
+    && l.modules.some((m) => beatsLfo(m?.params) || readsBpm(m?.code))))
+    || beatsLfo(Object.fromEntries(Object.entries(macros ?? {}).map(([k, m]) => [k, m?.mod])));
   if (!look?.globals && !look?.automation && !beats) return layers;
   return { layers, globals: look!.globals ?? null, automation: look!.automation ?? null,
     bpm: beats ? look!.bpm ?? null : null };

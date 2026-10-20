@@ -7,7 +7,7 @@ import type { PiNow, PiSource } from '../../shared/schemas/live.ts';
 
 const FIRST_WAIT_MS = 1000, MAX_WAIT_MS = 10_000;
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
-type Look = { rev: number, t: number, bpm: number, beat0: number, offset: number,
+type Look = { rev: number, t: number, bpm: number, beat0: number, offset: number, paces?: Record<string, unknown>,
   controls: { name: string, value: number, kind: string }[] };
 
 /** The engine's state message → PiNow (null: nothing plays), or undefined if it is not one. */
@@ -18,7 +18,10 @@ export function piNowOf(state: { look?: Look | null, gain?: number } | null): Pi
   if (![l.rev, l.t, l.bpm, l.beat0, l.offset].every(num) || !Array.isArray(l.controls)) return undefined;
   const values = Object.fromEntries(l.controls.filter((c) => c.kind !== 'bpm' && num(c.value))
     .map((c) => [String(c.name), c.value]));
-  return { rev: l.rev, t: l.t, bpm: l.bpm, beat0: l.beat0, offset: l.offset, values, gain: state.gain };
+  const paces = Object.fromEntries(Object.entries(l.paces && typeof l.paces === 'object' ? l.paces : {})
+    .filter((e): e is [string, number] => num(e[1])));
+  return { rev: l.rev, t: l.t, bpm: l.bpm, beat0: l.beat0, offset: l.offset,
+    ...Object.keys(paces).length ? { paces } : {}, values, gain: state.gain };
 }
 
 export function piFeed({ target, base = '/pi', onNow, onSource }: { target: URL, base?: string,

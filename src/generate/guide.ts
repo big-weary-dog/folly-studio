@@ -123,9 +123,12 @@ export const TASTE = `- Colour at full strength. A palette sets hue, not brightn
 
 export const GLOBALS_GUIDE = `A look may set globals: speed (0..4, 1), level (0..1), hue (−0.5..0.5 turns), saturation
 (0..2, 1), energy (0..1, 0.5), palette (one of ${PALETTE_NAMES.join(', ')}: picks, pal() and palette() read it,
-so a look in palette colours follows the one picked), and macros [{ name, value, min, max }] that
+so a look in palette colours follows the one picked), and macros [{ name, value, min, max, mod? }] that
 patterns read as G.<name>. automation [{ name, points: [[seconds, value], …] }] moves a global or macro over
-time, linearly between points: energy that builds from 0.2 to 1 over a minute, a storm macro that rises.`;
+time, linearly between points: energy that builds from 0.2 to 1 over a minute, a storm macro that rises.
+A macro with a mod (an LFO or tempo binding) is a modulator: it moves by itself, and every param bound to it
+follows in step; its pace and amount name a fader (a global, or a macro without a mod), never a modulator. bpm
+(40–240, default 120) sits beside globals: the tempo LFOs in beats keep.`;
 
 export const COMPOSE_GUIDE = `A look is a stack of 1 to ${LIMITS.layers} layers, composited bottom (first) to top,
 each on a union of groups. Blend: \`add\` sums light, \`over\` covers what is below where the layer draws,
@@ -151,8 +154,11 @@ back front out in round along: \`out\` and \`round\` go from and round the layer
 each wire). A colour (\`pick\`) is a pick of the look's palette: \`all\` (low to high), a role (\`low\` \`body\`
 \`accent\` \`high\`), a slot (\`accent2\`), \`rainbow\` or \`#rrggbb\`, joined by spaces in order or dealt in turn
 with / (\`"accent high"\`, \`"body/accent"\`). Any number param may instead be bound: \`{ "mod": "lfo", "rate": 0.2,
-"shape": "sine", "center": 0.5, "depth": 0.5 }\` (Hz, or \`"unit": "beats"\`), \`{ "mod": "global", "name": "energy",
-"from": 0.2, "to": 1 }\` (or a macro's name), or \`{ "mod": "envelope", "from": 0, "to": 1 }\` (the clip's fade).
+"shape": "sine", "center": 0.5, "depth": 0.5 }\` (Hz, or \`"unit": "beats"\`: cycles a beat; \`"pace"\` and
+\`"amount"\` name a fader that speeds it or scales its swing), \`{ "mod": "global", "name": "energy", "from": 0.2,
+"to": 1 }\` (or a macro's or modulator's name), \`{ "mod": "envelope", "from": 0, "to": 1 }\` (the clip's fade), or
+\`{ "mod": "beats", "per": 0.5 }\` (per × beats a second). To move params as one (breathe, pulse, sway together),
+bind them all to one modulator: a macro with a mod.
 
 Choose in this order: a preset that is the idea; else a chain of modules (a bed, the element, a warp or filter to
 shape it; a preset's recipe is a good start); place it with groups. Only when nothing in the library can draw the
@@ -212,4 +218,15 @@ export const EXAMPLES: Example[] = [
             v('speed', 0)] },
           { use: 'in-turn', params: [v('tag', 'arch'), v('every', 0.8), v('gate', 'wipe'), v('direction', 'along'),
             v('release', 2)] }] }] }) },
+  { idea: 'everything breathes together, slowly speeding up as the storm builds', uses: ['colour-wash', 'clouds'],
+    look: (root) => ({ title: 'Storm breath', summary: 'One quickening breath swells sky and clouds.',
+      duration: 60, bpm: 90, globals: { macros: [{ name: 'storm', value: 0.5, min: 0.5, max: 3 },
+        { name: 'breath', value: 0.5, min: 0, max: 1, mod: { mod: 'lfo', shape: 'sine', rate: 0.25, unit: 'beats',
+          center: 0.5, depth: 0.5, pace: 'storm' } }] },
+      automation: [{ name: 'storm', points: [[0, 0.5], [60, 3]] }],
+      layers: [
+        { title: 'Sky', groups: [root], blend: 'add', level: 1, modules: [{ use: 'colour-wash', params: [
+          v('colours', 'low'), v('brightness', { mod: 'global', name: 'breath', from: 0.2, to: 0.5 })] }] },
+        { title: 'Clouds', groups: [root], blend: 'add', level: 0.8, modules: [{ use: 'clouds', params: [
+          v('cover', { mod: 'global', name: 'breath', from: 0.3, to: 0.8 })] }] }] }) },
 ];

@@ -8,32 +8,14 @@ import { GLOBALS, macroNameOk } from '../core/globals.ts';
 import { PALETTE_ROLES } from '../core/stdlib.ts';
 import type { Globals, Palette } from '../../../shared/schemas/look.ts';
 import { cx, Field, humanize, Scrub } from './kit.tsx';
-import type { Draft, Studio } from './studio-store.ts';
+import { renameMacro } from './look-globals-edit.ts';
+import type { Studio } from './studio-store.ts';
 
 const HELP: Record<string, string> = { speed: 'How fast every pattern runs; changes never jump',
   level: 'Master brightness', hue: 'Turns every colour round the wheel', saturation: '0 is grey, 2 is vivid',
   energy: 'Calm to busy: patterns read it as G.energy' };
 type Key = keyof typeof GLOBALS;
 type Macro = NonNullable<Globals['macros']>[string];
-
-/** A macro renamed (to null: deleted): its automation lane and the params bound to it follow. */
-function renameMacro(L: Draft, from: string, to: string | null): Partial<Draft> {
-  const macros = Object.fromEntries(Object.entries(L.globals?.macros || {}).flatMap(([k, v]) => (k !== from ? [[k, v]]
-    : to ? [[to, v]] : [])));
-  const auto = { ...L.automation };
-  if (auto[from]) { if (to) auto[to] = auto[from]; delete auto[from]; }
-  const layers = L.layers.map((l) => ({ ...l, modules: l.modules.map((m) => {
-    const params = { ...m.params };
-    for (const [k, b] of Object.entries(params)) {
-      if (b && typeof b === 'object' && 'mod' in b && b.mod === 'global' && b.name === from) {
-        if (to) params[k] = { ...b, name: to }; else delete params[k];
-      }
-    }
-    return { ...m, params };
-  }) }));
-  return { globals: { ...L.globals, macros: Object.keys(macros).length ? macros : undefined },
-    automation: Object.keys(auto).length ? auto : undefined, layers };
-}
 
 export function GlobalsPanel({ st, palettes }: { st: Studio; palettes: (Palette & { theme: string })[] }) {
   const L = st.look.value, g: Globals = L.globals || {}, lanes = L.automation || {};

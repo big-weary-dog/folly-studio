@@ -106,7 +106,8 @@ export async function readLook(file: string) {
   let look;
   try { look = JSON.parse(buf.toString('utf8')); } catch { throw unreadable('look.json is not JSON'); }
   if (!look || typeof look !== 'object' || Array.isArray(look)) throw unreadable('look.json is not an object');
-  return { title: look.title, summary: look.summary, duration: look.duration, layers: look.layers };
+  return { title: look.title, summary: look.summary, duration: look.duration, layers: look.layers,
+    globals: look.globals, automation: look.automation, bpm: look.bpm };
 }
 
 // Options (environment): bin (STUDIO_FLEET_BIN, "fleet"), workDir (STUDIO_FLEET_WORK, ~/.folly-studio/fleet),

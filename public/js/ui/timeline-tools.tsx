@@ -54,7 +54,8 @@ export function TimelineTools({ st, tl, inspector }: Props & { inspector?: boole
             if (d !== tl.duration.peek()) tl.setDuration(d); else el.value = show(d);
           }} />
         <Num label="BPM" min={40} max={240} step={1} placeholder="BPM" value={L.bpm}
-          title="Tempo in beats per minute, for the beat grid (optional)" commit={(typed, el) => {
+          title="Tempo in beats per minute (120 unset): the beat grid, LFOs in beats, tempo bindings"
+          commit={(typed, el) => {
             const bpm = cleanBpm(typed.trim());
             if (typed.trim() && !bpm) el.value = show(st.look.peek().bpm);
             else if (bpm !== (st.look.peek().bpm || null)) tl.setBpm(bpm);

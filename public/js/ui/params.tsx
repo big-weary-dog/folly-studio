@@ -5,19 +5,18 @@
 import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 
-import type { ParamValue } from '../../../shared/schemas/look.ts';
+import type { Binding, ParamValue } from '../../../shared/schemas/look.ts';
 import type { Picture } from '../core/picture.ts';
 import { DEFAULT_PALETTE } from '../core/stdlib.ts';
-import {
-  type BindingForm, bindingForm, bindingText, fmt, isBinding, makeBinding, normaliseParam, optionText, type Param,
-  SHAPES, shownValue,
-} from './bindings.ts';
-import { cx, Field, humanize, openDialog, Scrub } from './kit.tsx';
+import { normaliseParam, optionText, type Param, shownValue } from './bindings.ts';
+import { cx, Field, Scrub } from './kit.tsx';
+import { addModulator, modulatorEdits } from './look-globals-edit.ts';
+import { BoundChip, ModButton, type ModCtx } from './modulate.tsx';
 import { type Colours, type Help, PickRow } from './picks.tsx';
 import { PictureRow } from './picture-row.tsx';
 import type { Studio } from './studio-store.ts';
 
-const GLOBAL_NAMES = ['energy', 'speed', 'level', 'hue', 'saturation'];
+const TITLE = 'Modulate: an LFO, a global or macro, the clip envelope or the tempo moves it';
 
 export function ParamsPanel({ st }: { st: Studio }) {
   const l = st.selected.value, m = st.module.value;
@@ -38,42 +37,41 @@ export function ParamsPanel({ st }: { st: Studio }) {
     return { params };
   });
   const colours = { palette: st.look.value.globals?.palette ?? DEFAULT_PALETTE };
+  const ctx: ModCtx = { look: () => st.look.peek(), t: () => st.clock.t, clips: () => st.selected.peek()?.clips,
+    narrow: st.narrow.value, share: (mod, hint) => addModulator(st, mod,
+    l.groups?.length ? st.groupNames(l.groups).split(',')[0] : l.title ?? '', hint), edit: modulatorEdits(st) };
   return (
     <div class="params">
       {entries.map(([key, p]) => <Control key={`${l.id}/${m.id}/${key}`} name={key} p={p} values={values} set={set}
-        colours={colours} narrow={st.narrow.value}
-        globals={() => [...GLOBAL_NAMES, ...Object.keys(st.look.peek().globals?.macros || {})]} />)}
+        colours={colours} narrow={st.narrow.value} ctx={ctx} />)}
       <div class="params-foot"><button type="button" class="btn small ghost"
         onClick={() => st.editModule(l.id, m.id, () => ({ params: {} }))}>Reset all to defaults</button></div>
     </div>);
 }
 
 /** A param's row: its label, then its control (a number's scrub field, or what modulates it, and its ∿; a pick). */
-function Control({ name, p, values, set, globals, colours, narrow }: { name: string; p: Param;
+function Control({ name, p, values, set, ctx, colours, narrow }: { name: string; p: Param;
   values: Record<string, ParamValue>; set: (fn: (p: Record<string, ParamValue>) => void) => void;
-  globals: () => string[]; colours: Colours; narrow: boolean }) {
+  ctx: ModCtx; colours: Colours; narrow: boolean }) {
   const { has, bound, value } = shownValue(p, values, name), help = useHelp(p.label, p.help, narrow);
   const put = (v: ParamValue) => set((q) => { q[name] = v; });
+  const putOr = (v: ParamValue | undefined) => set((q) => { if (v === undefined) delete q[name]; else q[name] = v; });
   if (p.kind === 'color') {
     const turn = { ...p, label: `${p.label}: rotate`, value: 0, min: 0, max: 1, step: 0.01 };
     return <PickRow label={p.label} value={values[name]} dflt={p.value as string} blend={p.blend ?? 'step'}
       colours={colours} narrow={narrow} help={help}
-      put={(v) => set((q) => { if (v === undefined) delete q[name]; else q[name] = v; })}
-      modulate={(now, apply) => modulate({ ...turn, value: typeof now === 'number' ? now : 0 }, now, globals(), apply,
-        'Turns 0 to 1, wrapping: one turn walks every colour of the pick once.')} />;
+      put={putOr} turn={(now, put) => <ModButton p={turn} value={now} now={typeof now === 'number' ? now : 0} ctx={ctx}
+        put={put} label={`Turn ${p.label}`} title={TITLE} />} />;
   }
   if (p.kind === 'picture') {
     return <PictureRow label={p.label} value={values[name]} dflt={p.value as Picture} palette={colours.palette}
-      help={help} put={(v) => set((q) => { if (v === undefined) delete q[name]; else q[name] = v; })} />;
+      help={help} put={putOr} />;
   }
   const field = (id: string) => (p.kind === 'number' ? <>
-    {bound ? <span class="param-chip">{bindingText(values[name] as never)}</span>
+    {bound ? <BoundChip b={values[name] as Binding} p={p} ctx={ctx} />
       : <Scrub id={id} min={p.min} max={p.max} step={p.step} value={value as number} set={put} />}
-    <button type="button" class="param-mod" aria-pressed={bound} aria-label={`Modulate ${p.label}`}
-      title="Modulate: an LFO, a global or the clip envelope"
-      onClick={() => modulate(p, values[name], globals(), (b) => set((q) => {
-        if (b) q[name] = b; else delete q[name];
-      }))}>∿</button></>
+    <ModButton p={p} value={values[name]} now={bound ? p.value as number : value as number} ctx={ctx} put={putOr}
+      label={`Modulate ${p.label}`} title={TITLE} /></>
     : p.kind === 'choice' ? <select id={id} class="param-choice" value={value as string}
       onChange={(e) => put(e.currentTarget.value)}>
       {p.options.map((o) => <option value={o}>{optionText(o, p.options)}</option>)}</select>
@@ -97,38 +95,4 @@ function useHelp(label: string, help: string | undefined, narrow: boolean): Help
   return { hint: open && <p class="field-hint param-help">{help}</p>,
     button: <button type="button" class="param-info" aria-expanded={open} aria-label={`About ${label}`}
       onClick={() => setOpen(!open)}>ⓘ</button> };
-}
-
-/** The modulate dialog for a number param (or a pick's rotate): an LFO, a global or the clip envelope, or nothing. */
-function modulate(p: Param, now: ParamValue | undefined, globals: string[], apply: (b: ReturnType<typeof makeBinding>)
-  => void, range = `Range ${fmt(p.min)} to ${fmt(p.max)}. A modulated value is held to it.`) {
-  return openDialog({ title: `Modulate ${p.label}`, className: 'modulate-dialog', body: (close) => {
-    const [f, setF] = useState(() => bindingForm(isBinding(now) ? now : {}, p, globals));
-    const select = (k: keyof BindingForm, opts: string[][]) => (id: string) => <select id={id} value={f[k]}
-      onChange={(e) => setF({ ...f, [k]: e.currentTarget.value })}>
-      {opts.map(([v, t]) => <option value={v}>{t}</option>)}</select>;
-    const field = (label: string, k: keyof BindingForm) => <Field label={label}>{(id) => <input id={id} type="number"
-      step="any" value={f[k]} onInput={(e) => setF({ ...f, [k]: e.currentTarget.value })} />}</Field>;
-    return <>
-      <p class="dialog-text">{range}</p>
-      <Field label="Moved by">{select('mod', [['', 'Nothing: its field sets it'], ['lfo', 'An LFO'],
-        ['global', 'A global'], ['envelope', 'The clip envelope'], ['beats', 'The tempo (a speed per beat)']])}</Field>
-      <div class="mod-fields" hidden={f.mod !== 'lfo'}>
-        <Field label="Shape">{select('shape', SHAPES.map((s) => [s, humanize(s)]))}</Field>
-        <div class="mod-fields" hidden={f.shape !== 'hold'}>{field('Hold (share of each cycle)', 'hold')}</div>
-        {field('Cycles', 'rate')}
-        <Field label="Per">{select('unit', [['hz', 'a second (Hz)'], ['beats', 'a beat']])}</Field>
-        {field('Centre', 'center')}{field('Depth (±)', 'depth')}</div>
-      <div class="mod-fields" hidden={f.mod !== 'global'}>
-        <Field label="Global">{select('name', globals.map((g) => [g, humanize(g)]))}</Field>
-        {field('At its lowest', 'from')}{field('At its highest', 'to')}</div>
-      <div class="mod-fields" hidden={f.mod !== 'beats'}>{field('How many a beat', 'per')}</div>
-      <div class="mod-fields" hidden={f.mod !== 'envelope'}>{field('Outside clips', 'eFrom')}{field('Fully in', 'eTo')}
-      </div>
-      <div class="dialog-actions">
-        <button type="button" class="btn ghost" onClick={() => close()}>Cancel</button>
-        <button type="button" class="btn primary" onClick={() => { close(); apply(makeBinding(f, p)); }}>Apply</button>
-      </div>
-    </>;
-  } });
 }

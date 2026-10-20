@@ -7,7 +7,7 @@ and who may use the paid ones, how much.
 
 `src/generate/index.ts` runs a small in-process queue. An adapter is
 `async generate({ text, user, library, rig, groups, prompt?, repair?, signal? }) → { title, summary, duration?,
-globals?, automation?, layers, extensions? }` (`groups`: the rig's; `prompt()`: the system prompt, the output schema
+globals?, automation?, bpm?, layers, extensions? }` (`groups`: the rig's; `prompt()`: the system prompt, the output schema
 and the library's catalog, built once per library and rig; `repair`: the last answer and its errors, below;
 `signal`: aborted when the server stops). `claude` and `codex` return a composition (below); the others a look. Each idea names a model of the registry (below); its job runs in
 that model's transport lane, each lane with its own concurrency. When it fails, the idea is `failed` with a user-safe
@@ -20,7 +20,8 @@ groups), and give layers the tags they meant beside the ids. The result is clean
 (`shared/schemas/generated.ts`, zod: ≤ 4 layers,
 known group ids (none known: the root) and tags, code ≤ 20 kB containing `function pixel`, or modules whose code defines their kind's
 function; clips and duration normalised, bad or overlapping clips dropped; `globals` and `automation`
-cleaned, a palette name filled in; picks cleaned of unknown tokens; a layer's `palette` dropped; a layer without a
+cleaned (a macro's `mod` kept when it is an LFO or tempo binding that follows faders only, else dropped with a note),
+`bpm` held to 40–240, a palette name filled in; picks cleaned of unknown tokens; a layer's `palette` dropped; a layer without a
 usable `soften` gets `DEFAULT_SOFTEN`) before a look is saved, with `chain: 2` (generators write the one rule: a warp after
 what it bends), and the idea set `ready`. Old single-code layers
 stay valid. Generators may add
@@ -168,7 +169,8 @@ transcripts.
   output, or when the server stops. The answer, at most 512 KB, is read as untrusted data like `claude`'s.
 - `fleet`: hands the idea to a boxed Fleet worker as an untrusted brief (experimental), in a workspace holding
   copies of the modules `check.ts` imports (the core's, `fseq.ts`, `frames.ts`), as they are. The worker
-  also bakes (`node check.ts --bake`); the adapter returns `bake` + `frames` (see below), and
+  also bakes (`node check.ts --bake`); the adapter reads its `look.json` (title, summary, duration, layers, globals,
+  automation, bpm) and returns it with `bake` + `frames` (see below), and
   the queue stores them with the look. This foundry is opt-in: it runs only with `STUDIO_FOUNDRY=on`,
   one job at a time in a slot of its own. While it is off or busy, its ideas go to the one-shot
   generator (`STUDIO_GENERATOR_FALLBACK`, else `sketch`), or wait for it with `STUDIO_FOUNDRY_WAIT=1`.

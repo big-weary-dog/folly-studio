@@ -120,6 +120,7 @@ export function createEngine(o: EngineOptions) {
         duration: playing.look.duration || 30,
         bpm: playing.live.look.bpm, beats: (frame * dt - playing.live.look.beat0) * playing.live.look.bpm / 60,
         offset: playing.live.look.offset, beat0: playing.live.look.beat0,
+        paces: Object.fromEntries(playing.live.look.paceOffset),
         controls: playing.live.controls.map((c) => ({ ...c })) },
       gain: master.now * black.now * fade.now,
       level: master.to, blackout: black.to === 0, tripped, switching: pending,

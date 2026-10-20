@@ -212,7 +212,7 @@ export function expand(answer: unknown, catalog: Catalog) {
     if (typeof l.code === 'string') return (uses.code++, [l]);
     return (fail(at, 'empty_layer', 'a layer gives "preset" or "modules"'), []);
   });
-  const look = { title: a.title, summary: a.summary, duration: a.duration, layers,
+  const look = { title: a.title, summary: a.summary, duration: a.duration, bpm: a.bpm, layers,
     ...(Object.keys(globals).length ? { globals } : {}), ...(a.automation !== undefined ? { automation: a.automation }
       : {}) };
   return { look, errors, notes, uses };

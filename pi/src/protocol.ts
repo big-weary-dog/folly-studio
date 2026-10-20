@@ -17,9 +17,10 @@ export type FromPage = z.infer<typeof FromPage>;
 
 export type Control = { name: string, min: number, max: number, value: number, kind: 'global' | 'macro' | 'bpm' };
 export type PiState = {
-  /** rev: its source's (below); offset and beat0: the prepared look's clock, so a viewer renders the same frame. */
+  /** rev: its source's (below); offset, beat0 and paces: the prepared look's clocks, so a viewer renders the same
+   * frame. */
   look: { id: string, rev: number, title: string, t: number, duration: number, bpm: number, beats: number,
-    offset: number, beat0: number, controls: Control[] } | null,
+    offset: number, beat0: number, paces: Record<string, number>, controls: Control[] } | null,
   /** The output's gain now: the master, blackout and a switch's dip, each as eased. */
   gain: number,
   level: number, blackout: boolean, tripped: { at: string, look: string } | null, switching: string | null,

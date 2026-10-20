@@ -49,11 +49,14 @@ second bars. Start from a preset when one is the idea, or copy its recipe into `
 
 ## Bindings: motion and build
 Any number param may be bound instead of set:
-- `{ "mod": "lfo", "rate": 0.2, "shape": "sine", "center": 0.5, "depth": 0.5 }`: a wave in Hz, or `"unit":
-  "beats"` at the look's bpm. Shape `hold` steps and holds (one step a beat, a curtain that opens and waits).
-- `{ "mod": "global", "name": "energy", "from": 0.2, "to": 1 }`: follows a global or macro. Library sources never
-  read energy themselves: bind density, speed or level to it to build.
+- `{ "mod": "lfo", "rate": 0.2, "shape": "sine", "center": 0.5, "depth": 0.5 }`: a wave in Hz, or with `"unit":
+  "beats"` its rate is cycles a beat at the look's bpm (0.25: once a bar). Shape `hold` steps and holds (one step a
+  beat, a curtain that opens and waits). `"amount": "<fader>"` scales its swing by a global's or macro's value (0
+  holds it at its centre); `"pace": "<fader>"` multiplies its rate by one (a storm that quickens it), never jumping.
+- `{ "mod": "global", "name": "energy", "from": 0.2, "to": 1 }`: follows a global, macro or modulator. Library
+  sources never read energy themselves: bind density, speed or level to it to build.
 - `{ "mod": "envelope", "from": 0, "to": 1 }`: the layer clip's fade.
+- `{ "mod": "beats", "per": 0.5 }`: keeps time: the param is `per` × the beats a second, so a speed follows the bpm.
 Speeds are integrated, so binding a speed never makes the motion jump.
 
 ## Groups and tags
@@ -63,8 +66,9 @@ to another rig. Modules that find places themselves (`anchor`, `in-turn`) take a
 
 ## Globals
 A look may set `globals`: `palette` (by name; every pick reads it), `speed` (0..4, 1: scales every clock), `level`,
-`hue` (turns the whole look), `saturation`, `energy` (0..1, what bindings follow), `bpm`, and macros (named numbers
-bindings can follow). `automation` moves a global or macro over time: energy from 0.2 to 1 over a minute is a
+`hue` (turns the whole look), `saturation`, `energy` (0..1, what bindings follow), and macros (named numbers
+bindings can follow). `bpm` (40–240, 120 when unset) sits beside `globals`, not in it: the look's tempo, which LFOs
+in beats and tempo bindings keep. `automation` moves a global or macro over time: energy from 0.2 to 1 over a minute is a
 build. A palette sets hue, not brightness: choose one whose colours suit the idea and keep them at full strength.
 
 ## Macros: one dial for many params
@@ -81,6 +85,27 @@ any layer to it and one automation lane moves them together: the storm darkens t
     "value": { "mod": "global", "name": "storm", "from": 0.1, "to": 0.8 } }] }] }]
 ```
 A layer's `level` is not a param and cannot be bound: bind a source's brightness, density or speed instead.
+
+## Modulators: things that move together
+A macro with a `mod` (an LFO or a tempo pulse) is a modulator: it moves by itself, and every param bound to it
+follows the one wave, in step across layers. Each param maps it through its own `from`..`to`, so one breath can
+swell a bed's brightness while it narrows a beam's width. Give a modulator `min` 0, `max` 1 and its LFO `center`
+0.5, `depth` 0.5, so it sweeps its whole range. Its LFO may take `pace` and `amount` from a fader (a global, or a
+macro without a mod) but never from another modulator: one level only.
+```json
+"bpm": 90,
+"globals": { "macros": [{ "name": "storm", "value": 1, "min": 0.5, "max": 3 },
+  { "name": "breath", "value": 0.5, "min": 0, "max": 1, "mod": { "mod": "lfo", "shape": "sine", "rate": 0.25,
+    "unit": "beats", "center": 0.5, "depth": 0.5, "pace": "storm" } }] },
+"automation": [{ "name": "storm", "points": [[0, 0.5], [60, 3]] }],
+"layers": [
+  { "modules": [{ "use": "colour-wash", "params": [{ "name": "brightness",
+    "value": { "mod": "global", "name": "breath", "from": 0.2, "to": 0.6 } }] }] },
+  { "modules": [{ "use": "clouds", "params": [{ "name": "cover",
+    "value": { "mod": "global", "name": "breath", "from": 0.3, "to": 0.8 } }] }] }]
+```
+Everything breathes once a bar together, faster as `storm` rises. A lane on a modulator overrides its wave while
+it runs. Prefer one modulator to the same LFO repeated: copies only stay in step until something changes.
 
 ## Over time: duration, clips, automation
 - `duration` (seconds, 30 when unset) is how long the look runs before it loops.

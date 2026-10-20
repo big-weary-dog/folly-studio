@@ -8,8 +8,9 @@ export interface Param { kind: 'number' | 'color' | 'toggle' | 'choice' | 'pictu
   value: number | string | boolean | Picture;
   label: string; min: number; max: number; step: number; options: string[]; blend?: 'smooth' | 'step'; help?: string }
 type Shape = NonNullable<Extract<Binding, { mod: 'lfo' }>['shape']>;
-export type BindingForm = { mod: '' | Binding['mod']; shape: Shape; rate: string; unit: string; center: string;
-  depth: string; hold: string; name: string; from: string; to: string; eFrom: string; eTo: string; per: string };
+export type BindingForm = { mod: '' | Binding['mod']; shape: Shape; rate: string; unit: string; lo: string;
+  hi: string; hold: string; amount: string; pace: string; name: string; from: string; to: string; eFrom: string;
+  eTo: string; per: string };
 export const SHAPES: Shape[] = ['sine', 'tri', 'saw', 'square', 'hold'];
 
 /** A choice option as the UI says it: the library's directions (SPEC "Directions") with arrows, else humanized. */
@@ -23,14 +24,27 @@ export const optionText = (key: string, options: string[]) => (options.every((o)
 export const isBinding = (v: unknown): v is Binding => !!v && typeof v === 'object' && !Array.isArray(v)
   && typeof (v as Binding).mod === 'string';
 export const fmt = (v: number) => String(Math.round(v * 1000) / 1000);
+/** Rates in beats as the popover offers them: cycles a beat for a period of ¼ beat … 4 bars (4 beats a bar). */
+export const RATES: [string, number][] = [['¼ beat', 4], ['½ beat', 2], ['1 beat', 1], ['1 bar', 0.25],
+  ['2 bars', 0.125], ['4 bars', 0.0625]];
+/** A rate in beats in words: a pill's name, else "every n beats". */
+export const rateText = (rate: number) => RATES.find((r) => r[1] === rate)?.[0] ?? `every ${fmt(1 / rate)} beats`;
+
 const HEX = /^#[0-9a-f]{6}$/i;
 
-/** A binding in a few words: "LFO sine · 0.25 Hz", "energy → 0–2", "envelope → 0–1", "1 a beat". */
-export function bindingText(b: Binding) {
-  if (b.mod === 'lfo') return `LFO ${b.shape || 'sine'} · ${fmt(b.rate ?? 1)} ${b.unit === 'beats' ? '/beat' : 'Hz'}`;
-  if (b.mod === 'beats') return `${fmt(b.per ?? 1)} a beat`;
-  const range = b.from !== undefined || b.to !== undefined ? ` → ${fmt(b.from ?? 0)}–${fmt(b.to ?? 1)}` : '';
-  return `${b.mod === 'global' ? b.name : 'envelope'}${range}`;
+export const GLYPHS: Record<Shape, string> = { sine: '∿', tri: '⋀', saw: '⟋', square: '⊓', hold: '⌒' };
+/** A binding in a few words, with the range it moves through (`r`, the param's; a rotate's is 0..1):
+ * "∿ sine ½ beat · −55…95", "◆ storm · 20…160", "⌂ clip envelope · 0…1", "♩ 0.5 a beat". */
+export function bindingText(b: Binding, r = { min: 0, max: 1 }) {
+  const span = (a: number, z: number) => ` · ${fmt(a)}…${fmt(z)}`;
+  if (b.mod === 'lfo') {
+    const shape = b.shape || 'sine', c = b.center ?? (r.min + r.max) / 2, d = b.depth ?? (r.max - r.min) / 4;
+    const rate = b.unit === 'beats' ? rateText(b.rate ?? 1) : `${fmt(b.rate ?? 1)} Hz`;
+    return `${GLYPHS[shape]} ${shape} ${rate}${b.pace ? ` × ${b.pace}` : ''}${span(c - d, c + d)}`;
+  }
+  if (b.mod === 'beats') return `♩ ${fmt(b.per ?? 1)} a beat`;
+  const ends = span(b.from ?? r.min, b.to ?? r.max);
+  return b.mod === 'global' ? `◆ ${b.name}${ends}` : `⌂ clip envelope${ends}`;
 }
 
 /** One entry of the core's schema (normalizeParams) as a control, or null. */
@@ -78,28 +92,51 @@ export function shownValue(p: Param, values: Record<string, ParamValue>, key: st
   return { has, bound: false, value: own as string | boolean };
 }
 
-/** The dialog's fields for a param's binding (or none yet); global and envelope keep their ends apart. */
-export function bindingForm(b: Partial<Binding>, p: Param, globals: string[]): BindingForm {
+/** The popover's fields for a param's binding (or none yet). An LFO is From/To (stored as centre ± depth); a new one
+ * swings a quarter of the range each side of `now` (the field's value), and a new tempo binding keeps `now` at
+ * `bpm`. Global and envelope keep their ends apart. */
+export function bindingForm(b: Partial<Binding>, p: Param, globals: string[], now = Number(p.value), bpm = 120)
+  : BindingForm {
   const o = b as Record<string, unknown>, ends = (mod: string) => (b.mod === mod
     ? [fmt(Number(o.from ?? p.min)), fmt(Number(o.to ?? p.max))] : [fmt(p.min), fmt(p.max)]);
-  const [from, to] = ends('global'), [eFrom, eTo] = ends('envelope');
+  const [from, to] = ends('global'), [eFrom, eTo] = ends('envelope'), q = (p.max - p.min) / 4;
+  const centre = Number(o.center ?? p.value), depth = Number(o.depth ?? q);
+  const [lo, hi] = b.mod === 'lfo' ? [centre - depth, centre + depth]
+    : [Math.max(p.min, now - q), Math.min(p.max, now + q)];
+  const hz = b.mod === 'lfo' && o.unit !== 'beats', rate = Number(o.rate ?? 0.25);
   return { mod: b.mod || '', shape: SHAPES.includes(o.shape as Shape) ? o.shape as Shape : 'sine',
-    rate: fmt(Number(o.rate ?? 0.25)), unit: o.unit === 'beats' ? 'beats' : 'hz',
-    center: fmt(Number(o.center ?? p.value)),
-    depth: fmt(Number(o.depth ?? (p.max - p.min) / 4)), hold: fmt(Number(o.hold ?? 0.5)),
+    rate: hz ? fmt(rate) : String(rate), unit: hz ? 'hz' : 'beats', // in beats exact: 4 bars is 1/16 a beat
+    lo: fmt(lo), hi: fmt(hi), hold: fmt(Number(o.hold ?? 0.5)), amount: String(o.amount ?? ''),
+    pace: String(o.pace ?? ''),
     name: globals.includes(o.name as string) ? o.name as string : globals[0], from, to, eFrom, eTo,
-    per: fmt(Number(o.per ?? 1)) };
+    per: fmt(Number(o.per ?? now * 60 / bpm)) };
 }
 
-/** The binding the dialog's fields make (null: its field sets it); a number that does not parse takes its default. */
+/** The binding the popover's fields make (null: its field sets it); a number that does not parse takes its default. */
 export function makeBinding(f: BindingForm, p: Param): Binding | null {
   const n = (s: string, d: number) => { const v = parseFloat(s); return Number.isFinite(v) ? v : d; };
   if (f.mod === 'lfo') {
+    const lo = n(f.lo, p.min), hi = n(f.hi, p.max);
     return { mod: 'lfo', shape: f.shape, rate: n(f.rate, 1), unit: f.unit === 'beats' ? 'beats' : 'hz',
-      center: n(f.center, Number(p.value)), depth: n(f.depth, (p.max - p.min) / 4),
-      ...(f.shape === 'hold' ? { hold: Math.min(1, Math.max(0, n(f.hold, 0.5))) } : {}) };
+      center: (lo + hi) / 2, depth: (hi - lo) / 2,
+      ...(f.shape === 'hold' ? { hold: Math.min(0.95, Math.max(0, n(f.hold, 0.5))) } : {}),
+      ...(f.amount ? { amount: f.amount } : {}), ...(f.pace ? { pace: f.pace } : {}) };
   }
   if (f.mod === 'global') return { mod: 'global', name: f.name, from: n(f.from, p.min), to: n(f.to, p.max) };
   if (f.mod === 'beats') return { mod: 'beats', per: n(f.per, 1) };
   return f.mod === 'envelope' ? { mod: 'envelope', from: n(f.eFrom, p.min), to: n(f.eTo, p.max) } : null;
+}
+
+/** A tempo binding in words: what `per` comes to at `bpm`, and whether the param's range holds it. */
+export function tempoNote(per: number, bpm: number, p: Param) {
+  const v = per * bpm / 60;
+  return { text: `= ${fmt(v)} a second at ${bpm} BPM`, out: v < p.min || v > p.max };
+}
+
+/** A modulator's LFO shared out of a param's (SPEC "Globals"): the macro's 0..1 swing, and the param's binding to it
+ * through the same ends, so the param moves exactly as before. */
+export function shareLfo(b: Extract<Binding, { mod: 'lfo' }>, p: Param, name: string) {
+  const c = b.center ?? Number(p.value), d = b.depth ?? (p.max - p.min) / 4;
+  return { mod: { ...b, center: 0.5, depth: 0.5 } as Binding,
+    binding: { mod: 'global', name, from: c - d, to: c + d } as Binding };
 }

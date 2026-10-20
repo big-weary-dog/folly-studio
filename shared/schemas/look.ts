@@ -74,13 +74,13 @@ const Clips = z.array(Clip, { error: 'clips must be an array.' }).max(MAX_CLIPS,
   });
 
 const bound = z.number().min(-1e6).max(1e6).optional();
+const GlobalName = z.string().regex(/^[a-z][A-Za-z0-9_]{0,31}$/);
 /** A param bound to an LFO, a global, the clip envelope or the tempo instead of a number (SPEC "Param bindings"). */
 export const Binding = z.discriminatedUnion('mod', [
   z.strictObject({ mod: z.literal('lfo'), shape: z.enum(['sine', 'tri', 'saw', 'square', 'hold']).optional(),
     rate: bound, unit: z.enum(['hz', 'beats']).optional(), depth: bound, center: bound,
-    hold: z.number().min(0).max(1).optional() }),
-  z.strictObject({ mod: z.literal('global'), name: z.string().regex(/^[a-z][A-Za-z0-9_]{0,31}$/), from: bound,
-    to: bound }),
+    hold: z.number().min(0).max(1).optional(), amount: GlobalName.optional(), pace: GlobalName.optional() }),
+  z.strictObject({ mod: z.literal('global'), name: GlobalName, from: bound, to: bound }),
   z.strictObject({ mod: z.literal('envelope'), from: bound, to: bound }),
   z.strictObject({ mod: z.literal('beats'), per: bound }),
 ]);
@@ -211,11 +211,18 @@ const Palette = z.union([
   : 'globals.palette must be a palette name or { name, low, body, accent, high }.') });
 
 const MIN_MAX = 'min and max must be numbers, max above min.', VALUE = 'value must be a number from min to max.';
+const MOD_RULE = "a macro's mod is an LFO, the tempo or a global, not the clip envelope.";
+/** A macro: a fader, or with `mod` a modulator every param bound to it follows (SPEC "Globals"). */
 const Macro = z.object({ value: z.number({ error: VALUE }).optional(), min: num(-1e6, 1e6, MIN_MAX).default(0),
-  max: num(-1e6, 1e6, MIN_MAX).default(1) }, { error: 'must be { value, min, max }.' })
+  max: num(-1e6, 1e6, MIN_MAX).default(1), mod: Binding.refine((b) => b.mod !== 'envelope', MOD_RULE).optional() },
+{ error: 'must be { value, min, max, mod? }.' })
   .refine((m) => m.max > m.min, MIN_MAX).refine((m) => m.value === undefined || (m.value >= m.min && m.value <= m.max),
     VALUE)
-  .transform((m) => ({ value: round(m.value ?? m.min), min: round(m.min), max: round(m.max) }));
+  .transform((m) => ({ value: round(m.value ?? m.min), min: round(m.min), max: round(m.max),
+    ...m.mod ? { mod: m.mod } : {} }));
+/** The names a modulator follows: its global, and an LFO's amount and pace. */
+export const follows = (b: z.infer<typeof Binding>) => (b.mod === 'global' ? [b.name] : b.mod === 'lfo'
+  ? [b.amount, b.pace].filter((n) => n !== undefined) : []);
 const MACRO_RULE = 'a name is a lowercase letter, then letters, digits or _, and not one of energy, speed, level, hue, '
   + 'saturation or palette.';
 
@@ -236,7 +243,17 @@ export const Globals = z.strictObject({
 }, { error: (iss) => (iss.code === 'unrecognized_keys' ? `globals.${String(iss.keys[0]).slice(0, 40)} is not a global.`
   : 'globals must be an object.') }).nullable()
   .refine((g) => !g?.live?.some((n, i, all) => all.indexOf(n) !== i
-    || !(Object.hasOwn(GLOBALS, n) || n === 'bpm' || Object.hasOwn(g.macros ?? {}, n))), LIVE_RULE);
+    || !(Object.hasOwn(GLOBALS, n) || n === 'bpm' || Object.hasOwn(g.macros ?? {}, n))), LIVE_RULE)
+  .superRefine((g, ctx) => {   // one level: a modulator follows faders (globals, or macros without a mod)
+    for (const [name, m] of Object.entries(g?.macros ?? {})) {
+      const bad = m.mod && follows(m.mod).find((n) => !Object.hasOwn(GLOBALS, n) && !(Object.hasOwn(g!.macros!, n)
+        && !g!.macros![n].mod));
+      if (bad) {
+        ctx.addIssue(`globals.macros.${name} follows ${bad}, which is not a global or a macro without a mod: `
+          + 'a modulator follows faders only.');
+      }
+    }
+  });
 
 const lane = ({ min, max }: Range) => {
   const each = `each point is [seconds 0–${MAX_DURATION}, value ${min}–${max}].`;

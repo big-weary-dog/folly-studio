@@ -110,3 +110,31 @@ describe('an automated name', () => {
     assert.equal(live.look.normAt('drive', 9), 0.5);
   });
 });
+
+describe('a modulator', () => {
+  const saw = { mod: 'lfo', shape: 'saw', rate: 0.25, center: 0.5, depth: 0.5 };
+  const look = oneModule('m', 'clouds', {}, { globals: { macros: {
+    storm: { value: 1, min: 0, max: 4 }, gust: { value: 0, min: 0, max: 1, mod: saw },
+    wobble: { value: 0, min: 0, max: 1, mod: { ...saw, pace: 'storm' } } } } });
+
+  test('is not a default control; listed in globals.live, a push holds it and the others keep moving', () => {
+    assert.deepEqual(liveLook(look).controls.map((c) => c.name), ['storm', 'level']);
+    const live = liveLook({ ...look, globals: { ...look.globals, live: ['gust'] } });
+    live.look.lastT = 1;
+    live.set('gust', 0.9, 1);
+    assert.ok(Math.abs(live.look.normAt('gust', 3) - 0.25) < 1e-9, 'held where it was (¼ cycle) until it eases');
+    play(live, 1, SLEW * 2);
+    assert.equal(live.look.normAt('gust', 3), 0.9);
+    assert.ok(live.look.g.macros.find((m) => m.name === 'wobble')!.mod, 'the others keep their mods');
+  });
+
+  test('a push on the fader that paces it keeps its phase', () => {
+    const live = liveLook(look), at = (t: number) => live.look.normAt('wobble', t);
+    const t = play(live, 0, 2), before = at(t);
+    live.set('storm', 4, t);
+    live.step(t, SLEW);
+    assert.equal(live.values().storm, 4);
+    assert.ok(Math.abs(at(t) - before) < 1e-9, `${at(t)} vs ${before}`);
+    assert.ok(Math.abs(at(t + 0.1) - before - 0.1) < 1e-9, 'then four times as fast');
+  });
+});
