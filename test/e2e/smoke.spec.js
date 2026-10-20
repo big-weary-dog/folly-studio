@@ -2,8 +2,9 @@
 // the sketch generator turns into a look, the Studio in the Playa view with the sandbox running, the groups tree's
 // ticks (a group with all under it, none at all), a param dragged and stepped, a typo and a hang in the code
 // (reported, paused by the watchdog, running again once fixed), the timeline, a source's Colours played in an accent
-// (the pick tile), a param's help, a preset added from Add a layer and one kind of module shown in Add a module, and a bake in the real render box (the laptop bakes from the Studio; the phone says to bake
-// from a larger screen and plays the baked frames).
+// (the pick tile), a param's help, a preset added from Add a layer and one kind of module shown in Add a module, and
+// a bake in the real render box (the laptop bakes from the Studio; the phone says to bake from a larger screen and
+// plays the baked frames).
 // The real server and a fresh build (studio.js); WebGL on SwiftShader. Every request stays on our origin, and the
 // console stays free of errors and CSP reports. Screenshots of each step land in the test's output folder.
 import { createRenderBox } from '../../src/render-box.ts';
