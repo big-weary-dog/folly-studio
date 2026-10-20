@@ -1,6 +1,14 @@
-/* A module's params (loaded by js/ui/studio.tsx; js/ui/params.tsx): a row each, its field, then its buttons (∿ to
-   modulate, ⓘ for its help on a touch screen, ↺ to reset), and the help itself under the row. */
+/* A module's params (loaded by js/ui/studio.tsx; js/ui/params.tsx): a row each, its field, then its buttons (a
+   speed's beat clock, ∿ to modulate, ⓘ for its help on a touch screen, ↺ to reset), and the help itself under the
+   row. The boxes (a number, its chip, a pick, a choice) share one width and the buttons their columns, a row without
+   one keeping its place (.param-slot), so they line up; a label keeps its words whole, the controls wrapping under. */
 .params-wrap, .params { display: flex; flex-direction: column; gap: 10px; }
+.params { --param-w: 112px; }
+.field.param > label:first-child { min-width: min-content; }
+.field.param > .field-control { margin-left: auto; }   /* wrapped under its label, still in the columns */
+.field.param > .field-control > :is(input.scrub, .param-chip, .pick-btn, select.param-choice) { flex: none;
+  width: var(--param-w); }
+.param-slot { flex: none; width: var(--hit, 26px); }
 .param-mod, .param-info, .param-reset { min-width: var(--hit, 26px); min-height: var(--hit, 26px); padding: 0 4px;
   font-size: 15px; color: var(--text-3); background: none; border: 0; cursor: pointer; }
 .param-mod { margin-left: auto; }
@@ -11,9 +19,10 @@
 .param-mod[aria-pressed=true] { color: var(--violet); text-shadow: 0 0 8px var(--violet); }
 .param-chip { flex: none; padding: 1px 6px; font: 11.5px var(--mono); color: var(--violet);
   border: var(--came-s) solid var(--lead); background: color-mix(in srgb, var(--violet) 12%, var(--night-0)); }
-/* a bound row's chip: what moves it and its range, its value now, a bar lit as far as it */
-.field-control > .param-chip { position: relative; display: flex; align-items: center; gap: 6px; flex: 0 1 auto;
-  width: 220px; min-width: 96px; min-height: var(--hit, 30px); overflow: hidden; }
+/* a bound row's chip, in its number's place: what moves it and its range, cut short (the title has them whole), its
+   value now, a bar lit as far as it */
+.field-control > .param-chip { position: relative; display: flex; align-items: center; gap: 6px; flex: none;
+  min-height: var(--hit, 30px); overflow: hidden; }
 .chip-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chip-val { flex: none; color: var(--text); font-variant-numeric: tabular-nums; }
 .chip-bar { position: absolute; left: 0; bottom: 0; height: 2px; background: currentColor; }
@@ -66,7 +75,7 @@
 .mod-edit { display: flex; align-items: center; gap: 8px; }
 .mod-edit .mod-name { width: 12ch; min-height: var(--hit, 28px); padding: 2px 6px; font: 12px var(--mono); }
 @media (max-width: 899px) {
-  .field-control > .param-chip { width: 180px; }
+  .params { --param-w: 96px; }   /* a phone's buttons are wider */
 }
 .param-reset.unused { visibility: hidden; }
 .field.param > .param-help { flex: 1 1 100%; margin: 0; }

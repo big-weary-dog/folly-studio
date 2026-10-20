@@ -97,6 +97,8 @@ function PickTile({ title, value, dflt, blend, colours, narrow, put }: Tile) {
   </div>;
 }
 
+/** An empty button's place in a param's row, so the rows' boxes and buttons line up in columns. */
+export const Slot = () => <span class="param-slot" aria-hidden="true" />;
 /** A param's help as its row shows it (params.tsx useHelp): hover text, or an ⓘ and the text it opens. */
 export type Help = { title?: string; button?: ComponentChildren; hint?: ComponentChildren };
 type Turn = (now: number | Binding | undefined, put: (v: unknown) => void) => ComponentChildren;
@@ -113,7 +115,7 @@ export function PickRow({ label, turn, help = {}, ...tile }: Omit<Tile, 'title'>
       <span class="pick-text">{editText(edit).replace(/\//g, ' / ')}</span>
       <Strip stops={played(tile.colours, tile.value, tile.dflt, tile.blend)} smooth={smooth} />
     </PickButton>
-    {turn(edit.rotate, rotate)}{help.button}
+    <Slot />{turn(edit.rotate, rotate)}{help.button}
     <button type="button" class={cx('param-reset', !own && 'unused')} title="Reset to default"
       aria-label={`Reset ${label} to default`} onClick={() => tile.put(undefined)}>↺</button></>}</Field>;
 }

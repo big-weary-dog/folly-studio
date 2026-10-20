@@ -16,7 +16,7 @@ import {
 import { cx, Field, Scrub } from './kit.tsx';
 import { addModulator, modulatorEdits } from './look-globals-edit.ts';
 import { BoundChip, ModButton, type ModCtx } from './modulate.tsx';
-import { type Colours, type Help, PickRow } from './picks.tsx';
+import { type Colours, type Help, PickRow, Slot } from './picks.tsx';
 import { PictureRow } from './picture-row.tsx';
 import type { Studio } from './studio-store.ts';
 
@@ -83,7 +83,7 @@ function Control({ name, p, values, set, ctx, colours, narrow }: { name: string;
       set={(per) => put({ mod: 'beats', per })} />
       : bound ? <BoundChip b={b} p={p} ctx={ctx} />
       : <Scrub id={id} min={p.min} max={p.max} step={p.step} value={value as number} set={put} />}
-    {clock}
+    {clock || <Slot />}
     <ModButton p={p} value={values[name]} now={bound ? p.value as number : value as number} ctx={ctx} put={putOr}
       label={`Modulate ${label}`} title={TITLE} /></>
     : p.kind === 'text' ? <input type="text" id={id} class="param-text" value={value as string} maxLength={TEXT_MAX}
@@ -91,12 +91,12 @@ function Control({ name, p, values, set, ctx, colours, narrow }: { name: string;
         const v = readText(e.currentTarget.value);
         if (v === null) e.currentTarget.value = value as string; else put(v);
       }} />
-    : p.kind === 'choice' ? <select id={id} class="param-choice" value={value as string}
+    : p.kind === 'choice' ? <><select id={id} class="param-choice" value={value as string}
       onChange={(e) => put(e.currentTarget.value)}>
-      {p.options.map((o) => <option value={o}>{optionText(o, p.options)}</option>)}</select>
+      {p.options.map((o) => <option value={o}>{optionText(o, p.options)}</option>)}</select><Slot /><Slot /></>
     : <input type="checkbox" id={id} class="switch" checked={value as boolean}
       onChange={(e) => put(e.currentTarget.checked)} />);
-  // Unused, the reset keeps its place (hidden), so a field never moves under the pointer.
+  // Unused, the reset keeps its place (hidden), and a missing clock, ∿ or ⓘ a Slot: the rows line up in columns.
   return (
     <Field label={label} class={cx('param end', p.kind === 'toggle' && 'toggle')} title={help.title}
       hint={help.hint}>
@@ -109,7 +109,7 @@ function Control({ name, p, values, set, ctx, colours, narrow }: { name: string;
 /** A param's help (SPEC "Pattern code"): its row's hover text; on a touch screen, an ⓘ that opens it under the row. */
 function useHelp(label: string, help: string | undefined, narrow: boolean): Help {
   const [open, setOpen] = useState(false);
-  if (!help) return {};
+  if (!help) return narrow ? { button: <Slot /> } : {};
   if (!narrow) return { title: help };
   return { hint: open && <p class="field-hint param-help">{help}</p>,
     button: <button type="button" class="param-info" aria-expanded={open} aria-label={`About ${label}`}
