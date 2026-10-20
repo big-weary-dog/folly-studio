@@ -1,17 +1,17 @@
 // The Playa view's GLSL (renderer.ts draws with it). Light stays linear HDR until OUT. uL: each pixel's light
-// (rgb) and highlight (a), 512 a row; uHi: a highlight is on; uG: the ghost (unlit fixtures, faintly); uK: the
-// emission, or a pass's parameter.
+// (rgb) and highlight (a), 512 a row; uHi: a highlight is on; uD: the light left outside it; uW: its warm tint; uG:
+// the ghost (unlit fixtures, faintly); uK: the emission, or a pass's parameter.
 const H = '#version 300 es\nprecision highp float;\nprecision highp int;\n';
 const LED = `uniform highp sampler2D uL;
-uniform float uHi, uG;
+uniform float uHi, uD, uW, uG;
 uniform mat4 uVP;
 uniform vec3 uE;
 vec3 B;  // set by led(): the unlit base, and a warm tint when highlighted
 vec3 led(float i) {
   int k = int(i + .5);
   vec4 c = texelFetch(uL, ivec2(k & 511, k >> 9), 0);
-  B = vec3(.5, .56, .72) * uG + vec3(1, .7, .3) * .08 * c.a * uHi;
-  return c.rgb * mix(1., mix(.22, 1., c.a), uHi);
+  B = vec3(.5, .56, .72) * uG + vec3(1, .7, .3) * .08 * c.a * uHi * uW;
+  return c.rgb * mix(1., mix(uD, 1., c.a), uHi);
 }
 `;
 const LIGHTS = 'uniform vec4 uLP[16];\nuniform vec3 uLC[16];\nuniform int uN;\n';

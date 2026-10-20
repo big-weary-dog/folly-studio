@@ -5,7 +5,7 @@ A web app where people describe a light show in a sentence, get it as pattern co
 laptop or a phone. Looks that should play are baked to frames in a sandbox, checked for flashing, approved by a
 curator and exported as `.fseq` for FPP or xLights.
 
-![The Studio: groups, the Playa view, layers, a module chain and the timeline](docs/screenshots/laptop-studio.jpg)
+![The Studio: the Groups drawer beside the Playa view, layers, a module chain and the timeline](docs/screenshots/laptop-studio.jpg)
 
 ## Quick start
 

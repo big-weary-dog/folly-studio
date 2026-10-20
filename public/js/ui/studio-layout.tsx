@@ -12,7 +12,7 @@ import { DrawerSlot } from './drawer.tsx';
 import { CodeEditor } from './editor.tsx';
 import { cx, humanize, pref, Switch, useLazy } from './kit.tsx';
 import { ISSUE_LABELS } from './layer-status.ts';
-import { GroupsTree, LayersPane } from './layers.tsx';
+import { LayersPane } from './layers.tsx';
 import { loadPalettes } from './model.ts';
 import type { Preview } from './preview.ts';
 import { PreviewPane } from './preview-view.tsx';
@@ -39,11 +39,6 @@ export function StudioLayout({ st, pv, tl, els }: Props & { els: Record<string, 
       {st.copyOnSave.value && <div class="studio-notice" role="note"><strong>From the gallery</strong>
         {` — “${st.server.value?.title}” by ${st.server.value?.ownerName || 'someone else'}. Play with it freely; `
           + 'Save makes your own copy.'}</div>}
-      <section class="pane pane-groups" data-pane="groups" aria-label="Groups">
-        <div class="pane-head"><h2 class="pane-title">Groups</h2>
-          <span class="pane-sub">{st.selectedTitle.value ? `for ${st.selectedTitle.value}` : ''}</span></div>
-        <div class="pane-body tree-wrap"><GroupsTree st={st} /></div>
-      </section>
       <PreviewPane st={st} pv={pv} els={els} />
       <Splitter studio={root} setResizing={setResizing} />
       <PhoneTabs st={st} ph={ph} />

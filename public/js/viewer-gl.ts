@@ -54,7 +54,7 @@ uniform mat4 uViewProj;
 uniform float uScale;      // device px per metre at distance 1
 uniform float uSize;       // sprite diameter, metres
 uniform vec2 uPx;          // min, max sprite size in device px
-uniform float uGhost, uHiActive, uGain;
+uniform float uGhost, uHiActive, uHiDim, uHiTint, uGain;
 out vec3 vColor, vGhost;
 out float vHi;
 void main() {
@@ -64,10 +64,10 @@ void main() {
   gl_PointSize = clamp(px, uPx.x, uPx.y);
   // Far away, keep a minimum sprite but dim it so the energy stays about right.
   float k = clamp(px / uPx.x, 0.35, 1.0);
-  float hi = aHi * uHiActive;
-  float sel = mix(1.0, mix(0.22, 1.0, aHi), uHiActive);
+  float hi = aHi * uHiActive * uHiTint;
+  float sel = mix(1.0, mix(uHiDim, 1.0, aHi), uHiActive), ghost = mix(1.0, mix(0.22, 1.0, aHi), uHiActive);
   vColor = aColor * uGain * k * sel;
-  vGhost = mix(vec3(0.32, 0.40, 0.62) * uGhost * sel, vec3(0.0), hi) * k;
+  vGhost = mix(vec3(0.32, 0.40, 0.62) * uGhost * ghost, vec3(0.0), hi) * k;
   vHi = hi * k;
 }`;
 
@@ -273,6 +273,8 @@ export function draw(v: Viewer) {
     gl.uniform2f(u.uPx, 2.5 * v.dpr, Math.min(v.maxPoint, 180 * v.dpr));
     gl.uniform1f(u.uGhost, v.options.ghost);
     gl.uniform1f(u.uHiActive, v.hiActive ? 1 : 0);
+    gl.uniform1f(u.uHiDim, v.hiDim);
+    gl.uniform1f(u.uHiTint, v.hiTint);
     gl.uniform1f(u.uGain, v.options.gain);
     gl.bindVertexArray(v.vao);
     gl.drawArrays(gl.POINTS, 0, v.count);

@@ -4,11 +4,11 @@
 body[data-view=studio] { --side-w: 330px; --drawer-w: 0px; overflow: hidden; }
 .view-studio { height: calc(100dvh - var(--header-h)); }
 .studio { --code-h: 36%; position: relative; height: 100%; display: grid; background: var(--lead);
-  grid-template-columns: clamp(248px, 16vw, 320px) minmax(0, 1fr) var(--drawer-w) var(--side-w);
+  grid-template-columns: minmax(0, 1fr) var(--drawer-w) var(--side-w);
   /* the dock: one height on every tab, at least 220px, leaving the 3D view room */
   grid-template-rows: auto auto minmax(0, 1fr) 5px min(max(220px, var(--code-h)), calc(100% - 260px));
-  grid-template-areas: "bar bar drawer side" "notice notice drawer side" "groups viewer drawer side"
-    "groups split drawer side" "groups code drawer side";
+  grid-template-areas: "bar drawer side" "notice drawer side" "viewer drawer side" "split drawer side"
+    "code drawer side";
 }
 /* a drawer open (drawer.tsx) takes its column, the full height: the 3D view and the dock shrink beside it */
 .studio:has(> .drawer-slot > .drawer) { --drawer-w: clamp(340px, 24vw, 420px); }
@@ -17,7 +17,6 @@ body[data-view=studio] { --side-w: 330px; --drawer-w: 0px; overflow: hidden; }
 .studio.resizing { cursor: row-resize; user-select: none; }
 .studio-bar { grid-area: bar; }
 .studio-notice { grid-area: notice; }
-.pane-groups { grid-area: groups; --tint: var(--emerald); border-right: var(--came) solid var(--lead); }
 .pane-viewer { grid-area: viewer; background: var(--void); }
 .splitter { grid-area: split; }
 .side { grid-area: side; display: flex; flex-direction: column; min-height: 0;
@@ -135,7 +134,6 @@ body[data-view=studio] { --side-w: 330px; --drawer-w: 0px; overflow: hidden; }
   color: var(--text); }
 @media (max-width: 1200px) {
   body[data-view=studio] { --side-w: 296px; }
-  .studio { grid-template-columns: 214px minmax(0, 1fr) var(--drawer-w) var(--side-w); }
   .tp-stats { display: none; }
 }
 /* groups: each zone keeps its glass down the tree */
@@ -239,6 +237,7 @@ input.tree-box { width: 16px; height: 16px; margin: 0 4px 0 2px; flex: none; cur
 .bake-report { --label-w: 76px; margin: 0; display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; }
 .bake-report dd { margin: 0; font-variant-numeric: tabular-nums; }
 .plays-on, .bake-report > .field { align-items: baseline; }   /* text that wraps */
+.plays-on-btn { max-width: 100%; white-space: normal; text-align: left; }
 .bake-report .ok dd { color: var(--emerald); }
 .bake-report .bad dd, .bake-reason { color: var(--error); }
 .bake-reason, .bake-warning { font-size: 12.5px; overflow-wrap: anywhere; }
@@ -310,7 +309,7 @@ textarea.code:disabled { color: var(--text-3); }
   .pane-viewer { order: 2; flex: none; height: 52dvh; min-height: 240px; }
   .studio[data-tab=code] .pane-viewer { height: 34dvh; min-height: 200px; }
   .studio-tabs { order: 3; }
-  .pane-groups, .side, .pane-code, .pane-look { order: 4; }
+  .side, .pane-code, .pane-look { order: 4; }
   .splitter, .save-state, .bar-actions .share-toggle, .menu-wrap, .wide-only, .collapse-btn { display: none !important;
   }
   .studio .narrow-only { display: inline-flex; }
@@ -325,16 +324,15 @@ textarea.code:disabled { color: var(--text-3); }
   .tab[data-tab=layers] { --tint: var(--amber); }
   .tab[data-tab=code] { --tint: var(--cobalt-t); }
   .tab[data-tab=time] { --tint: var(--violet); }
-  .tab[data-tab=groups] { --tint: var(--emerald); }
   .tab[data-tab=look] { --tint: var(--dust); }
-  .studio .pane-groups, .studio .side, .studio .pane-code, .studio .pane-look { display: none; flex: 1 1 0;
+  .studio .side, .studio .pane-code, .studio .pane-look { display: none; flex: 1 1 0;
     min-height: 0; border: 0; }
-  .studio[data-tab=groups] .pane-groups, .studio[data-tab=code] .pane-code, .studio[data-tab=look] .pane-look {
+  .studio[data-tab=code] .pane-code, .studio[data-tab=look] .pane-look {
     display: flex; }
   .studio[data-tab=layers] .side { display: block; overflow-y: auto; overscroll-behavior: contain; }
   .side .pane { display: block; max-height: none; border: 0; }
   .side .pane-body { overflow: visible; }
-  .pane-params .pane-head, .pane-groups .pane-head, .pane-layers .pane-title, .pane-code .pane-title, .dock-tabs,
+  .pane-params .pane-head, .pane-layers .pane-title, .pane-code .pane-title, .dock-tabs,
     .dock-issue { display: none !important; }
   .pane-params { border-top: var(--came) solid var(--lead); }
   .pane-head { padding: 4px 8px; }

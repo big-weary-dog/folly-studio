@@ -19,7 +19,7 @@ import { cleanBpm, cleanDuration } from './timeline-model.ts';
 export interface Draft { id: string | null; title: string; summary: string; layers: Layer[]; duration: number;
   bpm: number | null; globals?: Globals | null; automation?: Automation | null; shared: boolean; ideaId: string | null;
   owner?: string; ownerName?: string }
-export const TABS = ['layers', 'code', 'time', 'groups', 'look', 'more'] as const;
+export const TABS = ['layers', 'code', 'time', 'look', 'more'] as const;
 export type Tab = typeof TABS[number];
 export type Dock = 'code' | 'timeline' | 'look';
 /** The side column, wide: Layers over Settings (split), or one taking it all and the other down to its head. */
@@ -46,6 +46,12 @@ export function createStudio(me: User | null) {
   const muted = signal<ReadonlySet<string>>(new Set()), solo = signal<ReadonlySet<string>>(new Set());
   const heavy = signal<ReadonlyMap<string, number>>(new Map());   // layers too slow for a phone's 40 fps: ms a frame
   const hoverGroup = signal<string | null>(null), pinnedGroup = signal<string | null>(null);
+  const groupsFor = signal<string | null>(null);     // the layer whose groups are being picked: the view focuses them
+  /** That layer's [groups, tags] as JSON, so the view refocuses only when they change. */
+  const focusKey = computed(() => {
+    const l = groupsFor.value && look.value.layers.find((x) => x.id === groupsFor.value);
+    return l ? JSON.stringify([l.groups ?? null, l.tags ?? null]) : null;
+  });
   const narrow = signal(NARROW.matches);
   const knownDock = (d: string | null): Dock => (d === 'code' || d === 'look' ? d : 'timeline');
   const dock = signal(knownDock(pref('studio.dock'))), wasFolded = pref('studio.dockFolded');
@@ -69,7 +75,7 @@ export function createStudio(me: User | null) {
     return l ? l.modules.find((m) => m.id === id) || l.modules.find((m) => m.kind === 'source') || l.modules[0] : null;
   });
   /** What the dock's head shows: the layer › its module; the editor's problem. */
-  const selectedTitle = computed(() => selected.value?.title ?? ''), lookId = computed(() => look.value.id);
+  const lookId = computed(() => look.value.id);
   const codeFor = computed(() => {
     const l = selected.value, m = module.value;
     return l ? `${l.title}${m && l.modules.length > 1 ? ` › ${m.title}` : ''}` : '';
@@ -95,8 +101,9 @@ export function createStudio(me: User | null) {
 
   const st = {
     look, server, saved, ready, saving, sharing, copyOnSave, selectedId, picked, muted, solo, heavy, hoverGroup,
-    pinnedGroup, narrow, dock, tab, folded, side, fallbackRev, data, clock, playing, speed, baked, status, body, dirty,
-    selected, module, sandboxLook, layerById, silent, groupNames, selectedTitle, codeFor, problem, lookId,
+    pinnedGroup, groupsFor, focusKey, narrow, dock, tab, folded, side, fallbackRev, data, clock, playing, speed, baked,
+    status, body, dirty, selected, module, sandboxLook, layerById, silent, groupNames, codeFor, problem,
+    lookId,
     /** Hooks the preview sets: an edit happened (baked playback stops); flush pending code to the sandbox. */
     onEdit: () => {}, flush: () => {},
 

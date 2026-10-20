@@ -206,8 +206,12 @@ export function createPreview(st: Studio) {
       }), effect(() => {         // the server's copy lost its frames (a new bake, an edit): back to live
         if (baked && !st.server.value?.bake?.frames) p.playBaked(false);
       }), effect(() => {
-        const id = st.hoverGroup.value || st.pinnedGroup.value;
-        v.setHighlight(id ? st.data.index?.masks.get(id) || null : null);
+        // Picking a layer's groups: its groups and the ones pointed at or pinned as they are, the rest extra dim.
+        const hover = st.hoverGroup.value, pinned = st.pinnedGroup.value, key = st.focusKey.value;
+        const id = hover || pinned, index = st.data.index;
+        if (key === null || !index) return v.setHighlight(id ? index?.masks.get(id) || null : null);
+        const [groups, tags] = JSON.parse(key) as [string[] | null, string[] | null];
+        v.setHighlight(index.layerMask(groups ?? undefined, tags ?? undefined, hover, pinned), true);
       }));
       st.flush = () => { c.typingUntil = 0; if (pushTimer) push(); };
       st.onEdit = () => {

@@ -196,9 +196,11 @@ browser's too:
 ```
 
 `groups` is an array of the rig's group ids (union). Missing, the layer plays on the rig's root; `[]` (with no tags)
-is a valid pick that lights nothing. The groups tree ticks a group with every group under it and stores the outermost
-ticked ones; a parent with some of its subgroups ticked shows partly ticked, and one with all of them ticked is ticked
-itself. `tags` (optional, ≤ 16 of
+is a valid pick that lights nothing. In the Studio a layer's groups are picked in its Groups drawer (`ui/groups-drawer.tsx`,
+opened from "Plays on" in its settings; a drawer as Modulate's): a tree that ticks a group with every group under it and
+stores the outermost ticked ones; a parent with some of its subgroups ticked shows partly ticked, and one with all of
+them ticked is ticked itself. While it is open the 3D view shows where the layer plays (and the group pointed at) as it
+is, and every other LED at a fixed 2 %, the unlit rig still faint. `tags` (optional, ≤ 16 of
 `[a-z0-9-]{1,32}`) make a layer portable: when it names no groups, or one this rig lacks, the layer takes its
 known ids plus every group carrying one of its tags (a rig without them lights nothing there); where all its
 ids are known, tags change nothing. An unknown id in a layer without tags is an error. Generators set both; editing a

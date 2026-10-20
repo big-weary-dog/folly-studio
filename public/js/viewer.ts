@@ -34,10 +34,14 @@ function basis(angle: number, elevation: number) {
   return { fwd, right, up };
 }
 
+/** The light left on LEDs outside a highlight, and outside a focus (a layer's groups being picked). */
+export const HI_DIM = 0.22, FOCUS_DIM = 0.02;
+
 export class Viewer {
   canvas!: HTMLCanvasElement; views!: Record<string, View>; onError!: (message: string) => void;
   rig: Rig | null = null; count = 0; positions: Float32Array | null = null; colors: Float32Array | null = null;
-  hiMask: Uint8Array | null = null; hiActive = false; bounds?: { min: number[]; max: number[] }; toView = frameOf();
+  hiMask: Uint8Array | null = null; hiActive = false; hiDim = HI_DIM; hiTint = 1;
+  bounds?: { min: number[]; max: number[] }; toView = frameOf();
   center = [1, 0, -0.4]; mode: 'playa' | 'points' = 'points'; playa: Playa | null = null; quality = 'auto';
   dirty = true; raf = 0; last = 0; _asked = 0; destroyed = false; ok = false; dpr = 1; frozen = false;
   drag: Drag | null = null; unbind: () => void;
@@ -192,10 +196,13 @@ export class Viewer {
     this._buffer(this.colorBuf, rgb, this.count * 3);
   }
 
-  /** mask: 1 per highlighted LED, or null. */
-  setHighlight(mask: Uint8Array | null) {
+  /** mask: 1 per highlighted LED, or null. A highlight tints its LEDs and dims the rest; `focus` (picking a layer's
+   * groups) shows its LEDs as they are and the rest extra dim, the unlit rig still faintly there. */
+  setHighlight(mask: Uint8Array | null, focus = false) {
     if (!this.hiMask) return;
     this.hiActive = !!mask;
+    this.hiDim = focus ? FOCUS_DIM : HI_DIM;
+    this.hiTint = focus ? 0 : 1;
     for (let i = 0; i < this.count; i++) this.hiMask[i] = mask?.[i] ? 255 : 0;
     this._buffer(this.hiBuf, this.hiMask, this.count);
   }

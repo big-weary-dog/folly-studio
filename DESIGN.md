@@ -3,7 +3,7 @@
 What was built, why each decision went the way it did, what it costs, and where it stops. `SPEC.md` is the
 contract the code follows; `IDEAS.md` is where it could go next; `docs/HOSTING.md` is how to run it at home.
 
-![The Studio on a laptop: groups, the Playa view, layers, the timeline with an energy lane, and a module chain](docs/screenshots/laptop-studio.jpg)
+![The Studio on a laptop: the Groups drawer open beside the Playa view (the layer's Rose window lit, the rest extra dim), layers, the timeline and a module chain](docs/screenshots/laptop-studio.jpg)
 
 ## 1. Product shape
 

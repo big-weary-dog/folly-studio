@@ -158,7 +158,8 @@ function upload(pl: State) {
   const { weight: w, spill: pos } = pl.geo, rgb = v.colors!, hiMask = v.hiMask!;
   acc.fill(0);
   for (let i = 0; i < v.count; i++) {
-    const c = 7 * of[i], hi = hiMask[i] ? 1 : 0, share = w[i] * (v.hiActive && !hi ? 0.22 : 1);  // as the shaders dim
+    const c = 7 * of[i], hi = hiMask[i] ? 1 : 0;
+    const share = w[i] * (v.hiActive && !hi ? v.hiDim : 1);  // as the shaders dim
     let e = 0;
     for (let a = 0; a < 3; a++) {
       const x = L[4 * i + a] = linear(rgb[3 * i + a]) * gain;
@@ -183,7 +184,7 @@ function use(pl: State, name: Shader, extra: Uniforms = {}) {
   const { gl, v } = pl, s = pl.spill;
   const { p, u } = pl.progs[name] ||= program(gl, ...GLSL[name] as [string, string]);    // on first use
   gl.useProgram(p);
-  const set: Uniforms = { uVP: v.viewProj, uE: v._eyeV, uHi: v.hiActive ? 1 : 0,
+  const set: Uniforms = { uVP: v.viewProj, uE: v._eyeV, uHi: v.hiActive ? 1 : 0, uD: v.hiDim, uW: v.hiTint,
     uG: 0.006 + v.options.ghost * 0.12, 'uLP[0]': s.lp, 'uLC[0]': s.lc, ...extra };
   for (const [k, x] of Object.entries(set)) {
     if (!u[k]) continue;

@@ -9,7 +9,7 @@ import { cx, humanize, pref, Switch } from '../kit.tsx';
 import type { Preview } from '../preview.ts';
 import type { Studio, Tab } from '../studio-store.ts';
 
-const TABS: Tab[] = ['layers', 'time', 'groups', 'look', 'more'];
+const TABS: Tab[] = ['layers', 'time', 'look', 'more'];
 
 /** The phone's own state: Full detail (kept per browser) and the layer whose settings Layers shows. */
 export function createPhone() {

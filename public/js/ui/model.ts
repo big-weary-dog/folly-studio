@@ -234,6 +234,13 @@ export function buildGroupIndex(rig: Rig) {
   }
   return {
     masks, counts, children, byId, root: scene.root?.id ?? '',
+    /** Where a layer plays (its groups, else its tags; neither: the whole rig) as a mask, with `also`'s groups lit. */
+    layerMask(groups?: readonly string[], tags?: readonly string[], ...also: (string | null)[]) {
+      const mask = new Uint8Array(scene.count);
+      for (const k of pixelsForGroups(scene, groups, tags)) mask[k] = 1;
+      for (const id of also) if (id) masks.get(id)?.forEach((on, k) => { if (on) mask[k] = 1; });
+      return mask;
+    },
     ancestors(id: string) {
       const out: string[] = [];
       for (let g = byId.get(id); g?.parent; g = byId.get(g.parent)) out.push(g.parent);

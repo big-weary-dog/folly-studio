@@ -1,13 +1,14 @@
-// The selected layer's settings: its name and groups, its module chain (SPEC "Modules": a row per module with its kind,
-// name, state, enable, reorder, delete, and how a source combines or which input a filter reads; phones: enable and
-// select only), its Soften row, the selected module's name and its params. The chain runs down a came into the layer:
-// each module joins it (a source by how it combines), and each warp and filter spans what it works on, everything above
-// it.
+// The selected layer's settings: its name and groups (a drawer), its module chain (SPEC "Modules": a row per module
+// with its kind, name, state, enable, reorder, delete, and how a source combines or which input a filter reads; phones:
+// enable and select only), its Soften row, the selected module's name and its params. The chain runs down a came into
+// the layer: each module joins it (a source by how it combines), and each warp and filter spans what it works on,
+// everything above it.
 import type { Module } from '../../../shared/schemas/look.ts';
 import { cx, Field, loadFailed, toast } from './kit.tsx';
 import {
   BLEND_MODES, chainWires, insertModule, KIND_LABELS, makeModule, moduleFromLibrary, type Reach,
 } from './model.ts';
+import { PlaysOn } from './groups-drawer.tsx';
 import { ParamsPanel } from './params.tsx';
 import type { Preview } from './preview.ts';
 import type { Entry } from './shelf.tsx';
@@ -37,9 +38,7 @@ export function ChainPane({ st, pv }: Props) {
           }} onBlur={() => {
             if (l && !st.selected.peek()?.title.trim()) st.editLayer(l.id, () => ({ title: 'Layer' }));
           }} />}</Field>
-        <Field label="Plays on" class="plays-on">{l ? st.groupNames(l.groups, l.tags) : '—'}
-          <button type="button" class="btn small ghost narrow-only" onClick={() => st.setTab('groups')}>Change</button>
-        </Field>
+        <PlaysOn st={st} />
         <div class="chain-host"><Chain st={st} pv={pv} /></div>
         <SoftenRow st={st} l={l} />
         <Field label="Module name" class="module-title-field">{(id) => <><input type="text" id={id}

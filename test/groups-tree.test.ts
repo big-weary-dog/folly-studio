@@ -1,11 +1,13 @@
 // The groups tree's edits (ui/groups-model.ts): a group ticks and unticks with everything under it, a parent shows
 // partly ticked, all its children ticked tick it, and none ticked is a layer's valid pick; the Studio keeps it so.
+// While they are picked, the view lights where the layer plays (the index's layer mask).
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
 import { groupChecked, groupPartial, toggleGroup, type Tree } from '../public/js/ui/groups-model.ts';
-import { cleanLayer, makeLayer, normaliseLayers } from '../public/js/ui/model.ts';
+import { buildGroupIndex, cleanLayer, makeLayer, normaliseLayers } from '../public/js/ui/model.ts';
 
 // all ─┬ arches ─┬ a1
 //      │         └ a2 ─ a2x
@@ -77,5 +79,24 @@ describe('a layer with no groups picked', () => {
     assert.deepEqual(whole.groups, ['all']);
     assert.deepEqual(makeLayer({ ...cleanLayer(none), title: 'copy' }, rig).groups, []);
     assert.deepEqual(makeLayer({ title: 'new' }, rig).groups, ['all']);
+  });
+});
+
+describe('the view while a layer\'s groups are picked', () => {
+  const rig = JSON.parse(readFileSync(new URL('../public/data/rig.json', import.meta.url), 'utf8'));
+  const index = buildGroupIndex(rig), lit = (m: Uint8Array) => m.reduce((n, v) => n + v, 0);
+  const [a, b] = index.children.get(index.root) || [];
+
+  test('lights the layer\'s groups (each its whole subtree), nothing for none, the whole rig for none given', () => {
+    assert.equal(lit(index.layerMask([a.id])), index.counts.get(a.id));
+    assert.equal(lit(index.layerMask([a.id, b.id])), lit(index.layerMask([a.id])) + lit(index.layerMask([b.id])));
+    assert.equal(lit(index.layerMask([])), 0);
+    assert.equal(lit(index.layerMask(undefined)), rig.count);
+  });
+
+  test('the groups pointed at or pinned light too, whatever the layer plays on', () => {
+    assert.equal(lit(index.layerMask([], undefined, b.id)), index.counts.get(b.id));
+    assert.equal(lit(index.layerMask([a.id], undefined, null, b.id)), lit(index.layerMask([a.id, b.id])));
+    assert.equal(lit(index.layerMask([a.id], undefined, a.id, null)), index.counts.get(a.id));
   });
 });
