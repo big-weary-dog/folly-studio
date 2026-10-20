@@ -1,5 +1,5 @@
 /* The Access page (js/ui/access.tsx, admins): invite codes and people, one row each in violet glass. */
-.access-page, .main-nav a[href="/access"] { --tint: var(--violet); }
+.access-page { --tint: var(--violet); }
 .access-page { max-width: 880px; }
 .access-panel { margin-top: 28px; padding: 16px 20px; border: var(--came) solid var(--lead);
   background: color-mix(in srgb, var(--tint) 5%, var(--night-1)); }

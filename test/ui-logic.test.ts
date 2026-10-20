@@ -40,6 +40,17 @@ describe('routing', () => {
     assert.equal(where('/login', '', false), 'auth {}');
   });
 
+  test('the admin pages are tabs under /admin; /admin and their old URLs lead to them', () => {
+    assert.equal(where('/admin/light'), 'light {}');
+    assert.equal(where('/admin'), '→ /admin/models');
+    assert.equal(where('/admin/'), '→ /admin/models');
+    assert.equal(where('/models'), '→ /admin/models');
+    assert.equal(where('/access/'), '→ /admin/access');
+    assert.equal(where('/light'), '→ /admin/light');
+    assert.equal(where('/reports', '?id=r1'), '→ /admin/reports?id=r1');
+    assert.equal(where('/admin/reports', '', false), '→ /login?next=%2Fadmin%2Freports');
+  });
+
   test('`next` stays on this app', () => {
     for (const bad of [null, '', 'https://evil.example', '//evil.example', '/login?next=/x']) {
       assert.equal(safeNext(bad), '/ideas', String(bad));

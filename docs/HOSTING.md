@@ -149,7 +149,7 @@ STUDIO_DATA=/home/you/folly-data  # outside the checkout
 STUDIO_SECURE_COOKIES=1           # the tunnel serves HTTPS
 STUDIO_TRUST_PROXY=1              # client IP (login limits) and host from the tunnel, trusted from this machine only
 STUDIO_CURATORS=alice,bob         # who may mark looks reviewed
-STUDIO_ADMINS=you                 # the Models and Access pages (models, invite codes); admins are curators too
+STUDIO_ADMINS=you                 # the Admin page (models, access, light, reports); admins are curators too
 ANTHROPIC_API_KEY=sk-ant-...      # for Opus: a key with a spend limit
 STUDIO_GENERATOR_FALLBACK=sol     # optional: foundry ideas go here while it is off or busy (else wait, or fail)
 STUDIO_BAKE_SECONDS=120           # longest bake
@@ -180,7 +180,7 @@ Pi's network. With `PI_PREVIEW_URL` set, `npm run host` also runs `folly-studio-
 asked to sign in (401), anyone else is refused (403), and the socket must come from this site. The page keeps its
 own CSP. It drives only that dry run, never the Pi itself. Using a control there makes Studio's Live tab play what the
 dry run plays, for every viewer, until a curator uses Live control again (SPEC-live "Following /pi"); both pages say
-which drives. Unset `PI_PREVIEW_URL` and run `npm run host` again to take it down.
+which drives. Unset `PI_PREVIEW_URL` and run `npm run host` again to take it down. The Admin page links it.
 
 ### The flash check
 
@@ -219,7 +219,7 @@ People pick a model for each idea from the ones you offer. They live in `models.
 }
 ```
 
-Edit it by hand or on the **Models** page (admins only: `STUDIO_ADMINS`): turn a model on or off, set its effort,
+Edit it by hand or on Admin's **Models** tab (admins only: `STUDIO_ADMINS`): turn a model on or off, set its effort,
 pick the default. The server reads the file again when it changes, with no restart; a file that does not parse is
 reported in the log and on the Models page, and the last good one stays in use. Each model may also say
 `"roles": ["admin"]` (who may pick it; none: everyone), `"maxTokens"`, `"timeoutSeconds"` and `"critique"`

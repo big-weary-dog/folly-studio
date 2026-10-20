@@ -98,23 +98,24 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offs
 
 /* Ogive: two elliptical arcs spring upright from the sides and meet in a point, --arch tall.
    The piece is lead; its ::before, a came inside, is the glass. A mask can't show an outline,
-     so a focused arch lights its came instead. */ .btn.primary, .main-nav a[aria-current=page],
+     so a focused arch lights its came instead. */ .btn.primary, :is(.main-nav, .seg) a[aria-current=page],
      .tab[aria-pressed=true], .seg-btn[aria-pressed=true], .dock-tab[aria-pressed=true], .auth-card, .tp-play {
      --arch: 12px; position: relative; isolation: isolate; background: var(--lead); }
-.btn.primary, .main-nav a[aria-current=page], .tab[aria-pressed=true], .seg-btn[aria-pressed=true],
-  .dock-tab[aria-pressed=true], .auth-card, .tp-play, .btn.primary::before, .main-nav a[aria-current=page]::before,
-  .tab[aria-pressed=true]::before, .seg-btn[aria-pressed=true]::before, .dock-tab[aria-pressed=true]::before,
-  .auth-card::before, .tp-play::before {
+.btn.primary, :is(.main-nav, .seg) a[aria-current=page], .tab[aria-pressed=true], .seg-btn[aria-pressed=true],
+  .dock-tab[aria-pressed=true], .auth-card, .tp-play, .btn.primary::before,
+  :is(.main-nav, .seg) a[aria-current=page]::before, .tab[aria-pressed=true]::before,
+  .seg-btn[aria-pressed=true]::before, .dock-tab[aria-pressed=true]::before, .auth-card::before, .tp-play::before {
   mask: radial-gradient(200% 115.5% at 200% 100%, #000 calc(100% - 1px), #0000) 0 0 / 50.2% var(--arch) no-repeat,
     radial-gradient(200% 115.5% at -100% 100%, #000 calc(100% - 1px), #0000) 100% 0 / 50.2% var(--arch) no-repeat,
     linear-gradient(#000 0 0) 0 var(--arch) / 100% 100% no-repeat; }
-.btn.primary::before, .main-nav a[aria-current=page]::before, .tab[aria-pressed=true]::before,
+.btn.primary::before, :is(.main-nav, .seg) a[aria-current=page]::before, .tab[aria-pressed=true]::before,
   .seg-btn[aria-pressed=true]::before, .dock-tab[aria-pressed=true]::before, .auth-card::before, .tp-play::before {
   content: ''; position: absolute; inset: var(--came); z-index: -1;
   background: radial-gradient(110% 90% at 50% 15%, color-mix(in srgb, var(--tint) 30%, #0000), #0000 75%)
     color-mix(in srgb, var(--tint) 12%, var(--night-2)); }
-.btn.primary:focus-visible, .main-nav a[aria-current=page]:focus-visible, .tab[aria-pressed=true]:focus-visible,
-  .seg-btn[aria-pressed=true]:focus-visible, .dock-tab[aria-pressed=true]:focus-visible, .tp-play:focus-visible {
+.btn.primary:focus-visible, :is(.main-nav, .seg) a[aria-current=page]:focus-visible,
+  .tab[aria-pressed=true]:focus-visible, .seg-btn[aria-pressed=true]:focus-visible,
+  .dock-tab[aria-pressed=true]:focus-visible, .tp-play:focus-visible {
   background: var(--focus); outline: none; }
 
 .dialog { --tint: var(--sand); width: min(520px, calc(100vw - 24px)); max-height: calc(100dvh - 40px); padding: 0;
@@ -204,7 +205,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offs
 .seg { display: flex; margin-bottom: 4px; border-bottom: var(--came) solid var(--lead); }
 .seg-btn { flex: 1; min-height: 44px; margin-bottom: calc(-1 * var(--came)); padding: 10px 10px 6px;
   color: var(--text-2); font-weight: 600; background: none; border: 0; cursor: pointer; }
-.seg-btn:hover, .seg-btn[aria-pressed=true] { color: var(--text); }
+.seg-btn:hover, .seg-btn[aria-current=page], .seg-btn[aria-pressed=true] { color: var(--text); }
 @media (max-width: 899px) { .btn.small { padding: 6px 14px; font-size: 14px; } }
 /* Forms: wells of dark glass in lead, the came lit on focus. Sliders are a string of LEDs with a glass lozenge to
    drag, a scrub field's string lit as far as its value; a switch slides a quatrefoil that lights when on. */
@@ -286,6 +287,7 @@ input.switch:disabled { opacity: .5; cursor: default; }
 .main-nav a[href="/studio"] { --tint: var(--violet); }
 .main-nav a[href="/looks"] { --tint: var(--emerald); }
 .main-nav a[href="/gallery"] { --tint: var(--ruby); }
+.main-nav a[href="/admin"] { --tint: var(--sand); }
 .main-nav a[aria-current=page] { --arch: 15px; color: var(--text); }
 .main-nav a[aria-current=page]::before { inset: var(--came) var(--came) 0;
   background: radial-gradient(90% 100% at 50% 0%, color-mix(in srgb, var(--tint) 42%, #0000), #0000 80%)

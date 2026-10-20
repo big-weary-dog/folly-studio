@@ -76,7 +76,7 @@ for (const [name, device] of Object.entries(SIZES)) {
       await test.step('an admin makes a code on the Access page', async () => {
         await page.context().clearCookies();
         await signUp(page, studio.origin, `keeper-${name}`);
-        await page.goto(`${studio.origin}/access`);
+        await page.goto(`${studio.origin}/admin/access`);
         await page.getByLabel('Label').fill(`Art crew (${name})`);
         await page.getByLabel('Uses').fill('5');
         await page.getByLabel('Expires in days').fill('14');

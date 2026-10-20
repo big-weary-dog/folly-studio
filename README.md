@@ -25,8 +25,8 @@ npm run build-data     # rebuild public/data/rig.json (City of Gods) and rig-fol
 
 - Bakes need bubblewrap (`apt install bubblewrap`) and unprivileged user namespaces; without them baking is off.
 - Models: people pick one per idea from `data/models.json` (Opus with `ANTHROPIC_API_KEY`; Sol and Luna through the
-  Codex CLI after `codex login`; Sketch offline, for admins only). Admins (`STUDIO_ADMINS=you`) change it on the Models page.
-  docs/HOSTING.md "Models" has the file and the setup.
+  Codex CLI after `codex login`; Sketch offline, for admins only). Admins (`STUDIO_ADMINS=you`) change it under
+  Admin › Models. docs/HOSTING.md "Models" has the file and the setup.
 - Curators: `STUDIO_CURATORS=alice,bob`.
 - `smoke`, `perf` and `e2e` run on Playwright Test with its Chromium (`npx playwright install chromium`, or
   `PLAYWRIGHT_BROWSERS_PATH`); `e2e` also needs `E2E_DEPS` (a folder with `three@0.160.0`) and

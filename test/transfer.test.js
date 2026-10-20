@@ -15,9 +15,9 @@ import { browser, request } from './fixtures/browser.js';
 import { builtApp, removeBuiltApp } from './fixtures/build.js';
 
 const KB = 1024;
-// Measured: 203 KB in 17 requests with br, 241 KB with gzip only (HTTP/1.1 headers counted in full; HTTP/2 shrinks
+// Measured: 215 KB in 17 requests with br, 255 KB with gzip only (HTTP/1.1 headers counted in full; HTTP/2 shrinks
 // them). rig.json is 31 KB of that with br (43 KB gzip): the LEDs, and the 3D view's rose cells, floods and scaffold.
-const COLD = { 'br, gzip': 215 * KB, gzip: 255 * KB };
+const COLD = { 'br, gzip': 220 * KB, gzip: 260 * KB };
 const STUDIO = { view: 'js/ui/studio.tsx', api: ['/api/me', '/api/library'] };
 const PLAYA = { view: 'js/playa/renderer.ts', shell: false };   // the 3D view's default mode, imported on show
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });

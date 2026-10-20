@@ -25,7 +25,7 @@ for (const [name, device] of Object.entries(SIZES)) {
       await page.locator('form button[type=submit]').click();
       await expect(page.locator('textarea.idea-input')).toBeVisible({ timeout: 20_000 });
 
-      await page.goto(`${studio.origin}/light`);
+      await page.goto(`${studio.origin}/admin/light`);
       const gamma = page.getByRole('spinbutton', { name: 'Gamma' });
       const sends = page.locator('.light-curve tbody tr').first();
       await expect(gamma).toHaveValue(/^2\.2/);   // the other size's run may have saved; it puts 2.2 back below

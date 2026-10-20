@@ -84,7 +84,7 @@
 }
 /* The Models panel (js/ui/models.tsx, admins): one row per model, its switch at the end, beneath it what it runs on
    and whether it can run here; cobalt glass. */
-.models-page, .main-nav a[href="/models"] { --tint: var(--cobalt-t); }
+.models-page { --tint: var(--cobalt-t); }
 .models-page { max-width: 780px; }
 .models-panel { margin-top: 28px; padding: 6px 20px; border: var(--came) solid var(--lead);
   border-radius: var(--radius); background: color-mix(in srgb, var(--tint) 5%, var(--night-1));
@@ -103,7 +103,7 @@
 .models-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 @media (max-width: 899px) { .models-panel { margin-top: 20px; padding: 2px 14px; } }
 /* The Light page (js/ui/light.tsx, admins): the models' panels, amber glass; the curve as a table of numbers. */
-.light-page, .main-nav a[href="/light"] { --tint: var(--amber); }
+.light-page { --tint: var(--amber); }
 .light-page { max-width: 780px; }
 .light-curve { width: 100%; margin: 12px 0; border-collapse: collapse; font-size: 13px;
   font-variant-numeric: tabular-nums; }

@@ -182,7 +182,7 @@ How a colour value becomes light, the one explanation (docs/LIGHT.md has the why
 - **The checks judge the look at full output**: `gamma`, `balance` and `floor`, never the caps.
 
 The light settings, `shared/schemas/light.ts`, are stored once: `<STUDIO_DATA>/light.json`, written by the Light page
-(admins) and read by Export, the bake checks and the preview; the Pi reads the same shape from `pi/light.json`
+(Admin) and read by Export, the bake checks and the preview; the Pi reads the same shape from `pi/light.json`
 (the Light page's "Download for the Pi"). Missing, unreadable or out of range, each field is its default:
 
 ```
@@ -579,9 +579,17 @@ masked, URLs without query or fragment; the path has no query or hash; no cookie
 
 The server stores `<STUDIO_DATA>/reports/<stamp>-<id>/report.json` (adding `server: { user: { id, username },
 build, logs }`, its last warn and error lines) and `shot.jpg`, keeping the newest 500 within 500 MB and none older
-than 60 days. Admins read them on the Reports page; "Open as captured" opens `/studio?report=<id>`: the captured
+than 60 days. Admins read them on Admin's Reports tab; "Open as captured" opens `/studio?report=<id>`: the captured
 draft in an unsaved editor, at the captured time, view, quality, selection and layout, paused, so a browser run
 reproduces it. `node tools/reports.ts list | get <id>` reads them from `STUDIO_DATA` directly.
+
+## Admin
+
+Admins' header has one more item, **Admin** (`/admin`, which opens its first tab), where everyone else's has none.
+Its tabs are pages of their own: Models (`/admin/models`, SPEC-generators "Models"), Access (`/admin/access`,
+SPEC-generators "Access"), Light (`/admin/light`, Light and output) and Reports (`/admin/reports`, Bug reports), then
+a link to the Pi preview (`/pi/`, in a new tab). The old `/models`, `/access`, `/light` and `/reports` lead to their
+tab, query kept. Anyone else who opens one gets the page without the tabs, its admin calls refused (403) as it says.
 
 ## Generators, models and access
 

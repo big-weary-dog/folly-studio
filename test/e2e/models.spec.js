@@ -31,14 +31,14 @@ for (const [name, device] of Object.entries(SIZES)) {
       const pick = page.locator('.model-pick select');
       const luna = page.locator('.model-row', { hasText: 'Luna' });
       const toggleLuna = async () => {
-        await page.goto(`${studio.origin}/models`);
+        await page.goto(`${studio.origin}/admin/models`);
         await luna.locator('input.switch').click();
         await page.getByRole('button', { name: 'Save' }).click();
         await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled();
       };
 
       await test.step('the Models panel turns Luna off, and the idea form stops offering it', async () => {
-        await page.goto(`${studio.origin}/models`);
+        await page.goto(`${studio.origin}/admin/models`);
         await expect(page.locator('.model-row', { hasText: 'Opus' })).toContainText('ANTHROPIC_API_KEY is not set');
         await expect(luna).toContainText('Codex CLI found');
         await expect(luna.locator('input.switch')).toBeChecked();

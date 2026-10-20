@@ -1,0 +1,17 @@
+/* The Admin tabs: windows on a came, centred over the admin pages in each page's colour; on a narrow phone they
+   scroll sideways. */
+.admin-tabs { width: fit-content; max-width: calc(100% - 48px); margin: 28px auto 0; overflow-x: auto;
+  scrollbar-width: thin; }
+.admin-tabs .seg-btn { flex: none; display: flex; align-items: flex-end; padding-inline: 22px; text-decoration: none;
+  white-space: nowrap; }
+.admin-tabs [data-tab=models] { --tint: var(--cobalt-t); }
+.admin-tabs [data-tab=access] { --tint: var(--violet); }
+.admin-tabs [data-tab=light] { --tint: var(--amber); }
+.admin-tabs [data-tab=reports] { --tint: var(--ruby); }
+.admin-tabs [data-tab=pi] { --tint: var(--emerald); color: var(--text-3); }
+.view-admin .page { padding-top: 28px; }
+@media (max-width: 899px) {
+  .admin-tabs { max-width: calc(100% - 32px); margin-top: 16px; }
+  .admin-tabs .seg-btn { padding-inline: 11px; font-size: 15px; }
+  .view-admin .page { padding-top: 20px; }
+}

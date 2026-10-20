@@ -17,6 +17,12 @@ interface Route {
   nav?: string; keys?: string[]; scope?: 'mine' | 'gallery';
 }
 const pages = () => import('./pages.tsx');
+/** An admin page, under the Admin tabs. */
+const adminTab = (tab: string, load: Route['load']) => () => Promise.all([import('./admin.tsx'), load()])
+  .then(([m, Page]) => m.withTabs(Page, tab));
+// /admin opens its first tab; the admin pages' old URLs lead to theirs.
+const MOVED: Record<string, string> = { '/admin': '/admin/models', '/models': '/admin/models',
+  '/access': '/admin/access', '/light': '/admin/light', '/reports': '/admin/reports' };
 const ROUTES: Route[] = [
   { re: /^\/login\/?$/, name: 'auth', title: 'Sign in', public: true,
     load: () => import('./auth.tsx').then((m) => m.Auth) },
@@ -31,14 +37,14 @@ const ROUTES: Route[] = [
     load: () => import('./live/live.tsx').then((m) => m.LivePage) },
   { re: /^\/live\/control\/?$/, name: 'live-control', title: 'Live control', nav: '/live',
     load: () => import('./live/control.tsx').then((m) => m.ControlPage) },
-  { re: /^\/models\/?$/, name: 'models', title: 'Models', nav: '/models',
-    load: () => import('./models.tsx').then((m) => m.Models) },
-  { re: /^\/light\/?$/, name: 'light', title: 'Light', nav: '/light',
-    load: () => import('./light.tsx').then((m) => m.LightPage) },
-  { re: /^\/reports\/?$/, name: 'reports', title: 'Reports', nav: '/reports',
-    load: () => import('./reports.tsx').then((m) => m.ReportsPage) },
-  { re: /^\/access\/?$/, name: 'access', title: 'Access', nav: '/access',
-    load: () => import('./access.tsx').then((m) => m.AccessPage) },
+  { re: /^\/admin\/models\/?$/, name: 'models', title: 'Models', nav: '/admin',
+    load: adminTab('models', () => import('./models.tsx').then((m) => m.Models)) },
+  { re: /^\/admin\/access\/?$/, name: 'access', title: 'Access', nav: '/admin',
+    load: adminTab('access', () => import('./access.tsx').then((m) => m.AccessPage)) },
+  { re: /^\/admin\/light\/?$/, name: 'light', title: 'Light', nav: '/admin',
+    load: adminTab('light', () => import('./light.tsx').then((m) => m.LightPage)) },
+  { re: /^\/admin\/reports\/?$/, name: 'reports', title: 'Reports', nav: '/admin',
+    load: adminTab('reports', () => import('./reports.tsx').then((m) => m.ReportsPage)) },
 ];
 
 /** Where to go after signing in: `next` when it is a page of this app, else Ideas. */
@@ -49,6 +55,8 @@ export const safeNext = (next: string | null) => (next && next.startsWith('/') &
 export function resolve(path: string, search: string, signedIn: boolean):
   { redirect: string } | { route: Route; params: Record<string, string> } {
   if (path === '/' || path === '') return { redirect: signedIn ? '/ideas' : '/login' };
+  const moved = MOVED[path.replace(/\/$/, '')];
+  if (moved) return { redirect: moved + search };
   for (const route of ROUTES) {
     const m = route.re.exec(path);
     if (!m) continue;
@@ -107,7 +115,7 @@ async function logout() {
 
 const NAV = [['/ideas', 'Ideas'], ['/studio', 'Studio'], ['/looks', 'My looks'], ['/gallery', 'Gallery'],
   ['/live', 'Live']];
-const ADMIN_NAV = [...NAV, ['/models', 'Models'], ['/light', 'Light'], ['/access', 'Access'], ['/reports', 'Reports']];
+const ADMIN_NAV = [...NAV, ['/admin', 'Admin']];
 
 /** The user menu drops under its button at a desktop's width; on a phone it sits open in the nav panel. */
 function placeUserMenu(e: { newState: string; currentTarget: HTMLElement }) {

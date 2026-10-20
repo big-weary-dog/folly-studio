@@ -127,7 +127,7 @@ function FseqForm({ close, runtime, light, title, channelCount, ranges, used, du
     <div class="export-fields">
       <Num label="Duration" min={1} max={120} step={0.25} unit=" s" value={secs} set={setSecs} disabled={busy} />
       <Num label="Brightness" min={5} max={100} step={1} unit="%" value={bright} set={setBright} disabled={busy} />
-      <p class="field-hint">The LEDs' light, as on the night: the curve an admin sets on the Light page. Brightness
+      <p class="field-hint">The LEDs' light, as on the night: the curve set under Admin › Light. Brightness
         scales the light after that, so colours keep their hue.</p>
     </div>
     <p class="export-info">{`${frames.toLocaleString()} frames at ${FPS} fps · the ${used.toLocaleString()} channels `

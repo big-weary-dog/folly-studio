@@ -71,7 +71,9 @@ test('F8 freezes the Studio under the form and files a report; an admin replays 
   await expect(form).toBeHidden();
   await phone.close();
 
-  await page.getByRole('link', { name: 'Reports' }).click();
+  await page.getByRole('link', { name: 'Admin', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Reports' }).click();
+  await expect(page).toHaveURL(/\/admin\/reports$/);
   const rows = page.locator('.report-row');
   await expect(rows).toHaveCount(2);
   await expect(rows.first()).toContainText('mona');
