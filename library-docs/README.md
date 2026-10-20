@@ -57,8 +57,8 @@ Any number param may be bound instead of set:
   holds it at its centre); `"pace": "<fader>"` multiplies its rate by one (a storm that quickens it), never jumping.
 - `{ "mod": "global", "name": "energy", "from": 0.2, "to": 1 }`: follows a global, macro or modulator. Library
   sources never read energy themselves: bind density, speed or level to it to build.
-- `{ "mod": "envelope", "from": 0, "to": 1 }`: the layer clip's fade, so a param grows as its layer fades in.
-- `{ "mod": "beats", "per": 0.5 }`: keeps time: the param is `per` × the beats a second, so a speed follows the bpm.
+- `{ "mod": "beats", "per": 0.5 }`: a speed in time with the beat (the Studio's beat clock on its field): the
+  param is `per` × the beats a second, so it follows the bpm.
 Speeds are integrated, so binding a speed never makes the motion jump.
 
 ## Groups and tags
@@ -70,7 +70,7 @@ to another rig. Modules that find places themselves (`anchor`, `in-turn`) take a
 A look may set `globals`: `palette` (by name; every pick reads it), `speed` (0..4, 1: scales every clock), `level`,
 `hue` (turns the whole look), `saturation`, `energy` (0..1, what bindings follow), and macros (named numbers
 bindings can follow). `bpm` (40–240, 120 when unset) sits beside `globals`, not in it: the look's tempo, which LFOs
-in beats and tempo bindings keep. `automation` moves a global or macro between points over the duration: energy from
+in beats and beat-clocked speeds keep. `automation` moves a global or macro between points over the duration: energy from
 0.2 to 1 over a minute is a build. A palette sets hue, not brightness: choose one whose colours suit the idea and
 keep them at full strength.
 
@@ -81,7 +81,7 @@ any layer to it and one automation lane moves them together: the storm darkens t
 layer's `level` is not a param and cannot be bound: bind a source's brightness, density or speed instead.
 
 ## Modulators: things that move together
-A macro with a `mod` (an LFO or a tempo pulse) is a modulator: it moves by itself, and every param bound to it
+A macro with a `mod` (an LFO) is a modulator: it moves by itself, and every param bound to it
 follows the one wave, in step across layers. Each param maps it through its own `from`..`to`, so one breath can
 swell a bed's brightness while it narrows a beam's width. Give a modulator `min` 0, `max` 1 and its LFO `center`
 0.5, `depth` 0.5, so it sweeps its whole range. Its LFO may take `pace` and `amount` from a fader (a global, or a

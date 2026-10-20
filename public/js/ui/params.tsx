@@ -1,14 +1,17 @@
 // Controls for the selected module's `params` (SPEC "Pattern code"): numbers become scrub fields, `type: 'color'`
 // colour picks (picks.tsx), `type: 'toggle'` switches, a row each. A number, or a pick's rotate, can be modulated
-// (SPEC "Param bindings"): an LFO, a global (energy, a macro…) or the clip envelope moves it every frame instead of its
-// field.
+// (SPEC "Param bindings"): an LFO or a global (energy, a macro…) moves it every frame instead of its field; a speed's
+// beat clock counts it per beat at the look's BPM.
 import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 
 import type { Binding, ParamValue } from '../../../shared/schemas/look.ts';
 import type { Picture } from '../core/picture.ts';
 import { DEFAULT_PALETTE } from '../core/stdlib.ts';
-import { normaliseParam, optionText, type Param, shownValue, upgradedOf } from './bindings.ts';
+import { BeatClock } from './beat-clock.tsx';
+import {
+  beatsAt, fmt, keepsTime, normaliseParam, optionText, type Param, perBeat, shownValue, upgradedOf,
+} from './bindings.ts';
 import { cx, Field, Scrub } from './kit.tsx';
 import { addModulator, modulatorEdits } from './look-globals-edit.ts';
 import { BoundChip, ModButton, type ModCtx } from './modulate.tsx';
@@ -16,7 +19,7 @@ import { type Colours, type Help, PickRow } from './picks.tsx';
 import { PictureRow } from './picture-row.tsx';
 import type { Studio } from './studio-store.ts';
 
-const TITLE = 'Modulate: an LFO, a global or macro, the clip envelope or the tempo moves it';
+const TITLE = 'Modulate: an LFO, a global or a macro moves it';
 
 export function ParamsPanel({ st }: { st: Studio }) {
   const l = st.selected.value, m = st.module.value;
@@ -69,11 +72,19 @@ function Control({ name, p, values, set, ctx, colours, narrow }: { name: string;
     return <PictureRow label={p.label} value={values[name]} dflt={p.value as Picture} palette={colours.palette}
       help={help} put={putOr} />;
   }
+  const b = values[name] as Binding, beats = bound && b.mod === 'beats', k = beatsAt(ctx.look().bpm || 120, p);
+  const label = beats ? perBeat(p.label) : p.label;
+  const clock = keepsTime(name, p) && (!bound || beats) && <BeatClock on={beats} label={label}
+    set={(on) => put(on ? { mod: 'beats', per: Number(fmt(value as number / k)) }
+      : Math.min(p.max, Math.max(p.min, Number(fmt((b.mod === 'beats' ? b.per ?? 1 : 0) * k)))))} />;
   const field = (id: string) => (p.kind === 'number' ? <>
-    {bound ? <BoundChip b={values[name] as Binding} p={p} ctx={ctx} />
+    {beats ? <Scrub id={id} min={p.min / k} max={p.max / k} step={0.01} value={b.per ?? 1} unit="/beat"
+      set={(per) => put({ mod: 'beats', per })} />
+      : bound ? <BoundChip b={b} p={p} ctx={ctx} />
       : <Scrub id={id} min={p.min} max={p.max} step={p.step} value={value as number} set={put} />}
+    {clock}
     <ModButton p={p} value={values[name]} now={bound ? p.value as number : value as number} ctx={ctx} put={putOr}
-      label={`Modulate ${p.label}`} title={TITLE} /></>
+      label={`Modulate ${label}`} title={TITLE} /></>
     : p.kind === 'choice' ? <select id={id} class="param-choice" value={value as string}
       onChange={(e) => put(e.currentTarget.value)}>
       {p.options.map((o) => <option value={o}>{optionText(o, p.options)}</option>)}</select>
@@ -81,11 +92,11 @@ function Control({ name, p, values, set, ctx, colours, narrow }: { name: string;
       onChange={(e) => put(e.currentTarget.checked)} />);
   // Unused, the reset keeps its place (hidden), so a field never moves under the pointer.
   return (
-    <Field label={p.label} class={cx('param end', p.kind === 'toggle' && 'toggle')} title={help.title}
+    <Field label={label} class={cx('param end', p.kind === 'toggle' && 'toggle')} title={help.title}
       hint={help.hint}>
       {(id) => <>{field(id)}{help.button}
         <button type="button" class={cx('param-reset', (!has || value === p.value) && 'unused')}
-        title="Reset to default" aria-label={`Reset ${p.label} to default`}
+        title="Reset to default" aria-label={`Reset ${label} to default`}
         onClick={() => set((q) => { delete q[name]; })}>↺</button></>}</Field>);
 }
 

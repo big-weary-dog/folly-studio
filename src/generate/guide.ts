@@ -130,9 +130,9 @@ export const GLOBALS_GUIDE = `A look may set globals: speed (0..4, 1), level (0.
 so a look in palette colours follows the one picked), and macros [{ name, value, min, max, mod? }] that
 patterns read as G.<name>. automation [{ name, points: [[seconds, value], …] }] moves a global or macro over
 time, linearly between points: energy that builds from 0.2 to 1 over a minute, a storm macro that rises.
-A macro with a mod (an LFO or tempo binding) is a modulator: it moves by itself, and every param bound to it
+A macro with a mod (an LFO) is a modulator: it moves by itself, and every param bound to it
 follows in step; its pace and amount name a fader (a global, or a macro without a mod), never a modulator. bpm
-(40–240, default 120) sits beside globals: the tempo LFOs in beats keep.`;
+(40–240, default 120) sits beside globals: the tempo LFOs in beats and beat-synced speeds keep.`;
 
 export const COMPOSE_GUIDE = `A look is a stack of 1 to ${LIMITS.layers} layers, composited bottom (first) to top,
 each on a union of groups. Blend: \`add\` sums light, \`over\` covers what is below where the layer draws,
@@ -161,8 +161,8 @@ a slot (\`accent2\`), \`rainbow\` or \`#rrggbb\`, joined by spaces in order or d
 with / (\`"accent high"\`, \`"body/accent"\`). Any number param may instead be bound: \`{ "mod": "lfo", "rate": 0.2,
 "shape": "sine", "center": 0.5, "depth": 0.5 }\` (Hz, or \`"unit": "beats"\`: cycles a beat; \`"pace"\` and
 \`"amount"\` name a fader that speeds it or scales its swing), \`{ "mod": "global", "name": "energy", "from": 0.2,
-"to": 1 }\` (or a macro's or modulator's name), \`{ "mod": "envelope", "from": 0, "to": 1 }\` (the clip's fade), or
-\`{ "mod": "beats", "per": 0.5 }\` (per × beats a second). To move params as one (breathe, pulse, sway together),
+"to": 1 }\` (or a macro's or modulator's name), or, on a speed, \`{ "mod": "beats", "per": 0.5 }\` (in time
+with the beat: per × beats a second). To move params as one (breathe, pulse, sway together),
 bind them all to one modulator: a macro with a mod.
 
 Choose in this order: a preset that is the idea; else a chain of modules (a bed, the element, a warp or filter to

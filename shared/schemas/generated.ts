@@ -198,11 +198,11 @@ const range = (d: Range) => z.number().transform((v) => clamp(v, d.min, d.max)).
   .catch(undefined);
 const maybe = z.number().optional().catch(undefined);
 const str = { type: 'string' }, number = { type: 'number' };
-/** A modulator's mod as the model sees it: an LFO (its amount and pace a fader's name) or the tempo pulse. */
-export const MOD_WIRE = { type: 'object', properties: { mod: { type: 'string', enum: ['lfo', 'beats'] },
+/** A modulator's mod as the model sees it: an LFO (its amount and pace a fader's name). */
+export const MOD_WIRE = { type: 'object', properties: { mod: { type: 'string', enum: ['lfo'] },
   shape: { type: 'string', enum: ['sine', 'tri', 'saw', 'square', 'hold'] }, rate: number,
-  unit: { type: 'string', enum: ['hz', 'beats'] }, center: number, depth: number, hold: number, amount: str, pace: str,
-  per: number }, required: ['mod'] };
+  unit: { type: 'string', enum: ['hz', 'beats'] }, center: number, depth: number, hold: number, amount: str,
+  pace: str }, required: ['mod'] };
 const macro = z.object({ name: z.unknown().optional().meta({ type: 'string' }), value: maybe, min: maybe, max: maybe,
   mod: z.unknown().optional().meta(MOD_WIRE) }).meta({ required: ['name', 'value', 'min', 'max'] });
 /** Globals as the model gives them (macros a list or a map, the palette by name) → stored, or undefined. */

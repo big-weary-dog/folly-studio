@@ -20,10 +20,10 @@ const list = (items: Schema) => ({ type: 'array', items });
 const PICTURE = object({ grid: { type: 'string', enum: ['rose', 'square'] }, repeat: num,
   key: list(object({ char: str, colour: str }, ['char', 'colour'])),
   frames: list(object({ rows: list(str), hold: num }, ['rows'])) }, ['grid', 'key', 'frames']);
-/** A param's value: a number, toggle, word (a choice or a colour pick), a binding (an LFO, a global or macro, the
- * clip's envelope, the tempo) or a picture. */
+/** A param's value: a number, toggle, word (a choice or a colour pick), a binding (an LFO, a global or macro, a
+ * speed in time with the beat) or a picture. */
 const VALUE = { anyOf: [num, { type: 'boolean' }, str, object({
-  mod: { type: 'string', enum: ['lfo', 'global', 'envelope', 'beats'] },
+  mod: { type: 'string', enum: ['lfo', 'global', 'beats'] },
   shape: { type: 'string', enum: ['sine', 'tri', 'saw', 'square', 'hold'] }, rate: num,
   unit: { type: 'string', enum: ['hz', 'beats'] }, depth: num, center: num, hold: num, amount: str, pace: str,
   name: str, from: num, to: num, per: num,

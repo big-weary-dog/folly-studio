@@ -8,6 +8,7 @@ import type { Listed } from '../../../shared/schemas/api.ts';
 import { signedOut } from './session.ts';
 import { openBake } from './bake.tsx';
 import { ChainPane } from './chain.tsx';
+import { DrawerSlot } from './drawer.tsx';
 import { CodeEditor } from './editor.tsx';
 import { cx, humanize, pref, Switch, useLazy } from './kit.tsx';
 import { ISSUE_LABELS } from './layer-status.ts';
@@ -55,6 +56,7 @@ export function StudioLayout({ st, pv, tl, els }: Props & { els: Record<string, 
         <div class="pane-body time-body">{narrow && <Timeline st={st} pv={pv} tl={tl} />}</div></section>
       <LookTab st={st} pv={pv} />
       {narrow && <MorePane st={st} pv={pv} ph={ph} />}
+      <DrawerSlot />
       <div class="sandbox-host" aria-hidden="true" ref={(el) => { if (el) els.sandbox = el; }} />
     </div>);
 }

@@ -59,7 +59,7 @@ test('modulators on the Look tab and the timeline; the dock keeps one height', a
 
   await card.locator('.mod-tag').nth(1).click();                            // a chip opens the param's ∿
   await expect(page.locator('.layer.selected .layer-name')).toHaveText('Clouds');
-  await expect(page.locator('.mod-pop:popover-open .mod-head strong')).toHaveText(/Modulate Speed/);
+  await expect(page.locator('.drawer:last-child .drawer-title')).toHaveText(/Modulate Speed/);
   await page.keyboard.press('Escape');
 
   const rename = card.locator('input.macro-name');                          // renaming carries the bindings
@@ -97,7 +97,7 @@ test.describe('on a phone', () => {
     await expect(card).toBeVisible();
     await page.screenshot({ path: info.outputPath('4-phone-look.png') });
     await card.locator('.mod-tag').first().click();
-    await expect(page.locator('.mod-pop:popover-open .mod-head strong')).toHaveText(/Modulate Speed/);
+    await expect(page.locator('.drawer:last-child .drawer-title')).toHaveText(/Modulate Speed/);
     await expect(page.locator('.layer.selected .layer-name')).toHaveText('Bars');
     expect(errors).toEqual([]);
   });

@@ -20,7 +20,8 @@ groups), and give layers the tags they meant beside the ids. The result is clean
 (`shared/schemas/generated.ts`, zod: ≤ 4 layers,
 known group ids (none known: the root) and tags, code ≤ 20 kB containing `function pixel`, or modules whose code defines their kind's
 function; clips and duration normalised, bad or overlapping clips dropped; `globals` and `automation`
-cleaned (a macro's `mod` kept when it is an LFO or tempo binding that follows faders only, else dropped with a note),
+cleaned (a macro's `mod` kept when it is an LFO, or an older look's tempo binding, that follows faders only, else
+dropped with a note),
 `bpm` held to 40–240, a palette name filled in; picks cleaned of unknown tokens; a layer's `palette` dropped; a layer without a
 usable `soften` gets `DEFAULT_SOFTEN`) before a look is saved, with `chain: 2` (generators write the one rule: a warp after
 what it bends), and the idea set `ready`. Old single-code layers
@@ -33,7 +34,7 @@ an override's `module` is a ref in its recipe, `ref#2` for the second) or `{ …
 value }], blend?, input?, as? }] }` (a chain under the one rule; `use` is a library module's name or `ext:<name>`).
 `extensions: [{ name, kind, summary, why, code }]` is the last resort: code the model writes when nothing in the
 library draws the idea, `why` naming what it tried. A value is a number, on/off, a word (a choice, a pick) or a
-binding (`{ mod: lfo | global | envelope, … }`, on number params only). `src/generate/expand.ts` turns it into a look:
+binding (`{ mod: lfo | global | beats, … }`, on number params only; `beats` keeps a speed in time). `src/generate/expand.ts` turns it into a look:
 each `use` becomes the module's code with its params, held to the declarations read statically from its `const
 params` (`catalog.ts`; never evaluated): a number out of range is clamped, an unknown or ill-typed param dropped,
 a direction from before both ways were named (`round`, bars' `orbit`) made its new word as the module's `upgrade`

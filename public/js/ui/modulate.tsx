@@ -1,39 +1,41 @@
-// Modulation in place (SPEC "Param bindings", "Globals"): ∿'s popover beside the row, not a modal: every change
-// applies as you make it, so the 3D view shows it, and Revert puts back what was there when it opened. A param can
-// follow a modulator (a macro that moves), a fader or a look global, or share its own LFO as a new modulator; the
-// modulator it follows is renamed and edited there, in its own nested popover (an LFO or tempo pulse, which may
-// follow faders: one level only).
+// Modulation in place (SPEC "Param bindings", "Globals"): ∿ opens a drawer beside the 3D view, not a modal: every
+// change applies as you make it, so the view shows it, and Revert puts back what was there when it opened. A param
+// can follow a modulator (a macro that moves), a fader or a look global, or share its own LFO as a new modulator;
+// the modulator it follows is renamed and edited there, in a drawer of its own over this one (an LFO, which may
+// follow faders: one level only). A speed keeps time with the beat by the clock on its field, not here; a binding
+// to the clip envelope or a tempo pulse from before shows as old, with Off.
 import type { ComponentChildren } from 'preact';
-import { useId, useState } from 'preact/hooks';
+import { useState } from 'preact/hooks';
 
 import type { Binding, ParamValue } from '../../../shared/schemas/look.ts';
 import { GLOBALS } from '../core/globals.ts';
 import {
   type BindingForm, bindingForm, bindingText, fmt, GLYPHS, isBinding, makeBinding, type Param, RATES, SHAPES,
-  shareLfo, tempoNote,
+  shareLfo,
 } from './bindings.ts';
-import { cx, Field, humanize, placePopover } from './kit.tsx';
+import { BeatClock } from './beat-clock.tsx';
+import { Drawer, useDrawer } from './drawer.tsx';
+import { Field, humanize } from './kit.tsx';
 import { type ModCtx, NowBar, Wave } from './mod-live.tsx';
 
 export { BoundChip, type ModCtx } from './mod-live.tsx';
 
-/** The ∿ button and its popover. `put` sets the param's value (a binding, a number, or undefined: its default). */
+/** The ∿ button and its drawer. `put` sets the param's value (a binding, a number, or undefined: its default). */
 export function ModButton({ p, value, now, ctx, put, label, title }: { p: Param; value: ParamValue | undefined;
   now: number; ctx: ModCtx; put: (v: ParamValue | undefined) => void; label: string; title: string }) {
-  const pop = useId(), [open, setOpen] = useState(0);
-  const place = (e: { newState: string; currentTarget: HTMLElement }) => placePopover(e, pop, 400, ctx.narrow);
+  const d = useDrawer(), [at, setAt] = useState({ n: 0, start: value });   // what was there when it opened
+  const restart = (start: ParamValue | undefined) => setAt({ n: at.n + 1, start });
   return <>
-    <button type="button" class="param-mod" popovertarget={pop} aria-pressed={isBinding(value)} aria-label={label}
-      title={title}>∿</button>
-    <div id={pop} popover="auto" class={cx('mod-pop', ctx.narrow && 'sheet')} onBeforeToggle={place}
-      onToggle={(e) => setOpen(e.newState === 'open' ? open + 1 : 0)}>
-      {open > 0 && <ModPanel key={open} p={p} start={value} now={now} ctx={ctx} put={put} label={label} />}</div></>;
+    <button type="button" class="param-mod" aria-pressed={isBinding(value) && value.mod !== 'beats'}
+      aria-expanded={d.open} aria-label={label} title={title}
+      onClick={() => { if (!d.open) restart(value); d.toggle(); }}>∿</button>
+    <Drawer d={d} title={label} class="mod-drawer" actions={<button type="button" class="btn small ghost"
+      onClick={() => { put(at.start); restart(at.start); }}>Revert</button>}>
+      <ModPanel key={at.n} p={p} start={at.start} now={now} ctx={ctx} put={put} /></Drawer></>;
 }
 
-const KINDS: [BindingForm['mod'], string][] = [['lfo', 'LFO'], ['global', 'Modulator / macro'],
-  ['envelope', 'Envelope'], ['beats', 'Tempo'], ['', 'Off']];
-const SELF_KINDS: [BindingForm['mod'], string][] = [['lfo', 'LFO'], ['beats', 'Tempo'], ['global', 'Macro'],
-  ['', 'Off: a fader']];
+const KINDS: [BindingForm['mod'], string][] = [['lfo', 'LFO'], ['global', 'Macro'], ['', 'Off']];
+const SELF_KINDS: [BindingForm['mod'], string][] = [['lfo', 'LFO'], ['global', 'Macro'], ['', 'Off: a fader']];
 
 /** What a look offers to follow: its modulators (macros that move), faders (macros without a mod) and globals. */
 function follows(ctx: ModCtx) {
@@ -43,8 +45,8 @@ function follows(ctx: ModCtx) {
 }
 
 /** The popover's body: what moves the param, each kind's fields, applied as they change. */
-function ModPanel({ p, start, now, ctx, put, label }: { p: Param; start: ParamValue | undefined; now: number;
-  ctx: ModCtx; put: (v: ParamValue | undefined) => void; label: string }) {
+function ModPanel({ p, start, now, ctx, put }: { p: Param; start: ParamValue | undefined; now: number;
+  ctx: ModCtx; put: (v: ParamValue | undefined) => void }) {
   const bpm = ctx.look().bpm || 120, { modulators, faders, globals } = follows(ctx);
   const names = [...modulators.map(([n]) => n), ...faders, ...globals];
   const fresh = () => bindingForm(isBinding(start) ? start : {}, p, names, now, bpm);
@@ -62,8 +64,10 @@ function ModPanel({ p, start, now, ctx, put, label }: { p: Param; start: ParamVa
     onChange={(e) => set({ [k]: e.currentTarget.value })}><option value="">none</option>
     {[...faders, ...globals].map((g) => <option value={g}>{globals.includes(g) ? humanize(g) : g}</option>)}</select>;
   const range = <span class="mod-note">of {fmt(p.min)}…{fmt(p.max)}</span>;
-  const beats = f.unit === 'beats', tempo = tempoNote(parseFloat(f.per) || 0, bpm, p);
+  const beats = f.unit === 'beats', rate = parseFloat(f.rate) || 1;
   const picked = modulators.find(([n]) => n === f.name)?.[1];
+  const old = f.mod === 'envelope' ? 'Clip fade (old): the layer\'s clip fade moves it.'
+    : f.mod === 'beats' && ctx.self ? 'Tempo pulse (old): it counts up with the beats.' : '';
   function share() {
     const b = makeBinding(f, p);
     if (b?.mod !== 'lfo' || !ctx.share) return;
@@ -73,35 +77,34 @@ function ModPanel({ p, start, now, ctx, put, label }: { p: Param; start: ParamVa
     put(binding);
   }
   return <div class="mod-panel">
-    <div class="mod-head"><strong>{label}</strong>
-      <button type="button" class="btn small ghost" onClick={() => { setF(fresh()); put(start); }}>Revert</button>
-      <button type="button" class="icon-btn" aria-label="Close"
-        onClick={(e) => (e.currentTarget.closest('[popover]') as HTMLElement).hidePopover()}>×</button></div>
-    <div class="mod-kinds" role="group" aria-label="Moved by">{seg('mod', ctx.self ? SELF_KINDS : KINDS)}</div>
+    <div class="mod-kinds mod-segs" role="group" aria-label="Moved by">{seg('mod', ctx.self ? SELF_KINDS : KINDS)}
+    </div>
+    {old && <p class="mod-note mod-old">{old}<button type="button" class="btn small"
+      onClick={() => set({ mod: '' })}>Off</button></p>}
+    {f.mod === 'beats' && !ctx.self && <p class="mod-note">In time with the beat: the clock beside its field sets
+      it per beat.</p>}
     {f.mod === '' && <p class="mod-note">{ctx.self ? 'Nothing moves it: you, a lane or the Pi set it.'
       : 'Nothing moves it: its field sets it.'}</p>}
     {f.mod === 'lfo' && <>
       <Wave f={f} p={p} ctx={ctx} />
-      <Field label="Shape"><span class="mod-pills">{seg('shape', SHAPES.map((s) => [s, `${GLYPHS[s]} ${s}`]))}
+      <Field label="Shape"><span class="mod-segs">{seg('shape', SHAPES.map((s) => [s, `${GLYPHS[s]} ${s}`]))}
       </span></Field>
       {f.shape === 'hold' && <Field label="Hold">{num('hold', 'Hold: the share of each cycle held')}
         <span class="mod-note">of each cycle, half at each end</span></Field>}
-      <Field label="Rate"><span class="mod-pills">
-        {RATES.map(([t, r]) => <button type="button" class="btn small mod-seg" aria-pressed={beats
-          && parseFloat(f.rate) === r} onClick={() => set({ unit: 'beats', rate: String(r) })}>{t}</button>)}
-        <button type="button" class="btn small mod-seg" aria-pressed={!beats}
-          onClick={() => set({ unit: 'hz', rate: beats ? fmt(parseFloat(f.rate) * bpm / 60) : f.rate })}>Hz</button>
-      </span></Field>
-      {beats ? <Field label="Every"><input type="number" step="any" class="mod-num" aria-label="Beats a cycle"
-        value={fmt(1 / (parseFloat(f.rate) || 1))}
+      <Field label="Rate">{beats ? <input type="number" step="any" class="mod-num" aria-label="Beats a cycle"
+        value={fmt(1 / rate)}
         onInput={(e) => { const n = parseFloat(e.currentTarget.value); if (n > 0) set({ rate: String(1 / n) }); }} />
-        <span class="mod-note">beats a cycle, at {bpm} BPM</span></Field>
-        : <Field label="Rate">{num('rate', 'Cycles a second')}<span class="mod-note">cycles a second (Hz)</span>
-        </Field>}
-      <Field label="Rate ×">{fader('pace', 'Rate times a fader')}<span class="mod-note">a fader speeds it up or slows
+        : num('rate', 'Cycles a second')}
+        <BeatClock on={beats} label="Rate" set={(on) => set(on ? { unit: 'beats', rate: String(rate * 60 / bpm) }
+          : { unit: 'hz', rate: fmt(rate * bpm / 60) })} />
+        <span class="mod-note">{beats ? `beats a cycle at ${bpm} BPM` : 'cycles a second (Hz)'}</span></Field>
+      {beats && <Field label=""><span class="mod-segs">{RATES.map(([t, r]) => <button type="button"
+        class="btn small mod-seg" aria-pressed={rate === r} onClick={() => set({ rate: String(r) })}>{t}</button>)}
+      </span></Field>}
+      <Field label="Rate ×">{fader('pace', 'Rate times a fader')}<span class="mod-note">speeds it up or slows it</span>
+      </Field>
+      <Field label="Swing ×">{fader('amount', 'Swing times a fader')}<span class="mod-note">scales its swing; 0 holds
         it</span></Field>
-      <Field label="Swing ×">{fader('amount', 'Swing times a fader')}<span class="mod-note">a fader scales its swing:
-        0 holds it mid-way</span></Field>
       <Field label="Between">{num('lo', 'From')}<span class="mod-note">and</span>{num('hi', 'To')}{range}</Field>
       {ctx.share && <button type="button" class="btn small mod-share" onClick={share}
         title="A new modulator moves this param; bind others to it to keep them in step">
@@ -115,19 +118,11 @@ function ModPanel({ p, start, now, ctx, put, label }: { p: Param; start: ParamVa
         renamed={(to) => set({ name: to })} />}
       {faders.length > 0 && <List title="Faders">{faders.map((n) => <Pick f={f} n={n} set={set} glyph="◆"
         text={n} ctx={ctx} />)}</List>}
-      <List title="Look globals"><div class="mod-pills">{globals.map((g) => <button type="button"
+      <List title="Look globals"><div class="mod-segs">{globals.map((g) => <button type="button"
         class="btn small mod-seg" aria-pressed={f.name === g} onClick={() => set({ name: g })}>{humanize(g)}</button>)}
       </div></List>
-      <Field label="At its lowest">{num('from', 'At its lowest')}</Field>
-      <Field label="At its highest">{num('to', 'At its highest')}{range}</Field></>}
-    {f.mod === 'envelope' && <>
-      <Field label="Outside clips">{num('eFrom', 'Outside clips')}</Field>
-      <Field label="Fully in">{num('eTo', 'Fully in')}{range}</Field></>}
-    {f.mod === 'beats' && <>
-      <Field label="A beat">{num('per', 'How many a beat')}<span class={cx('mod-note', tempo.out && 'mod-warn')}>
-        {tempo.text}</span></Field>
-      <p class={cx('mod-note', tempo.out && 'mod-warn')}>{tempo.out
-        ? `Out of range: it is held to ${fmt(p.min)}…${fmt(p.max)}. ` : ''}The look's BPM is on the Timeline.</p></>}
+      <Field label="Between" title="The param at the fader's lowest, and at its highest">{num('from', 'At its lowest')}
+        <span class="mod-note">and</span>{num('to', 'At its highest')}{range}</Field></>}
   </div>;
 }
 

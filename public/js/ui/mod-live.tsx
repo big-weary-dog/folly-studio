@@ -66,7 +66,7 @@ export function NowBar({ ctx, name }: { ctx: ModCtx; name: string }) {
   </span>;
 }
 
-const W = 340, H = 64;
+const W = 340, H = 44;
 /** An LFO's wave over two cycles (at its pace now) inside the param's range band, the playhead a dot on it. */
 export function Wave({ f, p, ctx }: { f: BindingForm; p: Param; ctx: ModCtx }) {
   useFollow(() => ctx.t(), 50);

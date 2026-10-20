@@ -309,9 +309,10 @@ frame per layer and held to the param's min..max (`from`/`to` default to them):
   half at each end: an open, hold, close for a reveal.
 - `{ mod: 'global', name, from, to }`: `from + (to − from) × g`, `g` the global (`energy`, `speed`, `level`,
   `hue`, `saturation`, a macro or a modulator: SPEC "Globals") as 0..1 of its range.
-- `{ mod: 'envelope', from, to }`: by the layer's clip envelope (1 with no clips).
-- `{ mod: 'beats', per = 1 }`: `per × bpm / 60`, so a speed counts per beat at the look's tempo (120 unset): a
-  "rises a second" param bound to it rises `per` a beat. On a param with `unit: 'minute'` it is `per × bpm`.
+- `{ mod: 'envelope', from, to }`: by the layer's clip envelope (1 with no clips). Read for older looks only: the
+  Studio no longer offers it and generators never write it.
+- `{ mod: 'beats', per = 1 }` (a speed's beat clock): `per × bpm / 60`, so a speed counts per beat at the look's
+  tempo (120 unset): a "rises a second" param bound to it rises `per` a beat. On a param with `unit: 'minute'` it is `per × bpm`.
 
 A colour pick's `rotate` takes the same bindings (from 0, to 1, depth ¼ by default); it wraps rather than holds.
 

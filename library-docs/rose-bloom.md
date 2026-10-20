@@ -13,7 +13,7 @@ reveal on a downbeat. **rose-chase** keeps moving; **wash-breathe** swells a who
 - anchor.tag: bloom another group.
 
 ## Pairings
-- Bind edge-fade.position to the clip envelope (`from` 1 `to` 0) to open once over a clip.
+- A slower LFO `rate` (`"unit": "beats"` 0.0625, once in 4 bars) with `hold` 0.7 opens and waits a phrase.
 
 ## Pitfalls
 - Shut is black: add a bed, or a **colour-wash** with `blend: "under"` at the end.

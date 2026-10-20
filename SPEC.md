@@ -230,7 +230,7 @@ has alpha × level, `max` keeps the brighter channel, `multiply` tints what is b
   0..2 (1), `energy` 0..1 (0.5); `palette` as role lists (≤ 16 `#rrggbb` each; a bare name from
   `data/palettes.json` is filled in on save; default `chapel`); `macros` ≤ 16, names
   `[a-z][A-Za-z0-9_]{0,31}` other than G's own, `{ value, min = 0, max = 1, mod? }`. A macro with a `mod` (an LFO
-  or tempo binding, SPEC-library "Param bindings"; never the envelope) is a **modulator**: it moves by itself each
+  or, in older looks, a tempo binding, SPEC-library "Param bindings"; never the envelope) is a **modulator**: it moves by itself each
   frame, `value` its value when the mod is lifted, and params bound to it (`{ mod: 'global', name }`) follow it in
   step. Each frame a lane wins over the mod, the mod over the value. One level only: a modulator follows faders
   (globals, or macros without a mod): a global binding, or an LFO's `amount` or `pace`, naming a modulator is
@@ -287,15 +287,20 @@ Sequencing lives on the look, xLights-style.
   (macros without a mod; `ui/look-mods.tsx`). A modulator is a card: its name to rename, how it moves, its value now,
   ∿ to edit it, × to delete it, and a chip for each param it drives (layer › param), which selects that layer and
   module and opens the param's ∿; a fader's row lists what it drives, paces or swings the same way. Modulating is in
-  place (`ui/modulate.tsx`, `ui/mod-live.tsx`): ∿ opens a popover beside the row, not a modal (a sheet on a phone);
-  kinds LFO (its wave over two cycles in the param's range with the playhead, shape, rate pills from ¼ beat to 4
-  bars or Hz, Rate × and Swing × a fader, From/To; a new one swings a quarter of the range round the field's value),
-  Modulator / macro (the look's modulators with their value now, its faders, its globals; at its lowest, at its
-  highest), Envelope, Tempo (`per` that keeps the field's value at the look's bpm, saying what it comes to a second
-  and warning out of range), Off. Each change applies as it is made; Revert puts back what was there when it opened.
+  place (`ui/modulate.tsx`, `ui/mod-live.tsx`): ∿ opens a drawer (`ui/drawer.tsx`), a panel the Studio's full
+  height between the 3D view and the side, which shrinks the view beside it and fits a 1366×768 screen unscrolled
+  (a sheet on a phone); one drawer shows at a time, one opened from inside another stacks over it, Escape or ×
+  closes it. Kinds LFO (its wave over two cycles in the param's range with the playhead, shape, rate in beats a
+  cycle with pills from ¼ beat to 4 bars or, its beat clock off, in Hz, Rate × and Swing × a fader, From/To; a new
+  one swings a quarter of the range round the field's value), Macro (the look's modulators with their value now, its
+  faders, its globals; at its lowest and at its highest), Off. A binding to the clip envelope, or a modulator's
+  tempo pulse, from an older look shows as old with Off; neither is offered. A speed (a param named for one, or a
+  rate a minute) has a beat clock beside its number: on, it reads per beat and stores `{ mod: 'beats', per }`
+  (keeping its value at the look's bpm); off, a plain number a second. Each change applies as it is made; Revert
+  puts back what was there when it opened.
   "Share this LFO as a modulator…" makes the LFO a new modulator, named from where the layer plays and the param
-  (`roseSpeed`), and binds the param to it. With a modulator picked, the popover renames it and its own ∿ (LFO,
-  Tempo, Macro: following a fader, Off) sets how it moves, for every param that follows it. A bound row shows a live
+  (`roseSpeed`), and binds the param to it. With a modulator picked, the drawer renames it and its own ∿ (LFO,
+  Macro: following a fader, Off) sets how it moves, for every param that follows it. A bound row shows a live
   chip: what moves it, its range, its value now and a bar. Renaming a macro carries its lane, its bindings, a
   colour's rotate and the modulators that follow it; deleting it
   drops them. On a phone: globals and palette in the Look tab;

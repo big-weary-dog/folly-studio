@@ -10,7 +10,8 @@ import { describe, test } from 'vitest';
 import { resolve, safeNext } from '../public/js/ui/app.tsx';
 import { gateOf } from '../public/js/ui/idea-access.tsx';
 import {
-  bindingForm, bindingText, makeBinding, normaliseParam, type Param, shownValue, tempoNote, upgradedOf,
+  beatsAt, bindingForm, bindingText, keepsTime, makeBinding, normaliseParam, type Param, perBeat, shownValue,
+  upgradedOf,
 } from '../public/js/ui/bindings.ts';
 import { decimals, scrubTo, snap } from '../public/js/ui/kit.tsx';
 import { createLayerStatus } from '../public/js/ui/layer-status.ts';
@@ -91,14 +92,18 @@ describe('modulation', () => {
       unit: 'hz', center: 57.5, depth: -37.5 }, 'From above To runs the wave upside down');
   });
 
-  test('a new tempo binding keeps the field\'s value and says what it comes to at the look\'s tempo', () => {
+  test('the beat clock: on speeds and rates a minute, per beat at the look\'s tempo', () => {
     const clouds = normaliseParam('speed', { value: 0.15, min: 0, max: 1 }) as Param;
-    const f = bindingForm({}, clouds, globals, 0.15, 120);
-    assert.equal(f.per, '0.075');
-    assert.deepEqual(tempoNote(0.075, 120, clouds), { text: '= 0.15 a second at 120 BPM', out: false });
-    assert.equal(tempoNote(1, 120, clouds).out, true, '2 a second: beyond its range');
     const often = normaliseParam('often', { value: 36, min: 0, max: 1200, unit: 'minute' }) as Param;
-    assert.deepEqual(tempoNote(0.5, 120, often), { text: '= 60 a minute at 120 BPM', out: false }, 'a speed a minute');
+    const tempo = normaliseParam('rate', { value: 120, min: 10, max: 240 }) as Param;
+    assert.deepEqual([keepsTime('speed', clouds), keepsTime('often', often), keepsTime('rate', tempo)],
+      [true, true, false], 'heartbeat\'s own tempo is a tempo, not a speed');
+    assert.equal(keepsTime('speed', normaliseParam('speed', { value: true, type: 'toggle' }) as Param), false);
+    assert.equal(beatsAt(120, clouds), 2, '2 beats a second at 120');
+    assert.equal(beatsAt(120, often), 120, 'a minute\'s');
+    assert.equal(bindingForm({ mod: 'beats', per: 0.075 }, clouds, globals).per, '0.075');
+    assert.deepEqual(['Speed (clouds a second)', 'How often (flashes a minute)', 'Drops (a second)'].map(perBeat),
+      ['Speed (clouds a beat)', 'How often (flashes a beat)', 'Drops (a beat)'], 'the label reads per beat');
   });
 
   test('what a control shows: its value, the default, or nothing while bound', () => {

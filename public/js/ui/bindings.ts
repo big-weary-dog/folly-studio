@@ -96,8 +96,8 @@ export function shownValue(p: Param, values: Record<string, ParamValue>, key: st
 }
 
 /** The popover's fields for a param's binding (or none yet). An LFO is From/To (stored as centre ± depth); a new one
- * swings a quarter of the range each side of `now` (the field's value), and a new tempo binding keeps `now` at
- * `bpm`. Global and envelope keep their ends apart. */
+ * swings a quarter of the range each side of `now` (the field's value), and a beat binding keeps `now` at `bpm`.
+ * Global and envelope keep their ends apart. */
 export function bindingForm(b: Partial<Binding>, p: Param, globals: string[], now = Number(p.value), bpm = 120)
   : BindingForm {
   const o = b as Record<string, unknown>, ends = (mod: string) => (b.mod === mod
@@ -130,12 +130,13 @@ export function makeBinding(f: BindingForm, p: Param): Binding | null {
   return f.mod === 'envelope' ? { mod: 'envelope', from: n(f.eFrom, p.min), to: n(f.eTo, p.max) } : null;
 }
 
-/** A tempo binding in words: what `per` comes to at `bpm` (a second, or a minute on a `unit: 'minute'` param), and
- * whether the param's range holds it. */
-export function tempoNote(per: number, bpm: number, p: Param) {
-  const minute = p.unit === 'minute', v = per * bpm / (minute ? 1 : 60);
-  return { text: `= ${fmt(v)} a ${minute ? 'minute' : 'second'} at ${bpm} BPM`, out: v < p.min || v > p.max };
-}
+/** Does a param take the beat clock: a speed (things a second), or a rate a minute. Heartbeat's own tempo is a
+ * tempo, not a speed. */
+export const keepsTime = (key: string, p: Param) => p.kind === 'number' && (p.unit === 'minute' || /speed/i.test(key));
+/** A clocked speed's label: its count a beat, not a second or a minute ("Speed (clouds a beat)"). */
+export const perBeat = (label: string) => label.replace(/\ba (second|minute)\b/, 'a beat');
+/** The beats a second at `bpm` (a minute, on a `unit: 'minute'` param): a beat binding is `per` × this. */
+export const beatsAt = (bpm: number, p: Param) => (p.unit === 'minute' ? bpm : bpm / 60);
 
 /** A modulator's LFO shared out of a param's (SPEC "Globals"): the macro's 0..1 swing, and the param's binding to it
  * through the same ends, so the param moves exactly as before. */

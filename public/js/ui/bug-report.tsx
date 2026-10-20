@@ -47,9 +47,9 @@ function glInfo() {
   return gl;
 }
 
-/** Open dialogs and popovers: their headings, else their class. */
+/** Open dialogs, popovers and drawers: their headings, else their class. */
 function dialogsOpen() {
-  const els = [...document.querySelectorAll('dialog[open]'), ...document.querySelectorAll(':popover-open')];
+  const els = [...document.querySelectorAll('dialog[open], :popover-open, .drawer')];
   return els.map((el) => ({ tag: el.tagName.toLowerCase(), id: el.id || undefined,
     title: el.querySelector('h2, h3')?.textContent?.slice(0, 80) || el.className.slice(0, 80) }));
 }

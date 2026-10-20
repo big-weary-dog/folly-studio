@@ -13,7 +13,7 @@ beneath. **rising-sweep** sends bands up; **wash-breathe** fills and drains on i
 ## Pairings
 - Over a **starfield** or **clouds** layer, or **colour-wash** with `blend: "under"`.
 - **sparkle** after it with **mask** by `self` to glint in the water.
-- Bind edge-fade.position to the clip envelope (`from` 0.9 `to` 0.1) to flood over a clip.
+- Bind edge-fade.position to a slow `saw` LFO (`center` 0.5, `depth` 0.4) to flood and drain in turn.
 
 ## Pitfalls
 - colour-wash.speed above 0 cycles the water's colour.

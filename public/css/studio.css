@@ -1,14 +1,17 @@
 /* The Studio (loaded by js/ui/studio.tsx): one window leaded into panes round the 3D view, clear dark glass
    so the LEDs carry the colour; wide, the side runs the window's full height (base.css stops the header at it).
    Phones: the view on top, the panes under it as tabs. */
-body[data-view=studio] { --side-w: 330px; overflow: hidden; }
+body[data-view=studio] { --side-w: 330px; --drawer-w: 0px; overflow: hidden; }
 .view-studio { height: calc(100dvh - var(--header-h)); }
 .studio { --code-h: 36%; position: relative; height: 100%; display: grid; background: var(--lead);
-  grid-template-columns: clamp(248px, 16vw, 320px) minmax(0, 1fr) var(--side-w);
+  grid-template-columns: clamp(248px, 16vw, 320px) minmax(0, 1fr) var(--drawer-w) var(--side-w);
   /* the dock: one height on every tab, at least 220px, leaving the 3D view room */
   grid-template-rows: auto auto minmax(0, 1fr) 5px min(max(220px, var(--code-h)), calc(100% - 260px));
-  grid-template-areas: "bar bar side" "notice notice side" "groups viewer side" "groups split side" "groups code side";
+  grid-template-areas: "bar bar drawer side" "notice notice drawer side" "groups viewer drawer side"
+    "groups split drawer side" "groups code drawer side";
 }
+/* a drawer open (drawer.tsx) takes its column, the full height: the 3D view and the dock shrink beside it */
+.studio:has(> .drawer-slot > .drawer) { --drawer-w: clamp(340px, 24vw, 420px); }
 .studio.code-collapsed { grid-template-rows: auto auto minmax(0, 1fr) 0 auto; }
 .studio.code-collapsed .splitter, .studio.code-collapsed .code-body { display: none; }
 .studio.resizing { cursor: row-resize; user-select: none; }
@@ -132,7 +135,7 @@ body[data-view=studio] { --side-w: 330px; overflow: hidden; }
   color: var(--text); }
 @media (max-width: 1200px) {
   body[data-view=studio] { --side-w: 296px; }
-  .studio { grid-template-columns: 214px minmax(0, 1fr) var(--side-w); }
+  .studio { grid-template-columns: 214px minmax(0, 1fr) var(--drawer-w) var(--side-w); }
   .tp-stats { display: none; }
 }
 /* groups: each zone keeps its glass down the tree */
