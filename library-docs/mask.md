@@ -9,9 +9,11 @@ an edge instead; **recolour** bands colours rather than cutting.
 - by: `self` keys on luminance: dark blues go before yellows.
 - amount: 0.6–0.8 leaves a dim ghost (preset **storm**).
 - softness: 0.05 hard; 0.3–0.5 cloud-like. By region: 0.01 cuts at the lead lines.
+- scatter: 0.6–1 by `self` turns brightness into how many LEDs are lit: dim parts thin to dots, fades sparkle.
 - index: Bind to a step or beat to walk one region round the rose.
 
 ## Pairings
+- With Scatter, a stepped LFO on seed re-deals the dots, so a soft cloud fizzes.
 - With **scroll** `petal` below it, the picked petals turn round the rose.
 
 ## Pitfalls

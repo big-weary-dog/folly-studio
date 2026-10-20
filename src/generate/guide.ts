@@ -64,6 +64,8 @@ gradient(t, [c0, c1, ...]), cosPalette(t, a, b, c, d) (Inigo Quilez), beat(t, bp
 dist(x1,y1,z1,x2,y2,z2), pal(name, t) (t 0..1 along colour param name's pick), swatch(name, i) (its i-th colour,
 wrapping: bands, seeded objects), palette(t) (the palette's colours, low to high), centres(tag) ([X, Y, Z] of each
 group with that tag, [] if none: call it inside pixel or frame),
+wireDistance(from) (metres along the wiring by p.k, from a tag's heart, or top or bottom) and rowOrder(by, seed)
+(the layer as one row by p.k, 0..1: strands, groups or random; both read only, call them in frame),
 extent() (this layer's bounds in metres, [[X0, Y0, Z0], [X1, Y1, Z1]]: to place a centre in it, measure in metres,
 fill it), clock(name) (how far number param name, a speed, has moved things: draw motion from clock('speed'), not
 t × P.speed, so a modulated speed never jumps), DIRECTIONS and toward(p, direction) (a source that rises, falls or

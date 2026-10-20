@@ -2,7 +2,7 @@
 // "Globals") and RUN, what the frame being rendered shares with pattern code. No imports but types, the warp
 // contract (place.ts) and the neighbour map (links.ts).
 import type { G, PreparedLook } from './globals.ts';
-import { links, waveStep } from './links.ts';
+import { links, rowOrder, waveStep, wireDistance } from './links.ts';
 import { move, slide, turn } from './place.ts';
 
 /** A colour: [r, g, b] each 0..1; what patterns may give one as: an array, '#rrggbb' or a grey level. */
@@ -65,7 +65,7 @@ function bits(n: number) {
 function combine(h: number, n: number) { return fmix(h ^ (bits(n) + 0x9e3779b9 + (h << 6) + (h >>> 2))); }
 export function hash(n: number) { return bits(n) / 4294967296; }
 
-function rand(a: number, b?: number, c?: number) {
+export function rand(a: number, b?: number, c?: number) {
   let h = bits(a);
   if (b !== undefined) h = combine(h, b);
   if (c !== undefined) h = combine(h, c);
@@ -349,7 +349,7 @@ export const STDLIB = Object.freeze({
   round: Math.round, sqrt: Math.sqrt, pow: Math.pow, exp: Math.exp, log: Math.log, hypot: Math.hypot, sign: Math.sign,
   clamp, fract, mix, step, smoothstep, soft, band, wave, tri, saw, pulse, hash, rand, noise, fbm,
   hsv, hsl, rgb, hex, scale, add, gradient, cosPalette, pal, palette, centres, extent, beat, dist, DIRECTIONS, toward,
-  region, regions, move, turn, slide, links, waveStep,
+  region, regions, move, turn, slide, links, waveStep, wireDistance, rowOrder,
 });
 export const STDLIB_NAMES = Object.freeze(Object.keys(STDLIB));
 export const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);

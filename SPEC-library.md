@@ -93,7 +93,8 @@ things: "Integrated clocks" below), `DIRECTIONS` and `toward(p, direction)`, `re
 keeps history: what was above it at this LED `ago` seconds back, "History" below), `use(name, params?)` → `(p, t) → colour` (`[0, 0, 0, 0]` for null), library source `name` as its own instance (its
 `frame` runs once per new t; throws `unknown library pattern`, or names a retired one's preset), `links(tag?)` (the
 running layer's neighbour map, or its tag's parts': "The neighbour map" below), `waveStep(L, h, v, speed,
-settle, bounce)` (one step of water on a map). Colours are
+settle, bounce)` (one step of water on a map), `wireDistance(from)` (metres along it) and `rowOrder(by, seed)` (the
+layer as one row). Colours are
 `[r, g, b]` arrays, 0..1.
 
 ## Directions
@@ -170,7 +171,8 @@ is `[colour-wash, element with blend: 'over']`, `mix(bed, element, alpha)` exact
 itself drew; with filters that should rework the element alone, `[element, filters…, colour-wash with blend:
 'under']`. Alone on a layer an element shows over black, as one that painted black would. A filter that hides or fades
 (mask, edge-fade, trails) does so by alpha too: what it hides is transparent, never black. `mask` reads the brightness
-of its input, or with `by: 'self'` the luminance of what is above it (so it keeps what is bright). Older code may
+of its input, or with `by: 'self'` the luminance of what is above it (so it keeps what is bright), against a cutoff
+that `scatter` moves per LED by `(rand(k, seed) − 0.5) × scatter` (0: one cutoff, as before). Older code may
 still paint a background.
 
 ## Library
@@ -188,7 +190,7 @@ and leaves the rest.
 The library, one idea a module. Sources: colour-wash, bars, clouds, fire, single-strand (Chase), life, wildfire,
 waves, fireflies, sparkle,
 streaks, lightning, fireworks, strobe, heartbeat, picture. Warps: mirror, mosaic, polar,
-anchor, rotate, scroll, twist, turbulence, in-turn. Filters: recolour, hue-shift,
+anchor, reorder, rotate, scroll, twist, turbulence, in-turn. Filters: recolour, hue-shift,
 stained-glass, mask, blur, edge-fade, trails, delay, smoke, replay, sort,
 splash, rhythm. Presets: Water, Storm, Kaleidoscope, Tunnel and
 Afterimage (mirror's Wedges and Rings, trails after lightning), the rose's stained glass
@@ -274,6 +276,17 @@ neighbours in it; read only. A stateful module keeps its arrays by `p.k`, steps 
 as one cell. `waveStep(L, h, v, speed, settle, bounce)` steps water on a map in place (Waves, Splash): `h` and `v`,
 by row, each row pulled toward its neighbours' mean; `speed` links a step (substepped at half a link), `settle` the
 share of motion lost a step, and at a strand's end (one link) `bounce` the share sent back, the rest let run out.
+
+`wireDistance(from)` is how far each LED is along the layer's map from `from`, in metres, by `k`: the shortest path
+over links (each as long as the gap between its LEDs), from a tag's starts (each of its groups' LEDs in the layer
+within 0.1 m of the nearest to the group's centre: the rose's heart) or from `top` / `bottom` (each network's LEDs
+within 0.1 m of its highest or lowest). A network no start reaches begins at each LED's straight-line distance from
+the nearest start plus 2 m, then runs along its own links. Infinity outside the layer, and everywhere when the layer
+holds no start. `rowOrder(by, seed)` is the layer as one row, by `k`, 0 at its first LED to 1 at its last (NaN outside
+it): `strands` in rig order, `groups` by the parts of `all` (rig order within each, LEDs in none last), `random` a
+shuffle by `rand(k, seed)` (seed rounded). Both are found once per prepared layer (and argument), the same array
+every frame; read only. The `reorder` warp `turn`s `q` at its own angle to a radius mixed by its Amount from `r`
+toward the order (wire metres over Reach, or over the farthest), so `out` and `in` follow the wiring or the row.
 
 ## History
 

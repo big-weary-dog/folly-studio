@@ -26,6 +26,7 @@ works on everything above it, as in an image editor.
   and end a stage: a warp below one does not reach above it.
 - `anchor` moves the centre that `in`, `out`, the turning directions, polar and the rotations use; put it lowest of
   the warps.
+- `reorder` gives `out` and `in` a new order: along the wiring from a place, strand after strand, or a shuffle.
 
 Example, "a chase only inside clouds, mirrored": single-strand, clouds (`id: "sky"`, `as: "input"`), mask
 (`input: "sky"`), mirror.

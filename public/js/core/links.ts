@@ -3,7 +3,8 @@
 // next strand of its zone every metre where they run side by side, so the main arches neighbour each other. Pieces
 // far apart stay apart. Found once per scene from the rig's positions; links() hands pattern code a layer's share.
 import { PLACE } from './place.ts';
-import { type Scene, tagParts } from './scene.ts';
+import { groupsByTag, pixelsForGroups, type Scene, tagCentres, tagParts } from './scene.ts';
+import { rand } from './stdlib.ts';
 import { MAX_RADIUS, neighbourGraph } from './spatial.ts';
 
 /** Metres: a strand's next LED further than this is a separate piece (floods); other strands this close touch. */
@@ -106,6 +107,128 @@ export function links(tag?: string): Links {
   if (!byTag) LAYERS.set(L, byTag = new Map());
   if (!m) byTag.set(key, m = key ? partLinks(S, L.idx, key) : layerLinks(S, L.idx));
   return m;
+}
+
+/** Metres: a piece the wiring never reaches from `from` starts this much after its straight-line distance; the band
+ * of LEDs a start takes in: each network's highest (or lowest) for `top` (`bottom`), each group's nearest its
+ * centre. */
+export const WIRE_LAG = 2, WIRE_BAND = 0.1;
+type PerLayer = WeakMap<object, Map<string, Float64Array>>;
+const DISTANCES: PerLayer = new WeakMap(), ROWS: PerLayer = new WeakMap();
+/** A layer's array under `key`, made the first time it is asked. */
+function perLayer(cache: PerLayer, key: string, make: (S: Scene, L: Links) => Float64Array) {
+  const S = PLACE.scene, L = PLACE.layer;
+  if (!S || !L) return new Float64Array(0);
+  let byKey = cache.get(L), d = byKey?.get(key);
+  if (!byKey) cache.set(L, byKey = new Map());
+  if (!d) byKey.set(key, d = make(S, links()));
+  return d;
+}
+
+/**
+ * wireDistance(from): metres along the running layer's wiring (links()) from `from`, by k, the same array every frame
+ * of a layer; read only. `from` is a tag (each of its groups' LEDs in the layer nearest the group's centre: the rose's
+ * heart), or `top` / `bottom` (each network's highest or lowest LEDs). A piece the wiring never reaches starts at its
+ * straight-line distance from the nearest start plus WIRE_LAG; Infinity outside the layer, and everywhere when nothing
+ * starts.
+ */
+export function wireDistance(from: string) {
+  return perLayer(DISTANCES, String(from), (S, L) => wiresFrom(S, L, String(from)));
+}
+
+function wiresFrom(S: Scene, L: Links, from: string) {
+  const { idx, off, nb } = L, d = new Float64Array(S.count).fill(Infinity), X = S.X, Y = S.Y, Z = S.Z;
+  const gap = (a: number, b: number) => Math.hypot(X[a] - X[b], Y[a] - Y[b], Z[a] - Z[b]);
+  const starts: number[] = [];
+  if (from === 'top' || from === 'bottom') {               // each network's band of highest (or lowest) LEDs
+    const net = new Int32Array(S.count).fill(-1), sign = from === 'top' ? -1 : 1;
+    for (const k of idx) {
+      if (net[k] >= 0) continue;
+      const piece = [k];
+      net[k] = k;
+      for (let i = 0; i < piece.length; i++) {
+        for (let e = off[piece[i]]; e < off[piece[i] + 1]; e++) {
+          if (net[nb[e]] < 0) { net[nb[e]] = k; piece.push(nb[e]); }
+        }
+      }
+      let end = Infinity;
+      for (const j of piece) end = Math.min(end, sign * Y[j]);
+      for (const j of piece) if (sign * Y[j] <= end + WIRE_BAND) starts.push(j);
+    }
+  } else {
+    const inside = new Uint8Array(S.count), mid = tagCentres(S, from);
+    for (const k of idx) inside[k] = 1;
+    groupsByTag(S, from).forEach((g, i) => {               // each group's heart: its LEDs nearest its centre
+      const [cx, cy, cz] = mid[i], own = pixelsForGroups(S, g.id).filter((k) => inside[k]);
+      const r = Array.from(own, (k) => Math.hypot(X[k] - cx, Y[k] - cy, Z[k] - cz)), near = Math.min(...r);
+      own.forEach((k, j) => { if (r[j] <= near + WIRE_BAND) starts.push(k); });
+    });
+  }
+  if (!starts.length) return d;
+  for (const k of starts) d[k] = 0;
+  spread(d, starts, off, nb, gap);
+  const missed = idx.filter((k) => d[k] === Infinity);   // pieces the wiring never reaches: straight-line, plus a lag
+  for (const k of missed) {
+    let best = Infinity;
+    for (const s of starts) best = Math.min(best, gap(k, s));
+    d[k] = best + WIRE_LAG;
+  }
+  spread(d, Array.from(missed), off, nb, gap);
+  return d;
+}
+
+/** Dijkstra from `from` (each at its d[]) over CSR rows, `gap` the length of a link: d[] settled in place. */
+type Gap = (a: number, b: number) => number;
+function spread(d: Float64Array, from: number[], off: Int32Array, nb: Int32Array, gap: Gap) {
+  const h: number[] = [], done = new Uint8Array(d.length);
+  const push = (k: number) => {
+    let i = h.push(k) - 1;
+    for (let up = (i - 1) >> 1; i > 0 && d[h[up]] > d[k]; i = up, up = (i - 1) >> 1) h[i] = h[up];
+    h[i] = k;
+  };
+  const pop = () => {
+    const top = h[0], last = h.pop()!;
+    if (!h.length) return top;
+    let i = 0;
+    for (let c = 1; c < h.length; i = c, c = 2 * i + 1) {
+      if (c + 1 < h.length && d[h[c + 1]] < d[h[c]]) c++;
+      if (d[h[c]] >= d[last]) break;
+      h[i] = h[c];
+    }
+    h[i] = last;
+    return top;
+  };
+  for (const k of from) push(k);
+  while (h.length) {
+    const k = pop();
+    if (done[k]) continue;
+    done[k] = 1;
+    for (let e = off[k]; e < off[k + 1]; e++) {
+      const j = nb[e], w = d[k] + gap(k, j);
+      if (w < d[j]) { d[j] = w; push(j); }
+    }
+  }
+}
+
+/**
+ * rowOrder(by, seed): the running layer as one row, by k: 0 at its first LED to 1 at its last; NaN outside it.
+ * `strands` strand after strand (rig order, each from its start), `groups` group after group (the smallest groups
+ * under `all`, rig order within each), `random` a fixed shuffle that `seed` deals. The same array every frame of a
+ * layer; read only.
+ */
+export function rowOrder(by: string, seed = 0) {
+  const s = Math.round(seed) || 0, key = by === 'random' ? `random:${s}` : by === 'groups' ? 'groups' : 'strands';
+  return perLayer(ROWS, key, (S, L) => {
+    const order = Array.from(L.idx), part = key === 'groups' ? tagParts(S, 'all').of : null;
+    if (key !== 'strands') {
+      const k2 = new Float64Array(S.count);
+      for (const k of order) k2[k] = part ? (part[k] < 0 ? Infinity : part[k]) : rand(k, s);
+      order.sort((a, b) => k2[a] - k2[b] || a - b);
+    }
+    const out = new Float64Array(S.count).fill(NaN), m = Math.max(1, order.length - 1);
+    order.forEach((k, i) => { out[k] = i / m; });
+    return out;
+  });
 }
 
 /**
