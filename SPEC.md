@@ -14,8 +14,8 @@ file), edit it, and export it toward the real installation.
   time), never fetched at run time and never from a CDN, so the app, the sandbox and the boxes work offline on the
   playa. ES modules everywhere (`"type": "module"`), TypeScript or JavaScript: Node ≥ 22.18 runs the server's, the
   boxes' and the tests' as written (types stripped, no build); Vite builds the browser's into `dist/`.
-- **Every LED comes from `public/data/rig.json`** (SPEC "Rig"); it comes from the canonical pixel CSV
-  pipeline (show-builder's `td/python/make_pixel_csv.py`), never re-derived by hand. Nothing else names the installation.
+- **Every LED comes from `public/data/rig.json`** (SPEC "Rig"), built from the lighting repo's pixel maps, never
+  by hand. Nothing else names the installation.
 - **Pattern code is untrusted.** It only ever runs inside the sandbox page (below) or a box
   (bubblewrap: the render box, a Fleet worker's), never in the app page and never in the server's
   own Node process (except in tests, on our own library patterns). What a box returns is data.
@@ -80,9 +80,9 @@ folly-studio/
 
 The one installation-specific file: every LED, how it is addressed and grouped, and how the 3D view draws it.
 The core, the boxes, the frame analysis, the generators and the viewer read only this. City of Gods' is
-built by `tools/build_rig.py [--check]` from show-builder's `city-of-gods/pixel-map/`, the Folly's playa build
-(`rig-folly.json`) from its `pixel-map/`, through its `td/python/make_pixel_csv.py` (`SHOW_BUILDER_DIR`; never by
-hand; their fixtures and groups: DESIGN §9);
+built by `tools/build_rig.py [--check]` from lighting's `city-of-gods/pixel-map/out/`, the Folly's playa build
+(`rig-folly.json`) from its `show-builder/pixel-map/` (`LIGHTING_DIR`; never by hand; fixtures and groups: DESIGN
+§9), on lighting's xLights and Falcon channels (`tools/check_channels.py`);
 another installation writes its own (CONTRIBUTING "Adding a new installation").
 
 ```jsonc

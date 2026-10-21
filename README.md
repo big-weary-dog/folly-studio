@@ -31,9 +31,8 @@ npm run build-data     # rebuild public/data/rig.json (City of Gods) and rig-fol
 - `smoke`, `perf` and `e2e` run on Playwright Test with its Chromium (`npx playwright install chromium`, or
   `PLAYWRIGHT_BROWSERS_PATH`); `e2e` also needs `E2E_DEPS` (a folder with `three@0.160.0`) and show-builder's
   `relay/node_modules`.
-- The rigs and palettes come from a show-builder checkout: `SHOW_BUILDER_DIR`, by default `../show-builder`. Run
-  `npm run build-data` after any change to its `city-of-gods/pixel-map/`, `pixel-map/` or pixel CSV pipeline; never
-  edit a rig by hand.
+- The rigs come from a lighting checkout (The-Gothic-Folly/lighting): `LIGHTING_DIR`, by default `../lighting`.
+  Run `npm run build-data` after lighting's pixel maps change; never edit a rig by hand. CONTRIBUTING "Show data".
 
 ## Read next
 
