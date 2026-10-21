@@ -10,6 +10,7 @@ import path from 'node:path';
 
 import type { UserAccess } from '../shared/schemas/access.ts';
 import type { Idea, Look, User, VersionMeta } from '../shared/schemas/api.ts';
+import { stamp } from './clock.ts';
 import type { Log } from './http.ts';
 import { lockDataDir } from './store-lock.ts';
 
@@ -132,7 +133,7 @@ async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: U
       return out;
     },
     create(obj = {}) {
-      const now = new Date().toISOString();
+      const now = stamp();
       let id = obj.id;
       if (id !== undefined) {
         if (typeof id !== 'string' || !id) throw new TypeError('store: id must be a non-empty string');
@@ -155,7 +156,7 @@ async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: U
         if (v === undefined) delete next[k];
         else next[k] = copy(v);
       }
-      next.updatedAt = new Date().toISOString();
+      next.updatedAt = stamp();
       map.set(id, next as Doc);
       schedule();
       return copy(next as Doc);

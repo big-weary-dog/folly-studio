@@ -17,6 +17,7 @@ import {
 } from '../shared/schemas/look.ts';
 import type { LibraryEntry } from '../shared/schemas/rig.ts';
 import { newestBy } from './api.ts';
+import { stamp } from './clock.ts';
 import type { Action } from '../shared/policy.ts';
 import type { Auth } from './auth.ts';
 import { type createBakeQueue, layersHash, renderFields, reviewBlocker } from './bake.ts';
@@ -139,7 +140,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, loadLibra
     const lanesNow = automation === undefined ? undefined : lanes(automation, globals);
     if (lanesNow) look.automation = lanesNow;
     if (bpm != null) look.bpm = bpm;
-    if (look.shared) look.sharedAt = new Date().toISOString();
+    if (look.shared) look.sharedAt = stamp();
     if (ideaId != null) {
       const idea = store.ideas.get(ideaId);
       if (!idea || idea.owner !== user.id) throw new HttpError(400, 'ideaId does not name one of your ideas.');
@@ -173,7 +174,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, loadLibra
     }
     if (body.shared !== undefined) {
       patch.shared = body.shared;
-      if (body.shared && look.shared !== true) patch.sharedAt = new Date().toISOString();
+      if (body.shared && look.shared !== true) patch.sharedAt = stamp();
     }
     // What plays (PLAYS; null clears bpm, globals and automation). A change is a new version; one that changes the
     // frames (not a tempo that is only a grid) also drops the bake and the review.
