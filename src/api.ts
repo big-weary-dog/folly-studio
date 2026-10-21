@@ -7,6 +7,7 @@ import { isPending, transition } from '../shared/idea-status.ts';
 import { DEEP, type FlashSettings, type Idea, IdeaBody, Login, RefineBody, Signup } from '../shared/schemas/api.ts';
 import type { AccessControl } from './access.ts';
 import { accessRoutes, sendRefusal } from './api-access.ts';
+import { ideaHowRoutes } from './api-idea-how.ts';
 import { ideaLogRoutes } from './api-idea-log.ts';
 import { lightRoutes } from './api-light.ts';
 import { lightsRoutes } from './lights.ts';
@@ -40,8 +41,9 @@ const WAITS_PER_USER = 6;
 type Stored = NonNullable<ReturnType<Auth['authenticate']>>['user'];
 
 
-/** An idea as its owner gets it: a failed round's error (an older idea may still hold one) left to the admin's log. */
-const forOwner = (idea: Idea): Idea => ({ ...idea,
+/** An idea as its owner gets it: a failed round's error (an older idea may still hold one) left to the admin's log;
+ * how it was made, from its own route. */
+const forOwner = ({ how: _how, ...idea }: Idea): Idea => ({ ...idea,
   ...(idea.rounds ? { rounds: idea.rounds.map((r) => (r.outcome ? { ...r, outcome: ownerOutcome(r.outcome) } : r)) }
     : {}),
   ...(idea.verdict ? { verdict: ownerOutcome(idea.verdict) } : {}) });
@@ -211,6 +213,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       'GET /me': async (req) => ({ user: auth.publicUser(req.user), flash,
         ...(gen ? { access: access.state(req.user!) } : {}), profile }),
       ...(gen ? { ...ideaRoutes, ...modelRoutes({ auth, models, access }), ...ideaLogRoutes({ logs: o.ideaLogs }),
+        ...ideaHowRoutes({ store, auth, logs: o.ideaLogs, forOwner }),
         ...accessRoutes(api, { access, store }) } : {}),
       ...lightRoutes({ light: o.light }),
       ...(o.lights ? lightsRoutes({ ...o.lights, loadLibrary: loaders.loadLibrary, visibleLook: looks.visibleLook,

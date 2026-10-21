@@ -14,6 +14,7 @@ import { buildCritiqueMessage, buildNotesMessage, groupWarnings } from './critiq
 import { pickDocs } from './docs-turn.ts';
 import { applyEdits, buildEditsRepairMessage, editsSchema, fieldsOf } from './edits.ts';
 import { expand } from './expand.ts';
+import { changesOf, checksOf, explainOf } from './explain.ts';
 import { closeUpGroups } from './frames-closeup.ts';
 import { viewFrames } from './frames-view.ts';
 import { NO_ROUND, ownerOutcome, type Round } from './idea-log.ts';
@@ -78,21 +79,27 @@ export async function compose(o: { adapter: Adapter, ctx: Context, catalog: Cata
   };
   const check = (look: ReturnType<typeof valid>, seconds: number) => renderCheck(o.box, look,
     { seconds, rig: ctx.rig, lane: o.lane, light: ctx.light });
+  /** What a round's answer says of itself and what it changed from `before` (expanded; none: the first). */
+  const told = (raw: unknown, x: ReturnType<typeof expand>, before: ReturnType<typeof expand> | null) => ({
+    ...explainOf(raw), changes: changesOf(before?.look as never ?? null, x.look as never, raw, catalog) });
   const expanded = (x: ReturnType<typeof expand>) => `${x.errors.length} errors, ${x.notes.length} params changed`;
   let cur, rounds = 0;
   /** A refinement's first round: edits to `base`, applied; one more round when some do not apply. */
   const edited = async (base: Composition) => {
     const comp = ctx.prompt?.().schema ?? {}, schema = editsSchema(comp), fields = fieldsOf(comp);
     const did = (n: number) => `${n} edits did not apply`, a = await ask('compose', undefined, undefined, schema);
+    const from = expand(base, catalog);
     let got = applyEdits(base, a.raw, fields);
-    a.round.end({ outcome: got.failed.length ? did(got.failed.length) : 'applied', notes: got.failed });
+    a.round.end({ outcome: got.failed.length ? did(got.failed.length) : 'applied', notes: got.failed,
+      ...told(a.raw, expand(got.comp, catalog), from) });
     if (got.failed.length && !o.stopping()) {
       rounds++;
       try {
         const reason = got.failed, message = buildEditsRepairMessage(reason);
         const b = await ask('edits', { answer: a.raw, errors: [], message }, undefined, schema), next = applyEdits(base,
           b.raw, fields);
-        b.round.end({ outcome: next.failed.length ? did(next.failed.length) : 'applied', reason, notes: next.failed });
+        b.round.end({ outcome: next.failed.length ? did(next.failed.length) : 'applied', reason, notes: next.failed,
+          ...told(b.raw, expand(next.comp, catalog), from) });
         if (next.failed.length <= reason.length) got = next;
       } catch (err) {
         o.log.warn?.(`[generate] idea ${id}: edits repair failed (${why(err)})`);
@@ -105,15 +112,15 @@ export async function compose(o: { adapter: Adapter, ctx: Context, catalog: Cata
   else {
     const a = await ask(o.kind ?? 'compose');
     cur = made(a.raw);
-    a.round.end({ outcome: expanded(cur.x), notes: [...errs(cur.x), ...cur.x.notes] });
+    a.round.end({ outcome: expanded(cur.x), notes: [...errs(cur.x), ...cur.x.notes], ...told(a.raw, cur.x, null) });
   }
   if (cur.x.errors.length && !o.stopping()) {
     rounds++;
     try {
-      const a = await ask('repair', { answer: cur.raw, errors: cur.x.errors }), reason = errs(cur.x);
+      const a = await ask('repair', { answer: cur.raw, errors: cur.x.errors }), reason = errs(cur.x), was = cur.x;
       cur = made(a.raw);
       a.round.end({ outcome: `for ${reason.length} errors: ${expanded(cur.x)}`, reason,
-        notes: [...errs(cur.x), ...cur.x.notes] });
+        notes: [...errs(cur.x), ...cur.x.notes], ...told(a.raw, cur.x, was) });
     } catch (err) { // the answer before, less what it got wrong, still makes a look
       o.log.warn?.(`[generate] idea ${id}: repair failed (${why(err)})`);
     }
@@ -126,7 +133,7 @@ export async function compose(o: { adapter: Adapter, ctx: Context, catalog: Cata
       const a = await ask('notes', { answer: cur.raw, errors: [], message: buildNotesMessage(reason) });
       const next = made(a.raw), better = !next.x.errors.length && next.x.notes.length < reason.length;
       const outcome = `for ${reason.length} params changed: ${expanded(next.x)}, ${better ? 'kept' : 'not kept'}`;
-      a.round.end({ outcome, reason, notes: [...errs(next.x), ...next.x.notes] });
+      a.round.end({ outcome, reason, notes: [...errs(next.x), ...next.x.notes], ...told(a.raw, next.x, cur.x) });
       if (better) cur = next;
     } catch (err) {
       o.log.warn?.(`[generate] idea ${id}: params repair failed (${why(err)})`);
@@ -135,20 +142,23 @@ export async function compose(o: { adapter: Adapter, ctx: Context, catalog: Cata
   let look = valid(cur);
   const long = (l: typeof look) => (o.critique ? lookDuration(l) : CHECK_SECONDS);
   let seen: Seen | null = await check(look, long(look)), checkMs = seen?.ms ?? 0;
+  ctx.journal?.amend({ checks: checksOf(seen) });
   if (seen?.errors.length && !o.stopping()) {
     rounds++;
     try {
       const reason = seen.errors.map((e) => `${e.path}: ${e.message}`.slice(0, 200));
       const a = await ask('runtime', { answer: cur.raw, errors: seen.errors }), next = made(a.raw);
-      let outcome = `for ${reason.length} runtime errors: ${expanded(next.x)}`;
+      let outcome = `for ${reason.length} runtime errors: ${expanded(next.x)}`, checks;
+      const said = told(a.raw, next.x, cur.x);
       if (!next.x.errors.length) {
         const fixed = valid(next), again = await check(fixed, long(fixed));
+        checks = checksOf(again);
         checkMs += again?.ms ?? 0;
         const better = !!again && again.errors.length < seen.errors.length;
         outcome += better ? ', kept' : ', still throws';
         if (better) [cur, look, seen] = [next, fixed, again];
       }
-      a.round.end({ outcome, reason });
+      a.round.end({ outcome, reason, ...said, ...(checks ? { checks } : {}) });
     } catch (err) {
       o.log.warn?.(`[generate] idea ${id}: runtime repair failed (${why(err)})`);
     }
@@ -163,7 +173,7 @@ export async function compose(o: { adapter: Adapter, ctx: Context, catalog: Cata
       outcomes.push('skipped: over budget');
       break;
     }
-    let outcome = 'unchanged', round = NO_ROUND, warnings: string[] = [], sent: string[] = [];
+    let outcome = 'unchanged', round = NO_ROUND, warnings: string[] = [], sent: string[] = [], said = {}, checks;
     try {
       const aim = o.aim ?? ctx.text, seconds = shown.seconds || lookDuration(look);
       const view = viewFrames(shown.bytes, ctx.rig, { at: stillTimes(seconds), stills: o.critique === 'images',
@@ -178,19 +188,22 @@ export async function compose(o: { adapter: Adapter, ctx: Context, catalog: Cata
         (r) => images.forEach((s) => r.still(s.png, { view: 'group' in s ? s.group : 'front', at: s.at })));
       round = a.round;
       const next = made(a.raw);
+      said = told(a.raw, next.x, cur.x);
       if (JSON.stringify(next.raw) === JSON.stringify(cur.raw)) outcome = 'unchanged';
       else if (next.x.errors.length) outcome = `kept: the revision named ${next.x.errors[0]!.message.slice(0, 60)}`;
       else {
         const revised = valid(next), more = n + 1 < (o.critiques ?? 1);
         const after = await check(revised, more ? long(revised) : CHECK_SECONDS);
         checkMs += after?.ms ?? 0;
+        checks = checksOf(after);
         if (after?.errors.length) outcome = 'kept: the revision threw';
         else [cur, look, outcome, shown] = [next, revised, 'revised', more ? after : shown];
       }
     } catch (err) {
       outcome = `failed: ${why(err)}`;
     }
-    round.end({ outcome, ...(warnings.length ? { warnings } : {}), notes: sent });
+    round.end({ outcome, ...(warnings.length ? { warnings } : {}), notes: sent, ...said,
+      ...(checks ? { checks } : {}) });
     outcomes.push(ownerOutcome(outcome)); // the critique's outcome becomes the idea's verdict
   }
   if (outcomes.length) critique = { ms: monoNow() - t0, outcome: outcomes.join(', ') };
