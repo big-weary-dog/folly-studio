@@ -22,11 +22,11 @@ let tmp;
 beforeAll(async () => { tmp = await mkdtemp(path.join(os.tmpdir(), 'studio-frames-host-')); });
 afterAll(() => rm(tmp, { recursive: true, force: true }));
 
-/** Nice values of this process's threads, from /proc (Linux keeps nice per thread), skipping any that just exited. */
+/** A thread's nice value, from /proc (Linux keeps nice per thread). */
+const niceOf = (tid) => Number(fs.readFileSync(`/proc/self/task/${tid}/stat`, 'utf8').split(') ')[1].split(' ')[16]);
+/** Nice values of this process's threads, skipping any just exited; listed as strings, not in tid order. */
 const threadNice = () => fs.readdirSync('/proc/self/task').flatMap((tid) => {
-  try {
-    return [Number(fs.readFileSync(`/proc/self/task/${tid}/stat`, 'utf8').split(') ')[1].split(' ')[16])];
-  } catch { return []; }
+  try { return [niceOf(tid)]; } catch { return []; }
 });
 
 /** Frames that change over time (so they compress differently by quality), `frames` long. */
@@ -72,7 +72,7 @@ describe('low priority, one at a time', () => {
     assert.deepEqual(seen, [0, 1, 2, 3]);
     assert.ok(fs.existsSync(path.join(out, 'manifest.json')));
     assert.ok(threadNice().includes(10), 'a thread at nice 10');
-    assert.equal(threadNice()[0], 0, 'the event loop keeps its priority');
+    assert.equal(niceOf(process.pid), 0, 'the event loop keeps its priority');
     await assert.rejects(jobs.run('wire', { file, sha256: '0'.repeat(64), dir: out, hash: 'cd'.repeat(16),
       quality: 5, maxBytes: bytes.length }), /changed/);
     await jobs.close();
