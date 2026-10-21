@@ -42,6 +42,7 @@ studio/
   shared/schemas/ zod: look.ts (what the API stores) generated.ts (a generator's look, its JSON Schema) api.ts (bodies,
                   users, ideas) rig.ts (the rig, the library index) models.ts (the model registry) access.ts (invites, limits); the server's at
                   run time, the browser's as types
+  shared/plays.ts what plays (PLAYS), the server's and the browser's at run time
   render-box/     render.ts: bakes a look to .fseq inside bubblewrap; renderer.ts: the frame loop
   fleet-box/      check.ts + BRIEF.template.md for the boxed Fleet worker
   tools/          build_rig.py  build_palettes.py  budgets.ts (+ budgets.json: what oxlint cannot check, line budgets)
@@ -288,6 +289,7 @@ below.
   while a control holds it. Nothing else reads it.
 - **Automation**: `{ <global or macro>: [[t, v], …] }`, ≤ 16 lanes of ≤ 256 points, t 0–600 s ascending (to
   the ms); linear between points, held before the first and after the last; it replaces the static value.
+- **What plays** (`PLAYS`), versions and History: `SPEC-history.md`, part of this contract.
 - `data/palettes.json` (`tools/build_palettes.py [--check]`, from `td/palettes/*.csv` and each one's line in
   `td/palettes/themes.txt`; roles as `td/README.md` "Colours"):
   `{ version: 1, roles: [low, body, accent, high], palettes: [{ name, theme, low, body, accent, high }] }`. A look
@@ -514,8 +516,9 @@ GET    /api/looks?scope=mine|gallery          → { looks: [listed] }  metadata 
 POST   /api/looks    { title, summary?, layers, duration?, bpm?, globals?, automation?, ideaId?, chain? } → { look }
 GET    /api/looks/:id                         → { look }             mine, or shared
 PUT    /api/looks/:id { title?, summary?, layers?, duration?, bpm?, globals?, automation?, shared?, reviewed?,
-                     flashOverride?, chain? } → { look }  owner only (reviewed: a curator); keeps versions; layers
-                                              without chain: 2 converted
+                     flashOverride?, chain?, restoredFrom?, versionName? } → { look }  owner only (reviewed: a
+                                              curator); layers without chain: 2 converted
+GET|PUT /api/looks/:id/versions[/:n]          the owner's versions: SPEC-history
 DELETE /api/looks/:id                         → { ok: true }         owner only
 POST   /api/looks/:id/bake                    → 202 { bake }      owner, or a curator if shared; queued
 GET    /api/looks/:id/frames[?compress=1|zstd|zlib] → the baked .fseq   mine, or shared; 404 if none (attachment);
@@ -541,10 +544,9 @@ has the rest.
 its current layers; large-area flashing in any bake blocks (flashing on small regions only
 warns: `bake.warning`) unless the curator gives `flashOverride`, their reason (3–500 characters), with a render-box
 bake that fails only the flash check: it is kept as `look.flashOverride = { reason, by, at }` (and logged), and
-cleared with the review (400 without `reviewed: true`). Changing `layers`, `duration`, `globals` or `automation`
-(`null` clears either) makes a version (`{ title, summary, layers, duration, bpm?, globals?, automation?, savedAt }`),
-drops the bake and its frames and clears `reviewed`; so does `bpm` (`null` clears it) on a look that moves to the beat
-(a bake's render fields hold it: a tempo nobody flash-checked), and elsewhere it is only a grid. Clips that overlap
+cleared with the review (400 without `reviewed: true`). Changing what plays (`PLAYS`; `null` clears `bpm`, `globals`
+or `automation`) makes a version, and a change to the frames drops the bake and clears `reviewed` (SPEC-history).
+Clips that overlap
 or fall outside 0–600 s, and a duration outside 1–600 s, are refused with 400.
 
 `user`, `access`, `invite` and `person`: SPEC-access.

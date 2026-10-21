@@ -1,30 +1,24 @@
 // Refining a look with a model (SPEC-generators "Refine"): a follow-up request, a critique of its frames, or a
 // runtime error to fix. The look is saved first, the model's revision replaces it on the server (as an edit, with a
-// version), and what changed shows here with an undo that puts back what was there. One refinement at a time.
+// version) and is one step in History; what changed shows here, and Undo is History's undo, saved. One at a time.
 import { signal } from '@preact/signals';
 import { useEffect, useState } from 'preact/hooks';
 
 import { api, statusOf } from '../api.ts';
 import { isPending } from '../../../shared/idea-status.ts';
-import type { Look } from '../../../shared/schemas/api.ts';
 import type { ModelChoices } from '../../../shared/schemas/models.ts';
 import { signedOut } from './session.ts';
 import { Field, toast } from './kit.tsx';
-import { saveBody, type Studio } from './studio-store.ts';
+import type { Step } from './history/steps.ts';
+import type { Studio } from './studio-store.ts';
 
 type Ask = { text?: string, critique?: true, fix?: { layer: string, error: string } };
-type Run = { lookId: string, busy: boolean, by?: string, ideaId?: string, changes?: string[],
-  before?: ReturnType<typeof saveBody>, error?: string };
+type Run = { lookId: string, busy: boolean, by?: string, ideaId?: string, changes?: string[], step?: Step,
+  error?: string };
 const run = signal<Run | null>(null);
 const model = signal('');   // '' → the model that made the look
 let choices: Promise<ModelChoices> | null = null;
 
-
-/** The look as the server now has it, in place of the one being edited. */
-async function reload(st: Studio, id: string) {
-  const { look } = await api.look(id);
-  if (st.lookId.peek() === id && st.data.rig) st.setup(st.data.rig, st.data.library, look as Look);
-}
 
 /** Ask for a refinement of the open look: save it, wait for the model, take its revision. */
 export async function refine(st: Studio, ask: Ask) {
@@ -36,7 +30,6 @@ export async function refine(st: Studio, ask: Ask) {
   if (!st.lookId.peek() || st.dirty.peek()) await st.save();
   const id = st.lookId.peek();
   if (!id || st.dirty.peek()) return;
-  const before = saveBody(st.look.peek());
   run.value = { lookId: id, busy: true };
   try {
     let { idea } = await api.refine(id, { ...ask, ...(model.peek() ? { model: model.peek() } : {}) });
@@ -44,25 +37,25 @@ export async function refine(st: Studio, ask: Ask) {
     while (isPending(idea)) ({ idea = idea } = await api.idea(idea.id, `${idea.status}@${idea.updatedAt}`));
     if (idea.status === 'failed') throw new Error(idea.error || 'The refinement failed.');
     const changes = idea.changes ?? [];
-    if (changes.length) await reload(st, id);
-    run.value = { lookId: id, busy: false, by: idea.by, ideaId: idea.id, changes, before };
+    if (changes.length && st.lookId.peek() === id) {   // the revision as the server saved it: one step
+      st.revised((await api.look(id)).look, { ideaId: idea.id, asked: asked(ask), by: idea.by, changes });
+    }
+    run.value = { lookId: id, busy: false, by: idea.by, ideaId: idea.id, changes, step: st.step() };
   } catch (err) {
     if (statusOf(err) === 401) return signedOut();
     run.value = { lookId: id, busy: false, error: (err as Error).message };
   }
 }
 
+const asked = (a: Ask) => a.text ?? (a.critique ? 'Critique' : a.fix ? `Fix ${a.fix.layer}` : '');
+
+/** Undo, as History's, saved: the server puts the look back and tells the AI its round was undone. */
 async function undo(st: Studio, r: Run) {
-  try {
-    await api.updateLook(r.lookId, r.before!);
-    if (r.ideaId) await api.undoRefine(r.ideaId);
-    await reload(st, r.lookId);
-    run.value = null;
-    toast('Put back as it was.', { kind: 'ok' });
-  } catch (err) {
-    if (statusOf(err) === 401) return signedOut();
-    toast(`Could not undo: ${(err as Error).message}`, { kind: 'error' });
-  }
+  const was = st.history.at.peek();
+  st.undoStep(r.step);
+  if (st.history.at.peek() === was || !(await st.save())) return;
+  run.value = null;
+  toast('Put back as it was.', { kind: 'ok' });
 }
 
 /** "Ask <model> to fix": a runtime error sent to the model with the look. */

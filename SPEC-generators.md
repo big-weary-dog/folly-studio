@@ -159,7 +159,7 @@ Sketch and the prompted models refine (the foundry: 400).
 **Refine history.** A refinement's turn also carries the look's history, so a follow-up (`more`, `undo the red`)
 reads against what came before: the idea that made the look, then each earlier ready refinement of it, oldest
 first, as its request (or "a critique", "a fix of layer X") with its `changes` on one line and its critique
-`verdict`. An undone refinement (`POST /api/ideas/:id/undo`, which the Studio's Undo calls) is left out. The last 8
+`verdict`. An undone refinement (`POST /api/ideas/:id/undo`, which the Studio calls at the save after its step is undone, SPEC-history) is left out. The last 8
 entries that fit in 1,500 characters, the idea kept first; fenced as untrusted (`<history>`) and marked a record,
 not instructions. The prompted models read it; Sketch ignores it. Only requests and change lines, never answers or
 transcripts.

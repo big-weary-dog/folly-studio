@@ -2,6 +2,7 @@
 // frames (one in flight, at 40, 30 or 20 fps by their cost) and exports. After `init` it talks over a MessagePort:
 // Chrome takes a millisecond to unpack a window message from an opaque origin. The page pauses hung layers itself;
 // this watchdog rebuilds it only when it stops answering.
+import { extrasOf, type ExtraKey } from '../../shared/plays.ts';
 import type { Automation, Globals } from '../../shared/schemas/look.ts';
 import type { LibraryEntry, Rig } from '../../shared/schemas/rig.ts';
 import SANDBOX_URL from '../sandbox.html?sandbox';
@@ -23,7 +24,8 @@ const ema = (old: number | undefined, v: number) => (old ? old + (v - old) * 0.1
 
 /** A look's globals, automation and tempo, as the sandbox takes them; clock 'fresh': not continued from the look
  * before (the live stage, whose lanes make every viewer's clock the same). */
-export type Extra = { globals?: Globals | null; automation?: Automation | null; bpm?: number; clock?: 'fresh' };
+export type Extra = { [K in ExtraKey]?: { globals: Globals | null, automation: Automation | null, bpm: number }[K] }
+  & { clock?: 'fresh' };
 
 type Compiled = { id: string; ok: boolean; error?: string; params: Record<string, unknown> };   // params: untrusted
 /** A layer's compile report (SPEC "Sandbox protocol"), each module's code added. */
@@ -81,7 +83,7 @@ export class Runtime {
   /** layers as saved (+ enabled: false). */
   setLook(layers: Layer[], extra: Extra = {}) {
     this.layers = layers;
-    this.extra = { globals: extra.globals, automation: extra.automation, bpm: extra.bpm, clock: extra.clock };
+    this.extra = { ...extrasOf(extra), clock: extra.clock };
     this.lookDirty = true;
     for (const id of this.layerMs.keys()) if (!layers.some((l) => l.id === id)) this.layerMs.delete(id);
   }

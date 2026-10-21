@@ -61,21 +61,33 @@ export function Studio({ params, query }: ViewProps) {
       pv.msg.value = { text: `Could not open the Studio: ${err.message}`, error: true };
       toast(err.message, { kind: 'error' });
     });
-    // Ctrl/⌘+S saves; Space plays or pauses unless a control or a dialog has it.
+    // Ctrl/⌘+S saves; Ctrl/⌘+Z undoes and Ctrl/⌘+Shift+Z (or Ctrl+Y) redoes, unless a text field or the code editor
+    // has them (their own undo); Space plays or pauses unless a control or a dialog has it.
     const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); st.save(); return; }
-      const t = e.target as Element;
+      const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey, t = e.target as Element;
+      if (mod && k === 's') { e.preventDefault(); st.save(); return; }
+      if (mod && (k === 'z' || k === 'y') && !t.closest?.('input, textarea, select, [contenteditable], dialog')) {
+        e.preventDefault();
+        if (k === 'z' && !e.shiftKey) st.undo();
+        else st.redo();
+        return;
+      }
       if (e.key !== ' ' || t.closest?.('button, input, select, textarea, [contenteditable], dialog')) return;
       e.preventDefault();
       pv.setPlaying(!st.playing.peek());
     };
+    const seal = () => st.history.seal();   // a drag or a field's typing ends: its step takes no more
     document.addEventListener('keydown', onKey);
+    document.addEventListener('pointerup', seal);
+    document.addEventListener('focusout', seal);
     return () => {
       alive = false;
       unreport();
       delete leaveGuard.isDirty;
       delete leaveGuard.discard;
       document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerup', seal);
+      document.removeEventListener('focusout', seal);
       pv.destroy();
       st.dispose();
     };

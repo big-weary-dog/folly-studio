@@ -1,7 +1,7 @@
 // HTTP API client (SPEC "HTTP API"): JSON in and out, cookie session. A non-2xx response throws an ApiError with the
 // server's message and `status` (0: the server could not be reached).
 import type {
-  Bake, Explore, FlashSettings, Idea, Listed, Look, LookCreate, LookPatch, User,
+  Bake, Explore, FlashSettings, Idea, Listed, Look, LookCreate, LookPatch, User, Version, VersionListed,
 } from '../../shared/schemas/api.ts';
 import type { Access, Invite, Person, PersonLimits } from '../../shared/schemas/access.ts';
 import type { LightSettings } from '../../shared/schemas/light.ts';
@@ -71,6 +71,12 @@ export const api = {
   createLook: (look: LookCreate) => request<{ look: Look }>('POST', '/api/looks', look),
   updateLook: (id: string, patch: LookPatch) => request<{ look: Look }>('PUT', `/api/looks/${enc(id)}`, patch),
   deleteLook: (id: string) => request('DELETE', `/api/looks/${enc(id)}`),
+  /** One's own look's versions, newest first (SPEC-history), and one with its content. */
+  versions: (id: string) => request<{ versions: VersionListed[] }>('GET', `/api/looks/${enc(id)}/versions`),
+  version: (id: string, n: number) => request<{ version: Version }>('GET', `/api/looks/${enc(id)}/versions/${n}`),
+  /** Names version `n` (it is kept), or unnames it (`null`). */
+  nameVersion: (id: string, n: number, name: string | null) =>
+    request<{ version: VersionListed }>('PUT', `/api/looks/${enc(id)}/versions/${n}`, { name }),
   /** A refinement undone: its look was put back (SPEC-generators "Refine history"). */
   undoRefine: (id: string) => request<{ idea: Idea }>('POST', `/api/ideas/${enc(id)}/undo`),
   /** A refinement of one's own look (SPEC-generators "Refine"): its idea, to follow with idea(). */

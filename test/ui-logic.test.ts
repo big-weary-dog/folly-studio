@@ -167,6 +167,7 @@ function fakeStudio(layers: Layer[], extra: Partial<Draft> = {}) {
     layerById: (id: string) => look.peek().layers.find((l) => l.id === id) || null,
     select: (id: string | null) => { selectedId.value = id; },
     edit: (fn: (l: Draft) => Partial<Draft>) => { look.value = { ...look.value, ...fn(look.value) }; },
+    step: () => null, undoStep: () => {},
     editLayer: (id: string, fn: (l: Layer) => Partial<Layer>) => st.edit((L) => ({
       layers: L.layers.map((l) => (l.id === id ? { ...l, ...fn(l) } : l)) })),
   };

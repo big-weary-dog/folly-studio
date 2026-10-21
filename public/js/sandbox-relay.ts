@@ -5,6 +5,7 @@
 // `while (true) {}` would freeze the tab. It runs in a Worker made from a Blob, and this page relays and keeps time.
 // On an overrun it terminates the worker, blames a layer (the one compiling, or each run alone in a throwaway
 // worker), reports it as hung, and starts a fresh worker with the others. It exports nothing: it is a script.
+import { extrasOf } from '../../shared/plays.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
 import { liveSetOf } from './live-set.ts';
 import type { Extra, FrameError, ToSandbox } from './runtime.ts';
@@ -83,8 +84,7 @@ const layerId = (l: Layer, n: number) => (l && l.id !== undefined ? l.id : 'laye
 const codeOf = (l: Layer) => (Array.isArray(l.modules)
   ? l.modules.map((m) => (m && typeof m.code === 'string' ? m.code : '')).join('\u0000')
   : typeof l.code === 'string' ? l.code : '');
-const lookExtra = (m: Extra): Extra => ({ globals: m.globals, automation: m.automation, bpm: m.bpm,
-  ...(m.clock === 'fresh' ? { clock: m.clock } : {}) });
+const lookExtra = (m: Extra): Extra => ({ ...extrasOf(m), ...(m.clock === 'fresh' ? { clock: m.clock } : {}) });
 const enabled = (l: Layer) => l.enabled !== false
   && (typeof l.level === 'number' && Number.isFinite(l.level) ? l.level > 0 : true);
 

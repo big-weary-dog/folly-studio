@@ -69,11 +69,12 @@ function Chain({ st, pv }: Props) {
     setMods((list) => insertModule(list, m, cur?.id));
     st.pickModule(m.id);
   }
-  function remove(m: Module, i: number) {
+  function remove(m: Module) {
     if (mods.length <= 1 || !l) return;
     setMods((list) => list.filter((x) => x.id !== m.id));
+    const step = st.step();
     toast(`Deleted “${m.title}”.`, { action: { label: 'Undo', onClick: () => {
-      st.editLayer(l.id, (x) => ({ modules: [...x.modules.slice(0, i), m, ...x.modules.slice(i)] }));
+      st.undoStep(step);
       st.pickModule(m.id);
     } } });
   }
@@ -95,7 +96,7 @@ function Chain({ st, pv }: Props) {
       <ol class="chain-list" aria-label="Modules, first to last">
         {l && mods.map((m, i) => <ModuleRow key={m.id} m={m} i={i} mods={mods} first={first} selected={i === at}
           join={joins[i]} reach={reaches.filter((r) => r.from <= i && i <= r.to)} lit={at}
-          state={st.status.module(l.id, m)} pick={() => st.pickModule(m.id)} remove={() => remove(m, i)}
+          state={st.status.module(l.id, m)} pick={() => st.pickModule(m.id)} remove={() => remove(m)}
           move={(dir) => move(i, i + dir)} set={(patch) => st.editModule(l.id, m.id, () => patch)} />)}
       </ol>
     </section>);

@@ -5,6 +5,7 @@ import {
   type Compiled, compileModule, layerModules, ledChannels, lightOf, linkMap, prepareLayer, type PreparedLayer,
   type PreparedLook, prepareLight, prepareLook, prepareScene, renderFrame, type Scene, setLibrary, upgradedParams,
 } from './pattern-core.ts';
+import { extrasOf } from '../../shared/plays.ts';
 import { setLive } from './live-set.ts';
 import type { Extra, ToSandbox } from './runtime.ts';
 
@@ -74,7 +75,7 @@ function onLook(msg: Message<'look'>) {
   for (const key of compiledByKey.keys()) if (!keep.has(key)) compiledByKey.delete(key);
   prepared = next;
   layerMs = Object.fromEntries(next.map((L) => [L.id, 0]));
-  globals = { globals: msg.globals, automation: msg.automation, bpm: msg.bpm };
+  globals = extrasOf(msg);
   live = prepareLook(globals, msg.clock === 'fresh' ? undefined : live ?? undefined);
   post({ type: 'compiled', layers: report });
 }

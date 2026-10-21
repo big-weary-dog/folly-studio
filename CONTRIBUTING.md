@@ -146,10 +146,11 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `server.ts` | Entry point: the settings read (`readConfig()`), a bad one refused by name, start, graceful stop |
 | `src/config.ts`, `tools/config-check.ts` | Every setting the server reads, parsed with zod once at start (`readConfig()`) and passed down as `Config`; a module given none parses its environment (`configOf()`); `npm run config:check` |
 | `src/app.ts` | `createServer()`: the store, auth, queues, frames cache, the API and the built app on one Fastify server |
-| `src/api.ts`, `api-looks.ts`, `api-models.ts`, `api-access.ts`, `http.ts` | The HTTP API (SPEC "HTTP API"): accounts, ideas (and their long polls), the library and login limits; looks; the models; invite codes and people; its plumbing (the CSRF hook, JSON revalidated and compressed, errors as `{ error }`, 405s, the logger) |
+| `src/api.ts`, `api-looks.ts` (+ `look-versions.ts`, its versions), `api-models.ts`, `api-access.ts`, `http.ts` | The HTTP API (SPEC "HTTP API"): accounts, ideas (and their long polls), the library and login limits; looks; the models; invite codes and people; its plumbing (the CSRF hook, JSON revalidated and compressed, errors as `{ error }`, 405s, the logger) |
 | `src/auth.ts` | Accounts, roles (member, curator, admin), scrypt hashes that carry their cost (re-hashed at login when older), sessions |
 | `shared/schemas/` | zod schemas the server runs and the browser takes as types: `look.ts` (what a look may hold, the 400s naming the first problem), `generated.ts` (a generator's look cleaned leniently; its JSON Schema for structured output), `api.ts` (request bodies, users, ideas; its account limits from `public/data/account.json`, which the sign-up form shows too), `rig.ts` (the rig, the library index), `models.ts` (the model registry, and `TRANSPORT_CAPS`: what each transport may do), `access.ts` (limits, invite and person bodies) |
 | `shared/chain-order.ts` | Pure: looks from before the one rule converted so they render as they did (SPEC "Looks" > chain) |
+| `shared/plays.ts` | What plays (`PLAYS`, `playsOf`, `playsChanged`): the one list versions, bakes, the stage, the sandbox, export and the Studio's save and undo read (SPEC "Looks"); no zod, so the browser takes it at run time |
 | `shared/idea-status.ts` | Pure, so the browser imports it too: an idea's states (`IDEA_STATUS`), `isPending()` and `transition()`, which refuses a move that is not one |
 | `src/store.ts` | JSON-file storage under `STUDIO_DATA`, typed per collection |
 | `src/clock.ts` | `monoNow()` for durations and `serverNow()` (the wall clock at boot, then monotonic) for Live: the host's wall clock can step back |
@@ -176,7 +177,7 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `public/js/viewer.ts`, `viewer-input.ts`, `viewer-gl.ts` | The 3D view (SPEC "The 3D view"): the orbit camera; its pointer and keys; the Points drawing |
 | `public/js/playa/` | The Playa view, loaded on first use: `geometry.ts` builds it from the rig's render hints, `renderer.ts` draws (light texture, spill, bloom, tone map, tiers), `glsl.ts` |
 | `public/js/main.tsx`, `api.ts` | The entry (renders the shell); the fetch wrapper, typed by `shared/schemas/` |
-| `public/js/ui/` | The UI, Preact components in TSX with signals for state. `app.tsx`: the shell, routing (history API, views loaded on first use) and the header, `session.ts` what views share with it (the user, navigation, the guard on unsaved edits); `auth`, `pages` (ideas, my looks, the gallery), `admin` (the Admin page's tabs, over `models`, `access`, `light` and `reports`); `kit.tsx` toasts, dialogs, fields and helpers, `rose.tsx` the rose. The Studio: `studio.tsx` loads it, `studio-store.ts` holds its state (the look, replaced on each edit; the selection; layout) and saves, `studio-layout.tsx` lays out the panes; `preview.ts` drives the imperative 3D view and sandbox (one clock, the flash guard, baked playback) and `preview-view.tsx` wraps them; `layers`, `chain`, `params` (+ `bindings.ts`), `picks` (colour picks, + `pick-model.ts`), `editor`, `shelf` (auditions), `look-globals`, `bake`, `export`; the timeline is `timeline.tsx` (+ `-state`, `-tools`, `-input`, `-auto`, `-model`); `layer-status.ts` is what the sandbox says; `model.ts` the rig, library, the Studio's `Layer` (a chain) and its helpers; `live/` the live stage (`live.tsx` /live, `control.tsx` and `fader.tsx` /live/control, `socket.ts` its socket and clock, `stage.ts` the view and sandbox on that clock, `lanes.ts` the state's browser twin); `bug-report.tsx` F8 and its form (+ `report-studio.ts`, the Studio's part and its replay), `reports.tsx` the admins' Reports page |
+| `public/js/ui/` | The UI, Preact components in TSX with signals for state. `app.tsx`: the shell, routing (history API, views loaded on first use) and the header, `session.ts` what views share with it (the user, navigation, the guard on unsaved edits); `auth`, `pages` (ideas, my looks, the gallery), `admin` (the Admin page's tabs, over `models`, `access`, `light` and `reports`); `kit.tsx` toasts, dialogs, fields and helpers, `rose.tsx` the rose. The Studio: `studio.tsx` loads it, `studio-store.ts` holds its state (the look, replaced on each edit; the selection; layout) and saves, `studio-layout.tsx` lays out the panes; `preview.ts` drives the imperative 3D view and sandbox (one clock, the flash guard, baked playback) and `preview-view.tsx` wraps them; `layers`, `chain`, `params` (+ `bindings.ts`), `picks` (colour picks, + `pick-model.ts`), `editor`, `shelf` (auditions), `look-globals`, `bake`, `export`; the timeline is `timeline.tsx` (+ `-state`, `-tools`, `-input`, `-auto`, `-model`); `history/` History (`steps.ts` the session's steps and undo, in the main bundle; `button.tsx` in the bar, `history.tsx` the drawer loaded on first use, `steps-list.tsx` and `versions.tsx` its tabs); `layer-status.ts` is what the sandbox says; `model.ts` the rig, library, the Studio's `Layer` (a chain) and its helpers; `live/` the live stage (`live.tsx` /live, `control.tsx` and `fader.tsx` /live/control, `socket.ts` its socket and clock, `stage.ts` the view and sandbox on that clock, `lanes.ts` the state's browser twin); `bug-report.tsx` F8 and its form (+ `report-studio.ts`, the Studio's part and its replay), `reports.tsx` the admins' Reports page |
 | `public/patterns/` | The built-in library (`index.json` with each entry's `kind` and `category`, + one file each): sources, warps and filters, also the AI's examples; presets, recipes of them, in the index alone |
 | `tools/` | `build_rig.py` (+ `cog_rig.py`: City of Gods; `rig_render.py`: what Mirage draws), `build_palettes.py` (data), `sacn-play.ts`, `budgets.ts` (the checks oxlint lacks, with line budgets in `budgets.json`; oxlint's rules are `.oxlintrc.jsonc` at the root), `backup.ts`, `frames-bench.ts` (brotli quality against encode time, and each look's render time), `reports.ts` (F8 bug reports on this machine: `list`, `get <id>`) |
 | `README.md`, `DESIGN.md`, `docs/` | What it is; what was built and why (`docs/screenshots/`); `docs/HOSTING.md`, hosting at home |
@@ -184,9 +185,12 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `dist/` | What `npm run build` makes; not committed |
 
 Browser code imports only from `public/` and packages. Server code imports only `pattern-core.ts`, `fseq.ts`, `scrub.ts`
-and JSON from `public/`. Both take `shared/`: the server at run time, the browser as types only (`import type`; `idea-status.ts`,
-pure, at run time too), so zod reaches the browser only if a view deliberately imports a schema; `shared/` itself imports only zod, itself and the
-core's constants and data. oxlint checks all three, by import path.
+and JSON from `public/`. Both take `shared/`: the server at run time, the browser as types only (`import type`), so zod
+never ships to the browser. Two pure files are the exceptions, the browser's at run time too: `idea-status.ts` (an
+idea's states), and `plays.ts`, since what plays must be one list that the server's versions and bakes and the
+Studio's save, sandbox and export all read, and a copy in `public/` would drift. They import nothing but the core's
+constants (no zod, no schema); `shared/schemas/look.ts` re-exports `plays.ts` for the server. `shared/` otherwise
+imports only zod, itself and the core's constants and data. oxlint checks all of this, by import path.
 
 ## The rules, and why
 
@@ -261,7 +265,7 @@ cover.
 
 ## Performance budgets
 
-- As built, gzipped: the app's scripts, styles and sandbox page (`dist/assets/`) ≤ 220 KB; the login page (the
+- As built, gzipped: the app's scripts, styles and sandbox page (`dist/assets/`) ≤ 240 KB; the login page (the
   shell, its entry and what that imports, the sign-in view) ≤ 40 KB. `test/build.test.js` measures both on a fresh
   build. Views and their styles load on first use. Raised from 165 KB for pictures: a picture param kind,
   checked in the engine with errors an agent repairs from, and edited in Studio (+2 KB); then for the ideas API

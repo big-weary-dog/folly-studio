@@ -9,6 +9,7 @@ import {
   MAX_RADIUS, MODULE_KINDS, OLD_DIRECTIONS, PALETTE_ROLES, type Picture, pictureProblem, SOURCE_BLENDS, TRANSITIONS,
 } from '../../public/js/pattern-core.ts';
 
+export * from '../plays.ts';
 export {
   BLENDS as BLEND_MODES, MODULE_KINDS as KINDS, SOURCE_BLENDS as SOURCE_BLEND_MODES,
 } from '../../public/js/pattern-core.ts';

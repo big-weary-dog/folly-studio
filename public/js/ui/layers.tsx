@@ -14,14 +14,15 @@ import type { Studio } from './studio-store.ts';
 const STATUS_TEXT: Record<string, string> = { ok: 'Running', pending: 'Compiling…', compile: 'Compile error',
   runtime: 'Runtime error', hung: 'Hung — paused', muted: 'Muted' };
 type Props = { st: Studio; pv: Preview };
+type EditOptions = Parameters<Studio['edit']>[1];
 
 /** Put a layer in the stack (by default above the selected one) and select it. */
-function insertLayer(st: Studio, layer: Layer, at?: number) {
+function insertLayer(st: Studio, layer: Layer, at?: number, o?: EditOptions) {
   st.edit((L) => {
     const layers = L.layers.slice(), sel = st.selected.peek();
     layers.splice(at ?? (sel ? layers.indexOf(sel) + 1 : layers.length), 0, layer);
     return { layers };
-  });
+  }, o);
   st.select(layer.id);
 }
 
@@ -43,8 +44,8 @@ export function LayersPane({ st, pv }: Props) {
     for (const set of [st.muted, st.solo]) if (set.peek().has(l.id)) st.toggle(set, l.id);
     const left = st.look.peek().layers;
     st.select(left[Math.min(i, left.length - 1)]?.id ?? null);
-    toast(`Deleted “${l.title}”.`, { action: { label: 'Undo', onClick: () => insertLayer(st, l,
-      Math.min(i, st.look.peek().layers.length)) } });
+    const step = st.step();
+    toast(`Deleted “${l.title}”.`, { action: { label: 'Undo', onClick: () => st.undoStep(step) } });
   }
   // Add a layer (shelf.tsx): a blank one, one source, or a preset's layers above the selected one, with the globals it
   // needs; each on the groups picked in the shelf.
@@ -56,8 +57,9 @@ export function LayersPane({ st, pv }: Props) {
         const list = made(e)?.map((x) => (groups ? { ...x, groups: [...groups] } : x));
         if (!list) return toast(`${e.title} needs a module this library lacks.`, { kind: 'warn' });
         const at = st.selected.peek() ? st.look.peek().layers.indexOf(st.selected.peek()!) + 1 : undefined;
-        if (e.globals) st.edit((L) => ({ globals: withPresetGlobals(L.globals, e) }));
-        list.forEach((layer, i) => insertLayer(st, layer, at === undefined ? undefined : at + i));
+        const o = { step: `Added the preset “${e.title}”`, kind: 'add', merge: `preset:${Date.now()}` } as const;
+        if (e.globals) st.edit((L) => ({ globals: withPresetGlobals(L.globals, e) }), o);   // one step, all of it
+        list.forEach((layer, i) => insertLayer(st, layer, at === undefined ? undefined : at + i, o));
         return;
       }
       const one = 'blank' in e ? newLayer({ title: 'New layer' }, st.data.rig) : layerFromPattern(e, st.data.rig);

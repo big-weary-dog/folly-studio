@@ -295,22 +295,22 @@ describe('the API: duration and bpm', () => {
       assert.equal(now.bake.seconds, 4);
       assert.equal(now.bake.ok, true);
 
-      // bpm is only a grid: the bake stays. bpm: null clears it.
+      // bpm is only a grid here: a version keeps the old tempo, and the bake stays. bpm: null clears it.
       now = (await app.call('PUT', `/api/looks/${look.id}?versions=1`, { bpm: 100 })).json.look;
       assert.equal(now.bpm, 100);
       assert.equal(now.bake.ok, true);
-      assert.equal(now.versions.length, 0);
+      assert.deepEqual(now.versions.map((v) => v.bpm), [128]);
       now = (await app.call('PUT', `/api/looks/${look.id}`, { bpm: null })).json.look;
       assert.equal('bpm' in now, false);
 
       // The same duration changes nothing; a new one is a new version and drops the bake.
       now = (await app.call('PUT', `/api/looks/${look.id}?versions=1`, { duration: 12.5 })).json.look;
-      assert.equal(now.versions.length, 0);
+      assert.equal(now.versions.length, 2);
       assert.equal(now.bake.ok, true);
       now = (await app.call('PUT', `/api/looks/${look.id}?versions=1`, { duration: 3 })).json.look;
       assert.equal(now.duration, 3);
-      assert.equal(now.versions.length, 1);
-      assert.equal(now.versions[0].duration, 12.5);
+      assert.equal(now.versions.length, 3);
+      assert.equal(now.versions.at(-1).duration, 12.5);
       assert.equal('bake' in now, false);
       assert.equal((await app.call('PUT', `/api/looks/${look.id}`, { duration: 0 })).status, 400);
 
