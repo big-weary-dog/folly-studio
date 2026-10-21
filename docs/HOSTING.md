@@ -126,15 +126,18 @@ For a quick trial elsewhere, with no domain, `cloudflared tunnel --url http://12
 ## Dev instance
 
 An internal studio beside the public one, for trying `dev` before it reaches `prod`: its own checkout, data,
-port, settings and unit, so nothing it does reaches folly.swampkat.com.
+port, settings and unit, so nothing it does reaches folly.swampkat.com. `offline` is a third, a trial of the Pi's
+Studio (`STUDIO_PROFILE=pi`, [The Pi profile](#the-pi-profile)) here on loopback, with a dry-run engine for its
+**Lights**.
 
-| | public | dev |
-|---|---|---|
-| Checkout | `~/folly-prod`, `origin/prod` | `~/folly-dev`, `origin/dev` |
-| Data (`STUDIO_DATA`) | `~/folly-data` | `~/folly-dev-data` |
-| Port | 127.0.0.1:8780 | 127.0.0.1:8781 |
-| Settings | `~/.config/folly-studio/studio.env` | `~/.config/folly-studio/studio-dev.env` |
-| Unit | `folly-studio` (and `folly-studio-pi`) | `folly-studio-dev` |
+| | public | dev | offline |
+|---|---|---|---|
+| Checkout | `~/folly-prod`, `origin/prod` | `~/folly-dev`, `origin/dev` | `~/folly-offline`, `origin/dev` |
+| Data (`STUDIO_DATA`) | `~/folly-data` | `~/folly-dev-data` | `~/folly-offline-data` |
+| Port | 127.0.0.1:8780 | 127.0.0.1:8781 | 127.0.0.1:8782 |
+| Engine (`PI_PREVIEW_URL`) | 127.0.0.1:4043 | | 127.0.0.1:4045 |
+| Settings | `~/.config/folly-studio/studio.env` | `studio-dev.env` | `studio-offline.env` |
+| Unit | `folly-studio` (and `folly-studio-pi`) | `folly-studio-dev` | `folly-studio-offline` (and `-offline-pi`) |
 
 Set up, once:
 
@@ -159,8 +162,16 @@ Set up, once:
 Updating is the same command again, from `~/folly-dev`; `npm run host -- --instance dev <ref>` for another
 branch. Logs: `journalctl --user -u folly-studio-dev -f`.
 
-Each run writes, enables and restarts its own instance's unit alone, and refuses to start when the other instance's
-settings (if this machine has them) name the same `PORT` or `STUDIO_DATA`. The data lock (`studio.lock`, under
+The offline one is set up the same way from `~/folly-offline`, with `--instance offline` and
+`~/.config/folly-studio/studio-offline.env` (chmod 600) holding at least `STUDIO_PROFILE=pi`,
+`STUDIO_DATA=/home/<you>/folly-offline-data`, `PORT=8782`, `PI_PREVIEW_URL=http://127.0.0.1:4045` and
+`STUDIO_ADMINS=<your username>` (`STUDIO_CURATORS` for others who may open **Lights**). It needs no seeding: bring
+looks in with Import. `HOST` stays loopback, as for the others. It ends on `host: folly-studio-offline serves
+<commit> on http://127.0.0.1:8782`.
+
+Each run writes, enables and restarts its own instance's unit alone, and refuses to start when another instance's
+settings (if this machine has them) name the same `PORT`, `STUDIO_DATA` or engine port, or when its own name the
+wrong `STUDIO_PROFILE` (`pi` for offline only). The data lock (`studio.lock`, under
 [Environment](#environment)) keeps a studio off a folder another one has open, so a dev studio pointed at
 `~/folly-data` by mistake stops at start.
 
