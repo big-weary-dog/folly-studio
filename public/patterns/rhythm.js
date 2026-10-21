@@ -3,7 +3,7 @@
 // i-th tag. Each hit lights it and fades over Decay; Amount is how dark between hits, Invert cuts it out on hits.
 // A line with over three hits in a second only dips on them, so a busy part shimmers rather than strobes.
 const params = {
-  pattern: { value: 'X...x...X...x...', type: 'text', label: 'Pattern',
+  pattern: { value: 'X...x...X...x...', type: 'text', lines: true, label: 'Pattern',
     help: 'Steps of the beat: X a loud hit, x a hit, . a rest. Lines split by spaces go to the places in turn.' },
   tag: { value: 'all', type: 'text', label: 'Tag',
     help: 'Which places the lines go to: one tag deals them to its parts; several (tower arch rose), one each.' },

@@ -31,7 +31,8 @@ number `{ value, min, max, step?, unit? }` (`unit: 'minute'`: a speed counted a 
 `'all'`, `'accent'` or `'#rrggbb'`; `{ value: 'name', type: 'choice', options: ['name', …] }` (≤ 16
 options, each `[a-z][a-z0-9-]{0,31}`; a value not among them takes the default); `{ value: picture, type: 'picture' }`
 ("Pictures" below; no value: an empty one); `{ value: 'text', type: 'text' }` (≤ 256 printable ASCII characters, a
-value that is not takes the default; the pattern reads it: rhythm's steps, a tag list). Any kind may carry `label` (its name in
+value that is not takes the default; the pattern reads it: rhythm's steps, a tag list; `lines: true`: its words are
+lines, which the Studio stacks one a line, in monospace, storing the spaces between them). Any kind may carry `label` (its name in
 the Studio, a unit in parentheses: `'Speed (bars a second)'`) and `help` (≤ 300 characters: one or two sentences on
 what it does and how it looks low and high). The Studio shows `help` on hover over the param's row, and on a touch
 screen behind an ⓘ beside it; the generators' library docs give it as the param's effect. Every library param has
