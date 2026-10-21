@@ -5,6 +5,7 @@ import { signal } from '@preact/signals';
 import type { Module } from '../../../shared/schemas/look.ts';
 import type { FrameError, Report } from '../runtime.ts';
 import type { Layer } from './model.ts';
+import { flatModules } from '../core/tree.ts';
 
 export type StateKind = 'ok' | 'off' | 'muted' | 'pending' | 'compile' | 'runtime' | 'hung';
 export interface State { kind: StateKind; message?: string }
@@ -36,7 +37,7 @@ export function createLayerStatus(layerById: (id: string) => Layer | null, silen
         const l = layerById(r.id);
         let moduleFailed = false;
         for (const mr of r.modules) {
-          const key = K(r.id, mr.id), m = l?.modules.find((x) => x.id === mr.id);
+          const key = K(r.id, mr.id), m = l && flatModules(l.modules).find((x) => x.id === mr.id);
           compiled.set(key, { ok: mr.ok, params: mr.params, code: mr.code, upgraded: mr.upgraded });
           if (mr.ok) {
             good.set(key, mr.code);

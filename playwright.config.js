@@ -42,5 +42,6 @@ export default defineConfig({
       timeout: 5 * 60_000 },
     { name: 'perf', testMatch: ['perf.spec.js', 'library-perf.spec.js'], timeout: 5 * 60_000 },
     { name: 'e2e', testMatch: 'mirage.spec.js', timeout: 20 * 60_000 },
+    { name: 'composite', testMatch: 'composite.spec.js', timeout: 5 * 60_000 },
   ],
 });

@@ -2,7 +2,8 @@
 // Vite builds it with the core into one classic script inside sandbox.html, which starts it as a Worker from a Blob.
 // It exports nothing: it is a script.
 import {
-  type Compiled, compileModule, layerModules, ledChannels, lightOf, linkMap, prepareLayer, type PreparedLayer,
+  type Compiled, type CompiledLink, compileModule, layerModules, ledChannels, lightOf, linkMap, prepareLayer,
+  type PreparedLayer,
   type PreparedLook, prepareLight, prepareLook, prepareScene, renderFrame, type Scene, setLibrary, upgradedParams,
 } from './pattern-core.ts';
 import { extrasOf } from '../../shared/plays.ts';
@@ -49,25 +50,45 @@ function compiled(layerId: string, m: ReturnType<typeof layerModules>[number], k
   return entry;
 }
 
+type ModuleReport = { id?: string, ok: boolean, params: Record<string, unknown>, upgraded?: unknown,
+  error?: string };
+/** A chain's modules compiled, a composite's sub-layers too; each module's report into `reports` (flat, depth
+ * first: SPEC-library "Composites"); the first enabled module's error into first.error. */
+function compileChain(layerId: string, mods: ReturnType<typeof layerModules>, keep: Set<string>,
+  reports: ModuleReport[], first: { error: string, params: Record<string, unknown> | null }, modular: boolean) {
+  const list: (CompiledLink | null)[] = [];
+  for (const m of mods) {
+    if (m.kind === 'composite') {
+      reports.push({ id: m.id, ok: true, params: {} });
+      const subs = (m.layers ?? []).map((s) => compileChain(layerId, s.modules, keep, reports, first, modular));
+      list.push(m.enabled === false ? null : { kind: 'composite', subs });
+      continue;
+    }
+    const entry = compiled(layerId, m, keep);
+    const schema = entry.compiled ? entry.compiled.params : {};
+    if ((m.kind ?? 'source') === 'source' && !first.params) first.params = schema;
+    const upgraded = entry.compiled && upgradedParams(entry.compiled, m.params);
+    reports.push(entry.compiled ? { id: m.id, ok: true, params: schema, ...(upgraded ? { upgraded } : {}) }
+      : { id: m.id, ok: false, error: entry.error, params: schema });
+    if (!entry.compiled && m.enabled !== false) {
+      first.error ||= modular ? `${m.title || m.id}: ${entry.error}` : entry.error;
+    }
+    list.push(m.enabled === false ? null : entry.compiled);
+  }
+  return list;
+}
+
 function onLook(msg: Message<'look'>) {
   const layers = Array.isArray(msg.layers) ? msg.layers : [];
   const report = [], next = [], keep = new Set<string>();
   for (const layer of layers) {
     const id = layer.id, modular = Array.isArray(layer.modules);
-    const modules = [], list: (Compiled | null)[] = [];
-    let error = scene ? '' : 'sandbox has no rig yet (send init first)', params = null;
-    for (const m of scene ? layerModules(layer) : []) {
-      const entry = compiled(id, m, keep);
-      const schema = entry.compiled ? entry.compiled.params : {};
-      if ((m.kind ?? 'source') === 'source' && !params) params = schema;
-      const upgraded = entry.compiled && upgradedParams(entry.compiled, m.params);
-      modules.push(entry.compiled ? { id: m.id, ok: true, params: schema, ...(upgraded ? { upgraded } : {}) }
-        : { id: m.id, ok: false, error: entry.error, params: schema });
-      if (!entry.compiled && m.enabled !== false) {
-        error ||= modular ? `${m.title || m.id}: ${entry.error}` : entry.error;
-      }
-      list.push(m.enabled === false ? null : entry.compiled);
-    }
+    const modules: ModuleReport[] = [];
+    const first = { error: scene ? '' : 'sandbox has no rig yet (send init first)', params: null as
+      Record<string, unknown> | null };
+    const list = scene ? compileChain(id, layerModules(layer), keep, modules, first, modular) : [];
+    let error = first.error;
+    const params = first.params;
     try {
       if (error || !scene) throw new Error(error);
       next.push(prepareLayer(scene, layer, list));
