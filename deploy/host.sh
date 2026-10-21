@@ -63,9 +63,11 @@ for name in "${!PORTS[@]}"; do
     echo "${PORT:-${PORTS[$name]}} ${PI_PREVIEW_URL:--} ${STUDIO_DATA:+$(realpath -m "$STUDIO_DATA")}")
   [ "$other_port" != "$port" ] || die "PORT=$port is $other's too: give each studio its own port"
   [ "${other_data:-}" != "$data" ] || die "STUDIO_DATA=$data is $other's too: give each studio its own data"
-  [ "$other_pi" = - ] || [ -z "$pi_port" ] || [ "$(engine_port "$other_pi")" != "$pi_port" ] \
+  # An assignment, so a malformed URL there stops this run too.
+  other_engine=$([ "$other_pi" = - ] || engine_port "$other_pi") || die "in $other"
+  [ -z "$other_engine" ] || [ -z "$pi_port" ] || [ "$other_engine" != "$pi_port" ] \
     || die "PI_PREVIEW_URL's port $pi_port is $other's too: give each studio's engine its own port"
-  [ "$other_pi" = - ] || [ "$(engine_port "$other_pi")" != "$port" ] \
+  [ -z "$other_engine" ] || [ "$other_engine" != "$port" ] \
     || die "PORT=$port is the engine's port in $other: give each its own"
 done
 command -v systemctl >/dev/null && systemctl --user show-environment >/dev/null 2>&1 \

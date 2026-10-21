@@ -61,6 +61,11 @@ describe('npm run host: the instances', () => {
     assert.match(host('--instance', 'offline'), /port 4043 is .*studio\.env's too/);
     env('studio-offline', ['STUDIO_PROFILE=pi', 'PORT=4043', `STUDIO_DATA=${home}/o`]);
     assert.match(host('--instance', 'offline'), /PORT=4043 is the engine's port in .*studio\.env/);
+    env('studio', [`STUDIO_DATA=${home}/folly-data`, 'PI_PREVIEW_URL=http://example.com:4043']);
+    env('studio-offline', ['STUDIO_PROFILE=pi', `STUDIO_DATA=${home}/o`]);
+    const stderr = host('--instance', 'offline');
+    assert.match(stderr, /PI_PREVIEW_URL=http:\/\/example\.com:4043: must be/);
+    assert.doesNotMatch(stderr, STOPPED);
   });
 
   test('offline stays on loopback like the rest', () => {
