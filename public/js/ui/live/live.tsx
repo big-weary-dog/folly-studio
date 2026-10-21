@@ -28,6 +28,9 @@ export function LivePage() {
   const { sock, stage, lights } = ref.current;
   const [view, setView] = useView(), shown = lights ? view : 'folly';
   const canvas = useRef<HTMLCanvasElement>(null), host = useRef<HTMLDivElement>(null);
+  // Held still by a bug report, by another view, or both: each lets go only of its own.
+  const still = useRef({ report: false, hidden: false });
+  const hold = () => stage.freeze(still.current.report || still.current.hidden);
   useEffect(() => {
     stage.start(canvas.current!, host.current!);
     // Its part in a bug report (SPEC "Bug reports"): the stage as this page has it; paused, updates are held.
@@ -38,13 +41,13 @@ export function LivePage() {
           look: l?.look && { id: l.look.id, title: l.look.title }, blackout: stage.blackout.peek(), t: stage.t.peek(),
           presence: sock.presence.peek(), clock: sock.clock.peek(), stats: stage.stats.peek() };
       },
-      freeze: (on) => { sock.hold(on); stage.freeze(on); },
+      freeze: (on) => { sock.hold(on); still.current.report = on; hold(); },
       shot: () => stage.viewer?.snapshot() ?? null,
     });
     return () => { unreport(); stage.destroy(); sock.close(); lights?.close(); };
   }, []);
   // The 3D view sleeps while the listing or the controls are shown.
-  useEffect(() => { stage.freeze(shown !== 'folly'); }, [shown]);
+  useEffect(() => { still.current.hidden = shown !== 'folly'; hold(); }, [shown]);
   void sock.rev.value;
   // Can't reach the stage, or it is full: said over whatever the stage last showed.
   const trouble = troubleText(sock.trouble.value);
