@@ -8,6 +8,7 @@ import { randomInt } from 'node:crypto';
 import {
   type Access, GlobalLimits, type Invite, type Person, type PersonLimits, type Used, type UserAccess,
 } from '../shared/schemas/access.ts';
+import { isPending } from '../shared/idea-status.ts';
 import { DEEP, type Explore, type Idea } from '../shared/schemas/api.ts';
 import { isPaid, type ModelEntry } from '../shared/schemas/models.ts';
 import { type Auth, sha256 } from './auth.ts';
@@ -56,7 +57,7 @@ export function createAccess({ store, auth, models }: { store: Pick<Store, 'user
     const from = Math.max(now - DAY_MS, Date.parse(u.access?.resetAt ?? '') || 0);
     return store.ideas.list((i) => i.owner === u.id).flatMap((i) => Array.from({ length: usesOf(i.explore) },
       (_, n) => ({ at: Date.parse(i.createdAt), model: i.model, paid: paid(i),
-        running: n === 0 && (i.status === 'queued' || i.status === 'generating') })))
+        running: n === 0 && isPending(i) })))
       .filter((c) => c.at > from || c.running);
   }
   const usedOf = (list: Counted[], now: number): Used & { hours: number[], days: number[] } => {

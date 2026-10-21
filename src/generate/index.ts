@@ -11,22 +11,22 @@
 import path from 'node:path';
 
 import { CHAIN } from '../../shared/chain-order.ts';
+import { IDEA_STATUS, IllegalMove, type IdeaStatus, isPending, transition } from '../../shared/idea-status.ts';
 import type { Light } from '../../public/js/pattern-core.ts';
 import type { Bake, Explore, Idea } from '../../shared/schemas/api.ts';
 import { GenerateError, validateLook } from '../../shared/schemas/generated.ts';
-import type { ModelEntry, Transport } from '../../shared/schemas/models.ts';
+import { cannot, capsOf, type ModelEntry, type Transport, TRANSPORTS } from '../../shared/schemas/models.ts';
 import type { LibraryEntry, Rig, RigGroup } from '../../shared/schemas/rig.ts';
 import { layersHash, removeFrames, renderFields, saveFrames } from '../bake.ts';
 import { revisedFields } from '../look-versions.ts';
 import { monoNow } from '../clock.ts';
-import { envFlag } from '../env.ts';
+import { type Config, configOf } from '../config.ts';
 import type { Catalog } from './catalog.ts';
 import type { Box } from './check.ts';
-import { createClaudeAdapter } from './claude.ts';
-import { createCodexAdapter } from './codex.ts';
+import { ADAPTERS } from './adapters.ts';
 import type { ExpandError } from './expand.ts';
 import { boosted, explore, LEVELS } from './explore.ts';
-import { createFleetAdapter, hasMemoryCap } from './fleet.ts';
+import { hasMemoryCap } from './fleet.ts';
 import { createIdeaLog, type IdeaLog, type IdeaLogs, type Outcome, type Round } from './idea-log.ts';
 import { describeDocs, describeRounds, describeUses, dropped, NO_USES } from './log-line.ts';
 import { Interrupted } from './proc.ts';
@@ -37,7 +37,6 @@ import { type Composition, decompose, diffCompositions, keepSwitches } from './r
 import { keepUntouched } from './edits.ts';
 import { compose, type Critique, type Rounds } from './rounds.ts';
 import { sketchRefine } from './sketch-refine.ts';
-import { sketchLook } from './sketch.ts';
 import type { Logger } from '../http.ts';
 import type { Store, StoredLook } from '../store.ts';
 
@@ -63,24 +62,12 @@ type Route = { id: string, label: string, via: string, entry?: ModelEntry };
 type Explored = Awaited<ReturnType<typeof explore>>;
 type Job = { id: string, route: Route, queuedAt: number, again?: true };
 const LABELS: Record<string, string> = { sketch: 'Sketch', claude: 'Claude', codex: 'Codex', fleet: 'Fleet' };
-const PROMPTED = new Set(['claude', 'codex']);
-const LANE_DEFAULTS: Record<string, number> = { claude: 4, codex: 2, sketch: 4 };
-const CRITIQUE_BUDGET_MS = Number(process.env.STUDIO_CRITIQUE_BUDGET_MS) || 90_000;
+const FOUNDRY = 'fleet'; // the transport STUDIO_FOUNDRY turns on, with its one-shot stand-in
+const prompted = (via: string) => !!capsOf(via)?.prompted;
 
-/** A transport's adapter for one model: its model string, effort and limits from the registry. */
-function makeAdapter(via: string, m: ModelEntry | undefined, log: Logger, codexBin?: string): Adapter {
-  const timeoutMs = m?.timeoutSeconds ? m.timeoutSeconds * 1000 : undefined;
-  if (via === 'claude') {
-    return createClaudeAdapter({ log, model: m?.model, effort: m?.effort, maxTokens: m?.maxTokens, timeoutMs });
-  }
-  if (via === 'codex') return createCodexAdapter({ log, model: m?.model, effort: m?.effort, timeoutMs, bin: codexBin });
-  if (via === 'fleet') return createFleetAdapter({ log, model: m?.model, timeoutMs });
-  return { name: 'sketch', generate: async (ctx: Context) => sketchLook(ctx) };
-}
-
-/** The foundry's settings from the environment: { on, wait, memoryCap() → Promise<boolean> }. */
-export const foundryFromEnv = (env = process.env) => ({ on: envFlag(env.STUDIO_FOUNDRY),
-  wait: envFlag(env.STUDIO_FOUNDRY_WAIT), memoryCap: () => hasMemoryCap() });
+/** The foundry's settings from the config: { on, wait, memoryCap() → Promise<boolean> }. */
+export const foundryOf = (c: Config = configOf()) => ({ on: c.STUDIO_FOUNDRY ?? false,
+  wait: c.STUDIO_FOUNDRY_WAIT ?? false, memoryCap: () => hasMemoryCap() });
 
 /**
  * The queue: enqueue(idea | id) → false when already queued; idle(), stop(), size, watch(id, fn). models: the registry
@@ -94,23 +81,25 @@ export const foundryFromEnv = (env = process.env) => ({ on: envFlag(env.STUDIO_F
  */
 export function createQueue({
   store, loadLibrary = () => [], loadRig = () => null, loadLight, loadVersion, models, log = console, adapters = {},
-  adapterName = process.env.STUDIO_GENERATOR || 'sketch', fallbackName = process.env.STUDIO_GENERATOR_FALLBACK || '',
-  concurrency = Number(process.env.STUDIO_GENERATOR_CONCURRENCY) || 0, framesDir, foundry = foundryFromEnv(), codexBin,
-  box, lane: bakeLane, critiqueBudgetMs = CRITIQUE_BUDGET_MS, interruptGraceMs = 2000, ideaLogs,
-}: { store: Pick<Store, 'ideas' | 'looks'> & Partial<Store>, loadLibrary?: () => LibraryEntry[],
+  config = configOf(), adapterName = config.STUDIO_GENERATOR || 'sketch',
+  fallbackName = config.STUDIO_GENERATOR_FALLBACK || '', concurrency = config.STUDIO_GENERATOR_CONCURRENCY || 0,
+  framesDir, foundry = foundryOf(config), codexBin, box, lane: bakeLane,
+  critiqueBudgetMs = config.STUDIO_CRITIQUE_BUDGET_MS || 90_000, interruptGraceMs = 2000, ideaLogs,
+}: { config?: Config, store: Pick<Store, 'ideas' | 'looks'> & Partial<Store>, loadLibrary?: () => LibraryEntry[],
   loadRig?: () => Rig | null | Promise<Rig | null>, loadLight?: () => Light, loadVersion?: () => string,
   models?: Registry, adapterName?: string, log?: Logger, adapters?: Record<string, Adapter | Adapter['generate']>,
-  concurrency?: number, fallbackName?: string, framesDir?: string, foundry?: Partial<ReturnType<typeof foundryFromEnv>>,
+  concurrency?: number, fallbackName?: string, framesDir?: string, foundry?: Partial<ReturnType<typeof foundryOf>>,
   codexBin?: string, box?: Box, lane?: Parameters<typeof compose>[0]['lane'], critiqueBudgetMs?: number,
   interruptGraceMs?: number, ideaLogs?: IdeaLogs }) {
   const framesHome = framesDir ?? (store.dataDir ? path.join(store.dataDir, 'frames') : '');
-  const transports = new Set(['sketch', 'claude', 'codex', 'fleet', ...Object.keys(adapters)]);
+  const transports = new Set<string>([...TRANSPORTS, ...Object.keys(adapters)]);
   const made = new Map<string, Adapter>();
   function adapterFor(r: Route): Adapter {
     const given = adapters[r.via];
     if (given) return typeof given === 'function' ? { generate: given } : given;
     const key = JSON.stringify([r.via, r.entry ?? null]);
-    if (!made.has(key)) made.set(key, makeAdapter(r.via, r.entry, log, codexBin));
+    const module = ADAPTERS[r.via as Transport] ?? ADAPTERS.sketch;
+    if (!made.has(key)) made.set(key, module.create(r.entry, { log, codexBin, config }));
     return made.get(key)!;
   }
   /** A model of the registry, else a transport by name; null when neither. */
@@ -127,8 +116,8 @@ export function createQueue({
     primary = 'sketch';
   }
   const fallback = fallbackName ? route(fallbackName) : null;
-  const oneShot = fallback && fallback.via !== 'fleet' ? fallback : null;
-  const deep = primary === 'fleet' || !!models?.config().models.some((m) => m.via === 'fleet' && m.enabled);
+  const oneShot = fallback && fallback.via !== FOUNDRY ? fallback : null;
+  const deep = primary === FOUNDRY || !!models?.config().models.some((m) => m.via === FOUNDRY && m.enabled);
   const foundryOn = deep && foundry.on === true;
   if (deep && !foundryOn) {
     log.warn?.(`[generate] the foundry is off (STUDIO_FOUNDRY=on); ideas go to ${oneShot?.id ?? 'none: they fail'}`);
@@ -145,8 +134,8 @@ export function createQueue({
 
   const lanes = new Map<string, { running: number, jobs: Job[] }>();
   const lane = (via: string) => lanes.get(via) ?? lanes.set(via, { running: 0, jobs: [] }).get(via)!;
-  const limitOf = (via: string) => (via === 'fleet' ? 1
-    : models?.limit(via) ?? (concurrency > 0 ? Math.floor(concurrency) : LANE_DEFAULTS[via] ?? 1));
+  const limitOf = (via: string) => Math.min(capsOf(via)?.laneMax ?? Infinity,
+    models?.limit(via) ?? (concurrency > 0 ? Math.floor(concurrency) : capsOf(via)?.laneDefault ?? 1));
   const active = new Set<string>(); // idea ids queued or running: enqueue is idempotent per id
   const watchers = new Map<string, Set<() => void>>();
   const running = new Set<AbortController>();
@@ -173,7 +162,7 @@ export function createQueue({
   }
 
   function pump() {
-    const foundryLane = lanes.get('fleet');
+    const foundryLane = lanes.get(FOUNDRY);
     if (oneShot && foundryLane?.running && foundryLane.jobs.length && !foundry.wait) { // busy: the one-shot instead
       lane(oneShot.via).jobs.push(...foundryLane.jobs.splice(0).map((j) => ({ ...j, route: oneShot })));
     }
@@ -219,22 +208,21 @@ export function createQueue({
   /** The look from the route's adapter, validated, in rounds for a prompted model. */
   async function lookFrom(ctx: Context, by: Route, refine?: Refining & { critique?: true }, level: Explore = 'quick') {
     const t0 = monoNow();
-    if (refine && !PROMPTED.has(by.via) && by.via !== 'sketch') {
-      throw new GenerateError(`${by.label} cannot refine a look.`, `refine by ${by.via}`);
-    }
-    const adapter = adapterFor(by), catalog = PROMPTED.has(by.via) || refine ? ctx.prompt?.().catalog : undefined;
+    const refused = refine && cannot(by, { refine: true });
+    if (refused) throw new GenerateError(`${refused}.`, `refine by ${by.via}`);
+    const adapter = adapterFor(by), catalog = prompted(by.via) || refine ? ctx.prompt?.().catalog : undefined;
     const mode: Critique | undefined = by.entry?.critique ?? (refine?.critique ? 'images' : undefined);
     const rounds = (a: Adapter, o: { critique?: Critique, box?: Box, edit?: Composition }) => compose({ adapter: a,
       ctx, catalog: catalog!, ...o, lane: bakeLane, aim: refine?.aim, start: refine?.start, startedAt: t0,
       budgetMs: critiqueBudgetMs, stopping: () => stopping, log });
-    const lv = PROMPTED.has(by.via) && catalog && ctx.prompt && !refine && level !== 'quick' ? level : null;
+    const lv = capsOf(by.via)?.explores && catalog && ctx.prompt && !refine && level !== 'quick' ? level : null;
     const entry = lv ? boosted(by.via as Transport, by.entry, lv) : by.entry;
     ctx.journal?.note({ model: by.id, via: by.via, ...(entry?.model ? { name: entry.model } : {}),
       ...(entry?.effort ? { effort: entry.effort } : {}) });
     const out: Partial<Explored> & Pick<Rounds, 'raw' | 'look'> = lv ? await explore({
       adapter: adapterFor({ ...by, entry }), ctx, catalog: catalog!, critique: mode, box,
       lane: bakeLane, startedAt: t0, budgetMs: LEVELS[lv].budgetMs, stopping: () => stopping, log, level: lv })
-      : PROMPTED.has(by.via) && catalog && ctx.prompt ? await rounds(adapter, { critique: mode, box,
+      : prompted(by.via) && catalog && ctx.prompt ? await rounds(adapter, { critique: mode, box,
         edit: refine?.start ? undefined : refine?.comp })
       : refine && catalog && by.via === 'sketch'
         ? await rounds({ generate: () => sketchRefine(refine.comp, ctx.text, { ...ctx, catalog }) }, {})
@@ -245,8 +233,14 @@ export function createQueue({
     return { ...out, used: by, request: monoNow() - t0, parse: 0 };
   }
 
-  const update = async (id: string, patch: Partial<Idea>) => {
-    await store.ideas.update(id, patch);
+  /** The idea moved to `to` (shared/idea-status.ts), its watchers told; a move that is not one is logged, not made. */
+  const move = async (id: string, to: IdeaStatus, patch: Partial<Idea> = {}) => {
+    const cur = await store.ideas.get(id);
+    if (!cur) return;
+    try { await store.ideas.update(id, transition(cur, to, patch)); } catch (err) {
+      if (!(err instanceof IllegalMove)) throw err;
+      return log.warn?.(`[generate] ${err.message}`);
+    }
     notify(id);
   };
 
@@ -254,20 +248,20 @@ export function createQueue({
   async function runJob({ id, route: r, queuedAt, again }: Job) {
     const idea = await store.ideas.get(id);
     if (!idea) return log.warn?.(`[generate] idea ${id} no longer exists`);
-    if (idea.status === 'ready' && idea.lookId) return; // already done (re-enqueued after a restart)
+    if (!isPending(idea)) return; // already done (re-enqueued after a restart): ready and failed are final
     const started = monoNow(), ac = new AbortController();
     const open = (meta: Record<string, unknown>) => ideaLogs?.open(id, meta) ?? createIdeaLog({ meta });
     const journal = open({ request: idea.text, level: idea.refine ? undefined : idea.explore ?? 'explore',
       ...(idea.refine ? { refine: { lookId: idea.lookId, ...idea.refine } } : {}), model: r.id,
       attempt: again ? 2 : 1 });
-    let outcome: Outcome = { status: 'interrupted' };
+    let outcome: Outcome = { status: IDEA_STATUS.interrupted };
     running.add(ac);
-    await update(id, { status: 'generating', generator: r.id, by: r.label, error: null });
+    await move(id, 'generating', { generator: r.id, by: r.label, error: null });
     try {
       const owner = (await store.users?.get?.(idea.owner)) || null;
       const user = owner ? { id: owner.id, username: owner.username, role: owner.role } : { id: idea.owner };
       const base = await prepare();
-      if (PROMPTED.has(r.via) || idea.refine) promptOf(base);
+      if (prompted(r.via) || idea.refine) promptOf(base);
       const prompt = monoNow() - started;
       const ctx: Context = { text: String(idea.text ?? ''), user, library: base.library, rig: base.rig, journal,
         groups: base.groups, light: loadLight?.(), idea: { id }, prompt: () => promptOf(base), signal: ac.signal,
@@ -280,7 +274,7 @@ export function createQueue({
         ...(tokens ? { tokens } : {}),
         ...(out.check !== undefined ? { check: out.check } : {}),
         ...(out.critique ? { critique: out.critique.ms } : {}), ...(out.sketch ? { sketch: out.sketch.ms } : {}) };
-      const read = PROMPTED.has(used.via) ? ctx.docsRead : undefined;
+      const read = prompted(used.via) ? ctx.docsRead : undefined;
       const how = `${describeRounds(out)}; ${describeUses(out.uses ?? NO_USES)}${describeDocs(read)}${
         dropped(look.dropped)}`;
       if (refine) {
@@ -288,7 +282,7 @@ export function createQueue({
         const changes = await revise(refine.look, { ...look, layers: kept }, promptOf(base).catalog);
         timing.total = monoNow() - queuedAt;
         outcome = { status: 'ready', lookId: refine.look.id };
-        await update(id, { status: 'ready', generator: used.id, by: used.label, error: null, timing, changes, ...rounds,
+        await move(id, 'ready', { generator: used.id, by: used.label, error: null, timing, changes, ...rounds,
           ...(out.critique ? { verdict: out.critique.outcome.slice(0, 80) } : {}) });
         return log.info?.(`[generate] refinement ${id} ready via ${used.id} in ${timing.total} ms (request ${request}`
           + `${how}; ${changes.length} changes; look ${refine.look.id})`);
@@ -306,18 +300,18 @@ export function createQueue({
       if (bake?.frames) await keepFrames(saved.id, frames, bake);
       timing.total = monoNow() - queuedAt;
       outcome = { status: 'ready', lookId: saved.id };
-      await update(id, { status: 'ready', lookId: saved.id, generator: used.id, by: used.label, error: null, timing,
+      await move(id, 'ready', { lookId: saved.id, generator: used.id, by: used.label, error: null, timing,
         ...rounds, ...(out.sketch?.took ? { took: out.sketch.took } : {}) });
       log.info?.(`[generate] idea ${id} ready via ${used.id} in ${timing.total} ms `
         + `(queued ${timing.wait}, request ${request}${how}; look ${saved.id})`);
     } catch (err) {
       // A stop that reached the call before the server (a service stop signals the whole group) is still a stop.
       if (err instanceof Interrupted && !stopping) await new Promise((r) => setTimeout(r, interruptGraceMs));
-      outcome = { status: 'interrupted', detail: String((err as Error)?.message || err).slice(0, 500) };
+      outcome = { status: IDEA_STATUS.interrupted, detail: String((err as Error)?.message || err).slice(0, 500) };
       if (stopping) return; // left as it is: the next start queues it again
       if (err instanceof Interrupted && !again) {
         log.warn?.(`[generate] idea ${id}: ${err.message}; trying it again`);
-        await update(id, { status: 'queued' });
+        await move(id, 'queued');
         return true;
       }
       log.warn?.(`[generate] ${idea.refine ? 'refinement' : 'idea'} ${id} failed via ${r.id}: ${
@@ -325,7 +319,7 @@ export function createQueue({
       const error = err instanceof GenerateError ? err.userMessage : FALLBACK_ERROR;
       outcome = { status: 'failed', error, detail: String((err as Error)?.message || err).slice(0, 500) };
       const { rounds } = journal.summary();
-      await update(id, { status: 'failed', error, ...(rounds.length ? { rounds } : {}) });
+      await move(id, 'failed', { error, ...(rounds.length ? { rounds } : {}) });
     } finally {
       await journal.finish(outcome);
       running.delete(ac);
@@ -362,15 +356,15 @@ export function createQueue({
   }
 
   return {
-    adapterName: deep && !foundryOn && primary === 'fleet' ? oneShot?.id ?? primary : primary, foundry: foundryOn,
+    adapterName: deep && !foundryOn && primary === FOUNDRY ? oneShot?.id ?? primary : primary, foundry: foundryOn,
     enqueue(idea: { id: string, model?: string } | string) {
       const id = typeof idea === 'object' && idea ? idea.id : idea;
       if (id == null || active.has(id) || stopping) return false;
       const wanted = (typeof idea === 'object' ? idea.model : undefined) ?? store.ideas.get(id)?.model;
-      const asked = route(wanted || primary), r = asked?.via === 'fleet' && !foundryOn ? oneShot : asked;
+      const asked = route(wanted || primary), r = asked?.via === FOUNDRY && !foundryOn ? oneShot : asked;
       if (!r) { // never Sketch in its place: it is offered to admins alone
         const error = asked ? `${asked.label} is off right now; try another model.` : 'Its model is gone; try another.';
-        void update(id, { status: 'failed', error });
+        void move(id, 'failed', { error });
         return false;
       }
       active.add(id);

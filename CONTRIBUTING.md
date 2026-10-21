@@ -38,8 +38,9 @@ npm run e2e                  # our .fseq through sACN and the relay into Mirage,
 Useful settings: `STUDIO_MODELS` (the model registry, default `data/models.json`; `ANTHROPIC_API_KEY` for Opus, the
 Codex CLI for Sol and Luna), `STUDIO_ADMINS` and `STUDIO_CURATORS` (usernames), `STUDIO_SECURE_COOKIES=1` behind HTTPS,
 `STUDIO_TRUST_PROXY=1` behind a tunnel on this machine, `STUDIO_FRAMES_BROTLI_QUALITY` (9),
-`STUDIO_FRAMES_MAX_BYTES` (2GB). `docs/HOSTING.md` covers running it at home behind a tunnel, and
-`npm run backup` makes a dated `.tar.gz` of the data.
+`STUDIO_FRAMES_MAX_BYTES` (2GB). Every setting is in `src/config.ts` and docs/HOSTING.md "Every setting";
+`npm run config:check -- <file>` says whether a settings file would start the server. `docs/HOSTING.md` covers
+running it at home behind a tunnel, and `npm run backup` makes a dated `.tar.gz` of the data.
 
 The render-box tests need bubblewrap (`apt install bubblewrap`) and unprivileged user
 namespaces. Without them they skip (`ctx.skip(condition, reason)`) and the run ends listing each skipped test and
@@ -142,14 +143,16 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 
 | Path | Responsibility |
 |---|---|
-| `server.ts` | Entry point: configuration from the environment, start, graceful stop |
+| `server.ts` | Entry point: the settings read (`readConfig()`), a bad one refused by name, start, graceful stop |
+| `src/config.ts`, `tools/config-check.ts` | Every setting the server reads, parsed with zod once at start (`readConfig()`) and passed down as `Config`; a module given none parses its environment (`configOf()`); `npm run config:check` |
 | `src/app.ts` | `createServer()`: the store, auth, queues, frames cache, the API and the built app on one Fastify server |
 | `src/api.ts`, `api-looks.ts`, `api-models.ts`, `api-access.ts`, `http.ts` | The HTTP API (SPEC "HTTP API"): accounts, ideas (and their long polls), the library and login limits; looks; the models; invite codes and people; its plumbing (the CSRF hook, JSON revalidated and compressed, errors as `{ error }`, 405s, the logger) |
 | `src/auth.ts` | Accounts, roles (member, curator, admin), scrypt hashes that carry their cost (re-hashed at login when older), sessions |
-| `shared/schemas/` | zod schemas the server runs and the browser takes as types: `look.ts` (what a look may hold, the 400s naming the first problem), `generated.ts` (a generator's look cleaned leniently; its JSON Schema for structured output), `api.ts` (request bodies, users, ideas; its account limits from `public/data/account.json`, which the sign-up form shows too), `rig.ts` (the rig, the library index), `models.ts` (the model registry), `access.ts` (limits, invite and person bodies) |
+| `shared/schemas/` | zod schemas the server runs and the browser takes as types: `look.ts` (what a look may hold, the 400s naming the first problem), `generated.ts` (a generator's look cleaned leniently; its JSON Schema for structured output), `api.ts` (request bodies, users, ideas; its account limits from `public/data/account.json`, which the sign-up form shows too), `rig.ts` (the rig, the library index), `models.ts` (the model registry, and `TRANSPORT_CAPS`: what each transport may do), `access.ts` (limits, invite and person bodies) |
 | `shared/chain-order.ts` | Pure: looks from before the one rule converted so they render as they did (SPEC "Looks" > chain) |
+| `shared/idea-status.ts` | Pure, so the browser imports it too: an idea's states (`IDEA_STATUS`), `isPending()` and `transition()`, which refuses a move that is not one |
 | `src/store.ts` | JSON-file storage under `STUDIO_DATA`, typed per collection |
-| `src/clock.ts`, `src/env.ts` | `monoNow()` for durations and `serverNow()` (the wall clock at boot, then monotonic) for Live: the host's wall clock can step back; `envFlag()`, the one reading of an on/off setting |
+| `src/clock.ts` | `monoNow()` for durations and `serverNow()` (the wall clock at boot, then monotonic) for Live: the host's wall clock can step back |
 | `src/static.ts` | The built app from `dist/` (@fastify/static: the precompressed copies, ETags, cache headers with `assets/` kept a year, the CSPs, the shell for SPA routes); the library and rig loaders |
 | `vite.config.js`, `tools/vite-sandbox.ts`, `tools/vite-compress.ts`, `tools/dev.ts` | The build (`public/` → `dist/`); the sandbox page, its scripts inlined; the `.br` and `.gz` copies of its text; `npm run dev` |
 | `src/frames.ts` | Pure: strict FSEQ parsing and frame analysis (brightness, flicker) |
@@ -159,7 +162,7 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `src/live/` | The live stage (`SPEC-live.md`): `state.ts` (pure: show time, pushes as lanes, loops), `hub.ts` (the sockets, presence, limits, `live.json`), `routes.ts` (the socket and its settings) |
 | `src/api-reports.ts`, `src/reports/` | F8 bug reports (SPEC "Bug reports"): their routes; `store.ts` (a folder per report, pruned by count, bytes and days), `build.ts` (the checkout's commit) |
 | `src/access.ts` | Who may use the paid models, and how much (SPEC "Access"): invite codes kept hashed, each account's ideas counted against the limits, the daily ceiling |
-| `src/generate/` | Idea → look: the queue (a lane per transport), the model registry (`models.ts`), adapters (`sketch`, `claude`, `codex` with `proc.ts` for its one CLI call, `fleet`), the prompt (`prompt.ts`, its text in `guide.ts`), the library as vocabulary (`catalog.ts`, the answer's schema `composition.ts`, its expansion into a look `expand.ts`; cleaning: `shared/schemas/generated.ts`) |
+| `src/generate/` | Idea → look: the queue (a lane per transport), the model registry (`models.ts`), adapters (`adapters.ts` maps each transport to its module, which exports its adapter and `probe()`: `sketch`, `claude`, `codex` with `proc.ts` for its one CLI call, `fleet`; a new transport is a row in `TRANSPORT_CAPS`, one there and its module), the prompt (`prompt.ts`, its text in `guide.ts`), the library as vocabulary (`catalog.ts`, the answer's schema `composition.ts`, its expansion into a look `expand.ts`; cleaning: `shared/schemas/generated.ts`) |
 | `render-box/render.ts`, `renderer.ts` | Bakes a look to `.fseq` inside bubblewrap; the frame loop it shares with `fleet-box/check.ts` |
 | `fleet-box/` | Checker and brief for a boxed Fleet worker |
 | `public/index.html`, `css/` | The app shell and its styles: `base.css` (tokens, layout and components) on every page; `pages`, `studio`, `viewer`, `timeline`, `compose`, `live`, `reports` (with the bug report form) imported by their views' modules, so Vite loads them with them |
@@ -181,8 +184,8 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `dist/` | What `npm run build` makes; not committed |
 
 Browser code imports only from `public/` and packages. Server code imports only `pattern-core.ts`, `fseq.ts`, `scrub.ts`
-and JSON from `public/`. Both take `shared/`: the server at run time, the browser as types only (`import type`), so
-zod reaches the browser only if a view deliberately imports a schema; `shared/` itself imports only zod, itself and the
+and JSON from `public/`. Both take `shared/`: the server at run time, the browser as types only (`import type`; `idea-status.ts`,
+pure, at run time too), so zod reaches the browser only if a view deliberately imports a schema; `shared/` itself imports only zod, itself and the
 core's constants and data. oxlint checks all three, by import path.
 
 ## The rules, and why

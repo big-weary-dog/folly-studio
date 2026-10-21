@@ -221,7 +221,9 @@ changes (a file that does not parse is reported, and the last good one kept):
 `claude-opus-5-5`); `effort` one of the transport's (`claude`: low–max; `codex`: minimal–xhigh); `critique` turns on
 the critique round (Generators; `claude` and `codex` only); `roles` who may
 pick it (none: everyone); `concurrency` the jobs at once per transport (defaults claude 4, codex 2, sketch 4; the
-foundry always 1). The defaults: Opus (`claude-opus-5-5`, medium, the default; no critique), Sol (`gpt-6.1-sol`, low,
+foundry always 1). What each transport may do (explore, refine, critique, whether it is paid, its default effort
+and lane) is one table, `TRANSPORT_CAPS` in `shared/schemas/models.ts`, which the API and the queue both read.
+The defaults: Opus (`claude-opus-5-5`, medium, the default; no critique), Sol (`gpt-6.1-sol`, low,
 critique `images`) and Luna (`gpt-6-luna`, low, critique `text`) through `codex`, and Sketch. A model can run when its transport can: `claude` with
 `ANTHROPIC_API_KEY`, `codex` with the CLI on PATH (`STUDIO_CODEX_BIN`; `warn` when no login is seen), `fleet` with
 `STUDIO_FOUNDRY=on`, `sketch` always. Sketch is offered to admins alone while `SKETCH_FOR_EVERYONE`

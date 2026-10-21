@@ -11,12 +11,14 @@ import Fastify from 'fastify';
 import { createAccess } from './access.ts';
 import { apiRoutes, enqueueIdea } from './api.ts';
 import { upgradeStored } from './api-looks.ts';
+import { isPending } from '../shared/idea-status.ts';
 import type { Idea } from '../shared/schemas/api.ts';
 import { type Cost, createAuth } from './auth.ts';
 import { createBakeQueue, createLane } from './bake.ts';
 import { flashSettings } from './box-output.ts';
+import { type Config, configOf } from './config.ts';
 import { createFramesCache } from './frames-cache.ts';
-import { createQueue, foundryFromEnv } from './generate/index.ts';
+import { createQueue, foundryOf } from './generate/index.ts';
 import { createIdeaLogs } from './generate/idea-log.ts';
 import { createRegistry } from './generate/models.ts';
 import { createLog, errorHandler, keepTail, type Log } from './http.ts';
@@ -45,7 +47,7 @@ export type Queue = { enqueue(idea: Idea): unknown, idle?(): unknown, stop?(): v
 type Deps = Parameters<typeof createQueue>[0] & { adapterName: string };
 /** The model registry's file (default <dataDir>/models.json), the environment it checks, and the codex command. */
 type ModelOptions = { file?: string, env?: NodeJS.ProcessEnv, codexBin?: string };
-type Options = { dataDir?: string, publicDir?: string, distDir?: string, generatorName?: string,
+type Options = { config?: Config, dataDir?: string, publicDir?: string, distDir?: string, generatorName?: string,
   curators?: string | string[], admins?: string | string[], models?: ModelOptions, secureCookies?: boolean,
   trustProxy?: boolean, log?: Log,
   rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, scrypt?: Cost, framesQuality?: number,
@@ -55,21 +57,25 @@ type Options = { dataDir?: string, publicDir?: string, distDir?: string, generat
   reports?: { keep?: number, maxBytes?: number, days?: number } };
 
 /**
- * The server. `generator` and `renderBox` stand in for createQueue() and createRenderBox() (STUDIO_BAKE_*) in tests;
+ * The server. `config`: the settings (src/config.ts; default: models.env's, else the environment's), the default of
+ * every option below that names one. `generator` and `renderBox` stand in for createQueue() and createRenderBox()
+ * (STUDIO_BAKE_*) in tests;
  * `generatorName`: STUDIO_GENERATOR, the registry's default when its file is first written ('' when unset);
  * `publicDir`: the sources (the library, the rig); `distDir`: the app as Vite built it, served as static files.
  * `trustProxy`: one proxy in front (a tunnel): the client's address and host are the ones it forwards. `flash`: the
- * flash check's settings (default: flashSettings(process.env)); `live`: who controls the live stage and what plays
- * (default: liveSettings(process.env)); `piPreview`: PI_PREVIEW_URL, a dry-run Studio Live shown to admins at /pi;
+ * flash check's settings (default: flashSettings(config)); `live`: who controls the live stage and what plays
+ * (default: liveSettings(config)); `piPreview`: PI_PREVIEW_URL, a dry-run Studio Live shown to admins at /pi;
  * `ideaLogs`: how many ideas' logs to keep and their disk cap (STUDIO_IDEA_LOGS, STUDIO_IDEA_LOGS_MAX_BYTES);
  * `previews`: the gallery previews' camera, 'playa' (the default) or 'front' (STUDIO_PREVIEWS).
  */
 export async function createServer(opts: Options = {}) {
+  const env = opts.models?.env ?? process.env, codexBin = opts.models?.codexBin;
+  const config = opts.config ?? configOf(env);
   const {
     dataDir = DEFAULT_DATA_DIR, publicDir = DEFAULT_PUBLIC_DIR, distDir = DEFAULT_DIST_DIR, generator,
     generatorName = '', curators = [], admins = [], secureCookies = false, rateLimit, trustProxy = false,
     renderBox, framesQuality, framesMaxBytes, scrypt,
-    flash = flashSettings(), live = liveSettings(),
+    flash = flashSettings(config), live = liveSettings(config),
   } = opts;
   // Its last warn and error lines go with each bug report.
   const log = keepTail(opts.log ?? createLog());
@@ -80,12 +86,11 @@ export async function createServer(opts: Options = {}) {
   auth.pruneSessions();
   const loaders = createLoaders(publicDir, { log });
   const { loadLibrary, loadRig } = loaders;
-  const env = opts.models?.env ?? process.env, codexBin = opts.models?.codexBin;
-  const models = createRegistry({ file: opts.models?.file || env.STUDIO_MODELS || path.join(dataDir, 'models.json'),
-    env, log, legacy: generatorName, foundryOn: foundryFromEnv(env).on, codexBin });
+  const models = createRegistry({ file: opts.models?.file || config.STUDIO_MODELS || path.join(dataDir, 'models.json'),
+    env, settings: config, log, legacy: generatorName, foundryOn: foundryOf(config).on, codexBin });
   const access = createAccess({ store, auth, models });
   const light = createLightStore({ file: path.join(dataDir, 'light.json'), log });
-  const box = renderBox || createRenderBox({ publicDir, log });
+  const box = renderBox || createRenderBox({ publicDir, log, config });
   // Baked frames are encoded for streaming as soon as they are stored (src/frames-cache.ts); bakes, those encodes
   // and the generators' render checks take turns at low priority, and evicted frames are baked again on demand.
   const lane = createLane();
@@ -93,7 +98,7 @@ export async function createServer(opts: Options = {}) {
   const reports = createReports({ dir: path.join(dataDir, 'reports'), ...opts.reports, log });
   void reports.sweep();
   const deps = { store, loadLibrary, loadRig, loadLight: light.current, loadVersion: loaders.version, models, codexBin,
-    log, box, lane, ideaLogs, adapterName: generatorName || 'sketch' };
+    config, log, box, lane, ideaLogs, adapterName: generatorName || 'sketch' };
   const queue: Queue = typeof generator === 'function' ? await generator(deps) : generator || createQueue(deps);
   const adapterName = models.defaultId();
   const framesDir = path.join(dataDir, 'frames');
@@ -104,7 +109,7 @@ export async function createServer(opts: Options = {}) {
     onFrames: (id) => { frames.encode(id); previews.want(id); } });
   frames.prune().then(() => frames.disk.enforce()).catch(() => {});
   // Gallery previews (SPEC "Gallery previews"), made in the same lane, after anything already queued at start.
-  const playa = (opts.previews ?? process.env.STUDIO_PREVIEWS) === 'front' ? null
+  const playa = (opts.previews ?? config.STUDIO_PREVIEWS) === 'front' ? null
     : playaCamera({ log, loadLight: light.current });
   const previews = createPreviews({ dir: path.join(dataDir, 'previews'), store, box, framesDir, lane, log,
     loadRig, camera: playa?.camera ?? frontView() });
@@ -117,7 +122,7 @@ export async function createServer(opts: Options = {}) {
     return stageCopy(look, store.users.get(look.owner)?.username ?? '');
   } });
   // Ideas a restart cut short go back in the queue (enqueue is idempotent per id).
-  for (const idea of store.ideas.list((i) => i.status === 'queued' || i.status === 'generating')) {
+  for (const idea of store.ideas.list(isPending)) {
     enqueueIdea({ queue, store, log }, idea);
   }
 
@@ -142,7 +147,8 @@ export async function createServer(opts: Options = {}) {
   await app.register(fastifyWebsocket, { options: { maxPayload: 16 * 1024 } });
   await app.register(apiRoutes({ store, auth, queue, models, loaders, log, access, framesDir, bakes,
     frames, rateLimit, secureCookies, flash, hub, live, ideaLogs, previews, reports, light,
-    build: buildSha(path.dirname(fileURLToPath(import.meta.url))), tail: log.tail }), { prefix: '/api' });
+    build: buildSha(path.dirname(fileURLToPath(import.meta.url)), config.GIT_SHA), tail: log.tail }),
+  { prefix: '/api' });
   if (piTarget) await app.register(piPreview({ auth, target: piTarget, hub }));
   // The live stage follows the dry run whenever /pi was the last thing used (SPEC-live "Following /pi").
   if (piTarget) {

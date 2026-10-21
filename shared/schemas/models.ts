@@ -12,6 +12,34 @@ export type Role = typeof ROLES[number];
 /** The effort levels each transport takes (Claude: output_config.effort; Codex: model_reasoning_effort). */
 export const EFFORTS: Record<Transport, readonly string[]> = { claude: ['low', 'medium', 'high', 'xhigh', 'max'],
   codex: ['minimal', 'low', 'medium', 'high', 'xhigh'], sketch: [], fleet: [] };
+/** What a transport can do. `prompted`: it reads the guide and composes in rounds (docs, render check, critique);
+ * `explores`: it takes an idea's explore level (SPEC-generators "Explore"); `refines`: it may refine a look;
+ * `critiques`: it may look at a look's frames; `paid`: it spends money or capacity, so it needs an unlocked account;
+ * `needsModel`: its entry must name the provider's model; `defaultEffort`: the effort of a model that names none;
+ * `laneDefault`: its jobs at once where neither the registry nor STUDIO_GENERATOR_CONCURRENCY says; `laneMax`: never
+ * more than this (the foundry runs one job at a time). */
+export type TransportCaps = { prompted: boolean, explores: boolean, refines: boolean, critiques: boolean,
+  paid: boolean, needsModel: boolean, defaultEffort?: string, laneDefault: number, laneMax?: number };
+export const TRANSPORT_CAPS: Record<Transport, TransportCaps> = {
+  claude: { prompted: true, explores: true, refines: true, critiques: true, paid: true, needsModel: false,
+    defaultEffort: 'medium', laneDefault: 4 },
+  codex: { prompted: true, explores: true, refines: true, critiques: true, paid: true, needsModel: true,
+    defaultEffort: 'low', laneDefault: 2 },
+  sketch: { prompted: false, explores: false, refines: true, critiques: false, paid: false, needsModel: false,
+    laneDefault: 4 },
+  fleet: { prompted: false, explores: false, refines: false, critiques: false, paid: true, needsModel: false,
+    laneDefault: 1, laneMax: 1 },
+};
+/** A transport's row; none for a name that is no transport (a test's stand-in adapter). */
+export const capsOf = (via: string): TransportCaps | undefined => TRANSPORT_CAPS[via as Transport];
+/** Why a model may not do what an idea asks (refine a look, look at its frames), in words; null when it may. The API
+ * answers with it before an idea is made, and the queue refuses with it. */
+export function cannot(m: { via: string, label: string }, ask: { refine?: boolean, critique?: boolean }) {
+  const caps = capsOf(m.via);
+  if (ask.refine && !caps?.refines) return `${m.label} cannot refine a look`;
+  if (ask.critique && !caps?.critiques) return `${m.label} cannot look at its frames`;
+  return null;
+}
 
 const ID = /^[a-z0-9][a-z0-9-]{0,31}$/;
 // A provider's model string goes into a request body or an argument list: no spaces, never a leading dash.
@@ -62,8 +90,8 @@ export const ModelsConfig = z.strictObject({
       at(EFFORTS[m.via].length ? `effort must be one of ${EFFORTS[m.via].join(', ')} for ${m.via}.`
         : `${m.via} takes no effort.`);
     }
-    if (m.via === 'codex' && !m.model) at('a codex model needs its model name.');
-    if (m.critique && m.via !== 'claude' && m.via !== 'codex') at(`${m.via} takes no critique.`);
+    if (TRANSPORT_CAPS[m.via].needsModel && !m.model) at(`a ${m.via} model needs its model name.`);
+    if (m.critique && !TRANSPORT_CAPS[m.via].critiques) at(`${m.via} takes no critique.`);
   });
   if (!seen.has(c.default)) ctx.addIssue({ code: 'custom', path: ['default'], message: 'default must name a model.' });
 });
@@ -80,10 +108,9 @@ export function readModels(json: unknown): { config: ModelsConfig } | { error: s
 }
 
 // What the API answers with. GET /api/models: what this user may pick, and which one the form starts on.
-/** `paid`: it spends money or capacity (any via but sketch), so it needs an unlocked account; `explores`: it takes an
- * idea's explore level (SPEC-generators "Explore"). */
+/** `paid` and `explores`: its transport's (TRANSPORT_CAPS). */
 export type ModelChoice = { id: string, label: string, paid: boolean, explores?: true };
-export const isPaid = (m: { via: Transport }) => m.via !== 'sketch';
+export const isPaid = (m: { via: Transport }) => TRANSPORT_CAPS[m.via].paid;
 /** Whether Sketch is offered to people other than admins. Off: its looks fall short, so it stays in the registry
  * (and on the Models page) for admins alone, whatever the file says. */
 export const SKETCH_FOR_EVERYONE = false;

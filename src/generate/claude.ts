@@ -5,8 +5,11 @@
 // read_doc, answers from the library docs in memory: a tool call is answered and the call made again.
 
 import { GenerateError } from '../../shared/schemas/generated.ts';
+import { EFFORTS as ALL_EFFORTS, TRANSPORT_CAPS } from '../../shared/schemas/models.ts';
+import { type Config, configOf } from '../config.ts';
 import type { Logger } from '../http.ts';
 import { monoNow } from '../clock.ts';
+import type { Availability, Probe } from './adapters.ts';
 import type { Context } from './index.ts';
 import { docCandidates, READ_CAP, READ_DOC_DESCRIPTION } from './doc-path.ts';
 import { docsBlock, givenAnswer } from './docs-turn.ts';
@@ -17,7 +20,7 @@ const API_VERSION = '2023-06-01';
 // Server-side refusal fallback ("default" routes by refusal category). Only these models take it.
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 const FALLBACK_MODELS = new Set(['claude-opus-5-5', 'claude-opus-5', 'claude-fable-5-1', 'claude-sonnet-5-5']);
-const EFFORTS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
+const EFFORTS = new Set(ALL_EFFORTS.claude);
 const MAX_CALLS = 12; // an answer's calls, tool rounds included
 const READ_DOC = { name: 'read_doc', description: READ_DOC_DESCRIPTION, input_schema: { type: 'object',
   properties: { path: { type: 'string' } }, required: ['path'], additionalProperties: false } };
@@ -35,23 +38,28 @@ const num = (v: unknown, d: number) => (v != null && v !== '' && Number.isFinite
 // Options (environment): fetch, apiKey (ANTHROPIC_API_KEY), model (STUDIO_CLAUDE_MODEL), effort
 // (STUDIO_CLAUDE_EFFORT, medium), maxTokens (STUDIO_CLAUDE_MAX_TOKENS, 32000, thinking included), timeoutMs
 // (STUDIO_CLAUDE_TIMEOUT_MS, 300000 per attempt).
-type Options = Partial<{ env: NodeJS.ProcessEnv, fetch: typeof fetch, apiKey: string, model: string, effort: string,
-  maxTokens: number, timeoutMs: number, retryDelayMs: number, baseUrl: string, fallbacks: boolean, log: Logger }>;
+/** Whether the Messages API can be reached from here: an API key. */
+export const probe = ({ env }: Probe): Availability => (env.ANTHROPIC_API_KEY
+  ? { available: true, note: 'Anthropic API key set.' } : { available: false, note: 'ANTHROPIC_API_KEY is not set.' });
+
+type Options = Partial<{ env: NodeJS.ProcessEnv, config: Config, fetch: typeof fetch, apiKey: string, model: string,
+  effort: string, maxTokens: number, timeoutMs: number, retryDelayMs: number, baseUrl: string, fallbacks: boolean,
+  log: Logger }>;
 export function createClaudeAdapter(o: Options = {}) {
-  const env = o.env || process.env;
+  const c = o.config ?? configOf(o.env || process.env);
   const cfg = {
     fetch: o.fetch || ((...a: Parameters<typeof fetch>) => globalThis.fetch(...a)),
-    apiKey: o.apiKey ?? env.ANTHROPIC_API_KEY,
-    model: o.model || env.STUDIO_CLAUDE_MODEL || DEFAULT_MODEL,
-    effort: o.effort || env.STUDIO_CLAUDE_EFFORT || 'medium',
-    maxTokens: num(o.maxTokens ?? env.STUDIO_CLAUDE_MAX_TOKENS, 32000),
-    timeoutMs: num(o.timeoutMs ?? env.STUDIO_CLAUDE_TIMEOUT_MS, 300_000),
+    apiKey: o.apiKey ?? c.ANTHROPIC_API_KEY,
+    model: o.model || c.STUDIO_CLAUDE_MODEL || DEFAULT_MODEL,
+    effort: o.effort || c.STUDIO_CLAUDE_EFFORT || TRANSPORT_CAPS.claude.defaultEffort!,
+    maxTokens: num(o.maxTokens ?? c.STUDIO_CLAUDE_MAX_TOKENS, 32000),
+    timeoutMs: num(o.timeoutMs ?? c.STUDIO_CLAUDE_TIMEOUT_MS, 300_000),
     retryDelayMs: num(o.retryDelayMs, 2000),
-    baseUrl: (o.baseUrl || env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com').replace(/\/+$/, ''),
-    fallbacks: o.fallbacks ?? env.STUDIO_CLAUDE_FALLBACKS !== '0',
+    baseUrl: (o.baseUrl || c.ANTHROPIC_BASE_URL || 'https://api.anthropic.com').replace(/\/+$/, ''),
+    fallbacks: o.fallbacks ?? c.STUDIO_CLAUDE_FALLBACKS ?? true,
     log: o.log || console,
   };
-  if (!EFFORTS.has(cfg.effort)) cfg.effort = 'medium';
+  if (!EFFORTS.has(cfg.effort)) cfg.effort = TRANSPORT_CAPS.claude.defaultEffort!;
 
   async function generate(ctx: Context) {
     const { text, library = [], rig, groups = rig?.groups || [], prompt, turn, repair, signal, docsRead = [], schema,

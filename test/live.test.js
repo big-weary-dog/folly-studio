@@ -8,6 +8,7 @@ import WebSocket from 'ws';
 
 import { MAX_LANES } from '../public/js/pattern-core.ts';
 import * as twin from '../public/js/ui/live/lanes.ts';
+import { configOf } from '../src/config.ts';
 import { meter } from '../src/live/hub.ts';
 import { liveSettings, playableLook } from '../src/live/routes.ts';
 import { applySet, emptyLive, LEAD_MS, RAMP, roll, showTime, switchTo } from '../src/live/state.ts';
@@ -137,11 +138,11 @@ describe('live state', () => {
   });
 
   test('settings', () => {
-    assert.deepEqual(liveSettings({}), { control: 'curators', looks: 'reviewed' });
-    assert.deepEqual(liveSettings({ STUDIO_LIVE_CONTROL: ' Admins', STUDIO_LIVE_LOOKS: 'shared' }),
+    assert.deepEqual(liveSettings(configOf({})), { control: 'curators', looks: 'reviewed' });
+    assert.deepEqual(liveSettings(configOf({ STUDIO_LIVE_CONTROL: ' Admins', STUDIO_LIVE_LOOKS: 'shared' })),
       { control: 'admins', looks: 'shared' });
-    assert.deepEqual(liveSettings({ STUDIO_LIVE_CONTROL: 'everyone', STUDIO_LIVE_LOOKS: 'all' }),
-      { control: 'curators', looks: 'reviewed' }, 'unknown values: the defaults');
+    assert.throws(() => configOf({ STUDIO_LIVE_CONTROL: 'everyone', STUDIO_LIVE_LOOKS: 'all' }),
+      /STUDIO_LIVE_CONTROL must be curators or admins or members\.\nSTUDIO_LIVE_LOOKS/, 'unknown values: refused');
     const look = { shared: true, reviewed: false, layers: [] };
     assert.equal(playableLook(look, { looks: 'reviewed' }), false);
     assert.equal(playableLook(look, { looks: 'shared' }), true);

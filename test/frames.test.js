@@ -9,6 +9,7 @@ import {
   compileLayer, FlashWatch, ledLight, pixelsForGroups, prepareLayer, prepareLook, prepareScene, renderFrame,
 } from '../public/js/pattern-core.ts';
 import { checkFrames, flashSettings } from '../src/box-output.ts';
+import { configOf } from '../src/config.ts';
 import { analyzeFrames, FseqError, flickerReason, flickerWarning, MAX_CHANNELS, parseFseq } from '../src/frames.ts';
 import { folly } from './fixtures/rigs.js';
 
@@ -299,28 +300,30 @@ describe('flash check on looks: a wave a second is fine, a strobe is not', () =>
 });
 
 describe('the flash check\'s settings', () => {
-  test('from the environment: FLASH by default, each limit only in range, and off for local use', () => {
+  test('from the config: FLASH by default, each limit only in range, and off for local use', () => {
     const defaults = { check: true, perSecond: 3, delta: 0.5, darker: 0.8, area: 0.25 };
-    assert.deepEqual(flashSettings({}), defaults);
+    assert.deepEqual(flashSettings(configOf({})), defaults);
     const env = (perSecond, delta, area) => ({ STUDIO_FLASH_PER_SECOND: perSecond, STUDIO_FLASH_DELTA: delta,
       STUDIO_FLASH_AREA: area });
-    assert.deepEqual(flashSettings(env('5', '0.2', '.1')), { ...defaults, perSecond: 5, delta: 0.2, area: 0.1 });
-    assert.deepEqual(flashSettings(env('lots', '0', '7')), defaults);
-    assert.equal(flashSettings({ STUDIO_FLASH_CHECK: 'off' }).check, false);
-    assert.equal(flashSettings({ STUDIO_FLASH_CHECK: 'on' }).check, true);
+    assert.deepEqual(flashSettings(configOf(env('5', '0.2', '.1'))),
+      { ...defaults, perSecond: 5, delta: 0.2, area: 0.1 });
+    assert.deepEqual(flashSettings(configOf(env('30', '0', '7'))), defaults);
+    assert.throws(() => configOf(env('lots', '0', '7')), /STUDIO_FLASH_PER_SECOND must be a number/);
+    assert.equal(flashSettings(configOf({ STUDIO_FLASH_CHECK: 'off' })).check, false);
+    assert.equal(flashSettings(configOf({ STUDIO_FLASH_CHECK: 'on' })).check, true);
   });
 
   test('checked frames use them; with the check off, large-area flashing is only a warning', () => {
     const bytes = bake(C, 2, (f) => gray(square(4)(f)));
-    const strict = checkFrames(bytes, { source: 'render-box', rig: C, flash: flashSettings({}) }).bake;
+    const strict = checkFrames(bytes, { source: 'render-box', rig: C, flash: flashSettings(configOf({})) }).bake;
     assert.equal(strict.ok, false);
     assert.match(strict.reason, /up to 4 flashes a second \(over 3 /);
     const relaxed = checkFrames(bytes, { source: 'render-box', rig: C,
-      flash: flashSettings({ STUDIO_FLASH_PER_SECOND: '4' }) }).bake;
+      flash: flashSettings(configOf({ STUDIO_FLASH_PER_SECOND: '4' })) }).bake;
     assert.equal(relaxed.ok, true);
     assert.deepEqual(relaxed.analysis.flicker.limits, { perSecond: 4, delta: 0.5, area: 0.25 });
     const off = checkFrames(bytes, { source: 'render-box', rig: C,
-      flash: flashSettings({ STUDIO_FLASH_CHECK: 'off' }) }).bake;
+      flash: flashSettings(configOf({ STUDIO_FLASH_CHECK: 'off' })) }).bake;
     assert.equal(off.ok, true);
     assert.equal(off.analysis.flicker.ok, false, 'still measured');
     assert.match(off.warning, /^The flash check is off on this server\. Large-area flashing at up to 4 flashes/);

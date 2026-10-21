@@ -1,5 +1,5 @@
-// The server's guards against a rough host and bad luck: clocks that never step back, one reading of on/off settings,
-// a stage socket that outlives a failing message, a cap on password hashes running at once.
+// The server's guards against a rough host and bad luck: clocks that never step back, a stage socket that outlives
+// a failing message, a cap on password hashes running at once.
 import assert from 'node:assert/strict';
 
 import { mkdtemp } from 'node:fs/promises';
@@ -10,7 +10,6 @@ import { describe, test, vi } from 'vitest';
 
 import { createAuth } from '../src/auth.ts';
 import { monoNow, serverNow } from '../src/clock.ts';
-import { envFlag } from '../src/env.ts';
 import { createHub } from '../src/live/hub.ts';
 
 describe('clock', () => {
@@ -21,13 +20,6 @@ describe('clock', () => {
       assert.ok(Number.isInteger(monoNow()) && monoNow() >= mono);
       assert.ok(serverNow() >= server && serverNow() - server < 1000);
     } finally { wall.mockRestore(); }
-  });
-});
-
-describe('envFlag', () => {
-  test('1, true, on and yes in any case are on; anything else is off', () => {
-    for (const v of ['1', 'true', 'TRUE', 'on', 'On', 'yes', ' YES ']) assert.equal(envFlag(v), true, v);
-    for (const v of [undefined, '', '0', 'false', 'off', 'no', 'enabled', '2']) assert.equal(envFlag(v), false, v);
   });
 });
 

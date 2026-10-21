@@ -3,6 +3,7 @@
 // every route but the public ones needs a session. Logins are limited per IP, and failed ones per IP and username.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
+import { isPending, transition } from '../shared/idea-status.ts';
 import { DEEP, type FlashSettings, type Idea, IdeaBody, Login, RefineBody, Signup } from '../shared/schemas/api.ts';
 import type { AccessControl } from './access.ts';
 import { accessRoutes, sendRefusal } from './api-access.ts';
@@ -25,6 +26,7 @@ import type { createPreviews } from './previews/index.ts';
 import { liveRoutes } from './live/routes.ts';
 import { checkMutation, HttpError, type Log, type Logger, parse, routes, sendJson } from './http.ts';
 import type { LiveSettings } from '../shared/schemas/live.ts';
+import { cannot, TRANSPORT_CAPS } from '../shared/schemas/models.ts';
 import type { createLoaders } from './static.ts';
 import type { Store } from './store.ts';
 
@@ -44,8 +46,8 @@ export function enqueueIdea({ queue, store, log }: { queue: Queue, store: Pick<S
   const fail = (err: unknown) => {
     log.error?.(`generator: enqueue failed for idea ${idea.id}:`, err);
     const cur = store.ideas.get(idea.id);
-    if (cur && (cur.status === 'queued' || cur.status === 'generating')) {
-      store.ideas.update(idea.id, { status: 'failed', error: 'The idea could not be queued.' });
+    if (cur && isPending(cur)) {
+      store.ideas.update(idea.id, transition(cur, 'failed', { error: 'The idea could not be queued.' }));
     }
   };
   try { Promise.resolve(queue.enqueue(idea)).catch(fail); } catch (err) { fail(err); }
@@ -146,7 +148,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         const picked = models.pick(model, auth.roleOf(req.user), { paid: access.state(req.user!).unlocked });
         if ('error' in picked) throw new HttpError(400, picked.error);
         // Only the prompted models explore (SPEC-generators "Explore"); the others' ideas say nothing of it.
-        const explore = ['claude', 'codex'].includes(picked.entry.via) ? asked : undefined;
+        const explore = TRANSPORT_CAPS[picked.entry.via].explores ? asked : undefined;
         if (explore === 'deep' && !DEEP.enabled) throw new HttpError(400, 'Deep is off for now; try Explore.');
         if (explore === 'deep' && DEEP.adminOnly && auth.roleOf(req.user) !== 'admin') {
           throw new HttpError(403, 'Deep is for admins for now; try Explore.');
@@ -169,14 +171,9 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         const made = model ?? (look.ideaId ? store.ideas.get(look.ideaId)?.model : undefined);
         const picked = models.pick(made, auth.roleOf(req.user), { paid: access.state(req.user!).unlocked });
         if ('error' in picked) throw new HttpError(400, picked.error);
-        if (!['claude', 'codex', 'sketch'].includes(picked.entry.via)) {
-          throw new HttpError(400, `${picked.entry.label} cannot refine a look; pick another model.`);
-        }
-        if (critique && !['claude', 'codex'].includes(picked.entry.via)) {
-          throw new HttpError(400, `${picked.entry.label} cannot look at its frames; pick another model.`);
-        }
-        if (store.ideas.list((i) => i.lookId === look.id && !!i.refine
-          && (i.status === 'queued' || i.status === 'generating')).length) {
+        const unable = cannot(picked.entry, { refine: true, critique });
+        if (unable) throw new HttpError(400, `${unable}; pick another model.`);
+        if (store.ideas.list((i) => i.lookId === look.id && !!i.refine && isPending(i)).length) {
           throw new HttpError(409, 'This look is already being refined.');
         }
         const refused = access.check(req.user!, picked.entry); // no await from here to the create: one step
@@ -191,8 +188,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       },
       'GET /ideas/:id': async (req, reply) => {
         const idea = own(req), seen = (req.query as { wait?: unknown }).wait;
-        const pending = idea.status === 'queued' || idea.status === 'generating';
-        if (!pending || seen !== `${idea.status}@${idea.updatedAt}` || !queue.watch
+        if (!isPending(idea) || seen !== `${idea.status}@${idea.updatedAt}` || !queue.watch
           || (waits.get(req.user!.id) ?? 0) >= WAITS_PER_USER) return { idea };
         await changed(req, reply, idea);
         return { idea: own(req) };

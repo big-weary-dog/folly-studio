@@ -5,7 +5,7 @@
 // fails or answers no three takes leaves the idea to the quick rounds. Effort is raised for the whole idea.
 
 import { type Explore } from '../../shared/schemas/api.ts';
-import { EFFORTS, type ModelEntry, type Transport } from '../../shared/schemas/models.ts';
+import { EFFORTS, type ModelEntry, type Transport, TRANSPORT_CAPS } from '../../shared/schemas/models.ts';
 import { monoNow } from '../clock.ts';
 import {
   buildDeepMessage, buildSketchMessage, buildSynthesisMessage, buildTakeMessage, readSketches, SKETCH_SCHEMA,
@@ -31,7 +31,7 @@ const why = (err: unknown) => String((err as Error)?.message || err).slice(0, 16
 export function boosted(via: Transport, entry: ModelEntry | undefined, level: Level): ModelEntry | undefined {
   const order = EFFORTS[via], want = LEVELS[level].effort;
   if (!order.includes(want)) return entry;
-  const at = order.indexOf(entry?.effort ?? (via === 'claude' ? 'medium' : 'low'));
+  const at = order.indexOf(entry?.effort ?? TRANSPORT_CAPS[via].defaultEffort ?? '');
   return at >= order.indexOf(want) ? entry
     : { ...(entry ?? { id: via, label: via, via, enabled: true }), effort: want } as ModelEntry;
 }

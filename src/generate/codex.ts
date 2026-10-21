@@ -11,8 +11,8 @@
 // library under the work folder; with the shell off, they are all it can read.
 
 import { createHash } from 'node:crypto';
-import { promises as fs } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, promises as fs } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 import { fileURLToPath } from 'node:url';
@@ -20,9 +20,10 @@ import { fileURLToPath } from 'node:url';
 import { GenerateError } from '../../shared/schemas/generated.ts';
 import type { Logger } from '../http.ts';
 import { monoNow } from '../clock.ts';
-import { envFlag } from '../env.ts';
+import { type Config, configOf } from '../config.ts';
 import { parseJson, pickLook } from './claude.ts';
 import { docsBlock } from './docs-turn.ts';
+import type { Availability, Probe } from './adapters.ts';
 import type { Context } from './index.ts';
 import { READ_CAP } from './doc-path.ts';
 import { findExecutable, Interrupted, runCommand, STOP_SIGNALS } from './proc.ts';
@@ -44,8 +45,6 @@ const PASS_ENV = new RegExp(`^(?:${['PATH', 'PATHEXT', 'HOME', 'USERPROFILE', 'A
   'HOMEPATH', 'SYSTEMROOT', 'SYSTEMDRIVE', 'WINDIR', 'COMSPEC', 'TEMP', 'TMP', 'TMPDIR', 'USER', 'LOGNAME', 'LANG',
   'LC_\\w+', 'TZ', 'XDG_\\w+', 'CODEX_\\w+', 'OPENAI_\\w+', '(?:HTTPS?|ALL|NO)_PROXY', 'SSL_CERT_\\w+',
   'NODE_EXTRA_CA_CERTS'].join('|')})$`, 'i');
-const num = (v: unknown, d: number) => (v != null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : d);
-
 /** The schema as strict structured output takes it: every property required, the optional ones nullable. */
 export function strictSchema(node: unknown): unknown {
   if (Array.isArray(node)) return node.map(strictSchema);
@@ -70,21 +69,31 @@ export function dropNulls(v: unknown): unknown {
   return Object.fromEntries(Object.entries(v).filter(([, x]) => x !== null).map(([k, x]) => [k, dropNulls(x)]));
 }
 
+/** Whether the Codex CLI can run here: on PATH, and (else a warning) signed in. */
+export function probe({ env, codexBin }: Probe): Availability {
+  if (!findExecutable(codexBin, { env })) return { available: false, note: `${codexBin} is not on PATH.` };
+  const home = env.CODEX_HOME || path.join(homedir(), '.codex');
+  return existsSync(path.join(home, 'auth.json')) || env.CODEX_API_KEY
+    ? { available: true, note: 'Codex CLI found, signed in.' }
+    : { available: true, warn: true, note: 'Codex CLI found; no login seen (run codex login).' };
+}
+
 // Options (environment): bin (STUDIO_CODEX_BIN, "codex"), model, effort, timeoutMs (STUDIO_CODEX_TIMEOUT_MS, 300000;
 // a composition's scaled by effort: COMPOSE_SCALE), idleMs (STUDIO_CODEX_IDLE_MS, 180000, scaled by IDLE_SCALE),
 // workDir (STUDIO_CODEX_WORK, <tmp>/folly-studio-codex), schema (STUDIO_CODEX_SCHEMA=0: no --output-schema),
 // userConfig (STUDIO_CODEX_USER_CONFIG=1: read ~/.codex/config.toml after all).
-type Options = Partial<{ env: NodeJS.ProcessEnv, bin: string, model: string, effort: string, timeoutMs: number,
-  idleMs: number, workDir: string, schema: boolean, userConfig: boolean, maxOutputBytes: number, log: Logger }>;
+type Options = Partial<{ env: NodeJS.ProcessEnv, config: Config, bin: string, model: string, effort: string,
+  timeoutMs: number, idleMs: number, workDir: string, schema: boolean, userConfig: boolean, maxOutputBytes: number,
+  log: Logger }>;
 export function createCodexAdapter(o: Options = {}) {
-  const env = o.env || process.env;
+  const env = o.env || process.env, c = o.config ?? configOf(env);
   const cfg = {
-    bin: o.bin || env.STUDIO_CODEX_BIN || 'codex', model: o.model || 'gpt-6.1-sol', effort: o.effort || '',
-    timeoutMs: o.timeoutMs ?? num(env.STUDIO_CODEX_TIMEOUT_MS, 300_000),
-    idleMs: o.idleMs ?? num(env.STUDIO_CODEX_IDLE_MS, 180_000),
-    workDir: path.resolve(o.workDir || env.STUDIO_CODEX_WORK || path.join(tmpdir(), 'folly-studio-codex')),
-    schema: o.schema ?? env.STUDIO_CODEX_SCHEMA !== '0',
-    userConfig: o.userConfig ?? envFlag(env.STUDIO_CODEX_USER_CONFIG),
+    bin: o.bin || c.STUDIO_CODEX_BIN || 'codex', model: o.model || 'gpt-6.1-sol', effort: o.effort || '',
+    timeoutMs: o.timeoutMs ?? c.STUDIO_CODEX_TIMEOUT_MS ?? 300_000,
+    idleMs: o.idleMs ?? c.STUDIO_CODEX_IDLE_MS ?? 180_000,
+    workDir: path.resolve(o.workDir || c.STUDIO_CODEX_WORK || path.join(tmpdir(), 'folly-studio-codex')),
+    schema: o.schema ?? c.STUDIO_CODEX_SCHEMA ?? true,
+    userConfig: o.userConfig ?? c.STUDIO_CODEX_USER_CONFIG ?? false,
     maxOutputBytes: o.maxOutputBytes ?? 4 << 20, log: o.log || console,
   };
   const childEnv = Object.fromEntries(Object.entries(env).filter(([k]) => PASS_ENV.test(k)));

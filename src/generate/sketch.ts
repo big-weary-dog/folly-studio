@@ -253,6 +253,9 @@ function makeTitle(text: string) {
 const colourName = (hex: string) => (hex === WARM_WHITE ? 'warm white'
   : Object.entries(COLOURS).find(([, v]) => v === hex)?.[0]);
 
+/** Sketch runs offline: always there. */
+export const probe = () => ({ available: true, note: 'Offline; always there.' });
+
 /** A look from the idea's words: { title, summary, layers }. */
 export function sketchLook({ text = '', library = [], groups = [] }: { text?: string, library?: readonly Pattern[],
   groups?: readonly RigGroup[] } = {}) {

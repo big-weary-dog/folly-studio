@@ -3,6 +3,7 @@
 import { z } from 'zod';
 
 import ACCOUNT from '../../public/data/account.json' with { type: 'json' };
+import type { IdeaStatus } from '../idea-status.ts';
 import { type Automation, Bpm, Duration, Globals, type Layer, Layers, LookTitle, Summary } from './look.ts';
 
 /** A body's `chain`: 2 when its chains follow the one rule; without it they are converted (SPEC "Looks"). */
@@ -90,7 +91,7 @@ export type RefineAsk = { critique?: true, fix?: { layer: string, error: string 
 /** `model`: the model asked for; `generator`: the one that made the look (a fallback's, if it took over); `by`: its
  * label as shown ("by <label>"); `explore`: how much it explores (a prompted model's); `took`: what its look took from
  * each sketch; `rounds`: what its rounds did. */
-export type Idea = { id: string, owner: string, text: string, status: 'queued' | 'generating' | 'ready' | 'failed',
+export type Idea = { id: string, owner: string, text: string, status: IdeaStatus,
   model?: string, generator: string, by?: string, explore?: Explore, took?: string, timing?: Timing, lookId?: string,
   refine?: RefineAsk, changes?: string[], verdict?: string, undone?: true, error?: string | null, createdAt: string,
   rounds?: IdeaRound[],

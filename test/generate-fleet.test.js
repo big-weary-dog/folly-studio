@@ -9,12 +9,13 @@ import { describe, test } from 'vitest';
 import { ledRanges, writeFseq } from '../public/js/fseq.ts';
 import * as patternCore from '../public/js/pattern-core.ts';
 import { bakeLoop, renderer } from '../render-box/renderer.ts';
-import { layersHash, parseDuration } from '../src/bake.ts';
+import { layersHash } from '../src/bake.ts';
 import { analyzeFrames, parseFseq } from '../src/frames.ts';
 import {
   copyModule, createFleetAdapter, fenceUntrusted, hasMemoryCap, readLook, workerName,
 } from '../src/generate/fleet.ts';
-import { createQueue, foundryFromEnv } from '../src/generate/index.ts';
+import { configOf } from '../src/config.ts';
+import { createQueue, foundryOf } from '../src/generate/index.ts';
 import { sketchLook } from '../src/generate/sketch.ts';
 import { GenerateError, validateLook } from '../shared/schemas/generated.ts';
 import {
@@ -242,10 +243,6 @@ describe('fleet (experimental, stub CLI)', () => {
   });
 
   test('helpers', async () => {
-    assert.equal(parseDuration('30m', 1), 1_800_000);
-    assert.equal(parseDuration('90', 1), 90_000);
-    assert.equal(parseDuration('250ms', 1), 250);
-    assert.equal(parseDuration('soon', 7), 7);
     assert.match(workerName('../../Etc/Passwd'), /^idea-etc-passwd-[a-z0-9]+$/);
     assert.equal(workerName('abc-123'), 'idea-abc-123');
     assert.notEqual(workerName('AbC'), workerName('aBc'));
@@ -397,8 +394,8 @@ describe('the Fleet foundry is opt-in', () => {
   const settle = () => new Promise((r) => setTimeout(r, 20));
 
   test('off by default: deep ideas fail, saying so, never Sketch; a fallback the env names takes them', async () => {
-    assert.deepEqual({ ...foundryFromEnv({}), memoryCap: 0 }, { on: false, wait: false, memoryCap: 0 });
-    assert.equal(foundryFromEnv({ STUDIO_FOUNDRY: 'on', STUDIO_FOUNDRY_WAIT: '1' }).on, true);
+    assert.deepEqual({ ...foundryOf(configOf({})), memoryCap: 0 }, { on: false, wait: false, memoryCap: 0 });
+    assert.equal(foundryOf(configOf({ STUDIO_FOUNDRY: 'on', STUDIO_FOUNDRY_WAIT: '1' })).on, true);
     const off = foundryQueue({ on: false });
     const i = off.idea('embers');
     assert.equal(off.queue.enqueue(i), false);

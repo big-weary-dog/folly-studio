@@ -9,6 +9,7 @@ import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
+import type { IdeaOutcome } from '../../shared/idea-status.ts';
 import { monoNow } from '../clock.ts';
 import type { Logger } from '../http.ts';
 
@@ -18,7 +19,7 @@ export type Call = { ms: number, system?: string, turn: unknown, images?: number
   usage?: Partial<Usage>, docs?: string[], error?: string };
 export type Round = { kind: string, call(c: Call): void, still(png: Uint8Array, about: Record<string, unknown>): void,
   end(r?: { outcome?: string, notes?: string[], [more: string]: unknown }): void };
-export type Outcome = { status: 'ready' | 'failed' | 'interrupted', error?: string, detail?: string, lookId?: string };
+export type Outcome = { status: IdeaOutcome, error?: string, detail?: string, lookId?: string };
 export type IdeaLog = ReturnType<typeof createIdeaLog>;
 
 const ID = /^[\w-]{1,64}$/, STILL = /^\d{1,3}-[a-z]{1,16}-\d{1,2}\.png$/;

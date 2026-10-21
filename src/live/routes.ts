@@ -6,18 +6,16 @@ import type { Listed } from '../../shared/schemas/api.ts';
 import type { LiveLook, LiveSettings } from '../../shared/schemas/live.ts';
 import type { Auth } from '../auth.ts';
 import { serverNow } from '../clock.ts';
+import { type Config, configOf } from '../config.ts';
 import { HttpError } from '../http.ts';
 import type { Store, StoredLook } from '../store.ts';
 import type { Hub } from './hub.ts';
 
 type Stored = NonNullable<FastifyRequest['user']>;
 
-/** The settings from the environment: unknown values fall back to the defaults (curators; reviewed looks). */
-export function liveSettings(env: NodeJS.ProcessEnv = process.env): LiveSettings {
-  const control = String(env.STUDIO_LIVE_CONTROL ?? '').trim().toLowerCase();
-  const looks = String(env.STUDIO_LIVE_LOOKS ?? '').trim().toLowerCase();
-  return { control: control === 'admins' || control === 'members' ? control : 'curators',
-    looks: looks === 'shared' ? 'shared' : 'reviewed' };
+/** The settings (STUDIO_LIVE_CONTROL, STUDIO_LIVE_LOOKS): curators and reviewed looks when unset. */
+export function liveSettings(c: Config = configOf()): LiveSettings {
+  return { control: c.STUDIO_LIVE_CONTROL ?? 'curators', looks: c.STUDIO_LIVE_LOOKS ?? 'reviewed' };
 }
 
 /** May this look play on the stage under these settings? */

@@ -559,7 +559,8 @@ or fall outside 0–600 s, and a duration outside 1–600 s, are refused with 40
 `flash = { check, perSecond, delta, darker, area }`: the flash check's settings (Baked frames, Checks), for the
 preview's guard; `check: false` (`STUDIO_FLASH_CHECK=off`) means nothing is dimmed or blocked.
 `idea = { id, owner, text, status: 'queued'|'generating'|'ready'|'failed', model?, generator, by?, explore?, took?,
-timing?, rounds?, lookId?, refine?, changes?, verdict?, undone?, error?, createdAt, updatedAt }`: `model` the registry id asked for, `generator` the one that made
+timing?, rounds?, lookId?, refine?, changes?, verdict?, undone?, error?, createdAt, updatedAt }`: `status` goes queued → generating →
+ready or failed, which are final (moves: `shared/idea-status.ts`); `model` the registry id asked for, `generator` the one that made
 the look (the one-shot generator's when the foundry was off or busy), `by` its label ("Opus"), `timing = { wait, prompt, request, parse,
 total, check?, critique?, sketch?, tokens? }` in ms (`tokens = { input, cached, output }`); `rounds = [{ kind, ms,
 outcome? }]` its model's rounds (SPEC-generators "The idea log"); `explore` the level it was made at and `took` what its look took from
@@ -690,7 +691,7 @@ marks the look reviewed.
   front or the side. Flashes are counted per cell (a later change of direction), so a wave crossing the rig flashes
   each place once a pass. Flashing over the limit on a large area fails `ok` (`regions`: the top-level groups where);
   elsewhere alone (on the real map: spirelets, rose window, wash) it goes to `small`, a warning. The limits come from
-  `STUDIO_FLASH_PER_SECOND`, `_DELTA` and `_AREA` (`flashSettings(env)`, `src/box-output.ts`; `FLASH` when unset or
+  `STUDIO_FLASH_PER_SECOND`, `_DELTA` and `_AREA` (`flashSettings(config)`, `src/box-output.ts`; `FLASH` when unset or
   out of range); `STUDIO_FLASH_CHECK=off` (local use, never a public server) still measures, but large-area
   flashing only warns.
 - **Stored.** `<STUDIO_DATA>/frames/<lookId>.fseq` and `look.bake = { source, status:

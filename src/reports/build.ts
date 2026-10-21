@@ -5,9 +5,9 @@ import path from 'node:path';
 
 const read = (file: string) => { try { return readFileSync(file, 'utf8').trim(); } catch { return ''; } };
 
-/** The short commit `root` (a folder in the checkout) is at. */
-export function buildSha(root: string, env = process.env): string {
-  if (env.GIT_SHA) return env.GIT_SHA.slice(0, 12);
+/** The short commit `root` (a folder in the checkout) is at; `given`: GIT_SHA. */
+export function buildSha(root: string, given = process.env.GIT_SHA): string {
+  if (given) return given.slice(0, 12);
   let dir = path.resolve(root), git = '';
   for (let i = 0; i < 8 && !git; i++, dir = path.dirname(dir)) {
     const dot = path.join(dir, '.git'), file = read(dot);

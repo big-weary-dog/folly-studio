@@ -9,6 +9,7 @@ import path from 'node:path';
 import { flashLimits, FlashWatch, type Light, ledLight, prepareScene } from '../public/js/pattern-core.ts';
 import type { Bake, FlashSettings } from '../shared/schemas/api.ts';
 import type { Rig } from '../shared/schemas/rig.ts';
+import { type Config, configOf } from './config.ts';
 import { analyzeFrames, DEFAULT_MAX_BYTES, flickerReason, flickerWarning, FseqError, parseFseq } from './frames.ts';
 import { inflateBlock } from './fseq-codec.ts';
 
@@ -80,14 +81,13 @@ export function cleanBoxStats(value: unknown): NonNullable<Bake['boxStats']> {
 }
 
 /**
- * The flash check's settings from the environment (docs/HOSTING.md): STUDIO_FLASH_PER_SECOND, _DELTA and _AREA (each
+ * The flash check's settings from the config (docs/HOSTING.md): STUDIO_FLASH_PER_SECOND, _DELTA and _AREA (each
  * FLASH's when unset or out of range), and STUDIO_FLASH_CHECK=off to stop it blocking anything (local use).
  */
-export function flashSettings(env: NodeJS.ProcessEnv = process.env): FlashSettings {
-  const num = (v?: string) => (v?.trim() ? Number(v) : undefined);
-  const limits = flashLimits({ perSecond: num(env.STUDIO_FLASH_PER_SECOND), delta: num(env.STUDIO_FLASH_DELTA),
-    area: num(env.STUDIO_FLASH_AREA) });
-  return { check: !/^(off|0|false|no)$/i.test(env.STUDIO_FLASH_CHECK?.trim() || ''), ...limits };
+export function flashSettings(c: Config = configOf()): FlashSettings {
+  const limits = flashLimits({ perSecond: c.STUDIO_FLASH_PER_SECOND, delta: c.STUDIO_FLASH_DELTA,
+    area: c.STUDIO_FLASH_AREA });
+  return { check: c.STUDIO_FLASH_CHECK ?? true, ...limits };
 }
 
 /**

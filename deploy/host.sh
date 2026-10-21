@@ -52,6 +52,10 @@ node node_modules/playwright-core/cli.js install chromium-headless-shell >/dev/n
 npm run --silent build >/dev/null
 # What the check below asks for, and what anyone can ask the hosted studio for: /build.json.
 printf '{ "commit": "%s", "builtAt": "%s" }\n' "$commit" "$(date -u +%FT%TZ)" > dist/build.json
+# The new build's own reading of the settings, before anything restarts: a value it would refuse leaves the running
+# service as it is. It prints names only, never values.
+node tools/config-check.ts "$env_file" \
+  || die "$commit would not start with $env_file (the names above; docs/HOSTING.md \"Environment\"); $unit left running"
 
 node=$(command -v node)
 units="$HOME/.config/systemd/user"

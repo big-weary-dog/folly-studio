@@ -106,20 +106,6 @@ function boxDigester(config: Partial<RenderBox['config']> | undefined) {
   };
 }
 
-/** "64MB", "512k", "1048576" → bytes. */
-export function parseBytes<T>(v: unknown, fallback: T) {
-  const m = /^\s*(\d+(?:\.\d+)?)\s*([kmg]?)i?b?\s*$/i.exec(String(v ?? ''));
-  const unit: Record<string, number> = { '': 1, k: 1024, m: 1024 ** 2, g: 1024 ** 3 };
-  return m ? Math.floor(Number(m[1]) * unit[m[2]!.toLowerCase()]!) : fallback;
-}
-
-/** "1800", "1800s", "30m", "2h", "500ms" → milliseconds. Bare numbers are seconds. */
-export function parseDuration<T>(v: unknown, fallbackMs: T) {
-  const m = /^\s*(\d+(?:\.\d+)?)\s*(ms|s|m|h)?\s*$/.exec(String(v ?? ''));
-  const unit: Record<string, number> = { ms: 1, s: 1000, m: 60_000, h: 3_600_000 };
-  return m ? Number(m[1]) * unit[m[2] || 's']! : fallbackMs;
-}
-
 export function framesPath(dir: string, lookId: string) {
   if (!LOOK_ID.test(String(lookId))) throw new Error(`bad look id ${String(lookId).slice(0, 80)}`);
   return path.join(dir, `${lookId}.fseq`);

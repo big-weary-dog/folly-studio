@@ -4,16 +4,16 @@
 // model is reached through a transport; one whose prerequisites are missing (no API key, no codex on PATH, the
 // foundry off) shows as unavailable and is refused when an idea asks for it, instead of failing later.
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import path from 'node:path';
 
 import {
   type AdminModels, EFFORTS, isPaid, type ModelChoices, type ModelEntry, type ModelsConfig, offeredTo, readModels,
-  type Role, type Transport,
+  type Role, TRANSPORT_CAPS, type Transport,
 } from '../../shared/schemas/models.ts';
 import { LIMITS } from '../../shared/schemas/access.ts';
+import { type Config, configOf } from '../config.ts';
 import type { Logger } from '../http.ts';
-import { findExecutable } from './proc.ts';
+import { ADAPTERS, type Availability } from './adapters.ts';
 
 export const DEFAULT_MODELS: ModelsConfig = {
   about: 'The models people can pick for their ideas (docs/HOSTING.md). Saved changes apply without a restart.',
@@ -34,14 +34,12 @@ const FOUNDRY: ModelEntry = { id: 'foundry', label: 'Foundry', via: 'fleet', mod
 const LEGACY: Record<string, string> = { claude: 'opus', sketch: 'sketch', fleet: 'foundry' };
 const PROBE_MS = 10_000;
 
-/** `warn`: it may run, but something looks missing (no Codex login seen). */
-export type Availability = { available: boolean, note: string, warn?: boolean };
 type Options = { file: string, env?: NodeJS.ProcessEnv, log?: Logger, legacy?: string, foundryOn?: boolean,
-  codexBin?: string };
+  codexBin?: string, settings?: Config };
 
 /** The registry: the file's models, what each user may pick, and whether each can run here. */
 export function createRegistry({ file, env = process.env, log = console, legacy = '', foundryOn = false,
-  codexBin = env.STUDIO_CODEX_BIN || 'codex' }: Options) {
+  settings = configOf(env), codexBin = settings.STUDIO_CODEX_BIN || 'codex' }: Options) {
   let sig = '', config = DEFAULT_MODELS, problem = '';
   const probes = new Map<string, { found: Availability, at: number }>();
   const signature = () => {
@@ -86,25 +84,9 @@ export function createRegistry({ file, env = process.env, log = console, legacy 
   function status(m: ModelEntry): Availability {
     const seen = probes.get(m.via);
     if (seen && Date.now() - seen.at < PROBE_MS) return seen.found;
-    const found = probe(m.via);
+    const found = ADAPTERS[m.via].probe({ env, codexBin, foundryOn });
     probes.set(m.via, { found, at: Date.now() });
     return found;
-  }
-  function probe(via: Transport): Availability {
-    if (via === 'sketch') return { available: true, note: 'Offline; always there.' };
-    if (via === 'claude') {
-      return env.ANTHROPIC_API_KEY ? { available: true, note: 'Anthropic API key set.' }
-        : { available: false, note: 'ANTHROPIC_API_KEY is not set.' };
-    }
-    if (via === 'fleet') {
-      return foundryOn ? { available: true, note: 'The Fleet foundry is on: one idea at a time.' }
-        : { available: false, note: 'The Fleet foundry is off (STUDIO_FOUNDRY=on).' };
-    }
-    if (!findExecutable(codexBin, { env })) return { available: false, note: `${codexBin} is not on PATH.` };
-    const home = env.CODEX_HOME || path.join(homedir(), '.codex');
-    return existsSync(path.join(home, 'auth.json')) || env.CODEX_API_KEY
-      ? { available: true, note: 'Codex CLI found, signed in.' }
-      : { available: true, warn: true, note: 'Codex CLI found; no login seen (run codex login).' };
   }
 
   const allowed = offeredTo;
@@ -113,7 +95,7 @@ export function createRegistry({ file, env = process.env, log = console, legacy 
    * the paid models (`paid: false`, a locked account), the first free one. */
   function choices(role: Role, { paid = true } = {}): ModelChoices {
     const c = current(), models = c.models.filter((m) => usable(m, role)).map((m) => ({ id: m.id,
-      label: m.label, paid: isPaid(m), ...(['claude', 'codex'].includes(m.via) ? { explores: true as const } : {}) }));
+      label: m.label, paid: isPaid(m), ...(TRANSPORT_CAPS[m.via].explores ? { explores: true as const } : {}) }));
     const open = paid ? models : models.filter((m) => !m.paid);
     return { models, default: open.find((m) => m.id === c.default)?.id ?? open[0]?.id ?? models.find((m) =>
       m.id === c.default)?.id ?? models[0]?.id ?? null };

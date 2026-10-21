@@ -42,8 +42,8 @@ describe('the scrub', () => {
   });
 
   test('the build is the checkout\'s commit, or GIT_SHA', () => {
-    assert.match(buildSha(process.cwd(), {}), /^[0-9a-f]{12}$/);
-    assert.equal(buildSha(process.cwd(), { GIT_SHA: '0123456789abcdef' }), '0123456789ab');
+    assert.match(buildSha(process.cwd(), ''), /^[0-9a-f]{12}$/);
+    assert.equal(buildSha(process.cwd(), '0123456789abcdef'), '0123456789ab');
   });
 });
 

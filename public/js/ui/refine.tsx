@@ -5,7 +5,8 @@ import { signal } from '@preact/signals';
 import { useEffect, useState } from 'preact/hooks';
 
 import { api, statusOf } from '../api.ts';
-import type { Idea, Look } from '../../../shared/schemas/api.ts';
+import { isPending } from '../../../shared/idea-status.ts';
+import type { Look } from '../../../shared/schemas/api.ts';
 import type { ModelChoices } from '../../../shared/schemas/models.ts';
 import { signedOut } from './session.ts';
 import { Field, toast } from './kit.tsx';
@@ -18,7 +19,6 @@ const run = signal<Run | null>(null);
 const model = signal('');   // '' → the model that made the look
 let choices: Promise<ModelChoices> | null = null;
 
-const pending = (i: Idea) => i.status === 'queued' || i.status === 'generating';
 
 /** The look as the server now has it, in place of the one being edited. */
 async function reload(st: Studio, id: string) {
@@ -41,7 +41,7 @@ export async function refine(st: Studio, ask: Ask) {
   try {
     let { idea } = await api.refine(id, { ...ask, ...(model.peek() ? { model: model.peek() } : {}) });
     run.value = { ...run.peek()!, by: idea.by };
-    while (pending(idea)) ({ idea = idea } = await api.idea(idea.id, `${idea.status}@${idea.updatedAt}`));
+    while (isPending(idea)) ({ idea = idea } = await api.idea(idea.id, `${idea.status}@${idea.updatedAt}`));
     if (idea.status === 'failed') throw new Error(idea.error || 'The refinement failed.');
     const changes = idea.changes ?? [];
     if (changes.length) await reload(st, id);

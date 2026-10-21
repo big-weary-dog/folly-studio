@@ -7,10 +7,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { DEFAULT_BAKE_SECONDS, framesBytesFor, parseBytes, parseDuration } from './bake.ts';
+import { DEFAULT_BAKE_SECONDS, framesBytesFor } from './bake.ts';
 import { busEnv, scopeLimits } from './box-limits.ts';
 import { BakeError, cleanBoxStats, CONTROL, readUntrusted } from './box-output.ts';
 import type { LayerInput } from '../public/js/pattern-core.ts';
+import { type Config, configOf } from './config.ts';
 import { bundle } from './core-script.ts';
 import type { Logger } from './http.ts';
 
@@ -59,25 +60,26 @@ async function runtimeBinds(node: string) {
  */
 type Options = Partial<Record<'publicDir' | 'script' | 'fseqFile' | 'rigFile' | 'coreFile' | 'patternsDir' | 'node'
   | 'bwrap' | 'prlimit' | 'systemdRun' | 'tmpRoot', string> & Record<'seconds' | 'timeoutMs' | 'cpuSeconds' | 'tasks'
-  | 'nice' | 'memoryBytes' | 'maxFramesBytes' | 'frameTimeoutMs', number> & { env: NodeJS.ProcessEnv, log: Logger }>;
+  | 'nice' | 'memoryBytes' | 'maxFramesBytes' | 'frameTimeoutMs', number> & { env: NodeJS.ProcessEnv, config: Config,
+  log: Logger }>;
 export type RenderBox = ReturnType<typeof createRenderBox>;
 /** What a bake renders: the look on the box's stdin. */
 type Job = { layers: readonly LayerInput[], seconds?: number, globals?: unknown, automation?: unknown, bpm?: unknown };
 type Probe = { ok: true } | { ok: false, reason: string };
 
 export function createRenderBox(o: Options = {}) {
-  const env = o.env || process.env;
+  const env = o.env || process.env, c = o.config ?? configOf(env);
   const publicDir = path.resolve(o.publicDir || path.join(STUDIO, 'public'));
-  const asked = o.seconds ?? (Number(env.STUDIO_BAKE_SECONDS) || DEFAULT_BAKE_SECONDS);
+  const asked = o.seconds ?? (c.STUDIO_BAKE_SECONDS || DEFAULT_BAKE_SECONDS);
   const seconds = Math.min(600, Math.max(1, Math.round(asked)));
   const cfg = {
     seconds,
-    timeoutMs: o.timeoutMs ?? parseDuration(env.STUDIO_BAKE_TIMEOUT, null), // null: scaled per bake
-    cpuSeconds: o.cpuSeconds ?? (Number(env.STUDIO_BAKE_CPU) || null),
-    tasks: o.tasks ?? (Number(env.STUDIO_BAKE_TASKS) || 256),
-    nice: Math.min(19, Math.max(0, Math.round(o.nice ?? (Number(env.STUDIO_BAKE_NICE ?? 10) || 0)))),
-    memoryBytes: o.memoryBytes ?? parseBytes(env.STUDIO_BAKE_MEMORY, 1024 ** 3),
-    maxFramesBytes: o.maxFramesBytes ?? parseBytes(env.STUDIO_BAKE_MAX_FRAMES, framesBytesFor(seconds)),
+    timeoutMs: o.timeoutMs ?? c.STUDIO_BAKE_TIMEOUT ?? null, // null: scaled per bake
+    cpuSeconds: o.cpuSeconds ?? (c.STUDIO_BAKE_CPU || null),
+    tasks: o.tasks ?? (c.STUDIO_BAKE_TASKS || 256),
+    nice: Math.min(19, Math.max(0, Math.round(o.nice ?? c.STUDIO_BAKE_NICE ?? 10))),
+    memoryBytes: o.memoryBytes ?? c.STUDIO_BAKE_MEMORY ?? 1024 ** 3,
+    maxFramesBytes: o.maxFramesBytes ?? c.STUDIO_BAKE_MAX_FRAMES ?? framesBytesFor(seconds),
     frameTimeoutMs: o.frameTimeoutMs ?? 2 * SECOND,
     script: o.script || path.join(STUDIO, 'render-box/render.ts'),
     files: {   // what the box sees beside render.ts, and where it comes from

@@ -139,7 +139,12 @@ node attribute). People reach it without installing Tailscale.
 
 `npm run host` reads `~/.config/folly-studio/studio.env` (chmod 600; `STUDIO_ENV_FILE` names another). By hand:
 `set -a; . ~/.config/folly-studio/studio.env; set +a; npm start`. Every session running as your user can read it,
-so give the API key a spend limit. On/off settings take `1`, `true`, `on` or `yes` (any case); anything else is off.
+so give the API key a spend limit. The server reads every setting once at start (`src/config.ts`; all of them under
+"Every setting" below) and logs what is set, the API key only as set. A value it cannot read stops it, naming the
+variable: on/off takes `1`, `true`, `on` or `yes`, or `0`, `false`, `off` or `no` (any case); a duration takes a unit
+(`500ms`, `90s`, `5m`, `2h`), and a bare number is in milliseconds for a `_MS` name, else seconds (a bare `_MS`
+value under 1000 is warned of: seconds were likely meant); a size takes `k`, `m` or `g` (`2GB`). A `STUDIO_` name it
+does not read is warned of (a typo?). Unset, each setting has its default.
 
 ```sh
 HOST=127.0.0.1
@@ -165,6 +170,77 @@ PI_PREVIEW_URL=http://127.0.0.1:4043  # the Pi's control page, dry run, for admi
 
 Sign-up is open to anyone who reaches the page.
 
+### Checking the settings
+
+`npm run config:check -- ~/.config/folly-studio/studio.env` reads a settings file as the server would and prints
+`OK`, or the names of the settings that would stop it, then any it would warn of. It never prints a value. It exits
+1 when the server would not start. `npm run host` runs it with the new build, after building and before restarting
+anything: when it fails, the deploy stops there and the service already running keeps running, on its old settings.
+Then fix the env file, or redeploy the previous commit: `npm run host -- <old sha>`.
+
+### Every setting
+
+`npm run host` also reads `STUDIO_REF`, `STUDIO_ENV_FILE` and `STUDIO_UNIT` (`deploy/host.sh`); the server ignores
+them.
+
+| Setting | What it is |
+| --- | --- |
+| `PORT` | the port, default 8780 |
+| `HOST` | the address to listen on, default 127.0.0.1 |
+| `STUDIO_DATA` | the data folder, default studio/data/ |
+| `STUDIO_CURATORS` | comma-separated usernames with the curator role |
+| `STUDIO_ADMINS` | comma-separated usernames with the admin role (admins are curators too) |
+| `STUDIO_SECURE_COOKIES` | on: the session cookie is Secure (serve over https) |
+| `STUDIO_TRUST_PROXY` | on: one proxy in front (a tunnel) gives the client's address and host |
+| `STUDIO_MODELS` | the model registry, default \<STUDIO_DATA>/models.json |
+| `STUDIO_GENERATOR` | superseded by the registry: its default when first written (claude, sketch, fleet) |
+| `STUDIO_GENERATOR_FALLBACK` | a model or transport foundry ideas go to while it is off or busy |
+| `STUDIO_GENERATOR_CONCURRENCY` | jobs at once per lane where the registry says nothing |
+| `STUDIO_FOUNDRY` | on: the Fleet foundry runs, one job at a time |
+| `STUDIO_FOUNDRY_WAIT` | on: foundry ideas wait while it is busy, even with a fallback |
+| `STUDIO_CRITIQUE_BUDGET_MS` | past this, no critique starts; default 90s |
+| `STUDIO_IDEA_LOGS` | ideas' logs kept, default 300; 0: none written |
+| `STUDIO_IDEA_LOGS_MAX_BYTES` | their disk cap, default 500MB |
+| `STUDIO_FRAMES_BROTLI_QUALITY` | baked frames' brotli quality, default 9 |
+| `STUDIO_FRAMES_MAX_BYTES` | baked frames' disk cap, default 2GB |
+| `STUDIO_FLASH_CHECK` | off: flashing blocks and dims nothing (local use only) |
+| `STUDIO_FLASH_PER_SECOND` | flashes a second allowed, default 3 (out of range: the default) |
+| `STUDIO_FLASH_DELTA` | a flash's swing as a share of full light, default 0.5 |
+| `STUDIO_FLASH_AREA` | the share of the LEDs or lit area that blocks, default 0.25 |
+| `STUDIO_LIVE_CONTROL` | who drives /live, default curators |
+| `STUDIO_LIVE_LOOKS` | what may play on /live, default reviewed |
+| `STUDIO_PREVIEWS` | the gallery previews' camera, default playa |
+| `PI_PREVIEW_URL` | a dry-run Studio Live on this machine, shown to admins at /pi |
+| `GIT_SHA` | the build's commit, for bug reports (default: the checkout's) |
+| `STUDIO_BAKE_SECONDS` | the longest render-box bake, default 120 |
+| `STUDIO_BAKE_TIMEOUT` | a bake's wall clock, default scaled to its length |
+| `STUDIO_BAKE_CPU` | a bake's CPU seconds, default scaled to its length |
+| `STUDIO_BAKE_TASKS` | a bake's task ceiling, default 256 |
+| `STUDIO_BAKE_NICE` | a bake's nice level (0–19), default 10 |
+| `STUDIO_BAKE_MEMORY` | a bake's memory cap, default 1GB |
+| `STUDIO_BAKE_MAX_FRAMES` | the largest baked frames, default room for the longest bake |
+| `ANTHROPIC_API_KEY` | the Messages API key (Opus); a secret |
+| `ANTHROPIC_BASE_URL` | the Messages API, default https://api.anthropic.com |
+| `STUDIO_CLAUDE_MODEL` | a claude model's name where its entry names none |
+| `STUDIO_CLAUDE_EFFORT` | a claude model's effort where its entry names none, default medium |
+| `STUDIO_CLAUDE_MAX_TOKENS` | a claude answer's tokens, thinking too; default 32000 |
+| `STUDIO_CLAUDE_TIMEOUT_MS` | a claude call's attempt, default 300s |
+| `STUDIO_CLAUDE_FALLBACKS` | off: no server-side refusal fallback |
+| `STUDIO_CODEX_BIN` | the Codex CLI, default codex on PATH |
+| `STUDIO_CODEX_TIMEOUT_MS` | a codex call's wall clock, default 300s |
+| `STUDIO_CODEX_IDLE_MS` | a codex call silent this long has stalled; default 180s |
+| `STUDIO_CODEX_WORK` | codex's empty work folder, default in the system's temp folder |
+| `STUDIO_CODEX_SCHEMA` | off: no --output-schema |
+| `STUDIO_CODEX_USER_CONFIG` | on: codex reads ~/.codex/config.toml |
+| `STUDIO_FLEET_BIN` | the fleet command, default fleet |
+| `STUDIO_FLEET_WORK` | the foundry's workspaces, default ~/.folly-studio/fleet |
+| `STUDIO_FLEET_MODEL` | the foundry's model where its entry names none, default gpt-6.1-sol |
+| `STUDIO_FLEET_TIMEOUT` | a foundry job's wall clock, default 30m |
+| `STUDIO_FLEET_POLL` | how often a foundry job is looked at, default 5s |
+| `STUDIO_FLEET_DATA` | fleet's state folder, default ~/.fleet |
+| `STUDIO_FLEET_TMUX` | the tmux command, default tmux |
+| `STUDIO_FLEET_MAX_FRAMES` | the largest frames a foundry job may leave, default room for 120 s |
+
 ### The live stage
 
 `/live` shows everyone signed in the same look at the same moment; `/live/control` drives it (SPEC-live). Its
@@ -189,7 +265,8 @@ measured in the light the LEDs give (decoded by the output correction), not in c
 brightest channel, so a full red or blue strobe counts as fully as a white one. The three
 `STUDIO_FLASH_*` limits above are the defaults: WCAG's three flashes a second, but only swings of half the light
 over a quarter of the rig, so lively looks pass and real strobes do not. Set `STUDIO_FLASH_DELTA=0.1` and
-`STUDIO_FLASH_AREA=0.1` for WCAG's own; out-of-range values fall back to the default. They apply to new
+`STUDIO_FLASH_AREA=0.1` for WCAG's own; out-of-range values fall back to the default (one that is not a number
+stops the server). They apply to new
 bakes and to the preview's guard (the browser gets them from `/api/me`). A curator can still approve a flashing
 bake by giving a reason, which stays on the look with their name. Each person can turn the preview's dimming off
 for themselves with "Don't dim for me".

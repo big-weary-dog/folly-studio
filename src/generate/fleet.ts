@@ -14,13 +14,15 @@ import { fileURLToPath } from 'node:url';
 import { GenerateError } from '../../shared/schemas/generated.ts';
 import type { Light } from '../../public/js/pattern-core.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
-import { DEFAULT_BAKE_SECONDS, framesBytesFor, parseBytes, parseDuration } from '../bake.ts';
+import { DEFAULT_BAKE_SECONDS, framesBytesFor } from '../bake.ts';
 import { type BakeError, checkFrames, cleanBoxStats, failedBake, flashSettings, readUntrusted } from '../box-output.ts';
+import { type Config, configOf } from '../config.ts';
 import { moduleFiles } from '../core-script.ts';
 import {
   describeRig, formatExamples, formatGroups, GROUPS_NOTE, patternGuide, pickExamples, pixelRate, rootOf, TASTE,
 } from './prompt.ts';
 import type { Logger } from '../http.ts';
+import type { Availability, Probe } from './adapters.ts';
 import type { Context } from './index.ts';
 
 const STUDIO = fileURLToPath(new URL('../../', import.meta.url));
@@ -112,26 +114,31 @@ export async function readLook(file: string) {
     globals: look.globals, automation: look.automation, bpm: look.bpm };
 }
 
+/** Whether the foundry takes ideas here: STUDIO_FOUNDRY. */
+export const probe = ({ foundryOn }: Probe): Availability => (foundryOn
+  ? { available: true, note: 'The Fleet foundry is on: one idea at a time.' }
+  : { available: false, note: 'The Fleet foundry is off (STUDIO_FOUNDRY=on).' });
+
 // Options (environment): bin (STUDIO_FLEET_BIN, "fleet"), workDir (STUDIO_FLEET_WORK, ~/.folly-studio/fleet),
 // model (STUDIO_FLEET_MODEL, gpt-*), timeoutMs (STUDIO_FLEET_TIMEOUT, 30 min), fleetData (STUDIO_FLEET_DATA,
 // else ~/.fleet), maxFramesBytes (STUDIO_FLEET_MAX_FRAMES, room for 120 s).
 type Files = 'patternsDir' | 'rigFile' | 'briefTemplate' | 'coreFile' | 'fseqFile' | 'framesLib' | 'palettesFile'
   | 'checkFile' | 'rendererFile';
 type Options = Partial<Record<Files | 'bin' | 'workDir' | 'model' | 'fleetData' | 'tmux' | 'git', string>
-  & Record<'timeoutMs' | 'pollMs' | 'maxFramesBytes', number> & { env: NodeJS.ProcessEnv, log: Logger }>;
+  & Record<'timeoutMs' | 'pollMs' | 'maxFramesBytes', number> & { env: NodeJS.ProcessEnv, config: Config,
+  log: Logger }>;
 export function createFleetAdapter(o: Options = {}) {
-  const env = o.env || process.env;
+  const env = o.env || process.env, c = o.config ?? configOf(env);
   const file = (name: Files, rel: string) => o[name] || path.join(STUDIO, rel);
   const cfg = {
-    bin: o.bin || env.STUDIO_FLEET_BIN || 'fleet',
-    workDir: path.resolve(o.workDir || env.STUDIO_FLEET_WORK || path.join(homedir(), '.folly-studio', 'fleet')),
-    model: o.model || env.STUDIO_FLEET_MODEL || 'gpt-6.1-sol',
-    timeoutMs: o.timeoutMs ?? parseDuration(env.STUDIO_FLEET_TIMEOUT, 30 * 60_000),
-    pollMs: o.pollMs ?? parseDuration(env.STUDIO_FLEET_POLL, 5000),
-    fleetData: o.fleetData || env.STUDIO_FLEET_DATA || '', tmux: o.tmux || env.STUDIO_FLEET_TMUX || 'tmux',
+    bin: o.bin || c.STUDIO_FLEET_BIN || 'fleet',
+    workDir: path.resolve(o.workDir || c.STUDIO_FLEET_WORK || path.join(homedir(), '.folly-studio', 'fleet')),
+    model: o.model || c.STUDIO_FLEET_MODEL || 'gpt-6.1-sol',
+    timeoutMs: o.timeoutMs ?? c.STUDIO_FLEET_TIMEOUT ?? 30 * 60_000,
+    pollMs: o.pollMs ?? c.STUDIO_FLEET_POLL ?? 5000,
+    fleetData: o.fleetData || c.STUDIO_FLEET_DATA || '', tmux: o.tmux || c.STUDIO_FLEET_TMUX || 'tmux',
     git: o.git || 'git',
-    maxFramesBytes: o.maxFramesBytes
-      ?? parseBytes(env.STUDIO_FLEET_MAX_FRAMES, framesBytesFor(DEFAULT_BAKE_SECONDS)),
+    maxFramesBytes: o.maxFramesBytes ?? c.STUDIO_FLEET_MAX_FRAMES ?? framesBytesFor(DEFAULT_BAKE_SECONDS),
     patternsDir: file('patternsDir', 'public/patterns'), // the library, for use() inside the box
     rigFile: file('rigFile', 'public/data/rig.json'),
     briefTemplate: file('briefTemplate', 'fleet-box/BRIEF.template.md'),
@@ -284,7 +291,7 @@ export function createFleetAdapter(o: Options = {}) {
     try { rig ||= JSON.parse(await fs.readFile(cfg.rigFile, 'utf8')); } catch {
       return { bake: failedBake(source, 'The rig could not be read to check the frames.') };
     }
-    const out = checkFrames(bytes, { source, rig, maxBytes: cfg.maxFramesBytes, boxStats, flash: flashSettings(env),
+    const out = checkFrames(bytes, { source, rig, maxBytes: cfg.maxFramesBytes, boxStats, flash: flashSettings(c),
       light });
     if (!out.bake.ok) say('warn', `bake from ${path.basename(ws)}: ${out.bake.reason}`);
     return out;

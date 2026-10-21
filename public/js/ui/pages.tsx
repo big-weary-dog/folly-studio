@@ -6,6 +6,7 @@ import '../../css/pages.css';
 import { useEffect, useRef, useState } from 'preact/hooks';
 
 import { api, statusOf } from '../api.ts';
+import { type IdeaStatus, isPending } from '../../../shared/idea-status.ts';
 import type { Access } from '../../../shared/schemas/access.ts';
 import type { Explore, Idea, Listed } from '../../../shared/schemas/api.ts';
 import type { ModelChoices } from '../../../shared/schemas/models.ts';
@@ -17,8 +18,8 @@ import { Rose } from './rose.tsx';
 const EXAMPLES = ['Rising embers drift up the spires', 'A coral reef breathing in slow blues and pinks',
   'Lightning cracks across the arches in a storm', 'The rose window blooms like a sunrise',
   'A heartbeat at 120 bpm pulsing through the nave', 'Aurora curtains sweep over the canopy'];
-const STATUS: Record<string, [string, string]> = { queued: ['Queued', 'pending'], generating: ['Generating', 'pending'],
-  ready: ['Ready', 'ok'], failed: ['Failed', 'bad'] };
+const STATUS: Record<IdeaStatus, [string, string]> = { queued: ['Queued', 'pending'],
+  generating: ['Generating', 'pending'], ready: ['Ready', 'ok'], failed: ['Failed', 'bad'] };
 const MAX_LEN = 2000;
 // How much a paid model explores (SPEC-generators "Explore"): its name, rough time and what it does.
 const LEVELS: Record<Explore, [string, string, string]> = {
@@ -33,7 +34,6 @@ const remembered = (): Explore => { const v = pref(EXPLORE_KEY); return v && v i
 // While an idea is being made it is followed by long polls: the server answers when it changes, or after 25 s. One
 // that answers at once and unchanged is asked again after 2 s, then 1.5× as long each time, up to 10 s.
 const POLL_FIRST_MS = 2000, POLL_MAX_MS = 10_000;
-const isPending = (i: Idea) => i.status === 'queued' || i.status === 'generating';
 const studioHref = (id: string) => `/studio/${encodeURIComponent(id)}`;
 const previewHref = (l: Listed) => `/api/looks/${encodeURIComponent(l.id)}/preview/${l.preview}`;
 /** "Opus, Sol and Luna". */

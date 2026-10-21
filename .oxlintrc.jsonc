@@ -70,8 +70,9 @@
             { "regex": "^\\.{1,2}/(?:.*/)?(?:src|render-box|fleet-box|tools|test)/|^\\.{1,2}/(?:.*/)?server\\.[jt]s$",
               "message": "browser code imports only from public/ and packages" },
             { "regex": "^(?:[a-z]+:)?//", "message": "remote URL: the app runs offline under a self-only CSP" },
-            { "regex": "^\\.{1,2}/(?:.*/)?shared/", "allowTypeImports": true,
-              "message": "browser code takes shared/ schemas as types (import type), so zod is not shipped by accident" }
+            // All of shared/ but idea-status.ts, which is pure (the regex has no look-ahead: "not id…").
+            { "regex": "^\\.{1,2}/(?:.*/)?shared/(?:[^i]|i[^d])", "allowTypeImports": true,
+              "message": "browser code takes shared/ schemas as types (import type), so zod is not shipped by accident; shared/idea-status.ts is pure" }
           ]
         }]
       }
