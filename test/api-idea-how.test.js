@@ -1,6 +1,6 @@
 // How an idea was made (src/api-idea-how.ts, SPEC-generators "How it was made"): its owner and admins only (404 for
 // anyone else, curators too); the shared prompt to owners by size, errors and notes to admins; its stills; the
-// summary the idea keeps once its log is gone; and what a round costs (prices.ts).
+// summary the idea keeps once its log is gone; the running round, live; and what a round costs (prices.ts).
 import assert from 'node:assert/strict';
 import path from 'node:path';
 
@@ -72,6 +72,37 @@ describe('how an idea was made', () => {
       assert.deepEqual((await owner.get(`/api/ideas/${old.id}/how`)).json.rounds, []);
       assert.equal((await owner.get('/api/ideas/nope/how')).status, 404);
     } finally {
+      await app.close();
+    }
+  });
+
+  test('while it runs: the running round and its thinking so far, to its owner only', async () => {
+    let release, entered;
+    const gate = new Promise((r) => { release = r; }), started = new Promise((r) => { entered = r; });
+    const claude = async (ctx) => {
+      ctx.round?.think?.('\n\nA tide, ');
+      entered();
+      await gate;
+      return { title: 'Tide', layers: [{ title: 'Swell', groups: ['cathedral'], blend: 'add', level: 0.8,
+        modules: [{ use: 'bars', params: [] }] }] };
+    };
+    const app = await startApp({ dataDir: path.join(fx.tmp, 'data-idea-how-live'), generator: (deps) => createQueue({
+      ...deps, adapterName: 'claude', adapters: { claude }, loadLibrary: () => REAL }) });
+    try {
+      const [owner, other] = await Promise.all(['otto', 'olga'].map((n) => signup(app, n)));
+      const idea = app.store.ideas.create({ owner: owner.user.id, text: 'a tide', status: 'queued',
+        generator: 'claude' });
+      app.queue.enqueue(idea);
+      await started;
+      const now = (await owner.get(`/api/ideas/${idea.id}/how/live`)).json;
+      assert.deepEqual([now.status, now.rounds, now.round.kind, now.round.thinking], ['generating', 0, 'compose',
+        'A tide,']);
+      assert.equal((await other.get(`/api/ideas/${idea.id}/how/live`)).status, 404);
+      release();
+      await app.queue.idle();
+      assert.deepEqual((await owner.get(`/api/ideas/${idea.id}/how/live`)).json, { status: 'ready', rounds: 0 });
+    } finally {
+      release();
       await app.close();
     }
   });

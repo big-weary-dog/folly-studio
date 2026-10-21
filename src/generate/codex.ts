@@ -143,6 +143,9 @@ export function createCodexAdapter(o: Options = {}) {
       const parts = (partial + decoder.write(b)).split('\n');
       partial = parts.pop() ?? '';
       lines.push(...parts.map((line) => ({ at: monoNow() - t0, line })));
+      for (const said of parts.filter((l) => l.includes('"reasoning"')).map(reasoningOf)) {
+        if (said) ctx.round?.think?.(`\n\n${said}`);
+      }
     };
     const composing = !ctx.repair && !ctx.schema;
     const timeoutMs = Math.round(cfg.timeoutMs * (composing ? COMPOSE_SCALE[cfg.effort] ?? 1 : 1));
@@ -249,6 +252,15 @@ export function readEvents(lines: Line[]) {
     }
   }
   return { usage, items, errors: errors.filter(Boolean) };
+}
+
+/** A reasoning item's text, from one line of its events ('' for any other line), for the idea's live round. */
+function reasoningOf(line: string) {
+  try {
+    const ev = JSON.parse(line);
+    return ev?.type === 'item.completed' && ev.item?.type === 'reasoning' && typeof ev.item.text === 'string'
+      ? ev.item.text : '';
+  } catch { return ''; }
 }
 
 /** The final message, as untrusted data: a regular file, size-capped. */

@@ -4,7 +4,7 @@
 // only, errors and dollars to admins only.
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-import type { HowPart, HowRound, Idea, IdeaHow } from '../shared/schemas/api.ts';
+import type { HowPart, HowRound, Idea, IdeaHow, IdeaHowLive } from '../shared/schemas/api.ts';
 import { costOf } from './generate/prices.ts';
 import { type IdeaLogs, isStillName, ownerOutcome } from './generate/idea-log.ts';
 import { HttpError } from './http.ts';
@@ -93,6 +93,10 @@ export function ideaHowRoutes({ store, auth, logs, forOwner }: { store: Pick<Sto
         return { idea: shown, from: 'idea', run, rounds: idea.how.map((r) => roundFor(r as Obj, admin, name)) };
       }
       return { idea: shown, from: 'none', run, rounds: [] };
+    },
+    'GET /ideas/:id/how/live': async (req: FastifyRequest): Promise<IdeaHowLive> => {
+      const { idea } = mine(req), now = logs.live(idea.id);
+      return { status: idea.status, rounds: now?.rounds ?? 0, ...(now?.round ? { round: now.round } : {}) };
     },
     'GET /ideas/:id/how/stills/:name': async (req: FastifyRequest, reply: FastifyReply) => {
       const { idea } = mine(req), { name = '' } = req.params as Params;

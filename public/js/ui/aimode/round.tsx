@@ -69,7 +69,7 @@ export function RoundCard({ r, ideaId, open, onToggle, admin, live }: { r: HowRo
         <span class="ai-round-title">{kindName(r.kind)}</span>
         <span class={cx('ai-outcome', live && 'pending', r.outcome?.startsWith('failed') && 'bad')}>
           {live ? 'Thinking…' : r.outcome}</span>
-        <span class="ai-dim ai-round-meta">{live ? 'running' : <>{secs(r.ms)}
+        <span class="ai-dim ai-round-meta">{live ? `running · ${secs(r.ms)}` : <>{secs(r.ms)}
           {r.tokens && ` · ${k(r.tokens.output)} out`}
           {admin && r.usd !== undefined && ` · ${usd(r.usd)}`}</>}</span>
       </summary>

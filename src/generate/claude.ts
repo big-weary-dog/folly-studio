@@ -74,7 +74,7 @@ export function createClaudeAdapter(o: Options = {}) {
     let reads = 0, reply: Block[] | undefined, failed = '';
     try {
       for (let calls = 1; ; calls++) {
-        const message = await callRetrying(body, headers, signal);
+        const message = await callRetrying(body, headers, signal, ctx.round?.think);
         const u = message.usage ?? {}, cached = Number(u.cache_read_input_tokens) || 0;
         usage.input += (Number(u.input_tokens) || 0) + cached + (Number(u.cache_creation_input_tokens) || 0);
         usage.cached += cached;
@@ -100,11 +100,11 @@ export function createClaudeAdapter(o: Options = {}) {
     }
   }
 
-  async function callRetrying(body: object, headers: Record<string, string>, signal?: AbortSignal):
-    Promise<Message> {
+  async function callRetrying(body: object, headers: Record<string, string>, signal?: AbortSignal,
+    think?: (text: string) => void): Promise<Message> {
     for (let attempt = 1; ; attempt++) {
       try {
-        return await callOnce(body, headers, signal);
+        return await callOnce(body, headers, signal, think);
       } catch (err) {
         if (err instanceof ApiError && err.retryable && attempt < 2) {
           cfg.log.warn?.(`[generate/claude] ${err.message}; retrying once`);
@@ -148,7 +148,8 @@ export function createClaudeAdapter(o: Options = {}) {
     return { body, headers, docs };
   }
 
-  async function callOnce(body: object, headers: Record<string, string>, stop?: AbortSignal) {
+  async function callOnce(body: object, headers: Record<string, string>, stop?: AbortSignal,
+    think?: (text: string) => void) {
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), cfg.timeoutMs);
     const onStop = () => ac.abort();
@@ -162,7 +163,7 @@ export function createClaudeAdapter(o: Options = {}) {
       if (!res.ok) throw await httpError(res);
       const type = res.headers.get('content-type') || '';
       try {
-        if (type.includes('text/event-stream')) return await readStream(res.body!);
+        if (type.includes('text/event-stream')) return await readStream(res.body!, think);
         return await res.json();
       } catch (err) {
         if (ac.signal.aborted) throw new ApiError('timed out', { type: 'timeout' });
@@ -190,11 +191,12 @@ async function httpError(res: Response) {
   return new ApiError(`HTTP ${s} ${type} ${detail}`.trim(), { status: s, type, retryable, retryAfterMs });
 }
 
-/** Read a Messages API SSE stream into a message object ({ model, stop_reason, content }). */
+/** Read a Messages API SSE stream into a message object ({ model, stop_reason, content }); `think` hears its thinking
+ * as it streams (each block opens with a blank line), for the idea's live round. */
 type Block = { type?: string, text?: string, thinking?: string, signature?: string, id?: string, input?: unknown,
   json?: string };
 type Message = { model?: string, stop_reason?: string | null, content?: Block[], usage?: Record<string, unknown> };
-async function readStream(body: ReadableStream<Uint8Array>) {
+async function readStream(body: ReadableStream<Uint8Array>, think?: (text: string) => void) {
   const msg: Required<Message> = { model: '', stop_reason: null, content: [], usage: {} };
   const reader = body.getReader(), dec = new TextDecoder();
   let done = false, buf = '';
@@ -212,13 +214,17 @@ async function readStream(body: ReadableStream<Uint8Array>) {
       case 'content_block_start':
         msg.content[ev.index] = { ...ev.content_block };
         if (msg.content[ev.index]!.type === 'text') msg.content[ev.index]!.text ??= '';
+        else if (msg.content[ev.index]!.type === 'thinking') think?.('\n\n');
         break;
       case 'content_block_delta': { // text, a tool call's input, thinking and its signature: all go back on a tool turn
         const b = msg.content[ev.index], d = ev.delta;
         if (!b) break;
         if (d?.type === 'text_delta') b.text = (b.text || '') + d.text;
         else if (d?.type === 'input_json_delta') b.json = (b.json || '') + d.partial_json;
-        else if (d?.type === 'thinking_delta') b.thinking = (b.thinking || '') + d.thinking;
+        else if (d?.type === 'thinking_delta') {
+          b.thinking = (b.thinking || '') + d.thinking;
+          think?.(String(d.thinking ?? ''));
+        }
         else if (d?.type === 'signature_delta') b.signature = (b.signature || '') + d.signature;
         break;
       }

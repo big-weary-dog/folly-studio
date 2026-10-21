@@ -117,6 +117,10 @@ export type HowPart = { name: string, bytes: number, tokens: number, text?: stri
 export type IdeaHow = { idea: Idea, from: 'log' | 'idea' | 'none',
   run: { via?: string, effort?: string, level?: string, name?: string }, prompt?: HowPart[], rounds: HowRound[],
   usd?: number };
+/** GET /api/ideas/:id/how/live: the idea's status, how many rounds have ended, and the one running now (thinking so
+ * far); polled while the idea runs, the page fetching /how again when `rounds` or `status` moves. */
+export type IdeaHowLive = { status: IdeaStatus, rounds: number,
+  round?: { n: number, kind: string, ms: number, thinking?: string } };
 /** What a refinement asks besides its text (SPEC-generators "Refine"). */
 export type RefineAsk = { critique?: true, fix?: { layer: string, error: string } };
 /** `model`: the model asked for; `generator`: the one that made the look (a fallback's, if it took over); `by`: its

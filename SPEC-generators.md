@@ -78,7 +78,7 @@ owner's API (`GET /api/ideas`, `/api/ideas/:id`) leaves `how` out, and strips a 
 idea's rounds and verdict too. Admins read a log at `GET /api/admin/ideas/:id/log` and its stills by name; the Studio links it
 ("Log") on an idea's row for them.
 
-**How it was made** (`src/api-idea-how.ts`, the page `/ideas/:id/how`, linked from each finished idea's row). For
+**How it was made** (`src/api-idea-how.ts`, the page `/ideas/:id/how`, linked from each idea's row). For
 the idea's owner and admins; anyone else, curators too, gets 404. `GET /api/ideas/:id/how` answers `{ idea, from,
 run: { via?, effort?, level?, name? }, prompt?, rounds, usd? }`: from the idea's log while it is kept (`from: 'log'`),
 else from the `how` the idea keeps (`'idea'`: no prompt, stills only counted), else `'none'` (an idea from before, or
@@ -88,7 +88,11 @@ only), each doc given and the idea itself. A round is as logged, with its stills
 `/api/ideas/:id/how/stills/:name`; an owner gets its outcome plain and no notes. Admins also get the expand notes,
 why a repair ran, the provider's model name and dollars (`src/generate/prices.ts`: list prices, cache reads at their
 own, writes as input; none for codex, on a subscription). The page shows the prompt folded and the rounds, the
-latest open; the last still the model was shown beside them on a wide screen.
+latest open; the last still the model was shown beside them on a wide screen. While the idea runs, `GET
+/api/ideas/:id/how/live` answers `{ status, rounds, round?: { n, kind, ms, thinking? } }` from memory: how many
+rounds have ended and the one running, with its thinking summary so far (claude's `thinking_delta`s, codex's
+`reasoning` items as each completes; the latest 6,000 characters). The page polls it every 2 s while the tab shows,
+the running round folded, and fetches `/how` again when `rounds` or `status` moves.
 
 **Library docs** (`src/generate/library-docs.ts`). Beside the prompt, once per library, the server builds a tree of
 markdown: `library/README.md` (how layers, sources, warps, filters and presets combine; blends; inputs; groups and
