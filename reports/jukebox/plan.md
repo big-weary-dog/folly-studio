@@ -5,9 +5,9 @@ This is the short version and the order of work.
 
 ## What the queue is
 
-The engine's (pi/), in memory: what plays now, then up to 20 queued items, played in order. Each item plays for a
-**slot**: its loop (or its bake's length) repeated to at least 60 s (engine setting `slot`), then dips through black
-to the next. Nothing queued: the current look loops on, as today. A flash-guard trip dips to `safe` and **pauses**
+The engine's (pi/), in memory: what plays now, then up to 20 queued items, played in order. Each item plays its
+**whole pattern** once (its duration, or its bake's length), fading out over its last second, and the next fades in
+over its first. Nothing queued: the current look loops on, as today. A flash-guard trip dips to `safe` and **pauses**
 the queue until someone plays, skips or resumes. A restart empties it.
 
 An item is one of:
@@ -26,8 +26,8 @@ setting that already points into `/home/fpp/folly-data`), checks the SHA-256 aga
 `src/frames.ts`'s strict `parseFseq`, and maps the rig's channels to its LEDs. The bytes are the look's colour, so
 they go out through the same light transform, master, blackout, fades and flash guard as a live look. It loads the
 next item's frames ahead, async, so the frame loop never waits. Gone or changed (evicted, re-baked): the item is
-skipped, saying so. Bakes on the Pi need bubblewrap there (an apt install, added to `pi/STUDIO.md`); until then only
-live looks can play.
+skipped, saying so. Baking on the Pi is out of scope: a bake needs bubblewrap where it is made, and the UI and docs
+say so; a Pi without it plays live looks only.
 
 ## Who can add to it
 
@@ -58,10 +58,10 @@ shipped looks (and `safe`) are untouched.
 2. Engine: baked items (`frames` setting, load/verify/play), tests with a fixture bake.
 3. Studio: `/api/lights`, `/api/admin/lights` + the toggle, the feed sending (`PI_PIN`), the proxy filter, Play on the
    lights in the editor and cards, the queue on `/live/control` and `/live`. Smoke; pictures at 1366 and 390.
-4. Docs: `pi/README.md`, `pi/STUDIO.md` (bind 127.0.0.1, `frames`, bubblewrap), `docs/HOSTING.md` settings.
+4. Docs: `pi/README.md`, `pi/STUDIO.md` (bind 127.0.0.1, `frames`, bakes need bubblewrap), `docs/HOSTING.md`.
 
-## Defaults I chose (say if you want otherwise)
+## Decided
 
 - Queuing for curators and admins (as `/pi`), not everyone signed in.
-- The toggle covers Studio's looks only, not the engine's shipped ones.
-- A 60 s minimum slot per item.
+- The toggle covers Studio's sends only, not the engine's shipped looks.
+- A queued look plays its entire pattern, then the next; each fades out and in.
