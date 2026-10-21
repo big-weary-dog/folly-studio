@@ -95,7 +95,8 @@ function StepCard() {
     el?.focus({ preventScroll: true });
   };
   // Back to the Studio is back to the path's practice look, if it has one.
-  const goTo = () => void navigate(s.page === '/studio' && o.path.start.startsWith('/studio?') ? o.path.start : s.page!);
+  const practice = s.page === '/studio' && o.path.start.startsWith('/studio?');
+  const goTo = () => void navigate(practice ? o.path.start : s.page!);
   return <>
     {ring ? <div class={cx('tour-ring', o.done && 'done')} style={{ left: `${box.x - PAD}px`, top: `${box.y - PAD}px`,
       width: `${box.w + 2 * PAD}px`, height: `${box.h + 2 * PAD}px` }} /> : <div class="tour-dim soft" />}

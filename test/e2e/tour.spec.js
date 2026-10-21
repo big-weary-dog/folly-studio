@@ -175,6 +175,7 @@ test.describe('laptop, 1366 × 768', () => {
     await title('A clip');
     await at('clip-add').click();
     await title('Automation');
+    await at('automate').click();   // + Automate… loads the lanes; their own + Automate… picks one
     await at('automate').selectOption({ index: 1 });
     const lane = page.locator('.tl-auto-svg').first(), box = await lane.boundingBox();
     await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * 0.3);

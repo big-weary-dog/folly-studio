@@ -67,7 +67,8 @@ export function showToTour(st: Studio, pv: Preview) {
     historyAt: computed(() => st.history.at.value),
     tagged: (tag) => {
       const all = st.data.rig?.groups ?? [], top = all.filter((g) => g.tags?.includes(tag)).map((g) => g.id);
-      const under = all.filter((g) => !top.includes(g.id) && st.data.index?.ancestors(g.id).some((a) => top.includes(a)));
+      const under = all.filter((g) => !top.includes(g.id)
+        && st.data.index?.ancestors(g.id).some((a) => top.includes(a)));
       return [...top, ...under.map((g) => g.id)];
     },
     label: (ref, key) => {

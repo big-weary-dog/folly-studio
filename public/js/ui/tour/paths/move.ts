@@ -15,7 +15,7 @@ export const move: Path = {
       text: 'Click {preset:plasma}, then its {module:bars} module.', anchor: ['layer:plasma', 'module:bars'],
       done: onBars },
     { id: 'lfo', page: '/studio', title: 'A value that moves',
-      text: '∿ at the end of {param:bars.bars} moves it by itself, to and fro. Open it and pick a wave.',
+      text: '∿ at the end of {param:bars.bars} moves it by itself, to and fro. Open it and pick LFO.',
       anchor: ['param:bars'], done: (c) => onBars(c) && !!boundTo(c.v!.params.value.bars)
         && boundTo(c.v!.params.value.bars) !== 'beats' },
     { id: 'bpm', page: '/studio', title: 'The tempo',
