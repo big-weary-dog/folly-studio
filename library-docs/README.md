@@ -87,7 +87,9 @@ and pink), `solstice` (violet and citrus), `guava` (coral and mint), and `voltag
 These put both families in `body`; use `body` for their shared gradient or individual slots for separate bands.
 Other mixed bodies: `aurora` (emerald/violet, cyan accents), `harvest` (copper/olive, plum accents),
 `sherbet` (pastel peach/mint, lavender accents), `confetti` (blue/lemon/pink), `lagoon` (jade/cobalt, gold accents),
-and `velvet` (ruby/sapphire, rose gold accents).
+and `velvet` (ruby/sapphire, rose gold accents). Bolder pairs: `holly` (crimson/pine, gold accents),
+`regalia` (royal blue/gold, crimson accents), `peppermint` (red through pink to white, mint accents),
+`arcade` (red/cyan, yellow accents), `sunbird` (magenta/marigold, teal accents), `bramble` (berry/moss, peach accents).
 Swatch hexes are sRGB colour values; use brightness controls to set the light level.
 
 ## Modulators: things that move together
