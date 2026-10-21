@@ -262,15 +262,15 @@ function fadeAlong(list: Centres, t: number): RGB {
   const i = Math.min(n - 2, Math.floor(f));
   return fadeInto(list[i], list[i + 1], f - i, [0, 0, 0]);
 }
-// A ramp that cannot change (frozen, as each of its colours) is read from a table of its fades' light, unclamped, STEP
-// even steps a pair of colours: light runs smoothly along a fade, so straight between steps and then clamped is within
-// a small fraction of a byte of the fade's light, at a fraction of its cost. Others fade each time.
-const STEP = 64, RAMPS = new WeakMap<Centres, Float64Array | null>(), FADE = [0, 0, 0];
+// A ramp that cannot change (frozen, as each of its colours) is read from a table of its fades' light, unclamped,
+// RAMP_STEP even steps a pair of colours: light runs smoothly along a fade, so straight between steps and then clamped
+// is within a small fraction of a byte of the fade's light, at a fraction of its cost. Others fade each time.
+const RAMP_STEP = 64, RAMPS = new WeakMap<Centres, Float64Array | null>(), FADE = [0, 0, 0];
 function rampTable(list: Centres) {
   if (!Object.isFrozen(list) || !list.every(Object.isFrozen)) return null;
-  const last = (list.length - 1) * STEP, T = new Float64Array(3 * (last + 2));
+  const last = (list.length - 1) * RAMP_STEP, T = new Float64Array(3 * (last + 2));
   for (let j = 0; j <= last; j++) {
-    const i = Math.min(list.length - 2, Math.floor(j / STEP)), w = j / STEP - i, s = list[i + w];
+    const i = Math.min(list.length - 2, Math.floor(j / RAMP_STEP)), w = j / RAMP_STEP - i, s = list[i + w];
     const c = Number.isInteger(w) ? [toLight(s[0]), toLight(s[1]), toLight(s[2])]
       : lightInto(list[i], list[i + 1], w, FADE);
     T[3 * j] = c[0]; T[3 * j + 1] = c[1]; T[3 * j + 2] = c[2];
@@ -285,8 +285,9 @@ export function ramp(list: Centres, t: number): RGB {
   let T = RAMPS.get(list);
   if (T === undefined) RAMPS.set(list, T = rampTable(list));
   if (!T) return fadeAlong(list, t);
-  const x = (t < 1 ? t : 1) * (n - 1) * STEP, j = x | 0, w = x - j, o = 3 * j, i = Math.min(n - 2, (j / STEP) | 0);
-  if (w === 0 && j % STEP === 0) { const c = list[j / STEP]; return [c[0], c[1], c[2]]; }   // a colour itself, exact
+  const x = (t < 1 ? t : 1) * (n - 1) * RAMP_STEP, j = x | 0, w = x - j, o = 3 * j;
+  const at = j / RAMP_STEP, i = Math.min(n - 2, at | 0);
+  if (w === 0 && j % RAMP_STEP === 0) { const c = list[at]; return [c[0], c[1], c[2]]; }   // a colour, exact
   return valueWithin([T[o] + (T[o + 3] - T[o]) * w, T[o + 1] + (T[o + 4] - T[o + 1]) * w,
     T[o + 2] + (T[o + 5] - T[o + 2]) * w], list[i], list[i + 1]);
 }
