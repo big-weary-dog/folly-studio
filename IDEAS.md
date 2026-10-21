@@ -11,7 +11,7 @@ From the first design notes, now built (the DESIGN.md section in brackets):
 - The rig file: any installation, a tagged group tree, proven on a fictional rig too (§9).
 - Pattern code: space three ways, polar on the façade, along the wire, structure fields (§3).
 - Module chains, globals, palette roles from `td/palettes`, modulation, automation lanes (§4).
-- The library as single ideas: 45 modules on one set of rules, and 22 presets for what took two (§4).
+- The library as single ideas: modules on one set of rules (`public/patterns/index.json`), and presets for what took two (§4).
 - Blur and soften: a native spatial filter on the rig's neighbours, soft edges by default (§4).
 - Colour picks: every colour param takes roles, slots, literals, blend, range and rotate; one `colours` per source (§4).
 - The timeline: clips with fades on show time, importing looks to sequence them (§5).
