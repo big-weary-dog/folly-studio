@@ -256,8 +256,8 @@ library module follows these rules (SPEC "Palettes", "Directions", "Integrated c
   `P.colours` for one colour at a time). Code never names a role; people choose the colours.
 - **An orientation is a param**: `direction` from `DIRECTIONS`, read with `toward(p, P.direction)`, its default
   what the module always did; `angle` for a free angle off it. A centre is a place: the `anchor` warp.
-- **Motion from `clock('speed')`**, never `t × P.speed`, so a modulated speed never jumps. No hard-wired `G.energy`:
-  a person binds a param to it.
+- **Motion from `clock('speed')`**, never `t × P.speed`, so a modulated speed never jumps. No hard-wired `G.energy`
+  or other macro: a person binds a param to one.
 - **Draw on transparent**: alpha is coverage, `null` is nothing, no painted background. `colour-wash` is the bed.
 - **Say it plainly.** A summary, a header comment and a label say what it draws and how it moves, in one short
   sentence where they can, in the UI's words (Colours, Direction, Speed): "Bands of colour move in Direction.", not

@@ -20,11 +20,12 @@ useFixture();
 
 // Code that reads the tempo, so bpm is in the bake's render fields.
 const BEAT = 'function pixel(p, t, P, G) { return [G.bpm / 240, 0, 0]; }';
-const base = { layers: [layer({ code: BEAT })], duration: 20, bpm: 120, globals: { speed: 0.5 },
+const energy = (value: number) => ({ macros: { energy: { value, min: 0, max: 1 } } });
+const base = { layers: [layer({ code: BEAT })], duration: 20, bpm: 120, globals: energy(0.5),
   automation: { energy: [[0, 0.2], [10, 0.8]] } };
 /** Each field's other value. */
 const OTHER: { [K in PlaysKey]: unknown } = { layers: [layer({ code: BEAT, level: 0.4 })], duration: 25, bpm: 128,
-  globals: { speed: 0.7 }, automation: { energy: [[0, 0.3]] } };
+  globals: energy(0.7), automation: { energy: [[0, 0.3]] } };
 const stored = (l: object) => ({ id: 'x', owner: 'u', title: 'T', summary: '', updatedAt: 'then', ...l }) as StoredLook;
 
 describe('PLAYS', () => {
@@ -45,8 +46,8 @@ describe('PLAYS', () => {
 
   test('the render fields keep their key order, so every bake made so far keeps its hash', () => {
     assert.deepEqual(Object.keys(renderFields(base) as object), ['layers', 'globals', 'automation', 'bpm']);
-    assert.equal(layersHash(renderFields({ layers: [], globals: { speed: 1 } })),
-      layersHash({ layers: [], globals: { speed: 1 }, automation: null, bpm: null }));
+    assert.equal(layersHash(renderFields({ layers: [], globals: energy(1) })),
+      layersHash({ layers: [], globals: energy(1), automation: null, bpm: null }));
   });
 
   test("a look without a duration plays the core's default", () => {

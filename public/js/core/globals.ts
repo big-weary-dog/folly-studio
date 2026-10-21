@@ -1,5 +1,5 @@
-// The look's globals as G (SPEC "Globals"): speed (a clock), level, hue and saturation (the composite's grade),
-// energy, palette, macros; automation per frame; param values and bindings (SPEC "Param bindings").
+// The look's globals as G (SPEC "Globals"): its palette, tempo and macros; automation per frame; param values and
+// bindings (SPEC "Param bindings").
 import type { Automation, Binding, Globals, Range } from '../../../shared/schemas/look.ts';
 import type { ParamSchema } from './compile.ts';
 import { pickColour } from './picks.ts';
@@ -7,34 +7,54 @@ import { type Picture, readPicture } from './picture.ts';
 import { clamp, DEFAULT_PALETTE, isNum, paletteColours, RUN, TAU } from './stdlib.ts';
 import type { PaletteColours, PaletteHex } from './stdlib.ts';
 
-/** G: the look's globals as patterns see them, its tempo, its macros by name (SPEC "Globals"). */
-export type G = { energy: number, speed: number, level: number, hue: number, saturation: number, bpm: number,
-  palette: PaletteColours, [macro: string]: number | PaletteColours };
+/** G: the look's tempo, palette and macros by name (SPEC "Globals"). */
+export type G = { bpm: number, palette: PaletteColours, [macro: string]: number | PaletteColours };
 /** P: a module's param values (colours as [r, g, b], choices as their name). */
 export type Values = Record<string, number | boolean | number[] | string | Picture>;
 type Points = readonly (readonly number[])[];
 type MacroMod = NonNullable<NonNullable<Globals['macros']>[string]['mod']>;
 
-export const GLOBALS = Object.freeze({
-  speed: Object.freeze({ value: 1, min: 0, max: 4 }),
-  level: Object.freeze({ value: 1, min: 0, max: 1 }),
-  hue: Object.freeze({ value: 0, min: -0.5, max: 0.5 }),
-  saturation: Object.freeze({ value: 1, min: 0, max: 2 }),
-  energy: Object.freeze({ value: 0.5, min: 0, max: 1 }),
-});
 export const MAX_MACROS = 16;
 export const MAX_LANES = 16;
 export const MAX_POINTS = 256;
+/** Globals looks once had: still read (energy becomes a macro), never kept. */
+export const OLD_GLOBALS: readonly string[] = Object.freeze(['speed', 'level', 'hue', 'saturation', 'energy']);
 const MACRO_NAME = /^[a-z][A-Za-z0-9_]{0,31}$/;
 /** May `name` be a macro: not one of G's own, nor anything every object has? */
 export const macroNameOk = (name: unknown): name is string => typeof name === 'string' && MACRO_NAME.test(name)
-  && !(name in GLOBALS) && name !== 'palette' && name !== 'bpm' && !(name in Object.prototype);
+  && name !== 'palette' && name !== 'bpm' && !(name in Object.prototype);
 
-/** Lenient: each global in range, a palette, macros: [{ name, value, min, max }]. */
+type Loaded = { globals?: Globals | null, automation?: Automation | null, layers?: unknown };
+/** Does anything in v follow energy: a binding (or a macro's), or code reading G.energy? */
+const followsEnergy = (v: unknown): boolean => (typeof v === 'string' ? /\bG\.energy\b/.test(v)
+  : Array.isArray(v) ? v.some(followsEnergy) : !!v && typeof v === 'object' && ((isBinding(v)
+    && (v.mod === 'global' ? v.name === 'energy' : v.mod === 'lfo' && (v.amount === 'energy' || v.pace === 'energy')))
+    || Object.values(v).some(followsEnergy)));
+
+/** A look as it plays now: the old globals dropped, and energy, once a global, a macro on the looks that depend on it
+ * (store, automate or follow it; its stored value, else 0.5). Looks are read this way, never rewritten. */
+export function upgradeGlobals<T extends Loaded>(look: T): T {
+  const src = look.globals && typeof look.globals === 'object' ? look.globals as Globals & Record<string, unknown>
+    : null;
+  const lanes = look.automation && typeof look.automation === 'object' ? look.automation : null;
+  if (!OLD_GLOBALS.some((k) => (src && k in src) || (lanes && k !== 'energy' && k in lanes))
+    && (src?.macros?.energy || !(lanes?.energy || followsEnergy(src?.macros) || followsEnergy(look.layers)))) {
+    return look;
+  }
+  const { speed: _s, level: _l, hue: _h, saturation: _t, energy, ...g } = src ?? {};
+  const { speed: _a, level: _b, hue: _c, saturation: _d, ...automation } = lanes ?? {};
+  const wants = isNum(energy) || !!lanes?.energy || followsEnergy(g.macros) || followsEnergy(look.layers);
+  const macros = g.macros && typeof g.macros === 'object' ? g.macros : {};
+  if (wants && !macros.energy && Object.keys(macros).length < MAX_MACROS) {
+    g.macros = { energy: { value: isNum(energy) ? clamp(energy) : 0.5, min: 0, max: 1 }, ...macros };
+  }
+  return { ...look, ...src ? { globals: g } : g.macros ? { globals: g } : {},
+    ...lanes ? { automation: Object.keys(automation).length ? automation : null } : {} };
+}
+
+/** Lenient: a palette, macros: [{ name, value, min, max }]. */
 export function normalizeGlobals(g?: Globals | null) {
-  const src: Record<string, unknown> & Globals = g && typeof g === 'object' ? g : {};
-  const out = Object.fromEntries(Object.entries(GLOBALS).map(([k, d]) => [k, isNum(src[k]) ? clamp(src[k], d.min, d.max)
-    : d.value])) as Record<keyof typeof GLOBALS, number>;
+  const src: Globals = g && typeof g === 'object' ? g : {};
   const palette: PaletteHex = src.palette && typeof src.palette === 'object' ? src.palette : DEFAULT_PALETTE;
   const macros: (Range & { name: string, value: number, mod?: MacroMod })[] = [];
   const given = src.macros && typeof src.macros === 'object' ? src.macros : {};
@@ -44,15 +64,14 @@ export function normalizeGlobals(g?: Globals | null) {
     const mod = fader(m.mod, given);
     macros.push({ name, min, max, value: isNum(m.value) ? clamp(m.value, min, max) : min, ...mod ? { mod } : {} });
   }
-  return { ...out, palette, macros };
+  return { palette, macros };
 }
 
 /** A macro's own binding, if it makes it a modulator: an LFO, the tempo or a global, never the clip envelope, and
- * naming only faders (globals, or macros without a binding), so a modulator never follows a modulator. */
+ * naming only faders (macros without a binding), so a modulator never follows a modulator. */
 function fader(b: unknown, macros: Record<string, { mod?: unknown } | undefined>): MacroMod | undefined {
   if (!isBinding(b) || !['lfo', 'beats', 'global'].includes(b.mod)) return undefined;
-  const ok = (n: unknown) => typeof n === 'string' && (n in GLOBALS || (Object.hasOwn(macros, n)
-    && !isBinding(macros[n]?.mod)));
+  const ok = (n: unknown) => typeof n === 'string' && Object.hasOwn(macros, n) && !isBinding(macros[n]?.mod);
   if (b.mod === 'global' && !ok(b.name)) return undefined;
   if (b.mod !== 'lfo') return b as MacroMod;
   const { amount, pace, ...rest } = b;
@@ -90,7 +109,7 @@ function lanesOf(automation: Automation | null | undefined, g: ReturnType<typeof
   const lanes: (Range & { name: string, points: Points })[] = [];
   const src = automation && typeof automation === 'object' ? automation : {};
   for (const [name, pts] of Object.entries(src)) {
-    const range = GLOBALS[name as keyof typeof GLOBALS] || g.macros.find((m) => m.name === name);
+    const range = g.macros.find((m) => m.name === name);
     if (lanes.length >= MAX_LANES || !range || !Array.isArray(pts)) continue;
     const points = pts.filter((p) => Array.isArray(p) && isNum(p[0]) && isNum(p[1])).slice(0, MAX_POINTS)
       .map((p) => Object.freeze([p[0], clamp(p[1], range.min, range.max)])).sort((a, b) => a[0] - b[0])
@@ -100,20 +119,17 @@ function lanesOf(automation: Automation | null | undefined, g: ReturnType<typeof
   return lanes;
 }
 
-/** A look's globals and automation for renderFrame; `previous` (the look it replaces) keeps the clock continuous. */
-export function prepareLook(look?: { globals?: Globals | null, automation?: Automation | null, bpm?: number | null }
-  | null, previous?: Clock) {
-  const g = normalizeGlobals(look?.globals);
-  const lanes = lanesOf(look?.automation, g), bpm = isNum(look?.bpm) && look.bpm > 0 ? look.bpm : 120;
-  const G: G = { energy: g.energy, speed: g.speed, level: g.level, hue: g.hue, saturation: g.saturation, bpm,
-    palette: paletteColours(g.palette) || paletteColours(DEFAULT_PALETTE)! };
+/** A look's globals and automation for renderFrame (upgradeGlobals: as it plays now); `previous` (the look it
+ * replaces) keeps the clock continuous. */
+export function prepareLook(look?: Loaded & { bpm?: number | null } | null, previous?: Clock) {
+  const now = look ? upgradeGlobals(look) : look, g = normalizeGlobals(now?.globals);
+  const lanes = lanesOf(now?.automation, g), bpm = isNum(look?.bpm) && look.bpm > 0 ? look.bpm : 120;
+  const G: G = { bpm, palette: paletteColours(g.palette) || paletteColours(DEFAULT_PALETTE)! };
   for (const m of g.macros) G[m.name] = m.value;
   Object.seal(G);
-  const ranges = new Map<string, Range>([...Object.entries(GLOBALS), ...g.macros.map((m) => [m.name, m] as const)]);
+  const ranges = new Map<string, Range>(g.macros.map((m) => [m.name, m] as const));
   // Where each name's static value lives (read when used, so a live engine may set it in place).
-  const fixed = new Map<string, () => number>([
-    ...Object.keys(GLOBALS).map((k) => [k, () => g[k as keyof typeof GLOBALS]] as const),
-    ...g.macros.map((m) => [m.name, () => m.value] as const)]);
+  const fixed = new Map<string, () => number>(g.macros.map((m) => [m.name, () => m.value] as const));
   const laneOf = new Map(lanes.map((l) => [l.name, l.points]));
   // Modulators: macros a binding moves (SPEC "Globals"), unless a lane does.
   const moving = g.macros.flatMap((m) => (m.mod && !laneOf.has(m.name)
@@ -121,13 +137,12 @@ export function prepareLook(look?: { globals?: Globals | null, automation?: Auto
   const movingOf = new Map(moving), paceOffset = new Map<string, number>();
   const L = {
     G, g, lanes, bpm, palette: G.palette, beat0: 0, moving,
-    speedLane: lanes.find((l) => l.name === 'speed')?.points || null, offset: 0, lastT: NaN, T: 0,
-    grade: new Float64Array(9), graded: false, level: NaN, hue: NaN, sat: NaN, paceOffset,
+    offset: 0, lastT: NaN, T: 0, paceOffset,
     norm(name: string) {
       const r = ranges.get(name);
       return r ? clamp(((G[name] as number) - r.min) / (r.max - r.min)) : 0;
     },
-    /** A global or macro at show time t, 0..1 of its range: its lane there, its modulator's value, else its value
+    /** A macro at show time t, 0..1 of its range: its lane there, its modulator's value, else its value
      * (integrated clocks). */
     normAt(name: string, t: number): number {
       const r = ranges.get(name), lane = laneOf.get(name), m = lane ? undefined : movingOf.get(name);
@@ -146,73 +161,32 @@ export function prepareLook(look?: { globals?: Globals | null, automation?: Auto
       paceOffset.set(name, (paceOffset.get(name) ?? 0) + (from - to) * at);
     },
   };
-  if (previous && Number.isFinite(previous.lastT)) {
-    L.offset = clockAt(previous, previous.lastT) - clockAt(L, previous.lastT);
-    L.lastT = previous.lastT;
-  }
+  if (previous && Number.isFinite(previous.lastT)) { L.offset = previous.offset; L.lastT = previous.lastT; }
   return L;
 }
 
 export type PreparedLook = ReturnType<typeof prepareLook>;
-type Clock = { offset: number, lastT: number, speedLane: Points | null, g: { speed: number } };
-/** Pattern time at show time t: ∫ speed dt, plus the offset. */
-function clockAt(L: Clock, t: number) {
-  const base = L.speedLane ? integral(L.speedLane, t) : L.g.speed === 1 ? t : L.g.speed * t;
-  return L.offset + base;
-}
+type Clock = { offset: number, lastT: number };
 
-/** Frame t: G (statics, then automation), the clock, the grade, RUN. No allocation. */
+/** Frame t: G (statics, then automation), the clock (show time, plus the offset a followed engine gives), RUN.
+ * No allocation. */
 export function lookFrame(L: PreparedLook, t: number) {
   if (t < L.lastT) { L.offset = 0; L.paceOffset.clear(); }   // looped, restarted or sought back: the canonical clocks
   L.lastT = t;
   const G = L.G, g = L.g;
-  G.energy = g.energy; G.speed = g.speed; G.level = g.level; G.hue = g.hue; G.saturation = g.saturation;
   G.bpm = L.bpm; G.palette = L.palette;
   for (let i = 0; i < g.macros.length; i++) G[g.macros[i].name] = g.macros[i].value;
   for (let i = 0; i < L.lanes.length; i++) G[L.lanes[i].name] = automationAt(L.lanes[i].points, t);
   for (let i = 0; i < L.moving.length; i++) G[L.moving[i][0]] = L.modAt(L.moving[i][1], t);
-  L.T = clockAt(L, t);
-  setGrade(L, G.level, G.hue, G.saturation);
+  L.T = L.offset + t;
   RUN.G = G;
   RUN.palette = L.palette;
   RUN.t = t; RUN.T = L.T; RUN.look = L;
 }
 
-const LUMA = [0.2126, 0.7152, 0.0722];
-const H = new Float64Array(9);
-/** level × saturation × hue rotation as one 3×3 matrix; identity skips it. */
-function setGrade(L: PreparedLook, level: number, hue: number, sat: number) {
-  L.graded = !(level === 1 && hue === 0 && sat === 1);
-  if (!L.graded || (L.level === level && L.hue === hue && L.sat === sat)) return;
-  L.level = level; L.hue = hue; L.sat = sat;
-  const c = Math.cos(hue * TAU), s = Math.sin(hue * TAU) / Math.sqrt(3), k = (1 - c) / 3;
-  H[0] = H[4] = H[8] = c + k;
-  H[1] = H[5] = H[6] = k - s;
-  H[2] = H[3] = H[7] = k + s;
-  const M = L.grade;
-  for (let r = 0; r < 3; r++) {
-    for (let col = 0; col < 3; col++) {
-      let v = 0;
-      for (let i = 0; i < 3; i++) v += ((r === i ? sat : 0) + (1 - sat) * LUMA[i]) * H[3 * i + col];
-      M[3 * r + col] = level * v;
-    }
-  }
-}
-
-const cl = (v: number) => (v > 0 ? (v < 1 ? v : 1) : 0);
-/** The composite clamped, graded and clamped again. */
-export function finish(rgb: Float32Array, n: number, L?: PreparedLook | null) {
-  if (!L || !L.graded) {
-    for (let i = 0; i < n; i++) { const v = rgb[i]; if (!(v > 0)) rgb[i] = 0; else if (v > 1) rgb[i] = 1; }
-    return;
-  }
-  const M = L.grade;
-  for (let i = 0; i < n; i += 3) {
-    const r = cl(rgb[i]), g = cl(rgb[i + 1]), b = cl(rgb[i + 2]);
-    rgb[i] = cl(M[0] * r + M[1] * g + M[2] * b);
-    rgb[i + 1] = cl(M[3] * r + M[4] * g + M[5] * b);
-    rgb[i + 2] = cl(M[6] * r + M[7] * g + M[8] * b);
-  }
+/** The composite clamped to 0..1. */
+export function finish(rgb: Float32Array, n: number) {
+  for (let i = 0; i < n; i++) { const v = rgb[i]; if (!(v > 0)) rgb[i] = 0; else if (v > 1) rgb[i] = 1; }
 }
 
 /** A text param's longest value (SPEC "Pattern code"). */

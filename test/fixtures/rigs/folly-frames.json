@@ -1,5 +1,5 @@
 {
- "_about": "Frozen at b5d9258 (cathedral.json era) by rendering each look as the bake does (t = f / 40, default gamma and brightness) and hashing its full DMX frames. test/rig-folly.test.js renders them again on rig.json. Re-made when a r moved to the LEDs' mean (the effects audit's core fix), when add and blur moved to light, and when colour fades moved to OKLab.",
+ "_about": "Frozen at b5d9258 (cathedral.json era) by rendering each look as the bake does (t = f / 40, default gamma and brightness) and hashing its full DMX frames. test/rig-folly.test.js renders them again on rig.json. Re-made when a r moved to the LEDs' mean (the effects audit's core fix), when add and blur moved to light, and when colour fades moved to OKLab. The composed look's re-made when the look's speed and grade went (it had speed 1.3, level, hue and saturation).",
  "frames": 100,
  "every": 10,
  "looks": [
@@ -316,18 +316,18 @@
      }
     ]
    },
-   "sha256": "a69afeedc6957faf700931be0271646048391e49a4d018bb3bb073566937c483",
+   "sha256": "2515c85076208e662e19caf2359d5712d376b2ff196cf94b29fca99c5cede4f0",
    "sampled": {
-    "0": "f23be00068885801",
-    "10": "f809c27c1360c400",
-    "20": "de0a4a34ca0bed79",
-    "30": "aed06df6714b95e4",
-    "40": "8a0fc9603cfc39c5",
-    "50": "357b939cf3af6b61",
-    "60": "b07f8bf6e38573ec",
-    "70": "12bb4f70161b2503",
-    "80": "98967f0f1e887eda",
-    "90": "e861daad5ecf5ef1"
+    "0": "66a9ad142654964d",
+    "10": "3b831522d66204fe",
+    "20": "9bd75e2ec39c3b8c",
+    "30": "d6bb433aa5d05aed",
+    "40": "72e06ddf26fcad68",
+    "50": "23791a5a1801af65",
+    "60": "842d9f4a6d8c82f4",
+    "70": "35e19fe89949f25b",
+    "80": "50d1466f0899ba09",
+    "90": "4db31b52bec43852"
    },
    "litChannels": 1253564
   }

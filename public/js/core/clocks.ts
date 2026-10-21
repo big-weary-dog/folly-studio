@@ -1,8 +1,8 @@
 // Integrated clocks (SPEC "Integrated clocks"): clock(name) is ∫ P[name] dT from the start, how far a speed param has
 // moved things in pattern time, so modulating a speed never makes the motion jump. A fixed value is that value × T. A
-// bound one is summed over show time on a fixed grid from 0 (the trapezoid rule, each step its value × the look's
-// speed there), so a frame reached by playing and the same frame sought to read the same clock, to the bit.
-import { automationAt, type Mod, modValue, type Values } from './globals.ts';
+// bound one is summed over show time on a fixed grid from 0 (the trapezoid rule), so a frame reached by playing and
+// the same frame sought to read the same clock, to the bit.
+import { type Mod, modValue, type Values } from './globals.ts';
 import { RUN } from './stdlib.ts';
 import { layerEnvelope } from './timeline.ts';
 import type { Clip } from '../../../shared/schemas/look.ts';
@@ -16,11 +16,11 @@ type Sum = { n: number, sum: number, f: number, at: number, value: number, rate:
 export function newClocks() {
   let P: Values = {}, bound = new Map<string, Mod>(), clips: readonly Clip[] | null = null;
   const sums = new Map<string, Sum>();
-  /** What a bound param moves things by at show time t: its value then × the look's speed then. */
+  /** What a bound param moves things by at show time t: its value then. */
   const rate = (m: Mod, t: number) => {
     const L = RUN.look!, g = m.kind === 1 ? L.normAt(m.name, t) : 0;
     const env = m.kind === 2 && clips ? layerEnvelope(clips, t) : 1;
-    return modValue(m, t, g, env, L) * (L.speedLane ? automationAt(L.speedLane, t) : L.g.speed);
+    return modValue(m, t, g, env, L);
   };
   /** s brought to show time t: the sum to its last grid step, then the part step to t. */
   const sum = (m: Mod, s: Sum | undefined, name: string, t: number, L: unknown) => {

@@ -71,7 +71,7 @@ describe('one level', () => {
   test('the schema refuses a modulator that follows a modulator, and the clip envelope on a macro', () => {
     const r = Globals.safeParse(chained);
     assert.equal(r.success, false);
-    assert.match(r.error.issues[0].message, /macros\.b follows a, which is not a global or a macro without a mod/);
+    assert.match(r.error.issues[0].message, /macros\.b follows a, which is not a macro without a mod/);
     assert.equal(Globals.safeParse({ macros: { e: { value: 0, mod: { mod: 'envelope' } } } }).success, false);
     const ok = Globals.parse({ macros: { storm: { value: 1, max: 4 }, w: { ...wobble, mod: { ...wobble.mod,
       pace: 'storm', amount: 'energy' } } } });
@@ -82,7 +82,7 @@ describe('one level', () => {
     const g = normalizeGlobals(chained), by = Object.fromEntries(g.macros.map((m) => [m.name, m]));
     assert.equal(by.b.mod, undefined, 'b followed a modulator');
     assert.equal(by.c.mod.amount, undefined);
-    assert.equal(by.c.mod.pace, 'speed', 'a global is a fader');
+    assert.equal(by.c.mod.pace, undefined, 'speed is no fader');
     assert.equal(normalizeGlobals({ macros: { e: { mod: { mod: 'envelope' } } } }).macros[0].mod, undefined);
   });
 });
@@ -117,7 +117,7 @@ test('renaming a fader carries the params and modulators that follow it; deletin
   assert.equal(freeName({}, 'Rose window', 'Speed (bars a second)'), 'roseSpeed');
   assert.equal(freeName({ roseSpeed: {} }, 'Rose window', 'Speed (bars a second)'), 'roseSpeed2');
   assert.equal(freeName({}, '3D glow!'), 'd');
-  assert.equal(freeName({}, '', 'Level'), 'level2'); // level is a global
+  assert.equal(freeName({}, '', 'Palette'), 'palette2'); // palette is the look's
   assert.equal(freeName({}, '!!'), 'mod');
 });
 

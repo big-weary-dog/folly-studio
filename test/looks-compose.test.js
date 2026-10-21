@@ -48,10 +48,17 @@ describe('composed looks over the API', () => {
     assert.deepEqual(look.layers[0].modules[0].params.speed, { mod: 'lfo', rate: 2 });
     assert.equal(look.globals.palette.name, 'carnival');
     assert.deepEqual(look.globals.palette.low, ['#6700cb', '#b500b0']);
-    assert.deepEqual(look.globals.macros, { storm: { value: 0.25, min: 0, max: 1 } });
+    assert.deepEqual(look.globals.macros, { storm: { value: 0.25, min: 0, max: 1 },
+      energy: { value: 0.7, min: 0, max: 1 } }, 'an old look\'s energy is a macro');
     assert.deepEqual(look.automation.energy, [[0, 0.2], [10, 1]], 'sorted by time');
     const old = await ana.post('/api/looks', { title: 'Old', layers: [{ code: PIXEL, params: { k: 1 } }] });
     assert.equal(old.status, 201, 'single-code layers stay valid');
+    const graded = await ana.post('/api/looks', { title: 'Graded', layers: [chain()],
+      globals: { speed: 9, level: 0.2, hue: 3, saturation: 0, live: ['level', 'bpm'] },
+      automation: { hue: [[0, 1]] } });
+    assert.equal(graded.status, 201, 'an old look\'s speed, level, hue and saturation are ignored');
+    assert.deepEqual(graded.json.look.globals ?? {}, { live: ['bpm'] });
+    assert.deepEqual(graded.json.look.automation ?? {}, {});
   });
 
   test('bad chains, globals and automation are refused with a reason', async () => {
@@ -63,14 +70,13 @@ describe('composed looks over the API', () => {
       [{ layers: [m({ as: 'output' })] }, /as is only 'input'/],
       [{ layers: [m({ params: { v: { mod: 'lfo', shape: 'wobble' } } })] }, /unsupported value/],
       [{ layers: [chain({ modules: [] })] }, /1–8 modules/],
-      [{ layers: [chain()], globals: { speed: 9 } }, /globals\.speed must be a number from 0 to 4/],
       [{ layers: [chain()], globals: { tempo: 1 } }, /not a global/],
       [{ layers: [chain()], globals: { palette: 'plaid' } }, /no palette called plaid/],
-      [{ layers: [chain()], globals: { macros: { energy: {} } } }, /Macro energy/],
+      [{ layers: [chain()], globals: { macros: { bpm: {} } } }, /Macro bpm/],
       [{ layers: [chain()], globals: { macros: { constructor: {} } } }, /Macro constructor/],
-      [{ layers: [chain()], automation: { storm: [[0, 1]] } }, /automate a global or one of the look's macros/],
-      [{ layers: [chain()], automation: { energy: [[0, 1], [0, 0]] } }, /two points at 0 s/],
-      [{ layers: [chain()], automation: { energy: [[0, 2]] } }, /each point is/],
+      [{ layers: [chain()], automation: { storm: [[0, 1]] } }, /automate one of the look's macros/],
+      [{ layers: [chain()], globals: GLOBALS, automation: { storm: [[0, 1], [0, 0]] } }, /two points at 0 s/],
+      [{ layers: [chain()], globals: GLOBALS, automation: { storm: [[0, 2]] } }, /each point is/],
     ];
     for (const [body, why] of bads) {
       const r = await ana.post('/api/looks', { title: 'x', ...body });
@@ -85,7 +91,7 @@ describe('composed looks over the API', () => {
     let r = await put({ globals: { ...GLOBALS, energy: 0.1 } });
     assert.equal(r.status, 200, r.text);
     assert.equal(r.json.look.versionCount, 1);
-    assert.equal(r.json.look.versions[0].globals.energy, 0.7, 'the version keeps the old globals');
+    assert.equal(r.json.look.versions[0].globals.macros.energy.value, 0.7, 'the version keeps the old globals');
     r = await put({ automation: { storm: [[0, 0.5]] } });
     assert.deepEqual(r.json.look.automation, { storm: [[0, 0.5]] });
     assert.equal(r.json.look.versionCount, 2);
@@ -152,18 +158,19 @@ describe('generated chains', () => {
       { id: 'cl', kind: 'source', title: 'Clouds', ref: 'clouds', code: PIXEL, as: 'input' },
       { kind: 'filter', title: 'Mask', ref: 'mask', code: FILTER, input: 'cl' },
       { kind: 'filter', title: 'Broken', code: 'function pixel() {}' },
-    ] }], globals: { energy: 3, palette: 'Carnival', macros: [{ name: 'storm', value: 0.5 }, { name: 'speed' }] },
+    ] }], globals: { palette: 'Carnival', macros: [{ name: 'storm', value: 0.5 }, { name: 'energy', value: 0.4 },
+      { name: 'bpm' }] },
     automation: [{ name: 'energy', points: [[5, 1], [0, 0], [5, 0.3]] }, { name: 'tempo', points: [[0, 1]] }] },
     { groups, library });
     const mods = look.layers[0].modules;
     assert.deepEqual(mods.map((m) => m.id), ['met', 'cl', 'm3']);
     assert.equal(mods[2].input, 'cl');
     assert.equal(mods[1].ref, 'clouds');
-    assert.equal(look.globals.energy, 1);
     assert.equal(look.globals.palette.name, 'carnival');
-    assert.deepEqual(Object.keys(look.globals.macros), ['storm']);
+    assert.deepEqual(Object.keys(look.globals.macros), ['storm', 'energy']);
     assert.deepEqual(look.automation, { energy: [[0, 0], [5, 1]] });
     assert.ok(look.dropped.some((d) => /module 4: code does not define function filter/.test(d)), look.dropped.join());
+    assert.ok(look.dropped.some((d) => /bpm/.test(d)), look.dropped.join());
     assert.ok(look.dropped.some((d) => /tempo/.test(d)));
   });
 

@@ -3,7 +3,8 @@
 // with colour picks, for the last two, and the same bytes for the rest), with the library as of 11a4627
 // (library-v1.json, pinned so that library edits leave these frames alone) and this tree's rig and palettes. Re-made
 // when a r moved to the LEDs' mean (the effects audit's core fix), when add and blur moved to light, and when colour
-// fades moved to OKLab (each a deliberate change of the frames): the recipe below then needs that commit's core.
+// fades moved to OKLab (each a deliberate change of the frames): the recipe below then needs that commit's core. The
+// perf demo's was re-made by this tree's core when the look's hue grade went (it had hue 0.05).
 // test/chain-order.test.js converts each look and renders the same bytes. To make the digests again (from the repo
 // root; the old core is plain modules, so a copy of public/js is enough):
 //   mkdir -p /tmp/v1 && git -C "$SHOW_BUILDER_DIR" archive 3e681e0:studio public/js | tar -x -C /tmp/v1
@@ -37,7 +38,7 @@ export const LOOKS = [
     m('meteors', { id: 'met' }), m('clouds', { id: 'cl', as: 'input' }), m('mask', { id: 'k', input: 'cl' })])],
   globals: { palette: pal('carnival'), energy: 0.7, hue: 0.05, macros: { storm: { value: 0.4, min: 0, max: 1 } } },
   automation: { storm: [[0, 0], [30, 1]] } },
-  'd2564968970a0c4b69b442fbb4843cb62f1b78953eaadaa80d7a0b313b0d78e0'],
+  'b9282fa767e99614db44372d55cd338bc850c153626b58f5b43b5cd1f94ca941'],
   ['three warps lead plasma and four filters', { layers: [layer('Long', [m('radial-repeat'), m('mosaic'),
     m('rotate', { params: { spin: 0.3 } }), m('plasma'), m('gradient-map'), m('hue-shift'), m('sparkle'),
     m('edge-fade')], { groups: undefined })] },
@@ -103,7 +104,8 @@ export function digest(core, look) {
   const scene = core.prepareScene(folly);
   core.setLibrary([]);
   const layers = look.layers.map((l) => core.prepareLayer(scene, l, core.compileLayer(l)));
-  const g = core.prepareLook({ globals: look.globals, automation: look.automation, bpm: look.bpm });
+  const g = core.prepareLook({ globals: look.globals, automation: look.automation, bpm: look.bpm,
+    layers: look.layers });
   const rgb = new Float32Array(scene.count * 3), full = new Uint8Array(scene.frameChannels), all = createHash('sha256');
   for (let f = 0; f < 60; f++) {
     const { errors } = core.renderFrame(scene, layers, f / 40, rgb, g);

@@ -54,10 +54,10 @@ second bars. Start from a preset when one is the idea, or copy its recipe into `
 Any number param may be bound instead of set:
 - `{ "mod": "lfo", "rate": 0.2, "shape": "sine", "center": 0.5, "depth": 0.5 }`: a wave in Hz, or with `"unit":
   "beats"` its rate is cycles a beat at the look's bpm (0.25: once a bar). Shape `hold` steps and holds (one step a
-  beat, a curtain that opens and waits). `"amount": "<fader>"` scales its swing by a global's or macro's value (0
+  beat, a curtain that opens and waits). `"amount": "<fader>"` scales its swing by a macro's value (0
   holds it at its centre); `"pace": "<fader>"` multiplies its rate by one (a storm that quickens it), never jumping.
-- `{ "mod": "global", "name": "energy", "from": 0.2, "to": 1 }`: follows a global, macro or modulator. Library
-  sources never read energy themselves: bind density, speed or level to it to build.
+- `{ "mod": "global", "name": "energy", "from": 0.2, "to": 1 }`: follows one of the look's macros or modulators
+  (here one named `energy`). Library sources never read a macro themselves: bind density, speed or level to one.
 - `{ "mod": "beats", "per": 0.5 }`: a speed in time with the beat (the Studio's beat clock on its field): the
   param is `per` × the beats a second, so it follows the bpm.
 Speeds are integrated, so binding a speed never makes the motion jump.
@@ -68,11 +68,10 @@ Groups are the rig's places (ids in the prompt's group list); a layer's groups a
 to another rig. Modules that find places themselves (`anchor`, `in-turn`) take a tag, never an id.
 
 ## Globals
-A look may set `globals`: `palette` (by name; every pick reads it), `speed` (0..4, 1: scales every clock), `level`,
-`hue` (turns the whole look), `saturation`, `energy` (0..1, what bindings follow), and macros (named numbers
-bindings can follow). `bpm` (40–240, 120 when unset) sits beside `globals`, not in it: the look's tempo, which LFOs
-in beats and beat-clocked speeds keep. `automation` moves a global or macro between points over the duration: energy from
-0.2 to 1 over a minute is a build. A palette sets hue, not brightness: choose one whose colours suit the idea and
+A look may set `globals`: `palette` (by name; every pick reads it) and macros (named numbers bindings can
+follow). `bpm` (40–240, 120 when unset) sits beside `globals`, not in it: the look's tempo, which LFOs in beats and
+beat-clocked speeds keep. `automation` moves a macro between points over the duration: an `energy` macro from 0.2 to
+1 over a minute is a build. A palette sets hue, not brightness: choose one whose colours suit the idea and
 keep them at full strength.
 
 ## Macros: one dial for many params
@@ -85,8 +84,8 @@ layer's `level` is not a param and cannot be bound: bind a source's brightness, 
 A macro with a `mod` (an LFO) is a modulator: it moves by itself, and every param bound to it
 follows the one wave, in step across layers. Each param maps it through its own `from`..`to`, so one breath can
 swell a bed's brightness while it narrows a beam's width. Give a modulator `min` 0, `max` 1 and its LFO `center`
-0.5, `depth` 0.5, so it sweeps its whole range. Its LFO may take `pace` and `amount` from a fader (a global, or a
-macro without a mod) but never from another modulator: one level only.
+0.5, `depth` 0.5, so it sweeps its whole range. Its LFO may take `pace` and `amount` from a fader (a macro without a
+mod) but never from another modulator: one level only.
 ```json
 "bpm": 90,
 "globals": { "macros": [{ "name": "storm", "value": 1, "min": 0.5, "max": 3 },

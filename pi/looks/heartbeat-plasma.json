@@ -4,7 +4,7 @@
   "bpm": 120,
   "globals": {
     "macros": { "drive": { "value": 0.4, "min": 0, "max": 1 }, "ripple": { "value": 0.25, "min": 0, "max": 1 } },
-    "live": ["bpm", "drive", "ripple", "hue", "level"]
+    "live": ["bpm", "drive", "ripple"]
   },
   "layers": [
     { "modules": [

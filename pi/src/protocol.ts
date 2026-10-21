@@ -15,7 +15,7 @@ export const FromPage = z.discriminatedUnion('type', [
 ]);
 export type FromPage = z.infer<typeof FromPage>;
 
-export type Control = { name: string, min: number, max: number, value: number, kind: 'global' | 'macro' | 'bpm' };
+export type Control = { name: string, min: number, max: number, value: number, kind: 'macro' | 'bpm' };
 export type PiState = {
   /** rev: its source's (below); offset, beat0 and paces: the prepared look's clocks, so a viewer renders the same
    * frame. */

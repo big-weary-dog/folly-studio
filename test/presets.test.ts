@@ -73,11 +73,22 @@ describe('in the Studio', () => {
   test('the globals it needs: its macros the look lacks, its palette only where the look has none', () => {
     const p = { ...presets[0], globals: { palette: 'vapour' as never, macros: { storm: { value: 0.2, min: 0, max: 1 },
       glow: { value: 1, min: 0, max: 1 } } } };
-    assert.deepEqual(withPresetGlobals({ energy: 0.7, macros: { storm: { value: 0.9, min: 0, max: 1 } } }, p), {
-      energy: 0.7, palette: 'vapour', macros: { storm: { value: 0.9, min: 0, max: 1 }, glow: { value: 1, min: 0,
-        max: 1 } } });
+    assert.deepEqual(withPresetGlobals({ macros: { storm: { value: 0.9, min: 0, max: 1 } } }, p), {
+      palette: 'vapour', macros: { storm: { value: 0.9, min: 0, max: 1 }, glow: { value: 1, min: 0, max: 1 } } });
     assert.equal(withPresetGlobals({ palette: { name: 'mine' } } as never, p)!.palette!.name, 'mine');
-    assert.deepEqual(withPresetGlobals({ energy: 1 }, presets[1]), { energy: 1 }, 'none needed: the look as it was');
+    const own = { macros: { a: { value: 1, min: 0, max: 1 } } };
+    assert.deepEqual(withPresetGlobals(own, presets[1]), own, 'none needed: the look as it was');
+  });
+
+  test('a preset that follows Energy brings the Energy knob; one that does not, none', () => {
+    const energy = { value: 0.5, min: 0, max: 1 };
+    for (const name of ['storm', 'rain', 'brushfire']) {
+      const p = presets.find((x) => x.name === name)!;
+      assert.deepEqual(withPresetGlobals(null, p)?.macros?.energy, energy, name);
+    }
+    const calm = presets.filter((p) => !JSON.stringify(p).includes('"energy"'));
+    assert.ok(calm.length > 3);
+    for (const p of calm) assert.equal(withPresetGlobals(null, p)?.macros?.energy, undefined, p.name);
   });
 });
 

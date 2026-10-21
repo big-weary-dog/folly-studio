@@ -233,10 +233,10 @@ browser's too:
       { "id": "m4", "kind": "warp", "title": "Twist", "ref": "twist", "code": "…", "params": {} }
     ] }
 ],
-  "globals": { "speed": 1, "level": 1, "hue": 0, "saturation": 1, "energy": 0.5,
+  "globals": {
     "palette": { "name": "carnival", "low": ["#6700cb"], "body": ["#ee008e"], "accent": [], "high": ["#f9e9cf"] },
     "macros": { "storm": { "value": 0.2, "min": 0, "max": 1 } } },
-  "automation": { "energy": [[0, 0.2], [20, 1]], "storm": [[0, 0], [30, 1]] } }
+  "automation": { "storm": [[0, 0], [30, 1]] } }
 ```
 
 `groups` is an array of the rig's group ids (union). Missing, the layer plays on the rig's root; `[]` (with no tags)
@@ -278,19 +278,20 @@ below.
   the default, as a bad hex always did), `[r, g, b]`, or `{ pick, blend?, range?, rotate? }` (checked: tokens, `step`
   or `smooth`, two numbers 0..1, a number 0..1 or a binding). A layer's `palette`, a role remap from before one
   colour param per source, is dropped on the way in and from stored looks at start (`dropRemaps`).
-- **Globals** (all optional): `speed` 0..4 (1), `level` 0..1 (1), `hue` −0.5..0.5 turns (0), `saturation`
-  0..2 (1), `energy` 0..1 (0.5); `palette` as role lists (≤ 16 `#rrggbb` each; a bare name from
+- **Globals** (all optional): `palette` as role lists (≤ 16 `#rrggbb` each; a bare name from
   `data/palettes.json` is filled in on save; default `chapel`); `macros` ≤ 16, names
-  `[a-z][A-Za-z0-9_]{0,31}` other than G's own, `{ value, min = 0, max = 1, mod? }`. A macro with a `mod` (an LFO
+  `[a-z][A-Za-z0-9_]{0,31}` but `palette` and `bpm`, `{ value, min = 0, max = 1, mod? }`. Old looks' `speed`,
+  `level`, `hue`, `saturation` (lanes, live names) are ignored; their `energy` is read as a macro `energy`
+  (its value, else 0.5) where stored, automated or followed (`upgradeGlobals`, on read; never rewritten). A macro with a `mod` (an LFO
   or, in older looks, a tempo binding, SPEC-library "Param bindings"; never the envelope) is a **modulator**: it moves by itself each
   frame, `value` its value when the mod is lifted, and params bound to it (`{ mod: 'global', name }`) follow it in
   step. Each frame a lane wins over the mod, the mod over the value. One level only: a modulator follows faders
-  (globals, or macros without a mod): a global binding, or an LFO's `amount` or `pace`, naming a modulator is
+  (macros without a mod): a global binding, or an LFO's `amount` or `pace`, naming a modulator is
   refused by the schema and dropped by the core.
-  `live`: the names a live engine (the Pi, SPEC-pi) offers as controls: globals, the look's macros and `bpm`,
-  each once; absent, it offers the macros without a mod and `level`. A modulator it lists is released from its mod
+  `live`: the names a live engine (the Pi, SPEC-pi) offers as controls: the look's macros and `bpm`,
+  each once; absent, it offers the macros without a mod. A modulator it lists is released from its mod
   while a control holds it. Nothing else reads it.
-- **Automation**: `{ <global or macro>: [[t, v], …] }`, ≤ 16 lanes of ≤ 256 points, t 0–600 s ascending (to
+- **Automation**: `{ <macro>: [[t, v], …] }`, ≤ 16 lanes of ≤ 256 points, t 0–600 s ascending (to
   the ms); linear between points, held before the first and after the last; it replaces the static value.
 - **What plays** (`PLAYS`), versions and History: `SPEC-history.md`, part of this contract.
 - `data/palettes.json` (`tools/build_palettes.py [--check]`, from `td/palettes/*.csv` and each one's line in
@@ -327,7 +328,7 @@ Sequencing lives on the look, xLights-style.
   rule above, so what it saves the API accepts. Under the layers, a lane per modulator (`ui/timeline-mods.tsx`): its
   value over the show (0..1 of its range, as it plays: pace, swing and lanes in), its name and what it drives in the
   lane's head, which opens it on the Look panel; the group folds to its head (kept per browser). Under those, a lane per
-  automated global (energy, macros): click to add a point, drag to move it, double-click to remove it. The bottom
+  automated macro: click to add a point, drag to move it, double-click to remove it. The bottom
   dock (Code, Timeline, Look) is one height on every tab: a share of the Studio's height (36%, at least 220 px, the
   3D view keeping at least 200 px), dragged by the splitter above it and kept per browser.
 - Reorder: a layer or module row moves by its ↑ ↓ buttons, or by dragging its grip (`ui/drag-order.ts`, any
@@ -435,7 +436,7 @@ distances `d`, nearest first; Int32Array, Int32Array, Float32Array; cached on th
 `BLUR_MODES`, `DEFAULT_SOFTEN`, `prepareLook({ globals, automation, bpm }, previous?) → look`,
 `renderFrame(scene, preparedLayers, t, out?, look?) → { rgb, errors }` (level × `layerEnvelope`, or a wipe's
 `transitionWeight` per pixel; skips layers at 0; allocation-free per layer; sets each prepared layer's `ms`, its time this frame), `normalizeGlobals(globals)`, `automationAt(points, t)`, `PALETTE_ROLES`,
-`DEFAULT_PALETTE`, `MODULE_KINDS`, `GLOBALS`,
+`DEFAULT_PALETTE`, `MODULE_KINDS`, `OLD_GLOBALS`, `upgradeGlobals(look)`,
 `toChannels(scene, rgb, out?) → Uint8Array(frame channels)` (in the rig's colour order, the colours as previewed:
 bakes and Live), the output transform (Light and output; `core/light.ts`, the only module that reads the settings'
 fields): `LIGHT` (the defaults), `lightOf(settings)` (bounded, defaults where missing), `prepareLight(scene, light?)`,
