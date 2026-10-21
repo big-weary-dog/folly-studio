@@ -26,6 +26,7 @@
     "pi": "node --experimental-strip-types pi/main.ts",
     "pi:sim": "node --experimental-strip-types pi/sim.ts",
     "pi:page": "vite build -c pi/vite.config.js",
+    "pi:branch": "bash deploy/pi-branch.sh",
     "build-data": "python3 tools/build_rig.py && python3 tools/build_palettes.py"
   },
   "devDependencies": {
