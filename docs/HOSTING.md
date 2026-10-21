@@ -123,6 +123,52 @@ also spares your upload.
 
 For a quick trial elsewhere, with no domain, `cloudflared tunnel --url http://127.0.0.1:8780` *(to verify)*.
 
+## Dev instance
+
+An internal studio beside the public one, for trying `dev` before it reaches `prod`: its own checkout, data,
+port, settings and unit, so nothing it does reaches folly.swampkat.com.
+
+| | public | dev |
+|---|---|---|
+| Checkout | `~/folly-prod`, `origin/prod` | `~/folly-dev`, `origin/dev` |
+| Data (`STUDIO_DATA`) | `~/folly-data` | `~/folly-dev-data` |
+| Port | 127.0.0.1:8780 | 127.0.0.1:8781 |
+| Settings | `~/.config/folly-studio/studio.env` | `~/.config/folly-studio/studio-dev.env` |
+| Unit | `folly-studio` (and `folly-studio-pi`) | `folly-studio-dev` |
+
+Set up, once:
+
+1. `git clone https://github.com/big-weary-dog/folly-studio.git ~/folly-dev`.
+2. `~/.config/folly-studio/studio-dev.env` (chmod 600), as the [Environment](#environment) below, with at least
+   `STUDIO_DATA=/home/<you>/folly-dev-data`, `PORT=8781` and `STUDIO_ADMINS=<your dev username>`. No account,
+   session or invite code carries over: sign up there afresh as that username.
+3. Seed its data from the public studio's, before its first start:
+
+   ```sh
+   cd ~/folly-dev && npm ci && node tools/seed-dev.ts --from ~/folly-data --to ~/folly-dev-data
+   ```
+
+   This copies the shared looks (with their baked frames and gallery previews), the light settings and the model
+   registry; it only reads the source. It never copies users, sessions or invites, nor ideas, reports or the live
+   stage. A copied look keeps its owner's name in the gallery, but no dev account owns it: anyone may open and
+   play it, no one edit it. Unshared looks stay behind. It refuses a target that is not empty, or that is the
+   source or inside it; to seed again, stop the dev studio and empty its folder first.
+4. `cd ~/folly-dev && npm run host -- --instance dev` (or `STUDIO_INSTANCE=dev npm run host`). It ends on
+   `host: folly-studio-dev serves <commit> on http://127.0.0.1:8781`.
+
+Updating is the same command again, from `~/folly-dev`; `npm run host -- --instance dev <ref>` for another
+branch. Logs: `journalctl --user -u folly-studio-dev -f`.
+
+Each run writes, enables and restarts its own instance's unit alone, and refuses to start when the other instance's
+settings (if this machine has them) name the same `PORT` or `STUDIO_DATA`. The data lock keeps a studio off a
+folder another one has open, so a dev studio pointed at `~/folly-data` by mistake stops at start.
+
+A dev instance runs no `-pi` unit unless its settings name `PI_PREVIEW_URL`; Windows not reaching its port is a
+note, not a failure, since it may have no tunnel.
+
+Later, `dev.folly.swampkat.com`: a second public hostname on the tunnel, to `127.0.0.1:8781`, behind a Cloudflare
+Access application that admits the owner alone. The owner sets both up in the Cloudflare dashboard.
+
 ## Tailscale Funnel *(to verify)*
 
 ```sh
