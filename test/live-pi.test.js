@@ -10,6 +10,7 @@ import { afterAll, beforeAll, describe, test } from 'vitest';
 import WebSocket from 'ws';
 
 import { engineOn } from '../pi/test/fixture.ts';
+import { serverNow } from '../src/clock.ts';
 import { controlServer } from '../pi/src/server.ts';
 import { fakeBox, layer, signup, startApp, useFixture } from './fixtures/server.js';
 
@@ -62,6 +63,7 @@ describe('the stage following /pi', () => {
   test('a control used on /pi drives every viewer; a controller takes it back', async () => {
     const watch = open(app, '/api/live/socket', alice.cookie), drive = open(app, '/api/live/socket', carol.cookie);
     assert.equal((await watch.next('state')).live.driver, 'stage');
+    await drive.next('state');
     const page = open(app, '/pi/ws', ada.cookie);
     page.ws.on('open', () => page.send({ type: 'hello' }));
     assert.equal((await page.next('driver')).from, 'live', '/pi is told Live control drives');
@@ -71,7 +73,7 @@ describe('the stage following /pi', () => {
     const first = await watch.next('pi', (m) => m.source);
     assert.equal(first.source.id, 'fire');
     assert.ok(first.source.layers[0].modules.every((m) => m.ref && !m.code), 'modules by ref, no code');
-    assert.ok(Math.abs(first.at - Date.now()) < 2000);
+    assert.ok(Math.abs(first.at - serverNow()) < 2000, 'on the server\'s clock, which the wall clock steps away from');
     await watch.next('pi', (m) => m.now?.values.heat === 0.9 && m.now.rev === first.source.rev);
     assert.equal((await page.next('driver')).from, 'pi');
 

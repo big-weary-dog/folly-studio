@@ -385,7 +385,6 @@ describe('store', () => {
     assert.deepEqual(store.looks.list((l) => l.owner === 'u2').map((l) => l.id), [b.id]);
     assert.equal(store.looks.list().length, 2);
 
-    await new Promise((r) => setTimeout(r, 2));
     const u = store.looks.update(a.id, { title: 'A2', id: 'hijack', owner: undefined });
     assert.equal(u.id, a.id);
     assert.equal(u.title, 'A2');
