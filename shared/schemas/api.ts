@@ -6,6 +6,7 @@ import ACCOUNT from '../../public/data/account.json' with { type: 'json' };
 import type { IdeaStatus } from '../idea-status.ts';
 import type { Tour } from './tour.ts';
 import { type Automation, Bpm, Duration, Globals, type Layer, Layers, LookTitle, Summary } from './look.ts';
+import type { Role } from './models.ts';
 
 /** A body's `chain`: 2 when its chains follow the one rule; without it they are converted (SPEC "Looks"). */
 const Chain = z.literal(2, { error: 'chain must be 2 (warps bend what is above them).' }).optional();
@@ -83,7 +84,7 @@ export const LooksQuery = z.object({
 
 // What the API answers with (it never reads these back): an account, the flash check's settings, an idea, a look as
 // lists and GET show it.
-export type User = { id: string, username: string, role: 'member' | 'curator' | 'admin', tour?: Tour };
+export type User = { id: string, username: string, role: Role, tour?: Tour };
 /** GET /api/me's `flash`: whether the flash check runs here, and its limits (SPEC "Baked frames" > Checks). */
 export type FlashSettings = { check: boolean, perSecond: number, delta: number, darker: number, area: number };
 /** A curator's approval of a look whose bake fails the flash check: why, who, when. */

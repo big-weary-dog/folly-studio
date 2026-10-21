@@ -21,7 +21,7 @@ export function HistoryDrawer({ d, st }: { d: DrawerHandle, st: Studio }) {
     else view?.removeAttribute('data-previewing');
   }, [p]);
   return <Drawer d={d} title="History" class="history-drawer" actions={<>
-    <button type="button" class="icon-btn" aria-label="Undo" title="Undo (Ctrl+Z)" disabled={at <= 0}
+    <button type="button" class="icon-btn" aria-label="Undo" title="Undo (Ctrl+Z)" disabled={at <= 0} data-tour="undo"
       onClick={() => st.undo()}>↶</button>
     <button type="button" class="icon-btn" aria-label="Redo" title="Redo (Ctrl+Shift+Z)" disabled={at >= last}
       onClick={() => st.redo()}>↷</button></>}>

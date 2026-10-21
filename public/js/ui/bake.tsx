@@ -3,10 +3,11 @@
 // reviewed, or one that fails only the flash check, with their reason.
 import { useEffect, useState } from 'preact/hooks';
 
-import { api, type ApiError, statusOf } from '../api.ts';
+import { api, type ApiError } from '../api.ts';
 import { autoFetchAllowed, fetchManifest } from '../frames-stream.ts';
+import { can } from '../../../shared/policy.ts';
 import type { Bake } from '../../../shared/schemas/api.ts';
-import { signedOut, user } from './session.ts';
+import { user } from './session.ts';
 import { cx, Field, openDialog, Switch, toast } from './kit.tsx';
 import type { Preview } from './preview.ts';
 import { FixButton } from './refine.tsx';
@@ -44,10 +45,10 @@ export function openBake(st: Studio, pv: Preview) {
 }
 
 function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
-  const me = user.value, curator = !!me && me.role !== 'member', id = st.lookId.value, server = st.server.value;
+  const me = user.value, id = st.lookId.value, server = st.server.value;
   const look = id && server ? { ...server, id } : null, bake = look?.bake || null, s = bakeState(bake);
   const dirty = st.dirty.value, playing = st.baked.value;
-  const canBake = !look || look.owner === me?.id || (curator && look.shared);
+  const canBake = can(me, 'bake', look ?? undefined), canReview = can(me, 'review', look ?? undefined);
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [tick, setTick] = useState(0);
   const [sized, setSized] = useState<{ sha?: string; bytes: number } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -64,9 +65,7 @@ function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
         toast(after === 'ok' ? 'Baked: the flash check passed.' : `Bake ${after}: ${fresh.bake?.reason || ''}`,
           { kind: after === 'ok' ? 'ok' : 'error', timeout: 7000 });
       }
-    } catch (err) {
-      if (statusOf(err) === 401) return signedOut();
-    }
+    } catch { /* the next poll tries again */ }
     setTick((n) => n + 1);
   }
   const active = !!look && ACTIVE.has(bake?.status || '');
@@ -76,14 +75,13 @@ function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
     return () => clearTimeout(timer);
   }, [active, server, tick]);
 
-  /** Run fn with the card busy; a 401 signs out, and any other refusal is kept to show, then failed(err). */
+  /** Run fn with the card busy; a refusal is kept to show, then failed(err). */
   async function busyWith(fn: () => Promise<void>, failed: (err: ApiError) => void) {
     setBusy(true);
     setError('');
     try {
       await fn();
     } catch (err) {
-      if (statusOf(err) === 401) return signedOut();
       setError((err as Error).message);
       failed(err as ApiError);
     } finally {
@@ -125,7 +123,6 @@ function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
       }
       await pv.playBaked(!playing);
     } catch (err) {
-      if (statusOf(err) === 401) return signedOut();
       toast((err as Error).message, { kind: 'error', timeout: 7000 });
     } finally {
       setLoading(false);
@@ -176,7 +173,7 @@ function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
             && sized.sha === bake?.frames?.sha256 ? ` · ${mb(sized.bytes)}` : ''}`}</button>
       </div>
       <p class="bake-note narrow-only" hidden={!canBake || !look}>Bake and review from a larger screen.</p>
-      {curator && <Switch label="Reviewed for the playa" class="share-toggle bake-review wide-only"
+      {canReview && <Switch label="Reviewed for the playa" class="share-toggle bake-review wide-only"
         checked={!!look?.reviewed} disabled={busy || !look || (!look.reviewed && !passing && !overridable)}
         onChange={review} title={look?.reviewed ? 'Reviewed: approved to play on the Folly' : passing
           ? 'Mark this look approved for the Folly' : overridable ? 'It fails the flash check: approve it with a reason'

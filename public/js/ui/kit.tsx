@@ -144,12 +144,12 @@ export function placePopover(e: { newState: string; currentTarget: HTMLElement }
 
 /** A `.field`, one row: its label, then the control (given the label's id), or a read-only value. A label too long
  * for the label column takes its own line; `stack` always does, for what one line cannot hold (multi-line text). */
-export function Field({ label, children, hint, stack, class: cls, title }: { label: ComponentChildren;
+export function Field({ label, children, hint, stack, class: cls, title, tour }: { label: ComponentChildren;
   children: ComponentChildren | ((id: string) => ComponentChildren); hint?: ComponentChildren; stack?: boolean;
-  class?: string; title?: string }) {
+  class?: string; title?: string; tour?: string }) {
   const id = useId(), control = typeof children === 'function';
   return (
-    <div class={cx('field', stack && 'stack', cls)} title={title}>
+    <div class={cx('field', stack && 'stack', cls)} title={title} data-tour={tour}>
       {control ? <label for={id}>{label}</label> : <span>{label}</span>}
       <div class="field-control">{control ? children(id) : children}</div>{hint}</div>);
 }

@@ -7,7 +7,7 @@ import path from 'node:path';
 import type { WebSocket } from 'ws';
 
 import {
-  FromClient, type FromServer, type Live, type LiveLook, type PiNow, type PiSource,
+  FromClient, type FromServer, type Live, type LiveLook, type PiNow, type PiSource, SavedLive,
 } from '../../shared/schemas/live.ts';
 import { serverNow } from '../clock.ts';
 import type { Logger } from '../http.ts';
@@ -44,8 +44,14 @@ export async function createHub({ dataDir, playable, log = console }: { dataDir:
   const file = path.join(dataDir, 'live.json');
   let live = emptyLive();
   try {
-    const saved = JSON.parse(await fsp.readFile(file, 'utf8')) as Live;
-    if (saved && typeof saved.rev === 'number') live = { ...emptyLive(), ...saved };
+    // A file from before a field was added takes that field's default.
+    const raw: unknown = JSON.parse(await fsp.readFile(file, 'utf8'));
+    const saved = SavedLive.safeParse(raw?.constructor === Object ? { ...emptyLive(), ...raw } : raw);
+    if (saved.success) live = saved.data as Live;
+    else {
+      const issue = saved.error.issues[0]!;
+      log.warn?.(`live: live.json is not a stage's state (${issue.path.join('.')}: ${issue.message}); starting empty`);
+    }
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') log.warn?.('live: could not read live.json:', err);
   }
@@ -54,12 +60,16 @@ export async function createHub({ dataDir, playable, log = console }: { dataDir:
   let piNow: PiNow | null = null, piSource: PiSource | null = null, piKey = '', piSentAt = 0;
   const drivers = new Set<(from: Live['driver']) => void>();
 
+  /** Written whole to a temporary, then renamed over live.json: a stop mid-write leaves the last state. */
+  const write = () => {
+    const tmp = `${file}.${process.pid}.tmp`;
+    return fsp.writeFile(tmp, JSON.stringify(live)).then(() => fsp.rename(tmp, file))
+      .catch((err) => log.error?.('live: could not save live.json:', err));
+  };
   const save = () => {
     saveTimer ??= setTimeout(() => {
       saveTimer = null;
-      const tmp = `${file}.${process.pid}.tmp`;
-      fsp.writeFile(tmp, JSON.stringify(live)).then(() => fsp.rename(tmp, file))
-        .catch((err) => log.error?.('live: could not save live.json:', err));
+      void write();
     }, SAVE_MS);
   };
   const send = (c: Client, text: string) => {
@@ -178,7 +188,7 @@ export async function createHub({ dataDir, playable, log = console }: { dataDir:
       if (saveTimer) {
         clearTimeout(saveTimer);
         saveTimer = null;
-        await fsp.writeFile(file, JSON.stringify(live)).catch(() => {});
+        await write();
       }
     },
   };

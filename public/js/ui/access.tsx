@@ -4,10 +4,11 @@ import '../../css/access.css';
 
 import { useEffect, useState } from 'preact/hooks';
 
-import { api, statusOf } from '../api.ts';
+import { api } from '../api.ts';
+import { can } from '../../../shared/policy.ts';
 import type { Invite, Person, PersonLimits } from '../../../shared/schemas/access.ts';
 import { confirmDialog, cx, timeAgo, toast } from './kit.tsx';
-import { setTitle, signedOut } from './session.ts';
+import { setTitle } from './session.ts';
 
 const STATE_TAG: Record<Invite['state'], string> = { active: 'tag-emerald', used: '', expired: 'tag-amber',
   revoked: 'danger-text' };
@@ -20,10 +21,7 @@ const day = (iso: string) => new Date(iso).toLocaleDateString([], { day: 'numeri
 export function AccessPage() {
   const [invites, setInvites] = useState<Invite[] | null>(null), [people, setPeople] = useState<Person[] | null>(null);
   const [error, setError] = useState(''), [fresh, setFresh] = useState('');
-  const fail = (err: unknown) => {
-    if (statusOf(err) === 401) return signedOut();
-    toast((err as Error).message, { kind: 'error' });
-  };
+  const fail = (err: unknown) => toast((err as Error).message, { kind: 'error' });
   useEffect(() => {
     setTitle('Access');
     api.invites().then((r) => setInvites(r.invites), (err) => setError((err as Error).message));
@@ -110,7 +108,7 @@ function People({ people, put, fail }: { people: Person[] | null, put: (p: Perso
       onInput={(e) => setQ(e.currentTarget.value)} />
     <ul class="access-list" aria-busy={!people}>
       {shown.map((p) => {
-        const admin = p.role === 'admin', unlocked = admin || !!p.access.unlockedAt;
+        const admin = can(p, 'admin'), unlocked = admin || !!p.access.unlockedAt;
         return <li key={p.id} class="access-row">
           <span class="access-name">{p.username}</span>
           <span class={cx('tag', admin ? 'tag-sapphire' : unlocked ? 'tag-emerald' : '')}>

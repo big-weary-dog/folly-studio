@@ -3,9 +3,8 @@
 // picks one of my looks or a gallery look to play after this one.
 import { useEffect, useId, useState } from 'preact/hooks';
 
-import { api, statusOf } from '../api.ts';
+import { api } from '../api.ts';
 import type { Listed } from '../../../shared/schemas/api.ts';
-import { signedOut } from './session.ts';
 import { cx, openDialog } from './kit.tsx';
 import type { Studio } from './studio-store.ts';
 import { optionText } from './bindings.ts';
@@ -19,12 +18,12 @@ const show = (v?: number | null) => (v === null || v === undefined ? '' : String
 type Props = { st: Studio; tl: TimelineState };
 
 /** A labelled number box that commits on change (Enter leaves it) and never overwrites what is being typed. */
-function Num({ label, unit, value, commit, keep, ...attrs }: { label: string; unit?: string; value?: number | null;
-  commit: (typed: string, el: HTMLInputElement) => void; keep?: boolean; min?: number; max?: number; step?: number;
-  title?: string; placeholder?: string; disabled?: boolean }) {
+function Num({ label, unit, value, commit, keep, tour, ...attrs }: { label: string; unit?: string;
+  value?: number | null; commit: (typed: string, el: HTMLInputElement) => void; keep?: boolean; min?: number;
+  max?: number; step?: number; title?: string; placeholder?: string; disabled?: boolean; tour?: string }) {
   const id = useId();
   return (
-    <span class="tl-field"><label for={id} class={cx('tl-label', keep && 'keep')}>{label}</label>
+    <span class="tl-field" data-tour={tour}><label for={id} class={cx('tl-label', keep && 'keep')}>{label}</label>
       <input id={id} type="number" class="tl-num" inputMode="decimal" {...attrs}
         value={document.activeElement?.id === id ? undefined : show(value)}
         onChange={(e) => commit(e.currentTarget.value, e.currentTarget)}
@@ -39,6 +38,7 @@ const Btn = ({ text, label, onClick, cls = 'tl-btn', disabled }: { text: string;
 
 function AddClip({ st, tl }: Props) {
   return <button type="button" class="btn small tl-add" title="Add a clip to the selected layer at the playhead"
+    data-tour="clip-add"
     disabled={!st.selected.value} onClick={() => tl.addClipAt(st.selected.peek(), tl.now())}>+ Clip</button>;
 }
 
@@ -53,7 +53,7 @@ export function TimelineTools({ st, tl, inspector }: Props & { inspector?: boole
             const d = cleanDuration(typed);
             if (d !== tl.duration.peek()) tl.setDuration(d); else el.value = show(d);
           }} />
-        <Num label="BPM" min={40} max={240} step={1} placeholder="BPM" value={L.bpm}
+        <Num label="BPM" min={40} max={240} step={1} placeholder="BPM" value={L.bpm} tour="bpm"
           title="Tempo in beats per minute (120 unset): the beat grid, LFOs in beats, tempo bindings"
           commit={(typed, el) => {
             const bpm = cleanBpm(typed.trim());
@@ -118,9 +118,9 @@ function importLookDialog(st: Studio, tl: TimelineState) {
   return openDialog<boolean>({ title: 'Import a look', className: 'import-dialog', body: (close) => {
     const [scope, setScope] = useState<keyof typeof SCOPES | null>(null);
     const [list, setList] = useState<Listed[] | string>('Loading…'), [status, setStatus] = useState('');
-    /** An API call → its result, or null after saying why (a 401 signs out). */
+    /** An API call → its result, or null after saying why. */
     const ask = <T,>(call: Promise<T>, said: (m: string) => void) => call.catch((err) => {
-      if (statusOf(err) === 401) { close(false); signedOut(); } else said(err.message);
+      said(err.message);
       return null;
     });
     async function show(to: keyof typeof SCOPES) {

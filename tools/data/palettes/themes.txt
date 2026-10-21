@@ -1,0 +1,23 @@
+# A theme line per palette, name: theme. Studio's generator reads it to pick a palette by mood.
+amber: Golden ambers with a red glow: candlelight, honey, old gold.
+aqua: Bright cyans with a hint of violet: water, cool, clean.
+carnival: Every warm colour with teal and green: festival, fun.
+chapel: Warm reds and golds with blue: stained glass, the default.
+ember: Fiery reds and oranges with pink: fire, embers, heat.
+forest: Rich greens with gold light: woods, leaves, calm.
+fuchsia: Hot magentas with violet: party, neon, bold.
+ice: Pale blues to white with lavender: frost, winter, stillness.
+indigo: Blue-violets with cyan sparks: twilight, mystery.
+lemon: Sunny yellows with a sky-blue touch: daylight, joy.
+lime: Zesty yellow-greens with a splash of aqua: fresh, electric, spring.
+mono: Warm white with a cool touch: simple, elegant, calm.
+ocean: Deep to bright blues with teal: the sea, night sky, depth.
+playa: Purples, pinks and peach with teal: desert dusk.
+prism: The full rainbow: spectrum, celebration.
+rose: Pinks with soft peach: romance, sweetness, blush.
+ruby: Deep reds with a touch of gold: fire, passion, alarm.
+tangerine: Bright oranges with a cool teal: sunset, citrus, warmth.
+teal: Sea greens with soft coral: lagoon, tropical water.
+vapour: Blues and cyans with magenta: synthwave, cool neon.
+verdant: Greens with magenta: nature, growth.
+violet: Purples with warm gold: royal, dreamy, magic.

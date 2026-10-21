@@ -11,6 +11,7 @@ import type { Preview } from './preview.ts';
 import { SideExpand, SideFold } from './side-panels.tsx';
 import type { Entry } from './shelf.tsx';
 import type { Studio } from './studio-store.ts';
+import { tourName } from './tour-view.ts';
 
 const STATUS_TEXT: Record<string, string> = { ok: 'Running', pending: 'Compiling…', compile: 'Compile error',
   runtime: 'Runtime error', hung: 'Hung — paused', muted: 'Muted' };
@@ -30,7 +31,8 @@ function insertLayer(st: Studio, layer: Layer, at?: number, o?: EditOptions) {
 export function LayersPane({ st, pv }: Props) {
   const layers = st.look.value.layers, l = st.selected.value, i = l ? layers.indexOf(l) : -1;
   const icon = (label: string, title: string, text: string, disabled: boolean, onClick: () => void) =>
-    <button type="button" class="icon-btn" aria-label={label} title={title} disabled={disabled} onClick={onClick}>
+    <button type="button" class="icon-btn" aria-label={label} title={title} disabled={disabled} onClick={onClick}
+      data-tour={tourName(label)}>
       {text}</button>;
   const reorder = (from: number, to: number) => {
     if (to < 0 || to >= layers.length) return;
@@ -73,7 +75,7 @@ export function LayersPane({ st, pv }: Props) {
       if (!st.narrow.peek()) st.showDock('code');
     } })).catch(loadFailed);
   return (
-    <section class="pane pane-layers" data-pane="layers" aria-label="Layers">
+    <section class="pane pane-layers" data-pane="layers" aria-label="Layers" data-tour="layers">
       <div class="pane-head"><h2 class="pane-title"><SideFold st={st} panel="layers" /></h2>
         <div class="pane-tools">
           {icon('Move layer up', 'Move up (toward the top)', '↑', !l || i >= layers.length - 1, () => move(+1))}
@@ -82,7 +84,8 @@ export function LayersPane({ st, pv }: Props) {
             if (l) insertLayer(st, makeLayer({ ...cleanLayer(l), title: `${l.title} copy` }, st.data.rig), i + 1);
           })}
           {icon('Delete layer', 'Delete layer', '🗑', !l, remove)}
-          <button type="button" class="btn small primary" title="Add a layer from the library" onClick={add}>
+          <button type="button" class="btn small primary" title="Add a layer from the library" onClick={add}
+            data-tour="layers-add">
             + Add</button>
         </div><SideExpand st={st} panel="layers" /></div>
       <div class="pane-body">
@@ -104,7 +107,8 @@ function LayerRow({ l, index, st, grip, drop, dragging }: { l: Layer; index: num
   const ms = st.heavy.value.get(id), blendId = useId(), select = () => st.select(id);
   return (
     <li class={cx('layer', selected && 'selected', st.silent(id) && 'silent', dragging && 'dragging')}
-      data-status={status.kind} data-blend={l.blend} data-drop={drop} onClick={(e) => {   // its empty space selects it
+      data-status={status.kind} data-blend={l.blend} data-drop={drop}
+      data-tour={`layer:${tourName(title)}`} onClick={(e) => {   // its empty space selects it
         const t = e.target as HTMLElement;
         if (t === e.currentTarget || t.matches('.layer-groups, .layer-top, .layer-bottom')) select();
       }}>
@@ -112,9 +116,9 @@ function LayerRow({ l, index, st, grip, drop, dragging }: { l: Layer; index: num
         <span class="layer-index" aria-hidden="true">{index + 1}</span>
         <div class="ms" role="group" aria-label="Mute and solo">
           <button type="button" class="ms-btn mute" aria-pressed={muted} aria-label={`Mute ${title}`}
-            onClick={() => st.toggle(st.muted, id)}>M</button>
+            data-tour={`mute:${tourName(title)}`} onClick={() => st.toggle(st.muted, id)}>M</button>
           <button type="button" class="ms-btn solo" aria-pressed={soloed} aria-label={`Solo ${title}`}
-            onClick={() => st.toggle(st.solo, id)}>S</button></div>
+            data-tour={`solo:${tourName(title)}`} onClick={() => st.toggle(st.solo, id)}>S</button></div>
         <button type="button" class="layer-name" aria-current={selected} onClick={select}
           title={`${title} — ${said}${status.message ? `: ${status.message}` : ''}`}>{title}</button>
         <span class="kind-badge layer-heavy" hidden={!ms}
@@ -123,9 +127,9 @@ function LayerRow({ l, index, st, grip, drop, dragging }: { l: Layer; index: num
           Heavy</span>
         <span class="status-dot" aria-hidden="true" title={STATUS_TEXT[status.kind] || ''} />
         <span class="sr-only">{`, ${said}`}</span></div>
-      <div class="layer-bottom">
+      <div class="layer-bottom" data-tour={`level:${tourName(title)}`}>
         <label for={blendId} class="sr-only">Blend for {title}</label>
-        <select id={blendId} class="blend-select" value={l.blend}
+        <select id={blendId} class="blend-select" value={l.blend} data-tour={`blend:${tourName(title)}`}
           onChange={(e) => {
             const blend = e.currentTarget.value as Layer['blend'];
             st.editLayer(id, () => ({ blend }));

@@ -9,7 +9,7 @@ import '../../css/side.css';
 import { useEffect, useState } from 'preact/hooks';
 
 import { api, statusOf } from '../api.ts';
-import { leaveGuard, replaceUrl, setTitle, signedOut, user, type ViewProps } from './session.ts';
+import { leaveGuard, replaceUrl, setTitle, user, type ViewProps } from './session.ts';
 import { toast } from './kit.tsx';
 import { loadLibrary, loadRig } from './model.ts';
 import { reportPage } from './bug-report.tsx';
@@ -18,12 +18,12 @@ import { loadReport, studioReport } from './report-studio.ts';
 import { StudioLayout } from './studio-layout.tsx';
 import { createStudio } from './studio-store.ts';
 import { createTimeline } from './timeline-state.ts';
+import { showToTour } from './tour-view.ts';
 
 async function loadLook(id?: string) {
   try {
     return id ? (await api.look(id)).look : null;
   } catch (err) {
-    if (statusOf(err) === 401) throw err;
     toast(statusOf(err) === 404 ? 'That look was not found (or is not shared). Starting a new one.'
       : (err as Error).message, { kind: 'error' });
     replaceUrl('/studio');
@@ -50,14 +50,16 @@ export function Studio({ params, query }: ViewProps) {
     // ?report=<id> (admins): a bug report's moment, replayed (report-studio.ts).
     const replay = query.get('report') ? loadReport(query.get('report')!) : null;
     const look = replay ? replay.then((r) => r.look) : loadLook(params.lookId);
+    const untour = showToTour(st, pv), practice = query.get('tour');
     Promise.all([loadRig(), library, look]).then(async ([rig, lib, from]) => {
+      // ?tour=<path>: the tutorial's practice look, an unsaved one made from library presets (tour/practice.ts).
+      if (practice && !from) from = await (await import('./tour/practice.ts')).loadPractice(practice, lib, rig);
       if (!alive) return;
       st.setup(rig, lib, from);
       pv.start(els.canvas as HTMLCanvasElement, els.sandbox, els.viewer, rig, lib);
       if (replay) await (await replay).apply(st, pv, ctx.tl);
     }).catch((err) => {
       if (!alive) return;
-      if (statusOf(err) === 401) return signedOut();
       pv.msg.value = { text: `Could not open the Studio: ${err.message}`, error: true };
       toast(err.message, { kind: 'error' });
     });
@@ -83,6 +85,7 @@ export function Studio({ params, query }: ViewProps) {
     return () => {
       alive = false;
       unreport();
+      untour();
       delete leaveGuard.isDirty;
       delete leaveGuard.discard;
       document.removeEventListener('keydown', onKey);

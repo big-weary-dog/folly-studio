@@ -104,13 +104,13 @@ export type Help = { title?: string; button?: ComponentChildren; hint?: Componen
 type Turn = (now: number | Binding | undefined, put: (v: unknown) => void) => ComponentChildren;
 /** A colour param's row: its pick and colours (the tile), ∿ to move its rotate (`turn`: the button and its popover),
  * ↺ to reset it. */
-export function PickRow({ label, turn, help = {}, ...tile }: Omit<Tile, 'title'> & { label: string; turn: Turn;
-  help?: Help }) {
+export function PickRow({ label, turn, help = {}, tour, ...tile }: Omit<Tile, 'title'> & { label: string;
+  turn: Turn; help?: Help; tour?: string }) {
   const edit = readEdit(tile.value, tile.dflt), own = tile.value !== undefined;
   const smooth = (edit.blend ?? tile.blend) === 'smooth';
   const rotate = (v: unknown) => tile.put(editValue({ ...edit, rotate: typeof v === 'number' || isBinding(v) ? v
     : undefined }, tile.blend));
-  return <Field label={label} class="param end pick" title={help.title} hint={help.hint}>{(id) => <>
+  return <Field label={label} class="param end pick" title={help.title} hint={help.hint} tour={tour}>{(id) => <>
     <PickButton {...tile} id={id} title={label} label={`${label}: ${editText(edit)}`} class="pick-btn">
       <span class="pick-text">{editText(edit).replace(/\//g, ' / ')}</span>
       <Strip stops={played(tile.colours, tile.value, tile.dflt, tile.blend)} smooth={smooth} />

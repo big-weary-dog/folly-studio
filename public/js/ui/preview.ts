@@ -6,14 +6,14 @@
 import { computed, effect, signal } from '@preact/signals';
 
 import type { LibraryEntry, Rig } from '../../../shared/schemas/rig.ts';
-import { api, fetchJSON, statusOf } from '../api.ts';
+import { api, fetchJSON } from '../api.ts';
 import { LIGHT, lightOf } from '../core/light.ts';
 import { FlashGuard } from '../flash-guard.ts';
 import { openFrameStream } from '../frames-stream.ts';
 import type { Venue } from '../playa/venue.ts';
 import { Runtime } from '../runtime.ts';
 import { isPhone, Viewer } from '../viewer.ts';
-import { flash, signedOut, user } from './session.ts';
+import { flash, user } from './session.ts';
 import { pref, toast } from './kit.tsx';
 import type { Studio } from './studio-store.ts';
 
@@ -264,7 +264,6 @@ export function createPreview(st: Studio) {
       } catch (err) {
         if (!alive || token !== bakedLoad) return;
         msg.value = null;
-        if (statusOf(err) === 401) return signedOut();
         toast((err as Error).message, { kind: 'error', timeout: 7000 });
       }
     },

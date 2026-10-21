@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from './src/app.ts';
 import { ConfigError, describeConfig, readConfig } from './src/config.ts';
+import { DataLockedError } from './src/store-lock.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 let config;
@@ -28,7 +29,11 @@ const app = await createServer({ config: c, dataDir, publicDir: path.join(here, 
   secureCookies: c.STUDIO_SECURE_COOKIES ?? false, generatorName: c.STUDIO_GENERATOR || '',
   trustProxy: c.STUDIO_TRUST_PROXY ?? false, framesQuality: c.STUDIO_FRAMES_BROTLI_QUALITY || undefined,
   framesMaxBytes: c.STUDIO_FRAMES_MAX_BYTES, piPreview: c.PI_PREVIEW_URL || undefined,
-  ideaLogs: { keep: c.STUDIO_IDEA_LOGS, maxBytes: c.STUDIO_IDEA_LOGS_MAX_BYTES } });
+  ideaLogs: { keep: c.STUDIO_IDEA_LOGS, maxBytes: c.STUDIO_IDEA_LOGS_MAX_BYTES } }).catch((err) => {
+  if (!(err instanceof DataLockedError)) throw err;
+  console.error(`[studio] not started: ${err.message}`);
+  process.exit(1);
+});
 const addr = await app.listen(port, host);
 const where = `http://${host.includes(':') ? `[${host}]` : host}:${addr.port}/`;
 console.log(`[studio] Folly Studio on ${where} (data ${dataDir}, models ${app.models.file}, default `

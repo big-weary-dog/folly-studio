@@ -2,16 +2,17 @@
 // carries the number and the making of the version it is now (`look.version`). The last MAX_VERSIONS unnamed versions
 // are kept, and every named one (at most MAX_NAMED). The API's edits and the AI's refinements both go through here.
 // Versions are their owner's alone: GET /api/looks/:id/versions lists them, GET …/versions/:n has one's content,
-// PUT …/versions/:n names one or unnames it.
+// PUT …/versions/:n names one or unnames it; anyone else is told the look is not found.
 import type { FastifyRequest } from 'fastify';
 
 import PALETTES from '../public/data/palettes.json' with { type: 'json' };
 import { canonical, type PlaysKey, playsOf } from '../shared/plays.ts';
+import type { Action } from '../shared/policy.ts';
 import {
   type Version, type VersionHow, type VersionListed, type VersionMeta, VersionNamePatch,
 } from '../shared/schemas/api.ts';
 import { HttpError, parse } from './http.ts';
-import type { StoredLook as Look } from './store.ts';
+import type { StoredLook as Look, StoredUser } from './store.ts';
 
 export const MAX_VERSIONS = 20;
 export const MAX_NAMED = 50;
@@ -102,14 +103,10 @@ function listed(v: Stored, look: Look, current: boolean): VersionListed {
 
 /** The routes: a look's versions, newest first (the look as saved is the first), and one with its content. */
 export function versionRoutes({ visibleLook, update }: {
-  visibleLook: (id: string, user: { id: string, username: string }) => Look,
+  visibleLook: (id: string, user: StoredUser, action?: Action) => Look,
   update: (id: string, patch: Partial<Look>) => Look }) {
   type Req = FastifyRequest<{ Params: { id: string, n?: string } }>;
-  const mine = (req: Req) => {
-    const look = visibleLook(req.params.id, req.user!);
-    if (look.owner !== req.user!.id) throw new HttpError(403, "A look's versions are its owner's alone.");
-    return look;
-  };
+  const mine = (req: Req) => visibleLook(req.params.id, req.user!, 'edit');
   const all = (look: Look) => [...versionsOf(look), asVersion(look)].reverse();
   async function list(req: Req) {
     const look = mine(req), now = currentN(look);

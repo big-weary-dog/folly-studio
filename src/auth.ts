@@ -6,6 +6,9 @@
 import { createHash, randomBytes, scrypt as scryptCb, type ScryptOptions, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 
+import type { FastifyRequest } from 'fastify';
+
+import { type Action, can } from '../shared/policy.ts';
 import type { User } from '../shared/schemas/api.ts';
 import { HttpError } from './http.ts';
 import type { Store, StoredUser as Stored } from './store.ts';
@@ -144,6 +147,20 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
   }
 
   return { signup, login, logout, authenticate, createSession, pruneSessions, roleOf, publicUser,
-    isCurator: (user: Stored) => roleOf(user) !== 'member', isAdmin: (user: Stored) => roleOf(user) === 'admin' };
+    /** shared/policy.ts's can(), by `user`'s role here. */
+    can: (user: Stored | null, action: Action, look?: Parameters<typeof can>[2]) =>
+      can(user && publicUser(user), action, look) };
 }
 export type Auth = ReturnType<typeof createAuth>;
+
+const NEEDS = { admin: 'admin', curator: 'curate' } as const;
+/**
+ * The session (an onRequest hook): `req.user` from the cookie. A route needs a session unless it is `public` (401
+ * without one), and its `role` when it names one (403).
+ */
+export const sessionHook = (auth: Auth) => async (req: FastifyRequest) => {
+  req.user = auth.authenticate(req.cookies[COOKIE_NAME])?.user ?? null;
+  const { public: open, role } = req.routeOptions.config;
+  if (!open && !req.user) throw new HttpError(401, 'Log in first.');
+  if (role && !auth.can(req.user, NEEDS[role])) throw new HttpError(403, `Only ${role}s can do that.`);
+};

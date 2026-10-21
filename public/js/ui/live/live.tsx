@@ -6,11 +6,12 @@ import '../../../css/live.css';
 
 import { useEffect, useRef } from 'preact/hooks';
 
+import { can } from '../../../../shared/policy.ts';
 import { reportPage } from '../bug-report.tsx';
 import { Rose } from '../rose.tsx';
 import { cx } from '../kit.tsx';
 import { setTitle, user } from '../session.ts';
-import { liveSocket } from './socket.ts';
+import { liveSocket, troubleText } from './socket.ts';
 import { createStage } from './stage.ts';
 
 export function LivePage() {
@@ -34,7 +35,10 @@ export function LivePage() {
     return () => { unreport(); stage.destroy(); sock.close(); };
   }, []);
   void sock.rev.value;
-  const live = sock.live, msg = stage.msg.value, who = sock.presence.value, fromPi = live?.driver === 'pi';
+  // Can't reach the stage, or it is full: said over whatever the stage last showed.
+  const trouble = troubleText(sock.trouble.value);
+  const msg = trouble ? { text: trouble, error: true } : stage.msg.value;
+  const live = sock.live, who = sock.presence.value, fromPi = live?.driver === 'pi';
   // While /pi drives, its look (the Pi's own, so no owner) stands in for the stage's.
   const pi = fromPi ? sock.pi.value?.source : null, look = fromPi ? pi : live?.look;
   useEffect(() => { setTitle(look ? `Live: ${look.title}` : 'Live'); }, [look?.title]);
@@ -54,7 +58,7 @@ export function LivePage() {
           {live && <span class="live-sub live-driver">driven from {fromPi ? '/pi' : 'Live control'}</span>}
           {driving && <span class="live-sub">controlled by {driving}</span>}
           <span class="live-sub live-count">{who.viewers} watching</span>
-          {(user.value?.role === 'admin' || new URLSearchParams(location.search).has('stats'))
+          {(can(user.value, 'admin') || new URLSearchParams(location.search).has('stats'))
             && <span class="live-stats" aria-hidden="true">{stage.stats}</span>}
           {sock.control.value && <a class="btn small" href="/live/control">Control</a>}
         </div>

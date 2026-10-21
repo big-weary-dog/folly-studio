@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Build public/data/palettes.json, the looks' palettes, from show-builder's td/palettes/*.csv (tools/sources.py).
+"""Build public/data/palettes.json, the looks' palettes, from tools/data/palettes/*.csv, show-builder's
+td/palettes kept here (CONTRIBUTING "Show data").
 
     python3 tools/build_palettes.py [--check]   # write it, or exit 1 if the committed file is stale
 
 A palette file has a row per colour: `slot,colour`, the slot a role plus a number (low1, body2, accent1,
-high1). The role is what the colour is for (td/README.md "Colours"); the order within a role is kept.
-td/palettes/themes.txt gives each palette a one-line theme (`name: theme`), its mood for the generator.
+high1). The role is what the colour is for (show-builder td/README.md "Colours"); the order within a role is kept.
+themes.txt gives each palette a one-line theme (`name: theme`), its mood for the generator.
 Format: SPEC.md "Looks".
 """
 import argparse
@@ -16,9 +17,9 @@ import re
 import sys
 
 sys.dont_write_bytecode = True  # keep tools free of __pycache__
-from sources import SHOW_BUILDER as REPO, STUDIO  # noqa: E402
+from sources import DATA, STUDIO  # noqa: E402
 
-PALETTES = os.path.join(REPO, 'td', 'palettes')
+PALETTES = os.path.join(DATA, 'palettes')
 THEMES = os.path.join(PALETTES, 'themes.txt')
 OUT = os.path.join(STUDIO, 'public', 'data', 'palettes.json')
 ROLES = ['low', 'body', 'accent', 'high']
@@ -33,7 +34,7 @@ def read_palette(path):
             m = SLOT.match((row.get('slot') or '').strip())
             colour = (row.get('colour') or '').strip().lower()
             if not m or not HEX.match(colour):
-                raise SystemExit('%s: bad row %r' % (os.path.relpath(path, REPO), row))
+                raise SystemExit('%s: bad row %r' % (os.path.relpath(path, STUDIO), row))
             roles[m.group(1)].append((int(m.group(2)), colour))
     return {r: [c for _, c in sorted(roles[r])] for r in ROLES}
 
@@ -49,7 +50,7 @@ def build():
     themes = read_themes()
     missing = [n for n in names if not themes.get(n)]
     if missing:
-        raise SystemExit('td/palettes/themes.txt has no theme for %s' % ', '.join(missing))
+        raise SystemExit('tools/data/palettes/themes.txt has no theme for %s' % ', '.join(missing))
     palettes = [dict(name=n, theme=themes[n], **read_palette(os.path.join(PALETTES, n + '.csv'))) for n in names]
     return {'version': 1, 'roles': ROLES, 'palettes': palettes}
 

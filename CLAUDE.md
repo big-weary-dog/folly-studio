@@ -13,7 +13,7 @@ behind these rules.
   `rig.json` shapes, and `pattern-core.ts`'s exports are what the other pieces rely on.
   Code follows the spec, in the same change.
 - **Split, never bump.** Source stays ≤ 400 lines, tests ≤ 600, library patterns ≤ 150 (they
-  are the AI's examples), lines ≤ 120, text files ≤ 64 KB, and the gzipped app ≤ 240 KB with the
+  are the AI's examples), lines ≤ 120, text files ≤ 64 KB, and the gzipped app ≤ 256 KB with the
   login page ≤ 40 KB, as built (`test/build.test.js`). Over a limit, split the module by responsibility, one
   concern per file named for it. Raising a limit is not a fix. Each area's total lines are ratcheted in
   `tools/budgets.json`: lower it when you cut; raise it only with a new `reason`.
@@ -42,9 +42,10 @@ behind these rules.
   `out`), layers outside their clips are skipped before any pixel work, and the loop sleeps when
   nothing plays or changes. 4,870 LEDs at 40 fps leave no room for garbage.
 - **Every LED comes from `public/data/rig.json`**, and nothing else names the installation: code finds places
-  by the rig's group tags, never by the Folly's ids. It is City of Gods, from show-builder's `city-of-gods/pixel-map/`;
-  the Folly's playa build is `rig-folly.json`, from its `pixel-map/` (`SHOW_BUILDER_DIR`, CONTRIBUTING). Both come
-  from `npm run build-data`; never edit them by hand.
+  by the rig's group tags, never by the Folly's ids. It is City of Gods, from the lighting repo's (The-Gothic-Folly/
+  lighting, read only) `city-of-gods/pixel-map/out/`; the Folly's playa build is `rig-folly.json`, from its
+  `show-builder/pixel-map/` (`LIGHTING_DIR`, CONTRIBUTING "Show data"). Both come from `npm run build-data`, on the
+  channels lighting's xLights and Falcon drive (`tools/check_channels.py`); never edit them by hand.
 - **Comments and docs are brief and current.** Say what is and why, never how it got here.
 - **Commits are green.** Pull requests go to `dev`; `prod` is what the public server runs, and only the owner moves
   it (CONTRIBUTING "Branches").

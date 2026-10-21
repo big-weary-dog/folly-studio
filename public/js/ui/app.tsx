@@ -5,10 +5,12 @@ import type { ComponentType } from 'preact';
 import { useLayoutEffect, useState } from 'preact/hooks';
 
 import { api, statusOf } from '../api.ts';
+import { can } from '../../../shared/policy.ts';
 import type { User } from '../../../shared/schemas/api.ts';
 import { confirmDialog, cx, toast, Toasts } from './kit.tsx';
 import { fileBugReport } from './bug-report.tsx';
 import { Rose } from './rose.tsx';
+import { openTour, welcomeOnce } from './tour-view.ts';
 import { redeemInvite, takeInvite } from './invite.ts';
 import { flash, here, leaveGuard, navigate, router, setTitle, user, type ViewProps } from './session.ts';
 
@@ -151,18 +153,19 @@ function Header({ me, nav }: { me: User; nav?: string }) {
         if ((e.target as Element).closest('a, .btn')) setOpen(false);
       }}>
         <nav class="main-nav" aria-label="Main">
-          {(me.role === 'admin' ? ADMIN_NAV : NAV).map(([href, text]) => <a href={href}
-            aria-current={nav === href ? 'page' : undefined}>{text}</a>)}
+          {(can(me, 'admin') ? ADMIN_NAV : NAV).map(([href, text]) => <a href={href}
+            data-tour={`nav:${href.slice(1)}`} aria-current={nav === href ? 'page' : undefined}>{text}</a>)}
         </nav>
         <div class="user-box">
           <span class="user-name">{me.username}</span>
           <button class="user-menu-btn" id="user-menu-btn" type="button" popovertarget="user-menu"
-            aria-haspopup="menu"><span class="user-name">{me.username}</span></button>
+            aria-haspopup="menu" data-tour="user-menu"><span class="user-name">{me.username}</span></button>
           {me.role === 'admin' ? <span class="tag tag-sapphire">Admin</span>
             : me.role === 'curator' && <span class="tag tag-amber">Curator</span>}
           <div class="user-menu" id="user-menu" popover="auto" onBeforeToggle={placeUserMenu}
             onClick={(e) => { if ((e.target as Element).closest('.btn')) e.currentTarget.hidePopover?.(); }}>
-            <button class="btn ghost small report-btn" type="button" title="Report a problem (F8)"
+            <button class="btn ghost small" type="button" onClick={() => openTour('menu')}>Tutorials</button>
+            <button class="btn ghost small report-btn" type="button" title="Report a problem (F8)" data-tour="report"
               onClick={() => { setOpen(false); void fileBugReport(); }}>Report a problem</button>
             <button class="btn ghost small" type="button" onClick={logout}>Log out</button>
           </div>
@@ -216,5 +219,6 @@ export async function boot() {
   }
   if (user.value) await redeemInvite();
   document.body.classList.remove('booting');
-  show();
+  await show();
+  welcomeOnce(user.value);
 }

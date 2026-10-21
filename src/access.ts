@@ -44,7 +44,7 @@ export function createAccess({ store, auth, models }: { store: Pick<Store, 'user
     const m = i.model ? models.get(i.model) : undefined;
     return !!i.model && (!m || isPaid(m));
   };
-  const exempt = (u: StoredUser) => auth.isAdmin(u);
+  const exempt = (u: StoredUser) => auth.can(u, 'admin');
   const unlocked = (u: StoredUser) => !limits().inviteOnly || exempt(u) || !!u.access?.unlockedAt;
   const capsOf = (u: StoredUser) => {
     const g = limits(), own = u.access?.limits ?? {};

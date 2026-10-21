@@ -7,6 +7,7 @@ import { pendingInvite, redeemInvite } from './invite.ts';
 import { navigate, user, type ViewProps } from './session.ts';
 import { cx, Field } from './kit.tsx';
 import { Rose } from './rose.tsx';
+import { welcomeOnce } from './tour-view.ts';
 
 export function Auth({ query }: ViewProps) {
   const invited = !!pendingInvite();
@@ -30,7 +31,8 @@ export function Auth({ query }: ViewProps) {
       user.value = (signup ? await api.signup(u, p) : await api.login(u, p)).user;
       await redeemInvite();
       // Back through the router, which sends a signed-in visitor on to a safe `next`.
-      navigate(location.pathname + location.search, { replace: true, force: true });
+      await navigate(location.pathname + location.search, { replace: true, force: true });
+      welcomeOnce(user.value);
     } catch (err) {
       setError((err as Error).message);
       pass.current?.focus();
