@@ -123,7 +123,7 @@ words, is still read as `clockwise` (`OLD_DIRECTIONS`: `toward`, a clip's wipe, 
 `clockwise` keep it), never offered; a library module's `upgrade` maps it. On the rose,
 `region(q, rule, size, seed)` is q's pane group by a rule (`petal`, `alternate`, `ring`, `rings`, `centre`, `spiral`,
 `wedges`, `checker` or `random`; size is petals a group for spiral, wedges and checker; seed picks random's), 0 up to
-`regions(rule, size)`, or −1 off the rose: mask's `by: region` and stained glass use it. A free angle off it, where one makes sense, is an `angle` param in turns.
+`regions(rule, size)`, or −1 off the rose: mask's `by: region` uses it. A free angle off it, where one makes sense, is an `angle` param in turns.
 A centre is a location, not an orientation: the `anchor` warp moves it.
 
 ## Modules: a layer is a chain
@@ -201,17 +201,16 @@ The library, one idea a module. Sources: colour-wash, bars, clouds, fire, single
 waves, fireflies, sparkle,
 streaks, lightning, fireworks, strobe, heartbeat, picture. Warps: mirror, mosaic, polar,
 anchor, reorder, rotate, scroll, twist, turbulence, in-turn. Filters: recolour, hue-shift,
-stained-glass, mask, blur, edge-fade, trails, delay, smoke, replay, sort,
+mask, blur, edge-fade, trails, delay, smoke, replay, sort,
 splash, rhythm. Presets: Water, Storm, Kaleidoscope, Tunnel and
-Afterimage (mirror's Wedges and Rings, trails after lightning), the rose's stained glass
-(gothic-jewel, backlit-glow, cathedral-sun); fire and smoke (Brushfire, Willow, Bonfire, Flash pots, Rising embers),
+Afterimage (mirror's Wedges and Rings, trails after lightning); fire and smoke (Brushfire, Willow, Bonfire, Flash pots, Rising embers),
 the beat (Level meter, Climbing hits, Stutter, Out of step, Call and answer, Stepping rings, Drop), Daybreak, Chain
 reaction, Incense and Growth (Daybreak, Stutter and Rising embers each ride a macro they bring); and the **retired
 sources'**: twinkle's Starfield, depth-wave's Playa wave, canopy-rain's Rain, wash-breathe's Breathe, spire-helix's Tower helix, arch-chase's and groups-in-turn's Arch
 chase, pinwheel's and
 galaxy's Galaxy, spot's Glow, random-fixtures' Glitch, curtain's Curtain reveal, and by their own names palette-drift,
 shimmer, rising-sweep, nave-procession, meteors, marquee, rose-ripple, rose-chase, rose-bloom, aurora, snowstorm,
-snowflakes, butterfly, plasma, shockwave, lighthouse, ripple; climb retired with none. Saved looks keep their code; `use()` of a retired one names its preset.
+snowflakes, butterfly, plasma, shockwave, lighthouse, ripple; climb and the stained-glass filter retired with none. Saved looks keep their code; `use()` of a retired one names its preset.
 
 **One name, one unit, one idea.** Params that mean the same thing are named the same across the library, each with
 its unit in its label: `size` a share of the layer (bigger is bigger), `speed` things a second (`spin` turns a

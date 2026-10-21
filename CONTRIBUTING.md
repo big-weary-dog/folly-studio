@@ -307,7 +307,7 @@ cover.
   build. Views and their styles load on first use. Raised from 165 KB for pictures: a picture param kind,
   checked in the engine with errors an agent repairs from, and edited in Studio (+2 KB); then for the ideas API
   (+0.5 KB) and the venue's props round the rig in the 3D view, a chunk loaded on first use (+1.6 KB); and
-  for rose regions, the stdlib's region() and regions(), which mask and stained glass share (+282 B);
+  for rose regions, the stdlib's region() and regions(), which mask uses (+282 B);
   and for the ideas lever: Quick, Explore or Deep on the idea form with each level's time and line, kept per
   browser, and an idea's level and what it took (+0.7 KB). Raised to 200 KB by the owner's call (2026-10-20):
   headroom for features; views still split into chunks loaded on first use where that comes naturally. Raised to

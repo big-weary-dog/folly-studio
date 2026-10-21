@@ -12,7 +12,6 @@ mosaic) in motion; `petal` and `ring` step a whole rose petal or ring at a time.
 
 ## Pairings
 - With `along` after a still **sparkle**: lights creep up every strand.
-- With `petal` under **stained-glass** on the rose: the glass ticks round a pane at a time.
 
 ## Pitfalls
 - Wrapping shows a seam unless the source tiles (bars with whole numbers).
