@@ -47,7 +47,7 @@ and applies it itself. The Studio shows it with the rest, and the generators' ca
 module's saved params before resolving them, in a layer and in `use()`, and uses the object it returns (the saved
 params as they are if it throws or returns no object). A module whose params were renamed or re-ranged maps the old
 ones there, so a look that plays it from the library (a preset, the Pi following a look) plays as it did, with no
-migration. Sparkle maps its old `mode`, `length`, `sharp` and `rate` so; bars, scroll and edge-fade a
+migration. Sparkle maps its old `mode`, `length`, `sharp` and `rate` so; bars and edge-fade a
 `round` direction (and bars an `orbit`). The sandbox reports each param `upgrade` changed as `[saved, upgraded]`
 (`upgraded`, SPEC "Sandbox protocol"), and the Settings panel shows the upgraded value, and writes it with the first
 edit, while the saved one is still what it changed, so a slider starts where the look plays and a stale report never
@@ -103,11 +103,16 @@ layer as one row). Colours are
 
 ## Directions
 
-A library module with a built-in orientation (it rises, falls, sweeps across, opens from the middle) says so with a
+A library module offering a choice of orientation (rising, falling, sweeping, opening from the middle) uses a
 `direction` choice param, `{ value: 'up', type: 'choice', options: DIRECTIONS, label: 'Direction' }`, its default
 the orientation it always had, so the UI and the generators see one convention. Its options are the directions it
-draws distinctly, in `DIRECTIONS` order: a list literal when that is fewer than all (fire rises or falls or blows
-sideways). Each way is named both ways, so a negative speed is never the only way to reverse (bars add
+draws distinctly, in `DIRECTIONS` order: a list literal when that is fewer than all (clouds drift up, down, right
+or left). Fire always rises up and Lightning always strikes down; Rotate places them at other orientations.
+Streaks offers up, down and along; Angle tilts its fall. Scroll omits continuous clockwise/counterclockwise turning:
+use Rotate's Spin instead (Kaleidoscope does); petal and ring still step discrete rose regions.
+Heartbeat keeps all its Direction choices, including its inward implosion.
+Saved dropped Direction values fall back to the module's default; removed params are ignored, with no migration.
+Each way is named both ways, so a negative speed is never the only way to reverse (bars add
 `orbit-clockwise` and `orbit-counterclockwise`, round an upright axis as seen from above). `DIRECTIONS` is `up down
 right left back front out in clockwise counterclockwise along petal ring`, and `toward(p, direction)` turns one into a
 coordinate, 0..1 across the layer: `up` ly, `down` 1 − ly, `right` lz (the viewer's right), `left` 1 − lz, `back` lx

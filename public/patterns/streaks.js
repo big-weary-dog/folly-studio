@@ -4,8 +4,8 @@
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth',
     help: 'Colours each streak along its length: the head takes the last colour, the tail fades back to the first.' },
-  direction: { value: 'down', type: 'choice', options: ['up', 'down', 'right', 'left', 'along'], label: 'Direction',
-    help: 'Up, down, across, or along strands.' },
+  direction: { value: 'down', type: 'choice', options: ['up', 'down', 'along'], label: 'Direction',
+    help: 'Up, down, or along strands. Angle tilts the fall sideways.' },
   angle: { value: 0, min: -0.25, max: 0.25, step: 0.01, label: 'Angle off Direction (turns)',
     help: 'Tilts the fall. 0 falls straight; higher slants it like rain in wind; negative slants the other way.' },
   speed: { value: 0.6, min: 0, max: 3, step: 0.01, label: 'Speed (layers a second)',
@@ -24,8 +24,8 @@ const params = {
     help: 'How far flakes drift side to side as they fall (flake only). 0 drops straight; high weaves widely.' },
 };
 
-// The coordinate across a direction: across for up and down; up for right and left; each strand its own lane along.
-const across = (p, d) => (d === 'right' || d === 'left' ? p.ly : d === 'along' ? fract(p.fixture * 0.618) : p.lz);
+// Each strand has its own lane along; vertical falls use the layer's width.
+const across = (p, d) => (d === 'along' ? fract(p.fixture * 0.618) : p.lz);
 
 function pixel(p, t, P) {
   const d = P.direction, w = TAU * P.angle, s = sin(w), c = cos(w), a0 = toward(p, d), b0 = across(p, d);

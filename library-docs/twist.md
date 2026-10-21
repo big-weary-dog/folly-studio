@@ -8,7 +8,7 @@ random.
 - wind: on a flat layer it squeezes and flips instead; LEDs wind round their nearest tower.
 
 ## Pairings
-- After **polar** (swirl −2): spiral arms (**galaxy**); then **scroll** `clockwise` or `counterclockwise` to turn it.
+- After **polar** (swirl −2): spiral arms (**galaxy**); then **rotate** Spin to turn it.
 - Then **anchor** (rose) as the last warp: a whirlpool in the rose.
 
 ## Pitfalls

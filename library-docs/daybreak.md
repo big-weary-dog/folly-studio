@@ -1,8 +1,8 @@
 ---
 looks: Night to sunrise on a Dawn fader: light fills up, clouds violet to gold.
 ---
-Still **clouds** in grey, **recolour**ed through a sunrise and revealed from the ground up by **edge-fade**, over a
-near-black **colour-wash**, with **sparkle** stars that go out as the light comes. Everything follows the preset's
+Slowly drifting **clouds** in grey, **recolour**ed through a sunrise and revealed from the ground up by **edge-fade**,
+over a near-black **colour-wash**, with **sparkle** stars that go out as the light comes. Everything follows the preset's
 `dawn` macro (0 night, 1 full gold; it starts at 0.3). A show opener: give it an automation lane `dawn` from 0 to 1
 over the first minute or two, or ride the fader live.
 
