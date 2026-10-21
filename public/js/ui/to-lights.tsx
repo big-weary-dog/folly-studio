@@ -2,15 +2,11 @@
 // and how it goes; on, the lights play the look being edited. Curators on the Pi, admins on a hosted Studio.
 import { useEffect, useId, useState } from 'preact/hooks';
 
-import { can } from '../../../shared/policy.ts';
 import { cx, placePopover } from './kit.tsx';
 import type { Preview } from './preview.ts';
 import { RelayPanel, savedBuffer } from './relay-panel.tsx';
 import { createStudioRelay } from './relay-studio.ts';
-import { onPi, user } from './session.ts';
 import type { Studio } from './studio-store.ts';
-
-export const mayRelay = () => (onPi() ? can(user.value, 'curate') : can(user.value, 'admin'));
 
 export function ToLights({ st, pv }: { st: Studio, pv: Preview }) {
   const pop = useId();

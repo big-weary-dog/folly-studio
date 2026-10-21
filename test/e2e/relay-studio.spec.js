@@ -58,9 +58,11 @@ test('a curator sends the look being edited to the lights; an unsaved edit reach
   const call = async (method, url, body, cookie = cara) => (await fetch(`${origin}${url}`, { method,
     body: JSON.stringify(body), headers: { 'content-type': 'application/json', cookie } })).json();
   await call('PUT', '/api/admin/lights', { mode: 'live' }, boss);
-  const look = async (title, v) => (await call('POST', '/api/looks', { title, layers: [{ id: 'l1', title: 'All',
-    modules: [{ id: 'a', kind: 'source', title: 'Flat', code: pixel(v) }] }] })).look;
-  const playing = await look('On the lights', 0.3), edited = await look('Being edited', 0);
+  const look = async (title, module) => (await call('POST', '/api/looks', { title, layers: [{ id: 'l1', title: 'All',
+    modules: [{ id: 'a', kind: 'source', ...module }] }] })).look;
+  // The lights play a library look; the editor's is custom code, black, then white.
+  const playing = await look('On the lights', { title: 'Fire', ref: 'fire', code: pixel(0.3) });
+  const edited = await look('Being edited', { title: 'Flat', code: pixel(0) });
   await expect.poll(async () => (await call('GET', '/api/lights')).engine).toBe(true);
   expect(await call('POST', '/api/lights/queue', { lookId: playing.id, at: 'now' })).toEqual({ kind: 'live' });
   const dir = process.env.RELAY_SHOTS;
@@ -79,7 +81,7 @@ test('a curator sends the look being edited to the lights; an unsaved edit reach
     const panel = page.getByRole('group', { name: 'To the lights' });
     await panel.getByRole('checkbox', { name: 'To the lights' }).check();
     await expect(panel.getByRole('status')).toContainText('Relaying', { timeout: 30_000 });
-    // Over the look the lights play: the editor's black takes over from its grey, steady.
+    // Over the look the lights play: the editor's black takes over from its fire, steady.
     await expect.poll(() => stats().relay?.on, { timeout: 15_000 }).toBe(true);
     expect(stats().relay.by).toBe('cara');
     await expect.poll(() => stats().watts, { timeout: 10_000 }).toBeLessThan(5);

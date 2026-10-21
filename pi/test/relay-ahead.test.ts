@@ -71,7 +71,7 @@ describe('relay end to end', () => {
 
 describe('relay from the editor', () => {
   test('frames follow the playhead\'s anchor, wrapped; a pause renders again from the next slot', () => {
-    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
     const scene = prepareScene(rig), { engine, run } = engineOn([beat]);
     engine.play('beat');
     run(0.1);
@@ -87,7 +87,8 @@ describe('relay from the editor', () => {
     const cfg = { on: true, rev: 0, index: 100, at, fps: 40, lead: 8, set: null };
     ahead.relay({ ...cfg, clock: { t: 2, at, speed: 2, playing: true, duration: 2.1 } });
     vi.advanceTimersByTime(30);
-    assert.deepEqual(got.map((g) => g.slot), [101, 102, 103, 104, 105, 106, 107, 108]);
+    // Four a turn up to the buffer's 8 ahead; slot 101 plays by 30 ms.
+    assert.deepEqual(got.map((g) => g.slot), [101, 102, 103, 104, 105, 106, 107, 108, 109]);
     for (const g of got) {
       const t = (2 + (g.slot - 100) / 40 * 2) % 2.1;
       assert.ok(Math.abs(g.t - t) < 0.002, `slot ${g.slot}: ${g.t} not ${t}`);
@@ -97,13 +98,13 @@ describe('relay from the editor', () => {
     // Paused at 5 s: the frames ahead again, all at 5 s, from the slot after the one playing.
     ahead.relay({ ...cfg, clock: { t: 5, at, speed: 2, playing: false, duration: 2.1 } });
     vi.advanceTimersByTime(30);
-    assert.equal(got[0]!.slot, 101);
+    assert.equal(got[0]!.slot, 102);
     assert.ok(got.every((g) => Math.abs(g.t - 5) < 0.001));
-    // The same anchor again (each state says it): nothing rendered again.
-    const n = got.length;
+    // The same anchor again (each state says it): only slots not yet sent.
+    const n = got.length, last = got[n - 1]!.slot;
     ahead.relay({ ...cfg, clock: { t: 5, at, speed: 2, playing: false, duration: 2.1 } });
     vi.advanceTimersByTime(30);
-    assert.equal(got.length, n);
+    assert.ok(got.slice(n).every((g, i) => g.slot === last + 1 + i), 'rendered again');
     ahead.relay({ on: false });
   });
 
