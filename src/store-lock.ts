@@ -11,6 +11,8 @@ export const LOCK_FILE = 'studio.lock';
 /** Another process holds the data folder. */
 export class DataLockedError extends Error {}
 
+let seq = 0;   // this process's temporary names, each its own
+
 /** Whether `pid` is a running process that may be a server: after a reboot its pid may be another program's (where
  * /proc says which). */
 const running = (pid: number) => {
@@ -29,9 +31,11 @@ const running = (pid: number) => {
 /** Takes `<dataDir>/studio.lock`, or throws DataLockedError naming the folder and the pid holding it. */
 export async function lockDataDir(dataDir: string) {
   const file = path.join(dataDir, LOCK_FILE);
-  const tmp = `${file}.${process.pid}.tmp`;
+  const own = `${file}.${process.pid}.${++seq}`, tmp = `${own}.tmp`;
   await fsp.writeFile(tmp, `${process.pid}\n`, { mode: 0o600 });
   try {
+    const locked = (pid: number) => new DataLockedError(`another Folly Studio (pid ${pid || '?'}) is using the data `
+      + `folder ${dataDir}; stop it first, or set STUDIO_DATA to another folder`);
     for (let attempt = 0; ; attempt++) {
       try {
         await fsp.link(tmp, file);
@@ -39,12 +43,23 @@ export async function lockDataDir(dataDir: string) {
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
       }
-      const pid = Number.parseInt(await fsp.readFile(file, 'utf8').catch(() => ''), 10);
-      if (attempt > 0 || (pid > 0 && running(pid))) {
-        throw new DataLockedError(`another Folly Studio (pid ${pid || '?'}) is using the data folder ${dataDir}; `
-          + `stop it first, or set STUDIO_DATA to another folder`);
+      const text = await fsp.readFile(file, 'utf8').catch(() => null);
+      if (text === null) continue;    // released meanwhile
+      const pid = Number.parseInt(text, 10);
+      if (attempt >= 3 || (pid > 0 && running(pid))) throw locked(pid);
+      // Stale: its server stopped without releasing it. Moved aside under our own name, then checked, so a lock
+      // another server took since we read this one is put back, never removed.
+      const aside = `${own}.stale`;
+      try {
+        await fsp.rename(file, aside);
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') continue;
+        throw err;
       }
-      await fsp.rm(file, { force: true }); // stale: its server stopped without releasing it
+      const moved = await fsp.readFile(aside, 'utf8').catch(() => '');
+      if (moved !== text) await fsp.link(aside, file).catch(() => {});
+      await fsp.rm(aside, { force: true });
+      if (moved !== text) throw locked(Number.parseInt(moved, 10));
     }
   } finally {
     await fsp.rm(tmp, { force: true });

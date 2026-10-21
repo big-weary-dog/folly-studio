@@ -40,13 +40,13 @@ declare module 'fastify' {
   interface FastifyContextConfig { public?: boolean }
 }
 
-/** Hand an idea to the generator queue; if that fails, mark the idea failed. */
 /** An idea as its owner gets it: a failed round's error (an older idea may still hold one) left to the admin's log. */
 const forOwner = (idea: Idea): Idea => ({ ...idea,
   ...(idea.rounds ? { rounds: idea.rounds.map((r) => (r.outcome ? { ...r, outcome: ownerOutcome(r.outcome) } : r)) }
     : {}),
   ...(idea.verdict ? { verdict: ownerOutcome(idea.verdict) } : {}) });
 
+/** Hand an idea to the generator queue; if that fails, mark the idea failed. */
 export function enqueueIdea({ queue, store, log }: { queue: Queue, store: Pick<Store, 'ideas'>, log: Logger },
   idea: Idea) {
   const fail = (err: unknown) => {

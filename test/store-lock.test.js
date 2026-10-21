@@ -7,7 +7,7 @@ import path from 'node:path';
 import { afterAll, test } from 'vitest';
 
 import { createStore } from '../src/store.ts';
-import { DataLockedError, LOCK_FILE } from '../src/store-lock.ts';
+import { DataLockedError, LOCK_FILE, lockDataDir } from '../src/store-lock.ts';
 
 const quiet = { error() {} };
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-lock-'));
@@ -38,6 +38,20 @@ test('a lock whose pid is not running is taken over', async () => {
     const store = await createStore(dir, { log: quiet });
     assert.equal(fs.readFileSync(path.join(dir, LOCK_FILE), 'utf8').trim(), String(process.pid));
     await store.close();
+  }
+});
+
+test('servers taking over one stale lock at once: one gets it, the others are refused', async () => {
+  const dir = path.join(tmp, 'race');
+  fs.mkdirSync(dir);
+  for (let round = 0; round < 20; round++) {
+    fs.writeFileSync(path.join(dir, LOCK_FILE), '4194305\n');
+    const got = await Promise.allSettled([1, 2, 3, 4].map(() => lockDataDir(dir)));
+    const won = got.filter((g) => g.status === 'fulfilled');
+    assert.equal(won.length, 1, `round ${round}`);
+    assert.ok(got.every((g) => g.status === 'fulfilled' || g.reason instanceof DataLockedError));
+    assert.deepEqual(fs.readdirSync(dir), [LOCK_FILE], 'no temporaries left');
+    await won[0].value.release();
   }
 });
 
