@@ -2,7 +2,8 @@
 // at /ws, both under `base` when one is given (/pi/ and /pi/ws behind Studio's proxy, docs/HOSTING.md). A socket must
 // come from the page's own origin; with a PIN set, it must say the PIN before anything it sends changes the lights.
 // Each socket is rate-limited as the live stage's are; the state goes to every socket ~10 a second, and what plays
-// (the source, for Studio's Live tab) when it changes. What each may send in each mode: people.ts.
+// (the source, for Studio's Live tab) when it changes. What each may send in each mode: people.ts. Binary messages
+// are relayed frames, taken only from the relay lease's holder (relay.ts).
 import { timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
@@ -16,6 +17,7 @@ import type { Engine } from './engine.ts';
 import { resolveLook, type Library, type PiLook } from './library.ts';
 import { createPeople, PI_PAGE, type Who } from './people.ts';
 import { type EngineState, FromPage, MAX_SEND, type Mode, type PiState, type ToPage } from './protocol.ts';
+import type { Relay } from './relay.ts';
 
 export const CSP = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
   + "connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'";
@@ -26,7 +28,7 @@ const DIST = fileURLToPath(new URL('../page/dist', import.meta.url));
 type Client = { ws: WebSocket, ok: boolean, who: Who | null, tokens: number, at: number, over: number,
   warned: boolean };
 export type ServerOptions = { engine: Engine, lib: Library, state: () => EngineState, pin: string, port: number,
-  host: string, mode?: Mode,
+  host: string, mode?: Mode, relay?: Relay,
   base?: string, dist?: string, log?: (line: string) => void, now?: () => number };
 
 const same = (a: string, b: string) => {
@@ -50,7 +52,8 @@ export async function controlServer(o: ServerOptions) {
     cacheControl: false });
   // /pi to /pi/, so the page's relative URLs (its script, its socket) land under the base.
   if (base) app.get(base, (_req, reply) => reply.redirect(`${base}/`, 301));
-  await app.register(fastifyWebsocket, { options: { maxPayload: MAX_SEND } });
+  await app.register(fastifyWebsocket, { options: { maxPayload: Math.max(MAX_SEND, o.relay?.bytes ?? 0) } });
+  o.relay?.onEnd((h, why) => say(h as Client, { type: 'relay', holding: false, ...why ? { error: why } : {} }));
 
   const say = (c: Client, m: ToPage) => { if (c.ws.readyState === 1) c.ws.send(JSON.stringify(m)); };
   /** A PIN said on a socket: right, wrong, or (after PIN_TRIES wrong ones in a row) locked out for a minute. */
@@ -84,6 +87,7 @@ export async function controlServer(o: ServerOptions) {
       return;
     }
     if (!c.ok) { say(c, { type: 'error', error: 'Say the PIN first.' }); return; }
+    if (msg.type === 'relay-start' || msg.type === 'relay-stop') { relayLease(c, msg.type); return; }
     const no = people.check(c.who, msg);
     if (no) { say(c, { type: 'error', error: no }); return; }
     // Who did it, as the state says it (the Pi's own page queues as no one: it is everyone on site).
@@ -103,6 +107,24 @@ export async function controlServer(o: ServerOptions) {
     else if (msg.type === 'next') e.next(people.mode === 'live' ? msg.fade : undefined);
     else if (msg.type === 'mode' && people.setMode(msg.mode)) e.jukebox();
     else if (msg.type === 'send') studioSent(c, msg);
+  }
+
+  /** The relay lease: for a page that may drive (never Studio's feed). */
+  function relayLease(c: Client, type: 'relay-start' | 'relay-stop') {
+    if (type === 'relay-stop') { o.relay?.stop(c); say(c, { type: 'relay', holding: false }); return; }
+    const no = !o.relay ? 'This engine takes no relay.' : !c.who?.drive ? 'Watching only: you may not relay.'
+      : o.relay.start(c, c.who.name);
+    say(c, { type: 'relay', holding: !no, ...no ? { error: no } : {} });
+    if (!no) log(`relay: ${c.who!.name} sends the frames`);
+  }
+
+  /** A relayed frame: the holder's alone, metered as other messages are for anyone else. */
+  function onFrame(c: Client, data: Buffer) {
+    const no = o.relay?.holds(c) ? o.relay.push(c, data) : 'Not relaying: send relay-start first.';
+    if (!no) return;
+    const m = meter(c, now());
+    if (m === 'close') c.ws.close(1008, 'Too many messages');
+    else if (m !== 'drop') say(c, { type: 'error', error: no });
   }
 
   /** A look Studio sent: its modules' code from our library by ref, never its own. */
@@ -133,9 +155,10 @@ export async function controlServer(o: ServerOptions) {
   }, (ws) => {
     const c: Client = { ws, ok: false, who: null, tokens: 60, at: now(), over: 0, warned: false };
     clients.add(c);
-    ws.on('message', (d) => onMessage(c, d));
+    ws.on('message', (d, binary) => (binary ? onFrame(c, d as Buffer) : onMessage(c, d)));
     ws.on('close', () => {
       clients.delete(c);
+      o.relay?.stop(c);
       if (c.who) people.left(c.who.name, pages().some((x) => x.who!.name === c.who!.name));
     });
     ws.on('error', () => ws.terminate());
