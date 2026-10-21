@@ -1,0 +1,197 @@
+diff --git a/public/js/core/light.ts b/public/js/core/light.ts
+index e748edf..7555022 100644
+--- a/public/js/core/light.ts
++++ b/public/js/core/light.ts
+@@ -6,6 +6,7 @@
+ import type { Scene } from './scene.ts';
+ import { tagMask } from './scene.ts';
+ import { isNum } from './stdlib.ts';
++import { PERF } from './perf-flags.ts';
+ 
+ /** The light settings' defaults: each used wherever the stored settings (<STUDIO_DATA>/light.json, the Pi's
+  * pi/light.json) leave it out. `controller` records the Falcon's own settings (its port brightness is the electrical
+@@ -99,6 +100,38 @@ function ledByte(v: number, gamma: number, gain: number, floor: number) {
+   return b < floor && v * 255 >= 0.5 ? floor : b;
+ }
+ 
++// PROTOTYPE: ledByte as a table, exact: for each byte the least value that sends it (bisection on ledByte itself),
++// and a coarse index to start from. Kept for the last few gains (a fade passes through many: those miss, and build).
++type ByteTable = { g: number, gamma: number, floor: number, thr: Float64Array, start: Uint8Array };
++const TABLES: ByteTable[] = [];
++function byteTable(gamma: number, g: number, floor: number): ByteTable {
++  for (const T of TABLES) if (T.g === g && T.gamma === gamma && T.floor === floor) return T;
++  const thr = new Float64Array(257).fill(Infinity), start = new Uint8Array(4097);
++  thr[0] = -Infinity;
++  for (let b = 1; b < 256; b++) {
++    if (ledByte(1, gamma, g, floor) < b) break;
++    let lo = 0, hi = 1;                          // ledByte(lo) < b <= ledByte(hi)
++    for (let i = 0; i < 64 && hi - lo > 0; i++) {
++      const mid = (lo + hi) / 2;
++      if (mid === lo || mid === hi) break;
++      if (ledByte(mid, gamma, g, floor) >= b) hi = mid; else lo = mid;
++    }
++    thr[b] = hi;
++  }
++  for (let i = 0; i <= 4096; i++) start[i] = ledByte(i / 4096, gamma, g, floor);
++  const T = { g, gamma, floor, thr, start };
++  if (TABLES.length >= 4) TABLES.shift();
++  TABLES.push(T);
++  return T;
++}
++function lookByte(T: ByteTable, v: number) {
++  if (!(v > 0)) return 0;
++  if (v >= 1) return T.start[4096];
++  let b = T.start[(v * 4096) | 0];
++  while (v >= T.thr[b + 1]) b++;
++  return b;
++}
++
+ /** What value `v` (encoded, 0..1) sends, white before balance, at full output: the curve, for showing it. */
+ export const lightByte = (v: number, light: Light) => ledByte(v, light.gamma, 1, light.floor);
+ 
+@@ -110,6 +143,17 @@ export function ledChannels(scene: Scene, rgb: ArrayLike<number>, light: Prepare
+   const ch = out && out.length >= size ? out : new Uint8Array(size);
+   ch.fill(0, 0, size);
+   const addr = scene.addr, N = scene.count, order = scene.order, { gamma, balance, floor, trim } = light;
++  if (PERF.lut && !trim) {
++    const T0 = byteTable(gamma, cap * balance[0], floor), T1 = byteTable(gamma, cap * balance[1], floor);
++    const T2 = byteTable(gamma, cap * balance[2], floor), o0 = order[0], o1 = order[1], o2 = order[2];
++    for (let k = 0; k < N; k++) {
++      const base = addr[k];
++      if (base < 0 || base + 2 >= size) continue;
++      ch[base + o0] = lookByte(T0, rgb[3 * k]); ch[base + o1] = lookByte(T1, rgb[3 * k + 1]);
++      ch[base + o2] = lookByte(T2, rgb[3 * k + 2]);
++    }
++    return ch;
++  }
+   for (let k = 0; k < N; k++) {
+     const base = addr[k];
+     if (base < 0 || base + 2 >= size) continue;
+diff --git a/public/js/core/oklab.ts b/public/js/core/oklab.ts
+index 994ad33..b03dcd1 100644
+--- a/public/js/core/oklab.ts
++++ b/public/js/core/oklab.ts
+@@ -3,6 +3,11 @@
+ // of dipping dark and muddy as a fade of encoded values does. Encoded value → light (the engine's fixed 2.2) → OKLab
+ // (Björn Ottosson's), straight across, and back; out of gamut, each channel is clamped to 0..1, or to an end beyond.
+ import { toLight, toValue } from './light.ts';
++import { PERF } from './perf-flags.ts';
++
++// PROTOTYPE: a direct-mapped cache of colours' OKLab (value, then OKLab, 6 a slot), for fades whose ends change from
++// pixel to pixel among a few palette colours.
++const SLOTS = 256, CACHE = new Float64Array(SLOTS * 6).fill(NaN);
+ 
+ type Colour = ArrayLike<number>;
+ // Each side's last colour and its OKLab (value, then OKLab): a fade's ends repeat from pixel to pixel.
+@@ -13,6 +18,14 @@ function labOf(c: Colour, memo: Float64Array) {
+   const c0 = c[0], c1 = c[1], c2 = c[2];
+   if (c0 === memo[0] && c1 === memo[1] && c2 === memo[2]) return memo;
+   memo[0] = c0; memo[1] = c1; memo[2] = c2;
++  let o = -1;
++  if (PERF.lab) {
++    o = 6 * ((((c0 * 65521) | 0) ^ ((c1 * 8191) | 0) * 31 ^ ((c2 * 4093) | 0) * 7) & (SLOTS - 1));
++    if (CACHE[o] === c0 && CACHE[o + 1] === c1 && CACHE[o + 2] === c2) {
++      memo[3] = CACHE[o + 3]; memo[4] = CACHE[o + 4]; memo[5] = CACHE[o + 5];
++      return memo;
++    }
++  }
+   const r = toLight(c0), g = toLight(c1), b = toLight(c2);
+   const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+   const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+@@ -20,6 +33,8 @@ function labOf(c: Colour, memo: Float64Array) {
+   memo[3] = 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s;
+   memo[4] = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s;
+   memo[5] = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s;
++  if (o >= 0) { CACHE[o] = c0; CACHE[o + 1] = c1; CACHE[o + 2] = c2; CACHE[o + 3] = memo[3]; CACHE[o + 4] = memo[4];
++    CACHE[o + 5] = memo[5]; }
+   return memo;
+ }
+ 
+diff --git a/public/js/core/perf-flags.ts b/public/js/core/perf-flags.ts
+new file mode 100644
+index 0000000..0076aec
+--- /dev/null
++++ b/public/js/core/perf-flags.ts
+@@ -0,0 +1,4 @@
++// PROTOTYPE (perf report, worktree only): env-flagged variants of the hot path.
++const ENV = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
++export const PERF = { gate: ENV.PERF_GATE === '1' || ENV.PERF_GATE === '2', gate2: ENV.PERF_GATE === '2',
++  lut: ENV.PERF_LUT === '1', lab: ENV.PERF_LAB === '1', near: ENV.PERF_NEAR === '1' };
+diff --git a/public/js/core/place.ts b/public/js/core/place.ts
+index b9314f8..7014fe7 100644
+--- a/public/js/core/place.ts
++++ b/public/js/core/place.ts
+@@ -83,6 +83,9 @@ function buildNear(S: Scene, L: Layer) {
+   return nearest;
+ }
+ 
++/** PROTOTYPE: the layer's grid now, at prepare, not on its first frame. */
++export function buildNearNow(S: Scene, L: Layer) { L.near ||= buildNear(S, L); }
++
+ /** q's LED fields from rig pixel k. */
+ function led(S: Scene, q: Q, k: number) {
+   q.u = S.u[k]; q.i = S.i[k]; q.n = S.n[k];
+diff --git a/public/js/core/render.ts b/public/js/core/render.ts
+index b453b70..d2ed0fe 100644
+--- a/public/js/core/render.ts
++++ b/public/js/core/render.ts
+@@ -16,6 +16,8 @@ import { PLACE, readsLed, settle } from './place.ts';
+ import { copyPixel, makePixel, type Pixel, setPixel } from './pixel.ts';
+ import { isStageEnd, placeWarps } from './warps.ts';
+ import { addLight } from './light.ts';
++import { PERF } from './perf-flags.ts';
++import { buildNearNow } from './place.ts';
+ export type { Pixel };
+ 
+ export const MODULE_KINDS = Object.freeze(['source', 'warp', 'filter'] as const);
+@@ -44,6 +46,14 @@ export function layerModules(layer?: LayerInput | null): Partial<Module>[] {
+ }
+ 
+ const isOn = (m: Partial<Module>) => m.enabled !== false;
++const LEDISH = new Set(['along', 'petal', 'ring']);
++/** Whether a module reads its pixel's LED fields: its code names one, region() reads them, and toward() does on an
++ * LED direction (gate2: only when a param of it is one; gate: always). */
++function needsLed(code: string | undefined, P: Values) {
++  if (readsLed(code) || /\bregion\s*\(/.test(code ?? '')) return true;
++  if (!/\btoward\s*\(/.test(code ?? '')) return false;
++  return !PERF.gate2 || Object.values(P).some((v) => typeof v === 'string' && LEDISH.has(v));
++}
+ 
+ /** Each module compiled (null where disabled). Throws on the first failure, as "<module title>: …" in a chain. */
+ export function compileLayer(layer?: LayerInput | null) {
+@@ -93,7 +103,7 @@ function prepareChain(layer: LayerInput | null | undefined, compiled: Compiled |
+     chain.push({ id: m.id ?? null, title: m.title || m.id || '', kind, fn, frame: c.frame || null,
+       P, mods, picks: c.picks || null, blend, hidden, input,
+       out: [0.5, 0, 0, 0], keep: null, end: kind === SPATIAL || isStageEnd(m), ix: 0, at: 0, from: -1, to: -1,
+-      led: kind !== WARP || readsLed(m.code), bright: kind === SOURCE && !!c.bright, ring: c.history ?? null,
++      led: PERF.gate ? needsLed(m.code, P) : kind !== WARP || readsLed(m.code), bright: kind === SOURCE && !!c.bright, ring: c.history ?? null,
+       op: c.spatial ?? null });
+   }
+   return chain;
+@@ -217,7 +227,7 @@ function runChain(S: Scene, L: PreparedLayer, T: number, G: G) {
+             M = chain[i];
+             if (M.kind === WARP) continue;
+             const q = qs[M.at];
+-            if (q.due) settle(q);
++            if (q.due && M.led) settle(q);
+             RUN.dt = q.dt;
+             if (M.kind === SOURCE) {
+               const v = M.fn(q, T + q.dt, M.P, G);
+@@ -287,7 +297,7 @@ export function prepareLayer(scene: Scene, layer: LayerInput | null | undefined,
+   if (rmax > 0) for (let j = 0; j < m; j++) r[j] /= rmax;
+   const corner = (v: number[]) => Object.freeze(m ? v : [0, 0, 0]);
+   const qs = Array.from({ length: bent.slots }, () => makePixel(scene));    // qs[0]: the pixel itself
+-  return {
++  const L = {
+     id: layer?.id ?? null,
+     idx, lx, ly, lz, a, r,
+     bounds: { min: [x0, y0, z0], max: [x1, y1, z1] },
+@@ -301,6 +311,8 @@ export function prepareLayer(scene: Scene, layer: LayerInput | null | undefined,
+     p: qs[0], qs, warps: bent.order, c: [0.5, 0, 0, 0],
+     buf: new Float64Array(m * 4), ms: 0, stages: prepareStages(scene, layer, chain, idx),
+   };
++  if (PERF.near && chain.some((M) => M.kind === WARP)) buildNearNow(scene, L);
++  return L;
+ }
+ 
+ export type PreparedLayer = ReturnType<typeof prepareLayer>;
