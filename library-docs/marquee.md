@@ -4,7 +4,7 @@ looks: Theatre-sign bulbs: short groups chasing along every strand, every other 
 Openings, fairground, applause. **meteors** is scattered comets; **bars** `along` gives smooth bands without gaps.
 
 ## Overrides
-- single-strand.speed: LEDs a second; 6 a stroll. Bind to an LFO `hold` in beats for a step a beat.
+- single-strand.speed: LEDs a second; 6 a stroll. Bind to an LFO `hold` in beats to alternate motion and pauses.
 - single-strand.size: 3 tight bulbs, 12 long dashes.
 - single-strand.gap: 0 a continuous chase.
 - single-strand.softness: 0 hard bulbs, 3 glides.

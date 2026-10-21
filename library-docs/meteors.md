@@ -1,5 +1,5 @@
 ---
-looks: White-headed cyan comets race along every strand over deep blue, each at its own pace.
+looks: High heads with accent tails race along every strand over a dim low bed, each at its own pace.
 ---
 A busy chase that still reads calm: space, falling stars. **streaks** falls straight down in space; **marquee** is a
 regular stepping chase.

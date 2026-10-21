@@ -1,5 +1,5 @@
 ---
-looks: Soft green-to-violet curtains of light drifting across a dark blue sky.
+looks: Soft accent-colour curtains drifting across a dim low-colour sky.
 ---
 Northern lights: a still **bars** gradient seen through drifting **clouds** (mask input) over a dim sky wash. Calm,
 night-time. **clouds** alone billows in palette colours; **starfield** is points, not curtains.

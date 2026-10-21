@@ -5,11 +5,11 @@ Streaks fall in lanes, each at its own pace; depth slots give arches at differen
 snow, rising embers. **single-strand** for orderly runs along wires, **sparkle** for points that stay put.
 
 ## Params
-- colours: `"accent high"` gives blue tails with white heads.
+- colours: `"accent high"` gives accent tails with highlight heads; use hex colours for fixed blue and white.
 - direction: `up`, `down` or `along` strands; angle tilts the fall sideways (±0.25 is horizontal).
 - speed: Each streak ±40%. 0.1–0.2 flakes, 0.6–1 rain, 2+ a downpour.
 - lanes: 20–40 for rain on the whole rig; match lanes to how many LEDs lie across.
-- density: Up to 3 streaks a lane.
+- density: Share of lanes in use, 0–1; 1 fills every lane.
 - depth: 1 if the layer is flat.
 
 ## Pairings
