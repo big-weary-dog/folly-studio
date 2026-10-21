@@ -32,8 +32,8 @@ let engine;
 test.beforeAll(async () => {
   const config = path.join(mkdtempSync(path.join(os.tmpdir(), 'pi-config-')), 'config.json');
   writeFileSync(config, '{}');
-  engine = spawn(process.execPath, [MAIN, '--dry-run', '--base', '/pi', '--http', String(port), '--bind', '127.0.0.1',
-    '--stats', '600', '--config', config], { env: tagged(), stdio: 'pipe' });
+  engine = spawn(process.execPath, [MAIN, '--dry-run', '--mode', 'live', '--base', '/pi', '--http', String(port),
+    '--bind', '127.0.0.1', '--stats', '600', '--config', config], { env: tagged(), stdio: 'pipe' });
   let out = '';
   await new Promise((resolve, reject) => {
     engine.stdout.on('data', (d) => { out += d; if (out.includes('control page on')) resolve(); });

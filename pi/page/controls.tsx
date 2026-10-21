@@ -52,9 +52,10 @@ export function Alerts({ s, sock }: { s: PiState, sock: PiSocket }) {
 }
 
 export function Blackout({ s, sock }: { s: PiState, sock: PiSocket }) {
-  return <button type="button" class={cx('pad lc-blackout', s.blackout && 'on')} aria-pressed={s.blackout}
-    onClick={() => sock.send({ type: 'blackout', on: !s.blackout })}>
-    {s.blackout ? 'Blacked out · Undo' : 'Blackout'}</button>;
+  const on = s.blackout.on;
+  return <button type="button" class={cx('pad lc-blackout', on && 'on')} aria-pressed={on}
+    onClick={() => sock.send({ type: 'blackout', on: !on })}>
+    {on ? 'Blacked out · Undo' : 'Blackout'}</button>;
 }
 
 /** The master, tap tempo and the look's own controls; Blackout is the caller's, placed where it fits. */
@@ -62,8 +63,9 @@ export function Controls({ s, sock }: { s: PiState, sock: PiSocket }) {
   const beat = useBeat(sock), look = s.look;
   const set = (c: Control) => (v: number) => sock.send({ type: 'set', name: c.name, value: v });
   // The tempo is tap tempo's, with a nudge either side when the look offers bpm, so not a fader as well.
-  const bpm = look?.controls.find((c) => c.name === 'bpm');
-  const controls = look?.controls.filter((c) => c !== bpm) ?? [];
+  const bpm = look?.controls.find((c) => c.kind === 'bpm');
+  type Num = Extract<Control, { kind: 'macro' | 'bpm' }>;
+  const controls = look?.controls.filter((c): c is Num => c.kind === 'macro') ?? [];
   const nudge = (d: number) => () => bpm && sock.send({ type: 'set', name: 'bpm',
     value: Math.min(bpm.max, Math.max(bpm.min, look!.bpm + d)) });
   return <>

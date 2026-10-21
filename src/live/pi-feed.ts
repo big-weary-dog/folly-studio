@@ -15,7 +15,7 @@ const queueOf = (q: unknown): PiQueued[] => (Array.isArray(q) ? q : []).slice(0,
   .map((i) => ({ title: i.title.slice(0, 200), kind: i.kind,
     ...typeof i.by === 'string' ? { by: i.by.slice(0, 64) } : {} }));
 type Look = { rev: number, t: number, bpm: number, beat0: number, offset: number, paces?: Record<string, unknown>,
-  controls: { name: string, value: number, kind: string }[] };
+  controls: { name: string, value: number | string, kind: string }[] };
 
 /** The engine's state message → PiNow (null: nothing plays), or undefined if it is not one. */
 export function piNowOf(state: { look?: Look | null, gain?: number, queue?: unknown } | null)
@@ -24,7 +24,8 @@ export function piNowOf(state: { look?: Look | null, gain?: number, queue?: unkn
   const l = state.look;
   if (!l) return null;
   if (![l.rev, l.t, l.bpm, l.beat0, l.offset].every(num) || !Array.isArray(l.controls)) return undefined;
-  const values = Object.fromEntries(l.controls.filter((c) => c.kind !== 'bpm' && num(c.value))
+  const values = Object.fromEntries(l.controls
+    .filter((c): c is typeof c & { value: number } => c.kind !== 'bpm' && num(c.value))
     .map((c) => [String(c.name), c.value]));
   const paces = Object.fromEntries(Object.entries(l.paces && typeof l.paces === 'object' ? l.paces : {})
     .filter((e): e is [string, number] => num(e[1])));
