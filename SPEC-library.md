@@ -134,11 +134,12 @@ field the source reads. A warp moves `q` with `move(q, lx, ly, lz)` (a point in 
 and radius round the frame's middle, in the façade; depth stays) or `slide(q, u)` (along its own fixture to the LED
 nearest `u`). `move` and `turn` set `X Y Z`, `x y z`, `lx ly lz` and `a r` from that point, and every field of an
 LED (`u i n`, `k seed`, `zone zi fixture`, `ring sector`, so `is()` and `attr()` too) from the layer's LED nearest it
-(by a grid of cells ≥ ¼ m, ≤ 64 a side, built per layer when first asked; nearest among the LEDs in the cells
+(by a grid of cells ≥ ¼ m, ≤ 64 a side, one per set of LEDs, built when a layer that moves them is prepared; nearest among the LEDs in the cells
 round the point's cell and round that cell's nearest, ties to the lowest index);
 `slide` sets them all from that LED. The LED fields are looked up when next read, so a stack of warps pays for one
-lookup: before a source or filter, `slide`, or a warp whose code may read one (names it as `.field` or a string, or
-`attr`, `is`, `part`, `partUp`; destructures an object; reads a computed key). A warp that re-frames (anchor: a new middle and
+lookup, and a module that reads none pays nothing: before a module whose code may read one (names it as `.field` or a
+string, or `attr`, `is`, `part`, `partUp`; destructures an object; reads a computed key; calls `use`), and inside
+`slide`, `region` and `toward` on `along`, `petal` or `ring`. A warp that re-frames (anchor: a new middle and
 reach, or with lineup the rig's) sets `ox oy oz sx sy sz sr cy cz` and recomputes `lx ly lz a r` from `X Y Z`, so the moves after it agree. A warp writes no position field any other way.
 A warp that times instances (in-turn) adds to `dt` and multiplies `gate`, never sets them outright; the modules
 above it, warps too, then run at `T + dt`, and a module's `frame()` still runs once a frame at `T`.
@@ -375,6 +376,9 @@ the param's. Per module instance:
   each end's light (`v^2.2`), Ottosson's OKLab, straight across, and back, each channel clamped to 0..1 (or to an
   end beyond). It keeps the brightness a fade of values loses mid-way (red to green dips to a muddy olive) and passes through
   the hues between. Plain OKLab, not OKLCh: a fade between distant hues goes through the middle, not round the wheel.
+- A ramp that cannot change (a pick's stops, a look palette's role: frozen lists of frozen colours) is read from a
+  table of its fades' light, 64 steps a pair of colours, straight between and then clamped: its colours exact, its light
+  within 0.05/255 of the fade's. `pal()` and `ramp()` on any other list fade each time.
 
 Picks resolve to stops when a layer is prepared and again when the palette changes; per frame only rotates move.
 
