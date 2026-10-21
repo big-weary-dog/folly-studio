@@ -48,7 +48,7 @@ describe('playOf', () => {
 
   test('custom code, or live looks off, plays its current bake or says why not', () => {
     const custom = lookOf([{ modules: [{ ref: 'fire' }, { code: 'mine()' }] }]);
-    assert.match(playOf(custom, library, true).error, /^Has custom code: bake it .*bubblewrap/);
+    assert.match(playOf(custom, library, true).error, /^Has custom code: bake it \(Check & bake\)/);
     assert.match(playOf(lookOf([{ modules: [{ ref: 'gone' }] }]), library, true).error, /custom code/);
     const lib1 = lookOf([{ modules: [{ ref: 'fire' }] }]);
     assert.match(playOf(lib1, library, false).error, /^Live looks are off: bake it/);
