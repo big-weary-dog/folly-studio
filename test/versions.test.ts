@@ -42,11 +42,11 @@ describe('versions', () => {
     assert.equal((await alice.get(`/api/looks/${look.id}/versions/9`)).status, 404);
   });
 
-  test("the owner's alone: others, curators too, get 403 even on a shared look", async () => {
+  test("the owner's alone: others, curators too, get 404 even on a shared look", async () => {
     const { look } = (await alice.post('/api/looks', { title: 'Mine', layers: [layer()], shared: true })).json;
     for (const who of [bob, carol]) {
-      assert.equal((await who.get(`/api/looks/${look.id}/versions`)).status, 403);
-      assert.equal((await who.get(`/api/looks/${look.id}/versions/1`)).status, 403);
+      assert.equal((await who.get(`/api/looks/${look.id}/versions`)).status, 404);
+      assert.equal((await who.get(`/api/looks/${look.id}/versions/1`)).status, 404);
       assert.ok(!('version' in (await who.get(`/api/looks/${look.id}`)).json.look));
     }
   });
@@ -104,8 +104,8 @@ describe('versions', () => {
     assert.ok(!versions.some((v: { n: number }) => v.n === 1), 'unnamed, it is pruned at the next save');
     assert.equal((await alice.put(`${url}/versions/99`, { name: 'x' })).status, 404);
     assert.equal((await alice.put(`${url}/versions/2`, { name: '' })).status, 400);
-    assert.equal((await bob.put(`${url}/versions/2`, { name: 'Mine' })).status, 403);
-    assert.equal((await bob.put(url, { versionName: 'Mine' })).status, 403);
+    assert.equal((await bob.put(`${url}/versions/2`, { name: 'Mine' })).status, 404);
+    assert.equal((await bob.put(url, { versionName: 'Mine' })).status, 404);
     top = (await alice.get(`${url}/versions`)).json.versions.find((v: { n: number }) => v.n === 2);
     assert.equal(top.name, 'Words only');
   });

@@ -1,7 +1,8 @@
 // One server per data folder: the store keeps every collection in memory and rewrites whole files, so a second
 // process on the same folder would silently overwrite the first. `studio.lock` holds the owner's pid, made
 // create-only (a hard link to a written temp file, so it is never seen empty); a lock whose pid is no longer
-// running is taken over. Released on release() or at process exit.
+// running is taken over by renaming ours over it, never by removing it, under a claim on that lock's inode that one
+// taker alone can make. Released on release() or at process exit.
 
 import fs, { promises as fsp } from 'node:fs';
 import path from 'node:path';
@@ -28,10 +29,35 @@ const running = (pid: number) => {
   }
 };
 
+/** Puts our lock (`tmp`, holding our pid) over the stale one at `file`, whose inode is `ino`: true when it did. The
+ * claim `<file>.<ino>.<n>` is a link to `tmp`, made create-only, so one taker holds it; a claim whose taker is no
+ * longer running (cut short) is passed over for the next n. Under it, the lock is still that inode, since only a
+ * claim's holder replaces a stale lock, and a rename replaces it whole: there is never a moment without one. */
+async function takeOver(file: string, ino: number, tmp: string) {
+  for (let n = 1; ; n++) {
+    const claim = `${file}.${ino}.${n}`;
+    try {
+      await fsp.link(tmp, claim);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
+      const pid = Number.parseInt(await fsp.readFile(claim, 'utf8').catch(() => ''), 10);
+      if (pid > 0 && running(pid)) return false;  // another taker is at it
+      continue;
+    }
+    try {
+      if ((await fsp.stat(file).catch(() => null))?.ino !== ino) return false;
+      await fsp.rename(tmp, file);
+      return true;
+    } finally {
+      await fsp.rm(claim, { force: true });
+    }
+  }
+}
+
 /** Takes `<dataDir>/studio.lock`, or throws DataLockedError naming the folder and the pid holding it. */
 export async function lockDataDir(dataDir: string) {
   const file = path.join(dataDir, LOCK_FILE);
-  const own = `${file}.${process.pid}.${++seq}`, tmp = `${own}.tmp`;
+  const tmp = `${file}.${process.pid}.${++seq}.tmp`;
   await fsp.writeFile(tmp, `${process.pid}\n`, { mode: 0o600 });
   try {
     const locked = (pid: number) => new DataLockedError(`another Folly Studio (pid ${pid || '?'}) is using the data `
@@ -43,23 +69,16 @@ export async function lockDataDir(dataDir: string) {
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
       }
-      const text = await fsp.readFile(file, 'utf8').catch(() => null);
-      if (text === null) continue;    // released meanwhile
+      // One open file, so its pid and its inode are the same lock's.
+      const fh = await fsp.open(file, 'r').catch(() => null);
+      if (!fh) continue;              // released meanwhile
+      const [st, text] = await Promise.all([fh.stat(), fh.readFile('utf8')]).finally(() => fh.close());
       const pid = Number.parseInt(text, 10);
-      if (attempt >= 3 || (pid > 0 && running(pid))) throw locked(pid);
-      // Stale: its server stopped without releasing it. Moved aside under our own name, then checked, so a lock
-      // another server took since we read this one is put back, never removed.
-      const aside = `${own}.stale`;
-      try {
-        await fsp.rename(file, aside);
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === 'ENOENT') continue;
-        throw err;
-      }
-      const moved = await fsp.readFile(aside, 'utf8').catch(() => '');
-      if (moved !== text) await fsp.link(aside, file).catch(() => {});
-      await fsp.rm(aside, { force: true });
-      if (moved !== text) throw locked(Number.parseInt(moved, 10));
+      if (pid > 0 && running(pid)) throw locked(pid);
+      // Stale: its server stopped without releasing it. Another taker may be replacing it; then look again.
+      if (await takeOver(file, st.ino, tmp)) break;
+      if (attempt >= 50) throw locked(pid);
+      await new Promise((r) => setTimeout(r, 10));
     }
   } finally {
     await fsp.rm(tmp, { force: true });

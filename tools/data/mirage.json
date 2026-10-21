@@ -1,0 +1,16 @@
+{
+  "_note": "The sizes Mirage draws the Folly with (show-builder mirage/src): config.js, and constants of its modules.",
+  "config": {
+    "FIXTURES.canopy": { "sag": 1.5 },
+    "FIXTURES.globe": { "radius": 0.025 },
+    "FIXTURES.mainArch": { "width": 0.3 },
+    "FIXTURES.sideArch": { "width": 0.07 },
+    "FIXTURES.spirelet": { "height": 2.02, "radius": 0.23 },
+    "FIXTURES.wash": { "beamAngle": 55, "reach": 30, "tilt": 0.3 },
+    "SCAFFOLD": { "belfryTop": 11.9, "ledgerSpacing": 2, "top": 8, "tubeRadius": 0.0242 }
+  },
+  "const": {
+    "world/scaffold.js": { "MAX_BAY": 2.5, "FIRST_LEDGER": 0.15, "OUTRIGGER_REACH": 3.2, "OUTRIGGER_TOP": 0.75 },
+    "zones/spires.js": { "BELFRY_SPIRELET_MIN_Y": 10 }
+  }
+}

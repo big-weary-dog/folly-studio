@@ -10,9 +10,10 @@ import os
 import re
 
 import rig_render
-from sources import SHOW_BUILDER
+from sources import LIGHTING
 
-PIXEL_MAP = os.path.join(SHOW_BUILDER, 'city-of-gods', 'pixel-map')
+PIXEL_MAP = os.path.join(LIGHTING, 'city-of-gods', 'pixel-map', 'out')
+NETWORKS = os.path.join(LIGHTING, 'city-of-gods', 'xlights-show', 'xlights_networks.xml')
 NAME = 'City of Gods 2026'
 ABOUT = ('City of Gods is the Gothic Folly condensed for a night outdoors between two buildings: a portal of five '
          'main arches around a 16-petal rose window with 7 rings of cells, one mini arch each side, and two towers '

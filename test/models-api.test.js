@@ -31,7 +31,7 @@ describe('models API', () => {
   test('roles: admins are also curators', async () => {
     assert.equal(admin.user.role, 'admin');
     assert.equal(member.user.role, 'member');
-    assert.equal(app.auth.isCurator(app.store.users.get(admin.user.id)), true);
+    assert.equal(app.auth.can(app.store.users.get(admin.user.id), 'curate'), true);
   });
 
   test('everyone signed in sees what they may pick; the registry is for admins only', async () => {

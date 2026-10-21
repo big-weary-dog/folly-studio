@@ -1,0 +1,6 @@
+{
+  "_note": "Where the finished DMX goes, as TouchDesigner sends it (show-builder td/config/output.json): the rigs' output.",
+  "protocol": "sacn",
+  "frame_rate": 40,
+  "channels_per_universe": 510
+}

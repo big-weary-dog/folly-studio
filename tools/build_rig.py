@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """Build the rigs as the studio sees them (SPEC "Rig"): City of Gods, the default, as public/data/rig.json from
-show-builder's city-of-gods/pixel-map/ (tools/cog_rig.py), and the Gothic Folly's playa build as rig-folly.json from
-its pixel-map/ (show-builder: tools/sources.py).
+lighting's city-of-gods/pixel-map/out/ (tools/cog_rig.py), and the Gothic Folly's playa build as rig-folly.json from
+its show-builder/pixel-map/ (a lighting checkout: tools/sources.py).
 
     python3 tools/build_rig.py [--check]   # write them, or exit 1 if a committed file is stale
 
-Every LED comes from td/python/make_pixel_csv.py's pixel_rows(), so the studio lights exactly the LEDs
-TouchDesigner, Mirage and the relay do from the same pixel map: same order, universe/channel and places. This adds
-what the CSV does not keep: fixtures (an arch, a quad face, a spire strand, a rose petal...), learnt by wrapping
-make_pixel_csv's module-global `chain` generator (consecutive spirelet or wash pixels of one corner or chain merged),
-the rose's rings and petals as attrs, a tagged group tree, and the render hints and scaffold Mirage draws
-(tools/rig_render.py). Views: td/config/views.json (City of Gods: its own). Output: td/config/output.json, universes
-from xlights/xlights_networks.xml.
+Every LED comes from tools/pixel_rows.py, make_pixel_csv's rows, so the studio lights the LEDs and channels
+lighting's xLights models do (tools/check_channels.py holds them to those and to the Falcon). This adds what the
+rows do not keep: fixtures (an arch, a quad face, a spire strand, a rose petal...), learnt by wrapping pixel_rows'
+module-global `chain` generator (consecutive spirelet or wash pixels of one corner or chain merged), the rose's rings
+and petals as attrs, a tagged group tree, and the render hints and scaffold Mirage draws (tools/rig_render.py).
+Views: tools/data/views.json (City of Gods: its own). Output: tools/data/output.json, universes from each rig's
+xLights networks.
 """
 import argparse
 import json
@@ -19,21 +19,17 @@ import os
 import re
 import sys
 
-sys.dont_write_bytecode = True  # keep td/python and tools free of __pycache__
+sys.dont_write_bytecode = True  # keep tools free of __pycache__
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-from sources import SHOW_BUILDER as REPO, STUDIO  # noqa: E402
+from sources import DATA as OURS, STUDIO, lighting  # noqa: E402
 
-TD_PYTHON = os.path.join(REPO, 'td', 'python')
-PIXEL_MAP = os.path.join(REPO, 'pixel-map')
-TD_CONFIG = os.path.join(REPO, 'td', 'config')
-NETWORKS = os.path.join(REPO, 'xlights', 'xlights_networks.xml')
+REPO = lighting()
+PIXEL_MAP = os.path.join(REPO, 'show-builder', 'pixel-map')
+NETWORKS = os.path.join(REPO, 'show-builder', 'xlights', 'xlights_networks.xml')
+UNIVERSE_MAP = os.path.join(PIXEL_MAP, 'universe-map.json')  # the rose's addresses; City of Gods keeps the same
 DATA = os.path.join(STUDIO, 'public', 'data')
 
-for p in (TD_PYTHON, HERE):
-    if p not in sys.path:
-        sys.path.insert(0, p)
-import make_pixel_csv as mpc  # noqa: E402  (needs the path above)
+import pixel_rows as mpc  # noqa: E402
 import rig_render  # noqa: E402
 import cog_rig  # noqa: E402
 
@@ -78,7 +74,7 @@ def identity(zone, start, n):
     return None, zone, zone[:1].upper() + zone[1:].replace('-', ' ')
 
 
-def tagged_rows(pixel_map):
+def tagged_rows(pixel_map, networks):
     """pixel_rows() plus, per row, its fixture index, and the fixtures."""
     fixtures, tags = [], []
     original, sources = mpc.chain, mpc.sources
@@ -101,7 +97,7 @@ def tagged_rows(pixel_map):
     mpc.chain = chain
     mpc.sources = lambda pm: [s for s in sources(pm) if os.path.exists(os.path.join(pm, s[1]))]  # no canopy: none
     try:
-        rows = mpc.pixel_rows(pixel_map, output()['channelsPerUniverse'])
+        rows = mpc.pixel_rows(pixel_map, output(networks)['channelsPerUniverse'], UNIVERSE_MAP)
     finally:
         mpc.chain, mpc.sources = original, sources
     if len(tags) != len(rows) or any(fixtures[tags[i]]['zone'] != r[0] for i, r in enumerate(rows)):
@@ -109,13 +105,13 @@ def tagged_rows(pixel_map):
     return rows, tags, fixtures
 
 
-def output():
-    out = read(TD_CONFIG, 'output.json')
+def output(networks):
+    out = read(OURS, 'output.json')
     cpu = out['channels_per_universe']
-    with open(NETWORKS, encoding='utf-8') as f:
+    with open(networks, encoding='utf-8') as f:
         sizes = re.findall(r'MaxChannels="(\d+)"', f.read())
     if not sizes or any(int(s) != cpu for s in sizes):
-        raise SystemExit('%s: expected networks of %d channels' % (NETWORKS, cpu))
+        raise SystemExit('%s: expected networks of %d channels' % (networks, cpu))
     return {'protocol': out['protocol'], 'universes': len(sizes), 'channelsPerUniverse': cpu, 'order': 'RGB',
             'fps': out['frame_rate']}
 
@@ -137,7 +133,7 @@ def render_hints(fixtures, rows, pixel_map, spirelet_cone, wash_cone=None):
     strips = rig_render.strip_hints()
     cells = read(pixel_map, 'cell-polygons.json')['cells']
     petals = read(pixel_map, 'window-data.json')['petals']
-    order = read(pixel_map, 'universe-map.json')['zones']['rose_window']['cell_order']
+    order = mpc.rose_spec(pixel_map, UNIVERSE_MAP)['cell_order']
     floods, first = {'spirelet': read(pixel_map, 'spires-corners-led-positions.json')['pixels']}, {}
     if wash_cone:
         floods['wash'] = read(pixel_map, 'wash-led-positions.json')['pixels']
@@ -145,7 +141,7 @@ def render_hints(fixtures, rows, pixel_map, spirelet_cone, wash_cone=None):
         zone, at = f['zone'], f['start']
         mine = floods.get(zone, [])[at - first.setdefault(zone, at):][:f['count']]
         if any(m3(a) != m3(b) for p, r in zip(mine, rows[at:]) for a, b in zip(p['position'], r[4:7])):
-            raise SystemExit('%s: pixel-map order differs from the CSV' % f['id'])
+            raise SystemExit('%s: pixel-map order differs from its rows' % f['id'])
         if zone == 'wash':
             f.update(kind='flood', render={'cone': wash_cone(mine)})
         elif zone == 'spirelet':
@@ -222,8 +218,8 @@ def build_groups(zones, fixtures, pixel_map, drop=()):
 def build(which):
     """The rig `which` ('cog' or 'folly')."""
     cog = which == 'cog'
-    pixel_map = cog_rig.PIXEL_MAP if cog else PIXEL_MAP
-    rows, tags, fixtures = tagged_rows(pixel_map)
+    pixel_map, networks = (cog_rig.PIXEL_MAP, cog_rig.NETWORKS) if cog else (PIXEL_MAP, NETWORKS)
+    rows, tags, fixtures = tagged_rows(pixel_map, networks)
     zones = []
     for r in rows:
         if r[0] not in zones:
@@ -248,7 +244,7 @@ def build(which):
     return {
         'rig': 1, 'name': cog_rig.NAME if cog else NAME, 'about': cog_rig.ABOUT if cog else ABOUT,
         'units': 'm', 'axes': {'up': '+y', 'front': '-x', 'right': '+z'},
-        'output': output(), 'count': len(rows),
+        'output': output(networks), 'count': len(rows),
         'bounds': {'min': [min(pos[i::3]) for i in range(3)], 'max': [max(pos[i::3]) for i in range(3)]},
         'fixtures': [{k: f[k] for k in ('id', 'name', 'zone', 'kind', 'start', 'count', 'render')} for f in fixtures],
         'pixels': {
@@ -259,7 +255,7 @@ def build(which):
                       'sector': [petal(r[0]) for r in rows]},
         },
         'groups': groups,
-        'views': cog_rig.VIEWS if cog else read(TD_CONFIG, 'views.json')['views'],
+        'views': cog_rig.VIEWS if cog else read(OURS, 'views.json')['views'],
         'structure': structure,
     }
 

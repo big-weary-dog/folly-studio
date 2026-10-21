@@ -1,5 +1,5 @@
 // The Pi's rose expansion and power compressor against the lighting repo's Python: the golden frames everywhere, and
-// compress-fseq.py itself where a lighting checkout is (~/lighting, or LIGHTING).
+// compress-fseq.py itself where a lighting checkout is (LIGHTING_DIR, or lighting/ beside this repo).
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -13,8 +13,8 @@ import { CELL_CHANNELS, testFrames } from './frames.ts';
 
 const table: PowerTable = JSON.parse(readFileSync(new URL('../data/power.json', import.meta.url), 'utf8'));
 const golden = JSON.parse(readFileSync(GOLDEN, 'utf8'));
-const lighting = process.env.LIGHTING || LIGHTING;
-const noLighting = `no lighting checkout at ${lighting} (set LIGHTING): the golden frames stand in for it`;
+const lighting = LIGHTING;
+const noLighting = `no lighting checkout at ${lighting} (set LIGHTING_DIR): the golden frames stand in for it`;
 const hasLighting = existsSync(path.join(lighting, 'pixel-map', 'compress-fseq.py'));
 
 /** The test frames through expandRose and powerLimiter → each frame's hash, and the limiter's stats. */
