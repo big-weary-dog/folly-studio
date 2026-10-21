@@ -40,8 +40,9 @@ export type LiveUpdate = { type: 'update', rev: number, at: number, loop: number
   drop: string[], lanes: Record<string, Points | null>, layers?: Live['layers'], blackout?: boolean,
   by: Live['by'] };
 /** What /pi's engine plays, sent when it changes: the look with its modules by library ref, and its automation. */
+/** baked: a look's bake plays on the lights, which viewers do not render (its layers are none). */
 export type PiSource = { rev: number, id: string, title: string, duration: number, bpm?: number,
-  globals?: Globals | null, automation?: Automation | null, layers: Layer[] };
+  globals?: Globals | null, automation?: Automation | null, layers: Layer[], baked?: boolean };
 /** How it plays it at server time `at`: show time t, the clock (offset, beat0, bpm, the paces' offsets), the values
  * pushed, the gain. */
 export type PiNow = { rev: number, t: number, bpm: number, beat0: number, offset: number,

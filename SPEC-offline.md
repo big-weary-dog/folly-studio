@@ -67,7 +67,7 @@ and the engine's control page (`/pi/`) both add to it. Custom code never reaches
 - **Baked**: any look whose bake is current (`bake.status` done, `ok`, `layersHash` the look's now). Studio sends the
   look's id, title and `bake.frames.sha256`; the engine reads `<frames>/<lookId>.fseq` itself (its `frames` setting,
   Studio's `<STUDIO_DATA>/frames`, as `light` is Studio's `light.json`), checks the SHA-256, parses it strictly
-  (`src/frames.ts` `parseFseq`, the rig's ranges, at most 64 MB), and plays its frames as baked: each LED's channels
+  (`src/frames.ts` `parseFseq`, uncompressed, the rig's channels and fps, at most 128 MB), and plays its frames as baked: each LED's channels
   are the look's colour, out through the same light transform, master, blackout, fades and flash guard. A baked
   item has no live controls. The engine loads an item's frames when it is next, off the frame loop, so the switch
   never waits; a missing or changed file skips the item, saying so. A bake is made where bubblewrap is (the

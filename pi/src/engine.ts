@@ -13,14 +13,17 @@ import {
 import type { PiSource } from '../../shared/schemas/live.ts';
 import type { Layer } from '../../shared/schemas/look.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
+import type { Baked } from './baked.ts';
 import { liveLook, type LiveLook } from './controls.ts';
 import type { Library, PiLook } from './library.ts';
 
 export const FADE = { switch: 0.25, queue: 1, blackout: 0.3, level: 0.05, exit: 1 };   // seconds
 export const MAX_QUEUE = 20;
 type Ease = { now: number, to: number, secs: number };
-/** What the queue holds: one of the engine's own looks (`look`, by id), or a look Studio sent (`live`, resolved). */
-export type Item = { key: string, id: string, title: string, kind: 'look' | 'live', by?: string, look?: PiLook };
+/** What the queue holds: one of the engine's own looks (`look`, by id), a look Studio sent (`live`, resolved), or a
+ * look's bake (`baked`: its frames read when it is next, `error` if they cannot play). */
+export type Item = { key: string, id: string, title: string, kind: 'look' | 'live' | 'baked', by?: string,
+  look?: PiLook, sha256?: string, baked?: Baked, loading?: boolean, error?: string };
 export type At = 'now' | 'next' | 'end';
 const ease = (e: Ease, dt: number) => {
   const most = dt / e.secs;
@@ -30,7 +33,8 @@ const ease = (e: Ease, dt: number) => {
 
 export type EngineOptions = { rig: Rig, lib: Library, looks: () => Map<string, { look: PiLook | null, error?: string }>,
   safe: string, output: (cells: Uint8Array) => void, log?: (line: string) => void, now?: () => number,
-  light?: Light };   // the light settings (pi/light.json): the output transform, and the light the flash guard judges
+  light?: Light,     // the light settings (pi/light.json): the output transform, and the light the flash guard judges
+  bake?: (id: string, sha256: string) => Promise<Baked> };   // a look's bake from Studio's frames (baked.ts)
 
 export function createEngine(o: EngineOptions) {
   const scene = prepareScene(o.rig), fps = scene.fps, dt = 1 / fps;
@@ -41,7 +45,9 @@ export function createEngine(o: EngineOptions) {
   setLibrary([...o.lib.entries.values()]);
   const master: Ease = { now: 1, to: 1, secs: FADE.level }, black: Ease = { now: 1, to: 1, secs: FADE.blackout };
   const fade: Ease = { now: 0, to: 1, secs: FADE.switch };
-  let playing: { item: Item, id: string, look: PiLook, live: LiveLook, layers: PreparedLayer[] } | null = null;
+  type Playing = { item: Item, id: string, title: string, duration: number, look: PiLook | null,
+    live: LiveLook | null, layers: PreparedLayer[], baked: Baked | null };
+  let playing: Playing | null = null, want = false;     // want: a person asked to go on as soon as the next is ready
   let pending: Item | null = null, frame = 0, tripped: { at: string, look: string } | null = null;
   let queue: Item[] = [], paused = false, keys = 0;
   let rev = 0, source: PiSource | null = null;      // rev: +1 at each switch, and each push that leaves a lane
@@ -54,12 +60,17 @@ export function createEngine(o: EngineOptions) {
   }
 
   /** The item compiled and prepared; throws, saying why, if it cannot play. */
-  function load(item: Item) {
+  function load(item: Item): Playing {
+    if (item.baked) {
+      return { item, id: item.id, title: item.title, duration: item.baked.duration, look: null, live: null,
+        layers: [], baked: item.baked };
+    }
     const entry = item.kind === 'look' ? o.looks().get(item.id) : { look: item.look ?? null, error: 'no look' };
     if (!entry?.look) throw new Error(entry ? entry.error! : `no look ${item.id}`);
     const look = entry.look;
     const layers = look.layers.map((l) => prepareLayer(scene, l, compileLayer(l)));
-    return { item, id: item.id, look, live: liveLook(look), layers };
+    return { item, id: item.id, title: look.title, duration: look.duration || 30, look, live: liveLook(look), layers,
+      baked: null };
   }
 
   function start(item: Item) {
@@ -72,33 +83,39 @@ export function createEngine(o: EngineOptions) {
     frame = 0;
     fade.to = 1;
     rev++;
-    log(`playing ${playing.id} (${playing.look.title})`);
+    log(`playing ${playing.id} (${playing.title})${playing.baked ? ', baked' : ''}`);
   }
 
   /** One frame: what the sculpture shows next. */
   function tick() {
     if (pending !== null && (fade.now === 0 || !playing)) { start(pending); pending = null; }
     if (!playing) return;
-    const t0 = now(), p = playing, duration = p.look.duration || 30;
+    const t0 = now(), p = playing, duration = p.duration;
     let t = frame * dt;
+    ready(queue[0]);
     // The pattern's last second: fade out toward the next queued look, so it has played whole when the next starts.
-    if (!pending && !paused && queue.length && t + FADE.queue >= duration) advance();
+    if (!pending && (want || (!paused && queue.length && t + FADE.queue >= duration)) && advance()) want = false;
     if (t >= duration) {
       // Back by whole frames, and the beat by exactly as much, so a duration off the frame grid never drifts it.
       const back = Math.floor(t / duration) * Math.round(duration * fps);
       frame -= back;
       t = frame * dt;
-      p.live.wrapped(back * dt);
+      p.live?.wrapped(back * dt);
     }
-    p.live.step(t, dt);
-    const out = renderFrame(scene, p.layers, t, rgb, p.live.look);
-    if (out.errors.length) { stats.layerErrors++; stats.lastError = out.errors[0]!.error; }
+    if (p.baked) p.baked.fill(frame, rgb);
+    else {
+      p.live!.step(t, dt);
+      const out = renderFrame(scene, p.layers, t, rgb, p.live!.look);
+      if (out.errors.length) { stats.layerErrors++; stats.lastError = out.errors[0]!.error; }
+    }
     const gain = ease(master, dt) * ease(black, dt) * ease(fade, dt);
     if (guard.observe(rgb, stats.frames * 1000 / fps, gain) && !tripped && p.id !== o.safe) {
       tripped = { at: new Date().toISOString(), look: p.id };
       log(`flash guard: ${p.id} flashed; dipping to ${o.safe} until a look is picked`);
+      if (pending) queue.unshift(pending);     // a queued look on its way in waits for the person too
       pending = own(o.safe);
       paused = true;
+      want = false;
       fade.secs = FADE.switch;
       fade.to = 0;
     }
@@ -110,10 +127,26 @@ export function createEngine(o: EngineOptions) {
     stats.worstMs = Math.max(stats.worstMs * 0.999, ms);
   }
 
-  /** The queue's next item to play, fading out what plays over FADE.queue; false with nothing queued. */
+  /** A baked item's frames, read when it is next (off the frame loop); dropped, saying why, if they cannot play. */
+  function ready(item: Item | undefined) {
+    if (item?.kind !== 'baked' || item.baked || item.loading || item.error) return;
+    item.loading = true;
+    const read = o.bake ? o.bake(item.id, item.sha256!) : Promise.reject(new Error('this engine plays no bakes'));
+    read.then((b) => { item.baked = b; }, (e: Error) => {
+      item.error = e.message;
+      log(`look ${item.id} cannot play baked: ${e.message}`);
+      queue = queue.filter((q) => q !== item);
+    }).finally(() => { item.loading = false; });
+  }
+
+  /** The queue's next item to play, fading out what plays over FADE.queue; false with nothing queued, or while the
+   * next one's frames are being read. */
   function advance() {
-    const next = queue.shift();
-    if (!next) return false;
+    const next = queue[0];
+    if (!next) { want = false; return false; }
+    ready(next);
+    if (next.kind === 'baked' && !next.baked) return false;
+    queue.shift();
     pending = next;
     fade.secs = FADE.queue;
     fade.to = 0;
@@ -131,7 +164,7 @@ export function createEngine(o: EngineOptions) {
   function enqueue(item: Item, at: At) {
     if (queue.length >= MAX_QUEUE) return false;
     if (at === 'end') queue.push(item); else queue.unshift(item);
-    if (at === 'now') { picked(); advance(); }
+    if (at === 'now') { picked(); want = !advance(); }
     return true;
   }
 
@@ -159,6 +192,10 @@ export function createEngine(o: EngineOptions) {
       return enqueue({ key: `q${++keys}`, id: look.id, title: look.title, kind: 'live', look, ...by ? { by } : {} },
         at);
     },
+    /** Queues a look's bake by its id and the SHA-256 Studio holds for it; false when the queue is full. */
+    sendBaked(b: { id: string, title: string, sha256: string }, at: At = 'end', by?: string) {
+      return enqueue({ key: `q${++keys}`, ...b, kind: 'baked', ...by ? { by } : {} }, at);
+    },
     unqueue(key: string) {
       const before = queue.length;
       queue = queue.filter((q) => q.key !== key);
@@ -176,39 +213,47 @@ export function createEngine(o: EngineOptions) {
     next() {
       if (!queue.length) { paused = false; return false; }
       picked();
-      return advance();
+      want = !advance();
+      return true;
     },
     set(name: string, v: number) {
-      if (!playing) return false;
-      const before = playing.live.automation, ok = playing.live.set(name, v, frame * dt);
-      if (playing.live.automation !== before) rev++;
+      const live = playing?.live;
+      if (!live) return false;
+      const before = live.automation, ok = live.set(name, v, frame * dt);
+      if (live.automation !== before) rev++;
       return ok;
     },
-    tap: (ms: number) => (playing ? playing.live.tap(frame * dt, ms) : NaN),
+    tap: (ms: number) => (playing?.live ? playing.live.tap(frame * dt, ms) : NaN),
     level(v: number) { master.to = Math.min(1, Math.max(0, v)); },
     blackout(on: boolean) { black.to = on ? 0 : 1; },
     /** Fade everything out over `secs` (on exit). */
     fadeOut(secs = FADE.exit) { master.secs = secs; master.to = 0; },
-    state: () => ({
-      look: playing && { id: playing.id, rev, title: playing.look.title, kind: playing.item.kind, t: frame * dt,
-        duration: playing.look.duration || 30,
-        left: queue.length && !paused ? Math.max(0, (playing.look.duration || 30) - frame * dt) : null,
-        bpm: playing.live.look.bpm, beats: (frame * dt - playing.live.look.beat0) * playing.live.look.bpm / 60,
-        offset: playing.live.look.offset, beat0: playing.live.look.beat0,
-        paces: Object.fromEntries(playing.live.look.paceOffset),
-        controls: playing.live.controls.map((c) => ({ ...c })) },
-      gain: master.now * black.now * fade.now,
-      level: master.to, blackout: black.to === 0, tripped, paused,
-      switching: pending && { id: pending.id, title: pending.title },
-      queue: queue.map(({ look: _, ...q }) => q),
-    }),
-    /** What plays, for a viewer to render it too: its modules by ref (the viewer has the library), no code. */
+    state: () => {
+      const p = playing, L = p?.live?.look, t = frame * dt;
+      return {
+        // A bake has no clock of its own to share: its beat and controls are none.
+        look: p && { id: p.id, rev, title: p.title, kind: p.item.kind, t, duration: p.duration,
+          left: queue.length && !paused ? Math.max(0, p.duration - t) : null,
+          bpm: L?.bpm ?? 120, beats: L ? (t - L.beat0) * L.bpm / 60 : 0, offset: L?.offset ?? 0, beat0: L?.beat0 ?? 0,
+          paces: L ? Object.fromEntries(L.paceOffset) : {}, controls: p.live?.controls.map((c) => ({ ...c })) ?? [] },
+        gain: master.now * black.now * fade.now,
+        level: master.to, blackout: black.to === 0, tripped, paused,
+        switching: pending && { id: pending.id, title: pending.title },
+        queue: queue.map(({ key, id, title, kind, by }) => ({ key, id, title, kind, ...by ? { by } : {} })),
+      };
+    },
+    /** What plays, for a viewer to render it too: its modules by ref (the viewer has the library), no code; a bake
+     * as its title alone (`baked`). */
     source(): PiSource | null {
       if (!playing) return null;
       if (source?.rev === rev) return source;
-      const { id, look, live } = playing;
+      const { id, title, duration, look, live } = playing;
+      if (!look || !live) {
+        source = { rev, id, title, duration, globals: null, automation: null, layers: [], baked: true };
+        return source;
+      }
       const layers = look.layers.map((l) => ({ ...l, modules: (l.modules ?? []).map(({ code: _, ...m }) => m) }));
-      source = { rev, id, title: look.title, duration: look.duration || 30, ...(look.bpm ? { bpm: look.bpm } : {}),
+      source = { rev, id, title, duration, ...(look.bpm ? { bpm: look.bpm } : {}),
         globals: look.globals ?? null, automation: live.automation, layers: layers as Layer[] };
       return source;
     },

@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { lightOf } from '../public/js/core/light.ts';
+import { loadBaked } from './src/baked.ts';
 import { readConfig } from './src/config.ts';
 import { createEngine } from './src/engine.ts';
 import { readLibrary, readLooks } from './src/library.ts';
@@ -41,8 +42,10 @@ async function main(c: NonNullable<typeof cfg>) {
   // The light settings (SPEC "Light and output"): Studio's Light page downloads them as pi/light.json; missing, the
   // defaults. On the way out only: the engine's frames (and the Live tab's) stay the look's own.
   const light = lightOf(readLight(c.light));
+  // Looks' bakes from Studio's frames folder, when it says where (SPEC-offline "Playing on the lights").
+  const frames = c.frames && path.resolve(path.dirname(at('./main.ts')), c.frames);
   const engine = createEngine({ rig, lib, looks: () => looks, safe: c.safe, log, light,
-    output: (cells) => output.send(cells) });
+    output: (cells) => output.send(cells), bake: (id, sha256) => loadBaked(frames, id, sha256, engine.scene) });
   // The rig's pixels must sit within the cells the expansion reads (its declared universes run past them, unused).
   const cellsEnd = Math.min(...table.petals.map((p) => p.exp));
   if (Math.max(...engine.scene.addr) + table.cellChannels > cellsEnd) throw new Error('the rig overlaps the rose');
