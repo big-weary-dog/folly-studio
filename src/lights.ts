@@ -18,7 +18,7 @@ import type { StoredLook as Look, StoredUser as User } from './store.ts';
 
 /** As the engine holds them (pi/src/engine.ts MAX_QUEUE, pi/src/protocol.ts MAX_SEND). */
 const MAX_QUEUE = 20, MAX_SEND = 64 * 1024;
-const BAKE_IT = 'bake it (Check & bake) to play it on the lights. Bakes are made where bubblewrap is.';
+const BAKE_IT = 'bake it (Check & bake) to play it on the lights.';
 export const JUKEBOX_NOW = 'The lights are in Jukebox: Play next or Add to the end';
 export type Play = { kind: 'live', look: object }
   | { kind: 'baked', id: string, title: string, sha256: string, duration: number } | { error: string };

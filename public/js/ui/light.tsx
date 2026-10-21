@@ -139,7 +139,7 @@ function LiveLooks() {
       disabled={!lights || busy} onChange={(liveLooks) => change({ liveLooks }, (l) => (l.liveLooks
         ? 'Library looks play live.' : 'Only baked looks play on the lights.'))} />
     <p class="field-hint">On: a look made only of library modules plays live from Studio, its controls working.
-      Off: only baked looks play. A look with custom code always needs a bake, made where bubblewrap is.</p>
+      Off: only baked looks play.</p>
     <div class="import-tabs" role="group" aria-label="Mode">
       {Object.entries(MODES).map(([k, text]) => <button type="button" class="tab import-tab"
         aria-pressed={lights?.mode === k} disabled={!lights || busy}

@@ -81,8 +81,7 @@ function NowPlaying({ s }: { s: PiState }) {
   const share = l.left != null && l.duration ? Math.min(1, 1 - l.left / l.duration) : null;
   return (
     <div class="jb-now">
-      <p class="jb-kicker">On the lights{l.kind === 'baked' ? ' · baked' : l.kind === 'live' ? ' · from Studio' : ''}
-      </p>
+      <p class="jb-kicker">On the lights{l.kind === 'baked' ? ' · baked' : ''}</p>
       <h1>{l.title}</h1>
       {s.switching && <p class="pi-sub">Switching to {s.switching.title}</p>}
       {share != null

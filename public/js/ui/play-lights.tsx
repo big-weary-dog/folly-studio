@@ -30,11 +30,10 @@ function PlayLights({ look, dirty, done }: { look: { id: string, title: string }
   const off = !lights || !!why || busy;
   return <>
     <p class="dialog-text"><strong>{look.title}</strong>{' '}
-      {play?.kind === 'live' && 'plays live: its controls work on the lights\' page.'}
+      {play?.kind === 'live' && <>plays live, its controls on <a href="/pi/">the lights' page</a>.</>}
       {play?.kind === 'baked' && 'plays its bake, without live controls.'}
       {!lights && !error && 'Checking…'}</p>
     {(why || error) && <p class="dialog-text error" role="alert">{error || why}</p>}
-    <p class="dialog-text">The queue is on <a href="/pi/">the lights' page</a>.</p>
     <div class="dialog-actions lights-actions">
       <button class="btn" type="button" disabled={off} onClick={() => send('end')}>Add to queue</button>
       <button class="btn" type="button" disabled={off} onClick={() => send('next')}>Play next</button>

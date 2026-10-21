@@ -75,7 +75,7 @@ and the engine's control page (`/pi/`) both add to it. Custom code never reaches
   render box; without it a bake is 503), so a Pi without bubblewrap has none to play.
 
 Studio picks the way: live when it may (the controls work), else baked, else it refuses, saying why ("Has custom
-code: bake it (Check & bake) to play it on the lights…", "Live looks are off: bake it…", each naming bubblewrap).
+code: bake it (Check & bake) to play it on the lights…", "Live looks are off: bake it…").
 
 **The queue** (the engine's, in memory; a restart empties it). At most 20 items, each
 `{ key, id, title, kind: 'look' | 'live' | 'baked', by?, duration }`: `look` is one of the engine's own
