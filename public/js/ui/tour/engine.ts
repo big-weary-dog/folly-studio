@@ -76,7 +76,12 @@ function check() {
   const o = open.value;
   if (o?.mode !== 'step' || o.done || !here.value) return;
   const s = o.path.steps[o.i], c = ctx.value;
-  if (!o.base) { open.value = { ...o, base: { v: s.begin?.(c) } }; return; }
+  if (!o.base) {   // on the Studio, once it is set up; a step its setup already met waits for Next, never rushed past
+    if (c.v && !c.v.ready.value) return;
+    const base = { v: s.begin?.(c) };
+    open.value = { ...o, base, done: s.done(c, base.v) };
+    return;
+  }
   if (!s.done(c, o.base.v)) return;
   open.value = { ...o, done: true };
   if (!s.next) later = window.setTimeout(next, reducedMotion() ? 0 : 600);

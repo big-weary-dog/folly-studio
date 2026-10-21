@@ -39,6 +39,7 @@ Each step names one change from where its control starts (never already met when
 why it helps the look. Its control is scrolled into view in whatever panel scrolls and ringed, the ring following it
 as the page scrolls. The page around dims; the preview never does, and the step's card sits off it (and off the ring)
 where any place beside the ring or in a corner of the window allows. A step is done when the Studio shows what it
-asked for, and moves on by itself unless it waits for Next; Next stays
+asked for (judged from the Studio as it is set up, never while it loads), and moves on by itself unless it waits
+for Next or was met already as it opened; Next stays
 locked until then, while Skip step and Show me are always there. `test/tour-sync.test.ts` holds each step's
 controls, library names, params, pages and practice looks to the app; `test/e2e/tour.spec.js` plays every path.

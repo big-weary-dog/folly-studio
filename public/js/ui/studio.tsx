@@ -6,6 +6,7 @@ import '../../css/studio.css';
 import '../../css/params.css';
 import '../../css/side.css';
 
+import { batch } from '@preact/signals';
 import { useEffect, useState } from 'preact/hooks';
 
 import { api, statusOf } from '../api.ts';
@@ -57,9 +58,11 @@ export function Studio({ params, query }: ViewProps) {
       if (practice && !from) ({ look: from, view } = await (await import('./tour/practice.ts'))
         .loadPractice(practice, lib, rig));
       if (!alive) return;
-      st.setup(rig, lib, from);
-      pv.start(els.canvas as HTMLCanvasElement, els.sandbox, els.viewer, rig, lib);
-      if (view) pv.viewer?.setView(view);
+      batch(() => {   // ready with its preview and view set, so a tutorial step never starts on a view still changing
+        st.setup(rig, lib, from);
+        pv.start(els.canvas as HTMLCanvasElement, els.sandbox, els.viewer, rig, lib);
+        if (view) pv.viewer?.setView(view);
+      });
       if (replay) await (await replay).apply(st, pv, ctx.tl);
     }).catch((err) => {
       if (!alive) return;
