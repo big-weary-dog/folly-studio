@@ -123,6 +123,7 @@ function Chain({ st, pv }: Props) {
     if (row && pane) pane.scrollTop += row.getBoundingClientRect().top - k.top;
   });
   const click = (m: Module, i: number, e: MouseEvent) => {
+    if (st.narrow.peek() && m === sel) return;      // no settings under rows to open or close
     keep.current = { i, top: (e.currentTarget as Element).closest('.chain-row')!.getBoundingClientRect().top };
     if (l && m === sel) setShut(open ? { layer: l.id, picked: st.picked.peek() } : null);
     else st.pickModule(m.id);
