@@ -97,9 +97,12 @@ function StepCard() {
   // Back to the Studio is back to the path's practice look, if it has one.
   const practice = s.page === '/studio' && o.path.start.startsWith('/studio?');
   const goTo = () => void navigate(practice ? o.path.start : s.page!);
+  // Keyed, so the ring is never the dim's node restyled (it would slide in from the corner); from step to step it
+  // slides between controls.
   return <>
-    {ring ? <div class={cx('tour-ring', o.done && 'done')} style={{ left: `${box.x - PAD}px`, top: `${box.y - PAD}px`,
-      width: `${box.w + 2 * PAD}px`, height: `${box.h + 2 * PAD}px` }} /> : <div class="tour-dim soft" />}
+    {ring ? <div key="ring" class={cx('tour-ring', o.done && 'done')} style={{ left: `${box.x - PAD}px`,
+      top: `${box.y - PAD}px`, width: `${box.w + 2 * PAD}px`, height: `${box.h + 2 * PAD}px` }} />
+      : <div key="dim" class="tour-dim soft" />}
     <section ref={card} class={cx('tour-card tour-step', o.done && 'done')} role="dialog" aria-labelledby="tour-title"
       aria-label="Tutorial" style={place(ring ? box : null, h)}>
       <header class="tour-head"><span class="tour-count">{`${o.path.title} · ${o.i + 1} of ${o.path.steps.length}`}
