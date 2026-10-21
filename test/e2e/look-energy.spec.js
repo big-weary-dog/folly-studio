@@ -110,12 +110,12 @@ test('create automation from a setting and from the timeline picker', async ({ p
   const settingLane = page.locator('.tl-auto-row[data-name=cloudsSpeed]');
   await expect(settingLane).toBeVisible();
   await expect(page.locator('[data-tour="param:speed"] .param-chip')).toContainText('cloudsSpeed');
-  await shot('setting-created-after');
   await page.keyboard.press('Control+z');
   await expect(settingLane).toHaveCount(0);
   await expect(page.locator('[data-tour="param:speed"] .param-chip')).toHaveCount(0);
   await page.keyboard.press('Control+Shift+z');
   await expect(settingLane).toBeVisible();
+  await shot('setting-created-after');   // the drawer's closing resize has settled through Undo/Redo
   const picker = page.locator('select.tl-auto-add');
   if (process.env.AUTO_ACTION_SHOTS) {
     await picker.evaluate((el) => {
