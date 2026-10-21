@@ -107,14 +107,19 @@ export function createIdeaLog(o: { dir?: string, meta: Record<string, unknown>, 
       save();
       return chain;
     },
-    /** For the idea itself: the tokens (none when no call was recorded), and each round as `{ kind, ms, outcome }`. */
+    /** For the idea itself: the tokens (none when no call was recorded), and each round as `{ kind, ms, outcome }`,
+     * a failure's outcome plain (ownerOutcome). */
     summary() {
       const { input, cached, output } = tokens;
       return { tokens: all ? { input, cached, output } : undefined, rounds: rounds.map((r) => ({ kind: String(r.kind),
-        ms: Number(r.ms), ...(r.outcome ? { outcome: String(r.outcome).slice(0, 80) } : {}) })) };
+        ms: Number(r.ms), ...(r.outcome ? { outcome: ownerOutcome(String(r.outcome)).slice(0, 80) } : {}) })) };
     },
   };
 }
+
+/** A round's outcome as the idea's owner sees it: "failed" without its error, which can carry a provider's or a CLI's
+ * text and stays in the admin's log. */
+export const ownerOutcome = (outcome: string) => (/^failed\b/.test(outcome) ? 'failed' : outcome);
 
 /** The ideas' logs under `dir`: open one, read one back (admins), keep only the newest. `keep` 0: none written. */
 export function createIdeaLogs({ dir, keep = 300, maxBytes = 500 * 2 ** 20, log }: { dir: string, keep?: number,

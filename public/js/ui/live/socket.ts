@@ -1,6 +1,6 @@
 // The live stage's socket (SPEC-live "Socket"): the state and its updates, the server's clock (the ping with the
 // shortest round trip of the last eight), presence, /pi's engine while it drives, and reconnecting after 0.5 s,
-// doubling to 8 s, with jitter.
+// doubling to 8 s, with jitter, for good; `trouble` says why no state came: 10 s without one, or the stage was full.
 import { signal } from '@preact/signals';
 
 import type { FromClient, FromServer, Live, LiveUpdate } from '../../../../shared/schemas/live.ts';
@@ -10,6 +10,13 @@ import type { Pi } from './follow-pi.ts';
 import { applyUpdate } from './lanes.ts';
 
 const PINGS = 8, PING_GAP_MS = 120, RESYNC_MS = 30_000, FIRST_WAIT_MS = 500, MAX_WAIT_MS = 8000;
+const UNREACHABLE_MS = 10_000;
+/** Close code 1013 (try again later): the server has as many sockets as it takes (SPEC-live "Socket"). */
+const FULL = 1013;
+
+/** What a page says of `trouble`, or '' when there is none. */
+export const troubleText = (t: '' | 'unreachable' | 'full') => (t === 'full' ? 'The stage is full. Retrying…'
+  : t ? 'Can\'t reach the stage. Retrying…' : '');
 
 export function liveSocket() {
   const status = signal<'connecting' | 'open' | 'closed'>('connecting');
@@ -18,9 +25,10 @@ export function liveSocket() {
   const presence = signal<{ viewers: number, controllers: string[] }>({ viewers: 0, controllers: [] });
   const clock = signal<{ offset: number, rtt: number } | null>(null);
   const pi = signal<Pi | null>(null);   // what /pi's engine plays, while it drives
+  const trouble = signal<'' | 'unreachable' | 'full'>('');
   const sent = new Map<number, number>();
   let live: Live | null = null, ws: WebSocket | null = null, wait = FIRST_WAIT_MS, timer = 0, pingTimer = 0;
-  let samples: { offset: number, rtt: number }[] = [], pingId = 0, fails = 0, alive = true;
+  let samples: { offset: number, rtt: number }[] = [], pingId = 0, fails = 0, alive = true, troubleTimer = 0;
   let held: FromServer[] | null = null;     // a bug report's pause: messages wait here, then apply in order
   const listeners = new Set<(why: 'state' | 'pi' | LiveUpdate) => void>();
 
@@ -47,6 +55,10 @@ export function liveSocket() {
     switch (m.type) {
       case 'pong': return onPong(m.id, m.now);
       case 'state':
+        // Only a state counts as through: a full stage opens the socket, then closes it.
+        clearTimeout(troubleTimer);
+        troubleTimer = 0;
+        trouble.value = '';
         live = m.live;
         control.value = m.control;
         if (!clock.peek()) clock.value = { offset: m.now - Date.now(), rtt: Infinity };
@@ -67,6 +79,7 @@ export function liveSocket() {
   function connect() {
     if (!alive) return;
     status.value = 'connecting';
+    troubleTimer ||= window.setTimeout(() => { trouble.value ||= 'unreachable'; }, UNREACHABLE_MS);
     const s = ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/live/socket`);
     s.onopen = () => { status.value = 'open'; wait = FIRST_WAIT_MS; fails = 0; samples = []; pings(); };
     s.onmessage = (e) => {
@@ -74,10 +87,11 @@ export function liveSocket() {
       try { m = JSON.parse(String(e.data)); } catch { return; /* not ours: ignored */ }
       if (held && m.type !== 'pong') held.push(m); else onMessage(m);
     };
-    s.onclose = () => {
+    s.onclose = (e) => {
       if (ws !== s) return;
       ws = null;
       status.value = 'closed';
+      if (e.code === FULL) trouble.value = 'full';
       clearTimeout(pingTimer);
       if (!alive) return;
       // A refused upgrade looks like any other drop: after a few, ask whether the session is still good.
@@ -89,7 +103,7 @@ export function liveSocket() {
   connect();
 
   return {
-    status, rev, control, error, presence, clock, pi,
+    status, rev, control, error, presence, clock, pi, trouble,
     get live() { return live; },
     /** The server's time now, in epoch ms, as well as the pings tell. */
     now: () => Date.now() + (clock.peek()?.offset ?? 0),
@@ -109,6 +123,7 @@ export function liveSocket() {
       alive = false;
       clearTimeout(timer);
       clearTimeout(pingTimer);
+      clearTimeout(troubleTimer);
       ws?.close();
       ws = null;
     },

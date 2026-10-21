@@ -116,12 +116,38 @@ describe('the idea log', () => {
     assert.deepEqual(done.rounds.map((r) => [r.kind, r.outcome]), [['compose', '0 errors, 9 params changed'],
       ['notes', 'for 9 params changed: 0 errors, 0 params changed, kept']]);
     const log = read(path.join(dir, i.id), 'idea.json');
-    assert.deepEqual([log.request, log.outcome], ['a chase', { status: 'ready', lookId: done.lookId }]);
+    assert.deepEqual([log.request, log.level, log.outcome], ['a chase', 'quick',
+      { status: 'ready', lookId: done.lookId }], 'the level that ran');
     assert.equal(log.rounds[1].reason.length, 9);
     const failed = read(path.join(dir, j.id), 'idea.json');
     assert.deepEqual([failed.outcome.status, failed.outcome.error], ['failed', 'The model failed; please try again.']);
     assert.match(failed.rounds[0].outcome, /^failed: The model failed/);
-    assert.equal(store.ideas.get(j.id).rounds[0].kind, 'compose');
+    assert.deepEqual(store.ideas.get(j.id).rounds.map((r) => [r.kind, r.outcome]), [['compose', 'failed']]);
+  });
+
+  test('a failure\'s detail stays in the admin\'s log: the owner\'s API has none of it', async () => {
+    const dataDir = path.join(fx.tmp, 'data-idea-detail'), secret = 'codex exited 1: sk-provider-text at /home/x';
+    const claude = async (ctx) => {
+      ctx.round?.call({ ms: 1, turn: 'turn', usage: { input: 1, output: 1 } });
+      throw new Error(secret);
+    };
+    const app = await startApp({ dataDir, admins: 'Olive', generator: (deps) => createQueue({ ...deps,
+      adapterName: 'claude', adapters: { claude }, loadLibrary: () => REAL }) });
+    try {
+      const owner = await signup(app, 'otto'), admin = await signup(app, 'olive');
+      const idea = app.store.ideas.create({ owner: owner.user.id, text: 'a tide', status: 'queued',
+        generator: 'claude' });
+      app.queue.enqueue(idea);
+      await app.queue.idle();
+      const one = await owner.get(`/api/ideas/${idea.id}`), all = await owner.get('/api/ideas');
+      assert.equal(one.json.idea.status, 'failed');
+      assert.deepEqual(one.json.idea.rounds.map((r) => r.outcome), ['failed']);
+      for (const r of [one, all]) assert.ok(!r.text.includes('sk-provider-text'), r.text);
+      const log = await admin.get(`/api/admin/ideas/${idea.id}/log`);
+      assert.match(log.text, /sk-provider-text/);
+    } finally {
+      await app.close();
+    }
   });
 });
 

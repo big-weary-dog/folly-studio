@@ -11,7 +11,7 @@ import { cx, humanize, toast } from '../kit.tsx';
 import { setTitle } from '../session.ts';
 import { Fader } from './fader.tsx';
 import { controlsNow } from './lanes.ts';
-import { liveSocket } from './socket.ts';
+import { liveSocket, troubleText } from './socket.ts';
 
 const TICK_MS = 250;     // lanes move: the faders follow them this often
 const LABELS: Record<string, string> = { level: 'Intensity' };
@@ -39,9 +39,9 @@ export function ControlPage() {
   }, [control]);
   useEffect(() => { if (error) { toast(error, { kind: 'warn' }); sock.error.value = ''; } }, [error]);
   void sock.rev.value;
-  const live = sock.live, look = live?.look;
-  if (sock.status.value !== 'open' && !live) {
-    return <section class="live-control"><p>Connecting to the stage…</p></section>;
+  const live = sock.live, look = live?.look, trouble = troubleText(sock.trouble.value);
+  if (!live && (sock.status.value !== 'open' || trouble)) {
+    return <section class="live-control"><p role="status">{trouble || 'Connecting to the stage…'}</p></section>;
   }
   if (!control) {
     return (
@@ -59,6 +59,7 @@ export function ControlPage() {
         <h1>{look ? look.title : 'Nothing playing'}</h1>
         <a class="btn small ghost" href="/live">Watch</a>
       </div>
+      {trouble && <p class="lc-trouble" role="status">{trouble}</p>}
       <p class={cx('lc-driver', live?.driver === 'pi' && 'pi')} role="status">
         {live?.driver === 'pi' ? 'Live is driven from /pi. Use a control here to take it back.'
           : 'Live is driven from Live control.'}</p>
