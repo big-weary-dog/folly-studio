@@ -47,6 +47,50 @@ describe('the output transform', () => {
     assert.deepEqual(out({ 0: [1, 1, 1] }, {}, 0)(0), [0, 0, 0]);
   });
 
+  test('a cap held two frames sends by a table, byte for byte the curve: a dense sweep and every edge', () => {
+    // The curve as written in the spec, the oracle: round(255 · min(1, v^gamma · gain)), a lit channel at least floor.
+    const want = (v, gamma, gain, floor) => {
+      if (!(v > 0) || !(gain > 0)) return 0;
+      const b = Math.round(255 * Math.min(1, Math.min(v, 1) ** gamma * gain));
+      return b < floor && v * 255 >= 0.5 ? floor : b;
+    };
+    // Every 997th float32 in 0..1, then round each byte's edge the float64s and float32s either side of it.
+    const values = [-0.5, NaN, 1, 1.5, Infinity];
+    const bits = new Uint32Array(1), f32 = new Float32Array(bits.buffer), f64 = new Float64Array(1);
+    const words = new BigUint64Array(f64.buffer);
+    for (let b = 0; b <= 0x3f800000; b += 997) { bits[0] = b; values.push(f32[0]); }
+    const settings = [[2.2, [1, 1, 1], 0, 1], [2.2, [1, 0.9, 0.8], 3, 0.62], [1, [0.5, 1, 1], 0, 1],
+      [3, [1, 1, 1], 16, 0.3]];
+    for (const [gamma, balance, floor, cap] of settings) {
+      const edges = [...values];
+      for (const g of balance.map((x) => cap * x)) {
+        for (let b = 1; b < 256; b++) {
+          f64[0] = ((b - 0.5) / 255 / g) ** (1 / gamma);
+          for (let d = -4n; d <= 4n; d++) {
+            const w = words[0];
+            words[0] = w + d; edges.push(f64[0], Math.fround(f64[0])); words[0] = w;
+          }
+        }
+        edges.push(0.5 / 255, Math.fround(0.5 / 255));
+      }
+      const n = edges.length, sc = { frameChannels: 3 * n, count: n, order: [1, 0, 2],
+        addr: Int32Array.from({ length: n }, (_, k) => 3 * k) };
+      const rgb = new Float64Array(3 * n);
+      for (let k = 0; k < n; k++) rgb.fill(edges[k], 3 * k, 3 * k + 3);
+      const light = prepareLight(sc, lightOf({ gamma, balance, floor }));
+      ledChannels(sc, rgb, light, null, cap);
+      const ch = ledChannels(sc, rgb, light, null, cap);
+      assert.equal(light.curves.length, 3, 'tabled');
+      let wrong = 0;
+      for (let k = 0; k < n; k++) {
+        for (let c = 0; c < 3; c++) {
+          if (ch[3 * k + sc.order[c]] !== want(edges[k], gamma, cap * balance[c], floor)) wrong++;
+        }
+      }
+      assert.equal(wrong, 0, `gamma ${gamma}, balance ${balance}, floor ${floor}, cap ${cap}`);
+    }
+  });
+
   test("ledLight: each byte's light at full output, the curve's own rounding", () => {
     const t = ledLight({ ...LIGHT, balance: [1, 1, 0.5] });
     const byte = (i) => Math.round(t[i] * 255);
