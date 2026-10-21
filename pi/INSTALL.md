@@ -136,6 +136,34 @@ vcgencmd get_throttled                                               # again, af
 and the two files. The engine is fast enough when heartbeat-plasma's tick is ≤ 12 ms mean and ≤ 20 ms p95, and the
 dry run holds 40 fps with `late` under 0.1% of frames over the 5 minutes, with fppd running.
 
+## Relay: measuring it on site
+
+Relay to the lights (SPEC-live "Relay to the lights") has a laptop's browser render and the Pi play its frames.
+Its buffer is set by the Wi-Fi, so measure the link first, from the laptop on the site's network (DustyRose), with
+the Pi's address for `<pi>`:
+
+```sh
+ping -i 0.025 -c 2400 -s 1400 <pi>        # one minute at 40 a second, a frame's size; Windows: see below
+```
+
+On Windows, `ping -n 600 -l 1400 <pi>` (it cannot go faster than once a second without admin). Read p50, p99 and the
+max. The buffer should be p99 plus 50 ms (two frames); the default is 200 ms, and the Live tab offers 80, 400 and
+800.
+
+Then relay for 30 minutes, from Chrome on the laptop, plugged in:
+
+1. Open Studio's **Live** tab on the Pi as a curator, and turn on **Relay to the lights** at the default buffer.
+   The tab says the buffer it holds, the misses and that it keeps the screen awake.
+2. On the Pi, follow the engine's stats line (`journalctl -u studio-live -f`): it says `relay <who> on, ahead N,
+   missed M`. Play a few looks, push a few knobs (each lands one buffer later).
+3. Hide the tab (another tab in front) for 10 minutes: the stats line keeps `fps 40` and `relay … on`.
+4. Open the Live tab in a second browser and turn relay on there: it is refused, saying who relays.
+5. Turn the laptop's Wi-Fi off: within half a second the lights dip and play the Pi's own render, and the stats
+   line says `relay off`. Wi-Fi back on: the tab relays again within a few seconds.
+
+Done when the 30 minutes play at 40 fps with at most 0.1% of frames missed (`missed` over 72,000 frames: ≤ 72), and
+steps 3–5 behave as said. Send back the ping summary and the stats lines.
+
 ## Updating
 
 ```sh

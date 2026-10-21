@@ -59,6 +59,13 @@ look sent by `ref` (its code always ours), shown with who queued it.
 - The socket also sends what plays (`source`: the look, its modules by ref, at each change) and its clock in the
   state, so Studio's Live tab can follow a dry run behind Studio's `/pi` (SPEC-live "Following /pi"). The Pi itself
   connects to nothing and needs no setting for it.
+- **Relay to the lights** (SPEC-live "Relay to the lights"): a page that may drive can take the relay lease
+  (`relay-start`) and send binary frames, the look's rgb as Uint16 rendered ahead in its browser; the engine plays
+  them in place of its own render, through the same flash guard, light settings, master, rose and compressor. A
+  late frame is held for 100 ms, then the engine dips to its own render, and goes back after 1 s of steady frames.
+  One sender at a time; the lease ends when it stops, closes, or sends nothing for a second (`pi/src/relay.ts`).
+  The stats line adds `relay <who> on|off, ahead N, missed M` while one holds it. Measuring it on site:
+  [INSTALL.md](INSTALL.md#relay-measuring-it-on-site).
 - A dry run renders only while a page is open (here or through Studio's `/pi/`; Studio's own feed, whose hello says
   `feed: true`, does not count), and picks up where it stopped. The Pi always plays.
 - The page is Preact on Studio's own components and styles (`pi/page/`). Changed, run `npm run pi:page` and commit

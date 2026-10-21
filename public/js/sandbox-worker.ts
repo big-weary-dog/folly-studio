@@ -7,6 +7,7 @@ import {
 } from './pattern-core.ts';
 import { extrasOf } from '../../shared/plays.ts';
 import { setLive } from './live-set.ts';
+import { relayAhead } from './relay-ahead.ts';
 import type { Extra, ToSandbox } from './runtime.ts';
 
 type Message<T> = Extract<ToSandbox, { type: T }>;
@@ -21,6 +22,9 @@ let layerMs: Record<string, number> = {};     // layer id → its ms last frame:
 const compiledByKey = new Map<string, { code?: string; kind: string; compiled: Compiled | null; error: string }>();
 const now = () => performance.now();
 const message = (e: unknown) => ((e as Error)?.message || String(e));
+
+// Relay to the lights: the look rendered ahead on its own timer (relay-ahead.ts).
+const relaying = relayAhead(() => ({ scene, layers: prepared, live }), post);
 
 function onInit(msg: Message<'init'>) {
   scene = prepareScene(msg.rig);
@@ -77,6 +81,7 @@ function onLook(msg: Message<'look'>) {
   layerMs = Object.fromEntries(next.map((L) => [L.id, 0]));
   globals = extrasOf(msg);
   live = prepareLook(globals, msg.clock === 'fresh' ? undefined : live ?? undefined);
+  relaying.looked();
   post({ type: 'compiled', layers: report });
 }
 
@@ -111,7 +116,8 @@ function onRender(msg: Message<'render'>) {
 }
 
 // Each takes the message its `type` names.
-const HANDLERS: Record<string, (m: never) => void> = { init: onInit, look: onLook, frame: onFrame, render: onRender };
+const HANDLERS: Record<string, (m: never) => void> = { init: onInit, look: onLook, frame: onFrame, render: onRender,
+  relay: relaying.relay };
 self.addEventListener('message', (event) => {
   const msg = event.data;
   if (!msg || typeof msg !== 'object') return;

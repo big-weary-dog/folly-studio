@@ -3,6 +3,7 @@
 import { z } from 'zod';
 
 import type { PiSource } from '../../shared/schemas/live.ts';
+import type { RelayState } from './relay.ts';
 
 const At = z.enum(['now', 'next', 'end']);
 /** Seconds the playing look fades out over, and the next in (SPEC-liveplay "Messages"). */
@@ -23,6 +24,9 @@ export const FromPage = z.discriminatedUnion('type', [
   z.object({ type: z.literal('level'), value: z.number().min(0).max(1) }),
   z.object({ type: z.literal('blackout'), on: z.boolean() }),
   z.object({ type: z.literal('take') }),
+  /** The relay lease (SPEC-live "Relay to the lights"): its frames are binary messages. */
+  z.object({ type: z.literal('relay-start') }),
+  z.object({ type: z.literal('relay-stop') }),
   // The queue (SPEC-offline "Playing on the lights"): one of the engine's own looks, a look Studio sent, and moves.
   z.object({ type: z.literal('queue'), id: z.string().max(64), at: At.optional(), fade: Fade.optional() }),
   z.object({ type: z.literal('unqueue'), key: z.string().max(16) }),
@@ -69,6 +73,8 @@ export type PiState = {
   looks: { id: string, title: string, playable: boolean, error?: string, duration: number }[],
   out: { dryRun: boolean, fps: number, renderMs: number, genW: number, genPeakW: number, gen: number, cut: number,
     ddpErrors: number, lastError: string },
+  /** Who relays frames to the lights, and how it goes (null: no one). */
+  relay: RelayState | null,
 };
 /** The state as the engine has it; the server adds who and the mode. */
 export type EngineState = Omit<PiState, 'mode' | 'driver' | 'here'>;
@@ -80,4 +86,6 @@ export type ToPage =
   | { type: 'source', source: PiSource }
   /** Behind Studio's proxy only: who drives its Live tab, this page or Live control. */
   | { type: 'driver', from: 'pi' | 'live' }
+  /** The relay lease: this socket holds it or not, and why not. */
+  | { type: 'relay', holding: boolean, error?: string }
   | { type: 'error', error: string };
