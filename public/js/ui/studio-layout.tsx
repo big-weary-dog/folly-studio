@@ -3,9 +3,8 @@
 // dock on a wide screen, and in their own tabs on a phone; Check & bake opens from Export (or the phone's Look tab).
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'preact/hooks';
 
-import { api, statusOf } from '../api.ts';
+import { api } from '../api.ts';
 import type { Listed } from '../../../shared/schemas/api.ts';
-import { signedOut } from './session.ts';
 import { openBake } from './bake.tsx';
 import { ChainPane } from './chain.tsx';
 import { DrawerSlot } from './drawer.tsx';
@@ -201,7 +200,7 @@ function LookTab({ st, pv }: { st: Studio; pv: Preview }) {
     api.looks('mine').then(({ looks }) => {
       const when = (l: Listed) => Date.parse(l.updatedAt || '') || 0;
       setMine((looks || []).slice().sort((a, b) => when(b) - when(a)).slice(0, 8));
-    }).catch((err) => { at.current = 0; if (statusOf(err) === 401) signedOut(); });
+    }).catch(() => { at.current = 0; });
   }, [shown]);
   const id = st.lookId.value;
   return (

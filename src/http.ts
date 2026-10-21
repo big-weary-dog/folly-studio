@@ -9,6 +9,14 @@ import type { z } from 'zod';
 
 import { problem } from '../shared/schemas/look.ts';
 import { scrubText } from '../public/js/scrub.ts';
+import type { StoredUser } from './store.ts';
+
+/** A route's needs (auth.ts's sessionHook): `public` needs no session; `role`, that role or above. */
+export type RouteConfig = { public?: boolean, role?: 'curator' | 'admin' };
+declare module 'fastify' {
+  interface FastifyRequest { user: StoredUser | null }
+  interface FastifyContextConfig extends RouteConfig {}
+}
 
 type Say = (...a: unknown[]) => void;
 export type Log = Say & { info: Say, debug: Say, warn: Say, error: Say };
@@ -114,14 +122,27 @@ export function errorHandler(log: Log) {
 
 type Handler = (req: any, reply: FastifyReply) => unknown;  // each route types its own params
 /**
- * Routes from a table ({ 'POST /looks/:id/bake': handler }, or [handler, { public: true }] for one that needs no
- * session), each path's other methods answered 405 with Allow.
+ * Every /admin route says who it is for (an onRoute hook): one that names no role stops the server at start, rather
+ * than serving every member. (The 405 answers are public, and say nothing.)
  */
-export function routes(app: FastifyInstance, table: Record<string, Handler | [Handler, { public?: boolean }]>) {
+export function adminsDeclared(route: { url: string, method: string | string[], config?: RouteConfig }) {
+  if (/(^|\/)admin(\/|$)/.test(route.url) && !route.config?.role && !route.config?.public) {
+    throw new Error(`${route.method} ${route.url} needs a role in its routes() config`);
+  }
+}
+
+type Entry = Handler | readonly [Handler, RouteConfig];
+/** A route for admins only, for a routes() table. */
+export const forAdmins = (handler: Handler) => [handler, { role: 'admin' }] as const;
+/**
+ * Routes from a table ({ 'POST /looks/:id/bake': handler }, or [handler, config]: { public: true } for one that needs
+ * no session, { role } for one that needs a role), each path's other methods answered 405 with Allow.
+ */
+export function routes(app: FastifyInstance, table: Record<string, Entry>) {
   const allowed = new Map<string, string[]>();
   for (const [key, entry] of Object.entries(table)) {
     const [method, url] = key.split(' ') as [string, string];
-    const [handler, config = {}] = Array.isArray(entry) ? entry : [entry];
+    const [handler, config = {}] = typeof entry === 'function' ? [entry] : entry;
     app.route({ method, url, handler: handler as RouteHandlerMethod, config });
     allowed.set(url, [...allowed.get(url) ?? [], method]);
   }

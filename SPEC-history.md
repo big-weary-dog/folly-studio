@@ -33,7 +33,7 @@ A restore is an edit plus a save (`PUT /api/looks/:id` with `restoredFrom: n`; 4
 else is reviewed afresh.
 
 `GET /api/looks/:id/versions` → `{ versions: [versionListed] }` lists them newest first, the look as saved on top,
-and `GET /api/looks/:id/versions/:n` → `{ version }` has one with its content (404 when none); both answer 403 to
+and `GET /api/looks/:id/versions/:n` → `{ version }` has one with its content (404 when none); both answer 404 to
 anyone but the owner:
 `versionListed = { n, how, name?, from?, ideaId?, ask?, savedAt, title, layerCount, duration, bpm, tempoGuessed?,
 reviewed, current?, shared?, palette }`: `current` the look as saved (its `shared` too), `palette` up to 8 of its
@@ -43,11 +43,11 @@ colours (the house palette when it has none), `tempoGuessed` when its `bpm` is t
 ## Named versions
 
 A name (1–80 characters) keeps a version past the 20: at most 50 of a look's versions are named (409 for one more).
-`PUT /api/looks/:id { …, versionName }` is "Save a named version…": the save, then the version the look is now
-(new or not) takes the name. `PUT /api/looks/:id/versions/:n { name }` → `{ version: versionListed }` names version
-`n`, the look as saved or a kept one (404 when none), or `{ name: null }` unnames it, and the next save prunes it
-with the rest; both are the owner's alone (403). A version keeps its name when it is kept and when it is restored
-from (the restore is a version of its own, unnamed).
+`PUT /api/looks/:id { …, versionName }` is "Save a named version…": the save, then the version the look is now (new or
+not) takes the name. `PUT /api/looks/:id/versions/:n { name }` → `{ version: versionListed }` names version `n`, the
+look as saved or a kept one (404 when none), or `{ name: null }` unnames it, and the next save prunes it with the
+rest; both are the owner's alone (404 to anyone else). A version keeps its name when it is kept and when it is
+restored from (the restore is a version of its own, unnamed).
 
 ## The History drawer
 

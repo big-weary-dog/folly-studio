@@ -6,6 +6,7 @@ import '../../../css/live.css';
 
 import { useEffect, useRef } from 'preact/hooks';
 
+import { can } from '../../../../shared/policy.ts';
 import { reportPage } from '../bug-report.tsx';
 import { Rose } from '../rose.tsx';
 import { cx } from '../kit.tsx';
@@ -54,7 +55,7 @@ export function LivePage() {
           {live && <span class="live-sub live-driver">driven from {fromPi ? '/pi' : 'Live control'}</span>}
           {driving && <span class="live-sub">controlled by {driving}</span>}
           <span class="live-sub live-count">{who.viewers} watching</span>
-          {(user.value?.role === 'admin' || new URLSearchParams(location.search).has('stats'))
+          {(can(user.value, 'admin') || new URLSearchParams(location.search).has('stats'))
             && <span class="live-stats" aria-hidden="true">{stage.stats}</span>}
           {sock.control.value && <a class="btn small" href="/live/control">Control</a>}
         </div>

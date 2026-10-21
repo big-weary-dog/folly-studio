@@ -4,13 +4,14 @@ import '../../css/admin.css';
 
 import type { ComponentType } from 'preact';
 
+import { can } from '../../../shared/policy.ts';
 import { user, type ViewProps } from './session.ts';
 
 const TABS = [['models', 'Models'], ['access', 'Access'], ['light', 'Light'], ['reports', 'Reports']];
 
 /** The page under the Admin tabs, `tab` lit. */
 export const withTabs = (Page: ComponentType<ViewProps>, tab: string) => (props: ViewProps) => <>
-  {user.value?.role === 'admin' && <nav class="seg admin-tabs" aria-label="Admin">
+  {can(user.value, 'admin') && <nav class="seg admin-tabs" aria-label="Admin">
     {TABS.map(([id, text]) => <a class="seg-btn" data-tab={id} href={`/admin/${id}`}
       aria-current={id === tab ? 'page' : undefined}>{text}</a>)}
     <a class="seg-btn" data-tab="pi" href="/pi/" target="_blank" rel="noopener"

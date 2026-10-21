@@ -5,9 +5,9 @@ import '../../css/reports.css';
 import { useEffect, useState } from 'preact/hooks';
 
 import type { ReportSummary } from '../../../shared/schemas/report.ts';
-import { api, statusOf } from '../api.ts';
+import { api } from '../api.ts';
 import { cx, timeAgo } from './kit.tsx';
-import { setTitle, signedOut, type ViewProps } from './session.ts';
+import { setTitle, type ViewProps } from './session.ts';
 
 type Full = Awaited<ReturnType<typeof api.bugReport>>['report'];
 const shotUrl = (id: string) => `/api/admin/reports/${encodeURIComponent(id)}/shot`;
@@ -17,10 +17,7 @@ export function ReportsPage({ query }: ViewProps) {
   const [open, setOpen] = useState<string | null>(query.get('id'));
   useEffect(() => {
     setTitle('Reports');
-    api.reports().then((r) => setList(r.reports), (err) => {
-      if (statusOf(err) === 401) return signedOut();
-      setError((err as Error).message);
-    });
+    api.reports().then((r) => setList(r.reports), (err) => setError((err as Error).message));
   }, []);
   return (
     <div class="page reports-page">

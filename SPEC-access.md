@@ -9,14 +9,17 @@ Who has an account, what each role may do, the Admin pages, and who may use the 
 `user = { id, username, role: 'member' | 'curator' | 'admin' }` (curators listed in `STUDIO_CURATORS`, admins in
 `STUDIO_ADMINS`; an admin is also a curator). Signing up or in is limited per client address (100 a minute) and, for
 failures, per address and username (10 a minute): 429 with `Retry-After`. Password hashes run 3 at once with 30
-waiting; past that, 429 "busy".
+waiting; past that, 429 "busy". A route that needs a session is 401 without one; the app takes a 401 from anything
+but `/api/me`, `/api/login` and `/api/signup` as the session ending, and goes back to sign-in.
 
 ## Who may do what
 
-A look is its owner's: only they edit or delete it, and others see it only when it is shared. A curator may also
-mark a look they can see reviewed, and bake it; admins are curators too, and alone use the Admin pages and their
-`/api/admin` routes (403 for anyone else), the Pi preview (SPEC "The Pi preview") and Deep while it is admins' only.
-Who controls the live stage is its own setting (SPEC-live "Settings").
+A look is its owner's: only they edit or delete it, and others see it only when it is shared. Asking for what a look
+does not allow them, anyone else is told it is not found (404), shared or not, so an unshared look is never revealed.
+A curator may also mark a look they can see reviewed, and bake it; admins are curators too, and alone use the Admin
+pages and their `/api/admin` routes (403 for anyone else; each such route names its role, or the server does not
+start), the Pi preview (SPEC "The Pi preview") and Deep while it is admins' only. Who controls the live stage is its
+own setting (SPEC-live "Settings").
 
 ## Admin
 

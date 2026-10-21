@@ -12,7 +12,7 @@ import { lightRoutes } from './api-light.ts';
 import { reportRoutes } from './api-reports.ts';
 import { lookRoutes } from './api-looks.ts';
 import { modelRoutes } from './api-models.ts';
-import { type Auth, COOKIE_NAME, SESSION_TTL_MS } from './auth.ts';
+import { type Auth, COOKIE_NAME, SESSION_TTL_MS, sessionHook } from './auth.ts';
 import type { Queue } from './app.ts';
 import { type createBakeQueue, removeFrames } from './bake.ts';
 import type { createFramesCache } from './frames-cache.ts';
@@ -24,7 +24,7 @@ import type { Reports } from './reports/store.ts';
 import type { Hub } from './live/hub.ts';
 import type { createPreviews } from './previews/index.ts';
 import { liveRoutes } from './live/routes.ts';
-import { checkMutation, HttpError, type Log, type Logger, parse, routes, sendJson } from './http.ts';
+import { adminsDeclared, checkMutation, HttpError, type Log, type Logger, parse, routes, sendJson } from './http.ts';
 import type { LiveSettings } from '../shared/schemas/live.ts';
 import { cannot, TRANSPORT_CAPS } from '../shared/schemas/models.ts';
 import type { createLoaders } from './static.ts';
@@ -35,10 +35,7 @@ export const WAIT_MS = 25_000;
 const WAITS_PER_USER = 6;
 
 type Stored = NonNullable<ReturnType<Auth['authenticate']>>['user'];
-declare module 'fastify' {
-  interface FastifyRequest { user: Stored | null }
-  interface FastifyContextConfig { public?: boolean }
-}
+
 
 /** Hand an idea to the generator queue; if that fails, mark the idea failed. */
 export function enqueueIdea({ queue, store, log }: { queue: Queue, store: Pick<Store, 'ideas'>, log: Logger },
@@ -70,10 +67,8 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
   const limits = { max: 10, ipMax: 100, windowMs: 60_000, ...o.rateLimit };
   return async (api: FastifyInstance) => {
     api.addHook('onRequest', checkMutation);
-    api.addHook('onRequest', async (req) => {
-      req.user = auth.authenticate(req.cookies[COOKIE_NAME])?.user ?? null;
-      if (!req.routeOptions.config.public && !req.user) throw new HttpError(401, 'Log in first.');
-    });
+    api.addHook('onRoute', adminsDeclared);
+    api.addHook('onRequest', sessionHook(auth));
     api.addHook('onSend', sendJson);
 
     const nameOf = (req: FastifyRequest) => {
@@ -130,7 +125,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       reply.raw.once('close', wake); // the client went away
     });
 
-    const reports = reportRoutes(api, { auth, reports: o.reports, build: o.build, tail: o.tail });
+    const reports = reportRoutes(api, { reports: o.reports, build: o.build, tail: o.tail });
     await api.register(liveRoutes({ store, auth, hub: o.hub, settings: o.live, listed: looks.listed }));
     routes(api, {
       'POST /signup': [signIn(201, (req) => auth.signup(parse(Signup, req.body))), { public: true }],
@@ -151,7 +146,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         // Only the prompted models explore (SPEC-generators "Explore"); the others' ideas say nothing of it.
         const explore = TRANSPORT_CAPS[picked.entry.via].explores ? asked : undefined;
         if (explore === 'deep' && !DEEP.enabled) throw new HttpError(400, 'Deep is off for now; try Explore.');
-        if (explore === 'deep' && DEEP.adminOnly && auth.roleOf(req.user) !== 'admin') {
+        if (explore === 'deep' && DEEP.adminOnly && !auth.can(req.user, 'admin')) {
           throw new HttpError(403, 'Deep is for admins for now; try Explore.');
         }
         const refused = access.check(req.user!, picked.entry, Date.now(), explore); // no await to the create
@@ -167,7 +162,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       // for, else the one that made the look; one at a time per look.
       'POST /looks/:id/refine': async (req, reply) => {
         const look = store.looks.get((req.params as { id: string }).id);
-        if (!look || look.owner !== req.user!.id) throw new HttpError(404, 'Look not found.');
+        if (!look || !auth.can(req.user, 'edit', look)) throw new HttpError(404, 'Look not found.');
         const { text, model, critique, fix } = parse(RefineBody, req.body);
         const made = model ?? (look.ideaId ? store.ideas.get(look.ideaId)?.model : undefined);
         const picked = models.pick(made, auth.roleOf(req.user), { paid: access.state(req.user!).unlocked });
@@ -201,10 +196,10 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         return { idea: await store.ideas.update(idea.id, { undone: true }) };
       },
       ...modelRoutes({ auth, models, access }),
-      ...lightRoutes({ auth, light: o.light }),
-      ...ideaLogRoutes({ auth, logs: o.ideaLogs }),
+      ...lightRoutes({ light: o.light }),
+      ...ideaLogRoutes({ logs: o.ideaLogs }),
       ...reports,
-      ...accessRoutes(api, { auth, access, store }),
+      ...accessRoutes(api, { access, store }),
       ...looks.routes,
       ...framesRoutes({ framesDir, cache: frames, visibleLook: looks.visibleLook }),
       'GET /library': [async () => ({ patterns: loaders.loadLibrary()

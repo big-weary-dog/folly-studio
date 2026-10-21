@@ -1,12 +1,13 @@
 // When something fails in the browser: a look whose save fails is never shared (studio-store's setShared), so the
 // gallery never gets an older copy than the one on screen; a lazy part that fails to load says so (kit's lazy) when
-// something is unsaved.
+// something is unsaved; a session that ends mid-call goes back to sign-in (api.ts's onSignedOut), and the call it
+// ended says nothing.
 import assert from 'node:assert/strict';
 
 import { describe, test, vi } from 'vitest';
 
 Object.assign(globalThis, { matchMedia: () => ({ matches: false, addEventListener() {}, addListener() {} }) });
-const { api } = await import('../public/js/api.ts');
+const { api, onSignedOut, statusOf } = await import('../public/js/api.ts');
 const { createStudio } = await import('../public/js/ui/studio-store.ts');
 const { lazy, toastHistory } = await import('../public/js/ui/kit.tsx');
 const { leaveGuard } = await import('../public/js/ui/session.ts');
@@ -45,5 +46,28 @@ describe('Lazy parts', () => {
       quiet.mockRestore();
       delete leaveGuard.isDirty;
     }
+  });
+});
+
+describe('Signed out', () => {
+  test('a 401 calls onSignedOut and the call never settles; /me, /login and /signup just say 401', async () => {
+    const asked: string[] = [];
+    vi.stubGlobal('fetch', async (path: string) => {
+      asked.push(path);
+      return new Response('{"error":"Sign in first."}', { status: 401 });
+    });
+    let out = 0;
+    onSignedOut(() => out++);
+    try {
+      let settled = false;
+      void api.ideas().finally(() => { settled = true; });
+      await new Promise((r) => setTimeout(r, 10));
+      assert.deepEqual([out, settled], [1, false]);
+      for (const call of [api.me(), api.login('a', 'b'), api.signup('a', 'b')]) {
+        assert.equal(statusOf(await call.catch((err) => err)), 401);
+      }
+      assert.equal(out, 1);
+      assert.equal(asked.length, 4);
+    } finally { vi.unstubAllGlobals(); }
   });
 });

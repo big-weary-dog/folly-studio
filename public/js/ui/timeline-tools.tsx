@@ -3,9 +3,8 @@
 // picks one of my looks or a gallery look to play after this one.
 import { useEffect, useId, useState } from 'preact/hooks';
 
-import { api, statusOf } from '../api.ts';
+import { api } from '../api.ts';
 import type { Listed } from '../../../shared/schemas/api.ts';
-import { signedOut } from './session.ts';
 import { cx, openDialog } from './kit.tsx';
 import type { Studio } from './studio-store.ts';
 import { optionText } from './bindings.ts';
@@ -118,9 +117,9 @@ function importLookDialog(st: Studio, tl: TimelineState) {
   return openDialog<boolean>({ title: 'Import a look', className: 'import-dialog', body: (close) => {
     const [scope, setScope] = useState<keyof typeof SCOPES | null>(null);
     const [list, setList] = useState<Listed[] | string>('Loading…'), [status, setStatus] = useState('');
-    /** An API call → its result, or null after saying why (a 401 signs out). */
+    /** An API call → its result, or null after saying why. */
     const ask = <T,>(call: Promise<T>, said: (m: string) => void) => call.catch((err) => {
-      if (statusOf(err) === 401) { close(false); signedOut(); } else said(err.message);
+      said(err.message);
       return null;
     });
     async function show(to: keyof typeof SCOPES) {

@@ -108,8 +108,8 @@ describe('looks', () => {
 
     // Shared: visible, still not editable or deletable by others.
     assert.equal((await bob.get(`/api/looks/${a1.id}`)).json.look.title, 'First');
-    assert.equal((await bob.put(`/api/looks/${a1.id}`, { title: 'Mine now' })).status, 403);
-    assert.equal((await bob.del(`/api/looks/${a1.id}`)).status, 403);
+    assert.equal((await bob.put(`/api/looks/${a1.id}`, { title: 'Mine now' })).status, 404);
+    assert.equal((await bob.del(`/api/looks/${a1.id}`)).status, 404);
 
     // Unshare: gone again.
     await alice.put(`/api/looks/${a1.id}`, { shared: false });
@@ -158,7 +158,7 @@ describe('looks', () => {
     assert.equal(look.shared, true);
 
     assert.equal((await alice.put(`/api/looks/${look.id}`, { reviewed: true })).status, 403);
-    assert.equal((await bob.put(`/api/looks/${look.id}`, { reviewed: true })).status, 403);
+    assert.equal((await bob.put(`/api/looks/${look.id}`, { reviewed: true })).status, 404, 'not theirs');
     // Echoing the unchanged value is harmless.
     assert.equal((await alice.put(`/api/looks/${look.id}`, { title: 'Review me', reviewed: false })).status, 200);
 
@@ -172,8 +172,8 @@ describe('looks', () => {
     assert.equal(ok.status, 200, ok.text);
     assert.equal(ok.json.look.reviewed, true);
     assert.equal((await bob.get(`/api/looks/${look.id}`)).json.look.reviewed, true);
-    // A curator may not edit someone else's content.
-    assert.equal((await carol.put(`/api/looks/${look.id}`, { title: 'Curated', reviewed: true })).status, 403);
+    // A curator may not edit someone else's content: to them it is not found.
+    assert.equal((await carol.put(`/api/looks/${look.id}`, { title: 'Curated', reviewed: true })).status, 404);
 
     // New code from the owner clears the review, and the bake of the old code.
     const edited = await alice.put(`/api/looks/${look.id}`, { layers: [layer({ level: 0.3 })] });
@@ -209,7 +209,7 @@ describe('looks', () => {
       .json.look;
     assert.equal((await alice.get(`/api/looks/${calm.id}/frames`)).status, 404, 'nothing baked yet');
 
-    assert.equal((await bob.post(`/api/looks/${strobe.id}/bake`)).status, 403, 'not the owner, not a curator');
+    assert.equal((await bob.post(`/api/looks/${strobe.id}/bake`)).status, 404, 'not the owner, not a curator');
     assert.equal((await bob.post(`/api/looks/${calm.id}/bake`)).status, 404, 'private');
     await app.previews.idle(); // the shared look's gallery preview renders it too
     const before = box.renders;
@@ -272,7 +272,7 @@ describe('looks', () => {
     assert.equal((await put(carol, { reviewed: true, flashOverride: ' ok ' })).status, 400, 'a real reason');
     assert.equal((await put(carol, { flashOverride: 'The finale, announced and fenced off.' })).status, 400,
       'only with reviewed: true');
-    assert.equal((await put(bob, { reviewed: true, flashOverride: 'I like it a lot.' })).status, 403);
+    assert.equal((await put(bob, { reviewed: true, flashOverride: 'I like it a lot.' })).status, 404);
 
     const ok = await put(carol, { reviewed: true, flashOverride: ' The finale, announced and fenced off. ' });
     assert.equal(ok.status, 200, ok.text);

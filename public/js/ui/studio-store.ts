@@ -3,13 +3,13 @@
 // and module, what the sandbox runs). Edits go through edit*(); save() and setShared() talk to the server.
 import { batch, computed, signal } from '@preact/signals';
 
-import { api, statusOf } from '../api.ts';
+import { api } from '../api.ts';
 import { extrasOf, PLAYS, type PlaysKey } from '../../../shared/plays.ts';
 import type { Automation, Globals, Module } from '../../../shared/schemas/look.ts';
 import type { Look, LookPatch, User, Version } from '../../../shared/schemas/api.ts';
 import type { LibraryEntry, ModuleEntry, Rig } from '../../../shared/schemas/rig.ts';
 import { keepStandardTitles } from '../../../shared/standard-modules.ts';
-import { replaceUrl, setTitle, signedOut } from './session.ts';
+import { replaceUrl, setTitle } from './session.ts';
 import { pref, reducedMotion, toast } from './kit.tsx';
 import { type AiStep, changes, CONTENT, createSteps, type EditOptions, type Step } from './history/steps.ts';
 import { createLayerStatus } from './layer-status.ts';
@@ -327,7 +327,6 @@ export function createStudio(me: User | null) {
     },
   };
   const failed = (err: unknown, prefix = '') => {
-    if (statusOf(err) === 401) return signedOut();
     toast(`${prefix}${(err as Error).message}`, { kind: 'error', timeout: prefix ? 8000 : undefined });
   };
   const onNarrow = () => { narrow.value = NARROW.matches; };
