@@ -4,6 +4,7 @@ import { afterEach } from 'vitest';
 import WebSocket from 'ws';
 
 import type { EngineState, Mode, ToPage } from '../src/protocol.ts';
+import type { Relay } from '../src/relay.ts';
 import { controlServer } from '../src/server.ts';
 import { engineOn, lib } from './fixture.ts';
 
@@ -11,12 +12,13 @@ const servers: { close(): Promise<void> }[] = [];
 afterEach(async () => { for (const s of servers.splice(0)) await s.close(); });
 
 /** A server on a free port (Live Play unless said), its engine playing fire. */
-export async function serve(pin = '', clock = { t: 0 }, base = '', mode: Mode = 'live') {
-  const r = engineOn();
+export async function serve(pin = '', clock = { t: 0 }, base = '', mode: Mode = 'live', relay?: Relay) {
+  const r = engineOn([], undefined, undefined, relay);
   r.engine.play('fire');
   r.run(0.3);
-  const state = () => ({ ...r.engine.state(), looks: [], out: {} } as unknown as EngineState);
-  const s = await controlServer({ engine: r.engine, lib, state, pin, mode, port: 0, host: '127.0.0.1', base,
+  const state = () => ({ ...r.engine.state(), looks: [], out: {}, relay: relay?.state() ?? null } as unknown as
+    EngineState);
+  const s = await controlServer({ engine: r.engine, lib, state, pin, mode, relay, port: 0, host: '127.0.0.1', base,
     now: () => clock.t });
   servers.push(s);
   return { ...r, server: s, origin: `http://127.0.0.1:${s.port}`, page: `http://127.0.0.1:${s.port}${base}`, clock };

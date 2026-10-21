@@ -17,6 +17,7 @@ import type { Rig } from '../../shared/schemas/rig.ts';
 import type { Baked } from './baked.ts';
 import { liveLook, type LiveLook } from './controls.ts';
 import type { Library, PiLook } from './library.ts';
+import type { Relay } from './relay.ts';
 
 export const FADE = { switch: 0.25, queue: 1, blackout: 0.3, level: 0.05, exit: 1 };   // seconds
 export const MAX_QUEUE = 20;
@@ -36,7 +37,8 @@ const ease = (e: Ease, dt: number) => {
 export type EngineOptions = { rig: Rig, lib: Library, looks: () => Map<string, { look: PiLook | null, error?: string }>,
   safe: string, output: (cells: Uint8Array) => void, log?: (line: string) => void, now?: () => number,
   light?: Light,     // the light settings (pi/light.json): the output transform, and the light the flash guard judges
-  bake?: (id: string, sha256: string) => Promise<Baked> };   // a look's bake from Studio's frames (baked.ts)
+  bake?: (id: string, sha256: string) => Promise<Baked>,     // a look's bake from Studio's frames (baked.ts)
+  relay?: Relay };   // frames a browser renders, played in place of the engine's own (relay.ts)
 
 export function createEngine(o: EngineOptions) {
   const scene = prepareScene(o.rig), fps = scene.fps, dt = 1 / fps;
@@ -142,13 +144,15 @@ export function createEngine(o: EngineOptions) {
       t = frame * dt;
       p.live?.wrapped(back * dt);
     }
-    if (p.baked) p.baked.fill(frame, rgb);
+    // A relayed frame (slots count every tick and skip) stands in for the render; the controls step on regardless.
+    if (o.relay?.fill(stats.frames + stats.late, rev, rgb, dt)) p.live?.step(t, dt);
+    else if (p.baked) p.baked.fill(frame, rgb);
     else {
       p.live!.step(t, dt);
       const out = renderFrame(scene, p.layers, t, rgb, p.live!.look);
       if (out.errors.length) { stats.layerErrors++; stats.lastError = out.errors[0]!.error; }
     }
-    const gain = ease(master, dt) * ease(black, dt) * ease(fade, dt);
+    const gain = ease(master, dt) * ease(black, dt) * ease(fade, dt) * (o.relay?.gain() ?? 1);
     if (guard.observe(rgb, stats.frames * 1000 / fps, gain) && !tripped && p.id !== o.safe) {
       tripped = { at: new Date().toISOString(), look: p.id };
       log(`flash guard: ${p.id} flashed; dipping to ${o.safe} until a look is picked`);

@@ -4,6 +4,7 @@
 import { signal } from '@preact/signals';
 
 import type { FromPage, PiState, ToPage } from '../src/protocol.ts';
+export type { FromPage, PiState, ToPage };
 
 const PIN_KEY = 'studio-pi-pin';
 const stored = () => { try { return sessionStorage.getItem(PIN_KEY) ?? ''; } catch { return ''; } };

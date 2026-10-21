@@ -10,8 +10,9 @@ export const modules: Path = {
   about: 'A module\'s numbers, choices and colours, and the palette.',
   steps: [
     { id: 'speed', page: '/studio', title: 'A number',
-      text: 'Arches is drawn by {module:single-strand}, a source: a module that draws light. Set its '
-        + '{param:single-strand.speed} to 8 or less, so the bands are easy to follow round the arch.',
+      text: 'Arches is drawn by {module:single-strand}, a source: a module that draws light. Its settings open '
+        + 'under its line in the chain. Set its {param:single-strand.speed} to 8 or less, so the bands are easy to '
+        + 'follow round the arch.',
       anchor: on('arches', 'single-strand', 'param:speed'), done: (c) => (speed(c) ?? 20) <= 8,
       progress: (c) => ({ now: 20 - Math.min(20, Math.max(8, speed(c) ?? 20)), goal: 12 }) },
     { id: 'comet', page: '/studio', title: 'A choice',

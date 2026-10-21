@@ -85,6 +85,9 @@ layer's `level` is not a param and cannot be bound: bind a source's brightness, 
 Mixed-family palettes include `patina` (blue and copper), `meadow` (green and lavender), `orchid` (turquoise
 and pink), `solstice` (violet and citrus), `guava` (coral and mint), and `voltage` (cobalt and chartreuse).
 These put both families in `body`; use `body` for their shared gradient or individual slots for separate bands.
+Other mixed bodies: `aurora` (emerald/violet, cyan accents), `harvest` (copper/olive, plum accents),
+`sherbet` (pastel peach/mint, lavender accents), `confetti` (blue/lemon/pink), `lagoon` (jade/cobalt, gold accents),
+and `velvet` (ruby/sapphire, rose gold accents).
 Swatch hexes are sRGB colour values; use brightness controls to set the light level.
 
 ## Modulators: things that move together
