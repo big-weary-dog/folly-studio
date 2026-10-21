@@ -11,7 +11,7 @@ export function statsLine(engine: Engine, out: ReturnType<Output['status']>, fps
     `${st.look?.id ?? '-'} t ${f1(st.look?.t ?? 0)}s`,
     `${f1(fps)} fps, render ${f1(s.renderMs)} ms (worst ${f1(s.worstMs)}), late ${s.late}`,
     `gen ${out.genW.toFixed(0)} W (peak ${out.genPeakW.toFixed(0)}), cut ${cut} frames`,
-    `level ${st.level}${st.blackout ? ' BLACKOUT' : ''}${st.tripped ? ` FLASH-TRIPPED (${st.tripped.look})` : ''}`,
+    `level ${st.level}${st.blackout.on ? ' BLACKOUT' : ''}${st.tripped ? ` FLASH-TRIPPED (${st.tripped.look})` : ''}`,
   ];
   if (out.errors) parts.push(`DDP errors ${out.errors}: ${out.lastError}`);
   if (s.layerErrors) parts.push(`layer errors ${s.layerErrors}: ${s.lastError}`);

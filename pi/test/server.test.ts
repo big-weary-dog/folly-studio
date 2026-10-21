@@ -3,45 +3,14 @@
 // else, and slows a flood.
 import assert from 'node:assert/strict';
 
-import { afterEach, describe, test } from 'vitest';
-import WebSocket from 'ws';
+import { describe, test } from 'vitest';
 
-import type { PiState, ToPage } from '../src/protocol.ts';
-import { CSP, controlServer } from '../src/server.ts';
-import { engineOn, lib } from './fixture.ts';
+import type { PiState } from '../src/protocol.ts';
+import { PI_PAGE } from '../src/people.ts';
+import { CSP } from '../src/server.ts';
+import { serve, socket } from './sockets.ts';
 
-const servers: { close(): Promise<void> }[] = [];
-afterEach(async () => { for (const s of servers.splice(0)) await s.close(); });
-
-async function serve(pin = '', clock = { t: 0 }, base = '') {
-  const r = engineOn();
-  r.engine.play('fire');
-  r.run(0.3);
-  const state = () => ({ ...r.engine.state(), looks: [], out: {} } as unknown as PiState);
-  const s = await controlServer({ engine: r.engine, lib, state, pin, port: 0, host: '127.0.0.1', base,
-    now: () => clock.t });
-  servers.push(s);
-  return { ...r, server: s, origin: `http://127.0.0.1:${s.port}`, page: `http://127.0.0.1:${s.port}${base}`, clock };
-}
-
-/** A socket from `origin` (the page's own unless said), with every message it gets kept. */
-async function socket(url: string, origin = new URL(url).origin) {
-  const ws = new WebSocket(`${url.replace('http', 'ws')}/ws`, { origin });
-  const got: ToPage[] = [];
-  ws.on('message', (d) => got.push(JSON.parse(String(d))));
-  await new Promise((resolve, reject) => { ws.once('open', resolve); ws.once('error', reject); });
-  const send = (m: object) => ws.send(JSON.stringify(m));
-  /** The next message of `type`, waiting for it. */
-  const next = async (type: ToPage['type'], from = got.length) => {
-    for (let i = 0; i < 100; i++) {
-      const m = got.slice(from).find((x) => x.type === type);
-      if (m) return m;
-      await new Promise((r) => setTimeout(r, 10));
-    }
-    throw new Error(`no ${type}: ${JSON.stringify(got)}`);
-  };
-  return { ws, got, send, next };
-}
+const PI = { name: PI_PAGE, drive: true };
 
 describe('the control page', () => {
   test('is served with the CSP; another site\'s socket is refused', async () => {
@@ -69,7 +38,7 @@ describe('the control page', () => {
     const { origin, engine, run } = await serve();
     const c = await socket(origin);
     c.send({ type: 'hello' });
-    assert.deepEqual(await c.next('hello'), { type: 'hello', ok: true, needPin: false });
+    assert.deepEqual(await c.next('hello'), { type: 'hello', ok: true, needPin: false, you: PI });
     assert.equal(((await c.next('state')) as { state: PiState }).state.look?.id, 'fire');
     c.send({ type: 'blackout', on: true });
     c.send({ type: 'level', value: 0.5 });
@@ -77,7 +46,7 @@ describe('the control page', () => {
     c.send({ type: 'play', id: 'beat-bars' });
     await new Promise((r) => setTimeout(r, 100));
     const s = engine.state();
-    assert.deepEqual([s.blackout, s.level, s.switching?.id], [true, 0.5, 'beat-bars']);
+    assert.deepEqual([s.blackout.on, s.level, s.switching?.id], [true, 0.5, 'beat-bars']);
     run(0.1);
     assert.equal(engine.state().look?.controls.find((x) => x.name === 'heat')?.value, 0.9);
     // Each reply looked for after its own send: states arrive between them.
@@ -91,12 +60,16 @@ describe('the control page', () => {
 
   test('the queue: its own looks, a library look Studio sends (its code ours), and nothing else', async () => {
     const { origin, engine } = await serve();
-    const c = await socket(origin);
-    c.send({ type: 'hello' });
+    const page = await socket(origin), c = await socket(origin);
+    page.send({ type: 'hello' });
+    c.send({ type: 'hello', feed: true });
+    await page.next('state');
     await c.next('state');
-    c.send({ type: 'queue', id: 'beat-bars' });
-    c.send({ type: 'send', by: 'ana', item: { kind: 'live', look: { id: 'abc123', title: 'Mine',
-      layers: [{ modules: [{ ref: 'clouds', code: 'while (true) {}' }] }] } } });
+    page.send({ type: 'queue', id: 'beat-bars' });
+    const look = { id: 'abc123', title: 'Mine', layers: [{ modules: [{ ref: 'clouds', code: 'while (true) {}' }] }] };
+    c.send({ type: 'send', by: 'ana', item: { kind: 'live', look } });
+    page.send({ type: 'send', by: 'ana', item: { kind: 'live', look } });
+    assert.deepEqual(await page.next('error'), { type: 'error', error: 'Only Studio sends that.' });
     await new Promise((r) => setTimeout(r, 100));
     assert.deepEqual(engine.state().queue.map((q) => [q.id, q.kind, q.by]),
       [['beat-bars', 'look', undefined], ['abc123', 'live', 'ana']]);
@@ -135,10 +108,10 @@ describe('the control page', () => {
     const { origin, engine, clock } = await serve('2468');
     const c = await socket(origin);
     c.send({ type: 'hello' });
-    assert.deepEqual(await c.next('hello'), { type: 'hello', ok: false, needPin: true });
+    assert.deepEqual(await c.next('hello'), { type: 'hello', ok: false, needPin: true, you: PI });
     c.send({ type: 'blackout', on: true });
     assert.deepEqual(await c.next('error'), { type: 'error', error: 'Say the PIN first.' });
-    assert.equal(engine.state().blackout, false);
+    assert.equal(engine.state().blackout.on, false);
     for (let i = 0; i < 5; i++) {
       const from = c.got.length;
       c.send({ type: 'hello', pin: '0000' });
@@ -150,10 +123,10 @@ describe('the control page', () => {
     clock.t += 61_000;
     from = c.got.length;
     c.send({ type: 'hello', pin: '2468' });
-    assert.deepEqual(await c.next('hello', from), { type: 'hello', ok: true, needPin: true });
+    assert.deepEqual(await c.next('hello', from), { type: 'hello', ok: true, needPin: true, you: PI });
     c.send({ type: 'blackout', on: true });
     await new Promise((r) => setTimeout(r, 50));
-    assert.equal(engine.state().blackout, true);
+    assert.equal(engine.state().blackout.on, true);
   });
 
   test('a flood is told to slow down, then closed', async () => {

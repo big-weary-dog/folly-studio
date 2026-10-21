@@ -2,20 +2,25 @@
 // and started with `--base /pi` (a dry run when hosted, the real one on the Pi), passed through to signed-in admins,
 // and curators too on the Pi. Dry run or not, it is a control surface.
 // Using one of its controls makes it drive the live stage (SPEC-live "Following /pi"); its page is told who drives.
+// Each page's hello says who it is, from the session (SPEC-liveplay "People"); Studio's own messages never pass.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import WebSocket from 'ws';
 
 import { type Auth, sessionHook } from './auth.ts';
 import { HttpError } from './http.ts';
 import type { Hub } from './live/hub.ts';
+import type { StoredUser } from './store.ts';
 
 const BASE = '/pi', TIMEOUT_MS = 5000;
 // What the Pi's answer keeps: its own CSP (the page's, in place of the app's), and what the browser needs to use it.
 const KEEP = ['content-type', 'content-security-policy', 'cache-control', 'location', 'etag', 'last-modified'];
 // What the page sends that changes what plays (pi/src/protocol.ts): any of these makes /pi drive the stage.
-const CONTROLS = new Set(['play', 'set', 'tap', 'level', 'blackout', 'next']);
-const typeOf = (text: string): { type?: unknown, at?: unknown } => {
-  try { return JSON.parse(text) ?? {}; } catch { return {}; }
+const CONTROLS = new Set(['play', 'set', 'release', 'palette', 'tap', 'level', 'blackout', 'next']);
+// Studio's feed alone sends these (src/lights.ts, src/live/pi-feed.ts): never a page.
+const STUDIOS = new Set(['send', 'mode']);
+type Msg = { type?: unknown, at?: unknown, pin?: unknown };
+const typeOf = (text: string): Msg => {
+  try { const m = JSON.parse(text); return m && typeof m === 'object' ? m : {}; } catch { return {}; }
 };
 const controlOf = (m: { type?: unknown, at?: unknown }) => CONTROLS.has(m.type as string)
   || (m.type === 'queue' && m.at === 'now');
@@ -29,9 +34,9 @@ export function previewTarget(url: string) {
   return u;
 }
 
-/** `curators`: curators may use it too (the Pi profile), not admins alone. */
-export function piPreview({ auth, target, hub, curators = false }: { auth: Auth, target: URL,
-  hub?: Pick<Hub, 'live' | 'piDrove' | 'onDriver'>, curators?: boolean }) {
+/** `curators`: curators may use it too (the Pi profile), not admins alone; `drive`: may this person drive Live Play. */
+export function piPreview({ auth, target, hub, curators = false, drive }: { auth: Auth, target: URL,
+  hub?: Pick<Hub, 'live' | 'piDrove' | 'onDriver'>, curators?: boolean, drive: (user: StoredUser) => boolean }) {
   const host = (h: string) => h.toLowerCase().replace(/:(80|443)$/, '');
   // Its role only (sessionHook): no session is asked to sign in (the app's page), anyone else refused, in plain text.
   const who = curators ? 'a curator' : 'an admin';
@@ -82,11 +87,15 @@ export function piPreview({ auth, target, hub, curators = false }: { auth: Auth,
         if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(msg));
       };
       const unlisten = hub?.onDriver(driver);
+      const user = req.user!, who = { name: user.username, drive: drive(user) };
       socket.on('message', (d, binary) => {
         if (binary) { socket.close(1008, 'Not a message this page sends'); return; }
-        const text = String(d), msg = typeOf(text);
-        // A `send` is Studio's own (its checks in src/lights.ts): never a page's.
-        if (msg.type === 'send') return;
+        const msg = typeOf(String(d));
+        if (STUDIOS.has(msg.type as string)) return;
+        // Who it is comes from the session; a page is never Studio's feed.
+        const text = msg.type === 'hello'
+          ? JSON.stringify({ type: 'hello', ...typeof msg.pin === 'string' ? { pin: msg.pin } : {}, who })
+          : String(d);
         if (up.readyState === WebSocket.OPEN) up.send(text);
         else if (up.readyState === WebSocket.CONNECTING && early.length < 8) early.push(text);
         else return;
