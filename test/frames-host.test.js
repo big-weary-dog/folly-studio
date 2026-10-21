@@ -24,8 +24,7 @@ afterAll(() => rm(tmp, { recursive: true, force: true }));
 
 /** A thread's nice value, from /proc (Linux keeps nice per thread). */
 const niceOf = (tid) => Number(fs.readFileSync(`/proc/self/task/${tid}/stat`, 'utf8').split(') ')[1].split(' ')[16]);
-/** Nice values of this process's threads, skipping any that just exited. The listing is sorted as strings, so after
- * the pids wrap a worker's thread can come first: the event loop is the thread whose id is the pid. */
+/** Nice values of this process's threads, skipping any just exited; listed as strings, so the event loop's may not be first. */
 const threadNice = () => fs.readdirSync('/proc/self/task').flatMap((tid) => {
   try { return [niceOf(tid)]; } catch { return []; }
 });
