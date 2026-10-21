@@ -52,10 +52,10 @@ export const layers: Path = {
       anchor: on('rose', null, 'module:rotate'),
       done: (c) => pos(c, 'rotate') >= 0 && c.el('module:rotate')?.getAttribute('aria-expanded') === 'false' },
     { id: 'drag', page: '/studio', title: 'Reorder the chain',
-      text: 'Drag {module:rotate} by the dots at its left up above {module:turbulence}: the rose turns before it '
-        + 'ripples, so the ripples hold still while the rings go round.',
+      text: 'A module reworks only what is above it. Drag {module:rotate} by the dots at its left down below '
+        + '{module:turbulence}: it turns the ripples too, so the whole rose wheels round as one.',
       anchor: on('rose', null, 'module-grip:rotate'),
-      done: (c) => pos(c, 'rotate') >= 0 && pos(c, 'rotate') < pos(c, 'turbulence') },
+      done: (c) => pos(c, 'turbulence') >= 0 && pos(c, 'rotate') > pos(c, 'turbulence') },
     { id: 'swap', page: '/studio', title: 'Solo another',
       text: 'The next change is on the arches. Click S on Rose to let it go, then S on Arches.',
       anchor: (c) => (rose(c)?.solo ? ['solo:rose'] : ['solo:arches']),

@@ -31,7 +31,7 @@ In order:
   the Look tab, the palette.
 - `layers`, Layers and chains: solo, a filter (Hue shift on the rose) and its number, a module off and on, a warp
   (Rotate on the rose) and its Spin, the chain folded to a module a line (a click on the open module), Rotate dragged
-  by its grip above Turbulence, Plays on (groups by rig tag), a preset, a module inside it, level, blend, order (the
+  by its grip below Turbulence, Plays on (groups by rig tag), a preset, a module inside it, level, blend, order (the
   Starfield dragged by its grip to the bottom), mute.
 - `time`, Time: BPM, the beat clock (on the rose's Spin), + Clip.
 - `moves`, Values that move (advanced): ∿ and an LFO, its rate and range, a square and a saw wave on other kinds of

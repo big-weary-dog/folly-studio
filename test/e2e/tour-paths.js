@@ -116,7 +116,8 @@ export async function playLayers(page, t) {
   }, 'layers-spin');
   await step(t, 'The whole chain', ['module:rotate'], () => t.at('module:rotate').click(), 'layers-fold');
   await step(t, 'Reorder the chain', ['module-grip:rotate'],
-    () => drag(t, 'module-grip:rotate', t.at('module:turbulence').locator('xpath=ancestor::li[1]')), 'layers-drag');
+    () => drag(t, 'module-grip:rotate', t.at('module:turbulence').locator('xpath=ancestor::li[1]'), true),
+    'layers-drag');
   await step(t, 'Solo another', ['solo:rose'], async () => {
     await t.at('solo:rose').click();
     await t.ring('solo:arches');
