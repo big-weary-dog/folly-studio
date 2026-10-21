@@ -1,8 +1,8 @@
 // The warp contract (SPEC "Modules"): move(), turn() and slide() set every position field of a pixel from one point,
 // so any warp works over any source: the place fields from the point in the pixel's frame, the LED fields from the
 // layer's LED nearest it (a grid built once per layer, the first time a move asks). Looking that LED up is the dear
-// part, so a move only marks the LED fields due; settle() looks it up when something reads them (a source or filter,
-// a warp whose code names one, slide()), so a stack of warps pays for one lookup, not one each.
+// part, so a move only marks the LED fields due; settle() looks it up when something reads them (a module whose code
+// names one, slide(), toward() and region()), so a stack of warps pays for one lookup, and a bars or a cloud none.
 import type { Scene } from './scene.ts';
 
 /** What the contract reads and writes on a pixel (render.ts makePixel). */
@@ -125,10 +125,11 @@ export function settle(q: Q) {
 }
 
 /** Whether module code may read a pixel's LED fields (or attr/is, which read its k): it names one as `.field` or a
- *  string, destructures an object, or reads a computed key. */
+ *  string, destructures an object, reads a computed key, or runs another pattern (use). toward() and region() settle
+ *  what they read themselves, as slide() does. */
 export const readsLed = (code: string | undefined) => code === undefined
   || /[.'"`](u|i|n|zone|zi|fixture|strand|ring|row|sector|petal|k|seed|attr|is|part|partUp)\b/.test(code)
-  || /\{[^{}]*\}\s*=[^=>]|\(\s*\{|\w\s*\[\s*[A-Za-z_$]/.test(code);
+  || /\{[^{}]*\}\s*=[^=>]|\(\s*\{|\w\s*\[\s*[A-Za-z_$]|\buse\s*\(/.test(code);
 
 /** move(q, lx, ly, lz): q samples the point (lx, ly, lz) of its frame. */
 export function move(q: Q, lx: number, ly: number, lz: number) {

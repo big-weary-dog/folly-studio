@@ -93,7 +93,7 @@ function prepareChain(layer: LayerInput | null | undefined, compiled: Compiled |
     chain.push({ id: m.id ?? null, title: m.title || m.id || '', kind, fn, frame: c.frame || null,
       P, mods, picks: c.picks || null, blend, hidden, input,
       out: [0.5, 0, 0, 0], keep: null, end: kind === SPATIAL || isStageEnd(m), ix: 0, at: 0, from: -1, to: -1,
-      led: kind !== WARP || readsLed(m.code), bright: kind === SOURCE && !!c.bright, ring: c.history ?? null,
+      led: readsLed(m.code), bright: kind === SOURCE && !!c.bright, ring: c.history ?? null,
       op: c.spatial ?? null });
   }
   return chain;
@@ -217,7 +217,7 @@ function runChain(S: Scene, L: PreparedLayer, T: number, G: G) {
             M = chain[i];
             if (M.kind === WARP) continue;
             const q = qs[M.at];
-            if (q.due) settle(q);
+            if (q.due && M.led) settle(q);
             RUN.dt = q.dt;
             if (M.kind === SOURCE) {
               const v = M.fn(q, T + q.dt, M.P, G);
