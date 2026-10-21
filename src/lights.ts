@@ -79,7 +79,7 @@ export function lightsRoutes({ store, feed, hub, drive, loadLibrary, visibleLook
   feed: Pick<ReturnType<typeof piFeed>, 'connected' | 'queued' | 'send' | 'mode'>, hub?: Pick<Hub, 'piDrove'>,
   drive: (user: User) => boolean, loadLibrary: () => readonly LibraryEntry[],
   visibleLook: (id: string, user: User) => Look, looksIn: (scope: 'mine' | 'gallery', user: User) => Look[],
-  listed: (look: Look) => { ownerName: string, duration: number } }) {
+  listed: (look: Look) => { ownerName: string, duration: number, preview?: string } }) {
   const modules = () => new Set(loadLibrary().filter((e) => e.kind !== 'preset').map((e) => e.name));
   const state = (user: User) => ({ ...store.current(),
     canQueue: can({ id: user.id, role: user.role ?? 'member' }, 'curate'), canDrive: drive(user),
@@ -96,8 +96,9 @@ export function lightsRoutes({ store, feed, hub, drive, loadLibrary, visibleLook
     'GET /lights/looks': [async (req: FastifyRequest) => {
       const { from } = parse(From, req.query), lib = modules(), live = store.current().liveLooks;
       return { looks: looksIn(from, req.user!).map((l) => {
-        const play = playOf(l, lib, live), { ownerName, duration } = listed(l);
-        return { id: l.id, title: l.title, ownerName, duration, play: 'error' in play ? play : { kind: play.kind } };
+        const play = playOf(l, lib, live), { ownerName, duration, preview } = listed(l);
+        return { id: l.id, title: l.title, ownerName, duration, ...preview ? { preview } : {},
+          play: 'error' in play ? play : { kind: play.kind } };
       }) };
     }, { role: 'curator' }] as const,
     'POST /lights/queue': [async (req: FastifyRequest) => {

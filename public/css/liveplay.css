@@ -240,10 +240,18 @@ button.lp-next { cursor: pointer; }
   box-shadow: inset 0 0 0 2px var(--sand); }
 .lp-tile.off { cursor: default; background: none; border: 2px dashed var(--night-4); }
 .lp-tile.off b, .lp-tile.off small { color: var(--text-2); }
-.lp-conf { display: flex; flex-direction: column; gap: 8px; padding: 10px; background: var(--night-2);
-  border: 2px solid var(--sand); border-radius: var(--radius); }
-.lp-conf p { margin: 0; color: var(--text-2); font-size: 14px; line-height: 1.35; }
-.lp-conf b { color: var(--text); }
+
+/* a look's preview before it is added: its gallery preview at the card's 260 × 228 */
+.lp-preview { width: min(420px, calc(100vw - 24px)); }
+.lp-preview .dialog-body { gap: 10px; }
+.lp-preview p { margin: 0; color: var(--text-2); font-size: 14px; line-height: 1.35; }
+.lp-preview b { color: var(--text); }
+.lp-preview .icon-btn { min-width: 44px; min-height: 44px; }
+.lp-art { display: grid; place-items: center; aspect-ratio: 260 / 228; max-height: 40dvh; overflow: hidden;
+  padding: 0 16px; background: var(--art); border-radius: var(--radius); color: var(--text); font-size: 14px;
+  text-align: center; text-shadow: 0 1px 3px #000; }
+.lp-art.has-preview { padding: 0; background: #000; }
+.lp-art img { display: block; width: 100%; height: 100%; object-fit: contain; }
 
 /* a cued look */
 .lp-cue { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 14px;
