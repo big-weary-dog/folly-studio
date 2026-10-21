@@ -181,7 +181,7 @@ How a colour value becomes light (docs/LIGHT.md has the why and every number):
 
 - **The engine works in encoded values**, 0..1, the swatches' own sRGB numbers. Every dim, opacity, level, Amount
   and fade scales those, so a slider is perceptual: 0.5 looks about half, and is 22 % of the light. Only `add` and
-  blur work in light, at a fixed `v^2.2` (not the Light gamma).
+  blur work in light, at a fixed `v^2.2` (not the Light gamma), and colour fades in OKLab, from that light.
 - **The LEDs give linear light.** One output transform turns a value into an output byte, in float, then rounds:
   `byte = round(255 · min(1, v^gamma · balance[colour] · trim[LED] · cap))`, then a lit channel never below `floor`.
   The Falcon's own gamma is None, so this is the only curve. Export's .fseq and the Pi use it; bakes and the preview

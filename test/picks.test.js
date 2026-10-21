@@ -13,6 +13,7 @@ import {
 } from '../public/js/pattern-core.ts';
 import { LookCreate } from '../shared/schemas/api.ts';
 import { dropRemaps } from '../shared/schemas/look.ts';
+import { fade } from './fixtures/oklab.js';
 
 const here = (p) => new URL(p, import.meta.url);
 const rig = JSON.parse(readFileSync(here('../public/data/rig-folly.json'), 'utf8'));
@@ -39,14 +40,15 @@ const swatches = (s, n) => Array.from({ length: n }, (_, i) => s.swatch('c', i))
 describe('pal(role, t) as before', () => {
   // Frozen from the runtime before picks: float frames at t = 0, 1.3 and 7.9 s, default params, under chapel and a
   // palette with empty roles (sha256, 16 hex), of the library as it was (fixtures/library-v1.json): code that names
-  // roles, as saved looks and AI code do. Pinwheel, galaxy and rose-bloom re-made when a r moved to the LEDs' mean.
+  // roles, as saved looks and AI code do. Pinwheel, galaxy and rose-bloom re-made when a r moved to the LEDs' mean;
+  // all when colour fades moved to OKLab.
   const FROZEN = {
-    'colour-wash': ['dd699f1a7145cd66', '916774580d47ea34'], garlands: ['07f54027c1481f7c', '36cfd86ee5122fa6'],
-    pinwheel: ['eb321a37c8166c45', 'a49fe1b789b5faf7'], wave: ['4719bcc5def8f1c5', '59e1545246665aa1'],
-    shimmer: ['8684d0c029f8c471', 'e4e32aae3ab294ef'], galaxy: ['394073bae7a47ef5', 'a493cbc6a9da800c'],
-    'rose-bloom': ['9e0750704596e9e4', 'c3398b10b074aa49'], 'canopy-rain': ['e78f0c79325c79b8', 'a24d49b2eaacc6fd'],
-    'wash-breathe': ['0dda983da4a43b5c', '2ed1cdb36acda0c4'], circles: ['dd95860b19eb859d', '4d85b0b2a6924573'],
-    'arch-chase': ['37fdb44f97a240b9', 'bf8f7ada484978ab'], butterfly: ['f7e3d085dd53f595', '570aa6daf5887bdf'],
+    'colour-wash': ['eeaff0177e8ed71a', 'b6c8a67ec3507ce7'], garlands: ['3a1e247bb5696997', 'a8b2aaffde66af9f'],
+    pinwheel: ['cea37e947870890e', 'd21f6d0d53b31a87'], wave: ['3c3525ba2ad2b1ba', 'acf0296cccc7d8a6'],
+    shimmer: ['255054c8b99d9baf', '58f3a50a5c2b1691'], galaxy: ['37972fa791e75b86', '8c4e11d79ad39aa1'],
+    'rose-bloom': ['dfdaee028b26a646', 'b6c1c3f8ee4d2224'], 'canopy-rain': ['f23b1ed0aac4749d', '6f165302f5a3182d'],
+    'wash-breathe': ['300b3d4d21f9bb45', 'c9981345b3999879'], circles: ['c496c36fcef2d6f7', '1251c5b0826069be'],
+    'arch-chase': ['6fafa367350dd739', '5aa97b03bab042ef'], butterfly: ['e6c5da1887cf40e1', '5655fce746e3526b'],
   };
   for (const [name, sums] of Object.entries(FROZEN)) {
     test(`${name} renders pixel for pixel as before`, () => {
@@ -63,7 +65,7 @@ describe('pal(role, t) as before', () => {
   test('a role walks smoothly, as the ramp did; unknown names fall back to body', () => {
     onPalette();
     const s = slot({ value: '#000000' });
-    assert.ok(near(s.pal('body', 0.5), C.body2.map((v, i) => (v + C.body3[i]) / 2)));
+    assert.ok(near(s.pal('body', 0.5), fade(C.body2, C.body3, 0.5), 1e-4));
     assert.ok(near(s.pal('nope', 0), C.body1));
     assert.ok(near(s.swatch('accent', 4), C.accent2), 'a role\'s swatches wrap');
   });
@@ -96,7 +98,7 @@ describe('the ladder', () => {
   test('range and blend: a stretch of a smooth walk, equal bands by step', () => {
     onPalette();
     const smooth = slot({ value: 'body', blend: 'smooth' });
-    assert.ok(near(smooth.pal('c', 0.5), C.body2.map((v, i) => (v + C.body3[i]) / 2)));
+    assert.ok(near(smooth.pal('c', 0.5), fade(C.body2, C.body3, 0.5), 1e-4));
     const ranged = slot({ value: 'low' }, { pick: 'body', blend: 'smooth', range: [0.5, 1] });
     assert.ok(near(ranged.pal('c', 0), smooth.pal('c', 0.5)) && near(ranged.pal('c', 1), C.body4));
     const step = slot({ value: 'body', blend: 'smooth' }, { pick: 'body', blend: 'step' });
@@ -115,7 +117,8 @@ describe('the ladder', () => {
     assert.equal(new Set(swatches(all, 10).map(String)).size, 10, 'all: every colour, low to high');
     assert.ok(near(all.swatch('c', 0), C.low1) && near(all.swatch('c', 9), C.high1));
     const rainbow = slot({ value: 'rainbow', blend: 'smooth' });
-    assert.ok(near(rainbow.pal('c', 1 / 12), [1, 0.5, 0], 1e-12) && near(rainbow.pal('c', 1), [1, 0, 0]));
+    assert.ok(near(rainbow.pal('c', 1 / 12), fade([1, 0, 0], [1, 1, 0], 0.5), 1e-4));   // red to yellow, in OKLab
+    assert.ok(near(rainbow.pal('c', 1), [1, 0, 0]));
     assert.deepEqual(swatches(slot({ value: 'rainbow' }), 7).map((c) => c.join()).slice(5),
       ['1,0,1', '1,0,0'], 'step: six bands, red once');
   });
@@ -173,8 +176,8 @@ describe('roles in code from before one colour param', () => {
   test('a palette change re-resolves picks and roles', () => {
     const L = layerOf({}, 'function pixel(p, t, P) { return mix(P.c, pal("body", 1), 0.5); }');
     const a = first(L, 0, prepareLook(null)), b = first(L, 0, prepareLook({ globals: { palette: SPARSE } }));
-    const want = rgbOf('#ee008e').map((v, i) => Math.fround((v + rgbOf('#ffe068')[i]) / 2));
-    assert.ok(!near(a, b, 1e-3) && near(b, want, 1e-6));
+    const want = fade(rgbOf('#ee008e'), rgbOf('#ffe068'), 0.5);
+    assert.ok(!near(a, b, 1e-3) && near(b, want, 1e-4));
   });
 });
 

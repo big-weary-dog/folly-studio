@@ -4,6 +4,7 @@
 import type { G, PreparedLook } from './globals.ts';
 import { links, rowOrder, waveStep, wireDistance } from './links.ts';
 import { move, slide, turn } from './place.ts';
+import { fadeInto } from './oklab.ts';
 
 /** A colour: [r, g, b] each 0..1; what patterns may give one as: an array, '#rrggbb' or a grey level. */
 export type RGB = [number, number, number];
@@ -176,8 +177,7 @@ function hsl(h: number, s = 1, l = 0.5) {
 
 function mix(a: Colour, b: Colour, t: number): number | RGB {
   if (typeof a === 'number' && typeof b === 'number') return a + (b - a) * t;
-  a = col(a); b = col(b);
-  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  return fadeInto(col(a), col(b), t, [0, 0, 0] as RGB);   // colours fade in OKLab
 }
 
 function scale(c: Colour, k: number): RGB { c = col(c); return [c[0] * k, c[1] * k, c[2] * k]; }
@@ -257,8 +257,8 @@ export function ramp(list: Centres, t: number): RGB {
   const n = list.length;
   if (n === 1 || !(t > 0)) return [list[0][0], list[0][1], list[0][2]];
   const f = (t < 1 ? t : 1) * (n - 1);
-  const i = Math.min(n - 2, Math.floor(f)), k = f - i, a = list[i], b = list[i + 1];
-  return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+  const i = Math.min(n - 2, Math.floor(f));
+  return fadeInto(list[i], list[i + 1], f - i, [0, 0, 0]);
 }
 
 /** pal(role, t): t 0..1 across a role's colours (unknown or empty: body). */

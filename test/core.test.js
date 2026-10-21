@@ -8,6 +8,7 @@ import {
   STDLIB, compilePattern, prepareScene, prepareLayer, renderFrame, setLibrary, SOURCE_PARAMS, toChannels,
   pixelsForGroups,
 } from '../public/js/pattern-core.ts';
+import { fade } from './fixtures/oklab.js';
 import { folly as rig } from './fixtures/rigs.js';
 
 const S = STDLIB;
@@ -35,8 +36,10 @@ describe('stdlib', () => {
     near(S.pulse(0.98, 0.1), S.pulse(0.02, 0.1)); // wraps
     assert.ok(S.pulse(0.05, 0.1) > 0 && S.pulse(0.05, 0.1) < 1);
     assert.equal(S.mix(2, 4, 0.5), 3);
-    nearC(S.mix([0, 0, 0], [1, 0.5, 0], 0.5), [0.5, 0.25, 0]);
-    nearC(S.mix('#000000', '#ffffff', 0.5), [0.5, 0.5, 0.5]);
+    nearC(S.mix([0, 0, 0], [1, 0.5, 0], 0.5), fade([0, 0, 0], [1, 0.5, 0], 0.5), 1e-4);   // colours: OKLab
+    nearC(S.mix('#000000', '#ffffff', 0.5), [0.3886, 0.3886, 0.3886], 1e-4);   // OKLab's mid grey, L 0.5
+    nearC(S.mix([1, 0, 0], [0, 1, 0], 0.5), fade([1, 0, 0], [0, 1, 0], 0.5), 1e-4);
+    nearC(S.mix([0.2, 0.4, 0.6], [0.2, 0.4, 0.6], 0.3), [0.2, 0.4, 0.6]);
   });
 
   test('hash, rand: stable, in 0..1, spread out', () => {
@@ -88,7 +91,7 @@ describe('stdlib', () => {
     nearC(S.gradient(0, ['#ff0000', '#00ff00', '#0000ff']), [1, 0, 0]);
     nearC(S.gradient(0.5, ['#ff0000', '#00ff00', '#0000ff']), [0, 1, 0]);
     nearC(S.gradient(1, ['#ff0000', '#00ff00', '#0000ff']), [0, 0, 1]);
-    nearC(S.gradient(0.25, [[0, 0, 0], [1, 1, 1]]), [0.25, 0.25, 0.25]);
+    nearC(S.gradient(0.25, [[0, 0, 0], [1, 1, 1]]), fade([0, 0, 0], [1, 1, 1], 0.25), 1e-4);
     nearC(S.gradient(7, [[0, 0, 0], [1, 1, 1]]), [1, 1, 1]);
     nearC(S.cosPalette(0, 0.5, 0.5, 1, 0), [1, 1, 1]);
     nearC(S.cosPalette(0.5, [0.5, 0.5, 0.5], [0.5, 0.5, 0.5], [1, 1, 1], [0, 0, 0]), [0, 0, 0]);
