@@ -10,10 +10,12 @@ import { z } from 'zod';
 
 import { DEFAULT_DURATION } from '../public/js/pattern-core.ts';
 import { CHAIN, convertLayers, upgradeLook } from '../shared/chain-order.ts';
+import { keepStandardTitles } from '../shared/standard-modules.ts';
 import { type Listed, LookCreate, LookPatch, LooksQuery } from '../shared/schemas/api.ts';
 import {
   automationFor, dropRemaps, type Globals, type Layer, Layers, playsChanged,
 } from '../shared/schemas/look.ts';
+import type { LibraryEntry } from '../shared/schemas/rig.ts';
 import { newestBy } from './api.ts';
 import type { Auth } from './auth.ts';
 import { type createBakeQueue, layersHash, renderFields, reviewBlocker } from './bake.ts';
@@ -73,10 +75,17 @@ export function upgradeStored(stored: Look): Look {
 const lanes = (automation: unknown, globals: Globals | null | undefined) =>
   parse(z.object({ automation: automationFor(globals) }), { automation }).automation ?? undefined;
 
-export function lookRoutes({ store, auth, bakes, dropFrames, previews, log = console }: { store: Store, auth: Auth,
-  bakes: ReturnType<typeof createBakeQueue>, dropFrames: (id: string) => Promise<unknown>,
-  previews?: Pick<ReturnType<typeof createPreviews>, 'want' | 'keyOf' | 'file'>, log?: Logger }) {
+export function lookRoutes({ store, auth, bakes, dropFrames, previews, loadLibrary = () => [], log = console }: {
+  store: Store, auth: Auth, bakes: ReturnType<typeof createBakeQueue>, dropFrames: (id: string) => Promise<unknown>,
+  previews?: Pick<ReturnType<typeof createPreviews>, 'want' | 'keyOf' | 'file'>,
+  loadLibrary?: () => readonly LibraryEntry[], log?: Logger }) {
   const ownerName = (id: string) => store.users.get(id)?.username ?? '';
+  /** A body's layers as the one rule reads them, each standard module named as the library names it. */
+  const ruledNamed = (body: Parameters<typeof ruled>[0]) => {
+    const out = ruled(body), library = loadLibrary();
+    return { ...out, layers: out.layers.map((l) => ('modules' in l
+      ? { ...l, modules: keepStandardTitles(l.modules, library) } : l)) };
+  };
 
   /** A look as GET answers: `mine` adds the number of its version, `versions` the versions themselves. */
   function presentLook(look: Look, { versions = false, mine = false } = {}) {
@@ -121,7 +130,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, log = con
   async function create(req: FastifyRequest, reply: FastifyReply) {
     const { automation, ideaId, globals, bpm, ...body } = parse(LookCreate, req.body);
     const user = req.user!;
-    const look: Partial<Look> = { owner: user.id, ownerName: user.username, ...body, ...ruled(body), chain: CHAIN,
+    const look: Partial<Look> = { owner: user.id, ownerName: user.username, ...body, ...ruledNamed(body), chain: CHAIN,
       reviewed: false, versions: [] };
     if (globals) look.globals = globals;
     const lanesNow = automation === undefined ? undefined : lanes(automation, globals);
@@ -156,7 +165,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, log = con
     if (body.title !== undefined) patch.title = body.title;
     if (body.summary !== undefined) patch.summary = body.summary;
     if (body.layers !== undefined) {
-      const now = ruled({ ...body, layers: body.layers, summary: body.summary ?? look.summary });
+      const now = ruledNamed({ ...body, layers: body.layers, summary: body.summary ?? look.summary });
       body.layers = now.layers;
       if (now.summary !== (body.summary ?? look.summary)) patch.summary = now.summary;
     }

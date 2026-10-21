@@ -200,7 +200,7 @@ input.tree-box { width: 16px; height: 16px; margin: 0 4px 0 2px; flex: none; cur
 .layer-name { flex: 1; min-width: 0; min-height: var(--hit); padding: 2px; text-align: left; font-weight: 600;
   font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: none; border: 0;
   cursor: pointer; }
-.layer .status-dot, .chain-row .status-dot { width: 10px; height: 10px; color: var(--text-3); }
+.layer .status-dot { width: 10px; height: 10px; color: var(--text-3); }
 .layer-heavy { --kind: var(--amber); }
 [data-status=ok] > * > .status-dot { color: var(--emerald); }
 [data-status=pending] > * > .status-dot { color: var(--amber); }

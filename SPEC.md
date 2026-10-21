@@ -255,7 +255,9 @@ layer's groups by hand clears its tags. Blend: `add` sums light (default: 50 % a
 below.
 
 - **Modules**: 1–8 per layer, ids unique in it (`[A-Za-z0-9_.:-]{1,64}`), `code` ≤ 20 kB each and always
-  stored (looks stay self-contained for the boxes); `ref` names the library entry it came from; `params`
+  stored (looks stay self-contained for the boxes); `ref` names the library entry it came from, and a module whose `ref` the library has is standard: it keeps the
+  library's title (`shared/standard-modules.ts`; the API and generators put a renamed one's back), and a hand edit
+  of its code drops `ref`, making it custom; `params`
   override the code's defaults (≤ 64; a string ≤ 256 characters: a pick, a choice or text); `enabled: false` skips it; `input` names an earlier source; `as` is only
   `'input'`; `blend` as for layers, or `under` (a source's only). A layer with `code` (+ `params`) and no `modules`
   is a one-source chain and renders exactly as before.
@@ -327,8 +329,11 @@ Sequencing lives on the look, xLights-style.
   automated global (energy, macros): click to add a point, drag to move it, double-click to remove it. The bottom
   dock (Code, Timeline, Look) is one height on every tab: a share of the Studio's height (36%, at least 220 px, the
   3D view keeping at least 200 px), dragged by the splitter above it and kept per browser.
+- Reorder: a layer or module row moves by its ↑ ↓ buttons, or by dragging its grip (`ui/drag-order.ts`, any
+  pointer), which marks where it lands; the drop is the buttons' edit; Escape cancels.
 - Composition (`ui/chain.tsx`, `ui/params.tsx`, `ui/shelf.tsx`, `ui/look-globals.tsx`): the selected layer's
-  module chain (kind badge, enable, reorder, delete, a filter's input), its Soften row (radius and mode; new layers
+  module chain (kind badge, Custom on a module not standard, enable, reorder, delete, a filter's input; only a
+  custom module's name is editable), its Soften row (radius and mode; new layers
   start at `DEFAULT_SOFTEN`), the pickers (Add a module: tabs Sources, Warps, Filters; Add a layer: Blank, a blank
   layer or one source, and Presets, beside the groups the new layer plays on; one-line rows by category with a filter,
   the tab remembered for the session, each row auditioned in the 3D view), the code editor and

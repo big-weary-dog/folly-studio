@@ -8,6 +8,7 @@ import { extrasOf, PLAYS, type PlaysKey } from '../../../shared/plays.ts';
 import type { Automation, Globals, Module } from '../../../shared/schemas/look.ts';
 import type { Look, LookPatch, User, Version } from '../../../shared/schemas/api.ts';
 import type { LibraryEntry, ModuleEntry, Rig } from '../../../shared/schemas/rig.ts';
+import { keepStandardTitles } from '../../../shared/standard-modules.ts';
 import { replaceUrl, setTitle, signedOut } from './session.ts';
 import { pref, reducedMotion, toast } from './kit.tsx';
 import { type AiStep, changes, CONTENT, createSteps, type EditOptions, type Step } from './history/steps.ts';
@@ -158,8 +159,10 @@ export function createStudio(me: User | null) {
     editLayer(id: string, fn: (l: Layer) => Partial<Layer>, o?: EditOptions) {
       st.edit((L) => ({ layers: L.layers.map((l) => (l.id === id ? { ...l, ...fn(l) } : l)) }), o);
     },
+    /** Change a module; a standard one keeps the library's name (standard-modules.ts). */
     editModule(layerId: string, id: string, fn: (m: Module) => Partial<Module>, o?: EditOptions) {
-      st.editLayer(layerId, (l) => ({ modules: l.modules.map((m) => (m.id === id ? { ...m, ...fn(m) } : m)) }), o);
+      st.editLayer(layerId, (l) => ({ modules: keepStandardTitles(l.modules.map((m) => (m.id === id
+        ? { ...m, ...fn(m) } : m)), data.library) }), o);
     },
     editGlobals(fn: (g: Globals) => Globals, o?: EditOptions) {
       st.edit((L) => ({ globals: fn({ ...L.globals }) }), o);

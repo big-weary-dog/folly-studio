@@ -277,8 +277,8 @@ cover.
   220 KB by the owner's call (2026-10-20), for the frame buffer and more headroom. Raised to 240 KB by the owner's
   call (2026-10-20): the previews' light and the Admin page took it to 221 KB; headroom again.
 - On the wire (`test/transfer.test.js`, the real server, the build and a model of a browser's cache): a cold
-  Studio load (shell, modules, styles, sandbox, `rig.json`, API) ≤ 215 KB with br (255 KB gzip; raised from 205 and
-  240 for the rhythm filter, with headroom, by the owner's standing call on size);
+  Studio load (shell, modules, styles, sandbox, `rig.json`, API) ≤ 230 KB with br (270 KB gzip; raised from 220 and
+  260 for the History drawer, with headroom, by the owner's standing call on size);
   a reload, even a day later, sends only the shell and its API calls, each a 304 (assets have
   content-hashed names, kept a year); lists carry no code, and idea polls back off.
 - The Folly's 4,870 LEDs at 40 fps: the render loop allocates nothing per frame (reuse typed arrays, pass

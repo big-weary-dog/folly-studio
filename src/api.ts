@@ -99,7 +99,8 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
     const cookie = (maxAge: number) => ({ httpOnly: true, sameSite: 'lax' as const, path: '/', maxAge,
       secure: secureCookies });
     const dropFrames = (id: string) => removeFrames(framesDir, id).then(() => frames.prune());
-    const looks = lookRoutes({ store, auth, bakes, dropFrames, previews: o.previews, log });
+    const looks = lookRoutes({ store, auth, bakes, dropFrames, previews: o.previews, loadLibrary: loaders.loadLibrary,
+      log });
     const own = (req: FastifyRequest) => {
       const idea = store.ideas.get((req.params as { id: string }).id);
       if (!idea || idea.owner !== req.user!.id) throw new HttpError(404, 'Idea not found.');
