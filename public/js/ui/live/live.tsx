@@ -18,7 +18,7 @@ import { cx } from '../kit.tsx';
 import { onPi, setTitle, user } from '../session.ts';
 import { studioSources } from './lights.ts';
 import { createRelay, type Relay } from './relay.ts';
-import { RelayPanel, savedBuffer } from './relay-panel.tsx';
+import { RelayPanel, savedBuffer } from '../relay-panel.tsx';
 import { liveSocket, troubleText } from './socket.ts';
 import { createStage } from './stage.ts';
 

@@ -1,8 +1,10 @@
-// The Live tab's "Relay to the lights" (SPEC-live "Relay to the lights"): on, this browser renders what the lights
-// play and they play its frames; the buffer it renders ahead; how it goes: the buffer held, the misses, the screen
-// kept awake, or who relays instead.
-import { cx, pref, Switch } from '../kit.tsx';
-import { BUFFERS, type Relay } from './relay.ts';
+// "Relay to the lights" (SPEC-live "Relay to the lights"), on the Live tab and in the editor's transport: on, this
+// browser renders and the lights play its frames; the buffer it renders ahead; how it goes: the buffer held, the
+// misses, the screen kept awake, or who relays instead.
+import '../../css/relay.css';
+
+import { cx, pref, Switch } from './kit.tsx';
+import { BUFFERS, type Relay } from './relay-link.ts';
 
 const BUFFER_PREF = 'studio.relayBuffer';
 
@@ -12,14 +14,16 @@ export const savedBuffer = () => {
   return BUFFERS.includes(ms) ? ms : 200;
 };
 
-export function RelayPanel({ relay }: { relay: Relay }) {
+export function RelayPanel({ relay, label = 'Relay to the lights',
+  title = 'This browser renders the look; the lights play its frames' }: { relay: Relay, label?: string,
+  title?: string }) {
   const on = relay.on.value, holding = relay.holding.value, error = relay.error.value;
   const awake = relay.awake.value === 'yes' ? 'screen kept awake'
     : relay.awake.value === 'unsupported' ? 'keep this screen awake' : 'screen may sleep';
   return (
-    <div class={cx('relay-panel', holding && 'on')} role="group" aria-label="Relay to the lights">
-      <Switch label="Relay to the lights" class="relay-switch" checked={on} onChange={() => relay.toggle()}
-        title="This browser renders the look; the lights play its frames" />
+    <div class={cx('relay-panel', holding && 'on')} role="group" aria-label={label}>
+      <Switch label={label} class="relay-switch" checked={on} onChange={() => relay.toggle()}
+        title={title} />
       {on && <label class="relay-buffer">Buffer
         <select value={relay.buffer.value} onChange={(e) => {
           relay.buffer.value = Number(e.currentTarget.value);

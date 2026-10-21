@@ -1,0 +1,20 @@
+/* relay to the lights: the switch, the buffer and how it goes (on the Live stage, in the editor's transport) */
+.relay-panel { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 6px 10px;
+  font-size: 13px; color: var(--text-2); border: var(--came-s) solid var(--lead); }
+.relay-panel.on { border-color: color-mix(in srgb, var(--emerald) 50%, var(--lead)); }
+.relay-buffer { display: flex; align-items: center; gap: 6px; }
+.relay-says { flex-basis: 100%; margin: 0; color: var(--text-3); }
+.relay-says.error { color: #ffbccb; }
+.relay-live { color: var(--emerald); font-weight: 650; }
+/* the editor's: To the lights in the transport, the panel in its popover */
+.tp-lights { display: inline-flex; align-items: center; gap: 6px; flex: none; white-space: nowrap; }
+.tp-lights-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
+.tp-lights.on .tp-lights-dot { background: var(--amber); }
+.tp-lights.live .tp-lights-dot { background: var(--emerald); box-shadow: 0 0 6px var(--emerald); }
+.tp-lights-pop { position: fixed; inset: auto; width: 320px; margin: 0; padding: 0; color: var(--text);
+  background: var(--night-1); border: 0; box-shadow: 0 0 0 1px rgb(0 0 0 / .6), var(--shadow); }
+.tp-lights-pop .relay-panel { padding: 10px 12px; }
+@media (max-width: 899px) {
+  .tp-lights-pop.sheet { inset: auto 0 0; width: 100%; max-height: 80dvh; }
+  .tp-lights-pop.sheet::backdrop { background: rgb(6 4 11 / .45); }
+}

@@ -1,0 +1,105 @@
+// Relay from Studio's editor (SPEC-live "From Studio's editor") on the Pi profile, against the real engine in a dry
+// run: a curator turns To the lights on in the preview's transport, over the look the lights play, and an unsaved
+// edit to the code reaches them (the engine's power reading follows it). Screenshots at a laptop's and a phone's
+// size, in RELAY_SHOTS when it names a folder.
+import { spawn } from 'node:child_process';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:net';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { tagged } from './procs.mjs';
+import { expect, signup, test } from './studio.js';
+
+const SIZES = {
+  laptop: { viewport: { width: 1366, height: 768 }, colorScheme: 'dark' },
+  phone: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2,
+    colorScheme: 'dark' },
+};
+const MAIN = fileURLToPath(new URL('../../pi/main.ts', import.meta.url));
+const pixel = (v) => `function pixel(p, t, P) { return [${v}, ${v}, ${v}]; }`;
+
+const port = await new Promise((resolve) => {
+  const s = createServer().listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => resolve(p)); });
+});
+test.use({ serverOptions: { profile: 'pi', admins: 'boss', curators: 'cara',
+  piPreview: `http://127.0.0.1:${port}` } });
+let engine;
+const lines = [];
+test.beforeAll(async () => {
+  const config = path.join(mkdtempSync(path.join(os.tmpdir(), 'pi-config-')), 'config.json');
+  writeFileSync(config, '{}');
+  engine = spawn(process.execPath, [MAIN, '--dry-run', '--base', '/pi', '--http', String(port), '--bind', '127.0.0.1',
+    '--stats', '1', '--config', config], { env: tagged(), stdio: 'pipe' });
+  let out = '';
+  await new Promise((resolve, reject) => {
+    engine.stdout.on('data', (d) => {
+      out += d;
+      lines.push(...String(d).split('\n').filter(Boolean));
+      if (out.includes('control page on')) resolve();
+    });
+    engine.on('exit', (code) => reject(new Error(`the Pi exited ${code}: ${out}`)));
+  });
+});
+test.afterAll(() => engine?.kill('SIGKILL'));
+
+/** The engine's latest stats line: `{ by, on, missed, watts }`, the relay's null when no one relays. */
+const stats = () => {
+  const l = lines.findLast((s) => s.includes(' fps,')) ?? '';
+  const r = l.match(/relay (\S+) (on|off), ahead \d+, missed (\d+)/), w = l.match(/gen (\d+) W/);
+  return { relay: r ? { by: r[1], on: r[2] === 'on', missed: Number(r[3]) } : null, watts: w ? Number(w[1]) : NaN };
+};
+
+test('a curator sends the look being edited to the lights; an unsaved edit reaches them', async ({ browser, studio },
+  info) => {
+  const { origin } = studio;
+  const cara = await signup(origin, 'cara'), boss = await signup(origin, 'boss');
+  const call = async (method, url, body, cookie = cara) => (await fetch(`${origin}${url}`, { method,
+    body: JSON.stringify(body), headers: { 'content-type': 'application/json', cookie } })).json();
+  await call('PUT', '/api/admin/lights', { mode: 'live' }, boss);
+  const look = async (title, v) => (await call('POST', '/api/looks', { title, layers: [{ id: 'l1', title: 'All',
+    modules: [{ id: 'a', kind: 'source', title: 'Flat', code: pixel(v) }] }] })).look;
+  const playing = await look('On the lights', 0.3), edited = await look('Being edited', 0);
+  await expect.poll(async () => (await call('GET', '/api/lights')).engine).toBe(true);
+  expect(await call('POST', '/api/lights/queue', { lookId: playing.id, at: 'now' })).toEqual({ kind: 'live' });
+  const dir = process.env.RELAY_SHOTS;
+  const shot = (page, name) => page.screenshot({ path: dir ? path.join(dir, `${name}.png`)
+    : info.outputPath(`${name}.png`) });
+
+  for (const size of ['laptop', 'phone']) {
+    const ctx = await browser.newContext(SIZES[size]);
+    const [name, value] = cara.split('=');
+    await ctx.addCookies([{ name, value, url: origin }]);
+    const page = await ctx.newPage(), errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    await page.goto(`${origin}/studio/${edited.id}`);
+    await expect(page.locator('.viewer-msg').first()).toBeHidden({ timeout: 60_000 });
+    await page.getByRole('button', { name: 'To the lights' }).click();
+    const panel = page.getByRole('group', { name: 'To the lights' });
+    await panel.getByRole('checkbox', { name: 'To the lights' }).check();
+    await expect(panel.getByRole('status')).toContainText('Relaying', { timeout: 30_000 });
+    // Over the look the lights play: the editor's black takes over from its grey, steady.
+    await expect.poll(() => stats().relay?.on, { timeout: 15_000 }).toBe(true);
+    expect(stats().relay.by).toBe('cara');
+    await expect.poll(() => stats().watts, { timeout: 10_000 }).toBeLessThan(5);
+    const missed = stats().relay.missed;
+    if (size === 'laptop') {
+      // An unsaved edit: white, on the lights within a few stats lines (the buffer, then the meter's own smoothing).
+      await page.locator('.dock-tab', { hasText: 'Code' }).click();
+      await page.locator('textarea.code:visible').first().fill(pixel(1));
+      await expect(page.locator('.studio.is-dirty')).toHaveCount(1);
+      await expect.poll(() => stats().watts, { timeout: 10_000 }).toBeGreaterThan(50);
+      await page.getByRole('button', { name: 'To the lights' }).click();
+    }
+    await page.waitForTimeout(3000);
+    expect(stats().relay.on).toBe(true);
+    expect(stats().relay.missed - missed, 'missed in 3 s').toBeLessThanOrEqual(4);
+    await expect(panel.getByRole('status')).toContainText('ms ahead');
+    await shot(page, `relay-studio-${size === 'laptop' ? 1366 : 390}`);
+    await panel.getByRole('checkbox', { name: 'To the lights' }).uncheck();
+    await expect.poll(() => stats().relay, { timeout: 5000 }).toBeNull();
+    expect(errors).toEqual([]);
+    await ctx.close();
+  }
+});

@@ -10,6 +10,7 @@ import { cx } from './kit.tsx';
 import type { Preview } from './preview.ts';
 import { Rose } from './rose.tsx';
 import type { Studio } from './studio-store.ts';
+import { mayRelay, ToLights } from './to-lights.tsx';
 
 const REDUCE = matchMedia('(prefers-reduced-motion: reduce)');
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -105,7 +106,7 @@ function ViewTools({ pv }: { pv: Preview }) {
     </div></>;
 }
 
-/** Play/pause, restart, the time, scrub and speed. */
+/** Play/pause, restart, the time, scrub and speed; To the lights, for those who may relay. */
 function Transport({ st, pv, el }: Props & { el: { current: HTMLDivElement | null } }) {
   const playing = st.playing.value, ids = [useId(), useId()], scrub = useRef<HTMLInputElement>(null);
   const scrubbing = useRef(false), text = useComputed(() => `${clock(pv.time.value)} / ${clock(pv.duration.value)}`);
@@ -131,5 +132,6 @@ function Transport({ st, pv, el }: Props & { el: { current: HTMLDivElement | nul
         onChange={(e) => { st.speed.value = Number(e.currentTarget.value); }}>
         {[0.25, 0.5, 1, 2, 4].map((s) => <option value={String(s)}>{s}×</option>)}</select>
       <span class="tp-stats" aria-hidden="true">{pv.stats}</span>
+      {mayRelay() && <ToLights st={st} pv={pv} />}
     </div>);
 }
