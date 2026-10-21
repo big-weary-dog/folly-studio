@@ -2,18 +2,19 @@
 // as binary frames, rendered ahead in its browser, each for a slot of the engine's timer; the engine plays them in
 // place of its own render. Frames wait in a ring keyed by slot. A slot with no frame holds the last one for up to
 // HOLD slots, then dips through black to the engine's own render; relayed frames come back on the first after a
-// start or a switch, else after a second of steady ones. A frame is data: its length checked, its values Uint16.
+// start or a switch, else after a second of steady ones. An `over` lease (Studio's editor) plays over whatever look
+// the engine has, any rev; the guard tripping on it ends it. A frame is data: its length checked, its values Uint16.
 
 export const RELAY = { slots: 128, hold: 4, dipSecs: 0.1, leaseMs: 1000, header: 8 };
-export type RelayState = { by: string, on: boolean, index: number, next: number, ahead: number, misses: number,
-  frames: number };
+export type RelayState = { by: string, over: boolean, on: boolean, index: number, next: number, ahead: number,
+  misses: number, frames: number };
 
 export function createRelay({ count, fps, now = () => performance.now() }: { count: number, fps: number,
   now?: () => number }) {
   const size = count * 3, bytes = RELAY.header + size * 2, period = 1000 / fps;
   const slots = Array.from({ length: RELAY.slots }, () => ({ index: -1, rev: -1, rgb: new Uint16Array(size) }));
   // The holder (a socket, as the server has it) and its name; whether relayed frames play; the dip's gain.
-  let holder: object | null = null, by = '', on = false, picked = false, dip = 1, dipTo = 1;
+  let holder: object | null = null, by = '', over = false, on = false, picked = false, dip = 1, dipTo = 1;
   let played = -1, playedAt = 0, gotAt = -Infinity, lastRev = -1, steady = 0, lastIn = 0;
   let misses = 0, frames = 0, tokens = RELAY.slots, tokensAt = now();
   let onEnd: (holder: object, why: string) => void = () => {};
@@ -30,18 +31,21 @@ export function createRelay({ count, fps, now = () => performance.now() }: { cou
     bytes,
     /** Told when a lease ends on its own (no frames for a second). */
     onEnd(f: typeof onEnd) { onEnd = f; },
-    /** The lease for `who`, named `name`; '' when it has it, else why not. */
-    start(who: object, name: string) {
+    /** The lease for `who`, named `name`, `over` whatever look plays; '' when it has it, else why not. */
+    start(who: object, name: string, overAny = false) {
       if (holder && holder !== who) return `${by} is relaying to the lights.`;
       if (holder !== who) { misses = 0; frames = 0; }
       holder = who;
       by = name;
+      over = overAny;
       picked = true;
       lastIn = now();
       return '';
     },
     /** The lease let go, if `who` holds it. */
     stop(who: object) { if (holder === who) end(''); },
+    /** The flash guard tripped: an `over` lease ends (the engine's switch to safe would not stop its frames). */
+    tripped() { if (holder && over) end('The flash guard tripped: the lights play their own.'); },
     holds: (who: object) => holder === who,
     /** A frame from `who`: '' when taken (or dropped as out of its window), else why it was refused. */
     push(who: object, data: Uint8Array) {
@@ -67,11 +71,11 @@ export function createRelay({ count, fps, now = () => performance.now() }: { cou
       played = slot;
       playedAt = now();
       if (holder && playedAt - lastIn > RELAY.leaseMs) end('No frames for a second: the lights play their own.');
-      const s = slots[slot % RELAY.slots]!, got = !!holder && s.index === slot && s.rev === rev;
+      const s = slots[slot % RELAY.slots]!, got = !!holder && s.index === slot && (over || s.rev === rev);
       if (rev !== lastRev) {
         // A switch: the new look starts on the engine's own render (it fades in from black), never the old frame.
         lastRev = rev;
-        if (on) { on = false; dip = dipTo = 1; picked = true; }
+        if (on && !over) { on = false; dip = dipTo = 1; picked = true; }
       }
       if (got) { steady++; gotAt = slot; } else { steady = 0; if (holder) misses++; }
       if (!on && got && (picked || steady >= fps)) { on = true; picked = false; dip = dipTo = 1; }
@@ -92,7 +96,7 @@ export function createRelay({ count, fps, now = () => performance.now() }: { cou
       while (ahead < RELAY.slots - 1 && slots[(played + 1 + ahead) % RELAY.slots]!.index === played + 1 + ahead) {
         ahead++;
       }
-      return { by, on, index: played + Math.min(1, (now() - playedAt) / period), next: played + 1, ahead, misses,
+      return { by, over, on, index: played + Math.min(1, (now() - playedAt) / period), next: played + 1, ahead, misses,
         frames };
     },
   };

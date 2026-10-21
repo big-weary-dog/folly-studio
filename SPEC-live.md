@@ -108,7 +108,8 @@ power compressor. Only `renderFrame` is skipped; the look's live controls still 
   `{ type: 'relay', holding: false, error? }`.
 - `over: true` (Studio's editor, below): its frames are not the engine's look but play over whatever it has, rev 0
   on every frame. A switch of the engine's look does not stop them, and the flash guard tripping on them ends the
-  lease (`error: 'The flash guard tripped: the lights play their own.'`), so the dip to `safe` holds.
+  lease (`error: 'The flash guard tripped: the lights play their own.'`), so the dip to `safe` holds: an `over`
+  start is refused while it does, until a look is picked.
 
 **The frame.** A binary message, little-endian: u32 slot index, u32 look rev, then `count × 3` Uint16 rgb (the rig's
 cells in its order, 0..65535 for 0..1, before any light transform: what `renderFrame` gives). Exactly
