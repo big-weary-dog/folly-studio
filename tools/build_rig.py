@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Build the rigs as the studio sees them (SPEC "Rig"): City of Gods, the default, as studio/public/data/rig.json
-from ../city-of-gods/pixel-map/ (tools/cog_rig.py), and the Gothic Folly's playa build as rig-folly.json from
-../pixel-map/.
+"""Build the rigs as the studio sees them (SPEC "Rig"): City of Gods, the default, as public/data/rig.json from
+show-builder's city-of-gods/pixel-map/ (tools/cog_rig.py), and the Gothic Folly's playa build as rig-folly.json from
+its pixel-map/ (show-builder: tools/sources.py).
 
-    python3 studio/tools/build_rig.py [--check]   # write them, or exit 1 if a committed file is stale
+    python3 tools/build_rig.py [--check]   # write them, or exit 1 if a committed file is stale
 
 Every LED comes from td/python/make_pixel_csv.py's pixel_rows(), so the studio lights exactly the LEDs
 TouchDesigner, Mirage and the relay do from the same pixel map: same order, universe/channel and places. This adds
@@ -22,8 +22,8 @@ import sys
 sys.dont_write_bytecode = True  # keep td/python and tools free of __pycache__
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-STUDIO = os.path.dirname(HERE)
-REPO = os.path.dirname(STUDIO)
+from sources import SHOW_BUILDER as REPO, STUDIO  # noqa: E402
+
 TD_PYTHON = os.path.join(REPO, 'td', 'python')
 PIXEL_MAP = os.path.join(REPO, 'pixel-map')
 TD_CONFIG = os.path.join(REPO, 'td', 'config')
@@ -302,8 +302,8 @@ def main():
         old = open(out, encoding='utf-8').read() if os.path.exists(out) else None
         if args.check:
             stale = stale or old != text
-            print('%s %s' % (os.path.relpath(out, REPO), 'is up to date' if old == text
-                             else 'is stale: run python3 studio/tools/build_rig.py'))
+            print('%s %s' % (os.path.relpath(out, STUDIO), 'is up to date' if old == text
+                             else 'is stale: run python3 tools/build_rig.py'))
             continue
         os.makedirs(args.out, exist_ok=True)
         with open(out, 'w', encoding='utf-8', newline='\n') as f:
@@ -311,7 +311,7 @@ def main():
         rig = json.loads(text)
         print('%d LEDs, %d fixtures, %d groups, %d scaffold lines -> %s (%s)'
               % (rig['count'], len(rig['fixtures']), len(rig['groups']), len(rig['structure']['lines']),
-                 os.path.relpath(out, REPO), 'unchanged' if old == text else 'written'))
+                 os.path.relpath(out, STUDIO), 'unchanged' if old == text else 'written'))
     sys.exit(1 if stale else 0)
 
 if __name__ == '__main__':

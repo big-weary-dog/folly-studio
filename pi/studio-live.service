@@ -7,7 +7,7 @@ Wants=network-online.target
 
 [Service]
 User=fpp
-WorkingDirectory=/home/fpp/show-builder/studio
+WorkingDirectory=/home/fpp/folly-studio
 # --experimental-strip-types: Node 22.18 strips types by default; the flag lets an older Node 22 run it too.
 ExecStart=/usr/bin/node --experimental-strip-types pi/main.ts
 # SIGTERM fades to black over about a second, then sends black frames and exits.

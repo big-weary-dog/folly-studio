@@ -3,7 +3,7 @@
 //
 //   node tools/backup.ts [--data <dir>] [--out <dir>] [--frames]
 //
-// --data: STUDIO_DATA, else studio/data/. --out: where the archive goes, default <data>/../backups/.
+// --data: STUDIO_DATA, else data/ in the repo. --out: where the archive goes, default <data>/../backups/.
 // The store writes each JSON file whole and renames it into place, so one read is one version of it; the
 // files are read until a pass finds none replaced while it read, so the set is from one moment. Baked
 // frames (frames/*.fseq) only with --frames: the render box can bake them again. Their wire folders never

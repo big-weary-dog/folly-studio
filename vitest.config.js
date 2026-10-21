@@ -1,5 +1,5 @@
 // npm test: Vitest runs test/**/*.test.{js,ts} through the app's Vite config (vite.config.js), so tests import `.ts`
-// and Vite's own imports (`?sandbox`, styles) as the build does. Root is studio/, not public/ as for the build.
+// and Vite's own imports (`?sandbox`, styles) as the build does. Root is the repo root, not public/ as for the build.
 import { availableParallelism } from 'node:os';
 import { fileURLToPath } from 'node:url';
 

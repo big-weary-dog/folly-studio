@@ -10,9 +10,9 @@ import os
 import re
 
 import rig_render
+from sources import SHOW_BUILDER
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-PIXEL_MAP = os.path.join(os.path.dirname(os.path.dirname(HERE)), 'city-of-gods', 'pixel-map')
+PIXEL_MAP = os.path.join(SHOW_BUILDER, 'city-of-gods', 'pixel-map')
 NAME = 'City of Gods 2026'
 ABOUT = ('City of Gods is the Gothic Folly condensed for a night outdoors between two buildings: a portal of five '
          'main arches around a 16-petal rose window with 7 rings of cells, one mini arch each side, and two towers '

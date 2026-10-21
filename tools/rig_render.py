@@ -1,14 +1,16 @@
 """The Folly's render hints and scaffold for rig.json (SPEC "Rig"), drawn as Mirage draws the Folly.
 
 Sizes are read from mirage/src/config.js and the constants of mirage/src/world/scaffold.js and zones/spires.js,
-so the studio's 3D view follows Mirage; places come from ../pixel-map/. Used by tools/build_rig.py.
+so the studio's 3D view follows Mirage; places come from pixel-map/ (all in show-builder: tools/sources.py). Used by
+tools/build_rig.py.
 """
 import math
 import os
 import re
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-MIRAGE = os.path.join(os.path.dirname(os.path.dirname(HERE)), 'mirage', 'src')
+from sources import SHOW_BUILDER
+
+MIRAGE = os.path.join(SHOW_BUILDER, 'mirage', 'src')
 _text = {}
 
 

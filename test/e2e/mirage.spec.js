@@ -7,7 +7,8 @@
 //
 //   E2E_DEPS=<folder with node_modules/three@0.160.0>  E2E_OUT=<folder for screenshots and findings (default: the
 //   test's own output folder, new each run)>
-//   needs: relay/node_modules (cd relay && npm install), python3, ports 8765 (E2E_HTTP_PORT), 3001 and 5568 free
+//   needs: show-builder's relay/ and mirage/ (SHOW_BUILDER_DIR; skips without them), relay/node_modules
+//   (cd relay && npm install), python3, ports 8765 (E2E_HTTP_PORT), 3001 and 5568 free
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -16,6 +17,7 @@ import { expect, test } from '@playwright/test';
 import { parseFseq } from '../../src/frames.ts';
 import { compressFseq } from '../../src/fseq-codec.ts';
 import { readShow } from '../../tools/sacn-play.ts';
+import { missing } from '../fixtures/sources.js';
 import {
   addressMarkdown, checkCanonical, compareAddresses, framesPerUniverse, listMarkdown, quirksMarkdown,
 } from './compare.mjs';
@@ -26,6 +28,9 @@ import { quietSacn, Stack } from './stack.mjs';
 const HTTP_PORT = Number(process.env.E2E_HTTP_PORT || 8765);
 const MOVING = process.env.E2E_PATTERN || 'clouds';
 const log = (m) => console.log(`e2e: ${m}`);
+const why = missing('relay/relay.js', 'mirage/index.html', 'td/data/all-pixels-positions.csv',
+  'pixel-map/universe-map.json');
+test.skip(!!why, why);
 let OUT;
 const file = (name, bytes) => {
   const p = path.join(OUT, name);

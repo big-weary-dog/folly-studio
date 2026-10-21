@@ -8,13 +8,12 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'vitest';
 
 import { prepareScene } from '../public/js/pattern-core.ts';
+import { missing, source } from './fixtures/sources.js';
 
 const here = (p) => new URL(p, import.meta.url);
 const text = readFileSync(here('../public/data/rig-folly.json'), 'utf8');
 const rig = JSON.parse(text);
-const csvLines = readFileSync(here('../../td/data/all-pixels-positions.csv'), 'utf8').trim().split(/\r?\n/);
-const header = csvLines[0].split(',');
-const rows = csvLines.slice(1).map((l) => Object.fromEntries(l.split(',').map((v, i) => [header[i], v])));
+const CSV = 'td/data/all-pixels-positions.csv';
 const zoneOf = (k) => rig.fixtures.find((f) => k >= f.start && k < f.start + f.count).zone;
 
 test('top-level shape', () => {
@@ -29,7 +28,11 @@ test('top-level shape', () => {
   assert.doesNotThrow(() => prepareScene(rig));
 });
 
-test('every LED agrees with td/data/all-pixels-positions.csv', () => {
+test('every LED agrees with td/data/all-pixels-positions.csv', ({ skip }) => {
+  skip(!!missing(CSV), missing(CSV));
+  const lines = readFileSync(source(CSV), 'utf8').trim().split(/\r?\n/);
+  const header = lines[0].split(',');
+  const rows = lines.slice(1).map((l) => Object.fromEntries(l.split(',').map((v, i) => [header[i], v])));
   assert.equal(rows.length, rig.count);
   rows.forEach((r, k) => {
     assert.equal(zoneOf(k), r.zone, `zone ${k}`);
@@ -110,12 +113,15 @@ test('groups: the tree saved looks name, with tags', () => {
   assert.deepEqual(byId.get('rose-window').centre, [-8.567, 5.936, -0.443]);
 });
 
-test('views are td/config/views.json verbatim', () => {
-  const views = JSON.parse(readFileSync(here('../../td/config/views.json'), 'utf8')).views;
+test('views are td/config/views.json verbatim', ({ skip }) => {
+  skip(!!missing('td/config/views.json'), missing('td/config/views.json'));
+  const views = JSON.parse(readFileSync(source('td/config/views.json'), 'utf8')).views;
   assert.deepEqual(rig.views, views);
 });
 
 test('rig.json is fresh (build_rig.py --check)', ({ skip }) => {
+  const why = missing('td/python', 'pixel-map', 'city-of-gods/pixel-map', 'mirage/src', 'xlights');
+  skip(!!why, why);
   const script = fileURLToPath(here('../tools/build_rig.py'));
   const run = spawnSync('python3', [script, '--check'], { encoding: 'utf8' });
   skip(run.error?.code === 'ENOENT', 'python3 not available');
@@ -126,6 +132,7 @@ test('palettes.json is fresh (build_palettes.py --check), roles in order', ({ sk
   const pals = JSON.parse(readFileSync(here('../public/data/palettes.json'), 'utf8'));
   assert.deepEqual(pals.roles, ['low', 'body', 'accent', 'high']);
   assert.ok(pals.palettes.length >= 8 && pals.palettes.every((p) => p.body.length && p.low.length));
+  skip(!!missing('td/palettes'), missing('td/palettes'));
   const script = fileURLToPath(here('../tools/build_palettes.py'));
   const run = spawnSync('python3', [script, '--check'], { encoding: 'utf8' });
   skip(run.error?.code === 'ENOENT', 'python3 not available');
