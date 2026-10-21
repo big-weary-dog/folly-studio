@@ -28,10 +28,13 @@ export const playableLook = (look: StoredLook | null, settings: LiveSettings) =>
 export const stageCopy = (look: StoredLook, ownerName: string): LiveLook => upgradeGlobals({ id: look.id,
   title: look.title, ownerName, globals: null, automation: null, ...playsOf(look) });
 
+/** May this person control the live stage, and drive Live Play on the lights (STUDIO_LIVE_CONTROL)? */
+export const controlFor = (auth: Pick<Auth, 'can'>, settings: LiveSettings) => (user: Stored) => (
+  settings.control === 'members' ? true : auth.can(user, settings.control === 'admins' ? 'admin' : 'curate'));
+
 export function liveRoutes({ store, auth, hub, settings, listed }: { store: Store, auth: Auth, hub: Hub,
   settings: LiveSettings, listed: (look: StoredLook) => Listed }) {
-  const mayControl = (user: Stored) => (settings.control === 'members' ? true
-    : auth.can(user, settings.control === 'admins' ? 'admin' : 'curate'));
+  const mayControl = controlFor(auth, settings);
   const host = (h: string) => h.toLowerCase().replace(/:(80|443)$/, '');
   return async (api: FastifyInstance) => {
     api.get('/live', (req) => ({ live: hub.live, now: serverNow(), control: mayControl(req.user!) }));

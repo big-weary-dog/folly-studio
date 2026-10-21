@@ -71,7 +71,8 @@ test('a curator plays looks on the lights; the queue shows everywhere', async ({
     await card('Hand-made glow').getByRole('button', { name: 'Play on the lights' }).click();
     const dialog = page.getByRole('dialog', { name: 'Play on the lights' });
     await expect(dialog.getByRole('alert')).toContainText('Has custom code: bake it');
-    await expect(dialog.getByRole('button', { name: 'Play now' })).toBeDisabled();
+    await expect(dialog.getByRole('button', { name: 'Play next' })).toBeDisabled();
+    await expect(dialog.getByRole('button', { name: 'Play now' }), 'not in Jukebox').toHaveCount(0);
     await shot(page, `refused-${size}`);
     await dialog.getByRole('button', { name: 'Close' }).click();
     await card(size === 'laptop' ? 'Slow fire' : 'Ember choir').getByRole('button', { name: 'Play on the lights' })
@@ -83,7 +84,9 @@ test('a curator plays looks on the lights; the queue shows everywhere', async ({
     expect(errors).toEqual([]);
   }
 
-  // The editor: Export → Play on the lights → Play now.
+  // In Live Play, the editor: Export → Play on the lights → Play now.
+  await fetch(`${origin}/api/admin/lights`, { method: 'PUT', body: JSON.stringify({ mode: 'live' }),
+    headers: { 'content-type': 'application/json', cookie: boss } });
   const editor = await person(browser, origin, cara, 'laptop', `/studio/${ember.id}`);
   await editor.page.getByRole('button', { name: 'Export' }).click();
   await editor.page.getByRole('menuitem', { name: 'Play on the lights…' }).click();
@@ -113,6 +116,7 @@ test('a curator plays looks on the lights; the queue shows everywhere', async ({
     const toggle = admin.page.getByRole('checkbox', { name: 'Live library looks on the lights' });
     // On by default; the laptop turns it off, and the phone finds it so.
     await expect(toggle).toBeChecked({ checked: size === 'laptop' });
+    await expect(admin.page.getByRole('button', { name: 'Live Play' })).toHaveAttribute('aria-pressed', 'true');
     await toggle.scrollIntoViewIfNeeded();
     if (size === 'laptop') {
       await toggle.click();

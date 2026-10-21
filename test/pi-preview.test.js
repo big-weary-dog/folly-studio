@@ -66,6 +66,24 @@ describe('the Pi preview at /pi', () => {
     assert.equal(await socket(app, ada.cookie, 'http://evil.example').first, 403);
   });
 
+  test('a page is who its session says, never Studio\'s feed, and cannot set the mode', async () => {
+    const ws = new WebSocket(`ws://127.0.0.1:${app.port}/pi/ws`, { headers: { cookie: ada.cookie, origin: app.base } });
+    const got = [];
+    ws.on('message', (d) => got.push(JSON.parse(String(d))));
+    await new Promise((ok) => { ws.on('open', ok); });
+    ws.send(JSON.stringify({ type: 'hello', feed: true, who: { name: 'mallory', drive: true } }));
+    ws.send(JSON.stringify({ type: 'mode', mode: 'jukebox' }));
+    ws.send(JSON.stringify({ type: 'blackout', on: false }));
+    ws.send(JSON.stringify({ type: 'blackout', on: true }));
+    const last = () => got.filter((m) => m.type === 'state').at(-1)?.state;
+    for (let i = 0; i < 100 && !(last()?.blackout.on && last().blackout.ago === 0); i++) {
+      await new Promise((res) => setTimeout(res, 10));
+    }
+    assert.deepEqual([last().mode, last().here, last().blackout.by], ['live', ['ada'], 'ada']);
+    ws.send(JSON.stringify({ type: 'blackout', on: false }));
+    ws.close();
+  });
+
   test('a preview that is not running is a 502', async () => {
     const down = await start({ admins: 'ada', piPreview: 'http://127.0.0.1:9' });
     const a = await signup(down, 'ada');

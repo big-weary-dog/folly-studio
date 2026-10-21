@@ -13,7 +13,7 @@ import WebSocket from 'ws';
 import { engineOn, lib } from '../pi/test/fixture.ts';
 import { controlServer } from '../pi/src/server.ts';
 import { layersHash, renderFields } from '../src/bake.ts';
-import { playOf } from '../src/lights.ts';
+import { createLightsStore, JUKEBOX_NOW, lightsRoutes, playOf } from '../src/lights.ts';
 import { piFeed } from '../src/live/pi-feed.ts';
 import { layer, signup, startApp, useFixture } from './fixtures/server.js';
 
@@ -53,11 +53,36 @@ describe('playOf', () => {
     const lib1 = lookOf([{ modules: [{ ref: 'fire' }] }]);
     assert.match(playOf(lib1, library, false).error, /^Live looks are off: bake it/);
     assert.deepEqual(playOf({ ...lib1, bake: bake(lib1) }, library, false),
-      { kind: 'baked', id: 'x', title: 'X', sha256: 'a'.repeat(64) });
+      { kind: 'baked', id: 'x', title: 'X', sha256: 'a'.repeat(64), duration: 30 });
     assert.equal(playOf({ ...custom, bake: bake(custom) }, library, true).kind, 'baked');
     // A bake of other code, or one that failed, is not current.
     assert.ok(playOf({ ...custom, bake: bake(lib1) }, library, true).error);
     assert.ok(playOf({ ...custom, bake: { ...bake(custom), ok: false } }, library, true).error);
+  });
+});
+
+describe('the mode and Play now', () => {
+  test('Play now is refused in Jukebox and to those who do not drive; the admin\'s mode goes to the feed', async () => {
+    const sent = [], modes = [];
+    const feed = { connected: () => true, queued: () => 0, send: (m) => sent.push(m), mode: (m) => modes.push(m) };
+    const store = createLightsStore(path.join(mkdtempSync(path.join(tmpdir(), 'lights-')), 'lights.json'));
+    const routes = lightsRoutes({ store, feed, drive: (u) => u.username === 'cara',
+      loadLibrary: () => [{ name: 'fire' }],
+      visibleLook: () => ({ id: 'x', title: 'X', duration: 30, layers: [{ modules: [{ ref: 'fire' }] }] }) });
+    const [queue] = routes['POST /lights/queue'], [put] = routes['PUT /admin/lights'];
+    const cara = { id: 'c', username: 'cara', role: 'curator' }, jo = { id: 'j', username: 'jo', role: 'curator' };
+    const post = (user, body) => queue({ user, body }).then((v) => v, (e) => [e.status, e.message]);
+    assert.deepEqual(await post(cara, { lookId: 'x', at: 'now' }), [409, JUKEBOX_NOW]);
+    assert.deepEqual(await post(cara, { lookId: 'x', at: 'next', fade: 4 }), { kind: 'live' });
+    const ada = { id: 'a', username: 'ada', role: 'admin' };
+    assert.deepEqual(await put({ user: ada, body: { mode: 'live' } }),
+      { liveLooks: true, mode: 'live', canQueue: true, canDrive: false, engine: true });
+    assert.deepEqual(await put({ user: ada, body: { liveLooks: false } }).then((s) => s.mode), 'live', 'one at a time');
+    await put({ user: ada, body: { liveLooks: true } });
+    assert.deepEqual(modes, ['live', 'live', 'live']);
+    assert.deepEqual(await post(jo, { lookId: 'x', at: 'now' }), [403, 'Playing a look now is for those who drive.']);
+    assert.deepEqual(await post(cara, { lookId: 'x', at: 'now', fade: 2 }), { kind: 'live' });
+    assert.deepEqual(sent.map((m) => [m.at, m.fade, m.by]), [['next', 4, 'cara'], ['now', 2, 'cara']]);
   });
 });
 
@@ -80,7 +105,8 @@ describe('Play on the lights', () => {
   afterAll(async () => { clearInterval(tick); await app?.close(); await pi?.close(); });
 
   test('says who may queue and how a look would play', async () => {
-    assert.deepEqual((await bob.get('/api/lights')).json, { liveLooks: true, canQueue: false, engine: true });
+    assert.deepEqual((await bob.get('/api/lights')).json, { liveLooks: true, mode: 'jukebox', canQueue: false,
+      canDrive: false, engine: true });
     assert.deepEqual((await cara.get(`/api/lights?lookId=${fire.id}`)).json.play, { kind: 'live' });
     assert.match((await cara.get(`/api/lights?lookId=${custom.id}`)).json.play.error, /custom code/);
     assert.equal((await ada.get('/api/lights?lookId=nope')).status, 404);
@@ -134,6 +160,14 @@ describe('Play on the lights', () => {
     await until(() => r.engine.state().queue.length > before, 'the queue message');
     assert.deepEqual(r.engine.state().queue.map((q) => q.id), ['safe']);
     ws.close();
+  });
+
+  test('the admin\'s mode reaches the engine: Play now in Live Play', async () => {
+    assert.equal((await cara.post('/api/lights/queue', { lookId: fire.id, at: 'now' })).status, 409);
+    assert.equal((await ada.put('/api/admin/lights', { mode: 'live' })).json.mode, 'live');
+    assert.deepEqual((await cara.post('/api/lights/queue', { lookId: fire.id, at: 'now' })).json, { kind: 'live' });
+    await until(() => [r.engine.state().switching?.id, r.engine.state().look?.id].includes(fire.id), 'it plays');
+    await ada.put('/api/admin/lights', { mode: 'jukebox' });
   });
 });
 

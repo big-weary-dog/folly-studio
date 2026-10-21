@@ -1,5 +1,6 @@
 // Play on the lights (SPEC-offline "Playing on the lights"): a saved look to the engine's queue, now, next or at its
-// end; live when it is library-only, else as its bake; off, saying why, when it cannot play.
+// end; live when it is library-only, else as its bake; off, saying why, when it cannot play. Play now only in Live
+// Play (SPEC-liveplay "Modes"), for those who drive.
 import { useEffect, useState } from 'preact/hooks';
 
 import { api, type At, type Lights } from '../api.ts';
@@ -37,7 +38,8 @@ function PlayLights({ look, dirty, done }: { look: { id: string, title: string }
     <div class="dialog-actions lights-actions">
       <button class="btn" type="button" disabled={off} onClick={() => send('end')}>Add to queue</button>
       <button class="btn" type="button" disabled={off} onClick={() => send('next')}>Play next</button>
-      <button class="btn primary" type="button" disabled={off} onClick={() => send('now')}>Play now</button>
+      {lights?.mode === 'live' && lights.canDrive && <button class="btn primary" type="button" disabled={off}
+        onClick={() => send('now')}>Play now</button>}
     </div>
   </>;
 }
