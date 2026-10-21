@@ -135,7 +135,7 @@ const STDLIB: [string, string[][]][] = [
   ]],
   ['Composing', [
     ['use(name, params?)', 'a library source as (p, t) → colour; call it at the top'],
-    ['G', 'the look: G.energy 0..1, G.bpm, G.palette, each macro as G.name'],
+    ['G', 'the look: G.bpm, G.palette, each macro as G.name'],
     ["centres('tower')", 'the middle [X, Y, Z] of each group tagged tower (in frame or pixel)'],
     ['extent()', 'this layer’s bounds in metres, [[X0, Y0, Z0], [X1, Y1, Z1]]'],
   ]],

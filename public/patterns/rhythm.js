@@ -1,6 +1,7 @@
-// Rhythm: plays what is above it as a drum part locked to the look's beat (bpm and downbeat). Pattern is a line of steps, X a loud hit,
-// x a hit, . a rest; several lines (split by spaces) go to Tag's places in turn, or with several tags, line i to the
-// i-th tag. Each hit lights it and fades over Decay; Amount is how dark between hits, Invert cuts it out on hits.
+// Rhythm: plays what is above it as a drum part locked to the look's beat (bpm and downbeat). Pattern is a line of
+// steps, X a loud hit, x a hit, . a rest; several lines (split by spaces) go to Tag's places in turn, or with several
+// tags, line i to the i-th tag. Each hit lights it and fades over Decay; Amount is how dark between hits, Invert cuts
+// it out on hits.
 // A line with over three hits in a second only dips on them, so a busy part shimmers rather than strobes.
 const params = {
   pattern: { value: 'X...x...X...x...', type: 'text', lines: true, label: 'Pattern',

@@ -1,7 +1,7 @@
 // What the engine publishes for Studio's Live tab (SPEC-live "Following /pi"): its source, values and clock, set in
 // place each frame, are enough for a viewer's core to render every frame the engine sent, byte for byte, through
-// pushes (to macros bound to clocks too), a tap and a speed change; the
-// source's rev moves at a switch and when a push leaves a lane, and the control page gets the source on hello.
+// pushes (to macros bound to clocks too) and a tap; the source's rev moves at a switch and when a push leaves a lane,
+// and the control page gets the source on hello.
 import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
@@ -17,8 +17,10 @@ import type { PiState } from '../src/protocol.ts';
 import { controlServer } from '../src/server.ts';
 import { engineOn, lib, oneModule, rig } from './fixture.ts';
 
-const speedy = oneModule('speedy', 'bars', { bars: 5 }, { globals: { live: ['speed', 'hue', 'level'] },
-  automation: { hue: [[0, -0.4], [20, 0.4]] } });
+const speedy = oneModule('speedy', 'bars', { bars: 5, speed: { mod: 'global', name: 'pace', from: 0, to: 2 },
+  duty: { mod: 'global', name: 'width', from: 0.2, to: 1 } }, { globals: { macros: {
+    pace: { value: 0.3, min: 0, max: 1 }, width: { value: 0.5, min: 0, max: 1 } } },
+  automation: { width: [[0, 0], [20, 1]] } });
 const scene = prepareScene(rig);
 
 /** A Live viewer on the engine's source: each frame, the values the engine published set in place, then that frame
@@ -49,14 +51,13 @@ function beside(r: ReturnType<typeof engineOn>, v: ReturnType<typeof viewer>, se
 }
 
 describe('following the engine', () => {
-  test('a viewer renders every frame the engine sends: macros bound to clocks, a tap, the hue', () => {
+  test('a viewer renders every frame the engine sends: macros bound to clocks and a tap', () => {
     const r = engineOn();
     r.engine.play('heartbeat-plasma');
     r.run(1);
     const v = viewer(r);
     assert.equal(beside(r, v, 0.5), 0);
     r.engine.set('drive', 0.9);
-    r.engine.set('hue', 0.3);
     r.engine.tap(1000);
     assert.equal(beside(r, v, 0.3), 0);
     r.engine.tap(1400);
@@ -66,20 +67,20 @@ describe('following the engine', () => {
     assert.ok(r.lit() > 0);
   });
 
-  test('and after a speed change (its clock offset); a push that leaves a lane is a new source', () => {
+  test('and after a push that leaves a lane, which is a new source', () => {
     const r = engineOn([speedy]);
     r.engine.play('speedy');
     r.run(2);
     let v = viewer(r);
-    r.engine.set('speed', 1.7);
+    assert.equal(beside(r, v, 0.5), 0);
+    r.engine.set('pace', 0.85);
     assert.equal(beside(r, v, 1), 0);
-    assert.notEqual(r.engine.state().look!.offset, 0);
-    r.engine.set('hue', 0.2);
-    assert.ok(r.engine.source()!.rev > v.rev, 'the hue left its lane');
-    assert.equal(r.engine.source()!.automation?.hue, undefined);
+    r.engine.set('width', 0.2);
+    assert.ok(r.engine.source()!.rev > v.rev, 'the width left its lane');
+    assert.equal(r.engine.source()!.automation?.width, undefined);
     v = viewer(r);
     assert.equal(beside(r, v, 1), 0);
-    r.engine.set('speed', 1.2);
+    r.engine.set('pace', 0.6);
     assert.equal(r.engine.source()!.rev, v.rev, 'a push on no lane keeps the source');
     assert.equal(beside(r, v, 1), 0);
   });

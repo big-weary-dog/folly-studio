@@ -136,8 +136,8 @@ describe('claude', () => {
   });
 
   test('keeps the bpm, globals and automation the model returns, cleaned like any look', async () => {
-    const reply = { ...JSON.parse(lookJson()), bpm: 100, globals: { energy: 0.3, palette: 'ember',
-      macros: [{ name: 'storm', value: 0.5, min: 0, max: 1 }] },
+    const reply = { ...JSON.parse(lookJson()), bpm: 100, globals: { palette: 'ember',
+      macros: [{ name: 'storm', value: 0.5, min: 0, max: 1 }, { name: 'energy', value: 0.3, min: 0, max: 1 }] },
     automation: [{ name: 'storm', points: [[20, 1], [0, 0]] }, { name: 'energy', points: [[0, 0.2], [30, 1]] }] };
     const fetch = async () => sse(streamOf(JSON.stringify(reply)));
     const a = createClaudeAdapter({ env: {}, apiKey: 'k', log: quiet, fetch });

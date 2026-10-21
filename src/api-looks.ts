@@ -95,7 +95,8 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, loadLibra
       ...rest, ownerName: ownerName(look.owner) || look.ownerName || '', summary: rest.summary ?? '',
       layers: rest.layers ?? [], duration: rest.duration ?? DEFAULT_DURATION, shared: rest.shared === true,
       reviewed: rest.reviewed === true, versionCount: Array.isArray(list) ? list.length : 0,
-      ...(mine ? { version: currentN(look) } : {}), ...(versions ? { versions: Array.isArray(list) ? list.map(upgradeGlobals) : [] } : {}),
+      ...(mine ? { version: currentN(look) } : {}),
+      ...(versions ? { versions: Array.isArray(list) ? list.map(upgradeGlobals) : [] } : {}),
     };
   }
 

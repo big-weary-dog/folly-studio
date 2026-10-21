@@ -376,8 +376,7 @@ the param's. Per module instance:
   end beyond). It keeps the brightness a fade of values loses mid-way (red to green dips to a muddy olive) and passes through
   the hues between. Plain OKLab, not OKLCh: a fade between distant hues goes through the middle, not round the wheel.
 
-Picks resolve to stops when a layer is prepared and again when the palette changes; per frame only rotates move. Hue
-and saturation grade the composite, literals included.
+Picks resolve to stops when a layer is prepared and again when the palette changes; per frame only rotates move.
 
 **The library's colour rule.** A source has one colour param, `colours: { value: 'all', type: 'color', label:
 'Colours' }` (fire adds `tips`, its tips and embers, since flames and what rises off them are two things), and names

@@ -54,7 +54,8 @@ describe('pal(role, t) as before', () => {
     test(`${name} renders pixel for pixel as before`, () => {
       [null, SPARSE].forEach((palette, i) => {
         const layer = { id: 'a', code: LIB[name].code };
-        const L = prepareLayer(scene, layer, compileLayer(layer)), look = prepareLook({ globals: { palette } });
+        const L = prepareLayer(scene, layer, compileLayer(layer));
+        const look = prepareLook({ globals: { palette }, layers: [layer] });
         const h = createHash('sha256'), rgb = new Float32Array(scene.count * 3);
         for (const t of [0, 1.3, 7.9]) h.update(renderFrame(scene, [L], t, rgb, look).rgb);
         assert.equal(h.digest('hex').slice(0, 16), sums[i], palette ? 'sparse' : 'chapel');

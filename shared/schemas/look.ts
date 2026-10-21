@@ -278,9 +278,10 @@ const lane = ({ min, max }: Range) => {
  */
 export function automationFor(globals: { macros?: Record<string, Range> } | null | undefined) {
   const ranges: Record<string, Range> = { ...globals?.macros };
+  const lanes = Object.fromEntries(Object.entries(ranges).map(([name, r]) => [name, lane(r).optional()]));
   return z.preprocess((a) => (a && typeof a === 'object' && !Array.isArray(a) ? Object.fromEntries(Object.entries(a)
-    .filter(([n]) => n === 'energy' || !OLD_GLOBALS.includes(n))) : a), z.strictObject(Object.fromEntries(Object.entries(ranges).map(([name, r]) => [name, lane(r).optional()])),
-    { error: (iss) => (iss.code === 'unrecognized_keys' ? `automation.${String(iss.keys[0]).slice(0, 40)}: automate a `
+    .filter(([n]) => n === 'energy' || !OLD_GLOBALS.includes(n))) : a), z.strictObject(lanes,
+    { error: (iss) => (iss.code === 'unrecognized_keys' ? `automation.${String(iss.keys[0]).slice(0, 40)}: automate `
       + "one of the look's macros." : 'automation must be an object of lanes.') })
     .refine((a) => Object.keys(a).length <= MAX_LANES, `At most ${MAX_LANES} automation lanes.`)
     .nullable());

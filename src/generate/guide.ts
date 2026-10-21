@@ -109,9 +109,9 @@ is such a chain, ready made: copy its modules, each with its library entry's cod
 A source draws only what it is, on transparent: alpha is how much it covers, null where it draws nothing; it paints
 no background. A bed fills: colour-wash, first in the chain with the element after it \`blend: "over"\` (or after a
 filter that should rework the element alone, \`blend: "under"\`).
-\`G\` holds the look's globals: G.energy (0..1, calm → busy), G.bpm (the look's tempo), the palette, and each macro by
-name. A library source never reads G.energy: to make something busier with energy, bind its param in the layer,
-\`"density": { "mod": "global", "name": "energy", "from": 0.3, "to": 1 }\` (or to an LFO,
+\`G\` holds the look's globals: G.bpm (the look's tempo), the palette, and each macro by name. A library source never
+reads a macro: to make something busier as the look builds, give the look a macro (energy, 0..1) and bind its param
+in the layer, \`"density": { "mod": "global", "name": "energy", "from": 0.3, "to": 1 }\` (or to an LFO,
 \`{ "mod": "lfo", "rate": 0.2 }\`).`;
 
 /** The whole pattern guide, for a brief that writes code (the Fleet worker's). */
@@ -144,13 +144,12 @@ export const TASTE = `- Saturated colours at full value: a palette sets hue, not
 - Sparse places (spire strands, the rose's cells) alias: soft edges, fewer and wider features.
 - Safety: no large-area flashing, strobing or colour cycling faster than about 3 Hz.`;
 
-export const GLOBALS_GUIDE = `\`globals\`: palette (${PALETTE_NAMES.length} below, by name), speed (0..4, 1), level,
-hue (−0.5..0.5 turns), saturation (0..2, 1), energy (0..1, 0.5), macros [{ name, value, min, max, mod? }]. \`bpm\`
-(40–240, 120) sits beside globals. \`automation\` [{ name, points: [[seconds, value], …] }] moves a global or macro
-linearly: energy 0.2 → 1 over a minute is a build. A macro is one dial for many params: bind them to it (a storm macro
-dims the bed while bolts quicken). A macro with a \`mod\` (an LFO) is a modulator: all bound to it move in step. Give
-one min 0, max 1, center 0.5, depth 0.5; its pace and amount name a fader (a global or a plain macro), never a
-modulator. One modulator, not the same LFO repeated.
+export const GLOBALS_GUIDE = `\`globals\`: palette (${PALETTE_NAMES.length} below, by name), macros
+[{ name, value, min, max, mod? }]. \`bpm\` (40–240, 120) sits beside globals. \`automation\`
+[{ name, points: [[seconds, value], …] }] moves a macro linearly: an energy macro 0.2 → 1 over a minute is a build.
+A macro is one dial for many params: bind them to it (a storm macro dims the bed while bolts quicken). A macro
+with a \`mod\` (an LFO) is a modulator: all bound to it move in step. Give one min 0, max 1, center 0.5, depth
+0.5; its pace and amount name a fader (a plain macro), never a modulator. One modulator, not the same LFO repeated.
 \`duration\` (seconds, 30 unless set, at most ${LIMITS.duration}) loops. For a progression ("calm, a storm, embers")
 set it (30–120) and give the layers that come and go \`clips\` [{ start, end, fadeIn, fadeOut }], not overlapping,
 with fades of a few seconds; the bed has none, so the rig never goes dark between sections.`;
@@ -184,8 +183,8 @@ Any number param may be bound instead:
 - \`{ "mod": "lfo", "rate": 0.2, "shape": "sine", "center": 0.5, "depth": 0.5 }\`: Hz, or with \`"unit": "beats"\`
   cycles a beat (0.25: once a bar); shape \`hold\` steps; \`"pace"\` and \`"amount"\` name a fader that quickens it
   or scales its swing.
-- \`{ "mod": "global", "name": "energy", "from": 0.2, "to": 1 }\`: follows a global, macro or modulator. Library
-  sources never read energy: bind their density, speed or brightness to it to build.
+- \`{ "mod": "global", "name": "energy", "from": 0.2, "to": 1 }\`: follows one of the look's macros or modulators.
+  Library sources never read a macro: bind their density, speed or brightness to it to build.
 - on a speed, \`{ "mod": "beats", "per": 0.5 }\`: per × the beats a second, in time with the beat.
 A layer's level cannot be bound: bind a source's brightness.
 
@@ -200,6 +199,7 @@ const v = (name: string, value: unknown) => ({ name, value });
 export const EXAMPLES: Example[] = [
   { idea: 'a comet circling the rose window over a dark bed', uses: ['colour-wash', 'bars'], places: ['rose'],
     look: (root, place) => ({ title: 'Rose comet', summary: 'A comet runs round the rose window over a deep bed.',
+      globals: { macros: [{ name: 'energy', value: 0.5, min: 0, max: 1 }] },
       layers: [
         { title: 'Bed', groups: [root], blend: 'add', level: 0.25,
           modules: [{ use: 'colour-wash', params: [v('colours', 'low'), v('speed', 0)] }] },

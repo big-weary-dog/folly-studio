@@ -151,13 +151,12 @@ strand, curtain, strobe's fade) take a `softness`.
 | Neighbour graph, once per rig (the sandbox's `init`) | 56 neighbours a LED in space, 25 along the wire; 3.2 MB; about 50 ms |
 | The perf demo look, a frame (`test/spatial.test.js`) | 4.9 ms; 5.2 ms with the default soften; 6.2 ms with a 1 m blur in space |
 
-| Kind of global | Which | How |
-|---|---|---|
-| Applied by the runtime | `speed` (an integrated clock, so a change never lurches), `level`, `hue`, `saturation` | Every pattern obeys them, even ones that never read `G` |
-| Read by patterns | `energy`, `palette` (roles `low body accent high`, from `td/palettes`), macros (`G.storm`) | Only patterns written to read them respond |
+A look's globals are its `palette` (roles `low body accent high`, from `td/palettes`), its `bpm` and its macros
+(`G.storm`; Energy is a macro like any other, on the looks that use it). Patterns read them as `G`; only patterns
+written to read them respond. Pattern time is show time.
 
-A number param can be **modulated**: an LFO (Hz or beats), a global, or the clip envelope, resolved once per
-frame per layer. **Automation lanes** move a global or macro over the look's time, linearly between points.
+A number param can be **modulated**: an LFO (Hz or beats), a macro, or the clip envelope, resolved once per
+frame per layer. **Automation lanes** move a macro over the look's time, linearly between points.
 Palettes come from the same CSVs TouchDesigner uses, so a look and a TD show agree on colour.
 
 **Picks.** A colour param holds a pick, not a hex: roles (`body`), slots by TD's names (`body2`), `all`,
@@ -168,8 +167,7 @@ maps bands, tails and heads onto positions in its pick, and people choose the co
 palette's backbone and the pick tile's layout: swapping the palette still restyles the look, and slots address the
 swatches a TD palette has. A per-layer role remap was tried and dropped: roles shown on every source made no sense to
 people. Picks resolve when a layer is prepared and when the palette changes, so per pixel `pal()` costs what it did; a
-bare `pal(role, t)` keeps its smooth ramp, so looks from before render as they did. Hue and saturation stay a grade on
-the composite.
+bare `pal(role, t)` keeps its smooth ramp, so looks from before render as they did.
 
 - **Alternatives.** Per-layer frame buffers with a node graph (any spatial filter, at a full frame per node per
   layer); blur in pattern code (portable, but slow, and a pattern could not see past its own pixel); hard-coded

@@ -2,6 +2,7 @@
 // may control and what may play are the host's settings (STUDIO_LIVE_CONTROL, STUDIO_LIVE_LOOKS).
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 
+import { upgradeGlobals } from '../../public/js/pattern-core.ts';
 import type { Listed } from '../../shared/schemas/api.ts';
 import type { LiveLook, LiveSettings } from '../../shared/schemas/live.ts';
 import { playsOf } from '../../shared/schemas/look.ts';
@@ -23,9 +24,9 @@ export function liveSettings(c: Config = configOf()): LiveSettings {
 export const playableLook = (look: StoredLook | null, settings: LiveSettings) => !!look && look.shared === true
   && (settings.looks === 'shared' || look.reviewed === true) && Array.isArray(look.layers);
 
-/** The stage's copy of a stored look. */
-export const stageCopy = (look: StoredLook, ownerName: string): LiveLook => ({ id: look.id, title: look.title,
-  ownerName, globals: null, automation: null, ...playsOf(look) });
+/** The stage's copy of a stored look, its globals as they play now (upgradeGlobals). */
+export const stageCopy = (look: StoredLook, ownerName: string): LiveLook => upgradeGlobals({ id: look.id,
+  title: look.title, ownerName, globals: null, automation: null, ...playsOf(look) });
 
 export function liveRoutes({ store, auth, hub, settings, listed }: { store: Store, auth: Auth, hub: Hub,
   settings: LiveSettings, listed: (look: StoredLook) => Listed }) {

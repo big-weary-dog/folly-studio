@@ -41,7 +41,7 @@ describe('the downbeat', () => {
   });
 });
 
-test('a global set in place reaches params bound to it, with no lane', () => {
+test('a macro set in place reaches params bound to it, with no lane', () => {
   const CODE = `const params = { v: { value: 0, min: 0, max: 1 } };
     function pixel(p, t, P) { return P.v; }`;
   const bound = { v: { mod: 'global', name: 'storm', from: 0, to: 1 } };
@@ -50,17 +50,16 @@ test('a global set in place reaches params bound to it, with no lane', () => {
   L.g.macros[0].value = 0.7;
   assert.ok(Math.abs(first(CODE, bound, L, 1.025) - 0.7) < 1e-6);
   assert.ok(Math.abs(L.normAt('storm', 1) - 0.7) < 1e-9, 'normAt reads it too (integrated clocks)');
-  L.g.energy = 0.9;
-  assert.ok(Math.abs(L.normAt('energy', 1) - 0.9) < 1e-9);
 });
 
 describe('globals.live', () => {
   const macros = { storm: { value: 0.2, min: 0, max: 1 } };
-  test('globals, the look\'s macros and bpm, each once', () => {
-    assert.deepEqual(Globals.parse({ macros, live: ['storm', 'level', 'bpm'] }).live, ['storm', 'level', 'bpm']);
+  test('the look\'s macros and bpm, each once; an old look\'s globals are dropped', () => {
+    assert.deepEqual(Globals.parse({ macros, live: ['storm', 'level', 'bpm'] }).live, ['storm', 'bpm']);
+    assert.deepEqual(Globals.parse({ energy: 0.4, live: ['energy', 'speed'] }).live, ['energy']);
     assert.equal(Globals.parse({ macros }).live, undefined);
   });
-  for (const live of [['rain'], ['toString'], ['level', 'level'], ['palette'], 'level', [3]]) {
+  for (const live of [['rain'], ['toString'], ['storm', 'storm'], ['palette'], 'storm', [3]]) {
     test(`refuses ${JSON.stringify(live)}`, () => {
       assert.equal(Globals.safeParse({ macros, live }).success, false);
     });

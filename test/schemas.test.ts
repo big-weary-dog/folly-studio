@@ -77,7 +77,7 @@ describe('the API look', () => {
   test('globals: a palette by name filled in, colours lower-cased, macros defaulted and rounded', () => {
     const out = globals({ palette: { name: 'mine', low: ['#FF0000'] }, hue: 0.1234567891,
       macros: { storm: { value: 0.1234567891 }, wind: { min: -2, max: 2 } } });
-    assert.deepEqual(out, { globals: { hue: 0.123457, palette: { name: 'mine', low: ['#ff0000'], body: [], accent: [],
+    assert.deepEqual(out, { globals: { palette: { name: 'mine', low: ['#ff0000'], body: [], accent: [],
       high: [] }, macros: { storm: { value: 0.123457, min: 0, max: 1 }, wind: { value: -2, min: -2, max: 2 } } } });
     assert.equal((globals({ palette: 'carnival' }) as { globals: { palette: { name: string } } }).globals.palette.name,
       'carnival');
@@ -89,17 +89,19 @@ describe('the API look', () => {
   test('prototype keys are never names', () => {
     const forged = JSON.parse('{"__proto__": {"polluted": 1}, "constructor": {"value": 0}}');
     assert.match(String(globals({ macros: forged })), /^Macro constructor: a name is/);
-    assert.match(String(lanes(JSON.parse('{"__proto__": [[0, 1]]}'))), /automate a global or one of the look's macros/);
+    assert.match(String(lanes(JSON.parse('{"__proto__": [[0, 1]]}'))), /automate one of the look's macros/);
     assert.match(String(lanes({ toString: [[0, 1]] })), /^automation\.toString: automate/);
     assert.equal(({} as { polluted?: number }).polluted, undefined);
   });
 
-  test("automation: lanes for the globals and the look's macros, points sorted, to the ms, one per time", () => {
-    const storm = { macros: { storm: { min: 0, max: 5 } } };
+  test("automation: lanes for the look's macros, points sorted, to the ms, one per time", () => {
+    const storm = { macros: { storm: { min: 0, max: 5 }, energy: { min: 0, max: 1 } } };
     assert.deepEqual(lanes({ energy: [[10.0004, 1], [0, 0.2]], storm: [[0, 3]] }, storm),
       { automation: { energy: [[0, 0.2], [10, 1]], storm: [[0, 3]] } });
-    assert.equal(lanes({ energy: [[1.0001, 0], [1, 1]] }), 'automation.energy: two points at 1 s.');
-    assert.equal(lanes({ storm: [[0, 0]] }), "automation.storm: automate a global or one of the look's macros.");
+    assert.equal(lanes({ energy: [[1.0001, 0], [1, 1]] }, storm), 'automation.energy: two points at 1 s.');
+    assert.equal(lanes({ storm: [[0, 0]] }), "automation.storm: automate one of the look's macros.");
+    assert.deepEqual(lanes({ speed: [[0, 1]], level: [[0, 0]], hue: [[0, 0]], saturation: [[0, 1]] }),
+      { automation: {} }, "an old look's lanes on the removed globals are ignored");
     assert.equal(lanes(Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`m${i}`, [[0, 0]]])),
       { macros: Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`m${i}`, { min: 0, max: 1 }])) }),
     'At most 16 automation lanes.');
@@ -157,7 +159,7 @@ describe("a generator's look, cleaned", () => {
     const look = validateLook({ layers: [{ code: PIXEL }], globals: { speed: 9, palette: { name: 'ember' },
       macros: { storm: { value: 3, max: 2 } } }, automation: { storm: [[700, 5], [1, 1], ['x', 1]] } });
     assert.deepEqual(look.globals?.macros, { storm: { value: 2, min: 0, max: 2 } });
-    assert.equal(look.globals?.speed, 4);
+    assert.equal((look.globals as { speed?: number })?.speed, undefined, 'the old speed is ignored');
     assert.equal(look.globals?.palette?.name, 'ember');
     assert.deepEqual(look.automation, { storm: [[1, 1], [600, 2]] });
     const refused = validateLook({ layers: [{ code: PIXEL }],

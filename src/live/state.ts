@@ -1,7 +1,7 @@
 // The live stage's state (SPEC-live "State"): pure functions over it. A push becomes a point in this loop's lane for
 // that global or macro, stamped with a show time, so every viewer's core integrates the same lanes to the same
 // frame; layer levels and blackout just change. The browser's twin is public/js/ui/live/lanes.ts.
-import { automationAt, GLOBALS, MAX_LANES, MAX_POINTS, normalizeGlobals } from '../../public/js/pattern-core.ts';
+import { automationAt, MAX_LANES, MAX_POINTS, normalizeGlobals, upgradeGlobals } from '../../public/js/pattern-core.ts';
 import type { FromClient, Live, LiveLook, LiveUpdate, Points } from '../../shared/schemas/live.ts';
 
 export const LEAD_MS = 30;           // a push plays this long after it arrives, so viewers usually have it in time
@@ -28,13 +28,10 @@ export function roll(live: Live, loop: number) {
   Object.assign(live, { lanes: {}, drop: [], loop });
 }
 
-/** The look's globals and macros with their ranges and values. */
-export function rangesOf(look: Pick<LiveLook, 'globals'>) {
-  const g = normalizeGlobals(look.globals);
-  const out = new Map<string, Range>(Object.entries(GLOBALS).map(([k, r]) => [k, { min: r.min, max: r.max,
-    value: g[k as keyof typeof GLOBALS] }]));
-  for (const m of g.macros) out.set(m.name, { min: m.min, max: m.max, value: m.value });
-  return out;
+/** The look's macros with their ranges and values (upgradeGlobals: energy one on a look from before). */
+export function rangesOf(look: Pick<LiveLook, 'globals' | 'automation' | 'layers'>) {
+  const g = normalizeGlobals(upgradeGlobals(look).globals);
+  return new Map<string, Range>(g.macros.map((m) => [m.name, { min: m.min, max: m.max, value: m.value }]));
 }
 
 /** The look's own value of `name` at show time t: its lane there, else its static value. */
@@ -80,7 +77,7 @@ export function applySet(live: Live, msg: Set, by: By, now: number): LiveUpdate 
   const ranges = rangesOf(look), lanes: LiveUpdate['lanes'] = {}, ids = new Set(look.layers.map((l) => l.id));
   // Checked whole before anything changes.
   const bad = Object.keys(msg.values ?? {}).find((n) => !ranges.has(n));
-  if (bad) return { error: `${bad} is not one of this look's globals or macros.` };
+  if (bad) return { error: `${bad} is not one of this look's macros.` };
   const noLayer = Object.keys(msg.layers ?? {}).find((id) => !ids.has(id));
   if (noLayer) return { error: `This look has no layer ${noLayer}.` };
   const at = now + LEAD_MS, { loop, t } = showTime(live, at);

@@ -22,7 +22,8 @@ describe('the Folly renders saved looks byte for byte as before the rig', () => 
       const scene = core.prepareScene(folly);
       core.setLibrary([]);
       const layers = look.layers.map((l) => core.prepareLayer(scene, l, core.compileLayer(l)));
-      const g = core.prepareLook({ globals: look.globals, automation: look.automation, bpm: look.bpm });
+      const g = core.prepareLook({ globals: look.globals, automation: look.automation, bpm: look.bpm,
+        layers: look.layers });
       const rgb = new Float32Array(scene.count * 3), full = new Uint8Array(scene.frameChannels);
       const all = createHash('sha256');
       for (let f = 0; f < frozen.frames; f++) {

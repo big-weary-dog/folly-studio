@@ -7,7 +7,7 @@ import { describe, test } from 'vitest';
 
 import {
   automationAt, compileLayer, compilePattern, DEFAULT_PALETTE, layerModules, PALETTE_ROLES, prepareLayer, prepareLook,
-  prepareScene, renderFrame, setLibrary,
+  prepareScene, renderFrame, setLibrary, upgradeGlobals,
 } from '../public/js/pattern-core.ts';
 
 const here = (p) => new URL(p, import.meta.url);
@@ -117,15 +117,6 @@ describe('param bindings', () => {
 });
 
 describe('globals and automation', () => {
-  const red = layerOf({ id: 'a', modules: [src('r', RED)] });
-
-  test('level, hue and saturation grade the composite', () => {
-    assert.ok(near(at(frame([red], 0, prepareLook({ globals: { level: 0.5 } })).rgb, 0), [0.5, 0, 0]));
-    assert.ok(near(at(frame([red], 0, prepareLook({ globals: { hue: 1 / 3 } })).rgb, 0), [0, 1, 0], 1e-4));
-    const grey = at(frame([red], 0, prepareLook({ globals: { saturation: 0 } })).rgb, 0);
-    assert.ok(near(grey, [0.2126, 0.2126, 0.2126], 1e-6));
-  });
-
   test('G carries energy, macros and the palette; pal() and palette() read the palette roles', () => {
     const carnival = palettes.palettes.find((p) => p.name === 'carnival');
     const look = prepareLook({ globals: { energy: 0.25, palette: carnival, macros: { storm: { value: 0.75 } } } });
@@ -148,18 +139,39 @@ describe('globals and automation', () => {
     assert.ok(Math.abs(frame([L], 3, look).rgb[0] - 0.5) < 1e-6);
   });
 
-  test('speed is a clock: pattern time is ∫ speed, continuous across a change', () => {
-    const tee = layerOf({ id: 'a', modules: [src('m', 'function pixel(p, t) { return t / 100; }')] });
-    const T = (look, t) => 100 * frame([tee], t, look).rgb[0];
-    assert.ok(Math.abs(T(prepareLook({ globals: { speed: 2 } }), 10) - 20) < 1e-3);
-    const ramp = prepareLook({ automation: { speed: [[0, 0], [10, 2]] } });    // ∫ of a ramp: t² / 10
-    assert.ok(Math.abs(T(ramp, 5) - 2.5) < 1e-3);
-    const slow = prepareLook({ globals: { speed: 1 } });
-    assert.ok(Math.abs(T(slow, 10) - 10) < 1e-3);
-    const fast = prepareLook({ globals: { speed: 2 } }, slow);     // the slider moved at t = 10
-    assert.ok(Math.abs(T(fast, 10) - 10) < 1e-3, 'no jump');
-    assert.ok(Math.abs(T(fast, 11) - 12) < 1e-3, 'twice as fast from there');
-    assert.ok(Math.abs(T(fast, 1) - 2) < 1e-3, 'back on the canonical clock after a seek back');
+  test('an old look with speed, level, hue and saturation renders as one without them', () => {
+    const tee = 'function pixel(p, t, P, G) { return [t / 100, G.energy, 0.5]; }';
+    const layers = [{ id: 'a', modules: [src('m', tee)] }], L = layerOf(layers[0]);
+    const old = { globals: { energy: 0.3, speed: 2, level: 0.5, hue: 0.2, saturation: 0 },
+      automation: { speed: [[0, 1], [9, 2]], level: [[0, 0]] }, layers };
+    const now = { globals: { macros: { energy: { value: 0.3, min: 0, max: 1 } } }, layers };
+    for (const t of [0, 3, 9]) {
+      assert.deepEqual([...frame([L], t, prepareLook(old)).rgb], [...frame([L], t, prepareLook(now)).rgb]);
+    }
+    assert.ok(Math.abs(frame([L], 9, prepareLook(old)).rgb[0] - 0.09) < 1e-6, 'pattern time is show time');
+    assert.equal(upgradeGlobals(now), now, 'a look with nothing old is left alone');
+  });
+
+  test('energy is a macro on the looks that use it, and new looks have none', () => {
+    const macro = (look) => upgradeGlobals(look).globals?.macros?.energy;
+    assert.equal(macro({ globals: {} }), undefined);
+    assert.equal(macro({ layers: [{ code: 'function pixel() { return [1, 0, 0]; }' }] }), undefined);
+    assert.deepEqual(macro({ globals: { energy: 0.8 } }), { value: 0.8, min: 0, max: 1 });
+    assert.deepEqual(macro({ automation: { energy: [[0, 0.2]] } }), { value: 0.5, min: 0, max: 1 });
+    const bound = { mod: 'global', name: 'energy', from: 0, to: 2 };
+    assert.ok(macro({ layers: [{ modules: [{ params: { v: bound } }] }] }));
+    assert.ok(macro({ layers: [{ code: 'function pixel(p, t, P, G) { return [G.energy, 0, 0]; }' }] }));
+    const own = { value: 0.1, min: 0, max: 2 };
+    assert.equal(macro({ globals: { energy: 0.8, macros: { energy: own } } }), own, 'its own macro stays');
+  });
+
+  test('a param bound to energy follows the knob and its lane', () => {
+    const code = `const params = { v: { value: 0.5, min: 0, max: 2 } };
+      function pixel(p, t, P) { return [P.v / 2, 0, 0]; }`;
+    const layer = { id: 'a', modules: [src('m', code, { params: { v: { mod: 'global', name: 'energy', from: 0,
+      to: 2 } } })] };
+    const look = prepareLook({ globals: { energy: 0.25 }, automation: { energy: [[0, 0], [4, 1]] }, layers: [layer] });
+    assert.ok(Math.abs(frame([layerOf(layer)], 2, look).rgb[0] - 0.5) < 1e-6);
   });
 });
 
