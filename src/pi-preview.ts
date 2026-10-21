@@ -91,8 +91,7 @@ export function piPreview({ auth, target, hub, curators = false, drive, loadRig 
       };
       const unlisten = hub?.onDriver(driver);
       const user = req.user!, who = { name: user.username, drive: drive(user) };
-      // A relayed frame's size (8 + the rig's count × 6; none without a rig), and whether the Pi said this socket
-      // holds the lease.
+      // A relayed frame's size (8 + count × 6, none without a rig), and if the Pi said this socket holds the lease.
       const rig = loadRig(), frameBytes = rig ? 8 + rig.count * 6 : -1;
       let holding = false;
       socket.on('message', (d, binary) => {
