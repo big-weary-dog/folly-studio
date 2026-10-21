@@ -148,9 +148,10 @@ its own clock, taking the furthest ahead of the last 10 s's readings (each reach
 a Screen Wake Lock while relaying, and says so, the buffer (`ahead` in ms), the misses, and who holds the lease.
 A frame the socket cannot take (over 256 KB waiting) is dropped, not queued.
 
-Studio's `/pi` proxy passes binary frames only from a socket that sent `relay-start` and has not sent `relay-stop`,
-each exactly `8 + count × 6` bytes (the rig's count); any other binary frame closes the socket (1008). The engine
-holds the lease.
+Studio's `/pi` proxy passes binary frames only from a socket the engine last told `holding: true`, each exactly
+`8 + count × 6` bytes (the rig's count): one of another size closes the socket (1008), and one sent before the page
+heard its lease end is dropped. The server's socket limit is 32 KB, a Folly-rig frame's; the stage's own messages
+stay at 16 KB.
 
 **Measured on the playa (pi/INSTALL.md "Relay").** Ping jitter over the site's Wi-Fi sets the buffer: p99 plus two
 frames.

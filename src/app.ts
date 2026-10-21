@@ -151,7 +151,7 @@ export async function createServer(opts: Options = {}) {
   });
   await app.register(fastifyCookie);
   await app.register(fastifyRateLimit, { global: false });
-  await app.register(fastifyWebsocket, { options: { maxPayload: 16 * 1024 } });
+  await app.register(fastifyWebsocket, { options: { maxPayload: 32 * 1024 } });   // a relayed frame (pi-preview.ts)
   // The live stage follows the dry run whenever /pi was the last thing used (SPEC-live "Following /pi"); on the Pi,
   // the feed also plays looks on the lights (SPEC-offline "Playing on the lights").
   // The mode is the admin's on the Pi (lights.json); the hosted dry run at /pi is a preview, in Live Play.
@@ -165,7 +165,8 @@ export async function createServer(opts: Options = {}) {
     frames, rateLimit, secureCookies, flash, hub, live, ideaLogs, previews, reports, light, profile, lights,
     build: buildSha(path.dirname(fileURLToPath(import.meta.url)), config.GIT_SHA), tail: log.tail }),
   { prefix: '/api' });
-  if (piTarget) await app.register(piPreview({ auth, target: piTarget, hub, curators: profile === 'pi', drive }));
+  if (piTarget) await app.register(piPreview({ auth, target: piTarget, hub, curators: profile === 'pi', drive,
+    loadRig }));
   await serveApp(app, { distDir, log });
   await app.ready();
   const pruneTimer = setInterval(() => { auth.pruneSessions(); void reports.sweep(); }, 60 * 60 * 1000);

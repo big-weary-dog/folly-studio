@@ -3,12 +3,14 @@
 // and curators too on the Pi. Dry run or not, it is a control surface.
 // Using one of its controls makes it drive the live stage (SPEC-live "Following /pi"); its page is told who drives.
 // Each page's hello says who it is, from the session (SPEC-liveplay "People"); Studio's own messages never pass.
+// Binary frames pass only from the relay lease's holder, each exactly a frame (SPEC-live "Relay to the lights").
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import WebSocket from 'ws';
 
 import { type Auth, sessionHook } from './auth.ts';
 import { HttpError } from './http.ts';
 import type { Hub } from './live/hub.ts';
+import type { Rig } from '../shared/schemas/rig.ts';
 import type { StoredUser } from './store.ts';
 
 const BASE = '/pi', TIMEOUT_MS = 5000;
@@ -35,8 +37,9 @@ export function previewTarget(url: string) {
 }
 
 /** `curators`: curators may use it too (the Pi profile), not admins alone; `drive`: may this person drive Live Play. */
-export function piPreview({ auth, target, hub, curators = false, drive }: { auth: Auth, target: URL,
-  hub?: Pick<Hub, 'live' | 'piDrove' | 'onDriver'>, curators?: boolean, drive: (user: StoredUser) => boolean }) {
+export function piPreview({ auth, target, hub, curators = false, drive, loadRig }: { auth: Auth, target: URL,
+  hub?: Pick<Hub, 'live' | 'piDrove' | 'onDriver'>, curators?: boolean, drive: (user: StoredUser) => boolean,
+  loadRig: () => Rig | null }) {
   const host = (h: string) => h.toLowerCase().replace(/:(80|443)$/, '');
   // Its role only (sessionHook): no session is asked to sign in (the app's page), anyone else refused, in plain text.
   const who = curators ? 'a curator' : 'an admin';
@@ -88,8 +91,16 @@ export function piPreview({ auth, target, hub, curators = false, drive }: { auth
       };
       const unlisten = hub?.onDriver(driver);
       const user = req.user!, who = { name: user.username, drive: drive(user) };
+      // A relayed frame's size (8 + the rig's count × 6), and whether the Pi said this socket holds the lease.
+      const rig = loadRig(), frameBytes = rig ? 8 + rig.count * 6 : 0;
+      let holding = false;
       socket.on('message', (d, binary) => {
-        if (binary) { socket.close(1008, 'Not a message this page sends'); return; }
+        if (binary) {
+          if ((d as Buffer).length !== frameBytes) { socket.close(1008, 'Not a message this page sends'); return; }
+          // Sent before the page heard its lease end: dropped; a socket far behind drops frames rather than queue.
+          if (holding && up.readyState === WebSocket.OPEN && up.bufferedAmount < 1 << 18) up.send(d, { binary });
+          return;
+        }
         const msg = typeOf(String(d));
         if (STUDIOS.has(msg.type as string)) return;
         // Who it is comes from the session; a page is never Studio's feed.
@@ -105,6 +116,11 @@ export function piPreview({ auth, target, hub, curators = false, drive }: { auth
       let told = false;     // who drives, after the Pi's first word (its hello)
       up.on('message', (d, binary) => {
         if (socket.readyState === WebSocket.OPEN) socket.send(d, { binary });
+        // The Pi's word on the lease is short; its states are not.
+        if (!binary && (d as Buffer).length < 256) {
+          const m = typeOf(String(d)) as Msg & { holding?: unknown };
+          if (m.type === 'relay') holding = m.holding === true;
+        }
         if (hub && !told) { told = true; driver(hub.live.driver); }
       });
       up.on('close', (c) => { if (socket.readyState < WebSocket.CLOSING) socket.close(code(c)); });

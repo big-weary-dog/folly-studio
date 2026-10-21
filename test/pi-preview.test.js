@@ -9,6 +9,7 @@ import { afterAll, beforeAll, describe, test } from 'vitest';
 import WebSocket from 'ws';
 
 import { engineOn } from '../pi/test/fixture.ts';
+import { createRelay } from '../pi/src/relay.ts';
 import { controlServer, CSP } from '../pi/src/server.ts';
 import { signup, startApp, useFixture } from './fixtures/server.js';
 
@@ -30,12 +31,14 @@ function socket(app, cookie, origin = app.base) {
 
 describe('the Pi preview at /pi', () => {
   let pi, r, app, ada, bob;
+  // The lease and its frames on the fixture rig's 2 cells (test/fixtures/server.js), as Studio's rig has them.
+  const COUNT = 2, relay = createRelay({ count: COUNT, fps: 40 });
   beforeAll(async () => {
     r = engineOn();
     r.engine.play('fire');
     r.run(0.3);
     pi = await controlServer({ engine: r.engine, state: () => ({ ...r.engine.state(), looks: [], out: {} }), pin: '',
-      mode: 'live',
+      mode: 'live', relay,
       port: 0, host: '127.0.0.1', base: '/pi' });
     app = await start({ admins: 'ada', piPreview: `http://127.0.0.1:${pi.port}` });
     ada = await signup(app, 'ada');
@@ -83,6 +86,41 @@ describe('the Pi preview at /pi', () => {
     assert.deepEqual([last().mode, last().here, last().blackout.by], ['live', ['ada'], 'ada']);
     ws.send(JSON.stringify({ type: 'blackout', on: false }));
     ws.close();
+  });
+
+  test('binary passes only as a frame, from the lease holder; the stage\'s own messages stay small', async () => {
+    const s = socket(app, ada.cookie);
+    await s.first;
+    const frame = (index) => {
+      const b = Buffer.alloc(8 + COUNT * 6);
+      b.writeUInt32LE(index, 0);
+      return b;
+    };
+    const until = async (f) => {
+      for (let i = 0; i < 100 && !f(); i++) await new Promise((res) => setTimeout(res, 10));
+    };
+    s.ws.send(frame(0));      // no lease yet: dropped, the socket stays open
+    s.ws.send(JSON.stringify({ type: 'relay-start' }));
+    await until(() => s.got.some((m) => m.type === 'relay'));
+    assert.deepEqual(s.got.find((m) => m.type === 'relay'), { type: 'relay', holding: true });
+    assert.equal(relay.state().ahead, 0);
+    const next = relay.state().next;
+    for (let i = 0; i < 4; i++) s.ws.send(frame(next + i));
+    await until(() => relay.state().ahead === 4);
+    assert.equal(relay.state().ahead, 4);
+    const closed = new Promise((res) => { s.ws.on('close', res); });
+    s.ws.send(Buffer.alloc(100));
+    assert.equal(await closed, 1008);
+    await until(() => !relay.state());
+    assert.equal(relay.state(), null, 'its close let the lease go');
+
+    const live = new WebSocket(`ws://127.0.0.1:${app.port}/api/live/socket`, { headers: { cookie: ada.cookie,
+      origin: app.base } });
+    live.on('error', () => {});
+    await new Promise((ok) => { live.on('open', ok); });
+    const shut = new Promise((res) => { live.on('close', res); });
+    live.send('x'.repeat(20 * 1024));
+    assert.equal(await shut, 1009);
   });
 
   test('a preview that is not running is a 502', async () => {
