@@ -101,11 +101,14 @@ guard (a relayed strobe dips to `safe` as a local one does), `ledChannels` with 
 power compressor. Only `renderFrame` is skipped; the look's live controls still step, so the state reads the same.
 
 **The lease.** One sender at a time, on the engine's socket (`pi/src/protocol.ts`, `pi/src/relay.ts`):
-- `{ type: 'relay-start' }` from a socket whose hello passed (the PIN, if set) and that may drive (a page's person
+- `{ type: 'relay-start', over? }` from a socket whose hello passed (the PIN, if set) and that may drive (a page's person
   with `drive`, or the Pi's own page; never Studio's feed). The first holds it; any other gets `{ type: 'relay',
   holding: false, error: '<who> is relaying to the lights.' }`. The holder gets `{ type: 'relay', holding: true }`.
 - It ends at `{ type: 'relay-stop' }`, at the socket's close, or after 1 s with no frame in; the holder is told
   `{ type: 'relay', holding: false, error? }`.
+- `over: true` (Studio's editor, below): its frames are not the engine's look but play over whatever it has, rev 0
+  on every frame. A switch of the engine's look does not stop them, and the flash guard tripping on them ends the
+  lease (`error: 'The flash guard tripped: the lights play their own.'`), so the dip to `safe` holds.
 
 **The frame.** A binary message, little-endian: u32 slot index, u32 look rev, then `count × 3` Uint16 rgb (the rig's
 cells in its order, 0..65535 for 0..1, before any light transform: what `renderFrame` gives). Exactly
@@ -123,7 +126,7 @@ its own; a knob push lands when its frame plays, one buffer later.
 **Show time.** Slot `s` plays the look's frame `f = round(look.t × fps) + (s − relay.next)`, both from one state,
 wrapped as the engine wraps: past the duration, back by whole loops of `round(duration × fps)` frames, `beat0` back
 by as much. A frame's rev is the state's `look.rev`;
-one for another rev is not played.
+one for another rev is not played (unless the lease is `over`).
 
 **Starvation.** The engine notices a late frame by its slot, not by the socket (a Wi-Fi drop sends no FIN):
 - On the first slot with no frame for it, it holds the last relayed frame, for up to 100 ms (4 slots).
@@ -147,6 +150,16 @@ sends it. The page estimates the slot playing from the states: the newest readin
 its own clock, taking the furthest ahead of the last 10 s's readings (each reaches it late, never early). It takes
 a Screen Wake Lock while relaying, and says so, the buffer (`ahead` in ms), the misses, and who holds the lease.
 A frame the socket cannot take (over 256 KB waiting) is dropped, not queued.
+
+**From Studio's editor.** The editor's preview, for the same people, has **To the lights** in its transport: the
+same switch, buffer and status, the same socket, lease and PIN, with `over: true`. The look being edited goes to the
+lights as it stands, custom code and unsaved edits included: its code still runs only in the browser's sandbox, and
+the engine sees frames, guarded as any. The preview's own sandbox renders ahead (the Worker that holds the edited
+look), so an edit plays within the buffer. Show time is the editor's clock: the page tells the Worker the playhead
+(`clock: { t, at, speed, playing, duration }`: show time `t` at epoch ms `at`), anew when it plays, pauses, seeks,
+changes speed or the duration; slot `s` plays `t + (its epoch time − at) × speed`, wrapped by the duration, or `t`
+while paused. A hidden tab's preview stops drawing, but the Worker renders on, and coming back the playhead catches
+up with the lights.
 
 Studio's `/pi` proxy passes binary frames only from a socket the engine last told `holding: true`, each exactly
 `8 + count × 6` bytes (the rig's count): one of another size closes the socket (1008), and one sent before the page
