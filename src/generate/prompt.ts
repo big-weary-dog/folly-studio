@@ -136,10 +136,9 @@ export const rootOf = (groups: Groups = []) => groups.find((g) => g && g.parent 
 
 /** The look's palettes, a line each: its theme, then every role's slots, in order (`body2` is body's second). */
 export function formatPalettes() {
-  return PALETTES.palettes.map((p) => `- ${p.name} (${p.theme}): ${PALETTES.roles.map((r: string) => `${r} ${
-    ((p as unknown as Record<string, string[]>)[r] ?? []).join(' ')}`).join('; ')}`).join('\n');
+  return PALETTES.palettes.map((p) => `${p.name} | ${p.theme} | ${PALETTES.roles.map((r: string) =>
+    ((p as unknown as Record<string, string[]>)[r] ?? []).map((c) => c.slice(1)).join(',')).join(' | ')}`).join('\n');
 }
-
 /** The worked compositions whose names the catalog has, as idea → JSON. */
 function formatCompositions(catalog: Catalog, groups: Groups) {
   const root = rootOf(groups), has = (n: string) => catalog.modules.has(n) || catalog.presets.has(n);
@@ -175,7 +174,8 @@ ${docs ? `${DOCS_NOTE}
 
 ` : ''}${catalog.text || '(empty: every layer is an extension)'}
 
-# Palettes (roles low, body, accent, high; a slot is a role and its place: body2)
+# Palettes (sRGB hex without #; each role's slots in order: body's second is body2)
+name | theme | low | body | accent | high
 ${formatPalettes()}
 
 # Groups (use these ids exactly)
