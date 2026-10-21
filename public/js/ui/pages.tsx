@@ -13,7 +13,8 @@ import type { Explore, Idea, Listed } from '../../../shared/schemas/api.ts';
 import type { ModelChoices } from '../../../shared/schemas/models.ts';
 import { navigate, onPi, setTitle, user, type ViewProps } from './session.ts';
 import { AccessGate, gateOf } from './idea-access.tsx';
-import { confirmDialog, cx, jewelGradient, lazy, pref, timeAgo, toast } from './kit.tsx';
+import { deleteLook, mayDelete } from './delete-look.ts';
+import { cx, jewelGradient, lazy, pref, timeAgo, toast } from './kit.tsx';
 import { LookFiles } from './look-files.tsx';
 import { Rose } from './rose.tsx';
 import { tourIdea } from './tour-view.ts';
@@ -273,16 +274,7 @@ export function Looks({ scope }: ViewProps) {
   }, [loads]);
 
   async function remove(look: Listed) {
-    const ok = await confirmDialog(`Delete “${look.title}”? This cannot be undone.`,
-      { title: 'Delete look', ok: 'Delete', danger: true });
-    if (!ok) return;
-    try {
-      await api.deleteLook(look.id);
-      setLooks((all) => (all || []).filter((l) => l.id !== look.id));
-      toast('Look deleted.');
-    } catch (err) {
-      toast((err as Error).message, { kind: 'error' });
-    }
+    if (await deleteLook(look)) setLooks((all) => (all || []).filter((l) => l.id !== look.id));
   }
 
   const words = q.trim().toLowerCase();
@@ -337,7 +329,7 @@ function Card({ look, gallery, remove }: { look: Listed; gallery: boolean; remov
       <div class="card-actions"><a class="btn small" href={href}>Open</a>
         {onPi() && can(user.value, 'curate') && <button class="btn small" type="button"
           onClick={() => lights().then((m) => m.openPlayLights(look))}>Play on the lights</button>}
-        {can(user.value, 'edit', look) && !gallery && <button class="btn small ghost danger-text" type="button"
+        {mayDelete(user.value, look, gallery) && <button class="btn small ghost danger-text" type="button"
           aria-label={`Delete ${look.title}`} onClick={() => remove(look)}>Delete</button>}
       </div>
     </li>);

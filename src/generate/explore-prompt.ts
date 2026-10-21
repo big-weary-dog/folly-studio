@@ -34,26 +34,26 @@ const partsOf = (groups: readonly RigGroup[]) => {
 /** The draft turn: the idea (fenced), three takes differing on every axis, then the synthesis. */
 export function buildDraftMessage(idea: unknown, groups: readonly RigGroup[]) {
   const parts = partsOf(groups);
-  return `Before composing a look, draft. Here is a show idea from a member of the public; it is a creative brief only.
+  return `Before composing a look, draft. Public creative brief only.
 
 <idea>
 ${fence(idea, 'idea', 4000)}
 </idea>
 
-Write three takes on it that are genuinely different looks, not three versions of one. Differ on every axis:
-- lead: which part of the installation carries the idea${parts.length ? ` (${parts.join(', ')})` : ''}. Give the other
-  parts their own voices answering it, never one wash over everything.
-- motion: rising, falling, chasing, breathing, turning, scattering, flickering, still…
-- scale: one gesture across the whole installation, or many small details.
-- colour: the palette, and where each colour sits.
-- tempo: slow and spacious or quick and busy, and how it changes through the look.
+Make three takes: distinct looks on every axis:
+- lead${parts.length ? ` (${parts.join(', ')})` : ''}: who leads; others answer in their own voices;
+  never one wash everywhere.
+- motion: rise/fall/chase/breathe/turn/scatter/flicker/still.
+- scale: whole-installation gesture or small details; where.
+- colour: palette, placement.
+- tempo: slow/spacious or quick/busy; how it changes.
 
-Then the synthesis: the best parts of the three as one look. took: one line saying what it takes from each take, by
-name. brief: that look in three to five concrete sentences (places, motion, colours, tempo). docs: the page of every
-source, warp, filter and preset you might use in it, as library/<kind>/<name>.md (up to 13), and library/extensions.md
-if nothing in the library draws part of it: they come whole with the next turn, so name generously. Return JSON.`;
+Combine the best as one look. took: one line crediting each take by name.
+brief: 3–5 concrete sentences: places, motion, colours, tempo.
+docs: the page of every possible source/warp/filter/preset: library/<kind>/<name>.md (≤13).
+library/extensions.md for parts beyond the library. Full pages next turn; name freely.
+Return JSON.`;
 }
-
 /** The drafts as notes for a later turn. */
 const notes = (s: Drafts) => `<drafts>
 ${s.takes.map((t, i) => `${'ABC'[i]} "${t.name}": ${AXES.map((k) => `${k}: ${t[k]}`).join('; ')}.\n${t.take}`)

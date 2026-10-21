@@ -548,7 +548,7 @@ PUT    /api/looks/:id { title?, summary?, layers?, duration?, bpm?, globals?, au
                      flashOverride?, chain?, restoredFrom?, versionName? } → { look }  owner only (reviewed: a
                                               curator); layers without chain: 2 converted
 GET|PUT /api/looks/:id/versions[/:n]          the owner's versions: SPEC-history
-DELETE /api/looks/:id                         → { ok: true }         owner only
+DELETE /api/looks/:id                         → { ok: true }         owner, or an admin if shared
 POST   /api/looks/:id/bake                    → 202 { bake }      owner, or a curator if shared; queued
 GET    /api/looks/:id/frames[?compress=1|zstd|zlib] → the baked .fseq   mine, or shared; 404 if none (attachment);
                                               503 + Retry-After while evicted frames are baked again
