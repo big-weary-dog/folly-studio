@@ -113,7 +113,7 @@ test('a curator runs the jukebox from /live; a member watches', async ({ browser
     await page.getByRole('button', { name: 'Fire', exact: true }).click();
     await view('Controls').click();
     await expect(page.locator('.jb-now h1')).toHaveText('Fire', { timeout: 10_000 });
-    const blackout = page.locator('.live-panel').getByRole('button', { name: /^Blackout/ });
+    const blackout = page.locator('.live-panel').getByRole('button', { name: /^Black(out|ed out)/ });
     await blackout.click();
     await expect(blackout).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('.live-panel').getByText('Master')).toBeVisible();
