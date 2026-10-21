@@ -11,7 +11,8 @@ import { confirmDialog, cx, toast, Toasts } from './kit.tsx';
 import { fileBugReport } from './bug-report.tsx';
 import { Rose } from './rose.tsx';
 import { redeemInvite, takeInvite } from './invite.ts';
-import { flash, here, leaveGuard, navigate, router, setTitle, user, type ViewProps } from './session.ts';
+import { flash, here, home, leaveGuard, navigate, onPi, profile, router, setTitle, user, type ViewProps }
+  from './session.ts';
 
 interface Route {
   re: RegExp; name: string; title: string; load: () => Promise<ComponentType<ViewProps>>; public?: boolean;
@@ -48,15 +49,18 @@ const ROUTES: Route[] = [
     load: adminTab('reports', () => import('./reports.tsx').then((m) => m.ReportsPage)) },
 ];
 
-/** Where to go after signing in: `next` when it is a page of this app, else Ideas. */
+/** Where to go after signing in: `next` when it is a page of this app, else home. */
 export const safeNext = (next: string | null) => (next && next.startsWith('/') && !next.startsWith('//')
-  && !next.startsWith('/login') ? next : '/ideas');
+  && !next.startsWith('/login') ? next : home());
+/** On the Pi (SPEC-offline), the pages of what it does not run lead elsewhere. */
+const PI_MOVED: Record<string, string> = { '/ideas': '/looks', '/admin': '/admin/light',
+  '/admin/models': '/admin/light', '/admin/access': '/admin/light' };
 
 /** Where a path leads: a redirect, or a route and its params. */
 export function resolve(path: string, search: string, signedIn: boolean):
   { redirect: string } | { route: Route; params: Record<string, string> } {
-  if (path === '/' || path === '') return { redirect: signedIn ? '/ideas' : '/login' };
-  const moved = MOVED[path.replace(/\/$/, '')];
+  if (path === '/' || path === '') return { redirect: signedIn ? home() : '/login' };
+  const bare = path.replace(/\/$/, ''), moved = (onPi() && PI_MOVED[bare]) || MOVED[bare];
   if (moved) return { redirect: moved + search };
   for (const route of ROUTES) {
     const m = route.re.exec(path);
@@ -67,7 +71,7 @@ export function resolve(path: string, search: string, signedIn: boolean):
     (route.keys || []).forEach((k, i) => { if (m[i + 1]) params[k] = decodeURIComponent(m[i + 1]); });
     return { route, params };
   }
-  return { redirect: '/ideas' };
+  return { redirect: home() };
 }
 
 const current = signal<{ route: Route; props: ViewProps; View: ComponentType<ViewProps>; key: number } | null>(null);
@@ -117,6 +121,12 @@ async function logout() {
 const NAV = [['/ideas', 'Ideas'], ['/studio', 'Studio'], ['/looks', 'My looks'], ['/gallery', 'Gallery'],
   ['/live', 'Live']];
 const ADMIN_NAV = [...NAV, ['/admin', 'Admin']];
+/** The header's links: no Ideas on the Pi, where curators have the engine's control page (SPEC-offline). */
+function navOf(me: User) {
+  const nav = can(me, 'admin') ? ADMIN_NAV : NAV;
+  return onPi() ? [...nav.filter(([href]) => href !== '/ideas'), ...(can(me, 'curate') ? [['/pi/', 'Lights']] : [])]
+    : nav;
+}
 
 /** The user menu drops under its button at a desktop's width; on a phone it sits open in the nav panel. */
 function placeUserMenu(e: { newState: string; currentTarget: HTMLElement }) {
@@ -140,7 +150,7 @@ function Header({ me, nav }: { me: User; nav?: string }) {
   }, [open]);
   return (
     <header class={cx('app-header', open && 'nav-open')} id="app-header">
-      <a class="brand" href="/ideas" aria-label="Folly Studio home">
+      <a class="brand" href={home()} aria-label="Folly Studio home">
         <span class="brand-mark"><Rose /></span>
         <svg class="wordmark" aria-hidden="true"><use href="#wordmark" /></svg>
       </a>
@@ -152,7 +162,7 @@ function Header({ me, nav }: { me: User; nav?: string }) {
         if ((e.target as Element).closest('a, .btn')) setOpen(false);
       }}>
         <nav class="main-nav" aria-label="Main">
-          {(can(me, 'admin') ? ADMIN_NAV : NAV).map(([href, text]) => <a href={href}
+          {navOf(me).map(([href, text]) => <a href={href} data-native={href === '/pi/' ? '' : undefined}
             aria-current={nav === href ? 'page' : undefined}>{text}</a>)}
         </nav>
         <div class="user-box">
@@ -212,10 +222,11 @@ export async function boot() {
     const me = await api.me();
     user.value = me.user || null;
     flash.value = me.flash ?? null;
+    profile.value = me.profile ?? 'hosted';
   } catch (err) {
     if (statusOf(err) !== 401 && statusOf(err) !== 403) toast((err as Error).message, { kind: 'error' });
   }
-  if (user.value) await redeemInvite();
+  if (user.value && !onPi()) await redeemInvite();
   document.body.classList.remove('booting');
   show();
 }

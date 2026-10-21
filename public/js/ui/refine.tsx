@@ -9,6 +9,7 @@ import { isPending } from '../../../shared/idea-status.ts';
 import type { ModelChoices } from '../../../shared/schemas/models.ts';
 import { Field, toast } from './kit.tsx';
 import type { Step } from './history/steps.ts';
+import { onPi } from './session.ts';
 import type { Studio } from './studio-store.ts';
 
 type Ask = { text?: string, critique?: true, fix?: { layer: string, error: string } };
@@ -59,14 +60,17 @@ async function undo(st: Studio, r: Run) {
 /** "Ask <model> to fix": a runtime error sent to the model with the look. */
 export function FixButton({ st, layer, error }: { st: Studio, layer: string, error: string }) {
   const r = run.value, mine = st.server.value && !st.copyOnSave.value;
-  if (!mine) return null;
+  if (!mine || onPi()) return null;
   return <button type="button" class="btn small refine-fix" disabled={!!r?.busy}
     onClick={() => refine(st, { fix: { layer: layer.slice(0, 80), error: error.slice(0, 400) } })}>
     {r?.busy ? 'Fixing…' : 'Ask the AI to fix it'}</button>;
 }
 
+/** The refine box, where models run (none on the Pi). */
+export const RefinePanel = ({ st }: { st: Studio }) => (onPi() ? null : <Refine st={st} />);
+
 /** The refine box: the request, the model, Refine and Critique, and the last refinement's changes with Undo. */
-export function RefinePanel({ st }: { st: Studio }) {
+function Refine({ st }: { st: Studio }) {
   const [text, setText] = useState(''), [list, setList] = useState<ModelChoices | null>(null);
   useEffect(() => {
     (choices ??= api.models()).then(setList, () => { choices = null; });

@@ -14,6 +14,7 @@ import {
   upgradedOf,
 } from '../public/js/ui/bindings.ts';
 import { decimals, scrubTo, snap } from '../public/js/ui/kit.tsx';
+import { profile } from '../public/js/ui/session.ts';
 import { createLayerStatus } from '../public/js/ui/layer-status.ts';
 import { editText, editValue, readEdit, toggleRole, toggleSlot, toggleToken } from '../public/js/ui/pick-model.ts';
 import type { Preview } from '../public/js/ui/preview.ts';
@@ -49,6 +50,22 @@ describe('routing', () => {
     assert.equal(where('/light'), '→ /admin/light');
     assert.equal(where('/reports', '?id=r1'), '→ /admin/reports?id=r1');
     assert.equal(where('/admin/reports', '', false), '→ /login?next=%2Fadmin%2Freports');
+  });
+
+  test('on the Pi, home is My looks and the pages of what it does not run lead elsewhere', () => {
+    profile.value = 'pi';
+    try {
+      assert.equal(where('/'), '→ /looks');
+      assert.equal(where('/ideas'), '→ /looks');
+      assert.equal(where('/nowhere'), '→ /looks');
+      assert.equal(where('/admin'), '→ /admin/light');
+      assert.equal(where('/admin/models'), '→ /admin/light');
+      assert.equal(where('/admin/access/'), '→ /admin/light');
+      assert.equal(where('/admin/reports'), 'reports {}');
+      assert.equal(safeNext(null), '/looks');
+    } finally {
+      profile.value = 'hosted';
+    }
   });
 
   test('`next` stays on this app', () => {

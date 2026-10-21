@@ -9,6 +9,11 @@ export interface ViewProps { params: Record<string, string>; query: URLSearchPar
 export const user = signal<User | null>(null);
 /** The server's flash check: whether it runs, and its limits (GET /api/me's `flash`); null until known. */
 export const flash = signal<FlashSettings | null>(null);
+/** The server's profile (SPEC-offline): 'pi' has no generators, so no Ideas, Refine or AI fixes. */
+export const profile = signal<'hosted' | 'pi'>('hosted');
+export const onPi = () => profile.value === 'pi';
+/** Where a signed-in visitor starts: Ideas, or My looks on the Pi. */
+export const home = () => (onPi() ? '/looks' : '/ideas');
 /** The Studio's unsaved edits: whether there are any, and how to drop them. */
 export const leaveGuard: { isDirty?: () => boolean; discard?: () => void } = {};
 type Go = { replace?: boolean; force?: boolean };

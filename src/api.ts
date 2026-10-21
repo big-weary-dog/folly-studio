@@ -28,6 +28,7 @@ import { adminsDeclared, checkMutation, HttpError, type Log, type Logger, parse,
 import type { LiveSettings } from '../shared/schemas/live.ts';
 import { cannot, TRANSPORT_CAPS } from '../shared/schemas/models.ts';
 import type { createLoaders } from './static.ts';
+import { generates, type Profile } from './profile.ts';
 import type { Store } from './store.ts';
 
 /** How long GET /api/ideas/:id?wait= holds an unchanged idea, and how many such waits one user may have open. */
@@ -67,10 +68,11 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
   bakes: ReturnType<typeof createBakeQueue>, frames: ReturnType<typeof createFramesCache>, secureCookies?: boolean,
   rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, flash: FlashSettings, hub: Hub,
   live: LiveSettings, ideaLogs: IdeaLogs, previews?: ReturnType<typeof createPreviews>, reports: Reports,
-  build: string, tail: () => unknown[], light: LightStore }) {
+  build: string, tail: () => unknown[], light: LightStore, profile?: Profile }) {
   const { store, auth, queue, models, loaders, log, access } = o;
   const { bakes, framesDir, frames, secureCookies = false, flash } = o;
   const limits = { max: 10, ipMax: 100, windowMs: 60_000, ...o.rateLimit };
+  const profile = o.profile ?? 'hosted', gen = generates(profile);
   return async (api: FastifyInstance) => {
     api.addHook('onRequest', checkMutation);
     api.addHook('onRoute', adminsDeclared);
@@ -95,7 +97,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       const user = await run(req).catch(async (err) => { await perName(req); throw err; });
       auth.logout(req.cookies[COOKIE_NAME]);
       reply.setCookie(COOKIE_NAME, auth.createSession(user), cookie(SESSION_TTL_MS / 1000)).code(status);
-      return { user: auth.publicUser(user), flash };
+      return { user: auth.publicUser(user), flash, profile };
     };
     const cookie = (maxAge: number) => ({ httpOnly: true, sameSite: 'lax' as const, path: '/', maxAge,
       secure: secureCookies });
@@ -131,18 +133,8 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       reply.raw.once('close', wake); // the client went away
     });
 
-    const reports = reportRoutes(api, { reports: o.reports, build: o.build, tail: o.tail });
-    await api.register(liveRoutes({ store, auth, hub: o.hub, settings: o.live, listed: looks.listed }));
-    routes(api, {
-      'POST /signup': [signIn(201, (req) => auth.signup(parse(Signup, req.body))), { public: true }],
-      'POST /login': [signIn(200, (req) => auth.login(Login.parse(req.body))), { public: true }],
-      'POST /logout': [async (req, reply) => {
-        auth.logout(req.cookies[COOKIE_NAME]);
-        reply.setCookie(COOKIE_NAME, '', cookie(0));
-        return { ok: true };
-      }, { public: true }],
-      'GET /me': async (req) => ({ user: auth.publicUser(req.user), flash, access: access.state(req.user!) }),
-
+    // Ideas, refinements and their undo (SPEC-generators); none on the Pi (SPEC-offline).
+    const ideaRoutes: Parameters<typeof routes>[1] = {
       'GET /ideas': async (req) => ({ ideas: store.ideas.list((i) => i.owner === req.user!.id).reverse()
         .sort(newestBy('createdAt')).map(forOwner) }),
       'POST /ideas': async (req, reply) => {
@@ -201,11 +193,23 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         if (!idea.refine || idea.status !== 'ready') throw new HttpError(409, 'Only a finished refinement is undone.');
         return { idea: forOwner(store.ideas.update(idea.id, { undone: true })!) };
       },
-      ...modelRoutes({ auth, models, access }),
+    };
+    const reports = reportRoutes(api, { reports: o.reports, build: o.build, tail: o.tail });
+    await api.register(liveRoutes({ store, auth, hub: o.hub, settings: o.live, listed: looks.listed }));
+    routes(api, {
+      'POST /signup': [signIn(201, (req) => auth.signup(parse(Signup, req.body))), { public: true }],
+      'POST /login': [signIn(200, (req) => auth.login(Login.parse(req.body))), { public: true }],
+      'POST /logout': [async (req, reply) => {
+        auth.logout(req.cookies[COOKIE_NAME]);
+        reply.setCookie(COOKIE_NAME, '', cookie(0));
+        return { ok: true };
+      }, { public: true }],
+      'GET /me': async (req) => ({ user: auth.publicUser(req.user), flash,
+        ...(gen ? { access: access.state(req.user!) } : {}), profile }),
+      ...(gen ? { ...ideaRoutes, ...modelRoutes({ auth, models, access }), ...ideaLogRoutes({ logs: o.ideaLogs }),
+        ...accessRoutes(api, { access, store }) } : {}),
       ...lightRoutes({ light: o.light }),
-      ...ideaLogRoutes({ logs: o.ideaLogs }),
       ...reports,
-      ...accessRoutes(api, { access, store }),
       ...looks.routes,
       ...framesRoutes({ framesDir, cache: frames, visibleLook: looks.visibleLook }),
       'GET /library': [async () => ({ patterns: loaders.loadLibrary()
