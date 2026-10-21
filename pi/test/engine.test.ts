@@ -121,6 +121,19 @@ describe('the frame timer', () => {
     assert.ok(ticks >= 18 && ticks <= 22, `${ticks}`);
     assert.ok(Math.abs(loop.fps() - 40) < 4, `${loop.fps()}`);
   });
+
+  test('renders nothing while idle, and picks up without skipping when it is not', async () => {
+    let ticks = 0, skipped = 0, idle = true;
+    const loop = runLoop({ tick: () => { ticks++; }, skip: (k) => { skipped += k; } }, 40, undefined, () => idle);
+    await new Promise((r) => setTimeout(r, 400));
+    assert.equal(ticks, 0);
+    assert.equal(loop.fps(), 0);
+    idle = false;
+    await new Promise((r) => setTimeout(r, 500));
+    loop.stop();
+    assert.ok(ticks >= 8 && ticks <= 22, `${ticks}`);
+    assert.equal(skipped, 0);
+  });
 });
 
 test('the loop wraps at its duration and the beat carries on, a duration off the frame grid too', () => {

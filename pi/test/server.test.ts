@@ -1,5 +1,6 @@
 // pi/src/server.ts: the control page's socket refuses other sites, asks for the PIN when one is set (locking out a
-// guesser), passes what the page sends to the engine only once it may, refuses anything else, and slows a flood.
+// guesser), counts the pages watching, passes what the page sends to the engine only once it may, refuses anything
+// else, and slows a flood.
 import assert from 'node:assert/strict';
 
 import { afterEach, describe, test } from 'vitest';
@@ -20,7 +21,7 @@ async function serve(pin = '', clock = { t: 0 }, base = '') {
   const s = await controlServer({ engine: r.engine, state, pin, port: 0, host: '127.0.0.1', base,
     now: () => clock.t });
   servers.push(s);
-  return { ...r, origin: `http://127.0.0.1:${s.port}`, page: `http://127.0.0.1:${s.port}${base}`, clock };
+  return { ...r, server: s, origin: `http://127.0.0.1:${s.port}`, page: `http://127.0.0.1:${s.port}${base}`, clock };
 }
 
 /** A socket from `origin` (the page's own unless said), with every message it gets kept. */
@@ -86,6 +87,20 @@ describe('the control page', () => {
     from = c.got.length;
     c.send({ type: 'set', name: 'level', value: 'loud' });
     assert.deepEqual(await c.next('error', from), { type: 'error', error: 'Not a message this page sends.' });
+  });
+
+  test('counts pages watching, not Studio\'s feed nor a socket yet to say hello', async () => {
+    const { origin, server } = await serve();
+    const feed = await socket(origin), page = await socket(origin);
+    feed.send({ type: 'hello', feed: true });
+    await feed.next('hello');
+    assert.deepEqual([server.clients(), server.watching()], [2, 0]);
+    page.send({ type: 'hello' });
+    await page.next('hello');
+    assert.equal(server.watching(), 1);
+    page.ws.close();
+    for (let i = 0; i < 100 && server.watching(); i++) await new Promise((r) => setTimeout(r, 10));
+    assert.equal(server.watching(), 0);
   });
 
   test('with a PIN, nothing changes until it is said; five wrong ones lock it for a minute', async () => {
