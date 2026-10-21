@@ -8,6 +8,7 @@ import WebSocket from 'ws';
 
 import { MAX_LANES } from '../public/js/pattern-core.ts';
 import * as twin from '../public/js/ui/live/lanes.ts';
+import { serverNow } from '../src/clock.ts';
 import { configOf } from '../src/config.ts';
 import { meter } from '../src/live/hub.ts';
 import { liveSettings, playableLook } from '../src/live/routes.ts';
@@ -203,10 +204,12 @@ describe('live socket', () => {
     const first = await watch.next('state');
     assert.equal(first.control, false, 'members watch');
     assert.equal((await drive.next('state')).control, true, 'curators control');
+    // The hub's clock, read either side of the ping: Date.now() steps (WSL2) where serverNow() does not.
+    const sent = serverNow();
     drive.send({ type: 'ping', id: 7 });
     const pong = await drive.next('pong');
     assert.equal(pong.id, 7);
-    assert.ok(Math.abs(pong.now - Date.now()) < 1000);
+    assert.ok(pong.now >= sent && pong.now <= serverNow(), `pong.now ${pong.now} is the hub's time`);
 
     drive.send({ type: 'play', lookId });
     const [a, b] = await Promise.all([watch.next('state'), drive.next('state')]);

@@ -1,4 +1,4 @@
-// The live chain for the end-to-end run: a static server for show-builder/, relay/relay.js
+// The live chain for the end-to-end run: a static server for show-builder (SHOW_BUILDER_DIR), its relay/relay.js
 // (sACN :5568 → WebSocket :3001) and tools/sacn-play.ts, as child processes, stopped together: in the run's process
 // group (Ctrl-C reaches them), tagged with their worker (procs.mjs: the sweep kills them if it goes), stopped by
 // down() and, failing that, killed as the worker exits.
@@ -8,9 +8,10 @@ import { existsSync } from 'node:fs';
 import net from 'node:net';
 import { fileURLToPath } from 'node:url';
 
+import { SHOW_BUILDER } from '../fixtures/sources.js';
 import { identity, named, sweep, tagged } from './procs.mjs';
 
-export const REPO = fileURLToPath(new URL('../../../', import.meta.url));
+export const REPO = `${SHOW_BUILDER}/`;
 export const STUDIO = fileURLToPath(new URL('../../', import.meta.url));
 export const RELAY_PORT = 3001;
 export const SACN_PORT = 5568;

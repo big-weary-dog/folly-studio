@@ -328,10 +328,13 @@ describe('renderFrame', () => {
 
 describe('toChannels', () => {
   const scene = prepareScene(rig);
-  const csv = readFileSync(new URL('../../td/data/all-pixels-positions.csv', import.meta.url),
-    'utf8').trim().split(/\r?\n/);
+  // Rows of show-builder's td/data/all-pixels-positions.csv, the canonical addresses.
+  const csv = readFileSync(new URL('./fixtures/pixels-sample.csv', import.meta.url), 'utf8').trim().split(/\r?\n/);
   const header = csv[0].split(',');
-  const rows = csv.slice(1).map((line) => Object.fromEntries(line.split(',').map((v, i) => [header[i], v])));
+  const rows = new Map(csv.slice(1).map((line) => {
+    const row = Object.fromEntries(line.split(',').map((v, i) => [header[i], v]));
+    return [+row.pixel_id, row];
+  }));
 
   test('frame size is universes × 510', () => {
     assert.equal(scene.frameChannels, 40800);
@@ -343,8 +346,7 @@ describe('toChannels', () => {
       const rgb = new Float32Array(scene.count * 3);
       rgb[3 * id] = 1; rgb[3 * id + 1] = 0.5; rgb[3 * id + 2] = 0.25;
       const ch = toChannels(scene, rgb);
-      const row = rows[id];
-      assert.equal(+row.pixel_id, id);
+      const row = rows.get(id);
       const base = (+row.universe - 1) * 510 + (+row.channel - 1);
       assert.deepEqual(Array.from(ch.slice(base, base + 3)), [255, 128, 64],
         `pixel ${id} (${row.zone} u${row.universe} c${row.channel})`);
