@@ -29,8 +29,14 @@ SIGINT or SIGTERM fades out over a second, then sends black frames before exitin
 ## The control page
 
 `http://<the Pi>:4043/` from a phone on the same network: blackout, the master, tap tempo with the beat (a ±1 BPM nudge either side), the playing
-look's own controls (its `globals.live`), every look to switch to, and the generator's draw. It says when the run is
-dry and when the flash guard has cut to `safe` (the safe look plays until someone picks one).
+look's own controls (its `globals.live`), **Up next** (the queue), every look to play or queue (+), and the generator's
+draw. It says when the run is dry and when the flash guard has cut to `safe` (the safe look plays, and the queue
+waits, until someone picks a look or skips).
+
+The queue is the jukebox (SPEC-offline "Playing on the lights"): each queued look plays its whole pattern once, then
+the next, fading out over its last second and in over the next's first; with nothing queued, what plays loops on.
+At most 20, in memory (a restart empties it). Studio's **Play on the lights** queues its looks here too: a library
+look sent by `ref` (its code always ours), shown as "from Studio" with who queued it.
 
 - Its socket (`/ws`, messages in `pi/src/protocol.ts`) takes the page's own origin only: another site open on the
   same phone cannot drive the lights. Each socket is rate-limited, and the page holds at most 32.

@@ -70,16 +70,17 @@ and the engine's control page (`/pi/`) both add to it. Custom code never reaches
   (`src/frames.ts` `parseFseq`, the rig's ranges, at most 64 MB), and plays its frames as baked: each LED's channels
   are the look's colour, out through the same light transform, master, blackout, fades and flash guard. A baked
   item has no live controls. The engine loads an item's frames when it is next, off the frame loop, so the switch
-  never waits; a missing or changed file skips the item, saying so. Baking needs bubblewrap on the Pi
-  (`pi/STUDIO.md`).
+  never waits; a missing or changed file skips the item, saying so. A bake is made where bubblewrap is (the
+  render box; without it a bake is 503), so a Pi without bubblewrap has none to play.
 
 Studio picks the way: live when it may (the controls work), else baked, else it refuses, saying why ("Has custom
 code: bake it to play it on the lights", "Live looks are off: bake it to play it on the lights").
 
 **The queue** (the engine's, in memory; a restart empties it). At most 20 items, each
 `{ key, id, title, kind: 'look' | 'live' | 'baked', by? }`: `look` is one of the engine's own (`pi/looks`). An item
-plays for its slot, its duration (a bake's length) repeated to at least `slot` seconds (the engine's setting, 60),
-then dips through black to the next. With nothing queued, what plays loops on. A flash-guard trip dips to `safe`
+plays its whole pattern once from its start, its `duration` (a bake's length), then the next starts. Moving on, the
+queue fades the one out over its last second (`FADE.queue`, 1 s) and the next in over its first; play now and skip
+fade the same way. With nothing queued, what plays loops on. A flash-guard trip dips to `safe`
 and pauses the queue until someone plays, skips or resumes it.
 
 **HTTP** (Pi profile with `PI_PREVIEW_URL`; others 404):
@@ -101,7 +102,7 @@ has it, reaches Studio's pages in the feed's `now` (SPEC-live "Following /pi").
 `{ type: 'send', at?, by, item: { kind: 'live', look } | { kind: 'baked', id, title, sha256 } }`, up to 64 KB (other
 messages stay at 1 KB). Studio's proxy passes pages no `send`, so through Studio its checks hold; on the Pi the
 engine binds to `127.0.0.1` (`pi/STUDIO.md`), so nothing reaches it another way. Its state gains `queue`, `paused`,
-and the playing look's `kind` and `left` (seconds left in its slot; null while nothing is queued). Studio's feed
+and the playing look's `kind` and `left` (seconds left of its pattern; null while nothing is queued). Studio's feed
 says `PI_PIN` in its hello when the engine has a PIN. While a baked item plays, the engine's `source` has
 `baked: true` and no layers: `/live` shows its title and "Baked: on the lights only" over a dark view.
 

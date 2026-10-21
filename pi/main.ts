@@ -69,7 +69,7 @@ async function main(c: NonNullable<typeof cfg>) {
       genW: o.genW, genPeakW: o.genPeakW, gen: c.gen, cut: o.cut, ddpErrors: o.errors, lastError: o.lastError } };
   };
   const page = c.http
-    ? await controlServer({ engine, state, pin: c.pin, port: c.http, host: c.bind, base: c.base, log }) : null;
+    ? await controlServer({ engine, lib, state, pin: c.pin, port: c.http, host: c.bind, base: c.base, log }) : null;
   if (page) log(`control page on http://${c.bind}:${page.port}${c.base}/${c.pin ? ' (PIN set)' : ''}`);
 
   let stopping = false;
