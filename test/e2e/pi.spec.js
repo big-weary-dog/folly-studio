@@ -33,8 +33,8 @@ async function pi(...args) {
   const config = path.join(mkdtempSync(path.join(os.tmpdir(), 'pi-config-')), 'config.json');
   writeFileSync(config, '{}');
   const port = await freePort();
-  const p = spawn(process.execPath, [MAIN, '--dry-run', '--http', String(port), '--bind', '127.0.0.1', '--stats',
-    '600', '--looks', looks, '--config', config, ...args], { env: tagged(), stdio: 'pipe' });
+  const p = spawn(process.execPath, [MAIN, '--dry-run', '--mode', 'live', '--http', String(port), '--bind', '127.0.0.1',
+    '--stats', '600', '--looks', looks, '--config', config, ...args], { env: tagged(), stdio: 'pipe' });
   procs.push(p);
   let out = '';
   await new Promise((resolve, reject) => {

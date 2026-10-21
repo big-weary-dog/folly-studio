@@ -35,6 +35,7 @@ describe('the Pi preview at /pi', () => {
     r.engine.play('fire');
     r.run(0.3);
     pi = await controlServer({ engine: r.engine, state: () => ({ ...r.engine.state(), looks: [], out: {} }), pin: '',
+      mode: 'live',
       port: 0, host: '127.0.0.1', base: '/pi' });
     app = await start({ admins: 'ada', piPreview: `http://127.0.0.1:${pi.port}` });
     ada = await signup(app, 'ada');
@@ -57,8 +58,8 @@ describe('the Pi preview at /pi', () => {
     const s = socket(app, ada.cookie);
     assert.deepEqual(await s.first, { type: 'hello', ok: true, needPin: false });
     s.ws.send(JSON.stringify({ type: 'blackout', on: true }));
-    for (let i = 0; i < 50 && !r.engine.state().blackout; i++) await new Promise((res) => setTimeout(res, 10));
-    assert.equal(r.engine.state().blackout, true);
+    for (let i = 0; i < 50 && !r.engine.state().blackout.on; i++) await new Promise((res) => setTimeout(res, 10));
+    assert.equal(r.engine.state().blackout.on, true);
     s.ws.close();
     assert.equal(await socket(app, bob.cookie).first, 403);
     assert.equal(await socket(app, '').first, 401);

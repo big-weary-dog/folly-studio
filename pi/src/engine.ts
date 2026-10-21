@@ -1,10 +1,11 @@
 // The Pi's engine: plays one look at a time on the rig, fixed-step at the rig's fps (so stateful patterns never drift),
 // on a drift-free timer, and a queue of looks (the jukebox, SPEC-offline "Playing on the lights"): each queued look
 // plays its whole pattern once, then the next, fading out over its last second and in over the next's first; with
-// nothing queued what plays loops on. Each frame: the look's live controls eased, rendered by the core, watched by the
-// flash guard (a strobe dips to the safe look, pausing the queue, until someone picks a look again), then out
-// through the LEDs' output transform (core/light.ts: v^gamma, × the master, blackout and fade as a linear cap after
-// the curve, so dimming never shifts a hue) as the rig's channels to `output`.
+// nothing queued what plays loops on; a person's change may fade over its own time (SPEC-liveplay). Each frame: the
+// look's live controls eased, rendered by the core, watched by the flash guard (a strobe dips to the safe look,
+// pausing the queue, until someone picks a look again), then out through the LEDs' output transform (core/light.ts:
+// v^gamma, × the master, blackout and fade as a linear cap after the curve, so dimming never shifts a hue) as the
+// rig's channels to `output`.
 import { FlashGuard } from '../../public/js/flash-guard.ts';
 import {
   compileLayer, type Light, ledChannels, prepareLayer, type PreparedLayer, prepareLight, prepareScene,
@@ -23,7 +24,7 @@ type Ease = { now: number, to: number, secs: number };
 /** What the queue holds: one of the engine's own looks (`look`, by id), a look Studio sent (`live`, resolved), or a
  * look's bake (`baked`: its frames read when it is next, `error` if they cannot play). */
 export type Item = { key: string, id: string, title: string, kind: 'look' | 'live' | 'baked', by?: string,
-  look?: PiLook, sha256?: string, baked?: Baked, loading?: boolean, error?: string };
+  look?: PiLook, sha256?: string, duration?: number, baked?: Baked, loading?: boolean, error?: string };
 export type At = 'now' | 'next' | 'end';
 const ease = (e: Ease, dt: number) => {
   const most = dt / e.secs;
@@ -50,6 +51,7 @@ export function createEngine(o: EngineOptions) {
   let playing: Playing | null = null, want = false;     // want: a person asked to go on as soon as the next is ready
   let pending: Item | null = null, frame = 0, tripped: { at: string, look: string } | null = null;
   let queue: Item[] = [], paused = false, keys = 0;
+  let dark = { by: null as string | null, at: now() };       // who last turned blackout on or off, and when
   let rev = 0, source: PiSource | null = null;      // rev: +1 at each switch, and each push that leaves a lane
   const stats = { frames: 0, late: 0, renderMs: 0, worstMs: 0, layerErrors: 0, lastError: '' };
 
@@ -142,16 +144,25 @@ export function createEngine(o: EngineOptions) {
 
   /** The queue's next item to play, fading out what plays over FADE.queue; false with nothing queued, or while the
    * next one's frames are being read. */
-  function advance() {
+  function advance(secs = FADE.queue) {
     const next = queue[0];
     if (!next) { want = false; return false; }
     ready(next);
     if (next.kind === 'baked' && !next.baked) return false;
     queue.shift();
     pending = next;
-    fade.secs = FADE.queue;
+    fade.secs = secs;
     fade.to = 0;
     return true;
+  }
+
+  /** A change to the playing look's live side; a source change (a lane left, a palette) bumps rev. */
+  function knob(change: (live: LiveLook) => boolean) {
+    const live = playing?.live;
+    if (!live) return false;
+    const before = live.automation, palette = live.paletteHex(), ok = change(live);
+    if (live.automation !== before || live.paletteHex() !== palette) rev++;
+    return ok;
   }
 
   /** A person picked: the flash guard re-armed and the queue going again. */
@@ -161,41 +172,45 @@ export function createEngine(o: EngineOptions) {
     guard.reset();
   }
 
-  /** Puts an item in the queue at `at` (now: plays it, fading); false when the queue is full. */
-  function enqueue(item: Item, at: At) {
+  /** Puts an item in the queue at `at` (now: plays it, fading over `secs`); false when the queue is full. */
+  function enqueue(item: Item, at: At, secs?: number) {
     if (queue.length >= MAX_QUEUE) return false;
     if (at === 'end') queue.push(item); else queue.unshift(item);
-    if (at === 'now') { picked(); want = !advance(); }
+    if (at === 'now') { picked(); want = !advance(secs); }
     return true;
   }
+  /** Seconds an item plays (a bake not read yet: null). */
+  const lasts = (q: Item) => q.baked?.duration ?? q.duration ?? (q.look ? q.look.duration || 30 : null);
 
   return {
     scene, fps, tick, stats,
     /** Skip k frames of show time (the timer fell behind): the look keeps to the clock. */
     skip(k: number) { frame += k; stats.late += k; },
-    /** Plays one of the engine's own looks now (fading); a person picking one re-arms the flash guard. */
-    play(id: string) {
+    /** Plays one of the engine's own looks now (fading over `secs`); a person picking one re-arms the flash guard. */
+    play(id: string, secs = FADE.queue) {
       const item = own(id);
       if (!item) return false;
       picked();
       pending = item;
-      fade.secs = FADE.queue;
+      fade.secs = secs;
       fade.to = 0;
       return true;
     },
     /** Queues one of the engine's own looks; false if it has none that plays, or the queue is full. */
-    queue(id: string, at: At = 'end', by?: string) {
+    queue(id: string, at: At = 'end', by?: string, secs?: number) {
       const item = own(id, by);
-      return !!item && enqueue(item, at);
+      return !!item && enqueue(item, at, secs);
     },
     /** Queues a look Studio sent, resolved against the library by the caller; false when the queue is full. */
-    send(look: PiLook, at: At = 'end', by?: string) {
+    send(look: PiLook, at: At = 'end', by?: string, secs?: number) {
       return enqueue({ key: `q${++keys}`, id: look.id, title: look.title, kind: 'live', look, ...by ? { by } : {} },
-        at);
+        at, secs);
     },
-    /** Queues a look's bake by its id and the SHA-256 Studio holds for it; false when the queue is full. */
-    sendBaked(b: { id: string, title: string, sha256: string }, at: At = 'end', by?: string) {
-      return enqueue({ key: `q${++keys}`, ...b, kind: 'baked', ...by ? { by } : {} }, at);
+    /** Queues a look's bake by its id and the SHA-256 Studio holds for it (and its length, if it says); false when
+     * the queue is full. */
+    sendBaked(b: { id: string, title: string, sha256: string, duration?: number }, at: At = 'end', by?: string,
+      secs?: number) {
+      return enqueue({ key: `q${++keys}`, ...b, kind: 'baked', ...by ? { by } : {} }, at, secs);
     },
     unqueue(key: string) {
       const before = queue.length;
@@ -211,22 +226,31 @@ export function createEngine(o: EngineOptions) {
       return true;
     },
     /** Skips to the next queued look now (fading), going on from a flash-guard pause too. */
-    next() {
+    next(secs?: number) {
       if (!queue.length) { paused = false; return false; }
       picked();
-      want = !advance();
+      want = !advance(secs);
       return true;
     },
-    set(name: string, v: number) {
-      const live = playing?.live;
-      if (!live) return false;
-      const before = live.automation, ok = live.set(name, v, frame * dt);
-      if (live.automation !== before) rev++;
-      return ok;
-    },
+    set(name: string, v: number) { return knob((live) => live.set(name, v, frame * dt)); },
+    /** Lets a control go: back to the look's own value. */
+    release(name: string) { return knob((live) => live.release(name, frame * dt)); },
+    /** Blends to a palette by name ('': the look's own). */
+    palette(name: string) { return knob((live) => live.palette(name)); },
     tap: (ms: number) => (playing?.live ? playing.live.tap(frame * dt, ms) : NaN),
     level(v: number) { master.to = Math.min(1, Math.max(0, v)); },
-    blackout(on: boolean) { black.to = on ? 0 : 1; },
+    /** Blackout on or off, by whom (null: the engine itself). */
+    blackout(on: boolean, by: string | null = null) {
+      if ((black.to === 0) !== on) dark = { by, at: now() };
+      black.to = on ? 0 : 1;
+    },
+    /** Into Jukebox: every held control let go, the master back to full and the lights back, so nothing is left
+     * that Jukebox has no control for. */
+    jukebox() {
+      knob((live) => { live.releaseAll(frame * dt); return true; });
+      master.to = 1;
+      this.blackout(false);
+    },
     /** Fade everything out over `secs` (on exit). */
     fadeOut(secs = FADE.exit) { master.secs = secs; master.to = 0; },
     state: () => {
@@ -238,9 +262,10 @@ export function createEngine(o: EngineOptions) {
           bpm: L?.bpm ?? 120, beats: L ? (t - L.beat0) * L.bpm / 60 : 0, offset: L?.offset ?? 0, beat0: L?.beat0 ?? 0,
           paces: L ? Object.fromEntries(L.paceOffset) : {}, controls: p.live?.controls.map((c) => ({ ...c })) ?? [] },
         gain: master.now * black.now * fade.now,
-        level: master.to, blackout: black.to === 0, tripped, paused,
-        switching: pending && { id: pending.id, title: pending.title },
-        queue: queue.map(({ key, id, title, kind, by }) => ({ key, id, title, kind, ...by ? { by } : {} })),
+        level: master.to, blackout: { on: black.to === 0, by: dark.by, ago: (now() - dark.at) / 1000 }, tripped,
+        paused, switching: pending && { id: pending.id, title: pending.title },
+        queue: queue.map((q) => ({ key: q.key, id: q.id, title: q.title, kind: q.kind, ...q.by ? { by: q.by } : {},
+          duration: lasts(q) })),
       };
     },
     /** What plays, for a viewer to render it too: its modules by ref (the viewer has the library), no code; a bake
@@ -254,8 +279,9 @@ export function createEngine(o: EngineOptions) {
         return source;
       }
       const layers = look.layers.map((l) => ({ ...l, modules: (l.modules ?? []).map(({ code: _, ...m }) => m) }));
+      const palette = live.paletteHex(), globals = palette ? { ...look.globals!, palette } : look.globals ?? null;
       source = { rev, id, title, duration, ...(look.bpm ? { bpm: look.bpm } : {}),
-        globals: look.globals ?? null, automation: live.automation, layers: layers as Layer[] };
+        globals, automation: live.automation, layers: layers as Layer[] };
       return source;
     },
   };

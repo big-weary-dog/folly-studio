@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 
 import { COG_POWER } from './power.ts';
+import { type Mode, MODES } from './protocol.ts';
 
 export const DEFAULTS = {
   dryRun: false,            // render and limit as live, send nothing; print the stats line
@@ -13,6 +14,7 @@ export const DEFAULTS = {
   bind: '0.0.0.0',
   base: '',                 // the page's path ('' = at /; '/pi' behind Studio's proxy, docs/HOSTING.md)
   pin: '',                  // a PIN the control page asks for before it changes anything ('' = none)
+  mode: 'jukebox' as Mode,  // jukebox or live, until Studio's feed says (SPEC-liveplay "Modes")
   looks: '',                // a folder of looks besides pi/looks and pi/local/looks
   look: 'heartbeat-plasma', // played at start
   safe: 'safe',             // where the flash guard dips to, and a look that cannot play falls back to
@@ -30,6 +32,7 @@ const HELP = `npm run pi -- [options]   (the Pi's live engine: looks to the ligh
   --http P           the control page's port (${DEFAULTS.http}; 0 for none); --bind A its address (${DEFAULTS.bind})
   --base /PATH       serve the page under /PATH/ rather than at /
   --pin N            ask for this PIN before the page changes anything
+  --mode M           jukebox (the queue alone) or live (knobs and Blackout too) until Studio says (${DEFAULTS.mode})
   --looks DIR        play looks from DIR too (beside pi/looks and pi/local/looks)
   --look ID          the look to start on (${DEFAULTS.look}); --safe ID the flash guard's (${DEFAULTS.safe})
   --light FILE       the light settings: gamma, balance… (pi/${DEFAULTS.light}, from Studio's Light page)
@@ -43,8 +46,8 @@ const HELP = `npm run pi -- [options]   (the Pi's live engine: looks to the ligh
 export function readConfig(argv: string[], configFile: string): Config | null {
   const { values } = parseArgs({ args: argv, strict: true, options: {
     'dry-run': { type: 'boolean' }, help: { type: 'boolean', short: 'h' }, config: { type: 'string' },
-    ...Object.fromEntries(['host', 'port', 'http', 'bind', 'base', 'pin', 'looks', 'look', 'safe', 'light', 'frames',
-      'cap', 'headroom', 'gen', 'stats', 'seconds'].map((k) => [k, { type: 'string' as const }])),
+    ...Object.fromEntries(['host', 'port', 'http', 'bind', 'base', 'pin', 'mode', 'looks', 'look', 'safe', 'light',
+      'frames', 'cap', 'headroom', 'gen', 'stats', 'seconds'].map((k) => [k, { type: 'string' as const }])),
   } });
   if (values.help) { console.log(HELP); return null; }
   let file: Partial<Config> = {};
@@ -64,6 +67,7 @@ export function readConfig(argv: string[], configFile: string): Config | null {
     (cfg as Record<string, unknown>)[k] = n;
   }
   if (cfg.base && !/^(\/[a-z0-9-]+)+$/.test(cfg.base)) throw new Error('base must be like /pi');
+  if (!MODES.includes(cfg.mode)) throw new Error('mode must be jukebox or live');
   if (!cfg.stats) cfg.stats = cfg.dryRun ? 5 : 60;
   return cfg;
 }

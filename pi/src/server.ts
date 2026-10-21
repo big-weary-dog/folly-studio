@@ -2,7 +2,7 @@
 // at /ws, both under `base` when one is given (/pi/ and /pi/ws behind Studio's proxy, docs/HOSTING.md). A socket must
 // come from the page's own origin; with a PIN set, it must say the PIN before anything it sends changes the lights.
 // Each socket is rate-limited as the live stage's are; the state goes to every socket ~10 a second, and what plays
-// (the source, for Studio's Live tab) when it changes.
+// (the source, for Studio's Live tab) when it changes. What each may send in each mode: people.ts.
 import { timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
@@ -14,18 +14,19 @@ import type { WebSocket } from 'ws';
 import { meter } from '../../src/live/hub.ts';
 import type { Engine } from './engine.ts';
 import { resolveLook, type Library, type PiLook } from './library.ts';
-import { FromPage, MAX_SEND, type PiState, type ToPage } from './protocol.ts';
+import { createPeople, PI_PAGE, type Who } from './people.ts';
+import { type EngineState, FromPage, MAX_SEND, type Mode, type PiState, type ToPage } from './protocol.ts';
 
 export const CSP = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
   + "connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'";
 const STATE_MS = 100, PIN_TRIES = 5, PIN_LOCK_MS = 60_000, MAX_SOCKETS = 32;
 const DIST = fileURLToPath(new URL('../page/dist', import.meta.url));
 
-/** `watching`: said hello as a page (not Studio's feed, which follows for /live and is no one watching). */
-type Client = { ws: WebSocket, ok: boolean, watching: boolean, tokens: number, at: number, over: number,
+/** `who`: a page's person (null: Studio's feed, which follows for /live and is no one watching). */
+type Client = { ws: WebSocket, ok: boolean, who: Who | null, tokens: number, at: number, over: number,
   warned: boolean };
-export type ServerOptions = { engine: Engine, lib: Library, state: () => PiState, pin: string, port: number,
-  host: string,
+export type ServerOptions = { engine: Engine, lib: Library, state: () => EngineState, pin: string, port: number,
+  host: string, mode?: Mode,
   base?: string, dist?: string, log?: (line: string) => void, now?: () => number };
 
 const same = (a: string, b: string) => {
@@ -36,8 +37,10 @@ const same = (a: string, b: string) => {
 export async function controlServer(o: ServerOptions) {
   const log = o.log ?? (() => {}), now = o.now ?? (() => performance.now());
   const app = Fastify({ logger: false, bodyLimit: 1024 });
-  const clients = new Set<Client>();
+  const clients = new Set<Client>(), people = createPeople(o.mode ?? 'jukebox', now);
   let fails = 0, lockedUntil = 0;
+  const pages = () => [...clients].filter((c) => c.ok && c.who);
+  const state = (): PiState => ({ ...o.state(), ...people.state([...new Set(pages().map((c) => c.who!.name))]) });
   app.addHook('onSend', async (_req, reply) => {
     reply.headers({ 'content-security-policy': CSP, 'x-content-type-options': 'nosniff',
       'referrer-policy': 'no-referrer', 'cache-control': 'no-cache' });
@@ -72,25 +75,32 @@ export async function controlServer(o: ServerOptions) {
     if (msg.type === 'hello') {
       const p = pinOk(msg.pin);
       c.ok = p.ok;
-      c.watching = !msg.feed;
+      c.who = msg.feed ? null : msg.who ?? { name: PI_PAGE, drive: true };
       say(c, { type: 'hello', ok: p.ok, needPin: !!o.pin, ...(p.error ? { error: p.error } : {}) });
-      if (p.ok) say(c, { type: 'state', state: o.state() });
+      if (p.ok) say(c, { type: 'state', state: state() });
       const source = o.engine.source();
       if (p.ok && source) say(c, { type: 'source', source });
       return;
     }
     if (!c.ok) { say(c, { type: 'error', error: 'Say the PIN first.' }); return; }
-    const e = o.engine;
-    if (msg.type === 'play' && !e.play(msg.id)) say(c, { type: 'error', error: `${msg.id} cannot play.` });
+    const no = people.check(c.who, msg);
+    if (no) { say(c, { type: 'error', error: no }); return; }
+    // Who did it, as the state says it (the Pi's own page queues as no one: it is everyone on site).
+    const e = o.engine, by = c.who?.name ?? null, adder = by === PI_PAGE ? undefined : by ?? undefined;
+    if (msg.type === 'play' && !e.play(msg.id, msg.fade)) say(c, { type: 'error', error: `${msg.id} cannot play.` });
     else if (msg.type === 'set' && !e.set(msg.name, msg.value)) say(c, { type: 'error', error: `No ${msg.name}.` });
+    else if (msg.type === 'release') e.release(msg.name);
+    else if (msg.type === 'palette' && !e.palette(msg.name)) say(c, { type: 'error', error: `No ${msg.name}.` });
     else if (msg.type === 'tap') e.tap(msg.at);
     else if (msg.type === 'level') e.level(msg.value);
-    else if (msg.type === 'blackout') e.blackout(msg.on);
-    else if (msg.type === 'queue' && !e.queue(msg.id, msg.at)) {
+    else if (msg.type === 'blackout') e.blackout(msg.on, by);
+    else if (msg.type === 'queue' && !e.queue(msg.id, msg.at, adder, msg.fade)) {
       say(c, { type: 'error', error: `${msg.id} cannot queue.` });
     } else if (msg.type === 'unqueue') e.unqueue(msg.key);
     else if (msg.type === 'move') e.move(msg.key, msg.to);
-    else if (msg.type === 'next') e.next();
+    // In Jukebox every change is the full fade.
+    else if (msg.type === 'next') e.next(people.mode === 'live' ? msg.fade : undefined);
+    else if (msg.type === 'mode' && people.setMode(msg.mode)) e.jukebox();
     else if (msg.type === 'send') studioSent(c, msg);
   }
 
@@ -98,7 +108,7 @@ export async function controlServer(o: ServerOptions) {
   function studioSent(c: Client, msg: Extract<FromPage, { type: 'send' }>) {
     const { item } = msg;
     if (item.kind === 'baked') {
-      if (!o.engine.sendBaked(item, msg.at, msg.by)) say(c, { type: 'error', error: 'The queue is full.' });
+      if (!o.engine.sendBaked(item, msg.at, msg.by, msg.fade)) say(c, { type: 'error', error: 'The queue is full.' });
       return;
     }
     let look: PiLook;
@@ -106,7 +116,7 @@ export async function controlServer(o: ServerOptions) {
       say(c, { type: 'error', error: `Cannot play: ${(err as Error).message}` });
       return;
     }
-    if (!o.engine.send(look, msg.at, msg.by)) say(c, { type: 'error', error: 'The queue is full.' });
+    if (!o.engine.send(look, msg.at, msg.by, msg.fade)) say(c, { type: 'error', error: 'The queue is full.' });
   }
 
   const host = (h: string) => h.toLowerCase().replace(/:80$/, '');
@@ -120,10 +130,13 @@ export async function controlServer(o: ServerOptions) {
       if (clients.size >= MAX_SOCKETS) return reply.code(503).send('Too many pages open.');
     },
   }, (ws) => {
-    const c: Client = { ws, ok: false, watching: false, tokens: 60, at: now(), over: 0, warned: false };
+    const c: Client = { ws, ok: false, who: null, tokens: 60, at: now(), over: 0, warned: false };
     clients.add(c);
     ws.on('message', (d) => onMessage(c, d));
-    ws.on('close', () => clients.delete(c));
+    ws.on('close', () => {
+      clients.delete(c);
+      if (c.who) people.left(c.who.name, pages().some((x) => x.who!.name === c.who!.name));
+    });
     ws.on('error', () => ws.terminate());
   });
 
@@ -134,7 +147,7 @@ export async function controlServer(o: ServerOptions) {
     const source = o.engine.source(), fresh = source !== sent;
     sent = source;
     const src = source && fresh ? JSON.stringify({ type: 'source', source } satisfies ToPage) : '';
-    const msg = JSON.stringify({ type: 'state', state: o.state() } satisfies ToPage);
+    const msg = JSON.stringify({ type: 'state', state: state() } satisfies ToPage);
     for (const c of clients) {
       if (!c.ok || c.ws.readyState !== 1 || c.ws.bufferedAmount >= 1 << 18) continue;
       if (src) c.ws.send(src);
@@ -148,7 +161,7 @@ export async function controlServer(o: ServerOptions) {
     port: typeof addr === 'object' && addr ? addr.port : o.port,
     clients: () => clients.size,
     /** Pages open: sockets that said hello, Studio's feed aside. */
-    watching: () => [...clients].filter((c) => c.watching).length,
+    watching: () => pages().length,
     async close() {
       clearInterval(timer);
       for (const c of clients) c.ws.terminate();

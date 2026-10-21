@@ -45,6 +45,7 @@ describe('the stage following /pi', () => {
     r.run(0.5);
     tick = setInterval(() => r.run(0.05), 50);
     pi = await controlServer({ engine: r.engine, state: () => ({ ...r.engine.state(), looks: [], out: {} }), pin: '',
+      mode: 'live',
       port: 0, host: '127.0.0.1', base: '/pi' });
     app = await startApp({ dataDir: mkdtempSync(path.join(tmpdir(), 'live-pi-')), admins: 'ada', curators: 'Carol',
       renderBox: fakeBox(), piPreview: `http://127.0.0.1:${pi.port}` });

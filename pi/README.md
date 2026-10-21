@@ -44,6 +44,10 @@ look sent by `ref` (its code always ours), shown as "from Studio" with who queue
 - No PIN by default. `--pin 2468` (or `"pin"` in `pi/config.json`) makes the page ask for it before it changes
   anything; five wrong ones lock the page out for a minute.
 - `--http 0` turns the page off; `--bind 127.0.0.1` keeps it to the Pi itself.
+- **Jukebox or Live Play** (SPEC-liveplay): in Jukebox (the default, `--mode live` for the other) the engine takes
+  only the queue: no knobs, Master, tempo, Blackout or Play now, whatever a page sends. Behind Studio, the admin's
+  setting wins (Studio's feed says it). In Live Play one person has the knobs at a time (Take over); the Pi's own page
+  drives as "the Pi's page".
 - The socket also sends what plays (`source`: the look, its modules by ref, at each change) and its clock in the
   state, so Studio's Live tab can follow a dry run behind Studio's `/pi` (SPEC-live "Following /pi"). The Pi itself
   connects to nothing and needs no setting for it.
