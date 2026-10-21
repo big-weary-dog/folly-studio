@@ -19,13 +19,14 @@ export const oneModule = (id: string, ref: string, params = {}, more: Record<str
 
 /** An engine on the shipped looks plus `extra`, out through `light` (the defaults where unset); `frames` holds the
  * last frame's channels and `lit` their sum. */
-export function engineOn(extra: PiLook[] = [], light?: Partial<Light>, bake?: EngineOptions['bake']) {
+export function engineOn(extra: PiLook[] = [], light?: Partial<Light>, bake?: EngineOptions['bake'],
+  relay?: EngineOptions['relay']) {
   const looks = shipped();
   for (const l of extra) looks.set(l.id, { look: l, file: '' });
   const log: string[] = [];
   let last: Uint8Array = new Uint8Array(0), t = 0;
   const engine = createEngine({ rig, lib, looks: () => looks, safe: 'safe', log: (l) => log.push(l),
-    light: lightOf(light), output: (cells) => { last = cells; }, now: () => t++, bake });
+    light: lightOf(light), output: (cells) => { last = cells; }, now: () => t++, bake, relay });
   return {
     engine, log, looks,
     /** Plays `secs` of frames. */

@@ -14,6 +14,7 @@ import { readLibrary, readLooks } from './src/library.ts';
 import { createOutput } from './src/output.ts';
 import type { PowerTable } from './src/power.ts';
 import type { EngineState } from './src/protocol.ts';
+import { createRelay } from './src/relay.ts';
 import { runLoop } from './src/run.ts';
 import { controlServer } from './src/server.ts';
 import { statsLine } from './src/stats.ts';
@@ -44,7 +45,9 @@ async function main(c: NonNullable<typeof cfg>) {
   const light = lightOf(readLight(c.light));
   // Looks' bakes from Studio's frames folder, when it says where (SPEC-offline "Playing on the lights").
   const frames = c.frames && path.resolve(path.dirname(at('./main.ts')), c.frames);
-  const engine = createEngine({ rig, lib, looks: () => looks, safe: c.safe, log, light,
+  // Frames a browser may render for the engine (SPEC-live "Relay to the lights"), on the rig's cells.
+  const relay = createRelay({ count: rig.count, fps: rig.output?.fps || 40 });
+  const engine = createEngine({ rig, lib, looks: () => looks, safe: c.safe, log, light, relay,
     output: (cells) => output.send(cells), bake: (id, sha256) => loadBaked(frames, id, sha256, engine.scene) });
   // The rig's pixels must sit within the cells the expansion reads (its declared universes run past them, unused).
   const cellsEnd = Math.min(...table.petals.map((p) => p.exp));
@@ -62,7 +65,7 @@ async function main(c: NonNullable<typeof cfg>) {
   let cutBefore = 0;
   const every = setInterval(() => {
     const o = output.status();
-    log(statsLine(engine, o, loop.fps(), o.cut - cutBefore));
+    log(statsLine(engine, o, loop.fps(), o.cut - cutBefore, relay.state()));
     cutBefore = o.cut;
   }, c.stats * 1000);
 
@@ -72,10 +75,11 @@ async function main(c: NonNullable<typeof cfg>) {
   const state = (): EngineState => {
     const o = output.status(), s = engine.stats;
     return { ...engine.state(), looks: list, out: { dryRun: c.dryRun, fps: loop.fps(), renderMs: s.renderMs,
-      genW: o.genW, genPeakW: o.genPeakW, gen: c.gen, cut: o.cut, ddpErrors: o.errors, lastError: o.lastError } };
+      genW: o.genW, genPeakW: o.genPeakW, gen: c.gen, cut: o.cut, ddpErrors: o.errors, lastError: o.lastError },
+      relay: relay.state() };
   };
   page = c.http
-    ? await controlServer({ engine, lib, state, pin: c.pin, mode: c.mode, port: c.http, host: c.bind,
+    ? await controlServer({ engine, lib, state, pin: c.pin, mode: c.mode, relay, port: c.http, host: c.bind,
       base: c.base, log }) : null;
   if (page) log(`control page on http://${c.bind}:${page.port}${c.base}/${c.pin ? ' (PIN set)' : ''}`);
 

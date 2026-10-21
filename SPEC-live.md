@@ -93,6 +93,69 @@ so frames never step back. A viewer that sets each frame's values renders the en
 (`pi/test/follow.test.ts`); at 10 a second, frames match while nothing moves, and a viewer joining mid-loop has its
 bound clocks from its own start until the loop wraps. The flash guard's dip to `safe` is a switch like any other.
 
+## Relay to the lights
+
+An option beside the engine's own render: a laptop's browser renders what the engine plays and the engine plays its
+frames. The engine keeps the whole output path for every relayed frame: the master, blackout and fades, the flash
+guard (a relayed strobe dips to `safe` as a local one does), `ledChannels` with its light settings, the rose and the
+power compressor. Only `renderFrame` is skipped; the look's live controls still step, so the state reads the same.
+
+**The lease.** One sender at a time, on the engine's socket (`pi/src/protocol.ts`, `pi/src/relay.ts`):
+- `{ type: 'relay-start' }` from a socket whose hello passed (the PIN, if set) and that may drive (a page's person
+  with `drive`, or the Pi's own page; never Studio's feed). The first holds it; any other gets `{ type: 'relay',
+  holding: false, error: '<who> is relaying to the lights.' }`. The holder gets `{ type: 'relay', holding: true }`.
+- It ends at `{ type: 'relay-stop' }`, at the socket's close, or after 1 s with no frame in; the holder is told
+  `{ type: 'relay', holding: false, error? }`.
+
+**The frame.** A binary message, little-endian: u32 slot index, u32 look rev, then `count × 3` Uint16 rgb (the rig's
+cells in its order, 0..65535 for 0..1, before any light transform: what `renderFrame` gives). Exactly
+`8 + count × 6` bytes, or it is dropped; from any socket but the holder's it is dropped with an error. A relayed frame
+is data: its length is checked and its values are 0..65535 by construction. At most 4 × fps frames a second are
+taken (a burst of 128).
+
+**Slots and the buffer.** The engine counts its frame slots: one per tick of its 40 fps timer, and one per frame it
+skips, so slot `n` plays at the timer's start + n / fps. The state's `relay` says where it is (below). The engine
+keeps 128 slots, keyed by index: a frame for a slot already played, or more than 127 ahead, is dropped. The sender
+renders ahead of the slot playing by its buffer: 200 ms (8 frames) by default, 80, 400 or 800 ms at the sender's
+choice. A look is fixed-step and deterministic in show time, so rendering ahead costs nothing while it plays on
+its own; a knob push lands when its frame plays, one buffer later.
+
+**Show time.** Slot `s` plays the look's frame `f = round(look.t × fps) + (s − relay.next)`, both from one state,
+wrapped as the engine wraps: past the duration, back by whole loops of `round(duration × fps)` frames, `beat0` back
+by as much. A frame's rev is the state's `look.rev`;
+one for another rev is not played.
+
+**Starvation.** The engine notices a late frame by its slot, not by the socket (a Wi-Fi drop sends no FIN):
+- On the first slot with no frame for it, it holds the last relayed frame, for up to 100 ms (4 slots).
+- Past that, it dips through black (0.1 s) to its own render, and fades that back in.
+- It goes back to relayed frames, with no dip (they are the same look at the same time), on the first frame after
+  a `relay-start`, after a switch (a new rev starts on its own render: the old look's frame is never held into the
+  new), or after 1 s of steady frames (40 in a row), never mid-flap.
+- A baked look plays its bake: there is nothing to relay.
+
+**State.** `PiState.relay`: `{ by, on, index, next, ahead, misses, frames }` or null with no lease: `by` the holder's
+name (`the Pi's page` for its own), `on` relayed frames are playing now, `index` the slot playing (fractional: how
+far into it the state was read), `next` the slot `look.t` is for, `ahead` frames held for the slots after it, `misses` slots with no frame since the
+lease began, `frames` relayed frames played.
+
+**Studio's side.** The Live tab, for those who may open `/pi` (admins, and curators on the Pi), shows **Relay to the
+lights**. Turned on, the page opens its own socket to `/pi/ws`, takes the lease, and runs a sandbox of its own: the
+look the engine plays (its `source`, code from our library by ref) on a fresh clock. The Worker renders ahead on its
+own timer, at the engine's slots (a hidden tab throttles the page's timers, not a Worker's, and not messages), sets
+each frame's values as the state has them (`js/live-set.ts`), quantises to Uint16 and posts the frame; the page
+sends it. The page estimates the slot playing from the states: the newest reading of `relay.index`, run on at fps on
+its own clock, taking the furthest ahead of the last 10 s's readings (each reaches it late, never early). It takes
+a Screen Wake Lock while relaying, and says so, the buffer (`ahead` in ms), the misses, and who holds the lease.
+A frame the socket cannot take (over 256 KB waiting) is dropped, not queued.
+
+Studio's `/pi` proxy passes binary frames only from a socket the engine last told `holding: true`, each exactly
+`8 + count × 6` bytes (the rig's count): one of another size closes the socket (1008), and one sent before the page
+heard its lease end is dropped. The server's socket limit is 32 KB, a Folly-rig frame's; the stage's own messages
+stay at 16 KB.
+
+**Measured on the playa (pi/INSTALL.md "Relay").** Ping jitter over the site's Wi-Fi sets the buffer: p99 plus two
+frames.
+
 ## HTTP
 
 ```
