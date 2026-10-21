@@ -6,24 +6,38 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'vitest';
 
 import { JUKEBOX_NOW } from '../src/people.ts';
-import type { PiState } from '../src/protocol.ts';
+import type { PiState, ToPage } from '../src/protocol.ts';
 import { serve, socket } from './sockets.ts';
 
 const settle = () => new Promise((r) => setTimeout(r, 60));
+const barrier = (m: ToPage) => m.type === 'error' && m.error === 'Not a message this page sends.';
 /** A page said hello as `who` (none: the Pi's own page), or Studio's feed. */
 async function page(origin: string, who?: { name: string, drive: boolean } | 'feed') {
   const c = await socket(origin);
   c.send(who === 'feed' ? { type: 'hello', feed: true } : { type: 'hello', ...who ? { who } : {} });
   await c.next('state');
+  /** Until the server has handled all this page sent: it answers a message it does not know in order, after them. */
+  const sync = async () => {
+    const from = c.got.length;
+    c.send({ type: 'sync' });
+    for (let i = 0; !c.got.slice(from).some(barrier); i++) {
+      if (i > 500) throw new Error('no answer to the barrier');
+      await new Promise((r) => setTimeout(r, 10));
+    }
+  };
   /** Sends m; the error it brought, or '' when none came. */
   const ask = async (m: object) => {
     const from = c.got.length;
     c.send(m);
-    await settle();
-    const e = c.got.slice(from).find((x) => x.type === 'error');
+    await sync();
+    const e = c.got.slice(from).find((x) => x.type === 'error' && !barrier(x));
     return e?.type === 'error' ? e.error : '';
   };
-  const state = async () => ((await c.next('state', c.got.length)) as { state: PiState }).state;
+  /** The first state sent after all this page sent was handled. */
+  const state = async () => {
+    await sync();
+    return ((await c.next('state', c.got.length)) as { state: PiState }).state;
+  };
   return { ...c, ask, state };
 }
 
@@ -91,8 +105,12 @@ describe('Live Play', () => {
     await settle();
     assert.equal((await jo.state()).driver?.name, 'cara');
     b.ws.close();
-    await settle();
-    const s = await jo.state();
+    // Until the server has seen the last page close, however long that takes under load.
+    let s = await jo.state();
+    for (let i = 0; s.here.includes('cara'); i++) {
+      if (i > 100) throw new Error('cara never left');
+      s = await jo.state();
+    }
     assert.deepEqual([s.driver, s.here], [null, ['jo']]);
     assert.equal(await jo.ask({ type: 'set', name: 'heat', value: 0 }), '');
   });
