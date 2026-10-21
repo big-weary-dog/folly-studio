@@ -1,6 +1,7 @@
 // JSON-file document store: a file per collection, loaded at start (each document through its collection's upgrade,
 // written back once if one changed), kept in memory, written atomically (tmp + fsync + rename), each collection's
-// writes serialized and coalesced. Objects handed out are copies; create() adds id, createdAt and updatedAt; update()
+// writes serialized and coalesced, by the one process holding the folder's lock (store-lock.ts) until close().
+// Objects handed out are copies; create() adds id, createdAt and updatedAt; update()
 // is shallow, and undefined deletes a key.
 
 import { randomBytes } from 'node:crypto';
@@ -10,6 +11,7 @@ import path from 'node:path';
 import type { UserAccess } from '../shared/schemas/access.ts';
 import type { Idea, Look, User, VersionMeta } from '../shared/schemas/api.ts';
 import type { Log } from './http.ts';
+import { lockDataDir } from './store-lock.ts';
 
 type Doc = { id: string, createdAt: string, updatedAt: string };
 export type Collection<T extends Doc> = { get(id: string): T | null, list(filter?: (x: T) => unknown): T[],
@@ -25,7 +27,8 @@ export type StoredLook = Doc & Pick<Look, 'owner' | 'title'>
   & Partial<Omit<Look, 'versionCount' | 'version' | keyof Doc>>
   & { versions?: Record<string, unknown>[], version?: VersionMeta };
 export type Store = { users: Collection<StoredUser>, sessions: Collection<Session>, ideas: Collection<Idea>,
-  looks: Collection<StoredLook>, invites: Collection<StoredInvite>, dataDir: string, flush(): Promise<void> };
+  looks: Collection<StoredLook>, invites: Collection<StoredInvite>, dataDir: string, flush(): Promise<void>,
+  /** Flushes, then releases the data folder. */ close(): Promise<void> };
 
 const COLLECTIONS = ['users', 'sessions', 'ideas', 'looks', 'invites'] as const;
 type Item = Doc & Record<string, unknown>;
@@ -40,9 +43,14 @@ const copy = <T>(v: T): T => (v === undefined || v === null ? v : structuredClon
 export async function createStore(dataDir: string, { log = console, upgrade = {} }: { log?: Pick<Log, 'error'>,
   upgrade?: Upgrades } = {}) {
   await fsp.mkdir(dataDir, { recursive: true });
+  // Before anything is read, or written back by an upgrade.
+  const lock = await lockDataDir(dataDir);
   const states = await Promise.all(COLLECTIONS.map((name) => openCollection(path.join(dataDir, `${name}.json`), log,
-    upgrade[name as keyof Upgrades] as Upgrade | undefined)));
-  return {
+    upgrade[name as keyof Upgrades] as Upgrade | undefined))).catch(async (err) => {
+    await lock.release();
+    throw err;
+  });
+  const store = {
     ...Object.fromEntries(COLLECTIONS.map((name, i) => [name, states[i]!.api])), dataDir,
     async flush() {
       // Writes scheduled while we wait are picked up by the next pass.
@@ -53,7 +61,15 @@ export async function createStore(dataDir: string, { log = console, upgrade = {}
       const failed = states.find((s) => s.lastError());
       if (failed) throw failed.lastError();
     },
+    async close() {
+      try {
+        await store.flush();
+      } finally {
+        await lock.release();
+      }
+    },
   } as Store;
+  return store;
 }
 
 async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: Upgrade) {

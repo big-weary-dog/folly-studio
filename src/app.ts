@@ -184,7 +184,7 @@ export async function createServer(opts: Options = {}) {
       }
       await playa?.close();
       await frames.close();
-      await store.flush();
+      await store.close();
     },
   };
 }

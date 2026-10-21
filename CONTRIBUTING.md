@@ -156,7 +156,7 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `shared/chain-order.ts` | Pure: looks from before the one rule converted so they render as they did (SPEC "Looks" > chain) |
 | `shared/plays.ts` | What plays (`PLAYS`, `playsOf`, `playsChanged`): the one list versions, bakes, the stage, the sandbox, export and the Studio's save and undo read (SPEC "Looks"); no zod, so the browser takes it at run time |
 | `shared/idea-status.ts` | Pure, so the browser imports it too: an idea's states (`IDEA_STATUS`), `isPending()` and `transition()`, which refuses a move that is not one |
-| `src/store.ts` | JSON-file storage under `STUDIO_DATA`, typed per collection |
+| `src/store.ts` | JSON-file storage under `STUDIO_DATA`, typed per collection; `store-lock.ts` keeps it to one server |
 | `src/clock.ts` | `monoNow()` for durations and `serverNow()` (the wall clock at boot, then monotonic) for Live: the host's wall clock can step back |
 | `src/static.ts` | The built app from `dist/` (@fastify/static: the precompressed copies, ETags, cache headers with `assets/` kept a year, the CSPs, the shell for SPA routes); the library and rig loaders |
 | `vite.config.js`, `tools/vite-sandbox.ts`, `tools/vite-compress.ts`, `tools/dev.ts` | The build (`public/` → `dist/`); the sandbox page, its scripts inlined; the `.br` and `.gz` copies of its text; `npm run dev` |

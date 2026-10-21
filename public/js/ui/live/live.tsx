@@ -11,7 +11,7 @@ import { reportPage } from '../bug-report.tsx';
 import { Rose } from '../rose.tsx';
 import { cx } from '../kit.tsx';
 import { setTitle, user } from '../session.ts';
-import { liveSocket } from './socket.ts';
+import { liveSocket, troubleText } from './socket.ts';
 import { createStage } from './stage.ts';
 
 export function LivePage() {
@@ -35,7 +35,10 @@ export function LivePage() {
     return () => { unreport(); stage.destroy(); sock.close(); };
   }, []);
   void sock.rev.value;
-  const live = sock.live, msg = stage.msg.value, who = sock.presence.value, fromPi = live?.driver === 'pi';
+  // Can't reach the stage, or it is full: said over whatever the stage last showed.
+  const trouble = troubleText(sock.trouble.value);
+  const msg = trouble ? { text: trouble, error: true } : stage.msg.value;
+  const live = sock.live, who = sock.presence.value, fromPi = live?.driver === 'pi';
   // While /pi drives, its look (the Pi's own, so no owner) stands in for the stage's.
   const pi = fromPi ? sock.pi.value?.source : null, look = fromPi ? pi : live?.look;
   useEffect(() => { setTitle(look ? `Live: ${look.title}` : 'Live'); }, [look?.title]);

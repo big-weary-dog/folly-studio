@@ -401,7 +401,7 @@ describe('store', () => {
 
     // Many quick writes coalesce and land.
     for (let i = 0; i < 50; i++) store.ideas.create({ n: i });
-    await store.flush();
+    await store.close();
 
     const again = await createStore(dir, { log: quiet });
     assert.equal(again.looks.get(a.id).title, 'A2');
