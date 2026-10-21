@@ -53,7 +53,9 @@ async function main(c: NonNullable<typeof cfg>) {
     + `${[...looks.values()].filter((l) => l.look).length} looks, gamma ${light.gamma}`);
   engine.play(looks.get(c.look)?.look ? c.look : c.safe);
 
-  const loop = runLoop(engine, engine.fps);
+  // A dry run renders only while someone has its page open (Studio's feed is no one); the Pi always plays.
+  let page: Awaited<ReturnType<typeof controlServer>> | null = null;
+  const loop = runLoop(engine, engine.fps, undefined, () => c.dryRun && page?.watching() === 0);
   let cutBefore = 0;
   const every = setInterval(() => {
     const o = output.status();
@@ -68,7 +70,7 @@ async function main(c: NonNullable<typeof cfg>) {
     return { ...engine.state(), looks: list, out: { dryRun: c.dryRun, fps: loop.fps(), renderMs: s.renderMs,
       genW: o.genW, genPeakW: o.genPeakW, gen: c.gen, cut: o.cut, ddpErrors: o.errors, lastError: o.lastError } };
   };
-  const page = c.http
+  page = c.http
     ? await controlServer({ engine, state, pin: c.pin, port: c.http, host: c.bind, base: c.base, log }) : null;
   if (page) log(`control page on http://${c.bind}:${page.port}${c.base}/${c.pin ? ' (PIN set)' : ''}`);
 

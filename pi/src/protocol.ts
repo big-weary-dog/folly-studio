@@ -5,7 +5,7 @@ import { z } from 'zod';
 import type { PiSource } from '../../shared/schemas/live.ts';
 
 export const FromPage = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('hello'), pin: z.string().max(32).optional() }),
+  z.object({ type: z.literal('hello'), pin: z.string().max(32).optional(), feed: z.boolean().optional() }),
   z.object({ type: z.literal('play'), id: z.string().max(64) }),
   z.object({ type: z.literal('set'), name: z.string().max(64), value: z.number().finite() }),
   /** A tap at the page's clock (ms): the tempo comes from the page's spacing, free of the network's jitter. */

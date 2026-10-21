@@ -32,7 +32,7 @@ export function piFeed({ target, base = '/pi', onNow, onSource }: { target: URL,
     timer = null;
     // The engine takes its own page's origin only: this one, as it sees the request.
     const s = ws = new WebSocket(url, { origin: target.origin, maxPayload: 1 << 20, handshakeTimeout: 5000 });
-    s.on('open', () => { wait = FIRST_WAIT_MS; s.send(JSON.stringify({ type: 'hello' })); });
+    s.on('open', () => { wait = FIRST_WAIT_MS; s.send(JSON.stringify({ type: 'hello', feed: true })); });
     s.on('message', (d) => {
       let m;
       try { m = JSON.parse(String(d)); } catch { return; }
