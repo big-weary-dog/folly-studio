@@ -42,12 +42,13 @@ const ringOff = (page, names) => page.evaluate((names) => {
 }, names);
 
 /** How many px² of the preview the step's card covers. */
+/** How much of the preview and the part the ring sits in the card covers (px²). */
 const cardOnPreview = (page) => page.evaluate(() => {
   const a = document.querySelector('.tour-step')?.getBoundingClientRect();
-  const b = document.querySelector('[data-tour~="preview"]')?.getBoundingClientRect();
-  if (!a || !b) return 0;
-  return Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left))
-    * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+  if (!a) return 0;
+  return ['[data-tour~="preview"]', '.tour-area'].map((q) => document.querySelector(q)
+    ?.getBoundingClientRect()).filter(Boolean).reduce((sum, b) => sum + Math.max(0, Math.min(a.right, b.right)
+    - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)), 0);
 });
 
 /** The open step's card and what a path's test does with it. */
@@ -66,8 +67,8 @@ function steps(page, info, { shots = true } = {}) {
     },
     ring: (...names) => expect.poll(() => ringOff(page, names), { message: `the ring round ${names.join(' or ')}, `
       + 'inside the window', timeout: 3000 }).toBeLessThan(3),
-    /** Once settled (it slides as the ring does), the card keeps off the preview. */
-    offPreview: () => expect.poll(() => cardOnPreview(page), { message: 'the card keeps off the preview',
+    /** Once settled (it slides as the ring does), the card keeps off the preview and what the ring sits in. */
+    offPreview: () => expect.poll(() => cardOnPreview(page), { message: 'the card keeps off the preview and its box',
       timeout: 2000 }).toBe(0),
     /** Done: marked so, or already moved on by itself (it does 500 ms after, maybe before the act's last click). */
     done: () => expect.poll(() => card.evaluate((el, s) => el.classList.contains('done')

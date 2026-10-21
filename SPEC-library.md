@@ -200,10 +200,11 @@ and leaves the rest. A preset that binds `energy` brings an `energy` macro (0..1
 The library, one idea a module. Sources: colour-wash, bars, clouds, fire, single-strand (Chase), life, wildfire,
 waves, fireflies, sparkle,
 streaks, lightning, fireworks, strobe, heartbeat, picture. Warps: mirror, mosaic, polar,
-anchor, reorder, rotate, scroll, twist, turbulence, in-turn. Filters: recolour, hue-shift,
+anchor, reorder, rotate, scroll, twist, turbulence, in-turn, and the rose's ring-turn, petal-repeat and petal-stride.
+Filters: recolour, hue-shift,
 mask, blur, edge-fade, trails, delay, smoke, replay, sort,
 splash, rhythm. Presets: Water, Storm, Kaleidoscope, Tunnel and
-Afterimage (mirror's Wedges and Rings, trails after lightning); fire and smoke (Brushfire, Willow, Bonfire, Flash pots, Rising embers),
+Afterimage (mirror's Wedges and Rings, trails after lightning), One-petal kaleido (petal-repeat's sixteen); fire and smoke (Brushfire, Willow, Bonfire, Flash pots, Rising embers),
 the beat (Level meter, Climbing hits, Stutter, Out of step, Call and answer, Stepping rings, Drop), Daybreak, Chain
 reaction, Incense and Growth (Daybreak, Stutter and Rising embers each ride a macro they bring); and the **retired
 sources'**: twinkle's Starfield, depth-wave's Playa wave, canopy-rain's Rain, wash-breathe's Breathe, spire-helix's Tower helix, arch-chase's and groups-in-turn's Arch
@@ -211,6 +212,15 @@ chase, pinwheel's and
 galaxy's Galaxy, spot's Glow, random-fixtures' Glitch, curtain's Curtain reveal, and by their own names palette-drift,
 shimmer, rising-sweep, nave-procession, meteors, marquee, rose-ripple, rose-chase, rose-bloom, aurora, snowstorm,
 snowflakes, butterfly, plasma, shockwave, lighthouse, ripple; climb and the stained-glass filter retired with none. Saved looks keep their code; `use()` of a retired one names its preset.
+
+**The rose warps** move whole petals. Each finds the rose by its `rose` tag (its centre, `centres('rose')[0]`) and
+turns a rose LED's point round that centre by whole sixteenths, reflected first across its own petal's centre line
+where it mirrors, then slides it onto the nearest LED of its fixture by `along`: so it reads the same place in another
+petal, ring and cells kept. Off the rose, or with no ring or petal, it leaves `q` alone. **ring-turn** turns ring n by
+(n − 1) × (Petals per ring + ⌊Speed's clock⌋) petals, Alternate reversing the even rings; **petal-repeat** fills
+the rose with Repeats copies (two, four, eight, sixteen) of the 16 / Repeats petals from Source petal, Mirror
+reflecting alternate copies; **petal-stride** has petal p read petal (p × Stride + Offset) mod 16, Stride odd (an even
+value reads as the next odd), so every petal is read once.
 
 **One name, one unit, one idea.** Params that mean the same thing are named the same across the library, each with
 its unit in its label: `size` a share of the layer (bigger is bigger), `speed` things a second (`spin` turns a

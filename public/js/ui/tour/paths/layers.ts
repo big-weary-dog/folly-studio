@@ -1,5 +1,5 @@
-// Layers and chains, Rose and arches' fourth chapter: solo, a filter and a warp on the rose's chain, where a layer
-// plays, then a preset's layer and how it meets the others: level, blend, order, mute.
+// Layers and chains, Rose and arches' fourth chapter: solo, a filter and a warp on the rose's chain, the chain folded
+// and reordered, where a layer plays, then a preset's layer and how it meets the others: level, blend, order, mute.
 import { type Ctx, layerBy, num, on, param, type Path, twice } from '../types.ts';
 
 const rose = (c: Ctx) => layerBy(c, 'rose'), arches = (c: Ctx) => layerBy(c, 'arches');
@@ -12,6 +12,7 @@ const addModule = (slug: string, tab: string, name: string) => on(slug, null, 'c
 const offset = (c: Ctx) => Math.abs(num(param(c, 'rose', 'hue-shift', 'offset')) ?? 0);
 const spin = (c: Ctx) => Math.abs(num(param(c, 'rose', 'rotate', 'spin')) ?? 0);
 const mini = (c: Ctx) => c.v?.tagged('arch-mini') ?? [];
+const pos = (c: Ctx, ref: string) => rose(c)?.modules.findIndex((m) => m.ref === ref) ?? -1;
 
 export const layers: Path = {
   id: 'layers', title: 'Layers and chains', start: '/studio?tour=layers',
@@ -45,6 +46,16 @@ export const layers: Path = {
         + 'seconds.',
       anchor: on('rose', 'rotate', 'param:spin'), done: (c) => spin(c) >= 0.1,
       progress: (c) => ({ now: Math.min(0.1, spin(c)), goal: 0.1 }) },
+    { id: 'fold', page: '/studio', title: 'The whole chain',
+      text: 'A module\'s settings open under its line. Click {module:rotate} to fold them away: the chain shows a '
+        + 'module a line, top to bottom.',
+      anchor: on('rose', null, 'module:rotate'), area: 'chain',
+      done: (c) => pos(c, 'rotate') >= 0 && c.el('module:rotate')?.getAttribute('aria-expanded') === 'false' },
+    { id: 'drag', page: '/studio', title: 'Reorder the chain',
+      text: 'A module reworks only what is above it. Drag {module:rotate} by the dots at its left down below '
+        + '{module:turbulence}: it turns the ripples too, so the whole rose wheels round as one.',
+      anchor: on('rose', null, 'module-grip:rotate'), area: 'chain',
+      done: (c) => pos(c, 'turbulence') >= 0 && pos(c, 'rotate') > pos(c, 'turbulence') },
     { id: 'swap', page: '/studio', title: 'Solo another',
       text: 'The next change is on the arches. Click S on Rose to let it go, then S on Arches.',
       anchor: (c) => (rose(c)?.solo ? ['solo:rose'] : ['solo:arches']),
@@ -78,9 +89,9 @@ export const layers: Path = {
         + 'them, so the arches fade under it.',
       anchor: ['blend:starfield'], done: (c) => star(c)?.blend === 'over' },
     { id: 'order', page: '/studio', title: 'Order',
-      text: 'What is lower is covered. Click ↓ to move the Starfield to the bottom: the rose and the arches are back, '
-        + 'over the stars.',
-      anchor: on('starfield', null, 'move-layer-down'), done: (c) => index(c, 'starfield') === 0 },
+      text: 'What is lower is covered. Drag the Starfield by the dots at its left to the bottom: the rose and the '
+        + 'arches are back, over the stars.',
+      anchor: ['layer-grip:starfield'], area: 'layers', done: (c) => index(c, 'starfield') === 0 },
     { id: 'mute', page: '/studio', title: 'Mute',
       text: 'Mute silences a layer without removing it. Click M on the Starfield to see the look without it, then '
         + 'again to bring it back.',
