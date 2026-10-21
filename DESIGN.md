@@ -292,10 +292,11 @@ universe, colour order, fps), axes, named camera views, a scaffold, and an xLigh
 carry **tags** (`arch`, `spire`, `rose`, `canopy`, `wash`, `front`, …). Code, the library and the generators find
 places by tag, never by the Folly's ids, so a look whose layers carry tags moves to another rig.
 
-The default is City of Gods 2026, the condensed Folly with two front towers (2,114 LEDs), from show-builder's
-`city-of-gods/pixel-map/`; the Folly's playa build is `rig-folly.json`, from its `pixel-map/`. `tools/build_rig.py` makes
-both through `td/python/make_pixel_csv.py`, the same pipeline TouchDesigner and Mirage use, and neither is edited by
-hand. City of Gods' addresses are held to its xLights show's channels (`test/rig-cog.test.js`).
+The default is City of Gods 2026, the condensed Folly with two front towers (2,114 LEDs), from the lighting repo's
+`city-of-gods/pixel-map/out/`; the Folly's playa build is `rig-folly.json`, from its `show-builder/pixel-map/`.
+`tools/build_rig.py` makes both through `tools/pixel_rows.py`, make_pixel_csv's rows (the pipeline TouchDesigner and
+Mirage use), and neither is edited by hand. City of Gods' addresses are held to its xLights show's channels
+(`test/rig-cog.test.js`), and both rigs to lighting's as it is now (`tools/check_channels.py`).
 
 Both: fixtures are make_pixel_csv's chains (an arch, a quad face, a spire strand, a rose petal; a spirelet corner's
 or a tower's wash floods merged), `attrs` are the rose's `ring` (1–7, else 0) and `sector` (petal 0–15, else −1).
