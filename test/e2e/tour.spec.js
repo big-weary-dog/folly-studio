@@ -153,6 +153,8 @@ test.describe('laptop, 1366 × 768', () => {
     await ring('layers', 'layer:lighthouse');
     await shot('layers-select');
     await at('layer:lighthouse').locator('.layer-name').click();
+    await done();   // the Studio opens with it selected: done already, it waits for Next
+    await next();
     await title('Where it plays');
     await ring('plays-on');
     await at('plays-on').click();
