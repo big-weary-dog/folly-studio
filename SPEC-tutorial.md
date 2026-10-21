@@ -9,7 +9,8 @@ other paths open `/studio?tour=<path>`, a practice look built from library prese
 (`public/data/tutorial/<path>.json`: `{ title, presets: [name], bpm? }`) as an unsaved copy, so nothing a person
 owns changes until they save. A step waits on the Studio's state through a read-only view (`ui/tour-view.ts`) and
 finds its control by `data-tour="<name>"`; the tour writes nothing but the user's `tour`, and moves between pages
-only as the app's own links do. Replay: the user menu's Tutorials.
+only as the app's own links do: over unsaved edits the app asks first, and keeping them leaves Tutorials open.
+Replay: the user menu's Tutorials.
 
 ## Paths
 

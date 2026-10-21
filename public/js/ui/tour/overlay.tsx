@@ -41,7 +41,7 @@ function Welcome() {
       tells us.</p>
     <div class="tour-actions">
       <button type="button" class="btn ghost" onClick={close}>Not now</button>
-      <button type="button" class="btn primary" onClick={() => start(PATHS[0])}>Start the tour</button></div>
+      <button type="button" class="btn primary" onClick={() => void start(PATHS[0])}>Start the tour</button></div>
   </Panel>;
 }
 
@@ -53,7 +53,7 @@ function Menu({ finished }: { finished?: string }) {
       const done = p.done.includes(path.id), part = !done && p.at?.path === path.id;
       const mark = done ? '✓' : part ? '◐' : '○', state = done ? 'done' : part ? 'part-way' : 'not started';
       return <li><button type="button" class="tour-path" data-state={done ? 'done' : part ? 'part' : 'new'}
-        onClick={() => start(path, part ? resumeAt(path) : 0)}>
+        onClick={() => void start(path, part ? resumeAt(path) : 0)}>
         <span class="tour-mark" aria-hidden="true">{mark}</span>
         <span class="tour-path-name">{path.title}<span class="sr-only">{`, ${state}`}</span></span>
         <span class="tour-path-about">{path.about}</span>
