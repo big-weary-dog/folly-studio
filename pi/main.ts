@@ -13,7 +13,7 @@ import { createEngine } from './src/engine.ts';
 import { readLibrary, readLooks } from './src/library.ts';
 import { createOutput } from './src/output.ts';
 import type { PowerTable } from './src/power.ts';
-import type { PiState } from './src/protocol.ts';
+import type { EngineState } from './src/protocol.ts';
 import { runLoop } from './src/run.ts';
 import { controlServer } from './src/server.ts';
 import { statsLine } from './src/stats.ts';
@@ -67,14 +67,16 @@ async function main(c: NonNullable<typeof cfg>) {
   }, c.stats * 1000);
 
   const list = [...looks].map(([id, l]) => ({ id, title: l.look?.title ?? id, playable: !!l.look,
+    duration: l.look?.duration || 30,
     ...(l.error ? { error: l.error } : {}) })).sort((a, b) => a.title.localeCompare(b.title));
-  const state = (): PiState => {
+  const state = (): EngineState => {
     const o = output.status(), s = engine.stats;
     return { ...engine.state(), looks: list, out: { dryRun: c.dryRun, fps: loop.fps(), renderMs: s.renderMs,
       genW: o.genW, genPeakW: o.genPeakW, gen: c.gen, cut: o.cut, ddpErrors: o.errors, lastError: o.lastError } };
   };
   page = c.http
-    ? await controlServer({ engine, lib, state, pin: c.pin, port: c.http, host: c.bind, base: c.base, log }) : null;
+    ? await controlServer({ engine, lib, state, pin: c.pin, mode: c.mode, port: c.http, host: c.bind,
+      base: c.base, log }) : null;
   if (page) log(`control page on http://${c.bind}:${page.port}${c.base}/${c.pin ? ' (PIN set)' : ''}`);
 
   let stopping = false;

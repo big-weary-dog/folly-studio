@@ -17,6 +17,7 @@ import {
 } from '../shared/schemas/look.ts';
 import type { LibraryEntry } from '../shared/schemas/rig.ts';
 import { newestBy } from './api.ts';
+import { stamp } from './clock.ts';
 import type { Action } from '../shared/policy.ts';
 import type { Auth } from './auth.ts';
 import { type createBakeQueue, layersHash, renderFields, reviewBlocker } from './bake.ts';
@@ -122,12 +123,14 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, loadLibra
   const versionsFor = (req: FastifyRequest, look: Look) => (req.query as { versions?: string }).versions === '1'
     && auth.can(req.user, 'edit', look);
 
+  /** `user`'s own looks, newest first, or the gallery's, newest shared first. */
+  const looksIn = (scope: 'mine' | 'gallery', user: User) => (scope === 'mine'
+    ? store.looks.list((l) => l.owner === user.id).reverse().sort(newestBy('updatedAt'))
+    : store.looks.list((l) => l.shared === true).reverse().sort(newestBy('sharedAt')).slice(0, GALLERY_LIMIT));
+
   async function list(req: FastifyRequest) {
     const { scope } = parse(LooksQuery, req.query);
-    const looks = scope === 'mine'
-      ? store.looks.list((l) => l.owner === req.user!.id).reverse().sort(newestBy('updatedAt'))
-      : store.looks.list((l) => l.shared === true).reverse().sort(newestBy('sharedAt')).slice(0, GALLERY_LIMIT);
-    return { looks: looks.map(listed) };
+    return { looks: looksIn(scope, req.user!).map(listed) };
   }
 
   async function create(req: FastifyRequest, reply: FastifyReply) {
@@ -139,7 +142,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, loadLibra
     const lanesNow = automation === undefined ? undefined : lanes(automation, globals);
     if (lanesNow) look.automation = lanesNow;
     if (bpm != null) look.bpm = bpm;
-    if (look.shared) look.sharedAt = new Date().toISOString();
+    if (look.shared) look.sharedAt = stamp();
     if (ideaId != null) {
       const idea = store.ideas.get(ideaId);
       if (!idea || idea.owner !== user.id) throw new HttpError(400, 'ideaId does not name one of your ideas.');
@@ -173,7 +176,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, loadLibra
     }
     if (body.shared !== undefined) {
       patch.shared = body.shared;
-      if (body.shared && look.shared !== true) patch.sharedAt = new Date().toISOString();
+      if (body.shared && look.shared !== true) patch.sharedAt = stamp();
     }
     // What plays (PLAYS; null clears bpm, globals and automation). A change is a new version; one that changes the
     // frames (not a tempo that is only a grid) also drops the bake and the review.
@@ -277,7 +280,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, loadLibra
     return reply.headers(headers).type('image/webp').send(body);
   }
 
-  return { visibleLook, listed, routes: { 'GET /looks': list, 'POST /looks': create, 'GET /looks/:id': read,
+  return { visibleLook, listed, looksIn, routes: { 'GET /looks': list, 'POST /looks': create, 'GET /looks/:id': read,
     'PUT /looks/:id': edit, 'DELETE /looks/:id': remove, 'POST /looks/:id/bake': bake,
     'GET /looks/:id/preview/:name': preview,
     ...versionRoutes({ visibleLook, update: (id, p) => store.looks.update(id, p)! }) } };

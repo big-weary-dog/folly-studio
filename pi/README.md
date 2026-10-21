@@ -28,11 +28,16 @@ SIGINT or SIGTERM fades out over a second, then sends black frames before exitin
 
 ## The control page
 
-`http://<the Pi>:4043/` from a phone on the same network: blackout, the master, tap tempo with the beat (a ±1 BPM nudge either side), the playing
-look's own controls (its `globals.live`), **Up next** (the queue), every look to play or queue (+), and the generator's
-draw. It says when the run is dry and when the flash guard has cut to `safe` (the safe look plays, and the queue
-waits, until someone picks a look or skips). Its parts (`pi/page/controls.tsx`, `queue.tsx`, styled by
-`public/css/jukebox.css`) are also Studio's `/live` jukebox on the Pi (SPEC-offline "The live page").
+`http://<the Pi>:4043/` from a phone on the same network: the live play page (SPEC-liveplay "The page"), one layout
+that fits a phone without scrolling and spreads to three columns on a laptop. In Jukebox, the queue alone: what plays,
+**Up next**, **Add a look** and **Fade to next**. In Live Play, also the playing look's knobs four to a bank (its
+numbers and the palette), Master, tap tempo with the beat (a ±1 BPM nudge when the look offers its tempo), a cued
+crossfade for each look played, and **Black out the lights**, held for half a second (B on a keyboard) either way.
+It says who drives and who is here, when the run is dry, when the link is lost and when the flash guard has cut to
+`safe` (the safe look plays, and the queue waits, until someone picks a look or goes on); its aside is the
+generator's draw and what the Pi sends. `pi/page/controller.tsx` lays it out from its parts (`status`, `bank`,
+`show`, `queue`, `add`, styled by `public/css/liveplay.css`); Studio's `/live` on the Pi is the same page for curators,
+with Studio's looks to add and the Folly in 3D as its aside.
 
 The queue is the jukebox (SPEC-offline "Playing on the lights"): each queued look plays its whole pattern once, then
 the next, fading out over its last second and in over the next's first; with nothing queued, what plays loops on.
@@ -44,6 +49,12 @@ look sent by `ref` (its code always ours), shown with who queued it.
 - No PIN by default. `--pin 2468` (or `"pin"` in `pi/config.json`) makes the page ask for it before it changes
   anything; five wrong ones lock the page out for a minute.
 - `--http 0` turns the page off; `--bind 127.0.0.1` keeps it to the Pi itself.
+- **Jukebox or Live Play** (SPEC-liveplay): in Jukebox (the default, `--mode live` for the other) the engine takes
+  only the queue: no knobs, Master, tempo, Blackout or Play now, whatever a page sends. Behind Studio, the admin's
+  setting wins (Studio's feed says it). In Live Play one person has the knobs at a time (Take over); the Pi's own page
+  drives as "the Pi's page". Who a socket is comes from Studio's proxy: on the LAN the PIN is the only gate, so anyone
+  with it may say they are Studio's feed and change the mode. Behind Studio the engine listens on loopback only
+  (`pi/STUDIO.md`).
 - The socket also sends what plays (`source`: the look, its modules by ref, at each change) and its clock in the
   state, so Studio's Live tab can follow a dry run behind Studio's `/pi` (SPEC-live "Following /pi"). The Pi itself
   connects to nothing and needs no setting for it.

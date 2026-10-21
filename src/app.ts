@@ -25,7 +25,8 @@ import { createLog, errorHandler, keepTail, type Log } from './http.ts';
 import { createLightStore } from './light.ts';
 import { createHub } from './live/hub.ts';
 import { piFeed } from './live/pi-feed.ts';
-import { liveSettings, playableLook, stageCopy } from './live/routes.ts';
+import { controlFor, liveSettings, playableLook, stageCopy } from './live/routes.ts';
+import { createLightsStore } from './lights.ts';
 import { piPreview, previewTarget } from './pi-preview.ts';
 import { boxDefaults, generates, type Profile, profileDefaults, profileOf } from './profile.ts';
 import { createPreviews } from './previews/index.ts';
@@ -153,15 +154,18 @@ export async function createServer(opts: Options = {}) {
   await app.register(fastifyWebsocket, { options: { maxPayload: 16 * 1024 } });
   // The live stage follows the dry run whenever /pi was the last thing used (SPEC-live "Following /pi"); on the Pi,
   // the feed also plays looks on the lights (SPEC-offline "Playing on the lights").
+  // The mode is the admin's on the Pi (lights.json); the hosted dry run at /pi is a preview, in Live Play.
+  const lightsStore = profile === 'pi' ? createLightsStore(path.join(dataDir, 'lights.json')) : null;
   const feed = piTarget && piFeed({ target: piTarget, pin: config.PI_PIN, onNow: hub.piNow, onSource: hub.piSource,
-    log });
+    mode: () => lightsStore?.current().mode ?? 'live', log });
   if (feed) app.addHook('onClose', async () => feed.close());
-  const lights = feed && profile === 'pi' ? { file: path.join(dataDir, 'lights.json'), feed, hub } : undefined;
+  const drive = controlFor(auth, live);
+  const lights = feed && lightsStore ? { store: lightsStore, feed, hub, drive } : undefined;
   await app.register(apiRoutes({ store, auth, queue, models, loaders, log, access, framesDir, bakes,
     frames, rateLimit, secureCookies, flash, hub, live, ideaLogs, previews, reports, light, profile, lights,
     build: buildSha(path.dirname(fileURLToPath(import.meta.url)), config.GIT_SHA), tail: log.tail }),
   { prefix: '/api' });
-  if (piTarget) await app.register(piPreview({ auth, target: piTarget, hub, curators: profile === 'pi' }));
+  if (piTarget) await app.register(piPreview({ auth, target: piTarget, hub, curators: profile === 'pi', drive }));
   await serveApp(app, { distDir, log });
   await app.ready();
   const pruneTimer = setInterval(() => { auth.pruneSessions(); void reports.sweep(); }, 60 * 60 * 1000);

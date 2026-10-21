@@ -31,6 +31,8 @@ const argv = process.argv.slice(2);
 const option = (name: string) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined);
 const outDir = option('--out');
 const frameMs = Math.min(600_000, Math.max(10, Math.round(Number(option('--frame-ms'))))) || 2000;
+// Loading compiles the core and every layer and lays out the whole rig: many frames' work, at the box's low priority.
+const loadMs = 10 * frameMs;
 if (!outDir) {
   console.error('usage: node render.ts --out DIR [--seconds S] [--frame-ms 2000] < look.json');
   process.exit(2);
@@ -104,7 +106,7 @@ const timedOut = (e: unknown) => (e as { code?: string })?.code === 'ERR_SCRIPT_
 const channels = ranges.reduce((n, r) => n + r[1], 0);
 let packed: unknown;
 try {
-  const setup = vm.runInContext(DRIVER, context, { timeout: frameMs, filename: 'render-box' });
+  const setup = vm.runInContext(DRIVER, context, { timeout: loadMs, filename: 'render-box' });
   packed = setup.packed;
   const compileErrors = JSON.parse(text(setup.compileErrors, 64 * 1024) || '[]');
   if (compileErrors.length) {
@@ -112,7 +114,7 @@ try {
     fail(`layer ${compileErrors[0].id} does not compile: ${compileErrors[0].error}`);
   }
 } catch (e) {
-  fail(timedOut(e) ? `loading the layers took over ${frameMs} ms`
+  fail(timedOut(e) ? `loading the layers took over ${loadMs} ms`
     : `the look could not be loaded: ${(e as Error)?.message}`);
 }
 if (!ArrayBuffer.isView(packed) || TA_LENGTH.call(packed) !== channels) {

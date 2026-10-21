@@ -6,7 +6,7 @@ regular full-cover field; **fire** rises and burns out; **turbulence** pushes an
 
 ## Params
 - colours: A dark-to-light pick reads as cloud.
-- direction: `back`/`front` on a shallow layer read as clouds changing shape, not travelling.
+- direction: `up`, `down`, `right` or `left` selects the wind.
 - speed: In cloud sizes, so big clouds cross faster. 0.03–0.1 a sky; 0.3+ a gale.
 - cover: 0.3–0.7 for distinct clouds.
 - size: Below 0.2 it mottles; keep ≥ 0.25 on spires and globe strands.

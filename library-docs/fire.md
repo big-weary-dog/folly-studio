@@ -15,6 +15,7 @@ drifting; **bars** on `up` is a clean, steady rise.
 ## Pairings
 - Over a dim warm **colour-wash** so the space above glows.
 - Then **mirror** height: flames from top and bottom meeting.
+- Then **rotate** to point the rising flames sideways or down.
 - Bind speed and height to `energy`.
 
 ## Pitfalls

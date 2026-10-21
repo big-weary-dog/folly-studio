@@ -112,6 +112,7 @@ stage starts empty.
 - `/live/control`: for controllers. Pick a look; Blackout; a fader for each macro (its min..max), each with ↺ to release it; per layer a level fader and a mute pad.
   Faders send at most 20 times a second while dragged, and the final value on release. Built from the look's data;
   module params are not offered yet.
+- On the Pi, curators' `/live` is the live play controller instead (SPEC-liveplay).
 
 ## Known gaps
 

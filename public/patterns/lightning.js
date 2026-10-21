@@ -1,11 +1,9 @@
-// Lightning: a forked bolt strikes in Direction about Speed times a second, at random moments, and fades in about
+// Lightning: a forked bolt strikes down about Speed times a second, at random moments, and fades in about
 // half a second whatever the Speed: its core the last of Colours, a thin glow the rest. It forks below a random point
 // toward where it lands. Under one strike a second, so it stays clear of the flash check. Jag is how much it zigzags.
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth',
     help: 'The palette of the bolt: its core takes the last colour, its glow the earlier ones.' },
-  direction: { value: 'down', type: 'choice', options: ['up', 'down', 'right', 'left'], label: 'Direction',
-    help: 'Which way each bolt travels as it strikes across the layer.' },
   speed: { value: 0.4, min: 0.1, max: 0.8, step: 0.01, label: 'Speed (strikes a second, on average)',
     help: 'How often a bolt strikes. Low leaves long dark gaps; high strikes nearly every second.' },
   width: { value: 0.06, min: 0.005, max: 0.08, step: 0.005, label: 'Bolt width',
@@ -30,7 +28,7 @@ function strike(n, x, y, z, P) {
 
 function pixel(p, t, P) {
   const x = clock('speed'), n = floor(x);
-  const d = P.direction, y = 1 - toward(p, d), z = d === 'right' || d === 'left' ? p.ly : p.lz;
+  const y = p.ly, z = p.lz;
   const v = max(strike(n, x, y, z, P), strike(n - 1, x, y, z, P));          // the last strike may still be fading
   if (v < 0.004) return null;
   const c = pal('colours', v);

@@ -13,7 +13,7 @@ instead; **rose-bloom** opens from a centre and holds.
 - colour-wash#2.colours and colour-wash#2.brightness: the base colour and its dimness.
 
 ## Pairings
-- Then **anchor** with direction `out`: breathes out from the rose or each tower.
+- Set edge-fade.direction to `out`, then **anchor** on the rose or nearest tower to breathe out from its centre.
 
 ## Pitfalls
 - Above about 0.5 Hz it becomes a whole-rig pulse.

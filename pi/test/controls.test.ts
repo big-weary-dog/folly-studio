@@ -19,14 +19,14 @@ const beats = (L: ReturnType<typeof liveLook>['look'], t: number) => (t - L.beat
 describe('a look\'s controls', () => {
   test('are its globals.live, in order, with their ranges and values', () => {
     const live = liveLook(heartbeat);
-    assert.deepEqual(live.controls.map((c) => c.name), ['bpm', 'drive', 'ripple']);
-    assert.deepEqual(live.controls[0], { name: 'bpm', ...BPM, value: 120, kind: 'bpm' });
+    assert.deepEqual(live.controls.map((c) => c.name), ['bpm', 'drive', 'ripple', 'palette']);
+    assert.deepEqual(live.controls[0], { name: 'bpm', ...BPM, value: 120, default: 120, held: false, kind: 'bpm' });
     assert.equal(live.controls[1]!.kind, 'macro');
   });
 
   test('without globals.live, its faders', () => {
     const look = oneModule('m', 'clouds', {}, { globals: { macros: { a: { value: 0.2 } } } });
-    assert.deepEqual(controlsOf(look, liveLook(look).look).map((c) => c.name), ['a']);
+    assert.deepEqual(controlsOf(look, liveLook(look).look).map((c) => c.name), ['a', 'palette']);
   });
 
   test('a push eases there over SLEW seconds, clamped to the range; unknown names are refused', () => {
@@ -106,7 +106,7 @@ describe('a modulator', () => {
     wobble: { value: 0, min: 0, max: 1, mod: { ...saw, pace: 'storm' } } } } });
 
   test('is not a default control; listed in globals.live, a push holds it and the others keep moving', () => {
-    assert.deepEqual(liveLook(look).controls.map((c) => c.name), ['storm']);
+    assert.deepEqual(liveLook(look).controls.map((c) => c.name), ['storm', 'palette']);
     const live = liveLook({ ...look, globals: { ...look.globals, live: ['gust'] } });
     live.look.lastT = 1;
     live.set('gust', 0.9, 1);

@@ -71,7 +71,7 @@ describe('the queue', () => {
     r.run(FADE.queue + 0.1);
     const s = r.engine.state();
     assert.deepEqual([s.look?.id, s.look?.title, s.look?.kind], ['abc123', 'Mine', 'live']);
-    assert.deepEqual(s.look?.controls.map((c) => c.name), ['pace']);
+    assert.deepEqual(s.look?.controls.map((c) => c.name), ['pace', 'palette']);
   });
 
   test('a flash-guard trip pauses the queue until a person goes on', () => {
