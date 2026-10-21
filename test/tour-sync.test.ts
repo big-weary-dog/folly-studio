@@ -77,10 +77,12 @@ function missing(name: string, layers: string[], kinds: string[]) {
     'nav:': (p) => routes.includes(`/${p}`), 'view:': (p) => p === 'fit' || p in (rig.views ?? {}),
     'dock:': (p) => docks.includes(p),
     'shelf-tab:': (p) => kinds.includes(p), 'shelf:': (p) => modules.has(p) || presets.has(p),
-    'module:': (p) => modules.has(p), 'module-on:': (p) => modules.has(p), 'group:': (p) => rig.groups.some((g) =>
-      g.id === p), 'param:': (p) => [...modules.keys()].some((m) => p in paramsOf(m)),
+    'module:': (p) => modules.has(p), 'module-on:': (p) => modules.has(p), 'module-grip:': (p) => modules.has(p),
+    'group:': (p) => rig.groups.some((g) => g.id === p),
+    'param:': (p) => [...modules.keys()].some((m) => p in paramsOf(m)),
     'layer:': (p) => layers.includes(p), 'mute:': (p) => layers.includes(p), 'solo:': (p) => layers.includes(p),
-    'blend:': (p) => layers.includes(p), 'level:': (p) => layers.includes(p), 'lane:': (p) => /^\w+$/.test(p),
+    'blend:': (p) => layers.includes(p), 'level:': (p) => layers.includes(p),
+    'layer-grip:': (p) => layers.includes(p), 'lane:': (p) => /^\w+$/.test(p),
   };
   if (!ok[prefix]) return `no check for ${prefix} names: add one here`;
   return ok[prefix](part) ? null : `${prefix} has nothing called "${part}"`;

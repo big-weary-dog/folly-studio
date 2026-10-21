@@ -48,6 +48,16 @@ async function shelf(t, add, tab, name) {
   await page.waitForTimeout(100);   // the view goes back as the shelf closes
   await page.emulateMedia({ reducedMotion: 'no-preference' });
 }
+/** Drag a row by its grip (`grip`, a tour name) to just above (or below, `below`) the row `to` (a locator). */
+async function drag(t, grip, to, below = false) {
+  const page = t.card.page(), from = await t.at(grip).boundingBox(), at = await to.boundingBox();
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  for (const f of [0.5, 1]) {
+    await page.mouse.move(at.x + at.width / 2, below ? at.y + at.height + 4 * f : at.y + 4 - 4 * f, { steps: 4 });
+  }
+  await page.mouse.up();
+}
 /** The ∿ beside a param: opens or closes its drawer (dispatched: a step done meanwhile may have put its card over
  * it). */
 const drawer = (t, param) => t.at(param).locator('.param-mod').dispatchEvent('click');
@@ -104,6 +114,9 @@ export async function playLayers(page, t) {
     await t.ring('param:spin');
     await type(t.at('param:spin').locator('input').first(), 0.15);
   }, 'layers-spin');
+  await step(t, 'The whole chain', ['module:rotate'], () => t.at('module:rotate').click(), 'layers-fold');
+  await step(t, 'Reorder the chain', ['module-grip:rotate'],
+    () => drag(t, 'module-grip:rotate', t.at('module:turbulence').locator('xpath=ancestor::li[1]')), 'layers-drag');
   await step(t, 'Solo another', ['solo:rose'], async () => {
     await t.at('solo:rose').click();
     await t.ring('solo:arches');
@@ -126,7 +139,8 @@ export async function playLayers(page, t) {
   await step(t, 'Level', ['level:starfield'], () => type(t.at('level:starfield').locator('input'), 40),
     'layers-level');
   await step(t, 'Blend', ['blend:starfield'], () => t.at('blend:starfield').selectOption('over'), 'layers-blend');
-  await step(t, 'Order', ['move-layer-down'], () => t.at('move-layer-down').click(), 'layers-order');
+  await step(t, 'Order', ['layer-grip:starfield'],
+    () => drag(t, 'layer-grip:starfield', page.locator('.layer-list > li').last(), true), 'layers-order');
   await step(t, 'Mute', ['mute:starfield'], async () => {
     await t.at('mute:starfield').click();
     await expect(t.at('mute:starfield')).toHaveAttribute('aria-pressed', 'true');

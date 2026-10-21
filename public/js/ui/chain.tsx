@@ -173,7 +173,8 @@ function ModuleRow({ m, i, mods, first, selected, std, grip, drop, dragging, joi
       <span class="chain-joint" aria-hidden="true">{GLYPHS[join]}</span>
       {reach.map((r) => <span class={cx('reach', r.to === lit && 'lit')} aria-hidden="true" data-kind={r.kind}
         style={{ '--lane': r.lane }} data-part={i === r.from ? 'from' : i === r.to ? 'to' : 'via'} />)}
-      <div class="chain-top"><span class="grip" title="Drag to reorder (or Alt+↑/↓)" aria-hidden="true" {...grip} />
+      <div class="chain-top"><span class="grip" title="Drag to reorder (or Alt+↑/↓)" aria-hidden="true"
+        data-tour={m.ref && `module-grip:${m.ref}`} {...grip} />
         <span class="chain-kinds"><span class="kind-badge">{KIND_LABELS[m.kind]}</span>
           {std === undefined && <span class="custom-badge"
             title="Custom code: written by the AI or in the code editor, not a library module">Custom</span>}</span>
