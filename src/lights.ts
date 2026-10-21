@@ -28,6 +28,7 @@ export type Mode = z.infer<typeof Mode>;
 const Settings = z.object({ liveLooks: z.boolean(), mode: Mode.default('jukebox') });
 /** What PUT changes: either or both. */
 const Change = z.object({ liveLooks: z.boolean().optional(), mode: Mode.optional() });
+const From = z.object({ from: z.enum(['mine', 'gallery']).default('mine') });
 const Queue = z.object({ lookId: z.string().max(64), at: z.enum(['now', 'next', 'end']).optional(),
   fade: z.number().min(0.25).max(8).optional() });
 
@@ -73,10 +74,12 @@ export function createLightsStore(file: string) {
 export type LightsStore = ReturnType<typeof createLightsStore>;
 
 /** `drive`: may this person drive Live Play (SPEC-live "Settings", STUDIO_LIVE_CONTROL). */
-export function lightsRoutes({ store, feed, hub, drive, loadLibrary, visibleLook }: { store: LightsStore,
+export function lightsRoutes({ store, feed, hub, drive, loadLibrary, visibleLook, looksIn, listed }: {
+  store: LightsStore,
   feed: Pick<ReturnType<typeof piFeed>, 'connected' | 'queued' | 'send' | 'mode'>, hub?: Pick<Hub, 'piDrove'>,
   drive: (user: User) => boolean, loadLibrary: () => readonly LibraryEntry[],
-  visibleLook: (id: string, user: User) => Look }) {
+  visibleLook: (id: string, user: User) => Look, looksIn: (scope: 'mine' | 'gallery', user: User) => Look[],
+  listed: (look: Look) => { ownerName: string, duration: number } }) {
   const modules = () => new Set(loadLibrary().filter((e) => e.kind !== 'preset').map((e) => e.name));
   const state = (user: User) => ({ ...store.current(),
     canQueue: can({ id: user.id, role: user.role ?? 'member' }, 'curate'), canDrive: drive(user),
@@ -89,6 +92,14 @@ export function lightsRoutes({ store, feed, hub, drive, loadLibrary, visibleLook
       const play = playOf(visibleLook(id, req.user!), modules(), store.current().liveLooks);
       return { ...state(req.user!), play: 'error' in play ? play : { kind: play.kind } };
     },
+    // The live page's sources: each look with how it would play, so one that cannot shows why.
+    'GET /lights/looks': [async (req: FastifyRequest) => {
+      const { from } = parse(From, req.query), lib = modules(), live = store.current().liveLooks;
+      return { looks: looksIn(from, req.user!).map((l) => {
+        const play = playOf(l, lib, live), { ownerName, duration } = listed(l);
+        return { id: l.id, title: l.title, ownerName, duration, play: 'error' in play ? play : { kind: play.kind } };
+      }) };
+    }, { role: 'curator' }] as const,
     'POST /lights/queue': [async (req: FastifyRequest) => {
       const { lookId, at = 'end', fade } = parse(Queue, req.body);
       const play = playOf(visibleLook(lookId, req.user!), modules(), store.current().liveLooks);

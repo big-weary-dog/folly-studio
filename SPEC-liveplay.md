@@ -34,6 +34,8 @@ page's own is dropped): the username, and whether they may drive Live Play. The 
   idle. Playing a look now (`play`, `queue` or `send` at `now`) and Blackout are for anyone who may drive; the
   queue's other edits are for anyone who may open `/pi`, as in Jukebox.
 - **Here.** The state names the people with a page open (`here`, each once), so the page can say who else watches.
+- **You.** The engine's hello answer says who this page is, `you: { name, drive }` (the Pi's own page: "the Pi's
+  page", driving; none for the feed), so it can say "You're driving" or offer **Take over**.
 
 ## The engine's state, as this adds to it
 
@@ -43,6 +45,7 @@ page's own is dropped): the username, and whether they may drive Live Play. The 
   here: ['cara', 'jo'],
   blackout: { on, by: name | null, ago },   // who turned it on or off last, and how long ago (seconds)
   queue: [{ key, id, title, kind, by?, duration: s | null }],   // duration: what it plays (a bake not read yet: null)
+  looks: [{ id, title, playable, error?, duration }],              // the engine's own; duration: seconds of a play
   look: { …, controls: [Control] } }
 Control = { name, kind: 'macro' | 'bpm' | 'palette', min, max, value, default, held }
 ```
@@ -78,17 +81,21 @@ A change mid-blend starts from the colours showing. A new look starts in its own
 
 ## The page
 
-One skeleton at every size, top to bottom, and nothing scrolls at 390 × 844:
+One skeleton at every size, top to bottom, and nothing scrolls at 390 × 844 (on a laptop, 1024 px wide or more, the
+now card and the queue on the left, the mode's surface and the show row in the middle, and the stage and Blackout
+on the right):
 
 1. **Status strip** (52 px): the mode chip (sand "Jukebox", cobalt "Live Play"), the link as a shape and a word
    (● On the lights, ■ Blacked out, ▲ Reconnecting), and who drives and who is here.
 2. **Now card**: "On the lights now", the title on one line, a bar with "1:12 left" and "of 2:30", and what is next.
 3. **The mode's surface**, taking the height left:
    - Jukebox: the queue (56 px rows, numbered, "in 1:12", ↑ and ×; past what fits, "N more" pages) and **Add a
-     look**: a search, sources (Mine · Gallery · The lights' own in Studio; the lights' own alone on `/pi/`), tiles 6
+     look**: a search, sources (Mine · Gallery · The lights' own in Studio, from `GET /api/lights/looks`; the
+     lights' own alone on `/pi/`), tiles 6
      a page (9 on a laptop), a look that cannot play shown dashed with why ("Custom code: needs a bake"), and a
      confirm with **Play next** and **Add to the end**.
-   - Live Play: the bank (below). Picking a look **cues** it: "Cued · not on the lights yet", Crossfade 1 s · 4 s ·
+   - Live Play: the bank (below); the now card's **Up next** turns it to the queue, with Add a look, and back.
+     Picking a look **cues** it: "Cued · not on the lights yet", Crossfade 1 s · 4 s ·
      8 s (4 s first), then **Fade to … · 4 s**, **Play next instead** or **Cancel**. Nothing changes until the commit.
 4. **Show row** (Live Play only): Master (a horizontal fader) and Tap with the BPM and ± 1. A bake's tempo is fixed:
    Tap is dashed, "Tempo fixed by the bake".

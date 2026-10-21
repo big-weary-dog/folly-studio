@@ -51,12 +51,16 @@ test('a look picked on /pi plays on the Live tab', async ({ browser, studio }, i
   const pi = await person(browser, origin, boss, PHONE, '/pi/');
   const live = await person(browser, origin, await signup(origin, 'watcher'), PHONE, '/live?probe=1');
   const laptop = await person(browser, origin, await signup(origin, 'desk'), LAPTOP, '/live?probe=1');
-  await expect(pi.page.locator('.pi-driver')).toContainText('driven from Live control.');
+  const studioTab = pi.page.locator('.lp-stats div', { hasText: 'Studio\'s Live tab' });
+  await expect(studioTab).toContainText('Driven from Live control');
   await expect(live.page.locator('.live-driver')).toHaveText('driven from Live control');
 
-  await pi.page.getByRole('button', { name: 'Fire', exact: true }).click();
+  await pi.page.getByRole('button', { name: /^Up next/ }).click();
+  await pi.page.getByRole('button', { name: /Add a look/ }).click();
+  await pi.page.getByRole('button', { name: /^Fire/ }).click();
+  await pi.page.getByRole('button', { name: /^Fade to Fire/ }).click();
   await expect(pi.page.getByRole('heading', { level: 1 })).toHaveText('Fire', { timeout: 10_000 });
-  await expect(pi.page.locator('.pi-driver')).toHaveText("Studio's Live tab: driven from /pi.");
+  await expect(studioTab).toContainText('Driven from /pi');
   for (const v of [live, laptop]) {
     await expect(v.page.locator('.live-title')).toHaveText('Fire', { timeout: 30_000 });
     await expect(v.page.locator('.live-driver')).toHaveText('driven from /pi');

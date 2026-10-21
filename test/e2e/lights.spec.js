@@ -95,8 +95,10 @@ test('a curator plays looks on the lights; the queue shows everywhere', async ({
 
   const pi = await person(browser, origin, cara, 'phone', '/pi/');
   await expect(pi.page.getByRole('heading', { level: 1 })).toHaveText('Ember choir', { timeout: 10_000 });
-  await expect(pi.page.locator('.pi-queue li')).toHaveCount(2);
-  await expect(pi.page.locator('.pi-queue')).toContainText('cara');
+  await expect(pi.page.getByRole('button', { name: /^Up next/ })).toContainText('2 queued');
+  await pi.page.getByRole('button', { name: /^Up next/ }).click();
+  await expect(pi.page.locator('.lp-q')).toHaveCount(2);
+  await expect(pi.page.locator('.lp-queue')).toContainText('cara');
   await shot(pi.page, 'pi-queue-phone');
 
   for (const size of ['laptop', 'phone']) {
@@ -104,8 +106,11 @@ test('a curator plays looks on the lights; the queue shows everywhere', async ({
     await expect(control.page.locator('.lc-queue li')).toHaveCount(2);
     await expect(control.page.locator('.lc-head h1')).toHaveText('Ember choir');
     await shot(control.page, `control-${size}`);
+    // /live on the Pi, for a curator: the live play page, the Folly in 3D beside it (behind ☰ on a phone).
     const live = await person(browser, origin, cara, size, '/live');
-    await expect(live.page.locator('.live-next')).toContainText('Up next:');
+    await expect(live.page.getByRole('heading', { level: 1 })).toHaveText('Ember choir');
+    if (size === 'phone') await live.page.getByRole('button', { name: 'The Folly in 3D' }).click();
+    await expect(live.page.locator('.live-viewer canvas')).toBeVisible();
     await expect(live.page.locator('.viewer-msg')).toBeHidden({ timeout: 60_000 });
     await shot(live.page, `live-${size}`);
     expect([...control.errors, ...live.errors]).toEqual([]);

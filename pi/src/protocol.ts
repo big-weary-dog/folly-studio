@@ -65,14 +65,16 @@ export type PiState = {
   mode: Mode, driver: { name: string, ago: number } | null, here: string[],
   /** paused: the flash guard tripped, and the queue waits for a person. */
   paused: boolean, switching: { id: string, title: string } | null, queue: QueueItem[],
-  looks: { id: string, title: string, playable: boolean, error?: string }[],
+  /** The engine's own looks; duration: seconds of a play. */
+  looks: { id: string, title: string, playable: boolean, error?: string, duration: number }[],
   out: { dryRun: boolean, fps: number, renderMs: number, genW: number, genPeakW: number, gen: number, cut: number,
     ddpErrors: number, lastError: string },
 };
 /** The state as the engine has it; the server adds who and the mode. */
 export type EngineState = Omit<PiState, 'mode' | 'driver' | 'here'>;
 export type ToPage =
-  | { type: 'hello', ok: boolean, needPin: boolean, error?: string }
+  /** you: who this page is, as the engine has it (none for Studio's feed). */
+  | { type: 'hello', ok: boolean, needPin: boolean, error?: string, you?: { name: string, drive: boolean } }
   | { type: 'state', state: PiState }
   /** What plays (layers by ref, no code), on hello and at each change: for Studio's Live tab following /pi. */
   | { type: 'source', source: PiSource }

@@ -1,7 +1,8 @@
-// npm run smoke, too: /live's jukebox on the Pi profile (SPEC-offline "The live page"), against the real engine in a
-// dry run. A curator switches between the Folly, the track listing and the lights' controls: takes a look off the
-// queue, skips, finds a Studio look to add, blacks out from the controls and from the Folly's bar. A member sees the
-// stage alone. Screenshots of each view at a laptop's and a phone's size, in LIGHTS_SHOTS when it names a folder.
+// npm run smoke, too: /live on the Pi profile for a curator, the live play page (SPEC-liveplay "The page") against the
+// real engine in a dry run. In Jukebox: takes a look off the queue, finds a Studio look of their own and adds it,
+// fades to the next. In Live Play: cues one of the lights' own looks, blacks out and back, and the Folly in 3D beside
+// it. A member sees the stage alone. Screenshots of each at a laptop's and a phone's size, in LIGHTS_SHOTS when it
+// names a folder.
 import { spawn } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
@@ -55,11 +56,10 @@ async function emptyQueue() {
   ws.close();
 }
 
-test('a curator runs the jukebox from /live; a member watches', async ({ browser, studio }, info) => {
+test('a curator runs the lights from /live in both modes; a member watches', async ({ browser, studio }, info) => {
   const { origin } = studio;
   const cara = await signup(origin, 'cara'), bob = await signup(origin, 'bob'), boss = await signup(origin, 'boss');
-  // Live Play: Play now and Blackout (Jukebox has neither).
-  await fetch(`${origin}/api/admin/lights`, { method: 'PUT', body: JSON.stringify({ mode: 'live' }),
+  const mode = (m) => fetch(`${origin}/api/admin/lights`, { method: 'PUT', body: JSON.stringify({ mode: m }),
     headers: { 'content-type': 'application/json', cookie: boss } });
   const call = async (method, url, body) => (await fetch(`${origin}${url}`, { method, body: JSON.stringify(body),
     headers: { 'content-type': 'application/json', cookie: cara } })).json();
@@ -81,58 +81,68 @@ test('a curator runs the jukebox from /live; a member watches', async ({ browser
   };
 
   for (const size of ['laptop', 'phone']) {
-    // Something playing from Studio, and three queued behind it.
+    // The lights' own look playing, three of Studio's queued behind it.
+    await mode('jukebox');
     await emptyQueue();
-    await call('POST', '/api/lights/queue', { lookId: looks[0].id, at: 'now' });
-    for (const l of [looks[1], looks[2], looks[0]]) await call('POST', '/api/lights/queue', { lookId: l.id });
+    for (const l of looks) await call('POST', '/api/lights/queue', { lookId: l.id });
     const { page, errors } = await open(cara, size);
-    const view = (name) => page.getByRole('group', { name: 'View' }).getByRole('button', { name, exact: true });
+    const h1 = page.getByRole('heading', { level: 1 });
+    const fits = () => page.evaluate(() => document.documentElement.scrollHeight <= innerHeight);
 
-    await view('Tracks').click();
-    await expect(page.locator('.jb-now h1')).toHaveText('Ember choir', { timeout: 10_000 });
-    await expect(page.locator('.pi-queue li')).toHaveCount(3);
+    await expect(page.getByText('Jukebox', { exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('slider')).toHaveCount(0);
+    await expect(page.locator('.lp-q')).toHaveCount(3);
     await page.getByRole('button', { name: 'Take Night procession off' }).click();
-    await expect(page.locator('.pi-queue li')).toHaveCount(2);
-    await page.getByRole('searchbox', { name: 'Find a look in Studio' }).fill('night');
-    await expect(page.locator('.jb-look')).toHaveCount(1);
-    await page.locator('.jb-look').click();
-    const dialog = page.getByRole('dialog', { name: 'Play on the lights' });
-    await expect(dialog).toContainText('plays live');
-    await dialog.getByRole('button', { name: 'Close' }).click();
-    await page.getByRole('searchbox', { name: 'Find a look in Studio' }).fill('');
-    await page.getByRole('searchbox', { name: 'Find a look in Studio' }).blur();
-    await shot(page, `jukebox-tracks-${size}`);
-    await view('Folly').click();
+    await expect(page.locator('.lp-q')).toHaveCount(2);
+    await page.getByRole('button', { name: /Add a look/ }).first().click();
+    await page.getByRole('searchbox', { name: 'Find a look' }).fill('night');
+    await expect(page.locator('.lp-tile')).toHaveCount(1);
+    await page.locator('.lp-tile').click();
+    await expect(page.getByRole('region', { name: 'Add Night procession' })).toContainText('plays live');
+    await page.getByRole('button', { name: 'Add to the end' }).click();
+    if (size === 'phone') await expect(h1).toBeVisible();
+    await expect(page.locator('.lp-q')).toHaveCount(3);
+    expect(await fits()).toBe(true);
+    await shot(page, `jukebox-${size}`);
+    await page.getByRole('button', { name: /Fade to next/ }).click();
+    await expect(h1).toHaveText('Ember choir', { timeout: 10_000 });
+
+    // Live Play: the page turns to the knobs as the mode changes.
+    await mode('live');
+    await expect(page.getByText('Live Play', { exact: true })).toBeVisible({ timeout: 10_000 });
+    if (size === 'phone') await page.getByRole('button', { name: /^Up next/ }).click();
+    await page.getByRole('button', { name: /Add a look/ }).first().click();
+    await page.getByRole('button', { name: 'The lights\' own' }).click();
+    await page.getByRole('button', { name: /^Fire/ }).click();
+    await page.getByRole('button', { name: /^Fade to Fire/ }).click();
+    await expect(h1).toHaveText('Fire', { timeout: 10_000 });
+    await expect(page.getByRole('slider', { name: 'Master' })).toBeVisible();
+    await shot(page, `live-play-${size}`);
+    const hold = async (name) => {
+      const box = await page.getByRole('button', { name }).boundingBox();
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.down();
+      await page.waitForTimeout(800);
+      await page.mouse.up();
+    };
+    await hold(/Black out the lights/);
+    await expect(page.getByRole('button', { name: /Bring the lights back/ })).toHaveAttribute('aria-pressed', 'true');
+    await shot(page, `blackout-${size}`);
+    await hold(/Bring the lights back/);
+    await expect(page.getByRole('button', { name: /Black out the lights/ })).toHaveAttribute('aria-pressed', 'false');
+    expect(await fits()).toBe(true);
+
+    // The Folly in 3D: the laptop's right column, behind ☰ on a phone.
+    if (size === 'phone') await page.getByRole('button', { name: 'The Folly in 3D' }).click();
     await expect(page.locator('.live-viewer canvas')).toBeVisible();
     await expect(page.locator('.viewer-msg')).toBeHidden({ timeout: 60_000 });
-    const bar = page.locator('.live-bar');
-    await bar.getByRole('button', { name: 'Skip' }).click();
-    await expect(bar.locator('.live-title')).toHaveText('Slow fire', { timeout: 10_000 });
-    await expect(page.locator('.live-next')).toContainText('Ember choir');
-    await shot(page, `jukebox-folly-${size}`);
-
-    // One of the lights' own looks, with controls of its own.
-    await view('Tracks').click();
-    await page.getByRole('button', { name: 'Fire', exact: true }).click();
-    await view('Controls').click();
-    await expect(page.locator('.jb-now h1')).toHaveText('Fire', { timeout: 10_000 });
-    const blackout = page.locator('.live-panel').getByRole('button', { name: /^Black(out|ed out)/ });
-    await blackout.click();
-    await expect(blackout).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('.live-panel').getByText('Master')).toBeVisible();
-    await expect(page.locator('.live-panel').getByRole('heading', { name: 'This look' })).toBeVisible();
-    await shot(page, `jukebox-controls-${size}`);
-    await blackout.click();
-    await expect(blackout).toHaveAttribute('aria-pressed', 'false');
-    // The view picked is kept for this browser.
-    await page.reload();
-    await expect(view('Controls')).toHaveAttribute('aria-pressed', 'true');
+    await shot(page, `folly-${size}`);
     expect(errors).toEqual([]);
     await page.context().close();
   }
 
   const member = await open(bob, 'phone');
   await expect(member.page.locator('.live-bar')).toBeVisible();
-  await expect(member.page.getByRole('group', { name: 'View' })).toHaveCount(0);
+  await expect(member.page.locator('.lp')).toHaveCount(0);
   expect(member.errors).toEqual([]);
 });
