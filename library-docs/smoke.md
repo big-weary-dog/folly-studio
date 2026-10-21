@@ -14,7 +14,7 @@ shows over it. A **single-strand** chase leaves plumes climbing the arches, **sp
 
 ## Pairings
 - sparkle → smoke `up`, drift 1, fade 0.5: embers rising off the arches.
-- Dripping paint: stained-glass or colour bars → smoke `down`, drift 0.3, spread 0.2, fade 0.15, curl 0.6.
+- Dripping paint: colour bars → smoke `down`, drift 0.3, spread 0.2, fade 0.15, curl 0.6.
 
 ## Pitfalls
 - It ends a stage: warps below it don't bend what is above; put warps above it.
