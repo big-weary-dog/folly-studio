@@ -30,6 +30,8 @@ const ROUTES: Route[] = [
   { re: /^\/login\/?$/, name: 'auth', title: 'Sign in', public: true,
     load: () => import('./auth.tsx').then((m) => m.Auth) },
   { re: /^\/ideas\/?$/, name: 'ideas', title: 'Ideas', nav: '/ideas', load: () => pages().then((m) => m.Ideas) },
+  { re: /^\/ideas\/([^/]+)\/how\/?$/, name: 'idea-how', title: 'How it was made', nav: '/ideas', keys: ['ideaId'],
+    load: () => import('./aimode/how.tsx').then((m) => m.IdeaHowPage) },
   { re: /^\/studio(?:\/([^/]+))?\/?$/, name: 'studio', title: 'Studio', nav: '/studio', keys: ['lookId'],
     load: () => import('./studio.tsx').then((m) => m.Studio) },
   { re: /^\/looks\/?$/, name: 'looks', title: 'My looks', nav: '/looks', scope: 'mine',
