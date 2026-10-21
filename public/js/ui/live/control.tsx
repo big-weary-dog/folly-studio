@@ -6,6 +6,7 @@ import '../../../css/live.css';
 import { useEffect, useRef, useState } from 'preact/hooks';
 
 import type { Listed } from '../../../../shared/schemas/api.ts';
+import type { PiQueued } from '../../../../shared/schemas/live.ts';
 import { api } from '../../api.ts';
 import { cx, humanize, toast } from '../kit.tsx';
 import { setTitle } from '../session.ts';
@@ -39,6 +40,8 @@ export function ControlPage() {
   useEffect(() => { if (error) { toast(error, { kind: 'warn' }); sock.error.value = ''; } }, [error]);
   void sock.rev.value;
   const live = sock.live, look = live?.look, trouble = troubleText(sock.trouble.value);
+  // While /pi drives, the heading names what the lights play (the engine's own look), not the stage's last one.
+  const fromPi = live?.driver === 'pi', title = fromPi ? sock.pi.value?.source?.title : look?.title;
   if (!live) {     // no state yet, whether or not the socket opened
     return <section class="live-control"><p role="status">{trouble || 'Connecting to the stage…'}</p></section>;
   }
@@ -55,16 +58,17 @@ export function ControlPage() {
     <section class="live-control">
       <div class="lc-head">
         <span class={cx('live-dot', sock.status.value)} title={`Connection: ${sock.status.value}`} />
-        <h1>{look ? look.title : 'Nothing playing'}</h1>
+        <h1>{title ?? 'Nothing playing'}</h1>
         <a class="btn small ghost" href="/live">Watch</a>
       </div>
       {trouble && <p class="lc-trouble" role="status">{trouble}</p>}
       <p class={cx('lc-driver', live?.driver === 'pi' && 'pi')} role="status">
         {live?.driver === 'pi' ? 'Live is driven from /pi. Use a control here to take it back.'
           : 'Live is driven from Live control.'}</p>
+      {fromPi && <PiQueue queue={sock.pi.value?.now?.queue ?? []} />}
       <div class="lc-play">
-        <select aria-label="Look to play" value={pick} onChange={(e) => setPick(e.currentTarget.value)}>
-          <option value="">{looks ? (looks.length ? 'Pick a look…' : 'No looks may play yet') : 'Loading…'}</option>
+        <select aria-label="Look to play on the stage" value={pick} onChange={(e) => setPick(e.currentTarget.value)}>
+          <option value="">{looks ? (looks.length ? 'Pick a look…' : 'No stage looks yet') : 'Loading…'}</option>
           {(looks ?? []).map((l) => <option value={l.id}>{l.title} · {l.ownerName}</option>)}
         </select>
         <button type="button" class="btn primary" disabled={!pick}
@@ -72,7 +76,7 @@ export function ControlPage() {
       </div>
       <button type="button" class={cx('pad lc-blackout', live?.blackout && 'on')} aria-pressed={!!live?.blackout}
         onClick={() => sock.send({ type: 'set', blackout: !live?.blackout })}>
-        {live?.blackout ? 'Blackout on' : 'Blackout'}</button>
+        {live?.blackout ? 'Blacked out · Undo' : 'Blackout'}</button>
       {live && look && <>
         <h2>Look</h2>
         {controlsNow(live, sock.now()).map((c) => <Fader key={`${look.id}:${c.name}`}
@@ -93,4 +97,17 @@ export function ControlPage() {
         })}
       </>}
     </section>);
+}
+
+/** What the lights play next, as /pi's engine has it (SPEC-offline "Playing on the lights"): read only here. */
+function PiQueue({ queue }: { queue: PiQueued[] }) {
+  return (
+    <div class="lc-queue">
+      <h2>Up next on the lights</h2>
+      {queue.length ? <ol>{queue.map((q) => <li>{q.title}
+        {q.kind === 'baked' && <span class="tag tag-sapphire">Baked</span>}
+        {q.by && <span class="lc-by">{q.by}</span>}</li>)}</ol>
+        : <p class="pane-hint">Nothing queued: what plays loops on.</p>}
+      <a class="btn small" href="/pi/">Open the lights</a>
+    </div>);
 }

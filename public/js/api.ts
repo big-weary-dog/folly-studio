@@ -50,6 +50,10 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 const enc = encodeURIComponent;
 type Me = { user: User, flash?: FlashSettings, access?: Access, profile?: 'hosted' | 'pi' };
+/** Playing on the lights (SPEC-offline): what may play, and how one look would (`play`, when asked about one). */
+export type Lights = { liveLooks: boolean, canQueue: boolean, engine: boolean,
+  play?: { kind: 'live' | 'baked', error?: undefined } | { kind?: undefined, error: string } };
+export type At = 'now' | 'next' | 'end';
 
 export const api = {
   me: () => request<Partial<Me>>('GET', '/api/me'),
@@ -81,6 +85,10 @@ export const api = {
   saveModels: (config: ModelsConfig) => request<AdminModels>('PUT', '/api/admin/models', config),
   light: () => request<LightSettings>('GET', '/api/light'),
   saveLight: (light: LightSettings) => request<LightSettings>('PUT', '/api/admin/light', light),
+  lights: (lookId?: string) => request<Lights>('GET', `/api/lights${lookId ? `?lookId=${enc(lookId)}` : ''}`),
+  playOnLights: (lookId: string, at: At) => request<{ kind: 'live' | 'baked' }>('POST', '/api/lights/queue',
+    { lookId, at }),
+  saveLights: (liveLooks: boolean) => request<Lights>('PUT', '/api/admin/lights', { liveLooks }),
 
   looks: (scope: 'mine' | 'gallery' = 'mine') => request<{ looks?: Listed[] }>('GET',
     `/api/looks?scope=${enc(scope)}`),

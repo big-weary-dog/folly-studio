@@ -13,9 +13,11 @@ import type { Explore, Idea, Listed } from '../../../shared/schemas/api.ts';
 import type { ModelChoices } from '../../../shared/schemas/models.ts';
 import { navigate, onPi, setTitle, user, type ViewProps } from './session.ts';
 import { AccessGate, gateOf } from './idea-access.tsx';
-import { confirmDialog, cx, jewelGradient, pref, timeAgo, toast } from './kit.tsx';
+import { confirmDialog, cx, jewelGradient, lazy, pref, timeAgo, toast } from './kit.tsx';
 import { LookFiles } from './look-files.tsx';
 import { Rose } from './rose.tsx';
+
+const lights = lazy(() => import('./play-lights.tsx'));
 
 const EXAMPLES = ['Rising embers drift up the spires', 'A coral reef breathing in slow blues and pinks',
   'Lightning cracks across the arches in a storm', 'The rose window blooms like a sunrise',
@@ -330,6 +332,8 @@ function Card({ look, gallery, remove }: { look: Listed; gallery: boolean; remov
         </div>
       </div>
       <div class="card-actions"><a class="btn small" href={href}>Open</a>
+        {onPi() && can(user.value, 'curate') && <button class="btn small" type="button"
+          onClick={() => lights().then((m) => m.openPlayLights(look))}>Play on the lights</button>}
         {can(user.value, 'edit', look) && !gallery && <button class="btn small ghost danger-text" type="button"
           aria-label={`Delete ${look.title}`} onClick={() => remove(look)}>Delete</button>}
       </div>
