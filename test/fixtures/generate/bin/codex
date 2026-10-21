@@ -26,7 +26,14 @@ process.stdin.on('end', async () => {
     summary: 'Blue light drifting.', duration: null, globals: null, automation: null,
     layers: [{ title: 'Sky', why: 'a sky drifts', groups: ['cathedral'], tags: [], blend: 'add', level: 1, clips: null,
       modules: null,
-      code: 'function pixel(p, t) {\n  return [0.1, 0.3 + 0.2 * wave(p.ly - t * 0.1), 1];\n}\n' }] };
+      code: `const params = {
+  colours: { value: 'all', type: 'color', label: 'Colours', help: 'The colours it drifts through.' },
+  speed: { value: 0.1, min: 0, max: 1, step: 0.01, label: 'Speed', help: 'How fast it drifts.' },
+};
+function pixel(p, t, P) {
+  return pal('colours', wave(p.ly - t * P.speed));
+}
+` }] };
   if (mode === 'term') process.kill(process.pid, 'SIGTERM');
   if (mode === 'fail') { process.stderr.write('error: the model is not available\n'); process.exit(2); }
   if (mode === 'bad') writeFileSync(out, 'Here is your look: it is lovely.');

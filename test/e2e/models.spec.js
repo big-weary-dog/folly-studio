@@ -46,8 +46,8 @@ for (const [name, device] of Object.entries(SIZES)) {
         await toggleLuna();
         await expect(page.getByText('Models saved.')).toBeVisible();
         await page.goto(`${studio.origin}/ideas`);
-        await expect(pick.locator('option')).toHaveText(['Sol']);
-        await expect(pick).toHaveValue('sol'); // the default cannot run here (no key): the first that can
+        await expect(page.locator('textarea.idea-input')).toBeVisible();
+        await expect(page.locator('.model-pick')).toHaveCount(0); // Sol alone can run here (Opus has no key): no pick
       });
 
       await test.step('back on, Luna is picked, and the idea goes there', async () => {
