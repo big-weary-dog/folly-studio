@@ -28,19 +28,31 @@ const within = (v: number, a: number, b: number) => {
   return v < (lo < 0 ? lo : 0) ? (lo < 0 ? lo : 0) : v > (hi > 1 ? hi : 1) ? (hi > 1 ? hi : 1) : v;
 };
 
+/** The light (linear, unclamped) t of the way from a to b, into out: a fade in OKLab. */
+export function lightInto<T extends number[]>(a: Colour, b: Colour, t: number, out: T): T {
+  const p = labOf(a, PA), q = labOf(b, PB);
+  const L = p[3] + (q[3] - p[3]) * t, A = p[4] + (q[4] - p[4]) * t, B = p[5] + (q[5] - p[5]) * t;
+  const l1 = L + 0.3963377774 * A + 0.2158037573 * B, m1 = L - 0.1055613458 * A - 0.0638541728 * B;
+  const s1 = L - 0.0894841775 * A - 1.291485548 * B, l = l1 * l1 * l1, m = m1 * m1 * m1, s = s1 * s1 * s1;
+  out[0] = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+  out[1] = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+  out[2] = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
+  return out;
+}
+
 /** The colour t of the way from a to b (t outside 0..1 runs on past them), into out: a fade in OKLab. */
 export function fadeInto<T extends number[]>(a: Colour, b: Colour, t: number, out: T): T {
   if (t === 0 || (a[0] === b[0] && a[1] === b[1] && a[2] === b[2])) {
     out[0] = a[0]; out[1] = a[1]; out[2] = a[2]; return out;
   }
   if (t === 1) { out[0] = b[0]; out[1] = b[1]; out[2] = b[2]; return out; }
-  const p = labOf(a, PA), q = labOf(b, PB);
-  const L = p[3] + (q[3] - p[3]) * t, A = p[4] + (q[4] - p[4]) * t, B = p[5] + (q[5] - p[5]) * t;
-  const l1 = L + 0.3963377774 * A + 0.2158037573 * B, m1 = L - 0.1055613458 * A - 0.0638541728 * B;
-  const s1 = L - 0.0894841775 * A - 1.291485548 * B, l = l1 * l1 * l1, m = m1 * m1 * m1, s = s1 * s1 * s1;
-  const r = toValue(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s);
-  const g = toValue(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s);
-  const bl = toValue(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s);
-  out[0] = within(r, a[0], b[0]); out[1] = within(g, a[1], b[1]); out[2] = within(bl, a[2], b[2]);
-  return out;
+  lightInto(a, b, t, out);
+  return valueWithin(out, a, b);
+}
+
+/** Light c as values, in place, each clamped to 0..1 or to a or b's beyond. */
+export function valueWithin<T extends number[]>(c: T, a: Colour, b: Colour): T {
+  c[0] = within(toValue(c[0]), a[0], b[0]); c[1] = within(toValue(c[1]), a[1], b[1]);
+  c[2] = within(toValue(c[2]), a[2], b[2]);
+  return c;
 }

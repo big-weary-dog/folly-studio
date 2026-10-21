@@ -376,6 +376,9 @@ the param's. Per module instance:
   each end's light (`v^2.2`), Ottosson's OKLab, straight across, and back, each channel clamped to 0..1 (or to an
   end beyond). It keeps the brightness a fade of values loses mid-way (red to green dips to a muddy olive) and passes through
   the hues between. Plain OKLab, not OKLCh: a fade between distant hues goes through the middle, not round the wheel.
+- A ramp that cannot change (a pick's stops, a look palette's role: frozen lists of frozen colours) is read from a
+  table of its fades' light, 64 steps a pair of colours, straight between and then clamped: its colours exact, its light
+  within 0.05/255 of the fade's. `pal()` and `ramp()` on any other list fade each time.
 
 Picks resolve to stops when a layer is prepared and again when the palette changes; per frame only rotates move.
 

@@ -57,6 +57,8 @@ brightness and passes through the hues a viewer expects between the two ends:
 - **Numbers stay linear**: `mix(2, 4, 0.5)` is 3. Alpha, `over`, levels and clip fades scale values, as above.
 - **Cost**: about 0.08 µs a pixel when the ends repeat, 0.2 µs when both vary, against 0.01 µs for a fade
   of values. Each side keeps its last colour's OKLab, so a ramp's stops are converted once, not per pixel.
+  A fixed ramp (a pick's or a palette role's) reads a table of its fades' light instead, about 0.08 µs whatever
+  its ends, its light within 0.05/255 of the fade's (an LED byte moves by 1 at most).
 
 ## The path
 
