@@ -1,11 +1,13 @@
 // The Pi's control page: one column of big targets for a phone in the dark. Blackout first, then the master, the tap
 // pad with the beat (a nudge either side), the playing look's own controls (built from its globals.live), every look
-// to switch to, and what the Pi is sending. A flash-guard trip and a dry run each say so at the top.
+// to play or queue, the queue (queue.tsx), and what the Pi is sending. A flash-guard trip and a dry run each say so
+// at the top.
 import { useEffect, useRef, useState } from 'preact/hooks';
 
 import { Fader } from '../../public/js/ui/live/fader.tsx';
 import { cx } from '../../public/js/ui/kit.tsx';
 import type { Control, PiState } from '../src/protocol.ts';
+import { UpNext } from './queue.tsx';
 import { piSocket, type PiSocket } from './socket.ts';
 
 const LABELS: Record<string, string> = { level: 'Look level' };
@@ -74,7 +76,7 @@ export function App() {
       <div class="lc-head">
         <span class={cx('live-dot', status)} title={`Connection: ${status}`} />
         <h1>{look ? look.title : 'Nothing playing'}</h1>
-        {s.switching && <span class="pi-sub">→ {s.looks.find((l) => l.id === s.switching)?.title}</span>}
+        {s.switching && <span class="pi-sub">→ {s.switching.title}</span>}
       </div>
       {s.out.dryRun && <p class="pi-banner">Dry run: nothing is sent to the lights.</p>}
       {sock.driver.value && <p class="pi-driver" role="status">Studio's Live tab: {sock.driver.value === 'pi'
@@ -104,11 +106,16 @@ export function App() {
         {controls.map((c) => <Fader key={`${look.id}:${c.name}`} label={label(c.name)} min={c.min} max={c.max}
           value={c.value} onSet={set(c)} />)}
       </>}
+      <UpNext s={s} sock={sock} />
       <h2>Looks</h2>
       <div class="pi-looks">
-        {s.looks.map((l) => <button type="button" key={l.id} disabled={!l.playable} title={l.error}
-          class={cx('pad pi-look', l.id === look?.id && 'current')} aria-pressed={l.id === look?.id}
-          onClick={() => sock.send({ type: 'play', id: l.id })}>{l.title}</button>)}
+        {s.looks.map((l) => <div key={l.id} class="pi-look-row">
+          <button type="button" disabled={!l.playable} title={l.error}
+            class={cx('pad pi-look', l.id === look?.id && 'current')} aria-pressed={l.id === look?.id}
+            onClick={() => sock.send({ type: 'play', id: l.id })}>{l.title}</button>
+          <button type="button" class="pad pi-mini" disabled={!l.playable} aria-label={`Queue ${l.title}`}
+            title="Add to the queue" onClick={() => sock.send({ type: 'queue', id: l.id })}>+</button>
+        </div>)}
       </div>
       <h2>Output</h2>
       <Output out={s.out} />

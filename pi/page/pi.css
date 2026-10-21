@@ -36,3 +36,15 @@ body { margin: 0; min-height: 100dvh; background: var(--night-0); color: var(--t
 .pi-pin p:not(.pi-error) { margin: 0; color: var(--text-2); }
 .pi-pin input { min-height: 56px; font-size: 24px; letter-spacing: .3em; text-align: center; color: var(--text);
   background: var(--night-1); border: var(--came-s) solid var(--lead); border-radius: var(--radius); }
+.pi-look-row { display: flex; gap: 4px; }
+.pi-look-row .pi-look { flex: 1; min-width: 0; }
+.pi-mini { flex: none; width: 44px; min-height: 44px; font-size: 18px; }
+.pi-mini:disabled { opacity: .35; }
+.pi-next-head { display: flex; align-items: center; gap: 10px; }
+.pi-next-head h2 { margin-right: auto; }
+.pi-skip { min-height: 44px; padding: 0 16px; }
+.pi-queue { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pi-queued { display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 12px; border-radius: var(--radius);
+  background: var(--night-1); border: var(--came-s) solid var(--lead); }
+.pi-queued-title { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 15px; }
+.pi-queued.live { border-color: color-mix(in srgb, var(--amber) 50%, var(--lead)); }
