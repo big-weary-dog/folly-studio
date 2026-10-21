@@ -321,7 +321,8 @@ Pi's network. With `PI_PREVIEW_URL` set, `npm run host` also runs `folly-studio-
 asked to sign in (401), anyone else is refused (403), and the socket must come from this site. The page keeps its
 own CSP. It drives only that dry run, never the Pi itself. Using a control there makes Studio's Live tab play what the
 dry run plays, for every viewer, until a curator uses Live control again (SPEC-live "Following /pi"); both pages say
-which drives. Unset `PI_PREVIEW_URL` and run `npm run host` again to take it down. The Admin page links it.
+which drives. The dry run renders only while someone has its page open (here or through `/pi/`), so to save the
+CPU Studio's `/live` holds still while it follows a dry run no one has open. Unset `PI_PREVIEW_URL` and run `npm run host` again to take it down. The Admin page links it.
 
 ### The Pi profile
 
