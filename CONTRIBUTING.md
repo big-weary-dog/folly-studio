@@ -44,9 +44,12 @@ running it at home behind a tunnel, and `npm run backup` makes a dated `.tar.gz`
 
 The render-box tests need bubblewrap (`apt install bubblewrap`) and unprivileged user
 namespaces. Without them they skip (`ctx.skip(condition, reason)`) and the run ends listing each skipped test and
-why (`test/skip-reporter.js`). The data tests need `python3`. Run
-`npm run build-data` after any change to `../city-of-gods/pixel-map/`, `../pixel-map/`, `td/python/make_pixel_csv.py`,
-`td/config/` or Mirage's `src/config.js`; `test/data.test.js` fails while a rig is stale. Never edit one by hand.
+why (`test/skip-reporter.js`). The rigs and palettes come from a show-builder checkout (big-weary-dog/show-builder):
+`SHOW_BUILDER_DIR` names it, by default `../show-builder` beside this repo (`tools/sources.py`,
+`test/fixtures/sources.js`). The data tests need it and `python3`, and skip, saying so, without them; `npm run e2e`
+needs its `relay/` and `mirage/`. Run `npm run build-data` after any change there to `city-of-gods/pixel-map/`,
+`pixel-map/`, `td/python/make_pixel_csv.py`, `td/config/`, `td/palettes/` or Mirage's `src/config.js`;
+`test/data.test.js` fails while a rig is stale. Never edit one by hand.
 
 ## Dependencies
 
@@ -287,9 +290,15 @@ cover.
   time, under CPU, memory and wall-clock limits, at nice 10, never at the same time as a frame encode.
 - `npm run lint` takes well under a second; keep it that way.
 
+## Branches
+
+- `dev` is where work lands: every pull request goes to it, after `npm run check`.
+- `prod` is what the public server runs (`STUDIO_REF=origin/prod`, docs/HOSTING.md "Updating") and what the Pi's
+  Studio Live pulls (pi/INSTALL.md). It moves only from `dev`, when the owner says so; then `npm run host` deploys it.
+
 ## Commits and pull requests
 
-- One concern per commit, with `npm run check` green. Stage only `studio/` (and its workflow).
+- One concern per commit, with `npm run check` green.
 - Subject line: `Folly Studio: <what changed>`. The body says why, not how it got there.
 - Interface changes update `SPEC.md` in the same commit. UI changes get a browser smoke test (`npm run smoke`,
   extended when the flow changes) and a screenshot in the PR (the smoke check saves one per step).

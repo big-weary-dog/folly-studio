@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Build studio/public/data/palettes.json, the looks' palettes, from td/palettes/*.csv.
+"""Build public/data/palettes.json, the looks' palettes, from show-builder's td/palettes/*.csv (tools/sources.py).
 
-    python3 studio/tools/build_palettes.py [--check]   # write it, or exit 1 if the committed file is stale
+    python3 tools/build_palettes.py [--check]   # write it, or exit 1 if the committed file is stale
 
 A palette file has a row per colour: `slot,colour`, the slot a role plus a number (low1, body2, accent1,
 high1). The role is what the colour is for (td/README.md "Colours"); the order within a role is kept.
 td/palettes/themes.txt gives each palette a one-line theme (`name: theme`), its mood for the generator.
-Format: studio/SPEC.md "Looks".
+Format: SPEC.md "Looks".
 """
 import argparse
 import csv
@@ -15,9 +15,9 @@ import os
 import re
 import sys
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-STUDIO = os.path.dirname(HERE)
-REPO = os.path.dirname(STUDIO)
+sys.dont_write_bytecode = True  # keep tools free of __pycache__
+from sources import SHOW_BUILDER as REPO, STUDIO  # noqa: E402
+
 PALETTES = os.path.join(REPO, 'td', 'palettes')
 THEMES = os.path.join(PALETTES, 'themes.txt')
 OUT = os.path.join(STUDIO, 'public', 'data', 'palettes.json')
@@ -63,19 +63,19 @@ def dumps(model):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
-    ap.add_argument('--check', action='store_true', help='exit 1 if %s is stale' % os.path.relpath(OUT, REPO))
+    ap.add_argument('--check', action='store_true', help='exit 1 if %s is stale' % os.path.relpath(OUT, STUDIO))
     args = ap.parse_args()
     text = dumps(build())
     old = open(OUT, encoding='utf-8').read() if os.path.exists(OUT) else None
     if args.check:
         if old != text:
-            print('%s is stale: run python3 studio/tools/build_palettes.py' % os.path.relpath(OUT, REPO))
+            print('%s is stale: run python3 tools/build_palettes.py' % os.path.relpath(OUT, STUDIO))
             sys.exit(1)
-        print('%s is up to date' % os.path.relpath(OUT, REPO))
+        print('%s is up to date' % os.path.relpath(OUT, STUDIO))
         return
     with open(OUT, 'w', encoding='utf-8', newline='\n') as f:
         f.write(text)
-    print('%d palettes -> %s (%s)' % (len(json.loads(text)['palettes']), os.path.relpath(OUT, REPO),
+    print('%d palettes -> %s (%s)' % (len(json.loads(text)['palettes']), os.path.relpath(OUT, STUDIO),
                                        'unchanged' if old == text else 'written'))
 
 
