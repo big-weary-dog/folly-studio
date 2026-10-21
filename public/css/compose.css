@@ -263,18 +263,27 @@ button.tl-mods-fold { gap: 4px; color: var(--sand); white-space: nowrap; cursor:
 }
 /* composites (chain-tree.tsx): a composite's sub-layers under its row, each a head over a chain of its own */
 .chain-acts { display: flex; gap: 4px; }
-.chain-note { margin-left: 6px; font-size: 11px; font-weight: 400; color: var(--text-2); }
+/* a composite's name in full, and under it, shut, what it holds */
+.chain-row[data-kind=composite] > .chain-top > .chain-name { white-space: normal; overflow-wrap: anywhere; }
+.chain-note { display: block; padding-left: 1.1em; font-size: 11px; font-weight: 400; color: var(--text-2); }
 .chain-end { height: 0; position: relative; }
 .chain-end[data-drop]::before { content: ''; position: absolute; left: 0; right: 0; top: calc(-1.5px - var(--gap) / 2);
   height: 3px; background: var(--sand); border-radius: 2px; pointer-events: none; }
 .composite-body { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 3px 4px; padding: 2px 0 2px 8px;
   border-left: 1px solid color-mix(in srgb, var(--violet) 45%, transparent); }
-.sub-layer { padding: 3px 0 2px; }
+.sub-layer { position: relative; padding: 3px 0 2px; }
+.comp-name { width: 100%; }
+/* where a dragged sub-layer lands: a line above the marked one, or above + Sub-layer */
+:is(.sub-layer, .sub-end)[data-drop]::before { content: ''; position: absolute; left: 0; right: 0; top: -4.5px;
+  height: 3px; background: var(--violet); border-radius: 2px; pointer-events: none; }
+.sub-end { position: relative; height: 0; }
 .sub-layer.off > :is(.sub-chain, .sub-head > .sub-name) { opacity: .45; }
 /* two rows: badge, name, switch and delete; then how it combines and where it plays */
-.sub-head { display: grid; grid-template-columns: auto 66px 1fr auto auto; grid-template-areas: 'b n n s d' '. c w w w';
+.sub-head { display: grid; grid-template-columns: auto auto 66px 1fr auto auto;
+  grid-template-areas: 'g b n n s d' 'g . c w w w';
   align-items: center; gap: 3px 4px; padding: 2px 3px; border: var(--came-s) solid var(--lead);
   background: color-mix(in srgb, var(--violet) 10%, var(--night-0)); }
+.sub-head .grip { grid-area: g; }
 .sub-head .kind-badge { grid-area: b; --kind: var(--violet); padding: 0 3px; font-size: 9px; letter-spacing: .06em; }
 .sub-name { grid-area: n; min-width: 0; min-height: 0; height: 22px; padding: 0 4px; font-size: 12.5px;
   font-weight: 600;
@@ -291,12 +300,3 @@ button.tl-mods-fold { gap: 4px; color: var(--sand); white-space: nowrap; cursor:
 .sub-chain { margin-top: 2px; }
 .sub-chain:has(> .chain-row)::after { content: '' / ''; }
 .sub-add { align-self: flex-start; min-height: 22px; padding: 1px 8px; font-size: 12px; }
-.sub-tabs { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
-.sub-tab { min-height: 22px; padding: 1px 8px; font-size: 12px; color: var(--text-2); background: var(--night-1);
-  border: var(--came-s) solid var(--lead); cursor: pointer; }
-.sub-tab.on { color: var(--text); background: color-mix(in srgb, var(--violet) 22%, var(--night-2));
-  box-shadow: inset 0 -2px 0 var(--violet); }
-.sub-tab.off { opacity: .55; }
-.chain-crumbs { display: flex; align-items: center; gap: 8px; margin: 6px 0 2px;
-  font-size: 12.5px; color: var(--text-2); }
-.chain-crumbs b { color: var(--violet); }

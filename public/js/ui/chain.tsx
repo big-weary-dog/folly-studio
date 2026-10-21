@@ -3,17 +3,17 @@
 // or which input a filter reads, enable and delete; phones: drag, enable and select only), its Soften row, and the
 // selected module's settings: a custom module's name (a library module keeps the library's) and its params, opened
 // under its row (on a phone, after the chain). The chain runs down a came into the layer: each module joins it (a
-// source by how it combines), and each warp and filter spans what it works on, everything above it.
+// source by how it combines), and each warp and filter spans what it works on, everything above it; a composite's
+// sub-layers nest under its row (chain-tree.tsx).
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 import type { Module } from '../../../shared/schemas/look.ts';
 import { standardTitle } from '../../../shared/standard-modules.ts';
 import { Field, loadFailed, toast } from './kit.tsx';
 import { insertModule, makeModule, moduleFromLibrary } from './model.ts';
-import { ChainList, CompositeBody, type TreeCtx, type Variant } from './chain-tree.tsx';
-import { addSub, type Box, editSub, groupModule, listOf, moveModule, placeOf, ungroup, withList }
+import { ChainList, type TreeCtx } from './chain-tree.tsx';
+import { addSub, type Box, editSub, groupModule, listOf, moveModule, moveSub, placeOf, ungroup, withList }
   from './composite-model.ts';
-import { flatModules } from '../core/tree.ts';
 import { parseSlot, useTreeDrag } from './tree-drag.ts';
 import { PlaysOn } from './groups-drawer.tsx';
 import { ParamsPanel } from './params.tsx';
@@ -62,7 +62,6 @@ function ModuleSettings({ st }: { st: Studio }) {
   </>;
 }
 
-const VARIANT = ((typeof location === 'object' && new URLSearchParams(location.search).get('cux')) || 'a') as Variant;
 const KEEP_ONE = 'A list keeps at least one module, and a composite cannot go inside itself.';
 
 function Chain({ st, pv }: Props) {
@@ -97,8 +96,9 @@ function Chain({ st, pv }: Props) {
       st.pickModule(m.id);
     } } });
   }
+  const resub = (comp: string, k: number, i: number) => setMods((list) => moveSub(list, comp, k, i));
   const move = (id: string, box: Box, i: number) => setMods((list) => moveModule(list, id, box, i), KEEP_ONE);
-  const rootRef = useRef<HTMLDivElement>(null), drag = useTreeDrag(rootRef, move);
+  const rootRef = useRef<HTMLDivElement>(null), drag = useTreeDrag(rootRef, move, resub);
   const rowOf = (id: string) => rootRef.current?.querySelector<HTMLElement>(`.chain-row[data-module="${id}"]`);
   /** Alt+↑/↓ on a row's own buttons moves it a slot, into and out of composites, its name keeping the focus. */
   const nudge = (id: string, e: KeyboardEvent) => {
@@ -121,10 +121,8 @@ function Chain({ st, pv }: Props) {
   // or pick.
   const [shut, setShut] = useState<{ layer: string; picked: object } | null>(null);
   const open = !st.narrow.value && !(shut && shut.layer === l?.id && shut.picked === st.picked.value);
-  // Composites shut (a, c: their sub-layers out of sight; b: the one opened), each one's tab.
+  // Composites shut, their sub-layers out of sight.
   const [closed, setClosed] = useState<ReadonlySet<string>>(new Set());
-  const [opened, setOpened] = useState<string | null>(null);
-  const [tabs, setTabs] = useState<Record<string, number>>({});
   // The clicked row stays under the pointer while the settings above it close.
   const keep = useRef<{ id: string; top: number } | null>(null);
   useLayoutEffect(() => {
@@ -138,27 +136,24 @@ function Chain({ st, pv }: Props) {
     if (l && m === sel) setShut(open ? { layer: l.id, picked: st.picked.peek() } : null);
     else st.pickModule(m.id);
   };
-  const ctx: TreeCtx = { st, layerId: l?.id ?? '', variant: VARIANT, drag, sel, settingsOpen: open,
+  const ctx: TreeCtx = { st, layerId: l?.id ?? '', drag, sel, settingsOpen: open,
     settings: () => <ModuleSettings st={st} />, click, remove, nudge,
     isOpen: (id) => !closed.has(id),
     toggle: (id) => {
-      if (VARIANT === 'b') return setOpened(id);
       const next = new Set(closed);
       if (!next.delete(id)) next.add(id);
       setClosed(next);
     },
-    tab: (id) => tabs[id] ?? 0, setTab: (id, k) => setTabs({ ...tabs, [id]: k }),
     set: (id, patch) => l && st.editModule(l.id, id, () => patch),
     editSub: (comp, k, p) => setMods((list) => editSub(list, comp, k, p)),
+    moveSub: resub,
     addSub: (comp) => void shelf((entry) => {
       if ('kind' in entry && entry.kind === 'preset') return;
       const m = 'blank' in entry ? makeModule({ kind: entry.kind }) : moduleFromLibrary(entry);
       setMods((list) => addSub(list, comp, m));
-      setTabs({ ...tabs, [comp]: (flatModules(mods).find((x) => x.id === comp)?.layers?.length ?? 0) });
       st.pickModule(m.id);
     }),
   };
-  const inside = VARIANT === 'b' && opened ? flatModules(mods).find((m) => m.id === opened && m.layers) : undefined;
   const group = () => sel && setMods((list) => groupModule(list, sel.id));
   const single = sel?.kind === 'composite' && sel.layers?.length === 1;
   return (
@@ -175,10 +170,6 @@ function Chain({ st, pv }: Props) {
             title="Add a warp, source or filter from the library, after the selected module"
             disabled={!l} onClick={() => shelf(add)}>+ Module</button></span></div>
       <p class="pane-hint" hidden={!!l}>Select a layer to see its modules.</p>
-      {inside && <nav class="chain-crumbs" aria-label="Where you are">
-        <button type="button" class="btn small" onClick={() => setOpened(null)}>‹ Chain</button>
-        <span class="crumb">{l?.title} › <b>{inside.title}</b></span></nav>}
-      {l && (inside ? <CompositeBody ctx={ctx} m={inside} depth={0} />
-        : <ChainList ctx={ctx} mods={mods} box={null} depth={0} />)}
+      {l && <ChainList ctx={ctx} mods={mods} box={null} depth={0} />}
     </section>);
 }

@@ -93,7 +93,7 @@ on the right):
      look**: a search, sources (Mine · Gallery · The lights' own in Studio, from `GET /api/lights/looks`; the
      lights' own alone on `/pi/`), tiles 6 a page (9 on a laptop), a look that cannot play shown dashed with why
      ("Custom code: needs a bake"). Picking one opens its **preview**, a modal: the look's gallery preview playing
-     (SPEC "Gallery previews": its 5 s that move the most; its still under reduced motion; the card's glass when it
+     (SPEC-previews: its 5 s that move the most; its still under reduced motion; the card's glass when it
      has none, as the lights' own looks never do), who made it, how long and how it plays, then **Play next** and
      **Add to the end** (× or Esc closes it).
    - Live Play: the bank (below); the now card's **Up next** turns it to the queue, with Add a look, and back.

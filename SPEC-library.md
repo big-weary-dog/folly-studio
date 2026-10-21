@@ -201,6 +201,14 @@ sub-layers' too. A sub-layer holds no stage end (its colours are at bent pixels,
 two deep at most (a composite in a sub-layer holds none); a failing module inside one is reported by its own id. Each
 sub-layer's modules count toward its own limit of 8.
 
+In the Studio's chain (`ui/chain-tree.tsx`) a composite is a violet row whose name (in full, never cut short) opens
+and shuts its sub-layers, nested under it; shut, it says what it holds ("2 sub-layers · 4 modules"). Open, it shows
+its name, then each sub-layer as a head (a grip, Sub N, its name, blend, Plays on, on, delete) over its chain, drawn
+as a layer's, and + Sub-layer (a module from the shelf). A module's grip drags it into or out of any sub-layer (Alt+↑/↓
+steps it through the same places); a sub-layer's grip (or Alt+↑/↓ on its name) reorders its composite's sub-layers.
+⧉ Composite in the chain's head puts the selected module in a new composite of one sub-layer; on such a composite it
+is Ungroup, its modules back in its place.
+
 ## Library
 
 `public/patterns/index.json` lists the library, one entry each `{ name, title, summary, tags, kind, category }`

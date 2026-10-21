@@ -260,8 +260,10 @@ below.
   library's title (`shared/standard-modules.ts`; the API and generators put a renamed one's back), and a hand edit
   of its code drops `ref`, making it custom; `params`
   override the code's defaults (≤ 64; a string ≤ 256 characters: a pick, a choice or text); `enabled: false` skips it; `input` names an earlier source; `as` is only
-  `'input'`; `blend` as for layers, or `under` (a source's only). A layer with `code` (+ `params`) and no `modules`
-  is a one-source chain and renders exactly as before.
+  `'input'`; `blend` as for layers, or `under` (a source's only). `kind` is `source`, `warp`, `filter` or
+  `composite`: no code, its `layers` 1–4 sub-layers, each a chain of its own that counts as one source to the chain
+  round it (SPEC-library "Composites"); ids are unique across a layer's sub-layers too. A layer with `code`
+  (+ `params`) and no `modules` is a one-source chain and renders exactly as before.
 - **chain**: `2`, the one rule (SPEC-library "Modules"). Before it a warp bent the modules after it, on through blurs and
   trails. A look without `chain: 2` (saved before, or a body to `POST`/`PUT` without it) is converted once on its way
   in (`shared/chain-order.ts`), exactly wherever it can be: warps leading a stage move to its end, reversed; a stage
@@ -338,8 +340,9 @@ Sequencing lives on the look, xLights-style.
   The bottom
   dock (Code, Timeline, Look) is one height on every tab: a share of the Studio's height (36%, at least 220 px, the
   3D view keeping at least 200 px), dragged by the splitter above it and kept per browser.
-- Reorder: a layer row moves by its ↑ ↓ buttons, a module row by Alt+↑/↓ on its controls, either by dragging its
-  grip (`ui/drag-order.ts`, any pointer), which marks where it lands, the drop one edit; Escape cancels.
+- Reorder: a layer row moves by its ↑ ↓ buttons, a module row (into and out of composites too) by Alt+↑/↓ on its
+  controls, either by dragging its grip (`ui/drag-order.ts`, a module's `ui/tree-drag.ts`; any pointer), which marks
+  where it lands, the drop one edit; Escape cancels. Composites in the panel: SPEC-library "Composites".
 - Composition (`ui/chain.tsx`, `ui/params.tsx`, `ui/shelf.tsx`, `ui/look-globals.tsx`): the selected layer's
   module chain (a line a module: kind badge, Custom on a module not standard, name, a source's blend or a filter's
   input, enable, delete; only a custom module's name is editable; wide, the selected one's settings open under it,
@@ -619,23 +622,7 @@ engine behind Studio) and look files; in `SPEC-liveplay.md`, the live play contr
 
 ## Gallery previews
 
-Each shared look gets a looping preview for its card (`src/previews/`): the Playa view from the Studio's default
-camera ('fit'), with the venue, at full quality, 260 × 228 px (drawn at 2× and scaled down), sampled at ~13 fps, over the 5 s that move the most (mean change from one
-sample to the next, plus a tenth of the mean brightness so a dark stretch loses), its last 0.5 s crossfaded into its
-first so it loops; an animated WebP (sharp; quality 50, else 40 or 30 to stay within 300 KB), and a WebP still (the
-window's brightest sample) for reduced motion. They are made off the request path, one look at a time, when a look
-is shared or a shared look changes (and for every shared look at start, the gallery's top first): from the look's
-bake when that is current (a look being baked waits for it), else from the render box (at most 60 s, in the bake
-lane). Kept in `<STUDIO_DATA>/previews/<lookId>-<key>.webp` and `-<key>-still.webp`, `key` naming what it renders;
-a look keeps its old preview until the new one is written, and previews of looks no longer shared go at the next
-start. A look without one shows its card's glass.
-
-The camera is the app's own Viewer (`public/js/preview-camera.ts`) in a headless Chromium (playwright-core's
-headless shell, `src/previews/playa.ts`), started on first use and closed after a minute idle: no window, its own
-profile, no port; it serves itself the viewer's source with the types stripped, so it needs no build. It asks for
-the GPU (ANGLE on EGL, with no display; under WSL, Mesa's d3d12 driver when `/dev/dxg` is there) and logs the renderer it got,
-as a warning when that is a software one. `STUDIO_PREVIEWS=front` draws them flat instead (the LEDs from the front:
-z across, y up), without a browser; the tests and browser checks do.
+Each shared look's looping preview for its card: `SPEC-previews.md`, part of this contract.
 
 ## Baked frames
 

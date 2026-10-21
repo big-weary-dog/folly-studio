@@ -64,6 +64,15 @@ export const editSub = (mods: Module[], comp: string, sub: number, patch: Partia
   mapModule(mods, comp, (c) => ({ ...c, layers: patch ? c.layers?.map((s, i) => (i === sub ? { ...s, ...patch } : s))
     : c.layers?.filter((_, i) => i !== sub) }));
 
+/** Sub-layer `sub` of composite `comp` moved to `index` of its sub-layers (counted before the move). */
+export const moveSub = (mods: Module[], comp: string, sub: number, index: number): Module[] => {
+  const to = index > sub ? index - 1 : index;
+  return to === sub ? mods : mapModule(mods, comp, (c) => {
+    const layers = (c.layers ?? []).slice(), [s] = layers.splice(sub, 1);
+    return { ...c, layers: [...layers.slice(0, to), s, ...layers.slice(to)] };
+  });
+};
+
 /** A composite of one sub-layer in place of itself as that sub-layer's modules (null for more than one). */
 export function ungroup(mods: Module[], comp: string): Module[] | null {
   const at = placeOf(mods, comp), c = at && listOf(mods, at.box)[at.index];

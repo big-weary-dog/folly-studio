@@ -1,6 +1,6 @@
 // The list pages. Ideas: describe a show, watch it turn into a look, open it in the Studio. My looks and the
 // Gallery: cards that open in the Studio (lists carry metadata only; the Studio fetches a look). A card with a
-// preview plays it through its glass, or shows its still under reduced motion (SPEC "Gallery previews").
+// preview plays it through its glass, or shows its still under reduced motion (SPEC-previews).
 import '../../css/pages.css';
 
 import { useEffect, useRef, useState } from 'preact/hooks';

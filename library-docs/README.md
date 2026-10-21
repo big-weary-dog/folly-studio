@@ -27,9 +27,16 @@ works on everything above it, as in an image editor.
 - `anchor` moves the centre that `in`, `out`, the turning directions, polar and the rotations use; put it lowest of
   the warps.
 - `reorder` gives `out` and `in` a new order: along the wiring from a place, strand after strand, or a shuffle.
+- A *composite* (`kind: "composite"`, `code: ""`, `params: {}`) composites 1–4 *sub-layers*, each `{ id, title,
+  modules, blend?, level?, tags? }` a chain of its own, into one source for the chain round it: a warp below it bends
+  all of them together, a filter below it filters all of them, while a filter inside a sub-layer reworks only that
+  one. A sub-layer with `tags` plays only on those parts of the layer. Ids are unique across the whole layer. No
+  `blur`, `trails`, `delay`, `smoke`, `replay`, `sort` or `splash` inside a sub-layer; put one below the composite.
 
 Example, "a chase only inside clouds, mirrored": single-strand, clouds (`id: "sky"`, `as: "input"`), mask
 (`input: "sky"`), mirror.
+Example, "clouds and bars twisted together, each tinted on its own": a composite of sub-layers [clouds, hue-shift]
+and [bars, edge-fade], then twist, then sparkle (drawn on top, untwisted).
 
 A bed fills: `colour-wash` first in the chain, then the element with `blend: "over"`; or a colour-wash layer below.
 Keep a bed dim (layer level 0.15–0.35, or its brightness 0.2–0.4) so the element reads.
