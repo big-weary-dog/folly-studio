@@ -43,6 +43,10 @@ test.beforeAll(async () => {
   });
 });
 test.afterAll(() => engine?.kill('SIGKILL'));
+// A failure says what the engine said last.
+test.afterEach(({}, info) => {
+  if (info.status !== info.expectedStatus) console.info(lines.slice(-6).join('\n'));
+});
 
 /** The engine's latest stats line: `{ by, on, missed, watts }`, the relay's null when no one relays. */
 const stats = () => {
@@ -77,6 +81,9 @@ test('a curator sends the look being edited to the lights; an unsaved edit reach
     page.on('pageerror', (e) => errors.push(String(e)));
     await page.goto(`${origin}/studio/${edited.id}`);
     await expect(page.locator('.viewer-msg').first()).toBeHidden({ timeout: 60_000 });
+    // The transport keeps to the screen's width (the button's label shortens on a phone).
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(SIZES[size].viewport
+      .width);
     await page.getByRole('button', { name: 'To the lights' }).click();
     const panel = page.getByRole('group', { name: 'To the lights' });
     await panel.getByRole('checkbox', { name: 'To the lights' }).check();

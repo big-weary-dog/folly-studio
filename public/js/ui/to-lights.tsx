@@ -20,8 +20,9 @@ export function ToLights({ st, pv }: { st: Studio, pv: Preview }) {
   return <>
     <button type="button" class={cx('btn small tp-lights', on && 'on', holding && 'live')} popovertarget={pop}
       title={on ? 'Relaying to the lights: the buffer, how it goes, or off'
-        : 'Play the look as you edit it on the lights'}>
-      <span class="tp-lights-dot" aria-hidden="true" />To the lights</button>
+        : 'Play the look as you edit it on the lights'} aria-label="To the lights">
+      <span class="tp-lights-dot" aria-hidden="true" />
+      <span class="tp-lights-long">To the lights</span><span class="tp-lights-short">Lights</span></button>
     <div id={pop} popover="auto" class={cx('tp-lights-pop', st.narrow.value && 'sheet')}
       onBeforeToggle={(e) => placePopover(e, pop, 320, st.narrow.peek())}>
       <RelayPanel relay={relay} label="To the lights"
