@@ -13,6 +13,7 @@ import {
   automationFor, Binding, bytes, follows, Globals as StrictGlobals, ID, ms, PALETTE_NAMES, Pick, PictureValue, problem,
   TAG,
 } from './look.ts';
+import { standardTitle } from '../standard-modules.ts';
 import type { Automation, Globals, Module, Range, Soften } from './look.ts';
 
 export const LIMITS = Object.freeze({ layers: 4, modules: 6, codeBytes: 20 * 1024, title: 80, layerTitle: 80,
@@ -127,7 +128,7 @@ const clips = z.preprocess((v) => v ?? undefined, z.array(orDrop(clip)).optional
     return { clips: out, notes };
   });
 
-type Library = { name: string }[];
+type Library = { name: string, title?: string, kind?: string }[];
 const moduleOf = (library: Library) => z.object({
   id: z.string().optional().catch(undefined),
   kind: z.string().catch('source').transform((k, ctx): ModuleKind => {
@@ -143,7 +144,8 @@ const moduleOf = (library: Library) => z.object({
   const checked = code(FUNCTION[m.kind]!).safeParse(m.code);
   if (!checked.success) return (ctx.addIssue(checked.error.issues[0].message), z.NEVER);
   const ref = library.some((p) => p.name === m.ref) ? m.ref : undefined;
-  return { id: m.id, kind: m.kind, title: m.title || ref || m.kind, ...(ref ? { ref } : {}), code: checked.data,
+  const title = standardTitle({ ref }, library) ?? (m.title || ref || m.kind);
+  return { id: m.id, kind: m.kind, title, ...(ref ? { ref } : {}), code: checked.data,
     params: m.params, ...(m.kind === 'filter' && m.input ? { input: m.input } : {}),
     ...(m.kind === 'source' && m.as ? { as: m.as } : {}), ...(m.blend !== undefined ? { blend: m.blend } : {}) };
 });

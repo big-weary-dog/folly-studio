@@ -2,7 +2,8 @@
 // first 60 DMX frames (t = f / 40, default gamma, the Folly) as the engine of 328a218 rendered them (3e681e0, its rule
 // with colour picks, for the last two, and the same bytes for the rest), with the library as of 11a4627
 // (library-v1.json, pinned so that library edits leave these frames alone) and this tree's rig and palettes. Re-made
-// when a r moved to the LEDs' mean (the effects audit's core fix): the recipe below then needs that commit's core.
+// when a r moved to the LEDs' mean (the effects audit's core fix), and when add and blur moved to light (each a
+// deliberate change of the frames): the recipe below then needs that commit's core.
 // test/chain-order.test.js converts each look and renders the same bytes. To make the digests again (from studio/; the
 // old core is plain modules, so a copy of public/js is enough):
 //   mkdir -p /tmp/v1 && git archive 3e681e0 public/js | tar -x -C /tmp/v1
@@ -58,10 +59,10 @@ export const LOOKS = [
       mode: 'wire' } }), m('clouds', { id: 'cl4', as: 'input' }), m('counted', { blend: 'max' }),
     m('mask', { input: 'cl4' })], { groups: ['arches', 'spires'], blend: 'over',
     soften: { radius: 0.15, mode: 'wire' } })] },
-  '8c6ff599c4d7fe0a3906ae920ee487e97407c3576b23d253c42d05b73176a35c'],
+  '8fff31cb7bacac71da708795a2389d472c865600b039f5e549aa5710769fb688'],
   ['a warp before trails reaches the source after them', { layers: [layer('After trails', [
     m('scroll', { params: { up: 0.4 } }), m('meteors'), m('trails'), m('rising-sweep'), m('sparkle')])] },
-  '2d69b1483ebd767cc158f46827e353190808b3c5f3baf2c4039d64b7a92825d8'],
+  'd5a55f58820628fe9a975459aa53146641ac340c62b3107bd750340f48d9d3b2'],
   ['a warp between two sources, the second over', { layers: [layer('Mid over', [m('palette-drift'), m('twist'),
     m('disc', { blend: 'over' })])] },
   '1052693c66eaa83ad97b23bc3ba3145ba495a8f8f6ed46c61a1bf9b8b68bb5bc'],
@@ -69,10 +70,10 @@ export const LOOKS = [
     m('plasma', { blend: 'max' }), m('rotate', { params: { spin: 0.5 } }), m('disc', { blend: 'over' }),
     m('mirror', { params: { upDown: true } }), m('clouds', { id: 'cl5', as: 'input' }),
     m('blur', { params: { radius: 0.3, mode: 'space' } }), m('mask', { input: 'cl5' }), m('threshold')])] },
-  'd12769adf8aaa54151dda23e663e7088edd322be3033033336d6bc878f16070c'],
+  '3e021292acd668771f10a958b391c6dda44b57927dd9edc068a7bb55b3b7301d'],
   ['a warp between two sources that add', { layers: [layer('Mid add', [m('aurora'), m('kaleidoscope'),
     m('fireworks')])] },
-  'f16062b4ffc99c45de42a08deb8ca5a7bc3473fa9760b3251979e86f2caa954a'],
+  'ec0725093da567ac95e17e993ac030d3ce56763b3e65d23fc1d599917a9b2e71'],
   ['a warp between a source and a hue shift', { layers: [layer('Mid shift', [m('bars'), m('mirror'),
     m('hue-shift')])] },
   'a592b561dde3d3b3a6582be1b1c0d311c833a35d26a62828e6184a044450409b'],
@@ -81,7 +82,7 @@ export const LOOKS = [
   '9e7e83c29721fa6318aa8cd6f2fed34a3f1e05c8808b8ab6a288e995fe0679bc'],
   ['a warp before a blur and a hue shift by angle', { layers: [layer('Round', [m('twist'), m('galaxy'),
     m('blur', { params: { radius: 0.3, mode: 'space' } }), m('hue-shift', { params: { axis: 3 } })])] },
-  '4faf3942b602552dc2284fa775dd7780963d309d078bff9300707ad1e00943bd'],
+  '7f5808d9a7f9ff0fa73dc427560ce48bd32feaa528288e0812b55a1934056f06'],
   ['a disabled warp leads, an enabled one trails', { layers: [layer('Off', [m('mirror', { enabled: false }),
     m('bars'), m('edge-fade'), m('scroll', { params: { up: 0.5 } })])] },
   '9c890167d11bb80f40e54ba3d3074e47ca3acdc36019038f5993a821d19a13c8'],

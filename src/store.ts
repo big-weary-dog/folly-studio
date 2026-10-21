@@ -8,20 +8,22 @@ import { promises as fsp } from 'node:fs';
 import path from 'node:path';
 
 import type { UserAccess } from '../shared/schemas/access.ts';
-import type { Idea, Look, User } from '../shared/schemas/api.ts';
+import type { Idea, Look, User, VersionMeta } from '../shared/schemas/api.ts';
 import type { Log } from './http.ts';
 
 type Doc = { id: string, createdAt: string, updatedAt: string };
 export type Collection<T extends Doc> = { get(id: string): T | null, list(filter?: (x: T) => unknown): T[],
   create(x: Partial<T>): T, update(id: string, patch: Partial<T>): T | null, remove(id: string): boolean };
 export type StoredUser = Doc & Partial<User> & { username: string, passwordHash: string, access?: UserAccess };
-/** An invite code as stored: its sha256, never the code (SPEC "Access"). */
+/** An invite code as stored: its sha256, never the code (SPEC-access "Access"). */
 export type StoredInvite = Doc & { hash: string, label?: string, uses: number, used: number, expiresAt?: string,
   revokedAt?: string, createdBy: string };
 export type Session = Doc & { userId: string, expiresAt: string };
-/** A look as stored: what GET /api/looks/:id answers (older looks may lack its defaults), and its versions. */
-export type StoredLook = Doc & Pick<Look, 'owner' | 'title'> & Partial<Omit<Look, 'versionCount' | keyof Doc>>
-  & { versions?: Record<string, unknown>[] };
+/** A look as stored: what GET /api/looks/:id answers (older looks may lack its defaults), its versions, and what its
+ * own version is (look-versions.ts). */
+export type StoredLook = Doc & Pick<Look, 'owner' | 'title'>
+  & Partial<Omit<Look, 'versionCount' | 'version' | keyof Doc>>
+  & { versions?: Record<string, unknown>[], version?: VersionMeta };
 export type Store = { users: Collection<StoredUser>, sessions: Collection<Session>, ideas: Collection<Idea>,
   looks: Collection<StoredLook>, invites: Collection<StoredInvite>, dataDir: string, flush(): Promise<void> };
 

@@ -75,7 +75,7 @@ export function CodeEditor({ st }: { st: Studio }) {
             const value = e.currentTarget.value;
             if (!l || !m) return;
             st.clock.typingUntil = performance.now() + SETTLE_MS;
-            st.editModule(l.id, m.id, () => ({ code: value }));
+            st.editModule(l.id, m.id, () => ({ code: value, ref: undefined }));   // hand-edited code is custom
           }} />
       </div>
       <div id={`${id}-problem`} class="problem" role="status" aria-live="polite" hidden={!problem}

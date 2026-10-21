@@ -1,9 +1,14 @@
 // The selected layer's settings: its name and groups (a drawer), its module chain (SPEC "Modules": a row per module
-// with its kind, name, state, enable, reorder, delete, and how a source combines or which input a filter reads; phones:
-// enable and select only), its Soften row, the selected module's name and its params. The chain runs down a came into
+// with a grip to drag it, its kind, Custom when it is not a library module, name, enable, reorder, delete, and how a
+// source combines or which input a filter reads; phones: drag, enable and select only), its Soften row, the selected
+// module's name (a library module's is the library's) and its params. The chain runs down a came into
 // the layer: each module joins it (a source by how it combines), and each warp and filter spans what it works on,
 // everything above it.
+import { useRef } from 'preact/hooks';
+
 import type { Module } from '../../../shared/schemas/look.ts';
+import { standardTitle } from '../../../shared/standard-modules.ts';
+import { useDragOrder } from './drag-order.ts';
 import { cx, Field, loadFailed, toast } from './kit.tsx';
 import {
   BLEND_MODES, chainWires, insertModule, KIND_LABELS, makeModule, moduleFromLibrary, type Reach,
@@ -25,7 +30,7 @@ const GLYPHS: Record<string, string> = { over: '●', under: '○', add: '+', mu
 type Props = { st: Studio; pv: Preview };
 
 export function ChainPane({ st, pv }: Props) {
-  const l = st.selected.value, m = st.module.value;
+  const l = st.selected.value, m = st.module.value, fixed = m && standardTitle(m, st.data.library);
   return (
     <section class="pane pane-params" data-pane="params" aria-label="Layer settings">
       <div class="pane-head"><h2 class="pane-title"><SideFold st={st} panel="params" /></h2>
@@ -41,12 +46,13 @@ export function ChainPane({ st, pv }: Props) {
         <PlaysOn st={st} />
         <div class="chain-host"><Chain st={st} pv={pv} /></div>
         <SoftenRow st={st} l={l} />
-        <Field label="Module name" class="module-title-field">{(id) => <><input type="text" id={id}
-          class="module-title-input" maxlength={80} spellcheck={false} value={m?.title ?? ''} disabled={!m}
-          onInput={(e) => {
-            const title = e.currentTarget.value;
-            if (l && m) st.editModule(l.id, m.id, () => ({ title }));
-          }} /><span class="kind-badge" data-kind={m?.kind ?? ''}>{m ? KIND_LABELS[m.kind] : ''}</span></>}</Field>
+        <Field label="Module name" class="module-title-field">{(id) => <>{fixed !== undefined
+          ? <span id={id} class="module-title-fixed" title="A library module keeps the library's name.">{fixed}</span>
+          : <input type="text" id={id} class="module-title-input" maxlength={80} spellcheck={false}
+            value={m?.title ?? ''} disabled={!m} onInput={(e) => {
+              const title = e.currentTarget.value;
+              if (l && m) st.editModule(l.id, m.id, () => ({ title }));
+            }} />}<span class="kind-badge" data-kind={m?.kind ?? ''}>{m ? KIND_LABELS[m.kind] : ''}</span></>}</Field>
         <div class="params-host"><ParamsPanel st={st} /></div>
       </div>
     </section>);
@@ -69,11 +75,12 @@ function Chain({ st, pv }: Props) {
     setMods((list) => insertModule(list, m, cur?.id));
     st.pickModule(m.id);
   }
-  function remove(m: Module, i: number) {
+  function remove(m: Module) {
     if (mods.length <= 1 || !l) return;
     setMods((list) => list.filter((x) => x.id !== m.id));
+    const step = st.step();
     toast(`Deleted “${m.title}”.`, { action: { label: 'Undo', onClick: () => {
-      st.editLayer(l.id, (x) => ({ modules: [...x.modules.slice(0, i), m, ...x.modules.slice(i)] }));
+      st.undoStep(step);
       st.pickModule(m.id);
     } } });
   }
@@ -85,6 +92,7 @@ function Chain({ st, pv }: Props) {
     library: st.data.library, onPick: add, audition: { pv, layer: l || undefined, moduleId: sel?.id } }))
     .catch(loadFailed);
   const { first, joins, reaches } = chainWires(mods), at = sel ? mods.indexOf(sel) : -1;
+  const listRef = useRef<HTMLOListElement>(null), order = useDragOrder(listRef, move);
   return (
     <section class="chain" aria-label="Module chain">
       <div class="chain-head"><h3 class="chain-title">Chain</h3>
@@ -92,20 +100,25 @@ function Chain({ st, pv }: Props) {
           title="Add a warp, source or filter from the library" disabled={!l || mods.length >= MAX_MODULES}
           onClick={shelf}>+ Module</button></div>
       <p class="pane-hint" hidden={!!l}>Select a layer to see its modules.</p>
-      <ol class="chain-list" aria-label="Modules, first to last">
+      <ol class="chain-list" aria-label="Modules, first to last" ref={listRef}>
         {l && mods.map((m, i) => <ModuleRow key={m.id} m={m} i={i} mods={mods} first={first} selected={i === at}
+          std={standardTitle(m, st.data.library)} grip={order.grip(i)} drop={order.drop(i, mods.length)}
+          dragging={order.dragging === i}
           join={joins[i]} reach={reaches.filter((r) => r.from <= i && i <= r.to)} lit={at}
-          state={st.status.module(l.id, m)} pick={() => st.pickModule(m.id)} remove={() => remove(m, i)}
+          state={st.status.module(l.id, m)} pick={() => st.pickModule(m.id)} remove={() => remove(m)}
           move={(dir) => move(i, i + dir)} set={(patch) => st.editModule(l.id, m.id, () => patch)} />)}
       </ol>
     </section>);
 }
 
-function ModuleRow({ m, i, mods, first, selected, join, reach, lit, state, pick, remove, move, set }: { m: Module;
-  i: number; mods: Module[]; first: number; selected: boolean; join: string; reach: Reach[]; lit: number;
-  state: { kind: string; message?: string }; pick: () => void; remove: () => void; move: (dir: number) => void;
+type Grip = ReturnType<ReturnType<typeof useDragOrder>['grip']>;
+
+function ModuleRow({ m, i, mods, first, selected, std, grip, drop, dragging, join, reach, lit, state, pick, remove,
+  move, set }: { m: Module; i: number; mods: Module[]; first: number; selected: boolean; std?: string; grip: Grip;
+  drop?: string; dragging: boolean; join: string; reach: Reach[]; lit: number; state: { kind: string;
+  message?: string }; pick: () => void; remove: () => void; move: (dir: number) => void;
   set: (patch: Partial<Module>) => void }) {
-  const title = m.title || KIND_LABELS[m.kind], filter = m.kind === 'filter';
+  const title = std ?? (m.title || KIND_LABELS[m.kind]), filter = m.kind === 'filter';
   const icon = (text: string, label: string, disabled: boolean, onClick: () => void) => <button type="button"
     class="icon-btn wide-only" aria-label={label} title={label} disabled={disabled} onClick={onClick}>{text}</button>;
   // The row's select as a patch: a source's blend (or input only), a filter's input.
@@ -115,16 +128,19 @@ function ModuleRow({ m, i, mods, first, selected, join, reach, lit, state, pick,
       ['under', 'Under'], [INPUT_ONLY, 'Input only (hidden)']];
   const value = filter ? m.input || '' : m.as === 'input' ? INPUT_ONLY : m.blend || '';
   return (
-    <li class={cx('chain-row', selected && 'selected', m.enabled === false && 'off')} data-kind={m.kind}
-      data-join={join} data-status={state.kind} onClick={(e) => { if (e.target === e.currentTarget) pick(); }}>
+    <li class={cx('chain-row', selected && 'selected', m.enabled === false && 'off', dragging && 'dragging')}
+      data-kind={m.kind} data-join={join} data-status={state.kind} data-drop={drop}
+      onClick={(e) => { if (e.target === e.currentTarget) pick(); }}>
       <span class="chain-joint" aria-hidden="true">{GLYPHS[join]}</span>
       {reach.map((r) => <span class={cx('reach', r.to === lit && 'lit')} aria-hidden="true" data-kind={r.kind}
         style={{ '--lane': r.lane }} data-part={i === r.from ? 'from' : i === r.to ? 'to' : 'via'} />)}
-      <div class="chain-top"><span class="kind-badge">{KIND_LABELS[m.kind]}</span>
+      <div class="chain-top"><span class="grip" title="Drag to reorder" aria-hidden="true" {...grip} />
+        <span class="chain-kinds"><span class="kind-badge">{KIND_LABELS[m.kind]}</span>
+          {std === undefined && <span class="custom-badge"
+            title="Custom code: written by the AI or in the code editor, not a library module">Custom</span>}</span>
         <button type="button" class="chain-name" aria-current={selected} onClick={pick}
           title={`${title} — ${STATE_TEXT[state.kind] || state.kind}${state.message ? `: ${state.message}` : ''}`}>
           {title}</button>
-        <span class="status-dot" aria-hidden="true" />
         <input type="checkbox" class="switch chain-on" aria-label={`${title} on`} checked={m.enabled !== false}
           onChange={(e) => {
             const on = e.currentTarget.checked;

@@ -70,9 +70,10 @@
             { "regex": "^\\.{1,2}/(?:.*/)?(?:src|render-box|fleet-box|tools|test)/|^\\.{1,2}/(?:.*/)?server\\.[jt]s$",
               "message": "browser code imports only from public/ and packages" },
             { "regex": "^(?:[a-z]+:)?//", "message": "remote URL: the app runs offline under a self-only CSP" },
-            // All of shared/ but idea-status.ts, which is pure (the regex has no look-ahead: "not id…").
-            { "regex": "^\\.{1,2}/(?:.*/)?shared/(?:[^i]|i[^d])", "allowTypeImports": true,
-              "message": "browser code takes shared/ schemas as types (import type), so zod is not shipped by accident; shared/idea-status.ts is pure" }
+            // All of shared/ but idea-status.ts, plays.ts and standard-modules.ts, which are pure (the regex has no
+            // look-ahead: "not id…, not pl…, not st…").
+            { "regex": "^\\.{1,2}/(?:.*/)?shared/(?:[^ips]|i[^d]|p[^l]|s[^t])", "allowTypeImports": true,
+              "message": "browser code takes shared/ schemas as types (import type), so zod is not shipped by accident; shared/idea-status.ts, shared/plays.ts and shared/standard-modules.ts are pure" }
           ]
         }]
       }
@@ -87,6 +88,18 @@
             "message": "shared/ imports only zod, itself and the core's constants and data from public/" },
           { "group": ["**/public/**", "!**/public/js/pattern-core.*", "!**/public/**/*.json"],
             "message": "shared/ imports only zod, itself and the core's constants and data from public/" }
+        ] }]
+      }
+    },
+    {
+      // What plays runs in the browser as well as on the server: shared/'s rules, and no zod or schemas.
+      "files": ["shared/plays.ts"],
+      "rules": {
+        "no-restricted-imports": ["error", { "patterns": [
+          { "regex": "^zod$|/schemas/", "message": "shared/plays.ts is the browser's at run time: no zod, no schemas" },
+          { "regex": "^node:", "message": "shared/ runs in the browser too: no Node built-ins" },
+          { "group": ["**/public/**", "!**/public/js/pattern-core.*"],
+            "message": "shared/plays.ts imports only the core's constants" }
         ] }]
       }
     },

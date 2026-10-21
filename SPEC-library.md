@@ -234,8 +234,9 @@ op, which reads the neighbours' colours (its `filter`, the identity, is what a c
 along it; `space`, every pixel within the radius; `both`, the two kernels summed) and `amount` (0–1, its mix with the
 unblurred colour), modulated like any number param. Each pixel becomes the weighted mean of itself and its neighbours
 **in the layer** (outside its groups nothing counts, so the selection's edges do not darken), weights
-`exp(−2 (d / radius)²)` (e⁻² at the radius), the colour premultiplied by its alpha. `radius` or `amount` 0 leaves it
-exactly as it was.
+`exp(−2 (d / radius)²)` (e⁻² at the radius), the colour premultiplied by its alpha, the mean taken of light (each
+value's `v^2.2`, encoded again), so a lit edge spreads as light does and does not darken. `radius` or `amount` 0
+leaves it exactly as it was.
 
 `const spatial = 'sort'` (core `sort.ts`; the library's `sort`) sorts along each fixture: a run is consecutive LEDs
 of one fixture in the layer whose luminance × alpha is at least `cutoff` (0–1); darker ones stay and end runs (0: whole strands). In each

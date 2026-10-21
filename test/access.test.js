@@ -1,4 +1,4 @@
-// Access (SPEC "Access"): paid models need an unlocked account, and Sketch is for admins alone; invite codes are
+// Access (SPEC-access "Access"): paid models need an unlocked account, and Sketch is for admins alone; invite codes are
 // stored hashed, redeemed once, refused when used up, expired or revoked, and tried a limited number of times; each
 // account's ideas are limited (an hour, a day, at once, a model's own, a ceiling for everyone), admins exempt or
 // overriding.

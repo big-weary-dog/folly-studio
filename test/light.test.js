@@ -6,7 +6,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { encode, previewChannels, shownLight } from '../public/js/core/light.ts';
+import { addLight, encode, previewChannels, shownLight, toLight, toValue } from '../public/js/core/light.ts';
 import { LIGHT, ledChannels, ledLight, lightOf, prepareLight, prepareScene } from '../public/js/pattern-core.ts';
 import { createLightStore } from '../src/light.ts';
 import { mini } from './fixtures/rigs.js';
@@ -82,6 +82,17 @@ describe('the preview transform', () => {
   test('the screen encode is the sRGB curve, within a quarter of a code', () => {
     const srgb = (x) => (x <= 0.0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - 0.055);
     for (let i = 0; i <= 1000; i++) assert.ok(Math.abs(encode(i / 1000) - srgb(i / 1000)) < 0.25 / 255);
+  });
+
+  test("the engine's light: v^2.2 tabled within 1e-5, mirrored below 0; add sums it", () => {
+    for (let i = -1000; i <= 1200; i++) {
+      const v = i / 1000, l = Math.sign(v) * Math.abs(v) ** 2.2;
+      assert.ok(Math.abs(toLight(v) - l) < 1e-5, `toLight(${v})`);
+      assert.ok(Math.abs(toValue(l) - v) < 1e-5, `toValue(${l})`);
+    }
+    assert.ok(Math.abs(addLight(0.5, 0.5) - 2 ** (1 / 2.2) * 0.5) < 1e-5, 'two halves: 68 %, not 100 %');
+    assert.equal(addLight(0, 0.3), 0.3);
+    assert.equal(addLight(0.3, 0), 0.3);
   });
 
   test('dims are light, applied once: the gain, and the dim outside a mask', () => {

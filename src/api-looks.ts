@@ -10,14 +10,18 @@ import { z } from 'zod';
 
 import { DEFAULT_DURATION } from '../public/js/pattern-core.ts';
 import { CHAIN, convertLayers, upgradeLook } from '../shared/chain-order.ts';
+import { keepStandardTitles } from '../shared/standard-modules.ts';
 import { type Listed, LookCreate, LookPatch, LooksQuery } from '../shared/schemas/api.ts';
-import { automationFor, dropRemaps, type Globals, type Layer, Layers } from '../shared/schemas/look.ts';
+import {
+  automationFor, dropRemaps, type Globals, type Layer, Layers, playsChanged,
+} from '../shared/schemas/look.ts';
+import type { LibraryEntry } from '../shared/schemas/rig.ts';
 import { newestBy } from './api.ts';
 import type { Auth } from './auth.ts';
 import { type createBakeQueue, layersHash, renderFields, reviewBlocker } from './bake.ts';
 import { BakeError } from './box-output.ts';
 import { etagMatches, HttpError, type Logger, parse } from './http.ts';
-import { versionsWith } from './look-versions.ts';
+import { currentN, nameFields, reviewFor, revisedFields, versionRoutes, versionsOf } from './look-versions.ts';
 import type { createPreviews } from './previews/index.ts';
 import { CACHE_IMMUTABLE } from './static.ts';
 import type { Store, StoredLook as Look } from './store.ts';
@@ -71,18 +75,26 @@ export function upgradeStored(stored: Look): Look {
 const lanes = (automation: unknown, globals: Globals | null | undefined) =>
   parse(z.object({ automation: automationFor(globals) }), { automation }).automation ?? undefined;
 
-export function lookRoutes({ store, auth, bakes, dropFrames, previews, log = console }: { store: Store, auth: Auth,
-  bakes: ReturnType<typeof createBakeQueue>, dropFrames: (id: string) => Promise<unknown>,
-  previews?: Pick<ReturnType<typeof createPreviews>, 'want' | 'keyOf' | 'file'>, log?: Logger }) {
+export function lookRoutes({ store, auth, bakes, dropFrames, previews, loadLibrary = () => [], log = console }: {
+  store: Store, auth: Auth, bakes: ReturnType<typeof createBakeQueue>, dropFrames: (id: string) => Promise<unknown>,
+  previews?: Pick<ReturnType<typeof createPreviews>, 'want' | 'keyOf' | 'file'>,
+  loadLibrary?: () => readonly LibraryEntry[], log?: Logger }) {
   const ownerName = (id: string) => store.users.get(id)?.username ?? '';
+  /** A body's layers as the one rule reads them, each standard module named as the library names it. */
+  const ruledNamed = (body: Parameters<typeof ruled>[0]) => {
+    const out = ruled(body), library = loadLibrary();
+    return { ...out, layers: out.layers.map((l) => ('modules' in l
+      ? { ...l, modules: keepStandardTitles(l.modules, library) } : l)) };
+  };
 
-  function presentLook(look: Look, { versions = false } = {}) {
-    const { versions: list, ...rest } = look;
+  /** A look as GET answers: `mine` adds the number of its version, `versions` the versions themselves. */
+  function presentLook(look: Look, { versions = false, mine = false } = {}) {
+    const { versions: list, version: _, ...rest } = look;
     return {
       ...rest, ownerName: ownerName(look.owner) || look.ownerName || '', summary: rest.summary ?? '',
       layers: rest.layers ?? [], duration: rest.duration ?? DEFAULT_DURATION, shared: rest.shared === true,
       reviewed: rest.reviewed === true, versionCount: Array.isArray(list) ? list.length : 0,
-      ...(versions ? { versions: Array.isArray(list) ? list : [] } : {}),
+      ...(mine ? { version: currentN(look) } : {}), ...(versions ? { versions: Array.isArray(list) ? list : [] } : {}),
     };
   }
 
@@ -118,7 +130,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, log = con
   async function create(req: FastifyRequest, reply: FastifyReply) {
     const { automation, ideaId, globals, bpm, ...body } = parse(LookCreate, req.body);
     const user = req.user!;
-    const look: Partial<Look> = { owner: user.id, ownerName: user.username, ...body, ...ruled(body), chain: CHAIN,
+    const look: Partial<Look> = { owner: user.id, ownerName: user.username, ...body, ...ruledNamed(body), chain: CHAIN,
       reviewed: false, versions: [] };
     if (globals) look.globals = globals;
     const lanesNow = automation === undefined ? undefined : lanes(automation, globals);
@@ -136,7 +148,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, log = con
     reply.code(201);
     const made = store.looks.create(look);
     previews?.want(made.id);
-    return { look: presentLook(made) };
+    return { look: presentLook(made, { mine: true }) };
   }
 
   async function edit(req: Req) {
@@ -153,7 +165,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, log = con
     if (body.title !== undefined) patch.title = body.title;
     if (body.summary !== undefined) patch.summary = body.summary;
     if (body.layers !== undefined) {
-      const now = ruled({ ...body, layers: body.layers, summary: body.summary ?? look.summary });
+      const now = ruledNamed({ ...body, layers: body.layers, summary: body.summary ?? look.summary });
       body.layers = now.layers;
       if (now.summary !== (body.summary ?? look.summary)) patch.summary = now.summary;
     }
@@ -161,8 +173,8 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, log = con
       patch.shared = body.shared;
       if (body.shared && look.shared !== true) patch.sharedAt = new Date().toISOString();
     }
-    // What plays: the layers, how long the look runs, its globals and their automation (null clears those two), and
-    // its tempo when it moves to the beat (else bpm is only a grid). A change is a new version.
+    // What plays (PLAYS; null clears bpm, globals and automation). A change is a new version; one that changes the
+    // frames (not a tempo that is only a grid) also drops the bake and the review.
     if (body.bpm !== undefined) changed('bpm', body.bpm ?? undefined);
     if (body.layers !== undefined) changed('layers', body.layers, look.layers ?? []);
     if (body.duration !== undefined) changed('duration', body.duration, look.duration ?? DEFAULT_DURATION);
@@ -171,18 +183,31 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, log = con
     if (body.automation !== undefined || 'globals' in patch) {
       changed('automation', lanes(body.automation === undefined ? look.automation ?? null : body.automation, globals));
     }
-    const plays = (l: Look) => layersHash(renderFields(l));
-    const layersChanged = ['layers', 'duration', 'globals', 'automation'].some((k) => k in patch)
-      || ('bpm' in patch && plays(look) !== plays({ ...look, ...patch }));
-    if (layersChanged) patch.versions = versionsWith(look);
+    const after = { ...look, ...patch };
+    const frames = (l: Look) => `${l.duration ?? DEFAULT_DURATION}:${layersHash(renderFields(l))}`;
+    const versioned = playsChanged(look, after);
+    const layersChanged = versioned && frames(look) !== frames(after);
+    const from = body.restoredFrom;
+    if (from !== undefined && !isOwner) throw new HttpError(403, 'Only the owner can edit this look.');
+    if (from !== undefined && !versionsOf(look).some((v) => v.n === from)) {
+      throw new HttpError(400, `restoredFrom: the look has no version ${from}.`);
+    }
+    if (versioned) Object.assign(patch, revisedFields(look, from ? { how: 'restore', from } : { how: 'auto' }));
+    if (body.versionName !== undefined) {   // "Save a named version…": names the version the look is now
+      if (!isOwner) throw new HttpError(403, 'Only the owner can edit this look.');
+      const next = { ...look, ...patch };
+      Object.assign(patch, nameFields(next, currentN(next), body.versionName));
+    }
+    for (const k of ['bake', 'reviewed', 'reviewedBy', 'flashOverride'] as const) {
+      if (!layersChanged) delete patch[k];   // set below as the change asks
+    }
     const unset: Partial<Look> = { summary: '', shared: false };
     const changes = (['title', 'summary', 'shared', 'bpm'] as const)
       .filter((k) => k in patch && patch[k] !== (look[k] ?? unset[k]));
     // Only the owner edits; a curator may also set `reviewed` on a look shared with them.
-    if (!isOwner && (changes.length || layersChanged || !isCurator)) {
+    if (!isOwner && (changes.length || versioned || !isCurator)) {
       throw new HttpError(403, 'Only the owner can edit this look.');
     }
-    if (layersChanged && look.bake) patch.bake = undefined; // its frames show the old code
     if (body.flashOverride !== undefined && body.reviewed !== true) {
       throw new HttpError(400, 'flashOverride goes with reviewed: true.');
     }
@@ -199,14 +224,18 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, log = con
         patch.flashOverride = { reason: override, by: user.username, at: new Date().toISOString() };
         log.info?.(`[review] look ${id}: ${user.username} approved its flashing frames: ${JSON.stringify(override)}`);
       }
-    } else if (body.reviewed === undefined && layersChanged && look.reviewed === true) {
-      // New code needs a fresh review.
-      Object.assign(patch, { reviewed: false, reviewedBy: undefined, flashOverride: undefined });
+    }
+    // New code needs a fresh review, unless it plays exactly as a version a curator reviewed (a restore, an undo).
+    const kept = body.reviewed === undefined && layersChanged
+      ? reviewFor(versionsOf({ ...look, ...patch }), after) : undefined;
+    if (kept) {
+      Object.assign(patch, { reviewed: true, reviewedBy: kept.by || undefined, flashOverride: kept.flashOverride });
     }
     const updated = Object.keys(patch).length ? store.looks.update(id, patch)! : look;
     if ('bake' in patch) await dropFrames(id);
+    if (kept) await bakes.request(id).catch(() => {});   // its frames again (the same render: often a stored bake)
     previews?.want(id);
-    return { look: presentLook(updated, { versions: versionsFor(req, look) }) };
+    return { look: presentLook(updated, { versions: versionsFor(req, look), mine: isOwner }) };
   }
 
   async function remove(req: Req) {
@@ -235,7 +264,8 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, log = con
 
   async function read(req: Req) {
     const look = visibleLook(req.params.id, req.user!);
-    return { look: presentLook(look, { versions: versionsFor(req, look) }) };
+    return { look: presentLook(look, { versions: versionsFor(req, look),
+      mine: look.owner === req.user!.id }) };
   }
 
   /** The look's gallery preview (`<key>.webp`) or its still (`<key>-still.webp`), immutable. */
@@ -252,5 +282,6 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, log = con
 
   return { visibleLook, listed, routes: { 'GET /looks': list, 'POST /looks': create, 'GET /looks/:id': read,
     'PUT /looks/:id': edit, 'DELETE /looks/:id': remove, 'POST /looks/:id/bake': bake,
-    'GET /looks/:id/preview/:name': preview } };
+    'GET /looks/:id/preview/:name': preview,
+    ...versionRoutes({ visibleLook, update: (id, p) => store.looks.update(id, p)! }) } };
 }

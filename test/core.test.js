@@ -241,7 +241,7 @@ describe('renderFrame', () => {
     const base = layer(solid(0.5, 0.2, 0.8), { id: 'base' });
     const at0 = (layers) => Array.from(renderFrame(scene, layers, 0).rgb.slice(0, 3));
     nearC(at0([base]), [0.5, 0.2, 0.8]);
-    nearC(at0([base, layer(solid(0.25, 0.25, 0.25))]), [0.75, 0.45, 1]);                       // add (default), clamps
+    nearC(at0([base, layer(solid(0.25, 0.25, 0.25))]), [0.5468, 0.3106, 0.8276], 1e-4); // add (default): their light
     nearC(at0([base, layer(solid(1, 0, 0), { blend: 'over', level: 0.5 })]), [0.75, 0.1, 0.4]);
     nearC(at0([base, layer(solid(1, 0, 0, 0.5), { blend: 'over' })]), [0.75, 0.1, 0.4]);       // alpha
     nearC(at0([base, layer(solid(0.3, 0.3, 1), { blend: 'max' })]), [0.5, 0.3, 1]);

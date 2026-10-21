@@ -4,11 +4,14 @@
 import { batch, computed, signal } from '@preact/signals';
 
 import { api, statusOf } from '../api.ts';
+import { extrasOf, PLAYS, type PlaysKey } from '../../../shared/plays.ts';
 import type { Automation, Globals, Module } from '../../../shared/schemas/look.ts';
-import type { Look, User } from '../../../shared/schemas/api.ts';
+import type { Look, LookPatch, User, Version } from '../../../shared/schemas/api.ts';
 import type { LibraryEntry, ModuleEntry, Rig } from '../../../shared/schemas/rig.ts';
+import { keepStandardTitles } from '../../../shared/standard-modules.ts';
 import { replaceUrl, setTitle, signedOut } from './session.ts';
 import { pref, reducedMotion, toast } from './kit.tsx';
+import { type AiStep, changes, CONTENT, createSteps, type EditOptions, type Step } from './history/steps.ts';
 import { createLayerStatus } from './layer-status.ts';
 import {
   buildGroupIndex, cleanLayer, type GroupIndex, type Layer, layerFromPattern, newLayer, normaliseLayers,
@@ -28,11 +31,16 @@ const copy = <T>(v: T): T => (v == null ? v : JSON.parse(JSON.stringify(v)));
 const some = <T extends object>(o?: T | null) => (o && Object.keys(o).length ? copy(o) : null);
 const SHORT = '(max-height: 899px)';   // below this height the code editor starts folded
 
+/** How each field that plays (PLAYS) is saved: a new one needs a line here. */
+const CLEAN = { layers: (v: Layer[]) => v.map(cleanLayer), duration: cleanDuration,
+  bpm: (v: number | null) => v || null, globals: (v?: Globals | null) => some(v),
+  automation: (v?: Automation | null) => some(v) } satisfies { [K in PlaysKey]: (v: Draft[K]) => unknown };
+type Saved = { [K in PlaysKey]: ReturnType<typeof CLEAN[K]> };
+
 /** The look as saved: what save() sends and what `dirty` compares; its chains follow the one rule (chain 2). */
 export function saveBody(l: Draft) {
-  return { title: l.title.trim() || 'Untitled look', summary: l.summary || '', layers: l.layers.map(cleanLayer),
-    duration: cleanDuration(l.duration), bpm: l.bpm || null, globals: some(l.globals), automation: some(l.automation),
-    chain: 2 as const };
+  const plays = Object.fromEntries(PLAYS.map((k) => [k, (CLEAN[k] as (v: unknown) => unknown)(l[k])])) as Saved;
+  return { title: l.title.trim() || 'Untitled look', summary: l.summary || '', ...plays, chain: 2 as const };
 }
 
 export function createStudio(me: User | null) {
@@ -42,6 +50,9 @@ export function createStudio(me: User | null) {
   const server = signal<Look | null>(null);   // as the server last sent it (bake, reviewed, …); null until saved
   const saved = signal(''), ready = signal(false), saving = signal(false), sharing = signal(false);
   const copyOnSave = signal(false);
+  /** A saved version playing instead of the work, which is held until "Back to my work" (or a restore). */
+  const previewing = signal<{ n: number, label: string, held: Draft } | null>(null);
+  const history = createSteps();
   const selectedId = signal<string | null>(null), picked = signal<Record<string, string>>({});
   const muted = signal<ReadonlySet<string>>(new Set()), solo = signal<ReadonlySet<string>>(new Set());
   const heavy = signal<ReadonlyMap<string, number>>(new Map());   // layers too slow for a phone's 40 fps: ms a frame
@@ -69,7 +80,8 @@ export function createStudio(me: User | null) {
   const layerById = (id: string) => look.peek().layers.find((l) => l.id === id) || null;
   const silent = (id: string) => muted.value.has(id) || (solo.value.size > 0 && !solo.value.has(id));
   const status = createLayerStatus(layerById, (id) => silent(id));
-  const body = computed(() => saveBody(look.value));
+  const work = computed(() => previewing.value?.held ?? look.value);   // the look as edited, even while previewing
+  const body = computed(() => saveBody(work.value));
   const dirty = computed(() => ready.value && JSON.stringify(body.value) !== saved.value);
   const selected = computed(() => look.value.layers.find((l) => l.id === selectedId.value) || null);
   const module = computed(() => {
@@ -92,7 +104,7 @@ export function createStudio(me: User | null) {
       c.modules = c.modules.map((m) => ({ ...m, code: status.codeFor(l.id, m) }));
       return silent(l.id) ? { ...c, level: 0, enabled: false } : c;
     });
-    return { layers, extra: { globals: L.globals, automation: L.automation, bpm: L.bpm || undefined } };
+    return { layers, extra: extrasOf(L) };
   });
   /** Where a layer plays: its groups' names; none given: the whole rig; none picked: its tags, else nothing. */
   const groupNames = (ids?: string[], tags?: string[]) => {
@@ -105,22 +117,56 @@ export function createStudio(me: User | null) {
     look, server, saved, ready, saving, sharing, copyOnSave, selectedId, picked, muted, solo, heavy, hoverGroup,
     pinnedGroup, groupsFor, newGroups, focusKey, narrow, dock, tab, folded, side, fallbackRev, data, clock, playing,
     speed, baked, status, body, dirty, selected, module, sandboxLook, layerById, silent, groupNames, codeFor, problem,
-    lookId,
+    lookId, previewing, work, history,
     /** Hooks the preview sets: an edit happened (baked playback stops); flush pending code to the sandbox. */
     onEdit: () => {}, flush: () => {},
 
-    /** Change the look; every edit of the content goes through here. */
-    edit(fn: (l: Draft) => Partial<Draft>) {
-      look.value = { ...look.value, ...fn(look.value) };
+    /** Change the look; every edit of the content goes through here, and each is a step (`o.step` names it, else
+     * what it changed does; `o.merge` folds edits that share it into one). */
+    edit(fn: (l: Draft) => Partial<Draft>, o?: EditOptions) {
+      if (previewing.peek()) {
+        toast('You are previewing a version. Go back to your work to edit.', { kind: 'warn' });
+        return;
+      }
+      const before = look.value, after = { ...before, ...fn(before) };
+      look.value = after;
+      if (ready.peek() && changes(before, after)) history.record(before, after, o);
       st.onEdit();
     },
-    editLayer(id: string, fn: (l: Layer) => Partial<Layer>) {
-      st.edit((L) => ({ layers: L.layers.map((l) => (l.id === id ? { ...l, ...fn(l) } : l)) }));
+    /** The look as it was at step `i` (its words and what plays); later steps stay, greyed, until a new edit. */
+    jump(i: number) {
+      const s = history.list.peek()[i];
+      if (!s || i === history.at.peek()) return;
+      if (previewing.peek()) st.back();
+      const L = { ...look.peek(), ...Object.fromEntries(CONTENT.map((k) => [k, s.look[k]])) };
+      batch(() => {
+        look.value = L;
+        history.at.value = i;
+        if (!L.layers.some((l) => l.id === selectedId.peek())) selectedId.value = L.layers.at(-1)?.id ?? null;
+      });
+      setTitle(L.title);
+      st.onEdit();
     },
-    editModule(layerId: string, id: string, fn: (m: Module) => Partial<Module>) {
-      st.editLayer(layerId, (l) => ({ modules: l.modules.map((m) => (m.id === id ? { ...m, ...fn(m) } : m)) }));
+    undo() { st.jump(history.at.peek() - 1); },
+    redo() { st.jump(history.at.peek() + 1); },
+    /** A toast's Undo: back to before `step`, if it is still the step now (else History has it). */
+    undoStep(step?: Step) {
+      if (step && history.list.peek()[history.at.peek()] === step) st.undo();
+      else toast('Other edits came after it: History (Ctrl+Z) walks back through them.', { kind: 'warn' });
     },
-    editGlobals(fn: (g: Globals) => Globals) { st.edit((L) => ({ globals: fn({ ...L.globals }) })); },
+    /** The step the last edit made or folded into. */
+    step: () => history.list.peek()[history.at.peek()],
+    editLayer(id: string, fn: (l: Layer) => Partial<Layer>, o?: EditOptions) {
+      st.edit((L) => ({ layers: L.layers.map((l) => (l.id === id ? { ...l, ...fn(l) } : l)) }), o);
+    },
+    /** Change a module; a standard one keeps the library's name (standard-modules.ts). */
+    editModule(layerId: string, id: string, fn: (m: Module) => Partial<Module>, o?: EditOptions) {
+      st.editLayer(layerId, (l) => ({ modules: keepStandardTitles(l.modules.map((m) => (m.id === id
+        ? { ...m, ...fn(m) } : m)), data.library) }), o);
+    },
+    editGlobals(fn: (g: Globals) => Globals, o?: EditOptions) {
+      st.edit((L) => ({ globals: fn({ ...L.globals }) }), o);
+    },
     select(id: string | null) { selectedId.value = id; },
     pickModule(id: string) {
       const l = selected.peek();
@@ -162,11 +208,51 @@ export function createStudio(me: User | null) {
         L.layers = [first ? layerFromPattern(first, rig) : newLayer({ title: 'Rising band' }, rig)];
       }
       batch(() => {
+        previewing.value = null;
         look.value = L;
         saved.value = JSON.stringify(saveBody(L));    // untouched: even a brand-new look only nags once edited
         selectedId.value = L.layers.at(-1)?.id ?? null;
         ready.value = true;
       });
+      history.start(L);
+    },
+
+    /** Plays version `v` in place of the work, which is held, untouched, until back() or restore(). */
+    preview(v: Version, label: string) {
+      const held = previewing.peek()?.held ?? look.peek();
+      batch(() => {
+        previewing.value = { n: v.n, label, held };
+        look.value = { ...held, layers: normaliseLayers(v.layers, data.rig as Rig), duration: cleanDuration(v.duration),
+          bpm: cleanBpm(v.bpm), globals: copy(v.globals) || {}, automation: copy(v.automation) };
+      });
+      st.onEdit();
+    },
+    /** Back to the work as it was before the preview. */
+    back() {
+      const p = previewing.peek();
+      if (!p) return;
+      batch(() => { look.value = p.held; previewing.value = null; });
+      st.onEdit();
+    },
+    /** The version previewed becomes the work, as an edit, and is saved: a new version that names it. */
+    async restore() {
+      const p = previewing.peek(), L = look.peek();
+      if (!p) return false;
+      st.back();
+      st.edit(() => Object.fromEntries(PLAYS.map((k) => [k, L[k]])),
+        { step: `Restored version ${p.n}`, kind: 'restore' });
+      return st.save({ restoredFrom: p.n });
+    },
+
+    /** An AI round's revision, saved by the server: one step, saved. */
+    revised(from: Look, ai: AiStep) {
+      if (from.id !== look.peek().id) return;
+      const quoted = ai.asked.length > 40 ? `${ai.asked.slice(0, 39)}…` : ai.asked;
+      st.edit(() => ({ layers: normaliseLayers(from.layers, data.rig as Rig), duration: cleanDuration(from.duration),
+        bpm: cleanBpm(from.bpm), globals: copy(from.globals) || {}, automation: copy(from.automation) }),
+      { step: ai.asked ? `AI: “${quoted}”` : 'An AI round', kind: 'ai', ai });
+      batch(() => { saved.value = JSON.stringify(body.peek()); server.value = from; });
+      history.saved();
     },
 
     /** The server sent a newer copy of this look (after a save, a bake, a review). */
@@ -176,10 +262,15 @@ export function createStudio(me: User | null) {
     },
 
     /** Saves the look: true once saved; false when it failed (and said so) or a save is already running. */
-    async save() {
+    async save(extra: Pick<LookPatch, 'restoredFrom' | 'versionName'> = {}) {
       if (!ready.value || saving.value) return false;
+      if (previewing.value) {
+        toast('You are previewing a version: restore it, or go back to your work, to save.', { kind: 'warn' });
+        return false;
+      }
       st.flush();
       const b = body.value, snap = JSON.stringify(b), L = look.value, create = !L.id || copyOnSave.value;
+      const step = history.at.peek(), steps = history.list.peek();   // edits made while it saves are not saved
       saving.value = true;
       try {
         let from: Look;
@@ -190,7 +281,7 @@ export function createStudio(me: User | null) {
           toast(copyOnSave.value ? 'Saved as your own copy.' : 'Saved.', { kind: 'ok' });
         } else {
           const hadBake = !!server.value?.bake;
-          ({ look: from } = await api.updateLook(L.id as string, b));
+          ({ look: from } = await api.updateLook(L.id as string, { ...b, ...extra }));
           const cleared = hadBake && !from.bake;
           toast(cleared ? 'Saved. The old bake was cleared: bake again to check the new code.' : 'Saved.',
             { kind: 'ok', timeout: cleared ? 5000 : 1800 });
@@ -203,6 +294,8 @@ export function createStudio(me: User | null) {
           st.adopt(from);
         });
         setTitle(b.title);
+        if (history.list.peek()[step]?.look === steps[step]?.look) history.saved(step);
+        for (const id of history.undoneRounds()) api.undoRefine(id).catch(() => {});   // the AI learns it was undone
         return true;
       } catch (err) {
         failed(err, 'Could not save: ');
