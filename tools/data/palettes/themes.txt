@@ -5,19 +5,25 @@ carnival: Every warm colour with teal and green: festival, fun.
 chapel: Warm reds and golds with blue: stained glass, the default.
 ember: Fiery reds and oranges with pink: fire, embers, heat.
 forest: Rich greens with gold light: woods, leaves, calm.
+guava: Coral and mint with honey: tropical fruit, fresh.
 fuchsia: Hot magentas with violet: party, neon, bold.
 ice: Pale blues to white with lavender: frost, winter, stillness.
 indigo: Blue-violets with cyan sparks: twilight, mystery.
 lemon: Sunny yellows with a sky-blue touch: daylight, joy.
 lime: Zesty yellow-greens with a splash of aqua: fresh, electric, spring.
+meadow: Greens and lavender with yellow: wildflowers, spring.
 mono: Warm white with a cool touch: simple, elegant, calm.
 ocean: Deep to bright blues with teal: the sea, night sky, depth.
+orchid: Turquoise and pink with gold: tropical flowers, lush.
+patina: Blues and copper with aqua: weathered metal, salt.
 playa: Purples, pinks and peach with teal: desert dusk.
 prism: The full rainbow: spectrum, celebration.
 rose: Pinks with soft peach: romance, sweetness, blush.
 ruby: Deep reds with a touch of gold: fire, passion, alarm.
+solstice: Violets and citrus with lemon: midsummer, radiant.
 tangerine: Bright oranges with a cool teal: sunset, citrus, warmth.
 teal: Sea greens with soft coral: lagoon, tropical water.
 vapour: Blues and cyans with magenta: synthwave, cool neon.
 verdant: Greens with magenta: nature, growth.
 violet: Purples with warm gold: royal, dreamy, magic.
+voltage: Cobalt and chartreuse with pink: electric, sharp.

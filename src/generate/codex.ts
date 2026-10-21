@@ -34,7 +34,7 @@ const DOCS_SERVER = fileURLToPath(new URL('./docs-mcp.ts', import.meta.url));
 // Tools a look needs none of (codex features list, 0.160.1); an unknown name is ignored with a warning.
 const FEATURES_OFF = ['shell_tool', 'unified_exec', 'view_image', 'apps', 'plugins', 'multi_agent', 'browser_use',
   'computer_use', 'image_generation'];
-// A composition (not a repair, critique or sketch) writes the whole look from scratch, and higher effort reasons
+// A composition (not a repair, critique or draft) writes the whole look from scratch, and higher effort reasons
 // longer: its wall clock is the call's, times this.
 const COMPOSE_SCALE: Record<string, number> = { high: 1.5, xhigh: 2 };
 // A call with no event for this long has stalled (the longest quiet stretch of a healthy one, measured: 143 s, a

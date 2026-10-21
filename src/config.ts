@@ -58,7 +58,7 @@ function settings(warn: Warn) {
     STUDIO_SECURE_COOKIES: [flag(), 'on: the session cookie is Secure (serve over https)'],
     STUDIO_TRUST_PROXY: [flag(), 'on: one proxy in front (a tunnel) gives the client\'s address and host'],
     STUDIO_MODELS: [text(), 'the model registry, default <STUDIO_DATA>/models.json'],
-    STUDIO_GENERATOR: [text(), 'superseded by the registry: its default when first written (claude, sketch, fleet)'],
+    STUDIO_GENERATOR: [text(), 'superseded by the registry: its default when first written (claude, fleet)'],
     STUDIO_GENERATOR_FALLBACK: [text(), 'a model or transport foundry ideas go to while it is off or busy'],
     STUDIO_GENERATOR_CONCURRENCY: [num({ min: 0 }), 'jobs at once per lane where the registry says nothing'],
     STUDIO_FOUNDRY: [flag(), 'on: the Fleet foundry runs, one job at a time'],

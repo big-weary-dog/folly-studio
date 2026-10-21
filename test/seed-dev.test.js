@@ -31,7 +31,7 @@ async function source(name) {
   const ana = store.users.create({ username: 'ana', passwordHash: 'x' });
   store.sessions.create({ userId: ana.id, expiresAt: '2099-01-01T00:00:00Z' });
   store.invites.create({ hash: 'h', uses: 1, used: 0, createdBy: ana.id });
-  const idea = store.ideas.create({ owner: ana.id, text: 'a reef', status: 'done', generator: 'sketch' });
+  const idea = store.ideas.create({ owner: ana.id, text: 'a reef', status: 'done', generator: 'x' });
   const reef = store.looks.create({ owner: ana.id, ownerName: 'old', title: 'Reef', shared: true, ideaId: idea.id,
     layers: [] });
   const mine = store.looks.create({ owner: ana.id, title: 'Private', layers: [] });

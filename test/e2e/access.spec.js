@@ -1,5 +1,5 @@
 // npm run smoke, too: access to the paid models in a browser at a laptop's and a phone's size. A new account's idea
-// form offers no Sketch (admins' alone) and shows the lock with a code box and what stays free; a wrong code is
+// form shows the lock with a code box and what stays free; a wrong code is
 // refused in place, a good one unlocks it; a limit reached from elsewhere (a stale page) shows when the next idea may
 // go; an admin makes a code on the Access page, with its invite link. The link (/#invite=CODE) signs a visitor up and
 // redeems the code, or redeems it at once when signed in, says why a bad one was refused, and leaves no code in the
@@ -37,13 +37,12 @@ for (const [name, device] of Object.entries(SIZES)) {
       const { app } = studio, pick = page.locator('.model-pick select'), gate = page.locator('.gate');
       const submit = page.getByRole('button', { name: 'Turn it into a look' });
 
-      await test.step('a new account is offered no Sketch: the lock, a code box, and what is free', async () => {
+      await test.step('a new account: the lock, a code box, and what is free', async () => {
         await signUp(page, studio.origin, `guest-${name}`);
         await expect(pick).toHaveValue('sol');
         await expect(pick.locator('option')).toHaveText(['Sol (invite)', 'Luna (invite)']);
         await expect(gate).toContainText('Turning ideas into looks needs an invite code.');
         await expect(gate).toContainText('Browsing, editing and the gallery are free.');
-        await expect(page.locator('main')).not.toContainText('Sketch');
         await expect(submit).toHaveCount(0);
         await page.fill('textarea.idea-input', 'Embers rising up the spires');
         await shot('locked');

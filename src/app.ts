@@ -103,7 +103,7 @@ export async function createServer(opts: Options = {}) {
   const reports = createReports({ dir: path.join(dataDir, 'reports'), ...opts.reports, log });
   void reports.sweep();
   const deps = { store, loadLibrary, loadRig, loadLight: light.current, loadVersion: loaders.version, models, codexBin,
-    config, log, box, lane, ideaLogs, adapterName: generatorName || 'sketch' };
+    config, log, box, lane, ideaLogs, adapterName: generatorName || models.defaultId() };
   // The Pi runs none: nothing can make an idea there, so nothing is ever queued.
   const queue: Queue = !generates(profile) ? { enqueue: () => { throw new Error('No generators on the Pi.'); } }
     : typeof generator === 'function' ? await generator(deps) : generator || createQueue(deps);

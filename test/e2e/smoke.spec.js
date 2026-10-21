@@ -1,5 +1,5 @@
 // npm run smoke: the app in a browser, the way a person meets it, at a laptop's size and a phone's: sign up, an idea
-// the sketch generator turns into a look, the Studio in the Playa view with the sandbox running, a layer's Groups
+// the stand-in codex CLI turns into a look, the Studio in the Playa view with the sandbox running, a layer's Groups
 // drawer's ticks (a group with all under it, none at all), a param dragged and stepped, a typo and a hang in the code
 // (reported, paused by the watchdog, running again once fixed), the timeline, a source's Colours played in an accent
 // and custom colours added to 4 and one removed (the pick tile), a param's help, a preset added from Add a layer on
@@ -19,7 +19,7 @@ const SIZES = {
 const IDEA = 'Rising embers drift up the spires while the rose window glows';
 const HANG = 'function pixel(p, t) {\n  while (true) {}\n}\n';
 const BAKE = /^(?:Save & bake|Bake|Bake again)$/;
-// Admins: Sketch, the one model here (studio.js), is offered to them alone.
+// Admins: exempt from invite codes and limits.
 test.use({ serverOptions: { admins: 'smoke-laptop,smoke-phone' } });
 
 for (const [name, device] of Object.entries(SIZES)) {

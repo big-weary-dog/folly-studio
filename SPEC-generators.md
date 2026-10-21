@@ -52,12 +52,12 @@ sorted by name (a module on one line: what it looks like and its params in brack
 the palettes, the groups, show taste, and worked compositions (each only where the library and the rig's tags have
 what it names). The pattern API is not in it: an extension reads `library/extensions.md` (with no docs, the page is
 in the prompt). The system prompt and the docs a turn gets unasked stay under 33,000 characters together,
-and with the sketch turn under 33,500 (`test/generate.test.js`). The queue logs one line per idea or refinement: its route, timings, repair rounds, the check and
+and with the draft turn under 33,500 (`test/generate.test.js`). The queue logs one line per idea or refinement: its route, timings, repair rounds, the check and
 critique, how many library modules, extensions and code it used, the docs it read, and the first notes.
 
 **The idea log** (`src/generate/idea-log.ts`). Each idea and refinement (under its own id) also leaves a record on
 disk, in `<STUDIO_DATA>/ideas-log/<id>/`, written as it runs: `idea.json` (the request, the level that ran (`quick` when its model
-does not explore; none for a refinement), model, its name and effort; each round's kind (`compose`, `sketch`, `take`, `repair`, `notes`, `runtime`, `critique`), start and end,
+does not explore; none for a refinement), model, its name and effort; each round's kind (`compose`, `draft`, `take`, `repair`, `notes`, `runtime`, `critique`), start and end,
 calls, tokens, docs read, outcome, the reason a repair ran, expand's notes and a critique's group warnings, the
 thinking summary its calls gave (claude's thinking blocks, codex's reasoning items; at most 6,000 characters), the
 answer's `critique` and `plan`, `changes` (`[{ text, why? }]`: what changed from the look before, `diffCompositions`
@@ -107,7 +107,7 @@ param the code lacks or a module the library has not, or (once the library's ren
 prose or a param no `help`. The prose is kept short: a page says only what the code's help does not.
 
 The docs reach the model in its turn (`src/generate/docs-turn.ts`), never the cached system prompt: the pages an idea
-needs, each whole in a `<doc path="…">`, before the turn's text: for Explore and Deep the pages the sketch turn named
+needs, each whole in a `<doc path="…">`, before the turn's text: for Explore and Deep the pages the draft turn named
 (`docs`, read leniently as `read_doc` reads paths, found in the tree, once each), for a refinement the pages of the
 modules its look uses; at most 18 in all; a Quick idea none. The READMEs are not given unasked: the system prompt says
 what they do. Every later call of the idea (repair, notes, runtime,
@@ -140,23 +140,23 @@ as `-i` attachments.
 **Explore** (`claude`, `codex`; `src/generate/explore.ts`). A new idea (not a refinement) asks for one of three
 levels, `explore: 'quick' | 'explore' | 'deep'` (default `explore`, as is an idea that names none):
 - **Quick**: the rounds above, at the model's own effort.
-- **Explore**: effort raised to at least `high`. First a sketch turn in its own small schema (no look, no docs; it
+- **Explore**: effort raised to at least `high`. First a draft turn in its own small schema (no look, no docs; it
   names the doc pages composing it needs, `docs`, which every later turn carries):
   three takes that differ in which part of the installation leads (each other part answering in its own voice, never
   one wash), motion, scale, colour and tempo, each named with what one would see; then a synthesis, `took` (one line:
-  what it takes from each take, by name) and `brief`. The synthesis is composed as the look (the sketches in the turn
+  what it takes from each take, by name) and `brief`. The synthesis is composed as the look (the drafts in the turn
   as the model's own notes, never instructions), checked, and critiqued once on its stills (`images` unless the model
   says `text`) held to the idea and the brief, a critique that must change the part furthest short of them. The
   idea's `took` is saved for the Studio to show.
-- **Deep**: effort at least `xhigh`. The same sketch turn, then the three takes composed alone and rendered (8 s) at
+- **Deep**: effort at least `xhigh`. The same draft turn, then the three takes composed alone and rendered (8 s) at
   once, then one look composed from their compositions, timelines and stills (two each, at 30 and 70 % of it), then two
   such critiques, a revision kept rendered again for the next. It counts as `DEEP.uses` (2) of the allowance
   (`shared/schemas/api.ts`; `DEEP.adminOnly` keeps it to admins). It is off for now (`DEEP.enabled`): the API
   refuses it (400) and `GET /api/models` names no `deep`, so the Studio does not offer it.
 
-A sketch turn that fails or answers no three takes leaves the idea to the Quick rounds, logged. The first critique always
-runs; Deep starts its second only within 720 s. The sketch turn's time (Deep: with its three takes built and rendered)
-is the idea's `timing.sketch`.
+A draft turn that fails or answers no three takes leaves the idea to the Quick rounds, logged. The first critique always
+runs; Deep starts its second only within 720 s. The draft turn's time (Deep: with its three takes built and rendered)
+is the idea's `timing.draft`.
 
 **Refine** (SPEC "HTTP API": `POST /api/looks/:id/refine`). A follow-up on a saved look of one's own (`slower,
 more red, only the spires`) is an idea with `refine` and `lookId` set; it counts as one use like any idea. Its job
@@ -176,26 +176,19 @@ and saved onto the look as an edit through the API's rules (a version of what wa
 cleared). `idea.changes` lists what changed, at most 24 lines, from comparing the two compositions (`Fire: speed 0.4 →
 0.2`, `+ layer Sparkle (sparkle)`, `− layer Bed`, `speed: default → 0.8`). `refine.critique` asks for a critique
 round on the look as it is (any model with the box; the request may be empty); `refine.fix = { layer, error }` sends a runtime error the
-Studio or a bake saw, for a fix. Sketch refines by its words: faster/slower, brighter/dimmer, a colour word (the
-palette), `add <theme>` (a layer), `only the <place>` (the layers' places); a request with none of those fails
-with "Sketch can't make that change; try another model". A refinement has no fallback: when its model fails, the
+Studio or a bake saw, for a fix. A refinement has no fallback: when its model fails, the
 look stays as it was, as it does when the look was edited while it ran. A layer keeps its switches (`enabled`,
 `solo`) and its switched-off modules, which the model is not shown. One refinement per look at a time (409). Only
-Sketch and the prompted models refine (the foundry: 400).
+the prompted models refine (the foundry: 400).
 
 **Refine history.** A refinement's turn also carries the look's history, so a follow-up (`more`, `undo the red`)
 reads against what came before: the idea that made the look, then each earlier ready refinement of it, oldest
 first, as its request (or "a critique", "a fix of layer X") with its `changes` on one line and its critique
 `verdict`. An undone refinement (`POST /api/ideas/:id/undo`, which the Studio calls at the save after its step is undone, SPEC-history) is left out. The last 8
 entries that fit in 1,500 characters, the idea kept first; fenced as untrusted (`<history>`) and marked a record,
-not instructions. The prompted models read it; Sketch ignores it. Only requests and change lines, never answers or
+not instructions. The prompted models read it. Only requests and change lines, never answers or
 transcripts.
 
-- `sketch`: offline, keyword → the preset or source a theme names (`sketch-words.json`) + params, place words →
-  tags. Colour words choose the palette nearest them in hue and become the nearest swatch's slot (`accent2`; none
-  close: the colour itself): the pick of a source's (a preset's top source's) `colours`. A plain wash or a colour
-  word (`wash`, `rainbow`) gives way to another theme in its clause; a look placed only on zones gets a dim
-  colour-wash bed on the root; a place or side the rig has no group for lands on the root. Always available.
 - `claude`: one Messages API call (adaptive thinking, its summary returned: `display: "summarized"`) with the prompt
   as the system prompt (cached: the same bytes on every call; with
   docs given, the first user turn, the same on every round of an idea, is a second cache point), and
@@ -218,7 +211,7 @@ transcripts.
   adds its turn after the idea, as a fresh run, a critique's stills as `-i` attachments). Started from an argument list, never a shell (on Windows
   an npm `codex.cmd` shim is read for the script it runs); its environment is only what the CLI needs; its whole
   process tree is killed on a wall clock (`timeoutSeconds`, else `STUDIO_CODEX_TIMEOUT_MS`, 300 s; a composition,
-  not a repair, critique or sketch, gets 1.5 times it at `high` effort and twice it at `xhigh`), past 4 MB of
+  not a repair, critique or draft turn, gets 1.5 times it at `high` effort and twice it at `xhigh`), past 4 MB of
   output, or when the server stops. A call that writes no event for `STUDIO_CODEX_IDLE_MS` (180 s, twice it at
   `xhigh`; a healthy call's longest quiet stretch measured 143 s) has stalled: its tree is killed, the stall
   logged as a call of the idea, and the call tried once more; a second stall fails as too long. The answer, at most 512 KB, is read as untrusted data like `claude`'s.
@@ -229,18 +222,20 @@ transcripts.
   the queue stores them with the look. This foundry is opt-in: it runs only with `STUDIO_FOUNDRY=on`,
   one job at a time in a slot of its own. While it is busy its ideas wait; while it is off they fail ("Fleet is off
   right now; try another model."). `STUDIO_GENERATOR_FALLBACK` opts into a one-shot generator instead (while busy,
-  unless `STUDIO_FOUNDRY_WAIT=1`). No idea falls back to Sketch unasked: an idea whose model is gone fails too.
+  unless `STUDIO_FOUNDRY_WAIT=1`). No idea falls back to another model unasked: an idea whose model is gone fails too.
   Without a systemd user bus (`systemd-run --user --scope` fails, as on WSL) Fleet's boxes have no
   memory cap, and the server warns at start.
 
 ## Models (`<STUDIO_DATA>/models.json`, or `STUDIO_MODELS`)
 
 The registry (`shared/schemas/models.ts`), written with the defaults on first run and read again whenever it
-changes (a file that does not parse is reported, and the last good one kept):
+changes (a file that does not parse is reported, and the last good one kept; a model or concurrency lane whose
+transport is gone is left out, the model logged and the default moving to the first left, while a save naming one is
+refused):
 
 ```
-{ "about"?: text, "default": id, "concurrency"?: { "claude"?: n, "codex"?: n, "sketch"?: n },
-  "models": [{ "id", "label", "via": "claude" | "codex" | "sketch" | "fleet", "model"?, "effort"?, "maxTokens"?,
+{ "about"?: text, "default": id, "concurrency"?: { "claude"?: n, "codex"?: n, "fleet"?: n },
+  "models": [{ "id", "label", "via": "claude" | "codex" | "fleet", "model"?, "effort"?, "maxTokens"?,
                "timeoutSeconds"?, "critique"?: "images" | "text", "enabled": true,
                "roles"?: ["member" | "curator" | "admin", …], "limits"? }],
   "limits"? }                                                       // limits: SPEC-access "Access"
@@ -249,16 +244,15 @@ changes (a file that does not parse is reported, and the last good one kept):
 `id` is 1–32 of `[a-z0-9-]`; `model` the provider's name (required for `codex`; `claude` defaults to
 `claude-opus-5-5`); `effort` one of the transport's (`claude`: low–max; `codex`: minimal–xhigh); `critique` turns on
 the critique round (Generators; `claude` and `codex` only); `roles` who may
-pick it (none: everyone); `concurrency` the jobs at once per transport (defaults claude 4, codex 2, sketch 4; the
+pick it (none: everyone); `concurrency` the jobs at once per transport (defaults claude 4, codex 2; the
 foundry always 1). What each transport may do (explore, refine, critique, whether it is paid, its default effort
 and lane) is one table, `TRANSPORT_CAPS` in `shared/schemas/models.ts`, which the API and the queue both read.
 The defaults: Opus (`claude-opus-5-5`, medium, the default; no critique), Sol (`gpt-6.1-sol`, low,
-critique `images`) and Luna (`gpt-6-luna`, low, critique `text`) through `codex`, and Sketch. A model can run when its transport can: `claude` with
+critique `images`) and Luna (`gpt-6-luna`, low, critique `text`) through `codex`. A model can run when its transport can: `claude` with
 `ANTHROPIC_API_KEY`, `codex` with the CLI on PATH (`STUDIO_CODEX_BIN`; `warn` when no login is seen), `fleet` with
-`STUDIO_FOUNDRY=on`, `sketch` always. Sketch is offered to admins alone while `SKETCH_FOR_EVERYONE`
-(`shared/schemas/models.ts`) is false, as it is: whatever the file says, everyone else's form leaves it out and the
-API refuses it ("Sketch is not offered to your account."). The idea form offers the models that are on, offered to
+`STUDIO_FOUNDRY=on`. The idea form offers the models that are on, offered to
 the user's role and able to run, starting on the default when it is one of them (else the first); an account that
-may not use the paid models (SPEC-access "Access") starts on the first free one, if any, and an idea sent without a model gets
-that same default. When the file is first written, `STUDIO_GENERATOR` (`claude`, `sketch`, `fleet`) names its
+may not use the paid models (SPEC-access "Access") starts on the first free one, if any (every transport is
+paid today, so none), and an idea sent without a model gets
+that same default. When the file is first written, `STUDIO_GENERATOR` (`claude`, `fleet`) names its
 default.

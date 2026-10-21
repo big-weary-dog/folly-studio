@@ -6,8 +6,7 @@ import type { Logger } from '../http.ts';
 import * as claude from './claude.ts';
 import * as codex from './codex.ts';
 import * as fleet from './fleet.ts';
-import type { Adapter, Context } from './index.ts';
-import * as sketch from './sketch.ts';
+import type { Adapter } from './index.ts';
 
 /** `warn`: it may run, but something looks missing (no Codex login seen). */
 export type Availability = { available: boolean, note: string, warn?: boolean };
@@ -25,6 +24,4 @@ export const ADAPTERS: Record<Transport, Module> = {
     model: m?.model, effort: m?.effort, timeoutMs: timeoutOf(m), bin: codexBin }) },
   fleet: { probe: fleet.probe, create: (m, { log, config }) => fleet.createFleetAdapter({ log, config,
     model: m?.model, timeoutMs: timeoutOf(m) }) },
-  sketch: { probe: sketch.probe,
-    create: () => ({ name: 'sketch', generate: async (ctx: Context) => sketch.sketchLook(ctx) }) },
 };

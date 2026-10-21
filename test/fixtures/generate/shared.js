@@ -76,7 +76,7 @@ export function fakeStore() {
 export function queueSetup(createQueue, opts = {}) {
   const store = fakeStore();
   const user = store.users.create({ username: 'ana', role: 'member', passwordHash: 'secret' });
-  const idea = (text) => store.ideas.create({ owner: user.id, text, status: 'queued', generator: 'sketch' });
+  const idea = (text) => store.ideas.create({ owner: user.id, text, status: 'queued', generator: 'x' });
   const queue = createQueue({ store, loadLibrary: () => LIBRARY, loadRig: async () => RIG, log: quiet, ...opts });
   return { store, user, idea, queue };
 }

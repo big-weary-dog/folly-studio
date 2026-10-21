@@ -1,7 +1,7 @@
 // npm run smoke, too: how much an idea explores (SPEC-generators "Explore"), at a laptop's and a phone's size. The idea
 // form offers Quick and Explore for a model that explores (Deep while DEEP.enabled), starts on Explore, keeps a pick
-// per browser and hides them for Sketch; an idea sent at Explore says so and what it took from each sketch (a
-// stand-in codex CLI, test/fixtures/generate/bin/codex, answers the sketch turn and the look at once).
+// per browser; an idea sent at Explore says so and what it took from each draft (a stand-in codex CLI,
+// test/fixtures/generate/bin/codex, answers the draft turn and the look at once).
 import { fileURLToPath } from 'node:url';
 
 import { expect, test } from './studio.js';
@@ -43,9 +43,7 @@ for (const [name, device] of Object.entries(SIZES)) {
         await expect(pressed).toHaveText(/^Quick/);
       });
 
-      await test.step('Sketch does not explore; an idea at Explore says what it took', async () => {
-        await page.locator('.model-pick select').selectOption('sketch');
-        await expect(page.locator('.explore')).toHaveCount(0);
+      await test.step('an idea at Explore says what it took', async () => {
         await page.locator('.model-pick select').selectOption('sol');
         await levels.filter({ hasText: 'Explore' }).click();
         await page.fill('textarea.idea-input', 'A slow blue sky over the spires');

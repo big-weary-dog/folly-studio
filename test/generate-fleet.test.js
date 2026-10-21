@@ -16,7 +16,6 @@ import {
 } from '../src/generate/fleet.ts';
 import { configOf } from '../src/config.ts';
 import { createQueue, foundryOf } from '../src/generate/index.ts';
-import { sketchLook } from '../src/generate/sketch.ts';
 import { GenerateError, validateLook } from '../shared/schemas/generated.ts';
 import {
   FIX, fakeStore, goodLayer, GROUPS, LIBRARY, lookJson, queueSetup, quiet, RIG, STUDIO, tmp,
@@ -274,8 +273,8 @@ describe('fleet-box/check.ts (boxed worker side, real runtime)', () => {
     fs.copyFileSync(rigFile, path.join(dir, 'rig.json'));
     fs.writeFileSync(path.join(dir, 'light.json'), '{ "gamma": 2.6 }\n');   // the studio's light settings
     fs.writeFileSync(path.join(dir, 'package.json'), '{ "type": "module" }\n');
-    const good = validateLook(sketchLook({ text: 'ocean swell everywhere, twinkling stars on the rose window',
-      library: LIBRARY, groups: GROUPS }), { groups: GROUPS });
+    const good = validateLook({ title: 'Swell', summary: 'An ocean swell everywhere', layers: [goodLayer()] },
+      { groups: GROUPS });
     fs.writeFileSync(path.join(dir, 'good.json'), JSON.stringify(good));
     const ok = await run(dir, 'good.json');
     assert.equal(ok.code, 0, ok.out);
@@ -373,7 +372,7 @@ describe('fleet-box/check.ts (boxed worker side, real runtime)', () => {
 });
 
 describe('the Fleet foundry is opt-in', () => {
-  /** A queue whose fleet and sketch adapters only record what they were given; fleet waits for release(). */
+  /** A queue whose fleet and codex adapters only record what they were given; fleet waits for release(). */
   function foundryQueue(foundry, extra = {}) {
     const ran = [];
     let release;
@@ -386,14 +385,14 @@ describe('the Fleet foundry is opt-in', () => {
         await gate;
         return { title: text, layers: [goodLayer()] };
       },
-      sketch: async ({ text }) => { ran.push(['sketch', text]); return { title: text, layers: [goodLayer()] }; },
+      codex: async ({ text }) => { ran.push(['codex', text]); return { title: text, layers: [goodLayer()] }; },
     };
     const setup = queueSetup(createQueue, { adapterName: 'fleet', adapters, foundry, log, ...extra });
     return { ...setup, ran, release, warnings };
   }
   const settle = () => new Promise((r) => setTimeout(r, 20));
 
-  test('off by default: deep ideas fail, saying so, never Sketch; a fallback the env names takes them', async () => {
+  test('off by default: deep ideas fail, saying so, never another; a fallback the env names takes them', async () => {
     assert.deepEqual({ ...foundryOf(configOf({})), memoryCap: 0 }, { on: false, wait: false, memoryCap: 0 });
     assert.equal(foundryOf(configOf({ STUDIO_FOUNDRY: 'on', STUDIO_FOUNDRY_WAIT: '1' })).on, true);
     const off = foundryQueue({ on: false });
@@ -409,14 +408,14 @@ describe('the Fleet foundry is opt-in', () => {
     await settle();
     assert.equal(off.store.ideas.get(gone.id).error, 'Its model is gone; try another.');
 
-    const { queue, idea, ran, warnings, store } = foundryQueue({ on: false }, { fallbackName: 'sketch' });
-    assert.equal(queue.adapterName, 'sketch');
+    const { queue, idea, ran, warnings, store } = foundryQueue({ on: false }, { fallbackName: 'codex' });
+    assert.equal(queue.adapterName, 'codex');
     const j = idea('embers');
     queue.enqueue(j);
     await queue.idle();
-    assert.deepEqual(ran, [['sketch', 'embers']]);
-    assert.equal(store.ideas.get(j.id).generator, 'sketch');
-    assert.match(warnings.join('\n'), /foundry is off \(STUDIO_FOUNDRY=on\); ideas go to sketch/);
+    assert.deepEqual(ran, [['codex', 'embers']]);
+    assert.equal(store.ideas.get(j.id).generator, 'codex');
+    assert.match(warnings.join('\n'), /foundry is off \(STUDIO_FOUNDRY=on\); ideas go to codex/);
   });
 
   test('on: one job at a time; while busy the next waits, or goes to a fallback the env names', async () => {
@@ -429,16 +428,16 @@ describe('the Fleet foundry is opt-in', () => {
     await queued.queue.idle();
     assert.deepEqual(queued.ran, [['fleet', 'first'], ['fleet', 'second']]);
 
-    const busy = foundryQueue({ on: true, memoryCap: async () => true }, { fallbackName: 'sketch' });
+    const busy = foundryQueue({ on: true, memoryCap: async () => true }, { fallbackName: 'codex' });
     busy.queue.enqueue(busy.idea('first'));
     busy.queue.enqueue(busy.idea('second'));
     await settle();
-    assert.deepEqual(busy.ran, [['fleet', 'first'], ['sketch', 'second']]);
+    assert.deepEqual(busy.ran, [['fleet', 'first'], ['codex', 'second']]);
     busy.release();
     await busy.queue.idle();
     assert.deepEqual(busy.warnings, [], 'a memory cap: no warning');
 
-    const waiting = foundryQueue({ on: true, wait: true, memoryCap: async () => true }, { fallbackName: 'sketch' });
+    const waiting = foundryQueue({ on: true, wait: true, memoryCap: async () => true }, { fallbackName: 'codex' });
     waiting.queue.enqueue(waiting.idea('first'));
     waiting.queue.enqueue(waiting.idea('second'));
     await settle();

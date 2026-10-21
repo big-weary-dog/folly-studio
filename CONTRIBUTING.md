@@ -74,6 +74,12 @@ with Studio rather than in John's repo. `tools/pixel_rows.py` is make_pixel_csv'
 `td/python/make_pixel_csv.py`), the rows TouchDesigner, Mirage and the relay read. Run `npm run build-data` after
 any change to them; `test/data.test.js` fails while a rig or `palettes.json` is stale. Never edit one by hand.
 
+To add a palette, add `tools/data/palettes/<name>.csv` with `slot,colour` rows (`low1`, `body1`, `accent1`,
+`high1`, numbered within each role) and sRGB `#rrggbb` swatches, then add its mood to `themes.txt`.
+Run `python3 tools/build_palettes.py` to regenerate the catalogue. Mixed-family palettes can put both families
+in `body`, as patina, meadow, orchid, solstice, guava and voltage do; roles need not each be a single hue.
+Update the palette count in `docs/GENERATION.md` and the choices in `library-docs/README.md` too.
+
 ## Dependencies
 
 Use a dependency whenever it makes life easier. Pin the exact version (`npm install --save-exact`), commit
@@ -191,7 +197,7 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `src/live/` | The live stage (`SPEC-live.md`): `state.ts` (pure: show time, pushes as lanes, loops), `hub.ts` (the sockets, presence, limits, `live.json`), `routes.ts` (the socket and its settings) |
 | `src/api-reports.ts`, `src/reports/` | F8 bug reports (SPEC "Bug reports"): their routes; `store.ts` (a folder per report, pruned by count, bytes and days), `build.ts` (the checkout's commit) |
 | `src/access.ts` | Who may use the paid models, and how much (SPEC-access "Access"): invite codes kept hashed, each account's ideas counted against the limits, the daily ceiling |
-| `src/generate/` | Idea → look: the queue (a lane per transport), the model registry (`models.ts`), adapters (`adapters.ts` maps each transport to its module, which exports its adapter and `probe()`: `sketch`, `claude`, `codex` with `proc.ts` for its one CLI call, `fleet`; a new transport is a row in `TRANSPORT_CAPS`, one there and its module), the prompt (`prompt.ts`, its text in `guide.ts`), the library as vocabulary (`catalog.ts`, the answer's schema `composition.ts`, its expansion into a look `expand.ts`; cleaning: `shared/schemas/generated.ts`) |
+| `src/generate/` | Idea → look: the queue (a lane per transport), the model registry (`models.ts`), adapters (`adapters.ts` maps each transport to its module, which exports its adapter and `probe()`: `claude`, `codex` with `proc.ts` for its one CLI call, `fleet`; a new transport is a row in `TRANSPORT_CAPS`, one there and its module), the prompt (`prompt.ts`, its text in `guide.ts`), the library as vocabulary (`catalog.ts`, the answer's schema `composition.ts`, its expansion into a look `expand.ts`; cleaning: `shared/schemas/generated.ts`) |
 | `render-box/render.ts`, `renderer.ts` | Bakes a look to `.fseq` inside bubblewrap; the frame loop it shares with `fleet-box/check.ts` |
 | `fleet-box/` | Checker and brief for a boxed Fleet worker |
 | `public/index.html`, `css/` | The app shell and its styles: `base.css` (tokens, layout and components) on every page; `pages`, `studio`, `viewer`, `timeline`, `compose`, `live`, `liveplay` (the live play page, on `/pi/` and `/live`), `reports` (with the bug report form) imported by their views' modules, so Vite loads them with them |
