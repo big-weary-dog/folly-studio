@@ -12,6 +12,7 @@ import { isPending } from '../shared/idea-status.ts';
 import { DEEP, type Explore, type Idea } from '../shared/schemas/api.ts';
 import { isPaid, type ModelEntry } from '../shared/schemas/models.ts';
 import { type Auth, sha256 } from './auth.ts';
+import { stamp } from './clock.ts';
 import type { Registry } from './generate/models.ts';
 import type { Store, StoredInvite, StoredUser } from './store.ts';
 
@@ -147,7 +148,7 @@ export function createAccess({ store, auth, models }: { store: Pick<Store, 'user
       const now = inviteOf(found).state;
       if (now !== 'active') return { refused: now };
       store.invites.update(found.id, { used: found.used + 1 });
-      const access: UserAccess = { ...u.access, unlockedAt: new Date().toISOString(), invite: found.id };
+      const access: UserAccess = { ...u.access, unlockedAt: stamp(), invite: found.id };
       return state(store.users.update(u.id, { access })!);
     },
     invites: () => store.invites.list().map((x) => inviteOf(x)).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)),
@@ -161,7 +162,7 @@ export function createAccess({ store, auth, models }: { store: Pick<Store, 'user
     revoke(id: string) {
       const x = store.invites.get(id);
       if (!x) return null;
-      return inviteOf(x.revokedAt ? x : store.invites.update(id, { revokedAt: new Date().toISOString() })!);
+      return inviteOf(x.revokedAt ? x : store.invites.update(id, { revokedAt: stamp() })!);
     },
     person(u: StoredUser, now = Date.now()): Person {
       const { hour, day, running } = usedOf(counted(u, now).filter((c) => c.paid), now);
@@ -171,11 +172,11 @@ export function createAccess({ store, auth, models }: { store: Pick<Store, 'user
     /** An admin's change to one person: unlock or lock, an override of their limits (null clears), a reset. */
     patch(u: StoredUser, by: string, p: { unlocked?: boolean, limits?: PersonLimits | null, reset?: true }) {
       const next: UserAccess = { ...u.access };
-      if (p.unlocked === true && !next.unlockedAt) Object.assign(next, { unlockedAt: new Date().toISOString(), by });
+      if (p.unlocked === true && !next.unlockedAt) Object.assign(next, { unlockedAt: stamp(), by });
       if (p.unlocked === false) { delete next.unlockedAt; delete next.invite; delete next.by; }
       if (p.limits === null) delete next.limits;
       else if (p.limits) next.limits = p.limits;
-      if (p.reset) next.resetAt = new Date().toISOString();
+      if (p.reset) next.resetAt = stamp();
       return store.users.update(u.id, { access: next })!;
     },
   };
