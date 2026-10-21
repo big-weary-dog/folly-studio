@@ -409,6 +409,7 @@ scope (it inherits the CSP, so no network either), relays messages to it and kee
 | `{ type: 'look', layers, globals?, automation?, bpm?, clock? }` (as saved; `clock: 'fresh'`: the clock not continued from the look before, SPEC-live) | `{ type: 'compiled', layers: [{ id, ok, error?, params, modules: [{ id, ok, error?, params, upgraded? }] }] }` (`params`: the first source's schema; `upgraded`: each param a module's `upgrade()` changes, `[saved, upgraded]`, SPEC-library) |
 | `{ type: 'frame', seq, t, set? }` | `{ type: 'frame', seq, rgb: Float32Array(count×3), errors: [{ id, module?, error }], ms, layerMs: { <layer id>: ms } }` (rgb transferred; `ms` the frame's, `layerMs` each layer's, timed in the worker) |
 | `{ type: 'render', seq, start, frames, fps, brightness, light }` (light: the settings, Light and output; brightness: a linear cap) | `{ type: 'progress', seq, done }` … then `{ type: 'rendered', seq, channels: Uint8Array(frames × frame channels) }` |
+| `{ type: 'relay', on, rev?, next?, frame?, index?, at?, fps?, duration?, lead?, set? }` (SPEC-live "Relay to the lights": the engine's slot `index` at epoch ms `at`, `frame` the look's at slot `next`, `lead` frames to render ahead; `on: false` stops) | `{ type: 'relayed', bytes: ArrayBuffer }` (a frame as the engine takes it, transferred; untrusted: the page checks its length) |
 
 Compute is decoupled from drawing: the app keeps one `frame` request in flight and asks at 40 fps, stepping down to
 30 and then 20 while the worker's `ms` (smoothed) is over budget, 80 % of the frame interval, and back up once it is
@@ -423,7 +424,8 @@ Watchdog (the page's): a frame, live or exported, running over 1 s, or new code 
 over 0.7 s, has hung. The page terminates the worker, finds the layer to blame (the one being
 compiled, or each layer run alone for one frame in a throwaway worker), starts a fresh worker
 without it and reports it as an error starting `Pattern hung`; it stays paused until its code
-changes. Every `frame` request is answered within 1.5 s. The app (runtime.ts) tears the iframe
+changes. Every `frame` request is answered within 1.5 s. A worker relaying renders on its own timer between
+requests, at most 4 frames a turn; a respawned worker relays again at the page's next `relay`. The app (runtime.ts) tears the iframe
 down and reloads it only if the page itself stops answering for 4 s (8 s during an export, while the page probes a
 hung layer).
 
