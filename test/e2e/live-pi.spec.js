@@ -58,6 +58,7 @@ test('a look picked on /pi plays on the Live tab', async ({ browser, studio }, i
   await pi.page.getByRole('button', { name: /^Up next/ }).click();
   await pi.page.getByRole('button', { name: /Add a look/ }).click();
   await pi.page.getByRole('button', { name: /^Fire/ }).click();
+  await pi.page.getByRole('button', { name: 'Cue it' }).click();
   await pi.page.getByRole('button', { name: /^Fade to Fire/ }).click();
   await expect(pi.page.getByRole('heading', { level: 1 })).toHaveText('Fire', { timeout: 10_000 });
   await expect(studioTab).toContainText('Driven from /pi');

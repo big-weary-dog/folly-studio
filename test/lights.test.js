@@ -117,6 +117,12 @@ describe('Play on the lights', () => {
     const { looks } = (await cara.get('/api/lights/looks?from=gallery')).json;
     assert.deepEqual(looks.map((l) => [l.title, l.ownerName, l.duration, l.play.kind ?? 'error']),
       [['Mine', 'bob', 30, 'error'], ['Bob fire', 'bob', 30, 'live']]);
+    // Each with its gallery preview, for the preview a pick opens.
+    await app.previews.idle();
+    const gallery = (await cara.get('/api/looks?scope=gallery')).json.looks;
+    const now = (await cara.get('/api/lights/looks?from=gallery')).json.looks;
+    assert.ok(now.every((l) => l.preview), 'every shared look has its preview');
+    assert.deepEqual(now.map((l) => l.preview), now.map((l) => gallery.find((g) => g.id === l.id).preview));
     assert.deepEqual((await cara.get('/api/lights/looks')).json, { looks: [] }, 'mine by default');
   });
 

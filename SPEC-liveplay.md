@@ -91,12 +91,15 @@ on the right):
 3. **The mode's surface**, taking the height left:
    - Jukebox: the queue (56 px rows, numbered, "in 1:12", ↑ and ×; past what fits, "N more" pages) and **Add a
      look**: a search, sources (Mine · Gallery · The lights' own in Studio, from `GET /api/lights/looks`; the
-     lights' own alone on `/pi/`), tiles 6
-     a page (9 on a laptop), a look that cannot play shown dashed with why ("Custom code: needs a bake"), and a
-     confirm with **Play next** and **Add to the end**.
+     lights' own alone on `/pi/`), tiles 6 a page (9 on a laptop), a look that cannot play shown dashed with why
+     ("Custom code: needs a bake"). Picking one opens its **preview**, a modal: the look's gallery preview playing
+     (SPEC "Gallery previews": its 5 s that move the most; its still under reduced motion; the card's glass when it
+     has none, as the lights' own looks never do), who made it, how long and how it plays, then **Play next** and
+     **Add to the end** (× or Esc closes it).
    - Live Play: the bank (below); the now card's **Up next** turns it to the queue, with Add a look, and back.
-     Picking a look **cues** it: "Cued · not on the lights yet", Crossfade 1 s · 4 s ·
-     8 s (4 s first), then **Fade to … · 4 s**, **Play next instead** or **Cancel**. Nothing changes until the commit.
+     Picking a look opens the same preview, with **Cue it**, which **cues** it: "Cued · not on the lights yet",
+     Crossfade 1 s · 4 s · 8 s (4 s first), then **Fade to … · 4 s**, **Play next instead** or **Cancel**. Nothing
+     changes until the commit.
 4. **Show row** (Live Play only): Master (a horizontal fader) and Tap with the BPM and ± 1. A bake's tempo is fixed:
    Tap is dashed, "Tempo fixed by the bake".
 5. **Blackout bar** (Live Play only, 56 px), always last: press and hold 0.5 s (B on a keyboard). It fills left to

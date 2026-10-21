@@ -94,7 +94,8 @@ POST /api/lights/queue  { lookId, at?: 'now' | 'next' | 'end' (default), fade? }
                            → { kind: 'live' | 'baked' }  400 says why it cannot play; 403 not allowed;
                              409 the queue is full, or now in Jukebox; 503 the engine is not connected
 GET  /api/lights/looks?from=mine|gallery
-                        → { looks: [{ id, title, ownerName, duration, play: { kind } | { error } }] }; curators
+                        → { looks: [{ id, title, ownerName, duration, preview?, play: { kind } | { error } }] };
+                          curators; preview: its gallery preview's key, as GET /api/looks gives it
 PUT  /api/admin/lights  { liveLooks, mode } → the same; admins only; kept in <STUDIO_DATA>/lights.json
                              (default liveLooks on, mode jukebox)
 ```
