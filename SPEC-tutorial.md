@@ -26,20 +26,24 @@ In order:
   practice look `idea` in place of asking a model (`tourIdea` in `ui/tour-view.ts`: nothing is sent, and it works on
   a locked account); its layers. On the Pi, which has no Ideas (SPEC-offline), the path starts on its
   look and leaves out the steps on Ideas or going there.
-- `modules`, Modules and colour: a source's number, a choice, a colour param by palette role, the Look tab, the
-  palette.
-- `layers`, Layers and chains: solo, a filter, its choice, a module off and on, a warp and its value, soften, Plays on
-  (groups by rig tag), a preset, a module inside it, level, blend, order, mute.
-- `time`, Time: BPM, the beat clock, + Clip.
+- `modules`, Modules and colour: a source's number, a choice (Comet, its bands twice its tail, so each reads as a
+  comet), Soften down to 0 for crisp comets, a colour param by palette role, the Look tab, the palette.
+- `layers`, Layers and chains: solo, a filter (Hue shift on the rose) and its number, a module off and on, a warp
+  (Rotate on the rose) and its Spin, Plays on (groups by rig tag), a preset, a module inside it, level, blend, order,
+  mute.
+- `time`, Time: BPM, the beat clock (on the rose's Spin), + Clip.
 - `moves`, Values that move (advanced): ∿ and an LFO, its rate and range, a square and a saw wave on other kinds of
-  value, a macro, two values tied to it, the fader moved, automation.
+  value, a macro, two values tied to it, the fader moved, an automation lane and points set on it.
 - `keep`, Keep it, show it: an edit, undo, save, Live.
 
 Each step names one change from where its control starts (never already met when it opens) and says in a sentence
 why it helps the look. Its control is scrolled into view in whatever panel scrolls and ringed, the ring following it
-as the page scrolls. The page around dims; the preview never does, and the step's card sits off it (and off the ring)
+as the page scrolls. When the control sits in a larger part being worked on (`data-tour-area`: a module's row and its
+settings, a drawer such as ∿'s, an automation lane), that part is a second, quieter box, left as clear as the ring.
+Between controls, within a step or to the next one, the ring stays half a second on the one just used. The page
+around dims; the preview never does, and the step's card sits off it (and off the ring)
 where any place beside the ring or in a corner of the window allows. A step is done when the Studio shows what it
 asked for (judged from the Studio as it is set up, never while it loads), and moves on by itself unless it waits
 for Next or was met already as it opened; Next stays
-locked until then, while Skip step and Show me are always there. `test/tour-sync.test.ts` holds each step's
+locked until then, while Skip step is always there. `test/tour-sync.test.ts` holds each step's
 controls, library names, params, pages and practice looks to the app; `test/e2e/tour.spec.js` plays every path.

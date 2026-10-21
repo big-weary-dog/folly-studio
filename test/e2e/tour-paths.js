@@ -77,6 +77,7 @@ export async function playModules(page, t) {
   }, 'modules-speed');
   await step(t, 'A choice', ['param:profile'], () => t.at('param:profile').locator('select').selectOption('comet'),
     'modules-comet');
+  await step(t, 'Sharper comets', ['soften'], () => type(t.at('soften').locator('input').first(), 0), 'modules-crisp');
   await step(t, 'A colour', ['param:colours'], () => role(page, t, 'high'), 'modules-high');
   await step(t, 'The Look tab', ['dock:look'], () => t.at('dock:look').click(), 'modules-look');
   await step(t, 'The palette', ['palette'], () => t.at('palette').locator('select').selectOption('ocean'),
@@ -86,31 +87,29 @@ export async function playModules(page, t) {
 
 export async function playLayers(page, t) {
   await step(t, 'Solo', ['solo:rose'], () => t.at('solo:rose').click(), 'layers-solo');
-  await step(t, 'A filter', ['chain-add'], () => shelf(t, 'chain-add', 'filter', 'stained-glass'), 'layers-filter');
-  await step(t, 'A filter\'s choice', ['module:stained-glass', 'param:rule'], async () => {
-    await opened(t, 'stained-glass', 'param:rule');
-    await t.at('param:rule').locator('select').selectOption('spiral');
-  }, 'layers-rule');
-  await step(t, 'On and off', ['module-on:stained-glass'], async () => {
-    await t.at('module-on:stained-glass').click();
-    await expect(t.at('module-on:stained-glass')).not.toBeChecked();
-    await t.at('module-on:stained-glass').click();
+  await step(t, 'A filter', ['chain-add'], () => shelf(t, 'chain-add', 'filter', 'hue-shift'), 'layers-filter');
+  await step(t, 'A filter\'s number', ['module:hue-shift', 'param:offset'], async () => {
+    await opened(t, 'hue-shift', 'param:offset');
+    await t.ring('param:offset');
+    await type(t.at('param:offset').locator('input').first(), 0.5);
+  }, 'layers-offset');
+  await step(t, 'On and off', ['module-on:hue-shift'], async () => {
+    await t.at('module-on:hue-shift').click();
+    await expect(t.at('module-on:hue-shift')).not.toBeChecked();
+    await t.at('module-on:hue-shift').click();
   }, 'layers-onoff');
+  await step(t, 'A warp', ['chain-add'], () => shelf(t, 'chain-add', 'warp', 'rotate'), 'layers-warp');
+  await step(t, 'A warp\'s speed', ['module:rotate', 'param:spin'], async () => {
+    await opened(t, 'rotate', 'param:spin');
+    await t.ring('param:spin');
+    await type(t.at('param:spin').locator('input').first(), 0.15);
+  }, 'layers-spin');
   await step(t, 'Solo another', ['solo:rose'], async () => {
     await t.at('solo:rose').click();
     await t.ring('solo:arches');
     await t.at('solo:arches').click();
   }, 'layers-swap');
-  await step(t, 'A warp', ['layer:arches'], async () => {
-    await pick(t, 'arches');
-    await t.ring('chain-add');
-    await shelf(t, 'chain-add', 'warp', 'rotate');
-  }, 'layers-warp');
-  await step(t, 'A warp\'s number', ['module:rotate', 'param:angle'], async () => {
-    await opened(t, 'rotate', 'param:angle');
-    await type(t.at('param:angle').locator('input').first(), 0.3);
-  }, 'layers-angle');
-  await step(t, 'Soften', ['soften'], () => type(t.at('soften').locator('input').first(), 45), 'layers-soften');
+  await t.at('layer:arches').locator('.layer-name').click();
   await step(t, 'Where it plays', ['plays-on'], async () => {
     await t.at('plays-on').click();
     await t.ring('plays-on', 'group:mini-arches');
@@ -142,12 +141,16 @@ export async function playTime(page, t) {
     await t.ring('dock:timeline', 'bpm');
     await type(t.at('bpm').locator('input'), 90);
   }, 'time-bpm');
-  await step(t, 'On the beat', ['layer:arches'], async () => {
-    await pick(t, 'arches', 'single-strand', 'param:speed');
-    await t.ring('param:speed');
-    await t.at('param:speed').locator('.beat-clock').click();
+  await step(t, 'On the beat', ['layer:rose', 'module:rotate'], async () => {
+    await pick(t, 'rose', 'rotate', 'param:spin');
+    await t.ring('param:spin');
+    await t.at('param:spin').locator('.beat-clock').click();
   }, 'time-clock');
-  await step(t, 'A clip', ['clip-add'], () => t.at('clip-add').click(), 'time-clip');
+  await step(t, 'A clip', ['layer:arches'], async () => {
+    await pick(t, 'arches');
+    await t.ring('clip-add');
+    await t.at('clip-add').click();
+  }, 'time-clip');
   await t.next();
 }
 
@@ -163,17 +166,17 @@ export async function playMoves(page, t) {
   await step(t, 'Its range', ['mod-between'], () => num(page, 'To', 0.85), 'moves-between');
   await drawer(t, 'param:brightness');
   await step(t, 'A square wave', ['layer:rose'], async () => {
-    await pick(t, 'rose', 'stained-glass', 'param:amount');
-    await t.ring('param:amount');
-    await drawer(t, 'param:amount');
+    await pick(t, 'rose', 'hue-shift', 'param:offset');
+    await t.ring('param:offset');
+    await drawer(t, 'param:offset');
     await seg(page, 'LFO');
     await t.ring('mod-shape');
     await seg(page, 'square');
   }, 'moves-square');
   await step(t, 'All the way off', ['mod-between'], () => num(page, 'From', 0), 'moves-off');
-  await drawer(t, 'param:amount');
-  await step(t, 'A saw wave', ['layer:arches'], async () => {
-    await pick(t, 'arches', 'rotate', 'param:angle');
+  await drawer(t, 'param:offset');
+  await step(t, 'A saw wave', ['module:rotate'], async () => {
+    await opened(t, 'rotate', 'param:angle');
     await drawer(t, 'param:angle');
     await seg(page, 'LFO');
     await t.ring('mod-shape');
@@ -185,9 +188,8 @@ export async function playMoves(page, t) {
     await t.ring('dock:look', 'macro-add');
     await t.at('macro-add').click();
   }, 'moves-macro');
-  await step(t, 'Tie a value to it', ['module:single-strand'], async () => {
-    await opened(t, 'single-strand', 'param:tail');
-    await t.ring('param:tail');
+  await step(t, 'Tie a value to it', ['layer:arches'], async () => {
+    await pick(t, 'arches', 'single-strand', 'param:tail');
     await drawer(t, 'param:tail');
     await t.ring('mod-kinds');
     await seg(page, 'Macro');
@@ -210,10 +212,12 @@ export async function playMoves(page, t) {
     await t.at('automate').click();   // + Automate… loads the lanes; their own + Automate… picks one
     await t.ring('dock:timeline', 'automate');
     await t.at('automate').selectOption({ index: 1 });
+  }, 'moves-automate');
+  await step(t, 'Points on the lane', ['lane:macro1'], async () => {
     const lane = page.locator('.tl-auto-svg').first(), box = await lane.boundingBox();
     await page.mouse.click(box.x + box.width * 0.1, box.y + box.height * 0.8);
     await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.2);
-  }, 'moves-automate');
+  }, 'moves-points');
   await t.next();
 }
 
