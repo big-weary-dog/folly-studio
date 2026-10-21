@@ -1,17 +1,21 @@
-// The show's sources in a show-builder checkout, found as tools/sources.py finds them: SHOW_BUILDER_DIR, or
-// show-builder/ beside this repo. Tests that need them skip, saying so, where they are missing.
+// The show's sources, found as tools/sources.py finds them: a lighting checkout (LIGHTING_DIR, or lighting/ beside
+// this repo) for the data tests, and a show-builder checkout (SHOW_BUILDER_DIR, or show-builder/ beside it) for
+// Mirage and the relay in `npm run e2e`. Tests that need them skip, saying so, where they are missing.
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const SHOW_BUILDER = path.resolve(process.env.SHOW_BUILDER_DIR
-  || fileURLToPath(new URL('../../../show-builder', import.meta.url)));
+const beside = (name) => fileURLToPath(new URL(`../../../${name}`, import.meta.url));
+export const LIGHTING = path.resolve(process.env.LIGHTING_DIR || beside('lighting'));
+export const SHOW_BUILDER = path.resolve(process.env.SHOW_BUILDER_DIR || beside('show-builder'));
 
-/** The absolute path of a file in show-builder. */
-export const source = (rel) => path.join(SHOW_BUILDER, rel);
+const why = (root, repo, env) => (...rels) => {
+  const gone = rels.filter((rel) => !existsSync(path.join(root, rel)));
+  return gone.length ? `needs ${gone.join(', ')} from ${repo} (${env}, now ${root})` : '';
+};
+
+/** Why a test cannot run without these lighting paths, or '' when they are all there. */
+export const missingLighting = why(LIGHTING, 'lighting', 'LIGHTING_DIR');
 
 /** Why a test cannot run without these show-builder paths, or '' when they are all there. */
-export function missing(...rels) {
-  const gone = rels.filter((rel) => !existsSync(source(rel)));
-  return gone.length ? `needs ${gone.join(', ')} from show-builder (SHOW_BUILDER_DIR, now ${SHOW_BUILDER})` : '';
-}
+export const missing = why(SHOW_BUILDER, 'show-builder', 'SHOW_BUILDER_DIR');

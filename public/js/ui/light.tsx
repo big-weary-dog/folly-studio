@@ -5,10 +5,10 @@ import '../../css/pages.css';
 
 import { useEffect, useState } from 'preact/hooks';
 
-import { api, statusOf } from '../api.ts';
+import { api } from '../api.ts';
 import { encode, LIGHT, LIGHT_LIMITS, type Light, lightByte, lightOf, shownLight } from '../core/light.ts';
 import { cx, download, Field, Scrub, toast } from './kit.tsx';
-import { setTitle, signedOut } from './session.ts';
+import { setTitle } from './session.ts';
 
 const COLOURS = ['Red', 'Green', 'Blue'];
 // The values the curve table shows: full, the usual dims, and the bottom where 8 bits run out.
@@ -18,10 +18,7 @@ export function LightPage() {
   const [saved, setSaved] = useState<Light | null>(null), [draft, setDraft] = useState<Light | null>(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const take = (l: Light) => { setSaved(l); setDraft(structuredClone(l)); setError(''); };
-  const fail = (err: unknown) => {
-    if (statusOf(err) === 401) return signedOut();
-    setError((err as Error).message);
-  };
+  const fail = (err: unknown) => setError((err as Error).message);
   useEffect(() => { setTitle('Light'); api.light().then((l) => take(lightOf(l)), fail); }, []);
   if (!saved || !draft) {
     return <div class="page light-page"><h1 class="page-title">Light</h1>

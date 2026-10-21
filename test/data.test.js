@@ -1,5 +1,5 @@
-// rig-folly.json (the Folly's playa build): shape, agreement with the canonical CSV, views and Mirage's geometry, and
-// freshness (of rig.json too).
+// rig-folly.json (the Folly's playa build): shape, views and Mirage's geometry; both rigs fresh from lighting, on
+// the channels lighting drives (tools/check_channels.py), and palettes.json fresh.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -8,13 +8,11 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'vitest';
 
 import { prepareScene } from '../public/js/pattern-core.ts';
-import { missing, source } from './fixtures/sources.js';
+import { missingLighting } from './fixtures/sources.js';
 
 const here = (p) => new URL(p, import.meta.url);
 const text = readFileSync(here('../public/data/rig-folly.json'), 'utf8');
 const rig = JSON.parse(text);
-const CSV = 'td/data/all-pixels-positions.csv';
-const zoneOf = (k) => rig.fixtures.find((f) => k >= f.start && k < f.start + f.count).zone;
 
 test('top-level shape', () => {
   assert.equal(rig.rig, 1);
@@ -26,25 +24,6 @@ test('top-level shape', () => {
   assert.equal(rig.pixels.pos.length, rig.count * 3);
   assert.ok(text.length < 400_000, `compact (${text.length} bytes)`);
   assert.doesNotThrow(() => prepareScene(rig));
-});
-
-test('every LED agrees with td/data/all-pixels-positions.csv', ({ skip }) => {
-  skip(!!missing(CSV), missing(CSV));
-  const lines = readFileSync(source(CSV), 'utf8').trim().split(/\r?\n/);
-  const header = lines[0].split(',');
-  const rows = lines.slice(1).map((l) => Object.fromEntries(l.split(',').map((v, i) => [header[i], v])));
-  assert.equal(rows.length, rig.count);
-  rows.forEach((r, k) => {
-    assert.equal(zoneOf(k), r.zone, `zone ${k}`);
-    assert.equal(rig.pixels.universe[k], +r.universe, `universe ${k}`);
-    assert.equal(rig.pixels.channel[k], +r.channel, `channel ${k}`);
-    assert.equal(rig.pixels.attrs.ring[k], r.row === '' ? 0 : +r.row, `ring ${k}`);
-    const petal = /^rose-petal-(\d+)$/.exec(r.zone);
-    assert.equal(rig.pixels.attrs.sector[k], petal ? petal[1] - 1 : -1, `sector ${k}`);
-    for (const [i, col] of ['cat_x', 'cat_y', 'cat_z'].entries()) {
-      assert.ok(Math.abs(rig.pixels.pos[3 * k + i] - +r[col]) <= 0.0006, `${col} ${k}`);
-    }
-  });
 });
 
 test('bounds hold every LED', () => {
@@ -113,18 +92,29 @@ test('groups: the tree saved looks name, with tags', () => {
   assert.deepEqual(byId.get('rose-window').centre, [-8.567, 5.936, -0.443]);
 });
 
-test('views are td/config/views.json verbatim', ({ skip }) => {
-  skip(!!missing('td/config/views.json'), missing('td/config/views.json'));
-  const views = JSON.parse(readFileSync(source('td/config/views.json'), 'utf8')).views;
+test('views are tools/data/views.json verbatim', () => {
+  const views = JSON.parse(readFileSync(here('../tools/data/views.json'), 'utf8')).views;
   assert.deepEqual(rig.views, views);
 });
 
-test('rig.json is fresh (build_rig.py --check)', ({ skip }) => {
-  const why = missing('td/python', 'pixel-map', 'city-of-gods/pixel-map', 'mirage/src', 'xlights');
+const LIGHTING = ['city-of-gods/pixel-map/out', 'city-of-gods/xlights-show', 'show-builder/pixel-map',
+  'show-builder/xlights', 'falcon-backups'];
+const python = (skip, ...args) => {
+  const why = missingLighting(...LIGHTING);
   skip(!!why, why);
-  const script = fileURLToPath(here('../tools/build_rig.py'));
-  const run = spawnSync('python3', [script, '--check'], { encoding: 'utf8' });
+  const run = spawnSync('python3', ['-B', fileURLToPath(here(`../tools/${args[0]}`)), ...args.slice(1)],
+    { encoding: 'utf8' });
   skip(run.error?.code === 'ENOENT', 'python3 not available');
+  return run;
+};
+
+test('the rigs are fresh from lighting (build_rig.py --check)', ({ skip }) => {
+  const run = python(skip, 'build_rig.py', '--check');
+  assert.equal(run.status, 0, `${run.stdout}${run.stderr}`);
+});
+
+test('the rigs are on the channels lighting drives: xLights, the Falcon (check_channels.py)', ({ skip }) => {
+  const run = python(skip, 'check_channels.py');
   assert.equal(run.status, 0, `${run.stdout}${run.stderr}`);
 });
 
@@ -132,7 +122,6 @@ test('palettes.json is fresh (build_palettes.py --check), roles in order', ({ sk
   const pals = JSON.parse(readFileSync(here('../public/data/palettes.json'), 'utf8'));
   assert.deepEqual(pals.roles, ['low', 'body', 'accent', 'high']);
   assert.ok(pals.palettes.length >= 8 && pals.palettes.every((p) => p.body.length && p.low.length));
-  skip(!!missing('td/palettes'), missing('td/palettes'));
   const script = fileURLToPath(here('../tools/build_palettes.py'));
   const run = spawnSync('python3', [script, '--check'], { encoding: 'utf8' });
   skip(run.error?.code === 'ENOENT', 'python3 not available');

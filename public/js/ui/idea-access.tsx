@@ -2,11 +2,10 @@
 // the free model, when one is offered; an unlocked one sees what it has left, and at a limit when the next idea may go.
 import { useState } from 'preact/hooks';
 
-import { api, statusOf } from '../api.ts';
+import { api } from '../api.ts';
 import type { Access } from '../../../shared/schemas/access.ts';
 import type { ModelChoice } from '../../../shared/schemas/models.ts';
 import { cx, toast } from './kit.tsx';
-import { signedOut } from './session.ts';
 
 export type Gate = { kind: 'free' | 'exempt' } | { kind: 'locked' } | { kind: 'open', text: string }
   | { kind: 'wait', text: string };
@@ -59,7 +58,6 @@ export function AccessGate({ gate, model, paidLabels, free, useFree, onAccess }:
       onAccess(access);
       toast(`Unlocked: ${paidLabels} are yours to use.`, { kind: 'ok' });
     } catch (err) {
-      if (statusOf(err) === 401) return signedOut();
       setError((err as Error).message);
     } finally { setBusy(false); }
   }

@@ -5,6 +5,7 @@ import type { ComponentType } from 'preact';
 import { useLayoutEffect, useState } from 'preact/hooks';
 
 import { api, statusOf } from '../api.ts';
+import { can } from '../../../shared/policy.ts';
 import type { User } from '../../../shared/schemas/api.ts';
 import { confirmDialog, cx, toast, Toasts } from './kit.tsx';
 import { fileBugReport } from './bug-report.tsx';
@@ -152,7 +153,7 @@ function Header({ me, nav }: { me: User; nav?: string }) {
         if ((e.target as Element).closest('a, .btn')) setOpen(false);
       }}>
         <nav class="main-nav" aria-label="Main">
-          {(me.role === 'admin' ? ADMIN_NAV : NAV).map(([href, text]) => <a href={href}
+          {(can(me, 'admin') ? ADMIN_NAV : NAV).map(([href, text]) => <a href={href}
             data-tour={`nav:${href.slice(1)}`} aria-current={nav === href ? 'page' : undefined}>{text}</a>)}
         </nav>
         <div class="user-box">

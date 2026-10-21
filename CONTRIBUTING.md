@@ -44,12 +44,35 @@ running it at home behind a tunnel, and `npm run backup` makes a dated `.tar.gz`
 
 The render-box tests need bubblewrap (`apt install bubblewrap`) and unprivileged user
 namespaces. Without them they skip (`ctx.skip(condition, reason)`) and the run ends listing each skipped test and
-why (`test/skip-reporter.js`). The rigs and palettes come from a show-builder checkout (big-weary-dog/show-builder):
-`SHOW_BUILDER_DIR` names it, by default `../show-builder` beside this repo (`tools/sources.py`,
-`test/fixtures/sources.js`). The data tests need it and `python3`, and skip, saying so, without them; `npm run e2e`
-needs its `relay/` and `mirage/`. Run `npm run build-data` after any change there to `city-of-gods/pixel-map/`,
-`pixel-map/`, `td/python/make_pixel_csv.py`, `td/config/`, `td/palettes/` or Mirage's `src/config.js`;
-`test/data.test.js` fails while a rig is stale. Never edit one by hand.
+why (`test/skip-reporter.js`). The rigs come from a lighting checkout (below, "Show data"); `npm run e2e` alone
+needs a show-builder checkout (big-weary-dog/show-builder), for its `relay/` and `mirage/`: `SHOW_BUILDER_DIR`, by
+default `../show-builder` beside this repo.
+
+## Show data
+
+The lighting repo (The-Gothic-Folly/lighting, John Keefe's) is the lighting system's single source of truth: the
+pixel maps, the xLights shows, the Falcon's string config and the power model. Studio reads a checkout of it, never
+writes one: `LIGHTING_DIR`, by default `../lighting` beside this repo (`tools/sources.py`,
+`test/fixtures/sources.js`; set it in a worktree). `npm run build-data` builds `rig.json` from its
+`city-of-gods/pixel-map/out/` and `rig-folly.json` from its `show-builder/pixel-map/`, universes from each one's
+`xlights_networks.xml`; `pi/tools/build_power.py` builds `pi/data/power.json` from its `pixel-map/` Python.
+
+Lighting fits the wiring in the Falcon (virtual strings, Direction, a short strip's offset), so the channels its
+xLights models and sequences use stay put, and that channel space is what Studio sends. So
+`tools/check_channels.py` holds the rigs to lighting as it is now: every LED on its xLights model's channels with
+the model's nodes running the way our LEDs do, every Falcon string of the newest
+`falcon-backups/*-cog-CERTIFIED.json` on whole LEDs of ours, each rose petal's string where the Pi expands it, and
+no LED dark in the Falcon but inside a strip it trims. `test/data.test.js` runs it and `build_rig.py --check`
+(skipping, saying so, without a checkout), so `npm run check` fails when lighting has moved: run
+`npm run build-data`, and where the channels themselves moved, see what lighting changed before following it.
+
+What lighting does not keep, and is only Studio's, is kept here in `tools/data/`: `output.json` (sACN, 40 fps, 510
+channels a universe, as TouchDesigner sends), `views.json` (the Folly's cameras), `mirage.json` (the sizes Mirage draws
+fixtures and scaffold with), and `palettes/` (the looks' palettes and their themes). They came from show-builder's
+`td/config/`, `td/palettes/` and `mirage/src/`; they are Studio's choices, not the lighting system's, so they live
+with Studio rather than in John's repo. `tools/pixel_rows.py` is make_pixel_csv's arithmetic (show-builder's
+`td/python/make_pixel_csv.py`), the rows TouchDesigner, Mirage and the relay read. Run `npm run build-data` after
+any change to them; `test/data.test.js` fails while a rig or `palettes.json` is stale. Never edit one by hand.
 
 ## Dependencies
 
@@ -149,8 +172,9 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `server.ts` | Entry point: the settings read (`readConfig()`), a bad one refused by name, start, graceful stop |
 | `src/config.ts`, `tools/config-check.ts` | Every setting the server reads, parsed with zod once at start (`readConfig()`) and passed down as `Config`; a module given none parses its environment (`configOf()`); `npm run config:check` |
 | `src/app.ts` | `createServer()`: the store, auth, queues, frames cache, the API and the built app on one Fastify server |
-| `src/api.ts`, `api-looks.ts` (+ `look-versions.ts`, its versions), `api-models.ts`, `api-access.ts`, `http.ts` | The HTTP API (SPEC "HTTP API"): accounts, ideas (and their long polls), the library and login limits; looks; the models; invite codes and people; its plumbing (the CSRF hook, JSON revalidated and compressed, errors as `{ error }`, 405s, the logger) |
-| `src/auth.ts` | Accounts, roles (member, curator, admin), scrypt hashes that carry their cost (re-hashed at login when older), sessions |
+| `src/api.ts`, `api-looks.ts` (+ `look-versions.ts`, its versions), `api-models.ts`, `api-access.ts`, `http.ts` | The HTTP API (SPEC "HTTP API"): accounts, ideas (and their long polls), the library and login limits; looks; the models; invite codes and people; its plumbing (the CSRF hook, JSON revalidated and compressed, errors as `{ error }`, the `routes()` table with each route's `public` or `role` (`forAdmins`; an `/admin` route without a role stops the server at start), 405s, the logger) |
+| `src/auth.ts` | Accounts, roles (member, curator, admin), scrypt hashes that carry their cost (re-hashed at login when older), sessions; `sessionHook`, which holds each route to its config: a session unless `public` (401), and its `role` (403) |
+| `shared/policy.ts` | `can(user, action, look)`: who may do what, the one answer the server and the browser both ask (the browser runs it, so it imports no zod). A look someone may not see is 404 to them |
 | `shared/schemas/` | zod schemas the server runs and the browser takes as types: `look.ts` (what a look may hold, the 400s naming the first problem), `generated.ts` (a generator's look cleaned leniently; its JSON Schema for structured output), `api.ts` (request bodies, users, ideas; its account limits from `public/data/account.json`, which the sign-up form shows too), `rig.ts` (the rig, the library index), `models.ts` (the model registry, and `TRANSPORT_CAPS`: what each transport may do), `access.ts` (limits, invite and person bodies) |
 | `shared/chain-order.ts` | Pure: looks from before the one rule converted so they render as they did (SPEC "Looks" > chain) |
 | `shared/plays.ts` | What plays (`PLAYS`, `playsOf`, `playsChanged`): the one list versions, bakes, the stage, the sandbox, export and the Studio's save and undo read (SPEC "Looks"); no zod, so the browser takes it at run time |
@@ -179,21 +203,22 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `public/js/flash-guard.ts` | Pure: the preview's flash guard, the bake check's rule (`core/flash.ts`) on the frames shown |
 | `public/js/viewer.ts`, `viewer-input.ts`, `viewer-gl.ts` | The 3D view (SPEC "The 3D view"): the orbit camera; its pointer and keys; the Points drawing |
 | `public/js/playa/` | The Playa view, loaded on first use: `geometry.ts` builds it from the rig's render hints, `renderer.ts` draws (light texture, spill, bloom, tone map, tiers), `glsl.ts` |
-| `public/js/main.tsx`, `api.ts` | The entry (renders the shell); the fetch wrapper, typed by `shared/schemas/` |
+| `public/js/main.tsx`, `api.ts` | The entry (renders the shell); the fetch wrapper, typed by `shared/schemas/`. A 401 from it (not `/me`, `/login`, `/signup`) calls `onSignedOut` (session.ts sends the person to sign in) and the call never settles, so views never handle a 401 themselves |
 | `public/js/ui/` | The UI, Preact components in TSX with signals for state. `app.tsx`: the shell, routing (history API, views loaded on first use) and the header, `session.ts` what views share with it (the user, navigation, the guard on unsaved edits); `auth`, `pages` (ideas, my looks, the gallery), `admin` (the Admin page's tabs, over `models`, `access`, `light` and `reports`); `kit.tsx` toasts, dialogs, fields and helpers, `rose.tsx` the rose. The Studio: `studio.tsx` loads it, `studio-store.ts` holds its state (the look, replaced on each edit; the selection; layout) and saves, `studio-layout.tsx` lays out the panes; `preview.ts` drives the imperative 3D view and sandbox (one clock, the flash guard, baked playback) and `preview-view.tsx` wraps them; `layers`, `chain`, `params` (+ `bindings.ts`), `picks` (colour picks, + `pick-model.ts`), `editor`, `shelf` (auditions), `look-globals`, `bake`, `export`; the timeline is `timeline.tsx` (+ `-state`, `-tools`, `-input`, `-auto`, `-model`); `history/` History (`steps.ts` the session's steps and undo, in the main bundle; `button.tsx` in the bar, `history.tsx` the drawer loaded on first use, `steps-list.tsx` and `versions.tsx` its tabs); `layer-status.ts` is what the sandbox says; `model.ts` the rig, library, the Studio's `Layer` (a chain) and its helpers; `live/` the live stage (`live.tsx` /live, `control.tsx` and `fader.tsx` /live/control, `socket.ts` its socket and clock, `stage.ts` the view and sandbox on that clock, `lanes.ts` the state's browser twin); `bug-report.tsx` F8 and its form (+ `report-studio.ts`, the Studio's part and its replay), `reports.tsx` the admins' Reports page |
 | `public/patterns/` | The built-in library (`index.json` with each entry's `kind` and `category`, + one file each): sources, warps and filters, also the AI's examples; presets, recipes of them, in the index alone |
-| `tools/` | `build_rig.py` (+ `cog_rig.py`: City of Gods; `rig_render.py`: what Mirage draws), `build_palettes.py` (data), `sacn-play.ts`, `budgets.ts` (the checks oxlint lacks, with line budgets in `budgets.json`; oxlint's rules are `.oxlintrc.jsonc` at the root), `backup.ts`, `frames-bench.ts` (brotli quality against encode time, and each look's render time), `reports.ts` (F8 bug reports on this machine: `list`, `get <id>`) |
+| `tools/` | `build_rig.py` (+ `pixel_rows.py`: the LEDs and their channels; `cog_rig.py`: City of Gods; `rig_render.py`: what Mirage draws), `check_channels.py` (the rigs against lighting's xLights and Falcon), `data/` (Studio's own show data: CONTRIBUTING "Show data"), `build_palettes.py` (data), `sacn-play.ts`, `budgets.ts` (the checks oxlint lacks, with line budgets in `budgets.json`; oxlint's rules are `.oxlintrc.jsonc` at the root), `backup.ts`, `frames-bench.ts` (brotli quality against encode time, and each look's render time), `reports.ts` (F8 bug reports on this machine: `list`, `get <id>`) |
 | `README.md`, `DESIGN.md`, `docs/` | What it is; what was built and why (`docs/screenshots/`); `docs/HOSTING.md`, hosting at home |
 | `test/` | Vitest suites (`vitest.config.js`; `skip-reporter.js` lists skips and why); `fixtures/` (`build.js`: a fresh build of the app for the tests that serve it); `e2e/`: the Playwright Test browser checks (`smoke`, `perf`, `e2e`) |
 | `dist/` | What `npm run build` makes; not committed |
 
-Browser code imports only from `public/` and packages. Server code imports only `pattern-core.ts`, `fseq.ts`, `scrub.ts`
-and JSON from `public/`. Both take `shared/`: the server at run time, the browser as types only (`import type`), so zod
-never ships to the browser. Two pure files are the exceptions, the browser's at run time too: `idea-status.ts` (an
-idea's states), and `plays.ts`, since what plays must be one list that the server's versions and bakes and the
-Studio's save, sandbox and export all read, and a copy in `public/` would drift. They import nothing but the core's
-constants (no zod, no schema); `shared/schemas/look.ts` re-exports `plays.ts` for the server. `shared/` otherwise
-imports only zod, itself and the core's constants and data. oxlint checks all of this, by import path.
+Browser code imports only from `public/` and packages. Server code imports only `pattern-core.ts`, `fseq.ts`,
+`scrub.ts` and JSON from `public/`. Both take `shared/`: the server at run time, the browser as types only (`import
+type`), so zod never ships to the browser. Four pure files are the exceptions, the browser's at run time too:
+`idea-status.ts` (an idea's states), `policy.ts` (who may do what, which the server asks too), `standard-modules.ts`
+(the library's own titles), and `plays.ts`, since what plays must be one list that the server's versions and bakes and
+the Studio's save, sandbox and export all read, and a copy in `public/` would drift. They import nothing but the
+core's constants (no zod, no schema); `shared/schemas/look.ts` re-exports `plays.ts` for the server. `shared/`
+otherwise imports only zod, itself and the core's constants and data. oxlint checks all of this, by import path.
 
 ## The rules, and why
 

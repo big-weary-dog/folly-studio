@@ -1,10 +1,11 @@
 // The power compressor's golden frames: pi/test/frames.ts through the lighting repo's own compress-fseq.py (read, never
 // written: Python runs with -B), each output frame's sha256 into pi/test/power-golden.json, for test/pi-power.test.js
-// where no lighting checkout is. node pi/tools/power-golden.ts [LIGHTING] (default ~/lighting).
+// where no lighting checkout is. node pi/tools/power-golden.ts [LIGHTING] (default LIGHTING_DIR, or lighting/ beside
+// this repo, as tools/sources.py finds it).
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -13,7 +14,8 @@ import { COG_POWER } from '../src/power.ts';
 import { CELL_CHANNELS, testFrames } from '../test/frames.ts';
 
 export const GOLDEN = fileURLToPath(new URL('../test/power-golden.json', import.meta.url));
-export const LIGHTING = path.join(homedir(), 'lighting');
+export const LIGHTING = path.resolve(process.env.LIGHTING_DIR
+  || fileURLToPath(new URL('../../../lighting', import.meta.url)));
 const sha = (b: Uint8Array) => createHash('sha256').update(b).digest('hex').slice(0, 16);
 
 /** compress-fseq.py on the test frames → { hashes (per frame), summary (its report's lines) }. */

@@ -9,7 +9,7 @@ import '../../css/side.css';
 import { useEffect, useState } from 'preact/hooks';
 
 import { api, statusOf } from '../api.ts';
-import { leaveGuard, replaceUrl, setTitle, signedOut, user, type ViewProps } from './session.ts';
+import { leaveGuard, replaceUrl, setTitle, user, type ViewProps } from './session.ts';
 import { toast } from './kit.tsx';
 import { loadLibrary, loadRig } from './model.ts';
 import { reportPage } from './bug-report.tsx';
@@ -24,7 +24,6 @@ async function loadLook(id?: string) {
   try {
     return id ? (await api.look(id)).look : null;
   } catch (err) {
-    if (statusOf(err) === 401) throw err;
     toast(statusOf(err) === 404 ? 'That look was not found (or is not shared). Starting a new one.'
       : (err as Error).message, { kind: 'error' });
     replaceUrl('/studio');
@@ -61,7 +60,6 @@ export function Studio({ params, query }: ViewProps) {
       if (replay) await (await replay).apply(st, pv, ctx.tl);
     }).catch((err) => {
       if (!alive) return;
-      if (statusOf(err) === 401) return signedOut();
       pv.msg.value = { text: `Could not open the Studio: ${err.message}`, error: true };
       toast(err.message, { kind: 'error' });
     });

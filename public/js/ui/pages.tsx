@@ -7,10 +7,11 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 
 import { api, statusOf } from '../api.ts';
 import { type IdeaStatus, isPending } from '../../../shared/idea-status.ts';
+import { can } from '../../../shared/policy.ts';
 import type { Access } from '../../../shared/schemas/access.ts';
 import type { Explore, Idea, Listed } from '../../../shared/schemas/api.ts';
 import type { ModelChoices } from '../../../shared/schemas/models.ts';
-import { navigate, setTitle, signedOut, user, type ViewProps } from './session.ts';
+import { navigate, setTitle, user, type ViewProps } from './session.ts';
 import { AccessGate, gateOf } from './idea-access.tsx';
 import { confirmDialog, cx, jewelGradient, pref, timeAgo, toast } from './kit.tsx';
 import { Rose } from './rose.tsx';
@@ -60,7 +61,6 @@ async function follow(start: Idea, set: (i: Idea) => void, gone: () => void, ali
         continue;
       }
     } catch (err) {
-      if (statusOf(err) === 401) return signedOut();
       if (statusOf(err) === 404) return gone(); // the list says what is left
     }
     if (Date.now() - asked < 1000) {
@@ -111,7 +111,6 @@ export function Ideas() {
   }, [ideas]);
 
   const load = () => api.ideas().then((r) => setIdeas((r.ideas || []).filter((i) => !i.refine))).catch((err) => {
-    if (statusOf(err) === 401) return signedOut();
     setIdeas((all) => all || []);
     toast(err.message, { kind: 'error' });
   });
@@ -124,7 +123,7 @@ export function Ideas() {
   const useFree = free && free.id !== chosen?.id && pickable ? () => setModel(free.id) : undefined;
   // The paid models explore; Deep only while it is on and this account may ask for it.
   const deep = choices?.deep, levels = (Object.keys(LEVELS) as Explore[]).filter((l) => l !== 'deep'
-    || (deep && (!deep.adminOnly || user.value?.role === 'admin')));
+    || (deep && (!deep.adminOnly || can(user.value, 'admin'))));
   const level = levels.includes(explore) ? explore : 'explore';
   const pickLevel = (l: Explore) => { setExplore(l); pref(EXPLORE_KEY, l); };
   useEffect(() => {
@@ -160,7 +159,6 @@ export function Ideas() {
       setIdeas((all) => [idea, ...(all || []).filter((i) => i.id !== idea.id)]);
       if (chosen?.paid) refresh();
     } catch (err) {
-      if (statusOf(err) === 401) return signedOut();
       // Refused as locked or at a limit (another tab, a stale page): the gate says why, with the server's access.
       const now = (err as { data?: { access?: Access } }).data?.access;
       if (now) setAccess(now);
@@ -239,7 +237,7 @@ function IdeaRow({ idea, retry }: { idea: Idea; retry: () => void }) {
           {by && <span class="meta-item">{by}</span>}
           {idea.explore && idea.explore !== 'quick' && <span class="meta-item">{LEVELS[idea.explore][0]}</span>}
           <time class="meta-item" dateTime={idea.createdAt || ''}>{timeAgo(idea.createdAt)}</time>
-          {user.value?.role === 'admin' && idea.status !== 'queued' && <a class="meta-item" target="_blank"
+          {can(user.value, 'admin') && idea.status !== 'queued' && <a class="meta-item" target="_blank"
             rel="noopener" href={`/api/admin/ideas/${encodeURIComponent(idea.id)}/log`}>Log</a>}
         </div>
         {idea.status === 'ready' && idea.took && <p class="idea-took">Took {idea.took}</p>}
@@ -261,7 +259,6 @@ export function Looks({ scope }: ViewProps) {
     setTitle(gallery ? 'Gallery' : 'My looks');
     let alive = true;
     api.looks(gallery ? 'gallery' : 'mine').then((r) => { if (alive) setLooks(r.looks || []); }).catch((err) => {
-      if (statusOf(err) === 401) return signedOut();
       setError(err.message);
     });
     return () => { alive = false; };
@@ -276,7 +273,6 @@ export function Looks({ scope }: ViewProps) {
       setLooks((all) => (all || []).filter((l) => l.id !== look.id));
       toast('Look deleted.');
     } catch (err) {
-      if (statusOf(err) === 401) return signedOut();
       toast((err as Error).message, { kind: 'error' });
     }
   }
@@ -329,7 +325,7 @@ function Card({ look, gallery, remove }: { look: Listed; gallery: boolean; remov
         </div>
       </div>
       <div class="card-actions"><a class="btn small" href={href}>Open</a>
-        {look.owner === user.value?.id && !gallery && <button class="btn small ghost danger-text" type="button"
+        {can(user.value, 'edit', look) && !gallery && <button class="btn small ghost danger-text" type="button"
           aria-label={`Delete ${look.title}`} onClick={() => remove(look)}>Delete</button>}
       </div>
     </li>);

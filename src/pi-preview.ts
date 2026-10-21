@@ -4,7 +4,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import WebSocket from 'ws';
 
-import { COOKIE_NAME, type createAuth } from './auth.ts';
+import { type Auth, sessionHook } from './auth.ts';
+import { HttpError } from './http.ts';
 import type { Hub } from './live/hub.ts';
 
 const BASE = '/pi', TIMEOUT_MS = 5000;
@@ -15,8 +16,6 @@ const CONTROLS = new Set(['play', 'set', 'tap', 'level', 'blackout']);
 const controlOf = (text: string) => {
   try { return CONTROLS.has(JSON.parse(text)?.type); } catch { return false; }
 };
-
-type Auth = ReturnType<typeof createAuth>;
 
 /** The upstream as a base URL: http(s) on this machine, as `npm run host` starts it. */
 export function previewTarget(url: string) {
@@ -30,14 +29,18 @@ export function previewTarget(url: string) {
 export function piPreview({ auth, target, hub }: { auth: Auth, target: URL,
   hub?: Pick<Hub, 'live' | 'piDrove' | 'onDriver'> }) {
   const host = (h: string) => h.toLowerCase().replace(/:(80|443)$/, '');
-  /** Admins only: no session goes to sign in (the app's page), a member is refused. */
-  const admin = async (req: FastifyRequest, reply: FastifyReply) => {
-    const user = auth.authenticate(req.cookies[COOKIE_NAME])?.user;
-    if (!user) return reply.code(401).type('text/plain').send('Sign in to Studio as an admin, then open /pi/ again.');
-    if (!auth.isAdmin(user)) return reply.code(403).type('text/plain').send('The Pi page is for admins.');
-  };
+  // Admins only (sessionHook): no session is asked to sign in (the app's page), a member is refused, in plain text.
+  const SAYS: Record<number, string> = { 401: 'Sign in to Studio as an admin, then open /pi/ again.',
+    403: 'The Pi page is for admins.' };
+  const admins = { config: { role: 'admin' as const } };
 
   return async (app: FastifyInstance) => {
+    app.addHook('onRequest', sessionHook(auth));
+    app.setErrorHandler((err, _req, reply) => {
+      const says = err instanceof HttpError && SAYS[err.status];
+      if (!says) throw err;   // the app's handler
+      return reply.code((err as HttpError).status).type('text/plain').send(says);
+    });
     const page = async (req: FastifyRequest, reply: FastifyReply) => {
       let res: Response;
       try {
@@ -49,17 +52,17 @@ export function piPreview({ auth, target, hub }: { auth: Auth, target: URL,
       for (const k of KEEP) { const v = res.headers.get(k); if (v) reply.header(k, v); }
       return reply.send(Buffer.from(await res.arrayBuffer()));
     };
-    app.get(BASE, { preHandler: admin }, page);
-    app.get(`${BASE}/*`, { preHandler: admin }, page);
+    app.get(BASE, admins, page);
+    app.get(`${BASE}/*`, admins, page);
 
     app.get(`${BASE}/ws`, {
+      ...admins,
       websocket: true,
       // Browsers always send Origin on a socket: it must be this site (CSRF over WebSockets), as for the live stage.
       preValidation: async (req, reply) => {
         let from = '';
         try { from = new URL(String(req.headers.origin)).host; } catch { /* missing or "null" */ }
         if (!from || host(from) !== host(req.host)) return reply.code(403).send('Cross-origin socket refused.');
-        return admin(req, reply);
       },
     }, (socket, req) => {
       // The Pi checks Origin against Host too: it gets both as the browser sent them to this site.
