@@ -279,7 +279,7 @@ screenshots (24 s) streams as 1.2 MB, 8.6 % of its file, encoded in 3.2 s.
 
 **The proof that our output matches the sculpture's input** is the Mirage match (`npm run e2e`). It renders looks
 whose colours encode each LED's identity, writes them with our FSEQ writer, plays them with `sacn-play` through
-`relay/relay.js` into Mirage, which reads every pixel by its own universe and channel as the F48V5 controller does,
+show-builder's `relay/relay.js` into Mirage, which reads every pixel by its own universe and channel as the F48V5 controller does,
 and compares: **all 4,870 of the Folly's LEDs match byte for byte** (`rig-folly.json`: Mirage draws the playa build),
 and the studio's map equals TouchDesigner's pixel CSV row for row. Mirage is independent code, so a shared mistake
 would have to be made twice. City of Gods is held to its own xLights show's channels instead (`test/rig-cog.test.js`).
@@ -292,8 +292,8 @@ universe, colour order, fps), axes, named camera views, a scaffold, and an xLigh
 carry **tags** (`arch`, `spire`, `rose`, `canopy`, `wash`, `front`, …). Code, the library and the generators find
 places by tag, never by the Folly's ids, so a look whose layers carry tags moves to another rig.
 
-The default is City of Gods 2026, the condensed Folly with two front towers (2,114 LEDs), from
-`city-of-gods/pixel-map/`; the Folly's playa build is `rig-folly.json`, from `pixel-map/`. `tools/build_rig.py` makes
+The default is City of Gods 2026, the condensed Folly with two front towers (2,114 LEDs), from show-builder's
+`city-of-gods/pixel-map/`; the Folly's playa build is `rig-folly.json`, from its `pixel-map/`. `tools/build_rig.py` makes
 both through `td/python/make_pixel_csv.py`, the same pipeline TouchDesigner and Mirage use, and neither is edited by
 hand. City of Gods' addresses are held to its xLights show's channels (`test/rig-cog.test.js`).
 

@@ -13,7 +13,7 @@ hub, updating, rolling back).
 > frame rate. Press STOP on the hub after switching to Studio Live; [INSTALL.md](INSTALL.md#the-night-show-will-play-over-it)
 > has the details and the start-time case.
 
-Run from `studio/`, on Node 22 (tested on 22.18; `npm run pi` passes `--experimental-strip-types` for an older 22). Node runs the `.ts` directly; the control page is committed as built
+Run from the repo root, on Node 22 (tested on 22.18; `npm run pi` passes `--experimental-strip-types` for an older 22). Node runs the `.ts` directly; the control page is committed as built
 (`pi/page/dist`), so the Pi builds nothing and `npm ci --omit=dev` is enough.
 
 ```sh

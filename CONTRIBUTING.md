@@ -290,9 +290,15 @@ cover.
   time, under CPU, memory and wall-clock limits, at nice 10, never at the same time as a frame encode.
 - `npm run lint` takes well under a second; keep it that way.
 
+## Branches
+
+- `dev` is where work lands: every pull request goes to it, after `npm run check`.
+- `prod` is what the public server runs (`STUDIO_REF=origin/prod`, docs/HOSTING.md "Updating") and what the Pi's
+  Studio Live pulls (pi/INSTALL.md). It moves only from `dev`, when the owner says so; then `npm run host` deploys it.
+
 ## Commits and pull requests
 
-- One concern per commit, with `npm run check` green. Stage only `studio/` (and its workflow).
+- One concern per commit, with `npm run check` green.
 - Subject line: `Folly Studio: <what changed>`. The body says why, not how it got there.
 - Interface changes update `SPEC.md` in the same commit. UI changes get a browser smoke test (`npm run smoke`,
   extended when the flow changes) and a screenshot in the PR (the smoke check saves one per step).
