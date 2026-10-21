@@ -138,7 +138,7 @@ function LiveLooks() {
     <Switch label="Live library looks on the lights" class="end" checked={!!on} disabled={on === null || busy}
       onChange={change} />
     <p class="field-hint">On: a look made only of library modules plays live from Studio, its controls working.
-      Off: only baked looks play. A look with custom code always needs a bake, made where bubblewrap is.</p>
+      Off: only baked looks play.</p>
   </section>;
 }
 

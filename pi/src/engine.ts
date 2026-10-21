@@ -19,6 +19,7 @@ import type { Library, PiLook } from './library.ts';
 
 export const FADE = { switch: 0.25, queue: 1, blackout: 0.3, level: 0.05, exit: 1 };   // seconds
 export const MAX_QUEUE = 20;
+const WARM_FRAMES = 8;
 type Ease = { now: number, to: number, secs: number };
 /** What the queue holds: one of the engine's own looks (`look`, by id), a look Studio sent (`live`, resolved), or a
  * look's bake (`baked`: its frames read when it is next, `error` if they cannot play). */
@@ -52,11 +53,47 @@ export function createEngine(o: EngineOptions) {
   let queue: Item[] = [], paused = false, keys = 0;
   let rev = 0, source: PiSource | null = null;      // rev: +1 at each switch, and each push that leaves a lane
   const stats = { frames: 0, late: 0, renderMs: 0, worstMs: 0, layerErrors: 0, lastError: '' };
+  // Each look compiled and prepared as it arrives (or why it cannot play), never in a frame: preparing a look that
+  // warps builds its grid, up to 100 ms. A bake is read when it is next (ready()) and has nothing more to prepare.
+  const prepared = new WeakMap<Item, Playing | Error>();
 
   /** One of the engine's own looks as an item, or null if it has none that plays. */
   function own(id: string, by?: string): Item | null {
     const look = o.looks().get(id)?.look;
     return look ? { key: `q${++keys}`, id, title: look.title, kind: 'look', look, ...by ? { by } : {} } : null;
+  }
+
+  function prepare<T extends Item | null>(item: T): T {
+    if (!item) return item;
+    try {
+      prepared.set(item, load(item));
+    } catch (e) {
+      prepared.set(item, e as Error);
+    }
+    return item;
+  }
+
+  // Each of the engine's own looks run for a few frames at start, into a scratch frame, and thrown away: its code
+  // compiled and run warm, its grids built, so its first frames when it plays are not its slowest.
+  const scratch = new Float32Array(scene.count * 3);
+  for (const { look } of o.looks().values()) {
+    if (!look) continue;
+    try {
+      const layers = look.layers.map((l) => prepareLayer(scene, l, compileLayer(l))), live = liveLook(look);
+      for (let f = 0; f < WARM_FRAMES; f++) {
+        live.step(f * dt, dt);
+        renderFrame(scene, layers, f * dt, scratch, live.look);
+      }
+    } catch { /* it says why when it is played */ }
+  }
+
+  // The safe look, prepared ahead for the flash guard to dip to; the next one is prepared off the frame.
+  let spare = prepare(own(o.safe));
+  function safe() {
+    const item = spare ?? prepare(own(o.safe)!);
+    spare = null;
+    setTimeout(() => { spare ??= prepare(own(o.safe)); });
+    return item;
   }
 
   /** The item compiled and prepared; throws, saying why, if it cannot play. */
@@ -74,12 +111,13 @@ export function createEngine(o: EngineOptions) {
   }
 
   function start(item: Item) {
-    try {
-      playing = load(item);
-    } catch (e) {
-      log(`look ${item.id} cannot play: ${(e as Error).message}; playing ${o.safe}`);
-      playing = load(own(o.safe)!);
-    }
+    // A bake's frames are in by now; a look of the engine's own is prepared again if the looks were read since.
+    if (item.kind === 'baked' || (item.kind === 'look' && o.looks().get(item.id)?.look !== item.look)) prepare(item);
+    const p = prepared.get(item) ?? prepared.get(prepare(item))!;
+    if (p instanceof Error) {
+      log(`look ${item.id} cannot play: ${p.message}; playing ${o.safe}`);
+      playing = prepared.get(safe()) as Playing;
+    } else playing = p;
     frame = 0;
     fade.to = 1;
     rev++;
@@ -113,7 +151,7 @@ export function createEngine(o: EngineOptions) {
       tripped = { at: new Date().toISOString(), look: p.id };
       log(`flash guard: ${p.id} flashed; dipping to ${o.safe} until a look is picked`);
       if (pending) queue.unshift(pending);     // a queued look on its way in waits for the person too
-      pending = own(o.safe);
+      pending = safe();
       paused = true;
       want = false;
       fade.secs = FADE.switch;
@@ -164,6 +202,7 @@ export function createEngine(o: EngineOptions) {
   /** Puts an item in the queue at `at` (now: plays it, fading); false when the queue is full. */
   function enqueue(item: Item, at: At) {
     if (queue.length >= MAX_QUEUE) return false;
+    if (item.kind !== 'baked') prepare(item);
     if (at === 'end') queue.push(item); else queue.unshift(item);
     if (at === 'now') { picked(); want = !advance(); }
     return true;
@@ -175,7 +214,7 @@ export function createEngine(o: EngineOptions) {
     skip(k: number) { frame += k; stats.late += k; },
     /** Plays one of the engine's own looks now (fading); a person picking one re-arms the flash guard. */
     play(id: string) {
-      const item = own(id);
+      const item = prepare(own(id));
       if (!item) return false;
       picked();
       pending = item;

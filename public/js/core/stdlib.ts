@@ -3,8 +3,10 @@
 // contract (place.ts) and the neighbour map (links.ts).
 import type { G, PreparedLook } from './globals.ts';
 import { links, rowOrder, waveStep, wireDistance } from './links.ts';
-import { move, slide, turn } from './place.ts';
-import { fadeInto } from './oklab.ts';
+import { move, settle, slide, turn } from './place.ts';
+import type { Pixel } from './pixel.ts';
+import { fadeInto, lightInto, valueWithin } from './oklab.ts';
+import { toLight } from './light.ts';
 
 /** A colour: [r, g, b] each 0..1; what patterns may give one as: an array, '#rrggbb' or a grey level. */
 export type RGB = [number, number, number];
@@ -253,12 +255,41 @@ export const RUN: { G: G | null, palette: PaletteColours,
   look: PreparedLook | null } = {
   G: null, palette: paletteColours(DEFAULT_PALETTE)!, scene: null, extent: ORIGIN, t: 0, T: 0, dt: 0, look: null };
 
-export function ramp(list: Centres, t: number): RGB {
+function fadeAlong(list: Centres, t: number): RGB {
   const n = list.length;
   if (n === 1 || !(t > 0)) return [list[0][0], list[0][1], list[0][2]];
   const f = (t < 1 ? t : 1) * (n - 1);
   const i = Math.min(n - 2, Math.floor(f));
   return fadeInto(list[i], list[i + 1], f - i, [0, 0, 0]);
+}
+// A ramp that cannot change (frozen, as each of its colours) is read from a table of its fades' light, unclamped,
+// RAMP_STEP even steps a pair of colours: light runs smoothly along a fade, so straight between steps and then clamped
+// is within a small fraction of a byte of the fade's light, at a fraction of its cost. Others fade each time.
+const RAMP_STEP = 64, RAMPS = new WeakMap<Centres, Float64Array | null>(), FADE = [0, 0, 0];
+function rampTable(list: Centres) {
+  if (!Object.isFrozen(list) || !list.every(Object.isFrozen)) return null;
+  const last = (list.length - 1) * RAMP_STEP, T = new Float64Array(3 * (last + 2));
+  for (let j = 0; j <= last; j++) {
+    const i = Math.min(list.length - 2, Math.floor(j / RAMP_STEP)), w = j / RAMP_STEP - i, s = list[i + w];
+    const c = Number.isInteger(w) ? [toLight(s[0]), toLight(s[1]), toLight(s[2])]
+      : lightInto(list[i], list[i + 1], w, FADE);
+    T[3 * j] = c[0]; T[3 * j + 1] = c[1]; T[3 * j + 2] = c[2];
+  }
+  T.copyWithin(3 * (last + 1), 3 * last);            // t = 1 reads one step past the end
+  return T;
+}
+/** The colour t (0..1, clamped) along list, each pair of colours faded in OKLab. */
+export function ramp(list: Centres, t: number): RGB {
+  const n = list.length;
+  if (n === 1 || !(t > 0)) return [list[0][0], list[0][1], list[0][2]];
+  let T = RAMPS.get(list);
+  if (T === undefined) RAMPS.set(list, T = rampTable(list));
+  if (!T) return fadeAlong(list, t);
+  const x = (t < 1 ? t : 1) * (n - 1) * RAMP_STEP, j = x | 0, w = x - j, o = 3 * j;
+  const at = j / RAMP_STEP, i = Math.min(n - 2, at | 0);
+  if (w === 0 && j % RAMP_STEP === 0) { const c = list[at]; return [c[0], c[1], c[2]]; }   // a colour, exact
+  return valueWithin([T[o] + (T[o + 3] - T[o]) * w, T[o + 1] + (T[o + 4] - T[o + 1]) * w,
+    T[o + 2] + (T[o + 5] - T[o + 2]) * w], list[i], list[i + 1]);
 }
 
 /** pal(role, t): t 0..1 across a role's colours (unknown or empty: body). */
@@ -286,13 +317,15 @@ export const DIRECTIONS = Object.freeze(['up', 'down', 'right', 'left', 'back', 
 /** Directions saved before today's words, still read but never offered: round is clockwise. */
 export const OLD_DIRECTIONS = Object.freeze(['round'] as const);
 export type Direction = (typeof DIRECTIONS)[number] | (typeof OLD_DIRECTIONS)[number];
-type Placed = { lx: number, ly: number, lz: number, a: number, r: number, u: number, sector?: number, ring?: number };
+type Placed = { lx: number, ly: number, lz: number, a: number, r: number, u: number, sector?: number, ring?: number,
+  due?: number };
 /** toward(p, direction): how far p is along a direction, 0..1 across the layer: up ly, down 1 − ly, right lz (the
  * viewer's right), left 1 − lz, back lx (front to back), front 1 − lx, out r, in 1 − r, clockwise a (as seen from the
  * front; round, saved before, too), counterclockwise 1 − a, along
  * u (each strand from its start), petal (sector + 0.5) / 16 and ring (ring − 0.5) / 7 on the rose (a step a petal,
  * clockwise, or a ring, heart to rim; round and out off it); anything else, up. */
 export function toward(p: Placed, direction: string) {
+  if (p.due && (direction === 'along' || direction === 'petal' || direction === 'ring')) settle(p as Pixel);
   switch (direction) {
     case 'down': return 1 - p.ly;
     case 'right': return p.lz;
@@ -310,11 +343,12 @@ export function toward(p: Placed, direction: string) {
   }
 }
 
-type Pane = { sector: number, ring: number };
+type Pane = { sector: number, ring: number, due?: number };
 /** region(q, rule, size, seed): q's rose pane group (petal `sector` 0–15 on `ring` 1–7) by a rule (SPEC "Directions"),
  * 0 up to regions(rule, size), −1 off the rose. size is petals a group for spiral, wedges and checker; seed picks
  * random's arrangement. */
 function region(q: Pane, rule: string, size = 1, seed = 0) {
+  if (q.due) settle(q as Pixel);
   const s = q.sector, j = q.ring - 1, w = Math.max(1, Math.round(size));
   if (!(s >= 0) || !(j >= 0)) return -1;
   switch (rule) {
