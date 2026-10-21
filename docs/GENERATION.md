@@ -62,8 +62,8 @@ changes), sorted by name so its bytes stay the same between calls and the prompt
   16 macros, 600 s, large-area flashing at most 3 Hz).
 
 Rough sizes, at 3.6 characters a token (measure with the API's token count): today's system prompt
-(`buildSystemPrompt`) is about 26 KB, roughly 7 k tokens, mostly the pattern guide and four example sources. The 45
-module lines come to about 8 KB (2.3 k tokens); with 22 presets, palettes and 98 groups, about 5–6 k. The pattern
+(`buildSystemPrompt`) is about 26 KB, roughly 7 k tokens, mostly the pattern guide and four example sources. The
+module lines come to about 8 KB (2.3 k tokens); with the presets, palettes and groups, about 5–6 k. The pattern
 guide leaves the prompt except for extensions (§6). The same catalog goes into `BRIEF.md`. A coverage test checks
 that every index entry appears in it.
 

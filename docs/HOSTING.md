@@ -315,7 +315,8 @@ which drives. Unset `PI_PREVIEW_URL` and run `npm run host` again to take it dow
 
 `STUDIO_PROFILE=pi` is the Studio on the FPP Pi itself, offline, beside the real engine: no generators, no Ideas,
 listening on the Pi's network, `/pi` open to curators (SPEC-offline). It is not for this machine: here the server
-refuses any `HOST` but loopback. Installing it: `pi/STUDIO.md`.
+refuses any `HOST` but loopback. Installing it: `pi/STUDIO.md`. The Pi runs the `pi` branch, which
+`npm run pi:branch` makes here from `prod` (the app built, `dist/` committed) and force-pushes.
 
 ### The flash check
 
