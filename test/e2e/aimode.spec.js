@@ -36,7 +36,9 @@ for (const [name, device] of Object.entries(SIZES)) {
     test('watched live, then read after; an admin sees more', async ({ page, browser, studio }, info) => {
       const errors = [];
       page.on('pageerror', (e) => errors.push(String(e)));
-      const shot = (p, step) => p.screenshot({ path: info.outputPath(`${step}.png`), timeout: 60_000 });
+      // Transitions end first: a fold's arrow turns for 0.15 s, and a shot mid-turn shows it askew.
+      const shot = (p, step) => p.screenshot({ path: info.outputPath(`${step}.png`), animations: 'disabled',
+        timeout: 60_000 });
       const { code } = studio.app.access.createInvite('keeper', { uses: 1 });
       await signUp(page, `${studio.origin}/#invite=${encodeURIComponent(code)}`, `aimode-${name}`);
       const head = page.locator('.ai-head .ai-label'), live = page.locator('.ai-round.is-live');
