@@ -1,0 +1,13 @@
+{
+  "_note": "Named viewpoints for folly_view, offered as buttons on its Parameters page in this order. Target is where the camera looks, in the cathedral's metres: x is depth (the playa-facing front is negative, about -12; the back is about +14), y is height above the ground (spires top out near 18.5), z runs left to right (about -9 to +8). Distance is metres from the target; Angle turns round it (0 stands in front on the playa side, 90 on the cathedral's right); Elevation tips the camera above level (negative looks up from below); Fov is the horizontal field of view in degrees. With Eyelock the camera stands at folly_view's Eye Height, like a person, and Elevation is ignored. Names must be lowercase letters and digits: each becomes a button, and the buttons are part of the library's API, so adding a view needs a new minor version of folly_view and renaming or removing one a new major version.",
+
+  "views": {
+    "front":  { "Target": [0.9, 9.3, -0.4],   "Distance": 42, "Angle": 25,  "Elevation": 12, "Fov": 45, "Eyelock": false },
+    "playa":  { "Target": [-8.6, 7.0, -0.4],  "Distance": 34, "Angle": 0,   "Elevation": 0,  "Fov": 60, "Eyelock": true },
+    "nave":   { "Target": [2.0, 8.0, -0.4],   "Distance": 22, "Angle": 0,   "Elevation": 0,  "Fov": 70, "Eyelock": true },
+    "inside": { "Target": [-6.0, 8.0, -0.4],  "Distance": 13, "Angle": 180, "Elevation": 0,  "Fov": 80, "Eyelock": true },
+    "rose":   { "Target": [-8.6, 5.9, -0.4],  "Distance": 12, "Angle": 0,   "Elevation": 0,  "Fov": 45, "Eyelock": false },
+    "spire":  { "Target": [-9.9, 15.5, 4.5],  "Distance": 16, "Angle": 40,  "Elevation": 8,  "Fov": 45, "Eyelock": false },
+    "top":    { "Target": [0.9, 9.3, -0.4],   "Distance": 45, "Angle": 0,   "Elevation": 89, "Fov": 45, "Eyelock": false }
+  }
+}

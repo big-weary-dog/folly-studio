@@ -4,7 +4,7 @@
 Reads, never writes, a lighting checkout: pixel-map/psu_model.py (PSUs, Bright Sets, wiring-db/strands.db) and
 pixel-map/expand-fseq.py (petal-config-v2.json), so pi/src/power.ts runs exactly what compress-fseq.py runs.
 
-    python3 pi/tools/build_power.py [LIGHTING]          # default ~/lighting
+    python3 pi/tools/build_power.py [LIGHTING]          # default LIGHTING_DIR, or lighting/ beside this repo
     python3 pi/tools/build_power.py [LIGHTING] --check  # exit 1 if power.json is stale
 """
 import importlib.util
@@ -15,6 +15,7 @@ import sys
 sys.dont_write_bytecode = True   # the lighting checkout is read-only: no __pycache__ there
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, '..', 'data', 'power.json')
+LIGHTING = os.environ.get('LIGHTING_DIR') or os.path.join(HERE, '..', '..', '..', 'lighting')  # tools/sources.py's
 
 
 def load(lighting, name, file):
@@ -45,7 +46,7 @@ def build(lighting):
 
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
-    lighting = os.path.expanduser(args[0] if args else '~/lighting')
+    lighting = os.path.abspath(os.path.expanduser(args[0] if args else LIGHTING))
     data = build(lighting)
     text = json.dumps(data, separators=(',', ':')) + '\n'
     if '--check' in sys.argv:
