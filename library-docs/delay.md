@@ -9,7 +9,7 @@ not time.
 ## Params
 - direction: `up` for rising sweeps; `out` from the rose; `along` runs down every strand.
 - longest: 0.2–0.6 s sweeps a flash; 2–4 s smears motion into slow, liquid shapes.
-- steps: 3–8 makes blocks that go in turn; 0 is smooth.
+- steps: 3–8 makes blocks that go in turn; N steps gives N + 1 delay levels including zero. 0 is smooth.
 - bounce: 1 starts at both ends and meets in the middle.
 
 ## Pairings

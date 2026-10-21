@@ -5,7 +5,7 @@ looks: Flowing, swirling colour folded left to right, so both halves move as mir
 **palette-drift** is the calm version; **kaleidoscope** and **tunnel** fold into more than two.
 
 ## Overrides
-- bars.bars: 8 broad blobs per wing, 24 busy marbling.
+- bars.bars: 8 broad blobs per wing, 16 busy marbling (the maximum).
 - bars.speed: 0.1 calm, 0.6 churning.
 - turbulence.amount: how far the bands swirl.
 - mirror.height: also fold top onto bottom, four-way.

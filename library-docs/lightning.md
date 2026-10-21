@@ -6,7 +6,7 @@ passes the flash check). **streaks** for many falling lines, **shockwave** for a
 bolts in clouds.
 
 ## Params
-- colours: `"accent high"` gives a blue glow round a white core.
+- colours: `"accent high"` gives an accent glow round a highlight core; `"#4080ff #ffffff"` fixes blue and white.
 - speed: 0.2–0.4 a distant storm, 0.7–0.8 a close one.
 - width: Half-width as a share of the layer; below 0.04 can miss sparse LEDs.
 - jag: 0.2 natural, 0.4+ wild.

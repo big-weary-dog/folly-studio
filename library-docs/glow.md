@@ -7,7 +7,7 @@ tempo, **shockwave** bursts a ring, **ripple** rings at random points.
 ## Overrides
 - edge-fade.position: size; 0.9 a small hub, 0.75 a disc, 0.3 floods the layer.
 - edge-fade.width: 0.03 hard, 0.3 a haze.
-- bars.colours: heart to rim.
+- bars.colours: rim to heart (the bars run `in`).
 - anchor.tag: where it sits; `tower` with which `nearest` puts one on each tower.
 
 ## Pairings
