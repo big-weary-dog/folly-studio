@@ -3,16 +3,14 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 import { ReportBody } from '../shared/schemas/report.ts';
-import type { Auth } from './auth.ts';
-import { HttpError, parse } from './http.ts';
+import { forAdmins, HttpError, parse } from './http.ts';
 import type { Reports } from './reports/store.ts';
 
-type Stored = NonNullable<ReturnType<Auth['authenticate']>>['user'];
 export const REPORT_BODY = 3 * 2 ** 20;
 const PER_HOUR = 10;
 
-export function reportRoutes(api: FastifyInstance, { auth, reports, build, tail }: { auth: Auth, reports: Reports,
-  build: string, tail: () => unknown[] }) {
+export function reportRoutes(api: FastifyInstance, { reports, build, tail }: { reports: Reports, build: string,
+  tail: () => unknown[] }) {
   const perUser = api.createRateLimit({ timeWindow: 3_600_000, max: PER_HOUR,
     keyGenerator: (req) => `report|${req.user?.id}` });
   api.route({ method: 'POST', url: '/reports', bodyLimit: REPORT_BODY, handler: async (req, reply) => {
@@ -28,21 +26,18 @@ export function reportRoutes(api: FastifyInstance, { auth, reports, build, tail 
     return { id };
   } });
 
-  const admin = (req: FastifyRequest) => {
-    if (!auth.isAdmin(req.user as Stored)) throw new HttpError(403, 'Only admins can read bug reports.');
-    return (req.params as { id?: string }).id ?? '';
-  };
+  const idOf = (req: FastifyRequest) => (req.params as { id: string }).id;
   return {
-    'GET /admin/reports': async (req: FastifyRequest) => { admin(req); return { reports: await reports.list() }; },
-    'GET /admin/reports/:id': async (req: FastifyRequest) => {
-      const report = await reports.get(admin(req));
+    'GET /admin/reports': forAdmins(async () => ({ reports: await reports.list() })),
+    'GET /admin/reports/:id': forAdmins(async (req: FastifyRequest) => {
+      const report = await reports.get(idOf(req));
       if (!report) throw new HttpError(404, 'No such report.');
       return { report };
-    },
-    'GET /admin/reports/:id/shot': async (req: FastifyRequest, reply: FastifyReply) => {
-      const jpeg = await reports.shot(admin(req));
+    }),
+    'GET /admin/reports/:id/shot': forAdmins(async (req: FastifyRequest, reply: FastifyReply) => {
+      const jpeg = await reports.shot(idOf(req));
       if (!jpeg) throw new HttpError(404, 'That report has no screenshot.');
       return reply.type('image/jpeg').header('cache-control', 'private, no-store').send(jpeg);
-    },
+    }),
   };
 }

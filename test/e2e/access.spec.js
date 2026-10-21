@@ -3,7 +3,8 @@
 // refused in place, a good one unlocks it; a limit reached from elsewhere (a stale page) shows when the next idea may
 // go; an admin makes a code on the Access page, with its invite link. The link (/#invite=CODE) signs a visitor up and
 // redeems the code, or redeems it at once when signed in, says why a bad one was refused, and leaves no code in the
-// address or the tab. The paid models are a stand-in codex CLI (test/fixtures/generate/bin/codex).
+// address or the tab. A session that ends on the Admin page goes back to sign-in. The paid models are a stand-in
+// codex CLI (test/fixtures/generate/bin/codex).
 import { fileURLToPath } from 'node:url';
 
 import { expect, test } from './studio.js';
@@ -89,6 +90,16 @@ for (const [name, device] of Object.entries(SIZES)) {
         await expect(page.locator('.access-row', { hasText: `Art crew (${name})` })).toContainText('0 of 5 used');
         await expect(page.locator('.access-row', { hasText: `guest-${name}` })).toContainText('unlocked');
         await shot('access');
+      });
+
+      await test.step('a session that ends on the Access page goes back to sign-in, with no error', async () => {
+        await page.locator('a[data-tab=light]').click();
+        // Loaded, so its own call is done before the session ends and the 401 is Access's.
+        await expect(page.locator('.light-page')).not.toContainText('Loading…');
+        await page.context().clearCookies();
+        await page.locator('a[data-tab=access]').click();
+        await expect(page).toHaveURL(`${studio.origin}/login?next=${encodeURIComponent('/admin/access')}`);
+        await expect(page.locator('.toast-error')).toHaveCount(0);
       });
       expect(errors).toEqual([]);
     });
