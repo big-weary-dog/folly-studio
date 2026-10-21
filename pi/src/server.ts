@@ -76,7 +76,8 @@ export async function controlServer(o: ServerOptions) {
       const p = pinOk(msg.pin);
       c.ok = p.ok;
       c.who = msg.feed ? null : msg.who ?? { name: PI_PAGE, drive: true };
-      say(c, { type: 'hello', ok: p.ok, needPin: !!o.pin, ...(p.error ? { error: p.error } : {}) });
+      say(c, { type: 'hello', ok: p.ok, needPin: !!o.pin, ...(p.error ? { error: p.error } : {}),
+        ...(c.who ? { you: c.who } : {}) });
       if (p.ok) say(c, { type: 'state', state: state() });
       const source = o.engine.source();
       if (p.ok && source) say(c, { type: 'source', source });

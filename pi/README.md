@@ -28,11 +28,16 @@ SIGINT or SIGTERM fades out over a second, then sends black frames before exitin
 
 ## The control page
 
-`http://<the Pi>:4043/` from a phone on the same network: blackout, the master, tap tempo with the beat (a ±1 BPM nudge either side), the playing
-look's own controls (its `globals.live`), **Up next** (the queue), every look to play or queue (+), and the generator's
-draw. It says when the run is dry and when the flash guard has cut to `safe` (the safe look plays, and the queue
-waits, until someone picks a look or skips). Its parts (`pi/page/controls.tsx`, `queue.tsx`, styled by
-`public/css/jukebox.css`) are also Studio's `/live` jukebox on the Pi (SPEC-offline "The live page").
+`http://<the Pi>:4043/` from a phone on the same network: the live play page (SPEC-liveplay "The page"), one layout
+that fits a phone without scrolling and spreads to three columns on a laptop. In Jukebox, the queue alone: what plays,
+**Up next**, **Add a look** and **Fade to next**. In Live Play, also the playing look's knobs four to a bank (its
+numbers and the palette), Master, tap tempo with the beat (a ±1 BPM nudge when the look offers its tempo), a cued
+crossfade for each look played, and **Black out the lights**, held for half a second (B on a keyboard) either way.
+It says who drives and who is here, when the run is dry, when the link is lost and when the flash guard has cut to
+`safe` (the safe look plays, and the queue waits, until someone picks a look or goes on); its aside is the
+generator's draw and what the Pi sends. `pi/page/controller.tsx` lays it out from its parts (`status`, `bank`,
+`show`, `queue`, `add`, styled by `public/css/liveplay.css`); Studio's `/live` on the Pi is the same page for curators,
+with Studio's looks to add and the Folly in 3D as its aside.
 
 The queue is the jukebox (SPEC-offline "Playing on the lights"): each queued look plays its whole pattern once, then
 the next, fading out over its last second and in over the next's first; with nothing queued, what plays loops on.

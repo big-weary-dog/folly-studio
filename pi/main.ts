@@ -67,6 +67,7 @@ async function main(c: NonNullable<typeof cfg>) {
   }, c.stats * 1000);
 
   const list = [...looks].map(([id, l]) => ({ id, title: l.look?.title ?? id, playable: !!l.look,
+    duration: l.look?.duration || 30,
     ...(l.error ? { error: l.error } : {}) })).sort((a, b) => a.title.localeCompare(b.title));
   const state = (): EngineState => {
     const o = output.status(), s = engine.stats;

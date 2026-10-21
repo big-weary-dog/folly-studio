@@ -6,8 +6,11 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'vitest';
 
 import type { PiState } from '../src/protocol.ts';
+import { PI_PAGE } from '../src/people.ts';
 import { CSP } from '../src/server.ts';
 import { serve, socket } from './sockets.ts';
+
+const PI = { name: PI_PAGE, drive: true };
 
 describe('the control page', () => {
   test('is served with the CSP; another site\'s socket is refused', async () => {
@@ -35,7 +38,7 @@ describe('the control page', () => {
     const { origin, engine, run } = await serve();
     const c = await socket(origin);
     c.send({ type: 'hello' });
-    assert.deepEqual(await c.next('hello'), { type: 'hello', ok: true, needPin: false });
+    assert.deepEqual(await c.next('hello'), { type: 'hello', ok: true, needPin: false, you: PI });
     assert.equal(((await c.next('state')) as { state: PiState }).state.look?.id, 'fire');
     c.send({ type: 'blackout', on: true });
     c.send({ type: 'level', value: 0.5 });
@@ -105,7 +108,7 @@ describe('the control page', () => {
     const { origin, engine, clock } = await serve('2468');
     const c = await socket(origin);
     c.send({ type: 'hello' });
-    assert.deepEqual(await c.next('hello'), { type: 'hello', ok: false, needPin: true });
+    assert.deepEqual(await c.next('hello'), { type: 'hello', ok: false, needPin: true, you: PI });
     c.send({ type: 'blackout', on: true });
     assert.deepEqual(await c.next('error'), { type: 'error', error: 'Say the PIN first.' });
     assert.equal(engine.state().blackout.on, false);
@@ -120,7 +123,7 @@ describe('the control page', () => {
     clock.t += 61_000;
     from = c.got.length;
     c.send({ type: 'hello', pin: '2468' });
-    assert.deepEqual(await c.next('hello', from), { type: 'hello', ok: true, needPin: true });
+    assert.deepEqual(await c.next('hello', from), { type: 'hello', ok: true, needPin: true, you: PI });
     c.send({ type: 'blackout', on: true });
     await new Promise((r) => setTimeout(r, 50));
     assert.equal(engine.state().blackout.on, true);

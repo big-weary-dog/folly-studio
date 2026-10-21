@@ -1,6 +1,6 @@
-// The page's socket to the Pi (`path`, beside the page unless said): it reconnects on its own (backing off to 5 s),
-// says hello with the PIN it was given (kept for this tab), and holds the latest state and when it came, so the beat
-// can run on between states.
+// The page's socket to the Pi (`path`, beside the page unless said): it reconnects on its own (backing off to 5 s,
+// counting the tries and when the next is), says hello with the PIN it was given (kept for this tab), learns who this
+// page is from the answer, and holds the latest state and when it came, so the beat can run on between states.
 import { signal } from '@preact/signals';
 
 import type { FromPage, PiState, ToPage } from '../src/protocol.ts';
@@ -13,21 +13,35 @@ export function piSocket(path = 'ws') {
   const status = signal<'connecting' | 'open' | 'closed'>('connecting');
   const state = signal<PiState | null>(null), at = signal(0);
   const needPin = signal(false), error = signal('');
+  const you = signal<{ name: string, drive: boolean } | null>(null);
   const driver = signal<'pi' | 'live' | null>(null);   // behind Studio's proxy: who drives its Live tab
-  let ws: WebSocket | null = null, wait = 500, pin = stored(), closed = false;
+  // While the link is down: the tries since it was last up, and when (performance.now()) the next one goes.
+  const tries = signal(0), nextTry = signal(0);
+  let ws: WebSocket | null = null, wait = 500, pin = stored(), closed = false, timer = 0;
 
-  const send = (m: FromPage) => { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(m)); };
+  const send = (m: FromPage) => {
+    if (ws?.readyState !== WebSocket.OPEN) return false;
+    ws.send(JSON.stringify(m));
+    return true;
+  };
   function open() {
+    timer = 0;
     status.value = 'connecting';
     // Beside the page, wherever it is served (/ws, or /pi/ws behind Studio's proxy), or Studio's /live's /pi/ws.
     const url = new URL(path, location.href);
     url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    ws = new WebSocket(url);
-    ws.onopen = () => { wait = 500; status.value = 'open'; send({ type: 'hello', ...(pin ? { pin } : {}) }); };
-    ws.onmessage = (e) => {
+    const s = ws = new WebSocket(url);
+    s.onopen = () => {
+      wait = 500;
+      tries.value = 0;
+      status.value = 'open';
+      send({ type: 'hello', ...(pin ? { pin } : {}) });
+    };
+    s.onmessage = (e) => {
       const m = JSON.parse(String(e.data)) as ToPage;
       if (m.type === 'hello') {
         needPin.value = !m.ok;
+        you.value = m.you ?? null;
         if (m.error) error.value = m.error;
         if (!m.ok) { pin = ''; store(''); }
       } else if (m.type === 'state') {
@@ -39,18 +53,27 @@ export function piSocket(path = 'ws') {
         error.value = m.error;
       }
     };
-    ws.onclose = () => {
+    s.onclose = () => {
+      if (ws !== s) return;
       status.value = 'closed';
       if (closed) return;
-      setTimeout(open, wait);
+      tries.value++;
+      nextTry.value = performance.now() + wait;
+      timer = window.setTimeout(open, wait);
       wait = Math.min(5000, wait * 2);
     };
   }
   open();
   return {
-    status, state, at, needPin, error, driver, send,
+    status, state, at, needPin, error, you, driver, tries, nextTry, send,
     unlock(p: string) { pin = p; store(p); error.value = ''; send({ type: 'hello', pin: p }); },
-    close() { closed = true; ws?.close(); },
+    /** Try now, rather than at the next try. */
+    retry() {
+      if (status.value !== 'closed' || closed) return;
+      clearTimeout(timer);
+      open();
+    },
+    close() { closed = true; clearTimeout(timer); ws?.close(); },
   };
 }
 export type PiSocket = ReturnType<typeof piSocket>;

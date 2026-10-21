@@ -314,21 +314,21 @@ in `live.json` in `STUDIO_DATA`. It has no flash guard yet: keep `STUDIO_LIVE_LO
 
 ### The Pi's page
 
-`/pi/` shows Studio Live's control page (`pi/README.md`) to signed-in admins, so it can be tried away from the
+`/pi/` shows Studio Live's live play page (`pi/README.md` "The control page") to signed-in admins, so it can be tried away from the
 Pi's network. With `PI_PREVIEW_URL` set, `npm run host` also runs `folly-studio-pi`: `npm run pi -- --dry-run
 --base /pi` on that loopback port, which renders as the Pi would and sends nothing to any lights (the page says
 "Dry run"). Studio passes `/pi/` and its socket `/pi/ws` through to it, for admins only: a session-less visit is
 asked to sign in (401), anyone else is refused (403), and the socket must come from this site. The page keeps its
 own CSP. It drives only that dry run, never the Pi itself. Using a control there makes Studio's Live tab play what the
 dry run plays, for every viewer, until a curator uses Live control again (SPEC-live "Following /pi"); both pages say
-which drives. The dry run renders only while someone has its page open (here or through `/pi/`), so to save the
+which drives (on `/pi/`, in its Output panel). The dry run renders only while someone has its page open (here or through `/pi/`), so to save the
 CPU Studio's `/live` holds still while it follows a dry run no one has open. Unset `PI_PREVIEW_URL` and run `npm run host` again to take it down. The Admin page links it.
 
 ### The Pi profile
 
 `STUDIO_PROFILE=pi` is the Studio on the FPP Pi itself, offline, beside the real engine: no generators, no Ideas,
 listening on the Pi's network, `/pi` open to curators (SPEC-offline), the lights in Jukebox until an admin picks
-Live Play (Admin → Light, kept in `lights.json`; SPEC-liveplay). It is not for this machine: here the server
+Live Play (Admin → Light, kept in `lights.json`; SPEC-liveplay), and curators' `/live` the live play page. It is not for this machine: here the server
 refuses any `HOST` but loopback. Installing it: `pi/STUDIO.md`. The Pi runs the `pi` branch, which
 `npm run pi:branch` makes here from `prod` (the app built, `dist/` committed) and force-pushes.
 

@@ -213,7 +213,8 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       ...(gen ? { ...ideaRoutes, ...modelRoutes({ auth, models, access }), ...ideaLogRoutes({ logs: o.ideaLogs }),
         ...accessRoutes(api, { access, store }) } : {}),
       ...lightRoutes({ light: o.light }),
-      ...(o.lights ? lightsRoutes({ ...o.lights, loadLibrary: loaders.loadLibrary, visibleLook: looks.visibleLook })
+      ...(o.lights ? lightsRoutes({ ...o.lights, loadLibrary: loaders.loadLibrary, visibleLook: looks.visibleLook,
+        looksIn: looks.looksIn, listed: looks.listed })
         : {}),
       ...reports,
       ...looks.routes,

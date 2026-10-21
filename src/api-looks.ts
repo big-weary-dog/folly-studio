@@ -122,12 +122,14 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, loadLibra
   const versionsFor = (req: FastifyRequest, look: Look) => (req.query as { versions?: string }).versions === '1'
     && auth.can(req.user, 'edit', look);
 
+  /** `user`'s own looks, newest first, or the gallery's, newest shared first. */
+  const looksIn = (scope: 'mine' | 'gallery', user: User) => (scope === 'mine'
+    ? store.looks.list((l) => l.owner === user.id).reverse().sort(newestBy('updatedAt'))
+    : store.looks.list((l) => l.shared === true).reverse().sort(newestBy('sharedAt')).slice(0, GALLERY_LIMIT));
+
   async function list(req: FastifyRequest) {
     const { scope } = parse(LooksQuery, req.query);
-    const looks = scope === 'mine'
-      ? store.looks.list((l) => l.owner === req.user!.id).reverse().sort(newestBy('updatedAt'))
-      : store.looks.list((l) => l.shared === true).reverse().sort(newestBy('sharedAt')).slice(0, GALLERY_LIMIT);
-    return { looks: looks.map(listed) };
+    return { looks: looksIn(scope, req.user!).map(listed) };
   }
 
   async function create(req: FastifyRequest, reply: FastifyReply) {
@@ -277,7 +279,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, loadLibra
     return reply.headers(headers).type('image/webp').send(body);
   }
 
-  return { visibleLook, listed, routes: { 'GET /looks': list, 'POST /looks': create, 'GET /looks/:id': read,
+  return { visibleLook, listed, looksIn, routes: { 'GET /looks': list, 'POST /looks': create, 'GET /looks/:id': read,
     'PUT /looks/:id': edit, 'DELETE /looks/:id': remove, 'POST /looks/:id/bake': bake,
     'GET /looks/:id/preview/:name': preview,
     ...versionRoutes({ visibleLook, update: (id, p) => store.looks.update(id, p)! }) } };

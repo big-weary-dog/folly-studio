@@ -1,6 +1,7 @@
-// npm run smoke, too: the Pi's control page (pi/page) on a phone, against the real engine in a dry run. A push on a
-// look's fader, tap tempo and its nudge, blackout, a switch, a strobe the flash guard catches (down to the safe look)
-// and the PIN. Screenshots of each in the output, and no errors in the console (a CSP refusal is one).
+// npm run smoke, too: the Pi's live play page (pi/page, SPEC-liveplay "The page") on a phone, against the real engine
+// in a dry run. In Live Play a look's knob, tap tempo and its nudge, the hold to black out and back, a cued crossfade,
+// a strobe the flash guard catches (down to the safe look) and a lost link; in Jukebox the queue alone; and the PIN.
+// Screenshots of each in the output, and no errors in the console (a CSP refusal is one).
 import { spawn } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
@@ -26,14 +27,14 @@ const freePort = () => new Promise((resolve) => {
 });
 
 /** `npm run pi -- --dry-run` with the page on a free port, a strobe among its looks; its origin once it serves. */
-async function pi(...args) {
+async function pi({ mode = 'live', args = [] } = {}) {
   const looks = mkdtempSync(path.join(os.tmpdir(), 'pi-looks-'));
   writeFileSync(path.join(looks, 'strobe.json'), JSON.stringify({ title: 'Strobe (too fast)', duration: 30,
     layers: [{ modules: [{ ref: 'strobe', params: { speed: 12 } }] }] }));
   const config = path.join(mkdtempSync(path.join(os.tmpdir(), 'pi-config-')), 'config.json');
   writeFileSync(config, '{}');
   const port = await freePort();
-  const p = spawn(process.execPath, [MAIN, '--dry-run', '--mode', 'live', '--http', String(port), '--bind', '127.0.0.1',
+  const p = spawn(process.execPath, [MAIN, '--dry-run', '--mode', mode, '--http', String(port), '--bind', '127.0.0.1',
     '--stats', '600', '--looks', looks, '--config', config, ...args], { env: tagged(), stdio: 'pipe' });
   procs.push(p);
   let out = '';
@@ -42,7 +43,7 @@ async function pi(...args) {
     p.stderr.on('data', (d) => { out += d; });
     p.on('exit', (code) => reject(new Error(`the Pi exited ${code}: ${out}`)));
   });
-  return `http://127.0.0.1:${port}`;
+  return { origin: `http://127.0.0.1:${port}`, proc: p };
 }
 test.afterAll(() => { for (const p of procs) p.kill('SIGKILL'); });
 
@@ -53,66 +54,118 @@ async function phone(browser, origin) {
   await page.goto(origin);
   return { ctx, page, errors };
 }
-/** Drags a fader to `frac` of its width. */
+/** Drags a strip from its foot to `frac` of its height. */
 async function drag(page, name, frac) {
   const box = await page.getByRole('slider', { name }).boundingBox();
-  await page.mouse.move(box.x + 4, box.y + box.height / 2);
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height - 4);
   await page.mouse.down();
-  await page.mouse.move(box.x + box.width * frac, box.y + box.height / 2, { steps: 6 });
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height * (1 - frac), { steps: 6 });
   await page.mouse.up();
 }
+/** Holds the Blackout bar past its half second. */
+async function hold(page, name) {
+  const box = await page.getByRole('button', { name }).boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(800);
+  await page.mouse.up();
+}
+/** Up next, Add a look, the tile: in Live Play, to its cue. */
+async function pick(page, title) {
+  await page.getByRole('button', { name: /^Up next/ }).click();
+  await page.getByRole('button', { name: /Add a look/ }).click();
+  await page.getByRole('button', { name: new RegExp(`^${title}`) }).click();
+}
+const bpm = async (tap) => Number(/([\d.]+) BPM/.exec(await tap.textContent())[1]);
 
-test('the control page drives the engine from a phone', async ({ browser }, info) => {
-  const shot = (page, step, fullPage = false) => page.screenshot({ path: info.outputPath(`${step}.png`), fullPage });
-  const { page, errors } = await phone(browser, await pi());
+test('Live Play drives the engine from a phone', async ({ browser }, info) => {
+  const shot = (page, step) => page.screenshot({ path: info.outputPath(`${step}.png`) });
+  const pi_ = await pi();
+  const { page, errors } = await phone(browser, pi_.origin);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Heartbeat plasma');
-  await expect(page.getByText('Dry run: nothing is sent to the lights.')).toBeVisible();
+  await expect(page.getByText('Live Play', { exact: true })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Dry run' })).toBeVisible();
+  const fits = () => page.evaluate(() => document.documentElement.scrollHeight <= innerHeight);
+  expect(await fits()).toBe(true);
 
   await drag(page, 'Drive', 0.75);
-  // The value the Pi reports back (the fader shows its own only while dragged): 0.4 before, 0.75 of 0..1 now.
+  // The value the Pi reports back once the finger's lingers out: 0.4 before, 0.75 of 0..1 now.
   await expect.poll(async () => Math.abs(Number(await page.getByRole('slider', { name: 'Drive' })
     .getAttribute('aria-valuenow')) - 0.75)).toBeLessThan(0.05);
-  const tap = page.getByRole('button', { name: /Tap tempo/ });
+  await expect(page.getByText(/You're driving/)).toBeVisible();
+  const tap = page.getByRole('button', { name: /^Tap/ });
   for (let i = 0; i < 4; i++) {
     await tap.dispatchEvent('pointerdown');
     if (i < 3) await page.waitForTimeout(500);
   }
-  await expect.poll(async () => Number(/([\d.]+) BPM/.exec(await tap.textContent())[1])).toBeGreaterThan(110);
-  expect(Number(/([\d.]+) BPM/.exec(await tap.textContent())[1])).toBeLessThan(130);
-  // The tempo is tap tempo's alone (no fader), nudged a BPM at a time either side.
-  await expect(page.getByRole('slider', { name: 'BPM' })).toHaveCount(0);
-  const tapped = Number(/([\d.]+) BPM/.exec(await tap.textContent())[1]);
+  await expect.poll(() => bpm(tap)).toBeGreaterThan(110);
+  expect(await bpm(tap)).toBeLessThan(130);
+  const tapped = await bpm(tap);
   await page.getByRole('button', { name: 'Faster by 1 BPM' }).click();
-  await expect.poll(async () => Number(/([\d.]+) BPM/.exec(await tap.textContent())[1])).toBeCloseTo(tapped + 1, 0);
+  await expect.poll(() => bpm(tap)).toBeCloseTo(tapped + 1, 0);
   // Pushed and tapped, the look plays on: nothing it offers trips the flash guard (pi/test/library.test.ts).
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Heartbeat plasma');
   await expect(page.getByRole('alert')).toHaveCount(0);
   await shot(page, '01-playing');
-  await shot(page, '02-playing-full', true);
 
-  await page.getByRole('button', { name: 'Blackout' }).click();
-  await expect(page.getByRole('button', { name: 'Blacked out · Undo' })).toHaveAttribute('aria-pressed', 'true');
-  await shot(page, '03-blackout');
-  await page.getByRole('button', { name: 'Blacked out · Undo' }).click();
+  await hold(page, /Black out the lights/);
+  await expect(page.getByRole('button', { name: /Bring the lights back/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('status').filter({ hasText: 'Blacked out' })).toBeVisible();
+  await expect(page.getByText('Playing unseen')).toBeVisible();
+  await shot(page, '02-blackout');
+  await hold(page, /Bring the lights back/);
+  await expect(page.getByRole('button', { name: /Black out the lights/ })).toHaveAttribute('aria-pressed', 'false');
 
-  await page.getByRole('button', { name: 'Fire', exact: true }).click();
+  await pick(page, 'Fire');
+  await page.getByRole('button', { name: '1 s' }).click();
+  await shot(page, '03-cue');
+  await page.getByRole('button', { name: 'Fade to Fire · 1 s' }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Fire');
-  await expect(page.getByRole('button', { name: 'Fire', exact: true })).toHaveAttribute('aria-pressed', 'true');
 
-  await page.getByRole('button', { name: 'Strobe (too fast)', exact: true }).click();
+  await pick(page, 'Strobe');
+  await page.getByRole('button', { name: /^Fade to Strobe/ }).click();
   await expect(page.getByRole('alert')).toContainText('The flash guard caught Strobe (too fast) flashing',
     { timeout: 15_000 });
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Safe: dim colour wash');
   await shot(page, '04-flash-tripped');
-  await page.getByRole('button', { name: 'Beat bars', exact: true })
-    .or(page.getByRole('button', { name: 'Bars on the beat', exact: true })).click();
-  await expect(page.getByRole('alert')).toHaveCount(0);
+  await pick(page, 'Bars on the beat');
+  await page.getByRole('button', { name: /^Fade to Bars/ }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0, { timeout: 10_000 });
+  expect(await fits()).toBe(true);
+
+  // The link lost: the lights play on as they were, and nothing here claims to reach them.
+  pi_.proc.kill('SIGKILL');
+  await expect(page.getByRole('alert')).toContainText('Can\'t reach the lights');
+  await expect(page.getByRole('status').filter({ hasText: 'Reconnecting' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Blackout can't reach the lights/ })).toBeDisabled();
+  await shot(page, '05-lost');
+  expect(errors.filter((e) => !/WebSocket|ERR_CONNECTION_REFUSED/.test(e))).toEqual([]);
+});
+
+test('the Jukebox is the queue alone', async ({ browser }, info) => {
+  const shot = (page, step) => page.screenshot({ path: info.outputPath(`${step}.png`) });
+  const { page, errors } = await phone(browser, (await pi({ mode: 'jukebox' })).origin);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Heartbeat plasma');
+  await expect(page.getByText('Jukebox', { exact: true })).toBeVisible();
+  // No knobs, no Master, no tempo and no Blackout.
+  await expect(page.getByRole('slider')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Black out|^Tap/ })).toHaveCount(0);
+
+  await page.getByRole('button', { name: /Add a look/ }).click();
+  await page.getByRole('button', { name: /^Fire/ }).click();
+  await shot(page, '07-jukebox-add');
+  await page.getByRole('button', { name: 'Play next' }).click();
+  await expect(page.getByText(/^Up next · 1/)).toBeVisible();
+  await expect(page.getByText('Then').locator('..')).toContainText('Fire');
+  await shot(page, '08-jukebox');
+  await page.getByRole('button', { name: /Fade to next/ }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Fire', { timeout: 5000 });
   expect(errors).toEqual([]);
 });
 
 test('with a PIN set, the page asks for it before anything else', async ({ browser }, info) => {
   const shot = (page, step) => page.screenshot({ path: info.outputPath(`${step}.png`) });
-  const { page, errors } = await phone(browser, await pi('--pin', '2468'));
+  const { page, errors } = await phone(browser, (await pi({ args: ['--pin', '2468'] })).origin);
   const pin = page.getByLabel('PIN');
   await expect(pin).toBeVisible();
   await shot(page, '05-pin');

@@ -56,7 +56,8 @@ describe('the Pi preview at /pi', () => {
 
   test("an admin's socket drives the Pi; a member's, another site's or none is refused", async () => {
     const s = socket(app, ada.cookie);
-    assert.deepEqual(await s.first, { type: 'hello', ok: true, needPin: false });
+    assert.deepEqual(await s.first, { type: 'hello', ok: true, needPin: false,
+      you: { name: 'ada', drive: true } });
     s.ws.send(JSON.stringify({ type: 'blackout', on: true }));
     for (let i = 0; i < 50 && !r.engine.state().blackout.on; i++) await new Promise((res) => setTimeout(res, 10));
     assert.equal(r.engine.state().blackout.on, true);

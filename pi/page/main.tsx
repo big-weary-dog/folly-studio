@@ -1,8 +1,6 @@
 // The Pi's control page (pi/README.md "The control page"), built by pi/vite.config.js into pi/page/dist.
 import '../../public/css/base.css';
-import '../../public/css/live.css';
-import '../../public/css/jukebox.css';
-import './pi.css';
+import '../../public/css/liveplay.css';
 
 import { render } from 'preact';
 

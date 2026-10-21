@@ -112,6 +112,14 @@ describe('Play on the lights', () => {
     assert.equal((await ada.get('/api/lights?lookId=nope')).status, 404);
   });
 
+  test('lists the live page\'s sources with how each would play, to curators', async () => {
+    assert.equal((await bob.get('/api/lights/looks?from=gallery')).status, 403);
+    const { looks } = (await cara.get('/api/lights/looks?from=gallery')).json;
+    assert.deepEqual(looks.map((l) => [l.title, l.ownerName, l.duration, l.play.kind ?? 'error']),
+      [['Mine', 'bob', 30, 'error'], ['Bob fire', 'bob', 30, 'live']]);
+    assert.deepEqual((await cara.get('/api/lights/looks')).json, { looks: [] }, 'mine by default');
+  });
+
   test('a curator queues a library look; it reaches the engine by ref, as theirs', async () => {
     assert.equal((await bob.post('/api/lights/queue', { lookId: fire.id })).status, 403);
     const res = await cara.post('/api/lights/queue', { lookId: fire.id, at: 'end' });
