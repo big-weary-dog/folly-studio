@@ -8,7 +8,8 @@ import { autoFetchAllowed, fetchManifest } from '../frames-stream.ts';
 import { can } from '../../../shared/policy.ts';
 import type { Bake } from '../../../shared/schemas/api.ts';
 import { user } from './session.ts';
-import { cx, Field, openDialog, Switch, toast } from './kit.tsx';
+import { askWhy } from './approve.tsx';
+import { cx, openDialog, Switch, toast } from './kit.tsx';
 import type { Preview } from './preview.ts';
 import { FixButton } from './refine.tsx';
 import { mb } from './preview-view.tsx';
@@ -39,6 +40,10 @@ function thrown(bake: Bake | null) {
   return hit ? { id: String(hit.id ?? '').slice(0, 80), error: String(hit.firstError).slice(0, 400) } : null;
 }
 
+/** Whether Bake saves first: a new look, or edits to one's own. Someone else's gallery look bakes as shared, never a
+ * copy, so a curator's review lands on it. */
+export const savesFirst = (st: Studio) => !st.lookId.peek() || (st.dirty.peek() && !st.copyOnSave.peek());
+
 /** Open Check & bake over the Studio; the preview's baked badge stays to go back to live once it closes. */
 export function openBake(st: Studio, pv: Preview) {
   return openDialog({ title: 'Check & bake', className: 'bake-dialog', body: () => <BakePanel st={st} pv={pv} /> });
@@ -47,7 +52,8 @@ export function openBake(st: Studio, pv: Preview) {
 function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
   const me = user.value, id = st.lookId.value, server = st.server.value;
   const look = id && server ? { ...server, id } : null, bake = look?.bake || null, s = bakeState(bake);
-  const dirty = st.dirty.value, playing = st.baked.value;
+  // Someone else's gallery look: the bake and review are of it as shared, never of a copy with this page's edits.
+  const theirs = st.copyOnSave.value, edited = st.dirty.value, dirty = edited && !theirs, playing = st.baked.value;
   const canBake = can(me, 'bake', look ?? undefined), canReview = can(me, 'review', look ?? undefined);
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [tick, setTick] = useState(0);
   const [sized, setSized] = useState<{ sha?: string; bytes: number } | null>(null);
@@ -89,7 +95,7 @@ function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
     }
   }
   const bakeNow = () => busyWith(async () => {
-    if (!look || st.dirty.peek()) {
+    if (savesFirst(st)) {
       await st.save();
       if (!st.look.peek().id || st.dirty.peek()) return;
     }
@@ -144,6 +150,7 @@ function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
   const threw = hit && { ...hit, title: st.layerById(hit.id)?.title || hit.id };
   const note = !look ? 'Save the look, then bake it: the render box plays it for real and checks it for flashing and '
     + 'power.'
+    : theirs && edited ? 'This bakes and reviews the look as shared: its saved code, not your edits.'
     : s.kind === 'none' ? 'Bake it in the render box to check it for flashing and power, and to get the frames that '
       + 'will actually play.'
     : s.kind === 'queued' ? 'Waiting for the render box…'
@@ -179,21 +186,4 @@ function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
           ? 'Mark this look approved for the Folly' : overridable ? 'It fails the flash check: approve it with a reason'
           : 'Needs a passing render-box bake of the saved code first'} />}
     </section>);
-}
-
-/** A curator's reason for approving frames that fail the flash check (3–500 characters), or undefined. */
-function askWhy(found: string) {
-  return openDialog<string>({ title: 'Approve despite flashing?', body: (close) => {
-    const [text, setText] = useState('');
-    return <form class="details-form" onSubmit={(e) => { e.preventDefault(); close(text.trim()); }}>
-      <p class="dialog-text">{found} Approving it lets it play on the Folly. Your reason stays on the look, with your
-        name.</p>
-      <Field label="Why is this flashing acceptable?" stack>{(id) => <textarea id={id} rows={3} required
-        minlength={3} maxlength={500} value={text} onInput={(e) => setText(e.currentTarget.value)} />}</Field>
-      <div class="dialog-actions">
-        <button class="btn ghost" type="button" onClick={() => close()}>Cancel</button>
-        <button class="btn primary" type="submit">Approve</button>
-      </div>
-    </form>;
-  } });
 }
