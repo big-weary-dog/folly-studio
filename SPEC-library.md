@@ -47,11 +47,14 @@ and applies it itself. The Studio shows it with the rest, and the generators' ca
 module's saved params before resolving them, in a layer and in `use()`, and uses the object it returns (the saved
 params as they are if it throws or returns no object). A module whose params were renamed or re-ranged maps the old
 ones there, so a look that plays it from the library (a preset, the Pi following a look) plays as it did, with no
-migration. Sparkle maps its old `mode`, `length`, `sharp` and `rate` so; bars, scroll, edge-fade and hue-shift a
+migration. Sparkle maps its old `mode`, `length`, `sharp` and `rate` so; bars, scroll and edge-fade a
 `round` direction (and bars an `orbit`). The sandbox reports each param `upgrade` changed as `[saved, upgraded]`
 (`upgraded`, SPEC "Sandbox protocol"), and the Settings panel shows the upgraded value, and writes it with the first
 edit, while the saved one is still what it changed, so a slider starts where the look plays and a stale report never
 undoes an edit.
+
+Hue shift turns every pixel's colours alike using only Offset and Speed. Saved Direction and Spread params are
+ignored; it has no spatial gradient or migration.
 
 ## The pixel `p`
 

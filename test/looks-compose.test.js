@@ -118,7 +118,7 @@ describe('composed looks over the API', () => {
     const byName = new Map(patterns.map((p) => [p.name, p]));
     assert.deepEqual(['streaks', 'mirror', 'mask'].map((n) => byName.get(n).kind), ['source', 'warp', 'filter']);
     assert.ok(patterns.every((p) => p.category && typeof p.code === 'string'));
-    assert.equal(byName.get('palette-drift').layers[0].modules[0].ref, 'colour-wash');
+    assert.equal(byName.get('palette-drift').layers[0].modules[0].ref, 'bars');
   });
 });
 

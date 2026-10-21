@@ -338,11 +338,12 @@ Sequencing lives on the look, xLights-style.
   The bottom
   dock (Code, Timeline, Look) is one height on every tab: a share of the Studio's height (36%, at least 220 px, the
   3D view keeping at least 200 px), dragged by the splitter above it and kept per browser.
-- Reorder: a layer or module row moves by its ↑ ↓ buttons, or by dragging its grip (`ui/drag-order.ts`, any
-  pointer), which marks where it lands; the drop is the buttons' edit; Escape cancels.
+- Reorder: a layer row moves by its ↑ ↓ buttons, a module row by Alt+↑/↓ on its controls, either by dragging its
+  grip (`ui/drag-order.ts`, any pointer), which marks where it lands, the drop one edit; Escape cancels.
 - Composition (`ui/chain.tsx`, `ui/params.tsx`, `ui/shelf.tsx`, `ui/look-globals.tsx`): the selected layer's
-  module chain (kind badge, Custom on a module not standard, enable, reorder, delete, a filter's input; only a
-  custom module's name is editable), its Soften row (radius and mode; new layers
+  module chain (a line a module: kind badge, Custom on a module not standard, name, a source's blend or a filter's
+  input, enable, delete; only a custom module's name is editable; wide, the selected one's settings open under it,
+  a click on it closing or opening them, ▾ ▸), its Soften row (radius and mode; new layers
   start at `DEFAULT_SOFTEN`), the pickers (Add a module: tabs Sources, Warps, Filters; Add a layer: Blank, a blank
   layer or one source, and Presets, beside the groups the new layer plays on; one-line rows by category with a filter,
   the tab remembered for the session, each row auditioned in the 3D view), the code editor and
