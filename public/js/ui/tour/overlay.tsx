@@ -89,8 +89,11 @@ function StepCard() {
   }, [el]);
   const pvEl = byName('preview'), pv = visible(pvEl) ? pvEl : null, [pvBox, setPvBox] = useState<Box | null>(null);
   useLayoutEffect(() => (pv ? follow(pv, setPvBox) : setPvBox(null)), [pv]);
-  // What the control sits in (a module and its settings, a ∿ drawer, a lane): a second box, left clear, quieter.
-  const inEl = el?.parentElement?.closest<HTMLElement>('[data-tour-area]') ?? null, wrap = visible(inEl) ? inEl : null;
+  // What the control sits in (a module and its settings, a ∿ drawer, a lane, the step's `area`): a second box, left
+  // clear, quieter.
+  const part = s.area ? byName(s.area) as HTMLElement | null : null;
+  const inEl = (el && part?.contains(el) ? part : el?.parentElement?.closest<HTMLElement>('[data-tour-area]')) ?? null;
+  const wrap = visible(inEl) ? inEl : null;
   const [wrapBox, setWrapBox] = useState<Box | null>(null);
   useLayoutEffect(() => (wrap ? follow(wrap, setWrapBox) : setWrapBox(null)), [wrap]);
   useLayoutEffect(() => {   // the page changed: they may have moved, a new control while the page settles back in view

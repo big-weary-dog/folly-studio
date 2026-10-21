@@ -135,7 +135,7 @@ function Chain({ st, pv }: Props) {
           title="Add a warp, source or filter from the library" disabled={!l || mods.length >= MAX_MODULES}
           onClick={shelf}>+ Module</button></div>
       <p class="pane-hint" hidden={!!l}>Select a layer to see its modules.</p>
-      <ol class="chain-list" aria-label="Modules, first to last" ref={listRef}>
+      <ol class="chain-list" aria-label="Modules, first to last" ref={listRef} data-tour="chain">
         {l && mods.map((m, i) => <ModuleRow key={m.id} m={m} i={i} mods={mods} first={first} selected={i === at}
           std={standardTitle(m, st.data.library)} grip={order.grip(i)} drop={order.drop(i, mods.length)}
           dragging={order.dragging === i}
@@ -173,7 +173,8 @@ function ModuleRow({ m, i, mods, first, selected, std, grip, drop, dragging, joi
       <span class="chain-joint" aria-hidden="true">{GLYPHS[join]}</span>
       {reach.map((r) => <span class={cx('reach', r.to === lit && 'lit')} aria-hidden="true" data-kind={r.kind}
         style={{ '--lane': r.lane }} data-part={i === r.from ? 'from' : i === r.to ? 'to' : 'via'} />)}
-      <div class="chain-top"><span class="grip" title="Drag to reorder (or Alt+↑/↓)" aria-hidden="true" {...grip} />
+      <div class="chain-top"><span class="grip" title="Drag to reorder (or Alt+↑/↓)" aria-hidden="true"
+        data-tour={m.ref && `module-grip:${m.ref}`} {...grip} />
         <span class="chain-kinds"><span class="kind-badge">{KIND_LABELS[m.kind]}</span>
           {std === undefined && <span class="custom-badge"
             title="Custom code: written by the AI or in the code editor, not a library module">Custom</span>}</span>
