@@ -21,14 +21,17 @@ export const FromPage = z.discriminatedUnion('type', [
   z.object({ type: z.literal('next') }),
   /** From Studio's feed: a library-only look (modules by ref), resolved against the engine's library. */
   z.object({ type: z.literal('send'), at: At.optional(), by: z.string().max(64).optional(),
-    item: z.object({ kind: z.literal('live'), look: z.looseObject({}) }) }),
+    item: z.discriminatedUnion('kind', [z.object({ kind: z.literal('live'), look: z.looseObject({}) }),
+      // A bake by its look's id, read from Studio's frames (pi/src/baked.ts) and held to this SHA-256.
+      z.object({ kind: z.literal('baked'), id: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/), title: z.string().max(200),
+        sha256: z.string().regex(/^[0-9a-f]{64}$/) })]) }),
 ]);
 /** The most a `send` may be; every other message is held to 1 KB. */
 export const MAX_SEND = 64 * 1024;
 export type FromPage = z.infer<typeof FromPage>;
 
 export type Control = { name: string, min: number, max: number, value: number, kind: 'macro' | 'bpm' };
-export type QueueItem = { key: string, id: string, title: string, kind: 'look' | 'live', by?: string };
+export type QueueItem = { key: string, id: string, title: string, kind: 'look' | 'live' | 'baked', by?: string };
 export type PiState = {
   /** rev: its source's (below); offset, beat0 and paces: the prepared look's clocks, so a viewer renders the same
    * frame. */

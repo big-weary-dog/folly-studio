@@ -93,8 +93,13 @@ export async function controlServer(o: ServerOptions) {
 
   /** A look Studio sent: its modules' code from our library by ref, never its own. */
   function studioSent(c: Client, msg: Extract<FromPage, { type: 'send' }>) {
+    const { item } = msg;
+    if (item.kind === 'baked') {
+      if (!o.engine.sendBaked(item, msg.at, msg.by)) say(c, { type: 'error', error: 'The queue is full.' });
+      return;
+    }
     let look: PiLook;
-    try { look = resolveLook(msg.item.look as PiLook, o.lib); } catch (err) {
+    try { look = resolveLook(item.look as PiLook, o.lib); } catch (err) {
       say(c, { type: 'error', error: `Cannot play: ${(err as Error).message}` });
       return;
     }

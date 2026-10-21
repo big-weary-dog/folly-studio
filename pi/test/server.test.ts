@@ -108,8 +108,12 @@ describe('the control page', () => {
     c.send({ type: 'blackout', on: true, pad: 'x'.repeat(2000) });
     assert.deepEqual(await c.next('error', from), { type: 'error', error: 'Too long.' });
     c.send({ type: 'unqueue', key: engine.state().queue[0]!.key });
+    from = c.got.length;
+    c.send({ type: 'send', item: { kind: 'baked', id: '../x', title: 'X', sha256: 'a'.repeat(64) } });
+    assert.deepEqual(await c.next('error', from), { type: 'error', error: 'Not a message this page sends.' });
+    c.send({ type: 'send', at: 'end', item: { kind: 'baked', id: 'abc124', title: 'Baked', sha256: 'a'.repeat(64) } });
     await new Promise((r) => setTimeout(r, 100));
-    assert.deepEqual(engine.state().queue.map((q) => q.id), ['abc123']);
+    assert.deepEqual(engine.state().queue.map((q) => [q.id, q.kind]), [['abc123', 'live'], ['abc124', 'baked']]);
   });
 
   test('with a PIN, nothing changes until it is said; five wrong ones lock it for a minute', async () => {

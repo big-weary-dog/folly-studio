@@ -58,6 +58,9 @@ look sent by `ref` (its code always ours), shown as "from Studio" with who queue
   defaults (gamma 2.2, no balance, floor or trims). They bend the colours on the way out only, so the Live tab and the
   engine's frames stay the look's own; the master, blackout and fades scale the light after the curve. The F48s are
   set to Gamma None, so this is the only gamma; their port brightness stays the electrical cap.
+- `--frames DIR` (or `"frames"`): Studio's baked frames, its `<STUDIO_DATA>/frames` (on the Pi
+  `/home/fpp/folly-data/frames`), so it can play looks' bakes Studio queues; unset, it plays none. It reads only
+  `<lookId>.fseq` there, held to the SHA-256 Studio sent.
 - Looks are `pi/looks/<id>.json`, plus the Pi's own `pi/local/looks/` (gitignored; one there replaces a shipped
   look with the same id). A look is Studio's look whose modules name library entries by `ref`; the code always
   comes from the library. `globals.live` lists the controls it offers.
