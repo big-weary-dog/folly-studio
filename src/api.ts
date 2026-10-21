@@ -7,6 +7,7 @@ import { isPending, transition } from '../shared/idea-status.ts';
 import { DEEP, type FlashSettings, type Idea, IdeaBody, Login, RefineBody, Signup } from '../shared/schemas/api.ts';
 import type { AccessControl } from './access.ts';
 import { accessRoutes, sendRefusal } from './api-access.ts';
+import { ideaHowRoutes } from './api-idea-how.ts';
 import { ideaLogRoutes } from './api-idea-log.ts';
 import { lightRoutes } from './api-light.ts';
 import { reportRoutes } from './api-reports.ts';
@@ -210,6 +211,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       'GET /me': async (req) => ({ user: auth.publicUser(req.user), flash,
         ...(gen ? { access: access.state(req.user!) } : {}), profile }),
       ...(gen ? { ...ideaRoutes, ...modelRoutes({ auth, models, access }), ...ideaLogRoutes({ logs: o.ideaLogs }),
+        ...ideaHowRoutes({ store, auth, logs: o.ideaLogs, forOwner }),
         ...accessRoutes(api, { access, store }) } : {}),
       ...lightRoutes({ light: o.light }),
       ...reports,
