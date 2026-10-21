@@ -87,7 +87,7 @@ sandbox and the boxes take only our own code and the stdlib.
 | `typescript` 7.0.2 | `tsc` checks types (`npm run typecheck`, no emit); 7 is the native compiler, with the same CLI |
 | `vite` 8.3.4 | Builds `public/` into `dist/` (hashed names, a manifest, split views and styles, the sandbox page); the dev server |
 | `@types/node` 22.20.5 | The types of Node 22's built-ins, for `tsc` |
-| `@types/ws` 8.18.1, `ws` 8.22.0 | The types of the socket @fastify/websocket hands us; the live tests' client (the version it brings) |
+| `@types/ws` 8.18.1 | The types of the socket @fastify/websocket hands us |
 | `oxlint` 1.88.0 | The lint (`.oxlintrc.jsonc`): reads `.js` and `.ts` alike, in well under a second; `tools/budgets.ts` does the rest |
 | `vitest` 5.0.5 | Runs the tests through the app's Vite config: `.ts` and Vite's imports as the build sees them, a process per file, a watch mode |
 | `@playwright/test` 1.56.1 | The browser checks (`smoke`, `perf`, `e2e`); pinned to the Chromium it drives (build 1194, as in `/opt/pw-browsers`) |
@@ -101,6 +101,7 @@ sandbox and the boxes take only our own code and the stdlib.
 | `@fastify/rate-limit` 11.2.1 | The login limits: attempts per IP, failed ones per IP and username |
 | `@fastify/static` 10.1.6 | Serves `dist/`: the build's precompressed copies, ETags and Last-Modified, ranges, no dotfiles |
 | `@fastify/websocket` 11.3.1 | The live stage's socket: the upgrade runs through Fastify's hooks, so the session and Origin are checked as on any route |
+| `ws` 8.22.0 | The server's own socket to the Pi's engine (`src/pi-preview.ts`, `src/live/pi-feed.ts`) and the live tests' client; the version @fastify/websocket brings |
 | `@fastify/accept-negotiator` 2.1.1 | br or gzip from Accept-Encoding (q values, `*`) for API JSON and frame chunks, as @fastify/static picks |
 | `playwright-core` 1.56.1 | Runs the headless Chromium that draws the gallery previews in the Playa view (`deploy/host.sh` installs its headless shell); the same version `@playwright/test` uses |
 | `sharp` 0.35.5 | Writes the gallery previews' animated WebP from raw frames (prebuilt libvips; no ffmpeg on the host) |
