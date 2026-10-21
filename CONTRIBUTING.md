@@ -74,6 +74,12 @@ with Studio rather than in John's repo. `tools/pixel_rows.py` is make_pixel_csv'
 `td/python/make_pixel_csv.py`), the rows TouchDesigner, Mirage and the relay read. Run `npm run build-data` after
 any change to them; `test/data.test.js` fails while a rig or `palettes.json` is stale. Never edit one by hand.
 
+To add a palette, add `tools/data/palettes/<name>.csv` with `slot,colour` rows (`low1`, `body1`, `accent1`,
+`high1`, numbered within each role) and sRGB `#rrggbb` swatches, then add its mood to `themes.txt`.
+Run `python3 tools/build_palettes.py` to regenerate the catalogue. Mixed-family palettes can put both families
+in `body`, as patina, meadow, orchid, solstice, guava and voltage do; roles need not each be a single hue.
+Update the palette count in `docs/GENERATION.md` and the choices in `library-docs/README.md` too.
+
 ## Dependencies
 
 Use a dependency whenever it makes life easier. Pin the exact version (`npm install --save-exact`), commit
