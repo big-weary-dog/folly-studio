@@ -3,7 +3,8 @@
 // drawer's ticks (a group with all under it, none at all), a param dragged and stepped, a typo and a hang in the code
 // (reported, paused by the watchdog, running again once fixed), the timeline, a source's Colours played in an accent
 // (the pick tile), a param's help, a preset added from Add a layer on the groups picked there and one kind of module
-// shown in Add a module, added and moved by Alt+↑ with its Combine in its row, and a bake in the real render box in
+// shown in Add a module, added and moved by Alt+↑ with its Combine in its row, its settings under it closed and
+// opened by a click, and a bake in the real render box in
 // Check & bake (the laptop opens it from Export and bakes; the phone, from its Look tab, says to bake from a larger
 // screen and plays the baked frames).
 // The real server and a fresh build (studio.js); WebGL on SwiftShader. Every request stays on our origin, and the
@@ -211,6 +212,13 @@ for (const [name, device] of Object.entries(SIZES)) {
         await expect(rows.first().locator('.chain-name')).toBeFocused();
         await rows.nth(1).getByRole('combobox', { name: 'Combine' }).selectOption('max');   // in the row's own line
         await expect(rows.nth(1)).toHaveAttribute('data-join', 'max');
+        const name = rows.first().locator('.chain-name');      // its settings under it; a click closes and opens them
+        await expect(rows.first().locator('.chain-params .params')).toBeVisible();
+        await name.click();
+        await expect(name).toHaveAttribute('aria-expanded', 'false');
+        await expect(page.locator('.chain-params')).toHaveCount(0);
+        await name.click();
+        await expect(rows.first().locator('.chain-params .params')).toBeVisible();
         await shot('chain');
       });
 
