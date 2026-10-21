@@ -75,7 +75,8 @@ export function IdeaHowPage({ params }: ViewProps) {
   const { idea, rounds, run } = how, admin = can(user.value, 'admin'), mine = idea.owner === user.value?.id;
   const running = isPending(idea), now = running ? live?.round : undefined;
   const shown = open ?? new Set(rounds.length ? [rounds.length - 1] : []);
-  const toggle = (i: number, o: boolean) => setOpen(() => {
+  // Setting `open` fires a toggle too: only a change from what is shown is the viewer's.
+  const toggle = (i: number, o: boolean) => o !== shown.has(i) && setOpen(() => {
     const next = new Set(shown);
     if (o) next.add(i); else next.delete(i);
     return next;

@@ -5,7 +5,8 @@
 // fail exits 2; term is stopped by SIGTERM (a service stop reaching it); huge writes a 600 KB answer; flood floods stdout; hang starts a child (its pid to CODEX_FAKE_PIDS)
 // and waits forever; stall-once says nothing and waits forever the first time (CODEX_FAKE_PIDS.stalled marks it),
 // then answers. A sketch turn (SPEC-generators "Explore") is answered with three takes and a synthesis. With
-// --json, its events go to stdout as the real one's do: a reasoning item and the turn's usage.
+// --json, its events go to stdout as the real one's do: a reasoning item (CODEX_FAKE_THINKING's first, if set) before
+// it answers, then the turn's usage.
 import { spawn } from 'node:child_process';
 import { appendFileSync, existsSync, writeFileSync } from 'node:fs';
 
@@ -20,8 +21,10 @@ process.stdin.on('end', async () => {
       idea: /<idea>\n([^]*?)\n<\/idea>/.exec(prompt)?.[1] ?? null, env: Object.keys(process.env).sort() })}\n`);
   }
   const out = after('-o');
-  const look = { title: 'Codex sky', summary: 'Blue light drifting.', duration: null, globals: null, automation: null,
-    layers: [{ title: 'Sky', groups: ['cathedral'], tags: [], blend: 'add', level: 1, clips: null, modules: null,
+  const look = { plan: 'One slow blue layer over the whole cathedral.', title: 'Codex sky',
+    summary: 'Blue light drifting.', duration: null, globals: null, automation: null,
+    layers: [{ title: 'Sky', why: 'a sky drifts', groups: ['cathedral'], tags: [], blend: 'add', level: 1, clips: null,
+      modules: null,
       code: 'function pixel(p, t) {\n  return [0.1, 0.3 + 0.2 * wave(p.ly - t * 0.1), 1];\n}\n' }] };
   if (mode === 'term') process.kill(process.pid, 'SIGTERM');
   if (mode === 'fail') { process.stderr.write('error: the model is not available\n'); process.exit(2); }
@@ -40,6 +43,14 @@ process.stdin.on('end', async () => {
     setInterval(() => {}, 1000);
     return;
   }
+  const json = args.includes('--json'), say = (events) => {
+    if (json) process.stdout.write(events.map((e) => `${JSON.stringify(e)}\n`).join(''));
+  };
+  const thought = (id, text) => [{ type: 'item.started', item: { id, type: 'reasoning', text: '' } },
+    { type: 'item.completed', item: { id, type: 'reasoning', text } }];
+  say([{ type: 'thread.started', thread_id: 't1' }, { type: 'turn.started' },
+    ...(process.env.CODEX_FAKE_THINKING ? thought('item_t', process.env.CODEX_FAKE_THINKING) : []),
+    ...thought('item_0', 'Blue, slow.')]);
   if (mode === 'slow') await new Promise((r) => setTimeout(r, Number(process.env.CODEX_FAKE_DELAY) || 200));
   const take = (name) => ({ name, lead: 'the spires', motion: 'drifting', scale: 'one gesture', colour: 'blue',
     tempo: 'slow', take: `${name}: blue light drifts up the spires.` });
@@ -47,11 +58,6 @@ process.stdin.on('end', async () => {
     synthesis: { took: 'the drift from Tide, the blue from Haze', brief: 'Blue light drifts up the spires.' } };
   const answer = /Before composing a look, sketch/.test(prompt) ? sketches : look;
   if (mode === 'ok' || mode === 'slow' || mode === 'stall-once') writeFileSync(out, JSON.stringify(answer));
-  if (args.includes('--json')) {
-    const events = [{ type: 'thread.started', thread_id: 't1' }, { type: 'turn.started' },
-      { type: 'item.started', item: { id: 'item_0', type: 'reasoning', text: '' } }, { type: 'item.completed', item: { id: 'item_0', type: 'reasoning', text: 'Blue, slow.' } },
-      { type: 'turn.completed', usage: { input_tokens: 1200, cached_input_tokens: 1000, output_tokens: 80,
-        reasoning_output_tokens: 30 } }];
-    process.stdout.write(events.map((e) => `${JSON.stringify(e)}\n`).join(''));
-  }
+  say([{ type: 'turn.completed', usage: { input_tokens: 1200, cached_input_tokens: 1000, output_tokens: 80,
+    reasoning_output_tokens: 30 } }]);
 });
