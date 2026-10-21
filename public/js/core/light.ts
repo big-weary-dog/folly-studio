@@ -12,7 +12,11 @@ import { isNum } from './stdlib.ts';
  * backstop: ports 5-32 at 80 %, the rose's 33-48 at 70 %); it is never applied here, so nothing dims twice. */
 export type Light = { gamma: number, balance: [number, number, number], floor: number,
   trims: { tag: string, level: number }[], controller: { ports: string, brightness: number, gamma: string }[],
-  preview: Preview };
+  calibration: Calibration, preview: Preview };
+/** How the real LEDs look, to draw them so: each colour's light at full (`white`, as a photo of a full white shows
+ * it), the LEDs' response to their PWM (`response`: light^response; above 1 darker mid-tones) and how saturated their
+ * colours are against the screen's (`saturation`, in light, about the luminance). Only the previews read it. */
+export type Calibration = { white: [number, number, number], response: number, saturation: number };
 /** The previews' display: where full drive sits on the screen, Playa's bloom, the light left outside a highlight
  * and outside a focus (a layer's groups being picked). */
 export type Preview = { exposure: number, bloom: number, highlight: number, focus: number };
@@ -25,11 +29,12 @@ export const LIGHT: Readonly<Light> = Object.freeze<Light>({
     { ports: '5-32', brightness: 0.8, gamma: 'None' },
     { ports: '33-48 (rose)', brightness: 0.7, gamma: 'None' },
   ],
+  calibration: { white: [1, 1, 1], response: 1, saturation: 1 },
   preview: { exposure: 0.85, bloom: 0.4, highlight: 0.22, focus: 0.05 },
 });
 /** Each setting's range, and how many trims and controller rows a record holds. */
 export const LIGHT_LIMITS = Object.freeze({ gamma: [1, 3], floor: [0, 16], trims: 32, controller: 16, text: 40,
-  exposure: [0.1, 2] });
+  exposure: [0.1, 2], white: [0, 2], response: [0.5, 2], saturation: [0, 2] });
 
 const num = (v: unknown, lo: number, hi: number, d: number) => (isNum(v) ? Math.min(hi, Math.max(lo, v)) : d);
 const text = (v: unknown) => (typeof v === 'string' ? v.slice(0, LIGHT_LIMITS.text) : '');
@@ -47,7 +52,12 @@ export function lightOf(o?: unknown): Light {
   const [e0, e1] = LIGHT_LIMITS.exposure, share = (k: keyof Preview) => num(p[k], 0, 1, P[k]);
   const preview = { exposure: num(p.exposure, e0, e1, P.exposure), bloom: share('bloom'),
     highlight: share('highlight'), focus: share('focus') };
-  return { gamma: num(s.gamma, g0, g1, LIGHT.gamma), preview,
+  const c = (s.calibration && typeof s.calibration === 'object' ? s.calibration : {}) as Record<string, unknown>;
+  const C = LIGHT.calibration, w = list(c.white, 3) ?? [], L = LIGHT_LIMITS;
+  const calibration = { white: C.white.map((d, i) => num(w[i], L.white[0], L.white[1], d)) as Calibration['white'],
+    response: num(c.response, L.response[0], L.response[1], C.response),
+    saturation: num(c.saturation, L.saturation[0], L.saturation[1], C.saturation) };
+  return { gamma: num(s.gamma, g0, g1, LIGHT.gamma), calibration, preview,
     balance: LIGHT.balance.map((d, i) => num(b[i], 0, 1, d)) as Light['balance'],
     floor: Math.round(num(s.floor, f0, f1, LIGHT.floor)), trims: trims ?? [],
     controller: controller ?? LIGHT.controller.map((c) => ({ ...c })) };
@@ -183,20 +193,32 @@ export function ledLight(light: Light = LIGHT) {
 }
 
 /** The light a view shows for value `v` (0..1 of the screen's white): the LEDs' own at full output, v^gamma, not
- * quantised but off where they round to off, and at least the floor, × the exposure. Balance and trims stay out:
- * they make the LEDs match the swatches, which the screen already does. */
+ * quantised but off where they round to off, and at least the floor, through the calibration's response, × the
+ * exposure. Trims stay out (the views draw the rig whole). */
 export function shownLight(v: number, light: Light) {
-  return ledByte(v, light.gamma, 1, light.floor) ? Math.max(Math.min(1, v ** light.gamma), light.floor / 255)
-    * light.preview.exposure : 0;
+  const { gamma, floor, calibration: { response } } = light;
+  if (!ledByte(v, gamma, 1, floor)) return 0;
+  const lit = Math.min(1, v ** (gamma * response));
+  return (floor ? Math.max(lit, (floor / 255) ** response) : lit) * light.preview.exposure;
 }
 
-/** A frame's light for the views, once, before either draws: shownLight × `gain` (the flash guard's dim, the Live
- * master: linear, as the Pi's), × `dim` on each LED that `mask` leaves out (0 there; null: none). */
+/** A frame's light for the views, once, before either draws: shownLight × each colour's balance and calibrated
+ * white, the calibration's saturation about the luminance, × `gain` (the flash guard's dim, the Live master: linear,
+ * as the Pi's), × `dim` on each LED that `mask` leaves out (0 there; null: none). */
 export function previewChannels(rgb: ArrayLike<number>, light: Light, out: Float32Array, gain = 1,
   mask: ArrayLike<number> | null = null, dim = 1) {
+  const { white, response, saturation: s } = light.calibration, b = light.balance;
+  const w0 = white[0] * b[0] ** response, w1 = white[1] * b[1] ** response, w2 = white[2] * b[2] ** response;
   for (let k = 0, n = out.length / 3; k < n; k++) {
-    const g = mask && !mask[k] ? gain * dim : gain;
-    for (let c = 3 * k; c < 3 * k + 3; c++) out[c] = g > 0 ? shownLight(rgb[c], light) * g : 0;
+    const g = mask && !mask[k] ? gain * dim : gain, c = 3 * k;
+    if (!(g > 0)) { out[c] = out[c + 1] = out[c + 2] = 0; continue; }
+    let r = shownLight(rgb[c], light) * w0, gr = shownLight(rgb[c + 1], light) * w1;
+    let bl = shownLight(rgb[c + 2], light) * w2;
+    if (s !== 1) {
+      const y = 0.2126 * r + 0.7152 * gr + 0.0722 * bl;
+      r = Math.max(0, y + s * (r - y)); gr = Math.max(0, y + s * (gr - y)); bl = Math.max(0, y + s * (bl - y));
+    }
+    out[c] = r * g; out[c + 1] = gr * g; out[c + 2] = bl * g;
   }
   return out;
 }

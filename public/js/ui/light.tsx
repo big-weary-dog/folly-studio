@@ -1,6 +1,6 @@
-// The Light page, for admins: the light settings (SPEC "Light and output", docs/LIGHT.md), the one stored place for
-// how the LEDs turn a colour value into light, and how the previews show it. Export, the bake checks and the previews
-// read them; the Pi reads the same file, downloaded here, as pi/light.json.
+// The Light page, for admins (SPEC "Light and output", docs/LIGHT.md): how Studio draws the LEDs, calibrated so the
+// previews show what the real lights show. The Pi's output transform is shown, not edited: the calibration never
+// changes what the LEDs get. The Pi reads the same file, downloaded here, as pi/light.json.
 import '../../css/pages.css';
 
 import { useEffect, useState } from 'preact/hooks';
@@ -26,7 +26,6 @@ export function LightPage() {
   }
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   const set = (patch: Partial<Light>) => setDraft({ ...draft, ...patch });
-  const pct = (set1: (v: number) => void) => (v: number) => set1(v / 100);
   async function save() {
     setBusy(true);
     try {
@@ -37,32 +36,19 @@ export function LightPage() {
   return (
     <div class="page light-page">
       <h1 class="page-title">Light</h1>
-      <p class="lede">How the LEDs turn a colour into light. Looks are made in colour values, as their swatches; the
-        LEDs give light, so every value goes out as value<sup>gamma</sup>. Export, the bake checks and the previews
-        use these now; the Pi uses them once its <code>pi/light.json</code> is this file.</p>
-      <section class="models-panel" aria-label="The LEDs' curve">
-        <Field label="Gamma" class="end" hint={<p class="field-hint">2.2 makes the LEDs match an sRGB screen; higher
-          is darker mid-tones. Tune by eye at night, 2.2–2.6.</p>}>{(id) => <Scrub id={id} min={1} max={3}
-          step={0.05} value={draft.gamma} set={(gamma) => set({ gamma })} />}</Field>
-        {COLOURS.map((name, i) => <Field key={name} label={`${name} balance`} class="end">{(id) => <Scrub id={id}
-          min={0} max={100} step={1} unit="%" value={Math.round(draft.balance[i]! * 100)}
-          set={pct((v) => set({ balance: draft.balance.map((b, j) => (j === i ? v : b)) as Light['balance'] }))} />}
-        </Field>)}
-        <Field label="Floor" class="end" hint={<p class="field-hint">The least a lit channel sends, of 255. 0 lets
-          values under about 6 % round to off, as the curve says; 1 keeps the faintest bed glowing.</p>}>
-          {(id) => <Scrub id={id} min={0} max={16} step={1} value={draft.floor} set={(floor) => set({ floor })} />}
-        </Field>
-        <Curve light={draft} />
-      </section>
+      <p class="lede">How Studio draws the LEDs. Calibrate it against the real lights (a photo of them beside the
+        preview), so the previews show the colours that actually show up. It never changes what the LEDs get.</p>
+      <Calibrate draft={draft} set={set} />
       <Preview draft={draft} set={set} />
-      <Trims draft={draft} set={set} />
+      <Output light={draft} />
       <Controller draft={draft} set={set} />
       {onPi() && <LiveLooks />}
       <p class="form-error" role="alert" hidden={!error}>{error}</p>
       <div class="models-actions">
         <button class="btn ghost" type="button" onClick={() => download(`${JSON.stringify(saved, null, 2)}\n`,
           'light.json', 'application/json')}>Download for the Pi</button>
-        <button class="btn ghost" type="button" disabled={busy} onClick={() => set(lightOf())}>Defaults</button>
+        <button class="btn ghost" type="button" disabled={busy}
+          onClick={() => set({ calibration: LIGHT.calibration, preview: LIGHT.preview })}>Defaults</button>
         <button class="btn ghost" type="button" disabled={!dirty || busy}
           onClick={() => setDraft(structuredClone(saved))}>Revert</button>
         <button class={cx('btn primary', busy && 'busy')} type="button" disabled={!dirty || busy} onClick={save}>
@@ -75,7 +61,7 @@ export function LightPage() {
 function Curve({ light }: { light: Light }) {
   const byte = (v: number) => lightByte(v, light);
   return <table class="light-curve">
-    <caption>A value's light on the LEDs (white, before balance), and on the previews' screen</caption>
+    <caption>A value's light on the LEDs (white, before balance), and on the previews' screen, calibrated</caption>
     <thead><tr><th scope="row">Value</th>{SAMPLES.map((v) => <th key={v}>{`${Math.round(v * 100)}%`}</th>)}</tr>
     </thead>
     <tbody><tr><th scope="row">Sends</th>{SAMPLES.map((v) => <td key={v}>{byte(v)}</td>)}</tr>
@@ -93,8 +79,8 @@ function Preview({ draft, set }: { draft: Light; set: (p: Partial<Light>) => voi
     class="end" hint={<p class="field-hint">{hint}</p>}>{(id) => <Scrub id={id} min={0} max={100} step={1} unit="%"
       value={Math.round(P[key] * 100)} set={(v) => edit({ [key]: v / 100 })} />}</Field>;
   return <section class="models-panel" aria-label="The previews">
-    <p class="field-hint">The previews show each LED's light as this curve gives it, unrounded, then these. They never
-      change what the LEDs get.</p>
+    <p class="field-hint">The previews show each LED's light as the Pi's curve gives it, unrounded, calibrated, then
+      these. They never change what the LEDs get.</p>
     <Field label="Exposure" class="end" hint={<p class="field-hint">The screen light of full drive. 85 % keeps the
       brightest LED below Playa's shoulder, so every level shows in proportion; more is brighter, and compresses
       the top.</p>}>{(id) => <Scrub id={id} min={e0 * 100} max={e1 * 100} step={5} unit="%"
@@ -106,21 +92,36 @@ function Preview({ draft, set }: { draft: Light; set: (p: Partial<Light>) => voi
   </section>;
 }
 
-/** Each group's light × its level, after the curve (by the rig's group tags): to match a part that runs bright. */
-function Trims({ draft, set }: { draft: Light; set: (p: Partial<Light>) => void }) {
-  const edit = (i: number, patch: Partial<Light['trims'][number]>) => set({ trims: draft.trims
-    .map((t, j) => (j === i ? { ...t, ...patch } : t)) });
-  return <section class="models-panel" aria-label="Group trims">
-    <p class="field-hint">Trims: a group's light × its level, by tag (rose, spire…), after the curve, so a part that
-      runs bright can match the rest. None by default.</p>
-    {draft.trims.map((t, i) => <Field key={i} label={<input type="text" aria-label="Tag" value={t.tag} maxLength={40}
-      onInput={(e) => edit(i, { tag: e.currentTarget.value })} />} class="end">{(id) => <>
-      <Scrub id={id} min={0} max={100} step={1} unit="%" value={Math.round(t.level * 100)}
-        set={(v) => edit(i, { level: v / 100 })} />
-      <button class="btn ghost" type="button" onClick={() => set({ trims: draft.trims.filter((_, j) => j !== i) })}>
-        Remove</button></>}</Field>)}
-    <button class="btn ghost" type="button" onClick={() => set({ trims: [...draft.trims, { tag: '', level: 1 }] })}>
-      Add a trim</button>
+/** How the real LEDs look, so the previews draw them so: each colour's white, their response and saturation. */
+function Calibrate({ draft, set }: { draft: Light; set: (p: Partial<Light>) => void }) {
+  const C = draft.calibration;
+  const edit = (patch: Partial<Light['calibration']>) => set({ calibration: { ...C, ...patch } });
+  const L = LIGHT_LIMITS, pct = (v: number) => Math.round(v * 100);
+  return <section class="models-panel" aria-label="Calibration">
+    <p class="field-hint">How the real LEDs look against the swatches. 100 % everywhere draws them as the swatches.</p>
+    {COLOURS.map((name, i) => <Field key={name} label={`${name} white`} class="end">{(id) => <Scrub id={id}
+      min={L.white[0] * 100} max={L.white[1] * 100} step={1} unit="%" value={pct(C.white[i]!)}
+      set={(v) => edit({ white: C.white.map((w, j) => (j === i ? v / 100 : w)) as Light['calibration']['white'] })} />}
+    </Field>)}
+    <Field label="Response" class="end" hint={<p class="field-hint">How the LEDs' light follows what they are sent:
+      above 1 darker mid-tones and fades, below 1 brighter.</p>}>{(id) => <Scrub id={id} min={L.response[0]}
+        max={L.response[1]} step={0.05} value={C.response} set={(response) => edit({ response })} />}</Field>
+    <Field label="Saturation" class="end" hint={<p class="field-hint">How vivid their colours are against the screen's:
+      LEDs' primaries run deeper than sRGB's.</p>}>{(id) => <Scrub id={id} min={L.saturation[0] * 100}
+        max={L.saturation[1] * 100} step={5} unit="%" value={pct(C.saturation)}
+        set={(v) => edit({ saturation: v / 100 })} />}</Field>
+  </section>;
+}
+
+/** The Pi's output transform, as stored: what the LEDs get, which the calibration never changes. */
+function Output({ light }: { light: Light }) {
+  const list = (v: number[]) => v.map((x) => `${Math.round(x * 100)} %`).join(', ');
+  return <section class="models-panel" aria-label="The Pi's output">
+    <p class="field-hint">What the Pi sends, from <code>pi/light.json</code>: value<sup>{light.gamma}</sup>, balance
+      {` ${list(light.balance)}`}, floor {light.floor}
+      {light.trims.length ? `, trims ${light.trims.map((t) => `${t.tag} ${Math.round(t.level * 100)} %`).join(', ')}`
+        : ''}. Fixed here; the previews draw it, then the calibration.</p>
+    <Curve light={light} />
   </section>;
 }
 const MODES = { jukebox: 'Jukebox', live: 'Live Play' } as const;
