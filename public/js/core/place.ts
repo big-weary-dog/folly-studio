@@ -1,8 +1,8 @@
 // The warp contract (SPEC "Modules"): move(), turn() and slide() set every position field of a pixel from one point,
 // so any warp works over any source: the place fields from the point in the pixel's frame, the LED fields from the
-// layer's LED nearest it (a grid built once per layer, the first time a move asks). Looking that LED up is the dear
-// part, so a move only marks the LED fields due; settle() looks it up when something reads them (a module whose code
-// names one, slide(), toward() and region()), so a stack of warps pays for one lookup, and a bars or a cloud none.
+// layer's LED nearest it (a grid per pixel set, built at prepare for a chain that moves pixels). Looking that LED up
+// is the dear part, so a move only marks the LED fields due; settle() looks it up when something reads them (a module
+// whose code names one, slide(), toward() and region()): a stack of warps pays for one lookup, a bars or a cloud none.
 import type { Scene } from './scene.ts';
 
 /** What the contract reads and writes on a pixel (render.ts makePixel). */
@@ -21,7 +21,7 @@ export const PLACE: { scene: Scene | null, layer: Layer | null } = { scene: null
 const ROUND = 2 * Math.PI, NEAR_CELLS = 64, NEAR_CELL = 0.25;
 
 /** The layer's LEDs in cells, and for every cell the LED nearest its middle (propagated from the lit cells). */
-function buildNear(S: Scene, L: Layer) {
+function buildNear(S: Scene, L: Pick<Layer, 'idx' | 'bounds'>) {
   const idx = L.idx, m = idx.length, lo = L.bounds.min, hi = L.bounds.max;
   const cell = Math.max(NEAR_CELL, ...[0, 1, 2].map((a) => (hi[a] - lo[a]) / NEAR_CELLS));
   const n = [0, 1, 2].map((a) => Math.max(1, Math.ceil((hi[a] - lo[a]) / cell + 1e-9)));
@@ -83,6 +83,23 @@ function buildNear(S: Scene, L: Layer) {
   return nearest;
 }
 
+// Grids by scene and pixel set: layers on the same LEDs share one, across looks.
+const GRIDS = new WeakMap<Scene, { idx: Int32Array, near: Near }[]>(), KEEP = 16;
+const same = (a: Int32Array, b: Int32Array) => a === b || (a.length === b.length && a.every((k, j) => k === b[j]));
+
+/** The layer's grid: its pixel set's, built the first time any layer on them asks (prepareLayer does, for a chain
+ * that moves pixels, so no frame pays for it). */
+export function nearFor(S: Scene, L: Pick<Layer, 'idx' | 'bounds'>): Near {
+  let grids = GRIDS.get(S);
+  if (!grids) GRIDS.set(S, grids = []);
+  const hit = grids.find((g) => same(g.idx, L.idx));
+  if (hit) return hit.near;
+  const near = buildNear(S, L);
+  grids.push({ idx: L.idx, near });
+  if (grids.length > KEEP) grids.shift();
+  return near;
+}
+
 /** q's LED fields from rig pixel k. */
 function led(S: Scene, q: Q, k: number) {
   q.u = S.u[k]; q.i = S.i[k]; q.n = S.n[k];
@@ -120,7 +137,7 @@ export function settle(q: Q) {
   q.due = 0;
   const S = PLACE.scene, L = PLACE.layer;
   if (!S || !L || !L.idx.length) return;
-  L.near ||= buildNear(S, L);
+  L.near ||= nearFor(S, L);
   led(S, q, L.near(q.X, q.Y, q.Z));
 }
 

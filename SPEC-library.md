@@ -134,7 +134,7 @@ field the source reads. A warp moves `q` with `move(q, lx, ly, lz)` (a point in 
 and radius round the frame's middle, in the façade; depth stays) or `slide(q, u)` (along its own fixture to the LED
 nearest `u`). `move` and `turn` set `X Y Z`, `x y z`, `lx ly lz` and `a r` from that point, and every field of an
 LED (`u i n`, `k seed`, `zone zi fixture`, `ring sector`, so `is()` and `attr()` too) from the layer's LED nearest it
-(by a grid of cells ≥ ¼ m, ≤ 64 a side, built per layer when first asked; nearest among the LEDs in the cells
+(by a grid of cells ≥ ¼ m, ≤ 64 a side, one per set of LEDs, built when a layer that moves them is prepared; nearest among the LEDs in the cells
 round the point's cell and round that cell's nearest, ties to the lowest index);
 `slide` sets them all from that LED. The LED fields are looked up when next read, so a stack of warps pays for one
 lookup, and a module that reads none pays nothing: before a module whose code may read one (names it as `.field` or a
