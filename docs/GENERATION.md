@@ -54,7 +54,7 @@ changes), sorted by name so its bytes stay the same between calls and the prompt
   file's `const params = {…}`, read statically by a strict reader of the literal (numbers, strings, booleans,
   arrays, `DIRECTIONS`) that refuses anything else. Every params block in the library today is a plain literal.
 - **Presets**: name, summary and recipe (`colour-wash(colours=body) → edge-fade(position=lfo 0.17 Hz) → …`).
-- **Palettes** from `public/data/palettes.json` (28 today): name, theme, and low/body/accent/high columns of
+- **Palettes** from `public/data/palettes.json` (34 today): name, theme, and low/body/accent/high columns of
   comma-separated sRGB hexes without `#`; each role's slot order is preserved (`body2` is body's second hex).
 - **The rig**: groups with their tags and LED counts. Use `formatGroups` (`prompt.ts`) for the tree and the core's
   `prepareScene` and `pixelsForGroups` for the counts; neither runs pattern code.
