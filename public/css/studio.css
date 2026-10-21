@@ -1,7 +1,7 @@
 /* The Studio (loaded by js/ui/studio.tsx): one window leaded into panes round the 3D view, clear dark glass
    so the LEDs carry the colour; wide, the side runs the window's full height (base.css stops the header at it).
    Phones: the view on top, the panes under it as tabs. */
-body[data-view=studio] { --side-w: 330px; --drawer-w: 0px; overflow: hidden; }
+body[data-view=studio] { --side-w: clamp(340px, 25vw, 480px); --drawer-w: 0px; overflow: hidden; }
 .view-studio { height: calc(100dvh - var(--header-h)); }
 .studio { --code-h: 36%; position: relative; height: 100%; display: grid; background: var(--lead);
   grid-template-columns: minmax(0, 1fr) var(--drawer-w) var(--side-w);
@@ -132,10 +132,7 @@ body[data-view=studio] { --side-w: 330px; --drawer-w: 0px; overflow: hidden; }
 .dock-head .btn:not(.collapse-btn):not([hidden]) + .collapse-btn { margin-left: 0; }
 .view-btn:hover, .tp-btn:hover, .tree-toggle:hover, .tree-pin:hover, .ms-btn:hover, .reference > summary:hover {
   color: var(--text); }
-@media (max-width: 1200px) {
-  body[data-view=studio] { --side-w: 296px; }
-  .tp-stats { display: none; }
-}
+@media (max-width: 1200px) { .tp-stats { display: none; } }
 /* groups: each zone keeps its glass down the tree */
 .tree-wrap { padding: 6px 6px 16px; }
 .tree, .tree-children { list-style: none; margin: 0; padding: 0; }
