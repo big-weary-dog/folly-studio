@@ -1,54 +1,27 @@
 """The Folly's render hints and scaffold for rig.json (SPEC "Rig"), drawn as Mirage draws the Folly.
 
-Sizes are read from mirage/src/config.js and the constants of mirage/src/world/scaffold.js and zones/spires.js,
-so the studio's 3D view follows Mirage; places come from pixel-map/ (all in show-builder: tools/sources.py). Used by
-tools/build_rig.py.
+Sizes are Mirage's (show-builder mirage/src: config.js, and constants of world/scaffold.js and zones/spires.js),
+kept in tools/data/mirage.json, so the studio's 3D view matches Mirage's; places come from the pixel maps (lighting:
+tools/sources.py). Used by tools/build_rig.py.
 """
+import json
 import math
 import os
-import re
 
-from sources import SHOW_BUILDER
+from sources import DATA
 
-MIRAGE = os.path.join(SHOW_BUILDER, 'mirage', 'src')
-_text = {}
-
-
-def _source(rel):
-    if rel not in _text:
-        with open(os.path.join(MIRAGE, rel), encoding='utf-8') as f:
-            _text[rel] = f.read()
-    return _text[rel]
-
-
-def _block(text, name):
-    """The body of the object literal `name: {…}` or `name = {…}` in text."""
-    m = re.search(r'\b%s\s*[:=]\s*\{' % name, text)
-    depth = 0
-    for end in range(m.end() - 1, len(text)) if m else ():
-        depth += {'{': 1, '}': -1}.get(text[end], 0)
-        if depth == 0:
-            return text[m.end():end]
-    raise SystemExit('mirage/src/config.js: no %s' % name)
+with open(os.path.join(DATA, 'mirage.json'), encoding='utf-8') as _f:
+    MIRAGE = json.load(_f)
 
 
 def config(path, key):
-    """A number in config.js, e.g. config('FIXTURES.canopy', 'sag'): `key` at the top level of that object."""
-    body = _source('config.js')
-    for name in path.split('.'):
-        body = _block(body, name)
-    v = re.search(r'\b%s\s*:\s*(-?[\d.]+)' % key, re.sub(r'\{[^{}]*\}', '', body))
-    if not v:
-        raise SystemExit('mirage/src/config.js: no %s.%s' % (path, key))
-    return float(v.group(1))
+    """A size from Mirage's config.js, e.g. config('FIXTURES.canopy', 'sag')."""
+    return float(MIRAGE['config'][path][key])
 
 
 def const(rel, name):
-    """A top-level `const NAME = number` in a Mirage module."""
-    v = re.search(r'\bconst %s = (-?[\d.]+)' % name, _source(rel))
-    if not v:
-        raise SystemExit('mirage/src/%s: no %s' % (rel, name))
-    return float(v.group(1))
+    """A top-level `const NAME` of a Mirage module."""
+    return float(MIRAGE['const'][rel][name])
 
 
 def r3(v):
