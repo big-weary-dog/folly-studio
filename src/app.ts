@@ -27,7 +27,7 @@ import { createHub } from './live/hub.ts';
 import { piFeed } from './live/pi-feed.ts';
 import { liveSettings, playableLook, stageCopy } from './live/routes.ts';
 import { piPreview, previewTarget } from './pi-preview.ts';
-import { generates, type Profile, profileDefaults, profileOf } from './profile.ts';
+import { boxDefaults, generates, type Profile, profileDefaults, profileOf } from './profile.ts';
 import { createPreviews } from './previews/index.ts';
 import { frontView } from './previews/motion.ts';
 import { playaCamera } from './previews/playa.ts';
@@ -94,7 +94,7 @@ export async function createServer(opts: Options = {}) {
     env, settings: config, log, legacy: generatorName, foundryOn: foundryOf(config).on, codexBin });
   const access = createAccess({ store, auth, models });
   const light = createLightStore({ file: path.join(dataDir, 'light.json'), log });
-  const box = renderBox || createRenderBox({ publicDir, log, config });
+  const box = renderBox || createRenderBox({ publicDir, log, config, ...boxDefaults(profile, config) });
   // Baked frames are encoded for streaming as soon as they are stored (src/frames-cache.ts); bakes, those encodes
   // and the generators' render checks take turns at low priority, and evicted frames are baked again on demand.
   const lane = createLane();

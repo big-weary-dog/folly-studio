@@ -104,8 +104,8 @@ test('the control page drives the engine from a phone', async ({ browser }, info
     { timeout: 15_000 });
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Safe: dim colour wash');
   await shot(page, '04-flash-tripped');
-  await page.getByRole('button', { name: 'Beat bars', exact: true }).or(page.getByRole('button', { name: 'Bars on the beat', exact: true }))
-    .click();
+  await page.getByRole('button', { name: 'Beat bars', exact: true })
+    .or(page.getByRole('button', { name: 'Bars on the beat', exact: true })).click();
   await expect(page.getByRole('alert')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
