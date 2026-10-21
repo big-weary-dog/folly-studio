@@ -37,8 +37,7 @@
     "oxlint": "1.88.0",
     "typescript": "7.0.2",
     "vite": "8.3.4",
-    "vitest": "5.0.5",
-    "ws": "8.22.0"
+    "vitest": "5.0.5"
   },
   "dependencies": {
     "@fastify/accept-negotiator": "2.1.1",
@@ -51,6 +50,7 @@
     "playwright-core": "1.56.1",
     "preact": "11.0.1",
     "sharp": "0.35.5",
+    "ws": "8.22.0",
     "zod": "4.6.7"
   }
 }
