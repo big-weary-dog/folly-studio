@@ -67,6 +67,35 @@ A warp's share includes the settles it causes.
 The gap to Folly Mix (0.33 ms for a plasma on 4,870 px) is structural: per-pixel closures, a pixel object and fresh
 colour arrays, against typed-array kernels. Quick wins close maybe 1.5×, not 10×.
 
+## Allocations: the per-pixel call model
+
+Measured with V8's sampling heap profiler (every 1 KB, objects that die young included). It ran over frames 100–300
+of each look, after warm-up, when every hot function is TurboFan-optimized and none deopts. KB a frame, City of
+Gods (2,114 px). The bench's `KB/f` agrees.
+
+| Look or layer | KB a frame | Where it goes |
+|---|---|---|
+| heartbeat-plasma | 2,700 | turbulence's warp 660, bars' pixel 480–510, fadeInto 515, heartbeat's pixel 290, runChain 200–240, perlin3 200 |
+| bars smooth, alone | 760 | its pixel 480 (two swatches and a mix a pixel), runChain 120, fadeInto 70, toValue 65 |
+| bars smooth + turbulence | 1,500 | the warp 665 (bend), bars 480, perlin3 200 |
+| heartbeat, alone | 650 | its pixel 370, hypot 100, runChain 80 |
+| plasma+rain+rose-chase / aurora+fireflies+sparkle+bars | 3,980 / 3,830 | (the bench) |
+
+Most of it is not arrays. It is doubles boxed as heap numbers, which V8 does at every call it does not inline: a
+double passed to or returned from a module's `pixel`/`warp` (called through the chain, so never inlined), and from
+stdlib calls too big to inline (`perlin3`, `fbm`, `move`, `clock`, `toValue`). Turbulence's warp makes no arrays,
+yet allocates 0.66 MB a frame, plus 0.2 MB in perlin3: six noise calls and a move a pixel. fadeInto runs 7,467
+times a frame on heartbeat-plasma (4,228 of them swatches, at t = 0) at about 69 bytes each. The rest is the fresh
+colours patterns get back (swatch, pal, mix), which must stay fresh: patterns write into them (`c[3] = …`).
+
+What out-params in the core can still do, exactly: drop the copies in `hex()`/`col()` and the boxing inside fadeInto.
+That is worth 10–20% (about 2.2 MB a frame), not 10×. Double-typed literals for the out arrays (`[0.5, 0.5, 0.5]`
+for `[0, 0, 0]`) saved nothing. Scavenges are cheap at these rates (0.5–1.6 ms each), since almost nothing survives.
+The 100 ms tail that this section was first blamed on was the grid build, fixed by step 5.
+
+So < 200 KB a frame needs the work done without a JS call per pixel per module: step 7's typed-array kernels, which
+loop over a layer's pixels in one function on Float64Arrays, or a module contract that does the same.
+
 ## Optimizations, ranked by gain per effort
 
 "Exact" means every LED byte matches the unchanged code. The bench's `bytes#` hash was equal for all 73 looks on both
@@ -180,9 +209,10 @@ checked, values are 0..65535 by construction.
 5. **Grid at prepare, prepared off the tick** (#3): build the grid in `prepareLayer` when the chain warps, cache it by
    pixel set, and prepare looks at engine start, not inside `tick()`. Done when no frame after warm-up exceeds 3× the
    mean, here and in the Pi dry run's worst ms.
-6. **Allocations** (#4): core-owned out-params. Done when heavy looks allocate < 200 KB a frame and the dry run's
-   worst ms is ≤ 2× its mean on the Pi.
-7. **Pi 4, or still over budget:** layer workers (#5), then kernels (#7) for bars, turbulence and clouds.
+6. **Allocations** (#4): dropped from the speed-ups. Out-params in the core cannot reach < 200 KB a frame (see
+   "Allocations: the per-pixel call model"). That goal moves to step 7.
+7. **Pi 4, or still over budget:** layer workers (#5), then kernels (#7) for bars, turbulence and clouds. The kernels
+   carry step 6's goal: heavy looks allocate < 200 KB a frame, and the dry run's worst ms is ≤ 2× its mean on the Pi.
    **Done for the whole plan:** on the Pi, with fppd running, every `pi/looks` look and the heaviest five presets
    tick ≤ 12 ms mean and ≤ 20 ms p95, and a 10-minute dry run holds 40 fps with late < 0.1%. On this machine, the
    heaviest Pi look's tick is ≤ 3.5 ms (Pi 5, ~3.5×) or ≤ 1.2 ms (Pi 4, ~10×).
