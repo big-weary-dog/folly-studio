@@ -6,8 +6,7 @@ import { useEffect, useState } from 'preact/hooks';
 
 import { cx } from '../../public/js/ui/kit.tsx';
 import type { PiState } from '../src/protocol.ts';
-import { allIn, clock, kindWord, type Model, ordinal } from './model.ts';
-import { useFits } from './queue.tsx';
+import { allIn, clock, kindWord, type Model, ordinal, useFits } from './model.ts';
 import type { PiSocket } from './socket.ts';
 
 export type Tile = { id: string, title: string, by: string, duration: number | null,

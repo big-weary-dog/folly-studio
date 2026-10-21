@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'preact/hooks';
 
 import { cx } from '../../public/js/ui/kit.tsx';
-import { clock, type Model, names, since, useTick } from './model.ts';
+import { clock, type Model, since, useTick } from './model.ts';
 import type { PiSocket } from './socket.ts';
 
 const Chevron = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -15,8 +15,8 @@ export function StatusStrip({ m, sock, aside }: { m: Model, sock: PiSocket,
   const { s, me, live } = m;
   const link = m.lost ? ['lost', 'Reconnecting'] : s.blackout.on ? ['dark', 'Blacked out']
     : [s.out.dryRun ? 'dry' : 'on', s.out.dryRun ? 'Dry run' : 'On the lights'];
-  const others = m.others.length ? `${names(m.others)} ${m.others.length === 1 ? 'is' : 'are'} here too`
-    : 'on your own';
+  const others = m.others.length === 1 ? `${m.others[0]} is here too`
+    : m.others.length ? `${m.others.length + 1} people here` : 'on your own';
   const first = !live ? <b>{me && me.name !== 'the Pi\'s page' ? me.name : 'You'}</b>
     : m.mine ? <b>You're driving</b> : s.driver ? <b>{s.driver.name} is driving</b>
       : m.lost && sock.you.value?.drive ? 'You were driving' : <b>Nobody is driving</b>;

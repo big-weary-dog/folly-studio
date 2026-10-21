@@ -9,7 +9,7 @@ import PALETTES from '../../public/data/palettes.json' with { type: 'json' };
 import { cx } from '../../public/js/ui/kit.tsx';
 import type { Control } from '../src/protocol.ts';
 import { useDrag } from './drag.ts';
-import { clock, label, type Model, since, useTick } from './model.ts';
+import { clock, label, type Model, since, useFits, useTick } from './model.ts';
 import type { PiSocket } from './socket.ts';
 
 type Num = Extract<Control, { kind: 'macro' | 'bpm' }>;
@@ -71,16 +71,16 @@ function NumberStrip({ c, locked, sock }: { c: Num, locked: boolean, sock: PiSoc
     </div>);
 }
 
-/** The look's own palette, then the rest by name, 4 at a time. */
+/** The look's own palette, then the rest by name, 4 at a time (fewer when the strip is short). */
 function PaletteStrip({ c, locked, sock }: { c: Pal, locked: boolean, sock: PiSocket }) {
   const options = [c.default, ...PALETTES.palettes.map((p) => p.name).filter((n) => n !== c.default)];
-  const [page, setPage] = useState(0);
-  const pages = Math.ceil(options.length / PER), shown = options.slice(page * PER, page * PER + PER);
+  const [page, setPage] = useState(0), [ref, fits] = useFits(44, 4), per = Math.min(PER, fits);
+  const pages = Math.ceil(options.length / per), at = page % pages, shown = options.slice(at * per, at * per + per);
   const pick = (name: string) => sock.send({ type: 'palette', name: name === c.default ? '' : name });
   return (
     <div class={cx('lp-strip', c.held && 'held')}>
       <span class="lp-sl pal">Palette<small>a change blends</small></span>
-      <div class="lp-pal" role="group" aria-label="Palette, a change blends">
+      <div class="lp-pal" role="group" aria-label="Palette, a change blends" ref={ref as never}>
         {shown.map((name) => {
           const on = c.value === name;
           return <button key={name} type="button" class="lp-pb" aria-pressed={on} disabled={locked}
@@ -95,7 +95,7 @@ function PaletteStrip({ c, locked, sock }: { c: Pal, locked: boolean, sock: PiSo
           aria-label="Let the palette go back to the look's own"
           onClick={() => sock.send({ type: 'release', name: 'palette' })}>↺</button>}
         <button type="button" class="lp-pad lp-more" aria-label="More palettes"
-          onClick={() => setPage((page + 1) % pages)}>More ›</button>
+          onClick={() => setPage((at + 1) % pages)}>More ›</button>
       </div>
     </div>);
 }

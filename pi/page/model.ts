@@ -1,6 +1,6 @@
 // What the live play page (SPEC-liveplay "The page") reads from the socket: the mode, who this page is and whether it
 // drives, watches or has lost the link, and the words for times, names and the queue's timing.
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 
 import type { PiState, QueueItem } from '../src/protocol.ts';
 import type { PiSocket } from './socket.ts';
@@ -11,9 +11,6 @@ export const clock = (s: number) => {
 };
 export const label = (name: string) => (name === 'level' ? 'Look level'
   : name.charAt(0).toUpperCase() + name.slice(1).replace(/[-_]/g, ' '));
-/** "jo", "cara and jo", "cara, jo and 2 more". */
-export const names = (list: string[]) => (list.length <= 2 ? list.join(' and ')
-  : `${list.slice(0, 2).join(', ')} and ${list.length - 2} more`);
 export const ordinal = (n: number) =>
   `${n}${['th', 'st', 'nd', 'rd'][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10] ?? 'th'}`;
 
@@ -57,6 +54,19 @@ export function useTick(on = true, ms = 1000) {
     const id = setInterval(() => set((n) => n + 1), ms);
     return () => clearInterval(id);
   }, [on, ms]);
+}
+
+/** How many `size` px rows (with `gap` between) `el`'s height holds, kept as it resizes. */
+export function useFits(size: number, gap: number) {
+  const ref = useRef<HTMLElement>(null), [fits, setFits] = useState(4);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const ro = new ResizeObserver(() => setFits(Math.max(1, Math.floor((el.clientHeight + gap) / (size + gap)))));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, fits] as const;
 }
 
 /** Seconds since the state came, for its `ago`s. */
