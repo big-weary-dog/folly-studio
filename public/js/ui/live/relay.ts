@@ -31,7 +31,8 @@ export function createRelay(host: () => HTMLElement | null) {
           if (state === 'ready') sentRev = -1;      // a fresh sandbox: the look again at the next state
           if (state === 'dead') link.error.value = detail || 'The pattern engine stopped.';
         } });
-      runtime.start(rig, lib.filter((e) => (e.kind || 'source') === 'source').map(({ name, code }) => ({ name, code })));
+      runtime.start(rig, lib.filter((e) => (e.kind || 'source') === 'source')
+        .map(({ name, code }) => ({ name, code })));
       return { runtime, count: rig.count, fps: rig.output?.fps || 40 };
     },
     word(s: PiState, base) {

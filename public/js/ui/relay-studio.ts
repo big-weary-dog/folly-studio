@@ -22,7 +22,8 @@ export function clockNow(k: RelayClock, at = epoch()) {
 export function createStudioRelay(st: Studio, pv: Preview) {
   let k: RelayClock | null = null, unhook: (() => void)[] = [];
   const anchor = () => {
-    k = { t: st.clock.t, at: epoch(), speed: st.speed.peek(), playing: st.playing.peek(), duration: pv.duration.peek() };
+    k = { t: st.clock.t, at: epoch(), speed: st.speed.peek(), playing: st.playing.peek(),
+      duration: pv.duration.peek() };
     link.nudge();
   };
   // Shown again: the playhead to where the lights are, before the preview's next frame.
