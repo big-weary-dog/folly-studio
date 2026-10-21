@@ -3,7 +3,8 @@
 // contract (place.ts) and the neighbour map (links.ts).
 import type { G, PreparedLook } from './globals.ts';
 import { links, rowOrder, waveStep, wireDistance } from './links.ts';
-import { move, slide, turn } from './place.ts';
+import { move, settle, slide, turn } from './place.ts';
+import type { Pixel } from './pixel.ts';
 import { fadeInto } from './oklab.ts';
 
 /** A colour: [r, g, b] each 0..1; what patterns may give one as: an array, '#rrggbb' or a grey level. */
@@ -286,13 +287,15 @@ export const DIRECTIONS = Object.freeze(['up', 'down', 'right', 'left', 'back', 
 /** Directions saved before today's words, still read but never offered: round is clockwise. */
 export const OLD_DIRECTIONS = Object.freeze(['round'] as const);
 export type Direction = (typeof DIRECTIONS)[number] | (typeof OLD_DIRECTIONS)[number];
-type Placed = { lx: number, ly: number, lz: number, a: number, r: number, u: number, sector?: number, ring?: number };
+type Placed = { lx: number, ly: number, lz: number, a: number, r: number, u: number, sector?: number, ring?: number,
+  due?: number };
 /** toward(p, direction): how far p is along a direction, 0..1 across the layer: up ly, down 1 − ly, right lz (the
  * viewer's right), left 1 − lz, back lx (front to back), front 1 − lx, out r, in 1 − r, clockwise a (as seen from the
  * front; round, saved before, too), counterclockwise 1 − a, along
  * u (each strand from its start), petal (sector + 0.5) / 16 and ring (ring − 0.5) / 7 on the rose (a step a petal,
  * clockwise, or a ring, heart to rim; round and out off it); anything else, up. */
 export function toward(p: Placed, direction: string) {
+  if (p.due && (direction === 'along' || direction === 'petal' || direction === 'ring')) settle(p as Pixel);
   switch (direction) {
     case 'down': return 1 - p.ly;
     case 'right': return p.lz;
@@ -310,11 +313,12 @@ export function toward(p: Placed, direction: string) {
   }
 }
 
-type Pane = { sector: number, ring: number };
+type Pane = { sector: number, ring: number, due?: number };
 /** region(q, rule, size, seed): q's rose pane group (petal `sector` 0–15 on `ring` 1–7) by a rule (SPEC "Directions"),
  * 0 up to regions(rule, size), −1 off the rose. size is petals a group for spiral, wedges and checker; seed picks
  * random's arrangement. */
 function region(q: Pane, rule: string, size = 1, seed = 0) {
+  if (q.due) settle(q as Pixel);
   const s = q.sector, j = q.ring - 1, w = Math.max(1, Math.round(size));
   if (!(s >= 0) || !(j >= 0)) return -1;
   switch (rule) {

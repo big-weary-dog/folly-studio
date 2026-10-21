@@ -137,8 +137,9 @@ LED (`u i n`, `k seed`, `zone zi fixture`, `ring sector`, so `is()` and `attr()`
 (by a grid of cells ≥ ¼ m, ≤ 64 a side, built per layer when first asked; nearest among the LEDs in the cells
 round the point's cell and round that cell's nearest, ties to the lowest index);
 `slide` sets them all from that LED. The LED fields are looked up when next read, so a stack of warps pays for one
-lookup: before a source or filter, `slide`, or a warp whose code may read one (names it as `.field` or a string, or
-`attr`, `is`, `part`, `partUp`; destructures an object; reads a computed key). A warp that re-frames (anchor: a new middle and
+lookup, and a module that reads none pays nothing: before a module whose code may read one (names it as `.field` or a
+string, or `attr`, `is`, `part`, `partUp`; destructures an object; reads a computed key; calls `use`), and inside
+`slide`, `region` and `toward` on `along`, `petal` or `ring`. A warp that re-frames (anchor: a new middle and
 reach, or with lineup the rig's) sets `ox oy oz sx sy sz sr cy cz` and recomputes `lx ly lz a r` from `X Y Z`, so the moves after it agree. A warp writes no position field any other way.
 A warp that times instances (in-turn) adds to `dt` and multiplies `gate`, never sets them outright; the modules
 above it, warps too, then run at `T + dt`, and a module's `frame()` still runs once a frame at `T`.
