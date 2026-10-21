@@ -1,4 +1,4 @@
-// The Admin page (SPEC "Admin"): a tab per admin area, each its own URL under /admin over the page it names, and a
+// The Admin page (SPEC-access): a tab per admin area, each its own URL under /admin over the page it names, and a
 // link to the Pi's dry-run page. Only admins see the tabs; for anyone else each page's own API refuses, as before.
 import '../../css/admin.css';
 

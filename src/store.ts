@@ -15,7 +15,7 @@ type Doc = { id: string, createdAt: string, updatedAt: string };
 export type Collection<T extends Doc> = { get(id: string): T | null, list(filter?: (x: T) => unknown): T[],
   create(x: Partial<T>): T, update(id: string, patch: Partial<T>): T | null, remove(id: string): boolean };
 export type StoredUser = Doc & Partial<User> & { username: string, passwordHash: string, access?: UserAccess };
-/** An invite code as stored: its sha256, never the code (SPEC "Access"). */
+/** An invite code as stored: its sha256, never the code (SPEC-access "Access"). */
 export type StoredInvite = Doc & { hash: string, label?: string, uses: number, used: number, expiresAt?: string,
   revokedAt?: string, createdBy: string };
 export type Session = Doc & { userId: string, expiresAt: string };

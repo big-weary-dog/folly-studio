@@ -1,4 +1,4 @@
-// The Access page, for admins (SPEC "Access"): invite codes (made with a use count and an expiry, shown once, revoked)
+// The Access page, for admins (SPEC-access): invite codes (made with a use count and an expiry, shown once, revoked)
 // and the people (unlocked or locked by hand, a raised allowance, their count reset).
 import '../../css/access.css';
 

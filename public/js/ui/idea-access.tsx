@@ -1,4 +1,4 @@
-// The idea form's gate on the paid models (SPEC "Access"): a locked account sees why, a box for an invite code and
+// The idea form's gate on the paid models (SPEC-access): a locked account sees why, a box for an invite code and
 // the free model, when one is offered; an unlocked one sees what it has left, and at a limit when the next idea may go.
 import { useState } from 'preact/hooks';
 

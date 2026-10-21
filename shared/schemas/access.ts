@@ -1,4 +1,4 @@
-// Who may use the paid models, and how much (SPEC "Access"): the registry's limits, invite codes and an admin's say
+// Who may use the paid models, and how much (SPEC-access): the registry's limits, invite codes and an admin's say
 // over one person. The server parses bodies with these; the browser takes the types.
 import { z } from 'zod';
 

@@ -214,7 +214,7 @@ changes (a file that does not parse is reported, and the last good one kept):
   "models": [{ "id", "label", "via": "claude" | "codex" | "sketch" | "fleet", "model"?, "effort"?, "maxTokens"?,
                "timeoutSeconds"?, "critique"?: "images" | "text", "enabled": true,
                "roles"?: ["member" | "curator" | "admin", …], "limits"? }],
-  "limits"? }                                                       // limits: "Access" below
+  "limits"? }                                                       // limits: SPEC-access "Access"
 ```
 
 `id` is 1–32 of `[a-z0-9-]`; `model` the provider's name (required for `codex`; `claude` defaults to
@@ -230,47 +230,6 @@ critique `images`) and Luna (`gpt-6-luna`, low, critique `text`) through `codex`
 (`shared/schemas/models.ts`) is false, as it is: whatever the file says, everyone else's form leaves it out and the
 API refuses it ("Sketch is not offered to your account."). The idea form offers the models that are on, offered to
 the user's role and able to run, starting on the default when it is one of them (else the first); an account that
-may not use the paid models (Access) starts on the first free one, if any, and an idea sent without a model gets
+may not use the paid models (SPEC-access "Access") starts on the first free one, if any, and an idea sent without a model gets
 that same default. When the file is first written, `STUDIO_GENERATOR` (`claude`, `sketch`, `fleet`) names its
 default.
-
-## Access (invite codes and limits)
-
-Anyone may sign up, browse, edit, preview and use the gallery; turning ideas into looks needs an invite code, as
-Sketch, the one free model, is offered to admins alone (Models). A **paid** model (any `via` but `sketch`: it spends
-money or the owner's capacity) needs an **unlocked** account, and every account's ideas are **limited**. Admins are
-exempt from both. The registry's `limits` (defaults below) and each model's own `limits` set them:
-
-```
-"limits"?: { "inviteOnly": true, "perHour": 6, "perDay": 20, "concurrent": 2, "dailyCeiling": 200 }
-models[i].limits?: { "perHour"?, "perDay"?, "concurrent"? }
-```
-
-- An account's paid ideas share one allowance: `perHour` and `perDay` count its paid ideas created in the last 60
-  minutes and 24 hours (rolling), `concurrent` those queued or generating. A model's `limits` add a cap counted on
-  that model's ideas alone; a free model is limited only by its own (the default Sketch entry: 30 an hour, 100 a
-  day). `dailyCeiling` counts everyone's paid ideas in 24 hours, a spend backstop. `inviteOnly: false` unlocks
-  everyone (a private server). A cap of 0 allows none: its 429 has no `Retry-After` and no `nextAt`.
-- **One idea is one use** (a Deep idea `DEEP.uses`: SPEC-generators "Explore"; with room for fewer, it is refused),
-  counted when POST /api/ideas (or a look's refine) accepts it, whatever comes of it:
-  retries and any repair, check or critique inside its job add nothing; "Try again" sends a new idea.
-  The check and the create are one synchronous step, so two requests cannot both take the last use.
-- A stored user may hold `access = { unlockedAt?, invite?, by?, limits?, resetAt? }`: `invite` the code's id that
-  unlocked it, `by` the admin who did; `limits` an admin's override of the global three for this person; ideas
-  created before `resetAt` no longer count.
-- **Invite codes** (`invites.json`): `{ id, hash, label?, uses, used, expiresAt?, revokedAt?, createdBy, createdAt,
-  updatedAt }`; `hash` is sha256 of the code normalised (upper case, no spaces or dashes); the code itself, 12
-  characters of `ABCDEFGHJKMNPQRSTUVWXYZ23456789` shown as `XXXX-XXXX-XXXX`, is answered once and never stored.
-  `uses` 1–1000 (default 1), `days` 1–365 until it expires (none: never). Redeeming takes a use from a code that is
-  not revoked, expired or used up and unlocks the account; an unlocked account redeeming changes nothing. Any other
-  code is a 400 that says which: not valid (no such code), used up, expired or revoked. Attempts are limited per
-  account (5 failures in 15 minutes) and per address (20 failures in 15 minutes): 429 with `Retry-After`.
-- An **invite link** is `/#invite=CODE` (the Access page offers it beside a new code): in the fragment, the code never
-  reaches the server's logs or a Referer. The app takes it out of the address into the tab's sessionStorage, asks a
-  signed-out visitor to sign up or in, then redeems it once and drops it, saying it was accepted or why not.
-- `access = { unlocked, exempt, inviteOnly, limits: { perHour, perDay, concurrent }, left: { hour, day, running },
-  nextAt?, full?, models?: { [id]: { hour?, day? } } }` in /api/me and with a 403 or 429: `left` the paid uses this
-  account has; `nextAt` when the next frees (when one is 0); `full` the ceiling is reached; `models` what is left on
-  each model with its own limits. `invite = { id, label?, uses, used, expiresAt?, revokedAt?, createdBy, createdAt,
-  state: 'active' | 'used' | 'expired' | 'revoked' }`. `person = { id, username, role, access: { unlockedAt?, invite?,
-  by?, limits?, resetAt? }, used: { hour, day, running } }`.

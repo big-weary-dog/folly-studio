@@ -469,22 +469,19 @@ Mutating requests must be `Content-Type: application/json` and, when an `Origin`
 present, same-origin. Errors are `{ error: "message" }` with a 4xx/5xx status. A body is a JSON object of at most
 256 KB (413 past it; empty is `{}`), checked by the shared schemas (`shared/schemas/api.ts`, `look.ts`): a 400 names
 the first problem ("Layer 2, clip 1: start must be a number of seconds from 0 to 600."). Unknown routes are 404, a
-known path's other methods 405 with `Allow`. Signing up or in is limited per client address (100 a minute) and, for
-failures, per address and username (10 a minute): 429 with `Retry-After`. Password hashes run 3 at once with 30
-waiting; past that, 429 "busy".
+known path's other methods 405 with `Allow`. Accounts, roles and who may do what: `SPEC-access.md`.
 
 ```
 POST   /api/signup   { username, password }   → { user, flash }     (sets cookie)
 POST   /api/login    { username, password }   → { user, flash }
 POST   /api/logout                            → { ok: true }
 GET    /api/me                                → { user, flash, access } | 401
-POST   /api/invite   { code }                 → { access }           redeem an invite code (SPEC "Access")
 GET    /api/ideas                             → { ideas: [idea] }    mine, newest first
 POST   /api/ideas    { text, model?, explore? } → { idea }           queued for generation on that model (none: the
                                               default this user gets); 400 when it is unknown, off, not offered
                                               to their role, or cannot run here; 403 { error, access } when it is
                                               paid and the account is locked; 429 { error, access } + Retry-After
-                                              at a limit (SPEC "Access"); `explore` quick | explore (default) |
+                                              at a limit (SPEC-access "Access"); `explore` quick | explore (default) |
                                               deep, kept on a prompted model's idea (SPEC-generators "Explore");
                                               400 for deep while it is off, 403 while it is admins' only
 POST   /api/looks/:id/refine { text?, model?, critique?, fix?: { layer, error } } → 201 { idea }  owner only: a
@@ -511,11 +508,6 @@ POST   /api/reports  report                   → 201 { id }  an F8 bug report (
 GET    /api/admin/reports                     → { reports: [summary] }  admins only (403), newest first
 GET    /api/admin/reports/:id                 → { report }  admins only; 404 when none
 GET    /api/admin/reports/:id/shot            → image/jpeg  admins only; 404 when it has none
-GET    /api/admin/invites                     → { invites: [invite] }  admins only, as are the four below
-POST   /api/admin/invites { label?, uses?, days? } → 201 { invite, code }  the code is shown only here
-DELETE /api/admin/invites/:id                 → { invite }           revoked (kept, so the list says so)
-GET    /api/admin/people                      → { people: [person] }
-PUT    /api/admin/people/:id { unlocked?, limits?, reset? } → { person }  limits: null clears the override
 GET    /api/looks?scope=mine|gallery          → { looks: [listed] }  metadata only: no layers
 POST   /api/looks    { title, summary?, layers, duration?, bpm?, globals?, automation?, ideaId?, chain? } → { look }
 GET    /api/looks/:id                         → { look }             mine, or shared
@@ -553,9 +545,7 @@ drops the bake and its frames and clears `reviewed`; so does `bpm` (`null` clear
 (a bake's render fields hold it: a tempo nobody flash-checked), and elsewhere it is only a grid. Clips that overlap
 or fall outside 0–600 s, and a duration outside 1–600 s, are refused with 400.
 
-`user = { id, username, role: 'member' | 'curator' | 'admin' }` (curators listed in `STUDIO_CURATORS`, admins in
-`STUDIO_ADMINS`; an admin is also a curator).
-`access`, `invite` and `person`: SPEC "Access".
+`user`, `access`, `invite` and `person`: SPEC-access.
 `flash = { check, perSecond, delta, darker, area }`: the flash check's settings (Baked frames, Checks), for the
 preview's guard; `check: false` (`STUDIO_FLASH_CHECK=off`) means nothing is dimmed or blocked.
 `idea = { id, owner, text, status: 'queued'|'generating'|'ready'|'failed', model?, generator, by?, explore?, took?,
@@ -595,18 +585,14 @@ than 60 days. Admins read them on Admin's Reports tab; "Open as captured" opens 
 draft in an unsaved editor, at the captured time, view, quality, selection and layout, paused, so a browser run
 reproduces it. `node tools/reports.ts list | get <id>` reads them from `STUDIO_DATA` directly.
 
-## Admin
+## Generators and models
 
-Admins' header has one more item, **Admin** (`/admin`, which opens its first tab), where everyone else's has none.
-Its tabs are pages of their own: Models (`/admin/models`, SPEC-generators "Models"), Access (`/admin/access`,
-SPEC-generators "Access"), Light (`/admin/light`, Light and output) and Reports (`/admin/reports`, Bug reports), then
-a link to the Pi preview (`/pi/`, in a new tab). The old `/models`, `/access`, `/light` and `/reports` lead to their
-tab, query kept. Anyone else who opens one gets the page without the tabs, its admin calls refused (403) as it says.
+In `SPEC-generators.md`, part of this contract: **Generators** (idea → look) and **Models** (the registry).
 
-## Generators, models and access
+## Accounts and access
 
-In `SPEC-generators.md`, part of this contract: **Generators** (idea → look), **Models** (the registry) and
-**Access** (invite codes and limits on the paid models).
+In `SPEC-access.md`, part of this contract: **Accounts** (roles, sign-in), **Admin** (its pages), **Access** (invite
+codes and limits on the paid models) and their routes.
 
 ## The live stage
 

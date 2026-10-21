@@ -1,4 +1,4 @@
-// The access routes (SPEC "Access"): redeeming an invite code, limited per account and per address; for admins, the
+// The access routes (SPEC-access): redeeming an invite code, limited per account and per address; for admins, the
 // codes (made, listed, revoked) and the people (unlocked or locked, their limits raised, their count reset).
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
