@@ -72,6 +72,10 @@ export function toggleSlot(e: PickEdit, role: string, n: number, count: number):
   return { ...e, tokens: e.tokens.flatMap((t) => (t === role ? others : [t])) };
 }
 
+/** A custom colour ('#rrggbb') added at the end, once; over the whole palette or rainbow, in place of them. */
+export const addColour = (e: PickEdit, hex: string): PickEdit => (has(e, hex) ? e
+  : { ...e, tokens: [...unwhole(e).tokens, hex] });
+
 /** A token (all, rainbow, a '#rrggbb') in or out. */
 export const toggleToken = (e: PickEdit, t: string): PickEdit => (has(e, t) ? without(e, (x) => x === t)
   : { ...e, tokens: [...e.tokens, t] });

@@ -372,8 +372,9 @@ Sequencing lives on the look, xLights-style.
 - Colours (`ui/picks.tsx`, `ui/pick-model.ts`; SPEC-library "Palettes"): a colour param is one row like a number's: its pick in
   a field the size of a number's (`kit.tsx` Scrub), its text over the colours it plays (the field opens the pick
   tile), ∿ to move its rotate (the same popover), ↺. The tile is TD's pick: a row per role (a box for the whole
-  role, a cell per slot), the whole palette, rainbow, custom colours, then whether roles alternate (`/`), blend, and
-  range and rotate as number fields. On a phone the tile is a sheet with the palette's roles and a custom colour; the
+  role, a cell per slot), the whole palette, rainbow, custom colours (a swatch to choose one, then + Add colour, which
+  keeps it in place of the whole palette or rainbow), then whether roles alternate (`/`), blend, and range and rotate
+  as number fields. On a phone the tile is a sheet with the palette's roles and a custom colour; the
   whole palette, rainbow, blend, range and rotate show when set.
 
 ## Sandbox protocol (runtime.ts ⇄ sandbox.html)
