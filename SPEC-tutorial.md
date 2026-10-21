@@ -26,8 +26,8 @@ In order:
   practice look `idea` in place of asking a model (`tourIdea` in `ui/tour-view.ts`: nothing is sent, and it works on
   a locked account); its layers. On the Pi, which has no Ideas (SPEC-offline), the path starts on its
   look and leaves out the steps on Ideas or going there.
-- `modules`, Modules and colour: a source's number (its settings under its line in the chain), a choice (Comet, its bands twice its tail, so each reads as a
-  comet), Soften down to 0 for crisp comets, a colour param by palette role, the Look tab, the palette.
+- `modules`, Modules and colour: a source's number (its settings under its line in the chain), a choice (Comet, its bands
+  twice its tail, so each reads as a comet), Soften down to 0 for crisp comets, a colour param by palette role, the Look tab, the palette.
 - `layers`, Layers and chains: solo, a filter (Hue shift on the rose) and its number, a module off and on, a warp
   (Rotate on the rose) and its Spin, the chain folded to a module a line (a click on the open module), Rotate dragged
   by its grip above Turbulence, Plays on (groups by rig tag), a preset, a module inside it, level, blend, order (the
