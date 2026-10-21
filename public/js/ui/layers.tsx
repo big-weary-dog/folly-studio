@@ -112,7 +112,8 @@ function LayerRow({ l, index, st, grip, drop, dragging }: { l: Layer; index: num
         const t = e.target as HTMLElement;
         if (t === e.currentTarget || t.matches('.layer-groups, .layer-top, .layer-bottom')) select();
       }}>
-      <div class="layer-top"><span class="grip" title="Drag to reorder" aria-hidden="true" {...grip} />
+      <div class="layer-top"><span class="grip" title="Drag to reorder" aria-hidden="true"
+        data-tour={`layer-grip:${tourName(title)}`} {...grip} />
         <span class="layer-index" aria-hidden="true">{index + 1}</span>
         <div class="ms" role="group" aria-label="Mute and solo">
           <button type="button" class="ms-btn mute" aria-pressed={muted} aria-label={`Mute ${title}`}

@@ -41,6 +41,7 @@ body[data-view=studio] { --side-w: clamp(340px, 25vw, 480px); --drawer-w: 0px; o
 .studio-notice { padding: 7px 16px; font-size: 13.5px; color: var(--text-2);
   background: color-mix(in srgb, var(--cobalt-t) 10%, var(--night-1)); border-bottom: var(--came) solid var(--lead); }
 .studio-notice strong { color: var(--cobalt-t); }
+.studio-notice .notice-delete { margin-left: 10px; }
 .pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--night-1); }
 .pane-head { display: flex; align-items: center; gap: 10px; min-height: var(--hit, 40px); padding: 6px 10px 6px 12px;
   flex: none; background: color-mix(in srgb, var(--tint) 7%, var(--night-1));
