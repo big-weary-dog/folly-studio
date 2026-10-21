@@ -5,7 +5,7 @@ A barber's pole on each tower, each turning on its own axis. Made for the towers
 without turning; **lighthouse** sweeps beams.
 
 ## Overrides
-- bars.twist: turns over the layer's height; 0 upright, 6 a tight coil; negative the other hand.
+- twist.wind: turns over the layer's height; 0 upright, 1 a full turn; negative the other hand.
 - bars.direction: `orbit-counterclockwise` or `orbit-clockwise` (as seen from above).
 - bars.speed: negative descends.
 - bars.bars: stripes round; 1–4.
@@ -19,4 +19,4 @@ without turning; **lighthouse** sweeps beams.
 ## Pitfalls
 - Place it on tower groups: flat groups show sliding diagonals, and on the whole rig every LED turns round its
   nearest tower.
-- Adding low groups stretches the coil, since twist spans the layer's whole height.
+- Adding low groups stretches the coil, since the wind spans the layer's whole height.
