@@ -6,6 +6,7 @@ snow, rising embers. **single-strand** for orderly runs along wires, **sparkle**
 
 ## Params
 - colours: `"accent high"` gives blue tails with white heads.
+- direction: `up`, `down` or `along` strands; angle tilts the fall sideways (±0.25 is horizontal).
 - speed: Each streak ±40%. 0.1–0.2 flakes, 0.6–1 rain, 2+ a downpour.
 - lanes: 20–40 for rain on the whole rig; match lanes to how many LEDs lie across.
 - density: Up to 3 streaks a lane.

@@ -3,7 +3,7 @@ looks: The layer folded onto itself: matching halves, wedges, rings, or chases m
 ---
 Folds what is above it so the look reads as designed: halves, kaleidoscope wedges, rings from the centre, or each
 wire from its middle. Goes after what it folds (presets **butterfly**, **kaleidoscope**, **tunnel**). Folds hold
-still: **scroll** `clockwise` or `counterclockwise` below wedges turns them, `out` or `in` below rings moves them
+still: **rotate** Spin below wedges turns them; **scroll** `out` or `in` below rings moves them
 out or in. **polar** reshapes rather than folds.
 
 ## Params

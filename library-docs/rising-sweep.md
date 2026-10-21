@@ -16,7 +16,7 @@ comets front to back on the beat.
 
 ## Pairings
 - Bind bars.speed to energy (`from` 0.15 `to` 0.8).
-- Then **anchor** (tag `rose`, direction `in`, negative speed) for rings from the rose.
+- Set bars.direction to `in` and bars.speed negative, then **anchor** (tag `rose`) for rings from the rose.
 
 ## Pitfalls
 - Keep speed × bars under 3: each LED toggles that often.
