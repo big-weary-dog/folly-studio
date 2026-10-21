@@ -9,7 +9,7 @@ const spread = (c: Ctx) => {
 
 export const keep: Path = {
   id: 'keep', title: 'Keep it, show it', start: '/studio?tour=keep',
-  about: 'Undo, save, Live, and the next idea.',
+  about: 'Undo, save, Live, and the next idea.', aboutPi: 'Undo, save and Live.',
   steps: [
     { id: 'try', page: '/studio', title: 'Try an idea',
       text: 'Every edit is kept in History, so trying is safe. Click {module:bars}, open Plays on and tick the whole '

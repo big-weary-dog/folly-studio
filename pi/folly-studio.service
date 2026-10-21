@@ -1,0 +1,22 @@
+# Folly Studio on the FPP Pi, offline (pi/STUDIO.md): the editor, previews and looks for phones on the Pi's network.
+# Enabled at boot: it sends nothing to the lights (only studio-live does), so it may run over the night show. It runs
+# niced below the engine, so a busy Studio never costs the lights a frame.
+[Unit]
+Description=Folly Studio (offline, on the Pi)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=fpp
+WorkingDirectory=/home/fpp/folly-studio
+EnvironmentFile=/home/fpp/.config/folly-studio/studio.env
+# --experimental-strip-types: Node 22.18 strips types by default; the flag lets an older Node 22 run it too.
+ExecStart=/usr/bin/node --experimental-strip-types server.ts
+Nice=5
+# SIGTERM saves and closes; past this it is killed.
+TimeoutStopSec=20
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

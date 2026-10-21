@@ -11,9 +11,10 @@ import { can } from '../../../shared/policy.ts';
 import type { Access } from '../../../shared/schemas/access.ts';
 import type { Explore, Idea, Listed } from '../../../shared/schemas/api.ts';
 import type { ModelChoices } from '../../../shared/schemas/models.ts';
-import { navigate, setTitle, user, type ViewProps } from './session.ts';
+import { navigate, onPi, setTitle, user, type ViewProps } from './session.ts';
 import { AccessGate, gateOf } from './idea-access.tsx';
 import { confirmDialog, cx, jewelGradient, pref, timeAgo, toast } from './kit.tsx';
+import { LookFiles } from './look-files.tsx';
 import { Rose } from './rose.tsx';
 
 const EXAMPLES = ['Rising embers drift up the spires', 'A coral reef breathing in slow blues and pinks',
@@ -254,7 +255,7 @@ function IdeaRow({ idea, retry }: { idea: Idea; retry: () => void }) {
 export function Looks({ scope }: ViewProps) {
   const gallery = scope === 'gallery';
   const [looks, setLooks] = useState<Listed[] | null>(null), [error, setError] = useState('');
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState(''), [loads, setLoads] = useState(0);
   useEffect(() => {
     setTitle(gallery ? 'Gallery' : 'My looks');
     let alive = true;
@@ -262,7 +263,7 @@ export function Looks({ scope }: ViewProps) {
       setError(err.message);
     });
     return () => { alive = false; };
-  }, []);
+  }, [loads]);
 
   async function remove(look: Listed) {
     const ok = await confirmDialog(`Delete “${look.title}”? This cannot be undone.`,
@@ -282,6 +283,7 @@ export function Looks({ scope }: ViewProps) {
     || `${l.title} ${l.summary || ''} ${l.ownerName || ''}`.toLowerCase().includes(words));
   const empty = error ? <p class="form-error">{error}</p> : looks?.length ? <p>No looks match that search.</p>
     : gallery ? <p>Nothing shared yet. Open one of your looks in the Studio and switch on “Share to gallery”.</p>
+    : onPi() ? <p>No saved looks yet. <a href="/studio">Start a blank look</a>, or import some.</p>
     : <p>No saved looks yet. <a href="/ideas">Describe an idea</a> or <a href="/studio">start a blank look</a>.</p>;
   return (
     <div class="page looks-page">
@@ -293,6 +295,7 @@ export function Looks({ scope }: ViewProps) {
           <input type="search" class="search" aria-label="Search looks" value={q}
             placeholder={gallery ? 'Search the gallery' : 'Search my looks'}
             onInput={(e) => setQ(e.currentTarget.value)} />
+          <LookFiles looks={looks} gallery={gallery} reload={() => setLoads((n) => n + 1)} />
           {!gallery && <a class="btn primary" href="/studio">New look</a>}
         </div>
       </div>

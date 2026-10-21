@@ -2,15 +2,18 @@
 # Start or update the hosted studio on this machine (docs/HOSTING.md "Hosting on this machine"): check out a commit,
 # install, build, and (re)start it as a systemd user service, then check it serves that commit.
 #
-#   npm run host [-- [--instance dev] <ref>]   default STUDIO_REF from the env file, else origin/prod (dev: origin/dev)
+#   npm run host [-- [--instance dev|offline] <ref>]   default STUDIO_REF from the env file, else origin/prod
+#                                                       (dev and offline: origin/dev)
 #
-#   STUDIO_INSTANCE   which studio: unset is the public one; dev is the internal one beside it (docs/HOSTING.md
-#                     "Dev instance"), with its own env file, unit and port; one never touches the other's units
-#   STUDIO_ENV_FILE   the settings, default ~/.config/folly-studio/studio.env (dev: studio-dev.env; chmod 600)
-#   STUDIO_UNIT       the service's name, default folly-studio (dev: folly-studio-dev)
+#   STUDIO_INSTANCE   which studio: unset is the public one; dev is the internal one beside it, offline a trial of
+#                     the Pi's (STUDIO_PROFILE=pi) on loopback (docs/HOSTING.md "Dev instance"), each with its own
+#                     env file, unit and port; one never touches another's units
+#   STUDIO_ENV_FILE   the settings, default ~/.config/folly-studio/studio.env (studio-dev.env, studio-offline.env;
+#                     chmod 600)
+#   STUDIO_UNIT       the service's name, default folly-studio (folly-studio-dev, folly-studio-offline)
 #
-# With PI_PREVIEW_URL in the env file, it also runs a dry-run Studio Live beside it as $STUDIO_UNIT-pi, for admins at
-# /pi (docs/HOSTING.md "The Pi's page"); without it, that unit is stopped.
+# With PI_PREVIEW_URL in the env file, it also runs a dry-run Studio Live beside it as $STUDIO_UNIT-pi, for admins
+# (offline: curators too) at /pi (docs/HOSTING.md "The Pi's page"); without it, that unit is stopped.
 set -euo pipefail
 
 die() { echo "host: $*" >&2; exit 1; }
@@ -19,37 +22,54 @@ root=$(git -C "$studio" rev-parse --show-toplevel)
 if [ "${1:-}" = --instance ]; then STUDIO_INSTANCE=${2:-}; shift 2 || die "--instance needs a name"; fi
 instance=${STUDIO_INSTANCE:-}
 settings=$HOME/.config/folly-studio
+# Each instance's settings file and port when the file does not name one.
+declare -A PORTS=([studio]=8780 [studio-dev]=8781 [studio-offline]=8782)
 case $instance in
-  '') suffix= default_ref=origin/prod default_port=8780 other=$settings/studio-dev.env ;;
-  dev) suffix=-dev default_ref=origin/dev default_port=8781 other=$settings/studio.env ;;
-  *) die "--instance $instance: the instances are dev, or none for the public studio" ;;
+  '') suffix= default_ref=origin/prod profile=hosted ;;
+  dev) suffix=-dev default_ref=origin/dev profile=hosted ;;
+  offline) suffix=-offline default_ref=origin/dev profile=pi ;;
+  *) die "--instance $instance: the instances are dev and offline, or none for the public studio" ;;
 esac
+default_port=${PORTS[studio$suffix]}
 env_file=${STUDIO_ENV_FILE:-$settings/studio$suffix.env}
 unit=${STUDIO_UNIT:-folly-studio$suffix}
 
 [ -f "$env_file" ] || die "no $env_file: write it first (docs/HOSTING.md \"Environment\")"
 [ "$(stat -c %a "$env_file")" = 600 ] || die "$env_file must be readable only by you: chmod 600 $env_file"
 # shellcheck disable=SC1090 # read in a subshell: only what the service needs to be found comes out
-read -r ref host port pi_url < <(set -a; . "$env_file"
-  echo "${STUDIO_REF:-$default_ref} ${HOST:-127.0.0.1} ${PORT:-$default_port} ${PI_PREVIEW_URL:-}")
+read -r ref host port has_profile pi_url < <(set -a; . "$env_file"
+  echo "${STUDIO_REF:-$default_ref} ${HOST:-127.0.0.1} ${PORT:-$default_port} ${STUDIO_PROFILE:-hosted}" \
+    "${PI_PREVIEW_URL:-}")
 ref=${1:-$ref}
+[ "$has_profile" = "$profile" ] \
+  || die "STUDIO_PROFILE=$has_profile in $env_file: the ${instance:-public} studio runs $profile (docs/HOSTING.md)"
 # shellcheck disable=SC1090 # the data dir, whose light settings the dry-run Pi reads too (SPEC "Light and output")
 data=$(cd "$studio"; set -a; . "$env_file"; realpath -m "${STUDIO_DATA:-$studio/data}")
 light=$data/light.json
-# The other instance, when this machine has one: never its port or its data.
-if [ "$other" != "$env_file" ] && [ -r "$other" ]; then
+case $host in 127.0.0.1|localhost|::1) ;; *) die "HOST=$host: keep the studio on loopback, the tunnel reaches it";; esac
+# The dry-run engine's port, from PI_PREVIEW_URL ('' without one).
+engine_port() {
+  [ -n "$1" ] || return 0
+  [[ $1 =~ ^http://127\.0\.0\.1:([0-9]+)/?$ ]] || die "PI_PREVIEW_URL=$1: must be http://127.0.0.1:<port>"
+  echo "${BASH_REMATCH[1]}"
+}
+pi_port=$(engine_port "$pi_url")
+# The other instances this machine has: never their port, their data or their engine's port.
+for name in "${!PORTS[@]}"; do
+  other=$settings/$name.env
+  [ "$other" != "$env_file" ] && [ -r "$other" ] || continue
   # shellcheck disable=SC1090
-  read -r other_port other_data < <(set -a; . "$other"
-    echo "${PORT:-$([ -n "$instance" ] && echo 8780 || echo 8781)} ${STUDIO_DATA:+$(realpath -m "$STUDIO_DATA")}")
+  read -r other_port other_pi other_data < <(set -a; . "$other"
+    echo "${PORT:-${PORTS[$name]}} ${PI_PREVIEW_URL:--} ${STUDIO_DATA:+$(realpath -m "$STUDIO_DATA")}")
   [ "$other_port" != "$port" ] || die "PORT=$port is $other's too: give each studio its own port"
   [ "${other_data:-}" != "$data" ] || die "STUDIO_DATA=$data is $other's too: give each studio its own data"
-fi
-case $host in 127.0.0.1|localhost|::1) ;; *) die "HOST=$host: keep the studio on loopback, the tunnel reaches it";; esac
-pi_port=
-if [ -n "$pi_url" ]; then
-  [[ $pi_url =~ ^http://127\.0\.0\.1:([0-9]+)/?$ ]] || die "PI_PREVIEW_URL=$pi_url: must be http://127.0.0.1:<port>"
-  pi_port=${BASH_REMATCH[1]}
-fi
+  # An assignment, so a malformed URL there stops this run too.
+  other_engine=$([ "$other_pi" = - ] || engine_port "$other_pi") || die "in $other"
+  [ -z "$other_engine" ] || [ -z "$pi_port" ] || [ "$other_engine" != "$pi_port" ] \
+    || die "PI_PREVIEW_URL's port $pi_port is $other's too: give each studio's engine its own port"
+  [ -z "$other_engine" ] || [ "$other_engine" != "$port" ] \
+    || die "PORT=$port is the engine's port in $other: give each its own"
+done
 command -v systemctl >/dev/null && systemctl --user show-environment >/dev/null 2>&1 \
   || die "no systemd user session: in WSL, set [boot] systemd=true in /etc/wsl.conf and restart WSL"
 

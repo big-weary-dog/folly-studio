@@ -1,5 +1,6 @@
-// /pi on Studio's own site (docs/HOSTING.md "The Pi's page"): a dry-run Studio Live on this machine, at PI_PREVIEW_URL
-// and started with `--base /pi`, passed through to signed-in admins only. Dry run or not, it is a control surface.
+// /pi on Studio's own site (SPEC-offline "The Pi preview"): a Studio Live engine on this machine, at PI_PREVIEW_URL
+// and started with `--base /pi` (a dry run when hosted, the real one on the Pi), passed through to signed-in admins,
+// and curators too on the Pi. Dry run or not, it is a control surface.
 // Using one of its controls makes it drive the live stage (SPEC-live "Following /pi"); its page is told who drives.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import WebSocket from 'ws';
@@ -26,13 +27,15 @@ export function previewTarget(url: string) {
   return u;
 }
 
-export function piPreview({ auth, target, hub }: { auth: Auth, target: URL,
-  hub?: Pick<Hub, 'live' | 'piDrove' | 'onDriver'> }) {
+/** `curators`: curators may use it too (the Pi profile), not admins alone. */
+export function piPreview({ auth, target, hub, curators = false }: { auth: Auth, target: URL,
+  hub?: Pick<Hub, 'live' | 'piDrove' | 'onDriver'>, curators?: boolean }) {
   const host = (h: string) => h.toLowerCase().replace(/:(80|443)$/, '');
-  // Admins only (sessionHook): no session is asked to sign in (the app's page), a member is refused, in plain text.
-  const SAYS: Record<number, string> = { 401: 'Sign in to Studio as an admin, then open /pi/ again.',
-    403: 'The Pi page is for admins.' };
-  const admins = { config: { role: 'admin' as const } };
+  // Its role only (sessionHook): no session is asked to sign in (the app's page), anyone else refused, in plain text.
+  const who = curators ? 'a curator' : 'an admin';
+  const SAYS: Record<number, string> = { 401: `Sign in to Studio as ${who}, then open /pi/ again.`,
+    403: `The Pi page is for ${curators ? 'curators' : 'admins'}.` };
+  const allowed = { config: { role: curators ? 'curator' as const : 'admin' as const } };
 
   return async (app: FastifyInstance) => {
     app.addHook('onRequest', sessionHook(auth));
@@ -52,11 +55,11 @@ export function piPreview({ auth, target, hub }: { auth: Auth, target: URL,
       for (const k of KEEP) { const v = res.headers.get(k); if (v) reply.header(k, v); }
       return reply.send(Buffer.from(await res.arrayBuffer()));
     };
-    app.get(BASE, admins, page);
-    app.get(`${BASE}/*`, admins, page);
+    app.get(BASE, allowed, page);
+    app.get(`${BASE}/*`, allowed, page);
 
     app.get(`${BASE}/ws`, {
-      ...admins,
+      ...allowed,
       websocket: true,
       // Browsers always send Origin on a socket: it must be this site (CSRF over WebSockets), as for the live stage.
       preValidation: async (req, reply) => {

@@ -126,15 +126,18 @@ For a quick trial elsewhere, with no domain, `cloudflared tunnel --url http://12
 ## Dev instance
 
 An internal studio beside the public one, for trying `dev` before it reaches `prod`: its own checkout, data,
-port, settings and unit, so nothing it does reaches folly.swampkat.com.
+port, settings and unit, so nothing it does reaches folly.swampkat.com. `offline` is a third, a trial of the Pi's
+Studio (`STUDIO_PROFILE=pi`, [The Pi profile](#the-pi-profile)) here on loopback, with a dry-run engine for its
+**Lights**.
 
-| | public | dev |
-|---|---|---|
-| Checkout | `~/folly-prod`, `origin/prod` | `~/folly-dev`, `origin/dev` |
-| Data (`STUDIO_DATA`) | `~/folly-data` | `~/folly-dev-data` |
-| Port | 127.0.0.1:8780 | 127.0.0.1:8781 |
-| Settings | `~/.config/folly-studio/studio.env` | `~/.config/folly-studio/studio-dev.env` |
-| Unit | `folly-studio` (and `folly-studio-pi`) | `folly-studio-dev` |
+| | public | dev | offline |
+|---|---|---|---|
+| Checkout | `~/folly-prod`, `origin/prod` | `~/folly-dev`, `origin/dev` | `~/folly-offline`, `origin/dev` |
+| Data (`STUDIO_DATA`) | `~/folly-data` | `~/folly-dev-data` | `~/folly-offline-data` |
+| Port | 127.0.0.1:8780 | 127.0.0.1:8781 | 127.0.0.1:8782 |
+| Engine (`PI_PREVIEW_URL`) | 127.0.0.1:4043 | | 127.0.0.1:4045 |
+| Settings | `~/.config/folly-studio/studio.env` | `studio-dev.env` | `studio-offline.env` |
+| Unit | `folly-studio` (and `folly-studio-pi`) | `folly-studio-dev` | `folly-studio-offline` (and `-offline-pi`) |
 
 Set up, once:
 
@@ -159,8 +162,16 @@ Set up, once:
 Updating is the same command again, from `~/folly-dev`; `npm run host -- --instance dev <ref>` for another
 branch. Logs: `journalctl --user -u folly-studio-dev -f`.
 
-Each run writes, enables and restarts its own instance's unit alone, and refuses to start when the other instance's
-settings (if this machine has them) name the same `PORT` or `STUDIO_DATA`. The data lock (`studio.lock`, under
+The offline one is set up the same way from `~/folly-offline`, with `--instance offline` and
+`~/.config/folly-studio/studio-offline.env` (chmod 600) holding at least `STUDIO_PROFILE=pi`,
+`STUDIO_DATA=/home/<you>/folly-offline-data`, `PORT=8782`, `PI_PREVIEW_URL=http://127.0.0.1:4045` and
+`STUDIO_ADMINS=<your username>` (`STUDIO_CURATORS` for others who may open **Lights**). It needs no seeding: bring
+looks in with Import. `HOST` stays loopback, as for the others. It ends on `host: folly-studio-offline serves
+<commit> on http://127.0.0.1:8782`.
+
+Each run writes, enables and restarts its own instance's unit alone, and refuses to start when another instance's
+settings (if this machine has them) name the same `PORT`, `STUDIO_DATA` or engine port, or when its own name the
+wrong `STUDIO_PROFILE` (`pi` for offline only). The data lock (`studio.lock`, under
 [Environment](#environment)) keeps a studio off a folder another one has open, so a dev studio pointed at
 `~/folly-data` by mistake stops at start.
 
@@ -238,7 +249,8 @@ them.
 | Setting | What it is |
 | --- | --- |
 | `PORT` | the port, default 8780 |
-| `HOST` | the address to listen on, default 127.0.0.1 |
+| `HOST` | the address to listen on, default 127.0.0.1; loopback only unless STUDIO_PROFILE=pi |
+| `STUDIO_PROFILE` | hosted (the default), or pi: the Pi's offline Studio (SPEC-offline) |
 | `STUDIO_DATA` | the data folder, default data/ in the repo |
 | `STUDIO_CURATORS` | comma-separated usernames with the curator role |
 | `STUDIO_ADMINS` | comma-separated usernames with the admin role (admins are curators too) |
@@ -254,15 +266,15 @@ them.
 | `STUDIO_IDEA_LOGS` | ideas' logs kept, default 300; 0: none written |
 | `STUDIO_IDEA_LOGS_MAX_BYTES` | their disk cap, default 500MB |
 | `STUDIO_FRAMES_BROTLI_QUALITY` | baked frames' brotli quality, default 9 |
-| `STUDIO_FRAMES_MAX_BYTES` | baked frames' disk cap, default 2GB |
+| `STUDIO_FRAMES_MAX_BYTES` | baked frames' disk cap, default 2GB (the Pi: 1GB) |
 | `STUDIO_FLASH_CHECK` | off: flashing blocks and dims nothing (local use only) |
 | `STUDIO_FLASH_PER_SECOND` | flashes a second allowed, default 3 (out of range: the default) |
 | `STUDIO_FLASH_DELTA` | a flash's swing as a share of full light, default 0.5 |
 | `STUDIO_FLASH_AREA` | the share of the LEDs or lit area that blocks, default 0.25 |
 | `STUDIO_LIVE_CONTROL` | who drives /live, default curators |
 | `STUDIO_LIVE_LOOKS` | what may play on /live, default reviewed |
-| `STUDIO_PREVIEWS` | the gallery previews' camera, default playa |
-| `PI_PREVIEW_URL` | a dry-run Studio Live on this machine, shown to admins at /pi |
+| `STUDIO_PREVIEWS` | the gallery previews' camera, default playa (the Pi: front) |
+| `PI_PREVIEW_URL` | a Studio Live engine on this machine, at /pi (here a dry run; the Pi's own on it) |
 | `GIT_SHA` | the build's commit, for bug reports (default: the checkout's) |
 | `STUDIO_BAKE_SECONDS` | the longest render-box bake, default 120 |
 | `STUDIO_BAKE_TIMEOUT` | a bake's wall clock, default scaled to its length |
@@ -309,6 +321,13 @@ asked to sign in (401), anyone else is refused (403), and the socket must come f
 own CSP. It drives only that dry run, never the Pi itself. Using a control there makes Studio's Live tab play what the
 dry run plays, for every viewer, until a curator uses Live control again (SPEC-live "Following /pi"); both pages say
 which drives. Unset `PI_PREVIEW_URL` and run `npm run host` again to take it down. The Admin page links it.
+
+### The Pi profile
+
+`STUDIO_PROFILE=pi` is the Studio on the FPP Pi itself, offline, beside the real engine: no generators, no Ideas,
+listening on the Pi's network, `/pi` open to curators (SPEC-offline). It is not for this machine: here the server
+refuses any `HOST` but loopback. Installing it: `pi/STUDIO.md`. The Pi runs the `pi` branch, which
+`npm run pi:branch` makes here from `prod` (the app built, `dist/` committed) and force-pushes.
 
 ### The flash check
 

@@ -2,11 +2,11 @@
 // look's title and summary.
 import { useState } from 'preact/hooks';
 
-import { playsOf } from '../../../shared/plays.ts';
 import { api } from '../api.ts';
 import { type Light, lightOf } from '../core/light.ts';
 import type { Runtime } from '../runtime.ts';
 import { confirmDialog, download, Field, openDialog, Scrub, slugify, toast } from './kit.tsx';
+import { fileText, lookFile } from './look-file.ts';
 import type { Preview } from './preview.ts';
 import type { Studio } from './studio-store.ts';
 
@@ -14,9 +14,8 @@ const FPS = 40;
 
 export function exportJson(st: Studio) {
   st.flush();
-  const { title, summary, ...look } = st.body.peek(), { layers, ...plays } = playsOf(look);
-  const data = JSON.stringify({ title, summary, ...plays, layers }, null, 2) + '\n';
-  download(data, `${slugify(title, 'folly-look')}.json`, 'application/json');
+  const look = st.body.peek();
+  download(fileText(lookFile(look)), `${slugify(look.title, 'folly-look')}.json`, 'application/json');
 }
 
 export function details(st: Studio) {
