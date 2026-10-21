@@ -55,8 +55,8 @@ async function runtimeBinds(node: string) {
  * (STUDIO_BAKE_SECONDS, 120, ≤ 600), timeoutMs (STUDIO_BAKE_TIMEOUT; 30 s + 1.5 s per second baked, ≥ 90 s),
  * cpuSeconds (STUDIO_BAKE_CPU; likewise, ≥ 120), tasks (STUDIO_BAKE_TASKS, 256), memoryBytes (STUDIO_BAKE_MEMORY,
  * 1 GB; 0 = none), maxFramesBytes (STUDIO_BAKE_MAX_FRAMES; 64 MB or what `seconds` needs), nice (STUDIO_BAKE_NICE, 10:
- * the box runs at low priority), frameTimeoutMs (2 s), publicDir, script, node, bwrap, prlimit, systemdRun ('' = no
- * scope), tmpRoot.
+ * the box runs at low priority), frameTimeoutMs (2 s; loading the look gets ten times it), publicDir, script, node,
+ * bwrap, prlimit, systemdRun ('' = no scope), tmpRoot.
  */
 type Options = Partial<Record<'publicDir' | 'script' | 'fseqFile' | 'rigFile' | 'coreFile' | 'patternsDir' | 'node'
   | 'bwrap' | 'prlimit' | 'systemdRun' | 'tmpRoot', string> & Record<'seconds' | 'timeoutMs' | 'cpuSeconds' | 'tasks'
