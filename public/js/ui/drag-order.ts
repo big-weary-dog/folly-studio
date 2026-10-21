@@ -25,9 +25,10 @@ export function useDragOrder(list: { current: HTMLElement | null }, move: (from:
     addEventListener('keydown', key, true);
     return () => removeEventListener('keydown', key, true);
   }, [on]);
-  /** Which gap between the rows the pointer is over: the count of rows whose middle is above it. */
+  /** Which gap between the rows the pointer is over: the count of rows whose top line's middle is above it (a row
+   *  may hold more under its line: a module's open settings). */
   const gapAt = (y: number) => [...list.current?.children ?? []].filter((r) => {
-    const b = r.getBoundingClientRect();
+    const b = (r.querySelector(':scope > :is(.chain-top, .layer-top)') ?? r).getBoundingClientRect();
     return b.top + b.height / 2 < y;
   }).length;
   const scroll = (y: number) => {
