@@ -52,3 +52,65 @@ Several looks go in one file as `{ "looks": [look file] }` (`folly-looks-mine-<d
   becomes the importer's, unshared, with no idea. A look without `chain` is converted as any such `POST` is (SPEC
   "Looks"). One look refused (400, or past the 256 KB body) does not stop the rest: the page says how many came in
   and names each one that did not, with the server's reason.
+
+## Playing on the lights
+
+Under the Pi profile, with `PI_PREVIEW_URL` set, Studio puts looks on the lights through the engine (`pi/`), which
+plays a **queue** (the jukebox): what plays now, then each look queued, in order. The engine holds the queue; Studio
+and the engine's control page (`/pi/`) both add to it. Custom code never reaches the engine.
+
+**Two ways a look plays.**
+- **Live**: a look made only of library modules (every module has a `ref` the library has; editing a module's code
+  drops its `ref`, SPEC "Looks"). Studio sends the saved look with its modules by `ref` and no code; the engine
+  resolves it against its own library (`resolveLook`, the same clone, so the same code), and its live controls work
+  as for its own looks. Allowed only while the admin's **Live library looks** is on.
+- **Baked**: any look whose bake is current (`bake.status` done, `ok`, `layersHash` the look's now). Studio sends the
+  look's id, title and `bake.frames.sha256`; the engine reads `<frames>/<lookId>.fseq` itself (its `frames` setting,
+  Studio's `<STUDIO_DATA>/frames`, as `light` is Studio's `light.json`), checks the SHA-256, parses it strictly
+  (`src/frames.ts` `parseFseq`, the rig's ranges, at most 64 MB), and plays its frames as baked: each LED's channels
+  are the look's colour, out through the same light transform, master, blackout, fades and flash guard. A baked
+  item has no live controls. The engine loads an item's frames when it is next, off the frame loop, so the switch
+  never waits; a missing or changed file skips the item, saying so. Baking needs bubblewrap on the Pi
+  (`pi/STUDIO.md`).
+
+Studio picks the way: live when it may (the controls work), else baked, else it refuses, saying why ("Has custom
+code: bake it to play it on the lights", "Live looks are off: bake it to play it on the lights").
+
+**The queue** (the engine's, in memory; a restart empties it). At most 20 items, each
+`{ key, id, title, kind: 'look' | 'live' | 'baked', by? }`: `look` is one of the engine's own (`pi/looks`). An item
+plays for its slot, its duration (a bake's length) repeated to at least `slot` seconds (the engine's setting, 60),
+then dips through black to the next. With nothing queued, what plays loops on. A flash-guard trip dips to `safe`
+and pauses the queue until someone plays, skips or resumes it.
+
+**HTTP** (Pi profile with `PI_PREVIEW_URL`; others 404):
+
+```
+GET  /api/lights                     → { liveLooks, canQueue, engine: boolean }   engine: the feed is connected
+POST /api/lights/queue  { lookId, at?: 'now' | 'next' | 'end' }
+                                     → { kind: 'live' | 'baked' }  400 says why it cannot play; 403 not allowed;
+                                       503 the engine is not connected
+PUT  /api/admin/lights  { liveLooks } → the same; admins only; kept in <STUDIO_DATA>/lights.json (default on)
+```
+
+Queuing is for whoever may use `/pi` (curators and admins), on looks they may open. The queue itself, as the engine
+has it, reaches Studio's pages in the feed's `now` (SPEC-live "Following /pi").
+
+**The engine's socket** (`pi/src/protocol.ts`) gains, from any page that said hello:
+`{ type: 'queue', id, at? }` (one of its own looks), `{ type: 'unqueue', key }`, `{ type: 'move', key, to }`,
+`{ type: 'next' }` (skip to the next item now), `{ type: 'resume' }`; and, as Studio's feed sends it,
+`{ type: 'send', at?, by, item: { kind: 'live', look } | { kind: 'baked', id, title, sha256 } }`, up to 64 KB (other
+messages stay at 1 KB). Studio's proxy passes pages no `send`, so through Studio its checks hold; on the Pi the
+engine binds to `127.0.0.1` (`pi/STUDIO.md`), so nothing reaches it another way. Its state gains `queue`, `paused`,
+and the playing look's `kind` and `left` (seconds left in its slot; null while nothing is queued). Studio's feed
+says `PI_PIN` in its hello when the engine has a PIN. While a baked item plays, the engine's `source` has
+`baked: true` and no layers: `/live` shows its title and "Baked: on the lights only" over a dark view.
+
+**Pages.**
+- **Studio** (the editor's Export menu, the phone's Look tab, and each card on My looks and the Gallery): **Play on
+  the lights** → Play now · Play next · Add to queue, for those who may; off, with the reason, when it cannot play.
+  It plays the saved look (unsaved changes: "Save first").
+- **`/pi/`** (the engine's page): **Up next**, the queue with who added each, ↑ to move up, × to remove, **Skip**;
+  each of its looks has **Queue** beside play; the playing item's time left.
+- **`/live/control`**, following the Pi: the same queue, read only, with **Open the lights** (`/pi/`); `/live` shows
+  "Up next" under the title.
+- **Admin → Light**: **Live library looks** on the lights (on, or baked looks only).
