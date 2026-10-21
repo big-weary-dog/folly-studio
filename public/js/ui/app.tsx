@@ -177,7 +177,7 @@ function Header({ me, nav }: { me: User; nav?: string }) {
           <div class="user-menu" id="user-menu" popover="auto" onBeforeToggle={placeUserMenu}
             onClick={(e) => { if ((e.target as Element).closest('.btn')) e.currentTarget.hidePopover?.(); }}>
             <button class="btn ghost small" type="button" onClick={() => openTour('menu')}>Tutorials</button>
-            <button class="btn ghost small report-btn" type="button" title="Report a problem (F8)" data-tour="report"
+            <button class="btn ghost small report-btn" type="button" title="Report a problem (F8)"
               onClick={() => { setOpen(false); void fileBugReport(); }}>Report a problem</button>
             <button class="btn ghost small" type="button" onClick={logout}>Log out</button>
           </div>

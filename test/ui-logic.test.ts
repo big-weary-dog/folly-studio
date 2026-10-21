@@ -15,7 +15,7 @@ import {
 } from '../public/js/ui/bindings.ts';
 import { decimals, scrubTo, snap } from '../public/js/ui/kit.tsx';
 import { profile } from '../public/js/ui/session.ts';
-import { pathsHere } from '../public/js/ui/tour/paths/index.ts';
+import { onIdeas, pathsHere } from '../public/js/ui/tour/paths/index.ts';
 import { createLayerStatus } from '../public/js/ui/layer-status.ts';
 import {
   addColour, CUSTOM_MAX, editText, editValue, readEdit, toggleRole, toggleSlot, toggleToken,
@@ -72,10 +72,12 @@ describe('routing', () => {
   });
 
   test('on the Pi, the tutorial takes no step to Ideas', () => {
-    const steps = (pi: boolean) => pathsHere(pi).flatMap((p) => p.steps.map((s) => s.page));
-    assert.ok(steps(false).includes('/ideas'));
-    assert.ok(!steps(true).includes('/ideas'));
-    assert.equal(pathsHere(true).find((p) => p.id === 'keep')!.about, 'Undo, save and Live.');
+    const steps = (pi: boolean) => pathsHere(pi).flatMap((p) => p.steps);
+    assert.ok(steps(false).some(onIdeas));
+    assert.ok(!steps(true).some(onIdeas));
+    const idea = pathsHere(true).find((p) => p.id === 'idea')!;
+    assert.equal(idea.start, '/studio?tour=idea', 'From an idea starts on its look');
+    assert.equal(idea.about, idea.aboutPi);
   });
 
   test('`next` stays on this app', () => {

@@ -76,8 +76,8 @@ function ModPanel({ p, start, now, ctx, put }: { p: Param; start: ParamValue | u
     put(binding);
   }
   return <div class="mod-panel">
-    <div class="mod-kinds mod-segs" role="group" aria-label="Moved by">{seg('mod', ctx.self ? SELF_KINDS : KINDS)}
-    </div>
+    <div class="mod-kinds mod-segs" role="group" aria-label="Moved by" data-tour="mod-kinds">
+      {seg('mod', ctx.self ? SELF_KINDS : KINDS)}</div>
     {old && <p class="mod-note mod-old">{old}<button type="button" class="btn small"
       onClick={() => set({ mod: '' })}>Off</button></p>}
     {f.mod === 'beats' && !ctx.self && <p class="mod-note">In time with the beat: the clock beside its field sets
@@ -86,12 +86,12 @@ function ModPanel({ p, start, now, ctx, put }: { p: Param; start: ParamValue | u
       : 'Nothing moves it: its field sets it.'}</p>}
     {f.mod === 'lfo' && <>
       <Wave f={f} p={p} ctx={ctx} />
-      <Field label="Shape"><span class="mod-segs">{seg('shape', SHAPES.map((s) => [s, `${GLYPHS[s]} ${s}`]))}
-      </span></Field>
+      <Field label="Shape" tour="mod-shape">
+        <span class="mod-segs">{seg('shape', SHAPES.map((s) => [s, `${GLYPHS[s]} ${s}`]))}</span></Field>
       {f.shape === 'hold' && <Field label="Hold">{num('hold', 'Hold: the share of each cycle held')}
         <span class="mod-note">of each cycle, half at each end</span></Field>}
-      <Field label="Rate">{beats ? <input type="number" step="any" class="mod-num" aria-label="Beats a cycle"
-        value={fmt(1 / rate)}
+      <Field label="Rate" tour="mod-rate">{beats ? <input type="number" step="any" class="mod-num"
+        aria-label="Beats a cycle" value={fmt(1 / rate)}
         onInput={(e) => { const n = parseFloat(e.currentTarget.value); if (n > 0) set({ rate: String(1 / n) }); }} />
         : num('rate', 'Cycles a second')}
         <BeatClock on={beats} label="Rate" set={(on) => set(on ? { unit: 'beats', rate: String(rate * 60 / bpm) }
@@ -104,7 +104,8 @@ function ModPanel({ p, start, now, ctx, put }: { p: Param; start: ParamValue | u
       </Field>
       <Field label="Swing ×">{fader('amount', 'Swing times a fader')}<span class="mod-note">scales its swing; 0 holds
         it</span></Field>
-      <Field label="Between">{num('lo', 'From')}<span class="mod-note">and</span>{num('hi', 'To')}{range}</Field>
+      <Field label="Between" tour="mod-between">{num('lo', 'From')}<span class="mod-note">and</span>{num('hi', 'To')}
+        {range}</Field>
       {ctx.share && <button type="button" class="btn small mod-share" onClick={share}
         title="A new modulator moves this param; bind others to it to keep them in step">
         ⇪ Share this LFO as a modulator…</button>}</>}
