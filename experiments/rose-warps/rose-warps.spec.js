@@ -8,10 +8,14 @@ test('rose structural warps: controlled Studio stills and motion frames', async 
   await mkdir(`${reportDir}/images`, { recursive: true });
   const cookie = await signup(studio.origin, 'rose-study'), [name, value] = cookie.split('=');
   await page.context().addCookies([{ name, value, url: studio.origin }]);
+  await page.emulateMedia({ reducedMotion: 'reduce' }); // fixed camera; sources are sought explicitly
   await page.addInitScript(() => {
-    localStorage.setItem('studio.tour.welcomed', '1');
-    localStorage.setItem('studio.venue', '0');
-    localStorage.setItem('studio.ghost', '0');
+    try {
+      localStorage.setItem('studio.tour.welcomed', '1');
+      localStorage.setItem('studio.venue', '0');
+      localStorage.setItem('studio.ghost', '0');
+      localStorage.setItem('studio.quality', 'full');
+    } catch {} // opaque sandbox frames have no storage
   });
   const consoleErrors = [];
   page.on('pageerror', (e) => consoleErrors.push(String(e)));
@@ -22,6 +26,8 @@ test('rose structural warps: controlled Studio stills and motion frames', async 
       headers: { cookie, 'content-type': 'application/json' } });
     expect(res.status, await res.clone().text()).toBe(201);
     const { look: saved } = await res.json();
+    expect(saved.layers.map((l) => l.modules.map((m) => m.id)))
+      .toEqual(body.layers.map((l) => l.modules.map((m) => m.id)));
     await page.goto(`${studio.origin}/studio/${saved.id}`);
     await expect(page.locator('[data-view="rose"]:visible')).toBeVisible();
     await page.locator('[data-view="rose"]:visible').click();

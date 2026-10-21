@@ -13,8 +13,10 @@ font-family="sans-serif" font-size="14">${esc(text)}</text></svg>`);
 const W = 341, H = 300, L = 38;
 async function tile(c, text) {
   const b = c.box;
+  const side = Math.floor(Math.min(b.width, b.height) * 0.85);
   const picture = await sharp(`${reportDir}/images/${c.file}`).extract({
-    left: Math.round(b.x), top: Math.round(b.y), width: Math.floor(b.width), height: Math.floor(b.height),
+    left: Math.round(b.x + (b.width - side) / 2),
+    top: Math.round(b.y + Math.min(b.height - side, (b.height - side) / 2 + 20)), width: side, height: side,
   }).resize(W, H, { fit: 'contain', background: '#05060c' }).png().toBuffer();
   return sharp({ create: { width: W, height: H + L, channels: 3, background: '#13151e' } })
     .composite([{ input: picture, top: 0, left: 0 }, { input: label(text, W, L), top: H, left: 0 }]).png().toBuffer();

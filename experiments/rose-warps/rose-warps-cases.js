@@ -27,7 +27,7 @@ export const sourceParams = {
     colours: { pick: '#120b48 #5430bf #fa429b #ffd68c', blend: 'smooth' } },
 };
 export const look = (source, warp, params = {}) => ({
-  title: `${warp || 'Unwarped'} / ${source} / ${JSON.stringify(params)}`, duration: 12,
+  title: `${warp || 'Unwarped'} / ${source} / ${JSON.stringify(params)}`, duration: 12, chain: 2,
   layers: [{ id: 'rose', title: 'Rose structure study', tags: ['rose'], level: 1, blend: 'over', modules: [
     { id: 'source', kind: 'source', title: source, code: code(source), params: sourceParams[source] },
     ...(warp ? [{ id: 'warp', kind: 'warp', title: warp, code: code(warp), params }] : []),
@@ -35,7 +35,7 @@ export const look = (source, warp, params = {}) => ({
 });
 
 export const splitLook = (rule, size = 2, pick = 'even', index = 0) => ({
-  title: `Two patterns / ${rule} / size ${size}`, duration: 12,
+  title: `Two patterns / ${rule} / size ${size}`, duration: 12, chain: 2,
   layers: ['bars', 'clouds'].map((source, i) => ({
     id: `part-${i}`, title: i ? 'Clouds on the rest' : 'Bars on selected panes',
     tags: ['rose'], level: 1, blend: 'over', modules: [
