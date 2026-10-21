@@ -87,7 +87,8 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
 
   const roleOf = (user: { username: string } | null): User['role'] => (!user ? 'member'
     : adminSet.has(user.username) ? 'admin' : curatorSet.has(user.username) ? 'curator' : 'member');
-  const publicUser = (user: Stored): User => ({ id: user.id, username: user.username, role: roleOf(user) });
+  const publicUser = (user: Stored): User => ({ id: user.id, username: user.username, role: roleOf(user),
+    ...(user.tour ? { tour: user.tour } : {}) });
   const findUser = (username: string) => store.users.list((u) => u.username === username)[0] ?? null;
 
   async function signup({ username, password }: { username: string, password: string }) {

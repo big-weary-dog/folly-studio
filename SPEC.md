@@ -488,13 +488,14 @@ Mutating requests must be `Content-Type: application/json` and, when an `Origin`
 present, same-origin. Errors are `{ error: "message" }` with a 4xx/5xx status. A body is a JSON object of at most
 256 KB (413 past it; empty is `{}`), checked by the shared schemas (`shared/schemas/api.ts`, `look.ts`): a 400 names
 the first problem ("Layer 2, clip 1: start must be a number of seconds from 0 to 600."). Unknown routes are 404, a
-known path's other methods 405 with `Allow`. Accounts, roles and who may do what: `SPEC-access.md`.
+known path's other methods 405 with `Allow`.
 
 ```
 POST   /api/signup   { username, password }   → { user, flash }     (sets cookie)
 POST   /api/login    { username, password }   → { user, flash }
 POST   /api/logout                            → { ok: true }
 GET    /api/me                                → { user, flash, access } | 401
+PUT    /api/me/tour  tour                     → { tour }  SPEC-tutorial
 GET    /api/ideas                             → { ideas: [idea] }    mine, newest first
 POST   /api/ideas    { text, model?, explore? } → { idea }           queued for generation on that model (none: the
                                               default this user gets); 400 when it is unknown, off, not offered
