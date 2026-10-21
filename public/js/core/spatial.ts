@@ -1,5 +1,6 @@
 // Spatial modules (SPEC "Spatial modules"): the rig's neighbours, found once per scene, and the native blur a chain
 // runs between its stages, over one layer's pixels. Nothing here allocates per frame.
+import { toLight, toValue } from './light.ts';
 import type { Scene } from './scene.ts';
 
 /** Metres: how far the neighbour lists reach, so the most a blur's radius can be. */
@@ -97,12 +98,13 @@ function wireGraph(S: Scene) {
   });
 }
 
-/** A layer's blur state: each pixel's index in the layer (−1 outside it) and a scratch buffer of its rgba. */
+/** A layer's blur state: each pixel's index in the layer (−1 outside it), and scratch buffers of its rgba: the
+ * colours' light, the blurred. */
 export function blurState(S: Scene, idx: Int32Array) {
   const loc = new Int32Array(S.count).fill(-1);
   for (let j = 0; j < idx.length; j++) loc[idx[j]] = j;
   neighbourGraph(S);                       // built now, at prepare time, not in the first frame
-  return { loc, tmp: new Float64Array(idx.length * 4) };
+  return { loc, lit: new Float64Array(idx.length * 4), tmp: new Float64Array(idx.length * 4) };
 }
 export type BlurState = ReturnType<typeof blurState>;
 
@@ -130,8 +132,8 @@ function gather(g: Neighbours, k: number, r: number, inv: number, loc: Int32Arra
 
 /**
  * Blurs a layer's colours (buf: rgba per pixel of idx, straight alpha) in place: each the weighted mean of itself and
- * its in-layer neighbours within `radius` m (`mode`: wire, space or both summed), premultiplied by alpha, then mixed
- * with the unblurred colour by `amount`. Radius or amount 0: untouched.
+ * its in-layer neighbours within `radius` m (`mode`: wire, space or both summed), premultiplied by alpha, the mean of
+ * their light (toLight, toValue), then mixed with the unblurred colour by `amount`. Radius or amount 0: untouched.
  */
 export function blur(S: Scene, idx: Int32Array, st: BlurState, buf: Float64Array, radius: unknown, mode: unknown,
   amount: unknown) {
@@ -139,15 +141,16 @@ export function blur(S: Scene, idx: Int32Array, st: BlurState, buf: Float64Array
   const r = r0 > MAX_RADIUS ? MAX_RADIUS : r0, mix = a0 > 1 ? 1 : a0;
   if (!(r > 0) || !(mix > 0)) return;
   const g = neighbourGraph(S), wire = mode !== 'space', space = mode !== 'wire', self = wire && space ? 2 : 1;
-  const inv = LUT / (r * r), loc = st.loc, tmp = st.tmp, m = idx.length;
+  const inv = LUT / (r * r), loc = st.loc, lit = st.lit, tmp = st.tmp, m = idx.length;
+  for (let i = 0; i < 4 * m; i++) lit[i] = (i & 3) === 3 ? buf[i] : toLight(buf[i]);
   for (let j = 0; j < m; j++) {
-    const k = idx[j], o = 4 * j, a = buf[o + 3] * self;
-    SUM[0] = self; SUM[1] = a; SUM[2] = a * buf[o]; SUM[3] = a * buf[o + 1]; SUM[4] = a * buf[o + 2];
-    if (wire) gather(g.wire, k, r, inv, loc, buf);
-    if (space) gather(g.space, k, r, inv, loc, buf);
+    const k = idx[j], o = 4 * j, a = lit[o + 3] * self;
+    SUM[0] = self; SUM[1] = a; SUM[2] = a * lit[o]; SUM[3] = a * lit[o + 1]; SUM[4] = a * lit[o + 2];
+    if (wire) gather(g.wire, k, r, inv, loc, lit);
+    if (space) gather(g.space, k, r, inv, loc, lit);
     const A = SUM[1];
     tmp[o + 3] = A / SUM[0];
-    for (let c = 0; c < 3; c++) tmp[o + c] = A > 0 ? SUM[2 + c] / A : 0;
+    for (let c = 0; c < 3; c++) tmp[o + c] = A > 0 ? toValue(SUM[2 + c] / A) : 0;
   }
   if (mix === 1) buf.set(tmp);
   else for (let i = 0; i < 4 * m; i++) buf[i] += (tmp[i] - buf[i]) * mix;

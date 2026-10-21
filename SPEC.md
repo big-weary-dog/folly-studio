@@ -175,10 +175,11 @@ button shows or hides it (default on, kept per browser).
 
 ## Light and output
 
-How a colour value becomes light, the one explanation (docs/LIGHT.md has the why, the diagram and every number):
+How a colour value becomes light (docs/LIGHT.md has the why and every number):
 
-- **The engine works in encoded values**, 0..1, the swatches' own sRGB numbers. Every dim, opacity, level, Amount,
-  fade and blend multiplies or mixes those, so a slider is perceptual: 0.5 looks about half, and is 22 % of the light.
+- **The engine works in encoded values**, 0..1, the swatches' own sRGB numbers. Every dim, opacity, level, Amount
+  and fade scales those, so a slider is perceptual: 0.5 looks about half, and is 22 % of the light. Only `add` and
+  blur work in light, at a fixed `v^2.2` (not the Light gamma).
 - **The LEDs give linear light.** One output transform turns a value into an output byte, in float, then rounds:
   `byte = round(255 · min(1, v^gamma · balance[colour] · trim[LED] · cap))`, then a lit channel never below `floor`.
   The Falcon's own gamma is None, so this is the only curve. Export's .fseq and the Pi use it; bakes and the preview
@@ -248,8 +249,9 @@ them; closing the picker forgets them. `tags` (optional, ≤ 16 of
 `[a-z0-9-]{1,32}`) make a layer portable: when it names no groups, or one this rig lacks, the layer takes its
 known ids plus every group carrying one of its tags (a rig without them lights nothing there); where all its
 ids are known, tags change nothing. An unknown id in a layer without tags is an error. Generators set both; editing a
-layer's groups by hand clears its tags. Blend: `add` sums light (default), `over` replaces where the layer
-has alpha × level, `max` keeps the brighter channel, `multiply` tints what is below.
+layer's groups by hand clears its tags. Blend: `add` sums light (default: 50 % and 50 % make
+68 %), `over` replaces where the layer has alpha × level, `max` keeps the brighter channel, `multiply` tints what is
+below.
 
 - **Modules**: 1–8 per layer, ids unique in it (`[A-Za-z0-9_.:-]{1,64}`), `code` ≤ 20 kB each and always
   stored (looks stay self-contained for the boxes); `ref` names the library entry it came from; `params`
