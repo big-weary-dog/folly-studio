@@ -7,7 +7,7 @@ Who has an account, what each role may do, the Admin pages, and who may use the 
 ## Accounts
 
 `user = { id, username, role: 'member' | 'curator' | 'admin' }` (curators listed in `STUDIO_CURATORS`, admins in
-`STUDIO_ADMINS`; an admin is also a curator), and `tour?` once they have met the tutorial (SPEC "The tutorial"):
+`STUDIO_ADMINS`; an admin is also a curator), and `tour?` once they have met the tutorial (SPEC-tutorial):
 `tour = { seen: true, done: [path], at?: { path, step } }`, the paths finished and where one was left. An account
 without it has not seen the tutorial; nothing marks old accounts. Signing up or in is limited per client address (100 a minute) and, for
 failures, per address and username (10 a minute): 429 with `Retry-After`. Password hashes run 3 at once with 30

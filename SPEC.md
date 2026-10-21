@@ -488,15 +488,14 @@ Mutating requests must be `Content-Type: application/json` and, when an `Origin`
 present, same-origin. Errors are `{ error: "message" }` with a 4xx/5xx status. A body is a JSON object of at most
 256 KB (413 past it; empty is `{}`), checked by the shared schemas (`shared/schemas/api.ts`, `look.ts`): a 400 names
 the first problem ("Layer 2, clip 1: start must be a number of seconds from 0 to 600."). Unknown routes are 404, a
-known path's other methods 405 with `Allow`. Accounts, roles and who may do what: `SPEC-access.md`.
+known path's other methods 405 with `Allow`.
 
 ```
 POST   /api/signup   { username, password }   → { user, flash }     (sets cookie)
 POST   /api/login    { username, password }   → { user, flash }
 POST   /api/logout                            → { ok: true }
 GET    /api/me                                → { user, flash, access } | 401
-PUT    /api/me/tour  tour                     → { tour }  replaces the user's `tour` (SPEC-access "Accounts"): path
-                                              and step ids of 1–32 of [a-z0-9-], at most 16 paths done
+PUT    /api/me/tour  tour                     → { tour }  SPEC-tutorial
 GET    /api/ideas                             → { ideas: [idea] }    mine, newest first
 POST   /api/ideas    { text, model?, explore? } → { idea }           queued for generation on that model (none: the
                                               default this user gets); 400 when it is unknown, off, not offered
@@ -581,18 +580,6 @@ each sketch (SPEC-generators "Explore"). A refinement has `refine = { critique?,
 `look = { id, owner, ownerName, title, summary, layers, duration, bpm?, shared, ideaId?, reviewed, reviewedBy?,
 flashOverride?, bake?, chain, createdAt, updatedAt }`
 (`bake`: see Baked frames).
-
-## The tutorial
-
-Short paths through the Studio's real controls, one step at a time, in an overlay loaded on first use
-(`public/js/ui/tour/`). It opens by itself once per account (`user.tour` unset, SPEC-access "Accounts"; a copy in
-localStorage shows it at once), on a screen wider than the phone layout; elsewhere it neither opens nor is offered.
-Its welcome says Studio is in development and how to report a problem. First look starts in a blank Studio; the
-other paths open `/studio?tour=<path>`, a practice look built from library presets (`public/data/tutorial/<path>.json`:
-`{ title, presets: [name] }`) as an unsaved copy, so nothing a person owns changes until they save. A step waits on the
-Studio's state through a read-only view (`ui/tour-view.ts`) and finds its control by `data-tour="<name>"`; the tour
-writes nothing but the user's `tour`, and moves between pages only as the app's own links do. Replay: the user
-menu's Tutorials.
 
 ## Bug reports
 

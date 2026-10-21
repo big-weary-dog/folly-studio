@@ -1,4 +1,4 @@
-// The tutorial's progress on an account (SPEC-access "Accounts", SPEC "The tutorial"): PUT /api/me/tour's body.
+// The tutorial's progress on an account (SPEC-access "Accounts", SPEC-tutorial): PUT /api/me/tour's body.
 import { z } from 'zod';
 
 const Id = z.string().regex(/^[a-z0-9-]{1,32}$/, { error: 'A tour path or step is 1–32 of a-z, 0-9 and -.' });
