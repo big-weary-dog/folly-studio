@@ -43,6 +43,16 @@ describe('twist', () => {
     const plain = at(layerOn(['spires'], ['sides', {}, sides]), 1);
     assert.ok(diff(L, plain) < 1e-6, `${diff(L, plain)}`);
   });
+  test('wind turns each tower\'s angle by wind × height, 4 turns too: the helix Bars\' twist made', () => {
+    const angle = ['angle', {},
+      'function pixel(p) { return [fract(atan2(p.Z - p.oz, p.ox - p.X) / TAU), p.ly, 0, 1]; }'];
+    const anchor = ['anchor', { tag: 'tower', which: 'nearest', shape: 'plan' }];
+    const [A, B] = [0, 4].map((wind) => at(layerOn(['spires'], angle, ['twist', { swirl: 0, wind }], anchor), 1));
+    for (let j = 0; j < A.idx.length; j++) {
+      const d = (B.buf[4 * j] - A.buf[4 * j] - 4 * A.buf[4 * j + 1]) % 1;
+      assert.ok(Math.min(Math.abs(d), 1 - Math.abs(d)) < 1e-6, `LED ${A.idx[j]}: ${d}`);
+    }
+  });
 });
 
 describe('mask', () => {

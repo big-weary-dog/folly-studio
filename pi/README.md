@@ -37,7 +37,7 @@ waits, until someone picks a look or skips). Its parts (`pi/page/controls.tsx`, 
 The queue is the jukebox (SPEC-offline "Playing on the lights"): each queued look plays its whole pattern once, then
 the next, fading out over its last second and in over the next's first; with nothing queued, what plays loops on.
 At most 20, in memory (a restart empties it). Studio's **Play on the lights** queues its looks here too: a library
-look sent by `ref` (its code always ours), shown as "from Studio" with who queued it.
+look sent by `ref` (its code always ours), shown with who queued it.
 
 - Its socket (`/ws`, messages in `pi/src/protocol.ts`) takes the page's own origin only: another site open on the
   same phone cannot drive the lights. Each socket is rate-limited, and the page holds at most 32.

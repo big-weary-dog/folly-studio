@@ -87,7 +87,7 @@ export function prepareLight(scene: Scene, light: Light = LIGHT) {
     const mask = tagMask(scene, tag);
     for (let k = 0; k < scene.count; k++) if (mask[k]) trim[k] *= level;
   }
-  return { gamma: light.gamma, balance: light.balance, floor: light.floor, trim };
+  return { gamma: light.gamma, balance: light.balance, floor: light.floor, trim, cap: NaN, curves: [] as Curve[] };
 }
 export type PreparedLight = ReturnType<typeof prepareLight>;
 
@@ -97,6 +97,47 @@ function ledByte(v: number, gamma: number, gain: number, floor: number) {
   if (!(v > 0) || !(gain > 0)) return 0;
   const b = Math.round(255 * Math.min(1, (v < 1 ? v : 1) ** gamma * gain));
   return b < floor && v * 255 >= 0.5 ? floor : b;
+}
+
+// The curve as a table, exact: for each byte the least value that sends it (bisecting ledByte itself, to adjacent
+// doubles), and the byte at each of 4,096 even steps to start from. A table is built for a cap held two frames
+// running: a fade moves it every frame, and building costs more than a frame of pow. Trims (a gain per LED) use pow.
+type Curve = { cap: number, least: Float64Array, start: Uint8Array };
+const STARTS = 4096, CURVES = 6;
+
+function curve(gamma: number, cap: number, gain: number, floor: number): Curve {
+  const least = new Float64Array(257).fill(Infinity), start = new Uint8Array(STARTS + 1);
+  least[0] = -Infinity;
+  for (let b = 1, top = ledByte(1, gamma, gain, floor); b <= top; b++) {
+    let lo = 0, hi = 1;                                    // ledByte(lo) < b ≤ ledByte(hi)
+    for (let mid = 0.5; mid > lo && mid < hi; mid = (lo + hi) / 2) {
+      if (ledByte(mid, gamma, gain, floor) >= b) hi = mid; else lo = mid;
+    }
+    least[b] = hi;
+  }
+  for (let i = 0; i <= STARTS; i++) start[i] = ledByte(i / STARTS, gamma, gain, floor);
+  return { cap, least, start };
+}
+
+/** ledByte by its table. */
+function byteOf(T: Curve, v: number) {
+  if (!(v > 0)) return 0;
+  if (v >= 1) return T.start[STARTS];
+  let b = T.start[(v * STARTS) | 0];
+  while (v >= T.least[b + 1]) b++;
+  return b;
+}
+
+/** Where `cap`'s tables (r, g, b) start in light.curves, built (the oldest dropped) when the cap was the last
+ * frame's too; −1: none. */
+function curvesAt(light: PreparedLight, cap: number) {
+  const { gamma, balance, floor, curves } = light, steady = cap === light.cap;
+  light.cap = cap;
+  for (let i = 0; i < curves.length; i += 3) if (curves[i].cap === cap) return i;
+  if (!steady || light.trim) return -1;
+  if (curves.length >= CURVES) curves.splice(0, 3);
+  for (let c = 0; c < 3; c++) curves.push(curve(gamma, cap, cap * balance[c], floor));
+  return curves.length - 3;
 }
 
 /** What value `v` (encoded, 0..1) sends, white before balance, at full output: the curve, for showing it. */
@@ -110,6 +151,18 @@ export function ledChannels(scene: Scene, rgb: ArrayLike<number>, light: Prepare
   const ch = out && out.length >= size ? out : new Uint8Array(size);
   ch.fill(0, 0, size);
   const addr = scene.addr, N = scene.count, order = scene.order, { gamma, balance, floor, trim } = light;
+  const at = curvesAt(light, cap);
+  if (at >= 0) {
+    const T0 = light.curves[at], T1 = light.curves[at + 1], T2 = light.curves[at + 2];
+    const o0 = order[0], o1 = order[1], o2 = order[2];
+    for (let k = 0; k < N; k++) {
+      const base = addr[k];
+      if (base < 0 || base + 2 >= size) continue;
+      ch[base + o0] = byteOf(T0, rgb[3 * k]); ch[base + o1] = byteOf(T1, rgb[3 * k + 1]);
+      ch[base + o2] = byteOf(T2, rgb[3 * k + 2]);
+    }
+    return ch;
+  }
   for (let k = 0; k < N; k++) {
     const base = addr[k];
     if (base < 0 || base + 2 >= size) continue;
