@@ -103,6 +103,7 @@ describe('each source', () => {
 describe('each warp and filter, in a chain over a source', () => {
   // Warps over a pattern drawn across the layer; filters over one that moves fast, on a dark sky.
   const base = (kind) => ({ id: 'base', kind: 'source', code: source(kind === 'warp' ? 'clouds' : 'single-strand') });
+  const ROSE = ['ring-turn', 'petal-repeat', 'petal-stride'];     // they move only the rose: chained on it
   for (const { name, kind } of index.filter((e) => e.kind === 'warp' || e.kind === 'filter')) {
     test(name, () => {
       const code = source(name);
@@ -110,8 +111,10 @@ describe('each warp and filter, in a chain over a source', () => {
       const input = { id: 'in', kind: 'source', code: source('clouds'), as: 'input' };
       const mod = { id: 'm', kind, code, ...(kind === 'filter' ? { input: 'in' } : {}) };
       const modules = kind === 'warp' ? [base(kind), mod] : [base(kind), input, mod];
-      const plain = prepareLayer(scene, { id: 'p', modules: [base(kind)] }, compileLayer({ modules: [base(kind)] }));
-      const L = prepareLayer(scene, { id: name, modules }, compileLayer({ modules }));
+      const groups = ROSE.includes(name) ? ['rose-window'] : undefined;
+      const plain = prepareLayer(scene, { id: 'p', groups, modules: [base(kind)] },
+        compileLayer({ modules: [base(kind)] }));
+      const L = prepareLayer(scene, { id: name, groups, modules }, compileLayer({ modules }));
       let changed = 0;
       for (const t of TIMES) {
         for (const dt of [0.2, 0.1]) renderFrame(scene, [L], t - dt);    // what came just before (for trails)
@@ -121,7 +124,7 @@ describe('each warp and filter, in a chain over a source', () => {
         check(rgb, `${name} at t=${t}`);
         for (let i = 0; i < rgb.length; i++) if (Math.abs(rgb[i] - a[i]) > 0.02) changed++;
       }
-      assert.ok(changed > 0.05 * scene.count * 3 * TIMES.length, `${name} changes what it is chained with`);
+      assert.ok(changed > 0.05 * L.idx.length * 3 * TIMES.length, `${name} changes what it is chained with`);
     });
   }
 });
