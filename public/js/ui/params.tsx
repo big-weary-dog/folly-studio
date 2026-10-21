@@ -86,6 +86,7 @@ function Control({ name, p, values, set, ctx, colours, narrow }: { name: string;
     {clock || <Slot />}
     <ModButton p={p} value={values[name]} now={bound ? p.value as number : value as number} ctx={ctx} put={putOr}
       label={`Modulate ${label}`} title={TITLE} /></>
+    : p.kind === 'text' && p.lines ? <Lines id={id} value={value as string} put={put} />
     : p.kind === 'text' ? <input type="text" id={id} class="param-text" value={value as string} maxLength={TEXT_MAX}
       spellcheck={false} autocomplete="off" onChange={(e) => {
         const v = readText(e.currentTarget.value);
@@ -104,6 +105,17 @@ function Control({ name, p, values, set, ctx, colours, narrow }: { name: string;
         <button type="button" class={cx('param-reset', (!has || value === p.value) && 'unused')}
         title="Reset to default" aria-label={`Reset ${label} to default`}
         onClick={() => set((q) => { delete q[name]; })}>↺</button></>}</Field>);
+}
+
+/** A text param with `lines` (SPEC "Pattern code"): its words stacked a line each, in monospace so steps line up;
+ *  line breaks are stored as the spaces between them. */
+function Lines({ id, value, put }: { id: string; value: string; put: (v: string) => void }) {
+  const shown = value.split(/\s+/).filter(Boolean).join('\n');
+  return <textarea id={id} class="param-text param-lines" data-kept rows={Math.max(2, shown.split('\n').length + 1)}
+    value={shown} maxLength={TEXT_MAX} spellcheck={false} autocomplete="off" wrap="off" onChange={(e) => {
+      const v = readText(e.currentTarget.value.split(/\s+/).filter(Boolean).join(' '));
+      if (v === null) e.currentTarget.value = shown; else put(v);
+    }} />;
 }
 
 /** A param's help (SPEC "Pattern code"): its row's hover text; on a touch screen, an ⓘ that opens it under the row. */

@@ -136,5 +136,11 @@ describe('the text param kind', () => {
     const p = normaliseParam('pattern', normalizeParams({ pattern: { type: 'text', value: 'X.' } }).pattern);
     assert.equal(p.kind, 'text');
     assert.equal(p.value, 'X.');
+    const lines = normalizeParams({ p: { type: 'text', value: 'X. .x', lines: true }, q: { type: 'text', lines: 1 } });
+    assert.deepEqual(lines.p, { type: 'text', value: 'X. .x', lines: true });
+    assert.equal(lines.q.lines, undefined);
+    assert.equal(normaliseParam('p', lines.p).lines, true);
+    assert.equal(normaliseParam('rhythm', normalizeParams({ pattern: { type: 'text', value: '' } }).pattern).lines,
+      undefined);
   });
 });

@@ -31,7 +31,7 @@ file), edit it, and export it toward the real installation.
 folly-studio/
   SPEC.md (+ SPEC-library, -generators, -live .md)  README.md  DESIGN.md  IDEAS.md  package.json (+ lock)  tsconfig.json  vite.config.js  server.ts
   src/            server (Fastify): app.ts (createServer) api.ts api-looks.ts api-models.ts http.ts (plumbing) auth.ts
-                  store.ts store-lock.ts (one server per data folder) access.ts (invites, limits) api-access.ts
+                  store.ts store-lock.ts access.ts (invites, limits) api-access.ts
                   static.ts (serves dist/: headers, precompressed copies, ETags)  core-script.ts (the core for the boxes)
                   generate/{index,models,sketch,claude,codex,proc,fleet,prompt}.ts
                   frames.ts (pure: FSEQ parse + analysis)  bake.ts (bake queue, frame files)
@@ -473,6 +473,15 @@ every SPA route) `no-cache`; anything else 5 minutes. Text goes br or gzip from 
 never served, and other methods are 405. Without a build, every static path is a 404 and the server says to run
 `npm run build`.
 
+### Updates
+
+A hosted build has `/build.json` (`{ commit, builtAt }`, written by `npm run host`). An open page asks for it at
+start, on coming back to the tab and every 5 minutes (`public/js/ui/updates.ts`); when its commit changes, or a lazy
+chunk fails to load (a deploy removed it), the page reloads onto the new build by itself if nothing is unsaved: no
+Studio edits (the leave guard's dirty flag), no text field focused, and no text typed into a form's textarea. It does
+so once per build (a sessionStorage marker naming the commit), so a build whose chunks really fail cannot loop; with
+something unsaved, or once already, it shows one "Folly Studio was updated" toast with Reload instead.
+
 ## HTTP API (JSON; cookie session)
 
 Mutating requests must be `Content-Type: application/json` and, when an `Origin` header is
@@ -563,11 +572,10 @@ timing?, rounds?, lookId?, refine?, changes?, verdict?, undone?, error?, created
 ready or failed, which are final (moves: `shared/idea-status.ts`); `model` the registry id asked for, `generator` the one that made
 the look (the one-shot generator's when the foundry was off or busy), `by` its label ("Opus"), `timing = { wait, prompt, request, parse,
 total, check?, critique?, sketch?, tokens? }` in ms (`tokens = { input, cached, output }`); `rounds = [{ kind, ms,
-outcome? }]` its model's rounds (SPEC-generators "The idea log"; a failed round's outcome is just `failed`, its
-error in the admin's log, and so is an older idea's as the API returns it); `explore` the level it was made at and `took` what its look took from
+outcome? }]` its model's rounds (SPEC-generators "The idea log"); `explore` the level it was made at and `took` what its look took from
 each sketch (SPEC-generators "Explore"). A refinement has `refine = { critique?, fix? }` and the look it changes as
 `lookId` from the start; `changes` (ready) says what changed, `verdict` how its critique round ended (`revised`,
-`unchanged`, `failed`, …), and `undone: true` that it was undone.
+`unchanged`, …), and `undone: true` that it was undone.
 `look = { id, owner, ownerName, title, summary, layers, duration, bpm?, shared, ideaId?, reviewed, reviewedBy?,
 flashOverride?, bake?, chain, createdAt, updatedAt }`
 (`bake`: see Baked frames).

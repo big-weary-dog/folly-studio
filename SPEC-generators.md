@@ -64,8 +64,9 @@ started and completed (`from`, `at`: ms into the call), usage, docs read; the sy
 `earlier`). The newest `STUDIO_IDEA_LOGS` (300; 0: none) within `STUDIO_IDEA_LOGS_MAX_BYTES` (500 MB) are kept, the
 oldest removed when a log opens. Tokens are `{ input, cached, output }` (claude: cache reads and writes count as
 input; codex: from its `--json` events), and they and a line per round are saved on the idea (`timing.tokens`,
-`rounds`), a failed round's outcome as just `failed`: its error can carry a provider's or a CLI's text, so it stays
-in the log. Admins read a log at `GET /api/admin/ideas/:id/log` and its stills by name; the Studio links it
+`rounds`), a failed round's outcome (and the critique `verdict`) as just `failed`: its error can carry a provider's or
+a CLI's text, so it stays in the log. The owner's API (`GET /api/ideas`, `/api/ideas/:id`) strips one from an older
+idea's rounds and verdict too. Admins read a log at `GET /api/admin/ideas/:id/log` and its stills by name; the Studio links it
 ("Log") on an idea's row for them.
 
 **Library docs** (`src/generate/library-docs.ts`). Beside the prompt, once per library, the server builds a tree of

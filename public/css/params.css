@@ -14,6 +14,9 @@
 .param-mod { margin-left: auto; }
 /* a text param (a rhythm's steps): monospace so the steps line up */
 .param-text { flex: 1 1 220px; min-width: 96px; font: 13px var(--mono); letter-spacing: .04em; }
+/* one with lines (a rhythm's places): a line each, under its label, wide enough for 16 steps */
+.field.param > .field-control:has(> .param-lines) { flex: 1 1 100%; }
+.param-lines { min-width: calc(18ch + 16px); line-height: 1.5; resize: vertical; white-space: pre; overflow-x: auto; }
 .param-mod:hover, .param-reset:hover, .param-info[aria-expanded=true] { color: var(--sand); }
 /* modulation: the ∿ lit when something moves the number, and a chip saying what in place of its field */
 .param-mod[aria-pressed=true] { color: var(--violet); text-shadow: 0 0 8px var(--violet); }

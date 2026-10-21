@@ -1,5 +1,6 @@
 // When something fails in the browser: a look whose save fails is never shared (studio-store's setShared), so the
-// gallery never gets an older copy than the one on screen; a lazy part that fails to load says so (kit's lazy).
+// gallery never gets an older copy than the one on screen; a lazy part that fails to load says so (kit's lazy) when
+// something is unsaved.
 import assert from 'node:assert/strict';
 
 import { describe, test, vi } from 'vitest';
@@ -8,6 +9,7 @@ Object.assign(globalThis, { matchMedia: () => ({ matches: false, addEventListene
 const { api } = await import('../public/js/api.ts');
 const { createStudio } = await import('../public/js/ui/studio-store.ts');
 const { lazy, toastHistory } = await import('../public/js/ui/kit.tsx');
+const { leaveGuard } = await import('../public/js/ui/session.ts');
 
 describe('Share after a save', () => {
   test('a failed save stops the share and says why', async () => {
@@ -29,6 +31,7 @@ describe('Share after a save', () => {
 describe('Lazy parts', () => {
   test('a part that fails to load says so once, and what waits on it never runs', async () => {
     const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+    leaveGuard.isDirty = () => true;                // unsaved edits: no reload (test/updates.test.ts), the toast
     try {
       let ran = 0;
       const load = lazy(() => Promise.reject(new Error('chunk gone')));
@@ -38,6 +41,9 @@ describe('Lazy parts', () => {
       assert.equal(ran, 0);
       assert.equal(toastHistory.filter((t) => /Reload/.test(t.message)).length, 1);
       assert.equal(await lazy(async () => 7)(), 7);
-    } finally { quiet.mockRestore(); }
+    } finally {
+      quiet.mockRestore();
+      delete leaveGuard.isDirty;
+    }
   });
 });
