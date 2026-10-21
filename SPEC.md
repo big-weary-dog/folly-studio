@@ -568,11 +568,11 @@ or fall outside 0–600 s, and a duration outside 1–600 s, are refused with 40
 `flash = { check, perSecond, delta, darker, area }`: the flash check's settings (Baked frames, Checks), for the
 preview's guard; `check: false` (`STUDIO_FLASH_CHECK=off`) means nothing is dimmed or blocked.
 `idea = { id, owner, text, status: 'queued'|'generating'|'ready'|'failed', model?, generator, by?, explore?, took?,
-timing?, rounds?, lookId?, refine?, changes?, verdict?, undone?, error?, createdAt, updatedAt }`: `status` goes queued → generating →
+timing?, rounds?, how?, lookId?, refine?, changes?, verdict?, undone?, error?, createdAt, updatedAt }`: `status` goes queued → generating →
 ready or failed, which are final (moves: `shared/idea-status.ts`); `model` the registry id asked for, `generator` the one that made
 the look (the one-shot generator's when the foundry was off or busy), `by` its label ("Opus"), `timing = { wait, prompt, request, parse,
 total, check?, critique?, sketch?, tokens? }` in ms (`tokens = { input, cached, output }`); `rounds = [{ kind, ms,
-outcome? }]` its model's rounds (SPEC-generators "The idea log"); `explore` the level it was made at and `took` what its look took from
+outcome? }]` its model's rounds and `how` how it was made (SPEC-generators "The idea log"); `explore` the level it was made at and `took` what its look took from
 each sketch (SPEC-generators "Explore"). A refinement has `refine = { critique?, fix? }` and the look it changes as
 `lookId` from the start; `changes` (ready) says what changed, `verdict` how its critique round ended (`revised`,
 `unchanged`, …), and `undone: true` that it was undone.

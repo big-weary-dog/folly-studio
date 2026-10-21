@@ -95,15 +95,25 @@ export type Timing = { wait: number, prompt: number, request: number, parse: num
   critique?: number, sketch?: number, tokens?: { input: number, cached: number, output: number } };
 /** One round of a prompted model's idea (SPEC-generators "The idea log"): compose, repair, critique, … */
 export type IdeaRound = { kind: string, ms: number, outcome?: string };
+/** A change a round made (`+ layer Rose (bars)`, `Rose: speed 0.2 → 0.5`) and the model's why for it. */
+export type HowChange = { text: string, why?: string };
+/** What the render check after a round found: ms a frame's render took, errors, and the frame checks' numbers. */
+export type HowChecks = { ms: number, errors: number, meanBrightness?: number, darkFraction?: number,
+  flashHz?: number, flashOk?: boolean };
+/** A round as "How it was made" shows it (SPEC-generators "The idea log"): the model's critique, plan and thinking
+ * summary, what it changed, what the checks found, and how many stills it was shown. */
+export type HowRound = { n: number, kind: string, ms: number, outcome?: string,
+  tokens?: { input: number, cached: number, output: number, reasoning: number }, critique?: string, plan?: string,
+  thinking?: string, changes?: HowChange[], checks?: HowChecks, stills?: number };
 /** What a refinement asks besides its text (SPEC-generators "Refine"). */
 export type RefineAsk = { critique?: true, fix?: { layer: string, error: string } };
 /** `model`: the model asked for; `generator`: the one that made the look (a fallback's, if it took over); `by`: its
  * label as shown ("by <label>"); `explore`: how much it explores (a prompted model's); `took`: what its look took from
- * each sketch; `rounds`: what its rounds did. */
+ * each sketch; `rounds`: what its rounds did; `how`: how it was made, kept with the idea (GET /api/ideas/:id/how). */
 export type Idea = { id: string, owner: string, text: string, status: IdeaStatus,
   model?: string, generator: string, by?: string, explore?: Explore, took?: string, timing?: Timing, lookId?: string,
   refine?: RefineAsk, changes?: string[], verdict?: string, undone?: true, error?: string | null, createdAt: string,
-  rounds?: IdeaRound[],
+  rounds?: IdeaRound[], how?: HowRound[],
   updatedAt: string };
 export type LookCreate = z.input<typeof LookCreate>;
 export type LookPatch = z.input<typeof LookPatch>;

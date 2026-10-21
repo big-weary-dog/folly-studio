@@ -12,6 +12,7 @@ import path from 'node:path';
 import type { IdeaOutcome } from '../../shared/idea-status.ts';
 import { monoNow } from '../clock.ts';
 import type { Logger } from '../http.ts';
+import { howOf, THINKING_MAX, thinkingOf } from './explain.ts';
 
 export type Usage = { input: number, cached: number, output: number, reasoning: number };
 /** One model call as an adapter saw it: its prompt (the system prompt goes by hash), its reply and its tool calls. */
@@ -65,7 +66,7 @@ export function createIdeaLog(o: { dir?: string, meta: Record<string, unknown>, 
     /** A round begins: its calls and stills are recorded under it until end(). */
     begin(kind: string): Round {
       const i = ++n, start = monoNow(), used = zero(), docs: string[] = [], stills: Record<string, unknown>[] = [];
-      let calls = 0, ended = false;
+      let calls = 0, ended = false, thinking = '';
       return {
         kind,
         call(c) {
@@ -74,6 +75,8 @@ export function createIdeaLog(o: { dir?: string, meta: Record<string, unknown>, 
           add(used, c.usage);
           add(tokens, c.usage);
           docs.push(...c.docs ?? []);
+          const thought = thinkingOf(c);
+          if (thought) thinking = `${thinking && `${thinking}\n\n`}${thought}`.slice(0, THINKING_MAX);
           const { system, ...rest } = c;
           const sys = system === undefined ? undefined : hashOf(system);
           if (system !== undefined && sys && !systems.has(sys)) {
@@ -94,11 +97,18 @@ export function createIdeaLog(o: { dir?: string, meta: Record<string, unknown>, 
           ended = true;
           rounds.push({ n: i, kind, start: new Date(start).toISOString(), end: new Date().toISOString(),
             ms: monoNow() - start, calls, tokens: used, ...(docs.length ? { docs } : {}),
-            ...(outcome ? { outcome } : {}), ...more, ...(notes?.length ? { notes } : {}),
+            ...(outcome ? { outcome } : {}), ...(thinking ? { thinking } : {}), ...more,
+            ...(notes?.length ? { notes } : {}),
             ...(stills.length ? { stills } : {}) });
           save();
         },
       };
+    },
+    /** Adds to the last round ended (the render check that followed it). */
+    amend(more: Record<string, unknown>) {
+      if (!rounds.length) return;
+      Object.assign(rounds.at(-1)!, more);
+      save();
     },
     /** The idea ended (or was cut): its outcome. Resolves once everything is written. */
     finish(outcome: Outcome) {
@@ -107,12 +117,14 @@ export function createIdeaLog(o: { dir?: string, meta: Record<string, unknown>, 
       save();
       return chain;
     },
-    /** For the idea itself: the tokens (none when no call was recorded), and each round as `{ kind, ms, outcome }`,
-     * a failure's outcome plain (ownerOutcome). */
+    /** For the idea itself: the tokens (none when no call was recorded); each round as `{ kind, ms, outcome }`, a
+     * failure's outcome plain (ownerOutcome); and `how` it was made (explain.ts howOf), outcomes as plain. */
     summary() {
-      const { input, cached, output } = tokens;
+      const { input, cached, output } = tokens, plain = (r: Record<string, unknown>) => (r.outcome
+        ? { ...r, outcome: ownerOutcome(String(r.outcome)) } : r);
       return { tokens: all ? { input, cached, output } : undefined, rounds: rounds.map((r) => ({ kind: String(r.kind),
-        ms: Number(r.ms), ...(r.outcome ? { outcome: ownerOutcome(String(r.outcome)).slice(0, 80) } : {}) })) };
+        ms: Number(r.ms), ...(r.outcome ? { outcome: ownerOutcome(String(r.outcome)).slice(0, 80) } : {}) })),
+      how: howOf(rounds.map(plain)) };
     },
   };
 }

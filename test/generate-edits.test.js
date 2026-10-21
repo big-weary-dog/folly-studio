@@ -122,7 +122,7 @@ describe('applyEdits', () => {
     assert.equal(schema.properties.rewrite, comp);
     assert.equal(schema.properties.edits.items.properties.layer, comp.properties.layers.items);
     const strict = strictSchema(schema);
-    assert.deepEqual(strict.required, ['edits', 'rewrite']);
+    assert.deepEqual(strict.required, ['critique', 'plan', 'edits', 'rewrite']);
     assert.deepEqual(strict.properties.edits.anyOf[0].items.required, ['op', 'path', 'value', 'module', 'layer', 'at']);
     const params = comp.properties.layers.items.properties.modules.items.properties.params.items.properties;
     const edit = schema.properties.edits.items.properties;

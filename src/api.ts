@@ -39,8 +39,9 @@ const WAITS_PER_USER = 6;
 type Stored = NonNullable<ReturnType<Auth['authenticate']>>['user'];
 
 
-/** An idea as its owner gets it: a failed round's error (an older idea may still hold one) left to the admin's log. */
-const forOwner = (idea: Idea): Idea => ({ ...idea,
+/** An idea as its owner gets it: a failed round's error (an older idea may still hold one) left to the admin's log;
+ * how it was made, from its own route. */
+const forOwner = ({ how: _how, ...idea }: Idea): Idea => ({ ...idea,
   ...(idea.rounds ? { rounds: idea.rounds.map((r) => (r.outcome ? { ...r, outcome: ownerOutcome(r.outcome) } : r)) }
     : {}),
   ...(idea.verdict ? { verdict: ownerOutcome(idea.verdict) } : {}) });

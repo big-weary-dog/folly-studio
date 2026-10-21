@@ -36,7 +36,7 @@ describe('claude', () => {
     assert.equal(body.model, 'claude-opus-5-5');
     assert.equal(body.stream, true);
     assert.equal(body.fallbacks, 'default');
-    assert.deepEqual(body.thinking, { type: 'adaptive' });
+    assert.deepEqual(body.thinking, { type: 'adaptive', display: 'summarized' });
     assert.equal(body.output_config.effort, 'medium');
     assert.equal(body.output_config.format.type, 'json_schema');
     assert.equal(body.output_config.format.schema.additionalProperties, false);

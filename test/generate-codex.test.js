@@ -59,6 +59,7 @@ describe('codex', () => {
     assert.deepEqual([after('-s'), after('-m'), args.at(-1)], ['read-only', 'gpt-6-luna', '-']);
     const configs = args.flatMap((a, i) => (args[i - 1] === '-c' ? [a] : []));
     assert.ok(configs.includes('model_reasoning_effort="low"'));
+    assert.ok(configs.includes('model_reasoning_summary="auto"'), 'its reasoning summary, for the idea log');
     assert.ok(configs.includes('web_search="disabled"'));
     assert.ok(configs.includes('features.shell_tool=false') && configs.includes('features.unified_exec=false'));
     // The same empty folder each time (so the prompt's prefix is the same), and nothing left of the call.
