@@ -135,7 +135,7 @@ function Chain({ st, pv }: Props) {
           title="Add a warp, source or filter from the library" disabled={!l || mods.length >= MAX_MODULES}
           onClick={shelf}>+ Module</button></div>
       <p class="pane-hint" hidden={!!l}>Select a layer to see its modules.</p>
-      <ol class="chain-list" aria-label="Modules, first to last" ref={listRef}>
+      <ol class="chain-list" aria-label="Modules, first to last" ref={listRef} data-tour="chain">
         {l && mods.map((m, i) => <ModuleRow key={m.id} m={m} i={i} mods={mods} first={first} selected={i === at}
           std={standardTitle(m, st.data.library)} grip={order.grip(i)} drop={order.drop(i, mods.length)}
           dragging={order.dragging === i}

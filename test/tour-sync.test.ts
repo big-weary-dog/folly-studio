@@ -94,7 +94,9 @@ describe('the tutorial matches the app', () => {
     test(`${p.title}: every control, name and page a step uses exists`, () => {
       const made = layersOf(p), layers = made.map((l) => tourName(l.title));
       for (const s of p.steps) {
-        for (const a of anchors(s, made)) assert.equal(missing(a, layers, kinds), null, `${p.id}/${s.id}: ${a}`);
+        for (const a of [...anchors(s, made), ...s.area ? [s.area] : []]) {
+          assert.equal(missing(a, layers, kinds), null, `${p.id}/${s.id}: ${a}`);
+        }
         for (const [, kind, name, key] of s.text.matchAll(/\{(preset|module|param):([a-z0-9-]+)(?:\.(\w+))?\}/g)) {
           const where = `${p.id}/${s.id}: {${kind}:${name}${key ? `.${key}` : ''}}`;
           if (kind === 'preset') assert.ok(presets.has(name), where);

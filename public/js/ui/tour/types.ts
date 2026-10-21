@@ -19,6 +19,9 @@ export type Step = {
   done: (c: Ctx, base: unknown) => boolean;
   /** The value against its goal, shown as a meter. */
   progress?: (c: Ctx) => { now: number; goal: number } | null;
+  /** The part being worked on, by `data-tour` name, when it is more than the control sits in (the list a drag runs
+   * along): kept clear while the ring is inside it. */
+  area?: string;
   /** Wait for Next even once done (a step to read, the last one). */
   next?: boolean;
   /** While open, the Ideas page opens this practice look (`/studio?tour=<id>`) instead of asking a model. */

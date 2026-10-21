@@ -41,9 +41,10 @@ In order:
 Each step names one change from where its control starts (never already met when it opens) and says in a sentence
 why it helps the look. Its control is scrolled into view in whatever panel scrolls and ringed, the ring following it
 as the page scrolls. When the control sits in a larger part being worked on (`data-tour-area`: a module's row and its
-settings, a drawer such as ∿'s, an automation lane), that part is a second, quieter box, left as clear as the ring.
-Between controls, within a step or to the next one, the ring stays half a second on the one just used. The page
-around dims; the preview never does, and the step's card sits off it (and off the ring)
+settings, a drawer such as ∿'s, an automation lane, or a step's `area`: the list a drag runs along), that part is a
+second, quieter box, left as clear as the ring. Between controls, within a step or to the next one, the ring stays
+half a second on the one just used. The page around dims; the preview never does, and the step's card sits off it
+(and off the ring and its box)
 where any place beside the ring or in a corner of the window allows. A step is done when the Studio shows what it
 asked for (judged from the Studio as it is set up, never while it loads), and moves on by itself unless it waits
 for Next or was met already as it opened; Next stays

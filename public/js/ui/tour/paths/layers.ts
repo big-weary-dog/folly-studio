@@ -49,12 +49,12 @@ export const layers: Path = {
     { id: 'fold', page: '/studio', title: 'The whole chain',
       text: 'A module\'s settings open under its line. Click {module:rotate} to fold them away: the chain shows a '
         + 'module a line, top to bottom.',
-      anchor: on('rose', null, 'module:rotate'),
+      anchor: on('rose', null, 'module:rotate'), area: 'chain',
       done: (c) => pos(c, 'rotate') >= 0 && c.el('module:rotate')?.getAttribute('aria-expanded') === 'false' },
     { id: 'drag', page: '/studio', title: 'Reorder the chain',
       text: 'A module reworks only what is above it. Drag {module:rotate} by the dots at its left down below '
         + '{module:turbulence}: it turns the ripples too, so the whole rose wheels round as one.',
-      anchor: on('rose', null, 'module-grip:rotate'),
+      anchor: on('rose', null, 'module-grip:rotate'), area: 'chain',
       done: (c) => pos(c, 'turbulence') >= 0 && pos(c, 'rotate') > pos(c, 'turbulence') },
     { id: 'swap', page: '/studio', title: 'Solo another',
       text: 'The next change is on the arches. Click S on Rose to let it go, then S on Arches.',
@@ -91,7 +91,7 @@ export const layers: Path = {
     { id: 'order', page: '/studio', title: 'Order',
       text: 'What is lower is covered. Drag the Starfield by the dots at its left to the bottom: the rose and the '
         + 'arches are back, over the stars.',
-      anchor: ['layer-grip:starfield'], done: (c) => index(c, 'starfield') === 0 },
+      anchor: ['layer-grip:starfield'], area: 'layers', done: (c) => index(c, 'starfield') === 0 },
     { id: 'mute', page: '/studio', title: 'Mute',
       text: 'Mute silences a layer without removing it. Click M on the Starfield to see the look without it, then '
         + 'again to bring it back.',
