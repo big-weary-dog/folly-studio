@@ -94,5 +94,11 @@ describe('baked frames', () => {
     assert.deepEqual(r.engine.state().queue.map((q) => q.id), ['beat-bars']);
     assert.ok(r.log.some((l) => /look gone cannot play baked: its bake is not there/.test(l)));
     assert.equal(r.engine.state().look?.id, 'fire');
+    r.engine.sendBaked({ id: 'gone', title: 'Gone', sha256: 'a'.repeat(64) }, 'now');
+    r.run(0.1);
+    await new Promise((res) => setTimeout(res, 50));
+    r.run(FADE.queue + 0.1);
+    assert.equal(r.engine.state().look?.id, 'fire');       // not beat-bars, which no one asked to play now
+    assert.deepEqual(r.engine.state().queue.map((q) => q.id), ['beat-bars']);
   });
 });

@@ -135,6 +135,7 @@ export function createEngine(o: EngineOptions) {
     read.then((b) => { item.baked = b; }, (e: Error) => {
       item.error = e.message;
       log(`look ${item.id} cannot play baked: ${e.message}`);
+      if (queue[0] === item) want = false;     // asked for now: what plays goes on, not whatever comes after it
       queue = queue.filter((q) => q !== item);
     }).finally(() => { item.loading = false; });
   }
