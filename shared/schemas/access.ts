@@ -2,6 +2,8 @@
 // over one person. The server parses bodies with these; the browser takes the types.
 import { z } from 'zod';
 
+import type { Role } from './models.ts';
+
 const int = (name: string, lo: number, hi: number) => z.int({ error: `${name} must be a whole number.` })
   .min(lo, { error: `${name} must be at least ${lo}.` }).max(hi, { error: `${name} must be at most ${hi}.` });
 
@@ -51,5 +53,5 @@ export type UserAccess = { unlockedAt?: string, invite?: string, by?: string, li
   resetAt?: string };
 export type Invite = { id: string, label?: string, uses: number, used: number, expiresAt?: string, revokedAt?: string,
   createdBy: string, createdAt: string, state: 'active' | 'used' | 'expired' | 'revoked' };
-export type Person = { id: string, username: string, role: 'member' | 'curator' | 'admin', access: UserAccess,
+export type Person = { id: string, username: string, role: Role, access: UserAccess,
   used: Used };

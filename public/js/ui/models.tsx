@@ -5,19 +5,16 @@ import '../../css/pages.css';
 
 import { useEffect, useState } from 'preact/hooks';
 
-import { api, statusOf } from '../api.ts';
+import { api } from '../api.ts';
 import type { AdminModels, ModelEntry, ModelsConfig, ModelState } from '../../../shared/schemas/models.ts';
 import { cx, Field, toast } from './kit.tsx';
-import { setTitle, signedOut } from './session.ts';
+import { setTitle } from './session.ts';
 
 export function Models() {
   const [data, setData] = useState<AdminModels | null>(null), [draft, setDraft] = useState<ModelsConfig | null>(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const take = (d: AdminModels) => { setData(d); setDraft(structuredClone(d.config)); setError(''); };
-  const fail = (err: unknown) => {
-    if (statusOf(err) === 401) return signedOut();
-    setError((err as Error).message);
-  };
+  const fail = (err: unknown) => setError((err as Error).message);
   useEffect(() => { setTitle('Models'); api.adminModels().then(take, fail); }, []);
   if (!data || !draft) {
     return <div class="page models-page"><h1 class="page-title">Models</h1>

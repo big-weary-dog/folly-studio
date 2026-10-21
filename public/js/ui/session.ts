@@ -2,6 +2,7 @@
 // Studio edits. The shell plugs its router in, so no view imports the shell (an import cycle would cost Vite's HMR).
 import { signal } from '@preact/signals';
 
+import { onSignedOut } from '../api.ts';
 import type { FlashSettings, User } from '../../../shared/schemas/api.ts';
 
 export interface ViewProps { params: Record<string, string>; query: URLSearchParams; scope?: 'mine' | 'gallery' }
@@ -20,8 +21,11 @@ export const setTitle = (t?: string) => { document.title = t ? `${t} · Folly St
 /** Change the address bar without leaving the view (a new look got its id). */
 export function replaceUrl(path: string) { history.replaceState(null, '', path); router.shown = here(); }
 
-/** An API call said 401: back to the login screen. */
+/** The session ended (an API call said 401, api.ts): back to the login screen, once for calls that end together. */
 export function signedOut() {
+  if (!user.value) return;
   user.value = null;
+  for (const d of document.querySelectorAll('dialog[open]')) (d as HTMLDialogElement).close();
   navigate(`/login?next=${encodeURIComponent(here())}`, { replace: true, force: true });
 }
+onSignedOut(signedOut);

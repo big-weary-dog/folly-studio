@@ -31,7 +31,7 @@ export const stageCopy = (look: StoredLook, ownerName: string): LiveLook => upgr
 export function liveRoutes({ store, auth, hub, settings, listed }: { store: Store, auth: Auth, hub: Hub,
   settings: LiveSettings, listed: (look: StoredLook) => Listed }) {
   const mayControl = (user: Stored) => (settings.control === 'members' ? true
-    : settings.control === 'admins' ? auth.isAdmin(user) : auth.isCurator(user));
+    : auth.can(user, settings.control === 'admins' ? 'admin' : 'curate'));
   const host = (h: string) => h.toLowerCase().replace(/:(80|443)$/, '');
   return async (api: FastifyInstance) => {
     api.get('/live', (req) => ({ live: hub.live, now: serverNow(), control: mayControl(req.user!) }));

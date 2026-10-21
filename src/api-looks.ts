@@ -17,6 +17,7 @@ import {
 } from '../shared/schemas/look.ts';
 import type { LibraryEntry } from '../shared/schemas/rig.ts';
 import { newestBy } from './api.ts';
+import type { Action } from '../shared/policy.ts';
 import type { Auth } from './auth.ts';
 import { type createBakeQueue, layersHash, renderFields, reviewBlocker } from './bake.ts';
 import { BakeError } from './box-output.ts';
@@ -24,12 +25,11 @@ import { etagMatches, HttpError, type Logger, parse } from './http.ts';
 import { currentN, nameFields, reviewFor, revisedFields, versionRoutes, versionsOf } from './look-versions.ts';
 import type { createPreviews } from './previews/index.ts';
 import { CACHE_IMMUTABLE } from './static.ts';
-import type { Store, StoredLook as Look } from './store.ts';
+import type { Store, StoredLook as Look, StoredUser as User } from './store.ts';
 
 export const MAX_LOOKS_PER_USER = 500;
 export const GALLERY_LIMIT = 200;
 
-type User = { id: string, username: string };
 type Req = FastifyRequest<{ Params: { id: string } }>;
 
 /** A look's layers as the API stores them (a 400 naming the first problem). */
@@ -113,13 +113,14 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, loadLibra
         .map((k) => [k, look[k]])), ...(preview ? { preview } : {}) };
   }
 
-  function visibleLook(id: string, user: User): Look {
+  /** The look, when `user` may `action` it (shared/policy.ts); else 404, so a look not theirs is never revealed. */
+  function visibleLook(id: string, user: User, action: Action = 'see'): Look {
     const look = store.looks.get(id);
-    if (!look || (look.owner !== user.id && look.shared !== true)) throw new HttpError(404, 'Look not found.');
+    if (!look || !auth.can(user, action, look)) throw new HttpError(404, 'Look not found.');
     return look;
   }
   const versionsFor = (req: FastifyRequest, look: Look) => (req.query as { versions?: string }).versions === '1'
-    && look.owner === req.user!.id;
+    && auth.can(req.user, 'edit', look);
 
   async function list(req: FastifyRequest) {
     const { scope } = parse(LooksQuery, req.query);
@@ -157,8 +158,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, loadLibra
     const { id } = req.params;
     const user = req.user!;
     const look = visibleLook(id, user);
-    const isOwner = look.owner === user.id;
-    const isCurator = auth.isCurator(user);
+    const isOwner = auth.can(user, 'edit', look);
     const body = parse(LookPatch, req.body);
     const patch: Partial<Look> = {};
     const changed = <K extends keyof Look>(k: K, v: Look[K], was = look[k]) => {
@@ -190,13 +190,13 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, loadLibra
     const versioned = playsChanged(look, after);
     const layersChanged = versioned && frames(look) !== frames(after);
     const from = body.restoredFrom;
-    if (from !== undefined && !isOwner) throw new HttpError(403, 'Only the owner can edit this look.');
+    if (from !== undefined && !isOwner) throw new HttpError(404, 'Look not found.');
     if (from !== undefined && !versionsOf(look).some((v) => v.n === from)) {
       throw new HttpError(400, `restoredFrom: the look has no version ${from}.`);
     }
     if (versioned) Object.assign(patch, revisedFields(look, from ? { how: 'restore', from } : { how: 'auto' }));
     if (body.versionName !== undefined) {   // "Save a named version…": names the version the look is now
-      if (!isOwner) throw new HttpError(403, 'Only the owner can edit this look.');
+      if (!isOwner) throw new HttpError(404, 'Look not found.');
       const next = { ...look, ...patch };
       Object.assign(patch, nameFields(next, currentN(next), body.versionName));
     }
@@ -207,14 +207,14 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, loadLibra
     const changes = (['title', 'summary', 'shared', 'bpm'] as const)
       .filter((k) => k in patch && patch[k] !== (look[k] ?? unset[k]));
     // Only the owner edits; a curator may also set `reviewed` on a look shared with them.
-    if (!isOwner && (changes.length || versioned || !isCurator)) {
-      throw new HttpError(403, 'Only the owner can edit this look.');
+    if (!isOwner && (changes.length || versioned || !auth.can(user, 'review', look))) {
+      throw new HttpError(404, 'Look not found.');
     }
     if (body.flashOverride !== undefined && body.reviewed !== true) {
       throw new HttpError(400, 'flashOverride goes with reviewed: true.');
     }
     if (body.reviewed !== undefined && body.reviewed !== (look.reviewed === true)) {
-      if (!isCurator) throw new HttpError(403, 'Only curators can mark a look reviewed.');
+      if (!auth.can(user, 'review', look)) throw new HttpError(403, 'Only curators can mark a look reviewed.');
       const override = body.flashOverride ?? '';
       const blocker = body.reviewed && (layersChanged ? 'The code changed. Bake it again first.'
         : reviewBlocker(look, { override }));
@@ -241,19 +241,14 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, loadLibra
   }
 
   async function remove(req: Req) {
-    if (visibleLook(req.params.id, req.user!).owner !== req.user!.id) {
-      throw new HttpError(403, 'Only the owner can delete this look.');
-    }
+    visibleLook(req.params.id, req.user!, 'edit');
     store.looks.remove(req.params.id);
     await dropFrames(req.params.id);
     return { ok: true };
   }
 
   async function bake(req: Req, reply: FastifyReply) {
-    const look = visibleLook(req.params.id, req.user!);
-    if (look.owner !== req.user!.id && !auth.isCurator(req.user!)) {
-      throw new HttpError(403, 'Only the owner or a curator can bake this look.');
-    }
+    visibleLook(req.params.id, req.user!, 'bake');
     try {
       const queued = await bakes.request(req.params.id);
       reply.code(202);

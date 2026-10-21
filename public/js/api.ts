@@ -15,6 +15,13 @@ const fail = (message: string, status: number, extra = {}): ApiError => Object.a
 /** An error's HTTP status (0 when it has none). */
 export const statusOf = (err: unknown) => (err as Partial<ApiError>)?.status ?? 0;
 
+// Where a 401 still means "not signed in" to the caller, not "the session ended".
+const SESSIONLESS = new Set(['/api/me', '/api/login', '/api/signup']);
+let signedOut = () => {};
+/** What a 401 from any other call does (session.ts sends the person to sign in). That call then never settles,
+ * so no view shows the refusal as an error on its way out. */
+export function onSignedOut(fn: () => void) { signedOut = fn; }
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const init: RequestInit = { method, credentials: 'same-origin', headers: { Accept: 'application/json' } };
   if (method !== 'GET') {
@@ -27,6 +34,10 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   const text = await res.text();
   let data: { error?: unknown } | null = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = null; }
+  if (res.status === 401 && !SESSIONLESS.has(path)) {
+    signedOut();
+    return new Promise<T>(() => {});
+  }
   if (!res.ok) {
     const msg = typeof data?.error === 'string' && data.error ? data.error
       : `${res.status} ${res.statusText || 'error'}`;

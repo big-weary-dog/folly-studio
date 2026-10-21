@@ -4,10 +4,9 @@
 import { signal } from '@preact/signals';
 import { useEffect, useState } from 'preact/hooks';
 
-import { api, statusOf } from '../api.ts';
+import { api } from '../api.ts';
 import { isPending } from '../../../shared/idea-status.ts';
 import type { ModelChoices } from '../../../shared/schemas/models.ts';
-import { signedOut } from './session.ts';
 import { Field, toast } from './kit.tsx';
 import type { Step } from './history/steps.ts';
 import type { Studio } from './studio-store.ts';
@@ -42,7 +41,6 @@ export async function refine(st: Studio, ask: Ask) {
     }
     run.value = { lookId: id, busy: false, by: idea.by, ideaId: idea.id, changes, step: st.step() };
   } catch (err) {
-    if (statusOf(err) === 401) return signedOut();
     run.value = { lookId: id, busy: false, error: (err as Error).message };
   }
 }
