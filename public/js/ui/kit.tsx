@@ -160,19 +160,32 @@ export function decimals(step: number) {
   const [m, e] = String(step).split('e-');
   return Math.min(4, e ? Number(e) : (m.split('.')[1] || '').length);
 }
+/** The decimals v needs beside its step's (0.003 at step 0.01 → 3, at most 6), so a fine value shows as typed. */
+export function places(v: number, step: number) {
+  let d = decimals(step);
+  while (d < 6 && Math.abs(Number(v.toFixed(d)) - v) > 1e-9) d++;
+  return d;
+}
 /** v on the step's grid from min, held to min..max. */
 export const snap = (v: number, { min, max, step }: Range) =>
   Math.min(max, Math.max(min, Number((min + Math.round((v - min) / step) * step).toPrecision(12))));
-/** From v, a drag of dx px across a field w px wide: its width spans the range (`fine`: a tenth of that). */
-export const scrubTo = (v: number, dx: number, w: number, r: Range, fine = false) =>
-  snap(v + (dx / Math.max(1, w)) * (r.max - r.min) * (fine ? 0.1 : 1), r);
+/** v as typed, held to min..max; a whole step (a count) keeps it whole. */
+export const exact = (v: number, { min, max, step }: Range) =>
+  Math.min(max, Math.max(min, Number.isInteger(step) ? Math.round(v) : Number(v.toPrecision(12))));
+/** From v, a drag of dx px across a field w px wide: its width spans the range on the step's grid (`fine`: a tenth
+ * of that, on a grid a tenth of the step from v, so it reaches between the steps). */
+export function scrubTo(v: number, dx: number, w: number, r: Range, fine = false) {
+  const to = v + (dx / Math.max(1, w)) * (r.max - r.min) * (fine ? 0.1 : 1);
+  return fine ? exact(v + Math.round((to - v) / (r.step / 10)) * (r.step / 10), r) : snap(to, r);
+}
 
 /** A number as one field, its glass filled to where the value sits in min..max. Drag across it or its label to
- * scrub (Shift: finer); click or tap to type; ↑/↓ (Shift: ×10), and the wheel while focused, step it. */
+ * scrub (Shift: 10× finer, between the steps); click or tap to type any value in range; ↑/↓ (Shift: ×10), and the
+ * wheel while focused, step it. */
 export function Scrub({ id, label, value, unit = '', disabled, set, ...r }: Range & { id?: string; label?: string;
   value: number; unit?: string; disabled?: boolean; set: (v: number) => void }) {
   const ref = useRef<HTMLInputElement>(null), now = useRef({ value, set, r });
-  const text = (v: number) => v.toFixed(decimals(r.step)) + unit;
+  const text = (v: number) => v.toFixed(places(v, r.step)) + unit;
   now.current = { value, set, r };
   const put = (v: number, el = ref.current!) => {   // the box at once; the value when it moves
     el.value = text(v);
@@ -207,8 +220,8 @@ export function Scrub({ id, label, value, unit = '', disabled, set, ...r }: Rang
   return <input type="text" id={id} ref={ref} class="scrub" role="spinbutton" aria-label={label} autocomplete="off"
     value={document.activeElement === ref.current ? undefined : text(value)} disabled={disabled}
     inputMode={r.min < 0 ? 'text' : 'decimal'} aria-valuemin={r.min} aria-valuemax={r.max} aria-valuenow={value}
-    aria-valuetext={text(value)} style={{ '--fill': ((snap(value, r) - r.min) / (r.max - r.min || 1)).toFixed(3) }}
-    onChange={(e) => put(snap(num(e.currentTarget), r), e.currentTarget)}
+    aria-valuetext={text(value)} style={{ '--fill': ((exact(value, r) - r.min) / (r.max - r.min || 1)).toFixed(3) }}
+    onChange={(e) => put(exact(num(e.currentTarget), r), e.currentTarget)}
     onKeyDown={(e) => {
       const n = e.key === 'ArrowUp' ? 1 : e.key === 'ArrowDown' ? -1 : 0;
       if (n) { e.preventDefault(); step(e.currentTarget, e.shiftKey ? n * 10 : n); }

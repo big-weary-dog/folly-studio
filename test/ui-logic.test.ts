@@ -10,10 +10,10 @@ import { describe, test } from 'vitest';
 import { resolve, safeNext } from '../public/js/ui/app.tsx';
 import { gateOf } from '../public/js/ui/idea-access.tsx';
 import {
-  beatsAt, bindingForm, bindingText, keepsTime, makeBinding, normaliseParam, type Param, perBeat, shownValue,
+  beatsAt, bindingForm, bindingText, fmt, keepsTime, makeBinding, normaliseParam, type Param, perBeat, shownValue,
   upgradedOf,
 } from '../public/js/ui/bindings.ts';
-import { decimals, scrubTo, snap } from '../public/js/ui/kit.tsx';
+import { decimals, exact, places, scrubTo, snap } from '../public/js/ui/kit.tsx';
 import { profile } from '../public/js/ui/session.ts';
 import { onIdeas, pathsHere } from '../public/js/ui/tour/paths/index.ts';
 import { createLayerStatus } from '../public/js/ui/layer-status.ts';
@@ -164,6 +164,19 @@ describe('a number as one field, and how a chain is drawn', () => {
     assert.deepEqual([decimals(1), decimals(0.05), decimals(1e-7)], [0, 2, 4]);
     assert.deepEqual([scrubTo(60, 50, 100, r), scrubTo(60, -30, 100, r), scrubTo(60, 50, 100, r, true)], [158, 5, 70],
       'half the width: half the range; held to min; Shift: a tenth');
+  });
+
+  test('a typed value or a Shift-drag goes between the steps, and the field shows its decimals', () => {
+    const fine = { min: 0, max: 2, step: 0.01 };
+    assert.deepEqual([exact(0.003, fine), exact(0.0125, fine), exact(9, fine), exact(-1, fine)], [0.003, 0.0125, 2, 0],
+      'kept as typed, held to min..max');
+    assert.deepEqual([exact(30.6, r), exact(1, r)], [31, 5], 'a whole step (a count) stays whole');
+    assert.deepEqual([scrubTo(0, 3, 200, fine, true), scrubTo(0.003, 2, 200, fine, true), scrubTo(0.003, 2, 200, fine)],
+      [0.003, 0.005, 0.02], 'Shift: on a grid a tenth of the step, from where it started; else on the step');
+    assert.deepEqual([places(0.003, 0.01), places(0.5, 0.01), places(0.0125, 0.01), places(1 / 3, 0.01), places(7, 1)],
+      [3, 2, 4, 6, 0]);
+    assert.deepEqual([fmt(0.0025), fmt(0.05), fmt(1 / 3), fmt(120.12345)], ['0.0025', '0.05', '0.333', '120.123'],
+      'the popover\'s From/To keep a small end');
   });
 
   test('each module joins the came; each warp and filter reaches everything above it, to a stage\'s start', () => {
