@@ -372,9 +372,11 @@ Sequencing lives on the look, xLights-style.
 - Colours (`ui/picks.tsx`, `ui/pick-model.ts`; SPEC-library "Palettes"): a colour param is one row like a number's: its pick in
   a field the size of a number's (`kit.tsx` Scrub), its text over the colours it plays (the field opens the pick
   tile), ∿ to move its rotate (the same popover), ↺. The tile is TD's pick: a row per role (a box for the whole
-  role, a cell per slot), the whole palette, rainbow, custom colours, then whether roles alternate (`/`), blend, and
-  range and rotate as number fields. On a phone the tile is a sheet with the palette's roles and a custom colour; the
-  whole palette, rainbow, blend, range and rotate show when set.
+  role, a cell per slot), a custom row (its colours, each a cell whose × removes it; below 4, a swatch that opens
+  the browser's chooser and + to add the colour it shows, in place of the whole palette or rainbow as a slot is),
+  the whole palette, rainbow, then whether roles alternate (`/`), blend, and range and rotate as number fields. On a
+  phone the tile is a sheet with the palette's roles and the custom row; the whole palette, rainbow,
+  blend, range and rotate show when set.
 
 ## Sandbox protocol (runtime.ts ⇄ sandbox.html)
 
@@ -509,6 +511,8 @@ POST   /api/looks/:id/refine { text?, model?, critique?, fix?: { layer, error } 
                                               one is pending on the look
 GET    /api/ideas/:id[?wait=<status>@<updatedAt>] → { idea }         mine only; with wait, an idea still pending and
                                               as given is answered when it changes, or after 25 s
+GET    /api/ideas/:id/how[/live|/stills/:n]   → { idea, from, run, prompt?, rounds } | image/png  mine or admins'
+                                              (else 404): SPEC-generators "How it was made"
 POST   /api/ideas/:id/undo                    → { idea }  mine only, a ready refinement: marks it `undone` (the
                                               Studio has put its look back), so later refinements' history skips it
 GET    /api/models                            → { models: [{ id, label, paid }], default }  what this user may pick
@@ -568,11 +572,11 @@ or fall outside 0–600 s, and a duration outside 1–600 s, are refused with 40
 `flash = { check, perSecond, delta, darker, area }`: the flash check's settings (Baked frames, Checks), for the
 preview's guard; `check: false` (`STUDIO_FLASH_CHECK=off`) means nothing is dimmed or blocked.
 `idea = { id, owner, text, status: 'queued'|'generating'|'ready'|'failed', model?, generator, by?, explore?, took?,
-timing?, rounds?, lookId?, refine?, changes?, verdict?, undone?, error?, createdAt, updatedAt }`: `status` goes queued → generating →
+timing?, rounds?, how?, lookId?, refine?, changes?, verdict?, undone?, error?, createdAt, updatedAt }`: `status` goes queued → generating →
 ready or failed, which are final (moves: `shared/idea-status.ts`); `model` the registry id asked for, `generator` the one that made
 the look (the one-shot generator's when the foundry was off or busy), `by` its label ("Opus"), `timing = { wait, prompt, request, parse,
 total, check?, critique?, sketch?, tokens? }` in ms (`tokens = { input, cached, output }`); `rounds = [{ kind, ms,
-outcome? }]` its model's rounds (SPEC-generators "The idea log"); `explore` the level it was made at and `took` what its look took from
+outcome? }]` its model's rounds and `how` how it was made (SPEC-generators "The idea log"); `explore` the level it was made at and `took` what its look took from
 each sketch (SPEC-generators "Explore"). A refinement has `refine = { critique?, fix? }` and the look it changes as
 `lookId` from the start; `changes` (ready) says what changed, `verdict` how its critique round ended (`revised`,
 `unchanged`, …), and `undone: true` that it was undone.
@@ -582,27 +586,7 @@ flashOverride?, bake?, chain, createdAt, updatedAt }`
 
 ## Bug reports
 
-F8 on any page (or "Report a problem" in the user menu, for phones) files a report. The press freezes the moment:
-the page's state is read first, the 3D view's next frame is kept as a JPEG (≤ 960 px wide, quality 0.8), then
-everything pauses (the preview's loop and the 3D view; on /live, the socket's updates are held) until the form
-closes, when it all resumes as it was. The form asks "What went wrong?" (Enter sends, Shift+Enter is a new line,
-Esc cancels) with "Include screenshot" on.
-
-`report = { format: 1, at, note, build, page: { path, title, viewport: [w, h, dpr], userAgent, gl }, toasts,
-errors, dialogs, sources: { studio?, live? }, screenshot? }`: `toasts` the last 50, `errors` the page's last 100
-(window errors, unhandled rejections, console.error); `sources.studio` the look (id, title, `draft`: the unsaved
-look as save() sends it, `dirty`), the selection, picked modules, mute and solo, the layout, the timeline's
-selection and zoom, the clock (`t`, playing, speed, baked), the preview (view, mode, tier, quality, venue, dimmed,
-flashing, stats), the heavy layers, the problem shown and each layer's status, and the library and rig by name and
-size; `sources.live` the stage's rev, driver, look and blackout. A reader that throws gives `{ unreadable }`; each
-piece is cut at 64,000 characters. Everything is scrubbed (`public/js/scrub.ts`): keys naming secrets blanked, IPs
-masked, URLs without query or fragment; the path has no query or hash; no cookies.
-
-The server stores `<STUDIO_DATA>/reports/<stamp>-<id>/report.json` (adding `server: { user: { id, username },
-build, logs }`, its last warn and error lines) and `shot.jpg`, keeping the newest 500 within 500 MB and none older
-than 60 days. Admins read them on Admin's Reports tab; "Open as captured" opens `/studio?report=<id>`: the captured
-draft in an unsaved editor, at the captured time, view, quality, selection and layout, paused, so a browser run
-reproduces it. `node tools/reports.ts list | get <id>` reads them from `STUDIO_DATA` directly.
+In `SPEC-reports.md`, part of this contract: F8 reports, what they hold, and where the server keeps them.
 
 ## Generators and models
 

@@ -33,7 +33,9 @@ clips and a duration for ideas that describe a progression; most looks have neit
 an override's `module` is a ref in its recipe, `ref#2` for the second) or `{ …, modules: [{ use, id?, params: [{ name,
 value }], blend?, input?, as? }] }` (a chain under the one rule; `use` is a library module's name or `ext:<name>`).
 `extensions: [{ name, kind, summary, why, code }]` is the last resort: code the model writes when nothing in the
-library draws the idea, `why` naming what it tried. A value is a number, on/off, a word (a choice, a pick) or a
+library draws the idea, `why` naming what it tried. The answer opens with `critique` (what the frames it was shown
+show) and `plan`, and a layer may give its `why`: optional, a sentence each, for "How it was made" (the idea log),
+never read for the look. A value is a number, on/off, a word (a choice, a pick) or a
 binding (`{ mod: lfo | global | beats, … }`, on number params only; `beats` keeps a speed in time). `src/generate/expand.ts` turns it into a look:
 each `use` becomes the module's code with its params, held to the declarations read statically from its `const
 params` (`catalog.ts`; never evaluated): a number out of range is clamped, an unknown or ill-typed param dropped,
@@ -49,14 +51,18 @@ sorted by name (a module on one line: what it looks like and its params in brack
 `name a|b (default)`, `name on/off (default)` or `name colour (default)`; a preset as its recipe),
 the palettes, the groups, show taste, and worked compositions (each only where the library and the rig's tags have
 what it names). The pattern API is not in it: an extension reads `library/extensions.md` (with no docs, the page is
-in the prompt). The system prompt and the docs a turn gets unasked stay under 32,000 characters together
-(`test/generate.test.js`). The queue logs one line per idea or refinement: its route, timings, repair rounds, the check and
+in the prompt). The system prompt and the docs a turn gets unasked stay under 33,000 characters together,
+and with the sketch turn under 33,500 (`test/generate.test.js`). The queue logs one line per idea or refinement: its route, timings, repair rounds, the check and
 critique, how many library modules, extensions and code it used, the docs it read, and the first notes.
 
 **The idea log** (`src/generate/idea-log.ts`). Each idea and refinement (under its own id) also leaves a record on
 disk, in `<STUDIO_DATA>/ideas-log/<id>/`, written as it runs: `idea.json` (the request, the level that ran (`quick` when its model
 does not explore; none for a refinement), model, its name and effort; each round's kind (`compose`, `sketch`, `take`, `repair`, `notes`, `runtime`, `critique`), start and end,
-calls, tokens, docs read, outcome, the reason a repair ran, expand's notes and a critique's group warnings; then the
+calls, tokens, docs read, outcome, the reason a repair ran, expand's notes and a critique's group warnings, the
+thinking summary its calls gave (claude's thinking blocks, codex's reasoning items; at most 6,000 characters), the
+answer's `critique` and `plan`, `changes` (`[{ text, why? }]`: what changed from the look before, `diffCompositions`
+of the expanded looks, each with the why its layer or edit gave) and `checks` (`{ ms, errors, meanBrightness?,
+darkFraction?, flashHz?, flashOk? }`: the render check after it; `src/generate/explain.ts`); then the
 outcome, `ready` with the look, `failed` with the error and its detail, or `interrupted`), rewritten as each round
 ends; `calls.jsonl`, a line per model call (the user turn, images by size, the reply, codex's items with when each
 started and completed (`from`, `at`: ms into the call), usage, docs read; the system prompt by hash, kept once as
@@ -65,9 +71,28 @@ started and completed (`from`, `at`: ms into the call), usage, docs read; the sy
 oldest removed when a log opens. Tokens are `{ input, cached, output }` (claude: cache reads and writes count as
 input; codex: from its `--json` events), and they and a line per round are saved on the idea (`timing.tokens`,
 `rounds`), a failed round's outcome (and the critique `verdict`) as just `failed`: its error can carry a provider's or
-a CLI's text, so it stays in the log. The owner's API (`GET /api/ideas`, `/api/ideas/:id`) strips one from an older
+a CLI's text, so it stays in the log. The idea also keeps `how`, its rounds in about 5 KB (each round's head,
+tokens, critique, plan, up to 12 changes, checks, how many stills, and 600 characters of thinking, the oldest
+rounds' thinking dropped first to fit), so how it was made outlasts the log; an idea from before has none. The
+owner's API (`GET /api/ideas`, `/api/ideas/:id`) leaves `how` out, and strips a failed round's error from an older
 idea's rounds and verdict too. Admins read a log at `GET /api/admin/ideas/:id/log` and its stills by name; the Studio links it
 ("Log") on an idea's row for them.
+
+**How it was made** (`src/api-idea-how.ts`, the page `/ideas/:id/how`, linked from each idea's row). For
+the idea's owner and admins; anyone else, curators too, gets 404. `GET /api/ideas/:id/how` answers `{ idea, from,
+run: { via?, effort?, level?, name? }, prompt?, rounds, usd? }`: from the idea's log while it is kept (`from: 'log'`),
+else from the `how` the idea keeps (`'idea'`: no prompt, stills only counted), else `'none'` (an idea from before, or
+one its model made in one step). `prompt` is the first call's parts, each `{ name, bytes, tokens (bytes / 4, an
+estimate), text? }`: the guide and the library catalog (the system prompt, shared by every idea: text for admins
+only), each doc given and the idea itself. A round is as logged, with its stills `{ file, view, at }`, served at
+`/api/ideas/:id/how/stills/:name`; an owner gets its outcome plain and no notes. Admins also get the expand notes,
+why a repair ran, the provider's model name and dollars (`src/generate/prices.ts`: list prices, cache reads at their
+own, writes as input; none for codex, on a subscription). The page shows the prompt folded and the rounds, the
+latest open, each said once: the run's model, effort, time and tokens in its head, each round's time in its own; the last still the model was shown beside them on a wide screen. While the idea runs, `GET
+/api/ideas/:id/how/live` answers `{ status, rounds, round?: { n, kind, ms, thinking? } }` from memory: how many
+rounds have ended and the one running, with its thinking summary so far (claude's `thinking_delta`s, codex's
+`reasoning` items as each completes; the latest 6,000 characters). The page polls it every 2 s while the tab shows,
+the running round folded, and fetches `/how` again when `rounds` or `status` moves.
 
 **Library docs** (`src/generate/library-docs.ts`). Beside the prompt, once per library, the server builds a tree of
 markdown: `library/README.md` (how layers, sources, warps, filters and presets combine; blends; inputs; groups and
@@ -139,7 +164,7 @@ reads the look as it is stored then and turns it back into a composition (`refin
 its library ref's becomes `{ use: ref, params }`, from the catalogue's declarations; other code becomes an
 extension), which goes to the model with the request (fenced as untrusted, in the user turn; the system prompt is
 the same cached one). The model answers with edits to that composition (`edits.ts`, its own schema: `{ edits }` or
-`{ rewrite: <the whole composition> }`), each by path (`layers/Rose/modules/bars/params/speed`, a list's item by its
+`{ rewrite: <the whole composition> }`, after the same `critique` and `plan`), each with an optional `why`, by path (`layers/Rose/modules/bars/params/speed`, a list's item by its
 title, id, name or use, else index): `set`, `remove`, `insert`, `add_layer`, `remove_layer`, `move_layer`,
 `replace_layer`; a value is typed as the composition types a param's (never JSON in a string) and `insert` takes a
 `module`; an `insert` into a list the look lacks (`globals/macros`, `automation`) makes it, when its key is a field
@@ -171,7 +196,8 @@ transcripts.
   close: the colour itself): the pick of a source's (a preset's top source's) `colours`. A plain wash or a colour
   word (`wash`, `rainbow`) gives way to another theme in its clause; a look placed only on zones gets a dim
   colour-wash bed on the root; a place or side the rig has no group for lands on the root. Always available.
-- `claude`: one Messages API call with the prompt as the system prompt (cached: the same bytes on every call; with
+- `claude`: one Messages API call (adaptive thinking, its summary returned: `display: "summarized"`) with the prompt
+  as the system prompt (cached: the same bytes on every call; with
   docs given, the first user turn, the same on every round of an idea, is a second cache point), and
   structured output whose JSON Schema is the composition's (`compositionSchema(groups, catalog)`: the place fields
   `wireSchema(groups)` gives, group ids, tags and preset names as enums), and `read_doc` as a tool: a tool call is
@@ -181,10 +207,11 @@ transcripts.
   refinement's user turn is the look's composition and the request.
 - `codex`: one `codex exec` call (the Codex CLI, signed in with `codex login`): `[-i <still> …] --json --ephemeral --skip-git-repo-check
   --ignore-user-config --ignore-rules -s read-only -C <an empty folder> -m <model> -o <answer file> --output-schema
-  <the composition's schema, strict> -c model_reasoning_effort="<effort>" -c web_search="disabled" -c features.<tool>=false
+  <the composition's schema, strict> -c model_reasoning_effort="<effort>" -c model_reasoning_summary="auto" -c web_search="disabled" -c features.<tool>=false
   … -c mcp_servers.docs.command=<node> -c mcp_servers.docs.args=[docs-mcp.ts, <tree>, <reads file>, 8, <given paths, comma-separated>] -c
   mcp_servers.docs.default_tools_approval_mode="approve" -`, the prompt on stdin; its `--json` events on stdout give
-  the idea log its items and usage. The shell stays
+  the idea log its items and usage; its reasoning summary comes as `reasoning` items (from the Codex docs and the
+  CLI's config keys; not yet seen in a run here). The shell stays
   off, so the model reads nothing but the docs: `docs-mcp.ts` is a stdlib-only MCP server on stdio with the one tool
   `read_doc`, serving the tree as written under the work folder (`docs-<hash>/`), a path's real path (symlinks
   followed) inside it; each read is appended to the job's reads file (the guide first, the idea last; a repair, refinement or critique

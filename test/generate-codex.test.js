@@ -59,6 +59,7 @@ describe('codex', () => {
     assert.deepEqual([after('-s'), after('-m'), args.at(-1)], ['read-only', 'gpt-6-luna', '-']);
     const configs = args.flatMap((a, i) => (args[i - 1] === '-c' ? [a] : []));
     assert.ok(configs.includes('model_reasoning_effort="low"'));
+    assert.ok(configs.includes('model_reasoning_summary="auto"'), 'its reasoning summary, for the idea log');
     assert.ok(configs.includes('web_search="disabled"'));
     assert.ok(configs.includes('features.shell_tool=false') && configs.includes('features.unified_exec=false'));
     // The same empty folder each time (so the prompt's prefix is the same), and nothing left of the call.
@@ -95,9 +96,10 @@ describe('codex', () => {
 
   test('each call goes to the idea log from its --json events: the turn (the system prompt apart), usage, items',
     async () => {
-      const { adapter } = setup(), got = [];
-      await adapter.generate(ctx({ round: { call: (c) => got.push(c) } }));
+      const { adapter } = setup(), got = [], heard = [];
+      await adapter.generate(ctx({ round: { call: (c) => got.push(c), think: (t) => heard.push(t) } }));
       assert.equal(got.length, 1);
+      assert.equal(heard.join(''), '\n\nBlue, slow.', 'its reasoning as it comes, for the live round');
       assert.deepEqual(got[0].usage, { input: 1200, cached: 1000, output: 80, reasoning: 30 });
       assert.deepEqual(got[0].tools.map((i) => i.type), ['reasoning']);
       const [{ at, from }] = got[0].tools;

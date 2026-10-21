@@ -30,8 +30,12 @@ const VALUE = { anyOf: [num, { type: 'boolean' }, str, object({
 }, ['mod']), PICTURE] };
 const PARAMS = list(object({ name: str, value: VALUE }, ['name', 'value']));
 
+/** What the model says of its own round, first, so it is written before the look (SPEC-generators "The idea log"):
+ * what it saw in the render it was shown, and what it will do. Optional: the look never reads them. */
+export const EXPLAIN = { critique: str, plan: str };
+
 /** The composition's JSON Schema, for structured output: group ids and tags as enums (from the generated look's),
- * preset names as one. */
+ * preset names as one; a layer's `why`: why it is there, or what changed in it. */
 export function compositionSchema(groups: readonly RigGroup[] = [], catalog?: Pick<Catalog, 'presets'>): Schema {
   const look = wireSchema(groups as RigGroup[]) as { properties: Record<string, Schema> };
   const place = (look.properties.layers!.items as { properties: Record<string, Schema> }).properties;
@@ -43,11 +47,12 @@ export function compositionSchema(groups: readonly RigGroup[] = [], catalog?: Pi
     clips: place.clips!,
     preset: presets.length ? { type: 'string', enum: presets } : str,
     overrides: list(object({ module: str, name: str, value: VALUE }, ['module', 'name', 'value'])),
-    modules: list(use),
+    modules: list(use), why: str,
   }, ['title', 'groups', 'blend', 'level']);
   const extension = object({ name: str, kind: { type: 'string', enum: [...MODULE_KINDS] }, summary: str, why: str,
     code: str }, ['name', 'kind', 'summary', 'why', 'code']);
   const { title, summary, duration, globals, automation, bpm } = look.properties;
-  return object({ title: title!, summary: summary!, duration: duration!, globals: globals!, automation: automation!,
-    bpm: bpm!, layers: list(layer), extensions: list(extension) }, ['title', 'summary', 'layers']);
+  return object({ ...EXPLAIN, title: title!, summary: summary!, duration: duration!, globals: globals!,
+    automation: automation!, bpm: bpm!, layers: list(layer), extensions: list(extension) },
+  ['title', 'summary', 'layers']);
 }

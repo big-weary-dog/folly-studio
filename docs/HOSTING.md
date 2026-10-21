@@ -389,7 +389,9 @@ time went (`queued … prompt … request … parse`), and so does the idea's `t
 **The idea log.** Each idea leaves a record of what its model was asked, answered and shown in
 `STUDIO_DATA/ideas-log/<id>/` (SPEC-generators "The idea log"); an admin opens it from the idea's "Log" link. An
 explore idea's is about 0.25 MB, a third of it the stills. `STUDIO_IDEA_LOGS=300` keeps the newest 300 (`0` writes none) and
-`STUDIO_IDEA_LOGS_MAX_BYTES=500MB` caps them all; older ones are removed as new ones start.
+`STUDIO_IDEA_LOGS_MAX_BYTES=500MB` caps them all; older ones are removed as new ones start. Its owner reads it as the idea's
+"How it was made" page, live while it runs (SPEC-generators "How it was made"): the shared prompt by size only, no
+errors, no dollars; admins see those too. Once the log is gone, the page shows the summary the idea keeps.
 
 ### Invites and limits
 
