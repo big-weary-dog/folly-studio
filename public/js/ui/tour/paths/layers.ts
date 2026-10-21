@@ -1,57 +1,54 @@
-// Layers and chains, Rose and arches' fourth chapter: solo, a chain of source, warp and filter on each of the two
-// layers, where a layer plays, then a preset's layer and how it meets the others: level, blend, order, mute.
+// Layers and chains, Rose and arches' fourth chapter: solo, a filter and a warp on the rose's chain, where a layer
+// plays, then a preset's layer and how it meets the others: level, blend, order, mute.
 import { type Ctx, layerBy, num, on, param, type Path, twice } from '../types.ts';
 
 const rose = (c: Ctx) => layerBy(c, 'rose'), arches = (c: Ctx) => layerBy(c, 'arches');
 const star = (c: Ctx) => layerBy(c, 'starfield');
-const glass = (c: Ctx) => rose(c)?.modules.find((m) => m.ref === 'stained-glass') ?? null;
+const shift = (c: Ctx) => rose(c)?.modules.find((m) => m.ref === 'hue-shift') ?? null;
 const index = (c: Ctx, slug: string) => c.v?.layers.value.findIndex((l) => l.id === layerBy(c, slug)?.id) ?? -1;
 /** + Module › `tab` › `name` on layer `slug`. */
 const addModule = (slug: string, tab: string, name: string) => on(slug, null, 'chain-add', `shelf-tab:${tab}`,
   `shelf:${name}`);
-const angle = (c: Ctx) => num(param(c, 'arches', 'rotate', 'angle')) ?? 0;
+const offset = (c: Ctx) => Math.abs(num(param(c, 'rose', 'hue-shift', 'offset')) ?? 0);
+const spin = (c: Ctx) => Math.abs(num(param(c, 'rose', 'rotate', 'spin')) ?? 0);
 const mini = (c: Ctx) => c.v?.tagged('arch-mini') ?? [];
 
 export const layers: Path = {
   id: 'layers', title: 'Layers and chains', start: '/studio?tour=layers',
-  about: 'Solo, warps and filters, where a layer plays, a preset, level, blend and order.',
+  about: 'Solo, filters and warps, where a layer plays, a preset, level, blend and order.',
   steps: [
     { id: 'solo', page: '/studio', title: 'Solo',
       text: 'Solo plays only that layer, so you can shape it without the rest. Click S on Rose.',
       anchor: ['solo:rose'], done: (c) => !!rose(c)?.solo },
     { id: 'filter', page: '/studio', title: 'A filter',
       text: 'A layer\'s chain runs top to bottom: the source draws, then each module reworks what the ones above '
-        + 'made. A filter changes the light itself. On Rose, click + Module, Filters, then {module:stained-glass}: '
-        + 'the rose\'s panes glow like a cathedral window.',
-      anchor: addModule('rose', 'filter', 'stained-glass'), done: (c) => !!glass(c) },
-    { id: 'rule', page: '/studio', title: 'A filter\'s choice',
-      text: 'Set {param:stained-glass.rule} to Spiral: the panes\' colours wind out from the heart of the rose.',
-      anchor: on('rose', 'stained-glass', 'param:rule'),
-      done: (c) => param(c, 'rose', 'stained-glass', 'rule') === 'spiral' },
+        + 'made. A filter changes the light itself. On Rose, click + Module, Filters, then {module:hue-shift}: the '
+        + 'rose\'s colours start to roll round the colour wheel.',
+      anchor: addModule('rose', 'filter', 'hue-shift'), done: (c) => !!shift(c) },
+    { id: 'offset', page: '/studio', title: 'A filter\'s number',
+      text: 'Set {param:hue-shift.offset} to 0.5: each colour turns to its opposite on the colour wheel, and the '
+        + 'texture of the rose shows in new colours.',
+      anchor: on('rose', 'hue-shift', 'param:offset'), done: (c) => offset(c) >= 0.45,
+      progress: (c) => ({ now: Math.min(0.45, offset(c)), goal: 0.45 }) },
     { id: 'switch', page: '/studio', title: 'On and off',
-      text: 'A module\'s switch skips it and keeps its settings. Turn {module:stained-glass} off, then on again, to '
-        + 'compare the rose with and without its glass.',
-      anchor: on('rose', null, 'module-on:stained-glass'),
-      ...twice((c) => glass(c)?.enabled === false, (c) => glass(c)?.enabled === true) },
+      text: 'A module\'s switch skips it and keeps its settings. Turn {module:hue-shift} off, then on again, to '
+        + 'compare the rose with and without it.',
+      anchor: on('rose', null, 'module-on:hue-shift'),
+      ...twice((c) => shift(c)?.enabled === false, (c) => shift(c)?.enabled === true) },
+    { id: 'warp', page: '/studio', title: 'A warp',
+      text: 'A warp moves the light without changing its colour, between the source and the filters. On Rose, '
+        + 'click + Module, Warps, then {module:rotate}.',
+      anchor: addModule('rose', 'warp', 'rotate'),
+      done: (c) => !!rose(c)?.modules.some((m) => m.ref === 'rotate') },
+    { id: 'spin', page: '/studio', title: 'A warp\'s speed',
+      text: 'Set {param:rotate.spin} to 0.1 or more: the rose window turns slowly round its heart, a turn every few '
+        + 'seconds.',
+      anchor: on('rose', 'rotate', 'param:spin'), done: (c) => spin(c) >= 0.1,
+      progress: (c) => ({ now: Math.min(0.1, spin(c)), goal: 0.1 }) },
     { id: 'swap', page: '/studio', title: 'Solo another',
-      text: 'The next changes are on the arches. Click S on Rose to let it go, then S on Arches.',
+      text: 'The next change is on the arches. Click S on Rose to let it go, then S on Arches.',
       anchor: (c) => (rose(c)?.solo ? ['solo:rose'] : ['solo:arches']),
       done: (c) => !!rose(c) && !rose(c)!.solo && !!arches(c)?.solo },
-    { id: 'warp', page: '/studio', title: 'A warp',
-      text: 'A warp moves the light without changing its colour, between the source and the filters. On Arches, '
-        + 'click + Module, Warps, then {module:rotate}.',
-      anchor: addModule('arches', 'warp', 'rotate'),
-      done: (c) => !!arches(c)?.modules.some((m) => m.ref === 'rotate') },
-    { id: 'angle', page: '/studio', title: 'A warp\'s number',
-      text: 'Set {param:rotate.angle} to 0.25 or more: at a quarter turn the comets sweep across the arches instead '
-        + 'of up them.',
-      anchor: on('arches', 'rotate', 'param:angle'), done: (c) => angle(c) >= 0.25,
-      progress: (c) => ({ now: Math.max(0, angle(c) - 0.125), goal: 0.125 }) },
-    { id: 'soften', page: '/studio', title: 'Soften',
-      text: 'Soften blurs a layer at the end of its chain. Set it to 40 cm or more, so the comets\' heads melt into a '
-        + 'glow.',
-      anchor: on('arches', null, 'soften'), done: (c) => (arches(c)?.soften ?? 0) >= 0.4,
-      progress: (c) => ({ now: arches(c)?.soften ?? 0, goal: 0.4 }) },
     { id: 'plays', page: '/studio', title: 'Where it plays',
       text: 'A layer lights only the groups it plays on. Open Plays on and tick the small arches as well: the '
         + 'comets run on them too.',

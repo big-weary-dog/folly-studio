@@ -34,21 +34,18 @@
     {
       "title": "Arches",
       "tag": ["arch-main", "arch-mini"],
-      "soften": {"radius": 0.4, "mode": "wire"},
+      "soften": {"radius": 0, "mode": "wire"},
       "clips": [{"start": 4, "end": 30, "fadeIn": 2}],
       "modules": [
         {
           "ref": "single-strand",
           "params": {
             "colours": "high",
-            "speed": {"mod": "beats", "per": 6},
+            "speed": 8,
+            "size": 20,
             "profile": "comet",
             "tail": {"mod": "global", "name": "macro1", "from": 1, "to": 60}
           }
-        },
-        {
-          "ref": "rotate",
-          "params": {"angle": {"mod": "lfo", "shape": "saw", "rate": 0.25, "depth": 0.25, "center": 0.25}}
         }
       ]
     },
@@ -59,18 +56,24 @@
         {
           "ref": "bars",
           "params": {
+            "colours": "low high",
             "direction": "out",
             "profile": "smooth",
             "speed": 0.3,
             "bars": {"mod": "global", "name": "macro1", "from": 0.25, "to": 16}
           }
         },
+        {"ref": "turbulence", "params": {"amount": 0.3}},
         {
-          "ref": "stained-glass",
+          "ref": "rotate",
           "params": {
-            "rule": "spiral",
-            "amount": {"mod": "lfo", "shape": "square", "rate": 0.25, "depth": 0.5, "center": 0.5}
+            "angle": {"mod": "lfo", "shape": "saw", "rate": 0.25, "depth": 0.25, "center": 0.25},
+            "spin": {"mod": "beats", "per": 0.07}
           }
+        },
+        {
+          "ref": "hue-shift",
+          "params": {"offset": {"mod": "lfo", "shape": "square", "rate": 0.25, "depth": 0.25, "center": 0.25}}
         }
       ]
     }

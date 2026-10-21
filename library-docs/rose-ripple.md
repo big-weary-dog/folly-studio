@@ -1,8 +1,8 @@
 ---
-looks: Rainbow rings spreading out from the rose window through the whole building.
+looks: Body and accent rings spreading out from the rose window through the whole building.
 ---
-Rings spread from the rose through the whole rig at about 4 m/s, making the rose the source of everything. **rose-chase**
-stays inside the rose; **shockwave** is one burst.
+Rings spread from the rose through the whole rig at about 4 m/s. **rose-chase** is designed for the rose;
+**shockwave** is a repeating burst from one centre.
 
 ## Overrides
 - bars.speed: negative spreads out, positive draws in.
@@ -13,5 +13,5 @@ stays inside the rose; **shockwave** is one burst.
 - anchor.tag: `tower` with which `nearest` ripples from each tower.
 
 ## Pitfalls
-- Each LED blinks at |speed| × bars Hz; over 3 on the whole rig is flashing.
+- Each LED sees |speed| ring passes a second, regardless of bars; over 3 on the whole rig is flashing.
 - On the rose alone the 30 m reach is far too wide; lower it or use rose-chase.

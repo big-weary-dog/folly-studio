@@ -10,7 +10,7 @@ Drama, tension, a breakdown: from one strike every 5 s at low energy to one ever
 - rotate.angle: 0 strikes down; 0.5 from the ground; ±0.25 sideways. Rotate follows Lightning in the chain.
 - lightning.colours: glow to core.
 - clouds.cover, clouds.speed and clouds.size: amount, roll speed, scale.
-- mask.amount: 1 makes clear sky black.
+- mask.amount: 1 makes clear sky transparent; lower leaves a dim ghost of the wash.
 - colour-wash.colours and colour-wash.brightness: cloud colour and dimness.
 
 ## Pairings

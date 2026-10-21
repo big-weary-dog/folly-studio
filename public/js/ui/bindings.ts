@@ -138,9 +138,10 @@ export function makeBinding(f: BindingForm, p: Param): Binding | null {
   return f.mod === 'envelope' ? { mod: 'envelope', from: n(f.eFrom, p.min), to: n(f.eTo, p.max) } : null;
 }
 
-/** Does a param take the beat clock: a speed (things a second), or a rate a minute. Heartbeat's own tempo is a
- * tempo, not a speed. */
-export const keepsTime = (key: string, p: Param) => p.kind === 'number' && (p.unit === 'minute' || /speed/i.test(key));
+/** Does a param take the beat clock: a speed (things a second, or a spin's turns), or a rate a minute. Heartbeat's
+ * own tempo is a tempo, not a speed. */
+export const keepsTime = (key: string, p: Param) => p.kind === 'number'
+  && (p.unit === 'minute' || /speed|spin/i.test(key));
 /** A clocked speed's label: its count a beat, not a second or a minute ("Speed (clouds a beat)"). */
 export const perBeat = (label: string) => label.replace(/\ba (second|minute)\b/, 'a beat');
 /** The beats a second at `bpm` (a minute, on a `unit: 'minute'` param): a beat binding is `per` × this. */

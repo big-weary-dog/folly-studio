@@ -168,7 +168,7 @@ function ModuleRow({ m, i, mods, first, selected, std, grip, drop, dragging, joi
   const how = filter ? 'Input' : 'Combine';
   return (
     <li class={cx('chain-row', selected && 'selected', m.enabled === false && 'off', dragging && 'dragging')}
-      data-kind={m.kind} data-join={join} data-status={state.kind} data-drop={drop} onKeyDown={nudge}
+      data-kind={m.kind} data-join={join} data-status={state.kind} data-drop={drop} data-tour-area onKeyDown={nudge}
       onClick={(e) => { if (e.target === e.currentTarget && !selected) pick(e); }}>
       <span class="chain-joint" aria-hidden="true">{GLYPHS[join]}</span>
       {reach.map((r) => <span class={cx('reach', r.to === lit && 'lit')} aria-hidden="true" data-kind={r.kind}
