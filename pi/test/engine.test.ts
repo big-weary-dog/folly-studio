@@ -61,10 +61,11 @@ describe('the engine', () => {
     r.engine.play('heartbeat-plasma');
     r.run(1);
     assert.ok(r.lit() > 0);
-    r.engine.blackout(true);
+    r.engine.blackout(true, 'cara');
     r.run(FADE.blackout + 0.05);
     assert.equal(r.lit(), 0);
-    assert.equal(r.engine.state().blackout, true);
+    assert.equal(r.engine.state().blackout.on, true);
+    assert.equal(r.engine.state().blackout.by, 'cara');
     r.engine.blackout(false);
     r.run(FADE.blackout + 0.05);
     const full = r.lit();

@@ -1,31 +1,58 @@
-// The control page's jukebox (SPEC-offline "Playing on the lights"): what plays next, in order, with who queued each;
-// ↑ moves one up, × takes it off, Skip goes to the next now. Looks from Studio say who sent them.
+// The queue (SPEC-liveplay "The page"): what plays next, numbered, with who queued it, what it is, its length and
+// when it starts; ↑ moves one up, × takes it off, Fade to next goes on now. As many rows as the height left holds;
+// past them, "N more" pages on. The flash guard's pause says so.
+import { useState } from 'preact/hooks';
+
 import { cx } from '../../public/js/ui/kit.tsx';
-import type { PiState } from '../src/protocol.ts';
+import { allIn, clock, etas, kindWord, type Model, useFits } from './model.ts';
 import type { PiSocket } from './socket.ts';
 
-const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+const ROW = 56, GAP = 6;
 
-export function UpNext({ s, sock }: { s: PiState, sock: PiSocket }) {
-  const left = s.look?.left;
+const Arrow = ({ d }: { d: string }) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+  stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d={d} /></svg>;
+
+export function Queue({ m, sock, onAdd, wide }: { m: Model, sock: PiSocket, onAdd: () => void, wide?: boolean }) {
+  const { s } = m, q = s.queue, when = etas(s);
+  const [ref, fits] = useFits(ROW, GAP), [page, setPage] = useState(0);
+  // The last row says "N more" when they do not all fit.
+  const per = q.length > fits ? Math.max(1, fits - 1) : fits, pages = Math.max(1, Math.ceil(q.length / per));
+  const at = Math.min(page, pages - 1), shown = q.slice(at * per, at * per + per), rest = q.length - at * per - per;
+  const loops = s.look?.left == null;
   return <>
-    <div class="pi-next-head">
-      <h2>Up next</h2>
-      {left != null && <span class="pi-sub">{clock(left)} left of this one</span>}
-      <button type="button" class="pad pi-skip" disabled={!s.queue.length}
-        onClick={() => sock.send({ type: 'next' })}>Skip</button>
+    <div class="lp-h2">
+      <h2><span class="lp-nw">Up next · {q.length}</span>{q.length > 0 && !loops
+        && <> <span class="lp-nw">· {clock(allIn(s))} in all</span></>}{s.paused
+        && <> <span class="lp-pill">Paused</span></>}</h2>
+      <span class="lp-h2-acts">
+        <button type="button" class="lp-pad" disabled={!q.length || m.lost}
+          onClick={() => sock.send({ type: 'next' })}><Arrow d="M5 5l9 7-9 7zM18 5v14" />Fade to next</button>
+        {wide && <button type="button" class="lp-pad pri" disabled={m.lost} onClick={onAdd}>Add a look</button>}
+      </span>
     </div>
-    {s.paused && s.queue.length > 0 && <p class="pi-sub">Paused by the flash guard: Skip goes on.</p>}
-    {s.queue.length ? <ol class="pi-queue">
-      {s.queue.map((q, i) => <li key={q.key} class={cx('pi-queued', q.kind)}>
-        <span class="pi-queued-title">{q.title}
-          {q.by && <span class="pi-sub"> · {q.by}</span>}</span>
-        <button type="button" class="pad pi-mini" aria-label={`Move ${q.title} up`} disabled={i === 0}
-          onClick={() => sock.send({ type: 'move', key: q.key, to: i - 1 })}>↑</button>
-        <button type="button" class="pad pi-mini" aria-label={`Take ${q.title} off`}
-          onClick={() => sock.send({ type: 'unqueue', key: q.key })}>×</button>
-      </li>)}
-    </ol> : <p class="pi-sub">Nothing queued: this look loops on. Queue looks below, or from Studio's Play on the
-      lights.</p>}
+    <ol class={cx('lp-queue', m.lost && 'hatched')} ref={ref as never} start={at * per + 1}>
+      {!q.length && <li class="lp-q-empty">Nothing queued: {s.look ? `${s.look.title} loops on.` : 'add a look.'}</li>}
+      {shown.map((item, j) => {
+        const i = at * per + j;
+        return <li key={item.key} class="lp-q">
+          <span class="lp-qn">{i + 1}</span>
+          <span class="lp-qt"><b>{item.title}</b><small>{item.by && `${item.by} · `}
+            {item.kind === 'look' ? kindWord(item) : <span class="lp-tag">{kindWord(item)}</span>}
+            {item.duration != null && ` ${clock(item.duration)}`}</small></span>
+          {!loops && <span class="lp-eta">in<br />{clock(when[i]!)}</span>}
+          <button type="button" class="lp-pad lp-mini" aria-label={`Move ${item.title} up`} disabled={i === 0 || m.lost}
+            onClick={() => sock.send({ type: 'move', key: item.key, to: i - 1 })}><Arrow d="M12 19V5M6 11l6-6 6 6" />
+          </button>
+          <button type="button" class="lp-pad lp-mini" aria-label={`Take ${item.title} off`} disabled={m.lost}
+            onClick={() => sock.send({ type: 'unqueue', key: item.key })}><Arrow d="M6 6l12 12M18 6L6 18" /></button>
+        </li>;
+      })}
+      {pages > 1 && <li><button type="button" class="lp-pad lp-qmore" onClick={() => setPage((at + 1) % pages)}>
+        {rest > 0 ? `${rest} more${loops ? '' : `, to ${clock(allIn(s))}`}` : 'Back to the first'}
+        <Arrow d={rest > 0 ? 'M9 6l6 6-6 6' : 'M12 19V5M6 11l6-6 6 6'} /></button></li>}
+    </ol>
+    {!wide && <button type="button" class="lp-pad pri lp-add" disabled={m.lost} onClick={onAdd}>
+      <Arrow d="M12 5v14M5 12h14" />Add a look</button>}
   </>;
 }

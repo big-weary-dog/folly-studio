@@ -5,7 +5,7 @@ import '../../css/pages.css';
 
 import { useEffect, useState } from 'preact/hooks';
 
-import { api } from '../api.ts';
+import { api, type Lights } from '../api.ts';
 import { encode, LIGHT, LIGHT_LIMITS, type Light, lightByte, lightOf, shownLight } from '../core/light.ts';
 import { cx, download, Field, Scrub, Switch, toast } from './kit.tsx';
 import { onPi, setTitle } from './session.ts';
@@ -123,22 +123,31 @@ function Trims({ draft, set }: { draft: Light; set: (p: Partial<Light>) => void 
       Add a trim</button>
   </section>;
 }
-/** On the Pi: whether Studio may play library looks live on the lights (SPEC-offline "Playing on the lights"); saved
- * as it is switched, apart from the settings above. */
+const MODES = { jukebox: 'Jukebox', live: 'Live Play' } as const;
+/** On the Pi: whether Studio may play library looks live on the lights (SPEC-offline "Playing on the lights"), and
+ * the mode (SPEC-liveplay "Modes"); saved as each is switched, apart from the settings above. */
 function LiveLooks() {
-  const [on, setOn] = useState<boolean | null>(null), [busy, setBusy] = useState(false);
-  useEffect(() => { api.lights().then((l) => setOn(l.liveLooks), () => {}); }, []);
-  const change = (next: boolean) => {
+  const [lights, setLights] = useState<Lights | null>(null), [busy, setBusy] = useState(false);
+  useEffect(() => { api.lights().then(setLights, () => {}); }, []);
+  const change = (next: Partial<Pick<Lights, 'liveLooks' | 'mode'>>, said: (l: Lights) => string) => {
     setBusy(true);
-    api.saveLights(next).then((l) => { setOn(l.liveLooks); toast(l.liveLooks ? 'Library looks play live.'
-      : 'Only baked looks play on the lights.', { kind: 'ok' }); }, (e) => toast(e.message, { kind: 'error' }))
-      .finally(() => setBusy(false));
+    api.saveLights(next).then((l) => { setLights(l); toast(said(l), { kind: 'ok' }); },
+      (e) => toast(e.message, { kind: 'error' })).finally(() => setBusy(false));
   };
   return <section class="models-panel" aria-label="On the lights">
-    <Switch label="Live library looks on the lights" class="end" checked={!!on} disabled={on === null || busy}
-      onChange={change} />
+    <Switch label="Live library looks on the lights" class="end" checked={!!lights?.liveLooks}
+      disabled={!lights || busy} onChange={(liveLooks) => change({ liveLooks }, (l) => (l.liveLooks
+        ? 'Library looks play live.' : 'Only baked looks play on the lights.'))} />
     <p class="field-hint">On: a look made only of library modules plays live from Studio, its controls working.
       Off: only baked looks play.</p>
+    <div class="import-tabs" role="group" aria-label="Mode">
+      {Object.entries(MODES).map(([k, text]) => <button type="button" class="tab import-tab"
+        aria-pressed={lights?.mode === k} disabled={!lights || busy}
+        onClick={() => change({ mode: k as Lights['mode'] }, (l) => `The lights are in ${MODES[l.mode]}.`)}>
+        {text}</button>)}</div>
+    <p class="field-hint">Jukebox: guests queue looks, and each change is a full fade; no knobs, Master or Blackout.
+      Live Play: whoever may control Live drives the playing look's knobs, Master, tempo and Blackout, one at a time.
+      </p>
   </section>;
 }
 

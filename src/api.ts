@@ -73,7 +73,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
   rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, flash: FlashSettings, hub: Hub,
   live: LiveSettings, ideaLogs: IdeaLogs, previews?: ReturnType<typeof createPreviews>, reports: Reports,
   build: string, tail: () => unknown[], light: LightStore, profile?: Profile,
-  lights?: Pick<Parameters<typeof lightsRoutes>[0], 'file' | 'feed' | 'hub'> }) {
+  lights?: Pick<Parameters<typeof lightsRoutes>[0], 'store' | 'feed' | 'hub' | 'drive'> }) {
   const { store, auth, queue, models, loaders, log, access } = o;
   const { bakes, framesDir, frames, secureCookies = false, flash } = o;
   const limits = { max: 10, ipMax: 100, windowMs: 60_000, ...o.rateLimit };
@@ -216,7 +216,8 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         ...ideaHowRoutes({ store, auth, logs: o.ideaLogs, forOwner }),
         ...accessRoutes(api, { access, store }) } : {}),
       ...lightRoutes({ light: o.light }),
-      ...(o.lights ? lightsRoutes({ ...o.lights, loadLibrary: loaders.loadLibrary, visibleLook: looks.visibleLook })
+      ...(o.lights ? lightsRoutes({ ...o.lights, loadLibrary: loaders.loadLibrary, visibleLook: looks.visibleLook,
+        looksIn: looks.looksIn, listed: looks.listed })
         : {}),
       ...reports,
       ...looks.routes,

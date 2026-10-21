@@ -71,7 +71,8 @@ test('a curator plays looks on the lights; the queue shows everywhere', async ({
     await card('Hand-made glow').getByRole('button', { name: 'Play on the lights' }).click();
     const dialog = page.getByRole('dialog', { name: 'Play on the lights' });
     await expect(dialog.getByRole('alert')).toContainText('Has custom code: bake it');
-    await expect(dialog.getByRole('button', { name: 'Play now' })).toBeDisabled();
+    await expect(dialog.getByRole('button', { name: 'Play next' })).toBeDisabled();
+    await expect(dialog.getByRole('button', { name: 'Play now' }), 'not in Jukebox').toHaveCount(0);
     await shot(page, `refused-${size}`);
     await dialog.getByRole('button', { name: 'Close' }).click();
     await card(size === 'laptop' ? 'Slow fire' : 'Ember choir').getByRole('button', { name: 'Play on the lights' })
@@ -83,7 +84,9 @@ test('a curator plays looks on the lights; the queue shows everywhere', async ({
     expect(errors).toEqual([]);
   }
 
-  // The editor: Export → Play on the lights → Play now.
+  // In Live Play, the editor: Export → Play on the lights → Play now.
+  await fetch(`${origin}/api/admin/lights`, { method: 'PUT', body: JSON.stringify({ mode: 'live' }),
+    headers: { 'content-type': 'application/json', cookie: boss } });
   const editor = await person(browser, origin, cara, 'laptop', `/studio/${ember.id}`);
   await editor.page.getByRole('button', { name: 'Export' }).click();
   await editor.page.getByRole('menuitem', { name: 'Play on the lights…' }).click();
@@ -92,8 +95,10 @@ test('a curator plays looks on the lights; the queue shows everywhere', async ({
 
   const pi = await person(browser, origin, cara, 'phone', '/pi/');
   await expect(pi.page.getByRole('heading', { level: 1 })).toHaveText('Ember choir', { timeout: 10_000 });
-  await expect(pi.page.locator('.pi-queue li')).toHaveCount(2);
-  await expect(pi.page.locator('.pi-queue')).toContainText('cara');
+  await expect(pi.page.getByRole('button', { name: /^Up next/ })).toContainText('2 queued');
+  await pi.page.getByRole('button', { name: /^Up next/ }).click();
+  await expect(pi.page.locator('.lp-q')).toHaveCount(2);
+  await expect(pi.page.locator('.lp-queue')).toContainText('cara');
   await shot(pi.page, 'pi-queue-phone');
 
   for (const size of ['laptop', 'phone']) {
@@ -101,8 +106,11 @@ test('a curator plays looks on the lights; the queue shows everywhere', async ({
     await expect(control.page.locator('.lc-queue li')).toHaveCount(2);
     await expect(control.page.locator('.lc-head h1')).toHaveText('Ember choir');
     await shot(control.page, `control-${size}`);
+    // /live on the Pi, for a curator: the live play page, the Folly in 3D beside it (behind ☰ on a phone).
     const live = await person(browser, origin, cara, size, '/live');
-    await expect(live.page.locator('.live-next')).toContainText('Up next:');
+    await expect(live.page.getByRole('heading', { level: 1 })).toHaveText('Ember choir');
+    if (size === 'phone') await live.page.getByRole('button', { name: 'The Folly in 3D' }).click();
+    await expect(live.page.locator('.live-viewer canvas')).toBeVisible();
     await expect(live.page.locator('.viewer-msg')).toBeHidden({ timeout: 60_000 });
     await shot(live.page, `live-${size}`);
     expect([...control.errors, ...live.errors]).toEqual([]);
@@ -113,6 +121,7 @@ test('a curator plays looks on the lights; the queue shows everywhere', async ({
     const toggle = admin.page.getByRole('checkbox', { name: 'Live library looks on the lights' });
     // On by default; the laptop turns it off, and the phone finds it so.
     await expect(toggle).toBeChecked({ checked: size === 'laptop' });
+    await expect(admin.page.getByRole('button', { name: 'Live Play' })).toHaveAttribute('aria-pressed', 'true');
     await toggle.scrollIntoViewIfNeeded();
     if (size === 'laptop') {
       await toggle.click();

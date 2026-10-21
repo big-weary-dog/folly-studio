@@ -51,9 +51,13 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 const enc = encodeURIComponent;
 type Me = { user: User, flash?: FlashSettings, access?: Access, profile?: 'hosted' | 'pi' };
 /** Playing on the lights (SPEC-offline): what may play, and how one look would (`play`, when asked about one). */
-export type Lights = { liveLooks: boolean, canQueue: boolean, engine: boolean,
+export type Lights = { liveLooks: boolean, mode: 'jukebox' | 'live', canQueue: boolean, canDrive: boolean,
+  engine: boolean,
   play?: { kind: 'live' | 'baked', error?: undefined } | { kind?: undefined, error: string } };
 export type At = 'now' | 'next' | 'end';
+/** A look as the live page offers it (SPEC-offline `GET /api/lights/looks`). */
+export type LightsLook = { id: string, title: string, ownerName: string, duration: number,
+  play: { kind: 'live' | 'baked' } | { error: string } };
 
 export const api = {
   me: () => request<Partial<Me>>('GET', '/api/me'),
@@ -86,9 +90,11 @@ export const api = {
   light: () => request<LightSettings>('GET', '/api/light'),
   saveLight: (light: LightSettings) => request<LightSettings>('PUT', '/api/admin/light', light),
   lights: (lookId?: string) => request<Lights>('GET', `/api/lights${lookId ? `?lookId=${enc(lookId)}` : ''}`),
-  playOnLights: (lookId: string, at: At) => request<{ kind: 'live' | 'baked' }>('POST', '/api/lights/queue',
-    { lookId, at }),
-  saveLights: (liveLooks: boolean) => request<Lights>('PUT', '/api/admin/lights', { liveLooks }),
+  playOnLights: (lookId: string, at: At, fade?: number) => request<{ kind: 'live' | 'baked' }>('POST',
+    '/api/lights/queue', { lookId, at, ...fade ? { fade } : {} }),
+  lightsLooks: (from: 'mine' | 'gallery') => request<{ looks: LightsLook[] }>('GET', `/api/lights/looks?from=${from}`),
+  saveLights: (change: Partial<Pick<Lights, 'liveLooks' | 'mode'>>) => request<Lights>('PUT', '/api/admin/lights',
+    change),
 
   looks: (scope: 'mine' | 'gallery' = 'mine') => request<{ looks?: Listed[] }>('GET',
     `/api/looks?scope=${enc(scope)}`),
