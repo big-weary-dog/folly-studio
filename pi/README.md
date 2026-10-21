@@ -47,7 +47,9 @@ look sent by `ref` (its code always ours), shown as "from Studio" with who queue
 - **Jukebox or Live Play** (SPEC-liveplay): in Jukebox (the default, `--mode live` for the other) the engine takes
   only the queue: no knobs, Master, tempo, Blackout or Play now, whatever a page sends. Behind Studio, the admin's
   setting wins (Studio's feed says it). In Live Play one person has the knobs at a time (Take over); the Pi's own page
-  drives as "the Pi's page".
+  drives as "the Pi's page". Who a socket is comes from Studio's proxy: on the LAN the PIN is the only gate, so anyone
+  with it may say they are Studio's feed and change the mode. Behind Studio the engine listens on loopback only
+  (`pi/STUDIO.md`).
 - The socket also sends what plays (`source`: the look, its modules by ref, at each change) and its clock in the
   state, so Studio's Live tab can follow a dry run behind Studio's `/pi` (SPEC-live "Following /pi"). The Pi itself
   connects to nothing and needs no setting for it.
