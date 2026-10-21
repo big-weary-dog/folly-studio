@@ -40,8 +40,7 @@ export const summary = (m: Module) => {
 export function ChainList({ ctx, mods, box, depth }: { ctx: TreeCtx; mods: Module[]; box: Box; depth: number }) {
   const { st, sel, drag } = ctx, { first, joins, reaches } = chainWires(mods), at = sel ? mods.indexOf(sel) : -1;
   return (
-    <ol class={cx('chain-list', depth > 0 && 'sub-chain')} aria-label="Modules, first to last" data-depth={depth}
-      data-tour={depth ? undefined : 'chain'}>
+    <ol class={cx('chain-list', depth > 0 && 'sub-chain')} aria-label="Modules, first to last" data-depth={depth}>
       {mods.map((m, i) => {
         const comp = m.kind === 'composite', open = comp && ctx.isOpen(m.id);
         return <ModuleRow key={m.id} m={m} i={i} mods={mods} first={first} selected={i === at}

@@ -170,6 +170,6 @@ function Chain({ st, pv }: Props) {
             title="Add a warp, source or filter from the library, after the selected module"
             disabled={!l} onClick={() => shelf(add)}>+ Module</button></span></div>
       <p class="pane-hint" hidden={!!l}>Select a layer to see its modules.</p>
-      {l && <ChainList ctx={ctx} mods={mods} box={null} depth={0} />}
+      {l && <div data-tour="chain"><ChainList ctx={ctx} mods={mods} box={null} depth={0} /></div>}
     </section>);
 }
