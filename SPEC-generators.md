@@ -88,7 +88,7 @@ only), each doc given and the idea itself. A round is as logged, with its stills
 `/api/ideas/:id/how/stills/:name`; an owner gets its outcome plain and no notes. Admins also get the expand notes,
 why a repair ran, the provider's model name and dollars (`src/generate/prices.ts`: list prices, cache reads at their
 own, writes as input; none for codex, on a subscription). The page shows the prompt folded and the rounds, the
-latest open; the last still the model was shown beside them on a wide screen. While the idea runs, `GET
+latest open, each said once: the run's model, effort, time and tokens in its head, each round's time in its own; the last still the model was shown beside them on a wide screen. While the idea runs, `GET
 /api/ideas/:id/how/live` answers `{ status, rounds, round?: { n, kind, ms, thinking? } }` from memory: how many
 rounds have ended and the one running, with its thinking summary so far (claude's `thinking_delta`s, codex's
 `reasoning` items as each completes; the latest 6,000 characters). The page polls it every 2 s while the tab shows,

@@ -31,10 +31,9 @@ function PromptPart({ p }: { p: HowPart }) {
 }
 
 function Prompt({ parts }: { parts: HowPart[] }) {
-  const total = parts.reduce((s, p) => s + p.tokens, 0);
   return (
     <details class="ai-block ai-prompt">
-      <summary><h3>What the AI was asked</h3><span class="ai-dim">≈{k(total)} tokens</span></summary>
+      <summary><h3>What the AI was asked</h3></summary>
       <div class="ai-parts">{parts.map((p) => <PromptPart p={p} />)}</div>
     </details>);
 }
@@ -86,7 +85,7 @@ export function IdeaHowPage({ params }: ViewProps) {
   const stills = rounds.flatMap((r) => (Array.isArray(r.stills) ? r.stills : [])) as HowStill[];
   const last = stills.filter((s) => s.view === 'front').at(-1) ?? stills.at(-1);
   const meta = [idea.by || idea.generator, run.effort && `effort ${run.effort}`, run.level,
-    rounds.length && `${rounds.length} round${rounds.length > 1 ? 's' : ''}`, ms && secs(ms),
+    ms && secs(ms),
     tokens && `${k(tokens)} tokens`, admin && how.usd !== undefined && usd(how.usd), admin && run.name]
     .filter(Boolean).join(' · ');
   return (
@@ -99,7 +98,6 @@ export function IdeaHowPage({ params }: ViewProps) {
           <p class="ai-dim ai-meta">{meta}</p>
         </div>
         <div class="ai-actions">
-          <a class="btn ghost small" href="/ideas">Ideas</a>
           {idea.status === 'ready' && idea.lookId && <a class="btn primary small" href={studioHref(idea.lookId)}>Open
             in Studio</a>}
         </div>

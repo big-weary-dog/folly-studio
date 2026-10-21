@@ -1,5 +1,5 @@
-// One round of how an idea was made (SPEC-generators "How it was made"): its head (what it did, how long, its tokens;
-// dollars for admins) and, opened, its plan, thinking summary, the stills it looked at, what it saw, what it changed
+// One round of how an idea was made (SPEC-generators "How it was made"): its head (what it did, how long; dollars for
+// admins) and, opened, its plan, thinking summary, the stills it looked at, what it saw, what it changed
 // and why, and what the checks found.
 import type { HowChecks, HowRound, HowStill } from '../../../../shared/schemas/api.ts';
 import { cx } from '../kit.tsx';
@@ -70,7 +70,6 @@ export function RoundCard({ r, ideaId, open, onToggle, admin, live }: { r: HowRo
         <span class={cx('ai-outcome', live && 'pending', r.outcome?.startsWith('failed') && 'bad')}>
           {live ? 'Thinking…' : r.outcome}</span>
         <span class="ai-dim ai-round-meta">{live ? `running · ${secs(r.ms)}` : <>{secs(r.ms)}
-          {r.tokens && ` · ${k(r.tokens.output)} out`}
           {admin && r.usd !== undefined && ` · ${usd(r.usd)}`}</>}</span>
       </summary>
       <div class="ai-round-body">
