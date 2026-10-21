@@ -56,7 +56,7 @@ const docks = /DOCKS: Dock\[\] = \[([^\]]+)\]/.exec(source)![1].match(/[a-z]+/g)
 function anchors(s: Step, layers: Made[]) {
   if (Array.isArray(s.anchor)) return s.anchor;
   const none = { value: null }, v = { layers: { value: layers, peek: () => layers }, selected: none, module: none,
-    params: { value: {} }, macros: { value: {} },
+    params: { value: {} }, macros: { value: {} }, automation: { value: { macro1: 2 } },
     tagged: (tag: string) => rig.groups.filter((g) => g.tags?.includes(tag)).map((g) => g.id) };
   const at = (x: TourView | null): Ctx => ({ v: x, page: '/studio', el: () => null });
   return [...s.anchor(at(null)), ...s.anchor(at(v as unknown as TourView))];
@@ -80,7 +80,7 @@ function missing(name: string, layers: string[], kinds: string[]) {
     'module:': (p) => modules.has(p), 'module-on:': (p) => modules.has(p), 'group:': (p) => rig.groups.some((g) =>
       g.id === p), 'param:': (p) => [...modules.keys()].some((m) => p in paramsOf(m)),
     'layer:': (p) => layers.includes(p), 'mute:': (p) => layers.includes(p), 'solo:': (p) => layers.includes(p),
-    'blend:': (p) => layers.includes(p), 'level:': (p) => layers.includes(p),
+    'blend:': (p) => layers.includes(p), 'level:': (p) => layers.includes(p), 'lane:': (p) => /^\w+$/.test(p),
   };
   if (!ok[prefix]) return `no check for ${prefix} names: add one here`;
   return ok[prefix](part) ? null : `${prefix} has nothing called "${part}"`;

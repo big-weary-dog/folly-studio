@@ -1,6 +1,6 @@
-// Modules and colour, Rose and arches' third chapter: a number, a choice and colours on the arches' source, then the
-// look's palette.
-import { type Ctx, num, on, param, type Path, tokens } from '../types.ts';
+// Modules and colour, Rose and arches' third chapter: a number, a choice, Soften and colours on the arches' source,
+// then the look's palette.
+import { type Ctx, layerBy, num, on, param, type Path, tokens } from '../types.ts';
 
 const strand = (c: Ctx, key: string) => param(c, 'arches', 'single-strand', key);
 const speed = (c: Ctx) => num(strand(c, 'speed'));
@@ -18,6 +18,10 @@ export const modules: Path = {
       text: 'Set {param:single-strand.profile} to Comet: each band becomes a bright head with a fading tail, so the '
         + 'light reads as running up the arch.',
       anchor: on('arches', 'single-strand', 'param:profile'), done: (c) => strand(c, 'profile') === 'comet' },
+    { id: 'crisp', page: '/studio', title: 'Sharper comets',
+      text: 'Soften blurs a layer after its modules, and new layers start a little soft. Turn it down to 0: each '
+        + 'comet\'s head goes crisp and its tail reads clearly behind it.',
+      anchor: on('arches', null, 'soften'), done: (c) => layerBy(c, 'arches')?.soften === 0 },
     { id: 'high', page: '/studio', title: 'A colour',
       text: '{param:single-strand.colours} picks from the look\'s palette by role. Click it and tick high: the '
         + 'brightest colours make the comets stand out against the rose.',

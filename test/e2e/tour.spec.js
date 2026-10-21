@@ -69,7 +69,7 @@ function steps(page, info, { shots = true } = {}) {
     /** Once settled (it slides as the ring does), the card keeps off the preview. */
     offPreview: () => expect.poll(() => cardOnPreview(page), { message: 'the card keeps off the preview',
       timeout: 2000 }).toBe(0),
-    /** Done: marked so, or already moved on by itself (it does 600 ms after, maybe before the act's last click). */
+    /** Done: marked so, or already moved on by itself (it does 500 ms after, maybe before the act's last click). */
     done: () => expect.poll(() => card.evaluate((el, s) => el.classList.contains('done')
       || el.querySelector('h2')?.textContent !== s, now), { message: `"${now}" is done` }).toBe(true),
     next: () => card.getByRole('button', { name: /^(Next|Finish)$/ }).click(),
