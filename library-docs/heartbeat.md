@@ -6,7 +6,8 @@ Tempo `own` gives it its own rate. For tension, love themes and music-synced pul
 **shockwave** bursts on its own clock.
 
 ## Params
-- direction: With **anchor**, `out` starts from the rose.
+- direction: `up`, `down`, `right`, `left`, `back`, `front`, `out` or `in`. With **anchor**, `out` starts from
+  the rose; `in` closes toward it.
 - spread: 0.2–0.4 a visible swell.
 - tempo: `own` with rate 50–80 and every `one` is a resting heart; rate binds like a speed.
 - every: `two` calm, `one` excited, `half` at 120 bpm is a flash risk.

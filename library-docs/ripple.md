@@ -6,7 +6,8 @@ rings from the rose; **shockwave** one burst.
 
 ## Overrides
 - in-turn.drops: 1–2 occasional, 5–8 steady rain.
-- in-turn.every: seconds between drops; a drop lives drops × every. Set bars.speed to −1 ÷ that.
+- in-turn.every: average spacing of random starts; each drop slot repeats after drops × every. Set bars.speed
+  to −1 ÷ that cycle and in-turn.release to the cycle length so a ring fades as it grows.
 - in-turn.reach: ring spread, a share of the layer's longer side.
 - bars.duty: 0.05 fine circles, 0.3 soft blooms.
 

@@ -8,7 +8,7 @@ import { h, render } from 'preact';
 
 import { api } from '../../api.ts';
 import type { Tour } from '../../../../shared/schemas/tour.ts';
-import { reducedMotion, toast } from '../kit.tsx';
+import { toast } from '../kit.tsx';
 import { loadLibrary } from '../model.ts';
 import { navigate, onPi, user } from '../session.ts';
 import { localTour, tourIdea, tourKey, tourView, WELCOMED } from '../tour-view.ts';
@@ -20,6 +20,9 @@ import type { Ctx, Path } from './types.ts';
 export type Open = { mode: 'welcome' } | { mode: 'menu'; finished?: string }
   | { mode: 'step'; path: Path; i: number; base?: { v: unknown }; done: boolean };
 export const open = signal<Open | null>(null);
+/** How long (ms) the ring and card stay on what was just done before moving to the next control: a pause, kept with
+ * reduced motion too. */
+export const PAUSE = 500;
 /** The library's titles by name, for the steps' text; empty until loaded. */
 export const titles = signal<Record<string, string>>({});
 export const progress = signal<Tour>(user.peek()?.tour ?? localTour(user.peek()) ?? { seen: true, done: [] });
@@ -84,7 +87,7 @@ function check() {
   }
   if (!s.done(c, o.base.v)) return;
   open.value = { ...o, done: true };
-  if (!s.next) later = window.setTimeout(next, reducedMotion() ? 0 : 600);
+  if (!s.next) later = window.setTimeout(next, PAUSE);
 }
 
 export function welcome() { mount(); open.value = { mode: 'welcome' }; }

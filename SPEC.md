@@ -359,7 +359,7 @@ Sequencing lives on the look, xLights-style.
   cycle with pills from ¼ beat to 4 bars or, its beat clock off, in Hz, Rate × and Swing × a fader, From/To; a new
   one swings a quarter of the range round the field's value), Macro (the look's modulators with their value now, its
   faders, its globals; at its lowest and at its highest), Off. A binding to the clip envelope, or a modulator's
-  tempo pulse, from an older look shows as old with Off; neither is offered. A speed (a param named for one, or a
+  tempo pulse, from an older look shows as old with Off; neither is offered. A speed (a param named for one or for a spin, or a
   rate a minute) has a beat clock beside its number: on, it reads per beat and stores `{ mod: 'beats', per }`
   (keeping its value at the look's bpm); off, a plain number a second. Each change applies as it is made; Revert
   puts back what was there when it opened.
