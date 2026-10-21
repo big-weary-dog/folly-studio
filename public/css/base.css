@@ -386,7 +386,8 @@ input.switch:disabled { opacity: .5; cursor: default; }
   .page { padding: 24px 16px 64px; }
   .lede { font-size: 15px; }
   .search { flex: 1; width: auto; min-width: 0; }
-  .head-actions { width: 100%; flex-wrap: nowrap; }
+  .head-actions { width: 100%; }
+  .head-actions .search { flex-basis: 100%; }
   .auth { grid-template-columns: 1fr; gap: 0; padding: 20px 16px 32px; align-content: start; min-height: 0; }
   .auth-art { height: 196px; overflow: hidden; margin-bottom: -112px; place-items: start center; }
   .auth-art .rose { width: 270px; filter: none; }

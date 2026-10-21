@@ -48,7 +48,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 }
 
 const enc = encodeURIComponent;
-type Me = { user: User, flash?: FlashSettings, access?: Access };
+type Me = { user: User, flash?: FlashSettings, access?: Access, profile?: 'hosted' | 'pi' };
 
 export const api = {
   me: () => request<Partial<Me>>('GET', '/api/me'),

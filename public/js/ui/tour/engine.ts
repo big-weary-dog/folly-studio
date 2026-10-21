@@ -10,11 +10,11 @@ import { api } from '../../api.ts';
 import type { Tour } from '../../../../shared/schemas/tour.ts';
 import { reducedMotion, toast } from '../kit.tsx';
 import { loadLibrary } from '../model.ts';
-import { navigate, user } from '../session.ts';
+import { navigate, onPi, user } from '../session.ts';
 import { localTour, tourKey, tourView, WELCOMED } from '../tour-view.ts';
 import { byName, tick, watchPage } from './anchors.ts';
 import { Overlay } from './overlay.tsx';
-import { PATHS } from './paths/index.ts';
+import { pathsHere } from './paths/index.ts';
 import type { Ctx, Path } from './types.ts';
 
 export type Open = { mode: 'welcome' } | { mode: 'menu'; finished?: string }
@@ -130,4 +130,5 @@ export function resumeAt(path: Path) {
   const at = progress.value.at;
   return at?.path === path.id ? Math.max(0, path.steps.findIndex((s) => s.id === at.step)) : 0;
 }
-export { PATHS };
+/** The paths, as this Studio has them (the profile is known by the time the tutorial loads). */
+export const PATHS = pathsHere(onPi());

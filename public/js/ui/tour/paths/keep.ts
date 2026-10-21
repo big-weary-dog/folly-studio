@@ -3,7 +3,7 @@ import { type Path } from '../types.ts';
 
 export const keep: Path = {
   id: 'keep', title: 'Keep it, show it', start: '/studio?tour=keep',
-  about: 'Undo, save, Live, and an idea of your own.',
+  about: 'Undo, save, Live, and an idea of your own.', aboutPi: 'Undo, save and Live.',
   steps: [
     { id: 'edit', page: '/studio', title: 'Change something',
       text: 'Change anything, like a layer\'s level.', anchor: ['layers'],

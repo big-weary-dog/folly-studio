@@ -27,6 +27,7 @@ import { createHub } from './live/hub.ts';
 import { piFeed } from './live/pi-feed.ts';
 import { liveSettings, playableLook, stageCopy } from './live/routes.ts';
 import { piPreview, previewTarget } from './pi-preview.ts';
+import { generates, type Profile, profileDefaults, profileOf } from './profile.ts';
 import { createPreviews } from './previews/index.ts';
 import { frontView } from './previews/motion.ts';
 import { playaCamera } from './previews/playa.ts';
@@ -54,7 +55,7 @@ type Options = { config?: Config, dataDir?: string, publicDir?: string, distDir?
   framesMaxBytes?: number, generator?: Queue | ((deps: Deps) => Queue | Promise<Queue>),
   renderBox?: Parameters<typeof createBakeQueue>[0]['box'], flash?: FlashSettings, live?: LiveSettings,
   piPreview?: string, ideaLogs?: { keep?: number, maxBytes?: number }, previews?: string,
-  reports?: { keep?: number, maxBytes?: number, days?: number } };
+  reports?: { keep?: number, maxBytes?: number, days?: number }, profile?: Profile };
 
 /**
  * The server. `config`: the settings (src/config.ts; default: models.env's, else the environment's), the default of
@@ -66,7 +67,8 @@ type Options = { config?: Config, dataDir?: string, publicDir?: string, distDir?
  * flash check's settings (default: flashSettings(config)); `live`: who controls the live stage and what plays
  * (default: liveSettings(config)); `piPreview`: PI_PREVIEW_URL, a dry-run Studio Live shown to admins at /pi;
  * `ideaLogs`: how many ideas' logs to keep and their disk cap (STUDIO_IDEA_LOGS, STUDIO_IDEA_LOGS_MAX_BYTES);
- * `previews`: the gallery previews' camera, 'playa' (the default) or 'front' (STUDIO_PREVIEWS).
+ * `previews`: the gallery previews' camera, 'playa' or 'front' (STUDIO_PREVIEWS; default: the profile's).
+ * `profile`: 'hosted' or 'pi' (STUDIO_PROFILE, SPEC-offline): the Pi has no generators, and its own defaults.
  */
 export async function createServer(opts: Options = {}) {
   const env = opts.models?.env ?? process.env, codexBin = opts.models?.codexBin;
@@ -74,12 +76,14 @@ export async function createServer(opts: Options = {}) {
   const {
     dataDir = DEFAULT_DATA_DIR, publicDir = DEFAULT_PUBLIC_DIR, distDir = DEFAULT_DIST_DIR, generator,
     generatorName = '', curators = [], admins = [], secureCookies = false, rateLimit, trustProxy = false,
-    renderBox, framesQuality, framesMaxBytes, scrypt,
+    renderBox, framesQuality, scrypt, profile = profileOf(config),
     flash = flashSettings(config), live = liveSettings(config),
   } = opts;
   // Its last warn and error lines go with each bug report.
   const log = keepTail(opts.log ?? createLog());
   const piTarget = opts.piPreview ? previewTarget(opts.piPreview) : null;
+  const defaults = profileDefaults(profile);
+  const framesMaxBytes = opts.framesMaxBytes ?? defaults.framesMaxBytes;
 
   const store = await createStore(dataDir, { log, upgrade: { looks: upgradeStored } });
   const auth = createAuth({ store, curators, admins, cost: scrypt });
@@ -99,7 +103,9 @@ export async function createServer(opts: Options = {}) {
   void reports.sweep();
   const deps = { store, loadLibrary, loadRig, loadLight: light.current, loadVersion: loaders.version, models, codexBin,
     config, log, box, lane, ideaLogs, adapterName: generatorName || 'sketch' };
-  const queue: Queue = typeof generator === 'function' ? await generator(deps) : generator || createQueue(deps);
+  // The Pi runs none: nothing can make an idea there, so nothing is ever queued.
+  const queue: Queue = !generates(profile) ? { enqueue: () => { throw new Error('No generators on the Pi.'); } }
+    : typeof generator === 'function' ? await generator(deps) : generator || createQueue(deps);
   const adapterName = models.defaultId();
   const framesDir = path.join(dataDir, 'frames');
   const frames = createFramesCache({ framesDir, store, log, quality: framesQuality, maxBytes: framesMaxBytes, lane,
@@ -109,7 +115,7 @@ export async function createServer(opts: Options = {}) {
     onFrames: (id) => { frames.encode(id); previews.want(id); } });
   frames.prune().then(() => frames.disk.enforce()).catch(() => {});
   // Gallery previews (SPEC "Gallery previews"), made in the same lane, after anything already queued at start.
-  const playa = (opts.previews ?? config.STUDIO_PREVIEWS) === 'front' ? null
+  const playa = (opts.previews ?? config.STUDIO_PREVIEWS ?? defaults.previews) === 'front' ? null
     : playaCamera({ log, loadLight: light.current });
   const previews = createPreviews({ dir: path.join(dataDir, 'previews'), store, box, framesDir, lane, log,
     loadRig, camera: playa?.camera ?? frontView() });
@@ -122,7 +128,7 @@ export async function createServer(opts: Options = {}) {
     return stageCopy(look, store.users.get(look.owner)?.username ?? '');
   } });
   // Ideas a restart cut short go back in the queue (enqueue is idempotent per id).
-  for (const idea of store.ideas.list(isPending)) {
+  for (const idea of generates(profile) ? store.ideas.list(isPending) : []) {
     enqueueIdea({ queue, store, log }, idea);
   }
 
@@ -146,10 +152,10 @@ export async function createServer(opts: Options = {}) {
   await app.register(fastifyRateLimit, { global: false });
   await app.register(fastifyWebsocket, { options: { maxPayload: 16 * 1024 } });
   await app.register(apiRoutes({ store, auth, queue, models, loaders, log, access, framesDir, bakes,
-    frames, rateLimit, secureCookies, flash, hub, live, ideaLogs, previews, reports, light,
+    frames, rateLimit, secureCookies, flash, hub, live, ideaLogs, previews, reports, light, profile,
     build: buildSha(path.dirname(fileURLToPath(import.meta.url)), config.GIT_SHA), tail: log.tail }),
   { prefix: '/api' });
-  if (piTarget) await app.register(piPreview({ auth, target: piTarget, hub }));
+  if (piTarget) await app.register(piPreview({ auth, target: piTarget, hub, curators: profile === 'pi' }));
   // The live stage follows the dry run whenever /pi was the last thing used (SPEC-live "Following /pi").
   if (piTarget) {
     const feed = piFeed({ target: piTarget, onNow: hub.piNow, onSource: hub.piSource });
