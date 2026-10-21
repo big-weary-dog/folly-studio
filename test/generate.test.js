@@ -128,8 +128,8 @@ describe('sketch', () => {
   test('an empty library still gives a valid look', () => {
     const look = sketch('purple and gold fire', []);
     assert.equal(look.layers[0].code, BUILTIN_PATTERN.code);
-    assert.deepEqual(look.layers[0].params, { color: 'body4', color2: 'accent2' });
-    assert.equal(look.globals.palette.name, 'violet', 'the palette with a purple and a gold');
+    assert.deepEqual(look.layers[0].params, { color: 'body1', color2: 'body4' });
+    assert.equal(look.globals.palette.name, 'solstice', 'the palette nearest the purple and gold hues');
   });
 
   test('finds places by tag on any rig, by id and name where a rig has none, and keeps the tags', () => {
@@ -201,7 +201,7 @@ describe('prompt', () => {
     for (const s of ['# The library', '# Composing a look', 'function pixel(p', 'cosPalette', 'beat(t, bpm)',
       'spire-front-left', 'rose-window — Rose window', 'Saturated colours at full value', 'Darkness is punctuation',
       'fills what it lands on', '4,870', '40 fps', 'about 195,000 times a second', 'last resort', 'untrusted', '<idea>',
-      '- carnival (Every warm']) {
+      'name | theme | low | body | accent | high', 'carnival | Every warm']) {
       assert.ok(sys.includes(s), `system prompt mentions ${s}`);
     }
     assert.ok(!sys.includes(byName('lighthouse').code.trim()), 'modules are named, not shown as code');

@@ -82,6 +82,11 @@ any layer to it and one automation lane moves them together: the storm darkens t
 `from`..`to` maps the macro's place in its own min..max onto the param (the example below). A
 layer's `level` is not a param and cannot be bound: bind a source's brightness, density or speed instead.
 
+Mixed-family palettes include `patina` (blue and copper), `meadow` (green and lavender), `orchid` (turquoise
+and pink), `solstice` (violet and citrus), `guava` (coral and mint), and `voltage` (cobalt and chartreuse).
+These put both families in `body`; use `body` for their shared gradient or individual slots for separate bands.
+Swatch hexes are sRGB colour values; use brightness controls to set the light level.
+
 ## Modulators: things that move together
 A macro with a `mod` (an LFO) is a modulator: it moves by itself, and every param bound to it
 follows the one wave, in step across layers. Each param maps it through its own `from`..`to`, so one breath can
