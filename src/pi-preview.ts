@@ -13,10 +13,12 @@ const BASE = '/pi', TIMEOUT_MS = 5000;
 // What the Pi's answer keeps: its own CSP (the page's, in place of the app's), and what the browser needs to use it.
 const KEEP = ['content-type', 'content-security-policy', 'cache-control', 'location', 'etag', 'last-modified'];
 // What the page sends that changes what plays (pi/src/protocol.ts): any of these makes /pi drive the stage.
-const CONTROLS = new Set(['play', 'set', 'tap', 'level', 'blackout']);
-const controlOf = (text: string) => {
-  try { return CONTROLS.has(JSON.parse(text)?.type); } catch { return false; }
+const CONTROLS = new Set(['play', 'set', 'tap', 'level', 'blackout', 'next']);
+const typeOf = (text: string): { type?: unknown, at?: unknown } => {
+  try { return JSON.parse(text) ?? {}; } catch { return {}; }
 };
+const controlOf = (m: { type?: unknown, at?: unknown }) => CONTROLS.has(m.type as string)
+  || (m.type === 'queue' && m.at === 'now');
 
 /** The upstream as a base URL: http(s) on this machine, as `npm run host` starts it. */
 export function previewTarget(url: string) {
@@ -82,11 +84,13 @@ export function piPreview({ auth, target, hub, curators = false }: { auth: Auth,
       const unlisten = hub?.onDriver(driver);
       socket.on('message', (d, binary) => {
         if (binary) { socket.close(1008, 'Not a message this page sends'); return; }
-        const text = String(d);
+        const text = String(d), msg = typeOf(text);
+        // A `send` is Studio's own (its checks in src/lights.ts): never a page's.
+        if (msg.type === 'send') return;
         if (up.readyState === WebSocket.OPEN) up.send(text);
         else if (up.readyState === WebSocket.CONNECTING && early.length < 8) early.push(text);
         else return;
-        if (hub && controlOf(text)) hub.piDrove();
+        if (hub && controlOf(msg)) hub.piDrove();
       });
       up.on('open', () => { for (const m of early.splice(0)) up.send(m); });
       let told = false;     // who drives, after the Pi's first word (its hello)

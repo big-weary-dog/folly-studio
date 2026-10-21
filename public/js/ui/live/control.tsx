@@ -6,6 +6,7 @@ import '../../../css/live.css';
 import { useEffect, useRef, useState } from 'preact/hooks';
 
 import type { Listed } from '../../../../shared/schemas/api.ts';
+import type { PiQueued } from '../../../../shared/schemas/live.ts';
 import { api } from '../../api.ts';
 import { cx, humanize, toast } from '../kit.tsx';
 import { setTitle } from '../session.ts';
@@ -62,6 +63,8 @@ export function ControlPage() {
       <p class={cx('lc-driver', live?.driver === 'pi' && 'pi')} role="status">
         {live?.driver === 'pi' ? 'Live is driven from /pi. Use a control here to take it back.'
           : 'Live is driven from Live control.'}</p>
+      {live?.driver === 'pi' && <PiQueue now={sock.pi.value?.source?.title}
+        queue={sock.pi.value?.now?.queue ?? []} />}
       <div class="lc-play">
         <select aria-label="Look to play" value={pick} onChange={(e) => setPick(e.currentTarget.value)}>
           <option value="">{looks ? (looks.length ? 'Pick a look…' : 'No looks may play yet') : 'Loading…'}</option>
@@ -93,4 +96,18 @@ export function ControlPage() {
         })}
       </>}
     </section>);
+}
+
+/** What the lights play next, as /pi's engine has it (SPEC-offline "Playing on the lights"): read only here. */
+function PiQueue({ now, queue }: { now?: string, queue: PiQueued[] }) {
+  return (
+    <div class="lc-queue">
+      {now && <p class="lc-now">On the lights now: <strong>{now}</strong></p>}
+      <h2>Up next on the lights</h2>
+      {queue.length ? <ol>{queue.map((q) => <li>{q.title}
+        {q.kind === 'baked' && <span class="tag tag-sapphire">Baked</span>}
+        {q.by && <span class="lc-by">{q.by}</span>}</li>)}</ol>
+        : <p class="pane-hint">Nothing queued: what plays loops on.</p>}
+      <a class="btn small" href="/pi/">Open the lights</a>
+    </div>);
 }

@@ -94,15 +94,22 @@ the lights as curators (usernames as they sign up). Under the Pi profile the pre
 baked frames capped at 1 GB; `docs/HOSTING.md` "Every setting" lists the rest. Plain HTTP on DustyRose, so
 `STUDIO_SECURE_COOKIES` stays off.
 
-The engine sits behind Studio at `/pi`, and reads the light settings Studio's Light page writes. In
-`/home/fpp/folly-studio/pi/config.json` (gitignored; keep any settings already there):
+The engine sits behind Studio at `/pi`, reads the light settings Studio's Light page writes, and plays Studio's
+baked frames. In `/home/fpp/folly-studio/pi/config.json` (gitignored; keep any settings already there):
 
 ```json
-{ "base": "/pi", "light": "/home/fpp/folly-data/light.json" }
+{ "base": "/pi", "light": "/home/fpp/folly-data/light.json", "frames": "/home/fpp/folly-data/frames",
+  "bind": "127.0.0.1" }
 ```
 
-With `"bind": "127.0.0.1"` as well, the control page is reached only through Studio's sign-in; without it,
-`http://192.168.8.172:4043/pi/` answers too, as `:4043` does now.
+`"bind": "127.0.0.1"` keeps the control page behind Studio's sign-in, and Studio's checks on what it plays (SPEC-offline
+"Playing on the lights"): without it, `http://192.168.8.172:4043/pi/` answers too. If the engine has a PIN, put it in
+`studio.env` as `PI_PIN` too, so Studio can play looks on it.
+
+Curators play looks from Studio (**Play on the lights**): a look made only of library modules plays live while Admin →
+Light's **Live library looks** is on; a look with custom code plays only as its bake. Bakes are made in the render box,
+which needs bubblewrap: on a Pi without it such looks cannot play on the lights until they are rebuilt from library
+modules.
 
 ## 3. The Studio unit
 

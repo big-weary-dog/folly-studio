@@ -54,7 +54,7 @@ test('a look picked on /pi plays on the Live tab', async ({ browser, studio }, i
   await expect(pi.page.locator('.pi-driver')).toContainText('driven from Live control.');
   await expect(live.page.locator('.live-driver')).toHaveText('driven from Live control');
 
-  await pi.page.getByRole('button', { name: 'Fire' }).click();
+  await pi.page.getByRole('button', { name: 'Fire', exact: true }).click();
   await expect(pi.page.getByRole('heading', { level: 1 })).toHaveText('Fire', { timeout: 10_000 });
   await expect(pi.page.locator('.pi-driver')).toHaveText("Studio's Live tab: driven from /pi.");
   for (const v of [live, laptop]) {

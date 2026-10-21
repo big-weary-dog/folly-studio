@@ -275,6 +275,7 @@ them.
 | `STUDIO_LIVE_LOOKS` | what may play on /live, default reviewed |
 | `STUDIO_PREVIEWS` | the gallery previews' camera, default playa (the Pi: front) |
 | `PI_PREVIEW_URL` | a Studio Live engine on this machine, at /pi (here a dry run; the Pi's own on it) |
+| `PI_PIN` | the engine's PIN, if it has one: Studio's feed says it to play on the lights; a secret |
 | `GIT_SHA` | the build's commit, for bug reports (default: the checkout's) |
 | `STUDIO_BAKE_SECONDS` | the longest render-box bake, default 120 |
 | `STUDIO_BAKE_TIMEOUT` | a bake's wall clock, default scaled to its length |

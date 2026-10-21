@@ -74,7 +74,7 @@ and the engine's control page (`/pi/`) both add to it. Custom code never reaches
   render box; without it a bake is 503), so a Pi without bubblewrap has none to play.
 
 Studio picks the way: live when it may (the controls work), else baked, else it refuses, saying why ("Has custom
-code: bake it to play it on the lights", "Live looks are off: bake it to play it on the lights").
+code: bake it (Check & bake) to play it on the lights…", "Live looks are off: bake it…", each naming bubblewrap).
 
 **The queue** (the engine's, in memory; a restart empties it). At most 20 items, each
 `{ key, id, title, kind: 'look' | 'live' | 'baked', by? }`: `look` is one of the engine's own (`pi/looks`). An item
@@ -86,10 +86,11 @@ and pauses the queue until someone plays, skips or resumes it.
 **HTTP** (Pi profile with `PI_PREVIEW_URL`; others 404):
 
 ```
-GET  /api/lights                     → { liveLooks, canQueue, engine: boolean }   engine: the feed is connected
-POST /api/lights/queue  { lookId, at?: 'now' | 'next' | 'end' }
+GET  /api/lights[?lookId]            → { liveLooks, canQueue, engine: boolean, play?: { kind } | { error } }
+                                       engine: the feed is connected; play: how that look would play
+POST /api/lights/queue  { lookId, at?: 'now' | 'next' | 'end' (default) }
                                      → { kind: 'live' | 'baked' }  400 says why it cannot play; 403 not allowed;
-                                       503 the engine is not connected
+                                       409 the queue is full; 503 the engine is not connected
 PUT  /api/admin/lights  { liveLooks } → the same; admins only; kept in <STUDIO_DATA>/lights.json (default on)
 ```
 
