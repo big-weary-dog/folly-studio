@@ -1,12 +1,20 @@
-// The tutorial's paths, in the order Tutorials lists them. First look is the one that opens by itself.
-import { colour } from './colour.ts';
+// The tutorial's paths, the chapters of Rose and arches in the order Tutorials lists them. Getting around opens by
+// itself.
+import { idea } from './idea.ts';
 import { firstLook } from './first-look.ts';
 import { keep } from './keep.ts';
 import { layers } from './layers.ts';
-import { move } from './move.ts';
+import { modules } from './modules.ts';
+import { moves } from './moves.ts';
+import { time } from './time.ts';
+import type { Step } from '../types.ts';
 
-export const PATHS = [firstLook, layers, move, colour, keep];
+export const PATHS = [firstLook, idea, modules, layers, time, moves, keep];
 
-/** The paths this Studio offers: on the Pi (SPEC-offline) no step goes to Ideas, which it has not. */
+/** A step on Ideas, or one that goes there. */
+export const onIdeas = (s: Step) => s.page === '/ideas' || !!s.idea
+  || (Array.isArray(s.anchor) && s.anchor.includes('nav:ideas'));
+/** The paths this Studio offers: on the Pi (SPEC-offline) no step goes to Ideas, which it has not, and a path that
+ * starts there starts on its practice look. */
 export const pathsHere = (pi: boolean) => (pi ? PATHS.map((p) => ({ ...p, about: p.aboutPi ?? p.about,
-  steps: p.steps.filter((s) => s.page !== '/ideas') })) : PATHS);
+  start: p.look ?? p.start, steps: p.steps.filter((s) => !onIdeas(s)) })) : PATHS);

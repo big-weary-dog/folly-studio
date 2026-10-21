@@ -20,7 +20,6 @@ const RULER_H = 16;
 export function Timeline({ st, pv, tl }: { st: Studio; pv: Preview; tl: TimelineState }) {
   const scroll = useRef<HTMLDivElement>(null), canvas = useRef<HTMLCanvasElement>(null);
   const head = useRef<HTMLDivElement>(null);
-  const [autoRequest, requestAuto] = useState(0);
   const narrow = st.narrow.value, layers = st.look.value.layers, bpm = st.look.value.bpm;
   const pps = tl.pps.value, d = tl.duration.value, beatPx = bpm ? (60 / bpm) * pps : 0;
 
@@ -109,20 +108,14 @@ export function Timeline({ st, pv, tl }: { st: Studio; pv: Preview; tl: Timeline
       data-mode={narrow ? 'narrow' : 'wide'} style={vars}>
       {narrow && <TimelineTools st={st} tl={tl} />}
       <div class="tl-scroll" ref={scroll} tabindex={-1} role="group" aria-label={'Timeline, top layer first. On a '
-        + 'selected clip, arrows move it, Shift+arrows change its length and Delete removes it. A: automate a macro.'}
-        onKeyDown={(e) => {
-          if (e.key.toLowerCase() !== 'a' || e.ctrlKey || e.metaKey || e.altKey || e.repeat
-            || (e.target as Element).closest('input, select, textarea, [contenteditable]')) return;
-          e.preventDefault();
-          requestAuto((n) => n + 1);
-        }}>
+        + 'selected clip, arrows move it, Shift+arrows change its length and Delete removes it.'}>
         <div class="tl-inner">
           <div class="tl-head-row"><div class="tl-corner">Layers</div>
             <div class="tl-ruler" title="Click or drag to move the playhead">
               <canvas class="tl-ruler-canvas" ref={canvas} aria-hidden="true" /></div></div>
           <div class="tl-rows">{[...layers].reverse().map((l) => <Row key={l.id} l={l} st={st} tl={tl} />)}</div>
           <Modulators st={st} tl={tl} />
-          <Automation st={st} tl={tl} request={autoRequest} />
+          <Automation st={st} tl={tl} />
           <div class="tl-playhead" ref={head} aria-hidden="true" />
         </div>
       </div>
@@ -167,12 +160,12 @@ function Modulators({ st, tl }: { st: Studio; tl: TimelineState }) {
 }
 
 // Automation lanes (timeline-auto.tsx) load once a look has some or asks for some.
-function Automation({ st, tl, request }: { st: Studio; tl: TimelineState; request: number }) {
+function Automation({ st, tl }: { st: Studio; tl: TimelineState }) {
   const [asked, setAsked] = useState(false);
-  const mod = useLazy(() => import('./timeline-auto.tsx'), asked || request > 0 || !!st.look.value.automation);
-  if (mod) return <mod.AutoLanes st={st} tl={tl} focus={asked} request={request} />;
+  const mod = useLazy(() => import('./timeline-auto.tsx'), asked || !!st.look.value.automation);
+  if (mod) return <mod.AutoLanes st={st} tl={tl} focus={asked} />;
   return (
     <div class="tl-auto-head"><div class="tl-corner tl-auto-corner">Automation</div>
       <div class="tl-auto-tools"><button type="button" class="btn small" onClick={() => setAsked(true)}
-        title="Automate a macro (A with timeline focused)" data-tour="automate">+ Automate…</button></div></div>);
+        data-tour="automate">+ Automate…</button></div></div>);
 }

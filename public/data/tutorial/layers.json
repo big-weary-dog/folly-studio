@@ -1,1 +1,17 @@
-{ "title": "Practice: layers", "presets": ["starfield", "lighthouse"] }
+{
+  "title": "Rose and arches",
+  "view": "rose",
+  "palette": "ocean",
+  "layers": [
+    {
+      "title": "Arches",
+      "tag": "arch-main",
+      "modules": [{"ref": "single-strand", "params": {"colours": "high", "speed": 8, "profile": "comet"}}]
+    },
+    {
+      "title": "Rose",
+      "tag": "rose",
+      "modules": [{"ref": "bars", "params": {"direction": "out", "profile": "smooth", "bars": 3, "speed": 0.3}}]
+    }
+  ]
+}

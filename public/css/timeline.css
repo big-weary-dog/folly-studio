@@ -2,13 +2,18 @@
    glass (by blend: add amber, over cobalt, max ruby, multiply violet), the playhead a lit string. */
 .studio .pane-time { display: none; }
 /* SVG automation is static between edits; a vertical gradient also shades sloping segments. */
-.tl-auto-svg { --auto-high: color-mix(in srgb, var(--violet) 78%, white);
-  --auto-low: color-mix(in srgb, var(--violet) 72%, var(--night-0)); }
+.tl-auto-svg { --auto-high: var(--emerald); --auto-low: var(--amber); }
 .tl-auto-high { stop-color: var(--auto-high); }
 .tl-auto-mid { stop-color: var(--violet); }
 .tl-auto-low { stop-color: var(--auto-low); }
-.tl-auto-svg .tl-auto-dot[data-level=high] { stroke: var(--auto-high); }
-.tl-auto-svg .tl-auto-dot[data-level=low] { stroke: var(--auto-low); }
+.tl .tl-auto-row { --tl-row: 42px; }
+.tl .tl-auto-lane { min-height: 42px; }
+.tl-auto-svg .tl-auto-line { stroke-width: 2; }
+.tl-auto-svg .tl-auto-dot { stroke-width: 2.5; }
+.tl-auto-svg .tl-auto-dot[data-level=high] { stroke: var(--auto-high); fill: var(--auto-high); }
+.tl-auto-svg .tl-auto-dot[data-level=low] { stroke: var(--auto-low); fill: var(--night-0); }
+.tl-auto-svg .tl-auto-dot[data-level=mid] { fill: var(--night-0); }
+.tl-auto-half { fill: var(--violet); pointer-events: none; }
 .dock-tools { display: flex; align-items: center; flex: 1; min-width: 0; }
 .dock-tools .btn { margin-left: 0; }
 .tl-body { display: flex; flex-direction: column; flex: none; min-height: 0; }

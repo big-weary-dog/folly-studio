@@ -10,6 +10,7 @@ import { readText, TEXT_MAX } from '../core/globals.ts';
 import type { Picture } from '../core/picture.ts';
 import { DEFAULT_PALETTE } from '../core/stdlib.ts';
 import { BeatClock } from './beat-clock.tsx';
+import { automate } from './automation-edit.ts';
 import {
   beatsAt, fmt, keepsTime, normaliseParam, optionText, type Param, perBeat, shownValue, upgradedOf,
 } from './bindings.ts';
@@ -49,7 +50,10 @@ export function ParamsPanel({ st }: { st: Studio }) {
   return (
     <div class="params">
       {entries.map(([key, p]) => <Control key={`${l.id}/${m.id}/${key}`} name={key} p={p} values={values} set={set}
-        colours={colours} narrow={st.narrow.value} ctx={ctx} />)}
+        colours={colours} narrow={st.narrow.value} ctx={{ ...ctx, automate: (range, now, self) =>
+          automate(st, range, now, self ? { macro: self } : { layer: l.id, module: m.id, key,
+            hint: l.title ?? m.title, colour: p.kind === 'color' ? { value: p.value, blend: p.blend ?? 'step' }
+              : undefined }) }} />)}
       <div class="params-foot"><button type="button" class="btn small ghost"
         onClick={() => st.editModule(l.id, m.id, () => ({ params: {} }))}>Reset all to defaults</button></div>
     </div>);

@@ -15,13 +15,16 @@ import {
 } from '../public/js/ui/bindings.ts';
 import { decimals, scrubTo, snap } from '../public/js/ui/kit.tsx';
 import { profile } from '../public/js/ui/session.ts';
-import { pathsHere } from '../public/js/ui/tour/paths/index.ts';
+import { onIdeas, pathsHere } from '../public/js/ui/tour/paths/index.ts';
 import { createLayerStatus } from '../public/js/ui/layer-status.ts';
-import { editText, editValue, readEdit, toggleRole, toggleSlot, toggleToken } from '../public/js/ui/pick-model.ts';
+import {
+  addColour, CUSTOM_MAX, editText, editValue, readEdit, toggleRole, toggleSlot, toggleToken,
+} from '../public/js/ui/pick-model.ts';
 import type { Preview } from '../public/js/ui/preview.ts';
 import type { Draft, Studio } from '../public/js/ui/studio-store.ts';
 import { createTimeline } from '../public/js/ui/timeline-state.ts';
 import { automationLevel } from '../public/js/ui/timeline-auto.tsx';
+import { automationEdit } from '../public/js/ui/automation-edit.ts';
 import { chainWires, isStageEnd, type Layer } from '../public/js/ui/model.ts';
 import type { Module } from '../shared/schemas/look.ts';
 
@@ -33,6 +36,42 @@ const where = (path: string, search = '', signedIn = true) => {
 test('automation endpoint brightness uses the macro range, not raw zero and one', () => {
   const range = { min: -2, max: 2, value: 0 };
   assert.deepEqual([-2, 0, 1, 2].map((v) => automationLevel(v, range)), ['low', 'mid', 'mid', 'high']);
+});
+
+test('automating a setting creates its macro, lane and binding as one patch, and reuses an existing lane', () => {
+  const L = { id: null, title: 'Test', summary: '', shared: false, ideaId: null,
+    duration: 24, bpm: null, layers: [{ id: 'layer', blend: 'add', level: 1,
+    title: 'Clouds', modules: [{ id: 'source', kind: 'source', title: 'Clouds', code: '', params: { speed: 2 } }] }],
+  } as Draft;
+  const p = { label: 'Speed', min: -2, max: 6 }, target = { layer: 'layer', module: 'source', key: 'speed',
+    hint: 'Clouds' };
+  const edit = automationEdit(L, p, 2, target)!;
+  assert.equal(edit.name, 'cloudsSpeed');
+  assert.deepEqual(edit.patch.globals?.macros?.cloudsSpeed, { min: -2, max: 6, value: 2 });
+  assert.deepEqual(edit.patch.automation?.cloudsSpeed, [[0, 2], [24, 2]]);
+  assert.deepEqual(edit.patch.layers?.[0].modules[0].params?.speed,
+    { mod: 'global', name: 'cloudsSpeed', from: -2, to: 6 });
+  assert.equal(L.layers[0].modules[0].params?.speed, 2, 'the original look is untouched for Undo');
+  assert.deepEqual(automationEdit({ ...L, ...edit.patch }, p, 4, target), { name: 'cloudsSpeed', patch: {} });
+});
+
+test('new automation names avoid collisions; colour automation preserves the pick and its options', () => {
+  const L = { id: null, title: 'Test', summary: '', shared: false, ideaId: null,
+    duration: 30, bpm: null, layers: [{ id: 'l', title: 'Bars', blend: 'add', level: 1, modules: [
+    { id: 'm', kind: 'source', title: 'Bars', code: '', params: {
+      colours: { pick: 'body/accent', blend: 'smooth', range: [0.2, 0.8] } } }] }] } as Draft;
+  const p = { label: 'Colours: rotate', min: 0, max: 1 };
+  const first = automationEdit(L, p, 0.5)!;
+  assert.equal(first.name, 'automation');
+  assert.equal(automationEdit({ ...L, ...first.patch }, p, 0.5)!.name, 'automation2');
+  const turn = automationEdit(L, p, 0.25, { layer: 'l', module: 'm', key: 'colours', hint: 'Bars',
+    colour: { value: 'all', blend: 'step' } })!;
+  assert.deepEqual(turn.patch.layers?.[0].modules[0].params?.colours, {
+    pick: 'body/accent', blend: 'smooth', range: [0.2, 0.8],
+    rotate: { mod: 'global', name: turn.name, from: 0, to: 1 } });
+  const full = { ...L, globals: { macros: Object.fromEntries(Array.from({ length: 16 }, (_, i) =>
+    [`macro${i}`, { min: 0, max: 1, value: 0.5 }])) } };
+  assert.equal(automationEdit(full, p, 0.5), null, 'the API macro limit is respected');
 });
 
 describe('routing', () => {
@@ -76,10 +115,12 @@ describe('routing', () => {
   });
 
   test('on the Pi, the tutorial takes no step to Ideas', () => {
-    const steps = (pi: boolean) => pathsHere(pi).flatMap((p) => p.steps.map((s) => s.page));
-    assert.ok(steps(false).includes('/ideas'));
-    assert.ok(!steps(true).includes('/ideas'));
-    assert.equal(pathsHere(true).find((p) => p.id === 'keep')!.about, 'Undo, save and Live.');
+    const steps = (pi: boolean) => pathsHere(pi).flatMap((p) => p.steps);
+    assert.ok(steps(false).some(onIdeas));
+    assert.ok(!steps(true).some(onIdeas));
+    const idea = pathsHere(true).find((p) => p.id === 'idea')!;
+    assert.equal(idea.start, '/studio?tour=idea', 'From an idea starts on its look');
+    assert.equal(idea.about, idea.aboutPi);
   });
 
   test('`next` stays on this app', () => {
@@ -318,6 +359,18 @@ describe('the pick tile', () => {
     assert.deepEqual(editValue({ ...opts, blend: 'step', range: [0, 1], rotate: undefined }, 'smooth'),
       { pick: 'all', blend: 'step' });
     assert.deepEqual(readEdit('banana', 'high').tokens, ['high'], 'a bad value: the default');
+  });
+
+  test('a custom colour is added once, at the end, up to 4, in place of the whole palette or rainbow', () => {
+    const red = addColour(readEdit(undefined, 'all'), '#ca1c1c');
+    assert.equal(editValue(red, 'step'), '#ca1c1c', 'over all: just it, so it plays');
+    assert.equal(editText(addColour(readEdit('rainbow body2', 'all'), '#00ff00')), 'body2 #00ff00');
+    assert.equal(editText(addColour(red, '#ca1c1c')), '#ca1c1c', 'already there: kept once');
+    assert.equal(editText(addColour(red, '#0000ff')), '#ca1c1c #0000ff');
+    const four = ['#000001', '#000002', '#000003'].reduce(addColour, red);
+    assert.equal(editText(addColour(four, '#ffffff')), editText(four), `at ${CUSTOM_MAX}: no more`);
+    const five = '#000001 #000002 #000003 #000004 #000005 low';
+    assert.equal(editText(addColour(readEdit(five, 'all'), '#ffffff')), five, 'more from code: kept as they are');
   });
 });
 

@@ -14,6 +14,7 @@ type LookLike = NonNullable<Parameters<typeof prepareLook>[0]>;
  * macro being edited (a modulator follows faders only); `share` makes a modulator of an LFO, returning its name. */
 export type ModCtx = { look: () => LookLike; t: () => number; clips: () => readonly Clip[] | null | undefined;
   narrow: boolean; self?: string; share?: (mod: Binding, hint: string) => string;
+  automate?: (p: Param, now: number, self?: string) => boolean;
   edit?: { rename: (from: string, to: string) => boolean; mod: (name: string, v: ParamValue | undefined) => void } };
 
 const prepared = new WeakMap<object, PreparedLook>();

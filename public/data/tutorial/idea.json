@@ -1,0 +1,11 @@
+{
+  "title": "Rose and arches",
+  "layers": [
+    {"title": "Arches", "tag": "arch-main", "modules": [{"ref": "single-strand", "params": {"colours": "all"}}]},
+    {
+      "title": "Rose",
+      "tag": "rose",
+      "modules": [{"ref": "bars", "params": {"direction": "out", "profile": "smooth", "bars": 3, "speed": 0.3}}]
+    }
+  ]
+}

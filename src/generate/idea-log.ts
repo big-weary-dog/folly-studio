@@ -12,13 +12,17 @@ import path from 'node:path';
 import type { IdeaOutcome } from '../../shared/idea-status.ts';
 import { monoNow } from '../clock.ts';
 import type { Logger } from '../http.ts';
+import { howOf, THINKING_MAX, thinkingOf } from './explain.ts';
 
 export type Usage = { input: number, cached: number, output: number, reasoning: number };
 /** One model call as an adapter saw it: its prompt (the system prompt goes by hash), its reply and its tool calls. */
 export type Call = { ms: number, system?: string, turn: unknown, images?: number, reply?: unknown, tools?: unknown[],
   usage?: Partial<Usage>, docs?: string[], error?: string };
+/** `think`: thinking as it streams in, shown live and kept only until the call that holds it is recorded. */
 export type Round = { kind: string, call(c: Call): void, still(png: Uint8Array, about: Record<string, unknown>): void,
-  end(r?: { outcome?: string, notes?: string[], [more: string]: unknown }): void };
+  end(r?: { outcome?: string, notes?: string[], [more: string]: unknown }): void, think?(text: string): void };
+/** The round running now, for the idea's live view: thinking so far, the latest last when it runs long. */
+export type LiveRound = { n: number, kind: string, ms: number, thinking?: string };
 export type Outcome = { status: IdeaOutcome, error?: string, detail?: string, lookId?: string };
 export type IdeaLog = ReturnType<typeof createIdeaLog>;
 
@@ -41,6 +45,7 @@ export function createIdeaLog(o: { dir?: string, meta: Record<string, unknown>, 
   let all = 0; // calls made
   // A second attempt (a run cut short, queued again) keeps the first's record and numbers its rounds from 101.
   let chain = Promise.resolve(), n = Number(o.meta.attempt) > 1 ? 100 : 0;
+  const running = new Map<number, () => LiveRound>();
   const write = (fn: (dir: string) => Promise<unknown>) => {
     if (!o.dir) return;
     const dir = o.dir;
@@ -65,15 +70,23 @@ export function createIdeaLog(o: { dir?: string, meta: Record<string, unknown>, 
     /** A round begins: its calls and stills are recorded under it until end(). */
     begin(kind: string): Round {
       const i = ++n, start = monoNow(), used = zero(), docs: string[] = [], stills: Record<string, unknown>[] = [];
-      let calls = 0, ended = false;
+      let calls = 0, ended = false, thinking = '', streaming = '';
+      running.set(i, () => {
+        const said = `${thinking}${streaming}`.trim();
+        return { n: i, kind, ms: monoNow() - start, ...(said ? { thinking: said.slice(-THINKING_MAX) } : {}) };
+      });
       return {
         kind,
+        think(text) { streaming = `${streaming}${text}`.slice(-THINKING_MAX); },
         call(c) {
           calls++;
           all++;
           add(used, c.usage);
           add(tokens, c.usage);
           docs.push(...c.docs ?? []);
+          const thought = thinkingOf(c);
+          if (thought) thinking = `${thinking && `${thinking}\n\n`}${thought}`.slice(0, THINKING_MAX);
+          streaming = '';
           const { system, ...rest } = c;
           const sys = system === undefined ? undefined : hashOf(system);
           if (system !== undefined && sys && !systems.has(sys)) {
@@ -92,13 +105,28 @@ export function createIdeaLog(o: { dir?: string, meta: Record<string, unknown>, 
         end({ outcome, notes, ...more } = {}) {
           if (ended) return;
           ended = true;
+          running.delete(i);
           rounds.push({ n: i, kind, start: new Date(start).toISOString(), end: new Date().toISOString(),
             ms: monoNow() - start, calls, tokens: used, ...(docs.length ? { docs } : {}),
-            ...(outcome ? { outcome } : {}), ...more, ...(notes?.length ? { notes } : {}),
+            ...(outcome ? { outcome } : {}), ...(thinking ? { thinking } : {}), ...more,
+            ...(notes?.length ? { notes } : {}),
             ...(stills.length ? { stills } : {}) });
           save();
         },
       };
+    },
+    /** The round running now (the latest, when sketches run side by side) and how many have ended; null when the
+     * idea has ended. */
+    live() {
+      if (meta.endedAt) return null;
+      const now = [...running.values()].at(-1)?.();
+      return { rounds: rounds.length, ...(now ? { round: now } : {}) };
+    },
+    /** Adds to the last round ended (the render check that followed it). */
+    amend(more: Record<string, unknown>) {
+      if (!rounds.length) return;
+      Object.assign(rounds.at(-1)!, more);
+      save();
     },
     /** The idea ended (or was cut): its outcome. Resolves once everything is written. */
     finish(outcome: Outcome) {
@@ -107,12 +135,14 @@ export function createIdeaLog(o: { dir?: string, meta: Record<string, unknown>, 
       save();
       return chain;
     },
-    /** For the idea itself: the tokens (none when no call was recorded), and each round as `{ kind, ms, outcome }`,
-     * a failure's outcome plain (ownerOutcome). */
+    /** For the idea itself: the tokens (none when no call was recorded); each round as `{ kind, ms, outcome }`, a
+     * failure's outcome plain (ownerOutcome); and `how` it was made (explain.ts howOf), outcomes as plain. */
     summary() {
-      const { input, cached, output } = tokens;
+      const { input, cached, output } = tokens, plain = (r: Record<string, unknown>) => (r.outcome
+        ? { ...r, outcome: ownerOutcome(String(r.outcome)) } : r);
       return { tokens: all ? { input, cached, output } : undefined, rounds: rounds.map((r) => ({ kind: String(r.kind),
-        ms: Number(r.ms), ...(r.outcome ? { outcome: ownerOutcome(String(r.outcome)).slice(0, 80) } : {}) })) };
+        ms: Number(r.ms), ...(r.outcome ? { outcome: ownerOutcome(String(r.outcome)).slice(0, 80) } : {}) })),
+      how: howOf(rounds.map(plain)) };
     },
   };
 }
@@ -147,7 +177,7 @@ export function createIdeaLogs({ dir, keep = 300, maxBytes = 500 * 2 ** 20, log 
     }
   }
 
-  const open = new Set<string>();
+  const open = new Set<string>(), running = new Map<string, IdeaLog>();
   return {
     dir, keep, maxBytes,
     /** A new log for idea `id` (one already there, from a run cut short, is added to). */
@@ -158,7 +188,15 @@ export function createIdeaLogs({ dir, keep = 300, maxBytes = 500 * 2 ** 20, log 
         pruning ??= prune(open).finally(() => { pruning = null; });
       }
       const l = createIdeaLog({ dir: at ?? undefined, meta: { id, ...meta }, log });
-      return { ...l, finish: (outcome: Outcome) => l.finish(outcome).finally(() => open.delete(id)) };
+      running.set(id, l);
+      return { ...l, finish: (outcome: Outcome) => {
+        if (running.get(id) === l) running.delete(id);
+        return l.finish(outcome).finally(() => open.delete(id));
+      } };
+    },
+    /** What idea `id`'s run is doing now (IdeaLog.live); null when it is not running here. */
+    live(id: string) {
+      return running.get(id)?.live() ?? null;
     },
     /** An idea's log as the admin route answers it; null when there is none. */
     async read(id: string) {

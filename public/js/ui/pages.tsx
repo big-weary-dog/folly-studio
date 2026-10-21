@@ -16,6 +16,7 @@ import { AccessGate, gateOf } from './idea-access.tsx';
 import { confirmDialog, cx, jewelGradient, lazy, pref, timeAgo, toast } from './kit.tsx';
 import { LookFiles } from './look-files.tsx';
 import { Rose } from './rose.tsx';
+import { tourIdea } from './tour-view.ts';
 
 const lights = lazy(() => import('./play-lights.tsx'));
 
@@ -153,6 +154,7 @@ export function Ideas() {
     const t = text.trim();
     setError(t ? '' : 'Describe your idea first.');
     if (!t) return input.current?.focus();
+    if (tourIdea.value) return void navigate(tourIdea.value);   // the tutorial's look, made already: no model runs
     if (gate.kind === 'locked' || gate.kind === 'wait') return;
     setBusy(true);
     try {
@@ -206,8 +208,9 @@ export function Ideas() {
                 {pickable.map((m) => <option key={m.id} value={m.id}>
                   {m.paid && access && !access.unlocked ? `${m.label} (invite)` : m.label}</option>)}</select></label>}
             {gate.kind === 'open' && <AccessGate gate={gate} paidLabels={paidLabels} onAccess={setAccess} />}
-            {gate.kind !== 'locked' && <button class={cx('btn primary', busy && 'busy')} type="submit"
-              disabled={busy || gate.kind === 'wait'}>Turn it into a look</button>}
+            {(gate.kind !== 'locked' || tourIdea.value) && <button class={cx('btn primary', busy && 'busy')}
+              type="submit" data-tour="idea-make" disabled={busy || (gate.kind === 'wait' && !tourIdea.value)}>
+              Turn it into a look</button>}
           </div>
           {gate.kind !== 'open' && <AccessGate gate={gate} model={chosen} paidLabels={paidLabels} free={free}
             useFree={useFree} onAccess={setAccess} />}
@@ -242,6 +245,8 @@ function IdeaRow({ idea, retry }: { idea: Idea; retry: () => void }) {
           <time class="meta-item" dateTime={idea.createdAt || ''}>{timeAgo(idea.createdAt)}</time>
           {can(user.value, 'admin') && idea.status !== 'queued' && <a class="meta-item" target="_blank"
             rel="noopener" href={`/api/admin/ideas/${encodeURIComponent(idea.id)}/log`}>Log</a>}
+          {(idea.owner === user.value?.id || can(user.value, 'admin')) && <a class="meta-item"
+            href={`/ideas/${encodeURIComponent(idea.id)}/how`}>{isPending(idea) ? 'Watch it' : 'How it was made'}</a>}
         </div>
         {idea.status === 'ready' && idea.took && <p class="idea-took">Took {idea.took}</p>}
         {idea.status === 'failed' && idea.error && <p class="idea-error">{idea.error}</p>}
