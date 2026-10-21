@@ -27,7 +27,7 @@ const FIRE = (title) => ({ title, shared: true, layers: [{ id: 'l1', title: 'Fir
 const port = await new Promise((resolve) => {
   const s = createServer().listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => resolve(p)); });
 });
-test.use({ serverOptions: { profile: 'pi', curators: 'cara', piPreview: `http://127.0.0.1:${port}` } });
+test.use({ serverOptions: { profile: 'pi', admins: 'boss', curators: 'cara', piPreview: `http://127.0.0.1:${port}` } });
 let engine;
 test.beforeAll(async () => {
   const config = path.join(mkdtempSync(path.join(os.tmpdir(), 'pi-config-')), 'config.json');
@@ -57,7 +57,10 @@ async function emptyQueue() {
 
 test('a curator runs the jukebox from /live; a member watches', async ({ browser, studio }, info) => {
   const { origin } = studio;
-  const cara = await signup(origin, 'cara'), bob = await signup(origin, 'bob');
+  const cara = await signup(origin, 'cara'), bob = await signup(origin, 'bob'), boss = await signup(origin, 'boss');
+  // Live Play: Play now and Blackout (Jukebox has neither).
+  await fetch(`${origin}/api/admin/lights`, { method: 'PUT', body: JSON.stringify({ mode: 'live' }),
+    headers: { 'content-type': 'application/json', cookie: boss } });
   const call = async (method, url, body) => (await fetch(`${origin}${url}`, { method, body: JSON.stringify(body),
     headers: { 'content-type': 'application/json', cookie: cara } })).json();
   const looks = [];

@@ -1,7 +1,8 @@
 // /pi's engine as the live stage follows it (SPEC-live "Following /pi"): one socket from this server to the dry run at
 // PI_PREVIEW_URL (on this machine), saying hello as its page does, turning what it sends into the stage's PiNow and
 // PiSource. It reconnects after 1 s, doubling to 10 s. It connects nowhere else, and never to the Pi itself.
-// It is also how Studio plays a look on the lights (src/lights.ts): its `send`, with PI_PIN in its hello.
+// It is also how Studio plays a look on the lights (src/lights.ts): its `send`, with PI_PIN in its hello, and how the
+// engine learns the admin's mode (SPEC-liveplay "Modes"): after its hello, and at each change.
 import WebSocket from 'ws';
 
 import type { PiNow, PiQueued, PiSource } from '../../shared/schemas/live.ts';
@@ -34,10 +35,11 @@ export function piNowOf(state: { look?: Look | null, gain?: number, queue?: unkn
     ...Array.isArray(state.queue) && state.queue.length ? { queue: queueOf(state.queue) } : {} };
 }
 
-/** `pin`: the engine's PIN (PI_PIN), said in the hello; `log`: what the engine refuses of Studio's sends. */
-export function piFeed({ target, base = '/pi', pin, onNow, onSource, log = console }: { target: URL, base?: string,
-  pin?: string, onNow: (now: PiNow | null) => void, onSource: (source: PiSource) => void,
-  log?: { warn?: (...a: unknown[]) => void } }) {
+/** `pin`: the engine's PIN (PI_PIN), said in the hello; `mode`: the mode to tell it; `log`: what the engine refuses
+ * of Studio's sends. */
+export function piFeed({ target, base = '/pi', pin, mode = () => 'live', onNow, onSource, log = console }:
+  { target: URL, base?: string, pin?: string, mode?: () => 'jukebox' | 'live', onNow: (now: PiNow | null) => void,
+  onSource: (source: PiSource) => void, log?: { warn?: (...a: unknown[]) => void } }) {
   const url = `${target.protocol === 'https:' ? 'wss:' : 'ws:'}//${target.host}${base}/ws`;
   let ws: WebSocket | null = null, wait = FIRST_WAIT_MS, timer: NodeJS.Timeout | null = null, alive = true;
   // ok: the engine took the hello (its PIN); queued: its queue's length, from its last state.
@@ -49,6 +51,7 @@ export function piFeed({ target, base = '/pi', pin, onNow, onSource, log = conso
     s.on('open', () => {
       wait = FIRST_WAIT_MS;
       s.send(JSON.stringify({ type: 'hello', feed: true, ...pin ? { pin } : {} }));
+      s.send(JSON.stringify({ type: 'mode', mode: mode() }));
     });
     s.on('message', (d) => {
       let m;
@@ -85,6 +88,10 @@ export function piFeed({ target, base = '/pi', pin, onNow, onSource, log = conso
       if (!ok || ws?.readyState !== WebSocket.OPEN) return false;
       ws.send(JSON.stringify(msg));
       return true;
+    },
+    /** The mode changed: tell the engine now (and again at each hello). */
+    mode(m: 'jukebox' | 'live') {
+      if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'mode', mode: m }));
     },
     close() {
       alive = false;

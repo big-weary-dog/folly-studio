@@ -327,7 +327,8 @@ CPU Studio's `/live` holds still while it follows a dry run no one has open. Uns
 ### The Pi profile
 
 `STUDIO_PROFILE=pi` is the Studio on the FPP Pi itself, offline, beside the real engine: no generators, no Ideas,
-listening on the Pi's network, `/pi` open to curators (SPEC-offline). It is not for this machine: here the server
+listening on the Pi's network, `/pi` open to curators (SPEC-offline), the lights in Jukebox until an admin picks
+Live Play (Admin → Light, kept in `lights.json`; SPEC-liveplay). It is not for this machine: here the server
 refuses any `HOST` but loopback. Installing it: `pi/STUDIO.md`. The Pi runs the `pi` branch, which
 `npm run pi:branch` makes here from `prod` (the app built, `dist/` committed) and force-pushes.
 
