@@ -25,7 +25,7 @@ export const moves: Path = {
   about: 'Advanced: LFOs and their shapes, a macro on two values, and automation.',
   steps: [
     { id: 'lfo', page: '/studio', title: 'An LFO',
-      text: '∿ beside a value hands it to something that moves it. An LFO is a wave. Click Starfield, its '
+      text: '∿ beside a value hands it to something that moves it. An LFO is a wave. Click Starfield, open its '
         + '{module:colour-wash}, then the ∿ beside Brightness, and pick LFO: the sky dims and brightens by itself.',
       anchor: at('starfield', 'colour-wash', 'brightness', 'mod-kinds'), done: (c) => !!sky(c) },
     { id: 'rate', page: '/studio', title: 'Its rate',
@@ -39,7 +39,7 @@ export const moves: Path = {
       anchor: at('starfield', 'colour-wash', 'brightness', 'mod-between'),
       done: (c) => (ends(sky(c))?.[1] ?? 0) >= 0.8 },
     { id: 'square', page: '/studio', title: 'A square wave',
-      text: 'An LFO\'s shape is how it moves. On Rose, click {module:stained-glass}, the ∿ beside '
+      text: 'An LFO\'s shape is how it moves. On Rose, open {module:stained-glass}, the ∿ beside '
         + '{param:stained-glass.amount}, pick LFO, then Square: a square wave jumps between its two ends.',
       anchor: (c) => at('rose', 'stained-glass', 'amount', glass(c) ? 'mod-shape' : 'mod-kinds')(c),
       done: (c) => glass(c)?.shape === 'square' },
@@ -49,7 +49,7 @@ export const moves: Path = {
       anchor: at('rose', 'stained-glass', 'amount', 'mod-between'),
       done: (c) => glass(c)?.shape === 'square' && (ends(glass(c))?.[0] ?? 1) <= 0.05 },
     { id: 'saw', page: '/studio', title: 'A saw wave',
-      text: 'A saw climbs steadily and drops back. On Arches, click {module:rotate}, the ∿ beside '
+      text: 'A saw climbs steadily and drops back. On Arches, open {module:rotate}, the ∿ beside '
         + '{param:rotate.angle}, pick LFO, then Saw: the comets\' direction turns, then snaps back.',
       anchor: (c) => at('arches', 'rotate', 'angle', turn(c) ? 'mod-shape' : 'mod-kinds')(c),
       done: (c) => turn(c)?.shape === 'saw' },
@@ -59,12 +59,12 @@ export const moves: Path = {
       anchor: ['dock:look', 'macro-add'], begin: (c) => faders(c).length,
       done: (c, n) => faders(c).length > (n as number) },
     { id: 'tail', page: '/studio', title: 'Tie a value to it',
-      text: 'On Arches, click {module:single-strand}, the ∿ beside {param:single-strand.tail}, then Macro (the new '
+      text: 'On Arches, open {module:single-strand}, the ∿ beside {param:single-strand.tail}, then Macro (the new '
         + 'macro is picked): the fader now sets how long the comets\' tails are.',
       anchor: at('arches', 'single-strand', 'tail', 'mod-kinds'),
       done: (c) => boundTo(param(c, 'arches', 'single-strand', 'tail')) === 'global' },
     { id: 'rings', page: '/studio', title: 'Tie another',
-      text: 'On Rose, click {module:bars}, the ∿ beside {param:bars.bars}, then Macro: the same fader now sets how '
+      text: 'On Rose, open {module:bars}, the ∿ beside {param:bars.bars}, then Macro: the same fader now sets how '
         + 'many rings the rose has.',
       anchor: at('rose', 'bars', 'bars', 'mod-kinds'),
       done: (c) => boundTo(param(c, 'rose', 'bars', 'bars')) === 'global' },

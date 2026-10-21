@@ -65,7 +65,7 @@ export const layers: Path = {
         + 'over a dark sky on the whole Folly.',
       anchor: ['layers-add', 'shelf-tab:preset', 'shelf:starfield'], done: (c) => !!star(c) },
     { id: 'inside', page: '/studio', title: 'Inside a preset',
-      text: 'A preset\'s layer is a chain like any other, to tune. Click its {module:sparkle} and set '
+      text: 'A preset\'s layer is a chain like any other, to tune. Open its {module:sparkle} and set '
         + '{param:sparkle.density} to 0.9 or more, for a sky full of stars.',
       anchor: on('starfield', 'sparkle', 'param:density'),
       done: (c) => (num(param(c, 'starfield', 'sparkle', 'density')) ?? 0) >= 0.9,
