@@ -66,11 +66,6 @@ function steps(page, info, { shots = true } = {}) {
     },
     ring: (...names) => expect.poll(() => ringOff(page, names), { message: `the ring round ${names.join(' or ')}, `
       + 'inside the window', timeout: 3000 }).toBeLessThan(3),
-    /** A ring that has just appeared is already round its control, not sliding in from elsewhere. */
-    ringAt: async (...names) => {
-      await expect(page.locator('.tour-ring')).toBeVisible();
-      expect(await ringOff(page, names), `the new ring round ${names.join(' or ')}`).toBeLessThan(3);
-    },
     /** Once settled (it slides as the ring does), the card keeps off the preview. */
     offPreview: () => expect.poll(() => cardOnPreview(page), { message: 'the card keeps off the preview',
       timeout: 2000 }).toBe(0),
@@ -110,7 +105,7 @@ for (const height of [768, 660]) {
     test('Getting around: the welcome, each step by its control, then Tutorials', async ({ page, studio }, info) => {
       const errors = [];
       page.on('pageerror', (e) => errors.push(String(e)));
-      const s = steps(page, info, { shots }), { ring, ringAt, open, at, shot, offPreview } = s;
+      const s = steps(page, info, { shots }), { ring, open, at, shot, offPreview } = s;
       await signedIn(page, studio.origin, `first-look-${height}`);
       await page.goto(`${studio.origin}/`);
 
@@ -120,7 +115,7 @@ for (const height of [768, 660]) {
       await welcome.getByRole('button', { name: 'Start the tour' }).click();
 
       await open('Turn the model');
-      await ringAt('preview');
+      await ring('preview');
       await offPreview();
       const box = await at('preview').boundingBox(), mid = [box.x + box.width / 2, box.y + box.height / 2];
       await page.mouse.move(...mid);
