@@ -170,6 +170,11 @@ PI_PREVIEW_URL=http://127.0.0.1:4043  # the Pi's control page, dry run, for admi
 
 Sign-up is open to anyone who reaches the page.
 
+One server per data folder: the server keeps its data in memory and rewrites whole files, so it holds
+`studio.lock` (its pid) in `STUDIO_DATA` while it runs. A second server on the same folder does not start, naming
+the folder and the pid using it. A lock left by a server that was killed is taken over when its pid is no longer a
+running `node`.
+
 ### Checking the settings
 
 `npm run config:check -- ~/.config/folly-studio/studio.env` reads a settings file as the server would and prints

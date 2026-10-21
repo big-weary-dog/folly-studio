@@ -31,7 +31,7 @@ file), edit it, and export it toward the real installation.
 folly-studio/
   SPEC.md (+ SPEC-library, -generators, -live .md)  README.md  DESIGN.md  IDEAS.md  package.json (+ lock)  tsconfig.json  vite.config.js  server.ts
   src/            server (Fastify): app.ts (createServer) api.ts api-looks.ts api-models.ts http.ts (plumbing) auth.ts
-                  store.ts access.ts (invites, limits) api-access.ts
+                  store.ts store-lock.ts access.ts (invites, limits) api-access.ts
                   static.ts (serves dist/: headers, precompressed copies, ETags)  core-script.ts (the core for the boxes)
                   generate/{index,models,sketch,claude,codex,proc,fleet,prompt}.ts
                   frames.ts (pure: FSEQ parse + analysis)  bake.ts (bake queue, frame files)
