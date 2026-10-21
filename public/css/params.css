@@ -8,9 +8,9 @@
 .field.param > .field-control { margin-left: auto; }   /* wrapped under its label, still in the columns */
 .field.param > .field-control > :is(input.scrub, .param-chip, .pick-btn, select.param-choice) { flex: none;
   width: var(--param-w); }
-.param-slot { flex: none; width: var(--hit, 26px); }
-.param-mod, .param-info, .param-reset { min-width: var(--hit, 26px); min-height: var(--hit, 26px); padding: 0 4px;
-  font-size: 15px; color: var(--text-3); background: none; border: 0; cursor: pointer; }
+.param-slot { flex: none; width: var(--hit, 22px); }
+.param-mod, .param-info, .param-reset { min-width: var(--hit, 22px); min-height: var(--hit, 22px); padding: 0 4px;
+  font-size: 13px; color: var(--text-3); background: none; border: 0; cursor: pointer; }
 .param-mod { margin-left: auto; }
 /* a text param (a rhythm's steps): monospace so the steps line up */
 .param-text { flex: 1 1 220px; min-width: 96px; font: 13px var(--mono); letter-spacing: .04em; }
@@ -54,7 +54,7 @@
 .mod-line { fill: none; stroke: var(--cobalt-t); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .mod-dot { fill: var(--amber); }
 /* the beat clock beside a speed's number (beat-clock.tsx): lit, it counts per beat */
-.beat-clock { flex: none; display: grid; place-items: center; width: var(--hit, 26px); height: var(--hit, 26px);
+.beat-clock { flex: none; display: grid; place-items: center; width: var(--hit, 22px); height: var(--hit, 22px);
   padding: 0; color: var(--text-3); background: none; border: var(--came-s) solid transparent; cursor: pointer; }
 .beat-clock svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.5;
   stroke-linecap: round; }
@@ -79,6 +79,29 @@
 .mod-edit .mod-name { width: 12ch; min-height: var(--hit, 28px); padding: 2px 6px; font: 12px var(--mono); }
 @media (max-width: 899px) {
   .params { --param-w: 96px; }   /* a phone's buttons are wider */
+  .param-mod, .param-info, .param-reset { font-size: 15px; }
+}
+/* a mouse's sizes: 24 px controls, 12 px labels, rows close together, so a module's params fit a laptop's side */
+@media (min-width: 900px) {
+  .pane-params .pane-body { padding: 6px 10px; }
+  .params-wrap { gap: 6px; }
+  .params { --param-w: 88px; gap: 2px; }
+  .pane-params .field { gap: 2px 8px; }
+  .pane-params .field > :first-child { font-size: 12px; line-height: 1.25; }
+  .pane-params .field:is(.toggle, .end) > :first-child { min-height: 24px; }
+  .pane-params :is(input[type=text], select, input.scrub, .pick-btn, .plays-on-btn, .param-chip) { min-height: 24px;
+    padding-top: 2px; padding-bottom: 2px; font-size: 12.5px; }
+  .pane-params select:not(.chain-select) { height: 24px; line-height: 18px; }
+  .pane-params .pick-btn { padding-bottom: 4px; }
+  .pane-params .pick-btn .pick-strip { bottom: 2px; height: 2px; }
+  .pane-params .layer-title-input { font-size: 13px; font-weight: 600; }
+  .pane-params .field-control { gap: 2px; }
+  .params-foot { padding-top: 2px; }
+}
+/* with a mouse, a param's buttons wait in the dark until its row is hovered or focused; a lit ∿ or clock stays lit */
+@media (min-width: 900px) and (hover: hover) {
+  :is(.param-mod:not([aria-pressed=true]), .param-reset, .beat-clock:not([aria-pressed=true])) { opacity: .35; }
+  .field.param:is(:hover, :focus-within) :is(.param-mod, .param-reset, .beat-clock) { opacity: 1; }
 }
 .param-reset.unused { visibility: hidden; }
 .field.param > .param-help { flex: 1 1 100%; margin: 0; }

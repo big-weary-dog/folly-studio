@@ -3,8 +3,9 @@
 // drawer's ticks (a group with all under it, none at all), a param dragged and stepped, a typo and a hang in the code
 // (reported, paused by the watchdog, running again once fixed), the timeline, a source's Colours played in an accent
 // (the pick tile), a param's help, a preset added from Add a layer on the groups picked there and one kind of module
-// shown in Add a module, and a bake in the real render box in Check & bake (the laptop opens it from Export and bakes;
-// the phone, from its Look tab, says to bake from a larger screen and plays the baked frames).
+// shown in Add a module, added and moved by Alt+↑ with its Combine in its row, and a bake in the real render box in
+// Check & bake (the laptop opens it from Export and bakes; the phone, from its Look tab, says to bake from a larger
+// screen and plays the baked frames).
 // The real server and a fresh build (studio.js); WebGL on SwiftShader. Every request stays on our origin, and the
 // console stays free of errors and CSP reports. Screenshots of each step land in the test's output folder.
 import { createRenderBox } from '../../src/render-box.ts';
@@ -201,7 +202,16 @@ for (const [name, device] of Object.entries(SIZES)) {
         await expect(picker.locator('.shelf-row[data-kind=warp]:visible').first()).toBeVisible();
         await expect(picker.locator('.shelf-row[data-kind=source]:visible')).toHaveCount(0);
         await shot('warps');
-        await page.keyboard.press('Escape');
+        await picker.locator('.shelf-row[data-kind=warp]:visible').first().click();     // added after the source
+        const rows = page.locator('.chain-row');
+        await expect(rows.nth(1)).toHaveClass(/selected/);
+        await rows.nth(1).locator('.chain-name').focus();
+        await page.keyboard.press('Alt+ArrowUp');          // a row moves from the keyboard, keeping the focus
+        await expect(rows.first()).toHaveAttribute('data-kind', 'warp');
+        await expect(rows.first().locator('.chain-name')).toBeFocused();
+        await rows.nth(1).getByRole('combobox', { name: 'Combine' }).selectOption('max');   // in the row's own line
+        await expect(rows.nth(1)).toHaveAttribute('data-join', 'max');
+        await shot('chain');
       });
 
       await test.step('bake', async () => {
