@@ -56,7 +56,8 @@ export type Repair = { answer: unknown, errors: ExpandError[], message?: string,
 export type Context = { text: string, user: { id: string, username?: string, role?: string },
   library: LibraryEntry[], rig: Rig | null, groups: RigGroup[], light?: Light, idea?: { id: string }, turn?: string,
   prompt?: () => Prompt, repair?: Repair, signal?: AbortSignal, docsRead?: string[], docsGiven?: string[],
-  schema?: Record<string, unknown>, images?: Uint8Array[], journal?: Pick<IdeaLog, 'begin' | 'note'>, round?: Round };
+  schema?: Record<string, unknown>, images?: Uint8Array[], journal?: Pick<IdeaLog, 'begin' | 'note' | 'amend'>,
+  round?: Round };
 export type Adapter = { name?: string, generate(ctx: Context): unknown };
 type Route = { id: string, label: string, via: string, entry?: ModelEntry };
 type Explored = Awaited<ReturnType<typeof explore>>;
@@ -271,7 +272,8 @@ export function createQueue({
       const refine = idea.refine ? { ...refining(idea, promptOf(base).catalog), ...idea.refine } : undefined;
       if (refine) ctx.turn = buildRefineMessage(refine.comp, idea.text, idea.refine?.fix, refine.history);
       const out = await lookFrom(ctx, r, refine, idea.explore), { look, used, request } = out;
-      const { tokens, rounds: done } = journal.summary(), rounds = done.length ? { rounds: done } : {};
+      const { tokens, rounds: done, how: story } = journal.summary();
+      const rounds = done.length ? { rounds: done, how: story } : {};
       const timing = { wait: started - queuedAt, prompt, request, parse: out.parse, total: 0,
         ...(tokens ? { tokens } : {}),
         ...(out.check !== undefined ? { check: out.check } : {}),
@@ -320,8 +322,8 @@ export function createQueue({
         (err as Error)?.message || err}`);
       const error = err instanceof GenerateError ? err.userMessage : FALLBACK_ERROR;
       outcome = { status: 'failed', error, detail: String((err as Error)?.message || err).slice(0, 500) };
-      const { rounds } = journal.summary();
-      await move(id, 'failed', { error, ...(rounds.length ? { rounds } : {}) });
+      const { rounds, how: story } = journal.summary();
+      await move(id, 'failed', { error, ...(rounds.length ? { rounds, how: story } : {}) });
     } finally {
       await journal.finish(outcome);
       running.delete(ac);

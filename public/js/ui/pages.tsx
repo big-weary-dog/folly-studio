@@ -245,6 +245,8 @@ function IdeaRow({ idea, retry }: { idea: Idea; retry: () => void }) {
           <time class="meta-item" dateTime={idea.createdAt || ''}>{timeAgo(idea.createdAt)}</time>
           {can(user.value, 'admin') && idea.status !== 'queued' && <a class="meta-item" target="_blank"
             rel="noopener" href={`/api/admin/ideas/${encodeURIComponent(idea.id)}/log`}>Log</a>}
+          {(idea.owner === user.value?.id || can(user.value, 'admin')) && <a class="meta-item"
+            href={`/ideas/${encodeURIComponent(idea.id)}/how`}>{isPending(idea) ? 'Watch it' : 'How it was made'}</a>}
         </div>
         {idea.status === 'ready' && idea.took && <p class="idea-took">Took {idea.took}</p>}
         {idea.status === 'failed' && idea.error && <p class="idea-error">{idea.error}</p>}

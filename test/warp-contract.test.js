@@ -90,3 +90,40 @@ test('a warp that reads an LED field sees the LED nearest its point, however its
     for (let k = 0; k < 9; k++) assert.ok(Math.abs(rgb[3 * k] - ((k / 8 + 0.25) % 1)) < 1e-6, `${read}: LED ${k}`);
   }
 });
+
+test('a module that reads no LED field pays no lookup; toward() and region() settle what they read', () => {
+  const scene = prepareScene(lineRig(9));
+  const shift = { id: 's', kind: 'warp', code: 'function warp(q) { move(q, q.lx, fract(q.ly + 0.25), q.lz); }' };
+  const render = (code) => {
+    const layer = { id: 'l', modules: [{ id: 'p', kind: 'source', code }, shift] };
+    const L = prepareLayer(scene, layer, compileLayer(layer)), near = L.near;
+    let looked = false;
+    L.near = (X, Y, Z) => { looked = true; return near(X, Y, Z); };
+    const { rgb, errors } = renderFrame(scene, [L], 0);
+    assert.deepEqual(errors, []);
+    return { rgb: [...rgb], looked };
+  };
+  // (`return [q` would read as a computed key, so each colour is built first.)
+  assert.equal(render('function pixel(q) { const c = [q.ly, toward(q, "right"), 0]; return c; }').looked, false);
+  const read = render('function pixel(q) { const c = [q.u, q.ring / 8, q.sector / 8]; return c; }');
+  assert.equal(read.looked, true);
+  const along = 'function pixel(q) { const d = "along", c = [toward(q, d), 0, 0]; return c; }';
+  assert.deepEqual(render(along).rgb,
+    read.rgb.map((v, i) => (i % 3 ? 0 : v)), 'toward along: u of the LED nearest the point');
+  const pane = render('function pixel(q) { const c = [region(q, "checker") + 1, 0, 0]; return c; }');
+  assert.equal(pane.looked, true, 'region reads the ring and sector');
+});
+
+test('a chain that moves pixels gets its grid at prepare, shared by every layer on the same LEDs', () => {
+  const scene = prepareScene(lineRig(9));
+  const src = { id: 'p', kind: 'source', code: 'function pixel(q) { return q.u; }' };
+  const shift = { id: 's', kind: 'warp', code: 'function warp(q) { move(q, q.lx, fract(q.ly + 0.25), q.lz); }' };
+  const prep = (modules, groups) => {
+    const layer = { id: 'l', modules, groups };
+    return prepareLayer(scene, layer, compileLayer(layer));
+  };
+  const a = prep([src, shift]), b = prep([src, shift]);
+  assert.ok(a.near, 'built at prepare');
+  assert.equal(a.near, b.near, 'one grid for the same LEDs');
+  assert.equal(prep([src]).near, null, 'nothing moves: no grid');
+});

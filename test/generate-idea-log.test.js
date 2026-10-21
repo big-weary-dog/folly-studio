@@ -1,6 +1,6 @@
 // The idea log (src/generate/idea-log.ts, SPEC-generators "The idea log"): what it writes and keeps, the queue
-// writing one per idea, the admin routes that read it back; and what the critique is told (critique-prompt.ts) of
-// params changed and of groups too dark or too harsh, and the catalogue's ranges.
+// writing one per idea, the admin routes that read it back, what a running round says live; and what the critique
+// is told (critique-prompt.ts) of params changed and of groups too dark or too harsh, and the catalogue's ranges.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -37,7 +37,9 @@ describe('the idea log', () => {
     c.still(PNG, { view: 'spires', at: 1.5 });
     c.call({ ms: 7, system: 'SYSTEM', turn: 'look', usage: { input: 50, output: 5 } });
     c.end({ outcome: 'revised', warnings: ['- spires: dark'] });
-    assert.deepEqual(log.summary(), { tokens: { input: 150, cached: 60, output: 15 }, rounds: [
+    const { how, ...summary } = log.summary();
+    assert.deepEqual(how.map((x) => [x.n, x.kind, x.stills]), [[1, 'compose', undefined], [2, 'critique', 2]]);
+    assert.deepEqual(summary, { tokens: { input: 150, cached: 60, output: 15 }, rounds: [
       { kind: 'compose', ms: log.summary().rounds[0].ms, outcome: '0 errors, 9 params changed' },
       { kind: 'critique', ms: log.summary().rounds[1].ms, outcome: 'revised' }] });
     await log.finish({ status: 'ready', lookId: 'L1' });
@@ -94,14 +96,35 @@ describe('the idea log', () => {
     assert.equal(fs.existsSync(path.join(dir, '..', 'none')), false);
   });
 
+  test('live: the running round and its thinking so far, kept in memory until a call records it', async () => {
+    const logs = createIdeaLogs({ dir: tmp('ideas-log'), keep: 0 }), l = logs.open('r', {});
+    assert.deepEqual(logs.live('r'), { rounds: 0 });
+    const r = l.begin('compose');
+    r.think('\n\nA slow ');
+    r.think('tide.');
+    assert.deepEqual([logs.live('r').round.kind, logs.live('r').round.thinking], ['compose', 'A slow tide.']);
+    r.call({ ms: 1, turn: 't', reply: [{ type: 'thinking', thinking: 'A slow tide.' }] });
+    r.think('\n\nThen ');
+    assert.equal(logs.live('r').round.thinking, 'A slow tide.\n\nThen', 'recorded once, then what streams next');
+    r.think('x'.repeat(9000));
+    assert.ok(logs.live('r').round.thinking.length <= 6000, 'the latest, when it runs long');
+    r.end();
+    assert.deepEqual(logs.live('r'), { rounds: 1 });
+    await l.finish({ status: 'ready' });
+    assert.equal(logs.live('r'), null);
+    assert.equal(logs.live('other'), null);
+  });
+
   test('the queue logs each idea: its rounds, the notes repair, tokens on the idea, and a failure', async () => {
     const dir = tmp('ideas-log'), ideaLogs = createIdeaLogs({ dir }), asks = [];
     const odd = Array.from({ length: 9 }, (_, i) => ({ name: `nope${i}`, value: 1 }));
     const claude = async (ctx) => {
       asks.push(ctx.repair?.message ?? null);
-      ctx.round?.call({ ms: 1, turn: 'turn', usage: { input: 10, cached: 4, output: 2 } });
+      ctx.round?.call({ ms: 1, turn: 'turn', usage: { input: 10, cached: 4, output: 2 },
+        reply: [{ type: 'thinking', thinking: ctx.repair ? 'Drop the params bars lacks.' : 'Bars, slowly.' }] });
       if (/the moon/.test(ctx.text)) throw new GenerateError('The model failed; please try again.', 'boom');
-      return { title: 'T', summary: 'S', layers: [layer([{ use: 'bars', params: ctx.repair ? [] : odd }])] };
+      return { plan: ctx.repair ? 'Fix the params.' : 'One bars layer.', title: 'T', summary: 'S',
+        layers: [{ ...layer([{ use: 'bars', params: ctx.repair ? [] : odd }]), why: 'bars read as a chase' }] };
     };
     const { store, idea, queue } = queueSetup(createQueue, { adapterName: 'claude', adapters: { claude },
       loadLibrary: () => REAL, ideaLogs });
@@ -119,6 +142,13 @@ describe('the idea log', () => {
     assert.deepEqual([log.request, log.level, log.outcome], ['a chase', 'quick',
       { status: 'ready', lookId: done.lookId }], 'the level that ran');
     assert.equal(log.rounds[1].reason.length, 9);
+    // What each round said of itself, and what it changed, with its why.
+    assert.deepEqual(log.rounds.map((x) => [x.plan, x.thinking]), [['One bars layer.', 'Bars, slowly.'],
+      ['Fix the params.', 'Drop the params bars lacks.']]);
+    assert.deepEqual(log.rounds[0].changes, [{ text: '+ layer L (bars)', why: 'bars read as a chase' }]);
+    assert.ok(log.rounds[1].changes.every((c) => c.why === 'bars read as a chase'), JSON.stringify(log.rounds[1]));
+    assert.deepEqual(done.how.map((x) => [x.kind, x.plan, x.thinking]), [['compose', 'One bars layer.',
+      'Bars, slowly.'], ['notes', 'Fix the params.', 'Drop the params bars lacks.']], 'kept on the idea');
     const failed = read(path.join(dir, j.id), 'idea.json');
     assert.deepEqual([failed.outcome.status, failed.outcome.error], ['failed', 'The model failed; please try again.']);
     assert.match(failed.rounds[0].outcome, /^failed: The model failed/);
@@ -141,6 +171,8 @@ describe('the idea log', () => {
       await app.queue.idle();
       const one = await owner.get(`/api/ideas/${idea.id}`), all = await owner.get('/api/ideas');
       assert.equal(one.json.idea.status, 'failed');
+      assert.ok(app.store.ideas.get(idea.id).how.length && !one.json.idea.how && !all.json.ideas[0].how,
+        'how it was made has its own route');
       assert.deepEqual(one.json.idea.rounds.map((r) => r.outcome), ['failed']);
       for (const r of [one, all]) assert.ok(!r.text.includes('sk-provider-text'), r.text);
       const log = await admin.get(`/api/admin/ideas/${idea.id}/log`);

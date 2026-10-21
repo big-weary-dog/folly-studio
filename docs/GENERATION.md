@@ -150,6 +150,7 @@ module, with no `ref`, marked `generated`. Its code never runs on the server out
    around the loop in §5, and one shared `LIMITS`.
 8. Done for claude and codex: the render check in the box (`check.ts`), a runtime repair round, an opt-in critique
    on stills across the whole look and per-group lines (`rounds.ts`, `frames-view.ts`), and refining a saved look
-   (`refine.ts`, the Studio's "Ask the AI to fix it" and Refine box); each idea's rounds on disk (`idea-log.ts`).
+   (`refine.ts`, the Studio's "Ask the AI to fix it" and Refine box); each idea's rounds on disk (`idea-log.ts`),
+   with what each thought, planned and changed (`explain.ts`).
    Still to do: `unchecked` on Windows.
 9. SPEC ("Generators", "Looks"), README pointers.

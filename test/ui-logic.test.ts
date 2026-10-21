@@ -17,7 +17,9 @@ import { decimals, scrubTo, snap } from '../public/js/ui/kit.tsx';
 import { profile } from '../public/js/ui/session.ts';
 import { onIdeas, pathsHere } from '../public/js/ui/tour/paths/index.ts';
 import { createLayerStatus } from '../public/js/ui/layer-status.ts';
-import { editText, editValue, readEdit, toggleRole, toggleSlot, toggleToken } from '../public/js/ui/pick-model.ts';
+import {
+  addColour, CUSTOM_MAX, editText, editValue, readEdit, toggleRole, toggleSlot, toggleToken,
+} from '../public/js/ui/pick-model.ts';
 import type { Preview } from '../public/js/ui/preview.ts';
 import type { Draft, Studio } from '../public/js/ui/studio-store.ts';
 import { createTimeline } from '../public/js/ui/timeline-state.ts';
@@ -314,6 +316,18 @@ describe('the pick tile', () => {
     assert.deepEqual(editValue({ ...opts, blend: 'step', range: [0, 1], rotate: undefined }, 'smooth'),
       { pick: 'all', blend: 'step' });
     assert.deepEqual(readEdit('banana', 'high').tokens, ['high'], 'a bad value: the default');
+  });
+
+  test('a custom colour is added once, at the end, up to 4, in place of the whole palette or rainbow', () => {
+    const red = addColour(readEdit(undefined, 'all'), '#ca1c1c');
+    assert.equal(editValue(red, 'step'), '#ca1c1c', 'over all: just it, so it plays');
+    assert.equal(editText(addColour(readEdit('rainbow body2', 'all'), '#00ff00')), 'body2 #00ff00');
+    assert.equal(editText(addColour(red, '#ca1c1c')), '#ca1c1c', 'already there: kept once');
+    assert.equal(editText(addColour(red, '#0000ff')), '#ca1c1c #0000ff');
+    const four = ['#000001', '#000002', '#000003'].reduce(addColour, red);
+    assert.equal(editText(addColour(four, '#ffffff')), editText(four), `at ${CUSTOM_MAX}: no more`);
+    const five = '#000001 #000002 #000003 #000004 #000005 low';
+    assert.equal(editText(addColour(readEdit(five, 'all'), '#ffffff')), five, 'more from code: kept as they are');
   });
 });
 

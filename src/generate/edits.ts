@@ -3,11 +3,13 @@
 // is short. The ops are generic, by path, so they follow the composition as it grows; a sweeping change may come back
 // as a whole composition instead (`rewrite`). An edit that does not apply is reported with why, for one repair round.
 
+import { EXPLAIN } from './composition.ts';
 import type { Composition } from './refine.ts';
 
 type Obj = Record<string, unknown>;
 type Schema = Record<string, unknown>;
-export type Edit = { op: string, path?: string, value?: unknown, module?: unknown, layer?: unknown, at?: number };
+export type Edit = { op: string, path?: string, value?: unknown, module?: unknown, layer?: unknown, at?: number,
+  why?: string };
 export type Edited = { comp: Composition, failed: string[] };
 
 const OPS = ['set', 'remove', 'insert', 'add_layer', 'remove_layer', 'move_layer', 'replace_layer'];
@@ -18,7 +20,8 @@ const KEYS = ['title', 'id', 'name', 'use', 'module'];
 
 const props = (s: unknown) => (isObj(s) && isObj(s.properties) ? s.properties as Record<string, Schema> : {});
 
-/** The answer's JSON Schema: `edits`, or `rewrite` (the whole composition). An edit's value, module and layer are
+/** The answer's JSON Schema: `edits`, or `rewrite` (the whole composition), after the round's critique and plan
+ * (composition.ts EXPLAIN), each edit with its `why`. An edit's value, module and layer are
  * typed as the composition types them (a param's value, a list of words or numbers), never JSON in a string, which a
  * model escapes badly. */
 export function editsSchema(composition: Schema): Schema {
@@ -30,8 +33,8 @@ export function editsSchema(composition: Schema): Schema {
     words] };
   const edit = { type: 'object', additionalProperties: false, required: ['op'], properties: {
     op: { type: 'string', enum: OPS }, path: str, value, ...(module ? { module } : {}), layer,
-    at: { type: 'number' } } };
-  return { type: 'object', additionalProperties: false, required: [], properties: {
+    at: { type: 'number' }, why: str } };
+  return { type: 'object', additionalProperties: false, required: [], properties: { ...EXPLAIN,
     edits: { type: 'array', items: edit }, rewrite: composition } };
 }
 
@@ -47,6 +50,7 @@ has them (0.2, "ember", a binding { "mod": "lfo", "rate": 0.1 }) or a list (["sp
   is made: insert into it, never set a path inside it first.
 - add_layer { layer, at? }: a new layer, on top unless at says where (0 is the bottom).
 - remove_layer { path }, move_layer { path, at }, replace_layer { path, layer }: path names the layer ("Rose").
+Each edit may say why, in a short sentence.
 When the request remakes most of the look, answer { "rewrite": <the whole composition> } instead.`;
 
 /** Every field name the composition's schema has, anywhere: a set may make only these (a typo is named, not kept). */
