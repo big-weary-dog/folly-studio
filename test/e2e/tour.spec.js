@@ -1,12 +1,12 @@
-// npm run smoke, too: the tutorial (SPEC-tutorial), Spire rise's chapters played by their steps' own controls at a
+// npm run smoke, too: the tutorial (SPEC-tutorial), Rose and arches' chapters played by their steps' own controls at a
 // laptop's size and a shorter window. Each step's control is ringed inside the window (scrolled into view in whatever
 // panel scrolls), its goal is not already met when it opens, and the card keeps off the preview. A new account meets
-// the welcome and finds First look ticked in Tutorials; on a phone nothing opens and nothing is marked. With
+// the welcome and finds Getting around ticked in Tutorials; on a phone nothing opens and nothing is marked. With
 // TOUR_SHOTS set to a folder, each step's screenshot (at 1366 × 768) goes there.
 import path from 'node:path';
 
 import { expect, signup, test } from './studio.js';
-import { playColour, playKeep, playLayers, playMove } from './tour-paths.js';
+import { playIdea, playKeep, playLayers, playModules, playMoves, playTime } from './tour-paths.js';
 
 test.use({ tourWelcome: true });
 
@@ -53,12 +53,14 @@ const cardOnPreview = (page) => page.evaluate(() => {
 /** The open step's card and what a path's test does with it. */
 function steps(page, info, { shots = true } = {}) {
   const card = page.locator('.tour-step');
+  let now = '';
   const t = {
     card,
     title: (s) => expect(card.locator('h2')).toHaveText(s, { timeout: 30_000 }),
     /** A step opens: its title, then its goal not met by what the Studio already shows. */
     open: async (s) => {
       await t.title(s);
+      now = s;
       await page.waitForTimeout(400);   // the step's first check has run
       await expect(card, `"${s}" is not done before anything changes`).not.toHaveClass(/done/);
     },
@@ -72,7 +74,9 @@ function steps(page, info, { shots = true } = {}) {
     /** Once settled (it slides as the ring does), the card keeps off the preview. */
     offPreview: () => expect.poll(() => cardOnPreview(page), { message: 'the card keeps off the preview',
       timeout: 2000 }).toBe(0),
-    done: () => expect(card).toHaveClass(/done/),
+    /** Done: marked so, or already moved on by itself (it does 600 ms after, maybe before the act's last click). */
+    done: () => expect.poll(() => card.evaluate((el, s) => el.classList.contains('done')
+      || el.querySelector('h2')?.textContent !== s, now), { message: `"${now}" is done` }).toBe(true),
     next: () => card.getByRole('button', { name: /^(Next|Finish)$/ }).click(),
     at: (name) => page.locator(`[data-tour~="${name}"]`),
     shot: (name) => (shots ? page.screenshot({ timeout: 60_000, path: process.env.TOUR_SHOTS
@@ -103,7 +107,7 @@ for (const height of [768, 660]) {
     test.use({ viewport: { width: 1366, height } });
     const shots = height === 768;
 
-    test('First look: the welcome, each step by its control, then Tutorials', async ({ page, studio }, info) => {
+    test('Getting around: the welcome, each step by its control, then Tutorials', async ({ page, studio }, info) => {
       const errors = [];
       page.on('pageerror', (e) => errors.push(String(e)));
       const s = steps(page, info, { shots }), { title, ring, ringAt, open, at, shot, offPreview } = s;
@@ -120,34 +124,58 @@ for (const height of [768, 660]) {
       await shot('first-look-report');
       await s.next();
 
-      await open('A module\'s settings');
-      await ring('param:speed');
-      await offPreview();
-      const speed = at('param:speed').locator('input').first();
-      await speed.fill('0.04');
-      await speed.press('Enter');
-      await s.done();
-      await shot('first-look-speed');
-
       await open('Turn the model');
       await ring('preview');
       await offPreview();
-      const box = await at('preview').boundingBox();
-      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      const box = await at('preview').boundingBox(), mid = [box.x + box.width / 2, box.y + box.height / 2];
+      await page.mouse.move(...mid);
       await page.mouse.down();
-      await page.mouse.move(box.x + box.width / 2 + 160, box.y + box.height / 2, { steps: 8 });
+      await page.mouse.move(mid[0] + 160, mid[1], { steps: 8 });
       await page.mouse.up();
       await s.done();
       await shot('first-look-turn');
+
+      await open('A view');
+      await ring('view-bar', 'view:rose');
+      await at('view:rose').click();
+      await s.done();
+      await shot('first-look-rose');
+
+      await open('Zoom');
+      await ring('preview');
+      await page.mouse.move(...mid);
+      await page.mouse.wheel(0, -600);
+      await s.done();
+      await shot('first-look-zoom');
+
+      await open('The whole Folly');
+      await ring('view-bar', 'view:fit');
+      await at('view:fit').click();
+      await s.done();
+      await shot('first-look-fit');
+
+      await open('Pause and play');
+      await ring('play');
+      await at('play').click();
+      await expect(at('play')).toHaveAttribute('aria-label', 'Play');
+      await at('play').click();
+      await s.done();
+      await shot('first-look-pause');
+
+      await open('Ideas');
+      await ring('nav:ideas');
+      await at('nav:ideas').click();
+      await s.done();
+      await shot('first-look-ideas');
       await s.next();
 
-      const menu = page.getByRole('dialog', { name: 'First look: done' });
+      const menu = page.getByRole('dialog', { name: 'Getting around: done' });
       await expect(menu).toBeVisible();
       await expect(menu.locator('.tour-path[data-state=done]')).toHaveCount(1);
       await shot('first-look-finished');
       await menu.getByRole('button', { name: 'Close the tutorial' }).click();
 
-      // Kept on the account: a reload opens nothing, and the account says First look is done.
+      // Kept on the account: a reload opens nothing, and the account says Getting around is done.
       await page.reload();
       await expect(page.locator('#tour')).toHaveCount(0);
       const me = await page.evaluate(() => fetch('/api/me').then((r) => r.json()));
@@ -155,8 +183,9 @@ for (const height of [768, 660]) {
       expect(errors).toEqual([]);
     });
 
-    for (const [title, id, play] of [['Colour', 'colour', playColour], ['Layers and chains', 'layers', playLayers],
-      ['Movement and time', 'move', playMove], ['Keep it, show it', 'keep', playKeep]]) {
+    for (const [title, id, play] of [['From an idea', 'idea', playIdea], ['Modules and colour', 'modules', playModules],
+      ['Layers and chains', 'layers', playLayers], ['Time', 'time', playTime], ['Values that move', 'moves', playMoves],
+      ['Keep it, show it', 'keep', playKeep]]) {
       test(title, async ({ page, studio }, info) => {
         const errors = [];
         page.on('pageerror', (e) => errors.push(String(e)));
@@ -174,7 +203,7 @@ test.describe('laptop, 1366 × 768: unsaved edits', () => {
 
   test('a practice path over unsaved edits: Cancel keeps them, Leave starts it', async ({ page, studio }, info) => {
     const { card, title, at } = steps(page, info);
-    await fromTutorials(page, studio.origin, 'unsaved', 'First look');
+    await fromTutorials(page, studio.origin, 'unsaved', 'Getting around');
     await title('Still being built');
     await card.getByRole('button', { name: 'Close the tutorial' }).click();
     await page.goto(`${studio.origin}/studio`);
@@ -184,7 +213,7 @@ test.describe('laptop, 1366 × 768: unsaved edits', () => {
     const pick = async () => {
       await at('user-menu').click();
       await page.getByRole('button', { name: 'Tutorials' }).click();
-      await page.locator('.tour-path', { hasText: 'Colour' }).click();
+      await page.locator('.tour-path', { hasText: 'Modules and colour' }).click();
       return page.getByRole('dialog', { name: 'Unsaved changes' });
     };
     await (await pick()).getByRole('button', { name: 'Cancel' }).click();
@@ -193,8 +222,8 @@ test.describe('laptop, 1366 × 768: unsaved edits', () => {
     await expect(at('level:colour-wash')).toBeVisible();
     await page.getByRole('dialog', { name: 'Tutorials' }).getByRole('button', { name: 'Close the tutorial' }).click();
     await (await pick()).getByRole('button', { name: 'Leave' }).click();
-    await title('A module\'s colours');
-    await expect(page).toHaveURL(/\/studio\?tour=colour$/);
+    await title('A number');
+    await expect(page).toHaveURL(/\/studio\?tour=modules$/);
   });
 });
 

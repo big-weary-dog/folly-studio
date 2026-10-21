@@ -16,6 +16,7 @@ import { AccessGate, gateOf } from './idea-access.tsx';
 import { confirmDialog, cx, jewelGradient, pref, timeAgo, toast } from './kit.tsx';
 import { LookFiles } from './look-files.tsx';
 import { Rose } from './rose.tsx';
+import { tourIdea } from './tour-view.ts';
 
 const EXAMPLES = ['Rising embers drift up the spires', 'A coral reef breathing in slow blues and pinks',
   'Lightning cracks across the arches in a storm', 'The rose window blooms like a sunrise',
@@ -151,6 +152,7 @@ export function Ideas() {
     const t = text.trim();
     setError(t ? '' : 'Describe your idea first.');
     if (!t) return input.current?.focus();
+    if (tourIdea.value) return void navigate(tourIdea.value);   // the tutorial's look, made already: no model runs
     if (gate.kind === 'locked' || gate.kind === 'wait') return;
     setBusy(true);
     try {
@@ -204,8 +206,9 @@ export function Ideas() {
                 {pickable.map((m) => <option key={m.id} value={m.id}>
                   {m.paid && access && !access.unlocked ? `${m.label} (invite)` : m.label}</option>)}</select></label>}
             {gate.kind === 'open' && <AccessGate gate={gate} paidLabels={paidLabels} onAccess={setAccess} />}
-            {gate.kind !== 'locked' && <button class={cx('btn primary', busy && 'busy')} type="submit"
-              disabled={busy || gate.kind === 'wait'}>Turn it into a look</button>}
+            {(gate.kind !== 'locked' || tourIdea.value) && <button class={cx('btn primary', busy && 'busy')}
+              type="submit" data-tour="idea-make" disabled={busy || (gate.kind === 'wait' && !tourIdea.value)}>
+              Turn it into a look</button>}
           </div>
           {gate.kind !== 'open' && <AccessGate gate={gate} model={chosen} paidLabels={paidLabels} free={free}
             useFree={useFree} onAccess={setAccess} />}

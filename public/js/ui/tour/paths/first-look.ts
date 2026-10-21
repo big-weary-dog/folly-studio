@@ -1,25 +1,33 @@
-// First look, the first chapter of Spire rise and the one path that opens by itself: a module's value, the preview.
-import { type Ctx, num, param, type Path } from '../types.ts';
-
-const speed = (c: Ctx) => num(param(c, 'colour-wash', 'colour-wash', 'speed'));
+// Getting around, the first chapter of Rose and arches and the one path that opens by itself: the preview, the
+// camera, play, and the way to Ideas.
+import { type Path, twice } from '../types.ts';
 
 export const firstLook: Path = {
-  id: 'first-look', title: 'First look', start: '/studio?tour=first-look',
-  about: 'Start Spire rise: a module, its settings and the preview.',
+  id: 'first-look', title: 'Getting around', start: '/studio?tour=first-look',
+  about: 'The preview, the camera, play, and the pages.',
   steps: [
     { id: 'report', title: 'Still being built',
       text: 'Studio is in development, so things will break. When they do, your name › Report a problem '
         + '(or F8) tells us.',
       anchor: ['user-menu', 'report'], done: () => true, next: true },
-    { id: 'speed', page: '/studio', title: 'A module\'s settings',
-      text: 'Spire rise starts here: a calm bed, bars climbing the spires, sparkles on top. {module:colour-wash} is a '
-        + 'source, a module that draws light. Set its {param:colour-wash.speed} to 0.05 or less, so the colours drift.',
-      anchor: ['param:speed'], done: (c) => (speed(c) ?? 1) <= 0.05,
-      progress: (c) => ({ now: 0.2 - Math.min(0.2, speed(c) ?? 0.2), goal: 0.15 }) },
     { id: 'turn', page: '/studio', title: 'Turn the model',
-      text: 'The preview is the real rig, every LED where it hangs. Drag it to turn the Folly and see the bed from '
-        + 'another side.',
-      anchor: ['preview'], begin: ({ v }) => v?.view.peek(), done: ({ v }, was) => !!v && v.view.value !== was,
-      next: true },
+      text: 'The preview is the real rig, every LED where it hangs. Drag it to see the Folly from another side.',
+      anchor: ['preview'], begin: ({ v }) => v?.view.peek(), done: ({ v }, was) => !!v && v.view.value !== was },
+    { id: 'rose', page: '/studio', title: 'A view',
+      text: 'The views put the camera on one part of the Folly in a click. Click Rose: the rose window is where our '
+        + 'look will start.',
+      anchor: ['view-bar', 'view:rose'], done: ({ v }) => v?.view.value === 'rose' },
+    { id: 'zoom', page: '/studio', title: 'Zoom',
+      text: 'Scroll on the preview to move in close to the rose window\'s rings.',
+      anchor: ['preview'], done: ({ v }) => !!v && v.view.value === null },
+    { id: 'fit', page: '/studio', title: 'The whole Folly',
+      text: 'Fit frames the whole Folly again (so does a double-click on the preview). Click Fit.',
+      anchor: ['view-bar', 'view:fit'], done: ({ v }) => v?.view.value === 'fit' },
+    { id: 'pause', page: '/studio', title: 'Pause and play',
+      text: 'Pause freezes a moment to study. Click ▶ (or press Space) to pause, then again to play.',
+      anchor: ['play'], ...twice(({ v }) => v?.playing.value === false, ({ v }) => v?.playing.value === true) },
+    { id: 'ideas', title: 'Ideas',
+      text: 'A look usually starts as a sentence about what you want to see. Click Ideas.',
+      anchor: ['nav:ideas'], done: ({ page }) => page.startsWith('/ideas'), next: true },
   ],
 };

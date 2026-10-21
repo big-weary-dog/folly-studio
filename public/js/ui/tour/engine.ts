@@ -11,7 +11,7 @@ import type { Tour } from '../../../../shared/schemas/tour.ts';
 import { reducedMotion, toast } from '../kit.tsx';
 import { loadLibrary } from '../model.ts';
 import { navigate, onPi, user } from '../session.ts';
-import { localTour, tourKey, tourView, WELCOMED } from '../tour-view.ts';
+import { localTour, tourIdea, tourKey, tourView, WELCOMED } from '../tour-view.ts';
 import { byName, tick, watchPage } from './anchors.ts';
 import { Overlay } from './overlay.tsx';
 import { pathsHere } from './paths/index.ts';
@@ -57,7 +57,8 @@ function mount() {
   render(h(Overlay, null), root);
   root.showPopover();
   unwatch = watchPage(root);
-  stop = effect(check);
+  const checks = effect(check), ideas = effect(() => { tourIdea.value = step.value?.idea ?? null; });
+  stop = () => { checks(); ideas(); tourIdea.value = null; };
   void loadLibrary().then((lib) => { titles.value = Object.fromEntries(lib.map((e) => [e.name, e.title || e.name])); })
     .catch(() => {});
 }
@@ -84,18 +85,20 @@ function check() {
 export function welcome() { mount(); open.value = { mode: 'welcome' }; }
 export function menu(finished?: string) { mount(); open.value = { mode: 'menu', finished }; }
 
-/** Start a path at step `i` (where it was left, when resumed): its practice look first, the overlay hidden while
- * the app asks about unsaved edits; keeping them (Cancel) brings back what was open. */
+/** Start a path at step `i` (where it was left, when resumed): its page or practice look first, the overlay hidden
+ * while the app asks about unsaved edits; keeping them (Cancel) brings back what was open. */
 export async function start(path: Path, i = 0) {
   mount();
   clearTimeout(later);
-  if (path.start.includes('?')) {
+  i = Math.min(i, path.steps.length - 1);
+  // A Studio step of a path that starts elsewhere resumes on its practice look.
+  const to = path.look && path.steps[i].page === '/studio' ? path.look : path.start;
+  if (to.includes('?') || location.pathname !== to) {
     const was = open.peek();
     open.value = null;
-    await navigate(path.start);
-    if (location.pathname + location.search !== path.start) { open.value = was; return; }
+    await navigate(to);
+    if (location.pathname + location.search !== to) { open.value = was; return; }
   }
-  i = Math.min(i, path.steps.length - 1);
   save({ ...progress.peek(), seen: true, at: { path: path.id, step: path.steps[i].id } });
   open.value = { mode: 'step', path, i, done: false };
 }

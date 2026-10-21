@@ -8,11 +8,13 @@ import type { LibraryEntry, PresetEntry, PresetLayer, Rig } from '../../../../sh
 import { presetLayers } from '../model.ts';
 
 type Clip = { start: number; end: number; fadeIn?: number; fadeOut?: number };
-/** A layer as a preset writes it, plus where it plays (the groups carrying a rig tag) and its clips. */
-export type RecipeLayer = PresetLayer & { tag?: string; clips?: Clip[] };
-/** `palette` a name from data/palettes.json; `bpm` when not the default 120. */
+/** A layer as a preset writes it, plus where it plays (the groups carrying a rig tag, or any of several) and its
+ * clips. */
+export type RecipeLayer = PresetLayer & { tag?: string | string[]; clips?: Clip[] };
+/** `palette` a name from data/palettes.json; `bpm` when not the default 120; `view` the rig view the preview opens
+ * on, where the path's changes show. */
 export type Recipe = { title: string; layers: RecipeLayer[]; palette?: string; macros?: Globals['macros'];
-  automation?: Look['automation']; bpm?: number };
+  automation?: Look['automation']; bpm?: number; view?: string };
 
 /** The look a recipe makes from the library, or null when the library lacks one of its modules or palette. */
 export function practiceLook(r: Recipe, library: LibraryEntry[], rig: Rig | null): Look | null {
@@ -20,7 +22,9 @@ export function practiceLook(r: Recipe, library: LibraryEntry[], rig: Rig | null
   if (!made) return null;
   const layers = made.map((l, i) => {
     const { tag, clips } = r.layers[i];
-    const groups = tag && rig ? rig.groups.filter((g) => g.tags?.includes(tag)).map((g) => g.id) : null;
+    const want = [tag ?? []].flat();
+    const groups = want.length && rig ? rig.groups.filter((g) => g.tags?.some((t) => want.includes(t)))
+      .map((g) => g.id) : null;
     const { tags: _tags, ...rest } = l;
     return { ...(groups ? { ...rest, groups } : l), ...(clips ? { clips } : {}) };
   });
@@ -34,8 +38,9 @@ export function practiceLook(r: Recipe, library: LibraryEntry[], rig: Rig | null
 }
 
 const RECIPES = import.meta.glob<Recipe>('../../../data/tutorial/*.json', { import: 'default' });
-/** `?tour=<path>`'s look; null (a new look) when there is no such path or the library lacks what it needs. */
+/** `?tour=<path>`'s look (null, a new look, when there is no such path or the library lacks what it needs) and the
+ * view it opens on. */
 export async function loadPractice(path: string, library: LibraryEntry[], rig: Rig | null) {
-  const load = RECIPES[`../../../data/tutorial/${path}.json`];
-  return load ? practiceLook(await load(), library, rig) : null;
+  const load = RECIPES[`../../../data/tutorial/${path}.json`], r = load ? await load() : null;
+  return { look: r && practiceLook(r, library, rig), view: r?.view ?? null };
 }

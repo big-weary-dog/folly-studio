@@ -68,7 +68,7 @@ function MacroRow({ name, m, automated, rename, set, taken, uses, st }: { name: 
   st: Studio }) {
   const id = useId();
   return (   // a field whose label is its name, to edit
-    <li class="field macro">
+    <li class="field macro" data-tour={`macro:${name}`}>
       <input type="text" class="macro-name" value={name} maxlength={32} spellcheck={false}
         aria-label={`Name of macro ${name}`} onChange={(e) => {
           const to = e.currentTarget.value.trim();

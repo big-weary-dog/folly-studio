@@ -40,7 +40,7 @@ type Made = { title: string; modules: { ref?: string }[] };
 /** The layers a path's look has: its practice look's, or a new look's first (Studio setup()), and any layer a step
  * adds from the shelf (+ Add, then a preset or a source). */
 function layersOf(p: (typeof PATHS)[number]): Made[] {
-  const id = new URLSearchParams(p.start.split('?')[1]).get('tour');
+  const id = new URLSearchParams((p.look ?? p.start).split('?')[1]).get('tour');
   const first = library.find((e): e is ModuleEntry => (e.kind || 'source') === 'source')!;
   const added = p.steps.flatMap((s) => (Array.isArray(s.anchor) && s.anchor.includes('layers-add') ? s.anchor : []))
     .filter((a) => a.startsWith('shelf:')).map((a) => a.slice(6))
@@ -55,7 +55,8 @@ const docks = /DOCKS: Dock\[\] = \[([^\]]+)\]/.exec(source)![1].match(/[a-z]+/g)
 /** Every name a step can point at: its list, or what its function gives with no Studio and on the path's look. */
 function anchors(s: Step, layers: Made[]) {
   if (Array.isArray(s.anchor)) return s.anchor;
-  const v = { layers: { value: layers, peek: () => layers },
+  const none = { value: null }, v = { layers: { value: layers, peek: () => layers }, selected: none, module: none,
+    params: { value: {} }, macros: { value: {} },
     tagged: (tag: string) => rig.groups.filter((g) => g.tags?.includes(tag)).map((g) => g.id) };
   const at = (x: TourView | null): Ctx => ({ v: x, page: '/studio', el: () => null });
   return [...s.anchor(at(null)), ...s.anchor(at(v as unknown as TourView))];
@@ -106,7 +107,8 @@ describe('the tutorial matches the app', () => {
   }
 
   test('each path that starts on a practice look has one, made from the library, that saves as a look', () => {
-    const wanted = PATHS.map((p) => new URLSearchParams(p.start.split('?')[1]).get('tour')).filter(Boolean);
+    const wanted = PATHS.flatMap((p) => [p.start, p.look ?? ''])
+      .map((at) => new URLSearchParams(at.split('?')[1]).get('tour')).filter(Boolean);
     assert.deepEqual([...recipes.keys()].sort(), [...wanted].sort());
     for (const [id, r] of recipes) {
       const look = practiceLook(r, library, rig);
@@ -118,6 +120,8 @@ describe('the tutorial matches the app', () => {
   });
 
   test('a step that waits on a rig tag finds it on the rig', () => {
-    assert.ok(rig.groups.some((g) => g.tags?.includes('spire')), 'Spire rise plays its bars on the spires');
+    for (const tag of ['rose', 'arch-main', 'arch-mini']) {
+      assert.ok(rig.groups.some((g) => g.tags?.includes(tag)), `Rose and arches plays on the groups tagged ${tag}`);
+    }
   });
 });

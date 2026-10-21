@@ -1,4 +1,17 @@
-{ "title": "Spire rise", "palette": "ocean",
+{
+  "title": "Rose and arches",
+  "view": "rose",
+  "palette": "ocean",
   "layers": [
-    { "title": "Colour wash", "modules": [{ "ref": "colour-wash", "params": { "colours": "low", "speed": 0.05 } }] }
-  ] }
+    {
+      "title": "Arches",
+      "tag": "arch-main",
+      "modules": [{"ref": "single-strand", "params": {"colours": "high", "speed": 8, "profile": "comet"}}]
+    },
+    {
+      "title": "Rose",
+      "tag": "rose",
+      "modules": [{"ref": "bars", "params": {"direction": "out", "profile": "smooth", "bars": 3, "speed": 0.3}}]
+    }
+  ]
+}

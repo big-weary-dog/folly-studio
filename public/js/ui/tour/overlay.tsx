@@ -61,22 +61,27 @@ function Menu({ finished }: { finished?: string }) {
   </Panel>;
 }
 
+/** How long (ms) a new control is kept in view as what it sits in fills in. */
+const SETTLE = 2000;
+
 function StepCard() {
   const o = open.value as Extract<typeof open.value, { mode: 'step' }>, s = step.value!, c = ctx.value;
   const names = typeof s.anchor === 'function' ? s.anchor(c) : s.anchor, on = here.value;
   const el = pick(names), [box, setBox] = useState<Box | null>(null), [lost, setLost] = useState(false);
   const card = useRef<HTMLElement>(null), [h, setH] = useState(180);
-  const [slide, setSlide] = useState(false);
+  const [slide, setSlide] = useState(false), since = useRef(0);
   useLayoutEffect(() => {   // a new control: scrolled into view (in whatever panel scrolls) before the ring lands
     if (!el) { setBox(null); return undefined; }
     el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    since.current = performance.now();
     setSlide(true);
     const t = setTimeout(() => setSlide(false), 250), unfollow = follow(el, setBox);
     return () => { clearTimeout(t); unfollow(); };
   }, [el]);
   const pvEl = byName('preview'), pv = visible(pvEl) ? pvEl : null, [pvBox, setPvBox] = useState<Box | null>(null);
   useLayoutEffect(() => (pv ? follow(pv, setPvBox) : setPvBox(null)), [pv]);
-  useLayoutEffect(() => {   // the page changed: they may have moved
+  useLayoutEffect(() => {   // the page changed: they may have moved, a new control while the page settles back in view
+    if (el && performance.now() - since.current < SETTLE) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     if (el) setBox((b) => moved(el, b));
     if (pv) setPvBox((b) => moved(pv, b));
   }, [c]);
@@ -93,8 +98,8 @@ function StepCard() {
     el?.focus({ preventScroll: true });
   };
   // Back to the Studio is back to the path's practice look, if it has one.
-  const practice = s.page === '/studio' && o.path.start.startsWith('/studio?');
-  const goTo = () => void navigate(practice ? o.path.start : s.page!);
+  const look = o.path.look ?? (o.path.start.startsWith('/studio?') ? o.path.start : null);
+  const goTo = () => void navigate(s.page === '/studio' && look ? look : s.page!);
   // Keyed, so a new ring is drawn on its control, never slid in from the corner; from step to step it slides between
   // controls, and otherwise moves with its control as the page scrolls.
   return <>
