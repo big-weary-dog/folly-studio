@@ -208,7 +208,7 @@ describe('the bake cache and re-baking evicted frames, through the API', () => {
 const probe = await createRenderBox({ log: quiet }).probe();
 describe('the render box runs at nice 10', () => {
   beforeEach(({ skip }) => skip(!probe.ok, `render box unavailable here: ${probe.reason}`));
-  // Disabled: flaky under load (other runs' boxes show up in /proc).
+  // oxlint-disable-next-line vitest/no-disabled-tests -- flaky under load (other runs' boxes show up in /proc).
   test.skip('its processes have nice 10', async () => {
     const box = createRenderBox({ seconds: 3, frameTimeoutMs: 600_000, log: quiet });
     const slow = { id: 'l1', groups: ['cathedral'], blend: 'add', level: 1, params: {},

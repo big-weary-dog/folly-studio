@@ -116,7 +116,7 @@ describe('previews of shared looks', () => {
     await rm(tmp, { recursive: true, force: true });
   });
 
-  // Disabled: flaky (the old files can outlive the new key's announcement).
+  // oxlint-disable-next-line vitest/no-disabled-tests -- flaky (the old files can outlive the new key's announcement).
   test.skip('a shared look gets a looping WebP and a still; a change makes a new one', async () => {
     const layers = [{ name: 'a', code: PIXEL }];
     const { look } = await (await req('/api/looks', { method: 'POST',
