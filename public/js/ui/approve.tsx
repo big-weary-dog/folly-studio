@@ -35,7 +35,10 @@ export async function approve(id: string, baking: () => void): Promise<boolean> 
       const { look } = await api.look(id), step = nextStep(look.bake), why = look.bake?.reason || '';
       if (step === 'wait') { baking(); await pause(POLL_MS); continue; }
       if (step === 'bake') { await bake(); continue; }
-      if (step === 'failed') { refused(`The bake failed: ${why.replace(/\.$/, '') || 'no reason given'}.`); return false; }
+      if (step === 'failed') {
+        refused(`The bake failed: ${why.replace(/\.$/, '') || 'no reason given'}.`);
+        return false;
+      }
       const flashOverride = step === 'reason' ? await askWhy(why) : undefined;
       if (step === 'reason' && !flashOverride) return false;
       try {
