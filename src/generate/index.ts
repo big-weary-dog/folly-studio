@@ -217,7 +217,9 @@ export function createQueue({
       budgetMs: critiqueBudgetMs, stopping: () => stopping, log });
     const lv = capsOf(by.via)?.explores && catalog && ctx.prompt && !refine && level !== 'quick' ? level : null;
     const entry = lv ? boosted(by.via as Transport, by.entry, lv) : by.entry;
-    ctx.journal?.note({ model: by.id, via: by.via, ...(entry?.model ? { name: entry.model } : {}),
+    // The level that runs: an idea that asked to explore runs quick by a model that does not, and a refinement never.
+    ctx.journal?.note({ model: by.id, via: by.via, ...(refine ? {} : { level: lv ?? 'quick' }),
+      ...(entry?.model ? { name: entry.model } : {}),
       ...(entry?.effort ? { effort: entry.effort } : {}) });
     const out: Partial<Explored> & Pick<Rounds, 'raw' | 'look'> = lv ? await explore({
       adapter: adapterFor({ ...by, entry }), ctx, catalog: catalog!, critique: mode, box,
@@ -251,7 +253,7 @@ export function createQueue({
     if (!isPending(idea)) return; // already done (re-enqueued after a restart): ready and failed are final
     const started = monoNow(), ac = new AbortController();
     const open = (meta: Record<string, unknown>) => ideaLogs?.open(id, meta) ?? createIdeaLog({ meta });
-    const journal = open({ request: idea.text, level: idea.refine ? undefined : idea.explore ?? 'explore',
+    const journal = open({ request: idea.text,
       ...(idea.refine ? { refine: { lookId: idea.lookId, ...idea.refine } } : {}), model: r.id,
       attempt: again ? 2 : 1 });
     let outcome: Outcome = { status: IDEA_STATUS.interrupted };

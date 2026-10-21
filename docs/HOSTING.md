@@ -160,8 +160,9 @@ Updating is the same command again, from `~/folly-dev`; `npm run host -- --insta
 branch. Logs: `journalctl --user -u folly-studio-dev -f`.
 
 Each run writes, enables and restarts its own instance's unit alone, and refuses to start when the other instance's
-settings (if this machine has them) name the same `PORT` or `STUDIO_DATA`. The data lock keeps a studio off a
-folder another one has open, so a dev studio pointed at `~/folly-data` by mistake stops at start.
+settings (if this machine has them) name the same `PORT` or `STUDIO_DATA`. The data lock (`studio.lock`, under
+[Environment](#environment)) keeps a studio off a folder another one has open, so a dev studio pointed at
+`~/folly-data` by mistake stops at start.
 
 A dev instance runs no `-pi` unit unless its settings name `PI_PREVIEW_URL`; Windows not reaching its port is a
 note, not a failure, since it may have no tunnel.
@@ -215,6 +216,11 @@ PI_PREVIEW_URL=http://127.0.0.1:4043  # the Pi's control page, dry run, for admi
 ```
 
 Sign-up is open to anyone who reaches the page.
+
+One server per data folder: the server keeps its data in memory and rewrites whole files, so it holds
+`studio.lock` (its pid) in `STUDIO_DATA` while it runs. A second server on the same folder does not start, naming
+the folder and the pid using it. A lock left by a server that was killed is taken over when its pid is no longer a
+running `node`.
 
 ### Checking the settings
 

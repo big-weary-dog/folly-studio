@@ -66,9 +66,9 @@ export function CodeEditor({ st }: { st: Studio }) {
       <label for={id} class="sr-only">Pattern code</label>
       <div class="editor-scroll">
         <div class="gutter" aria-hidden="true" ref={gutter}>{numbers}</div>
-        <textarea id={id} ref={ta} class="code" spellcheck={false} wrap="off" autocapitalize="off" autocomplete="off"
-          autocorrect="off" data-gramm="false" aria-describedby={`${id}-help ${id}-problem`} value={code} disabled={!m}
-          placeholder={m ? '' : 'Add a layer to write code.'} onKeyDown={onKey}
+        <textarea id={id} ref={ta} class="code" data-kept spellcheck={false} wrap="off" autocapitalize="off"
+          autocomplete="off" autocorrect="off" data-gramm="false" aria-describedby={`${id}-help ${id}-problem`}
+          value={code} disabled={!m} placeholder={m ? '' : 'Add a layer to write code.'} onKeyDown={onKey}
           onBlur={() => { escaped.current = false; }}
           onScroll={(e) => { if (gutter.current) gutter.current.scrollTop = e.currentTarget.scrollTop; }}
           onInput={(e) => {

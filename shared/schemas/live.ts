@@ -51,5 +51,19 @@ export type FromServer = { type: 'pong', id: number, now: number }
   | { type: 'state', live: Live, now: number, control: boolean } | LiveUpdate
   | { type: 'presence', viewers: number, controllers: string[] } | { type: 'error', error: string };
 
+const Pts = z.array(z.tuple([value, value]));
+/** live.json as read back at start (SPEC-live "State"): the state's shape, checked before it is trusted. The look's
+ * layers, globals and automation are checked as objects only; they were checked when the look was saved. */
+export const SavedLive = z.object({
+  rev: z.number().int().min(0), startedAt: value, loop: z.number().int().min(0), updatedAt: value,
+  look: z.object({ id: z.string(), title: z.string(), ownerName: z.string(), duration: value.positive(),
+    layers: z.array(z.looseObject({})), bpm: value.nullish(), globals: z.looseObject({}).nullish(),
+    automation: z.record(z.string(), Pts).nullish() }).nullable(),
+  held: z.record(z.string(), value), lanes: z.record(z.string(), Pts), drop: z.array(z.string()),
+  layers: z.record(z.string(), z.object({ level: value.optional(), muted: z.boolean().optional() })),
+  blackout: z.boolean(), by: z.object({ id: z.string(), username: z.string() }).nullable(),
+  driver: z.enum(['stage', 'pi']),
+});
+
 /** Who may control and what may play (STUDIO_LIVE_CONTROL, STUDIO_LIVE_LOOKS). */
 export type LiveSettings = { control: 'curators' | 'admins' | 'members', looks: 'reviewed' | 'shared' };

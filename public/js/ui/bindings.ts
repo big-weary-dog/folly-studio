@@ -8,7 +8,7 @@ import { humanize } from './kit.tsx';
 export interface Param { kind: 'number' | 'color' | 'toggle' | 'choice' | 'picture' | 'text';
   value: number | string | boolean | Picture;
   label: string; min: number; max: number; step: number; options: string[]; blend?: 'smooth' | 'step'; help?: string;
-  unit?: 'minute' }
+  unit?: 'minute'; lines?: boolean }
 type Shape = NonNullable<Extract<Binding, { mod: 'lfo' }>['shape']>;
 export type BindingForm = { mod: '' | Binding['mod']; shape: Shape; rate: string; unit: string; lo: string;
   hi: string; hold: string; amount: string; pace: string; name: string; from: string; to: string; eFrom: string;
@@ -65,7 +65,9 @@ export function normaliseParam(key: string, raw: unknown): Param | null {
     const pic = readPicture(v);
     return pic && { ...base, kind: 'picture', value: pic };
   }
-  if (r.type === 'text') return { ...base, kind: 'text', value: readText(v) ?? '' };
+  if (r.type === 'text') {
+    return { ...base, kind: 'text', value: readText(v) ?? '', ...r.lines === true ? { lines: true } : {} };
+  }
   if (r.type === 'choice' && Array.isArray(r.options) && r.options.length) {
     const options = r.options.map(String);
     return { ...base, kind: 'choice', value: options.includes(v as string) ? v as string : options[0], options };
