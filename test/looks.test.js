@@ -98,7 +98,6 @@ describe('looks', () => {
 
     // Share a1 then a2: gallery is newest first.
     assert.equal((await alice.put(`/api/looks/${a1.id}`, { shared: true })).json.look.shared, true);
-    await new Promise((r) => setTimeout(r, 5));
     assert.equal((await alice.put(`/api/looks/${a2.id}`, { shared: true })).status, 200);
     const gallery = (await bob.get('/api/looks?scope=gallery')).json.looks;
     const ids = gallery.map((l) => l.id);

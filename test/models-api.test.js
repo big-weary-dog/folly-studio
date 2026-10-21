@@ -6,6 +6,8 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
+import { WAIT_MS } from '../src/api.ts';
+import { monoNow } from '../src/clock.ts';
 import { FIX } from './fixtures/generate/shared.js';
 import { client, fakeQueue, fx, signup, startApp, useFixture } from './fixtures/server.js';
 
@@ -91,16 +93,15 @@ describe('models API', () => {
   test('a long poll answers when the idea changes, at once when it already has, and never for others', async () => {
     const { idea } = (await member.post('/api/ideas', { text: 'a slow aurora', model: 'luna' })).json;
     const seen = `${idea.status}@${idea.updatedAt}`, url = `/api/ideas/${idea.id}?wait=${encodeURIComponent(seen)}`;
-    const t0 = Date.now();
-    const waiting = member.get(url);
+    let answered = false;
+    const waiting = member.get(url).finally(() => { answered = true; });
     await new Promise((r) => setTimeout(r, 150));
+    assert.equal(answered, false, 'held while unchanged');
     queue.touch(idea.id, { status: 'generating' });
-    const changed = await waiting;
-    assert.equal(changed.json.idea.status, 'generating');
-    assert.ok(Date.now() - t0 >= 150 && Date.now() - t0 < 5000, `${Date.now() - t0} ms`);
-    const stale = Date.now();
+    assert.equal((await waiting).json.idea.status, 'generating');
+    const stale = monoNow();
     assert.equal((await member.get(url)).json.idea.status, 'generating', 'what the client saw is old: at once');
-    assert.ok(Date.now() - stale < 1000);
+    assert.ok(monoNow() - stale < WAIT_MS / 2, 'not held for the wait');
     assert.equal((await admin.get(url)).status, 404);
   });
 });
