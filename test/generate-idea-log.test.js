@@ -1,6 +1,6 @@
 // The idea log (src/generate/idea-log.ts, SPEC-generators "The idea log"): what it writes and keeps, the queue
-// writing one per idea, the admin routes that read it back; and what the critique is told (critique-prompt.ts) of
-// params changed and of groups too dark or too harsh, and the catalogue's ranges.
+// writing one per idea, the admin routes that read it back, what a running round says live; and what the critique
+// is told (critique-prompt.ts) of params changed and of groups too dark or too harsh, and the catalogue's ranges.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -94,6 +94,25 @@ describe('the idea log', () => {
     await none.finish({ status: 'ready' });
     assert.deepEqual(none.summary().tokens, { input: 3, cached: 0, output: 1 });
     assert.equal(fs.existsSync(path.join(dir, '..', 'none')), false);
+  });
+
+  test('live: the running round and its thinking so far, kept in memory until a call records it', async () => {
+    const logs = createIdeaLogs({ dir: tmp('ideas-log'), keep: 0 }), l = logs.open('r', {});
+    assert.deepEqual(logs.live('r'), { rounds: 0 });
+    const r = l.begin('compose');
+    r.think('\n\nA slow ');
+    r.think('tide.');
+    assert.deepEqual([logs.live('r').round.kind, logs.live('r').round.thinking], ['compose', 'A slow tide.']);
+    r.call({ ms: 1, turn: 't', reply: [{ type: 'thinking', thinking: 'A slow tide.' }] });
+    r.think('\n\nThen ');
+    assert.equal(logs.live('r').round.thinking, 'A slow tide.\n\nThen', 'recorded once, then what streams next');
+    r.think('x'.repeat(9000));
+    assert.ok(logs.live('r').round.thinking.length <= 6000, 'the latest, when it runs long');
+    r.end();
+    assert.deepEqual(logs.live('r'), { rounds: 1 });
+    await l.finish({ status: 'ready' });
+    assert.equal(logs.live('r'), null);
+    assert.equal(logs.live('other'), null);
   });
 
   test('the queue logs each idea: its rounds, the notes repair, tokens on the idea, and a failure', async () => {

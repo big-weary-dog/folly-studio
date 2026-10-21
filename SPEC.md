@@ -509,7 +509,7 @@ POST   /api/looks/:id/refine { text?, model?, critique?, fix?: { layer, error } 
                                               one is pending on the look
 GET    /api/ideas/:id[?wait=<status>@<updatedAt>] → { idea }         mine only; with wait, an idea still pending and
                                               as given is answered when it changes, or after 25 s
-GET    /api/ideas/:id/how[/stills/:name]      → { idea, from, run, prompt?, rounds } | image/png  mine or admins'
+GET    /api/ideas/:id/how[/live|/stills/:n]   → { idea, from, run, prompt?, rounds } | image/png  mine or admins'
                                               (else 404): SPEC-generators "How it was made"
 POST   /api/ideas/:id/undo                    → { idea }  mine only, a ready refinement: marks it `undone` (the
                                               Studio has put its look back), so later refinements' history skips it
