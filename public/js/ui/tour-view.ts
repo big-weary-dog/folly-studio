@@ -18,11 +18,15 @@ export type TourView = {
   dirty: ReadonlySignal<boolean>; lookId: ReadonlySignal<string | null>; bpm: ReadonlySignal<number | null>;
   palette: ReadonlySignal<string | null>; automation: ReadonlySignal<Readonly<Record<string, number>>>;
   historyAt: ReadonlySignal<number>;
+  /** The look's macros by name, each with its value. */
+  macros: ReadonlySignal<Readonly<Record<string, number>>>;
   /** The groups carrying a rig tag, then those under them; a param's label in a module made from library `ref`. */
   tagged: (tag: string) => string[]; label: (ref: string, key: string) => string | null;
 };
 
 export const tourView = signal<TourView | null>(null);
+/** The practice look an open tutorial step has the Ideas page open in place of asking a model, or null. */
+export const tourIdea = signal<string | null>(null);
 /** A layer's `data-tour` name part: its title in lower case, a dash for each run of anything else. */
 export const tourName = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
@@ -65,6 +69,8 @@ export function showToTour(st: Studio, pv: Preview) {
     automation: computed(() => Object.fromEntries(Object.entries(st.look.value.automation ?? {})
       .map(([k, pts]) => [k, pts?.length ?? 0]))),
     historyAt: computed(() => st.history.at.value),
+    macros: computed(() => Object.fromEntries(Object.entries(st.look.value.globals?.macros ?? {})
+      .map(([k, m]) => [k, m.value]))),
     tagged: (tag) => {
       const all = st.data.rig?.groups ?? [], top = all.filter((g) => g.tags?.includes(tag)).map((g) => g.id);
       const under = all.filter((g) => !top.includes(g.id)

@@ -1,0 +1,42 @@
+{
+  "title": "Rose and arches",
+  "view": "rose",
+  "palette": "ocean",
+  "layers": [
+    {
+      "title": "Starfield",
+      "level": 0.5,
+      "blend": "over",
+      "modules": [
+        {"ref": "colour-wash", "params": {"colours": "low", "speed": 0, "brightness": 0.2}},
+        {
+          "ref": "clouds",
+          "params": {"colours": "accent1", "cover": 0.56, "speed": 0.05, "size": 0.33},
+          "blend": "multiply"
+        },
+        {
+          "ref": "sparkle",
+          "params": {"colours": "high", "density": 0.9, "often": 21, "flash": 0.237},
+          "blend": "over"
+        }
+      ]
+    },
+    {
+      "title": "Arches",
+      "tag": ["arch-main", "arch-mini"],
+      "soften": {"radius": 0.4, "mode": "wire"},
+      "modules": [
+        {"ref": "single-strand", "params": {"colours": "high", "speed": 8, "profile": "comet"}},
+        {"ref": "rotate", "params": {"angle": 0.25}}
+      ]
+    },
+    {
+      "title": "Rose",
+      "tag": "rose",
+      "modules": [
+        {"ref": "bars", "params": {"direction": "out", "profile": "smooth", "bars": 3, "speed": 0.3}},
+        {"ref": "stained-glass", "params": {"rule": "spiral"}}
+      ]
+    }
+  ]
+}

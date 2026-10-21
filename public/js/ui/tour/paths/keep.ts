@@ -1,25 +1,30 @@
-// Keep it: undo, save, Live, and an idea described. The last step is where a look of the person's own begins.
-import { type Path } from '../types.ts';
+// Keep it, Rose and arches' last chapter: an idea tried and undone, save, and Live.
+import { type Ctx, layerBy, on, type Path } from '../types.ts';
+
+/** Arches plays somewhere besides the arches. */
+const spread = (c: Ctx) => {
+  const g = layerBy(c, 'arches')?.groups, arch = [...c.v?.tagged('arch-main') ?? [], ...c.v?.tagged('arch-mini') ?? []];
+  return !g?.length || g.some((x) => !arch.includes(x));
+};
 
 export const keep: Path = {
   id: 'keep', title: 'Keep it, show it', start: '/studio?tour=keep',
-  about: 'Undo, save, Live, and an idea of your own.', aboutPi: 'Undo, save and Live.',
+  about: 'Undo, save and Live.',
   steps: [
-    { id: 'edit', page: '/studio', title: 'Change something',
-      text: 'Change anything, like a layer\'s level.', anchor: ['layers'],
-      done: ({ v }) => !!v?.dirty.value },
-    { id: 'undo', page: '/studio', title: 'Step back',
-      text: 'Open History and Undo (or Ctrl+Z).', anchor: ['history', 'undo'],
-      begin: ({ v }) => v?.historyAt.peek(), done: ({ v }, at) => (v?.historyAt.value ?? 0) < (at as number) },
+    { id: 'try', page: '/studio', title: 'Try an idea',
+      text: 'Every edit is kept in History, so trying is safe. Click Arches, open Plays on and tick the whole '
+        + 'building, to see the comets on all of the Folly.',
+      anchor: on('arches', null, 'plays-on'), done: spread },
+    { id: 'undo', page: '/studio', title: 'Undo',
+      text: 'Comets everywhere drown the rose. Open History and Undo (or press Ctrl+Z) until they are back on the '
+        + 'arches.',
+      anchor: ['history', 'undo'], begin: ({ v }) => v?.historyAt.peek(),
+      done: (c, at) => (c.v?.historyAt.value ?? 0) < (at as number) && !spread(c) },
     { id: 'save', page: '/studio', title: 'Save',
-      text: 'Save keeps this look in My looks.', anchor: ['save'],
-      done: ({ v }) => !!v?.lookId.value && !v.dirty.value },
+      text: 'Save keeps Rose and arches in My looks as your own. Click Save.',
+      anchor: ['save'], done: ({ v }) => !!v?.lookId.value && !v.dirty.value },
     { id: 'live', title: 'Live',
-      text: 'Live is what the Folly plays now, and what is lined up. Open it.',
-      anchor: ['nav:live'], done: ({ page }) => page.startsWith('/live') },
-    { id: 'idea', page: '/ideas', title: 'Describe an idea',
-      text: 'Describe a show idea, or click an example. Turn it into a look writes its code and opens it in the '
-        + 'Studio. A locked account needs its invite code, in the box below.',
-      anchor: ['idea'], done: ({ el }) => !!(el('idea') as HTMLTextAreaElement | null)?.value.trim(), next: true },
+      text: 'Live is what the Folly plays now, and what is lined up next. Open it.',
+      anchor: ['nav:live'], done: ({ page }) => page.startsWith('/live'), next: true },
   ],
 };
