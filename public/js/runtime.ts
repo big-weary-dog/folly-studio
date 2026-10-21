@@ -8,6 +8,7 @@ import type { LibraryEntry, Rig } from '../../shared/schemas/rig.ts';
 import SANDBOX_URL from '../sandbox.html?sandbox';
 import type { LiveSet } from './live-set.ts';
 import type { LayerInput, Light } from './pattern-core.ts';
+import type { RelayCfg } from './relay-ahead.ts';
 import type { Layer } from './ui/model.ts';
 
 const LOAD_MS = 6000, INIT_MS = 1500;  // no `ready` by then: init anyway; then carry on (a look's `compiled` tells)
@@ -37,13 +38,15 @@ type FromSandbox = { type: 'ready' } | { type: 'compiled'; layers?: (Compiled & 
   | { type: 'frame'; seq: number; rgb?: Float32Array; errors?: FrameError[]; ms: number;
     layerMs: Record<string, number> }
   | { type: 'progress'; seq: number; done: number } | { type: 'error'; seq?: number; error?: string }
-  | { type: 'rendered'; seq: number; channels?: Uint8Array; errors?: FrameError[]; error?: string };
+  | { type: 'rendered'; seq: number; channels?: Uint8Array; errors?: FrameError[]; error?: string }
+  | { type: 'relayed'; bytes?: unknown };
 /** What the app asks of the sandbox page (SPEC "Sandbox protocol"). */
 export type ToSandbox = { type: 'init'; rig: Rig; library: Pick<LibraryEntry, 'name' | 'code'>[] }
   | ({ type: 'look'; layers: (LayerInput & { id: string })[] } & Extra)
   | { type: 'frame'; seq: number; t: number; set?: LiveSet }
   | { type: 'render'; seq: number; start: number; frames: number; fps: number; brightness: number;
-    light: Light };
+    light: Light }
+  | ({ type: 'relay' } & Partial<RelayCfg>);
 type Status = 'loading' | 'ready' | 'warning' | 'dead';
 type Frame = { seq: number; t: number; look: number };
 type Render = { seq: number; frames: number; resolve: (c: Uint8Array) => void; reject: (e: Error) => void;
@@ -68,6 +71,7 @@ export class Runtime {
   container!: HTMLElement; time!: () => number;    // the show time now
   onFrame!: (rgb: Float32Array, t: number) => void; onCompiled!: (layers: Report[]) => void;
   onFrameErrors!: (errors: readonly FrameError[]) => void; onStatus!: (state: Status, detail?: string) => void;
+  onRelayed?: (bytes: unknown) => void;     // a frame rendered ahead for the lights (relay-ahead.ts): untrusted
 
   constructor(o: Pick<Runtime, 'container' | 'time' | 'onFrame' | 'onCompiled' | 'onFrameErrors' | 'onStatus'>) {
     Object.assign(this, o);
@@ -90,6 +94,13 @@ export class Runtime {
 
   /** Values to set in place on the look before the next frame (and again after each new look). */
   setLive(set: LiveSet | null) { this.liveSet = set; this.liveDirty = !!set; }
+
+  /** Relay to the lights (SPEC-live "Relay to the lights"): any look set first, then the worker's clock and state. */
+  relay(cfg: Partial<RelayCfg>) {
+    if (this.phase !== 'ready') return;
+    if (this.lookDirty) this._sendLook();
+    this._post({ type: 'relay', ...cfg });
+  }
 
   /** A fresh frame on the next pump even if nothing changed (after an export). */
   refresh() { this.lastT = NaN; }
@@ -270,6 +281,9 @@ export class Runtime {
       }
       case 'frame':
         if (this.frameInFlight && m.seq === this.frameInFlight.seq) this._frame(m, this.frameInFlight);
+        break;
+      case 'relayed':
+        this.onRelayed?.(m.bytes);
         break;
       case 'progress':
         if (r && m.seq === r.seq) r.onProgress?.(m.done, r.frames);

@@ -17,6 +17,8 @@ import { Rose } from '../rose.tsx';
 import { cx } from '../kit.tsx';
 import { onPi, setTitle, user } from '../session.ts';
 import { studioSources } from './lights.ts';
+import { createRelay, type Relay } from './relay.ts';
+import { RelayPanel, savedBuffer } from './relay-panel.tsx';
 import { liveSocket, troubleText } from './socket.ts';
 import { createStage } from './stage.ts';
 
@@ -24,14 +26,20 @@ const STOP_ON_SITE_STUDIO = `On site: the Pi's own page (/pi/), or ${STOP_ON_SIT
 
 export function LivePage() {
   const ref = useRef<{ sock: ReturnType<typeof liveSocket>, stage: ReturnType<typeof createStage>,
-    lights: ReturnType<typeof piSocket> | null, sources: ReturnType<typeof studioSources> } | null>(null);
+    lights: ReturnType<typeof piSocket> | null, sources: ReturnType<typeof studioSources>,
+    relay: Relay | null } | null>(null);
+  const relayHost = useRef<HTMLDivElement>(null);
   ref.current ??= (() => {
     const sock = liveSocket();
     // The live play page: curators on the Pi, over the engine's socket behind Studio's /pi.
     const lights = onPi() && can(user.value, 'curate') ? piSocket('/pi/ws') : null;
-    return { sock, stage: createStage(sock), lights, sources: lights ? studioSources(lights) : [] };
+    // Relay to the lights (SPEC-live "Relay to the lights"): curators on the Pi, admins anywhere.
+    const relay = (onPi() ? can(user.value, 'curate') : can(user.value, 'admin')) ? createRelay(() => relayHost.current)
+      : null;
+    if (relay) relay.buffer.value = savedBuffer();
+    return { sock, stage: createStage(sock), lights, sources: lights ? studioSources(lights) : [], relay };
   })();
-  const { sock, stage, lights, sources } = ref.current;
+  const { sock, stage, lights, sources, relay } = ref.current;
   const canvas = useRef<HTMLCanvasElement>(null), host = useRef<HTMLDivElement>(null);
   // Held still by a bug report, by another view, or both: each lets go only of its own.
   const still = useRef({ report: false, hidden: false });
@@ -49,7 +57,7 @@ export function LivePage() {
       freeze: (on) => { sock.hold(on); still.current.report = on; hold(); },
       shot: () => stage.viewer?.snapshot() ?? null,
     });
-    return () => { unreport(); stage.destroy(); sock.close(); lights?.close(); };
+    return () => { unreport(); stage.destroy(); sock.close(); lights?.close(); relay?.stop(); };
   }, []);
   // The 3D view sleeps while the live play page hides it (a phone, with its menu closed).
   const shown = (on: boolean) => { still.current.hidden = !on; hold(); };
@@ -68,6 +76,7 @@ export function LivePage() {
       <canvas class="viewer-canvas" ref={canvas} tabindex={0} aria-label="The live stage in 3D. Drag to orbit." />
       <div class={cx('viewer-msg', msg?.error && 'error')} role="status" hidden={!msg}>
         {msg && !msg.error && <Rose detail="full" class="rose-loader" />}{msg?.text}</div>
+      {relay && <RelayPanel relay={relay} />}
       {!lights && <div class="live-bar">
         <span class={cx('live-dot', sock.status.value)} title={`Connection: ${sock.status.value}`} />
         <span class="live-title">{look ? look.title : 'Live'}</span>
@@ -89,5 +98,6 @@ export function LivePage() {
       {lights ? <Controller sock={lights} sources={sources} title="The lights" stop={STOP_ON_SITE_STUDIO}
         aside={{ label: 'The Folly in 3D', node: viewer, onShown: shown }} /> : viewer}
       <div ref={host} class="sandbox-host" aria-hidden="true" />
+      {relay && <div ref={relayHost} class="sandbox-host" aria-hidden="true" />}
     </section>);
 }
