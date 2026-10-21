@@ -10,10 +10,10 @@ import { describe, test } from 'vitest';
 import { resolve, safeNext } from '../public/js/ui/app.tsx';
 import { gateOf } from '../public/js/ui/idea-access.tsx';
 import {
-  beatsAt, bindingForm, bindingText, keepsTime, makeBinding, normaliseParam, type Param, perBeat, shownValue,
+  beatsAt, bindingForm, bindingText, fmt, keepsTime, makeBinding, normaliseParam, type Param, perBeat, shownValue,
   upgradedOf,
 } from '../public/js/ui/bindings.ts';
-import { decimals, scrubTo, snap } from '../public/js/ui/kit.tsx';
+import { decimals, exact, onSpan, places, scrubTo, snap } from '../public/js/ui/kit.tsx';
 import { profile } from '../public/js/ui/session.ts';
 import { onIdeas, pathsHere } from '../public/js/ui/tour/paths/index.ts';
 import { createLayerStatus } from '../public/js/ui/layer-status.ts';
@@ -24,6 +24,7 @@ import type { Preview } from '../public/js/ui/preview.ts';
 import type { Draft, Studio } from '../public/js/ui/studio-store.ts';
 import { createTimeline } from '../public/js/ui/timeline-state.ts';
 import { automationLevel } from '../public/js/ui/timeline-auto.tsx';
+import { laneNow } from '../public/js/ui/look-globals.tsx';
 import { automationEdit } from '../public/js/ui/automation-edit.ts';
 import { chainWires, isStageEnd, type Layer } from '../public/js/ui/model.ts';
 import type { Module } from '../shared/schemas/look.ts';
@@ -209,6 +210,25 @@ describe('a number as one field, and how a chain is drawn', () => {
     assert.deepEqual([decimals(1), decimals(0.05), decimals(1e-7)], [0, 2, 4]);
     assert.deepEqual([scrubTo(60, 50, 100, r), scrubTo(60, -30, 100, r), scrubTo(60, 50, 100, r, true)], [158, 5, 70],
       'half the width: half the range; held to min; Shift: a tenth');
+  });
+
+  test('a typed value or a Shift-drag goes between the steps, and the field shows its decimals', () => {
+    const fine = { min: 0, max: 2, step: 0.01 };
+    assert.deepEqual([exact(0.003, fine), exact(0.0125, fine), exact(9, fine), exact(-1, fine)], [0.003, 0.0125, 2, 0],
+      'kept as typed, held to min..max');
+    assert.deepEqual([exact(30.6, r), exact(1, r)], [31, 5], 'a whole step (a count) stays whole');
+    assert.deepEqual([scrubTo(0, 3, 200, fine, true), scrubTo(0.003, 2, 200, fine, true), scrubTo(0.003, 2, 200, fine)],
+      [0.003, 0.005, 0.02], 'Shift: on a grid a tenth of the step, from where it started; else on the step');
+    assert.deepEqual([places(0.003, 0.01), places(0.5, 0.01), places(0.0125, 0.01), places(1 / 3, 0.01), places(7, 1)],
+      [3, 2, 4, 6, 0]);
+    assert.deepEqual([fmt(0.0025), fmt(0.05), fmt(1 / 3), fmt(120.12345)], ['0.0025', '0.05', '0.333', '120.123'],
+      'the popover\'s From/To keep a small end');
+    assert.deepEqual([onSpan(0.0123456, 0.05), onSpan(0.5004, 1), onSpan(37.26, 100)], [0.01235, 0.5, 37.3],
+      'a lane\'s value to a thousandth of its span');
+    const drift = { value: 0, min: 0, max: 0.05 }, look = { layers: [], globals: { macros: { drift } },
+      automation: { drift: [[0, 0], [16, 0.05]] } } as unknown as Parameters<typeof laneNow>[0];
+    assert.deepEqual([laneNow(look, 'drift', drift, 2), laneNow(look, 'drift', drift, 16)], [0.00625, 0.05],
+      'an automated macro reads its lane now, not its stored 0');
   });
 
   test('each module joins the came; each warp and filter reaches everything above it, to a stage\'s start', () => {
