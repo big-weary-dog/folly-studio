@@ -110,7 +110,7 @@ for (const height of [768, 660]) {
     test('Getting around: the welcome, each step by its control, then Tutorials', async ({ page, studio }, info) => {
       const errors = [];
       page.on('pageerror', (e) => errors.push(String(e)));
-      const s = steps(page, info, { shots }), { title, ring, ringAt, open, at, shot, offPreview } = s;
+      const s = steps(page, info, { shots }), { ring, ringAt, open, at, shot, offPreview } = s;
       await signedIn(page, studio.origin, `first-look-${height}`);
       await page.goto(`${studio.origin}/`);
 
