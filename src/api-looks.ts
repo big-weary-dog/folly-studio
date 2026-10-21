@@ -8,7 +8,7 @@ import { isDeepStrictEqual } from 'node:util';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
-import { DEFAULT_DURATION } from '../public/js/pattern-core.ts';
+import { DEFAULT_DURATION, upgradeGlobals } from '../public/js/pattern-core.ts';
 import { CHAIN, convertLayers, upgradeLook } from '../shared/chain-order.ts';
 import { keepStandardTitles } from '../shared/standard-modules.ts';
 import { type Listed, LookCreate, LookPatch, LooksQuery } from '../shared/schemas/api.ts';
@@ -87,14 +87,15 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, loadLibra
       ? { ...l, modules: keepStandardTitles(l.modules, library) } : l)) };
   };
 
-  /** A look as GET answers: `mine` adds the number of its version, `versions` the versions themselves. */
+  /** A look as GET answers, its globals as they play now (upgradeGlobals): `mine` adds the number of its version,
+   * `versions` the versions themselves. */
   function presentLook(look: Look, { versions = false, mine = false } = {}) {
-    const { versions: list, version: _, ...rest } = look;
+    const { versions: list, version: _, ...rest } = upgradeGlobals(look);
     return {
       ...rest, ownerName: ownerName(look.owner) || look.ownerName || '', summary: rest.summary ?? '',
       layers: rest.layers ?? [], duration: rest.duration ?? DEFAULT_DURATION, shared: rest.shared === true,
       reviewed: rest.reviewed === true, versionCount: Array.isArray(list) ? list.length : 0,
-      ...(mine ? { version: currentN(look) } : {}), ...(versions ? { versions: Array.isArray(list) ? list : [] } : {}),
+      ...(mine ? { version: currentN(look) } : {}), ...(versions ? { versions: Array.isArray(list) ? list.map(upgradeGlobals) : [] } : {}),
     };
   }
 

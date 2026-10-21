@@ -1,4 +1,4 @@
-// Rhythm: plays what is above it as a drum part locked to the look's bpm. Pattern is a line of steps, X a loud hit,
+// Rhythm: plays what is above it as a drum part locked to the look's beat (bpm and downbeat). Pattern is a line of steps, X a loud hit,
 // x a hit, . a rest; several lines (split by spaces) go to Tag's places in turn, or with several tags, line i to the
 // i-th tag. Each hit lights it and fades over Decay; Amount is how dark between hits, Invert cuts it out on hits.
 // A line with over three hits in a second only dips on them, so a busy part shimmers rather than strobes.
@@ -47,15 +47,15 @@ function busiest(L, per, late) {
 
 function frame(t, P, G) {
   if (text !== P.pattern + '\n' + P.tag) { parse(P); timed = ''; }
-  const per = 60 / (G.bpm * P.steps), late = 1 + 0.5 * P.swing, pos = t / per;
+  const per = 60 / (G.bpm * P.steps), late = 1 + 0.5 * P.swing;
   if (timed !== per + ' ' + late) {
     timed = per + ' ' + late;
     for (let i = 0; i < lines.length; i++) depth[i] = busiest(lines[i], per, late) > BUSY ? DIP : 1;
   }
-  let j = floor(pos);
-  if (j & 1 && pos - (j - 1) < late) j--;            // a late odd step: still on the even one before it
   for (let i = 0; i < lines.length; i++) {
-    const L = lines[i], n = L.length;
+    const L = lines[i], n = L.length, pos = beat(t, G.bpm * P.steps / n) * n;   // the step through the line's loop
+    let j = floor(pos);
+    if (j & 1 && pos - (j - 1) < late) j--;          // a late odd step: still on the even one before it
     let a = j;                                          // the last hit at or before step j
     while (a > j - n && !(L[((a % n) + n) % n] > 0)) a--;
     if (a === j - n) { env[i] = 1 - depth[i]; continue; }

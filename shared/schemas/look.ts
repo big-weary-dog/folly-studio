@@ -5,8 +5,9 @@ import { z } from 'zod';
 
 import PALETTES from '../../public/data/palettes.json' with { type: 'json' };
 import {
-  BLENDS, BLUR_MODES, DIRECTIONS, GLOBALS, macroNameOk, MAX_CLIPS, MAX_DURATION, MAX_LANES, MAX_MACROS, MAX_POINTS,
-  MAX_RADIUS, MODULE_KINDS, OLD_DIRECTIONS, PALETTE_ROLES, type Picture, pictureProblem, SOURCE_BLENDS, TRANSITIONS,
+  BLENDS, BLUR_MODES, DIRECTIONS, macroNameOk, MAX_CLIPS, MAX_DURATION, MAX_LANES, MAX_MACROS, MAX_POINTS, MAX_RADIUS,
+  MODULE_KINDS, OLD_DIRECTIONS, OLD_GLOBALS, PALETTE_ROLES, type Picture, pictureProblem, SOURCE_BLENDS, TRANSITIONS,
+  upgradeGlobals,
 } from '../../public/js/pattern-core.ts';
 
 export * from '../plays.ts';
@@ -224,19 +225,22 @@ const Macro = z.object({ value: z.number({ error: VALUE }).optional(), min: num(
 /** The names a modulator follows: its global, and an LFO's amount and pace. */
 export const follows = (b: z.infer<typeof Binding>) => (b.mod === 'global' ? [b.name] : b.mod === 'lfo'
   ? [b.amount, b.pace].filter((n) => n !== undefined) : []);
-const MACRO_RULE = 'a name is a lowercase letter, then letters, digits or _, and not one of energy, speed, level, hue, '
-  + 'saturation or palette.';
+const MACRO_RULE = 'a name is a lowercase letter, then letters, digits or _, and not palette or bpm.';
 
-// What a live engine offers as controls (SPEC "Globals"): names of globals, macros and bpm, each once.
-const MAX_LIVE = Object.keys(GLOBALS).length + MAX_MACROS + 1;
-const LIVE_RULE = "globals.live lists globals, the look's macros or bpm, each once.";
+// What a live engine offers as controls (SPEC "Globals"): names of macros and bpm, each once.
+const MAX_LIVE = MAX_MACROS + 1;
+const LIVE_RULE = "globals.live lists the look's macros or bpm, each once.";
 
-const global = (name: keyof typeof GLOBALS) => num(GLOBALS[name].min, GLOBALS[name].max,
-  `globals.${name} must be a number from ${GLOBALS[name].min} to ${GLOBALS[name].max}.`).transform(round).optional();
-/** A look's globals (all optional): the built-ins in range, a palette, macros. null clears them. */
-export const Globals = z.strictObject({
-  speed: global('speed'), level: global('level'), hue: global('hue'), saturation: global('saturation'),
-  energy: global('energy'), palette: Palette.optional(),
+/** Globals from before (OLD_GLOBALS) read as now: energy a macro, the rest and their live controls dropped. */
+const oldGlobals = (g: unknown): unknown => {
+  if (!g || typeof g !== 'object' || Array.isArray(g)) return g;
+  const now = upgradeGlobals({ globals: g as Globals }).globals as Globals & { live?: unknown };
+  return Array.isArray(now.live) ? { ...now, live: now.live.filter((n) => !OLD_GLOBALS.includes(n)
+    || Object.hasOwn(now.macros ?? {}, n)) } : now;
+};
+/** A look's globals (all optional): a palette, macros. null clears them. */
+export const Globals = z.preprocess(oldGlobals, z.strictObject({
+  palette: Palette.optional(),
   macros: z.record(z.string().refine(macroNameOk, MACRO_RULE), Macro,
     { error: 'globals.macros must be an object of { value, min, max }.' })
     .refine((m) => Object.keys(m).length <= MAX_MACROS, `At most ${MAX_MACROS} macros.`).optional(),
@@ -244,17 +248,16 @@ export const Globals = z.strictObject({
 }, { error: (iss) => (iss.code === 'unrecognized_keys' ? `globals.${String(iss.keys[0]).slice(0, 40)} is not a global.`
   : 'globals must be an object.') }).nullable()
   .refine((g) => !g?.live?.some((n, i, all) => all.indexOf(n) !== i
-    || !(Object.hasOwn(GLOBALS, n) || n === 'bpm' || Object.hasOwn(g.macros ?? {}, n))), LIVE_RULE)
-  .superRefine((g, ctx) => {   // one level: a modulator follows faders (globals, or macros without a mod)
+    || !(n === 'bpm' || Object.hasOwn(g.macros ?? {}, n))), LIVE_RULE)
+  .superRefine((g, ctx) => {   // one level: a modulator follows faders (macros without a mod)
     for (const [name, m] of Object.entries(g?.macros ?? {})) {
-      const bad = m.mod && follows(m.mod).find((n) => !Object.hasOwn(GLOBALS, n) && !(Object.hasOwn(g!.macros!, n)
-        && !g!.macros![n].mod));
+      const bad = m.mod && follows(m.mod).find((n) => !(Object.hasOwn(g!.macros!, n) && !g!.macros![n].mod));
       if (bad) {
-        ctx.addIssue(`globals.macros.${name} follows ${bad}, which is not a global or a macro without a mod: `
+        ctx.addIssue(`globals.macros.${name} follows ${bad}, which is not a macro without a mod: `
           + 'a modulator follows faders only.');
       }
     }
-  });
+  }));
 
 const lane = ({ min, max }: Range) => {
   const each = `each point is [seconds 0–${MAX_DURATION}, value ${min}–${max}].`;
@@ -269,16 +272,18 @@ const lane = ({ min, max }: Range) => {
 };
 
 /**
- * A look's automation for these globals: { name: [[t, v], …] } for the built-in globals and the look's macros,
- * points sorted by time (0–600 s, to the ms; one per time), values in the global's range. null clears it.
+ * A look's automation for these globals: { name: [[t, v], …] } for the look's macros, points sorted by time (0–600 s,
+ * to the ms; one per time), values in the macro's range; lanes of the old globals but energy are dropped. null clears
+ * it.
  */
 export function automationFor(globals: { macros?: Record<string, Range> } | null | undefined) {
-  const ranges: Record<string, Range> = { ...GLOBALS, ...globals?.macros };
-  return z.strictObject(Object.fromEntries(Object.entries(ranges).map(([name, r]) => [name, lane(r).optional()])),
+  const ranges: Record<string, Range> = { ...globals?.macros };
+  return z.preprocess((a) => (a && typeof a === 'object' && !Array.isArray(a) ? Object.fromEntries(Object.entries(a)
+    .filter(([n]) => n === 'energy' || !OLD_GLOBALS.includes(n))) : a), z.strictObject(Object.fromEntries(Object.entries(ranges).map(([name, r]) => [name, lane(r).optional()])),
     { error: (iss) => (iss.code === 'unrecognized_keys' ? `automation.${String(iss.keys[0]).slice(0, 40)}: automate a `
-      + "global or one of the look's macros." : 'automation must be an object of lanes.') })
+      + "one of the look's macros." : 'automation must be an object of lanes.') })
     .refine((a) => Object.keys(a).length <= MAX_LANES, `At most ${MAX_LANES} automation lanes.`)
-    .nullable();
+    .nullable());
 }
 
 export const Duration = seconds('duration', 1);

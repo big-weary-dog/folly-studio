@@ -8,14 +8,13 @@ import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 
 import type { Binding, ParamValue } from '../../../shared/schemas/look.ts';
-import { GLOBALS } from '../core/globals.ts';
 import {
   type BindingForm, bindingForm, bindingText, fmt, GLYPHS, isBinding, makeBinding, type Param, RATES, SHAPES,
   shareLfo,
 } from './bindings.ts';
 import { BeatClock } from './beat-clock.tsx';
 import { Drawer, useDrawer } from './drawer.tsx';
-import { Field, humanize } from './kit.tsx';
+import { Field } from './kit.tsx';
 import { type ModCtx, NowBar, Wave } from './mod-live.tsx';
 
 export { BoundChip, type ModCtx } from './mod-live.tsx';
@@ -37,18 +36,18 @@ export function ModButton({ p, value, now, ctx, put, label, title }: { p: Param;
 const KINDS: [BindingForm['mod'], string][] = [['lfo', 'LFO'], ['global', 'Macro'], ['', 'Off']];
 const SELF_KINDS: [BindingForm['mod'], string][] = [['lfo', 'LFO'], ['global', 'Macro'], ['', 'Off: a fader']];
 
-/** What a look offers to follow: its modulators (macros that move), faders (macros without a mod) and globals. */
+/** What a look offers to follow: its modulators (macros that move) and faders (macros without a mod). */
 function follows(ctx: ModCtx) {
   const macros = Object.entries(ctx.look().globals?.macros ?? {}).filter(([n]) => n !== ctx.self);
   return { modulators: ctx.self ? [] : macros.filter(([, m]) => m.mod), faders: macros.filter(([, m]) => !m.mod)
-    .map(([n]) => n), globals: Object.keys(GLOBALS) };
+    .map(([n]) => n) };
 }
 
 /** The popover's body: what moves the param, each kind's fields, applied as they change. */
 function ModPanel({ p, start, now, ctx, put }: { p: Param; start: ParamValue | undefined; now: number;
   ctx: ModCtx; put: (v: ParamValue | undefined) => void }) {
-  const bpm = ctx.look().bpm || 120, { modulators, faders, globals } = follows(ctx);
-  const names = [...modulators.map(([n]) => n), ...faders, ...globals];
+  const bpm = ctx.look().bpm || 120, { modulators, faders } = follows(ctx);
+  const names = [...modulators.map(([n]) => n), ...faders];
   const fresh = () => bindingForm(isBinding(start) ? start : {}, p, names, now, bpm);
   const [f, setF] = useState(fresh);
   const set = (patch: Partial<BindingForm>) => {
@@ -62,7 +61,7 @@ function ModPanel({ p, start, now, ctx, put }: { p: Param; start: ParamValue | u
     aria-label={name} value={f[k]} onInput={(e) => set({ [k]: e.currentTarget.value })} />;
   const fader = (k: 'amount' | 'pace', name: string) => <select class="mod-fader" aria-label={name} value={f[k]}
     onChange={(e) => set({ [k]: e.currentTarget.value })}><option value="">none</option>
-    {[...faders, ...globals].map((g) => <option value={g}>{globals.includes(g) ? humanize(g) : g}</option>)}</select>;
+    {faders.map((g) => <option value={g}>{g}</option>)}</select>;
   const range = <span class="mod-note">of {fmt(p.min)}…{fmt(p.max)}</span>;
   const beats = f.unit === 'beats', rate = parseFloat(f.rate) || 1;
   const picked = modulators.find(([n]) => n === f.name)?.[1];
@@ -118,9 +117,7 @@ function ModPanel({ p, start, now, ctx, put }: { p: Param; start: ParamValue | u
         renamed={(to) => set({ name: to })} />}
       {faders.length > 0 && <List title="Faders">{faders.map((n) => <Pick f={f} n={n} set={set} glyph="◆"
         text={n} ctx={ctx} />)}</List>}
-      <List title="Look globals"><div class="mod-segs">{globals.map((g) => <button type="button"
-        class="btn small mod-seg" aria-pressed={f.name === g} onClick={() => set({ name: g })}>{humanize(g)}</button>)}
-      </div></List>
+      {!names.length && <p class="mod-note">The look has no macros yet: add one in the Look panel.</p>}
       <Field label="Between" title="The param at the fader's lowest, and at its highest">{num('from', 'At its lowest')}
         <span class="mod-note">and</span>{num('to', 'At its highest')}{range}</Field></>}
   </div>;

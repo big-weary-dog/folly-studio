@@ -1,23 +1,18 @@
-// The Look panel (SPEC "Globals"): fields for the look's speed, level, hue, saturation and energy, a palette picker
-// showing its roles, the look's modulators (look-mods.tsx), and faders (macros that do not move by themselves) to add,
-// rename and set (their range: as the API or a generator gave it), each saying what it drives. Wide: a tab of the
-// bottom dock; phones: the Look tab (faders are set there, not added). It keeps in look.globals only what differs
-// from the defaults. Loaded when the Look tab first shows.
+// The Look panel (SPEC "Globals"): a palette picker showing its roles, the look's modulators (look-mods.tsx), and
+// faders (macros that do not move by themselves) to add, rename and set (their range: as the API or a generator gave
+// it), each saying what it drives. Wide: a tab of the bottom dock; phones: the Look tab (faders are set there, not
+// added). Loaded when the Look tab first shows.
 import { useId } from 'preact/hooks';
 
-import { GLOBALS, macroNameOk } from '../core/globals.ts';
+import { macroNameOk } from '../core/globals.ts';
 import { PALETTE_ROLES } from '../core/stdlib.ts';
 import type { Globals, Palette } from '../../../shared/schemas/look.ts';
-import { cx, Field, humanize, Scrub } from './kit.tsx';
+import { Field, humanize, Scrub } from './kit.tsx';
 import { renameMacro } from './look-globals-edit.ts';
 import { Drives, ModulatorCards } from './look-mods.tsx';
 import { macroUses, type Use } from './mod-uses.ts';
 import type { Studio } from './studio-store.ts';
 
-const HELP: Record<string, string> = { speed: 'How fast every pattern runs; changes never jump',
-  level: 'Master brightness', hue: 'Turns every colour round the wheel', saturation: '0 is grey, 2 is vivid',
-  energy: 'Calm to busy: patterns read it as G.energy' };
-type Key = keyof typeof GLOBALS;
 type Macro = NonNullable<Globals['macros']>[string];
 
 export function GlobalsPanel({ st, palettes }: { st: Studio; palettes: (Palette & { theme: string })[] }) {
@@ -35,11 +30,6 @@ export function GlobalsPanel({ st, palettes }: { st: Studio; palettes: (Palette 
   }
   return (
     <div class="look-globals">
-      <section class="globals-values" aria-label="Globals">
-        {(Object.entries(GLOBALS) as [Key, Macro][]).map(([key, d]) => <Row key={key} name={key} d={d}
-          value={g[key] ?? d.value} automated={!!lanes[key]}
-          set={(v) => set((x) => { if (v === d.value) delete x[key]; else x[key] = v; })} />)}
-      </section>
       <section class="globals-palette" aria-label="Palette">
         <Field label="Palette">{(id) => <select class="palette-select" id={id} value={named ? g.palette?.name : ''}
           onChange={(e) => {
@@ -70,17 +60,6 @@ export function GlobalsPanel({ st, palettes }: { st: Studio; palettes: (Palette 
           taken={(to) => !macroNameOk(to) || !!g.macros?.[to]} />)}</ul>
       </section>
     </div>);
-}
-
-function Row({ name, d, value, automated, set }: { name: string; d: Macro; value: number; automated: boolean;
-  set: (v: number) => void }) {
-  return (
-    <Field label={humanize(name)} class="end" title={HELP[name]}>{(id) => <>
-      <span class="globals-auto" hidden={!automated}>automated</span>
-      <Scrub id={id} min={d.min} max={d.max} step={name === 'speed' ? 0.05 : 0.01} value={value} set={set}
-        disabled={automated} />
-      <button type="button" class={cx('param-reset', value === d.value && 'unused')} title="Reset to default"
-        aria-label={`Reset ${name} to default`} onClick={() => set(d.value)}>↺</button></>}</Field>);
 }
 
 function MacroRow({ name, m, automated, rename, set, taken, uses, st }: { name: string; m: Macro; automated: boolean;

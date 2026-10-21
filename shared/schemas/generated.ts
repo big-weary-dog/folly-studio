@@ -5,7 +5,7 @@
 import { z } from 'zod';
 
 import {
-  BLENDS, BLUR_MODES, DEFAULT_SOFTEN, GLOBALS, macroNameOk, MAX_LANES, MAX_MACROS, MAX_POINTS, MAX_RADIUS, MODULE_KINDS,
+  BLENDS, BLUR_MODES, DEFAULT_SOFTEN, macroNameOk, MAX_LANES, MAX_MACROS, MAX_POINTS, MAX_RADIUS, MODULE_KINDS,
   pickText, readPick, SOURCE_BLENDS,
 } from '../../public/js/pattern-core.ts';
 import type { Blend, BlurMode, ModuleKind, SourceBlend } from '../../public/js/pattern-core.ts';
@@ -196,8 +196,6 @@ const layerOf = (library: Library, known: Set<string>, root: string, groupTags: 
     level: l.level, ...(l.clips.clips.length ? { clips: l.clips.clips } : {}), soften: l.soften, notes };
 });
 
-const range = (d: Range) => z.number().transform((v) => clamp(v, d.min, d.max)).optional()
-  .catch(undefined);
 const maybe = z.number().optional().catch(undefined);
 const str = { type: 'string' }, number = { type: 'number' };
 /** A modulator's mod as the model sees it: an LFO (its amount and pace a fader's name). */
@@ -209,8 +207,6 @@ const macro = z.object({ name: z.unknown().optional().meta({ type: 'string' }), 
   mod: z.unknown().optional().meta(MOD_WIRE) }).meta({ required: ['name', 'value', 'min', 'max'] });
 /** Globals as the model gives them (macros a list or a map, the palette by name) → stored, or undefined. */
 const globalsOf = z.object({
-  speed: range(GLOBALS.speed), level: range(GLOBALS.level), hue: range(GLOBALS.hue),
-  saturation: range(GLOBALS.saturation), energy: range(GLOBALS.energy),
   palette: z.unknown().optional().meta({ type: 'string', enum: [...PALETTE_NAMES] }),
   macros: z.preprocess((m) => (m && typeof m === 'object' && !Array.isArray(m)
     ? Object.entries(m).map(([name, x]) => ({ ...x, name })) : m), z.array(orDrop(macro))).catch([]),
@@ -220,8 +216,7 @@ const automationOf = z.preprocess((a) => (a && typeof a === 'object' && !Array.i
 z.array(orDrop(z.object({ name: z.string(), points: z.array(orDrop(z.array(z.number()))) })))).catch([]);
 
 function cleanGlobals(g: z.infer<typeof globalsOf>, notes: string[]): Globals | undefined {
-  const out: Record<string, unknown> = Object.fromEntries(Object.entries(g)
-    .filter(([k, v]) => k in GLOBALS && v !== undefined));
+  const out: Record<string, unknown> = {};
   const p = g.palette;
   const name = isString(p) ? p.trim().toLowerCase() : (p as { name?: unknown } | null)?.name;
   if (isString(name) && PALETTE_NAMES.includes(name)) out.palette = name;
@@ -240,7 +235,7 @@ function cleanGlobals(g: z.infer<typeof globalsOf>, notes: string[]): Globals | 
       ...mod && mod.mod !== 'envelope' ? { mod } : {} };
   }
   for (const [name, m] of Object.entries(macros)) {   // one level: a modulator follows faders only
-    const bad = m.mod && follows(m.mod).find((n) => !(n in GLOBALS) && !(Object.hasOwn(macros, n) && !macros[n].mod));
+    const bad = m.mod && follows(m.mod).find((n) => !(Object.hasOwn(macros, n) && !macros[n].mod));
     if (bad) { notes.push(`macro ${name}: follows ${bad}, which is not a fader, so it does not move`); delete m.mod; }
   }
   if (Object.keys(macros).length) out.macros = macros;
@@ -248,7 +243,7 @@ function cleanGlobals(g: z.infer<typeof globalsOf>, notes: string[]): Globals | 
 }
 
 function cleanAutomation(lanes: z.infer<typeof automationOf>, globals: Globals | undefined, notes: string[]) {
-  const out: Automation = {}, ranges: Record<string, Range> = { ...GLOBALS, ...globals?.macros };
+  const out: Automation = {}, ranges: Record<string, Range> = { ...globals?.macros };
   for (const lane of lanes.slice(0, MAX_LANES)) {
     const r = !isDropped(lane) && Object.hasOwn(ranges, lane.name) && ranges[lane.name];
     if (isDropped(lane) || !r) {
