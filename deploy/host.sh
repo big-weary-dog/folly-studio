@@ -2,7 +2,7 @@
 # Start or update the hosted studio on this machine (docs/HOSTING.md "Hosting on this machine"): check out a commit,
 # install, build, and (re)start it as a systemd user service, then check it serves that commit.
 #
-#   npm run host [-- <ref>]   default STUDIO_REF from the env file, else origin/main
+#   npm run host [-- <ref>]   default STUDIO_REF from the env file, else origin/prod
 #
 #   STUDIO_ENV_FILE   the settings, default ~/.config/folly-studio/studio.env (chmod 600)
 #   STUDIO_UNIT       the service's name, default folly-studio
@@ -21,7 +21,7 @@ unit=${STUDIO_UNIT:-folly-studio}
 [ "$(stat -c %a "$env_file")" = 600 ] || die "$env_file must be readable only by you: chmod 600 $env_file"
 # shellcheck disable=SC1090 # read in a subshell: only what the service needs to be found comes out
 read -r ref host port pi_url < <(set -a; . "$env_file"
-  echo "${STUDIO_REF:-origin/main} ${HOST:-127.0.0.1} ${PORT:-8780} ${PI_PREVIEW_URL:-}")
+  echo "${STUDIO_REF:-origin/prod} ${HOST:-127.0.0.1} ${PORT:-8780} ${PI_PREVIEW_URL:-}")
 ref=${1:-$ref}
 # shellcheck disable=SC1090 # the light settings, which the dry-run Pi reads too (SPEC "Light and output")
 light="$(set -a; . "$env_file"; echo "${STUDIO_DATA:-$studio/data}")/light.json"
@@ -39,6 +39,8 @@ if [ -z "${STUDIO_HOST_CHECKED_OUT:-}" ]; then
     || die "$root has uncommitted changes: this checkout is the hosted one, keep it clean"
   echo "host: checking out $ref"
   git -C "$root" fetch --quiet origin
+  git -C "$root" rev-parse --verify --quiet "$ref^{commit}" >/dev/null \
+    || die "no $ref in $(git -C "$root" remote get-url origin): set STUDIO_REF in $env_file, or pass a ref"
   git -C "$root" checkout --quiet --detach "$ref"
   # The rest is the checked-out commit's own steps: its unit, its checks.
   STUDIO_HOST_CHECKED_OUT=1 exec bash "$studio/deploy/host.sh"
@@ -61,7 +63,7 @@ node=$(command -v node)
 units="$HOME/.config/systemd/user"
 mkdir -p "$units"
 cat > "$units/$unit.service" <<EOF
-# Written by studio/deploy/host.sh; run it again rather than editing this.
+# Written by deploy/host.sh; run it again rather than editing this.
 [Unit]
 Description=Folly Studio ($studio)
 
@@ -82,7 +84,7 @@ EOF
 if [ -n "$pi_port" ]; then
   # A dry run sends nothing to any lights; it is only the page, behind the studio's admin sign-in.
   cat > "$units/$unit-pi.service" <<EOF
-# Written by studio/deploy/host.sh; run it again rather than editing this.
+# Written by deploy/host.sh; run it again rather than editing this.
 [Unit]
 Description=Folly Studio Live, dry run, for the studio's /pi ($studio)
 

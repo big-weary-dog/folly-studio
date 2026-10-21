@@ -87,7 +87,7 @@ What was checked on this machine (WSL 2.4, NAT networking, `systemd=true` in `/e
 ### Updating
 
 `cd ~/folly-studio && npm run host` again, or `npm run host -- <ref>` for another commit or branch
-(default `STUDIO_REF`, else `origin/main`). It refuses a checkout with uncommitted changes, then: fetches and checks
+(default `STUDIO_REF`, else `origin/prod`; a ref `origin` lacks stops it before anything changes). It refuses a checkout with uncommitted changes, then: fetches and checks
 out the ref, `npm ci`, builds, writes `dist/build.json` (`{ commit, builtAt }`), writes and restarts the unit, and
 checks that `/build.json` names the commit, `/api/me` answers 401, and Windows reaches it too. The unit's `KillMode=mixed`
 sends the restart's SIGTERM to the server alone: it stops its generator calls, saves and closes, and the ideas it
