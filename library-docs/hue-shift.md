@@ -1,19 +1,17 @@
 ---
-looks: Colours turned round the colour wheel across the layer: one colour becomes a rainbow.
+looks: Colours turned round the colour wheel equally across the layer.
 ---
-Adds a moving spectrum to a single-colour source, or cycles a look's colours, keeping brightness. **recolour** picks
-colours by brightness from a palette; **colour-wash** `rainbow` changes the whole layer at once.
+Cycles a look's colours, keeping brightness. **recolour** picks colours by brightness from a palette;
+**bars** draws spatial bands of colour.
 
 ## Params
-- direction: `clockwise` or `counterclockwise` makes a colour wheel; `petal` or `ring` gives one hue per rose petal
-  or ring.
-- spread: 0.2–0.4 a gentle shading; 1 the full spectrum once.
-- speed: 0.02–0.1 cycles slowly; with spread, the rainbow moves along Direction.
+- offset: a fixed turn of the wheel; 0 keeps the colours, 0.5 gives their opposite hues.
+- speed: 0.02–0.1 cycles slowly; 0 holds still, negative cycles the other way.
 
 ## Pairings
-- `clockwise`, then **anchor** on the rose: a colour wheel centred on it.
+- After **bars** to cycle the bands' hues together.
 
 ## Pitfalls
 - White, grey and black don't change; pale colours barely. Feed it saturated colours.
-- It ignores the palette; keep spread and speed small to stay near it.
+- It ignores the palette; keep offset small and speed at 0 to stay near it.
 - Speed above ~0.5 on a big bright area reads as flicker.
