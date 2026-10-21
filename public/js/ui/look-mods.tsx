@@ -3,6 +3,7 @@
 // that layer and module and opens the param's ∿.
 import type { Globals } from '../../../shared/schemas/look.ts';
 import { fmt, GLYPHS, normaliseParam, type Param } from './bindings.ts';
+import { automate } from './automation-edit.ts';
 import { humanize } from './kit.tsx';
 import { modulatorEdits, renameMacro } from './look-globals-edit.ts';
 import { ModButton, type ModCtx } from './modulate.tsx';
@@ -62,7 +63,7 @@ export function ModulatorCards({ st, mods, uses }: { st: Studio; mods: [string, 
 function Card({ st, name, m, uses, edit }: { st: Studio; name: string; m: Macro; uses: Use[];
   edit: ReturnType<typeof modulatorEdits> }) {
   const ctx: ModCtx = { look: () => st.look.peek(), t: () => st.clock.t, clips: () => null, narrow: st.narrow.value,
-    self: name };
+    self: name, automate: (range, now) => automate(st, range, now, { macro: name }) };
   const p: Param = { kind: 'number', label: name, value: m.value, min: m.min, max: m.max,
     step: (m.max - m.min) / 100, options: [] };
   const mod = m.mod!;
