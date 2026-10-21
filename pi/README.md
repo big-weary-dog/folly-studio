@@ -29,8 +29,15 @@ SIGINT or SIGTERM fades out over a second, then sends black frames before exitin
 ## The control page
 
 `http://<the Pi>:4043/` from a phone on the same network: blackout, the master, tap tempo with the beat (a ±1 BPM nudge either side), the playing
-look's own controls (its `globals.live`), every look to switch to, and the generator's draw. It says when the run is
-dry and when the flash guard has cut to `safe` (the safe look plays until someone picks one).
+look's own controls (its `globals.live`), **Up next** (the queue), every look to play or queue (+), and the generator's
+draw. It says when the run is dry and when the flash guard has cut to `safe` (the safe look plays, and the queue
+waits, until someone picks a look or skips). Its parts (`pi/page/controls.tsx`, `queue.tsx`, styled by
+`public/css/jukebox.css`) are also Studio's `/live` jukebox on the Pi (SPEC-offline "The live page").
+
+The queue is the jukebox (SPEC-offline "Playing on the lights"): each queued look plays its whole pattern once, then
+the next, fading out over its last second and in over the next's first; with nothing queued, what plays loops on.
+At most 20, in memory (a restart empties it). Studio's **Play on the lights** queues its looks here too: a library
+look sent by `ref` (its code always ours), shown with who queued it.
 
 - Its socket (`/ws`, messages in `pi/src/protocol.ts`) takes the page's own origin only: another site open on the
   same phone cannot drive the lights. Each socket is rate-limited, and the page holds at most 32.
@@ -54,6 +61,9 @@ dry and when the flash guard has cut to `safe` (the safe look plays until someon
   defaults (gamma 2.2, no balance, floor or trims). They bend the colours on the way out only, so the Live tab and the
   engine's frames stay the look's own; the master, blackout and fades scale the light after the curve. The F48s are
   set to Gamma None, so this is the only gamma; their port brightness stays the electrical cap.
+- `--frames DIR` (or `"frames"`): Studio's baked frames, its `<STUDIO_DATA>/frames` (on the Pi
+  `/home/fpp/folly-data/frames`), so it can play looks' bakes Studio queues; unset, it plays none. It reads only
+  `<lookId>.fseq` there, held to the SHA-256 Studio sent.
 - Looks are `pi/looks/<id>.json`, plus the Pi's own `pi/local/looks/` (gitignored; one there replaces a shipped
   look with the same id). A look is Studio's look whose modules name library entries by `ref`; the code always
   comes from the library. `globals.live` lists the controls it offers.

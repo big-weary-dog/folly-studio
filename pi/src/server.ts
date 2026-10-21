@@ -13,7 +13,8 @@ import type { WebSocket } from 'ws';
 
 import { meter } from '../../src/live/hub.ts';
 import type { Engine } from './engine.ts';
-import { FromPage, type PiState, type ToPage } from './protocol.ts';
+import { resolveLook, type Library, type PiLook } from './library.ts';
+import { FromPage, MAX_SEND, type PiState, type ToPage } from './protocol.ts';
 
 export const CSP = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
   + "connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'";
@@ -23,7 +24,8 @@ const DIST = fileURLToPath(new URL('../page/dist', import.meta.url));
 /** `watching`: said hello as a page (not Studio's feed, which follows for /live and is no one watching). */
 type Client = { ws: WebSocket, ok: boolean, watching: boolean, tokens: number, at: number, over: number,
   warned: boolean };
-export type ServerOptions = { engine: Engine, state: () => PiState, pin: string, port: number, host: string,
+export type ServerOptions = { engine: Engine, lib: Library, state: () => PiState, pin: string, port: number,
+  host: string,
   base?: string, dist?: string, log?: (line: string) => void, now?: () => number };
 
 const same = (a: string, b: string) => {
@@ -45,7 +47,7 @@ export async function controlServer(o: ServerOptions) {
     cacheControl: false });
   // /pi to /pi/, so the page's relative URLs (its script, its socket) land under the base.
   if (base) app.get(base, (_req, reply) => reply.redirect(`${base}/`, 301));
-  await app.register(fastifyWebsocket, { options: { maxPayload: 1024 } });
+  await app.register(fastifyWebsocket, { options: { maxPayload: MAX_SEND } });
 
   const say = (c: Client, m: ToPage) => { if (c.ws.readyState === 1) c.ws.send(JSON.stringify(m)); };
   /** A PIN said on a socket: right, wrong, or (after PIN_TRIES wrong ones in a row) locked out for a minute. */
@@ -66,6 +68,7 @@ export async function controlServer(o: ServerOptions) {
     try { r = FromPage.safeParse(JSON.parse(String(data))); } catch { r = null; }
     if (!r?.success) { say(c, { type: 'error', error: 'Not a message this page sends.' }); return; }
     const msg = r.data;
+    if (msg.type !== 'send' && String(data).length > 1024) { say(c, { type: 'error', error: 'Too long.' }); return; }
     if (msg.type === 'hello') {
       const p = pinOk(msg.pin);
       c.ok = p.ok;
@@ -83,6 +86,27 @@ export async function controlServer(o: ServerOptions) {
     else if (msg.type === 'tap') e.tap(msg.at);
     else if (msg.type === 'level') e.level(msg.value);
     else if (msg.type === 'blackout') e.blackout(msg.on);
+    else if (msg.type === 'queue' && !e.queue(msg.id, msg.at)) {
+      say(c, { type: 'error', error: `${msg.id} cannot queue.` });
+    } else if (msg.type === 'unqueue') e.unqueue(msg.key);
+    else if (msg.type === 'move') e.move(msg.key, msg.to);
+    else if (msg.type === 'next') e.next();
+    else if (msg.type === 'send') studioSent(c, msg);
+  }
+
+  /** A look Studio sent: its modules' code from our library by ref, never its own. */
+  function studioSent(c: Client, msg: Extract<FromPage, { type: 'send' }>) {
+    const { item } = msg;
+    if (item.kind === 'baked') {
+      if (!o.engine.sendBaked(item, msg.at, msg.by)) say(c, { type: 'error', error: 'The queue is full.' });
+      return;
+    }
+    let look: PiLook;
+    try { look = resolveLook(item.look as PiLook, o.lib); } catch (err) {
+      say(c, { type: 'error', error: `Cannot play: ${(err as Error).message}` });
+      return;
+    }
+    if (!o.engine.send(look, msg.at, msg.by)) say(c, { type: 'error', error: 'The queue is full.' });
   }
 
   const host = (h: string) => h.toLowerCase().replace(/:80$/, '');

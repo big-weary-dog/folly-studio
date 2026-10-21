@@ -4,14 +4,21 @@ import type { Config } from './config.ts';
 export type Profile = 'hosted' | 'pi';
 
 const LOOPBACK = new Set(['127.0.0.1', 'localhost', '::1']);
-const PI_FRAMES_MAX_BYTES = 1024 ** 3;
+const PI_FRAMES_MAX_BYTES = 1024 ** 3, PI_BAKE_MEMORY = 384 * 1024 ** 2;
 
 export const profileOf = (c: Config): Profile => c.STUDIO_PROFILE ?? 'hosted';
 
-/** The settings the profile defaults: the gallery previews' camera and the baked frames' disk cap. */
+/** The settings the profile defaults: the gallery previews' camera, the baked frames' disk cap, and a bake's nice
+ * level and memory (the Pi's at the bottom, under the engine, which drives the lights on the same CPUs). */
 export const profileDefaults = (profile: Profile) => (profile === 'pi'
-  ? { previews: 'front', framesMaxBytes: PI_FRAMES_MAX_BYTES }
-  : { previews: 'playa', framesMaxBytes: undefined });
+  ? { previews: 'front', framesMaxBytes: PI_FRAMES_MAX_BYTES, bakeNice: 19, bakeMemory: PI_BAKE_MEMORY }
+  : { previews: 'playa', framesMaxBytes: undefined, bakeNice: undefined, bakeMemory: undefined });
+
+/** The render box's options the profile sets where the settings say nothing. */
+export const boxDefaults = (profile: Profile, c: Config) => {
+  const d = profileDefaults(profile);
+  return { nice: c.STUDIO_BAKE_NICE ?? d.bakeNice, memoryBytes: c.STUDIO_BAKE_MEMORY ?? d.bakeMemory };
+};
 
 /** Why the server may not listen on `host` under `profile`, or '' when it may. */
 export const hostRefusal = (profile: Profile, host: string) => (profile === 'pi' || LOOPBACK.has(host) ? ''
