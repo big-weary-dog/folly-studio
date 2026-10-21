@@ -6,8 +6,9 @@ export const colour: Path = {
   about: 'A module\'s colours, the Look tab, and the palette they all come from.',
   steps: [
     { id: 'bars', page: '/studio', title: 'Find the colours',
-      text: 'Click {preset:lighthouse}, then its {module:bars} module.', anchor: ['layer:lighthouse', 'module:bars'],
-      done: ({ v }) => v?.module.value?.ref === 'bars' },
+      text: 'This look is one layer, {preset:lighthouse}, with its {module:bars} module open: its settings are on '
+        + 'the right. (Elsewhere, click a layer, then a module.)', anchor: ['layer:lighthouse', 'module:bars'],
+      done: ({ v }) => v?.module.value?.ref === 'bars', next: true },
     { id: 'pick', page: '/studio', title: 'Pick colours',
       text: '{param:bars.colours} picks from the look\'s palette, so the look stays in one key. Click it and choose '
         + 'others.',
