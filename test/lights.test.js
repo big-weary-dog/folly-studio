@@ -91,7 +91,8 @@ describe('Play on the lights', () => {
     const res = await cara.post('/api/lights/queue', { lookId: fire.id, at: 'end' });
     assert.deepEqual(res.json, { kind: 'live' });
     const item = await until(() => r.engine.state().queue.find((q) => q.id === fire.id), 'queued');
-    assert.deepEqual({ ...item, key: '' }, { key: '', id: fire.id, title: 'Bob fire', kind: 'live', by: 'cara' });
+    assert.deepEqual({ ...item, key: '' }, { key: '', id: fire.id, title: 'Bob fire', kind: 'live', by: 'cara',
+      duration: 30 });
     r.engine.unqueue(item.key);
   });
 
