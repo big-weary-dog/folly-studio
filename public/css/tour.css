@@ -38,7 +38,7 @@
   text-decoration: underline; background: none; border: 0; cursor: pointer; }
 
 .tour-paths { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.tour-path { width: 100%; display: grid; grid-template-columns: 24px 1fr auto; gap: 2px 10px; padding: 10px 12px;
+.tour-path { width: 100%; display: grid; grid-template-columns: 24px 1fr; gap: 2px 10px; padding: 10px 12px;
   color: var(--text); font: inherit; text-align: left; background: var(--night-3);
   border: var(--came-s) solid var(--lead);
   border-radius: var(--radius); cursor: pointer; }
@@ -47,5 +47,4 @@
 .tour-path[data-state=done] .tour-mark { color: var(--emerald); }
 .tour-path[data-state=part] .tour-mark { color: var(--amber); }
 .tour-path-name { font-weight: 600; }
-.tour-path-len { color: var(--text-3); font-size: 12px; }
-.tour-path-about { grid-column: 2 / 4; color: var(--text-2); font-size: 13px; }
+.tour-path-about { grid-column: 2; color: var(--text-2); font-size: 13px; }
