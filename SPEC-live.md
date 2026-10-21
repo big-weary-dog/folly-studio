@@ -63,7 +63,9 @@ Needs a session (401 before the upgrade) and a same-origin `Origin` (403). JSON 
 An update whose `rev` is not the viewer's + 1 makes it ask `sync`. Limits per socket: 30 messages a second (a
 burst of 60; past it messages are dropped with one error); a switch every 2 s; past 4 × the rate for 2 s the socket
 is closed (1008). At most 200 sockets (1013 past it). The server pings every 25 s (Cloudflare closes idle sockets at
-100 s). Clients reconnect after 0.5 s, doubling to 8 s, with jitter, and get the whole state again.
+100 s). Clients reconnect after 0.5 s, doubling to 8 s, with jitter, for good, and get the whole state again. Until a
+state comes, the pages say so: after 10 s "Can't reach the stage. Retrying…", and after a close with 1013 "The stage
+is full. Retrying…".
 `set` names only the look's macros; `layers` only its layer ids.
 
 ## Following /pi
@@ -97,7 +99,10 @@ GET /api/live          → { live, now, control }
 GET /api/live/looks    → { looks: [listed] }   what a controller may play (STUDIO_LIVE_LOOKS); 403 otherwise
 ```
 
-The live state is kept in `<data>/live.json`, written a second after a change, so a restart plays on.
+The live state is kept in `<data>/live.json`, written a second after a change and at shutdown (whole, to a temporary
+renamed over it), so a restart plays on. At start it is read back through `SavedLive` (`shared/schemas/live.ts`): a
+file from before a field was added takes that field's default; one that is not a stage's state is logged and the
+stage starts empty.
 
 ## Pages
 

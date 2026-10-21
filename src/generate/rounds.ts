@@ -16,7 +16,7 @@ import { applyEdits, buildEditsRepairMessage, editsSchema, fieldsOf } from './ed
 import { expand } from './expand.ts';
 import { closeUpGroups } from './frames-closeup.ts';
 import { viewFrames } from './frames-view.ts';
-import { NO_ROUND, type Round } from './idea-log.ts';
+import { NO_ROUND, ownerOutcome, type Round } from './idea-log.ts';
 import type { Adapter, Context, Repair } from './index.ts';
 import type { Composition } from './refine.ts';
 import type { Logger } from '../http.ts';
@@ -191,7 +191,7 @@ export async function compose(o: { adapter: Adapter, ctx: Context, catalog: Cata
       outcome = `failed: ${why(err)}`;
     }
     round.end({ outcome, ...(warnings.length ? { warnings } : {}), notes: sent });
-    outcomes.push(outcome);
+    outcomes.push(ownerOutcome(outcome)); // the critique's outcome becomes the idea's verdict
   }
   if (outcomes.length) critique = { ms: monoNow() - t0, outcome: outcomes.join(', ') };
   return { raw: cur.raw, look, uses: cur.x.uses, rounds, check: seen ? checkMs : undefined, critique, seen };

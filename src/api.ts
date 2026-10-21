@@ -17,7 +17,7 @@ import type { Queue } from './app.ts';
 import { type createBakeQueue, removeFrames } from './bake.ts';
 import type { createFramesCache } from './frames-cache.ts';
 import { framesRoutes } from './frames-http.ts';
-import type { IdeaLogs } from './generate/idea-log.ts';
+import { type IdeaLogs, ownerOutcome } from './generate/idea-log.ts';
 import type { Registry } from './generate/models.ts';
 import type { LightStore } from './light.ts';
 import type { Reports } from './reports/store.ts';
@@ -39,6 +39,12 @@ declare module 'fastify' {
   interface FastifyRequest { user: Stored | null }
   interface FastifyContextConfig { public?: boolean }
 }
+
+/** An idea as its owner gets it: a failed round's error (an older idea may still hold one) left to the admin's log. */
+const forOwner = (idea: Idea): Idea => ({ ...idea,
+  ...(idea.rounds ? { rounds: idea.rounds.map((r) => (r.outcome ? { ...r, outcome: ownerOutcome(r.outcome) } : r)) }
+    : {}),
+  ...(idea.verdict ? { verdict: ownerOutcome(idea.verdict) } : {}) });
 
 /** Hand an idea to the generator queue; if that fails, mark the idea failed. */
 export function enqueueIdea({ queue, store, log }: { queue: Queue, store: Pick<Store, 'ideas'>, log: Logger },
@@ -143,7 +149,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       'GET /me': async (req) => ({ user: auth.publicUser(req.user), flash, access: access.state(req.user!) }),
 
       'GET /ideas': async (req) => ({ ideas: store.ideas.list((i) => i.owner === req.user!.id).reverse()
-        .sort(newestBy('createdAt')) }),
+        .sort(newestBy('createdAt')).map(forOwner) }),
       'POST /ideas': async (req, reply) => {
         const { text, model, explore: asked } = parse(IdeaBody, req.body);
         const picked = models.pick(model, auth.roleOf(req.user), { paid: access.state(req.user!).unlocked });
@@ -190,15 +196,15 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       'GET /ideas/:id': async (req, reply) => {
         const idea = own(req), seen = (req.query as { wait?: unknown }).wait;
         if (!isPending(idea) || seen !== `${idea.status}@${idea.updatedAt}` || !queue.watch
-          || (waits.get(req.user!.id) ?? 0) >= WAITS_PER_USER) return { idea };
+          || (waits.get(req.user!.id) ?? 0) >= WAITS_PER_USER) return { idea: forOwner(idea) };
         await changed(req, reply, idea);
-        return { idea: own(req) };
+        return { idea: forOwner(own(req)) };
       },
       // An undone refinement (SPEC-generators "Refine history"): the Studio put its look back; history skips it.
       'POST /ideas/:id/undo': async (req) => {
         const idea = own(req);
         if (!idea.refine || idea.status !== 'ready') throw new HttpError(409, 'Only a finished refinement is undone.');
-        return { idea: await store.ideas.update(idea.id, { undone: true }) };
+        return { idea: forOwner(store.ideas.update(idea.id, { undone: true })!) };
       },
       ...modelRoutes({ auth, models, access }),
       ...lightRoutes({ auth, light: o.light }),
