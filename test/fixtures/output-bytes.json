@@ -37,6 +37,7 @@
    "preset:rose-chase": "bcdd2827ed993bc9",
    "preset:rose-bloom": "f389f9f3d54b3f00",
    "preset:tunnel": "656b7f172fd883de",
+   "preset:one-petal-kaleido": "1f786d5fc53f82a6",
    "preset:starfield": "40f7c23a9343e4a6",
    "preset:aurora": "2dfe8f9eda5bfc63",
    "preset:storm": "fc5f9b7fa4ef218f",
@@ -169,7 +170,13 @@
    "chain:turbulence": "c4107d0ba3b4ceb7",
    "chain:turbulence/warp": "bdae4313b419acc9",
    "chain:in-turn": "63bf224dc57551b7",
-   "chain:in-turn/warp": "e8ceaa06c26e75f2"
+   "chain:in-turn/warp": "e8ceaa06c26e75f2",
+   "chain:ring-turn": "418931f54d813631",
+   "chain:ring-turn/warp": "3c750fff7987af73",
+   "chain:petal-repeat": "ffe14b4ed973c0ad",
+   "chain:petal-repeat/warp": "b7898b87d6645d0b",
+   "chain:petal-stride": "418931f54d813631",
+   "chain:petal-stride/warp": "22ff7233c6afa2b3"
   },
   "rig-folly.json": {
    "colour-wash": "c10450ca0842f683",
@@ -207,6 +214,7 @@
    "preset:rose-chase": "2a53afc2231cbeb1",
    "preset:rose-bloom": "ce48b24565d4542b",
    "preset:tunnel": "5f07f176b4d2383d",
+   "preset:one-petal-kaleido": "b8c685a430c0ec8b",
    "preset:starfield": "81f797f163a3fe44",
    "preset:aurora": "3ff205317482f6af",
    "preset:storm": "a2fab9bd2a22871e",
@@ -339,7 +347,13 @@
    "chain:turbulence": "2b8e61b7b0dca31e",
    "chain:turbulence/warp": "d5db88a63dbfcc94",
    "chain:in-turn": "cbbedd93772917a8",
-   "chain:in-turn/warp": "fa506ccd5e0e931a"
+   "chain:in-turn/warp": "fa506ccd5e0e931a",
+   "chain:ring-turn": "f85e987ea16dcd8a",
+   "chain:ring-turn/warp": "2e6cc45ce386139c",
+   "chain:petal-repeat": "783b43a9d969ac5d",
+   "chain:petal-repeat/warp": "63d80f97c2ba4101",
+   "chain:petal-stride": "f85e987ea16dcd8a",
+   "chain:petal-stride/warp": "4c57b65c868b73c2"
   }
  }
 }
