@@ -43,10 +43,6 @@ test.beforeAll(async () => {
   });
 });
 test.afterAll(() => engine?.kill('SIGKILL'));
-// A failure says what the engine said last.
-test.afterEach(({}, info) => {
-  if (info.status !== info.expectedStatus) console.info(lines.slice(-6).join('\n'));
-});
 
 /** The engine's latest stats line: `{ by, on, missed, watts }`, the relay's null when no one relays. */
 const stats = () => {
