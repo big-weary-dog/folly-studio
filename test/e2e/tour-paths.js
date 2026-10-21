@@ -209,7 +209,7 @@ export async function playMoves(page, t) {
   }, 'moves-fader');
   await step(t, 'Automation', ['dock:timeline', 'automate'], async () => {
     await t.at('dock:timeline').click();
-    await t.at('automate').click();   // + Automate… loads the lanes; their own + Automate… picks one
+    await t.at('automate').click();   // load the lanes, then choose a macro
     await t.ring('dock:timeline', 'automate');
     await t.at('automate').selectOption({ index: 1 });
   }, 'moves-automate');

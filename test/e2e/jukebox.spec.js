@@ -67,6 +67,9 @@ test('a curator runs the lights from /live in both modes; a member watches', asy
   for (const title of ['Ember choir', 'Slow fire', 'Night procession']) looks.push((await call('POST', '/api/looks',
     FIRE(title))).look);
   await expect.poll(async () => (await call('GET', '/api/lights')).engine).toBe(true);
+  // Their gallery previews, for the preview a pick opens.
+  await expect.poll(async () => (await call('GET', '/api/looks')).looks.filter((l) => l.preview).length,
+    { timeout: 30_000 }).toBe(3);
   const dir = process.env.LIGHTS_SHOTS;
   const shot = (page, name) => page.screenshot({ path: dir ? path.join(dir, `${name}.png`)
     : info.outputPath(`${name}.png`) });
@@ -98,8 +101,11 @@ test('a curator runs the lights from /live in both modes; a member watches', asy
     await page.getByRole('searchbox', { name: 'Find a look' }).fill('night');
     await expect(page.locator('.lp-tile')).toHaveCount(1);
     await page.locator('.lp-tile').click();
-    await expect(page.getByRole('region', { name: 'Add Night procession' })).toContainText('plays live');
-    await page.getByRole('button', { name: 'Add to the end' }).click();
+    const preview = page.getByRole('dialog', { name: 'Night procession' });
+    await expect(preview).toContainText('plays live');
+    await expect(preview.getByRole('img', { name: /gallery preview/ })).toBeVisible();
+    await shot(page, `preview-${size}`);
+    await preview.getByRole('button', { name: 'Add to the end' }).click();
     if (size === 'phone') await expect(h1).toBeVisible();
     await expect(page.locator('.lp-q')).toHaveCount(3);
     expect(await fits()).toBe(true);
@@ -112,8 +118,16 @@ test('a curator runs the lights from /live in both modes; a member watches', asy
     await expect(page.getByText('Live Play', { exact: true })).toBeVisible({ timeout: 10_000 });
     if (size === 'phone') await page.getByRole('button', { name: /^Up next/ }).click();
     await page.getByRole('button', { name: /Add a look/ }).first().click();
+    // A pick previews it first: closing it changes nothing.
+    await page.getByRole('button', { name: /^Slow fire/ }).click();
+    const cue = page.getByRole('dialog', { name: 'Slow fire' });
+    await expect(cue.getByRole('img', { name: /gallery preview/ })).toBeVisible();
+    await shot(page, `preview-live-${size}`);
+    await cue.getByRole('button', { name: 'Close' }).click();
+    await expect(cue).toBeHidden();
     await page.getByRole('button', { name: 'The lights\' own' }).click();
     await page.getByRole('button', { name: /^Fire/ }).click();
+    await page.getByRole('button', { name: 'Cue it' }).click();
     await page.getByRole('button', { name: /^Fade to Fire/ }).click();
     await expect(h1).toHaveText('Fire', { timeout: 10_000 });
     await expect(page.getByRole('slider', { name: 'Master' })).toBeVisible();

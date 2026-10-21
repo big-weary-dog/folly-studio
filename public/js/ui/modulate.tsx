@@ -15,7 +15,7 @@ import {
 import { BeatClock } from './beat-clock.tsx';
 import { Drawer, useDrawer } from './drawer.tsx';
 import { Field } from './kit.tsx';
-import { type ModCtx, NowBar, Wave } from './mod-live.tsx';
+import { boundValue, type ModCtx, normNow, NowBar, Wave } from './mod-live.tsx';
 
 export { BoundChip, type ModCtx } from './mod-live.tsx';
 
@@ -30,7 +30,12 @@ export function ModButton({ p, value, now, ctx, put, label, title }: { p: Param;
       onClick={() => { if (!d.open) restart(value); d.toggle(); }}>∿</button>
     <Drawer d={d} title={label} class="mod-drawer" actions={<button type="button" class="btn small ghost"
       onClick={() => { put(at.start); restart(at.start); }}>Revert</button>}>
-      <ModPanel key={at.n} p={p} start={at.start} now={now} ctx={ctx} put={put} /></Drawer></>;
+      <ModPanel key={at.n} p={p} start={at.start} now={now} ctx={ctx} put={put}
+        automate={ctx.automate ? () => {
+          const v = ctx.self ? p.min + normNow(ctx, ctx.self) * (p.max - p.min)
+            : isBinding(value) ? boundValue(value, p, ctx, ctx.t(), p.kind === 'color') : now;
+          if (ctx.automate!(p, v, ctx.self)) d.hide();
+        } : undefined} /></Drawer></>;
 }
 
 const KINDS: [BindingForm['mod'], string][] = [['lfo', 'LFO'], ['global', 'Macro'], ['', 'Off']];
@@ -44,8 +49,8 @@ function follows(ctx: ModCtx) {
 }
 
 /** The popover's body: what moves the param, each kind's fields, applied as they change. */
-function ModPanel({ p, start, now, ctx, put }: { p: Param; start: ParamValue | undefined; now: number;
-  ctx: ModCtx; put: (v: ParamValue | undefined) => void }) {
+function ModPanel({ p, start, now, ctx, put, automate }: { p: Param; start: ParamValue | undefined; now: number;
+  ctx: ModCtx; put: (v: ParamValue | undefined) => void; automate?: () => void }) {
   const bpm = ctx.look().bpm || 120, { modulators, faders } = follows(ctx);
   const names = [...modulators.map(([n]) => n), ...faders];
   const fresh = () => bindingForm(isBinding(start) ? start : {}, p, names, now, bpm);
@@ -77,7 +82,9 @@ function ModPanel({ p, start, now, ctx, put }: { p: Param; start: ParamValue | u
   }
   return <div class="mod-panel">
     <div class="mod-kinds mod-segs" role="group" aria-label="Moved by" data-tour="mod-kinds">
-      {seg('mod', ctx.self ? SELF_KINDS : KINDS)}</div>
+      {seg('mod', ctx.self ? SELF_KINDS : KINDS)}
+      {automate && <button type="button" class="btn small mod-seg" onClick={automate}
+        title="Create a lane in the timeline for this setting">Automate</button>}</div>
     {old && <p class="mod-note mod-old">{old}<button type="button" class="btn small"
       onClick={() => set({ mod: '' })}>Off</button></p>}
     {f.mod === 'beats' && !ctx.self && <p class="mod-note">In time with the beat: the clock beside its field sets

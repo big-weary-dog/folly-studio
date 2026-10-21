@@ -1,19 +1,22 @@
 // Automation lanes under the timeline's layers (SPEC "Looks"): a lane per automated macro, its
 // points joined by straight lines and held at either end. Click a lane to add a point, drag one to move it,
 // double-click one to remove it.
-import { useLayoutEffect, useRef } from 'preact/hooks';
+import { useId, useLayoutEffect, useRef } from 'preact/hooks';
 
-import { MAX_POINTS } from '../core/globals.ts';
+import { MAX_MACROS, MAX_POINTS } from '../core/globals.ts';
 import type { Automation } from '../../../shared/schemas/look.ts';
 import { humanize } from './kit.tsx';
+import { automate } from './automation-edit.ts';
 import type { Studio } from './studio-store.ts';
 import { clock } from './timeline-model.ts';
 import type { TimelineState } from './timeline-state.ts';
 
-const H = 34, PAD = 4;              // lane height and the room kept above and below the line (px)
+const H = 42, PAD = 8;              // room for full endpoint circles, including their strokes
 type Range = { min: number; max: number; value: number };
 type Point = [number, number];
 const r3 = (v: number) => Math.round(v * 1000) / 1000;
+
+export const automationLevel = (v: number, range: Range) => v <= range.min ? 'low' : v >= range.max ? 'high' : 'mid';
 
 export function AutoLanes({ st, tl, focus }: { st: Studio; tl: TimelineState; focus: boolean }) {
   const L = st.look.value, auto = L.automation || {}, add = useRef<HTMLSelectElement>(null);
@@ -34,9 +37,11 @@ export function AutoLanes({ st, tl, focus }: { st: Studio; tl: TimelineState; fo
     <div class="tl-auto">
       <div class="tl-auto-head"><div class="tl-corner tl-auto-corner">Automation</div>
         <div class="tl-auto-tools"><select class="tl-auto-add" ref={add} aria-label="Automate a macro" value=""
-          data-tour="automate" disabled={!free.length} onChange={(e) => addLane(e.currentTarget.value)}>
-          <option value="">{free.length ? '+ Automate…' : ranges.size ? 'All automated' : 'No macros'}</option>
-          {free.map((n) => <option value={n}>{humanize(n)}</option>)}</select></div></div>
+          data-tour="automate" disabled={!free.length && ranges.size >= MAX_MACROS}
+          onChange={(e) => e.currentTarget.value === ':new' ? automate(st) : addLane(e.currentTarget.value)}>
+          <option value="">+ Automate…</option>
+          {free.map((n) => <option value={n}>{humanize(n)}</option>)}
+          <option value=":new" disabled={ranges.size >= MAX_MACROS}>New automation…</option></select></div></div>
       <div class="tl-auto-lanes">
         {Object.keys(auto).filter((n) => ranges.has(n)).map((n) => <Lane key={n} name={n} pts={auto[n]!}
           range={ranges.get(n) as Range} tl={tl} get={() => st.look.peek().automation?.[n] || []}
@@ -48,6 +53,7 @@ export function AutoLanes({ st, tl, focus }: { st: Studio; tl: TimelineState; fo
 function Lane({ name, pts, range, tl, get, set }: { name: string; pts: Point[]; range: Range; tl: TimelineState;
   get: () => Point[]; set: (pts: Point[] | null) => void }) {
   const svg = useRef<SVGSVGElement>(null), drag = useRef<Point | null>(null);
+  const gradient = useId();
   const w = tl.contentW.value || 1, pps = tl.pps.value, span = range.max - range.min || 1;
   const xy = pts.map(([t, v]) => [t * pps, PAD + (1 - (v - range.min) / span) * (H - 2 * PAD)]);
   const line = [[0, xy[0][1]], ...xy, [w, xy[xy.length - 1][1]]].map((p) => p.join(',')).join(' ');
@@ -96,8 +102,16 @@ function Lane({ name, pts, range, tl, get, set }: { name: string; pts: Point[]; 
         <svg class="tl-auto-svg" ref={svg} width={w} height={H} viewBox={`0 0 ${w} ${H}`} role="img"
           aria-label={`${name}: ${pts.map(([t, v]) => `${clock(t)} ${v}`).join(', ')}`} onPointerDown={down}
           onPointerMove={move} onPointerUp={up} onPointerCancel={up} onDblClick={remove}>
-          <polyline class="tl-auto-line" points={line} />
-          {xy.map(([x, y], i) => <circle class="tl-auto-dot" r={4.5} cx={x} cy={y} data-i={i} />)}
+          <defs><linearGradient id={gradient} gradientUnits="userSpaceOnUse" x1="0" x2="0" y1={PAD} y2={H - PAD}>
+            <stop offset="0" class="tl-auto-high" /><stop offset="0.5" class="tl-auto-mid" />
+            <stop offset="1" class="tl-auto-low" /></linearGradient></defs>
+          <polyline class="tl-auto-line" points={line} style={{ stroke: `url(#${gradient})` }} />
+          {xy.map(([x, y], i) => <g>
+            <circle class="tl-auto-dot" r={5.5} cx={x} cy={y} data-i={i}
+              data-level={automationLevel(pts[i][1], range)} />
+            {automationLevel(pts[i][1], range) === 'mid' && <path class="tl-auto-half"
+              d="M 0 -5.5 A 5.5 5.5 0 0 0 0 5.5 Z" transform={`translate(${x} ${y})`} />}
+          </g>)}
         </svg>
       </div>
     </div>);
