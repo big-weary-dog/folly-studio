@@ -33,12 +33,13 @@ afterEach(() => {
 });
 
 describe('updates', () => {
-  test('unsaved: the Studio\'s edits, a field being typed in, or text in a form; not the store\'s own text', () => {
+  test('unsaved: the Studio\'s edits, a field being typed in, or text in a form; not the store\'s, left', () => {
     assert.equal(unsaved(doc([{ tag: 'textarea', kept: true, value: 'code' }])), false);
     assert.equal(unsaved(doc([{ tag: 'textarea', value: '  ' }])), false);
     assert.equal(unsaved(doc([{ tag: 'textarea', value: 'an idea' }])), true);
     assert.equal(unsaved(doc([], { tag: 'input' })), true);
-    assert.equal(unsaved(doc([], { tag: 'textarea', kept: true })), false);
+    assert.equal(unsaved(doc([{ tag: 'textarea', kept: true, value: 'X...' }])), false, 'a left param\'s lines');
+    assert.equal(unsaved(doc([], { tag: 'textarea', kept: true, value: 'X...' })), true, 'lines being typed');
     assert.equal(unsaved(doc([], { tag: 'div' })), false);
     leaveGuard.isDirty = () => true;
     assert.equal(unsaved(doc([])), true);

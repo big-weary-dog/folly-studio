@@ -4,7 +4,8 @@
 import { leaveGuard } from './session.ts';
 
 const MARK = 'folly-reloaded-for', EVERY = 5 * 60_000;
-/** Text controls whose text is the store's (the code editor, a param's lines): what the store's dirty flag covers. */
+/** Text controls whose text, once left, is the store's (the code editor, a param's lines): the dirty flag covers
+ *  them. Focused, any text control counts: a param's lines reach the store only on leaving it. */
 const KEPT = '[data-kept]';
 
 /** The commit /build.json names, or null (none: a dev server, or the network is down). */
@@ -21,8 +22,8 @@ async function served(): Promise<string | null> {
 export function unsaved(doc: Document = document) {
   if (leaveGuard.isDirty?.()) return true;
   const a = doc.activeElement;
-  if (a?.matches('textarea, [contenteditable], input:not([type=checkbox], [type=radio], [type=button], [type=range])')
-    && !a.matches(KEPT)) return true;
+  if (a?.matches('textarea, [contenteditable], input:not([type=checkbox], [type=radio], [type=button], [type=range])'))
+    return true;
   return [...doc.querySelectorAll<HTMLTextAreaElement>(`textarea:not(${KEPT})`)].some((t) => t.value.trim() !== '');
 }
 
