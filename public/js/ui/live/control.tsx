@@ -1,5 +1,5 @@
 // /live/control: the phone controller for the live stage (SPEC-live "Pages"). Pick a look, Blackout, a fader for each
-// global and macro the look has, and per layer a level and a mute, all built from the look's data. Changes go over
+// macro the look has, and per layer a level and a mute, all built from the look's data. Changes go over
 // the stage's socket; what every viewer shows follows within about 100 ms.
 import '../../../css/live.css';
 
@@ -14,7 +14,6 @@ import { controlsNow } from './lanes.ts';
 import { liveSocket, troubleText } from './socket.ts';
 
 const TICK_MS = 250;     // lanes move: the faders follow them this often
-const LABELS: Record<string, string> = { level: 'Intensity' };
 
 export function ControlPage() {
   const ref = useRef<ReturnType<typeof liveSocket> | null>(null);
@@ -77,7 +76,7 @@ export function ControlPage() {
       {live && look && <>
         <h2>Look</h2>
         {controlsNow(live, sock.now()).map((c) => <Fader key={`${look.id}:${c.name}`}
-          label={LABELS[c.name] ?? humanize(c.name)} min={c.min} max={c.max} value={c.value} held={c.held}
+          label={humanize(c.name)} min={c.min} max={c.max} value={c.value} held={c.held}
           onSet={(v) => set({ [c.name]: v })} onRelease={() => sock.send({ type: 'set', release: [c.name] })} />)}
         <h2>Layers</h2>
         {look.layers.map((l) => {
