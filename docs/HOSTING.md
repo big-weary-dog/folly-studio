@@ -275,13 +275,14 @@ them.
 | `STUDIO_LIVE_LOOKS` | what may play on /live, default reviewed |
 | `STUDIO_PREVIEWS` | the gallery previews' camera, default playa (the Pi: front) |
 | `PI_PREVIEW_URL` | a Studio Live engine on this machine, at /pi (here a dry run; the Pi's own on it) |
+| `PI_PIN` | the engine's PIN, if it has one: Studio's feed says it to play on the lights; a secret |
 | `GIT_SHA` | the build's commit, for bug reports (default: the checkout's) |
 | `STUDIO_BAKE_SECONDS` | the longest render-box bake, default 120 |
 | `STUDIO_BAKE_TIMEOUT` | a bake's wall clock, default scaled to its length |
 | `STUDIO_BAKE_CPU` | a bake's CPU seconds, default scaled to its length |
 | `STUDIO_BAKE_TASKS` | a bake's task ceiling, default 256 |
-| `STUDIO_BAKE_NICE` | a bake's nice level (0–19), default 10 |
-| `STUDIO_BAKE_MEMORY` | a bake's memory cap, default 1GB |
+| `STUDIO_BAKE_NICE` | a bake's nice level (0–19), default 10 (the Pi: 19) |
+| `STUDIO_BAKE_MEMORY` | a bake's memory cap, default 1GB (the Pi: 384MB) |
 | `STUDIO_BAKE_MAX_FRAMES` | the largest baked frames, default room for the longest bake |
 | `ANTHROPIC_API_KEY` | the Messages API key (Opus); a secret |
 | `ANTHROPIC_BASE_URL` | the Messages API, default https://api.anthropic.com |

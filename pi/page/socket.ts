@@ -1,5 +1,6 @@
-// The page's socket to the Pi: it reconnects on its own (backing off to 5 s), says hello with the PIN it was given
-// (kept for this tab), and holds the latest state and when it came, so the beat can run on between states.
+// The page's socket to the Pi (`path`, beside the page unless said): it reconnects on its own (backing off to 5 s),
+// says hello with the PIN it was given (kept for this tab), and holds the latest state and when it came, so the beat
+// can run on between states.
 import { signal } from '@preact/signals';
 
 import type { FromPage, PiState, ToPage } from '../src/protocol.ts';
@@ -8,7 +9,7 @@ const PIN_KEY = 'studio-pi-pin';
 const stored = () => { try { return sessionStorage.getItem(PIN_KEY) ?? ''; } catch { return ''; } };
 const store = (pin: string) => { try { sessionStorage.setItem(PIN_KEY, pin); } catch { /* private mode */ } };
 
-export function piSocket() {
+export function piSocket(path = 'ws') {
   const status = signal<'connecting' | 'open' | 'closed'>('connecting');
   const state = signal<PiState | null>(null), at = signal(0);
   const needPin = signal(false), error = signal('');
@@ -18,8 +19,8 @@ export function piSocket() {
   const send = (m: FromPage) => { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(m)); };
   function open() {
     status.value = 'connecting';
-    // Beside the page, wherever it is served (/ws, or /pi/ws behind Studio's proxy).
-    const url = new URL('ws', location.href);
+    // Beside the page, wherever it is served (/ws, or /pi/ws behind Studio's proxy), or Studio's /live's /pi/ws.
+    const url = new URL(path, location.href);
     url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(url);
     ws.onopen = () => { wait = 500; status.value = 'open'; send({ type: 'hello', ...(pin ? { pin } : {}) }); };

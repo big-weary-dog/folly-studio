@@ -7,8 +7,8 @@ import { useEffect, useState } from 'preact/hooks';
 
 import { api } from '../api.ts';
 import { encode, LIGHT, LIGHT_LIMITS, type Light, lightByte, lightOf, shownLight } from '../core/light.ts';
-import { cx, download, Field, Scrub, toast } from './kit.tsx';
-import { setTitle } from './session.ts';
+import { cx, download, Field, Scrub, Switch, toast } from './kit.tsx';
+import { onPi, setTitle } from './session.ts';
 
 const COLOURS = ['Red', 'Green', 'Blue'];
 // The values the curve table shows: full, the usual dims, and the bottom where 8 bits run out.
@@ -57,6 +57,7 @@ export function LightPage() {
       <Preview draft={draft} set={set} />
       <Trims draft={draft} set={set} />
       <Controller draft={draft} set={set} />
+      {onPi() && <LiveLooks />}
       <p class="form-error" role="alert" hidden={!error}>{error}</p>
       <div class="models-actions">
         <button class="btn ghost" type="button" onClick={() => download(`${JSON.stringify(saved, null, 2)}\n`,
@@ -120,6 +121,24 @@ function Trims({ draft, set }: { draft: Light; set: (p: Partial<Light>) => void 
         Remove</button></>}</Field>)}
     <button class="btn ghost" type="button" onClick={() => set({ trims: [...draft.trims, { tag: '', level: 1 }] })}>
       Add a trim</button>
+  </section>;
+}
+/** On the Pi: whether Studio may play library looks live on the lights (SPEC-offline "Playing on the lights"); saved
+ * as it is switched, apart from the settings above. */
+function LiveLooks() {
+  const [on, setOn] = useState<boolean | null>(null), [busy, setBusy] = useState(false);
+  useEffect(() => { api.lights().then((l) => setOn(l.liveLooks), () => {}); }, []);
+  const change = (next: boolean) => {
+    setBusy(true);
+    api.saveLights(next).then((l) => { setOn(l.liveLooks); toast(l.liveLooks ? 'Library looks play live.'
+      : 'Only baked looks play on the lights.', { kind: 'ok' }); }, (e) => toast(e.message, { kind: 'error' }))
+      .finally(() => setBusy(false));
+  };
+  return <section class="models-panel" aria-label="On the lights">
+    <Switch label="Live library looks on the lights" class="end" checked={!!on} disabled={on === null || busy}
+      onChange={change} />
+    <p class="field-hint">On: a look made only of library modules plays live from Studio, its controls working.
+      Off: only baked looks play. A look with custom code always needs a bake, made where bubblewrap is.</p>
   </section>;
 }
 
