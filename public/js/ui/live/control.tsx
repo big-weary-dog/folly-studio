@@ -40,7 +40,7 @@ export function ControlPage() {
   useEffect(() => { if (error) { toast(error, { kind: 'warn' }); sock.error.value = ''; } }, [error]);
   void sock.rev.value;
   const live = sock.live, look = live?.look, trouble = troubleText(sock.trouble.value);
-  if (!live && (sock.status.value !== 'open' || trouble)) {
+  if (!live) {     // no state yet, whether or not the socket opened
     return <section class="live-control"><p role="status">{trouble || 'Connecting to the stage…'}</p></section>;
   }
   if (!control) {
