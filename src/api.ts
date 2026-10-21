@@ -10,6 +10,7 @@ import { accessRoutes, sendRefusal } from './api-access.ts';
 import { ideaLogRoutes } from './api-idea-log.ts';
 import { lightRoutes } from './api-light.ts';
 import { reportRoutes } from './api-reports.ts';
+import { tourRoutes } from './api-tour.ts';
 import { lookRoutes } from './api-looks.ts';
 import { modelRoutes } from './api-models.ts';
 import { type Auth, COOKIE_NAME, SESSION_TTL_MS } from './auth.ts';
@@ -200,6 +201,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         if (!idea.refine || idea.status !== 'ready') throw new HttpError(409, 'Only a finished refinement is undone.');
         return { idea: await store.ideas.update(idea.id, { undone: true }) };
       },
+      ...tourRoutes({ store }),
       ...modelRoutes({ auth, models, access }),
       ...lightRoutes({ auth, light: o.light }),
       ...ideaLogRoutes({ auth, logs: o.ideaLogs }),
