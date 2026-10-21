@@ -6,20 +6,13 @@
 .relay-says { flex-basis: 100%; margin: 0; color: var(--text-3); }
 .relay-says.error { color: #ffbccb; }
 .relay-live { color: var(--emerald); font-weight: 650; }
-/* the editor's: To the lights in the transport, the panel in its popover */
-.tp-lights { display: inline-flex; align-items: center; gap: 6px; flex: none; white-space: nowrap; }
-.tp-lights-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
+/* the editor's: To the lights relaying, the panel in its popover */
 .tp-lights.on .tp-lights-dot { background: var(--amber); }
 .tp-lights.live .tp-lights-dot { background: var(--emerald); box-shadow: 0 0 6px var(--emerald); }
 .tp-lights-pop { position: fixed; inset: auto; width: 320px; margin: 0; padding: 0; color: var(--text);
   background: var(--night-1); border: 0; box-shadow: 0 0 0 1px rgb(0 0 0 / .6), var(--shadow); }
 .tp-lights-pop .relay-panel { padding: 10px 12px; }
-/* a phone's transport: the short label */
-.tp-lights-short { display: none; }
 @media (max-width: 899px) {
-  .tp-lights { padding-inline: 8px; }
-  .tp-lights-long { display: none; }
-  .tp-lights-short { display: inline; }
   .tp-lights-pop.sheet { inset: auto 0 0; width: 100%; max-height: 80dvh; }
   .tp-lights-pop.sheet::backdrop { background: rgb(6 4 11 / .45); }
 }

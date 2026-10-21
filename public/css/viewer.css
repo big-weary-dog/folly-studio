@@ -2,7 +2,14 @@
 .view-modes { display: flex; pointer-events: auto; }
 .view-modes .quality-btn { margin-left: 4px; min-width: 52px; font-weight: 500; }
 .view-modes .quality-btn[hidden] { display: none; }
+/* To the lights in the transport (its popover: relay.css); a phone's says Lights */
+.tp-lights { display: inline-flex; align-items: center; gap: 6px; flex: none; white-space: nowrap; }
+.tp-lights-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
+.tp-lights-short { display: none; }
 @media (max-width: 899px) {
+  .tp-lights { padding-inline: 8px; }
+  .tp-lights-long { display: none; }
+  .tp-lights-short { display: inline; }
   .studio .view-compact { gap: 6px; }
   .view-compact .view-select { min-width: 0; flex: 0 1 120px; }
   .view-compact .unlit-btn, .view-compact .venue-btn,
