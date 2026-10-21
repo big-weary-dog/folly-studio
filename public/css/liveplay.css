@@ -92,7 +92,8 @@ button.lp-next { cursor: pointer; }
 .lp-h2 .lp-pad { min-height: 44px; }
 .lp-h2-acts { display: flex; gap: 6px; margin-left: auto; }
 .lp-h1 { margin: 0; font-size: 22px; font-weight: 700; }
-.lp-pill { padding: 2px 8px; border: 2px solid var(--amber); border-radius: var(--radius); color: var(--amber);
+.lp-pill { display: inline-block; white-space: nowrap; padding: 2px 8px;
+  border: 2px solid var(--amber); border-radius: var(--radius); color: var(--amber);
   font-size: 12px; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; }
 .lp-row { display: flex; gap: 8px; }
 .lp-row > .lp-pad { flex: 1; }
@@ -122,8 +123,8 @@ button.lp-next { cursor: pointer; }
 .lp-tab small { color: var(--text-2); font: 12px var(--mono); }
 .lp-tabs > .lp-pad:not(.lp-pg) { min-height: 44px; }
 .lp-bank { flex: 1 1 0; min-height: 160px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px; }
-.lp-strip { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  grid-template-rows: minmax(0, 1fr); gap: 8px; }
+.lp-strip { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
 .lp-strip.vacant { border: 2px dashed var(--night-4); border-radius: var(--radius); justify-content: center; }
 .lp-strip.vacant .lp-sl { height: auto; color: var(--text-3); font-weight: 500; }
 .lp-sl { height: 36px; flex: none; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2;
@@ -146,7 +147,7 @@ button.lp-next { cursor: pointer; }
 .locked .lp-track { cursor: default; background: var(--night-0); border: 2px dashed #5a4d72; box-shadow: none; }
 .locked .lp-track i { background: var(--night-4); }
 .locked .lp-track u { background: var(--text-2); }
-.lp-pal { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
+.lp-pal { flex: 1; min-height: 44px; overflow: hidden; display: flex; flex-direction: column; gap: 4px; }
 .lp-pb { flex: 1; min-height: 44px; display: flex; flex-direction: column; justify-content: center; gap: 3px;
   padding: 3px 5px; overflow: hidden; color: var(--text-2); font: 600 12px var(--font); text-align: left;
   cursor: pointer;

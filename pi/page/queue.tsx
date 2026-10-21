@@ -1,26 +1,13 @@
 // The queue (SPEC-liveplay "The page"): what plays next, numbered, with who queued it, what it is, its length and
 // when it starts; ↑ moves one up, × takes it off, Fade to next goes on now. As many rows as the height left holds;
 // past them, "N more" pages on. The flash guard's pause says so.
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useState } from 'preact/hooks';
 
 import { cx } from '../../public/js/ui/kit.tsx';
-import { allIn, clock, etas, kindWord, type Model } from './model.ts';
+import { allIn, clock, etas, kindWord, type Model, useFits } from './model.ts';
 import type { PiSocket } from './socket.ts';
 
 const ROW = 56, GAP = 6;
-
-/** How many `size` px rows (with `gap` between) `el`'s height holds, kept as it resizes. */
-export function useFits(size: number, gap: number) {
-  const ref = useRef<HTMLElement>(null), [fits, setFits] = useState(4);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return undefined;
-    const ro = new ResizeObserver(() => setFits(Math.max(1, Math.floor((el.clientHeight + gap) / (size + gap)))));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  return [ref, fits] as const;
-}
 
 const Arrow = ({ d }: { d: string }) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
   stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -36,8 +23,8 @@ export function Queue({ m, sock, onAdd, wide }: { m: Model, sock: PiSocket, onAd
   return <>
     <div class="lp-h2">
       <h2><span class="lp-nw">Up next · {q.length}</span>{q.length > 0 && !loops
-        && <> <span class="lp-nw">· {clock(allIn(s))} in all</span></>}</h2>
-      {s.paused && <span class="lp-pill">Paused</span>}
+        && <> <span class="lp-nw">· {clock(allIn(s))} in all</span></>}{s.paused
+        && <> <span class="lp-pill">Paused</span></>}</h2>
       <span class="lp-h2-acts">
         <button type="button" class="lp-pad" disabled={!q.length || m.lost}
           onClick={() => sock.send({ type: 'next' })}><Arrow d="M5 5l9 7-9 7zM18 5v14" />Fade to next</button>
