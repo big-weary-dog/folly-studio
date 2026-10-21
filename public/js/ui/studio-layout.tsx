@@ -66,10 +66,14 @@ export function StudioLayout({ st, pv, tl, els }: Props & { els: Record<string, 
 
 /** An admin's Delete on someone else's gallery look (SPEC-access): back to the gallery once it is gone. */
 function AdminDelete({ st }: { st: Studio }) {
-  const look = st.server.value;
-  if (!look || !mayDelete(user.value, look, true)) return null;
+  const look = st.server.value, [gone, setGone] = useState('');
+  if (!look || gone === look.id || !mayDelete(user.value, look, true)) return null;
   return <button class="btn small ghost danger-text notice-delete" type="button" aria-label={`Delete ${look.title}`}
-    onClick={async () => { if (await deleteLook(look)) navigate('/gallery', { force: true }); }}>Delete</button>;
+    onClick={async () => {
+      if (!(await deleteLook(look))) return;
+      setGone(look.id);
+      navigate('/gallery', { force: true });
+    }}>Delete</button>;
 }
 
 function Share({ st, cls }: { st: Studio; cls: string }) {
