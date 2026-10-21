@@ -42,6 +42,9 @@ for (const width of [1366, 1920]) {
     expect(colours[0].fill).not.toBe(colours[0].stroke);
     expect(colours[3].fill).toBe(colours[3].stroke);
     await expect(lane.locator('.tl-auto-half')).toHaveCount(1);
+    const end = await lane.locator('.tl-auto-dot').last().boundingBox();     // a point's time and value on hover
+    await page.mouse.move(end.x + 2, end.y + end.height / 2);
+    await expect(lane.locator('.tl-auto-val').last()).toHaveText('0:10 · 2');
     if (width === 1366 && process.env.AUTO_FINAL_SHOTS) {
       await page.screenshot({ path: path.join(process.env.AUTO_FINAL_SHOTS, 'lane-normal-1366.png') });
     }

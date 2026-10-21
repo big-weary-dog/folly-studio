@@ -24,6 +24,7 @@ import type { Preview } from '../public/js/ui/preview.ts';
 import type { Draft, Studio } from '../public/js/ui/studio-store.ts';
 import { createTimeline } from '../public/js/ui/timeline-state.ts';
 import { automationLevel } from '../public/js/ui/timeline-auto.tsx';
+import { laneNow } from '../public/js/ui/look-globals.tsx';
 import { automationEdit } from '../public/js/ui/automation-edit.ts';
 import { chainWires, isStageEnd, type Layer } from '../public/js/ui/model.ts';
 import type { Module } from '../shared/schemas/look.ts';
@@ -224,6 +225,10 @@ describe('a number as one field, and how a chain is drawn', () => {
       'the popover\'s From/To keep a small end');
     assert.deepEqual([onSpan(0.0123456, 0.05), onSpan(0.5004, 1), onSpan(37.26, 100)], [0.01235, 0.5, 37.3],
       'a lane\'s value to a thousandth of its span');
+    const drift = { value: 0, min: 0, max: 0.05 }, look = { layers: [], globals: { macros: { drift } },
+      automation: { drift: [[0, 0], [16, 0.05]] } } as unknown as Parameters<typeof laneNow>[0];
+    assert.deepEqual([laneNow(look, 'drift', drift, 2), laneNow(look, 'drift', drift, 16)], [0.00625, 0.05],
+      'an automated macro reads its lane now, not its stored 0');
   });
 
   test('each module joins the came; each warp and filter reaches everything above it, to a stage\'s start', () => {
