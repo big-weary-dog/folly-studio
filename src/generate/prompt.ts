@@ -188,7 +188,8 @@ ${examples ? `\n# Worked compositions\n${examples}\n` : ''}
 # What to return
 JSON to the schema. title: short and evocative (at most ${LIMITS.title} characters). summary: one to three sentences
 on what people will see and where (at most ${LIMITS.summary}). layers: bottom first; tags: the tags of what each layer
-is meant for (from the group list), so the look moves to another installation.
+is meant for (from the group list), so the look moves to another installation. critique (of frames shown), plan,
+why: a sentence each.
 An extension: { name, kind, summary, why, code }, \`why\` naming the modules tried and what they lack, used as
 { use: "ext:<name>" }.${docs ? ' Read library/extensions.md first (the pixel, the stdlib, the rules for code).'
     : `\n\n${extensionsPage(pixelRate(rig)).replace(/^# /, '## ')}`}

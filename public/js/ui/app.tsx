@@ -30,6 +30,8 @@ const ROUTES: Route[] = [
   { re: /^\/login\/?$/, name: 'auth', title: 'Sign in', public: true,
     load: () => import('./auth.tsx').then((m) => m.Auth) },
   { re: /^\/ideas\/?$/, name: 'ideas', title: 'Ideas', nav: '/ideas', load: () => pages().then((m) => m.Ideas) },
+  { re: /^\/ideas\/([^/]+)\/how\/?$/, name: 'idea-how', title: 'How it was made', nav: '/ideas', keys: ['ideaId'],
+    load: () => import('./aimode/how.tsx').then((m) => m.IdeaHowPage) },
   { re: /^\/studio(?:\/([^/]+))?\/?$/, name: 'studio', title: 'Studio', nav: '/studio', keys: ['lookId'],
     load: () => import('./studio.tsx').then((m) => m.Studio) },
   { re: /^\/looks\/?$/, name: 'looks', title: 'My looks', nav: '/looks', scope: 'mine',
@@ -175,7 +177,7 @@ function Header({ me, nav }: { me: User; nav?: string }) {
           <div class="user-menu" id="user-menu" popover="auto" onBeforeToggle={placeUserMenu}
             onClick={(e) => { if ((e.target as Element).closest('.btn')) e.currentTarget.hidePopover?.(); }}>
             <button class="btn ghost small" type="button" onClick={() => openTour('menu')}>Tutorials</button>
-            <button class="btn ghost small report-btn" type="button" title="Report a problem (F8)" data-tour="report"
+            <button class="btn ghost small report-btn" type="button" title="Report a problem (F8)"
               onClick={() => { setOpen(false); void fileBugReport(); }}>Report a problem</button>
             <button class="btn ghost small" type="button" onClick={logout}>Log out</button>
           </div>

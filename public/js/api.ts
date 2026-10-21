@@ -1,7 +1,8 @@
 // HTTP API client (SPEC "HTTP API"): JSON in and out, cookie session. A non-2xx response throws an ApiError with the
 // server's message and `status` (0: the server could not be reached).
 import type {
-  Bake, Explore, FlashSettings, Idea, Listed, Look, LookCreate, LookPatch, User, Version, VersionListed,
+  Bake, Explore, FlashSettings, Idea, IdeaHow, IdeaHowLive, Listed, Look, LookCreate, LookPatch, User, Version,
+  VersionListed,
 } from '../../shared/schemas/api.ts';
 import type { Access, Invite, Person, PersonLimits } from '../../shared/schemas/access.ts';
 import type { LightSettings } from '../../shared/schemas/light.ts';
@@ -65,6 +66,9 @@ export const api = {
   /** `wait`: the idea's `status@updatedAt` as last seen; the server answers when that changes (or after 25 s). */
   idea: (id: string, wait?: string) => request<{ idea?: Idea }>('GET',
     `/api/ideas/${enc(id)}${wait ? `?wait=${enc(wait)}` : ''}`),
+  /** How an idea was made (SPEC-generators "How it was made"): its owner's or an admin's. */
+  ideaHow: (id: string) => request<IdeaHow>('GET', `/api/ideas/${enc(id)}/how`),
+  ideaHowLive: (id: string) => request<IdeaHowLive>('GET', `/api/ideas/${enc(id)}/how/live`),
   createIdea: (text: string, model?: string, explore?: Explore) => request<{ idea: Idea }>('POST', '/api/ideas',
     { text, model, explore }),
   models: () => request<ModelChoices>('GET', '/api/models'),
