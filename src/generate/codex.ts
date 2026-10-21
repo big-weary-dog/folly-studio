@@ -114,6 +114,8 @@ export function createCodexAdapter(o: Options = {}) {
     }
     if (!cfg.userConfig) args.push('--ignore-user-config');
     if (cfg.effort) args.push('-c', `model_reasoning_effort="${cfg.effort}"`);
+    // Its reasoning summary comes as `reasoning` items, which the idea log keeps (SPEC-generators "The idea log").
+    args.push('-c', 'model_reasoning_summary="auto"');
     if (schemaFile) args.push('--output-schema', schemaFile);
     return [...args, '-']; // the prompt: stdin
   }
