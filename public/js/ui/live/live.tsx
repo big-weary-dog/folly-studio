@@ -1,23 +1,32 @@
 // /live: the shared stage, full bleed: the 3D view of what plays, its title, who is controlling, the sync (for admins
-// or with ?stats), and for controllers a way to the controller. Nothing here edits; pattern code runs only in this
-// page's sandbox.
+// or with ?stats), and for controllers a way to the controller. On the Pi, curators get the jukebox (jukebox.tsx):
+// the Folly, the track listing and the lights' controls. Pattern code runs only in this page's sandbox.
 import '../../../css/studio.css';
 import '../../../css/live.css';
 
 import { useEffect, useRef } from 'preact/hooks';
 
+import { piSocket } from '../../../../pi/page/socket.ts';
 import { can } from '../../../../shared/policy.ts';
 import { reportPage } from '../bug-report.tsx';
 import { Rose } from '../rose.tsx';
 import { cx } from '../kit.tsx';
-import { setTitle, user } from '../session.ts';
+import { onPi, setTitle, user } from '../session.ts';
+import { JukeboxBar, JukeboxPanel, useView, ViewSwitch } from './jukebox.tsx';
 import { liveSocket, troubleText } from './socket.ts';
 import { createStage } from './stage.ts';
 
 export function LivePage() {
-  const ref = useRef<{ sock: ReturnType<typeof liveSocket>, stage: ReturnType<typeof createStage> } | null>(null);
-  ref.current ??= (() => { const sock = liveSocket(); return { sock, stage: createStage(sock) }; })();
-  const { sock, stage } = ref.current;
+  const ref = useRef<{ sock: ReturnType<typeof liveSocket>, stage: ReturnType<typeof createStage>,
+    lights: ReturnType<typeof piSocket> | null } | null>(null);
+  ref.current ??= (() => {
+    const sock = liveSocket();
+    // The jukebox: curators on the Pi, over the engine's socket behind Studio's /pi.
+    const lights = onPi() && can(user.value, 'curate') ? piSocket('/pi/ws') : null;
+    return { sock, stage: createStage(sock), lights };
+  })();
+  const { sock, stage, lights } = ref.current;
+  const [view, setView] = useView(), shown = lights ? view : 'folly';
   const canvas = useRef<HTMLCanvasElement>(null), host = useRef<HTMLDivElement>(null);
   useEffect(() => {
     stage.start(canvas.current!, host.current!);
@@ -32,8 +41,10 @@ export function LivePage() {
       freeze: (on) => { sock.hold(on); stage.freeze(on); },
       shot: () => stage.viewer?.snapshot() ?? null,
     });
-    return () => { unreport(); stage.destroy(); sock.close(); };
+    return () => { unreport(); stage.destroy(); sock.close(); lights?.close(); };
   }, []);
+  // The 3D view sleeps while the listing or the controls are shown.
+  useEffect(() => { stage.freeze(shown !== 'folly'); }, [shown]);
   void sock.rev.value;
   // Can't reach the stage, or it is full: said over whatever the stage last showed.
   const trouble = troubleText(sock.trouble.value);
@@ -46,7 +57,9 @@ export function LivePage() {
   const driving = fromPi ? null : who.controllers.length ? who.controllers.join(', ') : live?.by?.username;
   return (
     <section class="live-page" aria-label="Live stage">
-      <div class="viewer live-viewer">
+      {lights && <ViewSwitch view={shown} set={setView} />}
+      {lights && shown !== 'folly' && <div class="live-panel"><JukeboxPanel sock={lights} view={shown} /></div>}
+      <div class={cx('viewer live-viewer', shown !== 'folly' && 'off')}>
         <canvas class="viewer-canvas" ref={canvas} tabindex={0} aria-label="The live stage in 3D. Drag to orbit." />
         <div class={cx('viewer-msg', msg?.error && 'error')} role="status" hidden={!msg}>
           {msg && !msg.error && <Rose detail="full" class="rose-loader" />}{msg?.text}</div>
@@ -63,7 +76,8 @@ export function LivePage() {
           <span class="live-sub live-count">{who.viewers} watching</span>
           {(can(user.value, 'admin') || new URLSearchParams(location.search).has('stats'))
             && <span class="live-stats" aria-hidden="true">{stage.stats}</span>}
-          {sock.control.value && <a class="btn small" href="/live/control">Control</a>}
+          {lights ? <JukeboxBar sock={lights} />
+            : sock.control.value && <a class="btn small" href="/live/control">Control</a>}
         </div>
       </div>
       <div ref={host} class="sandbox-host" aria-hidden="true" />

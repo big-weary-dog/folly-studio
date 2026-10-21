@@ -15,7 +15,7 @@ body[data-view=live] { --tint: var(--cobalt-t); overflow: hidden; }
 .live-dot.closed { background: var(--ruby); }
 .tag-ruby { color: var(--ruby); }
 @media (max-width: 599px) {
-  .live-stats, .live-bar .live-sub:not(.live-count, .live-driver, .live-next) { display: none; }
+  .live-stats, .live-bar .live-sub:not(.live-count, .live-driver, .live-next, .jb-left) { display: none; }
 }
 /* the controller: one column of big targets, thumb-sized */
 .live-control { --hit: 48px; max-width: 560px; margin: 0 auto; padding: 14px 16px 40px; display: flex;
