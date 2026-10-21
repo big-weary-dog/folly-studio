@@ -98,6 +98,7 @@
   border: var(--came-s) solid var(--lead); }
 .pick-cell[aria-pressed=true] { opacity: 1; box-shadow: inset 0 0 0 2px rgb(255 255 255 / .75); }
 .pick-more .btn[aria-pressed=true], .pick-seg[aria-pressed=true] { color: var(--night-0); background: var(--sand); }
+.pick-own { opacity: 1; font-size: 15px; line-height: 1; color: #fff; text-shadow: 0 0 2px #000, 0 0 1px #000; }
 .pick-custom { display: flex; align-items: center; gap: 4px; }
 .pick-swatch { width: var(--hit, 28px); height: var(--hit, 28px); padding: 2px; cursor: pointer;
   background: var(--night-0); border: var(--came-s) solid var(--lead); }

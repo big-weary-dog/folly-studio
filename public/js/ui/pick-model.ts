@@ -72,8 +72,12 @@ export function toggleSlot(e: PickEdit, role: string, n: number, count: number):
   return { ...e, tokens: e.tokens.flatMap((t) => (t === role ? others : [t])) };
 }
 
-/** A custom colour ('#rrggbb') added at the end, once; over the whole palette or rainbow, in place of them. */
-export const addColour = (e: PickEdit, hex: string): PickEdit => (has(e, hex) ? e
+/** How many custom colours the tile adds (a pick from code may hold more). */
+export const CUSTOM_MAX = 4;
+/** A custom colour ('#rrggbb') added at the end, once, while there are fewer than CUSTOM_MAX; over the whole palette or
+ * rainbow, in place of them, as a slot is. */
+export const addColour = (e: PickEdit, hex: string): PickEdit => (has(e, hex)
+  || e.tokens.filter((t) => t.startsWith('#')).length >= CUSTOM_MAX ? e
   : { ...e, tokens: [...unwhole(e).tokens, hex] });
 
 /** A token (all, rainbow, a '#rrggbb') in or out. */

@@ -1,6 +1,6 @@
 // Colour picks in the Studio (SPEC "Palettes"): a colour param's row (its pick in a field the size of a number's, its
 // colours lit along it; the field opens the pick tile, ∿ turns it, ↺), and the tile: the palette by role, a popover
-// on a wide screen; on a phone a sheet with the palette's roles and a custom colour, the rest shown when set.
+// on a wide screen; on a phone a sheet with the palette's roles and custom colours, the rest shown when set.
 import type { ComponentChildren } from 'preact';
 import { useId, useState } from 'preact/hooks';
 
@@ -10,7 +10,8 @@ import { DEFAULT_PALETTE, type PaletteHex, paletteColours } from '../core/stdlib
 import { bindingText, fmt, isBinding } from './bindings.ts';
 import { cx, Field, humanize, placePopover, Scrub, Switch } from './kit.tsx';
 import {
-  addColour, editText, editValue, type PickEdit, readEdit, rolesOf, roleState, toggleRole, toggleSlot, toggleToken,
+  addColour, CUSTOM_MAX, editText, editValue, type PickEdit, readEdit, rolesOf, roleState, toggleRole, toggleSlot,
+  toggleToken,
 } from './pick-model.ts';
 
 /** What picks resolve against here: the look's palette. */
@@ -46,17 +47,18 @@ function PickButton({ id, label, class: cls, children, ...tile }: Tile & { id?: 
       <PickTile {...tile} /></div></>;
 }
 
-/** A custom colour: a swatch that opens the browser's chooser (Chrome's has no OK, and says only `input` while it is
- * open), and Add to keep the colour it shows. */
+/** A swatch that opens the browser's chooser (Chrome's has no OK, and says only `input` while it is open), and + to
+ * add the colour it shows. */
 function CustomColour({ add }: { add: (hex: string) => void }) {
   const [hex, setHex] = useState('#ffffff');
   return <span class="pick-custom"><input type="color" class="pick-swatch" value={hex} aria-label="Custom colour"
-    title="Choose a custom colour" onInput={(e) => setHex(e.currentTarget.value)} />
-    <button type="button" class="btn small" onClick={() => add(hex)}>+ Add colour</button></span>;
+    title="Choose a colour" onInput={(e) => setHex(e.currentTarget.value)} />
+    <button type="button" class="btn small" aria-label="Add colour" title="Add this colour"
+      onClick={() => add(hex)}>+</button></span>;
 }
 
-/** The tile: a row per role (all of it, or a slot each), custom colours; then on a wide screen the whole palette,
- * rainbow, whether roles alternate, blend, range and rotate, which a phone shows only when set. */
+/** The tile: a row per role (all of it, or a slot each), custom colours (it adds up to CUSTOM_MAX); then on a wide
+ * screen the whole palette, rainbow, whether roles alternate, blend, range and rotate, which a phone shows when set. */
 function PickTile({ title, value, dflt, blend, colours, narrow, put }: Tile) {
   const edit = readEdit(value, dflt), set = (e: PickEdit) => put(editValue(e, blend));
   const smooth = (edit.blend ?? blend) === 'smooth', turn = edit.rotate, [from, to] = edit.range ?? [0, 1];
@@ -82,10 +84,12 @@ function PickTile({ title, value, dflt, blend, colours, narrow, put }: Tile) {
       {cells([...list], (i) => s.whole || s.slots.has(i + 1), (i) => set(toggleSlot(edit, role, i + 1, list.length)),
         (i) => `${role}${i + 1}`)}</div>;
     })}
-    {custom.length > 0 && <div class="pick-role"><span class="pick-whole">custom</span>
-      {cells(custom, () => true, (i) => set(toggleToken(edit, custom[i])), (i) => `Remove ${custom[i]}`)}</div>}
-    <div class="pick-more">{!narrow && <>{toggle('all', 'Whole palette')}{toggle('rainbow', 'Rainbow')}</>}
-      <CustomColour add={(hex) => set(addColour(edit, hex))} /></div>
+    <div class="pick-role"><span class="pick-whole">custom</span>
+      <span class="pick-cells">{custom.map((c) => <button type="button" class="pick-cell pick-own"
+        style={{ background: c }} title={`Remove ${c}`} aria-label={`Remove ${c}`}
+        onClick={() => set(toggleToken(edit, c))}>×</button>)}</span>
+      {custom.length < CUSTOM_MAX && <CustomColour add={(hex) => set(addColour(edit, hex))} />}</div>
+    {!narrow && <div class="pick-more">{toggle('all', 'Whole palette')}{toggle('rainbow', 'Rainbow')}</div>}
     {narrow ? chips.length > 0 && <p class="pick-chips">{chips.map((c) => <span class="param-chip">{c}</span>)}</p> : <>
       <Switch label="Alternate roles" class="pick-deal" checked={edit.deal} title="Deal the roles in turn (/)"
         onChange={(on) => set({ ...edit, deal: on })} />
