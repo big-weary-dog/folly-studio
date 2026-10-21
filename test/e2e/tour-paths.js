@@ -22,8 +22,12 @@ async function pick(t, layer, module, param) {
   await t.at(`layer:${layer}`).locator('.layer-name').click();
   if (!module) return;
   await t.ring(`module:${module}`, param);
-  if (!await t.at(param).isVisible()) await t.at(`module:${module}`).click();
+  await opened(t, module, param);
   await t.ring(param);
+}
+/** Open a module's settings by a click on its row, unless they show already (a click on the open one closes them). */
+async function opened(t, module, param) {
+  if (!await t.at(param).isVisible()) await t.at(`module:${module}`).click();
 }
 /** Open a colour param's picker, tick a palette role (in place of the whole palette), and close it. */
 async function role(page, t, name) {
@@ -84,7 +88,7 @@ export async function playLayers(page, t) {
   await step(t, 'Solo', ['solo:rose'], () => t.at('solo:rose').click(), 'layers-solo');
   await step(t, 'A filter', ['chain-add'], () => shelf(t, 'chain-add', 'filter', 'stained-glass'), 'layers-filter');
   await step(t, 'A filter\'s choice', ['module:stained-glass', 'param:rule'], async () => {
-    await t.at('module:stained-glass').click();
+    await opened(t, 'stained-glass', 'param:rule');
     await t.at('param:rule').locator('select').selectOption('spiral');
   }, 'layers-rule');
   await step(t, 'On and off', ['module-on:stained-glass'], async () => {
@@ -103,7 +107,7 @@ export async function playLayers(page, t) {
     await shelf(t, 'chain-add', 'warp', 'rotate');
   }, 'layers-warp');
   await step(t, 'A warp\'s number', ['module:rotate', 'param:angle'], async () => {
-    await t.at('module:rotate').click();
+    await opened(t, 'rotate', 'param:angle');
     await type(t.at('param:angle').locator('input').first(), 0.3);
   }, 'layers-angle');
   await step(t, 'Soften', ['soften'], () => type(t.at('soften').locator('input').first(), 45), 'layers-soften');
@@ -116,7 +120,7 @@ export async function playLayers(page, t) {
   await step(t, 'Solo off', ['solo:arches'], () => t.at('solo:arches').click(), 'layers-unsolo');
   await step(t, 'A preset', ['layers-add'], () => shelf(t, 'layers-add', 'preset', 'starfield'), 'layers-preset');
   await step(t, 'Inside a preset', ['module:sparkle'], async () => {
-    await t.at('module:sparkle').click();
+    await opened(t, 'sparkle', 'param:density');
     await t.ring('param:density');
     await type(t.at('param:density').locator('input').first(), 0.95);
   }, 'layers-inside');
@@ -182,7 +186,7 @@ export async function playMoves(page, t) {
     await t.at('macro-add').click();
   }, 'moves-macro');
   await step(t, 'Tie a value to it', ['module:single-strand'], async () => {
-    await t.at('module:single-strand').click();
+    await opened(t, 'single-strand', 'param:tail');
     await t.ring('param:tail');
     await drawer(t, 'param:tail');
     await t.ring('mod-kinds');

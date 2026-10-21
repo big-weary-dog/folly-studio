@@ -13,13 +13,17 @@
 .chain-head, .globals-h-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .chain-title, .chain-list::after, .globals-h { margin: 0; color: var(--sand); font-size: 11.5px; font-weight: 700;
   letter-spacing: .14em; text-transform: uppercase; }
-.chain-list { --c: color-mix(in srgb, var(--sand) 38%, var(--night-1)); list-style: none; margin: 6px 0 0 -8px;
-  padding: 0 0 0 24px; display: flex; flex-direction: column; gap: 12px; }
-.chain-row { --j: calc(3px + var(--hit, 28px) / 2); padding: 3px 4px 3px 3px; border: var(--came-s) solid var(--lead);
-  box-shadow: var(--bevel); background: color-mix(in srgb, var(--kind) 6%, var(--night-1)); }
-.chain-row::before { content: ''; position: absolute; inset: -8px auto -8px -10px; border-left: 2px solid var(--c); }
+.chain-list { --c: color-mix(in srgb, var(--sand) 38%, var(--night-1)); --gap: 12px; list-style: none;
+  margin: 6px 0 0 -8px; padding: 0 0 0 24px; display: flex; flex-direction: column; gap: var(--gap); }
+/* --j: the middle of a row's top line, where its joint sits; the came and brackets cross the gaps (--gap) */
+.chain-row { --j: calc(3px + var(--hit, 28px) / 2); --out: calc(-2px - var(--gap) / 2); padding: 3px 4px 3px 3px;
+  border: var(--came-s) solid var(--lead); box-shadow: var(--bevel);
+  background: color-mix(in srgb, var(--kind) 6%, var(--night-1)); }
+.chain-row::before { content: ''; position: absolute; inset: var(--out) auto var(--out) -10px;
+  border-left: 2px solid var(--c); }
 .chain-row:first-child::before { top: var(--j); }
-.chain-row::after { content: ''; position: absolute; left: -12.5px; top: calc(100% + 5px); border: 3.5px solid #0000;
+.chain-row::after { content: ''; position: absolute; left: -12.5px; top: calc(100% + var(--gap) / 2 - 1px);
+  border: 3.5px solid #0000;
   border-top: 5px solid var(--sand); border-bottom: 0; }
 .chain-list:has(> .chain-row)::after { content: 'Layer' / ''; width: 12px; height: 13px; margin: -6px 0 0 -8px;
   border: solid var(--c); border-width: 0 0 2px 2px; font-size: 10.5px; line-height: 24px; text-indent: 16px; }
@@ -28,11 +32,11 @@
   border-radius: 50%; background: var(--night-1); }
 .chain-row[data-join=input] { --ring: dashed; border: var(--came-s) dashed color-mix(in srgb, var(--kind) 30%, #0000);
   --dim: .65; background: none; box-shadow: none; }
-.reach { --x: calc(5px * var(--lane) - 23px); position: absolute; inset: -8px auto -8px var(--x); width: 4px;
-  opacity: .6; border: 0 solid var(--kind); border-left-width: 1.5px; }
+.reach { --x: calc(5px * var(--lane) - 23px); position: absolute; inset: var(--out) auto var(--out) var(--x);
+  width: 4px; opacity: .6; border: 0 solid var(--kind); border-left-width: 1.5px; }
 .reach.lit { opacity: 1; }
 .reach[data-part=from] { top: -2px; border-top-width: 1.5px; }
-.reach[data-part=to] { bottom: auto; width: calc(-15px - var(--x)); height: calc(var(--j) + 9px);
+.reach[data-part=to] { bottom: auto; width: calc(-15px - var(--x)); height: calc(var(--j) + 1px - var(--out));
   border-bottom-width: 1.5px; }
 .reach[data-kind=input] { --kind: var(--amber); border-style: dashed; }
 .chain-row.selected { background: color-mix(in srgb, var(--kind) 15%, var(--night-2));
@@ -40,8 +44,7 @@
 .chain-row:is(.off, [data-join=input]:not(.selected)) :is(.chain-name, .chain-kinds, .chain-joint) {
   opacity: var(--dim, .45); }
 .chain-top { display: flex; align-items: center; gap: 4px; }
-.chain-bottom { --label-w: 84px; padding-left: 7px; }   /* its select lines up with the fields outside the chain */
-.chain-name { flex: 1; min-width: 0; min-height: var(--hit, 28px); padding: 2px; text-align: left; font-size: 13.5px;
+.chain-name { flex: 1; min-width: 0; min-height: var(--hit, 22px); padding: 2px; text-align: left; font-size: 13.5px;
   font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: none; border: 0;
   cursor: pointer; }
 .chain-row .icon-btn { width: var(--hit, 18px); height: var(--hit, 22px); font-size: 11px; }
@@ -53,7 +56,18 @@
   text-transform: uppercase; color: var(--text-2); border: 1px dashed var(--lead); }
 /* a failing module's name says so (its title says how) */
 .chain-row:is([data-status=compile], [data-status=runtime], [data-status=hung]) .chain-name { color: var(--ruby); }
-.chain-select { flex: 1; min-height: var(--hit, 26px); padding: 1px 26px 1px 6px; font-size: 12.5px; }
+/* how a source combines or which input a filter reads: in the row's line, a mouse's size (wide screens only) */
+.chain-select { flex: 0 0 74px; width: 74px; min-height: 0; height: 22px; padding: 0 14px 0 5px; font-size: 11.5px;
+  line-height: 18px; background-position: calc(100% - 11px) 55%, calc(100% - 6px) 55%; }
+@media (min-width: 900px) {   /* a mouse's sizes: a module a line */
+  .chain-list { --gap: 5px; margin-top: 4px; }
+  .chain-row { --j: 12px; padding-block: 1px; }
+  .chain-name { font-size: 12.5px; }
+  .chain-row .kind-badge { padding: 0 3px; font-size: 9.5px; letter-spacing: .06em; }
+  .chain-row input.switch { width: 28px; height: 16px; }
+  .chain-row input.switch::after { top: 1px; left: 1px; width: 10px; height: 10px; }
+  .chain-row input.switch:checked::after { transform: translateX(12px); }
+}
 /* a row's drag grip (drag-order.ts), the one place a drag starts; a finger gets a wider one */
 .grip { flex: none; align-self: stretch; width: 8px; min-height: 20px; color: var(--text-3); cursor: grab;
   touch-action: none; background: radial-gradient(circle, currentColor 1px, #0000 1.5px) center / 4px 4px content-box; }
@@ -65,13 +79,19 @@
 :is(.chain-row > .chain-top, .layer > .layer-top)::before { content: none; position: absolute; left: 0; right: 0;
   height: 3px; background: var(--sand); border-radius: 2px; pointer-events: none; }
 :is(.chain-row[data-drop] > .chain-top, .layer[data-drop] > .layer-top)::before { content: ''; }
-.chain-row[data-drop=before] > .chain-top::before { top: -8px; }
-.chain-row[data-drop=after] > .chain-top::before { bottom: -8px; }
+.chain-row[data-drop=before] > .chain-top::before { top: calc(-1.5px - var(--gap) / 2); }
+.chain-row[data-drop=after] > .chain-top::before { bottom: calc(-1.5px - var(--gap) / 2); }
 .layer[data-drop=before] > .layer-top::before { top: -5px; }
 .layer[data-drop=after] > .layer-top::before { bottom: -5px; }
 .module-title-field { padding-top: 6px; border-top: var(--came-s) solid var(--lead); }
-.module-title-fixed { padding: 4px 0; font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis; }
+/* the selected module's settings, under its row (wide screens): ▾ beside its name, ▸ once a click closes them */
+.chain-name[aria-expanded]::before { content: '▸' / ''; display: inline-block; width: 1.1em; color: var(--kind);
+  transition: transform .15s var(--ease); }
+.chain-name[aria-expanded=true]::before { transform: rotate(90deg); }
+.chain-params { margin: 3px 0 2px 2px; padding: 3px 0 2px 6px;
+  border-left: 1px solid color-mix(in srgb, var(--kind) 45%, transparent); }
+.chain-params .module-title-field { padding: 0 0 2px; border: 0; }
+.chain-params .btn.small { min-height: 22px; padding: 1px 8px; font-size: 12px; }
 .soften-field .soften-mode { flex: none; width: auto; min-height: var(--hit, 26px); font-size: 12.5px; }
 .mod-fields { display: contents; }
 /* colour picks: a pick's field is a number's size and well (input.scrub), its text over the colours it plays, lit
