@@ -7,7 +7,7 @@ import { cx } from '../kit.tsx';
 export const k = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(Math.round(n)));
 export const secs = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 export const usd = (d: number) => `$${d.toFixed(d < 0.1 ? 3 : 2)}`;
-const KINDS: Record<string, string> = { compose: 'Compose', sketch: 'Sketches', take: 'Take', repair: 'Repair',
+const KINDS: Record<string, string> = { compose: 'Compose', draft: 'Drafts', take: 'Take', repair: 'Repair',
   notes: 'Params fixed', runtime: 'Runtime fix', critique: 'Critique', edits: 'Edits fixed' };
 export const kindName = (kind: string) => KINDS[kind] ?? kind;
 

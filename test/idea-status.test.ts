@@ -27,8 +27,8 @@ describe('idea states', () => {
 
   test('the queue makes no illegal move: a failed idea enqueued again stays failed', async () => {
     let calls = 0;
-    const { store, user, queue } = queueSetup(createQueue, { adapters: { sketch: async () => { calls++; } } });
-    const i = store.ideas.create({ owner: user.id, text: 'a tide', status: 'failed', generator: 'sketch',
+    const { store, user, queue } = queueSetup(createQueue, { adapters: { x: async () => { calls++; } } });
+    const i = store.ideas.create({ owner: user.id, text: 'a tide', status: 'failed', generator: 'x',
       error: 'boom' });
     queue.enqueue(i);
     await queue.idle();

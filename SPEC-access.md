@@ -35,8 +35,7 @@ On the Pi there is no Models or Access tab, and `/admin` opens Light (SPEC-offli
 ## Access (invite codes and limits)
 
 Anyone may sign up, browse, edit, preview and use the gallery; turning ideas into looks needs an invite code, as
-Sketch, the one free model, is offered to admins alone (SPEC-generators "Models"). A **paid** model (any `via` but
-`sketch`: it spends money or the owner's capacity) needs an **unlocked** account, and every account's ideas are **limited**. Admins are
+every model is paid. A **paid** model (every `via` today: it spends money or the owner's capacity) needs an **unlocked** account, and every account's ideas are **limited**. Admins are
 exempt from both. The registry's `limits` (defaults below) and each model's own `limits` set them:
 
 ```
@@ -46,8 +45,7 @@ models[i].limits?: { "perHour"?, "perDay"?, "concurrent"? }
 
 - An account's paid ideas share one allowance: `perHour` and `perDay` count its paid ideas created in the last 60
   minutes and 24 hours (rolling), `concurrent` those queued or generating. A model's `limits` add a cap counted on
-  that model's ideas alone; a free model is limited only by its own (the default Sketch entry: 30 an hour, 100 a
-  day). `dailyCeiling` counts everyone's paid ideas in 24 hours, a spend backstop. `inviteOnly: false` unlocks
+  that model's ideas alone; a free model would be limited only by its own. `dailyCeiling` counts everyone's paid ideas in 24 hours, a spend backstop. `inviteOnly: false` unlocks
   everyone (a private server). A cap of 0 allows none: its 429 has no `Retry-After` and no `nextAt`.
 - **One idea is one use** (a Deep idea `DEEP.uses`: SPEC-generators "Explore"; with room for fewer, it is refused),
   counted when POST /api/ideas (or a look's refine) accepts it, whatever comes of it:

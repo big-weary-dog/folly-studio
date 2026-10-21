@@ -40,18 +40,17 @@ describe('models API', () => {
     const explores = { paid: true, explores: true };
     assert.deepEqual((await member.get('/api/models')).json, { default: 'sol', models: [{ id: 'sol', label: 'Sol',
       ...explores }, { id: 'luna', label: 'Luna', ...explores }] },
-    'no API key here: no Opus; Sketch is for admins, so a locked account has no free model; Deep is off, so no deep');
+    'no API key here: no Opus; Deep is off, so no deep');
     const mine = (await admin.get('/api/models')).json;
     assert.equal(mine.default, 'sol', 'the default the file names can run: Sol');
-    assert.deepEqual(mine.models.map((m) => m.id), ['sol', 'luna', 'sketch']);
+    assert.deepEqual(mine.models.map((m) => m.id), ['sol', 'luna']);
     assert.equal((await client(app).get('/api/models')).status, 401);
     assert.equal((await member.get('/api/admin/models')).status, 403);
     assert.equal((await member.put('/api/admin/models', {})).status, 403);
     const { status, json } = await admin.get('/api/admin/models');
     assert.equal(status, 200);
     assert.equal(json.file, path.join(fx.tmp, 'data-models', 'models.json'));
-    assert.deepEqual(json.models.map((m) => [m.id, m.available]), [['opus', false], ['sol', true], ['luna', true],
-      ['sketch', true]]);
+    assert.deepEqual(json.models.map((m) => [m.id, m.available]), [['opus', false], ['sol', true], ['luna', true]]);
     assert.deepEqual(json.efforts.codex, ['minimal', 'low', 'medium', 'high', 'xhigh']);
   });
 
@@ -80,7 +79,6 @@ describe('models API', () => {
     assert.equal((await post({ text: 'stars', model: 'sol' })).json.error, 'Sol is turned off.');
     assert.equal((await post({ text: 'stars', model: 'gpt-9' })).json.error, 'There is no model called "gpt-9".');
     assert.equal((await post({ text: 'stars', model: 7 })).status, 400);
-    assert.equal((await post({ text: 'stars', model: 'sketch' })).json.error, 'Sketch is not offered to your account.');
     const locked = await post({ text: 'embers on the spires' });
     assert.deepEqual([locked.status, locked.json.error], [403, 'Luna needs an invite code. Browsing, editing and the '
       + 'gallery are free.'], 'a locked account\'s default is the usual one, refused');

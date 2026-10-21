@@ -1,11 +1,12 @@
 // POST /api/looks/:id/refine (SPEC "HTTP API", SPEC-generators "Refine"): one's own look only, an idea of its own on
-// the queue (one use), one at a time per look, Sketch never asked to critique nor the foundry to refine;
+// the queue (one use), one at a time per look, the foundry never asked to refine;
 // refinements stay off the ideas page's list only in the browser (the API lists every idea); a finished one undone.
 import assert from 'node:assert/strict';
 import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
+import { FIX } from './fixtures/generate/shared.js';
 import { fakeQueue, fx, PIXEL, signup, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
@@ -15,7 +16,7 @@ describe('refine API', () => {
   beforeAll(async () => {
     queue = fakeQueue();
     app = await startApp({ dataDir: path.join(fx.tmp, 'data-refine'), generator: queue, admins: 'ana',
-      models: { env: { STUDIO_FOUNDRY: 'on' } } });
+      models: { env: { STUDIO_FOUNDRY: 'on', PATH: path.join(FIX, 'bin') } } });
     ana = await signup(app, 'ana');
     bo = await signup(app, 'bob');
     look = (await ana.post('/api/looks', { title: 'Tide', layers: [{ code: PIXEL }], chain: 2 })).json.look;
@@ -25,9 +26,6 @@ describe('refine API', () => {
   test('a request, a critique or a fix; checked first', async () => {
     assert.equal((await ana.post(`/api/looks/${look.id}/refine`, { text: 'x' })).status, 400);
     assert.match((await ana.post(`/api/looks/${look.id}/refine`, {})).json.error, /Describe the change/);
-    const sketchy = await ana.post(`/api/looks/${look.id}/refine`, { critique: true });
-    assert.equal(sketchy.status, 400);
-    assert.match(sketchy.json.error, /Sketch cannot look at its frames/);
     assert.equal((await bo.post(`/api/looks/${look.id}/refine`, { text: 'slower' })).status, 404, 'not bob\'s');
     assert.equal((await ana.post('/api/looks/nope/refine', { text: 'slower' })).status, 404);
     const { config } = (await ana.get('/api/admin/models')).json;
@@ -42,7 +40,7 @@ describe('refine API', () => {
     const r = await ana.post(`/api/looks/${look.id}/refine`, { text: 'slower', fix: { layer: 'L', error: 'boom' } });
     assert.equal(r.status, 201, r.text);
     assert.deepEqual([r.json.idea.lookId, r.json.idea.model, r.json.idea.status, r.json.idea.refine],
-      [look.id, 'sketch', 'queued', { fix: { layer: 'L', error: 'boom' } }]);
+      [look.id, 'sol', 'queued', { fix: { layer: 'L', error: 'boom' } }]);
     assert.deepEqual(queue.enqueued.map((i) => i.id), [r.json.idea.id]);
     const again = await ana.post(`/api/looks/${look.id}/refine`, { text: 'faster' });
     assert.equal(again.status, 409);

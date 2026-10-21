@@ -23,7 +23,7 @@ async function leftover(name) {
   const store = await createStore(dir, { log: quiet });
   const ids = {};
   for (const status of ['queued', 'generating', 'ready', 'failed']) {
-    ids[status] = store.ideas.create({ owner: 'u1', text: `a ${status} idea`, status, generator: 'sketch' }).id;
+    ids[status] = store.ideas.create({ owner: 'u1', text: `a ${status} idea`, status, generator: 'x' }).id;
   }
   await store.close();
   return { dir, ids };

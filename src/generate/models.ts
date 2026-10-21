@@ -8,7 +8,7 @@ import path from 'node:path';
 
 import {
   type AdminModels, EFFORTS, isPaid, type ModelChoices, type ModelEntry, type ModelsConfig, offeredTo, readModels,
-  type Role, TRANSPORT_CAPS, type Transport,
+  type Role, TRANSPORT_CAPS, type Transport, TRANSPORTS,
 } from '../../shared/schemas/models.ts';
 import { LIMITS } from '../../shared/schemas/access.ts';
 import { type Config, configOf } from '../config.ts';
@@ -24,15 +24,26 @@ export const DEFAULT_MODELS: ModelsConfig = {
       enabled: true },
     { id: 'luna', label: 'Luna', via: 'codex', model: 'gpt-6-luna', effort: 'low', critique: 'text',
       enabled: true },
-    { id: 'sketch', label: 'Sketch', via: 'sketch', enabled: true, limits: { perHour: 30, perDay: 100 } },
   ],
   concurrency: { claude: 4, codex: 2 },
   limits: { ...LIMITS },
 };
 // STUDIO_GENERATOR, from before the registry: the default it names when the file is first written.
 const FOUNDRY: ModelEntry = { id: 'foundry', label: 'Foundry', via: 'fleet', model: 'gpt-6.1-sol', enabled: true };
-const LEGACY: Record<string, string> = { claude: 'opus', sketch: 'sketch', fleet: 'foundry' };
+const LEGACY: Record<string, string> = { claude: 'opus', fleet: 'foundry' };
 const PROBE_MS = 10_000;
+
+/** The file's models but those whose `via` is no longer a transport (their ids), so a file written before one was
+ * removed still reads (its default, if one of them, the first left); a save is checked whole. */
+function dropGone(json: unknown): { json: unknown, gone: string[] } {
+  const c = json as { default?: unknown, models?: { id?: unknown, via?: unknown }[] } | null;
+  if (!Array.isArray(c?.models)) return { json, gone: [] };
+  const vias: readonly string[] = TRANSPORTS;
+  const out = c.models.filter((m) => typeof m?.via === 'string' && !vias.includes(m.via)), gone = out.map((m) => m.id);
+  const models = c.models.filter((m) => !out.includes(m));
+  return { json: { ...c, models, ...(gone.includes(c.default) ? { default: models[0]?.id } : {}) },
+    gone: gone.map(String) };
+}
 
 type Options = { file: string, env?: NodeJS.ProcessEnv, log?: Logger, legacy?: string, foundryOn?: boolean,
   codexBin?: string, settings?: Config };
@@ -63,7 +74,9 @@ export function createRegistry({ file, env = process.env, log = console, legacy 
     try { json = JSON.parse(readFileSync(file, 'utf8')); } catch (err) {
       problem = `${path.basename(file)} is not valid JSON (${(err as Error).message}).`;
     }
-    const read = json === undefined ? null : readModels(json);
+    const { json: known, gone } = dropGone(json);
+    if (gone.length) log.warn?.(`[models] ${file}: left out ${gone.join(', ')}, whose transport is gone`);
+    const read = json === undefined ? null : readModels(known);
     if (read && 'config' in read) [config, problem] = [read.config, ''];
     else if (read) problem = `${path.basename(file)}: ${read.error}`;
     if (problem) log.warn?.(`[models] ${problem} Using the last good models.`);

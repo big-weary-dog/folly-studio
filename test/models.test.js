@@ -16,18 +16,18 @@ const read = (dir) => JSON.parse(fs.readFileSync(path.join(dir, 'models.json'), 
 const later = (file) => { const t = new Date(Date.now() + 5000); fs.utimesSync(file, t, t); };
 
 describe('the registry file', () => {
-  test('first run writes the defaults: Opus (the default), Sol, Luna and Sketch', () => {
+  test('first run writes the defaults: Opus (the default), Sol and Luna', () => {
     const dir = tmp('models'), r = registry(dir);
     assert.deepEqual(read(dir), DEFAULT_MODELS);
-    assert.deepEqual(r.config().models.map((m) => m.critique), [undefined, 'images', 'text', undefined]);
+    assert.deepEqual(r.config().models.map((m) => m.critique), [undefined, 'images', 'text']);
     assert.deepEqual(r.config().models.map((m) => [m.id, m.via, m.model]), [['opus', 'claude', 'claude-opus-5-5'],
-      ['sol', 'codex', 'gpt-6.1-sol'], ['luna', 'codex', 'gpt-6-luna'], ['sketch', 'sketch', undefined]]);
+      ['sol', 'codex', 'gpt-6.1-sol'], ['luna', 'codex', 'gpt-6-luna']]);
     assert.equal(r.defaultId(), 'opus');
-    assert.deepEqual([r.limit('claude'), r.limit('codex'), r.limit('sketch')], [4, 2, undefined]);
+    assert.deepEqual([r.limit('claude'), r.limit('codex'), r.limit('fleet')], [4, 2, undefined]);
   });
 
   test('STUDIO_GENERATOR names the first default; once the file exists, the file wins', () => {
-    assert.equal(registry(tmp('legacy'), { legacy: 'sketch' }).defaultId(), 'sketch');
+    assert.equal(registry(tmp('legacy'), { legacy: 'claude' }).defaultId(), 'opus');
     const dir = tmp('legacy-fleet'), fleet = registry(dir, { legacy: 'fleet' });
     assert.equal(fleet.defaultId(), 'foundry');
     assert.equal(fleet.get('foundry').via, 'fleet');
@@ -35,6 +35,19 @@ describe('the registry file', () => {
     assert.equal(registry(dir, { legacy: 'claude', log: { ...quiet, info: (m) => infos.push(m) } }).defaultId(),
       'foundry');
     assert.match(infos.join('\n'), /STUDIO_GENERATOR is superseded/);
+  });
+
+  test('a model whose transport is gone is left out, the file still read; a save is checked whole', () => {
+    const dir = tmp('gone'), file = path.join(dir, 'models.json'), warns = [];
+    const old = { ...DEFAULT_MODELS, default: 'pigeon', models: [{ id: 'pigeon', label: 'Pigeon', via: 'pigeon' },
+      ...DEFAULT_MODELS.models] };
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(old));
+    const r = registry(dir, { log: { ...quiet, warn: (m) => warns.push(m) } });
+    assert.deepEqual([r.config().models.map((m) => m.id), r.defaultId()], [['opus', 'sol', 'luna'], 'opus']);
+    assert.match(warns.join('\n'), /left out pigeon, whose transport is gone/);
+    assert.equal(r.admin().problem, undefined);
+    assert.match(r.save(old).error, /^Model 1 \(pigeon\): via must be one of claude, codex, fleet\.$/);
   });
 
   test('an edit applies without a restart; a broken one is reported and the last good kept', () => {
@@ -53,7 +66,7 @@ describe('the registry file', () => {
     const x = { id: 'x', label: 'X', via: 'codex' };
     fs.writeFileSync(file, JSON.stringify({ ...next, models: [...next.models, x] }));
     later(file);
-    assert.match(r.admin().problem, /^models\.json: Model 5 \(x\): a codex model needs its model name\.$/);
+    assert.match(r.admin().problem, /^models\.json: Model 4 \(x\): a codex model needs its model name\.$/);
     fs.writeFileSync(file, JSON.stringify(next));
     later(file);
     assert.equal(r.admin().problem, undefined);
@@ -70,18 +83,17 @@ describe('the registry file', () => {
       + 'max for claude.');
     bad((c) => { c.models[1].effort = 'max'; }, 'Model 2 (sol): effort must be one of minimal, low, medium, high, '
       + 'xhigh for codex.');
-    bad((c) => { c.models[3].id = 'opus'; }, 'Model 4 (opus): id opus is used twice.');
+    bad((c) => { c.models[2].id = 'opus'; }, 'Model 3 (opus): id opus is used twice.');
     bad((c) => { c.default = 'gpt'; }, 'default must name a model.');
     bad((c) => { c.models[1].model = '--dangerously-bypass-approvals-and-sandbox'; },
       'Model 2 (sol): model must be a model name: letters, digits, . _ : / or -.');
     bad((c) => { c.models[0].secret = 1; }, 'Model 1 (opus): Unrecognized key: "secret"');
     bad((c) => { c.concurrency.codex = 99; }, 'concurrency.codex must be at most 16.');
     bad((c) => { c.models = []; }, 'models must list at least one model.');
-    bad((c) => { c.models[3].critique = 'images'; }, 'Model 4 (sketch): sketch takes no critique.');
     bad((c) => { c.models[1].critique = 'video'; }, 'Model 2 (sol): critique must be images or text.');
-    const next = { ...good, default: 'sketch', concurrency: { codex: 1 } };
+    const next = { ...good, default: 'luna', concurrency: { codex: 1 } };
     const saved = r.save(next);
-    assert.equal(saved.config.default, 'sketch');
+    assert.equal(saved.config.default, 'luna');
     assert.deepEqual(read(dir), next);
     assert.equal(r.limit('codex'), 1);
     assert.deepEqual(fs.readdirSync(dir), ['models.json'], 'no temporary file left');
@@ -94,7 +106,6 @@ describe('availability and choices', () => {
     const states = Object.fromEntries(none.admin().models.map((s) => [s.id, s]));
     assert.deepEqual(states.opus, { id: 'opus', available: false, note: 'ANTHROPIC_API_KEY is not set.' });
     assert.deepEqual(states.sol, { id: 'sol', available: false, note: 'codex is not on PATH.' });
-    assert.equal(states.sketch.available, true);
     const home = tmp('codex-home');
     const env = { ANTHROPIC_API_KEY: 'k', PATH: BIN, CODEX_HOME: home };
     const all = registry(tmp('all'), { env });
@@ -116,16 +127,16 @@ describe('availability and choices', () => {
     const r = registry(dir, { env: { PATH: BIN } });
     const c = read(dir);
     c.models.find((m) => m.id === 'luna').roles = ['admin'];
-    c.models.find((m) => m.id === 'sketch').enabled = false;
+    c.models.push({ id: 'old', label: 'Old', via: 'codex', model: 'gpt-5', enabled: false });
     r.save(c);
     assert.deepEqual(r.choices('member'), { models: [{ id: 'sol', label: 'Sol', paid: true, explores: true }],
       default: 'sol' },
-      'opus has no key, luna is for admins, sketch is off');
+      'opus has no key, luna is for admins, old is off');
     assert.deepEqual(r.choices('admin').models.map((m) => m.id), ['sol', 'luna']);
     assert.equal(r.pick(undefined, 'member').entry.id, 'sol');
     assert.equal(r.pick('luna', 'admin').entry.id, 'luna');
     assert.deepEqual(r.pick('luna', 'member'), { error: 'Luna is not offered to your account.' });
-    assert.deepEqual(r.pick('sketch', 'admin'), { error: 'Sketch is turned off.' });
+    assert.deepEqual(r.pick('old', 'admin'), { error: 'Old is turned off.' });
     assert.deepEqual(r.pick('opus', 'admin'), { error: 'Opus is not set up on this server right now.' });
     assert.deepEqual(r.pick('gpt-9', 'admin'), { error: 'There is no model called "gpt-9".' });
     c.models.forEach((m) => { m.enabled = false; });

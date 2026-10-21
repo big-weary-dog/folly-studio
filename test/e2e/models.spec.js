@@ -46,14 +46,14 @@ for (const [name, device] of Object.entries(SIZES)) {
         await toggleLuna();
         await expect(page.getByText('Models saved.')).toBeVisible();
         await page.goto(`${studio.origin}/ideas`);
-        await expect(pick.locator('option')).toHaveText(['Sol', 'Sketch']);
+        await expect(pick.locator('option')).toHaveText(['Sol']);
         await expect(pick).toHaveValue('sol'); // the default cannot run here (no key): the first that can
       });
 
       await test.step('back on, Luna is picked, and the idea goes there', async () => {
         await toggleLuna(); // back on (the next size's run shares this server)
         await page.goto(`${studio.origin}/ideas`);
-        await expect(pick.locator('option')).toHaveText(['Sol', 'Luna', 'Sketch']);
+        await expect(pick.locator('option')).toHaveText(['Sol', 'Luna']);
         await pick.selectOption('luna');
         await page.fill('textarea.idea-input', 'A slow blue sky over the spires');
         await shot('idea-form');

@@ -4,7 +4,7 @@
 import type { Uses } from './expand.ts';
 
 export const NO_USES: Uses = { library: 0, extensions: 0, code: 0 };
-type Rounds = { sketch?: { ms: number, outcome: string }, rounds?: number, check?: number,
+type Rounds = { draft?: { ms: number, outcome: string }, rounds?: number, check?: number,
   critique?: { ms: number, outcome: string } };
 
 /** The docs a prompted model read, for the log: `; docs 2 (sources/bars, warps/README)`. */
@@ -18,8 +18,8 @@ export const describeUses = (u: Uses) => (u === NO_USES ? 'not composed'
 export const dropped = (notes: string[]) => (notes.length ? `; ${notes.length} noted: ${notes.slice(0, 3).join('; ')}`
   .slice(0, 240) : '');
 const secs = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
-/** The rounds for the log: `sketch 9.0 s (A, B, C), 1 repair, check 0.6 s, critique 12.0 s revised`. */
-export const describeRounds = (o: Rounds) => [o.sketch && `sketch ${secs(o.sketch.ms)} (${o.sketch.outcome})`,
+/** The rounds for the log: `draft 9.0 s (A, B, C), 1 repair, check 0.6 s, critique 12.0 s revised`. */
+export const describeRounds = (o: Rounds) => [o.draft && `draft ${secs(o.draft.ms)} (${o.draft.outcome})`,
   o.rounds && `${o.rounds} repair`, o.check !== undefined
   && `check ${secs(o.check)}`, o.critique && `critique ${secs(o.critique.ms)} ${o.critique.outcome}`]
   .filter(Boolean).map((s) => `, ${s}`).join('');

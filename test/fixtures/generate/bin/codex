@@ -4,7 +4,8 @@
 // ok (default) writes a look to the -o file; slow does so after CODEX_FAKE_DELAY ms; bad writes something not JSON;
 // fail exits 2; term is stopped by SIGTERM (a service stop reaching it); huge writes a 600 KB answer; flood floods stdout; hang starts a child (its pid to CODEX_FAKE_PIDS)
 // and waits forever; stall-once says nothing and waits forever the first time (CODEX_FAKE_PIDS.stalled marks it),
-// then answers. A sketch turn (SPEC-generators "Explore") is answered with three takes and a synthesis. With
+// then answers. A draft turn (SPEC-generators "Explore") is answered with three takes and a synthesis; a refinement
+// with one edit of its first layer's level, or with nothing usable when it asks for a poem. With
 // --json, its events go to stdout as the real one's do: a reasoning item (CODEX_FAKE_THINKING's first, if set) before
 // it answers, then the turn's usage.
 import { spawn } from 'node:child_process';
@@ -54,10 +55,13 @@ process.stdin.on('end', async () => {
   if (mode === 'slow') await new Promise((r) => setTimeout(r, Number(process.env.CODEX_FAKE_DELAY) || 200));
   const take = (name) => ({ name, lead: 'the spires', motion: 'drifting', scale: 'one gesture', colour: 'blue',
     tempo: 'slow', take: `${name}: blue light drifts up the spires.` });
-  const sketches = { takes: ['Tide', 'Haze', 'Dusk'].map(take),
+  const drafts = { takes: ['Tide', 'Haze', 'Dusk'].map(take),
     synthesis: { took: 'the drift from Tide, the blue from Haze', brief: 'Blue light drifts up the spires.' } };
-  const answer = /Before composing a look, sketch/.test(prompt) ? sketches : look;
-  if (mode === 'ok' || mode === 'slow' || mode === 'stall-once') writeFileSync(out, JSON.stringify(answer));
+  const request = /<request>\n([^]*?)\n<\/request>/.exec(prompt)?.[1];
+  const edits = { edits: [{ op: 'set', path: 'layers/0/level', value: 0.7, why: 'as asked' }] };
+  const answer = /Before composing a look, draft/.test(prompt) ? drafts : request ? edits : look;
+  if (/poem/.test(request ?? '')) writeFileSync(out, 'A poem is not a look.');
+  else if (mode === 'ok' || mode === 'slow' || mode === 'stall-once') writeFileSync(out, JSON.stringify(answer));
   say([{ type: 'turn.completed', usage: { input_tokens: 1200, cached_input_tokens: 1000, output_tokens: 80,
     reasoning_output_tokens: 30 } }]);
 });

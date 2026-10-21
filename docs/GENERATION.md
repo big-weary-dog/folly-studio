@@ -51,9 +51,8 @@ changes), sorted by name so its bytes stay the same between calls and the prompt
 
 - **Modules**: name, kind, category, the index summary, and each param as `speed: number -2..2 = 0.4`,
   `profile: step|smooth|pulse|comet = step`, `colours: pick = all`, `direction: up|down|… = up`. They come from each
-  file's `const params = {…}`, read statically: `parseParams` (`sketch.ts`) does it with regexes today; the catalog
-  needs a stricter reader of the literal (numbers, strings, booleans, arrays, `DIRECTIONS`) that refuses anything
-  else. Every params block in the library today is a plain literal.
+  file's `const params = {…}`, read statically by a strict reader of the literal (numbers, strings, booleans,
+  arrays, `DIRECTIONS`) that refuses anything else. Every params block in the library today is a plain literal.
 - **Presets**: name, summary and recipe (`colour-wash(colours=body) → edge-fade(position=lfo 0.17 Hz) → …`).
 - **Palettes** from `public/data/palettes.json` (22 today): name, its theme line, and each slot's hex (`body2 #fd7f40`).
 - **The rig**: groups with their tags and LED counts. Use `formatGroups` (`prompt.ts`) for the tree and the core's
@@ -136,7 +135,7 @@ module, with no `ref`, marked `generated`. Its code never runs on the server out
 
 ## 7. TODO, in order
 
-1. Done: `readParams` (`catalog.ts`), with a test over every library file; sketch still has its own `parseParams`.
+1. Done: `readParams` (`catalog.ts`), with a test over every library file.
 2. Done, but `expand.ts` has its own preset expansion (as the Studio's `presetLayers`), since `shared/` was claimed;
    moving both into `shared/` is still to do. A param out of range, of the wrong type or unknown is mended or
    dropped with a note, not refused; unknown names, presets and inputs are errors for the repair round.
@@ -145,12 +144,11 @@ module, with no `ref`, marked `generated`. Its code never runs on the server out
    zod in `shared/`. Code-only looks still load.
 5. Done as one fixed round inside the idea (it counts as one use), with no setting; a second miss keeps what
    expanded and notes the rest, and a look with no layers left falls back.
-6. Sketch emits a composition and goes through the same expansion.
-7. Fleet: `check.ts --compose`, `still.ts`, the workspace copies, `readLook` keeping globals, a new `BRIEF.md`
+6. Fleet: `check.ts --compose`, `still.ts`, the workspace copies, `readLook` keeping globals, a new `BRIEF.md`
    around the loop in §5, and one shared `LIMITS`.
-8. Done for claude and codex: the render check in the box (`check.ts`), a runtime repair round, an opt-in critique
+7. Done for claude and codex: the render check in the box (`check.ts`), a runtime repair round, an opt-in critique
    on stills across the whole look and per-group lines (`rounds.ts`, `frames-view.ts`), and refining a saved look
    (`refine.ts`, the Studio's "Ask the AI to fix it" and Refine box); each idea's rounds on disk (`idea-log.ts`),
    with what each thought, planned and changed (`explain.ts`).
    Still to do: `unchecked` on Windows.
-9. SPEC ("Generators", "Looks"), README pointers.
+8. SPEC ("Generators", "Looks"), README pointers.

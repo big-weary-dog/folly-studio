@@ -13,7 +13,7 @@ import { FIX, goodLayer, queueSetup } from './fixtures/generate/shared.js';
 import { fakeQueue, fx, PIXEL, signup, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
-const MODELS = { claude: 'opus', codex: 'sol', sketch: 'sketch', fleet: 'deep' };
+const MODELS = { claude: 'opus', codex: 'sol', fleet: 'deep' };
 
 describe('transport capabilities', () => {
   test('every transport has a row and a module, and nothing else does', () => {
@@ -54,7 +54,7 @@ describe('transport capabilities', () => {
         critiques: critique.status === 201 };
     }
 
-    /** What the queue does on `via`'s lane: whether it explores (its first call asks for the sketch turn's schema)
+    /** What the queue does on `via`'s lane: whether it explores (its first call asks for the draft turn's schema)
      * and refines (no "cannot refine"). */
     async function queued(via) {
       const first = [];

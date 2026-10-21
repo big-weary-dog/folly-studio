@@ -375,11 +375,11 @@ describe('the pick tile', () => {
 });
 
 describe('the idea form\'s gate (idea-access.tsx)', () => {
-  const sol = { id: 'sol', label: 'Sol', paid: true }, sketch = { id: 'sketch', label: 'Sketch', paid: false };
+  const sol = { id: 'sol', label: 'Sol', paid: true }, free = { id: 'free', label: 'Free', paid: false };
   const access = (o = {}) => ({ unlocked: true, exempt: false, inviteOnly: true,
     limits: { perHour: 6, perDay: 20, concurrent: 2 }, left: { hour: 4, day: 15, running: 2 }, ...o });
   test('free models and admins pass; locked shows the lock; open says what is left', () => {
-    assert.equal(gateOf(access({ unlocked: false }), sketch).kind, 'free');
+    assert.equal(gateOf(access({ unlocked: false }), free).kind, 'free');
     assert.equal(gateOf(access({ exempt: true }), sol).kind, 'exempt');
     assert.equal(gateOf(access({ unlocked: false }), sol).kind, 'locked');
     assert.deepEqual(gateOf(access({ models: { sol: { day: 2 } } }), sol), { kind: 'open',

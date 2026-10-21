@@ -1,5 +1,6 @@
-// npm run smoke, too: refining a look at a laptop's and a phone's size (SPEC-generators "Refine"). Sketch (offline,
-// so an admin's) makes the look and then refines it in words; the Refine box shows what changed, and Undo puts it back.
+// npm run smoke, too: refining a look at a laptop's and a phone's size (SPEC-generators "Refine"). The stand-in
+// codex CLI (studio.js) makes the look and then refines it; the Refine box shows what changed, Undo puts it back, and
+// a refinement that fails says so.
 import { expect, test } from './studio.js';
 
 const SIZES = {
@@ -40,7 +41,7 @@ for (const [name, device] of Object.entries(SIZES)) {
       await expect(box.locator('.refine-changes')).toHaveCount(0);
       await box.locator('textarea').fill('write me a poem');
       await box.getByRole('button', { name: 'Refine' }).click();
-      await expect(box.locator('.refine-error')).toContainText('Sketch can');
+      await expect(box.locator('.refine-error')).toBeVisible({ timeout: 30_000 });
       await shot('refused');
       expect(errors).toEqual([]);
     });

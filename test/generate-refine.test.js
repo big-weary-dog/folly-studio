@@ -1,5 +1,5 @@
 // Refining a look and the rounds after a generation (SPEC-generators "Refine", "The render check", "Critique"): a
-// look decomposed to its composition and the diff of two, sketch's word edits, what a model is shown of its frames,
+// look decomposed to its composition and the diff of two, what a model is shown of its frames,
 // the render check on a stand-in box, and the queue's runtime repair, critique and refinement rounds.
 import assert from 'node:assert/strict';
 
@@ -15,13 +15,12 @@ import { viewFrames } from '../src/generate/frames-view.ts';
 import { createQueue } from '../src/generate/index.ts';
 import { buildCritiqueMessage } from '../src/generate/critique-prompt.ts';
 import { decompose, diffCompositions } from '../src/generate/refine.ts';
-import { sketchRefine } from '../src/generate/sketch-refine.ts';
-import { PACE } from '../src/generate/sketch.ts';
 import { validateLook } from '../shared/schemas/generated.ts';
 import { CATALOG, frames, REAL, stubBox } from './fixtures/generate/box.js';
 import { GROUPS, queueSetup, RIG } from './fixtures/generate/shared.js';
 
 /** A library source with a pace param (speed, rate…), and that param. */
+const PACE = /speed|rate|pace|spin/i;
 const [PACED, PACE_PARAM] = [...CATALOG.modules].flatMap(([name, m]) => (m.kind === 'source' ? Object.entries(m.params)
   .filter(([p, d]) => d.type === 'number' && PACE.test(p)).map(([p]) => [name, p]) : []))[0];
 const answer = (extra = {}) => ({ title: 'Tide', summary: 'A slow swell', layers: [{ title: 'Swell',
@@ -59,23 +58,6 @@ describe('decompose and diff', () => {
     assert.deepEqual(diffCompositions(a, structuredClone(a)), []);
     const picked = { ...a, globals: { palette: { colors: ['#ff0000'] } } };
     assert.deepEqual(diffCompositions(picked, structuredClone(picked)), [], 'an equal palette object is no change');
-  });
-});
-
-describe('sketch refines', () => {
-  const opts = { library: REAL, groups: GROUPS, catalog: CATALOG };
-  const comp = () => decompose(lookOf(answer()), CATALOG);
-  const param = (c) => c.layers[0].modules[0].params.find((p) => p.name === PACE_PARAM)?.value;
-  test('slower and faster scale each pace param; brighter and dimmer each layer\'s level', () => {
-    const d = CATALOG.modules.get(PACED).params[PACE_PARAM].value;
-    assert.ok(param(sketchRefine(comp(), 'make it slower', opts)) < d);
-    assert.ok(param(sketchRefine(comp(), 'a bit faster please', opts)) > d);
-    assert.ok(sketchRefine(comp(), 'brighter', opts).layers[0].level > 0.8);
-    assert.ok(sketchRefine(comp(), 'dimmer', opts).layers[0].level < 0.8);
-  });
-  test('a colour word sets the palette; anything else it says it cannot do', () => {
-    assert.ok(sketchRefine(comp(), 'more blue', opts).globals?.palette);
-    assert.throws(() => sketchRefine(comp(), 'tell a story about whales', opts), /Sketch can't make that change/);
   });
 });
 
@@ -306,25 +288,5 @@ describe('the rounds in the queue', () => {
     assert.equal(typeof done.timing.critique, 'number');
     assert.equal(store.looks.get(look.id).layers[0].level, 0.5);
     assert.equal(done.verdict, 'revised');
-  });
-
-  test('sketch refines in words, or fails and leaves the look as it was', async () => {
-    const { store, user, queue } = queueSetup(createQueue, { loadLibrary: () => REAL });
-    const look = store.looks.create({ owner: user.id, ...lookOf(answer()) });
-    const ask = (text) => {
-      const i = store.ideas.create({ owner: user.id, text, status: 'queued', generator: 'sketch', lookId: look.id,
-        refine: {} });
-      queue.enqueue(i);
-      return i;
-    };
-    const ok = ask('brighter');
-    await queue.idle();
-    assert.equal(store.ideas.get(ok.id).status, 'ready', store.ideas.get(ok.id).error);
-    assert.ok(store.looks.get(look.id).layers[0].level > 0.8);
-    const before = store.looks.get(look.id), no = ask('write me a poem');
-    await queue.idle();
-    assert.equal(store.ideas.get(no.id).status, 'failed');
-    assert.match(store.ideas.get(no.id).error, /Sketch can't/);
-    assert.deepEqual(store.looks.get(look.id).layers, before.layers);
   });
 });
