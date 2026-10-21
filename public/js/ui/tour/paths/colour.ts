@@ -6,7 +6,7 @@ export const colour: Path = {
   about: 'A module\'s colours and the look\'s palette.',
   steps: [
     { id: 'bars', page: '/studio', title: 'Find the colours',
-      text: 'This is {preset:lighthouse}, with {module:bars} open. Its settings are on the right.',
+      text: 'This is {preset:lighthouse}, with {module:bars} open, its settings under it.',
       anchor: ['layer:lighthouse', 'module:bars'],
       done: ({ v }) => v?.module.value?.ref === 'bars', next: true },
     { id: 'pick', page: '/studio', title: 'Pick colours',

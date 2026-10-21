@@ -200,8 +200,7 @@ test.describe('laptop, 1366 × 768', () => {
     await at('play').click();
     await title('Find the bars');
     await ring('layer:plasma', 'module:bars');
-    await at('layer:plasma').locator('.layer-name').click();
-    await at('module:bars').click();
+    await at('layer:plasma').locator('.layer-name').click();     // Bars, its first source, opens by itself
     await title('A value that moves');
     await ring('param:bars');
     await at('param:bars').locator('.param-mod').click();

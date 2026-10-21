@@ -1,10 +1,12 @@
 // The selected layer's settings: its name and groups (a drawer), its module chain (SPEC "Modules": a row per module
 // with a grip to drag it (or Alt+↑/↓), its kind, Custom when it is not a library module, name, how a source combines
 // or which input a filter reads, enable and delete; phones: drag, enable and select only), its Soften row, and the
-// selected module's settings: a custom module's name (a library module keeps the library's) and its params. The chain
-// runs down a came into the layer: each module joins it (a source by how it combines), and each warp and filter spans
-// what it works on, everything above it.
-import { useRef } from 'preact/hooks';
+// selected module's settings: a custom module's name (a library module keeps the library's) and its params, opened
+// under its row (on a phone, after the chain). The chain runs down a came into the layer: each module joins it (a
+// source by how it combines), and each warp and filter spans what it works on, everything above it.
+import { useLayoutEffect, useRef, useState } from 'preact/hooks';
+
+import type { ComponentChildren } from 'preact';
 
 import type { Module } from '../../../shared/schemas/look.ts';
 import { standardTitle } from '../../../shared/standard-modules.ts';
@@ -30,7 +32,7 @@ const GLYPHS: Record<string, string> = { over: '●', under: '○', add: '+', mu
 type Props = { st: Studio; pv: Preview };
 
 export function ChainPane({ st, pv }: Props) {
-  const l = st.selected.value;
+  const l = st.selected.value, narrow = st.narrow.value;
   return (
     <section class="pane pane-params" data-pane="params" aria-label="Layer settings">
       <div class="pane-head"><h2 class="pane-title"><SideFold st={st} panel="params" /></h2>
@@ -46,7 +48,7 @@ export function ChainPane({ st, pv }: Props) {
         <PlaysOn st={st} />
         <div class="chain-host"><Chain st={st} pv={pv} /></div>
         <SoftenRow st={st} l={l} />
-        <div class="params-host"><ModuleSettings st={st} /></div>
+        {narrow && <div class="params-host"><ModuleSettings st={st} /></div>}
       </div>
     </section>);
 }
@@ -109,6 +111,22 @@ function Chain({ st, pv }: Props) {
     .catch(loadFailed);
   const { first, joins, reaches } = chainWires(mods), at = sel ? mods.indexOf(sel) : -1;
   const listRef = useRef<HTMLOListElement>(null), order = useDragOrder(listRef, move);
+  // The selected module's settings open under it (a wide screen); a click on it closes them, until the next click
+  // or pick.
+  const [shut, setShut] = useState<{ layer: string; picked: object } | null>(null);
+  const open = !st.narrow.value && !(shut && shut.layer === l?.id && shut.picked === st.picked.value);
+  // The clicked row stays under the pointer while the settings above it close.
+  const keep = useRef<{ i: number; top: number } | null>(null);
+  useLayoutEffect(() => {
+    const k = keep.current, row = k && listRef.current?.children[k.i], pane = row?.closest('.pane-body');
+    keep.current = null;
+    if (row && pane) pane.scrollTop += row.getBoundingClientRect().top - k.top;
+  });
+  const click = (m: Module, i: number, e: MouseEvent) => {
+    keep.current = { i, top: (e.currentTarget as Element).closest('.chain-row')!.getBoundingClientRect().top };
+    if (l && m === sel) setShut(open ? { layer: l.id, picked: st.picked.peek() } : null);
+    else st.pickModule(m.id);
+  };
   return (
     <section class="chain" aria-label="Module chain">
       <div class="chain-head"><h3 class="chain-title">Chain</h3>
@@ -121,19 +139,22 @@ function Chain({ st, pv }: Props) {
           std={standardTitle(m, st.data.library)} grip={order.grip(i)} drop={order.drop(i, mods.length)}
           dragging={order.dragging === i}
           join={joins[i]} reach={reaches.filter((r) => r.from <= i && i <= r.to)} lit={at}
-          state={st.status.module(l.id, m)} pick={() => st.pickModule(m.id)} remove={() => remove(m)}
-          nudge={(e) => nudge(i, e)} set={(patch) => st.editModule(l.id, m.id, () => patch)} />)}
+          state={st.status.module(l.id, m)} pick={(e) => click(m, i, e)} remove={() => remove(m)}
+          nudge={(e) => nudge(i, e)} set={(patch) => st.editModule(l.id, m.id, () => patch)}
+          fold={st.narrow.value || i !== at ? undefined : open}>
+          {i === at && open && <div class="chain-params"><ModuleSettings st={st} /></div>}</ModuleRow>)}
       </ol>
     </section>);
 }
 
 type Grip = ReturnType<ReturnType<typeof useDragOrder>['grip']>;
 
+/** A module's row; `fold`: whether the selected module's settings show under it (wide screens), and its children. */
 function ModuleRow({ m, i, mods, first, selected, std, grip, drop, dragging, join, reach, lit, state, pick, remove,
-  nudge, set }: { m: Module; i: number; mods: Module[]; first: number; selected: boolean; std?: string; grip: Grip;
-  drop?: string; dragging: boolean; join: string; reach: Reach[]; lit: number; state: { kind: string;
-  message?: string }; pick: () => void; remove: () => void; nudge: (e: KeyboardEvent) => void;
-  set: (patch: Partial<Module>) => void }) {
+  nudge, set, fold, children }: { m: Module; i: number; mods: Module[]; first: number; selected: boolean; std?: string;
+  grip: Grip; drop?: string; dragging: boolean; join: string; reach: Reach[]; lit: number; state: { kind: string;
+  message?: string }; pick: (e: MouseEvent) => void; remove: () => void; nudge: (e: KeyboardEvent) => void;
+  set: (patch: Partial<Module>) => void; fold?: boolean; children?: ComponentChildren }) {
   const title = std ?? (m.title || KIND_LABELS[m.kind]), filter = m.kind === 'filter';
   // The row's select as a patch: a source's blend (or input only), a filter's input. A source's default ('') is
   // Over first and Add after, so that blend is not offered twice.
@@ -147,7 +168,7 @@ function ModuleRow({ m, i, mods, first, selected, std, grip, drop, dragging, joi
   return (
     <li class={cx('chain-row', selected && 'selected', m.enabled === false && 'off', dragging && 'dragging')}
       data-kind={m.kind} data-join={join} data-status={state.kind} data-drop={drop} onKeyDown={nudge}
-      onClick={(e) => { if (e.target === e.currentTarget) pick(); }}>
+      onClick={(e) => { if (e.target === e.currentTarget && !selected) pick(e); }}>
       <span class="chain-joint" aria-hidden="true">{GLYPHS[join]}</span>
       {reach.map((r) => <span class={cx('reach', r.to === lit && 'lit')} aria-hidden="true" data-kind={r.kind}
         style={{ '--lane': r.lane }} data-part={i === r.from ? 'from' : i === r.to ? 'to' : 'via'} />)}
@@ -155,7 +176,7 @@ function ModuleRow({ m, i, mods, first, selected, std, grip, drop, dragging, joi
         <span class="chain-kinds"><span class="kind-badge">{KIND_LABELS[m.kind]}</span>
           {std === undefined && <span class="custom-badge"
             title="Custom code: written by the AI or in the code editor, not a library module">Custom</span>}</span>
-        <button type="button" class="chain-name" aria-current={selected} onClick={pick}
+        <button type="button" class="chain-name" aria-current={selected} aria-expanded={fold} onClick={pick}
           aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown" data-tour={m.ref && `module:${m.ref}`}
           title={`${title} — ${STATE_TEXT[state.kind] || state.kind}${state.message ? `: ${state.message}` : ''}`}>
           {title}</button>
@@ -174,5 +195,6 @@ function ModuleRow({ m, i, mods, first, selected, std, grip, drop, dragging, joi
           }} />
         <button type="button" class="icon-btn wide-only" aria-label="Delete module" title="Delete module"
           disabled={mods.length <= 1} onClick={remove}>🗑</button></div>
+      {children}
     </li>);
 }

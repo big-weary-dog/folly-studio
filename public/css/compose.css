@@ -84,6 +84,14 @@
 .layer[data-drop=before] > .layer-top::before { top: -5px; }
 .layer[data-drop=after] > .layer-top::before { bottom: -5px; }
 .module-title-field { padding-top: 6px; border-top: var(--came-s) solid var(--lead); }
+/* the selected module's settings, under its row (wide screens): ▾ beside its name, ▸ once a click closes them */
+.chain-name[aria-expanded]::before { content: '▸' / ''; display: inline-block; width: 1.1em; color: var(--kind);
+  transition: transform .15s var(--ease); }
+.chain-name[aria-expanded=true]::before { transform: rotate(90deg); }
+.chain-params { margin: 3px 0 2px 2px; padding: 3px 0 2px 6px;
+  border-left: 1px solid color-mix(in srgb, var(--kind) 45%, transparent); }
+.chain-params .module-title-field { padding: 0 0 2px; border: 0; }
+.chain-params .btn.small { min-height: 22px; padding: 1px 8px; font-size: 12px; }
 .soften-field .soften-mode { flex: none; width: auto; min-height: var(--hit, 26px); font-size: 12.5px; }
 .mod-fields { display: contents; }
 /* colour picks: a pick's field is a number's size and well (input.scrub), its text over the colours it plays, lit

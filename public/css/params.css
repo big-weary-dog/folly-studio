@@ -106,7 +106,7 @@
 .param-reset.unused { visibility: hidden; }
 .field.param > .param-help { flex: 1 1 100%; margin: 0; }
 .param-hex { font: 12.5px var(--mono); color: var(--text-2); }
-.params-foot { padding-top: 4px; }
+.params-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 4px; }
 .picture-thumb { flex: none; border-radius: 50%; background: var(--night-0); border: var(--came-s) solid var(--lead); }
 .picture-thumb.square { border-radius: 2px; }
 .picture-text { width: 100%; min-height: 16em; font: 12.5px/1.4 var(--mono); resize: vertical; }
