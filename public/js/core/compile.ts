@@ -14,7 +14,7 @@ export type ParamSpec = { label?: string, help?: string } & (
   { type: 'number', value: number, min: number, max: number, step?: number, unit?: 'minute' }
   | { type: 'toggle', value: boolean } | { type: 'color', value: string, blend?: PickBlend }
   | { type: 'choice', value: string, options: string[] } | { type: 'picture', value: Picture }
-  | { type: 'text', value: string });
+  | { type: 'text', value: string, lines?: true });
 export type ParamSchema = Record<string, ParamSpec>;
 type RGBA = number[];
 /** The longest `help` a param keeps (SPEC "Pattern code"). */
@@ -135,7 +135,7 @@ export function normalizeParams(raw: unknown): ParamSchema {
     } else if (type === 'text') {
       const value = d.value === undefined ? '' : readText(d.value);
       if (value === null) throw new Error(`param "${key}": text is at most ${TEXT_MAX} printable characters`);
-      p = { type, value };
+      p = { type, value, ...(d.lines === true ? { lines: true as const } : {}) };
     } else if (type === 'number') {
       const value = d.value === undefined ? 0 : Number(d.value);
       if (!Number.isFinite(value)) throw new Error(`param "${key}": value must be a number`);

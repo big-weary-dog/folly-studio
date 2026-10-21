@@ -4,6 +4,8 @@ import { signal, type Signal } from '@preact/signals';
 import { type ComponentChildren, render } from 'preact';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'preact/hooks';
 
+import { reloadIfIdle } from './updates.ts';
+
 /** Class names, skipping the falsy ones. */
 export const cx = (...names: unknown[]) => names.filter(Boolean).join(' ');
 export const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -52,11 +54,11 @@ export function toast(message: string, { kind = 'info', timeout = 4200, action }
 }
 
 let loadToast = false;
-/** A lazy part of the app failed to load: most likely a deploy replaced its file, so a reload fetches the new one.
- *  One toast however many parts fail. */
-export function loadFailed(err?: unknown) {
-  console.error(err);
-  if (loadToast) return;
+/** A new build (SPEC "Updates"), or a lazy part of the app failed to load (most likely a deploy replaced its file):
+ *  the page reloads onto it when nothing is unsaved, else says so, one toast however many parts fail. */
+export async function loadFailed(err?: unknown) {
+  if (err) console.error(err);
+  if (await reloadIfIdle() || loadToast) return;
   loadToast = true;
   toast('Folly Studio was updated. Reload to carry on.',
     { kind: 'error', timeout: 0, action: { label: 'Reload', onClick: () => location.reload() } });
@@ -228,7 +230,7 @@ export const Switch = ({ label, class: cls, checked, disabled, title, onChange }
 
 /** A lazy part's loader: one that fails says so (loadFailed) and never settles, so nothing waits on it half-done. */
 export function lazy<T>(load: () => Promise<T>): () => Promise<T> {
-  return () => load().catch((err) => { loadFailed(err); return new Promise<T>(() => {}); });
+  return () => load().catch((err) => { void loadFailed(err); return new Promise<T>(() => {}); });
 }
 
 /** A module loaded on first use, once `when` holds (null until it has loaded). */

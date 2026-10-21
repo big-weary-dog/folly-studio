@@ -472,6 +472,15 @@ every SPA route) `no-cache`; anything else 5 minutes. Text goes br or gzip from 
 never served, and other methods are 405. Without a build, every static path is a 404 and the server says to run
 `npm run build`.
 
+### Updates
+
+A hosted build has `/build.json` (`{ commit, builtAt }`, written by `npm run host`). An open page asks for it at
+start, on coming back to the tab and every 5 minutes (`public/js/ui/updates.ts`); when its commit changes, or a lazy
+chunk fails to load (a deploy removed it), the page reloads onto the new build by itself if nothing is unsaved: no
+Studio edits (the leave guard's dirty flag), no text field focused, and no text typed into a form's textarea. It does
+so once per build (a sessionStorage marker naming the commit), so a build whose chunks really fail cannot loop; with
+something unsaved, or once already, it shows one "Folly Studio was updated" toast with Reload instead.
+
 ## HTTP API (JSON; cookie session)
 
 Mutating requests must be `Content-Type: application/json` and, when an `Origin` header is
