@@ -14,6 +14,10 @@
 .tl-auto-svg .tl-auto-dot[data-level=low] { stroke: var(--auto-low); fill: var(--night-0); }
 .tl-auto-svg .tl-auto-dot[data-level=mid] { fill: var(--night-0); }
 .tl-auto-half { fill: var(--violet); pointer-events: none; }
+/* A point's time and value, while the pointer is on it. */
+.tl-auto-val { display: none; fill: var(--text); font-size: 11px; pointer-events: none;
+  paint-order: stroke; stroke: var(--night-0); stroke-width: 3px; }
+g:hover > .tl-auto-val { display: inline; }
 .dock-tools { display: flex; align-items: center; flex: 1; min-width: 0; }
 .dock-tools .btn { margin-left: 0; }
 .tl-body { display: flex; flex-direction: column; flex: none; min-height: 0; }

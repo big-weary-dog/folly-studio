@@ -26,7 +26,8 @@ export const optionText = (key: string, options: string[]) => (options.every((o)
 /** Is v a param binding rather than a value? */
 export const isBinding = (v: unknown): v is Binding => !!v && typeof v === 'object' && !Array.isArray(v)
   && typeof (v as Binding).mod === 'string';
-export const fmt = (v: number) => String(Math.round(v * 1000) / 1000);
+/** A number as the popover writes it: 3 decimals, or 3 significant digits below 1 (0.0025 stays 0.0025). */
+export const fmt = (v: number) => String(Math.abs(v) >= 1 ? Math.round(v * 1000) / 1000 : Number(v.toPrecision(3)));
 /** Rates in beats as the popover offers them: cycles a beat for a period of ¼ beat … 4 bars (4 beats a bar). */
 export const RATES: [string, number][] = [['¼ beat', 4], ['½ beat', 2], ['1 beat', 1], ['1 bar', 0.25],
   ['2 bars', 0.125], ['4 bars', 0.0625]];
