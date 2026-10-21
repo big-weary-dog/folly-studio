@@ -621,7 +621,7 @@ the `/live/control` page.
 ## Offline on the Pi, and the Pi preview
 
 In `SPEC-offline.md`, part of this contract: the Pi profile (`STUDIO_PROFILE`, `profile`), `/pi` (a Studio Live
-engine behind Studio) and look files.
+engine behind Studio) and look files; in `SPEC-liveplay.md`, the live play controller.
 
 ## Gallery previews
 
