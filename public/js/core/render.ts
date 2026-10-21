@@ -15,6 +15,7 @@ import { clipAt, layerEnvelope, normalizeClips, type Transition, wipeColours } f
 import { PLACE, readsLed, settle } from './place.ts';
 import { copyPixel, makePixel, type Pixel, setPixel } from './pixel.ts';
 import { isStageEnd, placeWarps } from './warps.ts';
+import { addLight } from './light.ts';
 export type { Pixel };
 
 export const MODULE_KINDS = Object.freeze(['source', 'warp', 'filter'] as const);
@@ -135,7 +136,7 @@ function toColour(v: unknown, out: number[], da: number) {
   return true;
 }
 
-/** o into c (straight alpha) by blend; onto nothing it is simply o. */
+/** o into c (straight alpha) by blend, alpha scaling values and add summing their light; onto nothing it is o. */
 function blendInto(c: number[], o: number[], mode: number) {
   const a = o[3], ca = c[3];
   if (mode === MULTIPLY) {
@@ -153,7 +154,7 @@ function blendInto(c: number[], o: number[], mode: number) {
     c[3] = A;
   } else if (mode === ADD) {
     const A = ca + a < 1 ? ca + a : 1;
-    for (let i = 0; i < 3; i++) c[i] = (c[i] * ca + o[i] * a) / A;
+    for (let i = 0; i < 3; i++) c[i] = addLight(c[i] * ca, o[i] * a) / A;
     c[3] = A;
   } else {
     const A = a > ca ? a : ca;
@@ -166,50 +167,6 @@ function blendInto(c: number[], o: number[], mode: number) {
 const dim = (o: number[], b: number) => { o[0] *= b; o[1] *= b; o[2] *= b; };
 
 const said = (v: unknown) => (Array.isArray(v) ? `[${Array.from(v).slice(0, 4).join(', ')}]` : String(v));
-
-/** Layer L's chain at pattern time T into L.buf (rgba) → null, or an error (its module in L.failed). */
-function runChain(S: Scene, L: PreparedLayer, T: number, G: G) {
-  const idx = L.idx, m = idx.length, buf = L.buf, q = L.p, chain = L.chain, n = chain.length, c = L.c;
-  const qs = L.qs, warps = L.warps, nw = warps.length;
-  let j = 0, M: PreparedLayer['chain'][number] | null = null;
-  try {
-    RUN.dt = 0;
-    for (let i = 0; i < n; i++) { M = chain[i]; M.ring?.advance(T, m); if (M.frame) M.frame(T, M.P, G); }
-    for (; j < m; j++) {
-      const k = idx[j];
-      setPixel(S, L, q, j, k);
-      for (let w = 0; w < nw; w++) { M = warps[w]; bend(qs, M, T, G); }
-      c[0] = c[1] = c[2] = c[3] = 0;
-      for (let i = 0; i < n; i++) {
-        M = chain[i];
-        if (M.kind === WARP) continue;
-        const q = qs[M.at];
-        if (q.due) settle(q);
-        RUN.dt = q.dt;
-        if (M.kind === SOURCE) {
-          const v = M.fn(q, T + q.dt, M.P, G);
-          if (!toColour(v, M.out, 1)) return fail(L, M, `pixel() returned ${said(v)} (NaN) at LED ${k}`);
-          M.out[3] *= q.gate;
-          if (M.bright) dim(M.out, M.P.brightness as number);
-          if (!M.hidden) blendInto(c, M.out, M.blend);
-        } else {
-          M.ring?.record(j, c);
-          const v = M.fn(c, q, T + q.dt, M.P, G, M.input >= 0 ? chain[M.input].out : undefined);
-          if (!toColour(v, c, c[3])) return fail(L, M, `filter() returned ${said(v)} (NaN) at LED ${k}`);
-        }
-      }
-      const o = 4 * j;
-      const r = c[0], g = c[1], b = c[2], al = c[3];
-      buf[o] = r < 0 ? 0 : r > 1 ? 1 : r;
-      buf[o + 1] = g < 0 ? 0 : g > 1 ? 1 : g;
-      buf[o + 2] = b < 0 ? 0 : b > 1 ? 1 : b;
-      buf[o + 3] = al;
-    }
-  } catch (e) {
-    return fail(L, M, describeError(e));
-  }
-  return null;
-}
 
 function fail(L: PreparedLayer, M: PreparedLayer['chain'][number] | null, msg: string) {
   L.failed = M ? M.id : null;
@@ -233,12 +190,14 @@ function bend(qs: Pixel[], W: Link, T: number, G: G) {
 }
 
 /**
- * A chain with spatial modules, stage by stage (SPEC "Spatial modules"): each stage's modules for every pixel into
- * the stage buffer (c unclamped, starting from the buffer after the first stage), then its spatial op over the buffer;
- * the last stage into L.buf as runChain does. A later stage reloads kept sources; its warps are its own.
+ * Layer L's chain at pattern time T into L.buf (rgba) → null, or an error (its module in L.failed). Stage by stage
+ * (SPEC "Spatial modules"), one stage without spatial modules: each stage's modules for every pixel into the stage
+ * buffer (c unclamped, starting from the buffer after the first stage), then its spatial op over the buffer; the last
+ * stage into L.buf, clamped. A later stage reloads kept sources; its warps are its own.
  */
-function runStaged(S: Scene, L: PreparedLayer, T: number, G: G, st: NonNullable<PreparedLayer['stages']>) {
-  const idx = L.idx, m = idx.length, buf = L.buf, sb = st.buf, q = L.p, chain = L.chain, n = chain.length, c = L.c;
+function runChain(S: Scene, L: PreparedLayer, T: number, G: G) {
+  const st = L.stages, idx = L.idx, m = idx.length, buf = L.buf, sb = st?.buf, q = L.p, chain = L.chain;
+  const n = chain.length, c = L.c;
   const qs = L.qs, warps = L.warps, nw = warps.length;
   let from = 0, M: Link | null = null;
   try {
@@ -249,7 +208,7 @@ function runStaged(S: Scene, L: PreparedLayer, T: number, G: G, st: NonNullable<
       while (to < n && chain[to].kind !== SPATIAL) to++;
       for (let j = 0; j < m; j++) {
         const k = idx[j], o = 4 * j;
-        if (from) load(c, sb, o); else c[0] = c[1] = c[2] = c[3] = 0;
+        if (from) load(c, sb!, o); else c[0] = c[1] = c[2] = c[3] = 0;
         if (from < to) {
           setPixel(S, L, q, j, k);
           for (let w = 0; w < nw; w++) { M = warps[w]; if (M.ix >= from && M.ix < to) bend(qs, M, T, G); }
@@ -274,7 +233,7 @@ function runStaged(S: Scene, L: PreparedLayer, T: number, G: G, st: NonNullable<
             }
           }
         }
-        if (to < n) { save(sb, o, c); continue; }
+        if (to < n) { save(sb!, o, c); continue; }
         const r = c[0], g = c[1], b = c[2];
         buf[o] = r < 0 ? 0 : r > 1 ? 1 : r;
         buf[o + 1] = g < 0 ? 0 : g > 1 ? 1 : g;
@@ -283,8 +242,8 @@ function runStaged(S: Scene, L: PreparedLayer, T: number, G: G, st: NonNullable<
       }
       if (to >= n) return null;
       M = chain[to];
-      if (M.op === 'sort') sortStrands(S, idx, sb, M.P.by, M.P.direction, M.P.cutoff, M.P.amount);
-      else blur(S, idx, st, sb, M.P.radius, M.P.mode, M.P.amount);
+      if (M.op === 'sort') sortStrands(S, idx, sb!, M.P.by, M.P.direction, M.P.cutoff, M.P.amount);
+      else blur(S, idx, st!, sb!, M.P.radius, M.P.mode, M.P.amount);
       from = to + 1;
     }
   } catch (e) {
@@ -378,7 +337,7 @@ export function renderFrame(scene: Scene, layers: readonly (PreparedLayer | null
       if (M.mods.length) applyMods(M.mods, M.P, t, env, LK);
       if (M.picks) M.picks.frame();
     }
-    const err = L.stages ? runStaged(scene, L, T, G, L.stages) : runChain(scene, L, T, G);
+    const err = runChain(scene, L, T, G);
     if (err) errors.push(L.modular ? { id: L.id, module: L.failed, error: err } : { id: L.id, error: err });
     else {
       if (wipe) wipeColours(L.buf, L, scene, wipe as Transition, env, t > (clip!.start + clip!.end) / 2);

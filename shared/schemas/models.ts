@@ -63,7 +63,7 @@ export const ModelEntry = z.strictObject({
   critique: z.enum(['images', 'text'], { error: 'critique must be images or text.' }).optional(),
   enabled: z.boolean({ error: 'enabled must be true or false.' }).default(true),
   roles: z.array(z.enum(ROLES, { error: `roles must be from ${ROLES.join(', ')}.` })).min(1).optional(),
-  /** Caps counted on this model's ideas alone (SPEC "Access"). */
+  /** Caps counted on this model's ideas alone (SPEC-access "Access"). */
   limits: PersonLimits.optional(),
 });
 export type ModelEntry = z.output<typeof ModelEntry>;
@@ -78,7 +78,7 @@ export const ModelsConfig = z.strictObject({
     .max(24, { error: 'models may list at most 24 models.' }),
   /** Jobs run at once per transport, so a slow call on one never holds up another. */
   concurrency: Lanes.optional(),
-  /** Who may use the paid models, and how much (SPEC "Access"); none: the defaults. */
+  /** Who may use the paid models, and how much (SPEC-access "Access"); none: the defaults. */
   limits: GlobalLimits.optional(),
 }).superRefine((c, ctx) => {
   const seen = new Set<string>();

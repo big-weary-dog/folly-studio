@@ -6,18 +6,41 @@ there, and the setting that tunes it. SPEC "Light and output" is the contract; t
 ## Two kinds of number
 
 - **Colour values** (encoded, 0..1). A swatch's own sRGB numbers: `#808080` is 0.5. Every look, pattern, palette,
-  level, Amount, fade and blend works in these. They are *perceptual*: 0.5 looks about half as bright as 1.
+  level, Amount, fade and crossfade works in these. They are *perceptual*: 0.5 looks about half as bright as 1.
 - **Light** (linear, 0..1 of full). What an LED actually emits: its PWM duty. Twice the number is twice the photons.
 
 An LED's light is not its value. Half the light (0.5) looks much brighter than half (about 0.73 as a value), which
 is why a straight value-to-PWM mapping makes every dim look washed out. The bridge between the two is a power
 curve, the **gamma**: `light = value ^ gamma`.
 
+## What adds light
+
+Two things in the engine add light rather than scale a value: the `add` blend (a chain's sources, and layers onto
+the frame) and blur (Soften). Summing values is wrong for those: two 50 % layers summed as values make 100 %, four
+and a half times the light of either, where two lamps make twice it. So these take each value's light, sum or average
+it, and encode again (`toLight`, `toValue` and `addLight` in `core/light.ts`):
+
+| | As values (before) | In light (now) |
+|---|---|---|
+| Two 50 % layers, `add` | 100 % | 68 % (twice 22 % of the light) |
+| 50 % onto 25 %, `add` | 75 % | 54 % |
+| A lit LED's neighbour, Soften | its share of the value | its share of the light, encoded: brighter, so a lit edge doesn't sink into a dark rim |
+
+- **The curve is a fixed `v^2.2`, never the Light page's gamma.** The swatches are sRGB: 2.2 is their own curve, the
+  meaning of a colour value. The Light gamma corrects the LEDs to those swatches, at the output only, so tuning it
+  never changes a frame, a bake or a check's input, and the same look renders the same on every machine.
+- **What scales stays in values**: alpha, level, Amount, fades, `over`, crossfades and `mix()` (a slider's 0.5 should
+  look half). They scale a value before it is added.
+- **`max` and `multiply` are unchanged**: under a power curve the brighter value has the brighter light, and a
+  product's light is the product of the lights, so working in light gives the same answer.
+- The curve is a table (1,024 linear steps, within 1e-5 of `v^2.2`): it runs per LED, per layer, every frame, and
+  `pow` is twenty times slower. Below 0 it mirrors, so a negative value still takes light away.
+
 ## The path
 
 ```mermaid
 flowchart LR
-  L["Look: palettes, levels, blends<br/>(colour values)"] --> F["Frame<br/>(colour values, float)"]
+  L["Look: palettes, levels, blends<br/>(colour values; add and blur in light, v^2.2)"] --> F["Frame<br/>(colour values, float)"]
   F --> B["Bake / preview frames<br/>(colour bytes, toChannels)"]
   F --> T["Output transform<br/>v^gamma × balance × trim × cap,<br/>rounded once, floor"]
   B --> C["Bake checks<br/>(ledLight: bytes → light)"]
@@ -35,6 +58,7 @@ flowchart LR
 
 | Where | What | Why | Tune it |
 |---|---|---|---|
+| The engine's add and blur (`core/light.ts` `addLight`) | `value = (Σ v^2.2)^(1/2.2)`; blur averages light the same way | Light adds, values don't: two 50 % layers make 68 %, not 100 % | None: 2.2 is the swatches' curve, part of what a colour means |
 | Output transform (`core/light.ts` `ledChannels`) | `byte = round(255 · min(1, v^gamma · balance[colour] · trim[LED] · cap))` | Turns perceptual values into the PWM that looks like them. One curve, applied once, in float, rounded once at the end | Light page (Admin › Light): Gamma (default 2.2) |
 | Same, `balance` | × each colour's share | Matches the LEDs' white to the eye: trim the colour that runs strong. Never above 100 %: that would only clip | Light page: Red/Green/Blue balance (default 100 %) |
 | Same, `floor` | A lit channel never sends less than `floor` | 8 bits run out at the bottom: at gamma 2.2 any value under about 0.06 rounds to 0, so a faint bed vanishes. The floor keeps it glowing (at the cost of the very bottom of a fade looking stepped) | Light page: Floor (default 0, off) |

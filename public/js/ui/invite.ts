@@ -1,4 +1,4 @@
-// Invite links (SPEC "Access"): /#invite=CODE. The code rides in the fragment, so it never reaches a server log or a
+// Invite links (SPEC-access): /#invite=CODE. The code rides in the fragment, so it never reaches a server log or a
 // Referer; it waits in sessionStorage across signing up or in, and is redeemed once, then forgotten.
 import { api } from '../api.ts';
 import { toast } from './kit.tsx';

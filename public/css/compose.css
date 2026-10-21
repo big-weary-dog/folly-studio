@@ -1,4 +1,5 @@
-/* Composition (loaded by js/ui/studio.tsx): module chains, param modulation, the look's globals and automation lanes.
+/* Composition (loaded by js/ui/studio.tsx): module chains, dragging rows to reorder, param modulation, the look's
+   globals and automation lanes.
    A module's kind is its glass: warps cobalt, sources amber, filters ruby. */
 [data-kind=warp] { --kind: var(--cobalt-t); }
 [data-kind=source] { --kind: var(--amber); }
@@ -14,7 +15,7 @@
   letter-spacing: .14em; text-transform: uppercase; }
 .chain-list { --c: color-mix(in srgb, var(--sand) 38%, var(--night-1)); list-style: none; margin: 6px 0 0 -8px;
   padding: 0 0 0 24px; display: flex; flex-direction: column; gap: 12px; }
-.chain-row { --j: calc(3px + var(--hit, 28px) / 2); padding: 3px 4px 3px 6px; border: var(--came-s) solid var(--lead);
+.chain-row { --j: calc(3px + var(--hit, 28px) / 2); padding: 3px 4px 3px 3px; border: var(--came-s) solid var(--lead);
   box-shadow: var(--bevel); background: color-mix(in srgb, var(--kind) 6%, var(--night-1)); }
 .chain-row::before { content: ''; position: absolute; inset: -8px auto -8px -10px; border-left: 2px solid var(--c); }
 .chain-row:first-child::before { top: var(--j); }
@@ -36,16 +37,41 @@
 .reach[data-kind=input] { --kind: var(--amber); border-style: dashed; }
 .chain-row.selected { background: color-mix(in srgb, var(--kind) 15%, var(--night-2));
   box-shadow: inset 3px 0 0 var(--kind), inset 0 0 14px -6px var(--kind); }
-.chain-row:is(.off, [data-join=input]:not(.selected)) :is(.chain-name, .kind-badge, .chain-joint) {
+.chain-row:is(.off, [data-join=input]:not(.selected)) :is(.chain-name, .chain-kinds, .chain-joint) {
   opacity: var(--dim, .45); }
 .chain-top { display: flex; align-items: center; gap: 4px; }
-.chain-bottom { --label-w: 84px; padding-left: 4px; }   /* its select lines up with the fields outside the chain */
+.chain-bottom { --label-w: 84px; padding-left: 7px; }   /* its select lines up with the fields outside the chain */
 .chain-name { flex: 1; min-width: 0; min-height: var(--hit, 28px); padding: 2px; text-align: left; font-size: 13.5px;
   font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: none; border: 0;
   cursor: pointer; }
-.chain-row .icon-btn { width: var(--hit, 22px); height: var(--hit, 24px); font-size: 13px; }
+.chain-row .icon-btn { width: var(--hit, 18px); height: var(--hit, 22px); font-size: 11px; }
+@media (pointer: coarse) { .chain-row .icon-btn { min-width: 32px; min-height: 32px; } }
+/* Custom sits under the kind, so it costs the name no room */
+.chain-kinds { display: flex; flex: none; flex-direction: column; align-items: flex-start; gap: 1px; }
+.chain-row .kind-badge { padding: 1px 4px; }
+.custom-badge { padding: 0 3px; font-size: 8.5px; font-weight: 700; line-height: 10px; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-2); border: 1px dashed var(--lead); }
+/* a failing module's name says so (its title says how) */
+.chain-row:is([data-status=compile], [data-status=runtime], [data-status=hung]) .chain-name { color: var(--ruby); }
 .chain-select { flex: 1; min-height: var(--hit, 26px); padding: 1px 26px 1px 6px; font-size: 12.5px; }
+/* a row's drag grip (drag-order.ts), the one place a drag starts; a finger gets a wider one */
+.grip { flex: none; align-self: stretch; width: 8px; min-height: 20px; color: var(--text-3); cursor: grab;
+  touch-action: none; background: radial-gradient(circle, currentColor 1px, #0000 1.5px) center / 4px 4px content-box; }
+.grip:hover { color: var(--text); }
+@media (pointer: coarse) { .grip { width: 32px; padding: 0 12px; } }
+.dragging { opacity: .5; }
+.dragging, .dragging .grip { cursor: grabbing; }
+/* where the dragged row lands: a line in the gap before the marked row (after it, for the last) */
+:is(.chain-row > .chain-top, .layer > .layer-top)::before { content: none; position: absolute; left: 0; right: 0;
+  height: 3px; background: var(--sand); border-radius: 2px; pointer-events: none; }
+:is(.chain-row[data-drop] > .chain-top, .layer[data-drop] > .layer-top)::before { content: ''; }
+.chain-row[data-drop=before] > .chain-top::before { top: -8px; }
+.chain-row[data-drop=after] > .chain-top::before { bottom: -8px; }
+.layer[data-drop=before] > .layer-top::before { top: -5px; }
+.layer[data-drop=after] > .layer-top::before { bottom: -5px; }
 .module-title-field { padding-top: 6px; border-top: var(--came-s) solid var(--lead); }
+.module-title-fixed { padding: 4px 0; font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; }
 .soften-field .soften-mode { flex: none; width: auto; min-height: var(--hit, 26px); font-size: 12.5px; }
 .mod-fields { display: contents; }
 /* colour picks: a pick's field is a number's size and well (input.scrub), its text over the colours it plays, lit

@@ -8,6 +8,7 @@ import { describe, test } from 'vitest';
 import {
   compileLayer, compileModule, isStageEnd, prepareLayer, prepareScene, renderFrame, stageOf,
 } from '../public/js/pattern-core.ts';
+import { addLight } from '../public/js/core/light.ts';
 
 const rig = JSON.parse(readFileSync(new URL('../public/data/rig.json', import.meta.url), 'utf8'));
 const lib = (name) => readFileSync(new URL(`../public/patterns/${name}.js`, import.meta.url), 'utf8');
@@ -64,14 +65,15 @@ const POOL = {
 const fract = (x) => x - Math.floor(x);
 const WARPS = { w1: (q) => { q.ly = fract(q.ly * 1.7 + 0.13); }, w2: (q) => { q.lz = 1 - 0.8 * q.lz; },
   w3: (q) => { q.ly *= q.lz; q.lz = fract(q.lz + 0.3); } };
-const OPS = { s1: (c, q) => { c[0] += 0.2 * q.ly; c[1] += 0.1 * q.lz; c[2] += 0.05; },
-  s2: (c, q) => { c[0] += 0.05; c[1] += 0.2 * q.lz * q.ly; c[2] += 0.1 * q.ly; },
+const plus = (c, rgb) => rgb.forEach((v, i) => { c[i] = addLight(c[i], v); });   // light adds (light.test: the curve)
+const OPS = { s1: (c, q) => plus(c, [0.2 * q.ly, 0.1 * q.lz, 0.05]),
+  s2: (c, q) => plus(c, [0.05, 0.2 * q.lz * q.ly, 0.1 * q.ly]),
   f1: (c, q) => { c[0] *= 0.5 + 0.5 * q.ly; }, f2: (c, q) => { c[2] += 0.1 * q.lz; },
   t: (c, q) => { c[1] += 0.05 * q.ly; }, b: () => {} };
 const KIND = { w: 'warp', s: 'source' };
 const module = (name, i) => ({ id: `${name}${i}`, kind: KIND[name[0]] ?? 'filter', code: POOL[name], blend: 'add' });
 
-/** The colour the rule gives at a pixel {lz, ly}: sources add (each opaque, so c sums), filters rework. */
+/** The colour the rule gives at a pixel {lz, ly}: sources add (each opaque, so c sums their light), filters rework. */
 function expected(names, p) {
   const c = [0, 0, 0];
   names.forEach((name, i) => {

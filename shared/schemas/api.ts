@@ -59,6 +59,9 @@ export const LookCreate = z.object({
   automation: z.unknown().optional(), bpm: Bpm.optional(), shared: bool('shared').default(false), chain: Chain,
   ideaId: z.string({ error: 'ideaId does not name one of your ideas.' }).nullish(),
 });
+const NAME = 'A version\'s name is 1–80 characters.';
+/** A version's name (SPEC-history "Named versions"): naming one keeps it. */
+const VersionName = z.string({ error: NAME }).trim().min(1, { error: NAME }).max(80, { error: NAME });
 const REASON = 'flashOverride: say in 3–500 characters why this flashing is acceptable.';
 /** PUT /api/looks/:id: what changes; null clears bpm, globals and automation. `flashOverride` (with reviewed: true):
  * a curator's reason for approving a bake that fails the flash check. */
@@ -67,7 +70,11 @@ export const LookPatch = z.object({
   bpm: Bpm.optional(), layers: Layers.optional(), duration: Duration.optional(), globals: Globals.optional(),
   automation: z.unknown().optional(), reviewed: bool('reviewed').optional(), chain: Chain,
   flashOverride: z.string({ error: REASON }).trim().min(3, { error: REASON }).max(500, { error: REASON }).optional(),
+  restoredFrom: z.number({ error: 'restoredFrom must be a version number.' }).int().min(1).optional(),
+  versionName: VersionName.optional(),
 });
+/** PUT /api/looks/:id/versions/:n: name a version (it is kept), or `null` to unname it. */
+export const VersionNamePatch = z.object({ name: VersionName.nullable() });
 export const LooksQuery = z.object({
   scope: z.enum(['mine', 'gallery'], { error: 'scope must be mine or gallery.' }).default('mine'),
   versions: z.string().optional(),
@@ -102,10 +109,24 @@ export type LookPatch = z.input<typeof LookPatch>;
 export type Listed = { id: string, owner: string, ownerName: string, title: string, summary: string, duration: number,
   layerCount: number, shared: boolean, reviewed: boolean, bpm?: number, sharedAt?: string, ideaId?: string,
   preview?: string, createdAt: string, updatedAt: string };
-/** A look as GET /api/looks/:id answers. */
+/** A look as GET /api/looks/:id answers; `version` (its owner's only): the number of the version it is. */
 export type Look = Omit<Listed, 'layerCount'> & { layers: Layer[], globals?: z.infer<typeof Globals>,
-  automation?: Automation, versionCount: number, bake?: Bake | null, reviewedBy?: string,
+  automation?: Automation, versionCount: number, version?: number, bake?: Bake | null, reviewedBy?: string,
   flashOverride?: FlashOverride, chain?: 2 };
+
+/** How a version was made (SPEC-history "Versions"): a save, an AI refinement, or a restore of version `from`. */
+export type VersionHow = 'auto' | 'ai' | 'restore';
+/** What a version is besides its content: its number, how it was made, its name (named ones are kept), the round. */
+export type VersionMeta = { n: number, how?: VersionHow, name?: string, from?: number, ideaId?: string,
+  ask?: string };
+/** A version as GET /api/looks/:id/versions lists it: `current` the look as saved; `palette` a few of its colours;
+ * `tempoGuessed` when it was kept before versions held the tempo (its bpm is the look's). */
+export type VersionListed = VersionMeta & { how: VersionHow, savedAt: string, title: string, layerCount: number,
+  duration: number, bpm: number | null, tempoGuessed?: true, reviewed: boolean, current?: true, shared?: boolean,
+  palette: string[] };
+/** A version with what it plays: GET /api/looks/:id/versions/:n. */
+export type Version = VersionListed & { summary: string, layers: Layer[], globals?: z.infer<typeof Globals> | null,
+  automation?: Automation | null };
 
 type Flashes = { maxHz: number, flaggedSeconds: number[], regions: string[] };
 /** What the frame checks found (SPEC "Baked frames" > Checks: src/frames.ts analyzeFrames). */

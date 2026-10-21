@@ -77,13 +77,13 @@ describe('the neighbour graph', () => {
 describe('blur', () => {
   const inArches = new Set(layerOf(one()).idx);
   for (const [mode, r] of [['wire', 0.3], ['space', 0.5], ['both', 0.4]]) {
-    test(`one lit LED spreads by gaussian weights (${mode}, ${r} m), normalised at each receiver`, () => {
+    test(`one lit LED's light spreads by gaussian weights (${mode}, ${r} m), normalised at each receiver`, () => {
       const rgb = rgbOf([layerOf(one({ modules: [one().modules[0], blurMod({ radius: r, mode })] }))]);
       const reach = weights(LIT, r, mode, (j) => inArches.has(j));
       assert.ok(reach.size > 3, 'reaches its neighbours');
       for (const [k] of reach) {
         const w = weights(k, r, mode, (j) => inArches.has(j));
-        const want = w.get(LIT) / [...w.values()].reduce((a, b) => a + b);
+        const want = (w.get(LIT) / [...w.values()].reduce((a, b) => a + b)) ** (1 / 2.2);   // its share of light
         assert.ok(Math.abs(rgb[3 * k] - want) < 1e-4, `LED ${k - LIT}: ${rgb[3 * k]} vs ${want}`);
       }
       let lit = 0;

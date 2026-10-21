@@ -18,7 +18,7 @@ import { GenerateError, validateLook } from '../../shared/schemas/generated.ts';
 import { cannot, capsOf, type ModelEntry, type Transport, TRANSPORTS } from '../../shared/schemas/models.ts';
 import type { LibraryEntry, Rig, RigGroup } from '../../shared/schemas/rig.ts';
 import { layersHash, removeFrames, renderFields, saveFrames } from '../bake.ts';
-import { revisedFields } from '../look-versions.ts';
+import { byAi, revisedFields } from '../look-versions.ts';
 import { monoNow } from '../clock.ts';
 import { type Config, configOf } from '../config.ts';
 import type { Catalog } from './catalog.ts';
@@ -279,7 +279,7 @@ export function createQueue({
         dropped(look.dropped)}`;
       if (refine) {
         const kept = keepUntouched(refine.look.layers as typeof look.layers, refine.comp, out.raw, look.layers);
-        const changes = await revise(refine.look, { ...look, layers: kept }, promptOf(base).catalog);
+        const changes = await revise(refine.look, { ...look, layers: kept }, promptOf(base).catalog, idea);
         timing.total = monoNow() - queuedAt;
         outcome = { status: 'ready', lookId: refine.look.id };
         await move(id, 'ready', { generator: used.id, by: used.label, error: null, timing, changes, ...rounds,
@@ -328,7 +328,7 @@ export function createQueue({
 
   /** A refinement saved onto its look as an edit (a version of what was there; no bake, no review) → what changed;
    * nothing is saved when nothing did, and nothing over an edit made while it ran. */
-  async function revise(from: StoredLook, look: ReturnType<typeof validateLook>, catalog: Catalog) {
+  async function revise(from: StoredLook, look: ReturnType<typeof validateLook>, catalog: Catalog, idea: Idea) {
     const lookId = from.id, now = store.looks.get(lookId);
     if (!now) throw new GenerateError('The look to refine is gone.', 'deleted while refining');
     if (layersHash(renderFields(now)) !== layersHash(renderFields(from))) {
@@ -339,7 +339,7 @@ export function createQueue({
       automation: look.automation ?? now.automation, bpm: look.bpm ?? now.bpm };
     const changes = diffCompositions(decompose(now, catalog), decompose({ ...now, ...next }, catalog));
     if (!changes.length) return changes;
-    await store.looks.update(lookId, { ...revisedFields(now), ...next, chain: CHAIN });
+    await store.looks.update(lookId, { ...revisedFields(now, byAi(idea)), ...next, chain: CHAIN });
     await removeFrames(framesHome || undefined, lookId).catch(() => {});
     return changes;
   }

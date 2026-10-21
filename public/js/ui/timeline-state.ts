@@ -97,7 +97,9 @@ export function createTimeline(st: Studio, pv: Preview) {
       tl.setClips(s.layer.id, after, null);
       scroller?.focus({ preventScroll: true });
       const text = after.length ? 'Clip removed.' : `No clips left: “${s.layer.title}” plays throughout again.`;
-      toast(text, { action: { label: 'Undo', onClick: () => tl.setClips(s.layer.id, before, s.index) } });
+      const step = st.step();
+      toast(text, { action: { label: 'Undo', onClick: () => { st.undoStep(step); sel.value = { id: s.layer.id,
+        index: s.index }; } } });
     },
 
     setDuration(d: number) {
@@ -123,11 +125,12 @@ export function createTimeline(st: Studio, pv: Preview) {
         st.select(selectedId);
       };
       apply(r.layers, r.duration, r.layers[r.layers.length - 1].id);
+      const step = st.step();
       const n = r.layers.length - before.layers.length;
       const ended = r.ended ? ` Layers that played throughout now end at ${clock(r.start)}.` : '';
       toast(`Added ${n} layer${n > 1 ? 's' : ''} from “${other.title || 'a look'}”, ${clock(r.start)}–${clock(r.end)}.`
         + ended, { timeout: 8000,
-        action: { label: 'Undo', onClick: () => apply(before.layers, before.duration, before.selected) } });
+        action: { label: 'Undo', onClick: () => { st.undoStep(step); st.select(before.selected); } } });
       return '';
     },
     /** The time now, for "add a clip at the playhead". */

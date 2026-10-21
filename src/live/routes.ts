@@ -4,6 +4,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 
 import type { Listed } from '../../shared/schemas/api.ts';
 import type { LiveLook, LiveSettings } from '../../shared/schemas/live.ts';
+import { playsOf } from '../../shared/schemas/look.ts';
 import type { Auth } from '../auth.ts';
 import { serverNow } from '../clock.ts';
 import { type Config, configOf } from '../config.ts';
@@ -24,8 +25,7 @@ export const playableLook = (look: StoredLook | null, settings: LiveSettings) =>
 
 /** The stage's copy of a stored look. */
 export const stageCopy = (look: StoredLook, ownerName: string): LiveLook => ({ id: look.id, title: look.title,
-  ownerName, layers: look.layers ?? [], duration: look.duration ?? 30, ...(look.bpm ? { bpm: look.bpm } : {}),
-  globals: look.globals ?? null, automation: look.automation ?? null });
+  ownerName, globals: null, automation: null, ...playsOf(look) });
 
 export function liveRoutes({ store, auth, hub, settings, listed }: { store: Store, auth: Auth, hub: Hub,
   settings: LiveSettings, listed: (look: StoredLook) => Listed }) {

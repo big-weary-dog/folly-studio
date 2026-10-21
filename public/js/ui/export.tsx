@@ -2,6 +2,7 @@
 // look's title and summary.
 import { useState } from 'preact/hooks';
 
+import { playsOf } from '../../../shared/plays.ts';
 import { api } from '../api.ts';
 import { type Light, lightOf } from '../core/light.ts';
 import type { Runtime } from '../runtime.ts';
@@ -13,9 +14,8 @@ const FPS = 40;
 
 export function exportJson(st: Studio) {
   st.flush();
-  const { title, summary, layers, duration, bpm, globals, automation } = st.body.peek();
-  const data = JSON.stringify({ title, summary, duration, ...(bpm ? { bpm } : {}), ...(globals ? { globals } : {}),
-    ...(automation ? { automation } : {}), layers }, null, 2) + '\n';
+  const { title, summary, ...look } = st.body.peek(), { layers, ...plays } = playsOf(look);
+  const data = JSON.stringify({ title, summary, ...plays, layers }, null, 2) + '\n';
   download(data, `${slugify(title, 'folly-look')}.json`, 'application/json');
 }
 

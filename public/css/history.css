@@ -1,0 +1,60 @@
+/* History and versions, a mock-up (js/ui/history/history.tsx): the History drawer's steps and versions, and the
+   view's note while a version previews. */
+.history-drawer { --tint: var(--sand); }
+.history-btn.is-on { color: var(--night-0); background: var(--sand); }
+.history-tabs { display: flex; gap: 2px; margin: 0 0 8px; }
+.history-tabs .dock-tab { flex: 1; }
+.history-steps, .version-list { margin: 0; padding: 0; list-style: none; }
+.hstep { border-bottom: 1px solid rgb(255 236 214 / .06); }
+.hstep-btn { display: flex; align-items: center; gap: 8px; width: 100%; min-height: var(--hit, 34px); padding: 4px 6px;
+  color: var(--text); text-align: left; background: none; border: 0; border-radius: var(--radius); cursor: pointer; }
+.hstep-btn:hover { background: var(--night-2); }
+.hstep-icon { flex: none; width: 20px; color: var(--sand); font-family: var(--mono); text-align: center; }
+.k-add .hstep-icon, .k-restore .hstep-icon { color: var(--emerald); }
+.k-remove .hstep-icon { color: var(--ruby); }
+.k-ai .hstep-icon { color: var(--violet); }
+.hstep-text { display: flex; flex: 1; min-width: 0; flex-direction: column; }
+.hstep-label { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.hstep-sub { overflow: hidden; color: var(--text-3); font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
+.hstep-time { flex: none; color: var(--text-3); font-size: 11px; font-variant-numeric: tabular-nums; }
+.hstep.is-now .hstep-btn { background: var(--night-3); box-shadow: inset 3px 0 0 var(--sand); }
+.hstep.is-ahead .hstep-btn { opacity: .42; }
+.hstep.is-ahead .hstep-label { text-decoration: line-through rgb(255 236 214 / .25); }
+.k-saved .hstep-sub { color: var(--cobalt-t); }
+.hstep-ai { margin: 0 6px 6px 34px; padding: 4px 8px; font-size: 12px; background: var(--night-2);
+  border-left: 2px solid var(--violet); border-radius: var(--radius); }
+.hstep-ai summary { color: var(--text-2); cursor: pointer; }
+.hstep-ai ul { margin: 4px 0; padding-left: 4px; list-style: none; font-family: var(--mono); font-size: 11.5px; }
+.hstep-ai a { color: var(--violet); }
+.hstep.is-ahead .hstep-ai { opacity: .42; }
+.history-hint { margin: 10px 2px 0; color: var(--text-3); font-size: 12px; line-height: 1.45; }
+.version-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+.version-top .pane-hint { flex: 1 1 160px; margin: 0; }
+.version-btns { display: flex; flex: none; align-items: center; gap: 2px; }
+.version-preview { margin-bottom: 8px; padding: 8px 10px; font-size: 12.5px; background: var(--night-3);
+  border-left: 3px solid var(--amber); border-radius: var(--radius); }
+.version-preview p { margin: 0 0 6px; }
+.version-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.version { display: flex; align-items: center; gap: 10px; padding: 8px 6px; border-bottom: 1px solid
+  rgb(255 236 214 / .06); }
+.version.is-current { background: var(--night-3); box-shadow: inset 3px 0 0 var(--amber); }
+.version.is-work.is-current { box-shadow: inset 3px 0 0 var(--sand); }
+.version-text { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 1px; }
+.version-name-t { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.h-auto .version-name-t, .h-ai .version-name-t { color: var(--text-2); }
+.version.is-named .version-name-t { color: var(--text); font-weight: 600; }
+.version-meta { color: var(--text-3); font-size: 11.5px; }
+.version-tags { display: flex; gap: 4px; margin-top: 2px; }
+.version-tags .tag { padding: 0 6px; color: var(--text-2); background: var(--night-2); border-radius: 8px;
+  font-size: 10.5px; }
+.version-tags .t-gallery { color: var(--cobalt-t); }
+.version-tags .t-review { color: var(--emerald); }
+.version-tags .t-named { color: var(--violet); }
+.version-strip { display: grid; flex: none; grid-template-columns: repeat(4, 8px); gap: 3px; padding: 5px;
+  background: var(--void); border-radius: var(--radius); }
+.version-strip i { width: 8px; height: 8px; background: var(--c); border-radius: 50%; box-shadow: 0 0 5px var(--c); }
+.pane-viewer[data-previewing] { position: relative; box-shadow: inset 0 0 0 2px var(--amber); }
+.pane-viewer[data-previewing]::before { content: attr(data-previewing); position: absolute; top: 10px; left: 50%;
+  z-index: 5; max-width: calc(100% - 24px); padding: 4px 12px; overflow: hidden; color: var(--night-0);
+  background: var(--amber); border-radius: 12px; font-size: 12.5px; font-weight: 600; text-overflow: ellipsis;
+  white-space: nowrap; transform: translateX(-50%); pointer-events: none; }

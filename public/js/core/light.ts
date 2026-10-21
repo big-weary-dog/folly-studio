@@ -53,6 +53,32 @@ export function lightOf(o?: unknown): Light {
     controller: controller ?? LIGHT.controller.map((c) => ({ ...c })) };
 }
 
+/** The engine's light: what adds light (the add blend, blur) adds it as `v^2.2`, the swatches' own curve, never the
+ * settings' gamma, which corrects only the output. Tabled with linear steps (within 1e-5 of the curve): the engine
+ * adds per LED, per layer, each frame. Below 0 it mirrors, so a negative value still takes light away. */
+export const MIX_GAMMA = 2.2;
+const STEPS = 1024, DEC = new Float64Array(STEPS + 2), ENC = new Float64Array(STEPS + 2);
+for (let i = 0; i < STEPS + 2; i++) {
+  const x = Math.min(1, i / STEPS);
+  DEC[i] = x ** MIX_GAMMA; ENC[i] = x ** (2 / MIX_GAMMA);   // ENC by √light, where the curve is gentle
+}
+/** A colour value's light. */
+export function toLight(v: number): number {
+  if (!(v > 0)) return v < 0 ? -toLight(-v) : 0;
+  if (v >= 1) return v ** MIX_GAMMA;
+  const x = v * STEPS, i = x | 0;
+  return DEC[i] + (DEC[i + 1] - DEC[i]) * (x - i);
+}
+/** Light's colour value. */
+export function toValue(l: number): number {
+  if (!(l > 0)) return l < 0 ? -toValue(-l) : 0;
+  if (l >= 1 || l < 1 / STEPS ** 2) return l ** (1 / MIX_GAMMA);   // the first step bends too much to table
+  const x = Math.sqrt(l) * STEPS, i = x | 0;
+  return ENC[i] + (ENC[i + 1] - ENC[i]) * (x - i);
+}
+/** Two colour values' light, summed: a value. */
+export const addLight = (a: number, b: number) => (a === 0 ? b : b === 0 ? a : toValue(toLight(a) + toLight(b)));
+
 /** Light settings ready for a scene: each LED's trim (the product of its groups' levels; null when none). */
 export function prepareLight(scene: Scene, light: Light = LIGHT) {
   let trim: Float32Array | null = null;

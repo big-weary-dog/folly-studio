@@ -1,9 +1,10 @@
 // A frame's output: each layer's colours composited into the frame by its blend, and the frame as DMX channels in the
 // rig's addresses and colour order. What the LEDs get from it is light.ts's.
 import type { PreparedLayer } from './render.ts';
+import { addLight } from './light.ts';
 import type { Scene } from './scene.ts';
 
-/** Layer L's colours (L.buf, rgba) into rgb by its blend, at `level`. */
+/** Layer L's colours (L.buf, rgba) into rgb by its blend, at `level` (a value's scale; add sums light). */
 export function composite(rgb: Float32Array, L: PreparedLayer, level: number) {
   const idx = L.idx, m = idx.length, buf = L.buf;
   switch (L.blend) {
@@ -25,10 +26,10 @@ export function composite(rgb: Float32Array, L: PreparedLayer, level: number) {
         for (let c = 0; c < 3; c++) rgb[o + c] *= ia + buf[q + c] * a;
       }
       break;
-    default: // add
+    default: // add: their light
       for (let j = 0; j < m; j++) {
         const o = 3 * idx[j], q = 4 * j, a = buf[q + 3] * level;
-        for (let c = 0; c < 3; c++) rgb[o + c] += buf[q + c] * a;
+        for (let c = 0; c < 3; c++) rgb[o + c] = addLight(rgb[o + c], buf[q + c] * a);
       }
   }
 }

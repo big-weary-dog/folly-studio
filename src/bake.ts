@@ -10,6 +10,7 @@ import path from 'node:path';
 
 import { DEFAULT_DURATION, type LayerInput, type Light } from '../public/js/pattern-core.ts';
 import type { Bake, FlashSettings } from '../shared/schemas/api.ts';
+import { EXTRAS, extrasOf, type PlaysKey } from '../shared/schemas/look.ts';
 import type { Rig } from '../shared/schemas/rig.ts';
 import { BakeError, checkFrames, failedBake } from './box-output.ts';
 import { bundle } from './core-script.ts';
@@ -51,8 +52,8 @@ export function bakeSeconds(look: { duration?: unknown } | null | undefined, max
 const beatsLfo = (params: object | undefined | null): boolean => Object.values(params || {})
   .some((v) => v && typeof v === 'object' && (v.mod === 'lfo' ? v.unit === 'beats' : v.mod === 'beats'
     || beatsLfo({ r: v.rotate })));
-/** What a bake renders of a look. */
-type Renders = { layers?: readonly LayerInput[], globals?: unknown, automation?: unknown, bpm?: unknown };
+/** What a bake renders of a look: what plays (PLAYS; the duration as the seconds baked). */
+type Renders = { [K in PlaysKey]?: unknown } & { layers?: readonly LayerInput[] };
 
 /** Code that reads the look's tempo (G.bpm). */
 const readsBpm = (code: unknown) => typeof code === 'string' && /\bG\s*\.\s*bpm\b/.test(code);
@@ -68,8 +69,8 @@ export function renderFields(look: Renders | null | undefined) {
     && l.modules.some((m) => beatsLfo(m?.params) || readsBpm(m?.code))))
     || beatsLfo(Object.fromEntries(Object.entries(macros ?? {}).map(([k, m]) => [k, m?.mod])));
   if (!look?.globals && !look?.automation && !beats) return layers;
-  return { layers, globals: look!.globals ?? null, automation: look!.automation ?? null,
-    bpm: beats ? look!.bpm ?? null : null };
+  // Keys in PLAYS order (layers, globals, automation, bpm): the hash of every bake made so far depends on it.
+  return { layers, ...Object.fromEntries(EXTRAS.map((k) => [k, k === 'bpm' && !beats ? null : look![k] ?? null])) };
 }
 
 /** Which version of a look's code a bake belongs to: layersHash(renderFields(look)). */
@@ -196,8 +197,7 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
       const bake: Bake = { source, status: 'running', ok: false, requestedAt: look.bake?.requestedAt, startedAt };
       await store.looks.update(id, { bake });
     }
-    const extra = Object.fromEntries((['globals', 'automation', 'bpm'] as const).filter((k) => look[k] != null)
-      .map((k) => [k, look[k]]));
+    const extra = extrasOf(look);
     let out: { bake: Bake, frames?: Uint8Array };
     try {
       const { bytes, boxStats } = await lane.run(() => box.render({ layers: look.layers ?? [], seconds, ...extra }));

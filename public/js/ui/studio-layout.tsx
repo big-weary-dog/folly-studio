@@ -12,6 +12,7 @@ import { DrawerSlot } from './drawer.tsx';
 import { CodeEditor } from './editor.tsx';
 import { cx, humanize, lazy, pref, Switch, useLazy } from './kit.tsx';
 import { ISSUE_LABELS } from './layer-status.ts';
+import { HistoryButton } from './history/button.tsx';
 import { LayersPane } from './layers.tsx';
 import { loadPalettes } from './model.ts';
 import type { Preview } from './preview.ts';
@@ -77,7 +78,8 @@ function Bar({ st, pv }: { st: Studio; pv: Preview }) {
           onBlur={(e) => { if (!e.currentTarget.value.trim()) st.edit(() => ({ title: 'Untitled look' })); }} />
         <span class="save-state" aria-live="polite" data-state={dirty || !L.id ? 'dirty' : 'clean'}>{state}</span>
       </div>
-      <div class="bar-actions"><Share st={st} cls="share-toggle" /><ExportMenu st={st} pv={pv} />
+      <div class="bar-actions"><HistoryButton st={st} />
+        <Share st={st} cls="share-toggle" /><ExportMenu st={st} pv={pv} />
         <button type="button" class={cx('btn primary save-btn', st.saving.value && 'busy')} title="Save (Ctrl+S)"
           disabled={st.saving.value} onClick={() => st.save()}>Save</button></div>
     </div>);

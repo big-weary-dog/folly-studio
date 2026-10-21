@@ -1,5 +1,5 @@
 {
- "_about": "Frozen at b5d9258 (cathedral.json era) by rendering each look as the bake does (t = f / 40, default gamma and brightness) and hashing its full DMX frames. test/rig-folly.test.js renders them again on rig.json. Re-made when a r moved to the LEDs' mean (the effects audit's core fix).",
+ "_about": "Frozen at b5d9258 (cathedral.json era) by rendering each look as the bake does (t = f / 40, default gamma and brightness) and hashing its full DMX frames. test/rig-folly.test.js renders them again on rig.json. Re-made when a r moved to the LEDs' mean (the effects audit's core fix), and when add and blur moved to light.",
  "frames": 100,
  "every": 10,
  "looks": [
@@ -55,16 +55,16 @@
      }
     ]
    },
-   "sha256": "416a893fd0ec231a117bc1553103195e6ea5e3c3df261836f5fdb8c0aff4e8d6",
+   "sha256": "de152ec7dad6245d8e40e446edca9e784c6f92e292c36682bac5ea00e4d279f6",
    "sampled": {
     "0": "274de180f4620d7d",
     "10": "ea43ff3be37ed36a",
     "20": "b0008d9a974e5df6",
-    "30": "7e536289682ce204",
-    "40": "b0a88691acacaa16",
-    "50": "1f90fbc79d97696d",
-    "60": "84e71438feccf389",
-    "70": "c8e5e95cc86fdc5d",
+    "30": "f5f623b45df7fb3e",
+    "40": "328e4e978ca5c23c",
+    "50": "8092a29ceaab576d",
+    "60": "28f2f9b821e8b7f1",
+    "70": "42cb446a596a14d8",
     "80": "ad95d8d9f84a967a",
     "90": "90bfe5ac51b6276a"
    },
@@ -116,18 +116,18 @@
      }
     ]
    },
-   "sha256": "116bf5900397b0b55c3b85c593fc35beb2a8734abb79d56e4c338abe450fb8ff",
+   "sha256": "2dd6c3606b4d43085aa67660a6d2219e93b7e6d1815a465dfb3ba881950a1ab7",
    "sampled": {
-    "0": "5c6133f8e46bd0e7",
-    "10": "c3a394b24cc8f9ae",
-    "20": "f1fd17c12034700d",
-    "30": "a237f2b0eb7f1309",
-    "40": "087ef0c9e6364d5b",
-    "50": "479bc605d29c9544",
-    "60": "a28972e31593475e",
-    "70": "2d6e524415864617",
-    "80": "042c7e1031bf4e67",
-    "90": "a5025ff8a9555d10"
+    "0": "4142b7ea03b70624",
+    "10": "8d63155b2a382776",
+    "20": "b0b02cc2f66f7a23",
+    "30": "c8b65b4c5f8282cf",
+    "40": "3d9852fd0f61aa62",
+    "50": "3d5ed0d43c752f3d",
+    "60": "bde764ee98254927",
+    "70": "0276829e1b0a2a8c",
+    "80": "d204ad29a6ec19c8",
+    "90": "a2ac0a7511d2fac5"
    },
    "litChannels": 718600
   },

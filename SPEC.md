@@ -42,6 +42,7 @@ studio/
   shared/schemas/ zod: look.ts (what the API stores) generated.ts (a generator's look, its JSON Schema) api.ts (bodies,
                   users, ideas) rig.ts (the rig, the library index) models.ts (the model registry) access.ts (invites, limits); the server's at
                   run time, the browser's as types
+  shared/plays.ts what plays (PLAYS), the server's and the browser's at run time
   render-box/     render.ts: bakes a look to .fseq inside bubblewrap; renderer.ts: the frame loop
   fleet-box/      check.ts + BRIEF.template.md for the boxed Fleet worker
   tools/          build_rig.py  build_palettes.py  budgets.ts (+ budgets.json: what oxlint cannot check, line budgets)
@@ -175,10 +176,11 @@ button shows or hides it (default on, kept per browser).
 
 ## Light and output
 
-How a colour value becomes light, the one explanation (docs/LIGHT.md has the why, the diagram and every number):
+How a colour value becomes light (docs/LIGHT.md has the why and every number):
 
-- **The engine works in encoded values**, 0..1, the swatches' own sRGB numbers. Every dim, opacity, level, Amount,
-  fade and blend multiplies or mixes those, so a slider is perceptual: 0.5 looks about half, and is 22 % of the light.
+- **The engine works in encoded values**, 0..1, the swatches' own sRGB numbers. Every dim, opacity, level, Amount
+  and fade scales those, so a slider is perceptual: 0.5 looks about half, and is 22 % of the light. Only `add` and
+  blur work in light, at a fixed `v^2.2` (not the Light gamma).
 - **The LEDs give linear light.** One output transform turns a value into an output byte, in float, then rounds:
   `byte = round(255 · min(1, v^gamma · balance[colour] · trim[LED] · cap))`, then a lit channel never below `floor`.
   The Falcon's own gamma is None, so this is the only curve. Export's .fseq and the Pi use it; bakes and the preview
@@ -248,11 +250,14 @@ them; closing the picker forgets them. `tags` (optional, ≤ 16 of
 `[a-z0-9-]{1,32}`) make a layer portable: when it names no groups, or one this rig lacks, the layer takes its
 known ids plus every group carrying one of its tags (a rig without them lights nothing there); where all its
 ids are known, tags change nothing. An unknown id in a layer without tags is an error. Generators set both; editing a
-layer's groups by hand clears its tags. Blend: `add` sums light (default), `over` replaces where the layer
-has alpha × level, `max` keeps the brighter channel, `multiply` tints what is below.
+layer's groups by hand clears its tags. Blend: `add` sums light (default: 50 % and 50 % make
+68 %), `over` replaces where the layer has alpha × level, `max` keeps the brighter channel, `multiply` tints what is
+below.
 
 - **Modules**: 1–8 per layer, ids unique in it (`[A-Za-z0-9_.:-]{1,64}`), `code` ≤ 20 kB each and always
-  stored (looks stay self-contained for the boxes); `ref` names the library entry it came from; `params`
+  stored (looks stay self-contained for the boxes); `ref` names the library entry it came from, and a module whose `ref` the library has is standard: it keeps the
+  library's title (`shared/standard-modules.ts`; the API and generators put a renamed one's back), and a hand edit
+  of its code drops `ref`, making it custom; `params`
   override the code's defaults (≤ 64; a string ≤ 256 characters: a pick, a choice or text); `enabled: false` skips it; `input` names an earlier source; `as` is only
   `'input'`; `blend` as for layers, or `under` (a source's only). A layer with `code` (+ `params`) and no `modules`
   is a one-source chain and renders exactly as before.
@@ -286,6 +291,7 @@ has alpha × level, `max` keeps the brighter channel, `multiply` tints what is b
   while a control holds it. Nothing else reads it.
 - **Automation**: `{ <global or macro>: [[t, v], …] }`, ≤ 16 lanes of ≤ 256 points, t 0–600 s ascending (to
   the ms); linear between points, held before the first and after the last; it replaces the static value.
+- **What plays** (`PLAYS`), versions and History: `SPEC-history.md`, part of this contract.
 - `data/palettes.json` (`tools/build_palettes.py [--check]`, from `td/palettes/*.csv` and each one's line in
   `td/palettes/themes.txt`; roles as `td/README.md` "Colours"):
   `{ version: 1, roles: [low, body, accent, high], palettes: [{ name, theme, low, body, accent, high }] }`. A look
@@ -323,8 +329,11 @@ Sequencing lives on the look, xLights-style.
   automated global (energy, macros): click to add a point, drag to move it, double-click to remove it. The bottom
   dock (Code, Timeline, Look) is one height on every tab: a share of the Studio's height (36%, at least 220 px, the
   3D view keeping at least 200 px), dragged by the splitter above it and kept per browser.
+- Reorder: a layer or module row moves by its ↑ ↓ buttons, or by dragging its grip (`ui/drag-order.ts`, any
+  pointer), which marks where it lands; the drop is the buttons' edit; Escape cancels.
 - Composition (`ui/chain.tsx`, `ui/params.tsx`, `ui/shelf.tsx`, `ui/look-globals.tsx`): the selected layer's
-  module chain (kind badge, enable, reorder, delete, a filter's input), its Soften row (radius and mode; new layers
+  module chain (kind badge, Custom on a module not standard, enable, reorder, delete, a filter's input; only a
+  custom module's name is editable), its Soften row (radius and mode; new layers
   start at `DEFAULT_SOFTEN`), the pickers (Add a module: tabs Sources, Warps, Filters; Add a layer: Blank, a blank
   layer or one source, and Presets, beside the groups the new layer plays on; one-line rows by category with a filter,
   the tab remembered for the session, each row auditioned in the 3D view), the code editor and
@@ -469,22 +478,19 @@ Mutating requests must be `Content-Type: application/json` and, when an `Origin`
 present, same-origin. Errors are `{ error: "message" }` with a 4xx/5xx status. A body is a JSON object of at most
 256 KB (413 past it; empty is `{}`), checked by the shared schemas (`shared/schemas/api.ts`, `look.ts`): a 400 names
 the first problem ("Layer 2, clip 1: start must be a number of seconds from 0 to 600."). Unknown routes are 404, a
-known path's other methods 405 with `Allow`. Signing up or in is limited per client address (100 a minute) and, for
-failures, per address and username (10 a minute): 429 with `Retry-After`. Password hashes run 3 at once with 30
-waiting; past that, 429 "busy".
+known path's other methods 405 with `Allow`. Accounts, roles and who may do what: `SPEC-access.md`.
 
 ```
 POST   /api/signup   { username, password }   → { user, flash }     (sets cookie)
 POST   /api/login    { username, password }   → { user, flash }
 POST   /api/logout                            → { ok: true }
 GET    /api/me                                → { user, flash, access } | 401
-POST   /api/invite   { code }                 → { access }           redeem an invite code (SPEC "Access")
 GET    /api/ideas                             → { ideas: [idea] }    mine, newest first
 POST   /api/ideas    { text, model?, explore? } → { idea }           queued for generation on that model (none: the
                                               default this user gets); 400 when it is unknown, off, not offered
                                               to their role, or cannot run here; 403 { error, access } when it is
                                               paid and the account is locked; 429 { error, access } + Retry-After
-                                              at a limit (SPEC "Access"); `explore` quick | explore (default) |
+                                              at a limit (SPEC-access "Access"); `explore` quick | explore (default) |
                                               deep, kept on a prompted model's idea (SPEC-generators "Explore");
                                               400 for deep while it is off, 403 while it is admins' only
 POST   /api/looks/:id/refine { text?, model?, critique?, fix?: { layer, error } } → 201 { idea }  owner only: a
@@ -511,17 +517,13 @@ POST   /api/reports  report                   → 201 { id }  an F8 bug report (
 GET    /api/admin/reports                     → { reports: [summary] }  admins only (403), newest first
 GET    /api/admin/reports/:id                 → { report }  admins only; 404 when none
 GET    /api/admin/reports/:id/shot            → image/jpeg  admins only; 404 when it has none
-GET    /api/admin/invites                     → { invites: [invite] }  admins only, as are the four below
-POST   /api/admin/invites { label?, uses?, days? } → 201 { invite, code }  the code is shown only here
-DELETE /api/admin/invites/:id                 → { invite }           revoked (kept, so the list says so)
-GET    /api/admin/people                      → { people: [person] }
-PUT    /api/admin/people/:id { unlocked?, limits?, reset? } → { person }  limits: null clears the override
 GET    /api/looks?scope=mine|gallery          → { looks: [listed] }  metadata only: no layers
 POST   /api/looks    { title, summary?, layers, duration?, bpm?, globals?, automation?, ideaId?, chain? } → { look }
 GET    /api/looks/:id                         → { look }             mine, or shared
 PUT    /api/looks/:id { title?, summary?, layers?, duration?, bpm?, globals?, automation?, shared?, reviewed?,
-                     flashOverride?, chain? } → { look }  owner only (reviewed: a curator); keeps versions; layers
-                                              without chain: 2 converted
+                     flashOverride?, chain?, restoredFrom?, versionName? } → { look }  owner only (reviewed: a
+                                              curator); layers without chain: 2 converted
+GET|PUT /api/looks/:id/versions[/:n]          the owner's versions: SPEC-history
 DELETE /api/looks/:id                         → { ok: true }         owner only
 POST   /api/looks/:id/bake                    → 202 { bake }      owner, or a curator if shared; queued
 GET    /api/looks/:id/frames[?compress=1|zstd|zlib] → the baked .fseq   mine, or shared; 404 if none (attachment);
@@ -547,15 +549,12 @@ has the rest.
 its current layers; large-area flashing in any bake blocks (flashing on small regions only
 warns: `bake.warning`) unless the curator gives `flashOverride`, their reason (3–500 characters), with a render-box
 bake that fails only the flash check: it is kept as `look.flashOverride = { reason, by, at }` (and logged), and
-cleared with the review (400 without `reviewed: true`). Changing `layers`, `duration`, `globals` or `automation`
-(`null` clears either) makes a version (`{ title, summary, layers, duration, bpm?, globals?, automation?, savedAt }`),
-drops the bake and its frames and clears `reviewed`; so does `bpm` (`null` clears it) on a look that moves to the beat
-(a bake's render fields hold it: a tempo nobody flash-checked), and elsewhere it is only a grid. Clips that overlap
+cleared with the review (400 without `reviewed: true`). Changing what plays (`PLAYS`; `null` clears `bpm`, `globals`
+or `automation`) makes a version, and a change to the frames drops the bake and clears `reviewed` (SPEC-history).
+Clips that overlap
 or fall outside 0–600 s, and a duration outside 1–600 s, are refused with 400.
 
-`user = { id, username, role: 'member' | 'curator' | 'admin' }` (curators listed in `STUDIO_CURATORS`, admins in
-`STUDIO_ADMINS`; an admin is also a curator).
-`access`, `invite` and `person`: SPEC "Access".
+`user`, `access`, `invite` and `person`: SPEC-access.
 `flash = { check, perSecond, delta, darker, area }`: the flash check's settings (Baked frames, Checks), for the
 preview's guard; `check: false` (`STUDIO_FLASH_CHECK=off`) means nothing is dimmed or blocked.
 `idea = { id, owner, text, status: 'queued'|'generating'|'ready'|'failed', model?, generator, by?, explore?, took?,
@@ -595,18 +594,14 @@ than 60 days. Admins read them on Admin's Reports tab; "Open as captured" opens 
 draft in an unsaved editor, at the captured time, view, quality, selection and layout, paused, so a browser run
 reproduces it. `node tools/reports.ts list | get <id>` reads them from `STUDIO_DATA` directly.
 
-## Admin
+## Generators and models
 
-Admins' header has one more item, **Admin** (`/admin`, which opens its first tab), where everyone else's has none.
-Its tabs are pages of their own: Models (`/admin/models`, SPEC-generators "Models"), Access (`/admin/access`,
-SPEC-generators "Access"), Light (`/admin/light`, Light and output) and Reports (`/admin/reports`, Bug reports), then
-a link to the Pi preview (`/pi/`, in a new tab). The old `/models`, `/access`, `/light` and `/reports` lead to their
-tab, query kept. Anyone else who opens one gets the page without the tabs, its admin calls refused (403) as it says.
+In `SPEC-generators.md`, part of this contract: **Generators** (idea → look) and **Models** (the registry).
 
-## Generators, models and access
+## Accounts and access
 
-In `SPEC-generators.md`, part of this contract: **Generators** (idea → look), **Models** (the registry) and
-**Access** (invite codes and limits on the paid models).
+In `SPEC-access.md`, part of this contract: **Accounts** (roles, sign-in), **Admin** (its pages), **Access** (invite
+codes and limits on the paid models) and their routes.
 
 ## The live stage
 
