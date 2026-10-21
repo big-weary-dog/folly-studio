@@ -49,8 +49,8 @@ summary that you took it loosely.
      and reworks it (`x`: the colour of the source its `input` names), and a `warp` defines
      `function warp(q, t, P, G)` and bends it, so a warp goes after what it bends (a blur or trails
      stops it: nothing above one is bent by a warp below it). The look
-     may set `"globals"` (`speed`, `level`, `hue`, `saturation`, `energy`, `palette` by name,
-     `macros`) and `"automation"` (`{ "energy": [[seconds, value], …] }`); patterns read them as `G`.
+     may set `"globals"` (`palette` by name, `macros` such as `energy`) and `"automation"`
+     (`{ "energy": [[seconds, value], …] }` for a macro); patterns read them as `G`.
 2. Run `node check.ts`. It compiles every layer with the studio's real runtime
    (`pattern-core.ts`), renders frames on the real LEDs (`rig.json`) and prints
    problems. Fix every ✗ and, where you can, every warning. Iterate on how it looks: render

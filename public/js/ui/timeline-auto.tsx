@@ -1,4 +1,4 @@
-// Automation lanes under the timeline's layers (SPEC "Looks"): a lane per automated global (energy, a macro), its
+// Automation lanes under the timeline's layers (SPEC "Looks"): a lane per automated macro, its
 // points joined by straight lines and held at either end. Click a lane to add a point, drag one to move it,
 // double-click one to remove it.
 import { useLayoutEffect, useRef } from 'preact/hooks';
@@ -18,9 +18,8 @@ const r3 = (v: number) => Math.round(v * 1000) / 1000;
 export function AutoLanes({ st, tl, focus }: { st: Studio; tl: TimelineState; focus: boolean }) {
   const L = st.look.value, auto = L.automation || {}, add = useRef<HTMLSelectElement>(null);
   useLayoutEffect(() => { if (focus) add.current?.focus(); }, []);
-  // What can be automated: energy and the look's macros, with their ranges.
-  const ranges = new Map<string, Range>([['energy', { min: 0, max: 1, value: L.globals?.energy ?? 0.5 }],
-    ...Object.entries(L.globals?.macros || {}).map(([n, m]): [string, Range] => [n, m])]);
+  // What can be automated: the look's macros, with their ranges.
+  const ranges = new Map<string, Range>(Object.entries(L.globals?.macros || {}));
   const free = [...ranges.keys()].filter((n) => !auto[n]);
   const setLanes = (fn: (a: Automation) => void) => st.edit((look) => {
     const a = { ...look.automation };
@@ -34,9 +33,9 @@ export function AutoLanes({ st, tl, focus }: { st: Studio; tl: TimelineState; fo
   return (
     <div class="tl-auto">
       <div class="tl-auto-head"><div class="tl-corner tl-auto-corner">Automation</div>
-        <div class="tl-auto-tools"><select class="tl-auto-add" ref={add} aria-label="Automate a global" value=""
+        <div class="tl-auto-tools"><select class="tl-auto-add" ref={add} aria-label="Automate a macro" value=""
           data-tour="automate" disabled={!free.length} onChange={(e) => addLane(e.currentTarget.value)}>
-          <option value="">{free.length ? '+ Automate…' : 'All automated'}</option>
+          <option value="">{free.length ? '+ Automate…' : ranges.size ? 'All automated' : 'No macros'}</option>
           {free.map((n) => <option value={n}>{humanize(n)}</option>)}</select></div></div>
       <div class="tl-auto-lanes">
         {Object.keys(auto).filter((n) => ranges.has(n)).map((n) => <Lane key={n} name={n} pts={auto[n]!}

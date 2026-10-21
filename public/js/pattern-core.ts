@@ -13,8 +13,8 @@ export type { Picture } from './core/picture.ts';
 export type { PickBlend, PickSpec } from './core/picks.ts';
 export type { Compiled, ParamSchema, ParamSpec } from './core/compile.ts';
 export {
-  automationAt, GLOBALS, isBinding, macroNameOk, MAX_LANES, MAX_MACROS, MAX_POINTS, normalizeGlobals, prepareLook,
-  readText, resolveParams, TEXT_MAX,
+  automationAt, isBinding, macroNameOk, MAX_LANES, MAX_MACROS, MAX_POINTS, normalizeGlobals, OLD_GLOBALS, prepareLook,
+  readText, resolveParams, TEXT_MAX, upgradeGlobals,
 } from './core/globals.ts';
 export type { G, PreparedLook, Values } from './core/globals.ts';
 export { groupsByTag, pixelsForGroups, prepareScene, tagCentres, tagMask } from './core/scene.ts';

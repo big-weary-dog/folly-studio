@@ -2,7 +2,7 @@
 // plays. The server's twin is src/live/state.ts (showTime and roll the same, held to each other by test/live.test.ts).
 import type { Automation } from '../../../../shared/schemas/look.ts';
 import type { Live, LiveUpdate } from '../../../../shared/schemas/live.ts';
-import { automationAt, GLOBALS, normalizeGlobals } from '../../pattern-core.ts';
+import { automationAt, normalizeGlobals, upgradeGlobals } from '../../pattern-core.ts';
 
 /** The loop and the show time in it at server time `now` (ms). */
 export function showTime(live: Pick<Live, 'look' | 'startedAt'>, now: number) {
@@ -38,13 +38,11 @@ export function stageAutomation(live: Live): Automation {
 }
 
 export type Control = { name: string, min: number, max: number, value: number, held: boolean };
-/** The faders a look offers: the globals, then its macros, each with its value at show time t. */
+/** The faders a look offers: its macros, each with its value at show time t. */
 export function controlsOf(live: Live, t: number): Control[] {
   if (!live.look) return [];
-  const g = normalizeGlobals(live.look.globals), auto = stageAutomation(live);
-  const list = [...Object.entries(GLOBALS).map(([name, r]) => ({ name, min: r.min, max: r.max,
-    value: g[name as keyof typeof GLOBALS] })), ...g.macros.map((m) => ({ ...m }))];
-  return list.map((c) => {
+  const g = normalizeGlobals(upgradeGlobals(live.look).globals), auto = stageAutomation(live);
+  return g.macros.map((c) => {
     const lane = auto[c.name];
     return { ...c, value: lane?.length ? automationAt(lane, t) : c.value, held: c.name in live.held };
   });

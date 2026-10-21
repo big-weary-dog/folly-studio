@@ -28,10 +28,10 @@ const read = (L, t, look) => {
 };
 
 describe('clock(name)', () => {
-  test('a fixed speed: its value × the look\'s clock (the global speed too)', () => {
+  test('a fixed speed: its value × the look\'s clock (an old look\'s global speed is ignored)', () => {
     const L = layerOf({ speed: 1.5 });
     assert.ok(Math.abs(read(L, 2, prepareLook(null)).clock - 3) < 1e-4);
-    assert.ok(Math.abs(read(layerOf({ speed: 1.5 }), 2, prepareLook({ globals: { speed: 2 } })).clock - 6) < 1e-4);
+    assert.ok(Math.abs(read(layerOf({ speed: 1.5 }), 2, prepareLook({ globals: { speed: 2 } })).clock - 3) < 1e-4);
   });
 
   const BOUND = {
@@ -39,7 +39,7 @@ describe('clock(name)', () => {
     'a global with a lane': { speed: { mod: 'global', name: 'energy', from: -1, to: 3 } },
     'the clip envelope': { speed: { mod: 'envelope', from: 0, to: 2 } },
   };
-  const look = () => prepareLook({ automation: { energy: [[0, 0], [3, 1], [6, 0.2]], speed: [[0, 1], [5, 2]] } });
+  const look = () => prepareLook({ automation: { energy: [[0, 0], [3, 1], [6, 0.2]] } });
   const clips = [{ start: 0.5, end: 9, fadeIn: 1.5, fadeOut: 2 }];
 
   for (const [what, params] of Object.entries(BOUND)) {
@@ -50,7 +50,7 @@ describe('clock(name)', () => {
       for (let f = 1; f < frames.length; f++) {
         if (frames[f].env < 0.2 || frames[f - 1].env < 0.2) continue;
         const step = Math.abs(frames[f].clock - frames[f - 1].clock);
-        assert.ok(step <= 3 * 2 / 40 + 1e-3, `${what}: frame ${f} moved ${step}, past the fastest speed's step`);
+        assert.ok(step <= 3 / 40 + 1e-3, `${what}: frame ${f} moved ${step}, past the fastest speed's step`);
       }
       assert.ok(Math.abs(frames[300].clock - frames[100].clock) > 0.5, 'it moved');
       for (const t of [8, 3.3, 0.625, 7.9]) {

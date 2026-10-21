@@ -37,7 +37,7 @@ describe('steps', () => {
     assert.equal(named(L, { ...L, layers: [] }).label, 'Deleted a layer');
     assert.equal(named(L, { ...L, layers: [a, { ...a, id: 'b' }] }).label, 'Added a layer');
     assert.equal(named(L, { ...L, bpm: 128 }).label, 'Tempo 128 bpm');
-    assert.equal(named(L, { ...L, globals: { speed: 2 } }).label, 'Set speed');
+    assert.equal(named(L, { ...L, globals: { macros: { storm: { value: 1, min: 0, max: 1 } } } }).label, 'Set macros');
   });
 
   test('quick edits to one thing fold into one step until sealed; other edits are their own', () => {
@@ -98,7 +98,7 @@ describe('steps', () => {
     const h = createSteps(), st = studio(), L = st.look.peek();
     h.start(L);
     const o = { step: 'Added the preset “Fire”', kind: 'add', merge: 'preset:1' } as const;
-    h.record(L, { ...L, globals: { speed: 2 } }, o);
+    h.record(L, { ...L, globals: { macros: { storm: { value: 1, min: 0, max: 1 } } } }, o);
     h.record(L, { ...L, layers: [] }, o);
     assert.equal(h.list.peek().length, 2);
     const ai = (id: string) => ({ ideaId: id, asked: 'slower', changes: [] });

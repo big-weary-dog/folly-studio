@@ -345,6 +345,6 @@ export function renderFrame(scene: Scene, layers: readonly (PreparedLayer | null
     }
     L.ms = clock() - t0;
   }
-  finish(rgb, N * 3, LK);
+  finish(rgb, N * 3);
   return { rgb, errors };
 }

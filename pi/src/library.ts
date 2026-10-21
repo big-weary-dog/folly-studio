@@ -5,8 +5,8 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import type { LayerInput } from '../../public/js/pattern-core.ts';
-import { type Automation, automationFor, Globals } from '../../shared/schemas/look.ts';
+import { type LayerInput, upgradeGlobals } from '../../public/js/pattern-core.ts';
+import { type Automation, automationFor, Globals, type Globals as GlobalsType } from '../../shared/schemas/look.ts';
 
 export type Entry = { name: string, kind: string, code: string };
 export type Library = { entries: Map<string, Entry>, hash: string };
@@ -55,8 +55,9 @@ export function resolveLook(look: PiLook, lib: Library): PiLook {
       return { ...m, id: m.id ?? `m${j + 1}`, kind: e.kind, code: e.code } as typeof m;
     }) };
   });
-  const globals = parsed('globals', Globals, look.globals ?? null);
-  const automation = parsed('automation', automationFor(globals), look.automation ?? null);
+  const now = upgradeGlobals(look);    // looks from before: energy a macro, the old globals gone
+  const globals = parsed<GlobalsType | null>('globals', Globals, now.globals ?? null);
+  const automation = parsed('automation', automationFor(globals), now.automation ?? null);
   return { ...look, title: String(look.title || look.id), layers, globals, automation };
 }
 

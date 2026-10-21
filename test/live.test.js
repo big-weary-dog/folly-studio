@@ -17,7 +17,8 @@ import { fakeBox, fx, layer, signup, startApp, useFixture } from './fixtures/ser
 
 const BY = { id: 'u1', username: 'carol' };
 const LOOK = { id: 'look1', title: 'Sea', ownerName: 'alice', duration: 10, layers: [layer(), layer({ id: 'l2' })],
-  globals: { macros: { swell: { min: 0, max: 4, value: 1 } } }, automation: { speed: [[0, 1], [10, 2]] } };
+  globals: { macros: { swell: { min: 0, max: 4, value: 1 }, glow: { min: 0, max: 1, value: 1 }, tint: { min: 0, max: 1,
+    value: 0 }, pace: { min: 0, max: 4, value: 1 } } }, automation: { pace: [[0, 1], [10, 2]] } };
 const on = (now = 0) => switchTo(emptyLive(), structuredClone(LOOK), BY, now);
 const set = (msg) => ({ type: 'set', ...msg });
 
@@ -32,28 +33,28 @@ describe('live state', () => {
 
   test('a push ramps from what plays to the value, at its show time', () => {
     const live = on(0), now = live.startedAt + 2000 - LEAD_MS;
-    const u = applySet(live, set({ values: { level: 0.4 } }), BY, now);
+    const u = applySet(live, set({ values: { glow: 0.4 } }), BY, now);
     assert.equal(u.rev, live.rev);
     assert.equal(u.at, now + LEAD_MS);
-    assert.deepEqual(u.lanes.level, [[0, 1], [2, 1], [2 + RAMP, 0.4]]);
-    assert.deepEqual(u.held, { level: 1 });
+    assert.deepEqual(u.lanes.glow, [[0, 1], [2, 1], [2 + RAMP, 0.4]]);
+    assert.deepEqual(u.held, { glow: 1 });
     // One more within the ramp moves its end rather than adding points.
-    const v = applySet(live, set({ values: { level: 0.2 } }), BY, now + 20);
-    assert.deepEqual(v.lanes.level, [[0, 1], [2, 1], [2.07, 0.2]]);
+    const v = applySet(live, set({ values: { glow: 0.2 } }), BY, now + 20);
+    assert.deepEqual(v.lanes.glow, [[0, 1], [2, 1], [2.07, 0.2]]);
     assert.ok(!('layers' in v) && !('blackout' in v), 'only what changed');
   });
 
   test("a pushed lane the look automates starts from the look's own lane", () => {
-    const live = on(0), u = applySet(live, set({ values: { speed: 3 } }), BY, live.startedAt + 5000 - LEAD_MS);
-    assert.deepEqual(u.lanes.speed, [[0, 1], [5, 1.5], [5 + RAMP, 3]]);
+    const live = on(0), u = applySet(live, set({ values: { pace: 3 } }), BY, live.startedAt + 5000 - LEAD_MS);
+    assert.deepEqual(u.lanes.pace, [[0, 1], [5, 1.5], [5 + RAMP, 3]]);
   });
 
   test('values are clamped to their range; unknown names and layers change nothing', () => {
     const live = on(0), now = live.startedAt;
     assert.deepEqual(applySet(live, set({ values: { swell: 9 } }), BY, now).lanes.swell.at(-1), [0.08, 4]);
     const before = structuredClone(live);
-    assert.match(applySet(live, set({ values: { level: 0.5, nope: 1 } }), BY, now).error, /nope is not/);
-    assert.match(applySet(live, set({ values: { level: 0.5 }, layers: { l9: { muted: true } } }), BY, now).error,
+    assert.match(applySet(live, set({ values: { glow: 0.5, nope: 1 } }), BY, now).error, /nope is not/);
+    assert.match(applySet(live, set({ values: { glow: 0.5 }, layers: { l9: { muted: true } } }), BY, now).error,
       /no layer l9/);
     assert.deepEqual(live, before);
     assert.match(applySet(emptyLive(), set({ blackout: true }), BY, now).error, /Nothing is playing/);
@@ -61,23 +62,23 @@ describe('live state', () => {
 
   test('a release ramps back to the look and drops the name at the next loop', () => {
     const live = on(0), start = live.startedAt - LEAD_MS;
-    applySet(live, set({ values: { level: 0.5 } }), BY, start + 1000);
-    const u = applySet(live, set({ release: ['level'] }), BY, start + 3000);
-    assert.deepEqual(u.lanes.level.slice(-2), [[3, 0.5], [3 + RAMP, 1]]);
-    assert.deepEqual(u.drop, ['level']);
+    applySet(live, set({ values: { glow: 0.5 } }), BY, start + 1000);
+    const u = applySet(live, set({ release: ['glow'] }), BY, start + 3000);
+    assert.deepEqual(u.lanes.glow.slice(-2), [[3, 0.5], [3 + RAMP, 1]]);
+    assert.deepEqual(u.drop, ['glow']);
     const next = applySet(live, set({ values: { swell: 2 } }), BY, start + 12_000);
     assert.equal(next.loop, 1);
-    assert.deepEqual(next.held, { swell: 1 }, 'level released; the lanes of loop 0 are gone');
+    assert.deepEqual(next.held, { swell: 1 }, 'glow released; the lanes of loop 0 are gone');
   });
 
   test('a held value carries into the next loop', () => {
     const live = on(0);
-    applySet(live, set({ values: { hue: 0.3 } }), BY, live.startedAt);
+    applySet(live, set({ values: { tint: 0.3 } }), BY, live.startedAt);
     roll(live, 1);
     assert.deepEqual(live.lanes, {});
-    assert.equal(live.held.hue, 0.3);
-    const u = applySet(live, set({ values: { hue: 0.45 } }), BY, live.startedAt + 14_000 - LEAD_MS);
-    assert.deepEqual(u.lanes.hue, [[0, 0.3], [4, 0.3], [4 + RAMP, 0.45]]);
+    assert.equal(live.held.tint, 0.3);
+    const u = applySet(live, set({ values: { tint: 0.45 } }), BY, live.startedAt + 14_000 - LEAD_MS);
+    assert.deepEqual(u.lanes.tint, [[0, 0.3], [4, 0.3], [4 + RAMP, 0.45]]);
   });
 
   test('layers, blackout, and the lane cap', () => {
@@ -89,18 +90,18 @@ describe('live state', () => {
     const many = { ...LOOK, automation: Object.fromEntries(Array.from({ length: MAX_LANES }, (_, i) => [`m${i}`,
       [[0, 0]]])) };
     const full = switchTo(emptyLive(), many, BY, 0);
-    assert.match(applySet(full, set({ values: { level: 0.5 } }), BY, full.startedAt).error, /At most 16 lanes/);
+    assert.match(applySet(full, set({ values: { glow: 0.5 } }), BY, full.startedAt).error, /At most 16 lanes/);
   });
 
   test('a viewer applying the updates has what the server has', () => {
     const live = on(0), seen = structuredClone(live), start = live.startedAt - LEAD_MS;
-    for (const [at, msg] of [[500, { values: { level: 0.5 } }], [4000, { values: { swell: 3 } }],
-      [7000, { release: ['level'] }], [13_000, { values: { hue: 0.4 } }], [25_000, { values: { swell: 0 } }]]) {
+    for (const [at, msg] of [[500, { values: { glow: 0.5 } }], [4000, { values: { swell: 3 } }],
+      [7000, { release: ['glow'] }], [13_000, { values: { tint: 0.4 } }], [25_000, { values: { swell: 0 } }]]) {
       const u = JSON.parse(JSON.stringify(applySet(live, set(msg), BY, start + at)));
       assert.ok(twin.applyUpdate(seen, u));
     }
     for (const k of ['rev', 'loop', 'held', 'lanes', 'drop']) assert.deepEqual(seen[k], live[k], k);
-    assert.equal(twin.applyUpdate(seen, { ...applySet(live, set({ values: { hue: 0 } }), BY, start), rev: 99 }),
+    assert.equal(twin.applyUpdate(seen, { ...applySet(live, set({ values: { tint: 0 } }), BY, start), rev: 99 }),
       false, 'out of order');
     for (const now of [0, 1234, 999_999]) assert.deepEqual(twin.showTime(live, now), showTime(live, now));
     const a = structuredClone(live), b = structuredClone(live);
@@ -111,15 +112,15 @@ describe('live state', () => {
 
   test('the faders and what the sandbox plays', () => {
     const live = on(0);
-    applySet(live, set({ values: { level: 0.25 } }), BY, live.startedAt + 1000);
+    applySet(live, set({ values: { glow: 0.25 } }), BY, live.startedAt + 1000);
     const auto = twin.stageAutomation(live);
-    assert.deepEqual(auto.speed, LOOK.automation.speed, "the look's own lanes");
-    assert.deepEqual(auto.level, live.lanes.level);
+    assert.deepEqual(auto.pace, LOOK.automation.pace, "the look's own lanes");
+    assert.deepEqual(auto.glow, live.lanes.glow);
     const c = twin.controlsOf(live, 5);
-    assert.deepEqual(c.find((x) => x.name === 'level'), { name: 'level', min: 0, max: 1, value: 0.25, held: true });
-    assert.equal(c.find((x) => x.name === 'speed').value, 1.5);
+    assert.deepEqual(c.find((x) => x.name === 'glow'), { name: 'glow', min: 0, max: 1, value: 0.25, held: true });
+    assert.equal(c.find((x) => x.name === 'pace').value, 1.5);
     assert.deepEqual(c.find((x) => x.name === 'swell'), { name: 'swell', min: 0, max: 4, value: 1, held: false });
-    const next = twin.controlsNow(live, live.startedAt + 10_500).find((x) => x.name === 'level');
+    const next = twin.controlsNow(live, live.startedAt + 10_500).find((x) => x.name === 'glow');
     assert.equal(next.value, 0.25, 'into the next loop with no update: the pushed value, held');
     assert.equal(live.loop, 1);
   });
@@ -185,7 +186,7 @@ describe('live socket', () => {
     alice = await signup(app, 'alice');
     carol = await signup(app, 'carol');
     const look = (await alice.post('/api/looks', { title: 'Live sea', layers: [layer()], shared: true,
-      globals: { level: 0.8 } })).json.look;
+      globals: { macros: { glow: { value: 0.8, min: 0, max: 1 } } } })).json.look;
     lookId = look.id;
     assert.equal((await alice.post(`/api/looks/${lookId}/bake`)).status, 202);
     await app.bakes.idle();
@@ -216,13 +217,13 @@ describe('live socket', () => {
     assert.deepEqual(a.live, b.live);
     assert.equal(a.live.look.title, 'Live sea');
     assert.equal(a.live.look.ownerName, 'alice');
-    assert.deepEqual(a.live.look.globals, { level: 0.8 });
+    assert.deepEqual(a.live.look.globals, { macros: { glow: { value: 0.8, min: 0, max: 1 } } });
     assert.equal(a.live.by.username, 'carol');
 
-    drive.send({ type: 'set', values: { level: 0.3 }, blackout: true });
+    drive.send({ type: 'set', values: { glow: 0.3 }, blackout: true });
     const u = await watch.next('update');
     assert.equal(u.rev, a.live.rev + 1);
-    assert.equal(u.lanes.level.at(-1)[1], 0.3);
+    assert.equal(u.lanes.glow.at(-1)[1], 0.3);
     assert.equal(u.blackout, true);
     assert.deepEqual((await drive.next('presence')).controllers, ['carol']);
 

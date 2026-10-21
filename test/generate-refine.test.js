@@ -45,18 +45,17 @@ describe('decompose and diff', () => {
       assert.equal(edited.extensions[0].code, look.layers[0].modules[0].code);
     });
 
-  test('what changed, in words: a param, a level, a layer added, the palette, the speed', () => {
+  test('what changed, in words: a param, a level, a layer added, the palette', () => {
     const a = decompose(lookOf(answer()), CATALOG), b = structuredClone(a);
     b.layers[0].modules[0].params.push({ name: PACE_PARAM, value: 0.1 });
     b.layers[0].level = 0.5;
     b.layers.push({ ...structuredClone(a.layers[0]), title: 'Glow' });
-    b.globals = { palette: 'ember', speed: 0.8 };
+    b.globals = { palette: 'ember' };
     const lines = diffCompositions(a, b).join('\n');
     assert.match(lines, new RegExp(`${PACE_PARAM} default → 0\\.1`));
     assert.match(lines, /level/);
     assert.match(lines, /\+ .*Glow/);
     assert.match(lines, /palette/);
-    assert.match(lines, /speed: default → 0.8/);
     assert.deepEqual(diffCompositions(a, structuredClone(a)), []);
     const picked = { ...a, globals: { palette: { colors: ['#ff0000'] } } };
     assert.deepEqual(diffCompositions(picked, structuredClone(picked)), [], 'an equal palette object is no change');

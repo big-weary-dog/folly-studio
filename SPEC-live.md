@@ -20,7 +20,7 @@ live = { rev: 12,                       // +1 each change
   look: { id, title, ownerName, layers, duration, bpm?, globals?, automation? } | null,   // copied at switch
   startedAt: 1760000000000,             // server epoch ms of show time 0; a switch restarts it
   loop: 3,                              // the loop the lanes are for
-  held: { energy: 0.8, storm: 0.2 },    // overridden globals and macros: their value when the loop began
+  held: { energy: 0.8, storm: 0.2 },    // overridden macros: their value when the loop began
   lanes: { energy: [[0, 0.5], [4.21, 0.5], [4.26, 0.8]] },   // this loop's live automation (show time, value)
   drop: ['storm'],                      // released: back to the look's own value from the next loop
   layers: { l1: { level: 0.4, muted: false } }, blackout: false,
@@ -37,8 +37,8 @@ stage.
 (+ a 30 ms lead, so viewers usually have it before it plays). In the loop's lane (made, at the first push, from
 the look's own lane up to `at`, or `[[0, held or the look's value]]`) the server adds `[at, the lane's value then]`
 unless a point is within 50 ms, then `[at + 0.05, v]`, a 50 ms ramp; a push within 50 ms of the last point moves
-that point instead. Times are kept to the ms; values held to the global's or macro's range. A lane holds at most
-256 points (the core's limit); past that a push moves its last point. Because speed and integrated clocks are
+that point instead. Times are kept to the ms; values held to the macro's range. A lane holds at most
+256 points (the core's limit); past that a push moves its last point. Because integrated clocks are
 integrals of lanes, everyone, and anyone joining late, computes the same frame for the same `t`, and nothing jumps.
 **Rolling over.** When `t`'s loop passes `live.loop`, every side does the same: each lane's last value becomes
 `held`, names in `drop` leave `held`, lanes and drop empty, `loop` = the new loop. The server rolls before applying
@@ -66,7 +66,7 @@ is closed (1008). At most 200 sockets (1013 past it). The server pings every 25 
 100 s). Clients reconnect after 0.5 s, doubling to 8 s, with jitter, for good, and get the whole state again. Until a
 state comes, the pages say so: after 10 s "Can't reach the stage. Retrying…", and after a close with 1013 "The stage
 is full. Retrying…".
-`set` names only the look's globals (`energy speed level hue saturation`) and macros; `layers` only its layer ids.
+`set` names only the look's macros; `layers` only its layer ids.
 
 ## Following /pi
 
@@ -82,7 +82,7 @@ doubling to 10 s), and while `pi` drives sends on what it says (`shared/schemas/
   with no code (each viewer has our library). On joining, at a switch, and when a push takes a name off its lane
   (`rev` moves: the engine's look is prepared again).
 - `now: { rev, t, bpm, beat0, offset, values, gain }` at server time `at`: show time t, the tempo, downbeat and look
-  clock's offset, the values of the look's live controls, and the output's gain (master × blackout × a switch's dip,
+  clock's offset (0: pattern time is show time), the values of the look's live controls, and the output's gain (master × blackout × a switch's dip,
   as eased). Sent when anything but t changed, else every 2 s; null while the engine is down.
 
 A viewer plays `source` (fresh clock) and sets `now`'s values, tempo and clock in place before a frame (the sandbox's
@@ -108,8 +108,7 @@ stage starts empty.
 
 - `/live`: the Playa view of the stage, the look's title, who is controlling, the sync (clock ± ms, fps: for admins,
   or with `?stats`). On a touch screen it starts on the Low tier. Pattern code runs only in the viewer's own sandbox.
-- `/live/control`: for controllers. Pick a look; Blackout; faders for energy, speed, level (intensity), hue,
-  saturation and each macro (its min..max), each with ↺ to release it; per layer a level fader and a mute pad.
+- `/live/control`: for controllers. Pick a look; Blackout; a fader for each macro (its min..max), each with ↺ to release it; per layer a level fader and a mute pad.
   Faders send at most 20 times a second while dragged, and the final value on release. Built from the look's data;
   module params are not offered yet.
 

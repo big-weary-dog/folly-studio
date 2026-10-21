@@ -130,7 +130,9 @@ export function makeBinding(f: BindingForm, p: Param): Binding | null {
       ...(f.shape === 'hold' ? { hold: Math.min(0.95, Math.max(0, n(f.hold, 0.5))) } : {}),
       ...(f.amount ? { amount: f.amount } : {}), ...(f.pace ? { pace: f.pace } : {}) };
   }
-  if (f.mod === 'global') return { mod: 'global', name: f.name, from: n(f.from, p.min), to: n(f.to, p.max) };
+  if (f.mod === 'global') {
+    return f.name ? { mod: 'global', name: f.name, from: n(f.from, p.min), to: n(f.to, p.max) } : null;
+  }
   if (f.mod === 'beats') return { mod: 'beats', per: n(f.per, 1) };
   return f.mod === 'envelope' ? { mod: 'envelope', from: n(f.eFrom, p.min), to: n(f.eTo, p.max) } : null;
 }

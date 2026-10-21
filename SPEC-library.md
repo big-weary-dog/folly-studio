@@ -186,7 +186,7 @@ each, a module the library's by `ref` (an `input` names an `id` in its layer), p
 to one kind. The server drops a preset that is malformed or names a module the library lacks. The Studio makes a
 preset's layers from the library's modules (fresh ids, inputs followed), on the whole rig, softened unless it says,
 above the selected layer; of its `globals` it adds the macros the look lacks and its palette where the look has none,
-and leaves the rest.
+and leaves the rest. A preset that binds `energy` brings an `energy` macro (0..1, 0.5) for it.
 
 The library, one idea a module. Sources: colour-wash, bars, clouds, fire, single-strand (Chase), life, wildfire,
 waves, fireflies, sparkle,
@@ -306,11 +306,10 @@ own buffer by `p.k` (their own output, fed back), not this one.
 
 ## Globals
 
-`G` holds the look's globals for this frame (sealed; refreshed every frame): `energy` (0..1, calm → busy),
-`speed`, `level`, `hue`, `saturation`, `bpm` (the look's tempo, 120 unset), `palette` (`{ name, low, body, accent, high }`, each a frozen list of
-`[r, g, b]`), and each macro's value by name (`G.storm`). The runtime applies `speed` (pattern `t` is the
-look's clock, ∫ speed dt, so a change never makes motion jump), `level` (master), `hue` and `saturation` (to the
-composite, per pixel) for free. Clips, automation and LFOs run on show time.
+`G` holds the look's globals for this frame (sealed; refreshed every frame): `bpm` (the look's tempo, 120 unset),
+`palette` (`{ name, low, body, accent, high }`, each a frozen list of `[r, g, b]`), and each macro's value by name
+(`G.storm`; `G.energy` on a look with an energy macro, SPEC "Globals"). Pattern `t` is show time (plus the offset a
+followed live engine gives, SPEC-live), as are clips, automation and LFOs.
 
 ## Param bindings
 
@@ -320,13 +319,13 @@ frame per layer and held to the param's min..max (`from`/`to` default to them):
 - `{ mod: 'lfo', shape: 'sine'|'tri'|'saw'|'square'|'hold', rate, unit: 'hz'|'beats', depth, center, hold?,
   amount?, pace? }`: `center + depth × w(t × rate)`, `w` −1..1, beats at `look.bpm` (120 unset; `rate` then cycles
   a beat, phase 0 on the downbeat); `center` defaults to the param's default, `depth` to a quarter of its range (the
-  Studio shows them as From/To, `center ∓ depth`). `amount` (a global's or macro's name) scales `depth` by its value
+  Studio shows them as From/To, `center ∓ depth`). `amount` (a macro's name) scales `depth` by its value
   0..1 of its range; `pace` multiplies the rate by its value, the phase running on its integral (exact over a lane,
   so speeding up never jumps the wave; a live push keeps it continuous). `hold` starts at the bottom, eases up, holds at the top, eases
   down and holds at the bottom; `hold` (0..1, default 0.5, at most 0.95) is the share of each cycle spent holding,
   half at each end: an open, hold, close for a reveal.
-- `{ mod: 'global', name, from, to }`: `from + (to − from) × g`, `g` the global (`energy`, `speed`, `level`,
-  `hue`, `saturation`, a macro or a modulator: SPEC "Globals") as 0..1 of its range.
+- `{ mod: 'global', name, from, to }`: `from + (to − from) × g`, `g` the macro or modulator (SPEC "Globals") as 0..1
+  of its range.
 - `{ mod: 'envelope', from, to }`: by the layer's clip envelope (1 with no clips). Read for older looks only: the
   Studio no longer offers it and generators never write it.
 - `{ mod: 'beats', per = 1 }` (a speed's beat clock): `per × bpm / 60`, so a speed counts per beat at the look's
@@ -338,9 +337,9 @@ A colour pick's `rotate` takes the same bindings (from 0, to 1, depth ¼ by defa
 
 `clock(name)` is ∫ P[name] dT, the distance a number param (a speed) has moved things since t = 0 in pattern time,
 per module instance; a module draws motion from it (`p.ly - clock('speed')`), never from `t × P.speed`, so a speed an
-LFO, a global or the envelope moves never makes the motion jump. A param with a fixed value gives value × T, exact. A
+LFO, a macro or the envelope moves never makes the motion jump. A param with a fixed value gives value × T, exact. A
 bound one is summed over show time on a fixed grid from 0 (steps of 1/128 s, the trapezoid rule, each step the
-param's value then × the look's speed then, its automation included), kept per instance and started again when time
+param's value then, its automation included), kept per instance and started again when time
 goes back: a frame played to and the same frame sought to read the same clock, to the bit. A seek to 10 minutes sums
 76,800 steps (a few ms); playing adds about three a frame. A `use()` instance's params are values: value × T. On a
 pixel with a time offset (`p.dt`), `clock()` reads value × (T + dt) for a fixed value and, for a bound one, its sum at
@@ -377,8 +376,7 @@ the param's. Per module instance:
   end beyond). It keeps the brightness a fade of values loses mid-way (red to green dips to a muddy olive) and passes through
   the hues between. Plain OKLab, not OKLCh: a fade between distant hues goes through the middle, not round the wheel.
 
-Picks resolve to stops when a layer is prepared and again when the palette changes; per frame only rotates move. Hue
-and saturation grade the composite, literals included.
+Picks resolve to stops when a layer is prepared and again when the palette changes; per frame only rotates move.
 
 **The library's colour rule.** A source has one colour param, `colours: { value: 'all', type: 'color', label:
 'Colours' }` (fire adds `tips`, its tips and embers, since flames and what rises off them are two things), and names
