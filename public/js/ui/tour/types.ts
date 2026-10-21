@@ -21,14 +21,18 @@ export type Step = {
   progress?: (c: Ctx) => { now: number; goal: number } | null;
   /** Wait for Next even once done (a step to read, the last one). */
   next?: boolean;
+  /** While open, the Ideas page opens this practice look (`/studio?tour=<id>`) instead of asking a model. */
+  idea?: string;
 };
 
 export type Path = {
   id: string; title: string; about: string;
   /** What it covers on the Pi, where its Ideas steps are left out (SPEC-offline), when that differs. */
   aboutPi?: string;
-  /** Where it starts: the blank Studio, or its practice look (`/studio?tour=<id>`). */
+  /** Where it starts: the blank Studio, its practice look (`/studio?tour=<id>`), or another page. */
   start: string; steps: Step[];
+  /** Its practice look when it starts on another page: where its Studio steps go back to. */
+  look?: string;
 };
 
 /** A number a param holds, or null (bound to a modulator, or unset). */
@@ -37,3 +41,28 @@ export const num = (x: unknown) => (typeof x === 'number' ? x : null);
 export const layerBy = ({ v }: Ctx, slug: string) => v?.layers.value.find((l) => tourName(l.title) === slug) ?? null;
 /** A param bound to a modulator, and which kind ('beats' is a beat clock's). */
 export const boundTo = (x: unknown) => (x && typeof x === 'object' && 'mod' in x ? String(x.mod) : null);
+/** The selected layer is `slug` and its open module is library `ref`. */
+export const at = (c: Ctx, slug: string, ref: string) => !!c.v && c.v.selected.value?.id === layerBy(c, slug)?.id
+  && c.v.module.value?.ref === ref;
+/** The open module's param `key`, when that module is `ref` on layer `slug`. */
+export const param = (c: Ctx, slug: string, ref: string, key: string) => (at(c, slug, ref)
+  ? c.v!.params.value[key] : undefined);
+/** An anchor on layer `slug`'s settings (in its module `ref`, when given): that layer first, then that module, then
+ * `names`. With no Studio, all of them. */
+export const on = (slug: string, ref: string | null, ...names: string[]) => (c: Ctx) => {
+  const layer = [`layer:${slug}`], mod = ref ? [`module:${ref}`] : [];
+  if (!c.v) return [...layer, ...mod, ...names];
+  if (c.v.selected.value?.id !== layerBy(c, slug)?.id) return layer;
+  return ref && c.v.module.value?.ref !== ref ? mod : names;
+};
+/** A pick's tokens (a colour param's value). */
+export const tokens = (x: unknown) => (typeof x === 'string' ? x.split(/\s+/) : []);
+/** A step done once `first` has held and then `then` holds: a switch off and on again, pause then play. */
+export const twice = (first: (c: Ctx) => boolean, then: (c: Ctx) => boolean): Pick<Step, 'begin' | 'done'> => ({
+  begin: () => ({ seen: false }),
+  done: (c, b) => {
+    const was = b as { seen: boolean };
+    if (!was.seen && first(c)) was.seen = true;
+    return was.seen && then(c);
+  },
+});

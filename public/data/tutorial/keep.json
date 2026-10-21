@@ -1,1 +1,78 @@
-{ "title": "Practice: keep it", "presets": ["starfield"] }
+{
+  "title": "Rose and arches",
+  "view": "rose",
+  "palette": "ocean",
+  "bpm": 90,
+  "macros": {"macro1": {"value": 1, "min": 0, "max": 1}},
+  "automation": {"macro1": [[0, 0.1], [20, 0.9]]},
+  "layers": [
+    {
+      "title": "Starfield",
+      "level": 0.5,
+      "blend": "over",
+      "modules": [
+        {
+          "ref": "colour-wash",
+          "params": {
+            "colours": "low",
+            "speed": 0,
+            "brightness": {"mod": "lfo", "shape": "sine", "rate": 0.0625, "unit": "beats", "depth": 0.4, "center": 0.4}
+          }
+        },
+        {
+          "ref": "clouds",
+          "params": {"colours": "accent1", "cover": 0.56, "speed": 0.05, "size": 0.33},
+          "blend": "multiply"
+        },
+        {
+          "ref": "sparkle",
+          "params": {"colours": "high", "density": 0.9, "often": 21, "flash": 0.237},
+          "blend": "over"
+        }
+      ]
+    },
+    {
+      "title": "Arches",
+      "tag": ["arch-main", "arch-mini"],
+      "soften": {"radius": 0.4, "mode": "wire"},
+      "clips": [{"start": 4, "end": 30, "fadeIn": 2}],
+      "modules": [
+        {
+          "ref": "single-strand",
+          "params": {
+            "colours": "high",
+            "speed": {"mod": "beats", "per": 6},
+            "profile": "comet",
+            "tail": {"mod": "global", "name": "macro1", "from": 1, "to": 60}
+          }
+        },
+        {
+          "ref": "rotate",
+          "params": {"angle": {"mod": "lfo", "shape": "saw", "rate": 0.25, "depth": 0.25, "center": 0.25}}
+        }
+      ]
+    },
+    {
+      "title": "Rose",
+      "tag": "rose",
+      "modules": [
+        {
+          "ref": "bars",
+          "params": {
+            "direction": "out",
+            "profile": "smooth",
+            "speed": 0.3,
+            "bars": {"mod": "global", "name": "macro1", "from": 0.25, "to": 16}
+          }
+        },
+        {
+          "ref": "stained-glass",
+          "params": {
+            "rule": "spiral",
+            "amount": {"mod": "lfo", "shape": "square", "rate": 0.25, "depth": 0.5, "center": 0.5}
+          }
+        }
+      ]
+    }
+  ]
+}
