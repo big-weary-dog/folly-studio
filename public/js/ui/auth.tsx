@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from 'preact/hooks';
 import ACCOUNT from '../../data/account.json' with { type: 'json' };
 import { api } from '../api.ts';
 import { pendingInvite, redeemInvite } from './invite.ts';
-import { navigate, user, type ViewProps } from './session.ts';
+import { navigate, onPi, profile, user, type ViewProps } from './session.ts';
 import { cx, Field } from './kit.tsx';
 import { Rose } from './rose.tsx';
 
@@ -27,8 +27,10 @@ export function Auth({ query }: ViewProps) {
     }
     setBusy(true);
     try {
-      user.value = (signup ? await api.signup(u, p) : await api.login(u, p)).user;
-      await redeemInvite();
+      const me = signup ? await api.signup(u, p) : await api.login(u, p);
+      profile.value = me.profile ?? 'hosted';
+      user.value = me.user;
+      if (!onPi()) await redeemInvite();
       // Back through the router, which sends a signed-in visitor on to a safe `next`.
       navigate(location.pathname + location.search, { replace: true, force: true });
     } catch (err) {

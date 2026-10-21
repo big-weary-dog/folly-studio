@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from './src/app.ts';
 import { ConfigError, describeConfig, readConfig } from './src/config.ts';
+import { hostRefusal, profileOf } from './src/profile.ts';
 import { DataLockedError } from './src/store-lock.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -22,6 +23,11 @@ console.log(`[studio] settings: ${describeConfig(config)}`);
 const c = config;
 const port = c.PORT ?? 8780;
 const host = c.HOST || '127.0.0.1';
+const refused = hostRefusal(profileOf(c), host);
+if (refused) {
+  console.error(`[studio] not started: ${refused}`);
+  process.exit(1);
+}
 const dataDir = path.resolve(c.STUDIO_DATA || path.join(here, 'data'));
 
 const app = await createServer({ config: c, dataDir, publicDir: path.join(here, 'public'),

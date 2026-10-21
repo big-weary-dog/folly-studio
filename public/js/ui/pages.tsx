@@ -11,7 +11,7 @@ import { can } from '../../../shared/policy.ts';
 import type { Access } from '../../../shared/schemas/access.ts';
 import type { Explore, Idea, Listed } from '../../../shared/schemas/api.ts';
 import type { ModelChoices } from '../../../shared/schemas/models.ts';
-import { navigate, setTitle, user, type ViewProps } from './session.ts';
+import { navigate, onPi, setTitle, user, type ViewProps } from './session.ts';
 import { AccessGate, gateOf } from './idea-access.tsx';
 import { confirmDialog, cx, jewelGradient, pref, timeAgo, toast } from './kit.tsx';
 import { Rose } from './rose.tsx';
@@ -281,6 +281,7 @@ export function Looks({ scope }: ViewProps) {
     || `${l.title} ${l.summary || ''} ${l.ownerName || ''}`.toLowerCase().includes(words));
   const empty = error ? <p class="form-error">{error}</p> : looks?.length ? <p>No looks match that search.</p>
     : gallery ? <p>Nothing shared yet. Open one of your looks in the Studio and switch on “Share to gallery”.</p>
+    : onPi() ? <p>No saved looks yet. <a href="/studio">Start a blank look</a>, or import some.</p>
     : <p>No saved looks yet. <a href="/ideas">Describe an idea</a> or <a href="/studio">start a blank look</a>.</p>;
   return (
     <div class="page looks-page">

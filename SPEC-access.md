@@ -18,7 +18,7 @@ A look is its owner's: only they edit or delete it, and others see it only when 
 does not allow them, anyone else is told it is not found (404), shared or not, so an unshared look is never revealed.
 A curator may also mark a look they can see reviewed, and bake it; admins are curators too, and alone use the Admin
 pages and their `/api/admin` routes (403 for anyone else; each such route names its role, or the server does not
-start), the Pi preview (SPEC "The Pi preview") and Deep while it is admins' only. Who controls the live stage is its
+start), the Pi preview (SPEC-offline "The Pi preview"; curators too under the Pi profile) and Deep while it is admins' only. Who controls the live stage is its
 own setting (SPEC-live "Settings").
 
 ## Admin
@@ -28,6 +28,7 @@ Its tabs are pages of their own: Models (`/admin/models`, SPEC-generators "Model
 Access below), Light (`/admin/light`, SPEC "Light and output") and Reports (`/admin/reports`, SPEC "Bug reports"),
 then a link to the Pi preview (`/pi/`, in a new tab). The old `/models`, `/access`, `/light` and `/reports` lead to their
 tab, query kept. Anyone else who opens one gets the page without the tabs, its admin calls refused (403) as it says.
+On the Pi there is no Models or Access tab, and `/admin` opens Light (SPEC-offline).
 
 ## Access (invite codes and limits)
 
