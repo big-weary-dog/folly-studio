@@ -1,5 +1,5 @@
 // The control page's jukebox (SPEC-offline "Playing on the lights"): what plays next, in order, with who queued each;
-// ↑ moves one up, × takes it off, Skip goes to the next now. Looks from Studio say so.
+// ↑ moves one up, × takes it off, Skip goes to the next now. Looks from Studio say who sent them.
 import { cx } from '../../public/js/ui/kit.tsx';
 import type { PiState } from '../src/protocol.ts';
 import type { PiSocket } from './socket.ts';
@@ -19,7 +19,7 @@ export function UpNext({ s, sock }: { s: PiState, sock: PiSocket }) {
     {s.queue.length ? <ol class="pi-queue">
       {s.queue.map((q, i) => <li key={q.key} class={cx('pi-queued', q.kind)}>
         <span class="pi-queued-title">{q.title}
-          <span class="pi-sub">{q.kind === 'live' ? ' · from Studio' : ''}{q.by ? ` · ${q.by}` : ''}</span></span>
+          {q.by && <span class="pi-sub"> · {q.by}</span>}</span>
         <button type="button" class="pad pi-mini" aria-label={`Move ${q.title} up`} disabled={i === 0}
           onClick={() => sock.send({ type: 'move', key: q.key, to: i - 1 })}>↑</button>
         <button type="button" class="pad pi-mini" aria-label={`Take ${q.title} off`}

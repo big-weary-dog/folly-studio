@@ -10,11 +10,11 @@ On a tall layer the beams are upright lines sweeping side to side; on a flat one
 - bars.bars: beams on the circle, 1–4.
 - bars.duty: beam plus wake; 0.3 short, 0.9 long.
 - bars.colours: beam colours in turn; `high` for one warm white.
-- bars.twist: spirals the beams with height.
 
 ## Pairings
 - Then **anchor** (tag `tower`, which `nearest`, shape `plan`): a beam round each tower.
 - Then **trails**: light-painted circles.
+- Then **twist** (wind): beams spiralling with height.
 
 ## Pitfalls
 - On a front-only group (an arch) it reads as a band sliding side to side.

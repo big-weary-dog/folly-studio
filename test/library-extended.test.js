@@ -28,14 +28,13 @@ describe('bars', () => {
     across.L.idx.forEach((k, j) => assert.equal(hexOf(across.rgb(j)), ALL[Math.floor(across.L.lz[j] * 2)], `LED ${k}`));
   });
 
-  test('orbit turns round the upright axis in metres, and twist winds it with height', () => {
-    const { L, rgb } = run([mod('bars', 'source', { direction: 'orbit-counterclockwise', bars: 3, twist: 1.5, speed: 0,
+  test('orbit turns round the upright axis in metres', () => {
+    const { L, rgb } = run([mod('bars', 'source', { direction: 'orbit-counterclockwise', bars: 3, speed: 0,
       softness: 0 })], 0);
-    const [ox, , oz] = L.frame, f = (k, j) => ((Math.atan2(scene.Z[k] - oz, ox - scene.X[k]) / (2 * Math.PI) + 1) % 1
-      + L.ly[j] * 1.5) * 3;
-    const off = Array.from(L.idx, (k, j) => [k, j]).filter(([k, j]) => Math.abs(f(k, j) - Math.round(f(k, j))) > 1e-6);
+    const [ox, , oz] = L.frame, f = (k) => ((Math.atan2(scene.Z[k] - oz, ox - scene.X[k]) / (2 * Math.PI) + 1) % 1) * 3;
+    const off = Array.from(L.idx, (k, j) => [k, j]).filter(([k]) => Math.abs(f(k) - Math.round(f(k))) > 1e-6);
     assert.ok(off.length > L.idx.length / 2);
-    for (const [k, j] of off) assert.equal(hexOf(rgb(j)), ALL[Math.floor(f(k, j)) % ALL.length], `LED ${k}`);
+    for (const [k, j] of off) assert.equal(hexOf(rgb(j)), ALL[Math.floor(f(k)) % ALL.length], `LED ${k}`);
   });
 
   test('clockwise wraps whole: no partial bar at the seam', () => {
@@ -45,14 +44,15 @@ describe('bars', () => {
       'three whole bars round: no fourth at the seam');
   });
 
-  test('each way is its partner at the opposite speed; round and orbit, saved before, play as they did', () => {
+  test('each way is its partner at the opposite speed; older looks load and play', () => {
     const buf = (params, t = 0.7) => Array.from(run([mod('bars', 'source', { colours: '#ff0000', profile: 'pulse',
-      bars: 3, twist: 0.5, ...params })], t).L.buf);
+      bars: 3, ...params })], t).L.buf);
     const same = (x, y, what) => assert.ok(x.every((v, i) => Math.abs(v - y[i]) < 1e-9), what);
     for (const [a, b] of [['out', 'in'], ['counterclockwise', 'clockwise'], ['orbit-clockwise',
       'orbit-counterclockwise']]) same(buf({ direction: a, speed: 0.4 }), buf({ direction: b, speed: -0.4 }), a);
     assert.deepEqual(buf({ direction: 'round' }), buf({ direction: 'clockwise' }));
     assert.deepEqual(buf({ direction: 'orbit' }), buf({ direction: 'orbit-counterclockwise' }));
+    assert.deepEqual(buf({ direction: 'clockwise', twist: 4 }), buf({ direction: 'clockwise' }), 'twist: a warp now');
   });
 });
 
