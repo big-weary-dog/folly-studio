@@ -130,6 +130,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offs
 }
 .dialog-text { color: var(--text-2); }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+.lights-actions { flex-wrap: wrap; }
+.lights-dialog .dialog-text.error { color: var(--error); }
 .menu-wrap { position: relative; }
 .menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 210px; padding: 4px; display: flex;
   flex-direction: column; box-shadow: var(--bevel), var(--shadow); }

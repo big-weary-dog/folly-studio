@@ -17,6 +17,7 @@ export const DEFAULTS = {
   look: 'heartbeat-plasma', // played at start
   safe: 'safe',             // where the flash guard dips to, and a look that cannot play falls back to
   light: 'light.json',      // the light settings (Studio's Light page), relative to pi/; missing: the defaults
+  frames: '',               // Studio's baked frames (<STUDIO_DATA>/frames), relative to pi/ ('' = it plays no bakes)
   cap: COG_POWER.cap, headroom: COG_POWER.headroom, gen: COG_POWER.gen,
   stats: 0,                 // seconds between stats lines (0: 5 in a dry run, 60 live)
   seconds: 0,               // stop after this long (0: run until stopped)
@@ -32,6 +33,7 @@ const HELP = `npm run pi -- [options]   (the Pi's live engine: looks to the ligh
   --looks DIR        play looks from DIR too (beside pi/looks and pi/local/looks)
   --look ID          the look to start on (${DEFAULTS.look}); --safe ID the flash guard's (${DEFAULTS.safe})
   --light FILE       the light settings: gamma, balance… (pi/${DEFAULTS.light}, from Studio's Light page)
+  --frames DIR       Studio's baked frames (its <STUDIO_DATA>/frames), so it can play looks' bakes
   --cap C --headroom H --gen W
                      the power compressor (compress-fseq's: ${COG_POWER.cap}, ${COG_POWER.headroom}, ${COG_POWER.gen})
   --stats S          seconds between stats lines; --seconds S stop after S seconds
@@ -41,7 +43,7 @@ const HELP = `npm run pi -- [options]   (the Pi's live engine: looks to the ligh
 export function readConfig(argv: string[], configFile: string): Config | null {
   const { values } = parseArgs({ args: argv, strict: true, options: {
     'dry-run': { type: 'boolean' }, help: { type: 'boolean', short: 'h' }, config: { type: 'string' },
-    ...Object.fromEntries(['host', 'port', 'http', 'bind', 'base', 'pin', 'looks', 'look', 'safe', 'light',
+    ...Object.fromEntries(['host', 'port', 'http', 'bind', 'base', 'pin', 'looks', 'look', 'safe', 'light', 'frames',
       'cap', 'headroom', 'gen', 'stats', 'seconds'].map((k) => [k, { type: 'string' as const }])),
   } });
   if (values.help) { console.log(HELP); return null; }

@@ -13,6 +13,7 @@ import {
 import { setLive } from '../../public/js/live-set.ts';
 import { piExtra, piLayers, piSet } from '../../public/js/ui/live/follow-pi.ts';
 import { piNowOf } from '../../src/live/pi-feed.ts';
+import { FADE } from '../src/engine.ts';
 import type { PiState } from '../src/protocol.ts';
 import { controlServer } from '../src/server.ts';
 import { engineOn, lib, oneModule, rig } from './fixture.ts';
@@ -93,7 +94,7 @@ describe('following the engine', () => {
     assert.equal(a.id, 'fire');
     for (const l of a.layers) for (const m of 'modules' in l ? l.modules : []) assert.equal('code' in m, false);
     r.engine.play('beat-bars');
-    r.run(1);
+    r.run(FADE.queue + 0.1);
     assert.ok(r.engine.source()!.rev > a.rev);
   });
 
@@ -102,7 +103,7 @@ describe('following the engine', () => {
     r.engine.play('fire');
     r.run(0.2);
     const state = () => ({ ...r.engine.state(), looks: [], out: {} } as unknown as PiState);
-    const s = await controlServer({ engine: r.engine, state, pin: '', port: 0, host: '127.0.0.1' });
+    const s = await controlServer({ engine: r.engine, lib, state, pin: '', port: 0, host: '127.0.0.1' });
     const origin = `http://127.0.0.1:${s.port}`, ws = new WebSocket(`ws://127.0.0.1:${s.port}/ws`, { origin });
     const got: { type: string, source?: { id: string } }[] = [];
     ws.on('message', (d) => got.push(JSON.parse(String(d))));

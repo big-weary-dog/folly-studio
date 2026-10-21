@@ -1,0 +1,71 @@
+/* The engine's controls, looks and queue (pi/page/controls.tsx, queue.tsx): on its control page and on Studio's
+   /live jukebox, beside live.css. */
+.pi-sub { color: var(--text-3); font-size: 13px; white-space: nowrap; }
+.pi-banner { margin: 0; padding: 10px 12px; font-size: 14px; color: var(--text); border-radius: var(--radius);
+  background: color-mix(in srgb, var(--amber) 22%, var(--night-2)); border: var(--came-s) solid var(--lead); }
+.pi-banner.trip { background: color-mix(in srgb, var(--ruby) 35%, var(--night-2)); font-weight: 600; }
+.pi-error { margin: 0; color: var(--error); font-size: 14px; }
+.pi-tempo { display: flex; gap: 8px; }
+.pi-tap { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 64px; padding: 0 12px;
+  font-size: 17px; white-space: nowrap; user-select: none; }
+.pi-nudge { flex: none; width: 56px; font-size: 24px; }
+.pi-bpm { margin-left: auto; font-family: var(--mono); font-size: 14px; color: var(--text-2); }
+.pi-beat { flex: none; width: 14px; height: 14px; border-radius: 50%; background: var(--night-1);
+  box-shadow: var(--well); }
+.pi-beat.on { background: var(--amber); box-shadow: 0 0 10px var(--amber); }
+.pi-looks { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.pi-look { min-height: 56px; padding: 6px 10px; font-size: 14px; text-align: left; overflow-wrap: anywhere; }
+.pi-look.current { background: color-mix(in srgb, var(--emerald) 30%, var(--night-2)); }
+.pi-look:disabled { opacity: .45; cursor: not-allowed; }
+.pi-pin { display: flex; flex-direction: column; gap: 12px; margin-top: 15vh; }
+.pi-pin h1 { flex: none; }
+.pi-pin p:not(.pi-error) { margin: 0; color: var(--text-2); }
+.pi-pin input { min-height: 56px; font-size: 24px; letter-spacing: .3em; text-align: center; color: var(--text);
+  background: var(--night-1); border: var(--came-s) solid var(--lead); border-radius: var(--radius); }
+.pi-look-row { display: flex; gap: 4px; }
+.pi-look-row .pi-look { flex: 1; min-width: 0; }
+.pi-mini { flex: none; width: 44px; min-height: 44px; font-size: 18px; }
+.pi-mini:disabled { opacity: .35; }
+.pi-next-head { display: flex; align-items: center; gap: 10px; }
+.pi-next-head h2 { margin-right: auto; }
+.pi-skip { min-height: 44px; padding: 0 16px; }
+.pi-queue { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pi-queued { display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 12px; border-radius: var(--radius);
+  background: var(--night-1); border: var(--came-s) solid var(--lead); }
+.pi-queued-title { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 15px; }
+.pi-queued.live { border-color: color-mix(in srgb, var(--amber) 50%, var(--lead)); }
+
+/* /live's jukebox (public/js/ui/live/jukebox.tsx): the view switch, the listing and controls in a scrolling panel */
+.live-switch { flex: none; margin: 0; padding: 0 16px; background: var(--night-0); }
+.live-switch .seg-btn { max-width: 180px; }
+.jb-col { display: flex; flex-direction: column; gap: 10px; }
+.jb-cols { display: flex; flex-direction: column; gap: 10px; }
+.jukebox .pi-next-head .pi-sub { display: none; }
+.live-panel { flex: 1; min-height: 0; overflow-y: auto; }
+.live-panel .live-control { padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
+.live-viewer.off { display: none; }
+.jb-now { display: grid; gap: 6px; padding: 12px 14px; border-radius: var(--radius); background: var(--night-1);
+  border: var(--came-s) solid var(--lead); box-shadow: var(--rim); }
+.jb-now h1 { white-space: normal; overflow-wrap: anywhere; font-size: 22px; }
+.jb-now p { margin: 0; }
+.jb-kicker { color: var(--text-3); font-size: 12px; letter-spacing: .09em; text-transform: uppercase; }
+.jb-progress { position: relative; height: 26px; display: flex; align-items: center; padding: 0 10px;
+  overflow: hidden; background: var(--night-0); border-radius: var(--radius); box-shadow: var(--well); }
+.jb-progress > span:first-child { position: absolute; inset: 0 auto 0 0;
+  background: color-mix(in srgb, var(--emerald) 35%, var(--night-2)); }
+.jb-progress-text { position: relative; font-family: var(--mono); font-size: 12.5px; color: var(--text-2); }
+.jb-search { min-height: 48px; padding: 0 14px; font-size: 16px; color: var(--text); background: var(--night-1);
+  border: var(--came-s) solid var(--lead); border-radius: var(--radius); box-shadow: var(--well); }
+.jb-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.jb-look { width: 100%; min-height: 48px; display: flex; align-items: center; gap: 10px; padding: 6px 12px;
+  text-align: left; color: var(--text); font: inherit; background: var(--night-1); cursor: pointer;
+  border: var(--came-s) solid var(--lead); border-radius: var(--radius); }
+.jb-look:hover { background: var(--night-2); }
+.jb-look-title { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 15px; }
+.jb-studio { display: flex; flex-direction: column; gap: 8px; }
+.btn.jb-on { color: #fff; background: color-mix(in srgb, var(--ruby) 55%, var(--night-2)); }
+@media (min-width: 1000px) {
+  .live-switch { justify-content: center; }
+  .live-control.jb-tracks { max-width: 1040px; }
+  .jb-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+}
