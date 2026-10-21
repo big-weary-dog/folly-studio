@@ -221,7 +221,9 @@ test.describe('laptop, 1366 × 768', () => {
     await at('clip-add').click();
     await title('Automation');
     await ring('dock:timeline', 'automate');
-    await at('automate').click();   // + Automate… loads the lanes; their own + Automate… picks one
+    await page.locator('.tl-scroll').focus();
+    await page.keyboard.press('a');   // loads the lanes and focuses their picker
+    await expect(page.getByRole('combobox', { name: 'Automate a macro' })).toBeFocused();
     await ring('dock:timeline', 'automate');
     await at('automate').selectOption({ index: 1 });
     const lane = page.locator('.tl-auto-svg').first(), box = await lane.boundingBox();

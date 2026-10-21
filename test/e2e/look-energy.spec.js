@@ -2,6 +2,7 @@
 // the globals went (energy, speed, level, hue, saturation) opens with Energy as a fader of its own and nothing else
 // of those.
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
 
 import { expect, signup, test } from './studio.js';
 
@@ -13,6 +14,45 @@ const LOOKS = {
   energy: { title: 'Old storm', layers: [clouds],
     globals: { energy: 0.7, speed: 1.5, level: 0.8, hue: 0.1, saturation: 1.2, palette: 'ember' } },
 };
+
+for (const width of [1366, 1920]) {
+  test(`automation endpoints and shortcut (${width})`, async ({ page, studio }, info) => {
+    await page.setViewportSize({ width, height: width === 1366 ? 768 : 1080 });
+    const cookie = await signup(studio.origin, `automation-${width}`), [name, value] = cookie.split('=');
+    await page.context().addCookies([{ name, value, url: studio.origin }]);
+    const res = await fetch(`${studio.origin}/api/looks`, { method: 'POST',
+      headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify({ ...LOOKS.fresh,
+        globals: { macros: { energy: { value: 0.5, min: -2, max: 2 }, storm: { value: 0.3 } } },
+        automation: { energy: [[0, -2], [5, -2], [10, 0], [15, 2], [20, 2]] } }) });
+    expect(res.status).toBe(201);
+    await page.goto(`${studio.origin}/studio/${(await res.json()).look.id}`);
+    await page.locator('.dock-tab', { hasText: 'Timeline' }).click({ timeout: 30_000 });
+    const lane = page.locator('.tl-auto-svg').first();
+    await expect(lane).toBeVisible();
+    const shot = (label) => page.screenshot({ path: process.env.AUTO_SHOTS
+      ? path.join(process.env.AUTO_SHOTS, `${width}-after-${label}.png`)
+      : info.outputPath(`${width}-${label}.png`) });
+    await shot('lane');
+    await expect(lane.locator('.tl-auto-dot[data-level=low]')).toHaveCount(2);
+    await expect(lane.locator('.tl-auto-dot[data-level=high]')).toHaveCount(2);
+    const picker = page.getByRole('combobox', { name: 'Automate a macro' });
+    await picker.focus();
+    expect(await picker.evaluate((el) => el.dispatchEvent(new KeyboardEvent('keydown',
+      { key: 'a', bubbles: true, cancelable: true })))).toBe(true);
+    await expect(picker).toBeFocused();
+    const field = page.locator('.tl-look-tools input').first();
+    await field.focus();
+    await field.press('a');
+    await expect(field).toBeFocused();
+    await page.locator('.tl-scroll').focus();
+    await page.keyboard.press('a');
+    await expect(page.getByRole('combobox', { name: 'Automate a macro' })).toBeFocused();
+    await shot('shortcut');
+    await page.getByRole('combobox', { name: 'Automate a macro' }).selectOption('storm');
+    await expect(page.locator('.tl-auto-row[data-name=storm]')).toBeVisible();
+    await shot('created');
+  });
+}
 
 for (const [size, viewport] of [['laptop', { width: 1366, height: 768 }], ['phone', { width: 390, height: 844 }]]) {
   test.describe(size, () => {

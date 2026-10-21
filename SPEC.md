@@ -328,7 +328,10 @@ Sequencing lives on the look, xLights-style.
   rule above, so what it saves the API accepts. Under the layers, a lane per modulator (`ui/timeline-mods.tsx`): its
   value over the show (0..1 of its range, as it plays: pace, swing and lanes in), its name and what it drives in the
   lane's head, which opens it on the Look panel; the group folds to its head (kept per browser). Under those, a lane per
-  automated macro: click to add a point, drag to move it, double-click to remove it. The bottom
+  automated macro: click to add a point, drag to move it, double-click to remove it. With the timeline focused,
+  A opens and focuses the Automate picker; choose a macro to create its lane. Text fields keep their own keys.
+  Points and held segments at the range's maximum (100%) are slightly brighter, those at its minimum (0%) dimmer;
+  sloping segments blend between their endpoints' brightness. The bottom
   dock (Code, Timeline, Look) is one height on every tab: a share of the Studio's height (36%, at least 220 px, the
   3D view keeping at least 200 px), dragged by the splitter above it and kept per browser.
 - Reorder: a layer or module row moves by its ↑ ↓ buttons, or by dragging its grip (`ui/drag-order.ts`, any

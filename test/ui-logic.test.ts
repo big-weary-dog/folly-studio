@@ -21,6 +21,7 @@ import { editText, editValue, readEdit, toggleRole, toggleSlot, toggleToken } fr
 import type { Preview } from '../public/js/ui/preview.ts';
 import type { Draft, Studio } from '../public/js/ui/studio-store.ts';
 import { createTimeline } from '../public/js/ui/timeline-state.ts';
+import { automationLevel } from '../public/js/ui/timeline-auto.tsx';
 import { chainWires, isStageEnd, type Layer } from '../public/js/ui/model.ts';
 import type { Module } from '../shared/schemas/look.ts';
 
@@ -28,6 +29,11 @@ const where = (path: string, search = '', signedIn = true) => {
   const r = resolve(path, search, signedIn);
   return 'redirect' in r ? `→ ${r.redirect}` : `${r.route.name} ${JSON.stringify(r.params)}`;
 };
+
+test('automation endpoint brightness uses the macro range, not raw zero and one', () => {
+  const range = { min: -2, max: 2, value: 0 };
+  assert.deepEqual([-2, 0, 1, 2].map((v) => automationLevel(v, range)), ['low', 'mid', 'mid', 'high']);
+});
 
 describe('routing', () => {
   test('the same URLs, with redirects for the signed out and the signed in', () => {
