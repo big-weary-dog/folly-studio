@@ -1,5 +1,5 @@
 {
- "_about": "Frozen at b5d9258 (cathedral.json era) by rendering each look as the bake does (t = f / 40, default gamma and brightness) and hashing its full DMX frames. test/rig-folly.test.js renders them again on rig.json. Re-made when a r moved to the LEDs' mean (the effects audit's core fix), and when add and blur moved to light.",
+ "_about": "Frozen at b5d9258 (cathedral.json era) by rendering each look as the bake does (t = f / 40, default gamma and brightness) and hashing its full DMX frames. test/rig-folly.test.js renders them again on rig.json. Re-made when a r moved to the LEDs' mean (the effects audit's core fix), when add and blur moved to light, and when colour fades moved to OKLab.",
  "frames": 100,
  "every": 10,
  "looks": [
@@ -55,18 +55,18 @@
      }
     ]
    },
-   "sha256": "de152ec7dad6245d8e40e446edca9e784c6f92e292c36682bac5ea00e4d279f6",
+   "sha256": "279232701faf9aaa4e4286be41c8fd82805192ae886effdde88db80ffdbc0ba1",
    "sampled": {
-    "0": "274de180f4620d7d",
-    "10": "ea43ff3be37ed36a",
-    "20": "b0008d9a974e5df6",
-    "30": "f5f623b45df7fb3e",
-    "40": "328e4e978ca5c23c",
-    "50": "8092a29ceaab576d",
-    "60": "28f2f9b821e8b7f1",
-    "70": "42cb446a596a14d8",
-    "80": "ad95d8d9f84a967a",
-    "90": "90bfe5ac51b6276a"
+    "0": "96a7cb94a8018cde",
+    "10": "caafa55c7aa49e61",
+    "20": "17ed429120fc4672",
+    "30": "931bbc3a680a31b0",
+    "40": "be1f0f76d3af7970",
+    "50": "68f5fa821a4148d2",
+    "60": "e9d60e9ac62183ab",
+    "70": "31a99597888d9382",
+    "80": "392e420b4a740e5f",
+    "90": "12c01295a39ae891"
    },
    "litChannels": 1201726
   },
@@ -116,18 +116,18 @@
      }
     ]
    },
-   "sha256": "2dd6c3606b4d43085aa67660a6d2219e93b7e6d1815a465dfb3ba881950a1ab7",
+   "sha256": "2ee603cdd981ec9bd486815a1401db83a0446904e0d3105be17fedf665d7ce51",
    "sampled": {
-    "0": "4142b7ea03b70624",
-    "10": "8d63155b2a382776",
-    "20": "b0b02cc2f66f7a23",
-    "30": "c8b65b4c5f8282cf",
-    "40": "3d9852fd0f61aa62",
-    "50": "3d5ed0d43c752f3d",
-    "60": "bde764ee98254927",
-    "70": "0276829e1b0a2a8c",
-    "80": "d204ad29a6ec19c8",
-    "90": "a2ac0a7511d2fac5"
+    "0": "9eea4b3c2e7243f6",
+    "10": "87b5cb995f7c8ae8",
+    "20": "33388fb1c0b0fe12",
+    "30": "b78ed4a9fc7f1135",
+    "40": "2d1077dc6432640a",
+    "50": "8ec017803a6d5ec8",
+    "60": "01b8b0188070b80e",
+    "70": "cff08c56c0daf4ec",
+    "80": "33256b662025e747",
+    "90": "815ec3d8551ae25e"
    },
    "litChannels": 718600
   },
@@ -316,18 +316,18 @@
      }
     ]
    },
-   "sha256": "d60ca06e1a68fca1661114ed54a6dfa347abfb41541dca4388971353b9d41904",
+   "sha256": "a69afeedc6957faf700931be0271646048391e49a4d018bb3bb073566937c483",
    "sampled": {
-    "0": "0c429b2042a045f5",
-    "10": "c8707906a675d53e",
-    "20": "8b795aac7d703ec0",
-    "30": "ae72fb2859409c41",
-    "40": "628bebdc8d58aa16",
-    "50": "87e8304fca6cb664",
-    "60": "c056fd22b2654dba",
-    "70": "84139ccc40484520",
-    "80": "534c2e0cea657bc0",
-    "90": "b4b85fead7c95961"
+    "0": "f23be00068885801",
+    "10": "f809c27c1360c400",
+    "20": "de0a4a34ca0bed79",
+    "30": "aed06df6714b95e4",
+    "40": "8a0fc9603cfc39c5",
+    "50": "357b939cf3af6b61",
+    "60": "b07f8bf6e38573ec",
+    "70": "12bb4f70161b2503",
+    "80": "98967f0f1e887eda",
+    "90": "e861daad5ecf5ef1"
    },
    "litChannels": 1253564
   }

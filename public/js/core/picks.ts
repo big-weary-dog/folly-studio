@@ -6,6 +6,7 @@
 // (code from before one colour param per source) reads the look palette's role.
 import type { ParamSchema } from './compile.ts';
 import type { Values } from './globals.ts';
+import { fadeInto } from './oklab.ts';
 import { clamp, hex, isNum, PALETTE_ROLES, ramp, RUN, STDLIB } from './stdlib.ts';
 import type { PaletteColours, PaletteRole, RGB } from './stdlib.ts';
 
@@ -20,8 +21,8 @@ export type PickSpec = { groups: Token[][], blend: PickBlend | null, range: Rang
 const PICK_TOKEN = /^(?:(?:low|body|accent|high)(?:[1-9]|1[0-6])?|all|rainbow|#[0-9a-f]{6}|#[0-9a-f]{3})$/;
 const PICK_SLOT = /^(low|body|accent|high)(\d+)$/;
 const MAX_TOKENS = 64, MAX_STOPS = 256;
-// Seven hsv stops round the wheel, red to red: hsv is piecewise linear between them, so the smooth ramp is exact;
-// step takes the first six, so red is one band.
+// Seven hsv stops round the wheel, red to red: smooth fades between them in OKLab, as every ramp does; step takes the
+// first six, so red is one band.
 const RAINBOW: Stops = Object.freeze([0, 1, 2, 3, 4, 5, 6].map((k) => Object.freeze(STDLIB.hsv(k / 6))));
 
 /** A param's value as a pick: a string of tokens, { pick, blend?, range?, rotate? }, '#hex' or
@@ -110,13 +111,7 @@ export function turnSlot(s: Slot, r: number) {
 
 function mixInto(L: Stops, i: number, w: number, out: number[]) {
   const n = L.length, a = L[i % n];
-  if (w > 0) {
-    const b = L[(i + 1) % n];
-    out[0] = a[0] + (b[0] - a[0]) * w; out[1] = a[1] + (b[1] - a[1]) * w; out[2] = a[2] + (b[2] - a[2]) * w;
-  } else {
-    out[0] = a[0]; out[1] = a[1]; out[2] = a[2];
-  }
-  return out;
+  return fadeInto(a, w > 0 ? L[(i + 1) % n] : a, w, out);
 }
 
 /** The colour at t (0..1, clamped) along a slot: equal bands (step) or a ramp (smooth), range and rotate applied. */

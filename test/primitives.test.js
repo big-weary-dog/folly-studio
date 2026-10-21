@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { describe, test } from 'vitest';
 
 import { compileLayer, prepareLayer, prepareScene, renderFrame, tagCentres } from '../public/js/pattern-core.ts';
+import { fade } from './fixtures/oklab.js';
 import { folly, mini } from './fixtures/rigs.js';
 
 const lib = (name) => readFileSync(new URL(`../public/patterns/${name}.js`, import.meta.url), 'utf8');
@@ -84,11 +85,11 @@ describe('on the Folly', () => {
       L.idx.forEach((k, j) => assert.ok(near3(at(k), c) && alpha(j) === 1, `t = ${t}: one opaque colour`));
       return c;
     };
-    const near3 = (a, b) => a.every((v, i) => Math.abs(v - b[i]) < 1e-6);
+    const near3 = (a, b) => a.every((v, i) => Math.abs(v - b[i]) < 1e-4), half = fade([1, 0, 0], [0, 0, 1], 0.5);
     for (const t of [0, 0.2, 0.49]) assert.ok(near3(one({ speed: 1 }, t), [1, 0, 0]), `held red at ${t}`);
-    assert.ok(near3(one({ speed: 1 }, 0.75), [0.5, 0, 0.5]), 'half way at 0.75 s');
+    assert.ok(near3(one({ speed: 1 }, 0.75), half), 'half way (in OKLab) at 0.75 s');
     for (const t of [1, 1.3]) assert.ok(near3(one({ speed: 1 }, t), [0, 0, 1]), `held blue at ${t}`);
-    assert.ok(near3(one({ speed: 1, hold: 0.95 }, 0.9), [0.5, 0, 0.5]), 'a hold past 0.8 still blends over a fifth');
+    assert.ok(near3(one({ speed: 1, hold: 0.95 }, 0.9), half), 'a hold past 0.8 still blends over a fifth');
   });
 
   test('anchor: in plan round each LED\'s nearest tower', () => {
