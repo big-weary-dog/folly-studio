@@ -54,7 +54,7 @@ export function Alerts({ s, sock }: { s: PiState, sock: PiSocket }) {
 export function Blackout({ s, sock }: { s: PiState, sock: PiSocket }) {
   return <button type="button" class={cx('pad lc-blackout', s.blackout && 'on')} aria-pressed={s.blackout}
     onClick={() => sock.send({ type: 'blackout', on: !s.blackout })}>
-    {s.blackout ? 'Blackout on' : 'Blackout'}</button>;
+    {s.blackout ? 'Blacked out · Undo' : 'Blackout'}</button>;
 }
 
 /** The master, tap tempo and the look's own controls; Blackout is the caller's, placed where it fits. */

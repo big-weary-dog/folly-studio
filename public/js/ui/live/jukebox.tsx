@@ -44,7 +44,8 @@ export function JukeboxBar({ sock }: { sock: PiSocket }) {
     <button type="button" class="btn small" disabled={!s.queue.length}
       onClick={() => sock.send({ type: 'next' })}>Skip</button>
     <button type="button" class={cx('btn small', s.blackout && 'jb-on')} aria-pressed={s.blackout}
-      onClick={() => sock.send({ type: 'blackout', on: !s.blackout })}>Blackout</button>
+      onClick={() => sock.send({ type: 'blackout', on: !s.blackout })}>
+      {s.blackout ? 'Blacked out' : 'Blackout'}</button>
   </>;
 }
 

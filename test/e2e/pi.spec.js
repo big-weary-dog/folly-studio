@@ -91,9 +91,9 @@ test('the control page drives the engine from a phone', async ({ browser }, info
   await shot(page, '02-playing-full', true);
 
   await page.getByRole('button', { name: 'Blackout' }).click();
-  await expect(page.getByRole('button', { name: 'Blackout on' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Blacked out · Undo' })).toHaveAttribute('aria-pressed', 'true');
   await shot(page, '03-blackout');
-  await page.getByRole('button', { name: 'Blackout on' }).click();
+  await page.getByRole('button', { name: 'Blacked out · Undo' }).click();
 
   await page.getByRole('button', { name: 'Fire', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Fire');

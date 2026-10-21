@@ -99,7 +99,7 @@ test('a curator plays looks on the lights; the queue shows everywhere', async ({
   for (const size of ['laptop', 'phone']) {
     const control = await person(browser, origin, cara, size, '/live/control');
     await expect(control.page.locator('.lc-queue li')).toHaveCount(2);
-    await expect(control.page.locator('.lc-now')).toHaveText('On the lights now: Ember choir');
+    await expect(control.page.locator('.lc-head h1')).toHaveText('Ember choir');
     await shot(control.page, `control-${size}`);
     const live = await person(browser, origin, cara, size, '/live');
     await expect(live.page.locator('.live-next')).toContainText('Up next:');

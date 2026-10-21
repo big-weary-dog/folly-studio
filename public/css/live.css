@@ -35,7 +35,6 @@ body[data-view=live] { --tint: var(--cobalt-t); overflow: hidden; }
 .lc-driver.pi { color: var(--text); padding: 8px 10px; border-radius: var(--radius);
   background: color-mix(in srgb, var(--amber) 22%, var(--night-2)); }
 .lc-queue { display: grid; gap: 8px; justify-items: start; }
-.lc-now { margin: 0; }
 .lc-queue ol { margin: 0; padding-left: 22px; display: grid; gap: 4px; }
 .lc-queue .tag, .lc-by { margin-left: 8px; }
 .lc-by { color: var(--text-3); font-size: 13px; }
