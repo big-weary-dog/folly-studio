@@ -58,7 +58,7 @@ let loadToast = false;
  *  the page reloads onto it when nothing is unsaved, else says so, one toast however many parts fail. */
 export async function loadFailed(err?: unknown) {
   if (err) console.error(err);
-  if (await reloadIfIdle() || loadToast) return;
+  if (await reloadIfIdle().catch(() => false) || loadToast) return;
   loadToast = true;
   toast('Folly Studio was updated. Reload to carry on.',
     { kind: 'error', timeout: 0, action: { label: 'Reload', onClick: () => location.reload() } });
