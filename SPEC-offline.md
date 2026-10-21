@@ -78,21 +78,23 @@ Studio picks the way: live when it may (the controls work), else baked, else it 
 code: bake it (Check & bake) to play it on the lights…", "Live looks are off: bake it…", each naming bubblewrap).
 
 **The queue** (the engine's, in memory; a restart empties it). At most 20 items, each
-`{ key, id, title, kind: 'look' | 'live' | 'baked', by? }`: `look` is one of the engine's own (`pi/looks`). An item
-plays its whole pattern once from its start, its `duration` (a bake's length), then the next starts. Moving on, the
-queue fades the one out over its last second (`FADE.queue`, 1 s) and the next in over its first; play now and skip
-fade the same way. With nothing queued, what plays loops on. A flash-guard trip dips to `safe`
-and pauses the queue until someone plays, skips or resumes it.
+`{ key, id, title, kind: 'look' | 'live' | 'baked', by?, duration }`: `look` is one of the engine's own
+(`pi/looks`). An item plays its whole pattern once from its start, its `duration` (a bake's length), then the next
+starts. Moving on, the queue fades the one out over its last second (`FADE.queue`, 1 s) and the next in over its
+first; play now and skip fade the same way, or over the `fade` they give (SPEC-liveplay). With nothing queued, what
+plays loops on. A flash-guard trip dips to `safe` and pauses the queue until someone plays or skips.
+What the mode allows, who drives, and the page: `SPEC-liveplay.md`, part of this contract.
 
 **HTTP** (Pi profile with `PI_PREVIEW_URL`; others 404):
 
 ```
-GET  /api/lights[?lookId]            → { liveLooks, canQueue, engine: boolean, play?: { kind } | { error } }
-                                       engine: the feed is connected; play: how that look would play
-POST /api/lights/queue  { lookId, at?: 'now' | 'next' | 'end' (default) }
-                                     → { kind: 'live' | 'baked' }  400 says why it cannot play; 403 not allowed;
-                                       409 the queue is full; 503 the engine is not connected
-PUT  /api/admin/lights  { liveLooks } → the same; admins only; kept in <STUDIO_DATA>/lights.json (default on)
+GET  /api/lights[?lookId]  → { liveLooks, mode, canQueue, canDrive, engine: boolean, play?: { kind } | { error } }
+                             engine: the feed is connected; play: how that look would play
+POST /api/lights/queue  { lookId, at?: 'now' | 'next' | 'end' (default), fade? }
+                           → { kind: 'live' | 'baked' }  400 says why it cannot play; 403 not allowed;
+                             409 the queue is full, or now in Jukebox; 503 the engine is not connected
+PUT  /api/admin/lights  { liveLooks, mode } → the same; admins only; kept in <STUDIO_DATA>/lights.json
+                             (default liveLooks on, mode jukebox)
 ```
 
 Queuing is for whoever may use `/pi` (curators and admins), on looks they may open. The queue itself, as the engine
@@ -100,8 +102,9 @@ has it, reaches Studio's pages in the feed's `now` (SPEC-live "Following /pi").
 
 **The engine's socket** (`pi/src/protocol.ts`) gains, from any page that said hello:
 `{ type: 'queue', id, at? }` (one of its own looks), `{ type: 'unqueue', key }`, `{ type: 'move', key, to }`,
-`{ type: 'next' }` (skip to the next item now), `{ type: 'resume' }`; and, as Studio's feed sends it,
-`{ type: 'send', at?, by, item: { kind: 'live', look } | { kind: 'baked', id, title, sha256 } }`, up to 64 KB (other
+`{ type: 'next' }` (skip to the next item now); and, as Studio's feed sends it,
+`{ type: 'send', at?, fade?, by, item: { kind: 'live', look } | { kind: 'baked', id, title, sha256, duration } }`,
+up to 64 KB (other
 messages stay at 1 KB). Studio's proxy passes pages no `send`, so through Studio its checks hold; on the Pi the
 engine binds to `127.0.0.1` (`pi/STUDIO.md`), so nothing reaches it another way. Its state gains `queue`, `paused`,
 and the playing look's `kind` and `left` (seconds left of its pattern; null while nothing is queued). Studio's feed
@@ -111,20 +114,12 @@ says `PI_PIN` in its hello when the engine has a PIN. While a baked item plays, 
 **Pages.**
 - **Studio** (the editor's Export menu, the phone's Look tab, and each card on My looks and the Gallery): **Play on
   the lights** → Play now · Play next · Add to queue, for those who may; off, with the reason, when it cannot play.
-  It plays the saved look (unsaved changes: "Save first").
-- **`/pi/`** (the engine's page): **Up next**, the queue with who added each, ↑ to move up, × to remove, **Skip**;
-  each of its looks has **Queue** beside play; the playing item's time left.
+  It plays the saved look (unsaved changes: "Save first"). In Jukebox it offers no Play now.
+- **`/pi/`** (the engine's page) and, on the Pi, **`/live`** for curators (the others see the stage as before): the
+  live play controller (SPEC-liveplay "The page"). `/live`'s adds Studio's looks (Mine, Gallery) to the lights'
+  own and, on a laptop, the stage's 3D view; it talks to the engine on `/pi/ws` through Studio's proxy, as `/pi/`
+  does (the PIN too), so a control used there makes `/pi` drive the stage.
 - **`/live/control`**, following the Pi: the same queue, read only, with **Open the lights** (`/pi/`); `/live` shows
   "Up next" under the title.
-- **Admin → Light**: **Live library looks** on the lights (on, or baked looks only).
-
-**The live page.** On the Pi, `/live` is the jukebox for curators (the others see the stage as before), made for a
-phone first. A switch (**Folly · Tracks · Controls**, kept per browser) picks the view:
-- **Folly**: the stage's 3D view, with the time left, **Skip** and **Blackout** on its bar.
-- **Tracks**: what is on the lights (its time left, or that it loops), **Up next** as on `/pi/` (move, remove,
-  Skip), **Add from Studio** (a search over one's own looks and the gallery's, each opening Play on the lights) and
-  the lights' own looks to play or queue.
-- **Controls**: Blackout, the master, tap tempo and the playing look's own controls, as on `/pi/`.
-
-It talks to the engine on `/pi/ws` through Studio's proxy, as `/pi/` does (the PIN too), so a control used there
-makes `/pi` drive the stage. The 3D view sleeps while another view is shown.
+- **Admin → Light**: **Live library looks** on the lights (on, or baked looks only), and the **Mode** (Jukebox or
+  Live Play).
