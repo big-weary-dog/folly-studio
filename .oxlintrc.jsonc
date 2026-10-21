@@ -142,12 +142,13 @@
     },
     {
       // Library patterns are scripts the compiler reads by name, and their signatures are the API the AI copies.
-      "files": ["public/patterns/**", "test/fixtures/generate/library/**"],
+      "files": ["public/patterns/**", "test/fixtures/generate/library/**", "experiments/rose-warps/patterns/**"],
       "rules": {
         "no-unused-vars": ["error", { "varsIgnorePattern": "^(?:params|pixel|warp|filter|frame|spatial|stage|history|upgrade)$", "args": "none" }]
       }
     },
     { "files": ["public/patterns/**"], "rules": { "max-lines": ["error", { "max": 150 }] } },
+    { "files": ["experiments/rose-warps/patterns/**"], "rules": { "max-lines": ["error", { "max": 150 }] } },
     // The allowlist: the pattern compiler, the render box, and the processes that box untrusted work.
     { "files": ["public/js/core/compile.ts"], "rules": { "no-new-func": "off" } },
     {
