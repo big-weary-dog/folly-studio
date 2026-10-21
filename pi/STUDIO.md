@@ -15,6 +15,9 @@ Two units share one clone of the `pi` branch:
 Studio shows the engine's control page to curators at `/pi/` (their header's **Lights**). Studio itself sends
 nothing to the lights, so it may run while FPP plays the night show.
 
+To try it before the Pi, the hosting machine runs the same profile on loopback: `docs/HOSTING.md` "Dev instance"
+(`--instance offline`).
+
 Everything here is done at home with the Pi online (a phone hotspot will do), never on the playa: the clone and
 `npm ci` download.
 
