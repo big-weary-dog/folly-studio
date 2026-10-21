@@ -74,7 +74,7 @@ undoes an edit.
 ## Stdlib (globals inside pattern code)
 
 `PI TAU sin cos tan asin acos atan atan2 abs min max floor ceil round sqrt pow exp log hypot sign`,
-`clamp(v, lo=0, hi=1)`, `fract(x)`, `mix(a, b, t)` (numbers or colours), `step(edge, x)`,
+`clamp(v, lo=0, hi=1)`, `fract(x)`, `mix(a, b, t)` (numbers, or colours faded in OKLab), `step(edge, x)`,
 `smoothstep(e0, e1, x)`, `soft(edge, x, width)` (an anti-aliased step: 0 below `edge − width/2`, 1 above
 `edge + width/2`, smooth between; width 0 is `step`), `band(x, centre, halfWidth, softness)` (1 within `halfWidth`
 of `centre`, else 0, each edge a `soft` one `softness` wide), `wave(x)` = ½+½·sin(2πx), `tri(x)`, `saw(x)`, `pulse(x, width)`
@@ -168,8 +168,8 @@ blacks out its layer for that frame, reported with its `module` id. So "a chase 
 **Drawing on transparent.** A library source draws only what it is: its colour where it draws, alpha its coverage,
 `null` (or alpha 0) where it draws nothing. It paints no background and fades by alpha, not toward black. A bed fills
 the layer: `colour-wash`, opaque. An element over a bed
-is `[colour-wash, element with blend: 'over']`, `mix(bed, element, alpha)` exactly what a source that painted the bed
-itself drew; with filters that should rework the element alone, `[element, filters…, colour-wash with blend:
+is `[colour-wash, element with blend: 'over']`, the bed scaled toward the element by alpha, in values,
+as `over` blends; with filters that should rework the element alone, `[element, filters…, colour-wash with blend:
 'under']`. Alone on a layer an element shows over black, as one that painted black would. A filter that hides or fades
 (mask, edge-fade, trails) does so by alpha too: what it hides is transparent, never black. `mask` reads the brightness
 of its input, or with `by: 'self'` the luminance of what is above it (so it keeps what is bright), against a cutoff
@@ -371,7 +371,11 @@ the param's. Per module instance:
 - Under rotate, smooth shifts the walk along the stops and round from the last to the first; step holds each stop
   and crossfades into the next over the last fifth of it. A turning pick never cuts.
 - `pal(role, t)` on a bare role (not a declared param) walks the look palette's role smoothly, as it always has, so
-  code and looks from before picks render as they did. A declared param wins a name clash.
+  code and looks from before picks still play. A declared param wins a name clash.
+- Every colour fade (smooth ramps, rotate's crossfades, `mix()` and `gradient()` on colours) goes through OKLab:
+  each end's light (`v^2.2`), Ottosson's OKLab, straight across, and back, each channel clamped to 0..1 (or to an
+  end beyond). It keeps the brightness a fade of values loses mid-way (red to green dips to a muddy olive) and passes through
+  the hues between. Plain OKLab, not OKLCh: a fade between distant hues goes through the middle, not round the wheel.
 
 Picks resolve to stops when a layer is prepared and again when the palette changes; per frame only rotates move. Hue
 and saturation grade the composite, literals included.

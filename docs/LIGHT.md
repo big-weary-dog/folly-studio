@@ -6,7 +6,7 @@ there, and the setting that tunes it. SPEC "Light and output" is the contract; t
 ## Two kinds of number
 
 - **Colour values** (encoded, 0..1). A swatch's own sRGB numbers: `#808080` is 0.5. Every look, pattern, palette,
-  level, Amount, fade and crossfade works in these. They are *perceptual*: 0.5 looks about half as bright as 1.
+  level, Amount and clip fade works in these; colour fades go through OKLab (below). They are *perceptual*: 0.5 looks about half as bright as 1.
 - **Light** (linear, 0..1 of full). What an LED actually emits: its PWM duty. Twice the number is twice the photons.
 
 An LED's light is not its value. Half the light (0.5) looks much brighter than half (about 0.73 as a value), which
@@ -29,12 +29,34 @@ it, and encode again (`toLight`, `toValue` and `addLight` in `core/light.ts`):
 - **The curve is a fixed `v^2.2`, never the Light page's gamma.** The swatches are sRGB: 2.2 is their own curve, the
   meaning of a colour value. The Light gamma corrects the LEDs to those swatches, at the output only, so tuning it
   never changes a frame, a bake or a check's input, and the same look renders the same on every machine.
-- **What scales stays in values**: alpha, level, Amount, fades, `over`, crossfades and `mix()` (a slider's 0.5 should
-  look half). They scale a value before it is added.
+- **What scales stays in values**: alpha, level, Amount, clip fades, `over` and `mix()` on numbers (a slider's 0.5
+  should look half). They scale a value before it is added.
 - **`max` and `multiply` are unchanged**: under a power curve the brighter value has the brighter light, and a
   product's light is the product of the lights, so working in light gives the same answer.
 - The curve is a table (1,024 linear steps, within 1e-5 of `v^2.2`): it runs per LED, per layer, every frame, and
   `pow` is twenty times slower. Below 0 it mirrors, so a negative value still takes light away.
+
+## Colour fades
+
+A fade from one colour to another (`mix()` and `gradient()` on colours, a smooth pick's ramp, a turning pick's
+crossfade) goes through OKLab (`core/oklab.ts`): each end's light at the same fixed `v^2.2`, Björn Ottosson's
+OKLab, straight across, back to light and encoded again. OKLab's lightness is perceptual, so a fade holds its
+brightness and passes through the hues a viewer expects between the two ends:
+
+| Fade, half-way (luminance) | As values (before) | In OKLab (now) |
+|---|---|---|
+| Red (0.21) to green (0.72) | `#808000`, muddy olive, 0.20: darker than red | `#cfa704`, amber, 0.42 |
+| Blue (0.07) to yellow (0.93) | `#808080` grey, 0.22 | `#6baac6`, light blue, 0.37 |
+| Red to cyan (0.79) | `#808080` grey, 0.22 | `#d1a892`, warm beige, 0.44 |
+| Black to white | `#808080`, 0.22 | `#636363`, 0.13: OKLab's middle grey, so a fade toward black darkens sooner |
+
+- **Plain OKLab, not OKLCh.** A fade goes straight through the middle, so distant hues meet paler (red to cyan
+  through beige) rather than sweeping round the wheel.
+- **Out of gamut**, each channel is clamped to 0..1, widened to an end that lies outside it (a bright pattern's
+  values over 1 stay).
+- **Numbers stay linear**: `mix(2, 4, 0.5)` is 3. Alpha, `over`, levels and clip fades scale values, as above.
+- **Cost**: about 0.08 µs a pixel when the ends repeat, 0.2 µs when both vary, against 0.01 µs for a fade
+  of values. Each side keeps its last colour's OKLab, so a ramp's stops are converted once, not per pixel.
 
 ## The path
 

@@ -51,7 +51,7 @@ function settings(warn: Warn) {
   return {
     PORT: [num({ min: 0, max: 65_535, int: true }), 'the port, default 8780'],
     HOST: [text(), 'the address to listen on, default 127.0.0.1'],
-    STUDIO_DATA: [text(), 'the data folder, default studio/data/'],
+    STUDIO_DATA: [text(), 'the data folder, default data/ in the repo'],
     STUDIO_CURATORS: [text(), 'comma-separated usernames with the curator role'],
     STUDIO_ADMINS: [text(), 'comma-separated usernames with the admin role (admins are curators too)'],
     STUDIO_SECURE_COOKIES: [flag(), 'on: the session cookie is Secure (serve over https)'],

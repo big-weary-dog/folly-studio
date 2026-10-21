@@ -47,11 +47,11 @@ describe('module chains', () => {
   });
 
   test('drawing on transparent: an element over a bed is the old element over its own background', () => {
-    // The old way: the element mixes its colour over a background it paints. The new: alpha is its coverage, over a
-    // bed; or under, so a filter between them reworks the element alone.
+    // The old way: the element blends its colour over a background it paints (by value, as over does). The new: alpha
+    // is its coverage, over a bed; or under, so a filter between them reworks the element alone.
     const cover = 'q.lz * q.ly', colour = '[1, 0.5, 0.25]', bed = 'function pixel() { return [0.1, 0.2, 0.6]; }';
-    const old = layerOf({ id: 'old', modules: [src('e', `function pixel(q) { return mix([0.1, 0.2, 0.6], ${colour}, `
-      + `${cover}); }`)] });
+    const old = layerOf({ id: 'old', modules: [src('e', `function pixel(q) { const k = ${cover}; `
+      + `return [0.1, 0.2, 0.6].map((v, i) => v + (${colour}[i] - v) * k); }`)] });
     const element = src('e', `function pixel(q) { const c = ${colour}; c[3] = ${cover}; return c; }`);
     const over = layerOf({ id: 'over', modules: [src('bed', bed), { ...element, blend: 'over' }] });
     const under = layerOf({ id: 'under', modules: [element, src('bed', bed, { blend: 'under' })] });

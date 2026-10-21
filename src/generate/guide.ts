@@ -53,7 +53,7 @@ export const pixelApi = (perSecond = 0) => `The pixel \`p\`:
 - \`k seed\`: global index; a stable random 0..1 per LED
 
 Stdlib (globals): PI TAU sin cos tan asin acos atan atan2 abs min max floor ceil round sqrt pow
-exp log hypot sign, clamp(v, lo=0, hi=1), fract(x), mix(a, b, t) (numbers or colours),
+exp log hypot sign, clamp(v, lo=0, hi=1), fract(x), mix(a, b, t) (numbers, or colours faded in OKLab: bright midpoints),
 step(edge, x), smoothstep(e0, e1, x), soft(edge, x, width) (an anti-aliased step: 0 → 1 smoothly over width
 round edge; use it for edges, never a bare comparison), band(x, centre, halfWidth, softness) (1 within halfWidth of
 centre, edges soft), wave(x) = ½+½·sin(2πx), tri(x), saw(x),

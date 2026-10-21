@@ -72,22 +72,22 @@ What was checked on this machine (WSL 2.4, NAT networking, `systemd=true` in `/e
 1. A checkout of its own, apart from any fleet's trees, since `npm run host` checks out commits in it:
 
    ```sh
-   git clone https://github.com/big-weary-dog/show-builder.git ~/folly-studio
+   git clone https://github.com/big-weary-dog/folly-studio.git ~/folly-studio
    ```
 
-   Until `studio/` is on main, check out its branch:
-   `git -C ~/folly-studio checkout --detach origin/ccr-c0df4e5c-e6amkz`.
+   The server runs the `prod` branch (`STUDIO_REF=origin/prod` in the settings): work lands on `dev`, and `prod`
+   moves only when the owner says so (CONTRIBUTING "Branches").
 
 2. The settings (the [Environment](#environment) below): `mkdir -p ~/.config/folly-studio`, then
    `nano ~/.config/folly-studio/studio.env && chmod 600 ~/.config/folly-studio/studio.env`.
-3. Start it: `cd ~/folly-studio/studio && npm run host`. It ends on
+3. Start it: `cd ~/folly-studio && npm run host`. It ends on
    `host: folly-studio serves <commit> on http://127.0.0.1:8780`, or says what failed.
 4. The public hostname (Cloudflare, below).
 
 ### Updating
 
-`cd ~/folly-studio/studio && npm run host` again, or `npm run host -- <ref>` for another commit or branch
-(default `STUDIO_REF`, else `origin/main`). It refuses a checkout with uncommitted changes, then: fetches and checks
+`cd ~/folly-studio && npm run host` again, or `npm run host -- <ref>` for another commit or branch
+(default `STUDIO_REF`, else `origin/prod`; a ref `origin` lacks stops it before anything changes). It refuses a checkout with uncommitted changes, then: fetches and checks
 out the ref, `npm ci`, builds, writes `dist/build.json` (`{ commit, builtAt }`), writes and restarts the unit, and
 checks that `/build.json` names the commit, `/api/me` answers 401, and Windows reaches it too. The unit's `KillMode=mixed`
 sends the restart's SIGTERM to the server alone: it stops its generator calls, saves and closes, and the ideas it
@@ -149,7 +149,7 @@ does not read is warned of (a typo?). Unset, each setting has its default.
 ```sh
 HOST=127.0.0.1
 PORT=8780
-STUDIO_REF=origin/main            # what npm run host checks out
+STUDIO_REF=origin/prod            # what npm run host checks out
 STUDIO_DATA=/home/you/folly-data  # outside the checkout
 STUDIO_SECURE_COOKIES=1           # the tunnel serves HTTPS
 STUDIO_TRUST_PROXY=1              # client IP (login limits) and host from the tunnel, trusted from this machine only
@@ -187,7 +187,7 @@ them.
 | --- | --- |
 | `PORT` | the port, default 8780 |
 | `HOST` | the address to listen on, default 127.0.0.1 |
-| `STUDIO_DATA` | the data folder, default studio/data/ |
+| `STUDIO_DATA` | the data folder, default data/ in the repo |
 | `STUDIO_CURATORS` | comma-separated usernames with the curator role |
 | `STUDIO_ADMINS` | comma-separated usernames with the admin role (admins are curators too) |
 | `STUDIO_SECURE_COOKIES` | on: the session cookie is Secure (serve over https) |

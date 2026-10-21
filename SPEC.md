@@ -1,6 +1,6 @@
 # Folly Studio — build contract
 
-The shared contract for everyone building `studio/`. Code may refine details, but the
+The shared contract for everyone building Folly Studio. Code may refine details, but the
 **interfaces** below are what the pieces rely on; change them here first.
 
 Folly Studio is a web app where people log in, describe a show idea, get it turned into
@@ -15,7 +15,7 @@ file), edit it, and export it toward the real installation.
   playa. ES modules everywhere (`"type": "module"`), TypeScript or JavaScript: Node ≥ 22.18 runs the server's, the
   boxes' and the tests' as written (types stripped, no build); Vite builds the browser's into `dist/`.
 - **Every LED comes from `public/data/rig.json`** (SPEC "Rig"); it comes from the canonical pixel CSV
-  pipeline (`td/python/make_pixel_csv.py`), never re-derived by hand. Nothing else names the installation.
+  pipeline (show-builder's `td/python/make_pixel_csv.py`), never re-derived by hand. Nothing else names the installation.
 - **Pattern code is untrusted.** It only ever runs inside the sandbox page (below) or a box
   (bubblewrap: the render box, a Fleet worker's), never in the app page and never in the server's
   own Node process (except in tests, on our own library patterns). What a box returns is data.
@@ -28,7 +28,7 @@ file), edit it, and export it toward the real installation.
 ## Layout
 
 ```
-studio/
+folly-studio/
   SPEC.md (+ SPEC-library, -generators, -live .md)  README.md  DESIGN.md  IDEAS.md  package.json (+ lock)  tsconfig.json  vite.config.js  server.ts
   src/            server (Fastify): app.ts (createServer) api.ts api-looks.ts api-models.ts http.ts (plumbing) auth.ts
                   store.ts access.ts (invites, limits) api-access.ts
@@ -80,8 +80,9 @@ studio/
 
 The one installation-specific file: every LED, how it is addressed and grouped, and how the 3D view draws it.
 The core, the boxes, the frame analysis, the generators and the viewer read only this. City of Gods' is
-built by `tools/build_rig.py [--check]` from `../city-of-gods/pixel-map/`, the Folly's playa build (`rig-folly.json`)
-from `../pixel-map/`, through `td/python/make_pixel_csv.py` (never by hand; their fixtures and groups: DESIGN §9);
+built by `tools/build_rig.py [--check]` from show-builder's `city-of-gods/pixel-map/`, the Folly's playa build
+(`rig-folly.json`) from its `pixel-map/`, through its `td/python/make_pixel_csv.py` (`SHOW_BUILDER_DIR`; never by
+hand; their fixtures and groups: DESIGN §9);
 another installation writes its own (CONTRIBUTING "Adding a new installation").
 
 ```jsonc
@@ -180,7 +181,7 @@ How a colour value becomes light (docs/LIGHT.md has the why and every number):
 
 - **The engine works in encoded values**, 0..1, the swatches' own sRGB numbers. Every dim, opacity, level, Amount
   and fade scales those, so a slider is perceptual: 0.5 looks about half, and is 22 % of the light. Only `add` and
-  blur work in light, at a fixed `v^2.2` (not the Light gamma).
+  blur work in light, at a fixed `v^2.2` (not the Light gamma), and colour fades in OKLab, from that light.
 - **The LEDs give linear light.** One output transform turns a value into an output byte, in float, then rounds:
   `byte = round(255 · min(1, v^gamma · balance[colour] · trim[LED] · cap))`, then a lit channel never below `floor`.
   The Falcon's own gamma is None, so this is the only curve. Export's .fseq and the Pi use it; bakes and the preview

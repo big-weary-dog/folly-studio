@@ -10,3 +10,8 @@
 /pi/config.json
 /pi/light.json
 /pi/local/
+# Rendered shows, Python's caches and macOS's folder files
+*.fseq
+__pycache__/
+*.pyc
+.DS_Store
