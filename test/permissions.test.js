@@ -20,7 +20,9 @@ describe('can', () => {
   test('roles: admin above curator above member; nobody signed in may do nothing', () => {
     assert.deepEqual([member, curator, admin].map((u) => can(u, 'admin')), [false, false, true]);
     assert.deepEqual([member, curator, admin].map((u) => can(u, 'curate')), [false, true, true]);
-    for (const action of ['admin', 'curate', 'see', 'edit', 'bake']) assert.equal(can(null, action, mine), false);
+    for (const action of ['admin', 'curate', 'see', 'edit', 'delete', 'bake']) {
+      assert.equal(can(null, action, mine), false);
+    }
   });
 
   test('looks: the owner does anything; others see a shared one; a curator reviews and bakes what they see', () => {
@@ -30,6 +32,12 @@ describe('can', () => {
     assert.deepEqual(table(curator), [[false, true, false], [false, false, false], [false, true, false],
       [false, true, false]]);
     assert.equal(can(member, 'edit'), true, 'a new look is theirs');
+  });
+
+  test('delete: the owner their own; an admin any shared look, never an unshared one', () => {
+    const row = (u) => [mine, shared, hidden].map((l) => can(u, 'delete', l));
+    assert.deepEqual([member, curator, admin].map(row), [[true, false, false], [false, false, false],
+      [false, true, false]]);
   });
 });
 
@@ -42,10 +50,10 @@ describe('routes that need a role', () => {
     adminsDeclared({ method: 'GET', url: '/api/administer' });
   });
 
-  let app, member, admin;
+  let app, member, admin, curator;
   beforeAll(async () => {
-    app = await startApp({ admins: 'ada', dataDir: mkdtempSync(path.join(tmpdir(), 'permissions-')) });
-    [admin, member] = [await signup(app, 'ada'), await signup(app, 'bob')];
+    app = await startApp({ admins: 'ada', curators: 'cat', dataDir: mkdtempSync(path.join(tmpdir(), 'permissions-')) });
+    [admin, member, curator] = [await signup(app, 'ada'), await signup(app, 'bob'), await signup(app, 'cat')];
   });
   afterAll(() => app?.close());
 
@@ -62,5 +70,23 @@ describe('routes that need a role', () => {
         body: body && '{}' })).status, 401, route);
       assert.notEqual((await admin.req(method, url, body)).status, 403, route);
     }
+  });
+
+  test('DELETE /api/looks/:id: an admin deletes a shared look, never an unshared one; a curator or member cannot '
+    + 'delete others\'; the owner deletes their own', async () => {
+    const look = async (shared) => {
+      const r = await member.post('/api/looks', { title: 'Embers', layers: [] });
+      assert.equal(r.status, 201, r.text);
+      if (shared) assert.equal((await member.put(`/api/looks/${r.json.look.id}`, { shared: true })).status, 200);
+      return r.json.look.id;
+    };
+    const del = async (c, id) => (await c.req('DELETE', `/api/looks/${id}`)).status;
+    const shared = await look(true), hidden = await look(false), other = await signup(app, 'dan');
+    assert.equal(await del(curator, shared), 404, 'a curator');
+    assert.equal(await del(other, shared), 404, 'another member');
+    assert.equal(await del(admin, hidden), 404, 'an admin, on an unshared look');
+    assert.equal(await del(admin, shared), 200);
+    assert.equal((await member.req('GET', `/api/looks/${shared}`)).status, 404, 'gone');
+    assert.equal(await del(member, hidden), 200, 'the owner');
   });
 });

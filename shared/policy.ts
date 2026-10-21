@@ -6,7 +6,8 @@ export type Action =
   | 'admin'    // the /admin pages and their routes, Deep while it is admins' only
   | 'curate'   // a curator's say (admins have it too)
   | 'see'      // a look: its owner's, or shared
-  | 'edit'     // a look: its owner changes or deletes it
+  | 'edit'     // a look: its owner changes it
+  | 'delete'   // a look: its owner, or an admin on a shared one
   | 'review'   // a look: a curator marks one they can see reviewed
   | 'bake';    // a look: its owner, or a curator on one they can see
 type Who = { id: string, role: Role } | null | undefined;
@@ -21,6 +22,7 @@ export function can(user: Who, action: Action, look?: Owned): boolean {
     case 'curate': return curator;
     case 'see': return seen;
     case 'edit': return mine;
+    case 'delete': return mine || (user.role === 'admin' && seen);
     case 'review': return curator && seen;
     case 'bake': return mine || (curator && seen);
   }
