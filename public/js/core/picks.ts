@@ -85,10 +85,10 @@ export function pickStops(groups: readonly (readonly Token[])[], R: Roles, step:
     if (out.length) lists.push(out);
   }
   if (!lists.length) return R.fallback.stops;
-  if (lists.length === 1) return lists[0].slice(0, MAX_STOPS);
+  if (lists.length === 1) return Object.freeze(lists[0].slice(0, MAX_STOPS));
   const out = [], long = Math.max(...lists.map((l) => l.length));
   for (let i = 0; i < long && out.length < MAX_STOPS; i++) for (const l of lists) out.push(l[i % l.length]);
-  return out;
+  return Object.freeze(out);
 }
 
 /** A pick resolved: its stops, blend and range, and what its rotate makes of them (turnSlot). */
