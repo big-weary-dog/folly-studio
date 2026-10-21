@@ -80,6 +80,7 @@ function Bar({ st, pv }: { st: Studio; pv: Preview }) {
       <div class="bar-actions"><HistoryButton st={st} />
         <Share st={st} cls="share-toggle" /><ExportMenu st={st} pv={pv} />
         <button type="button" class={cx('btn primary save-btn', st.saving.value && 'busy')} title="Save (Ctrl+S)"
+          data-tour="save"
           disabled={st.saving.value} onClick={() => st.save()}>Save</button></div>
     </div>);
 }
@@ -123,7 +124,8 @@ function DockPane({ st, pv, tl }: Props) {
     <section class="pane pane-code" data-pane="code" aria-label="Code, timeline and look">
       <div class="pane-head dock-head">
         <div class="dock-tabs" role="group" aria-label="Bottom panel">{DOCKS.map((id) => <button type="button"
-          class="dock-tab" data-dock={id} aria-pressed={dock === id} onClick={() => st.showDock(id)}>
+          class="dock-tab" data-dock={id} data-tour={`dock:${id}`}
+          aria-pressed={dock === id} onClick={() => st.showDock(id)}>
           {humanize(id)}</button>)}</div>
         <span class="pane-sub dock-code-only">{st.codeFor}</span>
         <DockIssue st={st} />

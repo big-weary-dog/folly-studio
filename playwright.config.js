@@ -36,7 +36,7 @@ export default defineConfig({
     { name: 'smoke', testMatch: ['smoke.spec.js', 'models.spec.js', 'light.spec.js', 'access.spec.js', 'live.spec.js',
       'refine.spec.js', 'side.spec.js', 'pi.spec.js', 'explore.spec.js', 'live-trouble.spec.js',
       'live-pi.spec.js', 'loop.spec.js', 'mods.spec.js', 'param-lines.spec.js', 'mod-pop.spec.js', 'report.spec.js',
-      'history.spec.js', 'look-energy.spec.js'],
+      'history.spec.js', 'look-energy.spec.js', 'tour.spec.js'],
       timeout: 5 * 60_000 },
     { name: 'perf', testMatch: ['perf.spec.js', 'library-perf.spec.js'], timeout: 5 * 60_000 },
     { name: 'e2e', testMatch: 'mirage.spec.js', timeout: 20 * 60_000 },

@@ -62,7 +62,7 @@ export function AccessGate({ gate, model, paidLabels, free, useFree, onAccess }:
     } finally { setBusy(false); }
   }
   return (
-    <div class="gate gate-locked" role="group" aria-labelledby="gate-why">
+    <div class="gate gate-locked" role="group" aria-labelledby="gate-why" data-tour="invite">
       <p id="gate-why">{free ? <><strong>{model?.label} needs an invite code.</strong>
         {` ${paidLabels} are invite only; ${free.label} is free for everyone.`}</>
         : <><strong>Turning ideas into looks needs an invite code.</strong>

@@ -294,7 +294,7 @@ cover.
 
 ## Performance budgets
 
-- As built, gzipped: the app's scripts, styles and sandbox page (`dist/assets/`) ≤ 240 KB; the login page (the
+- As built, gzipped: the app's scripts, styles and sandbox page (`dist/assets/`) ≤ 256 KB; the login page (the
   shell, its entry and what that imports, the sign-in view) ≤ 40 KB. `test/build.test.js` measures both on a fresh
   build. Views and their styles load on first use. Raised from 165 KB for pictures: a picture param kind,
   checked in the engine with errors an agent repairs from, and edited in Studio (+2 KB); then for the ideas API
@@ -305,6 +305,8 @@ cover.
   headroom for features; views still split into chunks loaded on first use where that comes naturally. Raised to
   220 KB by the owner's call (2026-10-20), for the frame buffer and more headroom. Raised to 240 KB by the owner's
   call (2026-10-20): the previews' light and the Admin page took it to 221 KB; headroom again.
+  Raised to 256 KB by the owner's call (2026-10-20): the tutorial, a chunk loaded on first use (+8 KB), took it
+  to 244 KB.
 - On the wire (`test/transfer.test.js`, the real server, the build and a model of a browser's cache): a cold
   Studio load (shell, modules, styles, sandbox, `rig.json`, API) ≤ 230 KB with br (270 KB gzip; raised from 220 and
   260 for the History drawer, with headroom, by the owner's standing call on size);

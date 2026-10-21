@@ -96,7 +96,7 @@ function Chain({ st, pv }: Props) {
   return (
     <section class="chain" aria-label="Module chain">
       <div class="chain-head"><h3 class="chain-title">Chain</h3>
-        <button type="button" class="btn small chain-add wide-only"
+        <button type="button" class="btn small chain-add wide-only" data-tour="chain-add"
           title="Add a warp, source or filter from the library" disabled={!l || mods.length >= MAX_MODULES}
           onClick={shelf}>+ Module</button></div>
       <p class="pane-hint" hidden={!!l}>Select a layer to see its modules.</p>
@@ -139,9 +139,11 @@ function ModuleRow({ m, i, mods, first, selected, std, grip, drop, dragging, joi
           {std === undefined && <span class="custom-badge"
             title="Custom code: written by the AI or in the code editor, not a library module">Custom</span>}</span>
         <button type="button" class="chain-name" aria-current={selected} onClick={pick}
+          data-tour={m.ref && `module:${m.ref}`}
           title={`${title} — ${STATE_TEXT[state.kind] || state.kind}${state.message ? `: ${state.message}` : ''}`}>
           {title}</button>
         <input type="checkbox" class="switch chain-on" aria-label={`${title} on`} checked={m.enabled !== false}
+          data-tour={m.ref && `module-on:${m.ref}`}
           onChange={(e) => {
             const on = e.currentTarget.checked;
             e.currentTarget.checked = !on;      // the look decides

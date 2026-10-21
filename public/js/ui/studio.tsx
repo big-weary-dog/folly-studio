@@ -18,6 +18,7 @@ import { loadReport, studioReport } from './report-studio.ts';
 import { StudioLayout } from './studio-layout.tsx';
 import { createStudio } from './studio-store.ts';
 import { createTimeline } from './timeline-state.ts';
+import { showToTour } from './tour-view.ts';
 
 async function loadLook(id?: string) {
   try {
@@ -49,7 +50,10 @@ export function Studio({ params, query }: ViewProps) {
     // ?report=<id> (admins): a bug report's moment, replayed (report-studio.ts).
     const replay = query.get('report') ? loadReport(query.get('report')!) : null;
     const look = replay ? replay.then((r) => r.look) : loadLook(params.lookId);
+    const untour = showToTour(st, pv), practice = query.get('tour');
     Promise.all([loadRig(), library, look]).then(async ([rig, lib, from]) => {
+      // ?tour=<path>: the tutorial's practice look, an unsaved one made from library presets (tour/practice.ts).
+      if (practice && !from) from = await (await import('./tour/practice.ts')).loadPractice(practice, lib, rig);
       if (!alive) return;
       st.setup(rig, lib, from);
       pv.start(els.canvas as HTMLCanvasElement, els.sandbox, els.viewer, rig, lib);
@@ -81,6 +85,7 @@ export function Studio({ params, query }: ViewProps) {
     return () => {
       alive = false;
       unreport();
+      untour();
       delete leaveGuard.isDirty;
       delete leaveGuard.discard;
       document.removeEventListener('keydown', onKey);
