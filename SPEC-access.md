@@ -16,8 +16,10 @@ but `/api/me`, `/api/login` and `/api/signup` as the session ending, and goes ba
 
 ## Who may do what
 
-A look is its owner's: only they edit or delete it, and others see it only when it is shared. Asking for what a look
-does not allow them, anyone else is told it is not found (404), shared or not, so an unshared look is never revealed.
+A look is its owner's: only they edit it, and others see it only when it is shared. Only they delete it, but for an
+admin, who may delete any shared look: Delete on its gallery card and in the Studio's gallery notice, after a confirm
+naming the look and its owner. Asking for what a look does not allow them, anyone else is told it is not found
+(404), shared or not, so an unshared look is never revealed.
 A curator may also mark a look they can see reviewed, and bake it; admins are curators too, and alone use the Admin
 pages and their `/api/admin` routes (403 for anyone else; each such route names its role, or the server does not
 start), the Pi preview (SPEC-offline "The Pi preview"; curators too under the Pi profile) and Deep while it is admins' only. Who controls the live stage is its

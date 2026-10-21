@@ -244,7 +244,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, loadLibra
   }
 
   async function remove(req: Req) {
-    visibleLook(req.params.id, req.user!, 'edit');
+    visibleLook(req.params.id, req.user!, 'delete');
     store.looks.remove(req.params.id);
     await dropFrames(req.params.id);
     return { ok: true };

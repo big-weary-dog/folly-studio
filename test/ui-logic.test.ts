@@ -1,13 +1,14 @@
 // The UI's logic that decides behaviour, without a browser: routing (redirects and `next`), the modulate dialog's
 // bindings, the scrub field's values and how a chain is drawn, the pick tile's edits, the timeline's zoom and edits on
-// the Studio's state, and the sandbox status (a broken edit keeps the last good code running). The views themselves
-// are checked in a browser (`npm run smoke`).
+// the Studio's state, who gets a look's Delete, and the sandbox status (a broken edit keeps the last good code
+// running). The views themselves are checked in a browser (`npm run smoke`).
 import assert from 'node:assert/strict';
 
 import { computed, signal } from '@preact/signals';
 import { describe, test } from 'vitest';
 
 import { resolve, safeNext } from '../public/js/ui/app.tsx';
+import { mayDelete } from '../public/js/ui/delete-look.ts';
 import { gateOf } from '../public/js/ui/idea-access.tsx';
 import {
   beatsAt, bindingForm, bindingText, fmt, keepsTime, makeBinding, normaliseParam, type Param, perBeat, shownValue,
@@ -420,5 +421,17 @@ describe('the idea form\'s gate (idea-access.tsx)', () => {
     assert.match((gateOf(access({ full: true }), sol) as { text: string }).text, /done all they can/);
     const zero = access({ limits: { perHour: 0, perDay: 20, concurrent: 2 }, left: { hour: 0, day: 20, running: 2 } });
     assert.deepEqual(gateOf(zero, sol), { kind: 'wait', text: 'Your allowance for the AI models is 0: ask an admin.' });
+  });
+});
+
+describe('who gets a look\'s Delete (delete-look.ts)', () => {
+  const [member, curator, admin] = (['member', 'curator', 'admin'] as const).map((role) => ({ id: role, role }));
+  const look = (owner: string, shared = true) => ({ id: 'l', title: 'Embers', owner, shared });
+  test('the gallery: admins only, on any shared look; My looks: the owner', () => {
+    assert.deepEqual([member, curator, admin].map((u) => mayDelete(u, look('other'), true)), [false, false, true]);
+    assert.equal(mayDelete(member, look('member'), true), false, 'not their own, from the gallery');
+    assert.equal(mayDelete(admin, look('admin'), true), true);
+    assert.equal(mayDelete(member, look('member', false), false), true, 'My looks');
+    assert.equal(mayDelete(admin, look('other', false), true), false, 'never an unshared look');
   });
 });

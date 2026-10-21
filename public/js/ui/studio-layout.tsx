@@ -8,6 +8,7 @@ import { can } from '../../../shared/policy.ts';
 import type { Listed } from '../../../shared/schemas/api.ts';
 import { openBake } from './bake.tsx';
 import { ChainPane } from './chain.tsx';
+import { deleteLook, mayDelete } from './delete-look.ts';
 import { DrawerSlot } from './drawer.tsx';
 import { CodeEditor } from './editor.tsx';
 import { cx, humanize, lazy, pref, Switch, useLazy } from './kit.tsx';
@@ -18,7 +19,7 @@ import { loadPalettes } from './model.ts';
 import type { Preview } from './preview.ts';
 import { PreviewPane } from './preview-view.tsx';
 import { RefinePanel } from './refine.tsx';
-import { onPi, user } from './session.ts';
+import { navigate, onPi, user } from './session.ts';
 import { onSideHead, SideDivider } from './side-panels.tsx';
 import type { Dock, Studio } from './studio-store.ts';
 import { Timeline } from './timeline.tsx';
@@ -45,7 +46,7 @@ export function StudioLayout({ st, pv, tl, els }: Props & { els: Record<string, 
       <Bar st={st} pv={pv} />
       {st.copyOnSave.value && <div class="studio-notice" role="note"><strong>From the gallery</strong>
         {` — “${st.server.value?.title}” by ${st.server.value?.ownerName || 'someone else'}. Play with it freely; `
-          + 'Save makes your own copy.'}</div>}
+          + 'Save makes your own copy.'}<AdminDelete st={st} /></div>}
       <PreviewPane st={st} pv={pv} els={els} />
       <Splitter studio={root} setResizing={setResizing} />
       <PhoneTabs st={st} ph={ph} />
@@ -61,6 +62,14 @@ export function StudioLayout({ st, pv, tl, els }: Props & { els: Record<string, 
       <DrawerSlot />
       <div class="sandbox-host" aria-hidden="true" ref={(el) => { if (el) els.sandbox = el; }} />
     </div>);
+}
+
+/** An admin's Delete on someone else's gallery look (SPEC-access): back to the gallery once it is gone. */
+function AdminDelete({ st }: { st: Studio }) {
+  const look = st.server.value;
+  if (!look || !mayDelete(user.value, look, true)) return null;
+  return <button class="btn small ghost danger-text notice-delete" type="button" aria-label={`Delete ${look.title}`}
+    onClick={async () => { if (await deleteLook(look)) navigate('/gallery', { force: true }); }}>Delete</button>;
 }
 
 function Share({ st, cls }: { st: Studio; cls: string }) {
