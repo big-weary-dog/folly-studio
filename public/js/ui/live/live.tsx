@@ -74,7 +74,7 @@ export function LivePage() {
           {next && <span class="live-sub live-next">Up next: {next.title}</span>}
           {!fromPi && stage.blackout.value && <span class="tag tag-ruby">Blackout</span>}
           <span class="live-spacer" />
-          {live && <span class="live-sub live-driver">driven from {fromPi ? '/pi' : 'Live control'}</span>}
+          {live && !lights && <span class="live-sub live-driver">driven from {fromPi ? '/pi' : 'Live control'}</span>}
           {driving && <span class="live-sub">controlled by {driving}</span>}
           <span class="live-sub live-count">{who.viewers} watching</span>
           {(can(user.value, 'admin') || new URLSearchParams(location.search).has('stats'))
