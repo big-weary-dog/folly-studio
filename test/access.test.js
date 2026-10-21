@@ -170,10 +170,13 @@ describe('access', () => {
     const me = (await mo.get('/api/me')).json.access;
     assert.deepEqual(me.left, { hour: 0, day: 14, running: 2 });
     assert.ok(Date.parse(me.nextAt) > Date.now() + 59 * 60_000);
-    // An hour on, the hour's uses are free again but the day's still count.
+    // An hour after the last idea, the hour's uses are free again but the day's still count. Stored times can run
+    // ahead of Date.now() when the wall clock steps back, so the hour counts from the ideas' own times.
     const u = app.store.users.get(mo.user.id), sol = app.models.get('sol');
-    assert.equal(app.access.check(u, sol, Date.now() + HOUR_MS + 1000), null);
-    assert.equal(app.access.state(u, Date.now() + HOUR_MS + 1000).left.day, 14);
+    const later = Math.max(...app.store.ideas.list((i) => i.owner === mo.user.id).map((i) => Date.parse(i.createdAt)))
+      + HOUR_MS + 1000;
+    assert.equal(app.access.check(u, sol, later), null);
+    assert.equal(app.access.state(u, later).left.day, 14);
   });
 
   test('Deep is refused while it is off; an idea that asks nothing explores', async () => {

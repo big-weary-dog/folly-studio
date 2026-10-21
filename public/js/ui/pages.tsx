@@ -13,6 +13,7 @@ import type { Explore, Idea, Listed } from '../../../shared/schemas/api.ts';
 import type { ModelChoices } from '../../../shared/schemas/models.ts';
 import { navigate, onPi, setTitle, user, type ViewProps } from './session.ts';
 import { AccessGate, gateOf } from './idea-access.tsx';
+import { Approve } from './approve.tsx';
 import { deleteLook, mayDelete } from './delete-look.ts';
 import { cx, jewelGradient, lazy, pref, timeAgo, toast } from './kit.tsx';
 import { LookFiles } from './look-files.tsx';
@@ -305,6 +306,7 @@ export function Looks({ scope }: ViewProps) {
 }
 
 function Card({ look, gallery, remove }: { look: Listed; gallery: boolean; remove: (l: Listed) => void }) {
+  const [reviewed, setReviewed] = useState(look.reviewed), approved = () => setReviewed(true);
   const n = look.layerCount ?? 0, href = studioHref(look.id);
   return (
     <li class="card">
@@ -323,12 +325,13 @@ function Card({ look, gallery, remove }: { look: Listed; gallery: boolean; remov
           <span class="meta-item">{`${n} layer${n === 1 ? '' : 's'}`}</span>
           <time class="meta-item" dateTime={look.updatedAt || ''}>{timeAgo(look.updatedAt || look.createdAt)}</time>
           {look.shared && !gallery && <span class="tag tag-sapphire">Shared</span>}
-          {look.reviewed && <span class="tag tag-emerald">Reviewed</span>}
+          {reviewed && <span class="tag tag-emerald">Reviewed</span>}
         </div>
       </div>
       <div class="card-actions"><a class="btn small" href={href}>Open</a>
         {onPi() && can(user.value, 'curate') && <button class="btn small" type="button"
           onClick={() => lights().then((m) => m.openPlayLights(look))}>Play on the lights</button>}
+        {gallery && !reviewed && can(user.value, 'review', look) && <Approve look={look} approved={approved} />}
         {mayDelete(user.value, look, gallery) && <button class="btn small ghost danger-text" type="button"
           aria-label={`Delete ${look.title}`} onClick={() => remove(look)}>Delete</button>}
       </div>
