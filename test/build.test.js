@@ -45,7 +45,7 @@ beforeAll(async () => {
   manifest = JSON.parse(readFileSync(path.join(dist, '.vite/manifest.json'), 'utf8'));
   dir = await mkdtemp(path.join(tmpdir(), 'studio-build-'));
   app = await createServer({ dataDir: dir, distDir: dist, generator: { enqueue() {} }, log: quiet,
-    admins: 'wire' }); // Sketch, the one model here, is admins' alone
+    admins: 'wire', models: { env: { PATH: path.join(import.meta.dirname, 'fixtures/generate/bin') } } });
   base = `http://127.0.0.1:${(await app.listen(0)).port}`;
 });
 afterAll(async () => {
@@ -164,7 +164,7 @@ describe('the JSON API on the wire', () => {
 
   test('the ideas list and an idea revalidate: a poll of an unchanged idea is an empty 304', async () => {
     const { idea } = await fetch(`${base}/api/ideas`, { method: 'POST', headers: { cookie,
-      'content-type': 'application/json' }, body: JSON.stringify({ text: 'embers rising', model: 'sketch' }) })
+      'content-type': 'application/json' }, body: JSON.stringify({ text: 'embers rising', model: 'sol' }) })
       .then((r) => r.json());
     for (const url of ['/api/ideas', `/api/ideas/${idea.id}`]) {
       const first = await get(url, { cookie });

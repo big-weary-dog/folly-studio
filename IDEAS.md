@@ -18,7 +18,7 @@ From the first design notes, now built (the DESIGN.md section in brackets):
 - The sandboxed preview, the render box, curator review of baked frames, the flash checks and guard (§6).
 - Sparse `.fseq`, streamed frames, compressed downloads, `tools/sacn-play.ts`, the Mirage match (§7, §8).
 - The Playa view, Mirage's look from the rig's render hints, in quality tiers (§10).
-- Three generators: sketch, Claude with structured output, the opt-in Fleet foundry (§11).
+- Generators: Claude with structured output, the Codex CLI, the opt-in Fleet foundry (§11).
 - Home hosting: hashed assets, caches, low-priority bakes, a disk cap, backups (§12).
 
 ## Next

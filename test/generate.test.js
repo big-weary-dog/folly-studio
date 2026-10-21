@@ -1,4 +1,4 @@
-// Tests for src/generate/: validate, sketch, prompt and the queue. claude and fleet have their own files.
+// Tests for src/generate/: validate, prompt and the queue. claude and fleet have their own files.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -10,11 +10,9 @@ import {
   buildPrompt, buildSystemPrompt, buildUserMessage, formatGroups, pickExamples,
 } from '../src/generate/prompt.ts';
 import { docsBlock, pickDocs } from '../src/generate/docs-turn.ts';
-import { buildSketchMessage } from '../src/generate/explore-prompt.ts';
-import { BUILTIN_PATTERN, parseParams, sketchLook } from '../src/generate/sketch.ts';
+import { buildDraftMessage } from '../src/generate/explore-prompt.ts';
 import { GenerateError, LIMITS, validateLook, wireSchema } from '../shared/schemas/generated.ts';
 import { byName, goodLayer, GROUPS, LIBRARY, queueSetup, quiet, RIG, STUDIO } from './fixtures/generate/shared.js';
-import { mini as MINI } from './fixtures/rigs.js';
 
 const DIR = path.join(STUDIO, 'public/patterns');
 const REAL = JSON.parse(fs.readFileSync(path.join(DIR, 'index.json'), 'utf8')).map((p) => ({ ...p,
@@ -78,122 +76,6 @@ describe('validate', () => {
   });
 });
 
-describe('sketch', () => {
-  const sketch = (text, library = LIBRARY) => validateLook(sketchLook({ text, library, groups: GROUPS }),
-    { groups: GROUPS });
-
-  test('fire on the spires in red', () => {
-    const look = sketch('Fire on the spires in red');
-    assert.equal(look.layers.length, 1);
-    assert.equal(look.layers[0].code, byName('embers').code);
-    assert.deepEqual(look.layers[0].groups, ['spires']);
-    assert.deepEqual(look.layers[0].params, { color: 'body3' }, "red: the nearest swatch's slot");
-    assert.equal(look.globals.palette.name, 'ruby', 'the palette nearest red');
-    assert.equal(look.title, 'Fire on the spires in red');
-    assert.match(look.summary, /Sketched from the pattern library/);
-    assert.match(look.summary, /AI generator can do much better/);
-  });
-
-  test('pairs each theme with the zones in its own clause; whole-cathedral layers go first', () => {
-    const look = sketch('twinkling stars on the rose window, and an ocean swell over everything');
-    assert.equal(look.layers.length, 2);
-    assert.equal(look.layers[0].code, byName('ocean-swell').code);
-    assert.deepEqual(look.layers[0].groups, ['cathedral']);
-    assert.equal(look.layers[0].blend, 'add');
-    assert.equal(look.layers[1].code, byName('starfield').code);
-    assert.deepEqual(look.layers[1].groups, ['rose-window']);
-    assert.equal(look.layers[1].blend, 'max');
-  });
-
-  test('sides narrow a zone, pace scales speed, bpm sets tempo, colours go to named params', () => {
-    const left = sketch('the left spires burning slowly');
-    assert.deepEqual(left.layers[0].groups, ['spire-back-left', 'spire-front-left']);
-    assert.equal(left.layers[0].params.speed, 0.2);
-    assert.equal(sketch('a heartbeat at 140 bpm').layers[0].params.bpm, 140);
-    const beam = sketch('a lighthouse with a warm white beam on navy');
-    assert.equal(beam.layers[0].code, byName('lighthouse').code);
-    assert.deepEqual(beam.layers[0].params, { sea: 'accent1', color: 'body3' }, '"on navy" is the background');
-    assert.deepEqual(sketch('a white beam on navy').layers[0].params, { sea: 'accent1', color: '#ffffff' },
-      'no swatch near white: the colour itself');
-  });
-
-  test('is deterministic, and falls back when nothing matches', () => {
-    const a = sketch('qwerty zxcvb');
-    assert.deepEqual(sketch('qwerty zxcvb'), a);
-    assert.equal(a.layers.length, 1);
-    assert.deepEqual(a.layers[0].groups, ['cathedral']);
-    assert.ok(LIBRARY.some((p) => p.code === a.layers[0].code));
-  });
-
-  test('an empty library still gives a valid look', () => {
-    const look = sketch('purple and gold fire', []);
-    assert.equal(look.layers[0].code, BUILTIN_PATTERN.code);
-    assert.deepEqual(look.layers[0].params, { color: 'body1', color2: 'body4' });
-    assert.equal(look.globals.palette.name, 'solstice', 'the palette nearest the purple and gold hues');
-  });
-
-  test('finds places by tag on any rig, by id and name where a rig has none, and keeps the tags', () => {
-    const on = (groups, text) => validateLook(sketchLook({ text, library: LIBRARY, groups }), { groups }).layers;
-    const fire = on(GROUPS, 'fire on the spires');
-    assert.deepEqual([fire[0].groups, fire[0].tags], [['spires'], ['spire']]);
-    const bare = GROUPS.map(({ tags: _tags, ...g }) => g);
-    assert.deepEqual(on(bare, 'fire on the spires')[0].groups, ['spires'], 'no tags: ids and names');
-    const mini = on(MINI.groups, 'twinkling stars on the rose window, and an ocean swell over everything');
-    assert.deepEqual(mini.map((l) => [l.groups, l.tags]), [[['all'], ['all']], [['panel'], ['rose']]]);
-    assert.deepEqual(on(MINI.groups, 'fire on the arches')[0].groups, ['gate']);
-    assert.deepEqual(on(MINI.groups, 'the left arches glowing')[0].groups, ['post-left']);
-  });
-
-  test('works with the real library and groups', () => {
-    const look = sketch('fire on the spires and a starry night across the arches, red and gold', REAL);
-    assert.deepEqual(look.layers.map((l) => l.groups[0]), ['cathedral', 'spires', 'arches'], 'a bed under the zones');
-    assert.equal(look.layers[0].code, REAL.find((p) => p.name === 'colour-wash').code);
-    assert.deepEqual(look.layers[2].modules.map((m) => m.title), ['Colour wash', 'Clouds', 'Sparkle'], 'Starfield');
-    // A bare "wash" is a colour wash on the whole rig, not the floods; a chase beats the colour it is in.
-    const wash = sketch('slow purple wash that breathes', REAL);
-    assert.deepEqual(wash.layers.map((l) => [l.title, l.groups[0]]), [['Breathe', 'cathedral']]);
-    assert.deepEqual(sketch('rainbow chase around the arches', REAL).layers.map((l) => l.title), ['Bed',
-      'Chase · Arches']);
-  });
-
-  test('a place or side the rig lacks lights the whole rig, not a group named for it', () => {
-    // As City of Gods: towers tagged left/right only, no canopy, wash, flood or back.
-    const groups = [{ id: 'all', tags: ['all'] }, { id: 'spire-back-left', parent: 'all', tags: ['spire', 'left'] },
-      { id: 'spire-back-right', parent: 'all', tags: ['spire', 'right'] }, { id: 'rose-window', parent: 'all',
-        tags: ['rose'] }];
-    const at = (text) => sketchLook({ text, library: REAL, groups }).layers.map((l) => l.groups.join('+'));
-    assert.deepEqual(at('starfield on the canopy'), ['all']);
-    assert.deepEqual(at('fire on the back spires'), ['all', 'spire-back-left+spire-back-right']);
-    assert.deepEqual(at('fire on the left spires'), ['all', 'spire-back-left']);
-    assert.deepEqual(at('rain on the back'), ['all']);
-  });
-
-  test('blue bars: a source\'s one colours param takes the colours named as its pick', async () => {
-    const lib = [{ name: 'bars', title: 'Bars', summary: 'Bands of colour.', tags: ['bars'], code: 'const params = '
-      + "{ speed: { value: 1, min: 0, max: 2 }, colours: { value: 'all', type: 'color' } };\n"
-      + "function pixel(p) { return swatch('colours', floor(p.ly * 4)); }" }];
-    const look = sketch('blue bars', lib), [layer] = look.layers;
-    assert.equal('palette' in layer, false, 'no layer remap');
-    const { paletteColours } = await import('../public/js/core/stdlib.ts');
-    const { plainRoles, stopsFor } = await import('../public/js/core/picks.ts');
-    const stops = stopsFor(layer.params.colours, 'all', plainRoles(paletteColours(look.globals.palette)));
-    const hue = ([r, g, b]) => (Math.atan2(Math.sqrt(3) * (g - b), 2 * r - g - b) / (2 * Math.PI) + 1) % 1;
-    assert.ok(stops.length && stops.every((c) => Math.abs(hue(c) - 0.62) < 0.05),
-      `plays blue: ${layer.params.colours}`);
-    assert.equal(sketch('bars', lib).layers[0].params.colours, undefined, 'no colour named: the default');
-  });
-
-  test('reads params statically', () => {
-    assert.deepEqual(parseParams(byName('lighthouse').code), {
-      speed: { type: 'number', value: 0.2, min: 0, max: 2 },
-      width: { type: 'number', value: 0.08, min: 0.01, max: 0.5 },
-      color: { type: 'color', value: '#ffffff', min: undefined, max: undefined },
-      sea: { type: 'color', value: '#0018ff', min: undefined, max: undefined },
-    });
-    assert.deepEqual(parseParams('function pixel() {}'), {});
-  });
-});
-
 describe('prompt', () => {
   test('the system prompt: library, groups, taste, examples (the API too, with no docs); stable', () => {
     const sys = buildSystemPrompt({ library: LIBRARY, rig: RIG });
@@ -219,11 +101,11 @@ describe('prompt', () => {
     assert.match(sys, /# Worked compositions\nIdea: /);
     // What every compose, repair and critique call carries: the system prompt and the docs a turn gets unasked (none:
     // the READMEs say again what the prompt does). ~28,700 with headroom for the modules still coming, and 33,000 as
-    // the preset catalog lines grow with the library; the sketch call carries the system prompt and its own turn.
+    // the preset catalog lines grow with the library; the draft call carries the system prompt and its own turn.
     const always = sys.length + docsBlock(docs, pickDocs(docs, [])).length;
     assert.ok(always < 33_000, `the system prompt and core docs are ${always} characters`);
-    const sketch = sys.length + buildSketchMessage('an idea', RIG.groups).length;
-    assert.ok(sketch < 33_500, `the sketch call is ${sketch} characters`);
+    const draft = sys.length + buildDraftMessage('an idea', RIG.groups).length;
+    assert.ok(draft < 33_500, `the draft call is ${draft} characters`);
   });
 
   test('group tree is compact', () => {
@@ -255,8 +137,9 @@ describe('prompt', () => {
 describe('queue', () => {
   const setup = (opts) => queueSetup(createQueue, opts);
 
-  test('sketch end to end: generating → ready, look saved for the owner', async () => {
-    const { store, user, idea, queue } = setup({ adapterName: 'sketch' });
+  test('end to end: generating → ready, look saved for the owner', async () => {
+    const fire = async () => ({ title: 'Fire', layers: [goodLayer({ title: 'Fire', groups: ['spires'] })] });
+    const { store, user, idea, queue } = setup({ adapterName: 'x', adapters: { x: fire } });
     const i = idea('fire on the spires in red');
     assert.equal(queue.enqueue(i), true);
     await queue.idle();
@@ -341,18 +224,19 @@ describe('queue', () => {
     assert.equal(store.looks.list().length, 0);
   });
 
-  test('an unknown generator falls back to sketch; a failed one is never stood in for', async () => {
-    const errors = [];
-    const { store, idea, queue } = setup({ adapterName: 'claud', log: { ...quiet, error: (m) => errors.push(m) } });
-    assert.equal(queue.adapterName, 'sketch');
+  test('an unknown generator falls back to claude; a failed one is never stood in for', async () => {
+    const errors = [], claude = async () => ({ title: 'Ocean', layers: [goodLayer()] });
+    const { store, idea, queue } = setup({ adapterName: 'claud', adapters: { claude },
+      log: { ...quiet, error: (m) => errors.push(m) } });
+    assert.equal(queue.adapterName, 'claude');
     assert.match(errors[0], /unknown generator/);
     const i = idea('ocean');
     queue.enqueue(i);
     await queue.idle();
     assert.equal(store.ideas.get(i.id).status, 'ready');
 
-    const r = setup({ adapterName: 'x', fallbackName: 'sketch',
-      adapters: { x: async () => { throw new GenerateError('The AI generator is busy right now.'); } } });
+    const r = setup({ adapterName: 'x', fallbackName: 'claude',
+      adapters: { claude, x: async () => { throw new GenerateError('The AI generator is busy right now.'); } } });
     const j = r.idea('stars on the rose window');
     r.queue.enqueue(j);
     await r.queue.idle();

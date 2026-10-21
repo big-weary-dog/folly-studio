@@ -257,7 +257,7 @@ them.
 | `STUDIO_SECURE_COOKIES` | on: the session cookie is Secure (serve over https) |
 | `STUDIO_TRUST_PROXY` | on: one proxy in front (a tunnel) gives the client's address and host |
 | `STUDIO_MODELS` | the model registry, default \<STUDIO_DATA>/models.json |
-| `STUDIO_GENERATOR` | superseded by the registry: its default when first written (claude, sketch, fleet) |
+| `STUDIO_GENERATOR` | superseded by the registry: its default when first written (claude, fleet) |
 | `STUDIO_GENERATOR_FALLBACK` | a model or transport foundry ideas go to while it is off or busy |
 | `STUDIO_GENERATOR_CONCURRENCY` | jobs at once per lane where the registry says nothing |
 | `STUDIO_FOUNDRY` | on: the Fleet foundry runs, one job at a time |
@@ -362,8 +362,7 @@ People pick a model for each idea from the ones you offer. They live in `models.
     { "id": "sol", "label": "Sol", "via": "codex", "model": "gpt-6.1-sol", "effort": "low", "critique": "images",
       "enabled": true },
     { "id": "luna", "label": "Luna", "via": "codex", "model": "gpt-6-luna", "effort": "low", "critique": "text",
-      "enabled": true },
-    { "id": "sketch", "label": "Sketch", "via": "sketch", "enabled": true, "limits": { "perHour": 30, "perDay": 100 } }
+      "enabled": true }
   ],
   "concurrency": { "claude": 4, "codex": 2 },
   "limits": { "inviteOnly": true, "perHour": 6, "perDay": 20, "concurrent": 2, "dailyCeiling": 200 }
@@ -376,7 +375,7 @@ reported in the log and on the Models page, and the last good one stays in use. 
 `"roles": ["admin"]` (who may pick it; none: everyone), `"maxTokens"`, `"timeoutSeconds"` and `"critique"`
 (`"images"` or `"text"`: a round where the model sees what it made; only by hand, and a file written before Sol
 and Luna had it keeps its own settings, so add it there). `via` is how it is
-reached: `claude` (the Anthropic API), `codex` (the Codex CLI), `sketch` (offline) or `fleet` (the foundry, below).
+reached: `claude` (the Anthropic API), `codex` (the Codex CLI) or `fleet` (the foundry, below).
 A model whose transport is not set up (no `ANTHROPIC_API_KEY`, no `codex` on PATH) shows as unavailable and is not
 offered; the form hides its choice when only one model can run. `STUDIO_GENERATOR` is superseded: it only names the
 default when the file is first written.
@@ -396,11 +395,9 @@ errors, no dollars; admins see those too. Once the log is gone, the page shows t
 
 ### Invites and limits
 
-Anyone can sign up, browse, edit, preview and use the gallery. The **paid** models (every `via` but `sketch`: they
-spend your API money or your Codex and Fleet capacity) need an **invite code**, and each person's use is limited.
-Sketch, the free one, is for admins alone (`SKETCH_FOR_EVERYONE` in `shared/schemas/models.ts`), whatever the file
-says: its looks fall short. Its switch on the Models page stays, so it can come back. Admins
-are exempt from both. The `limits` block above holds the defaults; tune them in the file, and they apply at once:
+Anyone can sign up, browse, edit, preview and use the gallery. Every model is **paid** (it
+spends your API money or your Codex and Fleet capacity), so making a look needs an **invite code**, and each person's
+use is limited. Admins are exempt from both. The `limits` block above holds the defaults; tune them in the file, and they apply at once:
 
 | Setting | Default | Why |
 |---|---|---|
@@ -412,7 +409,7 @@ are exempt from both. The `limits` block above holds the defaults; tune them in 
 
 The hour and day are rolling (the last 60 minutes, the last 24 hours), and a person's paid ideas share one
 allowance. A model may also say `"limits": { "perHour", "perDay", "concurrent" }`, a cap counted on that model's
-ideas alone (Sketch's 30 an hour and 100 a day keep a script from filling the disk). **One idea is one use**, counted
+ideas alone. **One idea is one use**, counted
 when it is accepted, whatever comes of it: a retry or any repair inside it adds nothing, and "Try
 again" sends a new idea.
 

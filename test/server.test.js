@@ -14,14 +14,16 @@ import {
   client, EXPECTED_APP_CSP, EXPECTED_SANDBOX_CSP, fakeBox, fx, PIXEL, quiet, rawGet, SANDBOX_PAGE, signup,
   startApp, useFixture,
 } from './fixtures/server.js';
+import { FIX } from './fixtures/generate/shared.js';
 
 useFixture();
+const BIN = path.join(FIX, 'bin');
 
 describe('server', () => {
   let app;
   beforeAll(async () => {
     app = await startApp({ dataDir: path.join(fx.tmp, 'data-main'), curators: 'Carol, other',
-      admins: 'csrf-alice, idea-alice, idea-bob', renderBox: fakeBox() });
+      admins: 'csrf-alice, idea-alice, idea-bob', renderBox: fakeBox(), models: { env: { PATH: BIN } } });
   });
   afterAll(async () => {
     await app.close();
@@ -149,7 +151,7 @@ describe('server', () => {
   describe('CSRF and request limits', () => {
     let alice;
     beforeAll(async () => {
-      alice = await signup(app, 'csrf-alice'); // an admin: Sketch, the one model here, is admins' alone
+      alice = await signup(app, 'csrf-alice'); // an admin: exempt from invite codes and limits
     });
 
     test('mutations need Content-Type: application/json', async () => {
@@ -235,7 +237,7 @@ describe('server', () => {
       const idea = a.json.idea;
       assert.equal(idea.text, 'Coral reef in the arches');
       assert.equal(idea.status, 'queued');
-      assert.deepEqual([idea.model, idea.generator, idea.by], ['sketch', 'sketch', 'Sketch'], 'no key, no codex');
+      assert.deepEqual([idea.model, idea.generator, idea.by], ['sol', 'sol', 'Sol'], 'no key: codex\'s Sol');
       assert.equal(idea.owner, alice.user.id);
       assert.ok(idea.id && idea.createdAt && idea.updatedAt);
       assert.equal(app.queue.enqueued.length, queued0 + 1);
@@ -249,16 +251,6 @@ describe('server', () => {
       assert.equal((await bob.get(`/api/ideas/${idea.id}`)).status, 404);
       assert.deepEqual((await bob.get('/api/ideas')).json.ideas, []);
       assert.equal((await alice.get('/api/ideas/does-not-exist')).status, 404);
-    });
-
-    test('Sketch is for admins alone, whatever the models file says', async () => {
-      const dave = await signup(app, 'idea-dave');
-      const asked = await dave.post('/api/ideas', { text: 'a sketch please', model: 'sketch' });
-      assert.deepEqual([asked.status, asked.json.error], [400, 'Sketch is not offered to your account.']);
-      const plain = await dave.post('/api/ideas', { text: 'whatever runs' });
-      assert.deepEqual([plain.status, plain.json.error], [400, 'No model is available right now.'], 'no key, no codex');
-      assert.deepEqual((await dave.get('/api/models')).json.models, []);
-      assert.equal((await bob.post('/api/ideas', { text: 'an admin still can' })).status, 201);
     });
   });
 

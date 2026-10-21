@@ -33,7 +33,7 @@ folly-studio/
   src/            server (Fastify): app.ts (createServer) api.ts api-looks.ts api-models.ts http.ts (plumbing) auth.ts
                   store.ts store-lock.ts access.ts (invites, limits) api-access.ts
                   static.ts (serves dist/: headers, precompressed copies, ETags)  core-script.ts (the core for the boxes)
-                  generate/{index,models,sketch,claude,codex,proc,fleet,prompt}.ts
+                  generate/{index,models,claude,codex,proc,fleet,prompt}.ts
                   frames.ts (pure: FSEQ parse + analysis)  bake.ts (bake queue, frame files)
                   render-box.ts (bubblewrap runner)  box-output.ts (what a box hands back, as data)
                   frames-wire.ts (stream encoder)  frames-cache.ts (chunks, downloads, encoder jobs, disk cap)
@@ -583,9 +583,9 @@ preview's guard; `check: false` (`STUDIO_FLASH_CHECK=off`) means nothing is dimm
 timing?, rounds?, how?, lookId?, refine?, changes?, verdict?, undone?, error?, createdAt, updatedAt }`: `status` goes queued → generating →
 ready or failed, which are final (moves: `shared/idea-status.ts`); `model` the registry id asked for, `generator` the one that made
 the look (the one-shot generator's when the foundry was off or busy), `by` its label ("Opus"), `timing = { wait, prompt, request, parse,
-total, check?, critique?, sketch?, tokens? }` in ms (`tokens = { input, cached, output }`); `rounds = [{ kind, ms,
+total, check?, critique?, draft?, tokens? }` in ms (`tokens = { input, cached, output }`); `rounds = [{ kind, ms,
 outcome? }]` its model's rounds and `how` how it was made (SPEC-generators "The idea log"); `explore` the level it was made at and `took` what its look took from
-each sketch (SPEC-generators "Explore"). A refinement has `refine = { critique?, fix? }` and the look it changes as
+each draft (SPEC-generators "Explore"). A refinement has `refine = { critique?, fix? }` and the look it changes as
 `lookId` from the start; `changes` (ready) says what changed, `verdict` how its critique round ended (`revised`,
 `unchanged`, …), and `undone: true` that it was undone.
 `look = { id, owner, ownerName, title, summary, layers, duration, bpm?, shared, ideaId?, reviewed, reviewedBy?,

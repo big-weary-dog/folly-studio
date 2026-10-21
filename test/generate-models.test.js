@@ -46,7 +46,7 @@ describe('the queue with models', () => {
     let loads = 0, version = 'v1';
     const { store, idea, queue } = routed({ loadVersion: () => version,
       loadLibrary: () => { loads++; return LIBRARY; } });
-    const ids = [['a', 'opus'], ['b', 'sol'], ['c', 'luna'], ['d', 'sketch'], ['e', 'opus']]
+    const ids = [['a', 'opus'], ['b', 'sol'], ['c', 'luna'], ['e', 'opus']]
       .map(([t, m]) => idea(t, m).id);
     ids.forEach((id) => queue.enqueue(id));
     await queue.idle();
@@ -54,13 +54,12 @@ describe('the queue with models', () => {
     // Every transport's look is saved under the one rule (chain 2).
     assert.deepEqual(done.map((i) => [i.status, i.generator, i.by, store.looks.get(i.lookId).chain]), [
       ['ready', 'opus', 'Opus', 2], ['ready', 'sol', 'Sol', 2], ['ready', 'luna', 'Luna', 2],
-      ['ready', 'sketch', 'Sketch', 2], ['ready', 'opus', 'Opus', 2]]);
-    for (const { timing: { tokens, ...timing }, generator } of done) {
+      ['ready', 'opus', 'Opus', 2]]);
+    for (const { timing: { tokens, ...timing } } of done) {
       assert.deepEqual(Object.keys(timing), ['wait', 'prompt', 'request', 'parse', 'total']);
       assert.ok(Object.values(timing).every((ms) => Number.isInteger(ms) && ms >= 0));
       assert.ok(timing.total >= timing.request);
-      assert.equal(Object.keys(tokens ?? {}).join(), generator === 'sketch' ? '' : 'input,cached,output',
-        'a prompted model\'s tokens');
+      assert.equal(Object.keys(tokens ?? {}).join(), 'input,cached,output', 'a prompted model\'s tokens');
     }
     // Through claude: its model and effort, and a cached system prompt sent byte for byte the same both times.
     assert.equal(bodies.length, 2);
@@ -70,14 +69,14 @@ describe('the queue with models', () => {
     assert.equal(JSON.stringify(bodies[0].output_config), JSON.stringify(bodies[1].output_config));
     assert.deepEqual(bodies[0].system[0].cache_control, { type: 'ephemeral' });
     assert.notEqual(JSON.stringify(bodies[0].messages), JSON.stringify(bodies[1].messages));
-    // Through codex: the CLI with each model's name; the library was read once for all five.
+    // Through codex: the CLI with each model's name; the library was read once for all four.
     const calls = fs.readFileSync(log, 'utf8').trim().split('\n').map((l) => JSON.parse(l).args);
     const flag = (args, f) => args[args.indexOf(f) + 1];
     assert.deepEqual(calls.map((a) => flag(a, '-m')).sort(), ['gpt-6-luna', 'gpt-6.1-sol']);
     assert.ok(calls.every((a) => a.includes('model_reasoning_effort="low"')));
     assert.equal(loads, 1);
     version = 'v2'; // the library changed: read again, and the prompt built again
-    queue.enqueue(idea('f', 'sketch').id);
+    queue.enqueue(idea('f', 'sol').id);
     await queue.idle();
     assert.equal(loads, 2);
   });
@@ -85,7 +84,7 @@ describe('the queue with models', () => {
   test('a model that fails fails the idea, saying why, even with a fallback named', async () => {
     process.env.ANTHROPIC_API_KEY = 'sk-test';
     globalThis.fetch = async () => jsonRes(401, { error: { type: 'authentication_error', message: 'bad key' } });
-    const { store, idea, queue } = routed({ fallbackName: 'sketch' });
+    const { store, idea, queue } = routed({ fallbackName: 'luna' });
     const i = idea('stars on the rose window', 'opus');
     queue.enqueue(i.id);
     await queue.idle();
@@ -123,7 +122,7 @@ describe('the queue with models', () => {
     async () => {
     const codex = ({ signal }) => new Promise((_, reject) => signal.addEventListener('abort',
       () => reject(new Error('aborted'))));
-    const { store, idea, queue } = routed({ adapters: { codex }, fallbackName: 'sketch' });
+    const { store, idea, queue } = routed({ adapters: { codex }, fallbackName: 'luna' });
     const i = idea('slow', 'sol'), heard = [];
     const unwatch = queue.watch(i.id, () => heard.push(store.ideas.get(i.id).status));
     queue.enqueue(i.id);
@@ -134,7 +133,7 @@ describe('the queue with models', () => {
     await queue.idle();
     assert.equal(store.ideas.get(i.id).status, 'generating', 'not failed, not handed to the fallback');
     assert.equal(queue.size, 0);
-    assert.equal(queue.enqueue(idea('after stop', 'sketch').id), false);
+    assert.equal(queue.enqueue(idea('after stop', 'sol').id), false);
     unwatch();
   });
 

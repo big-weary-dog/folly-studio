@@ -1,10 +1,12 @@
 // Playwright Test fixtures for the smoke and perf specs: `studio`, the real server (src/app.ts) on a temporary data
 // folder, serving a fresh build of the app (test/fixtures/build.js), one per worker; `serverOptions` are its
 // createServer() options (the perf check turns the generator and the render box off). Without its own `models`, a spec
-// gets no real codex or Claude, whatever this machine has: Sketch, an admin's, is the one model.
+// gets no real codex or Claude, whatever this machine has: the stand-in codex CLI (test/fixtures/generate/bin/codex)
+// answers for Sol and Luna.
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { test as base } from '@playwright/test';
 
@@ -12,6 +14,7 @@ import { createServer } from '../../src/app.ts';
 import { builtApp, removeBuiltApp } from '../fixtures/build.js';
 
 export { expect } from '@playwright/test';
+const BIN = fileURLToPath(new URL('../fixtures/generate/bin/', import.meta.url));
 export const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 
 export const test = base.extend({
@@ -33,7 +36,7 @@ export const test = base.extend({
   studio: [async ({ serverOptions }, use) => {
     const dataDir = await mkdtemp(path.join(os.tmpdir(), 'studio-browser-'));
     const app = await createServer({ dataDir, distDir: await builtApp(), log: quiet,
-      models: { codexBin: 'no-codex-here', env: {} }, ...serverOptions });
+      models: { codexBin: `${BIN}codex`, env: { PATH: `${BIN}:${process.env.PATH}` } }, ...serverOptions });
     const { port } = await app.listen(0, '127.0.0.1');
     await use({ app, origin: `http://127.0.0.1:${port}` });
     await app.close();
