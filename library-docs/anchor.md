@@ -16,7 +16,7 @@ to a structure (presets **rose-ripple**, **spire-helix**). Put it last among the
 - lineup: For a sweep crossing tower and arch layers in step.
 
 ## Pairings
-- Bars `orbit-clockwise` or `orbit-counterclockwise` with **twist**, then anchor `tower`, `nearest`, `plan`:
+- Bars `orbit-clockwise` or `orbit-counterclockwise`, **twist** (wind), then anchor `tower`, `nearest`, `plan`:
   helices round each spire.
 - **mirror** Wedges or Rings, then anchor `rose`: a kaleidoscope or tunnel in the window.
 

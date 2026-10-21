@@ -41,14 +41,14 @@ describe('pal(role, t) as before', () => {
   // Frozen from the runtime before picks: float frames at t = 0, 1.3 and 7.9 s, default params, under chapel and a
   // palette with empty roles (sha256, 16 hex), of the library as it was (fixtures/library-v1.json): code that names
   // roles, as saved looks and AI code do. Pinwheel, galaxy and rose-bloom re-made when a r moved to the LEDs' mean;
-  // all when colour fades moved to OKLab.
+  // all when colour fades moved to OKLab, and when palette ramps were tabled in light.
   const FROZEN = {
-    'colour-wash': ['eeaff0177e8ed71a', 'b6c8a67ec3507ce7'], garlands: ['3a1e247bb5696997', 'a8b2aaffde66af9f'],
-    pinwheel: ['cea37e947870890e', 'd21f6d0d53b31a87'], wave: ['3c3525ba2ad2b1ba', 'acf0296cccc7d8a6'],
-    shimmer: ['255054c8b99d9baf', '58f3a50a5c2b1691'], galaxy: ['37972fa791e75b86', '8c4e11d79ad39aa1'],
-    'rose-bloom': ['dfdaee028b26a646', 'b6c1c3f8ee4d2224'], 'canopy-rain': ['f23b1ed0aac4749d', '6f165302f5a3182d'],
-    'wash-breathe': ['300b3d4d21f9bb45', 'c9981345b3999879'], circles: ['c496c36fcef2d6f7', '1251c5b0826069be'],
-    'arch-chase': ['6fafa367350dd739', '5aa97b03bab042ef'], butterfly: ['e6c5da1887cf40e1', '5655fce746e3526b'],
+    'colour-wash': ['cfe7975bb720ae60', '7a374f65ab621165'], garlands: ['0e18ac84640c2cfd', '85b50cb77d3a7646'],
+    pinwheel: ['1ccb426d205b1da1', '25f9ceca93012198'], wave: ['b16f118a46d7d260', 'd297b70585966957'],
+    shimmer: ['56fc818f46322d10', 'c0fddf8980389f43'], galaxy: ['ced419ffba09677a', '91fd1ceac6ef10ac'],
+    'rose-bloom': ['2ac28eb7591142bc', 'fb77d7de91a0c1cf'], 'canopy-rain': ['502464deca99f24f', '5420d0b655611a44'],
+    'wash-breathe': ['7115acbf9dc678a6', 'a28efeddb980157a'], circles: ['53db54bb0690f78f', 'a3ae97bd2d6c6869'],
+    'arch-chase': ['e82519482626fc76', '90be4bd75431d482'], butterfly: ['d017e30e9ff22c9f', '322d110ba1eb111d'],
   };
   for (const [name, sums] of Object.entries(FROZEN)) {
     test(`${name} renders pixel for pixel as before`, () => {

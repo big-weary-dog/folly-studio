@@ -116,6 +116,26 @@ Until the hub clears AUTO itself (John's fix: `switch_source` calling `night_mod
   Studio Live plays. Press STOP again just after the start time, or set `"enabled": false` in `night-show.json`
   for the session and back afterwards (ask John first).
 
+## Measuring the engine on this Pi
+
+How fast this Pi renders, so we know which looks it can play itself. Run these as `fpp` in
+`/home/fpp/folly-studio`, with the show stopped and `studio-live` stopped (`sudo systemctl stop studio-live`):
+
+```sh
+cat /proc/device-tree/model; nproc; lscpu | grep -iE 'model name|max mhz'
+vcgencmd measure_clock arm; vcgencmd measure_temp; vcgencmd get_throttled   # 0x0 = never throttled
+node tools/live-bench.ts --only pi:,preset:plasma,preset:tunnel,stack --frames 400 --json ~/bench-pi.json
+node tools/live-bench.ts --frames 200 > ~/bench-all.txt              # every look: a few minutes
+# The engine as live, beside fppd, no page, nothing sent: read fps, render ms (worst) and late from its stats lines.
+npm run pi -- --dry-run --http 0 --look heartbeat-plasma --seconds 300 --stats 10
+top -b -d 10 -n 6 | grep -E 'fppd|node'                              # in a second shell, during the dry run
+vcgencmd get_throttled                                               # again, after 5 minutes of load
+```
+
+`--dry-run` sends no DDP and `--http 0` opens no port, so it cannot collide with anything. Send back what they print
+and the two files. The engine is fast enough when heartbeat-plasma's tick is ≤ 12 ms mean and ≤ 20 ms p95, and the
+dry run holds 40 fps with `late` under 0.1% of frames over the 5 minutes, with fppd running.
+
 ## Updating
 
 ```sh
