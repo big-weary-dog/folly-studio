@@ -5,7 +5,8 @@ import { useState } from 'preact/hooks';
 
 import { api, type ApiError } from '../api.ts';
 import type { Bake } from '../../../shared/schemas/api.ts';
-import { Field, openDialog, toast } from './kit.tsx';
+import { askWhy } from './ask-why.tsx';
+import { toast } from './kit.tsx';
 import { navigate } from './session.ts';
 
 const POLL_MS = 1500, WAIT_MS = 10 * 60_000;
@@ -69,21 +70,4 @@ export function Approve({ look, approved }: { look: { id: string; title: string 
   return <button class="btn small primary" type="button" disabled={!!busy} aria-label={`Approve ${look.title}`}
     title="Mark it reviewed to play on the Folly, baking it first if it needs it" onClick={go}>
     {busy || 'Approve'}</button>;
-}
-
-/** A curator's reason for approving frames that fail the flash check (3–500 characters), or undefined. */
-export function askWhy(found: string) {
-  return openDialog<string>({ title: 'Approve despite flashing?', body: (close) => {
-    const [text, setText] = useState('');
-    return <form class="details-form" onSubmit={(e) => { e.preventDefault(); close(text.trim()); }}>
-      <p class="dialog-text">{found} Approving it lets it play on the Folly. Your reason stays on the look, with your
-        name.</p>
-      <Field label="Why is this flashing acceptable?" stack>{(id) => <textarea id={id} rows={3} required
-        minlength={3} maxlength={500} value={text} onInput={(e) => setText(e.currentTarget.value)} />}</Field>
-      <div class="dialog-actions">
-        <button class="btn ghost" type="button" onClick={() => close()}>Cancel</button>
-        <button class="btn primary" type="submit">Approve</button>
-      </div>
-    </form>;
-  } });
 }

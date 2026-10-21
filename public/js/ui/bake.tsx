@@ -8,7 +8,7 @@ import { autoFetchAllowed, fetchManifest } from '../frames-stream.ts';
 import { can } from '../../../shared/policy.ts';
 import type { Bake } from '../../../shared/schemas/api.ts';
 import { user } from './session.ts';
-import { askWhy } from './approve.tsx';
+import { askWhy } from './ask-why.tsx';
 import { cx, openDialog, Switch, toast } from './kit.tsx';
 import type { Preview } from './preview.ts';
 import { FixButton } from './refine.tsx';
