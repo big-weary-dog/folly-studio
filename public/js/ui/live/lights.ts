@@ -9,6 +9,7 @@ const short = (error: string) => (/custom code/i.test(error) ? 'Custom code: nee
   : /live looks are off/i.test(error) ? 'Live looks are off: needs a bake' : error);
 
 const tile = (l: LightsLook): Tile => ({ id: l.id, title: l.title, by: l.ownerName, duration: l.duration,
+  ...l.preview ? { preview: `/api/looks/${encodeURIComponent(l.id)}/preview/${l.preview}` } : {},
   ...'error' in l.play ? { error: short(l.play.error) } : { kind: l.play.kind } });
 
 const studio = (from: 'mine' | 'gallery', label: string): Source => ({

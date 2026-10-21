@@ -166,6 +166,8 @@ export function places(v: number, step: number) {
   while (d < 6 && Math.abs(Number(v.toFixed(d)) - v) > 1e-9) d++;
   return d;
 }
+/** v to a thousandth of a span (0..0.05: 0.00005), so a small range reads as finely as 0..1. */
+export const onSpan = (v: number, span: number) => Number(v.toFixed(Math.max(0, 3 - Math.floor(Math.log10(span)))));
 /** v on the step's grid from min, held to min..max. */
 export const snap = (v: number, { min, max, step }: Range) =>
   Math.min(max, Math.max(min, Number((min + Math.round((v - min) / step) * step).toPrecision(12))));

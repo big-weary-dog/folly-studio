@@ -56,7 +56,7 @@ export type Lights = { liveLooks: boolean, mode: 'jukebox' | 'live', canQueue: b
   play?: { kind: 'live' | 'baked', error?: undefined } | { kind?: undefined, error: string } };
 export type At = 'now' | 'next' | 'end';
 /** A look as the live page offers it (SPEC-offline `GET /api/lights/looks`). */
-export type LightsLook = { id: string, title: string, ownerName: string, duration: number,
+export type LightsLook = { id: string, title: string, ownerName: string, duration: number, preview?: string,
   play: { kind: 'live' | 'baked' } | { error: string } };
 
 export const api = {

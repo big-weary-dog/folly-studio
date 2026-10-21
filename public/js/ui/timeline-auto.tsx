@@ -5,7 +5,7 @@ import { useId, useLayoutEffect, useRef } from 'preact/hooks';
 
 import { MAX_MACROS, MAX_POINTS } from '../core/globals.ts';
 import type { Automation } from '../../../shared/schemas/look.ts';
-import { humanize } from './kit.tsx';
+import { humanize, onSpan } from './kit.tsx';
 import { automate } from './automation-edit.ts';
 import type { Studio } from './studio-store.ts';
 import { clock } from './timeline-model.ts';
@@ -15,8 +15,6 @@ const H = 42, PAD = 8;              // room for full endpoint circles, including
 type Range = { min: number; max: number; value: number };
 type Point = [number, number];
 const r3 = (v: number) => Math.round(v * 1000) / 1000;
-/** v to a thousandth of the lane's span (0..0.05: 0.00005), so a small range draws as finely as 0..1. */
-export const onSpan = (v: number, span: number) => Number(v.toFixed(Math.max(0, 3 - Math.floor(Math.log10(span)))));
 
 export const automationLevel = (v: number, range: Range) => v <= range.min ? 'low' : v >= range.max ? 'high' : 'mid';
 
@@ -110,8 +108,9 @@ function Lane({ name, pts, range, tl, get, set }: { name: string; pts: Point[]; 
           <polyline class="tl-auto-line" points={line} style={{ stroke: `url(#${gradient})` }} />
           {xy.map(([x, y], i) => <g>
             <circle class="tl-auto-dot" r={5.5} cx={x} cy={y} data-i={i}
-              data-level={automationLevel(pts[i][1], range)}><title>{`${clock(pts[i][0])} · ${pts[i][1]}`}</title>
-            </circle>
+              data-level={automationLevel(pts[i][1], range)} />
+            <text class="tl-auto-val" x={x > w - 90 ? x - 10 : x + 10} y={Math.min(H - 6, Math.max(12, y + 4))}
+              text-anchor={x > w - 90 ? 'end' : 'start'}>{`${clock(pts[i][0])} · ${pts[i][1]}`}</text>
             {automationLevel(pts[i][1], range) === 'mid' && <path class="tl-auto-half"
               d="M 0 -5.5 A 5.5 5.5 0 0 0 0 5.5 Z" transform={`translate(${x} ${y})`} />}
           </g>)}

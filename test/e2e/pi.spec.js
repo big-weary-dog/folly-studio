@@ -70,11 +70,12 @@ async function hold(page, name) {
   await page.waitForTimeout(800);
   await page.mouse.up();
 }
-/** Up next, Add a look, the tile: in Live Play, to its cue. */
+/** Up next, Add a look, the tile, its preview's Cue it: in Live Play, to its cue. */
 async function pick(page, title) {
   await page.getByRole('button', { name: /^Up next/ }).click();
   await page.getByRole('button', { name: /Add a look/ }).click();
   await page.getByRole('button', { name: new RegExp(`^${title}`) }).click();
+  await page.getByRole('dialog', { name: title }).getByRole('button', { name: 'Cue it' }).click();
 }
 const bpm = async (tap) => Number(/([\d.]+) BPM/.exec(await tap.textContent())[1]);
 
@@ -153,8 +154,15 @@ test('the Jukebox is the queue alone', async ({ browser }, info) => {
 
   await page.getByRole('button', { name: /Add a look/ }).click();
   await page.getByRole('button', { name: /^Fire/ }).click();
+  // Its preview: the lights' own have no gallery preview, so it says so.
+  const preview = page.getByRole('dialog', { name: 'Fire' });
+  await expect(preview).toContainText('the lights\' own looks have none');
   await shot(page, '07-jukebox-add');
-  await page.getByRole('button', { name: 'Play next' }).click();
+  await preview.getByRole('button', { name: 'Close' }).click();
+  await expect(preview).toBeHidden();
+  await page.getByRole('button', { name: /^Fire/ }).click();
+  await preview.getByRole('button', { name: 'Play next' }).click();
+  await expect(preview).toBeHidden();
   await expect(page.getByText(/^Up next · 1/)).toBeVisible();
   await expect(page.getByText('Then').locator('..')).toContainText('Fire');
   await shot(page, '08-jukebox');

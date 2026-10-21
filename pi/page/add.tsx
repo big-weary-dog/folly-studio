@@ -1,16 +1,19 @@
 // Add a look (SPEC-liveplay "The page"): a search, where from (the lights' own looks; in Studio, one's own and the
-// gallery's too), tiles a page at a time, a look that cannot play dashed with why. In Jukebox, and for those who may
-// not drive, a pick asks Play next or Add to the end; a driver in Live Play cues it instead (Cue): a crossfade
-// length, then Fade to it, Play next instead, or Cancel. Nothing changes until one is pressed.
+// gallery's too), tiles a page at a time, a look that cannot play dashed with why. A pick opens its preview
+// (preview.tsx). In Jukebox, and for those who may not drive, that asks Play next or Add to the end; a driver in Live
+// Play cues it instead (Cue): a crossfade length, then Fade to it, Play next instead, or Cancel. Nothing changes until
+// one is pressed.
 import { useEffect, useState } from 'preact/hooks';
 
 import { cx } from '../../public/js/ui/kit.tsx';
 import type { PiState } from '../src/protocol.ts';
 import { allIn, clock, kindWord, type Model, ordinal, useFits } from './model.ts';
+import { Preview } from './preview.tsx';
 import type { PiSocket } from './socket.ts';
 
+/** `preview`: its gallery preview, the URL without `.webp`. */
 export type Tile = { id: string, title: string, by: string, duration: number | null,
-  kind?: 'look' | 'live' | 'baked', error?: string };
+  kind?: 'look' | 'live' | 'baked', error?: string, preview?: string };
 /** Where looks come from: its tiles (the lights' own, from the state) or a load (Studio's, fetched as the page opens
  * it), and how one is added. */
 export type Source = { label: string, tiles?: (s: PiState) => Tile[], load?: () => Promise<Tile[]>,
@@ -47,8 +50,7 @@ export function AddLook({ m, sources, wide, onBack, onCue }: { m: Model, sources
   const full = s.queue.length >= MAX_QUEUE;
   const pick = (t: Tile) => {
     setError('');
-    if (m.drive) onCue(t, source);
-    else setPicked(t);
+    setPicked(t);
   };
   async function add(at: 'next' | 'end') {
     try {
@@ -94,17 +96,28 @@ export function AddLook({ m, sources, wide, onBack, onCue }: { m: Model, sources
       <button type="button" class="lp-pad lp-pg" aria-label="Next page" disabled={at >= pages - 1}
         onClick={() => setPage(at + 1)}>›</button>
     </div>
-    {error && <p class="lp-error" role="alert">{error}</p>}
-    {picked && <div class="lp-conf" role="region" aria-label={`Add ${picked.title}`}>
-      <p><b>{picked.title}</b> plays{picked.kind === 'baked' ? ' its bake' : picked.kind === 'live' ? ' live' : ''}
-        {picked.duration != null && ` for ${clock(picked.duration)}`}, then the next fades in.{full
-        ? ' The queue is full.' : ` At the end of the queue it starts in about ${clock(allIn(s))}.`}</p>
-      <div class="lp-row">
-        <button type="button" class="lp-pad" disabled={full} onClick={() => void add('next')}>Play next</button>
-        <button type="button" class="lp-pad pri" disabled={full} onClick={() => void add('end')}>Add to the end
-        </button>
-      </div>
-    </div>}
+    {error && !picked && <p class="lp-error" role="alert">{error}</p>}
+    {picked && <Preview key={picked.id} tile={picked} onClose={() => setPicked(null)}>
+      {m.drive ? <>
+        <p>Cue it to choose its crossfade; nothing changes on the lights until you fade to it.</p>
+        <div class="lp-row">
+          <button type="button" class="lp-pad pri" disabled={m.lost}
+            onClick={() => { setPicked(null); onCue(picked, source); }}>Cue it
+          </button>
+        </div>
+      </> : <>
+        <p><b>{picked.title}</b> plays{picked.kind === 'baked' ? ' its bake' : picked.kind === 'live' ? ' live' : ''}
+          {picked.duration != null && ` for ${clock(picked.duration)}`}, then the next fades in.{full
+          ? ' The queue is full.' : ` At the end of the queue it starts in about ${clock(allIn(s))}.`}</p>
+        <div class="lp-row">
+          <button type="button" class="lp-pad" disabled={full || m.lost} onClick={() => void add('next')}>Play next
+          </button>
+          <button type="button" class="lp-pad pri" disabled={full || m.lost} onClick={() => void add('end')}>
+            Add to the end</button>
+        </div>
+      </>}
+      {error && <p class="lp-error" role="alert">{error}</p>}
+    </Preview>}
   </>;
 }
 

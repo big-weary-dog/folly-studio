@@ -13,7 +13,7 @@ import {
   beatsAt, bindingForm, bindingText, fmt, keepsTime, makeBinding, normaliseParam, type Param, perBeat, shownValue,
   upgradedOf,
 } from '../public/js/ui/bindings.ts';
-import { decimals, exact, places, scrubTo, snap } from '../public/js/ui/kit.tsx';
+import { decimals, exact, onSpan, places, scrubTo, snap } from '../public/js/ui/kit.tsx';
 import { profile } from '../public/js/ui/session.ts';
 import { onIdeas, pathsHere } from '../public/js/ui/tour/paths/index.ts';
 import { createLayerStatus } from '../public/js/ui/layer-status.ts';
@@ -23,7 +23,7 @@ import {
 import type { Preview } from '../public/js/ui/preview.ts';
 import type { Draft, Studio } from '../public/js/ui/studio-store.ts';
 import { createTimeline } from '../public/js/ui/timeline-state.ts';
-import { automationLevel, onSpan } from '../public/js/ui/timeline-auto.tsx';
+import { automationLevel } from '../public/js/ui/timeline-auto.tsx';
 import { automationEdit } from '../public/js/ui/automation-edit.ts';
 import { chainWires, isStageEnd, type Layer } from '../public/js/ui/model.ts';
 import type { Module } from '../shared/schemas/look.ts';
