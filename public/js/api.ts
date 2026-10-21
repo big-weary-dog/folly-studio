@@ -8,6 +8,7 @@ import type { LightSettings } from '../../shared/schemas/light.ts';
 import type { AdminModels, ModelChoices, ModelsConfig } from '../../shared/schemas/models.ts';
 import type { ReportBody, ReportSummary } from '../../shared/schemas/report.ts';
 import type { LibraryEntry } from '../../shared/schemas/rig.ts';
+import type { Tour } from '../../shared/schemas/tour.ts';
 
 export type ApiError = Error & { status: number; data?: unknown };
 const fail = (message: string, status: number, extra = {}): ApiError => Object.assign(new Error(message), { status },
@@ -43,6 +44,7 @@ export const api = {
   signup: (username: string, password: string) => request<Me>('POST', '/api/signup', { username, password }),
   login: (username: string, password: string) => request<Me>('POST', '/api/login', { username, password }),
   logout: () => request('POST', '/api/logout', {}),
+  saveTour: (tour: Tour) => request<{ tour: Tour }>('PUT', '/api/me/tour', tour),
 
   ideas: () => request<{ ideas?: Idea[] }>('GET', '/api/ideas'),
   /** `wait`: the idea's `status@updatedAt` as last seen; the server answers when that changes (or after 25 s). */
