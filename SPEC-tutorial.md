@@ -20,11 +20,11 @@ Replay: the user menu's Tutorials.
 
 In order:
 
-- `first-look`, Getting around: still being built (report a problem), turning the model, a view, zoom, Fit, pause
+- `first-look`, Getting around: turning the model, a view, zoom, Fit, pause
   and play, the way to Ideas.
 - `idea`, From an idea: describing a look on Ideas, then Turn it into a look, which while that step is open opens the
   practice look `idea` in place of asking a model (`tourIdea` in `ui/tour-view.ts`: nothing is sent, and it works on
-  a locked account); its layers, the Rose view. On the Pi, which has no Ideas (SPEC-offline), the path starts on its
+  a locked account); its layers. On the Pi, which has no Ideas (SPEC-offline), the path starts on its
   look and leaves out the steps on Ideas or going there.
 - `modules`, Modules and colour: a source's number, a choice, a colour param by palette role, the Look tab, the
   palette.

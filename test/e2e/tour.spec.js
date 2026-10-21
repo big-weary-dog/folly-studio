@@ -119,13 +119,8 @@ for (const height of [768, 660]) {
       await shot('first-look-welcome');
       await welcome.getByRole('button', { name: 'Start the tour' }).click();
 
-      await title('Still being built');
-      await ringAt('user-menu');
-      await shot('first-look-report');
-      await s.next();
-
       await open('Turn the model');
-      await ring('preview');
+      await ringAt('preview');
       await offPreview();
       const box = await at('preview').boundingBox(), mid = [box.x + box.width / 2, box.y + box.height / 2];
       await page.mouse.move(...mid);
@@ -204,7 +199,7 @@ test.describe('laptop, 1366 × 768: unsaved edits', () => {
   test('a practice path over unsaved edits: Cancel keeps them, Leave starts it', async ({ page, studio }, info) => {
     const { card, title, at } = steps(page, info);
     await fromTutorials(page, studio.origin, 'unsaved', 'Getting around');
-    await title('Still being built');
+    await title('Turn the model');
     await card.getByRole('button', { name: 'Close the tutorial' }).click();
     await page.goto(`${studio.origin}/studio`);
     const level = at('level:colour-wash').locator('input');

@@ -48,7 +48,7 @@ function Welcome() {
 function Menu({ finished }: { finished?: string }) {
   const p = progress.value;
   return <Panel title={finished ? `${finished}: done` : 'Tutorials'} wide>
-    {finished && <p>Pick another, or close this. They are all in your name › Tutorials.</p>}
+    {finished && <p>They are all in your name › Tutorials.</p>}
     <ul class="tour-paths">{PATHS.map((path) => {
       const done = p.done.includes(path.id), part = !done && p.at?.path === path.id;
       const mark = done ? '✓' : part ? '◐' : '○', state = done ? 'done' : part ? 'part-way' : 'not started';
@@ -120,7 +120,7 @@ function StepCard() {
       {on && lost && <p class="tour-note">Cannot see it? It may be in a folded panel or another tab.</p>}
       {p && <meter class="tour-meter" min={0} max={p.goal} value={Math.min(p.now, p.goal)}
         aria-label={`${p.now.toFixed(2)} of ${p.goal}`} />}
-      <p class="tour-status" role="status">{o.done ? 'Done.' : ''}</p>
+      <p class="sr-only" role="status">{o.done ? 'Done.' : ''}</p>
       <div class="tour-actions">
         {el && <button type="button" class="btn small ghost" onClick={showMe}>Show me</button>}
         {!o.done && <button type="button" class="btn small ghost" onClick={next}>Skip step</button>}

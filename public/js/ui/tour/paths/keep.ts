@@ -21,8 +21,7 @@ export const keep: Path = {
       anchor: ['history', 'undo'], begin: ({ v }) => v?.historyAt.peek(),
       done: (c, at) => (c.v?.historyAt.value ?? 0) < (at as number) && !spread(c) },
     { id: 'save', page: '/studio', title: 'Save',
-      text: 'Save keeps Rose and arches in My looks as your own; the practice copy changed nothing of yours. Click '
-        + 'Save.',
+      text: 'Save keeps Rose and arches in My looks as your own. Click Save.',
       anchor: ['save'], done: ({ v }) => !!v?.lookId.value && !v.dirty.value },
     { id: 'live', title: 'Live',
       text: 'Live is what the Folly plays now, and what is lined up next. Open it.',

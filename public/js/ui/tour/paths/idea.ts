@@ -7,11 +7,10 @@ const typed = (el: (name: string) => Element | null) => (el('idea') as HTMLTextA
 
 export const idea: Path = {
   id: 'idea', title: 'From an idea', start: '/ideas', look: '/studio?tour=idea',
-  about: 'Describe a look; it opens in the Studio.', aboutPi: 'The look the idea makes: its layers, close up.',
+  about: 'Describe a look; it opens in the Studio.', aboutPi: 'The look the idea makes, and its layers.',
   steps: [
     { id: 'describe', page: '/ideas', title: 'Describe it',
-      text: `Any look can start here; the more you say about colour, motion and place, the closer the first draft. `
-        + `Type: "${IDEA}"`,
+      text: `The more you say about colour, motion and place, the closer the first draft. Type: "${IDEA}"`,
       anchor: ['idea'], done: ({ el }) => /rose/i.test(typed(el)) && /arch/i.test(typed(el)) },
     { id: 'make', title: 'Make it',
       text: 'A model usually writes the look\'s code, which takes a minute; in the tutorial the look opens at once, '
@@ -21,9 +20,6 @@ export const idea: Path = {
         && ['rose', 'arches'].every((t) => v.layers.value.some((l) => l.title.toLowerCase() === t)) },
     { id: 'layer', page: '/studio', title: 'What it made',
       text: 'Each part of a look is a layer, with its settings on the right. Rose is selected; click Arches.',
-      anchor: ['layer:arches'], done: ({ v }) => v?.selected.value?.title === 'Arches' },
-    { id: 'close', page: '/studio', title: 'See it close',
-      text: 'Click Rose: the camera on the rose window and the arches round it, where the next changes show.',
-      anchor: ['view-bar', 'view:rose'], done: ({ v }) => v?.view.value === 'rose', next: true },
+      anchor: ['layer:arches'], done: ({ v }) => v?.selected.value?.title === 'Arches', next: true },
   ],
 };

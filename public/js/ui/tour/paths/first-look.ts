@@ -6,10 +6,6 @@ export const firstLook: Path = {
   id: 'first-look', title: 'Getting around', start: '/studio?tour=first-look',
   about: 'The preview, the camera, play, and the pages.',
   steps: [
-    { id: 'report', title: 'Still being built',
-      text: 'Studio is in development, so things will break. When they do, your name › Report a problem '
-        + '(or F8) tells us.',
-      anchor: ['user-menu', 'report'], done: () => true, next: true },
     { id: 'turn', page: '/studio', title: 'Turn the model',
       text: 'The preview is the real rig, every LED where it hangs. Drag it to see the Folly from another side.',
       anchor: ['preview'], begin: ({ v }) => v?.view.peek(), done: ({ v }, was) => !!v && v.view.value !== was },

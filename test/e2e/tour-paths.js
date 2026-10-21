@@ -62,7 +62,6 @@ export async function playIdea(page, t) {
   await expect(t.card).toHaveClass(/done/, { timeout: 30_000 });
   await t.shot('idea-make');
   await step(t, 'What it made', ['layer:arches'], () => pick(t, 'arches'), 'idea-layer');
-  await step(t, 'See it close', ['view-bar', 'view:rose'], () => t.at('view:rose').click(), 'idea-close');
   await t.next();
 }
 

@@ -64,12 +64,12 @@ export const moves: Path = {
       anchor: at('arches', 'single-strand', 'tail', 'mod-kinds'),
       done: (c) => boundTo(param(c, 'arches', 'single-strand', 'tail')) === 'global' },
     { id: 'rings', page: '/studio', title: 'Tie another',
-      text: 'On Rose, click {module:bars}, the ∿ beside {param:bars.bars}, then Macro: one fader now sets the '
-        + 'arches\' tails and the rose\'s rings together.',
+      text: 'On Rose, click {module:bars}, the ∿ beside {param:bars.bars}, then Macro: the same fader now sets how '
+        + 'many rings the rose has.',
       anchor: at('rose', 'bars', 'bars', 'mod-kinds'),
       done: (c) => boundTo(param(c, 'rose', 'bars', 'bars')) === 'global' },
     { id: 'fader', page: '/studio', title: 'Move the fader',
-      text: 'In the Look tab, drag the macro to 1: long tails on the arches and many rings in the rose, at once.',
+      text: 'In the Look tab, drag the macro to 1: long tails and many rings, at once.',
       anchor: (c) => ['dock:look', ...Object.keys(c.v?.macros.value ?? {}).slice(0, 1).map((m) => `macro:${m}`)],
       done: (c) => faders(c).some((v) => v >= 0.95) },
     { id: 'automate', page: '/studio', title: 'Automation',

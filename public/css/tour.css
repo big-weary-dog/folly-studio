@@ -33,8 +33,6 @@
 .tour-count { color: var(--text-3); font-size: 12px; }
 .tour-x { font-size: 20px; }
 .tour-note { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--text-3); font-size: 13px; }
-.tour-status { min-height: 1.4em; color: var(--text-3); font-size: 13px; }
-.tour-step.done .tour-status { color: var(--emerald); }
 .tour-meter { width: 100%; height: 8px; }
 .tour-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .tour-link { align-self: flex-start; padding: 0; color: var(--text-3); font: inherit; font-size: 13px;
