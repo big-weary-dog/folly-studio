@@ -91,21 +91,21 @@ test('the control page drives the engine from a phone', async ({ browser }, info
   await shot(page, '02-playing-full', true);
 
   await page.getByRole('button', { name: 'Blackout' }).click();
-  await expect(page.getByRole('button', { name: 'Blackout on' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Blacked out · Undo' })).toHaveAttribute('aria-pressed', 'true');
   await shot(page, '03-blackout');
-  await page.getByRole('button', { name: 'Blackout on' }).click();
+  await page.getByRole('button', { name: 'Blacked out · Undo' }).click();
 
-  await page.getByRole('button', { name: 'Fire' }).click();
+  await page.getByRole('button', { name: 'Fire', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Fire');
-  await expect(page.getByRole('button', { name: 'Fire' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Fire', exact: true })).toHaveAttribute('aria-pressed', 'true');
 
-  await page.getByRole('button', { name: 'Strobe (too fast)' }).click();
+  await page.getByRole('button', { name: 'Strobe (too fast)', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('The flash guard caught Strobe (too fast) flashing',
     { timeout: 15_000 });
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Safe: dim colour wash');
   await shot(page, '04-flash-tripped');
-  await page.getByRole('button', { name: 'Beat bars' }).or(page.getByRole('button', { name: 'Bars on the beat' }))
-    .click();
+  await page.getByRole('button', { name: 'Beat bars', exact: true })
+    .or(page.getByRole('button', { name: 'Bars on the beat', exact: true })).click();
   await expect(page.getByRole('alert')).toHaveCount(0);
   expect(errors).toEqual([]);
 });

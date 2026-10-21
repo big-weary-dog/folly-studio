@@ -8,7 +8,7 @@ import WebSocket from 'ws';
 
 import type { PiState, ToPage } from '../src/protocol.ts';
 import { CSP, controlServer } from '../src/server.ts';
-import { engineOn } from './fixture.ts';
+import { engineOn, lib } from './fixture.ts';
 
 const servers: { close(): Promise<void> }[] = [];
 afterEach(async () => { for (const s of servers.splice(0)) await s.close(); });
@@ -18,7 +18,7 @@ async function serve(pin = '', clock = { t: 0 }, base = '') {
   r.engine.play('fire');
   r.run(0.3);
   const state = () => ({ ...r.engine.state(), looks: [], out: {} } as unknown as PiState);
-  const s = await controlServer({ engine: r.engine, state, pin, port: 0, host: '127.0.0.1', base,
+  const s = await controlServer({ engine: r.engine, lib, state, pin, port: 0, host: '127.0.0.1', base,
     now: () => clock.t });
   servers.push(s);
   return { ...r, server: s, origin: `http://127.0.0.1:${s.port}`, page: `http://127.0.0.1:${s.port}${base}`, clock };
@@ -77,7 +77,7 @@ describe('the control page', () => {
     c.send({ type: 'play', id: 'beat-bars' });
     await new Promise((r) => setTimeout(r, 100));
     const s = engine.state();
-    assert.deepEqual([s.blackout, s.level, s.switching], [true, 0.5, 'beat-bars']);
+    assert.deepEqual([s.blackout, s.level, s.switching?.id], [true, 0.5, 'beat-bars']);
     run(0.1);
     assert.equal(engine.state().look?.controls.find((x) => x.name === 'heat')?.value, 0.9);
     // Each reply looked for after its own send: states arrive between them.
@@ -87,6 +87,34 @@ describe('the control page', () => {
     from = c.got.length;
     c.send({ type: 'set', name: 'level', value: 'loud' });
     assert.deepEqual(await c.next('error', from), { type: 'error', error: 'Not a message this page sends.' });
+  });
+
+  test('the queue: its own looks, a library look Studio sends (its code ours), and nothing else', async () => {
+    const { origin, engine } = await serve();
+    const c = await socket(origin);
+    c.send({ type: 'hello' });
+    await c.next('state');
+    c.send({ type: 'queue', id: 'beat-bars' });
+    c.send({ type: 'send', by: 'ana', item: { kind: 'live', look: { id: 'abc123', title: 'Mine',
+      layers: [{ modules: [{ ref: 'clouds', code: 'while (true) {}' }] }] } } });
+    await new Promise((r) => setTimeout(r, 100));
+    assert.deepEqual(engine.state().queue.map((q) => [q.id, q.kind, q.by]),
+      [['beat-bars', 'look', undefined], ['abc123', 'live', 'ana']]);
+    let from = c.got.length;
+    const custom = { id: 'x', title: 'X', layers: [{ modules: [{ code: 'x' }] }] };
+    c.send({ type: 'send', item: { kind: 'live', look: custom } });
+    assert.deepEqual(await c.next('error', from),
+      { type: 'error', error: 'Cannot play: layer 1, module 1: not a library module' });
+    from = c.got.length;
+    c.send({ type: 'blackout', on: true, pad: 'x'.repeat(2000) });
+    assert.deepEqual(await c.next('error', from), { type: 'error', error: 'Too long.' });
+    c.send({ type: 'unqueue', key: engine.state().queue[0]!.key });
+    from = c.got.length;
+    c.send({ type: 'send', item: { kind: 'baked', id: '../x', title: 'X', sha256: 'a'.repeat(64) } });
+    assert.deepEqual(await c.next('error', from), { type: 'error', error: 'Not a message this page sends.' });
+    c.send({ type: 'send', at: 'end', item: { kind: 'baked', id: 'abc124', title: 'Baked', sha256: 'a'.repeat(64) } });
+    await new Promise((r) => setTimeout(r, 100));
+    assert.deepEqual(engine.state().queue.map((q) => [q.id, q.kind]), [['abc123', 'live'], ['abc124', 'baked']]);
   });
 
   test('counts pages watching, not Studio\'s feed nor a socket yet to say hello', async () => {

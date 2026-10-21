@@ -12,14 +12,16 @@ import { engineOn, oneModule } from './fixture.ts';
 const strobe = oneModule('strobe', 'strobe', { speed: 12 });
 
 describe('the engine', () => {
-  test('a switch dips through black and starts the new look from its top', () => {
+  test('a switch fades out and in, and starts the new look from its top', () => {
     const r = engineOn();
     r.engine.play('fire');
     r.run(2);
     assert.equal(r.engine.state().look?.id, 'fire');
     assert.equal(r.engine.play('beat-bars'), true);
-    assert.equal(r.engine.state().switching, 'beat-bars');
-    r.run(FADE.switch + 0.05);
+    assert.equal(r.engine.state().switching?.id, 'beat-bars');
+    r.run(FADE.queue / 2);
+    assert.ok(Math.abs(r.engine.state().gain - 0.5) < 0.05, `${r.engine.state().gain}`);
+    r.run(FADE.queue / 2 + 0.05);
     assert.equal(r.engine.state().look?.id, 'beat-bars');
     assert.ok(r.engine.state().look!.t < 0.1);
     assert.equal(r.engine.play('nope'), false);
@@ -50,7 +52,7 @@ describe('the engine', () => {
     assert.equal(r.engine.state().look?.id, 'safe');
     r.engine.play('fire');
     assert.equal(r.engine.state().tripped, null);
-    r.run(1);
+    r.run(FADE.queue + 0.1);
     assert.equal(r.engine.state().look?.id, 'fire');
   });
 
