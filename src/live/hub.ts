@@ -15,6 +15,7 @@ import { applySet, emptyLive, switchTo } from './state.ts';
 
 export const MAX_SOCKETS = 200;
 const RATE = 30, BURST = 60, SWITCH_MS = 2000, KEEPALIVE_MS = 25_000, PRESENT_MS = 30_000, SAVE_MS = 1000;
+const MAX_MESSAGE = 16 * 1024;
 const MAX_BUFFERED = 1 << 20;      // a socket this far behind is dropped rather than queued for
 const PI_ANCHOR_MS = 2000;         // /pi's show time goes out at least this often while nothing else changes
 type Who = { id: string, username: string };
@@ -172,6 +173,8 @@ export async function createHub({ dataDir, playable, log = console }: { dataDir:
       const c: Client = { ws, who, control, tokens: BURST, at: serverNow(), over: 0, switchedAt: 0, warned: false };
       clients.add(c);
       ws.on('message', (data) => {
+        // The server's limit is a relayed frame's (src/pi-preview.ts); the stage's messages stay small.
+        if ((data as Buffer).length > MAX_MESSAGE) { ws.close(1009, 'Too long'); return; }
         try { onMessage(c, data); } catch (err) {
           log.error?.('live: a message failed:', err);
           say(c, { type: 'error', error: 'The stage could not take that: try again.' });

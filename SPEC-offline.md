@@ -32,7 +32,8 @@ With `PI_PREVIEW_URL` set (a Studio Live engine on loopback, started with `--bas
 machine, the real one on the Pi), `GET /pi`, `/pi/*` and the socket `/pi/ws` pass through to it unchanged, for
 signed-in admins only (curators too under the Pi profile): no session is 401, anyone else 403, and a socket from
 another origin 403. Pages keep the engine's own CSP; an engine that is down is 502. The socket carries the engine's
-protocol (`pi/src/protocol.ts`): text frames up to 1 KB from the page. Unset, there is no `/pi`.
+protocol (`pi/src/protocol.ts`): text frames up to 1 KB from the page, and a relaying page's binary frames
+(SPEC-live "Relay to the lights"). Unset, there is no `/pi`.
 
 ## Look files
 

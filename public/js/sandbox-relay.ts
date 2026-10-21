@@ -18,8 +18,9 @@ type Job = { at: number; overdue?: boolean; internal?: boolean; answered?: boole
   | { type: 'render'; seq: number; start: number; fps: number; done: number; sentDone: number; sentAt: number;
     msg: object });
 /** What the worker says: pattern code shares its thread and can post too, so every field is checked. */
-type FromWorker = { type: 'ready' | 'compiled' | 'frame' | 'rendered' | 'progress' | 'compiling' | 'error';
+type FromWorker = { type: 'ready' | 'compiled' | 'frame' | 'rendered' | 'progress' | 'compiling' | 'error' | 'relayed';
   id?: string; seq?: number; done?: number; layers?: unknown; rgb?: unknown; errors?: unknown; ms?: number;
+  bytes?: unknown;
   layerMs?: unknown; channels?: unknown; frames?: number; channelCount?: number; request?: string; error?: unknown };
 type Reported = { id?: string; ok?: unknown; error?: unknown; params?: unknown; upgraded?: unknown; modules?: unknown };
 /** Why a layer is held back: it hung (until its code changes), or its top-level code did (`load`). */
@@ -138,6 +139,8 @@ function fromApp(msg: ToSandbox) {
         msg: { type: 'frame', seq: msg.seq, t: +msg.t || 0, ...(set ? { set } : {}) } };
       break;
     }
+    case 'relay':     // not a job: no answer; dropped while a hang is probed, so it never overtakes a look
+      return void (!held && worker?.postMessage(msg));
     case 'render':
       job = { type: 'render', at: 0, seq: msg.seq, start: +msg.start || 0, fps: +msg.fps > 0 ? +msg.fps : 40,
         done: 0, sentDone: 0, sentAt: now(), msg };
@@ -159,6 +162,8 @@ window.addEventListener('message', (event) => {
 
 function onWorker(w: Worker, m: FromWorker) {
   if (w !== worker || !m || typeof m !== 'object') return;
+  const { bytes } = m;     // a relayed frame (relay-ahead.ts): not a job's answer
+  if (m.type === 'relayed') return void (bytes instanceof ArrayBuffer && toApp({ type: 'relayed', bytes }, [bytes]));
   const job = jobs[0];
   if (!job) return;
   switch (m.type) {
