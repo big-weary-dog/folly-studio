@@ -12,7 +12,7 @@ import { sortStrands } from './sort.ts';
 import { blur, BLUR_MODES, blurState } from './spatial.ts';
 import { clamp, hex, isNum, RUN, TAU } from './stdlib.ts';
 import { clipAt, layerEnvelope, normalizeClips, type Transition, wipeColours } from './timeline.ts';
-import { PLACE, readsLed, settle } from './place.ts';
+import { nearFor, PLACE, readsLed, settle } from './place.ts';
 import { copyPixel, makePixel, type Pixel, setPixel } from './pixel.ts';
 import { isStageEnd, placeWarps } from './warps.ts';
 import { addLight } from './light.ts';
@@ -285,13 +285,13 @@ export function prepareLayer(scene: Scene, layer: LayerInput | null | undefined,
     if (r[j] > rmax) rmax = r[j];
   }
   if (rmax > 0) for (let j = 0; j < m; j++) r[j] /= rmax;
-  const corner = (v: number[]) => Object.freeze(m ? v : [0, 0, 0]);
+  const corner = (v: number[]) => Object.freeze(m ? v : [0, 0, 0]), bounds = { min: [x0, y0, z0], max: [x1, y1, z1] };
   const qs = Array.from({ length: bent.slots }, () => makePixel(scene));    // qs[0]: the pixel itself
   return {
     id: layer?.id ?? null,
     idx, lx, ly, lz, a, r,
-    bounds: { min: [x0, y0, z0], max: [x1, y1, z1] },
-    near: null as ((X: number, Y: number, Z: number) => number) | null,     // place.ts, on the first move
+    bounds,
+    near: bent.order.length && m ? nearFor(scene, { idx, bounds }) : null,  // place.ts: the LED nearest a point
     frame: Float64Array.of((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, (x1 - x0) / 2, (y1 - y0) / 2, (z1 - z0) / 2,
       rmax, cy, cz),                                                     // then a r's centre: the middle of the LEDs
     extent: Object.freeze([corner([x0, y0, z0]), corner([x1, y1, z1])]),  // extent()
