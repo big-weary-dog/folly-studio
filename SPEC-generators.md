@@ -51,8 +51,8 @@ sorted by name (a module on one line: what it looks like and its params in brack
 `name a|b (default)`, `name on/off (default)` or `name colour (default)`; a preset as its recipe),
 the palettes, the groups, show taste, and worked compositions (each only where the library and the rig's tags have
 what it names). The pattern API is not in it: an extension reads `library/extensions.md` (with no docs, the page is
-in the prompt). The system prompt and the docs a turn gets unasked stay under 32,000 characters together
-(`test/generate.test.js`). The queue logs one line per idea or refinement: its route, timings, repair rounds, the check and
+in the prompt). The system prompt and the docs a turn gets unasked stay under 33,000 characters together,
+and with the sketch turn under 33,500 (`test/generate.test.js`). The queue logs one line per idea or refinement: its route, timings, repair rounds, the check and
 critique, how many library modules, extensions and code it used, the docs it read, and the first notes.
 
 **The idea log** (`src/generate/idea-log.ts`). Each idea and refinement (under its own id) also leaves a record on
@@ -77,6 +77,18 @@ rounds' thinking dropped first to fit), so how it was made outlasts the log; an 
 owner's API (`GET /api/ideas`, `/api/ideas/:id`) leaves `how` out, and strips a failed round's error from an older
 idea's rounds and verdict too. Admins read a log at `GET /api/admin/ideas/:id/log` and its stills by name; the Studio links it
 ("Log") on an idea's row for them.
+
+**How it was made** (`src/api-idea-how.ts`, the page `/ideas/:id/how`, linked from each finished idea's row). For
+the idea's owner and admins; anyone else, curators too, gets 404. `GET /api/ideas/:id/how` answers `{ idea, from,
+run: { via?, effort?, level?, name? }, prompt?, rounds, usd? }`: from the idea's log while it is kept (`from: 'log'`),
+else from the `how` the idea keeps (`'idea'`: no prompt, stills only counted), else `'none'` (an idea from before, or
+one its model made in one step). `prompt` is the first call's parts, each `{ name, bytes, tokens (bytes / 4, an
+estimate), text? }`: the guide and the library catalog (the system prompt, shared by every idea: text for admins
+only), each doc given and the idea itself. A round is as logged, with its stills `{ file, view, at }`, served at
+`/api/ideas/:id/how/stills/:name`; an owner gets its outcome plain and no notes. Admins also get the expand notes,
+why a repair ran, the provider's model name and dollars (`src/generate/prices.ts`: list prices, cache reads at their
+own, writes as input; none for codex, on a subscription). The page shows the prompt folded and the rounds, the
+latest open; the last still the model was shown beside them on a wide screen.
 
 **Library docs** (`src/generate/library-docs.ts`). Beside the prompt, once per library, the server builds a tree of
 markdown: `library/README.md` (how layers, sources, warps, filters and presets combine; blends; inputs; groups and

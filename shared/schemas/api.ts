@@ -100,11 +100,23 @@ export type HowChange = { text: string, why?: string };
 /** What the render check after a round found: ms a frame's render took, errors, and the frame checks' numbers. */
 export type HowChecks = { ms: number, errors: number, meanBrightness?: number, darkFraction?: number,
   flashHz?: number, flashOk?: boolean };
+/** A still the model was shown: its file in the idea's log, the view (front, or a group's close-up), its time (s). */
+export type HowStill = { file: string, view: string, at: number };
 /** A round as "How it was made" shows it (SPEC-generators "The idea log"): the model's critique, plan and thinking
- * summary, what it changed, what the checks found, and how many stills it was shown. */
+ * summary, what it changed, what the checks found, the stills it was shown (how many, once the log is gone), the
+ * docs it read and the critique's group warnings; for admins, expand's notes, why a repair ran and its dollars. */
 export type HowRound = { n: number, kind: string, ms: number, outcome?: string,
   tokens?: { input: number, cached: number, output: number, reasoning: number }, critique?: string, plan?: string,
-  thinking?: string, changes?: HowChange[], checks?: HowChecks, stills?: number };
+  thinking?: string, changes?: HowChange[], checks?: HowChecks, stills?: number | HowStill[], docs?: string[],
+  warnings?: string[], notes?: string[], reason?: string[], usd?: number };
+/** A part of what the model was first asked: its size, about how many tokens, and its text where the viewer may read
+ * it (the shared guide and catalog, admins only). */
+export type HowPart = { name: string, bytes: number, tokens: number, text?: string };
+/** GET /api/ideas/:id/how: the idea, how its model ran, the prompt's parts and the rounds, `from` the idea's log, the
+ * summary the idea keeps, or neither; `usd` (admins) what it cost. */
+export type IdeaHow = { idea: Idea, from: 'log' | 'idea' | 'none',
+  run: { via?: string, effort?: string, level?: string, name?: string }, prompt?: HowPart[], rounds: HowRound[],
+  usd?: number };
 /** What a refinement asks besides its text (SPEC-generators "Refine"). */
 export type RefineAsk = { critique?: true, fix?: { layer: string, error: string } };
 /** `model`: the model asked for; `generator`: the one that made the look (a fallback's, if it took over); `by`: its
