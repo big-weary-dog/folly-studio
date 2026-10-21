@@ -40,7 +40,14 @@ export function LivePage() {
     return { sock, stage: createStage(sock), lights, sources: lights ? studioSources(lights) : [], relay };
   })();
   const { sock, stage, lights, sources, relay } = ref.current;
-  const canvas = useRef<HTMLCanvasElement>(null), host = useRef<HTMLDivElement>(null);
+  // One canvas for the page's life: the live play page may mount its aside anew (a phone's layout, or a laptop's once
+  // the Pi's state arrives), and the stage and its WebGL context stay with this element wherever it goes.
+  const canvas = useRef<HTMLCanvasElement | null>(null), host = useRef<HTMLDivElement>(null);
+  canvas.current ??= Object.assign(document.createElement('canvas'), { className: 'viewer-canvas', tabIndex: 0,
+    ariaLabel: 'The live stage in 3D. Drag to orbit.' });
+  const place = (slot: HTMLDivElement | null) => {
+    if (slot && canvas.current!.parentNode !== slot) slot.append(canvas.current!);
+  };
   // Held still by a bug report, by another view, or both: each lets go only of its own.
   const still = useRef({ report: false, hidden: false });
   const hold = () => stage.freeze(still.current.report || still.current.hidden);
@@ -73,7 +80,7 @@ export function LivePage() {
   const driving = fromPi ? null : who.controllers.length ? who.controllers.join(', ') : live?.by?.username;
   const viewer = (
     <div class={cx('viewer live-viewer', lights && 'aside')}>
-      <canvas class="viewer-canvas" ref={canvas} tabindex={0} aria-label="The live stage in 3D. Drag to orbit." />
+      <div class="canvas-slot" ref={place} />
       <div class={cx('viewer-msg', msg?.error && 'error')} role="status" hidden={!msg}>
         {msg && !msg.error && <Rose detail="full" class="rose-loader" />}{msg?.text}</div>
       {relay && <RelayPanel relay={relay} />}

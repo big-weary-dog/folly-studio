@@ -74,6 +74,11 @@ test('a curator relays a live look to the lights, steady, and lets go', async ({
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Relayed fire', { timeout: 10_000 });
     if (size === 'phone') await page.getByRole('button', { name: 'The Folly in 3D' }).click();
     const panel = page.getByRole('group', { name: 'Relay to the lights' });
+    // The 3D view draws on the canvas the page shows (the live play page mounts its aside anew once the state is in).
+    // Sized to its box, so drawn into (a canvas left behind would keep the default 300 × 150).
+    await expect.poll(() => page.locator('.live-viewer canvas').evaluate((c) => Math.abs(c.width / c.height
+      - c.clientWidth / c.clientHeight) < 0.02), { timeout: 30_000 }).toBe(true);
+    await expect(page.locator('.viewer-msg')).toBeHidden({ timeout: 60_000 });
     await panel.getByRole('checkbox', { name: 'Relay to the lights' }).check();
     await expect(panel.getByRole('status')).toContainText('Relaying', { timeout: 30_000 });
     // Steady: the engine plays the page's frames, missing next to nothing once the relay is on.

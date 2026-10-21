@@ -64,3 +64,4 @@ body[data-view=live] { --tint: var(--cobalt-t); overflow: hidden; }
 .relay-says { flex-basis: 100%; margin: 0; color: var(--text-3); }
 .relay-says.error { color: #ffbccb; }
 .relay-live { color: var(--emerald); font-weight: 650; }
+.canvas-slot { display: contents; }
