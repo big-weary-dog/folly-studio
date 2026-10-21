@@ -55,8 +55,8 @@ export function GlobalsPanel({ st, palettes }: { st: Studio; palettes: (Palette 
         <div class="globals-h-row"><h3 class="globals-h">{mods.length ? 'Faders' : 'Macros'}</h3>
           <button type="button" class="btn small wide-only" data-tour="macro-add" onClick={addMacro}>
             + Macro</button></div>
-        <ul class="macro-list">{all.filter(([, m]) => !m.mod).map(([name, m]) => <MacroRow key={name} name={name}
-          m={m} automated={!!lanes[name]} uses={uses.get(name) ?? []} st={st}
+        <ul class="macro-list">{all.filter(([, m]) => !m.mod).map(([name, m]) => <MacroRow name={name} m={m}
+          key={`${name}:${!!lanes[name]}`} automated={!!lanes[name]} uses={uses.get(name) ?? []} st={st}
           rename={(to) => st.edit((look) => renameMacro(look, name, to))}
           set={(value) => set((x) => { x.macros = { ...x.macros, [name]: { ...m, value } }; })}
           taken={(to) => !macroNameOk(to) || !!g.macros?.[to]} />)}</ul>
@@ -74,7 +74,8 @@ function MacroRow({ name, m, automated, rename, set, taken, uses, st }: { name: 
   rename: (to: string | null) => void; set: (v: number) => void; taken: (to: string) => boolean; uses: Use[];
   st: Studio }) {
   const id = useId();
-  // An automated macro shows its lane's value as it plays, not the stored one the lane overrides.
+  // An automated macro shows its lane's value as it plays, not the stored one the lane overrides (its key holds
+  // `automated`, so a row whose lane comes or goes mounts again and follows the clock from then).
   useFollow(() => automated && st.clock.t);
   const value = automated ? laneNow(st.look.peek(), name, m, st.clock.t) : m.value;
   return (   // a field whose label is its name, to edit
