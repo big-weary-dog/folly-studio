@@ -107,8 +107,8 @@ colour. A stdlib (`noise`, `fbm`, `hsv`, `pal`, `beat`, `centres(tag)`, `use(nam
 A layer is a **chain of modules** under one rule: each works on everything above it, as in an image editor.
 Sources draw onto it, filters rework it, some by another source (a chase masked by clouds), and warps bend it: a
 warp goes after what it bends. Per pixel it is one pass with no intermediate buffers, so it costs no memory per frame
-and stays cheap on a phone: each module reads one of a few copies of the pixel, bent from the bottom up. 42 library
-modules (24 sources, 10 warps, 8 filters) and 22 presets fill the pickers, by kind in one-line rows; hovering one (on
+and stays cheap on a phone: each module reads one of a few copies of the pixel, bent from the bottom up. The library's
+modules (sources, warps, filters) and presets fill the pickers, by kind in one-line rows; hovering one (on
 a phone, ▶) auditions it in the 3D view without saving anything. Add a layer shows the groups tree beside its list, so
 a module or preset is tried where it will play, the rest dimmed, before it is added there. While a picker is open the
 3D view frames the whole rig, centred, in the part of it the picker leaves clear (beside it; on a phone, above the
