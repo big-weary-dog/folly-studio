@@ -6,15 +6,15 @@
 // source by how it combines), and each warp and filter spans what it works on, everything above it.
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 
-import type { ComponentChildren } from 'preact';
-
 import type { Module } from '../../../shared/schemas/look.ts';
 import { standardTitle } from '../../../shared/standard-modules.ts';
-import { useDragOrder } from './drag-order.ts';
-import { cx, Field, loadFailed, toast } from './kit.tsx';
-import {
-  BLEND_MODES, chainWires, insertModule, KIND_LABELS, makeModule, moduleFromLibrary, type Reach,
-} from './model.ts';
+import { Field, loadFailed, toast } from './kit.tsx';
+import { insertModule, makeModule, moduleFromLibrary } from './model.ts';
+import { ChainList, CompositeBody, type TreeCtx, type Variant } from './chain-tree.tsx';
+import { addSub, type Box, editSub, groupModule, listOf, moveModule, placeOf, ungroup, withList }
+  from './composite-model.ts';
+import { flatModules } from '../core/tree.ts';
+import { parseSlot, useTreeDrag } from './tree-drag.ts';
 import { PlaysOn } from './groups-drawer.tsx';
 import { ParamsPanel } from './params.tsx';
 import type { Preview } from './preview.ts';
@@ -23,12 +23,7 @@ import { SideExpand, SideFold } from './side-panels.tsx';
 import { SoftenRow } from './soften.tsx';
 import type { Studio } from './studio-store.ts';
 
-const STATE_TEXT: Record<string, string> = { ok: 'Running', off: 'Off', pending: 'Compiling…',
-  compile: 'Compile error', runtime: 'Runtime error', hung: 'Hung' };
-const INPUT_ONLY = 'input';
 const MAX_MODULES = 8;
-// How a source joins.
-const GLYPHS: Record<string, string> = { over: '●', under: '○', add: '+', multiply: '×', max: '▴' };
 type Props = { st: Studio; pv: Preview };
 
 export function ChainPane({ st, pv }: Props) {
@@ -67,135 +62,123 @@ function ModuleSettings({ st }: { st: Studio }) {
   </>;
 }
 
+const VARIANT = ((typeof location === 'object' && new URLSearchParams(location.search).get('cux')) || 'a') as Variant;
+const KEEP_ONE = 'A list keeps at least one module, and a composite cannot go inside itself.';
+
 function Chain({ st, pv }: Props) {
   const l = st.selected.value, mods = l?.modules || [], sel = st.module.value;
-  const setMods = (fn: (mods: Module[]) => Module[]) => {
-    if (l) st.editLayer(l.id, (x) => ({ modules: fn(x.modules.slice()) }));
+  /** An edit of the chain; fn says null when it is not one (`why` then says so). */
+  const setMods = (fn: (mods: Module[]) => Module[] | null, why?: string) => {
+    const next = l && fn(l.modules);
+    if (next && next !== l.modules) st.editLayer(l.id, () => ({ modules: next }));
+    else if (l && why) toast(why, { kind: 'warn' });
   };
+  /** Where the selected module sits (the layer's chain's end when none is). */
+  const here = () => (sel && placeOf(mods, sel.id)) || { box: null, index: mods.length - 1 };
 
-  /** A library module (or a blank), after the selected module (model.ts insertModule). */
+  /** A library module (or a blank), after the selected module in its list (model.ts insertModule). */
   function add(entry: Entry) {
-    const layer = st.selected.peek(), cur = st.module.peek();
+    const layer = st.selected.peek(), cur = st.module.peek(), { box } = here();
     if (!layer || ('kind' in entry && entry.kind === 'preset')) return;
-    if (layer.modules.length >= MAX_MODULES) {
-      return toast(`A layer has at most ${MAX_MODULES} modules.`, { kind: 'warn' });
+    if (listOf(mods, box).length >= MAX_MODULES) {
+      return toast(`A chain has at most ${MAX_MODULES} modules.`, { kind: 'warn' });
     }
     const m = 'blank' in entry ? makeModule({ kind: entry.kind }) : moduleFromLibrary(entry);
-    setMods((list) => insertModule(list, m, cur?.id));
+    setMods((list) => withList(list, box, (x) => insertModule(x, m, cur?.id)));
     st.pickModule(m.id);
   }
   function remove(m: Module) {
-    if (mods.length <= 1 || !l) return;
-    setMods((list) => list.filter((x) => x.id !== m.id));
+    const at = placeOf(mods, m.id);
+    if (!at || listOf(mods, at.box).length <= 1 || !l) return;
+    setMods((list) => withList(list, at.box, (x) => x.filter((y) => y.id !== m.id)));
     const step = st.step();
     toast(`Deleted “${m.title}”.`, { action: { label: 'Undo', onClick: () => {
       st.undoStep(step);
       st.pickModule(m.id);
     } } });
   }
-  const move = (i: number, j: number) => setMods((list) => {
-    if (j >= 0 && j < list.length) list.splice(j, 0, list.splice(i, 1)[0]);
-    return list;
-  });
-  /** Alt+↑/↓ on a row's own buttons moves it, its name keeping the focus (a select keeps Alt+↓ to open). */
-  const nudge = (i: number, e: KeyboardEvent) => {
-    const dir = e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0, j = i + dir, at = e.target as Element;
-    if (!e.altKey || !dir || !at.closest('.chain-top') || at.closest('select')) return;
+  const move = (id: string, box: Box, i: number) => setMods((list) => moveModule(list, id, box, i), KEEP_ONE);
+  const rootRef = useRef<HTMLDivElement>(null), drag = useTreeDrag(rootRef, move);
+  const rowOf = (id: string) => rootRef.current?.querySelector<HTMLElement>(`.chain-row[data-module="${id}"]`);
+  /** Alt+↑/↓ on a row's own buttons moves it a slot, into and out of composites, its name keeping the focus. */
+  const nudge = (id: string, e: KeyboardEvent) => {
+    const dir = e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0, at = e.target as Element, row = rowOf(id);
+    if (!e.altKey || !dir || !at.closest('.chain-top') || at.closest('select') || !row) return;
     e.preventDefault();
-    if (j < 0 || j >= mods.length) return;
-    move(i, j);
-    requestAnimationFrame(() => (listRef.current?.children[j]?.querySelector('.chain-name') as HTMLElement)?.focus());
+    e.stopPropagation();
+    const own = row.querySelector(':scope > .chain-top');
+    const slots = [...rootRef.current!.querySelectorAll<HTMLElement>('[data-slot]')]
+      .filter((s) => s === own || !row.contains(s));
+    const to = slots[slots.indexOf(own as HTMLElement) + (dir < 0 ? -1 : 2)]?.dataset.slot;
+    if (!to) return;
+    move(id, ...parseSlot(to));
+    requestAnimationFrame(() => (rowOf(id)?.querySelector('.chain-name') as HTMLElement)?.focus());
   };
-  const shelf = () => import('./shelf.tsx').then(({ openShelf }) => openShelf({ mode: 'module',
-    library: st.data.library, onPick: add, audition: { pv, layer: l || undefined, moduleId: sel?.id } }))
+  const shelf = (onPick: (e: Entry) => void) => import('./shelf.tsx').then(({ openShelf }) => openShelf({
+    mode: 'module', library: st.data.library, onPick, audition: { pv, layer: l || undefined, moduleId: sel?.id } }))
     .catch(loadFailed);
-  const { first, joins, reaches } = chainWires(mods), at = sel ? mods.indexOf(sel) : -1;
-  const listRef = useRef<HTMLOListElement>(null), order = useDragOrder(listRef, move);
   // The selected module's settings open under it (a wide screen); a click on it closes them, until the next click
   // or pick.
   const [shut, setShut] = useState<{ layer: string; picked: object } | null>(null);
   const open = !st.narrow.value && !(shut && shut.layer === l?.id && shut.picked === st.picked.value);
+  // Composites shut (a, c: their sub-layers out of sight; b: the one opened), each one's tab.
+  const [closed, setClosed] = useState<ReadonlySet<string>>(new Set());
+  const [opened, setOpened] = useState<string | null>(null);
+  const [tabs, setTabs] = useState<Record<string, number>>({});
   // The clicked row stays under the pointer while the settings above it close.
-  const keep = useRef<{ i: number; top: number } | null>(null);
+  const keep = useRef<{ id: string; top: number } | null>(null);
   useLayoutEffect(() => {
-    const k = keep.current, row = k && listRef.current?.children[k.i], pane = row?.closest('.pane-body');
+    const k = keep.current, row = k && rowOf(k.id), pane = row?.closest('.pane-body');
     keep.current = null;
     if (row && pane) pane.scrollTop += row.getBoundingClientRect().top - k.top;
   });
-  const click = (m: Module, i: number, e: MouseEvent) => {
+  const click = (m: Module, e: MouseEvent) => {
     if (st.narrow.peek() && m === sel) return;      // no settings under rows to open or close
-    keep.current = { i, top: (e.currentTarget as Element).closest('.chain-row')!.getBoundingClientRect().top };
+    keep.current = { id: m.id, top: (e.currentTarget as Element).closest('.chain-row')!.getBoundingClientRect().top };
     if (l && m === sel) setShut(open ? { layer: l.id, picked: st.picked.peek() } : null);
     else st.pickModule(m.id);
   };
+  const ctx: TreeCtx = { st, layerId: l?.id ?? '', variant: VARIANT, drag, sel, settingsOpen: open,
+    settings: () => <ModuleSettings st={st} />, click, remove, nudge,
+    isOpen: (id) => !closed.has(id),
+    toggle: (id) => {
+      if (VARIANT === 'b') return setOpened(id);
+      const next = new Set(closed);
+      if (!next.delete(id)) next.add(id);
+      setClosed(next);
+    },
+    tab: (id) => tabs[id] ?? 0, setTab: (id, k) => setTabs({ ...tabs, [id]: k }),
+    set: (id, patch) => l && st.editModule(l.id, id, () => patch),
+    editSub: (comp, k, p) => setMods((list) => editSub(list, comp, k, p)),
+    addSub: (comp) => void shelf((entry) => {
+      if ('kind' in entry && entry.kind === 'preset') return;
+      const m = 'blank' in entry ? makeModule({ kind: entry.kind }) : moduleFromLibrary(entry);
+      setMods((list) => addSub(list, comp, m));
+      setTabs({ ...tabs, [comp]: (flatModules(mods).find((x) => x.id === comp)?.layers?.length ?? 0) });
+      st.pickModule(m.id);
+    }),
+  };
+  const inside = VARIANT === 'b' && opened ? flatModules(mods).find((m) => m.id === opened && m.layers) : undefined;
+  const group = () => sel && setMods((list) => groupModule(list, sel.id));
+  const single = sel?.kind === 'composite' && sel.layers?.length === 1;
   return (
-    <section class="chain" aria-label="Module chain">
+    <section class="chain" aria-label="Module chain" ref={rootRef}>
       <div class="chain-head"><h3 class="chain-title">Chain</h3>
-        <button type="button" class="btn small chain-add wide-only" data-tour="chain-add"
-          title="Add a warp, source or filter from the library" disabled={!l || mods.length >= MAX_MODULES}
-          onClick={shelf}>+ Module</button></div>
+        <span class="chain-acts">
+          <button type="button" class="btn small chain-group wide-only" disabled={!sel}
+            title={single ? 'Put the composite\'s modules back in its place'
+              : 'Put the selected module in a composite: '
+              + 'sub-layers composited into one source, which the modules below it work on'}
+            onClick={() => (single ? setMods((list) => ungroup(list, sel.id)) : group())}>
+            {single ? 'Ungroup' : '⧉ Composite'}</button>
+          <button type="button" class="btn small chain-add wide-only" data-tour="chain-add"
+            title="Add a warp, source or filter from the library, after the selected module"
+            disabled={!l} onClick={() => shelf(add)}>+ Module</button></span></div>
       <p class="pane-hint" hidden={!!l}>Select a layer to see its modules.</p>
-      <ol class="chain-list" aria-label="Modules, first to last" ref={listRef}>
-        {l && mods.map((m, i) => <ModuleRow key={m.id} m={m} i={i} mods={mods} first={first} selected={i === at}
-          std={standardTitle(m, st.data.library)} grip={order.grip(i)} drop={order.drop(i, mods.length)}
-          dragging={order.dragging === i}
-          join={joins[i]} reach={reaches.filter((r) => r.from <= i && i <= r.to)} lit={at}
-          state={st.status.module(l.id, m)} pick={(e) => click(m, i, e)} remove={() => remove(m)}
-          nudge={(e) => nudge(i, e)} set={(patch) => st.editModule(l.id, m.id, () => patch)}
-          fold={st.narrow.value || i !== at ? undefined : open}>
-          {i === at && open && <div class="chain-params"><ModuleSettings st={st} /></div>}</ModuleRow>)}
-      </ol>
+      {inside && <nav class="chain-crumbs" aria-label="Where you are">
+        <button type="button" class="btn small" onClick={() => setOpened(null)}>‹ Chain</button>
+        <span class="crumb">{l?.title} › <b>{inside.title}</b></span></nav>}
+      {l && (inside ? <CompositeBody ctx={ctx} m={inside} depth={0} />
+        : <ChainList ctx={ctx} mods={mods} box={null} depth={0} />)}
     </section>);
-}
-
-type Grip = ReturnType<ReturnType<typeof useDragOrder>['grip']>;
-
-/** A module's row; `fold`: whether the selected module's settings show under it (wide screens), and its children. */
-function ModuleRow({ m, i, mods, first, selected, std, grip, drop, dragging, join, reach, lit, state, pick, remove,
-  nudge, set, fold, children }: { m: Module; i: number; mods: Module[]; first: number; selected: boolean; std?: string;
-  grip: Grip; drop?: string; dragging: boolean; join: string; reach: Reach[]; lit: number; state: { kind: string;
-  message?: string }; pick: (e: MouseEvent) => void; remove: () => void; nudge: (e: KeyboardEvent) => void;
-  set: (patch: Partial<Module>) => void; fold?: boolean; children?: ComponentChildren }) {
-  const title = std ?? (m.title || KIND_LABELS[m.kind]), filter = m.kind === 'filter';
-  // The row's select as a patch: a source's blend (or input only), a filter's input. A source's default ('') is
-  // Over first and Add after, so that blend is not offered twice.
-  const dflt = i === first ? 'over' : 'add';
-  const opts = filter ? [['', 'No input'], ...mods.slice(0, i).filter((s) => s.kind === 'source')
-    .map((s) => [s.id, s.title || 'Source'])]
-    : [['', dflt === 'over' ? 'Over' : 'Add'], ...BLEND_MODES.filter((b) => b.value !== dflt)
-      .map((b) => [b.value, b.label]), ['under', 'Under'], [INPUT_ONLY, 'Input only']];
-  const value = filter ? m.input || '' : m.as === 'input' ? INPUT_ONLY : m.blend === dflt ? '' : m.blend || '';
-  const how = filter ? 'Input' : 'Combine';
-  return (
-    <li class={cx('chain-row', selected && 'selected', m.enabled === false && 'off', dragging && 'dragging')}
-      data-kind={m.kind} data-join={join} data-status={state.kind} data-drop={drop} data-tour-area onKeyDown={nudge}
-      onClick={(e) => { if (e.target === e.currentTarget && !selected) pick(e); }}>
-      <span class="chain-joint" aria-hidden="true">{GLYPHS[join]}</span>
-      {reach.map((r) => <span class={cx('reach', r.to === lit && 'lit')} aria-hidden="true" data-kind={r.kind}
-        style={{ '--lane': r.lane }} data-part={i === r.from ? 'from' : i === r.to ? 'to' : 'via'} />)}
-      <div class="chain-top"><span class="grip" title="Drag to reorder (or Alt+↑/↓)" aria-hidden="true" {...grip} />
-        <span class="chain-kinds"><span class="kind-badge">{KIND_LABELS[m.kind]}</span>
-          {std === undefined && <span class="custom-badge"
-            title="Custom code: written by the AI or in the code editor, not a library module">Custom</span>}</span>
-        <button type="button" class="chain-name" aria-current={selected} aria-expanded={fold} onClick={pick}
-          aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown" data-tour={m.ref && `module:${m.ref}`}
-          title={`${title} — ${STATE_TEXT[state.kind] || state.kind}${state.message ? `: ${state.message}` : ''}`}>
-          {title}</button>
-        {m.kind !== 'warp' && <select class="chain-select wide-only" aria-label={how} title={how}
-          value={opts.some(([v]) => v === value) ? value : ''} onChange={(e) => {
-            const v = e.currentTarget.value;
-            set(filter ? { input: v || undefined } : v === INPUT_ONLY ? { as: 'input', blend: undefined }
-              : { as: undefined, blend: (v || undefined) as Module['blend'] });
-          }}>{opts.map(([v, t]) => <option value={v}>{t}</option>)}</select>}
-        <input type="checkbox" class="switch chain-on" aria-label={`${title} on`} checked={m.enabled !== false}
-          data-tour={m.ref && `module-on:${m.ref}`}
-          onChange={(e) => {
-            const on = e.currentTarget.checked;
-            e.currentTarget.checked = !on;      // the look decides
-            set({ enabled: on ? undefined : false });
-          }} />
-        <button type="button" class="icon-btn wide-only" aria-label="Delete module" title="Delete module"
-          disabled={mods.length <= 1} onClick={remove}>🗑</button></div>
-      {children}
-    </li>);
 }

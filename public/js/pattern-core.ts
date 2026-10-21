@@ -26,7 +26,7 @@ export {
   transitionWeight,
 } from './core/timeline.ts';
 export {
-  BLENDS, compileLayer, layerModules, MODULE_KINDS, prepareLayer, renderFrame, SOURCE_BLENDS,
+  BLENDS, CHAIN_KINDS, compileLayer, layerModules, MODULE_KINDS, prepareLayer, renderFrame, SOURCE_BLENDS,
 } from './core/render.ts';
 export { isStageEnd, stageOf, STAGES } from './core/warps.ts';
 export {
@@ -38,3 +38,4 @@ export type { BlurMode, Neighbours } from './core/spatial.ts';
 export { layerLinks, linkMap, waveStep } from './core/links.ts';
 export type { LinkMap, Links } from './core/links.ts';
 export type { Blend, LayerInput, ModuleKind, Pixel, PreparedLayer, SourceBlend } from './core/render.ts';
+export type { CompiledLink } from './core/chain.ts';

@@ -6,7 +6,7 @@ import { z } from 'zod';
 import PALETTES from '../../public/data/palettes.json' with { type: 'json' };
 import {
   BLENDS, BLUR_MODES, DIRECTIONS, macroNameOk, MAX_CLIPS, MAX_DURATION, MAX_LANES, MAX_MACROS, MAX_POINTS, MAX_RADIUS,
-  MODULE_KINDS, OLD_DIRECTIONS, OLD_GLOBALS, PALETTE_ROLES, type Picture, pictureProblem, SOURCE_BLENDS, TRANSITIONS,
+  CHAIN_KINDS, OLD_DIRECTIONS, OLD_GLOBALS, PALETTE_ROLES, type Picture, pictureProblem, SOURCE_BLENDS, TRANSITIONS,
   upgradeGlobals,
 } from '../../public/js/pattern-core.ts';
 
@@ -114,14 +114,37 @@ const Title = z.string({ error: 'title must be a string of at most 200 character
 const Blend = oneOf('blend', BLENDS);
 const SourceBlend = oneOf('blend', SOURCE_BLENDS);
 
-const Module = z.object({
-  id: z.string().regex(ID).optional(), kind: oneOf('kind', MODULE_KINDS).default('source'), title: Title.default(''),
-  ref: z.string({ error: 'ref must name a library entry.' }).regex(/^[a-z0-9-]{1,64}$/).optional(), code: Code,
-  params: Params.nullish().transform((p) => p ?? {}),
+/** An array of at most `max` of `item`; every failure says `error`. */
+const array = (item: (error: string) => z.ZodString, max: number, error: string) => z.array(item(error), { error })
+  .max(max);
+const list = (...a: Parameters<typeof array>) => array(...a).default([]);
+
+/** A composite's sub-layer (SPEC-library "Composites"): its own chain, how it combines, where it plays. */
+export type SubLayer = { id: string, title: string, modules: Module[], blend?: z.infer<typeof SourceBlend>,
+  level?: number, groups?: string[], tags?: string[], enabled?: boolean };
+const SubLayer: z.ZodType<SubLayer, unknown> = z.object({
+  id: z.string({ error: 'a sub-layer id must be 1–64 letters, digits or _.:-' }).regex(ID),
+  title: Title.default(''), modules: z.lazy(() => Modules), blend: SourceBlend.optional(),
+  level: num(0, 1, 'level must be a number from 0 to 1.').optional(),
+  groups: array((error) => z.string({ error }).min(1).max(64), 64, 'groups must be an array of group ids.').optional(),
+  tags: array((error) => z.string({ error }).regex(TAG), 16, 'tags must be an array of at most 16 tags.').optional(),
+  enabled: z.boolean({ error: 'enabled must be true or false.' }).optional(),
+}, { error: 'must be an object.' });
+export const MAX_SUBLAYERS = 4;
+
+const ModuleObject = z.object({
+  id: z.string().regex(ID).optional(), kind: oneOf('kind', CHAIN_KINDS).default('source'), title: Title.default(''),
+  ref: z.string({ error: 'ref must name a library entry.' }).regex(/^[a-z0-9-]{1,64}$/).optional(),
+  code: Code.default(''), params: Params.nullish().transform((p) => p ?? {}),
   input: z.string({ error: 'input must be a module id.' }).regex(ID).optional(),
   as: z.literal('input', { error: "as is only 'input' (a source)." }).optional(), blend: SourceBlend.optional(),
   enabled: z.boolean({ error: 'enabled must be true or false.' }).optional(),
-}, { error: 'must be an object.' }).refine((m) => !m.as || m.kind === 'source', "as is only 'input' (a source).");
+  layers: z.array(SubLayer).min(1).max(MAX_SUBLAYERS, `a composite has at most ${MAX_SUBLAYERS} sub-layers.`)
+    .optional(),
+}, { error: 'must be an object.' }).refine((m) => !m.as || m.kind === 'source', "as is only 'input' (a source).")
+  .refine((m) => (m.kind === 'composite') === !!m.layers, 'a composite has layers, and only a composite.');
+type ModuleOut = Omit<z.infer<typeof ModuleObject>, 'layers'> & { layers?: SubLayer[] };
+const Module: z.ZodType<ModuleOut, unknown> = ModuleObject;
 
 /** A layer's module chain (SPEC "Modules"): 1–8 modules, ids unique (m1, m2, … by default). */
 export const Modules = z.array(Module, { error: `1–${MAX_MODULES} modules.` }).min(1).max(MAX_MODULES)
@@ -146,10 +169,6 @@ export const Soften = z.strictObject({
   mode: oneOf('soften.mode', BLUR_MODES).default('wire'),
 }, { error: 'soften must be { radius, mode }.' });
 
-/** An array of at most `max` of `item`; every failure says `error`. */
-const array = (item: (error: string) => z.ZodString, max: number, error: string) => z.array(item(error), { error })
-  .max(max);
-const list = (...a: Parameters<typeof array>) => array(...a).default([]);
 const Layer = z.looseObject({
   id: z.string({ error: 'id must be 1–64 letters, digits or _.:-' }).regex(ID).optional(),
   title: Title.default(''), code: Code.optional(), params: Params.nullish(), modules: Modules.optional(),
