@@ -23,7 +23,7 @@ import {
 import type { Preview } from '../public/js/ui/preview.ts';
 import type { Draft, Studio } from '../public/js/ui/studio-store.ts';
 import { createTimeline } from '../public/js/ui/timeline-state.ts';
-import { automationLevel } from '../public/js/ui/timeline-auto.tsx';
+import { automationLevel, onSpan } from '../public/js/ui/timeline-auto.tsx';
 import { automationEdit } from '../public/js/ui/automation-edit.ts';
 import { chainWires, isStageEnd, type Layer } from '../public/js/ui/model.ts';
 import type { Module } from '../shared/schemas/look.ts';
@@ -220,6 +220,8 @@ describe('a number as one field, and how a chain is drawn', () => {
       [3, 2, 4, 6, 0]);
     assert.deepEqual([fmt(0.0025), fmt(0.05), fmt(1 / 3), fmt(120.12345)], ['0.0025', '0.05', '0.333', '120.123'],
       'the popover\'s From/To keep a small end');
+    assert.deepEqual([onSpan(0.0123456, 0.05), onSpan(0.5004, 1), onSpan(37.26, 100)], [0.01235, 0.5, 37.3],
+      'a lane\'s value to a thousandth of its span');
   });
 
   test('each module joins the came; each warp and filter reaches everything above it, to a stage\'s start', () => {

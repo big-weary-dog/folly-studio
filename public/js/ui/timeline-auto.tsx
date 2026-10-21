@@ -15,6 +15,8 @@ const H = 42, PAD = 8;              // room for full endpoint circles, including
 type Range = { min: number; max: number; value: number };
 type Point = [number, number];
 const r3 = (v: number) => Math.round(v * 1000) / 1000;
+/** v to a thousandth of the lane's span (0..0.05: 0.00005), so a small range draws as finely as 0..1. */
+export const onSpan = (v: number, span: number) => Number(v.toFixed(Math.max(0, 3 - Math.floor(Math.log10(span)))));
 
 export const automationLevel = (v: number, range: Range) => v <= range.min ? 'low' : v >= range.max ? 'high' : 'mid';
 
@@ -63,7 +65,7 @@ function Lane({ name, pts, range, tl, get, set }: { name: string; pts: Point[]; 
     let t = Math.max(0, Math.min(tl.duration.peek(), (e.clientX - box.left) / tl.pps.peek()));
     if (step) t = Math.round(t / step) * step;
     const k = Math.max(0, Math.min(1, 1 - (e.clientY - box.top - PAD) / (H - 2 * PAD)));
-    return [r3(t), r3(range.min + k * (range.max - range.min))];
+    return [r3(t), onSpan(range.min + k * span, span)];
   }
   const sorted = (list: Point[]) => list.sort((a, b) => a[0] - b[0]);
   function down(e: PointerEvent) {
@@ -108,7 +110,8 @@ function Lane({ name, pts, range, tl, get, set }: { name: string; pts: Point[]; 
           <polyline class="tl-auto-line" points={line} style={{ stroke: `url(#${gradient})` }} />
           {xy.map(([x, y], i) => <g>
             <circle class="tl-auto-dot" r={5.5} cx={x} cy={y} data-i={i}
-              data-level={automationLevel(pts[i][1], range)} />
+              data-level={automationLevel(pts[i][1], range)}><title>{`${clock(pts[i][0])} · ${pts[i][1]}`}</title>
+            </circle>
             {automationLevel(pts[i][1], range) === 'mid' && <path class="tl-auto-half"
               d="M 0 -5.5 A 5.5 5.5 0 0 0 0 5.5 Z" transform={`translate(${x} ${y})`} />}
           </g>)}
