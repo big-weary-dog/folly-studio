@@ -24,7 +24,7 @@ export type Step = {
 };
 
 export type Path = {
-  id: string; title: string; about: string; minutes: number;
+  id: string; title: string; about: string;
   /** Where it starts: the blank Studio, or its practice look (`/studio?tour=<id>`). */
   start: string; steps: Step[];
 };

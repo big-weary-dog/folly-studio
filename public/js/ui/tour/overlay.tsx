@@ -35,8 +35,7 @@ function Panel({ title, children, wide }: { title: string; children: preact.Comp
 
 function Welcome() {
   return <Panel title="Welcome to Folly Studio">
-    <p>Studio turns show ideas into light on the Folly. A two-minute tour shows you round with a look of your own:
-      a preset, the 3D view, a module and its settings.</p>
+    <p>Studio turns show ideas into light on the Folly. The tour shows you the basics.</p>
     <p class="tour-note">Studio is still in development. If something breaks, your name › Report a problem (or F8)
       tells us.</p>
     <div class="tour-actions">
@@ -48,7 +47,7 @@ function Welcome() {
 function Menu({ finished }: { finished?: string }) {
   const p = progress.value;
   return <Panel title={finished ? `${finished}: done` : 'Tutorials'} wide>
-    {finished && <p>Nicely done. Pick another, or close this and carry on: it is all in your name › Tutorials.</p>}
+    {finished && <p>Pick another, or close this. They are all in your name › Tutorials.</p>}
     <ul class="tour-paths">{PATHS.map((path) => {
       const done = p.done.includes(path.id), part = !done && p.at?.path === path.id;
       const mark = done ? '✓' : part ? '◐' : '○', state = done ? 'done' : part ? 'part-way' : 'not started';
@@ -56,8 +55,7 @@ function Menu({ finished }: { finished?: string }) {
         onClick={() => void start(path, part ? resumeAt(path) : 0)}>
         <span class="tour-mark" aria-hidden="true">{mark}</span>
         <span class="tour-path-name">{path.title}<span class="sr-only">{`, ${state}`}</span></span>
-        <span class="tour-path-about">{path.about}</span>
-        <span class="tour-path-len">{`${path.steps.length} steps · ~${path.minutes} min`}</span></button></li>;
+        <span class="tour-path-about">{path.about}</span></button></li>;
     })}</ul>
   </Panel>;
 }
@@ -105,19 +103,18 @@ function StepCard() {
       : <div key="dim" class="tour-dim soft" />}
     <section ref={card} class={cx('tour-card tour-step', o.done && 'done')} role="dialog" aria-labelledby="tour-title"
       aria-label="Tutorial" style={place(ring ? box : null, h)}>
-      <header class="tour-head"><span class="tour-count">{`${o.path.title} · ${o.i + 1} of ${o.path.steps.length}`}
-      </span><button type="button" class="icon-btn tour-x" aria-label="Close the tutorial" onClick={close}>×</button>
+      <header class="tour-head"><span class="tour-count">{o.path.title}</span>
+        <button type="button" class="icon-btn tour-x" aria-label="Close the tutorial" onClick={close}>×</button>
       </header>
       <h2 id="tour-title">{s.title}</h2>
       <p>{fill(s.text, c, titles.value)}</p>
       {!on && <p class="tour-note">{`This step is in the ${s.page === '/studio' ? 'Studio'
         : humanize(s.page!.slice(1))}.`}
         <button type="button" class="btn small" onClick={goTo}>Go there</button></p>}
-      {on && lost && <p class="tour-note">Cannot see it? It may be in a folded panel or another tab. Skip step moves
-        on.</p>}
+      {on && lost && <p class="tour-note">Cannot see it? It may be in a folded panel or another tab.</p>}
       {p && <meter class="tour-meter" min={0} max={p.goal} value={Math.min(p.now, p.goal)}
         aria-label={`${p.now.toFixed(2)} of ${p.goal}`} />}
-      <p class="tour-status" role="status">{o.done ? 'Done.' : s.next ? '' : 'Waiting for you…'}</p>
+      <p class="tour-status" role="status">{o.done ? 'Done.' : ''}</p>
       <div class="tour-actions">
         {el && <button type="button" class="btn small ghost" onClick={showMe}>Show me</button>}
         {!o.done && <button type="button" class="btn small ghost" onClick={next}>Skip step</button>}
