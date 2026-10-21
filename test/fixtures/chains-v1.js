@@ -4,9 +4,9 @@
 // (library-v1.json, pinned so that library edits leave these frames alone) and this tree's rig and palettes. Re-made
 // when a r moved to the LEDs' mean (the effects audit's core fix), and when add and blur moved to light (each a
 // deliberate change of the frames): the recipe below then needs that commit's core.
-// test/chain-order.test.js converts each look and renders the same bytes. To make the digests again (from studio/; the
-// old core is plain modules, so a copy of public/js is enough):
-//   mkdir -p /tmp/v1 && git archive 3e681e0 public/js | tar -x -C /tmp/v1
+// test/chain-order.test.js converts each look and renders the same bytes. To make the digests again (from the repo
+// root; the old core is plain modules, so a copy of public/js is enough):
+//   mkdir -p /tmp/v1 && git -C "$SHOW_BUILDER_DIR" archive 3e681e0:studio public/js | tar -x -C /tmp/v1
 //   node --input-type=module -e 'const f = await import("./test/fixtures/chains-v1.js");
 //     const core = await import("/tmp/v1/public/js/pattern-core.ts");
 //     for (const [name, look] of f.LOOKS) console.log(f.digest(core, look), name);'

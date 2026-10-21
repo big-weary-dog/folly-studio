@@ -13,19 +13,16 @@ lighting repo.
 
 On the Pi, as `fpp`. Node 22 is already there (`node --version`: 22.18 is what it is tested on).
 
-Studio Live ships on the branch Studio itself ships from: today the studio branch `ccr-c0df4e5c-e6amkz`, and `main`
-once Studio merges there (then switch with `git checkout main && git pull`). Below it is `$BRANCH`:
+Studio Live ships on the branch Studio itself ships from, `prod`:
 
 ```sh
-BRANCH=ccr-c0df4e5c-e6amkz
 cd /home/fpp
-git clone -b "$BRANCH" https://github.com/big-weary-dog/show-builder.git
-cd show-builder/studio
+git clone -b prod https://github.com/big-weary-dog/folly-studio.git
+cd folly-studio
 npm ci --omit=dev
 ```
 
-The repo is private, so the clone needs a credential: a read-only deploy key or a fine-grained token. Use one only
-for this repo. `--omit=dev` installs only what the engine runs (about 85 packages, no native builds, no browsers).
+The repo is public, so the clone needs no credential. `--omit=dev` installs only what the engine runs (about 85 packages, no native builds, no browsers).
 
 ## 2. A dry run
 
@@ -60,7 +57,7 @@ crew's. Looks of the Pi's own go in `pi/local/looks/` (also gitignored).
 Install the unit, but do not enable it at boot. The ops hub starts it, as it does Folly Mix:
 
 ```sh
-sudo cp /home/fpp/show-builder/studio/pi/studio-live.service /etc/systemd/system/
+sudo cp /home/fpp/folly-studio/pi/studio-live.service /etc/systemd/system/
 sudo systemctl daemon-reload
 ```
 
@@ -119,7 +116,7 @@ Until the hub clears AUTO itself (John's fix: `switch_source` calling `night_mod
 ## Updating
 
 ```sh
-cd /home/fpp/show-builder/studio
+cd /home/fpp/folly-studio
 git pull
 npm ci --omit=dev        # only when package-lock.json changed; harmless otherwise
 sudo systemctl restart studio-live    # if it is running
@@ -131,7 +128,7 @@ nothing to build.
 ## Rolling back
 
 ```sh
-cd /home/fpp/show-builder/studio
+cd /home/fpp/folly-studio
 git log --oneline -10             # find the last commit that worked
 git checkout <commit>
 npm ci --omit=dev

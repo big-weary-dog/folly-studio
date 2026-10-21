@@ -1,4 +1,4 @@
-// The Pi's live engine (pi/README.md): `npm run pi` from studio/. Looks from pi/looks (and pi/local/looks), our
+// The Pi's live engine (pi/README.md): `npm run pi` from the repo root. Looks from pi/looks (and pi/local/looks), our
 // library from public/patterns, the rig from public/data/rig.json; out as DDP to fppd at 40 fps, colour-corrected for
 // the LEDs, the rose expanded and the power compressor applied, or with --dry-run nothing sent and a stats line
 // printed.
