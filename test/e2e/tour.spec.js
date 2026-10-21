@@ -235,6 +235,29 @@ test.describe('laptop, 1366 × 768', () => {
     await finished(page, 'Keep it, show it', 'keep');
     expect(errors).toEqual([]);
   });
+
+  test('a practice path over unsaved edits: Cancel keeps them, Leave starts it', async ({ page, studio }) => {
+    const { card, title, at } = steps(page);
+    await fromTutorials(page, studio.origin, 'unsaved', 'First look');
+    await title('Still being built');
+    await card.getByRole('button', { name: 'Close the tutorial' }).click();
+    await page.goto(`${studio.origin}/studio`);
+    await type(at('level:colour-wash').locator('input'), 40);
+    const pick = async () => {
+      await at('user-menu').click();
+      await page.getByRole('button', { name: 'Tutorials' }).click();
+      await page.locator('.tour-path', { hasText: 'Colour' }).click();
+      return page.getByRole('dialog', { name: 'Unsaved changes' });
+    };
+    await (await pick()).getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.getByRole('dialog', { name: 'Tutorials' })).toBeVisible();
+    await expect(card).toHaveCount(0);
+    await expect(at('level:colour-wash')).toBeVisible();
+    await page.getByRole('dialog', { name: 'Tutorials' }).getByRole('button', { name: 'Close the tutorial' }).click();
+    await (await pick()).getByRole('button', { name: 'Leave' }).click();
+    await title('Find the colours');
+    await expect(page).toHaveURL(/\/studio\?tour=colour$/);
+  });
 });
 
 test.describe('phone, 390 × 844', () => {

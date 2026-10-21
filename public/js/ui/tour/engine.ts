@@ -84,14 +84,20 @@ function check() {
 export function welcome() { mount(); open.value = { mode: 'welcome' }; }
 export function menu(finished?: string) { mount(); open.value = { mode: 'menu', finished }; }
 
-/** Start a path at step `i` (where it was left, when resumed): its practice look first. */
-export function start(path: Path, i = 0) {
+/** Start a path at step `i` (where it was left, when resumed): its practice look first, the overlay hidden while
+ * the app asks about unsaved edits; keeping them (Cancel) brings back what was open. */
+export async function start(path: Path, i = 0) {
   mount();
   clearTimeout(later);
+  if (path.start.includes('?')) {
+    const was = open.peek();
+    open.value = null;
+    await navigate(path.start);
+    if (location.pathname + location.search !== path.start) { open.value = was; return; }
+  }
   i = Math.min(i, path.steps.length - 1);
   save({ ...progress.peek(), seen: true, at: { path: path.id, step: path.steps[i].id } });
   open.value = { mode: 'step', path, i, done: false };
-  if (path.start.includes('?')) void navigate(path.start);
 }
 
 export function next() {
