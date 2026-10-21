@@ -1,1 +1,4 @@
-{ "title": "Practice: layers", "presets": ["starfield", "lighthouse"] }
+{ "title": "Spire rise", "palette": "ocean",
+  "layers": [
+    { "title": "Colour wash", "modules": [{ "ref": "colour-wash", "params": { "colours": "low", "speed": 0.05 } }] }
+  ] }

@@ -1,7 +1,7 @@
 // The tutorial against the app (SPEC-tutorial): a step names controls, library entries, params, views and pages that
 // must exist, so a rename anywhere fails here rather than leaving a step pointing at nothing. Each `data-tour` name a
 // step uses is in the app's source (as written, or a `prefix:${…}` the source fills in, with a part that exists), each
-// `{preset:x}`, `{module:x}` and `{param:x.key}` names the library's, and each practice look is made from presets the
+// `{preset:x}`, `{module:x}` and `{param:x.key}` names the library's, and each practice look is made from modules the
 // library has and saves as a look. tour.spec.js plays every path in the browser.
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -37,14 +37,15 @@ const filled = new Set([...source.matchAll(/(?:data-tour|tour)=\{(?:[\w.]+ && )?
 const recipes = new Map(readdirSync(path.join(root, 'public/data/tutorial')).map((f) =>
   [f.replace(/\.json$/, ''), JSON.parse(read(`public/data/tutorial/${f}`)) as Recipe]));
 type Made = { title: string; modules: { ref?: string }[] };
-/** The layers a path's look has: its practice look's, or a new look's first (Studio setup()), and any preset a step
- * adds from the shelf. */
+/** The layers a path's look has: its practice look's, or a new look's first (Studio setup()), and any layer a step
+ * adds from the shelf (+ Add, then a preset or a source). */
 function layersOf(p: (typeof PATHS)[number]): Made[] {
   const id = new URLSearchParams(p.start.split('?')[1]).get('tour');
   const first = library.find((e): e is ModuleEntry => (e.kind || 'source') === 'source')!;
-  const added = p.steps.flatMap((s) => (Array.isArray(s.anchor) ? s.anchor : []))
-    .flatMap((a) => (presets.has(a.slice(6)) && a.startsWith('shelf:') ? presetLayers(presets.get(a.slice(6))!,
-      library, rig)! : []));
+  const added = p.steps.flatMap((s) => (Array.isArray(s.anchor) && s.anchor.includes('layers-add') ? s.anchor : []))
+    .filter((a) => a.startsWith('shelf:')).map((a) => a.slice(6))
+    .flatMap((n) => (presets.has(n) ? presetLayers(presets.get(n)!, library, rig)!
+      : modules.has(n) ? [layerFromPattern(modules.get(n)!, rig)] : []));
   return [...(id ? practiceLook(recipes.get(id)!, library, rig)!.layers as Made[] : [layerFromPattern(first, rig)]),
     ...added];
 }
@@ -72,7 +73,8 @@ function missing(name: string, layers: string[], kinds: string[]) {
   }
   if (!filled.has(prefix)) return `no data-tour={\`${prefix}\${…}\`} in public/js/ui`;
   const ok: Record<string, (p: string) => boolean> = {
-    'nav:': (p) => routes.includes(`/${p}`), 'view:': (p) => p in (rig.views ?? {}), 'dock:': (p) => docks.includes(p),
+    'nav:': (p) => routes.includes(`/${p}`), 'view:': (p) => p === 'fit' || p in (rig.views ?? {}),
+    'dock:': (p) => docks.includes(p),
     'shelf-tab:': (p) => kinds.includes(p), 'shelf:': (p) => modules.has(p) || presets.has(p),
     'module:': (p) => modules.has(p), 'module-on:': (p) => modules.has(p), 'group:': (p) => rig.groups.some((g) =>
       g.id === p), 'param:': (p) => [...modules.keys()].some((m) => p in paramsOf(m)),
@@ -84,7 +86,7 @@ function missing(name: string, layers: string[], kinds: string[]) {
 }
 
 describe('the tutorial matches the app', () => {
-  const kinds = [...new Set(library.map((e) => e.kind || 'source'))];
+  const kinds = [...new Set([...library.map((e) => e.kind || 'source'), 'blank'])];   // the shelf's Blank tab too
   for (const p of PATHS) {
     test(`${p.title}: every control, name and page a step uses exists`, () => {
       const made = layersOf(p), layers = made.map((l) => tourName(l.title));
@@ -108,7 +110,7 @@ describe('the tutorial matches the app', () => {
     assert.deepEqual([...recipes.keys()].sort(), [...wanted].sort());
     for (const [id, r] of recipes) {
       const look = practiceLook(r, library, rig);
-      assert.ok(look, `${id}: a preset it names is not in the library`);
+      assert.ok(look, `${id}: a module or palette it names is not in the library`);
       const saved = LookCreate.safeParse(look);
       assert.ok(saved.success, `${id}: ${saved.error?.message}`);
       assert.equal(look.id, undefined, `${id}: never one of the person's looks`);
@@ -116,6 +118,6 @@ describe('the tutorial matches the app', () => {
   });
 
   test('a step that waits on a rig tag finds it on the rig', () => {
-    assert.ok(rig.groups.some((g) => g.tags?.includes('rose')), 'the layers path ticks the groups tagged rose');
+    assert.ok(rig.groups.some((g) => g.tags?.includes('spire')), 'Spire rise plays its bars on the spires');
   });
 });

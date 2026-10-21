@@ -52,7 +52,8 @@ export function GlobalsPanel({ st, palettes }: { st: Studio; palettes: (Palette 
         <ModulatorCards st={st} mods={mods} uses={uses} /></section>}
       <section class="globals-macros" aria-label="Faders">
         <div class="globals-h-row"><h3 class="globals-h">{mods.length ? 'Faders' : 'Macros'}</h3>
-          <button type="button" class="btn small wide-only" onClick={addMacro}>+ Macro</button></div>
+          <button type="button" class="btn small wide-only" data-tour="macro-add" onClick={addMacro}>
+            + Macro</button></div>
         <ul class="macro-list">{all.filter(([, m]) => !m.mod).map(([name, m]) => <MacroRow key={name} name={name}
           m={m} automated={!!lanes[name]} uses={uses.get(name) ?? []} st={st}
           rename={(to) => st.edit((look) => renameMacro(look, name, to))}

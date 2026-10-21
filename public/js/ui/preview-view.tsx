@@ -39,7 +39,8 @@ export function PreviewPane({ st, pv, els }: Props & { els: Record<string, HTMLE
   return (
     <section class="pane pane-viewer" aria-label="Preview" ref={pane}>
       <div class="viewer" ref={(el) => { if (el) els.viewer = el; }}>
-        <canvas class="viewer-canvas" tabindex={0} ref={(el) => { if (el) els.canvas = el; }} aria-label={'3D preview. '
+        <canvas class="viewer-canvas" tabindex={0} data-tour="preview"
+          ref={(el) => { if (el) els.canvas = el; }} aria-label={'3D preview. '
           + 'Drag to orbit, scroll or pinch to zoom, right-drag or two fingers to pan, double-click to reset. With '
           + 'focus: arrow keys orbit, Alt+arrows pan, plus and minus zoom.'} />
         <div class="view-bar" role="group" aria-label="Camera views" ref={bar} data-tour="view-bar">

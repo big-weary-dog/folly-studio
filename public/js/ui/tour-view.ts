@@ -17,7 +17,7 @@ export type TourView = {
   playing: ReadonlySignal<boolean>; view: ReadonlySignal<string | null>; dock: ReadonlySignal<string>;
   dirty: ReadonlySignal<boolean>; lookId: ReadonlySignal<string | null>; bpm: ReadonlySignal<number | null>;
   palette: ReadonlySignal<string | null>; automation: ReadonlySignal<Readonly<Record<string, number>>>;
-  historyAt: ReadonlySignal<number>;
+  historyAt: ReadonlySignal<number>; macros: ReadonlySignal<string[]>;
   /** The groups carrying a rig tag, then those under them; a param's label in a module made from library `ref`. */
   tagged: (tag: string) => string[]; label: (ref: string, key: string) => string | null;
 };
@@ -65,6 +65,7 @@ export function showToTour(st: Studio, pv: Preview) {
     automation: computed(() => Object.fromEntries(Object.entries(st.look.value.automation ?? {})
       .map(([k, pts]) => [k, pts?.length ?? 0]))),
     historyAt: computed(() => st.history.at.value),
+    macros: computed(() => Object.keys(st.look.value.globals?.macros ?? {})),
     tagged: (tag) => {
       const all = st.data.rig?.groups ?? [], top = all.filter((g) => g.tags?.includes(tag)).map((g) => g.id);
       const under = all.filter((g) => !top.includes(g.id)

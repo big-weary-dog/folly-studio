@@ -35,3 +35,20 @@ export const num = (x: unknown) => (typeof x === 'number' ? x : null);
 export const layerBy = ({ v }: Ctx, slug: string) => v?.layers.value.find((l) => tourName(l.title) === slug) ?? null;
 /** A param bound to a modulator, and which kind ('beats' is a beat clock's). */
 export const boundTo = (x: unknown) => (x && typeof x === 'object' && 'mod' in x ? String(x.mod) : null);
+/** The selected layer is `slug` and its open module is library `ref`. */
+export const at = (c: Ctx, slug: string, ref: string) => !!c.v && c.v.selected.value?.id === layerBy(c, slug)?.id
+  && c.v.module.value?.ref === ref;
+/** The open module's param `key`, when that module is `ref` on layer `slug`. */
+export const param = (c: Ctx, slug: string, ref: string, key: string) => (at(c, slug, ref)
+  ? c.v!.params.value[key] : undefined);
+/** A pick's tokens (a colour param's value). */
+export const tokens = (x: unknown) => (typeof x === 'string' ? x.split(/\s+/) : []);
+/** A step done once `first` has held and then `then` holds: a switch off and on again, pause then play. */
+export const twice = (first: (c: Ctx) => boolean, then: (c: Ctx) => boolean): Pick<Step, 'begin' | 'done'> => ({
+  begin: () => ({ seen: false }),
+  done: (c, b) => {
+    const was = b as { seen: boolean };
+    if (!was.seen && first(c)) was.seen = true;
+    return was.seen && then(c);
+  },
+});

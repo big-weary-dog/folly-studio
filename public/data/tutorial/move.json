@@ -1,1 +1,8 @@
-{ "title": "Practice: movement", "presets": ["plasma", "rising-embers"], "bpm": 100 }
+{ "title": "Spire rise", "palette": "ocean",
+  "layers": [
+    { "title": "Colour wash", "modules": [{ "ref": "colour-wash", "params": { "colours": "low", "speed": 0.05 } }] },
+    { "title": "Sparkle", "modules": [{ "ref": "sparkle" }] },
+    { "title": "Bars", "tag": "spire", "blend": "over", "level": 0.7, "soften": { "radius": 0.4, "mode": "wire" },
+      "modules": [{ "ref": "bars", "params": { "colours": "high", "profile": "comet" } },
+        { "ref": "twist", "params": { "wind": 0.5 } }, { "ref": "trails" }] }
+  ] }

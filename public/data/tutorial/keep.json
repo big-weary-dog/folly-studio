@@ -1,1 +1,14 @@
-{ "title": "Practice: keep it", "presets": ["starfield"] }
+{ "title": "Spire rise", "palette": "ocean", "bpm": 90,
+  "macros": { "macro1": { "value": 0.5, "min": 0, "max": 1 } },
+  "automation": { "macro1": [[0, 0.1], [20, 0.9]] },
+  "layers": [
+    { "title": "Colour wash", "modules": [{ "ref": "colour-wash", "params": { "colours": "low", "speed": 0.05 } }] },
+    { "title": "Sparkle", "modules": [{ "ref": "sparkle",
+      "params": { "density": { "mod": "global", "name": "macro1", "from": 0, "to": 1 } } }] },
+    { "title": "Bars", "tag": "spire", "blend": "over", "level": 0.7, "soften": { "radius": 0.4, "mode": "wire" },
+      "clips": [{ "start": 8, "end": 120, "fadeIn": 2 }],
+      "modules": [{ "ref": "bars", "params": { "colours": "high", "profile": "comet",
+        "speed": { "mod": "beats", "per": 0.25 },
+        "duty": { "mod": "lfo", "shape": "sine", "rate": 4, "unit": "beats", "depth": 0.3, "center": 0.65 } } },
+        { "ref": "twist", "params": { "wind": 0.5 } }, { "ref": "trails" }] }
+  ] }
