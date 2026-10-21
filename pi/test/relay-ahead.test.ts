@@ -1,7 +1,8 @@
 // Relay end to end, without a browser: the sandbox worker's render-ahead (public/js/relay-ahead.ts), told the
 // engine's state as the Live tab tells it, feeds a relaying engine; a twin engine renders the same look itself. Their
 // LEDs match frame for frame (bar Uint16 rounding), across the look's wraps with a lane and the beat carried on; a
-// push lands one buffer later (the frames ahead were rendered before it), then they match again.
+// push lands one buffer later (the frames ahead were rendered before it), then they match again. From the editor,
+// the frames follow its playhead's anchor.
 import assert from 'node:assert/strict';
 
 import { afterEach, describe, test, vi } from 'vitest';
@@ -10,6 +11,7 @@ import { compileLayer, prepareLayer, prepareLook, prepareScene } from '../../pub
 import { relayAhead, type RelayCfg } from '../../public/js/relay-ahead.ts';
 import { piExtra, piLayers } from '../../public/js/ui/live/follow-pi.ts';
 import { relaySet } from '../../public/js/ui/live/relay.ts';
+import { clockNow } from '../../public/js/ui/relay-studio.ts';
 import { createRelay } from '../src/relay.ts';
 import { engineOn, lib, oneModule, rig } from './fixture.ts';
 
@@ -64,5 +66,52 @@ describe('relay end to end', () => {
     assert.ok(off / bytes < 0.005, `${off} of ${bytes} bytes off by one`);
     assert.equal(relay.state()!.misses, 0);
     assert.ok(late.length && late.every((i) => i >= 60 && i < 100), `late ${late}`);
+  });
+});
+
+describe('relay from the editor', () => {
+  test('frames follow the playhead\'s anchor, wrapped; a pause renders again from the next slot', () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
+    const scene = prepareScene(rig), { engine, run } = engineOn([beat]);
+    engine.play('beat');
+    run(0.1);
+    // The show time, as red: 0..10 s.
+    const [l] = piLayers(engine.source()!, [...lib.entries.values()]).map((x) => ({ ...x, modules: x.modules
+      .map((m) => ({ ...m, code: 'function pixel(p, t) { return [t / 10, 0, 0]; }' })) }));
+    const layers = [prepareLayer(scene, l!, compileLayer(l!))], got: { slot: number, t: number }[] = [];
+    const ahead = relayAhead(() => ({ scene, layers, live: null }), (m) => {
+      const bytes = (m as { bytes: ArrayBuffer }).bytes, head = new DataView(bytes, 0, 8);
+      got.push({ slot: head.getUint32(0, true), t: new Uint16Array(bytes, 8)[0]! / 65535 * 10 });
+    });
+    const at = performance.timeOrigin + performance.now();
+    const cfg = { on: true, rev: 0, index: 100, at, fps: 40, lead: 8, set: null };
+    ahead.relay({ ...cfg, clock: { t: 2, at, speed: 2, playing: true, duration: 2.1 } });
+    vi.advanceTimersByTime(30);
+    // Four a turn up to the buffer's 8 ahead; slot 101 plays by 30 ms.
+    assert.deepEqual(got.map((g) => g.slot), [101, 102, 103, 104, 105, 106, 107, 108, 109]);
+    for (const g of got) {
+      const t = (2 + (g.slot - 100) / 40 * 2) % 2.1;
+      assert.ok(Math.abs(g.t - t) < 0.002, `slot ${g.slot}: ${g.t} not ${t}`);
+    }
+    assert.ok(got.some((g) => g.t < 0.5), 'wrapped');
+    got.length = 0;
+    // Paused at 5 s: the frames ahead again, all at 5 s, from the slot after the one playing.
+    ahead.relay({ ...cfg, clock: { t: 5, at, speed: 2, playing: false, duration: 2.1 } });
+    vi.advanceTimersByTime(30);
+    assert.equal(got[0]!.slot, 102);
+    assert.ok(got.every((g) => Math.abs(g.t - 5) < 0.001));
+    // The same anchor again (each state says it): only slots not yet sent.
+    const n = got.length, last = got[n - 1]!.slot;
+    ahead.relay({ ...cfg, clock: { t: 5, at, speed: 2, playing: false, duration: 2.1 } });
+    vi.advanceTimersByTime(30);
+    assert.ok(got.slice(n).every((g, i) => g.slot === last + 1 + i), 'rendered again');
+    ahead.relay({ on: false });
+  });
+
+  test('the anchor\'s time at a moment', () => {
+    const k = { t: 1, at: 1000, speed: 0.5, playing: true, duration: 4 };
+    assert.equal(clockNow(k, 3000), 2);
+    assert.equal(clockNow(k, 9000), 1);
+    assert.equal(clockNow({ ...k, playing: false }, 9000), 1);
   });
 });

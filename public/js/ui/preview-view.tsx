@@ -4,11 +4,13 @@
 import '../../css/viewer.css';
 
 import { useComputed, useSignalEffect } from '@preact/signals';
-import { useEffect, useId, useRef } from 'preact/hooks';
+import { useEffect, useId, useRef, useState } from 'preact/hooks';
 
-import { cx } from './kit.tsx';
+import { can } from '../../../shared/policy.ts';
+import { cx, useLazy } from './kit.tsx';
 import type { Preview } from './preview.ts';
 import { Rose } from './rose.tsx';
+import { onPi, user } from './session.ts';
 import type { Studio } from './studio-store.ts';
 
 const REDUCE = matchMedia('(prefers-reduced-motion: reduce)');
@@ -105,7 +107,7 @@ function ViewTools({ pv }: { pv: Preview }) {
     </div></>;
 }
 
-/** Play/pause, restart, the time, scrub and speed. */
+/** Play/pause, restart, the time, scrub and speed; To the lights, for those who may relay. */
 function Transport({ st, pv, el }: Props & { el: { current: HTMLDivElement | null } }) {
   const playing = st.playing.value, ids = [useId(), useId()], scrub = useRef<HTMLInputElement>(null);
   const scrubbing = useRef(false), text = useComputed(() => `${clock(pv.time.value)} / ${clock(pv.duration.value)}`);
@@ -114,6 +116,11 @@ function Transport({ st, pv, el }: Props & { el: { current: HTMLDivElement | nul
     if (scrub.current && !scrubbing.current) scrub.current.value = String(t);
   });
   const hold = (on: boolean) => () => { scrubbing.current = on; };
+  // To the lights (SPEC-live "From Studio's editor"): curators on the Pi, admins on a hosted Studio; loaded on a click.
+  const mayRelay = onPi() ? can(user.value, 'curate') : can(user.value, 'admin'), [asked, ask] = useState(false);
+  const lights = useLazy(() => import('./to-lights.tsx'), asked);
+  const label = <><span class="tp-lights-dot" aria-hidden="true" />
+    <span class="tp-lights-long">To the lights</span><span class="tp-lights-short">Lights</span></>;
   return (
     <div class="transport" role="group" aria-label="Transport" ref={el}>
       <button type="button" class="tp-btn tp-restart" aria-label="Back to start" title="Back to start"
@@ -131,5 +138,8 @@ function Transport({ st, pv, el }: Props & { el: { current: HTMLDivElement | nul
         onChange={(e) => { st.speed.value = Number(e.currentTarget.value); }}>
         {[0.25, 0.5, 1, 2, 4].map((s) => <option value={String(s)}>{s}×</option>)}</select>
       <span class="tp-stats" aria-hidden="true">{pv.stats}</span>
+      {mayRelay && (lights ? <lights.ToLights st={st} pv={pv} open>{label}</lights.ToLights>
+        : <button type="button" class="btn small tp-lights" aria-label="To the lights"
+          title="Play the look as you edit it on the lights" onClick={() => ask(true)}>{label}</button>)}
     </div>);
 }

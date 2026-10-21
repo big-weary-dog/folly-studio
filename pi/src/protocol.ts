@@ -25,7 +25,7 @@ export const FromPage = z.discriminatedUnion('type', [
   z.object({ type: z.literal('blackout'), on: z.boolean() }),
   z.object({ type: z.literal('take') }),
   /** The relay lease (SPEC-live "Relay to the lights"): its frames are binary messages. */
-  z.object({ type: z.literal('relay-start') }),
+  z.object({ type: z.literal('relay-start'), over: z.boolean().optional() }),
   z.object({ type: z.literal('relay-stop') }),
   // The queue (SPEC-offline "Playing on the lights"): one of the engine's own looks, a look Studio sent, and moves.
   z.object({ type: z.literal('queue'), id: z.string().max(64), at: At.optional(), fade: Fade.optional() }),

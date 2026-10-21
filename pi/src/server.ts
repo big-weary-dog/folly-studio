@@ -87,7 +87,7 @@ export async function controlServer(o: ServerOptions) {
       return;
     }
     if (!c.ok) { say(c, { type: 'error', error: 'Say the PIN first.' }); return; }
-    if (msg.type === 'relay-start' || msg.type === 'relay-stop') { relayLease(c, msg.type); return; }
+    if (msg.type === 'relay-start' || msg.type === 'relay-stop') { relayLease(c, msg); return; }
     const no = people.check(c.who, msg);
     if (no) { say(c, { type: 'error', error: no }); return; }
     // Who did it, as the state says it (the Pi's own page queues as no one: it is everyone on site).
@@ -110,10 +110,12 @@ export async function controlServer(o: ServerOptions) {
   }
 
   /** The relay lease: for a page that may drive (never Studio's feed). */
-  function relayLease(c: Client, type: 'relay-start' | 'relay-stop') {
+  function relayLease(c: Client, { type, over }: { type: 'relay-start' | 'relay-stop', over?: boolean }) {
     if (type === 'relay-stop') { o.relay?.stop(c); say(c, { type: 'relay', holding: false }); return; }
     const no = !o.relay ? 'This engine takes no relay.' : !c.who?.drive ? 'Watching only: you may not relay.'
-      : o.relay.start(c, c.who.name);
+      // Over whatever plays, not while the guard holds the lights on safe: a look picked there lets it go.
+      : over && o.state().tripped ? 'The flash guard tripped: pick a look on the lights first.'
+      : o.relay.start(c, c.who.name, !!over);
     say(c, { type: 'relay', holding: !no, ...no ? { error: no } : {} });
     if (!no) log(`relay: ${c.who!.name} sends the frames`);
   }

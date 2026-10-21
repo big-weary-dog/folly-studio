@@ -156,6 +156,7 @@ export function createEngine(o: EngineOptions) {
     if (guard.observe(rgb, stats.frames * 1000 / fps, gain) && !tripped && p.id !== o.safe) {
       tripped = { at: new Date().toISOString(), look: p.id };
       log(`flash guard: ${p.id} flashed; dipping to ${o.safe} until a look is picked`);
+      o.relay?.tripped();
       if (pending) queue.unshift(pending);     // a queued look on its way in waits for the person too
       pending = safe();
       paused = true;

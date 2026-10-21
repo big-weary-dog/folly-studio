@@ -1,6 +1,7 @@
 // pi/src/relay.ts in the engine: relayed frames play in place of its own render, through the same flash guard and
 // output transform (a relayed strobe trips the guard; the same rgb makes the same bytes); a late frame is held, then
-// the engine dips to its own render and comes back after a second of steady frames; a switch starts on its own.
+// the engine dips to its own render and comes back after a second of steady frames; a switch starts on its own. An
+// `over` lease (Studio's editor) plays rev 0 over any look, through a switch, and a strobe on it ends it.
 import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
@@ -125,5 +126,30 @@ describe('relay to the lights', () => {
     x.relay.push(who, x.frame(x.slot(), () => 1000, next));
     x.tick();
     assert.equal(x.relay.state()!.on, true);
+  });
+
+  test('an over lease plays over any look, through a switch; a strobe on it ends it', () => {
+    const x = relayed();
+    x.engine.play('fire');
+    x.tick(60);
+    const ended: string[] = [];
+    x.relay.onEnd((_, why) => ended.push(why));
+    assert.equal(x.relay.start(who, 'cara', true), '');
+    const send = (n: number, fill: (s: number) => number) => {
+      for (let k = 0; k < n; k++) { const s = x.slot(); x.relay.push(who, x.frame(s, () => fill(s), 0)); x.tick(); }
+    };
+    send(5, () => 30000);
+    assert.deepEqual([x.relay.state()!.over, x.relay.state()!.on], [true, true]);
+    x.engine.play('beat-bars', 0.25);
+    for (let k = 0; k < 40 && x.engine.state().look?.id !== 'beat-bars'; k++) send(1, () => 30000);
+    send(2, () => 30000);
+    assert.equal(x.engine.state().look?.id, 'beat-bars');
+    assert.equal(x.relay.state()!.on, true);
+    send(5, () => 30000);
+    assert.equal(x.relay.state()!.misses, 0);
+    for (let k = 0; k < 120 && x.relay.state(); k++) send(1, (s) => (Math.floor(s / 2) % 2 ? 65535 : 0));
+    assert.ok(x.engine.state().tripped);
+    assert.equal(x.relay.state(), null);
+    assert.match(ended[0]!, /flash guard tripped/);
   });
 });
