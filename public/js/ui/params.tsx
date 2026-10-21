@@ -65,7 +65,7 @@ function Control({ name, p, values, set, ctx, colours, narrow }: { name: string;
   if (p.kind === 'color') {
     const turn = { ...p, label: `${p.label}: rotate`, value: 0, min: 0, max: 1, step: 0.01 };
     return <PickRow label={p.label} value={values[name]} dflt={p.value as string} blend={p.blend ?? 'step'}
-      colours={colours} narrow={narrow} help={help}
+      colours={colours} narrow={narrow} help={help} tour={`param:${name}`}
       put={putOr} turn={(now, put) => <ModButton p={turn} value={now} now={typeof now === 'number' ? now : 0} ctx={ctx}
         put={put} label={`Turn ${p.label}`} title={TITLE} />} />;
   }
@@ -100,7 +100,7 @@ function Control({ name, p, values, set, ctx, colours, narrow }: { name: string;
   // Unused, the reset keeps its place (hidden), and a missing clock, ∿ or ⓘ a Slot: the rows line up in columns.
   return (
     <Field label={label} class={cx('param end', p.kind === 'toggle' && 'toggle')} title={help.title}
-      hint={help.hint}>
+      hint={help.hint} tour={`param:${name}`}>
       {(id) => <>{field(id)}{help.button}
         <button type="button" class={cx('param-reset', (!has || value === p.value) && 'unused')}
         title="Reset to default" aria-label={`Reset ${label} to default`}

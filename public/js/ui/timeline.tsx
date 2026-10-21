@@ -166,6 +166,6 @@ function Automation({ st, tl }: { st: Studio; tl: TimelineState }) {
   if (mod) return <mod.AutoLanes st={st} tl={tl} focus={asked} />;
   return (
     <div class="tl-auto-head"><div class="tl-corner tl-auto-corner">Automation</div>
-      <div class="tl-auto-tools"><button type="button" class="btn small" onClick={() => setAsked(true)}>
-        + Automate…</button></div></div>);
+      <div class="tl-auto-tools"><button type="button" class="btn small" onClick={() => setAsked(true)}
+        data-tour="automate">+ Automate…</button></div></div>);
 }

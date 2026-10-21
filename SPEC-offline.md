@@ -14,7 +14,7 @@ Studios. `src/profile.ts` holds the profile; `public/js/ui/look-file.ts` the fil
   `/api/admin/invites…`, `/api/admin/people…`. `GET /api/me` has no `access`.
 - **`profile`.** `POST /api/signup`, `POST /api/login` and `GET /api/me` answer `profile: 'hosted' | 'pi'` beside
   `user`. Under `pi` the app has no Ideas tab, no Refine panel and no Models or Access tab under Admin; its home is
-  My looks, and `/ideas` leads there.
+  My looks, and `/ideas` leads there. The tutorial (SPEC-tutorial) leaves out its steps on Ideas.
 - **The lights.** `/pi` (below) is the Pi's own Studio Live engine, not a dry run, and is open to curators as well
   as admins. Their header has **Lights** (`/pi/`, the engine's control page).
 - **Defaults.** `STUDIO_PREVIEWS` is `front` (no browser on the Pi) and `STUDIO_FRAMES_MAX_BYTES` 1 GB (an SD

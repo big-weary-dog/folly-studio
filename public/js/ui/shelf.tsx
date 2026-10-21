@@ -144,6 +144,7 @@ export function openShelf({ library, onPick, audition, mode, st }: { library: Li
         const summary = 'blank' in e ? 'Write your own.' : e.summary || '';
         return <li class="shelf-entry" hidden={!shows(e)}>
           <button type="button" class={cx('shelf-row', 'blank' in e && 'blank')} data-kind={e.kind}
+            data-tour={`shelf:${'blank' in e ? `blank-${e.kind}` : e.name}`}
             title={summary} onClick={() => pick(e)} onFocus={() => want(e)} onBlur={() => want(null)}
             // only a mouse that moves: a list opening (or hiding) under a resting pointer auditions nothing
             onPointerMove={(ev) => {
@@ -177,6 +178,7 @@ export function openShelf({ library, onPick, audition, mode, st }: { library: Li
           <div class="shelf-tabs" role="tablist" aria-label="Kind">{tabs.map(([t, label]) => {
             const n = query ? entriesOf(t).filter((e) => !('blank' in e) && shows(e)).length : 0;
             return <button type="button" role="tab" class="btn small" aria-selected={t === tab} data-kind={t}
+              data-tour={`shelf-tab:${t}`}
               onClick={() => { setTab(t); remember(mode, t); }}>{label}{query ? ` ${n}` : ''}</button>;
           })}</div>
           <input type="search" class="shelf-find" placeholder="Filter: fire, rose, chase, sky…"

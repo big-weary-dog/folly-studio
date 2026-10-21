@@ -10,6 +10,7 @@ import { accessRoutes, sendRefusal } from './api-access.ts';
 import { ideaLogRoutes } from './api-idea-log.ts';
 import { lightRoutes } from './api-light.ts';
 import { reportRoutes } from './api-reports.ts';
+import { tourRoutes } from './api-tour.ts';
 import { lookRoutes } from './api-looks.ts';
 import { modelRoutes } from './api-models.ts';
 import { type Auth, COOKIE_NAME, SESSION_TTL_MS, sessionHook } from './auth.ts';
@@ -204,6 +205,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         reply.setCookie(COOKIE_NAME, '', cookie(0));
         return { ok: true };
       }, { public: true }],
+      ...tourRoutes({ store }),
       'GET /me': async (req) => ({ user: auth.publicUser(req.user), flash,
         ...(gen ? { access: access.state(req.user!) } : {}), profile }),
       ...(gen ? { ...ideaRoutes, ...modelRoutes({ auth, models, access }), ...ideaLogRoutes({ logs: o.ideaLogs }),

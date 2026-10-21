@@ -15,6 +15,7 @@ import {
 } from '../public/js/ui/bindings.ts';
 import { decimals, scrubTo, snap } from '../public/js/ui/kit.tsx';
 import { profile } from '../public/js/ui/session.ts';
+import { pathsHere } from '../public/js/ui/tour/paths/index.ts';
 import { createLayerStatus } from '../public/js/ui/layer-status.ts';
 import { editText, editValue, readEdit, toggleRole, toggleSlot, toggleToken } from '../public/js/ui/pick-model.ts';
 import type { Preview } from '../public/js/ui/preview.ts';
@@ -66,6 +67,13 @@ describe('routing', () => {
     } finally {
       profile.value = 'hosted';
     }
+  });
+
+  test('on the Pi, the tutorial takes no step to Ideas', () => {
+    const steps = (pi: boolean) => pathsHere(pi).flatMap((p) => p.steps.map((s) => s.page));
+    assert.ok(steps(false).includes('/ideas'));
+    assert.ok(!steps(true).includes('/ideas'));
+    assert.equal(pathsHere(true).find((p) => p.id === 'keep')!.about, 'Undo, save and Live.');
   });
 
   test('`next` stays on this app', () => {

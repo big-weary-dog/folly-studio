@@ -30,7 +30,7 @@ export function GlobalsPanel({ st, palettes }: { st: Studio; palettes: (Palette 
   }
   return (
     <div class="look-globals">
-      <section class="globals-palette" aria-label="Palette">
+      <section class="globals-palette" aria-label="Palette" data-tour="palette">
         <Field label="Palette">{(id) => <select class="palette-select" id={id} value={named ? g.palette?.name : ''}
           onChange={(e) => {
             const p = palettes.find((x) => x.name === e.currentTarget.value);
