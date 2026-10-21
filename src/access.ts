@@ -1,4 +1,4 @@
-// Who may use the paid models, and how much (SPEC-access "Access"). A paid model (any via but sketch) needs an unlocked
+// Who may use the paid models, and how much (SPEC-access "Access"). A paid model (every via today) needs an unlocked
 // account: an invite code redeemed, an admin's say, or `inviteOnly: false`. Each account's ideas are counted when
 // POST /api/ideas accepts them (one idea, one use, whatever its job does; a Deep idea DEEP.uses), over rolling hours
 // and days, against the registry's limits, a model's own, and a daily ceiling across everyone. Admins are exempt.

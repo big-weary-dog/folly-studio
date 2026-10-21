@@ -10,13 +10,14 @@ wire, **colour-wash** to change the whole layer at once.
   `orbit-counterclockwise` (from above, round the layer's middle or each group's after **anchor** `plan`). Negative
   speed runs any of them the other way.
 - bars: Rounded to whole numbers on the turning ways and orbits.
-- softness: Keep ≥ 0.1; 0 aliases on sparse LEDs.
-- profile: `comet` needs duty < 1 to show a tail.
+- speed: Bars passing a point each second, −2 to 2; raising bars makes narrower bars, not more passes a second.
+- softness: Step profile only; keep ≥ 0.1 on sparse LEDs to soften hard edges.
+- profile: `comet` fades behind a bright front; duty < 1 leaves a clear gap. `smooth` ignores duty and softness.
 
 ## Pairings
 - Over a dim **colour-wash** with duty < 1 (presets **rising-sweep**, **nave-procession**).
 - Then **polar** and **twist**: spiral arms (**galaxy**).
-- Speed on an lfo `hold` in beats: a step-per-beat march.
+- Speed on an LFO `hold` in beats: motion alternating with pauses.
 
 ## Pitfalls
 - Step profile, high speed and few bars on the whole rig is large-area flashing; over 3 Hz fails the flash check.

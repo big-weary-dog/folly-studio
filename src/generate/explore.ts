@@ -1,15 +1,15 @@
-// Exploring before committing (SPEC-generators "Explore"). Explore: one sketch turn (three takes on the idea, differing
+// Exploring before committing (SPEC-generators "Explore"). Explore: one draft turn (three takes on the idea, differing
 // in lead, motion, scale, colour and tempo, and a synthesis saying what it took from each), then the synthesis
 // composed in rounds (rounds.ts) with a critique that must change its weakest part. Deep: the three takes composed
-// and rendered side by side, one look composed from what they showed, then two such critiques. A sketch turn that
+// and rendered side by side, one look composed from what they showed, then two such critiques. A draft turn that
 // fails or answers no three takes leaves the idea to the quick rounds. Effort is raised for the whole idea.
 
 import { type Explore } from '../../shared/schemas/api.ts';
 import { EFFORTS, type ModelEntry, type Transport, TRANSPORT_CAPS } from '../../shared/schemas/models.ts';
 import { monoNow } from '../clock.ts';
 import {
-  buildDeepMessage, buildSketchMessage, buildSynthesisMessage, buildTakeMessage, readSketches, SKETCH_SCHEMA,
-  type Sketches,
+  buildDeepMessage, buildDraftMessage, buildSynthesisMessage, buildTakeMessage, readDrafts, DRAFT_SCHEMA,
+  type Drafts,
 } from './explore-prompt.ts';
 import { viewFrames } from './frames-view.ts';
 import { NO_ROUND } from './idea-log.ts';
@@ -36,38 +36,38 @@ export function boosted(via: Transport, entry: ModelEntry | undefined, level: Le
     : { ...(entry ?? { id: via, label: via, via, enabled: true }), effort: want } as ModelEntry;
 }
 
-/** The idea composed at `level`: the rounds' answer, and the sketch turn's time and outcome. */
+/** The idea composed at `level`: the rounds' answer, and the draft turn's time and outcome. */
 export async function explore(o: Options & { level: Level }) {
   let { ctx } = o;
   const { level } = o, t0 = monoNow(), { critiques } = LEVELS[level];
   const mode = o.critique ?? 'images';
-  let sketches: Sketches | null = null, failed = '';
-  const round = ctx.journal?.begin('sketch') ?? NO_ROUND;
+  let drafts: Drafts | null = null, failed = '';
+  const round = ctx.journal?.begin('draft') ?? NO_ROUND;
   try {
-    sketches = readSketches(await o.adapter.generate({ ...ctx, turn: buildSketchMessage(ctx.text, ctx.groups),
-      schema: SKETCH_SCHEMA, round }));
-    if (!sketches) failed = 'not three takes';
+    drafts = readDrafts(await o.adapter.generate({ ...ctx, turn: buildDraftMessage(ctx.text, ctx.groups),
+      schema: DRAFT_SCHEMA, round }));
+    if (!drafts) failed = 'not three takes';
   } catch (err) {
     failed = why(err);
   }
-  round.end({ outcome: failed ? `failed: ${failed}` : sketches!.takes.map((t) => t.name).join(', '),
-    ...(sketches ? { took: sketches.synthesis.took, brief: sketches.synthesis.brief, docs: sketches.docs } : {}) });
+  round.end({ outcome: failed ? `failed: ${failed}` : drafts!.takes.map((t) => t.name).join(', '),
+    ...(drafts ? { took: drafts.synthesis.took, brief: drafts.synthesis.brief, docs: drafts.docs } : {}) });
   const ms = monoNow() - t0;
-  if (!sketches || o.stopping()) {
-    o.log.warn?.(`[generate] idea ${ctx.idea?.id}: sketching failed (${failed || 'stopping'}); composing directly`);
-    return { ...await compose(o), sketch: { ms, outcome: `failed: ${failed || 'stopping'}`, took: '' } };
+  if (!drafts || o.stopping()) {
+    o.log.warn?.(`[generate] idea ${ctx.idea?.id}: drafting failed (${failed || 'stopping'}); composing directly`);
+    return { ...await compose(o), draft: { ms, outcome: `failed: ${failed || 'stopping'}`, took: '' } };
   }
-  const aim = `${ctx.text}\n\nThe plan: ${sketches.synthesis.brief}`, tree = ctx.prompt?.().docs;
-  // The pages the sketch named come with every later turn (docs-turn.ts).
-  if (tree && sketches.docs.length) ctx = { ...ctx, docsGiven: pickDocs(tree, sketches.docs) };
-  const sketch = { ms, outcome: `${sketches.takes.map((t) => t.name).join(', ')}`,
-    took: sketches.synthesis.took };
+  const aim = `${ctx.text}\n\nThe plan: ${drafts.synthesis.brief}`, tree = ctx.prompt?.().docs;
+  // The pages the draft turn named come with every later turn (docs-turn.ts).
+  if (tree && drafts.docs.length) ctx = { ...ctx, docsGiven: pickDocs(tree, drafts.docs) };
+  const draft = { ms, outcome: `${drafts.takes.map((t) => t.name).join(', ')}`,
+    took: drafts.synthesis.took };
   if (level === 'explore') {
-    return { ...await compose({ ...o, ctx: { ...ctx, turn: buildSynthesisMessage(ctx.text, sketches) }, aim,
-      critique: mode, critiques, revise: true }), sketch };
+    return { ...await compose({ ...o, ctx: { ...ctx, turn: buildSynthesisMessage(ctx.text, drafts) }, aim,
+      critique: mode, critiques, revise: true }), draft };
   }
   // Deep: the takes built at once (rendered as a critique would see them, none asked), then one look from them.
-  const s = sketches;
+  const s = drafts;
   const built = await Promise.all(s.takes.map((_, i) => compose({ ...o, ctx: { ...ctx,
     turn: buildTakeMessage(ctx.text, s, i) }, critique: mode, critiques: 0, kind: 'take' }).then((b) => {
     const view = b.seen?.bytes && ctx.rig ? viewFrames(b.seen.bytes, ctx.rig, {
@@ -79,7 +79,7 @@ export async function explore(o: Options & { level: Level }) {
   })));
   const images = built.flatMap((b) => b?.stills.map((st) => st.png) ?? []);
   const turn = buildDeepMessage(ctx.text, s, built.map((b) => b && { ...b, stills: b.stills.map((st) => st.at) }));
-  const takes = { ...sketch, ms: monoNow() - t0 };
+  const takes = { ...draft, ms: monoNow() - t0 };
   return { ...await compose({ ...o, ctx: { ...ctx, turn, images }, aim, critique: mode, critiques, revise: true }),
-    sketch: takes };
+    draft: takes };
 }

@@ -4,14 +4,14 @@ import { z } from 'zod';
 
 import { GlobalLimits, PersonLimits } from './access.ts';
 
-/** How a model is reached: the Messages API, the Codex CLI, the offline sketcher, or the Fleet foundry. */
-export const TRANSPORTS = ['claude', 'codex', 'sketch', 'fleet'] as const;
+/** How a model is reached: the Messages API, the Codex CLI, or the Fleet foundry. */
+export const TRANSPORTS = ['claude', 'codex', 'fleet'] as const;
 export type Transport = typeof TRANSPORTS[number];
 export const ROLES = ['member', 'curator', 'admin'] as const;
 export type Role = typeof ROLES[number];
 /** The effort levels each transport takes (Claude: output_config.effort; Codex: model_reasoning_effort). */
 export const EFFORTS: Record<Transport, readonly string[]> = { claude: ['low', 'medium', 'high', 'xhigh', 'max'],
-  codex: ['minimal', 'low', 'medium', 'high', 'xhigh'], sketch: [], fleet: [] };
+  codex: ['minimal', 'low', 'medium', 'high', 'xhigh'], fleet: [] };
 /** What a transport can do. `prompted`: it reads the guide and composes in rounds (docs, render check, critique);
  * `explores`: it takes an idea's explore level (SPEC-generators "Explore"); `refines`: it may refine a look;
  * `critiques`: it may look at a look's frames; `paid`: it spends money or capacity, so it needs an unlocked account;
@@ -25,8 +25,6 @@ export const TRANSPORT_CAPS: Record<Transport, TransportCaps> = {
     defaultEffort: 'medium', laneDefault: 4 },
   codex: { prompted: true, explores: true, refines: true, critiques: true, paid: true, needsModel: true,
     defaultEffort: 'low', laneDefault: 2 },
-  sketch: { prompted: false, explores: false, refines: true, critiques: false, paid: false, needsModel: false,
-    laneDefault: 4 },
   fleet: { prompted: false, explores: false, refines: false, critiques: false, paid: true, needsModel: false,
     laneDefault: 1, laneMax: 1 },
 };
@@ -111,12 +109,8 @@ export function readModels(json: unknown): { config: ModelsConfig } | { error: s
 /** `paid` and `explores`: its transport's (TRANSPORT_CAPS). */
 export type ModelChoice = { id: string, label: string, paid: boolean, explores?: true };
 export const isPaid = (m: { via: Transport }) => TRANSPORT_CAPS[m.via].paid;
-/** Whether Sketch is offered to people other than admins. Off: its looks fall short, so it stays in the registry
- * (and on the Models page) for admins alone, whatever the file says. */
-export const SKETCH_FOR_EVERYONE = false;
-/** Whether `role` may pick `m`: its `roles`, and Sketch only where it is offered. */
-export const offeredTo = (m: { via: Transport, roles?: readonly Role[] }, role: Role) =>
-  (m.via !== 'sketch' || SKETCH_FOR_EVERYONE || role === 'admin') && (!m.roles || m.roles.includes(role));
+/** Whether `role` may pick `m`: its `roles`. */
+export const offeredTo = (m: { roles?: readonly Role[] }, role: Role) => !m.roles || m.roles.includes(role);
 /** `deep` (while Deep is on): what a Deep idea counts as, and whether it is admins' only. */
 export type ModelChoices = { models: ModelChoice[], default: string | null, deep?: { uses: number,
   adminOnly: boolean } };

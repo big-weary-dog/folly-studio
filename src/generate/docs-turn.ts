@@ -1,4 +1,4 @@
-// The library docs an idea's turn carries whole (SPEC-generators "Library docs"): the pages its sketch named (Explore,
+// The library docs an idea's turn carries whole (SPEC-generators "Library docs"): the pages its drafts named (Explore,
 // Deep) or its look uses (a refinement). The READMEs stay out: the system prompt says what they do. Every call of the
 // idea (compose, repair, critique) sends the same pages again, so the model reads none of them with read_doc, which
 // stays for a page not given.

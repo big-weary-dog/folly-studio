@@ -1,12 +1,12 @@
 ---
-looks: Every LED glitters on its own in light colours over a slow gradient of body colours.
+looks: Every LED glitters in high colours over a slow gradient of low colours.
 ---
 A textured bed alive without moving: sequins, frost, heat haze. **starfield** is sparse glints on a dark sky;
 **sparkle** with a short flash gives discrete twinkles.
 
 ## Overrides
 - sparkle.often: 480 shimmers, 60–120 a slow twinkle, over 720 static.
-- sparkle.flash: 0.89 lively, 0.95–1 floods with the high colour, 0.6–0.7 the odd spark.
+- sparkle.flash: 0.89 lively, 0.95–1 a more even glow in the high colours, 0.6–0.7 rarer bright moments.
 - sparkle.density: 0.3 leaves most of the bed still.
 - bars.speed: the bed's climb; 0 holds it.
 

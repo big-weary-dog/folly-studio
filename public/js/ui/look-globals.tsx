@@ -7,9 +7,10 @@ import { useId } from 'preact/hooks';
 import { macroNameOk } from '../core/globals.ts';
 import { PALETTE_ROLES } from '../core/stdlib.ts';
 import type { Globals, Palette } from '../../../shared/schemas/look.ts';
-import { Field, humanize, Scrub } from './kit.tsx';
+import { Field, humanize, onSpan, Scrub } from './kit.tsx';
 import { renameMacro } from './look-globals-edit.ts';
 import { Drives, ModulatorCards } from './look-mods.tsx';
+import { type ModCtx, normNow, useFollow } from './mod-live.tsx';
 import { macroUses, type Use } from './mod-uses.ts';
 import type { Studio } from './studio-store.ts';
 
@@ -54,8 +55,8 @@ export function GlobalsPanel({ st, palettes }: { st: Studio; palettes: (Palette 
         <div class="globals-h-row"><h3 class="globals-h">{mods.length ? 'Faders' : 'Macros'}</h3>
           <button type="button" class="btn small wide-only" data-tour="macro-add" onClick={addMacro}>
             + Macro</button></div>
-        <ul class="macro-list">{all.filter(([, m]) => !m.mod).map(([name, m]) => <MacroRow key={name} name={name}
-          m={m} automated={!!lanes[name]} uses={uses.get(name) ?? []} st={st}
+        <ul class="macro-list">{all.filter(([, m]) => !m.mod).map(([name, m]) => <MacroRow name={name} m={m}
+          key={`${name}:${!!lanes[name]}`} automated={!!lanes[name]} uses={uses.get(name) ?? []} st={st}
           rename={(to) => st.edit((look) => renameMacro(look, name, to))}
           set={(value) => set((x) => { x.macros = { ...x.macros, [name]: { ...m, value } }; })}
           taken={(to) => !macroNameOk(to) || !!g.macros?.[to]} />)}</ul>
@@ -63,10 +64,20 @@ export function GlobalsPanel({ st, palettes }: { st: Studio; palettes: (Palette 
     </div>);
 }
 
+/** An automated macro's value at show time t, from its lane, to a thousandth of its range. */
+export function laneNow(look: ReturnType<ModCtx['look']>, name: string, m: Macro, t: number) {
+  const span = m.max - m.min || 1;
+  return onSpan(m.min + normNow({ look: () => look, t: () => t, clips: () => null, narrow: false }, name) * span, span);
+}
+
 function MacroRow({ name, m, automated, rename, set, taken, uses, st }: { name: string; m: Macro; automated: boolean;
   rename: (to: string | null) => void; set: (v: number) => void; taken: (to: string) => boolean; uses: Use[];
   st: Studio }) {
   const id = useId();
+  // An automated macro shows its lane's value as it plays, not the stored one the lane overrides (its key holds
+  // `automated`, so a row whose lane comes or goes mounts again and follows the clock from then).
+  useFollow(() => automated && st.clock.t);
+  const value = automated ? laneNow(st.look.peek(), name, m, st.clock.t) : m.value;
   return (   // a field whose label is its name, to edit
     <li class="field macro" data-tour={`macro:${name}`}>
       <input type="text" class="macro-name" value={name} maxlength={32} spellcheck={false}
@@ -77,7 +88,7 @@ function MacroRow({ name, m, automated, rename, set, taken, uses, st }: { name: 
         }} />
       <div class="field-control"><label for={id} class="sr-only">{name} value</label>
         {automated && <span class="globals-auto">automated</span>}
-        <Scrub id={id} min={m.min} max={m.max} step={(m.max - m.min) / 100} value={m.value} set={set}
+        <Scrub id={id} min={m.min} max={m.max} step={(m.max - m.min) / 100} value={value} set={set}
           disabled={automated} />
         <button type="button" class="icon-btn wide-only" aria-label={`Delete ${name}`} onClick={() => rename(null)}>
           ×</button></div>

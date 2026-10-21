@@ -5,7 +5,7 @@ import { useId, useLayoutEffect, useRef } from 'preact/hooks';
 
 import { MAX_MACROS, MAX_POINTS } from '../core/globals.ts';
 import type { Automation } from '../../../shared/schemas/look.ts';
-import { humanize } from './kit.tsx';
+import { humanize, onSpan } from './kit.tsx';
 import { automate } from './automation-edit.ts';
 import type { Studio } from './studio-store.ts';
 import { clock } from './timeline-model.ts';
@@ -63,7 +63,7 @@ function Lane({ name, pts, range, tl, get, set }: { name: string; pts: Point[]; 
     let t = Math.max(0, Math.min(tl.duration.peek(), (e.clientX - box.left) / tl.pps.peek()));
     if (step) t = Math.round(t / step) * step;
     const k = Math.max(0, Math.min(1, 1 - (e.clientY - box.top - PAD) / (H - 2 * PAD)));
-    return [r3(t), r3(range.min + k * (range.max - range.min))];
+    return [r3(t), onSpan(range.min + k * span, span)];
   }
   const sorted = (list: Point[]) => list.sort((a, b) => a[0] - b[0]);
   function down(e: PointerEvent) {
@@ -109,6 +109,8 @@ function Lane({ name, pts, range, tl, get, set }: { name: string; pts: Point[]; 
           {xy.map(([x, y], i) => <g>
             <circle class="tl-auto-dot" r={5.5} cx={x} cy={y} data-i={i}
               data-level={automationLevel(pts[i][1], range)} />
+            <text class="tl-auto-val" x={x > w - 90 ? x - 10 : x + 10} y={Math.min(H - 6, Math.max(12, y + 4))}
+              text-anchor={x > w - 90 ? 'end' : 'start'}>{`${clock(pts[i][0])} · ${pts[i][1]}`}</text>
             {automationLevel(pts[i][1], range) === 'mid' && <path class="tl-auto-half"
               d="M 0 -5.5 A 5.5 5.5 0 0 0 0 5.5 Z" transform={`translate(${x} ${y})`} />}
           </g>)}

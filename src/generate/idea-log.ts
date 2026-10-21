@@ -115,7 +115,7 @@ export function createIdeaLog(o: { dir?: string, meta: Record<string, unknown>, 
         },
       };
     },
-    /** The round running now (the latest, when sketches run side by side) and how many have ended; null when the
+    /** The round running now (the latest, when takes run side by side) and how many have ended; null when the
      * idea has ended. */
     live() {
       if (meta.endedAt) return null;

@@ -1,12 +1,13 @@
 ---
-looks: Comet-tailed bands step from front to back, a step every beat, over a base colour.
+looks: Comet-tailed bands surge from front to back once a beat, over a base colour.
 ---
-Stately, beat-locked march front to back on the whole rig. **depth-wave** rolls smoothly with no beat;
-**marquee** steps along wires.
+Beat-locked motion front to back on the whole rig, alternating between moving and pausing. **depth-wave** rolls
+smoothly with no beat; **marquee** chases along wires.
 
 ## Overrides
-- bars.speed: the LFO's `rate` is steps a beat; equal `center` and `depth` set the step (0.5 each ≈ half a bar). A
-  plain number glides. If `depth` > `center`, tails flip back each beat.
+- bars.speed: the hold LFO's `rate` is surges a beat; `center` 0.5 and `depth` 0.5 alternate between 0 and 1
+  bar a second. At 120 bpm the average advance is a quarter of a bar per beat. A plain number glides steadily.
+  If `depth` > `center`, motion reverses for part of each beat.
 - bars.bars: 2 bold, 5 busy.
 - bars.direction: `front` toward the audience.
 - bars.colours: the bands. colour-wash.colours: the bed.

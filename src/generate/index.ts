@@ -1,11 +1,11 @@
 // The idea → look queue, in-process. Each idea names a model of the registry (models.ts); its job waits in its
-// model's transport lane (claude, codex, sketch, fleet), each lane with its own concurrency, so a slow call on one
+// model's transport lane (claude, codex, fleet), each lane with its own concurrency, so a slow call on one
 // never holds up another. A job: idea 'generating', the adapter turns the text into a look, validateLook
 // (shared/schemas/generated.ts) cleans it, the look is saved and the idea 'ready' with where the time went, or
 // 'failed' with a user-safe error (the Studio offers "Try again"): no other generator stands in for a failed one.
 // An adapter may also return `bake` (a checkFrames record, kept on the look) and `frames` (stored).
 // The Fleet foundry (via fleet) is opt-in, STUDIO_FOUNDRY=on, one job at a time: busy, its ideas wait; off, they fail.
-// STUDIO_GENERATOR_FALLBACK opts into a one-shot instead (busy too, unless STUDIO_FOUNDRY_WAIT=1); never Sketch.
+// STUDIO_GENERATOR_FALLBACK opts into a one-shot instead (busy too, unless STUDIO_FOUNDRY_WAIT=1).
 // An idea that names no model (from before the registry) goes to STUDIO_GENERATOR's transport.
 
 import path from 'node:path';
@@ -36,7 +36,6 @@ import { refineHistory } from './refine-history.ts';
 import { type Composition, decompose, diffCompositions, keepSwitches } from './refine.ts';
 import { keepUntouched } from './edits.ts';
 import { compose, type Critique, type Rounds } from './rounds.ts';
-import { sketchRefine } from './sketch-refine.ts';
 import type { Logger } from '../http.ts';
 import type { Store, StoredLook } from '../store.ts';
 
@@ -62,7 +61,7 @@ export type Adapter = { name?: string, generate(ctx: Context): unknown };
 type Route = { id: string, label: string, via: string, entry?: ModelEntry };
 type Explored = Awaited<ReturnType<typeof explore>>;
 type Job = { id: string, route: Route, queuedAt: number, again?: true };
-const LABELS: Record<string, string> = { sketch: 'Sketch', claude: 'Claude', codex: 'Codex', fleet: 'Fleet' };
+const LABELS: Record<string, string> = { claude: 'Claude', codex: 'Codex', fleet: 'Fleet' };
 const FOUNDRY = 'fleet'; // the transport STUDIO_FOUNDRY turns on, with its one-shot stand-in
 const prompted = (via: string) => !!capsOf(via)?.prompted;
 
@@ -75,14 +74,14 @@ export const foundryOf = (c: Config = configOf()) => ({ on: c.STUDIO_FOUNDRY ?? 
  * (an idea's `model` picks the route); adapterName: STUDIO_GENERATOR, the route of an idea that names no model;
  * adapters: transport → { generate } or a function, over the built-in ones; concurrency: STUDIO_GENERATOR_CONCURRENCY,
  * per lane where the registry says nothing; fallbackName: STUDIO_GENERATOR_FALLBACK, the foundry's one-shot generator
- * (a model or transport; else sketch); loadVersion: changes when the library or rig does (the prompt is built again
+ * (a model or transport); loadVersion: changes when the library or rig does (the prompt is built again
  * only then); box and lane: the render box and the bakes' lane, for the render check and critique (none: no check);
  * interruptGraceMs: how long a call cut by a stray stop signal waits for the server's own stop before it runs again;
  * ideaLogs: where each idea's log goes (none: in memory).
  */
 export function createQueue({
   store, loadLibrary = () => [], loadRig = () => null, loadLight, loadVersion, models, log = console, adapters = {},
-  config = configOf(), adapterName = config.STUDIO_GENERATOR || 'sketch',
+  config = configOf(), adapterName = config.STUDIO_GENERATOR || models?.defaultId() || 'claude',
   fallbackName = config.STUDIO_GENERATOR_FALLBACK || '', concurrency = config.STUDIO_GENERATOR_CONCURRENCY || 0,
   framesDir, foundry = foundryOf(config), codexBin, box, lane: bakeLane,
   critiqueBudgetMs = config.STUDIO_CRITIQUE_BUDGET_MS || 90_000, interruptGraceMs = 2000, ideaLogs,
@@ -99,7 +98,7 @@ export function createQueue({
     const given = adapters[r.via];
     if (given) return typeof given === 'function' ? { generate: given } : given;
     const key = JSON.stringify([r.via, r.entry ?? null]);
-    const module = ADAPTERS[r.via as Transport] ?? ADAPTERS.sketch;
+    const module = ADAPTERS[r.via as Transport];
     if (!made.has(key)) made.set(key, module.create(r.entry, { log, codexBin, config }));
     return made.get(key)!;
   }
@@ -111,10 +110,11 @@ export function createQueue({
   }
 
   // An idea from before the registry names no model: it goes where STUDIO_GENERATOR sent ideas then.
-  let primary = String(adapterName || 'sketch').trim().toLowerCase();
+  let primary = String(adapterName).trim().toLowerCase();
   if (!route(primary)) {
-    log.error?.(`[generate] unknown generator "${adapterName}"; using sketch`);
-    primary = 'sketch';
+    const instead = models?.defaultId() ?? 'claude';
+    log.error?.(`[generate] unknown generator "${adapterName}"; using ${instead}`);
+    primary = instead;
   }
   const fallback = fallbackName ? route(fallbackName) : null;
   const oneShot = fallback && fallback.via !== FOUNDRY ? fallback : null;
@@ -227,8 +227,6 @@ export function createQueue({
       lane: bakeLane, startedAt: t0, budgetMs: LEVELS[lv].budgetMs, stopping: () => stopping, log, level: lv })
       : prompted(by.via) && catalog && ctx.prompt ? await rounds(adapter, { critique: mode, box,
         edit: refine?.start ? undefined : refine?.comp })
-      : refine && catalog && by.via === 'sketch'
-        ? await rounds({ generate: () => sketchRefine(refine.comp, ctx.text, { ...ctx, catalog }) }, {})
       : await (async () => {
         const raw = await adapter.generate(ctx);
         return { raw, look: validateLook(raw, ctx) };
@@ -277,7 +275,7 @@ export function createQueue({
       const timing = { wait: started - queuedAt, prompt, request, parse: out.parse, total: 0,
         ...(tokens ? { tokens } : {}),
         ...(out.check !== undefined ? { check: out.check } : {}),
-        ...(out.critique ? { critique: out.critique.ms } : {}), ...(out.sketch ? { sketch: out.sketch.ms } : {}) };
+        ...(out.critique ? { critique: out.critique.ms } : {}), ...(out.draft ? { draft: out.draft.ms } : {}) };
       const read = prompted(used.via) ? ctx.docsRead : undefined;
       const how = `${describeRounds(out)}; ${describeUses(out.uses ?? NO_USES)}${describeDocs(read)}${
         dropped(look.dropped)}`;
@@ -305,7 +303,7 @@ export function createQueue({
       timing.total = monoNow() - queuedAt;
       outcome = { status: 'ready', lookId: saved.id };
       await move(id, 'ready', { lookId: saved.id, generator: used.id, by: used.label, error: null, timing,
-        ...rounds, ...(out.sketch?.took ? { took: out.sketch.took } : {}) });
+        ...rounds, ...(out.draft?.took ? { took: out.draft.took } : {}) });
       log.info?.(`[generate] idea ${id} ready via ${used.id} in ${timing.total} ms `
         + `(queued ${timing.wait}, request ${request}${how}; look ${saved.id})`);
     } catch (err) {
@@ -366,7 +364,7 @@ export function createQueue({
       if (id == null || active.has(id) || stopping) return false;
       const wanted = (typeof idea === 'object' ? idea.model : undefined) ?? store.ideas.get(id)?.model;
       const asked = route(wanted || primary), r = asked?.via === FOUNDRY && !foundryOn ? oneShot : asked;
-      if (!r) { // never Sketch in its place: it is offered to admins alone
+      if (!r) { // no other model in its place
         const error = asked ? `${asked.label} is off right now; try another model.` : 'Its model is gone; try another.';
         void move(id, 'failed', { error });
         return false;

@@ -29,7 +29,7 @@ beforeAll(async () => {
   manifest = JSON.parse(await readFile(path.join(dist, '.vite/manifest.json'), 'utf8'));
   dir = await mkdtemp(path.join(os.tmpdir(), 'studio-transfer-'));
   app = await createServer({ dataDir: dir, distDir: dist, generator: { enqueue() {} }, log: quiet,
-    admins: 'wire' }); // Sketch, the one model here, is admins' alone
+    admins: 'wire', models: { env: { PATH: path.join(import.meta.dirname, 'fixtures/generate/bin') } } });
   port = (await app.listen(0)).port;
   const res = await request(port, '/api/signup', { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ username: 'wire', password: 'correct horse' }) });
@@ -90,7 +90,7 @@ test('a reload, a minute or a day later, sends only the shell and the API calls:
 test('an idea session: polls back off and answer 304s; lists carry metadata, not code', async () => {
   const b = browser(port, { cookie, manifest });
   await b.load('/ideas', { view: 'js/ui/pages.tsx', api: ['/api/me', '/api/ideas', '/api/models'] });
-  const body = { text: 'Rising embers drift up the spires', model: 'sketch' };
+  const body = { text: 'Rising embers drift up the spires', model: 'sol' };
   const { idea } = JSON.parse((await b.call('POST', '/api/ideas', body)).text);
   app.store.ideas.update(idea.id, { status: 'generating' });
   // ui/pages.tsx long-polls; where the server answers at once (this queue cannot be watched), it asks after 2 s, then

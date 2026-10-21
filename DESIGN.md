@@ -343,7 +343,6 @@ server.
 
 | Generator | How | Cost |
 |---|---|---|
-| `sketch` (default) | Offline keyword match: library patterns and params; place words to tags | Instant, free, always on; the fallback |
 | `claude` | One Messages API call with structured output (that schema as JSON Schema, group ids and tags as enums, so what the model may write and what the server keeps cannot drift apart; our own `fetch` client, no SDK). The system prompt (rig description, pattern guide, group tree, show taste, every library entry, five examples; ≈ 23 K characters, ≈ 5.9 K tokens) is cached; the idea goes only in the user turn, fenced as untrusted | Seconds, cents |
 | `fleet` (experimental) | A boxed Codex worker per idea: writes `look.json`, checks and bakes it in its box, hands it back | Minutes; opt-in foundry |
 

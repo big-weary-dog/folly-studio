@@ -13,7 +13,7 @@ Layer blends, how a layer meets the layers below:
 - `multiply`: tints what is below; a dark layer darkens. A colour cast over everything.
 
 ## Chains and the one rule
-A layer is a chain of modules listed top to bottom (at most 6), or a preset (a ready chain). One rule: each module
+A layer is a chain of modules listed top to bottom (at most 8), or a preset (a ready chain). One rule: each module
 works on everything above it, as in an image editor.
 - A **source** draws its element on transparent onto what is above it. Alpha is how much it covers; it paints no
   background. The first source covers; later ones add, unless given a `blend`: `over`, `add`, `max`, `multiply`, or
@@ -47,17 +47,19 @@ second bars. Start from a preset when one is the idea, or copy its recipe into `
   following each wire. Each module lists the ones it takes.
 - Colours (`colours`, a pick): `all` (the palette low to high), a role (`low` `body` `accent` `high`), a slot
   (`accent2`), `rainbow`, or `#rrggbb`; joined by spaces in order (`"accent high"`) or dealt in turn with `/`
-  (`"body/accent"`). A source draws only from its one pick and reads it by position: bands take colours in turn, a
-  gradient runs first to last, a head or crest takes the last. So order a pick dark to bright for fire-like things.
+  (`"body/accent"`). A source reads its pick by position: bands take colours in turn, a gradient runs first to last,
+  a head or crest takes the last. Fire also has a separate `tips` pick for its tips and embers.
+  Order a pick dark to bright for fire-like things.
 
 ## Bindings: motion and build
 Any number param may be bound instead of set:
 - `{ "mod": "lfo", "rate": 0.2, "shape": "sine", "center": 0.5, "depth": 0.5 }`: a wave in Hz, or with `"unit":
-  "beats"` its rate is cycles a beat at the look's bpm (0.25: once a bar). Shape `hold` steps and holds (one step a
-  beat, a curtain that opens and waits). `"amount": "<fader>"` scales its swing by a macro's value (0
-  holds it at its centre); `"pace": "<fader>"` multiplies its rate by one (a storm that quickens it), never jumping.
+  "beats"` its rate is cycles a beat at the look's bpm (0.25: once a bar). Shape `hold` eases up, holds, eases down,
+  then holds low; its `hold` value is the share of the cycle spent holding, split between both ends.
+  `"amount": "<fader>"` scales its swing by a macro's value (0 holds it at its centre);
+  `"pace": "<fader>"` multiplies its rate by one (a storm that quickens it), never jumping.
 - `{ "mod": "global", "name": "energy", "from": 0.2, "to": 1 }`: follows one of the look's macros or modulators
-  (here one named `energy`). Library sources never read a macro themselves: bind density, speed or level to one.
+  (here one named `energy`). Library sources never read a macro themselves: bind density, speed or brightness to one.
 - `{ "mod": "beats", "per": 0.5 }`: a speed in time with the beat (the Studio's beat clock on its field): the
   param is `per` × the beats a second, so it follows the bpm.
 Speeds are integrated, so binding a speed never makes the motion jump.
@@ -79,6 +81,11 @@ A macro is a named number of the look's own (`globals.macros`, at most 16; a nam
 any layer to it and one automation lane moves them together: the storm darkens the bed while bolts come faster.
 `from`..`to` maps the macro's place in its own min..max onto the param (the example below). A
 layer's `level` is not a param and cannot be bound: bind a source's brightness, density or speed instead.
+
+Mixed-family palettes include `patina` (blue and copper), `meadow` (green and lavender), `orchid` (turquoise
+and pink), `solstice` (violet and citrus), `guava` (coral and mint), and `voltage` (cobalt and chartreuse).
+These put both families in `body`; use `body` for their shared gradient or individual slots for separate bands.
+Swatch hexes are sRGB colour values; use brightness controls to set the light level.
 
 ## Modulators: things that move together
 A macro with a `mod` (an LFO) is a modulator: it moves by itself, and every param bound to it
