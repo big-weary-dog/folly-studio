@@ -26,8 +26,9 @@ setting that already points into `/home/fpp/folly-data`), checks the SHA-256 aga
 `src/frames.ts`'s strict `parseFseq`, and maps the rig's channels to its LEDs. The bytes are the look's colour, so
 they go out through the same light transform, master, blackout, fades and flash guard as a live look. It loads the
 next item's frames ahead, async, so the frame loop never waits. Gone or changed (evicted, re-baked): the item is
-skipped, saying so. Baking on the Pi is out of scope: a bake needs bubblewrap where it is made, and the UI and docs
-say so; a Pi without it plays live looks only.
+skipped, saying so. The Pi bakes too, in the render box under bubblewrap, never starving the engine: one at a
+time, `nice 19`, 384 MB (the Pi profile's defaults). A Pi without bubblewrap plays live looks only, and the UI
+and docs say so.
 
 ## Who can add to it
 
@@ -58,7 +59,11 @@ shipped looks (and `safe`) are untouched.
 2. Engine: baked items (`frames` setting, load/verify/play), tests with a fixture bake.
 3. Studio: `/api/lights`, `/api/admin/lights` + the toggle, the feed sending (`PI_PIN`), the proxy filter, Play on the
    lights in the editor and cards, the queue on `/live/control` and `/live`. Smoke; pictures at 1366 and 390.
-4. Docs: `pi/README.md`, `pi/STUDIO.md` (bind 127.0.0.1, `frames`, bakes need bubblewrap), `docs/HOSTING.md`.
+4. Baking on the Pi: the Pi profile's bake limits (`nice 19`, 384 MB), `npm run bake-bench`, and `pi/STUDIO.md`
+   installing bubblewrap, checking user namespaces and measuring bakes in Phase 0.
+5. The live page with jukebox control, phone first: `/live` on the Pi switches between the Folly and the track
+   listing (now playing, up next: add, move, remove, skip), with the engine's live controls (macros, faders,
+   blackout) beside them. Smoke; pictures at 1366 and 390 for each view.
 
 ## Decided
 

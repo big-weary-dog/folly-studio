@@ -28,15 +28,32 @@ On the Pi, as `fpp`, with FPP idle and no live app running, in the clone ([INSTA
 ```sh
 uname -m          # aarch64 or armv7l
 free -m
-which bwrap prlimit || echo "no bubblewrap: bakes answer 503 (fine at first)"
 for look in safe fire heartbeat-plasma; do
   npm run pi -- --dry-run --http 0 --look $look --seconds 30 --stats 10 2>&1 | grep -E 'fps|render|late'
 done
 ```
 
 Each stats line gives the frame rate, the render time per frame and `late` (frames the timer skipped). A look whose
-render time is over 25 ms cannot hold 40 fps: note which. Send the output, all of it, to whoever looks after
-Studio; it settles the default look and which presets are too heavy for the Pi.
+render time is over 25 ms cannot hold 40 fps: note which.
+
+Bakes (a look with custom code plays on the lights only as its bake) run in the render box, which needs bubblewrap
+and unprivileged user namespaces. Raspberry Pi OS (Debian) allows those as installed. `bake-bench` comes with the `pi`
+branch: on an older clone, run this part after step 1.
+
+```sh
+sudo apt install -y bubblewrap
+sysctl user.max_user_namespaces                    # above 0
+sysctl kernel.unprivileged_userns_clone 2>/dev/null  # 1, where the kernel has it
+bwrap --unshare-all --ro-bind / / --dev /dev --proc /proc true && echo "bubblewrap works"
+npm run bake-bench
+```
+
+`bake-bench` bakes the same three looks, 30 s each, one after another, in the box Studio uses with the Pi's limits
+(`nice 19`, 384 MB). Per look it prints the wall time, seconds of bake per second of look and frames per second. On
+the hosting machine (Ryzen 7 8700F) they were 0.02 s per s (~2000 frames/s) for `safe`, 0.065 (~620) for `fire` and
+0.17 (~235) for `heartbeat-plasma`. With `npm run pi -- --dry-run --http 0 --look fire` running in another terminal, its
+stats show whether a bake costs the engine frames (`late`). Send all the output, both parts, to whoever looks after
+Studio; it settles the default look, which presets are too heavy for the Pi, and whether the Pi bakes.
 
 ## 1. The `pi` branch
 
@@ -83,7 +100,6 @@ STUDIO_DATA=/home/fpp/folly-data
 STUDIO_ADMINS=crewlead
 STUDIO_CURATORS=alice,bob
 PI_PREVIEW_URL=http://127.0.0.1:4043
-STUDIO_BAKE_MEMORY=384MB
 EOF
 chmod 600 /home/fpp/.config/folly-studio/studio.env
 cd /home/fpp/folly-studio && npm run config:check -- /home/fpp/.config/folly-studio/studio.env
@@ -107,9 +123,10 @@ baked frames. In `/home/fpp/folly-studio/pi/config.json` (gitignored; keep any s
 `studio.env` as `PI_PIN` too, so Studio can play looks on it.
 
 Curators play looks from Studio (**Play on the lights**): a look made only of library modules plays live while Admin →
-Light's **Live library looks** is on; a look with custom code plays only as its bake. Bakes are made in the render box,
-which needs bubblewrap: on a Pi without it such looks cannot play on the lights until they are rebuilt from library
-modules.
+Light's **Live library looks** is on; a look with custom code plays only as its bake. Bakes are made on the Pi in the
+render box (bubblewrap, step 0), one at a time, at `nice 19` under the engine and Studio, within 384 MB
+(`STUDIO_BAKE_NICE`, `STUDIO_BAKE_MEMORY`). Without bubblewrap such looks cannot play on the lights until they are
+rebuilt from library modules.
 
 ## 3. The Studio unit
 

@@ -12,7 +12,7 @@ import { afterAll, beforeAll, describe, test } from 'vitest';
 import { engineOn } from '../pi/test/fixture.ts';
 import { controlServer } from '../pi/src/server.ts';
 import { readConfig } from '../src/config.ts';
-import { generates, hostRefusal, profileDefaults, profileOf } from '../src/profile.ts';
+import { boxDefaults, generates, hostRefusal, profileDefaults, profileOf } from '../src/profile.ts';
 import { layer, signup, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
@@ -89,8 +89,14 @@ describe('the profile setting', () => {
   });
 
   test('the Pi has its own defaults and no generators', () => {
-    assert.deepEqual(profileDefaults('pi'), { previews: 'front', framesMaxBytes: 1024 ** 3 });
-    assert.deepEqual(profileDefaults('hosted'), { previews: 'playa', framesMaxBytes: undefined });
+    assert.deepEqual(profileDefaults('pi'), { previews: 'front', framesMaxBytes: 1024 ** 3, bakeNice: 19,
+      bakeMemory: 384 * 1024 ** 2 });
+    assert.deepEqual(profileDefaults('hosted'), { previews: 'playa', framesMaxBytes: undefined, bakeNice: undefined,
+      bakeMemory: undefined });
+    // A bake on the Pi: at the bottom of the CPU and in 384 MB, unless the settings say otherwise.
+    assert.deepEqual(boxDefaults('pi', {}), { nice: 19, memoryBytes: 384 * 1024 ** 2 });
+    assert.deepEqual(boxDefaults('pi', { STUDIO_BAKE_NICE: 12, STUDIO_BAKE_MEMORY: 1 }), { nice: 12, memoryBytes: 1 });
+    assert.deepEqual(boxDefaults('hosted', {}), { nice: undefined, memoryBytes: undefined });
     assert.equal(generates('pi'), false);
     assert.equal(generates('hosted'), true);
   });

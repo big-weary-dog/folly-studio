@@ -17,8 +17,9 @@ Studios. `src/profile.ts` holds the profile; `public/js/ui/look-file.ts` the fil
   My looks, and `/ideas` leads there. The tutorial (SPEC-tutorial) leaves out its steps on Ideas.
 - **The lights.** `/pi` (below) is the Pi's own Studio Live engine, not a dry run, and is open to curators as well
   as admins. Their header has **Lights** (`/pi/`, the engine's control page).
-- **Defaults.** `STUDIO_PREVIEWS` is `front` (no browser on the Pi) and `STUDIO_FRAMES_MAX_BYTES` 1 GB (an SD
-  card); either setting still wins.
+- **Defaults.** `STUDIO_PREVIEWS` is `front` (no browser on the Pi), `STUDIO_FRAMES_MAX_BYTES` 1 GB (an SD
+  card), and a bake runs at `STUDIO_BAKE_NICE` 19 within `STUDIO_BAKE_MEMORY` 384 MB, one at a time, so it never
+  takes the engine's CPU; each setting still wins.
 - **Listening.** `HOST` may be any address. Under `hosted` the server refuses to start on anything but loopback
   (`127.0.0.1`, `localhost`, `::1`): the public site is reached through its tunnel.
 

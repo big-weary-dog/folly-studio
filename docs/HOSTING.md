@@ -281,8 +281,8 @@ them.
 | `STUDIO_BAKE_TIMEOUT` | a bake's wall clock, default scaled to its length |
 | `STUDIO_BAKE_CPU` | a bake's CPU seconds, default scaled to its length |
 | `STUDIO_BAKE_TASKS` | a bake's task ceiling, default 256 |
-| `STUDIO_BAKE_NICE` | a bake's nice level (0–19), default 10 |
-| `STUDIO_BAKE_MEMORY` | a bake's memory cap, default 1GB |
+| `STUDIO_BAKE_NICE` | a bake's nice level (0–19), default 10 (the Pi: 19) |
+| `STUDIO_BAKE_MEMORY` | a bake's memory cap, default 1GB (the Pi: 384MB) |
 | `STUDIO_BAKE_MAX_FRAMES` | the largest baked frames, default room for the longest bake |
 | `ANTHROPIC_API_KEY` | the Messages API key (Opus); a secret |
 | `ANTHROPIC_BASE_URL` | the Messages API, default https://api.anthropic.com |
