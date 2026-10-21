@@ -51,7 +51,7 @@ npm run bake-bench
 `bake-bench` bakes the same three looks, 30 s each, one after another, in the box Studio uses with the Pi's limits
 (`nice 19`, 384 MB). Per look it prints the wall time, seconds of bake per second of look and frames per second. On
 the hosting machine (Ryzen 7 8700F) they were 0.02 s per s (~2000 frames/s) for `safe`, 0.065 (~620) for `fire` and
-0.17 (~235) for `heartbeat-plasma`. With `npm run pi -- --dry-run --look fire` running in another terminal, its
+0.17 (~235) for `heartbeat-plasma`. With `npm run pi -- --dry-run --http 0 --look fire` running in another terminal, its
 stats show whether a bake costs the engine frames (`late`). Send all the output, both parts, to whoever looks after
 Studio; it settles the default look, which presets are too heavy for the Pi, and whether the Pi bakes.
 
