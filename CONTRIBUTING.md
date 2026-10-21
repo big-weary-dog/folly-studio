@@ -44,9 +44,12 @@ running it at home behind a tunnel, and `npm run backup` makes a dated `.tar.gz`
 
 The render-box tests need bubblewrap (`apt install bubblewrap`) and unprivileged user
 namespaces. Without them they skip (`ctx.skip(condition, reason)`) and the run ends listing each skipped test and
-why (`test/skip-reporter.js`). The data tests need `python3`. Run
-`npm run build-data` after any change to `../city-of-gods/pixel-map/`, `../pixel-map/`, `td/python/make_pixel_csv.py`,
-`td/config/` or Mirage's `src/config.js`; `test/data.test.js` fails while a rig is stale. Never edit one by hand.
+why (`test/skip-reporter.js`). The rigs and palettes come from a show-builder checkout (big-weary-dog/show-builder):
+`SHOW_BUILDER_DIR` names it, by default `../show-builder` beside this repo (`tools/sources.py`,
+`test/fixtures/sources.js`). The data tests need it and `python3`, and skip, saying so, without them; `npm run e2e`
+needs its `relay/` and `mirage/`. Run `npm run build-data` after any change there to `city-of-gods/pixel-map/`,
+`pixel-map/`, `td/python/make_pixel_csv.py`, `td/config/`, `td/palettes/` or Mirage's `src/config.js`;
+`test/data.test.js` fails while a rig is stale. Never edit one by hand.
 
 ## Dependencies
 
