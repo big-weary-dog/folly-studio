@@ -3,7 +3,8 @@ import { tourName } from '../../tour-view.ts';
 import { type Ctx, num, type Path } from '../types.ts';
 
 /** The look's first layer, the one a new look starts with: one module from the library's first source. */
-const washOf = ({ v }: Ctx) => v?.layers.value.find((l) => l.modules.length === 1 && l.modules[0].ref === 'colour-wash');
+const washOf = ({ v }: Ctx) => v?.layers.value
+  .find((l) => l.modules.length === 1 && l.modules[0].ref === 'colour-wash');
 
 export const firstLook: Path = {
   id: 'first-look', title: 'First look', minutes: 2, start: '/studio',
@@ -18,7 +19,8 @@ export const firstLook: Path = {
     { id: 'preset', page: '/studio', title: 'Add a preset',
       text: 'A new look starts with one colour wash. Click + Add, open Presets and pick {preset:starfield}.',
       anchor: ['layers-add', 'shelf-tab:preset', 'shelf:starfield'],
-      begin: ({ v }) => v?.layers.peek().length ?? 0, done: ({ v }, n) => (v?.layers.value.length ?? 0) > (n as number) },
+      begin: ({ v }) => v?.layers.peek().length ?? 0,
+      done: ({ v }, n) => (v?.layers.value.length ?? 0) > (n as number) },
     { id: 'view', page: '/studio', title: 'Look around',
       text: 'Try another view: click Rose, or drag the model to turn it.', anchor: ['view-bar', 'view:rose'],
       begin: ({ v }) => v?.view.peek(), done: ({ v }, was) => !!v && v.view.value !== was },

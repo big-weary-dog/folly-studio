@@ -40,7 +40,7 @@ export function GlobalsPanel({ st, palettes }: { st: Studio; palettes: (Palette 
           value={g[key] ?? d.value} automated={!!lanes[key]}
           set={(v) => set((x) => { if (v === d.value) delete x[key]; else x[key] = v; })} />)}
       </section>
-      <section class="globals-palette" aria-label="Palette">
+      <section class="globals-palette" aria-label="Palette" data-tour="palette">
         <Field label="Palette">{(id) => <select class="palette-select" id={id} value={named ? g.palette?.name : ''}
           onChange={(e) => {
             const p = palettes.find((x) => x.name === e.currentTarget.value);

@@ -19,6 +19,7 @@ export function PlaysOn({ st }: { st: Studio }) {
   }, [id]);
   return <Field label="Plays on" class="plays-on">
     <button type="button" class="btn small plays-on-btn" disabled={!l} aria-expanded={d.open} onClick={d.toggle}
+      data-tour="plays-on"
       title="Choose the groups this layer plays on">{l ? st.groupNames(l.groups, l.tags) : '—'}</button>
     <Drawer d={d} title={`Groups · ${l?.title ?? ''}`} class="groups-drawer">
       <div class="tree-wrap"><GroupsTree st={st} groups={l?.groups ?? null} set={(groups) => {
@@ -54,7 +55,7 @@ export function GroupsTree({ st, groups, set }: { st: Studio; groups: readonly s
     };
     return (
       <li class="tree-item">
-        <div class={cx('tree-row', pinned && 'pinned', checked && 'checked')} data-id={g.id}
+        <div class={cx('tree-row', pinned && 'pinned', checked && 'checked')} data-id={g.id} data-tour={`group:${g.id}`}
           style={{ '--depth': String(depth) }} onPointerEnter={() => { st.hoverGroup.value = g.id; }}
           onFocusIn={() => { st.hoverGroup.value = g.id; }}>
           {kids.length ? <button type="button" class="tree-toggle" aria-expanded={expanded} onClick={expand}

@@ -35,7 +35,7 @@ export function AutoLanes({ st, tl, focus }: { st: Studio; tl: TimelineState; fo
     <div class="tl-auto">
       <div class="tl-auto-head"><div class="tl-corner tl-auto-corner">Automation</div>
         <div class="tl-auto-tools"><select class="tl-auto-add" ref={add} aria-label="Automate a global" value=""
-          disabled={!free.length} onChange={(e) => addLane(e.currentTarget.value)}>
+          data-tour="automate" disabled={!free.length} onChange={(e) => addLane(e.currentTarget.value)}>
           <option value="">{free.length ? '+ Automate…' : 'All automated'}</option>
           {free.map((n) => <option value={n}>{humanize(n)}</option>)}</select></div></div>
       <div class="tl-auto-lanes">

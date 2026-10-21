@@ -16,7 +16,7 @@ export function SoftenRow({ st, l }: { st: Studio; l: Layer | null }) {
     if (l) st.editLayer(l.id, () => ({ soften: { radius, mode, ...patch } }));
   };
   return (
-    <Field label="Soften" class="soften-field"
+    <Field label="Soften" class="soften-field" tour="soften"
       title="Blurs the layer's colours across neighbouring LEDs after its chain: 0 is off">
       {(id) => <>
         <Scrub id={id} min={0} max={MAX_RADIUS * 100} step={1} unit=" cm" value={Math.round(radius * 100)}

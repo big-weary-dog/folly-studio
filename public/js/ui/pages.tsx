@@ -179,13 +179,14 @@ export function Ideas() {
           pattern code you can preview, tweak and export.</p>
         <form class="idea-form" ref={form} onSubmit={submit}>
           <label for="idea-input" class="sr-only">Describe a show idea</label>
-          <textarea id="idea-input" ref={input} class="idea-input" rows={4} maxlength={MAX_LEN} value={text}
+          <textarea id="idea-input" ref={input} class="idea-input"
+            data-tour="idea" rows={4} maxlength={MAX_LEN} value={text}
             placeholder="A coral reef breathing in slow blues, with fish darting up the spires…"
             onInput={(e) => setText(e.currentTarget.value)} onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); form.current?.requestSubmit(); }
             }} />
           <div class="chips-row"><span class="chips-label">Try:</span>
-            <div class="chips" role="group" aria-label="Example ideas">
+            <div class="chips" role="group" aria-label="Example ideas" data-tour="idea-examples">
               {EXAMPLES.map((ex) => <button type="button" class="chip" onClick={() => prefill(ex)}>{ex}</button>)}
             </div></div>
           {chosen?.explores && gate.kind !== 'locked' && <div class="explore">

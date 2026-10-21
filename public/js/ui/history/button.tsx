@@ -8,6 +8,6 @@ export function HistoryButton({ st }: { st: Studio }) {
   const d = useDrawer(), H = useLazy(() => import('./history.tsx'), d.open);
   return <>
     <button type="button" class={cx('btn history-btn', d.open && 'is-on')} aria-expanded={d.open} onClick={d.toggle}
-      title="History and versions">History</button>
+      title="History and versions" data-tour="history">History</button>
     {H && <H.HistoryDrawer d={d} st={st} />}</>;
 }

@@ -11,7 +11,7 @@ import type { Tour } from '../../../../shared/schemas/tour.ts';
 import { reducedMotion, toast } from '../kit.tsx';
 import { loadLibrary } from '../model.ts';
 import { navigate, user } from '../session.ts';
-import { localTour, tourKey, tourView } from '../tour-view.ts';
+import { localTour, tourKey, tourView, WELCOMED } from '../tour-view.ts';
 import { byName, tick, watchPage } from './anchors.ts';
 import { Overlay } from './overlay.tsx';
 import { PATHS } from './paths/index.ts';
@@ -39,7 +39,10 @@ function save(t: Tour) {
   progress.value = t;
   const u = user.peek();
   if (!u) return;
-  try { localStorage.setItem(tourKey(u), JSON.stringify(t)); } catch { /* storage off: the account keeps it */ }
+  try {
+    localStorage.setItem(tourKey(u), JSON.stringify(t));
+    localStorage.setItem(WELCOMED, '1');
+  } catch { /* storage off: the account keeps it */ }
   user.value = { ...u, tour: t };
   api.saveTour(t).catch(() => {});   // offline: the copy here shows it, and the next save sends it
 }
@@ -85,8 +88,9 @@ export function menu(finished?: string) { mount(); open.value = { mode: 'menu', 
 export function start(path: Path, i = 0) {
   mount();
   clearTimeout(later);
-  save({ ...progress.peek(), seen: true, at: { path: path.id, step: path.steps[Math.min(i, path.steps.length - 1)].id } });
-  open.value = { mode: 'step', path, i: Math.min(i, path.steps.length - 1), done: false };
+  i = Math.min(i, path.steps.length - 1);
+  save({ ...progress.peek(), seen: true, at: { path: path.id, step: path.steps[i].id } });
+  open.value = { mode: 'step', path, i, done: false };
   if (path.start.includes('?')) void navigate(path.start);
 }
 

@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 import { cx, humanize } from '../kit.tsx';
 import { navigate } from '../session.ts';
-import { type Box, follow, pick } from './anchors.ts';
+import { type Box, follow, moved, pick } from './anchors.ts';
 import { close, ctx, here, menu, next, open, PATHS, progress, resumeAt, start, step, titles } from './engine.ts';
 import type { Ctx } from './types.ts';
 
@@ -66,12 +66,13 @@ const PAD = 6, GAP = 12, W = 340;
 /** Where the card goes: below the ring, else above, else beside it; with no target, low in the middle. */
 function place(b: Box | null, h: number) {
   const vw = innerWidth, vh = innerHeight, x = (v: number) => Math.max(GAP, Math.min(vw - W - GAP, v));
-  if (!b) return { left: x((vw - W) / 2), top: vh - h - 48 };
+  const at = (left: number, top: number) => ({ left: `${left}px`, top: `${top}px` });
+  if (!b) return at(x((vw - W) / 2), vh - h - 48);
   const below = b.y + b.h + PAD + GAP, above = b.y - PAD - GAP - h;
-  if (below + h <= vh - GAP) return { left: x(b.x), top: below };
-  if (above >= GAP) return { left: x(b.x), top: above };
+  if (below + h <= vh - GAP) return at(x(b.x), below);
+  if (above >= GAP) return at(x(b.x), above);
   const right = b.x + b.w + PAD + GAP, top = Math.max(GAP, Math.min(vh - h - GAP, b.y));
-  return { left: right + W <= vw - GAP ? right : x(b.x - PAD - GAP - W), top };
+  return at(right + W <= vw - GAP ? right : x(b.x - PAD - GAP - W), top);
 }
 
 function StepCard() {
@@ -80,6 +81,7 @@ function StepCard() {
   const el = pick(names), [box, setBox] = useState<Box | null>(null), [lost, setLost] = useState(false);
   const card = useRef<HTMLElement>(null), [h, setH] = useState(180);
   useLayoutEffect(() => (el ? follow(el, setBox) : setBox(null)), [el]);
+  useLayoutEffect(() => { if (el) setBox((b) => moved(el, b)); }, [c]);   // the page changed: it may have moved
   useLayoutEffect(() => { if (card.current) setH(card.current.offsetHeight); });
   useEffect(() => {   // a control still missing after 4 s: say so, and offer Skip
     setLost(false);
@@ -88,8 +90,12 @@ function StepCard() {
     return () => clearTimeout(t);
   }, [el, on, o.i]);
   const p = on ? s.progress?.(c) : null, ring = on && box;
-  const showMe = () => { el?.scrollIntoView({ block: 'center', inline: 'nearest' }); el?.focus({ preventScroll: true }); };
-  const goTo = () => void navigate(o.path.start.includes('?') ? o.path.start : s.page!);
+  const showMe = () => {
+    el?.scrollIntoView({ block: 'center', inline: 'nearest' });
+    el?.focus({ preventScroll: true });
+  };
+  // Back to the Studio is back to the path's practice look, if it has one.
+  const goTo = () => void navigate(s.page === '/studio' && o.path.start.startsWith('/studio?') ? o.path.start : s.page!);
   return <>
     {ring ? <div class={cx('tour-ring', o.done && 'done')} style={{ left: `${box.x - PAD}px`, top: `${box.y - PAD}px`,
       width: `${box.w + 2 * PAD}px`, height: `${box.h + 2 * PAD}px` }} /> : <div class="tour-dim soft" />}
@@ -100,7 +106,8 @@ function StepCard() {
       </header>
       <h2 id="tour-title">{s.title}</h2>
       <p>{fill(s.text, c, titles.value)}</p>
-      {!on && <p class="tour-note">{`This step is in the ${s.page === '/studio' ? 'Studio' : humanize(s.page!.slice(1))}.`}
+      {!on && <p class="tour-note">{`This step is in the ${s.page === '/studio' ? 'Studio'
+        : humanize(s.page!.slice(1))}.`}
         <button type="button" class="btn small" onClick={goTo}>Go there</button></p>}
       {on && lost && <p class="tour-note">Cannot see it? It may be in a folded panel or another tab. Skip step moves
         on.</p>}

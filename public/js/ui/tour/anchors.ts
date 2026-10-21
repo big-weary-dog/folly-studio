@@ -29,7 +29,7 @@ let timer = 0;
 const bump = () => { if (!timer) timer = window.setTimeout(() => { timer = 0; tick.value++; }, 80); };
 const WATCHED = ['open', 'hidden', 'class', 'data-tour', 'aria-expanded', 'aria-selected', 'aria-pressed'];
 
-/** Watch the page for as long as the tour is open: nodes added and removed, open and shown state, field input. */
+/** Watch the page for as long as the tour is open: nodes added and removed, open and shown state, fields' values. */
 export function watchPage(root: HTMLElement) {
   const mo = new MutationObserver((list) => {
     if (list.some((m) => !root.contains(m.target))) bump();
@@ -38,12 +38,12 @@ export function watchPage(root: HTMLElement) {
   mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: WATCHED });
   const onToggle = (e: Event) => { if ((e.target as Element) !== root) raise(root); bump(); };
   document.addEventListener('toggle', onToggle, true);
-  document.addEventListener('input', bump, true);
+  for (const type of ['input', 'click']) document.addEventListener(type, bump, true);   // a field's value, as typed
   addEventListener('popstate', bump);
   return () => {
     mo.disconnect();
     document.removeEventListener('toggle', onToggle, true);
-    document.removeEventListener('input', bump, true);
+    for (const type of ['input', 'click']) document.removeEventListener(type, bump, true);
     removeEventListener('popstate', bump);
   };
 }
@@ -65,9 +65,16 @@ export function raise(root: HTMLElement) {
 }
 
 export type Box = { x: number; y: number; w: number; h: number };
-/** Call `on` with `el`'s box now and whenever it moves or resizes (scrolls anywhere, the window, its own size). */
+const boxOf = (el: Element): Box => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width,
+  h: r.height }; };
+/** `el`'s box, or `was` when it has not moved (so a state set from it changes nothing). */
+export const moved = (el: Element, was: Box | null) => {
+  const b = boxOf(el);
+  return was && b.x === was.x && b.y === was.y && b.w === was.w && b.h === was.h ? was : b;
+};
+/** Call `on` with `el`'s box now and whenever it scrolls anywhere, the window resizes or it does. */
 export function follow(el: HTMLElement, on: (b: Box) => void) {
-  const send = () => { const r = el.getBoundingClientRect(); on({ x: r.left, y: r.top, w: r.width, h: r.height }); };
+  const send = () => on(boxOf(el));
   const ro = new ResizeObserver(send);
   ro.observe(el);
   addEventListener('scroll', send, true);

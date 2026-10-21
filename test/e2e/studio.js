@@ -16,6 +16,20 @@ export const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {},
 
 export const test = base.extend({
   serverOptions: [{}, { scope: 'worker', option: true }],
+  // The tutorial's welcome opens for a new account; every context starts as a browser that has shown it, unless a
+  // spec asks for it (tour.spec.js).
+  tourWelcome: [false, { scope: 'worker', option: true }],
+  browser: [async ({ browser, tourWelcome }, use) => {
+    if (!tourWelcome) {
+      const make = browser.newContext.bind(browser);
+      browser.newContext = async (options) => {
+        const context = await make(options);
+        await context.addInitScript(() => { try { localStorage.setItem('studio.tour.welcomed', '1'); } catch {} });
+        return context;
+      };
+    }
+    await use(browser);
+  }, { scope: 'worker' }],
   studio: [async ({ serverOptions }, use) => {
     const dataDir = await mkdtemp(path.join(os.tmpdir(), 'studio-browser-'));
     const app = await createServer({ dataDir, distDir: await builtApp(), log: quiet,

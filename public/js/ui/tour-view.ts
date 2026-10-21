@@ -18,7 +18,7 @@ export type TourView = {
   dirty: ReadonlySignal<boolean>; lookId: ReadonlySignal<string | null>; bpm: ReadonlySignal<number | null>;
   palette: ReadonlySignal<string | null>; automation: ReadonlySignal<Readonly<Record<string, number>>>;
   historyAt: ReadonlySignal<number>;
-  /** The groups carrying a rig tag; a param's label in a module of the look made from library entry `ref`. */
+  /** The groups carrying a rig tag, then those under them; a param's label in a module made from library `ref`. */
   tagged: (tag: string) => string[]; label: (ref: string, key: string) => string | null;
 };
 
@@ -39,15 +39,19 @@ export function openTour(what: 'welcome' | 'menu') {
   void import('./tour/engine.ts').then((m) => (what === 'welcome' ? m.welcome() : m.menu()))
     .catch((err) => toast(`Could not load the tutorial: ${(err as Error).message}`, { kind: 'error' }));
 }
+/** Set once this browser has shown the welcome to anyone: a second account here is the same person, mostly. */
+export const WELCOMED = 'studio.tour.welcomed';
+const welcomed = () => { try { return !!localStorage.getItem(WELCOMED); } catch { return false; } };
 /** First visit on a wide screen, by an account that has not seen it: the welcome opens by itself. */
 export function welcomeOnce(u: User | null) {
-  if (u && !u.tour && !localTour(u)?.seen && tourFits()) openTour('welcome');
+  if (u && !u.tour && !localTour(u)?.seen && !welcomed() && tourFits()) openTour('welcome');
 }
 
 /** The Studio shows itself to the tour while open: the returned function hides it again. */
 export function showToTour(st: Studio, pv: Preview) {
   const layers = computed(() => st.look.value.layers.map((l): TourLayer => ({ id: l.id, title: l.title,
-    modules: l.modules.map((m) => ({ id: m.id, title: m.title, kind: m.kind, ref: m.ref, enabled: m.enabled !== false })),
+    modules: l.modules.map((m) => ({ id: m.id, title: m.title, kind: m.kind, ref: m.ref,
+      enabled: m.enabled !== false })),
     muted: st.muted.value.has(l.id), solo: st.solo.value.has(l.id), level: l.level, blend: l.blend, groups: l.groups,
     soften: l.soften?.radius ?? 0, clips: l.clips?.length ?? 0 })));
   const selected = computed(() => layers.value.find((l) => l.id === st.selectedId.value) ?? null);
@@ -61,7 +65,11 @@ export function showToTour(st: Studio, pv: Preview) {
     automation: computed(() => Object.fromEntries(Object.entries(st.look.value.automation ?? {})
       .map(([k, pts]) => [k, pts?.length ?? 0]))),
     historyAt: computed(() => st.history.at.value),
-    tagged: (tag) => (st.data.rig?.groups ?? []).filter((g) => g.tags?.includes(tag)).map((g) => g.id),
+    tagged: (tag) => {
+      const all = st.data.rig?.groups ?? [], top = all.filter((g) => g.tags?.includes(tag)).map((g) => g.id);
+      const under = all.filter((g) => !top.includes(g.id) && st.data.index?.ancestors(g.id).some((a) => top.includes(a)));
+      return [...top, ...under.map((g) => g.id)];
+    },
     label: (ref, key) => {
       for (const l of st.look.peek().layers) {
         const m = l.modules.find((x) => x.ref === ref);

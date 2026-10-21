@@ -1,5 +1,8 @@
-// The curriculum, in order: First look opens by itself; the rest are offered at its end and in Tutorials.
-import type { Path } from '../types.ts';
+// The tutorial's paths, in the order Tutorials lists them. First look is the one that opens by itself.
+import { colour } from './colour.ts';
 import { firstLook } from './first-look.ts';
+import { keep } from './keep.ts';
+import { layers } from './layers.ts';
+import { move } from './move.ts';
 
-export const PATHS: Path[] = [firstLook];
+export const PATHS = [firstLook, layers, move, colour, keep];

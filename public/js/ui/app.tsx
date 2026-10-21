@@ -152,8 +152,8 @@ function Header({ me, nav }: { me: User; nav?: string }) {
         if ((e.target as Element).closest('a, .btn')) setOpen(false);
       }}>
         <nav class="main-nav" aria-label="Main">
-          {(me.role === 'admin' ? ADMIN_NAV : NAV).map(([href, text]) => <a href={href} data-tour={`nav:${href.slice(1)}`}
-            aria-current={nav === href ? 'page' : undefined}>{text}</a>)}
+          {(me.role === 'admin' ? ADMIN_NAV : NAV).map(([href, text]) => <a href={href}
+            data-tour={`nav:${href.slice(1)}`} aria-current={nav === href ? 'page' : undefined}>{text}</a>)}
         </nav>
         <div class="user-box">
           <span class="user-name">{me.username}</span>

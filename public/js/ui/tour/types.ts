@@ -1,5 +1,5 @@
 // What a tutorial path is (SPEC-tutorial): plain data, steps that wait on what the Studio shows.
-import type { TourView } from '../tour-view.ts';
+import { tourName, type TourView } from '../tour-view.ts';
 
 /** What a step reads: the Studio (null on other pages), the page's path, and the controls the tour points at. */
 export type Ctx = { v: TourView | null; page: string; el: (name: string) => Element | null };
@@ -19,8 +19,6 @@ export type Step = {
   done: (c: Ctx, base: unknown) => boolean;
   /** The value against its goal, shown as a meter. */
   progress?: (c: Ctx) => { now: number; goal: number } | null;
-  /** It reads the page itself (a field's text, a dialog): watch the DOM while it runs. */
-  dom?: boolean;
   /** Wait for Next even once done (a step to read, the last one). */
   next?: boolean;
 };
@@ -33,3 +31,7 @@ export type Path = {
 
 /** A number a param holds, or null (bound to a modulator, or unset). */
 export const num = (x: unknown) => (typeof x === 'number' ? x : null);
+/** The look's layer whose `data-tour` name is `slug` (its title, tourName'd). */
+export const layerBy = ({ v }: Ctx, slug: string) => v?.layers.value.find((l) => tourName(l.title) === slug) ?? null;
+/** A param bound to a modulator, and which kind ('beats' is a beat clock's). */
+export const boundTo = (x: unknown) => (x && typeof x === 'object' && 'mod' in x ? String(x.mod) : null);
