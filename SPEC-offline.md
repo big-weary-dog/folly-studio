@@ -117,3 +117,14 @@ says `PI_PIN` in its hello when the engine has a PIN. While a baked item plays, 
 - **`/live/control`**, following the Pi: the same queue, read only, with **Open the lights** (`/pi/`); `/live` shows
   "Up next" under the title.
 - **Admin → Light**: **Live library looks** on the lights (on, or baked looks only).
+
+**The live page.** On the Pi, `/live` is the jukebox for curators (the others see the stage as before), made for a
+phone first. A switch (**Folly · Tracks · Controls**, kept per browser) picks the view:
+- **Folly**: the stage's 3D view, with the time left, **Skip** and **Blackout** on its bar.
+- **Tracks**: what is on the lights (its time left, or that it loops), **Up next** as on `/pi/` (move, remove,
+  Skip), **Add from Studio** (a search over one's own looks and the gallery's, each opening Play on the lights) and
+  the lights' own looks to play or queue.
+- **Controls**: Blackout, the master, tap tempo and the playing look's own controls, as on `/pi/`.
+
+It talks to the engine on `/pi/ws` through Studio's proxy, as `/pi/` does (the PIN too), so a control used there
+makes `/pi` drive the stage. The 3D view sleeps while another view is shown.

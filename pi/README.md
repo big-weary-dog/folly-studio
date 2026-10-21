@@ -31,7 +31,8 @@ SIGINT or SIGTERM fades out over a second, then sends black frames before exitin
 `http://<the Pi>:4043/` from a phone on the same network: blackout, the master, tap tempo with the beat (a ±1 BPM nudge either side), the playing
 look's own controls (its `globals.live`), **Up next** (the queue), every look to play or queue (+), and the generator's
 draw. It says when the run is dry and when the flash guard has cut to `safe` (the safe look plays, and the queue
-waits, until someone picks a look or skips).
+waits, until someone picks a look or skips). Its parts (`pi/page/controls.tsx`, `queue.tsx`, styled by
+`public/css/jukebox.css`) are also Studio's `/live` jukebox on the Pi (SPEC-offline "The live page").
 
 The queue is the jukebox (SPEC-offline "Playing on the lights"): each queued look plays its whole pattern once, then
 the next, fading out over its last second and in over the next's first; with nothing queued, what plays loops on.

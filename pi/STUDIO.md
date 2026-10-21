@@ -126,7 +126,8 @@ Curators play looks from Studio (**Play on the lights**): a look made only of li
 Light's **Live library looks** is on; a look with custom code plays only as its bake. Bakes are made on the Pi in the
 render box (bubblewrap, step 0), one at a time, at `nice 19` under the engine and Studio, within 384 MB
 (`STUDIO_BAKE_NICE`, `STUDIO_BAKE_MEMORY`). Without bubblewrap such looks cannot play on the lights until they are
-rebuilt from library modules.
+rebuilt from library modules. On a phone, curators run the queue and the lights' controls from Studio's **Live**
+(SPEC-offline "The live page"): the Folly, the track listing, or the controls.
 
 ## 3. The Studio unit
 
