@@ -17,7 +17,7 @@ Run from the repo root, on Node 22 (tested on 22.18; `npm run pi` passes `--expe
 (`pi/page/dist`), so the Pi builds nothing and `npm ci --omit=dev` is enough.
 
 ```sh
-npm run pi -- --dry-run      # render and limit as live, send nothing; a stats line every 5 s
+npm run pi -- --dry-run      # render and limit as live, send nothing; a stats line every 5 s; idle with no page open
 npm run pi                   # live: DDP to 127.0.0.1:4048 (fppd)
 npm run pi -- --help         # every setting
 ```
@@ -47,6 +47,8 @@ look sent by `ref` (its code always ours), shown as "from Studio" with who queue
 - The socket also sends what plays (`source`: the look, its modules by ref, at each change) and its clock in the
   state, so Studio's Live tab can follow a dry run behind Studio's `/pi` (SPEC-live "Following /pi"). The Pi itself
   connects to nothing and needs no setting for it.
+- A dry run renders only while a page is open (here or through Studio's `/pi/`; Studio's own feed, whose hello says
+  `feed: true`, does not count), and picks up where it stopped. The Pi always plays.
 - The page is Preact on Studio's own components and styles (`pi/page/`). Changed, run `npm run pi:page` and commit
   `pi/page/dist`; `pi/test/page.test.ts` fails while it is stale.
 

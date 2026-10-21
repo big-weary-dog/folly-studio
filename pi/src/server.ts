@@ -21,7 +21,9 @@ export const CSP = "default-src 'self'; script-src 'self'; style-src 'self'; img
 const STATE_MS = 100, PIN_TRIES = 5, PIN_LOCK_MS = 60_000, MAX_SOCKETS = 32;
 const DIST = fileURLToPath(new URL('../page/dist', import.meta.url));
 
-type Client = { ws: WebSocket, ok: boolean, tokens: number, at: number, over: number, warned: boolean };
+/** `watching`: said hello as a page (not Studio's feed, which follows for /live and is no one watching). */
+type Client = { ws: WebSocket, ok: boolean, watching: boolean, tokens: number, at: number, over: number,
+  warned: boolean };
 export type ServerOptions = { engine: Engine, lib: Library, state: () => PiState, pin: string, port: number,
   host: string,
   base?: string, dist?: string, log?: (line: string) => void, now?: () => number };
@@ -70,6 +72,7 @@ export async function controlServer(o: ServerOptions) {
     if (msg.type === 'hello') {
       const p = pinOk(msg.pin);
       c.ok = p.ok;
+      c.watching = !msg.feed;
       say(c, { type: 'hello', ok: p.ok, needPin: !!o.pin, ...(p.error ? { error: p.error } : {}) });
       if (p.ok) say(c, { type: 'state', state: o.state() });
       const source = o.engine.source();
@@ -117,7 +120,7 @@ export async function controlServer(o: ServerOptions) {
       if (clients.size >= MAX_SOCKETS) return reply.code(503).send('Too many pages open.');
     },
   }, (ws) => {
-    const c: Client = { ws, ok: false, tokens: 60, at: now(), over: 0, warned: false };
+    const c: Client = { ws, ok: false, watching: false, tokens: 60, at: now(), over: 0, warned: false };
     clients.add(c);
     ws.on('message', (d) => onMessage(c, d));
     ws.on('close', () => clients.delete(c));
@@ -144,6 +147,8 @@ export async function controlServer(o: ServerOptions) {
   return {
     port: typeof addr === 'object' && addr ? addr.port : o.port,
     clients: () => clients.size,
+    /** Pages open: sockets that said hello, Studio's feed aside. */
+    watching: () => [...clients].filter((c) => c.watching).length,
     async close() {
       clearInterval(timer);
       for (const c of clients) c.ws.terminate();
