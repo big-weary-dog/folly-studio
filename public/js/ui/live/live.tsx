@@ -41,6 +41,7 @@ export function LivePage() {
   const live = sock.live, who = sock.presence.value, fromPi = live?.driver === 'pi';
   // While /pi drives, its look (the Pi's own, so no owner) stands in for the stage's.
   const pi = fromPi ? sock.pi.value?.source : null, look = fromPi ? pi : live?.look;
+  const next = fromPi ? sock.pi.value?.now?.queue?.[0] : null;
   useEffect(() => { setTitle(look ? `Live: ${look.title}` : 'Live'); }, [look?.title]);
   const driving = fromPi ? null : who.controllers.length ? who.controllers.join(', ') : live?.by?.username;
   return (
@@ -53,6 +54,8 @@ export function LivePage() {
           <span class={cx('live-dot', sock.status.value)} title={`Connection: ${sock.status.value}`} />
           <span class="live-title">{look ? look.title : 'Live'}</span>
           {live?.look && !fromPi && live.look.ownerName && <span class="live-sub">by {live.look.ownerName}</span>}
+          {pi?.baked && <span class="tag tag-sapphire">Baked: on the lights only</span>}
+          {next && <span class="live-sub live-next">Up next: {next.title}</span>}
           {!fromPi && stage.blackout.value && <span class="tag tag-ruby">Blackout</span>}
           <span class="live-spacer" />
           {live && <span class="live-sub live-driver">driven from {fromPi ? '/pi' : 'Live control'}</span>}
