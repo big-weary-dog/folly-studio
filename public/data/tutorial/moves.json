@@ -25,22 +25,26 @@
     {
       "title": "Arches",
       "tag": ["arch-main", "arch-mini"],
-      "soften": {"radius": 0.4, "mode": "wire"},
+      "soften": {"radius": 0, "mode": "wire"},
       "clips": [{"start": 4, "end": 30, "fadeIn": 2}],
       "modules": [
         {
           "ref": "single-strand",
-          "params": {"colours": "high", "speed": {"mod": "beats", "per": 6}, "profile": "comet"}
-        },
-        {"ref": "rotate", "params": {"angle": 0.25}}
+          "params": {"colours": "high", "speed": 8, "size": 20, "tail": 10, "profile": "comet"}
+        }
       ]
     },
     {
       "title": "Rose",
       "tag": "rose",
       "modules": [
-        {"ref": "bars", "params": {"direction": "out", "profile": "smooth", "bars": 3, "speed": 0.3}},
-        {"ref": "stained-glass", "params": {"rule": "spiral"}}
+        {
+          "ref": "bars",
+          "params": {"colours": "low high", "direction": "out", "profile": "smooth", "bars": 3, "speed": 0.3}
+        },
+        {"ref": "turbulence", "params": {"amount": 0.3}},
+        {"ref": "rotate", "params": {"spin": {"mod": "beats", "per": 0.07}}},
+        {"ref": "hue-shift", "params": {"offset": 0.5}}
       ]
     }
   ]

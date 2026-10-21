@@ -6,12 +6,24 @@
     {
       "title": "Arches",
       "tag": "arch-main",
-      "modules": [{"ref": "single-strand", "params": {"colours": "high", "speed": 8, "profile": "comet"}}]
+      "soften": {"radius": 0, "mode": "wire"},
+      "modules": [
+        {
+          "ref": "single-strand",
+          "params": {"colours": "high", "speed": 8, "size": 20, "tail": 10, "profile": "comet"}
+        }
+      ]
     },
     {
       "title": "Rose",
       "tag": "rose",
-      "modules": [{"ref": "bars", "params": {"direction": "out", "profile": "smooth", "bars": 3, "speed": 0.3}}]
+      "modules": [
+        {
+          "ref": "bars",
+          "params": {"colours": "low high", "direction": "out", "profile": "smooth", "bars": 3, "speed": 0.3}
+        },
+        {"ref": "turbulence", "params": {"amount": 0.3}}
+      ]
     }
   ]
 }

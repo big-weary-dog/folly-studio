@@ -60,7 +60,8 @@ export function Drawer({ d, title, actions, class: cls, children }: { d: DrawerH
   useLayoutEffect(() => {
     if (!el.isConnected) return;
     el.className = cx('drawer', cls);
-    Object.entries({ role: 'dialog', 'aria-modal': 'false', 'aria-labelledby': `${d.id}-t`, 'data-drawer': d.id })
+    Object.entries({ role: 'dialog', 'aria-modal': 'false', 'aria-labelledby': `${d.id}-t`, 'data-drawer': d.id,
+      'data-tour-area': '' })
       .forEach(([k, v]) => el.setAttribute(k, v));
     render(<Parent.Provider value={d.id}>
       <div class="drawer-head"><h2 class="drawer-title" id={`${d.id}-t`}>{title}</h2>{actions}

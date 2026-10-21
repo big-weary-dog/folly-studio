@@ -10,9 +10,9 @@ const overlap = (a: Box, b: Box | null) => (b ? Math.max(0, Math.min(a.x + a.w, 
 const grow = (b: Box) => ({ x: b.x - PAD, y: b.y - PAD, w: b.w + 2 * PAD, h: b.h + 2 * PAD });
 
 /** The card's place: beside the ring (below, above, right, left, or beside it just under the preview), else a
- * corner of the window; the first that keeps off the preview and the ring, else the one covering least of them (the
- * ring counting most). */
-export function place(ring: Box | null, h: number, preview: Box | null) {
+ * corner of the window; the first that keeps off the preview, the ring and what it sits in (`area`), else the one
+ * covering least of them (the ring counting most). */
+export function place(ring: Box | null, h: number, preview: Box | null, area: Box | null = null) {
   const vw = innerWidth, vh = innerHeight;
   const cx = (v: number) => Math.max(GAP, Math.min(vw - W - GAP, v)), cy = (v: number) => Math.max(GAP,
     Math.min(vh - h - GAP, v));
@@ -28,7 +28,7 @@ export function place(ring: Box | null, h: number, preview: Box | null) {
   for (const [x, y] of spots) {
     const b = { x, y, w: W, h };
     if (x < GAP - 0.5 || y < GAP - 0.5 || x + W > vw - GAP + 0.5 || y + h > vh - GAP + 0.5) continue;
-    const cover = overlap(b, preview) + 10 * overlap(b, r);
+    const cover = overlap(b, preview) + 10 * overlap(b, r) + overlap(b, area && grow(area));
     if (cover < least) { best = b; least = cover; }
     if (cover === 0) break;
   }
@@ -36,11 +36,16 @@ export function place(ring: Box | null, h: number, preview: Box | null) {
   return { left: `${at.x}px`, top: `${at.y}px` };
 }
 
-/** The shade's clip: the whole window but the preview and the ring, as holes (a ring on the preview is in its hole;
- * holes that overlap would cancel out). */
-export function shade(ring: Box | null, preview: Box | null) {
+/** The shade's clip: the whole window but the preview and the ring (with what it sits in, `area`), as holes (a ring
+ * on the preview is in its hole; holes that overlap would cancel out). */
+export function shade(ring: Box | null, preview: Box | null, area: Box | null = null) {
   const rect = (b: Box) => `M${b.x} ${b.y}h${b.w}v${b.h}h${-b.w}Z`;
-  const r = ring && grow(ring);
+  let r = ring && grow(ring);
+  if (r && area) {   // one hole round both
+    const a = grow(area), x = Math.min(a.x, r.x), y = Math.min(a.y, r.y);
+    const both = { x, y, w: Math.max(a.x + a.w, r.x + r.w) - x, h: Math.max(a.y + a.h, r.y + r.h) - y };
+    if (!overlap(both, preview)) r = both;
+  }
   const holes = [preview, r && !overlap(r, preview) ? r : null].filter((b): b is Box => !!b).map(rect).join('');
   return `path(evenodd, "M0 0H${innerWidth}V${innerHeight}H0Z${holes}")`;
 }

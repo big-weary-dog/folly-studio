@@ -253,9 +253,11 @@ library module follows these rules (SPEC "Palettes", "Directions", "Integrated c
 
 - **One `colours` pick**, `{ value: 'all', type: 'color', label: 'Colours' }`, read by position (`swatch('colours', i)`
   for bands and seeded things, `pal('colours', t)` for a gradient or a tail, the last colour for a head,
-  `P.colours` for one colour at a time). Code never names a role; people choose the colours.
-- **An orientation is a param**: `direction` from `DIRECTIONS`, read with `toward(p, P.direction)`, its default
-  what the module always did; `angle` for a free angle off it. A centre is a place: the `anchor` warp.
+  `P.colours` for one colour at a time). A module may declare a separate pick for a distinct part: Fire's `tips`
+  colours its tips and embers. Code never names a role; people choose the colours.
+- **Offer distinct orientations**: `direction` lists only the choices the module draws distinctly, in `DIRECTIONS`
+  order (SPEC-library "Directions"); `angle` gives a free tilt where useful. Fire rises and Lightning strikes down:
+  use Rotate for other orientations. A centre is a place: the `anchor` warp.
 - **Motion from `clock('speed')`**, never `t × P.speed`, so a modulated speed never jumps. No hard-wired `G.energy`
   or other macro: a person binds a param to one.
 - **Draw on transparent**: alpha is coverage, `null` is nothing, no painted background. `colour-wash` is the bed.

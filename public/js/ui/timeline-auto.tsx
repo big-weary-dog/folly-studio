@@ -94,11 +94,11 @@ function Lane({ name, pts, range, tl, get, set }: { name: string; pts: Point[]; 
     if (i >= 0 && now.length > 1) set(now.filter((_, j) => j !== i));
   }
   return (
-    <div class="tl-row tl-auto-row" data-name={name}>
+    <div class="tl-row tl-auto-row" data-name={name} data-tour-area>
       <div class="tl-name tl-auto-label"><span class="tl-auto-name">{humanize(name)}</span>
         <button type="button" class="tl-auto-del" aria-label={`Stop automating ${name}`} title="Remove this lane"
           onClick={() => set(null)}>×</button></div>
-      <div class="tl-lane tl-auto-lane">
+      <div class="tl-lane tl-auto-lane" data-tour={`lane:${name}`}>
         <svg class="tl-auto-svg" ref={svg} width={w} height={H} viewBox={`0 0 ${w} ${H}`} role="img"
           aria-label={`${name}: ${pts.map(([t, v]) => `${clock(t)} ${v}`).join(', ')}`} onPointerDown={down}
           onPointerMove={move} onPointerUp={up} onPointerCancel={up} onDblClick={remove}>

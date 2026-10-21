@@ -390,9 +390,9 @@ the param's. Per module instance:
 
 Picks resolve to stops when a layer is prepared and again when the palette changes; per frame only rotates move.
 
-**The library's colour rule.** A source has one colour param, `colours: { value: 'all', type: 'color', label:
-'Colours' }` (fire adds `tips`, its tips and embers, since flames and what rises off them are two things), and names
-no role (roles lay out the pick tile for people). It maps what it draws onto positions in the pick: bands and seeded
-objects to `swatch('colours', i)`; a gradient or a tail to `pal('colours', t)`, first colour to last; a head or crest
-to the last colour; one colour at a time to `P.colours`. The recolouring filter (`recolour`) takes one `colours` pick
-too. Code from before this rule may still name roles in `pal()`.
+**The library's colour rule.** A source has one main colour pick, `colours: { value: 'all', type: 'color', label:
+'Colours' }`, except where it declares another for a distinct part: Fire's `tips` colours its tips and embers.
+It names no role (roles lay out the pick tile for people). It maps what it draws onto positions in the pick: bands
+and seeded objects to `swatch('colours', i)`; a gradient or a tail to `pal('colours', t)`, first colour to last;
+a head or crest to the last colour; one colour at a time to `P.colours`. The recolouring filter (`recolour`) takes
+one `colours` pick too. Code from before this rule may still name roles in `pal()`.

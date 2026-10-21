@@ -5,7 +5,7 @@ The cheapest texture and the usual top layer: a short flash twinkles like stars,
 **life** gives structured flicker along strands; **streaks** moves.
 
 ## Params
-- colours: `high` gives white stars.
+- colours: `high` gives palette highlights; `#ffffff` gives white stars.
 - density: 0.1–0.3 stars, 1 all-over shimmer.
 - often: Each LED ±50%. 12–40 stars, 240–600 glitter with a glowing flash.
 - flash: 0.1–0.25 a glint; 0.5 never goes dark: slow breathing; 0.6+ glows between levels.

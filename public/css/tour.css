@@ -13,6 +13,8 @@
 .tour-ring.slide { transition: left .2s var(--ease), top .2s var(--ease), width .2s var(--ease),
   height .2s var(--ease); }
 .tour-ring.done { border-color: var(--emerald); box-shadow: 0 0 14px 2px rgb(69 207 155 / .55); }
+/* What the ringed control sits in: clear of the shade, outlined quietly so the ring stays what to click. */
+.tour-area { position: fixed; border: 1px solid rgb(255 217 138 / .35); border-radius: calc(var(--radius) + 4px); }
 /* The shade round a step: everything but the ring and the preview (holes in its clip-path, tour/place.ts). */
 .tour-shade { position: fixed; inset: 0; background: rgb(6 4 11 / .45); }
 .tour-shade.soft { background: rgb(6 4 11 / .3); }

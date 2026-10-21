@@ -1,8 +1,8 @@
 ---
 looks: Warm stained glass with soft light drifting behind it, like clouds past a sunlit window.
 ---
-A living window that never flashes: an ambient bed, a dawn, a quiet moment. **gothic-jewel** is a still jewelled
-window; **cathedral-sun** sweeps a band of sunlight.
+A living window: an ambient bed, a dawn, a quiet moment. **gothic-jewel** glows pane by pane in jewel colours;
+**cathedral-sun** sweeps a band of sunlight.
 
 ## Overrides
 - clouds.speed: how fast the light drifts; clouds.cover how much of the window is lit.

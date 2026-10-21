@@ -175,13 +175,15 @@ describe('modulation', () => {
       unit: 'hz', center: 57.5, depth: -37.5 }, 'From above To runs the wave upside down');
   });
 
-  test('the beat clock: on speeds and rates a minute, per beat at the look\'s tempo', () => {
+  test('the beat clock: on speeds, spins and rates a minute, per beat at the look\'s tempo', () => {
     const clouds = normaliseParam('speed', { value: 0.15, min: 0, max: 1 }) as Param;
     const often = normaliseParam('often', { value: 36, min: 0, max: 1200, unit: 'minute' }) as Param;
     const tempo = normaliseParam('rate', { value: 120, min: 10, max: 240 }) as Param;
     assert.deepEqual([keepsTime('speed', clouds), keepsTime('often', often), keepsTime('rate', tempo)],
       [true, true, false], 'heartbeat\'s own tempo is a tempo, not a speed');
     assert.equal(keepsTime('speed', normaliseParam('speed', { value: true, type: 'toggle' }) as Param), false);
+    assert.equal(keepsTime('spin', normaliseParam('spin', { value: 0, min: -1, max: 1 }) as Param), true,
+      'a spin, turns a second, is a speed too');
     assert.equal(beatsAt(120, clouds), 2, '2 beats a second at 120');
     assert.equal(beatsAt(120, often), 120, 'a minute\'s');
     assert.equal(bindingForm({ mod: 'beats', per: 0.075 }, clouds, globals).per, '0.075');

@@ -13,10 +13,11 @@ const sky = (c: Ctx) => lfo(c, 'starfield', 'colour-wash', 'brightness');
 /** An LFO's seconds a cycle, its rate in cycles a second or (on the beat) a beat. */
 const period = (c: Ctx, l: Lfo | null) => (l?.rate ? (l.unit === 'beats' ? 60 / (c.v?.bpm.value ?? 120) : 1) / l.rate
   : 0);
-const glass = (c: Ctx) => lfo(c, 'rose', 'stained-glass', 'amount');
-const turn = (c: Ctx) => lfo(c, 'arches', 'rotate', 'angle');
+const shift = (c: Ctx) => lfo(c, 'rose', 'hue-shift', 'offset');
+const turn = (c: Ctx) => lfo(c, 'rose', 'rotate', 'angle');
 /** Param `key` of module `ref` on layer `slug`, then its ∿ drawer's `then`. */
 const at = (slug: string, ref: string, key: string, ...then: string[]) => on(slug, ref, `param:${key}`, ...then);
+const lanes = (c: Ctx) => Object.keys(c.v?.automation.value ?? {}).length;
 const points = (c: Ctx) => Object.values(c.v?.automation.value ?? {}).reduce((a, n) => a + n, 0);
 const faders = (c: Ctx) => Object.values(c.v?.macros.value ?? {});
 
@@ -39,19 +40,20 @@ export const moves: Path = {
       anchor: at('starfield', 'colour-wash', 'brightness', 'mod-between'),
       done: (c) => (ends(sky(c))?.[1] ?? 0) >= 0.8 },
     { id: 'square', page: '/studio', title: 'A square wave',
-      text: 'An LFO\'s shape is how it moves. On Rose, open {module:stained-glass}, the ∿ beside '
-        + '{param:stained-glass.amount}, pick LFO, then Square: a square wave jumps between its two ends.',
-      anchor: (c) => at('rose', 'stained-glass', 'amount', glass(c) ? 'mod-shape' : 'mod-kinds')(c),
-      done: (c) => glass(c)?.shape === 'square' },
+      text: 'An LFO\'s shape is how it moves. On Rose, open {module:hue-shift}, the ∿ beside '
+        + '{param:hue-shift.offset}, pick LFO, then Square: a square wave jumps between its two ends.',
+      anchor: (c) => at('rose', 'hue-shift', 'offset', shift(c) ? 'mod-shape' : 'mod-kinds')(c),
+      done: (c) => shift(c)?.shape === 'square' },
     { id: 'off', page: '/studio', title: 'All the way off',
-      text: 'Set From to 0, so the glass snaps fully off and on again: the rose flips between plain rings and '
-        + 'stained glass.',
-      anchor: at('rose', 'stained-glass', 'amount', 'mod-between'),
-      done: (c) => glass(c)?.shape === 'square' && (ends(glass(c))?.[0] ?? 1) <= 0.05 },
+      text: 'Set From to 0, so the shift snaps fully off and back to 0.5: the rose flips between its own colours '
+        + 'and their opposites.',
+      anchor: at('rose', 'hue-shift', 'offset', 'mod-between'),
+      done: (c) => shift(c)?.shape === 'square' && Math.abs(ends(shift(c))?.[0] ?? 1) <= 0.05
+        && (ends(shift(c))?.[1] ?? 0) >= 0.45 },
     { id: 'saw', page: '/studio', title: 'A saw wave',
-      text: 'A saw climbs steadily and drops back. On Arches, open {module:rotate}, the ∿ beside '
-        + '{param:rotate.angle}, pick LFO, then Saw: the comets\' direction turns, then snaps back.',
-      anchor: (c) => at('arches', 'rotate', 'angle', turn(c) ? 'mod-shape' : 'mod-kinds')(c),
+      text: 'A saw climbs steadily and drops back. Still on Rose, open {module:rotate}, the ∿ beside '
+        + '{param:rotate.angle}, pick LFO, then Saw: on top of its spin, the rose swings round, then snaps back.',
+      anchor: (c) => at('rose', 'rotate', 'angle', turn(c) ? 'mod-shape' : 'mod-kinds')(c),
       done: (c) => turn(c)?.shape === 'saw' },
     { id: 'macro', page: '/studio', title: 'A macro',
       text: 'A macro is one fader that can move several values together, by hand, from the timeline or from Live. '
@@ -73,9 +75,14 @@ export const moves: Path = {
       anchor: (c) => ['dock:look', ...Object.keys(c.v?.macros.value ?? {}).slice(0, 1).map((m) => `macro:${m}`)],
       done: (c) => faders(c).some((v) => v >= 0.95) },
     { id: 'automate', page: '/studio', title: 'Automation',
-      text: 'A lane moves a macro over time. In the Timeline, pick the macro from + Automate…, then click its lane '
-        + 'twice: low near the start and high later, so the look builds as it plays.',
-      anchor: ['dock:timeline', 'automate'], begin: points, done: (c, n) => points(c) >= (n as number) + 2,
-      next: true },
+      text: 'A lane moves a macro over time. In the Timeline, pick the macro from + Automate…: its lane holds it '
+        + 'where the fader is, from start to end.',
+      anchor: ['dock:timeline', 'automate'], begin: lanes, done: (c, n) => lanes(c) > (n as number) },
+    { id: 'points', page: '/studio', title: 'Points on the lane',
+      text: 'Click the lane twice to add two points: one low near the start, one high later, so the look builds '
+        + 'as it plays. Drag a point to move it.',
+      anchor: (c) => ['dock:timeline', ...Object.keys(c.v?.automation.value ?? {}).slice(0, 1)
+        .map((m) => `lane:${m}`)],
+      begin: points, done: (c, n) => points(c) >= (n as number) + 2, next: true },
   ],
 };
