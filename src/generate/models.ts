@@ -33,16 +33,18 @@ const FOUNDRY: ModelEntry = { id: 'foundry', label: 'Foundry', via: 'fleet', mod
 const LEGACY: Record<string, string> = { claude: 'opus', fleet: 'foundry' };
 const PROBE_MS = 10_000;
 
-/** The file's models but those whose `via` is no longer a transport (their ids), so a file written before one was
- * removed still reads (its default, if one of them, the first left); a save is checked whole. */
+/** The file but its models and concurrency lanes whose transport is gone (the models' ids), so a file written before
+ * one was removed still reads (its default, if one of them, the first left); a save is checked whole. */
 function dropGone(json: unknown): { json: unknown, gone: string[] } {
-  const c = json as { default?: unknown, models?: { id?: unknown, via?: unknown }[] } | null;
+  const c = json as { default?: unknown, models?: { id?: unknown, via?: unknown }[], concurrency?: unknown } | null;
   if (!Array.isArray(c?.models)) return { json, gone: [] };
   const vias: readonly string[] = TRANSPORTS;
   const out = c.models.filter((m) => typeof m?.via === 'string' && !vias.includes(m.via)), gone = out.map((m) => m.id);
-  const models = c.models.filter((m) => !out.includes(m));
-  return { json: { ...c, models, ...(gone.includes(c.default) ? { default: models[0]?.id } : {}) },
-    gone: gone.map(String) };
+  const models = c.models.filter((m) => !out.includes(m)), lanes = c.concurrency;
+  const concurrency = lanes && typeof lanes === 'object' && !Array.isArray(lanes)
+    ? Object.fromEntries(Object.entries(lanes).filter(([via]) => vias.includes(via))) : lanes;
+  return { json: { ...c, models, ...(lanes === undefined ? {} : { concurrency }),
+    ...(gone.includes(c.default) ? { default: models[0]?.id } : {}) }, gone: gone.map(String) };
 }
 
 type Options = { file: string, env?: NodeJS.ProcessEnv, log?: Logger, legacy?: string, foundryOn?: boolean,

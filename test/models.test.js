@@ -40,11 +40,12 @@ describe('the registry file', () => {
   test('a model whose transport is gone is left out, the file still read; a save is checked whole', () => {
     const dir = tmp('gone'), file = path.join(dir, 'models.json'), warns = [];
     const old = { ...DEFAULT_MODELS, default: 'pigeon', models: [{ id: 'pigeon', label: 'Pigeon', via: 'pigeon' },
-      ...DEFAULT_MODELS.models] };
+      ...DEFAULT_MODELS.models], concurrency: { claude: 3, pigeon: 2 } };
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(file, JSON.stringify(old));
     const r = registry(dir, { log: { ...quiet, warn: (m) => warns.push(m) } });
     assert.deepEqual([r.config().models.map((m) => m.id), r.defaultId()], [['opus', 'sol', 'luna'], 'opus']);
+    assert.deepEqual(r.config().concurrency, { claude: 3 });
     assert.match(warns.join('\n'), /left out pigeon, whose transport is gone/);
     assert.equal(r.admin().problem, undefined);
     assert.match(r.save(old).error, /^Model 1 \(pigeon\): via must be one of claude, codex, fleet\.$/);

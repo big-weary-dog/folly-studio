@@ -229,8 +229,9 @@ transcripts.
 ## Models (`<STUDIO_DATA>/models.json`, or `STUDIO_MODELS`)
 
 The registry (`shared/schemas/models.ts`), written with the defaults on first run and read again whenever it
-changes (a file that does not parse is reported, and the last good one kept; a model whose `via` is no longer a
-transport is left out and logged, the default moving to the first left, while a save naming one is refused):
+changes (a file that does not parse is reported, and the last good one kept; a model or concurrency lane whose
+transport is gone is left out, the model logged and the default moving to the first left, while a save naming one is
+refused):
 
 ```
 { "about"?: text, "default": id, "concurrency"?: { "claude"?: n, "codex"?: n, "fleet"?: n },
