@@ -117,9 +117,9 @@ export function createIdeaLog(o: { dir?: string, meta: Record<string, unknown>, 
   };
 }
 
-/** A round's outcome as the idea's owner sees it: "failed" without its error, which can carry a provider's or a CLI's
- * text and stays in the admin's log. */
-export const ownerOutcome = (outcome: string) => (/^failed\b/.test(outcome) ? 'failed' : outcome);
+/** An outcome (or a critique's outcomes, joined) as the idea's owner sees it: "failed" without its error, which can
+ * carry a provider's or a CLI's text and stays in the admin's log. */
+export const ownerOutcome = (outcome: string) => outcome.replace(/\bfailed: .*$/s, 'failed');
 
 /** The ideas' logs under `dir`: open one, read one back (admins), keep only the newest. `keep` 0: none written. */
 export function createIdeaLogs({ dir, keep = 300, maxBytes = 500 * 2 ** 20, log }: { dir: string, keep?: number,

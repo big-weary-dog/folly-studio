@@ -145,6 +145,15 @@ describe('the idea log', () => {
       for (const r of [one, all]) assert.ok(!r.text.includes('sk-provider-text'), r.text);
       const log = await admin.get(`/api/admin/ideas/${idea.id}/log`);
       assert.match(log.text, /sk-provider-text/);
+      // An idea saved before outcomes were plain still holds the detail; the owner's API leaves it out.
+      const old = app.store.ideas.create({ owner: owner.user.id, text: 'old', status: 'ready', generator: 'claude',
+        rounds: [{ kind: 'compose', ms: 5, outcome: `failed: ${secret}` },
+          { kind: 'critique', ms: 2, outcome: 'revised' }],
+        verdict: `revised, failed: ${secret}` });
+      const back = (await owner.get(`/api/ideas/${old.id}`)).json.idea;
+      assert.deepEqual([back.rounds.map((r) => r.outcome), back.verdict], [['failed', 'revised'], 'revised, failed']);
+      assert.ok(!(await owner.get('/api/ideas')).text.includes('sk-provider-text'));
+      assert.match(app.store.ideas.get(old.id).rounds[0].outcome, /sk-provider-text/, 'stored as it was');
     } finally {
       await app.close();
     }
