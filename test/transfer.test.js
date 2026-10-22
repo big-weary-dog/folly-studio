@@ -15,10 +15,10 @@ import { browser, request } from './fixtures/browser.js';
 import { builtApp, removeBuiltApp } from './fixtures/build.js';
 
 const KB = 1024;
-// Measured with relay from the editor: 230 KB in 26 requests with br, 259 KB gzip only (HTTP/1.1 headers in full);
-// with headroom.
+// Measured with attached modules and the petal mask: 240 KB in 26 requests with br, 270 KB gzip only (HTTP/1.1
+// headers in full); caps with room to grow, as the owner asks: mindful of size, but no trimming for a KB.
 // rig.json is 31 KB of that with br (43 KB gzip): the LEDs, and the 3D view's rose cells, floods and scaffold.
-const COLD = { 'br, gzip': 240 * KB, gzip: 270 * KB };
+const COLD = { 'br, gzip': 260 * KB, gzip: 290 * KB };
 const STUDIO = { view: 'js/ui/studio.tsx', api: ['/api/me', '/api/library'] };
 const PLAYA = { view: 'js/playa/renderer.ts', shell: false };   // the 3D view's default mode, imported on show
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
