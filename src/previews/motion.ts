@@ -9,7 +9,7 @@ import { parseFseq } from '../frames.ts';
 import { inflateBlock } from '../fseq-codec.ts';
 
 export const WINDOW_S = 5;
-export const FADE_S = 0.5;
+const FADE_S = 0.5;
 export const WIDTH = 260;
 export const HEIGHT = 228;
 const TARGET_FPS = 13;
@@ -47,7 +47,7 @@ export function bestWindow(change: Float64Array, bright: Float64Array, n: number
  * Baked frames → the window's samples: `n` to show, then (for a crossfade) `tail` more that run on past it, and
  * the still's (the window's brightest). Throws when the bytes are not frames of this rig.
  */
-export function pickWindow(bytes: Uint8Array, rig: Rig, loop: Loop) {
+function pickWindow(bytes: Uint8Array, rig: Rig, loop: Loop) {
   const scene = prepareScene(rig);
   const parsed = parseFseq(bytes, { maxChannels: scene.frameChannels, decompress: inflateBlock });
   const [oR, oG, oB] = offsets(parsed, scene) as [Int32Array, Int32Array, Int32Array];
@@ -88,7 +88,7 @@ export function pickWindow(bytes: Uint8Array, rig: Rig, loop: Loop) {
 }
 
 /** The pictures → the loop: 'fade' in from black and out to it over FADE_S, or 'crossfade' the tail into the head. */
-export function loopFrames(pictures: Uint8Array[], { n, tail, fade }: { n: number, tail: number, fade: number },
+function loopFrames(pictures: Uint8Array[], { n, tail, fade }: { n: number, tail: number, fade: number },
   loop: Loop) {
   const mix = (a: Uint8Array, b: Uint8Array | null, t: number) => a.map((v, i) => v * t + (b ? b[i]! * (1 - t) : 0));
   return pictures.slice(0, n).map((img, i) => (loop === 'crossfade'

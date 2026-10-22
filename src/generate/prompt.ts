@@ -135,7 +135,7 @@ export function formatExamples(examples: Library) {
 export const rootOf = (groups: Groups = []) => groups.find((g) => g && g.parent == null)?.id || 'all';
 
 /** The look's palettes, a line each: its theme, then every role's slots, in order (`body2` is body's second). */
-export function formatPalettes() {
+function formatPalettes() {
   return PALETTES.palettes.map((p) => `${p.name} | ${p.theme}|${PALETTES.roles.map((r: string) =>
     ((p as unknown as Record<string, string[]>)[r] ?? []).map((c) => c.slice(1)).join(',')).join('|')}`).join('\n');
 }
@@ -148,7 +148,7 @@ function formatCompositions(catalog: Catalog, groups: Groups) {
     .map((e) => `Idea: ${e.idea}\n${JSON.stringify(e.look(root, place))}`).join('\n\n');
 }
 
-export const DOCS_NOTE = `Each module's page, library/<kind>/<name>.md (kinds: sources, warps, filters, presets), has
+const DOCS_NOTE = `Each module's page, library/<kind>/<name>.md (kinds: sources, warps, filters, presets), has
 every param's range, default, unit and effect, pairings and pitfalls. The pages an idea needs come with its turn, each
 in a <doc>; read_doc reads one not given (at most ${READ_CAP}). Give only the params a module lists below.`;
 

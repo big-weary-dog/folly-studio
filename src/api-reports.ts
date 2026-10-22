@@ -6,7 +6,7 @@ import { ReportBody } from '../shared/schemas/report.ts';
 import { forAdmins, HttpError, parse } from './http.ts';
 import type { Reports } from './reports/store.ts';
 
-export const REPORT_BODY = 3 * 2 ** 20;
+const REPORT_BODY = 3 * 2 ** 20;
 const PER_HOUR = 10;
 
 export function reportRoutes(api: FastifyInstance, { reports, build, tail }: { reports: Reports, build: string,

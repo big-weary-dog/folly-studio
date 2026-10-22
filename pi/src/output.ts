@@ -4,7 +4,7 @@
 import { ddpSender } from './ddp.ts';
 import { expandRose, type PowerOptions, type PowerTable, powerLimiter } from './power.ts';
 
-export type OutputOptions = { table: PowerTable, power: PowerOptions, dryRun: boolean, host: string, port: number };
+type OutputOptions = { table: PowerTable, power: PowerOptions, dryRun: boolean, host: string, port: number };
 
 export function createOutput(o: OutputOptions) {
   const frame = new Uint8Array(o.table.channels), limiter = powerLimiter(o.table, o.power);

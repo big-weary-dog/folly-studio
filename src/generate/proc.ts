@@ -62,7 +62,7 @@ export function findExecutable(name: string, { env = process.env as Env, platfor
 }
 
 /** Kill a process and everything it started. */
-export function killTree(pid: number | undefined, platform = process.platform) {
+function killTree(pid: number | undefined, platform = process.platform) {
   if (!pid) return;
   if (platform === 'win32') {
     spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true }).on('error', () => {});

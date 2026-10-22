@@ -9,7 +9,7 @@ export const secs = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 export const usd = (d: number) => `$${d.toFixed(d < 0.1 ? 3 : 2)}`;
 const KINDS: Record<string, string> = { compose: 'Compose', draft: 'Drafts', take: 'Take', repair: 'Repair',
   notes: 'Params fixed', runtime: 'Runtime fix', critique: 'Critique', edits: 'Edits fixed' };
-export const kindName = (kind: string) => KINDS[kind] ?? kind;
+const kindName = (kind: string) => KINDS[kind] ?? kind;
 
 /** A still the model was shown, served from the idea's log. */
 export function Still({ ideaId, s, big }: { ideaId: string; s: HowStill; big?: boolean }) {
