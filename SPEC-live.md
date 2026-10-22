@@ -70,7 +70,7 @@ is full. Retrying…".
 
 ## Following /pi
 
-With `PI_PREVIEW_URL` set (docs/HOSTING.md "The Pi's page"), the stage can follow that dry-run engine: the last to use
+With `PI_PREVIEW_URL` set (SPEC-offline "The Pi preview"), the stage can follow that engine: the last to use
 a control drives. A control used on `/pi` (play, set, tap, level, blackout, as the proxy passes it) makes `driver`
 `pi`; a controller's next accepted `play` or `set` makes it `stage` again. Each change goes to every socket as a whole
 `state`. `/pi`'s page gets `{ type: 'driver', from: 'pi' | 'live' }` from the proxy after the Pi's hello and at each
@@ -82,9 +82,10 @@ sends on what it says (`shared/schemas/live.ts`):
 - `source: { rev, id, title, duration, bpm?, globals, automation, layers }`: what plays, its modules by library `ref`
   with no code (each viewer has our library). On joining, at a switch, and when a push takes a name off its lane
   (`rev` moves: the engine's look is prepared again).
-- `now: { rev, t, bpm, beat0, offset, values, gain }` at server time `at`: show time t, the tempo, downbeat and look
-  clock's offset (0: pattern time is show time), the values of the look's live controls, and the output's gain (master × blackout × a switch's dip,
-  as eased). Sent when anything but t changed, else every 2 s; null while the engine is down.
+- `now: { rev, t, bpm, beat0, offset, paces?, values, gain, queue? }` at server time `at`: show time t, the tempo,
+  downbeat and look clock's offset (0: pattern time is show time), the paces' offsets, the values of the look's live
+  controls, the output's gain (master × blackout × a switch's dip, as eased), and what is queued after it (SPEC-offline
+  "Playing on the lights"). Sent when anything but t changed, else every 2 s; null while the engine is down.
 
 A viewer plays `source` (fresh clock) and sets `now`'s values, tempo and clock in place before a frame (the sandbox's
 `frame.set`), as the engine sets them, so clocks bound to them run on as the engine's do; the view's gain is `gain`.
@@ -167,8 +168,8 @@ Studio's `/pi` proxy passes binary frames only from a socket the engine last tol
 heard its lease end is dropped. The server's socket limit is 32 KB, a Folly-rig frame's; the stage's own messages
 stay at 16 KB.
 
-**Measured on the playa (pi/INSTALL.md "Relay").** Ping jitter over the site's Wi-Fi sets the buffer: p99 plus two
-frames.
+**Measured on the playa (pi/INSTALL.md "Relay: measuring it on site").** Ping jitter over the site's Wi-Fi sets the
+buffer: p99 plus two frames.
 
 ## HTTP
 

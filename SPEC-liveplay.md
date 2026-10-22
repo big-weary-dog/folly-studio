@@ -59,15 +59,16 @@ control's `value` is a name (`''`: the look's own); `min` and `max` are 0.
 | Message | What | Jukebox |
 |---|---|---|
 | `{ type: 'next', fade? }` | skip to the next queued look (and go on from a flash-guard pause) | yes, at 1 s |
-| `{ type: 'queue', id, at?, fade? }`, `play { id, fade? }` | as before; `fade` for `at: 'now'` and `play` | not `now`, no `play` |
+| `{ type: 'queue', id, at?, fade? }`, `play { id, fade? }` | SPEC-offline's; `fade` for `at: 'now'` and `play` | not `now`, no `play` |
 | `{ type: 'set', name, value }`, `{ type: 'release', name }` | a knob, or let one go: it glides to `default` | refused |
 | `{ type: 'palette', name }` | blend to that palette (`''`: the look's own) | refused |
-| `level`, `tap`, `blackout` | as before | refused |
+| `level`, `tap`, `blackout` | Master, tap tempo, Blackout | refused |
 | `{ type: 'take' }` | take the knobs | refused |
 
 `fade` is seconds, 0.25–8: the playing look fades out over it and the next in over it. Without it, `FADE.queue`.
-Studio's `send` takes `fade` too, and a baked item's `duration`. `resume` is gone: `next` goes on from a pause.
-Only Studio's feed sends `mode` and `send`; the proxy passes pages neither.
+Only Studio's feed sends `mode` and `send`: the engine takes them only from a hello with `feed: true` ("Only Studio
+sends that."), and Studio's proxy passes pages neither. On the network, where any page may say it is the feed, the
+engine's PIN is the only gate (SPEC-offline "The Pi preview").
 
 `POST /api/lights/queue { lookId, at?, fade? }` refuses `at: 'now'` in Jukebox (409, "The lights are in Jukebox:
 Play next or Add to the end").
