@@ -220,7 +220,11 @@ for (const [name, device] of Object.entries(SIZES)) {
         const rows = page.locator('.chain-row');
         await expect(rows.nth(1)).toHaveClass(/selected/);
         await rows.nth(1).locator('.chain-name').focus();
-        await page.keyboard.press('Alt+ArrowUp');          // a row moves from the keyboard, keeping the focus
+        await page.keyboard.press('Alt+ArrowUp');          // a row moves from the keyboard, keeping the focus:
+        await expect(page.locator('.attach-list .chain-row')).toHaveCount(1);   // attached to the source, a step,
+        await expect(rows.nth(1).locator('.chain-name')).toBeFocused();
+        await page.keyboard.press('Alt+ArrowUp');          // then above it
+        await expect(page.locator('.attach-list .chain-row')).toHaveCount(0);
         await expect(rows.first()).toHaveAttribute('data-kind', 'warp');
         await expect(rows.first().locator('.chain-name')).toBeFocused();
         await rows.nth(1).getByRole('combobox', { name: 'Combine' }).selectOption('max');   // in the row's own line
