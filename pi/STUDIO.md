@@ -10,7 +10,7 @@ Two units share one clone of the `pi` branch:
 | Unit | What | Started by |
 | --- | --- | --- |
 | `folly-studio` | Studio (`server.ts`) on `:8780`, niced (`Nice=5`) | boot (enabled) |
-| `studio-live` | the live engine (`pi/main.ts`), the only thing that sends to fppd ([INSTALL.md](INSTALL.md)) | the ops hub, as now |
+| `studio-live` | the live engine (`pi/main.ts`), the only thing that sends to fppd ([INSTALL.md](INSTALL.md)) | the ops hub |
 
 Studio shows the engine's control page to curators at `/pi/` (their header's **Lights**). Studio itself sends
 nothing to the lights, so it may run while FPP plays the night show.
@@ -38,8 +38,8 @@ Each stats line gives the frame rate, the render time per frame and `late` (fram
 render time is over 25 ms cannot hold 40 fps: note which.
 
 Bakes (a look with custom code plays on the lights only as its bake) run in the render box, which needs bubblewrap
-and unprivileged user namespaces. Raspberry Pi OS (Debian) allows those as installed. `bake-bench` comes with the `pi`
-branch: on an older clone, run this part after step 1.
+and unprivileged user namespaces. Raspberry Pi OS (Debian) allows those as installed. If the clone has no
+`npm run bake-bench`, run this part after step 1.
 
 ```sh
 sudo apt install -y bubblewrap
@@ -124,15 +124,14 @@ The engine serves its page at `/pi/` for Studio and at `/` for the ops hub, whos
 only lock, so choose one, and put it in `studio.env` as `PI_PIN` too, so Studio can play looks on it. It plays only
 library looks, never code, either way (SPEC-offline "The Pi preview").
 
-Curators play looks from Studio (**Play on the lights**): a look made only of library modules plays live while Admin →
-Light's **Live library looks** is on; a look with custom code plays only as its bake. Bakes are made on the Pi in the
-render box (bubblewrap, step 0), one at a time, at `nice 19` under the engine and Studio, within 384 MB
-(`STUDIO_BAKE_NICE`, `STUDIO_BAKE_MEMORY`). Without bubblewrap such looks cannot play on the lights until they are
-rebuilt from library modules. Admin → Light's **Mode** (SPEC-liveplay) is **Jukebox** by default: the queue only,
-each change a full fade, no Play now, knobs or Blackout. **Live Play** adds them, for whoever may drive
-(`STUDIO_LIVE_CONTROL`), one person on the knobs at a time; Studio tells the engine at each change. Curators run
-the lights from Studio's **Live** on a phone or a laptop: the live play page (SPEC-liveplay "The page"), adding
-their own looks, the gallery's or the lights' own, with the Folly in 3D beside it. Members see the stage alone.
+Curators play looks from Studio (**Play on the lights**): a look made only of library modules plays live while
+Admin → Light's **Live library looks on the lights** is on; a look with custom code plays only as its bake. Bakes are
+made on the Pi in the render box (bubblewrap, step 0), one at a time, at `nice 19` under the engine and Studio,
+within 384 MB (`STUDIO_BAKE_NICE`, `STUDIO_BAKE_MEMORY`). Without bubblewrap such looks cannot play on the lights
+until they are rebuilt from library modules. Admin → Light's **Mode** is **Jukebox** by default, or **Live Play** for
+whoever may drive (`STUDIO_LIVE_CONTROL`) (SPEC-liveplay "Modes"); Studio tells the engine at each change. Curators
+run the lights from Studio's **Live** on a phone or a laptop: the live play page (SPEC-liveplay "The page"). Members
+see the stage alone.
 
 ## 3. The Studio unit
 

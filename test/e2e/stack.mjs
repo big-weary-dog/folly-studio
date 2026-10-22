@@ -13,8 +13,8 @@ import { identity, named, sweep, tagged } from './procs.mjs';
 
 export const REPO = `${SHOW_BUILDER}/`;
 export const STUDIO = fileURLToPath(new URL('../../', import.meta.url));
-export const RELAY_PORT = 3001;
-export const SACN_PORT = 5568;
+const RELAY_PORT = 3001;
+const SACN_PORT = 5568;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -27,7 +27,7 @@ export function listening(port) {
   });
 }
 
-export async function waitForPort(port, ms = 15000, what = `port ${port}`) {
+async function waitForPort(port, ms = 15000, what = `port ${port}`) {
   for (const end = Date.now() + ms; Date.now() < end; await sleep(100)) if (await listening(port)) return;
   throw new Error(`e2e: ${what} did not start listening within ${ms} ms`);
 }

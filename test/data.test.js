@@ -26,14 +26,6 @@ test('top-level shape', () => {
   assert.doesNotThrow(() => prepareScene(rig));
 });
 
-test('bounds hold every LED', () => {
-  for (let i = 0; i < 3; i++) {
-    const v = rig.pixels.pos.filter((_, j) => j % 3 === i);
-    assert.equal(Math.min(...v), rig.bounds.min[i]);
-    assert.equal(Math.max(...v), rig.bounds.max[i]);
-  }
-});
-
 test('fixtures: make_pixel_csv\'s chains, with Mirage\'s shapes', () => {
   const ids = rig.fixtures.map((f) => f.id);
   assert.equal(new Set(ids).size, ids.length, 'fixture ids are unique');

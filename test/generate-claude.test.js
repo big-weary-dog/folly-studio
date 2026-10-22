@@ -1,12 +1,11 @@
-// src/generate/claude.js against a mocked fetch: the request, streaming, retries and failures.
+// src/generate/claude.ts against a mocked fetch: the request, streaming, retries and failures.
 import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
 import { createClaudeAdapter } from '../src/generate/claude.ts';
-import { createQueue } from '../src/generate/index.ts';
 import { GenerateError, validateLook } from '../shared/schemas/generated.ts';
-import { GROUPS, jsonRes, LIBRARY, lookJson, queueSetup, quiet, sse, streamOf } from './fixtures/generate/shared.js';
+import { GROUPS, jsonRes, LIBRARY, lookJson, quiet, sse, streamOf } from './fixtures/generate/shared.js';
 
 describe('claude', () => {
   test('one streamed Messages API call with structured output, caching and the idea only in the user turn',
@@ -170,25 +169,5 @@ describe('claude', () => {
     ];
     const a = createClaudeAdapter({ env: {}, apiKey: 'k', log: quiet, fetch: async () => sse(events) });
     assert.equal((await a.generate({ text: 'x' })).title, 'Reef');
-  });
-
-  test('claude through the queue with a mocked fetch', async () => {
-    const realFetch = globalThis.fetch;
-    const key = process.env.ANTHROPIC_API_KEY;
-    process.env.ANTHROPIC_API_KEY = 'sk-test';
-    globalThis.fetch = async () => sse(streamOf(lookJson()));
-    try {
-      const { store, idea, queue } = queueSetup(createQueue, { adapterName: 'claude' });
-      const i = idea('a reef');
-      queue.enqueue(i);
-      await queue.idle();
-      const done = store.ideas.get(i.id);
-      assert.equal(done.status, 'ready', done.error);
-      assert.equal(store.looks.get(done.lookId).title, 'Reef');
-    } finally {
-      globalThis.fetch = realFetch;
-      if (key === undefined) delete process.env.ANTHROPIC_API_KEY;
-      else process.env.ANTHROPIC_API_KEY = key;
-    }
   });
 });

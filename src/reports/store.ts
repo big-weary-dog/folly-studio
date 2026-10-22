@@ -25,7 +25,7 @@ export async function reportFolders(dir: string) {
 }
 
 /** The admin list's line for a saved report. */
-export function summaryOf(id: string, at: string, r: Record<string, any>, shot: boolean): ReportSummary {
+function summaryOf(id: string, at: string, r: Record<string, any>, shot: boolean): ReportSummary {
   const studio = r.sources?.studio, live = r.sources?.live;
   return { id, at, user: text(r.server?.user?.username), path: text(r.page?.path),
     look: text(studio?.look?.title) || text(live?.look?.title), note: text(r.note).split(/\r?\n/)[0]!.slice(0, 200),

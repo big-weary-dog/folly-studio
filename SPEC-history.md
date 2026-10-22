@@ -18,8 +18,8 @@ ideaId?, ask?, title, summary, layers, duration, bpm, globals?, automation?, sav
 and is never reused; `how` is `auto` (a save), `ai` (a refinement: its `ideaId` and what it `ask`ed) or `restore`
 (of version `from`); `reviewed = { by, flashOverride? }` when a curator had reviewed it. The look holds its own
 number and making as `look.version` (`GET` answers its owner with the number alone). The last 20 unnamed versions
-are kept, and every named one (at most 50). A version kept before `n` was numbered by its place; one kept before
-`bpm` was lacks it and reads as the look's tempo. Versions are their owner's alone: others, curators too, never
+are kept, and every named one (at most 50). A version without `n` is numbered by its place; one without `bpm`
+reads as the look's tempo (`tempoGuessed`). Versions are their owner's alone: others, curators too, never
 see them.
 
 A change to the frames also drops the bake and its frames and clears `reviewed`: anything but `bpm` on a look that

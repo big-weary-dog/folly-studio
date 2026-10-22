@@ -1,6 +1,6 @@
-// Modulator lanes under the timeline's layers (SPEC "Timeline"): a lane per modulator, its value over the show (0..1
-// of its range, as it plays), its name and what it drives in the lane's head, which opens it on the Look panel. The
-// group folds to its head, kept per browser.
+// Modulator lanes under the timeline's layers (SPEC-studio "Timeline"): a lane per modulator, its value over the show
+// (0..1 of its range, as it plays), its name and what it drives in the lane's head, which opens it on the Look panel.
+// The group folds to its head, kept per browser.
 import { useMemo, useState } from 'preact/hooks';
 
 import { prepareLook } from '../core/globals.ts';

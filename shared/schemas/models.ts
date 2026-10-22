@@ -18,7 +18,7 @@ export const EFFORTS: Record<Transport, readonly string[]> = { claude: ['low', '
  * `needsModel`: its entry must name the provider's model; `defaultEffort`: the effort of a model that names none;
  * `laneDefault`: its jobs at once where neither the registry nor STUDIO_GENERATOR_CONCURRENCY says; `laneMax`: never
  * more than this (the foundry runs one job at a time). */
-export type TransportCaps = { prompted: boolean, explores: boolean, refines: boolean, critiques: boolean,
+type TransportCaps = { prompted: boolean, explores: boolean, refines: boolean, critiques: boolean,
   paid: boolean, needsModel: boolean, defaultEffort?: string, laneDefault: number, laneMax?: number };
 export const TRANSPORT_CAPS: Record<Transport, TransportCaps> = {
   claude: { prompted: true, explores: true, refines: true, critiques: true, paid: true, needsModel: false,

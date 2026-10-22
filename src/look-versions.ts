@@ -14,7 +14,7 @@ import {
 import { HttpError, parse } from './http.ts';
 import type { StoredLook as Look, StoredUser } from './store.ts';
 
-export const MAX_VERSIONS = 20;
+const MAX_VERSIONS = 20;
 export const MAX_NAMED = 50;
 
 /** A version as stored: its meta, words and what plays, when it was saved, and the review it had. */

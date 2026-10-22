@@ -10,9 +10,8 @@ alone or with Studio). This page is the online way, a git clone, and what the en
 What it is and how to drive it: [README.md](README.md). How live apps fit the Pi: `ADD_LIVE_APP.md` in the
 lighting repo.
 
-Where its page is: `http://192.168.8.172:4043/` in both setups. Alone, the engine serves it at `/`. With Studio on
-the Pi too ([STUDIO.md](STUDIO.md)), it serves it at `/` and at `/pi/`, which Studio passes through to its curators
-as `http://192.168.8.172:8780/pi/`.
+Its page is `http://192.168.8.172:4043/`; with Studio on the Pi too, also `:8780/pi/` ([SETUP.md](SETUP.md)'s
+table).
 
 ## 1. Clone and install (once)
 
@@ -192,7 +191,7 @@ npm ci --omit=dev
 sudo systemctl restart studio-live
 ```
 
-To return to the latest, run `git checkout "$BRANCH" && git pull` ($BRANCH as in step 1), then the same `npm ci` and restart.
+To return to the latest, run `git checkout prod && git pull`, then the same `npm ci` and restart.
 To take Studio Live off the Pi entirely, follow these steps:
 
 1. Switch the hub to FPP.

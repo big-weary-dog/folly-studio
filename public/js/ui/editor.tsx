@@ -21,7 +21,7 @@ function insertText(ta: HTMLTextAreaElement, text: string) {
 }
 
 /** Pull a line number out of an error message, if it has one. */
-export function findLine(msg?: string) {
+function findLine(msg?: string) {
   if (!msg) return 0;
   const m = /\bline (\d+)/i.exec(msg) || /<anonymous>:(\d+):\d+/.exec(msg) || /:(\d+):(\d+)\)?\s*$/.exec(msg);
   return m ? Number(m[1]) : 0;

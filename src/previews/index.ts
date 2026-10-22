@@ -23,12 +23,12 @@ export const MAX_BYTES = 300 * 1024;
 const FILE = /^([A-Za-z0-9_-]{1,64})-([0-9a-f]{16})(-still)?\.webp$/;
 
 /** What a look's preview shows: changes with its render fields and duration. */
-export const previewKey = (look: StoredLook) => createHash('sha256')
+const previewKey = (look: StoredLook) => createHash('sha256')
   .update(JSON.stringify({ v: VERSION, fields: layersHash(renderFields(look)), duration: look.duration ?? null }))
   .digest('hex').slice(0, 16);
 
 /** Pictures → { webp: the loop, still }. sharp (libvips, ~40 MB) loads at the first preview, not at start. */
-export async function encodePreview(m: Motion) {
+async function encodePreview(m: Motion) {
   const { default: sharp } = await import('sharp');
   const raw = { width: m.width, height: m.height, channels: 3 as const }, pages = Buffer.concat(m.frames);
   let webp = Buffer.alloc(0);

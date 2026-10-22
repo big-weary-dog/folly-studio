@@ -206,11 +206,12 @@ describe('the bake cache and re-baking evicted frames, through the API', () => {
 });
 
 const probe = await createRenderBox({ log: quiet }).probe();
+/** /proc/<pid>/stat's fields from the state on: [1] parent, [16] nice. */
+const stat = (pid) => fs.readFileSync(`/proc/${pid}/stat`, 'utf8').split(') ')[1].split(' ');
 describe('the render box runs at nice 10', () => {
   beforeEach(({ skip }) => skip(!probe.ok || !!probe.libraryOnly,
     `render box unavailable here: ${probe.reason || probe.libraryOnly}`));
-  // oxlint-disable-next-line vitest/no-disabled-tests -- flaky under load (other runs' boxes show up in /proc).
-  test.skip('its processes have nice 10', async () => {
+  test('its processes have nice 10', async () => {
     const box = createRenderBox({ seconds: 3, frameTimeoutMs: 600_000, log: quiet });
     const slow = { id: 'l1', groups: ['cathedral'], blend: 'add', level: 1, params: {},
       code: 'function pixel(p, t) { let s = 0; for (let i = 0; i < 300; i++) s += sin(i); return [s, 0, 0]; }' };
@@ -222,7 +223,10 @@ describe('the render box runs at nice 10', () => {
         try {
           // The box's node itself: the nice wrapper carries the same arguments but is at 0 until it has run.
           if (!fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').startsWith('/box/node\0')) continue;
-          nice = Number(fs.readFileSync(`/proc/${pid}/stat`, 'utf8').split(') ')[1].split(' ')[16]);
+          // Ours: other test files and runs have boxes of their own.
+          let up = Number(stat(pid)[1]);
+          while (up > 1 && up !== process.pid) up = Number(stat(up)[1]);
+          if (up === process.pid) nice = Number(stat(pid)[16]);
         } catch {}
       }
     }

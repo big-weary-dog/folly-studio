@@ -15,7 +15,7 @@ export const EXTRAS = PLAYS.filter((k): k is ExtraKey => k !== 'layers' && k !==
 export type ExtraKey = Exclude<PlaysKey, 'layers' | 'duration'>;
 type Playing = { [K in PlaysKey]?: unknown };
 /** A look's PLAYS: the layers and the length always (defaults: none, 30 s), the extras when set (not null). */
-export type PlaysOf<T extends Playing> = { layers: NonNullable<T['layers']>, duration: number }
+type PlaysOf<T extends Playing> = { layers: NonNullable<T['layers']>, duration: number }
   & { [K in ExtraKey]?: NonNullable<T[K]> };
 
 export function playsOf<T extends Playing>(look: T): PlaysOf<T> {
