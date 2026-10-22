@@ -18,8 +18,9 @@ function Pick({ id, value, put, n, draw }: Props & { n: number; draw: (pick: Ros
   const flip = (i: number) => put(pickText(on.map((o, j) => (j === i ? !o : o))));
   return <div class="petal-pick">
     {draw({ on, flip })}
-    <input type="text" id={id} class="param-text" value={value} maxLength={TEXT_MAX} spellcheck={false}
-      autocomplete="off" onChange={(e) => {
+    {/* Uncontrolled, new for each value: a re-render while typing (the sandbox reporting a click) keeps the text. */}
+    <input key={value} type="text" id={id} class="param-text" defaultValue={value} maxLength={TEXT_MAX}
+      spellcheck={false} autocomplete="off" onChange={(e) => {
         const v = readText(e.currentTarget.value);
         if (v === null) e.currentTarget.value = value; else put(v);
       }} />

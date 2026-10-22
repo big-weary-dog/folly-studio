@@ -114,11 +114,12 @@
 .field.param > .field-control:has(> .petal-pick) { flex: 1 1 100%; }
 .petal-pick { display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .rose-pick, .petal-cells { flex: none; width: 168px; }
-.rose-pickers { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
-.rose-pickers > .field.param { flex-direction: column; align-items: stretch; }
-.rose-pickers .petal-pick { flex-direction: column; align-items: stretch; }
+.rose-pickers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+.rose-pickers > .field.param { display: grid; align-content: start; min-width: 0; }
+.rose-pickers .field-control { display: flex; flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
+.rose-pickers .petal-pick { flex: 1 1 100%; flex-direction: column; align-items: stretch; min-width: 0; }
 .rose-pickers :is(.rose-pick, .petal-cells) { align-self: center; width: 100%; max-width: 168px; }
-.rose-pickers .param-text { flex: none; }
+.rose-pickers .param-text { flex: none; width: 100%; min-width: 0; }
 :is(.rose-pick, .petal-cells) .rp { cursor: pointer; transition: opacity .15s; }
 :is(.rose-pick, .petal-cells) .rp.off { opacity: .22; }
 :is(.rose-pick, .petal-cells) .rp.off:hover { opacity: .5; }

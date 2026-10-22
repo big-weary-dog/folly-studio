@@ -46,7 +46,7 @@ for (const [name, device] of Object.entries(DEVICES)) {
       await expect(cell(5)).toHaveAttribute('aria-checked', 'false');
       await page.waitForTimeout(1500);              // the preview draws a few frames
       await page.screenshot({ path: info.outputPath(`${name}.png`) });
-      await field.scrollIntoViewIfNeeded();
+      await page.locator('.rose-pickers').evaluate((el) => el.scrollIntoView({ block: 'center' }));
       await page.locator('.rose-pickers').screenshot({ path: info.outputPath(`${name}-field.png`) });
       await cell(5).click();
       await expect(cells.locator('input.param-text')).toHaveValue('1-5 7-9 12-14');
