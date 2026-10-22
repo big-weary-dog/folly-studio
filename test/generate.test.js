@@ -101,11 +101,11 @@ describe('prompt', () => {
     assert.match(sys, /# Worked compositions\nIdea: /);
     // What every compose, repair and critique call carries: the system prompt and the docs a turn gets unasked (none:
     // the READMEs say again what the prompt does). ~28,700 with headroom for the modules still coming, and 34,000 as
-    // the preset and palette catalogs grow; the draft call carries the system prompt and its own turn.
+    // the preset and palette catalogs grow; the draft call, the system prompt and its own turn, grows with the library.
     const always = sys.length + docsBlock(docs, pickDocs(docs, [])).length;
     assert.ok(always < 34_000, `the system prompt and core docs are ${always} characters`);
     const draft = sys.length + buildDraftMessage('an idea', RIG.groups).length;
-    assert.ok(draft < 34_500, `the draft call is ${draft} characters`);
+    assert.ok(draft < 36_000, `the draft call is ${draft} characters`);
   });
 
   test('group tree is compact', () => {

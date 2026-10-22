@@ -32,7 +32,12 @@ number `{ value, min, max, step?, unit? }` (`unit: 'minute'`: a speed counted a 
 options, each `[a-z][a-z0-9-]{0,31}`; a value not among them takes the default); `{ value: picture, type: 'picture' }`
 ("Pictures" below; no value: an empty one); `{ value: 'text', type: 'text' }` (≤ 256 printable ASCII characters, a
 value that is not takes the default; the pattern reads it: rhythm's steps, a tag list; `lines: true`: its words are
-lines, which the Studio stacks one a line, in monospace, storing the spaces between them). Any kind may carry `label` (its name in
+lines, which the Studio stacks one a line, in monospace, storing the spaces between them; `petals: true`: its
+words are rose petals, 1–16 clockwise from the top (sector + 1) and runs `a-b` (wrapping past 16: `15-2`), which the
+Studio shows as a rose window whose petals are clicked in and out, writing them sorted, runs of three or more as `a-b`;
+`cells: true`: the same for a petal's 14 cells, 1–14 ring by ring from the heart (its rings hold 1, 2, 1, 2, 3, 2 and
+3), each ring from the counterclockwise side, shown as one petal drawn large, beside a `petals` param just before it).
+Any kind may carry `label` (its name in
 the Studio, a unit in parentheses: `'Speed (bars a second)'`) and `help` (≤ 300 characters: one or two sentences on
 what it does and how it looks low and high). The Studio shows `help` on hover over the param's row, and on a touch
 screen behind an ⓘ beside it; the generators' library docs give it as the param's effect. Every library param has
@@ -177,7 +182,12 @@ as `over` blends; with filters that should rework the element alone, `[element, 
 'under']`. Alone on a layer an element shows over black, as one that painted black would. A filter that hides or fades
 (mask, edge-fade, trails) does so by alpha too: what it hides is transparent, never black. `mask` reads the brightness
 of its input, or with `by: 'self'` the luminance of what is above it (so it keeps what is bright), against a cutoff
-that `scatter` moves per LED by `(rand(k, seed) − 0.5) × scatter` (0: one cutoff).
+that `scatter` moves per LED by `(rand(k, seed) − 0.5) × scatter` (0: one cutoff). `petal-mask` is mask by the petals its `petals` text
+names and the cells its `cells` text names, in every petal: an LED shows when both its petal and its cell are named.
+Its petal is its sector; its cell its ring and its side of the petal's centre line, by its angle round the rose's
+centre (`centres('rose')`) less the petal's, o in petals (−½..½): in a ring of two, o < 0 the first; of three, o < −⅙
+the first and o > ⅙ the last. Off the rose, the sixteenth of a turn its angle round the layer's centre falls in, the
+ring by its radius in seven bands (as by region).
 
 ## Composites
 
@@ -220,7 +230,7 @@ waves, fireflies, sparkle,
 streaks, lightning, fireworks, strobe, heartbeat, picture. Warps: mirror, mosaic, polar,
 anchor, reorder, rotate, scroll, twist, turbulence, in-turn, and the rose's ring-turn, petal-repeat and petal-stride.
 Filters: recolour, hue-shift,
-mask, blur, edge-fade, trails, delay, smoke, replay, sort,
+mask, petal-mask, blur, edge-fade, trails, delay, smoke, replay, sort,
 splash, rhythm. Presets: Water, Storm, Kaleidoscope, Tunnel and
 Afterimage (mirror's Wedges and Rings, trails after lightning), One-petal kaleido (petal-repeat's sixteen); fire and smoke (Brushfire, Willow, Bonfire, Flash pots, Rising embers),
 the beat (Level meter, Climbing hits, Stutter, Out of step, Call and answer, Stepping rings, Drop), Daybreak, Chain

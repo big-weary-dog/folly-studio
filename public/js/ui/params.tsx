@@ -1,7 +1,7 @@
 // Controls for the selected module's `params` (SPEC "Pattern code"): numbers become scrub fields, `type: 'color'`
-// colour picks (picks.tsx), `type: 'toggle'` switches, a row each. A number, or a pick's rotate, can be modulated
-// (SPEC "Param bindings"): an LFO or a global (energy, a macro…) moves it every frame instead of its field; a speed's
-// beat clock counts it per beat at the look's BPM.
+// colour picks (picks.tsx), `type: 'toggle'` switches, `petals` text a rose to click (petal-pick.tsx), a row each. A
+// number, or a pick's rotate, can be modulated (SPEC "Param bindings"): an LFO or a global (energy, a macro…) moves it
+// every frame instead of its field; a speed's beat clock counts it per beat at the look's BPM.
 import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 
@@ -18,6 +18,7 @@ import { cx, Field, Scrub } from './kit.tsx';
 import { addModulator, modulatorEdits } from './look-globals-edit.ts';
 import { BoundChip, ModButton, type ModCtx } from './modulate.tsx';
 import { type Colours, type Help, PickRow, Slot } from './picks.tsx';
+import { CellPick, PetalPick } from './petal-pick.tsx';
 import { PictureRow } from './picture-row.tsx';
 import type { Studio } from './studio-store.ts';
 
@@ -47,13 +48,17 @@ export function ParamsPanel({ st }: { st: Studio }) {
   const ctx: ModCtx = { look: () => st.look.peek(), t: () => st.clock.t, clips: () => st.selected.peek()?.clips,
     narrow: st.narrow.value, share: (mod, hint) => addModulator(st, mod,
     l.groups?.length ? st.groupNames(l.groups).split(',')[0] : l.title ?? '', hint), edit: modulatorEdits(st) };
+  const row = ([key, p]: readonly [string, Param]) => <Control key={`${l.id}/${m.id}/${key}`} name={key} p={p}
+    values={values} set={set} colours={colours} narrow={st.narrow.value} ctx={{ ...ctx, automate: (range, now, self) =>
+      automate(st, range, now, self ? { macro: self } : { layer: l.id, module: m.id, key,
+        hint: l.title ?? m.title, colour: p.kind === 'color' ? { value: p.value, blend: p.blend ?? 'step' }
+          : undefined }) }} />;
+  // A `cells` param just after a `petals` one sits beside it (SPEC "Pattern code").
+  const pair = (i: number) => !!entries[i]?.[1].petals && !!entries[i + 1]?.[1].cells;
   return (
     <div class="params">
-      {entries.map(([key, p]) => <Control key={`${l.id}/${m.id}/${key}`} name={key} p={p} values={values} set={set}
-        colours={colours} narrow={st.narrow.value} ctx={{ ...ctx, automate: (range, now, self) =>
-          automate(st, range, now, self ? { macro: self } : { layer: l.id, module: m.id, key,
-            hint: l.title ?? m.title, colour: p.kind === 'color' ? { value: p.value, blend: p.blend ?? 'step' }
-              : undefined }) }} />)}
+      {entries.map((e, i) => (pair(i - 1) ? null : pair(i)
+        ? <div key={`${l.id}/${m.id}/${e[0]}+`} class="rose-pickers">{row(e)}{row(entries[i + 1]!)}</div> : row(e)))}
       <div class="params-foot"><button type="button" class="btn small ghost"
         onClick={() => st.editModule(l.id, m.id, () => ({ params: {} }))}>Reset all to defaults</button></div>
     </div>);
@@ -90,6 +95,8 @@ function Control({ name, p, values, set, ctx, colours, narrow }: { name: string;
     {clock || <Slot />}
     <ModButton p={p} value={values[name]} now={bound ? p.value as number : value as number} ctx={ctx} put={putOr}
       label={`Modulate ${label}`} title={TITLE} /></>
+    : p.kind === 'text' && p.petals ? <PetalPick id={id} value={value as string} put={put} />
+    : p.kind === 'text' && p.cells ? <CellPick id={id} value={value as string} put={put} />
     : p.kind === 'text' && p.lines ? <Lines id={id} value={value as string} put={put} />
     : p.kind === 'text' ? <input type="text" id={id} class="param-text" value={value as string} maxLength={TEXT_MAX}
       spellcheck={false} autocomplete="off" onChange={(e) => {
