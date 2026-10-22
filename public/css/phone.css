@@ -17,6 +17,8 @@
     .studio[data-drill] .pane-layers { display: none !important; }
   .phone-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 8px; min-height: 56px;
     padding: 6px 8px; background: var(--night-1); border-bottom: var(--came) solid var(--lead); }
+  /* a row scrolled to stops below that head, not under it */
+  .studio[data-drill] :is(.chain-top, .sub-head) { scroll-margin-top: 64px; }
   .phone-back { flex: none; min-height: 44px; padding: 0 12px; color: var(--sand); font-size: 15px; }
   .phone-title { flex: 1; min-width: 0; margin: 0; font-size: 16px; font-weight: 650; overflow: hidden;
     text-overflow: ellipsis; white-space: nowrap; }
