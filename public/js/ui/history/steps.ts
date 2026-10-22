@@ -18,7 +18,7 @@ export type Named = { label: string, kind: Kind, key: string, where?: string };
 export type Step = Named & { at: number, look: Draft, saved?: boolean, sealed?: boolean, ai?: AiStep };
 export type EditOptions = { step?: string, kind?: Kind, merge?: string, ai?: AiStep };
 
-export const MAX_STEPS = 200;
+const MAX_STEPS = 200;
 const FOLD_MS = 1500;
 /** The fields a step puts back: the look's words and what plays (never its id, owner or sharing). */
 export const CONTENT = ['title', 'summary', ...PLAYS] as const;

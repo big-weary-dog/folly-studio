@@ -10,12 +10,12 @@ const URL_TAIL = /\b([a-z][a-z0-9+.-]*):\/\/([^\s/?#]+)([^\s?#]*)(?:[?#]\S*)?/gi
 const MAX_STRING = 2000;
 
 /** How far scrub() goes. */
-export type ScrubLimits = { depth: number, items: number, chars?: number };
+type ScrubLimits = { depth: number, items: number, chars?: number };
 /** A log line's limits; DEEP a state's. */
 export const LINE: ScrubLimits = { depth: 4, items: 50 };
 export const DEEP: ScrubLimits = { depth: 12, items: 500, chars: 20_000 };
 /** The most one piece of a report takes, in characters of JSON. */
-export const PIECE_MAX_CHARS = 64_000;
+const PIECE_MAX_CHARS = 64_000;
 
 /** `text` with its URLs' queries and fragments dropped and its IPs masked. */
 export function scrubText(text: string, max = MAX_STRING): string {

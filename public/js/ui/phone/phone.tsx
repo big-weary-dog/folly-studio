@@ -15,7 +15,7 @@ const TABS: Tab[] = ['layers', 'time', 'look', 'more'];
 export function createPhone() {
   return { detail: signal(pref('studio.phoneDetail') === '1'), drill: signal<string | null>(null) };
 }
-export type Phone = ReturnType<typeof createPhone>;
+type Phone = ReturnType<typeof createPhone>;
 
 /** The Studio's attributes for the light view: settings show while their layer stays the selected one. */
 export const phoneAttrs = (st: Studio, ph: Phone) => ({ 'data-detail': ph.detail.value ? 'full' : 'light',

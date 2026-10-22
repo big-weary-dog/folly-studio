@@ -20,7 +20,7 @@ const ACTIVE = new Set(['queued', 'running']);
 const pct = (v: number) => `${Math.round(v * 100)} %`;
 
 /** A look's bake as one state: { kind, label } (kind: none|queued|running|ok|warned|flagged|failed). */
-export function bakeState(bake?: Bake | null) {
+function bakeState(bake?: Bake | null) {
   if (!bake) return { kind: 'none', label: 'Not baked' };
   if (bake.status === 'queued') return { kind: 'queued', label: 'Queued' };
   if (bake.status === 'running') return { kind: 'running', label: 'Baking…' };

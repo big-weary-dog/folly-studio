@@ -22,7 +22,7 @@ export type Call = { ms: number, system?: string, turn: unknown, images?: number
 export type Round = { kind: string, call(c: Call): void, still(png: Uint8Array, about: Record<string, unknown>): void,
   end(r?: { outcome?: string, notes?: string[], [more: string]: unknown }): void, think?(text: string): void };
 /** The round running now, for the idea's live view: thinking so far, the latest last when it runs long. */
-export type LiveRound = { n: number, kind: string, ms: number, thinking?: string };
+type LiveRound = { n: number, kind: string, ms: number, thinking?: string };
 export type Outcome = { status: IdeaOutcome, error?: string, detail?: string, lookId?: string };
 export type IdeaLog = ReturnType<typeof createIdeaLog>;
 
