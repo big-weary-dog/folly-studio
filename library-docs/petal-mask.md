@@ -1,5 +1,5 @@
 ---
-looks: The chain shown only on the rose petals picked by number, and in each only the cells picked; or the rest.
+looks: The chain shown only on the rose petals picked, and in each only the cells picked; or the rest.
 ---
 Shows what is above it only on the rose petals Petals names, petal 1 the top one and on clockwise (`1-4 9-12` two
 opposite quarters, `1 5 9 13` a cross, `15-2` the four round the top), and in each of those only the cells Cells
