@@ -160,7 +160,8 @@ at the top level: `const stage = 'spatial'` (it reads its neighbours: a spatial 
 `'history'` filter may also declare `const history = <seconds>` (above 0, at most 8): the core keeps that long of what
 is above it ("History" below). A warp
 bends the modules between itself and the nearest stage end above it, never the stage end or anything above that:
-those colours exist only at real LEDs.
+those colours exist only at real LEDs. A warp or filter attached to one module works on that module alone ("Attached
+modules" below).
 
 Per pixel, in one pass with no intermediate buffers (a chain without spatial modules, below): module i reads `q`, a
 copy of the pixel bent by the warps below i up to the next stage end, the bottom-most first (in `[S, W1, W2]`, S
@@ -212,6 +213,27 @@ as a layer's, and + Sub-layer (a module from the shelf). A module's grip drags i
 steps it through the same places); a sub-layer's grip (or Alt+↑/↓ on its name) reorders its composite's sub-layers.
 ⧉ Composite in the chain's head puts the selected module in a new composite of one sub-layer; on such a composite it
 is Ungroup, its modules back in its place.
+
+## Attached modules
+
+A warp or filter with `on: "<id>"` is **attached** to that source (or composite): a warp bends only where it reads
+its pixel, a filter reworks only its colour, before it combines into the chain. It is listed straight after its
+module, after any others attached to it (the schema refuses an `on` anywhere else), and the module with its attached
+run is exactly a composite of one sub-layer holding them, in that order (the module combining over nothing), with
+the module's `id`, `blend` and `as`: so a filter's `input` naming the module reads it as its attached run leaves it,
+and every rule above holds inside the run. An attached filter's `input` may also name an earlier source of the chain
+round it. One that is off is skipped, and a module that is off takes its attached run with it. Looks without `on`
+are unchanged.
+
+A stage end may be attached (outside a composite's sub-layer): the module then holds real LED colours, so it reads
+the pixel itself, and warps below it bend the modules above it but not it. Trails and other `'history'` filters run
+in the one pass; a run holding a spatial module runs first, over the layer's every pixel into a buffer of its own
+(4 numbers a pixel, and the blur's), in stages as a chain does, and the chain reads its colour from there; such a
+run's filters read no `input` from the chain round it.
+
+In the Studio's chain an attached module is drawn one step in under its module, as a composite's sub-layers are; its
+grip drags it into or out of any module's attached run (a source drags its run with it), and Alt+↑/↓ steps it
+through the same places.
 
 ## Library
 

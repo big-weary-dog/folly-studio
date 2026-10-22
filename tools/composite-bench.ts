@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Composites against the flat chains they stand for (SPEC-library "Composites"): ms a frame (mean, p95), on both
-// rigs. Our own library code only. For allocation, count scavenges under node --trace-gc: a heap delta is noise.
+// Composites against the flat chains they stand for (SPEC-library "Composites"), and modules attached to one source
+// ("Attached modules"), blur and trails too: ms a frame (mean, p95), on both rigs. Our own library code only. For
+// allocation, count scavenges under node --trace-gc: a heap delta is noise.
 //
 //   node tools/composite-bench.ts [--frames 400]
 import { readFileSync } from 'node:fs';
@@ -19,6 +20,7 @@ const comp = (id: string, layers: object[], more = {}) => ({ id, kind: 'composit
 const clouds = () => mod('a', 'source', 'clouds'), bars = () => mod('b', 'source', 'bars');
 const twist = () => mod('w', 'warp', 'twist'), hue = () => mod('h', 'filter', 'hue-shift');
 const sparkle = () => mod('t', 'source', 'sparkle');
+const blur = () => mod('x', 'filter', 'blur', { radius: 0.3 }), trails = () => mod('z', 'filter', 'trails');
 const CASES: [string, object[]][] = [
   ['flat: clouds, bars, twist', [clouds(), bars(), twist()]],
   ['composite{clouds | bars}, twist', [comp('c', [sub('s1', [clouds()]), sub('s2', [bars()])]), twist()]],
@@ -34,6 +36,14 @@ const CASES: [string, object[]][] = [
     sub('s3', [sparkle()]), sub('s4', [mod('f', 'source', 'fire')])]), twist()]],
   ['the same, bars and sparkle on parts', [comp('c', [sub('s1', [clouds()]), sub('s2', [bars()], { tags: ['__part'] }),
     sub('s3', [sparkle()], { tags: ['__part'] }), sub('s4', [mod('f', 'source', 'fire')])]), twist()]],
+  ['flat: clouds, bars', [clouds(), bars()]],
+  ['clouds, twist on clouds, bars', [clouds(), { ...twist(), on: 'a' }, bars()]],
+  ['clouds, hue on clouds, bars', [clouds(), { ...hue(), on: 'a' }, bars()]],
+  ['flat: clouds, bars, blur', [clouds(), bars(), blur()]],
+  ['clouds, blur on clouds, bars', [clouds(), { ...blur(), on: 'a' }, bars()]],
+  ['clouds, blur on clouds, bars, blur', [clouds(), { ...blur(), on: 'a' }, bars(), { ...blur(), id: 'y' }]],
+  ['flat: clouds, bars, trails', [clouds(), bars(), trails()]],
+  ['clouds, trails on clouds, bars', [clouds(), { ...trails(), on: 'a' }, bars()]],
 ];
 
 for (const name of ['rig.json', 'rig-folly.json']) {

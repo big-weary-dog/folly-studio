@@ -32,11 +32,16 @@ works on everything above it, as in an image editor.
   all of them together, a filter below it filters all of them, while a filter inside a sub-layer reworks only that
   one. A sub-layer with `tags` plays only on those parts of the layer. Ids are unique across the whole layer. No
   `blur`, `trails`, `delay`, `smoke`, `replay`, `sort` or `splash` inside a sub-layer; put one below the composite.
+- *Attached*: a warp or filter with `on: "<id>"` works on that one source (or composite) alone: a warp bends only
+  where it reads its pixel, a filter reworks only its colour before it joins the chain. List it straight after its
+  source (several in a row, each `on` it, work in order); blur and trails may be attached too, and a warp below
+  then passes that source by. Shorter than a composite of one sub-layer, and the same.
 
 Example, "a chase only inside clouds, mirrored": single-strand, clouds (`id: "sky"`, `as: "input"`), mask
 (`input: "sky"`), mirror.
 Example, "clouds and bars twisted together, each tinted on its own": a composite of sub-layers [clouds, hue-shift]
 and [bars, edge-fade], then twist, then sparkle (drawn on top, untwisted).
+Example, "rain, and stars turning on their own": streaks, starfield, rotate (`on: "starfield"`).
 
 A bed fills: `colour-wash` first in the chain, then the element with `blend: "over"`; or a colour-wash layer below.
 Keep a bed dim (layer level 0.15–0.35, or its brightness 0.2–0.4) so the element reads.

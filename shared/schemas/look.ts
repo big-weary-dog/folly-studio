@@ -6,8 +6,8 @@ import { z } from 'zod';
 import PALETTES from '../../public/data/palettes.json' with { type: 'json' };
 import {
   BLENDS, BLUR_MODES, DIRECTIONS, macroNameOk, MAX_CLIPS, MAX_DURATION, MAX_LANES, MAX_MACROS, MAX_POINTS, MAX_RADIUS,
-  CHAIN_KINDS, flatModules, OLD_DIRECTIONS, OLD_GLOBALS, PALETTE_ROLES, type Picture, pictureProblem, SOURCE_BLENDS,
-  TRANSITIONS, upgradeGlobals,
+  attachedTo, CHAIN_KINDS, flatModules, OLD_DIRECTIONS, OLD_GLOBALS, PALETTE_ROLES, type Picture, pictureProblem,
+  SOURCE_BLENDS, TRANSITIONS, upgradeGlobals,
 } from '../../public/js/pattern-core.ts';
 
 export * from '../plays.ts';
@@ -144,11 +144,13 @@ const ModuleObject = z.object({
   ref: z.string({ error: 'ref must name a library entry.' }).regex(/^[a-z0-9-]{1,64}$/).optional(),
   code: Code.default(''), params: Params.nullish().transform((p) => p ?? {}),
   input: z.string({ error: 'input must be a module id.' }).regex(ID).optional(),
+  on: z.string({ error: 'on must be a module id.' }).regex(ID).optional(),
   as: z.literal('input', { error: "as is only 'input' (a source)." }).optional(), blend: SourceBlend.optional(),
   enabled: z.boolean({ error: 'enabled must be true or false.' }).optional(),
   layers: z.array(SubLayer).min(1).max(MAX_SUBLAYERS, `a composite has at most ${MAX_SUBLAYERS} sub-layers.`)
     .optional(),
 }, { error: 'must be an object.' }).refine((m) => !m.as || m.kind === 'source', "as is only 'input' (a source).")
+  .refine((m) => !m.on || m.kind === 'warp' || m.kind === 'filter', 'on is only a warp\'s or a filter\'s.')
   .refine((m) => (m.kind === 'composite') === !!m.layers, 'a composite has layers, and only a composite.');
 type ModuleOut = Omit<z.infer<typeof ModuleObject>, 'layers'> & { layers?: SubLayer[] };
 const Module: z.ZodType<ModuleOut, unknown> = ModuleObject;
@@ -164,6 +166,10 @@ export const Modules = z.array(Module, { error: `1–${MAX_MODULES} modules.` })
         ctx.addIssue({ code: 'custom', message: 'id must be unique, 1–64 letters, digits or _.:-', path: [j, 'id'] });
       }
       ids.add(id);
+      if (rest.on && rest.on !== attachedTo(list, j)) {
+        ctx.addIssue({ code: 'custom', path: [j, 'on'],
+          message: 'on names the source or composite just above it (or above the modules attached to it).' });
+      }
       total += bytes(rest.code);
       if (total > MAX_LAYER_CODE_BYTES) ctx.addIssue(`its modules' code is over ${MAX_LAYER_CODE_BYTES / 1024} kB.`);
       return { id, ...rest, ...(enabled === false ? { enabled } : {}) };

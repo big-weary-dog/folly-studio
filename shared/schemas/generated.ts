@@ -5,8 +5,8 @@
 import { z } from 'zod';
 
 import {
-  BLENDS, BLUR_MODES, DEFAULT_SOFTEN, macroNameOk, MAX_LANES, MAX_MACROS, MAX_POINTS, MAX_RADIUS, MODULE_KINDS,
-  pickText, readPick, SOURCE_BLENDS,
+  attachedTo, BLENDS, BLUR_MODES, DEFAULT_SOFTEN, macroNameOk, MAX_LANES, MAX_MACROS, MAX_POINTS, MAX_RADIUS,
+  MODULE_KINDS, pickText, readPick, SOURCE_BLENDS,
 } from '../../public/js/pattern-core.ts';
 import type { Blend, BlurMode, ModuleKind, SourceBlend } from '../../public/js/pattern-core.ts';
 import {
@@ -138,7 +138,8 @@ const moduleOf = (library: Library) => z.object({
   }).meta({ enum: [...MODULE_KINDS] }),
   title: text(LIMITS.layerTitle), ref: z.string().optional().catch(undefined),
   code: z.unknown().optional().meta({ type: 'string' }),
-  params, input: z.string().optional().catch(undefined), as: z.literal('input').optional().catch(undefined),
+  params, input: z.string().optional().catch(undefined), on: z.string().optional().catch(undefined),
+  as: z.literal('input').optional().catch(undefined),
   blend: sourceBlend.optional(),
 }, { error: 'not an object' }).meta({ required: ['id', 'kind', 'title', 'code'] }).transform((m, ctx) => {
   const checked = code(FUNCTION[m.kind]!).safeParse(m.code);
@@ -147,10 +148,12 @@ const moduleOf = (library: Library) => z.object({
   const title = standardTitle({ ref }, library) ?? (m.title || ref || m.kind);
   return { id: m.id, kind: m.kind, title, ...(ref ? { ref } : {}), code: checked.data,
     params: m.params, ...(m.kind === 'filter' && m.input ? { input: m.input } : {}),
+    ...(m.kind !== 'source' && m.on ? { on: m.on } : {}),
     ...(m.kind === 'source' && m.as ? { as: m.as } : {}), ...(m.blend !== undefined ? { blend: m.blend } : {}) };
 });
 
-/** A chain as stored: ids unique (else m1, m2, …), a filter's input an earlier source's; null without a source. */
+/** A chain as stored: ids unique (else m1, m2, …), a filter's input an earlier source's, `on` the source above its
+ * run; null without a source. */
 function chain(list: (z.infer<ReturnType<typeof moduleOf>> | Dropped)[], notes: string[]): Module[] | null {
   const ids = new Set<string>();
   const out = keep(list, 'module', LIMITS.modules, notes).map((m, j) => {
@@ -160,6 +163,7 @@ function chain(list: (z.infer<ReturnType<typeof moduleOf>> | Dropped)[], notes: 
   });
   for (const [j, m] of out.entries()) {
     if (m.input && !out.slice(0, j).some((s) => s.id === m.input && s.kind === 'source')) delete m.input;
+    if (m.on && m.on !== attachedTo(out, j)) delete m.on;
   }
   return out.some((m) => m.kind === 'source') ? out : null;
 }

@@ -148,6 +148,7 @@ function cleanModule(m: Partial<Module>): Module {
     ...(typeof m.ref === 'string' && m.ref ? { ref: m.ref } : {}), code: String(m.code || ''),
     params: m.params && typeof m.params === 'object' ? JSON.parse(JSON.stringify(m.params)) : {},
     ...(kind === 'filter' && m.input ? { input: String(m.input) } : {}),
+    ...((kind === 'warp' || kind === 'filter') && m.on ? { on: String(m.on) } : {}),
     ...(kind === 'source' && m.as === 'input' ? { as: 'input' } : {}),
     ...(isBlend(m.blend) || m.blend === 'under' ? { blend: m.blend } : {}),
     ...(m.enabled === false ? { enabled: false } : {}),
@@ -176,15 +177,16 @@ export { isStageEnd };
 
 export type Reach = { kind: Kind | 'input'; from: number; to: number; lane?: number };
 /** How a chain is drawn (chain.tsx): each module's joint on the came (how a source combines, 'input' if it only feeds
- * a filter; else its kind), and the reaches, rows `from` to `to`: each enabled warp or filter over everything above it
- * up to a stage's end (isStageEnd), and a filter's input feed. Lane 0 is outermost; one inside a longer one, lane 1. */
+ * a filter; else its kind), and the reaches, rows `from` to `to`: each enabled warp or filter not attached to one
+ * module over everything above it up to a stage's end (isStageEnd), and a filter's input feed. Lane 0 is outermost;
+ * one inside a longer one, lane 1. */
 export function chainWires(mods: Module[]) {
   const on = (m: Module) => m.enabled !== false, isSrc = (m: Module) => m.kind === 'source' || m.kind === 'composite';
   const size = (r: Reach) => r.to - r.from, reaches: Reach[] = [];
   const first = mods.findIndex((m) => on(m) && isSrc(m) && m.as !== 'input');
   let top = 0;
   mods.forEach((m, i) => {
-    if (!on(m) || isSrc(m)) return;
+    if (!on(m) || isSrc(m) || m.on) return;       // an attached module works on its own module alone
     if (i > top) reaches.push({ kind: m.kind, from: top, to: i });
     const src = m.kind === 'filter' ? mods.findIndex((s) => s.id === m.input && on(s)) : -1;
     if (src >= 0 && src < i) reaches.push({ kind: 'input', from: src, to: i });
