@@ -66,7 +66,7 @@ export function lightOf(o?: unknown): Light {
 /** The engine's light: what adds light (the add blend, blur) adds it as `v^2.2`, the swatches' own curve, never the
  * settings' gamma, which corrects only the output. Tabled with linear steps (within 1e-5 of the curve): the engine
  * adds per LED, per layer, each frame. Below 0 it mirrors, so a negative value still takes light away. */
-export const MIX_GAMMA = 2.2;
+const MIX_GAMMA = 2.2;
 const STEPS = 1024, DEC = new Float64Array(STEPS + 2), ENC = new Float64Array(STEPS + 2);
 for (let i = 0; i < STEPS + 2; i++) {
   const x = Math.min(1, i / STEPS);

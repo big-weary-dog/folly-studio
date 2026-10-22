@@ -3,8 +3,7 @@
 // buffer, between its stages; scratch grows with the layer and nothing is allocated per frame after.
 import type { Scene } from './scene.ts';
 
-export const SORT_BY = Object.freeze(['brightness', 'colour'] as const);
-export const SORT_TOWARD = Object.freeze(['up', 'down', 'start', 'end'] as const);
+const SORT_TOWARD = Object.freeze(['up', 'down', 'start', 'end'] as const);
 // A key in 2^-16 steps, then a place in the run (< 2^23): one sortable number, exact in a double, ties by place.
 const RANK = 2 ** 16, PLACES = 2 ** 23;
 let keys = new Float64Array(0), spots = new Float64Array(0), tmp = new Float64Array(0);
