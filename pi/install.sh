@@ -69,6 +69,8 @@ say "installed $(sed -n 's/.*"commit": "\([0-9a-f]\{12\}\).*/\1/p' dist/build.js
   if (studio) Object.assign(c, { base: "/pi", light: `${data}/light.json`, frames: `${data}/frames`, bind: "0.0.0.0" });
   if (Object.keys(c).length) fs.writeFileSync(file, JSON.stringify(c, null, 2) + "\n");
 ' pi/config.json "$studio" "$pin" "$data"
+"$node" -e 'process.exit(JSON.parse(require("fs").readFileSync("pi/config.json", "utf8")).pin ? 0 : 1)' 2>/dev/null \
+  || say "WARNING: no PIN: anyone on the network can drive the lights from :4043/ (install again with --pin N)"
 
 if [ -n "$studio" ]; then
   mkdir -p "$data" "$(dirname "$env")"
