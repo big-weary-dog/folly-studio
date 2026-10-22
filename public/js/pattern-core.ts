@@ -29,6 +29,7 @@ export {
   BLENDS, CHAIN_KINDS, compileLayer, layerModules, MODULE_KINDS, prepareLayer, renderFrame, SOURCE_BLENDS,
 } from './core/render.ts';
 export { isStageEnd, stageOf, STAGES } from './core/warps.ts';
+export { flatModules } from './core/tree.ts';
 export {
   LIGHT, type Light, LIGHT_LIMITS, ledChannels, ledLight, lightByte, lightOf, type PreparedLight, prepareLight,
 } from './core/light.ts';

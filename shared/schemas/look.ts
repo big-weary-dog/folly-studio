@@ -6,8 +6,8 @@ import { z } from 'zod';
 import PALETTES from '../../public/data/palettes.json' with { type: 'json' };
 import {
   BLENDS, BLUR_MODES, DIRECTIONS, macroNameOk, MAX_CLIPS, MAX_DURATION, MAX_LANES, MAX_MACROS, MAX_POINTS, MAX_RADIUS,
-  CHAIN_KINDS, OLD_DIRECTIONS, OLD_GLOBALS, PALETTE_ROLES, type Picture, pictureProblem, SOURCE_BLENDS, TRANSITIONS,
-  upgradeGlobals,
+  CHAIN_KINDS, flatModules, OLD_DIRECTIONS, OLD_GLOBALS, PALETTE_ROLES, type Picture, pictureProblem, SOURCE_BLENDS,
+  TRANSITIONS, upgradeGlobals,
 } from '../../public/js/pattern-core.ts';
 
 export * from '../plays.ts';
@@ -119,17 +119,24 @@ const array = (item: (error: string) => z.ZodString, max: number, error: string)
   .max(max);
 const list = (...a: Parameters<typeof array>) => array(...a).default([]);
 
-/** A composite's sub-layer (SPEC-library "Composites"): its own chain, how it combines, where it plays. */
+/** A composite's sub-layer (SPEC-library "Composites"): its own chain, how it combines, where it plays. Its modules'
+ * ids default to `<its id>.m1`, `.m2`, …, so they stay unique across the layer. */
 export type SubLayer = { id: string, title: string, modules: Module[], blend?: z.infer<typeof SourceBlend>,
   level?: number, groups?: string[], tags?: string[], enabled?: boolean };
-const SubLayer: z.ZodType<SubLayer, unknown> = z.object({
+const subIds = (s: unknown) => {
+  const { id, modules } = (s ?? {}) as { id?: unknown, modules?: unknown };
+  if (typeof id !== 'string' || !Array.isArray(modules)) return s;
+  return { ...s as object, modules: modules.map((m, j) => (m && typeof m === 'object' && !('id' in m)
+    ? { ...m, id: `${id}.m${j + 1}` } : m)) };
+};
+const SubLayer: z.ZodType<SubLayer, unknown> = z.preprocess(subIds, z.object({
   id: z.string({ error: 'a sub-layer id must be 1–64 letters, digits or _.:-' }).regex(ID),
   title: Title.default(''), modules: z.lazy(() => Modules), blend: SourceBlend.optional(),
   level: num(0, 1, 'level must be a number from 0 to 1.').optional(),
   groups: array((error) => z.string({ error }).min(1).max(64), 64, 'groups must be an array of group ids.').optional(),
   tags: array((error) => z.string({ error }).regex(TAG), 16, 'tags must be an array of at most 16 tags.').optional(),
   enabled: z.boolean({ error: 'enabled must be true or false.' }).optional(),
-}, { error: 'must be an object.' });
+}, { error: 'must be an object.' }));
 export const MAX_SUBLAYERS = 4;
 
 const ModuleObject = z.object({
@@ -180,6 +187,14 @@ const Layer = z.looseObject({
 }, { error: 'must be an object.' }).superRefine((l, ctx) => {
   const stray = l.code !== undefined || Object.keys(l.params ?? {}).length > 0;
   if (l.modules && stray) ctx.addIssue('a layer has modules or code and params, not both.');
+  const ids = new Set<string>();
+  for (const m of flatModules(l.modules ?? [])) {
+    if (ids.has(m.id)) {
+      ctx.addIssue({ code: 'custom', path: ['modules'],
+        message: `module id ${m.id} is used twice: ids are unique across the layer, sub-layers' too.` });
+    }
+    ids.add(m.id);
+  }
   if (!l.modules && l.code === undefined) {
     ctx.addIssue({ code: 'custom', message: 'code must be a string.', path: ['code'] });
   }

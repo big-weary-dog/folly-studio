@@ -439,7 +439,7 @@ hung layer).
 SPEC-library "Palettes"), `readPick(value) → { groups, blend, range, rotate } | null` and `pickText(groups)` (a pick read leniently,
 and as text), `readText(value) → string | null` (a text param's value: printable ASCII, at most `TEXT_MAX`, 256,
 characters), `layerModules(layer) → modules`
-(a legacy layer → one source), `compileLayer(layer) → compiled[]` (throws `title: error`), `setLibrary([{ name,
+(a legacy layer → one source), `flatModules(modules) → modules` (a composite's too, depth first), `compileLayer(layer) → compiled[]` (throws `title: error`), `setLibrary([{ name,
 code }])`, `prepareScene(rig) → scene` (throws on a malformed rig), `groupsByTag(scene, tag) → [group]` (outermost
 first), `pixelsForGroups(scene, ids, tags?) → Int32Array` (a layer's rule above), `tagMask(scene, tag) → Uint8Array`,
 `tagCentres(scene, tag) → [[X, Y, Z]]`, `FLASH` (the default limits), `flashLimits(partial?) → limits` and
