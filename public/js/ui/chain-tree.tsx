@@ -13,6 +13,7 @@ import type { Box } from './composite-model.ts';
 import { Drawer, useDrawer } from './drawer.tsx';
 import { GroupsTree } from './groups-drawer.tsx';
 import { cx } from './kit.tsx';
+import { CUX } from './cux.ts';
 import { chainWires } from './model.ts';
 import type { Studio } from './studio-store.ts';
 import { slotKey, type TreeDrag } from './tree-drag.ts';
@@ -38,15 +39,17 @@ export const summary = (m: Module) => {
 };
 
 /** One list of modules: the layer's chain, or a sub-layer's; each attached run under its module's row. */
-export function ChainList({ ctx, mods, box, depth }: { ctx: TreeCtx; mods: Module[]; box: Box; depth: number }) {
+type Sub = { comp: Module, s: SubLayer, k: number };
+export function ChainList({ ctx, mods, box, depth, sub }: { ctx: TreeCtx; mods: Module[]; box: Box; depth: number;
+  sub?: Sub }) {
   const { drag } = ctx;
   return (
     <ol class={cx('chain-list', depth > 0 && 'sub-chain')} aria-label="Modules, first to last" data-depth={depth}>
       {mods.map((m, i) => {
         if (m.on && attachedTo(mods, i) === m.on) return null;
         const comp = m.kind === 'composite', open = comp && ctx.isOpen(m.id), src = comp || m.kind === 'source';
-        return <Row key={m.id} ctx={ctx} mods={mods} i={i} box={box}>
-          {comp ? open && <CompositeBody ctx={ctx} m={m} depth={depth} /> : <Settings ctx={ctx} m={m} />}
+        return <Row key={m.id} ctx={ctx} mods={mods} i={i} box={box} sub={sub}>
+          {comp ? open && CUX !== 'c' && <CompositeBody ctx={ctx} m={m} depth={depth} /> : <Settings ctx={ctx} m={m} />}
           {src && <AttachList ctx={ctx} mods={mods} i={i} box={box} />}
         </Row>;
       })}
@@ -60,8 +63,8 @@ const Settings = ({ ctx, m }: { ctx: TreeCtx; m: Module }) => (m === ctx.sel && 
   && !ctx.st.narrow.value ? <div class="chain-params">{ctx.settings()}</div> : null);
 
 /** Module i of `mods` as a row of the tree; `on`: the module it is attached to. */
-function Row({ ctx, mods, i, box, on, children }: { ctx: TreeCtx; mods: Module[]; i: number; box: Box; on?: string;
-  children: ComponentChildren }) {
+function Row({ ctx, mods, i, box, on, sub, children }: { ctx: TreeCtx; mods: Module[]; i: number; box: Box;
+  on?: string; sub?: Sub; children: ComponentChildren }) {
   const { st, sel, drag } = ctx, m = mods[i], comp = m.kind === 'composite', open = comp && ctx.isOpen(m.id);
   const { first, joins, reaches } = chainWires(mods), at = sel ? mods.indexOf(sel) : -1;
   return <ModuleRow m={m} i={i} mods={mods} first={first} selected={i === at} attached={!!on}
@@ -70,10 +73,14 @@ function Row({ ctx, mods, i, box, on, children }: { ctx: TreeCtx; mods: Module[]
     drop={drag.marked(box, i, on) ? 'before' : undefined} dragging={drag.dragging === m.id}
     join={on ? m.kind : joins[i]} reach={on ? [] : reaches.filter((r) => r.from <= i && i <= r.to)} lit={at}
     state={st.status.module(ctx.layerId, m)}
-    pick={(e) => (comp ? (ctx.toggle(m.id), st.pickModule(m.id)) : ctx.click(m, e))}
+    pick={(e) => (comp ? (CUX !== 'c' && ctx.toggle(m.id), st.pickModule(m.id)) : ctx.click(m, e))}
     remove={() => ctx.remove(m)} nudge={(e) => ctx.nudge(m.id, e)} set={(p) => ctx.set(m.id, p)}
     fold={comp ? open : st.narrow.value || i !== at ? undefined : ctx.settingsOpen}
-    note={comp && !open ? summary(m) : undefined}>{children}</ModuleRow>;
+    note={comp && (!open || CUX === 'c') ? CUX === 'c' ? cNote(m) : summary(m) : undefined}
+    rename={comp && CUX ? (title) => ctx.set(m.id, { title }) : undefined}
+    blendAs={sub && (CUX === 'b') && i === first ? { value: sub.s.blend, first: sub.k === 0,
+      set: (v) => ctx.editSub(sub.comp.id, sub.k, { blend: v as SubLayer['blend'] }) } : undefined}>
+    {children}</ModuleRow>;
 }
 
 /** The warps and filters attached to module i, one step in, and a slot to attach one after them. */
@@ -88,9 +95,21 @@ function AttachList({ ctx, mods, i, box }: { ctx: TreeCtx; mods: Module[]; i: nu
     </ol>);
 }
 
+/** C: a composite's sub-layers live in the Layers panel, under its layer. */
+const cNote = (m: Module) => `${(m.layers ?? []).map((s) => s.title).join(', ')} · in Layers`;
+
 /** A composite's name, then its sub-layers, top to bottom in the order they combine, and a button to add one. */
 function CompositeBody({ ctx, m, depth }: { ctx: TreeCtx; m: Module; depth: number }) {
   const layers = m.layers ?? [], { drag } = ctx;
+  if (CUX === 'a' || CUX === 'b') return (
+    <div class="composite-body">
+      {layers.map((s, k) => <div key={s.id} class={cx('sub-layer', s.enabled === false && 'off')}>
+        {CUX === 'a' && <SubHead ctx={ctx} comp={m} s={s} k={k} />}
+        <ChainList ctx={ctx} mods={s.modules} box={{ comp: m.id, sub: k }} depth={depth + 1} sub={{ comp: m, s, k }} />
+      </div>)}
+      <button type="button" class="btn small sub-add" onClick={() => ctx.addSub(m.id)} disabled={layers.length >= 4}>
+        {CUX === 'b' ? '+ Source' : '+ Sub-layer'}</button>
+    </div>);
   return (
     <div class="composite-body">
       <input type="text" class="sub-name comp-name" aria-label="Composite name" maxlength={80} spellcheck={false}
@@ -134,7 +153,7 @@ function SubHead({ ctx, comp, s, k }: { ctx: TreeCtx; comp: Module; s: SubLayer;
         onChange={(e) => edit({ blend: (e.currentTarget.value || undefined) as SubLayer['blend'] })}>
         {BLENDS.map(([v, t]) => <option value={v}>{v ? t : k ? 'Add' : 'Over'}</option>)}</select>
       <button type="button" class="btn small sub-where" title="Where this sub-layer plays, within the layer"
-        aria-expanded={d.open} onClick={d.toggle}>{where}</button>
+        aria-expanded={d.open} onClick={d.toggle}>{CUX === 'a' && where === 'Whole layer' ? '◎' : where}</button>
       <input type="checkbox" class="switch" aria-label={`${s.title} on`} checked={s.enabled !== false}
         onChange={(e) => {
           const on = e.currentTarget.checked;

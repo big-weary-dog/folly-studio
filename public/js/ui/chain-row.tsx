@@ -20,7 +20,8 @@ type Grip = ReturnType<TreeDrag['grip']>;
 /** A module's row; `slot`: its drop slot's key; `fold`: whether what is under it shows (the selected module's
  * settings on wide screens, a composite's sub-layers), its children; `note`: a word after its name. */
 export function ModuleRow({ m, i, mods, first, selected, attached, std, grip, slot, drop, dragging, join, reach, lit,
-  state, pick, remove, nudge, set, fold, note, children }: { m: Module; i: number; mods: Module[]; first: number;
+  state, pick, remove, nudge, set, fold, note, rename, blendAs, children }: { m: Module; i: number; mods: Module[];
+  first: number; rename?: (title: string) => void; blendAs?: { value?: string; first: boolean; set: (v?: string) => void };
   selected: boolean; attached?: boolean; std?: string; grip: Grip; slot: string; drop?: string; dragging: boolean;
   join: string;
   reach: Reach[]; lit: number; state: { kind: string; message?: string }; pick: (e: MouseEvent) => void;
@@ -29,12 +30,12 @@ export function ModuleRow({ m, i, mods, first, selected, attached, std, grip, sl
   const title = std ?? (m.title || KIND_LABELS[m.kind]), filter = m.kind === 'filter';
   // The row's select as a patch: a source's blend (or input only), a filter's input. A source's default ('') is
   // Over first and Add after, so that blend is not offered twice.
-  const dflt = i === first ? 'over' : 'add';
+  const dflt = (blendAs ? blendAs.first : i === first) ? 'over' : 'add';
   const opts = filter ? [['', 'No input'], ...mods.slice(0, i).filter(isSource)
     .map((s) => [s.id, s.title || 'Source'])]
     : [['', dflt === 'over' ? 'Over' : 'Add'], ...BLEND_MODES.filter((b) => b.value !== dflt)
       .map((b) => [b.value, b.label]), ['under', 'Under'], [INPUT_ONLY, 'Input only']];
-  const value = filter ? m.input || '' : m.as === 'input' ? INPUT_ONLY : m.blend === dflt ? '' : m.blend || '';
+  const value = blendAs ? (blendAs.value === dflt ? '' : blendAs.value || '') : filter ? m.input || '' : m.as === 'input' ? INPUT_ONLY : m.blend === dflt ? '' : m.blend || '';
   const how = filter ? 'Input' : 'Combine';
   return (
     <li class={cx('chain-row', selected && 'selected', m.enabled === false && 'off', dragging && 'dragging')}
@@ -52,13 +53,18 @@ export function ModuleRow({ m, i, mods, first, selected, attached, std, grip, sl
         <span class="chain-kinds"><span class="kind-badge">{KIND_LABELS[m.kind]}</span>
           {std === undefined && m.kind !== 'composite' && <span class="custom-badge"
             title="Custom code: written by the AI or in the code editor, not a library module">Custom</span>}</span>
-        <button type="button" class="chain-name" aria-current={selected} aria-expanded={fold} onClick={pick}
+        {rename ? <><button type="button" class="chain-fold" aria-label="Open or shut" aria-expanded={fold}
+          onClick={pick} /><input type="text" class="chain-rename" aria-label="Name" maxlength={80} spellcheck={false}
+          value={m.title} onInput={(e) => rename(e.currentTarget.value)} />
+          {note && <span class="chain-note">{note}</span>}</>
+          : <button type="button" class="chain-name" aria-current={selected} aria-expanded={fold} onClick={pick}
           aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown" data-tour={m.ref && `module:${m.ref}`}
           title={`${title} — ${STATE_TEXT[state.kind] || state.kind}${state.message ? `: ${state.message}` : ''}`}>
-          {title}{note && <span class="chain-note">{note}</span>}</button>
+          {title}{note && <span class="chain-note">{note}</span>}</button>}
         {m.kind !== 'warp' && <select class="chain-select wide-only" aria-label={how} title={how}
           value={opts.some(([v]) => v === value) ? value : ''} onChange={(e) => {
             const v = e.currentTarget.value;
+            if (blendAs) return blendAs.set(v || undefined);
             set(filter ? { input: v || undefined } : v === INPUT_ONLY ? { as: 'input', blend: undefined }
               : { as: undefined, blend: (v || undefined) as Module['blend'] });
           }}>{opts.map(([v, t]) => <option value={v}>{t}</option>)}</select>}

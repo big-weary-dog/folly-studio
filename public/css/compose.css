@@ -304,3 +304,45 @@ button.tl-mods-fold { gap: 4px; color: var(--sand); white-space: nowrap; cursor:
 /* attached modules (chain-tree.tsx): one step in under their module, as a sub-layer's chain; none, no room taken */
 .attach-list { margin-top: 4px; }
 .attach-list:not(:has(> .chain-row)) { margin: 0; }
+/* prototype (reports/composite-ux, ?cux=a|b|c): the composite's name in its row's line, renamed in place */
+[data-cux] .chain-row[data-kind=composite] > .chain-top { flex-wrap: nowrap; }
+[data-cux] .chain-row[data-kind=composite] > .chain-top > .chain-kinds { margin-right: 0; }
+.chain-fold { flex: none; width: 14px; padding: 0; color: var(--kind); background: none; border: 0; cursor: pointer; }
+.chain-fold::before { content: '▸'; display: inline-block; transition: transform .15s var(--ease); }
+.chain-fold[aria-expanded=true]::before { transform: rotate(90deg); }
+input.chain-rename { flex: 1; min-width: 40px; min-height: 0; height: 22px; padding: 0 3px; font-size: 12.5px;
+  font-weight: 600; background: none; border-color: transparent; }
+input.chain-rename:is(:hover, :focus) { border-color: var(--lead); background: var(--night-1); }
+[data-cux] .chain-top > .chain-note { flex: 0 1 auto; min-width: 0; padding: 0 2px; overflow: hidden;
+  white-space: nowrap; text-overflow: ellipsis; }
+[data-cux] .composite-body { gap: 2px; margin: 2px 0 1px; }
+[data-cux] .sub-layer { padding: 0; }
+/* A: a sub-layer a slim line (name, blend, where, on), its modules at its step */
+[data-cux=a] .sub-head { grid-template-columns: auto 1fr 66px auto auto auto; grid-template-areas: 'g n c w s d';
+  margin: 3px 0 0 14px; padding-left: 4px; border-left: 2px solid var(--violet);
+  background: color-mix(in srgb, var(--violet) 8%, #0000); }
+[data-cux=a] .sub-head .kind-badge { display: none; }
+[data-cux=a] .sub-where { min-width: 22px; padding: 0 4px; }
+[data-cux=a] .sub-chain { margin-top: 3px; }
+/* the first source of a sub-layer combines onto nothing: it has no blend of its own (the sub-layer's is the one) */
+[data-cux=a] .sub-layer > .sub-chain > .chain-row:first-child > .chain-top > .chain-select { visibility: hidden; }
+/* B: no heads; each source a sub-layer, its blend the sub-layer's */
+[data-cux=b] .sub-layer + .sub-layer { margin-top: -1px; }
+[data-cux] .sub-add { margin: 3px 0 0 14px; }
+/* C: the sub-layers are rows under their layer in the Layers panel, one step in */
+.layer.c-sub { --blend: var(--violet); margin-left: 22px; padding: 2px 8px 2px 14px; }
+.layer.c-sub .layer-top { gap: 6px; }
+.layer.c-sub .layer-name { flex: 1; }
+.layer.c-sub .blend-select { flex: none; width: 82px; min-height: 0; height: 22px; font-size: 11.5px; }
+.layer.c-sub input.switch { width: 28px; height: 16px; }
+.layer.c-sub input.switch::after { top: 1px; left: 1px; width: 10px; height: 10px; }
+.layer.c-sub input.switch:checked::after { transform: translateX(12px); }
+.c-back { margin: 4px 0 2px; font-weight: 400; }
+/* a composite's kind as a mark, so its name gets the room; shut, what it holds on a line under it */
+[data-cux] .chain-row[data-kind=composite] > .chain-top .kind-badge { font-size: 0; padding: 0 4px; }
+[data-cux] .chain-row[data-kind=composite] > .chain-top .kind-badge::after { content: '⧉'; font-size: 12px; }
+[data-cux] .chain-row[data-kind=composite] > .chain-top { flex-wrap: wrap; }
+[data-cux] .chain-top > .chain-note { order: 1; flex-basis: 100%; padding-left: 40px; margin-top: -3px; }
+/* no corner marks at the foot of an inner chain */
+[data-cux] .sub-chain::after, [data-cux] .sub-chain > .chain-row:last-of-type::after { display: none; }
+[data-cux] .sub-chain > .chain-row:last-of-type::before { bottom: auto; height: var(--j); }

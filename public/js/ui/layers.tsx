@@ -12,6 +12,8 @@ import { SideExpand, SideFold } from './side-panels.tsx';
 import type { Entry } from './shelf.tsx';
 import type { Studio } from './studio-store.ts';
 import { tourName } from './tour-view.ts';
+import { CUX, cuxSub } from './cux.ts';
+import { editSub } from './composite-model.ts';
 
 const STATUS_TEXT: Record<string, string> = { ok: 'Running', pending: 'Compiling…', compile: 'Compile error',
   runtime: 'Runtime error', hung: 'Hung — paused', muted: 'Muted' };
@@ -90,8 +92,9 @@ export function LayersPane({ st, pv }: Props) {
         </div><SideExpand st={st} panel="layers" /></div>
       <div class="pane-body">
         <ol class="layer-list" aria-label="Layers, top first" ref={listRef}>
-          {layers.map((x, k) => <LayerRow key={x.id} l={x} index={k} st={st} grip={order.grip(n - 1 - k)}
-            drop={order.drop(n - 1 - k, n)} dragging={order.dragging === n - 1 - k} />).reverse()}</ol>
+          {layers.map((x, k) => [<LayerRow key={x.id} l={x} index={k} st={st} grip={order.grip(n - 1 - k)}
+            drop={order.drop(n - 1 - k, n)} dragging={order.dragging === n - 1 - k} />,
+          ...(CUX === 'c' ? subRows(st, x) : [])]).reverse()}</ol>
       </div>
     </section>);
 }
@@ -141,4 +144,23 @@ function LayerRow({ l, index, st, grip, drop, dragging }: { l: Layer; index: num
       <span class={cx('layer-groups', failing && 'layer-issue')}>
         {failing ? `${said}${status.message ? `: ${status.message}` : ''}` : st.groupNames(l.groups, l.tags)}</span>
     </li>);
+}
+
+/** C: a layer's composites' sub-layers as rows under it, top first; a click shows one's chain in Settings. */
+function subRows(st: Studio, l: Layer) {
+  return l.modules.filter((m) => m.kind === 'composite').flatMap((c) => (c.layers ?? []).map((s, k) => {
+    const picked = cuxSub.value?.comp === c.id && cuxSub.value.k === k && st.selectedId.value === l.id;
+    const pick = () => { st.select(l.id); cuxSub.value = { comp: c.id, k }; };
+    const edit = (p: object) => st.editLayer(l.id, () => ({ modules: editSub(l.modules, c.id, k, p) }));
+    return <li key={s.id} class={cx('layer', 'c-sub', picked && 'selected', s.enabled === false && 'silent')}
+      data-blend={s.blend ?? (k ? 'add' : 'over')} onClick={(e) => { if (e.target === e.currentTarget) pick(); }}>
+      <div class="layer-top"><span class="grip" aria-hidden="true" />
+        <button type="button" class="layer-name" onClick={pick}>{s.title}</button>
+        <select class="blend-select" aria-label={`Blend for ${s.title}`} value={s.blend ?? (k ? 'add' : 'over')}
+          onChange={(e) => edit({ blend: e.currentTarget.value })}>
+          {BLEND_MODES.map((b) => <option value={b.value}>{b.label}</option>)}</select>
+        <input type="checkbox" class="switch" aria-label={`${s.title} on`} checked={s.enabled !== false}
+          onChange={(e) => edit({ enabled: e.currentTarget.checked ? undefined : false })} /></div>
+    </li>;
+  })).reverse();
 }

@@ -21,6 +21,7 @@ import type { Preview } from './preview.ts';
 import type { Entry } from './shelf.tsx';
 import { SideExpand, SideFold } from './side-panels.tsx';
 import { SoftenRow } from './soften.tsx';
+import { CUX, cuxSub } from './cux.ts';
 import type { Studio } from './studio-store.ts';
 
 const MAX_MODULES = 8;
@@ -160,7 +161,7 @@ function Chain({ st, pv }: Props) {
   const group = () => sel && setMods((list) => groupModule(list, sel.id));
   const single = sel?.kind === 'composite' && sel.layers?.length === 1;
   return (
-    <section class="chain" aria-label="Module chain" ref={rootRef}>
+    <section class="chain" aria-label="Module chain" ref={rootRef} data-cux={CUX || undefined}>
       <div class="chain-head"><h3 class="chain-title">Chain</h3>
         <span class="chain-acts">
           <button type="button" class="btn small chain-group wide-only" disabled={!sel || !!sel.on}
@@ -173,6 +174,17 @@ function Chain({ st, pv }: Props) {
             title="Add a warp, source or filter from the library, after the selected module"
             disabled={!l} onClick={() => shelf(add)}>+ Module</button></span></div>
       <p class="pane-hint" hidden={!!l}>Select a layer to see its modules.</p>
-      {l && <div data-tour="chain"><ChainList ctx={ctx} mods={mods} box={null} depth={0} /></div>}
+      {l && <div data-tour="chain">{cSub(ctx, mods) ?? <ChainList ctx={ctx} mods={mods} box={null} depth={0} />}</div>}
     </section>);
+}
+
+/** C: the sub-layer picked in the Layers panel, its chain in place of the layer's, a way back above it. */
+function cSub(ctx: TreeCtx, mods: Module[]) {
+  const at = CUX === 'c' ? cuxSub.value : null, comp = at && mods.find((m) => m.id === at.comp), s = comp && comp.layers?.[at.k];
+  if (!at || !comp || !s) return null;
+  return <>
+    <button type="button" class="btn small c-back" onClick={() => { cuxSub.value = null; }}>
+      ‹ {ctx.st.selected.value?.title} · <b>{s.title}</b></button>
+    <ChainList ctx={ctx} mods={s.modules} box={{ comp: comp.id, sub: at.k }} depth={1} />
+  </>;
 }
