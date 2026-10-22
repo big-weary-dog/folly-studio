@@ -265,6 +265,7 @@ export function Looks({ scope }: ViewProps) {
   const gallery = scope === 'gallery';
   const [looks, setLooks] = useState<Listed[] | null>(null), [error, setError] = useState('');
   const [q, setQ] = useState(''), [loads, setLoads] = useState(0);
+  const [approvedOnly, setApprovedOnly] = useState(false);
   useEffect(() => {
     setTitle(gallery ? 'Gallery' : 'My looks');
     let alive = true;
@@ -279,9 +280,12 @@ export function Looks({ scope }: ViewProps) {
   }
 
   const words = q.trim().toLowerCase();
-  const shown = (looks || []).filter((l) => !words
-    || `${l.title} ${l.summary || ''} ${l.ownerName || ''}`.toLowerCase().includes(words));
-  const empty = error ? <p class="form-error">{error}</p> : looks?.length ? <p>No looks match that search.</p>
+  const approved = (look: Listed) => setLooks((all) => (all || []).map((l) => l.id === look.id
+    ? { ...l, reviewed: true } : l));
+  const shown = (looks || []).filter((l) => (!gallery || !approvedOnly || l.reviewed) && (!words
+    || `${l.title} ${l.summary || ''} ${l.ownerName || ''}`.toLowerCase().includes(words)));
+  const empty = error ? <p class="form-error">{error}</p> : looks?.length
+    ? <p>{gallery && approvedOnly ? 'No approved looks match.' : 'No looks match that search.'}</p>
     : gallery ? <p>Nothing shared yet. Open one of your looks in the Studio and switch on “Share to gallery”.</p>
     : onPi() ? <p>No saved looks yet. <a href="/studio">Start a blank look</a>, or import some.</p>
     : <p>No saved looks yet. <a href="/ideas">Describe an idea</a> or <a href="/studio">start a blank look</a>.</p>;
@@ -295,18 +299,23 @@ export function Looks({ scope }: ViewProps) {
           <input type="search" class="search" aria-label="Search looks" value={q}
             placeholder={gallery ? 'Search the gallery' : 'Search my looks'}
             onInput={(e) => setQ(e.currentTarget.value)} />
+          {gallery && <button type="button" class={`btn ${approvedOnly ? 'primary' : 'ghost'}`}
+            aria-pressed={approvedOnly} onClick={() => setApprovedOnly((on) => !on)}>Approved</button>}
           <LookFiles looks={looks} gallery={gallery} reload={() => setLoads((n) => n + 1)} />
           {!gallery && <a class="btn primary" href="/studio">New look</a>}
         </div>
       </div>
       <ul class="card-grid" aria-busy={!looks && !error}>
-        {shown.map((look) => <Card key={look.id} look={look} gallery={gallery} remove={remove} />)}</ul>
+        {shown.map((look) => <Card key={look.id} look={look} gallery={gallery} remove={remove}
+          approved={() => approved(look)} />)}</ul>
       <div class="empty" hidden={(!looks && !error) || shown.length > 0}>{empty}</div>
     </div>);
 }
 
-function Card({ look, gallery, remove }: { look: Listed; gallery: boolean; remove: (l: Listed) => void }) {
-  const [reviewed, setReviewed] = useState(look.reviewed), approved = () => setReviewed(true);
+function Card({ look, gallery, remove, approved }: {
+  look: Listed; gallery: boolean; remove: (l: Listed) => void; approved: () => void;
+}) {
+  const reviewed = look.reviewed;
   const n = look.layerCount ?? 0, href = studioHref(look.id);
   return (
     <li class="card">
