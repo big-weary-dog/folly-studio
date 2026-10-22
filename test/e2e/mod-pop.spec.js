@@ -111,7 +111,7 @@ test.describe('the beat clock', () => {
     await pop.locator('.mod-old').getByRole('button', { name: 'Off' }).click();
     await expect(pop.locator('.mod-old')).toHaveCount(0);
     await expect(pop.locator('.mod-kinds').getByRole('button', { name: 'LFO' })).toBeVisible();
-    await expect(pop.locator('.mod-kinds').getByRole('button')).toHaveText(['LFO', 'Macro', 'Off']);
+    await expect(pop.locator('.mod-kinds').getByRole('button')).toHaveText(['LFO', 'Macro', 'Off', 'Automate']);
   });
 });
 
