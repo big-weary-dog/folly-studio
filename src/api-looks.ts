@@ -84,9 +84,9 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
   previews?: Pick<ReturnType<typeof createPreviews>, 'want' | 'keyOf' | 'file'>,
   loadLibrary?: () => readonly LibraryEntry[], log?: Logger }) {
   const ownerName = (id: string) => store.users.get(id)?.username ?? '';
-  /** A body's layers as the one rule reads them, each standard module named as the library names it. */
   /** 403 for new code while an admin has custom code off (src/custom-code.ts). */
   const allowCode = (layers: unknown, user: User) => codeGate?.check(layers, user.id, (why) => new HttpError(403, why));
+  /** A body's layers as the one rule reads them, each standard module named as the library names it. */
   const ruledNamed = (body: Parameters<typeof ruled>[0]) => {
     const out = ruled(body), library = loadLibrary();
     return { ...out, layers: out.layers.map((l) => ('modules' in l
