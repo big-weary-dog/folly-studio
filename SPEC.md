@@ -515,6 +515,8 @@ engine behind Studio) and look files; in `SPEC-liveplay.md`, the live play contr
 ## Gallery previews
 
 Each shared look's looping preview for its card: `SPEC-previews.md`, part of this contract.
+The gallery's **Approved** toggle beside search shows only looks marked reviewed by a curator. It starts off;
+search and Approved apply together, and approving a card updates the filter immediately.
 
 ## Baked frames
 
