@@ -64,15 +64,20 @@ describe('library only', () => {
 });
 
 describe('the bake setting', () => {
-  test('stored in baking.json: missing or broken is on, a save is checked and read back', () => {
+  test('stored in baking.json: missing or broken is on with custom code off, a save is checked and read back', () => {
     const file = path.join(fx.tmp, 'setting', 'baking.json');
     const store = createBakingStore({ file, log: quiet });
     assert.equal(store.mode(), 'on');
     assert.match(store.save({ mode: 'slow' }).error, /on, throttled or off/);
-    assert.deepEqual(store.save({ mode: 'off' }), { mode: 'off' });
+    assert.equal(store.customCode(), false);
+    assert.match(store.save({}).error, /mode\?, customCode\?/);
+    assert.match(store.save({ customCode: 'yes' }).error, /true or false/);
+    assert.deepEqual(store.save({ mode: 'off' }), { mode: 'off', customCode: false });
+    assert.deepEqual(store.save({ customCode: true }), { mode: 'off', customCode: true }, 'one changes, one is kept');
     assert.equal(createBakingStore({ file, log: quiet }).mode(), 'off', 'from the file');
     fs.writeFileSync(file, '{ not json');
     assert.equal(createBakingStore({ file, log: quiet }).mode(), 'on');
+    assert.equal(createBakingStore({ file, log: quiet }).customCode(), false);
   });
 
   test('off refuses; throttled renders at nice 19, a cooldown after the last; on passes the job as it is',
@@ -117,7 +122,8 @@ describe('through the API', () => {
   afterAll(() => app.close());
 
   test('everyone reads the setting; only admins change it, and it applies at once', async () => {
-    assert.deepEqual((await member.get('/api/baking')).json, { mode: 'on', box: { ok: true, libraryOnly: false } });
+    assert.deepEqual((await member.get('/api/baking')).json, { mode: 'on', customCode: true,
+      box: { ok: true, libraryOnly: false } });
     assert.equal((await member.put('/api/admin/baking', { mode: 'off' })).status, 403);
     assert.equal((await admin.put('/api/admin/baking', { mode: 'sometimes' })).status, 400);
     assert.equal((await admin.put('/api/admin/baking', { mode: 'off' })).json.mode, 'off');

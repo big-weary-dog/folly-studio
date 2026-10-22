@@ -20,6 +20,7 @@ import type { Logger } from './http.ts';
 const STUDIO = fileURLToPath(new URL('../', import.meta.url));
 const SECOND = 1000;
 const FPS = 40;
+const OUT_FILES = ['frames.fseq', 'result.json'];   // what render.ts writes, and all the server reads
 
 async function which(cmd: string, PATH: string | undefined) {
   if (cmd.includes('/')) return cmd;
@@ -52,8 +53,8 @@ async function runtimeBinds(node: string) {
  * The box: probe(), refuses(layers), render(job) → { bytes, boxStats, ms, seconds }. Each render gets a fresh folder
  * with the core as one script (src/core-script.ts, from its source) and an empty /out, in its own systemd user scope
  * (tasks, memory; src/box-limits.ts has the fallback), under prlimit (CPU, file size) and a wall clock, in `bwrap
- * --unshare-all --cap-drop ALL --clearenv` with everything read-only but /out and a 16 MB /tmp (library only: no bwrap
- * but `env -i`, the files copied beside the script). No RLIMIT_AS: V8 reserves large
+ * --unshare-all --cap-drop ALL --clearenv` with everything read-only but /out's two files and a 16 MB /tmp (library
+ * only: no bwrap but `env -i`, the files copied beside the script). No RLIMIT_AS: V8 reserves large
  * ranges up front and it crashes; RLIMIT_DATA caps writable maps. Options (environment): seconds
  * (STUDIO_BAKE_SECONDS, 120, ≤ 600), timeoutMs (STUDIO_BAKE_TIMEOUT; 30 s + 1.5 s per second baked, ≥ 90 s),
  * cpuSeconds (STUDIO_BAKE_CPU; likewise, ≥ 120), tasks (STUDIO_BAKE_TASKS, 256), memoryBytes (STUDIO_BAKE_MEMORY,
@@ -158,7 +159,10 @@ export function createRenderBox(o: Options = {}) {
       ...Object.entries(cfg.files).flatMap(([name, from]) => ['--ro-bind', from, `/box/${name}`]),
       '--ro-bind', cfg.patternsDir, '/box/patterns',
       ...(work ? ['--ro-bind', path.join(work, 'box/pattern-core.js'), '/box/pattern-core.js'] : []),
-      ...(work ? ['--bind', path.join(work, 'out'), '/out'] : []),
+      // /out is the box's own small tmpfs; only the two files the server reads are the host's, each capped by --fsize,
+      // so nothing else written there reaches the host's disk.
+      ...(work ? ['--size', String(1024 * 1024), '--tmpfs', '/out', ...OUT_FILES.flatMap((f) => ['--bind',
+        path.join(work, 'out', f), `/out/${f}`])] : []),
       '--remount-ro', '/', '--chdir', '/box',
       '--', '/box/node', ...node,
     ];
@@ -231,6 +235,7 @@ export function createRenderBox(o: Options = {}) {
     const out = path.join(work, 'out'), here = path.join(work, 'box');
     try {
       await fs.mkdir(out);
+      if (boxed) for (const f of OUT_FILES) await fs.writeFile(path.join(out, f), '');
       await fs.mkdir(here);
       await fs.writeFile(path.join(here, 'pattern-core.js'), bundle(cfg.coreFile).text);
       if (!boxed) { // what bwrap binds at /box, as files beside the script

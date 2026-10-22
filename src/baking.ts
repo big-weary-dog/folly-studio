@@ -1,12 +1,13 @@
 // The bake setting (SPEC "Baked frames", "The bake setting"): <STUDIO_DATA>/baking.json, { mode: on | throttled |
-// off }, read as each render starts so it takes effect without a restart (missing or broken: on). governBox() puts
-// it in front of the render box: off refuses, throttled renders at nice 19 and spaces renders a cooldown apart.
+// off, customCode? } (SPEC-baking "Custom code": src/custom-code.ts), read as each render starts so it takes effect
+// without a restart (missing or broken: on, custom code off). governBox() puts it in front of the render box: off
+// refuses, throttled renders at nice 19 and spaces renders a cooldown apart.
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import type { FastifyRequest } from 'fastify';
 
-import { type BakeMode, Baking, type BakingState } from '../shared/schemas/api.ts';
+import { type BakeMode, Baking, BakingPatch, type BakingState } from '../shared/schemas/api.ts';
 import { BakeError } from './box-output.ts';
 import { forAdmins, HttpError } from './http.ts';
 import type { LayerInput } from '../public/js/pattern-core.ts';
@@ -16,35 +17,43 @@ export const THROTTLE = { nice: 19, cooldownMs: 30_000 };
 const BAKING_OFF = 'An admin turned baking off.';
 
 type Log = { warn?: (...a: unknown[]) => void };
+type Setting = { mode: BakeMode, customCode: boolean };
 
-export function createBakingStore({ file, log = console }: { file: string, log?: Log }) {
-  let sig = '', mode: BakeMode = 'on';
+export function createBakingStore({ file, customCode = false, log = console }: { file: string, customCode?: boolean,
+  log?: Log }) {
+  let sig = '', now: Setting = { mode: 'on', customCode };
   const signature = () => {
     try { const st = statSync(file); return `${st.size}:${st.mtimeMs}`; } catch { return '-'; }
   };
+  /** The setting as stored now: re-read when the file's size or time changed. */
+  function current(): Setting {
+    const s = signature();
+    if (s === sig) return now;
+    sig = s;
+    let json: unknown = null;
+    try { if (s !== '-') json = JSON.parse(readFileSync(file, 'utf8')); } catch (err) {
+      log.warn?.(`[baking] ${path.basename(file)} is not valid JSON (${(err as Error).message}); baking is on`);
+    }
+    const data = Baking.safeParse(json).data;
+    now = { mode: data?.mode ?? 'on', customCode: data?.customCode ?? customCode };
+    return now;
+  }
   return {
-    /** The mode as stored now: re-read when the file's size or time changed. */
-    mode(): BakeMode {
-      const s = signature();
-      if (s === sig) return mode;
-      sig = s;
-      let json: unknown = null;
-      try { if (s !== '-') json = JSON.parse(readFileSync(file, 'utf8')); } catch (err) {
-        log.warn?.(`[baking] ${path.basename(file)} is not valid JSON (${(err as Error).message}); baking is on`);
-      }
-      mode = Baking.safeParse(json).data?.mode ?? 'on';
-      return mode;
-    },
-    /** Checks and writes a new setting: { mode } or { error }. */
-    save(body: unknown): { mode: BakeMode } | { error: string } {
-      const parsed = Baking.safeParse(body);
+    current,
+    mode: (): BakeMode => current().mode,
+    /** Whether looks may take new code (SPEC-baking "Custom code"); off unless an admin turned it on. */
+    customCode: () => current().customCode,
+    /** Checks a change and writes the setting with it: the setting, or { error }. */
+    save(body: unknown): Setting | { error: string } {
+      const parsed = BakingPatch.safeParse(body);
       if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'That bake setting is not valid.' };
+      const next = { ...current(), ...parsed.data };
       mkdirSync(path.dirname(file), { recursive: true });
       const tmp = `${file}.${process.pid}.tmp`;
-      writeFileSync(tmp, `${JSON.stringify(parsed.data, null, 2)}\n`);
+      writeFileSync(tmp, `${JSON.stringify(next, null, 2)}\n`);
       renameSync(tmp, file);
-      [sig, mode] = [signature(), parsed.data.mode];
-      return parsed.data;
+      [sig, now] = [signature(), next];
+      return next;
     },
   };
 }
@@ -93,7 +102,7 @@ export function bakingRoutes({ baking, box }: { baking: BakingStore, box: Pick<R
     const p = await box.probe();
     const reason = p.ok ? p.libraryOnly : p.reason;
     const libraryOnly = p.ok && !!p.libraryOnly;
-    return { mode: baking.mode(), box: { ok: p.ok, libraryOnly, ...(reason ? { reason } : {}) } };
+    return { ...baking.current(), box: { ok: p.ok, libraryOnly, ...(reason ? { reason } : {}) } };
   };
   return {
     'GET /baking': state,

@@ -246,7 +246,7 @@ function fakeBox(maxSeconds = 4) {
 async function startApp(renderBox, name) {
   const generator = { enqueue() {}, async idle() {} };
   const dataDir = path.join(tmpRoot, name);
-  const app = await createServer({ dataDir, publicDir: PUBLIC, generator, renderBox, log: quiet });
+  const app = await createServer({ customCode: true, dataDir, publicDir: PUBLIC, generator, renderBox, log: quiet });
   const { port } = await app.listen(0);
   const base = `http://127.0.0.1:${port}`;
   const json = { 'content-type': 'application/json' };

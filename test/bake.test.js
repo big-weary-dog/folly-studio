@@ -168,7 +168,7 @@ describe('render box (bubblewrap)', () => {
     assert.equal(hits, 0, 'nothing reached the host network');
   });
 
-  test('the box itself: no network, no host files, nothing writable but /out', async () => {
+  test('the box itself: no network, no host files, nothing writable but /out, whose tmpfs holds 1 MB', async () => {
     const secret = path.join(tmpRoot, 'secret.txt');
     fs.writeFileSync(secret, 'TOP SECRET');
     const pwned = path.join(tmpRoot, 'pwned');
@@ -185,6 +185,8 @@ describe('render box (bubblewrap)', () => {
       tryIt('write-host', () => fs.writeFileSync(${JSON.stringify(pwned)}, 'x'));
       tryIt('write-box', () => fs.writeFileSync('/box/x', 'x'));
       tryIt('write-out', () => fs.writeFileSync('/out/scratch', 'x'));
+      tryIt('fill-out', () => fs.writeFileSync('/out/big', Buffer.alloc(2 << 20)));
+      tryIt('swap-out', () => fs.renameSync('/out/scratch', '/out/frames.fseq'));
       out.push('env:' + Object.keys(process.env).sort().join(','));
       try { await fetch('http://127.0.0.1:${port}/'); out.push('fetch:ok'); }
       catch (e) { out.push('fetch:' + (e.cause?.code || e.name)); }
@@ -202,6 +204,8 @@ describe('render box (bubblewrap)', () => {
     assert.match(said, /write-host:(ENOENT|EROFS)/);
     assert.match(said, /write-box:EROFS/);
     assert.match(said, /write-out:ok/);
+    assert.match(said, /fill-out:ENOSPC/, 'only frames.fseq and result.json are the host\'s');
+    assert.match(said, /swap-out:EBUSY/);
     assert.match(said, /env:LD_LIBRARY_PATH,(PWD,)?TMPDIR /, 'a clean environment');
     assert.match(said, /fetch:ECONNREFUSED/);
     assert.match(said, /net:ECONNREFUSED/);
@@ -211,7 +215,7 @@ describe('render box (bubblewrap)', () => {
 
   test('through the API: a strobe is blocked from review, one on the spirelets only warns, a calm one passes',
     async () => {
-    const app = await createServer({
+    const app = await createServer({ customCode: true,
       dataDir: path.join(tmpRoot, 'data'),
       publicDir: PUBLIC,
       generator: { enqueue() {}, async idle() {} },

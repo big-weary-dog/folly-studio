@@ -106,7 +106,7 @@ describe('previews of shared looks', () => {
     const renderBox = { config: { seconds: SECONDS }, probe: async () => ({ ok: true }),
       async render({ layers }) { return { bytes: layers[0]?.code.includes('late') ? frames(2, 9) : frames() }; } };
     app = await createServer({ dataDir, publicDir, generator: { enqueue() {}, async idle() {} }, log: quiet,
-      renderBox });
+      customCode: true, renderBox });
     app.base = `http://127.0.0.1:${(await app.listen(0, '127.0.0.1')).port}`;
     cookie = await signup('alice');
     other = await signup('bob');

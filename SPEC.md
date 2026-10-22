@@ -206,7 +206,8 @@ below.
 - **Modules**: 1–8 per layer, ids unique in it (`[A-Za-z0-9_.:-]{1,64}`), `code` ≤ 20 kB each and always
   stored (looks stay self-contained for the boxes); `ref` names the library entry it came from, and a module whose `ref` the library has is standard: it keeps the
   library's title (`shared/standard-modules.ts`; the API and generators put a renamed one's back), and a hand edit
-  of its code drops `ref`, making it custom; `params`
+  of its code drops `ref`, making it custom (while an admin has custom code off, new code is refused: SPEC-baking
+  "Custom code"); `params`
   override the code's defaults (≤ 64; a string ≤ 256 characters: a pick, a choice or text); `enabled: false` skips it; `input` names an earlier source; `on`
   (a warp's or filter's) attaches it to the source or composite just above it, past the others attached to it
   (SPEC-library "Attached modules"); `as` is only
@@ -530,7 +531,9 @@ as here; any other failure says why and points to Check & bake.
   (`src/core-script.ts`, from its source) / renderer.ts / fseq.ts / rig.json / `public/patterns` (for `use`), tmpfs
   /tmp, one empty writable /out; the look on stdin as `{ layers, globals?, automation?, bpm? }`), a cgroup (tasks,
   memory), prlimit (CPU s, file size; no RLIMIT_AS) and a wall-clock kill. Inside, layers run in a `node:vm` realm
-  holding only the stdlib (defence in depth). Without bubblewrap, library only; the bake setting: `SPEC-baking.md`.
+  holding only the stdlib (defence in depth). /out is a 1 MB tmpfs inside the box with only `frames.fseq` and
+  `result.json` bound to the host, so each is capped by the file-size limit and nothing else the box writes reaches
+  the host's disk. Without bubblewrap, library only; the bake setting and custom code: `SPEC-baking.md`.
   One bake at a time, under `nice` (`STUDIO_BAKE_NICE`, default 10), in a lane it shares with wire encodes
   (`src/bake.ts` `createLane`). `fleet-box` (advisory): the Fleet worker's own `frames.fseq` + `stats.json` (its `use`
   library: `patterns/` beside check.ts, else none). All three run the same core and `renderer.ts`.
