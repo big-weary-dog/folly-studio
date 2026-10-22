@@ -1,12 +1,13 @@
 // A chain that holds composites (SPEC-library "Composites"), as the Settings pane draws it: each list of modules a
 // chain of its own on its came, and a composite's sub-layers nested under its row, which opens and closes them like a
 // folder (shut, it says what it holds). Each sub-layer has a head (a grip to drag it among its composite's, its name,
-// how it combines, where it plays, on, delete) over its chain.
-import type { JSX } from 'preact';
+// how it combines, where it plays, on, delete) over its chain. The warps and filters attached to a module (SPEC-library
+// "Attached modules") sit one step in under its row, as a sub-layer's chain does.
+import type { ComponentChildren, JSX } from 'preact';
 
 import type { Module, SubLayer } from '../../../shared/schemas/look.ts';
 import { standardTitle } from '../../../shared/standard-modules.ts';
-import { flatModules } from '../core/tree.ts';
+import { attachedTo, flatModules, runEnd } from '../core/tree.ts';
 import { ModuleRow } from './chain-row.tsx';
 import type { Box } from './composite-model.ts';
 import { Drawer, useDrawer } from './drawer.tsx';
@@ -36,27 +37,54 @@ export const summary = (m: Module) => {
   return `${plural(subs.length, 'sub-layer')} · ${plural(n, 'module')}`;
 };
 
-/** One list of modules: the layer's chain, or a sub-layer's. */
+/** One list of modules: the layer's chain, or a sub-layer's; each attached run under its module's row. */
 export function ChainList({ ctx, mods, box, depth }: { ctx: TreeCtx; mods: Module[]; box: Box; depth: number }) {
-  const { st, sel, drag } = ctx, { first, joins, reaches } = chainWires(mods), at = sel ? mods.indexOf(sel) : -1;
+  const { drag } = ctx;
   return (
     <ol class={cx('chain-list', depth > 0 && 'sub-chain')} aria-label="Modules, first to last" data-depth={depth}>
       {mods.map((m, i) => {
-        const comp = m.kind === 'composite', open = comp && ctx.isOpen(m.id);
-        return <ModuleRow key={m.id} m={m} i={i} mods={mods} first={first} selected={i === at}
-          std={comp ? undefined : standardTitle(m, st.data.library)} grip={drag.grip(m.id)} slot={slotKey(box, i)}
-          drop={drag.marked(box, i) ? 'before' : undefined} dragging={drag.dragging === m.id} join={joins[i]}
-          reach={reaches.filter((r) => r.from <= i && i <= r.to)} lit={at} state={st.status.module(ctx.layerId, m)}
-          pick={(e) => (comp ? (ctx.toggle(m.id), st.pickModule(m.id)) : ctx.click(m, e))}
-          remove={() => ctx.remove(m)} nudge={(e) => ctx.nudge(m.id, e)} set={(p) => ctx.set(m.id, p)}
-          fold={comp ? open : st.narrow.value || i !== at ? undefined : ctx.settingsOpen}
-          note={comp && !open ? summary(m) : undefined}>
-          {comp ? open && <CompositeBody ctx={ctx} m={m} depth={depth} />
-            : i === at && ctx.settingsOpen && !st.narrow.value && <div class="chain-params">{ctx.settings()}</div>}
-        </ModuleRow>;
+        if (m.on && attachedTo(mods, i) === m.on) return null;
+        const comp = m.kind === 'composite', open = comp && ctx.isOpen(m.id), src = comp || m.kind === 'source';
+        return <Row key={m.id} ctx={ctx} mods={mods} i={i} box={box}>
+          {comp ? open && <CompositeBody ctx={ctx} m={m} depth={depth} /> : <Settings ctx={ctx} m={m} />}
+          {src && <AttachList ctx={ctx} mods={mods} i={i} box={box} />}
+        </Row>;
       })}
       <li class="chain-end" aria-hidden="true" data-slot={slotKey(box, mods.length)}
         data-drop={drag.marked(box, mods.length) ? 'before' : undefined} />
+    </ol>);
+}
+
+/** The selected module's settings under its row, on a wide screen with them open. */
+const Settings = ({ ctx, m }: { ctx: TreeCtx; m: Module }) => (m === ctx.sel && ctx.settingsOpen
+  && !ctx.st.narrow.value ? <div class="chain-params">{ctx.settings()}</div> : null);
+
+/** Module i of `mods` as a row of the tree; `on`: the module it is attached to. */
+function Row({ ctx, mods, i, box, on, children }: { ctx: TreeCtx; mods: Module[]; i: number; box: Box; on?: string;
+  children: ComponentChildren }) {
+  const { st, sel, drag } = ctx, m = mods[i], comp = m.kind === 'composite', open = comp && ctx.isOpen(m.id);
+  const { first, joins, reaches } = chainWires(mods), at = sel ? mods.indexOf(sel) : -1;
+  return <ModuleRow m={m} i={i} mods={mods} first={first} selected={i === at} attached={!!on}
+    std={comp ? undefined : standardTitle(m, st.data.library)} slot={slotKey(box, i, on)}
+    grip={drag.grip(m.id, m.kind === 'warp' || m.kind === 'filter')}
+    drop={drag.marked(box, i, on) ? 'before' : undefined} dragging={drag.dragging === m.id}
+    join={on ? m.kind : joins[i]} reach={on ? [] : reaches.filter((r) => r.from <= i && i <= r.to)} lit={at}
+    state={st.status.module(ctx.layerId, m)}
+    pick={(e) => (comp ? (ctx.toggle(m.id), st.pickModule(m.id)) : ctx.click(m, e))}
+    remove={() => ctx.remove(m)} nudge={(e) => ctx.nudge(m.id, e)} set={(p) => ctx.set(m.id, p)}
+    fold={comp ? open : st.narrow.value || i !== at ? undefined : ctx.settingsOpen}
+    note={comp && !open ? summary(m) : undefined}>{children}</ModuleRow>;
+}
+
+/** The warps and filters attached to module i, one step in, and a slot to attach one after them. */
+function AttachList({ ctx, mods, i, box }: { ctx: TreeCtx; mods: Module[]; i: number; box: Box }) {
+  const end = runEnd(mods, i), on = mods[i].id;
+  return (
+    <ol class="chain-list sub-chain attach-list" aria-label={`Attached to ${mods[i].title}`}>
+      {mods.slice(i + 1, end).map((m, n) => <Row key={m.id} ctx={ctx} mods={mods} i={i + 1 + n} box={box} on={on}>
+        <Settings ctx={ctx} m={m} /></Row>)}
+      <li class="chain-end" aria-hidden="true" data-slot={slotKey(box, end, on)} data-attach
+        data-drop={ctx.drag.marked(box, end, on) ? 'before' : undefined} />
     </ol>);
 }
 

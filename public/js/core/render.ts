@@ -74,7 +74,8 @@ function stagesOf(S: Scene, chain: Link[], idx: Int32Array) {
   chain.forEach((M, i) => {
     for (const F of M.subs?.[0].attach ? M.subs[0].chain : [M]) {
       const at = F.kind === FILTER && F.src ? chain.indexOf(F.src) : -1, src = chain[at];
-      if (at >= 0 && !src.keep && chain.slice(at, i).some((x) => x.kind === SPATIAL)) src.keep = new Float64Array(4 * m);
+      if (at < 0 || src.keep || !chain.slice(at, i).some((x) => x.kind === SPATIAL)) continue;
+      src.keep = new Float64Array(4 * m);
     }
   });
   return { buf: new Float64Array(4 * m), ...blurState(S, idx) };
@@ -88,7 +89,8 @@ function prepareRuns(S: Scene, chain: Link[], idx: Int32Array) {
     const sub = M.subs?.[0];
     if (!sub?.attach || !sub.chain.some((x) => x.kind === SPATIAL)) continue;
     const reads = sub.chain.find((F) => F.src && !sub.chain.includes(F.src));
-    if (reads) throw new Error(`${reads.title}: on ${M.title}, which a spatial module runs over first, it reads no input`);
+    if (reads) throw new Error(`${reads.title}: on ${M.title}, which a spatial module runs over first, it reads no `
+      + 'input');
     sub.pre = new Float64Array(4 * idx.length);
     sub.stages = stagesOf(S, sub.chain, idx);
     runs.push(sub);

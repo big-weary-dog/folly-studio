@@ -5,8 +5,8 @@
 import { z } from 'zod';
 
 import {
-  BLENDS, BLUR_MODES, DEFAULT_SOFTEN, macroNameOk, MAX_LANES, MAX_MACROS, MAX_POINTS, MAX_RADIUS, MODULE_KINDS,
-  pickText, readPick, SOURCE_BLENDS,
+  attachedTo, BLENDS, BLUR_MODES, DEFAULT_SOFTEN, macroNameOk, MAX_LANES, MAX_MACROS, MAX_POINTS, MAX_RADIUS,
+  MODULE_KINDS, pickText, readPick, SOURCE_BLENDS,
 } from '../../public/js/pattern-core.ts';
 import type { Blend, BlurMode, ModuleKind, SourceBlend } from '../../public/js/pattern-core.ts';
 import {
@@ -14,7 +14,7 @@ import {
   TAG,
 } from './look.ts';
 import { standardTitle } from '../standard-modules.ts';
-import { attachedTo, type Automation, type Globals, type Module, type Range, type Soften } from './look.ts';
+import type { Automation, Globals, Module, Range, Soften } from './look.ts';
 
 export const LIMITS = Object.freeze({ layers: 4, modules: 6, codeBytes: 20 * 1024, title: 80, layerTitle: 80,
   summary: 400, params: 32, clips: 32, duration: 600 });

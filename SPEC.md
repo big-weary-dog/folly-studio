@@ -325,6 +325,7 @@ SPEC-library "Palettes"), `readPick(value) → { groups, blend, range, rotate } 
 and as text), `readText(value) → string | null` (a text param's value: printable ASCII, at most `TEXT_MAX`, 256,
 characters), `layerModules(layer) → modules`
 (a layer with `code` and no `modules` → one source), `flatModules(modules) → modules` (a composite's too, depth first),
+`attachedTo(modules, j) → id | null` (the source whose attached run module j may join),
 `compileLayer(layer) → compiled[]` (throws `title: error`), `setLibrary([{ name,
 code }])`, `prepareScene(rig) → scene` (throws on a malformed rig), `groupsByTag(scene, tag) → [group]` (outermost
 first), `pixelsForGroups(scene, ids, tags?) → Int32Array` (a layer's rule above), `tagMask(scene, tag) → Uint8Array`,

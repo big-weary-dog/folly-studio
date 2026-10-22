@@ -6,8 +6,8 @@ import { z } from 'zod';
 import PALETTES from '../../public/data/palettes.json' with { type: 'json' };
 import {
   BLENDS, BLUR_MODES, DIRECTIONS, macroNameOk, MAX_CLIPS, MAX_DURATION, MAX_LANES, MAX_MACROS, MAX_POINTS, MAX_RADIUS,
-  CHAIN_KINDS, flatModules, OLD_DIRECTIONS, OLD_GLOBALS, PALETTE_ROLES, type Picture, pictureProblem, SOURCE_BLENDS,
-  TRANSITIONS, upgradeGlobals,
+  attachedTo, CHAIN_KINDS, flatModules, OLD_DIRECTIONS, OLD_GLOBALS, PALETTE_ROLES, type Picture, pictureProblem,
+  SOURCE_BLENDS, TRANSITIONS, upgradeGlobals,
 } from '../../public/js/pattern-core.ts';
 
 export * from '../plays.ts';
@@ -154,13 +154,6 @@ const ModuleObject = z.object({
   .refine((m) => (m.kind === 'composite') === !!m.layers, 'a composite has layers, and only a composite.');
 type ModuleOut = Omit<z.infer<typeof ModuleObject>, 'layers'> & { layers?: SubLayer[] };
 const Module: z.ZodType<ModuleOut, unknown> = ModuleObject;
-
-/** The id of the source (or composite) whose attached run module j could join: the module above it, past the run. */
-export function attachedTo(list: { id?: string, kind?: string, on?: string }[], j: number) {
-  let i = j - 1;
-  while (i >= 0 && list[i].on) i--;
-  return i >= 0 && (list[i].kind === 'source' || list[i].kind === 'composite') ? list[i].id ?? `m${i + 1}` : null;
-}
 
 /** A layer's module chain (SPEC "Modules"): 1–8 modules, ids unique (m1, m2, … by default). */
 export const Modules = z.array(Module, { error: `1–${MAX_MODULES} modules.` }).min(1).max(MAX_MODULES)

@@ -301,3 +301,6 @@ button.tl-mods-fold { gap: 4px; color: var(--sand); white-space: nowrap; cursor:
 .sub-chain { margin: 2px 0 0 -11px; }
 .sub-chain:has(> .chain-row)::after { content: '' / ''; }
 .sub-add { align-self: flex-start; min-height: 22px; padding: 1px 8px; font-size: 12px; }
+/* attached modules (chain-tree.tsx): one step in under their module, as a sub-layer's chain; none, no room taken */
+.attach-list { margin-top: 4px; }
+.attach-list:not(:has(> .chain-row)) { margin: 0; }

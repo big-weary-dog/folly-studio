@@ -123,8 +123,8 @@ function attachRun(modules: Partial<Module>[], list: readonly (CompiledLink | nu
   at: Map<string | undefined, Link>, ctx: Ctx): Link {
   const m = modules[i], on = (j: number) => j === i || isOn(modules[j]), js: number[] = [];
   for (let j = i; j < end; j++) if (on(j)) js.push(j);
-  const chain = prepareChain(js.map((j) => (j === i ? { ...m, blend: undefined, as: undefined } : { ...modules[j], on: undefined })),
-    js.map((j) => list[j]), { ...ctx, outer: at });
+  const run = js.map((j) => (j === i ? { ...m, blend: undefined, as: undefined } : { ...modules[j], on: undefined }));
+  const chain = prepareChain(run, js.map((j) => list[j]), { ...ctx, outer: at });
   const bent = placeWarps(chain, WARP, SPATIAL), S = ctx.scene;
   const sub: Sub = { chain, warps: bent.order, qs: Array.from({ length: bent.slots }, () => makePixel(S)),
     c: [0, 0, 0, 0], blend: OVER, level: 1, mask: null, attach: true, pre: null, stages: null };

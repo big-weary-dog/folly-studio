@@ -19,9 +19,10 @@ type Grip = ReturnType<TreeDrag['grip']>;
 
 /** A module's row; `slot`: its drop slot's key; `fold`: whether what is under it shows (the selected module's
  * settings on wide screens, a composite's sub-layers), its children; `note`: a word after its name. */
-export function ModuleRow({ m, i, mods, first, selected, std, grip, slot, drop, dragging, join, reach, lit, state,
-  pick, remove, nudge, set, fold, note, children }: { m: Module; i: number; mods: Module[]; first: number;
-  selected: boolean; std?: string; grip: Grip; slot: string; drop?: string; dragging: boolean; join: string;
+export function ModuleRow({ m, i, mods, first, selected, attached, std, grip, slot, drop, dragging, join, reach, lit,
+  state, pick, remove, nudge, set, fold, note, children }: { m: Module; i: number; mods: Module[]; first: number;
+  selected: boolean; attached?: boolean; std?: string; grip: Grip; slot: string; drop?: string; dragging: boolean;
+  join: string;
   reach: Reach[]; lit: number; state: { kind: string; message?: string }; pick: (e: MouseEvent) => void;
   remove: () => void; nudge: (e: KeyboardEvent) => void; set: (patch: Partial<Module>) => void; fold?: boolean;
   note?: string; children?: ComponentChildren }) {
@@ -43,8 +44,10 @@ export function ModuleRow({ m, i, mods, first, selected, std, grip, slot, drop, 
       <span class="chain-joint" aria-hidden="true">{GLYPHS[join]}</span>
       {reach.map((r) => <span class={cx('reach', r.to === lit && 'lit')} aria-hidden="true" data-kind={r.kind}
         style={{ '--lane': r.lane }} data-part={i === r.from ? 'from' : i === r.to ? 'to' : 'via'} />)}
-      <div class="chain-top" data-slot={slot}>
-        <span class="grip" title="Drag to reorder, into or out of a composite (or Alt+↑/↓)" aria-hidden="true"
+      <div class="chain-top" data-slot={slot} data-attach={attached || undefined}>
+        <span class="grip" title={m.kind === 'warp' || m.kind === 'filter'
+          ? 'Drag to reorder, onto a module (it then works on that module alone) or off it, into or out of a '
+            + 'composite (or Alt+↑/↓)' : 'Drag to reorder, into or out of a composite (or Alt+↑/↓)'} aria-hidden="true"
           data-tour={m.ref && `module-grip:${m.ref}`} {...grip} />
         <span class="chain-kinds"><span class="kind-badge">{KIND_LABELS[m.kind]}</span>
           {std === undefined && m.kind !== 'composite' && <span class="custom-badge"

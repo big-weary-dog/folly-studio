@@ -10,10 +10,10 @@ import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { Module } from '../../../shared/schemas/look.ts';
 import { standardTitle } from '../../../shared/standard-modules.ts';
 import { Field, loadFailed, toast } from './kit.tsx';
-import { insertModule, makeModule, moduleFromLibrary } from './model.ts';
+import { makeModule, moduleFromLibrary } from './model.ts';
 import { ChainList, type TreeCtx } from './chain-tree.tsx';
-import { addSub, type Box, editSub, groupModule, listOf, moveModule, moveSub, placeOf, ungroup, withList }
-  from './composite-model.ts';
+import { addAfter, addSub, type Box, editSub, groupModule, listOf, moveModule, moveSub, placeOf, removeModule, ungroup,
+  withList } from './composite-model.ts';
 import { parseSlot, useTreeDrag } from './tree-drag.ts';
 import { PlaysOn } from './groups-drawer.tsx';
 import { ParamsPanel } from './params.tsx';
@@ -62,7 +62,8 @@ function ModuleSettings({ st }: { st: Studio }) {
   </>;
 }
 
-const KEEP_ONE = 'A list keeps at least one module, and a composite cannot go inside itself.';
+const KEEP_ONE = 'A list keeps at least one module, a composite cannot go inside itself, and only a warp or filter '
+  + 'attaches to a module.';
 
 function Chain({ st, pv }: Props) {
   const l = st.selected.value, mods = l?.modules || [], sel = st.module.value;
@@ -83,13 +84,13 @@ function Chain({ st, pv }: Props) {
       return toast(`A chain has at most ${MAX_MODULES} modules.`, { kind: 'warn' });
     }
     const m = 'blank' in entry ? makeModule({ kind: entry.kind }) : moduleFromLibrary(entry);
-    setMods((list) => withList(list, box, (x) => insertModule(x, m, cur?.id)));
+    setMods((list) => withList(list, box, (x) => addAfter(x, m, cur?.id)));
     st.pickModule(m.id);
   }
   function remove(m: Module) {
-    const at = placeOf(mods, m.id);
-    if (!at || listOf(mods, at.box).length <= 1 || !l) return;
-    setMods((list) => withList(list, at.box, (x) => x.filter((y) => y.id !== m.id)));
+    const next = removeModule(mods, m.id);
+    if (!next || !l) return;
+    setMods(() => next);
     const step = st.step();
     toast(`Deleted “${m.title}”.`, { action: { label: 'Undo', onClick: () => {
       st.undoStep(step);
@@ -97,7 +98,8 @@ function Chain({ st, pv }: Props) {
     } } });
   }
   const resub = (comp: string, k: number, i: number) => setMods((list) => moveSub(list, comp, k, i));
-  const move = (id: string, box: Box, i: number) => setMods((list) => moveModule(list, id, box, i), KEEP_ONE);
+  const move = (id: string, box: Box, i: number, on?: string) => setMods((list) => moveModule(list, id, box, i, on),
+    KEEP_ONE);
   const rootRef = useRef<HTMLDivElement>(null), drag = useTreeDrag(rootRef, move, resub);
   const rowOf = (id: string) => rootRef.current?.querySelector<HTMLElement>(`.chain-row[data-module="${id}"]`);
   /** Alt+↑/↓ on a row's own buttons moves it a slot, into and out of composites, its name keeping the focus. */
@@ -107,8 +109,9 @@ function Chain({ st, pv }: Props) {
     e.preventDefault();
     e.stopPropagation();
     const own = row.querySelector(':scope > .chain-top');
+    const m = placeOf(mods, id), attaches = !!m && ['warp', 'filter'].includes(listOf(mods, m.box)[m.index].kind);
     const slots = [...rootRef.current!.querySelectorAll<HTMLElement>('[data-slot]')]
-      .filter((s) => s === own || !row.contains(s));
+      .filter((s) => s === own || (!row.contains(s) && (attaches || !('attach' in s.dataset))));
     const to = slots[slots.indexOf(own as HTMLElement) + (dir < 0 ? -1 : 2)]?.dataset.slot;
     if (!to) return;
     move(id, ...parseSlot(to));
@@ -160,7 +163,7 @@ function Chain({ st, pv }: Props) {
     <section class="chain" aria-label="Module chain" ref={rootRef}>
       <div class="chain-head"><h3 class="chain-title">Chain</h3>
         <span class="chain-acts">
-          <button type="button" class="btn small chain-group wide-only" disabled={!sel}
+          <button type="button" class="btn small chain-group wide-only" disabled={!sel || !!sel.on}
             title={single ? 'Put the composite\'s modules back in its place'
               : 'Put the selected module in a composite: '
               + 'sub-layers composited into one source, which the modules below it work on'}
