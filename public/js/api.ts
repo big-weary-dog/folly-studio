@@ -18,7 +18,7 @@ const fail = (message: string, status: number, extra = {}): ApiError => Object.a
 export const statusOf = (err: unknown) => (err as Partial<ApiError>)?.status ?? 0;
 
 // Where a 401 still means "not signed in" to the caller, not "the session ended".
-const SESSIONLESS = new Set(['/api/me', '/api/login', '/api/signup']);
+const SESSIONLESS = new Set(['/api/me', '/api/login', '/api/signup', '/api/guest']);
 let signedOut = () => {};
 /** What a 401 from any other call does (session.ts sends the person to sign in). That call then never settles,
  * so no view shows the refusal as an error on its way out. */
@@ -63,6 +63,7 @@ export const api = {
   me: () => request<Partial<Me>>('GET', '/api/me'),
   signup: (username: string, password: string) => request<Me>('POST', '/api/signup', { username, password }),
   login: (username: string, password: string) => request<Me>('POST', '/api/login', { username, password }),
+  guest: (name: string) => request<Me>('POST', '/api/guest', { name }),
   logout: () => request('POST', '/api/logout', {}),
   saveTour: (tour: Tour) => request<{ tour: Tour }>('PUT', '/api/me/tour', tour),
 

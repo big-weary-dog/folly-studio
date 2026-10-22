@@ -12,7 +12,7 @@ Studios. `src/profile.ts` holds the profile; `public/js/ui/look-file.ts` the fil
   The routes that make or read ideas, models and their access are not there (404): `/api/ideas…`,
   `POST /api/looks/:id/refine`, `/api/models`, `/api/admin/models`, `/api/admin/ideas/…`, `/api/invite` and
   `/api/admin/invites…`, `/api/admin/people…`. `GET /api/me` has no `access`.
-- **`profile`.** `POST /api/signup`, `POST /api/login` and `GET /api/me` answer `profile: 'hosted' | 'pi'` beside
+- **`profile`.** `POST /api/signup`, `/api/login`, `/api/guest` and `GET /api/me` answer `profile: 'hosted' | 'pi'` beside
   `user`. Under `pi` the app has no Ideas tab, no Refine panel and no Models or Access tab under Admin; its home is
   My looks, and `/ideas` leads there. The tutorial (SPEC-tutorial) leaves out its steps on Ideas.
 - **The lights.** `/pi` (below) is the Pi's own Studio Live engine, not a dry run, and is open to curators as well

@@ -1,7 +1,8 @@
 // Accounts and sessions. Passwords: scrypt at OWASP's minimum cost (N = 2^17, r = 8, p = 1), a 16-byte salt each,
 // compared with timingSafeEqual. Each hash carries its parameters, so one made at an older cost still verifies, and
 // is made again at the current cost on its next successful login. Sessions: 32 random bytes in the `studio_session`
-// cookie for 30 days; the store only sees sha256(token), the session's id. At most HASH_SLOTS hashes run at once
+// cookie for 30 days (a guest's 7, at most MAX_GUESTS of them live, the oldest dropped first: anyone can make one);
+// the store only sees sha256(token), the session's id. At most HASH_SLOTS hashes run at once
 // (each takes 128 MiB) and HASH_QUEUE wait: past that, signup and login answer 429 rather than exhaust memory.
 import { createHash, randomBytes, scrypt as scryptCb, type ScryptOptions, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
@@ -16,8 +17,9 @@ import type { Store, StoredUser as Stored } from './store.ts';
 const scrypt = promisify(scryptCb) as (password: string, salt: Buffer, keylen: number, o: ScryptOptions) =>
   Promise<Buffer>;
 export const COOKIE_NAME = 'studio_session';
-export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-const MAX_SESSIONS_PER_USER = 20;
+const DAY = 24 * 60 * 60 * 1000;
+export const SESSION_TTL_MS = 30 * DAY, GUEST_TTL_MS = 7 * DAY;
+const MAX_SESSIONS_PER_USER = 20, MAX_GUESTS = 1000;
 const HASH_SLOTS = 3, HASH_QUEUE = 30;
 export type Cost = { N: number, r: number, p: number };
 export const SCRYPT: Cost = Object.freeze({ N: 2 ** 17, r: 8, p: 1 });
@@ -63,13 +65,13 @@ const names = (list: string | string[]) => new Set((typeof list === 'string' ? l
   .map((s) => String(s).trim().toLowerCase()).filter(Boolean));
 
 /**
- * createAuth({ store, curators, admins, cost, slots, queue }): accounts, roles and sessions (cookies and limits are the
- * API's). Admins (STUDIO_ADMINS) choose the models on offer, and are curators too.
+ * createAuth({ store, curators, admins, cost, slots, queue, guests }): accounts, roles and sessions (cookies and limits
+ * are the API's). Admins (STUDIO_ADMINS) choose the models on offer, and are curators too.
  */
 export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, slots = HASH_SLOTS,
-  queue = HASH_QUEUE }: {
+  queue = HASH_QUEUE, guests = MAX_GUESTS }: {
   store: Pick<Store, 'users' | 'sessions'>, curators?: string | string[], admins?: string | string[], cost?: Cost,
-  slots?: number, queue?: number }) {
+  slots?: number, queue?: number, guests?: number }) {
   const curatorSet = names(curators), adminSet = names(admins);
   let dummyHash: Promise<string> | null = null; // checked for unknown users, so timing does not reveal them
   let hashing = 0;
@@ -88,10 +90,11 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     }
   }
 
-  const roleOf = (user: { username: string } | null): User['role'] => (!user ? 'member'
+  // A guest is a member whatever their name says (SPEC-access "Guests").
+  const roleOf = (user: { username: string, guest?: true } | null): User['role'] => (!user || user.guest ? 'member'
     : adminSet.has(user.username) ? 'admin' : curatorSet.has(user.username) ? 'curator' : 'member');
   const publicUser = (user: Stored): User => ({ id: user.id, username: user.username, role: roleOf(user),
-    ...(user.tour ? { tour: user.tour } : {}) });
+    ...(user.tour ? { tour: user.tour } : {}), ...(user.guest ? { guest: true } : {}) });
   const findUser = (username: string) => store.users.list((u) => u.username === username)[0] ?? null;
 
   async function signup({ username, password }: { username: string, password: string }) {
@@ -112,18 +115,22 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     return user;
   });
 
-  /** A new session for `user` → its token; each user keeps at most 20, expired ones dropped. */
+  /** A new session for `user` → its token. Each user keeps at most 20, and guests all told `guests`: past that the
+   * oldest go, as do expired ones. */
   function createSession(user: Stored) {
-    const token = randomBytes(32).toString('base64url');
-    const now = Date.now();
-    const expiresAt = new Date(now + SESSION_TTL_MS).toISOString();
-    store.sessions.create({ id: sha256(token), userId: user.id, expiresAt });
-    const mine = store.sessions.list((s) => s.userId === user.id).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-    mine.forEach((s, i) => {
-      if (i >= MAX_SESSIONS_PER_USER || Date.parse(s.expiresAt) <= now) store.sessions.remove(s.id);
-    });
+    const token = randomBytes(32).toString('base64url'), id = sha256(token);
+    const now = Date.now(), cap = user.guest ? guests : MAX_SESSIONS_PER_USER;
+    const expiresAt = new Date(now + (user.guest ? GUEST_TTL_MS : SESSION_TTL_MS)).toISOString();
+    store.sessions.create({ id, userId: user.id, expiresAt, ...(user.guest ? { guest: user.username } : {}) });
+    const others = store.sessions.list((s) => s.id !== id && (user.guest ? !!s.guest : s.userId === user.id))
+      .sort((x, y) => (x.createdAt < y.createdAt ? 1 : -1));
+    others.forEach((s, i) => { if (i >= cap - 1 || Date.parse(s.expiresAt) <= now) store.sessions.remove(s.id); });
     return token;
   }
+
+  /** A guest named `name` (already checked): a session's user, never stored as one. */
+  const guest = (name: string, id = `guest-${randomBytes(12).toString('base64url')}`, at = new Date().toISOString()):
+    Stored => ({ id, username: name, guest: true, passwordHash: '', createdAt: at, updatedAt: at });
 
   const valid = (token: unknown): token is string => typeof token === 'string' && /^[A-Za-z0-9_-]{43}$/.test(token);
 
@@ -131,7 +138,8 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
   function authenticate(token: unknown) {
     const session = valid(token) ? store.sessions.get(sha256(token)) : null;
     if (!session) return null;
-    const user = Date.parse(session.expiresAt) > Date.now() ? store.users.get(session.userId) : null;
+    const user = !(Date.parse(session.expiresAt) > Date.now()) ? null
+      : session.guest ? guest(session.guest, session.userId, session.createdAt) : store.users.get(session.userId);
     if (!user) {   // expired, or its user is gone
       store.sessions.remove(session.id);
       return null;
@@ -146,7 +154,7 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     for (const s of store.sessions.list((x) => !(Date.parse(x.expiresAt) > now))) store.sessions.remove(s.id);
   }
 
-  return { signup, login, logout, authenticate, createSession, pruneSessions, roleOf, publicUser,
+  return { signup, login, guest, logout, authenticate, createSession, pruneSessions, roleOf, publicUser,
     /** shared/policy.ts's can(), by `user`'s role here. */
     can: (user: Stored | null, action: Action, look?: Parameters<typeof can>[2]) =>
       can(user && publicUser(user), action, look) };
@@ -154,13 +162,18 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
 export type Auth = ReturnType<typeof createAuth>;
 
 const NEEDS = { admin: 'admin', curator: 'curate' } as const;
+const READS = new Set(['GET', 'HEAD', 'OPTIONS']);
 /**
  * The session (an onRequest hook): `req.user` from the cookie. A route needs a session unless it is `public` (401
- * without one), and its `role` when it names one (403).
+ * without one), and its `role` when it names one (403). A guest only reads: their other requests are 403 but for the
+ * public routes (signing in or out).
  */
 export const sessionHook = (auth: Auth) => async (req: FastifyRequest) => {
   req.user = auth.authenticate(req.cookies[COOKIE_NAME])?.user ?? null;
   const { public: open, role } = req.routeOptions.config;
   if (!open && !req.user) throw new HttpError(401, 'Log in first.');
+  if (!open && req.user?.guest && !READS.has(req.method)) {
+    throw new HttpError(403, 'Guests can\'t save: log in or sign up for that.');
+  }
   if (role && !auth.can(req.user, NEEDS[role])) throw new HttpError(403, `Only ${role}s can do that.`);
 };

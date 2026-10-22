@@ -29,8 +29,8 @@ export const stageCopy = (look: StoredLook, ownerName: string): LiveLook => upgr
   title: look.title, ownerName, globals: null, automation: null, ...playsOf(look) });
 
 /** May this person control the live stage, and drive Live Play on the lights (STUDIO_LIVE_CONTROL)? */
-export const controlFor = (auth: Pick<Auth, 'can'>, settings: LiveSettings) => (user: Stored) => (
-  settings.control === 'members' ? true : auth.can(user, settings.control === 'admins' ? 'admin' : 'curate'));
+export const controlFor = (auth: Pick<Auth, 'can'>, settings: LiveSettings) => (user: Stored) => (!user.guest
+  && (settings.control === 'members' || auth.can(user, settings.control === 'admins' ? 'admin' : 'curate')));
 
 export function liveRoutes({ store, auth, hub, settings, listed }: { store: Store, auth: Auth, hub: Hub,
   settings: LiveSettings, listed: (look: StoredLook) => Listed }) {

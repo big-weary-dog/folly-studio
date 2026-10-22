@@ -21,7 +21,8 @@ export type StoredUser = Doc & Partial<User> & { username: string, passwordHash:
 /** An invite code as stored: its sha256, never the code (SPEC-access "Access"). */
 export type StoredInvite = Doc & { hash: string, label?: string, uses: number, used: number, expiresAt?: string,
   revokedAt?: string, createdBy: string };
-export type Session = Doc & { userId: string, expiresAt: string };
+/** `guest`: a guest's name, and `userId` their `guest-…` id, which no account has (SPEC-access "Guests"). */
+export type Session = Doc & { userId: string, expiresAt: string, guest?: string };
 /** A look as stored: what GET /api/looks/:id answers (older looks may lack its defaults), its versions, and what its
  * own version is (look-versions.ts). */
 export type StoredLook = Doc & Pick<Look, 'owner' | 'title'>

@@ -25,6 +25,10 @@ export const Signup = z.object({
   password: z.string({ error: PASSWORD }).min(PASSWORD_MIN, { error: PASSWORD })
     .max(MAX_PASSWORD, { error: `Password must be at most ${MAX_PASSWORD} characters.` }),
 });
+const GUEST = 'A guest name is 1–24 letters, digits, spaces or _ . \' -.';
+/** POST /api/guest: a guest's name, untrusted text shown only as text (SPEC-access "Guests"). */
+export const GuestBody = z.object({ name: z.string({ error: GUEST }).trim().normalize('NFC')
+  .regex(/^[\p{L}\p{N} _.'-]{1,24}$/u, { error: GUEST }) });
 /** A login never says which part was wrong: a malformed name or password is just a wrong one. */
 export const Login = z.object({
   username: Username.nullable().catch(null), password: z.string().max(MAX_PASSWORD).catch(''),
@@ -84,7 +88,8 @@ export const LooksQuery = z.object({
 
 // What the API answers with (it never reads these back): an account, the flash check's settings, an idea, a look as
 // lists and GET show it.
-export type User = { id: string, username: string, role: Role, tour?: Tour };
+/** `guest`: a guest's session, not an account (SPEC-access "Guests"). */
+export type User = { id: string, username: string, role: Role, tour?: Tour, guest?: true };
 /** GET /api/me's `flash`: whether the flash check runs here, and its limits (SPEC "Baked frames" > Checks). */
 export type FlashSettings = { check: boolean, perSecond: number, delta: number, darker: number, area: number };
 /** A curator's approval of a look whose bake fails the flash check: why, who, when. */

@@ -14,7 +14,7 @@ export const PATHS = [firstLook, idea, modules, layers, time, moves, keep];
 /** A step on Ideas, or one that goes there. */
 export const onIdeas = (s: Step) => s.page === '/ideas' || !!s.idea
   || (Array.isArray(s.anchor) && s.anchor.includes('nav:ideas'));
-/** The paths this Studio offers: on the Pi (SPEC-offline) no step goes to Ideas, which it has not, and a path that
- * starts there starts on its practice look. */
-export const pathsHere = (pi: boolean) => (pi ? PATHS.map((p) => ({ ...p, about: p.aboutPi ?? p.about,
+/** The paths this Studio offers: without Ideas (on the Pi, SPEC-offline, or without the AI) no step goes there, and a
+ * path that starts there starts on its practice look. */
+export const pathsHere = (noIdeas: boolean) => (noIdeas ? PATHS.map((p) => ({ ...p, about: p.aboutPi ?? p.about,
   start: p.look ?? p.start, steps: p.steps.filter((s) => !onIdeas(s)) })) : PATHS);
