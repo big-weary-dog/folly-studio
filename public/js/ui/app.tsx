@@ -7,7 +7,7 @@ import { useLayoutEffect, useState } from 'preact/hooks';
 import { api, statusOf } from '../api.ts';
 import { can } from '../../../shared/policy.ts';
 import type { User } from '../../../shared/schemas/api.ts';
-import { confirmDialog, cx, Field, openDialog, toast, Toasts } from './kit.tsx';
+import { confirmDialog, cx, openDialog, toast, Toasts } from './kit.tsx';
 import { fileBugReport } from './bug-report.tsx';
 import { Rose } from './rose.tsx';
 import { openTour, welcomeOnce } from './tour-view.ts';
@@ -141,8 +141,8 @@ function navOf(me: User) {
 const enterInvite = () => openDialog<string>({ title: 'Invite code', body: (close) => <form method="dialog"
   onSubmit={(e) => { e.preventDefault(); close(new FormData(e.currentTarget).get('code') as string); }}>
   <p class="dialog-text">An invite code turns on the AI: ideas, refining and fixes.</p>
-  <Field label="Code" stack>{(id) => <input id={id} name="code" required autocomplete="off" autocapitalize="characters"
-    spellcheck={false} maxlength={40} placeholder="XXXX-XXXX-XXXX" />}</Field>
+  <div class="field stack"><label>Code <input name="code" required autocomplete="off" autocapitalize="characters"
+    spellcheck={false} maxlength={40} placeholder="XXXX-XXXX-XXXX" /></label></div>
   <div class="dialog-actions"><button class="btn ghost" type="button" onClick={() => close()}>Cancel</button>
     <button class="btn primary" type="submit">Redeem</button></div></form> })
   .then((code) => (code?.trim() ? redeem(code.trim()) : false));

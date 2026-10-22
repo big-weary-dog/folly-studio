@@ -47,13 +47,14 @@ for (const [name, device] of Object.entries(SIZES)) {
       const redeem = async (code) => {
         await userMenu(page);
         await page.getByRole('button', { name: 'Invite code' }).click();
-        await page.getByLabel('Code').fill(code);
-        await page.getByRole('button', { name: 'Redeem' }).click();
+        const dialog = page.getByRole('dialog', { name: 'Invite code' });
+        await dialog.getByRole('textbox', { name: 'Code' }).fill(code);
+        await dialog.getByRole('button', { name: 'Redeem' }).click();
       };
 
       await test.step('a new account: no AI anywhere, and an invite code in its menu', async () => {
         await signUp(page, studio.origin, `guest-${name}`, { locked: true });
-        await expect(nav.getByRole('link', { name: 'Ideas' })).toHaveCount(0);
+        await expect(nav.locator('a[href="/ideas"]')).toHaveCount(0);
         await page.goto(`${studio.origin}/ideas`);
         await expect(page).toHaveURL(`${studio.origin}/looks`);
         await page.goto(`${studio.origin}/studio`);
@@ -72,10 +73,11 @@ for (const [name, device] of Object.entries(SIZES)) {
         await shot('redeem-wrong');
         await redeem(app.access.createInvite('keeper', { uses: 1 }).code.toLowerCase());
         await expect(toast).toHaveText('Invite accepted: you can use Sol and Luna.');
-        await expect(nav.getByRole('link', { name: 'Ideas' })).toHaveCount(1);
+        await expect(nav.locator('a[href="/ideas"]')).toHaveCount(1);
         await page.goto(`${studio.origin}/ideas`);
         await expect(page.locator('.gate-left')).toHaveText('6 left this hour · 20 today');
         await expect(pick.locator('option')).toHaveText(['Sol', 'Luna']);
+        await page.fill('textarea.idea-input', 'Embers rising up the spires');
         await shot('unlocked');
       });
 

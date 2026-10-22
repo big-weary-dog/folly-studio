@@ -28,8 +28,8 @@ for (const [name, device] of Object.entries(SIZES)) {
         await expect(page).toHaveURL(`${studio.origin}/studio`);
         await expect(layers).toHaveCount(1, { timeout: 60_000 });
         await expect(page.locator('.user-box .tag')).toHaveText('Guest');
-        await expect(nav.getByRole('link', { name: 'Ideas' })).toHaveCount(0);
-        await expect(nav.getByRole('link', { name: 'My looks' })).toHaveCount(0);
+        await expect(nav.locator('a[href="/ideas"]')).toHaveCount(0);
+        await expect(nav.locator('a[href="/looks"]')).toHaveCount(0);
         expect(store.users.list()).toHaveLength(accounts);
       });
 
@@ -49,7 +49,7 @@ for (const [name, device] of Object.entries(SIZES)) {
         await expect(ask).toBeVisible();
         await shot('guest-save');
         await ask.getByRole('button', { name: 'Log in or sign up' }).click();
-        await expect(page).toHaveURL(`${studio.origin}/login?mode=signup&next=%2Fstudio`);
+        await expect(page).toHaveURL(`${studio.origin}/login?mode=signup&next=/studio`);
         await page.fill('input[name=username]', `kept-${name}`);
         await page.fill('input[name=password]', 'correct horse');
         await page.locator('form button[type=submit]').click();
