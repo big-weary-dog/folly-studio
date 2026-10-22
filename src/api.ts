@@ -4,7 +4,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 import { isPending, transition } from '../shared/idea-status.ts';
-import { DEEP, type FlashSettings, type Idea, IdeaBody, Login, RefineBody, Signup } from '../shared/schemas/api.ts';
+import { DEEP, type FlashSettings, type Idea, GuestBody, IdeaBody, Login, RefineBody, Signup } from '../shared/schemas/api.ts';
 import type { AccessControl } from './access.ts';
 import { accessRoutes, sendRefusal } from './api-access.ts';
 import { ideaHowRoutes } from './api-idea-how.ts';
@@ -71,14 +71,14 @@ export const newestBy = (field: string) => (a: Record<string, unknown>, b: Recor
 export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: Registry, log: Log,
   loaders: ReturnType<typeof createLoaders>, access: AccessControl, framesDir: string,
   bakes: ReturnType<typeof createBakeQueue>, frames: ReturnType<typeof createFramesCache>, secureCookies?: boolean,
-  rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, flash: FlashSettings, hub: Hub,
+  rateLimit?: { max?: number, ipMax?: number, guestMax?: number, windowMs?: number }, flash: FlashSettings, hub: Hub,
   live: LiveSettings, ideaLogs: IdeaLogs, previews?: ReturnType<typeof createPreviews>, reports: Reports,
   build: string, tail: () => unknown[], light: LightStore, profile?: Profile,
   baking?: Parameters<typeof bakingRoutes>[0], stats?: Parameters<typeof routes>[1],
   lights?: Pick<Parameters<typeof lightsRoutes>[0], 'store' | 'feed' | 'hub' | 'drive'> }) {
   const { store, auth, queue, models, loaders, log, access } = o;
   const { bakes, framesDir, frames, secureCookies = false, flash } = o;
-  const limits = { max: 10, ipMax: 100, windowMs: 60_000, ...o.rateLimit };
+  const limits = { max: 10, ipMax: 100, guestMax: 10, windowMs: 60_000, ...o.rateLimit };
   const profile = o.profile ?? 'hosted', gen = generates(profile);
   return async (api: FastifyInstance) => {
     api.addHook('onRequest', checkMutation);
@@ -94,6 +94,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
     const perIp = api.createRateLimit({ ...window, max: limits.ipMax, keyGenerator: (req) => req.ip });
     const perName = api.createRateLimit({ ...window, max: limits.max,
       keyGenerator: (req) => `${req.ip}|${nameOf(req)}` });
+    const perGuest = api.createRateLimit({ ...window, max: limits.guestMax, keyGenerator: (req) => `guest|${req.ip}` });
     /** Sign up or log in: a fresh session replaces any old one. */
     const signIn = (status: number, run: (req: FastifyRequest) => Promise<Stored>) => async (req: FastifyRequest,
       reply: FastifyReply) => {
@@ -102,6 +103,9 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         : !name.isAllowed && name.remaining === 0 ? name.ttlInSeconds : 0;
       if (wait) throw new HttpError(429, 'Too many attempts. Try again in a minute.', { 'Retry-After': `${wait}` });
       const user = await run(req).catch(async (err) => { await perName(req); throw err; });
+      return start(user, status, req, reply);
+    };
+    const start = (user: Stored, status: number, req: FastifyRequest, reply: FastifyReply) => {
       auth.logout(req.cookies[COOKIE_NAME]);
       reply.setCookie(COOKIE_NAME, auth.createSession(user), cookie(SESSION_TTL_MS / 1000)).code(status);
       return { user: auth.publicUser(user), flash, profile };
@@ -206,6 +210,13 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
     routes(api, {
       'POST /signup': [signIn(201, (req) => auth.signup(parse(Signup, req.body))), { public: true }],
       'POST /login': [signIn(200, (req) => auth.login(Login.parse(req.body))), { public: true }],
+      // A guest (SPEC-access "Guests"): a session with a name, and no account.
+      'POST /guest': [async (req, reply) => {
+        const [ip, made] = [await perIp(req), await perGuest(req)];
+        const wait = !ip.isAllowed && ip.isExceeded ? ip.ttlInSeconds : made.isExceeded ? made.ttlInSeconds : 0;
+        if (wait) throw new HttpError(429, 'Too many attempts. Try again in a minute.', { 'Retry-After': `${wait}` });
+        return start(auth.guest(parse(GuestBody, req.body).name), 201, req, reply);
+      }, { public: true }],
       'POST /logout': [async (req, reply) => {
         auth.logout(req.cookies[COOKIE_NAME]);
         reply.setCookie(COOKIE_NAME, '', cookie(0));
@@ -213,7 +224,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       }, { public: true }],
       ...tourRoutes({ store }),
       'GET /me': async (req) => ({ user: auth.publicUser(req.user), flash,
-        ...(gen ? { access: access.state(req.user!) } : {}), profile }),
+        ...(gen && !req.user!.guest ? { access: access.state(req.user!) } : {}), profile }),
       ...(gen ? { ...ideaRoutes, ...modelRoutes({ auth, models, access }), ...ideaLogRoutes({ logs: o.ideaLogs }),
         ...ideaHowRoutes({ store, auth, logs: o.ideaLogs, forOwner }),
         ...accessRoutes(api, { access, store }) } : {}),

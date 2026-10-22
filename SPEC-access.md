@@ -12,7 +12,18 @@ Who has an account, what each role may do, the Admin pages, and who may use the 
 without it has not seen the tutorial. Signing up or in is limited per client address (100 a minute) and, for
 failures, per address and username (10 a minute): 429 with `Retry-After`. Password hashes run 3 at once with 30
 waiting; past that, 429 "busy". A route that needs a session is 401 without one; the app takes a 401 from anything
-but `/api/me`, `/api/login` and `/api/signup` as the session ending, and goes back to sign-in.
+but `/api/me`, `/api/login`, `/api/signup` and `/api/guest` as the session ending, and goes back to sign-in.
+
+**Guests.** The sign-in page also lets anyone in as a guest with only a name (`POST /api/guest { name }`: 1–24
+letters, digits, spaces and `_ . ' -`, trimmed; 10 a minute per client address, beside the sign-in limits). A guest
+is a session, not an account: nothing is written to the users, and `user = { id: 'guest-…', username: <name>, role:
+'member', guest: true }` whatever the name says (a guest named for an admin is no admin). The cookie lets them back in
+on that device for 30 days. A guest only reads: every mutating route but `/api/logout`, `/api/login`, `/api/signup`
+and `/api/guest` is 403 "Guests can't save", so they make no looks, ideas, bakes, reports, tour or invite, never
+control the live stage, and have no AI ("AI only with access"). The Studio keeps a guest's work in that browser
+(localStorage, the Studio's look as saved, written as it changes) and opens it again on `/studio`; Save asks them to
+log in or sign up, since saving is for accounts, and the work comes along: the first account to open a blank Studio
+in that browser gets it, unsaved. Their name shows with a Guest tag; it is untrusted text, shown only as text.
 
 ## Who may do what
 
@@ -95,9 +106,16 @@ models[i].limits?: { "perHour"?, "perDay"?, "concurrent"? }
   state: 'active' | 'used' | 'expired' | 'revoked' }`. `person = { id, username, role, access: { unlockedAt?, invite?,
   by?, limits?, resetAt? }, used: { hour, day, running } }`.
 
+**AI only with access.** Anyone who may not send ideas sees no AI anywhere: guests, accounts not unlocked (where
+`inviteOnly`), and everyone on the Pi. They get no Ideas page (it leads to My looks; a guest's home is the Studio), no
+Ideas link, no Refine panel or "Ask the AI to fix it", and no tutorial step on Ideas; `/api/me` has no `access` for a
+guest. The server refuses their ideas as above. A locked account gets the AI by an invite link, or a code entered
+under "Invite code" in its user menu (which only a locked account has, and only where `inviteOnly`).
+
 ## HTTP
 
 ```
+POST   /api/guest    { name }                 → { user, flash, profile }  in as a guest (sets cookie): "Guests"
 POST   /api/invite   { code }                 → { access }           redeem an invite code ("Access")
 GET    /api/admin/invites                     → { invites: [invite] }  admins only, as are the four below
 POST   /api/admin/invites { label?, uses?, days? } → 201 { invite, code }  the code is shown only here

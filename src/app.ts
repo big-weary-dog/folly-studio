@@ -54,7 +54,7 @@ type ModelOptions = { file?: string, env?: NodeJS.ProcessEnv, codexBin?: string 
 type Options = { config?: Config, dataDir?: string, publicDir?: string, distDir?: string, generatorName?: string,
   curators?: string | string[], admins?: string | string[], models?: ModelOptions, secureCookies?: boolean,
   trustProxy?: boolean, log?: Log,
-  rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, scrypt?: Cost, framesQuality?: number,
+  rateLimit?: { max?: number, ipMax?: number, guestMax?: number, windowMs?: number }, scrypt?: Cost, framesQuality?: number,
   framesMaxBytes?: number, generator?: Queue | ((deps: Deps) => Queue | Promise<Queue>),
   renderBox?: Parameters<typeof createBakeQueue>[0]['box'], flash?: FlashSettings, live?: LiveSettings,
   piPreview?: string, ideaLogs?: { keep?: number, maxBytes?: number }, previews?: string,

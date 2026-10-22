@@ -398,6 +398,7 @@ known path's other methods 405 with `Allow`.
 ```
 POST   /api/signup   { username, password }   → { user, flash, profile }  (sets cookie)
 POST   /api/login    { username, password }   → { user, flash, profile }
+POST   /api/guest    { name }                 → { user, flash, profile }  a guest (SPEC-access "Guests")
 POST   /api/logout                            → { ok: true }
 GET    /api/me                                → { user, flash, access, profile } | 401
 PUT    /api/me/tour  tour                     → { tour }  SPEC-tutorial

@@ -88,10 +88,11 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     }
   }
 
-  const roleOf = (user: { username: string } | null): User['role'] => (!user ? 'member'
+  // A guest is a member whatever their name says (SPEC-access "Guests").
+  const roleOf = (user: { username: string, guest?: true } | null): User['role'] => (!user || user.guest ? 'member'
     : adminSet.has(user.username) ? 'admin' : curatorSet.has(user.username) ? 'curator' : 'member');
   const publicUser = (user: Stored): User => ({ id: user.id, username: user.username, role: roleOf(user),
-    ...(user.tour ? { tour: user.tour } : {}) });
+    ...(user.tour ? { tour: user.tour } : {}), ...(user.guest ? { guest: true } : {}) });
   const findUser = (username: string) => store.users.list((u) => u.username === username)[0] ?? null;
 
   async function signup({ username, password }: { username: string, password: string }) {
@@ -117,7 +118,8 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     const token = randomBytes(32).toString('base64url');
     const now = Date.now();
     const expiresAt = new Date(now + SESSION_TTL_MS).toISOString();
-    store.sessions.create({ id: sha256(token), userId: user.id, expiresAt });
+    store.sessions.create({ id: sha256(token), userId: user.id, expiresAt,
+      ...(user.guest ? { guest: user.username } : {}) });
     const mine = store.sessions.list((s) => s.userId === user.id).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
     mine.forEach((s, i) => {
       if (i >= MAX_SESSIONS_PER_USER || Date.parse(s.expiresAt) <= now) store.sessions.remove(s.id);
@@ -125,13 +127,18 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     return token;
   }
 
+  /** A guest named `name` (already checked): a session's user, never stored as one. */
+  const guest = (name: string, id = `guest-${randomBytes(12).toString('base64url')}`, at = new Date().toISOString()):
+    Stored => ({ id, username: name, guest: true, passwordHash: '', createdAt: at, updatedAt: at });
+
   const valid = (token: unknown): token is string => typeof token === 'string' && /^[A-Za-z0-9_-]{43}$/.test(token);
 
   /** → { user, session } for a live session token, else null. `user` is the full record. */
   function authenticate(token: unknown) {
     const session = valid(token) ? store.sessions.get(sha256(token)) : null;
     if (!session) return null;
-    const user = Date.parse(session.expiresAt) > Date.now() ? store.users.get(session.userId) : null;
+    const user = !(Date.parse(session.expiresAt) > Date.now()) ? null
+      : session.guest ? guest(session.guest, session.userId, session.createdAt) : store.users.get(session.userId);
     if (!user) {   // expired, or its user is gone
       store.sessions.remove(session.id);
       return null;
@@ -146,7 +153,7 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     for (const s of store.sessions.list((x) => !(Date.parse(x.expiresAt) > now))) store.sessions.remove(s.id);
   }
 
-  return { signup, login, logout, authenticate, createSession, pruneSessions, roleOf, publicUser,
+  return { signup, login, guest, logout, authenticate, createSession, pruneSessions, roleOf, publicUser,
     /** shared/policy.ts's can(), by `user`'s role here. */
     can: (user: Stored | null, action: Action, look?: Parameters<typeof can>[2]) =>
       can(user && publicUser(user), action, look) };
@@ -154,13 +161,18 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
 export type Auth = ReturnType<typeof createAuth>;
 
 const NEEDS = { admin: 'admin', curator: 'curate' } as const;
+const READS = new Set(['GET', 'HEAD', 'OPTIONS']);
 /**
  * The session (an onRequest hook): `req.user` from the cookie. A route needs a session unless it is `public` (401
- * without one), and its `role` when it names one (403).
+ * without one), and its `role` when it names one (403). A guest only reads: their other requests are 403 but for the
+ * public routes (signing in or out).
  */
 export const sessionHook = (auth: Auth) => async (req: FastifyRequest) => {
   req.user = auth.authenticate(req.cookies[COOKIE_NAME])?.user ?? null;
   const { public: open, role } = req.routeOptions.config;
   if (!open && !req.user) throw new HttpError(401, 'Log in first.');
+  if (!open && req.user?.guest && !READS.has(req.method)) {
+    throw new HttpError(403, 'Guests can\'t save: log in or sign up for that.');
+  }
   if (role && !auth.can(req.user, NEEDS[role])) throw new HttpError(403, `Only ${role}s can do that.`);
 };
