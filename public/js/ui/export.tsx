@@ -1,5 +1,4 @@
-// Exports and details, loaded on first use: the look as JSON, an xLights/FPP .fseq rendered in the sandbox, and the
-// look's title and summary.
+// Exports, loaded on first use: the look as JSON and an xLights/FPP .fseq rendered in the sandbox.
 import { useState } from 'preact/hooks';
 
 import { api } from '../api.ts';
@@ -16,28 +15,6 @@ export function exportJson(st: Studio) {
   st.flush();
   const look = st.body.peek();
   download(fileText(lookFile(look)), `${slugify(look.title, 'folly-look')}.json`, 'application/json');
-}
-
-export function details(st: Studio) {
-  const L = st.look.peek();
-  openDialog({ title: 'Look details', body: (close) => {
-    const [title, setTitle] = useState(L.title), [summary, setSummary] = useState(L.summary || '');
-    return (
-      <form class="details-form" onSubmit={(e) => {
-        e.preventDefault();
-        st.edit(() => ({ title: title.trim() || 'Untitled look', summary: summary.trim() }));
-        close(true);
-      }}>
-        <Field label="Title">{(id) => <input id={id} type="text" maxlength={120} value={title}
-          onInput={(e) => setTitle(e.currentTarget.value)} />}</Field>
-        <Field label="Summary" stack>{(id) => <textarea id={id} rows={4} maxlength={600} value={summary}
-          onInput={(e) => setSummary(e.currentTarget.value)} />}</Field>
-        {L.ideaId && <p class="field-hint">Generated from one of your ideas.</p>}
-        <div class="dialog-actions">
-          <button type="button" class="btn ghost" onClick={() => close(false)}>Cancel</button>
-          <button type="submit" class="btn primary">Done</button></div>
-      </form>);
-  } });
 }
 
 export async function exportFseq(st: Studio, pv: Preview) {
