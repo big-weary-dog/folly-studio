@@ -158,7 +158,7 @@ function Controller({ draft, set }: { draft: Light; set: (p: Partial<Light>) => 
     .map((c, j) => (j === i ? { ...c, ...patch } : c)) });
   return <section class="models-panel" aria-label="The controller's own settings">
     <p class="field-hint">The controller's own settings, for the record: its port brightness is the electrical cap and
-      its gamma must stay None (this page's curve is the only one). Studio never applies these. Defaults: the F48's,
+      its gamma must stay None (the Pi's curve above is the only one). Studio never applies these. Defaults: the F48's,
       {` ${LIGHT.controller.map((c) => `ports ${c.ports} at ${c.brightness * 100} %`).join(', ')}`}.</p>
     {draft.controller.map((c, i) => <Field key={i} label={<input type="text" aria-label="Ports" value={c.ports}
       maxLength={40} onInput={(e) => edit(i, { ports: e.currentTarget.value })} />} class="end">{(id) => <>
