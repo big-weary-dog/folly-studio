@@ -21,7 +21,8 @@ The ops hub's link is `http://192.168.8.172:4043/` in both. With Studio, curator
    It ends `pi-bundle: …/folly-studio-pi.tgz (58M), the build of <commit>; install.sh beside it`. It holds the
    built app, `node_modules` for the Pi (sharp for 64- and 32-bit ARM) and bubblewrap's `.deb`s, so the Pi
    downloads nothing.
-2. **Copy `folly-studio-pi.tgz` and `install.sh` to a USB stick** (any format the Pi reads; FAT32 is fine).
+2. **Copy `folly-studio-pi.tgz` and `install.sh` to a USB stick** (any format the Pi reads; FAT32 is fine), with
+   any looks to take ([Looks on the stick](#looks-on-the-stick)).
 3. **The hub's two entries** (lighting repo, John's; lighting PR #1): [INSTALL.md](INSTALL.md) step 4 lists them.
    They should be merged, and a laptop that can reach the Pi should have them pulled.
 
@@ -38,6 +39,7 @@ The ops hub's link is `http://192.168.8.172:4043/` in both. With Studio, curator
    bash /mnt/usb/install.sh --studio --admin <your username> --pin 2468  # engine + Studio
    ```
 
+   A `looks/` folder beside `install.sh` goes into the engine's `pi/local/looks/` (`--looks DIR` for another).
    Choose your own PIN: the engine's page is open to anyone on DustyRose, and the PIN is its only lock. It takes
    about a minute and ends with a self-test that sends nothing to the lights. It should show:
 
@@ -72,6 +74,37 @@ The ops hub's link is `http://192.168.8.172:4043/` in both. With Studio, curator
 At the night show's start (21:00) the hub takes the lights back from Studio Live, as from any live app:
 [INSTALL.md](INSTALL.md#the-night-show-and-the-hub).
 
+## From a laptop instead of a stick
+
+The same files, over DustyRose. From the folder that holds them (the stick, copied to the laptop):
+
+```sh
+scp -r folly-studio-pi.tgz install.sh looks fpp@192.168.8.172:/home/fpp/install/
+ssh fpp@192.168.8.172 bash /home/fpp/install/install.sh --pin 2468    # or with --studio --admin NAME, as above
+```
+
+Then steps 6 to 9 above. `/home/fpp/install/` may go once it is done.
+
+## Looks on the stick
+
+| On the stick | Where it goes | How it plays |
+| --- | --- | --- |
+| `looks/<name>.json` | the engine's `pi/local/looks/`, by `install.sh` | Jukebox's own looks: its auto-pick rotates them |
+| `folly-looks-reviewed.json` | Studio on the Pi: My looks → **Import** | each queued from Studio as its bake (below) |
+| `fpp/<name>.fseq` | FPP's sequences | FPP's own playlists, the fallback (below) |
+
+`looks/` holds only looks whose code is our library's as the bundle has it, so the engine plays them as made. A look
+with code of its own reaches the lights as its bake, from Studio on the Pi (`--studio`): as the admin, turn
+**Custom code** on (Admin) for the import, then My looks → **Import** the file, open each look, **Check & bake**,
+and **Play on the lights**. Turn Custom code off again afterwards; baked looks keep playing.
+
+**FPP's own playlists.** Each `fpp/<name>.fseq` is the look as the lights take it: City of Gods' channels through
+the output curve (gamma 2.2, as Export's), the rose expanded and power-compressed as lighting's `make renders`
+does, so FPP plays it with no Studio running. Upload them on FPP's page, **Content Setup → File Manager →
+Sequences → Select Files**, or from a laptop: `scp fpp/*.fseq fpp@192.168.8.172:/home/fpp/media/sequences/`. Then
+**Content Setup → Playlists**: a new playlist, a Sequence entry for each, and play it from the Status page. The
+night show's schedule is FPP's: a playlist started by hand plays until it ends or the schedule takes over.
+
 ## When it goes wrong
 
 | It says | Do |
@@ -80,6 +113,7 @@ At the night show's start (21:00) the hub takes the lights back from Studio Live
 | `has N px … stale map` | the rig and power tables disagree: bundle again from a commit that passes `npm run check` |
 | `bubblewrap does not run here` | Studio works, but looks with custom code cannot be baked: play library looks |
 | The hub greys it out, or `sudo` errors | step 6 again, and read for **parsed OK** |
+| `install: FAILED: a look cannot play` | the look named above it needs a module this bundle lacks: drop it from `looks/` |
 | The page loads but nothing lights | `journalctl -u studio-live`: is it `DRY RUN`? Is FPP playing over it? |
 
 ## Updating

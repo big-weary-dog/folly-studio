@@ -6,6 +6,7 @@
 #   bash install.sh --studio --admin NAME        # Studio on :8780/ too, the engine at :8780/pi/ and :4043/
 #
 #   --pin N       the engine's page asks for this PIN (Studio is told it too)
+#   --looks DIR   engine looks to add to pi/local/looks (default: looks/ beside this script, if there)
 #   --bundle F    the bundle (default: folly-studio-pi.tgz beside this script)
 #   --home DIR    install into DIR/folly-studio (default /home/fpp); anything else implies --no-units
 #   --no-units    install no systemd units and use no sudo (a rehearsal off the Pi)
@@ -17,13 +18,14 @@ set -euo pipefail
 say() { echo "install: $*"; }
 die() { echo "install: FAILED: $*" >&2; exit 1; }
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-studio='' admin='' pin='' bundle=$here/folly-studio-pi.tgz home=/home/fpp units=1
+studio='' admin='' pin='' bundle=$here/folly-studio-pi.tgz home=/home/fpp units=1 looks=$here/looks
 while [ $# -gt 0 ]; do
   case $1 in
     --studio) studio=1; shift ;;
     --admin) admin=$2; shift 2 ;;
     --pin) pin=$2; shift 2 ;;
     --bundle) bundle=$2; shift 2 ;;
+    --looks) looks=$2; shift 2 ;;
     --home) home=$(realpath -m "$2"); shift 2 ;;
     --no-units) units=''; shift ;;
     *) die "unknown option $1 (see the top of $0)" ;;
@@ -58,6 +60,11 @@ if [ -d "$app" ]; then
 fi
 mv "$app.new" "$app"
 cd "$app"
+if [ -d "$looks" ] && ls "$looks"/*.json >/dev/null 2>&1; then
+  mkdir -p pi/local/looks
+  cp "$looks"/*.json pi/local/looks/
+  say "added $(ls "$looks"/*.json | wc -l) looks to pi/local/looks from $looks"
+fi
 say "installed $(sed -n 's/.*"commit": "\([0-9a-f]\{12\}\).*/\1/p' dist/build.json) in $app"
 
 # The engine's settings: the PIN, and behind Studio its base, light, frames and an open page (:4043/ for the hub).
@@ -129,6 +136,7 @@ log=$(mktemp)
 ts pi/main.ts --dry-run --http 0 --seconds 6 --stats 2 >"$log" 2>&1 || { cat "$log"; die "the dry run failed"; }
 sed 's/^/  /' "$log"
 grep -q 'DRY RUN, nothing sent, channels 1-70401 (rose expanded)' "$log" || die "the dry run did not say its frame"
+! grep -q 'cannot play' "$log" || die "a look cannot play (above): fix or remove it in pi/local/looks"
 test_port=14043
 ts pi/main.ts --dry-run --http "$test_port" --bind 127.0.0.1 --seconds 30 >"$log" 2>&1 &
 pid=$!
