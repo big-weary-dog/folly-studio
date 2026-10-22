@@ -1,4 +1,4 @@
-// The Studio's light view on a phone (SPEC "Timeline" > Phones): the tabs under the 3D view, a layer's settings
+// The Studio's light view on a phone (SPEC-studio "Phones"): the tabs under the 3D view, a layer's settings
 // opened from its row in the same panel, and More: the code editor, the 3D view's options and Full detail, which
 // shows what the light view hides (css/phone.css keys off the Studio's data-detail and data-drill).
 import '../../../css/phone.css';

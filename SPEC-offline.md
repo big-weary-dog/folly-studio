@@ -2,7 +2,7 @@
 
 The same Studio, run on the FPP Pi with no internet (the Pi profile), and the files that carry looks between two
 Studios. `src/profile.ts` holds the profile; `public/js/ui/look-file.ts` the files. Installing it on the Pi:
-`pi/STUDIO.md`.
+`pi/SETUP.md` (from a USB stick) or `pi/STUDIO.md` (the `pi` branch).
 
 ## The Pi profile
 
@@ -23,8 +23,8 @@ Studios. `src/profile.ts` holds the profile; `public/js/ui/look-file.ts` the fil
 - **Listening.** `HOST` may be any address. Under `hosted` the server refuses to start on anything but loopback
   (`127.0.0.1`, `localhost`, `::1`): the public site is reached through its tunnel.
 
-Everything else is the hosted Studio's: accounts (the Pi's own), looks, versions, the gallery, bakes (503 without
-bubblewrap), `/live` and bug reports.
+Everything else is the hosted Studio's: accounts (the Pi's own), looks, versions, the gallery, bakes (library only
+without bubblewrap: SPEC-baking), `/live` and bug reports.
 
 ## The Pi preview
 
@@ -77,8 +77,8 @@ and the engine's control page (`/pi/`) both add to it. Custom code never reaches
   (`src/frames.ts` `parseFseq`, uncompressed, the rig's channels and fps, at most 128 MB), and plays its frames as baked: each LED's channels
   are the look's colour, out through the same light transform, master, blackout, fades and flash guard. A baked
   item has no live controls. The engine loads an item's frames when it is next, off the frame loop, so the switch
-  never waits; a missing or changed file skips the item, saying so. A bake is made where bubblewrap is (the
-  render box; without it a bake is 503), so a Pi without bubblewrap has none to play.
+  never waits; a missing or changed file skips the item, saying so. A Pi without bubblewrap bakes only looks of
+  unchanged library code (SPEC-baking "Library only").
 
 Studio picks the way: live when it may (the controls work), else baked, else it refuses, saying why ("Has custom
 code: bake it (Check & bake) to play it on the lights…", "Live looks are off: bake it…").
@@ -113,9 +113,7 @@ has it, reaches Studio's pages in the feed's `now` (SPEC-live "Following /pi").
 `{ type: 'queue', id, at? }` (one of its own looks), `{ type: 'unqueue', key }`, `{ type: 'move', key, to }`,
 `{ type: 'next' }` (skip to the next item now); and, as Studio's feed sends it,
 `{ type: 'send', at?, fade?, by, item: { kind: 'live', look } | { kind: 'baked', id, title, sha256, duration } }`,
-up to 64 KB (other
-messages stay at 1 KB). Studio's proxy passes pages no `send`, so through Studio its checks hold; on the Pi the
-engine binds to `127.0.0.1` (`pi/STUDIO.md`), so nothing reaches it another way. Its state gains `queue`, `paused`,
+up to 64 KB (other messages stay at 1 KB; who may send it: SPEC-liveplay). Its state gains `queue`, `paused`,
 and the playing look's `kind` and `left` (seconds left of its pattern; null while nothing is queued). Studio's feed
 says `PI_PIN` in its hello when the engine has a PIN. While a baked item plays, the engine's `source` has
 `baked: true` and no layers: `/live` shows its title and "Baked: on the lights only" over a dark view.
@@ -124,7 +122,7 @@ says `PI_PIN` in its hello when the engine has a PIN. While a baked item plays, 
 - **Studio** (the editor's Export menu, the phone's Look tab, and each card on My looks and the Gallery): **Play on
   the lights** → Play now · Play next · Add to queue, for those who may; off, with the reason, when it cannot play.
   It plays the saved look (unsaved changes: "Save first"). In Jukebox it offers no Play now.
-- **`/pi/`** (the engine's page) and, on the Pi, **`/live`** for curators (the others see the stage as before): the
+- **`/pi/`** (the engine's page) and, on the Pi, **`/live`** for curators (the others see the stage): the
   live play controller (SPEC-liveplay "The page"). `/live`'s adds Studio's looks (Mine, Gallery) to the lights'
   own and, on a laptop, the stage's 3D view; it talks to the engine on `/pi/ws` through Studio's proxy, as `/pi/`
   does (the PIN too), so a control used there makes `/pi` drive the stage.

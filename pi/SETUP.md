@@ -22,9 +22,8 @@ The ops hub's link is `http://192.168.8.172:4043/` in both. With Studio, curator
    built app, `node_modules` for the Pi (sharp for 64- and 32-bit ARM) and bubblewrap's `.deb`s, so the Pi
    downloads nothing.
 2. **Copy `folly-studio-pi.tgz` and `install.sh` to a USB stick** (any format the Pi reads; FAT32 is fine).
-3. **The hub's two entries** (lighting repo, John's): lighting PR #1 adds Folly Studio Live to
-   `launchpad/live-sources.json` (`unit` `studio-live`, `url` `:4043/`) and `launchpad-sudoers.txt`. It should be
-   merged, and a laptop that can reach the Pi should have it pulled.
+3. **The hub's two entries** (lighting repo, John's; lighting PR #1): [INSTALL.md](INSTALL.md) step 4 lists them.
+   They should be merged, and a laptop that can reach the Pi should have them pulled.
 
 ## At the Pi
 
@@ -62,8 +61,8 @@ The ops hub's link is `http://192.168.8.172:4043/` in both. With Studio, curator
    ```
 
    It should show the same first line without `DRY RUN` (`DDP 127.0.0.1:4048, channels 1-70401 …`), then
-   `control page on http://0.0.0.0:4043/`. Open `http://192.168.8.172:4043/` on a phone, enter the PIN, and play
-   a look. The lights follow.
+   `control page on http://0.0.0.0:4043/` (`…:4043/pi/` with Studio). Open `http://192.168.8.172:4043/` on a phone,
+   enter the PIN, and play a look. The lights follow.
 8. **With Studio:** open `http://192.168.8.172:8780/` and sign up first as the admin you named. Curators reach the
    engine from Studio's header, **Lights** (`:8780/pi/`). Name curators with `STUDIO_CURATORS=` in
    `/home/fpp/.config/folly-studio/studio.env`, then `sudo systemctl restart folly-studio`.
