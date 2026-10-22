@@ -12,9 +12,11 @@ test.use({ tourWelcome: true });
 
 const PHONE = { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 };
 
-/** A new account's cookie on the page's context. */
-async function signedIn(page, origin, name) {
+/** A new account's cookie on the page's context; unlocked, so Ideas and its steps show (SPEC-access). */
+async function signedIn(page, { origin, app }, name) {
   const [k, v] = (await signup(origin, name)).split('=');
+  const me = app.store.users.list((u) => u.username === name)[0];
+  app.store.users.update(me.id, { access: { unlockedAt: new Date().toISOString() } });
   await page.context().addCookies([{ name: k, value: v, url: origin }]);
 }
 
@@ -81,8 +83,9 @@ function steps(page, info, { shots = true } = {}) {
   return t;
 }
 /** A path from Tutorials in the user menu, on an account that has seen the welcome. */
-async function fromTutorials(page, origin, user, title) {
-  await signedIn(page, origin, user);
+async function fromTutorials(page, studio, user, title) {
+  const { origin } = studio;
+  await signedIn(page, studio, user);
   await page.goto(`${origin}/`);
   await page.evaluate(() => fetch('/api/me/tour', { method: 'PUT', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ seen: true, done: [] }) }));
@@ -107,7 +110,7 @@ for (const height of [768, 660]) {
       const errors = [];
       page.on('pageerror', (e) => errors.push(String(e)));
       const s = steps(page, info, { shots }), { ring, open, at, shot, offPreview } = s;
-      await signedIn(page, studio.origin, `first-look-${height}`);
+      await signedIn(page, studio, `first-look-${height}`);
       await page.goto(`${studio.origin}/`);
 
       const welcome = page.getByRole('dialog', { name: 'Welcome to Folly Studio' });
@@ -180,7 +183,7 @@ for (const height of [768, 660]) {
       test(title, async ({ page, studio }, info) => {
         const errors = [];
         page.on('pageerror', (e) => errors.push(String(e)));
-        await fromTutorials(page, studio.origin, `${id}-${height}`, title);
+        await fromTutorials(page, studio, `${id}-${height}`, title);
         await play(page, steps(page, info, { shots }));
         await finished(page, title, id);
         expect(errors).toEqual([]);
@@ -194,7 +197,7 @@ test.describe('laptop, 1366 × 768: unsaved edits', () => {
 
   test('a practice path over unsaved edits: Cancel keeps them, Leave starts it', async ({ page, studio }, info) => {
     const { card, title, at } = steps(page, info);
-    await fromTutorials(page, studio.origin, 'unsaved', 'Getting around');
+    await fromTutorials(page, studio, 'unsaved', 'Getting around');
     await title('Turn the model');
     await card.getByRole('button', { name: 'Close the tutorial' }).click();
     await page.goto(`${studio.origin}/studio`);
@@ -222,7 +225,7 @@ test.describe('phone, 390 × 844', () => {
   test.use(PHONE);
 
   test('nothing opens, nothing is marked', async ({ page, studio }, info) => {
-    await signedIn(page, studio.origin, 'phone-visit');
+    await signedIn(page, studio, 'phone-visit');
     await page.goto(`${studio.origin}/studio`);
     await expect(page.locator('.studio')).toBeVisible({ timeout: 30_000 });
     await page.waitForTimeout(1000);   // the welcome would have loaded by now

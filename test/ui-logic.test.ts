@@ -15,7 +15,7 @@ import {
   upgradedOf,
 } from '../public/js/ui/bindings.ts';
 import { decimals, exact, onSpan, places, scrubTo, snap } from '../public/js/ui/kit.tsx';
-import { profile } from '../public/js/ui/session.ts';
+import { ai, profile, user } from '../public/js/ui/session.ts';
 import { onIdeas, pathsHere } from '../public/js/ui/tour/paths/index.ts';
 import { createLayerStatus } from '../public/js/ui/layer-status.ts';
 import {
@@ -77,6 +77,7 @@ test('new automation names avoid collisions; colour automation preserves the pic
 });
 
 describe('routing', () => {
+  ai.value = true;   // an account with the AI, unless a test says otherwise
   test('the same URLs, with redirects for the signed out and the signed in', () => {
     assert.equal(where('/'), '→ /ideas');
     assert.equal(where('/', '', false), '→ /login');
@@ -100,8 +101,25 @@ describe('routing', () => {
     assert.equal(where('/admin/reports', '', false), '→ /login?next=%2Fadmin%2Freports');
   });
 
+  test('without the AI, no Ideas: home is My looks, a guest\'s the Studio', () => {
+    ai.value = false;
+    try {
+      assert.equal(where('/'), '→ /looks');
+      assert.equal(where('/ideas'), '→ /looks');
+      assert.equal(where('/ideas/x/how'), '→ /looks');
+      assert.equal(where('/ideas', '', false), '→ /login?next=%2Fideas');
+      user.value = { id: 'guest-x', username: 'Wren', role: 'member', guest: true };
+      assert.equal(where('/'), '→ /studio');
+      assert.equal(where('/ideas'), '→ /studio');
+    } finally {
+      ai.value = true;
+      user.value = null;
+    }
+  });
+
   test('on the Pi, home is My looks and the pages of what it does not run lead elsewhere', () => {
     profile.value = 'pi';
+    ai.value = false;
     try {
       assert.equal(where('/'), '→ /looks');
       assert.equal(where('/ideas'), '→ /looks');
@@ -113,6 +131,7 @@ describe('routing', () => {
       assert.equal(safeNext(null), '/looks');
     } finally {
       profile.value = 'hosted';
+      ai.value = true;
     }
   });
 
