@@ -204,8 +204,10 @@ below.
   library's title (`shared/standard-modules.ts`; the API and generators put a renamed one's back), and a hand edit
   of its code drops `ref`, making it custom; `params`
   override the code's defaults (≤ 64; a string ≤ 256 characters: a pick, a choice or text); `enabled: false` skips it; `input` names an earlier source; `as` is only
-  `'input'`; `blend` as for layers, or `under` (a source's only). A layer with `code` (+ `params`) and no `modules`
-  is a one-source chain.
+  `'input'`; `blend` as for layers, or `under` (a source's only). `kind` is `source`, `warp`, `filter` or
+  `composite`: no code, its `layers` 1–4 sub-layers, each a chain of its own that counts as one source to the chain
+  round it (SPEC-library "Composites"); ids are unique across a layer's sub-layers too. A layer with `code`
+  (+ `params`) and no `modules` is a one-source chain.
 - **chain**: `2`, the one rule (SPEC-library "Modules"). Without it a warp bends every module after it, on through blurs and
   trails, so a look without `chain: 2` (stored, or a body to `POST`/`PUT` without it) is converted once on its way
   in (`shared/chain-order.ts`), exactly wherever it can be: warps leading a stage move to its end, reversed; a stage
@@ -320,7 +322,8 @@ hung layer).
 SPEC-library "Palettes"), `readPick(value) → { groups, blend, range, rotate } | null` and `pickText(groups)` (a pick read leniently,
 and as text), `readText(value) → string | null` (a text param's value: printable ASCII, at most `TEXT_MAX`, 256,
 characters), `layerModules(layer) → modules`
-(a layer with `code` and no `modules` → one source), `compileLayer(layer) → compiled[]` (throws `title: error`), `setLibrary([{ name,
+(a layer with `code` and no `modules` → one source), `flatModules(modules) → modules` (a composite's too, depth first),
+`compileLayer(layer) → compiled[]` (throws `title: error`), `setLibrary([{ name,
 code }])`, `prepareScene(rig) → scene` (throws on a malformed rig), `groupsByTag(scene, tag) → [group]` (outermost
 first), `pixelsForGroups(scene, ids, tags?) → Int32Array` (a layer's rule above), `tagMask(scene, tag) → Uint8Array`,
 `tagCentres(scene, tag) → [[X, Y, Z]]`, `FLASH` (the default limits), `flashLimits(partial?) → limits` and
@@ -503,23 +506,7 @@ engine behind Studio) and look files; in `SPEC-liveplay.md`, the live play contr
 
 ## Gallery previews
 
-Each shared look gets a looping preview for its card (`src/previews/`): the Playa view from the Studio's default
-camera ('fit'), with the venue, at full quality, 260 × 228 px (drawn at 2× and scaled down), sampled at ~13 fps, over the 5 s that move the most (mean change from one
-sample to the next, plus a tenth of the mean brightness so a dark stretch loses), its last 0.5 s crossfaded into its
-first so it loops; an animated WebP (sharp; quality 50, else 40 or 30 to stay within 300 KB), and a WebP still (the
-window's brightest sample) for reduced motion. They are made off the request path, one look at a time, when a look
-is shared or a shared look changes (and for every shared look at start, the gallery's top first): from the look's
-bake when that is current (a look being baked waits for it), else from the render box (at most 60 s, in the bake
-lane). Kept in `<STUDIO_DATA>/previews/<lookId>-<key>.webp` and `-<key>-still.webp`, `key` naming what it renders;
-a look keeps its old preview until the new one is written, and previews of looks no longer shared go at the next
-start. A look without one shows its card's glass.
-
-The camera is the app's own Viewer (`public/js/preview-camera.ts`) in a headless Chromium (playwright-core's
-headless shell, `src/previews/playa.ts`), started on first use and closed after a minute idle: no window, its own
-profile, no port; it serves itself the viewer's source with the types stripped, so it needs no build. It asks for
-the GPU (ANGLE on EGL, with no display; under WSL, Mesa's d3d12 driver when `/dev/dxg` is there) and logs the renderer it got,
-as a warning when that is a software one. `STUDIO_PREVIEWS=front` draws them flat instead (the LEDs from the front:
-z across, y up), without a browser; the tests and browser checks do.
+Each shared look's looping preview for its card: `SPEC-previews.md`, part of this contract.
 
 ## Baked frames
 

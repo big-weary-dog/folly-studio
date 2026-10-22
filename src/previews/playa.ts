@@ -1,4 +1,4 @@
-// The gallery previews' camera (SPEC "Gallery previews"): the Studio's Playa view, rendered on the GPU by a headless
+// The gallery previews' camera (SPEC-previews): the Studio's Playa view, rendered on the GPU by a headless
 // Chromium (playwright-core's) that the server starts on first use and closes when idle. It has its own profile and
 // no window, and serves itself the viewer's source (types stripped) from this checkout, so it needs no build, no
 // port and no login. Under WSL it reaches the GPU through Mesa's d3d12 driver. One picture at a time; the previews'
