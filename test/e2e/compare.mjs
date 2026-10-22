@@ -11,7 +11,7 @@ const absOf = (u, ch0) => (u - 1) * CPU + ch0;
 const zoneGroup = (z) => (z.startsWith('rose-petal') ? 'rose-window (16 petals)' : z);
 
 /** The canonical pixel CSV: [{ zone, id, universe, channel, pos: [x, y, z], row }], CSV order. */
-export function loadCanonical() {
+function loadCanonical() {
   const lines = readFileSync(`${REPO}td/data/all-pixels-positions.csv`, 'utf8').trim().split('\n');
   const head = lines.shift().split(',');
   const at = (name) => head.indexOf(name);

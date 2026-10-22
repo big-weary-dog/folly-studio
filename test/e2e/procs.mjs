@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-export const OWNER = 'FOLLY_STUDIO_E2E_OWNER';
+const OWNER = 'FOLLY_STUDIO_E2E_OWNER';
 export const OUT_PREFIX = 'folly-studio-playwright-';
 const PROC = fs.existsSync('/proc/self/stat');   // Linux; elsewhere nothing is swept
 

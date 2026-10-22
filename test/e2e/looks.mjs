@@ -30,7 +30,7 @@ function pixel(p, t, P) {
 // Each top-level group its own colour, so a wrong address shows up as a wrong colour. Mini arch 5
 // (left and right) is magenta: a sim that starts it at ch 1 rather than 403 repeats arch 1 in orange.
 // Rose petals go round the hue wheel from petal 1 (red), so petal order and mirroring show.
-export const ZONE_COLOURS = [
+const ZONE_COLOURS = [
   ['main-arch', '#ff2020', 'main arches: red'], ['mini-arch', '#ff9000', 'mini arches 1-4: orange'],
   ['quad-arch', '#ffe000', 'quad arches: yellow'], ['spire-', '#20ff40', 'spires: green'],
   ['spirelet', '#00e0ff', 'spirelets: cyan'], ['canopy', '#3050ff', 'canopy: blue'],

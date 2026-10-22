@@ -1,5 +1,5 @@
 // Compressed FSEQ v2 (zstd = type 1, zlib = type 2): public/js/fseq.ts writes the block index,
-// src/fseq-codec.js compresses, and src/frames.js parses strictly, refusing decompression bombs.
+// src/fseq-codec.ts compresses, and src/frames.ts parses strictly, refusing decompression bombs.
 import assert from 'node:assert/strict';
 import zlib from 'node:zlib';
 
@@ -18,7 +18,7 @@ const data = new Uint8Array(F * C).map((_, i) => (i % C < 3 ? 40 + (i % 3) : Mat
 const plain = writeFseq({ frames: F, data, ranges: RANGES, media: 'song.mp3', uniqueId: 42 });
 const CODECS = HAS_ZSTD ? ['zstd', 'zlib'] : ['zlib'];
 
-/** The raw header fields, read independently of src/frames.js. */
+/** The raw header fields, read independently of src/frames.ts. */
 function header(file) {
   const b = Buffer.from(file.buffer, file.byteOffset, file.length);
   const blocks = ((b[20] & 0xf0) << 4) | b[21];
