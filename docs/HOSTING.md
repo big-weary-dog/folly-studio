@@ -96,6 +96,8 @@ install and restart may fail; a reload fixes them.
 
 - Another port: set `PORT` in the env file, run `npm run host`, and change the tunnel's URL to match.
 - Logs: `journalctl --user -u folly-studio -f`. Status: `systemctl --user status folly-studio`. An unhandled error is logged there (`[studio] unhandled …`) and the server carries on.
+  Requests are one line each (`[studio] [http] GET / 200 3ms 1.1KB v=1a2b3c4d NZ`, SPEC-access "Stats"): only them,
+  `journalctl --user -u folly-studio -g '\[http\]'`; Admin → Stats has the day's counts.
 - Stop: `systemctl --user stop folly-studio` (`disable` too, to keep it off at boot).
 - The commit that is live, from anywhere: `https://folly.swampkat.com/build.json`.
 - The unit is written by the script, to `~/.config/systemd/user/folly-studio.service`: change the script, not it.

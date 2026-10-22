@@ -52,6 +52,8 @@ const ROUTES: Route[] = [
     load: adminTab('baking', () => import('./baking.tsx').then((m) => m.BakingPage)) },
   { re: /^\/admin\/reports\/?$/, name: 'reports', title: 'Reports', nav: '/admin',
     load: adminTab('reports', () => import('./reports.tsx').then((m) => m.ReportsPage)) },
+  { re: /^\/admin\/stats\/?$/, name: 'stats', title: 'Stats', nav: '/admin',
+    load: adminTab('stats', () => import('./stats.tsx').then((m) => m.StatsPage)) },
 ];
 
 /** Where to go after signing in: `next` when it is a page of this app, else home. */
