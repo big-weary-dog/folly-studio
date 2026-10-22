@@ -38,7 +38,7 @@ pal('colours', 1), the last, for a head, crest or heart; P.colours for one colou
 (default: distinct colours) or 'smooth' (a ramp): declare \`blend: 'smooth'\` when the idea is a gradient.`;
 
 /** The pixel, the stdlib and the rules for code: what an extension needs. `perSecond`: LEDs × fps on the rig. */
-export const pixelApi = (perSecond = 0) => `The pixel \`p\`:
+const pixelApi = (perSecond = 0) => `The pixel \`p\`:
 - \`x y z\`: 0..1 across the whole installation (depth, height, left→right); \`X Y Z\`: metres
 - \`lx ly lz\`: 0..1 across the pixels this layer targets (so a pattern fills what it lands on)
 - \`a r\`: angle 0..1 (clockwise from 12 o'clock, seen from the front) and radius 0..1, in the

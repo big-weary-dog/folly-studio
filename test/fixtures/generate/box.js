@@ -11,7 +11,7 @@ const DIR = path.join(STUDIO, 'public/patterns');
 export const REAL = JSON.parse(fs.readFileSync(path.join(DIR, 'index.json'), 'utf8')).map((p) => ({ ...p,
   code: p.kind === 'preset' ? '' : fs.readFileSync(path.join(DIR, `${p.name}.js`), 'utf8') }));
 export const CATALOG = buildCatalog(REAL);
-export const SCENE = prepareScene(RIG);
+const SCENE = prepareScene(RIG);
 
 /** `seconds` of frames on the rig, every LED `rgb` (NaN-free; the stand-in box's). */
 export function frames(seconds, rgb = [200, 0, 0]) {

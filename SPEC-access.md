@@ -9,7 +9,7 @@ Who has an account, what each role may do, the Admin pages, and who may use the 
 `user = { id, username, role: 'member' | 'curator' | 'admin' }` (curators listed in `STUDIO_CURATORS`, admins in
 `STUDIO_ADMINS`; an admin is also a curator), and `tour?` once they have met the tutorial (SPEC-tutorial):
 `tour = { seen: true, done: [path], at?: { path, step } }`, the paths finished and where one was left. An account
-without it has not seen the tutorial; nothing marks old accounts. Signing up or in is limited per client address (100 a minute) and, for
+without it has not seen the tutorial. Signing up or in is limited per client address (100 a minute) and, for
 failures, per address and username (10 a minute): 429 with `Retry-After`. Password hashes run 3 at once with 30
 waiting; past that, 429 "busy". A route that needs a session is 401 without one; the app takes a 401 from anything
 but `/api/me`, `/api/login` and `/api/signup` as the session ending, and goes back to sign-in.
@@ -29,10 +29,10 @@ own setting (SPEC-live "Settings").
 
 Admins' header has one more item, **Admin** (`/admin`, which opens its first tab), where everyone else's has none.
 Its tabs are pages of their own: Models (`/admin/models`, SPEC-generators "Models"), Access (`/admin/access`,
-Access below), Light (`/admin/light`, SPEC "Light and output"), Baking (`/admin/baking`, SPEC "Baked frames"),
-Reports (`/admin/reports`, SPEC "Bug reports") and Stats (`/admin/stats`, Stats below),
-then a link to the Pi preview (`/pi/`, in a new tab). The old `/models`, `/access`, `/light` and `/reports` lead to their
-tab, query kept. Anyone else who opens one gets the page without the tabs, its admin calls refused (403) as it says.
+Access below), Light (`/admin/light`, SPEC "Light and output"), Baking (`/admin/baking`, SPEC-baking "The bake
+setting"), Reports (`/admin/reports`, SPEC "Bug reports") and Stats (`/admin/stats`, Stats below), then a link to the
+Pi preview (`/pi/`, in a new tab). `/models`, `/access`, `/light` and `/reports` lead to their tab, query kept. Anyone
+else who opens one gets the page without the tabs, its admin calls refused (403) as it says.
 On the Pi there is no Models or Access tab, and `/admin` opens Light (SPEC-offline).
 
 ## Stats
@@ -59,7 +59,7 @@ line or a page.
 ## Access (invite codes and limits)
 
 Anyone may sign up, browse, edit, preview and use the gallery; turning ideas into looks needs an invite code, as
-every model is paid. A **paid** model (every `via` today: it spends money or the owner's capacity) needs an **unlocked** account, and every account's ideas are **limited**. Admins are
+every model is paid. A **paid** model (every `via`: it spends money or the owner's capacity) needs an **unlocked** account, and every account's ideas are **limited**. Admins are
 exempt from both. The registry's `limits` (defaults below) and each model's own `limits` set them:
 
 ```
@@ -77,7 +77,7 @@ models[i].limits?: { "perHour"?, "perDay"?, "concurrent"? }
   The check and the create are one synchronous step, so two requests cannot both take the last use.
 - A stored user may hold `access = { unlockedAt?, invite?, by?, limits?, resetAt? }`: `invite` the code's id that
   unlocked it, `by` the admin who did; `limits` an admin's override of the global three for this person; ideas
-  created before `resetAt` no longer count.
+  created before `resetAt` do not count.
 - **Invite codes** (`invites.json`): `{ id, hash, label?, uses, used, expiresAt?, revokedAt?, createdBy, createdAt,
   updatedAt }`; `hash` is sha256 of the code normalised (upper case, no spaces or dashes); the code itself, 12
   characters of `ABCDEFGHJKMNPQRSTUVWXYZ23456789` shown as `XXXX-XXXX-XXXX`, is answered once and never stored.

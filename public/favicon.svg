@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-100 -100 200 200">
-<!-- The rose window (js/ui/rose.js, detail "mark"): sixteen lancet petals round a hub. -->
+<!-- The rose window (js/ui/rose.tsx, detail "mark"): sixteen lancet petals round a hub. -->
 <circle r="100" fill="#07050b"/>
 <g stroke="#07050b" stroke-width="5" stroke-linejoin="round">
 <g fill="#3d64e0">

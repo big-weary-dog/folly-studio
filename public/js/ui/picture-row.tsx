@@ -28,7 +28,7 @@ function sector(r0: number, r1: number, a0: number, a1: number) {
 }
 
 /** The first frame drawn small: a rose grid as rings (heart out, from the top petal's left edge), a square as cells. */
-export function PictureThumb({ pic, palette }: { pic: Picture, palette: PaletteHex }) {
+function PictureThumb({ pic, palette }: { pic: Picture, palette: PaletteHex }) {
   const rows = pic.frames[0]?.rows ?? [], cells: preact.JSX.Element[] = [];
   const fill = (ch: string) => (pic.key[ch] ? keyColour(pic.key[ch], palette) : null);
   const wide = Math.max(...rows.map((r) => r.length), 1), step = Math.ceil(Math.max(wide, rows.length) / 32);

@@ -5,7 +5,7 @@
 // The receiver is the simulator's (pi/sim.ts) and the tests'.
 import dgram from 'node:dgram';
 
-export const DDP_PORT = 4048;
+const DDP_PORT = 4048;
 const HEADER = 10, CHUNK = 1440, VER1 = 0x40, PUSH = 0x01;
 
 /** The packets for frames of `channels` bytes, made once: fill(frame, seq) writes a frame into them. */
