@@ -16,6 +16,7 @@ import type { Idea } from '../shared/schemas/api.ts';
 import { type Cost, createAuth } from './auth.ts';
 import { createBakeQueue, createLane } from './bake.ts';
 import { createBakingStore, governBox } from './baking.ts';
+import { createCodeGate } from './custom-code.ts';
 import { flashSettings } from './box-output.ts';
 import { type Config, configOf } from './config.ts';
 import { createFramesCache } from './frames-cache.ts';
@@ -58,7 +59,7 @@ type Options = { config?: Config, dataDir?: string, publicDir?: string, distDir?
   framesQuality?: number, framesMaxBytes?: number, generator?: Queue | ((deps: Deps) => Queue | Promise<Queue>),
   renderBox?: Parameters<typeof createBakeQueue>[0]['box'], flash?: FlashSettings, live?: LiveSettings,
   piPreview?: string, ideaLogs?: { keep?: number, maxBytes?: number }, previews?: string,
-  reports?: { keep?: number, maxBytes?: number, days?: number }, profile?: Profile };
+  reports?: { keep?: number, maxBytes?: number, days?: number }, profile?: Profile, customCode?: boolean };
 
 /**
  * The server. `config`: the settings (src/config.ts; default: models.env's, else the environment's), the default of
@@ -72,6 +73,7 @@ type Options = { config?: Config, dataDir?: string, publicDir?: string, distDir?
  * `ideaLogs`: how many ideas' logs to keep and their disk cap (STUDIO_IDEA_LOGS, STUDIO_IDEA_LOGS_MAX_BYTES);
  * `previews`: the gallery previews' camera, 'playa' or 'front' (STUDIO_PREVIEWS; default: the profile's).
  * `profile`: 'hosted' or 'pi' (STUDIO_PROFILE, SPEC-offline): the Pi has no generators, and its own defaults.
+ * `customCode`: the Custom code switch while baking.json does not set it (default off; tests writing code turn it on).
  */
 export async function createServer(opts: Options = {}) {
   const env = opts.models?.env ?? process.env, codexBin = opts.models?.codexBin;
@@ -99,8 +101,10 @@ export async function createServer(opts: Options = {}) {
   const light = createLightStore({ file: path.join(dataDir, 'light.json'), log });
   const box = renderBox || createRenderBox({ publicDir, log, config, ...boxDefaults(profile, config) });
   // Bakes and previews go through the admin's bake setting; the generators' render checks are not bakes.
-  const baking = createBakingStore({ file: path.join(dataDir, 'baking.json'), log });
+  const baking = createBakingStore({ file: path.join(dataDir, 'baking.json'), customCode: opts.customCode, log });
   const bakeBox = governBox(box, baking.mode);
+  const codeGate = createCodeGate({ on: baking.customCode, looks: store.looks,
+    patternsDir: path.join(publicDir, 'patterns') });
   // Baked frames are encoded for streaming as soon as they are stored (src/frames-cache.ts); bakes, those encodes
   // and the generators' render checks take turns at low priority, and evicted frames are baked again on demand.
   const lane = createLane();
@@ -108,7 +112,7 @@ export async function createServer(opts: Options = {}) {
   const reports = createReports({ dir: path.join(dataDir, 'reports'), ...opts.reports, log });
   void reports.sweep();
   const deps = { store, loadLibrary, loadRig, loadLight: light.current, loadVersion: loaders.version, models, codexBin,
-    config, log, box, lane, ideaLogs, adapterName: generatorName || models.defaultId() };
+    config, log, box, lane, ideaLogs, codeGate, adapterName: generatorName || models.defaultId() };
   // The Pi runs none: nothing can make an idea there, so nothing is ever queued.
   const queue: Queue = !generates(profile) ? { enqueue: () => { throw new Error('No generators on the Pi.'); } }
     : typeof generator === 'function' ? await generator(deps) : generator || createQueue(deps);
@@ -171,7 +175,7 @@ export async function createServer(opts: Options = {}) {
   const lights = feed && lightsStore ? { store: lightsStore, feed, hub, drive } : undefined;
   await app.register(apiRoutes({ store, auth, queue, models, loaders, log, access, framesDir, bakes,
     frames, rateLimit, secureCookies, flash, hub, live, ideaLogs, previews, reports, light, profile, lights,
-    baking: { baking, box }, stats: stats.routes,
+    baking: { baking, box }, codeGate, stats: stats.routes,
     build: buildSha(path.dirname(fileURLToPath(import.meta.url)), config.GIT_SHA), tail: log.tail }),
   { prefix: '/api' });
   if (piTarget) await app.register(piPreview({ auth, target: piTarget, hub, curators: profile === 'pi', drive,

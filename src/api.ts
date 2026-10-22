@@ -76,6 +76,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
   live: LiveSettings, ideaLogs: IdeaLogs, previews?: ReturnType<typeof createPreviews>, reports: Reports,
   build: string, tail: () => unknown[], light: LightStore, profile?: Profile,
   baking?: Parameters<typeof bakingRoutes>[0], stats?: Parameters<typeof routes>[1],
+  codeGate?: Parameters<typeof lookRoutes>[0]['codeGate'],
   lights?: Pick<Parameters<typeof lightsRoutes>[0], 'store' | 'feed' | 'hub' | 'drive'> }) {
   const { store, auth, queue, models, loaders, log, access } = o;
   const { bakes, framesDir, frames, secureCookies = false, flash } = o;
@@ -115,7 +116,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       secure: secureCookies });
     const dropFrames = (id: string) => removeFrames(framesDir, id).then(() => frames.prune());
     const looks = lookRoutes({ store, auth, bakes, dropFrames, previews: o.previews, loadLibrary: loaders.loadLibrary,
-      log });
+      codeGate: o.codeGate, log });
     const own = (req: FastifyRequest) => {
       const idea = store.ideas.get((req.params as { id: string }).id);
       if (!idea || idea.owner !== req.user!.id) throw new HttpError(404, 'Idea not found.');

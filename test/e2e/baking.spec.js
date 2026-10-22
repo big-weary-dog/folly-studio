@@ -34,7 +34,7 @@ for (const width of [390, 1366]) {
     await expect(page.getByText('Baking is throttled.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Throttled' })).toHaveAttribute('aria-pressed', 'true');
     await shot('1-admin-throttled');
-    await page.getByRole('button', { name: 'On', exact: true }).click();
+    await page.getByRole('group', { name: 'Baking' }).getByRole('button', { name: 'On', exact: true }).click();
     await expect(page.getByText('Baking is on.')).toBeVisible();
 
     if (width < 600) {

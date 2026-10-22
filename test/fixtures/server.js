@@ -100,7 +100,7 @@ const CHEAP = Object.freeze({ N: 1024, r: 8, p: 1 });
 
 export async function startApp(opts = {}) {
   const app = await createServer({ publicDir: fx.publicDir, distDir: fx.distDir, generator: fakeQueue(),
-    generatorName: 'test', log: quiet, scrypt: CHEAP, models: { env: {} }, ...opts });
+    generatorName: 'test', log: quiet, scrypt: CHEAP, models: { env: {} }, customCode: true, ...opts });
   const addr = await app.listen(0, '127.0.0.1');
   app.base = `http://127.0.0.1:${addr.port}`;
   app.port = addr.port;

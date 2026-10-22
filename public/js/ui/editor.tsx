@@ -1,14 +1,30 @@
 // A plain <textarea> code editor for the selected module: line numbers, Tab inserts two spaces (Esc then Tab leaves
 // the editor), Enter keeps indentation, Ctrl/Cmd+S saves (the Studio's shortcut). Edits reach the sandbox once typing
-// settles. Below it, a quick reference of the pattern API (SPEC "Pattern code"): click a name to insert it.
-import { useId, useLayoutEffect, useMemo, useRef } from 'preact/hooks';
+// settles. Below it, a quick reference of the pattern API (SPEC "Pattern code"): click a name to insert it. While an
+// admin has custom code off (SPEC-baking "Custom code"), it is read only and says why.
+import { signal } from '@preact/signals';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef } from 'preact/hooks';
 
+import { api } from '../api.ts';
 import { ISSUE_LABELS } from './layer-status.ts';
 import { FixButton } from './refine.tsx';
 import type { Studio } from './studio-store.ts';
 
 const INDENT = '  ';
 const SETTLE_MS = 300;
+const LOCKED = 'An admin turned custom code off: modules play and take their params here, but their code is read only.';
+
+/** The Custom code switch, asked once a page load (null until it answers: editable, as the server still checks). */
+const customCode = signal<boolean | null>(null);
+let asked = false;
+function useCustomCode() {
+  useEffect(() => {
+    if (asked) return;
+    asked = true;
+    api.baking().then((b) => { customCode.value = b.customCode; }, () => { asked = false; });
+  }, []);
+  return customCode.value !== false;
+}
 
 /** Insert keeping the browser's undo stack when possible. */
 function insertText(ta: HTMLTextAreaElement, text: string) {
@@ -31,6 +47,7 @@ export function CodeEditor({ st }: { st: Studio }) {
   const l = st.selected.value, m = st.module.value, code = m ? m.code : '', id = useId(), problem = st.problem.value;
   const ta = useRef<HTMLTextAreaElement>(null), gutter = useRef<HTMLDivElement>(null), escaped = useRef(false);
   const line = problem ? findLine(problem.message) : 0, lines = (code.match(/\n/g) || []).length + 1;
+  const open = useCustomCode();
   useLayoutEffect(() => { if (ta.current) Object.assign(ta.current, { scrollTop: 0, scrollLeft: 0 }); }, [m?.id]);
   const numbers = useMemo(() => Array.from({ length: lines }, (_, i) =>
     <div class={i + 1 === line ? 'err' : undefined}>{i + 1}</div>), [lines, line]);
@@ -63,17 +80,19 @@ export function CodeEditor({ st }: { st: Studio }) {
   const msg = problem?.message || '', where = line && !/\bline \d+/i.test(msg) ? ` (line ${line})` : '';
   return <>
     <div class="editor">
+      {!open && <p class="editor-locked" role="note">{LOCKED}</p>}
       <label for={id} class="sr-only">Pattern code</label>
       <div class="editor-scroll">
         <div class="gutter" aria-hidden="true" ref={gutter}>{numbers}</div>
         <textarea id={id} ref={ta} class="code" data-kept spellcheck={false} wrap="off" autocapitalize="off"
           autocomplete="off" autocorrect="off" data-gramm="false" aria-describedby={`${id}-help ${id}-problem`}
-          value={code} disabled={!m} placeholder={m ? '' : 'Add a layer to write code.'} onKeyDown={onKey}
+          value={code} disabled={!m} readOnly={!open} placeholder={m ? '' : 'Add a layer to write code.'}
+          onKeyDown={(e) => open && onKey(e)}
           onBlur={() => { escaped.current = false; }}
           onScroll={(e) => { if (gutter.current) gutter.current.scrollTop = e.currentTarget.scrollTop; }}
           onInput={(e) => {
             const value = e.currentTarget.value;
-            if (!l || !m) return;
+            if (!l || !m || !open) return;
             st.clock.typingUntil = performance.now() + SETTLE_MS;
             st.editModule(l.id, m.id, () => ({ code: value, ref: undefined }));   // hand-edited code is custom
           }} />
@@ -88,7 +107,10 @@ export function CodeEditor({ st }: { st: Studio }) {
       <p id={`${id}-help`} class="sr-only">
         Tab inserts spaces. Press Escape, then Tab, to move focus out of the editor.</p>
     </div>
-    <QuickReference onInsert={(text) => { const t = ta.current; if (t) { t.focus(); insertText(t, text); } }} />
+    {open && <QuickReference onInsert={(text) => {
+      const t = ta.current;
+      if (t) { t.focus(); insertText(t, text); }
+    }} />}
   </>;
 }
 

@@ -149,7 +149,7 @@ describe('the bake cache and re-baking evicted frames, through the API', () => {
     const renderBox = { config: { seconds: 5 }, probe: async () => ({ ok: true }),
       async render({ layers }) { renders++; return { bytes: frames(layers[0].code.length) }; } };
     app = await createServer({ dataDir: path.join(tmp, 'data'), publicDir, generator: { enqueue() {} }, log: quiet,
-      renderBox });
+      customCode: true, renderBox });
     base = `http://127.0.0.1:${(await app.listen(0)).port}`;
     const r = await fetch(`${base}/api/signup`, { method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ username: 'cache', password: 'correct horse' }) });
