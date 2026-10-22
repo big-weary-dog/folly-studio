@@ -34,6 +34,7 @@ import { createPreviews } from './previews/index.ts';
 import { frontView } from './previews/motion.ts';
 import { playaCamera } from './previews/playa.ts';
 import { createRenderBox } from './render-box.ts';
+import { createStats } from './stats.ts';
 import { buildSha } from './reports/build.ts';
 import { createReports } from './reports/store.ts';
 import { createLoaders, CSP_APP, DEFAULT_DIST_DIR, DEFAULT_PUBLIC_DIR, serveApp } from './static.ts';
@@ -149,6 +150,9 @@ export async function createServer(opts: Options = {}) {
   app.removeContentTypeParser('application/json');
   app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => (body.length
     ? json(req, String(body), done) : done(null, {})));
+  // A journal line for each request worth reading, and Admin → Stats' counts (src/stats.ts).
+  const stats = createStats({ log, store, ideas: generates(profile), trustProxy });
+  app.addHook('onResponse', stats.onResponse);
   app.addHook('onRequest', async (req, reply) => {
     reply.headers({ 'content-security-policy': CSP_APP, 'x-content-type-options': 'nosniff',
       'referrer-policy': 'same-origin' });
@@ -167,7 +171,7 @@ export async function createServer(opts: Options = {}) {
   const lights = feed && lightsStore ? { store: lightsStore, feed, hub, drive } : undefined;
   await app.register(apiRoutes({ store, auth, queue, models, loaders, log, access, framesDir, bakes,
     frames, rateLimit, secureCookies, flash, hub, live, ideaLogs, previews, reports, light, profile, lights,
-    baking: { baking, box },
+    baking: { baking, box }, stats: stats.routes,
     build: buildSha(path.dirname(fileURLToPath(import.meta.url)), config.GIT_SHA), tail: log.tail }),
   { prefix: '/api' });
   if (piTarget) await app.register(piPreview({ auth, target: piTarget, hub, curators: profile === 'pi', drive,
