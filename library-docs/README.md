@@ -82,14 +82,9 @@ any layer to it and one automation lane moves them together: the storm darkens t
 `from`..`to` maps the macro's place in its own min..max onto the param (the example below). A
 layer's `level` is not a param and cannot be bound: bind a source's brightness, density or speed instead.
 
-Mixed-family palettes include `patina` (blue and copper), `meadow` (green and lavender), `orchid` (turquoise
-and pink), `solstice` (violet and citrus), `guava` (coral and mint), and `voltage` (cobalt and chartreuse).
-These put both families in `body`; use `body` for their shared gradient or individual slots for separate bands.
-Other mixed bodies: `aurora` (emerald/violet, cyan accents), `harvest` (copper/olive, plum accents),
-`sherbet` (pastel peach/mint, lavender accents), `confetti` (blue/lemon/pink), `lagoon` (jade/cobalt, gold accents),
-and `velvet` (ruby/sapphire, rose gold accents). Bolder pairs: `holly` (crimson/pine, gold accents),
-`regalia` (royal blue/gold, crimson accents), `peppermint` (red through pink to white, mint accents),
-`arcade` (red/cyan, yellow accents), `sunbird` (magenta/marigold, teal accents), `bramble` (berry/moss, peach accents).
+Mixed-family palettes put two families in `body` (their themes name them): `arcade`, `aurora`, `bramble`,
+`confetti`, `guava`, `harvest`, `holly`, `lagoon`, `meadow`, `orchid`, `patina`, `peppermint`, `regalia`, `sherbet`,
+`solstice`, `sunbird`, `velvet`, `voltage`. Use `body` for their shared gradient or single slots for separate bands.
 Swatch hexes are sRGB colour values; use brightness controls to set the light level.
 
 ## Modulators: things that move together
