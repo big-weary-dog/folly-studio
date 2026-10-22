@@ -30,12 +30,17 @@ for (const width of [390, 1366]) {
     await page.setViewportSize({ width, height: width < 600 ? 844 : 768 });
     const owner = await browser.newContext();
     await account(owner, studio.origin, `approve-owner-${width}`, width);
-    await owner.close();
     await account(page.context(), studio.origin, `approve-curator-${width}`);
 
     await page.goto(`${studio.origin}/gallery`);
     const card = (name) => page.locator('.card', { hasText: `${name} ${width}` });
     await expect(card('Breathe').getByRole('button', { name: `Approve Breathe ${width}` })).toBeVisible();
+    const approved = page.getByRole('button', { name: 'Approved', exact: true });
+    await expect(approved).toHaveAttribute('aria-pressed', 'false');
+    await approved.click();
+    await expect(page.locator('.card')).toHaveCount(0);
+    await expect(page.getByText('No approved looks match.', { exact: true })).toBeVisible();
+    await approved.click();
     await shot('1-before');
     await card('Breathe').getByRole('button', { name: `Approve Breathe ${width}` }).click();
     await expect(card('Breathe').getByRole('button', { name: `Approve Breathe ${width}` })).toHaveText('Baking…');
@@ -43,6 +48,19 @@ for (const width of [390, 1366]) {
     await expect(card('Breathe').locator('.tag', { hasText: 'Reviewed' })).toBeVisible({ timeout: 120_000 });
     await expect(card('Breathe').getByRole('button', { name: `Approve Breathe ${width}` })).toHaveCount(0);
     await shot('3-approved');
+    await approved.click();
+    await expect(approved).toHaveAttribute('aria-pressed', 'true');
+    await expect(card('Breathe')).toBeVisible();
+    await expect(card('Strobe')).toHaveCount(0);
+    const search = page.getByRole('searchbox', { name: 'Search looks' });
+    await search.fill('Strobe');
+    await expect(page.locator('.card')).toHaveCount(0);
+    await search.fill('Breathe');
+    await expect(card('Breathe')).toBeVisible();
+    await search.fill('');
+    await shot('approved-filter');
+    await approved.click();
+    await expect(card('Strobe')).toBeVisible();
 
     await card('Strobe').getByRole('button', { name: `Approve Strobe ${width}` }).click();
     const why = page.getByRole('dialog', { name: 'Approve despite flashing?' });
@@ -51,6 +69,13 @@ for (const width of [390, 1366]) {
     await shot('4-flash-reason');
     await why.getByRole('button', { name: 'Approve' }).click();
     await expect(card('Strobe').locator('.tag', { hasText: 'Reviewed' })).toBeVisible();
+    if (width < 600) {
+      const { looks } = await (await owner.request.get(`${studio.origin}/api/looks?scope=mine`)).json();
+      for (const look of looks) {
+        await owner.request.put(`${studio.origin}/api/looks/${look.id}`, { data: { shared: false } });
+      }
+    }
+    await owner.close();
     if (width < 600) return;
 
     // Check & bake on someone else's look, with edits here: it bakes and reviews the look as shared, never a copy.
