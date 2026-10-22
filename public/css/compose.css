@@ -263,8 +263,11 @@ button.tl-mods-fold { gap: 4px; color: var(--sand); white-space: nowrap; cursor:
 }
 /* composites (chain-tree.tsx): a composite's sub-layers under its row, each a head over a chain of its own */
 .chain-acts { display: flex; gap: 4px; }
-/* a composite's name in full, and under it, shut, what it holds */
-.chain-row[data-kind=composite] > .chain-top > .chain-name { white-space: normal; overflow-wrap: anywhere; }
+/* a composite's name in full on a line of its own, and under it, shut, what it holds */
+.chain-row[data-kind=composite] > .chain-top { flex-wrap: wrap; }
+.chain-row[data-kind=composite] > .chain-top > .chain-kinds { margin-right: auto; }
+.chain-row[data-kind=composite] > .chain-top > .chain-name { order: 1; flex-basis: 100%; padding-left: 12px;
+  white-space: normal; overflow-wrap: anywhere; }
 .chain-note { display: block; padding-left: 1.1em; font-size: 11px; font-weight: 400; color: var(--text-2); }
 .chain-end { height: 0; position: relative; }
 .chain-end[data-drop]::before { content: ''; position: absolute; left: 0; right: 0; top: calc(-1.5px - var(--gap) / 2);
@@ -275,7 +278,7 @@ button.tl-mods-fold { gap: 4px; color: var(--sand); white-space: nowrap; cursor:
 .comp-name { width: 100%; }
 /* where a dragged sub-layer lands: a line above the marked one, or above + Sub-layer */
 :is(.sub-layer, .sub-end)[data-drop]::before { content: ''; position: absolute; left: 0; right: 0; top: -4.5px;
-  height: 3px; background: var(--violet); border-radius: 2px; pointer-events: none; }
+  height: 3px; background: var(--sand); border-radius: 2px; pointer-events: none; }
 .sub-end { position: relative; height: 0; }
 .sub-layer.off > :is(.sub-chain, .sub-head > .sub-name) { opacity: .45; }
 /* two rows: badge, name, switch and delete; then how it combines and where it plays */

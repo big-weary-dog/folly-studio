@@ -1,8 +1,9 @@
 // Composites in the Studio's chain (SPEC-library "Composites"), at a laptop's size and a phone's: a composite's
 // sub-layers nested under its row, shut to one row that says what it holds, its name in full, a module dragged into a
 // sub-layer and out again (Alt+↓), sub-layers reordered by their heads' grips (and Alt+↑), and the preview running
-// them without an error. Screenshots in the run's output folder.
+// them without an error. Screenshots in the run's output folder, or COMPOSITE_SHOTS.
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
 
 import { expect, signup, test } from './studio.js';
 
@@ -50,12 +51,27 @@ const top = (page, id) => row(page, id).locator(':scope > .chain-top');
 const pick = (page, id) => top(page, id).locator('.chain-name').click();
 const noErrors = async (page) => expect(page.locator(
   '.chain-row:is([data-status=compile], [data-status=runtime], [data-status=hung])')).toHaveCount(0);
-/** Press the mouse on `grip`, move it to y (with the screenshot `shot` taken there), let go. */
-async function drag(page, grip, y, shot) {
-  const g = await grip.boundingBox();
-  await page.mouse.move(g.x + g.width / 2, g.y + 6);
+/** Press the mouse on `grip`, move it to the foot of `target` above it, letting the pane scroll there by holding the
+ * pointer at its top edge (a phone's is short), take the screenshot `shot`, let go. */
+async function drag(page, grip, target, shot) {
+  await grip.evaluate((e) => e.scrollIntoView({ block: 'end' }));
+  const g = await grip.boundingBox(), x = g.x + g.width / 2, pane = await target.evaluate((e) => {
+    let x = e;
+    while (!(['auto', 'scroll'].includes(getComputedStyle(x).overflowY) && x.scrollHeight > x.clientHeight)) {
+      x = x.parentElement;
+    }
+    return { top: x.getBoundingClientRect().top };
+  });
+  await page.mouse.move(x, g.y + 6);
   await page.mouse.down();
-  await page.mouse.move(g.x + g.width / 2, y, { steps: 8 });
+  for (let i = 0; i < 80; i++) {
+    const t = await target.boundingBox(), y = t.y + t.height - 2;
+    if (y > pane.top + 90) {
+      await page.mouse.move(x, y, { steps: 6 });
+      break;
+    }
+    await page.mouse.move(x, pane.top + 4 + (i % 2));
+  }
   await shot();
   await page.mouse.up();
 }
@@ -69,14 +85,17 @@ for (const [device, use] of [['laptop', { viewport: { width: 1366, height: 768 }
       studio }, info) => {
       const errors = [];
       page.on('pageerror', (e) => errors.push(String(e)));
-      const shot = (name) => (phone ? page.screenshot({ path: info.outputPath(`${device}-${name}.png`) })
-        : page.locator('.pane-params').screenshot({ path: info.outputPath(`${device}-${name}.png`) }));
+      const dir = process.env.COMPOSITE_SHOTS, file = (name) => (dir ? path.join(dir, `${device}-${name}.png`)
+        : info.outputPath(`${device}-${name}.png`));
+      const shot = (name) => (phone ? page.screenshot({ path: file(name) })
+        : page.locator('.pane-params').screenshot({ path: file(name) }));
 
       await open(page, studio, TWISTED, phone);
       await pick(page, 'a2');                                     // a filter inside a sub-layer
       await page.waitForTimeout(1500);
       await noErrors(page);
       await shot('expanded');
+      if (!phone) await page.screenshot({ path: file('expanded-window') });
 
       const name = top(page, 'c1').locator('.chain-name');
       await name.click();                                         // the composite's name shuts it
@@ -88,8 +107,7 @@ for (const [device, use] of [['laptop', { viewport: { width: 1366, height: 768 }
       await name.click();
 
       // Sparkle into the Bars sub-layer, after Edge fade, then Alt+↓ until it is back out on the layer's chain.
-      const into = await top(page, 'b2').boundingBox();
-      await drag(page, top(page, 't1').locator('.grip'), into.y + into.height - 2, () => shot('drag-in'));
+      await drag(page, top(page, 't1').locator('.grip'), top(page, 'b2'), () => shot('drag-in'));
       await expect(row(page, 'c1').locator('.chain-row[data-module=t1]')).toHaveCount(1);
       await top(page, 't1').locator('.chain-name').focus();
       for (let i = 0; i < 3 && await row(page, 'c1').locator('.chain-row[data-module=t1]').count(); i++) {
@@ -100,13 +118,16 @@ for (const [device, use] of [['laptop', { viewport: { width: 1366, height: 768 }
 
       // Bars above Clouds by its head's grip, then back with Alt+↑ on its name.
       const subs = page.locator('.sub-layer > .sub-head .sub-name');
-      const first = await page.locator('.sub-layer').first().boundingBox();
-      await drag(page, page.locator('.sub-layer').nth(1).locator('.sub-head .grip'), first.y + 4,
-        () => shot('reorder'));
-      await expect(subs).toHaveValues(['Bars', 'Clouds']);
+      await drag(page, page.locator('.sub-layer').nth(1).locator('.sub-head .grip'),
+        page.locator('.sub-layer').first().locator('.sub-head .sub-badge'), async () => {
+          await expect(page.locator('.sub-layer[data-drop]')).toHaveCount(1);       // the line where it lands
+          await shot('reorder');
+        });
+      const names = () => subs.evaluateAll((es) => es.map((e) => e.value));
+      await expect.poll(names).toEqual(['Bars', 'Clouds']);
       await subs.nth(1).focus();
       await page.keyboard.press('Alt+ArrowUp');
-      await expect(subs).toHaveValues(['Clouds', 'Bars']);
+      await expect.poll(names).toEqual(['Clouds', 'Bars']);
       await noErrors(page);
 
       await open(page, studio, PARTS, phone);

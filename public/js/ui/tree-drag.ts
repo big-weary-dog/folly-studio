@@ -11,6 +11,15 @@ import type { Box } from './composite-model.ts';
 type Drag = { id: string, slots: string, slot: string | null } | null;
 const EDGE = 28, STEP = 12;
 
+/** The nearest element round `e` that scrolls (the pane's body; on a phone, the side panel). */
+function scroller(e: Element | null) {
+  for (let x = e; x; x = x.parentElement) {
+    const o = getComputedStyle(x).overflowY;
+    if ((o === 'auto' || o === 'scroll') && x.scrollHeight > x.clientHeight) return x;
+  }
+  return null;
+}
+
 /** A slot's key, for `data-slot`: where a module dropped there lands. */
 export const slotKey = (box: Box, index: number) => `${box ? `${box.comp} ${box.sub}` : '- -'} ${index}`;
 export const parseSlot = (key: string): [Box, number] => {
@@ -45,7 +54,7 @@ export function useTreeDrag(root: { current: HTMLElement | null }, move: (id: st
     return (at?.dataset.slot ?? at?.dataset.subSlot) ?? null;
   };
   const scroll = (y: number) => {
-    const pane = root.current?.closest('.pane-body'), b = pane?.getBoundingClientRect();
+    const pane = scroller(root.current), b = pane?.getBoundingClientRect();
     if (pane && b) pane.scrollTop += y < b.top + EDGE ? -STEP : y > b.bottom - EDGE ? STEP : 0;
   };
   const handlers = (id: string, slots: string, drop: (slot: string) => void) => ({
