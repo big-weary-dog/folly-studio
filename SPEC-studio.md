@@ -26,6 +26,8 @@ every edit here keeps them, so what the Studio saves the API accepts.
   The bottom
   dock (Code, Timeline, Look) is one height on every tab: a share of the Studio's height (36%, at least 220 px, the
   3D view keeping at least 200 px), dragged by the splitter above it and kept per browser.
+- **Title and description** edit in place: the title in the Studio bar with the description (the look's `summary`,
+  what its gallery card shows) on a line under it; on a phone, the description is a box in the Look tab.
 - **Reorder.** a layer row moves by its ↑ ↓ buttons, a module row (into and out of composites too) by Alt+↑/↓ on its
   controls, either by dragging its grip (`ui/drag-order.ts`, a module's `ui/tree-drag.ts`; any pointer), which marks
   where it lands, the drop one edit; Escape cancels. Composites in the panel: SPEC-library "Composites".
