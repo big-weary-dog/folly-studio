@@ -2,34 +2,25 @@
 // it: sources draw and combine, filters rework the colour, warps bend the pixel, warps.ts), or in stages round its
 // spatial modules (SPEC "Spatial modules"); blended into a frame (output.ts), graded by the look's globals.
 import type { Module } from '../../../shared/schemas/look.ts';
-import { type Compiled, compileModule, describeError, upgradeParams } from './compile.ts';
-import { applyMods, finish, lookFrame, paramMods, prepareLook, resolveParams } from './globals.ts';
-import type { G, PreparedLook, Values } from './globals.ts';
+import { compileModule, describeError } from './compile.ts';
+import { applyMods, finish, lookFrame, prepareLook } from './globals.ts';
+import type { G, PreparedLook } from './globals.ts';
 import { composite } from './output.ts';
-import type { Picks } from './picks.ts';
 import { pixelsForGroups, type Scene } from './scene.ts';
 import { sortStrands } from './sort.ts';
 import { blur, BLUR_MODES, blurState } from './spatial.ts';
-import { clamp, hex, isNum, RUN, TAU } from './stdlib.ts';
+import { clamp, isNum, RUN, TAU } from './stdlib.ts';
 import { clipAt, layerEnvelope, normalizeClips, type Transition, wipeColours } from './timeline.ts';
-import { nearFor, PLACE, readsLed, settle } from './place.ts';
-import { copyPixel, makePixel, type Pixel, setPixel } from './pixel.ts';
-import { isStageEnd, placeWarps } from './warps.ts';
-import { addLight } from './light.ts';
+import { nearFor, PLACE } from './place.ts';
+import { makePixel, type Pixel, setPixel } from './pixel.ts';
+import { placeWarps } from './warps.ts';
+import { BLENDS, type Blend, type CompiledLink, FILTER, isOn, type Link, OVER, prepareChain, SPATIAL, subsPlace,
+  WARP } from './chain.ts';
+import { bend, pass, PASS } from './pass.ts';
 export type { Pixel };
-
-export const MODULE_KINDS = Object.freeze(['source', 'warp', 'filter'] as const);
-export type ModuleKind = (typeof MODULE_KINDS)[number];
-export const BLENDS = Object.freeze(['add', 'over', 'max', 'multiply'] as const);
-export type Blend = (typeof BLENDS)[number];
-/** How a source combines into its chain: a layer's blends, and `under` (beneath what is above it). */
-export const SOURCE_BLENDS = Object.freeze([...BLENDS, 'under'] as const);
-export type SourceBlend = (typeof SOURCE_BLENDS)[number];
-const SOURCE = 0, WARP = 1, FILTER = 2, SPATIAL = 3;      // SPATIAL: a filter the core runs over the layer at once
-const OVER = 0, ADD = 1, MAX = 2, MULTIPLY = 3, UNDER = 4;
-const BLEND = { over: OVER, add: ADD, max: MAX, multiply: MULTIPLY, under: UNDER };
+export { BLENDS, CHAIN_KINDS, MODULE_KINDS, SOURCE_BLENDS } from './chain.ts';
+export type { Blend, ModuleKind, SourceBlend } from './chain.ts';
 const isBlend = (b: unknown): b is Blend => BLENDS.includes(b as Blend);
-const isSourceBlend = (b: unknown): b is SourceBlend => SOURCE_BLENDS.includes(b as SourceBlend);
 
 /** A layer as the core takes one (SPEC "Looks"), any field missing; code and params: a one-source chain. */
 export type LayerInput = Partial<{ id: string, title: string, code: string, params: Record<string, unknown>,
@@ -43,13 +34,16 @@ export function layerModules(layer?: LayerInput | null): Partial<Module>[] {
     params: layer?.params as Module['params'] }];
 }
 
-const isOn = (m: Partial<Module>) => m.enabled !== false;
 
-/** Each module compiled (null where disabled). Throws on the first failure, as "<module title>: …" in a chain. */
-export function compileLayer(layer?: LayerInput | null) {
+/** Each module compiled (null where disabled), a composite's sub-layers too. Throws on the first failure, as
+ * "<module title>: …" in a chain. */
+export function compileLayer(layer?: LayerInput | null): (CompiledLink | null)[] {
   const modular = Array.isArray(layer?.modules);
   return layerModules(layer).map((m) => {
     if (!isOn(m)) return null;
+    if (m.kind === 'composite') {
+      return { kind: 'composite', subs: (m.layers ?? []).map((s) => compileLayer({ modules: s.modules })) };
+    }
     try {
       return compileModule(m.code, m.kind ?? 'source');
     } catch (e) {
@@ -57,46 +51,6 @@ export function compileLayer(layer?: LayerInput | null) {
       throw new Error(`${m.title || m.id || 'Module'}: ${(e as Error)?.message || e}`, { cause: e });
     }
   });
-}
-
-/** The runnable chain: enabled modules with their function, params, bindings, blend, input (index or −1), whether
- * it ends a stage, and the slots of the pixel it reads (placeWarps). */
-type Fn = (...a: unknown[]) => unknown;
-// keep: a source's colours for a filter in a later stage (SPEC "Spatial modules"); op: a spatial one's; picks: its
-// colours; ring: the frames above it (SPEC "History").
-type Link = { id: string | null, title: string, kind: number, fn: Fn, frame: Compiled['frame'] | null, P: Values,
-  mods: ReturnType<typeof paramMods>, picks: Picks | null, blend: number, hidden: boolean, input: number,
-  out: number[], keep: Float64Array | null, end: boolean, ix: number, at: number, from: number, to: number,
-  led: boolean, bright: boolean, ring: Compiled['history'] | null, op: Compiled['spatial'] | null };
-function prepareChain(layer: LayerInput | null | undefined, compiled: Compiled | readonly (Compiled | null)[]) {
-  const modules = layerModules(layer);
-  const list = Array.isArray(compiled) ? compiled : [compiled];
-  if (list.length !== modules.length) throw new Error('prepareLayer: compile every module (compileLayer)');
-  const chain: Link[] = [], at = new Map<string | undefined, number>(), clips = normalizeClips(layer?.clips);
-  let shown = 0;
-  for (const [i, m] of modules.entries()) {
-    if (!isOn(m)) continue;
-    const c = list[i];
-    let kind = MODULE_KINDS.indexOf(m.kind ?? 'source');
-    const fn = (c && (kind === SOURCE ? c.pixel : kind === WARP ? c.warp : c.filter)) as Fn | undefined;
-    if (!c || typeof fn !== 'function') throw new Error('prepareLayer: layer is not compiled');
-    if (kind === FILTER && c.spatial) kind = SPATIAL;
-    const hidden = kind === SOURCE && m.as === 'input';
-    const blend = isSourceBlend(m.blend) ? BLEND[m.blend] : shown ? ADD : OVER;
-    if (kind === SOURCE && !hidden) shown++;
-    const input = kind === FILTER ? at.get(m.input) ?? -1 : -1;
-    if (kind === SOURCE) at.set(m.id, chain.length);
-    const saved = upgradeParams(c, m.params) as Module['params'];
-    const P = resolveParams(c.params, saved), mods = paramMods(c.params, saved, c.picks?.rot);
-    c.picks?.bind(c.params, saved, P);
-    c.clocks?.bind(P, mods, clips);
-    chain.push({ id: m.id ?? null, title: m.title || m.id || '', kind, fn, frame: c.frame || null,
-      P, mods, picks: c.picks || null, blend, hidden, input,
-      out: [0.5, 0, 0, 0], keep: null, end: kind === SPATIAL || isStageEnd(m), ix: 0, at: 0, from: -1, to: -1,
-      led: readsLed(m.code), bright: kind === SOURCE && !!c.bright, ring: c.history ?? null,
-      op: c.spatial ?? null });
-  }
-  return chain;
 }
 
 /**
@@ -110,7 +64,7 @@ function prepareStages(S: Scene, layer: LayerInput | null | undefined, chain: Li
     chain.push({ id: null, title: 'Soften', kind: SPATIAL, fn: (c) => c, frame: null, mods: [], picks: null,
       blend: OVER, P: { radius: Number(s.radius), mode, amount: 1 }, hidden: false, input: -1,
       out: [0, 0, 0, 0], keep: null, end: true, ix: chain.length, at: 0, from: -1, to: -1, led: false, bright: false,
-      ring: null, op: 'blur' });
+      ring: null, op: 'blur', subs: null });
   }
   if (!chain.some((M) => M.kind === SPATIAL)) return null;
   const m = idx.length;
@@ -121,54 +75,7 @@ function prepareStages(S: Scene, layer: LayerInput | null | undefined, chain: Li
   return { buf: new Float64Array(4 * m), ...blurState(S, idx) };
 }
 
-/** v (number, '#hex', [r, g, b, a?], nothing) into out as [r, g, b, a], alpha default `da`. False on NaN. */
-function toColour(v: unknown, out: number[], da: number) {
-  let r, g, b, al;
-  if (v === undefined || v === null) { r = g = b = al = 0; }
-  else if (typeof v === 'number') { r = g = b = v; al = da; }
-  else {
-    const c = (typeof v === 'string' ? hex(v) : v) as ArrayLike<number>;
-    r = +c[0]; g = +c[1]; b = +c[2];
-    al = c.length > 3 && c[3] !== undefined ? +c[3] : da;
-  }
-  if (r !== r || g !== g || b !== b || al !== al) return false;
-  out[0] = r; out[1] = g; out[2] = b; out[3] = al < 0 ? 0 : al > 1 ? 1 : al;
-  return true;
-}
-
-/** o into c (straight alpha) by blend, alpha scaling values and add summing their light; onto nothing it is o. */
-function blendInto(c: number[], o: number[], mode: number) {
-  const a = o[3], ca = c[3];
-  if (mode === MULTIPLY) {
-    for (let i = 0; i < 3; i++) c[i] *= 1 - a + o[i] * a;
-    return;
-  }
-  if (!(ca > 0)) { c[0] = o[0]; c[1] = o[1]; c[2] = o[2]; c[3] = a; return; }
-  if (mode === OVER) {
-    const keep = ca * (1 - a), A = a + keep;
-    for (let i = 0; i < 3; i++) c[i] = (o[i] * a + c[i] * keep) / A;
-    c[3] = A;
-  } else if (mode === UNDER) {
-    const keep = a * (1 - ca), A = ca + keep;
-    for (let i = 0; i < 3; i++) c[i] = (c[i] * ca + o[i] * keep) / A;
-    c[3] = A;
-  } else if (mode === ADD) {
-    const A = ca + a < 1 ? ca + a : 1;
-    for (let i = 0; i < 3; i++) c[i] = addLight(c[i] * ca, o[i] * a) / A;
-    c[3] = A;
-  } else {
-    const A = a > ca ? a : ca;
-    for (let i = 0; i < 3; i++) { const x = c[i] * ca, y = o[i] * a; c[i] = (x > y ? x : y) / A; }
-    c[3] = A;
-  }
-}
-
-/** A source's colour times its Brightness (SPEC "Pattern code"), alpha kept. */
-const dim = (o: number[], b: number) => { o[0] *= b; o[1] *= b; o[2] *= b; };
-
-const said = (v: unknown) => (Array.isArray(v) ? `[${Array.from(v).slice(0, 4).join(', ')}]` : String(v));
-
-function fail(L: PreparedLayer, M: PreparedLayer['chain'][number] | null, msg: string) {
+function fail(L: PreparedLayer, M: Link | null, msg: string) {
   L.failed = M ? M.id : null;
   return L.modular && M ? `${M.title}: ${msg}` : msg;
 }
@@ -179,15 +86,6 @@ const load = (to: number[], from: Float64Array, o: number) => {
 const save = (to: Float64Array, o: number, from: number[]) => {
   to[o] = from[0]; to[o + 1] = from[1]; to[o + 2] = from[2]; to[o + 3] = from[3];
 };
-
-/** A bending warp on pixel slots qs: a copy of its `from` slot unless it bends that in place. */
-function bend(qs: Pixel[], W: Link, T: number, G: G) {
-  if (W.to !== W.from) copyPixel(qs[W.to], qs[W.from]);
-  const q = qs[W.to];
-  if (W.led && q.due) settle(q);
-  RUN.dt = q.dt;
-  W.fn(q, T + q.dt, W.P, G);
-}
 
 /**
  * Layer L's chain at pattern time T into L.buf (rgba) → null, or an error (its module in L.failed). Stage by stage
@@ -200,9 +98,10 @@ function runChain(S: Scene, L: PreparedLayer, T: number, G: G) {
   const n = chain.length, c = L.c;
   const qs = L.qs, warps = L.warps, nw = warps.length;
   let from = 0, M: Link | null = null;
+  PASS.at = null;
   try {
     RUN.dt = 0;
-    for (let i = 0; i < n; i++) { M = chain[i]; M.ring?.advance(T, m); if (M.frame) M.frame(T, M.P, G); }
+    for (const A of L.all) { M = A; A.ring?.advance(T, m); if (A.frame) A.frame(T, A.P, G); }
     for (;;) {
       let to = from;
       while (to < n && chain[to].kind !== SPATIAL) to++;
@@ -213,25 +112,8 @@ function runChain(S: Scene, L: PreparedLayer, T: number, G: G) {
           setPixel(S, L, q, j, k);
           for (let w = 0; w < nw; w++) { M = warps[w]; if (M.ix >= from && M.ix < to) bend(qs, M, T, G); }
           for (let i = 0; i < from; i++) { M = chain[i]; if (M.keep) load(M.out, M.keep, o); }
-          for (let i = from; i < to; i++) {
-            M = chain[i];
-            if (M.kind === WARP) continue;
-            const q = qs[M.at];
-            if (q.due && M.led) settle(q);
-            RUN.dt = q.dt;
-            if (M.kind === SOURCE) {
-              const v = M.fn(q, T + q.dt, M.P, G);
-              if (!toColour(v, M.out, 1)) return fail(L, M, `pixel() returned ${said(v)} (NaN) at LED ${k}`);
-              M.out[3] *= q.gate;
-              if (M.bright) dim(M.out, M.P.brightness as number);
-              if (M.keep) save(M.keep, o, M.out);
-              if (!M.hidden) blendInto(c, M.out, M.blend);
-            } else {
-              M.ring?.record(j, c);
-              const v = M.fn(c, q, T + q.dt, M.P, G, M.input >= 0 ? chain[M.input].out : undefined);
-              if (!toColour(v, c, c[3])) return fail(L, M, `filter() returned ${said(v)} (NaN) at LED ${k}`);
-            }
-          }
+          const e = pass(chain, from, to, qs, c, T, G, j, k);
+          if (e) return fail(L, PASS.at, e);
         }
         if (to < n) { save(sb!, o, c); continue; }
         const r = c[0], g = c[1], b = c[2];
@@ -247,15 +129,18 @@ function runChain(S: Scene, L: PreparedLayer, T: number, G: G) {
       from = to + 1;
     }
   } catch (e) {
-    return fail(L, M, describeError(e));
+    return fail(L, PASS.at ?? M, describeError(e));
   }
 }
 
 /** A layer ready to render: its pixels, their lx/ly/lz (0.5 on a flat axis) and a/r, its chain and clips. */
 export function prepareLayer(scene: Scene, layer: LayerInput | null | undefined,
-  compiled: Compiled | readonly (Compiled | null)[]) {
+  compiled: CompiledLink | readonly (CompiledLink | null)[]) {
   if (!compiled) throw new Error('prepareLayer: layer is not compiled');
-  const chain = prepareChain(layer, compiled), bent = placeWarps(chain, WARP, SPATIAL);
+  const clips = normalizeClips(layer?.clips), all: Link[] = [];
+  const chain = prepareChain(layerModules(layer), Array.isArray(compiled) ? compiled : [compiled],
+    { scene, clips, all, depth: 0 });
+  const bent = placeWarps(chain, WARP, SPATIAL);
   const idx = pixelsForGroups(scene, layer?.groups, layer?.tags);
   const m = idx.length;
   let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity, sy = 0, sz = 0;
@@ -291,11 +176,11 @@ export function prepareLayer(scene: Scene, layer: LayerInput | null | undefined,
     id: layer?.id ?? null,
     idx, lx, ly, lz, a, r,
     bounds,
-    near: bent.order.length && m ? nearFor(scene, { idx, bounds }) : null,  // place.ts: the LED nearest a point
+    near: (bent.order.length || subsPlace(all)) && m ? nearFor(scene, { idx, bounds }) : null,
     frame: Float64Array.of((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, (x1 - x0) / 2, (y1 - y0) / 2, (z1 - z0) / 2,
       rmax, cy, cz),                                                     // then a r's centre: the middle of the LEDs
     extent: Object.freeze([corner([x0, y0, z0]), corner([x1, y1, z1])]),  // extent()
-    chain, modular: Array.isArray(layer?.modules), failed: null as string | null,
+    chain, all, modular: Array.isArray(layer?.modules), failed: null as string | null,
     blend: isBlend(layer?.blend) ? layer.blend : 'add', level: isNum(layer?.level) ? clamp(layer.level) : 1,
     clips: normalizeClips(layer?.clips), enabled: layer?.enabled !== false,
     p: qs[0], qs, warps: bent.order, c: [0.5, 0, 0, 0],
@@ -332,8 +217,8 @@ export function renderFrame(scene: Scene, layers: readonly (PreparedLayer | null
     if (!(level > 0 && env > 0)) continue;
     const t0 = clock();
     RUN.extent = L.extent; PLACE.layer = L;
-    for (let i = 0; i < L.chain.length; i++) {
-      const M = L.chain[i];
+    for (let i = 0; i < L.all.length; i++) {
+      const M = L.all[i];
       if (M.mods.length) applyMods(M.mods, M.P, t, env, LK);
       if (M.picks) M.picks.frame();
     }

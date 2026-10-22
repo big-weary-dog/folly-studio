@@ -131,3 +131,31 @@ test('the render box bakes smoke, replay and sort to the same bytes as the core 
   assert.ok(here.some((v) => v > 0));
   assert.ok(Buffer.from(parseFseq(bytes).data).equals(Buffer.from(here)), 'the box and the core bake the same bytes');
 });
+
+// A composite (SPEC-library "Composites"): two sub-layers, each with its own filter, one on the arches only, twisted
+// together by the warp below them, with a source drawn on top.
+const COMPOSED = {
+  layers: [
+    { id: 'c', groups: ['cathedral'], tags: ['all'], blend: 'over', level: 1, modules: [
+      { id: 'k', kind: 'composite', title: 'Clouds and bars', code: '', params: {}, layers: [
+        { id: 's1', title: 'Clouds', modules: [{ id: 'a', kind: 'source', title: 'Clouds', code: lib('clouds') },
+          { id: 'h', kind: 'filter', title: 'Hue', code: lib('hue-shift') }] },
+        { id: 's2', title: 'Bars', tags: ['arch'], blend: 'max', level: 0.8, modules: [
+          { id: 'b', kind: 'source', title: 'Bars', code: lib('bars') },
+          { id: 'r', kind: 'warp', title: 'Rotate', code: lib('rotate') }] }] },
+      { id: 'w', kind: 'warp', title: 'Twist', code: lib('twist') },
+      { id: 's', kind: 'source', title: 'Sparkle', code: lib('sparkle') }] },
+  ],
+};
+
+test('the render box bakes a composite to the same bytes as the core here', async ({ skip }) => {
+  skip(!probe.ok, unavailable);
+  const box = createRenderBox({ seconds: SECONDS, rigFile: RIGS.folly, log: quiet });
+  const { bytes } = await box.render({ layers: COMPOSED.layers, seconds: SECONDS });
+  const here = bakeHere(COMPOSED).data, sub = COMPOSED.layers[0].modules[0].layers[1];
+  assert.ok(here.some((v) => v > 0));
+  const everywhere = bakeHere({ layers: [{ ...COMPOSED.layers[0], modules: COMPOSED.layers[0].modules.map((m, i) => (i
+    ? m : { ...m, layers: [m.layers[0], { ...sub, tags: undefined }] })) }] }).data;
+  assert.ok(!Buffer.from(everywhere).equals(Buffer.from(here)), 'the Bars sub-layer plays on the arches only');
+  assert.ok(Buffer.from(parseFseq(bytes).data).equals(Buffer.from(here)), 'the box and the core bake the same bytes');
+});

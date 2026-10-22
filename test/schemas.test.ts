@@ -10,7 +10,7 @@ import ACCOUNT from '../public/data/account.json' with { type: 'json' };
 import { Login, Signup } from '../shared/schemas/api.ts';
 import { validateLook, wireSchema } from '../shared/schemas/generated.ts';
 import {
-  automationFor, BLEND_MODES, Globals, KINDS, Layers, problem, SOURCE_BLEND_MODES,
+  automationFor, BLEND_MODES, Globals, KINDS, Layers, type Module, problem, SOURCE_BLEND_MODES,
 } from '../shared/schemas/look.ts';
 import { LibraryEntry, Rig } from '../shared/schemas/rig.ts';
 import { folly, lineRig, mini } from './fixtures/rigs.js';
@@ -227,5 +227,29 @@ describe('the rig, the library index and accounts', () => {
     [true, false, false, false], 'the sign-up form shows the limits the schema holds');
     assert.deepEqual(Login.parse({ username: 'a b', password: 42 }), { username: null, password: '' });
     assert.deepEqual(Login.parse('nonsense'), { username: null, password: '' });
+  });
+});
+
+describe('a composite (SPEC-library "Composites")', () => {
+  const src = (more = {}) => ({ kind: 'source', code: PIXEL, ...more });
+  const layer = (modules: unknown[]) => [{ id: 'l', modules }];
+  const comp = (layers: unknown[]) => ({ kind: 'composite', layers });
+  test('its sub-layers\' modules get ids of their own by default, unique across the layer', () => {
+    const out = check(Layers, layer([comp([{ id: 's1', modules: [src(), src()] }, { id: 's2', modules: [src()] }]),
+      src()]));
+    assert.ok(typeof out !== 'string', out as string);
+    const [c, after] = (out[0] as { modules: Module[] }).modules;
+    assert.deepEqual(c.layers!.map((s) => s.modules.map((m) => m.id)), [['s1.m1', 's1.m2'], ['s2.m1']]);
+    assert.equal(after.id, 'm2');
+  });
+  test('an id used twice anywhere in the layer is refused', () => {
+    assert.match(String(check(Layers, layer([comp([{ id: 's1', modules: [src({ id: 'x' })] }]), src({ id: 'x' })]))),
+      /module id x is used twice/);
+    assert.match(String(check(Layers, layer([comp([{ id: 's1', modules: [src({ id: 'y' })] },
+      { id: 's2', modules: [src({ id: 'y' })] }])]))), /module id y is used twice/);
+  });
+  test('a composite has layers, and only a composite', () => {
+    assert.equal(typeof check(Layers, layer([{ kind: 'composite' }])), 'string');
+    assert.equal(typeof check(Layers, layer([src({ layers: [{ id: 's', modules: [src()] }] })])), 'string');
   });
 });

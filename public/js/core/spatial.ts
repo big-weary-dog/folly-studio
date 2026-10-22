@@ -106,7 +106,7 @@ export function blurState(S: Scene, idx: Int32Array) {
   neighbourGraph(S);                       // built now, at prepare time, not in the first frame
   return { loc, lit: new Float64Array(idx.length * 4), tmp: new Float64Array(idx.length * 4) };
 }
-export type BlurState = ReturnType<typeof blurState>;
+type BlurState = ReturnType<typeof blurState>;
 
 // The gaussian exp(−2 (d / radius)²) as a table over x = (d / radius)² · LUT, linear between entries (error < 1e-5).
 const LUT = 256;

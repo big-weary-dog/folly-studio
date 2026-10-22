@@ -28,8 +28,9 @@ every edit here keeps them, so what the Studio saves the API accepts.
   3D view keeping at least 200 px), dragged by the splitter above it and kept per browser.
 - **Title and description** edit in place: the title in the Studio bar with the description (the look's `summary`,
   what its gallery card shows) on a line under it; on a phone, the description is a box in the Look tab.
-- **Reorder.** a layer row moves by its ↑ ↓ buttons, a module row by Alt+↑/↓ on its controls, either by dragging its
-  grip (`ui/drag-order.ts`, any pointer), which marks where it lands, the drop one edit; Escape cancels.
+- **Reorder.** a layer row moves by its ↑ ↓ buttons, a module row (into and out of composites too) by Alt+↑/↓ on its
+  controls, either by dragging its grip (`ui/drag-order.ts`, a module's `ui/tree-drag.ts`; any pointer), which marks
+  where it lands, the drop one edit; Escape cancels. Composites in the panel: SPEC-library "Composites".
 - **Composition** (`ui/chain.tsx`, `ui/params.tsx`, `ui/shelf.tsx`, `ui/look-globals.tsx`): the selected layer's
   module chain (a line a module: kind badge, Custom on a module not standard, name, a source's blend or a filter's
   input, enable, delete; only a custom module's name is editable; wide, the selected one's settings open under it,

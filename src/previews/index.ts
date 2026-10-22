@@ -1,4 +1,4 @@
-// Gallery previews (SPEC "Gallery previews"): each shared look's motion as a looping animated WebP and a still for
+// Gallery previews (SPEC-previews): each shared look's motion as a looping animated WebP and a still for
 // reduced motion, in <STUDIO_DATA>/previews/<lookId>-<key>.webp and <lookId>-<key>-still.webp, <key> naming what
 // it renders. Made off the request path, one look at a time, in the lane bakes use (so they take turns): its frames
 // come from its bake when that is current (a look being baked waits for it), else from the render box; the camera
