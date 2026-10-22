@@ -206,13 +206,20 @@ sub-layers' too. A sub-layer holds no stage end (its colours are at bent pixels,
 two deep at most (a composite in a sub-layer holds none); a failing module inside one is reported by its own id. Each
 sub-layer's modules count toward its own limit of 8.
 
-In the Studio's chain (`ui/chain-tree.tsx`) a composite is a violet row whose name (in full, never cut short) opens
-and shuts its sub-layers, nested under it; shut, it says what it holds ("2 sub-layers · 4 modules"). Open, it shows
-its name, then each sub-layer as a head (a grip, Sub N, its name, blend, Plays on, on, delete) over its chain, drawn
-as a layer's, and + Sub-layer (a module from the shelf). A module's grip drags it into or out of any sub-layer (Alt+↑/↓
-steps it through the same places); a sub-layer's grip (or Alt+↑/↓ on its name) reorders its composite's sub-layers.
-⧉ Composite in the chain's head puts the selected module in a new composite of one sub-layer; on such a composite it
-is Ungroup, its modules back in its place.
+In the Studio's chain (`ui/chain-tree.tsx`) a composite is a violet row marked ⧉: its ▸ opens and shuts its
+sub-layers, one step in under it as attached modules are; shut, a line under its name says what it holds ("2
+sub-layers · 3 modules"). Its name is renamed in place and shown in full: a long one wraps beside the ▸, the row's
+controls under it. Each sub-layer of one source (first, the rest warps and filters, and on) is that source's row:
+its blend is the sub-layer's (its own is not shown), its warps and filters attached under it, and a line under its
+name says where the sub-layer plays when not on the whole layer, which its settings set (Plays on). Only a sub-layer
+of several sources (or one off) has a head, one line (a grip, its name, blend, Plays on (◎: the whole layer), on,
+delete) over its chain; inner chains end without a corner. + Source adds a sub-layer on top (a module from the
+shelf). A module's grip drags it into or out of any sub-layer (Alt+↑/↓ steps it through the same places); a source
+let go between sub-layers becomes a sub-layer of its own (its blend the sub-layer's), so a sub-layer of one source
+reorders by its grip (it moves as itself, keeping its name, blend and Plays on), a head's grip (or Alt+↑/↓ on its
+name) the same. A move or delete that empties a sub-layer takes it with it (its blend going with a source dragged out),
+never a composite's last. ⧉ Composite in the chain's head puts the selected module in a new composite of one sub-layer;
+on such a composite it is Ungroup, its modules back in its place. The saved shape is the same for every drawing.
 
 ## Attached modules
 
