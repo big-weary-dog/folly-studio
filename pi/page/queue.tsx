@@ -26,13 +26,14 @@ export function Queue({ m, sock, onAdd, wide }: { m: Model, sock: PiSocket, onAd
         && <> <span class="lp-nw">· {clock(allIn(s))} in all</span></>}{s.paused
         && <> <span class="lp-pill">Paused</span></>}</h2>
       <span class="lp-h2-acts">
-        <button type="button" class="lp-pad" disabled={!q.length || m.lost}
+        <button type="button" class="lp-pad" disabled={(!q.length && s.mode !== 'jukebox') || m.lost}
           onClick={() => sock.send({ type: 'next' })}><Arrow d="M5 5l9 7-9 7zM18 5v14" />Fade to next</button>
         {wide && <button type="button" class="lp-pad pri" disabled={m.lost} onClick={onAdd}>Add a look</button>}
       </span>
     </div>
     <ol class={cx('lp-queue', m.lost && 'hatched')} ref={ref as never} start={at * per + 1}>
-      {!q.length && <li class="lp-q-empty">Nothing queued: {s.look ? `${s.look.title} loops on.` : 'add a look.'}</li>}
+      {!q.length && <li class="lp-q-empty">Nothing queued: {s.mode === 'jukebox' ? 'the next is picked from the looks.'
+        : s.look ? `${s.look.title} loops on.` : 'add a look.'}</li>}
       {shown.map((item, j) => {
         const i = at * per + j;
         return <li key={item.key} class="lp-q">

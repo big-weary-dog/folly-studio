@@ -26,7 +26,7 @@ export function engineOn(extra: PiLook[] = [], light?: Partial<Light>, bake?: En
   const log: string[] = [];
   let last: Uint8Array = new Uint8Array(0), t = 0;
   const engine = createEngine({ rig, lib, looks: () => looks, safe: 'safe', log: (l) => log.push(l),
-    light: lightOf(light), output: (cells) => { last = cells; }, now: () => t++, bake, relay });
+    light: lightOf(light), output: (cells) => { last = cells; }, now: () => t++, bake, relay, seed: 1 });
   return {
     engine, log, looks,
     /** Plays `secs` of frames. */

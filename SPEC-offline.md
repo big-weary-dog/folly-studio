@@ -88,7 +88,8 @@ code: bake it (Check & bake) to play it on the lights…", "Live looks are off: 
 (`pi/looks`). An item plays its whole pattern once from its start, its `duration` (a bake's length), then the next
 starts. Moving on, the queue fades the one out over its last second (`FADE.queue`, 1 s) and the next in over its
 first; play now and skip fade the same way, or over the `fade` they give (SPEC-liveplay). With nothing queued, what
-plays loops on. A flash-guard trip dips to `safe` and pauses the queue until someone plays or skips.
+plays loops on, except in Jukebox (SPEC-liveplay "Modes"), whose fades are `FADE.jukebox` (4 s each way, at most half
+the pattern) and which picks the next itself. A flash-guard trip dips to `safe` and pauses the queue until someone plays or skips.
 What the mode allows, who drives, and the page: `SPEC-liveplay.md`, part of this contract.
 
 **HTTP** (Pi profile with `PI_PREVIEW_URL`; others 404):
