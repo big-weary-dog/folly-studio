@@ -1,0 +1,297 @@
+{
+ "title": "Arch Fire",
+ "duration": 240,
+ "globals": {
+  "palette": {
+   "name": "tangerine",
+   "low": [
+    "#a83200",
+    "#d14400"
+   ],
+   "body": [
+    "#f25a00",
+    "#ff7410",
+    "#ff9433",
+    "#ffb05c"
+   ],
+   "accent": [
+    "#00a6a6",
+    "#3fd0c4"
+   ],
+   "high": [
+    "#ffe3c7"
+   ]
+  },
+  "macros": {
+   "heat": {
+    "value": 0.5,
+    "min": 0,
+    "max": 1
+   }
+  }
+ },
+ "bpm": 120,
+ "layers": [
+  {
+   "id": "l1",
+   "title": "Arch Fires",
+   "modules": [
+    {
+     "id": "mlkfklg1cs",
+     "kind": "source",
+     "title": "Colour wash",
+     "params": {
+      "colours": "low",
+      "hold": 0,
+      "brightness": 0.5
+     },
+     "ref": "colour-wash"
+    },
+    {
+     "id": "m44s01l12w",
+     "kind": "source",
+     "title": "Fire",
+     "params": {
+      "colours": "body",
+      "height": {
+       "mod": "global",
+       "name": "heat",
+       "from": 0.3,
+       "to": 0.85
+      },
+      "embers": {
+       "mod": "global",
+       "name": "heat",
+       "from": 0.2,
+       "to": 0.8
+      },
+      "size": 0.5,
+      "speed": {
+       "mod": "global",
+       "name": "heat",
+       "from": 0.3,
+       "to": 1.4
+      }
+     },
+     "blend": "over",
+     "ref": "fire"
+    },
+    {
+     "id": "mx2t4z9wx0",
+     "kind": "source",
+     "title": "Streaks",
+     "params": {
+      "lanes": 10,
+      "depth": 1,
+      "direction": "down",
+      "profile": "streak",
+      "colours": "accent",
+      "speed": {
+       "mod": "global",
+       "name": "heat",
+       "from": 0.12,
+       "to": 0.45
+      },
+      "brightness": {
+       "mod": "global",
+       "name": "heat",
+       "from": 0.5,
+       "to": 1
+      }
+     },
+     "blend": "over",
+     "ref": "streaks"
+    },
+    {
+     "id": "mkvengjgio",
+     "kind": "warp",
+     "title": "Rotate",
+     "ref": "rotate",
+     "params": {
+      "angle": 0,
+      "spin": {
+       "mod": "lfo",
+       "shape": "sine",
+       "rate": 0.15,
+       "unit": "hz",
+       "depth": 0.1,
+       "center": 0
+      }
+     }
+    },
+    {
+     "id": "blur",
+     "kind": "filter",
+     "title": "Blur",
+     "ref": "blur",
+     "params": {
+      "radius": 0.1,
+      "mode": "wire"
+     }
+    }
+   ],
+   "groups": [
+    "main-arches",
+    "rose-window"
+   ],
+   "tags": [
+    "arch-main",
+    "rose",
+    "window"
+   ],
+   "blend": "add",
+   "level": 1,
+   "soften": {
+    "radius": 0.15,
+    "mode": "wire"
+   }
+  },
+  {
+   "id": "l2",
+   "title": "Exterior currents",
+   "modules": [
+    {
+     "id": "colour-wash",
+     "kind": "source",
+     "title": "Colour wash",
+     "ref": "colour-wash",
+     "params": {
+      "colours": "low",
+      "speed": 0,
+      "brightness": 0.25
+     }
+    },
+    {
+     "id": "bars",
+     "kind": "source",
+     "title": "Bars",
+     "params": {
+      "colours": "accent body",
+      "direction": "up",
+      "speed": {
+       "mod": "global",
+       "name": "heat",
+       "from": 0.05,
+       "to": 0.4
+      },
+      "bars": 1.5,
+      "duty": 1,
+      "profile": "smooth",
+      "softness": 0.8,
+      "brightness": {
+       "mod": "global",
+       "name": "heat",
+       "from": 0.4,
+       "to": 1
+      }
+     },
+     "blend": "over",
+     "ref": "bars"
+    }
+   ],
+   "groups": [
+    "mini-arches",
+    "quad-arches",
+    "spirelets",
+    "spires"
+   ],
+   "tags": [
+    "arch-mini",
+    "arch-quad",
+    "spirelet",
+    "spire"
+   ],
+   "blend": "over",
+   "level": 1,
+   "soften": {
+    "radius": 0.15,
+    "mode": "wire"
+   }
+  },
+  {
+   "id": "l3",
+   "title": "Tower sparks",
+   "groups": [
+    "spires",
+    "spirelets"
+   ],
+   "tags": [
+    "spire",
+    "spirelet"
+   ],
+   "blend": "add",
+   "level": 1,
+   "soften": {
+    "radius": 0.15,
+    "mode": "wire"
+   },
+   "clips": [
+    {
+     "start": 125,
+     "end": 190,
+     "fadeIn": 10,
+     "fadeOut": 15
+    }
+   ],
+   "modules": [
+    {
+     "id": "m1",
+     "kind": "source",
+     "title": "Sparkle",
+     "ref": "sparkle",
+     "params": {
+      "colours": "high body4",
+      "density": 0.5,
+      "often": 240,
+      "flash": 0.5
+     }
+    },
+    {
+     "id": "m2",
+     "kind": "filter",
+     "title": "Smoke",
+     "ref": "smoke",
+     "params": {
+      "direction": "up",
+      "drift": 1.2,
+      "spread": 0.3,
+      "fade": 0.5,
+      "curl": 0.4
+     }
+    }
+   ]
+  }
+ ],
+ "automation": {
+  "heat": [
+   [
+    0,
+    0.1
+   ],
+   [
+    45,
+    0.3
+   ],
+   [
+    120,
+    0.75
+   ],
+   [
+    140,
+    1
+   ],
+   [
+    180,
+    1
+   ],
+   [
+    205,
+    0.5
+   ],
+   [
+    240,
+    0.1
+   ]
+  ]
+ }
+}
