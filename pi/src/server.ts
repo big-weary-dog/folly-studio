@@ -107,7 +107,10 @@ export async function controlServer(o: ServerOptions) {
     else if (msg.type === 'move') e.move(msg.key, msg.to);
     // In Jukebox every change is the full fade.
     else if (msg.type === 'next') e.next(people.mode === 'live' ? msg.fade : undefined);
-    else if (msg.type === 'mode' && people.setMode(msg.mode)) e.jukebox();
+    else if (msg.type === 'mode') {
+      e.setMode(msg.mode);
+      if (people.setMode(msg.mode)) e.jukebox();
+    }
     else if (msg.type === 'send') studioSent(c, msg);
   }
 

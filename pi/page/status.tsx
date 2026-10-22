@@ -59,7 +59,8 @@ export function NowCard({ m, sock, toQueue, next = true }: { m: Model, sock: PiS
         ? <button type="button" class="lp-next" aria-expanded={toQueue.open} onClick={toQueue.toggle}>
           {toQueue.open ? <><span>Back to</span><b>the knobs</b></> : <><span>Up next</span>
             <b>{m.next?.title ?? 'nothing queued'}</b><span>{s.queue.length} queued</span></>}<Chevron /></button>
-        : m.next && <div class="lp-next"><span>Then</span><b>{m.next.title}</b><span>1 s crossfade</span></div>)}
+        : m.next && <div class="lp-next"><span>Then</span><b>{m.next.title}</b>
+          <span>{s.mode === 'jukebox' ? 4 : 1} s fade</span></div>)}
     </section>);
 }
 

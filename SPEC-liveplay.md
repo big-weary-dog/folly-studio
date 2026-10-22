@@ -9,8 +9,13 @@ shows both. It builds on SPEC-offline "Playing on the lights" (the engine's queu
 `mode` is `jukebox` or `live`, for the whole installation:
 
 - **Jukebox**: the queue alone. Curators and admins add a look to the end or next, move or remove queued ones, and
-  **Fade to next**. Every change the lights make is a full fade (`FADE.queue`, 1 s each way) at the end of a look or
-  on Fade to next. No Play now, no knobs, no Master, no tempo and no Blackout.
+  **Fade to next**. Every change the lights make is a full fade (`FADE.jukebox`, 4 s each way, at most half the
+  playing pattern) at the end of a look or on Fade to next. With nothing queued, the engine picks the next itself
+  (and Fade to next goes on to it): one of its own looks (`pi/looks` and `--looks`, not `safe`, none that cannot
+  play), in a shuffled order each round, seeded (`seed`, default the clock), so each plays once a round and none twice
+  in a row; with no other look, what plays loops on. A pick shows as the next in `switching`, never in `queue`; the
+  playing look's `left` counts down to it. A flash-guard pause picks nothing. No Play now, no knobs, no Master, no
+  tempo and no Blackout.
 - **Live Play**: everything in Jukebox, plus the playing look's knobs, Master, tap tempo, Blackout, and a cued
   change with a chosen fade. Driving is for whoever may control the live stage (`STUDIO_LIVE_CONTROL`, SPEC-live
   "Settings"); others who may open `/pi` watch.
@@ -58,7 +63,7 @@ control's `value` is a name (`''`: the look's own); `min` and `max` are 0.
 
 | Message | What | Jukebox |
 |---|---|---|
-| `{ type: 'next', fade? }` | skip to the next queued look (and go on from a flash-guard pause) | yes, at 1 s |
+| `{ type: 'next', fade? }` | skip to the next queued look (and go on from a flash-guard pause) | yes, at 4 s, or a pick |
 | `{ type: 'queue', id, at?, fade? }`, `play { id, fade? }` | SPEC-offline's; `fade` for `at: 'now'` and `play` | not `now`, no `play` |
 | `{ type: 'set', name, value }`, `{ type: 'release', name }` | a knob, or let one go: it glides to `default` | refused |
 | `{ type: 'palette', name }` | blend to that palette (`''`: the look's own) | refused |

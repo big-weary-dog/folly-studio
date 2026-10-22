@@ -74,6 +74,7 @@ describe('Jukebox', () => {
     assert.deepEqual([s.mode, s.driver, s.level, s.blackout.on], ['jukebox', null, 1, false]);
     const heat = s.look?.controls.find((c) => c.name === 'heat');
     assert.deepEqual([heat?.held, heat?.value], [false, heat?.default]);
+    assert.equal(engine.next(), true);     // Jukebox: nothing queued, Fade to next goes on to a pick
   });
 });
 

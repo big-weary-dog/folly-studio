@@ -45,6 +45,8 @@ with Studio's looks to add and the Folly in 3D as its aside.
 
 The queue is the jukebox (SPEC-offline "Playing on the lights"): each queued look plays its whole pattern once, then
 the next, fading out over its last second and in over the next's first; with nothing queued, what plays loops on.
+In Jukebox the fades are 4 s each way, and with nothing queued the engine picks the next of its own looks (not
+`safe`), a seeded shuffle that plays each once a round and none twice in a row.
 At most 20, in memory (a restart empties it). Studio's **Play on the lights** queues its looks here too: a library
 look sent by `ref` (its code always ours), shown with who queued it.
 

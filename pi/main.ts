@@ -48,7 +48,7 @@ async function main(c: NonNullable<typeof cfg>) {
   const frames = c.frames && path.resolve(path.dirname(at('./main.ts')), c.frames);
   // Frames a browser may render for the engine (SPEC-live "Relay to the lights"), on the rig's cells.
   const relay = createRelay({ count: rig.count, fps: rig.output?.fps || 40 });
-  const engine = createEngine({ rig, lib, looks: () => looks, safe: c.safe, log, light, relay,
+  const engine = createEngine({ rig, lib, looks: () => looks, safe: c.safe, mode: c.mode, log, light, relay,
     output: (cells) => output.send(cells), bake: (id, sha256) => loadBaked(frames, id, sha256, engine.scene) });
   // The rig's pixels must sit within the cells the expansion reads (its declared universes run past them, unused).
   const cellsEnd = Math.min(...table.petals.map((p) => p.exp));
