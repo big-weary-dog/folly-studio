@@ -17,7 +17,7 @@ export const TRANSITIONS = Object.freeze(['fade', 'wipe'] as const);
 export type Transition = { kind: (typeof TRANSITIONS)[number], direction: Direction, softness: number };
 
 /** A clip's transition as the renderer uses it, or null for a plain fade (anything unknown fades). */
-export function normalizeTransition(v: unknown): Transition | null {
+function normalizeTransition(v: unknown): Transition | null {
   const o = v && typeof v === 'object' ? v as Record<string, unknown> : null;
   if (o?.kind !== 'wipe') return null;
   const known = [...DIRECTIONS, ...OLD_DIRECTIONS] as readonly unknown[];

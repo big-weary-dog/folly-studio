@@ -33,7 +33,7 @@ export function flashLimits(o?: Partial<FlashLimits> | null): FlashLimits {
 }
 
 /** The regions that watch for swings: the whole rig (idx null), then each top-level group with LEDs. */
-export function flashRegions(scene: Scene) {
+function flashRegions(scene: Scene) {
   const root = scene.root;
   const regions: { id: string, idx: Int32Array | null }[] = [{ id: root ? root.id : 'all', idx: null }];
   for (const g of scene.groups) {
