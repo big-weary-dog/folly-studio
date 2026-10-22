@@ -1,5 +1,6 @@
 // The rose window as SVG: sixteen lancet petals in the real window's seven rings round a hub. The brand mark, the
-// loader, an idea's progress and the petal picker; colour and motion live in CSS (.rose in base.css, pages.css).
+// loader, an idea's progress, and the petal and cell pickers; colour and motion live in CSS (.rose in base.css,
+// pages.css, params.css).
 import { useMemo } from 'preact/hooks';
 
 const PETALS = 16;
@@ -51,7 +52,7 @@ function petalsOf(full: boolean) {
   return out;
 }
 
-/** Which petals a picker shows lit, and what a click on petal i does. */
+/** Which petals (or cells) a picker shows lit, and what a click on petal i does. */
 export type RosePick = { on: readonly boolean[]; flip: (i: number) => void };
 
 /** detail: full | mark (two bands); label: its alt text (else decorative); pick: its petals numbered round it, each a
@@ -66,7 +67,7 @@ export function Rose({ detail = 'mark', class: cls = '', label = '', pick }: { d
       aria-label={label || undefined} aria-hidden={label ? undefined : 'true'}>
       <circle class="rose-stone" r={100} />
       {petalsOf(detail === 'full').map((cells, i) => (
-        <g class={pick && !pick.on[i] ? 'rp off' : 'rp'} style={`--i:${i}`} {...pick && petalBox(pick, i)}>
+        <g class={pick && !pick.on[i] ? 'rp off' : 'rp'} style={`--i:${i}`} {...pick && pickBox(pick, i, 'Petal')}>
           {cells.map(([k, d]) => <path class={`g-${k}`} d={d} />)}
           {pick && <PetalNumber i={i} />}</g>))}
       <circle class="rose-hub g-a" r={(R * HUB * 0.86).toFixed(1)} />
@@ -74,10 +75,10 @@ export function Rose({ detail = 'mark', class: cls = '', label = '', pick }: { d
     </svg>);
 }
 
-/** Petal i of a picker as a checkbox: a click, Enter or Space flips it (Space not reaching the Studio's play key).
- *  `tabindex` in lower case: an SVG element's attributes keep their case. */
-const petalBox = ({ on, flip }: RosePick, i: number) => ({ role: 'checkbox' as const, tabindex: 0,
-  'aria-checked': on[i], 'aria-label': `Petal ${i + 1}`, onClick: () => flip(i),
+/** Petal or cell i of a picker as a checkbox: a click, Enter or Space flips it (Space not reaching the Studio's play
+ *  key). `tabindex` in lower case: an SVG element's attributes keep their case. */
+const pickBox = ({ on, flip }: RosePick, i: number, what: string) => ({ role: 'checkbox' as const, tabindex: 0,
+  'aria-checked': on[i], 'aria-label': `${what} ${i + 1}`, onClick: () => flip(i),
   onKeyDown: (e: KeyboardEvent) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
     e.preventDefault();
@@ -89,4 +90,23 @@ const petalBox = ({ on, flip }: RosePick, i: number) => ({ role: 'checkbox' as c
 function PetalNumber({ i }: { i: number }) {
   const [x, y] = xy(1.13, (i * 2 * Math.PI) / PETALS);
   return <text class="rose-n" x={x} y={y}>{i + 1}</text>;
+}
+
+const WIDEN = 3.2;                    // the cell picker's petal, widened so its cells are big enough to click
+
+/** One petal drawn large, pointing up and widened, each cell numbered (1 at the heart, ring by ring, each ring from
+ *  the counterclockwise side) and a checkbox: the cell picker. */
+export function PetalCells({ label, pick }: { label: string; pick: RosePick }) {
+  let n = 0;
+  return (
+    <svg class="rose rose-full petal-cells" viewBox="-44 -101 88 86" focusable="false" role="group" aria-label={label}>
+      {CELLS.flatMap((glass, ring) => glass.map((k, j) => {
+        const f = SPLITS[glass.length], i = n++, r0 = RINGS[ring], r1 = RINGS[ring + 1], r = (r0 + r1) / 2;
+        const [x, y] = xy(r, (f[j] + f[j + 1] - 1) * halfAngle(r));
+        return <g class={pick.on[i] ? 'rp' : 'rp off'} {...pickBox(pick, i, 'Cell')}>
+          <path class={`g-${k}`} d={cell(0, r0, r1, f[j], f[j + 1])} transform={`scale(${WIDEN} 1)`}
+            vector-effect="non-scaling-stroke" />
+          <text class="rose-n" x={(Number(x) * WIDEN).toFixed(1)} y={y}>{i + 1}</text></g>;
+      }))}
+    </svg>);
 }

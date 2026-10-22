@@ -109,13 +109,21 @@
 .picture-thumb.square { border-radius: 2px; }
 .picture-text { width: 100%; min-height: 16em; font: 12.5px/1.4 var(--mono); resize: vertical; }
 .picture-dialog .dialog-text.error { color: var(--error); }
-/* a petals param: the rose, its lit petals the ones that show, clicked in and out, beside its text */
+/* petals and cells params: the rose and one petal, their lit petals and cells the ones that show, clicked in and
+   out, each above its text; the two side by side (.rose-pickers) */
 .field.param > .field-control:has(> .petal-pick) { flex: 1 1 100%; }
 .petal-pick { display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
-.rose-pick { flex: none; width: 168px; }
-.rose-pick .rp { cursor: pointer; transition: opacity .15s; }
-.rose-pick .rp.off { opacity: .22; }
-.rose-pick .rp.off:hover { opacity: .5; }
-.rose-pick .rp:focus-visible { outline: none; }
-.rose-pick .rp:focus-visible path { stroke: var(--focus); stroke-width: 3; }
+.rose-pick, .petal-cells { flex: none; width: 168px; }
+.rose-pickers { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.rose-pickers > .field.param { flex-direction: column; align-items: stretch; }
+.rose-pickers .petal-pick { flex-direction: column; align-items: stretch; }
+.rose-pickers :is(.rose-pick, .petal-cells) { align-self: center; width: 100%; max-width: 168px; }
+.rose-pickers .param-text { flex: none; }
+:is(.rose-pick, .petal-cells) .rp { cursor: pointer; transition: opacity .15s; }
+:is(.rose-pick, .petal-cells) .rp.off { opacity: .22; }
+:is(.rose-pick, .petal-cells) .rp.off:hover { opacity: .5; }
+:is(.rose-pick, .petal-cells) .rp:focus-visible { outline: none; }
+:is(.rose-pick, .petal-cells) .rp:focus-visible path { stroke: var(--focus); stroke-width: 3; }
 .rose-n { fill: var(--text-2); font: 600 16px var(--font); text-anchor: middle; dominant-baseline: central; }
+.petal-cells .rose-n { fill: #fff; font-size: 7px; paint-order: stroke; stroke: var(--lead); stroke-width: 1.6px;
+  pointer-events: none; }

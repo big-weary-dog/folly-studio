@@ -8,7 +8,7 @@ import { humanize } from './kit.tsx';
 export interface Param { kind: 'number' | 'color' | 'toggle' | 'choice' | 'picture' | 'text';
   value: number | string | boolean | Picture;
   label: string; min: number; max: number; step: number; options: string[]; blend?: 'smooth' | 'step'; help?: string;
-  unit?: 'minute'; lines?: boolean; petals?: boolean }
+  unit?: 'minute'; lines?: boolean; petals?: boolean; cells?: boolean }
 type Shape = NonNullable<Extract<Binding, { mod: 'lfo' }>['shape']>;
 export type BindingForm = { mod: '' | Binding['mod']; shape: Shape; rate: string; unit: string; lo: string;
   hi: string; hold: string; amount: string; pace: string; name: string; from: string; to: string; eFrom: string;
@@ -68,7 +68,7 @@ export function normaliseParam(key: string, raw: unknown): Param | null {
   }
   if (r.type === 'text') {
     return { ...base, kind: 'text', value: readText(v) ?? '', ...r.lines === true ? { lines: true } : {},
-      ...r.petals === true ? { petals: true } : {} };
+      ...r.petals === true ? { petals: true } : {}, ...r.cells === true ? { cells: true } : {} };
   }
   if (r.type === 'choice' && Array.isArray(r.options) && r.options.length) {
     const options = r.options.map(String);
@@ -165,14 +165,14 @@ export function upgradedOf(up: unknown, schema: Record<string, unknown> | null, 
     .map(([k, v]) => [k, v[1]])) as Record<string, ParamValue>;
 }
 
-/** A `petals` text param's petals (SPEC "Pattern code"), as petal-mask reads them: which of the 16 its numbers
- *  (1–16) and runs (`a-b`, wrapping past 16) name. */
-export function readPetals(text: string) {
-  const on = Array<boolean>(16).fill(false);
+/** A `petals` or `cells` text param's picks (SPEC "Pattern code"), as petal-mask reads them: which of n its numbers
+ *  (1–n) and runs (`a-b`, wrapping past n) name. */
+export function readPicks(text: string, n: number) {
+  const on = Array<boolean>(n).fill(false);
   for (const w of text.split(/[\s,]+/)) {
     const m = /^(\d+)(?:-(\d+))?$/.exec(w), a = m ? Number(m[1]) : 0, b = m?.[2] ? Number(m[2]) : a;
-    if (a < 1 || a > 16 || b < 1 || b > 16) continue;
-    for (let i = a - 1; ; i = (i + 1) % 16) {
+    if (a < 1 || a > n || b < 1 || b > n) continue;
+    for (let i = a - 1; ; i = (i + 1) % n) {
       on[i] = true;
       if (i === b - 1) break;
     }
@@ -180,13 +180,13 @@ export function readPetals(text: string) {
   return on;
 }
 
-/** Petals as the rose picker writes them: sorted, runs of three or more as `a-b`. */
-export function petalText(on: readonly boolean[]) {
+/** Picks as the pickers write them: sorted, runs of three or more as `a-b`. */
+export function pickText(on: readonly boolean[]) {
   const out: string[] = [];
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < on.length; i++) {
     if (!on[i]) continue;
     let j = i;
-    while (j < 15 && on[j + 1]) j++;
+    while (j < on.length - 1 && on[j + 1]) j++;
     out.push(j - i > 1 ? `${i + 1}-${j + 1}` : j > i ? `${i + 1} ${j + 1}` : `${i + 1}`);
     i = j;
   }
