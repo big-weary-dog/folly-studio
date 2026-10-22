@@ -36,7 +36,8 @@ export const test = base.extend({
   studio: [async ({ serverOptions }, use) => {
     const dataDir = await mkdtemp(path.join(os.tmpdir(), 'studio-browser-'));
     const app = await createServer({ dataDir, distDir: await builtApp(), log: quiet,
-      models: { codexBin: `${BIN}codex`, env: { PATH: `${BIN}:${process.env.PATH}` } }, ...serverOptions });
+      models: { codexBin: `${BIN}codex`, env: { PATH: `${BIN}:${process.env.PATH}` } }, customCode: true,
+      ...serverOptions });
     const { port } = await app.listen(0, '127.0.0.1');
     await use({ app, origin: `http://127.0.0.1:${port}` });
     await app.close();

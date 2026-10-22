@@ -67,7 +67,7 @@ export function readParams(code: string): Record<string, ParamDecl> {
 }
 
 export type Catalog = { modules: Map<string, ModuleEntry & { params: Record<string, ParamDecl> }>,
-  presets: Map<string, PresetEntry>, text: string };
+  presets: Map<string, PresetEntry>, text: string, allows?: (code: string) => boolean };
 
 const oneLine = (s: unknown) => String(s || '').replace(/\s+/g, ' ').trim();
 const n = (v: number) => String(+v.toFixed(3));

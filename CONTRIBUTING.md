@@ -190,7 +190,7 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `vite.config.js`, `tools/vite-sandbox.ts`, `tools/vite-compress.ts`, `tools/dev.ts` | The build (`public/` → `dist/`); the sandbox page, its scripts inlined; the `.br` and `.gz` copies of its text; `npm run dev` |
 | `src/frames.ts` | Pure: strict FSEQ parsing and frame analysis (brightness, flicker) |
 | `src/bake.ts`, `render-box.ts`, `box-output.ts`, `core-script.ts` | The one-at-a-time bake queue and frame files; the render box under bubblewrap; what a box hands back, read as data; the core from its source for the boxes |
-| `src/box-library.ts`, `baking.ts` | Where bakes run (`SPEC-baking.md`): which looks a box without bubblewrap may bake (library code, by hash); the admin's bake setting (on, throttled, off) in front of the box, and its routes |
+| `src/box-library.ts`, `baking.ts`, `custom-code.ts` | Where bakes run (`SPEC-baking.md`): which looks a box without bubblewrap may bake (library code, by hash); the admin's bake setting (on, throttled, off; the Custom code switch) in front of the box, and its routes; the switch's gate on saving (no new code while it is off; `generate/no-code.ts` holds a generator's rounds to it) |
 | `src/frames-wire.ts`, `frames-cache.ts`, `frames-http.ts`, `fseq-codec.ts` | Baked frames on the wire: the stream encoder; the chunks and downloads kept by hash under a disk cap, made one job at a time by the encoder thread; their routes; FSEQ zstd/zlib blocks |
 | `src/frames-worker.ts` | The encoder thread, at nice 10 |
 | `src/live/` | The live stage (`SPEC-live.md`): `state.ts` (pure: show time, pushes as lanes, loops), `hub.ts` (the sockets, presence, limits, `live.json`), `routes.ts` (the socket and its settings) |
@@ -287,11 +287,11 @@ cover.
   Worker, so a hang cannot freeze the tab; a watchdog replaces a hung worker or iframe. The app
   page and the server's own process never run it.
 - **The render box** runs `render-box/render.ts` under bubblewrap: `--unshare-all` (no
-  network), `--clearenv`, read-only node and inputs, one writable `/out`, prlimits and a wall
-  clock. Inside, patterns get a `node:vm` realm holding only the stdlib. Without bubblewrap it bakes
+  network), `--clearenv`, read-only node and inputs, a 1 MB tmpfs `/out` whose two output files alone are the host's,
+  prlimits and a wall clock. Inside, patterns get a `node:vm` realm holding only the stdlib. Without bubblewrap it bakes
   only looks made of unchanged library patterns (checked by hash: our own code, not untrusted), in the same realm
   under the same limits; anything else is refused, never run unboxed. A box's output is bytes the server parses
-  strictly and measures.
+  strictly and measures. While an admin has Custom code off, no new code is saved at all (SPEC-baking "Custom code").
 - **CSRF.** Every mutation must be `Content-Type: application/json`, and if an `Origin` header
   is present it must match the host (the forwarded one only from a proxy on this machine, with
   `STUDIO_TRUST_PROXY`). Cookies are `SameSite=Lax`.

@@ -31,6 +31,7 @@ import { createIdeaLog, type IdeaLog, type IdeaLogs, type Outcome, type Round } 
 import { describeDocs, describeRounds, describeUses, dropped, NO_USES } from './log-line.ts';
 import { Interrupted } from './proc.ts';
 import type { Registry } from './models.ts';
+import { type CodeGate, libraryOnly } from './no-code.ts';
 import { buildPrompt, buildRefineMessage } from './prompt.ts';
 import { refineHistory } from './refine-history.ts';
 import { type Composition, decompose, diffCompositions, keepSwitches } from './refine.ts';
@@ -83,14 +84,14 @@ export function createQueue({
   store, loadLibrary = () => [], loadRig = () => null, loadLight, loadVersion, models, log = console, adapters = {},
   config = configOf(), adapterName = config.STUDIO_GENERATOR || models?.defaultId() || 'claude',
   fallbackName = config.STUDIO_GENERATOR_FALLBACK || '', concurrency = config.STUDIO_GENERATOR_CONCURRENCY || 0,
-  framesDir, foundry = foundryOf(config), codexBin, box, lane: bakeLane,
+  framesDir, foundry = foundryOf(config), codexBin, box, lane: bakeLane, codeGate,
   critiqueBudgetMs = config.STUDIO_CRITIQUE_BUDGET_MS || 90_000, interruptGraceMs = 2000, ideaLogs,
 }: { config?: Config, store: Pick<Store, 'ideas' | 'looks'> & Partial<Store>, loadLibrary?: () => LibraryEntry[],
   loadRig?: () => Rig | null | Promise<Rig | null>, loadLight?: () => Light, loadVersion?: () => string,
   models?: Registry, adapterName?: string, log?: Logger, adapters?: Record<string, Adapter | Adapter['generate']>,
   concurrency?: number, fallbackName?: string, framesDir?: string, foundry?: Partial<ReturnType<typeof foundryOf>>,
   codexBin?: string, box?: Box, lane?: Parameters<typeof compose>[0]['lane'], critiqueBudgetMs?: number,
-  interruptGraceMs?: number, ideaLogs?: IdeaLogs }) {
+  interruptGraceMs?: number, ideaLogs?: IdeaLogs, codeGate?: CodeGate }) {
   const framesHome = framesDir ?? (store.dataDir ? path.join(store.dataDir, 'frames') : '');
   const transports = new Set<string>([...TRANSPORTS, ...Object.keys(adapters)]);
   const made = new Map<string, Adapter>();
@@ -211,7 +212,8 @@ export function createQueue({
     const t0 = monoNow();
     const refused = refine && cannot(by, { refine: true });
     if (refused) throw new GenerateError(`${refused}.`, `refine by ${by.via}`);
-    const adapter = adapterFor(by), catalog = prompted(by.via) || refine ? ctx.prompt?.().catalog : undefined;
+    const adapter = adapterFor(by), catalog = await libraryOnly(ctx, prompted(by.via) || refine
+      ? ctx.prompt?.().catalog : undefined, codeGate);
     const mode: Critique | undefined = by.entry?.critique ?? (refine?.critique ? 'images' : undefined);
     const rounds = (a: Adapter, o: { critique?: Critique, box?: Box, edit?: Composition }) => compose({ adapter: a,
       ctx, catalog: catalog!, ...o, lane: bakeLane, aim: refine?.aim, start: refine?.start, startedAt: t0,
@@ -281,6 +283,7 @@ export function createQueue({
         dropped(look.dropped)}`;
       if (refine) {
         const kept = keepUntouched(refine.look.layers as typeof look.layers, refine.comp, out.raw, look.layers);
+        await codeGate?.check(kept, idea.owner, (why) => new GenerateError(why, 'new code'));
         const changes = await revise(refine.look, { ...look, layers: kept }, promptOf(base).catalog, idea);
         timing.total = monoNow() - queuedAt;
         outcome = { status: 'ready', lookId: refine.look.id };
@@ -291,6 +294,7 @@ export function createQueue({
       }
       const { bake: made, frames } = (out.raw ?? {}) as { bake?: Bake, frames?: unknown };
       const bake = made && typeof made === 'object' ? { ...made, layersHash: layersHash(renderFields(look)) } : null;
+      await codeGate?.check(look.layers, idea.owner, (why) => new GenerateError(why, 'new code'));
       const saved = await store.looks.create({
         owner: idea.owner, ownerName: owner?.username || '', title: look.title, summary: look.summary,
         layers: look.layers,

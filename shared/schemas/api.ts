@@ -172,10 +172,15 @@ export type Bake = { source: 'render-box' | 'fleet-box', status: 'queued' | 'run
 export const BAKE_MODES = ['on', 'throttled', 'off'] as const;
 export const Baking = z.strictObject({
   mode: z.enum(BAKE_MODES, { error: 'mode must be on, throttled or off.' }),
-}, { error: 'The bake setting must be { mode }.' });
+  customCode: z.boolean({ error: 'customCode must be true or false.' }).optional(),
+}, { error: 'The bake setting must be { mode, customCode? }.' });
+/** PUT /api/admin/baking: either or both. */
+export const BakingPatch = Baking.partial().refine((b) => b.mode !== undefined || b.customCode !== undefined,
+  { error: 'The bake setting must be { mode?, customCode? }.' });
 export type BakeMode = typeof BAKE_MODES[number];
 /** GET /api/baking: the setting and what the render box can do here. */
-export type BakingState = { mode: BakeMode, box: { ok: boolean, libraryOnly: boolean, reason?: string } };
+export type BakingState = { mode: BakeMode, customCode: boolean, box: { ok: boolean, libraryOnly: boolean,
+  reason?: string } };
 
 /** GET /api/admin/stats (SPEC-access "Stats"): since the server started; `days` newest first, at most 7. */
 export type StatsDay = { day: string, visitors: number, people: number, views: number, requests: number,

@@ -85,12 +85,18 @@ function checkParam(d: ParamDecl, v: unknown, at: string, notes: string[]) {
   return typeof v === 'string' || isObj(v) ? v : (notes.push(`${at}: not a colour pick`), undefined);
 }
 
+const NO_CODE = 'this server takes no new code (an admin turned custom code off): compose from the library alone, '
+  + 'with no extensions';
+
 /** Expand a composition. `look` is a generated look for validateLook; `errors` what a repair round should fix. */
 export function expand(answer: unknown, catalog: Catalog) {
   const errors: ExpandError[] = [], notes: string[] = [], uses: Uses = { library: 0, extensions: 0, code: 0 };
   const a: Obj = isObj(answer) ? structuredClone(answer) : {}; // the answer stays as the model wrote it, for a repair
   const fail = (path: string, code: string, message: string) => { errors.push({ path, code, message }); };
   const globals: Obj = isObj(a.globals) ? { ...a.globals } : {};
+  /** False (and an error for the repair) for new code while custom code is off (src/custom-code.ts). */
+  const allowed = (code: unknown, at: string) => catalog.allows?.(String(code)) !== false
+    || (fail(at, 'no_code', NO_CODE), false);
 
   const exts = new Map<string, Obj>();
   (Array.isArray(a.extensions) ? a.extensions : []).forEach((e, i) => {
@@ -101,6 +107,7 @@ export function expand(answer: unknown, catalog: Catalog) {
     if (!new RegExp(`\\bfunction\\s+${fn}\\s*\\(`).test(String(e.code ?? ''))) {
       return fail(`${at}.code`, 'bad_extension', `a ${e.kind} defines function ${fn}(…)`);
     }
+    if (!allowed(e.code, `${at}.code`)) return;
     if (catalog.modules.has(e.name)) notes.push(`${at}: ${e.name} shadows the library's module`);
     exts.set(e.name, e);
   });
@@ -136,7 +143,7 @@ export function expand(answer: unknown, catalog: Catalog) {
       input: typeof u.input === 'string' ? u.input : undefined, as: u.as,
       on: typeof u.on === 'string' ? u.on : undefined };
     if (typeof u.use !== 'string' || !u.use) {
-      if (typeof u.code === 'string') return (uses.code++, u);
+      if (typeof u.code === 'string') return allowed(u.code, `${at}.code`) ? (uses.code++, u) : null;
       return (fail(`${at}.use`, 'unknown_module', 'use names a library module or ext:<name>'), null);
     }
     const ext = EXT.exec(u.use)?.[1];
@@ -224,7 +231,7 @@ export function expand(answer: unknown, catalog: Catalog) {
       const mods = tidy(l.modules.map((u, j) => useModule(u, `${at}.modules[${j}]`)), `${at}.modules`);
       return mods.length ? [{ ...place(l), modules: mods }] : [];
     }
-    if (typeof l.code === 'string') return (uses.code++, [l]);
+    if (typeof l.code === 'string') return allowed(l.code, `${at}.code`) ? (uses.code++, [l]) : [];
     return (fail(at, 'empty_layer', 'a layer gives "preset" or "modules"'), []);
   });
   const look = { title: a.title, summary: a.summary, duration: a.duration, bpm: a.bpm, layers,

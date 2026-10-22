@@ -15,20 +15,30 @@ export async function libraryHashes(dir: string) {
   return new Set(codes.flatMap((c) => (c === null ? [] : [sha256(c)])));
 }
 
-type Layer = { title?: unknown, code?: unknown, modules?: readonly { title?: unknown, code?: unknown }[] };
+type Module = { title?: unknown, code?: unknown, kind?: unknown, layers?: unknown };
+type Layer = { title?: unknown, code?: unknown, modules?: readonly Module[] };
+const named = (v: unknown) => (typeof v === 'string' ? v.slice(0, 60) : '');
+
+/** Where `layers` first has code that is not the library's ('' when none): a composite has none of its own, so its
+ * sub-layers' modules are looked through, named as its layer. */
+function custom(layers: readonly Layer[], library: ReadonlySet<string>, at = ''): string {
+  for (const [i, layer] of layers.entries()) {
+    const name = at || `Layer ${i + 1}${named(layer?.title) ? ` (${named(layer.title)})` : ''}`;
+    for (const m of Array.isArray(layer?.modules) ? layer.modules : [layer as Module]) {
+      if (m?.kind === 'composite' && Array.isArray(m.layers) && !m.code && Array.isArray(layer?.modules)) {
+        const inner = custom(m.layers, library, name);
+        if (inner) return inner;
+      } else if (typeof m?.code !== 'string' || !library.has(sha256(m.code))) {
+        return m !== layer && named(m?.title) ? `${name}'s ${named(m.title)}` : name;
+      }
+    }
+  }
+  return '';
+}
 
 /** Why the box without bubblewrap refuses `layers` ('' when each one's code is the library's, unchanged). */
 export function customCode(layers: readonly Layer[], library: ReadonlySet<string>) {
-  for (const [i, layer] of layers.entries()) {
-    const title = typeof layer?.title === 'string' ? layer.title.slice(0, 60) : '';
-    const name = `Layer ${i + 1}${title ? ` (${title})` : ''}`;
-    const parts = Array.isArray(layer?.modules) ? layer.modules : [layer];
-    const bad = parts.find((m) => typeof m?.code !== 'string' || !library.has(sha256(m.code)));
-    if (!bad) continue;
-    const what = bad !== layer && typeof bad?.title === 'string' && bad.title ? `${name}'s ${bad.title.slice(0, 60)}`
-      : name;
-    return 'This server bakes without bubblewrap, so only looks made of unchanged library patterns; '
-      + `${what} is custom code.`;
-  }
-  return '';
+  const what = custom(layers, library);
+  return what ? 'This server bakes without bubblewrap, so only looks made of unchanged library patterns; '
+    + `${what} is custom code.` : '';
 }

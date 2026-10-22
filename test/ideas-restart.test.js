@@ -45,7 +45,8 @@ test('with the real queue they finish, so the Ideas page stops waiting', async (
   const look = { title: 'Calm', summary: 's', layers: [{ title: 'Base', code: 'function pixel() { return 0.5; }' }] };
   const adapters = { stub: { generate: async () => look } };
   const generator = (deps) => createQueue({ ...deps, adapterName: 'stub', adapters });
-  const app = await createServer({ dataDir: dir, publicDir: PUBLIC, generator, renderBox: box, log: quiet });
+  const app = await createServer({ dataDir: dir, publicDir: PUBLIC, generator, renderBox: box, log: quiet,
+    customCode: true });
   try {
     await app.queue.idle();
     for (const id of [ids.queued, ids.generating]) {
@@ -62,7 +63,8 @@ test('with the real queue they finish, so the Ideas page stops waiting', async (
 test('with no generator they fail instead of waiting forever', async () => {
   const { dir, ids } = await leftover('none');
   const generator = () => ({ adapterName: 'none', enqueue: () => { throw new Error('no generator'); } });
-  const app = await createServer({ dataDir: dir, publicDir: PUBLIC, generator, renderBox: box, log: quiet });
+  const app = await createServer({ dataDir: dir, publicDir: PUBLIC, generator, renderBox: box, log: quiet,
+    customCode: true });
   try {
     for (const id of [ids.queued, ids.generating]) assert.equal(app.store.ideas.get(id).status, 'failed');
     assert.equal(app.store.ideas.get(ids.ready).status, 'ready');

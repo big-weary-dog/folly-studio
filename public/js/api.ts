@@ -126,7 +126,8 @@ export const api = {
   library: () => request<{ patterns?: LibraryEntry[] }>('GET', '/api/library'),
   /** The bake setting and the render box here (SPEC "Baked frames"); admins change the setting. */
   baking: () => request<BakingState>('GET', '/api/baking'),
-  saveBaking: (mode: BakeMode) => request<BakingState>('PUT', '/api/admin/baking', { mode }),
+  saveBaking: (body: { mode?: BakeMode, customCode?: boolean }) => request<BakingState>('PUT', '/api/admin/baking',
+    body),
   /** Visits, requests and the server since it started (SPEC-access "Stats"); admins only. */
   stats: () => request<ServerStats>('GET', '/api/admin/stats'),
 };
