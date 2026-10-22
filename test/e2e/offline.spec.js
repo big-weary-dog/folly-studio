@@ -1,6 +1,6 @@
 // npm run smoke, too: the Pi profile's Studio (SPEC-offline) at a laptop's and a phone's size. Signing up lands on
 // My looks, with no Ideas tab and a Lights link for a curator; /ideas goes to My looks; Import takes a file of looks
-// and Export all gives them back, to import again unchanged. Screenshots of each in the output, and no errors on the page.
+// and Export all gives them back (again: unchanged). Screenshots of each in the output, and no errors on the page.
 import { readFile } from 'node:fs/promises';
 
 import { expect, test } from './studio.js';
