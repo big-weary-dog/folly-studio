@@ -108,6 +108,8 @@ describe('the output transform', () => {
     assert.deepEqual(lightOf({ preview: { exposure: 9, bloom: 'x', focus: 0.1 } }).preview,
       { ...LIGHT.preview, exposure: 2, focus: 0.1 });
     assert.deepEqual(LIGHT.controller.map((c) => c.brightness), [0.8, 0.7], "the F48's own, recorded, never applied");
+    assert.deepEqual(lightOf({ calibration: { white: [3, 0.5], response: 0.1, saturation: 'x' } }).calibration,
+      { white: [2, 0.5, 1], response: 0.5, saturation: 1 });
   });
 });
 
@@ -146,6 +148,18 @@ describe('the preview transform', () => {
       .map((x) => +x.toFixed(5)), 'inside: × gain; outside: × gain × dim');
     assert.equal(shownLight(0.05, LIGHT), 0, 'off where the LEDs round to off');
     assert.ok(shownLight(0.05, { ...LIGHT, floor: 1 }) > 0, 'the floor lights it, on the screen as on the LEDs');
+  });
+
+  test('the calibration draws the real LEDs: white per colour, response, saturation; never the bytes', () => {
+    const cal = (c) => ({ ...LIGHT, calibration: { ...LIGHT.calibration, ...c } }), E = LIGHT.preview.exposure;
+    const draw = (l, rgb = [1, 0.5, 0]) => [...previewChannels(rgb, l, new Float32Array(3))].map((x) => +x.toFixed(5));
+    assert.deepEqual(draw(cal({ white: [1, 0.5, 2] }), [1, 1, 1]), [E, E / 2, 2 * E].map((x) => +x.toFixed(5)));
+    assert.equal(+shownLight(0.5, cal({ response: 2 })).toFixed(5), +(0.5 ** 4.4 * E).toFixed(5), 'light^response');
+    const grey = draw(cal({ saturation: 0 })), y = 0.2126 * E + 0.7152 * shownLight(0.5, LIGHT);
+    assert.deepEqual(grey, [y, y, y].map((x) => +x.toFixed(5)), 'saturation 0: the luminance, grey');
+    assert.deepEqual(draw(cal({ saturation: 2 }))[2], 0, 'more saturated, never below 0');
+    const calibrated = { calibration: { white: [0, 0.5, 2], response: 2, saturation: 0 } };
+    assert.deepEqual(out({ 0: [1, 0.5, 0.2] }, calibrated)(0), out({ 0: [1, 0.5, 0.2] })(0), 'the bytes take none');
   });
 });
 

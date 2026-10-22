@@ -53,14 +53,17 @@ function compiled(layerId: string, m: ReturnType<typeof layerModules>[number], k
 type ModuleReport = { id?: string, ok: boolean, params: Record<string, unknown>, upgraded?: unknown,
   error?: string };
 /** A chain's modules compiled, a composite's sub-layers too; each module's report into `reports` (flat, depth
- * first: SPEC-library "Composites"); the first enabled module's error into first.error. */
+ * first: SPEC-library "Composites"); the first enabled module's error into first.error, leaving out a switched-off
+ * composite's or sub-layer's. */
 function compileChain(layerId: string, mods: ReturnType<typeof layerModules>, keep: Set<string>,
   reports: ModuleReport[], first: { error: string, params: Record<string, unknown> | null }, modular: boolean) {
   const list: (CompiledLink | null)[] = [];
   for (const m of mods) {
     if (m.kind === 'composite') {
       reports.push({ id: m.id, ok: true, params: {} });
-      const subs = (m.layers ?? []).map((s) => compileChain(layerId, s.modules, keep, reports, first, modular));
+      const off = { error: '', params: {} };     // a switched-off composite's or sub-layer's errors don't count
+      const subs = (m.layers ?? []).map((s) => compileChain(layerId, s.modules, keep, reports,
+        m.enabled === false || s.enabled === false ? off : first, modular));
       list.push(m.enabled === false ? null : { kind: 'composite', subs });
       continue;
     }

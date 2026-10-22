@@ -1,7 +1,8 @@
 # Light and colour
 
-How a colour in Studio becomes light on the sculpture, and every correction on the way: where it is, why it is
-there, and the setting that tunes it. SPEC "Light and output" is the contract; this page is the reasoning.
+How a colour in Studio becomes light on the sculpture, how Studio draws that light, and every correction on the
+way: where it is, why it is there, and the setting that tunes it. The real LEDs are the truth: the Light page
+calibrates the previews to them and never changes what the Pi sends. SPEC "Light and output" is the contract; this page is the reasoning.
 
 ## Two kinds of number
 
@@ -26,9 +27,9 @@ it, and encode again (`toLight`, `toValue` and `addLight` in `core/light.ts`):
 | 50 % onto 25 %, `add` | 75 % | 54 % |
 | A lit LED's neighbour, Soften | its share of the value | its share of the light, encoded: brighter, so a lit edge doesn't sink into a dark rim |
 
-- **The curve is a fixed `v^2.2`, never the Light page's gamma.** The swatches are sRGB: 2.2 is their own curve, the
-  meaning of a colour value. The Light gamma corrects the LEDs to those swatches, at the output only, so tuning it
-  never changes a frame, a bake or a check's input, and the same look renders the same on every machine.
+- **The curve is a fixed `v^2.2`, never the output gamma.** The swatches are sRGB: 2.2 is their own curve, the
+  meaning of a colour value. The output gamma is the Pi's, at the output only, so it never changes a frame, a bake or
+  a check's input, and the same look renders the same on every machine.
 - **What scales stays in values**: alpha, level, Amount, clip fades, `over` and `mix()` on numbers (a slider's 0.5
   should look half). They scale a value before it is added.
 - **`max` and `multiply` are unchanged**: under a power curve the brighter value has the brighter light, and a
@@ -73,7 +74,7 @@ flowchart LR
   P --> X["F48: gamma None,<br/>port brightness 80 % / rose 70 %"]
   X --> LED["LEDs (light)"]
   E --> FPP["FPP → F48"] --> X
-  F --> V["Preview transform<br/>v^gamma unrounded × gain × dim × exposure"]
+  F --> V["Preview transform<br/>v^gamma unrounded, calibrated, × gain × dim × exposure"]
   B --> V
   V --> S["Points, Playa<br/>(one sRGB encode for the screen)"]
 ```
@@ -83,15 +84,16 @@ flowchart LR
 | Where | What | Why | Tune it |
 |---|---|---|---|
 | The engine's add and blur (`core/light.ts` `addLight`) | `value = (Σ v^2.2)^(1/2.2)`; blur averages light the same way | Light adds, values don't: two 50 % layers make 68 %, not 100 % | None: 2.2 is the swatches' curve, part of what a colour means |
-| Output transform (`core/light.ts` `ledChannels`) | `byte = round(255 · min(1, v^gamma · balance[colour] · trim[LED] · cap))` | Turns perceptual values into the PWM that looks like them. One curve, applied once, in float, rounded once at the end. While the cap holds (two frames running, no trims) it goes by a table of each byte's least value, which sends exactly the same bytes in a seventh of the time | Light page (Admin › Light): Gamma (default 2.2) |
-| Same, `balance` | × each colour's share | Matches the LEDs' white to the eye: trim the colour that runs strong. Never above 100 %: that would only clip | Light page: Red/Green/Blue balance (default 100 %) |
-| Same, `floor` | A lit channel never sends less than `floor` | 8 bits run out at the bottom: at gamma 2.2 any value under about 0.06 rounds to 0, so a faint bed vanishes. The floor keeps it glowing (at the cost of the very bottom of a fade looking stepped) | Light page: Floor (default 0, off) |
-| Same, `trim` | A group's light × its level, by rig tag | A part that runs bright (denser LEDs, a different strip) can match the rest | Light page: Trims (none by default) |
+| Output transform (`core/light.ts` `ledChannels`) | `byte = round(255 · min(1, v^gamma · balance[colour] · trim[LED] · cap))` | Turns perceptual values into the PWM that looks like them. One curve, applied once, in float, rounded once at the end. While the cap holds (two frames running, no trims) it goes by a table of each byte's least value, which sends exactly the same bytes in a seventh of the time | `light.json` by hand: `gamma` (default 2.2). The Light page shows it, never edits it |
+| Same, `balance` | × each colour's share | Trims the colour that runs strong. Never above 100 %: that would only clip | `light.json`: `balance` (default 100 %) |
+| Same, `floor` | A lit channel never sends less than `floor` | 8 bits run out at the bottom: at gamma 2.2 any value under about 0.06 rounds to 0, so a faint bed vanishes. The floor keeps it glowing (at the cost of the very bottom of a fade looking stepped) | `light.json`: `floor` (default 0, off) |
+| Same, `trim` | A group's light × its level, by rig tag | A part that runs bright (denser LEDs, a different strip) can match the rest | `light.json`: `trims` (none by default) |
 | Same, `cap` | Light × the Pi's master × blackout × fade, or Export's Brightness | A cap after the curve scales light, so dimming never shifts a hue (as WLED and FPP do). Before the curve it would, and it would also land the dim deep in the crushed bottom | The Pi's master; Export's Brightness |
 | The F48 (the controller's own settings) | Port brightness 80 % (ports 5–32), 70 % (the rose, 33–48); gamma None | The electrical and thermal backstop, set on the controller. Its gamma is None so ours is the only curve | On the Falcon only. The Light page records them, and Studio never applies them |
-| Bake checks (`src/frames.ts`, `core/flash.ts`) | Each baked byte → its light through the same curve (`ledLight`) | Dark, harsh, flashing and power are about light, not colour values | Follows the Light page; judged at full output (no caps or trims), with the settings the bake ran with |
+| Bake checks (`src/frames.ts`, `core/flash.ts`) | Each baked byte → its light through the same curve (`ledLight`) | Dark, harsh, flashing and power are about light, not colour values | Follows the output fields; judged at full output (no caps or trims), with the settings the bake ran with |
 | The Pi's live flash guard | The same, × the master | Watches what actually goes out | Follows the Pi's light.json |
-| Preview transform (`core/light.ts` `previewChannels`, both views) | Each value's LED light, `v^gamma`, unrounded but off where the LEDs round to off, at least the floor | The views show what the LEDs give, not the colour values: a 50 % swatch shows 22 % of full's light on screen as on the sculpture | Follows Gamma and Floor. Balance and trims stay out: they make the LEDs match the swatches, which the screen already does |
+| Preview transform (`core/light.ts` `previewChannels`, both views) | Each value's LED light, `v^gamma`, unrounded but off where the LEDs round to off, at least the floor, × balance | The views show what the LEDs give, not the colour values: a 50 % swatch shows 22 % of full's light on screen as on the sculpture | Follows the output fields; trims stay out |
+| Same, `calibration` | Light^`response` × each colour's `white`, then `saturation` about the luminance (Rec. 709 weights), in light | The real LEDs are not an sRGB screen: their white leans, their primaries run deeper, their light may not follow the PWM. Set from photos of the real lights beside the preview, so the render shows what shows up | Light page: Red/Green/Blue white (0..200 %), Response (0.5..2), Saturation (0..200 %); 100 %, 1, 100 % draw the swatches |
 | Same, `gain` and the dims | Light × the flash guard's dim or the Live master; × the highlight's or the focus's dim outside it | Applied once, in light, before either view draws, so Points and Playa dim alike, and the Live master shows as the Pi gives it | Light page: Highlight dim (22 %), Focus dim (5 %) |
 | Same, `exposure` | Light × exposure | Where full drive sits on the screen. 0.85 is Playa's tone-map shoulder: below it every level shows in proportion; above, the top compresses (Playa) or clips (Points) | Light page: Exposure (default 85 %) |
 | Points (`viewer-gl.ts`) | A sprite whose profile peaks at 1; overlapping sprites take the brighter (max), not the sum | The sprite's centre is the LED's light; a sum of encoded halos overshot (+36 green on a full orange rig) | None |
@@ -111,7 +113,7 @@ dimmed twice.
 | Light | 100 % | 52.9 % | 21.6 % | 4.7 % | 0.8 % | 0.4 % | 0 |
 | On screen, Points and Playa (exposure 0.85) | 237 | 179 | 119 | 57 | 17 | 6 | 0 |
 
-The Light page shows this table live as gamma, the floor and the exposure change. `test/light.test.js` pins it, and
+The Light page shows this table live as the calibration and the exposure change. `test/light.test.js` pins it, and
 the probes below read the same pixels off the GPU.
 
 ### Why rounding once is not enough at the bottom
@@ -123,9 +125,9 @@ a bed at 0.15 or more.
 
 ## Where the settings live
 
-- Studio: `<STUDIO_DATA>/light.json`, edited on the admin **Light** page (`PUT /api/admin/light`). Missing or
-  unreadable, every field is its default; a field missing from the file is its default. Export and every new bake
-  read it.
+- Studio: `<STUDIO_DATA>/light.json`. The admin **Light** page (`PUT /api/admin/light`) edits the calibration and
+  the previews' display, and shows the output fields, which change only by hand. Missing or unreadable, every field
+  is its default; a field missing from the file is its default. Export and every new bake read it.
 - The Pi connects to nothing, so it reads the same record from `pi/light.json`: the Light page's **Download for the
   Pi**, copied over. The host's dry-run Pi (`deploy/host.sh`) reads Studio's own file.
 - Not in `rig.json`: that is the installation's map, built from the pixel map, and these are how we drive it.
