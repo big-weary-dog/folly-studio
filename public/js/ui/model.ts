@@ -3,8 +3,9 @@ import { api, fetchJSON } from '../api.ts';
 import { pixelsForGroups, prepareScene } from '../core/scene.ts';
 import { BLUR_MODES, DEFAULT_SOFTEN, MAX_RADIUS } from '../core/spatial.ts';
 import { isStageEnd } from '../core/warps.ts';
-import type { Globals, Layer as Saved, Module, Palette, Soften } from '../../../shared/schemas/look.ts';
+import type { Globals, Layer as Saved, Module, Palette, Soften, SubLayer } from '../../../shared/schemas/look.ts';
 import type { LibraryEntry, ModuleEntry, PresetEntry, Rig, RigGroup } from '../../../shared/schemas/rig.ts';
+import { flatModules } from '../core/tree.ts';
 import { randomId } from './kit.tsx';
 
 /** A layer as the Studio holds it (SPEC "Modules"): a chain, never code and params; `enabled: false` when silent. */
@@ -29,7 +30,8 @@ export const BLEND_MODES: { value: Blend; label: string; help: string }[] = [
   { value: 'max', label: 'Max', help: 'Keeps the brighter channel' },
   { value: 'multiply', label: 'Multiply', help: 'Tints what is below' },
 ];
-export const KIND_LABELS: Record<Kind, string> = { source: 'Source', warp: 'Warp', filter: 'Filter' };
+export const KIND_LABELS: Record<Kind, string> = { source: 'Source', warp: 'Warp', filter: 'Filter',
+  composite: 'Composite' };
 const isBlend = (b: unknown): b is Blend => BLEND_MODES.some((x) => x.value === b);
 
 const BLANK: Record<Kind, string> = { source: `// A new layer. Describe what it does here.
@@ -64,7 +66,7 @@ function filter(c, q, t, P, G, x) {
   for (let i = 0; i < 3; i++) c[i] = mix(c[i], v, P.amount);
   return c;
 }
-` };
+`, composite: '' };
 
 /** A new module. */
 export function makeModule({ kind = 'source', title, code, ref, params = {} }: Partial<Module> = {}): Module {
@@ -149,8 +151,15 @@ function cleanModule(m: Partial<Module>): Module {
     ...(kind === 'source' && m.as === 'input' ? { as: 'input' } : {}),
     ...(isBlend(m.blend) || m.blend === 'under' ? { blend: m.blend } : {}),
     ...(m.enabled === false ? { enabled: false } : {}),
+    ...(kind === 'composite' ? { layers: (m.layers ?? []).map((l) => cleanSub(l)) } : {}),
   };
 }
+
+/** Only the fields a saved sub-layer keeps (SPEC-library "Composites"). */
+export const cleanSub = (l: SubLayer): SubLayer => ({ id: String(l.id), title: String(l.title || 'Sub-layer'),
+  modules: l.modules.map(cleanModule), ...(l.blend ? { blend: l.blend } : {}),
+  ...(typeof l.level === 'number' ? { level: l.level } : {}), ...(l.groups ? { groups: [...l.groups] } : {}),
+  ...(l.tags?.length ? { tags: [...l.tags] } : {}), ...(l.enabled === false ? { enabled: false } : {}) });
 
 /** mods with m after the selected module, so it works on it; a filter that reads its input (x) takes the nearest
  * hidden source above it. */
@@ -170,11 +179,12 @@ export type Reach = { kind: Kind | 'input'; from: number; to: number; lane?: num
  * a filter; else its kind), and the reaches, rows `from` to `to`: each enabled warp or filter over everything above it
  * up to a stage's end (isStageEnd), and a filter's input feed. Lane 0 is outermost; one inside a longer one, lane 1. */
 export function chainWires(mods: Module[]) {
-  const on = (m: Module) => m.enabled !== false, size = (r: Reach) => r.to - r.from, reaches: Reach[] = [];
-  const first = mods.findIndex((m) => on(m) && m.kind === 'source' && m.as !== 'input');
+  const on = (m: Module) => m.enabled !== false, isSrc = (m: Module) => m.kind === 'source' || m.kind === 'composite';
+  const size = (r: Reach) => r.to - r.from, reaches: Reach[] = [];
+  const first = mods.findIndex((m) => on(m) && isSrc(m) && m.as !== 'input');
   let top = 0;
   mods.forEach((m, i) => {
-    if (!on(m) || m.kind === 'source') return;
+    if (!on(m) || isSrc(m)) return;
     if (i > top) reaches.push({ kind: m.kind, from: top, to: i });
     const src = m.kind === 'filter' ? mods.findIndex((s) => s.id === m.input && on(s)) : -1;
     if (src >= 0 && src < i) reaches.push({ kind: 'input', from: src, to: i });
@@ -182,7 +192,7 @@ export function chainWires(mods: Module[]) {
   });
   reaches.forEach((r, i) => { r.lane = reaches.some((o, j) => o.from <= r.to && r.from <= o.to
     && (size(o) > size(r) || (size(o) === size(r) && j < i))) ? 1 : 0; });
-  return { first, reaches, joins: mods.map((m, i) => (m.kind !== 'source' ? m.kind : m.as === 'input' ? 'input'
+  return { first, reaches, joins: mods.map((m, i) => (!isSrc(m) ? m.kind : m.as === 'input' ? 'input'
     : m.blend || (i === first ? 'over' : 'add'))) };
 }
 
@@ -212,7 +222,7 @@ export function normaliseLayers(layers: unknown, rig: Rig | null) {
     if (!c.id || seen.has(c.id)) c.id = randomId('l');
     seen.add(c.id);
     const mods = new Set<string>();
-    for (const m of c.modules) { if (mods.has(m.id)) m.id = randomId('m'); mods.add(m.id); }
+    for (const m of flatModules(c.modules)) { if (mods.has(m.id)) m.id = randomId('m'); mods.add(m.id); }
     c.groups ??= c.tags ? [] : [rootId(rig)];      // none given: the whole rig; [] stays: nothing
     return c;
   });

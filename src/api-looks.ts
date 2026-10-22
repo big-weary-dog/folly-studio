@@ -1,5 +1,5 @@
 // The looks routes of the HTTP API (SPEC "HTTP API"): list, create, read, edit (with versions and review), delete,
-// bake and the gallery preview (SPEC "Gallery previews"). Who may see a look: its owner, or anyone signed in when it
+// bake and the gallery preview (SPEC-previews). Who may see a look: its owner, or anyone signed in when it
 // is shared. Bodies are checked by the shared schemas (shared/schemas/api.ts, look.ts); chains from before the one
 // rule are converted (shared/chain-order.ts).
 import { promises as fs } from 'node:fs';

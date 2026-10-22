@@ -182,6 +182,30 @@ of its input, or with `by: 'self'` the luminance of what is above it (so it keep
 that `scatter` moves per LED by `(rand(k, seed) − 0.5) × scatter` (0: one cutoff). `petal-mask` is mask by the petals its `petals` text
 names (a sector each; off the rose, the sixteenth of a turn its angle round the layer's centre falls in, as by region).
 
+## Composites
+
+A **composite** is a chain module (`kind: 'composite'`, no code) that holds 1–4 **sub-layers**, each `{ id, title,
+modules, blend?, level?, groups?, tags?, enabled? }`: a chain of its own (every rule above holds inside it) that
+combines onto the sub-layers listed before it by its `blend` (`over` for the first, `add` after; `under` too), scaled by
+`level`, and plays only on its `groups` or `tags` within the layer (none: everywhere the layer plays). To the chain
+round it a composite is one source: it combines by its own `blend` (or `as: 'input'`), a filter's `input` may name it,
+and the modules after it work on all of it, so a warp after a composite bends every sub-layer and a source after it
+draws on top. Per pixel, in the same one pass: a composite reads its slot's pixel `q` (bent by the warps after it), and
+each sub-layer runs on a copy of `q` (bent by its own warps) into a colour of its own, transparent at the start; a
+sub-layer plays on its groups' LEDs as a layer does, at the real LED, so a warp after the composite bends what each
+sub-layer draws but not where it plays (as a layer's Plays on). Module ids are unique across the whole layer,
+sub-layers' too. A sub-layer holds no stage end (its colours are at bent pixels, not real LEDs) and composites nest
+two deep at most (a composite in a sub-layer holds none); a failing module inside one is reported by its own id. Each
+sub-layer's modules count toward its own limit of 8.
+
+In the Studio's chain (`ui/chain-tree.tsx`) a composite is a violet row whose name (in full, never cut short) opens
+and shuts its sub-layers, nested under it; shut, it says what it holds ("2 sub-layers · 4 modules"). Open, it shows
+its name, then each sub-layer as a head (a grip, Sub N, its name, blend, Plays on, on, delete) over its chain, drawn
+as a layer's, and + Sub-layer (a module from the shelf). A module's grip drags it into or out of any sub-layer (Alt+↑/↓
+steps it through the same places); a sub-layer's grip (or Alt+↑/↓ on its name) reorders its composite's sub-layers.
+⧉ Composite in the chain's head puts the selected module in a new composite of one sub-layer; on such a composite it
+is Ungroup, its modules back in its place.
+
 ## Library
 
 `public/patterns/index.json` lists the library, one entry each `{ name, title, summary, tags, kind, category }`

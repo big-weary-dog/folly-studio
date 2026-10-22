@@ -13,6 +13,7 @@ import { replaceUrl, setTitle } from './session.ts';
 import { pref, reducedMotion, toast } from './kit.tsx';
 import { type AiStep, changes, CONTENT, createSteps, type EditOptions, type Step } from './history/steps.ts';
 import { createLayerStatus } from './layer-status.ts';
+import { flatModules, mapEvery, mapModule } from '../core/tree.ts';
 import {
   buildGroupIndex, cleanLayer, type GroupIndex, type Layer, layerFromPattern, newLayer, normaliseLayers,
 } from './model.ts';
@@ -86,7 +87,8 @@ export function createStudio(me: User | null) {
   const selected = computed(() => look.value.layers.find((l) => l.id === selectedId.value) || null);
   const module = computed(() => {
     const l = selected.value, id = l && picked.value[l.id];
-    return l ? l.modules.find((m) => m.id === id) || l.modules.find((m) => m.kind === 'source') || l.modules[0] : null;
+    return l ? flatModules(l.modules).find((m) => m.id === id) || l.modules.find((m) => m.kind === 'source')
+      || l.modules[0] : null;
   });
   /** What the dock's head shows: the layer › its module; the editor's problem. */
   const lookId = computed(() => look.value.id);
@@ -101,7 +103,7 @@ export function createStudio(me: User | null) {
     const L = look.value;
     const layers = L.layers.map((l) => {
       const c = cleanLayer(l);
-      c.modules = c.modules.map((m) => ({ ...m, code: status.codeFor(l.id, m) }));
+      c.modules = mapEvery(c.modules, (m) => ({ ...m, code: status.codeFor(l.id, m) }));
       return silent(l.id) ? { ...c, level: 0, enabled: false } : c;
     });
     return { layers, extra: extrasOf(L) };
@@ -161,8 +163,8 @@ export function createStudio(me: User | null) {
     },
     /** Change a module; a standard one keeps the library's name (standard-modules.ts). */
     editModule(layerId: string, id: string, fn: (m: Module) => Partial<Module>, o?: EditOptions) {
-      st.editLayer(layerId, (l) => ({ modules: keepStandardTitles(l.modules.map((m) => (m.id === id
-        ? { ...m, ...fn(m) } : m)), data.library) }), o);
+      st.editLayer(layerId, (l) => ({ modules: keepStandardTitles(mapModule(l.modules, id, (m) => ({ ...m, ...fn(m) })),
+        data.library) }), o);
     },
     editGlobals(fn: (g: Globals) => Globals, o?: EditOptions) {
       st.edit((L) => ({ globals: fn({ ...L.globals }) }), o);

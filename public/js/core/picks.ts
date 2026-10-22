@@ -57,7 +57,7 @@ export const pickText = (groups: readonly (readonly Token[])[]) => groups.map((g
   .map((t) => (typeof t === 'string' ? t : hexOfRgb(t))).join(' ')).join('/');
 
 /** What a role's tokens expand to and what pal(role) walks; `fallback` stands in for an empty role. */
-export type Roles = { palette: PaletteColours, lists: Readonly<Record<PaletteRole, Stops>>,
+type Roles = { palette: PaletteColours, lists: Readonly<Record<PaletteRole, Stops>>,
   table: Readonly<Record<string, Slot>>, fallback: Slot };
 
 /** A token's colours: a role, a slot (a missing one: nothing), all, rainbow, a literal. */
@@ -75,7 +75,7 @@ function expandToken(t: Token, R: Roles, step: boolean, out: (readonly number[])
 
 /** A pick's stops: each group's tokens in order (a group of missing slots: their roles), groups dealt in turn, the
  * shorter ones wrapping; nothing at all: the fallback. */
-export function pickStops(groups: readonly (readonly Token[])[], R: Roles, step: boolean): Stops {
+function pickStops(groups: readonly (readonly Token[])[], R: Roles, step: boolean): Stops {
   const lists = [];
   for (const g of groups) {
     const out: (readonly number[])[] = [];
@@ -103,7 +103,7 @@ function newSlot(stops: Stops, step: boolean, range: Range | null, rotate: numbe
 
 /** Rotate r (turns, wrapping): a smooth walk shifts along the stops, the wrap included; step holds each stop and
  * crossfades to the next over the last fifth of it, so a turning pick never cuts. `plain`: exactly the old ramp. */
-export function turnSlot(s: Slot, r: number) {
+function turnSlot(s: Slot, r: number) {
   const f = r - Math.floor(r), x = (f >= 0 ? f : 0) * s.stops.length, k = Math.floor(x), e = (x - k - 0.8) / 0.2;
   s.turn = r; s.shift = x; s.k = k; s.w = e > 0 ? e * e * (3 - 2 * e) : 0;
   s.plain = !s.step && x === 0 && s.lo === 0 && s.span === 1;
@@ -115,7 +115,7 @@ function mixInto(L: Stops, i: number, w: number, out: number[]) {
 }
 
 /** The colour at t (0..1, clamped) along a slot: equal bands (step) or a ramp (smooth), range and rotate applied. */
-export function walkSlot(s: Slot, t: number, out: number[]) {
+function walkSlot(s: Slot, t: number, out: number[]) {
   const n = s.stops.length, u = s.lo + s.span * (t > 0 ? (t < 1 ? t : 1) : 0);
   if (s.step) {
     const i = Math.floor(u * n);

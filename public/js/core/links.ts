@@ -8,9 +8,9 @@ import { rand } from './stdlib.ts';
 import { MAX_RADIUS, neighbourGraph } from './spatial.ts';
 
 /** Metres: a strand's next LED further than this is a separate piece (floods); other strands this close touch. */
-export const CHAIN_GAP = 1, TOUCH = 0.5;
+const CHAIN_GAP = 1, TOUCH = 0.5;
 /** Metres: the next strand of a zone within RUNG links to it, a rung every RUNG_EVERY of wire. */
-export const RUNG = MAX_RADIUS, RUNG_EVERY = 1;
+const RUNG = MAX_RADIUS, RUNG_EVERY = 1;
 
 /** A map as CSR over the rig's pixels: k's neighbours are nb[off[k]] … nb[off[k + 1] − 1], by index. */
 export type LinkMap = { off: Int32Array, nb: Int32Array };
@@ -76,7 +76,7 @@ export function layerLinks(S: Scene, idx: Int32Array): Links {
 }
 
 /** The map between `tag`'s parts within a layer: a part (by its index) per row, linked where their LEDs link. */
-export function partLinks(S: Scene, idx: Int32Array, tag: string): Links {
+function partLinks(S: Scene, idx: Int32Array, tag: string): Links {
   const g = layerLinks(S, idx), { of, n } = tagParts(S, tag), pairs = new Set<number>(), has = new Uint8Array(n);
   for (const k of idx) {
     const a = of[k];
@@ -112,7 +112,7 @@ export function links(tag?: string): Links {
 /** Metres: a piece the wiring never reaches from `from` starts this much after its straight-line distance; the band
  * of LEDs a start takes in: each network's highest (or lowest) for `top` (`bottom`), each group's nearest its
  * centre. */
-export const WIRE_LAG = 2, WIRE_BAND = 0.1;
+const WIRE_LAG = 2, WIRE_BAND = 0.1;
 type PerLayer = WeakMap<object, Map<string, Float64Array>>;
 const DISTANCES: PerLayer = new WeakMap(), ROWS: PerLayer = new WeakMap();
 /** A layer's array under `key`, made the first time it is asked. */

@@ -136,7 +136,8 @@ layers.slice(0, LIMITS.layers).forEach((layer: any, i: number) => {
   try { compiled = core.compileLayer(l); } catch (e) { return errors.push(`${name}: does not compile: ${why(e)}`); }
   // A tag choice (anchor, in-turn) naming a tag no group on this rig has does nothing.
   compiled.forEach((c, j) => {
-    const spec = c?.params.tag, given = (chain ? modules[j]?.params : layer.params)?.tag;
+    const spec = c && 'params' in c ? c.params.tag : undefined;
+    const given = (chain ? modules[j]?.params : layer.params)?.tag;
     if (spec?.type !== 'choice') return;
     const tag = spec.options.includes(given) ? given : spec.value;
     const what = chain ? `${name}, module ${j + 1}` : name;

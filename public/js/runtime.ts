@@ -7,6 +7,7 @@ import type { Automation, Globals } from '../../shared/schemas/look.ts';
 import type { LibraryEntry, Rig } from '../../shared/schemas/rig.ts';
 import SANDBOX_URL from '../sandbox.html?sandbox';
 import type { LiveSet } from './live-set.ts';
+import { flatModules } from './core/tree.ts';
 import type { LayerInput, Light } from './pattern-core.ts';
 import type { RelayCfg } from './relay-ahead.ts';
 import type { Layer } from './ui/model.ts';
@@ -234,7 +235,8 @@ export class Runtime {
     this.lookVersion++;
     this._post({ type: 'look', ...this.extra, layers: this.layers });
     if (this.liveSet) this.liveDirty = true;
-    this.lookQueue.push(new Map(this.layers.map((l) => [l.id, new Map(l.modules.map((m) => [m.id, m.code]))])));
+    const codes = (l: Layer) => new Map(flatModules(l.modules).map((m) => [m.id, m.code]));
+    this.lookQueue.push(new Map(this.layers.map((l) => [l.id, codes(l)])));
   }
 
   /** A frame came back; while playing, one that came late asks for the next at once. */
