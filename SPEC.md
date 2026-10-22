@@ -144,9 +144,9 @@ from before unless the camera moved meanwhile). It draws only when something cha
 Playa; the view's LEDs button is Points):
 
 Both modes show light, through one preview transform (`previewChannels`, core/light.ts), applied once before either
-draws: each value's light on the LEDs (`v^gamma`, unquantised; off where the LEDs round to off; the `floor`) × the
-`gain` × a highlight's dim outside it, all linear as the Pi's master is, × `exposure` (where full drive sits on the
-screen: 0.85, Playa's shoulder, by default). Balance and trims are left out: they make the LEDs match the swatches.
+draws: each value's light on the LEDs (`v^gamma` × `balance`, unquantised; off where the LEDs round to off; the
+`floor`; no trims), through the `calibration`, × the `gain` × a highlight's dim outside it, all linear as the Pi's
+master is, × `exposure` (full drive's screen light).
 The views encode light to sRGB for the screen with one encode; an unlit LED's faint ghost never shows under a lit one.
 
 - **Points** (LEDs): every LED a glowing sprite over a ground grid, the sprite's peak its light, overlapping sprites
@@ -187,13 +187,13 @@ How a colour value becomes light (docs/LIGHT.md has the why and every number):
   The Falcon's own gamma is None, so this is the only curve. Export's .fseq and the Pi use it; bakes and the preview
   keep the encoded values (`toChannels`), and the bake checks decode those bytes through the same curve (`ledLight`).
 - **Caps are linear and come after the curve**: the Pi's master, blackout and fade, Export's Brightness and each
-  group's `trim` scale light, as WLED's and FPP's brightness do, so dimming never shifts a colour's hue. The Falcon's
-  port brightness (80 %, the rose's 70 %) is the electrical backstop, set on the controller and never repeated here.
+  group's `trim` scale light, as WLED's and FPP's brightness do, so dimming never shifts a colour's hue.
 - **The checks judge the look at full output**: `gamma`, `balance` and `floor`, never the caps.
 
 The light settings, `shared/schemas/light.ts`, are stored once: `<STUDIO_DATA>/light.json`, written by the Light page
 (Admin) and read by Export, the bake checks and the previews; the Pi reads the same shape from `pi/light.json`
-(the Light page's "Download for the Pi"). Missing, unreadable or out of range, each field is its default:
+(the Light page's "Download for the Pi"). The page edits only `calibration` and `preview`, never what the LEDs get.
+Missing, unreadable or out of range, each field is its default:
 
 ```
 { gamma: 2.2,              // 1..3: light = v^gamma
@@ -201,7 +201,8 @@ The light settings, `shared/schemas/light.ts`, are stored once: `<STUDIO_DATA>/l
   floor: 0,                // 0..16: the least byte a lit channel sends (v ≥ 0.5/255); 0 lets the curve round to off
   trims: [],               // ≤ 32 of { tag, level 0..1 }: a group's light × level, by the rig's group tags
   controller: [{ ports, brightness, gamma }],    // ≤ 16: the controller's own settings, recorded, never applied
-  preview: { exposure: 0.85, // 0.1..2: the screen light of full drive (above 0.85 Playa compresses; Points clips at 1)
+  calibration: { white: [1, 1, 1], response: 1, saturation: 1 }, // the real LEDs' look: docs/LIGHT.md
+  preview: { exposure: 0.85, // 0.1..2: the screen light of full drive (above, Playa compresses; Points clips at 1)
     bloom: 0.4,              // 0..1: Playa's glow round bright light; 0 is off
     highlight: 0.22,         // 0..1: the light left outside a hover highlight
     focus: 0.05 } }          // 0..1: the light left outside a layer's groups while picking them
