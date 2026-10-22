@@ -20,7 +20,7 @@ export const HOUR_MS = 60 * 60 * 1000;
 export const DAY_MS = 24 * HOUR_MS;
 const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 /** A code as typed → as hashed: upper case, without spaces or dashes. */
-export const normalise = (code: string) => code.toUpperCase().replace(/[\s-]+/g, '');
+const normalise = (code: string) => code.toUpperCase().replace(/[\s-]+/g, '');
 const newCode = () => Array.from({ length: 12 }, () => ALPHABET[randomInt(ALPHABET.length)]).join('')
   .replace(/(.{4})(?=.)/g, '$1-');
 const DEFAULTS = GlobalLimits.parse({});

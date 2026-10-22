@@ -28,7 +28,7 @@ const DIST = fileURLToPath(new URL('../page/dist', import.meta.url));
 /** `who`: a page's person (null: Studio's feed, which follows for /live and is no one watching). */
 type Client = { ws: WebSocket, ok: boolean, who: Who | null, tokens: number, at: number, over: number,
   warned: boolean };
-export type ServerOptions = { engine: Engine, lib: Library, state: () => EngineState, pin: string, port: number,
+type ServerOptions = { engine: Engine, lib: Library, state: () => EngineState, pin: string, port: number,
   host: string, mode?: Mode, relay?: Relay,
   base?: string, dist?: string, log?: (line: string) => void, now?: () => number };
 

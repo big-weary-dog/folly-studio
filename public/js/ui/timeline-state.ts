@@ -12,7 +12,7 @@ import {
   addClip, cleanDuration, clock, contentEnd, DEFAULT_DURATION, importLook, removeClip, snapStep,
 } from './timeline-model.ts';
 
-export const NAMES_W = 112;           // the layer-name column on a wide screen
+const NAMES_W = 112;           // the layer-name column on a wide screen
 const MAX_PPS = 200;                  // pixels a second, fully zoomed in
 const MAX_WIDTH = 120000;             // and never wider than this
 

@@ -73,7 +73,7 @@ export function fenceUntrusted(text: unknown) {
   return `${fence} text\n${t}\n${fence}`;
 }
 
-export function renderBrief(template: string, { text, library = [], rig, groups = rig?.groups || [], lookPath }:
+function renderBrief(template: string, { text, library = [], rig, groups = rig?.groups || [], lookPath }:
   Partial<Context> & { lookPath: string }) {
   const dir = path.dirname(lookPath);
   const vals: Record<string, string> = {

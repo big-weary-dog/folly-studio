@@ -195,7 +195,7 @@ export function upload(v: Viewer) {
 }
 
 /** The ground grid round the cathedral's footprint. */
-export function buildGrid(v: Viewer) {
+function buildGrid(v: Viewer) {
   if (!v.ok) return;
   const gl = v.gl;
   const c = v.center;

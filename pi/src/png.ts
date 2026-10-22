@@ -15,7 +15,7 @@ function chunk(type: string, data: Buffer) {
 }
 
 /** RGB pixels (w × h × 3) as a PNG file. */
-export function encodePng(w: number, h: number, rgb: Uint8Array) {
+function encodePng(w: number, h: number, rgb: Uint8Array) {
   const raw = Buffer.alloc(h * (w * 3 + 1));
   for (let y = 0; y < h; y++) raw.set(rgb.subarray(y * w * 3, (y + 1) * w * 3), y * (w * 3 + 1) + 1);
   const head = Buffer.alloc(13);
