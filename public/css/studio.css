@@ -30,9 +30,13 @@ body[data-view=studio] { --side-w: clamp(340px, 25vw, 480px); --drawer-w: 0px; o
 .studio-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 6px 14px;
   background: var(--night-1); border-bottom: var(--came) solid var(--lead); }
 .bar-title { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; }
-.studio .look-title { min-width: 0; width: min(420px, 100%); margin-left: -8px; padding: 4px 8px; font-size: 19px;
+.studio .look-title { min-width: 0; width: 100%; margin-left: -8px; padding: 4px 8px; font-size: 19px;
   font-weight: 650; text-overflow: ellipsis; background: none; border-color: transparent; box-shadow: none; }
-.studio .look-title:hover { box-shadow: var(--rim); }
+.bar-words { display: flex; flex-direction: column; min-width: 0; width: min(420px, 100%); }
+.studio .look-summary { min-width: 0; width: 100%; margin-left: -8px; padding: 0 8px; min-height: 0; font-size: 13px;
+  color: var(--text-2); text-overflow: ellipsis; background: none; border-color: transparent; box-shadow: none; }
+.studio .look-title:hover, .studio .look-summary:hover { box-shadow: var(--rim); }
+.studio .look-summary:focus { border-color: var(--focus); background: var(--night-0); }
 .studio .look-title:focus { border-color: var(--focus); background: var(--night-0); }
 .save-state { font-size: 12.5px; color: var(--text-3); white-space: nowrap; }
 .save-state[data-state=dirty] { color: var(--amber); }
@@ -295,8 +299,7 @@ textarea.code:disabled { color: var(--text-3); }
 .library-item.blank { border-style: dashed; }
 .library-title { font-size: 15.5px; font-weight: 650; }
 .library-summary { color: var(--text-2); font-size: 13px; }
-.details-form, .export-fields { display: flex; flex-direction: column; gap: 14px; }
-.details-form textarea { resize: vertical; }
+.export-fields { display: flex; flex-direction: column; gap: 14px; }
 .export-info { color: var(--text-3); font-size: 13px; }
 .export-progress { width: 100%; height: 8px; accent-color: var(--amber); }
 .export-status { font-size: 13.5px; color: var(--text-2); min-height: 1.4em; }
@@ -311,7 +314,8 @@ textarea.code:disabled { color: var(--text-3); }
   .splitter, .save-state, .bar-actions .share-toggle, .menu-wrap, .wide-only, .collapse-btn { display: none !important;
   }
   .studio .narrow-only { display: inline-flex; }
-  .studio .look-title { font-size: 17px; width: 100%; }
+  .studio .look-title { font-size: 17px; }
+  .studio .look-summary { display: none; }
   .studio.is-dirty .save-btn::after { content: ''; position: absolute; top: 4px; right: 4px; width: 9px; height: 9px;
     color: var(--amber); background: var(--qf); }
   .studio .studio-tabs { display: flex; flex: none; gap: 2px; padding: 4px 4px 0; background: var(--night-0);
