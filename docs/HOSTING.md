@@ -278,6 +278,7 @@ them.
 | `STUDIO_PREVIEWS` | the gallery previews' camera, default playa (the Pi: front) |
 | `PI_PREVIEW_URL` | a Studio Live engine on this machine, at /pi (here a dry run; the Pi's own on it) |
 | `PI_PIN` | the engine's PIN, if it has one: Studio's feed says it to play on the lights; a secret |
+| `STUDIO_PI_BUNDLE` | the Pi bundle served to curators (SPEC-offline); `npm run host` names it |
 | `GIT_SHA` | the build's commit, for bug reports (default: the checkout's) |
 | `STUDIO_BAKE_SECONDS` | the longest render-box bake, default 120 |
 | `STUDIO_BAKE_TIMEOUT` | a bake's wall clock, default scaled to its length |
@@ -334,6 +335,15 @@ Live Play (Admin → Light, kept in `lights.json`; SPEC-liveplay), and curators'
 refuses any `HOST` but loopback. Installing it: `pi/SETUP.md`, from the offline bundle `npm run pi:bundle` makes
 here (the app built, `node_modules` for the Pi); or `pi/STUDIO.md`, from the `pi` branch, which `npm run pi:branch`
 makes here from `prod` (the app built, `dist/` committed) and force-pushes.
+
+### The Pi bundle
+
+`npm run host` also makes the Pi's offline bundle of the commit it deploys (`deploy/pi-bundle.sh`, a few minutes:
+it installs the Pi's modules and fetches bubblewrap's pinned `.deb`s) into `~/.cache/folly-studio/<unit>/`, checks
+its listing for anything secret (`tools/pi-bundle-check.ts`), and names it to the service as `STUDIO_PI_BUNDLE`.
+Curators and admins download it from Admin → Pi bundle, or with a curl link minted there (SPEC-offline
+"Downloading the Pi bundle"; pi/SETUP.md "Downloading it"). A bundle that fails is a warning: the deploy goes on and
+serves none. `npm run host -- --no-pi-bundle` makes none; a redeploy of the same commit reuses it.
 
 ### The flash check
 

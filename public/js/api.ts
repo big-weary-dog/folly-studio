@@ -132,6 +132,9 @@ export const api = {
     body),
   /** Visits, requests and the server since it started (SPEC-access "Stats"); admins only. */
   stats: () => request<ServerStats>('GET', '/api/admin/stats'),
+  /** The Pi bundle this server holds (SPEC-offline "Downloading the Pi bundle"), and a curl link to it. */
+  piBundle: () => request<{ commit: string, bytes: number, builtAt: string }>('GET', '/api/pi-bundle/info'),
+  piBundleLink: () => request<{ path: string, expires: string }>('POST', '/api/pi-bundle/link'),
 };
 
 /** Static JSON (not under /api): the rig, the palettes. */

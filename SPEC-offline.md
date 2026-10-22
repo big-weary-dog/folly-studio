@@ -2,7 +2,7 @@
 
 The same Studio, run on the FPP Pi with no internet (the Pi profile), and the files that carry looks between two
 Studios. `src/profile.ts` holds the profile; `public/js/ui/look-file.ts` the files. Installing it on the Pi:
-`pi/SETUP.md` (from a USB stick) or `pi/STUDIO.md` (the `pi` branch).
+`pi/SETUP.md` (from a USB stick, or downloaded from the hosted Studio: below) or `pi/STUDIO.md` (the `pi` branch).
 
 ## The Pi profile
 
@@ -39,6 +39,40 @@ The engine started with `--base /pi` serves its page and socket at `/` as well, 
 `:4043/` reaches it in both Pi setups: the engine alone, and the engine behind Studio. On the Pi it listens on the
 network (`bind` `0.0.0.0`): its page there is outside Studio's sign-in, gated by the engine's PIN alone (set one),
 and still plays only looks made of library modules, never code. Hosted, it stays on loopback.
+
+## Downloading the Pi bundle
+
+The hosted Studio serves the Pi's offline bundle (`npm run pi:bundle`, pi/SETUP.md) of the commit it runs, so a laptop
+or the Pi itself (online through a hotspot) downloads in one file what the USB stick carries. `npm run host` makes it
+at deploy time, before the restart (`--no-pi-bundle` skips it), outside the checkout and outside `dist/`, and names it
+to the service as `STUDIO_PI_BUNDLE`; nothing is built or fetched at request time. Unset, or its file missing, there
+is no bundle: the routes are 404 and the page says so.
+
+It is `folly-studio-pi-<commit>.tar` (12 hex characters), holding one folder, `folly-studio-pi/`: `folly-studio-pi.tgz`,
+`install.sh` and `SETUP.md`, the stick's files (looks are the person's own to add as `looks/`). It holds only the
+commit's tracked files, its build, `node_modules` and the pinned bubblewrap `.deb`s: never an env file, Studio's
+data, keys or anything else of the hosting machine's; `npm run host` refuses to serve one whose listing names any
+(`tools/pi-bundle-check.ts`).
+
+**Who.** Signed-in curators and admins (no session 401, anyone else 403, guests too). For curl, the page mints a
+**link**: a random token, good for 1 hour and any number of downloads, kept in memory (a restart forgets it; at
+most 20 live, the oldest dropped); it needs no cookie, so whoever holds it may download until it expires.
+
+```
+GET  /api/pi-bundle/info    → { commit, bytes, builtAt }  curators; 404 when there is no bundle
+GET  /api/pi-bundle         → the bundle  curators
+POST /api/pi-bundle/link    → { path: '/api/pi-bundle/<token>', expires }  curators
+GET  /api/pi-bundle/:token  → the bundle  no session; 404 for a token unknown or expired
+```
+
+The bundle is sent from the one file `STUDIO_PI_BUNDLE` names (nothing in the request names a path) as
+`application/x-tar` with its `Content-Length`, `Content-Disposition: attachment; filename="folly-studio-pi-<commit>.tar"`
+and `Cache-Control: private, no-store` (the tunnel never caches it); `HEAD` gives the same headers.
+
+**The page.** Admin → **Pi bundle** (`/admin/pi-bundle`): the commit, size and build time, **Download** (the
+browser's own download of `GET /api/pi-bundle`), and **Copy curl link**, which mints a link and shows, ready to copy,
+`curl -fo folly-studio-pi.tar '<origin><path>'` and when it expires. Without a bundle it says the server has none.
+A curator opens the page by its address, without the tabs, as any Admin page. The Pi profile has no tab for it.
 
 ## Look files
 

@@ -175,7 +175,7 @@ export async function createServer(opts: Options = {}) {
   const lights = feed && lightsStore ? { store: lightsStore, feed, hub, drive } : undefined;
   await app.register(apiRoutes({ store, auth, queue, models, loaders, log, access, framesDir, bakes,
     frames, rateLimit, secureCookies, flash, hub, live, ideaLogs, previews, reports, light, profile, lights,
-    baking: { baking, box }, codeGate, stats: stats.routes,
+    baking: { baking, box }, codeGate, stats: stats.routes, piBundle: config.STUDIO_PI_BUNDLE || undefined,
     build: buildSha(path.dirname(fileURLToPath(import.meta.url)), config.GIT_SHA), tail: log.tail }),
   { prefix: '/api' });
   if (piTarget) await app.register(piPreview({ auth, target: piTarget, hub, curators: profile === 'pi', drive,

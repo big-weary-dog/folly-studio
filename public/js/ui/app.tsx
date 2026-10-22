@@ -54,6 +54,8 @@ const ROUTES: Route[] = [
     load: adminTab('reports', () => import('./reports.tsx').then((m) => m.ReportsPage)) },
   { re: /^\/admin\/stats\/?$/, name: 'stats', title: 'Stats', nav: '/admin',
     load: adminTab('stats', () => import('./stats.tsx').then((m) => m.StatsPage)) },
+  { re: /^\/admin\/pi-bundle\/?$/, name: 'pi-bundle', title: 'Pi bundle', nav: '/admin',
+    load: adminTab('pi-bundle', () => import('./pi-bundle.tsx').then((m) => m.PiBundlePage)) },
 ];
 
 /** Where to go after signing in: `next` when it is a page of this app, else home. */

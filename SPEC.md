@@ -457,6 +457,8 @@ GET    /api/looks/:id/frames/:hash/manifest   → the stream manifest (immutable
 GET    /api/looks/:id/frames/:hash/:n         → stream chunk n (immutable; br/gzip)  mine, or shared
 GET    /api/looks/:id/preview/:key.webp       → the gallery preview (image/webp, immutable)  mine, or shared;
                                               `:key-still.webp` its still; 404 unless `key` is `listed.preview`
+GET    /api/pi-bundle[/info]                  → the Pi bundle | { commit, bytes, builtAt }  curators (SPEC-offline
+                                              "Downloading the Pi bundle"); POST /api/pi-bundle/link, GET /:token
 GET    /api/library                           → { patterns: [{ name, title, summary, tags, kind, category, code }] }
                                               (a preset: kind 'preset', its layers and globals?, code '')
 ```
