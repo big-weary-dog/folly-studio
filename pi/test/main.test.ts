@@ -67,6 +67,28 @@ test('a dry run plays, prints its stats and fades out on time', async () => {
   assert.match(stdout, /2 s up: fading to black/);
 });
 
+test('the light settings saved again apply live; a broken file keeps the last', async () => {
+  const light = path.join(dir, 'light.json'), main = fileURLToPath(new URL('../main.ts', import.meta.url));
+  writeFileSync(light, '{ "gamma": 2.2 }');
+  const pi = spawn(process.execPath, [main, '--dry-run', '--http', '0', '--seconds', '20', '--light', light,
+    '--config', file({})], { stdio: ['ignore', 'pipe', 'inherit'] });
+  let out = '';
+  pi.stdout.on('data', (d) => { out += d; });
+  const until = async (re: RegExp) => {
+    for (let i = 0; i < 400 && !re.test(out); i++) await new Promise((r) => setTimeout(r, 50));
+    assert.match(out, re);
+  };
+  try {
+    await until(/gamma 2\.2\n/);   // watching from before this line
+    writeFileSync(light, '{ "gamma": 1 }');
+    await until(/light settings changed: gamma 1\n/);
+    writeFileSync(light, '{ "gamma": ');
+    await until(/light settings kept: .*light\.json/);
+  } finally {
+    pi.kill('SIGINT');
+  }
+}, 40000);
+
 test('live into the simulator: every frame whole, the rose expanded, within the generator', async () => {
   const sim = spawn(process.execPath, [fileURLToPath(new URL('../sim.ts', import.meta.url)), '--port', '0',
     '--png', path.join(dir, 'front.png')], { stdio: ['ignore', 'pipe', 'inherit'] });

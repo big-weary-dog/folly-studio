@@ -2,7 +2,7 @@
 // library from public/patterns, the rig from public/data/rig.json; out as DDP to fppd at 40 fps, colour-corrected for
 // the LEDs, the rose expanded and the power compressor applied, or with --dry-run nothing sent and a stats line
 // printed.
-import { readFileSync } from 'node:fs';
+import { readFileSync, watchFile } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -23,8 +23,9 @@ const at = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 const json = (p: string) => JSON.parse(readFileSync(at(p), 'utf8'));
 const log = (line: string) => console.log(`studio-pi: ${line}`);
 /** The light settings file as JSON; null when there is none (the defaults). A broken one stops the start. */
+const lightFile = (file: string) => path.resolve(path.dirname(at('./main.ts')), file);
 const readLight = (file: string) => {
-  try { return JSON.parse(readFileSync(path.resolve(path.dirname(at('./main.ts')), file), 'utf8')); } catch (e) {
+  try { return JSON.parse(readFileSync(lightFile(file), 'utf8')); } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null;
     throw new Error(`${file}: ${(e as Error).message}`, { cause: e });
   }
@@ -50,6 +51,14 @@ async function main(c: NonNullable<typeof cfg>) {
   const relay = createRelay({ count: rig.count, fps: rig.output?.fps || 40 });
   const engine = createEngine({ rig, lib, looks: () => looks, safe: c.safe, mode: c.mode, log, light, relay,
     output: (cells) => output.send(cells), bake: (id, sha256) => loadBaked(frames, id, sha256, engine.scene) });
+  // Saved again (Studio's Light page renames a new file in), the settings apply live; a broken one keeps the last.
+  watchFile(lightFile(c.light), { interval: 2000 }, () => {
+    try {
+      const next = lightOf(readLight(c.light));
+      engine.setLight(next);
+      log(`light settings changed: gamma ${next.gamma}`);
+    } catch (e) { log(`light settings kept: ${(e as Error).message}`); }
+  });
   // The rig's pixels must sit within the cells the expansion reads (its declared universes run past them, unused).
   const cellsEnd = Math.min(...table.petals.map((p) => p.exp));
   if (Math.max(...engine.scene.addr) + table.cellChannels > cellsEnd) throw new Error('the rig overlaps the rose');

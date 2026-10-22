@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
+import { lightOf } from '../../public/js/core/light.ts';
 import { FADE } from '../src/engine.ts';
 import { runLoop } from '../src/run.ts';
 import { engineOn, oneModule } from './fixture.ts';
@@ -38,6 +39,9 @@ describe('the engine', () => {
     r.engine.level(0.5);
     r.run(FADE.level + 0.05);
     assert.deepEqual(at(), [128, 25, 0]);   // half the light on each colour: the same orange
+    r.engine.setLight(lightOf({ gamma: 1, balance: [1, 0.9, 0.8] }));   // saved again on the Light page: live
+    r.run(0.05);
+    assert.deepEqual(at(), [128, 58, 0]);   // 0.502 × 0.9 × ½ × 255
   });
 
   test('a strobe trips the flash guard: down to safe, held there until a look is picked', () => {

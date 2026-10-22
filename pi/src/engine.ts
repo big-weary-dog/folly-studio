@@ -10,7 +10,7 @@
 import { rand } from '../../public/js/core/stdlib.ts';
 import { FlashGuard } from '../../public/js/flash-guard.ts';
 import {
-  compileLayer, type Light, ledChannels, prepareLayer, type PreparedLayer, prepareLight, prepareScene,
+  compileLayer, type Light, ledChannels, ledLight, prepareLayer, type PreparedLayer, prepareLight, prepareScene,
   renderFrame, setLibrary,
 } from '../../public/js/pattern-core.ts';
 import type { PiSource } from '../../shared/schemas/live.ts';
@@ -49,7 +49,7 @@ export function createEngine(o: EngineOptions) {
   const scene = prepareScene(o.rig), fps = scene.fps, dt = 1 / fps;
   const rgb = new Float32Array(scene.count * 3), cells = new Uint8Array(scene.frameChannels);
   const guard = new FlashGuard(o.rig, null, o.light), log = o.log ?? (() => {});
-  const light = prepareLight(scene, o.light);
+  let light = prepareLight(scene, o.light);
   const now = o.now ?? (() => performance.now());
   setLibrary([...o.lib.entries.values()]);
   const master: Ease = { now: 1, to: 1, secs: FADE.level }, black: Ease = { now: 1, to: 1, secs: FADE.blackout };
@@ -297,6 +297,8 @@ export function createEngine(o: EngineOptions) {
       fade.to = 0;
       return true;
     },
+    /** New light settings (the file changed): the output transform and the guard's light from the next frame. */
+    setLight(l: Light) { light = prepareLight(scene, l); guard.light = ledLight(l); },
     /** Queues one of the engine's own looks; false if it has none that plays, or the queue is full. */
     queue(id: string, at: At = 'end', by?: string, secs?: number) {
       const item = own(id, by);

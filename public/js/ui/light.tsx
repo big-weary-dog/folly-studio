@@ -1,6 +1,6 @@
 // The Light page, for admins (SPEC "Light and output", docs/LIGHT.md): how Studio draws the LEDs, calibrated so the
-// previews show what the real lights show. The Pi's output transform is shown, not edited: the calibration never
-// changes what the LEDs get. The Pi reads the same file, downloaded here, as pi/light.json.
+// previews show what the real lights show. Of the Pi's output transform only the gamma is edited here; the
+// calibration never changes what the LEDs get. The Pi reads the same file (on the Pi, this one; else downloaded here).
 import '../../css/pages.css';
 
 import { useEffect, useState } from 'preact/hooks';
@@ -37,10 +37,11 @@ export function LightPage() {
     <div class="page light-page">
       <h1 class="page-title">Light</h1>
       <p class="lede">How Studio draws the LEDs. Calibrate it against the real lights (a photo of them beside the
-        preview), so the previews show the colours that actually show up. It never changes what the LEDs get.</p>
+        preview), so the previews show the colours that actually show up. Only the output gamma changes what the LEDs
+        get.</p>
       <Calibrate draft={draft} set={set} />
       <Preview draft={draft} set={set} />
-      <Output light={draft} />
+      <Output draft={draft} set={set} />
       <Controller draft={draft} set={set} />
       {onPi() && <LiveLooks />}
       <p class="form-error" role="alert" hidden={!error}>{error}</p>
@@ -48,7 +49,8 @@ export function LightPage() {
         <button class="btn ghost" type="button" onClick={() => download(`${JSON.stringify(saved, null, 2)}\n`,
           'light.json', 'application/json')}>Download for the Pi</button>
         <button class="btn ghost" type="button" disabled={busy}
-          onClick={() => set({ calibration: LIGHT.calibration, preview: LIGHT.preview })}>Defaults</button>
+          onClick={() => set({ gamma: LIGHT.gamma, calibration: LIGHT.calibration, preview: LIGHT.preview })}>
+          Defaults</button>
         <button class="btn ghost" type="button" disabled={!dirty || busy}
           onClick={() => setDraft(structuredClone(saved))}>Revert</button>
         <button class={cx('btn primary', busy && 'busy')} type="button" disabled={!dirty || busy} onClick={save}>
@@ -113,15 +115,18 @@ function Calibrate({ draft, set }: { draft: Light; set: (p: Partial<Light>) => v
   </section>;
 }
 
-/** The Pi's output transform, as stored: what the LEDs get, which the calibration never changes. */
-function Output({ light }: { light: Light }) {
-  const list = (v: number[]) => v.map((x) => `${Math.round(x * 100)} %`).join(', ');
+/** The Pi's output transform: what the LEDs get. The gamma is set here; the rest is shown, set by hand. */
+function Output({ draft, set }: { draft: Light; set: (p: Partial<Light>) => void }) {
+  const list = (v: number[]) => v.map((x) => `${Math.round(x * 100)} %`).join(', '), [g0, g1] = LIGHT_LIMITS.gamma;
   return <section class="models-panel" aria-label="The Pi's output">
-    <p class="field-hint">What the Pi sends, from <code>pi/light.json</code>: value<sup>{light.gamma}</sup>, balance
-      {` ${list(light.balance)}`}, floor {light.floor}
-      {light.trims.length ? `, trims ${light.trims.map((t) => `${t.tag} ${Math.round(t.level * 100)} %`).join(', ')}`
-        : ''}. Fixed here; the previews draw it, then the calibration.</p>
-    <Curve light={light} />
+    <Field label="Output gamma" class="end" hint={<p class="field-hint">What the Pi sends: value<sup>gamma</sup>. 2.2
+      is the swatches' own curve; 1 sends the colours as they are, as FPP and the live apps do. The Pi takes a saved
+      gamma within seconds, and the previews draw it.</p>}>{(id) => <Scrub id={id} min={g0} max={g1}
+        step={0.05} value={draft.gamma} set={(gamma) => set({ gamma })} />}</Field>
+    <p class="field-hint">Set in <code>light.json</code> by hand: balance{` ${list(draft.balance)}`}, floor
+      {` ${draft.floor}`}{draft.trims.length ? `, trims ${draft.trims
+        .map((t) => `${t.tag} ${Math.round(t.level * 100)} %`).join(', ')}` : ''}.</p>
+    <Curve light={draft} />
   </section>;
 }
 const MODES = { jukebox: 'Jukebox', live: 'Live Play' } as const;
@@ -158,7 +163,8 @@ function Controller({ draft, set }: { draft: Light; set: (p: Partial<Light>) => 
     .map((c, j) => (j === i ? { ...c, ...patch } : c)) });
   return <section class="models-panel" aria-label="The controller's own settings">
     <p class="field-hint">The controller's own settings, for the record: its port brightness is the electrical cap and
-      its gamma must stay None (the Pi's curve above is the only one). Studio never applies these. Defaults: the F48's,
+      its gamma must stay None (the output gamma above is the only curve). Studio never applies these. Defaults: the
+      F48's,
       {` ${LIGHT.controller.map((c) => `ports ${c.ports} at ${c.brightness * 100} %`).join(', ')}`}.</p>
     {draft.controller.map((c, i) => <Field key={i} label={<input type="text" aria-label="Ports" value={c.ports}
       maxLength={40} onInput={(e) => edit(i, { ports: e.currentTarget.value })} />} class="end">{(id) => <>
