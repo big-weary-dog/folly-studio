@@ -35,6 +35,11 @@ another origin 403. Pages keep the engine's own CSP; an engine that is down is 5
 protocol (`pi/src/protocol.ts`): text frames up to 1 KB from the page, and a relaying page's binary frames
 (SPEC-live "Relay to the lights"). Unset, there is no `/pi`.
 
+The engine started with `--base /pi` serves its page and socket at `/` as well, so the ops hub's link to
+`:4043/` reaches it in both Pi setups: the engine alone, and the engine behind Studio. On the Pi it listens on the
+network (`bind` `0.0.0.0`): its page there is outside Studio's sign-in, gated by the engine's PIN alone (set one),
+and still plays only looks made of library modules, never code. Hosted, it stays on loopback.
+
 ## Look files
 
 A look file is JSON, `application/json`, named for its title (`<slug>.json`):

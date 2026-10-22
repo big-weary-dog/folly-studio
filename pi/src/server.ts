@@ -1,5 +1,6 @@
 // The control page on the LAN (pi/README.md "The control page"): the page as built into pi/page/dist, and its socket
-// at /ws, both under `base` when one is given (/pi/ and /pi/ws behind Studio's proxy, docs/HOSTING.md). A socket must
+// at /ws, and under `base` too when one is given (/pi/ and /pi/ws behind Studio's proxy, docs/HOSTING.md), so the ops
+// hub's :4043/ reaches it either way. A socket must
 // come from the page's own origin; with a PIN set, it must say the PIN before anything it sends changes the lights.
 // Each socket is rate-limited as the live stage's are; the state goes to every socket ~10 a second, and what plays
 // (the source, for Studio's Live tab) when it changes. What each may send in each mode: people.ts. Binary messages
@@ -48,8 +49,9 @@ export async function controlServer(o: ServerOptions) {
       'referrer-policy': 'no-referrer', 'cache-control': 'no-cache' });
   });
   const base = o.base ?? '';
-  await app.register(fastifyStatic, { root: o.dist ?? DIST, prefix: `${base}/`, dotfiles: 'ignore',
-    cacheControl: false });
+  const files = { root: o.dist ?? DIST, dotfiles: 'ignore' as const, cacheControl: false };
+  await app.register(fastifyStatic, { ...files, prefix: '/' });
+  if (base) await app.register(fastifyStatic, { ...files, prefix: `${base}/`, decorateReply: false });
   // /pi to /pi/, so the page's relative URLs (its script, its socket) land under the base.
   if (base) app.get(base, (_req, reply) => reply.redirect(`${base}/`, 301));
   await app.register(fastifyWebsocket, { options: { maxPayload: Math.max(MAX_SEND, o.relay?.bytes ?? 0) } });
@@ -145,7 +147,7 @@ export async function controlServer(o: ServerOptions) {
   }
 
   const host = (h: string) => h.toLowerCase().replace(/:80$/, '');
-  app.get(`${base}/ws`, {
+  for (const at of new Set(['', base])) app.get(`${at}/ws`, {
     websocket: true,
     // Browsers always send Origin on a socket: only this page's own may drive the lights (CSRF over WebSockets).
     preValidation: async (req, reply) => {
