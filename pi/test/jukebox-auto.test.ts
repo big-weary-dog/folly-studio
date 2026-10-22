@@ -14,7 +14,7 @@ const near = (v: number, to: number, why: string) => assert.ok(Math.abs(v - to) 
 function jukebox(looks: ReturnType<typeof short>[]) {
   const r = engineOn(looks);
   const own = new Set(['safe', ...looks.map((l) => l.id)]);
-  for (const id of [...r.looks.keys()]) if (!own.has(id)) r.looks.delete(id);
+  for (const id of r.looks.keys()) if (!own.has(id)) r.looks.delete(id);
   r.engine.setMode('jukebox');
   r.engine.play(looks[0]!.id, FADE.switch);
   r.run(FADE.switch * 2 + 0.05);
