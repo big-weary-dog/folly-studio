@@ -8,6 +8,7 @@
 
 import { pictureProblem, readText, TEXT_MAX } from '../../public/js/pattern-core.ts';
 import type { Catalog, ParamDecl } from './catalog.ts';
+import { attachedTo } from '../../shared/schemas/look.ts';
 
 // Words from before both ways were named, as the modules' upgrade() reads them: what old docs and habits still write.
 const OLD_CHOICES: Record<string, string> = { round: 'clockwise', orbit: 'orbit-counterclockwise' };
@@ -16,7 +17,7 @@ export type ExpandError = { path: string, code: string, message: string };
 export type Uses = { library: number, extensions: number, code: number };
 type Obj = Record<string, unknown>;
 type Mod = { id: string, kind: string, title: string, ref?: string, code: string, params: Obj, blend?: unknown,
-  input?: string, as?: unknown };
+  input?: string, as?: unknown, on?: string };
 
 const isObj = (v: unknown): v is Obj => !!v && typeof v === 'object' && !Array.isArray(v);
 const FN: Record<string, string> = { source: 'pixel', warp: 'warp', filter: 'filter' };
@@ -126,14 +127,15 @@ export function expand(answer: unknown, catalog: Catalog) {
     uses.library++;
     return { id: extra.id || ref, kind: m.kind, title: m.title || ref, ref, code: m.code, params,
       ...(extra.blend ? { blend: extra.blend } : {}), ...(extra.input ? { input: extra.input } : {}),
-      ...(extra.as ? { as: extra.as } : {}) };
+      ...(extra.as ? { as: extra.as } : {}), ...(extra.on && m.kind !== 'source' ? { on: extra.on } : {}) };
   }
 
   /** A chain's module from a `use` (library or extension); a module given as code passes through. */
   function useModule(u: unknown, at: string): Mod | Obj | null {
     if (!isObj(u)) return (fail(at, 'bad_module', 'a module is { use, params }'), null);
     const extra = { id: typeof u.id === 'string' ? u.id : undefined, blend: u.blend,
-      input: typeof u.input === 'string' ? u.input : undefined, as: u.as };
+      input: typeof u.input === 'string' ? u.input : undefined, as: u.as,
+      on: typeof u.on === 'string' ? u.on : undefined };
     if (typeof u.use !== 'string' || !u.use) {
       if (typeof u.code === 'string') return (uses.code++, u);
       return (fail(`${at}.use`, 'unknown_module', 'use names a library module or ext:<name>'), null);
@@ -147,7 +149,8 @@ export function expand(answer: unknown, catalog: Catalog) {
       uses.extensions++;
       return { id: extra.id || ext, kind: String(e.kind), title: String(e.summary || ext).slice(0, 80), code: e.code,
         params: paramsOf(u.params), ...(extra.blend ? { blend: extra.blend } : {}),
-        ...(extra.input ? { input: extra.input } : {}), ...(extra.as ? { as: extra.as } : {}) };
+        ...(extra.input ? { input: extra.input } : {}), ...(extra.as ? { as: extra.as } : {}),
+        ...(extra.on && e.kind !== 'source' ? { on: extra.on } : {}) };
     }
     if (!catalog.modules.has(u.use)) {
       const hint = catalog.presets.has(u.use) ? ` (${u.use} is a preset: give the layer "preset")`
@@ -157,8 +160,8 @@ export function expand(answer: unknown, catalog: Catalog) {
     return fromLibrary(u.use, paramsOf(u.params), at, extra);
   }
 
-  /** Unique ids in a chain, and each filter's input an earlier module's id; those that failed (null) dropped after, so
-   * paths keep the model's indices. */
+  /** Unique ids in a chain, each filter's input an earlier module's id and each `on` its source; those that failed
+   * (null) dropped after, so paths keep the model's indices. */
   function tidy(given: (Mod | Obj | null)[], at: string) {
     const seen = new Map<string, number>(), mods = given.filter((m) => m !== null);
     for (const m of mods) {
@@ -170,6 +173,9 @@ export function expand(answer: unknown, catalog: Catalog) {
     given.forEach((m, j) => {
       if (m && typeof m.input === 'string' && !given.slice(0, j).some((x) => x?.id === m.input)) {
         fail(`${at}[${j}].input`, 'bad_input', `input ${m.input} is not the id of a module above it`);
+      }
+      if (m && typeof m.on === 'string' && m.on !== attachedTo(mods as Mod[], mods.indexOf(m))) {
+        fail(`${at}[${j}].on`, 'bad_on', `on ${m.on} is not the source just above it (past what is attached to it)`);
       }
     });
     return mods;

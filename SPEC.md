@@ -161,9 +161,9 @@ Missing, unreadable or out of range, each field is its default:
 ## Pattern code and the library
 
 In `SPEC-library.md`, part of this contract: **Pattern code** (what people and the AI write), **The pixel `p`**,
-**Stdlib**, **Directions**, **Modules** (a layer is a chain; the warp contract), **Library**, **Spatial modules**,
-**History**, **Globals**, **Param bindings**, **Integrated clocks** and **Palettes**. `SPEC "<one of those>"` means
-that file.
+**Stdlib**, **Directions**, **Modules** (a layer is a chain; the warp contract), **Composites**, **Attached
+modules**, **Library**, **Spatial modules**, **History**, **Globals**, **Param bindings**, **Integrated clocks** and
+**Palettes**. `SPEC "<one of those>"` means that file.
 
 ## Looks (what gets saved)
 
@@ -203,7 +203,9 @@ below.
   stored (looks stay self-contained for the boxes); `ref` names the library entry it came from, and a module whose `ref` the library has is standard: it keeps the
   library's title (`shared/standard-modules.ts`; the API and generators put a renamed one's back), and a hand edit
   of its code drops `ref`, making it custom; `params`
-  override the code's defaults (≤ 64; a string ≤ 256 characters: a pick, a choice or text); `enabled: false` skips it; `input` names an earlier source; `as` is only
+  override the code's defaults (≤ 64; a string ≤ 256 characters: a pick, a choice or text); `enabled: false` skips it; `input` names an earlier source; `on`
+  (a warp's or filter's) attaches it to the source or composite just above it, past the others attached to it
+  (SPEC-library "Attached modules"); `as` is only
   `'input'`; `blend` as for layers, or `under` (a source's only). `kind` is `source`, `warp`, `filter` or
   `composite`: no code, its `layers` 1–4 sub-layers, each a chain of its own that counts as one source to the chain
   round it (SPEC-library "Composites"); ids are unique across a layer's sub-layers too. A layer with `code`

@@ -17,8 +17,9 @@ export function stageOf(m: Declares): (typeof STAGES)[number] | null {
 /** Does m hold real LED colours, so that no warp below it reaches above it? A filter whose code declares a stage. */
 export const isStageEnd = (m: Declares) => stageOf(m) !== null;
 
-/** What placeWarps reads (kind, end) and sets: the slot a link reads (at); a bending warp's from and to slots. */
-type Placed = { kind: number, end: boolean, ix: number, at: number, from: number, to: number };
+/** What placeWarps reads (kind, end, fixed: a source with a stage end attached, reading the pixel itself, which
+ * warps below it pass by) and sets: the slot a link reads (at); a bending warp's from and to slots. */
+type Placed = { kind: number, end: boolean, fixed: boolean, ix: number, at: number, from: number, to: number };
 
 /**
  * Each link's slot. A warp with anything above it in its stage bends a copy of the slot below it (`from`) into its
@@ -33,8 +34,8 @@ export function placeWarps<T extends Placed>(chain: T[], WARP_KIND: number, SPAT
     M.ix = i; M.at = 0; M.from = M.to = -1;
     stage[i] = s;
     if (M.kind === WARP_KIND) bends[i] = above;
-    else above = !M.end;
-    if (M.end && M.kind !== SPATIAL_KIND) shared[s] = true;
+    else if (!M.fixed) above = !M.end;
+    if ((M.end || M.fixed) && M.kind !== SPATIAL_KIND) shared[s] = true;
     if (M.kind === SPATIAL_KIND) s++;
   }
   const order: T[] = [];
@@ -42,6 +43,7 @@ export function placeWarps<T extends Placed>(chain: T[], WARP_KIND: number, SPAT
   for (let i = n - 1; i >= 0; i--) {
     const M = chain[i];
     if (M.end) { cur = 0; read = false; continue; }
+    if (M.fixed) continue;
     M.at = cur;
     if (M.kind !== WARP_KIND) { read = true; continue; }
     if (!bends[i]) continue;

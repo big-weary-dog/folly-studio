@@ -148,6 +148,7 @@ function cleanModule(m: Partial<Module>): Module {
     ...(typeof m.ref === 'string' && m.ref ? { ref: m.ref } : {}), code: String(m.code || ''),
     params: m.params && typeof m.params === 'object' ? JSON.parse(JSON.stringify(m.params)) : {},
     ...(kind === 'filter' && m.input ? { input: String(m.input) } : {}),
+    ...((kind === 'warp' || kind === 'filter') && m.on ? { on: String(m.on) } : {}),
     ...(kind === 'source' && m.as === 'input' ? { as: 'input' } : {}),
     ...(isBlend(m.blend) || m.blend === 'under' ? { blend: m.blend } : {}),
     ...(m.enabled === false ? { enabled: false } : {}),

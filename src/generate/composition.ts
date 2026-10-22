@@ -41,7 +41,7 @@ export function compositionSchema(groups: readonly RigGroup[] = [], catalog?: Pi
   const place = (look.properties.layers!.items as { properties: Record<string, Schema> }).properties;
   const presets = [...catalog?.presets.keys() ?? []];
   const use = object({ use: str, id: str, params: PARAMS, blend: { type: 'string', enum: [...SOURCE_BLENDS] },
-    input: str, as: { type: 'string', enum: ['input'] } }, ['use']);
+    input: str, on: str, as: { type: 'string', enum: ['input'] } }, ['use']);
   const layer = object({
     title: place.title!, groups: place.groups!, tags: place.tags!, blend: place.blend!, level: place.level!,
     clips: place.clips!,

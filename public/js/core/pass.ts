@@ -93,7 +93,7 @@ export function pass(chain: Link[], from: number, to: number, qs: Pixel[], c: nu
       if (!M.hidden) blendInto(c, o, M.blend);
     } else {
       M.ring?.record(j, c);
-      const v = M.fn(c, q, T + q.dt, M.P, G, M.input >= 0 ? chain[M.input].out : undefined);
+      const v = M.fn(c, q, T + q.dt, M.P, G, M.src ? M.src.out : undefined);
       if (!toColour(v, c, c[3])) return `filter() returned ${said(v)} (NaN) at LED ${k}`;
     }
   }
@@ -102,18 +102,24 @@ export function pass(chain: Link[], from: number, to: number, qs: Pixel[], c: nu
 
 /** A composite at pixel q into M.out: each sub-layer from a copy of q, bent by its own warps, run into its colour,
  * scaled by its level and blended in turn; one that plays elsewhere (by rig LED k, as a layer's groups) adds
- * nothing and costs nothing. */
+ * nothing and costs nothing. One run over the layer before the chain (pre) gives its colour at layer pixel j. */
 function runComposite(M: Link, q: Pixel, T: number, G: G, j: number, k: number) {
   const out = M.out, subs = M.subs!;
   out[0] = out[1] = out[2] = out[3] = 0;
   for (let s = 0; s < subs.length; s++) {
     const S = subs[s], qs = S.qs, c = S.c;
     if (S.mask && S.mask[k] === 0) continue;
-    copyPixel(qs[0], q);
-    for (let w = 0; w < S.warps.length; w++) bend(qs, S.warps[w], T, G);
-    c[0] = c[1] = c[2] = c[3] = 0;
-    const e = pass(S.chain, 0, S.chain.length, qs, c, T, G, j, k);
-    if (e) return e;
+    const pre = S.pre;
+    if (pre) {
+      const x = 4 * j;
+      c[0] = pre[x]; c[1] = pre[x + 1]; c[2] = pre[x + 2]; c[3] = pre[x + 3];
+    } else {
+      copyPixel(qs[0], q);
+      for (let w = 0; w < S.warps.length; w++) bend(qs, S.warps[w], T, G);
+      c[0] = c[1] = c[2] = c[3] = 0;
+      const e = pass(S.chain, 0, S.chain.length, qs, c, T, G, j, k);
+      if (e) return e;
+    }
     c[3] *= S.level;
     blendInto(out, c, S.blend);
   }
