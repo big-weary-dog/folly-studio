@@ -259,48 +259,59 @@ button.tl-mods-fold { gap: 4px; color: var(--sand); white-space: nowrap; cursor:
   .tl[data-mode=narrow] .tl-mod-lane { height: 32px; }
   .tl[data-mode=narrow] .tl-mod-label { min-height: 36px; }
 }
-/* composites (chain-tree.tsx): a composite's sub-layers under its row, each a head over a chain of its own */
+/* composites (chain-tree.tsx): a composite's sub-layers one step in under its row, a source each (its row) or, for
+   several, a head over their chain */
 .chain-acts { display: flex; gap: 4px; }
-/* a composite's name in full on a line of its own, and under it, shut, what it holds */
+/* a line under a row's name: what a shut composite holds, where a sub-layer of one source plays */
+.chain-top:has(> .chain-note) { flex-wrap: wrap; }
+.chain-note { order: 1; flex-basis: 100%; margin-top: -2px; padding-left: 40px; font-size: 11px; color: var(--text-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* a composite's name, renamed in place and in full: too long for the line, the controls wrap under it */
 .chain-row[data-kind=composite] > .chain-top { flex-wrap: wrap; }
-.chain-row[data-kind=composite] > .chain-top > .chain-kinds { margin-right: auto; }
-.chain-row[data-kind=composite] > .chain-top > .chain-name { order: 1; flex-basis: 100%; padding-left: 12px;
-  white-space: normal; overflow-wrap: anywhere; }
-.chain-note { display: block; padding-left: 1.1em; font-size: 11px; font-weight: 400; color: var(--text-2); }
+.chain-row[data-kind=composite] > .chain-top > .chain-kinds .kind-badge { padding: 0 4px; font-size: 12px; }
+.chain-fold { flex: none; width: 14px; padding: 0; color: var(--kind); background: none; border: 0; cursor: pointer; }
+.chain-fold::before { content: '▸' / ''; display: inline-block; transition: transform .15s var(--ease); }
+.chain-fold[aria-expanded=true]::before { transform: rotate(90deg); }
+textarea.chain-rename { flex: 1 1 0; min-width: 0; min-height: 22px; padding: 1px 3px;
+  line-height: 18px; white-space: normal; resize: none; overflow: hidden; field-sizing: content; cursor: text;
+  border: 1px solid transparent; }
+/* a long name has the line from its ▸ on, the controls under it */
+textarea.chain-rename.long { flex-basis: calc(100% - var(--lead-w, 64px)); }
+@media (pointer: coarse) { textarea.chain-rename.long { --lead-w: 92px; } }
+textarea.chain-rename:is(:hover, :focus) { border-color: var(--lead); background: var(--night-1); }
+.chain-row[data-kind=composite] > .chain-top > .chain-select { margin-left: auto; }
+@media (max-width: 899px) { .chain-row[data-kind=composite] > .chain-top > .chain-on { margin-left: auto; } }
 .chain-end { height: 0; position: relative; }
 .chain-end[data-drop]::before { content: ''; position: absolute; left: 0; right: 0; top: calc(-1.5px - var(--gap) / 2);
   height: 3px; background: var(--sand); border-radius: 2px; pointer-events: none; }
-.composite-body { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 3px -3px; }
-.sub-layer { position: relative; padding: 3px 0 2px; }
-.comp-name { width: 100%; }
-/* where a dragged sub-layer lands: a line above the marked one, or above + Sub-layer */
-:is(.sub-layer, .sub-end)[data-drop]::before { content: ''; position: absolute; left: 0; right: 0; top: -4.5px;
+.composite-body { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 1px; }
+.sub-layer { position: relative; }
+/* where a dragged sub-layer (or a source, to be one) lands: a line above the marked one, or above + Source */
+:is(.sub-head, .sub-end)[data-drop]::before { content: ''; position: absolute; left: 0; right: 0; top: -3.5px;
   height: 3px; background: var(--sand); border-radius: 2px; pointer-events: none; }
 .sub-end { position: relative; height: 0; }
 .sub-layer.off > :is(.sub-chain, .sub-head > .sub-name) { opacity: .45; }
-/* no box, a header line marked by a violet bar: badge, name, switch and delete; then how it combines and where it
-   plays */
-.sub-head { display: grid; grid-template-columns: auto auto 66px 1fr auto auto;
-  grid-template-areas: 'g b n n s d' 'g . c w w w';
-  align-items: center; gap: 3px 4px; padding: 1px 0 1px 3px; border-left: 3px solid var(--violet); }
-.sub-head .grip { grid-area: g; }
-.sub-head .kind-badge { grid-area: b; --kind: var(--violet); padding: 0 3px; font-size: 9px; letter-spacing: .06em; }
-.sub-name { grid-area: n; min-width: 0; min-height: 0; height: 22px; padding: 0 4px; font-size: 12.5px;
-  font-weight: 600;
+/* a sub-layer of several sources: one line marked by a violet bar, one step in as its modules are */
+.sub-head { position: relative; display: flex; align-items: center; gap: 4px; margin: 3px 0 0 14px;
+  padding: 1px 0 1px 4px; border-left: 2px solid var(--violet);
+  background: color-mix(in srgb, var(--violet) 8%, #0000); }
+.sub-name { flex: 1; min-width: 0; min-height: 0; height: 22px; padding: 0 4px; font-size: 12.5px; font-weight: 600;
   background: none; border-color: transparent; }
 .sub-name:hover, .sub-name:focus { border-color: var(--lead); background: var(--night-1); }
-.sub-head .chain-select { grid-area: c; width: 66px; }
-.sub-where { grid-area: w; justify-self: start; max-width: 100%; min-height: 22px; padding: 0 6px; overflow: hidden;
-  font-size: 11.5px;
-  white-space: nowrap; text-overflow: ellipsis; }
-.sub-head input.switch { grid-area: s; width: 28px; height: 16px; }
+.sub-head .chain-select { flex: 0 0 62px; width: 62px; }
+.sub-where { flex: 0 1 auto; min-width: 22px; max-width: 25%; min-height: 22px; padding: 0 5px; overflow: hidden;
+  font-size: 11.5px; white-space: nowrap; text-overflow: ellipsis; }
+.sub-plays .sub-where { max-width: none; }
+.sub-head input.switch { width: 28px; height: 16px; }
 .sub-head input.switch::after { top: 1px; left: 1px; width: 10px; height: 10px; }
 .sub-head input.switch:checked::after { transform: translateX(12px); }
-.sub-head .icon-btn { grid-area: d; width: 18px; height: 22px; font-size: 11px; }
-/* a sub-layer's modules one small step in: their rail just inside the composite's edge */
+.sub-head .icon-btn { width: 18px; height: 22px; font-size: 11px; }
+/* a sub-layer's modules one small step in, their rail just inside the composite's edge; no corner at their foot */
 .sub-chain { margin: 2px 0 0 -11px; }
-.sub-chain:has(> .chain-row)::after { content: '' / ''; }
-.sub-add { align-self: flex-start; min-height: 22px; padding: 1px 8px; font-size: 12px; }
+.sub-chain::after, .sub-chain > .chain-row:last-of-type::after { display: none; }
+.sub-chain > .chain-row:last-of-type::before { bottom: auto; height: var(--j); }
+.sub-chain > .chain-row:only-of-type::before { display: none; }
+.sub-add { align-self: flex-start; margin: 3px 0 0 14px; min-height: 22px; padding: 1px 8px; font-size: 12px; }
 /* attached modules (chain-tree.tsx): one step in under their module, as a sub-layer's chain; none, no room taken */
 .attach-list { margin-top: 4px; }
 .attach-list:not(:has(> .chain-row)) { margin: 0; }
