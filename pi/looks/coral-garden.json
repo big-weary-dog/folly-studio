@@ -1,0 +1,269 @@
+{
+ "title": "Coral Garden",
+ "duration": 240,
+ "globals": {
+  "palette": {
+   "name": "playa",
+   "low": [
+    "#7200c8",
+    "#a100cf",
+    "#d100cb"
+   ],
+   "body": [
+    "#ff26ab",
+    "#ff7b8a",
+    "#ffa28a",
+    "#ffc299"
+   ],
+   "accent": [
+    "#00a8a4",
+    "#00d3c4"
+   ],
+   "high": [
+    "#f8dbc5",
+    "#f7ede2"
+   ]
+  },
+  "macros": {
+   "energy": {
+    "value": 0.4,
+    "min": 0,
+    "max": 1
+   }
+  }
+ },
+ "layers": [
+  {
+   "id": "l1",
+   "title": "Turquoise sea",
+   "modules": [
+    {
+     "id": "colour-wash",
+     "kind": "source",
+     "title": "Colour wash",
+     "params": {
+      "colours": "accent",
+      "speed": 0.06,
+      "hold": 0
+     },
+     "ref": "colour-wash"
+    }
+   ],
+   "groups": [
+    "cathedral"
+   ],
+   "tags": [
+    "all"
+   ],
+   "blend": "over",
+   "level": 1,
+   "soften": {
+    "radius": 0.15,
+    "mode": "wire"
+   }
+  },
+  {
+   "id": "l2",
+   "title": "Living coral",
+   "modules": [
+    {
+     "id": "mbl92311n6",
+     "kind": "source",
+     "title": "Clouds",
+     "ref": "clouds",
+     "params": {
+      "colours": "body1 body2",
+      "cover": {
+       "mod": "global",
+       "name": "energy",
+       "from": 0.6,
+       "to": 0.85
+      },
+      "speed": {
+       "mod": "global",
+       "name": "energy",
+       "from": 0.04,
+       "to": 0.14
+      },
+      "brightness": 0.84
+     }
+    }
+   ],
+   "groups": [
+    "arches",
+    "spirelets"
+   ],
+   "tags": [
+    "arch",
+    "spirelet"
+   ],
+   "blend": "over",
+   "level": 1,
+   "soften": {
+    "radius": 0.15,
+    "mode": "wire"
+   }
+  },
+  {
+   "id": "l3",
+   "title": "Anemone heart",
+   "modules": [
+    {
+     "id": "bars",
+     "kind": "source",
+     "title": "Bars",
+     "params": {
+      "direction": "clockwise",
+      "profile": "smooth",
+      "bars": 3,
+      "speed": 0.12,
+      "colours": "body1 high1"
+     },
+     "ref": "bars"
+    },
+    {
+     "id": "m1ho2s4m2v9",
+     "kind": "warp",
+     "title": "Petal repeat",
+     "ref": "petal-repeat",
+     "params": {
+      "repeats": "four",
+      "mirror": false,
+      "petal": 2
+     }
+    },
+    {
+     "id": "edge-fade",
+     "kind": "filter",
+     "title": "Edge fade",
+     "params": {
+      "direction": "in",
+      "width": 0.08,
+      "position": {
+       "mod": "lfo",
+       "shape": "sine",
+       "rate": 0.17,
+       "unit": "hz",
+       "center": 0.45,
+       "depth": -0.45
+      }
+     },
+     "ref": "edge-fade"
+    },
+    {
+     "id": "anchor",
+     "kind": "warp",
+     "title": "Anchor",
+     "params": {},
+     "ref": "anchor"
+    },
+    {
+     "id": "m1d58jjuoxu",
+     "kind": "source",
+     "title": "Sparkle",
+     "ref": "sparkle",
+     "params": {
+      "colours": "low1 low2 low3",
+      "flash": 0.9,
+      "often": 150.3
+     },
+     "blend": "under"
+    }
+   ],
+   "groups": [
+    "rose-window"
+   ],
+   "tags": [
+    "rose",
+    "window"
+   ],
+   "blend": "over",
+   "level": 1,
+   "soften": {
+    "radius": 0.15,
+    "mode": "wire"
+   }
+  },
+  {
+   "id": "l4",
+   "title": "Tower currents",
+   "modules": [
+    {
+     "id": "butterfly0",
+     "kind": "source",
+     "title": "Bars",
+     "ref": "bars",
+     "params": {
+      "direction": "right",
+      "profile": "smooth",
+      "bars": 6,
+      "speed": {
+       "mod": "global",
+       "name": "energy",
+       "from": 0.08,
+       "to": 0.35
+      },
+      "colours": "accent high"
+     }
+    },
+    {
+     "id": "butterfly1",
+     "kind": "warp",
+     "title": "Turbulence",
+     "ref": "turbulence",
+     "params": {
+      "amount": 0.5,
+      "size": 0.4,
+      "speed": 0.15
+     }
+    },
+    {
+     "id": "butterfly2",
+     "kind": "warp",
+     "title": "Mirror",
+     "ref": "mirror",
+     "params": {
+      "across": true
+     }
+    }
+   ],
+   "groups": [
+    "spires"
+   ],
+   "tags": [
+    "spire",
+    "tower"
+   ],
+   "blend": "over",
+   "level": 1,
+   "soften": {
+    "radius": 0.15,
+    "mode": "wire"
+   }
+  }
+ ],
+ "automation": {
+  "energy": [
+   [
+    0,
+    0.2
+   ],
+   [
+    80,
+    0.5
+   ],
+   [
+    140,
+    0.9
+   ],
+   [
+    190,
+    0.9
+   ],
+   [
+    240,
+    0.2
+   ]
+  ]
+ }
+}

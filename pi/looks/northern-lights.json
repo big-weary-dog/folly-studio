@@ -1,0 +1,388 @@
+{
+ "title": "Northern Lights",
+ "duration": 240,
+ "globals": {
+  "palette": {
+   "name": "aurora",
+   "low": [
+    "#004e48",
+    "#087c60"
+   ],
+   "body": [
+    "#1cc77b",
+    "#65ed9a",
+    "#8135e8",
+    "#b477ff"
+   ],
+   "accent": [
+    "#20d6df",
+    "#85f2ef"
+   ],
+   "high": [
+    "#e3fff2"
+   ]
+  },
+  "macros": {
+   "sky": {
+    "value": 0.5,
+    "min": 0,
+    "max": 1
+   },
+   "core": {
+    "value": 0.5,
+    "min": 0,
+    "max": 1
+   }
+  }
+ },
+ "automation": {
+  "sky": [
+   [
+    0,
+    0
+   ],
+   [
+    50,
+    0.3
+   ],
+   [
+    110,
+    0.7
+   ],
+   [
+    150,
+    1
+   ],
+   [
+    200,
+    1
+   ],
+   [
+    225,
+    0.4
+   ],
+   [
+    240,
+    0
+   ]
+  ],
+  "core": [
+   [
+    0,
+    0.2
+   ],
+   [
+    120,
+    0.4
+   ],
+   [
+    160,
+    1
+   ],
+   [
+    200,
+    1
+   ],
+   [
+    240,
+    0.2
+   ]
+  ]
+ },
+ "layers": [
+  {
+   "id": "lcurtains",
+   "title": "Curtains",
+   "modules": [
+    {
+     "kind": "source",
+     "title": "Bars",
+     "ref": "bars",
+     "params": {
+      "colours": "accent body",
+      "profile": "smooth",
+      "bars": 2,
+      "speed": 0,
+      "brightness": {
+       "mod": "global",
+       "name": "sky",
+       "from": 0.3,
+       "to": 1
+      }
+     },
+     "id": "m1"
+    },
+    {
+     "kind": "source",
+     "title": "Clouds",
+     "ref": "clouds",
+     "params": {
+      "cover": {
+       "mod": "global",
+       "name": "sky",
+       "from": 0.45,
+       "to": 0.75
+      },
+      "speed": {
+       "mod": "global",
+       "name": "sky",
+       "from": 0.03,
+       "to": 0.12
+      },
+      "size": 0.5
+     },
+     "id": "sky",
+     "as": "input"
+    },
+    {
+     "kind": "filter",
+     "title": "Mask",
+     "ref": "mask",
+     "params": {
+      "softness": 0.24
+     },
+     "input": "sky",
+     "id": "m3"
+    },
+    {
+     "kind": "source",
+     "title": "Colour wash",
+     "ref": "colour-wash",
+     "params": {
+      "colours": "low",
+      "speed": 0,
+      "brightness": 0.2
+     },
+     "blend": "under",
+     "id": "m4"
+    }
+   ],
+   "groups": [
+    "arches",
+    "spires",
+    "spirelets"
+   ],
+   "tags": [
+    "arch",
+    "spire",
+    "spirelet"
+   ],
+   "blend": "over",
+   "level": 1,
+   "soften": {
+    "radius": 0.15,
+    "mode": "wire"
+   },
+   "clips": [
+    {
+     "start": 20,
+     "end": 228,
+     "fadeIn": 25,
+     "fadeOut": 20
+    }
+   ]
+  },
+  {
+   "id": "lgalaxy",
+   "title": "Galaxy",
+   "modules": [
+    {
+     "kind": "source",
+     "title": "Bars",
+     "ref": "bars",
+     "params": {
+      "colours": "high",
+      "direction": "down",
+      "profile": "smooth",
+      "bars": 1,
+      "speed": 0,
+      "brightness": {
+       "mod": "global",
+       "name": "core",
+       "from": 0.4,
+       "to": 1
+      }
+     },
+     "id": "m1"
+    },
+    {
+     "kind": "filter",
+     "title": "Edge fade",
+     "ref": "edge-fade",
+     "params": {
+      "direction": "down",
+      "position": 0.88,
+      "width": 0.1
+     },
+     "id": "m2"
+    },
+    {
+     "kind": "source",
+     "title": "Bars",
+     "ref": "bars",
+     "params": {
+      "colours": "accent body",
+      "direction": "right",
+      "bars": 2,
+      "profile": "pulse",
+      "duty": 0.6,
+      "speed": {
+       "mod": "global",
+       "name": "core",
+       "from": 0.03,
+       "to": 0.25
+      }
+     },
+     "blend": "under",
+     "id": "m3"
+    },
+    {
+     "kind": "source",
+     "title": "Colour wash",
+     "ref": "colour-wash",
+     "params": {
+      "colours": "low",
+      "speed": 0
+     },
+     "blend": "under",
+     "id": "m4"
+    },
+    {
+     "kind": "warp",
+     "title": "Polar",
+     "ref": "polar",
+     "params": {},
+     "id": "m5"
+    },
+    {
+     "kind": "warp",
+     "title": "Twist",
+     "ref": "twist",
+     "params": {
+      "swirl": -2
+     },
+     "id": "m6"
+    },
+    {
+     "kind": "warp",
+     "title": "Anchor",
+     "ref": "anchor",
+     "params": {},
+     "id": "m7"
+    }
+   ],
+   "groups": [
+    "rose-window"
+   ],
+   "tags": [
+    "rose",
+    "window"
+   ],
+   "blend": "over",
+   "level": 1,
+   "soften": {
+    "radius": 0.15,
+    "mode": "wire"
+   }
+  },
+  {
+   "id": "lstars",
+   "title": "Stars",
+   "modules": [
+    {
+     "kind": "source",
+     "title": "Sparkle",
+     "ref": "sparkle",
+     "params": {
+      "colours": "high",
+      "density": {
+       "mod": "global",
+       "name": "sky",
+       "from": 0.5,
+       "to": 0.15
+      },
+      "often": 24,
+      "flash": 0.3
+     },
+     "id": "m1"
+    }
+   ],
+   "groups": [
+    "spires",
+    "spirelets",
+    "arches"
+   ],
+   "tags": [
+    "spire",
+    "spirelet",
+    "arch"
+   ],
+   "blend": "add",
+   "level": 1,
+   "soften": {
+    "radius": 0.15,
+    "mode": "wire"
+   }
+  },
+  {
+   "id": "lcorona",
+   "title": "Corona",
+   "modules": [
+    {
+     "kind": "source",
+     "title": "Bars",
+     "ref": "bars",
+     "params": {
+      "direction": "in",
+      "speed": -0.3,
+      "bars": 1,
+      "profile": "comet",
+      "duty": 0.5,
+      "colours": "accent high"
+     },
+     "id": "m1"
+    },
+    {
+     "kind": "filter",
+     "title": "Edge fade",
+     "ref": "edge-fade",
+     "params": {
+      "direction": "in",
+      "position": 0.2,
+      "width": 0.8
+     },
+     "id": "m2"
+    },
+    {
+     "kind": "warp",
+     "title": "Anchor",
+     "ref": "anchor",
+     "params": {
+      "shape": "sphere"
+     },
+     "id": "m3"
+    }
+   ],
+   "groups": [
+    "cathedral"
+   ],
+   "tags": [
+    "all"
+   ],
+   "blend": "add",
+   "level": 0.8,
+   "soften": {
+    "radius": 0.15,
+    "mode": "wire"
+   },
+   "clips": [
+    {
+     "start": 150,
+     "end": 202,
+     "fadeIn": 6,
+     "fadeOut": 10
+    }
+   ]
+  }
+ ]
+}

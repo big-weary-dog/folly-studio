@@ -1,0 +1,225 @@
+{
+ "title": "Prism",
+ "duration": 240,
+ "globals": {
+  "palette": {
+   "name": "chapel",
+   "low": [
+    "#a30066",
+    "#d40063"
+   ],
+   "body": [
+    "#ff333c",
+    "#fd7f40",
+    "#fcae5c",
+    "#fbd182"
+   ],
+   "accent": [
+    "#2a39ff",
+    "#2380ff",
+    "#50b3ff"
+   ],
+   "high": [
+    "#f9e5c4"
+   ]
+  },
+  "macros": {
+   "roseSwirl": {
+    "value": 0.5,
+    "min": 0,
+    "max": 1,
+    "mod": {
+     "mod": "lfo",
+     "shape": "tri",
+     "rate": 0.016666666666666666,
+     "unit": "beats",
+     "depth": 0.5,
+     "center": 0.5
+    }
+   }
+  }
+ },
+ "layers": [
+  {
+   "id": "lqoq3op1xf",
+   "title": "Prism",
+   "modules": [
+    {
+     "id": "m133jfzxmtz",
+     "kind": "source",
+     "title": "Bars",
+     "params": {
+      "colours": "accent1/body2/low2",
+      "direction": "clockwise",
+      "profile": "smooth",
+      "bars": 3,
+      "speed": {
+       "mod": "global",
+       "name": "roseSwirl",
+       "from": -1,
+       "to": 1
+      }
+     },
+     "ref": "bars"
+    },
+    {
+     "id": "mersub11w2",
+     "kind": "warp",
+     "title": "Twist",
+     "params": {
+      "swirl": {
+       "mod": "global",
+       "name": "roseSwirl",
+       "from": -1,
+       "to": 1
+      }
+     },
+     "ref": "twist"
+    },
+    {
+     "id": "mse1dqmnq6",
+     "kind": "filter",
+     "title": "Delay",
+     "ref": "delay",
+     "params": {
+      "longest": 4,
+      "direction": "in",
+      "bounce": 1
+     }
+    },
+    {
+     "id": "maqwqvu1pf",
+     "kind": "filter",
+     "title": "Hue shift",
+     "params": {
+      "speed": 0.01
+     },
+     "ref": "hue-shift"
+    }
+   ],
+   "groups": [
+    "rose-window"
+   ],
+   "blend": "add",
+   "level": 1,
+   "clips": [
+    {
+     "start": 0,
+     "end": 240,
+     "fadeIn": 12,
+     "fadeOut": 12
+    }
+   ],
+   "soften": {
+    "radius": 0.15,
+    "mode": "wire"
+   }
+  },
+  {
+   "id": "l10cd38a1xm",
+   "title": "Arch Wash",
+   "modules": [
+    {
+     "id": "m1a73fqv1f8",
+     "kind": "source",
+     "title": "Colour wash",
+     "ref": "colour-wash",
+     "params": {
+      "colours": "low",
+      "brightness": 0.53
+     }
+    },
+    {
+     "id": "m2l5kre1bo",
+     "kind": "source",
+     "title": "Clouds",
+     "params": {
+      "colours": "body1 body3 accent3 low2",
+      "direction": "up",
+      "speed": 0.34,
+      "brightness": 0.57
+     },
+     "ref": "clouds"
+    },
+    {
+     "id": "m6it5lqn17",
+     "kind": "filter",
+     "title": "Hue shift",
+     "params": {
+      "speed": 0.01
+     },
+     "ref": "hue-shift"
+    },
+    {
+     "id": "m11w28r31a4",
+     "kind": "filter",
+     "title": "Splash",
+     "ref": "splash",
+     "params": {
+      "speed": 1,
+      "strength": 0.05,
+      "show": "both",
+      "fade": 0.67
+     }
+    }
+   ],
+   "groups": [
+    "main-arches"
+   ],
+   "blend": "add",
+   "level": 1,
+   "soften": {
+    "radius": 0,
+    "mode": "wire"
+   }
+  },
+  {
+   "id": "l1k7j72h1tu",
+   "title": "Colour wash",
+   "modules": [
+    {
+     "id": "mht9b2x1ja",
+     "kind": "source",
+     "title": "Colour wash",
+     "ref": "colour-wash",
+     "params": {
+      "colours": "body/low/accent",
+      "hold": 0,
+      "speed": 0.14
+     }
+    },
+    {
+     "id": "munvn0a1n1",
+     "kind": "filter",
+     "title": "Delay",
+     "ref": "delay",
+     "params": {
+      "longest": 4,
+      "bounce": 0.65
+     }
+    },
+    {
+     "id": "mxzt5n37fd",
+     "kind": "filter",
+     "title": "Hue shift",
+     "params": {
+      "speed": 0.01
+     },
+     "ref": "hue-shift"
+    }
+   ],
+   "groups": [
+    "spirelets",
+    "mini-arches",
+    "quad-arches",
+    "spires"
+   ],
+   "blend": "add",
+   "level": 0.8,
+   "soften": {
+    "radius": 0.15,
+    "mode": "wire"
+   }
+  }
+ ]
+}
