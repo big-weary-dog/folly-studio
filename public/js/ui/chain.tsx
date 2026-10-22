@@ -4,17 +4,19 @@
 // selected module's settings: a custom module's name (a library module keeps the library's) and its params, opened
 // under its row (on a phone, after the chain). The chain runs down a came into the layer: each module joins it (a
 // source by how it combines), and each warp and filter spans what it works on, everything above it; a composite's
-// sub-layers nest under its row (chain-tree.tsx).
+// sub-layers nest under its row (chain-tree.tsx); a source that is a sub-layer of its own says in its settings where
+// that sub-layer plays.
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 import type { Module } from '../../../shared/schemas/look.ts';
 import { standardTitle } from '../../../shared/standard-modules.ts';
+import { flatModules } from '../core/tree.ts';
 import { Field, loadFailed, toast } from './kit.tsx';
 import { makeModule, moduleFromLibrary } from './model.ts';
-import { ChainList, type TreeCtx } from './chain-tree.tsx';
-import { addAfter, addSub, type Box, editSub, groupModule, listOf, moveModule, moveSub, placeOf, removeModule, ungroup,
-  withList } from './composite-model.ts';
-import { parseSlot, useTreeDrag } from './tree-drag.ts';
+import { ChainList, isLone, SubWhere, type TreeCtx } from './chain-tree.tsx';
+import { addAfter, addSub, type Box, editSub, groupModule, listOf, moveModule, moveSub, moveToSub, placeOf,
+  removeModule, ungroup, withList } from './composite-model.ts';
+import { isSubSlot, parseSlot, useTreeDrag } from './tree-drag.ts';
 import { PlaysOn } from './groups-drawer.tsx';
 import { ParamsPanel } from './params.tsx';
 import type { Preview } from './preview.ts';
@@ -48,10 +50,15 @@ export function ChainPane({ st, pv }: Props) {
     </section>);
 }
 
-/** The selected module's settings: a custom module's name, then its params. */
+/** The selected module's settings: a custom module's name, where its sub-layer plays when it is one of its own, then
+ * its params. */
 function ModuleSettings({ st }: { st: Studio }) {
-  const l = st.selected.value, m = st.module.value;
+  const l = st.selected.value, m = st.module.value, at = l && m ? placeOf(l.modules, m.id) : null;
+  const comp = at?.box && at.index === 0 ? at.box : null;
+  const s = comp && l ? flatModules(l.modules).find((x) => x.id === comp.comp)?.layers?.[comp.sub] : undefined;
   return <>
+    {l && comp && s && isLone(s) && <Field label="Plays on" class="sub-plays">{() => <SubWhere st={st} s={s}
+      edit={(p) => st.editLayer(l.id, (x) => ({ modules: editSub(x.modules, comp.comp, comp.sub, p) }))} />}</Field>}
     {l && m && standardTitle(m, st.data.library) === undefined && <Field label="Module name"
       class="module-title-field">{(id) => <input type="text" id={id} class="module-title-input" maxlength={80}
         spellcheck={false} value={m.title} onInput={(e) => {
@@ -62,8 +69,8 @@ function ModuleSettings({ st }: { st: Studio }) {
   </>;
 }
 
-const KEEP_ONE = 'A list keeps at least one module, a composite cannot go inside itself, and only a warp or filter '
-  + 'attaches to a module.';
+const KEEP_ONE = 'A layer keeps at least one module and a composite one source (four at most), a composite cannot '
+  + 'go inside itself, and only a warp or filter attaches to a module.';
 
 function Chain({ st, pv }: Props) {
   const l = st.selected.value, mods = l?.modules || [], sel = st.module.value;
@@ -100,7 +107,14 @@ function Chain({ st, pv }: Props) {
   const resub = (comp: string, k: number, i: number) => setMods((list) => moveSub(list, comp, k, i));
   const move = (id: string, box: Box, i: number, on?: string) => setMods((list) => moveModule(list, id, box, i, on),
     KEEP_ONE);
-  const rootRef = useRef<HTMLDivElement>(null), drag = useTreeDrag(rootRef, move, resub);
+  const moveIn = (id: string, comp: string, i: number) => setMods((list) => moveToSub(list, id, comp, i), KEEP_ONE);
+  /** Module id to the slot keyed `key`: a list's, or (a source) between a composite's sub-layers. */
+  const land = (id: string, key: string) => {
+    if (!isSubSlot(key)) return move(id, ...parseSlot(key));
+    const [comp, i] = key.split(' ');
+    moveIn(id, comp, Number(i));
+  };
+  const rootRef = useRef<HTMLDivElement>(null), drag = useTreeDrag(rootRef, move, moveIn, resub);
   const rowOf = (id: string) => rootRef.current?.querySelector<HTMLElement>(`.chain-row[data-module="${id}"]`);
   /** Alt+↑/↓ on a row's own buttons moves it a slot, into and out of composites, its name keeping the focus. */
   const nudge = (id: string, e: KeyboardEvent) => {
@@ -110,11 +124,13 @@ function Chain({ st, pv }: Props) {
     e.stopPropagation();
     const own = row.querySelector(':scope > .chain-top');
     const m = placeOf(mods, id), attaches = !!m && ['warp', 'filter'].includes(listOf(mods, m.box)[m.index].kind);
-    const slots = [...rootRef.current!.querySelectorAll<HTMLElement>('[data-slot]')]
-      .filter((s) => s === own || (!row.contains(s) && (attaches || !('attach' in s.dataset))));
-    const to = slots[slots.indexOf(own as HTMLElement) + (dir < 0 ? -1 : 2)]?.dataset.slot;
-    if (!to) return;
-    move(id, ...parseSlot(to));
+    const slots = [...rootRef.current!.querySelectorAll<HTMLElement>('[data-slot], [data-sub-slot]')]
+      .filter((s) => s === own || (!row.contains(s)
+        && (attaches ? !('subSlot' in s.dataset) : !('attach' in s.dataset))));
+    const to = slots[slots.indexOf(own as HTMLElement) + (dir < 0 ? -1 : 2)];
+    const key = to?.dataset.slot ?? to?.dataset.subSlot;
+    if (!key) return;
+    land(id, key);
     requestAnimationFrame(() => (rowOf(id)?.querySelector('.chain-name') as HTMLElement)?.focus());
   };
   const shelf = (onPick: (e: Entry) => void) => import('./shelf.tsx').then(({ openShelf }) => openShelf({
@@ -139,7 +155,7 @@ function Chain({ st, pv }: Props) {
     if (l && m === sel) setShut(open ? { layer: l.id, picked: st.picked.peek() } : null);
     else st.pickModule(m.id);
   };
-  const ctx: TreeCtx = { st, layerId: l?.id ?? '', drag, sel, settingsOpen: open,
+  const ctx: TreeCtx = { st, layerId: l?.id ?? '', mods, drag, sel, settingsOpen: open,
     settings: () => <ModuleSettings st={st} />, click, remove, nudge,
     isOpen: (id) => !closed.has(id),
     toggle: (id) => {
