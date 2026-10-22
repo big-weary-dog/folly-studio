@@ -9,8 +9,6 @@ import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
-import sharp from 'sharp';
-
 import type { Rig } from '../../shared/schemas/rig.ts';
 import { bakeSeconds, createLane, framesPath, layersHash, renderFields, writeAtomic } from '../bake.ts';
 import type { Logger } from '../http.ts';
@@ -29,8 +27,9 @@ export const previewKey = (look: StoredLook) => createHash('sha256')
   .update(JSON.stringify({ v: VERSION, fields: layersHash(renderFields(look)), duration: look.duration ?? null }))
   .digest('hex').slice(0, 16);
 
-/** Pictures → { webp: the loop, still }. */
+/** Pictures → { webp: the loop, still }. sharp (libvips, ~40 MB) loads at the first preview, not at start. */
 export async function encodePreview(m: Motion) {
+  const { default: sharp } = await import('sharp');
   const raw = { width: m.width, height: m.height, channels: 3 as const }, pages = Buffer.concat(m.frames);
   let webp = Buffer.alloc(0);
   for (const quality of QUALITIES) {
