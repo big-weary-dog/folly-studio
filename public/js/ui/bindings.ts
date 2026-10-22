@@ -32,7 +32,7 @@ export const fmt = (v: number) => String(Math.abs(v) >= 1 ? Math.round(v * 1000)
 export const RATES: [string, number][] = [['¼ beat', 4], ['½ beat', 2], ['1 beat', 1], ['1 bar', 0.25],
   ['2 bars', 0.125], ['4 bars', 0.0625]];
 /** A rate in beats in words: a pill's name, else "every n beats". */
-export const rateText = (rate: number) => RATES.find((r) => r[1] === rate)?.[0] ?? `every ${fmt(1 / rate)} beats`;
+const rateText = (rate: number) => RATES.find((r) => r[1] === rate)?.[0] ?? `every ${fmt(1 / rate)} beats`;
 
 const HEX = /^#[0-9a-f]{6}$/i;
 
@@ -81,7 +81,7 @@ export function normaliseParam(key: string, raw: unknown): Param | null {
 }
 
 /** A colour value ('#rrggbb' or [r, g, b] 0..1) as '#rrggbb'. */
-export function toHex(v: unknown) {
+function toHex(v: unknown) {
   if (typeof v === 'string' && HEX.test(v)) return v.toLowerCase();
   const byte = (c: unknown) => Math.round(Math.min(1, Math.max(0, Number(c) || 0)) * 255).toString(16).padStart(2, '0');
   return Array.isArray(v) && v.length >= 3 ? `#${v.slice(0, 3).map(byte).join('')}` : '#ffffff';

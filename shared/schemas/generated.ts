@@ -39,7 +39,7 @@ export class GenerateError extends Error {
 }
 
 /** Collapse whitespace, drop control characters, and cut to `max` characters at a word boundary. */
-export function cleanText(value: unknown, max: number): string {
+function cleanText(value: unknown, max: number): string {
   if (typeof value !== 'string') return '';
   const s = value.replace(CONTROL, '').replace(/\s+/g, ' ').trim();
   if (s.length <= max) return s;
@@ -199,7 +199,7 @@ const layerOf = (library: Library, known: Set<string>, root: string, groupTags: 
 const maybe = z.number().optional().catch(undefined);
 const str = { type: 'string' }, number = { type: 'number' };
 /** A modulator's mod as the model sees it: an LFO (its amount and pace a fader's name). */
-export const MOD_WIRE = { type: 'object', properties: { mod: { type: 'string', enum: ['lfo'] },
+const MOD_WIRE = { type: 'object', properties: { mod: { type: 'string', enum: ['lfo'] },
   shape: { type: 'string', enum: ['sine', 'tri', 'saw', 'square', 'hold'] }, rate: number,
   unit: { type: 'string', enum: ['hz', 'beats'] }, center: number, depth: number, hold: number, amount: str,
   pace: str }, required: ['mod'] };
@@ -269,7 +269,7 @@ function strict<T>(what: string, schema: z.ZodType<T>, kept: object, notes: stri
 }
 
 /** The generator's look, for these groups (their ids an enum for the model) and library (a module's `ref`). */
-export function generatedLook({ groups = [], library = [] }: { groups?: Group[], library?: Library } = {}) {
+function generatedLook({ groups = [], library = [] }: { groups?: Group[], library?: Library } = {}) {
   const known = new Set(groups.map((g) => g?.id).filter(isString));
   const root = groups.find((g) => g && g.parent == null)?.id;
   const groupTags = [...new Set(groups.flatMap((g) => (Array.isArray(g?.tags) ? g.tags.filter(isString) : [])))];
