@@ -10,7 +10,7 @@ import { api } from '../../api.ts';
 import type { Tour } from '../../../../shared/schemas/tour.ts';
 import { toast } from '../kit.tsx';
 import { loadLibrary } from '../model.ts';
-import { navigate, onPi, user } from '../session.ts';
+import { ai, navigate, user } from '../session.ts';
 import { localTour, tourIdea, tourKey, tourView, WELCOMED } from '../tour-view.ts';
 import { byName, tick, watchPage } from './anchors.ts';
 import { Overlay } from './overlay.tsx';
@@ -47,7 +47,8 @@ function save(t: Tour) {
     localStorage.setItem(WELCOMED, '1');
   } catch { /* storage off: the account keeps it */ }
   user.value = { ...u, tour: t };
-  api.saveTour(t).catch(() => {});   // offline: the copy here shows it, and the next save sends it
+  // A guest's stays here; offline, the copy here shows it, and the next save sends it.
+  if (!u.guest) api.saveTour(t).catch(() => {});
 }
 
 let root: HTMLElement | null = null, unwatch = () => {}, stop = () => {}, later = 0;
@@ -142,4 +143,4 @@ export function resumeAt(path: Path) {
   return at?.path === path.id ? Math.max(0, path.steps.findIndex((s) => s.id === at.step)) : 0;
 }
 /** The paths, as this Studio has them (the profile is known by the time the tutorial loads). */
-export const PATHS = pathsHere(onPi());
+export const PATHS = pathsHere(!ai.peek());

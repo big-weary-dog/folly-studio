@@ -18,6 +18,7 @@ import {
   buildGroupIndex, cleanLayer, type GroupIndex, type Layer, layerFromPattern, newLayer, normaliseLayers,
 } from './model.ts';
 import { cleanBpm, cleanDuration } from './timeline-model.ts';
+import { guestSave } from './guest-work.ts';
 
 /** The look as edited: what saves (saveBody), and where it came from. */
 export interface Draft { id: string | null; title: string; summary: string; layers: Layer[]; duration: number;
@@ -266,6 +267,7 @@ export function createStudio(me: User | null) {
     /** Saves the look: true once saved; false when it failed (and said so) or a save is already running. */
     async save(extra: Pick<LookPatch, 'restoredFrom' | 'versionName'> = {}) {
       if (!ready.value || saving.value) return false;
+      if (me?.guest) return guestSave(st);
       if (previewing.value) {
         toast('You are previewing a version: restore it, or go back to your work, to save.', { kind: 'warn' });
         return false;

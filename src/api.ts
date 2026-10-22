@@ -4,7 +4,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 import { isPending, transition } from '../shared/idea-status.ts';
-import { DEEP, type FlashSettings, type Idea, GuestBody, IdeaBody, Login, RefineBody, Signup } from '../shared/schemas/api.ts';
+import { DEEP, type FlashSettings, GuestBody, type Idea, IdeaBody, Login, RefineBody, Signup }
+  from '../shared/schemas/api.ts';
 import type { AccessControl } from './access.ts';
 import { accessRoutes, sendRefusal } from './api-access.ts';
 import { ideaHowRoutes } from './api-idea-how.ts';
@@ -213,7 +214,8 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       // A guest (SPEC-access "Guests"): a session with a name, and no account.
       'POST /guest': [async (req, reply) => {
         const [ip, made] = [await perIp(req), await perGuest(req)];
-        const wait = !ip.isAllowed && ip.isExceeded ? ip.ttlInSeconds : made.isExceeded ? made.ttlInSeconds : 0;
+        const wait = !ip.isAllowed && ip.isExceeded ? ip.ttlInSeconds
+          : !made.isAllowed && made.isExceeded ? made.ttlInSeconds : 0;
         if (wait) throw new HttpError(429, 'Too many attempts. Try again in a minute.', { 'Retry-After': `${wait}` });
         return start(auth.guest(parse(GuestBody, req.body).name), 201, req, reply);
       }, { public: true }],

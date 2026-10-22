@@ -1,6 +1,6 @@
-// npm run smoke, too: access to the paid models in a browser at a laptop's and a phone's size. A new account's idea
-// form shows the lock with a code box and what stays free; a wrong code is
-// refused in place, a good one unlocks it; a limit reached from elsewhere (a stale page) shows when the next idea may
+// npm run smoke, too: access to the paid models in a browser at a laptop's and a phone's size. A new (locked) account
+// sees no AI: no Ideas, no Refine; its user menu takes an invite code, a wrong one refused, a good one bringing Ideas
+// back; a limit reached from elsewhere (a stale page) shows when the next idea may
 // go; an admin makes a code on the Access page, with its invite link. The link (/#invite=CODE) signs a visitor up and
 // redeems the code, or redeems it at once when signed in, says why a bad one was refused, and leaves no code in the
 // address or the tab. A session that ends on the Admin page goes back to sign-in. The paid models are a stand-in
@@ -17,13 +17,19 @@ const SIZES = {
 test.use({ serverOptions: { admins: 'keeper-laptop,keeper-phone', models: { codexBin: `${BIN}codex`,
   env: { ...process.env, ANTHROPIC_API_KEY: '', PATH: `${BIN}:${process.env.PATH}` } } } });
 
-async function signUp(page, origin, username) {
+/** Signs up `username`: on to Ideas, or (`locked`) My looks without the AI. */
+async function signUp(page, origin, username, { locked = false } = {}) {
   await page.goto(`${origin}/login`);
   await page.getByRole('button', { name: 'Sign up' }).click();
   await page.fill('input[name=username]', username);
   await page.fill('input[name=password]', 'correct horse');
   await page.locator('form button[type=submit]').click();
-  await expect(page.locator('textarea.idea-input')).toBeVisible({ timeout: 20_000 });
+  await expect(page).toHaveURL(`${origin}${locked ? '/looks' : '/ideas'}`, { timeout: 20_000 });
+}
+/** The user menu: a popover at a laptop's width, in the nav panel on a phone. */
+async function userMenu(page) {
+  const phone = (page.viewportSize()?.width ?? 0) < 900;
+  await page.locator(phone ? '#nav-toggle' : '#user-menu-btn').click();
 }
 
 for (const [name, device] of Object.entries(SIZES)) {
@@ -37,25 +43,37 @@ for (const [name, device] of Object.entries(SIZES)) {
       const { app } = studio, pick = page.locator('.model-pick select'), gate = page.locator('.gate');
       const submit = page.getByRole('button', { name: 'Turn it into a look' });
 
-      await test.step('a new account: the lock, a code box, and what is free', async () => {
-        await signUp(page, studio.origin, `guest-${name}`);
-        await expect(pick).toHaveValue('sol');
-        await expect(pick.locator('option')).toHaveText(['Sol (invite)', 'Luna (invite)']);
-        await expect(gate).toContainText('Turning ideas into looks needs an invite code.');
-        await expect(gate).toContainText('Browsing, editing and the gallery are free.');
-        await expect(submit).toHaveCount(0);
-        await page.fill('textarea.idea-input', 'Embers rising up the spires');
+      const nav = page.locator('.main-nav'), toast = page.locator('.toast-msg').last();
+      const redeem = async (code) => {
+        await userMenu(page);
+        await page.getByRole('button', { name: 'Invite code' }).click();
+        await page.getByLabel('Code').fill(code);
+        await page.getByRole('button', { name: 'Redeem' }).click();
+      };
+
+      await test.step('a new account: no AI anywhere, and an invite code in its menu', async () => {
+        await signUp(page, studio.origin, `guest-${name}`, { locked: true });
+        await expect(nav.getByRole('link', { name: 'Ideas' })).toHaveCount(0);
+        await page.goto(`${studio.origin}/ideas`);
+        await expect(page).toHaveURL(`${studio.origin}/looks`);
+        await page.goto(`${studio.origin}/studio`);
+        await expect(page.locator('li.layer').first()).toBeVisible({ timeout: 60_000 });
+        await page.keyboard.press('Control+s');
+        await expect(toast).toHaveText('Saved.');
+        await expect(page).toHaveURL(/\/studio\/[^/]+$/);
+        await expect(page.locator('.refine')).toHaveCount(0);
         await shot('locked');
       });
 
-      await test.step('a wrong code is refused in place; a good one unlocks', async () => {
-        await page.fill('#invite-code', 'AAAA-BBBB-CCCC');
-        await page.getByRole('button', { name: 'Unlock' }).click();
-        await expect(gate.locator('.form-error')).toContainText('That code is not valid');
+      await test.step('a wrong code is refused; a good one brings the AI', async () => {
+        await redeem('AAAA-BBBB-CCCC');
+        await expect(toast).toContainText('That code is not valid');
+        await page.locator('.toast-close').last().click().catch(() => {});
         await shot('redeem-wrong');
-        const { code } = app.access.createInvite('keeper', { uses: 1 });
-        await page.fill('#invite-code', code.toLowerCase());
-        await page.getByRole('button', { name: 'Unlock' }).click();
+        await redeem(app.access.createInvite('keeper', { uses: 1 }).code.toLowerCase());
+        await expect(toast).toHaveText('Invite accepted: you can use Sol and Luna.');
+        await expect(nav.getByRole('link', { name: 'Ideas' })).toHaveCount(1);
+        await page.goto(`${studio.origin}/ideas`);
         await expect(page.locator('.gate-left')).toHaveText('6 left this hour · 20 today');
         await expect(pick.locator('option')).toHaveText(['Sol', 'Luna']);
         await shot('unlocked');
@@ -130,12 +148,11 @@ for (const [name, device] of Object.entries(SIZES)) {
 
       await test.step('signed in: a used-up code says so; a good one redeems at once', async () => {
         await page.context().clearCookies();
-        await signUp(page, studio.origin, `later-${name}`);
+        await signUp(page, studio.origin, `later-${name}`, { locked: true });
         await page.goto(link(first));
         await expect(toast).toHaveText('Invite not accepted. That code is used up: ask for a new one.');
-        await expect(page).toHaveURL(`${studio.origin}/ideas`);
+        await expect(page).toHaveURL(`${studio.origin}/looks`);
         expect(await kept()).toBe(0);
-        await expect(pick.locator('option')).toHaveText(['Sol (invite)', 'Luna (invite)']);
         await shot('invite-refused');
         await page.goto(link(app.access.createInvite('keeper', { uses: 1 }).code));
         await expect(toast).toHaveText('Invite accepted: you can use Sol and Luna.');

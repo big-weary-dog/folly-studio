@@ -7,12 +7,12 @@ import { useLayoutEffect, useState } from 'preact/hooks';
 import { api, statusOf } from '../api.ts';
 import { can } from '../../../shared/policy.ts';
 import type { User } from '../../../shared/schemas/api.ts';
-import { confirmDialog, cx, toast, Toasts } from './kit.tsx';
+import { confirmDialog, cx, Field, openDialog, toast, Toasts } from './kit.tsx';
 import { fileBugReport } from './bug-report.tsx';
 import { Rose } from './rose.tsx';
 import { openTour, welcomeOnce } from './tour-view.ts';
-import { redeemInvite, takeInvite } from './invite.ts';
-import { flash, here, home, leaveGuard, navigate, onPi, profile, router, setTitle, user, type ViewProps }
+import { redeem, redeemInvite, takeInvite } from './invite.ts';
+import { ai, here, home, invitable, leaveGuard, navigate, onPi, router, setTitle, signedIn, user, type ViewProps }
   from './session.ts';
 
 interface Route {
@@ -60,8 +60,8 @@ const ROUTES: Route[] = [
 export const safeNext = (next: string | null) => (next && next.startsWith('/') && !next.startsWith('//')
   && !next.startsWith('/login') ? next : home());
 /** On the Pi (SPEC-offline), the pages of what it does not run lead elsewhere. */
-const PI_MOVED: Record<string, string> = { '/ideas': '/looks', '/admin': '/admin/light',
-  '/admin/models': '/admin/light', '/admin/access': '/admin/light' };
+const PI_MOVED: Record<string, string> = { '/admin': '/admin/light', '/admin/models': '/admin/light',
+  '/admin/access': '/admin/light' };
 
 /** Where a path leads: a redirect, or a route and its params. */
 export function resolve(path: string, search: string, signedIn: boolean):
@@ -69,6 +69,7 @@ export function resolve(path: string, search: string, signedIn: boolean):
   if (path === '/' || path === '') return { redirect: signedIn ? home() : '/login' };
   const bare = path.replace(/\/$/, ''), moved = (onPi() && PI_MOVED[bare]) || MOVED[bare];
   if (moved) return { redirect: moved + search };
+  if (signedIn && !ai.value && bare.startsWith('/ideas')) return { redirect: home() };   // no AI, no Ideas
   for (const route of ROUTES) {
     const m = route.re.exec(path);
     if (!m) continue;
@@ -128,12 +129,23 @@ async function logout() {
 const NAV = [['/ideas', 'Ideas'], ['/studio', 'Studio'], ['/looks', 'My looks'], ['/gallery', 'Gallery'],
   ['/live', 'Live']];
 const ADMIN_NAV = [...NAV, ['/admin', 'Admin']];
-/** The header's links: no Ideas on the Pi, where curators have the engine's control page (SPEC-offline). */
+/** The header's links: no Ideas without the AI, no My looks for a guest; on the Pi, curators have the engine's
+ * control page (SPEC-offline). */
 function navOf(me: User) {
-  const nav = can(me, 'admin') ? ADMIN_NAV : NAV;
-  return onPi() ? [...nav.filter(([href]) => href !== '/ideas'), ...(can(me, 'curate') ? [['/pi/', 'Lights']] : [])]
-    : nav;
+  const nav = (can(me, 'admin') ? ADMIN_NAV : NAV)
+    .filter(([href]) => (ai.value || href !== '/ideas') && !(me.guest && href === '/looks'));
+  return onPi() && can(me, 'curate') ? [...nav, ['/pi/', 'Lights']] : nav;
 }
+
+/** A locked account's way to the AI (SPEC-access "AI only with access"). */
+const enterInvite = () => openDialog<string>({ title: 'Invite code', body: (close) => <form method="dialog"
+  onSubmit={(e) => { e.preventDefault(); close(new FormData(e.currentTarget).get('code') as string); }}>
+  <p class="dialog-text">An invite code turns on the AI: ideas, refining and fixes.</p>
+  <Field label="Code" stack>{(id) => <input id={id} name="code" required autocomplete="off" autocapitalize="characters"
+    spellcheck={false} maxlength={40} placeholder="XXXX-XXXX-XXXX" />}</Field>
+  <div class="dialog-actions"><button class="btn ghost" type="button" onClick={() => close()}>Cancel</button>
+    <button class="btn primary" type="submit">Redeem</button></div></form> })
+  .then((code) => (code?.trim() ? redeem(code.trim()) : false));
 
 /** The user menu drops under its button at a desktop's width; on a phone it sits open in the nav panel. */
 function placeUserMenu(e: { newState: string; currentTarget: HTMLElement }) {
@@ -177,13 +189,16 @@ function Header({ me, nav }: { me: User; nav?: string }) {
           <button class="user-menu-btn" id="user-menu-btn" type="button" popovertarget="user-menu"
             aria-haspopup="menu" data-tour="user-menu"><span class="user-name">{me.username}</span></button>
           {me.role === 'admin' ? <span class="tag tag-sapphire">Admin</span>
-            : me.role === 'curator' && <span class="tag tag-amber">Curator</span>}
+            : me.role === 'curator' ? <span class="tag tag-amber">Curator</span>
+              : me.guest && <span class="tag">Guest</span>}
           <div class="user-menu" id="user-menu" popover="auto" onBeforeToggle={placeUserMenu}
             onClick={(e) => { if ((e.target as Element).closest('.btn')) e.currentTarget.hidePopover?.(); }}>
             <button class="btn ghost small" type="button" onClick={() => openTour('menu')}>Tutorials</button>
-            <button class="btn ghost small report-btn" type="button" title="Report a problem (F8)"
-              onClick={() => { setOpen(false); void fileBugReport(); }}>Report a problem</button>
-            <button class="btn ghost small" type="button" onClick={logout}>Log out</button>
+            {invitable.value && <button class="btn ghost small" type="button" onClick={enterInvite}>
+              Invite code</button>}
+            {!me.guest && <button class="btn ghost small report-btn" type="button" title="Report a problem (F8)"
+              onClick={() => { setOpen(false); void fileBugReport(); }}>Report a problem</button>}
+            <button class="btn ghost small" type="button" onClick={logout}>{me.guest ? 'Leave' : 'Log out'}</button>
           </div>
         </div>
       </div>
@@ -227,10 +242,7 @@ export async function boot() {
   window.addEventListener('beforeunload', (e) => { if (leaveGuard.isDirty?.()) e.preventDefault(); });
   takeInvite();
   try {
-    const me = await api.me();
-    user.value = me.user || null;
-    flash.value = me.flash ?? null;
-    profile.value = me.profile ?? 'hosted';
+    signedIn(await api.me());
   } catch (err) {
     if (statusOf(err) !== 401 && statusOf(err) !== 403) toast((err as Error).message, { kind: 'error' });
   }

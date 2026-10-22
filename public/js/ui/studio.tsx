@@ -19,6 +19,7 @@ import { loadReport, studioReport } from './report-studio.ts';
 import { StudioLayout } from './studio-layout.tsx';
 import { createStudio } from './studio-store.ts';
 import { createTimeline } from './timeline-state.ts';
+import { guestWork, keepGuestWork } from './guest-work.ts';
 import { showToTour } from './tour-view.ts';
 
 async function loadLook(id?: string) {
@@ -41,7 +42,8 @@ export function Studio({ params, query }: ViewProps) {
     const { st, pv, els } = ctx;
     let alive = true;
     setTitle('Studio');
-    leaveGuard.isDirty = () => st.dirty.peek();
+    const guest = !!user.peek()?.guest;
+    leaveGuard.isDirty = () => !guest && st.dirty.peek();   // a guest's work is kept here (guest-work.ts)
     leaveGuard.discard = () => { st.saved.value = JSON.stringify(st.body.peek()); };
     const library = loadLibrary().catch((err) => {
       toast(`Library unavailable: ${err.message}`, { kind: 'error' });
@@ -50,8 +52,10 @@ export function Studio({ params, query }: ViewProps) {
     const unreport = reportPage('studio', studioReport(st, pv, ctx.tl));
     // ?report=<id> (admins): a bug report's moment, replayed (report-studio.ts).
     const replay = query.get('report') ? loadReport(query.get('report')!) : null;
-    const look = replay ? replay.then((r) => r.look) : loadLook(params.lookId);
-    const untour = showToTour(st, pv), practice = query.get('tour');
+    const untour = showToTour(st, pv), practice = query.get('tour'), unkeep = guest ? keepGuestWork(st) : () => {};
+    // A blank Studio opens a guest's work kept in this browser (guest-work.ts); an account takes it unsaved.
+    const kept = !replay && !params.lookId && !practice ? guestWork() : null;
+    const look = replay ? replay.then((r) => r.look) : kept ? Promise.resolve(kept) : loadLook(params.lookId);
     Promise.all([loadRig(), library, look]).then(async ([rig, lib, from]) => {
       // ?tour=<path>: the tutorial's practice look, an unsaved one made from library presets (tour/practice.ts).
       let view: string | null = null;
@@ -64,6 +68,7 @@ export function Studio({ params, query }: ViewProps) {
         if (view) pv.viewer?.setView(view);
       });
       if (replay) await (await replay).apply(st, pv, ctx.tl);
+      else if (kept && !guest) st.saved.value = '';
     }).catch((err) => {
       if (!alive) return;
       pv.msg.value = { text: `Could not open the Studio: ${err.message}`, error: true };
@@ -92,6 +97,7 @@ export function Studio({ params, query }: ViewProps) {
       alive = false;
       unreport();
       untour();
+      unkeep();
       delete leaveGuard.isDirty;
       delete leaveGuard.discard;
       document.removeEventListener('keydown', onKey);

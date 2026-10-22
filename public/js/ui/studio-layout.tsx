@@ -19,7 +19,7 @@ import { loadPalettes } from './model.ts';
 import type { Preview } from './preview.ts';
 import { PreviewPane } from './preview-view.tsx';
 import { RefinePanel } from './refine.tsx';
-import { navigate, onPi, user } from './session.ts';
+import { ai, navigate, onPi, user } from './session.ts';
 import { onSideHead, SideDivider } from './side-panels.tsx';
 import type { Dock, Studio } from './studio-store.ts';
 import { Timeline } from './timeline.tsx';
@@ -262,6 +262,6 @@ function LookTab({ st, pv }: { st: Studio; pv: Preview }) {
         <a href={`/studio/${encodeURIComponent(lk.id)}`} aria-current={lk.id === id ? 'page' : undefined}>
           {lk.title || 'Untitled look'}</a></li>) : <li class="pane-hint">Nothing saved yet.</li>)}</ul>
       <p class="look-links">
-        {!onPi() && <a href="/ideas">Ideas</a>}<a href="/looks">All my looks</a><a href="/gallery">Gallery</a></p>
+        {ai.value && <a href="/ideas">Ideas</a>}<a href="/looks">All my looks</a><a href="/gallery">Gallery</a></p>
     </div></section>);
 }
