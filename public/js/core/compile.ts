@@ -136,7 +136,7 @@ export function normalizeParams(raw: unknown): ParamSchema {
       const value = d.value === undefined ? '' : readText(d.value);
       if (value === null) throw new Error(`param "${key}": text is at most ${TEXT_MAX} printable characters`);
       p = { type, value, ...(d.lines === true ? { lines: true as const } : {}),
-        ...(d.petals === true ? { petals: true as const } : {}), ...(d.cells === true ? { cells: true as const } : {}) };
+        ...(d.petals === true && { petals: true as const }), ...(d.cells === true && { cells: true as const }) };
     } else if (type === 'number') {
       const value = d.value === undefined ? 0 : Number(d.value);
       if (!Number.isFinite(value)) throw new Error(`param "${key}": value must be a number`);

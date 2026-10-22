@@ -225,7 +225,7 @@ preset's layers from the library's modules (fresh ids, inputs followed), on the 
 above the selected layer; of its `globals` it adds the macros the look lacks and its palette where the look has none,
 and leaves the rest. A preset that binds `energy` brings an `energy` macro (0..1, 0.5) for it.
 
-The library, one idea a module. Sources: colour-wash, bars, clouds, fire, single-strand (Chase), life, wildfire,
+The library, one idea a module. Sources: colour-wash, bars, clouds, noise, fire, single-strand (Chase), life, wildfire,
 waves, fireflies, sparkle,
 streaks, lightning, fireworks, strobe, heartbeat, picture. Warps: mirror, mosaic, polar,
 anchor, reorder, rotate, scroll, twist, turbulence, in-turn, and the rose's ring-turn, petal-repeat and petal-stride.
