@@ -5,13 +5,13 @@ Plays looks on City of Gods from the FPP Pi, live: Studio's pattern core runs lo
 the power compressor, held byte for byte to `compress-fseq.py` (`pi/test/power.test.ts`). The flash guard dips a
 look that strobes to the dim `safe` look.
 
-**Installing it on the Pi:** [INSTALL.md](INSTALL.md) (clone, `npm ci --omit=dev`, a dry run, the unit and the ops
-hub, updating, rolling back).
+**Installing it on the Pi:** [SETUP.md](SETUP.md) from a USB stick with no internet (the engine alone, or with
+Studio), or [INSTALL.md](INSTALL.md) online (clone, `npm ci --omit=dev`, a dry run, the unit and the ops hub,
+updating, rolling back).
 
-> **The ops hub's night-show AUTO mode fights live apps.** Inside the night-show window (21:00–05:02 on the Pi), the
-> hub starts the night show over Studio Live within about 15 s, and FPP and the engine write the same channels at
-> frame rate. Press STOP on the hub after switching to Studio Live; [INSTALL.md](INSTALL.md#the-night-show-will-play-over-it)
-> has the details and the start-time case.
+> **Start it from the ops hub.** Switching to Studio Live there pauses the night show, and switching back to FPP
+> resumes it; at the show's start (21:00) the hub takes the lights back. Started by hand inside the night-show
+> window, FPP plays over it: [INSTALL.md](INSTALL.md#the-night-show-and-the-hub).
 
 Run from the repo root, on Node 22 (tested on 22.18; `npm run pi` passes `--experimental-strip-types` for an older 22). Node runs the `.ts` directly; the control page is committed as built
 (`pi/page/dist`), so the Pi builds nothing and `npm ci --omit=dev` is enough.
@@ -24,11 +24,14 @@ npm run pi -- --help         # every setting
 
 The stats line reads: the look and its time; fps, render ms (worst); frames skipped (`late`); the generator's
 watts and peak; frames the compressor cut; the level, then `BLACKOUT` or `FLASH-TRIPPED` when either is on.
-SIGINT or SIGTERM fades out over a second, then sends black frames before exiting.
+SIGINT or SIGTERM fades out over a second, then sends black frames before exiting. It will not start on a rig whose
+pixel count is not what lighting's pixel map says (`pixels` in `pi/data/power.json`, from `pi/tools/build_power.py`):
+ADD_LIVE_APP.md's self-check for a stale map.
 
 ## The control page
 
-`http://<the Pi>:4043/` from a phone on the same network: the live play page (SPEC-liveplay "The page"), one layout
+`http://<the Pi>:4043/` from a phone on the same network, alone or behind Studio (which also passes it through
+to curators at `:8780/pi/`): the live play page (SPEC-liveplay "The page"), one layout
 that fits a phone without scrolling and spreads to three columns on a laptop. In Jukebox, the queue alone: what plays,
 **Up next**, **Add a look** (a pick opens its preview first: the gallery's looping preview when it has one, as
 Studio's looks do) and **Fade to next**. In Live Play, also the playing look's knobs four to a bank (its
@@ -54,8 +57,8 @@ look sent by `ref` (its code always ours), shown with who queued it.
   only the queue: no knobs, Master, tempo, Blackout or Play now, whatever a page sends. Behind Studio, the admin's
   setting wins (Studio's feed says it). In Live Play one person has the knobs at a time (Take over); the Pi's own page
   drives as "the Pi's page". Who a socket is comes from Studio's proxy: on the LAN the PIN is the only gate, so anyone
-  with it may say they are Studio's feed and change the mode. Behind Studio the engine listens on loopback only
-  (`pi/STUDIO.md`).
+  with it may say they are Studio's feed and change the mode. Behind Studio it still listens on the network, for the
+  hub's `:4043/` link, so set a PIN (`pi/STUDIO.md`).
 - The socket also sends what plays (`source`: the look, its modules by ref, at each change) and its clock in the
   state, so Studio's Live tab can follow a dry run behind Studio's `/pi` (SPEC-live "Following /pi"). The Pi itself
   connects to nothing and needs no setting for it.

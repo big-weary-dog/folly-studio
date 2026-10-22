@@ -28,7 +28,8 @@
     "bake-bench": "node --experimental-strip-types tools/bake-bench.ts",
     "pi:page": "vite build -c pi/vite.config.js",
     "pi:branch": "bash deploy/pi-branch.sh",
-    "build-data": "python3 tools/build_rig.py && python3 tools/build_palettes.py"
+    "build-data": "python3 tools/build_rig.py && python3 tools/build_palettes.py",
+    "pi:bundle": "bash deploy/pi-bundle.sh"
   },
   "devDependencies": {
     "@babel/core": "7.29.7",
