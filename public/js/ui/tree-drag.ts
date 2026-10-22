@@ -2,8 +2,9 @@
 // by any pointer, marks the slot it will land in, in the layer's chain or any sub-layer's, so a module moves into a
 // composite or out of one as it moves along a list. Slots are the elements marked `data-slot` ("comp sub index", or
 // "- - index" for the layer's chain, then the id of the module it attaches to in an attached run, marked
-// `data-attach`), in the order shown; letting go moves it, one edit. Escape puts it back. A
-// sub-layer's head drags it the same way among its composite's sub-layers (slots `data-sub-slot`, "comp index").
+// `data-attach`), in the order shown; letting go moves it, one edit. Escape puts it back. Between a composite's
+// sub-layers are slots `data-sub-slot` ("comp index"): a source let go there becomes a sub-layer of its own, and a
+// sub-layer's head (one of several sources) drags it among its composite's sub-layers the same way.
 import { useEffect, useRef, useState } from 'preact/hooks';
 
 import type { Box } from './composite-model.ts';
@@ -29,11 +30,15 @@ export const parseSlot = (key: string): [Box, number, string | undefined] => {
   return [comp === '-' ? null : { comp, sub: Number(sub) }, Number(i), on];
 };
 
-/** `move(id, box, index, on)` lands module id at index of list box (attached to `on`), `moveSub(comp, k, index)`
- * sub-layer k of composite comp at index of its sub-layers. → each grip's handlers, whether a slot is marked, what is
- * being dragged. */
+/** A key of a `data-sub-slot` ("comp index"), not a `data-slot`. */
+export const isSubSlot = (key: string) => key.split(' ').length === 2;
+
+/** `move(id, box, index, on)` lands module id at index of list box (attached to `on`), `moveIn(id, comp, index)`
+ * makes source id sub-layer index of composite comp, `moveSub(comp, k, index)` sub-layer k of composite comp at index
+ * of its sub-layers. → each grip's handlers, whether a slot is marked, what is being dragged. */
 export function useTreeDrag(root: { current: HTMLElement | null },
   move: (id: string, box: Box, i: number, on?: string) => void,
+  moveIn: (id: string, comp: string, i: number) => void,
   moveSub: (comp: string, k: number, i: number) => void) {
   const [drag, show] = useState<Drag>(null);
   const live = useRef<Drag>(null);
@@ -82,9 +87,13 @@ export function useTreeDrag(root: { current: HTMLElement | null },
     },
     onPointerCancel: () => set(null),
   });
-  /** A module's grip; one that cannot attach (a source) skips the attached runs' slots. */
+  /** A module's grip; a source skips the attached runs' slots and may land between sub-layers, a warp or filter not. */
   const grip = (id: string, attaches = true) => handlers(id,
-    attaches ? '[data-slot]' : '[data-slot]:not([data-attach])', (slot) => move(id, ...parseSlot(slot)));
+    attaches ? '[data-slot]' : '[data-slot]:not([data-attach]), [data-sub-slot]', (slot) => {
+      const [comp, i] = slot.split(' ');
+      if (isSubSlot(slot)) moveIn(id, comp, Number(i));
+      else move(id, ...parseSlot(slot));
+    });
   const subGrip = (comp: string, k: number) => handlers(`${comp} ${k}`, `[data-sub-slot^="${comp} "]`,
     (slot) => moveSub(comp, k, Number(slot.split(' ')[1])));
   return { grip, subGrip, marked: (box: Box, i: number, on?: string) => drag?.slot === slotKey(box, i, on),
