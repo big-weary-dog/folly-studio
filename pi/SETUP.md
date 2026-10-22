@@ -1,4 +1,4 @@
-# Setting up the FPP Pi, from a USB stick
+# Setting up the FPP Pi, from a USB stick or a download
 
 From "Pi powered on" to "lights playing from the hub", with no internet at the site. One choice, at step 4:
 
@@ -11,6 +11,8 @@ The ops hub's link is `http://192.168.8.172:4043/` in both. With Studio, curator
 `:8780/pi/`. What the engine is: [README.md](README.md).
 
 ## Tonight, at home (online)
+
+Or skip steps 1 and 2: [download it](#downloading-it) from the hosted Studio.
 
 1. **Make the bundle** on the hosting machine, from the commit to ship (default the checkout's `HEAD`):
 
@@ -84,6 +86,27 @@ ssh fpp@192.168.8.172 bash /home/fpp/install/install.sh --pin 2468    # or with 
 ```
 
 Then steps 6 to 9 above. `/home/fpp/install/` may go once it is done.
+
+## Downloading it
+
+The hosted Studio holds the bundle of the commit it runs, made when it was deployed: Admin → **Pi bundle** shows
+the commit, for curators and admins. It is one file, `folly-studio-pi-<commit>.tar`, holding a folder
+`folly-studio-pi/` with what the stick carries (`folly-studio-pi.tgz`, `install.sh`, this file); add a `looks/`
+folder to it yourself ([Looks on the stick](#looks-on-the-stick)).
+
+- **On a laptop:** **Download**, then `tar -xf folly-studio-pi-<commit>.tar` and copy the folder's files to the
+  stick, or send them over DustyRose as [from a laptop](#from-a-laptop-instead-of-a-stick).
+- **On the Pi itself**, online through a phone hotspot: **Copy curl link** on the page gives a line that needs no
+  sign-in and works for an hour (share it with no one else). On the Pi:
+
+  ```sh
+  mkdir -p /home/fpp/install && cd /home/fpp/install
+  curl -fo folly-studio-pi.tar '<the link>'
+  tar -xf folly-studio-pi.tar
+  bash folly-studio-pi/install.sh --pin 2468    # or with --studio --admin NAME, as at step 4
+  ```
+
+  Then steps 6 to 9 above. `/home/fpp/install/` may go once it is done.
 
 ## Looks on the stick
 

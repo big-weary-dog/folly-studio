@@ -13,6 +13,7 @@ import { ideaLogRoutes } from './api-idea-log.ts';
 import { lightRoutes } from './api-light.ts';
 import { bakingRoutes } from './baking.ts';
 import { lightsRoutes } from './lights.ts';
+import { piBundleRoutes } from './pi-bundle.ts';
 import { reportRoutes } from './api-reports.ts';
 import { tourRoutes } from './api-tour.ts';
 import { lookRoutes } from './api-looks.ts';
@@ -74,7 +75,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
   bakes: ReturnType<typeof createBakeQueue>, frames: ReturnType<typeof createFramesCache>, secureCookies?: boolean,
   rateLimit?: { max?: number, ipMax?: number, guestMax?: number, windowMs?: number }, flash: FlashSettings, hub: Hub,
   live: LiveSettings, ideaLogs: IdeaLogs, previews?: ReturnType<typeof createPreviews>, reports: Reports,
-  build: string, tail: () => unknown[], light: LightStore, profile?: Profile,
+  build: string, tail: () => unknown[], light: LightStore, profile?: Profile, piBundle?: string,
   baking?: Parameters<typeof bakingRoutes>[0], stats?: Parameters<typeof routes>[1],
   codeGate?: Parameters<typeof lookRoutes>[0]['codeGate'],
   lights?: Pick<Parameters<typeof lightsRoutes>[0], 'store' | 'feed' | 'hub' | 'drive'> }) {
@@ -239,6 +240,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         looksIn: looks.looksIn, listed: looks.listed })
         : {}),
       ...reports,
+      ...piBundleRoutes({ file: o.piBundle }),
       ...looks.routes,
       ...framesRoutes({ framesDir, cache: frames, visibleLook: looks.visibleLook }),
       'GET /library': [async () => ({ patterns: loaders.loadLibrary()

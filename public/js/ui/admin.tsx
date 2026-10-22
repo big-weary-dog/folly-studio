@@ -8,7 +8,7 @@ import { can } from '../../../shared/policy.ts';
 import { onPi, user, type ViewProps } from './session.ts';
 
 const TABS = [['models', 'Models'], ['access', 'Access'], ['light', 'Light'], ['baking', 'Baking'],
-  ['reports', 'Reports'], ['stats', 'Stats']];
+  ['reports', 'Reports'], ['stats', 'Stats'], ['pi-bundle', 'Pi bundle']];
 // The Pi runs no models, so it has nothing to set for them or for who may use them (SPEC-offline).
 const PI_TABS = TABS.filter(([id]) => id !== 'models' && id !== 'access');
 

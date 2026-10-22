@@ -54,6 +54,7 @@ d1ac1d0d81c815fc15842b9f04fdf414830ed14a0a602bf6344740f90bb36c00 bubblewrap_0.12
 e0c09b03161b8251a8d00a21f3a947575a44232a633a468f0037ba3f98933021 bubblewrap_0.12.0-1~deb13u1_armhf.deb
 EOF
 
+mkdir -p "$(dirname "$out")"
 tar -czf "$out" -C "$tmp" folly-studio
 cp "$dest/pi/install.sh" "$(dirname "$out")/install.sh"
 echo "pi-bundle: $out ($(du -h "$out" | cut -f1)), the build of ${commit:0:12}; install.sh beside it"

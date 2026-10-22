@@ -77,6 +77,7 @@ function settings(warn: Warn) {
     STUDIO_PREVIEWS: [oneOf('playa', 'front'), 'the gallery previews\' camera, default playa (the Pi: front)'],
     PI_PREVIEW_URL: [text(), 'a Studio Live engine on this machine, at /pi (here a dry run; the Pi\'s own on it)'],
     PI_PIN: [text(), 'the engine\'s PIN, if it has one: Studio\'s feed says it to play on the lights; a secret'],
+    STUDIO_PI_BUNDLE: [text(), 'the Pi bundle served to curators (SPEC-offline); npm run host names it'],
     GIT_SHA: [text(), 'the build\'s commit, for bug reports (default: the checkout\'s)'],
     STUDIO_BAKE_SECONDS: [num({ min: 0 }), 'the longest render-box bake, default 120'],
     STUDIO_BAKE_TIMEOUT: [d('s', 'STUDIO_BAKE_TIMEOUT'), 'a bake\'s wall clock, default scaled to its length'],

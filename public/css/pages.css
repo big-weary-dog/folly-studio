@@ -113,7 +113,8 @@
 .light-page .models-actions { flex-wrap: wrap; }
 @media (max-width: 899px) { .light-curve { font-size: 11px; } .light-curve th, .light-curve td { padding: 4px 2px; } }
 /* The Stats page (js/ui/stats.tsx, admins): today's counts as tiles, the days as a table of numbers. */
-.stats-page { --tint: var(--sand); max-width: 780px; }
+.pi-bundle-curl { width: 100%; font-family: var(--mono); font-size: 13px; }
+.stats-page, .pi-bundle-page { --tint: var(--sand); max-width: 780px; }
 .stats-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 10px;
   margin: 20px 0 0; }
 .stats-tile { padding: 10px 14px; border: var(--came) solid var(--lead);

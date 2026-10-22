@@ -2,8 +2,9 @@
 # Start or update the hosted studio on this machine (docs/HOSTING.md "Hosting on this machine"): check out a commit,
 # install, build, and (re)start it as a systemd user service, then check it serves that commit.
 #
-#   npm run host [-- [--instance dev|offline] <ref>]   default STUDIO_REF from the env file, else origin/prod
-#                                                       (dev and offline: origin/dev)
+#   npm run host [-- [--instance dev|offline] [--no-pi-bundle] <ref>]
+#                     <ref>: default STUDIO_REF from the env file, else origin/prod (dev and offline: origin/dev)
+#                     --no-pi-bundle: make no Pi bundle for this commit, so it serves none
 #
 #   STUDIO_INSTANCE   which studio: unset is the public one; dev is the internal one beside it, offline a trial of
 #                     the Pi's (STUDIO_PROFILE=pi) on loopback (docs/HOSTING.md "Dev instance"), each with its own
@@ -14,12 +15,16 @@
 #
 # With PI_PREVIEW_URL in the env file, it also runs a dry-run Studio Live beside it as $STUDIO_UNIT-pi, for admins
 # (offline: curators too) at /pi (docs/HOSTING.md "The Pi's page"); without it, that unit is stopped.
+#
+# It also makes the Pi bundle of the commit (deploy/pi-bundle.sh, SPEC-offline "Downloading the Pi bundle") in
+# ~/.cache/folly-studio/<unit>/ and names it to the service; a bundle that fails is a warning, and the studio serves none.
 set -euo pipefail
 
 die() { echo "host: $*" >&2; exit 1; }
 studio=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 root=$(git -C "$studio" rev-parse --show-toplevel)
 if [ "${1:-}" = --instance ]; then STUDIO_INSTANCE=${2:-}; shift 2 || die "--instance needs a name"; fi
+if [ "${1:-}" = --no-pi-bundle ]; then STUDIO_NO_PI_BUNDLE=1; shift; fi
 instance=${STUDIO_INSTANCE:-}
 settings=$HOME/.config/folly-studio
 # Each instance's settings file and port when the file does not name one.
@@ -84,7 +89,7 @@ if [ -z "${STUDIO_HOST_CHECKED_OUT:-}" ]; then
   # The rest is the checked-out commit's own steps: its unit, its checks.
   # Named outright, so a commit's host.sh from before instances still writes this instance's unit, not another's.
   STUDIO_INSTANCE=$instance STUDIO_ENV_FILE=$env_file STUDIO_UNIT=$unit \
-    STUDIO_HOST_CHECKED_OUT=1 exec bash "$studio/deploy/host.sh"
+    STUDIO_NO_PI_BUNDLE=${STUDIO_NO_PI_BUNDLE:-} STUDIO_HOST_CHECKED_OUT=1 exec bash "$studio/deploy/host.sh"
 fi
 commit=$(git -C "$root" rev-parse HEAD)
 
@@ -100,6 +105,29 @@ printf '{ "commit": "%s", "builtAt": "%s" }\n' "$commit" "$(date -u +%FT%TZ)" > 
 node tools/config-check.ts "$env_file" \
   || die "$commit would not start with $env_file (the names above; docs/HOSTING.md \"Environment\"); $unit left running"
 
+# The Pi bundle (SPEC-offline "Downloading the Pi bundle"): made here, never at a request; its listing checked for
+# anything secret. A failure leaves the studio with no bundle rather than stopping the deploy.
+bundles=$HOME/.cache/folly-studio/$unit
+bundle=$bundles/folly-studio-pi-${commit:0:12}.tar
+make_bundle() {
+  local work=$bundles/work
+  rm -rf "$work" && mkdir -p "$work/folly-studio-pi" || return 1
+  bash deploy/pi-bundle.sh "$commit" --out "$work/folly-studio-pi/folly-studio-pi.tgz" | grep '^pi-bundle:' || return 1
+  cp pi/SETUP.md "$work/folly-studio-pi/" || return 1
+  tar -tzf "$work/folly-studio-pi/folly-studio-pi.tgz" | node tools/pi-bundle-check.ts || return 1
+  tar -cf "$bundle.part" -C "$work" folly-studio-pi && mv "$bundle.part" "$bundle" && rm -rf "$work"
+}
+if [ -n "${STUDIO_NO_PI_BUNDLE:-}" ]; then
+  echo "host: no Pi bundle (--no-pi-bundle)"
+  bundle=
+elif [ -f "$bundle" ]; then
+  echo "host: the Pi bundle of ${commit:0:12} is already made"
+elif ! make_bundle; then
+  echo "host: WARNING: the Pi bundle failed (above); $unit serves none" >&2
+  rm -rf "$bundles/work" "$bundle.part"
+  bundle=
+fi
+
 node=$(command -v node)
 units="$HOME/.config/systemd/user"
 mkdir -p "$units"
@@ -111,7 +139,8 @@ Description=Folly Studio${instance:+ ($instance)} ($studio)
 [Service]
 WorkingDirectory=$studio
 EnvironmentFile=$env_file
-Environment=PATH=$(dirname "$node"):$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin
+${bundle:+Environment=STUDIO_PI_BUNDLE=$bundle
+}Environment=PATH=$(dirname "$node"):$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=$node server.ts
 Restart=always
 RestartSec=5
@@ -149,6 +178,9 @@ elif [ -f "$units/$unit-pi.service" ]; then
   systemctl --user disable --now --quiet "$unit-pi" || true
 fi
 
+# Only this commit's bundle stays.
+find "$bundles" -maxdepth 1 -name 'folly-studio-pi-*.tar' ! -path "${bundle:-/}" -delete 2>/dev/null || true
+
 url="http://${host/::1/[::1]}:$port"
 for _ in $(seq 60); do
   served=$(curl -fsS -m 2 "$url/build.json" 2>/dev/null | grep -o '"commit": "[0-9a-f]*"' | cut -d'"' -f4) || true
@@ -182,5 +214,10 @@ if command -v curl.exe >/dev/null; then
   elif [ -n "$instance" ]; then echo "host: Windows' 127.0.0.1:$port is not this studio: a tunnel could not reach it"
   else die "Windows' 127.0.0.1:$port is not this studio, so the tunnel cannot reach it: is something on that port there?"
   fi
+fi
+if [ -n "$bundle" ]; then
+  code=$(curl -s -o /dev/null -w '%{http_code}' -m 5 "$url/api/pi-bundle/info")
+  [ "$code" = 401 ] || die "$url/api/pi-bundle/info answered $code without a session, not 401"
+  echo "host: the Pi bundle ($(du -h "$bundle" | cut -f1)) is at Admin → Pi bundle"
 fi
 echo "host: $unit serves $commit on $url"
