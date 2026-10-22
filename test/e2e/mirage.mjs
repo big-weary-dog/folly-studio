@@ -47,7 +47,7 @@ export async function openMirage(page, url, timeout = 240000) {
  * Mirage's pixel store, per pixel: zone key, universe, 0-based channel within it, position, and the
  * drive it last received (0..1 = DMX / 255). The universe comes from the store's byUniverse index.
  */
-export async function readStore(page) {
+async function readStore(page) {
   return page.evaluate(async () => {
     const { store } = window.mirage.app;
     const { ZONE_KEYS } = await import(new URL('src/pixels.js', location.href).href); // the page's own module
@@ -101,7 +101,7 @@ export async function showView(page, view, frames = 4) {
   await waitFrames(page, frames);
 }
 
-export async function waitFrames(page, n) {
+async function waitFrames(page, n) {
   await page.evaluate((count) => new Promise((resolve) => {
     let left = count;
     const step = () => (--left <= 0 ? resolve() : requestAnimationFrame(step));

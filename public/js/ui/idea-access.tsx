@@ -11,7 +11,7 @@ export type Gate = { kind: 'free' | 'exempt' } | { kind: 'locked' } | { kind: 'o
   | { kind: 'wait', text: string };
 
 /** When `at` is, in words: "at 14:32", or "tomorrow at 09:10". */
-export function whenText(at: string, now = new Date()) {
+function whenText(at: string, now = new Date()) {
   const d = new Date(at), time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   return d.toDateString() === now.toDateString() ? `at ${time}` : `tomorrow at ${time}`;
 }

@@ -71,7 +71,7 @@ export function createLightsStore(file: string) {
   };
 }
 
-export type LightsStore = ReturnType<typeof createLightsStore>;
+type LightsStore = ReturnType<typeof createLightsStore>;
 
 /** `drive`: may this person drive Live Play (SPEC-live "Settings", STUDIO_LIVE_CONTROL). */
 export function lightsRoutes({ store, feed, hub, drive, loadLibrary, visibleLook, looksIn, listed }: {

@@ -104,7 +104,7 @@ test('Live Play drives the engine from a phone', async ({ browser }, info) => {
   const tapped = await bpm(tap);
   await page.getByRole('button', { name: 'Faster by 1 BPM' }).click();
   await expect.poll(() => bpm(tap)).toBeCloseTo(tapped + 1, 0);
-  // Pushed and tapped, the look plays on: nothing it offers trips the flash guard (pi/test/library.test.ts).
+  // Pushed and tapped, the look plays on: nothing it offers trips the flash guard (pi/test/library-controls.test.ts).
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Heartbeat plasma');
   await expect(page.getByRole('alert')).toHaveCount(0);
   await shot(page, '01-playing');

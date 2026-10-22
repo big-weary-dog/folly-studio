@@ -28,8 +28,8 @@ import type { createPreviews } from './previews/index.ts';
 import { CACHE_IMMUTABLE } from './static.ts';
 import type { Store, StoredLook as Look, StoredUser as User } from './store.ts';
 
-export const MAX_LOOKS_PER_USER = 500;
-export const GALLERY_LIMIT = 200;
+const MAX_LOOKS_PER_USER = 500;
+const GALLERY_LIMIT = 200;
 
 type Req = FastifyRequest<{ Params: { id: string } }>;
 

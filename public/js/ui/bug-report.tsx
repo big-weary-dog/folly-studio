@@ -66,7 +66,7 @@ export function snapshot(): Report {
 }
 
 /** Sends `report`, and again without its screenshot when the server finds it too big; whether the shot went. */
-export async function sendReport(report: Report) {
+async function sendReport(report: Report) {
   try {
     return { ...await api.report(report), shot: !!report.screenshot };
   } catch (err) {

@@ -29,7 +29,7 @@ export function roll(live: Live, loop: number) {
 }
 
 /** The look's macros with their ranges and values (upgradeGlobals: energy one on a look from before). */
-export function rangesOf(look: Pick<LiveLook, 'globals' | 'automation' | 'layers'>) {
+function rangesOf(look: Pick<LiveLook, 'globals' | 'automation' | 'layers'>) {
   const g = normalizeGlobals(upgradeGlobals(look).globals);
   return new Map<string, Range>(g.macros.map((m) => [m.name, { min: m.min, max: m.max, value: m.value }]));
 }

@@ -230,7 +230,7 @@ type Line = { at: number, line: string };
 /** `codex exec --json`'s events (JSONL on stdout, each line with when it arrived): the turn's usage, the items it
  * completed (reasoning, tool calls, messages) for the idea log, each with `at` (ms into the call when it completed)
  * and `from` (when it started, when codex says), and any error it reported. */
-export function readEvents(lines: Line[]) {
+function readEvents(lines: Line[]) {
   const usage = { input: 0, cached: 0, output: 0, reasoning: 0 }, items: unknown[] = [], errors: string[] = [];
   const started = new Map<unknown, number>();
   for (const { at, line } of lines) {

@@ -1,4 +1,4 @@
-// src/frames.js: the strict FSEQ parser and the frame analysis (brightness, power, flicker).
+// src/frames.ts: the strict FSEQ parser and the frame analysis (brightness, power, flicker).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 

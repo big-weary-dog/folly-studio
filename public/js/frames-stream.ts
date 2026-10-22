@@ -8,7 +8,7 @@ const MAX_CHANNELS = 80 * 510;
 const whole = (v: unknown, lo: number, hi: number): v is number => Number.isInteger(v) && (v as number) >= lo
   && (v as number) <= hi;
 /** A bake's frames on the wire (SPEC "Baked frames"). */
-export type Manifest = { version: 1; hash: string; frames: number; fps: number; channels: number;
+type Manifest = { version: 1; hash: string; frames: number; fps: number; channels: number;
   ranges: [number, number][]; chunkFrames: number; chunks: { bytes: number }[]; bytes: number };
 type Chunk = ReturnType<typeof decodeChunk>;
 

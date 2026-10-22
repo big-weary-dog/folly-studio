@@ -1,14 +1,14 @@
 # Hosting Folly Studio at home
 
 For tens of people, on your own computer, behind an HTTPS tunnel. Commands marked *(to verify)*
-were not run when this was written. Check them against the tool's own docs.
+have not been run here. Check them against the tool's own docs.
 
 ## What runs where
 
 | Where | What | Cost |
 |---|---|---|
 | Phone or laptop | The app, the 3D preview, every pattern's code (sandboxed iframe), playback of baked frames | Its own CPU and battery |
-| Your computer (`npm start`) | Accounts, the JSON store, the API, static files, generators, bakes, frame encoding | About 100 MB of RAM idle; a login takes 128 MiB for half a second (scrypt, at most four at once) |
+| Your computer (`npm start`) | Accounts, the JSON store, the API, static files, generators, bakes, frame encoding | About 100 MB of RAM idle; a login takes 128 MiB for half a second (scrypt, at most three at once) |
 | Codex CLI (Sol, Luna) | One `codex exec` per idea, two at once by default, read-only and with no tools | A short-lived process per idea; the model runs at OpenAI |
 | Render box (bubblewrap; without it, library looks only) | One bake at a time, `nice 10` (Admin → Baking: throttled is `nice 19` with 30 s between renders, or off), in its own systemd user scope: ≤ 256 tasks (`STUDIO_BAKE_TASKS`), ≤ 1 GB (`STUDIO_BAKE_MEMORY`); a wall clock | A 30 s look takes 2–3 s on one core |
 | Encoder thread | Brotli for streaming, `nice 10`, one job at a time; a look's encode waits for any bake | 2.5–5.5 s per 30 s look at quality 9 |
@@ -310,7 +310,7 @@ them.
 
 `/live` shows everyone signed in the same look at the same moment; `/live/control` drives it (SPEC-live). Its
 socket is `/api/live/socket` on the same host, which both tunnels carry as they are. Its state survives a restart
-in `live.json` in `STUDIO_DATA`. It has no flash guard yet: keep `STUDIO_LIVE_LOOKS=reviewed` on a public site.
+in `live.json` in `STUDIO_DATA`. It has no flash guard: keep `STUDIO_LIVE_LOOKS=reviewed` on a public site.
 
 ### The Pi's page
 
@@ -374,12 +374,12 @@ Edit it by hand or on Admin's **Models** tab (admins only: `STUDIO_ADMINS`): tur
 pick the default. The server reads the file again when it changes, with no restart; a file that does not parse is
 reported in the log and on the Models page, and the last good one stays in use. Each model may also say
 `"roles": ["admin"]` (who may pick it; none: everyone), `"maxTokens"`, `"timeoutSeconds"` and `"critique"`
-(`"images"` or `"text"`: a round where the model sees what it made; only by hand, and a file written before Sol
-and Luna had it keeps its own settings, so add it there). `via` is how it is
+(`"images"` or `"text"`: a round where the model sees what it made; only by hand: an existing file is never
+rewritten with the defaults, so add it there). `via` is how it is
 reached: `claude` (the Anthropic API), `codex` (the Codex CLI) or `fleet` (the foundry, below).
 A model whose transport is not set up (no `ANTHROPIC_API_KEY`, no `codex` on PATH) shows as unavailable and is not
-offered; the form hides its choice when only one model can run. `STUDIO_GENERATOR` is superseded: it only names the
-default when the file is first written.
+offered; the form hides its choice when only one model can run. `STUDIO_GENERATOR` only names the default when the
+file is first written.
 
 **Speed.** Effort is the main lever: each model's is pinned in the file (Opus medium, Sol and Luna low), and lower
 is faster. Each transport has its own lane (`concurrency`), so an Opus idea never waits behind a Sol one. The
@@ -404,7 +404,7 @@ use is limited. Admins are exempt from both. The `limits` block above holds the 
 |---|---|---|
 | `inviteOnly` | `true` | Paid models need a code. `false` unlocks everyone (a private server) |
 | `perHour` | 6 | An idea takes 20–60 s, so six lets someone try, look and try again through a sitting |
-| `perDay` | 20 | The cap the studio had before invites; enough for a good evening's work |
+| `perDay` | 20 | Enough for a good evening's work |
 | `concurrent` | 2 | Ideas queued or being made at once, so one person cannot fill Opus's 4 lanes |
 | `dailyCeiling` | 200 | Everyone's paid ideas in 24 hours: about 10 people at their full allowance, ~$40 a day of Opus at medium at worst. A backstop: still give the API key its own spend limit |
 

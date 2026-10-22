@@ -13,7 +13,7 @@ import type { LayerInput } from '../public/js/pattern-core.ts';
 import type { RenderBox } from './render-box.ts';
 
 export const THROTTLE = { nice: 19, cooldownMs: 30_000 };
-export const BAKING_OFF = 'An admin turned baking off.';
+const BAKING_OFF = 'An admin turned baking off.';
 
 type Log = { warn?: (...a: unknown[]) => void };
 
@@ -48,7 +48,7 @@ export function createBakingStore({ file, log = console }: { file: string, log?:
     },
   };
 }
-export type BakingStore = ReturnType<typeof createBakingStore>;
+type BakingStore = ReturnType<typeof createBakingStore>;
 
 type Box = Pick<RenderBox, 'probe' | 'render'> & { refuses?: RenderBox['refuses'], stop?(): void,
   config?: Partial<RenderBox['config']> };
@@ -86,7 +86,6 @@ export function governBox(box: Box, mode: () => BakeMode, { cooldownMs = THROTTL
     },
   };
 }
-export type GovernedBox = ReturnType<typeof governBox>;
 
 /** GET /api/baking for everyone signed in (the bake buttons read it); PUT /api/admin/baking for admins. */
 export function bakingRoutes({ baking, box }: { baking: BakingStore, box: Pick<RenderBox, 'probe'> }) {

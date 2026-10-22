@@ -1,7 +1,7 @@
-# Folly Studio — build contract: generators, models and access
+# Folly Studio — build contract: generators and models
 
-Part of `SPEC.md`'s contract (split from it for size): how an idea becomes a look, which models people may pick,
-and who may use the paid ones, how much.
+Part of `SPEC.md`'s contract: how an idea becomes a look, and which models people may pick (who may use the paid
+ones, and how much: SPEC-access).
 
 ## Generators (idea → look)
 
@@ -13,19 +13,18 @@ and the library's catalog, built once per library and rig; `repair`: the last an
 that model's transport lane, each lane with its own concurrency. When it fails, the idea is `failed` with a user-safe
 error (the Studio offers "Try again"): no other generator stands in. A call cut by a stop signal the server did not
 send (a service stop reaching the whole group) runs once more after a 2 s grace, or, when the server is stopping
-after all, is left `generating` for the next start to queue again; cut twice, it fails. An idea that names no model (from before the registry) goes
+after all, is left `generating` for the next start to queue again; cut twice, it fails. A stored idea that names no model goes
 to `STUDIO_GENERATOR`'s transport. Generators find places by the rig's
 tags (falling back to group ids and names), describe the installation from the rig (`about`, its fixtures and
 groups), and give layers the tags they meant beside the ids. The result is cleaned by `validateLook`
 (`shared/schemas/generated.ts`, zod: ≤ 4 layers,
 known group ids (none known: the root) and tags, code ≤ 20 kB containing `function pixel`, or modules whose code defines their kind's
 function; clips and duration normalised, bad or overlapping clips dropped; `globals` and `automation`
-cleaned (a macro's `mod` kept when it is an LFO, or an older look's tempo binding, that follows faders only, else
+cleaned (a macro's `mod` kept when it is an LFO, `beats` or a global binding that follows faders only, else
 dropped with a note),
 `bpm` held to 40–240, a palette name filled in; picks cleaned of unknown tokens; a layer's `palette` dropped; a layer without a
 usable `soften` gets `DEFAULT_SOFTEN`) before a look is saved, with `chain: 2` (generators write the one rule: a warp after
-what it bends), and the idea set `ready`. Old single-code layers
-stay valid. Generators may add
+what it bends), and the idea set `ready`. Generators may add
 clips and a duration for ideas that describe a progression; most looks have neither.
 
 **Composition** (`claude`, `codex`). The model names the library and the server writes the code. A layer is
@@ -39,20 +38,19 @@ never read for the look. A value is a number, on/off, a word (a choice, a pick) 
 binding (`{ mod: lfo | global | beats, … }`, on number params only; `beats` keeps a speed in time). `src/generate/expand.ts` turns it into a look:
 each `use` becomes the module's code with its params, held to the declarations read statically from its `const
 params` (`catalog.ts`; never evaluated): a number out of range is clamped, an unknown or ill-typed param dropped,
-a direction from before both ways were named (`round`, bars' `orbit`) made its new word as the module's `upgrade`
-reads it, each with a note in `dropped`. More than 8 such notes get a round of their own (the notes, and the ask to fit
+a direction word a module's `upgrade` maps (`round`, bars' `orbit`) made the word it maps to, each with a note in `dropped`. More than 8 such notes get a round of their own (the notes, and the ask to fit
 each param to the library); its answer is kept only when it expands with no errors and fewer notes. A preset becomes its layers as the Studio adds one (its params, blends and inputs,
 the overrides on top, its palette and macros where the look has none). An unknown module, preset, extension or
 input, and an empty layer, are errors with a path (`layers[1].modules[0].use: barz is not a library module (did you
 mean bars?)`); they get one repair round inside the idea (the same model, its answer and the errors; it is not
 another use), after which what expanded is kept and the rest noted. `validateLook` then cleans the result as
-any look; a layer given as code (the old shape) passes through to it. The prompt shows the library as a summary
+any look; a layer given as code passes through to it. The prompt shows the library as a summary
 sorted by name (a module on one line: what it looks like and its params in brackets, each as `name lo–hi (default)`,
 `name a|b (default)`, `name on/off (default)` or `name colour (default)`; a preset as its recipe),
 the palettes, the groups, show taste, and worked compositions (each only where the library and the rig's tags have
 what it names). The pattern API is not in it: an extension reads `library/extensions.md` (with no docs, the page is
-in the prompt). The system prompt and the docs a turn gets unasked stay under 33,000 characters together,
-and with the draft turn under 33,500 (`test/generate.test.js`). The queue logs one line per idea or refinement: its route, timings, repair rounds, the check and
+in the prompt). The system prompt and the docs a turn gets unasked stay under 34,000 characters together,
+and with the draft turn under 34,500 (`test/generate.test.js`). The queue logs one line per idea or refinement: its route, timings, repair rounds, the check and
 critique, how many library modules, extensions and code it used, the docs it read, and the first notes.
 
 **The idea log** (`src/generate/idea-log.ts`). Each idea and refinement (under its own id) also leaves a record on
@@ -73,15 +71,15 @@ input; codex: from its `--json` events), and they and a line per round are saved
 `rounds`), a failed round's outcome (and the critique `verdict`) as just `failed`: its error can carry a provider's or
 a CLI's text, so it stays in the log. The idea also keeps `how`, its rounds in about 5 KB (each round's head,
 tokens, critique, plan, up to 12 changes, checks, how many stills, and 600 characters of thinking, the oldest
-rounds' thinking dropped first to fit), so how it was made outlasts the log; an idea from before has none. The
-owner's API (`GET /api/ideas`, `/api/ideas/:id`) leaves `how` out, and strips a failed round's error from an older
+rounds' thinking dropped first to fit), so how it was made outlasts the log. The
+owner's API (`GET /api/ideas`, `/api/ideas/:id`) leaves `how` out, and strips any failed round's error stored on the
 idea's rounds and verdict too. Admins read a log at `GET /api/admin/ideas/:id/log` and its stills by name; the Studio links it
 ("Log") on an idea's row for them.
 
 **How it was made** (`src/api-idea-how.ts`, the page `/ideas/:id/how`, linked from each idea's row). For
 the idea's owner and admins; anyone else, curators too, gets 404. `GET /api/ideas/:id/how` answers `{ idea, from,
 run: { via?, effort?, level?, name? }, prompt?, rounds, usd? }`: from the idea's log while it is kept (`from: 'log'`),
-else from the `how` the idea keeps (`'idea'`: no prompt, stills only counted), else `'none'` (an idea from before, or
+else from the `how` the idea keeps (`'idea'`: no prompt, stills only counted), else `'none'` (as for
 one its model made in one step). `prompt` is the first call's parts, each `{ name, bytes, tokens (bytes / 4, an
 estimate), text? }`: the guide and the library catalog (the system prompt, shared by every idea: text for admins
 only), each doc given and the idea itself. A round is as logged, with its stills `{ file, view, at }`, served at
@@ -103,8 +101,7 @@ stdlib and the rules for code, with how often `pixel()` runs on the rig). The pr
 shows; a paragraph; `## Params` with a line per param, `## Overrides` for a preset; `## Pairings`; `## Pitfalls`);
 types, ranges, defaults, options, units (the code's `label`) and each param's `help` come from the catalogue, and recipes from the index,
 so the tree follows the library. `tools/build-docs.ts` writes it to a folder. A test fails when the prose names a
-param the code lacks or a module the library has not, or (once the library's renames have landed) a module has no
-prose or a param no `help`. The prose is kept short: a page says only what the code's help does not.
+param the code lacks or a module the library has not, a module has no prose, or a param no `help`. The prose is kept short: a page says only what the code's help does not.
 
 The docs reach the model in its turn (`src/generate/docs-turn.ts`), never the cached system prompt: the pages an idea
 needs, each whole in a `<doc path="…">`, before the turn's text: for Explore and Deep the pages the draft turn named
@@ -151,7 +148,7 @@ levels, `explore: 'quick' | 'explore' | 'deep'` (default `explore`, as is an ide
 - **Deep**: effort at least `xhigh`. The same draft turn, then the three takes composed alone and rendered (8 s) at
   once, then one look composed from their compositions, timelines and stills (two each, at 30 and 70 % of it), then two
   such critiques, a revision kept rendered again for the next. It counts as `DEEP.uses` (2) of the allowance
-  (`shared/schemas/api.ts`; `DEEP.adminOnly` keeps it to admins). It is off for now (`DEEP.enabled`): the API
+  (`shared/schemas/api.ts`; `DEEP.adminOnly` keeps it to admins). It is off (`DEEP.enabled` false): the API
   refuses it (400) and `GET /api/models` names no `deep`, so the Studio does not offer it.
 
 A draft turn that fails or answers no three takes leaves the idea to the Quick rounds, logged. The first critique always
@@ -203,8 +200,8 @@ transcripts.
   <the composition's schema, strict> -c model_reasoning_effort="<effort>" -c model_reasoning_summary="auto" -c web_search="disabled" -c features.<tool>=false
   … -c mcp_servers.docs.command=<node> -c mcp_servers.docs.args=[docs-mcp.ts, <tree>, <reads file>, 8, <given paths, comma-separated>] -c
   mcp_servers.docs.default_tools_approval_mode="approve" -`, the prompt on stdin; its `--json` events on stdout give
-  the idea log its items and usage; its reasoning summary comes as `reasoning` items (from the Codex docs and the
-  CLI's config keys; not yet seen in a run here). The shell stays
+  the idea log its items and usage; its reasoning summary comes as `reasoning` items (per the Codex docs and the
+  CLI's config keys; unconfirmed in a run here). The shell stays
   off, so the model reads nothing but the docs: `docs-mcp.ts` is a stdlib-only MCP server on stdio with the one tool
   `read_doc`, serving the tree as written under the work folder (`docs-<hash>/`), a path's real path (symlinks
   followed) inside it; each read is appended to the job's reads file (the guide first, the idea last; a repair, refinement or critique
@@ -253,6 +250,6 @@ critique `images`) and Luna (`gpt-6-luna`, low, critique `text`) through `codex`
 `STUDIO_FOUNDRY=on`. The idea form offers the models that are on, offered to
 the user's role and able to run, starting on the default when it is one of them (else the first); an account that
 may not use the paid models (SPEC-access "Access") starts on the first free one, if any (every transport is
-paid today, so none), and an idea sent without a model gets
+paid, so none), and an idea sent without a model gets
 that same default. When the file is first written, `STUDIO_GENERATOR` (`claude`, `fleet`) names its
 default.
