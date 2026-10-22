@@ -45,20 +45,28 @@ and still plays only looks made of library modules, never code. Hosted, it stays
 A look file is JSON, `application/json`, named for its title (`<slug>.json`):
 
 ```
-{ "title", "summary", "chain": 2, "duration", "layers", "bpm"?, "globals"?, "automation"? }
+{ "origin", "title", "summary", "chain": 2, "duration", "layers", "bpm"?, "globals"?, "automation"? }
 ```
 
 the look's words, `chain`, and what plays (SPEC-history "What plays"), as the Studio's Export → Look JSON writes it.
+`origin` names the look wherever it is copied: the look's `origin` when it came in by an import, else its own id (ids
+are random, so one Studio's never stands for another's); `GET /api/looks/:id` answers it when set. A file without
+`origin` (written before it was) imports as a new look each time.
 Several looks go in one file as `{ "looks": [look file] }` (`folly-looks-mine-<date>.json`,
 `folly-looks-gallery-<date>.json`).
 
 - **Export many.** My looks and the Gallery have **Export all**: every look the page lists (not just those a search
   shows), fetched one at a time with `GET /api/looks/:id`, as one file.
 - **Import.** My looks has **Import**: a file picker taking one or more files, each a look file or a file of looks.
-  Each look is `POST /api/looks` with its title, summary, `chain` and what plays, so the same checks apply; it
-  becomes the importer's, unshared, with no idea. A look without `chain` is converted as any such `POST` is (SPEC
-  "Looks"). One look refused (400, or past the 256 KB body) does not stop the rest: the page says how many came in
-  and names each one that did not, with the server's reason.
+  Each look is `POST /api/looks` with its `origin`, title, summary, `chain` and what plays, so the same checks apply.
+  A look already among the importer's own (its id or its `origin` is the file's `origin`) is **updated**: the file
+  overrules it, as a `PUT` of the title, summary and what plays would (`how: import`), so a change to what plays is a
+  new version and what the importer had, edits made since the last import included, stays in its History (SPEC-history
+  "Versions"); it keeps its sharing, and its review as any such save does. One that already reads and plays as the
+  file is **unchanged**. Any other look is **added**: the importer's, unshared, with no idea, keeping the `origin`. A
+  look without `chain` is converted as any such `POST` is (SPEC "Looks"). One look refused (400, or past the 256 KB
+  body) does not stop the rest: the page says how many were added, updated and unchanged, and names each one that
+  failed, with the server's reason.
 
 ## Playing on the lights
 

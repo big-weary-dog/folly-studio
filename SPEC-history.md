@@ -15,8 +15,9 @@ look's words, not what plays.
 
 A save that changes what plays keeps what was there as a version (`src/look-versions.ts`): `{ n, how, name?, from?,
 ideaId?, ask?, title, summary, layers, duration, bpm, globals?, automation?, savedAt, reviewed? }`. `n` counts up
-and is never reused; `how` is `auto` (a save), `ai` (a refinement: its `ideaId` and what it `ask`ed) or `restore`
-(of version `from`); `reviewed = { by, flashOverride? }` when a curator had reviewed it. The look holds its own
+and is never reused; `how` is `auto` (a save), `ai` (a refinement: its `ideaId` and what it `ask`ed), `restore`
+(of version `from`) or `import` (a look file overruling it: SPEC-offline "Look files"); `reviewed = { by,
+flashOverride? }` when a curator had reviewed it. The look holds its own
 number and making as `look.version` (`GET` answers its owner with the number alone). The last 20 unnamed versions
 are kept, and every named one (at most 50). A version without `n` is numbered by its place; one without `bpm`
 reads as the look's tempo (`tempoGuessed`). Versions are their owner's alone: others, curators too, never
