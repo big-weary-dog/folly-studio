@@ -30,9 +30,31 @@ own setting (SPEC-live "Settings").
 Admins' header has one more item, **Admin** (`/admin`, which opens its first tab), where everyone else's has none.
 Its tabs are pages of their own: Models (`/admin/models`, SPEC-generators "Models"), Access (`/admin/access`,
 Access below), Light (`/admin/light`, SPEC "Light and output"), Baking (`/admin/baking`, SPEC-baking "The bake
-setting") and Reports (`/admin/reports`, SPEC "Bug reports"), then a link to the Pi preview (`/pi/`, in a new
-tab). `/models`, `/access`, `/light` and `/reports` lead to their tab, query kept. Anyone else who opens one gets the page without the tabs, its admin calls refused (403) as it says.
+setting"), Reports (`/admin/reports`, SPEC "Bug reports") and Stats (`/admin/stats`, Stats below), then a link to the
+Pi preview (`/pi/`, in a new tab). `/models`, `/access`, `/light` and `/reports` lead to their tab, query kept. Anyone
+else who opens one gets the page without the tabs, its admin calls refused (403) as it says.
 On the Pi there is no Models or Access tab, and `/admin` opens Light (SPEC-offline).
+
+## Stats
+
+The server counts in memory, from its start (a restart starts again; nothing is written), and Stats shows the counts:
+today's as tiles, then the server's uptime, memory (RSS and heap) and 1-minute load; bakes and ideas finished in the
+last 24 hours, failed, and waiting now (no ideas on the Pi); each day's counts (the server's local days, the last 7
+with requests); and the 10 latest requests that took 1 s or more (an idea's long poll never counts as slow).
+`stats = { startedAt, uptime, memory: { rss, heap }, load, days: [{ day, visitors, people, views, requests, errors,
+slow }], slowest: [{ at, method, route, status, ms }], bakes: { done, failed, waiting }, ideas?: { made, failed,
+waiting } }`, `days` newest first: `views` app pages served, `visitors` the browsers that loaded one, `people` the
+accounts that made a signed-in request, `errors` 5xx answers. A **visitor** is the client's address (the tunnel's
+forwarded one under `STUDIO_TRUST_PROXY`) and User-Agent hashed with a random salt made each day and never written,
+so a day's visits tell apart without keeping who made them, and days do not link; at most 100,000 a day are told apart.
+
+Each request worth reading is one journal line: `[studio] [http] GET /api/looks/:id 200 12ms 3.4KB v=1a2b3c4d NZ`:
+the method; the API route's pattern (other paths as asked, without the query, cut to 80 printable characters); the
+status, time and body size (`-` when streamed); `v=` the visitor's hash for that day; and, under `STUDIO_TRUST_PROXY`,
+Cloudflare's `CF-IPCountry` when it is two capital letters. No query, cookie, header or address is written. Files
+(`/assets`, `/data`, …), frame chunks, previews and idea polls are counted but written only when they fail (4xx, 5xx)
+or are slow; sockets (the live stage) are neither. Nothing per frame: one hook per HTTP request, a hash only for a
+line or a page.
 
 ## Access (invite codes and limits)
 
@@ -82,4 +104,5 @@ POST   /api/admin/invites { label?, uses?, days? } → 201 { invite, code }  the
 DELETE /api/admin/invites/:id                 → { invite }           revoked (kept, so the list says so)
 GET    /api/admin/people                      → { people: [person] }
 PUT    /api/admin/people/:id { unlocked?, limits?, reset? } → { person }  limits: null clears the override
+GET    /api/admin/stats                       → stats  admins only (403), on the Pi too ("Stats")
 ```
