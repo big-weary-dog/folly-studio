@@ -20,6 +20,10 @@ const PATTERNS = path.join(PUBLIC, 'patterns');
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const source = (name) => fs.readFileSync(path.join(PATTERNS, `${name}.js`), 'utf8');
 const WASH = source('colour-wash'), BARS = source('bars');
+const comp = (layers) => ({ id: 'k', kind: 'composite', title: 'Comp', code: '', params: {}, layers });
+const COMPOSED = { id: 'l2', title: 'Mix', groups: ['cathedral'], blend: 'add', level: 1, modules: [comp([
+  { id: 's1', title: 'Wash', modules: [{ id: 'a', kind: 'source', title: 'Wash', code: WASH }] },
+  { id: 's2', title: 'Bars', modules: [{ id: 'b', kind: 'source', title: 'Bars', code: BARS }] }])] };
 const libLayer = (code, extra = {}) => ({ id: 'l1', title: 'Wash', code, params: {}, groups: [], blend: 'add',
   level: 1, ...extra });
 
@@ -35,6 +39,11 @@ describe('library only', () => {
     assert.match(customCode([{ title: 'Chain', modules: [{ code: BARS }, { title: 'Glow', code: 'x' }] }], lib),
       /Layer 1 \(Chain\)'s Glow is custom code\.$/);
     assert.match(customCode([{ title: '' }], lib), /Layer 1 is custom code/, 'no code at all is not library code');
+    assert.equal(customCode([COMPOSED], lib), '', 'a composite has no code of its own; its sub-layers\' is library');
+    const inner = { ...COMPOSED, modules: [comp([{ id: 's1', modules: [{ title: 'Glow', code: 'x' }] }])] };
+    assert.match(customCode([inner], lib), /Layer 1 \(Mix\)'s Glow is custom code\.$/);
+    assert.match(customCode([{ ...COMPOSED, modules: [{ ...comp([]), code: 'x' }] }], lib), /Layer 1 \(Mix\)'s Comp/,
+      'a composite with code of its own is custom');
     assert.equal((await libraryHashes(path.join(fx.tmp, 'none'))).size, 0, 'no library: nothing passes');
   });
 
@@ -48,7 +57,7 @@ describe('library only', () => {
     assert.match(p.libraryOnly, /^Bubblewrap \(bwrap\) is not installed, so this server bakes only looks made of /);
     assert.equal(await box.refuses([libLayer(WASH)]), '');
     assert.match(await box.refuses([libLayer('function pixel() { return [1, 1, 1]; }')]), /Layer 1 \(Wash\) is custom/);
-    const r = await box.render({ layers: [libLayer(WASH, { groups: ['cathedral'] })] });
+    const r = await box.render({ layers: [libLayer(WASH, { groups: ['cathedral'] }), COMPOSED] });
     assert.equal(r.seconds, 1);
     assert.equal(parseFseq(r.bytes, { maxBytes: 64 * 1024 ** 2, maxChannels: 1e6 }).frameCount, 40);
     await assert.rejects(box.render({ layers: [libLayer(`${WASH}\n// edited`)] }),

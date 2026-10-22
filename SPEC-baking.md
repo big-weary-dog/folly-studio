@@ -6,8 +6,8 @@ much baking may cost. `src/box-library.ts` and `src/render-box.ts` hold the firs
 ## Library only
 
 Bubblewrap is the first choice wherever it runs. Where bubblewrap is missing (or cannot make its namespaces), the render box bakes only looks whose every layer's
-and module's code is a library pattern's file exactly (SHA-256 against `public/patterns`' files the index lists),
-as its own process under the same prlimits, scope, `nice` and wall clock, with an empty environment, in the same
+and module's code is a library pattern's file exactly (SHA-256 against `public/patterns`' files the index lists;
+a composite has no code of its own, so its sub-layers' modules are checked), as its own process under the same prlimits, scope, `nice` and wall clock, with an empty environment, in the same
 stdlib-only `node:vm` realm, with no bubblewrap. A look with any other code is refused (422: "This server bakes
 without bubblewrap, so only looks made of unchanged library patterns; Layer 2's Fire is custom code."), at the
 request and again in the box. Without prlimit or the box's files → 503.
