@@ -19,6 +19,13 @@ test('a 70,401-channel frame: 49 packets, offsets and lengths in order, PUSH on 
     at += p.length - 10;
   }
   assert.equal(at, 70401);
+  // Another frame, or the same one changed, fills them anew.
+  const other = new Uint8Array(70401).fill(9);
+  fill(other, 8);
+  assert.ok(packets.every((p) => p[1] === 8 && p.subarray(10).every((v) => v === 9)));
+  frame.fill(3);
+  fill(frame, 9);
+  assert.ok(packets.every((p) => p.subarray(10).every((v) => v === 3)));
 });
 
 test('sent over UDP, received whole', async () => {
