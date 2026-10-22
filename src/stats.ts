@@ -67,7 +67,7 @@ export function createStats({ log, store, ideas = true, trustProxy = false }: { 
       slowest.length = Math.min(slowest.length, SLOWEST);
     }
     if (req.user && !d.members.has(req.user.id)) d.people = d.members.add(req.user.id).size;
-    // A page is the app's shell: a path of the app's own, not a file (the sandbox page is HTML too); revalidated, a 304.
+    // A page is the app's shell: a path of the app's own, not a file (the sandbox page is HTML too), or its 304.
     const page = req.method === 'GET' && !api && !/\.[^/]*$/.test(route) && (status === 304
       || (status === 200 && String(reply.getHeader('content-type') ?? '').startsWith('text/html')));
     if (!page && !slow && status < 400 && (QUIET.has(route) || !api)) return;
