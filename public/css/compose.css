@@ -272,8 +272,8 @@ button.tl-mods-fold { gap: 4px; color: var(--sand); white-space: nowrap; cursor:
 .chain-end { height: 0; position: relative; }
 .chain-end[data-drop]::before { content: ''; position: absolute; left: 0; right: 0; top: calc(-1.5px - var(--gap) / 2);
   height: 3px; background: var(--sand); border-radius: 2px; pointer-events: none; }
-.composite-body { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 3px 4px; padding: 2px 0 2px 8px;
-  border-left: 1px solid color-mix(in srgb, var(--violet) 45%, transparent); }
+/* the sub-layers flush under the composite's row, so their modules sit one indent in, not three */
+.composite-body { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 3px; }
 .sub-layer { position: relative; padding: 3px 0 2px; }
 .comp-name { width: 100%; }
 /* where a dragged sub-layer lands: a line above the marked one, or above + Sub-layer */
