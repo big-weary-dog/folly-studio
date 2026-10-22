@@ -139,14 +139,18 @@ How a colour value becomes light (docs/LIGHT.md has the why and every number):
 - **Caps are linear and come after the curve**: the Pi's master, blackout and fade, Export's Brightness and each
   group's `trim` scale light, as WLED's and FPP's brightness do, so dimming never shifts a colour's hue.
 - **The checks judge the look at full output**: `gamma`, `balance` and `floor`, never the caps.
+  A bake is judged at the settings in force when it is checked. A new gamma changes no baked frame (they are
+  values), so every bake still plays, through the new curve; its report keeps the old gamma's numbers until a rebake.
 
 The light settings, `shared/schemas/light.ts`, are stored once: `<STUDIO_DATA>/light.json`, written by the Light page
-(Admin) and read by Export, the bake checks and the previews; the Pi reads the same shape from `pi/light.json`
-(the Light page's "Download for the Pi"). The page edits only `calibration` and `preview`, never what the LEDs get.
+(Admin) and read by Export, the bake checks, the previews and the Pi (its `light` setting: on the Pi, Studio's own
+`light.json`; elsewhere `pi/light.json`, the Light page's "Download for the Pi"). The Pi re-reads it when it changes,
+so a saved gamma reaches the LEDs within seconds. The page edits `gamma`, `calibration` and `preview`; the other
+output fields change by hand.
 Missing, unreadable or out of range, each field is its default:
 
 ```
-{ gamma: 2.2,              // 1..3: light = v^gamma
+{ gamma: 2.2,              // 1..3: light = v^gamma; 1 sends the values as they are, as FPP and the live apps do
   balance: [1, 1, 1],      // 0..1 each: a colour's light trimmed down, to even out the whites
   floor: 0,                // 0..16: the least byte a lit channel sends (v ≥ 0.5/255); 0 lets the curve round to off
   trims: [],               // ≤ 32 of { tag, level 0..1 }: a group's light × level, by the rig's group tags
