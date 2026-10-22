@@ -1,7 +1,8 @@
 // Accounts and sessions. Passwords: scrypt at OWASP's minimum cost (N = 2^17, r = 8, p = 1), a 16-byte salt each,
 // compared with timingSafeEqual. Each hash carries its parameters, so one made at an older cost still verifies, and
 // is made again at the current cost on its next successful login. Sessions: 32 random bytes in the `studio_session`
-// cookie for 30 days; the store only sees sha256(token), the session's id. At most HASH_SLOTS hashes run at once
+// cookie for 30 days (a guest's 7, at most MAX_GUESTS of them live, the oldest dropped first: anyone can make one);
+// the store only sees sha256(token), the session's id. At most HASH_SLOTS hashes run at once
 // (each takes 128 MiB) and HASH_QUEUE wait: past that, signup and login answer 429 rather than exhaust memory.
 import { createHash, randomBytes, scrypt as scryptCb, type ScryptOptions, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
@@ -16,8 +17,9 @@ import type { Store, StoredUser as Stored } from './store.ts';
 const scrypt = promisify(scryptCb) as (password: string, salt: Buffer, keylen: number, o: ScryptOptions) =>
   Promise<Buffer>;
 export const COOKIE_NAME = 'studio_session';
-export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-const MAX_SESSIONS_PER_USER = 20;
+const DAY = 24 * 60 * 60 * 1000;
+export const SESSION_TTL_MS = 30 * DAY, GUEST_TTL_MS = 7 * DAY;
+const MAX_SESSIONS_PER_USER = 20, MAX_GUESTS = 1000;
 const HASH_SLOTS = 3, HASH_QUEUE = 30;
 export type Cost = { N: number, r: number, p: number };
 export const SCRYPT: Cost = Object.freeze({ N: 2 ** 17, r: 8, p: 1 });
@@ -63,13 +65,13 @@ const names = (list: string | string[]) => new Set((typeof list === 'string' ? l
   .map((s) => String(s).trim().toLowerCase()).filter(Boolean));
 
 /**
- * createAuth({ store, curators, admins, cost, slots, queue }): accounts, roles and sessions (cookies and limits are the
- * API's). Admins (STUDIO_ADMINS) choose the models on offer, and are curators too.
+ * createAuth({ store, curators, admins, cost, slots, queue, guests }): accounts, roles and sessions (cookies and limits
+ * are the API's). Admins (STUDIO_ADMINS) choose the models on offer, and are curators too.
  */
 export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, slots = HASH_SLOTS,
-  queue = HASH_QUEUE }: {
+  queue = HASH_QUEUE, guests = MAX_GUESTS }: {
   store: Pick<Store, 'users' | 'sessions'>, curators?: string | string[], admins?: string | string[], cost?: Cost,
-  slots?: number, queue?: number }) {
+  slots?: number, queue?: number, guests?: number }) {
   const curatorSet = names(curators), adminSet = names(admins);
   let dummyHash: Promise<string> | null = null; // checked for unknown users, so timing does not reveal them
   let hashing = 0;
@@ -113,17 +115,16 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     return user;
   });
 
-  /** A new session for `user` → its token; each user keeps at most 20, expired ones dropped. */
+  /** A new session for `user` → its token. Each user keeps at most 20, and guests all told `guests`: past that the
+   * oldest go, as do expired ones. */
   function createSession(user: Stored) {
-    const token = randomBytes(32).toString('base64url');
-    const now = Date.now();
-    const expiresAt = new Date(now + SESSION_TTL_MS).toISOString();
-    store.sessions.create({ id: sha256(token), userId: user.id, expiresAt,
-      ...(user.guest ? { guest: user.username } : {}) });
-    const mine = store.sessions.list((s) => s.userId === user.id).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-    mine.forEach((s, i) => {
-      if (i >= MAX_SESSIONS_PER_USER || Date.parse(s.expiresAt) <= now) store.sessions.remove(s.id);
-    });
+    const token = randomBytes(32).toString('base64url'), id = sha256(token);
+    const now = Date.now(), cap = user.guest ? guests : MAX_SESSIONS_PER_USER;
+    const expiresAt = new Date(now + (user.guest ? GUEST_TTL_MS : SESSION_TTL_MS)).toISOString();
+    store.sessions.create({ id, userId: user.id, expiresAt, ...(user.guest ? { guest: user.username } : {}) });
+    const others = store.sessions.list((s) => s.id !== id && (user.guest ? !!s.guest : s.userId === user.id))
+      .sort((x, y) => (x.createdAt < y.createdAt ? 1 : -1));
+    others.forEach((s, i) => { if (i >= cap - 1 || Date.parse(s.expiresAt) <= now) store.sessions.remove(s.id); });
     return token;
   }
 

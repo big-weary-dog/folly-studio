@@ -17,7 +17,7 @@ import { reportRoutes } from './api-reports.ts';
 import { tourRoutes } from './api-tour.ts';
 import { lookRoutes } from './api-looks.ts';
 import { modelRoutes } from './api-models.ts';
-import { type Auth, COOKIE_NAME, SESSION_TTL_MS, sessionHook } from './auth.ts';
+import { type Auth, COOKIE_NAME, GUEST_TTL_MS, SESSION_TTL_MS, sessionHook } from './auth.ts';
 import type { Queue } from './app.ts';
 import { type createBakeQueue, removeFrames } from './bake.ts';
 import type { createFramesCache } from './frames-cache.ts';
@@ -109,7 +109,8 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
     };
     const start = (user: Stored, status: number, req: FastifyRequest, reply: FastifyReply) => {
       auth.logout(req.cookies[COOKIE_NAME]);
-      reply.setCookie(COOKIE_NAME, auth.createSession(user), cookie(SESSION_TTL_MS / 1000)).code(status);
+      reply.setCookie(COOKIE_NAME, auth.createSession(user),
+        cookie((user.guest ? GUEST_TTL_MS : SESSION_TTL_MS) / 1000)).code(status);
       return { user: auth.publicUser(user), flash, profile };
     };
     const cookie = (maxAge: number) => ({ httpOnly: true, sameSite: 'lax' as const, path: '/', maxAge,

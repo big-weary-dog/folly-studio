@@ -7,6 +7,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
+import { createAuth } from '../src/auth.ts';
 import { controlFor } from '../src/live/routes.ts';
 import { client, signup, startApp, useFixture } from './fixtures/server.js';
 
@@ -82,5 +83,21 @@ describe('guests', () => {
       for (let i = 0; i < 3; i++) codes.push((await client(few).post('/api/guest', { name: 'Many' })).status);
       assert.deepEqual(codes, [201, 201, 429]);
     } finally { await few.close(); }
+  });
+
+  test('guest sessions last 7 days, and past the cap the oldest go first; an account\'s are untouched', () => {
+    const docs = new Map(), ada = { id: 'u1', username: 'ada', passwordHash: '' };
+    let n = 0;
+    const sessions = { get: (id) => docs.get(id) ?? null, list: (f = () => true) => [...docs.values()].filter(f),
+      create: (x) => { const d = { ...x, createdAt: new Date(Date.UTC(2026, 0, 1, 0, 0, n++)).toISOString() };
+        docs.set(x.id, d); return d; },
+      update: () => null, remove: (id) => docs.delete(id) };
+    const auth = createAuth({ store: { users: { get: (id) => (id === ada.id ? ada : null) }, sessions }, guests: 3 });
+    const mine = auth.createSession(ada);
+    const tokens = ['A', 'B', 'C', 'D', 'E'].map((name) => auth.createSession(auth.guest(name)));
+    assert.deepEqual(tokens.map((t) => auth.authenticate(t)?.user.username ?? null), [null, null, 'C', 'D', 'E']);
+    assert.equal(auth.authenticate(mine)?.user.username, 'ada');
+    const left = Date.parse(auth.authenticate(tokens[4]).session.expiresAt) - Date.now();
+    assert.ok(left > 6.9 * 864e5 && left <= 7 * 864e5, `${left}`);
   });
 });

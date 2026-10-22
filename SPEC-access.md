@@ -18,7 +18,8 @@ but `/api/me`, `/api/login`, `/api/signup` and `/api/guest` as the session endin
 letters, digits, spaces and `_ . ' -`, trimmed; 10 a minute per client address, beside the sign-in limits). A guest
 is a session, not an account: nothing is written to the users, and `user = { id: 'guest-…', username: <name>, role:
 'member', guest: true }` whatever the name says (a guest named for an admin is no admin). The cookie lets them back in
-on that device for 30 days. A guest only reads: every mutating route but `/api/logout`, `/api/login`, `/api/signup`
+on that device for 7 days; at most 1,000 guest sessions live at once, the oldest dropped first (anyone can
+make one). A guest only reads: every mutating route but `/api/logout`, `/api/login`, `/api/signup`
 and `/api/guest` is 403 "Guests can't save", so they make no looks, ideas, bakes, reports, tour or invite, never
 control the live stage, and have no AI ("AI only with access"). The Studio keeps a guest's work in that browser
 (localStorage, the Studio's look as saved, written as it changes) and opens it again on `/studio`; Save asks them to
