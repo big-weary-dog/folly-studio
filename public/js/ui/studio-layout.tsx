@@ -11,7 +11,7 @@ import { ChainPane } from './chain.tsx';
 import { deleteLook, mayDelete } from './delete-look.ts';
 import { DrawerSlot } from './drawer.tsx';
 import { CodeEditor } from './editor.tsx';
-import { cx, humanize, lazy, pref, Switch, useLazy } from './kit.tsx';
+import { cx, Field, humanize, lazy, pref, Switch, useLazy } from './kit.tsx';
 import { ISSUE_LABELS } from './layer-status.ts';
 import { HistoryButton } from './history/button.tsx';
 import { LayersPane } from './layers.tsx';
@@ -81,13 +81,32 @@ function Share({ st, cls }: { st: Studio; cls: string }) {
     disabled={st.sharing.value} onChange={(on) => st.setShared(on)} />;
 }
 
+/** The look's summary, which its gallery card shows: one line under the title, a box in the Look tab. */
+function Describe({ st, box }: { st: Studio; box?: boolean }) {
+  const set = (e: { currentTarget: { value: string } }) => {
+    const summary = e.currentTarget.value;
+    st.edit(() => ({ summary }));
+  };
+  const trim = () => {
+    const summary = st.look.peek().summary.trim();
+    if (summary !== st.look.peek().summary) st.edit(() => ({ summary }));
+  };
+  const value = st.look.value.summary || '', placeholder = 'Describe it for the gallery';
+  return box ? <Field label="Description" stack hint={<p class="field-hint">Shown on its gallery card.</p>}>
+    {(id) => <textarea id={id} rows={3} maxlength={600} placeholder={placeholder} value={value} onInput={set}
+      onBlur={trim} />}</Field>
+    : <input class="look-summary" type="text" maxlength={600} aria-label="Look description" placeholder={placeholder}
+      value={value} onInput={set} onBlur={trim}
+      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } }} />;
+}
+
 function Bar({ st, pv }: { st: Studio; pv: Preview }) {
   const L = st.look.value, dirty = st.dirty.value, copy = st.copyOnSave.value;
   const state = st.saving.value ? 'Saving…' : copy ? (dirty ? 'Edited — Save makes your copy' : 'Gallery look')
     : !L.id ? 'Not saved yet' : dirty ? 'Unsaved changes' : 'Saved';
   return (
     <div class="studio-bar">
-      <div class="bar-title">
+      <div class="bar-title"><div class="bar-words">
         <input class="look-title" type="text" maxlength={120} aria-label="Look title" placeholder="Untitled look"
           spellcheck={false} value={L.title} onInput={(e) => {
             const title = e.currentTarget.value;
@@ -95,6 +114,7 @@ function Bar({ st, pv }: { st: Studio; pv: Preview }) {
           }}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } }}
           onBlur={(e) => { if (!e.currentTarget.value.trim()) st.edit(() => ({ title: 'Untitled look' })); }} />
+        <Describe st={st} /></div>
         <span class="save-state" aria-live="polite" data-state={dirty || !L.id ? 'dirty' : 'clean'}>{state}</span>
       </div>
       <div class="bar-actions"><HistoryButton st={st} />
@@ -132,7 +152,6 @@ function ExportMenu({ st, pv }: { st: Studio; pv: Preview }) {
         {item('Check & bake…', () => openBake(st, pv))}
         {mayPlay() && item('Play on the lights…', () => playOnLights(st))}
         {item('Export look JSON', () => exporter().then((m) => m.exportJson(st)))}
-        {item('Look details…', () => exporter().then((m) => m.details(st)))}
       </div>
     </div>);
 }
@@ -231,10 +250,10 @@ function LookTab({ st, pv }: { st: Studio; pv: Preview }) {
       {narrow && <RefinePanel st={st} />}
       <div class="globals-slot">{narrow && <Globals st={st} />}</div>
       <Share st={st} cls="share-toggle big" />
+      <Describe st={st} box />
       <div class="look-actions">
         <button type="button" class="btn" onClick={() => openBake(st, pv)}>Check & bake</button>
         {mayPlay() && <button type="button" class="btn" onClick={() => playOnLights(st)}>Play on the lights</button>}
-        <button type="button" class="btn" onClick={() => exporter().then((m) => m.details(st))}>Look details</button>
         <button type="button" class="btn" onClick={() => exporter().then((m) => m.exportJson(st))}>
           Export look JSON</button>
       </div>
