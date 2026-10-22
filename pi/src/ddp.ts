@@ -20,12 +20,22 @@ export function ddpPackets(channels: number) {
     p.writeUInt16BE(n, 8);
     packets.push(p);
   }
+  // Each packet's slice of the last frame filled from: the frame is the same buffer each time, so no views per frame.
+  let from: Uint8Array | null = null, slices: Uint8Array[] = [];
   return {
     packets,
     fill(frame: Uint8Array, seq: number) {
-      for (const p of packets) {
+      if (frame !== from) {
+        from = frame;
+        slices = packets.map((p) => {
+          const at = p.readUInt32BE(4);
+          return frame.subarray(at, at + p.length - HEADER);
+        });
+      }
+      for (let i = 0; i < packets.length; i++) {
+        const p = packets[i]!;
         p[1] = seq;
-        for (let i = HEADER, at = p.readUInt32BE(4) - HEADER; i < p.length; i++) p[i] = frame[at + i]!;
+        p.set(slices[i]!, HEADER);
       }
     },
   };
