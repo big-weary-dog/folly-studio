@@ -21,7 +21,7 @@ the frame) and blur (Soften). Summing values is wrong for those: two 50 % layers
 and a half times the light of either, where two lamps make twice it. So these take each value's light, sum or average
 it, and encode again (`toLight`, `toValue` and `addLight` in `core/light.ts`):
 
-| | As values (before) | In light (now) |
+| | As values | In light |
 |---|---|---|
 | Two 50 % layers, `add` | 100 % | 68 % (twice 22 % of the light) |
 | 50 % onto 25 %, `add` | 75 % | 54 % |
@@ -44,7 +44,7 @@ crossfade) goes through OKLab (`core/oklab.ts`): each end's light at the same fi
 OKLab, straight across, back to light and encoded again. OKLab's lightness is perceptual, so a fade holds its
 brightness and passes through the hues a viewer expects between the two ends:
 
-| Fade, half-way (luminance) | As values (before) | In OKLab (now) |
+| Fade, half-way (luminance) | As values | In OKLab |
 |---|---|---|
 | Red (0.21) to green (0.72) | `#808000`, muddy olive, 0.20: darker than red | `#cfa704`, amber, 0.42 |
 | Blue (0.07) to yellow (0.93) | `#808080` grey, 0.22 | `#6baac6`, light blue, 0.37 |
@@ -120,7 +120,7 @@ the probes below read the same pixels off the GPU.
 
 The transform is computed in float and rounded once, so it wastes no codes. But a byte is still a byte: below about
 0.06 the light is under half a step and rounds to off, whatever order things happen in. Two real fixes exist: the
-`floor` (here, now) and temporal dithering on the Pi (alternating neighbouring bytes, not built). Looks should keep
+`floor` (built) and temporal dithering on the Pi (alternating neighbouring bytes, not built). Looks should keep
 a bed at 0.15 or more.
 
 ## Where the settings live
@@ -139,22 +139,22 @@ through the preview transform (above), once, and encode the light for the screen
 the LEDs' light, in proportion, at the exposure.
 
 Measured with the real `Viewer` on the real rig (a lone strip LED, front view, its brightest pixel; the probes are in
-the fleet's reports, `lightfix/probe/`), before and after:
+the fleet's reports, `lightfix/probe/`):
 
-| A lone LED | Points before | Playa before | Points after | Playa after |
-|---|---|---|---|---|
-| Orange `#ff8000` | 255, 161, 39 | 252, 128, 28 | 234, 118, 22 | 238, 120, 0 |
-| Orange at 50 % (the LEDs: 22 % of full's light) | 155, 92, 39 (33 %) | 150, 82, 35 (31 %) | 118, 56, 22 (22 %) | 120, 57, 0 (22 %) |
-| Orange, outside a focus | 16, 21, 36 | 53, 35, 33 | 56, 23, 21 | 58, 25, 0 |
-| Orange, outside a highlight | 70, 44, 25 | 152, 79, 34 | 116, 55, 21 | 120, 57, 0 |
-| Every LED orange (overlap) | 255, 197, 43 | 251, 128, 28 | 233, 117, 21 | 237, 119, 0 |
+| A lone LED | Points | Playa |
+|---|---|---|
+| Orange `#ff8000` | 234, 118, 22 | 238, 120, 0 |
+| Orange at 50 % (the LEDs: 22 % of full's light) | 118, 56, 22 (22 %) | 120, 57, 0 (22 %) |
+| Orange, outside a focus | 56, 23, 21 | 58, 25, 0 |
+| Orange, outside a highlight | 116, 55, 21 | 120, 57, 0 |
+| Every LED orange (overlap) | 233, 117, 21 | 237, 119, 0 |
 
-- Points and Playa now agree within the sprite's sampling (a few codes), and a dim means the same in both.
+- Points and Playa agree within the sprite's sampling (a few codes), and a dim means the same in both.
 - Playa's figures are its Low tier. Full adds the bloom, a camera's glow: +9 on a lone full orange LED, +16 with
   every LED lit, and nothing at 50 %.
 - No clip and no ghost under a lit LED: Points' blue (21) is the night sky behind it, Playa's is gone.
-- A 50 % swatch shows 22 % of full's light, as the LEDs give it; before, the views showed 31–33 %.
+- A 50 % swatch shows 22 % of full's light, as the LEDs give it.
 - Full drive shows at 237, not 255: that is the exposure keeping the top in proportion. Exposure 100 % shows full as
   the swatch (255) and compresses the top.
-- Playa's night (sky, haze, the playa's own light) is set as dark as the old tone map's toe left it; the toe itself
-  is gone, since it darkened the LEDs' own low light too.
+- Playa's night (sky, haze, the playa's own light) is set dark, and the tone map has no toe, which would darken the
+  LEDs' own low light too.

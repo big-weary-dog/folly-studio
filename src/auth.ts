@@ -17,8 +17,8 @@ const scrypt = promisify(scryptCb) as (password: string, salt: Buffer, keylen: n
   Promise<Buffer>;
 export const COOKIE_NAME = 'studio_session';
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-export const MAX_SESSIONS_PER_USER = 20;
-export const HASH_SLOTS = 3, HASH_QUEUE = 30;
+const MAX_SESSIONS_PER_USER = 20;
+const HASH_SLOTS = 3, HASH_QUEUE = 30;
 export type Cost = { N: number, r: number, p: number };
 export const SCRYPT: Cost = Object.freeze({ N: 2 ** 17, r: 8, p: 1 });
 const KEYLEN = 64;

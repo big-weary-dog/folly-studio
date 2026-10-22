@@ -2,7 +2,7 @@
 // rest as data: only admins read it back.
 import { z } from 'zod';
 
-export const REPORT_FORMAT = 1;
+const REPORT_FORMAT = 1;
 /** A report's id, as the server makes it: in file names, so strict. */
 export const REPORT_ID = /^[a-z0-9]{6,24}$/;
 const JPEG = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/;

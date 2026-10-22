@@ -94,7 +94,6 @@
 .chain-params .module-title-field { padding: 0 0 2px; border: 0; }
 .chain-params .btn.small { min-height: 22px; padding: 1px 8px; font-size: 12px; }
 .soften-field .soften-mode { flex: none; width: auto; min-height: var(--hit, 26px); font-size: 12.5px; }
-.mod-fields { display: contents; }
 /* colour picks: a pick's field is a number's size and well (input.scrub), its text over the colours it plays, lit
    along its foot as a scrub field's string is; and the tile that edits it (a sheet on a phone) */
 .pick-btn { position: relative; display: inline-flex; align-items: center; gap: 6px; flex: none; width: 96px;
@@ -230,7 +229,6 @@ button.tl-mods-fold { gap: 4px; color: var(--sand); white-space: nowrap; cursor:
 .tl-mod-name { overflow: hidden; color: var(--text); font: 11.5px var(--mono); text-overflow: ellipsis; }
 .tl-mod-said { overflow: hidden; color: var(--text-3); font-size: 10px; text-overflow: ellipsis; }
 .tl-mod-line { fill: none; stroke: var(--violet); stroke-width: 1.5; stroke-linejoin: round; }
-.tl-auto-svg { display: block; }
 .tl-auto-line { fill: none; stroke: var(--violet); stroke-width: 1.5; }
 .tl-auto-dot { fill: var(--night-0); stroke: var(--violet); stroke-width: 2; cursor: grab; }
 .tl-auto-dot:hover { fill: var(--violet); }

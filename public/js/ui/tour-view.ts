@@ -31,7 +31,7 @@ export const tourIdea = signal<string | null>(null);
 export const tourName = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 /** The tutorial is for a laptop's screen or wider: on a phone it neither opens nor is offered. */
-export const tourFits = () => matchMedia('(min-width: 900px)').matches;
+const tourFits = () => matchMedia('(min-width: 900px)').matches;
 /** Where this browser keeps a copy of an account's progress, shown when the account's save failed. */
 export const tourKey = (u: User) => `studio.tour.${u.id}`;
 export function localTour(u: User | null): Tour | null {

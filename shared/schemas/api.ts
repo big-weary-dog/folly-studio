@@ -167,3 +167,12 @@ export type Bake = { source: 'render-box' | 'fleet-box', status: 'queued' | 'run
   reason?: string, warning?: string, checkedAt?: string, requestedAt?: string, startedAt?: string, layersHash?: string,
   renderKey?: string, seconds?: number, analysis?: Analysis, frames?: { bytes: number, sha256: string },
   boxStats?: { untrusted: true, reported: unknown } };
+
+/** The bake setting (SPEC "Baked frames", "The bake setting"), as Admin → Baking saves it. */
+export const BAKE_MODES = ['on', 'throttled', 'off'] as const;
+export const Baking = z.strictObject({
+  mode: z.enum(BAKE_MODES, { error: 'mode must be on, throttled or off.' }),
+}, { error: 'The bake setting must be { mode }.' });
+export type BakeMode = typeof BAKE_MODES[number];
+/** GET /api/baking: the setting and what the render box can do here. */
+export type BakingState = { mode: BakeMode, box: { ok: boolean, libraryOnly: boolean, reason?: string } };

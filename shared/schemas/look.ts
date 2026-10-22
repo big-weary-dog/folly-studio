@@ -90,7 +90,7 @@ export const Binding = z.discriminatedUnion('mod', [
 // A colour pick (SPEC "Palettes"): roles, slots, all, rainbow and '#rrggbb', joined by spaces or dealt by '/'.
 const PICK_TOKEN = String.raw`(?:(?:low|body|accent|high)(?:[1-9]|1[0-6])?|all|rainbow|#[0-9a-f]{6})`;
 const PICK_TEXT = new RegExp(String.raw`^\s*${PICK_TOKEN}(?:(?:\s*/\s*|\s+)${PICK_TOKEN})*\s*$`, 'i');
-export const PickText = z.string().max(200)
+const PickText = z.string().max(200)
   .regex(PICK_TEXT, 'a pick is roles (body), slots (body2), all, rainbow or #rrggbb, separated by spaces or /.');
 const UNIT = 'range and rotate are numbers from 0 to 1.';
 const unit = z.number({ error: UNIT }).min(0, UNIT).max(1, UNIT);

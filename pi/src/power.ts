@@ -5,7 +5,8 @@
 
 /** pi/data/power.json. */
 export type PowerTable = {
-  channels: number, cellChannels: number, sets: string, weights: Record<string, number>, releaseFrames: number,
+  pixels: number, channels: number, cellChannels: number, sets: string, weights: Record<string, number>,
+  releaseFrames: number,
   petals: { src: number, exp: number, segments: [skip: number, cell: number, count: number][] }[],
   psus: { id: string, set: string, volts: number, rating: number,
     ranges: [start: number, bytes: number, watts: number][] }[],
@@ -14,14 +15,26 @@ export type PowerTable = {
 export type PowerOptions = { cap: number, headroom: number, gen: number };
 export const COG_POWER: PowerOptions = { cap: 0.8, headroom: 1, gen: 5240 };   // city-of-gods/Makefile
 
+/** ADD_LIVE_APP.md's self-check: the rig has the pixels lighting's pixel map has (pi/tools/build_power.py counted
+ * them), or one of the two is stale and the engine must not start. */
+export function checkPixels(rig: { name: string, count: number, pixels: { universe: unknown[] } }, table: PowerTable) {
+  const listed = rig.pixels.universe.length;
+  if (rig.count !== table.pixels || listed !== rig.count) {
+    throw new Error(`rig ${rig.name} has ${rig.count} px (${listed} listed) but lighting's pixel map has `
+      + `${table.pixels}: a stale map, run npm run build-data and pi/tools/build_power.py`);
+  }
+}
+
 /** expand_frames for one frame: `out` (table.channels or more) gets `cells` as is and each petal's LEDs its cell's
  * colour; passage LEDs, never written, stay dark. */
 export function expandRose(table: PowerTable, cells: Uint8Array, out: Uint8Array) {
   out.set(cells);
   for (const p of table.petals) {
     let idx = 0;
-    for (const [skip, cell, count] of p.segments) {
-      idx += skip;
+    // Indexed, not destructured: no iterator per segment per frame.
+    for (let i = 0, segs = p.segments; i < segs.length; i++) {
+      const seg = segs[i]!, cell = seg[1], count = seg[2];
+      idx += seg[0];
       const src = p.src + cell * 3, r = cells[src]!, g = cells[src + 1]!, b = cells[src + 2]!;
       for (let k = 0, o = p.exp + idx * 3; k < count; k++, o += 3) { out[o] = r; out[o + 1] = g; out[o + 2] = b; }
       idx += count;
@@ -73,10 +86,11 @@ export function powerLimiter(table: PowerTable, o: PowerOptions = COG_POWER) {
   function apply(fr: Uint8Array) {
     for (let p = 0; p < P; p++) {
       sumStart();
-      for (const [st, n, w] of psus[p]!.ranges) {
+      for (let r = 0, ranges = psus[p]!.ranges; r < ranges.length; r++) {
+        const range = ranges[r]!;
         let sum = 0;
-        for (let i = st, end = st + n; i < end; i++) sum += fr[i]!;
-        sumAdd(sum * w / 765);
+        for (let i = range[0], end = i + range[1]; i < end; i++) sum += fr[i]!;
+        sumAdd(sum * range[2] / 765);
       }
       psuW[p] = sumEnd();
     }
@@ -102,7 +116,9 @@ export function powerLimiter(table: PowerTable, o: PowerOptions = COG_POWER) {
       for (let v = 0; v < 256; v++) lut[v] = Math.trunc(v * g);
       for (let p = 0; p < P; p++) {
         if (setOf[p] !== s) continue;
-        for (const [st, n] of psus[p]!.ranges) for (let i = st, end = st + n; i < end; i++) fr[i] = lut[fr[i]!]!;
+        for (let r = 0, ranges = psus[p]!.ranges; r < ranges.length; r++) {
+          for (let i = ranges[r]![0], end = i + ranges[r]![1]; i < end; i++) fr[i] = lut[fr[i]!]!;
+        }
       }
     }
     stats.frames++;

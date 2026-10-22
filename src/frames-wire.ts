@@ -12,7 +12,7 @@ import zlib from 'node:zlib';
 
 import type { Parsed } from './frames.ts';
 
-export const WIRE_VERSION = 1;
+const WIRE_VERSION = 1;
 export const CHUNK_FRAMES = 80;
 // Quality 11 is a few % smaller than 9 but several times slower (tools/frames-bench.ts); a home server
 // takes 9 by default (STUDIO_FRAMES_BROTLI_QUALITY).

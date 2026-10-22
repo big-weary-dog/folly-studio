@@ -1,4 +1,4 @@
-// pattern-core.js: stdlib, compile, scene and layers, compositing, DMX packing.
+// pattern-core.ts: stdlib, compile, scene and layers, compositing, DMX packing.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 

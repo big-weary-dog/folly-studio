@@ -16,7 +16,7 @@ export const epoch = () => performance.timeOrigin + performance.now();
 
 /** The slot playing at epoch ms `at`: each reading run on at fps, the furthest ahead of the last 10 s (each reaches
  * here late, never early). */
-export function slotClock(fps: number) {
+function slotClock(fps: number) {
   const seen: { at: number, index: number }[] = [];
   return {
     see(index: number, at = epoch()) {
@@ -29,8 +29,8 @@ export function slotClock(fps: number) {
 }
 
 /** The engine's slot clock and the buffer in slots, as every word to the Worker carries them. */
-export type RelayBase = { index: number, at: number, fps: number, lead: number };
-export type RelayDriver = {
+type RelayBase = { index: number, at: number, fps: number, lead: number };
+type RelayDriver = {
   /** Frames over whatever the engine plays (the editor's), not in place of its look. */
   over?: boolean,
   /** Ready to render: the runtime that renders ahead and the rig's count and fps, or why not. */

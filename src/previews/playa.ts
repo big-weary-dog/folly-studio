@@ -31,7 +31,7 @@ declare global { interface Window { previewCamera: {
   draw(leds: string): string } } }
 
 /** Software renderers draw it too, but slowly: the server asks for a GPU and says when it has none. */
-export const isSoftware = (gpu: string) => /swiftshader|llvmpipe|softpipe|software/i.test(gpu);
+const isSoftware = (gpu: string) => /swiftshader|llvmpipe|softpipe|software/i.test(gpu);
 
 /** Chromium's flags and environment for a GPU: WSL's d3d12 Mesa when /dev/dxg is there, else the system's GL. */
 function launchOptions() {

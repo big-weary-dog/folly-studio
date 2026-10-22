@@ -34,7 +34,7 @@ export const KIND_LABELS: Record<Kind, string> = { source: 'Source', warp: 'Warp
   composite: 'Composite' };
 const isBlend = (b: unknown): b is Blend => BLEND_MODES.some((x) => x.value === b);
 
-export const BLANK: Record<Kind, string> = { source: `// A new layer. Describe what it does here.
+const BLANK: Record<Kind, string> = { source: `// A new layer. Describe what it does here.
 const params = {
   color: { value: '#5b8cff', type: 'color' },
   speed: { value: 0.5, min: 0, max: 2 },
@@ -95,14 +95,14 @@ export const newLayer = (fields: Partial<Layer>, rig: Rig | null) => makeLayer({
   ...fields }, rig);
 
 /** A layer's soften as saved, or none: radius 0–MAX_RADIUS m, a known mode. */
-export const cleanSoften = (s: unknown): Soften | undefined => {
+const cleanSoften = (s: unknown): Soften | undefined => {
   const o = s && typeof s === 'object' ? s as Partial<Soften> : null, r = Number(o?.radius);
   return o && Number.isFinite(r) ? { radius: Math.min(MAX_RADIUS, Math.max(0, r)),
     mode: BLUR_MODES.includes(o.mode as Soften['mode']) ? o.mode! : 'wire' } : undefined;
 };
 
 /** Copies of modules with fresh ids, filters' inputs following them. */
-export function cloneModules(modules: Module[]) {
+function cloneModules(modules: Module[]) {
   const ids = new Map(modules.map((m) => [m.id, randomId('m')]));
   return modules.map((m) => {
     const c = { ...cleanModule(m), id: ids.get(m.id) as string };
@@ -141,7 +141,7 @@ export function withPresetGlobals(look: Globals | null | undefined, p: PresetEnt
 }
 
 /** Only the fields a saved module keeps (SPEC "Modules"). */
-export function cleanModule(m: Partial<Module>): Module {
+function cleanModule(m: Partial<Module>): Module {
   const kind = m.kind && KIND_LABELS[m.kind] ? m.kind : 'source';
   return {
     id: String(m.id || 'm1'), kind, title: String(m.title || KIND_LABELS[kind]),

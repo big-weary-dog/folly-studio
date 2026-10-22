@@ -146,7 +146,9 @@ export async function removeFrames(dir: string | undefined, lookId: string) {
  */
 export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16, log = console, onFrames,
   lane = createLane(), flash, loadLight }: { store: Pick<Store, 'looks'>, box: Pick<RenderBox, 'probe' | 'render'> & {
-  stop?(): void, config?: Partial<RenderBox['config']> }, framesDir: string, rigFile: string, maxQueue?: number,
+  stop?(): void, config?: Partial<RenderBox['config']>, ready?(): Promise<void>,
+  refusal?(layers: readonly LayerInput[]): Promise<{ status: number, reason: string } | null> }, framesDir: string,
+  rigFile: string, maxQueue?: number,
   log?: Logger, onFrames?: (id: string) => unknown, lane?: ReturnType<typeof createLane>, flash?: FlashSettings,
   loadLight?: () => Light }) {
   const source = 'render-box';
@@ -247,11 +249,14 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
       return w.forEach((r) => r());
     }
     running = pending.shift()!;
-    bakeOne(running)
+    Promise.resolve(box.ready?.()).then(() => bakeOne(running!)) // a throttled box's cooldown, outside the lane
       .catch((err) => log.error?.(`[bake] look ${running} crashed:`, err))
       .finally(() => { restoring.delete(running!); running = null; pump(); });
   }
 
+  /** Why the box will not bake the look now: the bake setting, no box, or custom code in a library-only box. */
+  const refusal = async (look: StoredLook) => (box.refusal ? box.refusal(look.layers ?? [])
+    : box.probe().then((p) => (p.ok ? null : { status: 503, reason: p.reason })));
   const queued = (id: string) => running === id || pending.includes(id);
   const full = () => pending.length + asking.size >= maxQueue;
 
@@ -277,8 +282,8 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
           const now = store.looks.get(id);
           if (now?.bake?.renderKey === key && now.bake.status === 'done') return now.bake;
         }
-        const p = await box.probe();
-        if (!p.ok) throw Object.assign(new BakeError(p.reason), { status: 503 });
+        const no = await refusal(look);
+        if (no) throw Object.assign(new BakeError(no.reason), { status: no.status });
         await removeFrames(framesDir, id);
         const bake: Bake = { source, status: 'queued', ok: false, requestedAt: new Date().toISOString() };
         await store.looks.update(id, { bake });
@@ -298,7 +303,7 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
       if (queued(look.id) || asking.has(look.id)) return true;
       const hit = await stored({ sha: b.frames.sha256 }); // another look may hold the same frames
       if (hit && await adopt(look.id, hit.file).then(() => true, () => false)) { onFrames?.(look.id); return true; }
-      if (full() || !(await box.probe()).ok) return false;
+      if (full() || await refusal(look)) return false;
       restoring.add(look.id);
       pending.push(look.id);
       pump();

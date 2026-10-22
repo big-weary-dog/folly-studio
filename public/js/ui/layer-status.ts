@@ -7,7 +7,7 @@ import type { FrameError, Report } from '../runtime.ts';
 import type { Layer } from './model.ts';
 import { flatModules } from '../core/tree.ts';
 
-export type StateKind = 'ok' | 'off' | 'muted' | 'pending' | 'compile' | 'runtime' | 'hung';
+type StateKind = 'ok' | 'off' | 'muted' | 'pending' | 'compile' | 'runtime' | 'hung';
 export interface State { kind: StateKind; message?: string }
 export interface Problem { kind: 'compile' | 'runtime' | 'hung'; message: string; running?: boolean }
 export const ISSUE_LABELS: Record<string, string> = { compile: 'Compile error', runtime: 'Runtime error',

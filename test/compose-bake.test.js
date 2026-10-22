@@ -83,11 +83,11 @@ test('a composed look bakes in-process on either rig: lit, deterministic, and it
 });
 
 const probe = await createRenderBox({ log: quiet }).probe();
-const unavailable = `render box unavailable here: ${probe.reason}`;
+const unavailable = `render box unavailable here: ${probe.reason || probe.libraryOnly}`;
 
 for (const [name, rigFile] of Object.entries(RIGS)) {
   test(`the render box bakes the composed look to the same bytes as the core here (${name})`, async ({ skip }) => {
-    skip(!probe.ok, unavailable);
+    skip(!probe.ok || !!probe.libraryOnly, unavailable);
     const box = createRenderBox({ seconds: SECONDS, rigFile, log: quiet });
     const { layers, globals, automation, bpm } = LOOK;
     const { bytes } = await box.render({ layers, seconds: SECONDS, globals, automation, bpm });
@@ -102,7 +102,7 @@ for (const [name, rigFile] of Object.entries(RIGS)) {
 }
 
 test('the render box bakes blur and soften to the same bytes as the core here', async ({ skip }) => {
-  skip(!probe.ok, unavailable);
+  skip(!probe.ok || !!probe.libraryOnly, unavailable);
   const box = createRenderBox({ seconds: SECONDS, rigFile: RIGS.folly, log: quiet });
   const { bytes } = await box.render({ layers: BLURRED.layers, seconds: SECONDS });
   const here = bakeHere(BLURRED).data, parsed = parseFseq(bytes);
@@ -124,7 +124,7 @@ const TIMED = {
 };
 
 test('the render box bakes smoke, replay and sort to the same bytes as the core here', async ({ skip }) => {
-  skip(!probe.ok, unavailable);
+  skip(!probe.ok || !!probe.libraryOnly, unavailable);
   const box = createRenderBox({ seconds: SECONDS, rigFile: RIGS.folly, log: quiet });
   const { bytes } = await box.render({ layers: TIMED.layers, seconds: SECONDS });
   const here = bakeHere(TIMED).data;

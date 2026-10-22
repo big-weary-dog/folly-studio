@@ -7,7 +7,7 @@ import { freeName } from './look-globals-edit.ts';
 import { editValue, readEdit } from './pick-model.ts';
 import type { Draft, Studio } from './studio-store.ts';
 
-export type AutomationTarget = { macro?: string; layer?: string; module?: string; key?: string; hint?: string;
+type AutomationTarget = { macro?: string; layer?: string; module?: string; key?: string; hint?: string;
   colour?: { value: unknown; blend: 'step' | 'smooth' } };
 type Range = Pick<Param, 'label' | 'min' | 'max'>;
 

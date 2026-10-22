@@ -39,10 +39,13 @@ function layerErrors(look: Look, reported: unknown): ExpandError[] {
   return out;
 }
 
-/** Render `look` for `seconds` in the box (in `lane`, the bakes' turn) → what it showed; null when there is no box. */
+/** Render `look` for `seconds` in the box (in `lane`, the bakes' turn) → what it showed; null when there is no box
+ * that can (none, or library only). */
 export async function renderCheck(box: Box | undefined, look: Look, { seconds, rig, lane, light }: { seconds: number,
   rig: Rig | null, lane?: Lane, light?: Light }): Promise<Seen | null> {
-  if (!box || !(await box.probe().catch(() => ({ ok: false }))).ok) return null;
+  // A library-only box cannot run generated code: no check, as with no box.
+  const p = box && await box.probe().catch(() => null);
+  if (!box || !p?.ok || p.libraryOnly) return null;
   const t0 = monoNow(), job = { layers: look.layers as never, seconds, globals: look.globals,
     automation: look.automation, bpm: look.bpm };
   try {

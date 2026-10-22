@@ -1,8 +1,8 @@
 // HTTP API client (SPEC "HTTP API"): JSON in and out, cookie session. A non-2xx response throws an ApiError with the
 // server's message and `status` (0: the server could not be reached).
 import type {
-  Bake, Explore, FlashSettings, Idea, IdeaHow, IdeaHowLive, Listed, Look, LookCreate, LookPatch, User, Version,
-  VersionListed,
+  Bake, BakeMode, BakingState, Explore, FlashSettings, Idea, IdeaHow, IdeaHowLive, Listed, Look, LookCreate, LookPatch,
+  User, Version, VersionListed,
 } from '../../shared/schemas/api.ts';
 import type { Access, Invite, Person, PersonLimits } from '../../shared/schemas/access.ts';
 import type { LightSettings } from '../../shared/schemas/light.ts';
@@ -124,6 +124,9 @@ export const api = {
     `/api/admin/reports/${enc(id)}`),
 
   library: () => request<{ patterns?: LibraryEntry[] }>('GET', '/api/library'),
+  /** The bake setting and the render box here (SPEC "Baked frames"); admins change the setting. */
+  baking: () => request<BakingState>('GET', '/api/baking'),
+  saveBaking: (mode: BakeMode) => request<BakingState>('PUT', '/api/admin/baking', { mode }),
 };
 
 /** Static JSON (not under /api): the rig, the palettes. */

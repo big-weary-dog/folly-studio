@@ -23,7 +23,7 @@ const rigFile = path.join(PUBLIC, 'data/rig.json');
 const ready = fs.existsSync(rigFile) && fs.existsSync(path.join(PUBLIC, 'js/pattern-core.ts'));
 const probe = ready ? await createRenderBox({ log: quiet }).probe() : { ok: false,
   reason: 'the pattern runtime or LED map is not built' };
-const unavailable = `render box unavailable here: ${probe.reason}`;
+const unavailable = `render box unavailable here: ${probe.reason || probe.libraryOnly}`;
 
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-bake-'));
 afterAll(() => fs.rmSync(tmpRoot, { recursive: true, force: true }));
@@ -56,7 +56,7 @@ function ourBoxes() {
 }
 
 describe('render box (bubblewrap)', () => {
-  beforeEach(({ skip }) => skip(!probe.ok, unavailable));
+  beforeEach(({ skip }) => skip(!probe.ok || !!probe.libraryOnly, unavailable));
   let hits = 0;
   let server;
   let port;

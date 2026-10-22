@@ -18,7 +18,7 @@ const RENDER_MS = 8000;          // an export goes quiet while the page probes a
 const FROZEN_GAP_MS = 1000;      // a watchdog tick this late: the tab was busy, throttled or frozen
 export const RATES = [40, 30, 20];
 export const BUDGET = 0.8;       // a frame's budget: this share of its interval (the rest: messages, the draw)
-export const HEAVY = 0.4;        // a layer over this share of a 40 fps frame's budget is heavy
+const HEAVY = 0.4;        // a layer over this share of a 40 fps frame's budget is heavy
 const budget = (rate: number) => (BUDGET * 1000) / rate;
 const SLACK_MS = 4;              // a frame due this soon goes now, on this display frame
 const EMPTY: readonly FrameError[] = Object.freeze([]);

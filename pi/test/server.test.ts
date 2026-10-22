@@ -22,16 +22,17 @@ describe('the control page', () => {
     await assert.rejects(socket(origin, 'http://evil.example'), /403/);
   });
 
-  test('under a base, the page, its redirect and its socket are there, and nothing at /', async () => {
+  test('under a base, the page, its redirect and its socket are there, and at / too (the hub\'s :4043/)', async () => {
     const { origin, page } = await serve('', { t: 0 }, '/pi');
     assert.match(await (await fetch(`${page}/`)).text(), /<title>Studio Live<\/title>/);
     const bare = await fetch(page, { redirect: 'manual' });
     assert.deepEqual([bare.status, bare.headers.get('location')], [301, '/pi/']);
-    assert.equal((await fetch(`${origin}/`)).status, 404);
-    const c = await socket(page);
-    c.send({ type: 'hello' });
-    assert.equal(((await c.next('hello')) as { ok: boolean }).ok, true);
-    await assert.rejects(socket(origin), /404/);
+    assert.match(await (await fetch(`${origin}/`)).text(), /<title>Studio Live<\/title>/);
+    for (const at of [page, origin]) {
+      const c = await socket(at);
+      c.send({ type: 'hello' });
+      assert.equal(((await c.next('hello')) as { ok: boolean }).ok, true);
+    }
   });
 
   test('with no PIN, hello is enough; what it sends reaches the engine', async () => {

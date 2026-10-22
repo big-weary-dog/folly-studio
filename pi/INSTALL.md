@@ -1,13 +1,17 @@
 # Installing Studio Live on the FPP Pi
 
 Studio Live plays looks from this repo's library on City of Gods, straight from the FPP Pi (192.168.8.172), with a
-control page on `:4043`. It sends DDP to fppd on `127.0.0.1:4048`, like Folly Mix. It needs no internet, no Studio
+control page on `:4043/`. It sends DDP to fppd on `127.0.0.1:4048`, like Folly Mix. It needs no internet, no Studio
 server, no sign-in and no build step: a git clone, `npm ci`, and Node.
+
+**With no internet at the site, install from the USB bundle instead: [SETUP.md](SETUP.md)** (one command, the engine
+alone or with Studio). This page is the online way, a git clone, and what the engine does once installed.
 
 What it is and how to drive it: [README.md](README.md). How live apps fit the Pi: `ADD_LIVE_APP.md` in the
 lighting repo.
 
-> **Before using it during show hours, read [The night show will play over it](#the-night-show-will-play-over-it).**
+Its page is `http://192.168.8.172:4043/`; with Studio on the Pi too, also `:8780/pi/` ([SETUP.md](SETUP.md)'s
+table).
 
 ## 1. Clone and install (once)
 
@@ -101,20 +105,21 @@ and play. To stop, switch the hub back to FPP: the unit fades to black over abou
 
 Without the hub (first test only, with FPP idle and nothing else live): `npm run pi`, then Ctrl-C.
 
-## The night show will play over it
+## The night show and the hub
 
-The hub's night-show AUTO mode is not cleared when it switches to a live app. Inside the night-show window
-(`night-show.json`: 21:00–05:02 on the Pi at the last look; check it), with AUTO on and FPP idle, the hub starts the
-night show within about 15 s. FPP then plays over Studio Live and the two fight at frame rate. Folly Mix has the same
-problem.
+The hub keeps the night show (`night-show.json`: 21:00–05:02 on the Pi at the last look; check it) and live apps
+apart, through its source switch (`night_follow_source` in lighting's `launchpad/launchpad-fpp.py`):
 
-Until the hub clears AUTO itself (John's fix: `switch_source` calling `night_mode.clear()`):
+- **Switching to Studio Live pauses the night show.** The hub stops FPP playback and clears its AUTO mode, so it
+  does not restart the show over the engine.
+- **Switching back to FPP resumes it**, inside its window, at the slot the clock says (not where it left off).
+  Outside the window FPP stays idle.
+- **At the window's start the show takes the lights**, whatever plays: the hub stops `studio-live` (and every live
+  app) and starts the night show. A demo at 20:58 is cut off at 21:00, as meant.
 
-- **Inside the window:** switch to Studio Live, then press **STOP** on the hub or the Launchpad. STOP takes the hub to
-  manual (the AUTO pad dims) and leaves live apps running. Press **AUTOMATIC** to hand the night back.
-- **Across the window's start:** at the start time the hub goes back to AUTO when FPP is idle, and it is idle while
-  Studio Live plays. Press STOP again just after the start time, or set `"enabled": false` in `night-show.json`
-  for the session and back afterwards (ask John first).
+That is the hub's switch only. An engine started by hand (`npm run pi`, `systemctl start studio-live`) is invisible
+to it: inside the window, with AUTO on, the hub restarts the night show within about 15 s and FPP plays over the
+engine. Start it from the hub.
 
 ## Measuring the engine on this Pi
 
@@ -186,7 +191,7 @@ npm ci --omit=dev
 sudo systemctl restart studio-live
 ```
 
-To return to the latest, run `git checkout "$BRANCH" && git pull` ($BRANCH as in step 1), then the same `npm ci` and restart.
+To return to the latest, run `git checkout prod && git pull`, then the same `npm ci` and restart.
 To take Studio Live off the Pi entirely, follow these steps:
 
 1. Switch the hub to FPP.

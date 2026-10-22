@@ -6,7 +6,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { api, type ApiError } from '../api.ts';
 import { autoFetchAllowed, fetchManifest } from '../frames-stream.ts';
 import { can } from '../../../shared/policy.ts';
-import type { Bake } from '../../../shared/schemas/api.ts';
+import type { Bake, BakingState } from '../../../shared/schemas/api.ts';
 import { user } from './session.ts';
 import { askWhy } from './ask-why.tsx';
 import { cx, openDialog, Switch, toast } from './kit.tsx';
@@ -20,7 +20,7 @@ const ACTIVE = new Set(['queued', 'running']);
 const pct = (v: number) => `${Math.round(v * 100)} %`;
 
 /** A look's bake as one state: { kind, label } (kind: none|queued|running|ok|warned|flagged|failed). */
-export function bakeState(bake?: Bake | null) {
+function bakeState(bake?: Bake | null) {
   if (!bake) return { kind: 'none', label: 'Not baked' };
   if (bake.status === 'queued') return { kind: 'queued', label: 'Queued' };
   if (bake.status === 'running') return { kind: 'running', label: 'Baking…' };
@@ -58,6 +58,10 @@ function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [tick, setTick] = useState(0);
   const [sized, setSized] = useState<{ sha?: string; bytes: number } | null>(null);
   const [loading, setLoading] = useState(false);
+  // The admin's bake setting and what the render box can do here (SPEC "Baked frames"), said before a click.
+  const [baking, setBaking] = useState<BakingState | null>(null);
+  useEffect(() => { api.baking().then(setBaking, () => {}); }, []);
+  const off = baking?.mode === 'off';
 
   async function poll() {
     const at = st.look.peek().id;
@@ -161,6 +165,8 @@ function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
     <section class={cx('bake', !hasFrames && 'no-play')} data-state={s.kind} aria-label="Bake">
       <div class="bake-head"><span class="bake-pill" data-kind={s.kind}>{s.label}</span></div>
       <p class={cx('bake-note', look && bake && dirty && !active && 'warn')}>{note}</p>
+      {canBake && (off || baking?.box.libraryOnly) && <p class="bake-note warn" role="note">{off
+        ? 'An admin turned baking off, so looks cannot be baked here for now.' : baking?.box.reason}</p>}
       <dl class="bake-report" hidden={!a}>{a && <>
         {row('Flash check', check[0], check[1])}
         {row('Peak', `${pct(a.peakBrightness)} white · ≈ ${a.estPeakAmps} A`)}
@@ -173,7 +179,8 @@ function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
         <FixButton st={st} layer={threw.title} error={threw.error} /></p>}
       <p class="bake-warning" role="status" hidden={!warning}>{warning}</p>
       <div class="bake-actions">
-        <button type="button" class="btn small wide-only" hidden={!canBake} disabled={busy || active} onClick={bakeNow}>
+        <button type="button" class="btn small wide-only" hidden={!canBake} disabled={busy || active || off}
+          title={off ? 'An admin turned baking off.' : undefined} onClick={bakeNow}>
           {!look || dirty ? 'Save & bake' : s.kind === 'none' ? 'Bake' : 'Bake again'}</button>
         <button type="button" class="btn small bake-play" aria-pressed={playing} hidden={!hasFrames} disabled={loading}
           onClick={togglePlay}>{playing ? 'Back to live' : `Play baked frames${sized
