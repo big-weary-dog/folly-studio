@@ -335,7 +335,8 @@ describe('the API: duration and bpm', () => {
 // The real render box (bubblewrap). Skips, saying why, where it cannot run.
 const probe = await createRenderBox({ log: quiet }).probe();
 describe('baking a sequenced look in the render box', () => {
-  beforeEach(({ skip }) => skip(!probe.ok, `render box unavailable here: ${probe.reason}`));
+  beforeEach(({ skip }) => skip(!probe.ok || !!probe.libraryOnly,
+    `render box unavailable here: ${probe.reason || probe.libraryOnly}`));
   test('a 2-clip layer over a dim base: lit in its clips, dark between, for the look\'s duration', async () => {
     const box = createRenderBox({ seconds: 120, log: quiet });
     const layers = [

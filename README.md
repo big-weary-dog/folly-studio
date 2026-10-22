@@ -23,7 +23,8 @@ npm run perf           # the live preview on an emulated phone at 4× CPU slowdo
 npm run build-data     # rebuild public/data/rig.json (City of Gods) and rig-folly.json, palettes.json
 ```
 
-- Bakes need bubblewrap (`apt install bubblewrap`) and unprivileged user namespaces; without them baking is off.
+- Bakes need bubblewrap (`apt install bubblewrap`) and unprivileged user namespaces; without them only looks made
+  of unchanged library patterns bake (SPEC-baking). Admins can throttle baking or turn it off (Admin → Baking).
 - Models: people pick one per idea from `data/models.json` (Opus with `ANTHROPIC_API_KEY`; Sol and Luna through the
   Codex CLI after `codex login`). Admins (`STUDIO_ADMINS=you`) change it under
   Admin › Models. docs/HOSTING.md "Models" has the file and the setup.

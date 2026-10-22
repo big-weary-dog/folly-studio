@@ -15,6 +15,7 @@ import { isPending } from '../shared/idea-status.ts';
 import type { Idea } from '../shared/schemas/api.ts';
 import { type Cost, createAuth } from './auth.ts';
 import { createBakeQueue, createLane } from './bake.ts';
+import { createBakingStore, governBox } from './baking.ts';
 import { flashSettings } from './box-output.ts';
 import { type Config, configOf } from './config.ts';
 import { createFramesCache } from './frames-cache.ts';
@@ -96,6 +97,9 @@ export async function createServer(opts: Options = {}) {
   const access = createAccess({ store, auth, models });
   const light = createLightStore({ file: path.join(dataDir, 'light.json'), log });
   const box = renderBox || createRenderBox({ publicDir, log, config, ...boxDefaults(profile, config) });
+  // Bakes and previews go through the admin's bake setting; the generators' render checks are not bakes.
+  const baking = createBakingStore({ file: path.join(dataDir, 'baking.json'), log });
+  const bakeBox = governBox(box, baking.mode);
   // Baked frames are encoded for streaming as soon as they are stored (src/frames-cache.ts); bakes, those encodes
   // and the generators' render checks take turns at low priority, and evicted frames are baked again on demand.
   const lane = createLane();
@@ -112,13 +116,13 @@ export async function createServer(opts: Options = {}) {
   const frames = createFramesCache({ framesDir, store, log, quality: framesQuality, maxBytes: framesMaxBytes, lane,
     rebake: (look) => bakes.restore(look) });
   const rigFile = path.join(publicDir, 'data', 'rig.json');
-  const bakes = createBakeQueue({ store, box, framesDir, rigFile, log, lane, flash, loadLight: light.current,
+  const bakes = createBakeQueue({ store, box: bakeBox, framesDir, rigFile, log, lane, flash, loadLight: light.current,
     onFrames: (id) => { frames.encode(id); previews.want(id); } });
   frames.prune().then(() => frames.disk.enforce()).catch(() => {});
   // Gallery previews (SPEC "Gallery previews"), made in the same lane, after anything already queued at start.
   const playa = (opts.previews ?? config.STUDIO_PREVIEWS ?? defaults.previews) === 'front' ? null
     : playaCamera({ log, loadLight: light.current });
-  const previews = createPreviews({ dir: path.join(dataDir, 'previews'), store, box, framesDir, lane, log,
+  const previews = createPreviews({ dir: path.join(dataDir, 'previews'), store, box: bakeBox, framesDir, lane, log,
     loadRig, camera: playa?.camera ?? frontView() });
   previews.backfill().catch((err) => log.error?.('[previews] backfill:', err));
   const hub = await createHub({ dataDir, log, playable: (id) => {
@@ -163,6 +167,7 @@ export async function createServer(opts: Options = {}) {
   const lights = feed && lightsStore ? { store: lightsStore, feed, hub, drive } : undefined;
   await app.register(apiRoutes({ store, auth, queue, models, loaders, log, access, framesDir, bakes,
     frames, rateLimit, secureCookies, flash, hub, live, ideaLogs, previews, reports, light, profile, lights,
+    baking: { baking, box },
     build: buildSha(path.dirname(fileURLToPath(import.meta.url)), config.GIT_SHA), tail: log.tail }),
   { prefix: '/api' });
   if (piTarget) await app.register(piPreview({ auth, target: piTarget, hub, curators: profile === 'pi', drive,

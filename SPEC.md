@@ -17,8 +17,8 @@ file), edit it, and export it toward the real installation.
 - **Every LED comes from `public/data/rig.json`** (SPEC "Rig"), built from the lighting repo's pixel maps, never
   by hand. Nothing else names the installation.
 - **Pattern code is untrusted.** It only ever runs inside the sandbox page (below) or a box
-  (bubblewrap: the render box, a Fleet worker's), never in the app page and never in the server's
-  own Node process (except in tests, on our own library patterns). What a box returns is data.
+  (bubblewrap: the render box, a Fleet worker's; else library only: SPEC-baking), never in the app page or the
+  server's own Node process (except in tests, on our own library patterns). What a box returns is data.
 - Patterns see **x = depth** (front → back), **y = height**, **z = left → right** facing the front; the rig's
   `axes` map its own coordinates onto these (the Folly's are the repo's: front/playa −12 m → back +14 m, 0 →
   18.5 m, −9 → +8 m).
@@ -550,7 +550,7 @@ PUT    /api/looks/:id { title?, summary?, layers?, duration?, bpm?, globals?, au
                                               curator); layers without chain: 2 converted
 GET|PUT /api/looks/:id/versions[/:n]          the owner's versions: SPEC-history
 DELETE /api/looks/:id                         → { ok: true }         owner, or an admin if shared
-POST   /api/looks/:id/bake                    → 202 { bake }      owner, or a curator if shared; queued
+POST   /api/looks/:id/bake                    → 202 { bake }      owner, or a curator if shared; queued (SPEC-baking)
 GET    /api/looks/:id/frames[?compress=1|zstd|zlib] → the baked .fseq   mine, or shared; 404 if none (attachment);
                                               503 + Retry-After while evicted frames are baked again
 GET    /api/looks/:id/frames/wire             → 302 to its manifest; 202 { pending } + Retry-After while encoded
@@ -648,15 +648,14 @@ marks the look reviewed. A gallery card not yet reviewed gives a curator **Appro
 the look unless it has a render-box bake (Baking…), then marks it reviewed if that passes; flashing asks the reason,
 as here; any other failure says why and points to Check & bake.
 
-- **Boxes.** `render-box` (authoritative, any look): `src/render-box.ts` runs `render-box/render.ts`
-  under bubblewrap (`--unshare-all`, no network, `--clearenv`, read-only node + its libraries +
-  the core as one script (`src/core-script.ts`, from its source) / renderer.ts / fseq.ts / rig.json /
-  `public/patterns` (for `use`), tmpfs /tmp, one
-  empty writable /out; the look on stdin as `{ layers, globals?, automation?, bpm? }`), a cgroup
-  (tasks, memory), prlimit (CPU s, file size; no RLIMIT_AS) and a wall-clock kill. Inside, layers run in
-  a `node:vm` realm holding only the stdlib (defence in depth). No bubblewrap → 503, no fallback.
+- **Boxes.** `render-box` (authoritative): `src/render-box.ts` runs `render-box/render.ts` under bubblewrap
+  (`--unshare-all`, no network, `--clearenv`, read-only node + its libraries + the core as one script
+  (`src/core-script.ts`, from its source) / renderer.ts / fseq.ts / rig.json / `public/patterns` (for `use`), tmpfs
+  /tmp, one empty writable /out; the look on stdin as `{ layers, globals?, automation?, bpm? }`), a cgroup (tasks,
+  memory), prlimit (CPU s, file size; no RLIMIT_AS) and a wall-clock kill. Inside, layers run in a `node:vm` realm
+  holding only the stdlib (defence in depth). Without bubblewrap, library only; the bake setting: `SPEC-baking.md`.
   One bake at a time, under `nice` (`STUDIO_BAKE_NICE`, default 10), in a lane it shares with wire encodes
-  (`src/bake.ts` `createLane`), so the two never run at once. `fleet-box` (advisory): the Fleet worker's own `frames.fseq` + `stats.json` (its `use`
+  (`src/bake.ts` `createLane`). `fleet-box` (advisory): the Fleet worker's own `frames.fseq` + `stats.json` (its `use`
   library: `patterns/` beside check.ts, else none). All three run the same core and `renderer.ts`.
 - **Length.** A bake renders the look's `duration` from t = 0, honouring clips, but at most
   `STUDIO_BAKE_SECONDS` (default 120 s, ≤ 600) in the render box; `fleet-box/check.ts --bake`

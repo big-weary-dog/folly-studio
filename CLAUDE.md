@@ -19,9 +19,10 @@ behind these rules.
   `tools/budgets.json`: lower it when you cut; raise it only with a new `reason`.
   `// oxlint-disable-next-line <rule> -- <reason>` silences one line, and only with a reason a reviewer would accept.
 - **Pattern code never runs on the server outside the render box.** It runs in the sandbox
-  iframe's Worker or in the render box (bubblewrap, then a stdlib-only `node:vm` realm), never
-  in the app page or the server's own process. Tests may run our own library patterns. What a
-  box returns is data: parse and bound it, and keep anything it says about itself untrusted.
+  iframe's Worker or in the render box (bubblewrap, then a stdlib-only `node:vm` realm; without bubblewrap, only
+  unchanged library patterns, checked by hash), never in the app page or the server's own process. Tests may run
+  our own library patterns. What a box returns is data: parse and bound it, and keep anything it says about itself
+  untrusted.
   `eval`, `Function`, `node:vm` and `child_process` stay where `.oxlintrc.jsonc`'s allowlist puts them.
 - **Use a dependency whenever it makes life easier.** Pin it exactly (`npm install --save-exact`), commit
   `package-lock.json`, and give it a one-line reason in CONTRIBUTING "Dependencies". Dependencies are installed

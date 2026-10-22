@@ -10,6 +10,7 @@ import { accessRoutes, sendRefusal } from './api-access.ts';
 import { ideaHowRoutes } from './api-idea-how.ts';
 import { ideaLogRoutes } from './api-idea-log.ts';
 import { lightRoutes } from './api-light.ts';
+import { bakingRoutes } from './baking.ts';
 import { lightsRoutes } from './lights.ts';
 import { reportRoutes } from './api-reports.ts';
 import { tourRoutes } from './api-tour.ts';
@@ -73,6 +74,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
   rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, flash: FlashSettings, hub: Hub,
   live: LiveSettings, ideaLogs: IdeaLogs, previews?: ReturnType<typeof createPreviews>, reports: Reports,
   build: string, tail: () => unknown[], light: LightStore, profile?: Profile,
+  baking?: Parameters<typeof bakingRoutes>[0],
   lights?: Pick<Parameters<typeof lightsRoutes>[0], 'store' | 'feed' | 'hub' | 'drive'> }) {
   const { store, auth, queue, models, loaders, log, access } = o;
   const { bakes, framesDir, frames, secureCookies = false, flash } = o;
@@ -216,6 +218,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         ...ideaHowRoutes({ store, auth, logs: o.ideaLogs, forOwner }),
         ...accessRoutes(api, { access, store }) } : {}),
       ...lightRoutes({ light: o.light }),
+      ...(o.baking ? bakingRoutes(o.baking) : {}),
       ...(o.lights ? lightsRoutes({ ...o.lights, loadLibrary: loaders.loadLibrary, visibleLook: looks.visibleLook,
         looksIn: looks.looksIn, listed: looks.listed })
         : {}),
