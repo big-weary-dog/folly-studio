@@ -9,8 +9,6 @@ import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
-import sharp from 'sharp';
-
 import type { Rig } from '../../shared/schemas/rig.ts';
 import { bakeSeconds, createLane, framesPath, layersHash, renderFields, writeAtomic } from '../bake.ts';
 import type { Logger } from '../http.ts';
@@ -25,12 +23,13 @@ export const MAX_BYTES = 300 * 1024;
 const FILE = /^([A-Za-z0-9_-]{1,64})-([0-9a-f]{16})(-still)?\.webp$/;
 
 /** What a look's preview shows: changes with its render fields and duration. */
-export const previewKey = (look: StoredLook) => createHash('sha256')
+const previewKey = (look: StoredLook) => createHash('sha256')
   .update(JSON.stringify({ v: VERSION, fields: layersHash(renderFields(look)), duration: look.duration ?? null }))
   .digest('hex').slice(0, 16);
 
-/** Pictures → { webp: the loop, still }. */
-export async function encodePreview(m: Motion) {
+/** Pictures → { webp: the loop, still }. sharp (libvips, ~40 MB) loads at the first preview, not at start. */
+async function encodePreview(m: Motion) {
+  const { default: sharp } = await import('sharp');
   const raw = { width: m.width, height: m.height, channels: 3 as const }, pages = Buffer.concat(m.frames);
   let webp = Buffer.alloc(0);
   for (const quality of QUALITIES) {
@@ -44,7 +43,8 @@ export async function encodePreview(m: Motion) {
 
 export function createPreviews({ dir, store, box, framesDir, loadRig, lane = createLane(), log = console,
   loop = 'crossfade', camera = frontView() }: { dir: string, store: Pick<Store, 'looks'>,
-  box: Pick<RenderBox, 'render'> & { config?: Partial<RenderBox['config']> }, framesDir: string,
+  box: Pick<RenderBox, 'render'> & { config?: Partial<RenderBox['config']>, ready?(): Promise<void> },
+  framesDir: string,
   loadRig: () => Rig | null, lane?: ReturnType<typeof createLane>, log?: Logger, loop?: Loop, camera?: Camera }) {
   const have = new Map<string, string>(); // look id → the key of its preview on disk
   const failed = new Set<string>();       // id:key that could not be made (until a restart)
@@ -59,10 +59,11 @@ export function createPreviews({ dir, store, box, framesDir, loadRig, lane = cre
   const files = (id: string, key: string) => [`${id}-${key}.webp`, `${id}-${key}-still.webp`]
     .map((n) => path.join(dir, n));
 
+  const baked = ({ bake, ...look }: StoredLook) => bake?.status === 'done' && !!bake.frames
+    && bake.layersHash === layersHash(renderFields(look));
   /** The look's current frames: its bake's when that renders what the look does now, else a fresh render. */
   async function framesOf(look: StoredLook) {
-    const bake = look.bake;
-    if (bake?.status === 'done' && bake.frames && bake.layersHash === layersHash(renderFields(look))) {
+    if (baked(look)) {
       const bytes = await fs.readFile(framesPath(framesDir, look.id)).catch(() => null);
       if (bytes) return bytes;
     }
@@ -82,6 +83,7 @@ export function createPreviews({ dir, store, box, framesDir, loadRig, lane = cre
       const rig = loadRig();
       if (!rig) throw new Error('no rig');
       let started = 0;
+      if (!baked(look)) await box.ready?.(); // a throttled box's cooldown, outside the lane
       const motion = await lane.run(async () => {
         started = Date.now();
         return previewFrames(await framesOf(look), rig, { loop, camera });
@@ -100,7 +102,7 @@ export function createPreviews({ dir, store, box, framesDir, loadRig, lane = cre
         + `${Math.round(webp.length / 1024)} KB, ${drawn - started} ms to render and draw, `
         + `${Date.now() - drawn} ms to encode`);
     } catch (err) {
-      failed.add(`${id}:${key}`);
+      if ((err as { status?: number }).status !== 503) failed.add(`${id}:${key}`); // 503: baking off, for now
       log.error?.(`[previews] look ${id}: no preview:`, (err as Error)?.message ?? err);
     }
   }

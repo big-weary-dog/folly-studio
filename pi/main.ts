@@ -12,7 +12,7 @@ import { readConfig } from './src/config.ts';
 import { createEngine } from './src/engine.ts';
 import { readLibrary, readLooks } from './src/library.ts';
 import { createOutput } from './src/output.ts';
-import type { PowerTable } from './src/power.ts';
+import { checkPixels, type PowerTable } from './src/power.ts';
 import type { EngineState } from './src/protocol.ts';
 import { createRelay } from './src/relay.ts';
 import { runLoop } from './src/run.ts';
@@ -35,6 +35,7 @@ if (cfg) await main(cfg);
 
 async function main(c: NonNullable<typeof cfg>) {
   const rig = json('../public/data/rig.json'), table: PowerTable = json('./data/power.json');
+  checkPixels(rig, table);
   const lib = readLibrary(at('../public/patterns'));
   const looks = readLooks([at('./looks'), at('./local/looks'), ...(c.looks ? [path.resolve(c.looks)] : [])], lib);
   for (const [id, l] of looks) if (l.error) log(`look ${id} cannot play: ${l.error}`);

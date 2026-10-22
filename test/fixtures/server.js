@@ -96,7 +96,7 @@ export function fakeQueue() {
 }
 
 /** Passwords at a test's cost: at OWASP's, each hash takes half a second (test/auth.test.ts holds the real one). */
-export const CHEAP = Object.freeze({ N: 1024, r: 8, p: 1 });
+const CHEAP = Object.freeze({ N: 1024, r: 8, p: 1 });
 
 export async function startApp(opts = {}) {
   const app = await createServer({ publicDir: fx.publicDir, distDir: fx.distDir, generator: fakeQueue(),

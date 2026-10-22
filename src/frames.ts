@@ -7,7 +7,7 @@ import type { FlashWatch, Scene } from '../public/js/pattern-core.ts';
 import type { Analysis } from '../shared/schemas/api.ts';
 
 export const CHANNELS_PER_UNIVERSE = 510; // a parsed file's default bounds: 80 universes of 510 (xLights, FPP)
-export const UNIVERSES = 80;
+const UNIVERSES = 80;
 export const MAX_CHANNELS = UNIVERSES * CHANNELS_PER_UNIVERSE; // 40,800
 export const DEFAULT_MAX_BYTES = 64 * 1024 * 1024;
 
@@ -17,7 +17,7 @@ export const DEFAULT_MAX_BYTES = 64 * 1024 * 1024;
 // Everything is measured in the light the LEDs give: bakes hold encoded bytes, so each is decoded by the LEDs'
 // output transform (the core's ledLight) first.
 // Power: WS281x pixels draw about 20 mA per channel at full, at 5 V: an estimate for sizing supplies.
-export const AMPS_PER_CHANNEL = 0.02;
+const AMPS_PER_CHANNEL = 0.02;
 const DARK = 0.01; // a pixel is dark when every channel gives under 1 % of its light (encoded, below about 0.12)
 const CODECS = ['none', 'zstd', 'zlib']; // FSEQ v2 compression types 0, 1, 2
 
@@ -40,7 +40,7 @@ const text = (bytes: Bytes) => new TextDecoder('utf-8').decode(bytes.subarray(0,
  * maxDataBytes.
  */
 /** parseFseq's `decompress`: one block of `type`, inflated to exactly `size` bytes (or it throws). */
-export type Decompress = (type: string, bytes: Bytes, size: number) => Bytes;
+type Decompress = (type: string, bytes: Bytes, size: number) => Bytes;
 export function parseFseq(input: Bytes | ArrayBuffer, opts: { maxBytes?: number, maxChannels?: number,
   maxDataBytes?: number, decompress?: Decompress } = {}) {
   const { maxBytes = DEFAULT_MAX_BYTES, maxChannels = MAX_CHANNELS, maxDataBytes = maxBytes, decompress } = opts;

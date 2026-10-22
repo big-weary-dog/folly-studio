@@ -9,7 +9,7 @@ import path from 'node:path';
 import type { Scene } from '../../public/js/pattern-core.ts';
 import { parseFseq } from '../../src/frames.ts';
 
-export const MAX_BAKE_BYTES = 128 * 1024 * 1024;
+const MAX_BAKE_BYTES = 128 * 1024 * 1024;
 const ID = /^[A-Za-z0-9_-]{1,64}$/, SLICE = 1 << 20;
 
 export type Baked = { frames: number, duration: number, fill(frame: number, rgb: Float32Array): void };

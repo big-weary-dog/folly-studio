@@ -7,7 +7,7 @@ import path from 'node:path';
 
 import { describe, test } from 'vitest';
 
-import { COG_POWER, expandRose, type PowerTable, powerLimiter } from '../src/power.ts';
+import { checkPixels, COG_POWER, expandRose, type PowerTable, powerLimiter } from '../src/power.ts';
 import { GOLDEN, LIGHTING, pythonPower, sha } from '../tools/power-golden.ts';
 import { CELL_CHANNELS, testFrames } from './frames.ts';
 
@@ -28,6 +28,15 @@ function ours(o = COG_POWER) {
   }
   return { hashes, stats: limiter.stats };
 }
+
+test('the engine starts only on a rig with the pixels lighting\'s pixel map has', () => {
+  const rig = JSON.parse(readFileSync(new URL('../../public/data/rig.json', import.meta.url), 'utf8'));
+  assert.equal(table.pixels, rig.count);
+  checkPixels(rig, table);
+  assert.throws(() => checkPixels({ ...rig, count: rig.count - 1 }, table), /has \d+ px .* stale map/);
+  const short = { ...rig, pixels: { universe: rig.pixels.universe.slice(1) } };
+  assert.throws(() => checkPixels(short, table), /listed\) but .* stale map/);
+});
 
 describe('the rose expanded', () => {
   test('each petal LED its cell\'s colour, passage LEDs dark, 8,097 lit, every rig channel as it was', () => {

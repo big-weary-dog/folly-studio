@@ -11,7 +11,7 @@ import type { PresetEntry } from '../../shared/schemas/rig.ts';
 import type { Catalog, ParamDecl } from './catalog.ts';
 import { extensionsPage } from './guide.ts';
 
-export const PROSE_DIR = fileURLToPath(new URL('../../library-docs/', import.meta.url));
+const PROSE_DIR = fileURLToPath(new URL('../../library-docs/', import.meta.url));
 /** Prose files that are not a module's: the tree's README and each kind's intro. */
 const INTROS = ['README', 'sources', 'warps', 'filters', 'presets'];
 
@@ -39,7 +39,7 @@ export function parseProse(text: string): Prose {
 }
 
 /** A section's bullets as `name: text`, continuation lines joined; keyed by the name before the first colon. */
-export function bullets(body = ''): Map<string, string> {
+function bullets(body = ''): Map<string, string> {
   const out = new Map<string, string>();
   let key = '';
   for (const line of body.split('\n')) {
@@ -73,7 +73,7 @@ const STOCK: Record<string, string> = {
 };
 
 /** The refs of a preset's recipe in order, the second of a name as `name#2` (as overrides name them). */
-export function recipeRefs(p: PresetEntry) {
+function recipeRefs(p: PresetEntry) {
   const seen = new Map<string, number>();
   return p.layers.flatMap((l) => l.modules).map((m) => {
     const n = (seen.get(m.ref) ?? 0) + 1;

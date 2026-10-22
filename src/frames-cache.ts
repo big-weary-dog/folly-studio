@@ -19,7 +19,7 @@ import type { Logger } from './http.ts';
 import type { Store, StoredLook } from './store.ts';
 
 const HASH = /^[0-9a-f]{32}$/;
-export const DEFAULT_FRAMES_MAX_BYTES = 2 * 1024 ** 3;
+const DEFAULT_FRAMES_MAX_BYTES = 2 * 1024 ** 3;
 const TOUCH_MS = 10 * 60_000;
 const MIN_GAP_MS = 5000; // between two looks at the whole folder
 const MAX_FRAMES_BYTES = framesBytesFor(600); // the longest bake there can be

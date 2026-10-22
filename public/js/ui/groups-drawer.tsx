@@ -1,4 +1,4 @@
-// A layer's groups (SPEC "Looks": layer.groups): the settings' "Plays on" opens a drawer beside the 3D view holding
+// A layer's groups (SPEC-studio "Groups"): the settings' "Plays on" opens a drawer beside the 3D view holding
 // the groups tree, where checkboxes say which groups the selected layer plays on and hovering or focusing a row (or
 // its pin) lights its LEDs on the model. While it is open the view shows where the layer plays and dims the rest.
 // Add a layer (shelf.tsx) shows the same tree for the layer it adds.

@@ -53,9 +53,6 @@ migration. Sparkle maps its old `mode`, `length`, `sharp` and `rate` so; bars an
 edit, while the saved one is still what it changed, so a slider starts where the look plays and a stale report never
 undoes an edit.
 
-Hue shift turns every pixel's colours alike using only Offset and Speed. Saved Direction and Spread params are
-ignored; it has no spatial gradient or migration.
-
 ## The pixel `p`
 
 | field | meaning |
@@ -85,8 +82,8 @@ of `centre`, else 0, each edge a `soft` one `softness` wide), `wave(x)` = ½+½�
 `noise(x, y?, z?, w?)` (smooth 0..1), `fbm(x, y, z, octaves=4)`, `hsv(h, s, v)`, `hsl(h, s, l)`,
 `rgb(r, g, b)`, `hex('#rrggbb')`, `scale(c, k)`, `add(c1, c2)`, `gradient(t, [c0, c1, ...])`,
 `cosPalette(t, a, b, c, d)` (Inigo Quilez), `beat(t, bpm)` (phase 0..1 from the downbeat), `dist(x1,y1,z1,x2,y2,z2)`,
-`pal(name, t = 0)` (t 0..1 along colour param `name`'s pick; a bare role `low|body|accent|high`, in code from
-before one colour param, walks the look palette's role; unknown or empty → `body`), `swatch(name, i)` (the same
+`pal(name, t = 0)` (t 0..1 along colour param `name`'s pick; a bare role `low|body|accent|high` walks the look
+palette's role, "Palettes" below; unknown or empty → `body`), `swatch(name, i)` (the same
 pick's or role's i-th colour, floored and wrapping),
 `palette(t)` (t 0..1 across the look palette's colours, low to high), `centres(tag)` (each group tagged
 `tag`: its `centre` as `[X, Y, Z]`, `[]` when none; call it in `frame` or `pixel`), `extent()` (the running layer's
@@ -95,7 +92,8 @@ a `centres()` point and still fill its layer; `extent('rig')` the whole rig's, w
 things: "Integrated clocks" below), `DIRECTIONS` and `toward(p, direction)`, `region(q, rule, size = 1, seed = 0)` and `regions(rule, size = 1)` ("Directions" below), and
 `move(q, lx, ly, lz)`, `turn(q, a, r)` and `slide(q, u)` (the warp contract below), `past(ago)` (in a filter that
 keeps history: what was above it at this LED `ago` seconds back, "History" below), `use(name, params?)` → `(p, t) → colour` (`[0, 0, 0, 0]` for null), library source `name` as its own instance (its
-`frame` runs once per new t; throws `unknown library pattern`, or names a retired one's preset), `links(tag?)` (the
+`frame` runs once per new t; throws `unknown library pattern`, or for a name in `RETIRED`, "Library" below, names
+its preset), `links(tag?)` (the
 running layer's neighbour map, or its tag's parts': "The neighbour map" below), `waveStep(L, h, v, speed,
 settle, bounce)` (one step of water on a map), `wireDistance(from)` (metres along it) and `rowOrder(by, seed)` (the
 layer as one row). Colours are
@@ -105,22 +103,19 @@ layer as one row). Colours are
 
 A library module offering a choice of orientation (rising, falling, sweeping, opening from the middle) uses a
 `direction` choice param, `{ value: 'up', type: 'choice', options: DIRECTIONS, label: 'Direction' }`, its default
-the orientation it always had, so the UI and the generators see one convention. Its options are the directions it
+the module's natural orientation, so the UI and the generators see one convention. Its options are the directions it
 draws distinctly, in `DIRECTIONS` order: a list literal when that is fewer than all (clouds drift up, down, right
 or left). Fire always rises up and Lightning always strikes down; Rotate places them at other orientations.
-Streaks offers up, down and along; Angle tilts its fall. Scroll omits continuous clockwise/counterclockwise turning:
-use Rotate's Spin instead (Kaleidoscope does); petal and ring still step discrete rose regions.
-Heartbeat keeps all its Direction choices, including its inward implosion.
-Saved dropped Direction values fall back to the module's default; removed params are ignored, with no migration.
-Each way is named both ways, so a negative speed is never the only way to reverse (bars add
+Streaks offers up, down and along; Angle tilts its fall. Scroll does not turn (Rotate's Spin does, as in
+Kaleidoscope); its petal and ring step the rose's regions. Each way is named both ways, so a negative speed is never the only way to reverse (bars add
 `orbit-clockwise` and `orbit-counterclockwise`, round an upright axis as seen from above). `DIRECTIONS` is `up down
 right left back front out in clockwise counterclockwise along petal ring`, and `toward(p, direction)` turns one into a
 coordinate, 0..1 across the layer: `up` ly, `down` 1 − ly, `right` lz (the viewer's right), `left` 1 − lz, `back` lx
 (front to back), `front` 1 − lx, `out` r, `in` 1 − r, `clockwise` a (as seen from the front), `counterclockwise` 1 −
 a, `along` u, `petal` (sector + 0.5) / 16 and `ring` (ring − 0.5) / 7: a step a petal (clockwise) or a ring (heart to
-rim) on the rose, `clockwise` and `out` off it. A clip's wipe reads them too. `round`, saved before the two turning
-words, is still read as `clockwise` (`OLD_DIRECTIONS`: `toward`, a clip's wipe, and a choice whose options have
-`clockwise` keep it), never offered; a library module's `upgrade` maps it. On the rose,
+rim) on the rose, `clockwise` and `out` off it. A clip's wipe reads them too. `round` (`OLD_DIRECTIONS`) is read as
+`clockwise` by `toward`, a clip's wipe and a choice whose options have `clockwise`, and never offered; a library
+module's `upgrade` maps it. On the rose,
 `region(q, rule, size, seed)` is q's pane group by a rule (`petal`, `alternate`, `ring`, `rings`, `centre`, `spiral`,
 `wedges`, `checker` or `random`; size is petals a group for spiral, wedges and checker; seed picks random's), 0 up to
 `regions(rule, size)`, or −1 off the rose: mask's `by: region` uses it. A free angle off it, where one makes sense, is an `angle` param in turns.
@@ -170,7 +165,7 @@ draws at W1(W2(p))); a stage end reads the pixel itself, and a warp with nothing
 `add` after; `over`, `add`, `max`, `multiply` as for layers, and `under`: beneath what is above it, `c` over `o`);
 a filter sets `c = filter(…)` with `x` = the output this pixel of the earlier source its `input` names (else
 undefined). `c` and `x` are `[r, g, b, a]` arrays the runtime reuses: read them, do not keep them. Then `c`
-composites onto the stack exactly as a layer did (blend, level × clip envelope). A module that throws or returns NaN
+composites onto the stack as the layer's colour (blend, level × clip envelope). A module that throws or returns NaN
 blacks out its layer for that frame, reported with its `module` id. So "a chase masked by clouds, twisted" is
 `[source single-strand, source clouds as: 'input', filter mask input: clouds, warp twist]`.
 
@@ -182,8 +177,7 @@ as `over` blends; with filters that should rework the element alone, `[element, 
 'under']`. Alone on a layer an element shows over black, as one that painted black would. A filter that hides or fades
 (mask, edge-fade, trails) does so by alpha too: what it hides is transparent, never black. `mask` reads the brightness
 of its input, or with `by: 'self'` the luminance of what is above it (so it keeps what is bright), against a cutoff
-that `scatter` moves per LED by `(rand(k, seed) − 0.5) × scatter` (0: one cutoff, as before). Older code may
-still paint a background.
+that `scatter` moves per LED by `(rand(k, seed) − 0.5) × scatter` (0: one cutoff).
 
 ## Library
 
@@ -206,12 +200,11 @@ mask, blur, edge-fade, trails, delay, smoke, replay, sort,
 splash, rhythm. Presets: Water, Storm, Kaleidoscope, Tunnel and
 Afterimage (mirror's Wedges and Rings, trails after lightning), One-petal kaleido (petal-repeat's sixteen); fire and smoke (Brushfire, Willow, Bonfire, Flash pots, Rising embers),
 the beat (Level meter, Climbing hits, Stutter, Out of step, Call and answer, Stepping rings, Drop), Daybreak, Chain
-reaction, Incense and Growth (Daybreak, Stutter and Rising embers each ride a macro they bring); and the **retired
-sources'**: twinkle's Starfield, depth-wave's Playa wave, canopy-rain's Rain, wash-breathe's Breathe, spire-helix's Tower helix, arch-chase's and groups-in-turn's Arch
-chase, pinwheel's and
-galaxy's Galaxy, spot's Glow, random-fixtures' Glitch, curtain's Curtain reveal, and by their own names palette-drift,
-shimmer, rising-sweep, nave-procession, meteors, marquee, rose-ripple, rose-chase, rose-bloom, aurora, snowstorm,
-snowflakes, butterfly, plasma, shockwave, lighthouse, ripple; climb and the stained-glass filter retired with none. Saved looks keep their code; `use()` of a retired one names its preset.
+reaction, Incense and Growth (Daybreak, Stutter and Rising embers each ride a macro they bring); and Starfield,
+Playa wave, Rain, Breathe, Tower helix, Arch chase, Galaxy, Glow, Glitch, Curtain reveal, Palette drift, Shimmer,
+Rising sweep, Nave procession, Meteors, Marquee, Rose ripple, Rose chase, Rose bloom, Aurora, Snowstorm, Snowflakes,
+Butterfly, Plasma, Shockwave, Lighthouse and Ripple, which stand for sources the library does not have: `RETIRED` in
+`compile.ts` maps each such source's name to its preset, and `use()` of one names it.
 
 **The rose warps** move whole petals. Each finds the rose by its `rose` tag (its centre, `centres('rose')[0]`) and
 turns a rose LED's point round that centre by whole sixteenths, reflected first across its own petal's centre line
@@ -271,7 +264,8 @@ spatial op over that buffer; then the modules after it per pixel, `c` read from 
 end), and a later stage's filters' `x` is what their `input` drew in its own stage.
 
 The neighbours come from the rig, once per scene (`neighbourGraph(scene)`: the sandbox's worker builds it at `init`,
-the boxes on the first spatial layer): in **space**, every pixel within 1.5 m (a uniform grid of 1.5 m cells); along
+the boxes on the first spatial layer): in **space**, every pixel within 1.5 m (a uniform grid of cells ≥ 1.5 m,
+≤ 64 along the longest side); along
 the **wire**, each pixel of the same fixture within 1.5 m of wire (at most 64 each way). Distances are kept to 2⁻²⁰ m
 and each list is sorted nearest first (ties by index), so a blur stops at its radius and sums in the same order in
 every runtime. The Folly: 56 neighbours a LED in space and 25 along the wire, 3.2 MB, built in about 50 ms.
@@ -344,8 +338,8 @@ frame per layer and held to the param's min..max (`from`/`to` default to them):
   half at each end: an open, hold, close for a reveal.
 - `{ mod: 'global', name, from, to }`: `from + (to − from) × g`, `g` the macro or modulator (SPEC "Globals") as 0..1
   of its range.
-- `{ mod: 'envelope', from, to }`: by the layer's clip envelope (1 with no clips). Read for older looks only: the
-  Studio no longer offers it and generators never write it.
+- `{ mod: 'envelope', from, to }`: by the layer's clip envelope (1 with no clips). Read only: the Studio does
+  not offer it and generators never write it.
 - `{ mod: 'beats', per = 1 }` (a speed's beat clock): `per × bpm / 60`, so a speed counts per beat at the look's
   tempo (120 unset): a "rises a second" param bound to it rises `per` a beat. On a param with `unit: 'minute'` it is `per × bpm`.
 
@@ -361,7 +355,7 @@ param's value then, its automation included), kept per instance and started agai
 goes back: a frame played to and the same frame sought to read the same clock, to the bit. A seek to 10 minutes sums
 76,800 steps (a few ms); playing adds about three a frame. A `use()` instance's params are values: value × T. On a
 pixel with a time offset (`p.dt`), `clock()` reads value × (T + dt) for a fixed value and, for a bound one, its sum at
-T plus dt × its rate now, so an instance's motion runs on its own time without a second sum.
+T plus dt × its rate at T, so an instance's motion runs on its own time without a second sum.
 
 ## Palettes
 
@@ -387,8 +381,8 @@ the param's. Per module instance:
   last; `range` maps t into its stretch. `swatch(name, i)` is its i-th stop, whatever the blend.
 - Under rotate, smooth shifts the walk along the stops and round from the last to the first; step holds each stop
   and crossfades into the next over the last fifth of it. A turning pick never cuts.
-- `pal(role, t)` on a bare role (not a declared param) walks the look palette's role smoothly, as it always has, so
-  code and looks from before picks still play. A declared param wins a name clash.
+- `pal(role, t)` on a bare role (not a declared param) walks the look palette's role smoothly. A declared
+  param wins a name clash.
 - Every colour fade (smooth ramps, rotate's crossfades, `mix()` and `gradient()` on colours) goes through OKLab:
   each end's light (`v^2.2`), Ottosson's OKLab, straight across, and back, each channel clamped to 0..1 (or to an
   end beyond). It keeps the brightness a fade of values loses mid-way (red to green dips to a muddy olive) and passes through
@@ -404,4 +398,4 @@ Picks resolve to stops when a layer is prepared and again when the palette chang
 It names no role (roles lay out the pick tile for people). It maps what it draws onto positions in the pick: bands
 and seeded objects to `swatch('colours', i)`; a gradient or a tail to `pal('colours', t)`, first colour to last;
 a head or crest to the last colour; one colour at a time to `P.colours`. The recolouring filter (`recolour`) takes
-one `colours` pick too. Code from before this rule may still name roles in `pal()`.
+one `colours` pick too.

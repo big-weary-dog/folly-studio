@@ -10,7 +10,7 @@ Two units share one clone of the `pi` branch:
 | Unit | What | Started by |
 | --- | --- | --- |
 | `folly-studio` | Studio (`server.ts`) on `:8780`, niced (`Nice=5`) | boot (enabled) |
-| `studio-live` | the live engine (`pi/main.ts`), the only thing that sends to fppd ([INSTALL.md](INSTALL.md)) | the ops hub, as now |
+| `studio-live` | the live engine (`pi/main.ts`), the only thing that sends to fppd ([INSTALL.md](INSTALL.md)) | the ops hub |
 
 Studio shows the engine's control page to curators at `/pi/` (their header's **Lights**). Studio itself sends
 nothing to the lights, so it may run while FPP plays the night show.
@@ -19,7 +19,8 @@ To try it before the Pi, the hosting machine runs the same profile on loopback: 
 (`--instance offline`).
 
 Everything here is done at home with the Pi online (a phone hotspot will do), never on the playa: the clone and
-`npm ci` download.
+`npm ci` download. **With no internet, install from the USB bundle instead:** [SETUP.md](SETUP.md),
+`install.sh --studio`, which does steps 1 to 3 and carries bubblewrap.
 
 ## 0. Measure first (about 10 minutes)
 
@@ -37,8 +38,8 @@ Each stats line gives the frame rate, the render time per frame and `late` (fram
 render time is over 25 ms cannot hold 40 fps: note which.
 
 Bakes (a look with custom code plays on the lights only as its bake) run in the render box, which needs bubblewrap
-and unprivileged user namespaces. Raspberry Pi OS (Debian) allows those as installed. `bake-bench` comes with the `pi`
-branch: on an older clone, run this part after step 1.
+and unprivileged user namespaces. Raspberry Pi OS (Debian) allows those as installed. If the clone has no
+`npm run bake-bench`, run this part after step 1.
 
 ```sh
 sudo apt install -y bubblewrap
@@ -115,22 +116,22 @@ baked frames. In `/home/fpp/folly-studio/pi/config.json` (gitignored; keep any s
 
 ```json
 { "base": "/pi", "light": "/home/fpp/folly-data/light.json", "frames": "/home/fpp/folly-data/frames",
-  "bind": "127.0.0.1" }
+  "bind": "0.0.0.0", "pin": "2468" }
 ```
 
-`"bind": "127.0.0.1"` keeps the control page behind Studio's sign-in, and Studio's checks on what it plays (SPEC-offline
-"Playing on the lights"): without it, `http://192.168.8.172:4043/pi/` answers too. If the engine has a PIN, put it in
-`studio.env` as `PI_PIN` too, so Studio can play looks on it.
+The engine serves its page at `/pi/` for Studio and at `/` for the ops hub, whose link is
+`http://192.168.8.172:4043/` in both setups. On the network, that page is outside Studio's sign-in: the PIN is its
+only lock, so choose one, and put it in `studio.env` as `PI_PIN` too, so Studio can play looks on it. It plays only
+library looks, never code, either way (SPEC-offline "The Pi preview").
 
-Curators play looks from Studio (**Play on the lights**): a look made only of library modules plays live while Admin →
-Light's **Live library looks** is on; a look with custom code plays only as its bake. Bakes are made on the Pi in the
-render box (bubblewrap, step 0), one at a time, at `nice 19` under the engine and Studio, within 384 MB
-(`STUDIO_BAKE_NICE`, `STUDIO_BAKE_MEMORY`). Without bubblewrap such looks cannot play on the lights until they are
-rebuilt from library modules. Admin → Light's **Mode** (SPEC-liveplay) is **Jukebox** by default: the queue only,
-each change a full fade, no Play now, knobs or Blackout. **Live Play** adds them, for whoever may drive
-(`STUDIO_LIVE_CONTROL`), one person on the knobs at a time; Studio tells the engine at each change. Curators run
-the lights from Studio's **Live** on a phone or a laptop: the live play page (SPEC-liveplay "The page"), adding
-their own looks, the gallery's or the lights' own, with the Folly in 3D beside it. Members see the stage alone.
+Curators play looks from Studio (**Play on the lights**): a look made only of library modules plays live while
+Admin → Light's **Live library looks on the lights** is on; a look with custom code plays only as its bake. Bakes are
+made on the Pi in the render box (bubblewrap, step 0), one at a time, at `nice 19` under the engine and Studio,
+within 384 MB (`STUDIO_BAKE_NICE`, `STUDIO_BAKE_MEMORY`). Without bubblewrap such looks cannot play on the lights
+until they are rebuilt from library modules. Admin → Light's **Mode** is **Jukebox** by default, or **Live Play** for
+whoever may drive (`STUDIO_LIVE_CONTROL`) (SPEC-liveplay "Modes"); Studio tells the engine at each change. Curators
+run the lights from Studio's **Live** on a phone or a laptop: the live play page (SPEC-liveplay "The page"). Members
+see the stage alone.
 
 ## 3. The Studio unit
 
@@ -145,8 +146,9 @@ The log should say `Folly Studio on http://0.0.0.0:8780/`. Open `http://192.168.
 DustyRose and sign up as the admin first. If Studio Live is running, restart it once so it serves under `/pi`:
 `sudo systemctl restart studio-live`.
 
-The ops hub's entry for Studio (in the lighting repo, the hub's owner's to change) points at
-`http://192.168.8.172:8780/`; the engine's control page is one tap away there, at **Lights**.
+The ops hub's entry (in the lighting repo, the hub's owner's to change) points at the engine,
+`http://192.168.8.172:4043/`, as with the engine alone. Curators reach the same page from Studio's header,
+**Lights** (`:8780/pi/`).
 
 ## Moving looks
 
