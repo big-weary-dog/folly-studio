@@ -1,7 +1,7 @@
 // Controls for the selected module's `params` (SPEC "Pattern code"): numbers become scrub fields, `type: 'color'`
-// colour picks (picks.tsx), `type: 'toggle'` switches, a row each. A number, or a pick's rotate, can be modulated
-// (SPEC "Param bindings"): an LFO or a global (energy, a macro…) moves it every frame instead of its field; a speed's
-// beat clock counts it per beat at the look's BPM.
+// colour picks (picks.tsx), `type: 'toggle'` switches, `petals` text a rose to click (petal-pick.tsx), a row each. A
+// number, or a pick's rotate, can be modulated (SPEC "Param bindings"): an LFO or a global (energy, a macro…) moves it
+// every frame instead of its field; a speed's beat clock counts it per beat at the look's BPM.
 import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 
@@ -18,6 +18,7 @@ import { cx, Field, Scrub } from './kit.tsx';
 import { addModulator, modulatorEdits } from './look-globals-edit.ts';
 import { BoundChip, ModButton, type ModCtx } from './modulate.tsx';
 import { type Colours, type Help, PickRow, Slot } from './picks.tsx';
+import { PetalPick } from './petal-pick.tsx';
 import { PictureRow } from './picture-row.tsx';
 import type { Studio } from './studio-store.ts';
 
@@ -90,6 +91,7 @@ function Control({ name, p, values, set, ctx, colours, narrow }: { name: string;
     {clock || <Slot />}
     <ModButton p={p} value={values[name]} now={bound ? p.value as number : value as number} ctx={ctx} put={putOr}
       label={`Modulate ${label}`} title={TITLE} /></>
+    : p.kind === 'text' && p.petals ? <PetalPick id={id} value={value as string} put={put} />
     : p.kind === 'text' && p.lines ? <Lines id={id} value={value as string} put={put} />
     : p.kind === 'text' ? <input type="text" id={id} class="param-text" value={value as string} maxLength={TEXT_MAX}
       spellcheck={false} autocomplete="off" onChange={(e) => {
