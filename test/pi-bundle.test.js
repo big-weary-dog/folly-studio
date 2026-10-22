@@ -8,6 +8,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
+import { curlLine } from '../public/js/ui/pi-bundle.tsx';
 import { configOf } from '../src/config.ts';
 import { LINK_MS, MAX_LINKS, piBundleRoutes } from '../src/pi-bundle.ts';
 import { secretsIn } from '../tools/pi-bundle-check.ts';
@@ -63,7 +64,13 @@ describe('GET /api/pi-bundle', () => {
   test('a link downloads with no session; a wrong or mangled token is 404', async () => {
     const r = await admin.post('/api/pi-bundle/link');
     assert.equal(r.status, 200);
+    // Only a path: the page puts its own origin in front, so the tunnel's Host and scheme never come into it.
+    const proxied = await admin.post('/api/pi-bundle/link', {}, { 'x-forwarded-host': 'evil.example',
+      'x-forwarded-proto': 'http' });
+    assert.match(proxied.json.path, /^\/api\/pi-bundle\/[A-Za-z0-9_-]{43}$/);
     assert.match(r.json.path, /^\/api\/pi-bundle\/[A-Za-z0-9_-]{43}$/);
+    assert.equal(curlLine('https://folly.swampkat.com', r.json.path),
+      `curl -fo folly-studio-pi.tar 'https://folly.swampkat.com${r.json.path}'`);
     assert.ok(Date.parse(r.json.expires) > Date.now() + LINK_MS - 60_000);
     const got = await fetch(app.base + r.json.path);
     assert.equal(got.status, 200);

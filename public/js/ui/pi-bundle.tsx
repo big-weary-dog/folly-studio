@@ -10,6 +10,9 @@ import { setTitle } from './session.ts';
 
 type Bundle = Awaited<ReturnType<typeof api.piBundle>>;
 const mb = (bytes: number) => `${Math.round(bytes / 2 ** 20)} MB`;
+/** The curl line for a minted link: the server gives only its path; the origin is the page's own, so behind the
+ * tunnel it is the public https one, never the loopback address the server listens on. */
+export const curlLine = (origin: string, path: string) => `curl -fo folly-studio-pi.tar '${origin}${path}'`;
 
 export function PiBundlePage() {
   const [bundle, setBundle] = useState<Bundle | null>(null), [error, setError] = useState('');
@@ -22,7 +25,7 @@ export function PiBundlePage() {
   const mint = async () => {
     try {
       const { path, expires } = await api.piBundleLink();
-      const line = `curl -fo folly-studio-pi.tar '${location.origin}${path}'`;
+      const line = curlLine(location.origin, path);
       setCurl({ line, expires });
       await navigator.clipboard?.writeText(line).then(() => toast('Copied the curl line.'), () => {});
     } catch (e) { toast((e as Error).message, { kind: 'error' }); }
