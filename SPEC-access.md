@@ -29,7 +29,8 @@ own setting (SPEC-live "Settings").
 
 Admins' header has one more item, **Admin** (`/admin`, which opens its first tab), where everyone else's has none.
 Its tabs are pages of their own: Models (`/admin/models`, SPEC-generators "Models"), Access (`/admin/access`,
-Access below), Light (`/admin/light`, SPEC "Light and output") and Reports (`/admin/reports`, SPEC "Bug reports"),
+Access below), Light (`/admin/light`, SPEC "Light and output"), Baking (`/admin/baking`, SPEC "Baked frames") and
+Reports (`/admin/reports`, SPEC "Bug reports"),
 then a link to the Pi preview (`/pi/`, in a new tab). The old `/models`, `/access`, `/light` and `/reports` lead to their
 tab, query kept. Anyone else who opens one gets the page without the tabs, its admin calls refused (403) as it says.
 On the Pi there is no Models or Access tab, and `/admin` opens Light (SPEC-offline).

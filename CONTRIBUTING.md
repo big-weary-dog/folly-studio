@@ -43,7 +43,7 @@ Codex CLI for Sol and Luna), `STUDIO_ADMINS` and `STUDIO_CURATORS` (usernames), 
 running it at home behind a tunnel, and `npm run backup` makes a dated `.tar.gz` of the data.
 
 The render-box tests need bubblewrap (`apt install bubblewrap`) and unprivileged user
-namespaces. Without them they skip (`ctx.skip(condition, reason)`) and the run ends listing each skipped test and
+namespaces (the library-only box's need prlimit alone). Without them they skip (`ctx.skip(condition, reason)`) and the run ends listing each skipped test and
 why (`test/skip-reporter.js`). The rigs come from a lighting checkout (below, "Show data"); `npm run e2e` alone
 needs a show-builder checkout (big-weary-dog/show-builder), for its `relay/` and `mirage/`: `SHOW_BUILDER_DIR`, by
 default `../show-builder` beside this repo.
@@ -192,6 +192,7 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `vite.config.js`, `tools/vite-sandbox.ts`, `tools/vite-compress.ts`, `tools/dev.ts` | The build (`public/` → `dist/`); the sandbox page, its scripts inlined; the `.br` and `.gz` copies of its text; `npm run dev` |
 | `src/frames.ts` | Pure: strict FSEQ parsing and frame analysis (brightness, flicker) |
 | `src/bake.ts`, `render-box.ts`, `box-output.ts`, `core-script.ts` | The one-at-a-time bake queue and frame files; the render box under bubblewrap; what a box hands back, read as data; the core from its source for the boxes |
+| `src/box-library.ts`, `baking.ts` | Where bakes run (`SPEC-baking.md`): which looks a box without bubblewrap may bake (library code, by hash); the admin's bake setting (on, throttled, off) in front of the box, and its routes |
 | `src/frames-wire.ts`, `frames-cache.ts`, `frames-http.ts`, `fseq-codec.ts` | Baked frames on the wire: the stream encoder; the chunks and downloads kept by hash under a disk cap, made one job at a time by the encoder thread; their routes; FSEQ zstd/zlib blocks |
 | `src/frames-worker.ts` | The encoder thread, at nice 10 |
 | `src/live/` | The live stage (`SPEC-live.md`): `state.ts` (pure: show time, pushes as lanes, loops), `hub.ts` (the sockets, presence, limits, `live.json`), `routes.ts` (the socket and its settings) |
@@ -287,8 +288,10 @@ cover.
   page and the server's own process never run it.
 - **The render box** runs `render-box/render.ts` under bubblewrap: `--unshare-all` (no
   network), `--clearenv`, read-only node and inputs, one writable `/out`, prlimits and a wall
-  clock. Inside, patterns get a `node:vm` realm holding only the stdlib. No bubblewrap means
-  503, never a fallback. A box's output is bytes the server parses strictly and measures.
+  clock. Inside, patterns get a `node:vm` realm holding only the stdlib. Without bubblewrap it bakes
+  only looks made of unchanged library patterns (checked by hash: our own code, not untrusted), in the same realm
+  under the same limits; anything else is refused, never run unboxed. A box's output is bytes the server parses
+  strictly and measures.
 - **CSRF.** Every mutation must be `Content-Type: application/json`, and if an `Origin` header
   is present it must match the host (the forwarded one only from a proxy on this machine, with
   `STUDIO_TRUST_PROXY`). Cookies are `SameSite=Lax`.
