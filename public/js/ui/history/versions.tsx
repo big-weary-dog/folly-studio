@@ -12,7 +12,7 @@ import { rename, saveNamed } from './named.tsx';
 const quoted = (s: string) => `“${s.length > 48 ? `${s.slice(0, 47)}…` : s}”`;
 /** A version's name: its own, or how it was made. */
 export const nameOf = (v: VersionListed) => v.name ?? (v.how === 'ai' ? (v.ask ? `AI: ${quoted(v.ask)}` : 'An AI round')
-  : v.how === 'restore' ? `Restored version ${v.from ?? ''}` : 'Saved');
+  : v.how === 'restore' ? `Restored version ${v.from ?? ''}` : v.how === 'import' ? 'Imported' : 'Saved');
 const ROLES = ['low', 'body', 'accent', 'high'] as const;
 /** Up to 8 of a palette's colours, a role at a time. */
 function colours(palette: unknown) {

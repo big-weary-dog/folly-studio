@@ -5,13 +5,15 @@ import type { Listed, Look, LookCreate } from '../../../shared/schemas/api.ts';
 import { api } from '../api.ts';
 
 /** What an import sends: a look file's words, chain and what plays, and nothing else. */
-const KEYS = ['title', 'summary', 'chain', 'layers', 'duration', 'bpm', 'globals', 'automation'] as const;
+const KEYS = ['origin', 'title', 'summary', 'chain', 'layers', 'duration', 'bpm', 'globals', 'automation'] as const;
 
-/** A look as its file holds it: the words, `chain: 2` (every saved look's), then what plays. */
+/** A look as its file holds it: its origin (where it was made: its own id, or the one it came in with) when it was
+ * saved, the words, `chain: 2` (every saved look's), then what plays. */
 export function lookFile<T extends Pick<Look, 'title' | 'layers'> & { summary?: string | null }>(
-  look: T) {
-  const { layers, ...plays } = playsOf(look);
-  return { title: look.title, summary: look.summary ?? '', chain: 2 as const, ...plays, layers };
+  look: T, saved?: Pick<Look, 'id' | 'origin'> | null) {
+  const { layers, ...plays } = playsOf(look), origin = saved && (saved.origin ?? saved.id);
+  return { ...(origin ? { origin } : {}), title: look.title, summary: look.summary ?? '', chain: 2 as const, ...plays,
+    layers };
 }
 
 export const fileText = (data: unknown) => `${JSON.stringify(data, null, 2)}\n`;
@@ -23,7 +25,8 @@ export const manyName = (scope: string, now = new Date()) =>
 export async function fullLooks(listed: Listed[], onEach?: (done: number) => void) {
   const looks = [];
   for (const [i, l] of listed.entries()) {
-    try { looks.push(lookFile((await api.look(l.id)).look)); } catch { /* deleted or unshared since */ }
+    try { const { look } = await api.look(l.id);
+      looks.push(lookFile(look, look)); } catch { /* deleted or unshared since */ }
     onEach?.(i + 1);
   }
   return looks;
@@ -47,11 +50,13 @@ export function createBody(look: unknown): LookCreate {
     unknown as LookCreate;
 }
 
-export type Imported = { added: number, failed: { name: string, error: string }[] };
+export type Imported = { added: number, updated: number, unchanged: number,
+  failed: { name: string, error: string }[] };
 
-/** Each look in each file, saved as the importer's; one refused does not stop the rest. */
+/** Each look in each file, saved as the importer's: added, or overruling the one of theirs it came from (the server
+ * matches its origin). One refused does not stop the rest. */
 export async function importFiles(files: Iterable<{ name: string, text(): Promise<string> }>): Promise<Imported> {
-  const out: Imported = { added: 0, failed: [] };
+  const out: Imported = { added: 0, updated: 0, unchanged: 0, failed: [] };
   for (const file of files) {
     let looks: unknown[];
     try { looks = looksIn(await file.text()); } catch (err) {
@@ -61,8 +66,7 @@ export async function importFiles(files: Iterable<{ name: string, text(): Promis
     for (const look of looks) {
       const body = createBody(look), name = typeof body.title === 'string' && body.title ? body.title : file.name;
       try {
-        await api.createLook(body);
-        out.added++;
+        out[(await api.createLook(body)).imported ?? 'added']++;
       } catch (err) {
         out.failed.push({ name, error: (err as Error).message });
       }

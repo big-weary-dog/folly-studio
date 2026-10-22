@@ -26,10 +26,11 @@ export function LookFiles({ looks, gallery, reload }: { looks: Listed[] | null; 
     if (!files?.length) return;
     setBusy('Importing…');
     try {
-      const { added, failed } = await importFiles([...files]);
-      if (added) toast(`Imported ${added} look${added === 1 ? '' : 's'}.`);
+      const { failed, ...counts } = await importFiles([...files]);
+      const said = Object.entries(counts).filter(([, n]) => n).map(([k, n]) => `${n} ${k}`);
+      if (said.length) toast(`Imported: ${said.join(', ')}.`);
       for (const f of failed) toast(`Not imported: ${f.name}: ${f.error}`, { kind: 'error', timeout: 9000 });
-      if (added) reload();
+      if (counts.added || counts.updated) reload();
     } finally {
       setBusy('');
       if (pick.current) pick.current.value = '';

@@ -64,6 +64,8 @@ export const LookCreate = z.object({
   title: LookTitle, summary: Summary, layers: Layers, duration: Duration.optional(), globals: Globals.optional(),
   automation: z.unknown().optional(), bpm: Bpm.optional(), shared: bool('shared').default(false), chain: Chain,
   ideaId: z.string({ error: 'ideaId does not name one of your ideas.' }).nullish(),
+  /** An import's look, by its id where it was made (SPEC-offline "Look files"). */
+  origin: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/, { error: 'origin is not a look id.' }).optional(),
 });
 const NAME = 'A version\'s name is 1–80 characters.';
 /** A version's name (SPEC-history "Named versions"): naming one keeps it. */
@@ -145,10 +147,11 @@ export type Listed = { id: string, owner: string, ownerName: string, title: stri
 /** A look as GET /api/looks/:id answers; `version` (its owner's only): the number of the version it is. */
 export type Look = Omit<Listed, 'layerCount'> & { layers: Layer[], globals?: z.infer<typeof Globals>,
   automation?: Automation, versionCount: number, version?: number, bake?: Bake | null, reviewedBy?: string,
-  flashOverride?: FlashOverride, chain?: 2 };
+  flashOverride?: FlashOverride, chain?: 2, origin?: string };
 
-/** How a version was made (SPEC-history "Versions"): a save, an AI refinement, or a restore of version `from`. */
-export type VersionHow = 'auto' | 'ai' | 'restore';
+/** How a version was made (SPEC-history "Versions"): a save, an AI refinement, a restore of version
+ * `from`, or a look file overruling it. */
+export type VersionHow = 'auto' | 'ai' | 'restore' | 'import';
 /** What a version is besides its content: its number, how it was made, its name (named ones are kept), the round. */
 export type VersionMeta = { n: number, how?: VersionHow, name?: string, from?: number, ideaId?: string,
   ask?: string };

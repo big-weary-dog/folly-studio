@@ -139,8 +139,16 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
   }
 
   async function create(req: FastifyRequest, reply: FastifyReply) {
-    const { automation, ideaId, globals, bpm, ...body } = parse(LookCreate, req.body);
+    const { automation, ideaId, globals, bpm, origin, ...body } = parse(LookCreate, req.body);
     const user = req.user!;
+    // An import of a look the importer has (SPEC-offline "Look files"): the file overrules it, as a PUT would.
+    const had = origin && store.looks.list((l) => l.owner === user.id && (l.id === origin || l.origin === origin))[0];
+    if (had) {
+      const updated = await revise(had, user, { title: body.title, summary: body.summary, layers: body.layers,
+        duration: body.duration ?? DEFAULT_DURATION, bpm: bpm ?? null, globals: globals ?? null,
+        automation: automation ?? null, chain: body.chain }, 'import');
+      return { look: presentLook(updated, { mine: true }), imported: updated === had ? 'unchanged' : 'updated' };
+    }
     const look: Partial<Look> = { owner: user.id, ownerName: user.username, ...body, ...ruledNamed(body), chain: CHAIN,
       reviewed: false, versions: [] };
     await allowCode(look.layers, user);
@@ -148,6 +156,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
     const lanesNow = automation === undefined ? undefined : lanes(automation, globals);
     if (lanesNow) look.automation = lanesNow;
     if (bpm != null) look.bpm = bpm;
+    if (origin) look.origin = origin;
     if (look.shared) look.sharedAt = stamp();
     if (ideaId != null) {
       const idea = store.ideas.get(ideaId);
@@ -160,21 +169,29 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
     reply.code(201);
     const made = store.looks.create(look);
     previews?.want(made.id);
-    return { look: presentLook(made, { mine: true }) };
+    return { look: presentLook(made, { mine: true }), ...(origin ? { imported: 'added' } : {}) };
   }
 
   async function edit(req: Req) {
-    const { id } = req.params;
     const user = req.user!;
-    const look = visibleLook(id, user);
+    const look = visibleLook(req.params.id, user);
+    const updated = await revise(look, user, parse(LookPatch, req.body));
+    return { look: presentLook(updated, { versions: versionsFor(req, look), mine: auth.can(user, 'edit', look) }) };
+  }
+
+  /** `look` with `body` (PUT /api/looks/:id) applied by `user`, as saved; itself when nothing changed. A change to
+   * what plays is a version made `how`. */
+  async function revise(look: Look, user: User, body: z.output<typeof LookPatch>, how: 'auto' | 'import' = 'auto') {
+    const { id } = look;
     const isOwner = auth.can(user, 'edit', look);
-    const body = parse(LookPatch, req.body);
     const patch: Partial<Look> = {};
     const changed = <K extends keyof Look>(k: K, v: Look[K], was = look[k]) => {
       if (!isDeepStrictEqual(v, was)) patch[k] = v;
     };
-    if (body.title !== undefined) patch.title = body.title;
-    if (body.summary !== undefined) patch.summary = body.summary;
+    // An import that reads as the look leaves it unchanged; a PUT saves its words as sent.
+    const same = (k: 'title' | 'summary') => how === 'import' && body[k] === (look[k] ?? '');
+    if (body.title !== undefined && !same('title')) patch.title = body.title;
+    if (body.summary !== undefined && !same('summary')) patch.summary = body.summary;
     if (body.layers !== undefined) {
       const now = ruledNamed({ ...body, layers: body.layers, summary: body.summary ?? look.summary });
       body.layers = now.layers;
@@ -204,7 +221,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
     if (from !== undefined && !versionsOf(look).some((v) => v.n === from)) {
       throw new HttpError(400, `restoredFrom: the look has no version ${from}.`);
     }
-    if (versioned) Object.assign(patch, revisedFields(look, from ? { how: 'restore', from } : { how: 'auto' }));
+    if (versioned) Object.assign(patch, revisedFields(look, from ? { how: 'restore', from } : { how }));
     if (body.versionName !== undefined) {   // "Save a named version…": names the version the look is now
       if (!isOwner) throw new HttpError(404, 'Look not found.');
       const next = { ...look, ...patch };
@@ -247,7 +264,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
     if ('bake' in patch) await dropFrames(id);
     if (kept) await bakes.request(id).catch(() => {});   // its frames again (the same render: often a stored bake)
     previews?.want(id);
-    return { look: presentLook(updated, { versions: versionsFor(req, look), mine: isOwner }) };
+    return updated;
   }
 
   async function remove(req: Req) {

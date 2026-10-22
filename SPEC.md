@@ -438,7 +438,10 @@ GET    /api/admin/reports                     → { reports: [summary] }  admins
 GET    /api/admin/reports/:id                 → { report }  admins only; 404 when none
 GET    /api/admin/reports/:id/shot            → image/jpeg  admins only; 404 when it has none
 GET    /api/looks?scope=mine|gallery          → { looks: [listed] }  metadata only: no layers
-POST   /api/looks    { title, summary?, layers, duration?, bpm?, globals?, automation?, ideaId?, chain? } → { look }
+POST   /api/looks    { title, summary?, layers, duration?, bpm?, globals?, automation?, ideaId?, chain?, origin? }
+                                              → { look, imported? }  origin: an import (SPEC-offline "Look files"):
+                                              201 added, or 200 updating the importer's look it names, `imported`
+                                              'added' | 'updated' | 'unchanged'
 GET    /api/looks/:id                         → { look }             mine, or shared
 PUT    /api/looks/:id { title?, summary?, layers?, duration?, bpm?, globals?, automation?, shared?, reviewed?,
                      flashOverride?, chain?, restoredFrom?, versionName? } → { look }  owner only (reviewed: a

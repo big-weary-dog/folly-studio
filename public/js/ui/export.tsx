@@ -14,7 +14,7 @@ const FPS = 40;
 export function exportJson(st: Studio) {
   st.flush();
   const look = st.body.peek();
-  download(fileText(lookFile(look)), `${slugify(look.title, 'folly-look')}.json`, 'application/json');
+  download(fileText(lookFile(look, st.server.peek())), `${slugify(look.title, 'folly-look')}.json`, 'application/json');
 }
 
 export async function exportFseq(st: Studio, pv: Preview) {
