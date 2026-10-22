@@ -1,0 +1,354 @@
+{
+ "title": "Clockwork Rose",
+ "duration": 240,
+ "bpm": 120,
+ "globals": {
+  "palette": {
+   "name": "regalia",
+   "low": [
+    "#0c1f7a",
+    "#1636b0"
+   ],
+   "body": [
+    "#2457e6",
+    "#5c86ff",
+    "#e0a000",
+    "#ffc83a"
+   ],
+   "accent": [
+    "#c8102e",
+    "#ff5a6e"
+   ],
+   "high": [
+    "#fff6dc"
+   ]
+  },
+  "macros": {
+   "drive": {
+    "value": 0.5,
+    "min": 0,
+    "max": 1
+   }
+  }
+ },
+ "automation": {
+  "drive": [
+   [
+    0,
+    0
+   ],
+   [
+    40,
+    0.2
+   ],
+   [
+    112,
+    0.5
+   ],
+   [
+    128,
+    1
+   ],
+   [
+    176,
+    1
+   ],
+   [
+    200,
+    0.4
+   ],
+   [
+    240,
+    0
+   ]
+  ]
+ },
+ "layers": [
+  {
+   "id": "lrose-gears",
+   "title": "Rose gears",
+   "modules": [
+    {
+     "kind": "source",
+     "title": "Colour wash",
+     "ref": "colour-wash",
+     "params": {
+      "colours": "low",
+      "speed": 0,
+      "brightness": 0.25
+     },
+     "id": "m1"
+    },
+    {
+     "kind": "source",
+     "title": "Bars",
+     "ref": "bars",
+     "params": {
+      "colours": "body accent high",
+      "direction": "clockwise",
+      "profile": "pulse",
+      "bars": 4,
+      "duty": 0.5,
+      "speed": {
+       "mod": "global",
+       "name": "drive",
+       "from": 0.1,
+       "to": 0.6
+      }
+     },
+     "blend": "over",
+     "id": "m2"
+    },
+    {
+     "kind": "warp",
+     "title": "Ring turn",
+     "ref": "ring-turn",
+     "params": {
+      "step": 1,
+      "alternate": true,
+      "speed": {
+       "mod": "global",
+       "name": "drive",
+       "from": 0.2,
+       "to": 1.5
+      }
+     },
+     "id": "m3"
+    },
+    {
+     "kind": "warp",
+     "title": "Anchor",
+     "ref": "anchor",
+     "params": {},
+     "id": "m4"
+    }
+   ],
+   "groups": [
+    "rose-window"
+   ],
+   "tags": [
+    "rose",
+    "window"
+   ],
+   "blend": "over",
+   "level": 1,
+   "soften": {
+    "radius": 0.15,
+    "mode": "wire"
+   }
+  },
+  {
+   "id": "larch-relay",
+   "title": "Arch relay",
+   "modules": [
+    {
+     "kind": "source",
+     "title": "Bars",
+     "ref": "bars",
+     "params": {
+      "direction": "along",
+      "profile": "smooth",
+      "bars": 8,
+      "speed": 0,
+      "colours": "body high"
+     },
+     "id": "m1"
+    },
+    {
+     "kind": "warp",
+     "title": "In turn",
+     "ref": "in-turn",
+     "params": {
+      "tag": "arch",
+      "every": {
+       "mod": "global",
+       "name": "drive",
+       "from": 0.8,
+       "to": 0.3
+      },
+      "gate": "wipe",
+      "direction": "along",
+      "attack": 1,
+      "hold": 1,
+      "release": 2
+     },
+     "id": "m2"
+    },
+    {
+     "kind": "source",
+     "title": "Colour wash",
+     "ref": "colour-wash",
+     "params": {
+      "colours": "accent1",
+      "speed": 0,
+      "brightness": 0.3
+     },
+     "blend": "under",
+     "id": "m3"
+    }
+   ],
+   "groups": [
+    "arches"
+   ],
+   "tags": [
+    "arch"
+   ],
+   "blend": "over",
+   "level": 1,
+   "soften": {
+    "radius": 0.15,
+    "mode": "wire"
+   },
+   "clips": [
+    {
+     "start": 40,
+     "end": 212,
+     "fadeIn": 4,
+     "fadeOut": 8,
+     "transition": {
+      "kind": "wipe",
+      "direction": "right",
+      "softness": 0.15
+     }
+    }
+   ]
+  },
+  {
+   "id": "lbarber-towers",
+   "title": "Barber towers",
+   "modules": [
+    {
+     "kind": "source",
+     "title": "Bars",
+     "ref": "bars",
+     "params": {
+      "colours": "body accent",
+      "direction": "orbit-counterclockwise",
+      "profile": "smooth",
+      "bars": 2,
+      "speed": {
+       "mod": "global",
+       "name": "drive",
+       "from": 0.3,
+       "to": 1.2
+      }
+     },
+     "id": "m1"
+    },
+    {
+     "kind": "warp",
+     "title": "Twist",
+     "ref": "twist",
+     "params": {
+      "swirl": 0,
+      "wind": 4
+     },
+     "id": "m2"
+    },
+    {
+     "kind": "warp",
+     "title": "Anchor",
+     "ref": "anchor",
+     "params": {
+      "tag": "tower",
+      "which": "nearest",
+      "shape": "plan"
+     },
+     "id": "m3"
+    }
+   ],
+   "groups": [
+    "spires",
+    "spirelets"
+   ],
+   "tags": [
+    "spire",
+    "spirelet"
+   ],
+   "blend": "over",
+   "level": 1,
+   "soften": {
+    "radius": 0.15,
+    "mode": "wire"
+   },
+   "clips": [
+    {
+     "start": 64,
+     "end": 192,
+     "fadeIn": 4,
+     "fadeOut": 6,
+     "transition": {
+      "kind": "wipe",
+      "direction": "up",
+      "softness": 0.15
+     }
+    }
+   ]
+  },
+  {
+   "id": "lhits",
+   "title": "Hits",
+   "modules": [
+    {
+     "kind": "source",
+     "title": "Colour wash",
+     "ref": "colour-wash",
+     "params": {
+      "colours": "low",
+      "speed": 0,
+      "brightness": 0
+     },
+     "id": "m1"
+    },
+    {
+     "kind": "source",
+     "title": "Strobe",
+     "ref": "strobe",
+     "params": {
+      "colours": "high",
+      "speed": {
+       "mod": "beats",
+       "per": 1
+      },
+      "length": 0.2,
+      "fade": 0.2,
+      "scatter": 0
+     },
+     "blend": "over",
+     "id": "m2"
+    },
+    {
+     "kind": "filter",
+     "title": "Delay",
+     "ref": "delay",
+     "params": {
+      "direction": "up",
+      "longest": 0.4,
+      "steps": 5
+     },
+     "id": "m3"
+    }
+   ],
+   "groups": [
+    "cathedral"
+   ],
+   "tags": [
+    "all"
+   ],
+   "blend": "add",
+   "level": 0.8,
+   "soften": {
+    "radius": 0.15,
+    "mode": "wire"
+   },
+   "clips": [
+    {
+     "start": 128,
+     "end": 176,
+     "fadeIn": 2,
+     "fadeOut": 4
+    }
+   ]
+  }
+ ]
+}

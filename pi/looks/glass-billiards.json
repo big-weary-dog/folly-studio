@@ -1,0 +1,401 @@
+{
+ "title": "Glass Billiards",
+ "duration": 240,
+ "globals": {
+  "palette": {
+   "name": "vapour",
+   "low": [
+    "#5f00ca",
+    "#571bff",
+    "#3f62ff"
+   ],
+   "body": [
+    "#1f8aff",
+    "#1daaff",
+    "#00c5ff",
+    "#00dffe",
+    "#00f9ff"
+   ],
+   "accent": [
+    "#da00d4",
+    "#ff65c6"
+   ],
+   "high": [
+    "#aaf9f8"
+   ]
+  },
+  "macros": {
+   "pace": {
+    "value": 0.5,
+    "min": 0,
+    "max": 1
+   }
+  }
+ },
+ "bpm": 120,
+ "layers": [
+  {
+   "id": "l1",
+   "title": "Rose ricochet",
+   "modules": [
+    {
+     "id": "m1",
+     "kind": "source",
+     "title": "Bars",
+     "ref": "bars",
+     "params": {
+      "colours": "accent1",
+      "direction": "clockwise",
+      "profile": "comet",
+      "bars": 1,
+      "duty": 0.4,
+      "speed": {
+       "mod": "global",
+       "name": "pace",
+       "from": 0.2,
+       "to": 0.5
+      }
+     }
+    },
+    {
+     "id": "m2",
+     "kind": "source",
+     "title": "Bars",
+     "ref": "bars",
+     "params": {
+      "colours": "high",
+      "direction": "clockwise",
+      "profile": "comet",
+      "bars": 1,
+      "duty": 0.15,
+      "speed": {
+       "mod": "global",
+       "name": "pace",
+       "from": 0.2,
+       "to": 0.5
+      }
+     },
+     "blend": "over"
+    },
+    {
+     "id": "m3",
+     "kind": "filter",
+     "title": "Edge fade",
+     "ref": "edge-fade",
+     "params": {
+      "direction": "in",
+      "both": true,
+      "position": 0.15,
+      "width": 0.35
+     }
+    },
+    {
+     "id": "m4",
+     "kind": "warp",
+     "title": "Turbulence",
+     "ref": "turbulence",
+     "params": {
+      "amount": 0.45,
+      "size": 0.5,
+      "speed": 0.3
+     }
+    },
+    {
+     "id": "m5",
+     "kind": "warp",
+     "title": "Anchor",
+     "ref": "anchor",
+     "params": {}
+    },
+    {
+     "id": "m6",
+     "kind": "filter",
+     "title": "Trails",
+     "ref": "trails",
+     "params": {
+      "decay": 0.2
+     }
+    },
+    {
+     "id": "m7",
+     "kind": "source",
+     "title": "Colour wash",
+     "ref": "colour-wash",
+     "params": {
+      "speed": 0,
+      "brightness": 0.3,
+      "colours": "low2"
+     },
+     "blend": "under"
+    },
+    {
+     "id": "m8",
+     "kind": "source",
+     "title": "Heartbeat",
+     "ref": "heartbeat",
+     "blend": "add",
+     "params": {
+      "colours": "high",
+      "every": "eight",
+      "shape": "single",
+      "spread": 0.15,
+      "sharpness": 0.9,
+      "brightness": {
+       "mod": "global",
+       "name": "pace",
+       "from": 0,
+       "to": 0.7
+      }
+     }
+    }
+   ],
+   "groups": [
+    "rose-window"
+   ],
+   "tags": [
+    "rose",
+    "window"
+   ],
+   "blend": "over",
+   "level": 1,
+   "soften": {
+    "radius": 0.15,
+    "mode": "wire"
+   }
+  },
+  {
+   "id": "l2",
+   "title": "Architectural relay",
+   "modules": [
+    {
+     "id": "m1",
+     "kind": "source",
+     "title": "Bars",
+     "ref": "bars",
+     "params": {
+      "colours": "low2 body4",
+      "direction": "along",
+      "speed": 0,
+      "bars": 2,
+      "duty": 1,
+      "profile": "smooth"
+     },
+     "blend": "over"
+    },
+    {
+     "id": "m2",
+     "kind": "warp",
+     "title": "In turn",
+     "ref": "in-turn",
+     "params": {
+      "tag": "arch",
+      "every": {
+       "mod": "global",
+       "name": "pace",
+       "from": 1,
+       "to": 0.45
+      },
+      "gate": "wipe",
+      "direction": "along",
+      "attack": 1,
+      "hold": 0.5,
+      "release": 2.5
+     }
+    },
+    {
+     "id": "m3",
+     "kind": "source",
+     "title": "Colour wash",
+     "ref": "colour-wash",
+     "params": {
+      "colours": "low2",
+      "speed": 0,
+      "brightness": 0.5
+     },
+     "blend": "under"
+    }
+   ],
+   "groups": [
+    "main-arches",
+    "mini-arches",
+    "quad-arches"
+   ],
+   "tags": [
+    "arch"
+   ],
+   "blend": "over",
+   "level": 1,
+   "soften": {
+    "radius": 0.15,
+    "mode": "wire"
+   },
+   "clips": [
+    {
+     "start": 45,
+     "end": 228,
+     "fadeIn": 4,
+     "fadeOut": 8,
+     "transition": {
+      "kind": "wipe",
+      "direction": "up",
+      "softness": 0.15
+     }
+    }
+   ]
+  },
+  {
+   "id": "l3",
+   "title": "Tower aftersparks",
+   "modules": [
+    {
+     "id": "single-strand",
+     "kind": "source",
+     "title": "Chase",
+     "ref": "single-strand",
+     "params": {
+      "colours": "body4 accent1",
+      "speed": {
+       "mod": "global",
+       "name": "pace",
+       "from": 3,
+       "to": 9
+      },
+      "size": 12,
+      "mode": "along",
+      "profile": "comet",
+      "tail": 6,
+      "lap": 0,
+      "scatter": 0.8,
+      "alternate": true,
+      "softness": 1
+     },
+     "blend": "over"
+    },
+    {
+     "id": "colour-wash",
+     "kind": "source",
+     "title": "Colour wash",
+     "ref": "colour-wash",
+     "params": {
+      "colours": "body1",
+      "speed": 0,
+      "brightness": 0.45
+     },
+     "blend": "under"
+    }
+   ],
+   "groups": [
+    "spires"
+   ],
+   "tags": [
+    "spire",
+    "tower"
+   ],
+   "blend": "over",
+   "level": 1,
+   "soften": {
+    "radius": 0.15,
+    "mode": "wire"
+   },
+   "clips": [
+    {
+     "start": 90,
+     "end": 215,
+     "fadeIn": 6,
+     "fadeOut": 10
+    }
+   ]
+  },
+  {
+   "id": "l4",
+   "title": "Spirelet swell",
+   "modules": [
+    {
+     "id": "m1",
+     "kind": "source",
+     "title": "Colour wash",
+     "ref": "colour-wash",
+     "params": {
+      "colours": "body4",
+      "speed": 0
+     }
+    },
+    {
+     "id": "m2",
+     "kind": "filter",
+     "title": "Edge fade",
+     "ref": "edge-fade",
+     "params": {
+      "direction": "up",
+      "invert": true,
+      "width": 0.5,
+      "position": {
+       "mod": "lfo",
+       "shape": "sine",
+       "rate": 0.15,
+       "unit": "hz",
+       "center": 0.5,
+       "depth": 0.5
+      }
+     }
+    },
+    {
+     "id": "m3",
+     "kind": "source",
+     "title": "Colour wash",
+     "ref": "colour-wash",
+     "params": {
+      "colours": "accent1",
+      "speed": 0,
+      "brightness": 0.45
+     },
+     "blend": "under"
+    }
+   ],
+   "groups": [
+    "spirelets"
+   ],
+   "tags": [
+    "spirelet"
+   ],
+   "blend": "over",
+   "level": 1,
+   "soften": {
+    "radius": 0.15,
+    "mode": "wire"
+   }
+  }
+ ],
+ "automation": {
+  "pace": [
+   [
+    0,
+    0
+   ],
+   [
+    60,
+    0.3
+   ],
+   [
+    130,
+    0.6
+   ],
+   [
+    150,
+    1
+   ],
+   [
+    195,
+    1
+   ],
+   [
+    225,
+    0.3
+   ],
+   [
+    240,
+    0
+   ]
+  ]
+ }
+}
