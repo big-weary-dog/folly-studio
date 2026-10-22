@@ -1,5 +1,5 @@
 ---
-looks: A plain field of noise over the whole layer: soft blobs, rough fractal, bright creases, round cells or per-LED grain.
+looks: Noise over the whole layer: soft blobs, rough fractal, bright creases, cells or per-LED grain.
 ---
 Plain noise that covers the layer, a building block: a textured bed, or the input of **mask** or **recolour**.
 **clouds** drifts and leaves clear sky; **turbulence** pushes an existing pattern instead; **sparkle** is single
