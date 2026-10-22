@@ -74,7 +74,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
   rateLimit?: { max?: number, ipMax?: number, windowMs?: number }, flash: FlashSettings, hub: Hub,
   live: LiveSettings, ideaLogs: IdeaLogs, previews?: ReturnType<typeof createPreviews>, reports: Reports,
   build: string, tail: () => unknown[], light: LightStore, profile?: Profile,
-  baking?: Parameters<typeof bakingRoutes>[0],
+  baking?: Parameters<typeof bakingRoutes>[0], stats?: Parameters<typeof routes>[1],
   lights?: Pick<Parameters<typeof lightsRoutes>[0], 'store' | 'feed' | 'hub' | 'drive'> }) {
   const { store, auth, queue, models, loaders, log, access } = o;
   const { bakes, framesDir, frames, secureCookies = false, flash } = o;
@@ -219,6 +219,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         ...accessRoutes(api, { access, store }) } : {}),
       ...lightRoutes({ light: o.light }),
       ...(o.baking ? bakingRoutes(o.baking) : {}),
+      ...o.stats,
       ...(o.lights ? lightsRoutes({ ...o.lights, loadLibrary: loaders.loadLibrary, visibleLook: looks.visibleLook,
         looksIn: looks.looksIn, listed: looks.listed })
         : {}),
