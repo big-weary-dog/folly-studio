@@ -54,7 +54,6 @@
 .op-add .ai-op { color: var(--emerald); }
 .op-set .ai-op { color: var(--amber); }
 .op-remove .ai-op { color: var(--ruby); }
-.ai-change s { color: var(--text-3); }
 .ai-why { grid-column: 2 / -1; color: var(--text-3); font-size: 12.5px; }
 .ai-check { display: flex; align-items: baseline; gap: 6px; font-size: 13.5px; color: var(--text-2); }
 .ai-check b { color: var(--text); }
