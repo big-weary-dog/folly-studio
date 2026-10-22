@@ -1,6 +1,6 @@
 // npm run smoke, too: the Pi profile's Studio (SPEC-offline) at a laptop's and a phone's size. Signing up lands on
 // My looks, with no Ideas tab and a Lights link for a curator; /ideas goes to My looks; Import takes a file of looks
-// and Export all gives them back. Screenshots of each in the output, and no errors on the page.
+// and Export all gives them back, to import again unchanged. Screenshots of each in the output, and no errors on the page.
 import { readFile } from 'node:fs/promises';
 
 import { expect, test } from './studio.js';
@@ -44,18 +44,21 @@ for (const [name, device] of Object.entries(SIZES)) {
         await page.locator('input[type=file]').setInputFiles({ name: 'crew.json', mimeType: 'application/json',
           buffer: Buffer.from(JSON.stringify({ looks: [look('Embers'), look('Tide'), bad] })) });
         await expect(page.locator('.card')).toHaveCount(2);
-        await expect(page.getByText('Imported 2 looks.')).toBeVisible();
+        await expect(page.getByText('Imported: 2 added.')).toBeVisible();
         await expect(page.getByText(/Not imported: Broken/)).toBeVisible();
         await shot('imported');
       });
 
-      await test.step('Export all gives the looks back as one file', async () => {
+      await test.step('Export all gives the looks back as one file, which imports again unchanged', async () => {
         const [file] = await Promise.all([page.waitForEvent('download'),
           page.getByRole('button', { name: 'Export all' }).click()]);
         expect(file.suggestedFilename()).toMatch(/^folly-looks-mine-\d{4}-\d\d-\d\d\.json$/);
         const { looks } = JSON.parse(await readFile(await file.path(), 'utf8'));
         expect(looks.map((l) => l.title).sort()).toEqual(['Embers', 'Tide']);
-        expect(looks.every((l) => l.chain === 2)).toBe(true);
+        expect(looks.every((l) => l.chain === 2 && l.origin)).toBe(true);
+        await page.locator('input[type=file]').setInputFiles(await file.path());
+        await expect(page.getByText('Imported: 2 unchanged.')).toBeVisible();
+        await expect(page.locator('.card')).toHaveCount(2);
       });
       expect(errors).toEqual([]);
     });

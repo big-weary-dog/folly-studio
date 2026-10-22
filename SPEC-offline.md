@@ -60,10 +60,11 @@ Several looks go in one file as `{ "looks": [look file] }` (`folly-looks-mine-<d
 - **Import.** My looks has **Import**: a file picker taking one or more files, each a look file or a file of looks.
   Each look is `POST /api/looks` with its `origin`, title, summary, `chain` and what plays, so the same checks apply.
   A look already among the importer's own (its id or its `origin` is the file's `origin`) is **updated**: the file
-  overrules it, as a `PUT` of the title, summary and what plays would (`how: import`), so a change to what plays is a
-  new version and what the importer had, edits made since the last import included, stays in its History (SPEC-history
-  "Versions"); it keeps its sharing, and its review as any such save does. One that already reads and plays as the
-  file is **unchanged**. Any other look is **added**: the importer's, unshared, with no idea, keeping the `origin`. A
+  overrules it, as a `PUT` of the title, summary and what plays would (`how: import`), with every check a `PUT` has
+  (the Custom code switch, the body limit, a bake and review dropped when the frames change), so a change to what
+  plays is a new version and what the importer had, edits made since the last import included, stays in its History
+  (SPEC-history "Versions"); it keeps its sharing, and its review as any such save does. One that already reads and
+  plays as the file is **unchanged**. Any other look is **added**: the importer's, unshared, with no idea, keeping the `origin`. A
   look without `chain` is converted as any such `POST` is (SPEC "Looks"). One look refused (400, or past the 256 KB
   body) does not stop the rest: the page says how many were added, updated and unchanged, and names each one that
   failed, with the server's reason.

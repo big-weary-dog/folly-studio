@@ -100,7 +100,8 @@ export const api = {
   looks: (scope: 'mine' | 'gallery' = 'mine') => request<{ looks?: Listed[] }>('GET',
     `/api/looks?scope=${enc(scope)}`),
   look: (id: string) => request<{ look: Look }>('GET', `/api/looks/${enc(id)}`),
-  createLook: (look: LookCreate) => request<{ look: Look }>('POST', '/api/looks', look),
+  createLook: (look: LookCreate) => request<{ look: Look, imported?: 'added' | 'updated' | 'unchanged' }>('POST',
+    '/api/looks', look),
   updateLook: (id: string, patch: LookPatch) => request<{ look: Look }>('PUT', `/api/looks/${enc(id)}`, patch),
   deleteLook: (id: string) => request('DELETE', `/api/looks/${enc(id)}`),
   /** One's own look's versions, newest first (SPEC-history), and one with its content. */

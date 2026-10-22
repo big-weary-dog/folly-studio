@@ -54,8 +54,11 @@ describe('the API, custom code off', () => {
     assert.equal(r.status, 403, 'a layer\'s own code too');
     r = await ann.post('/api/looks', { title: 'Embers', layers: modules(LIBRARY, { ref: 'embers' }) });
     assert.equal(r.status, 201);
-    r = await ann.put(`/api/looks/${r.json.look.id}`, { layers: modules(`${LIBRARY} `) });
+    const embers = r.json.look.id;
+    r = await ann.put(`/api/looks/${embers}`, { layers: modules(`${LIBRARY} `) });
     assert.equal(r.status, 403, 'an edit of library code is new');
+    r = await ann.post('/api/looks', { origin: embers, title: 'Embers', layers: modules(NEW) });
+    assert.equal(r.status, 403, 'an import overruling a look is checked as an edit is');
   });
 
   test('code already in a look its owner can see is kept: params, copies of shared looks; not others\' private ones',
