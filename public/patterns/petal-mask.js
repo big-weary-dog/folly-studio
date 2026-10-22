@@ -17,7 +17,7 @@ const params = {
 };
 
 // A ring's cells, 1 to 3 across: CELL[ring * 3 + side] is the cell (0–13) on that side of the petal's centre line
-// (0 counterclockwise of it, 1 on it, 2 clockwise), for rings 1–7.
+// (0 counterclockwise of it, 1 on it, 2 clockwise), for rings 1–7. Rings 2, 4 and 6 hold two, split at the line.
 const CELL = [0, 0, 0, 0, 0, 0, 1, 1, 2, 3, 3, 3, 4, 4, 5, 6, 7, 8, 9, 9, 10, 11, 12, 13];
 const petal = new Float32Array(16), cell = new Float32Array(14), was = ['', ''];
 let cy = 0, cz = 0;
@@ -50,7 +50,7 @@ function filter(c, q, t, P) {
   const ring = rose && q.ring > 0 ? min(7, q.ring) : min(7, floor(q.r * 7) + 1);
   let m = petal[s];
   if (e > 1 - P.softness) m = mix(m, petal[(s + (u < 0.5 ? 15 : 1)) % 16], 0.5 * (e - 1 + P.softness) / P.softness);
-  m *= cell[CELL[ring * 3 + (u < 1 / 3 ? 0 : u > 2 / 3 ? 2 : 1)]];
+  m *= cell[CELL[ring * 3 + (ring % 2 === 0 ? (u < 0.5 ? 0 : 2) : u < 1 / 3 ? 0 : u > 2 / 3 ? 2 : 1)]];
   if (P.invert) m = 1 - m;
   c[3] *= 1 - P.amount * (1 - m);        // c is the chain's colour: change it and hand it back
   return c;

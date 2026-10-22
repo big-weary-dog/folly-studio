@@ -82,6 +82,23 @@ describe('cells', () => {
     });
   }
 
+  test('off the rose, a ring of two splits at the centre line, and a ring of three in thirds', () => {
+    for (const [cells, band, show] of [['2', 2, (o) => o < 0], ['3', 2, (o) => o >= 0],
+      ['7', 5, (o) => o < -1 / 6], ['8', 5, (o) => Math.abs(o) <= 1 / 6]]) {
+      const L = at(layerOf(WHITE, ['petal-mask', { petals: '1-16', cells, softness: 0.01 }]), 1);
+      let near = 0;
+      L.idx.forEach((k, j) => {
+        if (COG.sector[k] >= 0) return;
+        const o = ((L.a[j] * 16 + 0.5) % 1) - 0.5, inBand = Math.min(7, Math.floor(L.r[j] * 7) + 1) === band;
+        if (inBand && Math.abs(o) < 1 / 6 && Math.abs(o) > 0.02) near++;
+        if (Math.abs(Math.abs(o) - 1 / 6) > 1e-3 && Math.abs(o) > 1e-3) {
+          assert.equal(L.buf[4 * j + 3], +(inBand && show(o)), `cells ${cells}: LED ${k}, o ${o}`);
+        }
+      });
+      assert.ok(near > 0, `cells ${cells}: LEDs near the centre line`);
+    }
+  });
+
   test('a cell shows only where its petal shows too', () => {
     const on = petals(1, 5);
     for (const [k, alpha] of shown({ petals: '1 5', cells: '1-3' })) {
