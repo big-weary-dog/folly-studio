@@ -72,6 +72,12 @@ describe('Jukebox picks', () => {
     assert.ok(ids.some((id, i) => i > 0 && id < ids[i - 1]!), 'shuffled, not in order');
   });
 
+  test('a round that starts with the look playing plays it last, not never', () => {
+    const ids = played(jukebox([short('a', 2), short('b', 2), short('c', 2)]), 2 * 16 - 1);
+    const count = (id: string) => ids.filter((x) => x === id).length;
+    assert.deepEqual([count('a'), count('b'), count('c')], [6, 5, 5], ids.join());
+  });
+
   test('the same seed picks the same order', () => {
     const one = played(jukebox([short('a', 2), short('b', 2), short('c', 2)]), 20);
     const two = played(jukebox([short('a', 2), short('b', 2), short('c', 2)]), 20);

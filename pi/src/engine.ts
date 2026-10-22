@@ -213,13 +213,15 @@ export function createEngine(o: EngineOptions) {
     rounds++;
     return ids;
   }
-  /** The next look of the rounds that is not the one playing (so none plays twice in a row); null when there is none
-   * other, and what plays loops on. */
+  /** The next look of the rounds that is not the one playing (so none plays twice in a row: it goes to the round's
+   * end); null when there is none other, and what plays loops on. */
   function pick(): Item | null {
     for (let round = 0; round < 2; round++) {
       if (!bag.length) bag = shuffled();
       while (bag.length) {
-        const id = bag.shift()!, item = id === playing?.id ? null : own(id);
+        const id = bag.shift()!;
+        if (id === playing?.id) { if (bag.length) bag.push(id); continue; }
+        const item = own(id);
         if (item) return item;
       }
     }
@@ -229,7 +231,8 @@ export function createEngine(o: EngineOptions) {
   function pickAhead() {
     setTimeout(() => { if (jukebox && !ahead) ahead = prepare(pick()); });
   }
-  /** Queues the pick made ahead (or one now, if none was); false when there is none. */
+  /** Queues the pick made ahead (or one now, if none was); false when there is none. Only into an empty queue, and
+   * one of the engine's own looks, so the advance() that follows takes it at once: it never waits in the queue. */
   function autoPick() {
     let item = ahead;
     ahead = null;
