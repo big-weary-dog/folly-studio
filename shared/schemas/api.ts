@@ -176,3 +176,11 @@ export const Baking = z.strictObject({
 export type BakeMode = typeof BAKE_MODES[number];
 /** GET /api/baking: the setting and what the render box can do here. */
 export type BakingState = { mode: BakeMode, box: { ok: boolean, libraryOnly: boolean, reason?: string } };
+
+/** GET /api/admin/stats (SPEC-access "Stats"): since the server started; `days` newest first, at most 7. */
+export type StatsDay = { day: string, visitors: number, people: number, views: number, requests: number,
+  errors: number, slow: number };
+export type ServerStats = { startedAt: string, uptime: number, memory: { rss: number, heap: number }, load: number,
+  days: StatsDay[], slowest: { at: string, method: string, route: string, status: number, ms: number }[],
+  bakes: { done: number, failed: number, waiting: number },
+  ideas?: { made: number, failed: number, waiting: number } };

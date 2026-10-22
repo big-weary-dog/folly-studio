@@ -8,6 +8,7 @@
 .admin-tabs [data-tab=access] { --tint: var(--violet); }
 .admin-tabs [data-tab=light] { --tint: var(--amber); }
 .admin-tabs [data-tab=reports] { --tint: var(--ruby); }
+.admin-tabs [data-tab=stats] { --tint: var(--sand); }
 .admin-tabs [data-tab=pi] { --tint: var(--emerald); color: var(--text-3); }
 .view-admin .page { padding-top: 28px; }
 @media (max-width: 899px) {

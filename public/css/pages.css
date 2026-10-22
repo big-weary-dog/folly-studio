@@ -112,6 +112,24 @@
 .light-curve :is(th, td):not([scope]) { white-space: nowrap; }
 .light-page .models-actions { flex-wrap: wrap; }
 @media (max-width: 899px) { .light-curve { font-size: 11px; } .light-curve th, .light-curve td { padding: 4px 2px; } }
+/* The Stats page (js/ui/stats.tsx, admins): today's counts as tiles, the days as a table of numbers. */
+.stats-page { --tint: var(--sand); max-width: 780px; }
+.stats-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 10px;
+  margin: 20px 0 0; }
+.stats-tile { padding: 10px 14px; border: var(--came) solid var(--lead);
+  background: color-mix(in srgb, var(--tint) 6%, var(--night-1)); }
+.stats-tile dt { color: var(--text-3); font-size: 13px; }
+.stats-tile dd { margin: 2px 0 0; font-size: 26px; font-variant-numeric: tabular-nums; }
+.stats-scroll { margin-top: 20px; overflow-x: auto; }
+.stats-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.stats-table caption { padding-bottom: 6px; color: var(--text-3); text-align: start; }
+.stats-table th, .stats-table td { padding: 4px 6px; text-align: end; white-space: nowrap; }
+.stats-table :is(th[scope="row"], th:first-child) { color: var(--text-2); font-weight: 500; text-align: start; }
+.stats-table tbody tr { border-top: 1px solid rgb(255 236 214 / .08); }
+.stats-head { margin: 24px 0 8px; font-size: 17px; }
+.stats-slow { margin: 0; padding-inline-start: 20px; font-size: 13px; color: var(--text-2); }
+.stats-slow code { color: var(--text); overflow-wrap: anywhere; }
+@media (max-width: 899px) { .stats-table { font-size: 11px; } .stats-table th, .stats-table td { padding: 4px 2px; } }
 /* My looks and the Gallery: each look is a triple-lancet window glazed in
    its own colours (--art, from jewelGradient in js/ui/kit.tsx) above a pane of text. */
 .card-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 20px;
