@@ -46,7 +46,7 @@ setting"), Reports (`/admin/reports`, SPEC "Bug reports"), Stats (`/admin/stats`
 (`/admin/pi-bundle`, SPEC-offline "Downloading the Pi bundle"), then a link to the
 Pi preview (`/pi/`, in a new tab). `/models`, `/access`, `/light` and `/reports` lead to their tab, query kept. Anyone
 else who opens one gets the page without the tabs, its admin calls refused (403) as it says.
-On the Pi there is no Models or Access tab, and `/admin` opens Light (SPEC-offline).
+On the Pi there is no Models, Access or Pi bundle tab, and `/admin` opens Light (SPEC-offline).
 
 ## Stats
 

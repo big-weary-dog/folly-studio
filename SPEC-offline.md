@@ -72,7 +72,7 @@ and `Cache-Control: private, no-store` (the tunnel never caches it); `HEAD` give
 **The page.** Admin → **Pi bundle** (`/admin/pi-bundle`): the commit, size and build time, **Download** (the
 browser's own download of `GET /api/pi-bundle`), and **Copy curl link**, which mints a link and shows, ready to copy,
 `curl -fo folly-studio-pi.tar '<origin><path>'` and when it expires. Without a bundle it says the server has none.
-A curator opens the page by its address, without the tabs, as any Admin page.
+A curator opens the page by its address, without the tabs, as any Admin page. The Pi profile has no tab for it.
 
 ## Look files
 

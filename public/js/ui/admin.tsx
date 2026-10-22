@@ -9,8 +9,9 @@ import { onPi, user, type ViewProps } from './session.ts';
 
 const TABS = [['models', 'Models'], ['access', 'Access'], ['light', 'Light'], ['baking', 'Baking'],
   ['reports', 'Reports'], ['stats', 'Stats'], ['pi-bundle', 'Pi bundle']];
-// The Pi runs no models, so it has nothing to set for them or for who may use them (SPEC-offline).
-const PI_TABS = TABS.filter(([id]) => id !== 'models' && id !== 'access');
+// The Pi runs no models, so it has nothing to set for them or for who may use them, and holds no bundle of itself
+// (SPEC-offline).
+const PI_TABS = TABS.filter(([id]) => id !== 'models' && id !== 'access' && id !== 'pi-bundle');
 
 /** The page under the Admin tabs, `tab` lit. */
 export const withTabs = (Page: ComponentType<ViewProps>, tab: string) => (props: ViewProps) => <>
