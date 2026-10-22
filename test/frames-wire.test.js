@@ -1,4 +1,4 @@
-// The streaming wire format: src/frames-wire.js encodes, public/js/frames-stream.ts decodes and plays chunks
+// The streaming wire format: src/frames-wire.ts encodes, public/js/frames-stream.ts decodes and plays chunks
 // as they arrive. Round trips must be exact.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

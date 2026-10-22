@@ -15,7 +15,7 @@ import { controlServer } from '../pi/src/server.ts';
 import { layersHash, renderFields } from '../src/bake.ts';
 import { createLightsStore, JUKEBOX_NOW, lightsRoutes, playOf } from '../src/lights.ts';
 import { piFeed } from '../src/live/pi-feed.ts';
-import { layer, signup, startApp, useFixture } from './fixtures/server.js';
+import { fakeBox, layer, signup, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url));
@@ -95,7 +95,7 @@ describe('Play on the lights', () => {
     tick = setInterval(() => r.run(0.05), 50);
     pi = await controlServer({ engine: r.engine, lib, state: () => ({ ...r.engine.state(), looks: [], out: {} }),
       pin: '', port: 0, host: '127.0.0.1', base: '/pi' });
-    app = await start({ profile: 'pi', publicDir: PUBLIC, admins: 'ada', curators: 'cara',
+    app = await start({ profile: 'pi', publicDir: PUBLIC, admins: 'ada', curators: 'cara', renderBox: fakeBox(),
       piPreview: `http://127.0.0.1:${pi.port}` });
     [ada, cara, bob] = [await signup(app, 'ada'), await signup(app, 'cara'), await signup(app, 'bob')];
     fire = (await bob.post('/api/looks', libLook('Bob fire'))).json.look;

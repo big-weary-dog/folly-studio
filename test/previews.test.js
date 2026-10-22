@@ -116,8 +116,7 @@ describe('previews of shared looks', () => {
     await rm(tmp, { recursive: true, force: true });
   });
 
-  // oxlint-disable-next-line vitest/no-disabled-tests -- flaky (the old files can outlive the new key's announcement).
-  test.skip('a shared look gets a looping WebP and a still; a change makes a new one', async () => {
+  test('a shared look gets a looping WebP and a still; a change makes a new one', async () => {
     const layers = [{ name: 'a', code: PIXEL }];
     const { look } = await (await req('/api/looks', { method: 'POST',
       body: { title: 'Shared', layers, shared: true, chain: 2 } })).json();
@@ -140,6 +139,7 @@ describe('previews of shared looks', () => {
       const k = (await gallery()).find((l) => l.id === look.id)?.preview;
       return k !== key && k;
     });
+    await app.previews.idle(); // the old files go once the new key is out
     assert.equal((await req(`/api/looks/${look.id}/preview/${key}.webp`)).status, 404, 'the old one is gone');
     const names = await readdir(path.join(dataDir, 'previews'));
     assert.deepEqual(names.sort(), [`${look.id}-${next}-still.webp`, `${look.id}-${next}.webp`].sort());

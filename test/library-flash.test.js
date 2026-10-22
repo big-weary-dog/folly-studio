@@ -1,5 +1,5 @@
 // Photosensitivity: no library source's default bake, nor any preset as the Studio adds it, trips the blocking
-// flash check (src/frames.js, large-area flashing over 3 a second). Strobe alone may warn, on small regions. Ten
+// flash check (src/frames.ts, large-area flashing over 3 a second). Strobe alone may warn, on small regions. Ten
 // seconds of each, baked as the render box bakes, spread over worker threads.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
