@@ -19,7 +19,8 @@ To try it before the Pi, the hosting machine runs the same profile on loopback: 
 (`--instance offline`).
 
 Everything here is done at home with the Pi online (a phone hotspot will do), never on the playa: the clone and
-`npm ci` download.
+`npm ci` download. **With no internet, install from the USB bundle instead:** [SETUP.md](SETUP.md),
+`install.sh --studio`, which does steps 1 to 3 and carries bubblewrap.
 
 ## 0. Measure first (about 10 minutes)
 
@@ -115,12 +116,13 @@ baked frames. In `/home/fpp/folly-studio/pi/config.json` (gitignored; keep any s
 
 ```json
 { "base": "/pi", "light": "/home/fpp/folly-data/light.json", "frames": "/home/fpp/folly-data/frames",
-  "bind": "127.0.0.1" }
+  "bind": "0.0.0.0", "pin": "2468" }
 ```
 
-`"bind": "127.0.0.1"` keeps the control page behind Studio's sign-in, and Studio's checks on what it plays (SPEC-offline
-"Playing on the lights"): without it, `http://192.168.8.172:4043/pi/` answers too. If the engine has a PIN, put it in
-`studio.env` as `PI_PIN` too, so Studio can play looks on it.
+The engine serves its page at `/pi/` for Studio and at `/` for the ops hub, whose link is
+`http://192.168.8.172:4043/` in both setups. On the network, that page is outside Studio's sign-in: the PIN is its
+only lock, so choose one, and put it in `studio.env` as `PI_PIN` too, so Studio can play looks on it. It plays only
+library looks, never code, either way (SPEC-offline "The Pi preview").
 
 Curators play looks from Studio (**Play on the lights**): a look made only of library modules plays live while Admin →
 Light's **Live library looks** is on; a look with custom code plays only as its bake. Bakes are made on the Pi in the
@@ -145,8 +147,9 @@ The log should say `Folly Studio on http://0.0.0.0:8780/`. Open `http://192.168.
 DustyRose and sign up as the admin first. If Studio Live is running, restart it once so it serves under `/pi`:
 `sudo systemctl restart studio-live`.
 
-The ops hub's entry for Studio (in the lighting repo, the hub's owner's to change) points at
-`http://192.168.8.172:8780/`; the engine's control page is one tap away there, at **Lights**.
+The ops hub's entry (in the lighting repo, the hub's owner's to change) points at the engine,
+`http://192.168.8.172:4043/`, as with the engine alone. Curators reach the same page from Studio's header,
+**Lights** (`:8780/pi/`).
 
 ## Moving looks
 

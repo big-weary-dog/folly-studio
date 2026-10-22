@@ -5,7 +5,8 @@
 
 /** pi/data/power.json. */
 export type PowerTable = {
-  channels: number, cellChannels: number, sets: string, weights: Record<string, number>, releaseFrames: number,
+  pixels: number, channels: number, cellChannels: number, sets: string, weights: Record<string, number>,
+  releaseFrames: number,
   petals: { src: number, exp: number, segments: [skip: number, cell: number, count: number][] }[],
   psus: { id: string, set: string, volts: number, rating: number,
     ranges: [start: number, bytes: number, watts: number][] }[],
@@ -13,6 +14,16 @@ export type PowerTable = {
 /** compress-fseq.py's options: the port cap it runs at, headroom × each PSU's rating, the generator's DC watts. */
 export type PowerOptions = { cap: number, headroom: number, gen: number };
 export const COG_POWER: PowerOptions = { cap: 0.8, headroom: 1, gen: 5240 };   // city-of-gods/Makefile
+
+/** ADD_LIVE_APP.md's self-check: the rig has the pixels lighting's pixel map has (pi/tools/build_power.py counted
+ * them), or one of the two is stale and the engine must not start. */
+export function checkPixels(rig: { name: string, count: number, pixels: { universe: unknown[] } }, table: PowerTable) {
+  const listed = rig.pixels.universe.length;
+  if (rig.count !== table.pixels || listed !== rig.count) {
+    throw new Error(`rig ${rig.name} has ${rig.count} px (${listed} listed) but lighting's pixel map has `
+      + `${table.pixels}: a stale map, run npm run build-data and pi/tools/build_power.py`);
+  }
+}
 
 /** expand_frames for one frame: `out` (table.channels or more) gets `cells` as is and each petal's LEDs its cell's
  * colour; passage LEDs, never written, stay dark. */
