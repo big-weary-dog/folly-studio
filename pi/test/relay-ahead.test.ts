@@ -44,7 +44,7 @@ describe('relay end to end', () => {
       if (i === 60) { assert.ok(a.engine.set('pace', 0.9) && b.engine.set('pace', 0.9)); }
       const s = b.engine.state(), slot = b.engine.stats.frames + b.engine.stats.late;
       const cfg: Partial<RelayCfg> = { on: true, rev: s.look!.rev, next: slot, frame: Math.round(s.look!.t * 40),
-        index: slot - 1, at: performance.timeOrigin + performance.now(), fps: 40, duration: s.look!.duration,
+        index: slot - 1, at: performance.timeOrigin + performance.now() + 2056, fps: 40, duration: s.look!.duration,
         lead: 4, set: relaySet(s.look!) };
       ahead.relay(cfg);
       vi.advanceTimersByTime(10);
@@ -108,7 +108,7 @@ describe('relay end to end', () => {
 });
 
 describe('relay from the editor', () => {
-  test('frames follow the playhead\'s anchor, wrapped; a pause renders again from the next slot', () => {
+  test.each([0, 2056, -3250])('frames follow the playhead and pause with a page epoch offset of %i ms', (offset) => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
     const scene = prepareScene(rig), { engine, run } = engineOn([beat]);
     engine.play('beat');
@@ -121,7 +121,7 @@ describe('relay from the editor', () => {
       const bytes = (m as { bytes: ArrayBuffer }).bytes, head = new DataView(bytes, 0, 8);
       got.push({ slot: head.getUint32(0, true), t: new Uint16Array(bytes, 8)[0]! / 65535 * 10 });
     });
-    const at = performance.timeOrigin + performance.now();
+    const at = performance.timeOrigin + performance.now() + offset;
     const cfg = { on: true, rev: 0, index: 100, at, fps: 40, lead: 8, set: null };
     ahead.relay({ ...cfg, clock: { t: 2, at, speed: 2, playing: true, duration: 2.1 } });
     vi.advanceTimersByTime(30);

@@ -156,6 +156,9 @@ sends it. The page estimates the slot playing from the states: the newest readin
 its own clock, taking the furthest ahead of the last 10 s's readings (each reaches it late, never early). It takes
 a Screen Wake Lock while relaying, and says so, the buffer (`ahead` in ms), the misses, and who holds the lease.
 A frame the socket cannot take (over 256 KB waiting) is dropped, not queued.
+The page sends its estimated slot and timestamp from the same clock reading. The Worker maps page timestamps to
+its local monotonic clock at receipt, keeping the smallest observed delivery delay, and advances slots on that
+clock. Page and Worker epoch origins need not agree; editor anchor times stay in the page's clock domain.
 
 **From Studio's editor.** The editor's preview, for the same people, has **To the lights** in its transport: the
 same switch, buffer and status, the same socket, lease and PIN, with `over: true`. The look being edited goes to the
