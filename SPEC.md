@@ -544,7 +544,9 @@ as here; any other failure says why and points to Check & bake.
   (`src/core-script.ts`, from its source) / renderer.ts / fseq.ts / rig.json / `public/patterns` (for `use`), tmpfs
   /tmp, one empty writable /out; the look on stdin as `{ layers, globals?, automation?, bpm? }`), a cgroup (tasks,
   memory), prlimit (CPU s, file size; no RLIMIT_AS) and a wall-clock kill. Inside, layers run in a `node:vm` realm
-  holding only the stdlib (defence in depth). /out is a 1 MB tmpfs inside the box with only `frames.fseq` and
+  holding only the stdlib (defence in depth). Each frame has a 2 s CPU budget, checked after it returns;
+  a 20 s VM wall-clock timeout stops a frame that never returns, even under CPU starvation.
+  /out is a 1 MB tmpfs inside the box with only `frames.fseq` and
   `result.json` bound to the host, so each is capped by the file-size limit and nothing else the box writes reaches
   the host's disk. Without bubblewrap, library only; the bake setting and custom code: `SPEC-baking.md`.
   One bake at a time, under `nice` (`STUDIO_BAKE_NICE`, default 10), in a lane it shares with wire encodes
