@@ -48,6 +48,9 @@ setting"), Reports (`/admin/reports`, SPEC "Bug reports"), Stats (`/admin/stats`
 Pi preview (`/pi/`, in a new tab). `/models`, `/access`, `/light` and `/reports` lead to their tab, query kept. Anyone
 else who opens one gets the page without the tabs, its admin calls refused (403) as it says.
 On the Pi there is no Models, Access or Pi bundle tab, and `/admin` opens Light (SPEC-offline).
+Leaving a Models or Light draft asks before discarding it, including switching Admin tabs.
+Light downloads the saved settings; while a draft differs, download waits for Save or Revert.
+Limits fields follow a successful Save or Defaults response; blank fields inherit the global allowance.
 
 ## Stats
 
@@ -114,6 +117,7 @@ models[i].limits?: { "perHour"?, "perDay"?, "concurrent"? }
 Ideas link, no Refine panel or "Ask the AI to fix it", and no tutorial step on Ideas; `/api/me` has no `access` for a
 guest. The server refuses their ideas as above. A locked account gets the AI by an invite link, or a code entered
 under "Invite code" in its user menu (which only a locked account has, and only where `inviteOnly`).
+Sign-up explains that AI needs an invite. My looks repeats this for locked accounts and offers code entry.
 
 ## HTTP
 

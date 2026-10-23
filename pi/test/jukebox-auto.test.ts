@@ -76,7 +76,7 @@ describe('Jukebox fades', () => {
     r.run(3);
     r.engine.queue('a');
     r.run(r.engine.state().look!.left! - FADE.queue / 2);
-    near(r.engine.state().gain, 0.5, 'Live Play: 1 s');
+    near(r.engine.state().gain, 1, 'Live Play overlaps the looks without a dip in master gain');
   });
 });
 

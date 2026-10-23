@@ -2,7 +2,7 @@
 // itself.
 import { idea } from './idea.ts';
 import { firstLook } from './first-look.ts';
-import { keep } from './keep.ts';
+import { guestKeep, keep } from './keep.ts';
 import { layers } from './layers.ts';
 import { modules } from './modules.ts';
 import { moves } from './moves.ts';
@@ -16,5 +16,7 @@ export const onIdeas = (s: Step) => s.page === '/ideas' || !!s.idea
   || (Array.isArray(s.anchor) && s.anchor.includes('nav:ideas'));
 /** The paths this Studio offers: without Ideas (on the Pi, SPEC-offline, or without the AI) no step goes there, and a
  * path that starts there starts on its practice look. */
-export const pathsHere = (noIdeas: boolean) => (noIdeas ? PATHS.map((p) => ({ ...p, about: p.aboutPi ?? p.about,
-  start: p.look ?? p.start, steps: p.steps.filter((s) => !onIdeas(s)) })) : PATHS);
+export const pathsHere = (noIdeas: boolean, guest = false) => PATHS.map((p) => ({ ...p,
+  about: noIdeas ? p.aboutPi ?? p.about : p.about, start: noIdeas ? p.look ?? p.start : p.start,
+  steps: p.steps.filter((s) => !noIdeas || !onIdeas(s))
+    .map((s) => guest && p.id === 'keep' && s.id === 'save' ? guestKeep : s) }));

@@ -11,7 +11,8 @@ import { can } from '../../../shared/policy.ts';
 import type { Access } from '../../../shared/schemas/access.ts';
 import type { Explore, Idea, Listed } from '../../../shared/schemas/api.ts';
 import type { ModelChoices } from '../../../shared/schemas/models.ts';
-import { ai, navigate, onPi, setTitle, user, type ViewProps } from './session.ts';
+import { ai, invitable, navigate, onPi, setTitle, user, type ViewProps } from './session.ts';
+import { enterInvite } from './invite-form.tsx';
 import { AccessGate, gateOf } from './idea-access.tsx';
 import { Approve } from './approve.tsx';
 import { deleteLook, mayDelete } from './delete-look.ts';
@@ -305,6 +306,9 @@ export function Looks({ scope }: ViewProps) {
           {!gallery && <a class="btn primary" href="/studio">New look</a>}
         </div>
       </div>
+      {!gallery && invitable.value && <p class="pane-hint">You can edit and preview looks now. AI ideas need an
+        invite. Have a code? <button class="btn ghost small" type="button" onClick={enterInvite}>
+          Enter invite code</button></p>}
       <ul class="card-grid" aria-busy={!looks && !error}>
         {shown.map((look) => <Card key={look.id} look={look} gallery={gallery} remove={remove}
           approved={() => approved(look)} />)}</ul>

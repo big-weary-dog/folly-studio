@@ -17,22 +17,37 @@ const first = (r: ReturnType<typeof engineOn>) => {
 };
 
 describe('changes', () => {
-  test('play, queue now and next fade over the time they give, each way', () => {
-    const r = engineOn();
-    r.engine.play('fire');
+  test.each([1, 2.2])('a 4 s crossfade overlaps LED light at gamma %s and completes in 4 s', (gamma) => {
+    const red = oneModule('red', 'colour-wash', { colours: '#ff0000', speed: 0 });
+    const blue = oneModule('blue', 'colour-wash', { colours: '#0000ff', speed: 0 }, { duration: 1 });
+    const r = engineOn([red, blue], { gamma });
+    r.engine.play('red');
     r.run(1);
-    r.engine.play('beat-bars', 4);
+    r.engine.play('blue', 4);
     r.run(2);
-    assert.ok(Math.abs(r.engine.state().gain - 0.5) < 0.05, `${r.engine.state().gain}`);
-    r.run(2.1);
-    assert.equal(r.engine.state().look?.id, 'beat-bars');
+    const [r0, g0, b0] = first(r);
+    assert.ok(Math.abs(r0 - 127.5) <= 1 && g0 === 0 && Math.abs(b0 - 127.5) <= 1, `${first(r)}`);
     r.run(2);
-    assert.ok(Math.abs(r.engine.state().gain - 0.5) < 0.05, 'and in over the same');
-    r.run(3);
+    assert.deepEqual(first(r), [0, 0, 255]);
+    assert.equal(r.engine.state().look?.id, 'blue');
     r.engine.queue('fire', 'end');
     r.engine.next(0.25);
     r.run(0.3);
     assert.equal(r.engine.state().look?.id, 'fire');
+  });
+
+  test('interrupting a crossfade starts from the mixture on the lights', () => {
+    const looks = ['red', 'blue', 'green'].map((id, i) => oneModule(id, 'colour-wash',
+      { colours: ['#ff0000', '#0000ff', '#00ff00'][i], speed: 0 }));
+    const r = engineOn(looks, { gamma: 1 });
+    r.engine.play('red');
+    r.run(1);
+    r.engine.play('blue', 4);
+    r.run(2);
+    r.engine.play('green', 4);
+    r.engine.tick();
+    const [red, green, blue] = first(r);
+    assert.ok(red > 120 && blue > 120 && green < 5, `${first(r)}`);
   });
 });
 

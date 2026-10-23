@@ -2,16 +2,17 @@
 // Each frame: ease controls, render, observe the guard, then apply the LED transform and send channels to output.
 import { FlashGuard } from '../../public/js/flash-guard.ts';
 import {
-  compileLayer, type Light, ledChannels, ledLight, prepareLayer, type PreparedLayer, prepareLight, prepareScene,
+  compileLayer, type Light, ledChannels, ledLight, prepareLayer, prepareLight, prepareScene,
   renderFrame, setLibrary,
 } from '../../public/js/pattern-core.ts';
 import type { PiSource } from '../../shared/schemas/live.ts';
-import type { Layer } from '../../shared/schemas/look.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
 import type { Baked } from './baked.ts';
 import { liveLook, type LiveLook } from './controls.ts';
 import type { Library, PiLook } from './library.ts';
 import { createPicks } from './picks.ts';
+import { type Playing, playingSource, renderPlaying } from './playing.ts';
+import { crossfade } from './crossfade.ts';
 import type { Mode } from './protocol.ts';
 import type { Relay } from './relay.ts';
 
@@ -47,9 +48,8 @@ export function createEngine(o: EngineOptions) {
   setLibrary([...o.lib.entries.values()]);
   const master: Ease = { now: 1, to: 1, secs: FADE.level }, black: Ease = { now: 1, to: 1, secs: FADE.blackout };
   const fade: Ease = { now: 0, to: 1, secs: FADE.switch };
-  type Playing = { item: Item, id: string, title: string, duration: number, look: PiLook | null,
-    live: LiveLook | null, layers: PreparedLayer[], baked: Baked | null };
   let playing: Playing | null = null, want = false;     // want: a person asked to go on as soon as the next is ready
+  const overlap = crossfade(scene);
   // pending: what plays next, once what plays has faded out; fadeIn: the fade it was given to come in over.
   let pending: Item | null = null, fadeIn: number | undefined, frame = 0;
   let tripped: { at: string, look: string } | null = null;
@@ -130,7 +130,7 @@ export function createEngine(o: EngineOptions) {
   }
 
   function start(item: Item) {
-    playing?.baked?.close?.();
+    overlap.start(playing, frame, rgb, !jukebox);
     // A bake's frames are in by now; a look of the engine's own is prepared again if the looks were read since.
     if (item.kind === 'baked' || (item.kind === 'look' && o.looks().get(item.id)?.look !== item.look)) prepare(item);
     const p = prepared.get(item) ?? prepared.get(prepare(item))!;
@@ -140,7 +140,8 @@ export function createEngine(o: EngineOptions) {
       playing = s && !(s instanceof Error) ? s : blackFor(item);
     } else playing = p;
     frame = 0;
-    fade.secs = turn(playing, fadeIn);
+    fade.secs = jukebox ? turn(playing, fadeIn) : fadeIn ?? FADE.queue;
+    fade.now = 0;
     fade.to = 1;
     tried = false;
     pickAhead();
@@ -150,14 +151,14 @@ export function createEngine(o: EngineOptions) {
 
   /** One frame: what the sculpture shows next. */
   function tick() {
-    if (pending !== null && (fade.now === 0 || !playing)) { start(pending); pending = null; }
+    if (pending !== null && (!jukebox || fade.now === 0 || !playing)) { start(pending); pending = null; }
     if (!playing) return;
     const t0 = now(), p = playing, duration = p.duration;
     let t = frame * dt;
     ready(queue[0]);
     // The pattern's last fade: out toward the next queued look (in Jukebox, else a pick), so it has played whole when
     // the next starts.
-    const end = !paused && !pending && t + turn(p) >= duration;
+    const end = !paused && !pending && fade.now === 1 && t + turn(p) >= duration;
     if (end && jukebox && !queue.length && !tried) { tried = true; autoPick(); }
     if (!pending && (want || (end && queue.length)) && advance()) want = false;
     if (t >= duration) {
@@ -170,19 +171,19 @@ export function createEngine(o: EngineOptions) {
     }
     // A relayed frame (slots count every tick and skip) stands in for the render; the controls step on regardless.
     if (o.relay?.fill(shown(), rev, rgb, dt)) p.live?.step(t, dt);
-    else if (p.baked) {
-      try { p.baked.fill(frame, rgb); } catch (e) {
+    else {
+      try {
+        const error = renderPlaying(p, scene, frame, dt, rgb);
+        if (error) { stats.layerErrors++; stats.lastError = error; }
+      } catch (e) {
         log(`look ${p.id} cannot play baked: ${(e as Error).message}`);
         rgb.fill(0);
         switchTo(safe(), 0);
       }
     }
-    else {
-      p.live!.step(t, dt);
-      const out = renderFrame(scene, p.layers, t, rgb, p.live!.look);
-      if (out.errors.length) { stats.layerErrors++; stats.lastError = out.errors[0]!.error; }
-    }
-    const gain = ease(master, dt) * ease(black, dt) * ease(fade, dt) * (o.relay?.gain() ?? 1);
+    const blend = ease(fade, dt);
+    overlap.mix(rgb, blend, light.gamma, dt);
+    const gain = ease(master, dt) * ease(black, dt) * (overlap.active ? 1 : blend) * (o.relay?.gain() ?? 1);
     if (guard.observe(rgb, shown() * 1000 / fps, gain) && !tripped && p.id !== o.safe) {
       tripped = { at: new Date().toISOString(), look: p.id };
       log(`flash guard: ${p.id} flashed; dipping to ${o.safe} until a look is picked`);
@@ -218,13 +219,12 @@ export function createEngine(o: EngineOptions) {
   /** The fade into or out of `p`: `secs` if given, else FADE.queue (in Jukebox FADE.jukebox), at most half of `p`. */
   const turn = (p: { duration: number } | null, secs?: number) =>
     Math.min(secs ?? (jukebox ? FADE.jukebox : FADE.queue), (p?.duration ?? Infinity) / 2);
-  /** Fades what plays out toward `item`, then `item` in: each way over turn() of its own look. */
+  /** Starts both sides of a crossfade on the next tick. */
   function switchTo(item: Item, secs?: number) {
     if (pending !== item && pending && !queue.includes(pending)) pending.baked?.close?.();
     pending = item;
     fadeIn = secs;
-    fade.secs = turn(playing, secs);
-    fade.to = 0;
+    if (jukebox) { fade.secs = turn(playing, secs); fade.to = 0; }
   }
 
   /** The next of the jukebox's picks, prepared. */
@@ -287,6 +287,7 @@ export function createEngine(o: EngineOptions) {
     scene, fps, tick, stats,
     close() {
       closed = true;
+      overlap.close();
       for (const item of new Set([...queue, pending, playing?.item])) item?.baked?.close?.();
     },
     /** Skip k frames of show time (the timer fell behind): the look keeps to the clock. */
@@ -372,7 +373,7 @@ export function createEngine(o: EngineOptions) {
           left: (queue.length || (jukebox && ahead)) && !paused ? Math.max(0, p.duration - t) : null,
           bpm: L?.bpm ?? 120, beats: L ? (t - L.beat0) * L.bpm / 60 : 0, offset: L?.offset ?? 0, beat0: L?.beat0 ?? 0,
           paces: L ? Object.fromEntries(L.paceOffset) : {}, controls: p.live?.controls.map((c) => ({ ...c })) ?? [] },
-        gain: master.now * black.now * fade.now,
+        gain: master.now * black.now * (overlap.active ? 1 : fade.now),
         level: master.to, blackout: { on: black.to === 0, by: dark.by, ago: (now() - dark.at) / 1000 }, tripped,
         paused, switching: pending && { id: pending.id, title: pending.title },
         queue: queue.map((q) => ({ key: q.key, id: q.id, title: q.title, kind: q.kind, ...q.by ? { by: q.by } : {},
@@ -384,15 +385,7 @@ export function createEngine(o: EngineOptions) {
     source(): PiSource | null {
       if (!playing) return null;
       if (source?.rev === rev) return source;
-      const { id, title, duration, look, live } = playing;
-      if (!look || !live) {
-        source = { rev, id, title, duration, globals: null, automation: null, layers: [], baked: true };
-        return source;
-      }
-      const layers = look.layers.map((l) => ({ ...l, modules: (l.modules ?? []).map(({ code: _, ...m }) => m) }));
-      const palette = live.paletteHex(), globals = palette ? { ...look.globals!, palette } : look.globals ?? null;
-      source = { rev, id, title, duration, ...(look.bpm ? { bpm: look.bpm } : {}),
-        globals, automation: live.automation, layers: layers as Layer[] };
+      source = playingSource(playing, rev);
       return source;
     },
   };

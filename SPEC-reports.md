@@ -1,6 +1,8 @@
 # Folly Studio — bug reports (part of the contract)
 
-F8 on any page (or "Report a problem" in the user menu, for phones) files a report. The press freezes the moment:
+F8 on any page (or "Report a problem" in the user menu, for phones) files a report for signed-in accounts.
+Guests and signed-out visitors see an explanation that reporting needs an account before the form opens.
+The press freezes the moment:
 the page's state is read first, the 3D view's next frame is kept as a JPEG (≤ 960 px wide, quality 0.8), then
 everything pauses (the preview's loop and the 3D view; on /live, the socket's updates are held) until the form
 closes, when it all resumes as it was. The form asks "What went wrong?" (Enter sends, Shift+Enter is a new line,

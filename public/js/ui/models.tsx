@@ -9,6 +9,7 @@ import { api } from '../api.ts';
 import type { AdminModels, ModelEntry, ModelsConfig, ModelState } from '../../../shared/schemas/models.ts';
 import { cx, Field, toast } from './kit.tsx';
 import { setTitle } from './session.ts';
+import { useDraftGuard } from './draft-guard.ts';
 
 export function Models() {
   const [data, setData] = useState<AdminModels | null>(null), [draft, setDraft] = useState<ModelsConfig | null>(null);
@@ -16,11 +17,12 @@ export function Models() {
   const take = (d: AdminModels) => { setData(d); setDraft(structuredClone(d.config)); setError(''); };
   const fail = (err: unknown) => setError((err as Error).message);
   useEffect(() => { setTitle('Models'); api.adminModels().then(take, fail); }, []);
+  const dirty = !!data && JSON.stringify(draft) !== JSON.stringify(data.config);
+  useDraftGuard(dirty);
   if (!data || !draft) {
     return <div class="page models-page"><h1 class="page-title">Models</h1>
       <p class={error ? 'form-error' : 'pane-hint'} role={error ? 'alert' : undefined}>{error || 'Loading…'}</p></div>;
   }
-  const dirty = JSON.stringify(draft) !== JSON.stringify(data.config);
   const stateOf = (id: string) => data.models.find((st) => st.id === id);
   const edit = (id: string, patch: Partial<ModelEntry>) => setDraft({ ...draft,
     models: draft.models.map((m) => (m.id === id ? { ...m, ...patch } : m)) });

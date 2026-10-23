@@ -45,7 +45,8 @@ export function Studio({ params, query }: ViewProps) {
     let alive = true;
     setTitle('Studio');
     const guest = !!user.peek()?.guest;
-    leaveGuard.isDirty = () => !guest && st.dirty.peek();   // a guest's work is kept here (guest-work.ts)
+    const isDirty = () => !guest && st.dirty.peek();   // a guest's work is kept here (guest-work.ts)
+    leaveGuard.isDirty = isDirty;
     leaveGuard.discard = () => { st.saved.value = JSON.stringify(st.body.peek()); };
     const library = loadLibrary().catch((err) => {
       toast(`Library unavailable: ${err.message}`, { kind: 'error' });
@@ -107,8 +108,7 @@ export function Studio({ params, query }: ViewProps) {
       unreport();
       untour();
       unkeep();
-      delete leaveGuard.isDirty;
-      delete leaveGuard.discard;
+      if (leaveGuard.isDirty === isDirty) { delete leaveGuard.isDirty; delete leaveGuard.discard; }
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('pointerup', seal);
       document.removeEventListener('focusout', seal);

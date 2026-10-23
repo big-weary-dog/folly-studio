@@ -44,12 +44,15 @@ describe('the control page', () => {
     c.send({ type: 'blackout', on: true });
     c.send({ type: 'level', value: 0.5 });
     c.send({ type: 'set', name: 'heat', value: 0.9 });
+    await new Promise((r) => setTimeout(r, 100));
+    run(0.1);
+    assert.equal(engine.state().look?.controls.find((x) => x.name === 'heat')?.value, 0.9);
     c.send({ type: 'play', id: 'beat-bars' });
     await new Promise((r) => setTimeout(r, 100));
     const s = engine.state();
     assert.deepEqual([s.blackout.on, s.level, s.switching?.id], [true, 0.5, 'beat-bars']);
     run(0.1);
-    assert.equal(engine.state().look?.controls.find((x) => x.name === 'heat')?.value, 0.9);
+    assert.equal(engine.state().look?.id, 'beat-bars');
     // Each reply looked for after its own send: states arrive between them.
     let from = c.got.length;
     c.send({ type: 'play', id: 'nope' });

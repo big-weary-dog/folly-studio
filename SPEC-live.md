@@ -70,6 +70,8 @@ is full. Retrying…".
 
 ## Following /pi
 
+On the Pi profile the stage starts following the engine, including before anyone takes its controls.
+
 With `PI_PREVIEW_URL` set (SPEC-offline "The Pi preview"), the stage can follow that engine: the last to use
 a control drives. A control used on `/pi` (play, set, tap, level, blackout, as the proxy passes it) makes `driver`
 `pi`; a controller's next accepted `play` or `set` makes it `stage` again. Each change goes to every socket as a whole
@@ -85,11 +87,12 @@ sends on what it says (`shared/schemas/live.ts`):
   (`rev` moves: the engine's look is prepared again).
 - `now: { rev, t, bpm, beat0, offset, paces?, values, gain, queue? }` at server time `at`: show time t, the tempo,
   downbeat and look clock's offset (0: pattern time is show time), the paces' offsets, the values of the look's live
-  controls, the output's gain (master × blackout × a switch's dip, as eased), and what is queued after it (SPEC-offline
+  controls, the output's gain (master × blackout × a startup/Jukebox fade, as eased), and what is queued after it (SPEC-offline
   "Playing on the lights"). Sent when anything but t changed, else every 2 s; null while the engine is down.
 
 A viewer plays `source` (fresh clock) and sets `now`'s values, tempo and clock in place before a frame (the sandbox's
 `frame.set`), as the engine sets them, so clocks bound to them run on as the engine's do; the view's gain is `gain`.
+The single-source viewer follows the incoming look during a Live Play crossfade; the engine mixes both looks.
 Show time is `t + (server now − at)`, wrapped by the duration, anchored once and moved only when it slips past 100 ms,
 so frames never step back. A viewer that sets each frame's values renders the engine's bytes
 (`pi/test/follow.test.ts`); at 10 a second, frames match while nothing moves, and a viewer joining mid-loop has its

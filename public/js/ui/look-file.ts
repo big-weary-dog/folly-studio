@@ -61,8 +61,10 @@ export type Imported = { added: number, updated: number, unchanged: number,
 
 /** Each look in each file, saved as the importer's: added, or overruling the one of theirs it came from (the server
  * matches its origin). One refused does not stop the rest. */
-export async function importFiles(files: Iterable<{ name: string, text(): Promise<string> }>): Promise<Imported> {
+export async function importFiles(files: Iterable<{ name: string, text(): Promise<string> }>,
+  choose?: (looks: LookCreate[]) => Promise<'update' | 'copy' | undefined>): Promise<Imported> {
   const out: Imported = { added: 0, updated: 0, unchanged: 0, failed: [] };
+  const entries: { body: LookCreate, name: string }[] = [];
   for (const file of files) {
     let looks: unknown[];
     try { looks = looksIn(await file.text()); } catch (err) {
@@ -71,11 +73,17 @@ export async function importFiles(files: Iterable<{ name: string, text(): Promis
     }
     for (const look of looks) {
       const body = createBody(look), name = typeof body.title === 'string' && body.title ? body.title : file.name;
-      try {
-        out[(await api.createLook(body)).imported ?? 'added']++;
-      } catch (err) {
-        out.failed.push({ name, error: (err as Error).message });
-      }
+      entries.push({ body, name });
+    }
+  }
+  const choice = choose && entries.length ? await choose(entries.map((e) => e.body)) : 'update';
+  if (!choice) return out;
+  for (const { body, name } of entries) {
+    if (choice === 'copy') delete body.origin;
+    try {
+      out[(await api.createLook(body)).imported ?? 'added']++;
+    } catch (err) {
+      out.failed.push({ name, error: (err as Error).message });
     }
   }
   return out;

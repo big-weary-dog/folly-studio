@@ -100,6 +100,8 @@ Several looks go in one file as `{ "looks": [look file] }` (`folly-looks-mine-<d
   shows), fetched one at a time with `GET /api/looks/:id`, as one file. A look gone since the list (404) is left
   out; any other failure downloads nothing and names the look, so a backup is never quietly short.
 - **Import.** My looks has **Import**: a file picker taking one or more files, each a look file or a file of looks.
+  Before saving, a preview names additions and replacements. Cancel changes nothing; Import as copies drops origins.
+  Replacements explain that current contents are replaced and previous versions remain in History.
   Each look is `POST /api/looks` with its `origin`, title, summary, `chain` and what plays, so the same checks apply.
   A look already among the importer's own (its id or its `origin` is the file's `origin`) is **updated**: the file
   overrules it, as a `PUT` of the title, summary and what plays would (`how: import`), with every check a `PUT` has
@@ -138,11 +140,12 @@ code: bake it (Check & bake) to play it on the lights…", "Live looks are off: 
 
 **The queue** (the engine's, in memory; a restart empties it). At most 20 items, each
 `{ key, id, title, kind: 'look' | 'live' | 'baked', by?, duration }`: `look` is one of the engine's own
-(`pi/looks`). An item plays its whole pattern once from its start, its `duration` (a bake's length), then the next
-starts. Moving on, the queue fades the one out over its last second (`FADE.queue`, 1 s) and the next in over its
-first; play now and skip fade the same way, or over the `fade` they give (SPEC-liveplay). Each direction is capped
-at half of its own look's duration. With nothing queued, what
-plays loops on, except in Jukebox (SPEC-liveplay "Modes"), whose fades are `FADE.jukebox` (4 s each way, at most half
+(`pi/looks`). In Live Play, the next look overlaps the outgoing look's ending over `FADE.queue` (1 s), or the
+`fade` given for play now or skip (SPEC-liveplay). Short looks loop through a fade; automatic advancement waits
+until the incoming fade finishes. In Jukebox, each item plays its whole pattern once, fading out over its ending
+and the next in over its beginning; each direction is capped at half its own look's duration.
+With nothing queued, what plays loops on, except in Jukebox (SPEC-liveplay "Modes"), whose fades are
+`FADE.jukebox` (4 s each way, at most half
 the pattern) and which picks the next itself. A flash-guard trip dips to `safe` and pauses the queue until someone plays or skips.
 What the mode allows, who drives, and the page: `SPEC-liveplay.md`, part of this contract.
 

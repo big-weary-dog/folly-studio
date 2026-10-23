@@ -37,11 +37,11 @@ function Panel({ title, children, wide }: { title: string; children: preact.Comp
 function Welcome() {
   return <Panel title="Welcome to Folly Studio">
     <p>Studio turns show ideas into light on the Folly. The tour shows you the basics.</p>
-    <p class="tour-note">Studio is still in development. If something breaks, your name › Report a problem (or F8)
-      tells us.</p>
+    <p class="tour-note">Studio is still in development. With an account, your name › Report a problem (or F8)
+      tells us if something breaks.</p>
     <div class="tour-actions">
       <button type="button" class="btn ghost" onClick={close}>Not now</button>
-      <button type="button" class="btn primary" onClick={() => void start(PATHS[0])}>Start the tour</button></div>
+      <button type="button" class="btn primary" onClick={() => void start(PATHS.value[0])}>Start the tour</button></div>
   </Panel>;
 }
 
@@ -49,7 +49,7 @@ function Menu({ finished }: { finished?: string }) {
   const p = progress.value;
   return <Panel title={finished ? `${finished}: done` : 'Tutorials'} wide>
     {finished && <p>They are all in your name › Tutorials.</p>}
-    <ul class="tour-paths">{PATHS.map((path) => {
+    <ul class="tour-paths">{PATHS.value.map((path) => {
       const done = p.done.includes(path.id), part = !done && p.at?.path === path.id;
       const mark = done ? '✓' : part ? '◐' : '○', state = done ? 'done' : part ? 'part-way' : 'not started';
       return <li><button type="button" class="tour-path" data-state={done ? 'done' : part ? 'part' : 'new'}

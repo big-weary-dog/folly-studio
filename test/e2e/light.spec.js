@@ -43,6 +43,12 @@ for (const [name, device] of Object.entries(SIZES)) {
       await expect(sends).toHaveText('55');
       await gamma.fill('1');
       await gamma.press('Enter');
+      await expect(page.getByRole('button', { name: 'Download for the Pi' })).toBeDisabled();
+      await page.locator('.admin-tabs').getByRole('link', { name: 'Baking' }).click();
+      const leave = page.getByRole('dialog', { name: 'Unsaved changes' });
+      await expect(leave).toBeVisible();
+      await leave.getByRole('button', { name: 'Cancel' }).click();
+      await expect(gamma).toHaveValue(/^1\.00/);
       await expect(sends).toHaveText('128');          // gamma 1: the value as it is
       await expect(screen).toHaveText('127');         // (0.5^1)² of the light: 25 %
       await page.getByRole('button', { name: 'Save' }).click();
