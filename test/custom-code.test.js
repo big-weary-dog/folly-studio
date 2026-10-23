@@ -61,7 +61,7 @@ describe('the API, custom code off', () => {
     assert.equal(r.status, 403, 'an import overruling a look is checked as an edit is');
   });
 
-  test('a composite has no code of its own: library modules inside it save; new code inside it is refused', async () => {
+  test('a composite has no code of its own: library modules in it save, new code in it is refused', async () => {
     const comp = (code) => [{ id: 'l1', title: 'Sea', modules: [{ id: 'k', kind: 'composite', title: 'Comp', code: '',
       params: {}, layers: [{ id: 's1', title: 'Sub', modules: [mod(code, { title: 'Inner' })] }] }] }];
     let r = await ann.post('/api/looks', { title: 'Grouped', layers: comp(LIBRARY) });
