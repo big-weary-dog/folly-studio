@@ -32,6 +32,8 @@ for (const [device, settings] of Object.entries(DEVICES)) {
         mkdirSync(out, { recursive: true });
         await page.locator('.params').scrollIntoViewIfNeeded();
         await page.screenshot({ path: path.join(out, `${device}-${name}.png`) });
+        await page.locator('.params').screenshot({ path: path.join(out, `${device}-${name}-panel.png`),
+          style: '.side, .pane-body { overflow: visible !important; }' });
       };
       for (const name of Object.keys(names)) {
         const res = await fetch(`${studio.origin}/api/looks`, { method: 'POST',
