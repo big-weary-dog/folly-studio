@@ -2,6 +2,7 @@
 // rename, how it moves, its value now, ∿ to edit it, × to delete it) and a chip per param it drives, which selects
 // that layer and module and opens the param's ∿.
 import type { Globals } from '../../../shared/schemas/look.ts';
+import { flatModules } from '../core/tree.ts';
 import { fmt, GLYPHS, normaliseParam, type Param } from './bindings.ts';
 import { automate } from './automation-edit.ts';
 import { humanize } from './kit.tsx';
@@ -16,7 +17,8 @@ type Macro = NonNullable<Globals['macros']>[string];
 /** Where a use is: "Rose › Speed" (the layer's title, the param's label), or the macro it moves; the label. */
 function placeOf(st: Studio, u: Use) {
   if (u.macro) return { place: u.macro, label: '' };
-  const l = st.look.peek().layers.find((x) => x.id === u.layer), m = l?.modules.find((x) => x.id === u.module);
+  const l = st.look.peek().layers.find((x) => x.id === u.layer);
+  const m = l && flatModules(l.modules).find((x) => x.id === u.module);
   const p = l && m ? normaliseParam(u.key!, st.status.params(l.id, m).schema?.[u.key!]) : null;
   const label = p?.label ?? humanize(u.key!);
   return { place: `${l?.title || 'Layer'} › ${label}`, label };

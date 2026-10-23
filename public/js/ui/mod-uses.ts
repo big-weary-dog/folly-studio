@@ -1,6 +1,7 @@
 // What each macro drives (SPEC "Composition"): the params bound to it (a colour's rotate too), the LFOs it swings or
 // paces, and the modulators that follow it. The Look panel's chips and the timeline's modulator lanes read it.
 import type { Binding } from '../../../shared/schemas/look.ts';
+import { flatModules } from '../core/tree.ts';
 import { bindingText, isBinding } from './bindings.ts';
 
 /** A use of a macro: a param on a layer's module (follows it, or its LFO's swing or pace), or another macro. */
@@ -21,7 +22,7 @@ export function macroUses(look: LookLike) {
     if (b.mod === 'lfo') { put(b.amount, 'swing'); put(b.pace, 'pace'); }
   }
   for (const l of look.layers) {
-    for (const m of l.modules) {
+    for (const m of flatModules(l.modules)) {
       for (const [key, v] of Object.entries(m.params ?? {})) {
         const rotate = (v as { rotate?: unknown } | null)?.rotate, b = isBinding(v) ? v : isBinding(rotate) ? rotate
           : null;

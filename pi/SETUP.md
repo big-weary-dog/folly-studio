@@ -81,7 +81,9 @@ At the night show's start (21:00) the hub takes the lights back from Studio Live
 The same files, over DustyRose. From the folder that holds them (the stick, copied to the laptop):
 
 ```sh
-scp -r folly-studio-pi.tgz install.sh looks fpp@192.168.8.172:/home/fpp/install/
+ssh fpp@192.168.8.172 mkdir -p /home/fpp/install
+scp folly-studio-pi.tgz install.sh fpp@192.168.8.172:/home/fpp/install/
+[ ! -d looks ] || scp -r looks fpp@192.168.8.172:/home/fpp/install/
 ssh fpp@192.168.8.172 bash /home/fpp/install/install.sh --pin 2468    # or with --studio --admin NAME, as above
 ```
 
@@ -144,6 +146,9 @@ night show's schedule is FPP's: a playlist started by hand plays until it ends o
 - **Offline:** make a new bundle, copy it, run the same `install.sh` line. It keeps `pi/config.json`,
   `pi/light.json`, `pi/local/`, `studio.env` and Studio's data (`/home/fpp/folly-data`), keeps the old tree as
   `/home/fpp/folly-studio.old-<time>`, and restarts what was running.
+  Node ≥ 22.18 is required. The new tree and config pass a dry run and authenticated feed hello before activation.
+  `--pin` updates both the engine and an existing Studio env. If activation fails, the previous tree and env are
+  restored automatically and previously running services restarted; Studio data is kept outside the tree.
 - **Online** (a phone hotspot will do): the git clone in [INSTALL.md](INSTALL.md) (engine only) or the `pi`
   branch in [STUDIO.md](STUDIO.md) (with Studio), with `npm ci --omit=dev`. A bundle install is no git clone, so
   move to one of those by following its step 1.

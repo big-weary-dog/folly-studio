@@ -1,6 +1,7 @@
 // Make a timeline lane, optionally binding a setting to it, in one undoable look edit.
 import type { Binding } from '../../../shared/schemas/look.ts';
 import { MAX_LANES, MAX_MACROS } from '../core/globals.ts';
+import { flatModules, mapModule } from '../core/tree.ts';
 import { isBinding, type Param } from './bindings.ts';
 import { humanize, toast } from './kit.tsx';
 import { freeName } from './look-globals-edit.ts';
@@ -13,18 +14,20 @@ type Range = Pick<Param, 'label' | 'min' | 'max'>;
 
 /** The macro, lane and setting binding travel together; an existing lane keeps its points and mapping. */
 export function automationEdit(L: Draft, p: Range, value: number, target: AutomationTarget = {}):
-  { name: string; patch: Partial<Draft> } | null {
+  { name: string; patch: Partial<Draft> } | { error: 'not-found' | 'limit' } {
   const macros = L.globals?.macros ?? {}, lanes = L.automation ?? {};
   const layer = L.layers.find((l) => l.id === target.layer);
-  const module = layer?.modules.find((m) => m.id === target.module), key = target.key;
-  if (!target.macro && key && !module) return null;
+  const module = layer && flatModules(layer.modules).find((m) => m.id === target.module), key = target.key;
+  if (!target.macro && key && !module) return { error: 'not-found' };
   const saved = key && module?.params?.[key];
   const current = target.colour ? readEdit(saved, target.colour.value).rotate : saved;
   const bound = isBinding(current) && current.mod === 'global' && lanes[current.name] ? current.name : undefined;
   const existing = target.macro ?? bound;
-  if (existing && !macros[existing]) return null;
+  if (existing && !macros[existing]) return { error: 'not-found' };
   if (existing && lanes[existing]) return { name: existing, patch: {} };
-  if (Object.keys(lanes).length >= MAX_LANES || (!existing && Object.keys(macros).length >= MAX_MACROS)) return null;
+  if (Object.keys(lanes).length >= MAX_LANES || (!existing && Object.keys(macros).length >= MAX_MACROS)) {
+    return { error: 'limit' };
+  }
   const name = existing ?? freeName(macros, target.hint ?? 'automation', key ? p.label : '');
   const m = existing ? macros[existing]! : { min: p.min, max: p.max,
     value: Math.min(p.max, Math.max(p.min, Number.isFinite(value) ? value : (p.min + p.max) / 2)) };
@@ -36,8 +39,7 @@ export function automationEdit(L: Draft, p: Range, value: number, target: Automa
     const v = target.colour ? editValue({ ...readEdit(saved, target.colour.value), rotate: b }, target.colour.blend)
       ?? { pick: 'all', rotate: b } : b;
     patch.layers = L.layers.map((l) => l.id !== target.layer ? l : { ...l,
-      modules: l.modules.map((mod) => mod.id !== target.module ? mod
-        : { ...mod, params: { ...mod.params, [key]: v } }) });
+      modules: mapModule(l.modules, module.id, (mod) => ({ ...mod, params: { ...mod.params, [key]: v } })) });
   }
   return { name, patch };
 }
@@ -46,7 +48,11 @@ export function automationEdit(L: Draft, p: Range, value: number, target: Automa
 export function automate(st: Studio, p: Range = { label: 'Automation', min: 0, max: 1 }, value = 0.5,
   target: AutomationTarget = {}) {
   const result = automationEdit(st.look.peek(), p, value, target);
-  if (!result) { toast('At most 16 macros and automation lanes per look.', { kind: 'warn' }); return false; }
+  if ('error' in result) {
+    toast(result.error === 'not-found' ? 'The setting or macro to automate was not found.'
+      : 'At most 16 macros and automation lanes per look.', { kind: 'warn' });
+    return false;
+  }
   if (Object.keys(result.patch).length) st.edit(() => result.patch);
   if (!st.look.peek().automation?.[result.name]) return false;   // editing a version preview was refused
   st.showDock('timeline');

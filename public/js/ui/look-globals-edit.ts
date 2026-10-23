@@ -2,6 +2,7 @@
 // bound to it and the modulators that follow it; sharing a param's LFO adds a modulator, which ∿ edits and renames.
 import type { Binding, Globals, ParamValue } from '../../../shared/schemas/look.ts';
 import { macroNameOk } from '../core/globals.ts';
+import { mapEvery } from '../core/tree.ts';
 import { isBinding } from './bindings.ts';
 import type { Draft, Studio } from './studio-store.ts';
 
@@ -29,7 +30,7 @@ export function renameMacro(L: Draft, from: string, to: string | null): Partial<
   }));
   const auto = { ...L.automation };
   if (auto[from]) { if (to) auto[to] = auto[from]; delete auto[from]; }
-  const layers = L.layers.map((l) => ({ ...l, modules: l.modules.map((m) => {
+  const layers = L.layers.map((l) => ({ ...l, modules: mapEvery(l.modules, (m) => {
     const params = { ...m.params };
     for (const [k, v] of Object.entries(params)) {
       if (isBinding(v)) {
@@ -42,7 +43,9 @@ export function renameMacro(L: Draft, from: string, to: string | null): Partial<
     }
     return { ...m, params };
   }) }));
-  return { globals: { ...L.globals, macros: Object.keys(macros).length ? macros : undefined },
+  const live = L.globals?.live?.flatMap((name) => name === from ? to ? [to] : [] : [name]);
+  return { globals: { ...L.globals, ...(live ? { live } : {}),
+    macros: Object.keys(macros).length ? macros : undefined },
     automation: Object.keys(auto).length ? auto : undefined, layers };
 }
 

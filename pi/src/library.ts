@@ -6,7 +6,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { type LayerInput, upgradeGlobals } from '../../public/js/pattern-core.ts';
-import { type Automation, automationFor, Globals, type Globals as GlobalsType } from '../../shared/schemas/look.ts';
+import { type Automation, automationFor, Bpm, Duration, Globals, type Globals as GlobalsType, Layers, LookTitle }
+  from '../../shared/schemas/look.ts';
 
 export type Entry = { name: string, kind: string, code: string };
 export type Library = { entries: Map<string, Entry>, hash: string };
@@ -44,12 +45,13 @@ export function resolveLook(look: PiLook, lib: Library): PiLook {
     throw new Error('not a look: it needs an id and layers');
   }
   const layers = look.layers.map((l, i) => {
+    if (!l || typeof l !== 'object') throw new Error(`layer ${i + 1} must be an object`);
     const modules = Array.isArray(l.modules) ? l.modules : [];
     if (!modules.length) throw new Error(`layer ${i + 1} has no modules`);
     return { ...l, id: l.id ?? `l${i + 1}`, modules: modules.map((m, j) => {
-      const e = typeof m.ref === 'string' ? lib.entries.get(m.ref) : undefined;
+      const e = m && typeof m.ref === 'string' ? lib.entries.get(m.ref) : undefined;
       if (!e) {
-        const why = m.ref ? `no library module ${m.ref}` : 'not a library module';
+        const why = m?.ref ? `no library module ${m.ref}` : 'not a library module';
         throw new Error(`layer ${i + 1}, module ${j + 1}: ${why}`);
       }
       return { ...m, id: m.id ?? `m${j + 1}`, kind: e.kind, code: e.code } as typeof m;
@@ -58,7 +60,9 @@ export function resolveLook(look: PiLook, lib: Library): PiLook {
   const now = upgradeGlobals(look);    // looks from before: energy a macro, the old globals gone
   const globals = parsed<GlobalsType | null>('globals', Globals, now.globals ?? null);
   const automation = parsed('automation', automationFor(globals), now.automation ?? null);
-  return { ...look, title: String(look.title || look.id), layers, globals, automation };
+  return { ...look, title: parsed('title', LookTitle, look.title || look.id),
+    duration: parsed('duration', Duration, look.duration ?? 30), bpm: parsed('bpm', Bpm, look.bpm ?? null) ?? undefined,
+    layers: parsed('layers', Layers, layers), globals, automation };
 }
 
 /** Every look in `dirs` (later ones replace earlier by id), each resolved or with the reason it cannot play. */

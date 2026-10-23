@@ -50,7 +50,10 @@ export function ddpSender({ host = '127.0.0.1', port = DDP_PORT, channels }: { h
   let seq = 0, sent = 0, errors = 0, lastError = '', connected = false;
   const failed = (e: Error | null) => { if (e) { errors++; lastError = e.message; } };
   sock.on('error', failed);
-  const ready = new Promise<void>((resolve) => sock.connect(port, host, () => { connected = true; resolve(); }));
+  const ready = new Promise<void>((resolve, reject) => {
+    sock.once('error', reject);
+    sock.connect(port, host, () => { connected = true; sock.off('error', reject); resolve(); });
+  });
   return {
     ready,
     send(frame: Uint8Array) {
