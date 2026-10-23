@@ -21,6 +21,7 @@ for (const [name, device] of Object.entries(SIZES)) {
       await page.fill('input[name=username]', `refine-${name}`);
       await page.fill('input[name=password]', 'correct horse');
       await page.locator('form button[type=submit]').click();
+      await expect(page).toHaveURL(`${studio.origin}/looks`);
       const { code } = studio.app.access.createInvite('refine-fixture', { uses: 1 });
       const unlocked = await page.request.post(`${studio.origin}/api/invite`, { data: { code } });
       expect((await unlocked.json()).access).toMatchObject({ unlocked: true, exempt: false });
