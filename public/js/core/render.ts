@@ -10,7 +10,7 @@ import { pixelsForGroups, type Scene } from './scene.ts';
 import { sortStrands } from './sort.ts';
 import { blur, BLUR_MODES, blurState } from './spatial.ts';
 import { clamp, isNum, RUN, TAU } from './stdlib.ts';
-import { clipAt, layerEnvelope, normalizeClips, type Transition, wipeColours } from './timeline.ts';
+import { clipAt, clipFade, layerEnvelope, normalizeClips, type Transition, wipeColours } from './timeline.ts';
 import { nearFor, PLACE } from './place.ts';
 import { makePixel, type Pixel, setPixel } from './pixel.ts';
 import { placeWarps } from './warps.ts';
@@ -263,7 +263,7 @@ export function renderFrame(scene: Scene, layers: readonly (PreparedLayer | null
     const err = runChain(scene, L, T, G);
     if (err) errors.push(L.modular ? { id: L.id, module: L.failed, error: err } : { id: L.id, error: err });
     else {
-      if (wipe) wipeColours(L.buf, L, scene, wipe as Transition, env, t > (clip!.start + clip!.end) / 2);
+      if (wipe) wipeColours(L.buf, L, scene, wipe as Transition, env, clipFade(clip!, t) < 0);
       composite(rgb, L, level);
     }
     L.ms = clock() - t0;
