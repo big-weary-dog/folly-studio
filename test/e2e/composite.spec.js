@@ -69,6 +69,12 @@ for (const width of [1366, 390]) {
       await expect(row(page, 'c1').locator('.sub-layer')).toHaveCount(3);
     }
     await pick(page, 'a1');
+    if (phone) {
+      await expect(page.locator('.param-mod,.tl')).toHaveCount(0);
+      await page.locator('.tab[data-tab=look]').click();
+      await expect(page.locator('[data-tour=macro-add]')).toHaveCount(0);
+      return;
+    }
     await page.locator('[data-tour="param:speed"] .param-mod:visible').click();
     await page.locator('.mod-drawer').getByRole('button', { name: 'Automate', exact: true }).click();
     await expect(page.locator('.tl-auto-row:not(.tl-mod-row)')).toBeVisible();

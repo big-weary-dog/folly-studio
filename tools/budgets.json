@@ -11,7 +11,7 @@
     "render-box": { "lines": 250, "reason": "The render box shares deterministic IDs and streaming FSEQ output with the Fleet checker, keeping bake memory independent of duration." },
     "shared": { "lines": 1616, "reason": "Shared schemas and pure rules define looks, generated compositions, API data, permissions and playback." },
     "src": { "lines": 10355, "reason": "The server includes shared FSEQ header validation for bounded-memory Pi playback, request-matched queue acceptance and ordered verification timestamps, alongside authentication, storage, generation, baking, frame delivery, live sockets and administration." },
-    "test": { "lines": 24260, "reason": "Adds three-width phone Studio cut coverage for absent authoring mounts, retained palette and faders, sharing details and explicit refine, alongside existing suites." },
+    "test": { "lines": 24262, "reason": "Adds three-width phone Studio cut coverage for absent authoring mounts, retained palette and faders, sharing details and explicit refine, alongside existing suites." },
     "tools": { "lines": 2380, "reason": "Tools build and check rig and palette data, check the Pi bundle holds nothing secret, enforce budgets, support development and backups, and benchmark rendering." }
   }
 }
