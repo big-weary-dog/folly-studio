@@ -96,6 +96,12 @@ describe('access', () => {
     assert.equal((await b.post('/api/invite', { code: many.code })).status, 200);
     assert.equal((await c.post('/api/invite', { code: many.code })).status, 400);
 
+    // One account, two tabs at once: each request read the account before either redeemed.
+    const twice = await code({ uses: 2 }), d = app.store.users.get((await someone()).user.id);
+    assert.equal(app.access.redeem(d, twice.code).unlocked, true);
+    assert.equal(app.access.redeem(d, twice.code).unlocked, true);
+    assert.equal(app.store.invites.get(twice.invite.id).used, 1, 'one account spends one use');
+
     const old = await code({ days: 1 });
     app.store.invites.update(old.invite.id, { expiresAt: new Date(Date.now() - 1000).toISOString() });
     const expired = await c.post('/api/invite', { code: old.code });
