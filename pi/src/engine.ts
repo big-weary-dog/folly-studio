@@ -117,9 +117,11 @@ export function createEngine(o: EngineOptions) {
     throw new Error(`the safe look ${o.safe} cannot play${first ? `: ${first.message}` : ''}`);
   }
   function safe() {
-    const item = spare ?? prepare(own(o.safe)!);
+    const item = spare ?? prepare(own(o.safe)) ?? { key: `q${++keys}`, id: o.safe, title: 'Black', kind: 'look' };
     spare = null;
     setTimeout(() => { spare ??= prepare(own(o.safe)); });
+    const p = prepared.get(item);
+    if (!p || p instanceof Error) prepared.set(item, blackFor(item));
     return item;
   }
 

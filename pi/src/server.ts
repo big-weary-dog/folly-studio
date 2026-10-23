@@ -30,7 +30,7 @@ type Client = { ws: WebSocket, ok: boolean, who: Who | null, tokens: number, at:
   warned: boolean };
 type ServerOptions = { engine: Engine, lib: Library, state: () => EngineState, pin: string, port: number,
   host: string, mode?: Mode, relay?: Relay,
-  base?: string, dist?: string, log?: (line: string) => void, now?: () => number };
+  base?: string, dist?: string, log?: (line: string) => void, now?: () => number, ready?: () => boolean };
 
 const same = (a: string, b: string) => {
   const x = Buffer.from(a), y = Buffer.from(b);
@@ -154,6 +154,7 @@ export async function controlServer(o: ServerOptions) {
     websocket: true,
     // Browsers always send Origin on a socket: only this page's own may drive the lights (CSRF over WebSockets).
     preValidation: async (req, reply) => {
+      if (o.ready && !o.ready()) return reply.code(503).send('The engine is starting.');
       let from = '';
       try { from = new URL(String(req.headers.origin)).host; } catch { /* missing or "null" */ }
       if (!from || host(from) !== host(req.host)) return reply.code(403).send('Cross-origin socket refused.');
@@ -186,7 +187,11 @@ export async function controlServer(o: ServerOptions) {
     }
   }, STATE_MS);
 
-  await app.listen({ port: o.port, host: o.host });
+  try { await app.listen({ port: o.port, host: o.host }); } catch (e) {
+    clearInterval(timer);
+    await app.close();
+    throw e;
+  }
   const addr = app.server.address();
   return {
     port: typeof addr === 'object' && addr ? addr.port : o.port,

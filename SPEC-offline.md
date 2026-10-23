@@ -130,10 +130,17 @@ code: bake it (Check & bake) to play it on the lights…", "Live looks are off: 
 `{ key, id, title, kind: 'look' | 'live' | 'baked', by?, duration }`: `look` is one of the engine's own
 (`pi/looks`). An item plays its whole pattern once from its start, its `duration` (a bake's length), then the next
 starts. Moving on, the queue fades the one out over its last second (`FADE.queue`, 1 s) and the next in over its
-first; play now and skip fade the same way, or over the `fade` they give (SPEC-liveplay). With nothing queued, what
+first; play now and skip fade the same way, or over the `fade` they give (SPEC-liveplay). Each direction is capped
+at half of its own look's duration. With nothing queued, what
 plays loops on, except in Jukebox (SPEC-liveplay "Modes"), whose fades are `FADE.jukebox` (4 s each way, at most half
 the pattern) and which picks the next itself. A flash-guard trip dips to `safe` and pauses the queue until someone plays or skips.
 What the mode allows, who drives, and the page: `SPEC-liveplay.md`, part of this contract.
+
+The engine binds its control server before validating local looks (including layers), prepares the safe look,
+then opens output and starts playback. A safe look that cannot prepare stops startup. Every failure and signal
+uses the same cleanup, sending black before closing output; signals first fade out over one second. If a later
+fallback cannot prepare the safe look, it plays independent black frames. The flash guard's monotonic clock counts
+skipped frame slots too, across look switches and loops.
 
 **HTTP** (Pi profile with `PI_PREVIEW_URL`; others 404):
 

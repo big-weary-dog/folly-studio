@@ -1,9 +1,26 @@
 // DDP: a frame out as fppd takes it (1,440-byte packets, PUSH on the last) and back through the simulator's receiver.
 import assert from 'node:assert/strict';
+import dgram from 'node:dgram';
+import { EventEmitter } from 'node:events';
 
-import { test } from 'vitest';
+import { test, vi } from 'vitest';
 
 import { ddpPackets, ddpReceiver, ddpSender } from '../src/ddp.ts';
+
+test('an output socket error rejects readiness so startup can clean up', async () => {
+  const socket = Object.assign(new EventEmitter(), {
+    connect: () => queueMicrotask(() => socket.emit('error', new Error('injected connect failure'))),
+    close: (done: () => void) => done(),
+  });
+  const mock = vi.spyOn(dgram, 'createSocket').mockReturnValue(socket as unknown as dgram.Socket);
+  try {
+    const tx = ddpSender({ channels: 3 });
+    await assert.rejects(tx.ready, /injected connect failure/);
+    assert.equal(tx.status().errors, 1);
+    assert.equal(tx.send(new Uint8Array(3)), false);
+    await tx.close();
+  } finally { mock.mockRestore(); }
+});
 
 test('a 70,401-channel frame: 49 packets, offsets and lengths in order, PUSH on the last only', () => {
   const { packets, fill } = ddpPackets(70401), frame = new Uint8Array(70401).map((_, i) => i % 256);
