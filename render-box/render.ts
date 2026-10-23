@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 // node render.ts --out DIR [--seconds S] [--frame-ms 2000] < look.json
-// Writes sparse frames.fseq at the rig's fps and result.json with timing and layer errors; exits 1 on failure.
 // src/render-box.ts supplies isolation and resource limits. Patterns run in a stdlib-only node:vm realm;
 // inputs enter as JSON and only bytes, numbers and JSON text leave it.
 
@@ -21,6 +20,7 @@ const argv = process.argv.slice(2);
 const option = (name: string) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined);
 const outDir = option('--out');
 const frameMs = Math.min(600_000, Math.max(10, Math.round(Number(option('--frame-ms'))))) || 2000;
+const frameWallMs = 10 * frameMs; // Scheduling delays do not consume the frame's CPU budget.
 // Loading compiles the core and every layer and lays out the whole rig: many frames' work, at the box's low priority.
 const loadMs = 10 * frameMs;
 if (!outDir) {
@@ -117,13 +117,19 @@ const header = writeFseqHeader({ frames, stepMs: Math.round(1000 / fps), ranges,
   uniqueId: bakeId(rig, layers, extra, frames) });
 const frame = new Uint8Array(channels); // Node's file APIs must see only host-owned buffers and prototypes.
 const baked = bakeFile(path.join(outDir, 'frames.fseq'), header, frames, frame, (f) => {
+  const cpu = process.cpuUsage();
+  const at = `t = ${(f / fps).toFixed(2)} s`;
+  const overCpu = () => Object.values(process.cpuUsage(cpu)).reduce((sum, n) => sum + n, 0) > frameMs * 1000;
+  const cpuError = `a layer took over ${frameMs} ms of CPU on the frame at ${at}`;
   let errors;
   try {
-    errors = step.runInContext(context, { timeout: frameMs });
+    errors = step.runInContext(context, { timeout: frameWallMs });
   } catch (e) {
-    const at = `t = ${(f / fps).toFixed(2)} s`;
-    fail(timedOut(e) ? `a layer took over ${frameMs} ms on the frame at ${at}` : `rendering stopped at ${at}`);
+    if (timedOut(e) && overCpu()) fail(cpuError);
+    fail(timedOut(e) ? `a layer took over ${frameWallMs} ms of wall time on the frame at ${at}`
+      : `rendering stopped at ${at}`);
   }
+  if (overCpu()) fail(cpuError);
   frame.set(packed as Uint8Array);
   return JSON.parse(text(errors, 64 * 1024) || '[]');
 }, fps);

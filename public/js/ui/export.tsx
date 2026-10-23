@@ -21,6 +21,11 @@ export async function exportFseq(st: Studio, pv: Preview) {
   const runtime = pv.runtime;
   if (!runtime?.ready) return toast('The pattern engine is still starting.', { kind: 'warn' });
   st.flush();
+  const excluded = st.look.peek().layers.filter((l) => st.silent(l.id));
+  if (excluded.length && !(await confirmDialog(
+    `Mute and Solo affect this preview export. It excludes ${excluded.map((l) => `“${l.title}”`).join(', ')}. `
+    + 'Save, JSON export and Check & bake include the full look. Export this preview anyway?',
+    { title: 'Export the current preview?', ok: 'Export preview' }))) return;
   const paused = st.look.peek().layers.filter((l) => st.status.of(l.id).kind === 'hung');
   if (paused.length) {
     const many = paused.length > 1, names = paused.map((l) => `“${l.title}”`).join(', ');
@@ -100,6 +105,8 @@ function FseqForm({ close, runtime, light, title, channelCount, ranges, used, du
     }
   }
   return <>
+    <p class="field-hint">Exports the current preview, including Mute and Solo.
+      JSON and Check & bake use the full look.</p>
     <div class="export-fields">
       <Num label="Duration" min={1} max={120} step={0.25} unit=" s" value={secs} set={setSecs} disabled={busy} />
       <Num label="Brightness" min={5} max={100} step={1} unit="%" value={bright} set={setBright} disabled={busy} />

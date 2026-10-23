@@ -129,7 +129,7 @@ export async function createServer(opts: Options = {}) {
     : playaCamera({ log, loadLight: light.current });
   const previews = createPreviews({ dir: path.join(dataDir, 'previews'), store, box: bakeBox, framesDir, lane, log,
     loadRig, camera: playa?.camera ?? frontView() });
-  previews.backfill().catch((err) => log.error?.('[previews] backfill:', err));
+  const previewBackfill = previews.backfill().catch((err) => log.error?.('[previews] backfill:', err));
   const hub = await createHub({ dataDir, log, playable: (id) => {
     const look = store.looks.get(id);
     if (!look || !playableLook(look, live)) {
@@ -203,10 +203,13 @@ export async function createServer(opts: Options = {}) {
         let timer: NodeJS.Timeout | undefined;
         const giveUp = new Promise((r) => (timer = setTimeout(r, 5000)).unref());
         const idle = Promise.all([Promise.resolve(queue.idle()).catch(() => {}), bakes.idle(), frames.idle(),
-          previews.idle()]);
+          previewBackfill]);
         await Promise.race([idle, giveUp]);
         clearTimeout(timer);
       }
+      // Preview encodes and atomic writes must finish before storage closes or the process exits.
+      await previewBackfill;
+      await previews.idle();
       await playa?.close();
       await frames.close();
       await store.close();
