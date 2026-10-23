@@ -3,7 +3,7 @@
   "areas": {
     ".": { "lines": 172, "reason": "The root holds the server entry point and the Vite, Vitest and Playwright configurations." },
     "fleet-box": { "lines": 260, "reason": "The boxed checker validates generated looks against the library, rig, module chains and light settings." },
-    "pi": { "lines": 5518, "reason": "The Pi adds a sender-starvation regression covering expired slots, buffer exhaustion and recovery on the same lease, alongside prepared-look rendering, interruptible crossfades in LED light, held relay frames, bake streaming, output lifecycle, guard timing and control-page coverage." },
+    "pi": { "lines": 5520, "reason": "Baked playback waits for the actual frame-file load in its regression, alongside sender-starvation recovery, prepared looks, crossfades, relay frames, bake streaming, output lifecycle, guard timing and control-page coverage." },
     "public": { "lines": 56, "reason": "The app and sandbox HTML shells load their browser entry points." },
     "public/css": { "lines": 2390, "reason": "Styles cover the app shell, Studio panels, timeline, live controls, admin pages (the Pi bundle's too) and phone layouts." },
     "public/js": { "lines": 18614, "reason": "Browser relay maps page timestamps to the Worker's monotonic clock across differing epoch origins, alongside editor and Pages workflows, shared custom-code policy, import previews, admin drafts, invite entry, guest tutorials, reporting, the core and viewers." },
