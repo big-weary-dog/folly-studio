@@ -90,7 +90,8 @@ Several looks go in one file as `{ "looks": [look file] }` (`folly-looks-mine-<d
 `folly-looks-gallery-<date>.json`).
 
 - **Export many.** My looks and the Gallery have **Export all**: every look the page lists (not just those a search
-  shows), fetched one at a time with `GET /api/looks/:id`, as one file.
+  shows), fetched one at a time with `GET /api/looks/:id`, as one file. A look gone since the list (404) is left
+  out; any other failure downloads nothing and names the look, so a backup is never quietly short.
 - **Import.** My looks has **Import**: a file picker taking one or more files, each a look file or a file of looks.
   Each look is `POST /api/looks` with its `origin`, title, summary, `chain` and what plays, so the same checks apply.
   A look already among the importer's own (its id or its `origin` is the file's `origin`) is **updated**: the file
