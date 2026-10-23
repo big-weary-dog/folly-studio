@@ -115,7 +115,8 @@ const frames = Math.max(1, Math.round(bakeSeconds(look, option('--seconds')) * f
 const step = new vm.Script('__next()', { filename: 'render-box-frame' });
 const header = writeFseqHeader({ frames, stepMs: Math.round(1000 / fps), ranges,
   uniqueId: bakeId(rig, layers, extra, frames) });
-const baked = bakeFile(path.join(outDir, 'frames.fseq'), header, frames, packed as Uint8Array, (f) => {
+const frame = new Uint8Array(channels); // Node's file APIs must see only host-owned buffers and prototypes.
+const baked = bakeFile(path.join(outDir, 'frames.fseq'), header, frames, frame, (f) => {
   let errors;
   try {
     errors = step.runInContext(context, { timeout: frameMs });
@@ -123,6 +124,7 @@ const baked = bakeFile(path.join(outDir, 'frames.fseq'), header, frames, packed 
     const at = `t = ${(f / fps).toFixed(2)} s`;
     fail(timedOut(e) ? `a layer took over ${frameMs} ms on the frame at ${at}` : `rendering stopped at ${at}`);
   }
+  frame.set(packed as Uint8Array);
   return JSON.parse(text(errors, 64 * 1024) || '[]');
 }, fps);
 if (baked.layers.length) {
