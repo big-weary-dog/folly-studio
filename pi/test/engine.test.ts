@@ -53,7 +53,7 @@ test('the guard counts skipped slots through stalls, loops and switches without 
 });
 
 describe('the engine', () => {
-  test('a switch fades out and in, and starts the new look from its top', () => {
+  test('a switch starts the incoming look immediately and overlaps over one fade', () => {
     const r = engineOn();
     r.engine.play('fire');
     r.run(2);
@@ -61,10 +61,11 @@ describe('the engine', () => {
     assert.equal(r.engine.play('beat-bars'), true);
     assert.equal(r.engine.state().switching?.id, 'beat-bars');
     r.run(FADE.queue / 2);
-    assert.ok(Math.abs(r.engine.state().gain - 0.5) < 0.05, `${r.engine.state().gain}`);
+    assert.equal(r.engine.state().gain, 1);
+    assert.equal(r.engine.state().look?.id, 'beat-bars');
     r.run(FADE.queue / 2 + 0.05);
     assert.equal(r.engine.state().look?.id, 'beat-bars');
-    assert.ok(r.engine.state().look!.t < 0.1);
+    assert.ok(Math.abs(r.engine.state().look!.t - FADE.queue - 0.05) < 0.05);
     assert.equal(r.engine.play('nope'), false);
   });
 

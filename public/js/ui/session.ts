@@ -1,5 +1,5 @@
 // What views share with the shell (app.tsx): who is signed in, navigation, the title, and the guard on unsaved
-// Studio edits. The shell plugs its router in, so no view imports the shell (an import cycle would cost Vite's HMR).
+// edits. The shell plugs its router in, so no view imports the shell (an import cycle would cost Vite's HMR).
 import { signal } from '@preact/signals';
 
 import { onSignedOut } from '../api.ts';
@@ -29,7 +29,7 @@ export function signedIn(me: Partial<Me>) {
   invitable.value = locked && !ai.value && a.inviteOnly;
   user.value = me.user ?? null;
 }
-/** The Studio's unsaved edits: whether there are any, and how to drop them. */
+/** The active page's unsaved edits: whether there are any, and how to drop them. */
 export const leaveGuard: { isDirty?: () => boolean; discard?: () => void } = {};
 type Go = { replace?: boolean; force?: boolean };
 /** The shell's router (its go() set by app.tsx), and the address it shows. */

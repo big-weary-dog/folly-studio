@@ -132,7 +132,7 @@ export async function createServer(opts: Options = {}) {
   const previews = createPreviews({ dir: path.join(dataDir, 'previews'), store, box: bakeBox, framesDir, lane, log,
     loadRig, camera: playa?.camera ?? frontView() });
   const previewBackfill = previews.backfill().catch((err) => log.error?.('[previews] backfill:', err));
-  const hub = await createHub({ dataDir, log, playable: (id) => {
+  const hub = await createHub({ dataDir, log, driver: profile === 'pi' ? 'pi' : undefined, playable: (id) => {
     const look = store.looks.get(id);
     if (!look || !playableLook(look, live)) {
       return { error: `Only ${live.looks === 'reviewed' ? 'reviewed' : 'shared'} looks play on the stage.` };

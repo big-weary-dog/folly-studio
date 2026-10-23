@@ -184,7 +184,7 @@ describe('Play on the lights', () => {
     assert.equal((await cara.post('/api/lights/queue', { lookId: fire.id, at: 'now' })).status, 409);
     assert.equal((await ada.put('/api/admin/lights', { mode: 'live' })).json.mode, 'live');
     assert.deepEqual((await cara.post('/api/lights/queue', { lookId: fire.id, at: 'now' })).json, { kind: 'live' });
-    await until(() => [r.engine.state().switching?.id, r.engine.state().look?.id].includes(fire.id), 'it plays');
+    await until(() => r.engine.state().look?.id === fire.id, 'the accepted look is playing');
     await ada.put('/api/admin/lights', { mode: 'jukebox' });
   });
 

@@ -40,8 +40,8 @@ export function meter(c: Meter, now: number): 'ok' | 'drop' | 'warn' | 'close' {
 /** Finds a look a controller may play, as the stage copies it, or says why not. */
 export type Playable = (lookId: string) => LiveLook | { error: string };
 
-export async function createHub({ dataDir, playable, log = console }: { dataDir: string, playable: Playable,
-  log?: Logger }) {
+export async function createHub({ dataDir, playable, driver, log = console }:
+  { dataDir: string, playable: Playable, driver?: Live['driver'], log?: Logger }) {
   const file = path.join(dataDir, 'live.json');
   let live = emptyLive();
   try {
@@ -56,6 +56,7 @@ export async function createHub({ dataDir, playable, log = console }: { dataDir:
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') log.warn?.('live: could not read live.json:', err);
   }
+  if (driver) live = { ...live, driver };
   const clients = new Set<Client>(), seen = new Map<string, number>();
   let saveTimer: NodeJS.Timeout | null = null, presenceKey = '';
   let piNow: PiNow | null = null, piSource: PiSource | null = null, piKey = '', piSentAt = 0;

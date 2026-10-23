@@ -9,6 +9,7 @@ import { api, type Lights } from '../api.ts';
 import { encode, LIGHT, LIGHT_LIMITS, type Light, lightByte, lightOf, shownLight } from '../core/light.ts';
 import { cx, download, Field, Scrub, Switch, toast } from './kit.tsx';
 import { onPi, setTitle } from './session.ts';
+import { useDraftGuard } from './draft-guard.ts';
 
 const COLOURS = ['Red', 'Green', 'Blue'];
 // The values the curve table shows: full, the usual dims, and the bottom where 8 bits run out.
@@ -20,11 +21,12 @@ export function LightPage() {
   const take = (l: Light) => { setSaved(l); setDraft(structuredClone(l)); setError(''); };
   const fail = (err: unknown) => setError((err as Error).message);
   useEffect(() => { setTitle('Light'); api.light().then((l) => take(lightOf(l)), fail); }, []);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
+  useDraftGuard(dirty);
   if (!saved || !draft) {
     return <div class="page light-page"><h1 class="page-title">Light</h1>
       <p class={error ? 'form-error' : 'pane-hint'} role={error ? 'alert' : undefined}>{error || 'Loading…'}</p></div>;
   }
-  const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   const set = (patch: Partial<Light>) => setDraft({ ...draft, ...patch });
   async function save() {
     setBusy(true);
@@ -46,7 +48,8 @@ export function LightPage() {
       {onPi() && <LiveLooks />}
       <p class="form-error" role="alert" hidden={!error}>{error}</p>
       <div class="models-actions">
-        <button class="btn ghost" type="button" onClick={() => download(`${JSON.stringify(saved, null, 2)}\n`,
+        <button class="btn ghost" type="button" disabled={dirty || busy}
+          onClick={() => download(`${JSON.stringify(saved, null, 2)}\n`,
           'light.json', 'application/json')}>Download for the Pi</button>
         <button class="btn ghost" type="button" disabled={busy}
           onClick={() => set({ gamma: LIGHT.gamma, calibration: LIGHT.calibration, preview: LIGHT.preview })}>
@@ -56,6 +59,7 @@ export function LightPage() {
         <button class={cx('btn primary', busy && 'busy')} type="button" disabled={!dirty || busy} onClick={save}>
           Save</button>
       </div>
+      {dirty && <p class="field-hint">Save or Revert your changes before downloading the saved settings.</p>}
     </div>);
 }
 
