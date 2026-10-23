@@ -28,7 +28,10 @@ for (const [name, device] of Object.entries(SIZES)) {
       await expect(page).toHaveURL(/\/studio\/[\w-]+$/);
 
       if (name === 'laptop') await page.locator('.dock-tab', { hasText: 'Look' }).click();
-      else await page.locator('.tab[data-tab=look]').click();
+      else {
+        await page.locator('.tab[data-tab=look]').click();
+        await page.getByRole('button', { name: 'Refine with AI', exact: true }).click();
+      }
       const box = page.locator('section.refine:visible');
       await expect(box).toBeVisible({ timeout: 30_000 });
       await box.locator('textarea').fill('brighter and faster');

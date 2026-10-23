@@ -1,6 +1,7 @@
 // Phone authoring cuts preserve playback, palette, faders and sharing at the supported narrow widths.
 import path from 'node:path';
 import { expect, test } from './studio.js';
+test.use({ serverOptions: { admins: 'cuts-360,cuts-390,cuts-430' } });
 
 for (const width of [360, 390, 430]) {
   test(`Studio phone cuts at ${width}`, async ({ page, studio }, info) => {
