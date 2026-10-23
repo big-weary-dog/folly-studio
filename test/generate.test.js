@@ -12,6 +12,7 @@ import {
 import { docsBlock, pickDocs } from '../src/generate/docs-turn.ts';
 import { buildDraftMessage } from '../src/generate/explore-prompt.ts';
 import { GenerateError, LIMITS, validateLook, wireSchema } from '../shared/schemas/generated.ts';
+import { MAX_LOOKS_PER_USER } from '../src/look-cap.ts';
 import { byName, goodLayer, GROUPS, LIBRARY, queueSetup, quiet, RIG, STUDIO } from './fixtures/generate/shared.js';
 
 const DIR = path.join(STUDIO, 'public/patterns');
@@ -155,6 +156,27 @@ describe('queue', () => {
     assert.equal(look.layers[0].id, 'l1');
     assert.deepEqual(look.layers[0].groups, ['spires']);
     assert.deepEqual(store.history, [[i.id, 'generating'], [i.id, 'ready']]);
+  });
+
+  test('at the look cap an idea fails, before the model or when the cap is reached while it ran', async () => {
+    let asked = 0, fill = 0;
+    const fire = async () => {
+      asked++;
+      for (; fill > 0; fill--) store.looks.create({ owner: user.id, title: 'x', layers: [] });
+      return { title: 'Fire', layers: [goodLayer()] };
+    };
+    const { store, user, idea, queue } = setup({ adapterName: 'x', adapters: { x: fire } });
+    for (let n = 0; n < MAX_LOOKS_PER_USER - 1; n++) store.looks.create({ owner: user.id, title: `${n}`, layers: [] });
+    fill = 1;
+    const during = idea('one');
+    queue.enqueue(during);
+    await queue.idle();
+    const before = idea('two');
+    queue.enqueue(before);
+    await queue.idle();
+    assert.deepEqual([during, before].map((i) => [store.ideas.get(i.id).status, store.ideas.get(i.id).error]),
+      [['failed', 'You have 500 looks; delete some first.'], ['failed', 'You have 500 looks; delete some first.']]);
+    assert.deepEqual([asked, store.looks.list().length], [1, MAX_LOOKS_PER_USER]);
   });
 
   test('enqueue is idempotent per idea, runs one at a time, and skips finished ideas', async () => {

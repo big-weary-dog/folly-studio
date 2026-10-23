@@ -442,11 +442,13 @@ GET    /api/looks?scope=mine|gallery          → { looks: [listed] }  metadata 
 POST   /api/looks    { title, summary?, layers, duration?, bpm?, globals?, automation?, ideaId?, chain?, origin? }
                                               → { look, imported? }  origin: an import (SPEC-offline "Look files"):
                                               201 added, or 200 updating the importer's look it names, `imported`
-                                              'added' | 'updated' | 'unchanged'
+                                              'added' | 'updated' | 'unchanged'; 429 at 500 looks (an account's
+                                              most, which an idea's new look also keeps to: it fails)
 GET    /api/looks/:id                         → { look }             mine, or shared
 PUT    /api/looks/:id { title?, summary?, layers?, duration?, bpm?, globals?, automation?, shared?, reviewed?,
                      flashOverride?, chain?, restoredFrom?, versionName? } → { look }  owner only (reviewed: a
-                                              curator); layers without chain: 2 converted
+                                              curator); layers without chain: 2 converted; applied to the look as
+                                              stored once its code is checked, so overlapping saves each keep a version
 GET|PUT /api/looks/:id/versions[/:n]          the owner's versions: SPEC-history
 DELETE /api/looks/:id                         → { ok: true }         owner, or an admin if shared
 POST   /api/looks/:id/bake                    → 202 { bake }      owner, or a curator if shared; queued (SPEC-baking)

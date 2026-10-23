@@ -1,14 +1,17 @@
 // A look's versions (SPEC-history "Versions"): numbered, listed newest first with the look as saved, one read with
 // its content, the owner's alone; a restore names its version and keeps a review of the same content; a named one is
-// kept, at most 50.
+// kept, at most 50; overlapping saves each keep theirs.
 import assert from 'node:assert/strict';
+import { mkdtemp } from 'node:fs/promises';
 import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
+import { lookRoutes } from '../src/api-looks.ts';
+import { createAuth } from '../src/auth.ts';
 import { MAX_NAMED, nameFields } from '../src/look-versions.ts';
-import type { StoredLook } from '../src/store.ts';
-import { fakeBox, fx, layer, signup, startApp, useFixture } from './fixtures/server.js';
+import { createStore, type StoredLook } from '../src/store.ts';
+import { fakeBox, fx, layer, quiet, signup, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 
@@ -119,3 +122,27 @@ describe('versions', () => {
     assert.ok(nameFields(look, 1, 'renamed').versions, 'renaming a named one is no new name');
   });
 });
+
+test('overlapping saves each keep a version: a save waiting on its code check builds on the one that went first',
+  async () => {
+    const dir = await mkdtemp(path.join((fx as { tmp: string }).tmp, 'overlap-'));
+    const store = await createStore(dir, { log: quiet }), auth = createAuth({ store });
+    const user = store.users.create({ username: 'o-ann', passwordHash: '' });
+    let release = () => {}, hold = false;
+    const check = () => (hold ? new Promise<void>((r) => { release = r; }) : Promise.resolve());
+    const { routes } = lookRoutes({ store, auth, codeGate: { check }, bakes: { request: async () => ({}) } as never,
+      dropFrames: async () => {} });
+    const put = (id: string, body: object) => (routes['PUT /looks/:id'] as (r: unknown) => Promise<unknown>)(
+      { params: { id }, body, user, query: {} });
+    const look = store.looks.create({ owner: user.id, title: 'O', chain: 2, duration: 30, layers: [layer()] as never,
+      versions: [] });
+    hold = true;
+    const layers = put(look.id, { layers: [layer({ level: 0.5 })], chain: 2 });
+    hold = false;
+    await put(look.id, { duration: 40 });
+    release();
+    await layers;
+    const after = store.looks.get(look.id)!;
+    assert.deepEqual([after.duration, after.layers![0].level, after.version?.n], [40, 0.5, 3]);
+    assert.deepEqual(after.versions!.map((v) => [v.n, v.duration]), [[1, 30], [2, 40]]);
+  });

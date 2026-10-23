@@ -30,6 +30,7 @@ export async function refine(st: Studio, ask: Ask) {
   if (!st.lookId.peek() || st.dirty.peek()) await st.save();
   const id = st.lookId.peek();
   if (!id || st.dirty.peek()) return;
+  const since = st.rev();   // the work it refines: edits made while it runs are kept over its revision
   run.value = { lookId: id, busy: true };
   try {
     let { idea } = await api.refine(id, { ...ask, ...(model.peek() ? { model: model.peek() } : {}) });
@@ -37,10 +38,17 @@ export async function refine(st: Studio, ask: Ask) {
     while (isPending(idea)) ({ idea = idea } = await api.idea(idea.id, `${idea.status}@${idea.updatedAt}`));
     if (idea.status === 'failed') throw new Error(idea.error || 'The refinement failed.');
     const changes = idea.changes ?? [];
+    let step: Step | undefined;
     if (changes.length && st.lookId.peek() === id) {   // the revision as the server saved it: one step
-      st.revised((await api.look(id)).look, { ideaId: idea.id, asked: asked(ask), by: idea.by, changes });
+      const { look } = await api.look(id);
+      if (st.revised(look, { ideaId: idea.id, asked: asked(ask), by: idea.by, changes }, since)) step = st.step();
+      else {
+        st.adopt(look);
+        toast('You edited the look while the AI worked: your edits stay. Its revision is the newest saved version '
+          + '(History, Versions); Save keeps yours over it.', { kind: 'warn', timeout: 8000 });
+      }
     }
-    run.value = { lookId: id, busy: false, by: idea.by, ideaId: idea.id, changes, step: st.step() };
+    run.value = { lookId: id, busy: false, by: idea.by, ideaId: idea.id, changes, step };
   } catch (err) {
     run.value = { lookId: id, busy: false, error: (err as Error).message };
   }
