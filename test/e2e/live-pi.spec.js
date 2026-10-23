@@ -45,7 +45,6 @@ test('a look picked on /pi plays on the Live tab', async ({ browser, studio }, i
     await expect.poll(() => lit(v.page), { timeout: 60_000 }).toBeGreaterThan(0);
   }
 
-
   const files = { pi: info.outputPath('pi-phone.png'), live: info.outputPath('live-phone.png') };
   await Promise.all([pi.page.screenshot({ path: files.pi }), live.page.screenshot({ path: files.live }),
     laptop.page.screenshot({ path: info.outputPath('live-laptop.png') })]);

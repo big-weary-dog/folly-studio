@@ -25,15 +25,15 @@ export const test = base.extend({
       child = spawn(process.execPath, [MAIN, '--dry-run', '--base', '/pi', '--http', 'auto', '--bind', '127.0.0.1',
         '--stats', '1', '--config', config], { env: tagged(), stdio: 'pipe' });
       const output = engineOutput(child.stdout);
+      const failure = (why) => new Error(`${why}: ${output.text()}`);
       child.stderr.on('data', () => {});
       const exited = once(child, 'exit');
       let timer;
       try {
-        await Promise.race([output.ready, exited.then(([code]) => {
-          throw new Error(`the Pi exited ${code}: ${output.text()}`);
-        }), new Promise((_, reject) => {
-          timer = setTimeout(() => reject(new Error(`Pi startup timed out: ${output.text()}`)), 30_000);
-        })]);
+        await Promise.race([output.ready, exited.then(([code]) => { throw failure(`the Pi exited ${code}`); }),
+          new Promise((_, reject) => {
+            timer = setTimeout(() => reject(failure('Pi startup timed out')), 30_000);
+          })]);
       } finally { clearTimeout(timer); }
       const origin = output.text().match(/control page on (http:\/\/127\.0\.0\.1:\d+)/)?.[1];
       if (!origin) throw new Error(`No bound engine address: ${output.text()}`);

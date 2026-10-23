@@ -7,6 +7,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { parseFseq } from '../../src/frames.ts';
 import { expect, signup, test } from './studio.js';
 
 const code = (name) => readFileSync(new URL(`../../public/patterns/${name}.js`, import.meta.url), 'utf8');
@@ -57,7 +58,7 @@ for (const width of [1366, 390]) {
     const phone = width === 390;
     await page.route(/\/(?:data\/rig|assets\/rig-[^/]+)\.json$/, async (route) => {
       const response = await route.fetch(), rig = await response.json();
-      rig.output.fps = 20;
+      rig.output.fps = 30;
       await route.fulfill({ response, json: rig });
     });
     await page.setViewportSize({ width, height: phone ? 844 : 768 });
@@ -105,9 +106,15 @@ for (const width of [1366, 390]) {
       await warning.getByRole('button', { name: 'Export preview', exact: true }).click();
       const form = page.getByRole('dialog', { name: 'Export .fseq', exact: true });
       await expect(form).toContainText('including Mute and Solo');
-      await expect(form).toContainText('frames at 20 fps');
+      await expect(form).toContainText('frames at 30 fps');
       await shot('export-scope');
-      await form.getByRole('button', { name: 'Cancel', exact: true }).click();
+      await form.getByRole('spinbutton', { name: 'Duration', exact: true }).fill('1');
+      await form.getByRole('spinbutton', { name: 'Duration', exact: true }).press('Enter');
+      const download = page.waitForEvent('download');
+      await form.getByRole('button', { name: 'Render & download', exact: true }).click();
+      const exported = parseFseq(readFileSync(await (await download).path()));
+      expect(exported.frameCount).toBe(30);
+      expect(exported.stepMs).toBe(33);
     }
   });
 }

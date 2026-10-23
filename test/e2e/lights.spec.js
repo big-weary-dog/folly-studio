@@ -17,7 +17,6 @@ const FIRE = (title) => ({ title, layers: [{ id: 'l1', title: 'Fire', groups: ['
   modules: [{ id: 'a', kind: 'source', title: 'Fire', ref: 'fire', code: PIXEL }] }] });
 test.use({ engineScenario: 'lights' });
 
-
 async function person(browser, origin, cookie, size, url) {
   const ctx = await browser.newContext(SIZES[size]);
   const [name, value] = cookie.split('=');

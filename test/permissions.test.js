@@ -53,6 +53,11 @@ describe('routes that need a role', () => {
 
   let app, member, admin, curator, pi, piMember, piAdmin;
   const registered = [], dirs = [];
+  const dir = () => {
+    const d = mkdtempSync(path.join(tmpdir(), 'permissions-'));
+    dirs.push(d);
+    return d;
+  };
   beforeAll(async () => {
     const check = http.adminsDeclared;
     const spy = vi.spyOn(http, 'adminsDeclared').mockImplementation((route) => {
@@ -61,11 +66,6 @@ describe('routes that need a role', () => {
         registered.push({ method: route.method, url: route.url });
       }
     });
-    const dir = () => {
-      const d = mkdtempSync(path.join(tmpdir(), 'permissions-'));
-      dirs.push(d);
-      return d;
-    };
     try {
       app = await startApp({ admins: 'ada', curators: 'cat', dataDir: dir() });
       pi = await startApp({ profile: 'pi', admins: 'ada', dataDir: dir(), piPreview: 'http://127.0.0.1:1' });

@@ -46,7 +46,7 @@ export async function exportFseq(st: Studio, pv: Preview) {
     body: (close) => <FseqForm fps={fps} close={close} runtime={runtime} light={light}
       title={L.title.trim() || 'folly-look'}
       channelCount={channelCount} ranges={ranges} used={used} duration={L.duration} running={(on) => { running = on; }}
-      write={(frames, data) => writeFseq({ frames, stepMs: 1000 / fps, data, ranges })} /> });
+      write={(frames, data) => writeFseq({ frames, stepMs: Math.round(1000 / fps), data, ranges })} /> });
   // An export can find a layer that hangs: show where things stand now, even when paused.
   runtime.refresh();
   pv.kick();
