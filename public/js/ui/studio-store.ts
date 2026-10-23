@@ -168,7 +168,7 @@ export function createStudio(me: User | null) {
     redo() { st.jump(history.at.peek() + 1); },
     /** A toast's Undo: back to before `step`, if it is still the step now (else History has it). */
     undoStep(step?: Step) {
-      if (step && history.list.peek()[history.at.peek()] === step) st.undo();
+      if (step && history.list.peek()[history.at.peek()]?.look === step.look) st.undo();
       else toast('Other edits came after it: History (Ctrl+Z) walks back through them.', { kind: 'warn' });
     },
     /** The step the last edit made or folded into. */

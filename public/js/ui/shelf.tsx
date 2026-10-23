@@ -1,8 +1,6 @@
 // The library's pickers: Add a module (tabs Sources · Warps · Filters) and Add a layer (tabs Sources: a blank layer or
-// one source; Presets: layers of modules), each a list of one-line rows by category with a quick filter. The tab is
-// remembered for the session. Hovering or focusing a row (on a phone, its ▶) auditions it in the 3D view as a
-// temporary look sent to the sandbox using the same insertion as picking. Leaving it, Escape or closing sends
-// back the look exactly as it was; picking adds it.
+// one source; Presets: layers of modules), with categories, a filter and the tab remembered for the session.
+// Hover/focus (a phone's ▶) auditions with the same insertion as Add. Leaving or closing restores the look.
 // Add a layer picks its groups beside the list (on a phone behind Plays on), starting on the whole rig.
 // Audition and Add share those groups; closing forgets them.
 // The view frames the rig in the space the shelf leaves clear; closing puts the view back.

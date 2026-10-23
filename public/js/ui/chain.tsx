@@ -101,7 +101,8 @@ function Chain({ st, pv }: Props) {
     setMods(() => next);
     const step = st.step();
     const count = flatModules(mods).length - flatModules(next).length - 1;
-    toast(`Deleted “${m.title}”${count ? ` and ${count} attached or contained modules` : ''}.`,
+    const title = standardTitle(m, st.data.library) ?? m.title;
+    toast(`Deleted “${title}”${count ? ` and ${count} attached or contained modules` : ''}.`,
       { action: { label: 'Undo', onClick: () => {
       st.undoStep(step);
       st.pickModule(m.id);
