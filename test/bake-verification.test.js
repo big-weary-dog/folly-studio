@@ -9,7 +9,7 @@ import { afterEach, test, vi } from 'vitest';
 import { ledRanges, writeFseq } from '../public/js/fseq.ts';
 import { LIGHT } from '../public/js/pattern-core.ts';
 import { createBakeQueue, layersHash, renderFields, renderKey, reviewBlocker } from '../src/bake.ts';
-import { checkFrames, cleanBoxStats } from '../src/box-output.ts';
+import { checkFrames, cleanBoxStats, failedBake } from '../src/box-output.ts';
 import { lineRig } from './fixtures/rigs.js';
 
 const rig = lineRig(10), seconds = 3;
@@ -22,6 +22,7 @@ function bytes({ frames = 120, stepMs = 25, ranges = ledRanges(rig), strobe = fa
 }
 const folders = [];
 afterEach(async () => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   await Promise.all(folders.splice(0).map((p) => fs.rm(p, { recursive: true, force: true })));
 });
@@ -49,6 +50,20 @@ async function fixture({ render = async () => ({ bytes: bytes() }), light = () =
   const bake = async () => { await queue.request('a'); await queue.idle(); return looks.get('a').bake; };
   return { dir, records, looks, queue, bake, renders: () => renders };
 }
+
+test('restored and failed bakes keep verification order when the host wall clock steps back', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  const wall = Date.now();
+  const f = await fixture();
+  const first = await f.bake();
+  vi.setSystemTime(wall - 1000);
+  await fs.rm(path.join(f.dir, 'a.fseq'));
+  await f.queue.restore('a');
+  await f.queue.idle();
+  const restored = f.looks.get('a').bake;
+  assert.ok(restored.checkedAt > first.checkedAt, 'restored bytes are checked later');
+  assert.ok(failedBake('render-box', 'broken box').checkedAt > restored.checkedAt);
+});
 
 test('rebakes, adoption and restore analyse reused bytes with current light and flash settings (H1)', async () => {
   let gamma = 3;

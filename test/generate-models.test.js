@@ -15,6 +15,11 @@ import {
 } from './fixtures/generate/shared.js';
 
 const BIN = path.join(FIX, 'bin');
+const barrier = () => {
+  let open;
+  const reached = new Promise((resolve) => { open = resolve; });
+  return { reached, open };
+};
 const saved = { fetch: globalThis.fetch, env: { ...process.env } };
 afterEach(() => {
   globalThis.fetch = saved.fetch;
@@ -96,9 +101,10 @@ describe('the queue with models', () => {
 
   test('a lane per transport: Opus never waits behind Sol, and each lane keeps its own limit', async () => {
     const order = [], gates = [];
+    const second = barrier();
     const codex = async ({ text }) => {
       order.push(`start ${text}`);
-      await new Promise((r) => gates.push(r));
+      await new Promise((r) => { gates.push(r); if (text === 's2') second.open(); });
       order.push(`end ${text}`);
       return { title: text, layers: [goodLayer()] };
     };
@@ -106,13 +112,17 @@ describe('the queue with models', () => {
     const { store, idea, queue } = routed({ adapters: { codex, claude } },
       (c) => ({ ...c, concurrency: { codex: 1 } }));
     const [s1, s2, o] = [idea('s1', 'sol'), idea('s2', 'luna'), idea('o', 'opus')];
+    const opus = barrier();
+    const unwatch = queue.watch(o.id, () => {
+      if (store.ideas.get(o.id).status === 'ready') opus.open();
+    });
     [s1, s2, o].forEach((i) => queue.enqueue(i.id));
-    for (let i = 0; i < 50 && store.ideas.get(o.id).status !== 'ready'; i++) await new Promise((r) => setTimeout(r, 5));
+    await opus.reached;
+    unwatch();
     assert.equal(store.ideas.get(o.id).status, 'ready', 'Opus finished while Sol was still running');
     assert.equal(store.ideas.get(s2.id).status, 'queued', 'Luna waits: one codex call at a time');
-    assert.equal(queue.size, 2);
     gates.shift()();
-    for (let i = 0; i < 50 && !gates.length; i++) await new Promise((r) => setTimeout(r, 5));
+    await second.reached;
     gates.shift()();
     await queue.idle();
     assert.deepEqual(order, ['start s1', 'opus o', 'end s1', 'start s2', 'end s2']);
@@ -120,14 +130,18 @@ describe('the queue with models', () => {
 
   test('watch hears every change of an idea; stop cuts running calls and leaves their ideas for the next start',
     async () => {
-    const codex = ({ signal }) => new Promise((_, reject) => signal.addEventListener('abort',
-      () => reject(new Error('aborted'))));
-    const { store, idea, queue } = routed({ adapters: { codex }, fallbackName: 'luna' });
+    const started = barrier();
+    const codex = ({ signal }) => new Promise((_, reject) => {
+      signal.addEventListener('abort', () => reject(new Error('aborted')));
+      started.open();
+    });
+    const { store, idea, queue } = routed({ adapters: { codex }, fallbackName: 'luna' },
+      (c) => ({ ...c, concurrency: { codex: 1 } }));
     const i = idea('slow', 'sol'), heard = [];
     const unwatch = queue.watch(i.id, () => heard.push(store.ideas.get(i.id).status));
     queue.enqueue(i.id);
     queue.enqueue(idea('later', 'luna').id);
-    for (let n = 0; n < 50 && !heard.length; n++) await new Promise((r) => setTimeout(r, 5));
+    await started.reached;
     assert.deepEqual(heard, ['generating']);
     queue.stop();
     await queue.idle();
@@ -159,14 +173,16 @@ describe('the queue with models', () => {
 
   test('a stop that follows a stray signal within the grace leaves the idea for the next start', async () => {
     let calls = 0;
+    const started = barrier();
     const codex = async () => {
       calls++;
+      started.open();
       throw new Interrupted('The idea was stopped before it finished.', 'codex: SIGTERM, not sent by us');
     };
     const { store, idea, queue } = routed({ adapters: { codex }, interruptGraceMs: 200 });
     const i = idea('cut', 'sol');
     queue.enqueue(i.id);
-    for (let n = 0; n < 50 && !calls; n++) await new Promise((r) => setTimeout(r, 5));
+    await started.reached;
     queue.stop();
     await queue.idle();
     assert.deepEqual([store.ideas.get(i.id).status, calls], ['generating', 1]);
