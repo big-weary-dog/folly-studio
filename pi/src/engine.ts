@@ -1,12 +1,5 @@
-// The Pi's engine: plays one look at a time on the rig, fixed-step at the rig's fps (so stateful patterns never drift),
-// on a drift-free timer, and a queue of looks (the jukebox, SPEC-offline "Playing on the lights"): each queued look
-// plays its whole pattern once, then the next, fading out over its last second and in over the next's first (in
-// Jukebox over FADE.jukebox each way, and with nothing queued it picks the next of its own looks, shuffled); else with
-// nothing queued what plays loops on; a person's change may fade over its own time (SPEC-liveplay). Each frame: the
-// look's live controls eased, rendered by the core, watched by the flash guard (a strobe dips to the safe look,
-// pausing the queue, until someone picks a look again), then out through the LEDs' output transform (core/light.ts:
-// v^gamma, × the master, blackout and fade as a linear cap after the curve, so dimming never shifts a hue) as the
-// rig's channels to `output`.
+// Fixed-step playback, fades, queue and flash guard (SPEC-offline "Playing on the lights", SPEC-liveplay).
+// Each frame: ease controls, render, observe the guard, then apply the LED transform and send channels to output.
 import { FlashGuard } from '../../public/js/flash-guard.ts';
 import {
   compileLayer, type Light, ledChannels, ledLight, prepareLayer, type PreparedLayer, prepareLight, prepareScene,
@@ -60,7 +53,7 @@ export function createEngine(o: EngineOptions) {
   // pending: what plays next, once what plays has faded out; fadeIn: the fade it was given to come in over.
   let pending: Item | null = null, fadeIn: number | undefined, frame = 0;
   let tripped: { at: string, look: string } | null = null;
-  let queue: Item[] = [], paused = false, keys = 0;
+  let queue: Item[] = [], paused = false, keys = 0, closed = false;
   // Jukebox's auto picks: a shuffled round of the engine's own looks (not the safe one), the next one prepared ahead
   // off the frame; `tried`: this look's end already asked for one.
   let jukebox = o.mode === 'jukebox', ahead: Item | null = null, tried = false;
@@ -74,7 +67,6 @@ export function createEngine(o: EngineOptions) {
   // warps builds its grid, up to 100 ms. A bake is read when it is next (ready()) and has nothing more to prepare.
   const prepared = new WeakMap<Item, Playing | Error>();
 
-  /** One of the engine's own looks as an item, or null if it has none that plays. */
   function own(id: string, by?: string): Item | null {
     const look = o.looks().get(id)?.look;
     return look ? { key: `q${++keys}`, id, title: look.title, kind: 'look', look, ...by ? { by } : {} } : null;
@@ -95,8 +87,7 @@ export function createEngine(o: EngineOptions) {
     return item;
   }
 
-  // Each of the engine's own looks run for a few frames at start, into a scratch frame, and thrown away: its code
-  // compiled and run warm, its grids built, so its first frames when it plays are not its slowest.
+  // Warm the engine's own looks so their first frames are not their slowest.
   const scratch = new Float32Array(scene.count * 3);
   for (const { look } of o.looks().values()) {
     if (!look) continue;
@@ -139,6 +130,7 @@ export function createEngine(o: EngineOptions) {
   }
 
   function start(item: Item) {
+    playing?.baked?.close?.();
     // A bake's frames are in by now; a look of the engine's own is prepared again if the looks were read since.
     if (item.kind === 'baked' || (item.kind === 'look' && o.looks().get(item.id)?.look !== item.look)) prepare(item);
     const p = prepared.get(item) ?? prepared.get(prepare(item))!;
@@ -178,7 +170,13 @@ export function createEngine(o: EngineOptions) {
     }
     // A relayed frame (slots count every tick and skip) stands in for the render; the controls step on regardless.
     if (o.relay?.fill(shown(), rev, rgb, dt)) p.live?.step(t, dt);
-    else if (p.baked) p.baked.fill(frame, rgb);
+    else if (p.baked) {
+      try { p.baked.fill(frame, rgb); } catch (e) {
+        log(`look ${p.id} cannot play baked: ${(e as Error).message}`);
+        rgb.fill(0);
+        switchTo(safe(), 0);
+      }
+    }
     else {
       p.live!.step(t, dt);
       const out = renderFrame(scene, p.layers, t, rgb, p.live!.look);
@@ -207,7 +205,9 @@ export function createEngine(o: EngineOptions) {
     if (item?.kind !== 'baked' || item.baked || item.loading || item.error) return;
     item.loading = true;
     const read = o.bake ? o.bake(item.id, item.sha256!) : Promise.reject(new Error('this engine plays no bakes'));
-    read.then((b) => { item.baked = b; }, (e: Error) => {
+    read.then((b) => {
+      if (closed || !queue.includes(item)) b.close?.(); else item.baked = b;
+    }, (e: Error) => {
       item.error = e.message;
       log(`look ${item.id} cannot play baked: ${e.message}`);
       if (queue[0] === item) want = false;     // asked for now: what plays goes on, not whatever comes after it
@@ -220,6 +220,7 @@ export function createEngine(o: EngineOptions) {
     Math.min(secs ?? (jukebox ? FADE.jukebox : FADE.queue), (p?.duration ?? Infinity) / 2);
   /** Fades what plays out toward `item`, then `item` in: each way over turn() of its own look. */
   function switchTo(item: Item, secs?: number) {
+    if (pending !== item && pending && !queue.includes(pending)) pending.baked?.close?.();
     pending = item;
     fadeIn = secs;
     fade.secs = turn(playing, secs);
@@ -284,6 +285,10 @@ export function createEngine(o: EngineOptions) {
 
   return {
     scene, fps, tick, stats,
+    close() {
+      closed = true;
+      for (const item of new Set([...queue, pending, playing?.item])) item?.baked?.close?.();
+    },
     /** Skip k frames of show time (the timer fell behind): the look keeps to the clock. */
     skip(k: number) { frame += k; stats.late += k; },
     /** Plays one of the engine's own looks now (fading over `secs`); a person picking one re-arms the flash guard. */
@@ -306,14 +311,14 @@ export function createEngine(o: EngineOptions) {
       return enqueue({ key: `q${++keys}`, id: look.id, title: look.title, kind: 'live', look, ...by ? { by } : {} },
         at, secs);
     },
-    /** Queues a look's bake by its id and the SHA-256 Studio holds for it (and its length, if it says); false when
-     * the queue is full. */
+    /** Queue a bake by id and SHA-256; false when full. */
     sendBaked(b: { id: string, title: string, sha256: string, duration?: number }, at: At = 'end', by?: string,
       secs?: number) {
       return enqueue({ key: `q${++keys}`, ...b, kind: 'baked', ...by ? { by } : {} }, at, secs);
     },
     unqueue(key: string) {
       const before = queue.length;
+      queue.find((q) => q.key === key)?.baked?.close?.();
       queue = queue.filter((q) => q.key !== key);
       return queue.length < before;
     },
@@ -345,8 +350,7 @@ export function createEngine(o: EngineOptions) {
       if ((black.to === 0) !== on) dark = { by, at: now() };
       black.to = on ? 0 : 1;
     },
-    /** Into Jukebox: every held control let go, the master back to full and the lights back, so nothing is left
-     * that Jukebox has no control for. */
+    /** Jukebox releases held controls and restores the master and lights. */
     jukebox() {
       knob((live) => { live.releaseAll(frame * dt); return true; });
       master.to = 1;

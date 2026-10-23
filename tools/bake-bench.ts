@@ -27,7 +27,7 @@ const here = (p: string) => new URL(p, import.meta.url).pathname;
 const lib = readLibrary(here('../public/patterns'));
 const config = configOf(process.env);
 const limits = boxDefaults(profile, config);
-const box = createRenderBox({ config, seconds, log: { warn: (...a: unknown[]) => console.error(...a) }, ...limits });
+const box = createRenderBox({ config, ...limits, seconds, log: { warn: (...a: unknown[]) => console.error(...a) } });
 const probe = await box.probe();
 if (!probe.ok) {
   console.error(`The render box cannot run here: ${probe.reason}`);

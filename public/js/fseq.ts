@@ -72,9 +72,15 @@ function blocksTotal(blocks: readonly Block[], frames: number) {
  * writeFseq({ channelCount, frames, stepMs = 25, data, uniqueId?, media?, ranges?, compression? }) (SPEC). `media`:
  * an audio file name ('mf'). `compression` replaces `data`: its blocks are compressed by the caller.
  */
-export function writeFseq({ channelCount: given, frames, stepMs = 25, data, uniqueId, media, ranges, compression }: {
+type FseqOptions = {
   channelCount?: number, frames: number, stepMs?: number, data?: Uint8Array, uniqueId?: number | bigint,
-  media?: string, ranges?: readonly Span[] | null, compression?: { type: string, blocks: readonly Block[] } }) {
+  media?: string, ranges?: readonly Span[] | null, compression?: { type: string, blocks: readonly Block[] } };
+export const writeFseq = (opts: FseqOptions) => encodeFseq(opts);
+/** Uncompressed header for a caller that streams exactly frames × channelCount bytes after it. */
+export const writeFseqHeader = (opts: Omit<FseqOptions, 'data' | 'compression'>) => encodeFseq(opts, true);
+
+function encodeFseq({ channelCount: given, frames, stepMs = 25, data, uniqueId, media, ranges, compression }:
+  FseqOptions, headerOnly = false) {
   const sparse = !!ranges?.length;
   let channelCount = given ?? NaN;
   if (sparse) {
@@ -99,11 +105,11 @@ export function writeFseq({ channelCount: given, frames, stepMs = 25, data, uniq
   let bytes;
   if (type) bytes = blocksTotal(blocks, frames);
   else {
-    if (!(data instanceof Uint8Array)) throw new Error('writeFseq: data must be a Uint8Array');
+    if (!headerOnly && !(data instanceof Uint8Array)) throw new Error('writeFseq: data must be a Uint8Array');
     bytes = channelCount * frames;
-    if (data.length !== bytes) {
+    if (!headerOnly && data!.length !== bytes) {
       const want = `${frames} frames × ${channelCount} channels`;
-      throw new Error(`writeFseq: data holds ${data.length} bytes, expected ${want} = ${bytes}`);
+      throw new Error(`writeFseq: data holds ${data!.length} bytes, expected ${want} = ${bytes}`);
     }
   }
 
@@ -115,7 +121,7 @@ export function writeFseq({ channelCount: given, frames, stepMs = 25, data, uniq
   const offset = (headerLength + varLength + 3) & ~3;
   if (offset > 0xffff) throw new Error('writeFseq: variable headers too long');
 
-  const out = new Uint8Array(offset + bytes);
+  const out = new Uint8Array(offset + (headerOnly ? 0 : bytes));
   const view = new DataView(out.buffer);
   out.set([0x50, 0x53, 0x45, 0x51, 0, 0, 0, 2]);     // 'PSEQ', offset (below), version 2.0
   view.setUint16(4, offset, true);
@@ -147,7 +153,7 @@ export function writeFseq({ channelCount: given, frames, stepMs = 25, data, uniq
     out[at + 4 + text.length] = 0;
     at += 4 + text.length + 1;
   }
-  if (!type) out.set(data!, offset);
+  if (!type && !headerOnly) out.set(data!, offset);
   for (let i = 0, o = offset; i < blocks.length; o += blocks[i++].bytes.length) out.set(blocks[i].bytes, o);
   return out;
 }

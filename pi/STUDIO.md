@@ -5,7 +5,7 @@ and preview looks on the playa from any phone or laptop on DustyRose: `http://19
 `STUDIO_PROFILE=pi` (SPEC-offline "The Pi profile"): no AI ideas, no Ideas tab, sign-ups and looks of the Pi's
 own. Pattern code runs in each viewer's browser, never on the Pi.
 
-Two units share one clone of the `pi` branch:
+Two units share one installed bundle:
 
 | Unit | What | Started by |
 | --- | --- | --- |
@@ -18,13 +18,12 @@ nothing to the lights, so it may run while FPP plays the night show.
 To try it before the Pi, the hosting machine runs the same profile on loopback: `docs/HOSTING.md` "Dev instance"
 (`--instance offline`).
 
-Everything here is done at home with the Pi online (a phone hotspot will do), never on the playa: the clone and
-`npm ci` download. **With no internet, install from the USB bundle instead:** [SETUP.md](SETUP.md),
-`install.sh --studio`, which does steps 1 to 3 and carries bubblewrap.
+Install from the bundle using [SETUP.md](SETUP.md), `install.sh --studio`. Make or download the bundle at home;
+the Pi needs no internet. The settings and units below describe what the installer configures.
 
 ## 0. Measure first (about 10 minutes)
 
-On the Pi, as `fpp`, with FPP idle and no live app running, in the clone ([INSTALL.md](INSTALL.md) step 1):
+On the Pi, as `fpp`, with FPP idle and no live app running, in `/home/fpp/folly-studio` after [SETUP.md](SETUP.md):
 
 ```sh
 uname -m          # aarch64 or armv7l
@@ -38,8 +37,7 @@ Each stats line gives the frame rate, the render time per frame and `late` (fram
 render time is over 25 ms cannot hold 40 fps: note which.
 
 Bakes (a look with custom code plays on the lights only as its bake) run in the render box, which needs bubblewrap
-and unprivileged user namespaces. Raspberry Pi OS (Debian) allows those as installed. If the clone has no
-`npm run bake-bench`, run this part after step 1.
+and unprivileged user namespaces. Raspberry Pi OS (Debian) allows those as installed.
 
 ```sh
 sudo apt install -y bubblewrap
@@ -56,39 +54,14 @@ the hosting machine (Ryzen 7 8700F) they were 0.02 s per s (~2000 frames/s) for 
 stats show whether a bake costs the engine frames (`late`). Send all the output, both parts, to whoever looks after
 Studio; it settles the default look, which presets are too heavy for the Pi, and whether the Pi bakes.
 
-## 1. The `pi` branch
+## 1. Install the bundle
 
-The Pi builds nothing. The `pi` branch is `prod` plus one commit holding the built app (`dist/`) and
-`dist/build.json`, made on the hosting machine by `npm run pi:branch` (below). It contains Studio Live too, so the
-engine moves to it as well.
-
-A new clone:
-
-```sh
-cd /home/fpp
-git clone -b pi https://github.com/big-weary-dog/folly-studio.git
-```
-
-The clone Studio Live already uses:
-
-```sh
-cd /home/fpp/folly-studio
-git fetch origin pi && git checkout -B pi origin/pi
-```
-
-Then, in either case:
-
-```sh
-cd /home/fpp/folly-studio
-npm ci --omit=dev
-```
-
-`sharp` (the gallery's WebP previews) is native: `npm ci` fetches its build for the Pi's CPU, so it needs the
-internet.
+Follow [SETUP.md](SETUP.md), choosing **Engine + Studio**. The bundle carries the built app, native dependencies
+and bubblewrap; the Pi builds and downloads nothing. The installer stages and checks it before activation.
 
 ## 2. Settings
 
-Studio's data goes on the SD card, outside the clone, at `/home/fpp/folly-data` (so the Pi boots without the SSD).
+Studio's data goes on the SD card, outside the installed tree, at `/home/fpp/folly-data` (so it boots without the SSD).
 Its settings go in `/home/fpp/.config/folly-studio/studio.env`:
 
 ```sh
@@ -158,32 +131,13 @@ importer's, unshared.
 
 ## Updating
 
-At home, online, after someone ran `npm run pi:branch` on the hosting machine:
-
-```sh
-cd /home/fpp/folly-studio
-git fetch origin pi && git reset --hard origin/pi
-npm ci --omit=dev
-sudo systemctl restart folly-studio
-sudo systemctl restart studio-live    # if it is running
-```
-
-The branch is made afresh from `prod` each time, so it is reset to, never pulled. `pi/config.json`, `pi/local/`
-and the data in `/home/fpp/folly-data` are outside git and survive.
+Install a new bundle using [SETUP.md](SETUP.md). The installer preserves local settings and looks and keeps
+Studio data outside the installed tree.
 
 ## Rolling back
 
-`git reflog` lists the builds this clone has had: `git reset --hard <commit>`, then the same `npm ci` and restarts.
+Install a bundle of the earlier commit using [SETUP.md](SETUP.md).
 
 To take Studio off the Pi: `sudo systemctl disable --now folly-studio`, remove
 `/etc/systemd/system/folly-studio.service` and `sudo systemctl daemon-reload`. The data stays in
 `/home/fpp/folly-data` until removed.
-
-## Making the `pi` branch (the hosting machine)
-
-```sh
-npm run pi:branch            # from origin/prod; or: npm run pi:branch -- <ref>
-```
-
-It builds the ref in a temporary worktree (`npm ci`, `npm run build`, `dist/build.json`), commits `dist/` on top as
-one commit, and force-pushes it to `origin/pi`. `--no-push` stops before the push and prints the commit.

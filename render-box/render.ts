@@ -8,13 +8,12 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
-import { createHash } from 'node:crypto';
 
 import type * as Fseq from '../public/js/fseq.ts';
-import { bakeLoop, bakeSeconds, FPS, readLibrary, renderer } from './renderer.ts';
+import { bakeFile, bakeId, bakeSeconds, FPS, readLibrary, renderer } from './renderer.ts';
 
 // The FSEQ writer sits beside this file in the box (src/render-box.ts binds it there).
-const { ledRanges, writeFseq }: typeof Fseq = await import(new URL('fseq.ts', import.meta.url).href);
+const { ledRanges, writeFseqHeader }: typeof Fseq = await import(new URL('fseq.ts', import.meta.url).href);
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const MAX_LOOK_BYTES = 1024 * 1024;
@@ -114,7 +113,10 @@ if (!ArrayBuffer.isView(packed) || TA_LENGTH.call(packed) !== channels) {
 
 const frames = Math.max(1, Math.round(bakeSeconds(look, option('--seconds')) * fps));
 const step = new vm.Script('__next()', { filename: 'render-box-frame' });
-const baked = bakeLoop(frames, packed as Uint8Array, (f) => {
+const header = writeFseqHeader({ frames, stepMs: Math.round(1000 / fps), ranges,
+  uniqueId: bakeId(rig, layers, extra, frames) });
+const frame = new Uint8Array(channels); // Node's file APIs must see only host-owned buffers and prototypes.
+const baked = bakeFile(path.join(outDir, 'frames.fseq'), header, frames, frame, (f) => {
   let errors;
   try {
     errors = step.runInContext(context, { timeout: frameMs });
@@ -122,6 +124,7 @@ const baked = bakeLoop(frames, packed as Uint8Array, (f) => {
     const at = `t = ${(f / fps).toFixed(2)} s`;
     fail(timedOut(e) ? `a layer took over ${frameMs} ms on the frame at ${at}` : `rendering stopped at ${at}`);
   }
+  frame.set(packed as Uint8Array);
   return JSON.parse(text(errors, 64 * 1024) || '[]');
 }, fps);
 if (baked.layers.length) {
@@ -129,10 +132,6 @@ if (baked.layers.length) {
   fail(`layer ${baked.layers[0]!.id} failed: ${baked.layers[0]!.firstError}`);
 }
 
-const uniqueId = BigInt(`0x${createHash('sha256').update(JSON.stringify({ layers, extra, frames }))
-  .digest('hex').slice(0, 16)}`);
-const fseq = writeFseq({ frames, stepMs: Math.round(1000 / fps), data: baked.data, ranges, uniqueId });
-writeFileSync(path.join(outDir, 'frames.fseq'), fseq);
 const { data, ...stats } = baked;
 Object.assign(result, { ok: true, ...stats, channels, ranges: ranges.length });
 finish(0);

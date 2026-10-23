@@ -358,6 +358,8 @@ bad and overlapping clips), `transitionWeight(…)` and `TRANSITIONS` (above), `
 `fseq.ts` exports `writeFseq({ channelCount?, frames, stepMs = 25, data: Uint8Array, media?, ranges?, compression? })
 → Uint8Array` (FSEQ v2.0). `ranges: [[startChannel, count], …]` (0-based, ascending, ≤ 255) writes a
 sparse file: each frame holds only the ranged channels, so `channelCount` is their total.
+`writeFseqHeader` takes the same metadata without `data` or `compression` and returns just the uncompressed
+header; a streaming caller appends exactly `frames × channelCount` bytes. Both writers share the header encoder.
 `compression: { type: 'zstd' | 'zlib', blocks: [{ frame, bytes }] }` writes a compressed file
 instead of `data` (type 1 / 2; each block one whole zstd frame or zlib stream of its frames,
 compressed by the caller; ≤ 255 blocks, so the block count's high nibble in byte 20 stays 0).
@@ -549,15 +551,17 @@ as here; any other failure says why and points to Check & bake.
   (`src/bake.ts` `createLane`). `fleet-box` (advisory): the Fleet worker's own `frames.fseq` + `stats.json` (its `use`
   library: `patterns/` beside check.ts, else none). All three run the same core and `renderer.ts`.
 - **Length.** A bake renders the look's `duration` from t = 0, honouring clips, but at most
-  `STUDIO_BAKE_SECONDS` (default 120 s, ≤ 600) in the render box; `fleet-box/check.ts --bake`
+  `STUDIO_BAKE_SECONDS` (hosted default 120 s, Pi default 600 s, ≤ 600) in the render box; `fleet-box/check.ts --bake`
   does the same (`--seconds` overrides). `look.bake.seconds` records what was baked; a bake is
   dropped if the layers or duration change before its record is attached (after its frames are stored). The box's wall-clock and CPU budgets
   default to 30 s + 1.5 s per second baked (at least 90 s / 120 CPU s).
 - **Format.** The rig's fps, sparse FSEQ v2 covering only the rig's channels, its header's `uniqueId` from the
-  look and seconds baked (so a rebake is the same bytes) (the Folly: 40 fps, 33 ranges, 14,610
+  trusted render inputs, including the rig, look, library and frame count (so a rebake is the same bytes)
+  (the Folly: 40 fps, 33 ranges, 14,610
   ch; 20 s ≈ 11.7 MB, 120 s ≈ 70 MB, where full 40,800-ch frames would be ≈ 32.6 MB for 20 s). Files are
   capped at 64 MB, or ≈ 0.6 MB a second of `STUDIO_BAKE_SECONDS` when that is more
   (`STUDIO_BAKE_MAX_FRAMES` overrides).
+  Both bake writers stream the header and packed frames to disk, keeping no whole-file frame buffer.
 - **Checks** (`src/frames.ts`, pure): `parseFseq(bytes, { maxBytes, maxDataBytes = maxBytes, decompress? })`
   is strict (magic, v2.x, consistent header/offset/sizes, ranges within `maxChannels` (default 80 × 510; the
   rig's frame where the host knows it), data = frames ×
@@ -566,6 +570,8 @@ as here; any other failure says why and points to Check & bake.
   start at frame 0 and ascend, its lengths fill the data exactly, frames × channels ≤
   maxDataBytes before anything is inflated, and each block inflate to exactly its frames, so a
   decompression bomb is refused. Empty index entries may only pad its end (FPP preallocates).
+  `parseFseqHeader(headerBytes, { fileBytes, maxBytes?, maxChannels? })` applies the same uncompressed metadata
+  and size checks without reading the data, returning the metadata and `dataOffset` for file-backed playback.
   `analyzeFrames(parsed, scene, watch, light)` (the core's `prepareScene(rig)`, a recording `FlashWatch` and
   `ledLight(light)`, the light settings when it bakes; frames.ts imports only types, so the Fleet box runs a copy) → `{ frames, seconds, fps, peakBrightness,
   meanBrightness, darkFraction, estPeakAmps (20 mA/channel at 5 V), coverage, flicker: { maxHz, flaggedSeconds,
