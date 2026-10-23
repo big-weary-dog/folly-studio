@@ -2,7 +2,7 @@
 
 The same Studio, run on the FPP Pi with no internet (the Pi profile), and the files that carry looks between two
 Studios. `src/profile.ts` holds the profile; `public/js/ui/look-file.ts` the files. Installing it on the Pi:
-`pi/SETUP.md` (from a USB stick, or downloaded from the hosted Studio: below) or `pi/STUDIO.md` (the `pi` branch).
+`pi/SETUP.md` (from a USB stick, or downloaded from the hosted Studio: below); `pi/STUDIO.md` covers operation.
 
 ## The Pi profile
 
@@ -24,7 +24,8 @@ tree and env and restarts the services that were running. Studio data stays outs
   as admins. Their header has **Lights** (`/pi/`, the engine's control page).
 - **Defaults.** `STUDIO_PREVIEWS` is `front` (no browser on the Pi), `STUDIO_FRAMES_MAX_BYTES` 1 GB (an SD
   card), and a bake runs at `STUDIO_BAKE_NICE` 19 within `STUDIO_BAKE_MEMORY` 384 MB, one at a time, so it never
-  takes the engine's CPU; each setting still wins.
+  takes the engine's CPU. Bakes cover the whole supported look (up to 600 s by default), rather than the hosted
+  120 s cap; `STUDIO_BAKE_SECONDS` still wins, as do the other resource settings.
 - **Listening.** `HOST` may be any address. Under `hosted` the server refuses to start on anything but loopback
   (`127.0.0.1`, `localhost`, `::1`): the public site is reached through its tunnel.
 
@@ -124,9 +125,11 @@ and the engine's control page (`/pi/`) both add to it. Custom code never reaches
 - **Baked**: any look whose bake is current (`bake.status` done, `ok`, `layersHash` the look's now). Studio sends the
   look's id, title and `bake.frames.sha256`; the engine reads `<frames>/<lookId>.fseq` itself (its `frames` setting,
   Studio's `<STUDIO_DATA>/frames`, as `light` is Studio's `light.json`), checks the SHA-256, parses it strictly
-  (`src/frames.ts` `parseFseq`, uncompressed, the rig's channels and fps, at most 128 MB), and plays its frames as baked: each LED's channels
+  (`src/frames.ts`'s header checks, uncompressed, the rig's channels and fps, at most 600 s of the rig's channel
+  span plus 1 MB for headers). Hash validation reads fixed 1 MB slices; playback keeps one frame and its LED
+  mapping, independent of duration. File handles close on removal, replacement and shutdown. Each LED's channels
   are the look's colour, out through the same light transform, master, blackout, fades and flash guard. A baked
-  item has no live controls. The engine loads an item's frames when it is next, off the frame loop, so the switch
+  item has no live controls. The engine validates an item's file when it is next, off the frame loop, so the switch
   never waits; a missing or changed file skips the item, saying so. A Pi without bubblewrap bakes only looks of
   unchanged library code (SPEC-baking "Library only").
 

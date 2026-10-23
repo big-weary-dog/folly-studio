@@ -49,6 +49,7 @@ async function main(c: NonNullable<typeof cfg>) {
     clearInterval(every);
     clearTimeout(deadline);
     clearInterval(lightEvery);
+    engine?.close();
     const results = await Promise.allSettled([output?.close(), page?.close()]);
     for (const r of results) if (r.status === 'rejected') log(`cleanup: ${String(r.reason)}`);
     process.exit(failed || results.some((r) => r.status === 'rejected') ? 1 : 0);

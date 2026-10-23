@@ -3,7 +3,7 @@
 // out through the same light, with no controls, and a viewer gets its title alone; one that cannot play is dropped.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, truncateSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -45,6 +45,7 @@ describe('baked frames', () => {
         }
       }
     }
+    b.close!();
   });
 
   test('refuse a bake that changed, is missing, is at another rate, or names no look', async () => {
@@ -55,6 +56,52 @@ describe('baked frames', () => {
     await assert.rejects(loadBaked('', 'one', sha, scene), /no frames folder/);
     const slow = bake('slow', 1, 50);
     await assert.rejects(loadBaked(dir, 'slow', slow, scene), /baked at 20 fps/);
+  });
+
+  test('a file cut short after validation fails the read and a closed reader cannot play', async () => {
+    const sha = bake('cut', 2), b = await loadBaked(dir, 'cut', sha, scene);
+    truncateSync(path.join(dir, 'cut.fseq'), 32);
+    assert.throws(() => b.fill(1, new Float32Array(rig.count * 3)), /cut short/);
+    b.close!();
+    b.close!();
+    assert.throws(() => b.fill(0, new Float32Array(rig.count * 3)), /closed/);
+  });
+
+  test('readers close on unqueue, a late load, pending replacement, playback replacement and shutdown', async () => {
+    let resolve: (() => void) | undefined, delayed = false;
+    const closed: string[] = [];
+    const r = engineOn([], undefined, async (id) => {
+      if (delayed) await new Promise<void>((done) => { resolve = done; });
+      return { frames: 120, duration: 3, fill: (_, rgb) => rgb.fill(0), close: () => closed.push(id) };
+    });
+    r.engine.play('fire');
+    r.run(1.1);
+    const send = async (id: string, at: 'next' | 'now' = 'next') => {
+      r.engine.sendBaked({ id, title: id, sha256: 'a'.repeat(64) }, at);
+      r.run(0.1);
+      await Promise.resolve();
+      await Promise.resolve();
+    };
+    await send('removed');
+    r.engine.unqueue(r.engine.state().queue[0].key);
+    delayed = true;
+    await send('late');
+    r.engine.unqueue(r.engine.state().queue[0].key);
+    resolve!();
+    await Promise.resolve();
+    await Promise.resolve();
+    delayed = false;
+    await send('pending');
+    r.engine.next();
+    r.engine.play('fire');
+    r.run(1.1);
+    await send('playing', 'now');
+    r.run(1.1);
+    r.engine.play('fire');
+    r.run(1.1);
+    await send('shutdown');
+    r.engine.close();
+    assert.deepEqual(closed, ['removed', 'late', 'pending', 'playing', 'shutdown']);
   });
 
   test('a queued bake plays whole, then the next; no controls; a viewer gets its title alone', async () => {
@@ -76,11 +123,14 @@ describe('baked frames', () => {
     // At full output each frame goes out through the LEDs' light transform, as a rendered look's would.
     assert.equal(s.gain, 1);
     const rgb = new Float32Array(scene.count * 3);
-    (await loadBaked(dir, 'b1', sha, scene)).fill(Math.round(s.look!.t * 40) - 1, rgb);
+    const check = await loadBaked(dir, 'b1', sha, scene);
+    check.fill(Math.round(s.look!.t * 40) - 1, rgb);
+    check.close!();
     assert.deepEqual(r.last(), ledChannels(scene, rgb, prepareLight(scene, lightOf())));
     r.run(3);
     s = r.engine.state();
     assert.equal(s.look?.id, 'beat-bars');
+    r.engine.close();
   });
 
   test('a bake that cannot play leaves the queue, saying why, and what plays goes on', async () => {
