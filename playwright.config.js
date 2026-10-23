@@ -20,7 +20,6 @@ const SWIFTSHADER = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '
 process.env.STUDIO_PW_OUT ||= mkdtempSync(path.join(os.tmpdir(), `${OUT_PREFIX}${process.pid}-`));
 // Servers started here draw gallery previews flat, without a browser of their own.
 process.env.STUDIO_PREVIEWS ||= 'front';
-
 export default defineConfig({
   testDir: 'test/e2e',
   outputDir: process.env.STUDIO_PW_OUT,
@@ -38,7 +37,8 @@ export default defineConfig({
       'live-pi.spec.js', 'loop.spec.js', 'mods.spec.js', 'param-lines.spec.js', 'mod-pop.spec.js', 'report.spec.js',
       'history.spec.js', 'look-energy.spec.js', 'offline.spec.js', 'tour.spec.js', 'lights.spec.js', 'jukebox.spec.js',
       'aimode.spec.js', 'relay.spec.js', 'gallery.spec.js', 'describe.spec.js', 'param-petals.spec.js',
-      'approve.spec.js', 'relay-studio.spec.js', 'baking.spec.js', 'stats.spec.js', 'pages-ux.spec.js', 'phone-cuts.spec.js',
+      'approve.spec.js', 'relay-studio.spec.js', 'baking.spec.js', 'stats.spec.js', 'pages-ux.spec.js',
+      'phone-cuts.spec.js',
       'composite.spec.js', 'attached.spec.js', 'custom-code.spec.js', 'guest.spec.js', 'pi-startup.spec.js'],
       timeout: 5 * 60_000 },
     { name: 'perf', testMatch: ['perf.spec.js', 'library-perf.spec.js'], timeout: 5 * 60_000 },
