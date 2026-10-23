@@ -15,7 +15,7 @@ import { clockNow } from '../../public/js/ui/relay-studio.ts';
 import { createRelay } from '../src/relay.ts';
 import { engineOn, lib, oneModule, rig } from './fixture.ts';
 
-afterEach(() => { vi.useRealTimers(); });
+afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
 // Bars on the beat, their pace and width macros (one with a lane), wrapping every 1.3 s.
 const beat = oneModule('beat', 'bars', { bars: 5, speed: { mod: 'global', name: 'pace', from: 0, to: 2 },
   duty: { mod: 'global', name: 'width', from: 0.2, to: 1 } }, { duration: 1.3, bpm: 128, globals: { macros: {
@@ -24,7 +24,8 @@ const beat = oneModule('beat', 'bars', { bars: 5, speed: { mod: 'global', name: 
 
 describe('relay end to end', () => {
   test('the relayed engine\'s LEDs are its twin\'s, through wraps and a push', () => {
-    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    // The sender's slot estimate and its timer must share a clock: CPU scheduling cannot advance one alone.
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
     const clock = { t: 0 }, relay = createRelay({ count: rig.count, fps: 40, now: () => clock.t });
     const a = engineOn([beat]), b = engineOn([beat], undefined, undefined, relay), who = {};
     for (const x of [a, b]) { x.engine.play('beat'); x.run(1.5); }
@@ -43,7 +44,7 @@ describe('relay end to end', () => {
       if (i === 60) { assert.ok(a.engine.set('pace', 0.9) && b.engine.set('pace', 0.9)); }
       const s = b.engine.state(), slot = b.engine.stats.frames + b.engine.stats.late;
       const cfg: Partial<RelayCfg> = { on: true, rev: s.look!.rev, next: slot, frame: Math.round(s.look!.t * 40),
-        index: slot - 1, at: performance.timeOrigin + performance.now(), fps: 40, duration: s.look!.duration,
+        index: slot - 1, at: performance.timeOrigin + performance.now() + 2056, fps: 40, duration: s.look!.duration,
         lead: 4, set: relaySet(s.look!) };
       ahead.relay(cfg);
       vi.advanceTimersByTime(10);
@@ -67,10 +68,47 @@ describe('relay end to end', () => {
     assert.equal(relay.state()!.misses, 0);
     assert.ok(late.length && late.every((i) => i >= 60 && i < 100), `late ${late}`);
   });
+
+  test('a starved sender skips expired slots and the engine resumes its buffered frames', () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
+    let elapsed = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => elapsed);
+    const relay = createRelay({ count: rig.count, fps: 40, now: () => elapsed }), who = {};
+    const scene = prepareScene(rig), rgb = new Float32Array(rig.count * 3), sent: number[] = [];
+    const ahead = relayAhead(() => ({ scene, layers: [], live: null }), (m) => {
+      const data = new Uint8Array((m as { bytes: ArrayBuffer }).bytes);
+      sent.push(new DataView(data.buffer).getUint32(0, true));
+      assert.equal(relay.push(who, data), '');
+    });
+    relay.start(who, 'cara', true);
+    const at = performance.timeOrigin + performance.now();
+    ahead.relay({ on: true, rev: 0, index: 0, at, fps: 40, lead: 8 });
+    vi.advanceTimersByTime(20);
+    elapsed = 25;
+    assert.equal(relay.fill(1, 0, rgb, 1 / 40), true);
+    // No sender turn for 375 ms; the engine consumes its buffer, holds, then dips to its own render.
+    for (let slot = 2; slot <= 16; slot++) {
+      elapsed = slot * 25;
+      relay.fill(slot, 0, rgb, 1 / 40);
+    }
+    assert.equal(relay.state()!.on, false);
+    const before = sent.length;
+    // The next callback sees the elapsed wall time, rather than running callbacks during the gap.
+    vi.advanceTimersByTime(10);
+    for (let slot = 17; slot <= 60; slot++) {
+      elapsed = slot * 25;
+      vi.advanceTimersByTime(25);
+      relay.fill(slot, 0, rgb, 1 / 40);
+    }
+    assert.equal(sent[before], 17, 'expired slots are skipped rather than queued');
+    assert.ok(relay.state()!.ahead > 0);
+    assert.equal(relay.state()!.on, true, 'steady frames recover without taking the lease again');
+    ahead.relay({ on: false });
+  });
 });
 
 describe('relay from the editor', () => {
-  test('frames follow the playhead\'s anchor, wrapped; a pause renders again from the next slot', () => {
+  test.each([0, 2056, -3250])('frames follow the playhead and pause with a page epoch offset of %i ms', (offset) => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] });
     const scene = prepareScene(rig), { engine, run } = engineOn([beat]);
     engine.play('beat');
@@ -83,7 +121,7 @@ describe('relay from the editor', () => {
       const bytes = (m as { bytes: ArrayBuffer }).bytes, head = new DataView(bytes, 0, 8);
       got.push({ slot: head.getUint32(0, true), t: new Uint16Array(bytes, 8)[0]! / 65535 * 10 });
     });
-    const at = performance.timeOrigin + performance.now();
+    const at = performance.timeOrigin + performance.now() + offset;
     const cfg = { on: true, rev: 0, index: 100, at, fps: 40, lead: 8, set: null };
     ahead.relay({ ...cfg, clock: { t: 2, at, speed: 2, playing: true, duration: 2.1 } });
     vi.advanceTimersByTime(30);
