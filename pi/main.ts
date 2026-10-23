@@ -2,15 +2,15 @@
 // library from public/patterns, the rig from public/data/rig.json; out as DDP to fppd at 40 fps, colour-corrected for
 // the LEDs, the rose expanded and the power compressor applied, or with --dry-run nothing sent and a stats line
 // printed.
-import { readFileSync, unwatchFile, watchFile } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { lightOf } from '../public/js/core/light.ts';
 import { loadBaked } from './src/baked.ts';
 import { readConfig } from './src/config.ts';
 import { createEngine } from './src/engine.ts';
 import { readLibrary, readLooks } from './src/library.ts';
+import { lightReader } from './src/light-file.ts';
 import { createOutput } from './src/output.ts';
 import { checkPixels, type PowerTable } from './src/power.ts';
 import type { EngineState } from './src/protocol.ts';
@@ -22,14 +22,7 @@ import { statsLine } from './src/stats.ts';
 const at = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 const json = (p: string) => JSON.parse(readFileSync(at(p), 'utf8'));
 const log = (line: string) => console.log(`studio-pi: ${line}`);
-/** The light settings file as JSON; null when there is none (the defaults). A broken one stops the start. */
 const lightFile = (file: string) => path.resolve(path.dirname(at('./main.ts')), file);
-const readLight = (file: string) => {
-  try { return JSON.parse(readFileSync(lightFile(file), 'utf8')); } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null;
-    throw new Error(`${file}: ${(e as Error).message}`, { cause: e });
-  }
-};
 
 const cfg = readConfig(process.argv.slice(2), at('./config.json'));
 if (cfg) await main(cfg);
@@ -40,7 +33,8 @@ async function main(c: NonNullable<typeof cfg>) {
   let lib: ReturnType<typeof readLibrary>;
   let page: Awaited<ReturnType<typeof controlServer>> | null = null;
   let loop: ReturnType<typeof runLoop> | undefined;
-  let every: ReturnType<typeof setInterval> | undefined, deadline: ReturnType<typeof setTimeout> | undefined;
+  let every: ReturnType<typeof setInterval> | undefined, lightEvery: ReturnType<typeof setInterval> | undefined;
+  let deadline: ReturnType<typeof setTimeout> | undefined;
   let started = false, stopping = false, failed = false;
   const stop = async (why: string, failure = false) => {
     failed ||= failure;
@@ -54,7 +48,7 @@ async function main(c: NonNullable<typeof cfg>) {
     loop?.stop();
     clearInterval(every);
     clearTimeout(deadline);
-    unwatchFile(lightFile(c.light));
+    clearInterval(lightEvery);
     const results = await Promise.allSettled([output?.close(), page?.close()]);
     for (const r of results) if (r.status === 'rejected') log(`cleanup: ${String(r.reason)}`);
     process.exit(failed || results.some((r) => r.status === 'rejected') ? 1 : 0);
@@ -79,19 +73,20 @@ async function main(c: NonNullable<typeof cfg>) {
     for (const [id, l] of looks) if (l.error) log(`look ${id} cannot play: ${l.error}`);
     // The light settings (SPEC "Light and output"): Studio's Light page downloads them as pi/light.json; missing,
     // the defaults. On the way out only: the engine's frames (and the Live tab's) stay the look's own.
-    const light = lightOf(readLight(c.light));
+    const readLight = lightReader(lightFile(c.light)), light = readLight()!;
     // Looks' bakes from Studio's frames folder, when it says where (SPEC-offline "Playing on the lights").
     const frames = c.frames && path.resolve(path.dirname(at('./main.ts')), c.frames);
     engine = createEngine({ rig, lib, looks: () => looks, safe: c.safe, mode: c.mode, log, light, relay,
       output: (cells) => output!.send(cells), bake: (id, sha256) => loadBaked(frames, id, sha256, engine.scene) });
     // Saved again (Studio's Light page renames a new file in), the settings apply live; a broken one keeps the last.
-    watchFile(lightFile(c.light), { interval: 2000 }, () => {
+    lightEvery = setInterval(() => {
       try {
-        const next = lightOf(readLight(c.light));
+        const next = readLight();
+        if (!next) return;
         engine.setLight(next);
         log(`light settings changed: gamma ${next.gamma}`);
       } catch (e) { log(`light settings kept: ${(e as Error).message}`); }
-    });
+    }, 2000);
     // The rig's pixels must sit within the cells the expansion reads (its declared universes run past them, unused).
     const cellsEnd = Math.min(...table.petals.map((p) => p.exp));
     if (Math.max(...engine.scene.addr) + table.cellChannels > cellsEnd) throw new Error('the rig overlaps the rose');

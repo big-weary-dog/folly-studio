@@ -3,7 +3,7 @@
   "areas": {
     ".": { "lines": 172, "reason": "The root holds the server entry point and the Vite, Vitest and Playwright configurations." },
     "fleet-box": { "lines": 260, "reason": "The boxed checker validates generated looks against the library, rig, module chains and light settings." },
-    "pi": { "lines": 5250, "reason": "The Pi includes startup and shutdown failure regressions, safe fallback validation, skipped-slot guard timing and per-look fade tests alongside its engine, output and control page." },
+    "pi": { "lines": 5300, "reason": "The Pi includes content-based light reload polling and its startup-race, rename and recovery regressions, alongside safe output lifecycle, guard timing, fades and control-page coverage." },
     "public": { "lines": 56, "reason": "The app and sandbox HTML shells load their browser entry points." },
     "public/css": { "lines": 2390, "reason": "Styles cover the app shell, Studio panels, timeline, live controls, admin pages (the Pi bundle's too) and phone layouts." },
     "public/js": { "lines": 18521, "reason": "Browser code includes the pattern core, sandbox, viewers and the Studio, live, admin and tutorial interfaces." },
