@@ -6,12 +6,13 @@ const power = (v: number, gamma: number) => Math.min(1, Math.max(0, v)) ** gamma
 
 export function crossfade(scene: Scene) {
   const scratch = new Float32Array(scene.count * 3), held = new Float32Array(scratch.length);
-  let from: Playing | null = null, frame = 0, frozen = false;
+  let from: Playing | null = null, frame = 0, frozen = false, gain = 1;
   const close = () => { from?.baked?.close?.(); from = null; };
   return {
     get active() { return !!from; },
-    start(p: Playing | null, at: number, visible: Float32Array, overlap: boolean) {
+    start(p: Playing | null, at: number, visible: Float32Array, overlap: boolean, level: number) {
       frozen = !!from;
+      gain = frozen ? 1 : level;
       if (frozen) held.set(visible);
       close();
       if (overlap) { from = p; frame = at; } else p?.baked?.close?.();
@@ -26,7 +27,8 @@ export function crossfade(scene: Scene) {
       }
       // Blend LED light, then encode again for the one output transform and flash guard that follow.
       for (let i = 0; i < into.length; i++) {
-        into[i] = (power(scratch[i]!, gamma) * (1 - amount) + power(into[i]!, gamma) * amount) ** (1 / gamma);
+        into[i] = (power(scratch[i]!, gamma) * gain * (1 - amount)
+          + power(into[i]!, gamma) * amount) ** (1 / gamma);
       }
       if (amount === 1) close();
     },

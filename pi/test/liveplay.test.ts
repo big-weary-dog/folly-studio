@@ -49,6 +49,20 @@ describe('changes', () => {
     const [red, green, blue] = first(r);
     assert.ok(red > 120 && blue > 120 && green < 5, `${first(r)}`);
   });
+
+  test('a crossfade during startup keeps the outgoing look at its visible light level', () => {
+    const looks = ['red', 'blue'].map((id, i) => oneModule(id, 'colour-wash',
+      { colours: ['#ff0000', '#0000ff'][i], speed: 0 }));
+    const r = engineOn(looks, { gamma: 2.2 });
+    r.engine.play('red');
+    r.run(0.1);
+    const before = first(r)[0]!;
+    assert.ok(before >= 25 && before <= 26, `${first(r)}`);
+    r.engine.play('blue', 4);
+    r.engine.tick();
+    const [red, green, blue] = first(r);
+    assert.ok(red! >= before - 1 && red! <= before && green === 0 && blue! <= 2, `${first(r)}`);
+  });
 });
 
 describe('controls', () => {

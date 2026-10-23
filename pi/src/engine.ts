@@ -130,7 +130,7 @@ export function createEngine(o: EngineOptions) {
   }
 
   function start(item: Item) {
-    overlap.start(playing, frame, rgb, !jukebox);
+    overlap.start(playing, frame, rgb, !jukebox, fade.now);
     // A bake's frames are in by now; a look of the engine's own is prepared again if the looks were read since.
     if (item.kind === 'baked' || (item.kind === 'look' && o.looks().get(item.id)?.look !== item.look)) prepare(item);
     const p = prepared.get(item) ?? prepared.get(prepare(item))!;
