@@ -68,7 +68,7 @@ every edit here keeps them, so what the Studio saves the API accepts.
   drops them. Its explicit live-control entry is renamed or removed in the same undoable edit.
   Duplicating a layer gives every nested module a fresh id and carries filter inputs and attachments to the copies.
   On a phone: globals and palette in the Look tab;
-  the chain read-only but for enable and params. + Source in a composite offers sources alone.
+  the chain allows enable, params and + Source in a composite. + Source offers sources alone on every screen.
   Module deletion names all attached or contained modules it removes; Undo restores the whole edit.
   Mute and Solo audition the look without changing saved content. FSEQ exports the current preview and asks
   before excluding muted or unsoloed layers; its form explains that JSON, Save and Check & bake use the full look.
