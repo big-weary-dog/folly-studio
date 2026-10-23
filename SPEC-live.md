@@ -94,7 +94,7 @@ A viewer plays `source` (fresh clock) and sets `now`'s values, tempo and clock i
 `frame.set`), as the engine sets them, so clocks bound to them run on as the engine's do; the view's gain is `gain`.
 The single-source viewer follows the incoming look during a Live Play crossfade; the engine mixes both looks.
 Show time is `t + (server now − at)`, wrapped by the duration, anchored once and moved only when it slips past 100 ms,
-so frames never step back. A viewer that sets each frame's values renders the engine's bytes
+so frames never step back. Outside a crossfade, a viewer that sets each frame's values renders the engine's bytes
 (`pi/test/follow.test.ts`); at 10 a second, frames match while nothing moves, and a viewer joining mid-loop has its
 bound clocks from its own start until the loop wraps. The flash guard's dip to `safe` is a switch like any other.
 

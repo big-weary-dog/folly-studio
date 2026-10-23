@@ -1,5 +1,5 @@
 // What views share with the shell (app.tsx): who is signed in, navigation, the title, and the guard on unsaved
-// Studio edits. The shell plugs its router in, so no view imports the shell (an import cycle would cost Vite's HMR).
+// edits. The shell plugs its router in, so no view imports the shell (an import cycle would cost Vite's HMR).
 import { signal } from '@preact/signals';
 
 import { onSignedOut } from '../api.ts';
