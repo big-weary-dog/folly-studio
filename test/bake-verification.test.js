@@ -95,7 +95,7 @@ test('tempo dependencies include nested composite modules and bracket reads (H3)
     { code: 'function pixel(p,t,P,G) { return G.bpm / 240; }' },
     { code: 'function pixel(p,t,P,G) { return G["bpm"] / 240; }' },
     { code: "function pixel(p,t,P,G) { return G /* tempo */ ['bpm'] / 240; }" },
-    { code: 'function pixel(p,t,P,G) { const g = G; return g["b" + "pm"] / 240; }' },
+    { code: "function pixel(p,t,P,G) { return G['bpm'] / 240; }" },
     { params: { speed: { mod: 'lfo', unit: 'beats' } } },
   ]) {
     for (const depth of [0, 1, 2]) {
@@ -105,6 +105,16 @@ test('tempo dependencies include nested composite modules and bracket reads (H3)
       assert.notEqual(layersHash(renderFields(a)), layersHash(renderFields(b)));
       assert.notEqual(renderKey(a, seconds), renderKey(b, seconds));
     }
+  }
+});
+
+test('palette-only G code retains its existing hash and ignores tempo edits', () => {
+  const code = 'function pixel(p,t,P,G) { return G.palette.body[0]; }';
+  for (const layers of [[{ code }], [{ modules: [{ kind: 'composite', layers: [{ modules: [{ code }] }] }] }]]) {
+    const a = { layers, bpm: 60 }, b = { ...a, bpm: 120 };
+    assert.equal(renderFields(a), layers);
+    assert.equal(layersHash(renderFields(a)), layersHash(layers));
+    assert.equal(renderKey(a, seconds), renderKey(b, seconds));
   }
 });
 

@@ -55,8 +55,8 @@ const beatsLfo = (params: object | undefined | null): boolean => Object.values(p
 /** What a bake renders of a look: what plays (PLAYS; the duration as the seconds baked). */
 type Renders = { [K in PlaysKey]?: unknown } & { layers?: readonly LayerInput[] };
 
-// Conservative: G may escape into an alias or use computed keys; a property-access regex cannot prove otherwise.
-const readsBpm = (code: unknown) => typeof code === 'string' && /\b(?:G|bpm)\b/.test(code);
+const readsBpm = (code: unknown) => typeof code === 'string'
+  && /\bG(?:\s|\/\*[\s\S]*?\*\/)*(?:\.\s*bpm\b|\[\s*(['"])bpm\1\s*\])/.test(code);
 
 /**
  * What a bake renders besides the duration: the plain `layers` when the look has no globals, no automation, no LFO
