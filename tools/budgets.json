@@ -3,10 +3,10 @@
   "areas": {
     ".": { "lines": 172, "reason": "The root holds the server entry point and the Vite, Vitest and Playwright configurations." },
     "fleet-box": { "lines": 260, "reason": "The boxed checker validates generated looks against the library, rig, module chains and light settings." },
-    "pi": { "lines": 5480, "reason": "The Pi adds shared prepared-look rendering and interruptible crossfades in LED light, with a separate held relay frame and regressions for relay gaps, startup levels, duration and gamma output, alongside bake streaming, output lifecycle, guard timing and control-page coverage." },
+    "pi": { "lines": 5518, "reason": "The Pi adds a sender-starvation regression covering expired slots, buffer exhaustion and recovery on the same lease, alongside prepared-look rendering, interruptible crossfades in LED light, held relay frames, bake streaming, output lifecycle, guard timing and control-page coverage." },
     "public": { "lines": 56, "reason": "The app and sandbox HTML shells load their browser entry points." },
     "public/css": { "lines": 2390, "reason": "Styles cover the app shell, Studio panels, timeline, live controls, admin pages (the Pi bundle's too) and phone layouts." },
-    "public/js": { "lines": 18659, "reason": "Browser sources combine conditional parameter visibility with editor and Pages fixes for code policy, import previews, admin drafts, invite entry, guest tutorials and reporting notices alongside the core and viewers." },
+    "public/js": { "lines": 18663, "reason": "Browser sources combine conditional parameter visibility and relay clock-origin mapping with editor and Pages workflows for code policy, import previews, admin drafts, invite entry, guest tutorials and reporting alongside the core and viewers." },
     "public/patterns": { "lines": 1835, "reason": "The built-in library provides short standalone examples, with conditional controls and concise headers sharing their detail with help and guides." },
     "render-box": { "lines": 248, "reason": "The render box shares deterministic IDs and streaming FSEQ output with the Fleet checker, keeping bake memory independent of duration." },
     "shared": { "lines": 1616, "reason": "Shared schemas and pure rules define looks, generated compositions, API data, permissions and playback." },

@@ -8,7 +8,7 @@ import { type PreparedLayer, type PreparedLook, renderFrame, type Scene } from '
 
 /** The editor's playhead: show time `t` at epoch ms `at`, running at `speed` while `playing`, wrapped by `duration`. */
 export type RelayClock = { t: number, at: number, speed: number, playing: boolean, duration: number };
-/** What the page says: the engine's slot `index` at epoch ms `at`; `frame` the look's at slot `next`, or `clock`. */
+/** The engine's slot `index` at page epoch ms `at`; `frame` the look's at slot `next`, or a page-clock anchor. */
 export type RelayCfg = { on: boolean, rev: number, next: number, frame: number, index: number, at: number,
   fps: number, duration: number, lead: number, set: LiveSet | null, clock: RelayClock | null };
 const TICK_MS = 10, MAX_TURN = 4, MAX_LEAD = 64;
@@ -23,6 +23,7 @@ const clockOf = (k: unknown): RelayClock | null => {
 export function relayAhead(look: () => { scene: Scene | null, layers: PreparedLayer[], live: PreparedLook | null },
   post: (msg: object, transfer: Transferable[]) => void) {
   let cfg: RelayCfg | null = null, sent = -1, timer: ReturnType<typeof setInterval> | 0 = 0, waiting = false;
+  let clockOffset: number | null = null; // Worker monotonic ms minus page epoch ms, at the fastest receipt.
   let rgb = new Float32Array(0);
   const set: LiveSet = { values: {}, bpm: 0, beat0: 0, offset: 0 };
 
@@ -59,7 +60,7 @@ export function relayAhead(look: () => { scene: Scene | null, layers: PreparedLa
   function tick() {
     const c = cfg, { scene, layers, live } = look();
     if (!c || !scene || waiting) return;
-    const now = Math.floor(c.index + (performance.timeOrigin + performance.now() - c.at) * c.fps / 1000);
+    const now = Math.floor(c.index + (performance.now() - c.at - clockOffset!) * c.fps / 1000);
     // Behind (or starting): from the slot after the one playing; never more than a few frames a turn.
     sent = Math.max(sent, now);
     for (let n = 0; sent < now + c.lead && n < MAX_TURN; n++) render(scene, layers, live, c, ++sent);
@@ -68,13 +69,17 @@ export function relayAhead(look: () => { scene: Scene | null, layers: PreparedLa
   return {
     /** The page's word: the engine's clock and state, or `on: false`. */
     relay(m: Partial<RelayCfg>) {
-      if (!m.on) { clearInterval(timer); timer = 0; cfg = null; sent = -1; return; }
+      if (!m.on) { clearInterval(timer); timer = 0; cfg = null; clockOffset = null; sent = -1; return; }
       const rev = num(m.rev), clock = clockOf(m.clock), was = cfg?.clock;
+      // Epoch origins can differ across renderer processes. Translate once on receipt, then improve the mapping
+      // when a message arrives faster; a queued message must not push the slot clock backwards.
+      const at = num(m.at);
+      clockOffset = Math.min(clockOffset ?? Infinity, performance.now() - at);
       // A new rev, or the editor's playhead moved (a seek, play or pause): rendered again from the next slot, over
       // the frames already sent (the engine keeps a slot's latest).
       if (rev !== cfg?.rev || (clock && (!was || clock.t !== was.t || clock.at !== was.at
         || clock.playing !== was.playing || clock.speed !== was.speed))) sent = -1;
-      cfg = { on: true, rev, next: num(m.next), frame: num(m.frame), index: num(m.index), at: num(m.at),
+      cfg = { on: true, rev, next: num(m.next), frame: num(m.frame), index: num(m.index), at,
         fps: num(m.fps, 40) || 40, duration: num(m.duration, 30) || 30,
         lead: Math.min(MAX_LEAD, Math.max(1, Math.round(num(m.lead, 8)))), set: liveSetOf(m.set ?? undefined),
         clock };

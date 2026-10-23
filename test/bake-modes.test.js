@@ -53,10 +53,16 @@ describe('library only', () => {
   const prlimit = ['/usr/bin', '/bin'].some((d) => fs.existsSync(path.join(d, 'prlimit')));
   const built = fs.existsSync(path.join(PUBLIC, 'data/rig.json'));
   test('Pi defaults bake and play a full 600 s look; explicit caps still win', async ({ skip }) => {
-    skip(!prlimit || !built, 'needs prlimit and a built rig.json');
-    const rig = JSON.parse(fs.readFileSync(path.join(PUBLIC, 'data/rig.json'), 'utf8'));
-    const box = createRenderBox({ ...boxDefaults('pi', {}), bwrap: 'no-such-bwrap', systemdRun: '', log: quiet });
-    const job = { layers: [libLayer(WASH, { groups: ['cathedral'],
+    skip(!prlimit, 'needs prlimit');
+    // Length and late clips do not depend on the installation's pixel count. Keep the real box and all 600 s,
+    // but avoid rendering and hashing hundreds of MB just to check its header and file-backed playback.
+    const rig = JSON.parse(fs.readFileSync(new URL('./fixtures/rigs/mini.json', import.meta.url), 'utf8'));
+    rig.output.fps = 40; // FSEQ's integer millisecond step represents the Pi's 25 ms frames exactly.
+    const rigFile = path.join(fx.tmp, 'long-rig.json');
+    fs.writeFileSync(rigFile, JSON.stringify(rig));
+    const options = { rigFile, bwrap: 'no-such-bwrap', systemdRun: '', log: quiet };
+    const box = createRenderBox({ ...boxDefaults('pi', {}), ...options });
+    const job = { layers: [libLayer(WASH, { groups: ['all'],
       clips: [{ start: 590, end: 600 }] })], seconds: 600 };
     const r = await box.render(job);
     const parsed = parseFseq(r.bytes, { maxBytes: box.config.maxFramesBytes, maxChannels: 1e6 });
@@ -68,12 +74,14 @@ describe('library only', () => {
     const rgb = new Float32Array(rig.count * 3);
     b.fill(595 * rig.output.fps, rgb);
     assert.ok(rgb.some((v) => v > 0), 'the clip after 120 s reaches the lights');
-    b.fill(0, rgb);
+    b.fill(600 * rig.output.fps, rgb);
     assert.ok(rgb.every((v) => v === 0));
+    b.fill(1195 * rig.output.fps, rgb);
+    assert.ok(rgb.some((v) => v > 0), 'playback loops to the late clip');
     b.close();
     fs.rmSync(file);
     const capped = createRenderBox({ ...boxDefaults('pi', { STUDIO_BAKE_SECONDS: 1 }),
-      bwrap: 'no-such-bwrap', systemdRun: '', log: quiet });
+      ...options });
     assert.equal(parseFseq((await capped.render(job)).bytes).frameCount, rig.output.fps);
   }, 120_000);
 

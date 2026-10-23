@@ -56,7 +56,7 @@ export function createRelayLink(driver: RelayDriver) {
   /** The Worker's word from the latest state: at each state, and when the driver's own clock moves. */
   function nudge() {
     if (!holding.peek() || !last?.relay || !runtime) return;
-    const base = { index: clock.at(), at: epoch(), fps, lead: Math.round(buffer.peek() * fps / 1000) };
+    const at = epoch(), base = { index: clock.at(at), at, fps, lead: Math.round(buffer.peek() * fps / 1000) };
     runtime.relay(driver.word(last, base) ?? { on: false });
   }
   function onState(s: PiState) {
