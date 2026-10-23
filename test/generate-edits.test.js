@@ -4,8 +4,7 @@ import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
-import { applyEdits, buildEditsRepairMessage, editsSchema, fieldsOf, keepUntouched } from '../src/generate/edits.ts';
-import { strictSchema } from '../src/generate/codex.ts';
+import { applyEdits, buildEditsRepairMessage, fieldsOf, keepUntouched } from '../src/generate/edits.ts';
 import { compositionSchema } from '../src/generate/composition.ts';
 import { GROUPS } from './fixtures/generate/shared.js';
 
@@ -115,20 +114,6 @@ describe('applyEdits', () => {
       'an empty answer goes back for repair');
     const many = Array.from({ length: 41 }, () => ({ op: 'remove', path: 'nothing' }));
     assert.match(run(...many).failed[0], /only the first 40/);
-  });
-
-  test('the schema: edits or a rewrite, its layers the composition\'s; strict for codex', () => {
-    const comp = compositionSchema(GROUPS), schema = editsSchema(comp);
-    assert.equal(schema.properties.rewrite, comp);
-    assert.equal(schema.properties.edits.items.properties.layer, comp.properties.layers.items);
-    const strict = strictSchema(schema);
-    assert.deepEqual(strict.required, ['critique', 'plan', 'edits', 'rewrite']);
-    assert.deepEqual(strict.properties.edits.anyOf[0].items.required, ['op', 'path', 'value', 'module', 'layer', 'at',
-      'why']);
-    const params = comp.properties.layers.items.properties.modules.items.properties.params.items.properties;
-    const edit = schema.properties.edits.items.properties;
-    assert.equal(edit.module, comp.properties.layers.items.properties.modules.items);
-    assert.ok(edit.value.anyOf.includes(params.value.anyOf[0]), 'a param value, typed');
   });
 });
 

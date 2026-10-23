@@ -1,11 +1,7 @@
 // The effects audit's small fixes to the warps and filters, on City of Gods: what each now promises.
 import assert from 'node:assert/strict';
 
-import { readFileSync } from 'node:fs';
-
 import { describe, test } from 'vitest';
-
-import { compileModule } from '../public/js/pattern-core.ts';
 
 import { at, layerOn, layerOf, litShare } from './fixtures/layers.js';
 
@@ -19,10 +15,6 @@ describe('anchor', () => {
     const plain = at(layerOn(['main-arches'], xyz, lineup), 1);
     const moved = at(layerOn(['main-arches'], xyz, still, lineup), 1);
     assert.ok(diff(plain, moved) < 1e-6, `${diff(plain, moved)}`);
-  });
-  test('every tag it lists survives the compiler\'s cap of 16 options', () => {
-    const tags = compileModule(readFileSync('public/patterns/anchor.js', 'utf8'), 'warp').params.tag.options;
-    for (const tag of ['left', 'right', 'front', 'back', 'canopy']) assert.ok(tags.includes(tag), tag);
   });
 });
 

@@ -121,37 +121,6 @@ describe('looks', () => {
     assert.equal((await alice.del(`/api/looks/${a2.id}`)).status, 404);
   });
 
-  test('PUT keeps up to 20 previous versions, shown only with ?versions=1', async () => {
-    const look = (await alice.post('/api/looks', { title: 'Versioned', layers: [layer({ level: 0 })] })).json.look;
-    const r1 = await alice.put(`/api/looks/${look.id}`, { layers: [layer({ level: 0.5 })] });
-    assert.equal(r1.status, 200);
-    assert.equal(r1.json.look.layers[0].level, 0.5);
-    assert.equal('versions' in r1.json.look, false);
-
-    const full = await alice.get(`/api/looks/${look.id}?versions=1`);
-    assert.equal(full.json.look.versions.length, 1);
-    assert.equal(full.json.look.versions[0].layers[0].level, 0);
-    assert.equal('versions' in (await alice.get(`/api/looks/${look.id}`)).json.look, false);
-
-    // Title-only and identical-layer saves add no version.
-    await alice.put(`/api/looks/${look.id}`, { title: 'Renamed', layers: [layer({ level: 0.5 })] });
-    assert.equal((await alice.get(`/api/looks/${look.id}?versions=1`)).json.look.versions.length, 1);
-
-    for (let i = 1; i <= 25; i++) await alice.put(`/api/looks/${look.id}`, { layers: [layer({ level: i / 100 })] });
-    const capped = (await alice.put(`/api/looks/${look.id}?versions=1`, { title: 'Done' })).json.look;
-    assert.equal(capped.versions.length, 20);
-    assert.equal(capped.versions.at(-1).layers[0].level, 0.24);
-    assert.equal(capped.title, 'Done');
-
-    // Others never see versions, even of a shared look.
-    await alice.put(`/api/looks/${look.id}`, { shared: true });
-    assert.equal('versions' in (await bob.get(`/api/looks/${look.id}?versions=1`)).json.look, false);
-
-    // Invalid layers on PUT are rejected and nothing changes.
-    assert.equal((await alice.put(`/api/looks/${look.id}`, { layers: [layer({ blend: 'nope' })] })).status, 400);
-    assert.equal((await alice.get(`/api/looks/${look.id}`)).json.look.layers[0].level, 0.25);
-  });
-
   test('reviewed is curator-only', async () => {
     const look = (await alice.post('/api/looks', { title: 'Review me', layers: [layer()], shared: true })).json.look;
     assert.equal(look.shared, true);

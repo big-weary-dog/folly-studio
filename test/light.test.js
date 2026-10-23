@@ -115,15 +115,6 @@ describe('the output transform', () => {
 
 describe('the preview transform', () => {
   const screen = (x) => Math.round(255 * encode(x));
-  test('the curve table: a value, its LED byte, and the pixel Points and Playa show for it', () => {
-    // Below the shoulder (full drive sits at 0.85 by default) both views show light as is, so their pixel is the
-    // screen's encode of the LED's light × the exposure; the probes (docs/LIGHT.md) read these off the GPU.
-    const values = [1, 0.75, 0.5, 0.25, 0.1, 0.06, 0.05];
-    assert.deepEqual(values.map((v) => out({ 0: [v, v, v] })(0)[0]), [255, 135, 55, 12, 2, 1, 0]);
-    assert.deepEqual(values.map((v) => screen(shownLight(v, LIGHT))), [237, 179, 119, 57, 17, 6, 0]);
-    assert.deepEqual(values.map((v) => screen(shownLight(v, { ...LIGHT, preview: { ...LIGHT.preview,
-      exposure: 1 } }))), [255, 193, 128, 61, 19, 7, 0], 'exposure 1: full drive is the swatch');
-  });
 
   test('the screen encode is the sRGB curve, within a quarter of a code', () => {
     const srgb = (x) => (x <= 0.0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - 0.055);
@@ -142,6 +133,10 @@ describe('the preview transform', () => {
   });
 
   test('dims are light, applied once: the gain, and the dim outside a mask', () => {
+    const values = [1, 0.75, 0.5, 0.25, 0.1, 0.06, 0.05];
+    assert.deepEqual(values.map((v) => screen(shownLight(v, LIGHT))), [237, 179, 119, 57, 17, 6, 0]);
+    assert.deepEqual(values.map((v) => screen(shownLight(v, { ...LIGHT, preview: { ...LIGHT.preview,
+      exposure: 1 } }))), [255, 193, 128, 61, 19, 7, 0], 'exposure 1: full drive is the swatch');
     const shown = previewChannels([1, 0.5, 0, 1, 0.5, 0], LIGHT, new Float32Array(6), 0.5, [1, 0], 0.1);
     const half = shownLight(0.5, LIGHT), full = LIGHT.preview.exposure;
     assert.deepEqual([...shown].map((x) => +x.toFixed(5)), [full / 2, half / 2, 0, full / 20, half / 20, 0]

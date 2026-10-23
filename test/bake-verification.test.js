@@ -97,6 +97,7 @@ test('tempo dependencies include nested composite modules and bracket reads (H3)
     { code: "function pixel(p,t,P,G) { return G /* tempo */ ['bpm'] / 240; }" },
     { code: "function pixel(p,t,P,G) { return G['bpm'] / 240; }" },
     { params: { speed: { mod: 'lfo', unit: 'beats' } } },
+    { params: { speed: { mod: 'beats' } } },
   ]) {
     for (const depth of [0, 1, 2]) {
       let modules = [module];
@@ -106,6 +107,12 @@ test('tempo dependencies include nested composite modules and bracket reads (H3)
       assert.notEqual(renderKey(a, seconds), renderKey(b, seconds));
     }
   }
+  const macro = (unit) => ({ layers: [], bpm: 90, globals: { macros: { w: { value: 0.5, min: 0, max: 1,
+    mod: { mod: 'lfo', shape: 'saw', rate: 0.5, center: 0.5, depth: 0.5, unit } } } } });
+  assert.equal(renderFields(macro('beats')).bpm, 90);
+  assert.equal(renderFields(macro('hz')).bpm, null);
+  const plain = { layers: [{ modules: [{ params: { speed: 2 } }] }], bpm: 90 };
+  assert.ok(Array.isArray(renderFields(plain)), 'a plain speed keeps the layers-only key');
 });
 
 test('palette-only G code retains its existing hash and ignores tempo edits', () => {

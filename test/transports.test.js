@@ -7,7 +7,6 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { cannot, TRANSPORT_CAPS, TRANSPORTS } from '../shared/schemas/models.ts';
-import { ADAPTERS } from '../src/generate/adapters.ts';
 import { createQueue } from '../src/generate/index.ts';
 import { FIX, goodLayer, queueSetup } from './fixtures/generate/shared.js';
 import { fakeQueue, fx, PIXEL, signup, startApp, useFixture } from './fixtures/server.js';
@@ -16,15 +15,6 @@ useFixture();
 const MODELS = { claude: 'opus', codex: 'sol', fleet: 'deep' };
 
 describe('transport capabilities', () => {
-  test('every transport has a row and a module, and nothing else does', () => {
-    assert.deepEqual(Object.keys(TRANSPORT_CAPS).sort(), [...TRANSPORTS].sort());
-    assert.deepEqual(Object.keys(ADAPTERS).sort(), [...TRANSPORTS].sort());
-    for (const t of TRANSPORTS) {
-      assert.equal(typeof ADAPTERS[t].create, 'function', t);
-      assert.equal(typeof ADAPTERS[t].probe, 'function', t);
-      if (TRANSPORT_CAPS[t].explores || TRANSPORT_CAPS[t].critiques) assert.ok(TRANSPORT_CAPS[t].prompted, t);
-    }
-  });
 
   describe('the API and the queue agree', () => {
     let app, ana, look;

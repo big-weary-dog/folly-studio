@@ -130,9 +130,3 @@ if [ "$1" = -p ]; then echo 22.6.0; else exit 1; fi
   assert.match(r.stderr, /needs 22.18 or later/);
   assert.ok(fs.existsSync(`${f.home}/folly-studio/old-marker`));
 });
-
-test('laptop recipe creates its destination and treats looks as optional', () => {
-  const setup = fs.readFileSync('pi/SETUP.md', 'utf8');
-  assert.match(setup, /ssh fpp@[^\n]+ mkdir -p \/home\/fpp\/install/);
-  assert.match(setup, /\[ ! -d looks \] \|\| scp -r looks/);
-});

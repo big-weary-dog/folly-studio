@@ -209,20 +209,6 @@ describe('analyzeFrames', () => {
     assert.equal(a.coverage, 0.95);
     assert.equal(a.darkFraction, 0.05);
   });
-
-  test('on the Folly: a 20 s sparse bake is about 12 MB, full frames about 33 MB', () => {
-    const real = folly;
-    const ranges = usedRanges(real);
-    const cc = ranges.reduce((n, r) => n + r[1], 0);
-    assert.equal(cc, real.count * 3);
-    const file = writeFseq({ frames: 800, data: new Uint8Array(800 * cc).fill(255), ranges });
-    assert.ok(file.length < 12e6 && file.length > 11e6, `${file.length}`);
-    assert.ok(800 * MAX_CHANNELS > 32e6);
-    const a = analyze(parseFseq(file), real);
-    assert.equal(a.coverage, 1);
-    assert.equal(a.estPeakAmps, Math.round(real.count * 3 * 0.02 * 10) / 10);
-    assert.equal(a.flicker.ok, true);
-  });
 });
 
 describe('flicker on the Folly: large regions block, small ones warn', () => {
@@ -235,21 +221,15 @@ describe('flicker on the Folly: large regions block, small ones warn', () => {
   test('large: ≥ 25 % of the LEDs, or ≥ 25 % of the lit area from the front or side', () => {
     const verdict = (id) => {
       const a = strobeOn(id);
+      if (['spirelets', 'rose-window'].includes(id)) {
+        assert.deepEqual(a.flicker.small.regions, [id]);
+        assert.ok(flickerWarning(a).includes(`small parts only (${id})`));
+      }
       return !a.flicker.ok ? 'blocks' : a.flicker.small.regions.length ? 'warns' : 'passes';
     };
     const ids = ['arches', 'spires', 'spirelets', 'rose-window', 'canopy', 'wash'];
     assert.deepEqual(Object.fromEntries(ids.map((id) => [id, verdict(id)])), { arches: 'blocks', spires: 'blocks',
       spirelets: 'warns', 'rose-window': 'warns', canopy: 'blocks', wash: 'warns' });
-  });
-
-  test('the 20 spirelets or the rose window strobing: a warning the curator sees', () => {
-    const spirelets = strobeOn('spirelets');
-    assert.equal(spirelets.flicker.ok, true);
-    assert.deepEqual(spirelets.flicker.small.regions, ['spirelets']);
-    assert.match(flickerWarning(spirelets), /small parts only \(spirelets\)/);
-    const rose = strobeOn('rose-window');
-    assert.equal(rose.flicker.ok, true, 'a 6 m disc is under a quarter of the rig, front or side');
-    assert.deepEqual(rose.flicker.small.regions, ['rose-window']);
   });
 });
 

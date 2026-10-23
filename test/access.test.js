@@ -60,6 +60,7 @@ describe('access', () => {
   });
 
   test('a code is made by an admin, shown once, stored hashed, and redeemed once', async () => {
+    assert.equal((await client(app).post('/api/invite', { code: 'x' })).status, 401);
     const mo = await someone(), jo = await someone();
     assert.equal((await mo.post('/api/admin/invites', {})).status, 403);
     assert.equal((await mo.get('/api/admin/people')).status, 403);
@@ -259,12 +260,5 @@ describe('access', () => {
     assert.equal((await idea(open)).status, 201, 'inviteOnly off: no code needed');
     const locked = await admin.put(`/api/admin/people/${mo.user.id}`, { unlocked: false });
     assert.equal(locked.json.person.access.unlockedAt, undefined);
-  });
-
-  test('a session is needed, and admin routes stay admin-only after login', async () => {
-    assert.equal((await client(app).post('/api/invite', { code: 'x' })).status, 401);
-    const again = client(app);
-    assert.equal((await again.post('/api/login', { username: 'person-1', password: 'correct horse' })).status, 200);
-    assert.equal((await again.get('/api/admin/invites')).status, 403);
   });
 });

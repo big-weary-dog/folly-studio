@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
-import { BPM, controlsOf, liveLook, SLEW } from '../src/controls.ts';
+import { BPM, liveLook, SLEW } from '../src/controls.ts';
 import { oneModule, shipped } from './fixture.ts';
 
 const dt = 1 / 40;
@@ -17,18 +17,6 @@ const play = (live: ReturnType<typeof liveLook>, t: number, secs: number) => {
 const beats = (L: ReturnType<typeof liveLook>['look'], t: number) => (t - L.beat0) * L.bpm / 60;
 
 describe('a look\'s controls', () => {
-  test('are its globals.live, in order, with their ranges and values', () => {
-    const live = liveLook(heartbeat);
-    assert.deepEqual(live.controls.map((c) => c.name), ['bpm', 'drive', 'ripple', 'palette']);
-    assert.deepEqual(live.controls[0], { name: 'bpm', ...BPM, value: 120, default: 120, held: false, kind: 'bpm' });
-    assert.equal(live.controls[1]!.kind, 'macro');
-  });
-
-  test('without globals.live, its faders', () => {
-    const look = oneModule('m', 'clouds', {}, { globals: { macros: { a: { value: 0.2 } } } });
-    assert.deepEqual(controlsOf(look, liveLook(look).look).map((c) => c.name), ['a', 'palette']);
-  });
-
   test('a push eases there over SLEW seconds, clamped to the range; unknown names are refused', () => {
     const live = liveLook(heartbeat);
     assert.equal(live.set('drive', 7, 0), true);

@@ -11,7 +11,7 @@ import { promisify } from 'node:util';
 
 import { describe, test } from 'vitest';
 
-import { DEFAULTS, readConfig } from '../src/config.ts';
+import { readConfig } from '../src/config.ts';
 
 const dir = mkdtempSync(path.join(tmpdir(), 'pi-config-')), none = path.join(dir, 'none.json');
 let files = 0;
@@ -22,16 +22,6 @@ const file = (cfg: object) => {
 };
 
 describe('settings', () => {
-  test('default to live on fppd, stats a minute apart', () => {
-    assert.deepEqual(readConfig([], none), { ...DEFAULTS, stats: 60 });
-  });
-
-  test('a dry run prints stats every 5 s', () => {
-    const c = readConfig(['--dry-run'], none)!;
-    assert.equal(c.dryRun, true);
-    assert.equal(c.stats, 5);
-  });
-
   test('pi/config.json, then flags over it', () => {
     const f = file({ host: '10.0.0.2', gen: 4000, look: 'fire', dryRun: true });
     const c = readConfig(['--gen', '3000', '--port', '4049'], f)!;

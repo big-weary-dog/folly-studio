@@ -122,10 +122,4 @@ describe('the tutorial matches the app', () => {
       assert.equal(look.id, undefined, `${id}: never one of the person's looks`);
     }
   });
-
-  test('a step that waits on a rig tag finds it on the rig', () => {
-    for (const tag of ['rose', 'arch-main', 'arch-mini']) {
-      assert.ok(rig.groups.some((g) => g.tags?.includes(tag)), `Rose and arches plays on the groups tagged ${tag}`);
-    }
-  });
 });

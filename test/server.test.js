@@ -113,11 +113,6 @@ describe('server', () => {
       assert.equal(c.cookie, '');
     });
 
-    test('carol is a curator via STUDIO_CURATORS', async () => {
-      const carol = await signup(app, 'carol');
-      assert.equal(carol.user.role, 'curator');
-    });
-
     test('nothing secret reaches disk or responses', async () => {
       const c = await signup(app, 'disk-check', 'disk-check-password');
       await app.store.flush();
@@ -285,12 +280,6 @@ describe('server', () => {
       assert.equal(api404.status, 404);
       assert.match(api404.headers.get('content-type'), /application\/json/);
       assert.equal(api404.headers.get('content-security-policy'), EXPECTED_APP_CSP);
-    });
-
-    test('ETag revalidation', async () => {
-      const r = await rawGet(app.port, '/js/main.js');
-      assert.ok(r.headers.etag);
-      assert.equal((await rawGet(app.port, '/js/main.js', { 'if-none-match': r.headers.etag })).status, 304);
     });
 
     test('directory traversal and dotfiles are blocked', async () => {

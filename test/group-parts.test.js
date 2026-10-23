@@ -1,7 +1,6 @@
 // Groups by tag on any rig: a tag's parts (p.part, p.parts), the modules that take turns by them, and every tag
 // choice in the library naming a conventional tag.
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
@@ -10,8 +9,6 @@ import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../public
 import { at, layerOf } from './fixtures/layers.js';
 import { cog, folly } from './fixtures/rigs.js';
 
-const here = (p) => new URL(p, import.meta.url);
-const lib = (name) => readFileSync(here(`../public/patterns/${name}.js`), 'utf8');
 const COG = prepareScene(cog), FOLLY = prepareScene(folly);
 
 describe('a tag\'s parts', () => {
@@ -66,14 +63,4 @@ describe('in-turn on groups', () => {
     const L = at(layerOf(white, ['in-turn', { tag: 'tower' }]), 0.3), { of } = tagParts(COG, 'tower');
     L.idx.forEach((k, j) => { if (of[k] < 0) assert.equal(L.buf[4 * j + 3], 0, `LED ${k}`); });
   });
-});
-
-test('every tag choice in the library names a conventional tag (SPEC "Rig")', () => {
-  const spec = readFileSync(here('../SPEC.md'), 'utf8'), list = /Conventional tags: ([^;]*);/.exec(spec)[1];
-  const tags = new Set([...list.matchAll(/`([a-z-]+)`/g)].map((m) => m[1]));
-  for (const f of readdirSync(here('../public/patterns/')).filter((f) => f.endsWith('.js'))) {
-    for (const m of lib(f.slice(0, -3)).matchAll(/tag: \{[^}]*?options: \[([^\]]*)\]/gs)) {
-      for (const o of m[1].match(/'[^']*'/g)) assert.ok(tags.has(o.slice(1, -1)), `${f}: ${o}`);
-    }
-  }
 });

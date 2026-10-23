@@ -20,10 +20,6 @@ const comp = (layers, more = {}) => ({ id: 'c', kind: 'composite', title: 'Compo
   layers: layers.map((modules, i) => ({ id: `s${i}`, title: `Sub ${i}`, modules })), ...more });
 
 describe('a composite', () => {
-  test('of one source draws as the source', () => {
-    assert.deepEqual(rgbOf({ id: 'l', modules: [comp([[RED]])] }), rgbOf({ id: 'l', modules: [RED] }));
-  });
-
   test('a warp below it bends every sub-layer, as below two sources', () => {
     const flat = rgbOf({ id: 'l', modules: [RED, BLUE, FLIP] });
     assert.deepEqual(rgbOf({ id: 'l', modules: [comp([[RED], [BLUE]]), FLIP] }), flat);
@@ -32,13 +28,11 @@ describe('a composite', () => {
 
   test('a filter in a sub-layer works on that sub-layer alone; below the composite, on all of it', () => {
     const red = rgbOf({ id: 'l', modules: [RED] });
-    assert.deepEqual(rgbOf({ id: 'l', modules: [comp([[RED], [BLUE, DARK]])] }), red);
-    assert.ok(rgbOf({ id: 'l', modules: [comp([[RED], [BLUE]]), DARK] }).every((v) => v === 0));
-  });
-
-  test('a source on top of it adds as on top of any source', () => {
+    assert.deepEqual(rgbOf({ id: 'l', modules: [comp([[RED]])] }), red);
     const top = { ...BLUE, id: 't' };
     assert.deepEqual(rgbOf({ id: 'l', modules: [comp([[RED]]), top] }), rgbOf({ id: 'l', modules: [RED, top] }));
+    assert.deepEqual(rgbOf({ id: 'l', modules: [comp([[RED], [BLUE, DARK]])] }), red);
+    assert.ok(rgbOf({ id: 'l', modules: [comp([[RED], [BLUE]]), DARK] }).every((v) => v === 0));
   });
 
   test('a sub-layer plays only on its groups, at the real LED, a warp below or not', () => {

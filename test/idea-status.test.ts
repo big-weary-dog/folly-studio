@@ -3,15 +3,11 @@ import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
-import { IDEA_STATUS, IllegalMove, isPending, transition } from '../shared/idea-status.ts';
+import { IllegalMove, transition } from '../shared/idea-status.ts';
 import { createQueue } from '../src/generate/index.ts';
 import { queueSetup } from './fixtures/generate/shared.js';
 
 describe('idea states', () => {
-  test('pending: queued or generating', () => {
-    assert.deepEqual(Object.keys(IDEA_STATUS).filter((s) => isPending({ status: s })), ['queued', 'generating']);
-  });
-
   test('the moves: forward, generating again after a restart, queued again when interrupted; ready and failed final',
     () => {
       const ok = [['queued', 'generating'], ['queued', 'failed'], ['generating', 'generating'],

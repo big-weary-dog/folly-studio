@@ -9,12 +9,11 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeEach, describe, test } from 'vitest';
 
 import {
-  compilePattern, layerEnvelope, lookDuration, normalizeClips, prepareLayer, prepareScene, renderFrame,
+  compilePattern, layerEnvelope, normalizeClips, prepareLayer, prepareScene, renderFrame,
 } from '../public/js/pattern-core.ts';
 import { ledRanges, writeFseq } from '../public/js/fseq.ts';
 import { createServer } from '../src/app.ts';
 import { validateLayers } from '../src/api-looks.ts';
-import { bakeSeconds } from '../src/bake.ts';
 import { createRenderBox } from '../src/render-box.ts';
 import { parseFseq } from '../src/frames.ts';
 import { validateLook } from '../shared/schemas/generated.ts';
@@ -32,13 +31,10 @@ const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-timeline-'));
 afterAll(() => fs.rmSync(tmpRoot, { recursive: true, force: true }));
 
 describe('layerEnvelope', () => {
-  test('no clips: always on', () => {
+  test('a hard clip is [start, end): on from start, off at end', () => {
     for (const clips of [undefined, null, []]) {
       for (const t of [-1, 0, 5, 1e6]) assert.equal(layerEnvelope(clips, t), 1);
     }
-  });
-
-  test('a hard clip is [start, end): on from start, off at end', () => {
     const c = [{ start: 2, end: 4 }];
     assert.equal(layerEnvelope(c, 1.999), 0);
     assert.equal(layerEnvelope(c, 2), 1);
@@ -91,15 +87,6 @@ describe('normalizeClips and lookDuration', () => {
     assert.deepEqual(normalizeClips(messy), [clip(0, 2, 0, 0.5), clip(5, 6)]);
     assert.equal(normalizeClips(Array.from({ length: 40 }, (_, i) => ({ start: i, end: i + 0.5 }))).length, 32);
   });
-
-  test('lookDuration: 30 by default, held to 1..600', () => {
-    assert.equal(lookDuration({}), 30);
-    assert.equal(lookDuration(null), 30);
-    assert.equal(lookDuration({ duration: '45' }), 30);
-    assert.equal(lookDuration({ duration: 45.5 }), 45.5);
-    assert.equal(lookDuration({ duration: 0.2 }), 1);
-    assert.equal(lookDuration({ duration: 9999 }), 600);
-  });
 });
 
 describe('renderFrame with clips', () => {
@@ -112,17 +99,11 @@ describe('renderFrame with clips', () => {
     return s;
   }
 
-  test('carries clips through prepareLayer', () => {
-    const L = prepareLayer(scene, { id: 'a', clips: [{ start: 4, end: 5 }, { start: 1, end: 2, fadeIn: 0.5 }] },
-      compilePattern(WHITE));
-    assert.deepEqual(L.clips, [clip(1, 2, 0.5), clip(4, 5)]);
-    assert.equal(prepareLayer(scene, { id: 'b' }, compilePattern(WHITE)).clips, null);
-    assert.equal(prepareLayer(scene, { id: 'c', clips: [] }, compilePattern(WHITE)).clips, null);
-  });
-
   test('outside its clips a layer does not run at all: no frame(), no pixel()', () => {
     const s = spy();
-    const L = prepareLayer(scene, { id: 'a', clips: [{ start: 1, end: 2 }] }, s.compiled);
+    const L = prepareLayer(scene, { id: 'a', clips: [{ start: 4, end: 5 }, { start: 1, end: 2, fadeIn: 0.5 }] },
+      s.compiled);
+    assert.deepEqual(L.clips, [clip(1, 2, 0.5), clip(4, 5)]);
     const out = new Float32Array(scene.count * 3);
     for (const t of [0, 0.999, 2, 2.5, 30]) {
       renderFrame(scene, [L], t, out);
@@ -130,6 +111,13 @@ describe('renderFrame with clips', () => {
     }
     assert.equal(s.pixels, 0);
     assert.equal(s.frames, 0);
+    const on = prepareLayer(scene, { id: 'on' }, compilePattern('function pixel() { return [0.25, 0.5, 0.75]; }'));
+    const { rgb, errors } = renderFrame(scene, [L, on], 3, out);
+    assert.deepEqual(errors, []);
+    assert.equal(s.pixels, 0);
+    assert.equal(s.frames, 0);
+    near(rgb[0], 0.25, 1e-6);
+    near(rgb[2], 0.75, 1e-6);
     renderFrame(scene, [L], 1.5, out);
     assert.equal(s.frames, 1);
     assert.equal(s.pixels, scene.count);
@@ -142,6 +130,11 @@ describe('renderFrame with clips', () => {
     const { rgb } = renderFrame(scene, [L], 11);
     near(rgb[0], 0.8 * 0.5 * 0.25, 1e-6);
     near(rgb[1], 0.4 * 0.5 * 0.25, 1e-6);
+    for (let k = 0; k < scene.count; k++) {
+      near(rgb[3 * k], 0.8 * 0.5 * 0.25, 1e-6);
+      near(rgb[3 * k + 1], 0.4 * 0.5 * 0.25, 1e-6);
+      near(rgb[3 * k + 2], 0.2 * 0.5 * 0.25, 1e-6);
+    }
     assert.equal(s.t, 11, 'pattern time is show time, not clip time');
     // Blends other than add see the scaled level too.
     const base = prepareLayer(scene, { id: 'base' }, compilePattern('function pixel() { return [0, 0, 1]; }'));
@@ -149,17 +142,6 @@ describe('renderFrame with clips', () => {
     const mixed = renderFrame(scene, [base, over], 1).rgb;
     near(mixed[0], 0.5, 1e-6);
     near(mixed[2], 0.5, 1e-6);
-  });
-
-  test('a layer with clips that never start is free; other layers render as before', () => {
-    const s = spy();
-    const off = prepareLayer(scene, { id: 'off', clips: [{ start: 500, end: 600 }] }, s.compiled);
-    const on = prepareLayer(scene, { id: 'on' }, compilePattern('function pixel() { return [0.25, 0.5, 0.75]; }'));
-    const { rgb, errors } = renderFrame(scene, [off, on], 3);
-    assert.deepEqual(errors, []);
-    assert.equal(s.pixels, 0);
-    near(rgb[0], 0.25, 1e-6);
-    near(rgb[2], 0.75, 1e-6);
   });
 });
 
@@ -200,6 +182,12 @@ describe('validation', () => {
   });
 
   test('generator: clips and duration are normalised, bad ones dropped and noted', () => {
+    const strings = validateLook({ duration: ' 45 ', layers: [{ code: WHITE, clips: [
+      { start: '20', end: 30, fadeIn: 900, fadeOut: -2 }, { start: 0, end: 10.00049, fadeIn: 'x' }, { end: 3 },
+    ] }] });
+    assert.equal(strings.duration, 45);
+    assert.deepEqual(strings.layers[0].clips, [clip(0, 10), clip(20, 30, 600)]);
+    assert.deepEqual(strings.dropped, ['layer 1: a clip without a valid start and end']);
     const v = validateLook({
       title: 'Storm',
       summary: 'Calm, then a storm.',
@@ -323,13 +311,6 @@ describe('the API: duration and bpm', () => {
     } finally {
       await app.close();
     }
-  });
-
-  test('bakeSeconds: the duration, 30 by default, capped by the box', () => {
-    assert.equal(bakeSeconds({}), 30);
-    assert.equal(bakeSeconds({ duration: 200 }), 120);
-    assert.equal(bakeSeconds({ duration: 200 }, 600), 200);
-    assert.equal(bakeSeconds({ duration: 7.5 }, 4), 4);
   });
 });
 

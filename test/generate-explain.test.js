@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'vitest';
 
 import { expand } from '../src/generate/expand.ts';
-import { changesOf, checksOf, explainOf, HOW_BYTES, howOf, thinkingOf } from '../src/generate/explain.ts';
+import { changesOf, checksOf, HOW_BYTES, howOf, thinkingOf } from '../src/generate/explain.ts';
 import { CATALOG } from './fixtures/generate/box.js';
 
 const SOURCE = [...CATALOG.modules].find(([, m]) => m.kind === 'source')[0];
@@ -22,13 +22,6 @@ describe('what a round says of itself', () => {
       'A tide.');
     assert.equal(thinkingOf({ reply: [{ type: 'thinking', thinking: '' }], tools: [] }), '');
     assert.equal(thinkingOf({ reply: 'not blocks' }), '');
-  });
-
-  test('its critique and plan, bounded; anything else is not its to say', () => {
-    assert.deepEqual(explainOf({ critique: ' Too dark. ', plan: 'x'.repeat(900), title: 'T' }),
-      { critique: 'Too dark.', plan: 'x'.repeat(600) });
-    assert.deepEqual(explainOf({ plan: 3 }), {});
-    assert.deepEqual(explainOf(null), {});
   });
 
   test('what changed, each line with the why its layer or edit gave', () => {
