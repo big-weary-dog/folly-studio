@@ -11,7 +11,7 @@
     "render-box": { "lines": 234, "reason": "The render box prepares looks and renders deterministic frames to FSEQ under its resource limits." },
     "shared": { "lines": 1616, "reason": "Shared schemas and pure rules define looks, generated compositions, API data, permissions and playback." },
     "src": { "lines": 10281, "reason": "The server implements authentication, storage, generation, baking, frames and live administration, including current bake verification and monotonic verification timestamps when the host wall clock steps back." },
-    "test": { "lines": 23699, "reason": "Unit, integration and browser suites include deterministic generator completion barriers, a bake-restore wall-clock rollback regression, and shared complete-line relay telemetry with a split-stream regression alongside existing strict bake, editor, Pi feed, installer and API regressions." },
+    "test": { "lines": 23700, "reason": "Unit, integration and browser suites include deterministic generator completion barriers, a bake-restore wall-clock rollback regression, shared complete-line relay telemetry with a split-stream regression, and closing the overlapping-version store before fixture removal, alongside existing bake, editor, Pi feed, installer and API regressions." },
     "tools": { "lines": 2380, "reason": "Tools build and check rig and palette data, check the Pi bundle holds nothing secret, enforce budgets, support development and backups, and benchmark rendering." }
   }
 }

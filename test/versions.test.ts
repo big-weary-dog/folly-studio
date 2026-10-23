@@ -132,9 +132,10 @@ describe('versions', () => {
 });
 
 test('overlapping saves each keep a version: a save waiting on its code check builds on the one that went first',
-  async () => {
+  async ({ onTestFinished }) => {
     const dir = await mkdtemp(path.join((fx as { tmp: string }).tmp, 'overlap-'));
     const store = await createStore(dir, { log: quiet }), auth = createAuth({ store });
+    onTestFinished(() => store.close());
     const user = store.users.create({ username: 'o-ann', passwordHash: '' });
     let release = () => {}, hold = false;
     const check = () => (hold ? new Promise<void>((r) => { release = r; }) : Promise.resolve());
