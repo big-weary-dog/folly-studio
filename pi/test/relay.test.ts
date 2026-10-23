@@ -39,13 +39,11 @@ describe('relay to the lights', () => {
     x.relay.start(who, 'cara');
     x.relay.push(who, x.frame(x.slot(), (i) => i % 3 === 1 ? 65535 : 0));
     x.tick();
-    const scene = x.engine.scene, k = scene.addr[0]!, first = () =>
-      [0, 1, 2].map((c) => x.last()[k + scene.order[c]!]!);
+    const first = () => [0, 1, 2].map((c) => x.last()[x.engine.scene.addr[0]! + x.engine.scene.order[c]!]!);
     assert.deepEqual(first(), [0, 255, 0]);
     x.engine.play('blue', 4);
     x.tick();
-    const [red, green, blue] = first();
-    assert.ok(red === 0 && green! >= 253 && blue! <= 2, `${first()}`);
+    assert.deepEqual(first(), [0, 253, 2]);
     x.tick(159);
     assert.deepEqual(first(), [0, 0, 255]);
     x.engine.close();
