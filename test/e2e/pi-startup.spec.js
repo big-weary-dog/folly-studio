@@ -1,7 +1,4 @@
 // Pi startup follows an engine source before a control command; fixtures render locally and send no lighting data.
-import { mkdirSync } from 'node:fs';
-import path from 'node:path';
-
 import { engineOn } from '../../pi/test/fixture.ts';
 import { piNowOf } from '../../src/live/pi-feed.ts';
 import { expect, signup, test } from './studio.js';
@@ -16,8 +13,6 @@ test('a read-only viewer follows the engine before anyone takes controls', async
   const cookie = await signup(studio.origin, 'startup-viewer');
   const [name, value] = cookie.split('=');
   await page.context().addCookies([{ name, value, url: studio.origin }]);
-  const shots = path.join(process.env.HOME, '.fleet/folly-studio/reports/ux-pages');
-  mkdirSync(shots, { recursive: true });
   for (const width of [1366, 390]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     await page.goto(`${studio.origin}/live?probe=1`);
@@ -26,7 +21,7 @@ test('a read-only viewer follows the engine before anyone takes controls', async
     const lit = () => page.evaluate(() => Math.max(0, ...window.__liveProbe.frames.values()));
     await expect.poll(lit, { timeout: 60_000 }).toBeGreaterThan(0);
     await expect(page.getByText('Nothing is playing yet.')).toHaveCount(0);
-    await page.screenshot({ path: path.join(shots, `live-startup-${width}.png`) });
+    await page.screenshot({ path: test.info().outputPath(`live-startup-${width}.png`) });
   }
   r.engine.close();
 });

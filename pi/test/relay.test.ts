@@ -30,6 +30,22 @@ function relayed(looks: Parameters<typeof engineOn>[0] = []) {
 }
 
 describe('relay to the lights', () => {
+  test('missing incoming relay frames hold their color during a crossfade', () => {
+    const looks = ['red', 'blue'].map((id, i) => oneModule(id, 'colour-wash',
+      { colours: ['#ff0000', '#0000ff'][i], speed: 0 }));
+    const x = relayed(looks);
+    x.engine.play('red');
+    x.tick(60);
+    const rev = x.engine.state().look!.rev + 1;
+    x.relay.start(who, 'cara');
+    x.relay.push(who, x.frame(x.slot(), (i) => i % 3 === 1 ? 65535 : 0, rev));
+    x.engine.play('blue', 4);
+    x.tick(4); // one green frame, then three missing frames, still within the relay's hold
+    const scene = x.engine.scene, k = scene.addr[0]!;
+    assert.deepEqual([0, 1, 2].map((c) => x.last()[k + scene.order[c]!]!), [249, 6, 0]);
+    x.engine.close();
+  });
+
   test('a crossfade starts from the visible relay colors, rather than the underlying look', () => {
     const looks = ['red', 'blue'].map((id, i) => oneModule(id, 'colour-wash',
       { colours: ['#ff0000', '#0000ff'][i], speed: 0 }));

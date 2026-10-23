@@ -42,6 +42,7 @@ export type EngineOptions = { rig: Rig, lib: Library, looks: () => Map<string, {
 export function createEngine(o: EngineOptions) {
   const scene = prepareScene(o.rig), fps = scene.fps, dt = 1 / fps;
   const rgb = new Float32Array(scene.count * 3), cells = new Uint8Array(scene.frameChannels);
+  const relayRgb = new Float32Array(rgb.length); // relay holds its incoming frame; crossfades mix into rgb
   const guard = new FlashGuard(o.rig, null, o.light), log = o.log ?? (() => {});
   let light = prepareLight(scene, o.light);
   const now = o.now ?? (() => performance.now());
@@ -170,8 +171,8 @@ export function createEngine(o: EngineOptions) {
       p.live?.wrapped(back * dt);
     }
     // A relayed frame (slots count every tick and skip) stands in for the render; the controls step on regardless.
-    relayed = o.relay?.fill(shown(), rev, rgb, dt) ?? false;
-    if (relayed) p.live?.step(t, dt);
+    relayed = o.relay?.fill(shown(), rev, relayRgb, dt) ?? false;
+    if (relayed) { rgb.set(relayRgb); p.live?.step(t, dt); }
     else {
       try {
         const error = renderPlaying(p, scene, frame, dt, rgb);

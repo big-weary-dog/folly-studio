@@ -1,8 +1,7 @@
 // npm run smoke, too: the Pi profile's Studio (SPEC-offline) at a laptop's and a phone's size. Signing up lands on
 // My looks, with no Ideas tab and a Lights link for a curator; /ideas goes to My looks; Import takes a file of looks
 // and Export all gives them back (again: unchanged). Screenshots of each in the output, and no errors on the page.
-import { mkdir, readFile } from 'node:fs/promises';
-import path from 'node:path';
+import { readFile } from 'node:fs/promises';
 
 import { expect, test } from './studio.js';
 
@@ -48,15 +47,13 @@ for (const [name, device] of Object.entries(SIZES)) {
           { name: 'crew.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ looks: [
             { ...look('Embers'), origin: 'batchLook01' }, look('Tide'), bad] })) },
         ]);
-        const shots = path.join(process.env.HOME, '.fleet/folly-studio/reports/ux-pages');
-        await mkdir(shots, { recursive: true });
         await expect(page.getByRole('dialog', { name: 'Import looks' })).toBeVisible();
         await expect(page.getByRole('dialog')).toContainText('Old embers: add new look');
         await expect(page.getByRole('dialog')).toContainText('Embers: replace earlier import');
         for (const label of ['Cancel', 'Import as copies', 'Import looks']) {
           await expect(page.getByRole('dialog').getByRole('button', { name: label, exact: true })).toBeInViewport();
         }
-        await page.screenshot({ path: path.join(shots, `import-preview-${device.viewport.width}.png`) });
+        await page.screenshot({ path: info.outputPath(`import-preview-${device.viewport.width}.png`) });
         await page.getByRole('button', { name: 'Import looks', exact: true }).click();
         await expect(page.locator('.card')).toHaveCount(2);
         await expect(page.getByText('Imported: 2 added, 1 updated.')).toBeVisible();
@@ -73,8 +70,7 @@ for (const [name, device] of Object.entries(SIZES)) {
         expect(looks.every((l) => l.chain === 2 && l.origin)).toBe(true);
         await page.locator('input[type=file]').setInputFiles(await file.path());
         await expect(page.getByRole('dialog')).toContainText('replace existing look');
-        await page.screenshot({ path: path.join(process.env.HOME, '.fleet/folly-studio/reports/ux-pages',
-          `import-replacements-${device.viewport.width}.png`) });
+        await page.screenshot({ path: info.outputPath(`import-replacements-${device.viewport.width}.png`) });
         await page.getByRole('button', { name: 'Import looks', exact: true }).click();
         await expect(page.getByText('Imported: 2 unchanged.')).toBeVisible();
         await expect(page.locator('.card')).toHaveCount(2);

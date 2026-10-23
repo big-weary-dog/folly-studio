@@ -1,17 +1,13 @@
 // Audit regressions: drafts, inherited limits, invitation entry, reporting eligibility and tutorial availability.
-import { mkdirSync } from 'node:fs';
-import path from 'node:path';
-
 import { expect, signup, test } from './studio.js';
 
-const shots = path.join(process.env.HOME, '.fleet/folly-studio/reports/ux-pages');
-mkdirSync(shots, { recursive: true });
 test.use({ serverOptions: { admins: 'pages-admin-1366,pages-admin-390' } });
 
 for (const width of [1366, 390]) {
   test.describe(`${width}`, () => {
     test.use({ viewport: { width, height: width === 390 ? 844 : 900 } });
-    const shot = (page, name) => page.screenshot({ path: path.join(shots, `${name}-${width}.png`), fullPage: true });
+    const shot = (page, name) => page.screenshot({ path: test.info().outputPath(`${name}-${width}.png`),
+      fullPage: true });
     const menu = async (page) => {
       await page.locator(width === 390 ? '#nav-toggle' : '#user-menu-btn').click();
     };

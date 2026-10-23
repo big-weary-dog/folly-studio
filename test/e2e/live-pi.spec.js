@@ -2,7 +2,7 @@
 // (the dry-run engine behind Studio's proxy); the Live tab, on a phone and a laptop, plays it and says it is driven
 // from /pi, and /pi says so too. Screenshots of each, and /pi beside the Live tab, in the output.
 import { spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -15,8 +15,6 @@ const PHONE = { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch:
   colorScheme: 'dark' };
 const LAPTOP = { viewport: { width: 1366, height: 768 }, colorScheme: 'dark' };
 const MAIN = fileURLToPath(new URL('../../pi/main.ts', import.meta.url));
-const SHOTS = path.join(process.env.HOME, '.fleet/folly-studio/reports/ux-pages');
-mkdirSync(SHOTS, { recursive: true });
 
 const port = await new Promise((resolve) => {
   const s = createServer().listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => resolve(p)); });
@@ -62,9 +60,9 @@ test('a look picked on /pi plays on the Live tab', async ({ browser, studio }, i
   await pi.page.getByRole('button', { name: /^Fire/ }).click();
   await pi.page.getByRole('button', { name: 'Cue it' }).click();
   await expect(pi.page.getByText('The looks overlap for 4 s.', { exact: false })).toBeVisible();
-  await pi.page.screenshot({ path: path.join(SHOTS, 'pi-crossfade-390.png') });
+  await pi.page.screenshot({ path: info.outputPath('pi-crossfade-390.png') });
   await pi.page.setViewportSize(LAPTOP.viewport);
-  await pi.page.screenshot({ path: path.join(SHOTS, 'pi-crossfade-1366.png') });
+  await pi.page.screenshot({ path: info.outputPath('pi-crossfade-1366.png') });
   await pi.page.setViewportSize(PHONE.viewport);
   await pi.page.getByRole('button', { name: /^Fade to Fire/ }).click();
   await expect(pi.page.getByRole('heading', { level: 1 })).toHaveText('Fire', { timeout: 10_000 });
