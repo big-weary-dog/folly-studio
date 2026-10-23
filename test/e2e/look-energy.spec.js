@@ -72,11 +72,12 @@ for (const [size, viewport] of [['laptop', { width: 1366, height: 768 }], ['phon
         else await page.locator('.tab[data-tab=look]').click({ timeout: 30_000 });
         const panel = page.locator('.look-globals:visible');
         await expect(panel).toBeVisible({ timeout: 30_000 });
-        const names = panel.locator('input.macro-name');
+        const names = panel.locator(size === 'phone' ? '.macro > label' : 'input.macro-name');
         if (which === 'fresh') await expect(names).toHaveCount(0);
         else {
           await expect(names).toHaveCount(1);
-          await expect(names).toHaveValue('energy');
+          if (size === 'phone') await expect(names).toHaveText('energy');
+          else await expect(names).toHaveValue('energy');
         }
         for (const gone of ['Speed', 'Level', 'Hue', 'Saturation']) {
           await expect(panel.getByText(gone, { exact: true })).toHaveCount(0);

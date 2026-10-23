@@ -6,12 +6,12 @@
     "pi": { "lines": 5518, "reason": "The Pi adds a sender-starvation regression covering expired slots, buffer exhaustion and recovery on the same lease, alongside prepared-look rendering, interruptible crossfades in LED light, held relay frames, bake streaming, output lifecycle, guard timing and control-page coverage." },
     "public": { "lines": 56, "reason": "The app and sandbox HTML shells load their browser entry points." },
     "public/css": { "lines": 2390, "reason": "Styles cover the app shell, Studio panels, timeline, live controls, admin pages (the Pi bundle's too) and phone layouts." },
-    "public/js": { "lines": 18663, "reason": "Browser sources combine conditional parameter visibility and relay clock-origin mapping with editor and Pages workflows for code policy, import previews, admin drafts, invite entry, guest tutorials and reporting alongside the core and viewers." },
+    "public/js": { "lines": 18627, "reason": "Combines conditional parameter controls and relay clock mapping with phone Studio authoring cuts, explicit refinement and sharing details alongside the existing editor and viewers." },
     "public/patterns": { "lines": 1835, "reason": "The built-in library provides short standalone examples, with conditional controls and concise headers sharing their detail with help and guides." },
     "render-box": { "lines": 248, "reason": "The render box shares deterministic IDs and streaming FSEQ output with the Fleet checker, keeping bake memory independent of duration." },
     "shared": { "lines": 1616, "reason": "Shared schemas and pure rules define looks, generated compositions, API data, permissions and playback." },
     "src": { "lines": 10355, "reason": "The server includes shared FSEQ header validation for bounded-memory Pi playback, request-matched queue acceptance and ordered verification timestamps, alongside authentication, storage, generation, baking, frame delivery, live sockets and administration." },
-    "test": { "lines": 24404, "reason": "Suites combine conditional parameter controls, retained values and zero-glow rendering with editor and Pages workflows, shared dry-engine fixtures and installer regressions for rehearsal exits, bind failure, ephemeral ports and authenticated feeds." },
+    "test": { "lines": 24488, "reason": "Combines conditional controls and installer regressions with phone authoring cuts, invited-member refinement, supported History edits and existing editor, API and rendering coverage." },
     "tools": { "lines": 2380, "reason": "Tools build and check rig and palette data, check the Pi bundle holds nothing secret, enforce budgets, support development and backups, and benchmark rendering." }
   }
 }

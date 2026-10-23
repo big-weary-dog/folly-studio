@@ -104,9 +104,9 @@ function Refine({ st }: { st: Studio }) {
             {list.models.map((m) => <option value={m.id}>{m.label}</option>)}</select>}</Field>}
           <button type="submit" class="btn small primary" disabled={busy || text.trim().length < 2}>
             {busy ? `Refining${r?.by ? ` with ${r.by}` : ''}…` : 'Refine'}</button>
-          <button type="button" class="btn small" disabled={busy || offline}
+          {!st.narrow.value && <button type="button" class="btn small" disabled={busy || offline}
             title="The model watches a few seconds of the look and revises it toward the idea"
-            onClick={() => refine(st, { critique: true })}>Critique</button>
+            onClick={() => refine(st, { critique: true })}>Critique</button>}
         </div>
       </form>
       {r?.error && <p class="refine-error" role="status">{r.error}</p>}

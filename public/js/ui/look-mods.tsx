@@ -48,7 +48,7 @@ export function Drives({ st, uses }: { st: Studio; uses: Use[] }) {
     const { place, label } = placeOf(st, u), text = useText(u, place), b = u.b;
     const range = u.how === 'follows' && b.mod === 'global' && b.from !== undefined && b.to !== undefined
       ? `${fmt(b.from)}…${fmt(b.to)}` : '';
-    return u.layer ? <button type="button" class="mod-tag" title={`Open ${text}`}
+    return u.layer && !st.narrow.value ? <button type="button" class="mod-tag" title={`Open ${text}`}
       onClick={() => jump(st, u, label)}>{text}{range && <span class="mod-tag-range">{range}</span>}</button>
       : <span class="mod-tag">{text}</span>;
   })}</div>;

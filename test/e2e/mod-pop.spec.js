@@ -26,6 +26,10 @@ async function open(page, studio, user) {
   await page.context().addCookies([{ name, value, url: studio.origin }]);
   await page.goto(`${studio.origin}/studio/${id}`);
   const phone = page.viewportSize().width < 900;
+  if (phone) {
+    await page.locator('.layer-name').first().click();
+    return;
+  }
   await page.locator(phone ? '.tab[data-tab=look]' : '.dock-tab[data-dock=look]').click({ timeout: 30_000 });
   await page.locator('.mod-card[data-name=breath] .mod-tag').first().click({ timeout: 30_000 });
 }
@@ -118,8 +122,10 @@ test.describe('the beat clock', () => {
 
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
-  test('a sheet at the foot of the screen', async ({ page, studio }, info) => {
+  test('existing bindings play without modulation authoring', async ({ page, studio }) => {
     await open(page, studio, 'pop-phone');
-    await modes(page, info, 'phone', true);
+    await expect(page.locator('.param-mod')).toHaveCount(0);
+    await expect(page.locator('.params .param-chip:visible').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Automate', exact: true })).toHaveCount(0);
   });
 });
