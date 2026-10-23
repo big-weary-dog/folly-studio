@@ -1,5 +1,4 @@
-// The Pi bundle's download (SPEC-offline "Downloading the Pi bundle"): the one file STUDIO_PI_BUNDLE names, made by
-// `npm run host`, for curators and admins, or for anyone holding a link one of them minted (1 hour, in memory).
+// Pi bundle downloads (SPEC-offline): STUDIO_PI_BUNDLE, for curators, admins or holders of their hour-long links.
 // Nothing in a request names a path; a token is only looked up, and never logged (stats log the route, not the URL).
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import fs from 'node:fs';
@@ -56,7 +55,8 @@ export function piBundleRoutes({ file, now = Date.now }: { file?: string, now?: 
       // Every live link is compared, each in constant time, so the answer's timing says nothing of a near miss.
       const held = live().reduce((ok, l) => (asked?.length === l.token.length && timingSafeEqual(asked, l.token))
         || ok, false);
-      if (!held || asked?.toString('base64url') !== given) throw new HttpError(404, 'That link is unknown or has expired.');
+      if (!held || asked?.toString('base64url') !== given)
+        throw new HttpError(404, 'That link is unknown or has expired.');
       return send(req, reply);
     }, { public: true }],
   } as const;
