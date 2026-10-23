@@ -7,8 +7,8 @@ still: **rotate** Spin below wedges turns them; **scroll** `out` or `in` below r
 out or in. **polar** reshapes rather than folds.
 
 ## Params
-- wedges: Their edges sit on the rose's petal edges, so 2, 4, 8, 16 fit. Turn across off with it.
-- rings: Always even, so no seam. On the rose more than 4 aliases; on the whole rig 4–8 reads.
+- wedges: 0 and 1 are off. Edges sit on the rose's petal edges, so 2, 4, 8, 16 fit. Turn across off with it.
+- rings: Always even, so no seam. Fine repeats can alias on the rose, but 8–12 still changes it; try 4–8 first.
 
 ## Pairings
 - `along` after **single-strand**: comets leave both feet of each arch and meet at the keystone.

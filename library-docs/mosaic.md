@@ -8,5 +8,5 @@ Each run takes the colour at its middle, so smooth sources step down the wire. P
 - After smooth **clouds** or **bars**; then **recolour** Steps for pixel art.
 
 ## Pitfalls
-- No effect on the rose (one-LED panes).
+- The rose changes too: its fixture runs are sampled along the wire, including within the panes.
 - Long runs on a fast source flash many LEDs at once; keep it slow (3 Hz flash check).

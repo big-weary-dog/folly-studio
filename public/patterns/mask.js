@@ -1,30 +1,33 @@
-// Mask: shows what is above it only where its input, another source (usually input only), is brighter than Cutoff;
-// By self, where what is above it is, by luminance (so busy textures become crisp shapes); by region, on the rose's
-// panes Pick chooses of a Rule's regions (odd petals, a spiral arm), with no input. Invert shows the rest. Amount is
-// how fully it hides the rest: hidden is transparent. Scatter gives each LED its own cutoff, Seed's, so dim parts thin
-// out to dots. By input with no input it does nothing.
+// Mask: hides what is above by input brightness, its own brightness, or picked procedural regions of the rose.
+// Hidden is transparent; Show the rest reverses it. Input mode with no input leaves the source alone.
 const params = {
   by: { value: 'input', type: 'choice', options: ['input', 'self', 'region'], label: 'Mask by',
     help: 'Input masks by another source fed in; self by what is above (textures to shapes); region by rose panes.' },
   amount: { value: 1, min: 0, max: 1, step: 0.01, label: 'Mask strength',
     help: 'How fully the masked part is hidden. Zero hides nothing; one makes it fully transparent.' },
   cutoff: { value: 0.35, min: 0, max: 1, step: 0.01, label: 'Brightness where it opens',
+    showWhen: { by: ['input', 'self'] },
     help: 'The brightness the mask opens at. Low lets most through; high shows only the brightest parts.' },
   scatter: { value: 0, min: 0, max: 1, step: 0.01, label: 'Scatter',
+    showWhen: { by: ['input', 'self'] },
     help: 'Gives each LED its own cutoff (Seed deals them). Zero: one cutoff; one: dim parts break into dots.' },
   softness: { value: 0.3, min: 0.01, max: 1, step: 0.01, label: 'Edge softness',
     help: 'How gradual the edge is, a share of brightness (or by region, of a pane). Low cuts hard; high fades wide.' },
-  invert: { value: false, type: 'toggle', label: 'Show where the input is dark',
+  invert: { value: false, type: 'toggle', label: 'Show the rest',
     help: 'Off shows it where the mask source is bright (or the picked panes); on shows the rest.' },
   rule: { value: 'alternate', type: 'choice', label: 'Region rule',
+    showWhen: { by: ['region'] },
     options: ['petal', 'alternate', 'ring', 'rings', 'centre', 'spiral', 'wedges', 'checker', 'random'],
     help: 'By region: which panes make one region: a petal, alternate petals, a ring, a spiral arm, a wedge, ….' },
   size: { value: 2, min: 1, max: 8, step: 1, label: 'Petals a region',
+    showWhen: { by: ['region'], rule: ['spiral', 'wedges', 'checker'] },
     help: 'By region, for spiral, wedges and checker: how many petals one region spans. 4 gives four big wedges.' },
   pick: { value: 'odd', type: 'choice', options: ['all', 'even', 'odd', 'one', 'every'], label: 'Show regions',
+    showWhen: { by: ['region'] },
     help: 'By region: all, the even or odd ones, just one (Index), or every Index-th from the first.' },
-  index: { value: 0, min: 0, max: 15, step: 1, label: 'Index',
-    help: 'By region: which one region shows (one), or the step between those that show (every).' },
+  index: { value: 0, min: 0, max: 15, step: 1, label: 'Region index / every N regions',
+    showWhen: { by: ['region'], pick: ['one', 'every'] },
+    help: 'One: 0-based region, wrapping. Every: step between shown regions; 0 and 1 show all, 2 alternate regions.' },
   seed: { value: 1, min: 0, max: 99, step: 1, label: 'Seed',
     help: 'Scatter\'s cutoffs, and by region for random, the regions. Each seed is different, always the same.' },
 };

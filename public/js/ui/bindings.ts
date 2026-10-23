@@ -2,10 +2,11 @@
 // the schema entry a control shows, a binding in a few words, and the binding the modulate dialog makes.
 import type { Binding, ParamValue } from '../../../shared/schemas/look.ts';
 import { readText } from '../core/globals.ts';
+import { paramControls, type ParamControls } from '../core/param-controls.ts';
 import { type Picture, readPicture } from '../core/picture.ts';
 import { humanize } from './kit.tsx';
 
-export interface Param { kind: 'number' | 'color' | 'toggle' | 'choice' | 'picture' | 'text';
+export interface Param extends ParamControls { kind: 'number' | 'color' | 'toggle' | 'choice' | 'picture' | 'text';
   value: number | string | boolean | Picture;
   label: string; min: number; max: number; step: number; options: string[]; blend?: 'smooth' | 'step'; help?: string;
   unit?: 'minute'; lines?: boolean; petals?: boolean; cells?: boolean }
@@ -26,6 +27,17 @@ export const optionText = (key: string, options: string[]) => (options.every((o)
 /** Is v a param binding rather than a value? */
 export const isBinding = (v: unknown): v is Binding => !!v && typeof v === 'object' && !Array.isArray(v)
   && typeof (v as Binding).mod === 'string';
+
+/** A conditional row reads the same defaults and validated choices as the controls themselves. */
+export function visibleParams(entries: [string, Param][], values: Record<string, ParamValue>) {
+  const specs = new Map(entries);
+  return entries.filter(([, p]) => !p.showWhen || Object.entries(p.showWhen).every(([name, allowed]) => {
+    const other = specs.get(name);
+    if (!other) return false;
+    const { bound, value } = shownValue(other, values, name);
+    return bound || allowed.includes(value as string | number | boolean);
+  }));
+}
 /** A number as the popover writes it: 3 decimals, or 3 significant digits below 1 (0.0025 stays 0.0025). */
 export const fmt = (v: number) => String(Math.abs(v) >= 1 ? Math.round(v * 1000) / 1000 : Number(v.toPrecision(3)));
 /** Rates in beats as the popover offers them: cycles a beat for a period of ¼ beat … 4 bars (4 beats a bar). */
@@ -55,7 +67,7 @@ export function bindingText(b: Binding, r = { min: 0, max: 1 }) {
 export function normaliseParam(key: string, raw: unknown): Param | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>, label = typeof r.label === 'string' ? r.label : humanize(key), v = r.value;
-  const base = { label, min: 0, max: 1, step: 1, options: [],
+  const base = { ...paramControls(r), label, min: 0, max: 1, step: 1, options: [],
     ...typeof r.help === 'string' && r.help ? { help: r.help } : {} };
   if (r.type === 'color') {
     return { ...base, kind: 'color', value: typeof v === 'string' ? v : toHex(v),

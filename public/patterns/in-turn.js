@@ -1,35 +1,33 @@
-// In turn: what is above it plays once per instance, each on its own clock from its own start, seen through a gate.
-// Each is the parts of Tag (each group tagged it, or each smallest group of the one that is: each arch of the
-// arches) or Drops landing at random spots, each in its own round frame spreading out to Reach. Starts come Every
-// seconds: one instance after another (forward, back), at random, or all at once (together). The gate opens over
-// Attack (flash: all at once; wipe and pass: a front crossing it in Direction), holds for Hold, then fades over
-// Release (pass: a tail crosses after the front). Where drops overlap, the youngest drop that has reached a pixel
-// takes it. The modules above run on the instance's time (their t and clock()), so they start with it; their LFOs
-// still run on show time.
+// In turn: groups or random drops play what is above on their own clocks, through a flash, wipe or passing band.
+// Starts repeat every cycle; unfinished envelopes cut off. Where drops overlap, the youngest that reached it wins.
 const params = {
   each: { value: 'groups', type: 'choice', options: ['groups', 'drops'], label: 'Each',
     help: 'groups: each part of Tag takes its turn; drops: drops land at random spots, each in its own round frame.' },
   tag: { value: 'arch', type: 'choice', label: 'Groups (tag)',
+    showWhen: { each: ['groups'] },
     options: ['arch', 'arch-main', 'arch-mini', 'arch-quad', 'tower', 'spire', 'spirelet', 'ring', 'rose', 'window',
       'front', 'back', 'left', 'right', 'ground-level', 'all'],
     help: 'Groups: which tagged groups take turns; a tag on one group (the arches) steps through its parts.' },
   drops: { value: 5, min: 1, max: 8, step: 1, label: 'Drops at once',
+    showWhen: { each: ['drops'] },
     help: 'Drops: how many are alive at once, each from its own spot. Low is a lone drop; high a downpour.' },
   reach: { value: 0.6, min: 0.1, max: 2, step: 0.05, label: 'Reach (share of the layer\'s longer side)',
+    showWhen: { each: ['drops'] },
     help: 'Drops: how far a drop spreads by its next start, the edge of its frame. Low is small rings; high wide.' },
   start: { value: 'forward', type: 'choice', options: ['forward', 'back', 'random', 'together'], label: 'Start',
-    help: 'forward goes first to last and round; back goes last to first; random at random; together all at once.' },
+    help: 'Forward goes first to last; back reverses it; random gives fixed random offsets; together starts all.' },
   every: { value: 1, min: 0.05, max: 10, step: 0.05, label: 'Every (seconds from one start to the next)',
-    help: 'How often one starts (together: all of them). Low races through them; high takes its time.' },
+    help: 'Cycle = instance count × Every (together: Every). Unfinished appear + hold + fade cuts off each cycle.' },
   gate: { value: 'wipe', type: 'choice', options: ['flash', 'wipe', 'pass'], label: 'Gate',
     help: 'flash shows it all at once; wipe reveals it in Direction; pass sends a band through and out in Direction.' },
   direction: { value: 'along', type: 'choice', options: ['up', 'down', 'out', 'in', 'along'], label: 'Direction',
+    showWhen: { gate: ['wipe', 'pass'] },
     help: 'Which way a wipe or pass crosses: up or down the layer, out from or in to the middle, along each wire.' },
-  attack: { value: 1, min: 0, max: 10, step: 0.05, label: 'Attack (seconds)',
+  attack: { value: 1, min: 0, max: 10, step: 0.05, label: 'Appear (seconds)',
     help: 'How long it takes to appear (wipe and pass: for the front to cross). 0 is instant; high a slow reveal.' },
   hold: { value: 0, min: 0, max: 10, step: 0.05, label: 'Hold (seconds)',
     help: 'How long it stays whole after its attack. 0 goes straight into the release; high lingers.' },
-  release: { value: 1.5, min: 0, max: 10, step: 0.05, label: 'Release (seconds)',
+  release: { value: 1.5, min: 0, max: 10, step: 0.05, label: 'Fade (seconds)',
     help: 'How long it takes to go (pass: for the tail to cross). 0 cuts it off; high leaves a long glowing wake.' },
 };
 

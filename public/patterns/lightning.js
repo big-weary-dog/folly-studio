@@ -6,9 +6,9 @@ const params = {
     help: 'The palette of the bolt: its core takes the last colour, its glow the earlier ones.' },
   speed: { value: 0.4, min: 0.1, max: 0.8, step: 0.01, label: 'Speed (strikes a second, on average)',
     help: 'How often a bolt strikes. Low leaves long dark gaps; high strikes nearly every second.' },
-  width: { value: 0.06, min: 0.005, max: 0.08, step: 0.005, label: 'Bolt width',
+  width: { value: 0.06, min: 0.005, max: 0.08, step: 0.005, label: 'Core half-width (share of layer)',
     help: 'How thick the bright core is. Low is a thin crack; high is a fat bolt.' },
-  jag: { value: 0.2, min: 0, max: 0.5, step: 0.01, label: 'Jag',
+  jag: { value: 0.2, min: 0, max: 0.5, step: 0.01, label: 'Zigzag (share of layer width)',
     help: 'How much the bolt zigzags. Zero is a straight line; high is wild and crooked.' },
   glow: { value: 0.04, min: 0, max: 0.15, step: 0.01, label: 'Glow (share of the layer)',
     help: 'How far the haze spreads out around the core. Zero is a bare line; high is a wide halo.' },
@@ -23,7 +23,8 @@ function strike(n, x, y, z, P) {
   const split = 0.25 + 0.4 * rand(n, 2);
   const fork = y < split ? abs(z - at - (split - y) * (rand(n, 3) - 0.5) * 1.6) : 1;  // below split, toward the ground
   const gap = min(abs(z - at), fork);
-  return max(smoothstep(P.width, P.width * 0.3, gap), exp(-gap / max(0.01, P.glow)) * 0.8) * env;
+  const halo = P.glow > 0 ? exp(-gap / max(0.01, P.glow)) * 0.8 : 0;
+  return max(smoothstep(P.width, P.width * 0.3, gap), halo) * env;
 }
 
 function pixel(p, t, P) {

@@ -1,8 +1,7 @@
-// The browser checks, on Playwright Test and Chromium: `npm run smoke` (the app at a laptop's and a phone's size),
-// `npm run perf` (the preview on an emulated phone) and `npm run e2e` (our bytes through sACN into Mirage). Not in
-// `npm test`. @playwright/test is pinned to the browsers it was built with (1.56.1: Chromium 141, build 1194): they
-// come from PLAYWRIGHT_BROWSERS_PATH (here /opt/pw-browsers, found without it), or from `npx playwright install
-// chromium` on CI. Nothing is downloaded at run time.
+// Playwright browser checks: npm run smoke (laptop and phone), perf (phone preview), e2e (sACN into Mirage).
+// Separate from npm test. @playwright/test 1.56.1 pins Chromium 141, build 1194.
+// PLAYWRIGHT_BROWSERS_PATH defaults to /opt/pw-browsers when present; CI can run npx playwright install chromium.
+// Nothing is downloaded at run time.
 import { existsSync, mkdtempSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -39,7 +38,8 @@ export default defineConfig({
       'history.spec.js', 'look-energy.spec.js', 'offline.spec.js', 'tour.spec.js', 'lights.spec.js', 'jukebox.spec.js',
       'aimode.spec.js', 'relay.spec.js', 'gallery.spec.js', 'describe.spec.js', 'param-petals.spec.js',
       'approve.spec.js', 'relay-studio.spec.js', 'baking.spec.js', 'stats.spec.js', 'pages-ux.spec.js',
-      'composite.spec.js', 'attached.spec.js', 'custom-code.spec.js', 'guest.spec.js', 'pi-startup.spec.js'],
+      'composite.spec.js', 'attached.spec.js', 'custom-code.spec.js', 'guest.spec.js', 'pi-startup.spec.js',
+      'param-controls.spec.js'],
       timeout: 5 * 60_000 },
     { name: 'perf', testMatch: ['perf.spec.js', 'library-perf.spec.js'], timeout: 5 * 60_000 },
     { name: 'e2e', testMatch: 'mirage.spec.js', timeout: 20 * 60_000 },

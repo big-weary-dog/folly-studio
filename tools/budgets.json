@@ -6,12 +6,12 @@
     "pi": { "lines": 5518, "reason": "The Pi adds a sender-starvation regression covering expired slots, buffer exhaustion and recovery on the same lease, alongside prepared-look rendering, interruptible crossfades in LED light, held relay frames, bake streaming, output lifecycle, guard timing and control-page coverage." },
     "public": { "lines": 56, "reason": "The app and sandbox HTML shells load their browser entry points." },
     "public/css": { "lines": 2390, "reason": "Styles cover the app shell, Studio panels, timeline, live controls, admin pages (the Pi bundle's too) and phone layouts." },
-    "public/js": { "lines": 18614, "reason": "Browser relay maps page timestamps to the Worker's monotonic clock across differing epoch origins, alongside editor and Pages workflows, shared custom-code policy, import previews, admin drafts, invite entry, guest tutorials, reporting, the core and viewers." },
-    "public/patterns": { "lines": 1837, "reason": "The built-in library provides sources, warps and filters as short standalone pattern modules." },
+    "public/js": { "lines": 18663, "reason": "Browser sources combine conditional parameter visibility and relay clock-origin mapping with editor and Pages workflows for code policy, import previews, admin drafts, invite entry, guest tutorials and reporting alongside the core and viewers." },
+    "public/patterns": { "lines": 1835, "reason": "The built-in library provides short standalone examples, with conditional controls and concise headers sharing their detail with help and guides." },
     "render-box": { "lines": 248, "reason": "The render box shares deterministic IDs and streaming FSEQ output with the Fleet checker, keeping bake memory independent of duration." },
     "shared": { "lines": 1616, "reason": "Shared schemas and pure rules define looks, generated compositions, API data, permissions and playback." },
     "src": { "lines": 10355, "reason": "The server includes shared FSEQ header validation for bounded-memory Pi playback, request-matched queue acceptance and ordered verification timestamps, alongside authentication, storage, generation, baking, frame delivery, live sockets and administration." },
-    "test": { "lines": 24252, "reason": "Installer regressions cover clean and failed early rehearsal exits, bind failure, ephemeral port discovery and authenticated same-origin feeds alongside API, rendering, live and editor checks." },
+    "test": { "lines": 24404, "reason": "Suites combine conditional parameter controls, retained values and zero-glow rendering with editor and Pages workflows, shared dry-engine fixtures and installer regressions for rehearsal exits, bind failure, ephemeral ports and authenticated feeds." },
     "tools": { "lines": 2380, "reason": "Tools build and check rig and palette data, check the Pi bundle holds nothing secret, enforce budgets, support development and backups, and benchmark rendering." }
   }
 }

@@ -7,7 +7,7 @@ turns into a whole-petal mandala. Goes after the source; only the rose changes (
 
 ## Params
 - repeats: `four` keeps the most variety; `sixteen` repeats one petal, a radial motif.
-- petal: the first fix when a copy looks flat; each petal of a source holds a different motif.
+- petal: 0–15 clockwise from the top; Petal mask's petal N is N − 1 here. Change it when a copy looks flat.
 - mirror: off, copies repeat the same way round, a pinwheel.
 
 ## Pairings

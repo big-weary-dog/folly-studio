@@ -1,7 +1,7 @@
 ---
 looks: Colours turned round the colour wheel equally across the layer.
 ---
-Cycles a look's colours, keeping brightness. **recolour** picks colours by brightness from a palette;
+Rotates a look's RGB hues; clipping can change brightness and colour intensity. **recolour** picks colours by brightness from a palette;
 **bars** draws spatial bands of colour.
 
 ## Params
