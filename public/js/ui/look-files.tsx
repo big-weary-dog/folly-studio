@@ -18,7 +18,7 @@ export function LookFiles({ looks, gallery, reload }: { looks: Listed[] | null; 
       download(fileText({ looks: all }), manyName(gallery ? 'gallery' : 'mine'), 'application/json');
       toast(`Exported ${all.length} look${all.length === 1 ? '' : 's'}.`);
     } catch (err) {
-      toast(`Nothing exported: ${(err as Error).message}. Try again.`, { kind: 'error', timeout: 9000 });
+      toast(`Nothing exported. ${(err as Error).message.replace(/\.?$/, '.')}`, { kind: 'error', timeout: 9000 });
     } finally {
       setBusy('');
     }
