@@ -9,6 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { engineOutput } from '../fixtures/engine-output.js';
 import { tagged } from './procs.mjs';
 import { expect, signup, test } from './studio.js';
 
@@ -25,31 +26,22 @@ const port = await new Promise((resolve) => {
 });
 test.use({ serverOptions: { profile: 'pi', admins: 'boss', curators: 'cara',
   piPreview: `http://127.0.0.1:${port}` } });
-let engine;
-const lines = [];
+let engine, output;
 test.beforeAll(async () => {
   const config = path.join(mkdtempSync(path.join(os.tmpdir(), 'pi-config-')), 'config.json');
   writeFileSync(config, '{}');
   engine = spawn(process.execPath, [MAIN, '--dry-run', '--base', '/pi', '--http', String(port), '--bind', '127.0.0.1',
     '--stats', '1', '--config', config], { env: tagged(), stdio: 'pipe' });
-  let out = '';
+  output = engineOutput(engine.stdout);
   await new Promise((resolve, reject) => {
-    engine.stdout.on('data', (d) => {
-      out += d;
-      lines.push(...String(d).split('\n').filter(Boolean));
-      if (out.includes('control page on')) resolve();
-    });
-    engine.on('exit', (code) => reject(new Error(`the Pi exited ${code}: ${out}`)));
+    output.ready.then(resolve);
+    engine.on('exit', (code) => reject(new Error(`the Pi exited ${code}: ${output.text()}`)));
   });
 });
 test.afterAll(() => engine?.kill('SIGKILL'));
 
 /** The engine's latest stats line: `{ by, on, missed, watts }`, the relay's null when no one relays. */
-const stats = () => {
-  const l = lines.findLast((s) => s.includes(' fps,')) ?? '';
-  const r = l.match(/relay (\S+) (on|off), ahead \d+, missed (\d+)/), w = l.match(/gen (\d+) W/);
-  return { relay: r ? { by: r[1], on: r[2] === 'on', missed: Number(r[3]) } : null, watts: w ? Number(w[1]) : NaN };
-};
+const stats = () => output.stats();
 
 test('a curator sends the look being edited to the lights; an unsaved edit reaches them', async ({ browser, studio },
   info) => {
