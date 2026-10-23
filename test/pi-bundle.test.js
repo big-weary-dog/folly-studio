@@ -76,8 +76,12 @@ describe('GET /api/pi-bundle', () => {
     assert.equal(got.status, 200);
     assert.deepEqual(Buffer.from(await got.arrayBuffer()), body);
     const token = r.json.path.split('/').pop();
-    const wrong = `${token.slice(0, -1)}${token.endsWith('A') ? 'B' : 'A'}`;
-    for (const t of [wrong, 'short', `${token}A`, '%2e%2e%2fserver.ts']) {
+    const wrong = `${token.slice(0, 20)}${token[20] === 'A' ? 'B' : 'A'}${token.slice(21)}`;
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    const noncanonical = token.slice(0, -1) + alphabet[alphabet.indexOf(token.at(-1)) + 1];
+    assert.notEqual(noncanonical, token);
+    assert.deepEqual(Buffer.from(noncanonical, 'base64url'), Buffer.from(token, 'base64url'));
+    for (const t of [wrong, noncanonical, 'short', `${token}A`, '%2e%2e%2fserver.ts']) {
       assert.equal((await rawGet(app.port, `/api/pi-bundle/${t}`)).status, 404, t);
     }
     // The server refuses a path that climbs before any route sees it.

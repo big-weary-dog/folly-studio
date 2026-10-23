@@ -62,6 +62,7 @@ data, keys or anything else of the hosting machine's; `npm run host` refuses to 
 **Who.** Signed-in curators and admins (no session 401, anyone else 403, guests too). For curl, the page mints a
 **link**: a random token, good for 1 hour and any number of downloads, kept in memory (a restart forgets it; at
 most 20 live, the oldest dropped); it needs no cookie, so whoever holds it may download until it expires.
+Tokens are 32 random bytes in canonical, unpadded base64url; other encodings of the same bytes are 404.
 
 ```
 GET  /api/pi-bundle/info    → { commit, bytes, builtAt }  curators; 404 when there is no bundle
