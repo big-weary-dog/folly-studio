@@ -18,6 +18,7 @@ let scene: Scene | null = null;
 let prepared: PreparedLayer[] = [];           // render order, bottom first
 let globals: Extra | null = null;             // the newest look's globals, automation and bpm
 let live: PreparedLook | null = null;         // its prepared globals, the clock kept continuous across looks
+const result: ReturnType<typeof renderFrame> = { rgb: new Float32Array(0), errors: [] };
 let layerMs: Record<string, number> = {};     // layer id → its ms last frame: one object, refilled each frame
 // layer id + module id -> the same code keeps its instance and state
 const compiledByKey = new Map<string, { code?: string; kind: string; compiled: Compiled | null; error: string }>();
@@ -113,7 +114,7 @@ function onFrame(msg: Message<'frame'>) {
   const started = now();
   if (msg.set && live) setLive(live, msg.set);
   const rgb = new Float32Array(scene ? scene.count * 3 : 0);
-  const errors = scene ? renderFrame(scene, prepared, +msg.t || 0, rgb, live || undefined).errors : [];
+  const errors = scene ? renderFrame(scene, prepared, +msg.t || 0, rgb, live, result).errors : [];
   for (let i = 0; i < prepared.length; i++) layerMs[String(prepared[i].id)] = prepared[i].ms;
   post({ type: 'frame', seq: msg.seq, rgb, errors, ms: now() - started, layerMs }, [rgb.buffer]);
 }
@@ -126,13 +127,13 @@ function onRender(msg: Message<'render'>) {
   const light = prepareLight(scene, lightOf(msg.light)), cap = +msg.brightness >= 0 ? +msg.brightness : 1;
   const size = scene.frameChannels;
   const channels = new Uint8Array(frames * size);
-  const rgb = new Float32Array(scene.count * 3);
+  const rgb = new Float32Array(scene.count * 3), frame = new Uint8Array(size);
   const seen = new Map();                     // id -> first error, across the render
   const look = prepareLook(globals);          // a fresh clock: an export is what a bake renders
   for (let f = 0; f < frames; f++) {
-    const { errors } = renderFrame(scene, prepared, start + f / fps, rgb, look);
+    const { errors } = renderFrame(scene, prepared, start + f / fps, rgb, look, result);
     for (const e of errors) if (!seen.has(e.id)) seen.set(e.id, e.error);
-    ledChannels(scene, rgb, light, channels.subarray(f * size, (f + 1) * size), cap);
+    channels.set(ledChannels(scene, rgb, light, frame, cap), f * size);
     post({ type: 'progress', seq: msg.seq, done: f + 1 });   // the page's watchdog counts these
   }
   const errors = [...seen].map(([id, error]) => ({ id, error }));

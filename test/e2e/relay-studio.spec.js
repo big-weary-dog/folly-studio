@@ -2,50 +2,22 @@
 // run: a curator turns To the lights on in the preview's transport, over the look the lights play, and an unsaved
 // edit to the code reaches them (the engine's power reading follows it). Screenshots at a laptop's and a phone's
 // size, in RELAY_SHOTS when it names a folder.
-import { spawn } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { createServer } from 'node:net';
-import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-import { engineOutput } from '../fixtures/engine-output.js';
-import { tagged } from './procs.mjs';
-import { expect, signup, test } from './studio.js';
+import { expect, signup, test } from './dry-engine.js';
 
 const SIZES = {
   laptop: { viewport: { width: 1366, height: 768 }, colorScheme: 'dark' },
   phone: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2,
     colorScheme: 'dark' },
 };
-const MAIN = fileURLToPath(new URL('../../pi/main.ts', import.meta.url));
 const pixel = (v) => `function pixel(p, t, P) { return [${v}, ${v}, ${v}]; }`;
+test.use({ engineScenario: 'relay-studio' });
 
-const port = await new Promise((resolve) => {
-  const s = createServer().listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => resolve(p)); });
-});
-test.use({ serverOptions: { profile: 'pi', admins: 'boss', curators: 'cara',
-  piPreview: `http://127.0.0.1:${port}` } });
-let engine, output;
-test.beforeAll(async () => {
-  const config = path.join(mkdtempSync(path.join(os.tmpdir(), 'pi-config-')), 'config.json');
-  writeFileSync(config, '{}');
-  engine = spawn(process.execPath, [MAIN, '--dry-run', '--base', '/pi', '--http', String(port), '--bind', '127.0.0.1',
-    '--stats', '1', '--config', config], { env: tagged(), stdio: 'pipe' });
-  output = engineOutput(engine.stdout);
-  await new Promise((resolve, reject) => {
-    output.ready.then(resolve);
-    engine.on('exit', (code) => reject(new Error(`the Pi exited ${code}: ${output.text()}`)));
-  });
-});
-test.afterAll(() => engine?.kill('SIGKILL'));
-
-/** The engine's latest stats line: `{ by, on, missed, watts }`, the relay's null when no one relays. */
-const stats = () => output.stats();
-
-test('a curator sends the look being edited to the lights; an unsaved edit reaches them', async ({ browser, studio },
-  info) => {
+test('a curator sends the look being edited to the lights; an unsaved edit reaches them', async ({ browser, studio,
+  dryEngine }, info) => {
   const { origin } = studio;
+  const stats = () => dryEngine.output.stats();
   const cara = await signup(origin, 'cara'), boss = await signup(origin, 'boss');
   const call = async (method, url, body, cookie = cara) => (await fetch(`${origin}${url}`, { method,
     body: JSON.stringify(body), headers: { 'content-type': 'application/json', cookie } })).json();

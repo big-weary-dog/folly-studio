@@ -56,18 +56,16 @@ export function renderer(core: typeof Core, rig: Rig, layers: readonly Core.Laye
     }
   }
   const globals = core.prepareLook(look);
-  const rgb = new Float32Array(scene.count * 3);
-  const full = new Uint8Array(scene.frameChannels);
+  const rgb = new Float32Array(scene.count * 3), full = new Uint8Array(scene.frameChannels);
+  const spans = ranges.map(([start, count]) => full.subarray(start, start + count));
   const packed = new Uint8Array(ranges.reduce((n, r) => n + r[1], 0));
+  const result = { rgb, errors: [] as { id: string | null, error: string }[] };
   let f = 0;
   function next() {
-    const out = core.renderFrame(scene, prepared, f++ / scene.fps, rgb, globals);
+    const out = core.renderFrame(scene, prepared, f++ / scene.fps, rgb, globals, result);
     core.toChannels(scene, out.rgb, full);
     let o = 0;
-    for (const r of ranges) {
-      packed.set(full.subarray(r[0], r[0] + r[1]), o);
-      o += r[1];
-    }
+    for (const span of spans) { packed.set(span, o); o += span.length; }
     return out.errors;
   }
   return { compileErrors, packed, next };

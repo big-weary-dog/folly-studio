@@ -342,7 +342,8 @@ first), `pixelsForGroups(scene, ids, tags?) → Int32Array` (a layer's rule abov
 `neighbourGraph(scene) → { space, wire }` (each CSR: pixel k's neighbours `nb[off[k]]…nb[off[k + 1] − 1]` at
 distances `d`, nearest first; Int32Array, Int32Array, Float32Array; cached on the scene), `MAX_RADIUS` (1.5),
 `BLUR_MODES`, `DEFAULT_SOFTEN`, `prepareLook({ globals, automation, bpm }, previous?) → look`,
-`renderFrame(scene, preparedLayers, t, out?, look?) → { rgb, errors }` (level × `layerEnvelope`, or a wipe's
+`renderFrame(scene, preparedLayers, t, out?, look?, result?) → { rgb, errors }` (an optional previous result reuses
+its object and errors array, clearing errors each frame; level × `layerEnvelope`, or a wipe's
 `transitionWeight` per pixel; skips layers at 0; allocation-free per layer; sets each prepared layer's `ms`, its time this frame), `normalizeGlobals(globals)`, `automationAt(points, t)`, `PALETTE_ROLES`,
 `DEFAULT_PALETTE`, `MODULE_KINDS`, `OLD_GLOBALS`, `upgradeGlobals(look)`,
 `toChannels(scene, rgb, out?) → Uint8Array(frame channels)` (in the rig's colour order, the colours as previewed:

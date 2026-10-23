@@ -3,44 +3,19 @@
 // and sees a look with custom code refused, saying why; /pi/ lists the queue, /live/control shows it read only, /live
 // says what is up next; an admin turns live library looks off. Screenshots at a laptop's and a phone's size, in
 // LIGHTS_SHOTS when it names a folder.
-import { spawn } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { createServer } from 'node:net';
-import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-import { tagged } from './procs.mjs';
-import { expect, signup, test } from './studio.js';
+import { expect, signup, test } from './dry-engine.js';
 
 const SIZES = {
   laptop: { viewport: { width: 1366, height: 768 }, colorScheme: 'dark' },
   phone: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2,
     colorScheme: 'dark' },
 };
-const MAIN = fileURLToPath(new URL('../../pi/main.ts', import.meta.url));
 const PIXEL = 'function pixel(p, t, P) { return [p.x, p.y, p.z]; }';
 const FIRE = (title) => ({ title, layers: [{ id: 'l1', title: 'Fire', groups: ['cathedral'],
   modules: [{ id: 'a', kind: 'source', title: 'Fire', ref: 'fire', code: PIXEL }] }] });
-
-const port = await new Promise((resolve) => {
-  const s = createServer().listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => resolve(p)); });
-});
-test.use({ serverOptions: { profile: 'pi', admins: 'boss', curators: 'cara',
-  piPreview: `http://127.0.0.1:${port}` } });
-let engine;
-test.beforeAll(async () => {
-  const config = path.join(mkdtempSync(path.join(os.tmpdir(), 'pi-config-')), 'config.json');
-  writeFileSync(config, '{}');
-  engine = spawn(process.execPath, [MAIN, '--dry-run', '--base', '/pi', '--http', String(port), '--bind', '127.0.0.1',
-    '--stats', '600', '--config', config], { env: tagged(), stdio: 'pipe' });
-  let out = '';
-  await new Promise((resolve, reject) => {
-    engine.stdout.on('data', (d) => { out += d; if (out.includes('control page on')) resolve(); });
-    engine.on('exit', (code) => reject(new Error(`the Pi exited ${code}: ${out}`)));
-  });
-});
-test.afterAll(() => engine?.kill('SIGKILL'));
+test.use({ engineScenario: 'lights' });
 
 async function person(browser, origin, cookie, size, url) {
   const ctx = await browser.newContext(SIZES[size]);

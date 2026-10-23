@@ -1,14 +1,15 @@
 // Who may do what (shared/policy.ts), and the routes that need a role: every /admin route declares one, or the
 // server does not start (http.ts's adminsDeclared); a member is refused each, and no session is asked to log in.
 import assert from 'node:assert/strict';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { afterAll, beforeAll, describe, test } from 'vitest';
+import { afterAll, beforeAll, describe, test, vi } from 'vitest';
 
 import { can } from '../shared/policy.ts';
 import { adminsDeclared } from '../src/http.ts';
+import * as http from '../src/http.ts';
 import { signup, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
@@ -50,25 +51,54 @@ describe('routes that need a role', () => {
     adminsDeclared({ method: 'GET', url: '/api/administer' });
   });
 
-  let app, member, admin, curator;
+  let app, member, admin, curator, pi, piMember, piAdmin;
+  const registered = [], dirs = [];
+  const dir = () => {
+    const d = mkdtempSync(path.join(tmpdir(), 'permissions-'));
+    dirs.push(d);
+    return d;
+  };
   beforeAll(async () => {
-    app = await startApp({ admins: 'ada', curators: 'cat', dataDir: mkdtempSync(path.join(tmpdir(), 'permissions-')) });
+    const check = http.adminsDeclared;
+    const spy = vi.spyOn(http, 'adminsDeclared').mockImplementation((route) => {
+      check(route);
+      if (route.config?.role === 'admin' && route.method !== 'HEAD') {
+        registered.push({ method: route.method, url: route.url });
+      }
+    });
+    try {
+      app = await startApp({ admins: 'ada', curators: 'cat', dataDir: dir() });
+      pi = await startApp({ profile: 'pi', admins: 'ada', dataDir: dir(), piPreview: 'http://127.0.0.1:1' });
+    } finally { spy.mockRestore(); }
     [admin, member, curator] = [await signup(app, 'ada'), await signup(app, 'bob'), await signup(app, 'cat')];
+    [piAdmin, piMember] = [await signup(pi, 'ada'), await signup(pi, 'bob')];
   });
-  afterAll(() => app?.close());
+  afterAll(async () => {
+    await Promise.all([app?.close(), pi?.close()]);
+    for (const d of dirs) rmSync(d, { recursive: true, force: true });
+  });
 
-  const ADMIN = ['GET /api/admin/models', 'PUT /api/admin/models', 'PUT /api/admin/light', 'GET /api/admin/invites',
-    'POST /api/admin/invites', 'DELETE /api/admin/invites/x', 'GET /api/admin/people', 'PUT /api/admin/people/x',
-    'GET /api/admin/reports', 'GET /api/admin/reports/x', 'GET /api/admin/reports/x/shot',
-    'GET /api/admin/ideas/x/log', 'GET /api/admin/ideas/x/log/stills/x.png'];
+  const expected = {
+    'GET /api/admin/models': 200, 'PUT /api/admin/models': 400, 'PUT /api/admin/light': 400,
+    'GET /api/admin/invites': 200, 'POST /api/admin/invites': 201, 'DELETE /api/admin/invites/:id': 404,
+    'GET /api/admin/people': 200, 'PUT /api/admin/people/:id': 404, 'GET /api/admin/reports': 200,
+    'GET /api/admin/reports/:id': 404, 'GET /api/admin/reports/:id/shot': 404,
+    'GET /api/admin/ideas/:id/log': 404, 'GET /api/admin/ideas/:id/log/stills/:name': 400,
+    'PUT /api/admin/baking': 400, 'PUT /api/admin/lights': 200, 'GET /api/admin/stats': 200,
+  };
   test('a member is refused every admin route, no session is asked to log in, and an admin passes', async () => {
-    for (const route of ADMIN) {
-      const [method, url] = route.split(' ');
+    const routes = [...new Map(registered.map((r) => [`${r.method} ${r.url}`, r])).values()];
+    assert.ok(routes.length > 0, 'registered admin routes were captured');
+    for (const { method, url: pattern } of routes) {
+      const route = `${method} ${pattern}`, url = pattern.replace(/:[^/]+/g, 'missing');
+      assert.ok(Object.hasOwn(expected, route), `${route} needs an expected admin status`);
+      const onPi = pattern === '/api/admin/lights';
+      const [server, user, boss] = onPi ? [pi, piMember, piAdmin] : [app, member, admin];
       const body = method === 'GET' || method === 'DELETE' ? undefined : {};
-      assert.equal((await member.req(method, url, body)).status, 403, route);
-      assert.equal((await fetch(app.base + url, { method, headers: { 'content-type': 'application/json' },
+      assert.equal((await user.req(method, url, body)).status, 403, route);
+      assert.equal((await fetch(server.base + url, { method, headers: { 'content-type': 'application/json' },
         body: body && '{}' })).status, 401, route);
-      assert.notEqual((await admin.req(method, url, body)).status, 403, route);
+      assert.equal((await boss.req(method, url, body)).status, expected[route], route);
     }
   });
 
