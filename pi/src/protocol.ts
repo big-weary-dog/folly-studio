@@ -35,7 +35,8 @@ export const FromPage = z.discriminatedUnion('type', [
   /** From Studio's feed only: the mode the admin set. */
   z.object({ type: z.literal('mode'), mode: z.enum(MODES) }),
   /** From Studio's feed only: a library-only look (modules by ref), resolved against the engine's library. */
-  z.object({ type: z.literal('send'), at: At.optional(), fade: Fade.optional(), by: z.string().max(64).optional(),
+  z.object({ type: z.literal('send'), requestId: z.string().min(1).max(64).optional(),
+    at: At.optional(), fade: Fade.optional(), by: z.string().max(64).optional(),
     item: z.discriminatedUnion('kind', [z.object({ kind: z.literal('live'), look: z.looseObject({}) }),
       // A bake by its look's id, read from Studio's frames (pi/src/baked.ts) and held to this SHA-256.
       z.object({ kind: z.literal('baked'), id: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/), title: z.string().max(200),
@@ -79,6 +80,7 @@ export type PiState = {
 /** The state as the engine has it; the server adds who and the mode. */
 export type EngineState = Omit<PiState, 'mode' | 'driver' | 'here'>;
 export type ToPage =
+  | { type: 'sent', requestId: string, ok: boolean, error?: string }
   /** you: who this page is, as the engine has it (none for Studio's feed). */
   | { type: 'hello', ok: boolean, needPin: boolean, error?: string, you?: { name: string, drive: boolean } }
   | { type: 'state', state: PiState }

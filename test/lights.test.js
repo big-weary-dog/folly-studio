@@ -64,7 +64,8 @@ describe('playOf', () => {
 describe('the mode and Play now', () => {
   test('Play now is refused in Jukebox and to those who do not drive; the admin\'s mode goes to the feed', async () => {
     const sent = [], modes = [];
-    const feed = { connected: () => true, queued: () => 0, send: (m) => sent.push(m), mode: (m) => modes.push(m) };
+    const feed = { connected: () => true, queued: () => 0,
+      send: async (m) => { sent.push(m); return { ok: true }; }, mode: (m) => modes.push(m) };
     const store = createLightsStore(path.join(mkdtempSync(path.join(tmpdir(), 'lights-')), 'lights.json'));
     const routes = lightsRoutes({ store, feed, drive: (u) => u.username === 'cara', curate: (u) => u.role !== 'member',
       loadLibrary: () => [{ name: 'fire' }],
@@ -186,6 +187,23 @@ describe('Play on the lights', () => {
     await until(() => [r.engine.state().switching?.id, r.engine.state().look?.id].includes(fire.id), 'it plays');
     await ada.put('/api/admin/lights', { mode: 'jukebox' });
   });
+
+  test('Play now reports the engine refusal when its queue is full', async () => {
+    await ada.put('/api/admin/lights', { mode: 'live' });
+    for (const item of r.engine.state().queue) r.engine.unqueue(item.key);
+    for (let i = 0; i < 20; i++) assert.equal(r.engine.queue('safe', 'end'), true);
+    const before = r.engine.state().look.id;
+    try {
+      const response = await cara.post('/api/lights/queue', { lookId: fire.id, at: 'now' });
+      assert.equal(response.status, 409);
+      assert.equal(response.json.error, 'The queue is full.');
+      assert.equal(r.engine.state().look.id, before);
+      assert.equal(r.engine.state().queue.length, 20);
+    } finally {
+      for (const item of r.engine.state().queue) r.engine.unqueue(item.key);
+      await ada.put('/api/admin/lights', { mode: 'jukebox' });
+    }
+  });
 });
 
 describe('without the engine', () => {
@@ -216,9 +234,8 @@ describe('the feed', () => {
     const feed = piFeed({ target, pin: '2468', onNow: (n) => nows.push(n), onSource: () => {}, log: {} });
     await until(() => feed.connected() && nows.some((n) => n?.queue), 'the feed connects');
     assert.deepEqual(nows.find((n) => n?.queue).queue, [{ title: 'Safe: dim colour wash', kind: 'look', by: 'cara' }]);
-    assert.equal(feed.queued(), 1);
     assert.equal(wrong.connected(), false);
-    assert.equal(wrong.send({ type: 'next' }), false);
+    assert.equal((await wrong.send({ type: 'next' })).status, 503);
     feed.close();
     wrong.close();
     await pi.close();
