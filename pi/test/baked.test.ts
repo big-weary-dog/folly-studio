@@ -114,7 +114,7 @@ describe('baked frames', () => {
     assert.equal(r.engine.state().look?.id, 'fire');          // its frames are still being read: fire plays on
     await new Promise((res) => setTimeout(res, 50));
     r.engine.queue('beat-bars');
-    r.run(2 * FADE.queue + 0.1);                               // fire fades out, the bake in
+    r.run(FADE.queue + 0.1);                                   // the crossfade is complete
     let s = r.engine.state();
     assert.deepEqual([s.look?.id, s.look?.kind, s.look?.title, s.look?.controls], ['b1', 'baked', 'Baked one', []]);
     assert.deepEqual(r.engine.source(), { rev: r.engine.source()!.rev, id: 'b1', title: 'Baked one', duration: 3,

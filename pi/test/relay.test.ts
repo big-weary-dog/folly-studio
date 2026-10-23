@@ -9,13 +9,13 @@ import { describe, test } from 'vitest';
 import { ledChannels, prepareLight } from '../../public/js/pattern-core.ts';
 import { lightOf } from '../../public/js/core/light.ts';
 import { createRelay, RELAY } from '../src/relay.ts';
-import { engineOn, rig } from './fixture.ts';
+import { engineOn, oneModule, rig } from './fixture.ts';
 
 const who = {};
 /** A relay on the rig, on a clock the test moves a frame per tick. */
-function relayed() {
+function relayed(looks: Parameters<typeof engineOn>[0] = []) {
   const clock = { t: 0 }, relay = createRelay({ count: rig.count, fps: 40, now: () => clock.t });
-  const r = engineOn([], undefined, undefined, relay);
+  const r = engineOn(looks, undefined, undefined, relay);
   const slot = () => r.engine.stats.frames + r.engine.stats.late;
   /** The frame for `index`, of `rev` (the engine's playing rev unless said), its rgb from `fill(i)` (0..65535). */
   const frame = (index: number, fill: (i: number) => number, rev = r.engine.state().look?.rev ?? 0) => {
@@ -30,6 +30,41 @@ function relayed() {
 }
 
 describe('relay to the lights', () => {
+  test('missing incoming relay frames hold their color during a crossfade', () => {
+    const looks = ['red', 'blue'].map((id, i) => oneModule(id, 'colour-wash',
+      { colours: ['#ff0000', '#0000ff'][i], speed: 0 }));
+    const x = relayed(looks);
+    x.engine.play('red');
+    x.tick(60);
+    const rev = x.engine.state().look!.rev + 1;
+    x.relay.start(who, 'cara');
+    x.relay.push(who, x.frame(x.slot(), (i) => i % 3 === 1 ? 65535 : 0, rev));
+    x.engine.play('blue', 4);
+    x.tick(4); // one green frame, then three missing frames, still within the relay's hold
+    const scene = x.engine.scene, k = scene.addr[0]!;
+    assert.deepEqual([0, 1, 2].map((c) => x.last()[k + scene.order[c]!]!), [249, 6, 0]);
+    x.engine.close();
+  });
+
+  test('a crossfade starts from the visible relay colors, rather than the underlying look', () => {
+    const looks = ['red', 'blue'].map((id, i) => oneModule(id, 'colour-wash',
+      { colours: ['#ff0000', '#0000ff'][i], speed: 0 }));
+    const x = relayed(looks);
+    x.engine.play('red');
+    x.tick(60);
+    x.relay.start(who, 'cara');
+    x.relay.push(who, x.frame(x.slot(), (i) => i % 3 === 1 ? 65535 : 0));
+    x.tick();
+    const first = () => [0, 1, 2].map((c) => x.last()[x.engine.scene.addr[0]! + x.engine.scene.order[c]!]!);
+    assert.deepEqual(first(), [0, 255, 0]);
+    x.engine.play('blue', 4);
+    x.tick();
+    assert.deepEqual(first(), [0, 253, 2]);
+    x.tick(159);
+    assert.deepEqual(first(), [0, 0, 255]);
+    x.engine.close();
+  });
+
   test('one holder; a frame of the wrong size, out of its window, or from anyone else is not played', () => {
     const x = relayed(), other = {};
     assert.equal(x.relay.start(who, 'cara'), '');

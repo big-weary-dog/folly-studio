@@ -143,7 +143,8 @@ export function Cue({ m, tile, from, onDone }: { m: Model, tile: Tile, from: Sou
       </div>
       <div class="lp-xf" aria-hidden="true"><i /><span>{m.s.look?.title ?? 'Nothing'}</span><span>{tile.title}</span>
       </div>
-      <p>{tile.kind === 'baked' ? 'A bake has no knobs.' : 'Its knobs take over when the fade ends.'} The queue goes
+      <p>The looks overlap for {fade} s. {tile.kind === 'baked' ? 'A bake has no knobs.'
+        : 'Its knobs take over when the fade starts.'} The queue goes
         on after it.</p>
       {error && <p class="lp-error" role="alert">{error}</p>}
       <div class="lp-row lp-cue-acts">

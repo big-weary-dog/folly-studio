@@ -4,11 +4,14 @@
 // were. A report too big for the server goes again without its screenshot.
 import '../../css/reports.css';
 
+import { effect } from '@preact/signals';
 import { useState } from 'preact/hooks';
 
 import { piece, scrub } from '../scrub.ts';
 import { api, statusOf } from '../api.ts';
-import { openDialog, toastHistory } from './kit.tsx';
+import type { User } from '../../../shared/schemas/api.ts';
+import { openDialog, toast, toastHistory } from './kit.tsx';
+import { user } from './session.ts';
 
 /** What a view gives a report: its state, its pause, and its 3D view's picture (a JPEG data URL). */
 export type ReportPage = { read?: () => unknown; freeze?: (on: boolean) => void; shot?: () => string | null };
@@ -18,6 +21,11 @@ const REPORT_KEY = 'F8', ERRORS = 100;
 const pages = new Map<string, ReportPage>();
 const errors: Record<string, unknown>[] = [];
 let open = false, installed = false;
+export const canReport = (me: User | null) => !!me && !me.guest;
+let unavailableNotice: (() => void) | undefined;
+effect(() => {
+  if (canReport(user.value)) { unavailableNotice?.(); unavailableNotice = undefined; }
+});
 
 /** Registers a view's part in reports, as `name`; returns its removal. */
 export function reportPage(name: string, page: ReportPage) {
@@ -115,6 +123,11 @@ function ReportForm({ report, shot, close }: { report: Report; shot: string | nu
 
 /** The whole flow: the moment read, the picture kept, every view frozen, the form, then everything thawed. */
 export async function fileBugReport() {
+  if (!canReport(user.peek())) {
+    unavailableNotice?.();
+    unavailableNotice = toast('Reporting a problem needs an account. Log in or sign up to send a report.');
+    return;
+  }
   if (open) return;
   open = true;
   const frozen = [...pages.values()];

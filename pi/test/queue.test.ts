@@ -11,7 +11,7 @@ import { engineOn, oneModule } from './fixture.ts';
 const short = (id: string, duration: number) => oneModule(id, 'clouds', {}, { duration });
 
 describe('the queue', () => {
-  test('each look plays whole, then the next, fading out over its last second and in over the next\'s first', () => {
+  test('the next look overlaps the outgoing look\'s last second', () => {
     const r = engineOn([short('a', 4), short('b', 3)]);
     r.engine.play('a');
     r.run(FADE.queue + 0.5);
@@ -25,12 +25,12 @@ describe('the queue', () => {
     r.run(left - FADE.queue - 0.1);
     assert.equal(r.engine.state().gain, 1);               // the pattern plays at full until its last second
     r.run(FADE.queue / 2 + 0.1);
-    assert.ok(r.engine.state().gain < 0.6);
-    assert.equal(r.engine.state().switching?.id, 'b');
+    assert.equal(r.engine.state().gain, 1);
+    assert.equal(r.engine.state().look?.id, 'b');
     r.run(FADE.queue / 2 + 0.05);
     const s = r.engine.state();
     assert.equal(s.look?.id, 'b');
-    assert.ok(s.look!.t < 0.1 && s.gain < 0.2, `${s.look!.t} ${s.gain}`);   // from its top, fading in
+    assert.ok(Math.abs(s.look!.t - 1.05) < 0.1 && s.gain === 1, `${s.look!.t} ${s.gain}`);
     assert.deepEqual(s.queue.map((q) => q.id), ['fire']);
     r.run(3);
     assert.equal(r.engine.state().look?.id, 'fire');

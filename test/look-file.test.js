@@ -69,8 +69,8 @@ describe('look files', () => {
     const r = await importFiles([file('many.json', { looks: [...many.map(({ origin: _, ...l }) => l), bad] }),
       file('junk.json', 'oops')]);
     assert.equal(r.added, 1);
-    assert.deepEqual(r.failed.map((f) => f.name), ['Broken', 'junk.json']);
-    assert.match(r.failed[1].error, /not JSON/);
+    assert.deepEqual(r.failed.map((f) => f.name).sort(), ['Broken', 'junk.json']);
+    assert.match(r.failed.find((f) => f.name === 'junk.json').error, /not JSON/);
     const mine = (await ada.get('/api/looks?scope=mine')).json.looks;
     const copy = mine.find((l) => l.id !== sea.id);
     assert.equal(copy.title, 'Sea');
@@ -106,5 +106,19 @@ describe('look files', () => {
     assert.equal((await ada.get(`/api/looks/${sea.id}`)).json.look.title, 'Sea');
     r = await importFiles([file('bad.json', { ...home, origin: '../x' })]);
     assert.match(r.failed[0].error, /origin is not a look id/);
+  });
+
+  test('the preview can cancel without writes or import copies without replacing an origin', async () => {
+    const before = (await ada.get(`/api/looks/${sea.id}`)).json.look;
+    const incoming = file('old.json', { ...lookFile(before, before), title: 'Older file' });
+    const cancelled = await importFiles([incoming], async (looks) => {
+      assert.equal(looks[0].origin, sea.id);
+      assert.equal((await ada.get(`/api/looks/${sea.id}`)).json.look.title, before.title);
+      return undefined;
+    });
+    assert.deepEqual([cancelled.added, cancelled.updated], [0, 0]);
+    const copied = await importFiles([incoming], async () => 'copy');
+    assert.deepEqual([copied.added, copied.updated], [1, 0]);
+    assert.equal((await ada.get(`/api/looks/${sea.id}`)).json.look.title, before.title);
   });
 });
