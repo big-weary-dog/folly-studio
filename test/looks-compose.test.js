@@ -140,7 +140,7 @@ test('looks stored before the rule are converted once at start: their versions t
 });
 
 test('renderFields: plain layers unless something else plays', () => {
-  const layers = [chain()];
+  const layers = [{ code: PIXEL }];
   assert.equal(renderFields({ layers, bpm: 120 }), layers, 'the hash of older looks is unchanged');
   assert.deepEqual(renderFields({ layers, globals: { energy: 1 } }), { layers, globals: { energy: 1 }, automation: null,
     bpm: null });
