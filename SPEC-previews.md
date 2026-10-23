@@ -14,6 +14,7 @@ bake when that is current (a look being baked waits for it), else from the rende
 lane). Kept in `<STUDIO_DATA>/previews/<lookId>-<key>.webp` and `-<key>-still.webp`, `key` naming what it renders;
 a look keeps its old preview until the new one is written, and previews of looks no longer shared go at the next
 start. A look without one shows its card's glass.
+Shutdown stops queuing previews and waits for startup backfill and any active preview writes before closing storage.
 
 The camera is the app's own Viewer (`public/js/preview-camera.ts`) in a headless Chromium (playwright-core's
 headless shell, `src/previews/playa.ts`), started on first use and closed after a minute idle: no window, its own

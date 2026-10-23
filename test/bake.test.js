@@ -103,12 +103,11 @@ describe('render box (bubblewrap)', () => {
       left = left.filter(alive);
     }
     assert.deepEqual(left, [], 'nothing from the box keeps running');
-    // Inside, the per-frame guard catches a hang first and names it. Its own 2 s, as in every bake: loading the look
-    // and the frames before the hang take a few ms each, so a busy machine does not trip it first.
+    // A spinning frame is stopped by the VM wall backstop and reported against its CPU budget.
     const guarded = createRenderBox({ seconds: 2, log: quiet });
     const hang = layer('function pixel(p, t) { while (t > 0.5) {} return [1, 0, 0]; }');
     await assert.rejects(guarded.render({ layers: [hang] }),
-      (e) => /took over 2000 ms on the frame at t = 0\.5\d s/.test(e.reason));
+      (e) => /took over 2000 ms of CPU on the frame at t = 0\.5\d s/.test(e.reason));
   });
 
   test('runtime errors fail the bake instead of producing a passing black sequence (M5)', async () => {
