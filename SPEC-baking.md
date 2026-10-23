@@ -55,4 +55,4 @@ the person can see (theirs or shared, any version); a composite has no code of i
 checked. So tuning params, restoring a version and copying a gallery look go on as before. Anything else is refused
 (403, naming the module), and a generator's idea that needs it fails with that reason. The generators count as new code: a prompted model's extensions and modules given as code are errors
 its repair rounds see ("compose from the library alone"). The Studio's code editor is read-only while it is off and
-says why. Looks already saved play and bake as before.
+says why. Pickers omit blank-code entries and explain the restriction. Looks already saved play and bake as before.
