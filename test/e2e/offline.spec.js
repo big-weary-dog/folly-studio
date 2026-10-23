@@ -72,10 +72,12 @@ for (const [name, device] of Object.entries(SIZES)) {
         await page.getByRole('button', { name: 'Import looks', exact: true }).click();
         await expect(page.getByText('Imported: 2 unchanged.')).toBeVisible();
         await expect(page.locator('.card')).toHaveCount(2);
+        await expect(page.getByRole('button', { name: 'Import', exact: true })).toBeEnabled();
         await page.locator('input[type=file]').setInputFiles(await file.path());
         await page.getByRole('button', { name: 'Cancel', exact: true }).click();
         await expect(page.getByRole('dialog')).toHaveCount(0);
         await expect(page.locator('.card')).toHaveCount(2);
+        await expect(page.getByRole('button', { name: 'Import', exact: true })).toBeEnabled();
         await page.locator('input[type=file]').setInputFiles(await file.path());
         await page.getByRole('button', { name: 'Import as copies', exact: true }).click();
         await expect(page.locator('.card')).toHaveCount(4);
