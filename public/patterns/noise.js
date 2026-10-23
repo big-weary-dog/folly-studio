@@ -8,7 +8,7 @@ const params = {
   size: { value: 0.3, min: 0.05, max: 2, step: 0.01, label: 'Size (share of the layer)',
     showWhen: { kind: ['smooth', 'layered', 'ridged', 'cells'] },
     help: 'How big each blob or cell is. Small gives a fine, busy grain; large gives broad, slow shapes.' },
-  speed: { value: 0.2, min: 0, max: 2, step: 0.01, label: 'Speed (changes/s; static: ×10)',
+  speed: { value: 0.2, min: 0, max: 2, step: 0.01, label: 'Speed (changes a second; static: ×10)',
     help: 'How fast the noise changes in place. 0 holds it still. Static changes ten times as fast.' },
   detail: { value: 4, min: 1, max: 6, step: 1, label: 'Detail',
     showWhen: { kind: ['layered', 'ridged'] },

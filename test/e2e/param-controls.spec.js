@@ -83,6 +83,8 @@ for (const [device, settings] of Object.entries(DEVICES)) {
           await shot('noise-static');
           await select('Kind', 'layered');
           await expect(row('Detail')).toBeVisible();
+          await row('Speed').locator('.beat-clock').click();
+          await expect(row('Speed')).toContainText('changes a beat');
         }
       }
     });
