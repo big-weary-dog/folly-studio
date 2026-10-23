@@ -1,9 +1,5 @@
-// The library's pickers: Add a module (tabs Sources · Warps · Filters) and Add a layer (tabs Sources: a blank layer or
-// one source; Presets: layers of modules), with categories, a filter and the tab remembered for the session.
-// Hover/focus (a phone's ▶) auditions with the same insertion as Add. Leaving or closing restores the look.
-// Add a layer picks its groups beside the list (on a phone behind Plays on), starting on the whole rig.
-// Audition and Add share those groups; closing forgets them.
-// The view frames the rig in the space the shelf leaves clear; closing puts the view back.
+// Library pickers (SPEC-studio "Composition"). Audition and Add share insertion and groups; closing restores
+// the look and view and forgets the groups. Tabs are remembered for the session; groups start on the whole rig.
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 import type { Module } from '../../../shared/schemas/look.ts';

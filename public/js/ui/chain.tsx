@@ -1,8 +1,5 @@
-// The selected layer's settings: its name and groups (a drawer), its module chain (SPEC "Modules": a row per module
-// with a grip to drag it (or Alt+↑/↓), its kind, Custom when it is not a library module, name, how a source combines
-// or which input a filter reads, enable and delete; phones: drag, enable and select only), its Soften row, and the
-// selected module's name and params (on a phone, after the chain). Composites nest their sub-layers under their
-// row (chain-tree.tsx); each source sub-layer's settings say where it plays.
+// Layer settings and the module chain (SPEC-studio "Composition"). Composites nest their sub-layers in
+// chain-tree.tsx; selected-module settings open under its row, or after the chain on phones.
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 import type { Module } from '../../../shared/schemas/look.ts';
@@ -48,8 +45,7 @@ export function ChainPane({ st, pv }: Props) {
     </section>);
 }
 
-/** The selected module's settings: a custom module's name, where its sub-layer plays when it is one of its own, then
- * its params. */
+/** A custom module's name, its lone sub-layer's groups, and its params. */
 function ModuleSettings({ st }: { st: Studio }) {
   const l = st.selected.value, m = st.module.value, at = l && m ? placeOf(l.modules, m.id) : null;
   const comp = at?.box && at.index === 0 ? at.box : null;
@@ -139,8 +135,7 @@ function Chain({ st, pv }: Props) {
     mode: 'module', library: st.data.library, onPick, sourcesOnly: !!comp,
     audition: { pv, layer: l || undefined, insert: comp ? (list, m) => addSub(list, comp, m) : insert } }))
     .catch(loadFailed);
-  // The selected module's settings open under it (a wide screen); a click on it closes them, until the next click
-  // or pick.
+  // Clicking the selected row toggles its settings until another module is picked.
   const [shut, setShut] = useState<{ layer: string; picked: object } | null>(null);
   const open = !st.narrow.value && !(shut && shut.layer === l?.id && shut.picked === st.picked.value);
   // Composites shut, their sub-layers out of sight.
