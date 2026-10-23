@@ -18,6 +18,11 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const MAX_LOOK_BYTES = 1024 * 1024;
 const argv = process.argv.slice(2);
 const option = (name: string) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined);
+// Library-only boxes exec under the host; bubblewrap instead has --die-with-parent. Check before loading too,
+// in case the host died before we started. A hung frame is still interrupted by the VM wall timeout below.
+const parentPid = Number(option('--parent-pid'));
+const checkParent = () => { if (parentPid && process.ppid !== parentPid) process.exit(1); };
+checkParent();
 const outDir = option('--out');
 const frameMs = Math.min(600_000, Math.max(10, Math.round(Number(option('--frame-ms'))))) || 2000;
 const frameWallMs = 10 * frameMs; // Scheduling delays do not consume the frame's CPU budget.
@@ -117,6 +122,7 @@ const header = writeFseqHeader({ frames, stepMs: Math.round(1000 / fps), ranges,
   uniqueId: bakeId(rig, layers, extra, frames) });
 const frame = new Uint8Array(channels); // Node's file APIs must see only host-owned buffers and prototypes.
 const baked = bakeFile(path.join(outDir, 'frames.fseq'), header, frames, frame, (f) => {
+  checkParent();
   const cpu = process.cpuUsage();
   const at = `t = ${(f / fps).toFixed(2)} s`;
   const overCpu = () => Object.values(process.cpuUsage(cpu)).reduce((sum, n) => sum + n, 0) > frameMs * 1000;
