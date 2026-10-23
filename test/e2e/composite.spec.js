@@ -75,6 +75,8 @@ for (const width of [1366, 390]) {
     await shot('automation-visible');
     if (phone) await page.locator('.tab[data-tab=look]').click();
     else await page.locator('.dock-tab').filter({ hasText: 'Look' }).click();
+    await page.locator('[data-tour=macro-add]').scrollIntoViewIfNeeded();
+    await shot('macro-action');
     await page.locator('[data-tour=macro-add]').click();
     await expect(page.locator('[data-tour="macro:macro1"]')).toBeVisible();
     await page.locator('[data-tour="macro:macro1"]').scrollIntoViewIfNeeded();
