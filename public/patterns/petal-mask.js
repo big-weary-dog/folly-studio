@@ -1,8 +1,5 @@
-// Petal mask: shows what is above it only on the rose's petals Petals names (1 the top one, on clockwise) and, in
-// each of them, the cells Cells names (1 at the heart, ring by ring out), with no input; Invert shows the rest. Amount
-// is how fully it hides the rest: hidden is transparent. Softness fades a petal's edges into its neighbours'. Off the
-// rose a petal is the sixteenth of a turn its angle round the layer's centre falls in, and a ring a seventh of the
-// way out, as Mask by region.
+// Petal mask: shows picked rose petals and cells; Show the rest reverses it. Hidden is transparent.
+// Off the rose, petals divide the angle into sixteenths and rings divide the radius into sevenths.
 const params = {
   petals: { value: '1-4 9-12', type: 'text', petals: true, label: 'Petals shown',
     help: 'The petals that show, 1 the top one, on clockwise: numbers and runs (3 5 9-12; 15-2 wraps). Click them.' },
@@ -11,7 +8,7 @@ const params = {
   amount: { value: 1, min: 0, max: 1, step: 0.01, label: 'Mask strength',
     help: 'How fully the rest is hidden. Zero hides nothing; one makes it fully transparent.' },
   softness: { value: 0.05, min: 0.01, max: 1, step: 0.01, label: 'Edge softness',
-    help: 'How gradual a petal\'s edges are, a share of the petal. Low cuts at the lead lines; high fades wide.' },
+    help: 'Petal edges only: low cuts at lead lines, high fades wide. Small changes may land on the same LEDs.' },
   invert: { value: false, type: 'toggle', label: 'Show the rest',
     help: 'Off shows the petals and cells named; on hides them and shows the rest.' },
 };

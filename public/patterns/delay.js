@@ -9,8 +9,8 @@ const params = {
     help: 'Which way the lateness runs: up, across, front to back, out from the centre, along each strand, by petal.' },
   longest: { value: 0.5, min: 0, max: 4, step: 0.01, label: 'Longest (seconds)',
     help: 'How late the far side is. 0 is no delay; 0.2–0.6 sweeps a flash across; 2 or more smears motion.' },
-  steps: { value: 0, min: 0, max: 16, step: 1, label: 'Steps',
-    help: 'Snaps the lateness into this many steps, so groups go in blocks. 0 is smooth.' },
+  steps: { value: 0, min: 0, max: 16, step: 1, label: 'Delay divisions (0: smooth)',
+    help: 'N divisions gives N + 1 delay levels, including zero. 0 is smooth; higher divides it into finer blocks.' },
   bounce: { value: 0, min: 0, max: 1, step: 0.01, label: 'Bounce',
     help: 'Runs the lateness out and back, latest in the middle. 0 runs one way; 1 is fully out and back.' },
 };

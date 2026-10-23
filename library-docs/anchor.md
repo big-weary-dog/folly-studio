@@ -11,7 +11,8 @@ to a structure (presets **rose-ripple**, **spire-helix**). Put it last among the
 - which: `first` on a tag with several groups picks just one; `nearest` gives each its own copy.
 - shape: `facade` for the portal; `plan` for towers and spires (`clockwise` and `counterclockwise` then turn
   round each spire).
-- reach: 0 uses the farthest corner (with `nearest`, half the gap between the two closest groups). Too small leaves
+- reach: 0 is automatic: the farthest layer corner, or with `nearest` and several groups, half their closest
+  gap of at least 0.5 m (0.5 m minimum reach; also the fallback when no pair qualifies). Too small leaves
   most LEDs past the edge, dark or repeating.
 - lineup: For a sweep crossing tower and arch layers in step.
 
@@ -22,5 +23,5 @@ to a structure (presets **rose-ripple**, **spire-helix**). Put it last among the
 
 ## Pitfalls
 - A warp below anchor still turns round the layer's centre: keep anchor the lowest warp.
-- With lineup on, warps above it move in the whole rig's box, not the group's.
+- With lineup on, across, up and depth use the whole rig's box; angle and radius stay anchored to the group.
 - With `plan`, a turning warp above it (mirror Wedges, twist) turns in the façade, not round the spire.

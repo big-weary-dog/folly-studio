@@ -1,9 +1,5 @@
-// Bars: bands of colour move in Direction, one colour each from Colours, in turn. Clockwise and counterclockwise turn
-// in the face, as seen from the front; orbit turns round an upright axis (the layer's middle, or each group's after
-// anchor), like a lighthouse, either way as seen from above.
-// Bars is how many fit across the layer (whole round, so the circle has no seam); Duty is the lit share of each,
-// the rest left clear. Profile: step (flat, edges soft by Softness), smooth (each blends into the next), pulse
-// (brightest in its middle) or comet (brightest at its front, fading behind).
+// Bars: bands of colour move in Direction. Circular counts round whole so they meet without a seam.
+// Step has soft edges, smooth blends colours, pulse has bright middles and comet has bright fronts.
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours',
     help: 'Which palette colours the bars, one colour a bar, in turn.' },
@@ -14,13 +10,15 @@ const params = {
   speed: { value: 0.4, min: -2, max: 2, step: 0.01, label: 'Speed (bars a second)',
     help: 'How fast the bars move in Direction. Negative runs them the other way; 0 holds them still.' },
   bars: { value: 4, min: 0.25, max: 16, step: 0.25, label: 'Bars across the layer',
-    help: 'Few gives broad bands of colour; many gives thin, busy stripes.' },
+    help: 'Few gives broad bands; many gives thin stripes. Circular directions round to whole bars, at least one.' },
   duty: { value: 1, min: 0.05, max: 1, step: 0.01, label: 'Duty (lit share of each bar)',
+    showWhen: { profile: ['step', 'pulse', 'comet'] },
     help: 'How much of each bar lights, the rest clear. 1 fills edge to edge; low leaves slivers with wide gaps.' },
   profile: { value: 'step', type: 'choice', options: ['step', 'smooth', 'pulse', 'comet'], label: 'Profile',
     help: 'step: flat bands; smooth: each blends into the next; pulse: bright middles; comet: bright fronts.' },
   softness: { value: 0.2, min: 0, max: 1, step: 0.01, label: 'Edge softness (step only; share of a bar)',
-    help: 'How blurred the edges of step bars are. 0 is a hard cut; high fades each bar softly into the next.' },
+    showWhen: { profile: ['step'] },
+    help: 'How blurred step edges are, up to Duty. 0 is a hard cut; values above Duty give the same softness.' },
 };
 
 // Saved before both ways were named: round was clockwise; orbit, at a positive speed, counterclockwise from above.

@@ -1,7 +1,4 @@
-// Noise: fills the layer with noise coloured from Colours, low values the first colour, high the last, changing at
-// Speed. Kind is its look: smooth blobs, layered (finer detail over them), ridged (bright creases), cells, or
-// static (each LED on its own). Size is a blob's or cell's, as a share of the layer; Detail is how many finer layers
-// layered and ridged add; Contrast pushes values toward the first and last colours. A plain field: a mask input.
+// Noise: smooth, layered, ridged, cellular or per-LED fields change in place, low to high through Colours.
 const params = {
   kind: { value: 'smooth', type: 'choice', label: 'Kind',
     options: ['smooth', 'layered', 'ridged', 'cells', 'static'],
@@ -9,10 +6,12 @@ const params = {
   colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth',
     help: 'Which palette colours the noise, from its lowest values to its highest.' },
   size: { value: 0.3, min: 0.05, max: 2, step: 0.01, label: 'Size (share of the layer)',
+    showWhen: { kind: ['smooth', 'layered', 'ridged', 'cells'] },
     help: 'How big each blob or cell is. Small gives a fine, busy grain; large gives broad, slow shapes.' },
-  speed: { value: 0.2, min: 0, max: 2, step: 0.01, label: 'Speed (changes a second)',
+  speed: { value: 0.2, min: 0, max: 2, step: 0.01, label: 'Speed (changes/s; static: ×10)',
     help: 'How fast the noise changes in place. 0 holds it still. Static changes ten times as fast.' },
   detail: { value: 4, min: 1, max: 6, step: 1, label: 'Detail',
+    showWhen: { kind: ['layered', 'ridged'] },
     help: 'For layered and ridged: how many finer layers sit over the broad shapes. 1 is plain; 6 is rough.' },
   contrast: { value: 1, min: 0.25, max: 4, step: 0.01, label: 'Contrast',
     help: 'Low keeps to the middle colours; high pushes toward the first and last, into crisp shapes.' },
