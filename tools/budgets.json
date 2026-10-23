@@ -11,7 +11,7 @@
     "render-box": { "lines": 237, "reason": "The render box prepares looks and renders deterministic frames to FSEQ under its resource limits." },
     "shared": { "lines": 1616, "reason": "Shared schemas and pure rules define looks, generated compositions, API data, permissions and playback." },
     "src": { "lines": 10242, "reason": "The server implements authentication, storage, generation, baking, frame delivery, live sockets and administration." },
-    "test": { "lines": 23522, "reason": "Unit, integration and browser suites cover the core, library, server, generators, sandbox, the Custom code switch and app flows with shared fixtures." },
+    "test": { "lines": 23660, "reason": "Unit, integration and browser suites cover the app plus scratch-home Pi installer staging, PIN rotation, authenticated feed checks and activation rollback." },
     "tools": { "lines": 2380, "reason": "Tools build and check rig and palette data, check the Pi bundle holds nothing secret, enforce budgets, support development and backups, and benchmark rendering." }
   }
 }
