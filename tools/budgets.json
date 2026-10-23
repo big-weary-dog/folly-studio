@@ -6,7 +6,7 @@
     "pi": { "lines": 5480, "reason": "The Pi adds shared prepared-look rendering and interruptible crossfades in LED light, with a separate held relay frame and regressions for relay gaps, startup levels, duration and gamma output, alongside bake streaming, output lifecycle, guard timing and control-page coverage." },
     "public": { "lines": 56, "reason": "The app and sandbox HTML shells load their browser entry points." },
     "public/css": { "lines": 2390, "reason": "Styles cover the app shell, Studio panels, timeline, live controls, admin pages (the Pi bundle's too) and phone layouts." },
-    "public/js": { "lines": 18595, "reason": "Browser code combines editor picker cleanup with import previews, admin draft guards, invite entry, guest-aware tutorials and reactive reporting-eligibility notices alongside the core, viewers and Studio interfaces." },
+    "public/js": { "lines": 18610, "reason": "Combined editor and Pages fixes add shared custom-code policy, import previews, admin drafts, invite entry, guest tutorials and reporting notices alongside the core and viewers; the merged browser sources total 18609 lines." },
     "public/patterns": { "lines": 1837, "reason": "The built-in library provides sources, warps and filters as short standalone pattern modules." },
     "render-box": { "lines": 250, "reason": "The render box shares deterministic IDs and streaming FSEQ output with the Fleet checker, keeping bake memory independent of duration." },
     "shared": { "lines": 1616, "reason": "Shared schemas and pure rules define looks, generated compositions, API data, permissions and playback." },
