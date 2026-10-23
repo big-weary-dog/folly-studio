@@ -2,6 +2,7 @@
 // the screen row follows it at once while the bytes stay; the output gamma moves both; a save keeps them, and the
 // Pi's copy downloads as light.json.
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
 
 import { expect, test } from './studio.js';
 
@@ -14,6 +15,28 @@ test.use({ serverOptions: { admins: 'light-laptop,light-phone' } });
 for (const [name, device] of Object.entries(SIZES)) {
   test.describe(`${name}, ${device.viewport.width} × ${device.viewport.height}`, () => {
     test.use(device);
+
+    test('a member opening Admin directly sees an explanation without settings', async ({ page, studio }, info) => {
+      const request = page.context().request;
+      expect((await request.post(`${studio.origin}/api/signup`, { data: { username: `member-${name}`,
+        password: 'correct horse' } })).status()).toBe(201);
+      const writes = [];
+      page.on('request', (r) => { if (r.method() === 'PUT') writes.push(r.url()); });
+      for (const tab of ['light', 'baking']) {
+        await page.goto(`${studio.origin}/admin/${tab}`);
+        await expect(page.getByRole('heading', { name: 'Admin access required' })).toBeVisible();
+        await expect(page.getByText('You need an admin account to view or change these settings.')).toBeVisible();
+        await expect(page.locator('.admin-tabs, .models-panel, .models-actions')).toHaveCount(0);
+        await expect(page.getByRole('spinbutton')).toHaveCount(0);
+        await page.screenshot({ fullPage: true, path: process.env.ADMIN_SHOTS
+          ? path.join(process.env.ADMIN_SHOTS, `${device.viewport.width}-${tab}-member.png`)
+          : info.outputPath(`${tab}-member.png`) });
+        expect((await request.put(`${studio.origin}/api/admin/${tab}`, {
+          data: tab === 'light' ? { gamma: 1 } : { mode: 'off' },
+        })).status()).toBe(403);
+      }
+      expect(writes).toEqual([]);
+    });
 
     test('an admin calibrates the response and sets the gamma; the screen follows, a save keeps it', async ({ page,
       studio }, info) => {
@@ -35,7 +58,9 @@ for (const [name, device] of Object.entries(SIZES)) {
       await expect(gamma).toHaveValue(/^2\.20/);
       await expect(sends).toHaveText('55');            // 50 % at gamma 2.2: 55 of 255
       await expect(screen).toHaveText('119');
-      await page.screenshot({ path: info.outputPath('light.png'), fullPage: true });
+      await page.screenshot({ path: process.env.ADMIN_SHOTS
+        ? path.join(process.env.ADMIN_SHOTS, `${device.viewport.width}-light-admin.png`)
+        : info.outputPath('light.png'), fullPage: true });
 
       await response.fill('2');
       await response.press('Enter');
