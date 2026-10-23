@@ -32,6 +32,25 @@ function played(r: ReturnType<typeof engineOn>, secs: number) {
 }
 
 describe('Jukebox fades', () => {
+  test('long to short to long uses each look\'s own fade and plays every short frame', () => {
+    const r = jukebox([short('long', 12), short('short', 1)]);
+    r.engine.queue('short');
+    r.engine.queue('long');
+    let frames = 0, peak = 0, incoming = 0;
+    for (let i = 0; i < 16 * r.engine.fps; i++) {
+      r.engine.tick();
+      const s = r.engine.state();
+      if (s.look?.id === 'short') { frames++; peak = Math.max(peak, s.gain); }
+      else if (frames) { incoming++; }
+      if (incoming === r.engine.fps) {
+        near(s.gain, 0.25, 'one second into the long look\'s four second fade');
+        break;
+      }
+    }
+    assert.equal(frames, r.engine.fps);
+    near(peak, 1, 'the short look reaches full gain');
+    assert.equal(incoming, r.engine.fps);
+  });
   test('out over the last FADE.jukebox of a pattern and in over the next one\'s first', () => {
     const r = jukebox([short('a', 12), short('b', 12)]);
     r.engine.queue('b');
