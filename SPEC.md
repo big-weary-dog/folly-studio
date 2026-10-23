@@ -471,7 +471,7 @@ ideaId?, preview?, createdAt, updatedAt }` (`preview`: its gallery preview's key
 has the rest.
 
 `PUT reviewed: true` answers 409 with the reason unless the look has a passing render-box bake of
-its current layers; large-area flashing in any bake blocks (flashing on small regions only
+its current layers and length (`bake.seconds` the duration it bakes now); large-area flashing in any bake blocks (flashing on small regions only
 warns: `bake.warning`) unless the curator gives `flashOverride`, their reason (3–500 characters), with a render-box
 bake that fails only the flash check: it is kept as `look.flashOverride = { reason, by, at }` (and logged), and
 cleared with the review (400 without `reviewed: true`). Changing what plays (`PLAYS`; `null` clears `bpm`, `globals`
@@ -548,9 +548,10 @@ as here; any other failure says why and points to Check & bake.
 - **Length.** A bake renders the look's `duration` from t = 0, honouring clips, but at most
   `STUDIO_BAKE_SECONDS` (default 120 s, ≤ 600) in the render box; `fleet-box/check.ts --bake`
   does the same (`--seconds` overrides). `look.bake.seconds` records what was baked; a bake is
-  dropped if the layers or duration change while it runs. The box's wall-clock and CPU budgets
+  dropped if the layers or duration change before its record is attached (after its frames are stored). The box's wall-clock and CPU budgets
   default to 30 s + 1.5 s per second baked (at least 90 s / 120 CPU s).
-- **Format.** The rig's fps, sparse FSEQ v2 covering only the rig's channels (the Folly: 40 fps, 33 ranges, 14,610
+- **Format.** The rig's fps, sparse FSEQ v2 covering only the rig's channels, its header's `uniqueId` from the
+  look and seconds baked (so a rebake is the same bytes) (the Folly: 40 fps, 33 ranges, 14,610
   ch; 20 s ≈ 11.7 MB, 120 s ≈ 70 MB, where full 40,800-ch frames would be ≈ 32.6 MB for 20 s). Files are
   capped at 64 MB, or ≈ 0.6 MB a second of `STUDIO_BAKE_SECONDS` when that is more
   (`STUDIO_BAKE_MAX_FRAMES` overrides).
@@ -583,12 +584,16 @@ as here; any other failure says why and points to Check & bake.
   flashing only warns.
 - **Stored.** `<STUDIO_DATA>/frames/<lookId>.fseq` and `look.bake = { source, status:
   queued|running|done|failed, ok, reason?, warning?, checkedAt, layersHash, renderKey?, analysis?, frames?: {
-  bytes, sha256 }, boxStats? }`. `ok` is false when the frames are missing, malformed or flash over a
-  large area (with the check on); `warning` says when only small regions flash. `layersHash` = SHA-256 of `renderFields(look)`.
+  bytes, sha256 }, boxStats? }`. Every record is the server's own check (`verifyBake`, `src/box-output.ts`) of the
+  bytes it attaches, whether rendered now or reused: with the light and flash settings of now, the frames must be
+  the asked shape (the rig's step, `seconds` × fps frames, every LED's channels) and the box must not have said a
+  layer failed (its words can only fail a bake, never pass one). `ok` is false when the frames are missing, malformed,
+  the wrong shape, from a box that said a layer threw or gave NaN, or flash over a large area (with the check on);
+  `warning` says when only small regions flash. `layersHash` = SHA-256 of `renderFields(look)`.
   Bakes are deterministic: `renderKey` = SHA-256 over `renderFields(look)`, the seconds baked and a digest of
   the box's inputs (render.ts, renderer.ts, the core's modules, fseq.ts, rig.json, the library, the
-  Node version). A bake request whose key a done render-box bake with stored frames has takes that bake,
-  its frames hard-linked, instead of baking.
+  Node version). A bake request whose key a done render-box bake with stored frames has takes those frames,
+  hard-linked, and checks them again instead of baking.
 - **Disk cap.** `STUDIO_FRAMES_MAX_BYTES` (default 2 GB) bounds `frames/`: past it, the bakes used least
   recently (their `.fseq` files and hash folder; use = streamed, downloaded or baked, kept in the
   `.fseq`'s mtime) are evicted, never a reviewed look's, a fleet-box bake's or one being encoded. The
