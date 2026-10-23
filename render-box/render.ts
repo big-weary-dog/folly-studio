@@ -1,23 +1,14 @@
 #!/usr/bin/env node
-// Folly Studio render box: bakes one look into FSEQ frames.
-//
-//   node render.ts --out DIR [--seconds S] [--frame-ms 2000]  < look.json
-//   → DIR/frames.fseq  FSEQ v2 at the rig's fps from t = 0, sparse: only the channels the rig's LEDs use,
-//                      for bakeSeconds(look, S) (renderer.ts); clips are honoured by the core.
-//     DIR/result.json  { ok, error?, frames, seconds, channels, ranges, msPerFrame, layers }
-//   exit 0 when frames.fseq was written, 1 when the look could not be baked.
-//
-// src/render-box.ts runs this inside bubblewrap: no network, nothing writable but DIR, read-only node, this file,
-// renderer.ts, the bundled core, fseq.ts, rig.json and the pattern library (patterns/, what use() runs), rlimits and
-// a wall clock. That is the boundary. In here the core is not imported: its source and renderer() run in a
-// node:vm realm with the look, so patterns see only the stdlib and the ECMAScript built-ins (no
-// process, require, import, fetch or timers): defence in depth. Inputs go in as JSON text, and only
-// bytes, numbers and JSON text come back, so no object from this realm reaches pattern code.
+// node render.ts --out DIR [--seconds S] [--frame-ms 2000] < look.json
+// Writes sparse frames.fseq at the rig's fps and result.json with timing and layer errors; exits 1 on failure.
+// src/render-box.ts supplies isolation and resource limits. Patterns run in a stdlib-only node:vm realm;
+// inputs enter as JSON and only bytes, numbers and JSON text leave it.
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
+import { createHash } from 'node:crypto';
 
 import type * as Fseq from '../public/js/fseq.ts';
 import { bakeLoop, bakeSeconds, FPS, readLibrary, renderer } from './renderer.ts';
@@ -133,8 +124,14 @@ const baked = bakeLoop(frames, packed as Uint8Array, (f) => {
   }
   return JSON.parse(text(errors, 64 * 1024) || '[]');
 }, fps);
+if (baked.layers.length) {
+  result.layers = baked.layers;
+  fail(`layer ${baked.layers[0]!.id} failed: ${baked.layers[0]!.firstError}`);
+}
 
-const fseq = writeFseq({ frames, stepMs: Math.round(1000 / fps), data: baked.data, ranges });
+const uniqueId = BigInt(`0x${createHash('sha256').update(JSON.stringify({ layers, extra, frames }))
+  .digest('hex').slice(0, 16)}`);
+const fseq = writeFseq({ frames, stepMs: Math.round(1000 / fps), data: baked.data, ranges, uniqueId });
 writeFileSync(path.join(outDir, 'frames.fseq'), fseq);
 const { data, ...stats } = baked;
 Object.assign(result, { ok: true, ...stats, channels, ranges: ranges.length });

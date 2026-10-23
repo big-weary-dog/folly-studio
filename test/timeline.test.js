@@ -11,7 +11,7 @@ import { afterAll, beforeEach, describe, test } from 'vitest';
 import {
   compilePattern, layerEnvelope, lookDuration, normalizeClips, prepareLayer, prepareScene, renderFrame,
 } from '../public/js/pattern-core.ts';
-import { writeFseq } from '../public/js/fseq.ts';
+import { ledRanges, writeFseq } from '../public/js/fseq.ts';
 import { createServer } from '../src/app.ts';
 import { validateLayers } from '../src/api-looks.ts';
 import { bakeSeconds } from '../src/bake.ts';
@@ -229,6 +229,7 @@ describe('validation', () => {
 
 /** A stand-in render box: frames for the real LED map, all lit, as long as it is asked. */
 function fakeBox(maxSeconds = 4) {
+  const ranges = ledRanges(rig), channels = ranges.reduce((n, r) => n + r[1], 0);
   return {
     asked: [],
     config: { seconds: maxSeconds },
@@ -236,8 +237,8 @@ function fakeBox(maxSeconds = 4) {
     async render({ seconds }) {
       this.asked.push(seconds);
       const frames = Math.round(Math.min(maxSeconds, seconds) * 40);
-      const data = new Uint8Array(frames * 3).fill(100);
-      const bytes = Buffer.from(writeFseq({ frames, data, ranges: [[0, 3]] }));
+      const data = new Uint8Array(frames * channels).fill(100);
+      const bytes = Buffer.from(writeFseq({ frames, data, ranges }));
       return { bytes, boxStats: { untrusted: true, reported: {} } };
     },
   };
