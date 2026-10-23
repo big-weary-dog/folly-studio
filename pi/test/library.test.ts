@@ -40,6 +40,22 @@ describe('the library', () => {
     assert.throws(() => oneModule('p', 'clouds', {}, { globals: { live: ['nope'] } }), /globals/);
   });
 
+  test('malformed local layers and timing cannot be advertised as playable', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'pi-invalid-'));
+    for (const [field, value] of Object.entries({ groups: 42, clips: [{ start: 2, end: 1 }],
+      level: 'bright', soften: { radius: -1 }, modules: [null] })) {
+      writeFileSync(path.join(dir, 'safe.json'), JSON.stringify({
+        layers: [{ modules: [{ ref: 'clouds' }], [field]: value }],
+      }));
+      const entry = readLooks([LOOKS, dir], lib).get('safe')!;
+      assert.equal(entry.look, null, field);
+      assert.ok(entry.error, field);
+    }
+    for (const more of [{ duration: -1 }, { duration: 'long' }, { bpm: NaN }]) {
+      assert.throws(() => oneModule('bad', 'clouds', {}, more));
+    }
+  });
+
   test("the Pi's own looks (a second dir) replace shipped ones by id; a broken file says why", () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'pi-looks-'));
     mkdirSync(dir, { recursive: true });

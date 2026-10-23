@@ -49,14 +49,21 @@ export function piFeed({ target, base = '/pi', pin, mode = () => 'live', onNow, 
     // The engine takes its own page's origin only: this one, as it sees the request.
     const s = ws = new WebSocket(url, { origin: target.origin, maxPayload: 1 << 20, handshakeTimeout: 5000 });
     s.on('open', () => {
-      wait = FIRST_WAIT_MS;
       s.send(JSON.stringify({ type: 'hello', feed: true, ...pin ? { pin } : {} }));
-      s.send(JSON.stringify({ type: 'mode', mode: mode() }));
     });
     s.on('message', (d) => {
       let m;
       try { m = JSON.parse(String(d)); } catch { return; }
-      if (m?.type === 'hello') ok = m.ok === true;
+      if (m?.type === 'hello') {
+        ok = m.ok === true;
+        if (ok) {
+          wait = FIRST_WAIT_MS;
+          s.send(JSON.stringify({ type: 'mode', mode: mode() }));
+        } else {
+          if (typeof m.error === 'string') log.warn?.(`[pi] Hello rejected: ${m.error.slice(0, 200)}`);
+          s.terminate();
+        }
+      }
       else if (m?.type === 'error' && typeof m.error === 'string') log.warn?.(`[pi] ${m.error.slice(0, 200)}`);
       else if (m?.type === 'source' && m.source && num(m.source.rev) && Array.isArray(m.source.layers)) {
         onSource(m.source);
@@ -91,7 +98,7 @@ export function piFeed({ target, base = '/pi', pin, mode = () => 'live', onNow, 
     },
     /** The mode changed: tell the engine now (and again at each hello). */
     mode(m: 'jukebox' | 'live') {
-      if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'mode', mode: m }));
+      if (ok && ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'mode', mode: m }));
     },
     close() {
       alive = false;
