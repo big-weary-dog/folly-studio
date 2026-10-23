@@ -12,7 +12,7 @@ every edit here keeps them, so what the Studio saves the API accepts.
   plays on the groups ticked, the view focuses them, and the layer (each of a preset's layers) is added on them;
   closing the picker forgets them.
 - **Timeline** (`ui/timeline*.tsx`): docked under the 3D view beside Code on a wide screen (drag, trim, fade, zoom,
-  snap to ¼ s or beats), a Time tab on a phone (the selected clip's numbers). Its edits (`ui/timeline-model.ts`,
+  snap to ¼ s or beats), unavailable on phone. Its edits (`ui/timeline-model.ts`,
   pure) keep SPEC "Timeline". Under the layers, a lane per modulator (`ui/timeline-mods.tsx`): its
   value over the show (0..1 of its range, as it plays: pace, swing and lanes in), its name and what it drives in the
   lane's head, which opens it on the Look panel; the group folds to its head (kept per browser). Under those, a lane per
@@ -29,7 +29,7 @@ every edit here keeps them, so what the Studio saves the API accepts.
   dock (Code, Timeline, Look) is one height on every tab: a share of the Studio's height (36%, at least 220 px, the
   3D view keeping at least 200 px), dragged by the splitter above it and kept per browser.
 - **Title and description** edit in place: the title in the Studio bar with the description (the look's `summary`,
-  what its gallery card shows) on a line under it; on a phone, the description is a box in the Look tab.
+  what its gallery card shows) on a line under it; on a phone, the description is under Look → Share details.
 - **Reorder.** a layer row moves by its ↑ ↓ buttons, a module row (into and out of composites too) by Alt+↑/↓ on its
   controls, either by dragging its grip (`ui/drag-order.ts`, a module's `ui/tree-drag.ts`; any pointer), which marks
   where it lands, the drop one edit; Escape cancels. Composites in the panel (each source a sub-layer of its own, in
@@ -44,7 +44,7 @@ every edit here keeps them, so what the Studio saves the API accepts.
   module auditions use the same chain insertion as Add), the code editor and
   params on the selected module (each number param can be modulated), and a Look panel of globals, the palette
   (its theme line under the menu; each swatch titled by its slot, `body2 · #fd7f40`), its modulators and its faders
-  (macros without a mod; `ui/look-mods.tsx`), with + Macro available on phones too. A modulator is a card:
+  (macros without a mod; `ui/look-mods.tsx`), with + Macro on laptop. A modulator is a card:
   its name to rename, how it moves, its value now, ∿ to edit it, × to delete it, and a chip for each param it drives
   (layer › param), which selects that layer and
   module and opens the param's ∿; a fader's row lists what it drives, paces or swings the same way. Modulating is in
@@ -71,12 +71,17 @@ every edit here keeps them, so what the Studio saves the API accepts.
   Module deletion names all attached or contained modules it removes; Undo restores the whole edit.
   Mute and Solo audition the look without changing saved content. FSEQ exports the current preview and asks
   before excluding muted or unsoloed layers; its form explains that JSON, Save and Check & bake use the full look.
-- **Phones** (≤ 899 px wide; `ui/phone/`, `css/phone.css`): the 3D view over one panel, switched by the tabs Layers,
-  Time, Look and More. Layers lists one row a layer (name, mute, status); tapping one opens its settings in
+- **Phones** (≤ 899 px wide; `ui/phone/`, `css/phone.css`): the 3D view over one panel, switched by Layers,
+  Look and More. The preview and transport occupy 240 px while using these panels; venue scenery stays.
+  Time, code, Full detail and automation/modulation authoring are unavailable; CodeEditor and Timeline do not
+  mount on phone. Existing clips, automation and bindings keep playing. Look keeps palette and existing performance
+  faders, Share, an explicit Refine with AI action (without Critique), and description under Share details.
+  It omits macro/modulator authoring, bake/export and recent-look navigation.
+  Layers lists one row a layer (name, mute, status); tapping one opens its settings in
   the same panel (‹ Layers back, its name, mute and solo, plays on, the chain, the params). The light view hides
   blend, level, solo and moving up or down on the rows, the layer and module names and Soften in the settings, the
-  3D view's style buttons; automation lanes remain visible. More holds the code editor, the 3D view's Show unlit, LEDs
-  and quality, and Full detail, which shows them all again (kept per browser). On a phone the preview starts without
+  3D view's style buttons. More holds the 3D view's Show unlit, LEDs
+  and quality. On a phone the preview starts without
   Show unlit, the Playa view drops the scaffold lines, and Points draws at a pixel ratio of 1.
 - **Colours** (`ui/picks.tsx`, `ui/pick-model.ts`; SPEC-library "Palettes"): a colour param is one row like a number's: its pick in
   a field the size of a number's (`kit.tsx` Scrub), its text over the colours it plays (the field opens the pick

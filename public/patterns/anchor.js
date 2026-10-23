@@ -1,6 +1,6 @@
 // Anchor: moves the centre of what is above it to a group's centre (by tag): the rose, the nearest tower, ...
 // Shape is how distance is measured round it: in the façade, in plan (round an upright axis) or as a sphere.
-// Reach is the distance, in metres, that counts as the edge (0: the layer's farthest corner). Line up frames the
+// Reach is the distance, in metres, that counts as the edge (0: automatic). Line up frames the
 // warps after it in the whole rig, so layers on different groups match. A tag with no groups on the rig does nothing.
 const params = {
   tag: { value: 'rose', type: 'choice', label: 'Group',
@@ -9,12 +9,12 @@ const params = {
     help: 'Which of the rig\'s tagged groups the centre moves to. A tag this rig has no groups for does nothing.' },
   which: { value: 'first', type: 'choice', options: ['first', 'nearest'], label: 'Which group',
     help: 'first centres on the first group with the tag; nearest centres each LED on its closest group.' },
-  shape: { value: 'facade', type: 'choice', options: ['facade', 'plan', 'sphere'], label: 'Shape',
+  shape: { value: 'facade', type: 'choice', options: ['facade', 'plan', 'sphere'], label: 'Distance shape',
     help: 'facade rings round the centre on the front face; plan rings round an upright axis; sphere grows outward.' },
-  reach: { value: 0, min: 0, max: 30, step: 0.5, label: 'Reach (metres; 0: the layer)',
-    help: 'How far out counts as the edge. Small packs what is above round the group; large spreads it wide.' },
+  reach: { value: 0, min: 0, max: 30, step: 0.5, label: 'Reach (metres; 0: automatic)',
+    help: '0: farthest layer corner, or nearest\'s half-gap between groups ≥0.5 m apart (reach at least 0.5 m).' },
   lineup: { value: false, type: 'toggle', label: 'Line up with other layers',
-    help: 'On keeps the across, up and depth of the whole rig, so layers on different groups match up.' },
+    help: 'On keeps across, up and depth in the whole rig, so layers match; angle and radius stay anchored.' },
 };
 
 let list = [], R = 1;

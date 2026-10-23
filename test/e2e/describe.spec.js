@@ -23,6 +23,7 @@ for (const width of [390, 1366]) {
     let field;
     if (width < 600) {
       await page.locator('.tab[data-tab=look]').click();
+      await page.getByText('Share details', { exact: true }).click();
       field = page.getByRole('textbox', { name: 'Description' });
     } else field = page.getByRole('textbox', { name: 'Look description' });
     await expect(field).toHaveAttribute('placeholder', 'Describe it for the gallery');

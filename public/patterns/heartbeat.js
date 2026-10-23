@@ -12,6 +12,7 @@ const params = {
   tempo: { value: 'look', type: 'choice', label: 'Tempo', options: ['look', 'own'],
     help: "Look beats with the look's bpm; own beats at Own tempo, for a look with no tempo or a heart off the beat." },
   rate: { value: 120, min: 10, max: 240, step: 1, label: 'Own tempo (beats a minute)',
+    showWhen: { tempo: ['own'] },
     help: 'The tempo when Tempo is own. Every counts its beats, so 120 with every two is 60 heartbeats a minute.' },
   every: { value: 'two', type: 'choice', label: 'Every (beats)', options: ['half', 'one', 'two', 'four', 'eight'],
     help: 'How often a heartbeat comes, in beats of the tempo: half is twice a beat, eight a slow, rare thump.' },
@@ -20,6 +21,7 @@ const params = {
   sharpness: { value: 0.5, min: 0, max: 0.95, step: 0.01, label: 'Sharpness',
     help: 'How quick each thump is, as a share of the heartbeat. Low swells slowly; high is a short, hard knock.' },
   second: { value: 0.7, min: 0, max: 1, step: 0.01, label: 'Second beat',
+    showWhen: { shape: ['double'] },
     help: 'How strong the echo of a double is beside the first thump. 0 leaves only the first; 1 matches it.' },
 };
 

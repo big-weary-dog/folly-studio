@@ -70,7 +70,8 @@ export function createStudio(me: User | null) {
   const narrow = signal(NARROW.matches);
   const knownDock = (d: string | null): Dock => (d === 'code' || d === 'look' ? d : 'timeline');
   const dock = signal(knownDock(pref('studio.dock'))), wasFolded = pref('studio.dockFolded');
-  const tab = signal<Tab>(TABS.includes(pref('studio.tab') as Tab) ? pref('studio.tab') as Tab : 'layers');
+  const allowedTab = (id: Tab) => TABS.includes(id) && !(narrow.peek() && (id === 'code' || id === 'time'));
+  const tab = signal<Tab>(allowedTab(pref('studio.tab') as Tab) ? pref('studio.tab') as Tab : 'layers');
   const folded = signal(wasFolded === null ? dock.value === 'code' && matchMedia(SHORT).matches : wasFolded === '1');
   const side = signal<SideView>(['layers', 'params'].includes(pref('studio.side') ?? '')
     ? pref('studio.side') as SideView : 'split');
@@ -196,7 +197,7 @@ export function createStudio(me: User | null) {
     },
     setTab(id: Tab, { onlyNarrow = false } = {}) {
       if (onlyNarrow && !narrow.value) return;
-      tab.value = TABS.includes(id) ? id : 'layers';
+      tab.value = allowedTab(id) ? id : 'layers';
       pref('studio.tab', tab.value);
     },
     showDock(id: Dock, unfold = true) {
@@ -355,7 +356,10 @@ export function createStudio(me: User | null) {
   const failed = (err: unknown, prefix = '') => {
     toast(`${prefix}${(err as Error).message}`, { kind: 'error', timeout: prefix ? 8000 : undefined });
   };
-  const onNarrow = () => { narrow.value = NARROW.matches; };
+  const onNarrow = () => {
+    narrow.value = NARROW.matches;
+    if (!allowedTab(tab.peek())) st.setTab('layers');
+  };
   NARROW.addEventListener('change', onNarrow);
   return Object.assign(st, { dispose: () => {
     open = false;

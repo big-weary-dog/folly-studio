@@ -8,9 +8,10 @@ import { EMPTY_PICTURE, type Picture, pictureProblem, readPicture } from './pict
 import type { ModuleKind, Pixel } from './render.ts';
 import { hex, isNum, RUN, STDLIB, STDLIB_NAMES } from './stdlib.ts';
 import { STAGES } from './warps.ts';
+import { paramControls, type ParamControls } from './param-controls.ts';
 
 /** A pattern's params as its controls show them (SPEC "Pattern code"). */
-export type ParamSpec = { label?: string, help?: string } & (
+export type ParamSpec = { label?: string, help?: string } & ParamControls & (
   { type: 'number', value: number, min: number, max: number, step?: number, unit?: 'minute' }
   | { type: 'toggle', value: boolean } | { type: 'color', value: string, blend?: PickBlend }
   | { type: 'choice', value: string, options: string[] } | { type: 'picture', value: Picture }
@@ -148,6 +149,7 @@ export function normalizeParams(raw: unknown): ParamSchema {
       throw new Error(`param "${key}": unknown type "${d.type}" (number, toggle, color, choice, picture or text)`);
     }
     if (typeof d.label === 'string') p.label = d.label;
+    Object.assign(p, paramControls(d));
     if (typeof d.help === 'string' && d.help.trim()) p.help = d.help.trim().slice(0, HELP_MAX);
     out[key] = p;
   }

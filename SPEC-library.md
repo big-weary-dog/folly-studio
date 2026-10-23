@@ -43,6 +43,12 @@ what it does and how it looks low and high). The Studio shows `help` on hover ov
 screen behind an ⓘ beside it; the generators' library docs give it as the param's effect. Every library param has
 `help`.
 
+Controls may carry `showWhen: { otherParam: [value, …] }`: show the row only when each named
+param matches one of its values (choice/toggle defaults apply). Hidden rows keep their saved values
+and still resolve at runtime. This presentation hint never rewrites values on opening the panel.
+Conditions read the stored controls, not playback; a bound number leaves its dependent rows visible.
+An unknown param does not match; malformed conditions are ignored.
+
 Every source also has `brightness` (`SOURCE_PARAMS`: 0–1, default 1, label Brightness), after its own params: the core
 scales the rgb of what `pixel()` returns by it (alpha kept), in a layer and in `use()`, so it binds like any param
 (an LFO, a global, the envelope) and a look without it reads 1. A source that declares its own `brightness` keeps it

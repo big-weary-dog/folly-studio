@@ -12,7 +12,7 @@ import { DEFAULT_PALETTE } from '../core/stdlib.ts';
 import { BeatClock } from './beat-clock.tsx';
 import { automate } from './automation-edit.ts';
 import {
-  beatsAt, fmt, keepsTime, normaliseParam, optionText, type Param, perBeat, shownValue, upgradedOf,
+  beatsAt, fmt, keepsTime, normaliseParam, optionText, type Param, perBeat, shownValue, upgradedOf, visibleParams,
 } from './bindings.ts';
 import { cx, Field, Scrub } from './kit.tsx';
 import { addModulator, modulatorEdits } from './look-globals-edit.ts';
@@ -29,16 +29,17 @@ export function ParamsPanel({ st }: { st: Studio }) {
   const hint = (...kids: ComponentChildren[]) => <div class="params"><p class="pane-hint">{kids}</p></div>;
   if (!l || !m) return hint('Select a layer to see its settings.');
   const { schema, note, upgraded } = st.status.params(l.id, m);
-  const entries = Object.entries(schema || {}).map(([k, raw]) => [k, normaliseParam(k, raw)] as const)
+  const all = Object.entries(schema || {}).map(([k, raw]) => [k, normaliseParam(k, raw)] as const)
     .filter((e): e is [string, Param] => !!e[1]);
   if (note) return hint(note);
-  if (!entries.length) {
+  if (!all.length) {
     return hint('This pattern has no params. Declare ', <code>const params = {'{ … }'}</code>,
       ' in its code to set them here.');
   }
   // Params saved for an earlier version show (and are written on an edit) as its upgrade() reads them.
   const fresh = (saved: Record<string, ParamValue> = {}) => ({ ...saved, ...upgradedOf(upgraded, schema, saved) });
   const values = fresh(m.params);
+  const entries = visibleParams(all, values);
   const set = (fn: (p: Record<string, ParamValue>) => void) => st.editModule(l.id, m.id, (mod) => {
     const params = fresh(mod.params);
     fn(params);

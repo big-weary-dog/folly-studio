@@ -6,6 +6,7 @@ point, **sparkle** for glitter that stays put.
 
 ## Params
 - speed: 1+ is a barrage.
+- shells: independent recurring burst streams, not a count of simultaneous bursts.
 
 ## Pairings
 - Over a dark **colour-wash** bed; then **trails** for lingering sparks.

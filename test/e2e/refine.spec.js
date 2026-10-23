@@ -7,7 +7,6 @@ const SIZES = {
   laptop: { viewport: { width: 1366, height: 768 } },
   phone: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
 };
-test.use({ serverOptions: { admins: 'refine-laptop,refine-phone' } });
 
 for (const [name, device] of Object.entries(SIZES)) {
   test.describe(`${name}, ${device.viewport.width} × ${device.viewport.height}`, () => {
@@ -22,13 +21,21 @@ for (const [name, device] of Object.entries(SIZES)) {
       await page.fill('input[name=username]', `refine-${name}`);
       await page.fill('input[name=password]', 'correct horse');
       await page.locator('form button[type=submit]').click();
+      await expect(page).toHaveURL(`${studio.origin}/looks`);
+      const { code } = studio.app.access.createInvite('refine-fixture', { uses: 1 });
+      const unlocked = await page.request.post(`${studio.origin}/api/invite`, { data: { code } });
+      expect((await unlocked.json()).access).toMatchObject({ unlocked: true, exempt: false });
+      await page.goto(`${studio.origin}/ideas`);
       await page.fill('textarea.idea-input', 'A slow purple wash over the arches');
       await page.getByRole('button', { name: 'Turn it into a look' }).click();
       await page.getByRole('link', { name: 'Open in Studio' }).first().click({ timeout: 60_000 });
       await expect(page).toHaveURL(/\/studio\/[\w-]+$/);
 
       if (name === 'laptop') await page.locator('.dock-tab', { hasText: 'Look' }).click();
-      else await page.locator('.tab[data-tab=look]').click();
+      else {
+        await page.locator('.tab[data-tab=look]').click();
+        await page.getByRole('button', { name: 'Refine with AI', exact: true }).click();
+      }
       const box = page.locator('section.refine:visible');
       await expect(box).toBeVisible({ timeout: 30_000 });
       await box.locator('textarea').fill('brighter and faster');
