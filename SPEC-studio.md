@@ -20,7 +20,9 @@ every edit here keeps them, so what the Studio saves the API accepts.
   named `automation` (then `automation2`, …), range 0..1, initially 0.5, and its lane. A setting's ∿ drawer also
   offers Automate: one edit creates a macro named from its layer and setting, with the setting's range and value,
   binds the setting to it, creates its lane, and opens the timeline. A colour setting automates its rotate, 0..1.
-  An already automated setting or macro opens its existing lane; each lane starts flat at 0 and the look's end.
+  Settings inside Composites automate the same way. An already automated setting or macro opens its existing
+  lane; each lane starts flat at 0 and the look's end. A missing setting or macro reports that it was not found;
+  the capacity warning is only for the macro or lane limit.
   Click to add a point, drag to move it, double-click to remove it. Points are hollow amber at 0%, half-filled
   violet between the endpoints and filled mint at 100%. Segments blend between amber, violet and mint over the range.
   The bottom
@@ -59,8 +61,10 @@ every edit here keeps them, so what the Studio saves the API accepts.
   (`roseSpeed`), and binds the param to it. With a modulator picked, the drawer renames it and its own ∿ (LFO,
   Macro: following a fader, Off) sets how it moves, for every param that follows it. A bound row shows a live
   chip: what moves it, its range, its value now and a bar. Renaming a macro carries its lane, its bindings, a
-  colour's rotate and the modulators that follow it; deleting it
-  drops them. On a phone: globals and palette in the Look tab;
+  colour's rotate and the modulators that follow it, throughout Composite sub-layers too; deleting it
+  drops them. Its explicit live-control entry is renamed or removed in the same undoable edit.
+  Duplicating a layer gives every nested module a fresh id and carries filter inputs and attachments to the copies.
+  On a phone: globals and palette in the Look tab;
   the chain read-only but for enable and params.
 - **Phones** (≤ 899 px wide; `ui/phone/`, `css/phone.css`): the 3D view over one panel, switched by the tabs Layers,
   Time, Look and More. Layers lists one row a layer (name, mute, status); tapping one opens its settings in
