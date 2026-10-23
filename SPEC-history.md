@@ -74,5 +74,6 @@ it changed and a link to the idea's log; a refinement undone or dropped is told 
 colours and tags (Saved, In gallery, Reviewed). Preview plays one in the view in place of the work (`st.previewing`
 holds the work, which still decides `dirty` and what saves), the view says "Previewing version n", and editing and
 saving wait; "Back to my work" puts the work back, "Restore this version" makes it the work, as a step, and saves.
+Preview and restore include the version's title and summary as well as what plays.
 "Save a named version…" asks a name and saves; ✎ on a version names it, renames it, or (left empty) unnames it.
 Named ones are tagged Named.

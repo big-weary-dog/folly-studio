@@ -52,6 +52,58 @@ const pick = (page, id) => top(page, id).locator('.chain-name').click();
 const noErrors = async (page) => expect(page.locator(
   '.chain-row:is([data-status=compile], [data-status=runtime], [data-status=hung])')).toHaveCount(0);
 
+for (const width of [1366, 390]) {
+  test(`editor audit actions at ${width}`, async ({ page, studio }, info) => {
+    const phone = width === 390;
+    await page.setViewportSize({ width, height: phone ? 844 : 768 });
+    const shot = (name) => page.screenshot({ path: process.env.UX_SHOTS
+      ? path.join(process.env.UX_SHOTS, `${width}-${name}.png`) : info.outputPath(`${name}.png`) });
+    await open(page, studio, TWISTED, phone);
+    {
+      await page.getByRole('button', { name: '+ Source', exact: true }).click();
+      const shelf = page.getByRole('dialog', { name: 'Add a source', exact: true });
+      await expect(shelf.getByRole('tab')).toHaveText(['Sources']);
+      await expect(shelf.locator('.shelf-row[data-kind=warp], .shelf-row[data-kind=filter]')).toHaveCount(0);
+      await shot('source-picker');
+      await shelf.locator('.shelf-row[data-kind=source]').first().click();
+      await expect(row(page, 'c1').locator('.sub-layer')).toHaveCount(3);
+    }
+    await pick(page, 'a1');
+    await page.locator('[data-tour="param:speed"] .param-mod:visible').click();
+    await page.locator('.mod-drawer').getByRole('button', { name: 'Automate', exact: true }).click();
+    await expect(page.locator('.tl-auto-row:not(.tl-mod-row)')).toBeVisible();
+    await shot('automation-visible');
+    if (phone) await page.locator('.tab[data-tab=look]').click();
+    else await page.locator('.dock-tab').filter({ hasText: 'Look' }).click();
+    await page.locator('[data-tour=macro-add]').click();
+    await expect(page.locator('[data-tour="macro:macro1"]')).toBeVisible();
+    await page.locator('[data-tour="macro:macro1"]').scrollIntoViewIfNeeded();
+    await shot('macro-added');
+    if (!phone) {
+      const deletion = top(page, 'b1').getByRole('button', { name: /Delete .* and 1 attached/ });
+      await expect(deletion).toHaveAttribute('title', /and 1 attached or contained modules/);
+      await deletion.click();
+      await expect(row(page, 'b2')).toHaveCount(0);
+      await expect(page.getByText(/Deleted .* and 1 attached or contained modules/)).toBeVisible();
+      await shot('deletion-scope');
+      await page.getByRole('button', { name: 'Undo', exact: true }).last().click();
+      await expect(row(page, 'b2')).toHaveCount(1);
+      await page.getByRole('button', { name: 'Mute Twisted pair', exact: true }).click();
+      await page.getByRole('button', { name: 'Export', exact: true }).click();
+      await page.getByRole('menuitem', { name: 'Export .fseq…' }).click();
+      const warning = page.getByRole('dialog', { name: 'Export the current preview?' });
+      await expect(warning).toContainText('excludes “Twisted pair”');
+      await expect(warning).toContainText('JSON export and Check & bake include the full look');
+      await shot('export-warning');
+      await warning.getByRole('button', { name: 'Export preview', exact: true }).click();
+      const form = page.getByRole('dialog', { name: 'Export .fseq', exact: true });
+      await expect(form).toContainText('including Mute and Solo');
+      await shot('export-scope');
+      await form.getByRole('button', { name: 'Cancel', exact: true }).click();
+    }
+  });
+}
+
 test('nested macro uses, rename/delete, Automate and duplication stay savable', async ({ page, studio }, info) => {
   await page.setViewportSize({ width: 1366, height: 768 });
   const look = structuredClone(TWISTED);

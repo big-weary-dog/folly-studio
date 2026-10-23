@@ -6,6 +6,8 @@ import type { ComponentChildren } from 'preact';
 
 import type { Module } from '../../../shared/schemas/look.ts';
 import { cx } from './kit.tsx';
+import { flatModules } from '../core/tree.ts';
+import { removalBlock } from './composite-model.ts';
 import { BLEND_MODES, KIND_LABELS, type Reach } from './model.ts';
 import type { TreeDrag } from './tree-drag.ts';
 
@@ -34,6 +36,8 @@ export function ModuleRow({ m, i, mods, first, selected, attached, std, grip, sl
   nudge: (e: KeyboardEvent) => void; set: (patch: Partial<Module>) => void; fold?: boolean; note?: string;
   blendAs?: SubBlend; children?: ComponentChildren }) {
   const title = std ?? (m.title || KIND_LABELS[m.kind]), filter = m.kind === 'filter', comp = m.kind === 'composite';
+  const count = flatModules(removalBlock(mods, i)).length - 1;
+  const deletion = `Delete ${title}${count ? ` and ${count} attached or contained modules` : ''}`;
   // The row's select as a patch: a source's blend (or input only), a filter's input. A source's default ('') is
   // Over first and Add after, so that blend is not offered twice.
   const dflt = (blendAs ? blendAs.first : i === first) ? 'over' : 'add';
@@ -89,7 +93,7 @@ export function ModuleRow({ m, i, mods, first, selected, attached, std, grip, sl
             e.currentTarget.checked = !on;      // the look decides
             set({ enabled: on ? undefined : false });
           }} />
-        <button type="button" class="icon-btn wide-only" aria-label="Delete module" title="Delete module"
+        <button type="button" class="icon-btn wide-only" aria-label={deletion} title={deletion}
           disabled={!deletable} onClick={remove}>🗑</button></div>
       {children}
     </li>);

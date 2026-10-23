@@ -43,6 +43,7 @@ export function SettingsHead({ st, ph }: { st: Studio; ph: Phone }) {
   if (!l) return null;
   const toggle = (set: typeof st.muted, word: string) => <button type="button"
     class={cx('ms-btn', word.toLowerCase())} aria-pressed={set.value.has(l.id)} aria-label={`${word} ${l.title}`}
+    title={`${word} in the preview and preview FSEQ export`}
     onClick={() => st.toggle(set, l.id)}>{word}</button>;
   return (
     <div class="phone-head">
@@ -61,7 +62,7 @@ export function MorePane({ st, pv, ph }: { st: Studio; pv: Preview; ph: Phone })
     <section class="pane pane-more" data-pane="more" aria-label="More"><div class="pane-body more-body">
       <h3 class="look-h">Editing</h3>
       <button type="button" class="btn more-code" onClick={() => st.setTab('code')}>Open the code editor</button>
-      <Switch label="Full detail: blend, level, solo, moving, soften, automation" class="more-row"
+      <Switch label="Full detail: blend, level, solo, moving, soften" class="more-row"
         checked={ph.detail.value} onChange={(on) => {
           ph.detail.value = on;
           pref('studio.phoneDetail', on ? '1' : '0');

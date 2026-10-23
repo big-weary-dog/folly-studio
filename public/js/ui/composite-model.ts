@@ -114,10 +114,11 @@ export function addAfter(list: Module[], m: Module, id?: string): Module[] {
 }
 
 /** Module `id`, a source with its attached run, gone from its list (and the sub-layer that leaves empty). */
+export const removalBlock = (list: Module[], i: number) => list.slice(i, list[i].on ? i + 1 : runEnd(list, i));
 export function removeModule(mods: Module[], id: string): Module[] | null {
   const at = placeOf(mods, id), list = at && listOf(mods, at.box);
   if (!at || !list) return null;
-  return without(mods, at.box, list.slice(at.index, list[at.index].on ? at.index + 1 : runEnd(list, at.index)));
+  return without(mods, at.box, removalBlock(list, at.index));
 }
 /** Can module `id` go (its delete leaves no composite empty and no layer without modules)? */
 export const removable = (mods: Module[], id: string) => removeModule(mods, id) !== null;

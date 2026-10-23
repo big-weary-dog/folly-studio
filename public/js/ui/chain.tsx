@@ -82,16 +82,17 @@ function Chain({ st, pv }: Props) {
   };
   /** Where the selected module sits (the layer's chain's end when none is). */
   const here = () => (sel && placeOf(mods, sel.id)) || { box: null, index: mods.length - 1 };
+  const insert = (list: Module[], m: Module) => withList(list, here().box, (x) => addAfter(x, m, sel?.id));
 
   /** A library module (or a blank), after the selected module in its list (model.ts insertModule). */
   function add(entry: Entry) {
-    const layer = st.selected.peek(), cur = st.module.peek(), { box } = here();
+    const layer = st.selected.peek(), { box } = here();
     if (!layer || ('kind' in entry && entry.kind === 'preset')) return;
     if (listOf(mods, box).length >= MAX_MODULES) {
       return toast(`A chain has at most ${MAX_MODULES} modules.`, { kind: 'warn' });
     }
     const m = 'blank' in entry ? makeModule({ kind: entry.kind }) : moduleFromLibrary(entry);
-    setMods((list) => withList(list, box, (x) => addAfter(x, m, cur?.id)));
+    setMods((list) => insert(list, m));
     st.pickModule(m.id);
   }
   function remove(m: Module) {
@@ -99,7 +100,9 @@ function Chain({ st, pv }: Props) {
     if (!next || !l) return;
     setMods(() => next);
     const step = st.step();
-    toast(`Deleted “${m.title}”.`, { action: { label: 'Undo', onClick: () => {
+    const count = flatModules(mods).length - flatModules(next).length - 1;
+    toast(`Deleted “${m.title}”${count ? ` and ${count} attached or contained modules` : ''}.`,
+      { action: { label: 'Undo', onClick: () => {
       st.undoStep(step);
       st.pickModule(m.id);
     } } });
@@ -133,8 +136,9 @@ function Chain({ st, pv }: Props) {
     land(id, key);
     requestAnimationFrame(() => (rowOf(id)?.querySelector('.chain-name') as HTMLElement)?.focus());
   };
-  const shelf = (onPick: (e: Entry) => void) => import('./shelf.tsx').then(({ openShelf }) => openShelf({
-    mode: 'module', library: st.data.library, onPick, audition: { pv, layer: l || undefined, moduleId: sel?.id } }))
+  const shelf = (onPick: (e: Entry) => void, comp?: string) => import('./shelf.tsx').then(({ openShelf }) => openShelf({
+    mode: 'module', library: st.data.library, onPick, sourcesOnly: !!comp,
+    audition: { pv, layer: l || undefined, insert: comp ? (list, m) => addSub(list, comp, m) : insert } }))
     .catch(loadFailed);
   // The selected module's settings open under it (a wide screen); a click on it closes them, until the next click
   // or pick.
@@ -167,11 +171,11 @@ function Chain({ st, pv }: Props) {
     editSub: (comp, k, p) => setMods((list) => editSub(list, comp, k, p)),
     moveSub: resub,
     addSub: (comp) => void shelf((entry) => {
-      if ('kind' in entry && entry.kind === 'preset') return;
+      if (entry.kind !== 'source') return;
       const m = 'blank' in entry ? makeModule({ kind: entry.kind }) : moduleFromLibrary(entry);
       setMods((list) => addSub(list, comp, m));
       st.pickModule(m.id);
-    }),
+    }, comp),
   };
   const group = () => sel && setMods((list) => groupModule(list, sel.id));
   const single = sel?.kind === 'composite' && sel.layers?.length === 1;

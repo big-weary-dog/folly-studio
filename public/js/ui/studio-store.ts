@@ -239,7 +239,8 @@ export function createStudio(me: User | null) {
       const held = previewing.peek()?.held ?? look.peek();
       batch(() => {
         previewing.value = { n: v.n, label, held };
-        look.value = { ...held, layers: normaliseLayers(v.layers, data.rig as Rig), duration: cleanDuration(v.duration),
+        look.value = { ...held, title: v.title, summary: v.summary,
+          layers: normaliseLayers(v.layers, data.rig as Rig), duration: cleanDuration(v.duration),
           bpm: cleanBpm(v.bpm), globals: copy(v.globals) || {}, automation: copy(v.automation) };
       });
       st.onEdit();
@@ -257,7 +258,7 @@ export function createStudio(me: User | null) {
       const p = previewing.peek(), L = look.peek();
       if (!p) return false;
       st.back();
-      st.edit(() => Object.fromEntries(PLAYS.map((k) => [k, L[k]])),
+      st.edit(() => Object.fromEntries(CONTENT.map((k) => [k, L[k]])),
         { step: `Restored version ${p.n}`, kind: 'restore' });
       return st.save({ restoredFrom: p.n });
     },

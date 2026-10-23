@@ -4,12 +4,14 @@ import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
+import type { Module } from '../shared/schemas/look.ts';
 import type { Layer } from '../public/js/ui/model.ts';
 import type { Preview } from '../public/js/ui/preview.ts';
 
 Object.assign(globalThis, { matchMedia: () => ({ matches: false, addEventListener() {}, addListener() {} }) });
 const { createStudio } = await import('../public/js/ui/studio-store.ts');
 const { auditioner } = await import('../public/js/ui/shelf.tsx');
+const { addAfter, addSub, withList } = await import('../public/js/ui/composite-model.ts');
 
 const SOURCE = { name: 'glow', title: 'Glow', kind: 'source' as const, code: 'function pixel() {}', summary: '',
   category: 'other', tags: [] };
@@ -24,6 +26,31 @@ function fakePreview() {
 }
 
 describe('Add a layer: where the new layer plays', () => {
+  test('module auditions use the committing insertion, preserving settings and nested destinations', () => {
+    const source: Module = { id: 's', kind: 'source', title: 'S', code: '', params: {} };
+    const processor: Module = { id: 'f', kind: 'filter', title: 'F', code: '', params: {}, on: 's' };
+    const comp: Module = { id: 'c', kind: 'composite', title: 'C', code: '', params: {},
+      layers: [{ id: 'sub', title: 'Sub', modules: [source, processor] }] };
+    const base = { ...BASE[0], level: 0.3, modules: [comp],
+      clips: [{ start: 2, end: 4 }] } as Layer;
+    for (const insert of [
+      (mods: Module[], m: Module) => withList(mods, { comp: 'c', sub: 0 },
+        (list) => addAfter(list, m, 's')),
+      (mods: Module[], m: Module) => addSub(mods, 'c', m),
+    ]) {
+      const pv = fakePreview();
+      pv.runtime.layers = [base];
+      const A = auditioner({ pv, layer: base, insert });
+      A.now(SOURCE);
+      const made: Module = { id: '~audition', kind: 'source', ref: SOURCE.name,
+        title: SOURCE.title, code: SOURCE.code, params: {} };
+      const content = (v: unknown) => JSON.parse(JSON.stringify(v, (k, value) => k === 'id' ? undefined : value));
+      assert.deepEqual(content(pv.runtime.layers),
+        content([{ ...base, modules: insert(base.modules, made) }]));
+      A.now(null);
+      assert.equal(pv.runtime.layers[0], base);
+    }
+  });
   test('the audition plays on the groups picked, follows each change, and Escape puts the look back', () => {
     const pv = fakePreview(), A = auditioner({ pv, layer: { groups: ['g1'] } });
     A.regroup(['root']);

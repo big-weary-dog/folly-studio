@@ -113,8 +113,11 @@ describe('steps', () => {
   test('previewing a version holds the work; restoring it is a step', () => {
     const st = studio();
     st.editLayer('a', () => ({ level: 0.4 }));
-    const v = { ...LOOK, n: 1, layers: [{ ...LOOK.layers[0], level: 0.9 }] } as never;
+    const v = { ...LOOK, title: 'Earlier title', summary: 'Earlier description', n: 1,
+      layers: [{ ...LOOK.layers[0], level: 0.9 }] } as never;
     st.preview(v, 'Saved');
+    assert.equal(st.look.peek().title, 'Earlier title');
+    assert.equal(st.look.peek().summary, 'Earlier description');
     st.edit(() => ({ title: 'Blocked' }));
     assert.equal(st.work.peek().title, 'Embers');
     st.back();
@@ -123,5 +126,7 @@ describe('steps', () => {
     void st.restore();   // the save fails here (no server): the step is made first
     assert.equal(st.history.list.peek().at(-1)!.label, 'Restored version 1');
     assert.equal(st.look.peek().layers[0].level, 0.9);
+    assert.equal(st.look.peek().title, 'Earlier title');
+    assert.equal(st.look.peek().summary, 'Earlier description');
   });
 });
