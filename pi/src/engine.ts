@@ -7,7 +7,6 @@
 // pausing the queue, until someone picks a look again), then out through the LEDs' output transform (core/light.ts:
 // v^gamma, × the master, blackout and fade as a linear cap after the curve, so dimming never shifts a hue) as the
 // rig's channels to `output`.
-import { rand } from '../../public/js/core/stdlib.ts';
 import { FlashGuard } from '../../public/js/flash-guard.ts';
 import {
   compileLayer, type Light, ledChannels, ledLight, prepareLayer, type PreparedLayer, prepareLight, prepareScene,
@@ -19,6 +18,7 @@ import type { Rig } from '../../shared/schemas/rig.ts';
 import type { Baked } from './baked.ts';
 import { liveLook, type LiveLook } from './controls.ts';
 import type { Library, PiLook } from './library.ts';
+import { createPicks } from './picks.ts';
 import type { Mode } from './protocol.ts';
 import type { Relay } from './relay.ts';
 
@@ -57,15 +57,19 @@ export function createEngine(o: EngineOptions) {
   type Playing = { item: Item, id: string, title: string, duration: number, look: PiLook | null,
     live: LiveLook | null, layers: PreparedLayer[], baked: Baked | null };
   let playing: Playing | null = null, want = false;     // want: a person asked to go on as soon as the next is ready
-  let pending: Item | null = null, frame = 0, tripped: { at: string, look: string } | null = null;
+  // pending: what plays next, once what plays has faded out; fadeIn: the fade it was given to come in over.
+  let pending: Item | null = null, fadeIn: number | undefined, frame = 0;
+  let tripped: { at: string, look: string } | null = null;
   let queue: Item[] = [], paused = false, keys = 0;
   // Jukebox's auto picks: a shuffled round of the engine's own looks (not the safe one), the next one prepared ahead
   // off the frame; `tried`: this look's end already asked for one.
-  let jukebox = o.mode === 'jukebox', bag: string[] = [], rounds = 0, ahead: Item | null = null, tried = false;
-  const seed = o.seed ?? Date.now();
+  let jukebox = o.mode === 'jukebox', ahead: Item | null = null, tried = false;
+  const picks = createPicks(o.looks, o.safe, o.seed ?? Date.now());
   let dark = { by: null as string | null, at: now() };       // who last turned blackout on or off, and when
   let rev = 0, source: PiSource | null = null;      // rev: +1 at each switch, and each push that leaves a lane
   const stats = { frames: 0, late: 0, renderMs: 0, worstMs: 0, layerErrors: 0, lastError: '' };
+  /** Frames of show time so far, skipped ones too: the clock the flash guard and the relay keep. */
+  const shown = () => stats.frames + stats.late;
   // Each look compiled and prepared as it arrives (or why it cannot play), never in a frame: preparing a look that
   // warps builds its grid, up to 100 ms. A bake is read when it is next (ready()) and has nothing more to prepare.
   const prepared = new WeakMap<Item, Playing | Error>();
@@ -75,6 +79,11 @@ export function createEngine(o: EngineOptions) {
     const look = o.looks().get(id)?.look;
     return look ? { key: `q${++keys}`, id, title: look.title, kind: 'look', look, ...by ? { by } : {} } : null;
   }
+
+  const layersOf = (look: PiLook) => look.layers.map((l) => prepareLayer(scene, l, compileLayer(l)));
+  /** Black, for `item` when not even the safe look can play. */
+  const blackFor = (item: Item): Playing => ({ item, id: 'black', title: 'Black', duration: 30, look: null,
+    live: null, layers: [], baked: { frames: 1, duration: 30, fill: (_, out) => { out.fill(0); } } });
 
   function prepare<T extends Item | null>(item: T): T {
     if (!item) return item;
@@ -92,7 +101,7 @@ export function createEngine(o: EngineOptions) {
   for (const { look } of o.looks().values()) {
     if (!look) continue;
     try {
-      const layers = look.layers.map((l) => prepareLayer(scene, l, compileLayer(l))), live = liveLook(look);
+      const layers = layersOf(look), live = liveLook(look);
       for (let f = 0; f < WARM_FRAMES; f++) {
         live.step(f * dt, dt);
         renderFrame(scene, layers, f * dt, scratch, live.look);
@@ -100,8 +109,13 @@ export function createEngine(o: EngineOptions) {
     } catch { /* it says why when it is played */ }
   }
 
-  // The safe look, prepared ahead for the flash guard to dip to; the next one is prepared off the frame.
+  // The safe look, prepared ahead for the flash guard to dip to (the engine does not start without it); the next one
+  // is prepared off the frame. Should it fail later, black.
   let spare = prepare(own(o.safe));
+  const first = spare && prepared.get(spare);
+  if (!first || first instanceof Error) {
+    throw new Error(`the safe look ${o.safe} cannot play${first ? `: ${first.message}` : ''}`);
+  }
   function safe() {
     const item = spare ?? prepare(own(o.safe)!);
     spare = null;
@@ -118,9 +132,8 @@ export function createEngine(o: EngineOptions) {
     const entry = item.kind === 'look' ? o.looks().get(item.id) : { look: item.look ?? null, error: 'no look' };
     if (!entry?.look) throw new Error(entry ? entry.error! : `no look ${item.id}`);
     const look = entry.look;
-    const layers = look.layers.map((l) => prepareLayer(scene, l, compileLayer(l)));
-    return { item, id: item.id, title: look.title, duration: look.duration || 30, look, live: liveLook(look), layers,
-      baked: null };
+    return { item, id: item.id, title: look.title, duration: look.duration || 30, look, live: liveLook(look),
+      layers: layersOf(look), baked: null };
   }
 
   function start(item: Item) {
@@ -129,9 +142,11 @@ export function createEngine(o: EngineOptions) {
     const p = prepared.get(item) ?? prepared.get(prepare(item))!;
     if (p instanceof Error) {
       log(`look ${item.id} cannot play: ${p.message}; playing ${o.safe}`);
-      playing = prepared.get(safe()) as Playing;
+      const s = prepared.get(safe());
+      playing = s && !(s instanceof Error) ? s : blackFor(item);
     } else playing = p;
     frame = 0;
+    fade.secs = turn(playing, fadeIn);
     fade.to = 1;
     tried = false;
     pickAhead();
@@ -148,7 +163,7 @@ export function createEngine(o: EngineOptions) {
     ready(queue[0]);
     // The pattern's last fade: out toward the next queued look (in Jukebox, else a pick), so it has played whole when
     // the next starts.
-    const end = !paused && !pending && t + turn() >= duration;
+    const end = !paused && !pending && t + turn(p) >= duration;
     if (end && jukebox && !queue.length && !tried) { tried = true; autoPick(); }
     if (!pending && (want || (end && queue.length)) && advance()) want = false;
     if (t >= duration) {
@@ -160,7 +175,7 @@ export function createEngine(o: EngineOptions) {
       p.live?.wrapped(back * dt);
     }
     // A relayed frame (slots count every tick and skip) stands in for the render; the controls step on regardless.
-    if (o.relay?.fill(stats.frames + stats.late, rev, rgb, dt)) p.live?.step(t, dt);
+    if (o.relay?.fill(shown(), rev, rgb, dt)) p.live?.step(t, dt);
     else if (p.baked) p.baked.fill(frame, rgb);
     else {
       p.live!.step(t, dt);
@@ -168,16 +183,14 @@ export function createEngine(o: EngineOptions) {
       if (out.errors.length) { stats.layerErrors++; stats.lastError = out.errors[0]!.error; }
     }
     const gain = ease(master, dt) * ease(black, dt) * ease(fade, dt) * (o.relay?.gain() ?? 1);
-    if (guard.observe(rgb, stats.frames * 1000 / fps, gain) && !tripped && p.id !== o.safe) {
+    if (guard.observe(rgb, shown() * 1000 / fps, gain) && !tripped && p.id !== o.safe) {
       tripped = { at: new Date().toISOString(), look: p.id };
       log(`flash guard: ${p.id} flashed; dipping to ${o.safe} until a look is picked`);
       o.relay?.tripped();
       if (pending) queue.unshift(pending);     // a queued look on its way in waits for the person too
-      pending = safe();
+      switchTo(safe(), FADE.switch);
       paused = true;
       want = false;
-      fade.secs = FADE.switch;
-      fade.to = 0;
     }
     o.output(ledChannels(scene, rgb, light, cells, gain));
     frame++;
@@ -200,36 +213,22 @@ export function createEngine(o: EngineOptions) {
     }).finally(() => { item.loading = false; });
   }
 
-  /** The full fade each way: FADE.queue, in Jukebox FADE.jukebox (at most half the playing pattern). */
-  const turn = () => (jukebox ? Math.min(FADE.jukebox, (playing?.duration ?? Infinity) / 2) : FADE.queue);
+  /** The fade into or out of `p`: `secs` if given, else FADE.queue (in Jukebox FADE.jukebox), at most half of `p`. */
+  const turn = (p: { duration: number } | null, secs?: number) =>
+    Math.min(secs ?? (jukebox ? FADE.jukebox : FADE.queue), (p?.duration ?? Infinity) / 2);
+  /** Fades what plays out toward `item`, then `item` in: each way over turn() of its own look. */
+  function switchTo(item: Item, secs?: number) {
+    pending = item;
+    fadeIn = secs;
+    fade.secs = turn(playing, secs);
+    fade.to = 0;
+  }
 
-  /** The engine's own looks but the safe one, in a shuffled order of their own each round. */
-  function shuffled() {
-    const ids = [...o.looks()].filter(([id, l]) => l.look && id !== o.safe).map(([id]) => id).sort();
-    for (let i = ids.length - 1; i > 0; i--) {
-      const j = Math.floor(rand(seed, rounds, i) * (i + 1));
-      [ids[i], ids[j]] = [ids[j]!, ids[i]!];
-    }
-    rounds++;
-    return ids;
-  }
-  /** The next look of the rounds that is not the one playing (so none plays twice in a row: it goes to the round's
-   * end); null when there is none other, and what plays loops on. */
-  function pick(): Item | null {
-    for (let round = 0; round < 2; round++) {
-      if (!bag.length) bag = shuffled();
-      while (bag.length) {
-        const id = bag.shift()!;
-        if (id === playing?.id) { if (bag.length) bag.push(id); continue; }
-        const item = own(id);
-        if (item) return item;
-      }
-    }
-    return null;
-  }
+  /** The next of the jukebox's picks, prepared. */
+  const pick = () => { const id = picks(playing?.id); return prepare(id === null ? null : own(id)); };
   /** Prepares the next pick off the frame loop, in Jukebox. */
   function pickAhead() {
-    setTimeout(() => { if (jukebox && !ahead) ahead = prepare(pick()); });
+    setTimeout(() => { if (jukebox && !ahead) ahead = pick(); });
   }
   /** Queues the pick made ahead (or one now, if none was); false when there is none. Only into an empty queue, and
    * one of the engine's own looks, so the advance() that follows takes it at once: it never waits in the queue. */
@@ -237,22 +236,20 @@ export function createEngine(o: EngineOptions) {
     let item = ahead;
     ahead = null;
     if (item && (item.id === playing?.id || !o.looks().get(item.id)?.look)) item = null;
-    item ??= prepare(pick());
+    item ??= pick();
     if (item) queue.push(item);
     return !!item;
   }
 
-  /** The queue's next item to play, fading out what plays over `secs` (the full fade); false with nothing queued, or
-   * while the next one's frames are being read. */
-  function advance(secs = turn()) {
+  /** The queue's next item to play, fading over `secs` (else the full fade); false with nothing queued, or while the
+   * next one's frames are being read. */
+  function advance(secs?: number) {
     const next = queue[0];
     if (!next) { want = false; return false; }
     ready(next);
     if (next.kind === 'baked' && !next.baked) return false;
     queue.shift();
-    pending = next;
-    fade.secs = secs;
-    fade.to = 0;
+    switchTo(next, secs);
     return true;
   }
 
@@ -292,9 +289,7 @@ export function createEngine(o: EngineOptions) {
       const item = prepare(own(id));
       if (!item) return false;
       picked();
-      pending = item;
-      fade.secs = secs;
-      fade.to = 0;
+      switchTo(item, secs);
       return true;
     },
     /** New light settings (the file changed): the output transform and the guard's light from the next frame. */
