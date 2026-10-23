@@ -41,6 +41,15 @@ describe('a clip\'s transition in a frame', () => {
     assert.ok(half(frame(wipe, 9), false), 'fading out: the left gone first');
     assert.ok(frame(wipe, 5).every(({ v }) => v === 1), 'between the fades: all of it');
   });
+  test('an unequal wipe goes out the way it came from the start of its fade-out, not the clip\'s middle', () => {
+    const long = { ...wipe, fadeIn: 1, fadeOut: 8 };   // fade-out from t=2
+    const half = (px, lit) => px.filter(({ lz }) => Math.abs(lz - 0.5) > 0.02)
+      .every(({ lz, v }) => v === ((lz < 0.5) === lit ? 1 : 0));
+    assert.ok(half(frame(long, 6), false), 'past the middle: the left gone first');
+    const before = frame(long, 4.99), after = frame(long, 5.01);
+    const jumped = before.filter(({ v }, i) => Math.abs(v - after[i].v) > 0.5).length;
+    assert.ok(jumped < before.length / 20, `no jump at the middle (${jumped} of ${before.length})`);
+  });
   test('kept by normalizeClips and the look schema; an unknown kind fades', () => {
     assert.deepEqual(normalizeClips([wipe])[0].transition, wipe.transition);
     assert.equal(normalizeClips([{ ...clip, transition: { kind: 'spin' } }])[0].transition, undefined);

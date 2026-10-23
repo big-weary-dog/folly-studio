@@ -1,7 +1,7 @@
 // Server tests: auth, CSRF, ideas, static files, the sandbox page and the store (looks: looks.test.js).
 // Each server runs on port 0 with its own temp data dir and fixture public and dist dirs.
 import assert from 'node:assert/strict';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
@@ -391,6 +391,17 @@ describe('store', () => {
     assert.equal(again.users.list().length, 0);
     const raw = JSON.parse(await readFile(path.join(dir, 'ideas.json'), 'utf8'));
     assert.equal(raw.length, 50);
+  });
+
+  test('a failed write stays due and lands once the disk is back', async () => {
+    const dir = path.join(fx.tmp, 'store-retry'), file = path.join(dir, 'looks.json');
+    const store = await createStore(dir, { log: quiet });
+    await mkdir(file);   // the rename onto it fails
+    const a = store.looks.create({ title: 'A', owner: 'u1' });
+    await assert.rejects(store.flush());
+    await rm(file, { recursive: true });
+    await store.close();
+    assert.deepEqual(JSON.parse(await readFile(file, 'utf8')).map((l) => l.id), [a.id]);
   });
 
   test('refuses to start on a corrupt file', async () => {

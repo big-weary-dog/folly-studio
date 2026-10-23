@@ -56,6 +56,22 @@ describe('a composite', () => {
     assert.throws(() => layerOf({ id: 'l', modules: [comp([[RED, blur]])] }), /cannot go in a composite/);
   });
 
+  test('a sub-layer switched off is not compiled: its broken code does not stop the composite', () => {
+    const broken = { id: 'x', kind: 'source', code: 'function pixel( {' };
+    const look = { id: 'l', modules: [{ ...comp([[RED]]), layers: [{ id: 's0', title: 'On', modules: [RED] },
+      { id: 's1', title: 'Off', enabled: false, modules: [broken] }] }] };
+    assert.deepEqual(rgbOf(look), rgbOf({ id: 'l', modules: [RED] }));
+  });
+
+  test('a sub-layer\'s explicit blend leaves the next one\'s default alone', () => {
+    const solid = (id, c) => ({ id, kind: 'source', code: `function pixel() { return [${c}, 1]; }` });
+    const sub = (id, blend) => ({ id, title: id, ...(blend ? { blend } : {}), modules: [solid(id, id === 'r' ? '1, 0, 0'
+      : '0, 0, 1')] });
+    const rgb = (first) => rgbOf({ id: 'l', modules: [{ ...comp([]), layers: [sub('r', first), sub('b')] }] });
+    assert.deepEqual(Array.from(rgb().slice(0, 3)), [1, 0, 1], 'over, then add');
+    assert.deepEqual(Array.from(rgb('over').slice(0, 3)), [1, 0, 1], 'the first saying over changes nothing');
+  });
+
   test('a module failing inside it is named, not the composite', () => {
     const bad = { id: 'bad', kind: 'source', title: 'Bad', code: 'function pixel() { return NaN; }' };
     const L = layerOf({ id: 'l', modules: [comp([[RED], [bad]])] });

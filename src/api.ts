@@ -236,8 +236,8 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       ...lightRoutes({ light: o.light }),
       ...(o.baking ? bakingRoutes(o.baking) : {}),
       ...o.stats,
-      ...(o.lights ? lightsRoutes({ ...o.lights, loadLibrary: loaders.loadLibrary, visibleLook: looks.visibleLook,
-        looksIn: looks.looksIn, listed: looks.listed })
+      ...(o.lights ? lightsRoutes({ ...o.lights, curate: (u) => auth.can(u, 'curate'), loadLibrary: loaders.loadLibrary,
+        visibleLook: looks.visibleLook, looksIn: looks.looksIn, listed: looks.listed })
         : {}),
       ...reports,
       ...piBundleRoutes({ file: o.piBundle }),

@@ -2,7 +2,7 @@
 // so a look moves between two Studios (the hosted one and the Pi's) with the same checks as any save.
 import { playsOf } from '../../../shared/plays.ts';
 import type { Listed, Look, LookCreate } from '../../../shared/schemas/api.ts';
-import { api } from '../api.ts';
+import { api, statusOf } from '../api.ts';
 
 /** What an import sends: a look file's words, chain and what plays, and nothing else. */
 const KEYS = ['origin', 'title', 'summary', 'chain', 'layers', 'duration', 'bpm', 'globals', 'automation'] as const;
@@ -21,12 +21,18 @@ export const fileText = (data: unknown) => `${JSON.stringify(data, null, 2)}\n`;
 export const manyName = (scope: string, now = new Date()) =>
   `folly-looks-${scope}-${now.toISOString().slice(0, 10)}.json`;
 
-/** Every listed look in full, one request at a time; one gone since the list was made is left out. */
+/** Every listed look in full, one request at a time; one gone since the list was made (404) is left out, and any
+ * other failure stops it, naming the look, so an export is never quietly short. */
 export async function fullLooks(listed: Listed[], onEach?: (done: number) => void) {
   const looks = [];
   for (const [i, l] of listed.entries()) {
-    try { const { look } = await api.look(l.id);
-      looks.push(lookFile(look, look)); } catch { /* deleted or unshared since */ }
+    try {
+      const { look } = await api.look(l.id);
+      looks.push(lookFile(look, look));
+    } catch (err) {
+      const why = `Could not fetch “${l.title}”: ${(err as Error).message}`;
+      if (statusOf(err) !== 404) throw new Error(why, { cause: err });
+    }
     onEach?.(i + 1);
   }
   return looks;

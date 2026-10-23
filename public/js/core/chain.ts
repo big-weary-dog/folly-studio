@@ -147,7 +147,8 @@ function prepareSubs(layers: SubLayer[], c: CompiledComposite, ctx: Ctx, title: 
     const end = chain.find((M) => M.end) ?? chain.find((M) => M.fixed)?.subs![0].chain.find((M) => M.end);
     if (end) throw new Error(`${title}: ${end.title} holds real LED colours, so it cannot go in a composite`);
     const bent = placeWarps(chain, WARP, SPATIAL), S = ctx.scene;
-    const blend = isSourceBlend(s.blend) ? BLEND[s.blend] : shown++ ? ADD : OVER;
+    const blend = isSourceBlend(s.blend) ? BLEND[s.blend] : shown ? ADD : OVER;
+    shown++;
     let mask: Uint8Array | null = null;
     if (s.groups || s.tags?.length) {
       mask = new Uint8Array(S.count);

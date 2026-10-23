@@ -120,7 +120,7 @@ describe('streaming frames', () => {
     const man = await get(alice, `${base}manifest`);
     assert.equal(man.status, 200);
     assert.equal(man.headers['cache-control'], IMMUTABLE);
-    assert.equal(IMMUTABLE, 'public, max-age=31536000, immutable');
+    assert.equal(IMMUTABLE, 'private, max-age=31536000, immutable', 'never in a shared cache');
     assert.match(man.headers['content-type'], /^application\/json/);
     const manifest = parseManifest(JSON.parse(man.body));
     assert.equal(manifest.hash, hash);

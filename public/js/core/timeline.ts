@@ -79,28 +79,25 @@ export function normalizeClips(clips: unknown): Clip[] | null {
 }
 
 /**
- * How much of a layer shows at t (0..1): 1 with no clips; in a clip [start, end) a linear ramp up over
- * fadeIn and down over fadeOut (shrunk in proportion when they overrun the clip); 0 outside. No allocation.
+ * How much of clip c shows at t in [start, end) (0..1): a linear ramp up over fadeIn and down over fadeOut (shrunk
+ * in proportion when they overrun the clip); negative while fading out, so a wipe knows its phase. No allocation.
  */
-export function layerEnvelope(clips: readonly Clip[] | null | undefined, t: number) {
-  if (!clips || !clips.length) return 1;
-  let best = 0;
-  for (let i = 0; i < clips.length; i++) {
-    const c = clips[i];
-    const start = c.start, end = c.end;
-    if (!(t >= start && t < end)) continue;
-    let fi = c.fadeIn > 0 ? c.fadeIn : 0, fo = c.fadeOut > 0 ? c.fadeOut : 0;
-    const len = end - start;
-    if (fi + fo > len) { const k = len / (fi + fo); fi *= k; fo *= k; }
-    let v = 1;
-    if (fi > 0 && t < start + fi) v = (t - start) / fi;
-    if (fo > 0 && t > end - fo) { const w = (end - t) / fo; if (w < v) v = w; }
-    if (v > best) best = v;
-  }
-  return best;
+export function clipFade(c: Clip, t: number) {
+  let fi = c.fadeIn > 0 ? c.fadeIn : 0, fo = c.fadeOut > 0 ? c.fadeOut : 0;
+  const len = c.end - c.start;
+  if (fi + fo > len) { const k = len / (fi + fo); fi *= k; fo *= k; }
+  if (fo > 0 && t > c.end - fo) return -(c.end - t) / fo;
+  return fi > 0 && t < c.start + fi ? (t - c.start) / fi : 1;
 }
 
-/** The clip lit at t, or null (clips never overlap, so it is the one layerEnvelope reads). */
+/** How much of a layer shows at t (0..1): 1 with no clips; its clip's fade (clipFade) in one; 0 outside. */
+export function layerEnvelope(clips: readonly Clip[] | null | undefined, t: number) {
+  if (!clips || !clips.length) return 1;
+  const c = clipAt(clips, t);
+  return c ? Math.abs(clipFade(c, t)) : 0;
+}
+
+/** The clip lit at t, or null (clips never overlap). */
 export function clipAt(clips: readonly Clip[] | null | undefined, t: number) {
   if (clips) for (let i = 0; i < clips.length; i++) if (t >= clips[i].start && t < clips[i].end) return clips[i];
   return null;

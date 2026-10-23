@@ -14,9 +14,9 @@ import { framesPath } from './bake.ts';
 import type { createFramesCache } from './frames-cache.ts';
 import { FSEQ_CODEC, HAS_ZSTD } from './fseq-codec.ts';
 import { etagMatches, HttpError, pickEncoding } from './http.ts';
-import { CACHE_IMMUTABLE as IMMUTABLE } from './static.ts';
 
-export { IMMUTABLE };
+/** Private: who may fetch a look's frames is checked per request, and a look can stop being shared. */
+export const IMMUTABLE = 'private, max-age=31536000, immutable';
 const HASH = /^[0-9a-f]{32}$/;
 type Req = FastifyRequest<{ Params: { id: string, hash: string, n: string }, Querystring: { compress?: string } }>;
 
