@@ -11,7 +11,8 @@ type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null;
 const named = (v: unknown) => (typeof v === 'string' ? v.slice(0, 60) : '');
 
-/** Every piece of code in `layers` (a layer's own, its modules', its composites' sub-layers'), with where it is. */
+/** Every piece of code in `layers` (a layer's own, its modules', its composites' sub-layers'), with where it is: a
+ * composite has no code of its own, so its '' is none (SPEC "Composites"). */
 export function* codesOf(layers: unknown, at = ''): Generator<{ code: string, where: string }> {
   for (const [i, l] of (Array.isArray(layers) ? layers : []).entries()) {
     if (!isObj(l)) continue;
@@ -19,7 +20,8 @@ export function* codesOf(layers: unknown, at = ''): Generator<{ code: string, wh
     if (typeof l.code === 'string') yield { code: l.code, where };
     for (const m of Array.isArray(l.modules) ? l.modules : []) {
       if (!isObj(m)) continue;
-      if (typeof m.code === 'string') yield { code: m.code, where: `${where}'s ${named(m.title) || 'module'}` };
+      const own = typeof m.code === 'string' && !(m.kind === 'composite' && m.code === '');
+      if (own) yield { code: m.code as string, where: `${where}'s ${named(m.title) || 'module'}` };
       yield* codesOf(m.layers, where);
     }
   }

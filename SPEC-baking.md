@@ -39,8 +39,8 @@ PUT    /api/admin/baking  { mode?, customCode? } → the same, after writing bak
 The same page's **Custom code** switch says whether looks may take new pattern code. It is off unless an admin turns
 it on (a missing or broken file is off). Off, a look saved (POST or PUT /api/looks, or a look a generator makes or
 refines) may carry only code the server has already: a library pattern's file exactly (by SHA-256), or code in a look
-the person can see (theirs or shared, any version), so tuning params, restoring a version and copying a gallery look
-go on as before. Anything else is refused (403, naming the module), and a generator's idea that needs it fails with
-that reason. The generators count as new code: a prompted model's extensions and modules given as code are errors
+the person can see (theirs or shared, any version); a composite has no code of its own, so its sub-layers' modules are
+checked. So tuning params, restoring a version and copying a gallery look go on as before. Anything else is refused
+(403, naming the module), and a generator's idea that needs it fails with that reason. The generators count as new code: a prompted model's extensions and modules given as code are errors
 its repair rounds see ("compose from the library alone"). The Studio's code editor is read-only while it is off and
 says why. Looks already saved play and bake as before.
