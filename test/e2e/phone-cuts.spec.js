@@ -26,7 +26,7 @@ for (const width of [360, 390, 430]) {
     await expect(page.locator('.param-mod')).toHaveCount(0);
     await shot('settings');
     await page.locator('.tab[data-tab=look]').click();
-    await expect(page.getByLabel('Palette', { exact: true })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Palette', exact: true })).toBeVisible();
     await expect(page.getByLabel('energy value')).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'Description', exact: true })).toBeHidden();
     await expect(page.locator('.mini-list,.globals-mods,[data-tour=macro-add]')).toHaveCount(0);
