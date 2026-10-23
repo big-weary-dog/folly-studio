@@ -35,14 +35,15 @@ export function layerModules(layer?: LayerInput | null): Partial<Module>[] {
 }
 
 
-/** Each module compiled (null where disabled), a composite's sub-layers too. Throws on the first failure, as
- * "<module title>: …" in a chain. */
+/** Each module compiled (null where disabled), a composite's sub-layers too (none for one switched off, as the
+ * sandbox counts no error of theirs). Throws on the first failure, as "<module title>: …" in a chain. */
 export function compileLayer(layer?: LayerInput | null): (CompiledLink | null)[] {
   const modular = Array.isArray(layer?.modules);
   return layerModules(layer).map((m) => {
     if (!isOn(m)) return null;
     if (m.kind === 'composite') {
-      return { kind: 'composite', subs: (m.layers ?? []).map((s) => compileLayer({ modules: s.modules })) };
+      return { kind: 'composite', subs: (m.layers ?? []).map((s) => (isOn(s) ? compileLayer({ modules: s.modules })
+        : [])) };
     }
     try {
       return compileModule(m.code, m.kind ?? 'source');

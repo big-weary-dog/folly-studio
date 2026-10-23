@@ -62,6 +62,13 @@ describe('a composite', () => {
     assert.throws(() => layerOf({ id: 'l', modules: [comp([[RED, blur]])] }), /cannot go in a composite/);
   });
 
+  test('a sub-layer switched off is not compiled: its broken code does not stop the composite', () => {
+    const broken = { id: 'x', kind: 'source', code: 'function pixel( {' };
+    const look = { id: 'l', modules: [{ ...comp([[RED]]), layers: [{ id: 's0', title: 'On', modules: [RED] },
+      { id: 's1', title: 'Off', enabled: false, modules: [broken] }] }] };
+    assert.deepEqual(rgbOf(look), rgbOf({ id: 'l', modules: [RED] }));
+  });
+
   test('a module failing inside it is named, not the composite', () => {
     const bad = { id: 'bad', kind: 'source', title: 'Bad', code: 'function pixel() { return NaN; }' };
     const L = layerOf({ id: 'l', modules: [comp([[RED], [bad]])] });
