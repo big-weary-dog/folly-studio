@@ -245,7 +245,8 @@ export function createRenderBox(o: Options = {}) {
         await fs.symlink(path.resolve(cfg.patternsDir), path.join(here, 'patterns'));
       }
       const command = [boxed ? boxScript() : path.join(here, path.basename(cfg.script)), '--out', boxed ? '/out' : out,
-        '--seconds', String(secs), '--frame-ms', String(cfg.frameTimeoutMs)];
+        '--seconds', String(secs), '--frame-ms', String(cfg.frameTimeoutMs),
+        ...(!boxed ? ['--parent-pid', String(process.pid)] : [])];
       const started = Date.now();
       const look = { layers, ...(globals ? { globals } : {}), ...(automation ? { automation } : {}),
         ...(bpm ? { bpm } : {}) };
