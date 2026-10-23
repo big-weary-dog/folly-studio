@@ -6,6 +6,11 @@ Studios. `src/profile.ts` holds the profile; `public/js/ui/look-file.ts` the fil
 
 ## The Pi profile
 
+The offline installer requires Node ≥ 22.18. It stages the tree, native dependencies and configuration, then
+tests the staged engine without sending lights before swapping it into place. An existing Studio env keeps its
+settings, with `PI_PIN` synchronized to the engine's PIN. A failed activation or service check restores the previous
+tree and env and restarts the services that were running. Studio data stays outside the replaced tree.
+
 `STUDIO_PROFILE` is `hosted` (unset: the public site, as the rest of the contract describes) or `pi`. Under `pi`:
 
 - **No generators.** No model registry is read and no generator runs; ideas left in the data stay as they are.
