@@ -39,7 +39,7 @@ for (const [device, settings] of Object.entries(DEVICES)) {
         const { look: { id } } = await res.json();
         await page.goto(`${studio.origin}/studio/${id}`);
         await page.locator('.layer-name:visible', { hasText: new RegExp(`^${name}$`) }).click();
-        await page.locator('.chain-name:visible', { hasText: new RegExp(`^${name}$`) }).click();
+        await page.locator(`[data-module="${name}"] .chain-name:visible`).click();
         await expect(page.locator('.params .field.param').first()).toBeVisible();
         await shot(name);
         if (name === 'bars') {
