@@ -97,8 +97,8 @@ for (const width of [1366, 390]) {
           await tutorials.click();
           await page.getByRole('button', { name: /Keep it, show it/ }).click();
           const card = page.locator('.tour-step');
-          await page.getByRole('button', { name: 'Skip step' }).click();
-          await page.getByRole('button', { name: 'Skip step' }).click();
+          await card.getByRole('button', { name: /^(Skip step|Next)$/ }).click();
+          await card.getByRole('button', { name: /^(Skip step|Next)$/ }).click();
           await expect(card).toContainText('Your work stays in this browser');
           await expect(card.getByRole('button', { name: 'Next', exact: true })).toBeEnabled();
           await shot(page, 'guest-keep');
