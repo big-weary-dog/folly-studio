@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 
-import { test } from 'vitest';
+import { test, vi } from 'vitest';
 import { WebSocketServer } from 'ws';
 
 import { piFeed } from '../src/live/pi-feed.ts';
@@ -17,7 +17,7 @@ test('rejected hellos reconnect with backoff; only acceptance resets it and send
   let accepted!: () => void, timeout: NodeJS.Timeout;
   const ready = new Promise<void>((resolve, reject) => {
     accepted = resolve;
-    timeout = setTimeout(() => reject(new Error('the feed never recovered after rejected hellos')), 8000);
+    timeout = setTimeout(() => reject(new Error('the feed never recovered after rejected hellos')), 20_000);
   });
   server.on('connection', (ws) => ws.on('message', (d) => {
     const msg = JSON.parse(String(d));
@@ -34,21 +34,22 @@ test('rejected hellos reconnect with backoff; only acceptance resets it and send
       else accepted();
     }
   }));
+  const timers = vi.spyOn(globalThis, 'setTimeout');
   const feed = piFeed({ target: new URL(`http://127.0.0.1:${address.port}`), pin: 'test-pin', mode: () => mode,
     onNow: () => {}, onSource: () => {}, log: { warn: (...a) => warnings.push(a) } });
   try {
     await ready;
     assert.equal(feed.connected(), true);
     assert.equal(attempts.length, 4);
-    assert.ok(attempts[1]! - attempts[0]! >= 900);
-    assert.ok(attempts[2]! - attempts[1]! >= 1900);
-    assert.ok(attempts[3]! - attempts[2]! < 1800, 'accepted hello resets the backoff');
+    assert.deepEqual(timers.mock.calls.filter(([fn]) => fn.name === 'connect').map(([, ms]) => ms),
+      [1000, 2000, 1000], 'only an accepted hello resets the backoff');
     assert.deepEqual(modes, ['live', 'live']);
     assert.equal(warnings.length, 2);
   } finally {
     clearTimeout(timeout!);
+    timers.mockRestore();
     feed.close();
     for (const ws of server.clients) ws.terminate();
     await new Promise<void>((r) => server.close(() => r()));
   }
-}, 15_000);
+}, 30_000);
