@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 // Folly Studio look checker, for the boxed Fleet worker (not the server: it runs pattern code).
-// Usage: node check.ts [look.json] [--bake [--seconds S]]
-// Compiles every layer with the studio's pattern core, renders frames on the rig (rig.json) and prints
-// problems; exit 1 if the look would be rejected or a layer fails. --bake then bakes it as the render box
+// Compiles and renders the look; exit 1 if it would be rejected or a layer fails. --bake bakes as the render box
 // does (renderer.ts; its duration up to 120 s unless --seconds says) into frames.fseq and stats.json
 // beside the look, and runs the studio's frame checks (frames.ts) on it: the studio repeats them; only those count.
 
@@ -33,7 +31,8 @@ if (['pattern-core.ts', 'renderer.ts', 'rig.json'].some((f) => !existsSync(new U
 // The modules the host copied beside this file (src/generate/fleet.ts), typed as the studio's own.
 const beside = (f: string) => new URL(f, import.meta.url).href;
 const core: typeof Core = await import(beside('pattern-core.ts'));
-const { bakeLoop, bakeSeconds, FPS, readLibrary, renderer }: typeof Renderer = await import(beside('renderer.ts'));
+const { bakeFile, bakeId, bakeSeconds, FPS, readLibrary, renderer }: typeof Renderer =
+  await import(beside('renderer.ts'));
 const BLENDS: readonly string[] = core.BLENDS;
 // The library use() runs: patterns/ beside this file when the host copied it, else none.
 const library = readLibrary(path.join(path.dirname(new URL(import.meta.url).pathname), 'patterns'));
@@ -219,16 +218,17 @@ if (BAKE) await bake();
 
 async function bake() {
   if (!existsSync(new URL('./fseq.ts', import.meta.url))) fail('fseq.ts must sit next to check.ts to bake');
-  const { ledRanges, writeFseq }: typeof Fseq = await import(beside('fseq.ts'));
+  const { ledRanges, writeFseqHeader }: typeof Fseq = await import(beside('fseq.ts'));
   const ranges = ledRanges(rig);
   // A fresh renderer, so state a pattern keeps between frames starts clean at t = 0.
   const r = renderer(core, rig, runnable, ranges, { ...lookGlobals, library });
   const frames = Math.max(1, Math.round(SECONDS * fps));
-  const { data, ...baked } = bakeLoop(frames, r.packed, () => r.next(), fps);
   const channelCount = r.packed.length;
   const dir = path.dirname(path.resolve(file));
-  const fseq = writeFseq({ frames, stepMs: Math.round(1000 / fps), data, ranges });
-  writeFileSync(path.join(dir, 'frames.fseq'), fseq);
+  const uniqueId = bakeId(rig, runnable, { ...lookGlobals, library }, frames);
+  const header = writeFseqHeader({ frames, stepMs: Math.round(1000 / fps), ranges, uniqueId });
+  const { data, ...baked } = bakeFile(path.join(dir, 'frames.fseq'), header, frames, r.packed, () => r.next(), fps);
+  const fseq = readFileSync(path.join(dir, 'frames.fseq'));
   const stats: Record<string, unknown> & typeof baked = { look: path.basename(file), ...baked, seconds: SECONDS, fps,
     channels: channelCount, ranges: ranges.length, bytes: fseq.length };
   const failed = stats.layers.map((l) => `${l.id} threw or returned NaN in ${l.errorFrames} frames: ${l.firstError}`);

@@ -46,7 +46,24 @@ export function parseFseq(input: Bytes | ArrayBuffer, opts: { maxBytes?: number,
   const { maxBytes = DEFAULT_MAX_BYTES, maxChannels = MAX_CHANNELS, maxDataBytes = maxBytes, decompress } = opts;
   const b = input instanceof Uint8Array ? input : input instanceof ArrayBuffer ? new Uint8Array(input) : null;
   if (!b) fail('not a byte buffer');
-  if (b.length > maxBytes) fail(`${b.length} bytes is over the ${maxBytes}-byte limit`);
+  const h = parseFseqHeader(b, { fileBytes: b.length, maxBytes, maxChannels, compressed: !!decompress });
+  const { channelCount, frameCount, compression, blocks, dataOffset } = h;
+  const expected = channelCount * frameCount;
+  let data = b.subarray(dataOffset);
+  if (compression !== 'none') {
+    if (expected > maxDataBytes) {
+      fail(`${frameCount} frames × ${channelCount} channels exceed the ${maxDataBytes}-byte limit`);
+    }
+    data = inflateBlocks(b, { compression, blocks, dataOffset, channelCount, frameCount, decompress: decompress! });
+  }
+  return { ...h, data };
+}
+
+/** Validate metadata against the actual file size without allocating its frame data. */
+export function parseFseqHeader(b: Bytes, { fileBytes, maxBytes = DEFAULT_MAX_BYTES,
+  maxChannels = MAX_CHANNELS, compressed = false }: {
+  fileBytes: number, maxBytes?: number, maxChannels?: number, compressed?: boolean }) {
+  if (fileBytes > maxBytes) fail(`${fileBytes} bytes is over the ${maxBytes}-byte limit`);
   if (b.length < 32) fail('shorter than an FSEQ header');
   if (b[0] !== 0x50 || b[1] !== 0x53 || b[2] !== 0x45 || b[3] !== 0x51) fail('not an FSEQ file');
   const [minor, major] = [b[6], b[7]];
@@ -57,7 +74,7 @@ export function parseFseq(input: Bytes | ArrayBuffer, opts: { maxBytes?: number,
   const blocks = ((b[20] & 0xf0) << 4) | b[21];
   const rangeCount = b[22];
   if (!compression) fail(`unknown compression type ${b[20] & 0x0f}`);
-  if (compression !== 'none' && typeof decompress !== 'function') fail('compressed files are not accepted here');
+  if (compression !== 'none' && !compressed) fail('compressed files are not accepted here');
   if (compression === 'none' && blocks !== 0) fail('an uncompressed file lists compression blocks');
   if (compression !== 'none' && blocks === 0) fail('a compressed file lists no compression blocks');
   const rangesAt = 32 + 8 * blocks;
@@ -106,16 +123,14 @@ export function parseFseq(input: Bytes | ArrayBuffer, opts: { maxBytes?: number,
 
   const expected = channelCount * frameCount;
   const shape = `${frameCount} frames × ${channelCount} channels`;
-  let data = b.subarray(dataOffset);
   if (compression === 'none') {
-    if (data.length !== expected) fail(`holds ${data.length} bytes of channel data, expected ${shape} = ${expected}`);
-  } else {
-    if (expected > maxDataBytes) fail(`${shape} exceed the ${maxDataBytes}-byte limit`);
-    data = inflateBlocks(b, { compression, blocks, dataOffset, channelCount, frameCount, decompress: decompress! });
+    if (fileBytes - dataOffset !== expected) {
+      fail(`holds ${fileBytes - dataOffset} bytes of channel data, expected ${shape} = ${expected}`);
+    }
   }
   const sparse = rangeCount > 0;
   return { version: `2.${minor}`, channelCount, frameCount, stepMs, fps: 1000 / stepMs, ranges, sparse, variables,
-    compression, blocks, data };
+    compression, blocks, dataOffset };
 }
 
 // The block index (from byte 32: u32 first frame, u32 length), checked and inflated into one buffer.

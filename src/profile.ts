@@ -14,12 +14,12 @@ export const profileDefaults = (profile: Profile) => (profile === 'pi'
   ? { previews: 'front', framesMaxBytes: PI_FRAMES_MAX_BYTES, bakeNice: 19, bakeMemory: PI_BAKE_MEMORY }
   : { previews: 'playa', framesMaxBytes: undefined, bakeNice: undefined, bakeMemory: undefined });
 
-/** The render box's options the profile sets where the settings say nothing. */
+/** Profile defaults for the box, overridden by explicit settings. */
 export const boxDefaults = (profile: Profile, c: Config) => {
   const d = profileDefaults(profile);
-  return { nice: c.STUDIO_BAKE_NICE ?? d.bakeNice, memoryBytes: c.STUDIO_BAKE_MEMORY ?? d.bakeMemory };
+  return { nice: c.STUDIO_BAKE_NICE ?? d.bakeNice, memoryBytes: c.STUDIO_BAKE_MEMORY ?? d.bakeMemory,
+    seconds: c.STUDIO_BAKE_SECONDS || (profile === 'pi' ? 600 : undefined) };
 };
-
 /** Why the server may not listen on `host` under `profile`, or '' when it may. */
 export const hostRefusal = (profile: Profile, host: string) => (profile === 'pi' || LOOPBACK.has(host) ? ''
   : `HOST=${host}: the hosted Studio listens on loopback only, behind its tunnel (STUDIO_PROFILE=pi on the Pi).`);

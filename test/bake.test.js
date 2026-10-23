@@ -147,6 +147,16 @@ describe('render box (bubblewrap)', () => {
     assert.ok(Number(up) < 64, `a node is about ten tasks: a few start, then the box refuses one (${err.reason})`);
   });
 
+  test('streaming never reads pattern-realm buffer properties through Node file APIs', async () => {
+    const box = createRenderBox({ seconds: 1, log: quiet });
+    const { bytes } = await box.render({ layers: [layer(`
+      Object.defineProperty(Uint8Array.prototype, 'byteLength', {
+        get() { throw new Error('pattern buffer getter'); }
+      });
+      function pixel() { return [0, 1, 0]; }`)] });
+    assert.deepEqual([...parseFseq(bytes).data.subarray(0, 3)], [0, 255, 0]);
+  });
+
   test('pattern code reaches no fetch, require, process or Node realm', async () => {
     const box = createRenderBox({ seconds: 1, log: quiet });
     await assert.rejects(box.render({ layers: [layer(`fetch('http://127.0.0.1:${port}/'); ${BREATHE}`)] }),

@@ -26,8 +26,7 @@ cd folly-studio
 npm ci --omit=dev
 ```
 
-When Studio runs on the Pi as well, the clone is of the `pi` branch instead (`prod` plus the built app):
-[STUDIO.md](STUDIO.md).
+When Studio runs on the Pi as well, install the built bundle using [SETUP.md](SETUP.md).
 
 The repo is public, so the clone needs no credential. `--omit=dev` installs only what the engine runs (about 85 packages, no native builds, no browsers).
 
