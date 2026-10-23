@@ -54,6 +54,26 @@ wait_http() {
   done
   return 1
 }
+stop_rehearsal() {
+  local child=$1 name=$2 logfile=$3 signalled='' status=0
+  # The deadline may already have stopped it. Always reap it so a crash cannot pass as a successful check.
+  if kill "$child" 2>/dev/null; then signalled=1; fi
+  wait "$child" 2>/dev/null || status=$?
+  if [ "$status" -ne 0 ] && { [ "$status" -ne 143 ] || [ -z "$signalled" ]; }; then
+    cat "$logfile"
+    die "the staged $name exited with status $status"
+  fi
+}
+rehearsal_port() {
+  local child=$1 logfile=$2 label=$3 port=''
+  for _ in $(seq 100); do
+    kill -0 "$child" 2>/dev/null || return 1
+    port=$(sed -n "s|.*$label http://127.0.0.1:\([0-9][0-9]*\).*|\1|p" "$logfile" | head -1)
+    if [ -n "$port" ]; then echo "$port"; return 0; fi
+    sleep 0.1
+  done
+  return 1
+}
 
 # The tree: unpack beside the old one, carry the Pi's own settings and looks over, then swap.
 mkdir -p "$home"
@@ -171,10 +191,11 @@ ts pi/main.ts --dry-run --http 0 --seconds 6 --stats 2 >"$log" 2>&1 || { cat "$l
 sed 's/^/  /' "$log"
 grep -q 'DRY RUN, nothing sent, channels 1-70401 (rose expanded)' "$log" || die "the dry run did not say its frame"
 ! grep -q 'cannot play' "$log" || die "a look cannot play (above): fix or remove it in pi/local/looks"
-test_port=14043
 (exec "$node" --experimental-strip-types --disable-warning=ExperimentalWarning pi/main.ts \
-  --dry-run --http "$test_port" --bind 127.0.0.1 --seconds 30) >"$log" 2>&1 &
+  --dry-run --http auto --bind 127.0.0.1 --seconds 30) >"$log" 2>&1 &
 pid=$!
+test_port=$(rehearsal_port "$pid" "$log" 'control page on') \
+  || { cat "$log"; die "the staged engine did not bind its rehearsal port"; }
 paths=/
 [ -z "$studio" ] || paths="/ /pi/"
 for p in $paths; do
@@ -189,7 +210,7 @@ import WebSocket from 'ws';
 const [port, env] = process.argv.slice(2);
 const pin = env ? parseEnv(fs.readFileSync(env, 'utf8')).PI_PIN
   : JSON.parse(fs.readFileSync('pi/config.json', 'utf8')).pin;
-const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`);
+const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`, { origin: `http://127.0.0.1:${port}` });
 const timer = setTimeout(() => { ws.terminate(); process.exitCode = 1; }, 5000);
 ws.on('open', () => ws.send(JSON.stringify({ type: 'hello', feed: true, pin })));
 ws.on('error', () => { clearTimeout(timer); process.exitCode = 1; });
@@ -202,13 +223,12 @@ ws.on('message', (data) => {
 });
 JS
 say "authenticated feed hello passed"
-kill "$pid"
-wait "$pid" 2>/dev/null || true
+stop_rehearsal "$pid" engine "$log"
 pid=''
 rm -f "$log"
 
 if [ -n "$studio" ]; then
-  port=18780
+  port=0
   # Rehearse against disposable data with no feed to the running engine.
   "$node" --experimental-strip-types --disable-warning=ExperimentalWarning --input-type=module \
     - "$stage/studio.env" "$stage/data" "$port" >"$data/self-test.log" 2>&1 <<'JS' &
@@ -223,8 +243,10 @@ Object.assign(process.env, parseEnv(fs.readFileSync(file, 'utf8')), {
 await import(pathToFileURL(path.resolve('server.ts')).href);
 JS
   spid=$!
+  port=$(rehearsal_port "$spid" "$data/self-test.log" 'Folly Studio on') \
+    || die "the staged Studio did not bind its rehearsal port (see $data/self-test.log)"
   wait_http "http://127.0.0.1:$port/" "$spid" || die "the staged Studio did not answer (see $data/self-test.log)"
-  [ -z "${spid:-}" ] || { kill "$spid"; wait "$spid" 2>/dev/null || true; }
+  stop_rehearsal "$spid" Studio "$data/self-test.log"
   spid=''
   say "Studio answers on :$port"
 fi

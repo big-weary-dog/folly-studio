@@ -158,5 +158,6 @@ night show's schedule is FPP's: a playlist started by hand plays until it ends o
 ## Rehearsing it here
 
 `bash install.sh --home DIR [--studio --admin NAME]` installs into `DIR/folly-studio` with no units and no
-`sudo`, and runs the same self-test, Studio on `:18780` for a moment. Under `unshare -rn` (after
+`sudo`, and runs the same self-test on OS-assigned spare ports. The installer reports Studio's temporary port as
+`Studio answers on :<port>`. Under `unshare -rn` (after
 `ip link set lo up`) it shows that nothing needs the network.

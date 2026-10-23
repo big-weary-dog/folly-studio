@@ -3,8 +3,8 @@
 const params = {
   repeats: { value: 'four', type: 'choice', options: ['two', 'four', 'eight', 'sixteen'], label: 'Repeats',
     help: 'How many copies go round the rose: four copies four petals each; sixteen repeats one petal.' },
-  petal: { value: 0, min: 0, max: 15, step: 1, label: 'Source petal',
-    help: 'The first petal of the block it copies. Each petal draws its own motif.' },
+  petal: { value: 0, min: 0, max: 15, step: 1, label: 'Source petal (0–15)',
+    help: 'The first petal of the block, 0 at the top, then clockwise. Petal mask\'s petal N is N − 1 here.' },
   mirror: { value: true, type: 'toggle', label: 'Mirror',
     help: 'Reflect alternate copies, so neighbouring copies meet edge to matching edge.' },
 };

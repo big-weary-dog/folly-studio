@@ -1,8 +1,8 @@
-// Hue shift: turns the colours above it round the colour wheel (brightness kept), equally everywhere.
+// Hue shift: rotates RGB hues equally everywhere; clipping can change brightness. Greys stay unchanged.
 // Offset is a fixed turn (0.5 the opposite hue), Speed turns a second.
 const params = {
   offset: { value: 0, min: -0.5, max: 0.5, step: 0.01, label: 'Offset (turns)',
-    help: 'A fixed turn added everywhere. Zero keeps the colours; 0.5 gives each its opposite hue.' },
+    help: 'Fixed RGB hue turn: 0 keeps colours; 0.5 gives opposites. Greys stay; brightness can change.' },
   speed: { value: 0.05, min: -1, max: 1, step: 0.01, label: 'Speed (turns a second)',
     help: 'How fast the hues roll round the wheel. Zero holds still; negative rolls the other way.' },
 };

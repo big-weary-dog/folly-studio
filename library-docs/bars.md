@@ -11,7 +11,7 @@ wire, **colour-wash** to change the whole layer at once.
   speed runs any of them the other way.
 - bars: Rounded to whole numbers on the turning ways and orbits.
 - speed: Bars passing a point each second, −2 to 2; raising bars makes narrower bars, not more passes a second.
-- softness: Step profile only; keep ≥ 0.1 on sparse LEDs to soften hard edges.
+- softness: Step profile only, capped at Duty; values above Duty have no further effect.
 - profile: `comet` fades behind a bright front; duty < 1 leaves a clear gap. `smooth` ignores duty and softness.
 
 ## Pairings
