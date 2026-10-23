@@ -77,7 +77,8 @@ a control drives. A control used on `/pi` (play, set, tap, level, blackout, as t
 change; the Pi alone never sends it.
 
 The server holds one socket to the engine's `/pi/ws` (from 127.0.0.1, its own origin; reconnecting after 1 s,
-doubling to 10 s; its hello says `feed: true`, so a dry run idles while it alone is open), and while `pi` drives
+doubling to 10 s; a rejected hello reconnects with the same backoff, reset only after an accepted hello;
+its hello says `feed: true`, so a dry run idles while it alone is open), and while `pi` drives
 sends on what it says (`shared/schemas/live.ts`):
 - `source: { rev, id, title, duration, bpm?, globals, automation, layers }`: what plays, its modules by library `ref`
   with no code (each viewer has our library). On joining, at a switch, and when a push takes a name off its lane

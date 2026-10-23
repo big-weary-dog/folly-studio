@@ -27,8 +27,10 @@ export function createOutput(o: OutputOptions) {
     async close() {
       if (!ddp) return;
       frame.fill(0);
-      for (let i = 0; i < 5; i++) ddp.send(frame);
-      await new Promise((r) => setTimeout(r, 50));
+      for (let i = 0; i < 5; i++) {
+        ddp.send(frame);
+        await new Promise((r) => setTimeout(r, 10));
+      }
       await ddp.close();
     },
   };

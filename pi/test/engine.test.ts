@@ -6,11 +6,51 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'vitest';
 
 import { lightOf } from '../../public/js/core/light.ts';
-import { FADE } from '../src/engine.ts';
+import { createEngine, FADE } from '../src/engine.ts';
 import { runLoop } from '../src/run.ts';
-import { engineOn, oneModule } from './fixture.ts';
+import { engineOn, lib, oneModule, rig, shipped } from './fixture.ts';
 
 const strobe = oneModule('strobe', 'strobe', { speed: 12 });
+
+test('the safe look must prepare before an engine can start', () => {
+  const looks = shipped();
+  looks.get('safe')!.look!.layers[0]!.modules![0]!.code = 'invalid js(';
+  assert.throws(() => createEngine({ rig, lib, looks: () => looks, safe: 'safe', output: () => {
+    assert.fail('startup must not output');
+  } }), /the safe look safe cannot play/);
+});
+
+test('if the prepared safe spare is spent and safe breaks or disappears, the fallback is black', () => {
+  for (const missing of [false, true]) {
+    const bad = oneModule('bad', 'clouds');
+    bad.layers[0]!.modules![0]!.code = 'invalid js(';
+    const r = engineOn([bad]);
+    r.engine.play('bad');
+    r.run(0.1); // consume the prepared safe spare
+    if (missing) r.looks.delete('safe');
+    else r.looks.get('safe')!.look!.layers[0]!.modules![0]!.code = 'invalid js(';
+    r.engine.play('bad');
+    r.run(3);
+    assert.equal(r.engine.state().look?.id, 'black');
+    assert.equal(r.lit(), 0);
+  }
+});
+
+test('the guard counts skipped slots through stalls, loops and switches without accelerating a 2 Hz strobe', () => {
+  const slow = oneModule('slow', 'strobe', { speed: 2, length: 0.5, fade: 0, colours: '#ffffff' }, { duration: 2 });
+  for (const skipped of [0, 1]) {
+    const r = engineOn([slow]);
+    for (let round = 0; round < 2; round++) {
+      r.engine.play('slow', 0);
+      for (let i = 0; i < 160; i++) {
+        r.engine.skip(skipped + (i === 80 ? 200 : 0));
+        r.engine.tick();
+      }
+      assert.equal(r.engine.state().tripped, null);
+      assert.equal(r.engine.state().look?.id, 'slow');
+    }
+  }
+});
 
 describe('the engine', () => {
   test('a switch fades out and in, and starts the new look from its top', () => {

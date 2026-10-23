@@ -121,8 +121,7 @@ async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: U
           await fh.close();
         }
         await fsp.rename(tmp, file);
-        lastError = null;
-        backoff = 0;
+        lastError = null; backoff = 0;
       } catch (err) {
         lastError = err;
         log.error(`store: could not write ${file}:`, err);
@@ -179,6 +178,5 @@ async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: U
 
   if (upgraded) schedule();
   return { api, pending: () => chain, queued: () => queued, lastError: () => lastError,
-    /** A failed write tried again now. */ retry: () => (lastError ? schedule() : chain),
-    stop: () => clearTimeout(retry) };
+    retry: () => (lastError ? schedule() : chain), stop: () => clearTimeout(retry) };
 }
