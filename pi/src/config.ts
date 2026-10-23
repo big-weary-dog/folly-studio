@@ -10,7 +10,7 @@ export const DEFAULTS = {
   dryRun: false,            // render and limit as live, send nothing; print the stats line
   host: '127.0.0.1',        // fppd's DDP bridge
   port: 4048,
-  http: 4043,               // the control page (0: none)
+  http: 4043 as number | 'auto', // the control page (0: none; auto: an ephemeral port)
   bind: '0.0.0.0',
   base: '',                 // the page's path ('' = at /; '/pi' behind Studio's proxy, docs/HOSTING.md)
   pin: '',                  // a PIN the control page asks for before it changes anything ('' = none)
@@ -29,7 +29,8 @@ export type Config = typeof DEFAULTS;
 const HELP = `npm run pi -- [options]   (the Pi's live engine: looks to the lights over DDP, and the control page)
   --dry-run          send nothing: print a stats line instead
   --host H --port P  where DDP goes (${DEFAULTS.host}:${DEFAULTS.port}, fppd)
-  --http P           the control page's port (${DEFAULTS.http}; 0 for none); --bind A its address (${DEFAULTS.bind})
+  --http P           the control page's port (${DEFAULTS.http}; 0 for none, auto for ephemeral)
+  --bind A           the control page's address (${DEFAULTS.bind})
   --base /PATH       serve the page under /PATH/ rather than at /
   --pin N            ask for this PIN before the page changes anything
   --mode M           jukebox (the queue alone) or live (knobs and Blackout too) until Studio says (${DEFAULTS.mode})
@@ -62,7 +63,8 @@ export function readConfig(argv: string[], configFile: string): Config | null {
     const flag = k === 'dryRun' ? values['dry-run'] : (values as Record<string, unknown>)[k];
     const v = flag ?? file[k];
     if (v === undefined) continue;
-    const n = typeof d === 'number' ? Number(v) : typeof d === 'boolean' ? v === true || v === 'true' : String(v);
+    const n = k === 'http' && v === 'auto' ? 'auto'
+      : typeof d === 'number' ? Number(v) : typeof d === 'boolean' ? v === true || v === 'true' : String(v);
     if (typeof n === 'number' && !Number.isFinite(n)) throw new Error(`${k} must be a number`);
     (cfg as Record<string, unknown>)[k] = n;
   }

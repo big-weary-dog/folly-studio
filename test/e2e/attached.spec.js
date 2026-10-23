@@ -55,7 +55,7 @@ for (const [device, use] of [['laptop', { viewport: { width: 1366, height: 768 }
         if (!picked) await top(page, id).locator('.chain-name').click();
         if (!phone) await page.locator('button', { hasText: /^Front$/ }).click();
         else await top(page, id).evaluate((e) => e.scrollIntoView({ block: 'end' }));
-        await page.waitForTimeout(1500);
+        await expect(page.locator('.viewer-msg').first()).toBeHidden({ timeout: 30_000 });
         await page.screenshot({ path: file(name) });
       };
 

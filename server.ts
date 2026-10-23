@@ -42,8 +42,8 @@ const app = await createServer({ config: c, dataDir, publicDir: path.join(here, 
 });
 const addr = await app.listen(port, host);
 const where = `http://${host.includes(':') ? `[${host}]` : host}:${addr.port}/`;
-console.log(`[studio] Folly Studio on ${where} (data ${dataDir}, models ${app.models.file}, default `
-  + `${app.adapterName})`);
+console.log(`[studio] Folly Studio on ${where} (data ${dataDir}`
+  + `${app.models ? `, models ${app.models.file}, default ${app.adapterName}` : ', no generators'})`);
 if (c.STUDIO_FLASH_CHECK === false) {
   console.warn('[studio] STUDIO_FLASH_CHECK=off: flashing blocks nothing (local only)');
 }

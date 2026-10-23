@@ -54,7 +54,8 @@ look sent by `ref` (its code always ours), shown with who queued it.
   same phone cannot drive the lights. Each socket is rate-limited, and the page holds at most 32.
 - No PIN by default. `--pin 2468` (or `"pin"` in `pi/config.json`) makes the page ask for it before it changes
   anything; five wrong ones lock the page out for a minute.
-- `--http 0` turns the page off; `--bind 127.0.0.1` keeps it to the Pi itself.
+- `--http 0` turns the page off; `--http auto` binds an ephemeral port and prints its address once ready.
+  `--bind 127.0.0.1` keeps it to the Pi itself.
 - **Jukebox or Live Play** (SPEC-liveplay): in Jukebox (the default, `--mode live` for the other) the engine takes
   only the queue: no knobs, Master, tempo, Blackout or Play now, whatever a page sends. Behind Studio, the admin's
   setting wins (Studio's feed says it). In Live Play one person has the knobs at a time (Take over); the Pi's own page

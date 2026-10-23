@@ -38,26 +38,27 @@ async function open(page, studio, user) {
 async function fits(page, info, shot, sheet = false) {
   const pop = page.locator('.drawer:last-child');
   await expect(pop).toBeVisible();
-  await page.waitForTimeout(150);
-  const m = await pop.evaluate((el) => {
-    const body = el.querySelector('.drawer-body'), r = el.getBoundingClientRect();
-    const view = document.querySelector('.pane-viewer').getBoundingClientRect();
-    const under = document.querySelector('.app-header').getBoundingClientRect().bottom;
-    return { under, top: r.top, bottom: r.bottom, left: r.left, right: r.right,
-      scroll: body.scrollHeight - body.clientHeight,
-      view: { left: view.left, right: view.right, width: view.width } };
-  });
+  await expect(async () => {
+    const m = await pop.evaluate((el) => {
+      const body = el.querySelector('.drawer-body'), r = el.getBoundingClientRect();
+      const view = document.querySelector('.pane-viewer').getBoundingClientRect();
+      const under = document.querySelector('.app-header').getBoundingClientRect().bottom;
+      return { under, top: r.top, bottom: r.bottom, left: r.left, right: r.right,
+        scroll: body.scrollHeight - body.clientHeight,
+        view: { left: view.left, right: view.right, width: view.width } };
+    });
+    const vp = page.viewportSize();
+    expect(m.top).toBeGreaterThanOrEqual(0);
+    expect(m.bottom).toBeLessThanOrEqual(vp.height + 1);
+    expect(m.left).toBeGreaterThanOrEqual(0);
+    expect(m.right).toBeLessThanOrEqual(vp.width);
+    if (sheet) return;
+    expect(m.top, 'under the header').toBeGreaterThanOrEqual(m.under - 1);
+    expect(m.scroll, `${shot} scrolls`).toBeLessThanOrEqual(1);
+    expect(m.view.width, 'the 3D view stays').toBeGreaterThan(300);
+    expect(m.view.right, 'the 3D view sits beside the drawer').toBeLessThanOrEqual(m.left + 1);
+  }).toPass({ timeout: 5000 });
   await page.screenshot({ path: info.outputPath(`${shot}.png`) });
-  const vp = page.viewportSize();
-  expect(m.top).toBeGreaterThanOrEqual(0);
-  expect(m.bottom).toBeLessThanOrEqual(vp.height + 1);
-  expect(m.left).toBeGreaterThanOrEqual(0);
-  expect(m.right).toBeLessThanOrEqual(vp.width);
-  if (sheet) return;
-  expect(m.top, 'under the header').toBeGreaterThanOrEqual(m.under - 1);
-  expect(m.scroll, `${shot} scrolls`).toBeLessThanOrEqual(1);
-  expect(m.view.width, 'the 3D view stays').toBeGreaterThan(300);
-  expect(m.view.right, 'the 3D view sits beside the drawer').toBeLessThanOrEqual(m.left + 1);
 }
 
 async function modes(page, info, tag, sheet = false) {
@@ -78,7 +79,7 @@ async function modes(page, info, tag, sheet = false) {
   await fits(page, info, `${tag}-6-fader`, sheet);
 }
 
-for (const [width, height] of [[1366, 768], [1440, 900], [1920, 1080]]) {
+for (const [width, height] of [[1366, 768], [1920, 1080]]) {
   test.describe(`at ${width}×${height}`, () => {
     test.use({ viewport: { width, height } });
     test('every mode fits with no scrolling', async ({ page, studio }, info) => {

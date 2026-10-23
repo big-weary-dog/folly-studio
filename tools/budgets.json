@@ -8,10 +8,10 @@
     "public/css": { "lines": 2390, "reason": "Styles cover the app shell, Studio panels, timeline, live controls, admin pages (the Pi bundle's too) and phone layouts." },
     "public/js": { "lines": 18586, "reason": "Phone Studio removes recent looks and editing destinations while retaining playback and explicit refine and sharing details." },
     "public/patterns": { "lines": 1837, "reason": "The built-in library provides sources, warps and filters as short standalone pattern modules." },
-    "render-box": { "lines": 250, "reason": "The render box shares deterministic IDs and streaming FSEQ output with the Fleet checker, keeping bake memory independent of duration." },
+    "render-box": { "lines": 248, "reason": "The render box shares deterministic IDs and streaming FSEQ output with the Fleet checker, keeping bake memory independent of duration." },
     "shared": { "lines": 1616, "reason": "Shared schemas and pure rules define looks, generated compositions, API data, permissions and playback." },
     "src": { "lines": 10355, "reason": "The server includes shared FSEQ header validation for bounded-memory Pi playback, request-matched queue acceptance and ordered verification timestamps, alongside authentication, storage, generation, baking, frame delivery, live sockets and administration." },
-    "test": { "lines": 24275, "reason": "Phone cuts and refine fixtures await member signup and redeem invites as unlocked non-exempt members, exercising ordinary AI permissions alongside absent authoring mounts and retained performance controls." },
+    "test": { "lines": 24269, "reason": "Combines shared dry-engine and permission/export coverage with phone cuts and refinement as invited non-exempt members, checking absent authoring mounts and retained performance controls." },
     "tools": { "lines": 2380, "reason": "Tools build and check rig and palette data, check the Pi bundle holds nothing secret, enforce budgets, support development and backups, and benchmark rendering." }
   }
 }
