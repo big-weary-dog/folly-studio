@@ -1,5 +1,5 @@
 // The Admin page (SPEC-access): a tab per admin area, each its own URL under /admin over the page it names, and a
-// link to Studio Live's page (/pi). Only admins see the tabs; for anyone else each page's own API refuses, as before.
+// link to Studio Live's page (/pi). The shared admin permission gates both the tabs and the page's controls.
 import '../../css/admin.css';
 
 import type { ComponentType } from 'preact';
@@ -14,12 +14,19 @@ const TABS = [['models', 'Models'], ['access', 'Access'], ['light', 'Light'], ['
 const PI_TABS = TABS.filter(([id]) => id !== 'models' && id !== 'access' && id !== 'pi-bundle');
 
 /** The page under the Admin tabs, `tab` lit. */
-export const withTabs = (Page: ComponentType<ViewProps>, tab: string) => (props: ViewProps) => <>
-  {can(user.value, 'admin') && <nav class="seg admin-tabs" aria-label="Admin">
+export const withTabs = (Page: ComponentType<ViewProps>, tab: string) => (props: ViewProps) => {
+  if (!can(user.value, 'admin')) return <div class="page">
+    <h1 class="page-title">Admin access required</h1>
+    <p class="lede">You need an admin account to view or change these settings.</p>
+    <a class="btn ghost" href="/studio">Go to Studio</a>
+  </div>;
+  return <>
+  <nav class="seg admin-tabs" aria-label="Admin">
     {(onPi() ? PI_TABS : TABS).map(([id, text]) => <a class="seg-btn" data-tab={id} href={`/admin/${id}`}
       aria-current={id === tab ? 'page' : undefined}>{text}</a>)}
     <a class="seg-btn" data-tab="pi" href="/pi/" target="_blank" rel="noopener"
       title="Studio Live's control page, in a new tab (PI_PREVIEW_URL)">Pi ↗</a>
-  </nav>}
+  </nav>
   <Page {...props} />
 </>;
+};
