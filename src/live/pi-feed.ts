@@ -3,6 +3,8 @@
 // PiSource. It reconnects after 1 s, doubling to 10 s. It connects nowhere else, and never to the Pi itself.
 // It is also how Studio plays a look on the lights (src/lights.ts): its `send`, with PI_PIN in its hello, and how the
 // engine learns the admin's mode (SPEC-liveplay "Modes"): after its hello, and at each change.
+import { randomUUID } from 'node:crypto';
+
 import WebSocket from 'ws';
 
 import type { PiNow, PiQueued, PiSource } from '../../shared/schemas/live.ts';
@@ -42,8 +44,13 @@ export function piFeed({ target, base = '/pi', pin, mode = () => 'live', onNow, 
   onSource: (source: PiSource) => void, log?: { warn?: (...a: unknown[]) => void } }) {
   const url = `${target.protocol === 'https:' ? 'wss:' : 'ws:'}//${target.host}${base}/ws`;
   let ws: WebSocket | null = null, wait = FIRST_WAIT_MS, timer: NodeJS.Timeout | null = null, alive = true;
-  // ok: the engine took the hello (its PIN); queued: its queue's length, from its last state.
-  let ok = false, queued = 0;
+  let ok = false;
+  type Result = { ok: true } | { ok: false, status: number, error: string };
+  const pending = new Map<string, (result: Result) => void>();
+  const unavailable = () => {
+    for (const finish of pending.values()) finish({ ok: false, status: 503,
+      error: 'The lights\' engine disconnected before acknowledging the request.' });
+  };
   function connect() {
     timer = null;
     // The engine takes its own page's origin only: this one, as it sees the request.
@@ -64,12 +71,16 @@ export function piFeed({ target, base = '/pi', pin, mode = () => 'live', onNow, 
           s.terminate();
         }
       }
+      else if (m?.type === 'sent' && typeof m.requestId === 'string' && typeof m.ok === 'boolean') {
+        if (m.ok) pending.get(m.requestId)?.({ ok: true });
+        else if (typeof m.error === 'string') pending.get(m.requestId)?.({ ok: false, status: 409,
+          error: m.error.slice(0, 200) });
+      }
       else if (m?.type === 'error' && typeof m.error === 'string') log.warn?.(`[pi] ${m.error.slice(0, 200)}`);
       else if (m?.type === 'source' && m.source && num(m.source.rev) && Array.isArray(m.source.layers)) {
         onSource(m.source);
       }
       else if (m?.type === 'state') {
-        queued = Array.isArray(m.state?.queue) ? m.state.queue.length : 0;
         const now = piNowOf(m.state);
         if (now !== undefined) onNow(now);
       }
@@ -79,6 +90,7 @@ export function piFeed({ target, base = '/pi', pin, mode = () => 'live', onNow, 
       if (ws !== s) return;
       ws = null;
       ok = false;
+      unavailable();
       onNow(null);
       if (alive) timer = setTimeout(connect, wait);
       wait = Math.min(MAX_WAIT_MS, wait * 2);
@@ -88,13 +100,24 @@ export function piFeed({ target, base = '/pi', pin, mode = () => 'live', onNow, 
   return {
     /** The engine is there and took the hello. */
     connected: () => ok && ws?.readyState === WebSocket.OPEN,
-    /** How many items its queue holds, as it last said. */
-    queued: () => queued,
-    /** One message to the engine (a `send`): false if it is not connected. */
-    send(msg: object) {
-      if (!ok || ws?.readyState !== WebSocket.OPEN) return false;
-      ws.send(JSON.stringify(msg));
-      return true;
+    /** Resolve only when this send is acknowledged, or its outcome becomes unknown. */
+    async send(msg: object): Promise<Result> {
+      if (!ok || ws?.readyState !== WebSocket.OPEN) return { ok: false, status: 503,
+        error: 'The lights\' engine is not running.' };
+      const socket = ws, requestId = randomUUID();
+      return new Promise((resolve) => {
+        const finish = (result: Result) => {
+          clearTimeout(expiry);
+          pending.delete(requestId);
+          resolve(result);
+        };
+        const expiry = setTimeout(() => finish({ ok: false, status: 503,
+          error: 'The lights\' engine did not acknowledge the request.' }), 5000);
+        pending.set(requestId, finish);
+        socket.send(JSON.stringify({ ...msg, requestId }), (error) => {
+          if (error) finish({ ok: false, status: 503, error: 'Could not send to the lights\' engine.' });
+        });
+      });
     },
     /** The mode changed: tell the engine now (and again at each hello). */
     mode(m: 'jukebox' | 'live') {
@@ -102,6 +125,7 @@ export function piFeed({ target, base = '/pi', pin, mode = () => 'live', onNow, 
     },
     close() {
       alive = false;
+      unavailable();
       if (timer) clearTimeout(timer);
       ws?.terminate();
     },

@@ -156,7 +156,8 @@ GET  /api/lights[?lookId]  → { liveLooks, mode, canQueue, canDrive, engine: bo
                              engine: the feed is connected; play: how that look would play
 POST /api/lights/queue  { lookId, at?: 'now' | 'next' | 'end' (default), fade? }
                            → { kind: 'live' | 'baked' }  400 says why it cannot play; 403 not allowed;
-                             409 the queue is full, or now in Jukebox; 503 the engine is not connected
+                             409 the engine refused it (including a full queue or now in Jukebox);
+                             503 disconnected or no acknowledgement within 5 seconds
 GET  /api/lights/looks?from=mine|gallery
                         → { looks: [{ id, title, ownerName, duration, preview?, play: { kind } | { error } }] };
                           curators; preview: its gallery preview's key, as GET /api/looks gives it
@@ -170,11 +171,19 @@ has it, reaches Studio's pages in the feed's `now` (SPEC-live "Following /pi").
 **The engine's socket** (`pi/src/protocol.ts`) gains, from any page that said hello:
 `{ type: 'queue', id, at? }` (one of its own looks), `{ type: 'unqueue', key }`, `{ type: 'move', key, to }`,
 `{ type: 'next' }` (skip to the next item now); and, as Studio's feed sends it,
-`{ type: 'send', at?, fade?, by, item: { kind: 'live', look } | { kind: 'baked', id, title, sha256, duration } }`,
+`{ type: 'send', requestId?, at?, fade?, by,
+item: { kind: 'live', look } | { kind: 'baked', id, title, sha256, duration } }`,
 up to 64 KB (other messages stay at 1 KB; who may send it: SPEC-liveplay). Its state gains `queue`, `paused`,
 and the playing look's `kind` and `left` (seconds left of its pattern; null while nothing is queued). Studio's feed
 says `PI_PIN` in its hello when the engine has a PIN. While a baked item plays, the engine's `source` has
 `baked: true` and no layers: `/live` shows its title and "Baked: on the lights only" over a dark view.
+
+Studio supplies a unique `requestId` (1–64 characters). The engine replies on that socket with
+`{ type: 'sent', requestId, ok, error? }` after accepting or refusing the item; a refusal includes its reason.
+Legacy sends without an ID retain their error messages. HTTP success waits for its matching acknowledgement,
+meaning accepted for playback, not that a bake has loaded or a fade finished. Disconnect or timeout is 503
+(the outcome may be unknown; Studio does not retry). The UI displays refusals through its usual error path
+and only announces success after acceptance.
 
 **Pages.**
 - **Studio** (the editor's Export menu, the phone's Look tab, and each card on My looks and the Gallery): **Play on
