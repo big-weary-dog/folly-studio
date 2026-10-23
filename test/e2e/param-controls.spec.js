@@ -29,7 +29,7 @@ for (const [device, settings] of Object.entries(DEVICES)) {
       const shot = async (name) => {
         const out = process.env.PARAM_SHOTS || info.outputDir;
         mkdirSync(out, { recursive: true });
-        await page.screenshot({ path: path.join(out, `${device}-${name}.png`) });
+        await page.screenshot({ path: path.join(out, `${device}-${name}.png`), fullPage: true });
       };
       for (const name of Object.keys(names)) {
         const res = await fetch(`${studio.origin}/api/looks`, { method: 'POST',
