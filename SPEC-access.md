@@ -24,7 +24,8 @@ and `/api/guest` is 403 "Guests can't save", so they make no looks, ideas, bakes
 control the live stage, and have no AI ("AI only with access"). The Studio keeps a guest's work in that browser
 (localStorage, the Studio's look as saved, written as it changes) and opens it again on `/studio`; Save asks them to
 log in or sign up, since saving is for accounts, and the work comes along: the first account to open a blank Studio
-in that browser gets it, unsaved. Their name shows with a Guest tag; it is untrusted text, shown only as text.
+in that browser gets it, unsaved, and the browser's copy goes once that account saves or discards it. Their name
+shows with a Guest tag; it is untrusted text, shown only as text.
 
 ## Who may do what
 

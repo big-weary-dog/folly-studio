@@ -8,7 +8,6 @@ import path from 'node:path';
 import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
-import { can } from '../shared/policy.ts';
 import type { LibraryEntry } from '../shared/schemas/rig.ts';
 import { bakeSeconds, layersHash, renderFields } from './bake.ts';
 import { forAdmins, HttpError, parse } from './http.ts';
@@ -74,15 +73,15 @@ export function createLightsStore(file: string) {
 type LightsStore = ReturnType<typeof createLightsStore>;
 
 /** `drive`: may this person drive Live Play (SPEC-live "Settings", STUDIO_LIVE_CONTROL). */
-export function lightsRoutes({ store, feed, hub, drive, loadLibrary, visibleLook, looksIn, listed }: {
+export function lightsRoutes({ store, feed, hub, drive, curate, loadLibrary, visibleLook, looksIn, listed }: {
   store: LightsStore,
   feed: Pick<ReturnType<typeof piFeed>, 'connected' | 'queued' | 'send' | 'mode'>, hub?: Pick<Hub, 'piDrove'>,
-  drive: (user: User) => boolean, loadLibrary: () => readonly LibraryEntry[],
+  drive: (user: User) => boolean, curate: (user: User) => boolean, loadLibrary: () => readonly LibraryEntry[],
   visibleLook: (id: string, user: User) => Look, looksIn: (scope: 'mine' | 'gallery', user: User) => Look[],
   listed: (look: Look) => { ownerName: string, duration: number, preview?: string } }) {
   const modules = () => new Set(loadLibrary().filter((e) => e.kind !== 'preset').map((e) => e.name));
   const state = (user: User) => ({ ...store.current(),
-    canQueue: can({ id: user.id, role: user.role ?? 'member' }, 'curate'), canDrive: drive(user),
+    canQueue: curate(user), canDrive: drive(user),
     engine: feed.connected() });
   return {
     // ?lookId: how that look would play ({ kind } or { error }), for the Play on the lights dialog.

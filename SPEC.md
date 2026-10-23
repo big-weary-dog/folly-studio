@@ -617,9 +617,9 @@ as here; any other failure says why and points to Check & bake.
   worker thread at nice 10, one job at a time (`src/frames-worker.ts`). The gzip copy, for clients that do
   not take br (browsers send br only over HTTPS), picks its own layout, so it has its own ETag.
   Manifest: `{ version: 1, hash, frames, fps, channels, ranges, chunkFrames, chunks: [{ bytes }],
-  bytes }` (brotli sizes). Manifest and chunks are served `Cache-Control: public,
-  max-age=31536000, immutable`, chunks with `Content-Encoding: br` (else gzip, else none) and
-  `Vary: Accept-Encoding`.
+  bytes }` (brotli sizes). Manifest and chunks are served `Cache-Control: private,
+  max-age=31536000, immutable` (private: who may fetch them is checked per request, and a look can stop being
+  shared), chunks with `Content-Encoding: br` (else gzip, else none) and `Vary: Accept-Encoding`.
 - **Playback** (`public/js/frames-stream.ts`): manifest, then chunk 0, then play; two chunks
   ahead are fetched, a seek fetches its chunk, deltas are undone in place once per chunk, and
   frames are read without allocating. On a phone, a cellular link, Save-Data or below 4G the

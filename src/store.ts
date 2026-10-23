@@ -1,8 +1,8 @@
 // JSON-file document store: a file per collection, loaded at start (each document through its collection's upgrade,
 // written back once if one changed), kept in memory, written atomically (tmp + fsync + rename), each collection's
-// writes serialized and coalesced, by the one process holding the folder's lock (store-lock.ts) until close().
-// Objects handed out are copies; create() adds id, createdAt and updatedAt; update()
-// is shallow, and undefined deletes a key.
+// writes serialized and coalesced (a failed one tried again until it lands), by the one process holding the
+// folder's lock (store-lock.ts) until close(). Objects handed out are copies; create() adds id, createdAt and
+// updatedAt; update() is shallow, and undefined deletes a key.
 
 import { randomBytes } from 'node:crypto';
 import { promises as fsp } from 'node:fs';
@@ -55,7 +55,8 @@ export async function createStore(dataDir: string, { log = console, upgrade = {}
   const store = {
     ...Object.fromEntries(COLLECTIONS.map((name, i) => [name, states[i]!.api])), dataDir,
     async flush() {
-      // Writes scheduled while we wait are picked up by the next pass.
+      // Failed writes are tried again; writes scheduled while we wait are picked up by the next pass.
+      await Promise.all(states.map((s) => s.retry()));
       for (let pass = 0; pass < 100; pass++) {
         await Promise.all(states.map((s) => s.pending()));
         if (!states.some((s) => s.queued())) break;
@@ -67,6 +68,7 @@ export async function createStore(dataDir: string, { log = console, upgrade = {}
       try {
         await store.flush();
       } finally {
+        for (const s of states) s.stop();
         await lock.release();
       }
     },
@@ -98,10 +100,13 @@ async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: U
   }
 
   let chain = Promise.resolve(), queued = false, lastError: unknown = null, tmpSeq = 0;
+  // A failed write stays due: tried again after a backoff (1 s doubling to a minute), or at once by flush().
+  let retry: NodeJS.Timeout | undefined, backoff = 0;
 
   function schedule() {
     if (queued) return chain;
     queued = true;
+    clearTimeout(retry);
     chain = chain.then(async () => {
       queued = false; // anything changed from here on schedules another write
       const items = [...map.values()];
@@ -116,11 +121,13 @@ async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: U
           await fh.close();
         }
         await fsp.rename(tmp, file);
-        lastError = null;
+        lastError = null; backoff = 0;
       } catch (err) {
         lastError = err;
         log.error(`store: could not write ${file}:`, err);
         await fsp.rm(tmp, { force: true }).catch(() => {});
+        backoff = Math.min(backoff * 2 || 1000, 60_000);
+        if (!queued) retry = setTimeout(schedule, backoff).unref();
       }
     });
     return chain;
@@ -170,5 +177,6 @@ async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: U
   };
 
   if (upgraded) schedule();
-  return { api, pending: () => chain, queued: () => queued, lastError: () => lastError };
+  return { api, pending: () => chain, queued: () => queued, lastError: () => lastError,
+    retry: () => (lastError ? schedule() : chain), stop: () => clearTimeout(retry) };
 }

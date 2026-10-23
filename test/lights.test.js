@@ -66,7 +66,7 @@ describe('the mode and Play now', () => {
     const sent = [], modes = [];
     const feed = { connected: () => true, queued: () => 0, send: (m) => sent.push(m), mode: (m) => modes.push(m) };
     const store = createLightsStore(path.join(mkdtempSync(path.join(tmpdir(), 'lights-')), 'lights.json'));
-    const routes = lightsRoutes({ store, feed, drive: (u) => u.username === 'cara',
+    const routes = lightsRoutes({ store, feed, drive: (u) => u.username === 'cara', curate: (u) => u.role !== 'member',
       loadLibrary: () => [{ name: 'fire' }],
       visibleLook: () => ({ id: 'x', title: 'X', duration: 30, layers: [{ modules: [{ ref: 'fire' }] }] }) });
     const [queue] = routes['POST /lights/queue'], [put] = routes['PUT /admin/lights'];
@@ -107,6 +107,9 @@ describe('Play on the lights', () => {
   test('says who may queue and how a look would play', async () => {
     assert.deepEqual((await bob.get('/api/lights')).json, { liveLooks: true, mode: 'jukebox', canQueue: false,
       canDrive: false, engine: true });
+    // Curators and admins are configured by name, not stored with a role.
+    assert.equal((await cara.get('/api/lights')).json.canQueue, true);
+    assert.equal((await ada.get('/api/lights')).json.canQueue, true);
     assert.deepEqual((await cara.get(`/api/lights?lookId=${fire.id}`)).json.play, { kind: 'live' });
     assert.match((await cara.get(`/api/lights?lookId=${custom.id}`)).json.play.error, /custom code/);
     assert.equal((await ada.get('/api/lights?lookId=nope')).status, 404);

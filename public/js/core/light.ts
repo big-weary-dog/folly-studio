@@ -192,28 +192,28 @@ export function ledLight(light: Light = LIGHT) {
   return t;
 }
 
-/** The light a view shows for value `v` (0..1 of the screen's white): the LEDs' own at full output, v^gamma, not
- * quantised but off where they round to off, and at least the floor, through the calibration's response, × the
- * exposure. Trims stay out (the views draw the rig whole). */
-export function shownLight(v: number, light: Light) {
+/** The light a view shows for value `v` (0..1 of the screen's white) on a colour of `balance`: the LEDs' own at
+ * full output, v^gamma × balance, not quantised but off where they round to off, and at least the floor, as the
+ * output transform orders them, through the calibration's response, × the exposure. Trims stay out (the views draw
+ * the rig whole). */
+export function shownLight(v: number, light: Light, balance = 1) {
   const { gamma, floor, calibration: { response } } = light;
-  if (!ledByte(v, gamma, 1, floor)) return 0;
-  const lit = Math.min(1, v ** (gamma * response));
+  if (!ledByte(v, gamma, balance, floor)) return 0;
+  const lit = Math.min(1, v ** gamma * balance) ** response;
   return (floor ? Math.max(lit, (floor / 255) ** response) : lit) * light.preview.exposure;
 }
 
-/** A frame's light for the views, once, before either draws: shownLight × each colour's balance and calibrated
- * white, the calibration's saturation about the luminance, × `gain` (the flash guard's dim, the Live master: linear,
- * as the Pi's), × `dim` on each LED that `mask` leaves out (0 there; null: none). */
+/** A frame's light for the views, once, before either draws: each colour's shownLight × its calibrated white, the
+ * calibration's saturation about the luminance, × `gain` (the flash guard's dim, the Live master: linear, as the
+ * Pi's), × `dim` on each LED that `mask` leaves out (0 there; null: none). */
 export function previewChannels(rgb: ArrayLike<number>, light: Light, out: Float32Array, gain = 1,
   mask: ArrayLike<number> | null = null, dim = 1) {
-  const { white, response, saturation: s } = light.calibration, b = light.balance;
-  const w0 = white[0] * b[0] ** response, w1 = white[1] * b[1] ** response, w2 = white[2] * b[2] ** response;
+  const { white: [w0, w1, w2], saturation: s } = light.calibration, [b0, b1, b2] = light.balance;
   for (let k = 0, n = out.length / 3; k < n; k++) {
     const g = mask && !mask[k] ? gain * dim : gain, c = 3 * k;
     if (!(g > 0)) { out[c] = out[c + 1] = out[c + 2] = 0; continue; }
-    let r = shownLight(rgb[c], light) * w0, gr = shownLight(rgb[c + 1], light) * w1;
-    let bl = shownLight(rgb[c + 2], light) * w2;
+    let r = shownLight(rgb[c], light, b0) * w0, gr = shownLight(rgb[c + 1], light, b1) * w1;
+    let bl = shownLight(rgb[c + 2], light, b2) * w2;
     if (s !== 1) {
       const y = 0.2126 * r + 0.7152 * gr + 0.0722 * bl;
       r = Math.max(0, y + s * (r - y)); gr = Math.max(0, y + s * (gr - y)); bl = Math.max(0, y + s * (bl - y));

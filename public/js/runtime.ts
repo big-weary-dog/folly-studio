@@ -55,7 +55,7 @@ type Render = { seq: number; frames: number; resolve: (c: Uint8Array) => void; r
 
 export class Runtime {
   rig!: Rig; library: Pick<LibraryEntry, 'name' | 'code'>[] = []; iframe: HTMLIFrameElement | null = null;
-  port: MessagePort | null = null; heard = false; deadTries = 0; playing = false;
+  port: MessagePort | null = null; heard = false; deadTries = 0; playing = false; held = false;
   phase: 'idle' | 'loading' | 'init' | 'ready' | 'dead' = 'idle';
   layers: Layer[] = []; extra: Extra = {}; lookDirty = false; lookVersion = 0; frameLookVersion = -1; lastT = NaN;
   seq = 0; respawns: number[] = []; render_: Render | null = null;
@@ -111,8 +111,12 @@ export class Runtime {
     return new Map([...this.layerMs].filter(([, ms]) => ms > HEAVY * budget(RATES[0])));
   }
 
+  /** Something else has the picture (baked playback): no frames, and a reply on its way is dropped, until a pump. */
+  hold() { this.held = true; this.playing = false; }
+
   /** Per animation frame: a pending look, then frame `t` when due and changed (always while playing). */
   pump(t: number, playing = false) {
+    this.held = false;
     this.playing = playing;
     if (this.phase !== 'ready' || this.render_) return;
     if (this.lookDirty) this._sendLook();
@@ -260,7 +264,7 @@ export class Runtime {
     const i = RATES.indexOf(this.rate);
     const next = st.ms > budget(this.rate) ? RATES[i + 1] : st.ms < 0.7 * budget(RATES[i - 1]) ? RATES[i - 1] : 0;
     if (next && now - this.rateAt > 1000) { this.rate = next; this.rateAt = now; }
-    if (m.rgb) this.onFrame(m.rgb, f.t);
+    if (m.rgb && !this.held) this.onFrame(m.rgb, f.t);
     this.onFrameErrors(Array.isArray(m.errors) ? m.errors : EMPTY);
     if (this.playing && !this.lookDirty && !this.render_) this._request(this.time());
   }
