@@ -56,9 +56,9 @@ test('rebakes, adoption and restore analyse reused bytes with current light and 
     light: () => ({ ...LIGHT, gamma }) });
   assert.equal((await f.bake()).ok, true);
   gamma = 1;
-  assert.equal((await f.bake()).ok, false, 'same-look cache refreshes the flash check');
   f.records.set('b', look('b'));
   assert.equal((await f.queue.request('b')).ok, false, 'adoption refreshes the flash check');
+  assert.equal((await f.bake()).ok, false, 'same-look cache refreshes the flash check');
   gamma = 3;
   await fs.rm(path.join(f.dir, 'a.fseq'));
   assert.equal(await f.queue.restore('a'), true);
@@ -92,13 +92,15 @@ test('review requires the current baked length, including the configured cap (H2
 
 test('tempo dependencies include nested composite modules and bracket reads (H3)', () => {
   for (const module of [
+    { code: 'function pixel(p,t,P,G) { return G.bpm / 240; }' },
     { code: 'function pixel(p,t,P,G) { return G["bpm"] / 240; }' },
     { code: "function pixel(p,t,P,G) { return G /* tempo */ ['bpm'] / 240; }" },
     { code: 'function pixel(p,t,P,G) { const g = G; return g["b" + "pm"] / 240; }' },
     { params: { speed: { mod: 'lfo', unit: 'beats' } } },
   ]) {
-    for (const nested of [false, true]) {
-      const modules = nested ? [{ kind: 'composite', layers: [{ modules: [module] }] }] : [module];
+    for (const depth of [0, 1, 2]) {
+      let modules = [module];
+      for (let i = 0; i < depth; i++) modules = [{ kind: 'composite', layers: [{ modules }] }];
       const a = { layers: [{ modules }], bpm: 60 }, b = { ...a, bpm: 120 };
       assert.notEqual(layersHash(renderFields(a)), layersHash(renderFields(b)));
       assert.notEqual(renderKey(a, seconds), renderKey(b, seconds));
@@ -113,6 +115,8 @@ test('a box reporting layer errors cannot pass, even with ok:true or a flash ove
   assert.equal(b.ok, false);
   assert.equal(b.status, 'failed');
   assert.match(reviewBlocker(f.looks.get('a'), { override: 'approved' }), /failed/);
+  assert.equal(checkFrames(bytes(), { source: 'render-box', rig, seconds,
+    boxStats: cleanBoxStats({ ok: false }) }).bake.ok, true, 'the box cannot decide the trusted result');
 });
 
 test('structurally valid frames must match requested count, step and all channels (M6)', () => {
