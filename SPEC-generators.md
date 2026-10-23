@@ -174,7 +174,9 @@ cleared). `idea.changes` lists what changed, at most 24 lines, from comparing th
 0.2`, `+ layer Sparkle (sparkle)`, `− layer Bed`, `speed: default → 0.8`). `refine.critique` asks for a critique
 round on the look as it is (any model with the box; the request may be empty); `refine.fix = { layer, error }` sends a runtime error the
 Studio or a bake saw, for a fix. A refinement has no fallback: when its model fails, the
-look stays as it was, as it does when the look was edited while it ran. A layer keeps its switches (`enabled`,
+look stays as it was, as it does when the look was edited while it ran (any save that made a version: its
+`version.n` moved on). The Studio likewise keeps edits made while it ran over the revision, which is then the newest
+saved version. A layer keeps its switches (`enabled`,
 `solo`) and its switched-off modules, which the model is not shown. One refinement per look at a time (409). Only
 the prompted models refine (the foundry: 400).
 

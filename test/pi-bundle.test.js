@@ -1,6 +1,4 @@
-// The Pi bundle's download (SPEC-offline "Downloading the Pi bundle"): curators and admins only, the one file
-// STUDIO_PI_BUNDLE names with its type and length, curl links that work without a session until they expire, and a
-// bundle that holds nothing secret.
+// Pi bundle downloads and expiring curl links (SPEC-offline "Downloading the Pi bundle"); no bundled secrets.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -67,8 +65,7 @@ describe('GET /api/pi-bundle', () => {
     // Only a path: the page puts its own origin in front, so the tunnel's Host and scheme never come into it.
     const proxied = await admin.post('/api/pi-bundle/link', {}, { 'x-forwarded-host': 'evil.example',
       'x-forwarded-proto': 'http' });
-    assert.match(proxied.json.path, /^\/api\/pi-bundle\/[A-Za-z0-9_-]{43}$/);
-    assert.match(r.json.path, /^\/api\/pi-bundle\/[A-Za-z0-9_-]{43}$/);
+    for (const { json } of [r, proxied]) assert.match(json.path, /^\/api\/pi-bundle\/[A-Za-z0-9_-]{43}$/);
     assert.equal(curlLine('https://folly.swampkat.com', r.json.path),
       `curl -fo folly-studio-pi.tar 'https://folly.swampkat.com${r.json.path}'`);
     assert.ok(Date.parse(r.json.expires) > Date.now() + LINK_MS - 60_000);
@@ -76,8 +73,11 @@ describe('GET /api/pi-bundle', () => {
     assert.equal(got.status, 200);
     assert.deepEqual(Buffer.from(await got.arrayBuffer()), body);
     const token = r.json.path.split('/').pop();
-    const wrong = `${token.slice(0, -1)}${token.endsWith('A') ? 'B' : 'A'}`;
-    for (const t of [wrong, 'short', `${token}A`, '%2e%2e%2fserver.ts']) {
+    const wrong = `${token.slice(0, 20)}${token[20] === 'A' ? 'B' : 'A'}${token.slice(21)}`;
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    const noncanonical = token.slice(0, -1) + alphabet[alphabet.indexOf(token.at(-1)) + 1];
+    assert.deepEqual(Buffer.from(noncanonical, 'base64url'), Buffer.from(token, 'base64url'));
+    for (const t of [wrong, noncanonical, 'short', `${token}A`, '%2e%2e%2fserver.ts']) {
       assert.equal((await rawGet(app.port, `/api/pi-bundle/${t}`)).status, 404, t);
     }
     // The server refuses a path that climbs before any route sees it.

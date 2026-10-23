@@ -25,11 +25,11 @@ import { BakeError } from './box-output.ts';
 import type { CodeGate } from './custom-code.ts';
 import { etagMatches, HttpError, type Logger, parse } from './http.ts';
 import { currentN, nameFields, reviewFor, revisedFields, versionRoutes, versionsOf } from './look-versions.ts';
+import { roomForLook } from './look-cap.ts';
 import type { createPreviews } from './previews/index.ts';
 import { CACHE_IMMUTABLE } from './static.ts';
 import type { Store, StoredLook as Look, StoredUser as User } from './store.ts';
 
-const MAX_LOOKS_PER_USER = 500;
 const GALLERY_LIMIT = 200;
 
 type Req = FastifyRequest<{ Params: { id: string } }>;
@@ -144,10 +144,10 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
     // An import of a look the importer has (SPEC-offline "Look files"): the file overrules it, as a PUT would.
     const had = origin && store.looks.list((l) => l.owner === user.id && (l.id === origin || l.origin === origin))[0];
     if (had) {
-      const updated = await revise(had, user, { title: body.title, summary: body.summary, layers: body.layers,
-        duration: body.duration ?? DEFAULT_DURATION, bpm: bpm ?? null, globals: globals ?? null,
+      const { look: updated, edited } = await revise(had, user, { title: body.title, summary: body.summary,
+        layers: body.layers, duration: body.duration ?? DEFAULT_DURATION, bpm: bpm ?? null, globals: globals ?? null,
         automation: automation ?? null, chain: body.chain }, 'import');
-      return { look: presentLook(updated, { mine: true }), imported: updated === had ? 'unchanged' : 'updated' };
+      return { look: presentLook(updated, { mine: true }), imported: edited ? 'updated' : 'unchanged' };
     }
     const look: Partial<Look> = { owner: user.id, ownerName: user.username, ...body, ...ruledNamed(body), chain: CHAIN,
       reviewed: false, versions: [] };
@@ -163,9 +163,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
       if (!idea || idea.owner !== user.id) throw new HttpError(400, 'ideaId does not name one of your ideas.');
       look.ideaId = idea.id;
     }
-    if (store.looks.list((l) => l.owner === user.id).length >= MAX_LOOKS_PER_USER) {
-      throw new HttpError(429, `You have ${MAX_LOOKS_PER_USER} looks; delete some first.`);
-    }
+    roomForLook(store, user.id, (why) => new HttpError(429, why));
     reply.code(201);
     const made = store.looks.create(look);
     previews?.want(made.id);
@@ -175,14 +173,19 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
   async function edit(req: Req) {
     const user = req.user!;
     const look = visibleLook(req.params.id, user);
-    const updated = await revise(look, user, parse(LookPatch, req.body));
+    const { look: updated } = await revise(look, user, parse(LookPatch, req.body));
     return { look: presentLook(updated, { versions: versionsFor(req, look), mine: auth.can(user, 'edit', look) }) };
   }
 
-  /** `look` with `body` (PUT /api/looks/:id) applied by `user`, as saved; itself when nothing changed. A change to
-   * what plays is a version made `how`. */
-  async function revise(look: Look, user: User, body: z.output<typeof LookPatch>, how: 'auto' | 'import' = 'auto') {
-    const { id } = look;
+  /** `was` with `body` (PUT /api/looks/:id) applied by `user`, as saved, and whether anything changed. A change to
+   * what plays is a version made `how`. The code gate is its one wait: the look is read again after it, and the rest
+   * (the version, its number, the history) is one synchronous update of the look as it is then. */
+  async function revise(was: Look, user: User, body: z.output<typeof LookPatch>, how: 'auto' | 'import' = 'auto') {
+    const { id } = was;
+    const ruledNow = body.layers === undefined ? undefined
+      : ruledNamed({ ...body, layers: body.layers, summary: body.summary ?? was.summary });
+    if (ruledNow) await allowCode(ruledNow.layers, user);
+    const look = visibleLook(id, user);
     const isOwner = auth.can(user, 'edit', look);
     const patch: Partial<Look> = {};
     const changed = <K extends keyof Look>(k: K, v: Look[K], was = look[k]) => {
@@ -192,11 +195,9 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
     const same = (k: 'title' | 'summary') => how === 'import' && body[k] === (look[k] ?? '');
     if (body.title !== undefined && !same('title')) patch.title = body.title;
     if (body.summary !== undefined && !same('summary')) patch.summary = body.summary;
-    if (body.layers !== undefined) {
-      const now = ruledNamed({ ...body, layers: body.layers, summary: body.summary ?? look.summary });
-      body.layers = now.layers;
-      await allowCode(now.layers, user);
-      if (now.summary !== (body.summary ?? look.summary)) patch.summary = now.summary;
+    if (ruledNow) {
+      body.layers = ruledNow.layers;
+      if (ruledNow.summary !== (body.summary ?? was.summary)) patch.summary = ruledNow.summary;
     }
     if (body.shared !== undefined) {
       patch.shared = body.shared;
@@ -244,7 +245,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
       if (!auth.can(user, 'review', look)) throw new HttpError(403, 'Only curators can mark a look reviewed.');
       const override = body.flashOverride ?? '';
       const blocker = body.reviewed && (layersChanged ? 'The code changed. Bake it again first.'
-        : reviewBlocker(look, { override }));
+        : reviewBlocker(look, { override, seconds: bakes.seconds(look) }));
       if (blocker) throw new HttpError(409, blocker);
       Object.assign(patch, { reviewed: body.reviewed, reviewedBy: body.reviewed ? user.username : undefined,
         flashOverride: undefined });
@@ -260,11 +261,11 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
     if (kept) {
       Object.assign(patch, { reviewed: true, reviewedBy: kept.by || undefined, flashOverride: kept.flashOverride });
     }
-    const updated = Object.keys(patch).length ? store.looks.update(id, patch)! : look;
+    const edited = Object.keys(patch).length > 0, updated = edited ? store.looks.update(id, patch)! : look;
     if ('bake' in patch) await dropFrames(id);
     if (kept) await bakes.request(id).catch(() => {});   // its frames again (the same render: often a stored bake)
     previews?.want(id);
-    return updated;
+    return { look: updated, edited };
   }
 
   async function remove(req: Req) {

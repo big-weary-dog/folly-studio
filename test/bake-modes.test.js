@@ -60,6 +60,8 @@ describe('library only', () => {
     const r = await box.render({ layers: [libLayer(WASH, { groups: ['cathedral'] }), COMPOSED] });
     assert.equal(r.seconds, 1);
     assert.equal(parseFseq(r.bytes, { maxBytes: 64 * 1024 ** 2, maxChannels: 1e6 }).frameCount, 40);
+    const again = await box.render({ layers: [libLayer(WASH, { groups: ['cathedral'] }), COMPOSED] });
+    assert.deepEqual(again.bytes, r.bytes, 'identical rebakes have stable FSEQ identifiers (M17)');
     await assert.rejects(box.render({ layers: [libLayer(`${WASH}\n// edited`)] }),
       (err) => err instanceof BakeError && err.status === 422 && /custom code/.test(err.reason));
   });

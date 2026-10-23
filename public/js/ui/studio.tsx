@@ -22,10 +22,12 @@ import { createTimeline } from './timeline-state.ts';
 import { adoptGuestWork, guestWork, keepGuestWork } from './guest-work.ts';
 import { showToTour } from './tour-view.ts';
 
-async function loadLook(id?: string) {
+/** The look to open (null: a new one); one that fails says so and opens a new one, if the Studio is still `live`. */
+async function loadLook(id: string | undefined, live: () => boolean) {
   try {
     return id ? (await api.look(id)).look : null;
   } catch (err) {
+    if (!live()) return null;
     toast(statusOf(err) === 404 ? 'That look was not found (or is not shared). Starting a new one.'
       : (err as Error).message, { kind: 'error' });
     replaceUrl('/studio');
@@ -55,7 +57,8 @@ export function Studio({ params, query }: ViewProps) {
     const untour = showToTour(st, pv), practice = query.get('tour'), unkeep = guest ? keepGuestWork(st) : () => {};
     // A blank Studio opens a guest's work kept in this browser (guest-work.ts); an account takes it unsaved.
     const kept = !replay && !params.lookId && !practice ? guestWork() : null;
-    const look = replay ? replay.then((r) => r.look) : kept ? Promise.resolve(kept) : loadLook(params.lookId);
+    const look = replay ? replay.then((r) => r.look) : kept ? Promise.resolve(kept)
+      : loadLook(params.lookId, st.request('load'));
     Promise.all([loadRig(), library, look]).then(async ([rig, lib, from]) => {
       // ?tour=<path>: the tutorial's practice look, an unsaved one made from library presets (tour/practice.ts).
       let view: string | null = null;
@@ -78,7 +81,13 @@ export function Studio({ params, query }: ViewProps) {
     // has them (their own undo); Space plays or pauses unless a control or a dialog has it.
     const onKey = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey, t = e.target as Element;
-      if (mod && k === 's') { e.preventDefault(); st.save(); return; }
+      if (mod && k === 's') {   // the focused field's typing counts: its change commits as leaving it would
+        e.preventDefault();
+        const field = document.activeElement;
+        if (field instanceof HTMLElement && field.closest('input, select, textarea')) { field.blur(); field.focus(); }
+        st.save();
+        return;
+      }
       if (mod && (k === 'z' || k === 'y') && !t.closest?.('input, textarea, select, [contenteditable], dialog')) {
         e.preventDefault();
         if (k === 'z' && !e.shiftKey) st.undo();

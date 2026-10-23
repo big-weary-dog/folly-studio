@@ -48,6 +48,7 @@ test('automating a setting creates its macro, lane and binding as one patch, and
   const p = { label: 'Speed', min: -2, max: 6 }, target = { layer: 'layer', module: 'source', key: 'speed',
     hint: 'Clouds' };
   const edit = automationEdit(L, p, 2, target)!;
+  assert.ok('patch' in edit);
   assert.equal(edit.name, 'cloudsSpeed');
   assert.deepEqual(edit.patch.globals?.macros?.cloudsSpeed, { min: -2, max: 6, value: 2 });
   assert.deepEqual(edit.patch.automation?.cloudsSpeed, [[0, 2], [24, 2]]);
@@ -64,16 +65,20 @@ test('new automation names avoid collisions; colour automation preserves the pic
       colours: { pick: 'body/accent', blend: 'smooth', range: [0.2, 0.8] } } }] }] } as Draft;
   const p = { label: 'Colours: rotate', min: 0, max: 1 };
   const first = automationEdit(L, p, 0.5)!;
+  assert.ok('patch' in first);
   assert.equal(first.name, 'automation');
-  assert.equal(automationEdit({ ...L, ...first.patch }, p, 0.5)!.name, 'automation2');
+  const second = automationEdit({ ...L, ...first.patch }, p, 0.5);
+  assert.ok('patch' in second);
+  assert.equal(second.name, 'automation2');
   const turn = automationEdit(L, p, 0.25, { layer: 'l', module: 'm', key: 'colours', hint: 'Bars',
     colour: { value: 'all', blend: 'step' } })!;
+  assert.ok('patch' in turn);
   assert.deepEqual(turn.patch.layers?.[0].modules[0].params?.colours, {
     pick: 'body/accent', blend: 'smooth', range: [0.2, 0.8],
     rotate: { mod: 'global', name: turn.name, from: 0, to: 1 } });
   const full = { ...L, globals: { macros: Object.fromEntries(Array.from({ length: 16 }, (_, i) =>
     [`macro${i}`, { min: 0, max: 1, value: 0.5 }])) } };
-  assert.equal(automationEdit(full, p, 0.5), null, 'the API macro limit is respected');
+  assert.deepEqual(automationEdit(full, p, 0.5), { error: 'limit' }, 'the API macro limit is respected');
 });
 
 describe('routing', () => {

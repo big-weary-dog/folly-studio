@@ -147,7 +147,7 @@ describe('the bake cache and re-baking evicted frames, through the API', () => {
     fs.writeFileSync(path.join(publicDir, 'index.html'), '<!doctype html><title>t</title>');
     fs.writeFileSync(path.join(publicDir, 'data', 'rig.json'), JSON.stringify(lineRig(100)));
     const renderBox = { config: { seconds: 5 }, probe: async () => ({ ok: true }),
-      async render({ layers }) { renders++; return { bytes: frames(layers[0].code.length) }; } };
+      async render({ layers }) { renders++; return { bytes: frames(layers[0].code.length, 200) }; } };
     app = await createServer({ dataDir: path.join(tmp, 'data'), publicDir, generator: { enqueue() {} }, log: quiet,
       customCode: true, renderBox });
     base = `http://127.0.0.1:${(await app.listen(0)).port}`;
@@ -200,8 +200,8 @@ describe('the bake cache and re-baking evicted frames, through the API', () => {
     assert.equal(renders, before + 1);
     assert.equal((await call('GET', `/api/looks/${look.id}/frames/wire`)).status, 302);
     const now = app.store.looks.get(look.id);
-    assert.deepEqual(now.bake, baked.bake);
-    assert.equal(now.updatedAt, baked.updatedAt, 'the look itself is untouched');
+    assert.deepEqual({ ...now.bake, checkedAt: null }, { ...baked.bake, checkedAt: null });
+    assert.ok(now.bake.checkedAt >= baked.bake.checkedAt, 'the restored bytes were checked again');
   });
 });
 

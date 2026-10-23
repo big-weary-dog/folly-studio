@@ -5,7 +5,7 @@ import { BLUR_MODES, DEFAULT_SOFTEN, MAX_RADIUS } from '../core/spatial.ts';
 import { isStageEnd } from '../core/warps.ts';
 import type { Globals, Layer as Saved, Module, Palette, Soften, SubLayer } from '../../../shared/schemas/look.ts';
 import type { LibraryEntry, ModuleEntry, PresetEntry, Rig, RigGroup } from '../../../shared/schemas/rig.ts';
-import { flatModules } from '../core/tree.ts';
+import { flatModules, mapEvery } from '../core/tree.ts';
 import { randomId } from './kit.tsx';
 
 /** A layer as the Studio holds it (SPEC "Modules"): a chain, never code and params; `enabled: false` when silent. */
@@ -101,12 +101,12 @@ const cleanSoften = (s: unknown): Soften | undefined => {
     mode: BLUR_MODES.includes(o.mode as Soften['mode']) ? o.mode! : 'wire' } : undefined;
 };
 
-/** Copies of modules with fresh ids, filters' inputs following them. */
+/** Copies of the whole module tree with fresh ids; inputs and attachments follow the copies. */
 function cloneModules(modules: Module[]) {
-  const ids = new Map(modules.map((m) => [m.id, randomId('m')]));
-  return modules.map((m) => {
-    const c = { ...cleanModule(m), id: ids.get(m.id) as string };
-    if (c.input) c.input = ids.get(c.input) || c.input;
+  const ids = new Map(flatModules(modules).map((m) => [m.id, randomId('m')]));
+  return mapEvery(modules.map(cleanModule), (m) => {
+    const c = { ...m, id: ids.get(m.id)! };
+    for (const key of ['input', 'on'] as const) if (c[key]) c[key] = ids.get(c[key]) ?? c[key];
     return c;
   });
 }
