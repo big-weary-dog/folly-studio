@@ -244,7 +244,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
       if (!auth.can(user, 'review', look)) throw new HttpError(403, 'Only curators can mark a look reviewed.');
       const override = body.flashOverride ?? '';
       const blocker = body.reviewed && (layersChanged ? 'The code changed. Bake it again first.'
-        : reviewBlocker(look, { override }));
+        : reviewBlocker(look, { override, seconds: bakes.seconds(look) }));
       if (blocker) throw new HttpError(409, blocker);
       Object.assign(patch, { reviewed: body.reviewed, reviewedBy: body.reviewed ? user.username : undefined,
         flashOverride: undefined });

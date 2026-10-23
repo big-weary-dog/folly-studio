@@ -42,7 +42,7 @@ async function startApp() {
   await writeFile(path.join(publicDir, 'index.html'), '<!doctype html><title>t</title>');
   await writeFile(path.join(publicDir, 'data', 'rig.json'), JSON.stringify(lineRig(2)));
   const renderBox = {
-    config: { seconds: 5 },
+    config: { seconds: FRAMES / 40 },
     probe: async () => ({ ok: true }),
     async render({ layers }) {
       const data = bakedData(Number(/seed (\d+)/.exec(layers[0].code)?.[1] ?? 1));
