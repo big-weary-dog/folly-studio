@@ -1,11 +1,9 @@
 // The Studio's panes: toolbar, groups, the 3D view, layers and settings, the bottom dock (code, timeline and look
 // tabs, a fold toggle, the splitter that sizes it), and the phones' tabs. The timeline and the Look panel sit in the
-// dock on a wide screen, and in their own tabs on a phone; Check & bake opens from Export (or the phone's Look tab).
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'preact/hooks';
+// dock on a wide screen; phones keep Layers, Look and More. Check & bake opens from Export on laptop.
+import { useId, useLayoutEffect, useRef, useState } from 'preact/hooks';
 
-import { api } from '../api.ts';
 import { can } from '../../../shared/policy.ts';
-import type { Listed } from '../../../shared/schemas/api.ts';
 import { openBake } from './bake.tsx';
 import { ChainPane } from './chain.tsx';
 import { deleteLook, mayDelete } from './delete-look.ts';
@@ -54,11 +52,9 @@ export function StudioLayout({ st, pv, tl, els }: Props & { els: Record<string, 
         onClick={narrow ? openOnTap(st, ph) : (e) => onSideHead(st, e)}>
         <LayersPane st={st} pv={pv} />{narrow ? <SettingsHead st={st} ph={ph} /> : <SideDivider side={side} />}
         <ChainPane st={st} pv={pv} /></div>
-      <DockPane st={st} pv={pv} tl={tl} />
-      <section class="pane pane-time" data-pane="time" aria-label="Timeline">
-        <div class="pane-body time-body">{narrow && <Timeline st={st} pv={pv} tl={tl} />}</div></section>
-      <LookTab st={st} pv={pv} />
-      {narrow && <MorePane st={st} pv={pv} ph={ph} />}
+      {!narrow && <DockPane st={st} pv={pv} tl={tl} />}
+      {narrow && <LookTab st={st} />}
+      {narrow && <MorePane pv={pv} />}
       <DrawerSlot />
       <div class="sandbox-host" aria-hidden="true" ref={(el) => { if (el) els.sandbox = el; }} />
     </div>);
@@ -232,36 +228,17 @@ function Globals({ st }: { st: Studio }) {
   return <GlobalsPanel st={st} palettes={palettes} />;
 }
 
-/** "Look" tab (narrow screens): what the toolbar and the header hold on a wide screen, and my other looks. */
-function LookTab({ st, pv }: { st: Studio; pv: Preview }) {
-  const narrow = st.narrow.value, [mine, setMine] = useState<Listed[] | null>(null), at = useRef(0);
-  const shown = st.tab.value === 'look';
-  useEffect(() => {        // my looks, newest first, asked for at most every 15 s
-    if (!shown || Date.now() - at.current < 15000) return;
-    at.current = Date.now();
-    api.looks('mine').then(({ looks }) => {
-      const when = (l: Listed) => Date.parse(l.updatedAt || '') || 0;
-      setMine((looks || []).slice().sort((a, b) => when(b) - when(a)).slice(0, 8));
-    }).catch(() => { at.current = 0; });
-  }, [shown]);
-  const id = st.lookId.value;
+/** Phone Look: palette, existing faders, sharing details and an explicit refinement action. */
+function LookTab({ st }: { st: Studio }) {
+  const [refining, setRefining] = useState(false);
   return (
     <section class="pane pane-look" data-pane="look" aria-label="Look"><div class="pane-body look-body">
-      {narrow && <RefinePanel st={st} />}
-      <div class="globals-slot">{narrow && <Globals st={st} />}</div>
+      <div class="globals-slot"><Globals st={st} /></div>
       <Share st={st} cls="share-toggle big" />
-      <Describe st={st} box />
-      <div class="look-actions">
-        <button type="button" class="btn" onClick={() => openBake(st, pv)}>Check & bake</button>
-        {mayPlay() && <button type="button" class="btn" onClick={() => playOnLights(st)}>Play on the lights</button>}
-        <button type="button" class="btn" onClick={() => exporter().then((m) => m.exportJson(st))}>
-          Export look JSON</button>
-      </div>
-      <h3 class="look-h">My looks</h3>
-      <ul class="mini-list">{mine && (mine.length ? mine.map((lk) => <li>
-        <a href={`/studio/${encodeURIComponent(lk.id)}`} aria-current={lk.id === id ? 'page' : undefined}>
-          {lk.title || 'Untitled look'}</a></li>) : <li class="pane-hint">Nothing saved yet.</li>)}</ul>
-      <p class="look-links">
-        {ai.value && <a href="/ideas">Ideas</a>}<a href="/looks">All my looks</a><a href="/gallery">Gallery</a></p>
+      <details class="phone-share-details"><summary>Share details</summary><Describe st={st} box /></details>
+      {ai.value && !st.copyOnSave.value && st.server.value && <>
+        <button type="button" class="btn" aria-expanded={refining}
+          onClick={() => setRefining(!refining)}>Refine with AI</button>
+        {refining && <RefinePanel st={st} />}</>}
     </div></section>);
 }
