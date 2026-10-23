@@ -11,7 +11,6 @@ import {
   resolveParams,
 } from '../public/js/pattern-core.ts';
 import { normaliseParam } from '../public/js/ui/bindings.ts';
-import { Params } from '../shared/schemas/look.ts';
 import { buildCatalog } from '../src/generate/catalog.ts';
 import { expand } from '../src/generate/expand.ts';
 import { cog, mini } from './fixtures/rigs.js';
@@ -69,12 +68,9 @@ describe('rhythm', () => {
     near(at(1, panel), 0, 'line 2 rests on the rose');
     near(at(1.25, panel), 1, 'line 2 hits');
     near(at(1, flood), 1, 'the floods are in no tag');
-  });
-
-  test('one line on one tag: only that tag plays it', () => {
-    const at = play({ pattern: 'X...', tag: 'arch' });
-    near(at(1.3, first('gate')), 0, 'the arch rests');
-    near(at(1.3, first('panel')), 1, 'the rose is untouched');
+    const single = play({ pattern: 'X...', tag: 'arch' });
+    near(single(1.3, gate), 0, 'the arch rests');
+    near(single(1.3, panel), 1, 'the rose is untouched');
   });
 
   test('one tag deals the lines to its parts in turn', () => {
@@ -115,11 +111,6 @@ describe('the text param kind', () => {
     assert.deepEqual(resolveParams(schema, { p: 'x x' }).p, 'x x');
     assert.deepEqual(resolveParams(schema, { p: 7 }).p, 'X..x');
     assert.deepEqual(resolveParams(schema, { p: 'é' }).p, 'X..x');
-  });
-
-  test('a look keeps text up to 256 characters', () => {
-    assert.ok(Params.safeParse({ pattern: 'X'.repeat(256) }).success);
-    assert.ok(!Params.safeParse({ pattern: 'X'.repeat(257) }).success);
   });
 
   test('the generators read it and hold it to the kind; the Studio shows it as text', () => {

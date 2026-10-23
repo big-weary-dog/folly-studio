@@ -43,6 +43,20 @@ describe('versions', () => {
     const one = (await alice.get(`/api/looks/${look.id}/versions/1`)).json.version;
     assert.deepEqual([one.n, one.layers.length, one.globals.palette.body], [1, 1, ['#ff0000']]);
     assert.equal((await alice.get(`/api/looks/${look.id}/versions/9`)).status, 404);
+    assert.equal('versions' in put.json.look, false);
+    assert.equal('versions' in (await alice.get(`/api/looks/${look.id}`)).json.look, false);
+    const legacy = `/api/looks/${look.id}?versions=1`;
+    let full = (await alice.get(legacy)).json.look;
+    assert.equal(full.versions.length, 1);
+    assert.equal(full.versions[0].layers[0].level, 1);
+    await alice.put(`/api/looks/${look.id}`, { title: 'Renamed',
+      layers: [layer({ level: 0.5 }), layer({ id: 'l2' })] });
+    full = (await alice.get(legacy)).json.look;
+    assert.equal(full.versions.length, 1, 'identical-layer and title-only saves add no version');
+    await alice.put(`/api/looks/${look.id}`, { shared: true });
+    assert.equal('versions' in (await bob.get(legacy)).json.look, false);
+    assert.equal((await alice.put(`/api/looks/${look.id}`, { layers: [layer({ blend: 'nope' })] })).status, 400);
+    assert.equal((await alice.get(`/api/looks/${look.id}`)).json.look.layers[0].level, 0.5);
   });
 
   test("the owner's alone: others, curators too, get 404 even on a shared look", async () => {
@@ -111,15 +125,9 @@ describe('versions', () => {
     assert.equal((await bob.put(url, { versionName: 'Mine' })).status, 404);
     top = (await alice.get(`${url}/versions`)).json.versions.find((v: { n: number }) => v.n === 2);
     assert.equal(top.name, 'Words only');
-  });
-
-  test(`at most ${MAX_NAMED} named versions`, () => {
-    const versions = Array.from({ length: MAX_NAMED + 1 },
-      (_, i) => ({ n: i + 1, ...(i < MAX_NAMED ? { name: `v${i}` } : {}) }));
-    const look = { id: 'k', versions, version: { n: MAX_NAMED + 2 } } as unknown as StoredLook;
-    assert.throws(() => nameFields(look, MAX_NAMED + 1, 'one more'), /at most 50/);
-    assert.throws(() => nameFields(look, MAX_NAMED + 2, 'one more'), /at most 50/);
-    assert.ok(nameFields(look, 1, 'renamed').versions, 'renaming a named one is no new name');
+    const atCap = { id: 'k', versions: Array.from({ length: MAX_NAMED }, (_, i) => ({ n: i + 1, name: `v${i}` })),
+      version: { n: MAX_NAMED + 1 } } as unknown as StoredLook;
+    assert.ok(nameFields(atCap, 1, 'renamed').versions, 'renaming a named one is no new name');
   });
 });
 

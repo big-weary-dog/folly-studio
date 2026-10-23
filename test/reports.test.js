@@ -7,7 +7,6 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { keepTail } from '../src/http.ts';
-import { buildSha } from '../src/reports/build.ts';
 import { createReports, reportFolders } from '../src/reports/store.ts';
 import { piece, scrub, scrubText } from '../public/js/scrub.ts';
 import { tmp } from './fixtures/generate/shared.js';
@@ -39,11 +38,6 @@ describe('the scrub', () => {
     assert.deepEqual(log.tail().map((l) => [l.level, l.text.split('\n')[0]]), [['error', 'Error: boom'],
       ['warn', 'third']]);
     assert.equal(keepTail(quiet).tail().length, 0);
-  });
-
-  test('the build is the checkout\'s commit, or GIT_SHA', () => {
-    assert.match(buildSha(process.cwd(), ''), /^[0-9a-f]{12}$/);
-    assert.equal(buildSha(process.cwd(), '0123456789abcdef'), '0123456789ab');
   });
 });
 

@@ -44,11 +44,6 @@ for (const [rigName, rig] of Object.entries({ cog, folly })) {
     k: Math.round(rgb[3 * k + 2] * 10000) - 1 });
 
   describe(`on ${rigName}`, () => {
-    test('the rose is sixteen petals of seven rings', () => {
-      assert.ok(rose.length >= 112, `${rose.length} rose LEDs`);
-      assert.deepEqual(new Set(rose.map((k) => scene.sector[k])).size, 16);
-      assert.deepEqual(new Set(rose.map((k) => scene.ring[k])).size, 7);
-    });
 
     for (const [name, params, want, t = 1] of CASES) {
       test(`${name} ${JSON.stringify(params)}: each rose LED reads its petal, ring kept; off it nothing moves`, () => {

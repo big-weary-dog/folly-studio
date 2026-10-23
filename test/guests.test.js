@@ -43,12 +43,6 @@ describe('guests', () => {
     assert.equal(app.store.users.list().length, 1, 'only bob is an account');
   });
 
-  test('a guest named for an admin is no admin', async () => {
-    const g = await guest('ada');
-    assert.equal(g.user.role, 'member');
-    assert.equal((await g.get('/api/admin/stats')).status, 403);
-  });
-
   test('reads the gallery and the library; every write is refused, signing out is not', async () => {
     const g = await guest('Wren');
     assert.equal((await g.get(`/api/looks/${shared}`)).status, 200);

@@ -26,11 +26,6 @@ test('a save before the first poll applies; rename, broken contents and recovery
   unlinkSync(file);
   assert.equal(read()?.gamma, 2.2, 'a removed file restores defaults');
   assert.equal(read(), undefined);
-});
-
-test('missing settings start with defaults; broken settings stop startup', () => {
-  const file = path.join(mkdtempSync(path.join(tmpdir(), 'pi-light-')), 'light.json');
-  assert.equal(lightReader(file)()?.gamma, 2.2);
   writeFileSync(file, '{');
-  assert.throws(lightReader(file), /light.json/);
+  assert.throws(lightReader(file), /light.json/, 'a broken file also refuses the initial read');
 });

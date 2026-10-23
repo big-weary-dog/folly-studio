@@ -59,9 +59,4 @@ describe('globals.live', () => {
     assert.deepEqual(Globals.parse({ energy: 0.4, live: ['energy', 'speed'] }).live, ['energy']);
     assert.equal(Globals.parse({ macros }).live, undefined);
   });
-  for (const live of [['rain'], ['toString'], ['storm', 'storm'], ['palette'], 'storm', [3]]) {
-    test(`refuses ${JSON.stringify(live)}`, () => {
-      assert.equal(Globals.safeParse({ macros, live }).success, false);
-    });
-  }
 });

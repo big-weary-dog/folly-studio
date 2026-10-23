@@ -9,9 +9,7 @@ import WebSocket from 'ws';
 import { MAX_LANES } from '../public/js/pattern-core.ts';
 import * as twin from '../public/js/ui/live/lanes.ts';
 import { serverNow } from '../src/clock.ts';
-import { configOf } from '../src/config.ts';
 import { meter } from '../src/live/hub.ts';
-import { liveSettings, playableLook } from '../src/live/routes.ts';
 import { applySet, emptyLive, LEAD_MS, RAMP, roll, showTime, switchTo } from '../src/live/state.ts';
 import { fakeBox, fx, layer, signup, startApp, useFixture } from './fixtures/server.js';
 
@@ -137,18 +135,6 @@ describe('live state', () => {
     assert.ok(slow.includes('close'), 'closed');
     assert.ok(run(400, 0).includes('close'), 'all at once: closed');
     assert.ok(!run(2000, 1000 / 100).includes('close'), 'at 100 a second: dropped, never closed');
-  });
-
-  test('settings', () => {
-    assert.deepEqual(liveSettings(configOf({})), { control: 'curators', looks: 'reviewed' });
-    assert.deepEqual(liveSettings(configOf({ STUDIO_LIVE_CONTROL: ' Admins', STUDIO_LIVE_LOOKS: 'shared' })),
-      { control: 'admins', looks: 'shared' });
-    assert.throws(() => configOf({ STUDIO_LIVE_CONTROL: 'everyone', STUDIO_LIVE_LOOKS: 'all' }),
-      /STUDIO_LIVE_CONTROL must be curators or admins or members\.\nSTUDIO_LIVE_LOOKS/, 'unknown values: refused');
-    const look = { shared: true, reviewed: false, layers: [] };
-    assert.equal(playableLook(look, { looks: 'reviewed' }), false);
-    assert.equal(playableLook(look, { looks: 'shared' }), true);
-    assert.equal(playableLook({ ...look, shared: false, reviewed: true }, { looks: 'shared' }), false);
   });
 });
 

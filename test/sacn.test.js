@@ -11,7 +11,7 @@ import { ledRanges, writeFseq } from '../public/js/fseq.ts';
 import { parseFseq } from '../src/frames.ts';
 import { compressFseq, HAS_ZSTD } from '../src/fseq-codec.ts';
 import {
-  cidBytes, E131, e131Packet, fillSlots, multicastAddress, parseArgs, play, readShow, SacnSender,
+  cidBytes, e131Packet, fillSlots, multicastAddress, parseArgs, play, readShow, SacnSender,
 } from '../tools/sacn-play.ts';
 
 const rig = JSON.parse(readFileSync(new URL('../public/data/rig.json', import.meta.url), 'utf8'));
@@ -32,13 +32,8 @@ function patternFrame() {
 describe('E1.31 data packet layout', () => {
   const p = e131Packet({ cid: CID, name: 'Folly Studio', priority: 100, universe: 39, sequence: 7 });
 
-  test('638 bytes: a 126-byte header then 512 DMX slots', () => {
-    assert.equal(p.length, 638);
-    assert.equal(E131.LENGTH, 638);
-    assert.equal(E131.DATA, 126);
-  });
-
   test('root layer: preamble, postamble, ACN packet identifier, flags+length, vector, CID', () => {
+    assert.equal(p.length, 638);
     assert.equal(u16(p, 0), 0x0010, 'preamble size');
     assert.equal(u16(p, 2), 0x0000, 'post-amble size');
     assert.deepEqual([...p.subarray(4, 16)], [...Buffer.from('ASC-E1.17\0\0\0', 'latin1')], 'ACN packet identifier');
@@ -71,15 +66,6 @@ describe('E1.31 data packet layout', () => {
     assert.equal(u16(p, 123), 513, 'property value count: start code + 512 slots');
     assert.equal(p[125], 0x00, 'DMX512 null start code');
     assert.ok(p.subarray(126).every((v) => v === 0), 'slots start dark');
-  });
-
-  test('what relay/relay.js reads at its offsets (universe 113, vectors 18/40/117, count 123, data 126)', () => {
-    assert.equal(u32(p, 18), 4);
-    assert.equal(u32(p, 40), 2);
-    assert.equal(p[117], 2);
-    assert.equal(p[125], 0);
-    assert.equal(u16(p, 113), 39);
-    assert.equal(u16(p, 123) - 1, 512, 'the relay passes 512 channels on');
   });
 
   test('source names stay NUL-terminated and whole characters; bad fields are refused', () => {

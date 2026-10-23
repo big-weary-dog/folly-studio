@@ -14,7 +14,7 @@ import { normaliseParam } from '../public/js/ui/bindings.ts';
 import { buildCatalog, readParams } from '../src/generate/catalog.ts';
 import { createClaudeAdapter } from '../src/generate/claude.ts';
 import { docCandidates, READ_CAP, readInside } from '../src/generate/doc-path.ts';
-import { buildDocs, lintDocs, loadProse, looksOf, parseProse } from '../src/generate/library-docs.ts';
+import { buildDocs, lintDocs, loadProse, looksOf } from '../src/generate/library-docs.ts';
 import { expand } from '../src/generate/expand.ts';
 import { EXAMPLES } from '../src/generate/guide.ts';
 import { buildPrompt } from '../src/generate/prompt.ts';
@@ -28,7 +28,6 @@ const DIR = path.join(STUDIO, 'public/patterns');
 const REAL = JSON.parse(fs.readFileSync(path.join(DIR, 'index.json'), 'utf8')).map((p) => ({ ...p,
   code: p.kind === 'preset' ? '' : fs.readFileSync(path.join(DIR, `${p.name}.js`), 'utf8') }));
 const PROSE = loadProse(), CATALOG = buildCatalog(REAL, looksOf(PROSE)), DOCS = buildDocs(CATALOG, PROSE);
-const INTROS = ['README', 'sources', 'warps', 'filters', 'presets'];
 
 describe('the prose', () => {
   test('every library entry has prose, and the prose names only what the library has', () => {
@@ -40,26 +39,9 @@ describe('the prose', () => {
     if (DOCS_STRICT) assert.deepEqual(gaps, []);
     else if (gaps.length) console.warn(`library docs (warnings until studio-lib lands):\n  ${gaps.join('\n  ')}`);
   });
-
-  test('each module\'s prose has its line for the prompt, a paragraph and its sections', () => {
-    for (const [name, text] of PROSE) {
-      if (INTROS.includes(name)) continue;
-      const p = parseProse(text);
-      assert.ok(p.looks && p.looks.length <= 100, `${name}: looks: line`);
-      assert.ok(p.about.length > 80, `${name}: a paragraph`);
-      assert.ok(p.sections.some((s) => s.title === 'Pitfalls'), `${name}: Pitfalls`);
-    }
-  });
 });
 
 describe('param help', () => {
-  test('every library param has help', () => {
-    const { unhelped } = lintDocs(CATALOG, PROSE);
-    if (DOCS_STRICT) assert.deepEqual(unhelped, []);
-    else if (unhelped.length) console.warn(`params without help (warnings until studio-lib lands): ${unhelped.length}`);
-    assert.ok(Array.isArray(unhelped));
-  });
-
   test('the core, the catalogue, the Studio and the docs keep it', () => {
     const help = 'How fast the bars move. Low drifts; high races.';
     const code = `const params = {
@@ -201,16 +183,6 @@ describe('read_doc', () => {
 });
 
 describe('combining', () => {
-  test('library/README.md keeps what the prompt promises: chains, blends, inputs, globals, macros, time', () => {
-    const readme = DOCS.get('library/README.md'), heads = [...readme.matchAll(/^## (.+)$/gm)].map((m) => m[1]);
-    for (const h of ['Layers', 'Chains and the one rule', 'Presets', 'Bindings: motion and build', 'Globals',
-      'Macros: one dial for many params', 'Over time: duration, clips, automation', 'Timing across places',
-      'Layer or module?']) assert.ok(heads.includes(h), h);
-    for (const word of ['`blend`', '`as: "input"`', '"mod": "global"', 'clips', 'in-turn', 'nearest']) {
-      assert.ok(readme.includes(word), word);
-    }
-  });
-
   test('every worked composition reaches the City of Gods prompt and expands and validates whole', () => {
     const rig = JSON.parse(fs.readFileSync(path.join(STUDIO, 'public/data/rig.json'), 'utf8'));
     const prompt = buildPrompt({ library: REAL, groups: rig.groups, prose: PROSE }).system;

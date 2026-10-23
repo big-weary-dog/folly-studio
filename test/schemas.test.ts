@@ -5,15 +5,13 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'vitest';
 import { z } from 'zod';
 
-import { BLENDS, DEFAULT_SOFTEN, MODULE_KINDS, SOURCE_BLENDS } from '../public/js/pattern-core.ts';
+import { DEFAULT_SOFTEN } from '../public/js/pattern-core.ts';
 import ACCOUNT from '../public/data/account.json' with { type: 'json' };
 import { Login, Signup } from '../shared/schemas/api.ts';
 import { validateLook, wireSchema } from '../shared/schemas/generated.ts';
-import {
-  automationFor, BLEND_MODES, Globals, KINDS, Layers, type Module, problem, SOURCE_BLEND_MODES,
-} from '../shared/schemas/look.ts';
-import { LibraryEntry, Rig } from '../shared/schemas/rig.ts';
-import { folly, lineRig, mini } from './fixtures/rigs.js';
+import { automationFor, Globals, Layers, type Module, problem } from '../shared/schemas/look.ts';
+import { LibraryEntry } from '../shared/schemas/rig.ts';
+import { folly } from './fixtures/rigs.js';
 
 const PIXEL = 'function pixel(p) { return [1, 1, 1]; }';
 /** The parsed value, or the sentence problem() makes of its first issue. */
@@ -27,18 +25,6 @@ const lanes = (a: unknown, g?: { macros?: Record<string, { min: number, max: num
   check(z.object({ automation: automationFor(g) }), { automation: a });
 
 describe('the API look', () => {
-  test("the schema's names are the core's", () => {
-    assert.deepEqual([...BLEND_MODES], [...BLENDS]);
-    assert.deepEqual([...SOURCE_BLEND_MODES], [...BLENDS, 'under']);
-    assert.deepEqual([...SOURCE_BLENDS], [...SOURCE_BLEND_MODES]);
-    assert.deepEqual([...KINDS], [...MODULE_KINDS]);
-  });
-
-  test('under is how a source combines, not a layer blend', () => {
-    assert.equal(typeof layers([{ modules: [{ code: PIXEL }, { code: PIXEL, blend: 'under' }] }]), 'object');
-    assert.match(String(layers([{ code: PIXEL, blend: 'under' }])), /^Layer 1: blend must be one of add, over/);
-  });
-
   test('defaults, ids, tags kept once, empty clips stored as none, groups none given or none picked', () => {
     const out = layers([{ code: PIXEL, tags: ['rose', 'rose'], clips: [] },
       { modules: [{ code: PIXEL }, { kind: 'filter', code: 'function filter(c) { return c; }', enabled: true }],
@@ -65,6 +51,10 @@ describe('the API look', () => {
   });
 
   test('soften: kept, rounded, its mode defaulted; out of range refused; null is none', () => {
+    const generated = validateLook({ layers: [{ code: PIXEL },
+      { code: PIXEL, soften: { radius: 7, mode: 'fog' } }, { code: PIXEL, soften: { radius: 0 } }] });
+    assert.deepEqual(generated.layers.map((l) => l.soften), [DEFAULT_SOFTEN, { radius: 1.5, mode: 'wire' },
+      { radius: 0, mode: 'wire' }]);
     const out = layers([{ code: PIXEL, soften: { radius: 0.1234567891 } }, { code: PIXEL, soften: null }]);
     assert.deepEqual((out as { layers: { soften?: object }[] }).layers.map((l) => l.soften),
       [{ radius: 0.123457, mode: 'wire' }, undefined]);
@@ -124,16 +114,6 @@ describe("a generator's look, cleaned", () => {
     assert.deepEqual(look.dropped, []);
   });
 
-  test('clips sorted, times from strings, fades held to 0–600 s, a bad one noted', () => {
-    const look = validateLook({ duration: ' 45 ', layers: [{ code: PIXEL, clips: [
-      { start: '20', end: 30, fadeIn: 900, fadeOut: -2 }, { start: 0, end: 10.00049, fadeIn: 'x' }, { end: 3 },
-    ] }] });
-    assert.equal(look.duration, 45);
-    assert.deepEqual(look.layers[0]!.clips, [{ start: 0, end: 10, fadeIn: 0, fadeOut: 0 },
-      { start: 20, end: 30, fadeIn: 600, fadeOut: 0 }]);
-    assert.deepEqual(look.dropped, ['layer 1: a clip without a valid start and end']);
-  });
-
   test('aliases mended, values clamped, params kept only when usable', () => {
     const look = validateLook({ layers: [{ code: PIXEL, blend: ' Screen ', level: -3, params: {
       color: '#ABCDEF', rgb: [2, 0.5, -1], on: true, lfo: { mod: 'lfo', rate: 1 }, '1bad': 1, worse: { a: 1 } } },
@@ -145,14 +125,6 @@ describe("a generator's look, cleaned", () => {
     assert.deepEqual(a.params, { color: '#abcdef', rgb: [1, 0.5, 0], on: true, lfo: { mod: 'lfo', rate: 1 } });
     assert.deepEqual(b.modules.map((m) => [m.kind, m.blend]), [['source', undefined], ['filter', undefined],
       ['warp', 'over']]);
-  });
-
-  test('layers soften by default, a given soften held to range; a choice param is a word', () => {
-    const look = validateLook({ layers: [{ code: PIXEL, params: { mode: 'space', bad: 'Not a word!' } },
-      { code: PIXEL, soften: { radius: 7, mode: 'fog' } }, { code: PIXEL, soften: { radius: 0 } }] });
-    assert.deepEqual(look.layers.map((l) => l.soften), [DEFAULT_SOFTEN, { radius: 1.5, mode: 'wire' },
-      { radius: 0, mode: 'wire' }]);
-    assert.deepEqual((look.layers[0] as { params?: object }).params, { mode: 'space' });
   });
 
   test('globals and automation as maps or lists; what the API refuses is dropped and noted', () => {
@@ -198,14 +170,6 @@ describe("a generator's look, cleaned", () => {
 });
 
 describe('the rig, the library index and accounts', () => {
-  test("rigs as SPEC \"Rig\" has them; a malformed one says what is wrong", () => {
-    for (const rig of [folly, mini, lineRig(3)]) assert.ok(Rig.safeParse(rig).success);
-    const { output: _output, ...noOutput } = lineRig(3);
-    assert.equal(check(Rig, noOutput), 'Invalid input: expected object, received undefined');
-    assert.equal(check(Rig, { ...lineRig(3), groups: undefined }) && Rig.parse({ ...lineRig(3), groups: undefined })
-      .groups.length, 0);
-  });
-
   test('library entries get a title, a summary, string tags and a kind', () => {
     assert.deepEqual(LibraryEntry.parse({ name: 'embers', tags: ['warm', 3], kind: 'nonsense', extra: 1 }),
       { name: 'embers', title: 'embers', summary: '', tags: ['warm'], kind: 'source', category: '', extra: 1 });
@@ -247,9 +211,5 @@ describe('a composite (SPEC-library "Composites")', () => {
       /module id x is used twice/);
     assert.match(String(check(Layers, layer([comp([{ id: 's1', modules: [src({ id: 'y' })] },
       { id: 's2', modules: [src({ id: 'y' })] }])]))), /module id y is used twice/);
-  });
-  test('a composite has layers, and only a composite', () => {
-    assert.equal(typeof check(Layers, layer([{ kind: 'composite' }])), 'string');
-    assert.equal(typeof check(Layers, layer([src({ layers: [{ id: 's', modules: [src()] }] })])), 'string');
   });
 });

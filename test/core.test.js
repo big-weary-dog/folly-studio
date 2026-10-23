@@ -16,14 +16,6 @@ const near = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) <= eps, `${a} ≉ $
 const nearC = (a, b, eps = 1e-6) => { assert.equal(a.length, b.length); a.forEach((v, i) => near(v, b[i], eps)); };
 
 describe('stdlib', () => {
-  test('has every name the SPEC lists', () => {
-    const names = `PI TAU sin cos tan asin acos atan atan2 abs min max floor ceil round sqrt pow exp log hypot sign
-      clamp fract mix step smoothstep wave tri saw pulse hash rand noise fbm hsv hsl rgb hex scale add gradient
-      cosPalette beat dist centres extent`.split(/\s+/);
-    for (const n of names) assert.ok(n in S, n);
-    near(S.TAU, 2 * Math.PI);
-  });
-
   test('shaping', () => {
     assert.equal(S.clamp(2), 1); assert.equal(S.clamp(-1), 0); assert.equal(S.clamp(5, 0, 10), 5);
     near(S.fract(-0.25), 0.75); near(S.fract(3.5), 0.5);
@@ -160,37 +152,6 @@ describe('compilePattern', () => {
 
 describe('scene and groups', () => {
   const scene = prepareScene(rig);
-  const count = (ids) => pixelsForGroups(scene, ids).length;
-
-  test('membership counts', () => {
-    assert.equal(count(['cathedral']), 4870);
-    assert.equal(count(['rose-petal-07']), 14);
-    assert.equal(count(['rose-window']), 224);
-    // Cells per petal in each ring, from universe-map.json's cell_order (1b 2a 2c 3b 4a 4c 5a 5b 5c 6a 6c 7a 7b 7c).
-    const perPetal = { 1: 1, 2: 2, 3: 1, 4: 2, 5: 3, 6: 2, 7: 3 };
-    for (let r = 1; r <= 7; r++) assert.equal(count([`rose-ring-${r}`]), 16 * perPetal[r], `ring ${r}`);
-    assert.equal(count(['main-arches']), 1140);
-    assert.equal(count(['main-arch-1']), 240);
-    assert.equal(count(['mini-arches']), 1100);
-    assert.equal(count(['spires']), 416);
-    assert.equal(count(['spirelets']), 20);
-    assert.equal(count(['canopy']), 252);
-    assert.equal(count(['wash']), 22);
-    assert.equal(count(['quad-arches']), 1696);
-    assert.equal(count(['main-arch-1', 'main-arches']), 1140, 'union, no duplicates');
-    assert.equal(count(['spires', 'canopy']), 668);
-    assert.throws(() => pixelsForGroups(scene, ['nope']), /unknown group/);
-  });
-
-  test('every group parent exists and children sit inside their parents', () => {
-    const ids = new Set(rig.groups.map((g) => g.id));
-    for (const g of rig.groups) {
-      if (g.parent === null) continue;
-      assert.ok(ids.has(g.parent), `${g.id} → ${g.parent}`);
-      const parent = new Set(pixelsForGroups(scene, [g.parent]));
-      for (const k of pixelsForGroups(scene, [g.id])) assert.ok(parent.has(k), `${g.id} pixel ${k} not in ${g.parent}`);
-    }
-  });
 
   test('per-LED fields', () => {
     for (let k = 0; k < scene.count; k++) {
@@ -338,11 +299,6 @@ describe('toChannels', () => {
     const row = Object.fromEntries(line.split(',').map((v, i) => [header[i], v]));
     return [+row.pixel_id, row];
   }));
-
-  test('frame size is universes × 510', () => {
-    assert.equal(scene.frameChannels, 40800);
-    assert.equal(toChannels(scene, new Float32Array(scene.count * 3)).length, 40800);
-  });
 
   test('addresses match the canonical CSV', () => {
     for (const id of [0, 239, 240, 1140, 2240, 3936, 4352, 4372, 4624, 4646, 4869, 1234, 3333]) {

@@ -27,8 +27,6 @@ describe('the rule', () => {
     assert.equal(standardTitle({ ref: 'set' }, LIB), undefined);      // a preset is no module
     assert.equal(standardTitle({ ref: 'gone' }, LIB), undefined);
     assert.equal(standardTitle({}, LIB), undefined);
-  });
-  test('keepStandardTitles puts a standard name back and leaves the rest as they were', () => {
     const mods = [std('Renamed'), own('Mine')], out = keepStandardTitles(mods, LIB);
     assert.deepEqual(out.map((m) => m.title), [STREAKS, 'Mine']);
     assert.equal(out[1], mods[1]);

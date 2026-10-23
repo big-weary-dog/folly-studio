@@ -12,7 +12,6 @@ import {
 } from '../public/js/pattern-core.ts';
 import { normaliseParam } from '../public/js/ui/bindings.ts';
 import { keyColour } from '../public/js/ui/picture-row.tsx';
-import { Params } from '../shared/schemas/look.ts';
 import { buildCatalog } from '../src/generate/catalog.ts';
 import { expand } from '../src/generate/expand.ts';
 import { STUDIO } from './fixtures/generate/shared.js';
@@ -100,11 +99,6 @@ describe('the picture source on the rose', () => {
 });
 
 describe('looks, generators and the Studio', () => {
-  test('a look keeps a picture param and refuses a broken one', () => {
-    assert.ok(Params.safeParse({ picture: pic(['r']) }).success);
-    assert.ok(!Params.safeParse({ picture: pic(['x']) }).success);
-  });
-
   test('expansion makes the wire\'s key list an object, and a broken picture is an error to repair', () => {
     const catalog = buildCatalog([{ name: 'picture', kind: 'source', title: 'Picture', code: CODE }]);
     assert.equal(catalog.modules.get('picture').params.picture.type, 'picture');

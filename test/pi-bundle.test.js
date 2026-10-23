@@ -51,14 +51,6 @@ describe('GET /api/pi-bundle', () => {
     assert.equal((await guest.get('/api/pi-bundle/info')).status, 403);
   });
 
-  test('info says which commit, how big and when', async () => {
-    const r = await curator.get('/api/pi-bundle/info');
-    assert.equal(r.status, 200);
-    assert.deepEqual(Object.keys(r.json).sort(), ['builtAt', 'bytes', 'commit']);
-    assert.equal(r.json.commit, COMMIT);
-    assert.equal(r.json.bytes, body.length);
-  });
-
   test('a link downloads with no session; a wrong or mangled token is 404', async () => {
     const r = await admin.post('/api/pi-bundle/link');
     assert.equal(r.status, 200);

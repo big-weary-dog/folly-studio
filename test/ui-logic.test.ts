@@ -213,6 +213,9 @@ describe('modulation', () => {
     assert.equal(beatsAt(120, clouds), 2, '2 beats a second at 120');
     assert.equal(beatsAt(120, often), 120, 'a minute\'s');
     assert.equal(bindingForm({ mod: 'beats', per: 0.075 }, clouds, globals).per, '0.075');
+    const f = { ...bindingForm({}, clouds, ['energy']), mod: 'beats' as const, per: '0.5' };
+    assert.deepEqual(makeBinding(f, clouds), { mod: 'beats', per: 0.5 });
+    assert.equal(bindingText({ mod: 'beats', per: 0.5 }), '♩ 0.5 a beat');
     assert.deepEqual(['Speed (clouds a second)', 'How often (flashes a minute)', 'Drops (a second)'].map(perBeat),
       ['Speed (clouds a beat)', 'How often (flashes a beat)', 'Drops (a beat)'], 'the label reads per beat');
   });
@@ -342,6 +345,11 @@ describe('the timeline on the Studio\'s state', () => {
     assert.equal(tl.step(), 0.6);
     tl.setBpm(null);
     assert.deepEqual([st.look.peek().bpm, tl.snap.peek(), tl.step()], [null, 'grid', 0.25]);
+    tl.setBpm(120);
+    tl.setSnap('beat');
+    assert.equal(tl.step(), 0.5);
+    tl.setSnap('off');
+    assert.equal(tl.step(), 0);
   });
 
   test('importing a look appends it after this one, and says why when it cannot', () => {

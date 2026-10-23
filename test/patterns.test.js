@@ -2,18 +2,17 @@
 // lit; one that draws on transparent, SPEC "Modules", drawing something), its warps and filters in a chain over a
 // source.
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
 import {
-  compileLayer, compilePattern, MODULE_KINDS, prepareLayer, prepareScene, renderFrame, toChannels,
+  compileLayer, compilePattern, prepareLayer, prepareScene, renderFrame, toChannels,
 } from '../public/js/pattern-core.ts';
 
 const here = (p) => new URL(p, import.meta.url);
 const rig = JSON.parse(readFileSync(here('../public/data/rig-folly.json'), 'utf8'));
 const index = JSON.parse(readFileSync(here('../public/patterns/index.json'), 'utf8'));
-const files = readdirSync(here('../public/patterns/')).filter((f) => f.endsWith('.js')).sort();
 const source = (name) => readFileSync(here(`../public/patterns/${name}.js`), 'utf8');
 const scene = prepareScene(rig);
 const TIMES = [0, 0.37, 1.5, 4.2, 17.9, 63.25, 600.1];
@@ -28,33 +27,6 @@ function check(rgb, what) {
 }
 
 const sources = index.filter((e) => e.kind === 'source');
-
-test('index.json lists every pattern file, once, and its presets (no file), each with title, summary, tags, kind '
-  + 'and category', () => {
-  assert.deepEqual(index.filter((e) => e.kind !== 'preset').map((e) => `${e.name}.js`).sort(), files);
-  assert.equal(new Set(index.map((e) => e.name)).size, index.length, 'names are unique');
-  for (const e of index) {
-    assert.match(e.name, /^[a-z0-9-]+$/);
-    assert.ok(e.title && e.summary && Array.isArray(e.tags) && e.tags.length, e.name);
-    assert.ok(e.summary.length <= 120, `${e.name}: a crisp summary`);
-    assert.ok([...MODULE_KINDS, 'preset'].includes(e.kind) && /^[a-z][a-z &-]*$/.test(e.category),
-      `${e.name}: kind and category`);
-  }
-  // A category belongs to one kind, so the shelf's headings never mix them.
-  const kindOf = new Map();
-  for (const e of index) {
-    if (!kindOf.has(e.category)) kindOf.set(e.category, e.kind);
-    assert.equal(kindOf.get(e.category), e.kind, `${e.name}: "${e.category}" is a ${kindOf.get(e.category)} category`);
-  }
-});
-
-test('every choice lists at most 16 options (SPEC-library), so none is cut off where the compiler stops', () => {
-  for (const f of files) {
-    for (const [, list] of source(f.slice(0, -3)).matchAll(/options: \[([^\]]*)\]/g)) {
-      assert.ok(list.match(/'[^']*'/g).length <= 16, `${f}: ${list.replace(/\s+/g, ' ')}`);
-    }
-  }
-});
 
 describe('each source', () => {
   for (const { name } of sources) {

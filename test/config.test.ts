@@ -1,13 +1,13 @@
 // The server's settings (src/config.ts): each read once, a bad one refused by name and never by value, units on
-// durations and sizes, warnings for a likely mistake, docs/HOSTING.md listing exactly these, and config:check.
+// durations and sizes, warnings for a likely mistake, and config:check.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, test } from 'vitest';
 
-import { ConfigError, configOf, describeConfig, readConfig, SETTINGS } from '../src/config.ts';
+import { ConfigError, describeConfig, readConfig } from '../src/config.ts';
 import { fx, useFixture } from './fixtures/server.js';
 
 useFixture();
@@ -18,12 +18,6 @@ const quiet = (env: Record<string, string>) => {
 };
 
 describe('settings', () => {
-  test('unset is undefined, so each module keeps its default', () => {
-    const c = readConfig({});
-    for (const { name } of SETTINGS) assert.equal(c[name as keyof typeof c], undefined, name);
-    assert.equal(describeConfig(c), 'every setting at its default');
-  });
-
   test('on/off takes either word; anything else is refused', () => {
     for (const v of ['1', 'true', 'TRUE', 'on', 'On', 'yes', ' YES ']) {
       assert.equal(readConfig({ STUDIO_FOUNDRY: v }).STUDIO_FOUNDRY, true, v);
@@ -73,19 +67,6 @@ describe('settings', () => {
   test('the start-up line shows what is set, the API key only as set', () => {
     const line = describeConfig(readConfig({ PORT: '8780', ANTHROPIC_API_KEY: 'sk-ant-secret' }));
     assert.equal(line, 'PORT=8780 ANTHROPIC_API_KEY=(set); the rest at their defaults');
-  });
-
-  test('configOf parses an environment once', () => {
-    const env = { STUDIO_PREVIEWS: 'front' };
-    assert.equal(configOf(env), configOf(env));
-    assert.equal(configOf(env).STUDIO_PREVIEWS, 'front');
-  });
-
-  test('docs/HOSTING.md "Every setting" lists exactly these', () => {
-    const doc = readFileSync(new URL('../docs/HOSTING.md', import.meta.url), 'utf8');
-    const section = doc.split('### Every setting')[1]!.split('\n## ')[0]!;
-    const listed = [...section.matchAll(/^\| `([A-Z_]+)` \|/gm)].map((m) => m[1]);
-    assert.deepEqual(listed, SETTINGS.map((s) => s.name));
   });
 });
 

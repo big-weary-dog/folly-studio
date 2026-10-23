@@ -9,6 +9,8 @@ import { describe, test } from 'vitest';
 
 import { createCodexAdapter, dropNulls, strictSchema } from '../src/generate/codex.ts';
 import { Interrupted } from '../src/generate/proc.ts';
+import { compositionSchema } from '../src/generate/composition.ts';
+import { editsSchema } from '../src/generate/edits.ts';
 import { GenerateError, validateLook, wireSchema } from '../shared/schemas/generated.ts';
 import { FIX, GROUPS, LIBRARY, quiet, tmp } from './fixtures/generate/shared.js';
 
@@ -124,6 +126,10 @@ describe('codex', () => {
       return Object.values(node).forEach(check);
     };
     check(strict);
+    const comp = compositionSchema(GROUPS), edits = editsSchema(comp);
+    assert.equal(edits.properties.rewrite, comp);
+    assert.equal(edits.properties.edits.items.properties.layer, comp.properties.layers.items);
+    check(strictSchema(edits));
     assert.deepEqual(strict.properties.duration, { anyOf: [{ type: 'number' }, { type: 'null' }] });
     assert.equal(strict.properties.layers.type, 'array');
     assert.deepEqual(dropNulls({ a: null, b: [null, { c: null, d: 1 }] }), { b: [null, { d: 1 }] });
@@ -150,18 +156,15 @@ describe('codex', () => {
   });
 
   test('the wall clock kills the whole tree: codex and what it started', async () => {
-    const { adapter, dir } = setup('hang', { timeoutMs: 1500 });
-    await refused(adapter.generate(ctx()), /took too long/);
-    assert.deepEqual(await stillRunning(fs.readFileSync(path.join(dir, 'pids'), 'utf8').split(' ').map(Number)), []);
-  });
-
-  test('a composition at high effort gets half as long again; a repair, the call\'s own wall clock', async () => {
-    const took = async (extra) => {
-      const { adapter } = setup('hang', { timeoutMs: 400, effort: 'high' });
+    const took = async (extra, effort = 'low', timeoutMs = 1500) => {
+      const { adapter, dir } = setup('hang', { timeoutMs, effort });
       const err = await refused(adapter.generate(ctx(extra)), /took too long/);
+      assert.deepEqual(await stillRunning(fs.readFileSync(path.join(dir, 'pids'), 'utf8').split(' ').map(Number)), []);
       return Number(/codex: (-?\d+) ms/.exec(err.message)?.[1]);
     };
-    const compose = await took({}), repair = await took({ repair: { answer: {}, errors: [], message: 'Fix' } });
+    await took({});
+    const compose = await took({}, 'high', 400);
+    const repair = await took({ repair: { answer: {}, errors: [], message: 'Fix' } }, 'high', 400);
     assert.ok(compose >= 600 && repair >= 400 && repair < 600, `${compose} ms, ${repair} ms`);
   });
 

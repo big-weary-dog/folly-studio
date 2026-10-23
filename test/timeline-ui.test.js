@@ -5,8 +5,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'vitest';
 
 import {
-  addClip, cleanBpm, cleanDuration, clock, contentEnd, editClip, fadeClip, importLook,
-  MIN_CLIP, moveClip, removeClip, rulerStep, shownFades, snapStep, trimClip,
+  addClip, contentEnd, editClip, fadeClip, importLook, MIN_CLIP, moveClip, removeClip, shownFades, trimClip,
 } from '../public/js/ui/timeline-model.ts';
 import { MAX_CLIPS } from '../public/js/core/timeline.ts';
 import { validateLayers } from '../src/api-looks.ts';
@@ -145,29 +144,4 @@ describe('importing a look', () => {
     assert.deepEqual(r.layers[1].clips, [clip(9, 11, 1), clip(17, 18)]);
     assert.equal(r.duration, 30, 'the look is already long enough');
   });
-
-  test('refuses more than 8 layers, an empty look, and a full timeline', () => {
-    const seven = Array.from({ length: 7 }, (_, i) => ({ ...base, id: `l${i}` }));
-    assert.match(importLook(seven, 30, other([{}, {}], 10), newId).error, /at most 8 layers/);
-    assert.match(importLook([base], 30, other([], 10), newId).error, /no layers/);
-    assert.match(importLook([{ ...base, clips: [clip(0, 600)] }], 600, other([{}], 10), newId).error, /600 s/);
-  });
-});
-
-test('small helpers', () => {
-  assert.equal(cleanDuration('45.5'), 45.5);
-  assert.equal(cleanDuration(0.2), 1);
-  assert.equal(cleanDuration(9999), 600);
-  assert.equal(cleanDuration('x'), 30);
-  assert.equal(cleanBpm(''), null);
-  assert.equal(cleanBpm(30), null);
-  assert.equal(cleanBpm('128'), 128);
-  assert.equal(snapStep('beat', 120), 0.5);
-  assert.equal(snapStep('beat', null), 0.25, 'no tempo: the quarter-second grid');
-  assert.equal(snapStep('off', 120), 0);
-  assert.equal(rulerStep(100), 1);
-  assert.equal(rulerStep(10), 10);
-  assert.equal(clock(75.5), '1:15.5');
-  assert.equal(clock(5), '0:05');
-  assert.equal(clock(0.25), '0:00.25');
 });

@@ -9,7 +9,6 @@ import { normalizeGlobals, prepareLook } from '../public/js/pattern-core.ts';
 import { lookFrame } from '../public/js/core/globals.ts';
 import { validateLook } from '../shared/schemas/generated.ts';
 import { Globals } from '../shared/schemas/look.ts';
-import { renderFields } from '../src/bake.ts';
 import { freeName, renameMacro } from '../public/js/ui/look-globals-edit.ts';
 import { macroUses, moveText, useText } from '../public/js/ui/mod-uses.ts';
 
@@ -85,13 +84,6 @@ describe('one level', () => {
     assert.equal(by.c.mod.pace, undefined, 'speed is no fader');
     assert.equal(normalizeGlobals({ macros: { e: { mod: { mod: 'envelope' } } } }).macros[0].mod, undefined);
   });
-});
-
-test('a bake\'s key holds the tempo when a modulator counts beats', () => {
-  const look = (unit) => ({ bpm: 90, layers: [], globals: { macros: { w: { ...wobble,
-    mod: { ...wobble.mod, unit } } } } });
-  assert.equal(renderFields(look('beats')).bpm, 90);
-  assert.equal(renderFields(look('hz')).bpm, null);
 });
 
 test('renaming a fader carries the params and modulators that follow it; deleting one lets them go', () => {

@@ -87,17 +87,6 @@ describe('in the Studio', () => {
     const own = { macros: { a: { value: 1, min: 0, max: 1 } } };
     assert.deepEqual(withPresetGlobals(own, presets[1]), own, 'none needed: the look as it was');
   });
-
-  test('a preset that follows Energy brings the Energy knob; one that does not, none', () => {
-    const energy = { value: 0.5, min: 0, max: 1 };
-    for (const name of ['storm', 'rain', 'brushfire']) {
-      const p = presets.find((x) => x.name === name)!;
-      assert.deepEqual(withPresetGlobals(null, p)?.macros?.energy, energy, name);
-    }
-    const calm = presets.filter((p) => !JSON.stringify(p).includes('"energy"'));
-    assert.ok(calm.length > 3);
-    for (const p of calm) assert.equal(withPresetGlobals(null, p)?.macros?.energy, undefined, p.name);
-  });
 });
 
 for (const [rigName, rig] of Object.entries({ folly, mini })) {

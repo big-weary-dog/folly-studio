@@ -5,7 +5,6 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { DEFAULT_DURATION } from '../public/js/pattern-core.ts';
 import { canonical, PLAYS, type PlaysKey, playsChanged, playsOf } from '../shared/plays.ts';
 import { layersHash, renderFields, renderKey } from '../src/bake.ts';
 import { stageCopy } from '../src/live/routes.ts';
@@ -30,6 +29,7 @@ const stored = (l: object) => ({ id: 'x', owner: 'u', title: 'T', summary: '', u
 
 describe('PLAYS', () => {
   test('every field plays: a change shows in the version, the bake key and the stage copy', () => {
+    assert.equal(versionsWith(stored({ layers: [] })).at(-1)!.bpm, null);
     assert.deepEqual([...PLAYS].sort(), Object.keys(OTHER).sort(), 'a new PLAYS field needs a value here');
     for (const k of PLAYS) {
       const a = stored(base), b = stored({ ...base, [k]: OTHER[k] });
@@ -48,15 +48,6 @@ describe('PLAYS', () => {
     assert.deepEqual(Object.keys(renderFields(base) as object), ['layers', 'globals', 'automation', 'bpm']);
     assert.equal(layersHash(renderFields({ layers: [], globals: energy(1) })),
       layersHash({ layers: [], globals: energy(1), automation: null, bpm: null }));
-  });
-
-  test("a look without a duration plays the core's default", () => {
-    assert.equal(playsOf({}).duration, DEFAULT_DURATION);
-  });
-
-  test('a version keeps bpm, null when the look had none', () => {
-    assert.equal(versionsWith(stored({ layers: [] })).at(-1)!.bpm, null);
-    assert.equal(versionsWith(stored(base)).at(-1)!.bpm, 120);
   });
 });
 

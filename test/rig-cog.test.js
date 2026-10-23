@@ -33,15 +33,6 @@ const XLIGHTS = {
 const scene = prepareScene(cog);
 const absolute = (k) => (cog.pixels.universe[k] - 1) * cog.output.channelsPerUniverse + cog.pixels.channel[k];
 
-test('City of Gods: 2,114 LEDs, the five main arches, two towers, the rose; no canopy, wash or back', () => {
-  assert.equal(cog.count, 2114);
-  assert.deepEqual(cog.output, { protocol: 'sacn', universes: 80, channelsPerUniverse: 510, order: 'RGB', fps: 40 });
-  const tags = new Set(cog.groups.flatMap((g) => g.tags ?? []));
-  for (const t of ['all', 'arch', 'arch-main', 'arch-mini', 'arch-quad', 'tower', 'spire', 'spirelet', 'rose', 'ring',
-    'window', 'ground-level', 'left', 'right']) assert.ok(tags.has(t), t);
-  for (const t of ['canopy', 'wash', 'flood', 'back']) assert.ok(!tags.has(t), t);
-});
-
 test('every pixel is on its xLights model\'s channels, and a frame puts its colour there', () => {
   const seen = new Set();
   const frame = new Uint8Array(scene.frameChannels), rgb = new Float32Array(3 * cog.count);

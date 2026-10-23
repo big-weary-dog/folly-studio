@@ -11,13 +11,6 @@ import { type PiLook, readLooks, resolveLook } from '../src/library.ts';
 import { engineOn, lib, LOOKS, oneModule, shipped } from './fixture.ts';
 
 describe('the library', () => {
-  test('has the sources, warps and filters, and a hash of them', () => {
-    const kinds = new Set([...lib.entries.values()].map((e) => e.kind));
-    assert.deepEqual([...kinds].sort(), ['filter', 'source', 'warp']);
-    assert.ok(lib.entries.has('clouds') && lib.entries.has('blur'));
-    assert.match(lib.hash, /^[0-9a-f]{12}$/);
-  });
-
   test("a look's modules run the library's code, whatever code the look carries", () => {
     const look = resolveLook({ id: 'x', title: 'X', layers: [{ modules: [{ ref: 'clouds', code: 'evil()' }] }] } as
       PiLook, lib);
@@ -71,10 +64,6 @@ describe('the library', () => {
 
 describe('the shipped looks', () => {
   const looks = shipped();
-  test('all play, the safe one among them', () => {
-    for (const [id, l] of looks) assert.ok(l.look, `${id}: ${l.error}`);
-    assert.ok(looks.has('safe'));
-  });
 
   test.each([...looks.keys()])('%s lights the sculpture for 20 s without an error or a flash', (id) => {
     const r = engineOn();

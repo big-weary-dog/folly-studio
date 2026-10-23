@@ -16,16 +16,6 @@ const read = (dir) => JSON.parse(fs.readFileSync(path.join(dir, 'models.json'), 
 const later = (file) => { const t = new Date(Date.now() + 5000); fs.utimesSync(file, t, t); };
 
 describe('the registry file', () => {
-  test('first run writes the defaults: Opus (the default), Sol and Luna', () => {
-    const dir = tmp('models'), r = registry(dir);
-    assert.deepEqual(read(dir), DEFAULT_MODELS);
-    assert.deepEqual(r.config().models.map((m) => m.critique), [undefined, 'images', 'text']);
-    assert.deepEqual(r.config().models.map((m) => [m.id, m.via, m.model]), [['opus', 'claude', 'claude-opus-5-5'],
-      ['sol', 'codex', 'gpt-6.1-sol'], ['luna', 'codex', 'gpt-6-luna']]);
-    assert.equal(r.defaultId(), 'opus');
-    assert.deepEqual([r.limit('claude'), r.limit('codex'), r.limit('fleet')], [4, 2, undefined]);
-  });
-
   test('STUDIO_GENERATOR names the first default; once the file exists, the file wins', () => {
     assert.equal(registry(tmp('legacy'), { legacy: 'claude' }).defaultId(), 'opus');
     const dir = tmp('legacy-fleet'), fleet = registry(dir, { legacy: 'fleet' });

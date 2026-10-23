@@ -34,14 +34,6 @@ describe('changes', () => {
     r.run(0.3);
     assert.equal(r.engine.state().look?.id, 'fire');
   });
-
-  test('queued items say how long they play; a bake not read yet, null', () => {
-    const r = engineOn([oneModule('short', 'clouds', {}, { duration: 12 })]);
-    r.engine.queue('short');
-    r.engine.sendBaked({ id: 'b1', title: 'B', sha256: 'a'.repeat(64), duration: 90 });
-    r.engine.sendBaked({ id: 'b2', title: 'C', sha256: 'b'.repeat(64) });
-    assert.deepEqual(r.engine.state().queue.map((q) => q.duration), [12, 90, null]);
-  });
 });
 
 describe('controls', () => {

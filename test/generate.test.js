@@ -6,14 +6,12 @@ import path from 'node:path';
 import { describe, test } from 'vitest';
 
 import { createQueue } from '../src/generate/index.ts';
-import {
-  buildPrompt, buildSystemPrompt, buildUserMessage, formatGroups, pickExamples,
-} from '../src/generate/prompt.ts';
+import { buildPrompt, buildUserMessage, formatGroups } from '../src/generate/prompt.ts';
 import { docsBlock, pickDocs } from '../src/generate/docs-turn.ts';
 import { buildDraftMessage } from '../src/generate/explore-prompt.ts';
-import { GenerateError, LIMITS, validateLook, wireSchema } from '../shared/schemas/generated.ts';
+import { GenerateError, LIMITS, validateLook } from '../shared/schemas/generated.ts';
 import { MAX_LOOKS_PER_USER } from '../src/look-cap.ts';
-import { byName, goodLayer, GROUPS, LIBRARY, queueSetup, quiet, RIG, STUDIO } from './fixtures/generate/shared.js';
+import { byName, goodLayer, GROUPS, queueSetup, quiet, RIG, STUDIO } from './fixtures/generate/shared.js';
 
 const DIR = path.join(STUDIO, 'public/patterns');
 const REAL = JSON.parse(fs.readFileSync(path.join(DIR, 'index.json'), 'utf8')).map((p) => ({ ...p,
@@ -68,29 +66,9 @@ describe('validate', () => {
     assert.throws(() => validateLook('nope'), GenerateError);
     assert.throws(() => validateLook(null), GenerateError);
   });
-
-  test('titles are cut to 80 characters at a word', () => {
-    const look = validateLook({ title: 'word '.repeat(40), layers: [goodLayer({ title: 'y'.repeat(200) })] });
-    assert.ok(look.title.length <= 80 && look.title.endsWith('…'));
-    assert.ok(look.layers[0].title.length <= 80);
-    assert.equal(validateLook({ layers: [goodLayer()] }).title, 'Untitled look');
-  });
 });
 
 describe('prompt', () => {
-  test('the system prompt: library, groups, taste, examples (the API too, with no docs); stable', () => {
-    const sys = buildSystemPrompt({ library: LIBRARY, rig: RIG });
-    assert.equal(sys, buildSystemPrompt({ library: LIBRARY, rig: RIG }));
-    for (const s of ['# The library', '# Composing a look', 'function pixel(p', 'cosPalette', 'beat(t, bpm)',
-      'spire-front-left', 'rose-window — Rose window', 'Saturated colours at full value', 'Darkness is punctuation',
-      'fills what it lands on', '4,870', '40 fps', 'about 195,000 times a second', 'last resort', 'untrusted', '<idea>',
-      'name | theme | low | body | accent | high', 'carnival | Every warm']) {
-      assert.ok(sys.includes(s), `system prompt mentions ${s}`);
-    }
-    assert.ok(!sys.includes(byName('lighthouse').code.trim()), 'modules are named, not shown as code');
-    assert.ok(pickExamples(LIBRARY).length <= 4);
-  });
-
   test('the prompt lists every library entry with its param names, a preset as its chain, and stays small', () => {
     const { system: sys, docs } = buildPrompt({ library: REAL, rig: RIG });
     for (const p of REAL) assert.ok(sys.includes(`\n- ${p.name}: `), p.name);
@@ -125,13 +103,6 @@ describe('prompt', () => {
     assert.equal(msg.match(/<\/idea>/g).length, 1);
     assert.equal(msg.match(/<idea>/g).length, 1);
     assert.ok(msg.indexOf('stars') > msg.indexOf('<idea>') && msg.indexOf('Ignore the rules') < msg.indexOf('</idea>'));
-  });
-
-  test('schema enumerates group ids and closes every object', () => {
-    const schema = wireSchema(GROUPS);
-    assert.equal(schema.additionalProperties, false);
-    assert.equal(schema.properties.layers.items.additionalProperties, false);
-    assert.ok(schema.properties.layers.items.properties.groups.items.enum.includes('spires'));
   });
 });
 

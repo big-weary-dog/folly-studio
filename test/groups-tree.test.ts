@@ -34,11 +34,17 @@ describe('the groups tree', () => {
     assert.deepEqual(ids, ['arches']);
     assert.deepEqual(ticked(ids), ['a1', 'a2', 'a2x', 'arches']);
     assert.deepEqual(on(['a1', 'a2x', 's1'], 'arches'), ['s1', 'arches'], 'its picked groups fold into it');
+    assert.deepEqual(on(['arches'], 'a1'), ['arches']);
+    assert.deepEqual(on(['elsewhere'], 'rose'), ['elsewhere', 'rose']);
   });
 
   test('unticking a group unticks every group under it', () => {
     assert.deepEqual(ticked(off(['arches', 'rose'], 'arches')), ['rose']);
     assert.deepEqual(off(['a1', 'a2x', 'rose'], 'arches'), ['rose'], 'picked groups under it go too');
+    assert.deepEqual(off(['rose'], 'rose'), []);
+    assert.deepEqual(off(['all'], 'all'), []);
+    assert.deepEqual(ticked([]), []);
+    assert.deepEqual(partly([]), []);
   });
 
   test('unticking a group under a ticked one leaves the rest of that one ticked', () => {
@@ -55,18 +61,6 @@ describe('the groups tree', () => {
     assert.deepEqual(both, ['spires']);
     assert.deepEqual(partly(both), ['all']);
     assert.deepEqual(on(on(both, 'arches'), 'rose'), ['all'], 'every child of the root: the root');
-  });
-
-  test('none ticked is a pick: the last group out leaves an empty list', () => {
-    assert.deepEqual(off(['rose'], 'rose'), []);
-    assert.deepEqual(off(['all'], 'all'), []);
-    assert.deepEqual(ticked([]), []);
-    assert.deepEqual(partly([]), []);
-  });
-
-  test('ticking what is already ticked, or an id the rig lacks, changes nothing else', () => {
-    assert.deepEqual(on(['arches'], 'a1'), ['arches']);
-    assert.deepEqual(on(['elsewhere'], 'rose'), ['elsewhere', 'rose']);
   });
 });
 
