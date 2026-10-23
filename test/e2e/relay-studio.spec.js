@@ -38,6 +38,23 @@ test('a curator sends the look being edited to the lights; an unsaved edit reach
     const [name, value] = cara.split('=');
     await ctx.addCookies([{ name, value, url: origin }]);
     const page = await ctx.newPage(), errors = [];
+    const debug = { sent: 0, received: 0, slots: [], states: [] };
+    page.on('websocket', (ws) => {
+      ws.on('framesent', ({ payload }) => {
+        if (typeof payload === 'string') return;
+        debug.sent++;
+        debug.slots.push([Date.now(), payload.readUInt32LE(0)]);
+        if (debug.slots.length > 20) debug.slots.shift();
+      });
+      ws.on('framereceived', ({ payload }) => {
+        if (typeof payload !== 'string') return;
+        const m = JSON.parse(payload);
+        if (m.type !== 'state') return;
+        debug.received++;
+        debug.states.push([Date.now(), m.state.relay]);
+        if (debug.states.length > 5) debug.states.shift();
+      });
+    });
     page.on('pageerror', (e) => errors.push(String(e)));
     await page.goto(`${origin}/studio/${edited.id}`);
     await expect(page.locator('.viewer-msg').first()).toBeHidden({ timeout: 60_000 });
@@ -49,7 +66,10 @@ test('a curator sends the look being edited to the lights; an unsaved edit reach
     await panel.getByRole('checkbox', { name: 'To the lights' }).check();
     await expect(panel.getByRole('status')).toContainText('Relaying', { timeout: 30_000 });
     // Over the look the lights play: the editor's black takes over from its fire, steady.
-    await expect.poll(() => stats().relay?.on, { timeout: 15_000 }).toBe(true);
+    await expect.poll(() => stats().relay?.on, { timeout: 15_000 }).toBe(true).catch((err) => {
+      console.log('RELAY DEBUG', size, JSON.stringify(debug), JSON.stringify(stats()));
+      throw err;
+    });
     expect(stats().relay.by).toBe('cara');
     await expect.poll(() => stats().watts, { timeout: 10_000 }).toBeLessThan(5);
     const missed = stats().relay.missed;
