@@ -1,34 +1,27 @@
-// The library's pickers: Add a module (tabs Sources · Warps · Filters) and Add a layer (tabs Blank: a blank layer or
-// one source; Presets: layers of modules), each a list of one-line rows by category with a quick filter. The tab is
-// remembered for the session. Hovering or focusing a row (on a phone, its ▶) auditions it in the 3D view as a
-// temporary look sent to the sandbox: a source or preset as layers on top, a warp or filter in the selected layer's
-// chain where picking puts it. Leaving it, Escape or closing sends back the look exactly as it was; picking adds it.
-// Add a layer also picks where the new layer plays: the groups tree beside the list (on a phone, behind its Plays on
-// button), starting on the whole rig. The audition plays on those groups, the view dims the rest as the Groups drawer
-// does, and picking gives them to the new layer; closing forgets them.
-// While either is open the 3D view frames the rig in the biggest part of it the shelf leaves clear (on a phone's
-// sheet, only once there is room: while previewing or picking groups), and closing puts the view back.
+// Library pickers (SPEC-studio "Composition"). Audition and Add share insertion and groups; closing restores
+// the look and view and forgets the groups. Tabs are remembered for the session; groups start on the whole rig.
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 import type { Module } from '../../../shared/schemas/look.ts';
 import type { LibraryEntry } from '../../../shared/schemas/rig.ts';
 import { DEFAULT_SOFTEN } from '../core/spatial.ts';
 import { GroupsTree } from './groups-drawer.tsx';
+import { useCustomCode } from './custom-code.ts';
 import { cx, humanize, openDialog } from './kit.tsx';
-import { insertModule, isPreset, type Layer } from './model.ts';
+import { isPreset, moduleFromLibrary, type Layer } from './model.ts';
 import type { Preview } from './preview.ts';
 import type { Studio } from './studio-store.ts';
 
 type Kind = Module['kind'];
 type Blank = { kind: Kind; blank: true; name?: undefined; title?: undefined; code?: undefined; summary?: undefined };
 export type Entry = LibraryEntry | Blank;
-type Audition = { pv: Preview; layer?: Pick<Layer, 'groups'> & Partial<Layer>; moduleId?: string;
-  layers?: (e: Entry) => Layer[] | null };
+type Audition = { pv: Preview; layer?: Pick<Layer, 'groups'> & Partial<Layer>;
+  layers?: (e: Entry) => Layer[] | null; insert?: (mods: Module[], m: Module) => Module[] };
 type Tab = Kind | 'blank' | 'preset';
 const TABS: Record<'module' | 'layer', [Tab, string, string][]> = {
   module: [['source', 'Sources', 'Draw onto what is above them.'], ['warp', 'Warps', 'Bend everything above them.'],
     ['filter', 'Filters', 'Rework everything above them, some by another source (their input).']],
-  layer: [['blank', 'Blank', 'A layer to write, or one source to start from.'],
+  layer: [['blank', 'Sources', 'Start a layer from one source.'],
     ['preset', 'Presets', 'Layers of modules put together, ready to play.']],
 };
 const TRY = '~audition';
@@ -51,7 +44,7 @@ function clearOf(canvas: HTMLElement, dlg: HTMLElement) {
 }
 
 /** The audition: the look the app sent is kept, and put back unless something was picked. */
-export function auditioner({ pv, layer, moduleId, layers }: Partial<Audition> = {}) {
+export function auditioner({ pv, layer, layers, insert }: Partial<Audition> = {}) {
   let saved: { layers: Layer[]; extra: object } | null = null, mine: Layer[] | null = null, timer = 0;
   let shown: Entry | null = null, groups: string[] | undefined;    // a new layer's groups, once picked
   const show = (e: Entry) => {
@@ -64,12 +57,12 @@ export function auditioner({ pv, layer, moduleId, layers }: Partial<Audition> = 
       if (!made) return;
       mine = [...saved.layers, ...made.map((l, i) => ({ ...l, id: `${TRY}${i}`, ...(groups ? { groups } : {}) }))];
     } else {
-      const m: Module = { id: TRY, kind: e.kind || 'source', title: e.title || e.name, code: e.code, params: {} };
-      mine = m.kind === 'source'
+      const m = { ...moduleFromLibrary(e), id: TRY };
+      mine = m.kind === 'source' && !insert
         ? [...saved.layers, { id: TRY, title: m.title, groups: groups ?? layer.groups, blend: 'over', level: 1,
           modules: [m], soften: { ...DEFAULT_SOFTEN } }]                // as a new layer would be
-        : saved.layers.map((l) => (l.id !== layer.id ? l : { ...l, modules: insertModule(l.modules, m, moduleId),
-          enabled: true, level: l.level || 1, clips: undefined }));
+        : saved.layers.map((l) => (l.id !== layer.id ? l : { ...l,
+          modules: insert!(l.modules, m) }));
     }
     r.setLook(mine, saved.extra);
     pv?.kick();
@@ -92,12 +85,14 @@ export function auditioner({ pv, layer, moduleId, layers }: Partial<Audition> = 
 
 /** Add a module (`mode: 'module'`) or Add a layer (`'layer'`; given `st`, with the new layer's groups, handed to
  * `onPick`). */
-export function openShelf({ library, onPick, audition, mode, st }: { library: LibraryEntry[];
-  onPick: (e: Entry, groups?: string[]) => void; audition?: Audition; mode: 'module' | 'layer'; st?: Studio }) {
-  const A = auditioner(audition), tabs = TABS[mode], root = st?.data.index?.root;
+export function openShelf({ library, onPick, audition, mode, st, sourcesOnly = false }: { library: LibraryEntry[];
+  onPick: (e: Entry, groups?: string[]) => void; audition?: Audition; mode: 'module' | 'layer'; st?: Studio;
+  sourcesOnly?: boolean }) {
+  const A = auditioner(audition), tabs = sourcesOnly ? TABS.module.slice(0, 1) : TABS[mode];
+  const root = st?.data.index?.root;
   const where = mode === 'layer' && st && root ? st : null;
   let picked = false;
-  const title = mode === 'layer' ? 'Add a layer' : 'Add a module';
+  const title = mode === 'layer' ? 'Add a layer' : sourcesOnly ? 'Add a source' : 'Add a module';
   if (where) { where.newGroups.value = [root!]; A.regroup([root!]); }
   return openDialog({ title, className: cx('library-dialog shelf-dialog', where && 'has-groups'),
     onClose: () => {
@@ -105,6 +100,7 @@ export function openShelf({ library, onPick, audition, mode, st }: { library: Li
       if (where) where.newGroups.value = where.hoverGroup.value = where.pinnedGroup.value = null;
       audition?.pv.viewer?.setClear(null);
     }, body: (close) => {
+      const customCode = useCustomCode();
       const [tried, setTried] = useState<Entry | null>(null), [query, setQuery] = useState('');
       const [groups, setGroups] = useState(() => [root!]), [placing, setPlacing] = useState(false);
       const [tab, setTab] = useState<Tab>(() => tabs.find(([t]) => t === remembered(mode))?.[0] ?? tabs[0][0]);
@@ -138,7 +134,7 @@ export function openShelf({ library, onPick, audition, mode, st }: { library: Li
       /** A tab's entries: by kind; Blank is a blank layer and the sources. */
       const entriesOf = (t: Tab): Entry[] => (t === 'blank' ? [{ kind: 'source', blank: true } as Blank,
         ...library.filter((e) => e.kind === 'source')] : [...library.filter((e) => e.kind === t),
-        ...(t === 'preset' ? [] : [{ kind: t, blank: true } as Blank])]);
+        ...(t === 'preset' ? [] : [{ kind: t, blank: true } as Blank])]).filter((e) => customCode || !('blank' in e));
       const row = (e: Entry) => {
         const text = 'blank' in e ? (mode === 'layer' ? 'Blank layer' : `Blank ${e.kind}`) : e.title || e.name;
         const summary = 'blank' in e ? 'Write your own.' : e.summary || '';
@@ -185,6 +181,8 @@ export function openShelf({ library, onPick, audition, mode, st }: { library: Li
             aria-label="Filter the library" value={query} onInput={(e) => setQuery(e.currentTarget.value)} />
         </div>
         <p class="shelf-text">{text}</p>
+        {customCode === false && <p class="pane-hint">An admin turned custom code off.
+          Choose a library module or preset.</p>}
         <div class="shelves" role="tabpanel">
           {mode === 'layer' && blanks.length > 0 && <ul class="shelf-list">{blanks.map(row)}</ul>}
           {cats.map((c) => <section class="shelf-group" hidden={!inCat(c).some(shows)}>
@@ -201,4 +199,3 @@ export function openShelf({ library, onPick, audition, mode, st }: { library: Li
       </>;
     } });
 }
-

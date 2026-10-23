@@ -2,10 +2,9 @@
 // the editor), Enter keeps indentation, Ctrl/Cmd+S saves (the Studio's shortcut). Edits reach the sandbox once typing
 // settles. Below it, a quick reference of the pattern API (SPEC "Pattern code"): click a name to insert it. While an
 // admin has custom code off (SPEC-baking "Custom code"), it is read only and says why.
-import { signal } from '@preact/signals';
-import { useEffect, useId, useLayoutEffect, useMemo, useRef } from 'preact/hooks';
+import { useId, useLayoutEffect, useMemo, useRef } from 'preact/hooks';
 
-import { api } from '../api.ts';
+import { useCustomCode } from './custom-code.ts';
 import { ISSUE_LABELS } from './layer-status.ts';
 import { FixButton } from './refine.tsx';
 import type { Studio } from './studio-store.ts';
@@ -13,18 +12,6 @@ import type { Studio } from './studio-store.ts';
 const INDENT = '  ';
 const SETTLE_MS = 300;
 const LOCKED = 'An admin turned custom code off: modules play and take their params here, but their code is read only.';
-
-/** The Custom code switch, asked once a page load (null until it answers: editable, as the server still checks). */
-const customCode = signal<boolean | null>(null);
-let asked = false;
-function useCustomCode() {
-  useEffect(() => {
-    if (asked) return;
-    asked = true;
-    api.baking().then((b) => { customCode.value = b.customCode; }, () => { asked = false; });
-  }, []);
-  return customCode.value !== false;
-}
 
 /** Insert keeping the browser's undo stack when possible. */
 function insertText(ta: HTMLTextAreaElement, text: string) {
@@ -47,7 +34,7 @@ export function CodeEditor({ st }: { st: Studio }) {
   const l = st.selected.value, m = st.module.value, code = m ? m.code : '', id = useId(), problem = st.problem.value;
   const ta = useRef<HTMLTextAreaElement>(null), gutter = useRef<HTMLDivElement>(null), escaped = useRef(false);
   const line = problem ? findLine(problem.message) : 0, lines = (code.match(/\n/g) || []).length + 1;
-  const open = useCustomCode();
+  const open = useCustomCode() !== false;
   useLayoutEffect(() => { if (ta.current) Object.assign(ta.current, { scrollTop: 0, scrollLeft: 0 }); }, [m?.id]);
   const numbers = useMemo(() => Array.from({ length: lines }, (_, i) =>
     <div class={i + 1 === line ? 'err' : undefined}>{i + 1}</div>), [lines, line]);

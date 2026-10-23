@@ -38,13 +38,15 @@ every edit here keeps them, so what the Studio saves the API accepts.
   module chain (a line a module: kind badge, Custom on a module not standard, name, a source's blend or a filter's
   input, enable, delete; only a custom module's name is editable; wide, the selected one's settings open under it,
   a click on it closing or opening them, ▾ ▸), its Soften row (radius and mode; new layers
-  start at `DEFAULT_SOFTEN`), the pickers (Add a module: tabs Sources, Warps, Filters; Add a layer: Blank, a blank
-  layer or one source, and Presets, beside the groups the new layer plays on; one-line rows by category with a filter,
-  the tab remembered for the session, each row auditioned in the 3D view), the code editor and
+  start at `DEFAULT_SOFTEN`), the pickers (Add a module: tabs Sources, Warps, Filters; Add a layer: Sources,
+  one source or a blank layer when custom code is on, and Presets, beside the groups the new layer plays on;
+  one-line rows by category with a filter, the tab remembered for the session, each row auditioned in the 3D view;
+  module auditions use the same chain insertion as Add), the code editor and
   params on the selected module (each number param can be modulated), and a Look panel of globals, the palette
   (its theme line under the menu; each swatch titled by its slot, `body2 · #fd7f40`), its modulators and its faders
-  (macros without a mod; `ui/look-mods.tsx`). A modulator is a card: its name to rename, how it moves, its value now,
-  ∿ to edit it, × to delete it, and a chip for each param it drives (layer › param), which selects that layer and
+  (macros without a mod; `ui/look-mods.tsx`), with + Macro available on phones too. A modulator is a card:
+  its name to rename, how it moves, its value now, ∿ to edit it, × to delete it, and a chip for each param it drives
+  (layer › param), which selects that layer and
   module and opens the param's ∿; a fader's row lists what it drives, paces or swings the same way. Modulating is in
   place (`ui/modulate.tsx`, `ui/mod-live.tsx`): ∿ opens a drawer (`ui/drawer.tsx`), a panel the Studio's full
   height between the 3D view and the side, which shrinks the view beside it and fits a 1366×768 screen unscrolled
@@ -65,12 +67,15 @@ every edit here keeps them, so what the Studio saves the API accepts.
   drops them. Its explicit live-control entry is renamed or removed in the same undoable edit.
   Duplicating a layer gives every nested module a fresh id and carries filter inputs and attachments to the copies.
   On a phone: globals and palette in the Look tab;
-  the chain read-only but for enable and params.
+  the chain allows enable, params and + Source in a composite. + Source offers sources alone on every screen.
+  Module deletion names all attached or contained modules it removes; Undo restores the whole edit.
+  Mute and Solo audition the look without changing saved content. FSEQ exports the current preview and asks
+  before excluding muted or unsoloed layers; its form explains that JSON, Save and Check & bake use the full look.
 - **Phones** (≤ 899 px wide; `ui/phone/`, `css/phone.css`): the 3D view over one panel, switched by the tabs Layers,
   Time, Look and More. Layers lists one row a layer (name, mute, status); tapping one opens its settings in
   the same panel (‹ Layers back, its name, mute and solo, plays on, the chain, the params). The light view hides
   blend, level, solo and moving up or down on the rows, the layer and module names and Soften in the settings, the
-  automation lanes and the 3D view's style buttons; More holds the code editor, the 3D view's Show unlit, LEDs
+  3D view's style buttons; automation lanes remain visible. More holds the code editor, the 3D view's Show unlit, LEDs
   and quality, and Full detail, which shows them all again (kept per browser). On a phone the preview starts without
   Show unlit, the Playa view drops the scaffold lines, and Points draws at a pixel ratio of 1.
 - **Colours** (`ui/picks.tsx`, `ui/pick-model.ts`; SPEC-library "Palettes"): a colour param is one row like a number's: its pick in

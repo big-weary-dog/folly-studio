@@ -19,10 +19,11 @@ const palette = (body) => ({ low: ['#120a2a'], body: [body], accent: ['#ffb070']
 async function savedThrice(origin, cookie) {
   const call = async (method, url, body) => (await fetch(`${origin}${url}`, { method, body: JSON.stringify(body),
     headers: { 'content-type': 'application/json', cookie } })).json();
-  const { look } = await call('POST', '/api/looks', { title: 'Embers', layers: [layer(1)],
+  const { look } = await call('POST', '/api/looks', { title: 'Embers', summary: 'Earlier words', layers: [layer(1)],
     globals: { palette: palette('#c0281e') } });
   await call('PUT', `/api/looks/${look.id}`, { layers: [layer(0.6)], globals: { palette: palette('#2ec060') } });
-  await call('PUT', `/api/looks/${look.id}`, { layers: [layer(0.8)], globals: { palette: palette('#3060f0') } });
+  await call('PUT', `/api/looks/${look.id}`, { title: 'New embers', summary: 'Later words',
+    layers: [layer(0.8)], globals: { palette: palette('#3060f0') } });
   return look.id;
 }
 
@@ -91,6 +92,7 @@ for (const [name, device] of Object.entries(SIZES)) {
       await shot('versions');
 
       await versions.filter({ hasText: 'v1' }).getByRole('button', { name: 'Preview' }).click();
+      await expect(page.getByRole('textbox', { name: 'Look title', exact: true })).toHaveValue('Embers');
       await expect(page.locator('.pane-viewer')).toHaveAttribute('data-previewing', /Previewing version 1/);
       await expect(drawer.getByText('Your work', { exact: true })).toBeVisible();
       await page.keyboard.press('Control+s');
@@ -98,14 +100,19 @@ for (const [name, device] of Object.entries(SIZES)) {
       await shot('version-preview');
 
       await drawer.getByRole('button', { name: 'Back to my work' }).click();
+      await expect(page.getByRole('textbox', { name: 'Look title', exact: true })).toHaveValue('New embers');
       await expect(page.locator('.pane-viewer')).not.toHaveAttribute('data-previewing', /./);
       await expect(page.locator('.save-state')).toHaveText('Saved');
 
       await versions.filter({ hasText: 'v1' }).getByRole('button', { name: 'Preview' }).click();
       await drawer.getByRole('button', { name: 'Restore this version' }).click();
+      await expect(page.getByRole('textbox', { name: 'Look title', exact: true })).toHaveValue('Embers');
       await expect(versions).toHaveCount(4);
       await expect(versions.first()).toContainText('Restored version 1');
       await expect(page.locator('.save-state')).toHaveText('Saved');
+      const restored = await (await page.request.get(`${studio.origin}/api/looks/${id}`)).json();
+      expect(restored.look.title).toBe('Embers');
+      expect(restored.look.summary).toBe('Earlier words');
       await expect(page.locator('.pane-viewer')).not.toHaveAttribute('data-previewing', /./);
 
       await drawer.getByRole('button', { name: 'Save a named version…' }).click();
@@ -136,4 +143,3 @@ test('Ctrl+S saves what a focused field shows, before it is left', async ({ page
   expect((await put).postDataJSON().layers[0].level).toBe(0.23);
   await expect(level).toBeFocused();
 });
-

@@ -6,12 +6,12 @@
     "pi": { "lines": 5364, "reason": "The Pi streams validated bakes with reader lifecycle regressions, request-matched queue acknowledgements, light reload polling, a shared safety-case runner and injected-clock socket tests alongside safe output lifecycle, guard timing, fades and control-page coverage." },
     "public": { "lines": 56, "reason": "The app and sandbox HTML shells load their browser entry points." },
     "public/css": { "lines": 2390, "reason": "Styles cover the app shell, Studio panels, timeline, live controls, admin pages (the Pi bundle's too) and phone layouts." },
-    "public/js": { "lines": 18521, "reason": "Browser code includes the pattern core, sandbox, viewers and the Studio, live, admin and tutorial interfaces." },
+    "public/js": { "lines": 18519, "reason": "Browser code includes the pattern core, sandbox, viewers and the Studio, live, admin and tutorial interfaces." },
     "public/patterns": { "lines": 1837, "reason": "The built-in library provides sources, warps and filters as short standalone pattern modules." },
     "render-box": { "lines": 250, "reason": "The render box shares deterministic IDs and streaming FSEQ output with the Fleet checker, keeping bake memory independent of duration." },
     "shared": { "lines": 1616, "reason": "Shared schemas and pure rules define looks, generated compositions, API data, permissions and playback." },
     "src": { "lines": 10355, "reason": "The server includes shared FSEQ header validation for bounded-memory Pi playback, request-matched queue acceptance and ordered verification timestamps, alongside authentication, storage, generation, baking, frame delivery, live sockets and administration." },
-    "test": { "lines": 23851, "reason": "Suites cover streaming byte equivalence, longest-look memory checks, full-duration Pi baking, Fleet reproducibility and Pi queue acceptance, plus deterministic generator barriers, bake timestamp rollback, complete-line relay telemetry and version-store cleanup alongside existing API, editor and installer coverage." },
+    "test": { "lines": 23980, "reason": "Suites add picker permission, contextual audition, version metadata, phone automation and macro, export scope and deletion regressions alongside existing API, rendering, live and installer coverage." },
     "tools": { "lines": 2380, "reason": "Tools build and check rig and palette data, check the Pi bundle holds nothing secret, enforce budgets, support development and backups, and benchmark rendering." }
   }
 }

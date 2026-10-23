@@ -117,8 +117,10 @@ function LayerRow({ l, index, st, grip, drop, dragging }: { l: Layer; index: num
         <span class="layer-index" aria-hidden="true">{index + 1}</span>
         <div class="ms" role="group" aria-label="Mute and solo">
           <button type="button" class="ms-btn mute" aria-pressed={muted} aria-label={`Mute ${title}`}
+            title="Mute in the preview and preview FSEQ export"
             data-tour={`mute:${tourName(title)}`} onClick={() => st.toggle(st.muted, id)}>M</button>
           <button type="button" class="ms-btn solo" aria-pressed={soloed} aria-label={`Solo ${title}`}
+            title="Solo in the preview and preview FSEQ export"
             data-tour={`solo:${tourName(title)}`} onClick={() => st.toggle(st.solo, id)}>S</button></div>
         <button type="button" class="layer-name" aria-current={selected} onClick={select}
           title={`${title} — ${said}${status.message ? `: ${status.message}` : ''}`}>{title}</button>

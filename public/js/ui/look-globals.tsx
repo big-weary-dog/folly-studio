@@ -1,7 +1,7 @@
 // The Look panel (SPEC "Globals"): a palette picker showing its roles, the look's modulators (look-mods.tsx), and
 // faders (macros that do not move by themselves) to add, rename and set (their range: as the API or a generator gave
-// it), each saying what it drives. Wide: a tab of the bottom dock; phones: the Look tab (faders are set there, not
-// added). Loaded when the Look tab first shows.
+// it), each saying what it drives. Wide: a tab of the bottom dock; phones: the Look tab.
+// Loaded when the Look tab first shows.
 import { useId } from 'preact/hooks';
 
 import { macroNameOk } from '../core/globals.ts';
@@ -53,7 +53,7 @@ export function GlobalsPanel({ st, palettes }: { st: Studio; palettes: (Palette 
         <ModulatorCards st={st} mods={mods} uses={uses} /></section>}
       <section class="globals-macros" aria-label="Faders">
         <div class="globals-h-row"><h3 class="globals-h">{mods.length ? 'Faders' : 'Macros'}</h3>
-          <button type="button" class="btn small wide-only" data-tour="macro-add" onClick={addMacro}>
+          <button type="button" class="btn small" data-tour="macro-add" onClick={addMacro}>
             + Macro</button></div>
         <ul class="macro-list">{all.filter(([, m]) => !m.mod).map(([name, m]) => <MacroRow name={name} m={m}
           key={`${name}:${!!lanes[name]}`} automated={!!lanes[name]} uses={uses.get(name) ?? []} st={st}
