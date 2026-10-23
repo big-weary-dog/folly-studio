@@ -3,15 +3,15 @@
   "areas": {
     ".": { "lines": 172, "reason": "The root holds the server entry point and the Vite, Vitest and Playwright configurations." },
     "fleet-box": { "lines": 260, "reason": "The boxed checker validates generated looks against the library, rig, module chains and light settings." },
-    "pi": { "lines": 5360, "reason": "The Pi streams validated bakes one frame at a time with reader lifecycle regressions, alongside light reload polling, safe output lifecycle, guard timing, fades and control-page coverage." },
+    "pi": { "lines": 5367, "reason": "The Pi streams validated bakes one frame at a time with reader lifecycle regressions, alongside request-matched queue acknowledgements, light reload polling, safe output lifecycle, guard timing, fades and control-page coverage." },
     "public": { "lines": 56, "reason": "The app and sandbox HTML shells load their browser entry points." },
     "public/css": { "lines": 2390, "reason": "Styles cover the app shell, Studio panels, timeline, live controls, admin pages (the Pi bundle's too) and phone layouts." },
     "public/js": { "lines": 18521, "reason": "Browser code includes the pattern core, sandbox, viewers and the Studio, live, admin and tutorial interfaces." },
     "public/patterns": { "lines": 1837, "reason": "The built-in library provides sources, warps and filters as short standalone pattern modules." },
     "render-box": { "lines": 250, "reason": "The render box shares deterministic IDs and streaming FSEQ output with the Fleet checker, keeping bake memory independent of duration." },
     "shared": { "lines": 1616, "reason": "Shared schemas and pure rules define looks, generated compositions, API data, permissions and playback." },
-    "src": { "lines": 10330, "reason": "The server includes shared FSEQ header validation for bounded-memory Pi playback, alongside authentication, storage, generation, baking, frame delivery, live sockets and administration." },
-    "test": { "lines": 23730, "reason": "Suites replace obsolete Pi-branch tests with streaming byte-equivalence, isolated longest-look memory checks on both rigs, full-duration Pi baking and Fleet rebake reproducibility, alongside existing API, generation, editor and installer coverage." },
+    "src": { "lines": 10354, "reason": "The server includes shared FSEQ header validation for bounded-memory Pi playback and request-matched queue acceptance, alongside authentication, storage, generation, baking, frame delivery, live sockets and administration." },
+    "test": { "lines": 23797, "reason": "Suites replace obsolete Pi-branch tests with streaming byte-equivalence, isolated longest-look memory checks on both rigs, full-duration Pi baking and Fleet rebake reproducibility, alongside request-matched Pi queue acceptance and existing API, generation, editor and installer coverage." },
     "tools": { "lines": 2380, "reason": "Tools build and check rig and palette data, check the Pi bundle holds nothing secret, enforce budgets, support development and backups, and benchmark rendering." }
   }
 }

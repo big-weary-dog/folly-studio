@@ -88,10 +88,10 @@ export async function controlServer(o: ServerOptions) {
       if (p.ok && source) say(c, { type: 'source', source });
       return;
     }
-    if (!c.ok) { say(c, { type: 'error', error: 'Say the PIN first.' }); return; }
+    if (!c.ok) { acknowledge(c, msg, 'Say the PIN first.'); return; }
     if (msg.type === 'relay-start' || msg.type === 'relay-stop') { relayLease(c, msg); return; }
     const no = people.check(c.who, msg);
-    if (no) { say(c, { type: 'error', error: no }); return; }
+    if (no) { acknowledge(c, msg, no); return; }
     // Who did it, as the state says it (the Pi's own page queues as no one: it is everyone on site).
     const e = o.engine, by = c.who?.name ?? null, adder = by === PI_PAGE ? undefined : by ?? undefined;
     if (msg.type === 'play' && !e.play(msg.id, msg.fade)) say(c, { type: 'error', error: `${msg.id} cannot play.` });
@@ -135,18 +135,24 @@ export async function controlServer(o: ServerOptions) {
   }
 
   /** A look Studio sent: its modules' code from our library by ref, never its own. */
+  function acknowledge(c: Client, msg: FromPage, error?: string) {
+    if (msg.type === 'send' && msg.requestId) {
+      say(c, { type: 'sent', requestId: msg.requestId, ok: !error, ...error ? { error } : {} });
+    } else if (error) say(c, { type: 'error', error });
+  }
+
   function studioSent(c: Client, msg: Extract<FromPage, { type: 'send' }>) {
     const { item } = msg;
     if (item.kind === 'baked') {
-      if (!o.engine.sendBaked(item, msg.at, msg.by, msg.fade)) say(c, { type: 'error', error: 'The queue is full.' });
+      acknowledge(c, msg, o.engine.sendBaked(item, msg.at, msg.by, msg.fade) ? undefined : 'The queue is full.');
       return;
     }
     let look: PiLook;
     try { look = resolveLook(item.look as PiLook, o.lib); } catch (err) {
-      say(c, { type: 'error', error: `Cannot play: ${(err as Error).message}` });
+      acknowledge(c, msg, `Cannot play: ${(err as Error).message}`);
       return;
     }
-    if (!o.engine.send(look, msg.at, msg.by, msg.fade)) say(c, { type: 'error', error: 'The queue is full.' });
+    acknowledge(c, msg, o.engine.send(look, msg.at, msg.by, msg.fade) ? undefined : 'The queue is full.');
   }
 
   const host = (h: string) => h.toLowerCase().replace(/:80$/, '');

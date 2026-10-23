@@ -15,8 +15,8 @@ import type { Hub } from './live/hub.ts';
 import type { piFeed } from './live/pi-feed.ts';
 import type { StoredLook as Look, StoredUser as User } from './store.ts';
 
-/** As the engine holds them (pi/src/engine.ts MAX_QUEUE, pi/src/protocol.ts MAX_SEND). */
-const MAX_QUEUE = 20, MAX_SEND = 64 * 1024;
+/** The engine's message limit (pi/src/protocol.ts MAX_SEND). */
+const MAX_SEND = 64 * 1024;
 const BAKE_IT = 'bake it (Check & bake) to play it on the lights.';
 export const JUKEBOX_NOW = 'The lights are in Jukebox: Play next or Add to the end';
 export type Play = { kind: 'live', look: object }
@@ -75,7 +75,7 @@ type LightsStore = ReturnType<typeof createLightsStore>;
 /** `drive`: may this person drive Live Play (SPEC-live "Settings", STUDIO_LIVE_CONTROL). */
 export function lightsRoutes({ store, feed, hub, drive, curate, loadLibrary, visibleLook, looksIn, listed }: {
   store: LightsStore,
-  feed: Pick<ReturnType<typeof piFeed>, 'connected' | 'queued' | 'send' | 'mode'>, hub?: Pick<Hub, 'piDrove'>,
+  feed: Pick<ReturnType<typeof piFeed>, 'connected' | 'send' | 'mode'>, hub?: Pick<Hub, 'piDrove'>,
   drive: (user: User) => boolean, curate: (user: User) => boolean, loadLibrary: () => readonly LibraryEntry[],
   visibleLook: (id: string, user: User) => Look, looksIn: (scope: 'mine' | 'gallery', user: User) => Look[],
   listed: (look: Look) => { ownerName: string, duration: number, preview?: string } }) {
@@ -107,8 +107,8 @@ export function lightsRoutes({ store, feed, hub, drive, curate, loadLibrary, vis
       if (at === 'now' && store.current().mode === 'jukebox') throw new HttpError(409, JUKEBOX_NOW);
       if (at === 'now' && !drive(req.user!)) throw new HttpError(403, 'Playing a look now is for those who drive.');
       if (!feed.connected()) throw new HttpError(503, 'The lights\' engine is not running.');
-      if (at !== 'now' && feed.queued() >= MAX_QUEUE) throw new HttpError(409, 'The queue is full.');
-      feed.send({ type: 'send', at, ...fade ? { fade } : {}, by: req.user!.username, item: play });
+      const result = await feed.send({ type: 'send', at, ...fade ? { fade } : {}, by: req.user!.username, item: play });
+      if (!result.ok) throw new HttpError(result.status, result.error);
       if (at === 'now') hub?.piDrove();
       return { kind: play.kind };
     }, { role: 'curator' }] as const,
