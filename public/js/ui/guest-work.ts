@@ -1,5 +1,6 @@
 // A guest's work (SPEC-access "Guests"): the Studio's look as saved, kept in this browser as it changes and opened
-// again on a blank Studio; Save asks them to sign in, and the first account to open a blank Studio here takes it.
+// again on a blank Studio; Save asks them to sign in, and the first account to open a blank Studio here takes it,
+// the copy here going once that account saves or discards it.
 import { effect } from '@preact/signals';
 
 import { api } from '../api.ts';
@@ -15,9 +16,18 @@ export function guestWork(): Look | null {
   try {
     const kept = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (!kept || typeof kept !== 'object' || !Array.isArray(kept.layers)) return null;
-    if (!user.peek()?.guest) localStorage.removeItem(KEY);   // an account takes it, unsaved
     return { ...kept, id: '', owner: user.peek()?.id } as Look;
   } catch { return null; }
+}
+
+/** An account's Studio opened the work: it is unsaved there, and the copy here goes once it is saved or discarded. */
+export function adoptGuestWork(st: Pick<Studio, 'saved' | 'dirty' | 'ready'>) {
+  st.saved.value = '';
+  const stop = effect(() => {
+    if (!st.ready.value || st.dirty.value) return;
+    try { localStorage.removeItem(KEY); } catch { /* storage off: nothing kept */ }
+    queueMicrotask(() => stop());
+  });
 }
 
 const write = (st: Pick<Studio, 'body'>) => {
