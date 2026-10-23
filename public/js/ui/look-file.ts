@@ -59,6 +59,17 @@ export function createBody(look: unknown): LookCreate {
 export type Imported = { added: number, updated: number, unchanged: number,
   failed: { name: string, error: string }[] };
 
+/** Sequential imports can replace an earlier file in this batch, as well as a look already saved. */
+export function importActions(looks: LookCreate[], own: Pick<Look, 'id' | 'origin'>[]) {
+  const existing = new Set(own.flatMap((l) => [l.id, l.origin])), earlier = new Set<string>();
+  return looks.map((l) => {
+    const action = l.origin && existing.has(l.origin) ? 'replace existing look'
+      : l.origin && earlier.has(l.origin) ? 'replace earlier import' : 'add new look';
+    if (l.origin) earlier.add(l.origin);
+    return action;
+  });
+}
+
 /** Each look in each file, saved as the importer's: added, or overruling the one of theirs it came from (the server
  * matches its origin). One refused does not stop the rest. */
 export async function importFiles(files: Iterable<{ name: string, text(): Promise<string> }>,

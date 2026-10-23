@@ -101,6 +101,7 @@ Several looks go in one file as `{ "looks": [look file] }` (`folly-looks-mine-<d
   out; any other failure downloads nothing and names the look, so a backup is never quietly short.
 - **Import.** My looks has **Import**: a file picker taking one or more files, each a look file or a file of looks.
   Before saving, a preview names additions and replacements. Cancel changes nothing; Import as copies drops origins.
+  A repeated origin within the selected files is shown as replacing an earlier import in that batch.
   Replacements explain that current contents are replaced and previous versions remain in History.
   Each look is `POST /api/looks` with its `origin`, title, summary, `chain` and what plays, so the same checks apply.
   A look already among the importer's own (its id or its `origin` is the file's `origin`) is **updated**: the file

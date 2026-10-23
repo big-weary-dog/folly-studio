@@ -10,9 +10,9 @@ export function crossfade(scene: Scene) {
   const close = () => { from?.baked?.close?.(); from = null; };
   return {
     get active() { return !!from; },
-    start(p: Playing | null, at: number, visible: Float32Array, overlap: boolean, level: number) {
-      frozen = !!from;
-      gain = frozen ? 1 : level;
+    start(p: Playing | null, at: number, visible: Float32Array, overlap: boolean, level: number, relayed: boolean) {
+      gain = from ? 1 : level;
+      frozen = !!from || relayed;
       if (frozen) held.set(visible);
       close();
       if (overlap) { from = p; frame = at; } else p?.baked?.close?.();

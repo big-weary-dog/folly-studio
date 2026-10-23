@@ -5,7 +5,7 @@ import { useRef, useState } from 'preact/hooks';
 import type { Listed } from '../../../shared/schemas/api.ts';
 import { api } from '../api.ts';
 import { download, openDialog, toast } from './kit.tsx';
-import { fileText, fullLooks, importFiles, manyName } from './look-file.ts';
+import { fileText, fullLooks, importActions, importFiles, manyName } from './look-file.ts';
 
 export function LookFiles({ looks, gallery, reload }: { looks: Listed[] | null; gallery: boolean;
   reload: () => void }) {
@@ -32,12 +32,12 @@ export function LookFiles({ looks, gallery, reload }: { looks: Listed[] | null; 
       const { failed, ...counts } = await importFiles([...files], async (incoming) => {
         const listed = (await api.looks()).looks ?? [];
         const own = await Promise.all(listed.map((l) => api.look(l.id).then((r) => r.look)));
+        const actions = importActions(incoming, own);
         return openDialog<'update' | 'copy'>({ title: 'Import looks', body: (close) => <>
           <p class="dialog-text">Replacements overwrite current contents. Previous versions stay in History.
             Import as copies keeps your existing looks.</p>
-          <ul>{incoming.map((l) => <li>{typeof l.title === 'string' && l.title ? l.title : 'Untitled look'}:
-            {' '}{l.origin && own.some((o) => o.id === l.origin
-            || o.origin === l.origin) ? 'replace existing look' : 'add new look'}</li>)}</ul>
+          <ul>{incoming.map((l, i) => <li>{typeof l.title === 'string' && l.title ? l.title : 'Untitled look'}:
+            {' '}{actions[i]}</li>)}</ul>
           <div class="dialog-actions">
             <button class="btn ghost" type="button" onClick={() => close()}>Cancel</button>
             <button class="btn" type="button" onClick={() => close('copy')}>Import as copies</button>

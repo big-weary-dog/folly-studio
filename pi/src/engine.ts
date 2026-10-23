@@ -48,7 +48,7 @@ export function createEngine(o: EngineOptions) {
   setLibrary([...o.lib.entries.values()]);
   const master: Ease = { now: 1, to: 1, secs: FADE.level }, black: Ease = { now: 1, to: 1, secs: FADE.blackout };
   const fade: Ease = { now: 0, to: 1, secs: FADE.switch };
-  let playing: Playing | null = null, want = false;     // want: a person asked to go on as soon as the next is ready
+  let playing: Playing | null = null, relayed = false, want = false; // want: go on as soon as the next is ready
   const overlap = crossfade(scene);
   // pending: what plays next, once what plays has faded out; fadeIn: the fade it was given to come in over.
   let pending: Item | null = null, fadeIn: number | undefined, frame = 0;
@@ -130,7 +130,7 @@ export function createEngine(o: EngineOptions) {
   }
 
   function start(item: Item) {
-    overlap.start(playing, frame, rgb, !jukebox, fade.now);
+    overlap.start(playing, frame, rgb, !jukebox, fade.now, relayed);
     // A bake's frames are in by now; a look of the engine's own is prepared again if the looks were read since.
     if (item.kind === 'baked' || (item.kind === 'look' && o.looks().get(item.id)?.look !== item.look)) prepare(item);
     const p = prepared.get(item) ?? prepared.get(prepare(item))!;
@@ -170,7 +170,8 @@ export function createEngine(o: EngineOptions) {
       p.live?.wrapped(back * dt);
     }
     // A relayed frame (slots count every tick and skip) stands in for the render; the controls step on regardless.
-    if (o.relay?.fill(shown(), rev, rgb, dt)) p.live?.step(t, dt);
+    relayed = o.relay?.fill(shown(), rev, rgb, dt) ?? false;
+    if (relayed) p.live?.step(t, dt);
     else {
       try {
         const error = renderPlaying(p, scene, frame, dt, rgb);
