@@ -51,6 +51,55 @@ const top = (page, id) => row(page, id).locator(':scope > .chain-top');
 const pick = (page, id) => top(page, id).locator('.chain-name').click();
 const noErrors = async (page) => expect(page.locator(
   '.chain-row:is([data-status=compile], [data-status=runtime], [data-status=hung])')).toHaveCount(0);
+
+test('nested macro uses, rename/delete, Automate and duplication stay savable', async ({ page, studio }, info) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  const look = structuredClone(TWISTED);
+  look.globals = { macros: { storm: { value: 0.5, min: 0, max: 1 } }, live: ['bpm', 'storm'] };
+  look.layers[0].modules[0].layers[0].modules[0].params.speed = {
+    mod: 'global', name: 'storm', from: 0, to: 1 };
+  await open(page, studio, look, false);
+  const save = async () => {
+    const response = page.waitForResponse((r) => r.request().method() === 'PUT' && /\/api\/looks\//.test(r.url()));
+    await page.locator('.save-btn').click();
+    const res = await response;
+    expect(res.status(), await res.text()).toBe(200);
+    return res.request().postDataJSON();
+  };
+  await page.locator('.dock-tab[data-dock=look]').click();
+  await expect(page.locator('.macro .mod-tag')).toHaveText(/Twisted pair › Speed \(clouds a second\)/);
+  await page.locator('.macro .mod-tag').click();
+  await expect(page.locator('.drawer:last-child .drawer-title')).toHaveText(/Modulate Speed/);
+  await page.keyboard.press('Escape');
+  await page.getByRole('textbox', { name: 'Name of macro storm' }).fill('rain');
+  await page.getByRole('textbox', { name: 'Name of macro storm' }).press('Enter');
+  let saved = await save();
+  expect(saved.globals.live).toEqual(['bpm', 'rain']);
+  expect(saved.layers[0].modules[0].layers[0].modules[0].params.speed.name).toBe('rain');
+  await page.getByRole('button', { name: 'Delete rain', exact: true }).click();
+  saved = await save();
+  expect(saved.globals.live).toEqual(['bpm']);
+  expect(saved.layers[0].modules[0].layers[0].modules[0].params.speed).toBeUndefined();
+
+  await expect(top(page, 'a1').locator('.chain-name')).toHaveAttribute('aria-expanded', 'true');
+  await page.getByRole('button', { name: /^Modulate Speed/ }).click();
+  await page.locator('.drawer:last-child').getByRole('button', { name: 'Automate', exact: true }).click();
+  await expect(page.locator('.tl-auto-row:not(.tl-mod-row)')).toHaveCount(1);
+  await page.screenshot({ path: process.env.COMPOSITE_SHOTS
+    ? path.join(process.env.COMPOSITE_SHOTS, 'nested-automation.png') : info.outputPath('nested-automation.png') });
+  saved = await save();
+  const binding = saved.layers[0].modules[0].layers[0].modules[0].params.speed;
+  expect(saved.automation[binding.name]).toHaveLength(2);
+
+  await page.getByRole('button', { name: 'Duplicate layer', exact: true }).click();
+  saved = await save();
+  expect(saved.layers).toHaveLength(2);
+  const copied = saved.layers[1].modules[0].layers;
+  expect(copied[0].modules[0].id).not.toBe('a1');
+  expect(copied[1].modules[1].on).toBe(copied[1].modules[0].id);
+  await noErrors(page);
+});
+
 /** Press the mouse on `grip`, move it to the foot of `target` above it, letting the pane scroll there by holding the
  * pointer at its top edge (a phone's is short), take the screenshot `shot`, let go. */
 async function drag(page, grip, target, shot) {
