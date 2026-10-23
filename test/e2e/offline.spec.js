@@ -41,10 +41,22 @@ for (const [name, device] of Object.entries(SIZES)) {
 
       await test.step('Import takes a file of looks; a refused one is named', async () => {
         const bad = { ...look('Broken'), layers: 'nope' };
-        await page.locator('input[type=file]').setInputFiles({ name: 'crew.json', mimeType: 'application/json',
-          buffer: Buffer.from(JSON.stringify({ looks: [look('Embers'), look('Tide'), bad] })) });
+        await page.locator('input[type=file]').setInputFiles([
+          { name: 'older.json', mimeType: 'application/json',
+            buffer: Buffer.from(JSON.stringify({ ...look('Old embers'), origin: 'batchLook01' })) },
+          { name: 'crew.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ looks: [
+            { ...look('Embers'), origin: 'batchLook01' }, look('Tide'), bad] })) },
+        ]);
+        await expect(page.getByRole('dialog', { name: 'Import looks' })).toBeVisible();
+        await expect(page.getByRole('dialog')).toContainText('Old embers: add new look');
+        await expect(page.getByRole('dialog')).toContainText('Embers: replace earlier import');
+        for (const label of ['Cancel', 'Import as copies', 'Import looks']) {
+          await expect(page.getByRole('dialog').getByRole('button', { name: label, exact: true })).toBeInViewport();
+        }
+        await page.screenshot({ path: info.outputPath(`import-preview-${device.viewport.width}.png`) });
+        await page.getByRole('button', { name: 'Import looks', exact: true }).click();
         await expect(page.locator('.card')).toHaveCount(2);
-        await expect(page.getByText('Imported: 2 added.')).toBeVisible();
+        await expect(page.getByText('Imported: 2 added, 1 updated.')).toBeVisible();
         await expect(page.getByText(/Not imported: Broken/)).toBeVisible();
         await shot('imported');
       });
@@ -57,8 +69,20 @@ for (const [name, device] of Object.entries(SIZES)) {
         expect(looks.map((l) => l.title).sort()).toEqual(['Embers', 'Tide']);
         expect(looks.every((l) => l.chain === 2 && l.origin)).toBe(true);
         await page.locator('input[type=file]').setInputFiles(await file.path());
+        await expect(page.getByRole('dialog')).toContainText('replace existing look');
+        await page.screenshot({ path: info.outputPath(`import-replacements-${device.viewport.width}.png`) });
+        await page.getByRole('button', { name: 'Import looks', exact: true }).click();
         await expect(page.getByText('Imported: 2 unchanged.')).toBeVisible();
         await expect(page.locator('.card')).toHaveCount(2);
+        await expect(page.getByRole('button', { name: 'Import', exact: true })).toBeEnabled();
+        await page.locator('input[type=file]').setInputFiles(await file.path());
+        await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+        await expect(page.getByRole('dialog')).toHaveCount(0);
+        await expect(page.locator('.card')).toHaveCount(2);
+        await expect(page.getByRole('button', { name: 'Import', exact: true })).toBeEnabled();
+        await page.locator('input[type=file]').setInputFiles(await file.path());
+        await page.getByRole('button', { name: 'Import as copies', exact: true }).click();
+        await expect(page.locator('.card')).toHaveCount(4);
       });
       expect(errors).toEqual([]);
     });

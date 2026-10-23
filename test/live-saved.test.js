@@ -55,3 +55,13 @@ test('the save at shutdown goes through a temporary', async () => {
   assert.equal(saved.rev, 3);
   assert.equal(saved.driver, 'pi');
 });
+
+test('Pi startup follows the engine even when the previous stage was empty', async () => {
+  const dataDir = path.join(tmp, 'pi-start');
+  fs.mkdirSync(dataDir);
+  fs.writeFileSync(path.join(dataDir, 'live.json'), JSON.stringify(emptyLive()));
+  const hub = await createHub({ dataDir, playable, driver: 'pi' });
+  hub.piNow({ rev: 1, t: 2, bpm: 120, beat0: 0, offset: 0, values: {}, gain: 1 });
+  assert.equal(hub.live.driver, 'pi');
+  await hub.close();
+});

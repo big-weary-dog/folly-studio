@@ -59,6 +59,11 @@ test('a look picked on /pi plays on the Live tab', async ({ browser, studio }, i
   await pi.page.getByRole('button', { name: /Add a look/ }).click();
   await pi.page.getByRole('button', { name: /^Fire/ }).click();
   await pi.page.getByRole('button', { name: 'Cue it' }).click();
+  await expect(pi.page.getByText('The looks overlap for 4 s.', { exact: false })).toBeVisible();
+  await pi.page.screenshot({ path: info.outputPath('pi-crossfade-390.png') });
+  await pi.page.setViewportSize(LAPTOP.viewport);
+  await pi.page.screenshot({ path: info.outputPath('pi-crossfade-1366.png') });
+  await pi.page.setViewportSize(PHONE.viewport);
   await pi.page.getByRole('button', { name: /^Fade to Fire/ }).click();
   await expect(pi.page.getByRole('heading', { level: 1 })).toHaveText('Fire', { timeout: 10_000 });
   await expect(studioTab).toContainText('Driven from /pi');

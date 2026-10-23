@@ -1,6 +1,13 @@
 // Keep it, Rose and arches' last chapter: an idea tried and undone, save, and Live.
 import { type Ctx, layerBy, on, type Path } from '../types.ts';
 
+export const guestKeep = {
+  id: 'save', page: '/studio', title: 'Keep your work',
+  text: 'Your work stays in this browser. Save asks you to log in or sign up for an account, then your work '
+    + 'comes with you. You can keep exploring as a guest. Click Next to continue.',
+  anchor: ['save'], done: () => true, next: true,
+};
+
 /** Arches plays somewhere besides the arches. */
 const spread = (c: Ctx) => {
   const g = layerBy(c, 'arches')?.groups, arch = [...c.v?.tagged('arch-main') ?? [], ...c.v?.tagged('arch-mini') ?? []];

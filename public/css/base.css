@@ -129,7 +129,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offs
 .dialog-body { min-height: 0; padding: 14px 22px 22px; display: flex; flex-direction: column; gap: 14px; overflow: auto;
 }
 .dialog-text { color: var(--text-2); }
-.dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+.dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 6px; }
 .lights-actions { flex-wrap: wrap; }
 .lights-dialog .dialog-text.error { color: var(--error); }
 .menu-wrap { position: relative; }
@@ -168,6 +168,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offs
 .tag-sapphire { color: var(--cobalt-t); }
 .tag-emerald { color: var(--emerald); }
 @media (max-width: 899px) {
+  .user-menu .tutorials-btn { display: none; }
   .toasts { left: 12px; right: 12px; bottom: var(--toasts-bottom, 12px); max-width: none; }
   .dialog-actions .btn { flex: 1; }
 }
@@ -338,13 +339,13 @@ input.switch:disabled { opacity: .5; cursor: default; }
   .main-nav a[aria-current=page], .main-nav a[aria-current=page]:focus-visible { mask: none; background: none; }
   .main-nav a[aria-current=page]::before { mask: none; inset: 0; border: var(--came-s) solid var(--lead); }
   .main-nav a:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-  .user-box { margin: 6px 0 0; padding: 12px 14px 6px; border-top: var(--came) solid var(--lead); }
+  .user-box { margin: 6px 0 0; padding: 12px 14px 6px; border-top: var(--came) solid var(--lead); flex-wrap: wrap; }
   .user-name { max-width: none; }
-  .user-box { flex-wrap: wrap; }
   .user-box > .user-name { display: block; }
   .user-menu-btn { display: none; }
   .user-menu { display: flex; position: static; flex: 1 0 100%; flex-direction: row; padding: 0; background: none;
-    border: 0; box-shadow: none; }
+    flex-wrap: wrap; border: 0; box-shadow: none; }
+  .user-menu .btn { flex: 1 1 auto; min-height: 44px; justify-content: center; }
 }
 /* Layout: the list pages' column, titles over a string of LEDs, and the sign-in page (the rose
    window beside a pointed-arch card). */

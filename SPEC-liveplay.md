@@ -70,8 +70,9 @@ control's `value` is a name (`''`: the look's own); `min` and `max` are 0.
 | `level`, `tap`, `blackout` | Master, tap tempo, Blackout | refused |
 | `{ type: 'take' }` | take the knobs | refused |
 
-`fade` is seconds, 0.25–8: the playing look fades out over it and the next in over it, each direction capped at
-half of its own look's duration. Without it, `FADE.queue`.
+`fade` is seconds, 0.25–8: in Live Play both looks overlap in LED light, completing in that time, including for
+short looks (which loop during the fade). Without it, `FADE.queue`. Jukebox keeps its fade through black.
+An outgoing relay frame, or an interrupted crossfade's mixture, is held as it fades to the new look.
 Only Studio's feed sends `mode` and `send`: the engine takes them only from a hello with `feed: true` ("Only Studio
 sends that."), and Studio's proxy passes pages neither. On the network, where any page may say it is the feed, the
 engine's PIN is the only gate (SPEC-offline "The Pi preview").

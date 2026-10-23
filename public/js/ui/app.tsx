@@ -1,5 +1,5 @@
 // The app shell: the session, history-API routing (views load on first use, so the login and list pages never fetch
-// the Studio's 3D code), the header, and the guard that keeps unsaved Studio edits from being lost.
+// the Studio's 3D code), the header, and the guard that keeps unsaved edits from being lost.
 import { signal } from '@preact/signals';
 import type { ComponentType } from 'preact';
 import { useLayoutEffect, useState } from 'preact/hooks';
@@ -7,11 +7,12 @@ import { useLayoutEffect, useState } from 'preact/hooks';
 import { api, statusOf } from '../api.ts';
 import { can } from '../../../shared/policy.ts';
 import type { User } from '../../../shared/schemas/api.ts';
-import { confirmDialog, cx, openDialog, toast, Toasts } from './kit.tsx';
-import { fileBugReport } from './bug-report.tsx';
+import { confirmDialog, cx, toast, Toasts } from './kit.tsx';
+import { canReport, fileBugReport } from './bug-report.tsx';
 import { Rose } from './rose.tsx';
 import { openTour, welcomeOnce } from './tour-view.ts';
-import { redeem, redeemInvite, takeInvite } from './invite.ts';
+import { redeemInvite, takeInvite } from './invite.ts';
+import { enterInvite } from './invite-form.tsx';
 import { ai, here, home, invitable, leaveGuard, navigate, onPi, router, setTitle, signedIn, user, type ViewProps }
   from './session.ts';
 
@@ -105,7 +106,7 @@ async function show() {
 
 async function canLeave() {
   if (!leaveGuard.isDirty?.()) return true;
-  return confirmDialog('You have unsaved changes in the Studio. Leave without saving?',
+  return confirmDialog('You have unsaved changes. Leave without saving?',
     { title: 'Unsaved changes', ok: 'Leave', danger: true });
 }
 
@@ -138,16 +139,6 @@ function navOf(me: User) {
     .filter(([href]) => (ai.value || href !== '/ideas') && !(me.guest && href === '/looks'));
   return onPi() && can(me, 'curate') ? [...nav, ['/pi/', 'Lights']] : nav;
 }
-
-/** A locked account's way to the AI (SPEC-access "AI only with access"). */
-const enterInvite = () => openDialog<string>({ title: 'Invite code', body: (close) => <form method="dialog"
-  onSubmit={(e) => { e.preventDefault(); close(new FormData(e.currentTarget).get('code') as string); }}>
-  <p class="dialog-text">An invite code turns on the AI: ideas, refining and fixes.</p>
-  <div class="field stack"><label>Code <input name="code" required autocomplete="off" autocapitalize="characters"
-    spellcheck={false} maxlength={40} placeholder="XXXX-XXXX-XXXX" /></label></div>
-  <div class="dialog-actions"><button class="btn ghost" type="button" onClick={() => close()}>Cancel</button>
-    <button class="btn primary" type="submit">Redeem</button></div></form> })
-  .then((code) => (code?.trim() ? redeem(code.trim()) : false));
 
 /** The user menu drops under its button at a desktop's width; on a phone it sits open in the nav panel. */
 function placeUserMenu(e: { newState: string; currentTarget: HTMLElement }) {
@@ -195,10 +186,11 @@ function Header({ me, nav }: { me: User; nav?: string }) {
               : me.guest && <span class="tag">Guest</span>}
           <div class="user-menu" id="user-menu" popover="auto" onBeforeToggle={placeUserMenu}
             onClick={(e) => { if ((e.target as Element).closest('.btn')) e.currentTarget.hidePopover?.(); }}>
-            <button class="btn ghost small" type="button" onClick={() => openTour('menu')}>Tutorials</button>
+            <button class="btn ghost small tutorials-btn" type="button" onClick={() => openTour('menu')}>
+              Tutorials</button>
             {invitable.value && <button class="btn ghost small" type="button" onClick={enterInvite}>
               Invite code</button>}
-            {!me.guest && <button class="btn ghost small report-btn" type="button" title="Report a problem (F8)"
+            {canReport(me) && <button class="btn ghost small report-btn" type="button" title="Report a problem (F8)"
               onClick={() => { setOpen(false); void fileBugReport(); }}>Report a problem</button>}
             <button class="btn ghost small" type="button" onClick={logout}>{me.guest ? 'Leave' : 'Log out'}</button>
           </div>

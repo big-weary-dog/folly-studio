@@ -129,8 +129,10 @@ function People({ people, put, fail }: { people: Person[] | null, put: (p: Perso
 
 /** One person's own limits: blank fields take the models file's. */
 function LimitsForm({ p, save }: { p: Person, save: (limits: PersonLimits | null) => void }) {
-  const [v, setV] = useState({ perHour: '', perDay: '', concurrent: '',
+  const values = () => ({ perHour: '', perDay: '', concurrent: '',
     ...Object.fromEntries(Object.entries(p.access.limits ?? {}).map(([k, n]) => [k, String(n)])) });
+  const [v, setV] = useState(values);
+  useEffect(() => { setV(values()); }, [p]);
   const field = (key: keyof typeof v, label: string) => <label>{label}<input type="number" min={0} value={v[key]}
     placeholder="Default" onInput={(e) => setV({ ...v, [key]: e.currentTarget.value })} /></label>;
   const limits = Object.fromEntries(Object.entries(v).filter(([, s]) => s !== '').map(([k, s]) => [k, Number(s)]));
@@ -139,5 +141,6 @@ function LimitsForm({ p, save }: { p: Person, save: (limits: PersonLimits | null
       {field('perHour', 'An hour')}{field('perDay', 'A day')}{field('concurrent', 'At once')}
       <button class="btn small" type="submit">Save</button>
       <button class="btn ghost small" type="button" onClick={() => save(null)}>Defaults</button>
+      <span class="field-hint">Blank fields use the global limits.</span>
     </form>);
 }
