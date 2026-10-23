@@ -2,6 +2,7 @@
 // guide has the person try it first.
 import assert from 'node:assert/strict';
 import { execFile, spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -70,8 +71,9 @@ test('a dry run plays, prints its stats and fades out on time', async () => {
 test('the light settings saved again apply live; a broken file keeps the last', async () => {
   const light = path.join(dir, 'light.json'), main = fileURLToPath(new URL('../main.ts', import.meta.url));
   writeFileSync(light, '{ "gamma": 2.2 }');
-  const pi = spawn(process.execPath, [main, '--dry-run', '--http', '0', '--seconds', '20', '--light', light,
+  const pi = spawn(process.execPath, [main, '--dry-run', '--http', '0', '--light', light,
     '--config', file({})], { stdio: ['ignore', 'pipe', 'inherit'] });
+  const exited = once(pi, 'exit');
   let out = '';
   pi.stdout.on('data', (d) => { out += d; });
   const until = async (re: RegExp) => {
@@ -79,13 +81,14 @@ test('the light settings saved again apply live; a broken file keeps the last', 
     assert.match(out, re);
   };
   try {
-    await until(/gamma 2\.2\n/);   // watching from before this line
+    await until(/gamma 2\.2\n/);   // the startup read is the poller's baseline
     writeFileSync(light, '{ "gamma": 1 }');
     await until(/light settings changed: gamma 1\n/);
     writeFileSync(light, '{ "gamma": ');
     await until(/light settings kept: .*light\.json/);
   } finally {
     pi.kill('SIGINT');
+    await exited;
   }
 }, 40000);
 
