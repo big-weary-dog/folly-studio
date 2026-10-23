@@ -10,6 +10,7 @@ import { ledRanges } from '../public/js/fseq.ts';
 import { flashLimits, FlashWatch, type Light, ledLight, prepareScene } from '../public/js/pattern-core.ts';
 import type { Bake, FlashSettings } from '../shared/schemas/api.ts';
 import type { Rig } from '../shared/schemas/rig.ts';
+import { stamp } from './clock.ts';
 import { type Config, configOf } from './config.ts';
 import { analyzeFrames, DEFAULT_MAX_BYTES, flickerReason, flickerWarning, FseqError, parseFseq } from './frames.ts';
 import { inflateBlock } from './fseq-codec.ts';
@@ -99,7 +100,7 @@ export function flashSettings(c: Config = configOf()): FlashSettings {
 export function checkFrames(bytes: Uint8Array, { source, rig, maxBytes = DEFAULT_MAX_BYTES, boxStats,
   flash = flashSettings(), light, seconds }: { source: Bake['source'], rig: Rig, maxBytes?: number, seconds?: number,
   boxStats?: Bake['boxStats'], flash?: FlashSettings, light?: Light }) {
-  const bake: Bake = { source, status: 'done', ok: false, checkedAt: new Date().toISOString() };
+  const bake: Bake = { source, status: 'done', ok: false, checkedAt: stamp() };
   if (boxStats) bake.boxStats = boxStats;
   let analysis;
   try {
@@ -137,5 +138,5 @@ export function checkFrames(bytes: Uint8Array, { source, rig, maxBytes = DEFAULT
 
 /** A bake record for a box that left no usable frames. */
 export function failedBake(source: Bake['source'], reason: string, extra: Partial<Bake> = {}): Bake {
-  return { source, status: 'failed', ok: false, checkedAt: new Date().toISOString(), reason, ...extra };
+  return { source, status: 'failed', ok: false, checkedAt: stamp(), reason, ...extra };
 }

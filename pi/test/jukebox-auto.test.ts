@@ -7,7 +7,7 @@ import { describe, test } from 'vitest';
 import { FADE } from '../src/engine.ts';
 import { engineOn, oneModule } from './fixture.ts';
 
-const short = (id: string, duration: number) => oneModule(id, 'clouds', {}, { duration });
+const short = (id: string, duration: number) => oneModule(id, 'colour-wash', { speed: 0 }, { duration });
 const near = (v: number, to: number, why: string) => assert.ok(Math.abs(v - to) < 0.06, `${why}: ${v}`);
 
 /** An engine in Jukebox on `looks` alone (and `safe`), playing the first. */

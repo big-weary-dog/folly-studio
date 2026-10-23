@@ -3,7 +3,7 @@
 // to the clock.
 import assert from 'node:assert/strict';
 
-import { describe, test } from 'vitest';
+import { afterEach, beforeEach, describe, test, vi } from 'vitest';
 
 import { lightOf } from '../../public/js/core/light.ts';
 import { createEngine, FADE } from '../src/engine.ts';
@@ -150,35 +150,37 @@ describe('the engine', () => {
 });
 
 describe('the frame timer', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
   test('ticks at the frame rate, and skips what it missed when behind', async () => {
     let clock = 0, ticks = 0, skipped = 0;
     const loop = runLoop({ tick: () => { ticks++; }, skip: (k) => { skipped += k; } }, 40, () => clock);
     clock = 1000;                    // a second lost (the machine stalled): 40 frames behind
-    await new Promise((r) => setTimeout(r, 40));
+    await vi.advanceTimersByTimeAsync(40);
     loop.stop();
     assert.equal(skipped, 38);       // frame 39 plays late, frame 40 on time
-    assert.ok(ticks >= 2 && ticks <= 4, `${ticks}`);
+    assert.equal(ticks, 3);
   });
 
-  test('keeps 40 fps on a real clock', async () => {
+  test('keeps 40 fps on the timer clock', async () => {
     let ticks = 0;
     const loop = runLoop({ tick: () => { ticks++; }, skip: () => {} }, 40);
-    await new Promise((r) => setTimeout(r, 500));
+    await vi.advanceTimersByTimeAsync(500);
     loop.stop();
-    assert.ok(ticks >= 18 && ticks <= 22, `${ticks}`);
-    assert.ok(Math.abs(loop.fps() - 40) < 4, `${loop.fps()}`);
+    assert.equal(ticks, 21);
+    assert.equal(loop.fps(), 40);
   });
 
   test('renders nothing while idle, and picks up without skipping when it is not', async () => {
     let ticks = 0, skipped = 0, idle = true;
     const loop = runLoop({ tick: () => { ticks++; }, skip: (k) => { skipped += k; } }, 40, undefined, () => idle);
-    await new Promise((r) => setTimeout(r, 400));
+    await vi.advanceTimersByTimeAsync(400);
     assert.equal(ticks, 0);
     assert.equal(loop.fps(), 0);
     idle = false;
-    await new Promise((r) => setTimeout(r, 500));
+    await vi.advanceTimersByTimeAsync(500);
     loop.stop();
-    assert.ok(ticks >= 8 && ticks <= 22, `${ticks}`);
+    assert.equal(ticks, 17);
     assert.equal(skipped, 0);
   });
 });
