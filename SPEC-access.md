@@ -46,7 +46,8 @@ Access below), Light (`/admin/light`, SPEC "Light and output"), Baking (`/admin/
 setting"), Reports (`/admin/reports`, SPEC "Bug reports"), Stats (`/admin/stats`, Stats below) and Pi bundle
 (`/admin/pi-bundle`, SPEC-offline "Downloading the Pi bundle"), then a link to the
 Pi preview (`/pi/`, in a new tab). `/models`, `/access`, `/light` and `/reports` lead to their tab, query kept. Anyone
-else who opens one gets the page without the tabs, its admin calls refused (403) as it says.
+else who opens one sees an explanation that Admin pages require an admin account, without the page's controls.
+The browser uses the same admin permission as the server; admin API calls remain refused (403).
 On the Pi there is no Models, Access or Pi bundle tab, and `/admin` opens Light (SPEC-offline).
 
 ## Stats
