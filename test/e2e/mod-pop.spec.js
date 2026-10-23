@@ -124,7 +124,7 @@ test.describe('on a phone', () => {
   test('existing bindings play without modulation authoring', async ({ page, studio }) => {
     await open(page, studio, 'pop-phone');
     await expect(page.locator('.param-mod')).toHaveCount(0);
-    await expect(page.locator('.param-chip').first()).toBeVisible();
+    await expect(page.locator('.params .param-chip:visible').first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Automate', exact: true })).toHaveCount(0);
   });
 });
