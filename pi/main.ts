@@ -65,7 +65,8 @@ async function main(c: NonNullable<typeof cfg>) {
     const relay = createRelay({ count: rig.count, fps: rig.output?.fps || 40 });
     // Reserve the control port before reading looks or opening output. Until startup completes sockets get 503.
     page = c.http ? await controlServer({ get engine() { return engine; }, get lib() { return lib; },
-      state: () => state(), ready: () => started && !stopping, pin: c.pin, mode: c.mode, port: c.http,
+      state: () => state(), ready: () => started && !stopping, pin: c.pin, mode: c.mode,
+      port: c.http === 'auto' ? 0 : c.http,
       host: c.bind, base: c.base, log, relay }) : null;
     if (stopping) return;
     checkPixels(rig, table);

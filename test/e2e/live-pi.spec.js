@@ -1,38 +1,15 @@
 // npm run smoke, too: the Live tab following /pi (SPEC-live "Following /pi"). An admin on a phone picks a look on /pi
 // (the dry-run engine behind Studio's proxy); the Live tab, on a phone and a laptop, plays it and says it is driven
 // from /pi, and /pi says so too. Screenshots of each, and /pi beside the Live tab, in the output.
-import { spawn } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { createServer } from 'node:net';
-import os from 'node:os';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
 
-import { tagged } from './procs.mjs';
-import { expect, signup, test } from './studio.js';
+import { expect, signup, test } from './dry-engine.js';
 
 const PHONE = { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2,
   colorScheme: 'dark' };
 const LAPTOP = { viewport: { width: 1366, height: 768 }, colorScheme: 'dark' };
-const MAIN = fileURLToPath(new URL('../../pi/main.ts', import.meta.url));
 
-const port = await new Promise((resolve) => {
-  const s = createServer().listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => resolve(p)); });
-});
-test.use({ serverOptions: { admins: 'boss', piPreview: `http://127.0.0.1:${port}` } });
-let engine;
-test.beforeAll(async () => {
-  const config = path.join(mkdtempSync(path.join(os.tmpdir(), 'pi-config-')), 'config.json');
-  writeFileSync(config, '{}');
-  engine = spawn(process.execPath, [MAIN, '--dry-run', '--base', '/pi', '--http', String(port), '--bind', '127.0.0.1',
-    '--stats', '600', '--config', config], { env: tagged(), stdio: 'pipe' });
-  let out = '';
-  await new Promise((resolve, reject) => {
-    engine.stdout.on('data', (d) => { out += d; if (out.includes('control page on')) resolve(); });
-    engine.on('exit', (code) => reject(new Error(`the Pi exited ${code}: ${out}`)));
-  });
-});
-test.afterAll(() => engine?.kill('SIGKILL'));
+test.use({ engineScenario: 'live-pi', engineServerOptions: { admins: 'boss' } });
 
 async function person(browser, origin, cookie, device, url) {
   const ctx = await browser.newContext(device);

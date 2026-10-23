@@ -38,11 +38,11 @@ const freesAt = (times: number[], cap: number, ms: number, uses = 1) => (times.l
 const usesOf = (explore?: Explore) => (explore === 'deep' ? DEEP.uses : 1);
 
 export function createAccess({ store, auth, models }: { store: Pick<Store, 'users' | 'ideas' | 'invites'>,
-  auth: Auth, models: Registry }) {
-  const limits = () => models.config().limits ?? DEFAULTS;
+  auth: Auth, models: Registry | null }) {
+  const limits = () => models?.config().limits ?? DEFAULTS;
   /** Paid: its model is one (a model no longer listed counts, as it once ran). Ideas from before the registry not. */
   const paid = (i: Idea) => {
-    const m = i.model ? models.get(i.model) : undefined;
+    const m = i.model ? models?.get(i.model) : undefined;
     return !!i.model && (!m || isPaid(m));
   };
   const exempt = (u: StoredUser) => auth.can(u, 'admin');
@@ -78,7 +78,7 @@ export function createAccess({ store, auth, models }: { store: Pick<Store, 'user
     const next = Math.max(freesAt(mine.hours, caps.perHour, HOUR_MS), freesAt(mine.days, caps.perDay, DAY_MS),
       full ? freesAt(ceiling, limits().dailyCeiling, DAY_MS) : 0);
     const own: NonNullable<Access['models']> = {};
-    const capped = models.config().models.filter((x) => x.limits?.perHour != null || x.limits?.perDay != null);
+    const capped = models?.config().models.filter((x) => x.limits?.perHour != null || x.limits?.perDay != null) ?? [];
     for (const m of capped) {
       const used = usedOf(list.filter((c) => c.model === m.id), now);
       const { perHour, perDay } = m.limits!;

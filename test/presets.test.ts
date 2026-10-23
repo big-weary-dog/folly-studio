@@ -2,11 +2,11 @@
 // library (one that names a module the library lacks is dropped), made into the Studio's layers (fresh ids, inputs
 // followed, the globals they need merged), rendering cleanly on the Folly and the mini rig, played equal to sought.
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { describe, test } from 'vitest';
+import { describe, onTestFinished, test } from 'vitest';
 
 import { compileLayer, prepareLayer, prepareLook, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
 import { presetLayers, withPresetGlobals } from '../public/js/ui/model.ts';
@@ -51,6 +51,7 @@ test('the library\'s presets parse, name its modules, and the loader drops one t
     }
   }
   const dir = mkdtempSync(path.join(os.tmpdir(), 'presets-')), lib = path.join(dir, 'patterns');
+  onTestFinished(() => rmSync(dir, { recursive: true, force: true }));
   mkdirSync(lib);
   writeFileSync(path.join(lib, 'one.js'), 'function pixel() { return 1; }\n');
   const raw = index.find((e) => e.kind === 'preset');

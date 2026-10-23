@@ -2,7 +2,7 @@
 // /pi open to curators, its own defaults, and a hosted server that listens on loopback only.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync } from 'node:fs';
+import { existsSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,18 +20,22 @@ const start = (opts) => startApp({ dataDir: mkdtempSync(path.join(tmpdir(), 'pro
 const look = { title: 'Sea', layers: [layer()], chain: 2 };
 
 describe('the Pi profile', () => {
-  let pi, app, ada, cara, bob, mine;
+  let pi, app, ada, cara, bob, mine, modelsFile;
   beforeAll(async () => {
     const r = engineOn();
     pi = await controlServer({ engine: r.engine, state: () => ({ ...r.engine.state(), looks: [], out: {} }), pin: '',
       port: 0, host: '127.0.0.1', base: '/pi' });
-    app = await start({ profile: 'pi', admins: 'ada', curators: 'cara', piPreview: `http://127.0.0.1:${pi.port}` });
+    const dataDir = mkdtempSync(path.join(tmpdir(), 'profile-'));
+    modelsFile = path.join(dataDir, 'models.json');
+    app = await start({ dataDir, profile: 'pi', admins: 'ada', curators: 'cara',
+      piPreview: `http://127.0.0.1:${pi.port}` });
     [ada, cara, bob] = [await signup(app, 'ada'), await signup(app, 'cara'), await signup(app, 'bob')];
     mine = (await bob.post('/api/looks', look)).json.look;
   });
   afterAll(async () => { await app?.close(); await pi?.close(); });
 
   test('signing in and /api/me say pi, with no access', async () => {
+    assert.equal(existsSync(modelsFile), false, 'startup and signups do not create a model registry');
     const me = (await bob.get('/api/me')).json;
     assert.equal(me.profile, 'pi');
     assert.equal(me.access, undefined);

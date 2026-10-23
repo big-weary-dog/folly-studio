@@ -95,8 +95,9 @@ export async function createServer(opts: Options = {}) {
   auth.pruneSessions();
   const loaders = createLoaders(publicDir, { log });
   const { loadLibrary, loadRig } = loaders;
-  const models = createRegistry({ file: opts.models?.file || config.STUDIO_MODELS || path.join(dataDir, 'models.json'),
-    env, settings: config, log, legacy: generatorName, foundryOn: foundryOf(config).on, codexBin });
+  const models = generates(profile) ? createRegistry({
+    file: opts.models?.file || config.STUDIO_MODELS || path.join(dataDir, 'models.json'),
+    env, settings: config, log, legacy: generatorName, foundryOn: foundryOf(config).on, codexBin }) : null;
   const access = createAccess({ store, auth, models });
   const light = createLightStore({ file: path.join(dataDir, 'light.json'), log });
   const box = renderBox || createRenderBox({ publicDir, log, config, ...boxDefaults(profile, config) });
@@ -112,11 +113,12 @@ export async function createServer(opts: Options = {}) {
   const reports = createReports({ dir: path.join(dataDir, 'reports'), ...opts.reports, log });
   void reports.sweep();
   const deps = { store, loadLibrary, loadRig, loadLight: light.current, loadVersion: loaders.version, models, codexBin,
-    config, log, box, lane, ideaLogs, codeGate, adapterName: generatorName || models.defaultId() };
+    config, log, box, lane, ideaLogs, codeGate, adapterName: generatorName || models?.defaultId() || '' };
   // The Pi runs none: nothing can make an idea there, so nothing is ever queued.
-  const queue: Queue = !generates(profile) ? { enqueue: () => { throw new Error('No generators on the Pi.'); } }
-    : typeof generator === 'function' ? await generator(deps) : generator || createQueue(deps);
-  const adapterName = models.defaultId();
+  const queue: Queue = !models ? { enqueue: () => { throw new Error('No generators on the Pi.'); } }
+    : typeof generator === 'function' ? await generator({ ...deps, models })
+      : generator || createQueue({ ...deps, models });
+  const adapterName = models?.defaultId() || '';
   const framesDir = path.join(dataDir, 'frames');
   const frames = createFramesCache({ framesDir, store, log, quality: framesQuality, maxBytes: framesMaxBytes, lane,
     rebake: (look) => bakes.restore(look) });

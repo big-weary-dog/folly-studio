@@ -55,6 +55,11 @@ const noErrors = async (page) => expect(page.locator(
 for (const width of [1366, 390]) {
   test(`editor audit actions at ${width}`, async ({ page, studio }, info) => {
     const phone = width === 390;
+    await page.route(/\/(?:data\/rig|assets\/rig-[^/]+)\.json$/, async (route) => {
+      const response = await route.fetch(), rig = await response.json();
+      rig.output.fps = 20;
+      await route.fulfill({ response, json: rig });
+    });
     await page.setViewportSize({ width, height: phone ? 844 : 768 });
     const shot = (name) => page.screenshot({ path: process.env.UX_SHOTS
       ? path.join(process.env.UX_SHOTS, `${width}-${name}.png`) : info.outputPath(`${name}.png`) });
@@ -100,6 +105,7 @@ for (const width of [1366, 390]) {
       await warning.getByRole('button', { name: 'Export preview', exact: true }).click();
       const form = page.getByRole('dialog', { name: 'Export .fseq', exact: true });
       await expect(form).toContainText('including Mute and Solo');
+      await expect(form).toContainText('frames at 20 fps');
       await shot('export-scope');
       await form.getByRole('button', { name: 'Cancel', exact: true }).click();
     }
@@ -193,7 +199,6 @@ for (const [device, use] of [['laptop', { viewport: { width: 1366, height: 768 }
       /** The composite's row at the top of the view (on a phone, under the settings' head), then the Settings pane. */
       const shot = async (name) => {
         await top(page, 'c1').evaluate((e) => e.scrollIntoView({ block: 'start' }));
-        await page.waitForTimeout(300);
         if (phone) {
           const head = await page.locator('.phone-head').boundingBox(), row = await top(page, 'c1').boundingBox();
           expect(row.y).toBeGreaterThanOrEqual(head.y + head.height - 1);          // not under the sticky head
@@ -237,8 +242,9 @@ for (const [device, use] of [['laptop', { viewport: { width: 1366, height: 768 }
       await expect.poll(leads).toEqual(['a1', 't1', 'b1']);
       await top(page, 't1').locator('.chain-name').focus();
       for (let i = 0; i < 4 && await inComp('t1').count(); i++) {
+        const before = await leads();
         await page.keyboard.press('Alt+ArrowDown');
-        await page.waitForTimeout(200);
+        await expect.poll(leads).not.toEqual(before);
       }
       await expect(inComp('t1')).toHaveCount(0);
       await expect.poll(leads).toEqual(['a1', 'b1']);
@@ -259,7 +265,7 @@ for (const [device, use] of [['laptop', { viewport: { width: 1366, height: 768 }
       await expect(page.locator('.sub-head')).toHaveCount(1);                    // two sources: one head
       await expect(page.locator('.sub-head .sub-name')).toHaveValue('Arches');
       await expect(top(page, 'a1').locator('.chain-note')).toHaveText('Plays on #rose');
-      await page.waitForTimeout(1500);
+      await expect(page.locator('.viewer-msg').first()).toBeHidden({ timeout: 30_000 });
       await noErrors(page);
       await shot('multi');
       expect(errors).toEqual([]);

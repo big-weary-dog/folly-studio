@@ -1,7 +1,7 @@
 // The power compressor's golden frames: pi/test/frames.ts through the lighting repo's own compress-fseq.py (read, never
-// written: Python runs with -B), each output frame's sha256 into pi/test/power-golden.json, for test/pi-power.test.js
-// where no lighting checkout is. node pi/tools/power-golden.ts [LIGHTING] (default LIGHTING_DIR, or lighting/ beside
-// this repo, as tools/sources.py finds it).
+// written: Python runs with -B), each output frame's sha256 into pi/test/power-golden.json, so pi/test/power.test.ts
+// can verify output without a lighting checkout. node pi/tools/power-golden.ts [LIGHTING] (default LIGHTING_DIR,
+// or lighting/ beside this repo, as tools/sources.py finds it).
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';

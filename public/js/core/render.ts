@@ -34,7 +34,6 @@ export function layerModules(layer?: LayerInput | null): Partial<Module>[] {
     params: layer?.params as Module['params'] }];
 }
 
-
 /** Each module compiled (null where disabled), a composite's sub-layers too (none for one switched off, as the
  * sandbox counts no error of theirs). Throws on the first failure, as "<module title>: …" in a chain. */
 export function compileLayer(layer?: LayerInput | null): (CompiledLink | null)[] {
@@ -237,18 +236,19 @@ const clock = globalThis.performance ? performance.now.bind(performance) : Date.
  * A failing layer adds nothing and is reported in `errors`; outside its clips it does not run. L.ms: its time.
  */
 export function renderFrame(scene: Scene, layers: readonly (PreparedLayer | null)[] | null | undefined, t: number,
-  out?: Float32Array | null, look?: PreparedLook | null) {
+  out?: Float32Array | null, look?: PreparedLook | null,
+  result?: { rgb: Float32Array, errors: { id: string | null, module?: string | null, error: string }[] }) {
   const N = scene.count;
   const rgb = out && out.length >= N * 3 ? out : new Float32Array(N * 3);
   rgb.fill(0, 0, N * 3);
-  const errors: { id: string | null, module?: string | null, error: string }[] = [];
-  const list = layers || [];
+  const frame = result ?? { rgb, errors: [] }, errors = frame.errors;
+  frame.rgb = rgb; errors.length = 0;
   const LK = look || (plainLook ||= prepareLook(null));
   lookFrame(LK, t);
   RUN.scene = PLACE.scene = scene;
   const T = look ? LK.T : t, G = LK.G;
-  for (let n = 0; n < list.length; n++) {
-    const L = list[n];
+  for (let n = 0; n < (layers?.length ?? 0); n++) {
+    const L = layers![n];
     if (!L || !L.chain) continue;
     L.ms = 0;
     const env = L.clips ? layerEnvelope(L.clips, t) : 1, clip = env < 1 ? clipAt(L.clips, t) : null;
@@ -270,5 +270,5 @@ export function renderFrame(scene: Scene, layers: readonly (PreparedLayer | null
     L.ms = clock() - t0;
   }
   finish(rgb, N * 3);
-  return { rgb, errors };
+  return frame;
 }
