@@ -68,7 +68,8 @@ describe('the control page', () => {
     await c.next('state');
     page.send({ type: 'queue', id: 'beat-bars' });
     const look = { id: 'abc123', title: 'Mine', layers: [{ modules: [{ ref: 'clouds', code: 'while (true) {}' }] }] };
-    c.send({ type: 'send', by: 'ana', item: { kind: 'live', look } });
+    c.send({ type: 'send', requestId: 'live-1', by: 'ana', item: { kind: 'live', look } });
+    assert.deepEqual(await c.next('sent'), { type: 'sent', requestId: 'live-1', ok: true });
     page.send({ type: 'send', by: 'ana', item: { kind: 'live', look } });
     assert.deepEqual(await page.next('error'), { type: 'error', error: 'Only Studio sends that.' });
     await new Promise((r) => setTimeout(r, 100));
@@ -76,9 +77,10 @@ describe('the control page', () => {
       [['beat-bars', 'look', undefined], ['abc123', 'live', 'ana']]);
     let from = c.got.length;
     const custom = { id: 'x', title: 'X', layers: [{ modules: [{ code: 'x' }] }] };
-    c.send({ type: 'send', item: { kind: 'live', look: custom } });
-    assert.deepEqual(await c.next('error', from),
-      { type: 'error', error: 'Cannot play: layer 1, module 1: not a library module' });
+    c.send({ type: 'send', requestId: 'custom-1', item: { kind: 'live', look: custom } });
+    assert.deepEqual(await c.next('sent', from),
+      { type: 'sent', requestId: 'custom-1', ok: false,
+        error: 'Cannot play: layer 1, module 1: not a library module' });
     from = c.got.length;
     c.send({ type: 'blackout', on: true, pad: 'x'.repeat(2000) });
     assert.deepEqual(await c.next('error', from), { type: 'error', error: 'Too long.' });
@@ -86,7 +88,9 @@ describe('the control page', () => {
     from = c.got.length;
     c.send({ type: 'send', item: { kind: 'baked', id: '../x', title: 'X', sha256: 'a'.repeat(64) } });
     assert.deepEqual(await c.next('error', from), { type: 'error', error: 'Not a message this page sends.' });
-    c.send({ type: 'send', at: 'end', item: { kind: 'baked', id: 'abc124', title: 'Baked', sha256: 'a'.repeat(64) } });
+    c.send({ type: 'send', requestId: 'baked-1', at: 'end',
+      item: { kind: 'baked', id: 'abc124', title: 'Baked', sha256: 'a'.repeat(64) } });
+    assert.deepEqual(await c.next('sent', from), { type: 'sent', requestId: 'baked-1', ok: true });
     await new Promise((r) => setTimeout(r, 100));
     assert.deepEqual(engine.state().queue.map((q) => [q.id, q.kind]), [['abc123', 'live'], ['abc124', 'baked']]);
   });

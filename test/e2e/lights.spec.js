@@ -116,6 +116,15 @@ test('a curator plays looks on the lights; the queue shows everywhere', async ({
     expect([...control.errors, ...live.errors]).toEqual([]);
   }
 
+  // Fill the engine's queue, then exercise the existing refusal UI for Play now.
+  for (let i = 0; i < 20; i++) await call('POST', '/api/lights/queue', { lookId: ember.id });
+  await editor.page.getByRole('button', { name: 'Export' }).click();
+  await editor.page.getByRole('menuitem', { name: 'Play on the lights…' }).click();
+  const full = editor.page.getByRole('dialog', { name: 'Play on the lights' });
+  await full.getByRole('button', { name: 'Play now' }).click();
+  await expect(full.getByRole('alert')).toHaveText('The queue is full.');
+  await expect(full.getByRole('button', { name: 'Play now' })).toBeEnabled();
+
   for (const size of ['laptop', 'phone']) {
     const admin = await person(browser, origin, boss, size, '/admin/light');
     const toggle = admin.page.getByRole('checkbox', { name: 'Live library looks on the lights' });
