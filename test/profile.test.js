@@ -16,7 +16,7 @@ import { layer, signup, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const start = (opts) => startApp({ dataDir: mkdtempSync(path.join(tmpdir(), 'profile-')), ...opts });
+const start = (opts) => startApp({ ...opts, dataDir: opts.dataDir ?? mkdtempSync(path.join(tmpdir(), 'profile-')) });
 const look = { title: 'Sea', layers: [layer()], chain: 2 };
 
 describe('the Pi profile', () => {
