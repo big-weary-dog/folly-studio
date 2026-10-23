@@ -156,7 +156,10 @@ for (const [name, device] of Object.entries(SIZES)) {
       });
 
       await test.step("colours: a source's Colours take an accent (the pick tile)", async () => {
-        if (!wide) await page.locator('.tab[data-tab=layers]').click();
+        if (!wide) {
+          await page.locator('.tab[data-tab=layers]').click();
+          await page.locator('.layer-name:visible').first().click();
+        }
         const pick = page.locator('.params .pick-btn:visible').first();
         await pick.click();
         const tile = page.locator('.pick-pop:popover-open');
