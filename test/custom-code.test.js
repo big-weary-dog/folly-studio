@@ -20,7 +20,7 @@ const NEW = 'function pixel(p) { return [1, 0, 0]; }';
 const mod = (code, extra = {}) => ({ id: 'm1', kind: 'source', title: 'Mine', code, params: {}, ...extra });
 
 test('codesOf finds every piece of code: a layer\'s own, its modules\', its composites\' sub-layers\'', () => {
-  const layers = [{ title: 'Old', code: 'A' }, { modules: [mod('B'), { id: 'c', kind: 'composite', layers: [
+  const layers = [{ title: 'Old', code: 'A' }, { modules: [mod('B'), { id: 'c', kind: 'composite', code: '', layers: [
     { modules: [mod('C', { title: 'Deep' })] }] }] }];
   assert.deepEqual([...codesOf(layers)], [{ code: 'A', where: 'Layer 1 (Old)' },
     { code: 'B', where: 'Layer 2\'s Mine' },
@@ -59,6 +59,23 @@ describe('the API, custom code off', () => {
     assert.equal(r.status, 403, 'an edit of library code is new');
     r = await ann.post('/api/looks', { origin: embers, title: 'Embers', layers: modules(NEW) });
     assert.equal(r.status, 403, 'an import overruling a look is checked as an edit is');
+  });
+
+  test('a composite has no code of its own: library modules in it save, new code in it is refused', async () => {
+    const comp = (code) => [{ id: 'l1', title: 'Sea', modules: [{ id: 'k', kind: 'composite', title: 'Comp', code: '',
+      params: {}, layers: [{ id: 's1', title: 'Sub', modules: [mod(code, { title: 'Inner' })] }] }] }];
+    let r = await ann.post('/api/looks', { title: 'Grouped', layers: comp(LIBRARY) });
+    assert.equal(r.status, 201, r.text);
+    const grouped = r.json.look.id;
+    r = await ann.put(`/api/looks/${grouped}`, { title: 'Regrouped', layers: comp(LIBRARY) });
+    assert.equal(r.status, 200, r.text);
+    r = await ann.post('/api/looks', { origin: grouped, title: 'Grouped', layers: comp(LIBRARY) });
+    assert.ok([200, 201].includes(r.status), `an import: ${r.text}`);
+    r = await ann.post('/api/looks', { title: 'Sneaky', layers: comp(NEW) });
+    assert.equal(r.status, 403);
+    assert.match(r.json.error, /Layer 1 \(Sea\)'s Inner is new code/);
+    r = await ann.put(`/api/looks/${grouped}`, { layers: comp(NEW) });
+    assert.equal(r.status, 403, 'an edit putting new code in a composite too');
   });
 
   test('code already in a look its owner can see is kept: params, copies of shared looks; not others\' private ones',
