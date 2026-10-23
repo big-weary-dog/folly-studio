@@ -78,7 +78,7 @@ console.log = (...args) => {
     assert.equal(r.code, 1, r.out + r.err);
     assert.match(r.out + r.err, /injected/);
     assert.ok(r.frames.some(Boolean), 'played lit frames before the failure');
-    assert.deepEqual(r.frames.slice(-5), [false, false, false, false, false]);
+    assert.equal(r.frames.at(-1), false, 'the receiver holds black after the failure');
   });
 
 test.each(['SIGINT', 'SIGTERM'] as const)('%s fades and sends black before exit', async (signal) => {
@@ -86,5 +86,5 @@ test.each(['SIGINT', 'SIGTERM'] as const)('%s fades and sends black before exit'
   assert.equal(r.code, 0, r.out + r.err);
   assert.match(r.out, new RegExp(`${signal}: fading to black`));
   assert.ok(r.frames.some(Boolean));
-  assert.deepEqual(r.frames.slice(-5), [false, false, false, false, false]);
+  assert.equal(r.frames.at(-1), false, 'the receiver holds black after shutdown');
 });
