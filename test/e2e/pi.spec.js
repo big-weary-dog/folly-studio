@@ -74,6 +74,7 @@ async function hold(page, name) {
 async function pick(page, title) {
   await page.getByRole('button', { name: /^Up next/ }).click();
   await page.getByRole('button', { name: /Add a look/ }).click();
+  await page.getByRole('searchbox', { name: 'Find a look' }).fill(title);
   await page.getByRole('button', { name: new RegExp(`^${title}`) }).click();
   await page.getByRole('dialog', { name: title }).getByRole('button', { name: 'Cue it' }).click();
 }
@@ -81,8 +82,7 @@ const bpm = async (tap) => Number(/([\d.]+) BPM/.exec(await tap.textContent())[1
 
 test('Live Play drives the engine from a phone', async ({ browser }, info) => {
   const shot = (page, step) => page.screenshot({ path: info.outputPath(`${step}.png`) });
-  const pi_ = await pi();
-  const { page, errors } = await phone(browser, pi_.origin);
+  const pi_ = await pi(), { page, errors } = await phone(browser, pi_.origin);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Heartbeat plasma');
   await expect(page.getByText('Live Play', { exact: true })).toBeVisible();
   await expect(page.getByRole('status').filter({ hasText: 'Dry run' })).toBeVisible();

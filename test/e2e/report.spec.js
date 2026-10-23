@@ -5,13 +5,13 @@ import { expect, test } from './studio.js';
 
 test.use({ serverOptions: { admins: 'olive' } });
 
-const signIn = async (page, origin, name) => {
+const signIn = async (page, origin, name, home) => {
   await page.goto(`${origin}/login`);
   await page.getByRole('button', { name: 'Sign up' }).click();
   await page.fill('input[name=username]', name);
   await page.fill('input[name=password]', 'correct horse');
   await page.locator('form button[type=submit]').click();
-  await expect(page).toHaveURL(/\/ideas/);
+  await expect(page).toHaveURL(`${origin}${home}`);
 };
 const time = (page) => page.locator('.tp-scrub').inputValue().then(Number);
 const shot = (page, info, step) => page.screenshot({ path: info.outputPath(`${step}.png`), timeout: 60_000 });
@@ -21,7 +21,7 @@ test('F8 freezes the Studio under the form and files a report; an admin replays 
   const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 } }), page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
-  await signIn(page, studio.origin, 'olive');
+  await signIn(page, studio.origin, 'olive', '/ideas');
   await page.goto(`${studio.origin}/studio`);
   await expect(page.locator('.layer-list')).toBeVisible({ timeout: 30_000 });
   await expect.poll(() => time(page), { timeout: 30_000 }).toBeGreaterThan(0.5);
@@ -57,7 +57,7 @@ test('F8 freezes the Studio under the form and files a report; an admin replays 
 
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   const mob = await phone.newPage();
-  await signIn(mob, studio.origin, 'mona');
+  await signIn(mob, studio.origin, 'mona', '/looks');
   await mob.goto(`${studio.origin}/studio`);
   await expect.poll(() => time(mob), { timeout: 30_000 }).toBeGreaterThan(0.3);
   await mob.locator('#nav-toggle').click();
