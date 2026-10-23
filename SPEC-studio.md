@@ -40,14 +40,13 @@ every edit here keeps them, so what the Studio saves the API accepts.
   a click on it closing or opening them, ▾ ▸), its Soften row (radius and mode; new layers
   start at `DEFAULT_SOFTEN`), the pickers (Add a module: tabs Sources, Warps, Filters; Add a layer: Sources,
   one source or a blank layer when custom code is on, and Presets, beside the groups the new layer plays on;
-  one-line rows by category with a filter,
-  the tab remembered for the session, each row auditioned in the 3D view using the same insertion as Add),
-  the code editor and
+  one-line rows by category with a filter, the tab remembered for the session, each row auditioned in the 3D view;
+  module auditions use the same chain insertion as Add), the code editor and
   params on the selected module (each number param can be modulated), and a Look panel of globals, the palette
   (its theme line under the menu; each swatch titled by its slot, `body2 · #fd7f40`), its modulators and its faders
   (macros without a mod; `ui/look-mods.tsx`), with + Macro available on phones too. A modulator is a card:
-  its name to rename, how it moves, its value now,
-  ∿ to edit it, × to delete it, and a chip for each param it drives (layer › param), which selects that layer and
+  its name to rename, how it moves, its value now, ∿ to edit it, × to delete it, and a chip for each param it drives
+  (layer › param), which selects that layer and
   module and opens the param's ∿; a fader's row lists what it drives, paces or swings the same way. Modulating is in
   place (`ui/modulate.tsx`, `ui/mod-live.tsx`): ∿ opens a drawer (`ui/drawer.tsx`), a panel the Studio's full
   height between the 3D view and the side, which shrinks the view beside it and fits a 1366×768 screen unscrolled
