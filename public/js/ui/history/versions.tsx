@@ -38,10 +38,14 @@ export function Versions({ st, open }: { st: Studio, open: boolean }) {
   const show = async (v: VersionListed) => {
     if (!id) return;
     if (pv?.n === v.n) { st.back(); return; }
+    const live = st.request('preview');   // a newer preview, Back or leaving the Studio overrules it
     setBusy(v.n);
-    try { st.preview((await api.version(id, v.n)).version, nameOf(v)); }
-    catch (err) { toast((err as Error).message, { kind: 'error' }); }
-    finally { setBusy(0); }
+    try {
+      const { version } = await api.version(id, v.n);
+      if (live()) st.preview(version, nameOf(v));
+    } catch (err) {
+      if (live()) toast((err as Error).message, { kind: 'error' });
+    } finally { setBusy((b) => (b === v.n ? 0 : b)); }
   };
   const work = colours(st.work.value.globals?.palette);
   if (st.copyOnSave.value) {

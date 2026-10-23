@@ -1,7 +1,7 @@
 // npm run smoke, too: the History drawer at a laptop's and a phone's size. Steps: two edits are two steps, a click
 // jumps back (the later ones grey), Ctrl+Shift+Z and Ctrl+Z walk them. Versions: a look saved three times lists its
 // versions, previews one (the view says so, editing and saving wait), goes back to the work, restores one, saves a
-// named version and names a past one.
+// named version and names a past one. Ctrl+S saves a focused field's typing.
 // With HISTORY_SHOTS set to a folder, each state's screenshot goes there.
 import path from 'node:path';
 
@@ -123,3 +123,17 @@ for (const [name, device] of Object.entries(SIZES)) {
     });
   });
 }
+
+test('Ctrl+S saves what a focused field shows, before it is left', async ({ page, studio }) => {
+  const cookie = await signup(studio.origin, 'ctrl-s'), [k, v] = cookie.split('=');
+  await page.context().addCookies([{ name: k, value: v, url: studio.origin }]);
+  const id = await savedThrice(studio.origin, cookie);
+  await page.goto(`${studio.origin}/studio/${id}`);
+  const level = page.getByRole('spinbutton', { name: 'Level for Glow' });
+  await level.fill('23');
+  const put = page.waitForRequest((r) => r.method() === 'PUT' && r.url().endsWith(`/api/looks/${id}`));
+  await page.keyboard.press('Control+s');
+  expect((await put).postDataJSON().layers[0].level).toBe(0.23);
+  await expect(level).toBeFocused();
+});
+
