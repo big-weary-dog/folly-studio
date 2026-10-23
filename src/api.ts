@@ -70,7 +70,7 @@ export const newestBy = (field: string) => (a: Record<string, unknown>, b: Recor
 };
 
 /** The /api plugin. */
-export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: Registry, log: Log,
+export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: Registry | null, log: Log,
   loaders: ReturnType<typeof createLoaders>, access: AccessControl, framesDir: string,
   bakes: ReturnType<typeof createBakeQueue>, frames: ReturnType<typeof createFramesCache>, secureCookies?: boolean,
   rateLimit?: { max?: number, ipMax?: number, guestMax?: number, windowMs?: number }, flash: FlashSettings, hub: Hub,
@@ -149,7 +149,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
     });
 
     // Ideas, refinements and their undo (SPEC-generators); none on the Pi (SPEC-offline).
-    const ideaRoutes: Parameters<typeof routes>[1] = {
+    const ideaRoutes: Parameters<typeof routes>[1] = models ? {
       'GET /ideas': async (req) => ({ ideas: store.ideas.list((i) => i.owner === req.user!.id).reverse()
         .sort(newestBy('createdAt')).map(forOwner) }),
       'POST /ideas': async (req, reply) => {
@@ -208,7 +208,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         if (!idea.refine || idea.status !== 'ready') throw new HttpError(409, 'Only a finished refinement is undone.');
         return { idea: forOwner(store.ideas.update(idea.id, { undone: true })!) };
       },
-    };
+    } : {};
     const reports = reportRoutes(api, { reports: o.reports, build: o.build, tail: o.tail });
     await api.register(liveRoutes({ store, auth, hub: o.hub, settings: o.live, listed: looks.listed }));
     routes(api, {
@@ -230,7 +230,8 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       ...tourRoutes({ store }),
       'GET /me': async (req) => ({ user: auth.publicUser(req.user), flash,
         ...(gen && !req.user!.guest ? { access: access.state(req.user!) } : {}), profile }),
-      ...(gen ? { ...ideaRoutes, ...modelRoutes({ auth, models, access }), ...ideaLogRoutes({ logs: o.ideaLogs }),
+      ...(gen && models ? { ...ideaRoutes, ...modelRoutes({ auth, models, access }),
+        ...ideaLogRoutes({ logs: o.ideaLogs }),
         ...ideaHowRoutes({ store, auth, logs: o.ideaLogs, forOwner }),
         ...accessRoutes(api, { access, store }) } : {}),
       ...lightRoutes({ light: o.light }),

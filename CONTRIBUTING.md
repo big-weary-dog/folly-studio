@@ -330,7 +330,8 @@ cover.
 - One concern per commit, with `npm run check` green.
 - Subject line: `Folly Studio: <what changed>`. The body says why, not how it got there.
 - Interface changes update `SPEC.md` in the same commit. UI changes get a browser smoke test (`npm run smoke`,
-  extended when the flow changes) and a screenshot in the PR (the smoke check saves one per step).
+  extended when the flow changes) and screenshots for the owner's approval. Keep screenshots outside the repo
+  and the PR because the repo is public; never commit them (the smoke check saves one per step).
 - Never commit `data/`, `.fseq` renders, keys or a hand-edited Folly `rig.json`.
 - There is no hosted CI: `npm run check` (and `npm run smoke` for UI changes) on your machine is the gate, and the
   fleet runs the full suite again after each merge.

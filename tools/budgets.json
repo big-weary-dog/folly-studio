@@ -8,10 +8,10 @@
     "public/css": { "lines": 2390, "reason": "Styles cover the app shell, Studio panels, timeline, live controls, admin pages (the Pi bundle's too) and phone layouts." },
     "public/js": { "lines": 18659, "reason": "Browser sources combine conditional parameter visibility with editor and Pages fixes for code policy, import previews, admin drafts, invite entry, guest tutorials and reporting notices alongside the core and viewers." },
     "public/patterns": { "lines": 1835, "reason": "The built-in library provides short standalone examples, with conditional controls and concise headers sharing their detail with help and guides." },
-    "render-box": { "lines": 250, "reason": "The render box shares deterministic IDs and streaming FSEQ output with the Fleet checker, keeping bake memory independent of duration." },
+    "render-box": { "lines": 248, "reason": "The render box shares deterministic IDs and streaming FSEQ output with the Fleet checker, keeping bake memory independent of duration." },
     "shared": { "lines": 1616, "reason": "Shared schemas and pure rules define looks, generated compositions, API data, permissions and playback." },
     "src": { "lines": 10355, "reason": "The server includes shared FSEQ header validation for bounded-memory Pi playback, request-matched queue acceptance and ordered verification timestamps, alongside authentication, storage, generation, baking, frame delivery, live sockets and administration." },
-    "test": { "lines": 24361, "reason": "Suites combine conditional parameter visibility, retained values, zero-glow rendering and settings captures with editor and Pages regressions for pickers, audition, phone controls, menus, reporting, exports and deletion." },
+    "test": { "lines": 24354, "reason": "Suites combine conditional parameter controls, retained values and zero-glow rendering with editor and Pages workflows, shared dry-engine fixtures, admin-route permissions and fractional-FPS export checks." },
     "tools": { "lines": 2380, "reason": "Tools build and check rig and palette data, check the Pi bundle holds nothing secret, enforce budgets, support development and backups, and benchmark rendering." }
   }
 }

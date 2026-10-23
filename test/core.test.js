@@ -263,13 +263,16 @@ describe('renderFrame', () => {
       { id: 'boom' });
     const nan = layer('function pixel(p) { return [p.k === 3 ? NaN : 1, 0, 0]; }', { id: 'nan' });
     const frameErr = layer('function frame() { null.x; } function pixel() { return [1, 1, 1]; }', { id: 'fr' });
-    const { rgb, errors } = renderFrame(scene, [ok, boom, nan, frameErr], 1);
+    const result = renderFrame(scene, [ok, boom, nan, frameErr], 1);
+    const { rgb, errors } = result;
     assert.equal(errors.length, 3);
     assert.deepEqual(errors.map((e) => e.id), ['boom', 'nan', 'fr']);
     assert.match(errors[0].error, /^Error: bad led \(line 2\)$/);
     assert.match(errors[1].error, /NaN/);
     assert.match(errors[2].error, /TypeError/);
     for (let i = 0; i < rgb.length; i++) near(rgb[i], 0.2, 1e-6);
+    assert.equal(renderFrame(scene, [ok], 2, rgb, null, result), result);
+    assert.deepEqual(errors, [], 'a recovered frame clears the reused error reports');
   });
 
   test('loose returns: nothing, a number, a hex string', () => {

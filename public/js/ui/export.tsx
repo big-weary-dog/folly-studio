@@ -9,8 +9,6 @@ import { fileText, lookFile } from './look-file.ts';
 import type { Preview } from './preview.ts';
 import type { Studio } from './studio-store.ts';
 
-const FPS = 40;
-
 export function exportJson(st: Studio) {
   st.flush();
   const look = st.body.peek();
@@ -35,7 +33,7 @@ export async function exportFseq(st: Studio, pv: Preview) {
   }
   const { ledRanges, writeFseq } = await import('../fseq.ts');
   const rig = st.data.rig as NonNullable<typeof st.data.rig>, L = st.look.peek();
-  const channelCount = rig.output.universes * rig.output.channelsPerUniverse;
+  const fps = rig.output.fps || 40, channelCount = rig.output.universes * rig.output.channelsPerUniverse;
   const ranges = ledRanges(rig), used = ranges.reduce((n, r) => n + r[1], 0);
   // The light settings (SPEC "Light and output"), the server's: every export goes out on the same curve.
   let light: Light;
@@ -45,9 +43,10 @@ export async function exportFseq(st: Studio, pv: Preview) {
   let running = false;
   await openDialog({ title: 'Export .fseq', className: 'export-dialog',
     onClose: () => { if (running) { running = false; runtime.cancelRender(); } },
-    body: (close) => <FseqForm close={close} runtime={runtime} light={light} title={L.title.trim() || 'folly-look'}
+    body: (close) => <FseqForm fps={fps} close={close} runtime={runtime} light={light}
+      title={L.title.trim() || 'folly-look'}
       channelCount={channelCount} ranges={ranges} used={used} duration={L.duration} running={(on) => { running = on; }}
-      write={(frames, data) => writeFseq({ frames, stepMs: 1000 / FPS, data, ranges })} /> });
+      write={(frames, data) => writeFseq({ frames, stepMs: Math.round(1000 / fps), data, ranges })} /> });
   // An export can find a layer that hangs: show where things stand now, even when paused.
   runtime.refresh();
   pv.kick();
@@ -67,8 +66,8 @@ function packFrames(channels: Uint8Array, frames: number, frameSize: number, ran
 const Num = ({ label, ...props }: Parameters<typeof Scrub>[0] & { label: string }) =>
   <Field label={label} class="end">{(id) => <Scrub id={id} {...props} />}</Field>;
 
-function FseqForm({ close, runtime, light, title, channelCount, ranges, used, duration, running, write }: {
-  close: (v?: boolean) => void; runtime: Runtime; light: Light; title: string; channelCount: number;
+function FseqForm({ fps, close, runtime, light, title, channelCount, ranges, used, duration, running, write }: {
+  fps: number; close: (v?: boolean) => void; runtime: Runtime; light: Light; title: string; channelCount: number;
   ranges: [number, number][];
   used: number; duration: number; running: (on: boolean) => void;
   write: (frames: number, data: Uint8Array) => Uint8Array }) {
@@ -76,7 +75,7 @@ function FseqForm({ close, runtime, light, title, channelCount, ranges, used, du
   const [secs, setSecs] = useState(Math.min(120, Math.max(1, duration)));
   const [bright, setBright] = useState(100), [done, setDone] = useState(-1), [status, setStatus] = useState('');
   const [failed, setFailed] = useState(false), busy = done >= 0 && !failed;
-  const frames = Math.round(secs * FPS), size = (frames * used) / 1e6;
+  const frames = Math.round(secs * fps), size = (frames * used) / 1e6;
   async function go() {
     running(true);
     setFailed(false);
@@ -84,7 +83,7 @@ function FseqForm({ close, runtime, light, title, channelCount, ranges, used, du
     setStatus('Rendering…');
     const t0 = performance.now();
     try {
-      const channels = await runtime.render({ start: 0, frames, fps: FPS, light, brightness: bright / 100,
+      const channels = await runtime.render({ start: 0, frames, fps: fps, light, brightness: bright / 100,
         onProgress: (n: number) => {
           setDone(n);
           const eta = n > 0 ? ((performance.now() - t0) / 1000 / n) * (frames - n) : 0;
@@ -113,7 +112,7 @@ function FseqForm({ close, runtime, light, title, channelCount, ranges, used, du
       <p class="field-hint">The LEDs' light, as on the night: the curve set under Admin › Light. Brightness
         scales the light after that, so colours keep their hue.</p>
     </div>
-    <p class="export-info">{`${frames.toLocaleString()} frames at ${FPS} fps · the ${used.toLocaleString()} channels `
+    <p class="export-info">{`${frames.toLocaleString()} frames at ${fps} fps · the ${used.toLocaleString()} channels `
       + `the LEDs use, in ${ranges.length} sparse ranges of the ${channelCount.toLocaleString()}-channel layout · `
       + `about ${size < 10 ? size.toFixed(1) : size.toFixed(0)} MB, uncompressed FSEQ v2.`}</p>
     <progress class="export-progress" max={frames} value={Math.max(0, done)} hidden={done < 0}
