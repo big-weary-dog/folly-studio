@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
-import { DEFAULT_DURATION, type LayerInput, type Light } from '../public/js/pattern-core.ts';
+import { DEFAULT_DURATION, flatModules, type LayerInput, type Light } from '../public/js/pattern-core.ts';
 import type { Bake, FlashSettings } from '../shared/schemas/api.ts';
 import { EXTRAS, extrasOf, type PlaysKey } from '../shared/schemas/look.ts';
 import type { Rig } from '../shared/schemas/rig.ts';
@@ -55,18 +55,18 @@ const beatsLfo = (params: object | undefined | null): boolean => Object.values(p
 /** What a bake renders of a look: what plays (PLAYS; the duration as the seconds baked). */
 type Renders = { [K in PlaysKey]?: unknown } & { layers?: readonly LayerInput[] };
 
-/** Code that reads the look's tempo (G.bpm). */
-const readsBpm = (code: unknown) => typeof code === 'string' && /\bG\s*\.\s*bpm\b/.test(code);
+// Conservative: G may escape into an alias or use computed keys; a property-access regex cannot prove otherwise.
+const readsBpm = (code: unknown) => typeof code === 'string' && /\b(?:G|bpm)\b/.test(code);
 
 /**
  * What a bake renders besides the duration: the plain `layers` when the look has no globals, no automation, no LFO
- * in beats and no code that reads G.bpm (so older looks keep their hash), else { layers, globals, automation, bpm }.
+ * in beats and no code that may read tempo, else { layers, globals, automation, bpm }.
  */
 export function renderFields(look: Renders | null | undefined) {
   const layers = look?.layers ?? [];
   const macros = (look?.globals as { macros?: Record<string, { mod?: unknown }> } | null)?.macros;
-  const beats = layers.some((l) => beatsLfo(l?.params) || readsBpm(l?.code) || (Array.isArray(l?.modules)
-    && l.modules.some((m) => beatsLfo(m?.params) || readsBpm(m?.code))))
+  const beats = layers.some((l) => beatsLfo(l?.params) || readsBpm(l?.code)
+    || flatModules(l?.modules ?? []).some((m) => beatsLfo(m?.params) || readsBpm(m?.code)))
     || beatsLfo(Object.fromEntries(Object.entries(macros ?? {}).map(([k, m]) => [k, m?.mod])));
   if (!look?.globals && !look?.automation && !beats) return layers;
   // Keys in PLAYS order (layers, globals, automation, bpm): the hash of every bake made so far depends on it.
@@ -140,8 +140,8 @@ export async function removeFrames(dir: string | undefined, lookId: string) {
 /**
  * The bake queue: request(lookId) → its bake record, restore(look), idle(), stop(), size. A bake renders the look's
  * render fields and duration as they are when it starts, and is kept only if they are unchanged when it ends;
- * onFrames(lookId) then hears of it. restore() bakes frames that were evicted again, keeping the record when
- * the bytes come out the same. request() throws BakeError with `status` 503 (no box) or 429 (full). loadLight: the
+ * onFrames(lookId) then hears of it. restore() bakes evicted frames again, checking them afresh.
+ * request() throws BakeError with `status` 503 (no box) or 429 (full). loadLight: the
  * light settings (the light store's current), read as each bake is checked.
  */
 export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16, log = console, onFrames,
@@ -187,6 +187,43 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
     if (file !== to) await atomically(to, (tmp) => fs.link(file, tmp).catch(() => fs.copyFile(file, tmp)));
   }
 
+  const secondsOf = (look: StoredLook) => bakeSeconds(look, box.config?.seconds);
+  const matches = (id: string, hash: string, seconds: number) => {
+    const now = store.looks.get(id);
+    return now && layersHash(renderFields(now)) === hash && secondsOf(now) === seconds;
+  };
+  async function verifyBake(look: StoredLook, bytes: Uint8Array, boxStats?: Bake['boxStats']) {
+    const seconds = secondsOf(look);
+    const out = checkFrames(bytes, { source, rig: await loadRig(), maxBytes: box.config?.maxFramesBytes,
+      boxStats, seconds, flash, light: loadLight?.() });
+    Object.assign(out.bake, { layersHash: layersHash(renderFields(look)),
+      renderKey: renderKey(look, seconds, await digest()), seconds });
+    return out;
+  }
+  async function reuse(look: StoredLook, hit: { look: StoredLook, file: string }) {
+    const out = await verifyBake(look, await fs.readFile(hit.file), hit.look.bake?.boxStats);
+    return attach(look.id, out, hit.file);
+  }
+  async function attach(id: string, out: ReturnType<typeof checkFrames>, file?: string) {
+    const current = () => matches(id, out.bake.layersHash!, out.bake.seconds!);
+    if (!current()) return null;
+    if (out.frames) {
+      try {
+        if (file) await adopt(id, file);
+        else await saveFrames(framesDir, id, out.frames);
+      } catch (err) {
+        log.error?.(`[bake] look ${id}: could not store frames:`, err);
+        out.bake = { ...out.bake, ok: false, status: 'failed', frames: undefined,
+          reason: 'The baked frames could not be stored.' };
+      }
+    }
+    if (!current()) return null;
+    const saved = store.looks.update(id, { bake: out.bake });
+    if (!saved) await removeFrames(framesDir, id);
+    else if (out.bake.frames) onFrames?.(id);
+    return saved?.bake ?? null;
+  }
+
   async function bakeOne(id: string) {
     const look = await store.looks.get(id);
     if (!look) return;
@@ -203,8 +240,7 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
     let out: { bake: Bake, frames?: Uint8Array };
     try {
       const { bytes, boxStats } = await lane.run(() => box.render({ layers: look.layers ?? [], seconds, ...extra }));
-      out = checkFrames(bytes, { source, rig: await loadRig(), maxBytes: box.config?.maxFramesBytes, boxStats,
-        flash, light: loadLight?.() });
+      out = await verifyBake(look, bytes, boxStats);
     } catch (err) {
       if (!(err instanceof BakeError)) log.error?.(`[bake] look ${id}:`, err);
       const reason = err instanceof BakeError ? err.reason : 'The render box failed.';
@@ -212,32 +248,7 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
       out = { bake: failedBake(source, reason, boxStats ? { boxStats } : {}) };
     }
     Object.assign(out.bake, { layersHash: hash, renderKey: key, seconds });
-    const now = await store.looks.get(id);
-    if (!now || layersHash(renderFields(now)) !== hash || bakeSeconds(now, box.config?.seconds) !== seconds) {
-      log.info?.(`[bake] look ${id} changed or went away while baking; result dropped`);
-      return;
-    }
-    // The same bytes as the evicted frames, and nobody asked for a new bake meanwhile: put them back and
-    // keep the record (and its review).
-    const sha = restore?.frames!.sha256;
-    const same = sha && out.bake.frames?.sha256 === sha && now.bake?.status === 'done'
-      && now.bake.frames?.sha256 === sha;
-    if (out.frames) {
-      try {
-        await saveFrames(framesDir, id, out.frames);
-      } catch (err) {
-        log.error?.(`[bake] look ${id}: could not store frames:`, err);
-        if (same) return;
-        const reason = 'The baked frames could not be stored.';
-        out.bake = { ...out.bake, ok: false, status: 'failed', frames: undefined, reason };
-      }
-    }
-    if (same) {
-      onFrames?.(id);
-      return log.info?.(`[bake] look ${id}: evicted frames baked again`);
-    }
-    if (!(await store.looks.update(id, { bake: out.bake }))) await removeFrames(framesDir, id);
-    else if (out.bake.frames) onFrames?.(id);
+    await attach(id, out);
     log.info?.(`[bake] look ${id}: ${out.bake.ok ? 'ok' : out.bake.reason}`);
   }
 
@@ -269,18 +280,14 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
       if (full()) throw Object.assign(new BakeError('The render box is busy. Try again in a minute.'), { status: 429 });
       asking.add(id);
       try {
-        // Frames this render already made, for this look or another, are taken as they are.
+        // Reuse pixels, then check them with today's settings.
         const key = renderKey(look, bakeSeconds(look, box.config?.seconds), await digest());
         const hit = await stored({ key });
-        if (hit?.look.id === id) return look.bake;
         if (hit) {
-          await adopt(id, hit.file).then(async () => {
-            const bake = { ...hit.look.bake!, layersHash: layersHash(renderFields(look)), checkedAt: new Date()
-              .toISOString() };
-            if (await store.looks.update(id, { bake })) onFrames?.(id);
-          }, (err) => log.warn?.(`[bake] look ${id}: could not reuse ${hit.look.id}'s frames: ${err.message}`));
-          const now = store.looks.get(id);
-          if (now?.bake?.renderKey === key && now.bake.status === 'done') return now.bake;
+          const bake = await reuse(look, hit).catch((err) => {
+            log.warn?.(`[bake] look ${id}: could not reuse ${hit.look.id}'s frames: ${err.message}`);
+          });
+          if (bake) return bake;
         }
         const no = await refusal(look);
         if (no) throw Object.assign(new BakeError(no.reason), { status: no.status });
@@ -302,7 +309,7 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
       if (!look || b?.source !== source || b.status !== 'done' || !b.frames?.sha256) return false;
       if (queued(look.id) || asking.has(look.id)) return true;
       const hit = await stored({ sha: b.frames.sha256 }); // another look may hold the same frames
-      if (hit && await adopt(look.id, hit.file).then(() => true, () => false)) { onFrames?.(look.id); return true; }
+      if (hit && await reuse(look, hit).then(Boolean, () => false)) return true;
       if (full() || await refusal(look)) return false;
       restoring.add(look.id);
       pending.push(look.id);
@@ -310,6 +317,7 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
       return true;
     },
     idle: () => (!running && !pending.length ? Promise.resolve() : new Promise<void>((r) => waiters.push(r))),
+    seconds: secondsOf,
     stop() { pending.length = 0; box.stop?.(); },
     get size() { return pending.length + (running ? 1 : 0); },
   };
@@ -319,9 +327,9 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
  * Why a look cannot be marked reviewed yet ('' when it can): it needs a passing render-box bake of its code. Failing
  * only the flash check, it passes when a curator gives a reason (`override`).
  */
-export function reviewBlocker(look: StoredLook, { override = '' } = {}) {
+export function reviewBlocker(look: StoredLook, { override = '', seconds = bakeSeconds(look) } = {}) {
   const b = look?.bake;
-  const flashing = b?.ok === false && b.analysis?.flicker?.ok === false;
+  const flashing = b?.status === 'done' && b.ok === false && b.analysis?.flicker?.ok === false;
   if (flashing && !override) {
     return `${flickerReason(b.analysis)} A look that fails the flash check needs a curator's reason to be marked `
       + 'reviewed.';
@@ -332,6 +340,7 @@ export function reviewBlocker(look: StoredLook, { override = '' } = {}) {
   if (b.layersHash !== layersHash(renderFields(look))) {
     return 'The code changed since the last bake. Bake it again first.';
   }
+  if (b.seconds !== seconds) return 'The length changed since the last bake. Bake it again first.';
   if (!b.ok && !flashing) return `The last bake failed: ${b.reason || 'no reason given'}`;
   return '';
 }

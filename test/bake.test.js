@@ -111,6 +111,14 @@ describe('render box (bubblewrap)', () => {
       (e) => /took over 2000 ms on the frame at t = 0\.5\d s/.test(e.reason));
   });
 
+  test('runtime errors fail the bake instead of producing a passing black sequence (M5)', async () => {
+    const box = createRenderBox({ seconds: 1, log: quiet });
+    for (const code of ['throw new Error("broken")', 'return [NaN, 0, 0]']) {
+      await assert.rejects(box.render({ layers: [layer(`function pixel() { ${code}; }`)] }),
+        (e) => e instanceof BakeError && /layer .* failed:/.test(e.reason));
+    }
+  });
+
   test('a fork bomb in the box is stopped at its tasks', async ({ skip }) => {
     skip(!(await scopeLimits('systemd-run', process.execPath, process.env)).pids,
       'no systemd user scope here: bakes have no task cap but the account\'s own');

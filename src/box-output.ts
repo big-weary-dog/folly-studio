@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { constants as FS, promises as fs } from 'node:fs';
 import path from 'node:path';
 
+import { ledRanges } from '../public/js/fseq.ts';
 import { flashLimits, FlashWatch, type Light, ledLight, prepareScene } from '../public/js/pattern-core.ts';
 import type { Bake, FlashSettings } from '../shared/schemas/api.ts';
 import type { Rig } from '../shared/schemas/rig.ts';
@@ -96,7 +97,7 @@ export function flashSettings(c: Config = configOf()): FlashSettings {
  * `light`: the light settings the LEDs' light is measured by (the stored ones; LIGHT by default).
  */
 export function checkFrames(bytes: Uint8Array, { source, rig, maxBytes = DEFAULT_MAX_BYTES, boxStats,
-  flash = flashSettings(), light }: { source: Bake['source'], rig: Rig, maxBytes?: number,
+  flash = flashSettings(), light, seconds }: { source: Bake['source'], rig: Rig, maxBytes?: number, seconds?: number,
   boxStats?: Bake['boxStats'], flash?: FlashSettings, light?: Light }) {
   const bake: Bake = { source, status: 'done', ok: false, checkedAt: new Date().toISOString() };
   if (boxStats) bake.boxStats = boxStats;
@@ -104,6 +105,16 @@ export function checkFrames(bytes: Uint8Array, { source, rig, maxBytes = DEFAULT
   try {
     const scene = prepareScene(rig);
     const parsed = parseFseq(bytes, { maxBytes, maxChannels: scene.frameChannels, decompress: inflateBlock });
+    if (seconds !== undefined) {
+      const fps = rig.output.fps || 40;
+      if (parsed.frameCount !== Math.max(1, Math.round(seconds * fps))) {
+        throw new FseqError('frame count does not match the requested duration');
+      }
+      if (parsed.stepMs !== Math.round(1000 / fps)) throw new FseqError('step does not match the rig fps');
+      if (JSON.stringify(parsed.ranges) !== JSON.stringify(ledRanges(rig))) {
+        throw new FseqError('channel coverage does not match the rig');
+      }
+    }
     analysis = analyzeFrames(parsed, scene, new FlashWatch(scene, flash, { record: true }), ledLight(light));
   } catch (err) {
     bake.status = 'failed';
@@ -112,6 +123,10 @@ export function checkFrames(bytes: Uint8Array, { source, rig, maxBytes = DEFAULT
     return { bake };
   }
   bake.analysis = analysis;
+  const reported = boxStats?.reported as { layers?: { errorFrames?: number }[] } | undefined;
+  if (Array.isArray(reported?.layers) && reported.layers.some((l) => Number(l?.errorFrames) > 0)) {
+    return { bake: { ...bake, status: 'failed' as const, reason: 'A layer failed while rendering frames.' } };
+  }
   bake.frames = { bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
   bake.ok = analysis.flicker.ok || !flash.check;
   if (!analysis.flicker.ok) bake[bake.ok ? 'warning' : 'reason'] = flickerReason(analysis);
