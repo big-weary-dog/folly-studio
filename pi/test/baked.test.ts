@@ -133,6 +133,22 @@ describe('baked frames', () => {
     r.engine.close();
   });
 
+  test('a playback read failure closes the bake and falls back to safe', async () => {
+    let closed = false;
+    const r = engineOn([], undefined, async () => ({ frames: 120, duration: 3,
+      fill() { throw new Error('disk read failed'); }, close() { closed = true; } }));
+    r.engine.play('fire');
+    r.run(1.1);
+    r.engine.sendBaked({ id: 'disk', title: 'Disk', sha256: 'a'.repeat(64) }, 'now');
+    await Promise.resolve();
+    await Promise.resolve();
+    r.run(1.2);
+    assert.equal(r.engine.state().look?.id, 'safe');
+    assert.ok(closed);
+    assert.ok(r.log.some((line) => line.includes('cannot play baked: disk read failed')));
+    r.engine.close();
+  });
+
   test('a bake that cannot play leaves the queue, saying why, and what plays goes on', async () => {
     const r = engineOn([], undefined, (id, s) => loadBaked(dir, id, s, scene));
     r.engine.play('fire');
