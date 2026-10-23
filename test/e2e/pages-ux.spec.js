@@ -1,15 +1,15 @@
 // Audit regressions: drafts, inherited limits, invitation entry, reporting eligibility and tutorial availability.
 import { expect, signup, test } from './studio.js';
 
-test.use({ serverOptions: { admins: 'pages-admin-1366,pages-admin-390' } });
+test.use({ serverOptions: { admins: 'pages-admin-1366,pages-admin-390,pages-admin-360' } });
 
-for (const width of [1366, 390]) {
+for (const width of [1366, 390, 360]) {
   test.describe(`${width}`, () => {
-    test.use({ viewport: { width, height: width === 390 ? 844 : 900 } });
+    test.use({ viewport: { width, height: width < 900 ? 844 : 900 } });
     const shot = (page, name) => page.screenshot({ path: test.info().outputPath(`${name}-${width}.png`),
       fullPage: true });
     const menu = async (page) => {
-      await page.locator(width === 390 ? '#nav-toggle' : '#user-menu-btn').click();
+      await page.locator(width < 900 ? '#nav-toggle' : '#user-menu-btn').click();
     };
 
     test('drafts survive cancelled navigation and Defaults clears a saved override', async ({ page, studio }) => {
@@ -66,20 +66,38 @@ for (const width of [1366, 390]) {
         await expect(page.getByRole('dialog', { name: 'Report a problem' })).toHaveCount(0);
         await expect(page.getByText(/Reporting a problem needs an account/).last()).toBeVisible();
         await shot(page, 'report-signedout');
+        await page.getByText(/Reporting a problem needs an account/).hover();
         await page.fill('input[name=username]', `pages-locked-${width}`);
         await page.fill('input[name=password]', 'correct horse');
-        await page.locator('form button[type=submit]').click();
+        await page.locator('input[name=password]').press('Enter');
         await expect(page.getByRole('button', { name: 'Enter invite code' })).toBeVisible();
+        await expect(page.getByText(/Reporting a problem needs an account/)).toHaveCount(0);
         await shot(page, 'locked-looks');
+        await page.keyboard.press('F8');
+        const report = page.getByRole('dialog', { name: 'Report a problem' });
+        await expect(report).toBeVisible();
+        await report.getByLabel('What went wrong?').fill('A locked account can report without an AI invite.');
+        await shot(page, 'report-locked');
+        const sent = page.waitForResponse((r) => r.url().endsWith('/api/reports') && r.request().method() === 'POST');
+        await report.getByRole('button', { name: 'Send', exact: true }).click();
+        expect((await sent).status()).toBe(201);
+        await expect(report).toContainText('Sent. Thanks!');
+        await expect(report).toBeHidden();
         await page.getByRole('button', { name: 'Enter invite code' }).click();
         await expect(page.getByRole('dialog', { name: 'Invite code' })).toBeVisible();
         await page.keyboard.press('Escape');
         await menu(page);
         const tutorials = page.getByRole('button', { name: 'Tutorials', exact: true });
-        if (width === 390) await expect(tutorials).toBeHidden();
+        if (width < 900) await expect(tutorials).toBeHidden();
         else await expect(tutorials).toBeVisible();
+        const logOut = page.getByRole('button', { name: 'Log out', exact: true });
+        for (const button of ['Invite code', 'Report a problem', 'Log out']) {
+          const box = await page.getByRole('button', { name: button, exact: true }).boundingBox();
+          expect(box.x).toBeGreaterThanOrEqual(0);
+          expect(box.x + box.width).toBeLessThanOrEqual(width);
+        }
         await shot(page, 'account-menu');
-        await page.getByRole('button', { name: 'Log out', exact: true }).click();
+        await logOut.click();
         await page.getByRole('button', { name: 'Guest', exact: true }).click();
         await page.getByLabel('Your name').fill('Visitor');
         await page.getByRole('button', { name: 'Come in as a guest' }).click();

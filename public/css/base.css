@@ -339,13 +339,13 @@ input.switch:disabled { opacity: .5; cursor: default; }
   .main-nav a[aria-current=page], .main-nav a[aria-current=page]:focus-visible { mask: none; background: none; }
   .main-nav a[aria-current=page]::before { mask: none; inset: 0; border: var(--came-s) solid var(--lead); }
   .main-nav a:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-  .user-box { margin: 6px 0 0; padding: 12px 14px 6px; border-top: var(--came) solid var(--lead); }
+  .user-box { margin: 6px 0 0; padding: 12px 14px 6px; border-top: var(--came) solid var(--lead); flex-wrap: wrap; }
   .user-name { max-width: none; }
-  .user-box { flex-wrap: wrap; }
   .user-box > .user-name { display: block; }
   .user-menu-btn { display: none; }
   .user-menu { display: flex; position: static; flex: 1 0 100%; flex-direction: row; padding: 0; background: none;
-    border: 0; box-shadow: none; }
+    flex-wrap: wrap; border: 0; box-shadow: none; }
+  .user-menu .btn { flex: 1 1 auto; min-height: 44px; justify-content: center; }
 }
 /* Layout: the list pages' column, titles over a string of LEDs, and the sign-in page (the rose
    window beside a pointed-arch card). */

@@ -4,6 +4,7 @@
 // were. A report too big for the server goes again without its screenshot.
 import '../../css/reports.css';
 
+import { effect } from '@preact/signals';
 import { useState } from 'preact/hooks';
 
 import { piece, scrub } from '../scrub.ts';
@@ -21,6 +22,10 @@ const pages = new Map<string, ReportPage>();
 const errors: Record<string, unknown>[] = [];
 let open = false, installed = false;
 export const canReport = (me: User | null) => !!me && !me.guest;
+let unavailableNotice: (() => void) | undefined;
+effect(() => {
+  if (canReport(user.value)) { unavailableNotice?.(); unavailableNotice = undefined; }
+});
 
 /** Registers a view's part in reports, as `name`; returns its removal. */
 export function reportPage(name: string, page: ReportPage) {
@@ -119,7 +124,8 @@ function ReportForm({ report, shot, close }: { report: Report; shot: string | nu
 /** The whole flow: the moment read, the picture kept, every view frozen, the form, then everything thawed. */
 export async function fileBugReport() {
   if (!canReport(user.peek())) {
-    toast('Reporting a problem needs an account. Log in or sign up to send a report.');
+    unavailableNotice?.();
+    unavailableNotice = toast('Reporting a problem needs an account. Log in or sign up to send a report.');
     return;
   }
   if (open) return;
