@@ -76,8 +76,7 @@ describe('GET /api/pi-bundle', () => {
     assert.equal(got.status, 200);
     assert.deepEqual(Buffer.from(await got.arrayBuffer()), body);
     const token = r.json.path.split('/').pop();
-    // The first character: the last one's low bits are padding, so A and B there decode alike.
-    const wrong = `${token.startsWith('A') ? 'B' : 'A'}${token.slice(1)}`;
+    const wrong = `${token.slice(0, -1)}${token.endsWith('A') ? 'B' : 'A'}`;
     for (const t of [wrong, 'short', `${token}A`, '%2e%2e%2fserver.ts']) {
       assert.equal((await rawGet(app.port, `/api/pi-bundle/${t}`)).status, 404, t);
     }
