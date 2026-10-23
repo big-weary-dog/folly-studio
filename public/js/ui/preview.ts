@@ -255,6 +255,7 @@ export function createPreview(st: Studio) {
         frames = await openFrameStream(id, rig, { onChunk });
         if (!alive || token !== bakedLoad) return;
         baked = { frames, rgb: new Float32Array(rig.count * 3), index: -1 };
+        runtime?.hold();
         c.t = 0;
         st.playing.value = true;
         msg.value = null;

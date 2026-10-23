@@ -150,6 +150,15 @@ describe('the preview transform', () => {
     assert.ok(shownLight(0.05, { ...LIGHT, floor: 1 }) > 0, 'the floor lights it, on the screen as on the LEDs');
   });
 
+  test('balance comes before the off and floor decisions, as on the LEDs', () => {
+    const plain = { ...LIGHT, calibration: { white: [1, 1, 1], response: 1, saturation: 1 } };
+    const E = LIGHT.preview.exposure;
+    const red = (l, v) => previewChannels([v, 0, 0], l, new Float32Array(3))[0] / E;
+    assert.equal(+red({ ...plain, floor: 16, balance: [0.1, 1, 1] }, 0.01).toFixed(6), +(16 / 255).toFixed(6),
+      'the floor is the floor, not a tenth of it');
+    assert.equal(red({ ...plain, balance: [0.1, 1, 1] }, 0.1), 0, 'balanced down to off on the LEDs: off here');
+  });
+
   test('the calibration draws the real LEDs: white per colour, response, saturation; never the bytes', () => {
     const cal = (c) => ({ ...LIGHT, calibration: { ...LIGHT.calibration, ...c } }), E = LIGHT.preview.exposure;
     const draw = (l, rgb = [1, 0.5, 0]) => [...previewChannels(rgb, l, new Float32Array(3))].map((x) => +x.toFixed(5));

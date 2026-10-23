@@ -19,7 +19,7 @@ import { loadReport, studioReport } from './report-studio.ts';
 import { StudioLayout } from './studio-layout.tsx';
 import { createStudio } from './studio-store.ts';
 import { createTimeline } from './timeline-state.ts';
-import { guestWork, keepGuestWork } from './guest-work.ts';
+import { adoptGuestWork, guestWork, keepGuestWork } from './guest-work.ts';
 import { showToTour } from './tour-view.ts';
 
 /** The look to open (null: a new one); one that fails says so and opens a new one, if the Studio is still `live`. */
@@ -71,7 +71,7 @@ export function Studio({ params, query }: ViewProps) {
         if (view) pv.viewer?.setView(view);
       });
       if (replay) await (await replay).apply(st, pv, ctx.tl);
-      else if (kept && !guest) st.saved.value = '';
+      else if (kept && !guest) adoptGuestWork(st);
     }).catch((err) => {
       if (!alive) return;
       pv.msg.value = { text: `Could not open the Studio: ${err.message}`, error: true };

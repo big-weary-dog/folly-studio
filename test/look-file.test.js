@@ -51,6 +51,17 @@ describe('look files', () => {
       ['bpm', 'chain', 'duration', 'layers', 'origin', 'summary', 'title']);
   });
 
+  test('export all fails, naming the look, on any error but a look gone', async () => {
+    const through = fetch;
+    vi.stubGlobal('fetch', (p, init) => (p.endsWith('/busy') ? Promise.resolve(new Response('{"error":"Busy"}',
+      { status: 503 })) : through(p, init)));
+    try {
+      await assert.rejects(fullLooks([sea, { ...sea, id: 'busy', title: 'Dawn' }]), /“Dawn”: Busy/);
+    } finally {
+      vi.stubGlobal('fetch', through);
+    }
+  });
+
   test('export all fetches each look; import adds them as the importer’s, unshared, naming what failed', async () => {
     const many = await fullLooks([sea, { ...sea, id: 'gone' }]);
     assert.equal(many.length, 1);

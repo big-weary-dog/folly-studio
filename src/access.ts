@@ -140,7 +140,8 @@ export function createAccess({ store, auth, models }: { store: Pick<Store, 'user
   return {
     state, check,
     /** Redeem a code → the account's access, or why it is no usable code (the attempt counts as failed). */
-    redeem(u: StoredUser, code: string): Access | Refused {
+    redeem(user: StoredUser, code: string): Access | Refused {
+      const u = store.users.get(user.id) ?? user;   // as stored now: a request alongside may have unlocked it
       if (unlocked(u) && u.access?.unlockedAt) return state(u);
       const hash = sha256(normalise(code));
       const found = normalise(code).length === 12 ? store.invites.list((x) => x.hash === hash)[0] : undefined;
