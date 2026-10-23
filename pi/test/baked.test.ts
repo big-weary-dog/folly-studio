@@ -106,13 +106,15 @@ describe('baked frames', () => {
 
   test('a queued bake plays whole, then the next; no controls; a viewer gets its title alone', async () => {
     const sha = bake('b1', 120);   // 3 s
-    const r = engineOn([], undefined, (id, s) => loadBaked(dir, id, s, scene));
+    let loading: ReturnType<typeof loadBaked> | undefined;
+    const r = engineOn([], undefined, (id, s) => (loading = loadBaked(dir, id, s, scene)));
     r.engine.play('fire');
     r.run(FADE.queue + 0.1);
     assert.equal(r.engine.sendBaked({ id: 'b1', title: 'Baked one', sha256: sha }, 'now', 'ana'), true);
     r.run(0.5);
     assert.equal(r.engine.state().look?.id, 'fire');          // its frames are still being read: fire plays on
-    await new Promise((res) => setTimeout(res, 50));
+    assert.ok(loading, 'the engine started reading the queued bake');
+    await loading;
     r.engine.queue('beat-bars');
     r.run(FADE.queue + 0.1);                                   // the crossfade is complete
     let s = r.engine.state();
@@ -150,19 +152,23 @@ describe('baked frames', () => {
   });
 
   test('a bake that cannot play leaves the queue, saying why, and what plays goes on', async () => {
-    const r = engineOn([], undefined, (id, s) => loadBaked(dir, id, s, scene));
+    let loading: ReturnType<typeof loadBaked> | undefined;
+    const r = engineOn([], undefined, (id, s) => (loading = loadBaked(dir, id, s, scene)));
     r.engine.play('fire');
     r.run(FADE.queue + 0.1);
     r.engine.sendBaked({ id: 'gone', title: 'Gone', sha256: 'a'.repeat(64) }, 'next');
     r.engine.queue('beat-bars');
     r.run(0.1);
-    await new Promise((res) => setTimeout(res, 50));
+    assert.ok(loading, 'the engine started reading the queued bake');
+    await assert.rejects(loading, /its bake is not there/);
     assert.deepEqual(r.engine.state().queue.map((q) => q.id), ['beat-bars']);
     assert.ok(r.log.some((l) => /look gone cannot play baked: its bake is not there/.test(l)));
     assert.equal(r.engine.state().look?.id, 'fire');
+    loading = undefined;
     r.engine.sendBaked({ id: 'gone', title: 'Gone', sha256: 'a'.repeat(64) }, 'now');
     r.run(0.1);
-    await new Promise((res) => setTimeout(res, 50));
+    assert.ok(loading, 'the engine started reading the replacement bake');
+    await assert.rejects(loading, /its bake is not there/);
     r.run(FADE.queue + 0.1);
     assert.equal(r.engine.state().look?.id, 'fire');       // not beat-bars, which no one asked to play now
     assert.deepEqual(r.engine.state().queue.map((q) => q.id), ['beat-bars']);

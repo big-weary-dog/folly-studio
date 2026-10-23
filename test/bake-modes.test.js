@@ -60,7 +60,8 @@ describe('library only', () => {
     rig.output.fps = 40; // FSEQ's integer millisecond step represents the Pi's 25 ms frames exactly.
     const rigFile = path.join(fx.tmp, 'long-rig.json');
     fs.writeFileSync(rigFile, JSON.stringify(rig));
-    const options = { rigFile, bwrap: 'no-such-bwrap', systemdRun: '', log: quiet };
+    // Pi nice 19 intentionally yields to this suite's nice-0 workers; length is tested at their own priority.
+    const options = { rigFile, bwrap: 'no-such-bwrap', systemdRun: '', nice: 0, log: quiet };
     const box = createRenderBox({ ...boxDefaults('pi', {}), ...options });
     const job = { layers: [libLayer(WASH, { groups: ['all'],
       clips: [{ start: 590, end: 600 }] })], seconds: 600 };
