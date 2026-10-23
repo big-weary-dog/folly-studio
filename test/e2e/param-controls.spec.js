@@ -22,12 +22,8 @@ for (const [device, settings] of Object.entries(DEVICES)) {
     test.use(settings);
     test('mode controls retain hidden settings', async ({ page, studio }, info) => {
       const cookie = await signup(studio.origin, `controls-${device}`);
-      const res = await fetch(`${studio.origin}/api/looks`, { method: 'POST', body: JSON.stringify(look),
-        headers: { 'content-type': 'application/json', cookie } });
-      expect(res.status).toBe(201);
-      const { look: { id } } = await res.json(), [key, value] = cookie.split('=');
+      const [key, value] = cookie.split('=');
       await page.context().addCookies([{ name: key, value, url: studio.origin }]);
-      await page.goto(`${studio.origin}/studio/${id}`);
       const row = (text) => page.locator('.params .field.param', { hasText: text });
       const select = (label, value) => row(label).locator('select').selectOption(value);
       const shot = async (name) => {
@@ -36,7 +32,12 @@ for (const [device, settings] of Object.entries(DEVICES)) {
         await page.screenshot({ path: path.join(out, `${device}-${name}.png`) });
       };
       for (const name of Object.keys(names)) {
-        if (device === 'phone' && name !== 'bars') await page.locator('.phone-back:visible').click();
+        const res = await fetch(`${studio.origin}/api/looks`, { method: 'POST',
+          body: JSON.stringify({ ...look, layers: look.layers.filter((l) => l.id === name) }),
+          headers: { 'content-type': 'application/json', cookie } });
+        expect(res.status, await res.clone().text()).toBe(201);
+        const { look: { id } } = await res.json();
+        await page.goto(`${studio.origin}/studio/${id}`);
         await page.locator('.layer-name:visible', { hasText: new RegExp(`^${name}$`) }).click();
         await page.locator('.chain-name:visible', { hasText: new RegExp(`^${name}$`) }).click();
         await expect(page.locator('.params .field.param').first()).toBeVisible();
