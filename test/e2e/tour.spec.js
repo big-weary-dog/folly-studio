@@ -67,8 +67,9 @@ function steps(page, info, { shots = true } = {}) {
       await page.waitForTimeout(400);   // the step's first check has run
       await expect(card, `"${s}" is not done before anything changes`).not.toHaveClass(/done/);
     },
+    // Under SwiftShader load, even one geometry read can take over 3 s; keep the same alignment and clipping checks.
     ring: (...names) => expect.poll(() => ringOff(page, names), { message: `the ring round ${names.join(' or ')}, `
-      + 'inside the window', timeout: 3000 }).toBeLessThan(3),
+      + 'inside the window', timeout: 10_000 }).toBeLessThan(3),
     /** Once settled (it slides as the ring does), the card keeps off the preview and what the ring sits in. */
     offPreview: () => expect.poll(() => cardOnPreview(page), { message: 'the card keeps off the preview and its box',
       timeout: 2000 }).toBe(0),
