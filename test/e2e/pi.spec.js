@@ -74,6 +74,7 @@ async function hold(page, name) {
 async function pick(page, title) {
   await page.getByRole('button', { name: /^Up next/ }).click();
   await page.getByRole('button', { name: /Add a look/ }).click();
+  await page.getByRole('searchbox', { name: 'Find a look' }).fill(title);
   await page.getByRole('button', { name: new RegExp(`^${title}`) }).click();
   await page.getByRole('dialog', { name: title }).getByRole('button', { name: 'Cue it' }).click();
 }
