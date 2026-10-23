@@ -41,8 +41,6 @@ for (const [name, device] of Object.entries(SIZES)) {
       const shot = shooter(page, device, info);
       const cookie = await signup(studio.origin, `steps-${name}`), [k, v] = cookie.split('=');
       await page.context().addCookies([{ name: k, value: v, url: studio.origin }]);
-      // Full detail, so a phone shows blend and level (the sandbox iframe has no storage)
-      await page.addInitScript(() => { try { localStorage.setItem('studio.phoneDetail', '1'); } catch {} });
       await page.goto(`${studio.origin}/studio/${await savedThrice(studio.origin, cookie)}`);
 
       await page.getByRole('button', { name: 'History', exact: true }).click();
@@ -50,12 +48,17 @@ for (const [name, device] of Object.entries(SIZES)) {
       await expect(steps).toHaveCount(1, { timeout: 30_000 });
       if (name === 'phone') {
         await drawer.getByRole('button', { name: 'Close' }).click();
-        await page.locator('.studio-tabs .tab[data-tab=layers]').click();
+        await page.getByRole('textbox', { name: 'Look title', exact: true }).fill('Changed title');
+        await page.locator('.studio-tabs .tab[data-tab=look]').click();
+        await page.getByText('Share details', { exact: true }).click();
+        await page.getByRole('textbox', { name: 'Description', exact: true }).fill('Changed description');
+        await page.getByRole('button', { name: 'History', exact: true }).click();
+        await expect(steps).toHaveCount(3);
+      } else {
+        await page.getByLabel('Blend for Glow').selectOption('over');
+        await page.getByLabel('Level for Glow').press('ArrowUp');
+        await expect(steps.locator('.hstep-label')).toHaveText(['Opened the look', 'Blend over', 'Level 81%']);
       }
-      await page.getByLabel('Blend for Glow').selectOption('over');
-      await page.getByLabel('Level for Glow').press('ArrowUp');
-      if (name === 'phone') await page.getByRole('button', { name: 'History', exact: true }).click();
-      await expect(steps.locator('.hstep-label')).toHaveText(['Opened the look', 'Blend over', 'Level 81%']);
       await expect(page.locator('.save-state')).not.toHaveText('Saved');
       await page.waitForTimeout(1500);   // the view's first frames
       await shot('steps');
