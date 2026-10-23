@@ -113,8 +113,9 @@ export function addAfter(list: Module[], m: Module, id?: string): Module[] {
   return insertModule(list, m, list[runEnd(list, on ? list.findIndex((x) => x.id === on) : i) - 1].id);
 }
 
-/** Module `id`, a source with its attached run, gone from its list (and the sub-layer that leaves empty). */
+/** The deletion's run: an attached processor alone, or a module with its attachments. */
 export const removalBlock = (list: Module[], i: number) => list.slice(i, list[i].on ? i + 1 : runEnd(list, i));
+/** Module `id`, a source with its attached run, gone from its list (and the sub-layer that leaves empty). */
 export function removeModule(mods: Module[], id: string): Module[] | null {
   const at = placeOf(mods, id), list = at && listOf(mods, at.box);
   if (!at || !list) return null;

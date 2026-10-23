@@ -1,11 +1,8 @@
 // The selected layer's settings: its name and groups (a drawer), its module chain (SPEC "Modules": a row per module
 // with a grip to drag it (or Alt+↑/↓), its kind, Custom when it is not a library module, name, how a source combines
 // or which input a filter reads, enable and delete; phones: drag, enable and select only), its Soften row, and the
-// selected module's settings: a custom module's name (a library module keeps the library's) and its params, opened
-// under its row (on a phone, after the chain). The chain runs down a came into the layer: each module joins it (a
-// source by how it combines), and each warp and filter spans what it works on, everything above it; a composite's
-// sub-layers nest under its row (chain-tree.tsx); a source that is a sub-layer of its own says in its settings where
-// that sub-layer plays.
+// selected module's name and params (on a phone, after the chain). Composites nest their sub-layers under their
+// row (chain-tree.tsx); each source sub-layer's settings say where it plays.
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 import type { Module } from '../../../shared/schemas/look.ts';
@@ -14,6 +11,7 @@ import { flatModules } from '../core/tree.ts';
 import { Field, loadFailed, toast } from './kit.tsx';
 import { makeModule, moduleFromLibrary } from './model.ts';
 import { ChainList, isLone, SubWhere, type TreeCtx } from './chain-tree.tsx';
+import { removalTitle } from './chain-row.tsx';
 import { addAfter, addSub, type Box, editSub, groupModule, listOf, moveModule, moveSub, moveToSub, placeOf,
   removeModule, ungroup, withList } from './composite-model.ts';
 import { isSubSlot, parseSlot, useTreeDrag } from './tree-drag.ts';
@@ -102,7 +100,7 @@ function Chain({ st, pv }: Props) {
     const step = st.step();
     const count = flatModules(mods).length - flatModules(next).length - 1;
     const title = standardTitle(m, st.data.library) ?? m.title;
-    toast(`Deleted “${title}”${count ? ` and ${count} attached or contained modules` : ''}.`,
+    toast(`Deleted ${removalTitle(title, count)}.`,
       { action: { label: 'Undo', onClick: () => {
       st.undoStep(step);
       st.pickModule(m.id);

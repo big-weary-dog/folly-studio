@@ -19,6 +19,8 @@ const GLYPHS: Record<string, string> = { over: '●', under: '○', add: '+', mu
 /** A composite's name longer than this has its row's line, its controls under it. */
 const LONG = 16;
 const isSource = (m: Module) => m.kind === 'source' || m.kind === 'composite';
+export const removalTitle = (title: string, count: number) => `“${title}”${count
+  ? ` and ${count} attached or contained module${count === 1 ? '' : 's'}` : ''}`;
 
 type Grip = ReturnType<TreeDrag['grip']>;
 
@@ -37,7 +39,7 @@ export function ModuleRow({ m, i, mods, first, selected, attached, std, grip, sl
   blendAs?: SubBlend; children?: ComponentChildren }) {
   const title = std ?? (m.title || KIND_LABELS[m.kind]), filter = m.kind === 'filter', comp = m.kind === 'composite';
   const count = flatModules(removalBlock(mods, i)).length - 1;
-  const deletion = `Delete ${title}${count ? ` and ${count} attached or contained modules` : ''}`;
+  const deletion = `Delete ${removalTitle(title, count)}`;
   // The row's select as a patch: a source's blend (or input only), a filter's input. A source's default ('') is
   // Over first and Add after, so that blend is not offered twice.
   const dflt = (blendAs ? blendAs.first : i === first) ? 'over' : 'add';

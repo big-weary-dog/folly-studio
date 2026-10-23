@@ -83,10 +83,10 @@ for (const width of [1366, 390]) {
     await shot('macro-added');
     if (!phone) {
       const deletion = top(page, 'b1').getByRole('button', { name: /Delete .* and 1 attached/ });
-      await expect(deletion).toHaveAttribute('title', /and 1 attached or contained modules/);
+      await expect(deletion).toHaveAttribute('title', /and 1 attached or contained module/);
       await deletion.click();
       await expect(row(page, 'b2')).toHaveCount(0);
-      await expect(page.getByText(/Deleted .* and 1 attached or contained modules/)).toBeVisible();
+      await expect(page.getByText(/Deleted .* and 1 attached or contained module/)).toBeVisible();
       await shot('deletion-scope');
       await page.getByRole('button', { name: 'Undo', exact: true }).last().click();
       await expect(row(page, 'b2')).toHaveCount(1);
