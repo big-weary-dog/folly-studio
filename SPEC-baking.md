@@ -3,6 +3,17 @@
 How the render box (SPEC "Baked frames") runs on a server without bubblewrap, and the admin's setting for how
 much baking may cost. `src/box-library.ts` and `src/render-box.ts` hold the first, `src/baking.ts` the second.
 
+## Trusted verification
+
+Fresh renders, cache reuse and adoption of another look's frames all rerun the server's checks with the current
+light and flash settings. Frames must match the requested baked length, rig step and complete sparse channel
+layout. A reported layer error fails the bake; the box's own `ok` can never make it pass. Bakes use a stable FSEQ
+identifier so identical rebakes have identical file hashes.
+
+Before attaching a record, after storing its frames, the queue rechecks the look's render fields and baked length.
+Review requires a bake of both the current render fields and `min(duration, configured bake cap)` seconds (the
+default duration when omitted). Restoring evicted frames refreshes their checks while retaining the review.
+
 ## Library only
 
 Bubblewrap is the first choice wherever it runs. Where bubblewrap is missing (or cannot make its namespaces), the render box bakes only looks whose every layer's
