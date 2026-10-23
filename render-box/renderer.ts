@@ -1,13 +1,19 @@
 // The renderer both boxes bake with: render-box/render.ts (the authoritative bake) and
 // fleet-box/check.ts --bake (the Fleet worker's own). The host binds or copies it next to them.
-import { readFileSync } from 'node:fs';
+import { closeSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 
 import type { Span } from '../public/js/fseq.ts';
 import type * as Core from '../public/js/pattern-core.ts';
 import type { Rig } from '../shared/schemas/rig.ts';
 
 export const FPS = 40; // when the rig gives none (SPEC "Rig": output.fps)
+/** Stable FSEQ identity from inputs read outside the pattern realm, shared by both bake entry points. */
+export function bakeId(rig: Rig, layers: readonly Core.LayerInput[], extra: unknown, frames: number) {
+  return BigInt(`0x${createHash('sha256').update(JSON.stringify({ rig, layers, extra, frames }))
+    .digest('hex').slice(0, 16)}`);
+}
 
 /** The library's sources in `dir` (index.json and its files), for use(): [{ name, code }]; none if missing. */
 export function readLibrary(dir: string) {
@@ -24,7 +30,7 @@ export function readLibrary(dir: string) {
   return out;
 }
 
-/** Seconds to bake: `asked` (at most 600) when given, else the look's duration (default 30) up to 120. */
+/** Seconds: explicit `asked` up to 600, otherwise duration up to the hosted default cap. */
 export function bakeSeconds(look: { duration?: unknown } | null | undefined, asked: unknown) {
   if (Number(asked) > 0) return Math.min(600, Number(asked));
   const d = look?.duration;
@@ -67,23 +73,19 @@ export function renderer(core: typeof Core, rig: Rig, layers: readonly Core.Laye
   return { compileErrors, packed, next };
 }
 
-/**
- * Bake `frames` frames: step(f) renders frame f into `packed` and returns its layer errors. → the
- * frames back to back, with timing and each layer's error count and first error.
- */
+/** Bake packed frames with timing and each layer's error count and first error. */
 export function bakeLoop(frames: number, packed: Uint8Array, step: (f: number) => { id: unknown, error: string }[],
-  fps = FPS) {
-  const data = new Uint8Array(frames * packed.length);
+  fps = FPS, write?: (frame: Uint8Array) => void) {
+  const data = new Uint8Array(write ? 0 : frames * packed.length);
   const layers = new Map<unknown, { id: unknown, errorFrames: number, firstError: string }>();
-  let total = 0;
-  let worst = 0;
+  let total = 0, worst = 0;
   for (let f = 0; f < frames; f++) {
     const t0 = performance.now();
     const errors = step(f);
     const ms = performance.now() - t0;
     total += ms;
     worst = Math.max(worst, ms);
-    data.set(packed, f * packed.length);
+    if (write) write(packed); else data.set(packed, f * packed.length);
     for (const e of errors) {
       const le = layers.get(e.id)
         || { id: e.id, errorFrames: 0, firstError: `${e.error} (t = ${(f / fps).toFixed(2)} s)` };
@@ -93,4 +95,13 @@ export function bakeLoop(frames: number, packed: Uint8Array, step: (f: number) =
   }
   const msPerFrame = { average: +(total / frames).toFixed(2), worst: +worst.toFixed(2) };
   return { data, frames, seconds: frames / fps, msPerFrame, layers: [...layers.values()] };
+}
+
+/** Stream the same packed bytes the in-memory bake writes, with one frame retained. */
+export function bakeFile(file: string, header: Uint8Array, ...args: Parameters<typeof bakeLoop>) {
+  const fd = openSync(file, 'w', 0o600);
+  try {
+    writeFileSync(fd, header);
+    return bakeLoop(args[0], args[1], args[2], args[3], (frame) => writeFileSync(fd, frame));
+  } finally { closeSync(fd); }
 }

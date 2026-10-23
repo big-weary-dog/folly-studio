@@ -217,7 +217,7 @@ STUDIO_CURATORS=alice,bob         # who may mark looks reviewed
 STUDIO_ADMINS=you                 # the Admin page (models, access, light, reports); admins are curators too
 ANTHROPIC_API_KEY=sk-ant-...      # for Opus: a key with a spend limit
 STUDIO_GENERATOR_FALLBACK=sol     # optional: foundry ideas go here while it is off or busy (else wait, or fail)
-STUDIO_BAKE_SECONDS=120           # longest bake
+STUDIO_BAKE_SECONDS=120           # longest bake (Pi default 600)
 STUDIO_FRAMES_BROTLI_QUALITY=9
 STUDIO_FRAMES_MAX_BYTES=2GB
 STUDIO_FLASH_PER_SECOND=3         # the flash check: flashes a second allowed (WCAG 2.3.1: 3)
@@ -280,7 +280,7 @@ them.
 | `PI_PIN` | the engine's PIN, if it has one: Studio's feed says it to play on the lights; a secret |
 | `STUDIO_PI_BUNDLE` | the Pi bundle served to curators (SPEC-offline); `npm run host` names it |
 | `GIT_SHA` | the build's commit, for bug reports (default: the checkout's) |
-| `STUDIO_BAKE_SECONDS` | the longest render-box bake, default 120 |
+| `STUDIO_BAKE_SECONDS` | the longest render-box bake, default 120 (Pi 600) |
 | `STUDIO_BAKE_TIMEOUT` | a bake's wall clock, default scaled to its length |
 | `STUDIO_BAKE_CPU` | a bake's CPU seconds, default scaled to its length |
 | `STUDIO_BAKE_TASKS` | a bake's task ceiling, default 256 |
@@ -333,8 +333,7 @@ CPU Studio's `/live` holds still while it follows a dry run no one has open. Uns
 listening on the Pi's network, `/pi` open to curators (SPEC-offline), the lights in Jukebox until an admin picks
 Live Play (Admin → Light, kept in `lights.json`; SPEC-liveplay), and curators' `/live` the live play page. It is not for this machine: here the server
 refuses any `HOST` but loopback. Installing it: `pi/SETUP.md`, from the offline bundle `npm run pi:bundle` makes
-here (the app built, `node_modules` for the Pi); or `pi/STUDIO.md`, from the `pi` branch, which `npm run pi:branch`
-makes here from `prod` (the app built, `dist/` committed) and force-pushes.
+here (the app built, `node_modules` for the Pi). `pi/STUDIO.md` covers its settings and operation.
 
 ### The Pi bundle
 

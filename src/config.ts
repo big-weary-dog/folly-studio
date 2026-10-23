@@ -79,7 +79,7 @@ function settings(warn: Warn) {
     PI_PIN: [text(), 'the engine\'s PIN, if it has one: Studio\'s feed says it to play on the lights; a secret'],
     STUDIO_PI_BUNDLE: [text(), 'the Pi bundle served to curators (SPEC-offline); npm run host names it'],
     GIT_SHA: [text(), 'the build\'s commit, for bug reports (default: the checkout\'s)'],
-    STUDIO_BAKE_SECONDS: [num({ min: 0 }), 'the longest render-box bake, default 120'],
+    STUDIO_BAKE_SECONDS: [num({ min: 0 }), 'the longest render-box bake, default 120 (Pi 600)'],
     STUDIO_BAKE_TIMEOUT: [d('s', 'STUDIO_BAKE_TIMEOUT'), 'a bake\'s wall clock, default scaled to its length'],
     STUDIO_BAKE_CPU: [num({ min: 0 }), 'a bake\'s CPU seconds, default scaled to its length'],
     STUDIO_BAKE_TASKS: [num({ min: 0, int: true }), 'a bake\'s task ceiling, default 256'],

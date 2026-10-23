@@ -306,6 +306,11 @@ describe('fleet-box/check.ts (boxed worker side, real runtime)', () => {
     assert.match(baked.out, /baked 2 s \(80 frames × \d+ channels in \d+ ranges\)/);
     const map = JSON.parse(fs.readFileSync(rigFile, 'utf8'));
     const parsed = parseFseq(fs.readFileSync(path.join(dir, 'frames.fseq')));
+    const firstBytes = fs.readFileSync(path.join(dir, 'frames.fseq'));
+    const rebaked = await run(dir, 'good.json', ['--bake', '--seconds', '2']);
+    assert.equal(rebaked.code, 0, rebaked.out);
+    assert.deepEqual(fs.readFileSync(path.join(dir, 'frames.fseq')), firstBytes,
+      'separate checker processes bake the same whole file, including the FSEQ identifier');
     assert.equal(parsed.frameCount, 80);
     assert.equal(parsed.channelCount, map.count * 3);
     assert.equal(parsed.sparse, true);
