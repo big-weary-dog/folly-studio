@@ -110,11 +110,12 @@ describe('steps', () => {
     assert.deepEqual(h.undoneRounds(), []);
   });
 
-  test('a toast can undo its step after sealing, but cannot undo a later edit', () => {
+  test('a toast can undo its step after sealing and saving, but cannot undo a later edit', () => {
     const st = studio(), level = st.look.peek().layers[0].level;
     st.editLayer('a', () => ({ level: 0.4 }));
     const step = st.step();
     st.history.seal();
+    st.history.saved();
     st.undoStep(step);
     assert.equal(st.look.peek().layers[0].level, level);
     st.editLayer('a', () => ({ level: 0.7 }));
