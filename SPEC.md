@@ -258,7 +258,8 @@ Sequencing lives on the look, xLights-style.
 
 - `look.duration`: seconds the look runs, then loops; 1–600, default 30 (absent = 30).
 - `look.bpm`: optional, 40–240; the editor's beat grid, the tempo of LFOs in `beats`, and `G.bpm`. A bake's key
-  holds it when a binding counts beats or a module's code reads `G.bpm`.
+  holds it when a binding counts beats or any module (including composite sub-layers) may read tempo. Code mentioning
+  `G` or `bpm` conservatively counts, including computed properties and aliases.
   Beats count from the look's downbeat `beat0` (a PreparedLook field, 0: show time 0), which only a live engine
   moves (tap tempo); `beat()` and LFOs in `beats` read it, so bakes are unchanged.
 - `layer.clips`: optional `[{ start, end, fadeIn = 0, fadeOut = 0, transition? }]` in seconds (0–600, kept to
@@ -583,9 +584,10 @@ as here; any other failure says why and points to Check & bake.
   out of range); `STUDIO_FLASH_CHECK=off` (local use, never a public server) still measures, but large-area
   flashing only warns.
 - **Stored.** `<STUDIO_DATA>/frames/<lookId>.fseq` and `look.bake = { source, status:
-  queued|running|done|failed, ok, reason?, warning?, checkedAt, layersHash, renderKey?, analysis?, frames?: {
-  bytes, sha256 }, boxStats? }`. Every record is the server's own check (`verifyBake`, `src/box-output.ts`) of the
-  bytes it attaches, whether rendered now or reused: with the light and flash settings of now, the frames must be
+  queued|running|done|failed, ok, reason?, warning?, checkedAt, layersHash, renderKey?, seconds?, analysis?, frames?: {
+  bytes, sha256 }, boxStats? }`. Every record is the server's own check (`verifyBake`, `src/bake.ts`, using
+  `src/box-output.ts`) of the bytes it attaches, whether rendered now or reused: with the current light and flash
+  settings, the frames must be
   the asked shape (the rig's step, `seconds` × fps frames, every LED's channels) and the box must not have said a
   layer failed (its words can only fail a bake, never pass one). `ok` is false when the frames are missing, malformed,
   the wrong shape, from a box that said a layer threw or gave NaN, or flash over a large area (with the check on);
@@ -597,8 +599,8 @@ as here; any other failure says why and points to Check & bake.
 - **Disk cap.** `STUDIO_FRAMES_MAX_BYTES` (default 2 GB) bounds `frames/`: past it, the bakes used least
   recently (their `.fseq` files and hash folder; use = streamed, downloaded or baked, kept in the
   `.fseq`'s mtime) are evicted, never a reviewed look's, a fleet-box bake's or one being encoded. The
-  record stays; asking for the frames bakes them again (`bakes.restore`), keeping the record when the
-  bytes come out the same.
+  record stays; asking for the frames bakes them again (`bakes.restore`), refreshing the checks even when the
+  bytes come out the same. The review stays; the frames' SHA and wire cache identity stay when their bytes match.
   Beside them, by content hash (`hash` = 32 hex of SHA-256 over the wire version, chunk size and
   `frames.sha256`): `frames/<hash>/<n>.br`, `manifest.json` (written last), `<n>.gz` and
   `frames.<zstd|zlib>.fseq` (both made on first request). Looks with the same frames share a
