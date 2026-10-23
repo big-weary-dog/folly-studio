@@ -78,6 +78,10 @@ export function createStudio(me: User | null) {
   const data = { rig: null as Rig | null, index: null as GroupIndex | null, library: [] as LibraryEntry[] };
   const clock = { t: 0, typingUntil: 0 };       // show time (per frame, not a signal); when code edits settle
   const playing = signal(!reducedMotion()), speed = signal(1), baked = signal(false);
+  /** The work's revision: one more at each change to it, so a reply that took a while (a save, a refinement) can tell
+   * whether the work is still what it started from. */
+  let rev = 0, open = true;
+  const newest = new Map<string, number>();
 
   const layerById = (id: string) => look.peek().layers.find((l) => l.id === id) || null;
   const silent = (id: string) => muted.value.has(id) || (solo.value.size > 0 && !solo.value.has(id));
@@ -121,6 +125,14 @@ export function createStudio(me: User | null) {
     pinnedGroup, groupsFor, newGroups, focusKey, narrow, dock, tab, folded, side, fallbackRev, data, clock, playing,
     speed, baked, status, body, dirty, selected, module, sandboxLook, layerById, silent, groupNames, codeFor, problem,
     lookId, previewing, work, history,
+    /** The work's revision now (rev above). */
+    rev: () => rev,
+    /** A request of `kind` starts → whether its reply still counts: no newer one of its kind and the Studio open. */
+    request(kind: string) {
+      const n = (newest.get(kind) ?? 0) + 1;
+      newest.set(kind, n);
+      return () => open && newest.get(kind) === n;
+    },
     /** Hooks the preview sets: an edit happened (baked playback stops); flush pending code to the sandbox. */
     onEdit: () => {}, flush: () => {},
 
@@ -133,6 +145,7 @@ export function createStudio(me: User | null) {
       }
       const before = look.value, after = { ...before, ...fn(before) };
       look.value = after;
+      rev++;
       if (ready.peek() && changes(before, after)) history.record(before, after, o);
       st.onEdit();
     },
@@ -142,6 +155,7 @@ export function createStudio(me: User | null) {
       if (!s || i === history.at.peek()) return;
       if (previewing.peek()) st.back();
       const L = { ...look.peek(), ...Object.fromEntries(CONTENT.map((k) => [k, s.look[k]])) };
+      rev++;
       batch(() => {
         look.value = L;
         history.at.value = i;
@@ -233,6 +247,7 @@ export function createStudio(me: User | null) {
     /** Back to the work as it was before the preview. */
     back() {
       const p = previewing.peek();
+      st.request('preview');   // a preview still on its way no longer counts
       if (!p) return;
       batch(() => { look.value = p.held; previewing.value = null; });
       st.onEdit();
@@ -247,15 +262,18 @@ export function createStudio(me: User | null) {
       return st.save({ restoredFrom: p.n });
     },
 
-    /** An AI round's revision, saved by the server: one step, saved. */
-    revised(from: Look, ai: AiStep) {
-      if (from.id !== look.peek().id) return;
+    /** An AI round's revision, saved by the server, over the work at revision `since`: one step, saved. Work edited
+     * since stays as it is (false); the revision is a version in History. */
+    revised(from: Look, ai: AiStep, since: number) {
+      if (from.id !== look.peek().id) return true;
+      if (rev !== since || previewing.peek()) return false;
       const quoted = ai.asked.length > 40 ? `${ai.asked.slice(0, 39)}…` : ai.asked;
       st.edit(() => ({ layers: normaliseLayers(from.layers, data.rig as Rig), duration: cleanDuration(from.duration),
         bpm: cleanBpm(from.bpm), globals: copy(from.globals) || {}, automation: copy(from.automation) }),
       { step: ai.asked ? `AI: “${quoted}”` : 'An AI round', kind: 'ai', ai });
       batch(() => { saved.value = JSON.stringify(body.peek()); server.value = from; });
       history.saved();
+      return true;
     },
 
     /** The server sent a newer copy of this look (after a save, a bake, a review). */
@@ -275,29 +293,32 @@ export function createStudio(me: User | null) {
       st.flush();
       const b = body.value, snap = JSON.stringify(b), L = look.value, create = !L.id || copyOnSave.value;
       const step = history.at.peek(), steps = history.list.peek();   // edits made while it saves are not saved
+      const since = rev, live = st.request('save');
       saving.value = true;
       try {
         let from: Look;
         if (create) {
           ({ look: from } = await api.createLook({ ...b, bpm: b.bpm || undefined,
             ...(L.ideaId && !copyOnSave.value ? { ideaId: L.ideaId } : {}) }));
-          replaceUrl(`/studio/${encodeURIComponent(from.id)}`);
-          toast(copyOnSave.value ? 'Saved as your own copy.' : 'Saved.', { kind: 'ok' });
+          if (live()) {
+            replaceUrl(`/studio/${encodeURIComponent(from.id)}`);
+            toast(copyOnSave.value ? 'Saved as your own copy.' : 'Saved.', { kind: 'ok' });
+          }
         } else {
           const hadBake = !!server.value?.bake;
           ({ look: from } = await api.updateLook(L.id as string, { ...b, ...extra }));
           const cleared = hadBake && !from.bake;
-          toast(cleared ? 'Saved. The old bake was cleared: bake again to check the new code.' : 'Saved.',
+          if (live()) toast(cleared ? 'Saved. The old bake was cleared: bake again to check the new code.' : 'Saved.',
             { kind: 'ok', timeout: cleared ? 5000 : 1800 });
         }
         batch(() => {
-          look.value = { ...look.value, id: from.id, title: b.title,
+          look.value = { ...look.value, id: from.id, ...(rev === since ? { title: b.title } : {}),
             ...(create ? { owner: from.owner, ownerName: from.ownerName, shared: !!from.shared } : {}) };
           copyOnSave.value = false;
           saved.value = snap;
           st.adopt(from);
         });
-        setTitle(b.title);
+        setTitle(look.peek().title);
         if (history.list.peek()[step]?.look === steps[step]?.look) history.saved(step);
         for (const id of history.undoneRounds()) api.undoRefine(id).catch(() => {});   // the AI learns it was undone
         return true;
@@ -335,6 +356,9 @@ export function createStudio(me: User | null) {
   };
   const onNarrow = () => { narrow.value = NARROW.matches; };
   NARROW.addEventListener('change', onNarrow);
-  return Object.assign(st, { dispose: () => NARROW.removeEventListener('change', onNarrow) });
+  return Object.assign(st, { dispose: () => {
+    open = false;
+    NARROW.removeEventListener('change', onNarrow);
+  } });
 }
 export type Studio = ReturnType<typeof createStudio>;

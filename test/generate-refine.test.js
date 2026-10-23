@@ -15,6 +15,7 @@ import { viewFrames } from '../src/generate/frames-view.ts';
 import { createQueue } from '../src/generate/index.ts';
 import { buildCritiqueMessage } from '../src/generate/critique-prompt.ts';
 import { decompose, diffCompositions } from '../src/generate/refine.ts';
+import { revisedFields } from '../src/look-versions.ts';
 import { validateLook } from '../shared/schemas/generated.ts';
 import { CATALOG, frames, REAL, stubBox } from './fixtures/generate/box.js';
 import { GROUPS, queueSetup, RIG } from './fixtures/generate/shared.js';
@@ -236,8 +237,8 @@ describe('the rounds in the queue', () => {
 
   test('a muted layer and a switched-off module stay so; an edit made meanwhile is never overwritten', async () => {
     let edit = null;
-    const claude = async () => {
-      if (edit) await store.looks.update(look.id, edit);
+    const claude = async () => {   // a save meanwhile, as the API makes it: a version
+      if (edit) await store.looks.update(look.id, { ...revisedFields(store.looks.get(look.id)), ...edit });
       return answer({ layers: [{ ...answer().layers[0], level: 0.4 }] });
     };
     const { store, user, queue } = onClaude(claude, stubBox());
@@ -262,6 +263,11 @@ describe('the rounds in the queue', () => {
     await queue.idle();
     assert.match(store.ideas.get(two.id).error, /edited while it was being refined/);
     assert.equal(store.looks.get(look.id).layers[0].level, 0.3);
+    edit = { duration: 60 };   // not a change to the frames' code, still an edit
+    const three = refine('dimmer');
+    await queue.idle();
+    assert.match(store.ideas.get(three.id).error, /edited while it was being refined/);
+    assert.deepEqual([store.looks.get(look.id).duration, store.looks.get(look.id).layers[0].level], [60, 0.3]);
   });
 
   test('a critique on request: the stills and timeline, one round, the revision kept when it renders', async () => {

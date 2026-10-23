@@ -11,6 +11,7 @@
 import path from 'node:path';
 
 import { CHAIN } from '../../shared/chain-order.ts';
+import { PLAYS } from '../../shared/plays.ts';
 import { IDEA_STATUS, IllegalMove, type IdeaStatus, isPending, transition } from '../../shared/idea-status.ts';
 import type { Light } from '../../public/js/pattern-core.ts';
 import type { Bake, Explore, Idea } from '../../shared/schemas/api.ts';
@@ -18,7 +19,8 @@ import { GenerateError, validateLook } from '../../shared/schemas/generated.ts';
 import { cannot, capsOf, type ModelEntry, type Transport, TRANSPORTS } from '../../shared/schemas/models.ts';
 import type { LibraryEntry, Rig, RigGroup } from '../../shared/schemas/rig.ts';
 import { layersHash, removeFrames, renderFields, saveFrames } from '../bake.ts';
-import { byAi, revisedFields } from '../look-versions.ts';
+import { roomForLook } from '../look-cap.ts';
+import { byAi, currentN, revisedFields } from '../look-versions.ts';
 import { monoNow } from '../clock.ts';
 import { type Config, configOf } from '../config.ts';
 import type { Catalog } from './catalog.ts';
@@ -261,6 +263,8 @@ export function createQueue({
     running.add(ac);
     await move(id, 'generating', { generator: r.id, by: r.label, error: null });
     try {
+      const full = (why: string) => new GenerateError(why, 'no room for a look');
+      if (!idea.refine) roomForLook(store, idea.owner, full);   // before any model work; again as it is stored
       const owner = (await store.users?.get?.(idea.owner)) || null;
       const user = owner ? { id: owner.id, username: owner.username, role: owner.role } : { id: idea.owner };
       const base = await prepare();
@@ -295,14 +299,10 @@ export function createQueue({
       const { bake: made, frames } = (out.raw ?? {}) as { bake?: Bake, frames?: unknown };
       const bake = made && typeof made === 'object' ? { ...made, layersHash: layersHash(renderFields(look)) } : null;
       await codeGate?.check(look.layers, idea.owner, (why) => new GenerateError(why, 'new code'));
-      const saved = await store.looks.create({
-        owner: idea.owner, ownerName: owner?.username || '', title: look.title, summary: look.summary,
-        layers: look.layers,
-        ...(look.duration !== undefined ? { duration: look.duration } : {}),
-        ...(look.globals ? { globals: look.globals } : {}), ...(look.automation ? { automation: look.automation } : {}),
-        ...(look.bpm !== undefined ? { bpm: look.bpm } : {}),
-        shared: false, reviewed: false, ideaId: id, chain: CHAIN, ...(bake ? { bake } : {}),
-      });
+      roomForLook(store, idea.owner, full);
+      const saved = await store.looks.create({ owner: idea.owner, ownerName: owner?.username || '', title: look.title,
+        summary: look.summary, ...Object.fromEntries(PLAYS.filter((k) => look[k] != null).map((k) => [k, look[k]])),
+        shared: false, reviewed: false, ideaId: id, chain: CHAIN, ...(bake ? { bake } : {}) });
       if (bake?.frames) await keepFrames(saved.id, frames, bake);
       timing.total = monoNow() - queuedAt;
       outcome = { status: 'ready', lookId: saved.id };
@@ -333,11 +333,11 @@ export function createQueue({
   }
 
   /** A refinement saved onto its look as an edit (a version of what was there; no bake, no review) → what changed;
-   * nothing is saved when nothing did, and nothing over an edit made while it ran. */
+   * nothing is saved when nothing did, and nothing over an edit made while it ran (a save that made a version). */
   async function revise(from: StoredLook, look: ReturnType<typeof validateLook>, catalog: Catalog, idea: Idea) {
     const lookId = from.id, now = store.looks.get(lookId);
     if (!now) throw new GenerateError('The look to refine is gone.', 'deleted while refining');
-    if (layersHash(renderFields(now)) !== layersHash(renderFields(from))) {
+    if (currentN(now) !== currentN(from)) {
       throw new GenerateError('The look was edited while it was being refined; ask again.', 'edited while refining');
     }
     const next = { layers: keepSwitches(now.layers as Record<string, unknown>[], look.layers),
