@@ -8,14 +8,14 @@ const params = {
     help: 'From the troughs (first) through the middle to the crests (last). Calm water shows nothing.' },
   drops: { value: 3, min: 0, max: 10, step: 0.1, label: 'Drops (a second)',
     help: 'How many drops land a second, across the layer. 0 lets the water settle to calm.' },
-  speed: { value: 20, min: 1, max: 60, step: 1, label: 'Speed (LEDs a second)',
+  speed: { value: 20, min: 1, max: 60, step: 1, label: 'Speed (links a second)',
     help: 'How fast ripples travel, in LEDs a second along a strand. Low rolls slowly; high races.' },
   settle: { value: 0.3, min: 0, max: 1, step: 0.01, label: 'Settle',
     help: 'How quickly the water calms. 0 sloshes on and on; 1 lets each drop die out in about a second.' },
   bounce: { value: 0.7, min: 0, max: 1, step: 0.01, label: 'Bounce',
     help: 'How much of a ripple comes back off the end of a strand. 0 lets it run out; 1 bounces it all back.' },
-  size: { value: 4, min: 1, max: 12, step: 1, label: 'Size (LEDs)',
-    help: 'How wide each drop is, in LEDs from its middle. Small makes fine ripples; large, long swells.' },
+  size: { value: 4, min: 1, max: 12, step: 1, label: 'Drop radius (links)',
+    help: 'Graph hops from the drop\'s middle; branches can cover many LEDs. Small is fine ripples; large, swells.' },
 };
 
 const HZ = 60, WARM = 20 * HZ;          // steps a second; a jump further than WARM starts again WARM steps back

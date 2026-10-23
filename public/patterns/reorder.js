@@ -7,15 +7,16 @@
 const params = {
   by: { value: 'wires', type: 'choice', options: ['wires', 'strands', 'groups', 'random'], label: 'Order by',
     help: 'wires: along the wiring from From; strands or groups: one long row; random: a fixed shuffle (Seed).' },
-  from: { value: 'rose', type: 'choice', label: 'From',
+  from: { value: 'rose', type: 'choice', label: 'From', showWhen: { by: ['wires'] },
     options: ['rose', 'tower', 'spire', 'spirelet', 'arch', 'arch-main', 'arch-mini', 'arch-quad', 'canopy',
       'ground-level', 'front', 'back', 'left', 'right', 'top', 'bottom'],
     help: 'By wires: where it starts: a tagged group\'s heart, or top or bottom, each piece\'s highest or lowest.' },
   reach: { value: 0, min: 0, max: 60, step: 0.5, label: 'Reach (metres of wire; 0: the farthest)',
+    showWhen: { by: ['wires'] },
     help: 'By wires: how much wire counts as the edge. Small packs what is above near From; 0 spreads it to the end.' },
   amount: { value: 1, min: 0, max: 1, step: 0.01, label: 'Amount',
     help: 'Zero keeps the straight-line distance; one is fully in the new order.' },
-  seed: { value: 1, min: 0, max: 99, step: 1, label: 'Seed',
+  seed: { value: 1, min: 0, max: 99, step: 1, label: 'Seed', showWhen: { by: ['random'] },
     help: 'By random: which shuffle. Each seed is different, always the same; step it to deal again.' },
 };
 
