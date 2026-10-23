@@ -258,8 +258,8 @@ Sequencing lives on the look, xLights-style.
 
 - `look.duration`: seconds the look runs, then loops; 1–600, default 30 (absent = 30).
 - `look.bpm`: optional, 40–240; the editor's beat grid, the tempo of LFOs in `beats`, and `G.bpm`. A bake's key
-  holds it when a binding counts beats or any module (including composite sub-layers) may read tempo. Code mentioning
-  `G` or `bpm` conservatively counts, including computed properties and aliases.
+  holds it when a binding counts beats or any module (including composite sub-layers) reads `G.bpm`, `G['bpm']`
+  or `G["bpm"]`. Other uses of `G`, including palette-only code, keep their existing hashes.
   Beats count from the look's downbeat `beat0` (a PreparedLook field, 0: show time 0), which only a live engine
   moves (tap tempo); `beat()` and LFOs in `beats` read it, so bakes are unchanged.
 - `layer.clips`: optional `[{ start, end, fadeIn = 0, fadeOut = 0, transition? }]` in seconds (0–600, kept to
