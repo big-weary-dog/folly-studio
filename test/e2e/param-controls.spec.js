@@ -39,7 +39,8 @@ for (const [device, settings] of Object.entries(DEVICES)) {
         const { look: { id } } = await res.json();
         await page.goto(`${studio.origin}/studio/${id}`);
         await page.locator('.layer-name:visible', { hasText: new RegExp(`^${name}$`) }).click();
-        await page.locator(`[data-module="${name}"] .chain-name:visible`).click();
+        const button = page.locator(`[data-module="${name}"] .chain-name:visible`);
+        if (await button.getAttribute('aria-current') !== 'true') await button.click();
         await expect(page.locator('.params .field.param').first()).toBeVisible();
         await shot(name);
         if (name === 'bars') {
