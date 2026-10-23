@@ -24,6 +24,7 @@ export function ModButton({ p, value, now, ctx, put, label, title }: { p: Param;
   now: number; ctx: ModCtx; put: (v: ParamValue | undefined) => void; label: string; title: string }) {
   const d = useDrawer(), [at, setAt] = useState({ n: 0, start: value });   // what was there when it opened
   const restart = (start: ParamValue | undefined) => setAt({ n: at.n + 1, start });
+  if (ctx.narrow) return <span class="param-slot" aria-hidden="true" />;
   return <>
     <button type="button" class="param-mod" aria-pressed={isBinding(value) && value.mod !== 'beats'}
       aria-expanded={d.open} aria-label={label} title={title}

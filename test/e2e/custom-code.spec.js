@@ -34,15 +34,17 @@ for (const width of [390, 1366]) {
       await shot('1-admin-off');
 
       await page.goto(`${studio.origin}/studio/${look.id}`);
-      if (wide) await page.locator('.dock-tab', { hasText: 'Code' }).click();
-      else {
+      if (wide) {
+        await page.locator('.dock-tab', { hasText: 'Code' }).click();
+        await expect(page.locator('.editor-locked:visible')).toHaveText(/An admin turned custom code off/);
+        const editor = page.locator('textarea.code:visible').first();
+        await expect(editor).toHaveJSProperty('readOnly', true);
+        await expect(editor).toHaveValue(new RegExp(`// ${width}$`));
+      } else {
         await page.locator('.tab[data-tab=more]').click();
-        await page.getByRole('button', { name: 'Open the code editor' }).click();
+        await expect(page.getByRole('button', { name: 'Open the code editor' })).toHaveCount(0);
+        await expect(page.locator('textarea.code')).toHaveCount(0);
       }
-      await expect(page.locator('.editor-locked:visible')).toHaveText(/An admin turned custom code off/);
-      const editor = page.locator('textarea.code:visible').first();
-      await expect(editor).toHaveJSProperty('readOnly', true);
-      await expect(editor).toHaveValue(new RegExp(`// ${width}$`));
       await shot('2-studio-locked');
 
       if (!wide) await page.locator('.tab[data-tab=layers]').click();

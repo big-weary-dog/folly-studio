@@ -84,21 +84,15 @@ test('modulators on the Look tab and the timeline; the dock keeps one height', a
 
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
-  test('the Time tab\'s lanes, the Look tab\'s cards, a chip to the param\'s ∿', async ({ page, studio }, info) => {
+  test('existing faders remain without Time or modulator authoring', async ({ page, studio }, info) => {
     const errors = [];
     page.on('pageerror', (e) => errors.push(String(e)));
     await open(page, studio, 'mods-phone');
-    await page.locator('.tab[data-tab=time]').click({ timeout: 30_000 });
-    await expect(page.locator('.tl-mod-row')).toHaveCount(1, { timeout: 30_000 });
-    await expect(page.locator('.tl-mods-fold')).toBeVisible();
-    await page.screenshot({ path: info.outputPath('3-phone-time.png') });
-    await page.locator('.tl-mod-label').click();
-    const card = page.locator('.mod-card[data-name=breath]');
-    await expect(card).toBeVisible();
+    await expect(page.locator('.tab[data-tab=time],.tl')).toHaveCount(0);
+    await page.locator('.tab[data-tab=look]').click();
+    await expect(page.getByLabel('storm value')).toBeVisible();
+    await expect(page.locator('.mod-card,.param-mod')).toHaveCount(0);
     await page.screenshot({ path: info.outputPath('4-phone-look.png') });
-    await card.locator('.mod-tag').first().click();
-    await expect(page.locator('.drawer:last-child .drawer-title')).toHaveText(/Modulate Speed/);
-    await expect(page.locator('.layer.selected .layer-name')).toHaveText('Bars');
     expect(errors).toEqual([]);
   });
 });

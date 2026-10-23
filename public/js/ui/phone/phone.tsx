@@ -1,24 +1,23 @@
 // The Studio's light view on a phone (SPEC-studio "Phones"): the tabs under the 3D view, a layer's settings
-// opened from its row in the same panel, and More: the code editor, the 3D view's options and Full detail, which
-// shows what the light view hides (css/phone.css keys off the Studio's data-detail and data-drill).
+// opened from its row in the same panel, and More: the 3D view's options.
 import '../../../css/phone.css';
 
 import { signal } from '@preact/signals';
 
-import { cx, humanize, pref, Switch } from '../kit.tsx';
+import { cx, humanize, Switch } from '../kit.tsx';
 import type { Preview } from '../preview.ts';
 import type { Studio, Tab } from '../studio-store.ts';
 
-const TABS: Tab[] = ['layers', 'time', 'look', 'more'];
+const TABS: Tab[] = ['layers', 'look', 'more'];
 
-/** The phone's own state: Full detail (kept per browser) and the layer whose settings Layers shows. */
+/** The layer whose settings Layers shows. */
 export function createPhone() {
-  return { detail: signal(pref('studio.phoneDetail') === '1'), drill: signal<string | null>(null) };
+  return { drill: signal<string | null>(null) };
 }
 type Phone = ReturnType<typeof createPhone>;
 
 /** The Studio's attributes for the light view: settings show while their layer stays the selected one. */
-export const phoneAttrs = (st: Studio, ph: Phone) => ({ 'data-detail': ph.detail.value ? 'full' : 'light',
+export const phoneAttrs = (st: Studio, ph: Phone) => ({ 'data-detail': 'light',
   'data-drill': ph.drill.value && ph.drill.value === st.selectedId.value ? '' : undefined });
 
 /** The tabs; the code editor is opened from More, so More stays lit while it shows. */
@@ -56,17 +55,10 @@ export function SettingsHead({ st, ph }: { st: Studio; ph: Phone }) {
 }
 
 /** More: what the light view keeps out of the way. */
-export function MorePane({ st, pv, ph }: { st: Studio; pv: Preview; ph: Phone }) {
+export function MorePane({ pv }: { pv: Preview }) {
   const leds = pv.mode.value === 'points';
   return (
     <section class="pane pane-more" data-pane="more" aria-label="More"><div class="pane-body more-body">
-      <h3 class="look-h">Editing</h3>
-      <button type="button" class="btn more-code" onClick={() => st.setTab('code')}>Open the code editor</button>
-      <Switch label="Full detail: blend, level, solo, moving, soften" class="more-row"
-        checked={ph.detail.value} onChange={(on) => {
-          ph.detail.value = on;
-          pref('studio.phoneDetail', on ? '1' : '0');
-        }} />
       <h3 class="look-h">3D view</h3>
       <Switch label="Show unlit: unlit LEDs, faintly" class="more-row" checked={pv.ghost.value}
         onChange={(on) => pv.setGhost(on)} />

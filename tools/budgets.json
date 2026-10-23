@@ -6,12 +6,12 @@
     "pi": { "lines": 5518, "reason": "The Pi adds a sender-starvation regression covering expired slots, buffer exhaustion and recovery on the same lease, alongside prepared-look rendering, interruptible crossfades in LED light, held relay frames, bake streaming, output lifecycle, guard timing and control-page coverage." },
     "public": { "lines": 56, "reason": "The app and sandbox HTML shells load their browser entry points." },
     "public/css": { "lines": 2390, "reason": "Styles cover the app shell, Studio panels, timeline, live controls, admin pages (the Pi bundle's too) and phone layouts." },
-    "public/js": { "lines": 18663, "reason": "Browser sources combine conditional parameter visibility and relay clock-origin mapping with editor and Pages workflows for code policy, import previews, admin drafts, invite entry, guest tutorials and reporting alongside the core and viewers." },
+    "public/js": { "lines": 18627, "reason": "Combines conditional parameter controls and relay clock mapping with phone Studio authoring cuts, explicit refinement and sharing details alongside the existing editor and viewers." },
     "public/patterns": { "lines": 1849, "reason": "Library examples add mode-specific Chase, Streaks, Replay and Reorder controls and upgrades for duplicate Recolour and Ring-turn values." },
     "render-box": { "lines": 248, "reason": "The render box shares deterministic IDs and streaming FSEQ output with the Fleet checker, keeping bake memory independent of duration." },
     "shared": { "lines": 1616, "reason": "Shared schemas and pure rules define looks, generated compositions, API data, permissions and playback." },
     "src": { "lines": 10355, "reason": "The server includes shared FSEQ header validation for bounded-memory Pi playback, request-matched queue acceptance and ordered verification timestamps, alongside authentication, storage, generation, baking, frame delivery, live sockets and administration." },
-    "test": { "lines": 24490, "reason": "Parameter regressions cover inactive Chase, Streaks, Replay and Reorder controls, saved-look render equivalence and laptop/phone panel interaction." },
+    "test": { "lines": 24574, "reason": "Combines phone authoring and supported History coverage with inactive-mode parameter controls, saved-look render equivalence and laptop/phone panel interaction." },
     "tools": { "lines": 2380, "reason": "Tools build and check rig and palette data, check the Pi bundle holds nothing secret, enforce budgets, support development and backups, and benchmark rendering." }
   }
 }

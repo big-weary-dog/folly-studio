@@ -122,6 +122,10 @@ for (const [name, device] of Object.entries(SIZES)) {
       });
 
       await test.step('the code: a typo is reported, a hang paused, the fix runs again', async () => {
+        if (!wide) {
+          await expect(page.locator('textarea.code')).toHaveCount(0);
+          return;
+        }
         await open('code', 'Code');
         const code = page.locator('textarea.code:visible').first();
         const problem = page.locator('.editor .problem:visible').first();
@@ -141,13 +145,21 @@ for (const [name, device] of Object.entries(SIZES)) {
       });
 
       await test.step('the timeline', async () => {
+        if (!wide) {
+          await expect(page.locator('.tl')).toHaveCount(0);
+          await expect(page.locator('.tab[data-tab=time]')).toHaveCount(0);
+          return;
+        }
         await open('time', 'Timeline');
         await expect(page.locator('.tl-rows:visible').first()).toBeVisible();
         await shot('timeline');
       });
 
       await test.step("colours: a source's Colours take an accent (the pick tile)", async () => {
-        if (!wide) await page.locator('.tab[data-tab=layers]').click();
+        if (!wide) {
+          await page.locator('.tab[data-tab=layers]').click();
+          await page.locator('.layer-name:visible').first().click();
+        }
         const pick = page.locator('.params .pick-btn:visible').first();
         await pick.click();
         const tile = page.locator('.pick-pop:popover-open');
@@ -240,6 +252,11 @@ for (const [name, device] of Object.entries(SIZES)) {
       });
 
       await test.step('bake', async () => {
+        if (!wide) {
+          await open('look', 'Look');
+          await expect(page.getByRole('button', { name: 'Check & bake', exact: true })).toHaveCount(0);
+          return;
+        }
         const probe = await createRenderBox({ log: quiet }).probe();
         test.skip(!probe.ok, `render box unavailable here: ${probe.reason}`);
         const checkAndBake = async () => {     // from Export on a laptop, from the Look tab on a phone

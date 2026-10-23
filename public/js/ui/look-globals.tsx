@@ -44,17 +44,18 @@ export function GlobalsPanel({ st, palettes }: { st: Studio; palettes: (Palette 
           <option value="">Default (chapel)</option>
           {palettes.map((p) => <option value={p.name} title={p.theme}>{humanize(p.name)}</option>)}</select>}</Field>
         {house && <span class="field-hint">{house.theme}</span>}
-        {PALETTE_ROLES.map((r: string) => <Field label={humanize(r)}>{(pal?.[r as 'low'] || []).map((c, i) =>
+        {!st.narrow.value && PALETTE_ROLES.map((r: string) => <Field label={humanize(r)}>
+          {(pal?.[r as 'low'] || []).map((c, i) =>
           <span class="swatch" title={`${r}${i + 1} · ${c}`} style={{ backgroundColor: c }} />)}</Field>)}
       </section>
-      {mods.length > 0 && <section class="globals-mods" aria-label="Modulators">
+      {!st.narrow.value && mods.length > 0 && <section class="globals-mods" aria-label="Modulators">
         <div class="globals-h-row"><h3 class="globals-h">Modulators</h3>
           <span class="mod-note">macros that move by themselves; params follow them in step</span></div>
         <ModulatorCards st={st} mods={mods} uses={uses} /></section>}
       <section class="globals-macros" aria-label="Faders">
-        <div class="globals-h-row"><h3 class="globals-h">{mods.length ? 'Faders' : 'Macros'}</h3>
-          <button type="button" class="btn small" data-tour="macro-add" onClick={addMacro}>
-            + Macro</button></div>
+        <div class="globals-h-row"><h3 class="globals-h">{st.narrow.value || mods.length ? 'Faders' : 'Macros'}</h3>
+          {!st.narrow.value && <button type="button" class="btn small" data-tour="macro-add" onClick={addMacro}>
+            + Macro</button>}</div>
         <ul class="macro-list">{all.filter(([, m]) => !m.mod).map(([name, m]) => <MacroRow name={name} m={m}
           key={`${name}:${!!lanes[name]}`} automated={!!lanes[name]} uses={uses.get(name) ?? []} st={st}
           rename={(to) => st.edit((look) => renameMacro(look, name, to))}
@@ -80,12 +81,13 @@ function MacroRow({ name, m, automated, rename, set, taken, uses, st }: { name: 
   const value = automated ? laneNow(st.look.peek(), name, m, st.clock.t) : m.value;
   return (   // a field whose label is its name, to edit
     <li class="field macro" data-tour={`macro:${name}`}>
-      <input type="text" class="macro-name" value={name} maxlength={32} spellcheck={false}
+      {st.narrow.value ? <label for={id}>{name}</label> : <input type="text" class="macro-name" value={name}
+        maxlength={32} spellcheck={false}
         aria-label={`Name of macro ${name}`} onChange={(e) => {
           const to = e.currentTarget.value.trim();
           if (to === name) return;
           if (taken(to)) e.currentTarget.value = name; else rename(to);
-        }} />
+        }} />}
       <div class="field-control"><label for={id} class="sr-only">{name} value</label>
         {automated && <span class="globals-auto">automated</span>}
         <Scrub id={id} min={m.min} max={m.max} step={(m.max - m.min) / 100} value={value} set={set}
