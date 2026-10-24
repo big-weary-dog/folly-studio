@@ -78,6 +78,12 @@ for (const [name, device] of Object.entries(SIZES)) {
       await gamma.fill('1');
       await gamma.press('Enter');
       await expect(page.getByRole('button', { name: 'Download for the Pi' })).toBeDisabled();
+      await page.setViewportSize({ width: 390, height: 844 });
+      await expect(page.getByRole('spinbutton')).toHaveCount(0);
+      await page.setViewportSize(device.viewport);
+      await expect(response).toHaveValue(/^2\.00/);
+      await expect(gamma).toHaveValue(/^1\.00/);
+      await expect(page.getByRole('button', { name: 'Download for the Pi' })).toBeDisabled();
       await page.locator('.admin-tabs').getByRole('link', { name: 'Baking' }).click();
       const leave = page.getByRole('dialog', { name: 'Unsaved changes' });
       await expect(leave).toBeVisible();

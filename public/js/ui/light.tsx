@@ -22,7 +22,10 @@ export function LightPage() {
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const take = (l: Light) => { setSaved(l); setDraft(structuredClone(l)); setError(''); };
   const fail = (err: unknown) => setError((err as Error).message);
-  useEffect(() => { setTitle('Light'); if (!phone) api.light().then((l) => take(lightOf(l)), fail); }, [phone]);
+  useEffect(() => {
+    setTitle('Light');
+    if (!phone && !saved) api.light().then((l) => take(lightOf(l)), fail);
+  }, [phone, saved]);
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   useDraftGuard(dirty);
   if (phone) return <div class="page light-page"><h1 class="page-title">Light</h1>
