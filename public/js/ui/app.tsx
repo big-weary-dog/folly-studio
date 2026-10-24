@@ -1,6 +1,7 @@
 // The app shell: the session, history-API routing (views load on first use, so the login and list pages never fetch
 // the Studio's 3D code), the header, and the guard that keeps unsaved edits from being lost.
 import { signal } from '@preact/signals';
+import '../../css/phone-cuts.css';
 import type { ComponentType } from 'preact';
 import { useLayoutEffect, useState } from 'preact/hooks';
 

@@ -36,7 +36,7 @@ export const openOnTap = (st: Studio, ph: Phone) => (e: MouseEvent) => {
   if ((e.target as Element).closest('.layer-name')) ph.drill.value = st.selectedId.peek();
 };
 
-/** Over a layer's settings: back to the list, its name, and mute and solo a tap away. */
+/** Over a layer's settings: back, name, mute, and a menu for solo and the selected module's reset. */
 export function SettingsHead({ st, ph }: { st: Studio; ph: Phone }) {
   const l = st.selected.value;
   if (!l) return null;
@@ -49,8 +49,17 @@ export function SettingsHead({ st, ph }: { st: Studio; ph: Phone }) {
       <button type="button" class="btn small ghost phone-back" onClick={() => { ph.drill.value = null; }}>
         ‹ Layers</button>
       <h2 class="phone-title">{l.title || 'Layer'}</h2>
-      <div class="phone-ms" role="group" aria-label="Mute and solo">
-        {toggle(st.muted, 'Mute')}{toggle(st.solo, 'Solo')}</div>
+      <div class="phone-ms" role="group" aria-label="Layer actions">
+        {toggle(st.muted, 'Mute')}
+        <details class="phone-layer-menu"><summary aria-label="Layer menu">•••</summary>
+          <div class="phone-layer-actions">{toggle(st.solo, 'Solo')}
+            <button class="btn small ghost" type="button" disabled={!st.module.value}
+              onClick={() => {
+                const m = st.module.peek();
+                if (m) st.editModule(l.id, m.id, () => ({ params: {} }));
+              }}>Reset all to defaults</button>
+          </div>
+        </details></div>
     </div>);
 }
 

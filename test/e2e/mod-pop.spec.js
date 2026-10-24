@@ -28,6 +28,7 @@ async function open(page, studio, user) {
   const phone = page.viewportSize().width < 900;
   if (phone) {
     await page.locator('.layer-name').first().click();
+    await page.getByText('More settings', { exact: true }).click();
     return;
   }
   await page.locator(phone ? '.tab[data-tab=look]' : '.dock-tab[data-dock=look]').click({ timeout: 30_000 });

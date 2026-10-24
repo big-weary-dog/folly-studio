@@ -29,6 +29,10 @@ for (const width of [390, 1366]) {
 
     await page.goto(`${studio.origin}/gallery`);
     const card = page.locator('.card', { hasText: 'Ember drift' });
+    if (width < 900) {
+      await expect(card.getByRole('button', { name: 'Delete Ember drift' })).toBeHidden();
+      await card.locator('summary').click();
+    }
     await expect(card.getByRole('button', { name: 'Delete Ember drift' })).toBeVisible();
     await shot('card-delete');
     await card.getByRole('button', { name: 'Delete Ember drift' }).click();

@@ -1,5 +1,5 @@
 // npm run smoke, too: Admin → Stats (SPEC-access "Stats") at a laptop's and a phone's size: today's counts after a
-// few page loads, the days' table, the server line, and Refresh. Screenshots land in STATS_SHOTS when set, else the
+// few page loads on laptop; phone keeps health, queues and Refresh. Screenshots land in STATS_SHOTS when set, else the
 // test's output folder.
 import path from 'node:path';
 
@@ -19,6 +19,16 @@ for (const width of [390, 1366]) {
     await page.goto(`${studio.origin}/admin/stats`);
     const tiles = page.getByRole('definition');
     await expect(page.getByRole('heading', { name: 'Stats' })).toBeVisible();
+    if (width < 900) {
+      await expect(page.getByText(/^Up \d+ min/)).toBeVisible();
+      await expect(page.getByText(/Waiting now:/)).toBeVisible();
+      await expect(page.locator('.stats-tiles,.stats-table,.stats-slow')).toHaveCount(0);
+      await expect(page.getByRole('combobox', { name: 'Admin page' })).toHaveValue('stats');
+      await page.getByRole('button', { name: 'Refresh' }).click();
+      await expect(page.getByText(/^Up \d+ min/)).toBeVisible();
+      expect(errors).toEqual([]);
+      return;
+    }
     await expect(page.locator('.stats-tile', { hasText: 'Visitors' }).getByRole('definition')).not.toHaveText('0');
     await expect(page.locator('.stats-tile', { hasText: 'Pages' }).getByRole('definition')).not.toHaveText('0');
     await expect(page.getByText(/^Up \d+ min/)).toBeVisible();

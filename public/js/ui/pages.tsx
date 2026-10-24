@@ -18,6 +18,7 @@ import { Approve } from './approve.tsx';
 import { deleteLook, mayDelete } from './delete-look.ts';
 import { cx, jewelGradient, lazy, pref, timeAgo, toast } from './kit.tsx';
 import { LookFiles } from './look-files.tsx';
+import { PhoneDisclosure } from './phone/disclosure.tsx';
 import { Rose } from './rose.tsx';
 import { tourIdea } from './tour-view.ts';
 
@@ -288,7 +289,8 @@ export function Looks({ scope }: ViewProps) {
   const empty = error ? <p class="form-error">{error}</p> : looks?.length
     ? <p>{gallery && approvedOnly ? 'No approved looks match.' : 'No looks match that search.'}</p>
     : gallery ? <p>Nothing shared yet. Open one of your looks in the Studio and switch on “Share to gallery”.</p>
-    : !ai.value ? <p>No saved looks yet. <a href="/studio">Start a blank look</a>, or import some.</p>
+    : !ai.value ? <p>No saved looks yet. <a href="/studio">Start a blank look</a>
+      <span class="laptop-only">, or import some</span>.</p>
     : <p>No saved looks yet. <a href="/ideas">Describe an idea</a> or <a href="/studio">start a blank look</a>.</p>;
   return (
     <div class="page looks-page">
@@ -335,8 +337,9 @@ function Card({ look, gallery, remove, approved }: {
         {look.summary && <p class="card-summary">{look.summary}</p>}
         <div class="card-meta">
           {gallery && <span class="meta-item">{`by ${look.ownerName || 'someone'}`}</span>}
-          <span class="meta-item">{`${n} layer${n === 1 ? '' : 's'}`}</span>
-          <time class="meta-item" dateTime={look.updatedAt || ''}>{timeAgo(look.updatedAt || look.createdAt)}</time>
+          <span class="meta-item laptop-only">{`${n} layer${n === 1 ? '' : 's'}`}</span>
+          <time class="meta-item laptop-only" dateTime={look.updatedAt || ''}>
+            {timeAgo(look.updatedAt || look.createdAt)}</time>
           {look.shared && !gallery && <span class="tag tag-sapphire">Shared</span>}
           {reviewed && <span class="tag tag-emerald">Reviewed</span>}
         </div>
@@ -344,9 +347,12 @@ function Card({ look, gallery, remove, approved }: {
       <div class="card-actions"><a class="btn small" href={href}>Open</a>
         {onPi() && can(user.value, 'curate') && <button class="btn small" type="button"
           onClick={() => lights().then((m) => m.openPlayLights(look))}>Play on the lights</button>}
+        {(gallery && !reviewed && can(user.value, 'review', look) || mayDelete(user.value, look, gallery)) &&
+        <PhoneDisclosure label="Actions">
         {gallery && !reviewed && can(user.value, 'review', look) && <Approve look={look} approved={approved} />}
         {mayDelete(user.value, look, gallery) && <button class="btn small ghost danger-text" type="button"
           aria-label={`Delete ${look.title}`} onClick={() => remove(look)}>Delete</button>}
+        </PhoneDisclosure>}
       </div>
     </li>);
 }

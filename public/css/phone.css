@@ -26,6 +26,16 @@
     text-overflow: ellipsis; white-space: nowrap; }
   .phone-ms { display: flex; gap: 4px; }
   .phone-ms .ms-btn { width: auto; min-width: 56px; height: 44px; padding: 0 10px; font-size: 13px; }
+  .phone-layer-menu { position: relative; }
+  .phone-layer-menu > summary { min-width: 44px; min-height: 44px; padding: 12px 8px; cursor: pointer;
+    list-style: none; text-align: center; }
+  .phone-layer-actions { position: absolute; right: 0; top: 100%; display: flex; flex-direction: column; gap: 8px;
+    width: 220px; padding: 12px; background: var(--night-1); border: var(--came) solid var(--lead); }
+  .phone-layer-actions .btn { min-height: 44px; }
+  .phone-module-picker { width: 100%; min-height: 44px; justify-content: space-between; margin-block: 8px; }
+  .phone-module-picker > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .params-foot { display: none; }
+  .phone-more-settings > summary { min-height: 44px; padding: 12px 4px; cursor: pointer; }
   .studio[data-drill] .pane-params { border-top: 0; }
 
   /* Light: what Full detail (More) shows again. */

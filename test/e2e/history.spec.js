@@ -43,6 +43,7 @@ for (const [name, device] of Object.entries(SIZES)) {
       await page.context().addCookies([{ name: k, value: v, url: studio.origin }]);
       await page.goto(`${studio.origin}/studio/${await savedThrice(studio.origin, cookie)}`);
 
+      if (name === 'phone') await page.locator('.phone-look-menu > summary').click();
       await page.getByRole('button', { name: 'History', exact: true }).click();
       const drawer = page.locator('.history-drawer'), steps = drawer.locator('.hstep');
       await expect(steps).toHaveCount(1, { timeout: 30_000 });
@@ -85,6 +86,7 @@ for (const [name, device] of Object.entries(SIZES)) {
       const id = await savedThrice(studio.origin, cookie);
       await page.goto(`${studio.origin}/studio/${id}`);
 
+      if (name === 'phone') await page.locator('.phone-look-menu > summary').click();
       await page.getByRole('button', { name: 'History', exact: true }).click();
       const drawer = page.locator('.history-drawer'), versions = drawer.locator('.version');
       await drawer.getByRole('button', { name: 'Versions' }).click();

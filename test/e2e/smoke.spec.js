@@ -110,6 +110,7 @@ for (const [name, device] of Object.entries(SIZES)) {
 
       await test.step('a param is one field: dragged across, stepped by a key', async () => {
         await page.locator('.layer-name:visible').first().click();
+        if (!wide) await page.getByText('More settings', { exact: true }).click();
         const field = page.locator('.params .scrub:visible').first(), min = await field.getAttribute('aria-valuemin');
         await field.dragTo(page.locator('.params .field:has(.scrub) > label:visible').first());   // past its left end
         await expect(field).toHaveAttribute('aria-valuenow', min);

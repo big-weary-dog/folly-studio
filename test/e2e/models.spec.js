@@ -1,4 +1,4 @@
-// npm run smoke, too: the model registry in a browser at a laptop's and a phone's size. An admin's Models panel turns
+// npm run smoke, too: phone Models explains laptop configuration; an admin's laptop Models panel turns
 // a model off and saves; the idea form then offers what is left, and an idea goes to the model picked there (a
 // stand-in codex CLI, test/fixtures/generate/bin/codex, which answers with a look at once; no Anthropic key).
 import { fileURLToPath } from 'node:url';
@@ -27,6 +27,17 @@ for (const [name, device] of Object.entries(SIZES)) {
       await page.fill('input[name=password]', 'correct horse');
       await page.locator('form button[type=submit]').click();
       await expect(page.locator('textarea.idea-input')).toBeVisible({ timeout: 20_000 });
+
+      if (name === 'phone') {
+        await page.goto(`${studio.origin}/admin/models`);
+        await expect(page.getByText('Open this page on a laptop to configure models.')).toBeVisible();
+        await expect(page.locator('.model-row')).toHaveCount(0);
+        await page.getByRole('combobox', { name: 'Admin page' }).selectOption('baking');
+        await expect(page.getByRole('group', { name: 'Baking', exact: true })).toBeVisible();
+        await shot('phone-admin');
+        expect(errors).toEqual([]);
+        return;
+      }
 
       const pick = page.locator('.model-pick select');
       const luna = page.locator('.model-row', { hasText: 'Luna' });

@@ -9,6 +9,7 @@ import { can } from '../../../shared/policy.ts';
 import type { Invite, Person, PersonLimits } from '../../../shared/schemas/access.ts';
 import { confirmDialog, cx, timeAgo, toast } from './kit.tsx';
 import { setTitle } from './session.ts';
+import { usePhone } from './phone/viewport.ts';
 
 const STATE_TAG: Record<Invite['state'], string> = { active: 'tag-emerald', used: '', expired: 'tag-amber',
   revoked: 'danger-text' };
@@ -19,6 +20,7 @@ const copy = (text: string) => navigator.clipboard.writeText(text)
 const day = (iso: string) => new Date(iso).toLocaleDateString([], { day: 'numeric', month: 'short' });
 
 export function AccessPage() {
+  const phone = usePhone();
   const [invites, setInvites] = useState<Invite[] | null>(null), [people, setPeople] = useState<Person[] | null>(null);
   const [error, setError] = useState(''), [fresh, setFresh] = useState('');
   const fail = (err: unknown) => toast((err as Error).message, { kind: 'error' });
@@ -40,7 +42,8 @@ export function AccessPage() {
   return (
     <div class="page access-page">
       <h1 class="page-title">Access</h1>
-      <p class="lede">Anyone can sign up to browse, edit and use the gallery. Turning ideas into looks needs an invite
+      <p class="lede laptop-only">Anyone can sign up to browse, edit and use the gallery. Turning ideas into looks
+        needs an invite
         code, and each person's use is limited by <code>limits</code> in the models file.</p>
       {error && <p class="form-error" role="alert">{error}</p>}
       <section class="access-panel" aria-labelledby="codes-h">
@@ -52,7 +55,7 @@ export function AccessPage() {
           <button class="btn small" type="button" onClick={() => copy(linkOf(fresh))}>Copy invite link</button>
           <span>Shown once: copy it now. Only its hash is kept.</span>
           <code class="invite-link">{linkOf(fresh)}</code></div>}
-        <ul class="access-list" aria-busy={!invites}>
+        {!phone && <ul class="access-list" aria-busy={!invites}>
           {invites?.map((inv) => <li key={inv.id} class="access-row">
             <span class="access-name">{inv.label || 'No label'}</span>
             <span class={cx('tag', STATE_TAG[inv.state])}>{inv.state}</span>
@@ -63,7 +66,7 @@ export function AccessPage() {
               onClick={() => revoke(inv)}>Revoke</button>}
           </li>)}
           {invites?.length === 0 && <li class="pane-hint">No codes yet.</li>}
-        </ul>
+        </ul>}
       </section>
       <section class="access-panel" aria-labelledby="people-h">
         <h2 id="people-h">People</h2>
@@ -99,13 +102,16 @@ function NewCode({ made, fail }: { made: (inv: Invite, code: string) => void, fa
 
 function People({ people, put, fail }: { people: Person[] | null, put: (p: Person) => void,
   fail: (err: unknown) => void }) {
+  const phone = usePhone();
   const [q, setQ] = useState(''), [open, setOpen] = useState('');
   const change = (p: Person, patch: Parameters<typeof api.updatePerson>[1]) => api.updatePerson(p.id, patch)
     .then((r) => put(r.person), fail);
-  const words = q.trim().toLowerCase(), shown = (people || []).filter((p) => p.username.includes(words));
+  const words = q.trim().toLowerCase(), shown = (people || [])
+    .filter((p) => phone ? !!words && p.username === words : p.username.includes(words));
   return <>
     <input type="search" class="search" aria-label="Search people" placeholder="Search people" value={q}
       onInput={(e) => setQ(e.currentTarget.value)} />
+    {phone && <p class="pane-hint">Enter the full username to unlock an account.</p>}
     <ul class="access-list" aria-busy={!people}>
       {shown.map((p) => {
         const admin = can(p, 'admin'), unlocked = admin || !!p.access.unlockedAt;
@@ -113,15 +119,17 @@ function People({ people, put, fail }: { people: Person[] | null, put: (p: Perso
           <span class="access-name">{p.username}</span>
           <span class={cx('tag', admin ? 'tag-sapphire' : unlocked ? 'tag-emerald' : '')}>
             {admin ? 'admin' : unlocked ? 'unlocked' : 'locked'}</span>
-          <span class="access-meta">{`${p.used.hour} this hour · ${p.used.day} today · ${p.used.running} now`}
+          <span class="access-meta laptop-only">
+            {`${p.used.hour} this hour · ${p.used.day} today · ${p.used.running} now`}
             {p.access.limits ? ' · own limits' : ''}</span>
           {!admin && <span class="access-actions">
             <button class="btn ghost small" type="button" onClick={() => change(p, { unlocked: !unlocked })}>
               {unlocked ? 'Lock' : 'Unlock'}</button>
-            <button class="btn ghost small" type="button" onClick={() => change(p, { reset: true })}>Reset</button>
-            <button class="btn ghost small" type="button" aria-expanded={open === p.id}
+            <button class="btn ghost small laptop-only" type="button" onClick={() => change(p, { reset: true })}>
+              Reset</button>
+            <button class="btn ghost small laptop-only" type="button" aria-expanded={open === p.id}
               onClick={() => setOpen(open === p.id ? '' : p.id)}>Limits</button></span>}
-          {open === p.id && <LimitsForm p={p} save={(limits) => change(p, { limits })} />}
+          {!phone && open === p.id && <LimitsForm p={p} save={(limits) => change(p, { limits })} />}
         </li>;
       })}
     </ul></>;

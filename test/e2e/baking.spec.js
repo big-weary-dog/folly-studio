@@ -29,6 +29,10 @@ for (const width of [390, 1366]) {
     expect((await put(`/api/looks/${look.id}`, { shared: true })).ok()).toBe(true);
 
     await page.goto(`${studio.origin}/admin/baking`);
+    if (width < 900) {
+      await expect(page.getByText(/Library only\. Bubblewrap \(bwrap\) is not installed/)).toBeHidden();
+      await page.getByText('Baking details', { exact: true }).click();
+    }
     await expect(page.getByText(/Library only\. Bubblewrap \(bwrap\) is not installed/)).toBeVisible();
     await page.getByRole('button', { name: 'Throttled' }).click();
     await expect(page.getByText('Baking is throttled.')).toBeVisible();
@@ -40,6 +44,7 @@ for (const width of [390, 1366]) {
     if (width < 600) {
       await page.goto(`${studio.origin}/gallery`);
       const card = page.locator('.card', { hasText: `Custom ${width}` });
+      await card.locator('summary').click();
       await card.getByRole('button', { name: `Approve Custom ${width}` }).click();
       await expect(page.getByText(/without bubblewrap, so only looks made of unchanged library .* custom code/))
         .toBeVisible();

@@ -1,0 +1,28 @@
+/* Shared phone cuts: browsing, compact entry and the Studio's merged navigation row. */
+.admin-picker { display: flex; gap: 12px; align-items: center; margin: 16px; }
+.admin-picker select { flex: 1; min-width: 0; }
+.phone-disclosure > summary { min-height: 44px; padding: 12px 8px; cursor: pointer; }
+.phone-disclosure[open] > .btn { margin: 4px; }
+@media (max-width: 899px) {
+  .laptop-only, .looks-page .lede, .auth-lede, .auth-pitch, .auth-art { display: none !important; }
+  .auth-card { --arch: 48px; padding-top: 28px; }
+  .auth-title { gap: 6px; margin-bottom: 20px; }
+  .auth-title .wordmark { height: 36px; width: 150px; }
+  .auth-invited { margin-top: 0; }
+  .looks-page .page-head { margin-bottom: 16px; }
+  .card-actions .phone-disclosure { width: 100%; }
+  .card-actions .phone-disclosure > summary { font-size: 14px; }
+  body[data-view=studio] .app-header { height: 0; min-height: 0; padding: 0; border: 0; z-index: 20; }
+  body[data-view=studio] .app-header > .brand { display: none; }
+  body[data-view=studio] #nav-toggle { position: absolute; top: 6px; left: 8px; margin: 0; }
+  body[data-view=studio] .nav-panel { top: 56px; }
+  body[data-view=studio] .view-studio { height: 100dvh; }
+  .studio .studio-bar { min-height: 56px; padding-left: 60px; }
+  .phone-look-menu { min-width: 0; width: 100%; position: relative; }
+  .phone-look-menu > summary { min-height: 44px; padding: 12px 4px; cursor: pointer; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; font-size: 15px; }
+  .phone-look-details { position: absolute; z-index: 15; top: 100%; left: -52px; width: min(320px, 90vw);
+    padding: 12px; background: var(--night-1); border: var(--came) solid var(--lead); box-shadow: var(--shadow); }
+  .phone-look-details .look-title { width: 100%; min-height: 44px; }
+  .phone-look-details .history-btn { min-height: 44px; }
+}

@@ -19,6 +19,22 @@ for (const width of [1366, 390, 360]) {
       const member = `pages-member-${width}`;
       await signup(studio.origin, member);
       await page.goto(`${studio.origin}/admin/models`);
+      if (width < 900) {
+        await expect(page.locator('.model-row')).toHaveCount(0);
+        await page.getByRole('combobox', { name: 'Admin page' }).selectOption('access');
+        await expect(page.locator('.access-row')).toHaveCount(0);
+        await page.getByRole('searchbox', { name: 'Search people' }).fill(member);
+        const person = page.locator('.access-row', { hasText: member });
+        await person.getByRole('button', { name: 'Unlock', exact: true }).click();
+        await expect(person).toContainText('unlocked');
+        await expect(person.getByRole('button', { name: 'Limits', exact: true })).toBeHidden();
+        await expect(person.getByRole('button', { name: 'Reset', exact: true })).toBeHidden();
+        await shot(page, 'access-quick-unlock');
+        await page.getByRole('combobox', { name: 'Admin page' }).selectOption('reports');
+        await expect(page.getByRole('button', { name: 'Report a problem', exact: true })).toBeVisible();
+        await expect(page.locator('.report-list')).toHaveCount(0);
+        return;
+      }
       const toggle = page.locator('.model-row input.switch').last();
       const original = await toggle.isChecked();
       await toggle.click();
@@ -60,7 +76,8 @@ for (const width of [1366, 390, 360]) {
     test('accounts learn about invites; guests and signed-out visitors cannot enter an unsendable report',
       async ({ page, studio }) => {
         await page.goto(`${studio.origin}/login?mode=signup`);
-        await expect(page.getByText(/needs an invite code/)).toBeVisible();
+        if (width < 900) await expect(page.getByText(/needs an invite code/)).toBeHidden();
+        else await expect(page.getByText(/needs an invite code/)).toBeVisible();
         await shot(page, 'signup');
         await page.keyboard.press('F8');
         await expect(page.getByRole('dialog', { name: 'Report a problem' })).toHaveCount(0);

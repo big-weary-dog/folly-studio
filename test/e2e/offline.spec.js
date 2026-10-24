@@ -1,6 +1,6 @@
 // npm run smoke, too: the Pi profile's Studio (SPEC-offline) at a laptop's and a phone's size. Signing up lands on
-// My looks, with no Ideas tab and a Lights link for a curator; /ideas goes to My looks; Import takes a file of looks
-// and Export all gives them back (again: unchanged). Screenshots of each in the output, and no errors on the page.
+// My looks, with no Ideas tab and a curator's Lights link; /ideas goes to My looks. Laptop Import/Export roundtrips
+// files; phone omits file workflows and keeps browsing/opening. Screenshots land in the output.
 import { readFile } from 'node:fs/promises';
 
 import { expect, test } from './studio.js';
@@ -33,11 +33,24 @@ for (const [name, device] of Object.entries(SIZES)) {
         await expect(page.locator('h1.page-title')).toHaveText('My looks', { timeout: 20_000 });
         await expect(nav.getByRole('link', { name: 'Ideas' })).toHaveCount(0);
         await expect(page.locator('a[href="/pi/"]')).toHaveCount(1);
-        await expect(page.locator('main')).toContainText('or import some');
+        if (name === 'laptop') await expect(page.locator('main')).toContainText('or import some');
         await shot('empty');
         await page.goto(`${studio.origin}/ideas`);
         await expect(page).toHaveURL(/\/looks$/);
       });
+
+      if (name === 'phone') {
+        await expect(page.getByRole('button', { name: 'Import', exact: true })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: 'Export all' })).toHaveCount(0);
+        const { look: saved } = await (await page.request.post(`${studio.origin}/api/looks`,
+          { data: look('Phone browse') })).json();
+        await page.reload();
+        await page.getByRole('searchbox', { name: 'Search looks' }).fill('Phone browse');
+        await page.locator('.card', { hasText: 'Phone browse' }).getByRole('link', { name: 'Open' }).click();
+        await expect(page).toHaveURL(`${studio.origin}/studio/${saved.id}`);
+        expect(errors).toEqual([]);
+        return;
+      }
 
       await test.step('Import takes a file of looks; a refused one is named', async () => {
         const bad = { ...look('Broken'), layers: 'nope' };

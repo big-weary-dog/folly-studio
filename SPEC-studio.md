@@ -28,7 +28,8 @@ every edit here keeps them, so what the Studio saves the API accepts.
   The bottom
   dock (Code, Timeline, Look) is one height on every tab: a share of the Studio's height (36%, at least 220 px, the
   3D view keeping at least 200 px), dragged by the splitter above it and kept per browser.
-- **Title and description** edit in place: the title in the Studio bar with the description (the look's `summary`,
+- **Title and description** edit in place: the title in the Studio bar (behind Look details on phone), with
+  the description (the look's `summary`,
   what its gallery card shows) on a line under it; on a phone, the description is under Look → Share details.
 - **Reorder.** a layer row moves by its ↑ ↓ buttons, a module row (into and out of composites too) by Alt+↑/↓ on its
   controls, either by dragging its grip (`ui/drag-order.ts`, a module's `ui/tree-drag.ts`; any pointer), which marks
@@ -71,14 +72,25 @@ every edit here keeps them, so what the Studio saves the API accepts.
   Module deletion names all attached or contained modules it removes; Undo restores the whole edit.
   Mute and Solo audition the look without changing saved content. FSEQ exports the current preview and asks
   before excluding muted or unsoloed layers; its form explains that JSON, Save and Check & bake use the full look.
-- **Phones** (≤ 899 px wide; `ui/phone/`, `css/phone.css`): the 3D view over one panel, switched by Layers,
+- <a id="phones"></a>**Phones** (≤ 899 px wide; `ui/phone/`, `css/phone.css`): the 3D view over one panel,
+  switched by Layers,
   Look and More. The preview and transport occupy 240 px while using these panels; venue scenery stays.
   Time, code, Full detail and automation/modulation authoring are unavailable; CodeEditor and Timeline do not
   mount on phone. Existing clips, automation and bindings keep playing. Look keeps palette and existing performance
   faders, Share, an explicit Refine with AI action (without Critique), and description under Share details.
   It omits macro/modulator authoring, bake/export and recent-look navigation.
+  The separate brand header is omitted in Studio: Menu, the look title and Save share a row, with rename and
+  History behind Look details. The module chain opens behind a module selector. Every module keeps its first
+  visible control row in front; the remaining rows open under More settings. A paired petals/cells row stays together.
+  Palette access stays in Look. Solo and Reset all sit in the layer menu.
+  My looks and Gallery omit file import/export, layer counts, dates and introductions; Delete and Approve open
+  from each card's Actions. Admin uses a page selector: quick invite/unlock, live modes, emergency baking and
+  compact health/queue status stay available. Model configuration, light calibration/files, report investigation,
+  stats history/request investigation and Pi bundle deployment stay on laptop; baking details open on demand.
+  Login keeps mode choice, fields, rules, feedback and actions, with a compact brand and no pitch or rose artwork.
   Layers lists one row a layer (name, mute, status); tapping one opens its settings in
-  the same panel (‹ Layers back, its name, mute and solo, plays on, the chain, the params). The light view hides
+  the same panel (‹ Layers back, its name, mute, the layer menu, plays on, module selector and params).
+  The light view hides
   blend, level, solo and moving up or down on the rows, the layer and module names and Soften in the settings, the
   3D view's style buttons. More holds the 3D view's Show unlit, LEDs
   and quality. On a phone the preview starts without

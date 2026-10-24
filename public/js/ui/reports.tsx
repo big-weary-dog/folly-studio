@@ -8,17 +8,24 @@ import type { ReportSummary } from '../../../shared/schemas/report.ts';
 import { api } from '../api.ts';
 import { cx, timeAgo } from './kit.tsx';
 import { setTitle, type ViewProps } from './session.ts';
+import { usePhone } from './phone/viewport.ts';
+import { fileBugReport } from './bug-report.tsx';
 
 type Full = Awaited<ReturnType<typeof api.bugReport>>['report'];
 const shotUrl = (id: string) => `/api/admin/reports/${encodeURIComponent(id)}/shot`;
 
 export function ReportsPage({ query }: ViewProps) {
+  const phone = usePhone();
   const [list, setList] = useState<ReportSummary[] | null>(null), [error, setError] = useState('');
   const [open, setOpen] = useState<string | null>(query.get('id'));
   useEffect(() => {
     setTitle('Reports');
-    api.reports().then((r) => setList(r.reports), (err) => setError((err as Error).message));
-  }, []);
+    if (!phone) api.reports().then((r) => setList(r.reports), (err) => setError((err as Error).message));
+  }, [phone]);
+  if (phone) return <div class="page reports-page"><h1 class="page-title">Reports</h1>
+    <button class="btn" type="button" onClick={() => void fileBugReport()}>Report a problem</button>
+    <p class="pane-hint">Open Reports on a laptop to investigate submitted reports.</p>
+  </div>;
   return (
     <div class="page reports-page">
       <h1 class="page-title">Reports</h1>

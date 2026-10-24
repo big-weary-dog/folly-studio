@@ -106,17 +106,20 @@ for (const [name, device] of Object.entries(SIZES)) {
         await expect(page.locator('.invite-link')).toHaveText(`${studio.origin}/#invite=${await fresh.textContent()}`);
         await page.getByRole('button', { name: 'Copy invite link' }).click();
         await expect(page.locator('.toast-msg').last()).toHaveText(/Copied\.|Copy it by hand\./);
-        await expect(page.locator('.access-row', { hasText: `Art crew (${name})` })).toContainText('0 of 5 used');
+        if (name === 'phone') await page.getByRole('searchbox', { name: 'Search people' }).fill(`guest-${name}`);
+        else await expect(page.locator('.access-row', { hasText: `Art crew (${name})` })).toContainText('0 of 5 used');
         await expect(page.locator('.access-row', { hasText: `guest-${name}` })).toContainText('unlocked');
         await shot('access');
       });
 
       await test.step('a session that ends on the Access page goes back to sign-in, with no error', async () => {
-        await page.locator('a[data-tab=light]').click();
+        if (name === 'phone') await page.getByRole('combobox', { name: 'Admin page' }).selectOption('light');
+        else await page.locator('a[data-tab=light]').click();
         // Loaded, so its own call is done before the session ends and the 401 is Access's.
         await expect(page.locator('.light-page')).not.toContainText('Loading…');
         await page.context().clearCookies();
-        await page.locator('a[data-tab=access]').click();
+        if (name === 'phone') await page.getByRole('combobox', { name: 'Admin page' }).selectOption('access');
+        else await page.locator('a[data-tab=access]').click();
         await expect(page).toHaveURL(`${studio.origin}/login?next=${encodeURIComponent('/admin/access')}`);
         await expect(page.locator('.toast-error')).toHaveCount(0);
       });

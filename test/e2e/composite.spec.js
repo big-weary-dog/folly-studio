@@ -43,6 +43,7 @@ async function open(page, studio, look, phone) {
   if (phone) {
     await page.locator('.studio-tabs .tab[data-tab=layers]').click({ timeout: 30_000 });
     await page.locator('.layer-name').first().click();
+    await page.locator('.phone-module-picker').click();
   }
   await expect(page.locator('.chain-row[data-kind=composite]').first()).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('.chain-row[data-status=pending]')).toHaveCount(0, { timeout: 30_000 });
