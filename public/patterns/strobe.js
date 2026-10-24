@@ -1,10 +1,9 @@
-// Strobe: flashes the layer at Speed, each flash the next of Colours; 2 a second by default, and over 3 a second on a
-// large area fails the flash check. Length is the lit share of each cycle; Scatter flashes only some strands;
-// Mixed gives each strand its own colour.
+// Strobe: flashes the layer at Speed, each flash the next of Colours; 2 a second by default.
+// Length is the lit share of each cycle; Scatter flashes only some strands; Mixed gives each strand its own colour.
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours',
     help: 'Colours the flashes, stepping to the next colour in the list on each flash.' },
-  speed: { value: 2, min: 0.25, max: 3, step: 0.25, label: 'Speed (flashes a second)',
+  speed: { value: 2, min: 0.25, max: 8, step: 0.25, label: 'Speed (flashes a second)',
     help: 'How often it flashes. Low is a slow blink; high a hard, rapid strobe.' },
   length: { value: 0.15, min: 0.05, max: 0.5, step: 0.01, label: 'Lit share of cycle',
     help: 'How much of the complete cycle stays lit. Low is a short sharp blip; high stays on for half the cycle.' },

@@ -93,6 +93,23 @@ test('saved smooth Recolour and negative half-turn preserve their rendered looks
   }
 });
 
+test('saved fast Strobe speeds and beat clocks still produce six flashes a second', () => {
+  const scene = prepareScene(folly);
+  for (const speed of [6, { mod: 'beats', per: 3 }]) {
+    const layer = { id: 'l', modules: [{ id: 's', kind: 'source', code: lib('strobe'),
+      params: { speed, colours: '#ffffff' } }] };
+    const prepared = prepareLayer(scene, layer, compileLayer(layer));
+    let flashes = 0, wasLit = false;
+    for (let frame = 0; frame < 120; frame++) {
+      assert.deepEqual(renderFrame(scene, [prepared], frame / 120).errors, []);
+      const lit = prepared.buf[3] > 0.05;
+      if (lit && !wasLit) flashes++;
+      wasLit = lit;
+    }
+    assert.equal(flashes, 6);
+  }
+});
+
 test('zero Lightning glow removes the halo while keeping the bolt core', () => {
   const scene = prepareScene(folly);
   const draw = (glow) => {

@@ -5,7 +5,7 @@ Drops, hits and rave peaks, briefly. **heartbeat** is a soft tempo pulse; **ligh
 
 ## Params
 - colours: `high` for palette highlights, `#ffffff` for white hits; `all` includes dim colours.
-- speed: 0.25–3 flashes a second; `{ "mod": "beats", "per": 1 }` follows the look's bpm, capped at 3.
+- speed: 0.25–8 flashes a second; `{ "mod": "beats", "per": 1 }` follows the look's bpm.
 - length: Lit share of the complete cycle, not seconds or a share of the lit flash.
 - fade: Fade share of the complete cycle, capped at length; at the default a flash is all fade.
 
