@@ -9,15 +9,20 @@ const params = {
     help: 'How fully the new colours replace the old. Zero leaves them as they were; one is fully recoloured.' },
   shade: { value: true, type: 'toggle', label: 'Keep light and shade',
     help: 'On keeps each part as bright as it was; off gives every part the full brightness of its new colour.' },
-  steps: { value: 0, min: 0, max: 12, step: 1, label: 'Steps (0: smooth)',
-    help: 'Snaps the colours to this many flat bands, dark to bright. 0 keeps it smooth; 2 is hard light and dark.' },
+  steps: { value: 1, min: 1, max: 12, step: 1, label: 'Steps (1: smooth)',
+    help: 'Snaps the colours to this many flat bands, dark to bright. 1 keeps it smooth; 2 is hard light and dark.' },
   contrast: { value: 1, min: 0.2, max: 4, step: 0.05, label: 'Contrast',
     help: 'How far brightness stretches over the colours. Low uses only the middle; high bounces through them all.' },
   shift: { value: 0, min: -1, max: 1, step: 0.01, label: 'Shift (along the colours)',
     help: 'Slides which colour each brightness takes. Zero is as is; either way moves along the palette.' },
-  drift: { value: 0, min: -0.5, max: 0.5, step: 0.01, label: 'Drift (colours a second)',
+  drift: { value: 0, min: -0.5, max: 0.5, step: 0.01, label: 'Drift (palette spans a second)',
     help: 'Keeps sliding along the colours over time. Zero holds still; negative slides the other way.' },
 };
+
+function upgrade(s) {
+  if (s.steps === 0) s.steps = 1;
+  return s;
+}
 
 const snap = (v, n) => (n < 2 ? v : min(n - 1, floor(clamp(v) * n)) / (n - 1));    // n flat bands (under 2: smooth)
 

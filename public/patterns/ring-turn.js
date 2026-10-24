@@ -1,13 +1,18 @@
 // Ring turn: turns each ring of the rose window by whole petals, each ring further than the one inside it, so the
 // heart holds still and the rings step round in a spiral. Off the rose it leaves what is above it alone.
 const params = {
-  step: { value: 1, min: -8, max: 8, step: 1, label: 'Petals per ring',
+  step: { value: 1, min: -7, max: 8, step: 1, label: 'Petals per ring',
     help: 'Each ring turns this many petals further than the one inside it. 1 makes a stepped spiral; 0 none.' },
   alternate: { value: false, type: 'toggle', label: 'Alternate',
     help: 'Turn alternate rings the opposite way, so the rings interlock.' },
   speed: { value: 0, min: -2, max: 2, step: 0.1, label: 'Speed (petals a second per ring)',
     help: 'Steps the turn on a whole petal at a time. 0 holds still; around 0.25 steps now and then.' },
 };
+
+function upgrade(s) {
+  if (s.step === -8) s.step = 8;
+  return s;
+}
 
 let cy = 0, cz = 0;
 function frame() {

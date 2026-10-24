@@ -8,10 +8,10 @@ from a centre in space; **wildfire** spreads light that burns out instead of wav
 
 ## Params
 - drops: 1–3 keeps a few ripples crossing; 6+ is choppy; 0 lets it settle to calm.
-- speed: LEDs a second along a strand: 10–20 rolls, 40+ races.
+- speed: Links a second (about LEDs a second along a strand): 10–20 rolls, 40+ races.
 - settle: 0.1–0.3 sloshes for seconds; 0.6+ lets each drop die out near where it fell.
 - bounce: 1 keeps ripples running end to end; 0 lets them run off the ends.
-- size: 2–3 LEDs is a sharp plink; 8+ long swells.
+- size: Drop radius in links: 2–3 is a sharp plink; 8+ long swells. Branches can cover many LEDs per hop.
 
 ## Pairings
 - Over a dim **colour-wash** in the same hues; Colours dark to bright, troughs to crests (`low high`, or an ocean pick).
