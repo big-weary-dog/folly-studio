@@ -26,6 +26,7 @@ for (const width of [390, 1366]) {
       .json();
     try {
       await page.goto(`${studio.origin}/admin/baking`);
+      if (!wide) await page.getByText('Baking details', { exact: true }).click();
       const code = page.getByRole('group', { name: 'Custom code' });
       await code.getByRole('button', { name: 'Off' }).click();
       await expect(page.getByText('Custom code is off.')).toBeVisible();
