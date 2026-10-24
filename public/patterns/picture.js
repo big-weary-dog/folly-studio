@@ -8,7 +8,7 @@ const params = {
       key: { h: 'high', a: 'accent', b: 'body2', c: 'low', d: 'accent3 30%' },
       frames: [{ rows: ['h', 'ab', 'c', 'bbaa', 'dad', 'bc', 'hah'] }] },
     help: 'The picture: text rows and a key of characters to palette colours or #hex, with frames to animate it.' },
-  speed: { value: 4, min: 0, max: 30, step: 0.1, label: 'Speed (frames a second)',
+  speed: { value: 4, min: 0, max: 30, step: 0.1, label: 'Speed (ticks a second)',
     help: 'How fast an animated picture plays, in ticks a second (a frame lasts its hold in ticks). 0 holds frame 1.' },
 };
 

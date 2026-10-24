@@ -7,6 +7,7 @@ petals; **scroll** `petal` turns the whole rose at once.
 
 ## Params
 - step: 1 or −1 a gentle spiral; 2–3 tight arms; with alternate on, the rings interlock.
+  8 is a half-turn; saved −8 becomes the equivalent +8.
 - speed: about 0.25 steps every few seconds; above 1 reads as flicker, not a turn.
 
 ## Pairings

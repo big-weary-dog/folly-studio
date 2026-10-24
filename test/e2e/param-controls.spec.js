@@ -6,7 +6,8 @@ import { expect, signup, test } from './studio.js';
 
 const names = { bars: 'source', mask: 'filter', 'in-turn': 'warp', heartbeat: 'source', lightning: 'source',
   anchor: 'warp', mirror: 'warp', 'hue-shift': 'filter', 'petal-repeat': 'warp', noise: 'source', delay: 'filter',
-  fireworks: 'source', 'petal-mask': 'filter' };
+  fireworks: 'source', 'petal-mask': 'filter', replay: 'filter', 'single-strand': 'source', streaks: 'source',
+  reorder: 'warp', strobe: 'source', recolour: 'filter', 'ring-turn': 'warp', picture: 'source', waves: 'source' };
 const code = (name) => readFileSync(new URL(`../../public/patterns/${name}.js`, import.meta.url), 'utf8');
 const look = { title: 'Pattern controls', duration: 16, layers: Object.entries(names).map(([name, kind]) => ({
   id: name, title: name, modules: [
@@ -31,6 +32,8 @@ for (const [device, settings] of Object.entries(DEVICES)) {
         mkdirSync(out, { recursive: true });
         await page.locator('.params').scrollIntoViewIfNeeded();
         await page.screenshot({ path: path.join(out, `${device}-${name}.png`) });
+        await page.locator('.params').screenshot({ path: path.join(out, `${device}-${name}-panel.png`),
+          style: '.side, .pane-body { overflow: visible !important; }' });
       };
       for (const name of Object.keys(names)) {
         const res = await fetch(`${studio.origin}/api/looks`, { method: 'POST',
@@ -88,6 +91,37 @@ for (const [device, settings] of Object.entries(DEVICES)) {
           await expect(row('Detail')).toBeVisible();
           await row('Speed').locator('.beat-clock').click();
           await expect(row('Speed')).toContainText('changes a beat');
+        } else {
+          if (name === 'single-strand') {
+            await expect(row('Comet tail')).toHaveCount(0);
+            await row('Gap').locator('input').first().fill('0.37');
+            await row('Gap').locator('input').first().press('Tab');
+            await select('Profile', 'comet');
+            await expect(row('Gap')).toHaveCount(0);
+            await expect(row('Comet tail')).toBeVisible();
+            await select('Mode', 'out');
+            await expect(row('Alternate strands')).toHaveCount(0);
+            await shot('single-strand-comet-out');
+            await select('Profile', 'bands');
+            await expect(row('Gap').locator('input').first()).toHaveValue('0.37');
+          } else if (name === 'streaks') {
+            await expect(row('Sway')).toHaveCount(0);
+            await select('Profile', 'flake');
+            await expect(row('Tail')).toHaveCount(0);
+            await expect(row('Sway')).toBeVisible();
+            await shot('streaks-flake');
+          } else if (name === 'replay') {
+            await select('Play', 'hold');
+            await expect(row('Length')).toHaveCount(0);
+            await shot('replay-hold');
+          } else if (name === 'reorder') {
+            await expect(row('Seed')).toHaveCount(0);
+            await select('Order by', 'random');
+            await expect(row('From')).toHaveCount(0);
+            await expect(row('Reach')).toHaveCount(0);
+            await expect(row('Seed')).toBeVisible();
+            await shot('reorder-random');
+          }
         }
       }
     });

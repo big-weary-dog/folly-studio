@@ -14,6 +14,7 @@ filters it orders; **anchor** moves a centre instead.
 - reach: 0 makes the farthest wire the edge. Less packs the order near `from`; LEDs past it repeat or go dark.
 - amount: 0.3–0.6 bends a straight-line ring toward the wiring without losing its shape.
 - seed: A stepped LFO on it deals a new shuffle each step.
+- From and Reach are shown for wires; Seed is shown for random.
 
 ## Pairings
 - **bars** `in` with `pulse`, reorder `wires` from `rose`: rings run out of the rose and along every arch.

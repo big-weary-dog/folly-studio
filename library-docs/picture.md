@@ -66,7 +66,8 @@ Rings lie at 0.12, 0.19, 0.25, 0.32, 0.39, 0.43, 0.49 of the width from the cent
 corners shows. Fill the circle edge to edge, outlines two panes thick, no detail in the middle.
 
 ## Params
-- speed: 2–8 for gentle animation; a blink is 20 ticks open, 2 shut at speed 10.
+- speed: Ticks a second, not frames a second: a frame held 8 ticks lasts 2 seconds at speed 4.
+  2–8 for gentle animation; a blink is 20 ticks open, 2 shut at speed 10. A still picture ignores speed.
 
 ## Pairings
 - Over a dim **colour-wash** layer, or **colour-wash** `blend: "under"` at the end, so clear cells keep a colour.

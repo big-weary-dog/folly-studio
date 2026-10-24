@@ -8,8 +8,10 @@ snow, rising embers. **single-strand** for orderly runs along wires, **sparkle**
 - colours: `"accent high"` gives accent tails with highlight heads; use hex colours for fixed blue and white.
 - direction: `up`, `down` or `along` strands; angle tilts the fall sideways (±0.25 is horizontal).
 - speed: Each streak ±40%. 0.1–0.2 flakes, 0.6–1 rain, 2+ a downpour.
-- lanes: 20–40 for rain on the whole rig; match lanes to how many LEDs lie across.
-- density: Share of lanes in use, 0–1; 1 fills every lane.
+- lanes: 20–40 for rain on the whole rig; flakes use one column per four lanes.
+- density: Each of three streams per lane has this chance of appearing. 0.5 admits at least one stream in 87.5%
+  of lanes; where they show also depends on their phase and the layer's geometry.
+- tail: Shown for streaks; sway is shown for flakes.
 - depth: 1 if the layer is flat.
 
 ## Pairings
