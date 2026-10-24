@@ -34,7 +34,10 @@ for (const width of [390, 1366]) {
 
     await page.goto(`${studio.origin}/gallery`);
     const card = (name) => page.locator('.card', { hasText: `${name} ${width}` });
-    await expect(card('Breathe').getByRole('button', { name: `Approve Breathe ${width}` })).toBeVisible();
+    if (width < 900) {
+      await expect(card('Breathe').getByRole('button', { name: `Approve Breathe ${width}` })).toBeHidden();
+    }
+    else await expect(card('Breathe').getByRole('button', { name: `Approve Breathe ${width}` })).toBeVisible();
     const approved = page.getByRole('button', { name: 'Approved', exact: true });
     await expect(approved).toHaveAttribute('aria-pressed', 'false');
     await approved.click();
@@ -42,6 +45,7 @@ for (const width of [390, 1366]) {
     await expect(page.getByText('No approved looks match.', { exact: true })).toBeVisible();
     await approved.click();
     await shot('1-before');
+    if (width < 900) await card('Breathe').locator('summary').click();
     await card('Breathe').getByRole('button', { name: `Approve Breathe ${width}` }).click();
     await expect(card('Breathe').getByRole('button', { name: `Approve Breathe ${width}` })).toHaveText('Baking…');
     await shot('2-baking');
@@ -62,6 +66,7 @@ for (const width of [390, 1366]) {
     await approved.click();
     await expect(card('Strobe')).toBeVisible();
 
+    if (width < 900) await card('Strobe').locator('summary').click();
     await card('Strobe').getByRole('button', { name: `Approve Strobe ${width}` }).click();
     const why = page.getByRole('dialog', { name: 'Approve despite flashing?' });
     await expect(why).toBeVisible({ timeout: 120_000 });

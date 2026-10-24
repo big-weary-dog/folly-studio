@@ -55,11 +55,19 @@ export function ParamsPanel({ st }: { st: Studio }) {
         hint: l.title ?? m.title, colour: p.kind === 'color' ? { value: p.value, blend: p.blend ?? 'step' }
           : undefined }) }} />;
   // A `cells` param just after a `petals` one sits beside it (SPEC "Pattern code").
-  const pair = (i: number) => !!entries[i]?.[1].petals && !!entries[i + 1]?.[1].cells;
+  const first = entries[0]?.[1].petals && entries[1]?.[1].cells ? 2 : 1;
+  const primary = st.narrow.value ? entries.slice(0, first) : entries;
+  const more = st.narrow.value ? entries.slice(first) : [];
+  const rows = (list: typeof entries) => list.map((e, i) => {
+    if (list[i - 1]?.[1].petals && e[1].cells) return null;
+    return e[1].petals && list[i + 1]?.[1].cells
+      ? <div key={`${l.id}/${m.id}/${e[0]}+`} class="rose-pickers">{row(e)}{row(list[i + 1]!)}</div> : row(e);
+  });
   return (
     <div class="params">
-      {entries.map((e, i) => (pair(i - 1) ? null : pair(i)
-        ? <div key={`${l.id}/${m.id}/${e[0]}+`} class="rose-pickers">{row(e)}{row(entries[i + 1]!)}</div> : row(e)))}
+      {rows(primary)}
+      {!!more.length && <details class="phone-more-settings" key={`${l.id}/${m.id}`}>
+        <summary>More settings</summary>{rows(more)}</details>}
       <div class="params-foot"><button type="button" class="btn small ghost"
         onClick={() => st.editModule(l.id, m.id, () => ({ params: {} }))}>Reset all to defaults</button></div>
     </div>);

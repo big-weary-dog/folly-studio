@@ -10,19 +10,24 @@ import { encode, LIGHT, LIGHT_LIMITS, type Light, lightByte, lightOf, shownLight
 import { cx, download, Field, Scrub, Switch, toast } from './kit.tsx';
 import { onPi, setTitle } from './session.ts';
 import { useDraftGuard } from './draft-guard.ts';
+import { usePhone } from './phone/viewport.ts';
 
 const COLOURS = ['Red', 'Green', 'Blue'];
 // The values the curve table shows: full, the usual dims, and the bottom where 8 bits run out.
 const SAMPLES = [1, 0.75, 0.5, 0.25, 0.1, 0.06, 0.03];
 
 export function LightPage() {
+  const phone = usePhone();
   const [saved, setSaved] = useState<Light | null>(null), [draft, setDraft] = useState<Light | null>(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const take = (l: Light) => { setSaved(l); setDraft(structuredClone(l)); setError(''); };
   const fail = (err: unknown) => setError((err as Error).message);
-  useEffect(() => { setTitle('Light'); api.light().then((l) => take(lightOf(l)), fail); }, []);
+  useEffect(() => { setTitle('Light'); if (!phone) api.light().then((l) => take(lightOf(l)), fail); }, [phone]);
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   useDraftGuard(dirty);
+  if (phone) return <div class="page light-page"><h1 class="page-title">Light</h1>
+    {onPi() ? <LiveLooks /> : <p class="pane-hint">Light calibration and file tools are available on a laptop.</p>}
+  </div>;
   if (!saved || !draft) {
     return <div class="page light-page"><h1 class="page-title">Light</h1>
       <p class={error ? 'form-error' : 'pane-hint'} role={error ? 'alert' : undefined}>{error || 'Loading…'}</p></div>;

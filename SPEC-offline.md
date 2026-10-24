@@ -83,6 +83,8 @@ A curator opens the page by its address, without the tabs, as any Admin page. Th
 
 ## Look files
 
+Phone file and Pi bundle workflows stay on laptop; see [SPEC-studio "Phones"](SPEC-studio.md#phones).
+
 A look file is JSON, `application/json`, named for its title (`<slug>.json`):
 
 ```

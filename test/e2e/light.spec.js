@@ -1,4 +1,4 @@
-// npm run smoke, too: the Light page in a browser at a laptop's and a phone's size. An admin calibrates the response,
+// npm run smoke, too: phone omits calibration and files; laptop lets an admin calibrate the response,
 // the screen row follows it at once while the bytes stay; the output gamma moves both; a save keeps them, and the
 // Pi's copy downloads as light.json.
 import { readFileSync } from 'node:fs';
@@ -50,6 +50,15 @@ for (const [name, device] of Object.entries(SIZES)) {
       await expect(page.locator('textarea.idea-input')).toBeVisible({ timeout: 20_000 });
 
       await page.goto(`${studio.origin}/admin/light`);
+      if (name === 'phone') {
+        await expect(page.getByText('Light calibration and file tools are available on a laptop.')).toBeVisible();
+        await expect(page.getByRole('spinbutton')).toHaveCount(0);
+        await expect(page.getByRole('button', { name: 'Download for the Pi' })).toHaveCount(0);
+        await page.getByRole('combobox', { name: 'Admin page' }).selectOption('baking');
+        await expect(page.getByRole('group', { name: 'Baking', exact: true })).toBeVisible();
+        expect(errors).toEqual([]);
+        return;
+      }
       const response = page.getByRole('spinbutton', { name: 'Response' });
       const gamma = page.getByRole('spinbutton', { name: 'Output gamma' });
       const row = (i) => page.locator('.light-curve tbody tr').nth(i).locator('td').nth(2);   // the 50 % column

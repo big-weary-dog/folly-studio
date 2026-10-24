@@ -100,9 +100,7 @@ function Bar({ st, pv }: { st: Studio; pv: Preview }) {
   const L = st.look.value, dirty = st.dirty.value, copy = st.copyOnSave.value;
   const state = st.saving.value ? 'Saving…' : copy ? (dirty ? 'Edited — Save makes your copy' : 'Gallery look')
     : !L.id ? 'Not saved yet' : dirty ? 'Unsaved changes' : 'Saved';
-  return (
-    <div class="studio-bar">
-      <div class="bar-title"><div class="bar-words">
+  const title = (
         <input class="look-title" type="text" maxlength={120} aria-label="Look title" placeholder="Untitled look"
           spellcheck={false} value={L.title} onInput={(e) => {
             const title = e.currentTarget.value;
@@ -110,10 +108,16 @@ function Bar({ st, pv }: { st: Studio; pv: Preview }) {
           }}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } }}
           onBlur={(e) => { if (!e.currentTarget.value.trim()) st.edit(() => ({ title: 'Untitled look' })); }} />
-        <Describe st={st} /></div>
+  );
+  return (
+    <div class="studio-bar">
+      <div class="bar-title">{st.narrow.value ? <details class="phone-look-menu">
+        <summary aria-label={`Look details: ${L.title || 'Untitled look'}`}>{L.title || 'Untitled look'}</summary>
+        <div class="phone-look-details">{title}<HistoryButton st={st} /></div>
+      </details> : <div class="bar-words">{title}<Describe st={st} /></div>}
         <span class="save-state" aria-live="polite" data-state={dirty || !L.id ? 'dirty' : 'clean'}>{state}</span>
       </div>
-      <div class="bar-actions"><HistoryButton st={st} />
+      <div class="bar-actions">{!st.narrow.value && <HistoryButton st={st} />}
         <Share st={st} cls="share-toggle" /><ExportMenu st={st} pv={pv} />
         <button type="button" class={cx('btn primary save-btn', st.saving.value && 'busy')} title="Save (Ctrl+S)"
           data-tour="save"

@@ -25,6 +25,7 @@ type Props = { st: Studio; pv: Preview };
 
 export function ChainPane({ st, pv }: Props) {
   const l = st.selected.value, narrow = st.narrow.value;
+  const [choosing, setChoosing] = useState(false);
   return (
     <section class="pane pane-params" data-pane="params" aria-label="Layer settings">
       <div class="pane-head"><h2 class="pane-title"><SideFold st={st} panel="params" /></h2>
@@ -38,7 +39,11 @@ export function ChainPane({ st, pv }: Props) {
             if (l && !st.selected.peek()?.title.trim()) st.editLayer(l.id, () => ({ title: 'Layer' }));
           }} />}</Field>
         <PlaysOn st={st} />
-        <div class="chain-host"><Chain st={st} pv={pv} /></div>
+        {narrow && <button class="btn phone-module-picker" type="button" aria-expanded={choosing}
+          onClick={() => setChoosing(!choosing)}><span>Module: {st.module.value
+            ? standardTitle(st.module.value, st.data.library) || st.module.value.title : 'Choose module'}</span>
+          <span aria-hidden="true">▾</span></button>}
+        {(!narrow || choosing) && <div class="chain-host"><Chain st={st} pv={pv} /></div>}
         <SoftenRow st={st} l={l} />
         {narrow && <div class="params-host"><ModuleSettings st={st} /></div>}
       </div>

@@ -24,6 +24,7 @@
 .access-panel .search { margin-bottom: 4px; }
 @media (max-width: 899px) {
   .access-panel { margin-top: 20px; padding: 12px 14px; }
-  .new-code label, .new-code label:first-child input { flex: 1 1 140px; width: auto; }
+  .new-code label { flex: 1 1 140px; width: auto; }
+  .new-code label:first-child input { width: 100%; }
   .new-code input { width: 100%; }
 }

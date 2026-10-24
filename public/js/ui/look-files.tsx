@@ -6,10 +6,12 @@ import type { Listed } from '../../../shared/schemas/api.ts';
 import { api } from '../api.ts';
 import { download, openDialog, toast } from './kit.tsx';
 import { fileText, fullLooks, importActions, importFiles, manyName } from './look-file.ts';
+import { usePhone } from './phone/viewport.ts';
 
 export function LookFiles({ looks, gallery, reload }: { looks: Listed[] | null; gallery: boolean;
   reload: () => void }) {
   const [busy, setBusy] = useState(''), pick = useRef<HTMLInputElement>(null);
+  const phone = usePhone();
 
   async function exportAll() {
     const listed = looks || [];
@@ -56,6 +58,7 @@ export function LookFiles({ looks, gallery, reload }: { looks: Listed[] | null; 
     }
   }
 
+  if (phone) return null;
   return (
     <>
       {busy && <span class="busy-note" role="status">{busy}</span>}

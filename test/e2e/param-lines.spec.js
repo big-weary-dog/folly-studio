@@ -30,6 +30,7 @@ for (const [name, device] of Object.entries(DEVICES)) {
       await page.context().addCookies([{ name: key, value, url: studio.origin }]);
       await page.goto(`${studio.origin}/studio/${id}`);
       if (name === 'phone') await page.locator('.layer-name:visible').first().click({ timeout: 30_000 });
+      if (name === 'phone') await page.locator('.phone-module-picker').click();
       await page.locator('.chain-name:visible', { hasText: /rhythm/i }).click({ timeout: 30_000 });
       const field = page.locator('.field.param', { hasText: 'Pattern' });
       await field.scrollIntoViewIfNeeded();

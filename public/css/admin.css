@@ -1,5 +1,4 @@
-/* The Admin tabs: windows on a came, centred over the admin pages in each page's colour; on a narrow phone they
-   scroll sideways. */
+/* Laptop Admin tabs: windows on a came, centred over the pages in each page's colour. Phones use a selector. */
 .admin-tabs { width: fit-content; max-width: calc(100% - 48px); margin: 28px auto 0; overflow-x: auto;
   scrollbar-width: thin; }
 .admin-tabs .seg-btn { flex: none; display: flex; align-items: flex-end; padding-inline: 22px; text-decoration: none;

@@ -32,6 +32,7 @@ for (const [name, device] of Object.entries(DEVICES)) {
       if (name === 'phone') await pick.selectOption('rose', { timeout: 30_000 });
       else await pick.click({ timeout: 30_000 });
       if (name === 'phone') await page.locator('.layer-name:visible').first().click({ timeout: 30_000 });
+      if (name === 'phone') await page.locator('.phone-module-picker').click();
       await page.locator('.chain-name:visible', { hasText: /petal mask/i }).click({ timeout: 30_000 });
       const field = page.locator('.field.param', { hasText: 'Petals shown' });
       const text = field.locator('input.param-text'), petal = (n) => field.getByRole('checkbox', { name: `Petal ${n}`,

@@ -9,6 +9,7 @@ import { api } from '../api.ts';
 import type { BakeMode, BakingState } from '../../../shared/schemas/api.ts';
 import { toast } from './kit.tsx';
 import { setTitle } from './session.ts';
+import { PhoneDisclosure } from './phone/disclosure.tsx';
 
 const MODES: [BakeMode, string, string][] = [
   ['on', 'On', 'Bakes and gallery previews run as they are asked for, one at a time.'],
@@ -44,6 +45,7 @@ export function BakingPage() {
             disabled={busy} onClick={() => state.mode !== m && pick(m)}>{text}</button>)}</div>
         <p class="field-hint">{MODES.find(([m]) => m === state.mode)![2]}</p>
       </section>}
+      <PhoneDisclosure label="Baking details">
       {state && <section class="models-panel" aria-label="Custom code">
         <h2>Custom code</h2>
         <div class="seg" role="group" aria-label="Custom code">
@@ -60,5 +62,6 @@ export function BakingPage() {
           : box.libraryOnly ? `Library only. ${box.reason} Looks with custom or edited code are refused.`
           : 'The render box runs under bubblewrap: any look bakes.'}</p>
       </section>}
+      </PhoneDisclosure>
     </div>);
 }
