@@ -154,7 +154,8 @@ export function Field({ label, children, hint, stack, class: cls, title, tour }:
       <div class="field-control">{control ? children(id) : children}</div>{hint}</div>);
 }
 
-type Range = { min: number; max: number; step: number };
+type Range = { min: number; max: number; step: number; soft?: [number, number] };
+const dragRange = (r: Range): Range => r.soft ? { ...r, min: r.soft[0], max: r.soft[1] } : r;
 /** The decimals a step shows (0.05 → 2, at most 4). */
 export function decimals(step: number) {
   const [m, e] = String(step).split('e-');
@@ -177,16 +178,19 @@ export const exact = (v: number, { min, max, step }: Range) =>
 /** From v, a drag of dx px across a field w px wide: its width spans the range on the step's grid (`fine`: a tenth
  * of that, on a grid a tenth of the step from v, so it reaches between the steps). */
 export function scrubTo(v: number, dx: number, w: number, r: Range, fine = false) {
+  if (r.soft) v = Math.min(r.soft[1], Math.max(r.soft[0], v));
+  r = dragRange(r);
   const to = v + (dx / Math.max(1, w)) * (r.max - r.min) * (fine ? 0.1 : 1);
   return fine ? exact(v + Math.round((to - v) / (r.step / 10)) * (r.step / 10), r) : snap(to, r);
 }
 
-/** A number as one field, its glass filled to where the value sits in min..max. Drag across it or its label to
+/** A number as one field, its glass filled across soft (else min..max). Drag across it or its label to
  * scrub (Shift: 10× finer, between the steps); click or tap to type any value in range; ↑/↓ (Shift: ×10), and the
  * wheel while focused, step it. */
 export function Scrub({ id, label, value, unit = '', disabled, set, ...r }: Range & { id?: string; label?: string;
   value: number; unit?: string; disabled?: boolean; set: (v: number) => void }) {
   const ref = useRef<HTMLInputElement>(null), now = useRef({ value, set, r });
+  const fill = dragRange(r);
   const text = (v: number) => v.toFixed(places(v, r.step)) + unit;
   now.current = { value, set, r };
   const put = (v: number, el = ref.current!) => {   // the box at once; the value when it moves
@@ -222,7 +226,8 @@ export function Scrub({ id, label, value, unit = '', disabled, set, ...r }: Rang
   return <input type="text" id={id} ref={ref} class="scrub" role="spinbutton" aria-label={label} autocomplete="off"
     value={document.activeElement === ref.current ? undefined : text(value)} disabled={disabled}
     inputMode={r.min < 0 ? 'text' : 'decimal'} aria-valuemin={r.min} aria-valuemax={r.max} aria-valuenow={value}
-    aria-valuetext={text(value)} style={{ '--fill': ((exact(value, r) - r.min) / (r.max - r.min || 1)).toFixed(3) }}
+    aria-valuetext={text(value)}
+    style={{ '--fill': ((exact(value, fill) - fill.min) / (fill.max - fill.min || 1)).toFixed(3) }}
     onChange={(e) => put(exact(num(e.currentTarget), r), e.currentTarget)}
     onKeyDown={(e) => {
       const n = e.key === 'ArrowUp' ? 1 : e.key === 'ArrowDown' ? -1 : 0;

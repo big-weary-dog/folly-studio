@@ -1,7 +1,7 @@
 // Twist: swirls what is above it round the layer's centre, more toward the rim; and winds it round each tower's
 // upright axis (the layer's middle with no towers), more the higher up, so towers spiral. All in turns.
 const params = {
-  swirl: { value: 0.25, min: -2, max: 2, step: 0.01, label: 'Swirl (turns at the rim)',
+  swirl: { value: 0.25, min: -8, max: 8, soft: [-2, 2], step: 0.01, label: 'Swirl (turns at the rim)',
     help: 'How far the rim turns against the centre. 0 leaves it straight; more twists a spiral; negative reverses.' },
   wind: { value: 0, min: -4, max: 4, step: 0.01, label: 'Wind with height (turns)',
     help: 'Winds round each tower, more the higher up, so the towers spiral. 0 is off; negative winds back.' },

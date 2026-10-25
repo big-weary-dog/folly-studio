@@ -9,7 +9,7 @@ const params = {
     help: 'Which way they move. Clockwise and counterclockwise as seen from the front; orbit\'s, from above.' },
   speed: { value: 0.4, min: -2, max: 2, step: 0.01, label: 'Speed (bars a second)',
     help: 'How fast the bars move in Direction. Negative runs them the other way; 0 holds them still.' },
-  bars: { value: 4, min: 0.25, max: 16, step: 0.25, label: 'Bars across the layer',
+  bars: { value: 4, min: 0.25, max: 32, soft: [0.25, 16], step: 0.25, label: 'Bars across the layer',
     help: 'Few gives broad bands; many gives thin stripes. Circular directions round to whole bars, at least one.' },
   duty: { value: 1, min: 0.05, max: 1, step: 0.01, label: 'Duty (lit share of each bar)',
     showWhen: { profile: ['step', 'pulse', 'comet'] },

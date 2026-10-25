@@ -7,7 +7,7 @@ const params = {
   direction: { value: 'out', type: 'choice', label: 'Direction',
     options: ['up', 'down', 'right', 'left', 'back', 'front', 'out', 'in'],
     help: 'Which way each beat travels; out swells from the middle of the LEDs, in closes toward it.' },
-  spread: { value: 0.25, min: 0, max: 1, step: 0.01, label: 'Spread (seconds)',
+  spread: { value: 0.25, min: 0, max: 4, soft: [0, 1], step: 0.01, label: 'Spread (seconds)',
     help: 'How long a beat takes to cross the layer. 0 beats everywhere at once; high ripples it across.' },
   tempo: { value: 'look', type: 'choice', label: 'Tempo', options: ['look', 'own'],
     help: "Look beats with the look's bpm; own beats at Own tempo, for a look with no tempo or a heart off the beat." },

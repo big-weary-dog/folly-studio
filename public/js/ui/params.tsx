@@ -98,9 +98,10 @@ function Control({ name, p, values, set, ctx, colours, narrow }: { name: string;
       : Math.min(p.max, Math.max(p.min, Number(fmt((b.mod === 'beats' ? b.per ?? 1 : 0) * k)))))} />;
   const field = (id: string) => (p.kind === 'number' ? <>
     {beats ? <Scrub id={id} min={p.min / k} max={p.max / k} step={0.01} value={b.per ?? 1} unit="/beat"
+      soft={p.soft && [p.soft[0] / k, p.soft[1] / k]}
       set={(per) => put({ mod: 'beats', per })} />
       : bound ? <BoundChip b={b} p={p} ctx={ctx} />
-      : <Scrub id={id} min={p.min} max={p.max} step={p.step} value={value as number} set={put} />}
+      : <Scrub id={id} min={p.min} max={p.max} soft={p.soft} step={p.step} value={value as number} set={put} />}
     {clock || <Slot />}
     <ModButton p={p} value={values[name]} now={bound ? p.value as number : value as number} ctx={ctx} put={putOr}
       label={`Modulate ${label}`} title={TITLE} /></>
