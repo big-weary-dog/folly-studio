@@ -49,7 +49,7 @@ test.afterAll(() => { for (const p of procs) p.kill('SIGKILL'); });
 
 async function phone(browser, origin, clock = false) {
   const ctx = await browser.newContext(PHONE), page = await ctx.newPage(), errors = [];
-  if (clock) await page.clock.install();
+  if (clock) await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   await page.goto(origin);
@@ -100,7 +100,7 @@ test('Live Play drives the engine from a phone', async ({ browser }, info) => {
   const tap = page.getByRole('button', { name: /^Tap/ });
   // Tap uses the page's performance clock, not the engine's scheduling or Playwright's round-trip time.
   // Unequal intervals give 150, 133.3, then 120 BPM: seeing 120 acknowledges the fourth tap before nudging.
-  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  await page.clock.pauseAt(new Date('2026-01-02T00:00:00Z'));
   const intervals = [400, 500, 600];
   for (let i = 0; i < 4; i++) {
     await tap.dispatchEvent('pointerdown');
