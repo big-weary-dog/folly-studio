@@ -17,7 +17,7 @@ import { FIX, GROUPS, LIBRARY, quiet, tmp } from './fixtures/generate/shared.js'
 import { fixturePids, fixtureReady } from './fixtures/generate/ready.js';
 
 const BIN = path.join(FIX, 'bin');
-afterEach(() => vi.useRealTimers());
+afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
 /** Running: it exists and is not a zombie (an orphan's parent, here, may never reap it). */
 const alive = (pid) => {
   try { process.kill(pid, 0); } catch { return false; }
@@ -162,13 +162,17 @@ describe('codex', () => {
     // Advance the actual process watchdog only after the child has started its tree. CPU scheduling promises
     // neither a startup time nor an upper bound on when the parent's exit callback runs.
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const kills = vi.spyOn(process, 'kill');
     const took = async (extra, effort, timeoutMs, limit) => {
       const { adapter, dir } = setup('hang', { timeoutMs, effort });
       const result = refused(adapter.generate(ctx(extra)), /took too long/);
       const pids = await fixturePids(dir);
+      const killed = () => kills.mock.calls.some(([pid, signal]) => pid === -pids[0] && signal === 'SIGKILL');
       await vi.advanceTimersByTimeAsync(limit - 1);
+      assert.equal(killed(), false, 'no kill signal before the deadline, regardless of kernel scheduling');
       assert.ok(pids.every(alive), 'the whole tree is alive before the deadline');
       await vi.advanceTimersByTimeAsync(1);
+      assert.equal(killed(), true, 'the watchdog signals the process group at the deadline');
       await result;
       assert.deepEqual(await stillRunning(pids), []);
     };
