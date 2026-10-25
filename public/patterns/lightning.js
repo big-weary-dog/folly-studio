@@ -1,19 +1,20 @@
 // Lightning: a forked bolt strikes down about Speed times a second, at random moments, and fades in about
 // half a second whatever the Speed: its core the last of Colours, a thin glow the rest. It forks below a random point
-// toward where it lands. Under one strike a second, so it stays clear of the flash check. Jag is how much it zigzags.
+// toward where it lands. Up to two strikes a second on average. Jag is how much it zigzags.
 const params = {
   colours: { value: 'all', type: 'color', label: 'Colours', blend: 'smooth',
     help: 'The palette of the bolt: its core takes the last colour, its glow the earlier ones.' },
-  speed: { value: 0.4, min: 0.1, max: 0.8, step: 0.01, label: 'Speed (strikes a second, on average)',
-    help: 'How often a bolt strikes. Low leaves long dark gaps; high strikes nearly every second.' },
-  width: { value: 0.06, min: 0.005, max: 0.08, step: 0.005, label: 'Core half-width (share of layer)',
+  speed: { value: 0.4, min: 0.1, max: 2, soft: [0.1, 0.8], step: 0.01,
+    label: 'Speed (strikes a second, on average)',
+    help: 'How often a bolt strikes. Low leaves long dark gaps; high builds a storm at two strikes a second.' },
+  width: { value: 0.06, min: 0.005, max: 0.15, soft: [0.005, 0.08], step: 0.005,
+    label: 'Core half-width (share of layer)',
     help: 'How thick the bright core is. Low is a thin crack; high is a fat bolt.' },
   jag: { value: 0.2, min: 0, max: 0.5, step: 0.01, label: 'Zigzag (share of layer width)',
     help: 'How much the bolt zigzags. Zero is a straight line; high is wild and crooked.' },
   glow: { value: 0.04, min: 0, max: 0.15, step: 0.01, label: 'Glow (share of the layer)',
     help: 'How far the haze spreads out around the core. Zero is a bare line; high is a wide halo.' },
 };
-
 /** Strike n's light at y, z: it strikes at a random moment of its cycle (x − n: how far into it), so the gaps vary. */
 function strike(n, x, y, z, P) {
   const s = (x - n - 0.4 * rand(n, 4)) / max(0.05, P.speed);             // seconds since it struck

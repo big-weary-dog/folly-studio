@@ -259,6 +259,16 @@ describe('a number as one field, and how a chain is drawn', () => {
       'an automated macro reads its lane now, not its stored 0');
   });
 
+  test('soft bounds keep dragging familiar while typing reaches the hard bounds', () => {
+    const r = { min: -8, max: 8, soft: [-2, 2] as [number, number], step: 0.01 };
+    assert.equal(scrubTo(0, 50, 100, r), 2);
+    assert.equal(scrubTo(0, -100, 100, r), -2);
+    assert.equal(scrubTo(0, 1000, 100, r, true), 2);
+    assert.equal(scrubTo(-6, 25, 100, r), -1, 'a drag starts from the pinned end');
+    assert.equal(exact(-6, r), -6);
+    assert.equal(exact(-20, r), -8);
+  });
+
   test('each module joins the came; each warp and filter reaches everything above it, to a stage\'s start', () => {
     const { first, joins, reaches } = chainWires([mod('a', 'source'), mod('w', 'warp'),
       mod('c', 'source', { as: 'input' }), mod('f', 'filter', { input: 'c' }), mod('b', 'source', { blend: 'max' })]);

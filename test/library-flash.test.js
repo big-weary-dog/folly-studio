@@ -45,6 +45,11 @@ test('fireflies all in step, at their fastest and longest, stay under it', async
   for (const r of results) assert.ok(r.ok && r.errors === 0, `fireflies: ${r.maxHz} a second, ${r.errors} errors`);
 });
 
+test('lightning at its fastest and widest stays under it', async () => {
+  const results = await bake([{ name: 'lightning', params: { speed: 2, width: 0.15, glow: 0.15 } }], 20);
+  for (const r of results) assert.ok(r.ok && r.errors === 0, `lightning: ${r.maxHz} a second, ${r.errors} errors`);
+});
+
 test('no preset flashes a large area, as the Studio adds it', async () => {
   const library = index.map((e) => ({ ...e, title: e.title || e.name, code: e.kind === 'preset' ? ''
     : readFileSync(new URL(`../public/patterns/${e.name}.js`, import.meta.url), 'utf8') }));

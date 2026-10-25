@@ -7,7 +7,8 @@ import { expect, signup, test } from './studio.js';
 const names = { bars: 'source', mask: 'filter', 'in-turn': 'warp', heartbeat: 'source', lightning: 'source',
   anchor: 'warp', mirror: 'warp', 'hue-shift': 'filter', 'petal-repeat': 'warp', noise: 'source', delay: 'filter',
   fireworks: 'source', 'petal-mask': 'filter', replay: 'filter', 'single-strand': 'source', streaks: 'source',
-  reorder: 'warp', strobe: 'source', recolour: 'filter', 'ring-turn': 'warp', picture: 'source', waves: 'source' };
+  reorder: 'warp', strobe: 'source', recolour: 'filter', 'ring-turn': 'warp', picture: 'source', waves: 'source',
+  twist: 'warp' };
 const code = (name) => readFileSync(new URL(`../../public/patterns/${name}.js`, import.meta.url), 'utf8');
 const look = { title: 'Pattern controls', duration: 16, layers: Object.entries(names).map(([name, kind]) => ({
   id: name, title: name, modules: [
@@ -35,7 +36,7 @@ for (const [device, settings] of Object.entries(DEVICES)) {
         await page.locator('.params').screenshot({ path: path.join(out, `${device}-${name}-panel.png`),
           style: '.side, .pane-body { overflow: visible !important; }' });
       };
-      for (const name of Object.keys(names)) {
+      for (const name of process.env.PARAM_SOFT_ONLY ? ['twist'] : Object.keys(names)) {
         const res = await fetch(`${studio.origin}/api/looks`, { method: 'POST',
           body: JSON.stringify({ ...look, layers: look.layers.filter((l) => l.id === name) }),
           headers: { 'content-type': 'application/json', cookie } });
@@ -49,7 +50,22 @@ for (const [device, settings] of Object.entries(DEVICES)) {
         await expect(page.locator('.params .field.param').first()).toBeVisible();
         if (device === 'phone') await page.getByText('More settings', { exact: true }).click();
         await shot(name);
-        if (name === 'bars') {
+        if (name === 'twist') {
+          const input = row('Swirl').getByRole('spinbutton');
+          await input.fill('-6');
+          await input.press('Tab');
+          await expect(input).toHaveValue('-6.00');
+          await expect(input).toHaveAttribute('aria-valuenow', '-6');
+          expect(await input.evaluate((el) => el.style.getPropertyValue('--fill'))).toBe('0.000');
+          await shot('twist-minus-six');
+          await input.fill('6');
+          await input.press('Tab');
+          await expect(input).toHaveValue('6.00');
+          expect(await input.evaluate((el) => el.style.getPropertyValue('--fill'))).toBe('1.000');
+          await input.fill('-99');
+          await input.press('Tab');
+          await expect(input).toHaveValue('-8.00');
+        } else if (name === 'bars') {
           await select('Profile', 'smooth');
           await expect(row('Duty')).toHaveCount(0);
           await expect(row('Edge softness')).toHaveCount(0);

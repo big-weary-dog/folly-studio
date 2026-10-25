@@ -12,7 +12,7 @@ import { paramControls, type ParamControls } from './param-controls.ts';
 
 /** A pattern's params as its controls show them (SPEC "Pattern code"). */
 export type ParamSpec = { label?: string, help?: string } & ParamControls & (
-  { type: 'number', value: number, min: number, max: number, step?: number, unit?: 'minute' }
+  { type: 'number', value: number, min: number, max: number, soft?: [number, number], step?: number, unit?: 'minute' }
   | { type: 'toggle', value: boolean } | { type: 'color', value: string, blend?: PickBlend }
   | { type: 'choice', value: string, options: string[] } | { type: 'picture', value: Picture }
   | { type: 'text', value: string, lines?: true, petals?: true, cells?: true });
@@ -144,6 +144,8 @@ export function normalizeParams(raw: unknown): ParamSchema {
       p = { type, value, min: isNum(d.min) ? d.min : Math.min(0, value),
         max: isNum(d.max) ? d.max : Math.max(1, value) };
       if (isNum(d.step) && d.step > 0) p.step = d.step;
+      if (Array.isArray(d.soft) && d.soft.length === 2 && d.soft.every(isNum)
+        && d.soft[0] >= p.min && d.soft[1] <= p.max && d.soft[0] < d.soft[1]) p.soft = [d.soft[0], d.soft[1]];
       if (d.unit === 'minute') p.unit = d.unit;
     } else {
       throw new Error(`param "${key}": unknown type "${d.type}" (number, toggle, color, choice, picture or text)`);
