@@ -99,17 +99,17 @@ test('Live Play drives the engine from a phone', async ({ browser }, info) => {
   await expect(page.getByText(/You're driving/)).toBeVisible();
   const tap = page.getByRole('button', { name: /^Tap/ });
   // Tap uses the page's performance clock, not the engine's scheduling or Playwright's round-trip time.
-  // Unequal intervals give 150, 133.3, then 120 BPM: seeing 120 acknowledges the fourth tap before nudging.
+  // Unequal intervals give 150, 133.3, then 112.5 BPM, distinct from the initial tempo and every earlier tap.
   await page.clock.pauseAt(new Date('2026-01-02T00:00:00Z'));
-  const intervals = [400, 500, 600];
+  const intervals = [400, 500, 700];
   for (let i = 0; i < 4; i++) {
     await tap.dispatchEvent('pointerdown');
     if (i < 3) await page.clock.runFor(intervals[i]);
   }
   await page.clock.resume();
-  await expect.poll(() => bpm(tap)).toBe(120);
+  await expect.poll(() => bpm(tap)).toBe(112.5);
   await page.getByRole('button', { name: 'Faster by 1 BPM' }).click();
-  await expect.poll(() => bpm(tap)).toBe(121);
+  await expect.poll(() => bpm(tap)).toBe(113.5);
   // Pushed and tapped, the look plays on: nothing it offers trips the flash guard (pi/test/library-controls.test.ts).
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Heartbeat plasma');
   await expect(page.getByRole('alert')).toHaveCount(0);
