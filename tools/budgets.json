@@ -11,7 +11,7 @@
     "render-box": { "lines": 260, "reason": "Parent PID checks stop orphaned library-only bakes between frames, alongside deterministic IDs and streaming FSEQ output." },
     "shared": { "lines": 1616, "reason": "Shared schemas and pure rules define looks, generated compositions, API data, permissions and playback." },
     "src": { "lines": 10355, "reason": "The server includes shared FSEQ header validation for bounded-memory Pi playback, request-matched queue acceptance and ordered verification timestamps, alongside authentication, storage, generation, baking, frame delivery, live sockets and administration." },
-    "test": { "lines": 24933, "reason": "Combines soft-range, pinned fill and binding coverage with fixture readiness and controlled watchdog and tap clocks, retaining real process-tree termination and memory bounds." },
+    "test": { "lines": 24949, "reason": "The merged tests total 24,949 lines: soft-range, pinned fill and binding coverage plus fixture readiness and controlled watchdog and tap clocks, retaining real process-tree termination and memory bounds." },
     "tools": { "lines": 2380, "reason": "Tools build and check rig and palette data, check the Pi bundle holds nothing secret, enforce budgets, support development and backups, and benchmark rendering." }
   }
 }
