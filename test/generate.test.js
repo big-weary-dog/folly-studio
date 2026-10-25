@@ -73,7 +73,7 @@ describe('prompt', () => {
     const { system: sys, docs } = buildPrompt({ library: REAL, rig: RIG });
     for (const p of REAL) assert.ok(sys.includes(`\n- ${p.name}: `), p.name);
     assert.ok(sys.includes('- starfield: colour-wash → clouds → sparkle — '), 'a preset as its chain');
-    assert.match(sys, /\n- bars: [^\n]+ \[(?:[^\]\n]*; )?speed -2–2 \(0\.4\); bars 0\.25–16 \(4\);/,
+    assert.match(sys, /\n- bars: [^\n]+ \[(?:[^\]\n]*; )?speed -2–2 \(0\.4\); bars 0\.25–32 \(4\);/,
       'a module with its params');
     assert.ok(sys.includes('read_doc'), 'the docs, and how to read them');
     assert.ok(!sys.includes('cosPalette') && sys.includes('library/extensions.md'), 'the API is a page, read for code');

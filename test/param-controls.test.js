@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs';
 import { test } from 'vitest';
 
 import { normalizeParams } from '../public/js/core/compile.ts';
-import { resolveParams } from '../public/js/core/globals.ts';
+import { applyMods, lookFrame, paramMods, prepareLook, resolveParams } from '../public/js/core/globals.ts';
+import { describeParam, readParams } from '../src/generate/catalog.ts';
 import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
 import { normaliseParam, visibleParams } from '../public/js/ui/bindings.ts';
 import { folly } from './fixtures/rigs.js';
@@ -13,6 +14,28 @@ import { folly } from './fixtures/rigs.js';
 const lib = (name) => readFileSync(new URL(`../public/patterns/${name}.js`, import.meta.url), 'utf8');
 const controls = (schema, saved = {}) => visibleParams(Object.entries(schema)
   .map(([key, p]) => [key, normaliseParam(key, p)]), saved).map(([key]) => key);
+
+test('soft ranges survive compilation and controls while automated bindings reach hard bounds', () => {
+  const code = 'const params = { x: { value: 0, min: -8, max: 8, soft: [-2, 2] } };';
+  const schema = compileLayer({ id: 'l', code: `${code} function pixel() { return [0, 0, 0]; }` })[0].params;
+  assert.deepEqual(normaliseParam('x', schema.x).soft, [-2, 2]);
+  assert.equal(describeParam('x', readParams(code).x), 'x -8–8 (0)');
+  const overrides = { x: { mod: 'global', name: 'drive' } };
+  const P = resolveParams(schema, overrides), mods = paramMods(schema, overrides);
+  const look = prepareLook({ globals: { macros: { drive: { value: 0, min: 0, max: 1 } } },
+    automation: { drive: [[0, 0], [1, 1]] } });
+  for (const [t, expected] of [[0, -8], [0.5, 0], [1, 8]]) {
+    lookFrame(look, t);
+    applyMods(mods, P, t, 1, look);
+    assert.equal(P.x, expected);
+  }
+});
+
+test('malformed soft ranges leave the full drag range available', () => {
+  for (const soft of [[2, -2], [-9, 2], [-2, 9], [0, 0], [0], ['0', 1], [0, Infinity]]) {
+    assert.equal(normalizeParams({ x: { value: 0, min: -8, max: 8, soft } }).x.soft, undefined);
+  }
+});
 
 test('conditional rows follow default and saved choices while hidden values keep resolving', () => {
   const schema = normalizeParams({

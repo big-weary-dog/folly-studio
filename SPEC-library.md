@@ -26,7 +26,8 @@ function pixel(p, t, P) {          // every LED, every frame
 ```
 
 `P` holds each param's current value (`color` params arrive as `[r,g,b]`). Param kinds:
-number `{ value, min, max, step?, unit? }` (`unit: 'minute'`: a speed counted a minute, "Param bindings"), `{ value: bool, type: 'toggle' }`,
+number `{ value, min, max, soft?: [lo, hi], step?, unit? }` (`unit: 'minute'`: a speed counted a minute,
+"Param bindings"), `{ value: bool, type: 'toggle' }`,
 `{ value: pick, type: 'color', blend? }`: a pick names palette colours or literals ("Palettes" below), such as
 `'all'`, `'accent'` or `'#rrggbb'`; `{ value: 'name', type: 'choice', options: ['name', …] }` (≤ 16
 options, each `[a-z][a-z0-9-]{0,31}`; a value not among them takes the default); `{ value: picture, type: 'picture' }`
@@ -42,6 +43,10 @@ the Studio, a unit in parentheses: `'Speed (bars a second)'`) and `help` (≤ 30
 what it does and how it looks low and high). The Studio shows `help` on hover over the param's row, and on a touch
 screen behind an ⓘ beside it; the generators' library docs give it as the param's effect. Every library param has
 `help`.
+
+A number's optional `soft: [lo, hi]` sets its slider's drag and fill range, within `min..max` with `lo < hi`.
+Typing, bindings, automation and the generators use the full `min..max`. Outside `soft`, the number shows exactly
+and the fill stays at its nearest end. Without `soft`, drag and fill also use `min..max`; malformed `soft` is ignored.
 
 Controls may carry `showWhen: { otherParam: [value, …] }`: show the row only when each named
 param matches one of its values (choice/toggle defaults apply). Hidden rows keep their saved values

@@ -9,7 +9,7 @@ import { humanize } from './kit.tsx';
 export interface Param extends ParamControls { kind: 'number' | 'color' | 'toggle' | 'choice' | 'picture' | 'text';
   value: number | string | boolean | Picture;
   label: string; min: number; max: number; step: number; options: string[]; blend?: 'smooth' | 'step'; help?: string;
-  unit?: 'minute'; lines?: boolean; petals?: boolean; cells?: boolean }
+  unit?: 'minute'; soft?: [number, number]; lines?: boolean; petals?: boolean; cells?: boolean }
 type Shape = NonNullable<Extract<Binding, { mod: 'lfo' }>['shape']>;
 export type BindingForm = { mod: '' | Binding['mod']; shape: Shape; rate: string; unit: string; lo: string;
   hi: string; hold: string; amount: string; pace: string; name: string; from: string; to: string; eFrom: string;
@@ -90,6 +90,9 @@ export function normaliseParam(key: string, raw: unknown): Param | null {
   const min = Number.isFinite(r.min) ? r.min as number : 0, max = Number(r.max) > min ? r.max as number : min + 1;
   const x = (max - min) / 200, p = 10 ** Math.floor(Math.log10(x)), nice = (x / p < 2 ? 1 : x / p < 5 ? 2 : 5) * p;
   return { ...base, kind: 'number', value: v, min, max, step: Number(r.step) > 0 ? r.step as number : nice,
+    ...(Array.isArray(r.soft) && r.soft.length === 2 && r.soft.every(Number.isFinite)
+      && r.soft[0] >= min && r.soft[1] <= max && r.soft[0] < r.soft[1]
+      ? { soft: [r.soft[0], r.soft[1]] as [number, number] } : {}),
     ...(r.unit === 'minute' ? { unit: 'minute' as const } : {}) };
 }
 

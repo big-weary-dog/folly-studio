@@ -12,7 +12,7 @@ const params = {
     help: 'How long an LED stays alight. Short gives thin fronts; long, thick bands of flame.' },
   rest: { value: 1.5, min: 0.1, max: 10, step: 0.1, label: 'Rest (seconds)',
     help: 'How long a burnt LED waits before it can catch again. Short lets fires chase each other round loops.' },
-  sparks: { value: 2, min: 0, max: 5, step: 0.05, label: 'Sparks (a second)',
+  sparks: { value: 2, min: 0, max: 20, soft: [0, 5], step: 0.05, label: 'Sparks (a second)',
     help: 'How many new fires start by themselves a second, across the layer. 0 lets the fires die out.' },
   speed: { value: 20, min: 0, max: 60, step: 1, label: 'Speed (steps a second)',
     help: 'How many steps a second the fire takes, one LED a step along a strand. 0 freezes it.' },
