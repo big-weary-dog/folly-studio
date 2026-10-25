@@ -42,7 +42,9 @@ for (const name of ['rig', 'rig-folly']) {
     truncateSync(file, header.length + frames * ranges.reduce((n, r) => n + r[1], 0));
     const hash = createHash('sha256');
     for await (const chunk of createReadStream(file)) hash.update(chunk);
-    const result = spawnSync(process.execPath, ['--expose-gc', 'test/fixtures/baked-memory.mjs',
+    // The bound measures live backing stores, not garbage awaiting V8's concurrent ArrayBuffer sweeper.
+    const result = spawnSync(process.execPath, ['--expose-gc', '--no-concurrent-array-buffer-sweeping',
+      'test/fixtures/baked-memory.mjs',
       rigFile, file, hash.digest('hex')], { cwd: root, encoding: 'utf8', timeout: 30_000 });
     assert.equal(result.status, 0, result.stderr);
     const memory = JSON.parse(result.stdout);

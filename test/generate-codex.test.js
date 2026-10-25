@@ -4,8 +4,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 
-import { describe, test } from 'vitest';
+import { afterEach, describe, test, vi } from 'vitest';
 
 import { createCodexAdapter, dropNulls, strictSchema } from '../src/generate/codex.ts';
 import { Interrupted } from '../src/generate/proc.ts';
@@ -13,8 +14,10 @@ import { compositionSchema } from '../src/generate/composition.ts';
 import { editsSchema } from '../src/generate/edits.ts';
 import { GenerateError, validateLook, wireSchema } from '../shared/schemas/generated.ts';
 import { FIX, GROUPS, LIBRARY, quiet, tmp } from './fixtures/generate/shared.js';
+import { fixturePids, fixtureReady } from './fixtures/generate/ready.js';
 
 const BIN = path.join(FIX, 'bin');
+afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
 /** Running: it exists and is not a zombie (an orphan's parent, here, may never reap it). */
 const alive = (pid) => {
   try { process.kill(pid, 0); } catch { return false; }
@@ -22,7 +25,7 @@ const alive = (pid) => {
 };
 /** Those of the pids still running after up to 5 s (a killed process goes when the kernel next runs it). */
 const stillRunning = async (pids) => {
-  for (let i = 0; i < 100 && pids.some(alive); i++) await new Promise((r) => setTimeout(r, 50));
+  for (let i = 0; i < 100 && pids.some(alive); i++) await delay(50);
   return pids.filter(alive);
 };
 
@@ -156,40 +159,67 @@ describe('codex', () => {
   });
 
   test('the wall clock kills the whole tree: codex and what it started', async () => {
-    const took = async (extra, effort = 'low', timeoutMs = 1500) => {
+    // Advance the actual process watchdog only after the child has started its tree. CPU scheduling promises
+    // neither a startup time nor an upper bound on when the parent's exit callback runs.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const kills = vi.spyOn(process, 'kill');
+    const took = async (extra, effort, timeoutMs, limit) => {
       const { adapter, dir } = setup('hang', { timeoutMs, effort });
-      const err = await refused(adapter.generate(ctx(extra)), /took too long/);
-      assert.deepEqual(await stillRunning(fs.readFileSync(path.join(dir, 'pids'), 'utf8').split(' ').map(Number)), []);
-      return Number(/codex: (-?\d+) ms/.exec(err.message)?.[1]);
+      const result = refused(adapter.generate(ctx(extra)), /took too long/);
+      const pids = await fixturePids(dir);
+      const killed = () => kills.mock.calls.some(([pid, signal]) => pid === -pids[0] && signal === 'SIGKILL');
+      await vi.advanceTimersByTimeAsync(limit - 1);
+      assert.equal(killed(), false, 'no kill signal before the deadline, regardless of kernel scheduling');
+      assert.ok(pids.every(alive), 'the whole tree is alive before the deadline');
+      await vi.advanceTimersByTimeAsync(1);
+      assert.equal(killed(), true, 'the watchdog signals the process group at the deadline');
+      await result;
+      assert.deepEqual(await stillRunning(pids), []);
     };
-    await took({});
-    const compose = await took({}, 'high', 400);
-    const repair = await took({ repair: { answer: {}, errors: [], message: 'Fix' } }, 'high', 400);
-    assert.ok(compose >= 600 && repair >= 400 && repair < 600, `${compose} ms, ${repair} ms`);
+    await took({}, 'low', 1500, 1500);
+    await took({}, 'high', 400, 600);
+    await took({ repair: { answer: {}, errors: [], message: 'Fix' } }, 'high', 400, 400);
   });
 
   test('a call quiet past idleMs is killed, logged as a stall and tried once more', async () => {
-    const { adapter, dir } = setup('stall-once', { idleMs: 400 }), calls = [];
-    const answer = await adapter.generate(ctx({ round: { call: (c) => calls.push(c) } }));
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const { adapter, dir, calls: attempts } = setup('stall-once', { idleMs: 400 }), calls = [];
+    const result = adapter.generate(ctx({ round: { call: (c) => calls.push(c) } }));
+    const file = path.join(dir, 'pids.stalled');
+    const pid = await fixtureReady(dir, () => fs.existsSync(file) && Number(fs.readFileSync(file, 'utf8')));
+    await vi.advanceTimersByTimeAsync(399);
+    assert.ok(alive(pid), 'quiet within idleMs is allowed');
+    await vi.advanceTimersByTimeAsync(1);
+    const answer = await result;
     assert.ok(answer);
+    assert.equal(attempts().length, 2, 'one retry, which gets time to start and answer');
     assert.match(calls[0].error, /stalled: no events for 0 s; tried again/);
-    assert.deepEqual(await stillRunning([Number(fs.readFileSync(path.join(dir, 'pids.stalled'), 'utf8'))]), []);
+    assert.deepEqual(await stillRunning([pid]), []);
   });
 
   test('a second stall gives up as too long', async () => {
-    const { adapter } = setup('hang', { idleMs: 300, timeoutMs: 60_000 });
-    const err = await refused(adapter.generate(ctx()), /took too long/);
-    assert.ok(Number(/codex: (-?\d+) ms/.exec(err.message)?.[1]) < 1000, err.message);
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const { adapter, dir, calls } = setup('hang', { idleMs: 300, timeoutMs: 60_000 });
+    const result = refused(adapter.generate(ctx()), /took too long/), pids = [];
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const tree = await fixturePids(dir, (next) => calls().length === attempt && !pids.includes(next[0]));
+      pids.push(...tree);
+      await vi.advanceTimersByTimeAsync(299);
+      assert.ok(tree.every(alive), 'each attempt gets its idle allowance');
+      await vi.advanceTimersByTimeAsync(1);
+    }
+    await result;
+    assert.equal(calls().length, 2, 'the second stall is final');
+    assert.deepEqual(await stillRunning(pids), []);
   });
 
   test('an abort (the server stopping) kills it too', async () => {
     const { adapter, dir } = setup('hang');
     const ac = new AbortController();
     const running = adapter.generate(ctx({ signal: ac.signal }));
-    const pidFile = path.join(dir, 'pids');
-    for (let i = 0; i < 100 && !fs.existsSync(pidFile); i++) await new Promise((r) => setTimeout(r, 50));
+    const pids = await fixturePids(dir);
     ac.abort();
     await refused(running, /stopped before it finished/);
-    assert.deepEqual(await stillRunning(fs.readFileSync(pidFile, 'utf8').split(' ').map(Number)), []);
+    assert.deepEqual(await stillRunning(pids), []);
   });
 });

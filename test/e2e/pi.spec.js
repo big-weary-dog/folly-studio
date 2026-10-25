@@ -47,8 +47,9 @@ async function pi({ mode = 'live', args = [] } = {}) {
 }
 test.afterAll(() => { for (const p of procs) p.kill('SIGKILL'); });
 
-async function phone(browser, origin) {
+async function phone(browser, origin, clock = false) {
   const ctx = await browser.newContext(PHONE), page = await ctx.newPage(), errors = [];
+  if (clock) await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   await page.goto(origin);
@@ -62,13 +63,15 @@ async function drag(page, name, frac) {
   await page.mouse.move(box.x + box.width / 2, box.y + box.height * (1 - frac), { steps: 6 });
   await page.mouse.up();
 }
-/** Holds the Blackout bar past its half second. */
+/** Hold until the engine reports the changed blackout state, then release. */
 async function hold(page, name) {
-  const box = await page.getByRole('button', { name }).boundingBox();
+  const button = page.getByRole('button', { name }), pressed = await button.getAttribute('aria-pressed');
+  const box = await button.boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
-  await page.waitForTimeout(800);
-  await page.mouse.up();
+  try {
+    await expect(page.locator('.lp-bo')).toHaveAttribute('aria-pressed', pressed === 'true' ? 'false' : 'true');
+  } finally { await page.mouse.up(); }
 }
 /** Up next, Add a look, the tile, its preview's Cue it: in Live Play, to its cue. */
 async function pick(page, title) {
@@ -82,7 +85,7 @@ const bpm = async (tap) => Number(/([\d.]+) BPM/.exec(await tap.textContent())[1
 
 test('Live Play drives the engine from a phone', async ({ browser }, info) => {
   const shot = (page, step) => page.screenshot({ path: info.outputPath(`${step}.png`) });
-  const pi_ = await pi(), { page, errors } = await phone(browser, pi_.origin);
+  const pi_ = await pi(), { page, errors } = await phone(browser, pi_.origin, true);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Heartbeat plasma');
   await expect(page.getByText('Live Play', { exact: true })).toBeVisible();
   await expect(page.getByRole('status').filter({ hasText: 'Dry run' })).toBeVisible();
@@ -95,15 +98,18 @@ test('Live Play drives the engine from a phone', async ({ browser }, info) => {
     .getAttribute('aria-valuenow')) - 0.75)).toBeLessThan(0.05);
   await expect(page.getByText(/You're driving/)).toBeVisible();
   const tap = page.getByRole('button', { name: /^Tap/ });
+  // Tap uses the page's performance clock, not the engine's scheduling or Playwright's round-trip time.
+  // Unequal intervals give 150, 133.3, then 112.5 BPM, distinct from the initial tempo and every earlier tap.
+  await page.clock.pauseAt(new Date('2026-01-02T00:00:00Z'));
+  const intervals = [400, 500, 700];
   for (let i = 0; i < 4; i++) {
     await tap.dispatchEvent('pointerdown');
-    if (i < 3) await page.waitForTimeout(500);
+    if (i < 3) await page.clock.runFor(intervals[i]);
   }
-  await expect.poll(() => bpm(tap)).toBeGreaterThan(110);
-  expect(await bpm(tap)).toBeLessThan(130);
-  const tapped = await bpm(tap);
+  await page.clock.resume();
+  await expect.poll(() => bpm(tap)).toBe(112.5);
   await page.getByRole('button', { name: 'Faster by 1 BPM' }).click();
-  await expect.poll(() => bpm(tap)).toBeCloseTo(tapped + 1, 0);
+  await expect.poll(() => bpm(tap)).toBe(113.5);
   // Pushed and tapped, the look plays on: nothing it offers trips the flash guard (pi/test/library-controls.test.ts).
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Heartbeat plasma');
   await expect(page.getByRole('alert')).toHaveCount(0);
