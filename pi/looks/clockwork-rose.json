@@ -23,6 +23,7 @@
     "#fff6dc"
    ]
   },
+  "live": ["bpm", "drive"],
   "macros": {
    "drive": {
     "value": 0.5,
@@ -83,6 +84,7 @@
      "kind": "source",
      "title": "Bars",
      "ref": "bars",
+     "live": ["direction", "colours"],
      "params": {
       "colours": "body accent high",
       "direction": "clockwise",

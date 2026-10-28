@@ -1,6 +1,7 @@
 {
  "title": "Coral Garden",
  "duration": 240,
+ "bpm": 120,
  "globals": {
   "palette": {
    "name": "playa",
@@ -24,6 +25,7 @@
     "#f7ede2"
    ]
   },
+  "live": ["bpm", "energy"],
   "macros": {
    "energy": {
     "value": 0.4,
@@ -43,7 +45,7 @@
      "title": "Colour wash",
      "params": {
       "colours": "accent",
-      "speed": 0.06,
+      "speed": { "mod": "beats", "per": 0.03 },
       "hold": 0
      },
      "ref": "colour-wash"
@@ -71,6 +73,7 @@
      "kind": "source",
      "title": "Clouds",
      "ref": "clouds",
+     "live": ["direction", "colours"],
      "params": {
       "colours": "body1 body2",
       "cover": {
@@ -142,8 +145,8 @@
       "position": {
        "mod": "lfo",
        "shape": "sine",
-       "rate": 0.17,
-       "unit": "hz",
+       "rate": 0.085,
+       "unit": "beats",
        "center": 0.45,
        "depth": -0.45
       }

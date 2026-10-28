@@ -1,12 +1,13 @@
 {
   "title": "Fire",
   "duration": 60,
+  "bpm": 120,
   "globals": {
     "palette": "ember",
     "macros": { "heat": { "value": 0.5, "min": 0, "max": 1 } },
-    "live": ["heat", "hue", "saturation", "level"]
+    "live": ["bpm", "heat"]
   },
-  "layers": [{ "modules": [{ "ref": "fire", "params": {
-    "speed": { "mod": "global", "name": "heat", "from": 0.4, "to": 3 },
+  "layers": [{ "modules": [{ "ref": "fire", "live": ["colours", "tips"], "params": {
+    "speed": { "mod": "beats", "per": 0.8500000000000001 },
     "embers": { "mod": "global", "name": "heat", "from": 0.05, "to": 0.8 } } }] }]
 }

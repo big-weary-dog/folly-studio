@@ -22,6 +22,7 @@
     "#ffe3c7"
    ]
   },
+  "live": ["bpm", "heat"],
   "macros": {
    "heat": {
     "value": 0.5,
@@ -51,6 +52,7 @@
      "id": "m44s01l12w",
      "kind": "source",
      "title": "Fire",
+     "live": ["colours", "tips"],
      "params": {
       "colours": "body",
       "height": {
@@ -112,8 +114,8 @@
       "spin": {
        "mod": "lfo",
        "shape": "sine",
-       "rate": 0.15,
-       "unit": "hz",
+       "rate": 0.075,
+       "unit": "beats",
        "depth": 0.1,
        "center": 0
       }
