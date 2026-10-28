@@ -79,11 +79,10 @@ rehearsal_port() {
 mkdir -p "$home"
 stage=$(mktemp -d "$app.stage-XXXXXX")
 old='' swapped='' committed='' pid='' spid='' log=''
-live_active='' studio_active='' studio_enabled=''
+live_active='' studio_active=''
 if [ -n "$units" ]; then
   systemctl is-active --quiet studio-live && live_active=1
   systemctl is-active --quiet folly-studio && studio_active=1
-  systemctl is-enabled --quiet folly-studio && studio_enabled=1
 fi
 cleanup() {
   result=$?
@@ -106,7 +105,7 @@ cleanup() {
         else sudo rm -f "/etc/systemd/system/$unit.service"; fi
       done
       sudo systemctl daemon-reload || true
-      [ -n "$studio_enabled" ] || sudo systemctl disable folly-studio || true
+      sudo systemctl disable folly-studio || true
       [ -z "$live_active" ] || sudo systemctl restart studio-live || true
       [ -z "$studio_active" ] || sudo systemctl restart folly-studio || true
     fi
@@ -272,7 +271,7 @@ if [ -n "$units" ]; then
   [ -z "$studio" ] || sudo cp pi/folly-studio.service /etc/systemd/system/
   sudo systemctl daemon-reload
   if [ -n "$studio" ]; then
-    sudo systemctl enable folly-studio >/dev/null 2>&1
+    sudo systemctl disable folly-studio >/dev/null 2>&1
     sudo systemctl restart folly-studio
     port=$("$node" -p 'require("node:util").parseEnv(require("fs").readFileSync(process.argv[1], "utf8")).PORT || 8780' "$env")
     wait_http "http://127.0.0.1:$port/" || die "Studio did not answer after activation"

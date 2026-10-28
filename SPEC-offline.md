@@ -10,6 +10,8 @@ The offline installer requires Node ≥ 22.18. It stages the tree, native depend
 tests the staged engine without sending lights before swapping it into place. An existing Studio env keeps its
 settings, with `PI_PIN` synchronized to the engine's PIN. A failed activation or service check restores the previous
 tree and env and restarts the services that were running. Studio data stays outside the replaced tree.
+The ops hub starts and stops Studio; it is never enabled at boot. Activation disables any earlier boot enablement
+and starts Studio once to check it answers; rollback also leaves it disabled.
 
 `STUDIO_PROFILE` is `hosted` (unset: the public site, as the rest of the contract describes) or `pi`. Under `pi`:
 
