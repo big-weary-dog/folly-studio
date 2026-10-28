@@ -1,6 +1,7 @@
 {
  "title": "Vespers",
  "duration": 240,
+ "bpm": 120,
  "globals": {
   "palette": {
    "name": "amber",
@@ -22,6 +23,7 @@
     "#fff0c9"
    ]
   },
+  "live": ["bpm", "breath", "build"],
   "macros": {
    "breath": {
     "value": 0.5,
@@ -82,12 +84,13 @@
      "kind": "source",
      "title": "Heartbeat",
      "ref": "heartbeat",
+     "live": ["shape", "colours"],
      "params": {
       "colours": "low accent body",
       "direction": "out",
       "spread": 0.45,
       "tempo": "own",
-      "rate": 20,
+      "rate": { "mod": "beats", "per": 10 },
       "every": "one",
       "shape": "single",
       "sharpness": 0.7,
@@ -191,7 +194,8 @@
       "position": {
        "mod": "lfo",
        "shape": "hold",
-       "rate": 0.17,
+       "rate": 0.085,
+       "unit": "beats",
        "center": 0.5,
        "depth": -0.5,
        "hold": 0.4

@@ -24,6 +24,7 @@
     "#aaf9f8"
    ]
   },
+  "live": ["bpm", "pace"],
   "macros": {
    "pace": {
     "value": 0.5,
@@ -43,6 +44,7 @@
      "kind": "source",
      "title": "Bars",
      "ref": "bars",
+     "live": ["direction", "colours"],
      "params": {
       "colours": "accent1",
       "direction": "clockwise",
@@ -332,8 +334,8 @@
       "position": {
        "mod": "lfo",
        "shape": "sine",
-       "rate": 0.15,
-       "unit": "hz",
+       "rate": 0.075,
+       "unit": "beats",
        "center": 0.5,
        "depth": 0.5
       }

@@ -1,0 +1,26 @@
+{
+  "title": "Neon Tides",
+  "summary": "Broad cyan and magenta tides travel across the rig while their width breathes once a bar.",
+  "chain": 2, "duration": 120, "bpm": 100,
+  "globals": {
+    "palette": { "name": "", "low": ["#1725c9"], "body": ["#00eddd", "#ff389b"],
+      "accent": ["#ff389b"], "high": ["#bafff7"] },
+    "macros": { "energy": { "value": 0.8 }, "breath": { "value": 0.7 } },
+    "live": ["bpm", "energy", "breath"]
+  },
+  "layers": [
+    { "id": "bed", "title": "Blue hour", "tags": ["all"], "modules": [
+      { "id": "wash", "ref": "colour-wash", "params": {
+        "colours": "low", "speed": 0, "brightness": 0.22 } }
+    ] },
+    { "id": "tides", "title": "Breathing tide", "tags": ["all"], "blend": "over", "modules": [
+      { "id": "wave", "ref": "bars", "live": ["direction", "colours"], "params": {
+        "colours": "body", "profile": "pulse", "direction": "right",
+        "bars": { "mod": "global", "name": "energy", "from": 1, "to": 4 },
+        "speed": { "mod": "beats", "per": 0.125 },
+        "duty": { "mod": "lfo", "shape": "sine", "unit": "beats", "rate": 0.25,
+          "center": 0.65, "depth": 0.3, "amount": "breath" },
+        "brightness": { "mod": "global", "name": "energy", "from": 0.2, "to": 1 } } }
+    ] }
+  ]
+}

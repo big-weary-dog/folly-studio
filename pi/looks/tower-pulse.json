@@ -1,0 +1,25 @@
+{
+  "title": "Tower Pulse",
+  "summary": "A turquoise lub-dub climbs the spires every two beats above a warm rose and arches.",
+  "chain": 2, "duration": 120, "bpm": 110,
+  "globals": {
+    "palette": { "name": "", "low": ["#ee5218"], "body": ["#004944", "#00e8b9", "#c9fff4"],
+      "accent": ["#00e8b9"], "high": ["#c9fff4"] },
+    "macros": { "energy": { "value": 0.8 }, "spread": { "value": 0.6 } },
+    "live": ["bpm", "energy", "spread"]
+  },
+  "layers": [
+    { "id": "bed", "title": "Amber stone", "tags": ["all"], "modules": [
+      { "id": "wash", "ref": "colour-wash", "params": {
+        "colours": "low", "speed": 0, "brightness": 0.28 } }
+    ] },
+    { "id": "towers", "title": "Climbing heart", "tags": ["spire", "spirelet"], "blend": "over",
+      "modules": [
+        { "id": "heart", "ref": "heartbeat", "live": ["shape", "colours"], "params": {
+          "colours": "body", "direction": "up", "tempo": "look", "every": "two",
+          "sharpness": { "mod": "global", "name": "energy", "from": 0.05, "to": 0.8 }, "second": 0.65,
+          "brightness": { "mod": "global", "name": "energy", "from": 0.2, "to": 1 },
+          "spread": { "mod": "global", "name": "spread", "from": 0, "to": 0.9 } } }
+      ] }
+  ]
+}

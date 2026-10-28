@@ -126,6 +126,7 @@ test('a curator runs the lights from /live in both modes; a member watches', asy
     await cue.getByRole('button', { name: 'Close' }).click();
     await expect(cue).toBeHidden();
     await page.getByRole('button', { name: 'The lights\' own' }).click();
+    await page.getByRole('searchbox', { name: 'Find a look' }).fill('Fire');
     await page.getByRole('button', { name: /^Fire/ }).click();
     await page.getByRole('button', { name: 'Cue it' }).click();
     await page.getByRole('button', { name: /^Fade to Fire/ }).click();

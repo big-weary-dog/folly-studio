@@ -1,6 +1,7 @@
 {
  "title": "Prism",
  "duration": 240,
+ "bpm": 120,
  "globals": {
   "palette": {
    "name": "chapel",
@@ -23,7 +24,9 @@
     "#f9e5c4"
    ]
   },
+  "live": ["bpm", "energy"],
   "macros": {
+   "energy": { "value": 1, "min": 0.25, "max": 2 },
    "roseSwirl": {
     "value": 0.5,
     "min": 0,
@@ -33,6 +36,7 @@
      "shape": "tri",
      "rate": 0.016666666666666666,
      "unit": "beats",
+     "pace": "energy",
      "depth": 0.5,
      "center": 0.5
     }
@@ -48,6 +52,7 @@
      "id": "m133jfzxmtz",
      "kind": "source",
      "title": "Bars",
+     "live": ["direction", "colours"],
      "params": {
       "colours": "accent1/body2/low2",
       "direction": "clockwise",
@@ -100,6 +105,7 @@
    "groups": [
     "rose-window"
    ],
+   "tags": ["rose"],
    "blend": "add",
    "level": 1,
    "clips": [
@@ -136,7 +142,7 @@
      "params": {
       "colours": "body1 body3 accent3 low2",
       "direction": "up",
-      "speed": 0.34,
+      "speed": { "mod": "global", "name": "energy", "from": 0.085, "to": 0.68 },
       "brightness": 0.57
      },
      "ref": "clouds"
@@ -166,6 +172,7 @@
    "groups": [
     "main-arches"
    ],
+   "tags": ["arch-main"],
    "blend": "add",
    "level": 1,
    "soften": {
@@ -185,7 +192,7 @@
      "params": {
       "colours": "body/low/accent",
       "hold": 0,
-      "speed": 0.14
+      "speed": { "mod": "global", "name": "energy", "from": 0.035, "to": 0.28 }
      }
     },
     {
@@ -214,6 +221,7 @@
     "quad-arches",
     "spires"
    ],
+   "tags": ["spirelet", "arch-mini", "arch-quad", "spire"],
    "blend": "add",
    "level": 0.8,
    "soften": {
