@@ -31,6 +31,9 @@ async function pi({ mode = 'live', args = [] } = {}) {
   const looks = mkdtempSync(path.join(os.tmpdir(), 'pi-looks-'));
   writeFileSync(path.join(looks, 'strobe.json'), JSON.stringify({ title: 'Strobe (too fast)', duration: 30,
     layers: [{ modules: [{ ref: 'strobe', params: { speed: 12 } }] }] }));
+  writeFileSync(path.join(looks, 'choices.json'), JSON.stringify({ title: 'Creator choices', duration: 30,
+    layers: [{ id: 'layer', title: 'Layer', modules: [{ id: 'chase', title: 'Chase', ref: 'single-strand',
+      live: ['mode', 'colours'], params: { colours: '#ff0000' } }] }] }));
   const config = path.join(mkdtempSync(path.join(os.tmpdir(), 'pi-config-')), 'config.json');
   writeFileSync(config, '{}');
   const port = await freePort();
@@ -82,6 +85,31 @@ async function pick(page, title) {
   await page.getByRole('dialog', { name: title }).getByRole('button', { name: 'Cue it' }).click();
 }
 const bpm = async (tap) => Number(/([\d.]+) BPM/.exec(await tap.textContent())[1]);
+
+test('creator-offered choice and colour strips fit and release on phone and laptop', async ({ browser }, info) => {
+  const pi_ = await pi({ args: ['--look', 'choices'] });
+  for (const [device, viewport] of Object.entries({ phone: { width: 390, height: 844 },
+    laptop: { width: 1366, height: 768 } })) {
+    const ctx = await browser.newContext({ ...PHONE, viewport }), page = await ctx.newPage();
+    await page.goto(pi_.origin);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Creator choices');
+    const choice = page.getByRole('group', { name: 'Layer · Chase · Mode', exact: true });
+    const colour = page.getByRole('group', { name: 'Layer · Chase · Colours', exact: true });
+    await choice.getByRole('button', { name: /Bounce/ }).click();
+    await expect(choice.getByRole('button', { name: /Bounce/ })).toHaveAttribute('aria-pressed', 'true');
+    await colour.getByRole('button', { name: /Body/ }).click();
+    await expect(colour.getByRole('button', { name: /Body/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(colour.locator('.lp-swatches i').first()).toBeVisible();
+    await page.screenshot({ path: info.outputPath(`creator-strips-${device}.png`) });
+    expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true);
+    await page.getByRole('button', { name: "Let Layer · Chase · Mode go back to the look's own" }).click();
+    await expect(choice.getByRole('button', { name: /Along/ })).toHaveAttribute('aria-pressed', 'true');
+    await page.getByRole('button', { name: "Let Layer · Chase · Colours go back to the look's own" }).click();
+    await expect(colour.getByRole('button', { pressed: true })).toHaveCount(0);
+    await expect(page.getByText("The look's own", { exact: true })).toBeVisible();
+    await ctx.close();
+  }
+});
 
 test('Live Play drives the engine from a phone', async ({ browser }, info) => {
   const shot = (page, step) => page.screenshot({ path: info.outputPath(`${step}.png`) });

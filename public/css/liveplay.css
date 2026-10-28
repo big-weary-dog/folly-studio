@@ -158,6 +158,12 @@ button.lp-next { cursor: pointer; }
   outline: 3px solid var(--text); outline-offset: -3px; }
 .lp-pb:disabled { cursor: default; background: var(--night-0); border-style: dashed; border-color: #5a4d72; }
 .lp-pal-foot { display: flex; gap: 4px; }
+.lp-pb .lp-swatches { display: flex; gap: 1px; flex: none; }
+.lp-swatches i { flex: 1; min-width: 0; }
+.lp-own { font-size: 11px; color: var(--text-2); }
+.lp-setting .lp-pal-foot { flex-wrap: wrap; }
+.lp-setting .lp-pal-foot button { flex: 1 0 44px; min-width: 44px; }
+.lp-setting .lp-rel:disabled { color: var(--text-3); background: none; border-style: dashed; cursor: default; }
 .lp-pal-foot .lp-rel { width: 36px; }
 .lp-more { flex: 1; min-height: 44px; padding: 0; font-size: 13px; }
 .lp-empty, .lp-dark { flex: 1 1 0; min-height: 160px; display: flex; flex-direction: column;

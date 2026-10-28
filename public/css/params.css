@@ -3,6 +3,14 @@
    row. The boxes (a number, its chip, a pick, a choice) share one width and the buttons their columns, a row without
    one keeping its place (.param-slot), so they line up; a label keeps its words whole, the controls wrapping under. */
 .params-wrap, .params { display: flex; flex-direction: column; gap: 10px; }
+.param-live { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-height: 44px;
+  padding: 4px 8px; margin-top: 4px; border: 1px dashed var(--text-3); border-radius: var(--radius);
+  font-size: 12px; }
+.param-live:has(:checked) { border-style: solid; color: var(--text); background: var(--night-3); }
+.param-live input { width: 20px; height: 20px; }
+.live-offers { list-style: none; padding: 0; margin: 6px 0; }
+.live-offers li { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; }
+.live-offers small { margin-left: auto; color: var(--text-2); }
 .params { --param-w: 112px; }
 .field.param > label:first-child { min-width: min-content; }
 .field.param > .field-control { margin-left: auto; }   /* wrapped under its label, still in the columns */

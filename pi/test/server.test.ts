@@ -59,6 +59,9 @@ describe('the control page', () => {
     assert.deepEqual(await c.next('error', from), { type: 'error', error: 'nope cannot play.' });
     from = c.got.length;
     c.send({ type: 'set', name: 'level', value: 'loud' });
+    assert.deepEqual(await c.next('error', from), { type: 'error', error: 'No level.' });
+    from = c.got.length;
+    c.send({ type: 'set', name: 'heat', value: true });
     assert.deepEqual(await c.next('error', from), { type: 'error', error: 'Not a message this page sends.' });
   });
 

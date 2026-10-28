@@ -33,7 +33,7 @@ export function ShowRow({ m, sock }: { m: Model, sock: PiSocket }) {
   const f = useDrag({ min: 0, max: 1, value: s.level, axis: 'x', locked,
     send: (value) => sock.send({ type: 'level', value }) });
   const bpm = look?.controls.find((c) => c.kind === 'bpm');
-  const nudge = (d: number) => () => bpm && sock.send({ type: 'set', name: 'bpm',
+  const nudge = (d: number) => () => bpm?.kind === 'bpm' && sock.send({ type: 'set', name: 'bpm',
     value: Math.min(bpm.max, Math.max(bpm.min, look!.bpm + d)) });
   const tap = () => sock.send({ type: 'tap', at: performance.now() });
   const name = s.blackout.on ? 'Master, when back' : 'Master';

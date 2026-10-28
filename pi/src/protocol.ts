@@ -4,6 +4,14 @@ import { z } from 'zod';
 
 import type { PiSource } from '../../shared/schemas/live.ts';
 import type { RelayState } from './relay.ts';
+import { Pick } from '../../shared/schemas/look.ts';
+import type { PaletteHex } from '../../public/js/core/stdlib.ts';
+
+export const ColourValue = z.union([Pick, z.tuple([z.number().min(0).max(1),
+  z.number().min(0).max(1), z.number().min(0).max(1)])]);
+// Saved colours also accept the core's legacy strings and RGB arrays; incoming edits use ColourValue above.
+export type SavedColour = z.infer<typeof Pick> | number[];
+export type SettingValue = number | SavedColour;
 
 export const At = z.enum(['now', 'next', 'end']);
 /** Seconds the playing look fades out over, and the next in (SPEC-liveplay "Messages"). */
@@ -16,8 +24,9 @@ export const FromPage = z.discriminatedUnion('type', [
   z.object({ type: z.literal('hello'), pin: z.string().max(32).optional(), feed: z.boolean().optional(),
     who: z.object({ name: z.string().min(1).max(64), drive: z.boolean() }).optional() }),
   z.object({ type: z.literal('play'), id: z.string().max(64), fade: Fade.optional() }),
-  z.object({ type: z.literal('set'), name: z.string().max(64), value: z.number().finite() }),
-  z.object({ type: z.literal('release'), name: z.string().max(64) }),
+  z.object({ type: z.literal('set'), name: z.string().max(256),
+    value: z.union([z.number().finite(), z.string().max(256), ColourValue]) }),
+  z.object({ type: z.literal('release'), name: z.string().max(256) }),
   z.object({ type: z.literal('palette'), name: z.string().max(64) }),
   /** A tap at the page's clock (ms): the tempo comes from the page's spacing, free of the network's jitter. */
   z.object({ type: z.literal('tap'), at: z.number().finite() }),
@@ -57,7 +66,9 @@ export const JUKEBOX_NOW = 'The lights are in Jukebox: Play next or Add to the e
  * value is a name ('': the look's own, not one of data/palettes.json's). */
 export type Control = { name: string, min: number, max: number, default: number, value: number, held: boolean,
   kind: 'macro' | 'bpm' } | { name: 'palette', min: 0, max: 0, value: string, default: string, held: boolean,
-  kind: 'palette' };
+  kind: 'palette' } | { name: string, label: string, setting: string, held: boolean, kind: 'choice',
+    value: string, default: string, options: string[] } | { name: string, label: string, setting: string, held: boolean,
+    kind: 'color', value: SavedColour, default: SavedColour, palette: PaletteHex };
 /** duration: seconds of what it plays (a bake not read yet: null). */
 export type QueueItem = { key: string, id: string, title: string, kind: 'look' | 'live' | 'baked', by?: string,
   duration: number | null };

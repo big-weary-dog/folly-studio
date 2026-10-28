@@ -49,11 +49,22 @@ export function ParamsPanel({ st }: { st: Studio }) {
   const ctx: ModCtx = { look: () => st.look.peek(), t: () => st.clock.t, clips: () => st.selected.peek()?.clips,
     narrow: st.narrow.value, share: (mod, hint) => addModulator(st, mod,
     l.groups?.length ? st.groupNames(l.groups).split(',')[0] : l.title ?? '', hint), edit: modulatorEdits(st) };
-  const row = ([key, p]: readonly [string, Param]) => <Control key={`${l.id}/${m.id}/${key}`} name={key} p={p}
+  const row = ([key, p]: readonly [string, Param]) => <div key={`${l.id}/${m.id}/${key}`}><Control name={key} p={p}
     values={values} set={set} colours={colours} narrow={st.narrow.value} ctx={{ ...ctx, automate: (range, now, self) =>
       automate(st, range, now, self ? { macro: self } : { layer: l.id, module: m.id, key,
         hint: l.title ?? m.title, colour: p.kind === 'color' ? { value: p.value, blend: p.blend ?? 'step' }
-          : undefined }) }} />;
+          : undefined }) }} />
+    {(p.kind === 'choice' || p.kind === 'color') && <label class="param-live">
+      <input type="checkbox" checked={m.live?.includes(key) ?? false}
+        aria-label={`Offer ${p.label} in Live Play`}
+        title={`The driver can change ${p.label.toLowerCase()} on the lights.`}
+        onChange={(e) => {
+          const on = e.currentTarget.checked;
+          st.editModule(l.id, m.id, (mod) => ({ live: on ? [...new Set([...(mod.live ?? []), key])]
+            : (mod.live ?? []).filter((k) => k !== key) }));
+        }} />Offer in Live Play
+    </label>}
+  </div>;
   // A `cells` param just after a `petals` one sits beside it (SPEC "Pattern code").
   const first = entries[0]?.[1].petals && entries[1]?.[1].cells ? 2 : 1;
   const primary = st.narrow.value ? entries.slice(0, first) : entries;

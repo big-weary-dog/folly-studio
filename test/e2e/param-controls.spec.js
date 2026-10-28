@@ -22,6 +22,46 @@ const DEVICES = { laptop: { viewport: { width: 1366, height: 768 } },
 for (const [device, settings] of Object.entries(DEVICES)) {
   test.describe(device, () => {
     test.use(settings);
+    test('creator opts choice and colour settings into Live Play', async ({ page, studio }, info) => {
+      const cookie = await signup(studio.origin, `offers-${device}`), [key, value] = cookie.split('=');
+      await page.context().addCookies([{ name: key, value, url: studio.origin }]);
+      const res = await page.request.post(`${studio.origin}/api/looks`, { data: {
+        ...look, layers: look.layers.filter((l) => l.id === 'single-strand'),
+        globals: { macros: { drive: { value: 0.5, min: 0, max: 1 } } },
+      } });
+      expect(res.status()).toBe(201);
+      const { look: saved } = await res.json();
+      await page.goto(`${studio.origin}/studio/${saved.id}`);
+      await page.locator('.layer-name:visible', { hasText: /^single-strand$/ }).click();
+      if (device === 'phone') await page.locator('.phone-module-picker').click();
+      const colours = page.getByRole('checkbox', { name: 'Offer Colours in Live Play', exact: true });
+      await expect(colours).not.toBeChecked();
+      await colours.check();
+      if (device === 'phone') await page.getByText('More settings', { exact: true }).click();
+      const mode = page.getByRole('checkbox', { name: 'Offer Mode in Live Play', exact: true });
+      await expect(mode).not.toBeChecked();
+      await mode.check();
+      await expect(page.getByRole('checkbox', { name: 'Offer Profile in Live Play' })).not.toBeChecked();
+      await mode.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: info.outputPath(`creator-opt-in-${device}.png`) });
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect.poll(async () => (await (await page.request.get(`${studio.origin}/api/looks/${saved.id}`))
+        .json()).look.layers[0].modules[0].live).toEqual(['colours', 'mode']);
+      await colours.uncheck();
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect.poll(async () => (await (await page.request.get(`${studio.origin}/api/looks/${saved.id}`))
+        .json()).look.layers[0].modules[0].live).toEqual(['mode']);
+      await colours.check();
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      if (device === 'laptop') await page.locator('.dock-tab', { hasText: 'Look' }).click();
+      else await page.locator('.tab[data-tab=look]').click();
+      const offers = page.getByRole('region', { name: 'Offered in Live Play' });
+      await expect(offers.locator('li')).toHaveText([
+        'DriveFader', 'single-strand · Chase · ModeChoice', 'single-strand · Chase · ColoursColour', 'Palette',
+      ]);
+      await offers.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: info.outputPath(`creator-offers-${device}.png`) });
+    });
     test('mode controls retain hidden settings', async ({ page, studio }, info) => {
       const cookie = await signup(studio.origin, `controls-${device}`);
       const [key, value] = cookie.split('=');

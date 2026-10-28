@@ -9,7 +9,7 @@ import { flatModules, mapEvery } from '../core/tree.ts';
 import { randomId } from './kit.tsx';
 
 /** A layer as the Studio holds it (SPEC "Modules"): a chain, never code and params; `enabled: false` when silent. */
-export type Layer = Extract<Saved, { modules: unknown }>;
+export type Layer = Extract<Saved, { modules: unknown }> & { enabled?: boolean };
 type Kind = Module['kind'];
 type Blend = Layer['blend'];
 
@@ -147,6 +147,7 @@ function cleanModule(m: Partial<Module>): Module {
     id: String(m.id || 'm1'), kind, title: String(m.title || KIND_LABELS[kind]),
     ...(typeof m.ref === 'string' && m.ref ? { ref: m.ref } : {}), code: String(m.code || ''),
     params: m.params && typeof m.params === 'object' ? JSON.parse(JSON.stringify(m.params)) : {},
+    ...(Array.isArray(m.live) ? { live: [...new Set(m.live.filter((k) => typeof k === 'string'))] } : {}),
     ...(kind === 'filter' && m.input ? { input: String(m.input) } : {}),
     ...((kind === 'warp' || kind === 'filter') && m.on ? { on: String(m.on) } : {}),
     ...(kind === 'source' && m.as === 'input' ? { as: 'input' } : {}),
