@@ -62,8 +62,13 @@ Choices carry `options`;
 colours carry `palette` (role lists of hex swatches). Disabled modules and missing or ineligible params offer none.
 Old looks keep exactly their existing controls. These settings use `set` with a choice string or a colour pick
 (string, RGB tuple or pick object), validated against the offered kind; invalid values are refused without mutation.
-Changes and release take effect at once, leaving the saved look untouched. Source updates carry the current
+Switching or releasing a choice crossfades that layer's old and new renders over 0.5 s (`CHOICE_FADE`, one
+named duration for later adjustment). An interrupted switch starts from the layer's visible mixture.
+This layer crossfade applies when the engine renders the look itself; a relayed look keeps passing its relay's
+frames as before, including custom code the engine cannot render.
+Colour picks still take effect at once. Both leave the saved look untouched. Source updates carry the current
 module params to viewers and relays. Jukebox releases them along with the other knobs.
+During a choice fade, colour changes apply to its live renders; an interrupted fade's held mixture fades out unchanged.
 
 `default` is the look's own value (a palette: its name, `''` for a palette of the look's own that is not one of
 `data/palettes.json`'s); `held`: a person moved it since the look began, and it has not been released. A palette

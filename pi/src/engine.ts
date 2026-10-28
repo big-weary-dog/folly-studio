@@ -93,7 +93,7 @@ export function createEngine(o: EngineOptions) {
   for (const { look } of o.looks().values()) {
     if (!look) continue;
     try {
-      const layers = layersOf(look), live = liveLook(look, undefined, layers);
+      const layers = layersOf(look), live = liveLook(look, undefined, layers, scene);
       for (let f = 0; f < WARM_FRAMES; f++) {
         live.step(f * dt, dt);
         renderFrame(scene, layers, f * dt, scratch, live.look);
@@ -127,7 +127,7 @@ export function createEngine(o: EngineOptions) {
     if (!entry?.look) throw new Error(entry ? entry.error! : `no look ${item.id}`);
     const look = entry.look, layers = layersOf(look);
     return { item, id: item.id, title: look.title, duration: look.duration || 30, look,
-      live: liveLook(look, undefined, layers), layers, baked: null };
+      live: liveLook(look, undefined, layers, scene), layers, baked: null };
   }
 
   function start(item: Item) {

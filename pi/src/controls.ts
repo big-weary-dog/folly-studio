@@ -3,7 +3,7 @@
 // over SLEW seconds so a push never steps, and the palette blended (palette.ts). bpm keeps the beat's phase; a name
 // the look automates is released from its lane at the first push. Tap tempo sets bpm and the downbeat together. A
 // released control glides back to its default, the look's own value.
-import { prepareLook, type PreparedLook, type PreparedLayer } from '../../public/js/pattern-core.ts';
+import { prepareLook, type PreparedLook, type PreparedLayer, type Scene } from '../../public/js/pattern-core.ts';
 import type { PaletteColours } from '../../public/js/core/stdlib.ts';
 import { paletteBlend, paletteHexNamed, paletteNamed, PALETTE_NAMES } from './palette.ts';
 import type { Control, SettingValue } from './protocol.ts';
@@ -38,11 +38,11 @@ export function controlsOf(look: PiLook, L: PreparedLook): Control[] {
 }
 
 /** The live side of a playing look: set(name, v) a target, step(t, dt) eases toward them, tap(t, ms) the tempo. */
-export function liveLook(look: PiLook, previous?: PreparedLook, layers: PreparedLayer[] = []) {
+export function liveLook(look: PiLook, previous?: PreparedLook, layers: PreparedLayer[] = [], scene?: Scene) {
   let L = prepareLook(look, previous);
   let automation = { ...look.automation };
   const controls = controlsOf(look, L), targets = new Map<string, number>(), ownPalette = L.palette;
-  const settings = liveSettings(look, layers);
+  const settings = liveSettings(look, layers, scene);
   controls.splice(controls.length - 1, 0, ...settings.controls);
   const byName = new Map(controls.map((c) => [c.name, c]));
   // The tempo, offered or not: tapping moves it either way, and Jukebox brings it back.
@@ -136,6 +136,7 @@ export function liveLook(look: PiLook, previous?: PreparedLook, layers: Prepared
     },
     /** Each control a step of dt seconds toward its target, and the palette's blend. */
     step(t: number, dt: number) {
+      settings.step(dt);
       for (const [name, target] of targets) {
         const c = knob(name)!, cur = read(c), most = (c.max - c.min) * dt / SLEW;
         const v = Math.abs(target - cur) <= most ? target : cur + Math.sign(target - cur) * most;
