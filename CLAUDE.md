@@ -1,16 +1,16 @@
 # Folly Studio: working here
 
 Folly Studio, the web app that turns show ideas into pattern code and previews them on a model
-of the Gothic Folly. `SPEC.md` is the contract; `CONTRIBUTING.md` has the layout and the reasons
-behind these rules.
+of the Gothic Folly. `SPEC.md` indexes the contract in the area-specific `SPEC-*.md` files;
+`CONTRIBUTING.md` has the layout and the reasons behind these rules.
 
 - **Nothing is done until `npm run check` passes.** After `npm ci`, it runs `tsc` (`npm run typecheck`), the lint
   (`npm run lint`: oxlint with `.oxlintrc.jsonc` for syntax, safety and import boundaries, then `tools/budgets.ts`
   for sizes, hygiene and the line ratchet), then every test (`vitest run`), including a fresh Vite build of the app.
   A render-box test that skips says why (`ctx.skip(condition, reason)`; the run ends listing them). A skip is not a
   pass. UI changes also get `npm run smoke` (Playwright Test; `perf` and `e2e` beside it in `test/e2e/`).
-- **SPEC.md is the contract: change it first.** The sandbox protocol, the HTTP API, the look and
-  `rig.json` shapes, and `pattern-core.ts`'s exports are what the other pieces rely on.
+- **SPEC.md indexes the contract: change the relevant SPEC file first.** The sandbox protocol, the HTTP API, the look
+  and `rig.json` shapes, and `pattern-core.ts`'s exports are what the other pieces rely on.
   Code follows the spec, in the same change.
 - **Split, never bump.** Source stays ≤ 400 lines, tests ≤ 600, library patterns ≤ 150 (they
   are the AI's examples), lines ≤ 120, text files ≤ 64 KB, and the gzipped app ≤ 300 KB with the

@@ -1,8 +1,8 @@
 # Contributing to Folly Studio
 
 You need Node ≥ 22.18 (it runs TypeScript by stripping the types) and Python 3; `npm ci` installs the
-dependencies from `package-lock.json`. `SPEC.md` is the contract between the pieces; change it first, in the same
-change.
+dependencies from `package-lock.json`. `SPEC.md` indexes the area-specific `SPEC-*.md` contracts between the pieces;
+change the relevant file first, in the same change.
 
 ## Run, check, regenerate
 
@@ -329,8 +329,8 @@ cover.
 
 - One concern per commit, with `npm run check` green.
 - Subject line: `Folly Studio: <what changed>`. The body says why, not how it got there.
-- Interface changes update `SPEC.md` in the same commit. UI changes get a browser smoke test (`npm run smoke`,
-  extended when the flow changes) and screenshots for the owner's approval. Keep screenshots outside the repo
+- Interface changes update the relevant `SPEC-*.md` contract in the same commit. UI changes get a browser smoke test
+  (`npm run smoke`, extended when the flow changes) and screenshots for the owner's approval. Keep screenshots outside the repo
   and the PR because the repo is public; never commit them (the smoke check saves one per step).
 - Never commit `data/`, `.fseq` renders, keys or a hand-edited Folly `rig.json`.
 - There is no hosted CI: `npm run check` (and `npm run smoke` for UI changes) on your machine is the gate, and the

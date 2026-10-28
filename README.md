@@ -35,7 +35,12 @@ npm run check          # typecheck, lint, then every test: green before anything
 | Document | For |
 |---|---|
 | [DESIGN.md](DESIGN.md) | What is built, why, the trade-offs and the limits |
-| [SPEC.md](SPEC.md) | The contract: the rig file, looks, the sandbox protocol, the HTTP API, baked frames |
+| [SPEC.md](SPEC.md) | The contract's entry point, ground rules and links to each area |
+| [SPEC-rig.md](SPEC-rig.md) | The rig file, 3D view, light and output |
+| [SPEC-looks.md](SPEC-looks.md) | Saved looks and the timeline |
+| [SPEC-sandbox.md](SPEC-sandbox.md) | The sandbox protocol, core exports and FSEQ helpers |
+| [SPEC-http.md](SPEC-http.md) | Static files, updates and the HTTP API |
+| [SPEC-frames.md](SPEC-frames.md) | Baked frames: rendering, checks, storage, streaming and downloads |
 | [SPEC-library.md](SPEC-library.md) | The contract's pattern code: the pixel, the stdlib, modules and the warp contract, the library, globals, palettes |
 | [SPEC-generators.md](SPEC-generators.md) | The contract's generators, model registry and access (invite codes, limits) |
 | [docs/HOSTING.md](docs/HOSTING.md) | Running it at home: what runs where, tunnels, settings, backups |
