@@ -85,6 +85,22 @@ A curator opens the page by its address, without the tabs, as any Admin page. Th
 
 ## Look files
 
+### The Pi's looks
+
+The engine's looks directories accept individual look files and files of looks (`{ "looks": [look file] }`).
+Individual files keep their filename (without `.json`) as their Pi id. Each entry in a file of looks uses its
+nonempty `origin`, otherwise its nonempty `id`, as a stable Pi id. An entry missing both is listed unplayable
+under `<filename>#<1-based entry number>`. Each entry is checked independently: a bad entry does not drop its
+siblings. A look with no library ref (including custom code), an unknown ref or invalid fields is listed
+unplayable with its reason, as for individual files; code accompanying a known ref is replaced by library code.
+Duplicate ids use the last entry: directories in supplied order, `.json` filenames in sorted order, then array
+order within a file (including unplayable entries). The installer summary counts looks, including unplayable
+entries, rather than files; its existing self-test refuses an install containing unplayable looks.
+
+On prod, sign in on the laptop and use My looks or Gallery → **Export all**, put `folly-looks-*.json` in `looks/`
+beside `install.sh`, then install. The Pi does not fetch looks from prod. With Studio on the Pi, the same file
+can instead go through My looks → **Import**.
+
 Phone file and Pi bundle workflows stay on laptop; see [SPEC-studio "Phones"](SPEC-studio.md#phones).
 
 A look file is JSON, `application/json`, named for its title (`<slug>.json`):

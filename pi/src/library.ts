@@ -75,7 +75,17 @@ export function readLooks(dirs: readonly string[], lib: Library) {
       const file = path.join(dir, f), id = f.slice(0, -5);
       try {
         const raw = JSON.parse(readFileSync(file, 'utf8'));
-        looks.set(id, { look: resolveLook({ ...raw, id }, lib), file });
+        const many = Array.isArray(raw?.looks);
+        for (const [i, entry] of (many ? raw.looks : [raw]).entries()) {
+          const stable = [entry?.origin, entry?.id].find(v => typeof v === 'string' && v.length > 0);
+          const key = many ? stable ?? `${id}#${i + 1}` : id;
+          try {
+            if (many && !stable) throw new Error('not a look: it needs an origin or id');
+            looks.set(key, { look: resolveLook({ ...entry, id: key }, lib), file });
+          } catch (e) {
+            looks.set(key, { look: null, file, error: (e as Error).message });
+          }
+        }
       } catch (e) {
         looks.set(id, { look: null, file, error: (e as Error).message });
       }

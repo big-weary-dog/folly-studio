@@ -11,6 +11,36 @@ import { type PiLook, readLooks, resolveLook } from '../src/library.ts';
 import { engineOn, lib, LOOKS, oneModule, shipped } from './fixture.ts';
 
 describe('the library', () => {
+  test('exports load independently with stable ids, reasons and deterministic duplicate replacement', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'pi-export-'));
+    const look = (title: string) => ({ title, layers: [{ modules: [{ ref: 'clouds' }] }] });
+    writeFileSync(path.join(dir, 'a.json'), JSON.stringify({ looks: [
+      { ...look('First'), origin: 'from-prod', id: 'local-id' },
+      { id: 'custom', title: 'Custom', layers: [{ modules: [{ code: 'function render() {}' }] }] },
+      null,
+      { ...look('Fallback'), id: 'fallback' },
+      { ...look('Last in array'), origin: 'from-prod' },
+    ] }));
+    const loaded = readLooks([dir], lib);
+    assert.equal(loaded.get('from-prod')!.look!.title, 'Last in array');
+    assert.ok(!loaded.has('local-id'));
+    assert.equal(loaded.get('fallback')!.look!.id, 'fallback');
+    assert.equal(loaded.get('custom')!.look, null);
+    assert.match(loaded.get('custom')!.error!, /not a library module/);
+    assert.match(loaded.get('a#3')!.error!, /origin or id/);
+    writeFileSync(path.join(dir, 'z.json'), JSON.stringify({ looks: [
+      { ...look('Last file'), id: 'fallback' },
+    ] }));
+    assert.equal(readLooks([dir], lib).get('fallback')!.look!.title, 'Last file');
+    const r = engineOn(['from-prod', 'fallback'].map(id => loaded.get(id)!.look!));
+    for (const id of ['from-prod', 'fallback']) {
+      r.engine.play(id);
+      r.run(1);
+      assert.equal(r.engine.state().look?.id, id);
+      assert.ok(r.lit() > 0);
+    }
+  });
+
   test("a look's modules run the library's code, whatever code the look carries", () => {
     const look = resolveLook({ id: 'x', title: 'X', layers: [{ modules: [{ ref: 'clouds', code: 'evil()' }] }] } as
       PiLook, lib);

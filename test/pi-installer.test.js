@@ -121,6 +121,18 @@ test('a first engine-only install passes the staged checks before activation', (
   assert.ok(!fs.existsSync(f.env));
 });
 
+test('rehearsal copies an export file and counts its looks alongside individual files', () => {
+  const f = fixture();
+  const exported = { looks: [{ id: 'one' }, { origin: 'two' }, { id: 'three' }] };
+  write(`${f.dir}/looks/folly-looks-mine.json`, JSON.stringify(exported));
+  write(`${f.dir}/looks/single.json`, '{"id":"single"}');
+  const r = run(f, ['--looks', `${f.dir}/looks`]);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /added 4 looks to pi\/local\/looks/);
+  const installed = `${f.home}/folly-studio/pi/local/looks/folly-looks-mine.json`;
+  assert.deepEqual(JSON.parse(fs.readFileSync(installed, 'utf8')), exported);
+});
+
 for (const name of ['engine', 'Studio']) {
   for (const status of [0, 23, 143]) {
     test(`${name} exiting early with status ${status} ${status ? 'fails' : 'passes'} rehearsal`, () => {

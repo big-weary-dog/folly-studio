@@ -3,7 +3,7 @@
   "areas": {
     ".": { "lines": 172, "reason": "The root holds the server entry point and the Vite, Vitest and Playwright configurations." },
     "fleet-box": { "lines": 260, "reason": "The boxed checker validates generated looks against the library, rig, module chains and light settings." },
-    "pi": { "lines": 6003, "reason": "Per-layer choice transitions retain independent outgoing state and visible interrupted mixtures, with mixing, continuity, release, alpha, immediate colour, outgoing errors, unaffected-layer and relay coverage alongside live controls, playback and flash guard." },
+    "pi": { "lines": 6027, "reason": "Prod export files load each look independently with stable origin ids, duplicate ordering and playback tests, alongside per-layer transitions, live controls, playback and flash guard." },
     "public": { "lines": 56, "reason": "The app and sandbox HTML shells load their browser entry points." },
     "public/css": { "lines": 2460, "reason": "Creator opt-in rows and Live Play role swatches join responsive Studio, phone disclosures, navigation and full-size tap targets." },
     "public/js": { "lines": 18800, "reason": "Creator opt-in checkboxes and saved prepared-link param metadata support Live Play settings without recompilation, alongside responsive Studio controls and Admin tasks." },
