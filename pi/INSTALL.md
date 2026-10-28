@@ -58,6 +58,11 @@ Settings go in `pi/config.json`, which `git pull` never touches (it is gitignore
 `npm run pi -- --help` lists every setting. The page has no PIN by default. Set one if the network is not only the
 crew's. Looks of the Pi's own go in `pi/local/looks/` (also gitignored).
 
+On prod, My looks or Gallery → **Export all** downloads `folly-looks-*.json`. For the bundle installer, put that
+file in `looks/` beside `install.sh`, then install ([SETUP.md](SETUP.md)); for this clone, copy it into
+`pi/local/looks/`. Both single look files and exports of many work. With Studio on the Pi, the same file goes
+through My looks → **Import**. The laptop signs in to prod; the Pi does not fetch looks itself.
+
 ## 4. The unit and the ops hub
 
 Install the unit, but do not enable it at boot. The ops hub starts it, as it does Folly Mix:
