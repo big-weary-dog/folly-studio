@@ -8,6 +8,6 @@
     "live": ["bpm", "heat"]
   },
   "layers": [{ "modules": [{ "ref": "fire", "live": ["colours", "tips"], "params": {
-    "speed": { "mod": "beats", "per": 0.85 },
+    "speed": { "mod": "beats", "per": 0.8500000000000001 },
     "embers": { "mod": "global", "name": "heat", "from": 0.05, "to": 0.8 } } }] }]
 }

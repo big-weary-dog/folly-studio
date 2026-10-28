@@ -90,7 +90,7 @@
       "direction": "out",
       "spread": 0.45,
       "tempo": "own",
-      "rate": { "mod": "beats", "per": 0.16666666666666666 },
+      "rate": { "mod": "beats", "per": 10 },
       "every": "one",
       "shape": "single",
       "sharpness": 0.7,
