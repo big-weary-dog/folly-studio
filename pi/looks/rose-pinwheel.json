@@ -1,0 +1,24 @@
+{
+  "title": "Rose Pinwheel",
+  "summary": "A rose of revolving comets above a violet cathedral; one bar passes every two beats.",
+  "chain": 2, "duration": 120, "bpm": 120,
+  "globals": {
+    "palette": { "name": "", "low": ["#6414d9"], "body": ["#00e6ce", "#ff3b9e", "#ffb632"],
+      "accent": ["#ff3b9e"], "high": ["#fff0a8"] },
+    "macros": { "energy": { "value": 0.7 }, "width": { "value": 0.55 } },
+    "live": ["bpm", "energy", "width"]
+  },
+  "layers": [
+    { "id": "bed", "title": "Violet stone", "tags": ["all"], "modules": [
+      { "id": "wash", "ref": "colour-wash", "params": {
+        "colours": "low", "speed": 0, "brightness": 0.22 } }
+    ] },
+    { "id": "rose", "title": "Pinwheel", "tags": ["rose"], "blend": "over", "modules": [
+      { "id": "comets", "ref": "bars", "live": ["profile", "colours"], "params": {
+        "colours": "body", "direction": "clockwise", "profile": "comet", "bars": 4,
+        "speed": { "mod": "beats", "per": 0.5 },
+        "brightness": { "mod": "global", "name": "energy", "from": 0.25, "to": 1 },
+        "duty": { "mod": "global", "name": "width", "from": 0.2, "to": 1 } } }
+    ] }
+  ]
+}

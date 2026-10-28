@@ -1,0 +1,25 @@
+{
+  "title": "Arch Carnival",
+  "summary": "Warm marquee ribbons chase the arches, advancing twelve LEDs every beat.",
+  "chain": 2, "duration": 120, "bpm": 112,
+  "globals": {
+    "palette": { "name": "", "low": ["#1835c4"], "body": ["#ff3b70", "#ff9c20", "#fff0a8"],
+      "accent": ["#ff9c20"], "high": ["#fff0a8"] },
+    "macros": { "energy": { "value": 0.75 }, "gap": { "value": 0.5 } },
+    "live": ["bpm", "energy", "gap"]
+  },
+  "layers": [
+    { "id": "bed", "title": "Midnight blue", "tags": ["all"], "modules": [
+      { "id": "wash", "ref": "colour-wash", "params": {
+        "colours": "low", "speed": 0, "brightness": 0.25 } }
+    ] },
+    { "id": "arches", "title": "Marquee ribbons", "tags": ["arch"], "blend": "over", "modules": [
+      { "id": "chase", "ref": "single-strand", "live": ["mode", "colours"], "params": {
+        "colours": "body", "profile": "bands", "mode": "along",
+        "size": 24, "softness": 3, "alternate": true,
+        "speed": { "mod": "beats", "per": 12 },
+        "brightness": { "mod": "global", "name": "energy", "from": 0.2, "to": 1 },
+        "gap": { "mod": "global", "name": "gap", "from": 0, "to": 0.8 } } }
+    ] }
+  ]
+}

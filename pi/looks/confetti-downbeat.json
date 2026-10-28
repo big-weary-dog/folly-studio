@@ -1,0 +1,30 @@
+{
+  "title": "Confetti Downbeat",
+  "summary": "Scattered candy-coloured hits punctuate the beat over a rotating rose and violet arches.",
+  "chain": 2, "duration": 120, "bpm": 120,
+  "globals": {
+    "palette": { "name": "", "low": ["#7820d9"], "body": ["#ff389b", "#ffb52b", "#00edcc"],
+      "accent": ["#ff389b", "#ffca48", "#00f5d4"], "high": ["#fff0a8"] },
+    "macros": { "energy": { "value": 0.65 }, "scatter": { "value": 0.7 } },
+    "live": ["bpm", "energy", "scatter"]
+  },
+  "layers": [
+    { "id": "bed", "title": "Violet velvet", "tags": ["all"], "modules": [
+      { "id": "wash", "ref": "colour-wash", "params": {
+        "colours": "low", "speed": 0, "brightness": 0.28 } }
+    ] },
+    { "id": "rose", "title": "Candy wheel", "tags": ["rose"], "blend": "over", "modules": [
+      { "id": "wheel", "ref": "bars", "params": {
+        "colours": "body", "direction": "counterclockwise", "profile": "smooth", "bars": 3,
+        "speed": { "mod": "beats", "per": 0.25 }, "brightness": 0.65 } }
+    ] },
+    { "id": "hits", "title": "Confetti hits", "tags": ["arch", "spire", "spirelet"], "blend": "over",
+      "modules": [
+        { "id": "confetti", "ref": "strobe", "live": ["colours"], "params": {
+          "colours": "accent", "mixed": true, "length": 0.4, "fade": 0.25,
+          "speed": { "mod": "beats", "per": 1 },
+          "brightness": { "mod": "global", "name": "energy", "from": 0.1, "to": 1 },
+          "scatter": { "mod": "global", "name": "scatter", "from": 0, "to": 1 } } }
+      ] }
+  ]
+}
