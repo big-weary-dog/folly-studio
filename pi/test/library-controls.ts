@@ -15,7 +15,7 @@ export function controls(end: keyof typeof ends) {
     r.run(7);
     const bpm = { default: 120, low: 90, high: 150, alternate: 120 }[end], at = ends[end];
     r.engine.state().look!.controls.forEach((c, k) => {
-      if (at && c.name !== 'level' && c.name !== 'bpm') r.engine.set(c.name, c.min + at(k) * (c.max - c.min));
+      if (at && c.kind === 'macro') r.engine.set(c.name, c.min + at(k) * (c.max - c.min));
     });
     // The tempo as the page sets it: four taps, each one a downbeat, so the beat restarts mid-pulse.
     for (let i = 0; i < 4; i++) { r.engine.tap(i * 60_000 / bpm); r.run(60 / bpm); }

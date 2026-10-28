@@ -93,7 +93,7 @@ export function createEngine(o: EngineOptions) {
   for (const { look } of o.looks().values()) {
     if (!look) continue;
     try {
-      const layers = layersOf(look), live = liveLook(look);
+      const layers = layersOf(look), live = liveLook(look, undefined, layers);
       for (let f = 0; f < WARM_FRAMES; f++) {
         live.step(f * dt, dt);
         renderFrame(scene, layers, f * dt, scratch, live.look);
@@ -125,9 +125,9 @@ export function createEngine(o: EngineOptions) {
     }
     const entry = item.kind === 'look' ? o.looks().get(item.id) : { look: item.look ?? null, error: 'no look' };
     if (!entry?.look) throw new Error(entry ? entry.error! : `no look ${item.id}`);
-    const look = entry.look;
-    return { item, id: item.id, title: look.title, duration: look.duration || 30, look, live: liveLook(look),
-      layers: layersOf(look), baked: null };
+    const look = entry.look, layers = layersOf(look);
+    return { item, id: item.id, title: look.title, duration: look.duration || 30, look,
+      live: liveLook(look, undefined, layers), layers, baked: null };
   }
 
   function start(item: Item) {
@@ -262,8 +262,8 @@ export function createEngine(o: EngineOptions) {
   function knob(change: (live: LiveLook) => boolean) {
     const live = playing?.live;
     if (!live) return false;
-    const before = live.automation, palette = live.paletteHex(), ok = change(live);
-    if (live.automation !== before || live.paletteHex() !== palette) rev++;
+    const before = live.automation, palette = live.paletteHex(), settings = live.settingsRevision, ok = change(live);
+    if (live.automation !== before || live.paletteHex() !== palette || live.settingsRevision !== settings) rev++;
     return ok;
   }
 
@@ -341,7 +341,9 @@ export function createEngine(o: EngineOptions) {
       want = !advance(secs);
       return true;
     },
-    set(name: string, v: number) { return knob((live) => live.set(name, v, frame * dt)); },
+    set(name: string, v: Parameters<LiveLook['set']>[1]) {
+      return knob((live) => live.set(name, v, frame * dt));
+    },
     /** Lets a control go: back to the look's own value. */
     release(name: string) { return knob((live) => live.release(name, frame * dt)); },
     /** Blends to a palette by name ('': the look's own). */

@@ -143,6 +143,8 @@ const ModuleObject = z.object({
   id: z.string().regex(ID).optional(), kind: oneOf('kind', CHAIN_KINDS).default('source'), title: Title.default(''),
   ref: z.string({ error: 'ref must name a library entry.' }).regex(/^[a-z0-9-]{1,64}$/).optional(),
   code: Code.default(''), params: Params.nullish().transform((p) => p ?? {}),
+  live: z.array(z.string().min(1).max(64)).max(64)
+    .refine((keys) => new Set(keys).size === keys.length, 'live param keys must be unique.').optional(),
   input: z.string({ error: 'input must be a module id.' }).regex(ID).optional(),
   on: z.string({ error: 'on must be a module id.' }).regex(ID).optional(),
   as: z.literal('input', { error: "as is only 'input' (a source)." }).optional(), blend: SourceBlend.optional(),

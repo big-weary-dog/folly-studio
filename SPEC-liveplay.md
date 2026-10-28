@@ -55,6 +55,16 @@ page's own is dropped): the username, and whether they may drive Live Play. The 
 Control = { name, kind: 'macro' | 'bpm' | 'palette', min, max, value, default, held }
 ```
 
+Creator-offered module settings follow the macros, before the palette, in layer/module/param order. They use
+`name: JSON.stringify([layerId, moduleId, paramKey])`, independent of titles and positions, and carry `label`
+(layer, module and setting), `setting` (the short heading), `kind: 'choice' | 'color'`, `value`, `default`, and `held`.
+Choices carry `options`;
+colours carry `palette` (role lists of hex swatches). Disabled modules and missing or ineligible params offer none.
+Old looks keep exactly their existing controls. These settings use `set` with a choice string or a colour pick
+(string, RGB tuple or pick object), validated against the offered kind; invalid values are refused without mutation.
+Changes and release take effect at once, leaving the saved look untouched. Source updates carry the current
+module params to viewers and relays. Jukebox releases them along with the other knobs.
+
 `default` is the look's own value (a palette: its name, `''` for a palette of the look's own that is not one of
 `data/palettes.json`'s); `held`: a person moved it since the look began, and it has not been released. A palette
 control's `value` is a name (`''`: the look's own); `min` and `max` are 0.
@@ -120,6 +130,11 @@ palette strip shows 4 palettes with their colours, the pick outlined with ✓, "
 blends". Names clamp to 2 lines; the full name is the strip's label. A look with none: the bank says why (a bake:
 "its colours and tempo were fixed when it was baked"), that Master and Blackout still work, and what the next one
 offers. On a laptop the bank has "Reset these 4".
+
+A choice strip offers its named options as buttons (paging when needed), with the pick outlined and ✓. A colour
+strip shows the palette's four roles as swatch buttons, with the selected role outlined and ✓; a saved custom or
+combined pick is labelled **The look's own** and can always be restored with ↺. Each strip carries its full
+layer/module/setting label, and obeys the same driver, lost-link and blackout locks as the faders.
 
 **States.** Each has a shape and a word as well as a colour:
 

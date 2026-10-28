@@ -60,7 +60,8 @@ function prepareStages(S: Scene, layer: LayerInput | null | undefined, chain: Li
     const mode = BLUR_MODES.includes(s.mode as never) ? s.mode as string : 'wire';
     chain.push({ id: null, title: 'Soften', kind: SPATIAL, fn: (c) => c, frame: null, mods: [], picks: null,
       blend: OVER, P: { radius: Number(s.radius), mode, amount: 1 }, hidden: false, input: -1, src: null,
-      fixed: false, out: [0, 0, 0, 0], keep: null, end: true, ix: chain.length, at: 0, from: -1, to: -1, led: false,
+      fixed: false, schema: {}, saved: {}, out: [0, 0, 0, 0], keep: null,
+      end: true, ix: chain.length, at: 0, from: -1, to: -1, led: false,
       bright: false, ring: null, op: 'blur', subs: null });
   }
   return stagesOf(S, chain, idx);

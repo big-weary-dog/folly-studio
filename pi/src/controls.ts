@@ -3,10 +3,12 @@
 // over SLEW seconds so a push never steps, and the palette blended (palette.ts). bpm keeps the beat's phase; a name
 // the look automates is released from its lane at the first push. Tap tempo sets bpm and the downbeat together. A
 // released control glides back to its default, the look's own value.
-import { prepareLook, type PreparedLook } from '../../public/js/pattern-core.ts';
+import { prepareLook, type PreparedLook, type PreparedLayer } from '../../public/js/pattern-core.ts';
 import type { PaletteColours } from '../../public/js/core/stdlib.ts';
 import { paletteBlend, paletteHexNamed, paletteNamed, PALETTE_NAMES } from './palette.ts';
-import type { Control } from './protocol.ts';
+import type { Control, SettingValue } from './protocol.ts';
+import { liveSettings } from './settings.ts';
+import { DEFAULT_PALETTE } from '../../public/js/core/stdlib.ts';
 import type { PiLook } from './library.ts';
 
 export type { Control };
@@ -36,10 +38,12 @@ export function controlsOf(look: PiLook, L: PreparedLook): Control[] {
 }
 
 /** The live side of a playing look: set(name, v) a target, step(t, dt) eases toward them, tap(t, ms) the tempo. */
-export function liveLook(look: PiLook, previous?: PreparedLook) {
+export function liveLook(look: PiLook, previous?: PreparedLook, layers: PreparedLayer[] = []) {
   let L = prepareLook(look, previous);
   let automation = { ...look.automation };
   const controls = controlsOf(look, L), targets = new Map<string, number>(), ownPalette = L.palette;
+  const settings = liveSettings(look, layers);
+  controls.splice(controls.length - 1, 0, ...settings.controls);
   const byName = new Map(controls.map((c) => [c.name, c]));
   // The tempo, offered or not: tapping moves it either way, and Jukebox brings it back.
   const tempo = (byName.get('bpm') as Num | undefined) ?? num('bpm', BPM.min, BPM.max, L.bpm, 'bpm');
@@ -90,6 +94,8 @@ export function liveLook(look: PiLook, previous?: PreparedLook) {
     L.palette = blend.palette;
     pal.value = name === '' ? pal.default : name;
     pal.held = pal.value !== pal.default;
+    settings.palette(name === '' || name === pal.default ? look.globals?.palette ?? DEFAULT_PALETTE
+      : paletteHexNamed(name)!);
     return true;
   }
 
@@ -98,9 +104,12 @@ export function liveLook(look: PiLook, previous?: PreparedLook) {
     /** The look's automation as it plays: a pushed name has left it. */
     get automation() { return automation; },
     controls,
-    set(name: string, v: number, t: number) {
+    get settingsRevision() { return settings.revision; },
+    layers: settings.layers,
+    set(name: string, v: SettingValue, t: number) {
+      if (settings.has(name)) return settings.set(name, v);
       const c = byName.get(name);
-      if (!c || c.kind === 'palette' || !Number.isFinite(v)) return false;
+      if (!c || c.kind !== 'macro' && c.kind !== 'bpm' || typeof v !== 'number' || !Number.isFinite(v)) return false;
       unlane(name, t);
       targets.set(name, Math.min(c.max, Math.max(c.min, v)));
       c.held = true;
@@ -111,9 +120,11 @@ export function liveLook(look: PiLook, previous?: PreparedLook) {
     paletteHex: () => (pal.held ? paletteHexNamed(pal.value) : null),
     /** Lets a control go: it glides (or blends) back to its default. */
     release(name: string, t: number) {
+      if (settings.has(name)) return settings.release(name);
       const c = name === 'bpm' ? tempo : byName.get(name);
       if (!c) return false;
       if (c.kind === 'palette') return palette(c.default);
+      if (c.kind !== 'macro' && c.kind !== 'bpm') return false;
       unlane(name, t);
       targets.set(name, c.default);
       c.held = false;
@@ -153,7 +164,8 @@ export function liveLook(look: PiLook, previous?: PreparedLook) {
     },
     /** Show time wrapped back by `duration`: the beat carries on rather than restarting. */
     wrapped(duration: number) { L.beat0 -= duration; },
-    values: () => Object.fromEntries(controls.flatMap((c) => (c.kind === 'palette' ? [] : [[c.name, read(c)]]))),
+    values: () => Object.fromEntries(controls.flatMap((c) =>
+      (c.kind === 'macro' || c.kind === 'bpm' ? [[c.name, read(c)]] : []))),
   };
 }
 export type LiveLook = ReturnType<typeof liveLook>;

@@ -3,7 +3,7 @@
 // "Composites"), each with its warps placed, its pixel slots, its colour and the LEDs it plays on. A source with
 // warps or filters attached to it (`on`) runs as a composite of one sub-layer: the source, then them.
 import type { Module, SubLayer } from '../../../shared/schemas/look.ts';
-import type { Compiled } from './compile.ts';
+import type { Compiled, ParamSchema } from './compile.ts';
 import type { Stages } from './render.ts';
 import { paramMods, resolveParams } from './globals.ts';
 import type { Values } from './globals.ts';
@@ -50,6 +50,7 @@ export type Sub = { chain: Link[], warps: Link[], qs: Pixel[], c: number[], blen
 export type Link = { id: string | null, title: string, kind: number, fn: Fn, frame: Compiled['frame'] | null,
   P: Values, mods: ReturnType<typeof paramMods>, picks: Picks | null, blend: number, hidden: boolean, input: number,
   src: Link | null, fixed: boolean,
+  schema: ParamSchema, saved: Record<string, unknown>,
   out: number[], keep: Float64Array | null, end: boolean, ix: number, at: number, from: number, to: number,
   led: boolean, bright: boolean, ring: Compiled['history'] | null, op: Compiled['spatial'] | null,
   subs: Sub[] | null };
@@ -91,7 +92,8 @@ export function prepareChain(modules: Partial<Module>[], list: readonly (Compile
     if ((kind === SOURCE || kind === COMPOSITE) && !hidden) shown++;
     const src = kind === FILTER ? at.get(m.input) ?? null : null;
     const base = { id: m.id ?? null, title: m.title || m.id || '', blend, hidden, input: src ? chain.indexOf(src) : -1,
-      src, fixed: false, out: [0.5, 0, 0, 0], keep: null, ix: 0, at: 0, from: -1, to: -1, ring: null, op: null };
+      src, fixed: false, schema: {}, saved: {}, out: [0.5, 0, 0, 0], keep: null,
+      ix: 0, at: 0, from: -1, to: -1, ring: null, op: null };
     let link: Link;
     if (isComposite(c)) {
       if (kind !== COMPOSITE) throw new Error('prepareLayer: layer is not compiled');
@@ -105,7 +107,8 @@ export function prepareChain(modules: Partial<Module>[], list: readonly (Compile
       const P = resolveParams(c.params, saved), mods = paramMods(c.params, saved, c.picks?.rot);
       c.picks?.bind(c.params, saved, P);
       c.clocks?.bind(P, mods, ctx.clips);
-      link = { ...base, kind, fn, frame: c.frame || null, P, mods, picks: c.picks || null,
+      link = { ...base, schema: c.params, saved: { ...saved }, kind, fn, frame: c.frame || null,
+        P, mods, picks: c.picks || null,
         end: kind === SPATIAL || isStageEnd(m), led: readsLed(m.code), bright: kind === SOURCE && !!c.bright,
         ring: c.history ?? null, op: c.spatial ?? null, subs: null };
     }
@@ -129,7 +132,7 @@ function attachRun(modules: Partial<Module>[], list: readonly (CompiledLink | nu
   const sub: Sub = { chain, warps: bent.order, qs: Array.from({ length: bent.slots }, () => makePixel(S)),
     c: [0, 0, 0, 0], blend: OVER, level: 1, mask: null, attach: true, pre: null, stages: null };
   return { id: m.id ?? null, title: m.title || m.id || '', kind: COMPOSITE, fn: none, frame: null, P: {}, mods: [],
-    picks: null, blend: OVER, hidden: m.as === 'input', input: -1,
+    picks: null, schema: {}, saved: {}, blend: OVER, hidden: m.as === 'input', input: -1,
     src: null, fixed: chain.some((M) => M.end), out: [0.5, 0, 0, 0], keep: null, end: false, ix: 0, at: 0, from: -1,
     to: -1, led: false, bright: false, ring: null, op: null, subs: [sub] };
 }

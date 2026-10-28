@@ -11,6 +11,7 @@ import type { Control } from '../src/protocol.ts';
 import { useDrag } from './drag.ts';
 import { clock, label, type Model, since, useFits, useTick } from './model.ts';
 import type { PiSocket } from './socket.ts';
+import { SettingStrip } from './settings.tsx';
 
 type Num = Extract<Control, { kind: 'macro' | 'bpm' }>;
 type Pal = Extract<Control, { kind: 'palette' }>;
@@ -46,7 +47,9 @@ export function Bank({ m, sock, wide }: { m: Model, sock: PiSocket, wide?: boole
         : 'Knobs'}>
       {shown.map((c) => (c.kind === 'palette'
         ? <PaletteStrip key={`${look!.id}:palette`} c={c} locked={locked} sock={sock} />
-        : <NumberStrip key={`${look!.id}:${c.name}`} c={c as Num} locked={locked} sock={sock} />))}
+        : c.kind === 'choice' || c.kind === 'color'
+          ? <SettingStrip key={`${look!.id}:${c.name}`} c={c} locked={locked} sock={sock} />
+          : <NumberStrip key={`${look!.id}:${c.name}`} c={c} locked={locked} sock={sock} />))}
       {Array.from({ length: PER - shown.length }, (_, i) => <div key={`empty${i}`} class="lp-strip vacant">
         <span class="lp-sl">not offered</span></div>)}
     </div> : <Empty m={m} />}

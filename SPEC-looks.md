@@ -41,7 +41,13 @@ below.
   library's title (`shared/standard-modules.ts`; the API and generators put a renamed one's back), and a hand edit
   of its code drops `ref`, making it custom (while an admin has custom code off, new code is refused: SPEC-baking
   "Custom code"); `params`
-  override the code's defaults (≤ 64; a string ≤ 256 characters: a pick, a choice or text); `enabled: false` skips it; `input` names an earlier source; `on`
+  override the code's defaults (≤ 64; a string ≤ 256 characters: a pick, a choice or text).
+  `live` optionally lists up to 64 unique param keys the creator offers in Live Play: only declared choice and
+  colour params are offered. The Settings panel shows **Offer in Live Play** beside each eligible setting;
+  unchecked by default. Offers belong to the module's ID within its layer, survive renaming and reordering,
+  and disappear when the module or declared param disappears. Missing `live` offers none.
+  The Look panel's **Live Play** list shows all offered faders, tempo, module settings and palette together.
+  `enabled: false` skips it; `input` names an earlier source; `on`
   (a warp's or filter's) attaches it to the source or composite just above it, past the others attached to it
   (SPEC-library "Attached modules"); `as` is only
   `'input'`; `blend` as for layers, or `under` (a source's only). `kind` is `source`, `warp`, `filter` or
@@ -112,4 +118,3 @@ Sequencing lives on the look, xLights-style.
 
 How the Studio edits a look (its groups, timeline, chain, modulators, colours and the phone's panels): `SPEC-studio.md`,
 part of this contract.
-

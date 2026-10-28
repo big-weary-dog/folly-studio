@@ -147,6 +147,7 @@ function cleanModule(m: Partial<Module>): Module {
     id: String(m.id || 'm1'), kind, title: String(m.title || KIND_LABELS[kind]),
     ...(typeof m.ref === 'string' && m.ref ? { ref: m.ref } : {}), code: String(m.code || ''),
     params: m.params && typeof m.params === 'object' ? JSON.parse(JSON.stringify(m.params)) : {},
+    ...(Array.isArray(m.live) ? { live: [...new Set(m.live.filter((k) => typeof k === 'string'))] } : {}),
     ...(kind === 'filter' && m.input ? { input: String(m.input) } : {}),
     ...((kind === 'warp' || kind === 'filter') && m.on ? { on: String(m.on) } : {}),
     ...(kind === 'source' && m.as === 'input' ? { as: 'input' } : {}),
