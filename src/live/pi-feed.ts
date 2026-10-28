@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 
 import WebSocket from 'ws';
 
+import type { Mode, PiState } from '../../pi/src/protocol.ts';
 import type { PiNow, PiQueued, PiSource } from '../../shared/schemas/live.ts';
 
 const FIRST_WAIT_MS = 1000, MAX_WAIT_MS = 10_000;
@@ -17,8 +18,7 @@ const queueOf = (q: unknown): PiQueued[] => (Array.isArray(q) ? q : []).slice(0,
   .filter((i) => i && typeof i.title === 'string' && KINDS.has(i.kind))
   .map((i) => ({ title: i.title.slice(0, 200), kind: i.kind,
     ...typeof i.by === 'string' ? { by: i.by.slice(0, 64) } : {} }));
-type Look = { rev: number, t: number, bpm: number, beat0: number, offset: number, paces?: Record<string, unknown>,
-  controls: { name: string, value: number | string, kind: string }[] };
+type Look = Pick<NonNullable<PiState['look']>, 'rev' | 't' | 'bpm' | 'beat0' | 'offset' | 'paces' | 'controls'>;
 
 /** The engine's state message → PiNow (null: nothing plays), or undefined if it is not one. */
 export function piNowOf(state: { look?: Look | null, gain?: number, queue?: unknown } | null)
@@ -40,7 +40,7 @@ export function piNowOf(state: { look?: Look | null, gain?: number, queue?: unkn
 /** `pin`: the engine's PIN (PI_PIN), said in the hello; `mode`: the mode to tell it; `log`: what the engine refuses
  * of Studio's sends. */
 export function piFeed({ target, base = '/pi', pin, mode = () => 'live', onNow, onSource, log = console }:
-  { target: URL, base?: string, pin?: string, mode?: () => 'jukebox' | 'live', onNow: (now: PiNow | null) => void,
+  { target: URL, base?: string, pin?: string, mode?: () => Mode, onNow: (now: PiNow | null) => void,
   onSource: (source: PiSource) => void, log?: { warn?: (...a: unknown[]) => void } }) {
   const url = `${target.protocol === 'https:' ? 'wss:' : 'ws:'}//${target.host}${base}/ws`;
   let ws: WebSocket | null = null, wait = FIRST_WAIT_MS, timer: NodeJS.Timeout | null = null, alive = true;
@@ -120,7 +120,7 @@ export function piFeed({ target, base = '/pi', pin, mode = () => 'live', onNow, 
       });
     },
     /** The mode changed: tell the engine now (and again at each hello). */
-    mode(m: 'jukebox' | 'live') {
+    mode(m: Mode) {
       if (ok && ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'mode', mode: m }));
     },
     close() {

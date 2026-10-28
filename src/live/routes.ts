@@ -1,5 +1,7 @@
 // The live stage's routes under /api (SPEC-live): its socket, a snapshot, and the looks a controller may play. Who
 // may control and what may play are the host's settings (STUDIO_LIVE_CONTROL, STUDIO_LIVE_LOOKS).
+import { socketOrigin } from '../socket-origin.ts';
+
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 
 import { upgradeGlobals } from '../../public/js/pattern-core.ts';
@@ -35,7 +37,6 @@ export const controlFor = (auth: Pick<Auth, 'can'>, settings: LiveSettings) => (
 export function liveRoutes({ store, auth, hub, settings, listed }: { store: Store, auth: Auth, hub: Hub,
   settings: LiveSettings, listed: (look: StoredLook) => Listed }) {
   const mayControl = controlFor(auth, settings);
-  const host = (h: string) => h.toLowerCase().replace(/:(80|443)$/, '');
   return async (api: FastifyInstance) => {
     api.get('/live', (req) => ({ live: hub.live, now: serverNow(), control: mayControl(req.user!) }));
     api.get('/live/looks', (req) => {
@@ -47,9 +48,7 @@ export function liveRoutes({ store, auth, hub, settings, listed }: { store: Stor
       websocket: true,
       // Browsers always send Origin on a socket: it must be this site (CSRF over WebSockets).
       preValidation: async (req) => {
-        let from = '';
-        try { from = new URL(String(req.headers.origin)).host; } catch { /* missing or "null" */ }
-        if (!from || host(from) !== host(req.host)) throw new HttpError(403, 'Cross-origin socket refused.');
+        if (!socketOrigin(req.headers.origin, req.host)) throw new HttpError(403, 'Cross-origin socket refused.');
       },
     }, (socket, req) => {
       const user = req.user!;

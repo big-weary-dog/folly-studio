@@ -5,9 +5,9 @@ import { z } from 'zod';
 import type { PiSource } from '../../shared/schemas/live.ts';
 import type { RelayState } from './relay.ts';
 
-const At = z.enum(['now', 'next', 'end']);
+export const At = z.enum(['now', 'next', 'end']);
 /** Seconds the playing look fades out over, and the next in (SPEC-liveplay "Messages"). */
-const Fade = z.number().min(0.25).max(8);
+export const Fade = z.number().min(0.25).max(8);
 export const MODES = ['jukebox', 'live'] as const;
 export type Mode = (typeof MODES)[number];
 
@@ -45,6 +45,13 @@ export const FromPage = z.discriminatedUnion('type', [
 /** The most a `send` may be; every other message is held to 1 KB. */
 export const MAX_SEND = 64 * 1024;
 export type FromPage = z.infer<typeof FromPage>;
+/** Messages reserved for Studio's feed; never passed through from a browser page. */
+export const STUDIO_MESSAGES: ReadonlySet<FromPage['type']> = new Set(['send', 'mode']);
+/** Controls that make the Pi page drive Studio's stage. */
+export const STAGE_CONTROLS: ReadonlySet<FromPage['type']> = new Set([
+  'play', 'set', 'release', 'palette', 'tap', 'level', 'blackout', 'next',
+]);
+export const JUKEBOX_NOW = 'The lights are in Jukebox: Play next or Add to the end';
 
 /** default: the look's own value; held: a person moved it since the look began and has not let it go. A palette's
  * value is a name ('': the look's own, not one of data/palettes.json's). */

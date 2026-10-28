@@ -171,26 +171,26 @@ function inflateBlocks(b: Bytes, { compression, blocks, dataOffset, channelCount
 }
 
 export type Parsed = ReturnType<typeof parseFseq>;
+/** Each LED's R, G and B byte within a frame (−1 when the file does not hold it). */
+export function frameOffsets({ ranges }: Pick<Parsed, 'ranges'>, scene: Pick<Scene, 'addr' | 'order'>)
+  : [Int32Array, Int32Array, Int32Array] {
+  const size = ranges.reduce((n, [s, c]) => Math.max(n, s + c), 0), where = new Int32Array(size).fill(-1);
+  let off = 0;
+  for (const [s, c] of ranges) for (let i = 0; i < c; i++) where[s + i] = off++;
+  return scene.order.map((c) => Int32Array.from(scene.addr, (a) =>
+    (a >= 0 && a + c < size ? where[a + c]! : -1))) as [Int32Array, Int32Array, Int32Array];
+}
 const round = (v: number, places: number) => Math.round(v * 10 ** places) / 10 ** places;
 
 /** What the frames show on the scene, in LED light: one pass, no allocation per frame. `watch`: the core's FlashWatch
  * for the scene, recording (new FlashWatch(scene, limits, { record: true })); `light`: the core's ledLight(), each
  * byte's light. Channels the file does not hold count as off. */
 export function analyzeFrames(parsed: Parsed, scene: Scene, watch: FlashWatch, light: ArrayLike<number>): Analysis {
-  const { data, channelCount: cc, frameCount: F, stepMs, ranges } = parsed;
+  const { data, channelCount: cc, frameCount: F, stepMs } = parsed;
   const N = scene.count;
-  const [cR, cG, cB] = scene.order as [number, number, number];
-  // Absolute channel → its byte within a frame (−1 when the file does not hold it).
-  const size = ranges.reduce((n, [s, c]) => Math.max(n, s + c), 0);
-  const where = new Int32Array(size).fill(-1);
-  let off = 0;
-  for (const [s, c] of ranges) for (let i = 0; i < c; i++) where[s + i] = off++;
-  const [oR, oG, oB] = [new Int32Array(N), new Int32Array(N), new Int32Array(N)];
+  const [oR, oG, oB] = frameOffsets(parsed, scene);
   let covered = 0;
   for (let k = 0; k < N; k++) {
-    const a = scene.addr[k];
-    const at = (c: number) => (a >= 0 && a + c < size ? where[a + c] : -1);
-    [oR[k], oG[k], oB[k]] = [at(cR), at(cG), at(cB)];
     covered += +(oR[k] >= 0) + +(oG[k] >= 0) + +(oB[k] >= 0);
   }
 

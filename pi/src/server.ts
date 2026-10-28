@@ -5,6 +5,8 @@
 // Each socket is rate-limited as the live stage's are; the state goes to every socket ~10 a second, and what plays
 // (the source, for Studio's Live tab) when it changes. What each may send in each mode: people.ts. Binary messages
 // are relayed frames, taken only from the relay lease's holder (relay.ts).
+import { socketOrigin } from '../../src/socket-origin.ts';
+
 import { timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
@@ -155,15 +157,14 @@ export async function controlServer(o: ServerOptions) {
     acknowledge(c, msg, o.engine.send(look, msg.at, msg.by, msg.fade) ? undefined : 'The queue is full.');
   }
 
-  const host = (h: string) => h.toLowerCase().replace(/:80$/, '');
   for (const at of new Set(['', base])) app.get(`${at}/ws`, {
     websocket: true,
     // Browsers always send Origin on a socket: only this page's own may drive the lights (CSRF over WebSockets).
     preValidation: async (req, reply) => {
       if (o.ready && !o.ready()) return reply.code(503).send('The engine is starting.');
-      let from = '';
-      try { from = new URL(String(req.headers.origin)).host; } catch { /* missing or "null" */ }
-      if (!from || host(from) !== host(req.host)) return reply.code(403).send('Cross-origin socket refused.');
+      if (!socketOrigin(req.headers.origin, req.host, false)) {
+        return reply.code(403).send('Cross-origin socket refused.');
+      }
       if (clients.size >= MAX_SOCKETS) return reply.code(503).send('Too many pages open.');
     },
   }, (ws) => {

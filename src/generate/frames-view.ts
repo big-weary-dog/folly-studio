@@ -4,43 +4,15 @@
 // them, for the critique's warnings); and close-ups of the groups `closeUps` names (frames-closeup.ts).
 // Works on baked bytes from the render box; runs no look code.
 
-import { crc32, deflateSync } from 'node:zlib';
+import { encodePng as png } from '../png.ts';
 
 import { type Light, ledLight, pixelsForGroups, prepareScene } from '../../public/js/pattern-core.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
-import { parseFseq } from '../frames.ts';
+import { frameOffsets, parseFseq } from '../frames.ts';
 import { inflateBlock } from '../fseq-codec.ts';
 import { cellsOf, drawCloseUp } from './frames-closeup.ts';
 
 const WIDTH = 360;
-type Parsed = ReturnType<typeof parseFseq>;
-type Scene = ReturnType<typeof prepareScene>;
-
-/** Each LED's R, G and B byte within a frame (−1 when the file does not hold it). */
-function offsets(parsed: Parsed, scene: Scene) {
-  const size = parsed.ranges.reduce((n, [s, c]) => Math.max(n, s + c), 0), where = new Int32Array(size).fill(-1);
-  let off = 0;
-  for (const [s, c] of parsed.ranges) for (let i = 0; i < c; i++) where[s + i] = off++;
-  return scene.order.map((c) => Int32Array.from(scene.addr, (a) => (a >= 0 && a + c < size ? where[a + c]! : -1)));
-}
-
-function png(w: number, h: number, rgb: Uint8Array) {
-  const raw = Buffer.alloc((w * 3 + 1) * h);
-  for (let y = 0; y < h; y++) raw.set(rgb.subarray(y * w * 3, (y + 1) * w * 3), y * (w * 3 + 1) + 1);
-  const chunk = (type: string, data: Buffer) => {
-    const head = Buffer.alloc(8), body = Buffer.concat([Buffer.from(type, 'latin1'), data]), crc = Buffer.alloc(4);
-    head.writeUInt32BE(data.length);
-    crc.writeUInt32BE(crc32(body));
-    return Buffer.concat([head.subarray(0, 4), body, crc]);
-  };
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(w, 0);
-  ihdr.writeUInt32BE(h, 4);
-  ihdr[8] = 8;
-  ihdr[9] = 2; // 8-bit RGB
-  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr),
-    chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
-}
 
 const hex = (r: number, g: number, b: number) => `#${[r, g, b].map((v) => Math.round(v).toString(16)
   .padStart(2, '0')).join('')}`;
@@ -55,7 +27,7 @@ export function viewFrames(bytes: Uint8Array, rig: Rig, { at = [1, 4.3, 7.6], st
   closeUps = [] as readonly string[], light = undefined as Light | undefined } = {}) {
   const scene = prepareScene(rig);
   const parsed = parseFseq(bytes, { maxChannels: scene.frameChannels, decompress: inflateBlock });
-  const [oR, oG, oB] = offsets(parsed, scene) as [Int32Array, Int32Array, Int32Array];
+  const [oR, oG, oB] = frameOffsets(parsed, scene);
   const { data, channelCount: cc, frameCount: F, stepMs } = parsed, N = scene.count;
   const frameAt = (s: number) => Math.min(F - 1, Math.max(0, Math.round((s * 1000) / stepMs)));
   const rgb = (f: number, k: number) => [oR, oG, oB].map((o) => (o[k]! >= 0 ? data[f * cc + o[k]!]! : 0));

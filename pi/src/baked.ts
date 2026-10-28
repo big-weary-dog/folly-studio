@@ -8,7 +8,7 @@ import { open, type FileHandle } from 'node:fs/promises';
 import path from 'node:path';
 
 import type { Scene } from '../../public/js/pattern-core.ts';
-import { parseFseqHeader } from '../../src/frames.ts';
+import { frameOffsets, parseFseqHeader } from '../../src/frames.ts';
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/, SLICE = 1 << 20;
 
@@ -44,13 +44,9 @@ export async function loadBaked(dir: string, id: string, sha256: string, scene: 
 }
 
 function reader(fh: FileHandle, p: ReturnType<typeof parseFseqHeader>, scene: Scene): Baked {
-  // Each LED colour's place in a frame's channels, -1 where the bake has none (dark).
-  const where = new Int32Array(scene.frameChannels).fill(-1);
-  let o = 0;
-  for (const [start, count] of p.ranges) for (let i = 0; i < count; i++) where[start + i] = o++;
-  const at = new Int32Array(scene.count * 3);
+  const offsets = frameOffsets(p, scene), at = new Int32Array(scene.count * 3);
   for (let k = 0; k < scene.count; k++) {
-    for (let c = 0; c < 3; c++) at[3 * k + c] = where[scene.addr[k]! + scene.order[c]!] ?? -1;
+    for (let c = 0; c < 3; c++) at[3 * k + c] = offsets[c]![k]!;
   }
   const { channelCount, frameCount, dataOffset } = p;
   const data = new Uint8Array(channelCount);
