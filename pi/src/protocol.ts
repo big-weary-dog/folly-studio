@@ -9,7 +9,9 @@ import type { PaletteHex } from '../../public/js/core/stdlib.ts';
 
 export const ColourValue = z.union([Pick, z.tuple([z.number().min(0).max(1),
   z.number().min(0).max(1), z.number().min(0).max(1)])]);
-export type SettingValue = number | z.infer<typeof ColourValue>;
+// Saved colours also accept the core's legacy strings and RGB arrays; incoming edits use ColourValue above.
+export type SavedColour = z.infer<typeof Pick> | number[];
+export type SettingValue = number | SavedColour;
 
 export const At = z.enum(['now', 'next', 'end']);
 /** Seconds the playing look fades out over, and the next in (SPEC-liveplay "Messages"). */
@@ -66,7 +68,7 @@ export type Control = { name: string, min: number, max: number, default: number,
   kind: 'macro' | 'bpm' } | { name: 'palette', min: 0, max: 0, value: string, default: string, held: boolean,
   kind: 'palette' } | { name: string, label: string, setting: string, held: boolean, kind: 'choice',
     value: string, default: string, options: string[] } | { name: string, label: string, setting: string, held: boolean,
-    kind: 'color', value: z.infer<typeof ColourValue>, default: z.infer<typeof ColourValue>, palette: PaletteHex };
+    kind: 'color', value: SavedColour, default: SavedColour, palette: PaletteHex };
 /** duration: seconds of what it plays (a bake not read yet: null). */
 export type QueueItem = { key: string, id: string, title: string, kind: 'look' | 'live' | 'baked', by?: string,
   duration: number | null };

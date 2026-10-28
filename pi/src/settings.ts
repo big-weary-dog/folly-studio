@@ -4,7 +4,8 @@ import { flatModules, mapEvery } from '../../public/js/core/tree.ts';
 import { paramMods } from '../../public/js/core/globals.ts';
 import { DEFAULT_PALETTE, type PaletteHex } from '../../public/js/core/stdlib.ts';
 import type { PiLook } from './library.ts';
-import { ColourValue, type Control, type SettingValue } from './protocol.ts';
+import { ColourValue, type Control, type SavedColour, type SettingValue } from './protocol.ts';
+import { readPick } from '../../public/js/core/picks.ts';
 
 type Setting = Extract<Control, { kind: 'choice' | 'color' }>;
 export function liveSettings(look: PiLook, layers: PreparedLayer[]) {
@@ -23,7 +24,7 @@ export function liveSettings(look: PiLook, layers: PreparedLayer[]) {
         const name = JSON.stringify([layer.id, m.id, key]);
         const label = [layer.title || layer.id, m.title || m.id, d.label || key].join(' · ');
         const own = d.type === 'choice' ? link.P[key] as string
-          : ColourValue.safeParse(link.saved[key]).data ?? d.value;
+          : readPick(link.saved[key]) ? link.saved[key] as SavedColour : d.value;
         const c: Setting = d.type === 'choice'
           ? { name, label, setting: d.label || key, kind: 'choice', value: own as string, default: own as string,
             options: d.options, held: false }

@@ -9,7 +9,7 @@ import { flatModules, mapEvery } from '../core/tree.ts';
 import { randomId } from './kit.tsx';
 
 /** A layer as the Studio holds it (SPEC "Modules"): a chain, never code and params; `enabled: false` when silent. */
-export type Layer = Extract<Saved, { modules: unknown }>;
+export type Layer = Extract<Saved, { modules: unknown }> & { enabled?: boolean };
 type Kind = Module['kind'];
 type Blend = Layer['blend'];
 

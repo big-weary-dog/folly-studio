@@ -13,6 +13,26 @@ const offered = () => resolveLook({ id: 'offered', title: 'Offered', layers: [{ 
     live: ['mode', 'colours', 'speed', 'gone'] }] }] }, lib);
 const name = (key: string) => JSON.stringify(['layer', 'chase', key]);
 
+test('a saved short hex stays the default, source and released colour', () => {
+  const own = offered();
+  own.layers[0].modules![0].params!.colours = '#f00';
+  const scene = prepareScene(rig), layers = own.layers.map((l) => prepareLayer(scene, l, compileLayer(l)));
+  const live = liveLook(own, undefined, layers), rgb = new Float32Array(scene.count * 3);
+  renderFrame(scene, layers, 0, rgb, live.look);
+  const initial = Float32Array.from(rgb);
+  assert.equal(live.controls.find((c) => c.name === name('colours'))!.default, '#f00');
+  assert.equal(live.layers()[0].modules![0].params!.colours, '#f00');
+  live.set(name('colours'), 'body', 0);
+  live.releaseAll(0);
+  renderFrame(scene, layers, 0, rgb, live.look);
+  assert.deepEqual(rgb, initial);
+  assert.equal(live.layers()[0].modules![0].params!.colours, '#f00');
+  const r = engineOn([own]); r.engine.play('offered'); r.run(5);
+  r.engine.set(name('colours'), 'accent');
+  r.engine.jukebox();
+  assert.equal((r.engine.source()!.layers[0] as LayerInput).modules![0].params!.colours, '#f00');
+});
+
 test('only creator-offered eligible params appear; IDs survive rename/reorder, disabled parents offer none', () => {
   const r = engineOn([offered(), oneModule('old', 'single-strand')]);
   r.engine.play('old'); r.run(5);
