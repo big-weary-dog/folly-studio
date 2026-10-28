@@ -5,10 +5,12 @@ From "Pi powered on" to "lights playing from the hub", with no internet at the s
 | Setup | What runs on the Pi | Pages |
 | --- | --- | --- |
 | **Engine only** | `studio-live`, Studio Live, started by the ops hub: our library's looks | `:4043/` |
-| **Engine + Studio** | the same, plus `folly-studio`: Studio offline, on at boot, sending nothing | `:4043/` `:8780/` |
+| **Engine + Studio** | the same, plus `folly-studio`: Studio offline, started by the ops hub, sending nothing | `:4043/` `:8780/` |
 
 The ops hub's link is `http://192.168.8.172:4043/` in both. With Studio, curators also reach the engine at
 `:8780/pi/`. What the engine is: [README.md](README.md).
+Studio is installed without boot enablement; updates disable any earlier enablement. The installer starts it
+once to check it answers. After that, the ops hub starts and stops it.
 
 ## Tonight, at home (online)
 

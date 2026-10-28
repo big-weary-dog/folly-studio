@@ -9,7 +9,7 @@ Two units share one installed bundle:
 
 | Unit | What | Started by |
 | --- | --- | --- |
-| `folly-studio` | Studio (`server.ts`) on `:8780`, niced (`Nice=5`) | boot (enabled) |
+| `folly-studio` | Studio (`server.ts`) on `:8780`, niced (`Nice=5`) | the ops hub |
 | `studio-live` | the live engine (`pi/main.ts`), the only thing that sends to fppd ([INSTALL.md](INSTALL.md)) | the ops hub |
 
 Studio shows the engine's control page to curators at `/pi/` (their header's **Lights**). Studio itself sends
@@ -61,7 +61,7 @@ and bubblewrap; the Pi builds and downloads nothing. The installer stages and ch
 
 ## 2. Settings
 
-Studio's data goes on the SD card, outside the installed tree, at `/home/fpp/folly-data` (so it boots without the SSD).
+Studio's data goes on the SD card, outside the installed tree, at `/home/fpp/folly-data` (so it runs without the SSD).
 Its settings go in `/home/fpp/.config/folly-studio/studio.env`:
 
 ```sh
@@ -108,10 +108,14 @@ see the stage alone.
 
 ## 3. The Studio unit
 
+Install the unit without enabling it at boot. The ops hub starts and stops Studio.
+Disable any boot enablement left by an earlier install:
+
 ```sh
 sudo cp /home/fpp/folly-studio/pi/folly-studio.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now folly-studio
+sudo systemctl disable folly-studio
+sudo systemctl start folly-studio    # once to check it answers
 journalctl -u folly-studio -n 20 --no-pager
 ```
 
