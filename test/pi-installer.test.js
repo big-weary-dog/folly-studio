@@ -191,3 +191,51 @@ if [ "$1" = -p ]; then echo 22.6.0; else exit 1; fi
   assert.match(r.stderr, /needs 22.18 or later/);
   assert.ok(fs.existsSync(`${f.home}/folly-studio/old-marker`));
 });
+
+for (const enabled of [false, true]) {
+  for (const fails of [false, true]) {
+    test(`unit activation${fails ? ' rollback' : ''} leaves previously ${enabled ? 'enabled' : 'disabled'} Studio disabled`,
+      () => {
+        const f = fixture();
+        // Relocate the production home so the real unit branch runs entirely in the scratch tree.
+        const script = `${f.dir}/install.sh`;
+        write(script, fs.readFileSync(installer, 'utf8').replaceAll('/home/fpp', f.home)
+          .replace('node=/usr/bin/node', `node=${process.execPath}`));
+        write(`${f.dir}/enabled`, enabled ? 'yes' : 'no');
+        write(`${f.dir}/units.sh`, `
+systemctl() {
+  echo "$*" >> '${f.dir}/calls'
+  case "$1" in
+    is-active) return 0 ;;
+    is-enabled) [ "$(cat '${f.dir}/enabled')" = yes ] ;;
+    enable) echo yes > '${f.dir}/enabled' ;;
+    disable) echo no > '${f.dir}/enabled' ;;
+  esac
+}
+sudo() {
+  case "$1" in
+    systemctl) shift; systemctl "$@" ;;
+    cp|rm) return 0 ;;
+    *) echo "unexpected sudo: $*" >&2; return 1 ;;
+  esac
+}
+curl() {
+  case "$*" in
+    *:8780/*) return ${fails ? 1 : 0} ;;
+    *:4043/*) return 0 ;;
+    *) command curl "$@" ;;
+  esac
+}
+`);
+        const r = spawnSync('bash', [script, '--bundle', `${f.dir}/bundle.tgz`, '--pin', '2468',
+          '--studio', '--admin', 'crew'], { encoding: 'utf8', timeout: 35000,
+          env: { ...process.env, BASH_ENV: `${f.dir}/units.sh` } });
+        assert.equal(r.status, fails ? 1 : 0, r.stdout + r.stderr);
+        assert.equal(fs.readFileSync(`${f.dir}/enabled`, 'utf8').trim(), 'no');
+        const calls = fs.readFileSync(`${f.dir}/calls`, 'utf8').trim().split('\n');
+        assert.equal(calls.filter(c => c === 'restart folly-studio').length, fails ? 2 : 1);
+        assert.ok(!calls.some(c => c.startsWith('enable ')));
+        assert.equal(fs.existsSync(`${f.home}/folly-studio/old-marker`), fails);
+      });
+  }
+}
