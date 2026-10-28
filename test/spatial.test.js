@@ -11,6 +11,20 @@ import {
   renderFrame, resolveParams, STDLIB, toChannels,
 } from '../public/js/pattern-core.ts';
 import { folly, mini } from './fixtures/rigs.js';
+import { blur, blurState } from '../public/js/core/spatial.ts';
+
+test('prepared blur weights match dynamic weights exactly, including hidden RGB at zero alpha', () => {
+  const S = prepareScene(mini), idx = Int32Array.from({ length: S.count }, (_, i) => i);
+  const prepared = blurState(S, idx, [0.7]), dynamic = blurState(S, idx);
+  for (const empty of [false, true]) {
+    const a = Float64Array.from({ length: idx.length * 4 }, (_, i) =>
+      (i & 3) === 3 ? (empty || i % 8 === 3 ? 0 : 0.6) : (i % 17 - 3) / 10);
+    const b = a.slice();
+    blur(S, idx, prepared, a, 0.7, 'both', 0.4);
+    blur(S, idx, dynamic, b, 0.7, 'both', 0.4);
+    assert.deepEqual(a, b);
+  }
+});
 
 const lib = (name) => readFileSync(new URL(`../public/patterns/${name}.js`, import.meta.url), 'utf8');
 const scene = prepareScene(folly);

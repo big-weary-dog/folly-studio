@@ -52,7 +52,8 @@ function buildNear(S: Scene, L: Pick<Layer, 'idx' | 'bounds'>) {
     }
   }
   // Each cell's candidates, once it is first asked: the LEDs in the cells round it and round its nearest.
-  const lists: (Int32Array | null)[] = new Array(cells).fill(null), seen = new Int32Array(m).fill(-1);
+  const lists: (number[] | null)[] = new Array(cells).fill(null);
+  const seen = new Int32Array(m).fill(-1);
   function candidates(c: number) {
     const out: number[] = [], k0 = near[c];
     const add = (i: number, jy: number, kz: number) => {
@@ -68,15 +69,21 @@ function buildNear(S: Scene, L: Pick<Layer, 'idx' | 'bounds'>) {
     };
     add(Math.floor(c / (ny * nz)), Math.floor(c / nz) % ny, c % nz);
     if (k0 >= 0) add(cx(S.X[k0]), cy(S.Y[k0]), cz(S.Z[k0]));
-    return (lists[c] = Int32Array.from(out));
+    const flat: number[] = [];            // contiguous doubles avoid three rig-array gathers per candidate
+    for (let j = 0; j < out.length; j++) {
+      const k = out[j];
+      flat.push(S.X[k], S.Y[k], S.Z[k], k);
+    }
+    return (lists[c] = flat);
   }
   /** The rig index of the layer's LED nearest (X, Y, Z) among its cell's candidates (the lowest of equals). */
   function nearest(X: number, Y: number, Z: number) {
     const c = at(X, Y, Z), list = lists[c] || candidates(c);
     let best = -1, bd = Infinity;
-    for (let j = 0; j < list.length; j++) {
-      const k = list[j], d = d2(k, X, Y, Z);
-      if (d < bd || (d === bd && k < best)) { bd = d; best = k; }
+    for (let j = 0; j < list.length; j += 4) {
+      const dx = list[j] - X, dy = list[j + 1] - Y, dz = list[j + 2] - Z;
+      const d = dx * dx + dy * dy + dz * dz;
+      if (d < bd || (d === bd && list[j + 3] < best)) { bd = d; best = list[j + 3]; }
     }
     return best;
   }

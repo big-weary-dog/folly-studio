@@ -79,7 +79,9 @@ function stagesOf(S: Scene, chain: Link[], idx: Int32Array) {
       src.keep = new Float64Array(4 * m);
     }
   });
-  return { buf: new Float64Array(4 * m), ...blurState(S, idx) };
+  const radii = chain.filter((M) => M.op === 'blur' && !M.mods.some((mod) => mod.key === 'radius'))
+    .map((M) => Number(M.P.radius));
+  return { buf: new Float64Array(4 * m), ...blurState(S, idx, radii) };
 }
 export type Stages = ReturnType<typeof stagesOf>;
 
@@ -241,6 +243,7 @@ const clock = globalThis.performance ? performance.now.bind(performance) : Date.
 export function renderFrame(scene: Scene, layers: readonly (PreparedLayer | null)[] | null | undefined, t: number,
   out?: Float32Array | null, look?: PreparedLook | null,
   result?: { rgb: Float32Array, errors: { id: string | null, module?: string | null, error: string }[] }) {
+  RUN.frame++;
   const N = scene.count;
   const rgb = out && out.length >= N * 3 ? out : new Float32Array(N * 3);
   rgb.fill(0, 0, N * 3);

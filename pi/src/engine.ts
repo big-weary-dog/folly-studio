@@ -3,7 +3,7 @@
 import { FlashGuard } from '../../public/js/flash-guard.ts';
 import {
   compileLayer, type Light, ledChannels, ledLight, prepareLayer, prepareLight, prepareScene,
-  renderFrame, setLibrary,
+  setLibrary,
 } from '../../public/js/pattern-core.ts';
 import type { PiSource } from '../../shared/schemas/live.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
@@ -67,6 +67,7 @@ export function createEngine(o: EngineOptions) {
   // Each look compiled and prepared as it arrives (or why it cannot play), never in a frame: preparing a look that
   // warps builds its grid, up to 100 ms. A bake is read when it is next (ready()) and has nothing more to prepare.
   const prepared = new WeakMap<Item, Playing | Error>();
+  const scratch = new Float32Array(scene.count * 3);
 
   function own(id: string, by?: string): Item | null {
     const look = o.looks().get(id)?.look;
@@ -81,24 +82,14 @@ export function createEngine(o: EngineOptions) {
   function prepare<T extends Item | null>(item: T): T {
     if (!item) return item;
     try {
-      prepared.set(item, load(item));
+      const p = load(item);
+      // Descending time exercises this instance; playback at zero resets stateful modules as a seek does.
+      if (!p.baked) for (let f = WARM_FRAMES; f > 0; f--) renderPlaying(p, scene, f, dt, scratch);
+      prepared.set(item, p);
     } catch (e) {
       prepared.set(item, e as Error);
     }
     return item;
-  }
-
-  // Warm the engine's own looks so their first frames are not their slowest.
-  const scratch = new Float32Array(scene.count * 3);
-  for (const { look } of o.looks().values()) {
-    if (!look) continue;
-    try {
-      const layers = layersOf(look), live = liveLook(look, undefined, layers, scene);
-      for (let f = 0; f < WARM_FRAMES; f++) {
-        live.step(f * dt, dt);
-        renderFrame(scene, layers, f * dt, scratch, live.look);
-      }
-    } catch { /* it says why when it is played */ }
   }
 
   // The safe look, prepared ahead for the flash guard to dip to (the engine does not start without it); the next one

@@ -100,11 +100,16 @@ function wireGraph(S: Scene) {
 
 /** A layer's blur state: each pixel's index in the layer (−1 outside it), and scratch buffers of its rgba: the
  * colours' light, the blurred. */
-export function blurState(S: Scene, idx: Int32Array) {
+export function blurState(S: Scene, idx: Int32Array, radii: number[] = []) {
   const loc = new Int32Array(S.count).fill(-1);
   for (let j = 0; j < idx.length; j++) loc[idx[j]] = j;
-  neighbourGraph(S);                       // built now, at prepare time, not in the first frame
-  return { loc, lit: new Float64Array(idx.length * 4), tmp: new Float64Array(idx.length * 4) };
+  const g = neighbourGraph(S), kernels = new Map<number, { wire: Kernel, space: Kernel }>();
+  for (const r0 of radii) {
+    const r = Math.min(MAX_RADIUS, r0);
+    if (r > 0 && !kernels.has(r)) kernels.set(r, { wire: kernel(g.wire, idx, loc, r),
+      space: kernel(g.space, idx, loc, r) });
+  }
+  return { loc, kernels, lit: new Float64Array(idx.length * 4), tmp: new Float64Array(idx.length * 4) };
 }
 type BlurState = ReturnType<typeof blurState>;
 
@@ -113,6 +118,33 @@ const LUT = 256;
 const EXP = new Float64Array(LUT + 2);
 for (let i = 0; i < EXP.length; i++) EXP[i] = Math.exp(-2 * i / LUT);
 const SUM = new Float64Array(5);          // weight, then the weighted alpha, red, green and blue
+type Kernel = { off: Int32Array, nb: Int32Array, w: Float64Array, total: Float64Array };
+function kernel(g: Neighbours, idx: Int32Array, loc: Int32Array, r: number): Kernel {
+  const off = new Int32Array(idx.length + 1), nb: number[] = [], w: number[] = [], inv = LUT / (r * r);
+  const total = new Float64Array(idx.length);
+  for (let j = 0; j < idx.length; j++) {
+    const k = idx[j];
+    for (let e = g.off[k]; e < g.off[k + 1] && g.d[e] <= r; e++) {
+      const n = loc[g.nb[e]];
+      if (n < 0) continue;
+      const x = g.d[e] * g.d[e] * inv, i = x | 0;
+      const weight = EXP[i] + (EXP[i + 1] - EXP[i]) * (x - i);
+      nb.push(4 * n); w.push(weight); total[j] += weight;
+    }
+    off[j + 1] = nb.length;
+  }
+  return { off, nb: Int32Array.from(nb), w: Float64Array.from(w), total };
+}
+function gatherKernel(g: Kernel, j: number, buf: Float64Array) {
+  let A = 0, R = 0, Gr = 0, B = 0;
+  for (let e = g.off[j], end = g.off[j + 1]; e < end; e++) {
+    const o = g.nb[e], alpha = buf[o + 3];
+    if (alpha === 0) continue;
+    const wa = g.w[e] * alpha;
+    A += wa; R += wa * buf[o]; Gr += wa * buf[o + 1]; B += wa * buf[o + 2];
+  }
+  SUM[0] += g.total[j]; SUM[1] += A; SUM[2] += R; SUM[3] += Gr; SUM[4] += B;
+}
 
 /** Adds k's neighbours in graph g within r, those in the layer (loc ≥ 0), into SUM. */
 function gather(g: Neighbours, k: number, r: number, inv: number, loc: Int32Array, buf: Float64Array) {
@@ -142,12 +174,24 @@ export function blur(S: Scene, idx: Int32Array, st: BlurState, buf: Float64Array
   if (!(r > 0) || !(mix > 0)) return;
   const g = neighbourGraph(S), wire = mode !== 'space', space = mode !== 'wire', self = wire && space ? 2 : 1;
   const inv = LUT / (r * r), loc = st.loc, lit = st.lit, tmp = st.tmp, m = idx.length;
-  for (let i = 0; i < 4 * m; i++) lit[i] = (i & 3) === 3 ? buf[i] : toLight(buf[i]);
+  let empty = true;
+  for (let o = 3; o < 4 * m; o += 4) if (buf[o] !== 0) { empty = false; break; }
+  if (empty) {
+    if (mix === 1) buf.fill(0);
+    else for (let i = 0; i < 4 * m; i++) buf[i] += (0 - buf[i]) * mix;
+    return;
+  }
+  const cached = st.kernels.get(r);
+  for (let o = 0; o < 4 * m; o += 4) {
+    const a = buf[o + 3];
+    lit[o] = a === 0 ? 0 : toLight(buf[o]); lit[o + 1] = a === 0 ? 0 : toLight(buf[o + 1]);
+    lit[o + 2] = a === 0 ? 0 : toLight(buf[o + 2]); lit[o + 3] = a;
+  }
   for (let j = 0; j < m; j++) {
     const k = idx[j], o = 4 * j, a = lit[o + 3] * self;
     SUM[0] = self; SUM[1] = a; SUM[2] = a * lit[o]; SUM[3] = a * lit[o + 1]; SUM[4] = a * lit[o + 2];
-    if (wire) gather(g.wire, k, r, inv, loc, lit);
-    if (space) gather(g.space, k, r, inv, loc, lit);
+    if (wire) { if (cached) gatherKernel(cached.wire, j, lit); else gather(g.wire, k, r, inv, loc, lit); }
+    if (space) { if (cached) gatherKernel(cached.space, j, lit); else gather(g.space, k, r, inv, loc, lit); }
     const A = SUM[1];
     tmp[o + 3] = A / SUM[0];
     for (let c = 0; c < 3; c++) tmp[o + c] = A > 0 ? toValue(SUM[2 + c] / A) : 0;

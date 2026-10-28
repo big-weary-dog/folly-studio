@@ -3,15 +3,15 @@
   "areas": {
     ".": { "lines": 172, "reason": "The root holds the server entry point and the Vite, Vitest and Playwright configurations." },
     "fleet-box": { "lines": 260, "reason": "The boxed checker validates generated looks against the library, rig, module chains and light settings." },
-    "pi": { "lines": 6027, "reason": "Prod export files load each look independently with stable origin ids, duplicate ordering and playback tests, alongside per-layer transitions, live controls, playback and flash guard." },
+    "pi": { "lines": 6065, "reason": "Live crossfades table the output gamma with byte-error coverage and warm the actual playing instance, alongside controls, playback and flash guard." },
     "public": { "lines": 56, "reason": "The app and sandbox HTML shells load their browser entry points." },
     "public/css": { "lines": 2460, "reason": "Creator opt-in rows and Live Play role swatches join responsive Studio, phone disclosures, navigation and full-size tap targets." },
-    "public/js": { "lines": 18800, "reason": "Creator opt-in checkboxes and saved prepared-link param metadata support Live Play settings without recompilation, alongside responsive Studio controls and Admin tasks." },
-    "public/patterns": { "lines": 1849, "reason": "Library examples add mode-specific Chase, Streaks, Replay and Reorder controls and upgrades for duplicate Recolour and Ring-turn values." },
+    "public/js": { "lines": 18860, "reason": "Prepared blur kernels cache exact weights and sums, nearest-LED cells store flat coordinates, and integrated clocks cache repeated reads within a frame." },
+    "public/patterns": { "lines": 1885, "reason": "Streaks tables per-lane random values and Chase tables common strand ids in frame(), retaining exact fallback calculations outside the tables." },
     "render-box": { "lines": 260, "reason": "Parent PID checks stop orphaned library-only bakes between frames, alongside deterministic IDs and streaming FSEQ output." },
     "shared": { "lines": 1616, "reason": "Shared schemas and pure rules define looks, generated compositions, API data, permissions and playback." },
     "src": { "lines": 10342, "reason": "The server includes shared FSEQ header validation for bounded-memory Pi playback, request-matched queue acceptance and ordered verification timestamps, alongside authentication, storage, generation, baking, frame delivery, live sockets and administration." },
-    "test": { "lines": 25150, "reason": "Scratch installer unit rehearsals cover disabling prior boot enablement, activation and rollback alongside creator controls, sparse FSEQ, socket Origin and PNG regressions." },
+    "test": { "lines": 25165, "reason": "Both-rig output hashes cover warmed playback, and prepared blur kernels are checked against dynamic weights, alongside installer, creator controls, sparse FSEQ, socket Origin and PNG regressions." },
     "tools": { "lines": 2380, "reason": "Tools build and check rig and palette data, check the Pi bundle holds nothing secret, enforce budgets, support development and backups, and benchmark rendering." }
   }
 }
