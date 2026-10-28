@@ -1,6 +1,6 @@
 # Folly Studio on the FPP Pi, offline (pi/STUDIO.md): the editor, previews and looks for phones on the Pi's network.
-# Enabled at boot: it sends nothing to the lights (only studio-live does), so it may run over the night show. It runs
-# niced below the engine, so a busy Studio never costs the lights a frame.
+# Installed disabled at boot; the ops hub starts and stops it. Studio sends nothing to the lights (only studio-live
+# does), and runs niced below the engine, so a busy Studio never costs the lights a frame.
 [Unit]
 Description=Folly Studio (offline, on the Pi)
 After=network-online.target
