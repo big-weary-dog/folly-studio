@@ -1,0 +1,431 @@
+{
+  "title": "Dusk Nave",
+  "summary": "A saturated ground-to-tip dusk gradient with a two-minute illumination phase and shared tilt and sweep.",
+  "chain": 2,
+  "duration": 360,
+  "globals": {
+    "palette": {
+      "low": [
+        "#3e45ff",
+        "#aa25ed"
+      ],
+      "body": [
+        "#fc3c77",
+        "#ff771d"
+      ],
+      "accent": [
+        "#ffbe23",
+        "#ef3da0"
+      ],
+      "high": [
+        "#ffe5a0"
+      ]
+    },
+    "macros": {
+      "tilt": {
+        "value": 0,
+        "min": 0,
+        "max": 1
+      },
+      "sweep": {
+        "value": 0,
+        "min": 0,
+        "max": 1
+      }
+    },
+    "live": [
+      "tilt",
+      "sweep"
+    ]
+  },
+  "layers": [
+    {
+      "id": "arch-main",
+      "title": "Main arches",
+      "tags": [
+        "arch-main"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": "low body accent high",
+            "direction": "up",
+            "bars": 6,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": {
+              "mod": "lfo",
+              "shape": "sine",
+              "rate": 0.008333333333333333,
+              "unit": "hz",
+              "center": 0.82,
+              "depth": 0.16
+            }
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "rotate",
+          "params": {
+            "angle": {
+              "mod": "global",
+              "name": "tilt",
+              "from": 0,
+              "to": 0.16
+            },
+            "spin": {
+              "mod": "global",
+              "name": "sweep",
+              "from": 0,
+              "to": 0.03333333333333333
+            },
+            "plane": "facade"
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "anchor",
+          "params": {
+            "tag": "arch-main",
+            "which": "first",
+            "shape": "facade",
+            "lineup": true
+          }
+        },
+        {
+          "id": "m4",
+          "ref": "colour-wash",
+          "params": {
+            "colours": "low1",
+            "brightness": 0.7,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    },
+    {
+      "id": "arch-mini",
+      "title": "Mini arches",
+      "tags": [
+        "arch-mini"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": "accent high body low",
+            "direction": "up",
+            "bars": 6,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": {
+              "mod": "lfo",
+              "shape": "sine",
+              "rate": 0.008333333333333333,
+              "unit": "hz",
+              "center": 0.82,
+              "depth": 0.16
+            }
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "rotate",
+          "params": {
+            "angle": {
+              "mod": "global",
+              "name": "tilt",
+              "from": 0,
+              "to": 0.16
+            },
+            "spin": {
+              "mod": "global",
+              "name": "sweep",
+              "from": 0,
+              "to": 0.03333333333333333
+            },
+            "plane": "facade"
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "anchor",
+          "params": {
+            "tag": "arch-mini",
+            "which": "first",
+            "shape": "facade",
+            "lineup": true
+          }
+        },
+        {
+          "id": "m4",
+          "ref": "colour-wash",
+          "params": {
+            "colours": "body1",
+            "brightness": 0.7,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    },
+    {
+      "id": "arch-quad",
+      "title": "Quad arches",
+      "tags": [
+        "arch-quad"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": "accent low body high",
+            "direction": "up",
+            "bars": 6,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": {
+              "mod": "lfo",
+              "shape": "sine",
+              "rate": 0.008333333333333333,
+              "unit": "hz",
+              "center": 0.72,
+              "depth": 0.16
+            }
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "rotate",
+          "params": {
+            "angle": {
+              "mod": "global",
+              "name": "tilt",
+              "from": 0,
+              "to": 0.16
+            },
+            "spin": {
+              "mod": "global",
+              "name": "sweep",
+              "from": 0,
+              "to": 0.03333333333333333
+            },
+            "plane": "facade"
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "anchor",
+          "params": {
+            "tag": "arch-quad",
+            "which": "first",
+            "shape": "facade",
+            "lineup": true
+          }
+        },
+        {
+          "id": "m4",
+          "ref": "colour-wash",
+          "params": {
+            "colours": "accent2",
+            "brightness": 0.7,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    },
+    {
+      "id": "spire",
+      "title": "Spires",
+      "tags": [
+        "spire"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": "body accent high low",
+            "direction": "up",
+            "bars": 6,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": {
+              "mod": "lfo",
+              "shape": "sine",
+              "rate": 0.008333333333333333,
+              "unit": "hz",
+              "center": 0.82,
+              "depth": 0.16
+            }
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "rotate",
+          "params": {
+            "angle": {
+              "mod": "global",
+              "name": "tilt",
+              "from": 0,
+              "to": 0.16
+            },
+            "spin": {
+              "mod": "global",
+              "name": "sweep",
+              "from": 0,
+              "to": 0.03333333333333333
+            },
+            "plane": "facade"
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "anchor",
+          "params": {
+            "tag": "spire",
+            "which": "first",
+            "shape": "facade",
+            "lineup": true
+          }
+        },
+        {
+          "id": "m4",
+          "ref": "colour-wash",
+          "params": {
+            "colours": "low2",
+            "brightness": 0.7,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    },
+    {
+      "id": "spirelet",
+      "title": "Spirelets",
+      "tags": [
+        "spirelet"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": "accent high low body",
+            "direction": "up",
+            "bars": 6,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": {
+              "mod": "lfo",
+              "shape": "sine",
+              "rate": 0.008333333333333333,
+              "unit": "hz",
+              "center": 0.82,
+              "depth": 0.16
+            }
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "rotate",
+          "params": {
+            "angle": {
+              "mod": "global",
+              "name": "tilt",
+              "from": 0,
+              "to": 0.16
+            },
+            "spin": {
+              "mod": "global",
+              "name": "sweep",
+              "from": 0,
+              "to": 0.03333333333333333
+            },
+            "plane": "facade"
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "anchor",
+          "params": {
+            "tag": "spirelet",
+            "which": "first",
+            "shape": "facade",
+            "lineup": true
+          }
+        },
+        {
+          "id": "m4",
+          "ref": "colour-wash",
+          "params": {
+            "colours": "body2",
+            "brightness": 0.7,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    },
+    {
+      "id": "rose",
+      "title": "Rose window",
+      "tags": [
+        "rose"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "colour-wash",
+          "params": {
+            "colours": {
+              "pick": "high accent body",
+              "blend": "smooth",
+              "rotate": {
+                "mod": "lfo",
+                "shape": "sine",
+                "rate": 0.008333333333333333,
+                "unit": "hz",
+                "center": 0.25,
+                "depth": 0.25
+              }
+            },
+            "speed": 0,
+            "brightness": {
+              "mod": "lfo",
+              "shape": "sine",
+              "rate": 0.008333333333333333,
+              "unit": "hz",
+              "center": 0.82,
+              "depth": 0.16
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
