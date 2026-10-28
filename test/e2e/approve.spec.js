@@ -2,6 +2,7 @@
 // has no bake in the real render box (the card says Baking…), then marks it reviewed; frames that fail the flash check
 // ask the curator's reason first. Screenshots land in APPROVE_SHOTS when set, else the test's output folder.
 import path from 'node:path';
+import { readFile } from 'node:fs/promises';
 
 import { expect, test } from './studio.js';
 
@@ -43,6 +44,7 @@ for (const width of [390, 1366]) {
     await approved.click();
     await expect(page.locator('.card')).toHaveCount(0);
     await expect(page.getByText('No approved looks match.', { exact: true })).toBeVisible();
+    if (width >= 900) await expect(page.getByRole('button', { name: 'Export all' })).toBeDisabled();
     await approved.click();
     await shot('1-before');
     if (width < 900) await card('Breathe').locator('summary').click();
@@ -59,6 +61,32 @@ for (const width of [390, 1366]) {
     const search = page.getByRole('searchbox', { name: 'Search looks' });
     await search.fill('Strobe');
     await expect(page.locator('.card')).toHaveCount(0);
+    if (width >= 900) {
+      await test.step('Export all follows Approved and ignores search, with matching filenames and counts', async () => {
+        for (const onlyApproved of [true, false]) {
+          if (!onlyApproved) await approved.click();
+          const count = onlyApproved ? 1 : 2;
+          let release;
+          const held = new Promise((resolve) => { release = resolve; });
+          await page.route('**/api/looks/*', async (route) => { await held; await route.continue(); });
+          const downloading = page.waitForEvent('download');
+          await page.getByRole('button', { name: 'Export all' }).click();
+          try {
+            await expect(page.locator('.busy-note')).toHaveText(`Exporting 0 of ${count}…`);
+          } finally { release(); }
+          const file = await downloading;
+          await page.unroute('**/api/looks/*');
+          const scope = onlyApproved ? 'gallery-approved' : 'gallery';
+          expect(file.suggestedFilename()).toMatch(new RegExp(`^folly-looks-${scope}-\\d{4}-\\d\\d-\\d\\d\\.json$`));
+          const { looks } = JSON.parse(await readFile(await file.path(), 'utf8'));
+          expect(looks.map((l) => l.title).sort()).toEqual(onlyApproved
+            ? [`Breathe ${width}`] : [`Breathe ${width}`, `Strobe ${width}`]);
+          await expect(page.getByText(`Exported ${count} look${count === 1 ? '' : 's'}.`, { exact: true }))
+            .toBeVisible();
+        }
+        await approved.click();
+      });
+    }
     await search.fill('Breathe');
     await expect(card('Breathe')).toBeVisible();
     await search.fill('');

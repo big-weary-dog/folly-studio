@@ -97,7 +97,8 @@ Duplicate ids use the last entry: directories in supplied order, `.json` filenam
 order within a file (including unplayable entries). The installer summary counts looks, including unplayable
 entries, rather than files; its existing self-test refuses an install containing unplayable looks.
 
-On prod, sign in on the laptop and use My looks or Gallery → **Export all**, put `folly-looks-*.json` in `looks/`
+On prod, sign in on the laptop and use My looks or Gallery → **Export all** (turn on **Approved** for only
+approved shared looks), put `folly-looks-*.json` in `looks/`
 beside `install.sh`, then install. The Pi does not fetch looks from prod. With Studio on the Pi, the same file
 can instead go through My looks → **Import**.
 
@@ -114,10 +115,12 @@ the look's words, `chain`, and what plays (SPEC-history "What plays"), as the St
 are random, so one Studio's never stands for another's); `GET /api/looks/:id` answers it when set. A file without
 `origin` (written before it was) imports as a new look each time.
 Several looks go in one file as `{ "looks": [look file] }` (`folly-looks-mine-<date>.json`,
-`folly-looks-gallery-<date>.json`).
+`folly-looks-gallery-<date>.json`, or `folly-looks-gallery-approved-<date>.json`).
 
-- **Export many.** My looks and the Gallery have **Export all**: every look the page lists (not just those a search
-  shows), fetched one at a time with `GET /api/looks/:id`, as one file. A look gone since the list (404) is left
+- **Export many.** My looks and the Gallery have **Export all**: all own looks, or all shared looks in the Gallery.
+  With the Gallery's **Approved** toggle on, only reviewed looks are exported, with `gallery-approved` in the
+  filename. Search never narrows the export. Busy progress and the completion toast count the looks being exported.
+  Looks are fetched one at a time with `GET /api/looks/:id`, as one file. A look gone since the list (404) is left
   out; any other failure downloads nothing and names the look, so a backup is never quietly short.
 - **Import.** My looks has **Import**: a file picker taking one or more files, each a look file or a file of looks.
   Before saving, a preview names additions and replacements. Cancel changes nothing; Import as copies drops origins.
