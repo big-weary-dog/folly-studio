@@ -33,6 +33,24 @@
   },
   "overrides": [
     {
+      // The engine uses Node and the pure browser core, never page UI or code generation.
+      "files": ["pi/src/**"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "paths": [
+            { "name": "node:vm", "message": "code generation lives only in the pattern compiler and the render box" },
+            { "name": "node:child_process", "message": "processes only box untrusted work" }
+          ],
+          "patterns": [
+            { "group": ["**/public/**", "!**/public/js/pattern-core.*", "!**/public/js/core/**",
+              "!**/public/js/flash-guard.*", "!**/public/js/fseq.*", "!**/public/js/scrub.*",
+              "!**/public/**/*.json"], "message": "Pi code takes only the pure core, flash guard, fseq, scrub and data from public/" },
+            { "group": ["**/page/**"], "message": "Pi engine code does not import its browser page" }
+          ]
+        }]
+      }
+    },
+    {
       "files": ["src/**", "server.ts"],
       "rules": {
         "no-restricted-imports": ["error", {

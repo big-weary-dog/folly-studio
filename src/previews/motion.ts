@@ -5,7 +5,7 @@
 
 import { prepareScene } from '../../public/js/pattern-core.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
-import { parseFseq } from '../frames.ts';
+import { frameOffsets, parseFseq } from '../frames.ts';
 import { inflateBlock } from '../fseq-codec.ts';
 
 export const WINDOW_S = 5;
@@ -21,14 +21,6 @@ export type Camera = (rig: Rig, samples: Uint8Array[]) => Promise<{ width: numbe
   pictures: Uint8Array[] }>;
 export type Motion = { width: number, height: number, delayMs: number, frames: Uint8Array[], still: Uint8Array,
   start: number, seconds: number };
-
-/** Each LED's R, G and B byte within a frame (−1 when the file does not hold it). */
-function offsets(parsed: ReturnType<typeof parseFseq>, scene: ReturnType<typeof prepareScene>) {
-  const size = parsed.ranges.reduce((n, [s, c]) => Math.max(n, s + c), 0), where = new Int32Array(size).fill(-1);
-  let off = 0;
-  for (const [s, c] of parsed.ranges) for (let i = 0; i < c; i++) where[s + i] = off++;
-  return scene.order.map((c) => Int32Array.from(scene.addr, (a) => (a >= 0 && a + c < size ? where[a + c]! : -1)));
-}
 
 /** The best `n`-sample window's first sample, by mean change (`d[i]`: sample i against i−1) and brightness. */
 export function bestWindow(change: Float64Array, bright: Float64Array, n: number) {
@@ -50,7 +42,7 @@ export function bestWindow(change: Float64Array, bright: Float64Array, n: number
 function pickWindow(bytes: Uint8Array, rig: Rig, loop: Loop) {
   const scene = prepareScene(rig);
   const parsed = parseFseq(bytes, { maxChannels: scene.frameChannels, decompress: inflateBlock });
-  const [oR, oG, oB] = offsets(parsed, scene) as [Int32Array, Int32Array, Int32Array];
+  const [oR, oG, oB] = frameOffsets(parsed, scene);
   const { data, channelCount: cc, frameCount: F, stepMs } = parsed, N = scene.count;
   const step = Math.max(1, Math.round(1000 / TARGET_FPS / stepMs)), delayMs = step * stepMs;
   const count = Math.floor((F - 1) / step) + 1, perSecond = 1000 / delayMs;

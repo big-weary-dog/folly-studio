@@ -1,6 +1,6 @@
 // The rose's expansion and the power compressor, frame by frame: the lighting repo's pixel-map/expand-fseq.py
 // (expand_frames) and compress-fseq.py (compress) in the same arithmetic, so a frame comes out byte for byte as those
-// tools would write it (test/pi-power.test.js). Tables: pi/data/power.json (pi/tools/build_power.py). No allocation
+// tools would write it (pi/test/power.test.ts). Tables: pi/data/power.json (pi/tools/build_power.py). No allocation
 // per frame.
 
 /** pi/data/power.json. */

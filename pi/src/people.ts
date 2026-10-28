@@ -1,13 +1,14 @@
 // Who may do what on the engine's socket (SPEC-liveplay "Modes", "People"): the mode, the one person who has the
 // knobs, and who has a page open. The engine refuses what the mode does not allow, whatever a page sends.
 import type { FromPage, Mode, PiState } from './protocol.ts';
+import { JUKEBOX_NOW } from './protocol.ts';
 
 /** Who the Pi's own page is: its PIN is its only gate, and it may drive. */
 export const PI_PAGE = 'the Pi\'s page';
 export type Who = { name: string, drive: boolean };
 const KNOBS = new Set(['set', 'release', 'palette', 'level', 'tap', 'take']);
 const DRIVE = new Set([...KNOBS, 'blackout', 'play']);
-export const JUKEBOX_NOW = 'The lights are in Jukebox: Play next or Add to the end';
+export { JUKEBOX_NOW };
 
 export function createPeople(start: Mode, now: () => number = () => performance.now()) {
   let mode = start, driver: { name: string, at: number } | null = null;

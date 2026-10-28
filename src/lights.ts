@@ -8,6 +8,7 @@ import path from 'node:path';
 import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
+import { At, Fade, type FromPage, JUKEBOX_NOW, MAX_SEND, MODES, type Mode as PiMode } from '../pi/src/protocol.ts';
 import type { LibraryEntry } from '../shared/schemas/rig.ts';
 import { bakeSeconds, layersHash, renderFields } from './bake.ts';
 import { forAdmins, HttpError, parse } from './http.ts';
@@ -15,21 +16,17 @@ import type { Hub } from './live/hub.ts';
 import type { piFeed } from './live/pi-feed.ts';
 import type { StoredLook as Look, StoredUser as User } from './store.ts';
 
-/** The engine's message limit (pi/src/protocol.ts MAX_SEND). */
-const MAX_SEND = 64 * 1024;
 const BAKE_IT = 'bake it (Check & bake) to play it on the lights.';
-export const JUKEBOX_NOW = 'The lights are in Jukebox: Play next or Add to the end';
-export type Play = { kind: 'live', look: object }
-  | { kind: 'baked', id: string, title: string, sha256: string, duration: number } | { error: string };
+export { JUKEBOX_NOW };
+export type Play = Extract<FromPage, { type: 'send' }>['item'] | { error: string };
 
-const Mode = z.enum(['jukebox', 'live']);
-export type Mode = z.infer<typeof Mode>;
+const Mode = z.enum(MODES);
+export type Mode = PiMode;
 const Settings = z.object({ liveLooks: z.boolean(), mode: Mode.default('jukebox') });
 /** What PUT changes: either or both. */
 const Change = z.object({ liveLooks: z.boolean().optional(), mode: Mode.optional() });
 const From = z.object({ from: z.enum(['mine', 'gallery']).default('mine') });
-const Queue = z.object({ lookId: z.string().max(64), at: z.enum(['now', 'next', 'end']).optional(),
-  fade: z.number().min(0.25).max(8).optional() });
+const Queue = z.object({ lookId: z.string().max(64), at: At.optional(), fade: Fade.optional() });
 
 /** How `look` may play: live when every module is a library one (and live looks are on), else its current bake. */
 export function playOf(look: Look, library: ReadonlySet<string>, liveLooks: boolean): Play {

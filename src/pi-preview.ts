@@ -4,9 +4,12 @@
 // Using one of its controls makes it drive the live stage (SPEC-live "Following /pi"); its page is told who drives.
 // Each page's hello says who it is, from the session (SPEC-liveplay "People"); Studio's own messages never pass.
 // Binary frames pass only from the relay lease's holder, each exactly a frame (SPEC-live "Relay to the lights").
+import { socketOrigin } from './socket-origin.ts';
+
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import WebSocket from 'ws';
 
+import { STAGE_CONTROLS, STUDIO_MESSAGES, type FromPage } from '../pi/src/protocol.ts';
 import { type Auth, sessionHook } from './auth.ts';
 import { HttpError } from './http.ts';
 import type { Hub } from './live/hub.ts';
@@ -16,15 +19,11 @@ import type { StoredUser } from './store.ts';
 const BASE = '/pi', TIMEOUT_MS = 5000;
 // What the Pi's answer keeps: its own CSP (the page's, in place of the app's), and what the browser needs to use it.
 const KEEP = ['content-type', 'content-security-policy', 'cache-control', 'location', 'etag', 'last-modified'];
-// What the page sends that changes what plays (pi/src/protocol.ts): any of these makes /pi drive the stage.
-const CONTROLS = new Set(['play', 'set', 'release', 'palette', 'tap', 'level', 'blackout', 'next']);
-// Studio's feed alone sends these (src/lights.ts, src/live/pi-feed.ts): never a page.
-const STUDIOS = new Set(['send', 'mode']);
 type Msg = { type?: unknown, at?: unknown, pin?: unknown };
 const typeOf = (text: string): Msg => {
   try { const m = JSON.parse(text); return m && typeof m === 'object' ? m : {}; } catch { return {}; }
 };
-const controlOf = (m: { type?: unknown, at?: unknown }) => CONTROLS.has(m.type as string)
+const controlOf = (m: { type?: unknown, at?: unknown }) => STAGE_CONTROLS.has(m.type as FromPage['type'])
   || (m.type === 'queue' && m.at === 'now');
 
 /** The upstream as a base URL: http(s) on this machine, as `npm run host` starts it. */
@@ -40,7 +39,6 @@ export function previewTarget(url: string) {
 export function piPreview({ auth, target, hub, curators = false, drive, loadRig }: { auth: Auth, target: URL,
   hub?: Pick<Hub, 'live' | 'piDrove' | 'onDriver'>, curators?: boolean, drive: (user: StoredUser) => boolean,
   loadRig: () => Rig | null }) {
-  const host = (h: string) => h.toLowerCase().replace(/:(80|443)$/, '');
   // Its role only (sessionHook): no session is asked to sign in (the app's page), anyone else refused, in plain text.
   const who = curators ? 'a curator' : 'an admin';
   const SAYS: Record<number, string> = { 401: `Sign in to Studio as ${who}, then open /pi/ again.`,
@@ -73,9 +71,7 @@ export function piPreview({ auth, target, hub, curators = false, drive, loadRig 
       websocket: true,
       // Browsers always send Origin on a socket: it must be this site (CSRF over WebSockets), as for the live stage.
       preValidation: async (req, reply) => {
-        let from = '';
-        try { from = new URL(String(req.headers.origin)).host; } catch { /* missing or "null" */ }
-        if (!from || host(from) !== host(req.host)) return reply.code(403).send('Cross-origin socket refused.');
+        if (!socketOrigin(req.headers.origin, req.host)) return reply.code(403).send('Cross-origin socket refused.');
       },
     }, (socket, req) => {
       // The Pi checks Origin against Host too: it gets both as the browser sent them to this site.
@@ -102,7 +98,7 @@ export function piPreview({ auth, target, hub, curators = false, drive, loadRig 
           return;
         }
         const msg = typeOf(String(d));
-        if (STUDIOS.has(msg.type as string)) return;
+        if (STUDIO_MESSAGES.has(msg.type as FromPage['type'])) return;
         // Who it is comes from the session; a page is never Studio's feed.
         const text = msg.type === 'hello'
           ? JSON.stringify({ type: 'hello', ...typeof msg.pin === 'string' ? { pin: msg.pin } : {}, who })
