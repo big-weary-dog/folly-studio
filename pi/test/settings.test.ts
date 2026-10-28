@@ -192,3 +192,45 @@ test('a choice switch keeps passing relayed frames instead of substituting a loc
   tick(); assert.deepEqual(r.last(), initial);
   r.engine.close();
 });
+
+test('colour picks remain immediate on both sides of a choice fade', () => {
+  const own = offered();
+  own.layers[0].modules![0].code = `const params={mode:{type:'choice',options:['along','bounce'],value:'along'},
+    colours:{type:'color',value:'#ff0000'}}; function pixel(){return swatch('colours',0)}`;
+  delete own.layers[0].modules![0].ref;
+  const scene = prepareScene(rig), layers = own.layers.map((l) => prepareLayer(scene, l, compileLayer(l)));
+  const live = liveLook(own, undefined, layers, scene), rgb = new Float32Array(scene.count * 3);
+  const draw = () => { renderFrame(scene, layers, 0, rgb, live.look); return Array.from(rgb.slice(0, 3)); };
+  const initial = draw();
+  live.set(name('mode'), 'bounce', 0); live.step(0.25, 0.25);
+  draw();
+  live.set(name('colours'), '#0000ff', 0.25);
+  assert.deepEqual(draw(), [0, 0, initial[0]]);
+  live.release(name('colours'), 0.25);
+  assert.deepEqual(draw(), initial);
+  live.set(name('mode'), 'along', 0.25);
+  live.set(name('colours'), '#0000ff', 0.25);
+  assert.deepEqual(draw(), initial, 'an interrupted fade holds its existing mixture');
+  live.step(0.5, 0.25);
+  const held = draw();
+  assert.ok(held[0] > 0 && held[2] > 0, 'the held mixture fades into the recoloured live render');
+  live.step(0.75, 0.25);
+  assert.deepEqual(draw(), [0, 0, initial[0]]);
+});
+
+test('an outgoing choice failure reaches the frame errors with its module identity', () => {
+  const own = offered();
+  own.layers[0].modules![0].code = `const params={mode:{type:'choice',options:['along','bounce'],value:'along'}};
+    function frame(t,P){if(t>=0.2 && P.mode==='along')throw Error('outgoing failed')}
+    function pixel(){return [1,0,0]}`;
+  delete own.layers[0].modules![0].ref;
+  const scene = prepareScene(rig), layers = own.layers.map((l) => prepareLayer(scene, l, compileLayer(l)));
+  const live = liveLook(own, undefined, layers, scene), rgb = new Float32Array(scene.count * 3);
+  renderFrame(scene, layers, 0, rgb, live.look);
+  live.set(name('mode'), 'bounce', 0); live.step(0.25, 0.25);
+  const result = renderFrame(scene, layers, 0.25, rgb, live.look);
+  assert.equal(result.errors.length, 1);
+  assert.equal(result.errors[0].module, 'chase');
+  assert.match(result.errors[0].error, /outgoing failed/);
+  assert.ok(rgb.every((v) => v === 0), 'a failing layer adds nothing');
+});

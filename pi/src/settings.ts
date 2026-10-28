@@ -12,10 +12,16 @@ import { PLACE } from '../../public/js/core/place.ts';
 export const CHOICE_FADE = 0.5; // seconds; the owner's initial choice-switch duration
 
 type Setting = Extract<Control, { kind: 'choice' | 'color' }>;
+function colour(link: PreparedLayer['all'][number], key: string, value: SettingValue) {
+  link.saved[key] = value;
+  link.picks?.bind(link.schema, link.saved, link.P);
+  link.mods = paramMods(link.schema, link.saved, link.picks?.rot);
+}
 export function liveSettings(look: PiLook, layers: PreparedLayer[], scene?: Scene) {
   const entries = new Map<string, { c: Setting, write: (value: SettingValue) => void }>();
   let revision = 0;
-  type Fade = { elapsed: number, layer: PreparedLayer, start: () => void };
+  type Fade = { elapsed: number, layer: PreparedLayer, start: () => void,
+    colour: (index: number, key: string, value: SettingValue) => void };
   const fades = new Map<PreparedLayer, Fade>(), active: Fade[] = [];
   for (const [i, layer] of look.layers.entries()) {
     if (!layer.id || layer.enabled === false) continue;
@@ -46,7 +52,9 @@ export function liveSettings(look: PiLook, layers: PreparedLayer[], scene?: Scen
               const old = new Float64Array(layer.buf.length), next = new Float64Array(old.length);
               const visible = new Float64Array(old.length); // before clip wipes, which the compositor applies once
               let frozen = false, rendered = false, outgoing = layer;
-              fade = { elapsed: 0, layer, start() {
+              fade = { elapsed: 0, layer, colour(index, key, value) {
+                colour(outgoing.all[index], key, value);
+              }, start() {
                 if (this.layer.beforeComposite) {
                   if (rendered) { frozen = true; old.set(visible); }
                 }
@@ -79,7 +87,8 @@ export function liveSettings(look: PiLook, layers: PreparedLayer[], scene?: Scen
                     PLACE.layer = outgoing;
                     const error = runChain(scene, outgoing, T, G);
                     PLACE.layer = layer;
-                    if (error) old.fill(0); else old.set(outgoing.buf);
+                    if (error) { layer.failed = outgoing.failed; return error; }
+                    old.set(outgoing.buf);
                   }
                   for (let j = 0; j < next.length; j += 4) {
                     const a = old[j + 3] * (1 - amount), b = next[j + 3] * amount, alpha = a + b;
@@ -100,8 +109,8 @@ export function liveSettings(look: PiLook, layers: PreparedLayer[], scene?: Scen
           link.saved[key] = value;
           if (c.kind === 'choice') link.P[key] = value as string;
           else {
-            link.picks?.bind(link.schema, link.saved, link.P);
-            link.mods = paramMods(link.schema, link.saved, link.picks?.rot);
+            colour(link, key, value);
+            if (layers[i].beforeComposite) fades.get(layers[i])?.colour(linkIndex, key, value);
           }
           revision++;
         } });

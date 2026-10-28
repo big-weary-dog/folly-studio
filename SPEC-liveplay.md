@@ -68,6 +68,7 @@ This layer crossfade applies when the engine renders the look itself; a relayed 
 frames as before, including custom code the engine cannot render.
 Colour picks still take effect at once. Both leave the saved look untouched. Source updates carry the current
 module params to viewers and relays. Jukebox releases them along with the other knobs.
+During a choice fade, colour changes apply to its live renders; an interrupted fade's held mixture fades out unchanged.
 
 `default` is the look's own value (a palette: its name, `''` for a palette of the look's own that is not one of
 `data/palettes.json`'s); `held`: a person moved it since the look began, and it has not been released. A palette

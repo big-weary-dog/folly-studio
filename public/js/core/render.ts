@@ -224,7 +224,7 @@ export function prepareLayer(scene: Scene, layer: LayerInput | null | undefined,
     p: qs[0], qs, warps: bent.order, c: [0.5, 0, 0, 0],
     buf: new Float64Array(m * 4), ms: 0, stages: prepareStages(scene, layer, chain, idx),
     beforeComposite: null as null | ((scene: Scene, T: number, G: G, t: number, env: number,
-      look: PreparedLook) => void),
+      look: PreparedLook) => string | null | void),
     runs: prepareRuns(scene, chain, idx),
   };
 }
@@ -267,7 +267,10 @@ export function renderFrame(scene: Scene, layers: readonly (PreparedLayer | null
     const err = runChain(scene, L, T, G);
     if (err) errors.push(L.modular ? { id: L.id, module: L.failed, error: err } : { id: L.id, error: err });
     else {
-      L.beforeComposite?.(scene, T, G, t, env, LK);
+      if (L.beforeComposite) {
+        const error = L.beforeComposite(scene, T, G, t, env, LK);
+        if (error) { errors.push({ id: L.id, module: L.failed, error }); L.ms = clock() - t0; continue; }
+      }
       if (wipe) wipeColours(L.buf, L, scene, wipe as Transition, env, clipFade(clip!, t) < 0);
       composite(rgb, L, level);
     }
