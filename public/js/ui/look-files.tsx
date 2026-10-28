@@ -13,13 +13,12 @@ export function LookFiles({ looks, gallery, approvedOnly, reload }: { looks: Lis
   const [busy, setBusy] = useState(''), pick = useRef<HTMLInputElement>(null);
   const phone = usePhone();
   const listed = (looks || []).filter((look) => !gallery || !approvedOnly || look.reviewed);
-
   async function exportAll() {
     setBusy(`Exporting 0 of ${listed.length}…`);
     try {
       const all = await fullLooks(listed, (n) => setBusy(`Exporting ${n} of ${listed.length}…`));
-      const scope = gallery ? (approvedOnly ? 'gallery-approved' : 'gallery') : 'mine';
-      download(fileText({ looks: all }), manyName(scope), 'application/json');
+      download(fileText({ looks: all }), manyName(gallery
+        ? (approvedOnly ? 'gallery-approved' : 'gallery') : 'mine'), 'application/json');
       toast(`Exported ${all.length} look${all.length === 1 ? '' : 's'}.`);
     } catch (err) {
       toast(`Nothing exported. ${(err as Error).message.replace(/\.?$/, '.')}`, { kind: 'error', timeout: 9000 });

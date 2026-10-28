@@ -276,7 +276,6 @@ export function Looks({ scope }: ViewProps) {
     });
     return () => { alive = false; };
   }, [loads]);
-
   async function remove(look: Listed) {
     if (await deleteLook(look)) setLooks((all) => (all || []).filter((l) => l.id !== look.id));
   }

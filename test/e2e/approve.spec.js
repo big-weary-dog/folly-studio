@@ -62,7 +62,7 @@ for (const width of [390, 1366]) {
     await search.fill('Strobe');
     await expect(page.locator('.card')).toHaveCount(0);
     if (width >= 900) {
-      await test.step('Export all follows Approved and ignores search, with matching filenames and counts', async () => {
+      await test.step('Export all follows Approved, ignoring search, with matching filenames and counts', async () => {
         for (const onlyApproved of [true, false]) {
           if (!onlyApproved) await approved.click();
           const count = onlyApproved ? 1 : 2;
