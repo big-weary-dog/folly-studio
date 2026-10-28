@@ -194,7 +194,8 @@ if [ "$1" = -p ]; then echo 22.6.0; else exit 1; fi
 
 for (const enabled of [false, true]) {
   for (const fails of [false, true]) {
-    test(`unit activation${fails ? ' rollback' : ''} leaves previously ${enabled ? 'enabled' : 'disabled'} Studio disabled`,
+    const prior = enabled ? 'enabled' : 'disabled';
+    test(`unit activation${fails ? ' rollback' : ''} leaves previously ${prior} Studio disabled`,
       () => {
         const f = fixture();
         // Relocate the production home so the real unit branch runs entirely in the scratch tree.
