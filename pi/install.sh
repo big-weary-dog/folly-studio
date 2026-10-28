@@ -128,7 +128,17 @@ cd "$stage/tree"
 if [ -d "$looks" ] && ls "$looks"/*.json >/dev/null 2>&1; then
   mkdir -p pi/local/looks
   cp "$looks"/*.json pi/local/looks/
-  say "added $(ls "$looks"/*.json | wc -l) looks to pi/local/looks from $looks"
+  count=$("$node" --input-type=module - "$looks"/*.json <<'JS'
+import { readFileSync } from 'node:fs';
+let count = 0;
+for (const file of process.argv.slice(2)) {
+  const raw = JSON.parse(readFileSync(file, 'utf8'));
+  count += Array.isArray(raw?.looks) ? raw.looks.length : 1;
+}
+console.log(count);
+JS
+  )
+  say "added $count looks to pi/local/looks from $looks"
 fi
 say "staged $(sed -n 's/.*"commit": "\([0-9a-f]\{12\}\).*/\1/p' dist/build.json) for $app"
 

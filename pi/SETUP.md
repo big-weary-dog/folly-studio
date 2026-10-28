@@ -114,13 +114,20 @@ folder to it yourself ([Looks on the stick](#looks-on-the-stick)).
 
 ## Looks on the stick
 
+On prod, sign in on your laptop, open My looks or Gallery → **Export all**, and put the downloaded
+`folly-looks-*.json` in `looks/` beside `install.sh`. Then install as above: the engine reads every look in the
+file. It needs no prod login or internet on the Pi. With Studio on the Pi, the same export file goes through
+My looks → **Import** instead.
+
 | On the stick | Where it goes | How it plays |
 | --- | --- | --- |
-| `looks/<name>.json` | the engine's `pi/local/looks/`, by `install.sh` | Jukebox's own looks: its auto-pick rotates them |
+| `looks/<name>.json` (one look or an export of many) | engine's `pi/local/looks/`, by `install.sh` | Jukebox rotates them |
 | `folly-looks-reviewed.json` | Studio on the Pi: My looks → **Import** | each queued from Studio as its bake (below) |
 | `fpp/<name>.fseq` | FPP's sequences | FPP's own playlists, the fallback (below) |
 
-`looks/` holds only looks whose code is our library's as the bundle has it, so the engine plays them as made. A look
+The engine lists a look that lacks a library ref or needs a missing module as unplayable, with its reason; the
+installer refuses those looks, so remove them from the export before installing. `looks/` holds only looks whose
+code is our library's as the bundle has it, so the engine plays them as made. A look
 with code of its own reaches the lights as its bake, from Studio on the Pi (`--studio`): as the admin, turn
 **Custom code** on (Admin) for the import, then My looks → **Import** the file, open each look, **Check & bake**,
 and **Play on the lights**. Turn Custom code off again afterwards; baked looks keep playing.
