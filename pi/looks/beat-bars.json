@@ -3,10 +3,12 @@
   "duration": 60,
   "bpm": 120,
   "globals": {
-    "macros": { "width": { "value": 0.5, "min": 0.05, "max": 1 } },
-    "live": ["bpm", "width", "hue", "saturation", "level"]
+    "palette": "chapel",
+    "macros": { "width": { "value": 0.5, "min": 0.05, "max": 1 }, "energy": { "value": 0.5 } },
+    "live": ["bpm", "energy", "width"]
   },
-  "layers": [{ "modules": [{ "ref": "bars", "params": { "profile": "pulse", "bars": 3,
+  "layers": [{ "modules": [{ "ref": "bars", "live": ["profile", "colours"], "params": { "profile": "pulse",
+    "bars": { "mod": "global", "name": "energy", "from": 1, "to": 5 },
     "speed": { "mod": "beats", "per": 0.25 },
     "duty": { "mod": "global", "name": "width", "from": 0.05, "to": 1 } } }] }]
 }

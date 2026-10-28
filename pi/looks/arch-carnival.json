@@ -16,7 +16,8 @@
     { "id": "arches", "title": "Marquee ribbons", "tags": ["arch"], "blend": "over", "modules": [
       { "id": "chase", "ref": "single-strand", "live": ["mode", "colours"], "params": {
         "colours": "body", "profile": "bands", "mode": "along",
-        "size": 24, "softness": 3, "alternate": true,
+        "size": { "mod": "global", "name": "energy", "from": 48, "to": 16 },
+        "softness": 3, "alternate": true,
         "speed": { "mod": "beats", "per": 12 },
         "brightness": { "mod": "global", "name": "energy", "from": 0.2, "to": 1 },
         "gap": { "mod": "global", "name": "gap", "from": 0, "to": 0.8 } } }

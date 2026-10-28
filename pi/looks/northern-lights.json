@@ -1,6 +1,7 @@
 {
  "title": "Northern Lights",
  "duration": 240,
+ "bpm": 120,
  "globals": {
   "palette": {
    "name": "aurora",
@@ -22,6 +23,7 @@
     "#e3fff2"
    ]
   },
+  "live": ["bpm", "sky", "core"],
   "macros": {
    "sky": {
     "value": 0.5,
@@ -98,6 +100,7 @@
      "kind": "source",
      "title": "Bars",
      "ref": "bars",
+     "live": ["colours"],
      "params": {
       "colours": "accent body",
       "profile": "smooth",
@@ -116,6 +119,7 @@
      "kind": "source",
      "title": "Clouds",
      "ref": "clouds",
+     "live": ["direction"],
      "params": {
       "cover": {
        "mod": "global",
@@ -301,7 +305,7 @@
        "from": 0.5,
        "to": 0.15
       },
-      "often": 24,
+      "often": { "mod": "beats", "per": 0.2 },
       "flash": 0.3
      },
      "id": "m1"
@@ -334,7 +338,7 @@
      "ref": "bars",
      "params": {
       "direction": "in",
-      "speed": -0.3,
+      "speed": { "mod": "beats", "per": -0.15 },
       "bars": 1,
       "profile": "comet",
       "duty": 0.5,

@@ -15,7 +15,8 @@
     ] },
     { "id": "tides", "title": "Breathing tide", "tags": ["all"], "blend": "over", "modules": [
       { "id": "wave", "ref": "bars", "live": ["direction", "colours"], "params": {
-        "colours": "body", "profile": "pulse", "direction": "right", "bars": 2,
+        "colours": "body", "profile": "pulse", "direction": "right",
+        "bars": { "mod": "global", "name": "energy", "from": 1, "to": 4 },
         "speed": { "mod": "beats", "per": 0.125 },
         "duty": { "mod": "lfo", "shape": "sine", "unit": "beats", "rate": 0.25,
           "center": 0.65, "depth": 0.3, "amount": "breath" },

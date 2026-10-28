@@ -21,7 +21,8 @@
     { "id": "hits", "title": "Confetti hits", "tags": ["arch", "spire", "spirelet"], "blend": "over",
       "modules": [
         { "id": "confetti", "ref": "strobe", "live": ["colours"], "params": {
-          "colours": "accent", "mixed": true, "length": 0.4, "fade": 0.25,
+          "colours": "accent", "mixed": true,
+          "length": { "mod": "global", "name": "energy", "from": 0.5, "to": 0.12 }, "fade": 0.25,
           "speed": { "mod": "beats", "per": 1 },
           "brightness": { "mod": "global", "name": "energy", "from": 0.1, "to": 1 },
           "scatter": { "mod": "global", "name": "scatter", "from": 0, "to": 1 } } }

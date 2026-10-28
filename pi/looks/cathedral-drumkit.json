@@ -10,7 +10,7 @@
   },
   "layers": [
     { "id": "kit", "title": "The building plays", "tags": ["all"], "modules": [
-      { "id": "bands", "ref": "bars", "live": ["direction", "colours"], "params": {
+      { "id": "bands", "ref": "bars", "live": ["colours"], "params": {
         "colours": "body", "profile": "smooth", "direction": "up", "bars": 1.5,
         "speed": { "mod": "beats", "per": 0.0625 } } },
       { "id": "drums", "ref": "rhythm", "params": {

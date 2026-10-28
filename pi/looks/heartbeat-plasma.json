@@ -3,15 +3,16 @@
   "duration": 60,
   "bpm": 120,
   "globals": {
+    "palette": "chapel",
     "macros": { "drive": { "value": 0.4, "min": 0, "max": 1 }, "ripple": { "value": 0.25, "min": 0, "max": 1 } },
     "live": ["bpm", "drive", "ripple"]
   },
   "layers": [
     { "modules": [
-      { "ref": "bars", "params": { "direction": "right", "profile": "smooth", "bars": 24,
+      { "ref": "bars", "live": ["colours"], "params": { "direction": "right", "profile": "smooth", "bars": 24,
         "speed": { "mod": "global", "name": "drive", "from": 0.05, "to": 0.7 } } },
       { "ref": "turbulence", "params": { "amount": 0.5, "size": 0.3, "speed": 0.15 } }] },
-    { "blend": "add", "level": 0.5, "modules": [{ "ref": "heartbeat",
+    { "blend": "add", "level": 0.5, "modules": [{ "ref": "heartbeat", "live": ["shape", "colours"],
       "params": { "colours": "all", "spread": { "mod": "global", "name": "ripple", "from": 0.6, "to": 1.2 } } }] }
   ]
 }
