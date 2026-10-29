@@ -25,10 +25,10 @@ function out(colours, settings = {}, cap = 1) {
 }
 
 describe('the output transform', () => {
-  test('the curve: an encoded value goes out as 255 · v^2.2, rounded in float', () => {
+  test('the curve: an encoded value goes out as 255 · v^2.65, rounded in float', () => {
     const values = [1, 0.75, 0.5, 0.25, 0.1, 0.06, 0.03];
     const bytes = values.map((v) => out({ 0: [v, v, v] })(0)[0]);
-    assert.deepEqual(bytes, [255, 135, 55, 12, 2, 1, 0]);
+    assert.deepEqual(bytes, [255, 119, 41, 6, 1, 0, 0]);
     assert.deepEqual(values.map((v) => out({ 0: [v, v, v] }, { gamma: 1 })(0)[0]), [255, 191, 128, 64, 26, 15, 8],
       'gamma 1 is the values as they are');
   });
@@ -36,14 +36,14 @@ describe('the output transform', () => {
   test('balance trims each colour; the floor keeps a lit channel glowing, and never lights a dark one', () => {
     assert.deepEqual(out({ 0: [1, 1, 1] }, { balance: [1, 0.9, 0.8] })(0), [255, 230, 204]);
     assert.deepEqual(out({ 0: [0.03, 0.001, 0] }, { floor: 3 })(0), [3, 0, 0]);
-    assert.deepEqual(out({ 0: [0.5, 0.5, 0.5] }, { floor: 3 })(0), [55, 55, 55], 'above the floor: the curve');
+    assert.deepEqual(out({ 0: [0.5, 0.5, 0.5] }, { floor: 3 })(0), [41, 41, 41], 'above the floor: the curve');
   });
 
   test('a trim dims its group in light; the cap is linear after the curve, so a dim keeps the hue', () => {
     const lit = out({ 0: [1, 0.5, 0.25], [PANEL]: [1, 0.5, 0.25] }, { trims: [{ tag: 'rose', level: 0.5 }] });
-    assert.deepEqual(lit(0), [255, 55, 12]);
-    assert.deepEqual(lit(PANEL), [128, 28, 6], 'the rose at half light, each channel halved');
-    assert.deepEqual(out({ 0: [1, 0.5, 0.25] }, {}, 0.5)(0), [128, 28, 6], 'a cap of ½ is the same');
+    assert.deepEqual(lit(0), [255, 41, 6]);
+    assert.deepEqual(lit(PANEL), [128, 20, 3], 'the rose at half light, each channel halved');
+    assert.deepEqual(out({ 0: [1, 0.5, 0.25] }, {}, 0.5)(0), [128, 20, 3], 'a cap of ½ is the same');
     assert.deepEqual(out({ 0: [1, 1, 1] }, {}, 0)(0), [0, 0, 0]);
   });
 
@@ -59,7 +59,7 @@ describe('the output transform', () => {
     const bits = new Uint32Array(1), f32 = new Float32Array(bits.buffer), f64 = new Float64Array(1);
     const words = new BigUint64Array(f64.buffer);
     for (let b = 0; b <= 0x3f800000; b += 997) { bits[0] = b; values.push(f32[0]); }
-    const settings = [[2.2, [1, 1, 1], 0, 1], [2.2, [1, 0.9, 0.8], 3, 0.62], [1, [0.5, 1, 1], 0, 1],
+    const settings = [[2.65, [1, 1, 1], 0, 1], [2.2, [1, 0.9, 0.8], 3, 0.62], [1, [0.5, 1, 1], 0, 1],
       [3, [1, 1, 1], 16, 0.3]];
     for (const [gamma, balance, floor, cap] of settings) {
       const edges = [...values];
@@ -94,7 +94,7 @@ describe('the output transform', () => {
   test("ledLight: each byte's light at full output, the curve's own rounding", () => {
     const t = ledLight({ ...LIGHT, balance: [1, 1, 0.5] });
     const byte = (i) => Math.round(t[i] * 255);
-    assert.deepEqual([byte(255), byte(128), byte(512 + 255), byte(8)], [255, 56, 128, 0],
+    assert.deepEqual([byte(255), byte(128), byte(512 + 255), byte(8)], [255, 41, 128, 0],
       'full; half a byte up from 0.5; blue at half balance; the bottom rounds to off');
   });
 
@@ -134,9 +134,9 @@ describe('the preview transform', () => {
 
   test('dims are light, applied once: the gain, and the dim outside a mask', () => {
     const values = [1, 0.75, 0.5, 0.25, 0.1, 0.06, 0.05];
-    assert.deepEqual(values.map((v) => screen(shownLight(v, LIGHT))), [237, 179, 119, 57, 17, 6, 0]);
+    assert.deepEqual(values.map((v) => screen(shownLight(v, LIGHT))), [237, 169, 103, 40, 6, 0, 0]);
     assert.deepEqual(values.map((v) => screen(shownLight(v, { ...LIGHT, preview: { ...LIGHT.preview,
-      exposure: 1 } }))), [255, 193, 128, 61, 19, 7, 0], 'exposure 1: full drive is the swatch');
+      exposure: 1 } }))), [255, 182, 111, 44, 7, 0, 0], 'exposure 1: full drive through the output curve');
     const shown = previewChannels([1, 0.5, 0, 1, 0.5, 0], LIGHT, new Float32Array(6), 0.5, [1, 0], 0.1);
     const half = shownLight(0.5, LIGHT), full = LIGHT.preview.exposure;
     assert.deepEqual([...shown].map((x) => +x.toFixed(5)), [full / 2, half / 2, 0, full / 20, half / 20, 0]
@@ -158,7 +158,7 @@ describe('the preview transform', () => {
     const cal = (c) => ({ ...LIGHT, calibration: { ...LIGHT.calibration, ...c } }), E = LIGHT.preview.exposure;
     const draw = (l, rgb = [1, 0.5, 0]) => [...previewChannels(rgb, l, new Float32Array(3))].map((x) => +x.toFixed(5));
     assert.deepEqual(draw(cal({ white: [1, 0.5, 2] }), [1, 1, 1]), [E, E / 2, 2 * E].map((x) => +x.toFixed(5)));
-    assert.equal(+shownLight(0.5, cal({ response: 2 })).toFixed(5), +(0.5 ** 4.4 * E).toFixed(5), 'light^response');
+    assert.equal(+shownLight(0.5, cal({ response: 2 })).toFixed(5), +(0.5 ** 5.3 * E).toFixed(5), 'light^response');
     const grey = draw(cal({ saturation: 0 })), y = 0.2126 * E + 0.7152 * shownLight(0.5, LIGHT);
     assert.deepEqual(grey, [y, y, y].map((x) => +x.toFixed(5)), 'saturation 0: the luminance, grey');
     assert.deepEqual(draw(cal({ saturation: 2 }))[2], 0, 'more saturated, never below 0');

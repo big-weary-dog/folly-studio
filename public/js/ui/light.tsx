@@ -131,8 +131,8 @@ function Calibrate({ draft, set }: { draft: Light; set: (p: Partial<Light>) => v
 function Output({ draft, set }: { draft: Light; set: (p: Partial<Light>) => void }) {
   const list = (v: number[]) => v.map((x) => `${Math.round(x * 100)} %`).join(', '), [g0, g1] = LIGHT_LIMITS.gamma;
   return <section class="models-panel" aria-label="The Pi's output">
-    <Field label="Output gamma" class="end" hint={<p class="field-hint">What the Pi sends: value<sup>gamma</sup>. 2.2
-      is the swatches' own curve; 1 sends the colours as they are, as FPP and the live apps do. The Pi takes a saved
+    <Field label="Output gamma" class="end" hint={<p class="field-hint">What the Pi sends: value<sup>gamma</sup>.
+      The default is 2.65; 1 sends the colours as they are, as FPP and the live apps do. The Pi takes a saved
       gamma within seconds, and the previews draw it.</p>}>{(id) => <Scrub id={id} min={g0} max={g1}
         step={0.05} value={draft.gamma} set={(gamma) => set({ gamma })} />}</Field>
     <p class="field-hint">Set in <code>light.json</code> by hand: balance{` ${list(draft.balance)}`}, floor
