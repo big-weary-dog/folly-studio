@@ -74,8 +74,13 @@ export function upgradeStored(stored: Look): Look {
   return out;
 }
 /** A look's automation against its globals (a 400 naming the lane when one does not fit). */
-const lanes = (automation: unknown, globals: Globals | null | undefined) =>
-  parse(z.object({ automation: automationFor(globals) }), { automation }).automation ?? undefined;
+const lanes = (automation: unknown, globals: Globals | null | undefined, imported = false) => {
+  if (imported && automation && typeof automation === 'object' && !Array.isArray(automation)) {
+    automation = Object.fromEntries(Object.entries(automation)
+      .filter(([name]) => Object.hasOwn(globals?.macros ?? {}, name)));
+  }
+  return parse(z.object({ automation: automationFor(globals) }), { automation }).automation ?? undefined;
+};
 
 export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate, loadLibrary = () => [],
   log = console }: {
@@ -155,7 +160,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
       reviewed: false, versions: [] };
     await allowCode(look.layers, user);
     if (globals) look.globals = globals;
-    const lanesNow = automation === undefined ? undefined : lanes(automation, globals);
+    const lanesNow = automation === undefined ? undefined : lanes(automation, globals, true);
     if (lanesNow) look.automation = lanesNow;
     if (bpm != null) look.bpm = bpm;
     if (origin) look.origin = origin;
@@ -213,7 +218,8 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
     if (body.globals !== undefined) changed('globals', body.globals ?? undefined);
     const globals = 'globals' in patch ? patch.globals : look.globals;
     if (body.automation !== undefined || 'globals' in patch) {
-      changed('automation', lanes(body.automation === undefined ? look.automation ?? null : body.automation, globals));
+      changed('automation', lanes(body.automation === undefined ? look.automation ?? null : body.automation,
+        globals, how === 'import'));
     }
     const after = { ...look, ...patch };
     const frames = (l: Look) => `${l.duration ?? DEFAULT_DURATION}:${layersHash(renderFields(l))}`;

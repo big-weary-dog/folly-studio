@@ -34,12 +34,17 @@ test('custom code off: import an earlier committed Noise, upgrade to playable co
     const ann = await signup(app, 'ann');
     const body = { origin: 'old-prod-noise', title: 'Simple Noise Bed', chain: 2, layers: layers(oldNoise) };
     body.layers[0].modules.push(wash(oldWash)); // Older saved library modules need not carry a ref.
+    body.globals = { macros: { breath: { value: 0.5, min: 0, max: 1 } } };
+    body.automation = { breath: [[0, 0], [10, 1]], archAccent: [[0, 1]], roseAccent: [[0, 1]],
+      towerAccent: [[0, 1]], canopyAccent: [[0, 1]] };
     const imported = await ann.post('/api/looks', body);
     assert.equal(imported.status, 201, imported.text);
     assert.equal(imported.json.imported, 'added');
     const expected = layers(current);
     expected[0].modules.push(wash(currentWash));
     assert.deepEqual(imported.json.look.layers, expected);
+    assert.deepEqual(imported.json.look.automation, { breath: body.automation.breath },
+      'stale lanes for missing macros are inert; keep the real macro lane');
     assert.equal(customCode(imported.json.look.layers, await libraryHashes(path.join(publicDir, 'patterns'))), '',
       'the imported look passes the render box gate without bubblewrap');
     const box = createRenderBox({ bwrap: 'no-such-bwrap', seconds: 1, systemdRun: '', log: quiet });
@@ -49,6 +54,10 @@ test('custom code off: import an earlier committed Noise, upgrade to playable co
     const repeated = await ann.post('/api/looks', body);
     assert.equal(repeated.status, 200, repeated.text);
     assert.equal(repeated.json.imported, 'unchanged');
+    const badLane = await ann.put(`/api/looks/${imported.json.look.id}`, { automation: { archAccent: [[0, 1]] } });
+    assert.equal(badLane.status, 400, 'ordinary edits still reject unknown automation lanes');
+    const badValue = await ann.post('/api/looks', { ...body, automation: { breath: [[0, 2]] } });
+    assert.equal(badValue.status, 400, 'a present macro lane still validates its range');
     const edited = await ann.post('/api/looks', { ...body, layers: layers(`${oldNoise}\n// edited`) });
     assert.equal(edited.status, 403, edited.text);
     assert.match(edited.json.error, /Noise is new code/);

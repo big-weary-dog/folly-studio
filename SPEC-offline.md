@@ -127,6 +127,8 @@ Several looks go in one file as `{ "looks": [look file] }` (`folly-looks-mine-<d
   A repeated origin within the selected files is shown as replacing an earlier import in that batch.
   Replacements explain that current contents are replaced and previous versions remain in History.
   Each look is `POST /api/looks` with its `origin`, title, summary, `chain` and what plays, so the same checks apply.
+  Automation lanes naming macros absent from the file's globals are dropped before validation: these stale lanes
+  do nothing, and must not prevent a server from importing its own exports. Lanes for present macros remain checked.
   A look already among the importer's own (its id or its `origin` is the file's `origin`) is **updated**: the file
   overrules it, as a `PUT` of the title, summary and what plays would (`how: import`), with every check a `PUT` has
   (the Custom code switch, the body limit, a bake and review dropped when the frames change), so a change to what
