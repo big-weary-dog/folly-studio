@@ -98,6 +98,8 @@ Mixed-family palettes put two families in `body` (their themes name them): `arca
 `confetti`, `guava`, `harvest`, `holly`, `lagoon`, `meadow`, `orchid`, `patina`, `peppermint`, `regalia`, `sherbet`,
 `solstice`, `sunbird`, `velvet`, `voltage`. Use `body` for their shared gradient or single slots for separate bands.
 Swatch hexes are sRGB colour values; use brightness controls to set the light level.
+For a dark gothic vampire ball, choose `blood` (clean reds), `crimson` (red and violet),
+`amethyst` (deep violets) or `requiem` (red and candle gold).
 
 ## Modulators: things that move together
 A macro with a `mod` (an LFO) is a modulator: it moves by itself, and every param bound to it
