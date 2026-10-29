@@ -15,7 +15,7 @@ An LED's light is not its value. Half the light (0.5) looks much brighter than h
 is why a straight value-to-PWM mapping makes every dim look washed out. The bridge between the two is a power
 curve, the **gamma**: `light = value ^ gamma`.
 
-**The output gamma is 2.2 by default**, the swatches' own curve, and tuneable on the Light page (1..3). The F48's
+**The output gamma is 2.65 by default**, and tuneable on the Light page (1..3). The F48's
 ports are gamma None, and the other players on the lights (FPP, the live apps) send their colour values with no
 curve: at 1 a colour gives the same light whichever of them plays it. The previews draw whatever gamma is set, so
 they show what the LEDs give; set it by the real LEDs beside the preview.
@@ -90,7 +90,7 @@ flowchart LR
 | Where | What | Why | Tune it |
 |---|---|---|---|
 | The engine's add and blur (`core/light.ts` `addLight`) | `value = (Σ v^2.2)^(1/2.2)`; blur averages light the same way | Light adds, values don't: two 50 % layers make 68 %, not 100 % | None: 2.2 is the swatches' curve, part of what a colour means |
-| Output transform (`core/light.ts` `ledChannels`) | `byte = round(255 · min(1, v^gamma · balance[colour] · trim[LED] · cap))` | Turns perceptual values into the PWM that looks like them. One curve, applied once, in float, rounded once at the end. While the cap holds (two frames running, no trims) it goes by a table of each byte's least value, which sends exactly the same bytes in a seventh of the time | Light page: Output gamma (1..3, default 2.2); the Pi takes a saved one within seconds |
+| Output transform (`core/light.ts` `ledChannels`) | `byte = round(255 · min(1, v^gamma · balance[colour] · trim[LED] · cap))` | Turns perceptual values into the PWM that looks like them. One curve, applied once, in float, rounded once at the end. While the cap holds (two frames running, no trims) it goes by a table of each byte's least value, which sends exactly the same bytes in a seventh of the time | Light page: Output gamma (1..3, default 2.65); the Pi takes a saved one within seconds |
 | Same, `balance` | × each colour's share | Trims the colour that runs strong. Never above 100 %: that would only clip | `light.json`: `balance` (default 100 %) |
 | Same, `floor` | A lit channel never sends less than `floor` | 8 bits run out at the bottom: at gamma 2.2 any value under about 0.06 rounds to 0 (at 1, under 0.002), so a faint bed vanishes. The floor keeps it glowing (at the cost of the very bottom of a fade looking stepped) | `light.json`: `floor` (default 0, off) |
 | Same, `trim` | A group's light × its level, by rig tag | A part that runs bright (denser LEDs, a different strip) can match the rest | `light.json`: `trims` (none by default) |
@@ -115,7 +115,10 @@ dimmed twice.
 
 | Value | 100 % | 75 % | 50 % | 25 % | 10 % | 6 % | 3 % |
 |---|---|---|---|---|---|---|---|
-| Gamma 2.2 (the default): sends (of 255) | 255 | 135 | 55 | 12 | 2 | 1 | 0 |
+| Gamma 2.65 (the default): sends (of 255) | 255 | 119 | 41 | 6 | 1 | 0 | 0 |
+| Light | 100 % | 46.7 % | 16.1 % | 2.4 % | 0.4 % | 0 | 0 |
+| On screen, Points and Playa (exposure 0.85) | 237 | 169 | 103 | 40 | 6 | 0 | 0 |
+| Gamma 2.2 (reference): sends (of 255) | 255 | 135 | 55 | 12 | 2 | 1 | 0 |
 | Light | 100 % | 52.9 % | 21.6 % | 4.7 % | 0.8 % | 0.4 % | 0 |
 | On screen, Points and Playa (exposure 0.85) | 237 | 179 | 119 | 57 | 17 | 6 | 0 |
 | Gamma 1: sends (of 255) | 255 | 191 | 128 | 64 | 26 | 15 | 8 |
@@ -137,6 +140,7 @@ built). At gamma 2.2, looks should keep a bed at 0.15 or more.
 - Studio: `<STUDIO_DATA>/light.json`. The admin **Light** page (`PUT /api/admin/light`) edits the output gamma, the
   calibration and the previews' display, and shows the other output fields, which change only by hand. Missing or
   unreadable, every field is its default; a field missing from the file is its default. Export and every new bake read it.
+  A saved `gamma` keeps its value when the default changes.
 - The Pi's engine reads Studio's own file on the Pi (its `light` setting, pi/STUDIO.md) and the host's dry-run Pi
   (`deploy/host.sh`) too; elsewhere it reads `pi/light.json`, the Light page's **Download for the Pi**, copied over.
   It re-reads the file when it changes (polled every 2 s), so a saved gamma reaches the LEDs live; a broken file
@@ -152,8 +156,8 @@ The engine and the bakes stay in colour values, and the screen is an sRGB displa
 through the preview transform (above), once, and encode the light for the screen with one curve: what they show is
 the LEDs' light, in proportion, at the exposure.
 
-Measured with the real `Viewer` on the real rig (a lone strip LED, front view, its brightest pixel; the probes are in
-the fleet's reports, `lightfix/probe/`):
+Measured at gamma 2.2 with the real `Viewer` on the real rig (a lone strip LED, front view, its brightest pixel;
+the probes are in the fleet's reports, `lightfix/probe/`):
 
 | A lone LED | Points | Playa |
 |---|---|---|

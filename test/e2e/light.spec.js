@@ -64,17 +64,17 @@ for (const [name, device] of Object.entries(SIZES)) {
       const row = (i) => page.locator('.light-curve tbody tr').nth(i).locator('td').nth(2);   // the 50 % column
       const [sends, screen] = [row(0), row(2)];
       await expect(response).toHaveValue(/^1\.00/);   // the other size's run may have saved; it puts 1 back below
-      await expect(gamma).toHaveValue(/^2\.20/);
-      await expect(sends).toHaveText('55');            // 50 % at gamma 2.2: 55 of 255
-      await expect(screen).toHaveText('119');
+      await expect(gamma).toHaveValue(/^2\.65/);
+      await expect(sends).toHaveText('41');            // 50 % at gamma 2.65: 41 of 255
+      await expect(screen).toHaveText('103');
       await page.screenshot({ path: process.env.ADMIN_SHOTS
         ? path.join(process.env.ADMIN_SHOTS, `${device.viewport.width}-light-admin.png`)
         : info.outputPath('light.png'), fullPage: true });
 
       await response.fill('2');
       await response.press('Enter');
-      await expect(screen).toHaveText('57');          // (0.5^2.2)² of the light: 4.7 %
-      await expect(sends).toHaveText('55');
+      await expect(screen).toHaveText('40');          // (0.5^2.65)² of the light: 2.5 %
+      await expect(sends).toHaveText('41');
       await gamma.fill('1');
       await gamma.press('Enter');
       await expect(page.getByRole('button', { name: 'Download for the Pi' })).toBeDisabled();
@@ -107,7 +107,7 @@ for (const [name, device] of Object.entries(SIZES)) {
       await page.getByRole('button', { name: 'Defaults' }).click();
       await page.getByRole('button', { name: 'Save' }).click();
       await expect(response).toHaveValue(/^1\.00/);
-      await expect(gamma).toHaveValue(/^2\.20/);
+      await expect(gamma).toHaveValue(/^2\.65/);
       expect(errors).toEqual([]);
     });
   });

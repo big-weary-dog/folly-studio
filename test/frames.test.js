@@ -196,11 +196,11 @@ describe('analyzeFrames', () => {
     const red = analyze(parseFseq(bake(C, 0.5, () => [255, 0, 0])), C);
     assert.equal(red.peakBrightness, 0.333);
     assert.equal(red.estPeakAmps, 2);
-    // In the LEDs' light (v^2.2): half the code is about a fifth of the light, and 0.06 is dark.
+    // In the LEDs' light (v^2.65): half the code is about a sixth of the light, and 0.06 is dark.
     const grey = analyze(parseFseq(bake(C, 0.5, () => gray(128))), C);
-    assert.equal(grey.peakBrightness, 0.22);
-    assert.equal(grey.meanBrightness, 0.22);
-    assert.equal(grey.estPeakAmps, 1.3);
+    assert.equal(grey.peakBrightness, 0.161);
+    assert.equal(grey.meanBrightness, 0.161);
+    assert.equal(grey.estPeakAmps, 1);
     assert.equal(grey.darkFraction, 0);
     assert.equal(analyze(parseFseq(bake(C, 0.5, () => gray(15))), C).darkFraction, 1);
     // A file holding only universe 1 leaves the spire's channels out (and dark).

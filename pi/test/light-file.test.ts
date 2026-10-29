@@ -24,7 +24,7 @@ test('a save before the first poll applies; rename, broken contents and recovery
   renameSync(`${file}.tmp`, file);
   assert.equal(read()?.gamma, 1, 'recovery to the previous good settings is still a change');
   unlinkSync(file);
-  assert.equal(read()?.gamma, 2.2, 'a removed file restores defaults');
+  assert.equal(read()?.gamma, 2.65, 'a removed file restores defaults');
   assert.equal(read(), undefined);
   writeFileSync(file, '{');
   assert.throws(lightReader(file), /light.json/, 'a broken file also refuses the initial read');
