@@ -9,7 +9,7 @@ test.use({ viewport: { width: 1366, height: 768 } });
 test('vampire palettes: swatches, selection and preview', async ({ page, studio }, info) => {
   const cookie = await signup(studio.origin, 'vampire-palettes'), [name, value] = cookie.split('=');
   await page.context().addCookies([{ name, value, url: studio.origin }]);
-  const catalogue = await (await page.request.get(`${studio.origin}/data/palettes.json`)).json();
+  const catalogue = JSON.parse(await readFile(new URL('../../public/data/palettes.json', import.meta.url), 'utf8'));
   const code = await readFile(new URL('../../public/patterns/colour-wash.js', import.meta.url), 'utf8');
   const response = await page.request.post(`${studio.origin}/api/looks`, { data: {
     title: 'Vampire ball', chain: 2, duration: 30,
