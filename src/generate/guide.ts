@@ -137,7 +137,7 @@ ${pixelApi(perSecond)}
 
 export const TASTE = `- Saturated colours at full value: palettes set hue, not brightness (half-bright warm reads
   brown). Dim only beds, never below 0.15; below about 0.06 LEDs are off.
-- Darkness punctuates, never extinguishes LEDs: gapless sweeps, pulses swell without black, elements mostly lit.
+- Darkness is punctuation, never extinguishing LEDs: gapless sweeps, pulses swell without black, elements mostly lit.
   Dim or mostly dark looks read as broken.
 - Place the idea where requested. Give every other part a calm voice or bed: every LED has a look.
 - Match named motion (climbing, chasing, breathing) to a module that moves that way.
@@ -187,8 +187,8 @@ Any number param may be bound instead:
 - on a speed, \`{ "mod": "beats", "per": 0.5 }\`: per × the beats a second, in time with the beat.
 A layer's level cannot be bound: bind a source's brightness.
 
-Choose a preset matching the idea; else a chain (bed, element, shaping warp or filter; start from a preset recipe).
-Place it with groups. Extensions only when the library cannot draw it.`;
+Choose a matching preset; else a chain (bed, element, shaping warp or filter; start from a preset recipe).
+Place with groups. Extend only when the library cannot draw it.`;
 
 type Example = { idea: string, uses: string[], places?: string[],
   look: (root: string, place: (tag: string) => string) => object };
