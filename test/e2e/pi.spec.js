@@ -187,6 +187,7 @@ test('the Jukebox is the queue alone', async ({ browser }, info) => {
   await expect(page.getByRole('button', { name: /Black out|^Tap/ })).toHaveCount(0);
 
   await page.getByRole('button', { name: /Add a look/ }).click();
+  await page.getByRole('searchbox', { name: 'Find a look' }).fill('Fire');
   await page.getByRole('button', { name: /^Fire/ }).click();
   // Its preview: the lights' own have no gallery preview, so it says so.
   const preview = page.getByRole('dialog', { name: 'Fire' });

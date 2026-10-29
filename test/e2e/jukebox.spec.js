@@ -119,6 +119,7 @@ test('a curator runs the lights from /live in both modes; a member watches', asy
     if (size === 'phone') await page.getByRole('button', { name: /^Up next/ }).click();
     await page.getByRole('button', { name: /Add a look/ }).first().click();
     // A pick previews it first: closing it changes nothing.
+    await page.getByRole('searchbox', { name: 'Find a look' }).fill('Slow fire');
     await page.getByRole('button', { name: /^Slow fire/ }).click();
     const cue = page.getByRole('dialog', { name: 'Slow fire' });
     await expect(cue.getByRole('img', { name: /gallery preview/ })).toBeVisible();
