@@ -83,7 +83,7 @@ look sent by `ref` (its code always ours), shown with who queued it.
   example `{ "look": "fire", "gen": 4000 }`.
 - The light settings (`--light FILE`, default `pi/light.json`, gitignored): Studio's Light page's "Download for the
   Pi", the same record Export and the bake checks use (SPEC "Light and output", docs/LIGHT.md). Missing, it is the
-  defaults (gamma 2.2, no balance, floor or trims). They bend the colours on the way out only, so the Live tab and the
+  defaults (gamma 2.65, no balance, floor or trims). They bend the colours on the way out only, so the Live tab and the
   engine's frames stay the look's own; the master, blackout and fades scale the light after the curve. The F48s are
   set to Gamma None, so this is the only gamma; their port brightness stays the electrical cap. The engine re-reads
   the file when it changes (every 2 s), so a gamma saved on the Light page plays at once; a broken file keeps the last.

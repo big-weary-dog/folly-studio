@@ -21,7 +21,7 @@ export type Calibration = { white: [number, number, number], response: number, s
  * and outside a focus (a layer's groups being picked). */
 export type Preview = { exposure: number, bloom: number, highlight: number, focus: number };
 export const LIGHT: Readonly<Light> = Object.freeze<Light>({
-  gamma: 2.2,
+  gamma: 2.65,
   balance: [1, 1, 1],
   floor: 0,
   trims: [],

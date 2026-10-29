@@ -126,7 +126,7 @@ output fields change by hand.
 Missing, unreadable or out of range, each field is its default:
 
 ```
-{ gamma: 2.2,              // 1..3: light = v^gamma; 1 sends the values as they are, as FPP and the live apps do
+{ gamma: 2.65,             // 1..3: light = v^gamma; 1 sends the values as they are, as FPP and the live apps do
   balance: [1, 1, 1],      // 0..1 each: a colour's light trimmed down, to even out the whites
   floor: 0,                // 0..16: the least byte a lit channel sends (v ≥ 0.5/255); 0 lets the curve round to off
   trims: [],               // ≤ 32 of { tag, level 0..1 }: a group's light × level, by the rig's group tags

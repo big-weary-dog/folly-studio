@@ -133,7 +133,7 @@ with code of its own reaches the lights as its bake, from Studio on the Pi (`--s
 and **Play on the lights**. Turn Custom code off again afterwards; baked looks keep playing.
 
 **FPP's own playlists.** Each `fpp/<name>.fseq` is the look as the lights take it: City of Gods' channels through
-the output curve (gamma 2.2, as Export's), the rose expanded and power-compressed as lighting's `make renders`
+the output curve (gamma 2.65 by default, as Export's), the rose expanded and power-compressed as lighting's `make renders`
 does, so FPP plays it with no Studio running. Upload them on FPP's page, **Content Setup → File Manager →
 Sequences → Select Files**, or from a laptop: `scp fpp/*.fseq fpp@192.168.8.172:/home/fpp/media/sequences/`. Then
 **Content Setup → Playlists**: a new playlist, a Sequence entry for each, and play it from the Status page. The
