@@ -1,0 +1,354 @@
+{
+  "title": "Stone and Glass",
+  "summary": "Still stone arches and coloured glass, with shared ripple and twist controls.",
+  "chain": 2,
+  "duration": 360,
+  "globals": {
+    "palette": {
+      "low": [
+        "#663aff"
+      ],
+      "body": [
+        "#ff9819",
+        "#ff3e75"
+      ],
+      "accent": [
+        "#00d9bc",
+        "#20a3ff"
+      ],
+      "high": [
+        "#ffe878"
+      ]
+    },
+    "macros": {
+      "breathe": {
+        "value": 0,
+        "min": 0,
+        "max": 1
+      },
+      "twist": {
+        "value": 0,
+        "min": 0,
+        "max": 1
+      }
+    },
+    "live": [
+      "breathe",
+      "twist"
+    ]
+  },
+  "layers": [
+    {
+      "id": "arch-main",
+      "title": "Main arches",
+      "tags": [
+        "arch-main"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": "body1",
+            "direction": "up",
+            "bars": 1,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": 0.95
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "twist",
+          "params": {
+            "swirl": {
+              "mod": "global",
+              "name": "breathe",
+              "from": 0,
+              "to": 0.6
+            },
+            "wind": {
+              "mod": "global",
+              "name": "twist",
+              "from": 0,
+              "to": 0.5
+            }
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "colour-wash",
+          "params": {
+            "colours": "body1",
+            "brightness": 0.72,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    },
+    {
+      "id": "arch-mini",
+      "title": "Mini arches",
+      "tags": [
+        "arch-mini"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": "accent1",
+            "direction": "up",
+            "bars": 1,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": 0.95
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "twist",
+          "params": {
+            "swirl": {
+              "mod": "global",
+              "name": "breathe",
+              "from": 0,
+              "to": 0.6
+            },
+            "wind": {
+              "mod": "global",
+              "name": "twist",
+              "from": 0,
+              "to": 0.5
+            }
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "colour-wash",
+          "params": {
+            "colours": "accent1",
+            "brightness": 0.72,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    },
+    {
+      "id": "arch-quad",
+      "title": "Quad arches",
+      "tags": [
+        "arch-quad"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": "low1",
+            "direction": "up",
+            "bars": 1,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": 0.95
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "twist",
+          "params": {
+            "swirl": {
+              "mod": "global",
+              "name": "breathe",
+              "from": 0,
+              "to": 0.6
+            },
+            "wind": {
+              "mod": "global",
+              "name": "twist",
+              "from": 0,
+              "to": 0.5
+            }
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "colour-wash",
+          "params": {
+            "colours": "low1",
+            "brightness": 0.72,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    },
+    {
+      "id": "spire",
+      "title": "Spires",
+      "tags": [
+        "spire"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": "accent2",
+            "direction": "orbit-clockwise",
+            "bars": 1,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": 0.95
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "twist",
+          "params": {
+            "swirl": {
+              "mod": "global",
+              "name": "breathe",
+              "from": 0,
+              "to": 0.6
+            },
+            "wind": {
+              "mod": "global",
+              "name": "twist",
+              "from": 0,
+              "to": 0.5
+            }
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "colour-wash",
+          "params": {
+            "colours": "accent2",
+            "brightness": 0.72,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    },
+    {
+      "id": "spirelet",
+      "title": "Spirelets",
+      "tags": [
+        "spirelet"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": "body2",
+            "direction": "up",
+            "bars": 1,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": 0.95
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "twist",
+          "params": {
+            "swirl": {
+              "mod": "global",
+              "name": "breathe",
+              "from": 0,
+              "to": 0.6
+            },
+            "wind": {
+              "mod": "global",
+              "name": "twist",
+              "from": 0,
+              "to": 0.5
+            }
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "colour-wash",
+          "params": {
+            "colours": "body2",
+            "brightness": 0.72,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    },
+    {
+      "id": "rose",
+      "title": "Rose window",
+      "tags": [
+        "rose"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": "accent high body",
+            "direction": "clockwise",
+            "bars": 4,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": 0.95
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "twist",
+          "params": {
+            "swirl": {
+              "mod": "global",
+              "name": "breathe",
+              "from": 0,
+              "to": 0.6
+            },
+            "wind": {
+              "mod": "global",
+              "name": "twist",
+              "from": 0,
+              "to": 0.5
+            }
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "colour-wash",
+          "params": {
+            "colours": "low1",
+            "brightness": 0.72,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    }
+  ]
+}
