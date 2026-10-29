@@ -1,15 +1,15 @@
 # A theme line per palette, name: theme. Studio's generator reads it to pick a palette by mood.
 amber: Golden ambers with a red glow: candlelight, honey, old gold.
-amethyst: Deep violets with restrained lilac highlights: vampire ball, gothic, nocturnal.
+amethyst: Deep violet, lilac: vampire ball.
 aqua: Bright cyans with a hint of violet: water, cool, clean.
 arcade: Hot red and electric cyan with yellow: pinball, 3D glasses, loud.
 aurora: Emerald and violet with cyan: polar skies, vivid.
 bramble: Berry and moss with peach: hedgerows, wild fruit, dusky.
-blood: Clean blood reds from oxblood to scarlet: vampire ball, dark, gothic, no pink.
+blood: Clean oxblood to scarlet: vampire ball.
 carnival: Every warm colour with teal and green: festival, fun.
 chapel: Warm reds and golds with blue: stained glass, the default.
 confetti: Blue, lemon and pink: paper streamers, playful.
-crimson: Clean crimson reds with deep violet: vampire ball, velvet, gothic drama.
+crimson: Crimson and deep violet: vampire ball.
 ember: Fiery reds and oranges with pink: fire, embers, heat.
 forest: Rich greens with gold light: woods, leaves, calm.
 fuchsia: Hot magentas with violet: party, neon, bold.
@@ -30,7 +30,7 @@ peppermint: Candy reds through pink to white with mint: sweets, stripes, crisp.
 playa: Purples, pinks and peach with teal: desert dusk.
 prism: The full rainbow: spectrum, celebration.
 regalia: Royal blue and gold with crimson: banners, crowns, ceremony.
-requiem: Blood reds with restrained candle gold: vampire ball, gothic chapel, candlelit.
+requiem: Blood red, candle gold: vampire ball.
 rose: Pinks with soft peach: romance, sweetness, blush.
 ruby: Deep reds with a touch of gold: fire, passion, alarm.
 sherbet: Peach and mint with lavender: pastels, gentle.
