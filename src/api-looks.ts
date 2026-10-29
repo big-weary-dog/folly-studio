@@ -80,15 +80,16 @@ const lanes = (automation: unknown, globals: Globals | null | undefined) =>
 export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate, loadLibrary = () => [],
   log = console }: {
   store: Store, auth: Auth, bakes: ReturnType<typeof createBakeQueue>, dropFrames: (id: string) => Promise<unknown>,
-  codeGate?: Pick<CodeGate, 'check'>,
+  codeGate?: Pick<CodeGate, 'check'> & Partial<Pick<CodeGate, 'upgrade'>>,
   previews?: Pick<ReturnType<typeof createPreviews>, 'want' | 'keyOf' | 'file'>,
   loadLibrary?: () => readonly LibraryEntry[], log?: Logger }) {
   const ownerName = (id: string) => store.users.get(id)?.username ?? '';
   /** 403 for new code while an admin has custom code off (src/custom-code.ts). */
   const allowCode = (layers: unknown, user: User) => codeGate?.check(layers, user.id, (why) => new HttpError(403, why));
   /** A body's layers as the one rule reads them, each standard module named as the library names it. */
-  const ruledNamed = (body: Parameters<typeof ruled>[0]) => {
+  const ruledNamed = async (body: Parameters<typeof ruled>[0]) => {
     const out = ruled(body), library = loadLibrary();
+    if (codeGate?.upgrade) out.layers = await codeGate.upgrade(out.layers);
     return { ...out, layers: out.layers.map((l) => ('modules' in l
       ? { ...l, modules: keepStandardTitles(l.modules, library) } : l)) };
   };
@@ -149,7 +150,8 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
         automation: automation ?? null, chain: body.chain }, 'import');
       return { look: presentLook(updated, { mine: true }), imported: edited ? 'updated' : 'unchanged' };
     }
-    const look: Partial<Look> = { owner: user.id, ownerName: user.username, ...body, ...ruledNamed(body), chain: CHAIN,
+    const look: Partial<Look> = { owner: user.id, ownerName: user.username, ...body, ...await ruledNamed(body),
+      chain: CHAIN,
       reviewed: false, versions: [] };
     await allowCode(look.layers, user);
     if (globals) look.globals = globals;
@@ -183,7 +185,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
   async function revise(was: Look, user: User, body: z.output<typeof LookPatch>, how: 'auto' | 'import' = 'auto') {
     const { id } = was;
     const ruledNow = body.layers === undefined ? undefined
-      : ruledNamed({ ...body, layers: body.layers, summary: body.summary ?? was.summary });
+      : await ruledNamed({ ...body, layers: body.layers, summary: body.summary ?? was.summary });
     if (ruledNow) await allowCode(ruledNow.layers, user);
     const look = visibleLook(id, user);
     const isOwner = auth.can(user, 'edit', look);
