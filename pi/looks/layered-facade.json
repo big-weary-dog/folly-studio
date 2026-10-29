@@ -1,0 +1,413 @@
+{
+  "title": "Layered Façade",
+  "summary": "Turquoise front planes, violet arches and a coral rose, with depth and mirror folds.",
+  "chain": 2,
+  "duration": 360,
+  "globals": {
+    "palette": {
+      "low": [
+        "#5544fa"
+      ],
+      "body": [
+        "#00e3be",
+        "#168fff"
+      ],
+      "accent": [
+        "#ff4b32"
+      ],
+      "high": [
+        "#ffd33d"
+      ]
+    },
+    "macros": {
+      "depth": {
+        "value": 0,
+        "min": 0,
+        "max": 1
+      },
+      "mirror": {
+        "value": 0,
+        "min": 0,
+        "max": 1
+      }
+    },
+    "live": [
+      "depth",
+      "mirror"
+    ]
+  },
+  "layers": [
+    {
+      "id": "arch-main",
+      "title": "Main arches",
+      "tags": [
+        "arch-main"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": "body accent high",
+            "direction": "back",
+            "bars": 1,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": 1
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "rotate",
+          "params": {
+            "plane": "side",
+            "angle": {
+              "mod": "global",
+              "name": "depth",
+              "from": 0,
+              "to": 0.22
+            },
+            "spin": 0
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "mirror",
+          "params": {
+            "across": false,
+            "rings": {
+              "mod": "global",
+              "name": "mirror",
+              "from": 0,
+              "to": 4
+            },
+            "wedges": 0
+          }
+        },
+        {
+          "id": "m4",
+          "ref": "colour-wash",
+          "params": {
+            "colours": "body1",
+            "brightness": 0.8,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    },
+    {
+      "id": "arch-mini",
+      "title": "Mini arches",
+      "tags": [
+        "arch-mini"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": "body high",
+            "direction": "back",
+            "bars": 1,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": 0.9
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "rotate",
+          "params": {
+            "plane": "side",
+            "angle": {
+              "mod": "global",
+              "name": "depth",
+              "from": 0,
+              "to": 0.22
+            },
+            "spin": 0
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "mirror",
+          "params": {
+            "across": false,
+            "rings": {
+              "mod": "global",
+              "name": "mirror",
+              "from": 0,
+              "to": 4
+            },
+            "wedges": 0
+          }
+        },
+        {
+          "id": "m4",
+          "ref": "colour-wash",
+          "params": {
+            "colours": "body2",
+            "brightness": 0.8,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    },
+    {
+      "id": "arch-quad",
+      "title": "Quad arches",
+      "tags": [
+        "arch-quad"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": "low body",
+            "direction": "back",
+            "bars": 1,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": 0.75
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "rotate",
+          "params": {
+            "plane": "side",
+            "angle": {
+              "mod": "global",
+              "name": "depth",
+              "from": 0,
+              "to": 0.22
+            },
+            "spin": 0
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "mirror",
+          "params": {
+            "across": false,
+            "rings": {
+              "mod": "global",
+              "name": "mirror",
+              "from": 0,
+              "to": 4
+            },
+            "wedges": 0
+          }
+        },
+        {
+          "id": "m4",
+          "ref": "colour-wash",
+          "params": {
+            "colours": "low1",
+            "brightness": 0.6,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    },
+    {
+      "id": "spire",
+      "title": "Spires",
+      "tags": [
+        "spire"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": "low accent",
+            "direction": "back",
+            "bars": 1,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": 0.9
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "rotate",
+          "params": {
+            "plane": "side",
+            "angle": {
+              "mod": "global",
+              "name": "depth",
+              "from": 0,
+              "to": 0.22
+            },
+            "spin": 0
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "mirror",
+          "params": {
+            "across": false,
+            "rings": {
+              "mod": "global",
+              "name": "mirror",
+              "from": 0,
+              "to": 4
+            },
+            "wedges": 0
+          }
+        },
+        {
+          "id": "m4",
+          "ref": "colour-wash",
+          "params": {
+            "colours": "accent1",
+            "brightness": 0.8,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    },
+    {
+      "id": "spirelet",
+      "title": "Spirelets",
+      "tags": [
+        "spirelet"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": "body accent",
+            "direction": "back",
+            "bars": 1,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": 0.9
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "rotate",
+          "params": {
+            "plane": "side",
+            "angle": {
+              "mod": "global",
+              "name": "depth",
+              "from": 0,
+              "to": 0.22
+            },
+            "spin": 0
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "mirror",
+          "params": {
+            "across": false,
+            "rings": {
+              "mod": "global",
+              "name": "mirror",
+              "from": 0,
+              "to": 4
+            },
+            "wedges": 0
+          }
+        },
+        {
+          "id": "m4",
+          "ref": "colour-wash",
+          "params": {
+            "colours": "high1",
+            "brightness": 0.8,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    },
+    {
+      "id": "rose",
+      "title": "Rose window",
+      "tags": [
+        "rose"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": "accent high",
+            "direction": "back",
+            "bars": 1,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": 1
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "rotate",
+          "params": {
+            "plane": "side",
+            "angle": {
+              "mod": "global",
+              "name": "depth",
+              "from": 0,
+              "to": 0.22
+            },
+            "spin": 0
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "mirror",
+          "params": {
+            "across": false,
+            "rings": {
+              "mod": "global",
+              "name": "mirror",
+              "from": 0,
+              "to": 4
+            },
+            "wedges": 0
+          }
+        },
+        {
+          "id": "m4",
+          "ref": "colour-wash",
+          "params": {
+            "colours": "high1",
+            "brightness": 0.8,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    }
+  ]
+}

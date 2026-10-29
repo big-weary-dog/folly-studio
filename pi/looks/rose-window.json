@@ -1,0 +1,519 @@
+{
+  "title": "Rose Window",
+  "summary": "A saturated rosette echoed on fully lit arches, with a two-minute colour phase, turn and bloom.",
+  "chain": 2,
+  "duration": 360,
+  "globals": {
+    "palette": {
+      "low": [
+        "#5430ed"
+      ],
+      "body": [
+        "#ff29a4",
+        "#772fff"
+      ],
+      "accent": [
+        "#ffa51e",
+        "#00e5ba"
+      ],
+      "high": [
+        "#fff064"
+      ]
+    },
+    "macros": {
+      "turn": {
+        "value": 0,
+        "min": 0,
+        "max": 1
+      },
+      "bloom": {
+        "value": 0,
+        "min": 0,
+        "max": 1
+      }
+    },
+    "live": [
+      "turn",
+      "bloom"
+    ]
+  },
+  "layers": [
+    {
+      "id": "arch-main",
+      "title": "Main arches",
+      "tags": [
+        "arch-main"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": "body accent",
+            "direction": "clockwise",
+            "bars": 2,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": 0.95
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "twist",
+          "params": {
+            "swirl": {
+              "mod": "global",
+              "name": "bloom",
+              "from": 0,
+              "to": 1.2
+            },
+            "wind": 0
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "rotate",
+          "params": {
+            "angle": {
+              "mod": "global",
+              "name": "turn",
+              "from": 0,
+              "to": 0.25
+            },
+            "spin": 0
+          }
+        },
+        {
+          "id": "m4",
+          "ref": "anchor",
+          "params": {
+            "tag": "rose",
+            "which": "first",
+            "shape": "facade",
+            "lineup": false
+          }
+        },
+        {
+          "id": "m5",
+          "ref": "colour-wash",
+          "params": {
+            "colours": {
+              "pick": "accent2 body1",
+              "blend": "smooth",
+              "rotate": {
+                "mod": "lfo",
+                "shape": "sine",
+                "rate": 0.008333333333333333,
+                "unit": "hz",
+                "center": 0.25,
+                "depth": 0.25
+              }
+            },
+            "brightness": 0.75,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    },
+    {
+      "id": "arch-mini",
+      "title": "Mini arches",
+      "tags": [
+        "arch-mini"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": "accent body",
+            "direction": "clockwise",
+            "bars": 2,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": 0.95
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "twist",
+          "params": {
+            "swirl": {
+              "mod": "global",
+              "name": "bloom",
+              "from": 0,
+              "to": 1.2
+            },
+            "wind": 0
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "rotate",
+          "params": {
+            "angle": {
+              "mod": "global",
+              "name": "turn",
+              "from": 0,
+              "to": 0.25
+            },
+            "spin": 0
+          }
+        },
+        {
+          "id": "m4",
+          "ref": "anchor",
+          "params": {
+            "tag": "rose",
+            "which": "first",
+            "shape": "facade",
+            "lineup": false
+          }
+        },
+        {
+          "id": "m5",
+          "ref": "colour-wash",
+          "params": {
+            "colours": {
+              "pick": "body1 accent1",
+              "blend": "smooth",
+              "rotate": {
+                "mod": "lfo",
+                "shape": "sine",
+                "rate": 0.008333333333333333,
+                "unit": "hz",
+                "center": 0.25,
+                "depth": 0.25
+              }
+            },
+            "brightness": 0.75,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    },
+    {
+      "id": "arch-quad",
+      "title": "Quad arches",
+      "tags": [
+        "arch-quad"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": "low accent",
+            "direction": "clockwise",
+            "bars": 2,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": 0.95
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "twist",
+          "params": {
+            "swirl": {
+              "mod": "global",
+              "name": "bloom",
+              "from": 0,
+              "to": 1.2
+            },
+            "wind": 0
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "rotate",
+          "params": {
+            "angle": {
+              "mod": "global",
+              "name": "turn",
+              "from": 0,
+              "to": 0.25
+            },
+            "spin": 0
+          }
+        },
+        {
+          "id": "m4",
+          "ref": "anchor",
+          "params": {
+            "tag": "rose",
+            "which": "first",
+            "shape": "facade",
+            "lineup": false
+          }
+        },
+        {
+          "id": "m5",
+          "ref": "colour-wash",
+          "params": {
+            "colours": {
+              "pick": "accent1 body2",
+              "blend": "smooth",
+              "rotate": {
+                "mod": "lfo",
+                "shape": "sine",
+                "rate": 0.008333333333333333,
+                "unit": "hz",
+                "center": 0.25,
+                "depth": 0.25
+              }
+            },
+            "brightness": 0.75,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    },
+    {
+      "id": "spire",
+      "title": "Spires",
+      "tags": [
+        "spire"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": "accent body",
+            "direction": "clockwise",
+            "bars": 2,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": 0.95
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "twist",
+          "params": {
+            "swirl": {
+              "mod": "global",
+              "name": "bloom",
+              "from": 0,
+              "to": 1.2
+            },
+            "wind": 0
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "rotate",
+          "params": {
+            "angle": {
+              "mod": "global",
+              "name": "turn",
+              "from": 0,
+              "to": 0.25
+            },
+            "spin": 0
+          }
+        },
+        {
+          "id": "m4",
+          "ref": "colour-wash",
+          "params": {
+            "colours": {
+              "pick": "body2 accent2",
+              "blend": "smooth",
+              "rotate": {
+                "mod": "lfo",
+                "shape": "sine",
+                "rate": 0.008333333333333333,
+                "unit": "hz",
+                "center": 0.25,
+                "depth": 0.25
+              }
+            },
+            "brightness": 0.75,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    },
+    {
+      "id": "spirelet",
+      "title": "Spirelets",
+      "tags": [
+        "spirelet"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": "body high",
+            "direction": "clockwise",
+            "bars": 2,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": 0.95
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "twist",
+          "params": {
+            "swirl": {
+              "mod": "global",
+              "name": "bloom",
+              "from": 0,
+              "to": 1.2
+            },
+            "wind": 0
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "rotate",
+          "params": {
+            "angle": {
+              "mod": "global",
+              "name": "turn",
+              "from": 0,
+              "to": 0.25
+            },
+            "spin": 0
+          }
+        },
+        {
+          "id": "m4",
+          "ref": "colour-wash",
+          "params": {
+            "colours": {
+              "pick": "accent2 high1",
+              "blend": "smooth",
+              "rotate": {
+                "mod": "lfo",
+                "shape": "sine",
+                "rate": 0.008333333333333333,
+                "unit": "hz",
+                "center": 0.25,
+                "depth": 0.25
+              }
+            },
+            "brightness": 0.75,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    },
+    {
+      "id": "rose",
+      "title": "Rose window",
+      "tags": [
+        "rose"
+      ],
+      "blend": "over",
+      "level": 1,
+      "modules": [
+        {
+          "id": "m1",
+          "ref": "bars",
+          "params": {
+            "colours": {
+              "pick": "body accent high",
+              "blend": "smooth",
+              "rotate": {
+                "mod": "lfo",
+                "shape": "sine",
+                "rate": 0.008333333333333333,
+                "unit": "hz",
+                "center": 0.25,
+                "depth": 0.25
+              }
+            },
+            "direction": "clockwise",
+            "bars": 4,
+            "profile": "pulse",
+            "duty": 1,
+            "speed": 0,
+            "brightness": 0.95
+          }
+        },
+        {
+          "id": "m2",
+          "ref": "twist",
+          "params": {
+            "swirl": {
+              "mod": "global",
+              "name": "bloom",
+              "from": 0,
+              "to": 1.2
+            },
+            "wind": 0
+          }
+        },
+        {
+          "id": "m3",
+          "ref": "rotate",
+          "params": {
+            "angle": {
+              "mod": "global",
+              "name": "turn",
+              "from": 0,
+              "to": 0.25
+            },
+            "spin": 0
+          }
+        },
+        {
+          "id": "m4",
+          "ref": "anchor",
+          "params": {
+            "tag": "rose",
+            "which": "first",
+            "shape": "facade",
+            "lineup": false
+          }
+        },
+        {
+          "id": "m5",
+          "ref": "colour-wash",
+          "params": {
+            "colours": {
+              "pick": "low1 body1",
+              "blend": "smooth",
+              "rotate": {
+                "mod": "lfo",
+                "shape": "sine",
+                "rate": 0.008333333333333333,
+                "unit": "hz",
+                "center": 0.25,
+                "depth": 0.25
+              }
+            },
+            "brightness": 0.75,
+            "speed": 0
+          },
+          "blend": "under"
+        }
+      ]
+    }
+  ]
+}
