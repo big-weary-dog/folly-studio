@@ -195,7 +195,11 @@
    "chain:petal-repeat": "ffe14b4ed973c0ad",
    "chain:petal-repeat/warp": "b7898b87d6645d0b",
    "chain:petal-stride": "418931f54d813631",
-   "chain:petal-stride/warp": "22ff7233c6afa2b3"
+   "chain:petal-stride/warp": "22ff7233c6afa2b3",
+   "pi:stone-and-glass": "86f75c79a4937f2c",
+   "pi:dusk-nave": "bf231015af07b75e",
+   "pi:rose-window": "bde0107c4ed9a7e6",
+   "pi:layered-facade": "ce69a6d5ea658d9e"
   },
   "rig-folly.json": {
    "colour-wash": "c10450ca0842f683",
@@ -391,7 +395,11 @@
    "chain:petal-repeat": "783b43a9d969ac5d",
    "chain:petal-repeat/warp": "63d80f97c2ba4101",
    "chain:petal-stride": "f85e987ea16dcd8a",
-   "chain:petal-stride/warp": "4c57b65c868b73c2"
+   "chain:petal-stride/warp": "4c57b65c868b73c2",
+   "pi:stone-and-glass": "30137b2291d98035",
+   "pi:dusk-nave": "9ec9b860115c0844",
+   "pi:rose-window": "43df57e4e5c6fb1b",
+   "pi:layered-facade": "ddc6dc8da0b1a175"
   }
  }
 }
