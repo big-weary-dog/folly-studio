@@ -58,7 +58,7 @@ is no bundle: the routes are 404 and the page says so.
 
 It is `folly-studio-pi-<commit>.tar` (12 hex characters), holding one folder, `folly-studio-pi/`: `folly-studio-pi.tgz`,
 `install.sh` and `SETUP.md`, the stick's files (looks are the person's own to add as `looks/`). It holds only the
-commit's tracked files, its build, `node_modules` and the pinned bubblewrap `.deb`s: never an env file, Studio's
+commit's tracked files, its build and `node_modules`: never an env file, Studio's
 data, keys or anything else of the hosting machine's; `npm run host` refuses to serve one whose listing names any
 (`tools/pi-bundle-check.ts`).
 

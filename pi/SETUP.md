@@ -23,7 +23,7 @@ Or skip steps 1 and 2: [download it](#downloading-it) from the hosted Studio.
    ```
 
    It ends `pi-bundle: …/folly-studio-pi.tgz (58M), the build of <commit>; install.sh beside it`. It holds the
-   built app, `node_modules` for the Pi (sharp for 64- and 32-bit ARM) and bubblewrap's `.deb`s, so the Pi
+   built app, `node_modules` for the Pi (sharp for 64- and 32-bit ARM), so the Pi
    downloads nothing.
 2. **Copy `folly-studio-pi.tgz` and `install.sh` to a USB stick** (any format the Pi reads; FAT32 is fine), with
    any looks to take ([Looks on the stick](#looks-on-the-stick)).
@@ -54,7 +54,7 @@ Or skip steps 1 and 2: [download it](#downloading-it) from the hosted Studio.
    install: done. …
    ```
 
-   With `--studio`, also `bubblewrap works`, `its page answers at /pi/` and `Studio answers on :8780`. Anything
+   With `--studio`, also `bubblewrap works` (or its warning: the installer never installs it), `its page answers at /pi/` and `Studio answers on :8780`. Anything
    else ends `install: FAILED: <why>`.
 5. **Unmount the stick:** `sudo umount /mnt/usb`.
 6. **The hub:** from the laptop's lighting checkout, `bash playa-deploy/update-pi-code.sh`. Check it says
