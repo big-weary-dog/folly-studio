@@ -28,19 +28,41 @@ const params = {
 // Each strand has its own lane along; vertical falls use the layer's width.
 const across = (p, d) => (d === 'along' ? fract(p.fixture * 0.618) : p.lz);
 
+let random = new Float64Array(0), low = 0, high = 0, depths = 0;
+function frame() {
+  if (random.length) return;
+  const n = params.lanes.max, deep = params.depth.max;
+  low = -n; high = 2 * n; depths = deep;
+  random = new Float64Array((high - low) * (9 + 3 * depths));
+  for (let lane = low; lane < high; lane++) {
+    const at = (lane - low) * (9 + 3 * depths);
+    for (let m = 0; m < 3; m++) for (let key = 1; key <= 3; key++) {
+      random[at + m * 3 + key - 1] = rand(lane, m, key);
+    }
+    for (let d = 0; d < depths; d++) for (let m = 0; m < 3; m++) {
+      random[at + 9 + d * 3 + m] = rand(lane, d * 3 + m, 4);
+    }
+  }
+}
+
 function pixel(p, t, P) {
   const d = P.direction, w = TAU * P.angle, s = sin(w), c = cos(w), a0 = toward(p, d), b0 = across(p, d);
   const flake = P.profile === 'flake', n = flake ? P.lanes / 4 : P.lanes;
   const along = a0 * c + b0 * s, x = (b0 * c - a0 * s) * n, lane = floor(x);
   const deep = floor(p.lx * P.depth * 0.9999), run = clock('speed');
+  const cached = lane >= low && lane < high, at = (lane - low) * (9 + 3 * depths);
   const span = flake ? 1.3 : 2.6, lead = flake ? 0.15 : 1.3;          // a lap, from off one end past the other
   let v = 0;
   for (let m = 0; m < 3; m++) {
-    if (rand(lane, deep * 3 + m, 4) > P.density) continue;
-    const head = fract(run * (0.6 + 0.8 * rand(lane, m, 1)) / span + rand(lane, m, 2)) * span - lead;
+    const chance = cached && deep >= 0 && deep < depths ? random[at + 9 + deep * 3 + m] : rand(lane, deep * 3 + m, 4);
+    if (chance > P.density) continue;
+    const pace = cached ? random[at + m * 3] : rand(lane, m, 1);
+    const phase = cached ? random[at + m * 3 + 1] : rand(lane, m, 2);
+    const head = fract(run * (0.6 + 0.8 * pace) / span + phase) * span - lead;
     const behind = head - along;
     if (flake) {
-      const off = x - lane - 0.5 - P.sway * 0.4 * sin(TAU * (run * 0.5 + rand(lane, m, 3)));
+      const sway = cached ? random[at + m * 3 + 2] : rand(lane, m, 3);
+      const off = x - lane - 0.5 - P.sway * 0.4 * sin(TAU * (run * 0.5 + sway));
       v = max(v, smoothstep(0.5, 0.2, hypot(behind * n, off)));
     } else if (behind > -0.01) {
       v = max(v, exp(-max(0, behind) / P.tail));

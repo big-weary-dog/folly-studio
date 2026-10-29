@@ -28,11 +28,22 @@ const params = {
     help: 'How gradually band edges blend. 0 gives hard cuts between colours; high blurs them into soft fades.' },
 };
 
+// Common strand ids are tabled once; unusually large ids retain the same calculation.
+const random = new Float64Array(512);
+let ready = false;
+function frame() {
+  if (ready) return;
+  for (let s = 0; s < random.length / 2; s++) { random[2 * s] = rand(s, 3); random[2 * s + 1] = rand(s, 1); }
+  ready = true;
+}
+
 function pixel(p, t, P) {
   const s = p.fixture, n = p.n, h = (n - 1) / 2, m = P.mode, sc = P.scatter;
   const i = P.alternate && s % 2 ? n - 1 - p.i : p.i;
   const x = m === 'out' ? abs(i - h) : m === 'in' ? h - abs(i - h) : i;
-  const run = clock('speed') * (1 + sc * 0.6 * (rand(s, 3) - 0.5)) + sc * rand(s, 1) * (n + P.lap);
+  const cached = s >= 0 && s < random.length / 2 && s === floor(s);
+  const pace = cached ? random[2 * s] : rand(s, 3), phase = cached ? random[2 * s + 1] : rand(s, 1);
+  const run = clock('speed') * (1 + sc * 0.6 * (pace - 0.5)) + sc * phase * (n + P.lap);
   const sweep = run / (2 * n);
   let at = x - (m === 'bounce' ? tri(sweep) * n : run);
   if (P.lap > 0 && m !== 'bounce') {                 // a pass (whole comets), then the lap clear

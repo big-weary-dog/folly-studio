@@ -19,7 +19,7 @@ export const BYTES = fileURLToPath(new URL('../test/fixtures/output-bytes.json',
 const FRAMES = [0, 1, 2, 3, 4, 5, 292, 293], CAPS = [1, 1, 0.62, 1, 0.3, 1, 0.85, 1];
 
 /** Each look's id → a hash of its LED bytes over FRAMES (or why it cannot play), on the rig in public/data/. */
-export function outputBytes(rigFile: string) {
+export function outputBytes(rigFile: string, warm = false) {
   setLibrary([...lib.entries.values()]);
   const rig = JSON.parse(readFileSync(new URL(`../public/data/${rigFile}`, import.meta.url), 'utf8'));
   const scene = prepareScene(rig), dt = 1 / scene.fps, light = prepareLight(scene);
@@ -29,6 +29,10 @@ export function outputBytes(rigFile: string) {
     try {
       const r = resolveLook(look, lib), live = liveLook(r), sum = createHash('sha256');
       const layers = r.layers.map((l) => prepareLayer(scene, l, compileLayer(l)));
+      if (warm) for (let f = 8; f > 0; f--) {
+        live.step(f * dt, dt);
+        renderFrame(scene, layers, f * dt, rgb, live.look);
+      }
       FRAMES.forEach((f, i) => {
         const t = (f * dt) % (r.duration || 30);
         live.step(t, dt);

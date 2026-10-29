@@ -253,9 +253,9 @@ const ORIGIN: Centres = Object.freeze([Object.freeze([0, 0, 0]), Object.freeze([
  * moved: +1 each frame a palette's colours change in place (the Pi's palette blend), so picks walk them again. */
 export const RUN: { G: G | null, palette: PaletteColours,
   scene: { centresOf(tag: string): Centres, extent: Centres } | null, extent: Centres, t: number, T: number, dt: number,
-  look: PreparedLook | null, moved: number } = {
+  look: PreparedLook | null, moved: number, frame: number } = {
   G: null, palette: paletteColours(DEFAULT_PALETTE)!, scene: null, extent: ORIGIN, t: 0, T: 0, dt: 0, look: null,
-  moved: 0 };
+  moved: 0, frame: 0 };
 
 function fadeAlong(list: Centres, t: number): RGB {
   const n = list.length;
