@@ -12,6 +12,9 @@ const HOW = 'LED bytes moved. A pattern or the rig changed on purpose: node tool
 const recorded = JSON.parse(readFileSync(BYTES, 'utf8')).rigs;
 
 for (const rig of RIGS) {
+  test(`warming then seeking to zero preserves every look's LED bytes on ${rig}`, () => {
+    expect(outputBytes(rig, true)).toEqual(recorded[rig]);
+  });
   test(`every look sends the LED bytes recorded on ${rig}`, () => {
     const now = outputBytes(rig), was = recorded[rig];
     const moved = Object.keys({ ...was, ...now }).filter((id) => now[id] !== was[id])

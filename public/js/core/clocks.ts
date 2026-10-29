@@ -16,6 +16,7 @@ type Sum = { n: number, sum: number, f: number, at: number, value: number, rate:
 export function newClocks() {
   let P: Values = {}, bound = new Map<string, Mod>(), clips: readonly Clip[] | null = null;
   const sums = new Map<string, Sum>();
+  let last = '', frame = -1, offset = 0, value = 0;
   /** What a bound param moves things by at show time t: its value then. */
   const rate = (m: Mod, t: number) => {
     const L = RUN.look!, g = m.kind === 1 ? L.normAt(m.name, t) : 0;
@@ -40,17 +41,19 @@ export function newClocks() {
   };
   return {
     bind(values: Values, mods: readonly Mod[], layerClips: readonly Clip[] | null) {
-      P = values; clips = layerClips; sums.clear();
+      P = values; clips = layerClips; sums.clear(); frame = -1;
       bound = new Map(mods.filter((m) => !m.into).map((m) => [m.key, m]));
     },
     /** clock(name): ∫ P[name] dT, the distance number param `name` (a speed) has moved things by now; in an
      * instance (RUN.dt), by its own time: shifted by dt at the param's rate now. */
     clock(name: string): number {
+      if (last === name && frame === RUN.frame && offset === RUN.dt) return value;
+      last = name; frame = RUN.frame; offset = RUN.dt;
       const L = RUN.look, t = RUN.t, m = L ? bound.get(name) : undefined;
-      if (!m) { const v = P[name]; return typeof v === 'number' ? v * (RUN.T + RUN.dt) : 0; }
+      if (!m) { const v = P[name]; return value = typeof v === 'number' ? v * (RUN.T + RUN.dt) : 0; }
       let s = sums.get(name);
       if (!s || s.at !== t || s.look !== L) s = sum(m, s, name, t, L);
-      return RUN.dt ? s.value + RUN.dt * s.rate : s.value;
+      return value = RUN.dt ? s.value + RUN.dt * s.rate : s.value;
     },
   };
 }
