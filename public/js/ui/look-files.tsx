@@ -8,17 +8,17 @@ import { download, openDialog, toast } from './kit.tsx';
 import { fileText, fullLooks, importActions, importFiles, manyName } from './look-file.ts';
 import { usePhone } from './phone/viewport.ts';
 
-export function LookFiles({ looks, gallery, reload }: { looks: Listed[] | null; gallery: boolean;
-  reload: () => void }) {
+export function LookFiles({ looks, gallery, approvedOnly, reload }: { looks: Listed[] | null; gallery: boolean;
+  approvedOnly: boolean; reload: () => void }) {
   const [busy, setBusy] = useState(''), pick = useRef<HTMLInputElement>(null);
   const phone = usePhone();
-
+  const listed = (looks || []).filter((look) => !gallery || !approvedOnly || look.reviewed);
   async function exportAll() {
-    const listed = looks || [];
     setBusy(`Exporting 0 of ${listed.length}…`);
     try {
       const all = await fullLooks(listed, (n) => setBusy(`Exporting ${n} of ${listed.length}…`));
-      download(fileText({ looks: all }), manyName(gallery ? 'gallery' : 'mine'), 'application/json');
+      download(fileText({ looks: all }), manyName(gallery
+        ? (approvedOnly ? 'gallery-approved' : 'gallery') : 'mine'), 'application/json');
       toast(`Exported ${all.length} look${all.length === 1 ? '' : 's'}.`);
     } catch (err) {
       toast(`Nothing exported. ${(err as Error).message.replace(/\.?$/, '.')}`, { kind: 'error', timeout: 9000 });
@@ -67,6 +67,6 @@ export function LookFiles({ looks, gallery, reload }: { looks: Listed[] | null; 
           onChange={(e) => importAll(e.currentTarget.files)} />
         <button type="button" class="btn" disabled={!!busy} onClick={() => pick.current?.click()}>Import</button>
       </>}
-      <button type="button" class="btn" disabled={!!busy || !looks?.length} onClick={exportAll}>Export all</button>
+      <button type="button" class="btn" disabled={!!busy || !listed.length} onClick={exportAll}>Export all</button>
     </>);
 }

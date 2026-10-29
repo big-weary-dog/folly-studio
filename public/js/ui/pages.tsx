@@ -276,7 +276,6 @@ export function Looks({ scope }: ViewProps) {
     });
     return () => { alive = false; };
   }, [loads]);
-
   async function remove(look: Listed) {
     if (await deleteLook(look)) setLooks((all) => (all || []).filter((l) => l.id !== look.id));
   }
@@ -304,7 +303,8 @@ export function Looks({ scope }: ViewProps) {
             onInput={(e) => setQ(e.currentTarget.value)} />
           {gallery && <button type="button" class={`btn ${approvedOnly ? 'primary' : 'ghost'}`}
             aria-pressed={approvedOnly} onClick={() => setApprovedOnly((on) => !on)}>Approved</button>}
-          <LookFiles looks={looks} gallery={gallery} reload={() => setLoads((n) => n + 1)} />
+          <LookFiles looks={looks} gallery={gallery} approvedOnly={approvedOnly}
+            reload={() => setLoads((n) => n + 1)} />
           {!gallery && <a class="btn primary" href="/studio">New look</a>}
         </div>
       </div>

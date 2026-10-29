@@ -34,6 +34,7 @@ test('a look picked on /pi plays on the Live tab', async ({ browser, studio }, i
 
   await pi.page.getByRole('button', { name: /^Up next/ }).click();
   await pi.page.getByRole('button', { name: /Add a look/ }).click();
+  await pi.page.getByRole('searchbox', { name: 'Find a look' }).fill('Fire');
   await pi.page.getByRole('button', { name: /^Fire/ }).click();
   await pi.page.getByRole('button', { name: 'Cue it' }).click();
   await expect(pi.page.getByText('The looks overlap for 4 s.', { exact: false })).toBeVisible();
