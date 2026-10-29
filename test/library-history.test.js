@@ -24,14 +24,22 @@ const layers = (code) => [{ id: 'l1', title: 'Noise', blend: 'add', level: 1, gr
 test('custom code off: import an earlier committed Noise, upgrade to playable code, reject edits', async () => {
   const current = readFileSync(path.join(publicDir, 'patterns/noise.js'), 'utf8');
   assert.notEqual(oldNoise, current);
+  const oldWash = execFileSync('git', ['show', 'ab6dbd0d:public/patterns/colour-wash.js'],
+    { cwd: publicDir, encoding: 'utf8' });
+  const currentWash = readFileSync(path.join(publicDir, 'patterns/colour-wash.js'), 'utf8');
+  assert.notEqual(oldWash, currentWash);
+  const wash = (code) => ({ id: 'm2', kind: 'source', title: 'Colour wash', code, params: {} });
   const app = await startApp({ publicDir, dataDir: path.join(fx.tmp, 'history'), customCode: false });
   try {
     const ann = await signup(app, 'ann');
     const body = { origin: 'old-prod-noise', title: 'Simple Noise Bed', chain: 2, layers: layers(oldNoise) };
+    body.layers[0].modules.push(wash(oldWash)); // Older saved library modules need not carry a ref.
     const imported = await ann.post('/api/looks', body);
     assert.equal(imported.status, 201, imported.text);
     assert.equal(imported.json.imported, 'added');
-    assert.deepEqual(imported.json.look.layers, layers(current));
+    const expected = layers(current);
+    expected[0].modules.push(wash(currentWash));
+    assert.deepEqual(imported.json.look.layers, expected);
     assert.equal(customCode(imported.json.look.layers, await libraryHashes(path.join(publicDir, 'patterns'))), '',
       'the imported look passes the render box gate without bubblewrap');
     const box = createRenderBox({ bwrap: 'no-such-bwrap', seconds: 1, systemdRun: '', log: quiet });
@@ -57,5 +65,8 @@ test('historical trust reaches the generator gate but never the unboxed render a
   const allows = await gate.allows('u');
   assert.equal(allows(oldNoise), true);
   assert.equal(allows(`${oldNoise} `), false);
+  const retired = execFileSync('git', ['show', 'a6462ae3:public/patterns/butterfly.js'],
+    { cwd: publicDir, encoding: 'utf8' });
+  assert.equal(allows(retired), false, 'retired patterns have no current library replacement');
   assert.match(customCode(layers(oldNoise), await libraryHashes(patternsDir)), /custom code/);
 });
