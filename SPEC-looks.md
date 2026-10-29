@@ -90,8 +90,9 @@ below.
   `tools/data/palettes/themes.txt`; sRGB swatches grouped by role):
   `{ version: 1, roles: [low, body, accent, high], palettes: [{ name, theme, low, body, accent, high }] }`. A look
   stores a palette's colours, not its theme.
-  Vampire ball palettes are `blood`, `crimson`, `amethyst` and `requiem`: clean reds, deep violets and
-  restrained candle gold, with visible lows for gamma 2.2 LED output.
+  Vampire ball palettes: `blood` (clean reds), `crimson` (red/violet), `amethyst` (violet), `requiem`
+  (red/gold), `dracula` (red/cobalt), `gargoyle` (blue/silver) and `nightshade` (violet/green).
+  Their lows remain visible through gamma 2.2 LED output.
 
 ### Timeline
 

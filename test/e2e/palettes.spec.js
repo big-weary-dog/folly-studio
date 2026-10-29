@@ -26,7 +26,7 @@ test('vampire palettes: swatches, selection and preview', async ({ page, studio 
   page.on('pageerror', (e) => errors.push(String(e)));
   const dir = process.env.PALETTE_SHOTS || info.outputPath('palettes');
   await mkdir(dir, { recursive: true });
-  for (const palette of ['blood', 'crimson', 'amethyst', 'requiem']) {
+  for (const palette of ['blood', 'crimson', 'amethyst', 'requiem', 'dracula', 'gargoyle', 'nightshade']) {
     await panel.getByLabel('Palette', { exact: true }).selectOption(palette);
     const expected = catalogue.palettes.find((p) => p.name === palette);
     await expect(panel.locator('.swatch')).toHaveCount(9);
