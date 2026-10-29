@@ -135,32 +135,32 @@ groups.
 ${pixelApi(perSecond)}
 `;
 
-export const TASTE = `- Saturated colours at full value: a palette sets hue, not brightness (half-bright warm reads as
-  brown). Dim only a bed, never under 0.15: below about 0.06 an LED is off.
-- Darkness is punctuation: colour moves, LEDs never go out. A sweep leaves no gaps, a pulse swells rather than
-  dipping to black, an element is mostly lit. A dim or mostly dark look reads as broken.
-- Put the idea where it says. Every other part gets a calm voice of its own, or the bed: every LED has a look.
-- Motion the idea names (climbing, chasing, breathing) comes from a module that moves that way.
-- Sparse places (spire strands, the rose's cells) alias: soft edges, fewer and wider features.
-- Safety: no large-area flashing, strobing or colour cycling faster than about 3 Hz.`;
+export const TASTE = `- Saturated colours at full value: palettes set hue, not brightness (half-bright warm reads
+  brown). Dim only beds, never below 0.15; below about 0.06 LEDs are off.
+- Darkness is punctuation, never extinguishing LEDs: gapless sweeps, pulses swell without black, elements mostly lit.
+  Dim or mostly dark looks read as broken.
+- Place the idea where requested. Give every other part a calm voice or bed: every LED has a look.
+- Match named motion (climbing, chasing, breathing) to a module that moves that way.
+- Sparse places (spire strands, rose cells) alias: soften edges, use fewer, wider features.
+- Safety: no large-area flashing, strobing or colour cycling above about 3 Hz.`;
 
 export const GLOBALS_GUIDE = `\`globals\`: palette (${PALETTE_NAMES.length} below, by name), macros
 [{ name, value, min, max, mod? }]. \`bpm\` (40–240, 120) sits beside globals. \`automation\`
 [{ name, points: [[seconds, value], …] }] moves a macro linearly: an energy macro 0.2 → 1 over a minute is a build.
-A macro is one dial for many params: bind them to it (a storm macro dims the bed while bolts quicken). A macro
-with a \`mod\` (an LFO) is a modulator: all bound to it move in step. Give one min 0, max 1, center 0.5, depth
-0.5; its pace and amount name a fader (a plain macro), never a modulator. One modulator, not the same LFO repeated.
-\`duration\` (seconds, 30 unless set, at most ${LIMITS.duration}) loops. For a progression ("calm, a storm, embers")
-set it (30–120) and give the layers that come and go \`clips\` [{ start, end, fadeIn, fadeOut }], not overlapping,
-with fades of a few seconds; the bed has none, so the rig never goes dark between sections.`;
+A macro drives many params (storm dims the bed and quickens bolts). A macro with \`mod\` (an LFO) is a modulator:
+bound params move in step. Set min 0, max 1, center 0.5, depth 0.5; pace and amount name a fader (plain macro),
+never a modulator. Use one modulator rather than repeating its LFO.
+\`duration\` (seconds, default 30, max ${LIMITS.duration}) loops. For progressions ("calm, storm, embers"), set 30–120;
+give changing layers nonoverlapping \`clips\` [{ start, end, fadeIn, fadeOut }] with few-second fades.
+Leave beds unclipped to avoid darkness between sections.`;
 
-export const COMPOSE_GUIDE = `A look is 1 to ${LIMITS.layers} layers, composited bottom (first) to top, each on a
-union of groups. Layer blend: \`add\` sums light, \`over\` covers what is below where the layer draws, \`max\` keeps
-the brighter, \`multiply\` tints. \`level\` is 0..1, usually 1.
+export const COMPOSE_GUIDE = `A look has 1–${LIMITS.layers} layers, bottom (first) to top, each on a union of groups.
+Blend: \`add\` sums light, \`over\` covers below where drawn, \`max\` keeps the brighter, \`multiply\` tints.
+\`level\`: 0..1, usually 1.
 
-A layer is a \`preset\` (a ready chain by name, with \`overrides\` [{ module, name, value }]; \`bars#2\` is its second
-bars) or \`modules\`: a chain of up to ${LIMITS.modules}, listed top to bottom, each { use, params: [{ name, value }] }
-giving only the params you change.
+A layer is a named \`preset\` (ready chain, with \`overrides\` [{ module, name, value }]; \`bars#2\`: second bars)
+or \`modules\`: up to ${LIMITS.modules}, top to bottom, each { use, params: [{ name, value }] }.
+Give only changed params.
 
 One rule: each module works on everything above it, as in an image editor.
 - A source draws its element on transparent onto what is above it: the first covers, later ones add (or take a
@@ -171,8 +171,7 @@ One rule: each module works on everything above it, as in an image editor.
   not reach above it.
 - A bed is a dim colour-wash (level 0.15–0.35, or brightness 0.2–0.4) so the element reads: a layer on the root, or,
   when each part has a layer of its own, first in that part's chain with the element after it \`blend: "over"\`.
-- A new layer when a part goes on other places, plays in another clip or needs its own level; another module when
-  it works on the same place.
+- Use a new layer for another place, clip or level; another module for the same place.
 
 Values: a number within its range; on/off; a choice by its word. \`out\` and \`in\` run from and to the layer's
 centre (or the anchor's), \`clockwise\` and \`counterclockwise\` round it seen from the front, \`along\` each wire. A
@@ -188,8 +187,8 @@ Any number param may be bound instead:
 - on a speed, \`{ "mod": "beats", "per": 0.5 }\`: per × the beats a second, in time with the beat.
 A layer's level cannot be bound: bind a source's brightness.
 
-Choose a preset that is the idea; else a chain (a bed, the element, a warp or filter to shape it; a preset's recipe
-is a good start); place it with groups. An extension only when nothing in the library can draw it.`;
+Choose a matching preset; else a chain (bed, element, shaping warp or filter; start from a preset recipe).
+Place with groups. Extend only when the library cannot draw it.`;
 
 type Example = { idea: string, uses: string[], places?: string[],
   look: (root: string, place: (tag: string) => string) => object };
