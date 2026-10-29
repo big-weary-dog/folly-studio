@@ -177,14 +177,7 @@ EOF
   ts tools/config-check.ts "$stage/studio.env" || die "studio.env: fix what it says"
   "$node" -e 'require("sharp")' 2>/dev/null || die "sharp has no build for $("$node" -p 'process.arch') in the bundle"
 
-  # bubblewrap for the render box (bakes): Debian's .deb from the bundle when it is missing.
-  if ! command -v bwrap >/dev/null && [ -n "$units" ]; then
-    . /etc/os-release
-    case ${VERSION_CODENAME:-} in bookworm) v=0.8.0-2+deb12u1 ;; trixie) v=0.12.0-1~deb13u1 ;; *) v='' ;; esac
-    deb=pi/debs/bubblewrap_${v}_$(dpkg --print-architecture).deb
-    if [ -n "$v" ] && [ -f "$deb" ]; then sudo dpkg -i "$deb" >/dev/null && say "installed bubblewrap $v"
-    else say "no bubblewrap .deb for ${VERSION_CODENAME:-this OS} $(dpkg --print-architecture)"; fi
-  fi
+  # bubblewrap (bakes of custom code) is used when the OS has it; the installer never installs it.
   if command -v bwrap >/dev/null && bwrap --unshare-all --ro-bind / / --dev /dev --proc /proc true 2>/dev/null; then
     say "bubblewrap works: Studio bakes looks here"
   else
