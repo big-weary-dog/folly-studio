@@ -160,7 +160,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
       reviewed: false, versions: [] };
     await allowCode(look.layers, user);
     if (globals) look.globals = globals;
-    const lanesNow = automation === undefined ? undefined : lanes(automation, globals, true);
+    const lanesNow = automation === undefined ? undefined : lanes(automation, globals, !!origin);
     if (lanesNow) look.automation = lanesNow;
     if (bpm != null) look.bpm = bpm;
     if (origin) look.origin = origin;
