@@ -278,7 +278,7 @@ describe('render box (bubblewrap)', () => {
       assert.equal((await cur('PUT', `/api/looks/${calm.id}`, { reviewed: true })).json.look.reviewed, true);
       const warned = (await own('GET', `/api/looks/${small.id}`)).json.look;
       assert.equal(warned.bake.ok, true, warned.bake.reason);
-      assert.match(warned.bake.warning, /small parts only \(spirelets\)/);
+      assert.match(warned.bake.warning, /small parts only \(spires, spirelets\)/);
       assert.equal((await cur('PUT', `/api/looks/${small.id}`, { reviewed: true })).json.look.reviewed, true,
         'flashing on a small region alone does not block review');
       const frames = await fetch(`${base}/api/looks/${calm.id}/frames`, { headers: { cookie: '' } });
