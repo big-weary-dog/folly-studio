@@ -74,21 +74,27 @@ export function upgradeStored(stored: Look): Look {
   return out;
 }
 /** A look's automation against its globals (a 400 naming the lane when one does not fit). */
-const lanes = (automation: unknown, globals: Globals | null | undefined) =>
-  parse(z.object({ automation: automationFor(globals) }), { automation }).automation ?? undefined;
+const lanes = (automation: unknown, globals: Globals | null | undefined, imported = false) => {
+  if (imported && automation && typeof automation === 'object' && !Array.isArray(automation)) {
+    automation = Object.fromEntries(Object.entries(automation)
+      .filter(([name]) => Object.hasOwn(globals?.macros ?? {}, name)));
+  }
+  return parse(z.object({ automation: automationFor(globals) }), { automation }).automation ?? undefined;
+};
 
 export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate, loadLibrary = () => [],
   log = console }: {
   store: Store, auth: Auth, bakes: ReturnType<typeof createBakeQueue>, dropFrames: (id: string) => Promise<unknown>,
-  codeGate?: Pick<CodeGate, 'check'>,
+  codeGate?: Pick<CodeGate, 'check'> & Partial<Pick<CodeGate, 'upgrade'>>,
   previews?: Pick<ReturnType<typeof createPreviews>, 'want' | 'keyOf' | 'file'>,
   loadLibrary?: () => readonly LibraryEntry[], log?: Logger }) {
   const ownerName = (id: string) => store.users.get(id)?.username ?? '';
   /** 403 for new code while an admin has custom code off (src/custom-code.ts). */
   const allowCode = (layers: unknown, user: User) => codeGate?.check(layers, user.id, (why) => new HttpError(403, why));
   /** A body's layers as the one rule reads them, each standard module named as the library names it. */
-  const ruledNamed = (body: Parameters<typeof ruled>[0]) => {
+  const ruledNamed = async (body: Parameters<typeof ruled>[0]) => {
     const out = ruled(body), library = loadLibrary();
+    if (codeGate?.upgrade) out.layers = await codeGate.upgrade(out.layers);
     return { ...out, layers: out.layers.map((l) => ('modules' in l
       ? { ...l, modules: keepStandardTitles(l.modules, library) } : l)) };
   };
@@ -149,11 +155,12 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
         automation: automation ?? null, chain: body.chain }, 'import');
       return { look: presentLook(updated, { mine: true }), imported: edited ? 'updated' : 'unchanged' };
     }
-    const look: Partial<Look> = { owner: user.id, ownerName: user.username, ...body, ...ruledNamed(body), chain: CHAIN,
+    const look: Partial<Look> = { owner: user.id, ownerName: user.username, ...body, ...await ruledNamed(body),
+      chain: CHAIN,
       reviewed: false, versions: [] };
     await allowCode(look.layers, user);
     if (globals) look.globals = globals;
-    const lanesNow = automation === undefined ? undefined : lanes(automation, globals);
+    const lanesNow = automation === undefined ? undefined : lanes(automation, globals, !!origin);
     if (lanesNow) look.automation = lanesNow;
     if (bpm != null) look.bpm = bpm;
     if (origin) look.origin = origin;
@@ -178,12 +185,12 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
   }
 
   /** `was` with `body` (PUT /api/looks/:id) applied by `user`, as saved, and whether anything changed. A change to
-   * what plays is a version made `how`. The code gate is its one wait: the look is read again after it, and the rest
+   * what plays is a version made `how`. The look is read again after the library upgrade and code gate wait; the rest
    * (the version, its number, the history) is one synchronous update of the look as it is then. */
   async function revise(was: Look, user: User, body: z.output<typeof LookPatch>, how: 'auto' | 'import' = 'auto') {
     const { id } = was;
     const ruledNow = body.layers === undefined ? undefined
-      : ruledNamed({ ...body, layers: body.layers, summary: body.summary ?? was.summary });
+      : await ruledNamed({ ...body, layers: body.layers, summary: body.summary ?? was.summary });
     if (ruledNow) await allowCode(ruledNow.layers, user);
     const look = visibleLook(id, user);
     const isOwner = auth.can(user, 'edit', look);
@@ -211,7 +218,8 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
     if (body.globals !== undefined) changed('globals', body.globals ?? undefined);
     const globals = 'globals' in patch ? patch.globals : look.globals;
     if (body.automation !== undefined || 'globals' in patch) {
-      changed('automation', lanes(body.automation === undefined ? look.automation ?? null : body.automation, globals));
+      changed('automation', lanes(body.automation === undefined ? look.automation ?? null : body.automation,
+        globals, how === 'import'));
     }
     const after = { ...look, ...patch };
     const frames = (l: Look) => `${l.duration ?? DEFAULT_DURATION}:${layersHash(renderFields(l))}`;

@@ -1,9 +1,11 @@
 // The Custom code switch (SPEC-baking "Custom code"): while an admin has it off, no new pattern code reaches the
 // render box. A look saved, by hand or by a generator, may carry only code the server has already: a library
-// pattern's file exactly (by SHA-256), or code in a look its owner can see (theirs or shared, any version).
+// pattern's current or historical file exactly (by SHA-256), or code in a look its owner can see (any version).
 import { createHash } from 'node:crypto';
 
 import { libraryHashes } from './box-library.ts';
+import { historicalLibrary } from './library-history.ts';
+import type { Layer } from '../shared/schemas/look.ts';
 import type { StoredLook } from './store.ts';
 
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
@@ -34,7 +36,12 @@ export function* codesOf(layers: unknown, at = ''): Generator<{ code: string, wh
 export function createCodeGate({ on, looks, patternsDir }: { on: () => boolean, patternsDir: string,
   looks: { list(match: (l: StoredLook) => unknown): StoredLook[] } }) {
   let hashes: Promise<Set<string>> | undefined;   // the library changes only with a deploy, which restarts
-  const library = () => (hashes ??= libraryHashes(patternsDir));
+  const history = historicalLibrary(patternsDir);
+  const library = () => (hashes ??= (async () => {
+    const current = await libraryHashes(patternsDir);
+    for (const hash of (await history).hashes) current.add(hash);
+    return current;
+  })());
   /** The code in looks `owner` can see. */
   function seenBy(owner: string) {
     const seen = new Set<string>();
@@ -55,6 +62,7 @@ export function createCodeGate({ on, looks, patternsDir }: { on: () => boolean, 
   return {
     /** Whether looks may take new code now. */
     open: on,
+    async upgrade(layers: Layer[]) { return (await history).upgrade(layers); },
     refuses,
     async check(layers: unknown, owner: string, fail: (why: string) => Error) {
       const why = await refuses(layers, owner);

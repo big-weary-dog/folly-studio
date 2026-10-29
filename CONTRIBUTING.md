@@ -22,6 +22,7 @@ npm test                     # vitest run: test/ and pi/test/ *.test.{js,ts} (vi
                              #   the app included), then every skipped test and why
 npx vitest run test/core.test.js     # one file (`-t <name>` for one test); `npm run test:watch` reruns on save
 npm run build-data           # rebuild public/data/rig.json (City of Gods) and rig-folly.json, palettes.json
+node tools/pattern-history.ts # refresh historical library hashes after committing library pattern changes
 npm run smoke                # the app in Chromium at 1366 × 768 and 390 × 844: sign up, an idea, the Studio, a code
                              #   error, the timeline, a bake (test/e2e/smoke.spec.js), and each flow's own spec
                              #   (the `smoke` project in playwright.config.js)
