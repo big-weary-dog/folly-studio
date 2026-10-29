@@ -157,7 +157,8 @@ unit, effect, pairings and pitfalls. Needed pages accompany each turn in <doc>; 
 export function buildSystemPrompt({ library = [], rig, groups = rig?.groups || [], catalog = buildCatalog(library),
   docs = false }: { library?: Library, rig?: Rig | null, groups?: Groups, catalog?: Catalog, docs?: boolean } = {}) {
   const examples = formatCompositions(catalog, groups);
-  return `Design Folly Studio shows: compose ideas into a "look", library layers on groups of ${rig?.name || 'the installation'}.
+  return `Design Folly Studio shows: compose ideas into a "look", library layers on groups of \
+${rig?.name || 'the installation'}.
 
 # The installation
 ${describeRig(rig)}
