@@ -54,8 +54,8 @@ Or skip steps 1 and 2: [download it](#downloading-it) from the hosted Studio.
    install: done. …
    ```
 
-   With `--studio`, also `bubblewrap works` (or its warning: the installer never installs it), `its page answers at /pi/` and `Studio answers on :8780`. Anything
-   else ends `install: FAILED: <why>`.
+   With `--studio`, also `bubblewrap works` (or its warning: the installer never installs it),
+   `its page answers at /pi/` and `Studio answers on :8780`. Anything else ends `install: FAILED: <why>`.
 5. **Unmount the stick:** `sudo umount /mnt/usb`.
 6. **The hub:** from the laptop's lighting checkout, `bash playa-deploy/update-pi-code.sh`. Check it says
    **parsed OK**.
