@@ -185,7 +185,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
   }
 
   /** `was` with `body` (PUT /api/looks/:id) applied by `user`, as saved, and whether anything changed. A change to
-   * what plays is a version made `how`. The code gate is its one wait: the look is read again after it, and the rest
+   * what plays is a version made `how`. The look is read again after the library upgrade and code gate wait; the rest
    * (the version, its number, the history) is one synchronous update of the look as it is then. */
   async function revise(was: Look, user: User, body: z.output<typeof LookPatch>, how: 'auto' | 'import' = 'auto') {
     const { id } = was;
