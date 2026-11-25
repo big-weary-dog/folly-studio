@@ -28,7 +28,7 @@ import { createStats } from './stats.ts';
 import { buildSha } from './reports/build.ts';
 import { createReports } from './reports/store.ts';
 import { createLoaders, CSP_APP, DEFAULT_DIST_DIR, DEFAULT_PUBLIC_DIR, serveApp } from './static.ts';
-import { createStore } from './store.ts';
+import { createStore, type StoredLook } from './store.ts';
 import type { FlashSettings } from '../shared/schemas/api.ts';
 import type { RigName } from '../shared/schemas/rig.ts';
 
@@ -66,7 +66,9 @@ export async function createServer(opts: Options = {}) {
   const loaders = createLoaders(publicDir, { log, rigFile });
   // A look's code is its modules' library files, never what is stored (SPEC-looks "Modules").
   const views = { looks: libraryRefs(loaders.loadLibrary, path.join(publicDir, 'patterns', 'history.json')) };
-  const store = await createStore(dataDir, { log, upgrade: { looks: upgradeStored }, views });
+  const filled = (look: StoredLook) => views.looks.read(structuredClone(look));
+  const store = await createStore(dataDir, { log, views,
+    upgrade: { looks: (l) => upgradeStored(l, { ...views.looks, filled }) } });
   const auth = createAuth({ store, curators, admins, cost: scrypt });
   auth.pruneSessions();
   const { loadRig } = loaders;

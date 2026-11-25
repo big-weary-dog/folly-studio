@@ -46,6 +46,7 @@ const declared = (m: Mod) => (kind(m) === 'filter' && m.ref === 'trails' && !isS
   ? { ...m, code: `const stage = 'history';\n${m.code ?? ''}` } : m);
 const apart = (a: Set<string> | null, b: Set<string> | null) => !!a && !!b && ![...a].some((f) => b.has(f));
 
+const STOP_PARAMS = { radius: 0, mode: 'wire', amount: 1 };
 const STOP_CODE = `// Warp stop: a blur of radius 0 changes nothing; the warps below it bend nothing above it.
 const spatial = 'blur';
 const stage = 'spatial';
@@ -153,7 +154,8 @@ function assemble(modules: readonly Mod[], live: Mod[], warps: Mod[], stages: Pa
       if (stages[s][i].stop) {
         const id = ids.has('stop') ? fresh('stop') : 'stop';
         ids.add(id);
-        out.push({ id, kind: 'filter', title: 'Warp stop', ref: 'blur', code: STOP_CODE, params: {} });
+        // Its params said too: kept as a ref, it plays as the library's blur.
+        out.push({ id, kind: 'filter', title: 'Warp stop', ref: 'blur', code: STOP_CODE, params: STOP_PARAMS });
       }
       out.push(...run);
     });
