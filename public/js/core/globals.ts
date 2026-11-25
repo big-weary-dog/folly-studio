@@ -201,7 +201,8 @@ const MODS: Record<string, number> = { lfo: 0, global: 1, envelope: 2, beats: 3 
 export const isBinding = (v: unknown): v is Binding => v !== null && typeof v === 'object' && !Array.isArray(v)
   && typeof (v as Binding).mod === 'string';
 
-/** Values P from a schema and overrides (colours, from picks, as [r, g, b]; a binding starts at the default). */
+/** Values P from a schema and overrides (colours, from picks, as [r, g, b]; a binding starts at the default; a number
+ * held to min..max, so no saved value runs a pattern past its range). */
 export function resolveParams(schema: ParamSchema | undefined, overrides: unknown) {
   const P: Values = {};
   const o = (overrides && typeof overrides === 'object' ? overrides : {}) as Record<string, unknown>;
@@ -223,7 +224,7 @@ export function resolveParams(schema: ParamSchema | undefined, overrides: unknow
       P[key] = readText(v) ?? d.value;
     } else {
       const n = Number(v);
-      P[key] = Number.isFinite(n) ? n : d.value;
+      P[key] = Number.isFinite(n) ? Math.min(d.max, Math.max(d.min, n)) : d.value;
     }
   }
   return P;
