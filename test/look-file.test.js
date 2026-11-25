@@ -1,4 +1,4 @@
-// Look files (SPEC-offline "Look files"): a look's file, several in one, and importing them back through the
+// Look files (SPEC-looks "Look files"): a look's file, several in one, and importing them back through the
 // real POST /api/looks as the importer's own, unshared looks, or overruling the one each came from (its origin); a
 // refused look or file is named, the rest go in.
 import assert from 'node:assert/strict';
@@ -85,18 +85,18 @@ describe('look files', () => {
     assert.deepEqual({ ...r, failed: r.failed.length }, { added: 1, updated: 0, unchanged: 1, failed: 0 },
       'the same origin twice in one file is one look');
     const mine = async () => (await ada.get('/api/looks?scope=mine')).json.looks.filter((l) => l.title !== 'Sea');
-    const [pi] = await mine();
-    assert.equal((await ada.get(`/api/looks/${pi.id}`)).json.look.origin, 'homeLook01');
-    // Edited on the Pi since, and shared there; then the home server's newer version comes in.
-    await ada.put(`/api/looks/${pi.id}`, { duration: 7, shared: true });
+    const [copy] = await mine();
+    assert.equal((await ada.get(`/api/looks/${copy.id}`)).json.look.origin, 'homeLook01');
+    // Edited in this Studio since, and shared here; then the home server's newer version comes in.
+    await ada.put(`/api/looks/${copy.id}`, { duration: 7, shared: true });
     r = await importFiles([file('dusk.json', { ...home, summary: 'Newer', duration: 9 })]);
     assert.equal(r.updated, 1);
     assert.equal((await mine()).length, 1, 'never a duplicate');
-    const { look } = (await ada.get(`/api/looks/${pi.id}?versions=1`)).json;
+    const { look } = (await ada.get(`/api/looks/${copy.id}?versions=1`)).json;
     assert.deepEqual([look.summary, look.duration, look.shared], ['Newer', 9, true]);
-    const [now, edited] = (await ada.get(`/api/looks/${pi.id}/versions`)).json.versions;
+    const [now, edited] = (await ada.get(`/api/looks/${copy.id}/versions`)).json.versions;
     assert.equal(now.how, 'import');
-    assert.equal(edited.duration, 7, 'the Pi’s edit stays in its History');
+    assert.equal(edited.duration, 7, 'this Studio’s edit stays in its History');
     // A look of one's own, by its id; anyone else's id or a bad one is not a match.
     r = await importFiles([file('own.json', lookFile(look, look)), file('sea.json', lookFile(sea, sea))]);
     assert.deepEqual([r.unchanged, r.added], [2, 0]);

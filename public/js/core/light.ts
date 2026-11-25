@@ -7,8 +7,8 @@ import type { Scene } from './scene.ts';
 import { tagMask } from './scene.ts';
 import { isNum } from './stdlib.ts';
 
-/** The light settings' defaults: each used wherever the stored settings (<STUDIO_DATA>/light.json, the Pi's
- * pi/light.json) leave it out. `controller` records the Falcon's own settings (its port brightness is the electrical
+/** The light settings' defaults: each used wherever the stored settings (<STUDIO_DATA>/light.json) leave it
+ * out. `controller` records the Falcon's own settings (its port brightness is the electrical
  * backstop: ports 5-32 at 80 %, the rose's 33-48 at 70 %); it is never applied here, so nothing dims twice. */
 export type Light = { gamma: number, balance: [number, number, number], floor: number,
   trims: { tag: string, level: number }[], controller: { ports: string, brightness: number, gamma: string }[],
@@ -153,8 +153,8 @@ function curvesAt(light: PreparedLight, cap: number) {
 /** What value `v` (encoded, 0..1) sends, white before balance, at full output: the curve, for showing it. */
 export const lightByte = (v: number, light: Light) => ledByte(v, light.gamma, 1, light.floor);
 
-/** A frame of DMX as the LEDs get it: each value through the output transform (prepareLight), × `cap` (the master,
- * blackout and fade, or Export's Brightness: linear, after the curve, so it never shifts a hue). */
+/** A frame of DMX as the LEDs get it: each value through the output transform (prepareLight), × `cap` (Export's
+ * Brightness: linear, after the curve, so it never shifts a hue). */
 export function ledChannels(scene: Scene, rgb: ArrayLike<number>, light: PreparedLight, out?: Uint8Array | null,
   cap = 1) {
   const size = scene.frameChannels;
@@ -204,8 +204,8 @@ export function shownLight(v: number, light: Light, balance = 1) {
 }
 
 /** A frame's light for the views, once, before either draws: each colour's shownLight × its calibrated white, the
- * calibration's saturation about the luminance, × `gain` (the flash guard's dim, the Live master: linear, as the
- * Pi's), × `dim` on each LED that `mask` leaves out (0 there; null: none). */
+ * calibration's saturation about the luminance, × `gain` (the flash guard's dim: linear, as Export's Brightness),
+ * × `dim` on each LED that `mask` leaves out (0 there; null: none). */
 export function previewChannels(rgb: ArrayLike<number>, light: Light, out: Float32Array, gain = 1,
   mask: ArrayLike<number> | null = null, dim = 1) {
   const { white: [w0, w1, w2], saturation: s } = light.calibration, [b0, b1, b2] = light.balance;

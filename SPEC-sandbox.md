@@ -22,10 +22,9 @@ scope (it inherits the CSP, so no network either), relays messages to it and kee
 | app → sandbox | sandbox → app |
 |---|---|
 | `{ type: 'init', rig, library? }` + a `MessagePort` (library: `[{ name, code }]` sources for `use`) | `{ type: 'ready' }` (also sent once on load, before init) |
-| `{ type: 'look', layers, globals?, automation?, bpm?, clock? }` (as saved; `clock: 'fresh'`: the clock not continued from the look before, SPEC-live) | `{ type: 'compiled', layers: [{ id, ok, error?, params, modules: [{ id, ok, error?, params, upgraded? }] }] }` (`params`: the first source's schema; `upgraded`: each param a module's `upgrade()` changes, `[saved, upgraded]`, SPEC-library) |
-| `{ type: 'frame', seq, t, set? }` | `{ type: 'frame', seq, rgb: Float32Array(count×3), errors: [{ id, module?, error }], ms, layerMs: { <layer id>: ms } }` (rgb transferred; `ms` the frame's, `layerMs` each layer's, timed in the worker) |
+| `{ type: 'look', layers, globals?, automation?, bpm? }` (as saved) | `{ type: 'compiled', layers: [{ id, ok, error?, params, modules: [{ id, ok, error?, params, upgraded? }] }] }` (`params`: the first source's schema; `upgraded`: each param a module's `upgrade()` changes, `[saved, upgraded]`, SPEC-library) |
+| `{ type: 'frame', seq, t }` | `{ type: 'frame', seq, rgb: Float32Array(count×3), errors: [{ id, module?, error }], ms, layerMs: { <layer id>: ms } }` (rgb transferred; `ms` the frame's, `layerMs` each layer's, timed in the worker) |
 | `{ type: 'render', seq, start, frames, fps, brightness, light }` (light: the settings, Light and output; brightness: a linear cap) | `{ type: 'progress', seq, done }` … then `{ type: 'rendered', seq, channels: Uint8Array(frames × frame channels) }` |
-| `{ type: 'relay', on, rev?, next?, frame?, index?, at?, fps?, duration?, lead?, set?, clock? }` (SPEC-live "Relay to the lights": the engine's slot `index` at epoch ms `at`, `frame` the look's at slot `next`, `lead` frames to render ahead; or the editor's `clock` in their place; `on: false` stops) | `{ type: 'relayed', bytes: ArrayBuffer }` (a frame as the engine takes it, transferred; untrusted: the page checks its length) |
 
 Compute is decoupled from drawing: the app keeps one `frame` request in flight and asks at 40 fps, stepping down to
 30 and then 20 while the worker's `ms` (smoothed) is over budget, 80 % of the frame interval, and back up once it is
@@ -33,17 +32,12 @@ well under the faster rate's; the 3D view draws at display rate when something c
 whose smoothed `layerMs` is over 40 % of a 40 fps frame's budget (8 ms) is marked heavy on its card.
 A layer that throws or returns NaN goes black for that frame and is reported in `errors`. Live frames keep
 the look's clock continuous across a new look (`prepareLook(look, previous)`); renders start it afresh, as bakes do.
-A frame's `set: { values, bpm, beat0, offset, paces? }` is set in place on the prepared look first, as a live engine sets its
-own (`js/live-set.ts`; SPEC-live "Following /pi"): globals and macros by name, the tempo, the downbeat, the clock, and `paces` (each pace fader's phase offset, so a
-modulator's LFO stays where the Pi has it).
 Watchdog (the page's): a frame, live or exported, running over 1 s, or new code compiling for
 over 0.7 s, has hung. The page terminates the worker, finds the layer to blame (the one being
 compiled, or each layer run alone for one frame in a throwaway worker), starts a fresh worker
 without it and reports it as an error starting `Pattern hung`; it stays paused until its code
-changes. Every `frame` request is answered within 1.5 s. A worker relaying renders on its own timer between
-requests, at most 4 frames a turn; a respawned worker relays again at the page's next `relay`. The app (runtime.ts) tears the iframe
-down and reloads it only if the page itself stops answering for 4 s (8 s during an export, while the page probes a
-hung layer).
+changes. Every `frame` request is answered within 1.5 s. The app (runtime.ts) tears the iframe down and reloads it
+only if the page itself stops answering for 4 s (8 s during an export, while the page probes a hung layer).
 
 `pattern-core.ts` exports (used by the sandbox's worker, the boxes and the Node tests), and its types (`Scene`,
 `PreparedLayer`, `PreparedLook`, `Compiled`, `ParamSchema`, `Pixel`, `G`, `LayerInput`, …):
@@ -72,7 +66,7 @@ its object and errors array, clearing errors each frame; level × `layerEnvelope
 bakes and Live), the output transform (Light and output; `core/light.ts`, the only module that reads the settings'
 fields): `LIGHT` (the defaults), `lightOf(settings)` (bounded, defaults where missing), `prepareLight(scene, light?)`,
 `lightByte(v, light) → 0..255` (the curve alone, white, for showing it), `ledChannels(scene, rgb, prepared, out?, cap = 1) →
-Uint8Array(frame channels)` (the Export dialog's .fseq and the Pi's output) and `ledLight(light?) → Float32Array(768)`
+Uint8Array(frame channels)` (the Export dialog's .fseq) and `ledLight(light?) → Float32Array(768)`
 (each encoded byte's light per colour, 0..1, as the LEDs give it at full output), and for the
 timeline `layerEnvelope(clips, t) → 0..1`, `normalizeClips(clips) → clips | null` (lenient: drops
 bad and overlapping clips), `transitionWeight(…)` and `TRANSITIONS` (SPEC-looks "Timeline"),

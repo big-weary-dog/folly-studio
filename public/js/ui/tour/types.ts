@@ -30,8 +30,8 @@ export type Step = {
 
 export type Path = {
   id: string; title: string; about: string;
-  /** What it covers on the Pi, where its Ideas steps are left out (SPEC-offline), when that differs. */
-  aboutPi?: string;
+  /** What it covers without Ideas, where its Ideas steps are left out, when that differs. */
+  aboutNoIdeas?: string;
   /** Where it starts: the blank Studio, its practice look (`/studio?tour=<id>`), or another page. */
   start: string; steps: Step[];
   /** Its practice look when it starts on another page: where its Studio steps go back to. */

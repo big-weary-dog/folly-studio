@@ -7,7 +7,7 @@ const typed = (el: (name: string) => Element | null) => (el('idea') as HTMLTextA
 
 export const idea: Path = {
   id: 'idea', title: 'From an idea', start: '/ideas', look: '/studio?tour=idea',
-  about: 'Describe a look; it opens in the Studio.', aboutPi: 'The look the idea makes, and its layers.',
+  about: 'Describe a look; it opens in the Studio.', aboutNoIdeas: 'The look the idea makes, and its layers.',
   steps: [
     { id: 'describe', page: '/ideas', title: 'Describe it',
       text: `The more you say about colour, motion and place, the closer the first draft. Type: "${IDEA}"`,

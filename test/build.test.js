@@ -46,7 +46,7 @@ beforeAll(async () => {
   dir = await mkdtemp(path.join(tmpdir(), 'studio-build-'));
   app = await createServer({ dataDir: dir, distDir: dist, generator: { enqueue() {} }, log: quiet,
     admins: 'wire', models: { env: { PATH: path.join(import.meta.dirname, 'fixtures/generate/bin') } },
-    customCode: true });
+    generators: true, customCode: true });
   base = `http://127.0.0.1:${(await app.listen(0)).port}`;
 });
 afterAll(async () => {
@@ -81,7 +81,6 @@ describe('the built app', () => {
   });
 
   test('the sandbox page loads nothing, has its CSP, and its Worker renders a frame', async () => {
-    // The Studio and the live stage share the runtime, so the page is in whichever chunk holds it: one, either way.
     const files = new Set(Object.values(manifest).flatMap((e) => e.assets ?? [])
       .filter((f) => /sandbox-[\w-]+\.html$/.test(f)));
     assert.equal(files.size, 1, [...files].join(', '));

@@ -1,5 +1,5 @@
 // The timeline: look.duration / look.bpm, layer.clips. Envelope maths and the renderer's skip
-// (pattern-core.ts), validation (shared/schemas: look.ts, generated.ts) and baking a look's duration.
+// (pattern-core.ts), validation (shared/schemas: look.ts) and baking a look's duration.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -16,7 +16,6 @@ import { createServer } from '../src/app.ts';
 import { validateLayers } from '../src/api-looks.ts';
 import { createRenderBox } from '../src/render-box.ts';
 import { parseFseq } from '../src/frames.ts';
-import { validateLook } from '../shared/schemas/generated.ts';
 
 const STUDIO = fileURLToPath(new URL('../', import.meta.url));
 const PUBLIC = path.join(STUDIO, 'public');
@@ -180,39 +179,6 @@ describe('validation', () => {
     const most = Array.from({ length: 32 }, (_, i) => clip(i, i + 1));
     assert.equal(validateLayers([layer(most)])[0].clips.length, 32);
   });
-
-  test('generator: clips and duration are normalised, bad ones dropped and noted', () => {
-    const strings = validateLook({ duration: ' 45 ', layers: [{ code: WHITE, clips: [
-      { start: '20', end: 30, fadeIn: 900, fadeOut: -2 }, { start: 0, end: 10.00049, fadeIn: 'x' }, { end: 3 },
-    ] }] });
-    assert.equal(strings.duration, 45);
-    assert.deepEqual(strings.layers[0].clips, [clip(0, 10), clip(20, 30, 600)]);
-    assert.deepEqual(strings.dropped, ['layer 1: a clip without a valid start and end']);
-    const v = validateLook({
-      title: 'Storm',
-      summary: 'Calm, then a storm.',
-      duration: '90',
-      layers: [
-        { title: 'Base', code: WHITE },
-        {
-          title: 'Storm', code: WHITE,
-          clips: [{ start: 40, end: 90, fadeIn: 5, fadeOut: -2 }, { start: 30, end: 45 }, { start: 'x', end: 3 },
-            clip(0, 10)],
-        },
-        { title: 'Odd', code: WHITE, clips: 'soon' },
-      ],
-    });
-    assert.equal(v.duration, 90);
-    assert.equal('clips' in v.layers[0], false);
-    assert.deepEqual(v.layers[1].clips, [clip(0, 10), clip(30, 45)]);
-    assert.equal('clips' in v.layers[2], false);
-    assert.equal(v.dropped.length, 3);
-    assert.ok(v.dropped.some((d) => /overlapping/.test(d)));
-    // What the generator keeps, the API accepts unchanged.
-    assert.deepEqual(validateLayers(v.layers).map((l) => l.clips), v.layers.map((l) => l.clips));
-    assert.equal(validateLook({ title: 't', layers: [{ code: WHITE }], duration: 5000 }).duration, 600);
-    assert.equal('duration' in validateLook({ title: 't', layers: [{ code: WHITE }] }), false);
-  });
 });
 
 /** A stand-in render box: frames for the real LED map, all lit, as long as it is asked. */
@@ -235,7 +201,8 @@ function fakeBox(maxSeconds = 4) {
 async function startApp(renderBox, name) {
   const generator = { enqueue() {}, async idle() {} };
   const dataDir = path.join(tmpRoot, name);
-  const app = await createServer({ customCode: true, dataDir, publicDir: PUBLIC, generator, renderBox, log: quiet });
+  const app = await createServer({ generators: true, customCode: true, dataDir, publicDir: PUBLIC, generator, renderBox,
+    log: quiet });
   const { port } = await app.listen(0);
   const base = `http://127.0.0.1:${port}`;
   const json = { 'content-type': 'application/json' };
@@ -320,7 +287,7 @@ describe('baking a sequenced look in the render box', () => {
   beforeEach(({ skip }) => skip(!probe.ok || !!probe.libraryOnly,
     `render box unavailable here: ${probe.reason || probe.libraryOnly}`));
   test('a 2-clip layer over a dim base: lit in its clips, dark between, for the look\'s duration', async () => {
-    const box = createRenderBox({ seconds: 120, log: quiet });
+    const box = createRenderBox({ customCode: true, seconds: 120, log: quiet });
     const layers = [
       { id: 'base', code: 'function pixel() { return [0, 0, 0.2]; }', groups: ['cathedral'] },
       { id: 'hits', code: RED, groups: ['cathedral'], clips: [clip(0.5, 1.5), clip(2.5, 3.5, 0.5)] },

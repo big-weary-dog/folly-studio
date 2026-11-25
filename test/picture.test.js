@@ -1,8 +1,9 @@
 // Pictures (SPEC-library "Pictures"): the core's check, the param kind through compile and resolve, the picture
-// source on the rose, the look's schema, expansion from a composition and the Studio's row.
+// source on the rose, the look's schema and the Studio's row.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { describe, test } from 'vitest';
 
@@ -12,10 +13,8 @@ import {
 } from '../public/js/pattern-core.ts';
 import { normaliseParam } from '../public/js/ui/bindings.ts';
 import { keyColour } from '../public/js/ui/picture-row.tsx';
-import { buildCatalog } from '../src/generate/catalog.ts';
-import { expand } from '../src/generate/expand.ts';
-import { STUDIO } from './fixtures/generate/shared.js';
 
+const STUDIO = fileURLToPath(new URL('../', import.meta.url));
 const read = (f) => fs.readFileSync(path.join(STUDIO, f), 'utf8');
 const RIG = JSON.parse(read('public/data/rig.json')), CODE = read('public/patterns/picture.js');
 const PALETTES = JSON.parse(read('public/data/palettes.json')).palettes;
@@ -98,19 +97,7 @@ describe('the picture source on the rose', () => {
   });
 });
 
-describe('looks, generators and the Studio', () => {
-  test('expansion makes the wire\'s key list an object, and a broken picture is an error to repair', () => {
-    const catalog = buildCatalog([{ name: 'picture', kind: 'source', title: 'Picture', code: CODE }]);
-    assert.equal(catalog.modules.get('picture').params.picture.type, 'picture');
-    const wire = { grid: 'rose', key: [{ char: 'r', colour: 'body' }], frames: [{ rows: ['r'] }] };
-    const look = (v) => expand({ title: 'T', summary: 'S', layers: [{ title: 'L', groups: ['rose-window'],
-      blend: 'add', level: 1, modules: [{ use: 'picture', params: [{ name: 'picture', value: v }] }] }] }, catalog);
-    const ok = look(wire);
-    assert.deepEqual(ok.errors, []);
-    assert.deepEqual(ok.look.layers[0].modules[0].params.picture.key, { r: 'body' });
-    assert.deepEqual(look({ ...wire, frames: [{ rows: ['q'] }] }).errors, [{
-      path: 'layers[0].modules[0].params.picture', code: 'bad_picture', message: 'frame 1: "q" is not in the key.' }]);
-  });
+describe('the Studio', () => {
 
   test('the row: a picture param is a control, its keys coloured from the palette', () => {
     const p = normaliseParam('picture', normalizeParams({ picture: { type: 'picture', value: pic(['r']) } }).picture);

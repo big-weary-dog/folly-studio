@@ -1,4 +1,4 @@
-// RGB PNG encoding for generated stills and the Pi simulator.
+// RGB PNG encoding for generated stills.
 import { crc32, deflateSync } from 'node:zlib';
 
 function chunk(type: string, data: Buffer) {

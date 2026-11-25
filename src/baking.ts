@@ -1,7 +1,8 @@
 // The bake setting (SPEC "Baked frames", "The bake setting"): <STUDIO_DATA>/baking.json, { mode: on | throttled |
-// off, customCode? } (SPEC-baking "Custom code": src/custom-code.ts), read as each render starts so it takes effect
-// without a restart (missing or broken: on, custom code off). governBox() puts it in front of the render box: off
-// refuses, throttled renders at nice 19 and spaces renders a cooldown apart.
+// off }, read as each render starts so it takes effect without a restart (missing or broken: on). Custom code is off
+// (SPEC-baking "Custom code": src/custom-code.ts): the file's customCode is ignored and no change turns it on.
+// governBox() puts it in front of the render box: off refuses, throttled renders at nice 19 and spaces renders a
+// cooldown apart.
 import type { FastifyRequest } from 'fastify';
 
 import { type BakeMode, Baking, BakingPatch, type BakingState } from '../shared/schemas/api.ts';
@@ -13,34 +14,37 @@ import { settingsFile } from './settings-file.ts';
 
 export const THROTTLE = { nice: 19, cooldownMs: 30_000 };
 const BAKING_OFF = 'An admin turned baking off.';
+const NO_CODE = 'Custom code is off on every server: looks take only library patterns.';
 
 type Log = { warn?: (...a: unknown[]) => void };
 type Setting = { mode: BakeMode, customCode: boolean };
 
+/** `customCode`: tests only (createServer's option), never from the file or a change. */
 export function createBakingStore({ file, customCode = false, log = console }: { file: string, customCode?: boolean,
   log?: Log }) {
-  const stored = settingsFile({ file, broken: 'baking is on', log, parse: (json): Setting => {
+  const stored = settingsFile({ file, broken: 'baking is on', log, parse: (json): { mode: BakeMode } => {
     const data = Baking.safeParse(json).data;
-    return { mode: data?.mode ?? 'on', customCode: data?.customCode ?? customCode };
+    return { mode: data?.mode ?? 'on' };
   } });
-  const { current } = stored;
+  const current = (): Setting => ({ ...stored.current(), customCode });
   return {
     current,
     mode: (): BakeMode => current().mode,
-    /** Whether looks may take new code (SPEC-baking "Custom code"); off unless an admin turned it on. */
+    /** Whether looks may take code that is not the library's (SPEC-baking "Custom code"): only in tests. */
     customCode: () => current().customCode,
     /** Checks a change and writes the setting with it: the setting, or { error }. */
     async save(body: unknown): Promise<Setting | { error: string }> {
       const parsed = BakingPatch.safeParse(body);
       if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'That bake setting is not valid.' };
-      return stored.save({ ...current(), ...parsed.data });
+      if (parsed.data.customCode) return { error: NO_CODE };
+      return { ...await stored.save({ mode: parsed.data.mode ?? current().mode }), customCode };
     },
   };
 }
 type BakingStore = ReturnType<typeof createBakingStore>;
 
-type Box = Pick<RenderBox, 'probe' | 'render'> & { refuses?: RenderBox['refuses'], stop?(): void,
-  config?: Partial<RenderBox['config']> };
+type Box = Pick<RenderBox, 'probe' | 'render'> & { refuses?: RenderBox['refuses'], custom?: RenderBox['custom'],
+  stop?(): void, config?: Partial<RenderBox['config']> };
 
 /**
  * The render box under the bake setting: render() refuses while off (503) and runs throttled at nice 19; ready()
@@ -56,6 +60,7 @@ export function governBox(box: Box, mode: () => BakeMode, { cooldownMs = THROTTL
   return {
     ...box,
     ready,
+    custom: async (layers: readonly LayerInput[]) => (await box.custom?.(layers)) ?? '',
     async refusal(layers: readonly LayerInput[]) {
       if (mode() === 'off') return { status: 503, reason: BAKING_OFF };
       const p = await box.probe();

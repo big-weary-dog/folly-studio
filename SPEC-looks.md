@@ -39,7 +39,7 @@ below.
 - **Modules**: 1–8 per layer, ids unique in it (`[A-Za-z0-9_.:-]{1,64}`), `code` ≤ 20 kB each and always
   stored (looks stay self-contained for the boxes); `ref` names the library entry it came from, and a module whose `ref` the library has is standard: it keeps the
   library's title (`shared/standard-modules.ts`; the API and generators put a renamed one's back), and a hand edit
-  of its code drops `ref`, making it custom (while an admin has custom code off, new code is refused: SPEC-baking
+  of its code drops `ref`, making it custom (custom code is refused: SPEC-baking
   "Custom code"); `params`
   override the code's defaults (≤ 64; a string ≤ 256 characters: a pick, a choice or text).
   `live` optionally lists up to 64 unique param keys the creator offers in Live Play: only declared choice and
@@ -80,9 +80,8 @@ below.
   step. Each frame a lane wins over the mod, the mod over the value. One level only: a modulator follows faders
   (macros without a mod): a global binding, or an LFO's `amount` or `pace`, naming a modulator is
   refused by the schema and dropped by the core.
-  `live`: the names a live engine (the Pi, SPEC-pi) offers as controls: the look's macros and `bpm`,
-  each once; absent, it offers the macros without a mod. A modulator it lists is released from its mod
-  while a control holds it. Nothing else reads it.
+  `live`: the names the look offers as live controls: the look's macros and `bpm`, each once; absent, the macros
+  without a mod. The Studio edits and shows it; nothing that plays a look reads it.
 - **Automation**: `{ <macro>: [[t, v], …] }`, ≤ 16 lanes of ≤ 256 points, t 0–600 s ascending (to
   the ms); linear between points, held before the first and after the last; it replaces the static value.
 - **What plays** (`PLAYS`), versions and History: `SPEC-history.md`, part of this contract.
@@ -102,8 +101,8 @@ Sequencing lives on the look, xLights-style.
 - `look.bpm`: optional, 40–240; the editor's beat grid, the tempo of LFOs in `beats`, and `G.bpm`. A bake's key
   holds it when a binding counts beats or any module (including composite sub-layers) reads `G.bpm`, `G['bpm']`
   or `G["bpm"]`. Other uses of `G`, including palette-only code, keep their existing hashes.
-  Beats count from the look's downbeat `beat0` (a PreparedLook field, 0: show time 0), which only a live engine
-  moves (tap tempo); `beat()` and LFOs in `beats` read it, so bakes are unchanged.
+  Beats count from the look's downbeat `beat0` (a PreparedLook field, 0: show time 0); `beat()` and LFOs in
+  `beats` read it.
 - `layer.clips`: optional `[{ start, end, fadeIn = 0, fadeOut = 0, transition? }]` in seconds (0–600, kept to
   the millisecond), ≤ 32 per layer, sorted, not overlapping (touching is fine). No or empty
   clips: the layer is always on.
@@ -115,9 +114,47 @@ Sequencing lives on the look, xLights-style.
   fades show. `fade` scales the level, as above; `wipe` keeps the level and lights the layer's pixels across
   `direction` (a library direction, read as `toward`) as the envelope rises, behind an edge `softness` wide, and
   on the way out carries on across, so the layer leaves from the side it came in. `transitionWeight(kind, direction,
-  e, p, out?, softness?)` (`core/timeline.ts`, pure) is a pixel's share at envelope `e`; the live stage uses it too.
+  e, p, out?, softness?)` (`core/timeline.ts`, pure) is a pixel's share at envelope `e`.
 - Sequencing whole looks = importing another look's layers into this one, then placing clips.
 - Preview loops over `duration`; bakes and `.fseq` exports render `duration` from t = 0.
 
 How the Studio edits a look (its groups, timeline, chain, modulators, colours and the phone's panels): `SPEC-studio.md`,
 part of this contract.
+
+## Look files
+
+A look file is JSON, `application/json`, named for its title (`<slug>.json`):
+
+```
+{ "origin", "title", "summary", "chain": 2, "duration", "layers", "bpm"?, "globals"?, "automation"? }
+```
+
+the look's words, `chain`, and what plays (SPEC-history "What plays"), as the Studio's Export → Look JSON writes it.
+`origin` names the look wherever it is copied: the look's `origin` when it came in by an import, else its own id (ids
+are random, so one Studio's never stands for another's); `GET /api/looks/:id` answers it when set. A file without
+`origin` (written before it was) imports as a new look each time.
+Several looks go in one file as `{ "looks": [look file] }` (`folly-looks-mine-<date>.json`,
+`folly-looks-gallery-<date>.json`, or `folly-looks-gallery-approved-<date>.json`).
+
+- **Export many.** My looks and the Gallery have **Export all**: all own looks, or all shared looks in the Gallery.
+  With the Gallery's **Approved** toggle on, only reviewed looks are exported, with `gallery-approved` in the
+  filename. Search never narrows the export. Busy progress and the completion toast count the looks being exported.
+  Looks are fetched one at a time with `GET /api/looks/:id`, as one file. A look gone since the list (404) is left
+  out; any other failure downloads nothing and names the look, so a backup is never quietly short.
+- **Import.** My looks has **Import**: a file picker taking one or more files, each a look file or a file of looks.
+  Before saving, a preview names additions and replacements. Cancel changes nothing; Import as copies drops origins.
+  A repeated origin within the selected files is shown as replacing an earlier import in that batch.
+  Replacements explain that current contents are replaced and previous versions remain in History.
+  Each look is `POST /api/looks` with its `origin`, title, summary, `chain` and what plays, so the same checks apply.
+  For an import naming an `origin`, automation lanes for macros absent from the file's globals are dropped:
+  these stale lanes do nothing, and must not prevent a server from importing its own exports.
+  Lanes for present macros remain checked.
+  A look already among the importer's own (its id or its `origin` is the file's `origin`) is **updated**: the file
+  overrules it, as a `PUT` of the title, summary and what plays would (`how: import`), with every check a `PUT` has
+  (library code only, the body limit, a bake and review dropped when the frames change), so a change to what
+  plays is a new version and what the importer had, edits made since the last import included, stays in its History
+  (SPEC-history "Versions"); it keeps its sharing, and its review as any such save does. One that already reads and
+  plays as the file is **unchanged**. Any other look is **added**: the importer's, unshared, with no idea, keeping the `origin`. A
+  look without `chain` is converted as any such `POST` is (SPEC "Looks"). One look refused (400, or past the 256 KB
+  body) does not stop the rest: the page says how many were added, updated and unchanged, and names each one that
+  failed, with the server's reason.

@@ -6,10 +6,8 @@ import { extrasOf, type ExtraKey } from '../../shared/plays.ts';
 import type { Automation, Globals } from '../../shared/schemas/look.ts';
 import type { LibraryEntry, Rig } from '../../shared/schemas/rig.ts';
 import SANDBOX_URL from '../sandbox.html?sandbox';
-import type { LiveSet } from './live-set.ts';
 import { flatModules } from './core/tree.ts';
 import type { LayerInput, Light } from './pattern-core.ts';
-import type { RelayCfg } from './relay-ahead.ts';
 import type { Layer } from './ui/model.ts';
 
 const LOAD_MS = 6000, INIT_MS = 1500;  // no `ready` by then: init anyway; then carry on (a look's `compiled` tells)
@@ -24,10 +22,8 @@ const SLACK_MS = 4;              // a frame due this soon goes now, on this disp
 const EMPTY: readonly FrameError[] = Object.freeze([]);
 const ema = (old: number | undefined, v: number) => (old ? old + (v - old) * 0.15 : v);  // smoothed over ~10 frames
 
-/** A look's globals, automation and tempo, as the sandbox takes them; clock 'fresh': not continued from the look
- * before (the live stage, whose lanes make every viewer's clock the same). */
-export type Extra = { [K in ExtraKey]?: { globals: Globals | null, automation: Automation | null, bpm: number }[K] }
-  & { clock?: 'fresh' };
+/** A look's globals, automation and tempo, as the sandbox takes them. */
+export type Extra = { [K in ExtraKey]?: { globals: Globals | null, automation: Automation | null, bpm: number }[K] };
 
 type Compiled = { id: string; ok: boolean; error?: string; params: Record<string, unknown> };   // params: untrusted
 /** A layer's compile report (SPEC "Sandbox protocol"), each module's code added. */
@@ -39,15 +35,13 @@ type FromSandbox = { type: 'ready' } | { type: 'compiled'; layers?: (Compiled & 
   | { type: 'frame'; seq: number; rgb?: Float32Array; errors?: FrameError[]; ms: number;
     layerMs: Record<string, number> }
   | { type: 'progress'; seq: number; done: number } | { type: 'error'; seq?: number; error?: string }
-  | { type: 'rendered'; seq: number; channels?: Uint8Array; errors?: FrameError[]; error?: string }
-  | { type: 'relayed'; bytes?: unknown };
+  | { type: 'rendered'; seq: number; channels?: Uint8Array; errors?: FrameError[]; error?: string };
 /** What the app asks of the sandbox page (SPEC "Sandbox protocol"). */
 export type ToSandbox = { type: 'init'; rig: Rig; library: Pick<LibraryEntry, 'name' | 'code'>[] }
   | ({ type: 'look'; layers: (LayerInput & { id: string })[] } & Extra)
-  | { type: 'frame'; seq: number; t: number; set?: LiveSet }
+  | { type: 'frame'; seq: number; t: number }
   | { type: 'render'; seq: number; start: number; frames: number; fps: number; brightness: number;
-    light: Light }
-  | ({ type: 'relay' } & Partial<RelayCfg>);
+    light: Light };
 type Status = 'loading' | 'ready' | 'warning' | 'dead';
 type Frame = { seq: number; t: number; look: number };
 type Render = { seq: number; frames: number; resolve: (c: Uint8Array) => void; reject: (e: Error) => void;
@@ -60,8 +54,7 @@ export class Runtime {
   layers: Layer[] = []; extra: Extra = {}; lookDirty = false; lookVersion = 0; frameLookVersion = -1; lastT = NaN;
   seq = 0; respawns: number[] = []; render_: Render | null = null;
   frame: Frame = { seq: 0, t: 0, look: 0 };     // reused: no garbage per frame
-  frameMsg: { type: 'frame'; seq: number; t: number; set?: LiveSet } = { type: 'frame', seq: 0, t: 0 };
-  liveSet: LiveSet | null = null; liveDirty = false;     // values for the next frame to set in place
+  frameMsg: { type: 'frame'; seq: number; t: number } = { type: 'frame', seq: 0, t: 0 };
   frameInFlight: Frame | null = null;
   lookQueue: Map<string, Map<string, string>>[] = [];   // per look sent, not compiled yet: its code, to tag the reply
   since = 0;         // when this phase began, or the page last spoke while owing us something
@@ -72,7 +65,6 @@ export class Runtime {
   container!: HTMLElement; time!: () => number;    // the show time now
   onFrame!: (rgb: Float32Array, t: number) => void; onCompiled!: (layers: Report[]) => void;
   onFrameErrors!: (errors: readonly FrameError[]) => void; onStatus!: (state: Status, detail?: string) => void;
-  onRelayed?: (bytes: unknown) => void;     // a frame rendered ahead for the lights (relay-ahead.ts): untrusted
 
   constructor(o: Pick<Runtime, 'container' | 'time' | 'onFrame' | 'onCompiled' | 'onFrameErrors' | 'onStatus'>) {
     Object.assign(this, o);
@@ -88,19 +80,9 @@ export class Runtime {
   /** layers as saved (+ enabled: false). */
   setLook(layers: Layer[], extra: Extra = {}) {
     this.layers = layers;
-    this.extra = { ...extrasOf(extra), clock: extra.clock };
+    this.extra = extrasOf(extra);
     this.lookDirty = true;
     for (const id of this.layerMs.keys()) if (!layers.some((l) => l.id === id)) this.layerMs.delete(id);
-  }
-
-  /** Values to set in place on the look before the next frame (and again after each new look). */
-  setLive(set: LiveSet | null) { this.liveSet = set; this.liveDirty = !!set; }
-
-  /** Relay to the lights (SPEC-live "Relay to the lights"): any look set first, then the worker's clock and state. */
-  relay(cfg: Partial<RelayCfg>) {
-    if (this.phase !== 'ready') return;
-    if (this.lookDirty) this._sendLook();
-    this._post({ type: 'relay', ...cfg });
   }
 
   /** A fresh frame on the next pump even if nothing changed (after an export). */
@@ -131,9 +113,7 @@ export class Runtime {
     f.seq = this.frameMsg.seq = ++this.seq;
     f.t = this.frameMsg.t = t;
     f.look = this.lookVersion;
-    if (this.liveDirty) { this.frameMsg.set = this.liveSet!; this.liveDirty = false; }
     this._post(this.frameMsg);          // cloned synchronously, so the object can be reused
-    delete this.frameMsg.set;
     this.frameInFlight = f;
   }
 
@@ -238,7 +218,6 @@ export class Runtime {
     this.lookDirty = false;
     this.lookVersion++;
     this._post({ type: 'look', ...this.extra, layers: this.layers });
-    if (this.liveSet) this.liveDirty = true;
     const codes = (l: Layer) => new Map(flatModules(l.modules).map((m) => [m.id, m.code]));
     this.lookQueue.push(new Map(this.layers.map((l) => [l.id, codes(l)])));
   }
@@ -287,9 +266,6 @@ export class Runtime {
       }
       case 'frame':
         if (this.frameInFlight && m.seq === this.frameInFlight.seq) this._frame(m, this.frameInFlight);
-        break;
-      case 'relayed':
-        this.onRelayed?.(m.bytes);
         break;
       case 'progress':
         if (r && m.seq === r.seq) r.onProgress?.(m.done, r.frames);

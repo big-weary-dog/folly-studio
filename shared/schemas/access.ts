@@ -2,7 +2,7 @@
 // over one person. The server parses bodies with these; the browser takes the types.
 import { z } from 'zod';
 
-import type { Role } from './models.ts';
+import type { Role } from '../policy.ts';
 
 const int = (name: string, lo: number, hi: number) => z.int({ error: `${name} must be a whole number.` })
   .min(lo, { error: `${name} must be at least ${lo}.` }).max(hi, { error: `${name} must be at most ${hi}.` });

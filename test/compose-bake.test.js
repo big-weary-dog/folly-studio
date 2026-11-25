@@ -88,7 +88,7 @@ const unavailable = `render box unavailable here: ${probe.reason || probe.librar
 for (const [name, rigFile] of Object.entries(RIGS)) {
   test(`the render box bakes the composed look to the same bytes as the core here (${name})`, async ({ skip }) => {
     skip(!probe.ok || !!probe.libraryOnly, unavailable);
-    const box = createRenderBox({ seconds: SECONDS, rigFile, log: quiet });
+    const box = createRenderBox({ customCode: true, seconds: SECONDS, rigFile, log: quiet });
     const { layers, globals, automation, bpm } = LOOK;
     const { bytes } = await box.render({ layers, seconds: SECONDS, globals, automation, bpm });
     const parsed = parseFseq(bytes);
@@ -103,7 +103,7 @@ for (const [name, rigFile] of Object.entries(RIGS)) {
 
 test('the render box bakes blur and soften to the same bytes as the core here', async ({ skip }) => {
   skip(!probe.ok || !!probe.libraryOnly, unavailable);
-  const box = createRenderBox({ seconds: SECONDS, rigFile: RIGS.folly, log: quiet });
+  const box = createRenderBox({ customCode: true, seconds: SECONDS, rigFile: RIGS.folly, log: quiet });
   const { bytes } = await box.render({ layers: BLURRED.layers, seconds: SECONDS });
   const here = bakeHere(BLURRED).data, parsed = parseFseq(bytes);
   assert.ok(here.some((v) => v > 0));
@@ -125,7 +125,7 @@ const TIMED = {
 
 test('the render box bakes smoke, replay and sort to the same bytes as the core here', async ({ skip }) => {
   skip(!probe.ok || !!probe.libraryOnly, unavailable);
-  const box = createRenderBox({ seconds: SECONDS, rigFile: RIGS.folly, log: quiet });
+  const box = createRenderBox({ customCode: true, seconds: SECONDS, rigFile: RIGS.folly, log: quiet });
   const { bytes } = await box.render({ layers: TIMED.layers, seconds: SECONDS });
   const here = bakeHere(TIMED).data;
   assert.ok(here.some((v) => v > 0));
@@ -150,7 +150,7 @@ const COMPOSED = {
 
 test('the render box bakes a composite to the same bytes as the core here', async ({ skip }) => {
   skip(!probe.ok, unavailable);
-  const box = createRenderBox({ seconds: SECONDS, rigFile: RIGS.folly, log: quiet });
+  const box = createRenderBox({ customCode: true, seconds: SECONDS, rigFile: RIGS.folly, log: quiet });
   const { bytes } = await box.render({ layers: COMPOSED.layers, seconds: SECONDS });
   const here = bakeHere(COMPOSED).data, sub = COMPOSED.layers[0].modules[0].layers[1];
   assert.ok(here.some((v) => v > 0));

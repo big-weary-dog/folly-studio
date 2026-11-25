@@ -90,7 +90,7 @@ function ModPanel({ p, start, now, ctx, put, automate }: { p: Param; start: Para
       onClick={() => set({ mod: '' })}>Off</button></p>}
     {f.mod === 'beats' && !ctx.self && <p class="mod-note">In time with the beat: the clock beside its field sets
       it per beat.</p>}
-    {f.mod === '' && <p class="mod-note">{ctx.self ? 'Nothing moves it: you, a lane or the Pi set it.'
+    {f.mod === '' && <p class="mod-note">{ctx.self ? 'Nothing moves it: you or a lane set it.'
       : 'Nothing moves it: its field sets it.'}</p>}
     {f.mod === 'lfo' && <>
       <Wave f={f} p={p} ctx={ctx} />
