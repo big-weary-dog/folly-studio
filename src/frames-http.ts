@@ -104,7 +104,7 @@ export function framesRoutes({ framesDir, cache, visibleLook }: { framesDir: str
     const { hash, n } = req.params;
     bakeOf(req);
     reply.header('vary', 'Accept-Encoding');
-    // The gzip copy lays its frames out its own way (frames-wire.js): an ETag of its own.
+    // The gzip copy lays its frames out its own way (frames-wire.ts): an ETag of its own.
     const encoding = pickEncoding(req.headers['accept-encoding']);
     return immutable(req, reply, `W/"${hash}.${n}${encoding === 'gzip' ? '.gz' : ''}"`, async () => {
       const got = /^\d{1,5}$/.test(n) && await cache.chunk(hash, Number(n), encoding);
