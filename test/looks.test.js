@@ -87,23 +87,25 @@ describe('looks', () => {
     assert.ok(!(await bob.get('/api/looks?scope=mine')).json.looks.some((l) => l.owner === alice.user.id));
     assert.equal((await alice.get('/api/looks?scope=everything')).status, 400);
 
-    // Share a1 then a2: gallery is newest first.
+    // Share a1 then a2: a curator's gallery is newest first; a member's has only approved looks.
     assert.equal((await alice.put(`/api/looks/${a1.id}`, { shared: true })).json.look.shared, true);
     assert.equal((await alice.put(`/api/looks/${a2.id}`, { shared: true })).status, 200);
-    const gallery = (await bob.get('/api/looks?scope=gallery')).json.looks;
+    assert.ok(!(await bob.get('/api/looks?scope=gallery')).json.looks.some((l) => l.owner === alice.user.id));
+    assert.equal((await bob.get(`/api/looks/${a1.id}`)).status, 404, 'waiting for review');
+    const gallery = (await carol.get('/api/looks?scope=gallery')).json.looks;
     const ids = gallery.map((l) => l.id);
     assert.ok(ids.indexOf(a2.id) < ids.indexOf(a1.id) && ids.indexOf(a2.id) >= 0);
     assert.ok(gallery.every((l) => l.shared === true && !('versions' in l)));
     assert.equal(gallery.find((l) => l.id === a1.id).ownerName, 'look-alice');
 
-    // Shared: visible, still not editable or deletable by others.
-    assert.equal((await bob.get(`/api/looks/${a1.id}`)).json.look.title, 'First');
-    assert.equal((await bob.put(`/api/looks/${a1.id}`, { title: 'Mine now' })).status, 404);
-    assert.equal((await bob.del(`/api/looks/${a1.id}`)).status, 404);
+    // Shared: visible to a curator, still not editable or deletable by others.
+    assert.equal((await carol.get(`/api/looks/${a1.id}`)).json.look.title, 'First');
+    assert.equal((await carol.put(`/api/looks/${a1.id}`, { title: 'Mine now' })).status, 404);
+    assert.equal((await carol.del(`/api/looks/${a1.id}`)).status, 404);
 
     // Unshare: gone again.
     await alice.put(`/api/looks/${a1.id}`, { shared: false });
-    assert.equal((await bob.get(`/api/looks/${a1.id}`)).status, 404);
+    assert.equal((await carol.get(`/api/looks/${a1.id}`)).status, 404);
 
     // Delete.
     const del = await alice.del(`/api/looks/${a2.id}`);
@@ -160,6 +162,31 @@ describe('looks', () => {
     assert.equal((await carol.put(`/api/looks/${own.id}`, { reviewed: true })).json.look.reviewed, true);
   });
 
+  test('moderation: a member sees approved looks; a curator hides one until they unhide it', async () => {
+    const look = (await alice.post('/api/looks', { title: 'Moderate me', layers: [layer()], shared: true })).json.look;
+    const inGallery = async (who) => (await who.get('/api/looks?scope=gallery')).json.looks
+      .some((l) => l.id === look.id);
+    assert.deepEqual([await inGallery(bob), await inGallery(carol)], [false, true]);
+    await alice.post(`/api/looks/${look.id}/bake`);
+    await app.bakes.idle();
+    assert.equal((await carol.put(`/api/looks/${look.id}`, { reviewed: true })).status, 200);
+    assert.deepEqual([await inGallery(bob), (await bob.get(`/api/looks/${look.id}`)).status], [true, 200]);
+
+    assert.equal((await bob.put(`/api/looks/${look.id}`, { hidden: true })).status, 404, 'not theirs');
+    assert.equal((await alice.put(`/api/looks/${look.id}`, { hidden: true })).status, 403, 'the owner, a member');
+    const hid = await carol.put(`/api/looks/${look.id}`, { hidden: true });
+    assert.deepEqual([hid.status, hid.json.look.hidden, hid.json.look.hiddenBy], [200, true, 'carol']);
+    assert.deepEqual([await inGallery(bob), (await bob.get(`/api/looks/${look.id}`)).status], [false, 404]);
+    assert.equal((await alice.get('/api/looks')).json.looks.find((l) => l.id === look.id).hidden, true);
+    // Unsharing and sharing again keeps it hidden; edits keep it hidden.
+    await alice.put(`/api/looks/${look.id}`, { shared: false });
+    await alice.put(`/api/looks/${look.id}`, { shared: true, title: 'Moderated' });
+    assert.equal((await alice.get(`/api/looks/${look.id}`)).json.look.hidden, true);
+    assert.equal(await inGallery(bob), false);
+    assert.equal((await carol.put(`/api/looks/${look.id}`, { hidden: false })).json.look.hidden, false);
+    assert.equal(await inGallery(bob), true);
+  });
+
   test('bake: queued render, frames download, flicker blocks review', async () => {
     const strobe = (await alice.post('/api/looks', { title: 'Strobe!  "x"',
       layers: [layer({ params: { strobe: 1 } })], shared: true })).json.look;
@@ -196,8 +223,10 @@ describe('looks', () => {
     assert.equal(blocked.status, 409);
     assert.match(blocked.json.error, /flash/);
 
-    // Frames: owner and (shared) others download them; the private look's only its owner.
-    const res = await fetch(`${app.base}/api/looks/${strobe.id}/frames`, { headers: { cookie: bob.cookie } });
+    // Frames: owner and those who see it download them (a curator, the shared look unapproved); the private look's
+    // only its owner.
+    assert.equal((await bob.get(`/api/looks/${strobe.id}/frames`)).status, 404, 'not approved');
+    const res = await fetch(`${app.base}/api/looks/${strobe.id}/frames`, { headers: { cookie: carol.cookie } });
     assert.equal(res.status, 200);
     assert.equal(res.headers.get('content-type'), 'application/octet-stream');
     assert.equal(res.headers.get('content-disposition'), 'attachment; filename="Strobe-x.fseq"');

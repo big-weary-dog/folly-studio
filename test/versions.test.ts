@@ -54,7 +54,7 @@ describe('versions', () => {
     full = (await alice.get(legacy)).json.look;
     assert.equal(full.versions.length, 1, 'identical-layer and title-only saves add no version');
     await alice.put(`/api/looks/${look.id}`, { shared: true });
-    assert.equal('versions' in (await bob.get(legacy)).json.look, false);
+    assert.equal('versions' in (await carol.get(legacy)).json.look, false);
     assert.equal((await alice.put(`/api/looks/${look.id}`, { layers: [layer({ blend: 'nope' })] })).status, 400);
     assert.equal((await alice.get(`/api/looks/${look.id}`)).json.look.layers[0].level, 0.5);
   });
@@ -64,8 +64,8 @@ describe('versions', () => {
     for (const who of [bob, carol]) {
       assert.equal((await who.get(`/api/looks/${look.id}/versions`)).status, 404);
       assert.equal((await who.get(`/api/looks/${look.id}/versions/1`)).status, 404);
-      assert.ok(!('version' in (await who.get(`/api/looks/${look.id}`)).json.look));
     }
+    assert.ok(!('version' in (await carol.get(`/api/looks/${look.id}`)).json.look));
   });
 
   test('a restore names its version, and keeps the review when it plays as the reviewed one', async () => {

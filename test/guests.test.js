@@ -21,6 +21,7 @@ describe('guests', () => {
     const r = await owner.post('/api/looks', { title: 'Embers', layers: [], shared: true });
     assert.equal(r.status, 201, r.text);
     shared = r.json.look.id;
+    app.store.looks.update(shared, { reviewed: true });   // approved: in the gallery for everyone
   });
   afterAll(() => app?.close());
   const guest = async (name) => {

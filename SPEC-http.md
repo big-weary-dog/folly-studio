@@ -57,16 +57,18 @@ POST   /api/reports  report                   → 201 { id }  an F8 bug report (
 GET    /api/admin/reports                     → { reports: [summary] }  admins only (403), newest first
 GET    /api/admin/reports/:id                 → { report }  admins only; 404 when none
 GET    /api/admin/reports/:id/shot            → image/jpeg  admins only; 404 when it has none
-GET    /api/looks?scope=mine|gallery          → { looks: [listed] }  metadata only: no layers
+GET    /api/looks?scope=mine|gallery          → { looks: [listed] }  metadata only: no layers; the gallery: the
+                                              approved looks, or for a curator every shared look (SPEC-access
+                                              "Moderation")
 POST   /api/looks    { title, summary?, layers, duration?, bpm?, globals?, automation?, chain?, origin? }
                                               → { look, imported? }  origin: an import (SPEC-looks "Look files"):
                                               201 added, or 200 updating the importer's look it names, `imported`
                                               'added' | 'updated' | 'unchanged'; 429 at the account's limits
                                               (above)
-GET    /api/looks/:id                         → { look }             mine, or shared
+GET    /api/looks/:id                         → { look }             mine, or approved (a curator: shared)
 PUT    /api/looks/:id { title?, summary?, layers?, duration?, bpm?, globals?, automation?, shared?, reviewed?,
-                     flashOverride?, chain?, restoredFrom?, versionName? } → { look }  owner only (reviewed: a
-                                              curator); layers without chain: 2 converted; applied to the look as
+                     hidden?, flashOverride?, chain?, restoredFrom?, versionName? } → { look }  owner only
+                                              (reviewed, hidden: a curator, 403 for anyone else); layers without chain: 2 converted; applied to the look as
                                               stored once its code is checked, so overlapping saves each keep a version
 GET|PUT /api/looks/:id/versions[/:n]          the owner's versions: SPEC-history
 DELETE /api/looks/:id                         → { ok: true }         owner, or an admin if shared
@@ -87,8 +89,8 @@ GET    /api/library                           → { patterns: [{ name, title, su
 API `GET`s answer `Cache-Control: private, no-cache` with an ETag (a reload or a poll revalidates to an
 empty 304); other responses are `no-store`. JSON bodies of 1 KB or more are sent br (quality 5) or gzip
 when the request accepts it, with `Vary: Accept-Encoding`; the ETag is the uncompressed body's. A list
-holds `listed = { id, owner, ownerName, title, summary, duration, layerCount, shared, reviewed, bpm?, sharedAt?,
-preview?, createdAt, updatedAt }` (`preview`: its gallery preview's key, when it has one); `GET /api/looks/:id`
+holds `listed = { id, owner, ownerName, title, summary, duration, layerCount, shared, reviewed, hidden, bpm?,
+sharedAt?, preview?, createdAt, updatedAt }` (`preview`: its gallery preview's key, when it has one); `GET /api/looks/:id`
 has the rest.
 
 `PUT reviewed: true` answers 409 with the reason unless the look has a passing render-box bake of
@@ -103,7 +105,8 @@ or fall outside 0–600 s, and a duration outside 1–600 s, are refused with 40
 `user`: SPEC-access.
 `flash = { check, perSecond, delta, darker, area }`: the flash check's settings (Baked frames, Checks), for the
 preview's guard; `check: false` (`STUDIO_FLASH_CHECK=off`) means nothing is dimmed or blocked.
-`look = { id, owner, ownerName, title, summary, layers, duration, bpm?, shared, reviewed, reviewedBy?,
-flashOverride?, bake?, chain, createdAt, updatedAt }`
+`look = { id, owner, ownerName, title, summary, layers, duration, bpm?, shared, reviewed, reviewedBy?, hidden,
+hiddenBy?, flashOverride?, bake?, chain, createdAt, updatedAt }` (`hidden`: SPEC-access "Moderation"; `hiddenBy` the
+curator, for the owner and curators)
 (`bake`: see Baked frames).
 

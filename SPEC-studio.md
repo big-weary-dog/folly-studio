@@ -83,8 +83,8 @@ every edit here keeps them, so what the Studio saves the API accepts.
   History behind Look details. The module chain opens behind a module selector. Every module keeps its first
   visible control row in front; the remaining rows open under More settings. A paired petals/cells row stays together.
   Palette access stays in Look. Solo and Reset all sit in the layer menu.
-  My looks and Gallery omit file import/export, layer counts, dates and introductions; Delete and Approve open
-  from each card's Actions. Admin uses a page selector: emergency baking and
+  My looks and Gallery omit file import/export, layer counts, dates and introductions; Delete, Approve, Hide and Report
+  open from each card's Actions. Admin uses a page selector: emergency baking and
   compact health/queue status stay available. Light calibration/files, report investigation,
   stats history/request investigation stay on laptop; baking details open on demand.
   Login keeps mode choice, fields, rules, feedback and actions, with a compact brand and no pitch or rose artwork.

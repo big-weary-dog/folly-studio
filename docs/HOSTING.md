@@ -161,8 +161,8 @@ Set up, once:
 
    This copies the shared looks (with their baked frames and gallery previews) and the light settings; it only reads
    the source. It never copies users, sessions or reports, nor an older folder's AI files. A copied
-   look keeps its owner's name in the gallery, but no dev account owns it: anyone may open and play it, no one edit
-   it. Unshared looks stay behind. It refuses a target that is not empty, or that is the source or inside it; to seed
+   look keeps its owner's name in the gallery, but no dev account owns it: anyone may open and play it once approved
+   (curators any), no one edit it. Unshared looks stay behind. It refuses a target that is not empty, or that is the source or inside it; to seed
    again, stop the dev studio and empty its folder first.
 4. `cd ~/folly-dev && npm run host -- --instance dev` (or `STUDIO_INSTANCE=dev npm run host`). It ends on
    `host: folly-studio-dev serves <commit> on http://127.0.0.1:8781`.

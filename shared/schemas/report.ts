@@ -20,6 +20,6 @@ export const ReportBody = z.object({
 });
 export type ReportBody = z.output<typeof ReportBody>;
 
-/** A report in the admin list. */
-export type ReportSummary = { id: string, at: string, user: string, look: string, path: string, note: string,
-  shot: boolean };
+/** A report in the admin list; `lookId` when it reports a gallery look (Report this look). */
+export type ReportSummary = { id: string, at: string, user: string, look: string, lookId?: string, path: string,
+  note: string, shot: boolean };

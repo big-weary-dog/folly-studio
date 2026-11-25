@@ -18,7 +18,7 @@ import {
 import type { LibraryEntry } from '../shared/schemas/rig.ts';
 import { newestBy } from './api.ts';
 import { stamp } from './clock.ts';
-import type { Action } from '../shared/policy.ts';
+import { type Action, approved } from '../shared/policy.ts';
 import type { Auth } from './auth.ts';
 import { type createBakeQueue, layersHash, renderFields, reviewBlocker } from './bake.ts';
 import { BakeError } from './box-output.ts';
@@ -108,7 +108,8 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
     return {
       ...rest, ownerName: ownerName(look.owner) || look.ownerName || '', summary: rest.summary ?? '',
       layers: rest.layers ?? [], duration: rest.duration ?? DEFAULT_DURATION, shared: rest.shared === true,
-      reviewed: rest.reviewed === true, versionCount: Array.isArray(list) ? list.length : 0,
+      reviewed: rest.reviewed === true, hidden: rest.hidden === true,
+      versionCount: Array.isArray(list) ? list.length : 0,
       ...(mine ? { version: currentN(look) } : {}),
       ...(versions ? { versions: Array.isArray(list) ? list.map(upgradeGlobals) : [] } : {}),
     };
@@ -122,7 +123,8 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
     return { id: look.id, owner: look.owner, ownerName: ownerName(look.owner) || look.ownerName || '',
       title: look.title, summary: look.summary ?? '', duration: look.duration ?? DEFAULT_DURATION,
       layerCount: Array.isArray(look.layers) ? look.layers.length : 0, shared: look.shared === true,
-      reviewed: look.reviewed === true, createdAt: look.createdAt, updatedAt: look.updatedAt,
+      reviewed: look.reviewed === true, hidden: look.hidden === true,
+      createdAt: look.createdAt, updatedAt: look.updatedAt,
       ...Object.fromEntries((['bpm', 'sharedAt'] as const).filter((k) => look[k] != null)
         .map((k) => [k, look[k]])), ...(preview ? { preview } : {}) };
   }
@@ -136,11 +138,12 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
   const versionsFor = (req: FastifyRequest, look: Look) => (req.query as { versions?: string }).versions === '1'
     && auth.can(req.user, 'edit', look);
 
-  /** `user`'s own looks, newest first, or the gallery's, newest shared first; without their versions. */
+  /** `user`'s own looks, newest first, or the gallery's, newest shared first: the approved ones, or every shared one
+   * for a curator (SPEC-access "Moderation"); without their versions. */
   const looksIn = (scope: 'mine' | 'gallery', user: User) => (scope === 'mine'
     ? store.looks.list((l) => l.owner === user.id, ['versions']).reverse().sort(newestBy('updatedAt'))
-    : store.looks.list((l) => l.shared === true, ['versions']).reverse().sort(newestBy('sharedAt'))
-      .slice(0, GALLERY_LIMIT));
+    : store.looks.list((l) => l.shared === true && (auth.can(user, 'curate') || approved(l)), ['versions'])
+      .reverse().sort(newestBy('sharedAt')).slice(0, GALLERY_LIMIT));
 
   async function list(req: FastifyRequest) {
     const { scope } = parse(LooksQuery, req.query);
@@ -242,7 +245,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
     const unset: Partial<Look> = { summary: '', shared: false };
     const changes = (['title', 'summary', 'shared', 'bpm'] as const)
       .filter((k) => k in patch && patch[k] !== (look[k] ?? unset[k]));
-    // Only the owner edits; a curator may also set `reviewed` on a look shared with them.
+    // Only the owner edits; a curator may also set `reviewed` and `hidden` on a look shared with them.
     if (!isOwner && (changes.length || versioned || !auth.can(user, 'review', look))) {
       throw new HttpError(404, 'Look not found.');
     }
@@ -262,6 +265,10 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
         patch.flashOverride = { reason: override, by: user.username, at: new Date().toISOString() };
         log.info?.(`[review] look ${id}: ${user.username} approved its flashing frames: ${JSON.stringify(override)}`);
       }
+    }
+    if (body.hidden !== undefined && body.hidden !== (look.hidden === true)) {
+      if (!auth.can(user, 'review', look)) throw new HttpError(403, 'Only curators can hide a look.');
+      Object.assign(patch, { hidden: body.hidden || undefined, hiddenBy: body.hidden ? user.username : undefined });
     }
     // New code needs a fresh review, unless it plays exactly as a version a curator reviewed (a restore, an undo).
     const kept = body.reviewed === undefined && layersChanged

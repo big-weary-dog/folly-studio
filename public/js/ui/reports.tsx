@@ -1,5 +1,6 @@
 // The Reports page, for admins: the F8 bug reports people filed (SPEC "Bug reports"), newest first; one opens to its
-// note, screenshot, server log lines and the whole report, and "Open as captured" replays its Studio moment.
+// note, screenshot, server log lines and the whole report; "Open as captured" replays its Studio moment, and "Open the
+// look" the look a Report this look names.
 import '../../css/reports.css';
 
 import { useEffect, useState } from 'preact/hooks';
@@ -55,13 +56,15 @@ function ReportDetail({ id }: { id: string }) {
   useEffect(() => { api.bugReport(id).then((x) => setR(x.report), (err) => setError((err as Error).message)); }, [id]);
   if (!r) return <p class={error ? 'form-error' : 'pane-hint'}>{error || 'Loading…'}</p>;
   const server = r.server as { build?: string; logs?: { at: string; level: string; text: string }[] } | undefined;
-  const studio = (r.sources as { studio?: { clock?: { t?: number } } } | undefined)?.studio;
+  const { studio, look } = (r.sources ?? {}) as { studio?: { clock?: { t?: number } }, look?: { id?: unknown } };
   return (
     <div class="report-detail">
       <p class="report-note-full">{r.note || '(no note)'}</p>
       <div class="report-actions">
         {studio && <a class="btn small primary" href={`/studio?report=${encodeURIComponent(id)}`}>
           Open as captured{studio.clock?.t !== undefined ? ` (${studio.clock.t.toFixed(2)} s)` : ''}</a>}
+        {typeof look?.id === 'string' && <a class="btn small primary" href={`/studio/${encodeURIComponent(look.id)}`}>
+          Open the look</a>}
         {r.shot && <a class="btn small ghost" href={shotUrl(id)} target="_blank" rel="noopener">Screenshot</a>}
         <span class="report-build">page {r.build || '?'} · server {server?.build || '?'} · id <code>{id}</code></span>
       </div>

@@ -57,6 +57,14 @@ describe('the store', () => {
     for (const bad of ['../x', 'nope', id.toUpperCase()]) assert.equal(await reports.get(bad), null);
   });
 
+  test('Report this look names the look it reports', async () => {
+    const reports = createReports({ dir: tmp('look-reports') });
+    await reports.save(report({ note: 'Offensive', page: { path: '/gallery' },
+      sources: { look: { id: 'k1', title: 'Neon storm', owner: 'u2', ownerName: 'mira' } } }), { user: {} });
+    const [summary] = await reports.list();
+    assert.deepEqual([summary.look, summary.lookId, summary.path], ['Neon storm', 'k1', '/gallery']);
+  });
+
   test('keeps the newest within the count, the bytes and the days', async () => {
     const dir = tmp('reports-prune'), reports = createReports({ dir, keep: 2, days: 60 });
     fs.mkdirSync(path.join(dir, '2020-01-01T00-00-00-old000'), { recursive: true });

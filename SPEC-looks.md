@@ -166,9 +166,8 @@ are random, so one Studio's never stands for another's); `GET /api/looks/:id` an
 Several looks go in one file as `{ "looks": [look file] }` (`folly-looks-mine-<date>.json`,
 `folly-looks-gallery-<date>.json`, or `folly-looks-gallery-approved-<date>.json`).
 
-- **Export many.** My looks and the Gallery have **Export all**: all own looks, or all shared looks in the Gallery.
-  With the Gallery's **Approved** toggle on, only reviewed looks are exported, with `gallery-approved` in the
-  filename. Search never narrows the export. Busy progress and the completion toast count the looks being exported.
+- **Export many.** My looks and the Gallery have **Export all**: all own looks, or all the looks the Gallery lists.
+  Those are approved ones (`gallery-approved` in the filename) unless a curator turns the **Approved** toggle off. Search never narrows the export. Busy progress and the completion toast count the looks being exported.
   Looks are fetched one at a time with `GET /api/looks/:id`, as one file. A look gone since the list (404) is left
   out; any other failure downloads nothing and names the look, so a backup is never quietly short.
 - **Import.** My looks has **Import**: a file picker taking one or more files, each a look file or a file of looks.
