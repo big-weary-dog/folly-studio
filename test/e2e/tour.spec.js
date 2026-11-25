@@ -6,17 +6,15 @@
 import path from 'node:path';
 
 import { expect, signup, test } from './studio.js';
-import { playIdea, playKeep, playLayers, playModules, playMoves, playTime } from './tour-paths.js';
+import { playKeep, playLayers, playLook, playModules, playMoves, playTime } from './tour-paths.js';
 
 test.use({ tourWelcome: true });
 
 const PHONE = { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 };
 
-/** A new account's cookie on the page's context; unlocked, so Ideas and its steps show (SPEC-access). */
-async function signedIn(page, { origin, app }, name) {
+/** A new account's cookie on the page's context. */
+async function signedIn(page, { origin }, name) {
   const [k, v] = (await signup(origin, name)).split('=');
-  const me = app.store.users.list((u) => u.username === name)[0];
-  app.store.users.update(me.id, { access: { unlockedAt: new Date().toISOString() } });
   await page.context().addCookies([{ name: k, value: v, url: origin }]);
 }
 
@@ -156,12 +154,6 @@ for (const height of [768, 660]) {
       await at('play').click();
       await s.done();
       await shot('first-look-pause');
-
-      await open('Ideas');
-      await ring('nav:ideas');
-      await at('nav:ideas').click();
-      await s.done();
-      await shot('first-look-ideas');
       await s.next();
 
       const menu = page.getByRole('dialog', { name: 'Getting around: done' });
@@ -178,7 +170,7 @@ for (const height of [768, 660]) {
       expect(errors).toEqual([]);
     });
 
-    for (const [title, id, play] of [['From an idea', 'idea', playIdea], ['Modules and colour', 'modules', playModules],
+    for (const [title, id, play] of [['The look', 'look', playLook], ['Modules and colour', 'modules', playModules],
       ['Layers and chains', 'layers', playLayers], ['Time', 'time', playTime], ['Values that move', 'moves', playMoves],
       ['Keep it', 'keep', playKeep]]) {
       test(title, async ({ page, studio }, info) => {

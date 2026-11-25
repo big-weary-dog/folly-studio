@@ -7,8 +7,9 @@ Part of the [build contract](SPEC.md).
 `npm run build` (Vite, `vite.config.js`) builds `public/` into `dist/`: `index.html` naming its entry module, the
 modules it loads eagerly (`modulepreload`) and its stylesheet, and every other file under `assets/` with a content
 hash in its name (`<name>-<8 characters>.<ext>`): modules and their split chunks, each view's stylesheet (imported
-by the view's module and loaded with it), the data modules fetch (`new URL('../../data/rig.json',
-import.meta.url)`), the favicon and the sandbox page. `.vite/manifest.json` says what each module loads with it.
+by the view's module and loaded with it), the data modules fetch (`new URL('../../data/rig-folly.json',
+import.meta.url)`; both rigs ship), the favicon and the sandbox page. `.vite/manifest.json` says what each module
+loads with it.
 Nothing is inlined (no data: URLs, no inline script; the modulepreload polyfill is off). Beside each text file of 512 bytes or more the build writes `<file>.br` (quality 11) and `<file>.gz` (9) where smaller
 (`tools/vite-compress.ts`), so nothing static is compressed per request.
 
@@ -35,12 +36,18 @@ present, same-origin. Errors are `{ error: "message" }` with a 4xx/5xx status. A
 the first problem ("Layer 2, clip 1: start must be a number of seconds from 0 to 600."). Unknown routes are 404, a
 known path's other methods 405 with `Allow`.
 
+Look writes (`POST /api/looks`, `PUT` and `DELETE /api/looks/:id`, `PUT /api/looks/:id/versions/:n`) are limited per
+account: 120 a minute, then 429 with `Retry-After`. An account keeps at most 500 looks, and its looks with their
+versions hold at most 20 MB as stored: a new look past either, or a change that grows its looks past the bytes, is
+429 "delete some first" (a change that does not grow them always saves; an idea's new look keeps to both: it fails).
+What the server itself records on a look, its bake, is bounded and never refused, so a look at the cap still bakes.
+
 ```
-POST   /api/signup   { username, password }   → { user, flash }      (sets cookie)
-POST   /api/login    { username, password }   → { user, flash }
-POST   /api/guest    { name }                 → { user, flash }      a guest (SPEC-access "Guests")
+POST   /api/signup   { username, password }   → { user, flash, rig }  (sets cookie)
+POST   /api/login    { username, password }   → { user, flash, rig }
+POST   /api/guest    { name }                 → { user, flash, rig }  a guest (SPEC-access "Guests")
 POST   /api/logout                            → { ok: true }
-GET    /api/me                                → { user, flash, access } | 401
+GET    /api/me                                → { user, flash, access, rig } | 401
 PUT    /api/me/tour  tour                     → { tour }  SPEC-tutorial
 GET    /api/ideas                             → { ideas: [idea] }    mine, newest first
 POST   /api/ideas    { text, model?, explore? } → { idea }           queued for generation on that model (none: the
@@ -80,8 +87,8 @@ GET    /api/looks?scope=mine|gallery          → { looks: [listed] }  metadata 
 POST   /api/looks    { title, summary?, layers, duration?, bpm?, globals?, automation?, ideaId?, chain?, origin? }
                                               → { look, imported? }  origin: an import (SPEC-looks "Look files"):
                                               201 added, or 200 updating the importer's look it names, `imported`
-                                              'added' | 'updated' | 'unchanged'; 429 at 500 looks (an account's
-                                              most, which an idea's new look also keeps to: it fails)
+                                              'added' | 'updated' | 'unchanged'; 429 at the account's limits
+                                              (above)
 GET    /api/looks/:id                         → { look }             mine, or shared
 PUT    /api/looks/:id { title?, summary?, layers?, duration?, bpm?, globals?, automation?, shared?, reviewed?,
                      flashOverride?, chain?, restoredFrom?, versionName? } → { look }  owner only (reviewed: a

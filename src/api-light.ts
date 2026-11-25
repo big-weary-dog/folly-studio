@@ -9,7 +9,7 @@ export function lightRoutes({ light }: { light: LightStore }) {
   return {
     'GET /light': async () => light.current(),
     'PUT /admin/light': forAdmins(async (req: FastifyRequest) => {
-      const saved = light.save(req.body);
+      const saved = await light.save(req.body);
       if ('error' in saved) throw new HttpError(400, saved.error);
       return saved.light;
     }),

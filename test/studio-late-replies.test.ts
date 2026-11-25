@@ -1,5 +1,5 @@
-// Replies that land after the Studio moved on (studio-store's rev and request): a refinement never replaces edits
-// made while it ran, a save's reply keeps a title typed after Save, and a reply after a newer request of its kind
+// Replies that land after the Studio moved on (studio-store's rev and request): a save's reply keeps a title typed
+// after Save, and a reply after a newer request of its kind
 // (a version's preview) or after the Studio closed (a failed load's redirect, a save's toast) is ignored.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -13,7 +13,6 @@ Object.assign(globalThis, { matchMedia: () => ({ matches: false, addEventListene
   document: { title: '' } });
 const { api } = await import('../public/js/api.ts');
 const { createStudio } = await import('../public/js/ui/studio-store.ts');
-const { refine } = await import('../public/js/ui/refine.tsx');
 const { toastHistory } = await import('../public/js/ui/kit.tsx');
 
 const RIG = JSON.parse(readFileSync(new URL('../public/data/rig.json', import.meta.url), 'utf8')) as Rig;
@@ -34,34 +33,6 @@ function held<T>() {
 }
 const original = { ...api };
 afterEach(() => { Object.assign(api, original); });
-
-describe('a refinement over edits made while it ran', () => {
-  test('the edits stay, unsaved; the revision is the server copy', async () => {
-    const st = studio(), done = held<{ idea: object }>();
-    const revised = { ...LOOK, layers: [{ ...LOOK.layers[0], level: 0.5 }], version: 2 } as unknown as Look;
-    Object.assign(api, { refine: async () => ({ idea: { id: 'i1', status: 'queued', updatedAt: '' } }),
-      idea: () => done.promise, look: async () => ({ look: revised }) });
-    const running = refine(st, { text: 'dimmer' });
-    await new Promise((r) => setTimeout(r, 0));
-    st.editLayer('a', () => ({ level: 0.23 }));
-    done.resolve({ idea: { id: 'i1', status: 'ready', changes: ['Sea: level 1 → 0.5'] } });
-    await running;
-    assert.equal(st.look.peek().layers[0].level, 0.23);
-    assert.equal(st.dirty.peek(), true);
-    assert.equal(st.server.peek(), revised);
-    assert.match(toastHistory.at(-1)!.message, /your edits stay/);
-  });
-
-  test('untouched work takes the revision, saved', async () => {
-    const st = studio();
-    const revised = { ...LOOK, layers: [{ ...LOOK.layers[0], level: 0.5 }] } as unknown as Look;
-    Object.assign(api, { refine: async () => ({ idea: { id: 'i1', status: 'ready', changes: ['x'] } }),
-      look: async () => ({ look: revised }) });
-    await refine(st, { text: 'dimmer' });
-    assert.equal(st.look.peek().layers[0].level, 0.5);
-    assert.equal(st.dirty.peek(), false);
-  });
-});
 
 describe('a save reply', () => {
   test('keeps a title typed after Save', async () => {

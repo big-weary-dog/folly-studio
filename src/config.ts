@@ -51,6 +51,7 @@ function settings(warn: Warn) {
   return {
     PORT: [num({ min: 0, max: 65_535, int: true }), 'the port, default 8780'],
     HOST: [text(), 'the address to listen on, default 127.0.0.1; loopback only'],
+    STUDIO_RIG: [oneOf('folly', 'cog'), 'the rig: folly, the Folly\'s playa build (the default), or cog, City of Gods'],
     STUDIO_DATA: [text(), 'the data folder, default data/ in the repo'],
     STUDIO_CURATORS: [text(), 'comma-separated usernames with the curator role'],
     STUDIO_ADMINS: [text(), 'comma-separated usernames with the admin role (admins are curators too)'],

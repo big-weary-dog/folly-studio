@@ -21,7 +21,7 @@ test('F8 freezes the Studio under the form and files a report; an admin replays 
   const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 } }), page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
-  await signIn(page, studio.origin, 'olive', '/ideas');
+  await signIn(page, studio.origin, 'olive', '/looks');
   await page.goto(`${studio.origin}/studio`);
   await expect(page.locator('.layer-list')).toBeVisible({ timeout: 30_000 });
   await expect.poll(() => time(page), { timeout: 30_000 }).toBeGreaterThan(0.5);

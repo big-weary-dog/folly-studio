@@ -198,16 +198,12 @@ button.mod-tag:hover { color: var(--text); border-color: var(--violet); }
 .field.macro > .mod-drives { flex-basis: 100%; padding-left: calc(var(--label-w) + 8px); }
 .look-dock { display: none; }
 @media (min-width: 900px) {
-  .studio[data-dock=look] .code-body, .studio[data-dock=look] .dock-code-only, .studio[data-dock=look] .tl-body,
-    .studio[data-dock=look] .dock-tools { display: none !important; }
+  .studio[data-dock=look] .tl-body, .studio[data-dock=look] .dock-tools { display: none !important; }
   .studio[data-dock=look]:not(.code-collapsed) .look-dock { display: block; }
-  /* Refine beside the globals, the palette first, so a short dock shows them all */
-  .studio[data-dock=look]:not(.code-collapsed) .look-dock:has(> .refine) { display: grid; gap: 0 24px;
-    grid-template-columns: minmax(284px, 1fr) minmax(0, 2fr); align-items: start; }
+  /* the palette first, so a short dock shows it */
   .look-dock .look-globals { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
   .look-dock .globals-palette { order: -1; }
-  .look-dock .field:has(select) > :first-child { min-width: 0; }   /* the palette and model selects get the room */
-  .look-dock .refine-row .field { flex: 1 1 100%; }
+  .look-dock .field:has(select) > :first-child { min-width: 0; }   /* the palette select gets the room */
   .studio[data-dock=look] .pane-code { --tint: var(--dust); }
   .dock-tab[data-dock=look] { --tint: var(--dust); }
 }

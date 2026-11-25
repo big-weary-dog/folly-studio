@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Build the rigs as the studio sees them (SPEC "Rig"): City of Gods, the default, as public/data/rig.json from
-lighting's city-of-gods/pixel-map/out/ (tools/cog_rig.py), and the Gothic Folly's playa build as rig-folly.json from
-its show-builder/pixel-map/ (a lighting checkout: tools/sources.py).
+"""Build the rigs as the studio sees them (SPEC "Rig"): the Gothic Folly's playa build, the default, as
+public/data/rig-folly.json from lighting's show-builder/pixel-map/, and City of Gods as rig.json from its
+city-of-gods/pixel-map/out/ (tools/cog_rig.py; a lighting checkout: tools/sources.py).
 
     python3 tools/build_rig.py [--check]   # write them, or exit 1 if a committed file is stale
 

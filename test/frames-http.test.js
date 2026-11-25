@@ -40,7 +40,7 @@ async function startApp() {
   const publicDir = path.join(tmp, 'public');
   await mkdir(path.join(publicDir, 'data'), { recursive: true });
   await writeFile(path.join(publicDir, 'index.html'), '<!doctype html><title>t</title>');
-  await writeFile(path.join(publicDir, 'data', 'rig.json'), JSON.stringify(lineRig(2)));
+  await writeFile(path.join(publicDir, 'data', 'rig-folly.json'), JSON.stringify(lineRig(2)));
   const renderBox = {
     config: { seconds: FRAMES / 40 },
     probe: async () => ({ ok: true }),

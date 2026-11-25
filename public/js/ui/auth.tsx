@@ -3,15 +3,13 @@ import { useEffect, useId, useRef, useState } from 'preact/hooks';
 
 import ACCOUNT from '../../data/account.json' with { type: 'json' };
 import { api } from '../api.ts';
-import { pendingInvite, redeemInvite } from './invite.ts';
 import { navigate, signedIn, user, type ViewProps } from './session.ts';
 import { cx, Field } from './kit.tsx';
 import { Rose } from './rose.tsx';
 import { welcomeOnce } from './tour-view.ts';
 
 export function Auth({ query }: ViewProps) {
-  const invited = !!pendingInvite();
-  const [mode, setMode] = useState(query.get('mode') === 'signup' || invited ? 'signup' : 'login');
+  const [mode, setMode] = useState(query.get('mode') === 'signup' ? 'signup' : 'login');
   const [error, setError] = useState(''), [busy, setBusy] = useState(false);
   const name = useRef<HTMLInputElement>(null), pass = useRef<HTMLInputElement>(null), errId = useId();
   const signup = mode === 'signup', guest = mode === 'guest';
@@ -32,7 +30,6 @@ export function Auth({ query }: ViewProps) {
       else {
         await (signup ? api.signup(u, p) : api.login(u, p));
         signedIn(await api.me());
-        await redeemInvite();
       }
       // Back through the router, which sends a signed-in visitor on to a safe `next`.
       await navigate(location.pathname + location.search, { replace: true, force: true });
@@ -56,13 +53,8 @@ export function Auth({ query }: ViewProps) {
         <h1 class="auth-title"><span class="kicker">The Gothic Folly</span>
           <svg class="wordmark" aria-hidden="true"><use href="#wordmark" /></svg>
           <span class="sr-only">Folly Studio</span></h1>
-        <p class="auth-lede">Build a show for 4,870 LEDs — arches, spires, a sixteen-petal rose window — watch it
-          come to life, tune it, and send it to the playa.</p>
-        <p class="field-hint auth-pitch">Editing and previews are open to everyone.
-          On hosted Studio, describing
-          a show with AI needs an invite code.</p>
-        {invited && <p class="auth-invited" role="status"><strong>You've been invited.</strong> Sign up, or log in if
-          you have an account, and your invite to the AI models is accepted.</p>}
+        <p class="auth-lede">Build a light show for the Folly — its arches, spires and sixteen-petal rose window —
+          watch it come to life, tune it, and send it to the playa.</p>
         <form class="auth-form" novalidate aria-describedby={errId} onSubmit={submit}>
           <div class="seg" role="group" aria-label="Log in, sign up, or come in as a guest">
             {tab('login', 'Log in')}{tab('signup', 'Sign up')}{tab('guest', 'Guest')}</div>

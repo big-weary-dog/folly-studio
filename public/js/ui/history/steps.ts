@@ -10,13 +10,11 @@ import { humanize } from '../kit.tsx';
 import type { Layer } from '../model.ts';
 import type { Draft } from '../studio-store.ts';
 
-export type Kind = 'open' | 'add' | 'remove' | 'set' | 'move' | 'code' | 'ai' | 'restore';
-/** An AI round's step: the idea, what was asked, by whom, what it changed. */
-export type AiStep = { ideaId: string, asked: string, by?: string, changes: string[] };
+export type Kind = 'open' | 'add' | 'remove' | 'set' | 'move' | 'code' | 'restore';
 /** What an edit changed: its name, its kind (the icon), and `key`, the one thing it changed (edits fold by it). */
 export type Named = { label: string, kind: Kind, key: string, where?: string };
-export type Step = Named & { at: number, look: Draft, saved?: boolean, sealed?: boolean, ai?: AiStep };
-export type EditOptions = { step?: string, kind?: Kind, merge?: string, ai?: AiStep };
+export type Step = Named & { at: number, look: Draft, saved?: boolean, sealed?: boolean };
+export type EditOptions = { step?: string, kind?: Kind, merge?: string };
 
 const MAX_STEPS = 200;
 const FOLD_MS = 1500;
@@ -104,7 +102,6 @@ export const changes = (a: Draft, b: Draft) => CONTENT.some((k) => a[k] !== b[k]
 /** The steps and where the look is among them (`at`). */
 export function createSteps() {
   const list = signal<Step[]>([]), at = signal(0);
-  let reported = new Set<string>(), dropped: string[] = [];   // AI rounds told undone; dropped, not yet told
   const replace = (i: number, s: Step) => { list.value = list.peek().map((x, j) => (j === i ? s : x)); };
   return {
     list, at,
@@ -113,19 +110,16 @@ export function createSteps() {
       list.value = [{ label: look.id ? 'Opened the look' : 'New look', kind: 'open', key: 'open', at: Date.now(), look,
         saved: !!look.id }];
       at.value = 0;
-      reported = new Set();
-      dropped = [];
     },
     /** An edit from `before` to `after`: a new step (the greyed ones dropped), or folded into the last one. */
     record(before: Draft, after: Draft, o: EditOptions = {}) {
       const all = list.peek(), i = at.peek(), last = all[i], now = Date.now();
       const n: Named = o.step ? { label: o.step, kind: o.kind ?? 'set', key: o.merge ?? once() } : named(before, after);
       if (o.merge) n.key = o.merge;
-      const fold = last && i === all.length - 1 && !last.sealed && !last.saved && !o.ai && last.kind !== 'open'
+      const fold = last && i === all.length - 1 && !last.sealed && !last.saved && last.kind !== 'open'
         && last.key === n.key && now - last.at < FOLD_MS;
       if (fold) { replace(i, { ...last, label: n.label, where: n.where, look: after, at: now }); return; }
-      for (const s of all.slice(i + 1)) if (s.ai) dropped.push(s.ai.ideaId);
-      const kept = [...all.slice(0, i + 1), { ...n, at: now, look: after, ...(o.ai ? { ai: o.ai } : {}) }];
+      const kept = [...all.slice(0, i + 1), { ...n, at: now, look: after }];
       list.value = kept.slice(-MAX_STEPS);
       at.value = list.peek().length - 1;
     },
@@ -138,14 +132,6 @@ export function createSteps() {
     saved(i = at.peek()) {
       const s = list.peek()[i];
       if (s && !s.saved) replace(i, { ...s, saved: true, sealed: true });
-    },
-    /** AI rounds undone (greyed, or dropped) that the server has not been told of, now told. */
-    undoneRounds(): string[] {
-      const ahead = list.peek().slice(at.peek() + 1).flatMap((s) => (s.ai ? [s.ai.ideaId] : []));
-      const fresh = [...new Set([...dropped, ...ahead])].filter((id) => !reported.has(id));
-      dropped = [];
-      for (const id of fresh) reported.add(id);
-      return fresh;
     },
   };
 }

@@ -10,7 +10,6 @@ import type { Preview } from './preview.ts';
 import type { Studio } from './studio-store.ts';
 
 export function exportJson(st: Studio) {
-  st.flush();
   const look = st.body.peek();
   download(fileText(lookFile(look, st.server.peek())), `${slugify(look.title, 'folly-look')}.json`, 'application/json');
 }
@@ -18,7 +17,6 @@ export function exportJson(st: Studio) {
 export async function exportFseq(st: Studio, pv: Preview) {
   const runtime = pv.runtime;
   if (!runtime?.ready) return toast('The pattern engine is still starting.', { kind: 'warn' });
-  st.flush();
   const excluded = st.look.peek().layers.filter((l) => st.silent(l.id));
   if (excluded.length && !(await confirmDialog(
     `Mute and Solo affect this preview export. It excludes ${excluded.map((l) => `“${l.title}”`).join(', ')}. `

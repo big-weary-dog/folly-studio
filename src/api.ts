@@ -7,6 +7,7 @@ import { isPending, transition } from '../shared/idea-status.ts';
 import { DEEP, type FlashSettings, GuestBody, type Idea, IdeaBody, Login, RefineBody, Signup }
   from '../shared/schemas/api.ts';
 import type { AccessControl } from './access.ts';
+import { perAccount } from './account-limit.ts';
 import { accessRoutes, sendRefusal } from './api-access.ts';
 import { ideaHowRoutes } from './api-idea-how.ts';
 import { ideaLogRoutes } from './api-idea-log.ts';
@@ -28,6 +29,7 @@ import type { Reports } from './reports/store.ts';
 import type { createPreviews } from './previews/index.ts';
 import { adminsDeclared, checkMutation, HttpError, type Log, type Logger, parse, routes, sendJson } from './http.ts';
 import { cannot, TRANSPORT_CAPS } from '../shared/schemas/models.ts';
+import type { RigName } from '../shared/schemas/rig.ts';
 import type { createLoaders } from './static.ts';
 import type { Store } from './store.ts';
 
@@ -67,15 +69,16 @@ export const newestBy = (field: string) => (a: Record<string, unknown>, b: Recor
 export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: Registry | null, log: Log,
   loaders: ReturnType<typeof createLoaders>, access: AccessControl, framesDir: string,
   bakes: ReturnType<typeof createBakeQueue>, frames: ReturnType<typeof createFramesCache>, secureCookies?: boolean,
-  rateLimit?: { max?: number, ipMax?: number, guestMax?: number, windowMs?: number }, flash: FlashSettings,
+  rateLimit?: { max?: number, ipMax?: number, guestMax?: number, windowMs?: number, writeMax?: number },
+  flash: FlashSettings,
   ideaLogs: IdeaLogs, previews?: ReturnType<typeof createPreviews>, reports: Reports,
-  build: string, tail: () => unknown[], light: LightStore, gen?: boolean,
+  build: string, tail: () => unknown[], light: LightStore, gen?: boolean, rig?: RigName,
   baking?: Parameters<typeof bakingRoutes>[0], stats?: Parameters<typeof routes>[1],
   codeGate?: Parameters<typeof lookRoutes>[0]['codeGate'] }) {
   const { store, auth, queue, models, loaders, log, access } = o;
   const { bakes, framesDir, frames, secureCookies = false, flash } = o;
-  const limits = { max: 10, ipMax: 100, guestMax: 10, windowMs: 60_000, ...o.rateLimit };
-  const gen = o.gen === true;
+  const limits = { max: 10, ipMax: 100, guestMax: 10, windowMs: 60_000, writeMax: 120, ...o.rateLimit };
+  const gen = o.gen === true, rig = o.rig ?? 'folly';
   return async (api: FastifyInstance) => {
     api.addHook('onRequest', checkMutation);
     api.addHook('onRoute', adminsDeclared);
@@ -105,13 +108,15 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       auth.logout(req.cookies[COOKIE_NAME]);
       reply.setCookie(COOKIE_NAME, auth.createSession(user),
         cookie((user.guest ? GUEST_TTL_MS : SESSION_TTL_MS) / 1000)).code(status);
-      return { user: auth.publicUser(user), flash };
+      return { user: auth.publicUser(user), flash, rig };
     };
     const cookie = (maxAge: number) => ({ httpOnly: true, sameSite: 'lax' as const, path: '/', maxAge,
       secure: secureCookies });
     const dropFrames = (id: string) => removeFrames(framesDir, id).then(() => frames.prune());
+    const limitWrites = perAccount(api, { name: 'look', windowMs: limits.windowMs, max: limits.writeMax,
+      why: 'Too many saves for now. Try again in a minute.' });
     const looks = lookRoutes({ store, auth, bakes, dropFrames, previews: o.previews, loadLibrary: loaders.loadLibrary,
-      codeGate: o.codeGate, log });
+      codeGate: o.codeGate, limitWrites, log });
     const own = (req: FastifyRequest) => {
       const idea = store.ideas.get((req.params as { id: string }).id);
       if (!idea || idea.owner !== req.user!.id) throw new HttpError(404, 'Idea not found.');
@@ -221,7 +226,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       }, { public: true }],
       ...tourRoutes({ store }),
       'GET /me': async (req) => ({ user: auth.publicUser(req.user), flash,
-        ...(gen && !req.user!.guest ? { access: access.state(req.user!) } : {}) }),
+        ...(gen && !req.user!.guest ? { access: access.state(req.user!) } : {}), rig }),
       ...(gen && models ? { ...ideaRoutes, ...modelRoutes({ auth, models, access }),
         ...ideaLogRoutes({ logs: o.ideaLogs }),
         ...ideaHowRoutes({ store, auth, logs: o.ideaLogs, forOwner }),

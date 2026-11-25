@@ -25,8 +25,6 @@ export type TourView = {
 };
 
 export const tourView = signal<TourView | null>(null);
-/** The practice look an open tutorial step has the Ideas page open in place of asking a model, or null. */
-export const tourIdea = signal<string | null>(null);
 /** A layer's `data-tour` name part: its title in lower case, a dash for each run of anything else. */
 export const tourName = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 

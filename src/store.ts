@@ -1,8 +1,9 @@
 // JSON-file document store: a file per collection, loaded at start (each document through its collection's upgrade,
-// written back once if one changed), kept in memory, written atomically (tmp + fsync + rename), each collection's
+// written back once if one changed), kept in memory, written atomically (atomic-file.ts), each collection's
 // writes serialized and coalesced (a failed one tried again until it lands), by the one process holding the
-// folder's lock (store-lock.ts) until close(). Objects handed out are copies; create() adds id, createdAt and
-// updatedAt; update() is shallow, and undefined deletes a key.
+// folder's lock (store-lock.ts) until close(). Each document's JSON is kept from its last change, so a write joins
+// them and bytes() sums them. Objects handed out are copies; create() adds id, createdAt and updatedAt; update() is
+// shallow, and undefined deletes a key.
 
 import { randomBytes } from 'node:crypto';
 import { promises as fsp } from 'node:fs';
@@ -10,12 +11,16 @@ import path from 'node:path';
 
 import type { UserAccess } from '../shared/schemas/access.ts';
 import type { Idea, Look, User, VersionMeta } from '../shared/schemas/api.ts';
+import { writeFileAtomic } from './atomic-file.ts';
 import { stamp } from './clock.ts';
 import type { Log } from './http.ts';
 import { lockDataDir } from './store-lock.ts';
 
 type Doc = { id: string, createdAt: string, updatedAt: string };
-export type Collection<T extends Doc> = { get(id: string): T | null, list(filter?: (x: T) => unknown): T[],
+/** `list`'s `omit`: keys left out of the copies (a listing skips what it does not show, a look's versions). */
+export type Collection<T extends Doc> = { get(id: string): T | null,
+  list(filter?: (x: T) => unknown, omit?: readonly (keyof T)[]): T[], count(filter?: (x: T) => unknown): number,
+  /** The documents' size as stored (JSON, UTF-8). */ bytes(filter?: (x: T) => unknown): number,
   create(x: Partial<T>): T, update(id: string, patch: Partial<T>): T | null, remove(id: string): boolean };
 export type StoredUser = Doc & Partial<User> & { username: string, passwordHash: string, access?: UserAccess };
 /** An invite code as stored: its sha256, never the code (SPEC-access "Access"). */
@@ -77,7 +82,11 @@ export async function createStore(dataDir: string, { log = console, upgrade = {}
 }
 
 async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: Upgrade) {
-  const map = new Map<string, Item>();
+  const map = new Map<string, Item>(), json = new Map<string, string>();
+  const put = (item: Item) => {
+    map.set(item.id, item);
+    json.set(item.id, JSON.stringify(item));
+  };
   let upgraded = false;
   const text = await fsp.readFile(file, 'utf8').catch((err) => {
     if (err.code !== 'ENOENT') throw err;
@@ -95,11 +104,11 @@ async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: U
       if (!item || typeof item.id !== 'string') continue;
       const now = upgrade ? upgrade(item) : item;
       upgraded ||= now !== item;
-      map.set(item.id, now);
+      put(now);
     }
   }
 
-  let chain = Promise.resolve(), queued = false, lastError: unknown = null, tmpSeq = 0;
+  let chain = Promise.resolve(), queued = false, lastError: unknown = null;
   // A failed write stays due: tried again after a backoff (1 s doubling to a minute), or at once by flush().
   let retry: NodeJS.Timeout | undefined, backoff = 0;
 
@@ -109,23 +118,14 @@ async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: U
     clearTimeout(retry);
     chain = chain.then(async () => {
       queued = false; // anything changed from here on schedules another write
-      const items = [...map.values()];
-      const json = items.length ? `[\n${items.map((v) => JSON.stringify(v)).join(',\n')}\n]\n` : '[]\n';
-      const tmp = `${file}.${process.pid}.${++tmpSeq}.tmp`;
+      const items = [...json.values()];
+      const text = items.length ? `[\n${items.join(',\n')}\n]\n` : '[]\n';
       try {
-        const fh = await fsp.open(tmp, 'w', 0o600);
-        try {
-          await fh.writeFile(json);
-          await fh.sync();
-        } finally {
-          await fh.close();
-        }
-        await fsp.rename(tmp, file);
+        await writeFileAtomic(file, text);
         lastError = null; backoff = 0;
       } catch (err) {
         lastError = err;
         log.error(`store: could not write ${file}:`, err);
-        await fsp.rm(tmp, { force: true }).catch(() => {});
         backoff = Math.min(backoff * 2 || 1000, 60_000);
         if (!queued) retry = setTimeout(schedule, backoff).unref();
       }
@@ -135,10 +135,24 @@ async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: U
 
   const api: Collection<Doc & Record<string, unknown>> = {
     get: (id) => copy(map.get(id)) ?? null,
-    list(filterFn) {
+    list(filterFn, omit) {
       const out = [];
-      for (const item of map.values()) if (!filterFn || filterFn(item)) out.push(copy(item));
+      for (const item of map.values()) {
+        if (filterFn && !filterFn(item)) continue;
+        if (!omit?.length) out.push(copy(item));
+        else out.push(copy(Object.fromEntries(Object.entries(item).filter(([k]) => !omit.includes(k))) as Item));
+      }
       return out;
+    },
+    count(filterFn) {
+      let n = 0;
+      for (const item of map.values()) if (!filterFn || filterFn(item)) n++;
+      return n;
+    },
+    bytes(filterFn) {
+      let n = 0;
+      for (const [id, item] of map) if (!filterFn || filterFn(item)) n += Buffer.byteLength(json.get(id)!);
+      return n;
     },
     create(obj = {}) {
       const now = stamp();
@@ -151,7 +165,7 @@ async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: U
       }
       const { id: _i, createdAt: _c, updatedAt: _u, ...rest } = obj;
       const item = { id, ...copy(rest), createdAt: now, updatedAt: now };
-      map.set(id, item);
+      put(item);
       schedule();
       return copy(item);
     },
@@ -165,12 +179,13 @@ async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: U
         else next[k] = copy(v);
       }
       next.updatedAt = stamp();
-      map.set(id, next as Doc);
+      put(next as Item);
       schedule();
       return copy(next as Doc);
     },
     remove(id) {
       const had = map.delete(id);
+      json.delete(id);
       if (had) schedule();
       return had;
     },

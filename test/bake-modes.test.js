@@ -49,7 +49,7 @@ describe('library only', () => {
   });
 
   const prlimit = ['/usr/bin', '/bin'].some((d) => fs.existsSync(path.join(d, 'prlimit')));
-  const built = fs.existsSync(path.join(PUBLIC, 'data/rig.json'));
+  const built = fs.existsSync(path.join(PUBLIC, 'data/rig-folly.json'));
   test('a full 600 s look bakes; a shorter cap wins', async ({ skip }) => {
     skip(!prlimit, 'needs prlimit');
     // Length does not depend on the installation's pixel count: the real box and all 600 s, on a small rig.
@@ -69,7 +69,7 @@ describe('library only', () => {
   }, 120_000);
 
   test('without bubblewrap, a library look bakes as its own process and custom code is refused', async ({ skip }) => {
-    skip(!prlimit || !built, 'needs prlimit and a built rig.json');
+    skip(!prlimit || !built, 'needs prlimit and a built rig-folly.json');
     const box = createRenderBox({ bwrap: 'no-such-bwrap', seconds: 1, systemdRun: '', log: quiet });
     const p = await box.probe();
     assert.equal(p.ok, true);
@@ -100,17 +100,18 @@ describe('library only', () => {
 });
 
 describe('the bake setting', () => {
-  test('stored in baking.json: missing or broken is on, custom code off, a save is checked and read back', () => {
+  test('stored in baking.json: missing or broken is on with custom code off, a save is checked and read back',
+    async () => {
     const file = path.join(fx.tmp, 'setting', 'baking.json');
     const store = createBakingStore({ file, log: quiet });
     assert.equal(store.mode(), 'on');
-    assert.match(store.save({ mode: 'slow' }).error, /on, throttled or off/);
+    assert.match((await store.save({ mode: 'slow' })).error, /on, throttled or off/);
     assert.equal(store.customCode(), false);
-    assert.match(store.save({}).error, /mode\?, customCode\?/);
-    assert.match(store.save({ customCode: 'yes' }).error, /true or false/);
-    assert.deepEqual(store.save({ mode: 'off' }), { mode: 'off', customCode: false });
-    assert.match(store.save({ customCode: true }).error, /Custom code is off on every server/);
-    assert.deepEqual(store.save({ customCode: false }), { mode: 'off', customCode: false });
+    assert.match((await store.save({})).error, /mode\?, customCode\?/);
+    assert.match((await store.save({ customCode: 'yes' })).error, /true or false/);
+    assert.deepEqual(await store.save({ mode: 'off' }), { mode: 'off', customCode: false });
+    assert.match((await store.save({ customCode: true })).error, /Custom code is off on every server/);
+    assert.deepEqual(await store.save({ customCode: false }), { mode: 'off', customCode: false });
     assert.equal(createBakingStore({ file, log: quiet }).mode(), 'off', 'from the file');
     fs.writeFileSync(file, JSON.stringify({ mode: 'on', customCode: true }));
     assert.equal(createBakingStore({ file, log: quiet }).customCode(), false, 'the file\'s customCode is ignored');

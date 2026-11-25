@@ -23,7 +23,7 @@ npx oxlint src/app.ts        # oxlint alone, on a file or a folder
 npm test                     # vitest run: test/ *.test.{js,ts} (vitest.config.js; a fresh build of
                              #   the app included), then every skipped test and why
 npx vitest run test/core.test.js     # one file (`-t <name>` for one test); `npm run test:watch` reruns on save
-npm run build-data           # rebuild public/data/rig.json (City of Gods) and rig-folly.json, palettes.json
+npm run build-data           # rebuild public/data/rig-folly.json (the Folly), rig.json (City of Gods), palettes.json
 node tools/pattern-history.ts # refresh historical library hashes after committing library pattern changes
 npm run smoke                # the app in Chromium at 1366 × 768 and 390 × 844: sign up, an idea, the Studio, a code
                              #   error, the timeline, a bake (test/e2e/smoke.spec.js), and each flow's own spec
@@ -55,10 +55,11 @@ skipped test and why (`test/skip-reporter.js`). The rigs come from a lighting ch
 The lighting repo (The-Gothic-Folly/lighting, John Keefe's) is the lighting system's single source of truth: the
 pixel maps, the xLights shows, the Falcon's string config and the power model. Studio reads a checkout of it, never
 writes one: `LIGHTING_DIR`, by default `../lighting` beside this repo (`tools/sources.py`,
-`test/fixtures/sources.js`; set it in a worktree). `npm run build-data` builds `rig.json` from its
-`city-of-gods/pixel-map/out/` and `rig-folly.json` from its `show-builder/pixel-map/`, universes from each one's
-`xlights_networks.xml`; `tools/build_power.py` builds `tools/data/power.json` (the rose's expansion) from its
-`pixel-map/` Python.
+`test/fixtures/sources.js`; set it in a worktree). `npm run build-data` builds `rig-folly.json`, the Folly's playa
+build and the rig the Studio shows by default, from its `show-builder/pixel-map/`, and `rig.json`, City of Gods, from
+its `city-of-gods/pixel-map/out/`, universes from each one's `xlights_networks.xml`; `STUDIO_RIG` (`folly`
+or `cog`, SPEC "Rig") picks the one the server and the browser use. `tools/build_power.py` builds
+`tools/data/power.json` (the rose's expansion) from its `pixel-map/` Python.
 
 Lighting fits the wiring in the Falcon (virtual strings, Direction, a short strip's offset), so the channels its
 xLights models and sequences use stay put, and that channel space is what Studio sends. So `tools/check_channels.py`
@@ -155,7 +156,7 @@ JavaScript.
 
 ## Adding a new installation
 
-Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"); nothing else names the Folly.
+Everything installation-specific is one file, the rig `STUDIO_RIG` picks (SPEC "Rig"); nothing else names the Folly.
 
 1. Write a generator for it, as `tools/build_rig.py` is for the Folly (with `--check`), from the installation's
    own canonical LED list, so addresses are never typed twice. A tiny rig can be hand-written:
@@ -165,7 +166,8 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 3. Group it xLights-style under one root, and tag the groups with the conventional tags (`all`, `arch`, `tower`,
    `rose`, `canopy`, `wash`, `front`, …): the library, the generators and portable looks find places by tag.
    Per-pixel numbers the patterns need (rings, sectors, rows) go in `pixels.attrs`.
-4. Replace `public/data/rig.json`, point `npm run build-data` at the new generator, and run `npm run check`:
+4. Add its file and name to `src/rig-choice.ts` and `RigName`, point `npm run build-data` at the new generator, and
+   run `npm run check`:
    `test/rig.test.js` holds it to the core's rules. Tests that pin the Folly (`data.test.js`, `rig-folly.test.js`,
    the counts in `core.test.js`) read `rig-folly.json`; City of Gods is pinned by `rig-cog.test.js`.
 5. Saved looks keep working where their layers carry `tags`; ones that name only the old rig's group ids need
@@ -178,14 +180,14 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `server.ts` | Entry point: the settings read (`readConfig()`), a bad one refused by name, start, graceful stop |
 | `src/config.ts`, `tools/config-check.ts` | Every setting the server reads, parsed with zod once at start (`readConfig()`) and passed down as `Config`; a module given none parses its environment (`configOf()`); `npm run config:check` |
 | `src/app.ts` | `createServer()`: the store, auth, queues, frames cache, the API and the built app on one Fastify server |
-| `src/api.ts`, `api-looks.ts` (+ `look-versions.ts`, its versions), `api-models.ts`, `api-access.ts`, `http.ts` | The HTTP API (SPEC "HTTP API"): accounts, ideas (and their long polls), the library and login limits; looks; the models; invite codes and people; its plumbing (the CSRF hook, JSON revalidated and compressed, errors as `{ error }`, the `routes()` table with each route's `public` or `role` (`forAdmins`; an `/admin` route without a role stops the server at start), 405s, the logger) |
+| `src/api.ts`, `api-looks.ts` (+ `look-versions.ts`, its versions; `look-cap.ts`, what an account's looks hold), `account-limit.ts`, `api-models.ts`, `api-access.ts`, `http.ts` | The HTTP API (SPEC "HTTP API"): accounts, ideas (and their long polls), the library and login limits; looks; per-account limits (look writes, reports); the models; invite codes and people; its plumbing (the CSRF hook, JSON revalidated and compressed, errors as `{ error }`, the `routes()` table with each route's `public` or `role` (`forAdmins`; an `/admin` route without a role stops the server at start), 405s, the logger) |
 | `src/auth.ts` | Accounts, roles (member, curator, admin), scrypt hashes that carry their cost (re-hashed at login when older), sessions; `sessionHook`, which holds each route to its config: a session unless `public` (401), and its `role` (403) |
 | `shared/policy.ts` | `can(user, action, look)`: who may do what, the one answer the server and the browser both ask (the browser runs it, so it imports no zod). A look someone may not see is 404 to them |
 | `shared/schemas/` | zod schemas the server runs and the browser takes as types: `look.ts` (what a look may hold, the 400s naming the first problem), `generated.ts` (a generator's look cleaned leniently; its JSON Schema for structured output), `api.ts` (request bodies, users, ideas; its account limits from `public/data/account.json`, which the sign-up form shows too), `rig.ts` (the rig, the library index), `models.ts` (the model registry, and `TRANSPORT_CAPS`: what each transport may do), `access.ts` (limits, invite and person bodies) |
 | `shared/chain-order.ts` | Pure: looks from before the one rule converted so they render as they did (SPEC "Looks" > chain) |
 | `shared/plays.ts` | What plays (`PLAYS`, `playsOf`, `playsChanged`): the one list versions, bakes, the stage, the sandbox, export and the Studio's save and undo read (SPEC "Looks"); no zod, so the browser takes it at run time |
 | `shared/idea-status.ts` | Pure, so the browser imports it too: an idea's states (`IDEA_STATUS`), `isPending()` and `transition()`, which refuses a move that is not one |
-| `src/store.ts` | JSON-file storage under `STUDIO_DATA`, typed per collection; `store-lock.ts` keeps it to one server |
+| `src/store.ts`, `store-lock.ts`, `atomic-file.ts`, `settings-file.ts` | JSON-file storage under `STUDIO_DATA`, typed per collection; the lock keeping it to one server; every data file written whole (a unique temporary, synced, renamed; one write at a time per file); the admin's settings files (`light.json`, `baking.json`) read when they change |
 | `src/clock.ts` | `monoNow()` for durations and `stamp()` for stored times: the host's wall clock can step back |
 | `src/static.ts` | The built app from `dist/` (@fastify/static: the precompressed copies, ETags, cache headers with `assets/` kept a year, the CSPs, the shell for SPA routes); the library and rig loaders |
 | `vite.config.js`, `tools/vite-sandbox.ts`, `tools/vite-compress.ts`, `tools/dev.ts` | The build (`public/` → `dist/`); the sandbox page, its scripts inlined; the `.br` and `.gz` copies of its text; `npm run dev` |
@@ -211,7 +213,7 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `public/js/viewer.ts`, `viewer-input.ts`, `viewer-gl.ts` | The 3D view (SPEC "The 3D view"): the orbit camera; its pointer and keys; the Points drawing |
 | `public/js/playa/` | The Playa view, loaded on first use: `geometry.ts` builds it from the rig's render hints, `renderer.ts` draws (light texture, spill, bloom, tone map, tiers), `glsl.ts` |
 | `public/js/main.tsx`, `api.ts` | The entry (renders the shell); the fetch wrapper, typed by `shared/schemas/`. A 401 from it (not `/me`, `/login`, `/signup`) calls `onSignedOut` (session.ts sends the person to sign in) and the call never settles, so views never handle a 401 themselves |
-| `public/js/ui/` | The UI, Preact components in TSX with signals for state. `app.tsx`: the shell, routing (history API, views loaded on first use) and the header, `session.ts` what views share with it (the user, navigation, the guard on unsaved edits); `auth`, `pages` (ideas, my looks, the gallery), `admin` (the Admin page's tabs, over `models`, `access`, `light`, `baking`, `reports` and `stats`); `kit.tsx` toasts, dialogs, fields and helpers, `rose.tsx` the rose. The Studio: `studio.tsx` loads it, `studio-store.ts` holds its state (the look, replaced on each edit; the selection; layout) and saves, `studio-layout.tsx` lays out the panes; `preview.ts` drives the imperative 3D view and sandbox (one clock, the flash guard, baked playback) and `preview-view.tsx` wraps them; `layers`, `chain` (+ `chain-row`, `chain-tree` a composite's sub-layers nested, `composite-model.ts` its edits, `tree-drag.ts` drags in and out), `params` (+ `bindings.ts`), `picks` (colour picks, + `pick-model.ts`), `editor`, `shelf` (auditions), `look-globals`, `bake`, `export`; the timeline is `timeline.tsx` (+ `-state`, `-tools`, `-input`, `-auto`, `-model`); `history/` History (`steps.ts` the session's steps and undo, in the main bundle; `button.tsx` in the bar, `history.tsx` the drawer loaded on first use, `steps-list.tsx` and `versions.tsx` its tabs); `layer-status.ts` is what the sandbox says; `model.ts` the rig, library, the Studio's `Layer` (a chain) and its helpers; `bug-report.tsx` F8 and its form (+ `report-studio.ts`, the Studio's part and its replay), `reports.tsx` the admins' Reports page |
+| `public/js/ui/` | The UI, Preact components in TSX with signals for state. `app.tsx`: the shell, routing (history API, views loaded on first use) and the header, `session.ts` what views share with it (the user, navigation, the guard on unsaved edits); `auth`, `pages` (my looks, the gallery), `admin` (the Admin page's tabs, over `light`, `baking`, `reports` and `stats`); `kit.tsx` toasts, dialogs, fields and helpers, `rose.tsx` the rose. The Studio: `studio.tsx` loads it, `studio-store.ts` holds its state (the look, replaced on each edit; the selection; layout) and saves, `studio-layout.tsx` lays out the panes; `preview.ts` drives the imperative 3D view and sandbox (one clock, the flash guard, baked playback) and `preview-view.tsx` wraps them; `layers`, `chain` (+ `chain-row`, `chain-tree` a composite's sub-layers nested, `composite-model.ts` its edits, `tree-drag.ts` drags in and out), `params` (+ `bindings.ts`), `picks` (colour picks, + `pick-model.ts`), `shelf` (auditions), `look-globals`, `bake`, `export`; the timeline is `timeline.tsx` (+ `-state`, `-tools`, `-input`, `-auto`, `-model`); `history/` History (`steps.ts` the session's steps and undo, in the main bundle; `button.tsx` in the bar, `history.tsx` the drawer loaded on first use, `steps-list.tsx` and `versions.tsx` its tabs); `layer-status.ts` is what the sandbox says; `model.ts` the rig, library, the Studio's `Layer` (a chain) and its helpers; `bug-report.tsx` F8 and its form (+ `report-studio.ts`, the Studio's part and its replay), `reports.tsx` the admins' Reports page |
 | `public/patterns/` | The built-in library (`index.json` with each entry's `kind` and `category`, + one file each): sources, warps and filters; presets, recipes of them, in the index alone |
 | `tools/` | `build_rig.py` (+ `pixel_rows.py`: the LEDs and their channels; `cog_rig.py`: City of Gods; `rig_render.py`: what Mirage draws), `check_channels.py` (the rigs against lighting's xLights and Falcon), `build_power.py` (the rose's expansion), `data/` (Studio's own show data: CONTRIBUTING "Show data"), `build_palettes.py` (data), `sacn-play.ts`, `budgets.ts` (the checks oxlint lacks, with line budgets in `budgets.json`; oxlint's rules are `.oxlintrc.jsonc` at the root), `backup.ts`, `seed-dev.ts` (a dev studio's data from the public one's), `frames-bench.ts` (brotli quality against encode time, and each look's render time), `output-bytes.ts` (each look of `bench-looks.ts`, its LED bytes hashed into `test/fixtures/output-bytes.json`, which `test/output-bytes-<rig>.test.ts` hold the engine to: re-record only for intentional pattern, rig or output-default changes), `composite-bench.ts` (a chain's cost per frame flat, as composites and with attached modules, both rigs), `bake-bench.ts` (a bake's time in the real render box: `npm run bake-bench`), `reports.ts` (F8 bug reports on this machine: `list`, `get <id>`) |
 | `README.md`, `DESIGN.md`, `docs/` | What it is; what is built and why (its screenshots in `docs/screenshots/`); `docs/HOSTING.md`, hosting at home |
@@ -304,12 +306,13 @@ cover.
 
 ## Performance budgets
 
-- As built, gzipped: the app's scripts, styles and sandbox page (`dist/assets/`) ≤ 300 KB; the login page (the
+- As built, gzipped: the app's scripts, styles and sandbox page (`dist/assets/`) ≤ 350 KB; the login page (the
   shell, its entry and what that imports, the sign-in view) ≤ 40 KB. `test/build.test.js` measures both on a fresh
   build. Views and their styles load on first use, split into chunks where that comes naturally. The limits move
-  only by the owner's call.
+  only by the owner's call: Studio is a desktop-first pattern builder, so the app and a cold load are sized for a
+  laptop, not a phone on the playa.
 - On the wire (`test/transfer.test.js`, the real server, the build and a model of a browser's cache): a cold
-  Studio load (shell, modules, styles, sandbox, `rig.json`, API) ≤ 240 KB with br (270 KB gzip);
+  Studio load (shell, modules, styles, sandbox, the rig `/api/me` names, API) ≤ 360 KB with br (400 KB gzip);
   a reload, even a day later, sends only the shell and its API calls, each a 304 (assets have
   content-hashed names, kept a year); lists carry no code, and idea polls back off.
 - The Folly's 4,870 LEDs at 40 fps: the render loop allocates nothing per frame (reuse typed arrays, pass
