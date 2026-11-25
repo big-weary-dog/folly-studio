@@ -58,10 +58,20 @@ for (const [name, device] of Object.entries(SIZES)) {
         await expect(page.locator('.view-modes .leds-btn').first())
           .toHaveAttribute('aria-pressed', 'false', { timeout: 30_000 });
         await expect(page.locator('.tp-stats')).toHaveText(/\d+ fps/, { timeout: 30_000 });
-        // Frames come, so the worker compiles patterns; under its own CSP it reaches nothing.
+        // Frames come, so the worker compiles patterns. At the app's origin it reaches nothing: code that escapes the
+        // compiler's scope finds no storage, network or other contexts, and its CSP refuses import().
         const worker = page.workers().find((w) => /\/assets\/sandbox-worker-[\w-]+\.js$/.test(w.url()));
         expect(worker, page.workers().map((w) => w.url()).join(', ')).toBeTruthy();
-        expect(await worker.evaluate(() => fetch('/api/me').then(() => 'fetched', () => 'blocked'))).toBe('blocked');
+        expect(await worker.evaluate(() => new Promise((resolve) => {
+          const g = Function('return globalThis')();
+          const open = ['indexedDB', 'caches', 'fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource',
+            'BroadcastChannel', 'Worker', 'webkitRequestFileSystem'].filter((k) => k in g)
+            .concat(['storage', 'locks'].filter((k) => k in g.navigator).map((k) => `navigator.${k}`));
+          let refused = false;
+          g.addEventListener('securitypolicyviolation', () => { refused = true; });
+          import('/assets/csp-probe.js').then(() => resolve({ open, imported: true }),
+            () => setTimeout(() => resolve({ open, refused }), 100));
+        }))).toEqual({ open: [], refused: true });
         await expect(page.locator('iframe')).toHaveCount(0);
         const canvas = await page.locator('canvas:visible').first().evaluate((c) => [c.width, c.height]);
         expect(canvas.every((n) => n > 0), `the 3D view's canvas is ${canvas.join(' × ')}`).toBe(true);
@@ -263,7 +273,8 @@ for (const [name, device] of Object.entries(SIZES)) {
       });
 
       expect(external, 'requests that left our origin').toEqual([]);
-      expect(errors.filter((e) => !/Failed to load resource: the server responded with a status of 40[14]/.test(e)),
+      expect(errors.filter((e) => !/Failed to load resource: the server responded with a status of 40[14]|csp-probe/
+        .test(e)),
         'console errors and CSP reports').toEqual([]);
     });
   });

@@ -23,8 +23,8 @@ export const DEFAULT_DIST_DIR = fileURLToPath(new URL('../dist/', import.meta.ur
 export const CSP_APP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
   + "img-src 'self' data: blob:; connect-src 'self'; frame-src 'none'; worker-src 'self'; object-src 'none'; "
   + "base-uri 'none'; frame-ancestors 'none'";
-// The pattern worker's own (SPEC "Sandbox protocol"): no network; 'unsafe-eval' for the compiler's new Function.
-export const CSP_WORKER = "default-src 'none'; script-src 'self' 'unsafe-eval'";
+// The pattern worker's (SPEC "Sandbox protocol"): no network or script loads; 'unsafe-eval' for new Function.
+export const CSP_WORKER = "default-src 'none'; script-src 'unsafe-eval'";
 export const CACHE_PAGE = 'no-cache';
 export const CACHE_ASSET = 'public, max-age=300, must-revalidate';
 // The URL names the content (its hash), so a copy never goes stale.

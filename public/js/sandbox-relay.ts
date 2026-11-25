@@ -1,11 +1,12 @@
 // The pattern sandbox's relay and watchdog (SPEC "Sandbox protocol"), on the app page. Pattern code never runs on
 // this thread, which a `while (true) {}` would freeze: it runs in a module Worker (sandbox-worker.ts) served under a
 // CSP of its own, with no network (src/static.ts). The relay passes messages and keeps time. On an overrun it
-// terminates the worker, blames a layer (the one compiling, or each run alone in a throwaway worker), reports it as
+// terminates the worker, blames a layer (the one compiling, or each run alone: sandbox-probe.ts), reports it as
 // hung, and starts a fresh worker with the others.
 import { extrasOf } from '../../shared/plays.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
 import type { Extra, FrameError, ToSandbox } from './runtime.ts';
+import { openProber } from './sandbox-probe.ts';
 
 type Layer = Extract<ToSandbox, { type: 'look' }>['layers'][number];
 /** A request to the worker, as the relay tracks it: `at` is when the worker started on it. */
@@ -26,9 +27,6 @@ const FRAME_BUDGET_MS = 1000;   // a frame (live or export) running longer than 
 const LOOK_BUDGET_MS = 700;     // compiling a look's new code
 const INIT_BUDGET_MS = 6000;    // preparing the scene (no pattern code runs)
 const ANSWER_MS = 1500;         // every frame request is answered by then (runtime.ts waits longer)
-const PROBE_MS = 600;           // one layer alone: compile + one frame, once its scene is ready
-const PROBE_START_MS = 5000;    // a probe worker that cannot even start is inconclusive
-const PROBE_PARALLEL = 4;
 const PROGRESS_EVERY = 40;      // export progress goes to the app every 40 frames or 250 ms
 const PROGRESS_MS = 250;
 const STRIKE_WINDOW_MS = 30000; // unexplained hangs: restart once, then pause the suspects
@@ -61,10 +59,12 @@ export function openSandbox(send: (msg: object) => void): Sandbox {
   let timer = 0;
   let lastTick = 0;
   let closed = false;
+  const prober = openProber(spawnWorker);
   const toApp = (msg: object) => { if (!closed) send(msg); };
 
   function close() {
     closed = true;
+    prober.close();
     worker?.terminate();
     worker = null;
     jobs = [];
@@ -297,7 +297,8 @@ export function openSandbox(send: (msg: object) => void): Sandbox {
     } else if (job.type === 'frame' || job.type === 'render') {
       const t = job.type === 'frame' ? job.t : job.start + job.done / job.fps;
       const suspects = (job.look || []).filter((l) => enabled(l) && !paused(l));
-      let culprits = suspects.length === 1 ? suspects : await probeAll(suspects, t);
+      let culprits = suspects.length === 1 ? suspects : await prober.probeAll(suspects, t,
+        (l) => [{ type: 'init', rig, library }, { type: 'look', layers: [l], ...baseExtra }]);
       if (closed) return;
       let error = `Pattern hung: a frame took over 1 s (at ${t.toFixed(2)} s), so this layer is paused. `
         + 'Edit its code to try again.';
@@ -350,44 +351,6 @@ export function openSandbox(send: (msg: object) => void): Sandbox {
       post(j);
     }
     for (const j of queue) if (!j.answered) post(j);
-  }
-
-  /** Run each suspect alone for one frame at time t; resolve with the ones that hang. */
-  async function probeAll(layers: Layer[], t: number) {
-    const out: Layer[] = [];
-    for (let i = 0; i < layers.length; i += PROBE_PARALLEL) {
-      const batch = layers.slice(i, i + PROBE_PARALLEL);
-      const results = await Promise.all(batch.map((l) => probe(l, t)));
-      batch.forEach((l, n) => { if (results[n] === 'hung') out.push(l); });
-    }
-    return out;
-  }
-
-  function probe(layer: Layer, t: number) {
-    return new Promise<'hung' | 'ok' | 'unknown'>((resolve) => {
-      let w: Worker;
-      try { w = spawnWorker('folly-probe'); } catch { resolve('unknown'); return; }
-      let started = false;
-      let timeout = setTimeout(() => done('unknown'), PROBE_START_MS);
-      function done(result: 'hung' | 'ok' | 'unknown') {
-        clearTimeout(timeout);
-        w.terminate();
-        resolve(result);
-      }
-      w.onerror = (e) => { e.preventDefault(); };
-      w.onmessage = (e) => {
-        const m = e.data || {};
-        if (!started && m.type === 'ready') {
-          started = true;
-          clearTimeout(timeout);
-          timeout = setTimeout(() => done('hung'), PROBE_MS);
-        } else if (started && m.type === 'frame' && m.seq === -1) done('ok');
-        else if (m.type === 'error') done('ok');          // an error is not a hang
-      };
-      w.postMessage({ type: 'init', rig, library });
-      w.postMessage({ type: 'look', layers: [layer], ...baseExtra });
-      w.postMessage({ type: 'frame', seq: -1, t });
-    });
   }
 
   return {

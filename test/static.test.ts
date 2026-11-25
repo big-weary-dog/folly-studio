@@ -147,7 +147,7 @@ describe('serving', () => {
     const r = await get('/assets/sandbox-worker-Ab12Cd34.js', { 'accept-encoding': 'gzip' });
     assert.equal(r.status, 200);
     assert.equal(r.headers['content-security-policy'], CSP_WORKER);
-    assert.equal(CSP_WORKER, "default-src 'none'; script-src 'self' 'unsafe-eval'");
+    assert.equal(CSP_WORKER, "default-src 'none'; script-src 'unsafe-eval'");
     assert.equal(r.headers['cache-control'], CACHE_IMMUTABLE);
     assert.equal(r.headers['content-encoding'], 'gzip');
     assert.match(String(r.headers['content-type']), /^text\/javascript/);

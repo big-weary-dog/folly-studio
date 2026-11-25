@@ -188,7 +188,7 @@ exactly two places, neither on the server's own process:
 
 | Where | Boundary | If it misbehaves |
 |---|---|---|
-| Browser | A Worker under its own CSP, `default-src 'none'` (no network, no DOM or cookies), the compiler shadowing the globals it could reach | A watchdog: a frame over 1 s or a compile over 0.7 s kills the worker, blames the layer, carries on without it |
+| Browser | A Worker under its own CSP, `default-src 'none'` (no network or script loads, no DOM or cookies), storage and the rest deleted before pattern code runs | A watchdog: a frame over 1 s or a compile over 0.7 s kills the worker, blames the layer, carries on without it |
 | Server | The **render box**: its own process under `env -i`, in a fresh folder with one out/; its own cgroup for tasks and memory (a systemd user scope); prlimits on CPU and file size; nice 10; a wall clock; layers in a stdlib-only `node:vm` realm. It bakes stored looks, which hold library refs alone | Killed; the bake fails |
 
 The server's own process never runs look code (lint keeps `eval`, `node:vm` and `child_process` to their

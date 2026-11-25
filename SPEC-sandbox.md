@@ -6,13 +6,16 @@ Part of the [build contract](SPEC.md).
 
 Pattern code runs in a dedicated module Worker, never on the app page's thread (a `while (true) {}` there would
 freeze the tab). Vite builds `js/sandbox-worker.ts` with the core into one script, `/assets/sandbox-worker-<hash>.js`,
-which the server sends with its own CSP, `CSP_WORKER`: `default-src 'none'; script-src 'self' 'unsafe-eval'` (no
-network; `'unsafe-eval'` for the compiler's `new Function`). The worker sees no cookies, storage or DOM, and the
-compiler shadows the globals it could reach (`core/compile.ts`). The dev server sends it without a CSP.
+which the server sends with its own CSP, `CSP_WORKER`: `default-src 'none'; script-src 'unsafe-eval'` (no network
+and no script loads, `import()` included; `'unsafe-eval'` for the compiler's `new Function`). The worker runs at the
+app's origin, so its first module (`js/worker-lockdown.ts`) deletes, before any pattern code runs, what would reach
+the origin's storage, the network or other contexts from its global and `navigator`, prototypes included
+(`indexedDB`, `caches`, `navigator.storage`, `navigator.locks`, `fetch`, `BroadcastChannel`, `Worker`, …). It has
+no cookies or DOM, and the compiler shadows globals besides (`core/compile.ts`). The dev server sends it without a CSP.
 
 The relay (`js/sandbox-relay.ts`, `openSandbox(toApp) → { post(msg), close() }`) runs in the app page: it starts the
 worker, relays the messages below both ways (direct calls on the page's side, `postMessage` to the worker) and keeps
-time. A `close()`d relay terminates its workers and says nothing more.
+time. A `close()`d relay terminates its workers, the probes' too (`js/sandbox-probe.ts`), and says nothing more.
 
 | app → relay | relay → app |
 |---|---|

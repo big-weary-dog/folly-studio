@@ -30,7 +30,7 @@ export const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {},
 export const EXPECTED_APP_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
   + "img-src 'self' data: blob:; connect-src 'self'; frame-src 'none'; worker-src 'self'; object-src 'none'; "
   + "base-uri 'none'; frame-ancestors 'none'";
-export const EXPECTED_WORKER_CSP = "default-src 'none'; script-src 'self' 'unsafe-eval'";
+export const EXPECTED_WORKER_CSP = "default-src 'none'; script-src 'unsafe-eval'";
 export const PATTERN_WORKER = '/assets/sandbox-worker-0123abcd.js';
 export const PIXEL = 'function pixel(p, t, P) { return [p.x, p.y, p.z]; }';
 /** The fixture library's embers.js: library code, so it saves. */
