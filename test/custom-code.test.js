@@ -71,6 +71,7 @@ describe('as the server runs (no test options; the data and environment asking f
     assert.equal(r.status, 201, 'a copy of library code');
     const old = app.store.looks.create({ owner: ann.user.id, title: 'Old', layers: modules(NEW), versions: [] });
     assert.equal((await ann.put(`/api/looks/${old.id}`, { duration: 30 })).status, 403, 'no change');
+    assert.equal((await ann.put(`/api/looks/${old.id}`, { layers: modules(LIBRARY) })).status, 200, 'but a repair');
   });
 
   test('a composite has no code of its own: library sub-layers save; custom ones, or code on it, are refused',

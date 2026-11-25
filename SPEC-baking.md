@@ -53,8 +53,8 @@ of its own: one whose `code` is not empty is custom, and its sub-layers' modules
 naming the module: saving 403, baking 422 at the request and again in the box, on every box ("Only looks made of
 unchanged library patterns save and bake; Layer 2's Fire is custom code."). So tuning params, restoring a version and
 copying a gallery look go on as before. The Studio's code editor is read-only and says why; pickers omit blank-code
-entries. Looks already saved with other code still play in the browser, but take no change (any PUT is 403) and do
-not bake.
+entries. Looks already saved with other code still play in the browser and do not bake. A PUT or import that keeps
+their layers is 403, whatever else it changes; one replacing the layers with library code saves, as their repair.
 `baking.json`'s `customCode` is ignored; `GET /api/baking` says `customCode: false`, and `PUT /api/admin/baking`
 with `customCode: true` is 400.
 On saving or importing, exact historical copies of patterns still in the library move to its current code,
