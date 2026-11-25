@@ -10,7 +10,7 @@ import { humanize } from '../kit.tsx';
 import type { Layer } from '../model.ts';
 import type { Draft } from '../studio-store.ts';
 
-export type Kind = 'open' | 'add' | 'remove' | 'set' | 'move' | 'code' | 'restore';
+export type Kind = 'open' | 'add' | 'remove' | 'set' | 'move' | 'restore';
 /** What an edit changed: its name, its kind (the icon), and `key`, the one thing it changed (edits fold by it). */
 export type Named = { label: string, kind: Kind, key: string, where?: string };
 export type Step = Named & { at: number, look: Draft, saved?: boolean, sealed?: boolean };
@@ -32,7 +32,6 @@ const titleOf = (m: Module) => q(m.title || humanize(m.kind));
 
 function moduleChange(lid: string, a: Module, b: Module, where: string): Named {
   const key = `l:${lid}:m:${b.id}`;
-  if (a.code !== b.code) return { label: `Edited the code of ${titleOf(b)}`, kind: 'code', key: `${key}:code`, where };
   const p = firstDiff(a.params, b.params);
   if (p) {
     const label = `Set ${humanize(p).toLowerCase()}`;

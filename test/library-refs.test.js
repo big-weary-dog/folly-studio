@@ -91,8 +91,9 @@ test('every module the library-only step keeps names a module a read fills', asy
 test('hidden modules play stored looks but stay off the shelf', async () => {
   const app = await startApp({ publicDir, dataDir: path.join(fx.tmp, 'refs'), customCode: false });
   try {
-    const shelf = (await (await fetch(`${app.base}/api/library`)).json()).patterns.map((e) => e.name);
-    assert.ok(!shelf.includes('plasma-classic') && shelf.includes('plasma'));
+    const listed = (await (await fetch(`${app.base}/api/library`)).json()).patterns;
+    assert.equal(listed.find((e) => e.name === 'plasma-classic')?.hidden, true, 'marked, for the Studio to fill');
+    assert.equal(listed.find((e) => e.name === 'plasma')?.hidden, undefined);
     const ann = await signup(app, 'ann');
     const old = git('c3b574b0:public/patterns/plasma.js');
     const made = await ann.post('/api/looks', { title: 'Old plasma', chain: 2, layers: [{ id: 'l1', title: 'Plasma',
@@ -104,6 +105,15 @@ test('hidden modules play stored looks but stay off the shelf', async () => {
     await app.store.flush();
     const stored = JSON.parse(readFileSync(path.join(fx.tmp, 'refs', 'looks.json'), 'utf8'));
     assert.ok(!('code' in stored[0].layers[0].modules[0]), 'the stored module keeps no code');
+    // A module as a ref alone saves when the library has it (hidden ones too); an unknown one is refused.
+    const refOnly = (ref) => ann.post('/api/looks', { title: ref, chain: 2, layers: [{ id: 'l1', title: 'L',
+      blend: 'add', level: 1, groups: ['cathedral'], modules: [{ id: 'm1', kind: 'source', ref, title: 'M' }] }] });
+    for (const ref of ['noise', 'tendril']) {
+      const r = await refOnly(ref);
+      assert.equal(r.status, 201, r.text);
+      assert.equal(r.json.look.layers[0].modules[0].code, file(ref));
+    }
+    assert.equal((await refOnly('no-such-pattern')).status, 403);
   } finally {
     await app.close();
   }

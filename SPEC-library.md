@@ -262,7 +262,8 @@ by name) or a **preset**, a recipe with no file: `{ …, kind: 'preset', layers:
 title?, params?, blend?, as?, input?, enabled? }], blend?, level?, soften? }], globals? }`, 1–4 layers of 1–8 modules
 each, a module the library's by `ref` (an `input` names an `id` in its layer), params as a look's. A category belongs
 to one kind. Names are unique across the index. A module with `hidden: true` is kept only for the looks that name it
-(SPEC-looks "Modules"): `GET /api/library` leaves it out, so no shelf, picker or tour offers it. `was` names what an
+(SPEC-looks "Modules"): `GET /api/library` marks it `hidden`, so the Studio fills such looks' code but no shelf,
+picker or tour offers it. `was` names what an
 entry was called before a rename; `tools/pattern-history.ts` keeps its earlier files (`history.json`) under its name
 now. The hidden modules: tendril and stained-glass, and butterfly-classic, plasma-classic and lighthouse-classic
 (once butterfly, plasma and lighthouse, names presets now have). The server drops a preset that is malformed or names a module the library lacks. The Studio makes a

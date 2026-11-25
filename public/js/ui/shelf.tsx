@@ -6,22 +6,20 @@ import type { Module } from '../../../shared/schemas/look.ts';
 import type { LibraryEntry } from '../../../shared/schemas/rig.ts';
 import { DEFAULT_SOFTEN } from '../core/spatial.ts';
 import { GroupsTree } from './groups-drawer.tsx';
-import { useCustomCode } from './custom-code.ts';
 import { cx, humanize, openDialog } from './kit.tsx';
 import { isPreset, moduleFromLibrary, type Layer } from './model.ts';
 import type { Preview } from './preview.ts';
 import type { Studio } from './studio-store.ts';
 
 type Kind = Module['kind'];
-type Blank = { kind: Kind; blank: true; name?: undefined; title?: undefined; code?: undefined; summary?: undefined };
-export type Entry = LibraryEntry | Blank;
+export type Entry = LibraryEntry;
 type Audition = { pv: Preview; layer?: Pick<Layer, 'groups'> & Partial<Layer>;
   layers?: (e: Entry) => Layer[] | null; insert?: (mods: Module[], m: Module) => Module[] };
-type Tab = Kind | 'blank' | 'preset';
+type Tab = Kind | 'preset';
 const TABS: Record<'module' | 'layer', [Tab, string, string][]> = {
   module: [['source', 'Sources', 'Draw onto what is above them.'], ['warp', 'Warps', 'Bend everything above them.'],
     ['filter', 'Filters', 'Rework everything above them, some by another source (their input).']],
-  layer: [['blank', 'Sources', 'Start a layer from one source.'],
+  layer: [['source', 'Sources', 'Start a layer from one source.'],
     ['preset', 'Presets', 'Layers of modules put together, ready to play.']],
 };
 const TRY = '~audition';
@@ -50,7 +48,7 @@ export function auditioner({ pv, layer, layers, insert }: Partial<Audition> = {}
   const show = (e: Entry) => {
     const r = pv?.runtime;
     shown = e;
-    if (!r?.ready || !layer || 'blank' in e) return;
+    if (!r?.ready || !layer) return;
     if (!saved || r.layers !== mine) saved = { layers: r.layers, extra: r.extra };   // the look as the app sent it
     if (isPreset(e)) {
       const made = layers?.(e);
@@ -100,7 +98,6 @@ export function openShelf({ library, onPick, audition, mode, st, sourcesOnly = f
       if (where) where.newGroups.value = where.hoverGroup.value = where.pinnedGroup.value = null;
       audition?.pv.viewer?.setClear(null);
     }, body: (close) => {
-      const customCode = useCustomCode();
       const [tried, setTried] = useState<Entry | null>(null), [query, setQuery] = useState('');
       const [groups, setGroups] = useState(() => [root!]), [placing, setPlacing] = useState(false);
       const [tab, setTab] = useState<Tab>(() => tabs.find(([t]) => t === remembered(mode))?.[0] ?? tabs[0][0]);
@@ -129,18 +126,14 @@ export function openShelf({ library, onPick, audition, mode, st, sourcesOnly = f
       const want = (e: Entry | null) => { if (!tried) A.want(e); };     // a phone's preview holds until Add or Back
       const trying = (e: Entry | null) => { A.now(e); setTried(e); };
       const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-      const shows = (e: Entry) => words.every((w) => ('blank' in e ? `blank ${e.kind}` : [e.title, e.name, e.summary,
-        e.category, ...e.tags].join(' ')).toLowerCase().includes(w));
-      /** A tab's entries: by kind; Blank is a blank layer and the sources. */
-      const entriesOf = (t: Tab): Entry[] => (t === 'blank' ? [{ kind: 'source', blank: true } as Blank,
-        ...library.filter((e) => e.kind === 'source')] : [...library.filter((e) => e.kind === t),
-        ...(t === 'preset' ? [] : [{ kind: t, blank: true } as Blank])]).filter((e) => customCode || !('blank' in e));
+      const shows = (e: Entry) => words.every((w) => [e.title, e.name, e.summary, e.category, ...e.tags].join(' ')
+        .toLowerCase().includes(w));
+      /** A tab's entries: the library's of its kind, hidden ones left out (kept only for the looks that use them). */
+      const entriesOf = (t: Tab): Entry[] => library.filter((e) => e.kind === t && !('hidden' in e && e.hidden));
       const row = (e: Entry) => {
-        const text = 'blank' in e ? (mode === 'layer' ? 'Blank layer' : `Blank ${e.kind}`) : e.title || e.name;
-        const summary = 'blank' in e ? 'Write your own.' : e.summary || '';
+        const text = e.title || e.name, summary = e.summary || '';
         return <li class="shelf-entry" hidden={!shows(e)}>
-          <button type="button" class={cx('shelf-row', 'blank' in e && 'blank')} data-kind={e.kind}
-            data-tour={`shelf:${'blank' in e ? `blank-${e.kind}` : e.name}`}
+          <button type="button" class="shelf-row" data-kind={e.kind} data-tour={`shelf:${e.name}`}
             title={summary} onClick={() => pick(e)} onFocus={() => want(e)} onBlur={() => want(null)}
             // only a mouse that moves: a list opening (or hiding) under a resting pointer auditions nothing
             onPointerMove={(ev) => {
@@ -151,15 +144,12 @@ export function openShelf({ library, onPick, audition, mode, st, sourcesOnly = f
             onPointerLeave={() => { if (hovered.current === e) { hovered.current = null; want(null); } }}>
             <i class="kind-dot" aria-hidden="true" /><span class="shelf-name">{text}</span>
             <span class="shelf-sum">{summary}</span></button>
-          {!('blank' in e) && <button type="button" class="icon-btn shelf-try" aria-label={`Preview ${text}`}
-            onClick={() => trying(e)}>▶</button>}
+          <button type="button" class="icon-btn shelf-try" aria-label={`Preview ${text}`}
+            onClick={() => trying(e)}>▶</button>
         </li>;
       };
-      const list = entriesOf(tab), blanks = list.filter((e) => 'blank' in e);
-      const cats = [...new Set(list.filter((e) => !('blank' in e)).map((e) => (e as LibraryEntry).category
-        || 'other'))];
-      const inCat = (c: string) => list.filter((e) => !('blank' in e) && ((e as LibraryEntry).category || 'other')
-        === c);
+      const list = entriesOf(tab), cats = [...new Set(list.map((e) => e.category || 'other'))];
+      const inCat = (c: string) => list.filter((e) => (e.category || 'other') === c);
       const text = tabs.find(([t]) => t === tab)![2];
       const playsOn = where && <button type="button" class="btn small shelf-where" onClick={() => setPlacing(true)}
         title="Choose the groups the new layer plays on">Plays on: {where.groupNames(groups)}</button>;
@@ -172,7 +162,7 @@ export function openShelf({ library, onPick, audition, mode, st, sourcesOnly = f
         {playsOn}
         <div class="shelf-head">
           <div class="shelf-tabs" role="tablist" aria-label="Kind">{tabs.map(([t, label]) => {
-            const n = query ? entriesOf(t).filter((e) => !('blank' in e) && shows(e)).length : 0;
+            const n = query ? entriesOf(t).filter(shows).length : 0;
             return <button type="button" role="tab" class="btn small" aria-selected={t === tab} data-kind={t}
               data-tour={`shelf-tab:${t}`}
               onClick={() => { setTab(t); remember(mode, t); }}>{label}{query ? ` ${n}` : ''}</button>;
@@ -181,18 +171,14 @@ export function openShelf({ library, onPick, audition, mode, st, sourcesOnly = f
             aria-label="Filter the library" value={query} onInput={(e) => setQuery(e.currentTarget.value)} />
         </div>
         <p class="shelf-text">{text}</p>
-        {customCode === false && <p class="pane-hint">Looks take only library patterns.
-          Choose a library module or preset.</p>}
         <div class="shelves" role="tabpanel">
-          {mode === 'layer' && blanks.length > 0 && <ul class="shelf-list">{blanks.map(row)}</ul>}
           {cats.map((c) => <section class="shelf-group" hidden={!inCat(c).some(shows)}>
             <h4 class="shelf-cat">{humanize(c)}</h4><ul class="shelf-list">{inCat(c).map(row)}</ul></section>)}
-          {mode === 'module' && <ul class="shelf-list">{blanks.map(row)}</ul>}
           <p class="pane-hint" hidden={list.some(shows)}>Nothing here matches. Try another tab.</p>
         </div>
         </div>
         <div class="shelf-bar" ref={bar} hidden={!tried}><span>Previewing <b>{tried?.title}</b>
-          {tried && !('blank' in tried) && <small class="shelf-said">{tried.summary}</small>}</span>
+          {tried && <small class="shelf-said">{tried.summary}</small>}</span>
           {playsOn}
           <button type="button" class="btn small primary" onClick={() => { if (tried) pick(tried); }}>Add</button>
           <button type="button" class="btn small" onClick={() => trying(null)}>Back</button></div>

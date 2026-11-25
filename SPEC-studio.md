@@ -40,7 +40,7 @@ every edit here keeps them, so what the Studio saves the API accepts.
   input, enable, delete; only a custom module's name is editable; wide, the selected one's settings open under it,
   a click on it closing or opening them, ▾ ▸), its Soften row (radius and mode; new layers
   start at `DEFAULT_SOFTEN`), the pickers (Add a module: tabs Sources, Warps, Filters; Add a layer: Sources,
-  one source or a blank layer when custom code is on, and Presets, beside the groups the new layer plays on;
+  one source, and Presets; only the library's modules, never a blank one, beside the groups the new layer plays on;
   one-line rows by category with a filter, the tab remembered for the session, each row auditioned in the 3D view;
   module auditions use the same chain insertion as Add), the
   params on the selected module (each number param can be modulated), and a Look panel of globals, the palette

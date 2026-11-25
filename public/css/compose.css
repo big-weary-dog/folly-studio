@@ -131,7 +131,6 @@
 /* the pickers dock beside the 3D view, lightly veiled, so an audition shows; on a phone, a sheet from below. Tabs by
    kind, then one-line rows: a kind dot, the name, the summary cut to fit (all of it on hover, and while previewing) */
 [data-kind=preset] { --kind: var(--violet); }
-[data-kind=blank] { --kind: var(--text-3); }
 .dialog.shelf-dialog { width: min(460px, calc(100vw - 24px)); margin-right: 12px; }
 .shelf-dialog::backdrop { background: rgb(6 4 11 / .2); }
 .shelf-dialog .dialog-body { overflow: hidden; gap: 8px; }
@@ -148,7 +147,6 @@
   border: 1px solid #0000; border-radius: var(--radius); cursor: pointer; }
 .shelf-row:is(:hover, :focus-visible) { color: var(--text); background: var(--night-2); border-color: var(--lead); }
 .kind-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--kind); }
-.shelf-row.blank .kind-dot { background: none; border: 1.5px dashed var(--kind); }
 .shelf-name { flex: none; font-weight: 650; color: var(--text); }
 .shelf-sum { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   color: var(--text-3); }

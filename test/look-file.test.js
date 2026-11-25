@@ -38,6 +38,10 @@ describe('look files', () => {
     assert.equal(lookFile(sea, { ...sea, origin: 'home' }).origin, 'home', 'an imported look keeps its origin');
     assert.equal(f.chain, 2);
     assert.equal(f.bpm, 120);
+    const m1 = { id: 'm1', ref: 'noise', code: 'x', params: {} };
+    const chain = { title: 'Chain', layers: [{ id: 'l1', modules: [m1] }] };
+    assert.deepEqual(lookFile(chain).layers[0].modules, [{ id: 'm1', ref: 'noise', params: {} }],
+      'modules go as refs, without code');
     for (const k of ['id', 'owner', 'shared', 'ideaId', 'createdAt']) assert.equal(k in f, false, k);
     assert.equal(manyName('mine', new Date('2026-10-20T12:00:00Z')), 'folly-looks-mine-2026-10-20.json');
   });
