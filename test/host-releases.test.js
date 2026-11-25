@@ -94,15 +94,17 @@ describe('npm run host: releases', () => {
     const r = ok([a()]);
     const units = path.join(home, '.config', 'systemd', 'user');
     const service = readFileSync(path.join(units, 'folly-studio-backup.service'), 'utf8');
-    assert.match(service, new RegExp(`^WorkingDirectory=${checkout}/current$`, 'm'));
+    // Every release's host.sh, an older one on a rollback too, takes a unit in current or the checkout for another
+    // instance's: the backup's runs in current/deploy.
+    assert.match(service, new RegExp(`^WorkingDirectory=${checkout}/current/deploy$`, 'm'));
     assert.ok(service.includes(`\nExecStart=/usr/bin/env "STUDIO_DATA=${checkout}/my data" `
-      + `"STUDIO_BACKUP_DIR=${checkout}/my data-backups" bash deploy/backup.sh\n`), service);
+      + `"STUDIO_BACKUP_DIR=${checkout}/my data-backups" bash backup.sh\n`), service);
     const timer = readFileSync(path.join(units, 'folly-studio-backup.timer'), 'utf8');
     assert.match(timer, /^OnCalendar=\*-\*-\* 04:15$[\s\S]*^Persistent=true$/m);
     assert.match(r.calls,
       /enable --quiet folly-studio folly-studio-backup\.timer[\s\S]*restart folly-studio-backup\.timer/);
-    // Its own backup unit is not another instance's.
     ok([b()]);
+    ok(['--rollback']);
   });
 
   test('a refused setting leaves the live release and the service as they were', () => {

@@ -78,8 +78,7 @@ for name in "${!PORTS[@]}"; do
     || die "STUDIO_BACKUP_DIR=$backups is $other's too: give each studio its own backups"
 done
 for other in "$units"/*.service; do
-  [ -f "$other" ] && [ "$other" != "$units/$unit.service" ] && [ "$other" != "$units/$unit-backup.service" ] \
-    || continue
+  [ -f "$other" ] && [ "$other" != "$units/$unit.service" ] || continue
   # $root itself: a unit from before releases.
   ! grep -qxF -e "WorkingDirectory=$root/current" -e "WorkingDirectory=$root" "$other" \
     || die "$root is $(basename "$other" .service)'s checkout: give each studio its own"
@@ -167,7 +166,8 @@ KillMode=mixed
 [Install]
 WantedBy=default.target
 EOF
-# The daily backup (docs/HOSTING.md "Backups"), from whichever release is current when it runs.
+# The daily backup (docs/HOSTING.md "Backups"), from whichever release is current when it runs. Its working directory
+# is not the checkout's current: every release's check above, a rollback's too, takes that for another instance's.
 cat > "$units/$unit-backup.service" <<EOF
 # Written by deploy/host.sh; run it again rather than editing this.
 [Unit]
@@ -175,10 +175,10 @@ Description=Folly Studio${instance:+ ($instance)} backup ($root)
 
 [Service]
 Type=oneshot
-WorkingDirectory=$root/current
+WorkingDirectory=$root/current/deploy
 EnvironmentFile=$env_file
 Environment=$path_env
-ExecStart=/usr/bin/env $(arg "STUDIO_DATA=$data") $(arg "STUDIO_BACKUP_DIR=$backups") bash deploy/backup.sh
+ExecStart=/usr/bin/env $(arg "STUDIO_DATA=$data") $(arg "STUDIO_BACKUP_DIR=$backups") bash backup.sh
 Nice=10
 EOF
 cat > "$units/$unit-backup.timer" <<EOF
