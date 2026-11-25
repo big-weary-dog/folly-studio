@@ -147,14 +147,14 @@ describe('streaming frames', () => {
     assert.equal((await get(alice, `/api/looks/${look.id}/frames/${'0'.repeat(32)}/0`)).status, 404, 'not its hash');
   });
 
-  test('only the owner; curators once it is shared; anyone signed in once it is approved', async () => {
+  test('only the owner; curators once it is shared; anyone, signed in or not, once it is approved', async () => {
     const { look, base } = await bakedLook(4);
     const urls = [`/api/looks/${look.id}/frames/wire`, `${base}manifest`, `${base}0`, `/api/looks/${look.id}/frames`];
     for (const u of urls) {
       assert.ok([200, 302].includes((await get(alice, u)).status), u);
       assert.equal((await get(bob, u)).status, 404, `${u}: private`);
       assert.equal((await get(carol, u)).status, 404, `${u}: curators see shared looks only`);
-      assert.equal((await get(anon, u)).status, 401, u);
+      assert.equal((await get(anon, u)).status, 404, `${u}: a visitor`);
     }
     assert.equal((await send(alice, 'PUT', `/api/looks/${look.id}`, { shared: true })).status, 200);
     for (const u of urls) {
@@ -163,8 +163,7 @@ describe('streaming frames', () => {
     }
     assert.equal((await send(carol, 'PUT', `/api/looks/${look.id}`, { reviewed: true })).status, 200);
     for (const u of urls) {
-      for (const who of [bob, carol]) assert.ok([200, 302].includes((await get(who, u)).status), u);
-      assert.equal((await get(anon, u)).status, 401, u);
+      for (const who of [bob, carol, anon]) assert.ok([200, 302].includes((await get(who, u)).status), u);
     }
   });
 

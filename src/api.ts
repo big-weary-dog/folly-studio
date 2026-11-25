@@ -19,7 +19,7 @@ import { framesRoutes } from './frames-http.ts';
 import type { LightStore } from './light.ts';
 import type { Reports } from './reports/store.ts';
 import type { createPreviews } from './previews/index.ts';
-import { adminsDeclared, checkMutation, HttpError, type Log, parse, routes, sendJson } from './http.ts';
+import { adminsDeclared, checkMutation, forAnyone, HttpError, type Log, parse, routes, sendJson } from './http.ts';
 import type { RigName } from '../shared/schemas/rig.ts';
 import type { createLoaders } from './static.ts';
 import type { Store } from './store.ts';
@@ -104,7 +104,8 @@ export function apiRoutes(o: { store: Store, auth: Auth, log: Log,
       ...accountRoutes(api, { ...removal, limit: { max: limits.max, windowMs: limits.windowMs },
         clearCookie: (reply) => reply.setCookie(COOKIE_NAME, '', cookie(0)) }),
       ...peopleRoutes(removal),
-      'GET /me': async (req) => ({ user: auth.publicUser(req.user), flash, rig }),
+      // Who is signed in, if anyone, and what the app needs either way (SPEC-access "Visitors").
+      'GET /me': forAnyone(async (req) => ({ user: req.user && auth.publicUser(req.user), flash, rig })),
       ...lightRoutes({ light: o.light }),
       ...(o.baking ? bakingRoutes(o.baking) : {}),
       ...o.stats,

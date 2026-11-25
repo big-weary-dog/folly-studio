@@ -33,11 +33,14 @@ const ROUTES: Route[] = [
     load: () => import('./auth.tsx').then((m) => m.Auth) },
   { re: /^\/privacy\/?$/, name: 'privacy', title: 'Privacy', nav: '/privacy', open: true,
     load: () => import('./privacy.tsx').then((m) => m.PrivacyPage) },
-  { re: /^\/studio(?:\/([^/]+))?\/?$/, name: 'studio', title: 'Studio', nav: '/studio', keys: ['lookId'],
+  // A look's share link is open to visitors too; a new one is for the signed in (SPEC-access "Visitors").
+  { re: /^\/studio\/([^/]+)\/?$/, name: 'studio', title: 'Studio', nav: '/studio', keys: ['lookId'], open: true,
+    load: () => import('./studio.tsx').then((m) => m.Studio) },
+  { re: /^\/studio\/?$/, name: 'studio', title: 'Studio', nav: '/studio',
     load: () => import('./studio.tsx').then((m) => m.Studio) },
   { re: /^\/looks\/?$/, name: 'looks', title: 'My looks', nav: '/looks', scope: 'mine',
     load: () => pages().then((m) => m.Looks) },
-  { re: /^\/gallery\/?$/, name: 'gallery', title: 'Gallery', nav: '/gallery', scope: 'gallery',
+  { re: /^\/gallery\/?$/, name: 'gallery', title: 'Gallery', nav: '/gallery', scope: 'gallery', open: true,
     load: () => pages().then((m) => m.Looks) },
   { re: /^\/account\/?$/, name: 'account', title: 'Account', nav: '/account',
     load: () => import('./account.tsx').then((m) => m.AccountPage) },
@@ -60,7 +63,7 @@ export const safeNext = (next: string | null) => (next && next.startsWith('/') &
 /** Where a path leads: a redirect, or a route and its params. */
 export function resolve(path: string, search: string, signedIn: boolean):
   { redirect: string } | { route: Route; params: Record<string, string> } {
-  if (path === '/' || path === '') return { redirect: signedIn ? HOME : '/login' };
+  if (path === '/' || path === '') return { redirect: HOME };
   const moved = MOVED[path.replace(/\/$/, '')];
   if (moved) return { redirect: moved + search };
   for (const route of ROUTES) {
@@ -123,8 +126,16 @@ async function logout() {
 
 const NAV = [['/studio', 'Studio'], ['/looks', 'My looks'], ['/gallery', 'Gallery']];
 const ADMIN_NAV = [...NAV, ['/admin', 'Admin']];
-/** The header's links: no My looks for a guest. */
-const navOf = (me: User) => (can(me, 'admin') ? ADMIN_NAV : NAV).filter(([href]) => !(me.guest && href === '/looks'));
+/** The header's links: no My looks for a guest; the gallery alone for a visitor. */
+const navOf = (me: User | null) => (!me ? [['/gallery', 'Gallery']] : can(me, 'admin') ? ADMIN_NAV : NAV)
+  .filter(([href]) => !(me?.guest && href === '/looks'));
+
+/** A visitor's Try it in the header: in as a guest where they are, the page kept (a Studio's edits with it: the
+ * Studio already treats a visitor as a guest). */
+async function tryIt() {
+  try { signedIn(await api.guest()); } catch (err) { toast((err as Error).message, { kind: 'error' }); return; }
+  welcomeOnce(user.value);
+}
 
 /** The user menu drops under its button at a desktop's width; on a phone it sits open in the nav panel. */
 function placeUserMenu(e: { newState: string; currentTarget: HTMLElement }) {
@@ -134,7 +145,15 @@ function placeUserMenu(e: { newState: string; currentTarget: HTMLElement }) {
   }
 }
 
-function Header({ me, nav }: { me: User; nav?: string }) {
+/** A visitor's Try it and Log in: in the bar, or in the menu where a phone's Studio leaves the bar no room. */
+function VisitorWayIn({ where }: { where: 'visitor-box' | 'visitor-menu' }) {
+  return <div class={where}>
+    <button class="btn primary small" type="button" onClick={() => void tryIt()}>Try it</button>
+    <a class="btn ghost small" href={`/login?next=${encodeURIComponent(here())}`}>Log in</a>
+  </div>;
+}
+
+function Header({ me, nav }: { me: User | null; nav?: string }) {
   const [open, setOpen] = useState(false);
   useLayoutEffect(() => {
     if (!open) return undefined;
@@ -152,6 +171,7 @@ function Header({ me, nav }: { me: User; nav?: string }) {
         <span class="brand-mark"><Rose /></span>
         <svg class="wordmark" aria-hidden="true"><use href="#wordmark" /></svg>
       </a>
+      {!me && <VisitorWayIn where="visitor-box" />}
       <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded={open} aria-controls="nav-panel"
         onClick={() => setOpen(!open)}>
         <span class="sr-only">Menu</span><span class="nav-toggle-bars" aria-hidden="true" />
@@ -163,7 +183,8 @@ function Header({ me, nav }: { me: User; nav?: string }) {
           {navOf(me).map(([href, text]) => <a href={href}
             data-tour={`nav:${href.slice(1)}`} aria-current={nav === href ? 'page' : undefined}>{text}</a>)}
         </nav>
-        <div class="user-box">
+        {!me && <VisitorWayIn where="visitor-menu" />}
+        {me && <div class="user-box">
           <span class="user-name">{me.username}</span>
           <button class="user-menu-btn" id="user-menu-btn" type="button" popovertarget="user-menu"
             aria-haspopup="menu" data-tour="user-menu"><span class="user-name">{me.username}</span></button>
@@ -180,7 +201,7 @@ function Header({ me, nav }: { me: User; nav?: string }) {
               onClick={() => { setOpen(false); void fileBugReport(); }}>Report a problem</button>}
             <button class="btn ghost small" type="button" onClick={logout}>{me.guest ? 'Leave' : 'Log out'}</button>
           </div>
-        </div>
+        </div>}
       </div>
     </header>);
 }
@@ -188,7 +209,7 @@ function Header({ me, nav }: { me: User; nav?: string }) {
 export function App() {
   const cur = current.value, name = cur ? cur.route.nav?.slice(1) || 'auth' : null;
   return <>
-    {user.value && <Header me={user.value} nav={cur?.route.nav} />}
+    {(user.value || cur?.route.open) && <Header me={user.value} nav={cur?.route.nav} />}
     <main id="main" tabindex={-1} class={name ? `view view-${name}` : undefined}>
       {cur ? <cur.View key={cur.key} {...cur.props} />
         : <div class="boot-msg" aria-live="polite"><Rose detail="full" class="rose-loader" />Lighting the candles…

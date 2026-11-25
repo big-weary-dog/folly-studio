@@ -195,9 +195,9 @@ describe('the light API', () => {
   });
   afterAll(() => app?.close());
 
-  test('everyone signed in reads them; only admins save, checked field by field', async () => {
+  test('anyone reads them, signed in or not; only admins save, checked field by field', async () => {
     assert.deepEqual((await member.get('/api/light')).json, LIGHT);
-    assert.equal((await client(app).get('/api/light')).status, 401);
+    assert.deepEqual((await client(app).get('/api/light')).json, LIGHT);
     assert.equal((await member.put('/api/admin/light', LIGHT)).status, 403);
     const bad = await admin.put('/api/admin/light', { ...LIGHT, balance: [1, 1] });
     assert.equal(bad.status, 400);

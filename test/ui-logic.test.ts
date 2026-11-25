@@ -83,12 +83,14 @@ test('new automation names avoid collisions; colour automation preserves the pic
 describe('routing', () => {
   test('the same URLs, with redirects for the signed out and the signed in', () => {
     assert.equal(where('/'), '→ /gallery');
-    assert.equal(where('/', '', false), '→ /login');
+    assert.equal(where('/', '', false), '→ /gallery');
     assert.equal(where('/studio/a%20b'), 'studio {"lookId":"a b"}');
     assert.equal(where('/studio/'), 'studio {}');
     assert.equal(where('/gallery'), 'gallery {}');
     assert.equal(where('/nowhere'), '→ /gallery');
-    assert.equal(where('/studio/x', '?y=1', false), '→ /login?next=%2Fstudio%2Fx%3Fy%3D1');
+    assert.equal(where('/studio', '?y=1', false), '→ /login?next=%2Fstudio%3Fy%3D1');
+    assert.equal(where('/studio/x', '', false), 'studio {"lookId":"x"}', 'a share link is open to visitors');
+    assert.equal(where('/gallery', '', false), 'gallery {}');
     assert.equal(where('/login', '?next=%2Fgallery'), '→ /gallery');
     assert.equal(where('/login', '', false), 'auth {}');
     assert.equal(where('/privacy', '', false), 'privacy {}');

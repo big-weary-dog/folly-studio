@@ -13,7 +13,7 @@ import type { lookRoutes } from './api-looks.ts';
 import { framesPath } from './bake.ts';
 import type { createFramesCache } from './frames-cache.ts';
 import { FSEQ_CODEC, HAS_ZSTD } from './fseq-codec.ts';
-import { etagMatches, HttpError, pickEncoding } from './http.ts';
+import { etagMatches, forAnyone, HttpError, pickEncoding } from './http.ts';
 
 /** Private: who may fetch a look's frames is checked per request, and a look can stop being shared. */
 export const IMMUTABLE = 'private, max-age=31536000, immutable';
@@ -42,7 +42,7 @@ export function framesRoutes({ framesDir, cache, visibleLook }: { framesDir: str
 
   /** The look, if `hash` names its current bake. */
   function bakeOf({ params: { id, hash }, user }: Req) {
-    const look = visibleLook(id, user!);
+    const look = visibleLook(id, user);
     if (!HASH.test(hash) || cache.hashOf(look) !== hash) throw noFrames();
     cache.touch(look);
     return look;
@@ -58,7 +58,7 @@ export function framesRoutes({ framesDir, cache, visibleLook }: { framesDir: str
   }
 
   async function download(req: Req, reply: FastifyReply) {
-    const look = visibleLook(req.params.id, req.user!);
+    const look = visibleLook(req.params.id, req.user);
     const codec = codecFor(req.query.compress);
     // Replays revalidate (the bake's hash is the ETag), and gzip makes LED frames ~3× smaller.
     const sha = look.bake?.frames?.sha256;
@@ -80,7 +80,7 @@ export function framesRoutes({ framesDir, cache, visibleLook }: { framesDir: str
   }
 
   async function wire(req: Req, reply: FastifyReply) {
-    const w = await cache.wire(visibleLook(req.params.id, req.user!));
+    const w = await cache.wire(visibleLook(req.params.id, req.user));
     if (w.state === 'none') throw noFrames();
     if (w.state === 'failed') throw new HttpError(500, 'The baked frames could not be prepared for playback.');
     if (w.state === 'pending') {
@@ -114,5 +114,7 @@ export function framesRoutes({ framesDir, cache, visibleLook }: { framesDir: str
   }
 
   const at = (path: string) => `GET /looks/:id/frames${path}`;
-  return { [at('')]: download, [at('/wire')]: wire, [at('/:hash/manifest')]: manifest, [at('/:hash/:n')]: chunk };
+  // A visitor's too, of approved looks (SPEC-access "Visitors").
+  return { [at('')]: forAnyone(download), [at('/wire')]: forAnyone(wire), [at('/:hash/manifest')]: forAnyone(manifest),
+    [at('/:hash/:n')]: forAnyone(chunk) };
 }
