@@ -17,7 +17,7 @@ import { CACHE_IMMUTABLE, CACHE_PAGE, CSP_APP, CSP_SANDBOX } from '../src/static
 import { builtApp, removeBuiltApp } from './fixtures/build.js';
 
 const KB = 1024;
-const BUDGET = { total: 300 * KB, login: 40 * KB }; // CONTRIBUTING "Performance budgets"
+const BUDGET = { total: 350 * KB, login: 40 * KB }; // CONTRIBUTING "Performance budgets"
 const LOGIN_VIEW = 'js/ui/auth.tsx';                  // the shell imports it at once for a signed-out visitor
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 let dist, manifest, dir, app, base;
@@ -70,7 +70,7 @@ describe('the built app', () => {
   test('assets are kept for a year, compressed; the views and their styles load on first use', async () => {
     const studio = manifest['js/ui/studio.tsx'];
     assert.ok(studio?.isDynamicEntry && studio.css?.length, 'the Studio is its own chunk, with its own styles');
-    for (const file of [studio.file, ...studio.css, manifest['data/rig.json'].file]) {
+    for (const file of [studio.file, ...studio.css, manifest['data/rig-folly.json'].file]) {
       const r = await get(`/${file}`, { 'accept-encoding': 'br, gzip' });
       assert.equal(r.status, 200, file);
       assert.equal(r.headers['cache-control'], CACHE_IMMUTABLE, file);
@@ -100,7 +100,7 @@ describe('the built app', () => {
     let onMessage;
     const self = { postMessage: (m) => out.push(m), addEventListener: (type, fn) => { onMessage = fn; } };
     vm.runInNewContext(blocks[0][2], { self, performance, console });
-    const rig = JSON.parse(readFileSync(new URL('../public/data/rig.json', import.meta.url), 'utf8'));
+    const rig = JSON.parse(readFileSync(new URL('../public/data/rig-folly.json', import.meta.url), 'utf8'));
     const code = readFileSync(new URL('../public/patterns/clouds.js', import.meta.url), 'utf8');
     onMessage({ data: { type: 'init', rig, library: [] } });
     onMessage({ data: { type: 'look', layers: [{ id: 'a', code, groups: [rig.groups[0].id], level: 1 }] } });

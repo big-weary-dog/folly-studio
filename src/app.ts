@@ -24,6 +24,7 @@ import { createIdeaLogs } from './generate/idea-log.ts';
 import { createRegistry } from './generate/models.ts';
 import { createLog, errorHandler, keepTail, type Log } from './http.ts';
 import { createLightStore } from './light.ts';
+import { rigFileOf, rigOf } from './rig-choice.ts';
 import { createPreviews } from './previews/index.ts';
 import { frontView } from './previews/motion.ts';
 import { playaCamera } from './previews/playa.ts';
@@ -34,6 +35,7 @@ import { createReports } from './reports/store.ts';
 import { createLoaders, CSP_APP, DEFAULT_DIST_DIR, DEFAULT_PUBLIC_DIR, serveApp } from './static.ts';
 import { createStore } from './store.ts';
 import type { FlashSettings } from '../shared/schemas/api.ts';
+import type { RigName } from '../shared/schemas/rig.ts';
 
 export const DEFAULT_DATA_DIR = fileURLToPath(new URL('../data/', import.meta.url));
 export const MAX_BODY = 256 * 1024;
@@ -50,7 +52,7 @@ type Options = { config?: Config, dataDir?: string, publicDir?: string, distDir?
   rateLimit?: { max?: number, ipMax?: number, guestMax?: number, windowMs?: number }, scrypt?: Cost,
   framesQuality?: number, framesMaxBytes?: number, generator?: Queue | ((deps: Deps) => Queue | Promise<Queue>),
   renderBox?: Parameters<typeof createBakeQueue>[0]['box'], flash?: FlashSettings,
-  ideaLogs?: { keep?: number, maxBytes?: number }, previews?: string,
+  ideaLogs?: { keep?: number, maxBytes?: number }, previews?: string, rig?: RigName,
   reports?: { keep?: number, maxBytes?: number, days?: number }, generators?: boolean, customCode?: boolean };
 
 /**
@@ -63,6 +65,7 @@ type Options = { config?: Config, dataDir?: string, publicDir?: string, distDir?
  * flash check's settings (default: flashSettings(config));
  * `ideaLogs`: how many ideas' logs to keep and their disk cap (STUDIO_IDEA_LOGS, STUDIO_IDEA_LOGS_MAX_BYTES);
  * `previews`: the gallery previews' camera, 'playa' or 'front' (STUDIO_PREVIEWS; default playa).
+ * `rig`: 'folly' or 'cog' (STUDIO_RIG; default: the Folly), the rig it shows, bakes and boxes (SPEC "Rig").
  * `generators`, `customCode`: tests only (no setting, file or route reaches them), to run the generators and save and
  * bake code that is not the library's; production has neither (SPEC-generators "No generators", SPEC-baking "Custom
  * code"). They go with the generators and the custom code they test.
@@ -78,11 +81,12 @@ export async function createServer(opts: Options = {}) {
   } = opts;
   // Its last warn and error lines go with each bug report.
   const log = keepTail(opts.log ?? createLog());
+  const rig = opts.rig ?? rigOf(config), rigFile = rigFileOf(publicDir, rig);
 
   const store = await createStore(dataDir, { log, upgrade: { looks: upgradeStored } });
   const auth = createAuth({ store, curators, admins, cost: scrypt });
   auth.pruneSessions();
-  const loaders = createLoaders(publicDir, { log });
+  const loaders = createLoaders(publicDir, { log, rigFile });
   const { loadLibrary, loadRig } = loaders;
   // Generators run only where a test asks (SPEC-generators "No generators").
   const gen = opts.generators === true;
@@ -91,7 +95,7 @@ export async function createServer(opts: Options = {}) {
     env, settings: config, log, legacy: generatorName, foundryOn: foundryOf(config).on, codexBin }) : null;
   const access = createAccess({ store, auth, models });
   const light = createLightStore({ file: path.join(dataDir, 'light.json'), log });
-  const box = renderBox || createRenderBox({ publicDir, log, config, customCode: opts.customCode });
+  const box = renderBox || createRenderBox({ publicDir, rigFile, log, config, customCode: opts.customCode });
   // Bakes and previews go through the admin's bake setting; the generators' render checks are not bakes.
   const baking = createBakingStore({ file: path.join(dataDir, 'baking.json'), customCode: opts.customCode, log });
   const bakeBox = governBox(box, baking.mode);
@@ -112,7 +116,6 @@ export async function createServer(opts: Options = {}) {
   const framesDir = path.join(dataDir, 'frames');
   const frames = createFramesCache({ framesDir, store, log, quality: framesQuality, maxBytes: framesMaxBytes, lane,
     rebake: (look) => bakes.restore(look) });
-  const rigFile = path.join(publicDir, 'data', 'rig.json');
   const bakes = createBakeQueue({ store, box: bakeBox, framesDir, rigFile, log, lane, flash, loadLight: light.current,
     onFrames: (id) => { frames.encode(id); previews.want(id); } });
   frames.prune().then(() => frames.disk.enforce()).catch(() => {});
@@ -149,7 +152,7 @@ export async function createServer(opts: Options = {}) {
   await app.register(fastifyCookie);
   await app.register(fastifyRateLimit, { global: false });
   await app.register(apiRoutes({ store, auth, queue, models, loaders, log, access, framesDir, bakes,
-    frames, rateLimit, secureCookies, flash, ideaLogs, previews, reports, light, gen,
+    frames, rateLimit, secureCookies, flash, ideaLogs, previews, reports, light, gen, rig,
     baking: { baking, box }, codeGate, stats: stats.routes,
     build: buildSha(path.dirname(fileURLToPath(import.meta.url)), config.GIT_SHA), tail: log.tail }),
   { prefix: '/api' });

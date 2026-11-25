@@ -56,8 +56,8 @@ export function Auth({ query }: ViewProps) {
         <h1 class="auth-title"><span class="kicker">The Gothic Folly</span>
           <svg class="wordmark" aria-hidden="true"><use href="#wordmark" /></svg>
           <span class="sr-only">Folly Studio</span></h1>
-        <p class="auth-lede">Build a show for 4,870 LEDs — arches, spires, a sixteen-petal rose window — watch it
-          come to life, tune it, and send it to the playa.</p>
+        <p class="auth-lede">Build a light show for the Folly — its arches, spires and sixteen-petal rose window —
+          watch it come to life, tune it, and send it to the playa.</p>
         <p class="field-hint auth-pitch">Editing and previews are open to everyone.
           On hosted Studio, describing
           a show with AI needs an invite code.</p>

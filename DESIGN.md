@@ -8,7 +8,7 @@ contract the code follows; `IDEAS.md` is where it could go next; `docs/HOSTING.m
 ## 1. Product shape
 
 People sign in, describe a show idea in a sentence, and get a **look**: pattern code in layers on groups of the
-Gothic Folly (City of Gods' 2,114 LEDs; the playa build's 4,870). They preview it live, edit code, sliders, globals
+Gothic Folly (the playa build's 4,870 LEDs by default; City of Gods' 2,114). They preview it live, edit code, sliders, globals
 and the timeline, save and share it.
 A look that should play on the Folly is **baked** to frames in a box on the server, **reviewed** by a curator,
 and **exported** as `.fseq`.
@@ -265,14 +265,15 @@ would have to be made twice. City of Gods is held to its own xLights show's chan
 
 ## 9. The rig file
 
-Everything installation-specific is one file, `public/data/rig.json`: every LED's position and address, fixtures
+Everything installation-specific is one file, the rig `STUDIO_RIG` picks (SPEC "Rig"): every LED's position and address, fixtures
 (`strip`, `points`, `cells`, `flood`) with render hints for the 3D view, the output (universes, channels per
 universe, colour order, fps), axes, named camera views, a scaffold, and an xLights-style group tree whose groups
 carry **tags** (`arch`, `spire`, `rose`, `canopy`, `wash`, `front`, …). Code, the library and the generators find
 places by tag, never by the Folly's ids, so a look whose layers carry tags moves to another rig.
 
-The default is City of Gods 2026, the condensed Folly with two front towers (2,114 LEDs), from the lighting repo's
-`city-of-gods/pixel-map/out/`; the Folly's playa build is `rig-folly.json`, from its `show-builder/pixel-map/`.
+The default is the Folly's playa build, `rig-folly.json` (4,870 LEDs), from the lighting repo's
+`show-builder/pixel-map/`, the rig Love Burn's show is built on; City of Gods 2026, the condensed Folly with two
+front towers (2,114 LEDs), is `rig.json`, from its `city-of-gods/pixel-map/out/`.
 `tools/build_rig.py` makes both through `tools/pixel_rows.py`, make_pixel_csv's rows (the pipeline TouchDesigner and
 Mirage use), and neither is edited by hand. City of Gods' addresses are held to its xLights show's channels
 (`test/rig-cog.test.js`), and both rigs to lighting's as it is now (`tools/check_channels.py`).
@@ -291,7 +292,7 @@ axes, GRB order, 300-channel universes and 30 fps; the core and every library mo
 
 A new installation: write a generator from its canonical LED list (or hand-write a tiny rig); give axes, output,
 one fixture per wire, panel, set of cells or flood with render hints; group it under one root and tag the groups
-conventionally; replace `rig.json` and run `npm run check` (CONTRIBUTING "Adding a new installation").
+conventionally; add it beside the others (`src/rig-choice.ts`) and run `npm run check` (CONTRIBUTING "Adding a new installation").
 
 ## 10. The Playa view
 
