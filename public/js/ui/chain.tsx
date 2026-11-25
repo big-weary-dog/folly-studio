@@ -6,7 +6,7 @@ import type { Module } from '../../../shared/schemas/look.ts';
 import { standardTitle } from '../../../shared/standard-modules.ts';
 import { flatModules } from '../core/tree.ts';
 import { Field, loadFailed, toast } from './kit.tsx';
-import { makeModule, moduleFromLibrary } from './model.ts';
+import { moduleFromLibrary } from './model.ts';
 import { ChainList, isLone, SubWhere, type TreeCtx } from './chain-tree.tsx';
 import { removalTitle } from './chain-row.tsx';
 import { addAfter, addSub, type Box, editSub, groupModule, listOf, moveModule, moveSub, moveToSub, placeOf,
@@ -83,14 +83,14 @@ function Chain({ st, pv }: Props) {
   const here = () => (sel && placeOf(mods, sel.id)) || { box: null, index: mods.length - 1 };
   const insert = (list: Module[], m: Module) => withList(list, here().box, (x) => addAfter(x, m, sel?.id));
 
-  /** A library module (or a blank), after the selected module in its list (model.ts insertModule). */
+  /** A library module, after the selected module in its list (model.ts insertModule). */
   function add(entry: Entry) {
     const layer = st.selected.peek(), { box } = here();
     if (!layer || ('kind' in entry && entry.kind === 'preset')) return;
     if (listOf(mods, box).length >= MAX_MODULES) {
       return toast(`A chain has at most ${MAX_MODULES} modules.`, { kind: 'warn' });
     }
-    const m = 'blank' in entry ? makeModule({ kind: entry.kind }) : moduleFromLibrary(entry);
+    const m = moduleFromLibrary(entry);
     setMods((list) => insert(list, m));
     st.pickModule(m.id);
   }
@@ -171,7 +171,7 @@ function Chain({ st, pv }: Props) {
     moveSub: resub,
     addSub: (comp) => void shelf((entry) => {
       if (entry.kind !== 'source') return;
-      const m = 'blank' in entry ? makeModule({ kind: entry.kind }) : moduleFromLibrary(entry);
+      const m = moduleFromLibrary(entry);
       setMods((list) => addSub(list, comp, m));
       st.pickModule(m.id);
     }, comp),

@@ -7,6 +7,7 @@ import type { Automation, Globals } from '../../shared/schemas/look.ts';
 import type { LibraryEntry, Rig } from '../../shared/schemas/rig.ts';
 import SANDBOX_URL from '../sandbox.html?sandbox';
 import { flatModules } from './core/tree.ts';
+import { fromLibrary } from './library-fill.ts';
 import type { LayerInput, Light } from './pattern-core.ts';
 import type { Layer } from './ui/model.ts';
 
@@ -49,6 +50,7 @@ type Render = { seq: number; frames: number; resolve: (c: Uint8Array) => void; r
 
 export class Runtime {
   rig!: Rig; library: Pick<LibraryEntry, 'name' | 'code'>[] = []; iframe: HTMLIFrameElement | null = null;
+  codes: ReadonlyMap<string, string> = new Map();   // every library module's code by name, hidden ones too
   port: MessagePort | null = null; heard = false; deadTries = 0; playing = false; held = false;
   phase: 'idle' | 'loading' | 'init' | 'ready' | 'dead' = 'idle';
   layers: Layer[] = []; extra: Extra = {}; lookDirty = false; lookVersion = 0; frameLookVersion = -1; lastT = NaN;
@@ -71,9 +73,10 @@ export class Runtime {
     window.addEventListener('message', this.onMessage);
   }
 
-  /** The rig, and the library's sources for use(). */
-  start(rig: Rig, library: Runtime['library']) {
-    Object.assign(this, { rig, library });
+  /** The rig, and the library's modules: its sources for use(), and every module's code for the look's refs. */
+  start(rig: Rig, modules: Pick<LibraryEntry, 'name' | 'kind' | 'code'>[]) {
+    const library = modules.filter((e) => (e.kind || 'source') === 'source').map(({ name, code }) => ({ name, code }));
+    Object.assign(this, { rig, library, codes: new Map(modules.map((e) => [e.name, e.code])) });
     this._spawn();
   }
 
@@ -217,7 +220,7 @@ export class Runtime {
   _sendLook() {
     this.lookDirty = false;
     this.lookVersion++;
-    this._post({ type: 'look', ...this.extra, layers: this.layers });
+    this._post({ type: 'look', ...this.extra, layers: fromLibrary(this.layers, this.codes) });
     const codes = (l: Layer) => new Map(flatModules(l.modules).map((m) => [m.id, m.code]));
     this.lookQueue.push(new Map(this.layers.map((l) => [l.id, codes(l)])));
   }

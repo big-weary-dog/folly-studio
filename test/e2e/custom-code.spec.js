@@ -42,8 +42,7 @@ for (const width of [390, 1366]) {
     if (!wide) await page.locator('.tab[data-tab=layers]').click();
     await page.locator('[data-tour=layers-add]').click();
     const shelf = page.getByRole('dialog', { name: 'Add a layer' });
-    await expect(shelf.getByText(/Choose a library module or preset/)).toBeVisible();
-    await expect(shelf.locator('.shelf-row.blank')).toHaveCount(0);
+    await expect(shelf.locator('.shelf-row')).not.toHaveCount(0);
     await expect(shelf.locator('.shelf-row[data-kind=source]').first()).toBeVisible();
     await shot('3-library-only-layer-picker');
     await page.keyboard.press('Escape');
@@ -52,7 +51,6 @@ for (const width of [390, 1366]) {
       const modules = page.getByRole('dialog', { name: 'Add a module' });
       for (const kind of ['source', 'warp', 'filter']) {
         await modules.locator(`[data-tour="shelf-tab:${kind}"]`).click();
-        await expect(modules.locator('.shelf-row.blank')).toHaveCount(0);
         await expect(modules.locator(`.shelf-row[data-kind=${kind}]`).first()).toBeVisible();
       }
       await shot('4-library-only-module-picker');

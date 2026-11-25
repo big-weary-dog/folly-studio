@@ -5,7 +5,7 @@ import { useId, useRef } from 'preact/hooks';
 import { useDragOrder } from './drag-order.ts';
 import { cx, loadFailed, Scrub, toast } from './kit.tsx';
 import {
-  BLEND_MODES, cleanLayer, isPreset, type Layer, layerFromPattern, makeLayer, newLayer, presetLayers, withPresetGlobals,
+  BLEND_MODES, cleanLayer, isPreset, type Layer, layerFromPattern, makeLayer, presetLayers, withPresetGlobals,
 } from './model.ts';
 import type { Preview } from './preview.ts';
 import { SideExpand, SideFold } from './side-panels.tsx';
@@ -53,7 +53,7 @@ export function LayersPane({ st, pv }: Props) {
     const step = st.step();
     toast(`Deleted “${l.title}”.`, { action: { label: 'Undo', onClick: () => st.undoStep(step) } });
   }
-  // Add a layer (shelf.tsx): a blank one, one source, or a preset's layers above the selected one, with the globals it
+  // Add a layer (shelf.tsx): one source, or a preset's layers above the selected one, with the globals it
   // needs; each on the groups picked in the shelf.
   const made = (e: Entry) => (isPreset(e) ? presetLayers(e, st.data.library, st.data.rig) : null);
   const add = () => import('./shelf.tsx').then(({ openShelf }) => openShelf({
@@ -68,7 +68,7 @@ export function LayersPane({ st, pv }: Props) {
         list.forEach((layer, i) => insertLayer(st, layer, at === undefined ? undefined : at + i, o));
         return;
       }
-      const one = 'blank' in e ? newLayer({ title: 'New layer' }, st.data.rig) : layerFromPattern(e, st.data.rig);
+      const one = layerFromPattern(e, st.data.rig);
       insertLayer(st, groups ? { ...one, groups } : one);
     } })).catch(loadFailed);
   return (

@@ -7,13 +7,25 @@ import { api, statusOf } from '../api.ts';
 /** What an import sends: a look file's words, chain and what plays, and nothing else. */
 const KEYS = ['origin', 'title', 'summary', 'chain', 'layers', 'duration', 'bpm', 'globals', 'automation'] as const;
 
+type Node = Record<string, unknown>;
+/** `layers` with no module's code: each names its library pattern by `ref` (a composite's sub-layers' too). */
+function refsOnly(layers: unknown): unknown {
+  if (!Array.isArray(layers)) return layers;
+  const one = (m: Node): Node => {
+    if (Array.isArray(m.layers)) return { ...m, layers: refsOnly(m.layers) };
+    const { code: _, ...rest } = m;
+    return rest;
+  };
+  return layers.map((l: Node) => (Array.isArray(l.modules) ? { ...l, modules: l.modules.map(one) } : l));
+}
+
 /** A look as its file holds it: its origin (where it was made: its own id, or the one it came in with) when it was
- * saved, the words, `chain: 2` (every saved look's), then what plays. */
+ * saved, the words, `chain: 2` (every saved look's), then what plays, its modules as library refs without code. */
 export function lookFile<T extends Pick<Look, 'title' | 'layers'> & { summary?: string | null }>(
   look: T, saved?: Pick<Look, 'id' | 'origin'> | null) {
   const { layers, ...plays } = playsOf(look), origin = saved && (saved.origin ?? saved.id);
   return { ...(origin ? { origin } : {}), title: look.title, summary: look.summary ?? '', chain: 2 as const, ...plays,
-    layers };
+    layers: refsOnly(layers) as typeof layers };
 }
 
 export const fileText = (data: unknown) => `${JSON.stringify(data, null, 2)}\n`;
