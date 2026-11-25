@@ -502,6 +502,11 @@ time. A `close()`d relay terminates its workers, the probes' too (`js/sandbox-pr
 | `{ type: 'frame', seq, t }` | `{ type: 'frame', seq, rgb: Float32Array(count×3), errors: [{ id, module?, error }], ms, layerMs: { <layer id>: ms } }` (rgb transferred from the worker; `ms` the frame's, `layerMs` each layer's, timed in the worker) |
 | `{ type: 'render', seq, start, frames, fps, brightness, light }` (light: the settings, Light and output; brightness: a linear cap) | `{ type: 'progress', seq, done }` … then `{ type: 'rendered', seq, channels: Uint8Array(frames × frame channels) }` |
 
+The relay reads what the worker says as data (`js/sandbox-messages.ts`), since pattern code shares its thread and can
+post too: a frame's `rgb` not exactly count × 3 floats is a black frame; `errors` keep at most one per layer of the
+look; `ms` and `layerMs` are times (finite, ≥ 0), `layerMs` only the look's layers'; a render's `channels` not exactly
+its frames × the rig's frame channels is an `error`; and error text is one printable line of at most 300 characters.
+
 Compute is decoupled from drawing: the app keeps one `frame` request in flight and asks at 40 fps, stepping down to
 30 and then 20 while the worker's `ms` (smoothed) is over budget, 80 % of the frame interval, and back up once it is
 well under the faster rate's; the 3D view draws at display rate when something changed, and idles otherwise. A layer
