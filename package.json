@@ -2,7 +2,7 @@
   "name": "folly-studio",
   "version": "0.1.0",
   "private": true,
-  "description": "Folly Studio: turn show ideas into pattern code and preview them on the Gothic Folly.",
+  "description": "Folly Studio: compose shows from library patterns and preview them on the Gothic Folly.",
   "type": "module",
   "engines": {
     "node": ">=22.18"

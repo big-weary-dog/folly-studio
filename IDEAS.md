@@ -1,7 +1,7 @@
 # Folly Studio — where it could go
 
-Folly Studio turns a show idea into pattern code on the Gothic Folly, previews it on a phone or a laptop, bakes it
-in a box, and exports frames a curator approved. What is built, and why, is in [DESIGN.md](DESIGN.md); this file is
+Folly Studio composes looks from library patterns on the Gothic Folly, previews them on a phone or a laptop, bakes
+them in a box, and exports frames a curator approved. What is built, and why, is in [DESIGN.md](DESIGN.md); this file is
 the roadmap.
 
 ## Next
