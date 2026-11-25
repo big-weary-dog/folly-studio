@@ -69,12 +69,13 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
   bakes: ReturnType<typeof createBakeQueue>, frames: ReturnType<typeof createFramesCache>, secureCookies?: boolean,
   rateLimit?: { max?: number, ipMax?: number, guestMax?: number, windowMs?: number }, flash: FlashSettings,
   ideaLogs: IdeaLogs, previews?: ReturnType<typeof createPreviews>, reports: Reports,
-  build: string, tail: () => unknown[], light: LightStore,
+  build: string, tail: () => unknown[], light: LightStore, gen?: boolean,
   baking?: Parameters<typeof bakingRoutes>[0], stats?: Parameters<typeof routes>[1],
   codeGate?: Parameters<typeof lookRoutes>[0]['codeGate'] }) {
   const { store, auth, queue, models, loaders, log, access } = o;
   const { bakes, framesDir, frames, secureCookies = false, flash } = o;
   const limits = { max: 10, ipMax: 100, guestMax: 10, windowMs: 60_000, ...o.rateLimit };
+  const gen = o.gen === true;
   return async (api: FastifyInstance) => {
     api.addHook('onRequest', checkMutation);
     api.addHook('onRoute', adminsDeclared);
@@ -220,8 +221,8 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       }, { public: true }],
       ...tourRoutes({ store }),
       'GET /me': async (req) => ({ user: auth.publicUser(req.user), flash,
-        ...(!req.user!.guest ? { access: access.state(req.user!) } : {}) }),
-      ...(models ? { ...ideaRoutes, ...modelRoutes({ auth, models, access }),
+        ...(gen && !req.user!.guest ? { access: access.state(req.user!) } : {}) }),
+      ...(gen && models ? { ...ideaRoutes, ...modelRoutes({ auth, models, access }),
         ...ideaLogRoutes({ logs: o.ideaLogs }),
         ...ideaHowRoutes({ store, auth, logs: o.ideaLogs, forOwner }),
         ...accessRoutes(api, { access, store }) } : {}),

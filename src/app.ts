@@ -51,7 +51,7 @@ type Options = { config?: Config, dataDir?: string, publicDir?: string, distDir?
   framesQuality?: number, framesMaxBytes?: number, generator?: Queue | ((deps: Deps) => Queue | Promise<Queue>),
   renderBox?: Parameters<typeof createBakeQueue>[0]['box'], flash?: FlashSettings,
   ideaLogs?: { keep?: number, maxBytes?: number }, previews?: string,
-  reports?: { keep?: number, maxBytes?: number, days?: number }, customCode?: boolean };
+  reports?: { keep?: number, maxBytes?: number, days?: number }, generators?: boolean, customCode?: boolean };
 
 /**
  * The server. `config`: the settings (src/config.ts; default: models.env's, else the environment's), the default of
@@ -63,7 +63,9 @@ type Options = { config?: Config, dataDir?: string, publicDir?: string, distDir?
  * flash check's settings (default: flashSettings(config));
  * `ideaLogs`: how many ideas' logs to keep and their disk cap (STUDIO_IDEA_LOGS, STUDIO_IDEA_LOGS_MAX_BYTES);
  * `previews`: the gallery previews' camera, 'playa' or 'front' (STUDIO_PREVIEWS; default playa).
- * `customCode`: the Custom code switch while baking.json does not set it (default off; tests writing code turn it on).
+ * `generators`, `customCode`: tests only (no setting, file or route reaches them), to run the generators and save and
+ * bake code that is not the library's; production has neither (SPEC-generators "No generators", SPEC-baking "Custom
+ * code"). They go with the generators and the custom code they test.
  */
 export async function createServer(opts: Options = {}) {
   const env = opts.models?.env ?? process.env, codexBin = opts.models?.codexBin;
@@ -82,17 +84,18 @@ export async function createServer(opts: Options = {}) {
   auth.pruneSessions();
   const loaders = createLoaders(publicDir, { log });
   const { loadLibrary, loadRig } = loaders;
-  const models = createRegistry({
+  // Generators run only where a test asks (SPEC-generators "No generators").
+  const gen = opts.generators === true;
+  const models = gen ? createRegistry({
     file: opts.models?.file || config.STUDIO_MODELS || path.join(dataDir, 'models.json'),
-    env, settings: config, log, legacy: generatorName, foundryOn: foundryOf(config).on, codexBin });
+    env, settings: config, log, legacy: generatorName, foundryOn: foundryOf(config).on, codexBin }) : null;
   const access = createAccess({ store, auth, models });
   const light = createLightStore({ file: path.join(dataDir, 'light.json'), log });
-  const box = renderBox || createRenderBox({ publicDir, log, config });
+  const box = renderBox || createRenderBox({ publicDir, log, config, customCode: opts.customCode });
   // Bakes and previews go through the admin's bake setting; the generators' render checks are not bakes.
   const baking = createBakingStore({ file: path.join(dataDir, 'baking.json'), customCode: opts.customCode, log });
   const bakeBox = governBox(box, baking.mode);
-  const codeGate = createCodeGate({ on: baking.customCode, looks: store.looks,
-    patternsDir: path.join(publicDir, 'patterns') });
+  const codeGate = createCodeGate({ on: baking.customCode, patternsDir: path.join(publicDir, 'patterns') });
   // Baked frames are encoded for streaming as soon as they are stored (src/frames-cache.ts); bakes, those encodes
   // and the generators' render checks take turns at low priority, and evicted frames are baked again on demand.
   const lane = createLane();
@@ -100,10 +103,12 @@ export async function createServer(opts: Options = {}) {
   const reports = createReports({ dir: path.join(dataDir, 'reports'), ...opts.reports, log });
   void reports.sweep();
   const deps = { store, loadLibrary, loadRig, loadLight: light.current, loadVersion: loaders.version, models, codexBin,
-    config, log, box, lane, ideaLogs, codeGate, adapterName: generatorName || models.defaultId() || '' };
-  const queue: Queue = typeof generator === 'function' ? await generator({ ...deps, models })
-    : generator || createQueue({ ...deps, models });
-  const adapterName = models.defaultId() || '';
+    config, log, box, lane, ideaLogs, codeGate, adapterName: generatorName || models?.defaultId() || '' };
+  // Without generators nothing can make an idea, so nothing is ever queued.
+  const queue: Queue = !models ? { enqueue: () => { throw new Error('No generators.'); } }
+    : typeof generator === 'function' ? await generator({ ...deps, models })
+      : generator || createQueue({ ...deps, models });
+  const adapterName = models?.defaultId() || '';
   const framesDir = path.join(dataDir, 'frames');
   const frames = createFramesCache({ framesDir, store, log, quality: framesQuality, maxBytes: framesMaxBytes, lane,
     rebake: (look) => bakes.restore(look) });
@@ -118,7 +123,7 @@ export async function createServer(opts: Options = {}) {
     loadRig, camera: playa?.camera ?? frontView() });
   const previewBackfill = previews.backfill().catch((err) => log.error?.('[previews] backfill:', err));
   // Ideas a restart cut short go back in the queue (enqueue is idempotent per id).
-  for (const idea of store.ideas.list(isPending)) {
+  for (const idea of gen ? store.ideas.list(isPending) : []) {
     enqueueIdea({ queue, store, log }, idea);
   }
 
@@ -135,7 +140,7 @@ export async function createServer(opts: Options = {}) {
   app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => (body.length
     ? json(req, String(body), done) : done(null, {})));
   // A journal line for each request worth reading, and Admin → Stats' counts (src/stats.ts).
-  const stats = createStats({ log, store, trustProxy });
+  const stats = createStats({ log, store, ideas: gen, trustProxy });
   app.addHook('onResponse', stats.onResponse);
   app.addHook('onRequest', async (req, reply) => {
     reply.headers({ 'content-security-policy': CSP_APP, 'x-content-type-options': 'nosniff',
@@ -144,7 +149,7 @@ export async function createServer(opts: Options = {}) {
   await app.register(fastifyCookie);
   await app.register(fastifyRateLimit, { global: false });
   await app.register(apiRoutes({ store, auth, queue, models, loaders, log, access, framesDir, bakes,
-    frames, rateLimit, secureCookies, flash, ideaLogs, previews, reports, light,
+    frames, rateLimit, secureCookies, flash, ideaLogs, previews, reports, light, gen,
     baking: { baking, box }, codeGate, stats: stats.routes,
     build: buildSha(path.dirname(fileURLToPath(import.meta.url)), config.GIT_SHA), tail: log.tail }),
   { prefix: '/api' });

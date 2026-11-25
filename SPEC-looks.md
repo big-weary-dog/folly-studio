@@ -39,7 +39,7 @@ below.
 - **Modules**: 1–8 per layer, ids unique in it (`[A-Za-z0-9_.:-]{1,64}`), `code` ≤ 20 kB each and always
   stored (looks stay self-contained for the boxes); `ref` names the library entry it came from, and a module whose `ref` the library has is standard: it keeps the
   library's title (`shared/standard-modules.ts`; the API and generators put a renamed one's back), and a hand edit
-  of its code drops `ref`, making it custom (while an admin has custom code off, new code is refused: SPEC-baking
+  of its code drops `ref`, making it custom (custom code is refused: SPEC-baking
   "Custom code"); `params`
   override the code's defaults (≤ 64; a string ≤ 256 characters: a pick, a choice or text).
   `live` optionally lists up to 64 unique param keys the creator offers in Live Play: only declared choice and
@@ -151,7 +151,7 @@ Several looks go in one file as `{ "looks": [look file] }` (`folly-looks-mine-<d
   Lanes for present macros remain checked.
   A look already among the importer's own (its id or its `origin` is the file's `origin`) is **updated**: the file
   overrules it, as a `PUT` of the title, summary and what plays would (`how: import`), with every check a `PUT` has
-  (the Custom code switch, the body limit, a bake and review dropped when the frames change), so a change to what
+  (library code only, the body limit, a bake and review dropped when the frames change), so a change to what
   plays is a new version and what the importer had, edits made since the last import included, stays in its History
   (SPEC-history "Versions"); it keeps its sharing, and its review as any such save does. One that already reads and
   plays as the file is **unchanged**. Any other look is **added**: the importer's, unshared, with no idea, keeping the `origin`. A

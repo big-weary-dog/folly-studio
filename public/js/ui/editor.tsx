@@ -1,7 +1,7 @@
 // A plain <textarea> code editor for the selected module: line numbers, Tab inserts two spaces (Esc then Tab leaves
 // the editor), Enter keeps indentation, Ctrl/Cmd+S saves (the Studio's shortcut). Edits reach the sandbox once typing
-// settles. Below it, a quick reference of the pattern API (SPEC "Pattern code"): click a name to insert it. While an
-// admin has custom code off (SPEC-baking "Custom code"), it is read only and says why.
+// settles. Below it, a quick reference of the pattern API (SPEC "Pattern code"): click a name to insert it. Custom code
+// is off (SPEC-baking "Custom code"; tests alone turn it on), so it is read only and says why.
 import { useId, useLayoutEffect, useMemo, useRef } from 'preact/hooks';
 
 import { useCustomCode } from './custom-code.ts';
@@ -11,7 +11,8 @@ import type { Studio } from './studio-store.ts';
 
 const INDENT = '  ';
 const SETTLE_MS = 300;
-const LOCKED = 'An admin turned custom code off: modules play and take their params here, but their code is read only.';
+const LOCKED = 'Looks take only library patterns: modules play and take their params here, but their code is read '
+  + 'only.';
 
 /** Insert keeping the browser's undo stack when possible. */
 function insertText(ta: HTMLTextAreaElement, text: string) {

@@ -79,7 +79,8 @@ In `SPEC-reports.md`, part of this contract: F8 reports, what they hold, and whe
 
 ## Generators and models
 
-In `SPEC-generators.md`, part of this contract: **Generators** (idea → look) and **Models** (the registry).
+In `SPEC-generators.md`, part of this contract: **Generators** (idea → look) and **Models** (the registry). They are
+off on every server (SPEC-generators "No generators").
 
 ## Accounts and access
 

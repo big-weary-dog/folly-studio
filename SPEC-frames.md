@@ -23,7 +23,7 @@ as here; any other failure says why and points to Check & bake.
   a hung frame still has the same 20 s wall-clock limit.
   /out is a 1 MB tmpfs inside the box with only `frames.fseq` and
   `result.json` bound to the host, so each is capped by the file-size limit and nothing else the box writes reaches
-  the host's disk. Without bubblewrap, library only; the bake setting and custom code: `SPEC-baking.md`.
+  the host's disk. Library code only; the bake setting and custom code: `SPEC-baking.md`.
   One bake at a time, under `nice` (`STUDIO_BAKE_NICE`, default 10), in a lane it shares with wire encodes
   (`src/bake.ts` `createLane`). `fleet-box` (advisory): the Fleet worker's own `frames.fseq` + `stats.json` (its `use`
   library: `patterns/` beside check.ts, else none). All three run the same core and `renderer.ts`.

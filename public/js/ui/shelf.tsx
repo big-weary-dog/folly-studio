@@ -181,7 +181,7 @@ export function openShelf({ library, onPick, audition, mode, st, sourcesOnly = f
             aria-label="Filter the library" value={query} onInput={(e) => setQuery(e.currentTarget.value)} />
         </div>
         <p class="shelf-text">{text}</p>
-        {customCode === false && <p class="pane-hint">An admin turned custom code off.
+        {customCode === false && <p class="pane-hint">Looks take only library patterns.
           Choose a library module or preset.</p>}
         <div class="shelves" role="tabpanel">
           {mode === 'layer' && blanks.length > 0 && <ul class="shelf-list">{blanks.map(row)}</ul>}

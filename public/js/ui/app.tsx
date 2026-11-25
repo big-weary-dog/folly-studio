@@ -57,12 +57,15 @@ const ROUTES: Route[] = [
 /** Where to go after signing in: `next` when it is a page of this app, else home. */
 export const safeNext = (next: string | null) => (next && next.startsWith('/') && !next.startsWith('//')
   && !next.startsWith('/login') ? next : home());
+/** Without generators (SPEC-generators "No generators"), the pages of what the server does not run lead elsewhere. */
+const NO_AI_MOVED: Record<string, string> = { '/admin': '/admin/light', '/admin/models': '/admin/light',
+  '/admin/access': '/admin/light' };
 
 /** Where a path leads: a redirect, or a route and its params. */
 export function resolve(path: string, search: string, signedIn: boolean):
   { redirect: string } | { route: Route; params: Record<string, string> } {
   if (path === '/' || path === '') return { redirect: signedIn ? home() : '/login' };
-  const bare = path.replace(/\/$/, ''), moved = MOVED[bare];
+  const bare = path.replace(/\/$/, ''), moved = (!ai.value && NO_AI_MOVED[bare]) || MOVED[bare];
   if (moved) return { redirect: moved + search };
   if (signedIn && !ai.value && bare.startsWith('/ideas')) return { redirect: home() };   // no AI, no Ideas
   for (const route of ROUTES) {

@@ -235,7 +235,8 @@ function fakeBox(maxSeconds = 4) {
 async function startApp(renderBox, name) {
   const generator = { enqueue() {}, async idle() {} };
   const dataDir = path.join(tmpRoot, name);
-  const app = await createServer({ customCode: true, dataDir, publicDir: PUBLIC, generator, renderBox, log: quiet });
+  const app = await createServer({ generators: true, customCode: true, dataDir, publicDir: PUBLIC, generator, renderBox,
+    log: quiet });
   const { port } = await app.listen(0);
   const base = `http://127.0.0.1:${port}`;
   const json = { 'content-type': 'application/json' };
@@ -320,7 +321,7 @@ describe('baking a sequenced look in the render box', () => {
   beforeEach(({ skip }) => skip(!probe.ok || !!probe.libraryOnly,
     `render box unavailable here: ${probe.reason || probe.libraryOnly}`));
   test('a 2-clip layer over a dim base: lit in its clips, dark between, for the look\'s duration', async () => {
-    const box = createRenderBox({ seconds: 120, log: quiet });
+    const box = createRenderBox({ customCode: true, seconds: 120, log: quiet });
     const layers = [
       { id: 'base', code: 'function pixel() { return [0, 0, 0.2]; }', groups: ['cathedral'] },
       { id: 'hits', code: RED, groups: ['cathedral'], clips: [clip(0.5, 1.5), clip(2.5, 3.5, 0.5)] },
