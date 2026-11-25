@@ -1,2 +1,2 @@
 import { controls } from './library-controls.ts';
-controls('alternate');
+controls('low', 1, 2);
