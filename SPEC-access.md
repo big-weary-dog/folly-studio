@@ -26,6 +26,22 @@ log in or sign up, since saving is for accounts, and the work comes along: the f
 in that browser gets it, unsaved, and the browser's copy goes once that account saves or discards it. Their name
 shows with a Guest tag; it is untrusted text, shown only as text.
 
+## Your account
+
+**Account** (`/account`, in the user menu; no guest has one) changes the password and deletes the account. There is
+no email, so a forgotten password cannot be reset or recovered: Account and sign-up say so plainly.
+
+- **Changing the password** takes the current one and a new one (sign-up's rules). It ends the account's other
+  sessions; this one stays.
+- **Deleting the account** takes its password and a confirm saying how many looks go, and how many are shared. It
+  deletes the account, its sessions and ideas, and every look it owns: shared ones leave the gallery too, with
+  their frames and previews. A copy someone else saved of one is theirs and stays. The browser is signed out, on
+  sign-in. The username is free again.
+- A change or a deletion whose password changed, or whose session ended, while it was checked is 409: of two at once,
+  one stands.
+- A wrong password is 403 "That is not your password.". Wrong ones are limited as failed sign-ins are, 10 a minute per
+  address and account, then 429 with `Retry-After`.
+
 ## Who may do what
 
 A look is its owner's: only they edit it, and others see it only when it is shared. Only they delete it, but for an
@@ -115,6 +131,8 @@ Refine, no invite code entry and no Models or Access tabs, for everyone; sign-up
 
 ```
 POST   /api/guest    { name }                 → { user, flash }      in as a guest (sets cookie): "Guests"
+PUT    /api/me/password { password, next }    → { ok: true }  a new password ("Your account")
+DELETE /api/me       { password }             → { ok: true }  the account and its looks gone; clears the cookie
 POST   /api/invite   { code }                 → { access }           redeem an invite code ("Access")
 GET    /api/admin/invites                     → { invites: [invite] }  admins only, as are the four below
 POST   /api/admin/invites { label?, uses?, days? } → 201 { invite, code }  the code is shown only here

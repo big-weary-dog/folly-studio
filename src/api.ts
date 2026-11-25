@@ -9,6 +9,7 @@ import { DEEP, type FlashSettings, GuestBody, type Idea, IdeaBody, Login, Refine
 import type { AccessControl } from './access.ts';
 import { perAccount } from './account-limit.ts';
 import { accessRoutes, sendRefusal } from './api-access.ts';
+import { accountRoutes } from './api-account.ts';
 import { ideaHowRoutes } from './api-idea-how.ts';
 import { ideaLogRoutes } from './api-idea-log.ts';
 import { lightRoutes } from './api-light.ts';
@@ -225,6 +226,9 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         return { ok: true };
       }, { public: true }],
       ...tourRoutes({ store }),
+      ...accountRoutes(api, { store, auth, dropFrames, previews: o.previews, log,
+        limit: { max: limits.max, windowMs: limits.windowMs },
+        clearCookie: (reply) => reply.setCookie(COOKIE_NAME, '', cookie(0)) }),
       'GET /me': async (req) => ({ user: auth.publicUser(req.user), flash,
         ...(gen && !req.user!.guest ? { access: access.state(req.user!) } : {}), rig }),
       ...(gen && models ? { ...ideaRoutes, ...modelRoutes({ auth, models, access }),

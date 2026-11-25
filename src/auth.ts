@@ -108,12 +108,49 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     const user = username ? findUser(username) : null;
     dummyHash ??= hashPassword('not-a-real-password', cost);
     const ok = await verifyPassword(password, user ? user.passwordHash : await dummyHash);
-    if (!user || !ok || !password) throw new HttpError(401, 'Wrong username or password.');
+    // A password changed while this one was checked: the old one no longer signs in, nor is it made again over it.
+    const stale = () => !user || store.users.get(user.id)?.passwordHash !== user.passwordHash;
+    if (!user || !ok || !password || stale()) throw new HttpError(401, 'Wrong username or password.');
     if (weaker(user.passwordHash, cost)) {
-      return store.users.update(user.id, { passwordHash: await hashPassword(password, cost) }) ?? user;
+      const passwordHash = await hashPassword(password, cost);
+      if (stale()) throw new HttpError(401, 'Wrong username or password.');
+      return store.users.update(user.id, { passwordHash }) ?? user;
     }
     return user;
   });
+
+  /** Throws 409 when `user`'s password changed, or `token`'s session ended, since `user` was read. */
+  const current = (user: Stored, token: unknown) => {
+    const keep = valid(token) ? sha256(token) : '';
+    if (store.users.get(user.id)?.passwordHash !== user.passwordHash || (keep && !store.sessions.get(keep))) {
+      throw new HttpError(409, 'Your password was just changed elsewhere: sign in again.');
+    }
+  };
+
+  /** Throws 403 unless `password` is `user`'s (SPEC-access "Your account"), and 409 unless `user` and `token`'s
+   * session are still current once it is checked. */
+  const confirm = (user: Stored, password: string, token?: unknown) => slot(async () => {
+    if (!password || !await verifyPassword(password, user.passwordHash)) {
+      throw new HttpError(403, 'That is not your password.');
+    }
+    current(user, token);
+  });
+
+  /** `user`'s password made `next` once `password` is theirs; their sessions but `token`'s end. */
+  async function changePassword(user: Stored, { password, next }: { password: string, next: string },
+    token: unknown) {
+    await confirm(user, password, token);
+    const passwordHash = await slot(() => hashPassword(next, cost)), keep = valid(token) ? sha256(token) : '';
+    current(user, token);   // another change (or sign-out) may have landed while this one hashed: then it stands
+    store.users.update(user.id, { passwordHash });
+    for (const s of store.sessions.list((x) => x.userId === user.id && x.id !== keep)) store.sessions.remove(s.id);
+  }
+
+  /** The account gone, with its sessions (its looks and ideas are the API's). */
+  function removeUser(id: string) {
+    for (const s of store.sessions.list((x) => x.userId === id)) store.sessions.remove(s.id);
+    store.users.remove(id);
+  }
 
   /** A new session for `user` → its token. Each user keeps at most 20, and guests all told `guests`: past that the
    * oldest go, as do expired ones. */
@@ -154,7 +191,8 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     for (const s of store.sessions.list((x) => !(Date.parse(x.expiresAt) > now))) store.sessions.remove(s.id);
   }
 
-  return { signup, login, guest, logout, authenticate, createSession, pruneSessions, roleOf, publicUser,
+  return { signup, login, guest, logout, authenticate, createSession, pruneSessions, roleOf, publicUser, confirm,
+    changePassword, removeUser,
     /** shared/policy.ts's can(), by `user`'s role here. */
     can: (user: Stored | null, action: Action, look?: Parameters<typeof can>[2]) =>
       can(user && publicUser(user), action, look) };

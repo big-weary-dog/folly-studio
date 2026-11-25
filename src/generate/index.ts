@@ -77,11 +77,10 @@ export const foundryOf = (c: Config = configOf()) => ({ on: c.STUDIO_FOUNDRY ?? 
  * (an idea's `model` picks the route); adapterName: STUDIO_GENERATOR, the route of an idea that names no model;
  * adapters: transport → { generate } or a function, over the built-in ones; concurrency: STUDIO_GENERATOR_CONCURRENCY,
  * per lane where the registry says nothing; fallbackName: STUDIO_GENERATOR_FALLBACK, the foundry's one-shot generator
- * (a model or transport); loadVersion: changes when the library or rig does (the prompt is built again
- * only then); box and lane: the render box and the bakes' lane, for the render check and critique (none: no check);
- * interruptGraceMs: how long a call cut by a stray stop signal waits for the server's own stop before it runs again;
- * ideaLogs: where each idea's log goes (none: in memory).
- */
+ * (a model or transport); loadVersion: changes when the library or rig does (the prompt is built again only then); box
+ * and lane: the render box and the bakes' lane, for the render check and critique (none: no check); interruptGraceMs:
+ * how long a call cut by a stray stop signal waits for the server's own stop before it runs again; ideaLogs: where each
+ * idea's log goes (none: in memory). */
 export function createQueue({
   store, loadLibrary = () => [], loadRig = () => null, loadLight, loadVersion, models, log = console, adapters = {},
   config = configOf(), adapterName = config.STUDIO_GENERATOR || models?.defaultId() || 'claude',
@@ -298,6 +297,7 @@ export function createQueue({
       const { bake: made, frames } = (out.raw ?? {}) as { bake?: Bake, frames?: unknown };
       const bake = made && typeof made === 'object' ? { ...made, layersHash: layersHash(renderFields(look)) } : null;
       await codeGate?.check(look.layers, (why) => new GenerateError(why, 'new code'));
+      if (!(await store.ideas.get(id))) return log.info?.(`[generate] idea ${id} was deleted while it ran`);
       const saved = await store.looks.create(roomForLook(store, idea.owner, full, { owner: idea.owner,
         ownerName: owner?.username || '', title: look.title, summary: look.summary,
         ...Object.fromEntries(PLAYS.filter((k) => look[k] != null).map((k) => [k, look[k]])),

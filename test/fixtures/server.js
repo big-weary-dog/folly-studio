@@ -135,7 +135,7 @@ export function client(app) {
     get: (p, h) => req('GET', p, undefined, h),
     post: (p, b, h) => req('POST', p, b ?? {}, h),
     put: (p, b, h) => req('PUT', p, b, h),
-    del: (p, h) => req('DELETE', p, undefined, h),
+    del: (p, b, h) => req('DELETE', p, b, h),
     get cookie() {
       return cookie;
     },

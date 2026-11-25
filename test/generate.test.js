@@ -166,6 +166,18 @@ describe('queue', () => {
     assert.match(store.ideas.get(i.id).error, /20 MB/);
   });
 
+  test('an idea deleted with its account while it runs leaves no look behind', async () => {
+    const fire = async () => {
+      store.tables.ideas.clear();
+      store.tables.users.clear();
+      return { title: 'Fire', layers: [goodLayer()] };
+    };
+    const { store, idea, queue } = setup({ adapterName: 'x', adapters: { x: fire } });
+    queue.enqueue(idea('fire'));
+    await queue.idle();
+    assert.equal(store.looks.list().length, 0);
+  });
+
   test('enqueue is idempotent per idea, runs one at a time, and skips finished ideas', async () => {
     const seen = [];
     let active = 0;
