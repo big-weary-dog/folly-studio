@@ -179,8 +179,8 @@ export class Viewer {
     this._resize();
   }
 
-  /** rgb: count × 3, 0..1, transferred to us by the sandbox: kept, not copied; `shown` is its light as the views
-   * show it (core/light.ts previewChannels). */
+  /** rgb: count × 3, 0..1, from the sandbox: kept, not copied, until the next (the runtime then reuses it); `shown`
+   * is its light as the views show it (core/light.ts previewChannels). */
   setColors(rgb: Float32Array) {
     if (!this.colors || !rgb || rgb.length < this.count * 3) return;
     this.colors = rgb;
