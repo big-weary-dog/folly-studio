@@ -29,7 +29,7 @@ const known = new Map([...SPECS, 'SPEC.md'].map((f) => [f, sections(f)]));
 /** Whether `quoted` (a comment's line breaks and markers in it) is a section of `rel`: the whole heading or lead, or
  * the part before its gloss (" (…)", ": …"). A placeholder (`<section>`) is none. */
 function has(rel: string, quoted: string) {
-  const name = quoted.replace(/\s*\n\s*(?:\*|\/\/|#)?\s*/g, ' ');
+  const name = quoted.replace(/\s*\n\s*(?:\*|\/\/|#)?\s*/g, ' ').replace(/`/g, '');
   return name.startsWith('<') || known.get(rel)!.names
     .some((s) => s === name || s.startsWith(`${name} (`) || s.startsWith(`${name}:`));
 }
