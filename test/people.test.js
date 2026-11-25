@@ -4,7 +4,9 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { client, fx, layer, signup, startApp, useFixture } from './fixtures/server.js';
+import { createAuth } from '../src/auth.ts';
+import { createStore } from '../src/store.ts';
+import { client, fx, layer, quiet, signup, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 
@@ -58,6 +60,15 @@ describe('people', () => {
     assert.equal(await login('eve', 'wrong horse'), 401, 'a wrong password says nothing of it');
     await ada.put(`/api/admin/accounts/${eve.user.id}`, { disabled: false });
     assert.equal(await login('eve'), 200);
+  });
+
+  test('an account disabled while its password is checked does not sign in', async () => {
+    const store = await createStore(path.join(fx.tmp, 'data-people-login'), { log: quiet });
+    const auth = createAuth({ store, cost: { N: 1024, r: 8, p: 1 } });
+    const { id } = await auth.signup({ username: 'gus', password: 'correct horse' });
+    const late = auth.login({ username: 'gus', password: 'correct horse' });   // checking the password
+    auth.setAccount(id, { disabled: true });
+    await assert.rejects(late, { status: 403 });
   });
 
   test('deleting takes the account and its looks; an admin changes nothing of their own', async () => {

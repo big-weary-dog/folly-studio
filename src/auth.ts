@@ -117,10 +117,15 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     // A password changed while this one was checked: the old one no longer signs in, nor is it made again over it.
     const stale = () => !user || store.users.get(user.id)?.passwordHash !== user.passwordHash;
     if (!user || !ok || !password || stale()) throw new HttpError(401, 'Wrong username or password.');
-    if (user.disabled) throw new HttpError(403, 'This account is disabled.');
+    // Read again: People may have disabled the account while the password was checked or rehashed.
+    const off = () => {
+      if (store.users.get(user.id)?.disabled) throw new HttpError(403, 'This account is disabled.');
+    };
+    off();
     if (weaker(user.passwordHash, cost)) {
       const passwordHash = await hashPassword(password, cost);
       if (stale()) throw new HttpError(401, 'Wrong username or password.');
+      off();
       return store.users.update(user.id, { passwordHash }) ?? user;
     }
     return user;
