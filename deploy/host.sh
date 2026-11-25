@@ -68,7 +68,8 @@ for name in "${!PORTS[@]}"; do
 done
 for other in "$units"/*.service; do
   [ -f "$other" ] && [ "$other" != "$units/$unit.service" ] || continue
-  ! grep -qxF "WorkingDirectory=$root/current" "$other" \
+  # $root itself: a unit from before releases.
+  ! grep -qxF -e "WorkingDirectory=$root/current" -e "WorkingDirectory=$root" "$other" \
     || die "$root is $(basename "$other" .service)'s checkout: give each studio its own"
 done
 command -v systemctl >/dev/null && systemctl --user show-environment >/dev/null 2>&1 \

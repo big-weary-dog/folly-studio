@@ -138,7 +138,9 @@ describe('npm run host: releases', () => {
     assert.match(locked.out, /another npm run host is deploying/);
     const units = path.join(home, '.config', 'systemd', 'user');
     mkdirSync(units, { recursive: true });
-    writeFileSync(path.join(units, 'folly-studio-dev.service'), `WorkingDirectory=${checkout}/current\n`);
-    assert.match(host([a()]).out, /is folly-studio-dev's checkout/);
+    for (const dir of [`${checkout}/current`, checkout]) { // a release-based unit, and one from before releases
+      writeFileSync(path.join(units, 'folly-studio-dev.service'), `WorkingDirectory=${dir}\n`);
+      assert.match(host([a()]).out, /is folly-studio-dev's checkout/);
+    }
   });
 });
