@@ -7,12 +7,13 @@ import '../../css/pages.css';
 import { useEffect, useState } from 'preact/hooks';
 
 import { api } from '../api.ts';
-import { approved, can } from '../../../shared/policy.ts';
+import { can } from '../../../shared/policy.ts';
 import type { Listed } from '../../../shared/schemas/api.ts';
 import { setTitle, user, type ViewProps } from './session.ts';
 import { Approve } from './approve.tsx';
 import { deleteLook, mayDelete } from './delete-look.ts';
 import { cx, jewelGradient, timeAgo } from './kit.tsx';
+import { approvedOnly as kept } from './look-file.ts';
 import { LookFiles } from './look-files.tsx';
 import { Hide, ReportLook } from './moderate.tsx';
 import { PhoneDisclosure } from './phone/disclosure.tsx';
@@ -42,11 +43,12 @@ export function Looks({ scope }: ViewProps) {
   const changed = (look: Listed, patch: Partial<Listed>) => setLooks((all) => (all || []).map((l) => l.id === look.id
     ? { ...l, ...patch } : l));
   const waiting = gallery && curator ? (looks || []).filter((l) => !l.reviewed && !l.hidden).length : 0;
-  const shown = (looks || []).filter((l) => (!gallery || !approvedOnly || approved(l)) && (!words
+  const shown = kept(looks || [], gallery && approvedOnly).filter((l) => (!words
     || `${l.title} ${l.summary || ''} ${l.ownerName || ''}`.toLowerCase().includes(words)));
   const empty = error ? <p class="form-error">{error}</p> : looks?.length
     ? <p>{gallery && approvedOnly ? 'No approved looks match.' : 'No looks match that search.'}</p>
-    : gallery ? <p>Nothing shared yet. Open one of your looks in the Studio and switch on “Share to gallery”.</p>
+    : gallery ? <p>Nothing in the gallery yet. Open one of your looks in the Studio and switch on “Share to gallery”;
+      it shows here once a curator approves it.</p>
     : <p>No saved looks yet. <a href="/studio">Start a blank look</a>
       <span class="laptop-only">, or import some</span>.</p>;
   return (
