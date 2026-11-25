@@ -97,6 +97,19 @@ test('an edit during frame storage cannot attach an obsolete record (H2)', async
   assert.ok(reviewBlocker(f.looks.get('a')));
 });
 
+test('a look deleted while its frames are stored leaves no frames behind', async () => {
+  const f = await fixture();
+  const rename = fs.rename.bind(fs), file = path.join(f.dir, 'a.fseq');
+  vi.spyOn(fs, 'rename').mockImplementation(async (from, to) => {
+    if (to === file) { f.records.delete('a'); await fs.rm(file, { force: true }); } // DELETE /looks/:id, first
+    await rename(from, to);
+  });
+  await f.queue.request('a');
+  await f.queue.idle();
+  assert.equal(f.looks.get('a'), undefined);
+  await assert.rejects(fs.stat(file), 'no orphan frames');
+});
+
 test('review requires the current baked length, including the configured cap (H2)', () => {
   const l = look();
   l.bake = { source: 'render-box', status: 'done', ok: true, layersHash: layersHash(renderFields(l)), seconds };
