@@ -35,6 +35,11 @@ present, same-origin. Errors are `{ error: "message" }` with a 4xx/5xx status. A
 the first problem ("Layer 2, clip 1: start must be a number of seconds from 0 to 600."). Unknown routes are 404, a
 known path's other methods 405 with `Allow`.
 
+Look writes (`POST /api/looks`, `PUT` and `DELETE /api/looks/:id`, `PUT /api/looks/:id/versions/:n`) are limited per
+account: 120 a minute, then 429 with `Retry-After`. An account keeps at most 500 looks, and its looks with their
+versions hold at most 20 MB as stored: a new look past either, or a change that grows its looks past the bytes, is
+429 "delete some first" (a change that does not grow them always saves; an idea's new look keeps to both: it fails).
+
 ```
 POST   /api/signup   { username, password }   → { user, flash, profile }  (sets cookie)
 POST   /api/login    { username, password }   → { user, flash, profile }
@@ -80,8 +85,8 @@ GET    /api/looks?scope=mine|gallery          → { looks: [listed] }  metadata 
 POST   /api/looks    { title, summary?, layers, duration?, bpm?, globals?, automation?, ideaId?, chain?, origin? }
                                               → { look, imported? }  origin: an import (SPEC-offline "Look files"):
                                               201 added, or 200 updating the importer's look it names, `imported`
-                                              'added' | 'updated' | 'unchanged'; 429 at 500 looks (an account's
-                                              most, which an idea's new look also keeps to: it fails)
+                                              'added' | 'updated' | 'unchanged'; 429 at the account's limits
+                                              (above)
 GET    /api/looks/:id                         → { look }             mine, or shared
 PUT    /api/looks/:id { title?, summary?, layers?, duration?, bpm?, globals?, automation?, shared?, reviewed?,
                      flashOverride?, chain?, restoredFrom?, versionName? } → { look }  owner only (reviewed: a

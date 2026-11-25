@@ -7,6 +7,7 @@ import { isPending, transition } from '../shared/idea-status.ts';
 import { DEEP, type FlashSettings, GuestBody, type Idea, IdeaBody, Login, RefineBody, Signup }
   from '../shared/schemas/api.ts';
 import type { AccessControl } from './access.ts';
+import { perAccount } from './account-limit.ts';
 import { accessRoutes, sendRefusal } from './api-access.ts';
 import { ideaHowRoutes } from './api-idea-how.ts';
 import { ideaLogRoutes } from './api-idea-log.ts';
@@ -73,7 +74,8 @@ export const newestBy = (field: string) => (a: Record<string, unknown>, b: Recor
 export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: Registry | null, log: Log,
   loaders: ReturnType<typeof createLoaders>, access: AccessControl, framesDir: string,
   bakes: ReturnType<typeof createBakeQueue>, frames: ReturnType<typeof createFramesCache>, secureCookies?: boolean,
-  rateLimit?: { max?: number, ipMax?: number, guestMax?: number, windowMs?: number }, flash: FlashSettings, hub: Hub,
+  rateLimit?: { max?: number, ipMax?: number, guestMax?: number, windowMs?: number, writeMax?: number },
+  flash: FlashSettings, hub: Hub,
   live: LiveSettings, ideaLogs: IdeaLogs, previews?: ReturnType<typeof createPreviews>, reports: Reports,
   build: string, tail: () => unknown[], light: LightStore, profile?: Profile, piBundle?: string,
   baking?: Parameters<typeof bakingRoutes>[0], stats?: Parameters<typeof routes>[1],
@@ -81,7 +83,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
   lights?: Pick<Parameters<typeof lightsRoutes>[0], 'store' | 'feed' | 'hub' | 'drive'> }) {
   const { store, auth, queue, models, loaders, log, access } = o;
   const { bakes, framesDir, frames, secureCookies = false, flash } = o;
-  const limits = { max: 10, ipMax: 100, guestMax: 10, windowMs: 60_000, ...o.rateLimit };
+  const limits = { max: 10, ipMax: 100, guestMax: 10, windowMs: 60_000, writeMax: 120, ...o.rateLimit };
   const profile = o.profile ?? 'hosted', gen = generates(profile);
   return async (api: FastifyInstance) => {
     api.addHook('onRequest', checkMutation);
@@ -117,8 +119,10 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
     const cookie = (maxAge: number) => ({ httpOnly: true, sameSite: 'lax' as const, path: '/', maxAge,
       secure: secureCookies });
     const dropFrames = (id: string) => removeFrames(framesDir, id).then(() => frames.prune());
+    const limitWrites = perAccount(api, { name: 'look', windowMs: limits.windowMs, max: limits.writeMax,
+      why: 'Too many saves for now. Try again in a minute.' });
     const looks = lookRoutes({ store, auth, bakes, dropFrames, previews: o.previews, loadLibrary: loaders.loadLibrary,
-      codeGate: o.codeGate, log });
+      codeGate: o.codeGate, limitWrites, log });
     const own = (req: FastifyRequest) => {
       const idea = store.ideas.get((req.params as { id: string }).id);
       if (!idea || idea.owner !== req.user!.id) throw new HttpError(404, 'Idea not found.');

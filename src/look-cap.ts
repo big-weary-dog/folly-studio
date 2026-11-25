@@ -1,11 +1,30 @@
-// The most looks one account keeps (SPEC "HTTP API"): POST /api/looks and an idea's new look both keep to it.
-import type { Store } from './store.ts';
+// What one account's looks may hold (SPEC "HTTP API"): POST /api/looks and an idea's new look keep to the count and
+// the bytes; a change to a look keeps to the bytes when it grows them.
+import type { Store, StoredLook } from './store.ts';
 
 export const MAX_LOOKS_PER_USER = 500;
+/** An account's looks with their versions, as stored. */
+export const MAX_LOOK_BYTES_PER_USER = 20 * 2 ** 20;
 
-/** Throws `fail(why)` when `owner` has MAX_LOOKS_PER_USER looks already. */
-export function roomForLook(store: Pick<Store, 'looks'>, owner: string, fail: (why: string) => Error) {
-  if (store.looks.list((l) => l.owner === owner).length >= MAX_LOOKS_PER_USER) {
+const sizeOf = (look: Partial<StoredLook>) => Buffer.byteLength(JSON.stringify(look));
+const full = (fail: (why: string) => Error) => fail(
+  `Your looks hold ${MAX_LOOK_BYTES_PER_USER / 2 ** 20} MB, the most an account keeps; delete some first.`);
+
+/** Throws `fail(why)` when `owner` has MAX_LOOKS_PER_USER looks already, or `look` would take its looks past the
+ * bytes. */
+export function roomForLook(store: Pick<Store, 'looks'>, owner: string, fail: (why: string) => Error,
+  look: Partial<StoredLook> = {}) {
+  if (store.looks.count((l) => l.owner === owner) >= MAX_LOOKS_PER_USER) {
     throw fail(`You have ${MAX_LOOKS_PER_USER} looks; delete some first.`);
+  }
+  if (store.looks.bytes((l) => l.owner === owner) + sizeOf(look) > MAX_LOOK_BYTES_PER_USER) throw full(fail);
+}
+
+/** Throws `fail(why)` when `was` becoming `now` grows its owner's looks past the bytes. */
+export function roomToGrow(store: Pick<Store, 'looks'>, was: StoredLook, now: StoredLook,
+  fail: (why: string) => Error) {
+  const grows = sizeOf(now) - sizeOf(was);
+  if (grows > 0 && store.looks.bytes((l) => l.owner === was.owner) + grows > MAX_LOOK_BYTES_PER_USER) {
+    throw full(fail);
   }
 }

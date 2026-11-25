@@ -41,7 +41,7 @@ export function liveRoutes({ store, auth, hub, settings, listed }: { store: Stor
     api.get('/live', (req) => ({ live: hub.live, now: serverNow(), control: mayControl(req.user!) }));
     api.get('/live/looks', (req) => {
       if (!mayControl(req.user!)) throw new HttpError(403, 'Only controllers pick what plays.');
-      return { looks: store.looks.list((l) => playableLook(l, settings)).map(listed)
+      return { looks: store.looks.list((l) => playableLook(l, settings), ['versions']).map(listed)
         .sort((a, b) => a.title.localeCompare(b.title)) };
     });
     api.get('/live/socket', {
