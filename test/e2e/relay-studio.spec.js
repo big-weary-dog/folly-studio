@@ -60,7 +60,7 @@ test('a curator sends the look being edited to the lights; an unsaved edit reach
       await level.press('Enter');
       await expect(page.locator('.studio.is-dirty')).toHaveCount(1);
       await expect.poll(() => stats().watts, { timeout: 10_000 }).toBeGreaterThan(50);
-      await page.getByRole('button', { name: 'To the lights' }).click();
+      if (!(await panel.isVisible())) await page.getByRole('button', { name: 'To the lights' }).click();
     }
     await page.waitForTimeout(3000);
     expect(stats().relay.on).toBe(true);
