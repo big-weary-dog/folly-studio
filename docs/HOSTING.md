@@ -297,8 +297,9 @@ are capped only by your account's own limit (its pid namespace and wall clock st
 ## Backups
 
 Every deploy writes and enables a timer, `folly-studio-backup.timer` (`folly-studio-dev-backup.timer` for the dev
-instance), that runs `deploy/backup.sh` from the live release daily at 04:15, or at the next start when the machine
-was off then. It writes `folly-studio-<date>.tar.gz` of the data folder's JSON files into `STUDIO_BACKUP_DIR`, keeps
+instance), that runs `deploy/backup.sh` daily at 04:15, or at the next start when the machine was off then. It runs
+the copy of it and `tools/backup.ts` that the last deploy left in `~/.local/share/folly-studio/folly-studio-backup/`,
+so a rollback to a release from before the timer keeps backing up. It writes `folly-studio-<date>.tar.gz` of the data folder's JSON files into `STUDIO_BACKUP_DIR`, keeps
 the newest `STUDIO_BACKUP_KEEP` there, and copies each new one to `STUDIO_BACKUP_OFFSITE` when that is set:
 
 ```sh

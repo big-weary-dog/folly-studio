@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# The daily backup, run by the <unit>-backup timer deploy/host.sh writes (docs/HOSTING.md "Backups"), from the live
-# release: a .tar.gz of STUDIO_DATA's JSON files in STUDIO_BACKUP_DIR (both set by the unit), the newest
+# The daily backup, run by the <unit>-backup timer deploy/host.sh writes (docs/HOSTING.md "Backups"), from the copy
+# of this and tools/backup.ts the last deploy made: a .tar.gz of STUDIO_DATA's JSON files in STUDIO_BACKUP_DIR (both set by the unit), the newest
 # STUDIO_BACKUP_KEEP (default 14) kept there, then the new one copied to STUDIO_BACKUP_OFFSITE when that is set,
 # with rsync (a path, or host:path over ssh with a key). Any failure exits non-zero: the unit fails, and its journal
 # says why.

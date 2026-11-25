@@ -10,7 +10,8 @@
 // from one moment. Any error but a file removed meanwhile fails the backup rather than leave a file out. Baked
 // frames (frames/*.fseq) only with --frames: the render box can bake them again. Their wire folders never
 // (rebuilt on demand). The archive is written beside its final name, synced, then renamed into place.
-// It holds password hashes and session hashes: keep it as private as the server.
+// It holds password hashes and session hashes: keep it as private as the server. It imports node's modules alone:
+// deploy/host.sh copies it, with deploy/backup.sh, out of the release for the daily timer.
 
 import { constants as FS, createWriteStream, promises as fs, type Stats } from 'node:fs';
 import path from 'node:path';

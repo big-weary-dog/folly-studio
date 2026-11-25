@@ -39,6 +39,9 @@ describe('npm run host: releases', () => {
     git(origin, 'commit', '--quiet', '-m', 'before');
     before = git(origin, 'rev-parse', 'HEAD');
     copyFileSync(SCRIPT, path.join(origin, 'deploy', 'host.sh'));
+    mkdirSync(path.join(origin, 'tools'));
+    for (const file of ['deploy/backup.sh', 'tools/backup.ts'])
+      copyFileSync(fileURLToPath(new URL(`../${file}`, import.meta.url)), path.join(origin, file));
     commits = ['a', 'b', 'c', 'd'].map((name) => {
       writeFileSync(path.join(origin, 'version'), name);
       git(origin, 'add', '.');
@@ -90,21 +93,29 @@ describe('npm run host: releases', () => {
     assert.match(unit, /^Restart=on-failure$/m);
   });
 
-  test('writes and starts the daily backup timer, which runs the current release\'s backup', () => {
+  test('writes and starts the daily backup timer, whose backup outlives a rollback to a release without one', () => {
     const r = ok([a()]);
     const units = path.join(home, '.config', 'systemd', 'user');
     const service = readFileSync(path.join(units, 'folly-studio-backup.service'), 'utf8');
-    // Every release's host.sh, an older one on a rollback too, takes a unit in current or the checkout for another
-    // instance's: the backup's runs in current/deploy.
-    assert.match(service, new RegExp(`^WorkingDirectory=${checkout}/current/deploy$`, 'm'));
-    assert.ok(service.includes(`\nExecStart=/usr/bin/env "STUDIO_DATA=${checkout}/my data" `
-      + `"STUDIO_BACKUP_DIR=${checkout}/my data-backups" bash backup.sh\n`), service);
+    // Outside the checkout: an older release's host.sh takes a unit in current or the checkout for another instance's.
+    const runner = path.join(home, '.local', 'share', 'folly-studio', 'folly-studio-backup');
+    assert.match(service, new RegExp(`^WorkingDirectory=${runner}$`, 'm'));
+    const command = `/usr/bin/env "STUDIO_DATA=${checkout}/my data" "STUDIO_BACKUP_DIR=${checkout}/my data-backups" `
+      + 'bash deploy/backup.sh';
+    assert.ok(service.includes(`\nExecStart=${command}\n`), service);
     const timer = readFileSync(path.join(units, 'folly-studio-backup.timer'), 'utf8');
     assert.match(timer, /^OnCalendar=\*-\*-\* 04:15$[\s\S]*^Persistent=true$/m);
     assert.match(r.calls,
       /enable --quiet folly-studio folly-studio-backup\.timer[\s\S]*restart folly-studio-backup\.timer/);
     ok([b()]);
     ok(['--rollback']);
+    // The unit's command with no release to run from, as after a rollback to one from before the timer.
+    rmSync(path.join(checkout, 'releases'), { recursive: true });
+    mkdirSync(path.join(checkout, 'my data'));
+    writeFileSync(path.join(checkout, 'my data', 'users.json'), '[]\n');
+    const run = spawnSync('sh', ['-c', command], { cwd: runner, encoding: 'utf8', timeout: 30_000 });
+    assert.equal(run.status, 0, run.stdout + run.stderr);
+    assert.equal(readdirSync(path.join(checkout, 'my data-backups')).length, 1);
   });
 
   test('a refused setting leaves the live release and the service as they were', () => {

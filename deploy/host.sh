@@ -166,8 +166,15 @@ KillMode=mixed
 [Install]
 WantedBy=default.target
 EOF
-# The daily backup (docs/HOSTING.md "Backups"), from whichever release is current when it runs. Its working directory
-# is not the checkout's current: every release's check above, a rollback's too, takes that for another instance's.
+# The daily backup (docs/HOSTING.md "Backups") runs this release's backup from a copy outside the checkout, so a
+# rollback to a release without one keeps it working (and an older release's check above never sees its unit).
+runner=${XDG_DATA_HOME:-$HOME/.local/share}/folly-studio/$unit-backup
+mkdir -p "$runner/deploy" "$runner/tools"
+for file in deploy/backup.sh tools/backup.ts; do
+  cp "$file" "$runner/$file.new"
+  mv -f "$runner/$file.new" "$runner/$file"
+done
+echo '{ "type": "module" }' > "$runner/package.json"
 cat > "$units/$unit-backup.service" <<EOF
 # Written by deploy/host.sh; run it again rather than editing this.
 [Unit]
@@ -175,10 +182,10 @@ Description=Folly Studio${instance:+ ($instance)} backup ($root)
 
 [Service]
 Type=oneshot
-WorkingDirectory=$root/current/deploy
+WorkingDirectory=$runner
 EnvironmentFile=$env_file
 Environment=$path_env
-ExecStart=/usr/bin/env $(arg "STUDIO_DATA=$data") $(arg "STUDIO_BACKUP_DIR=$backups") bash backup.sh
+ExecStart=/usr/bin/env $(arg "STUDIO_DATA=$data") $(arg "STUDIO_BACKUP_DIR=$backups") bash deploy/backup.sh
 Nice=10
 EOF
 cat > "$units/$unit-backup.timer" <<EOF
