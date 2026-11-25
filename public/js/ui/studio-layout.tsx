@@ -128,7 +128,7 @@ function ExportMenu({ st, pv }: { st: Studio; pv: Preview }) {
     document.addEventListener('click', outside);
     return () => document.removeEventListener('click', outside);
   }, [open]);
-  const item = (text: string, run: () => void, cls?: string) => <button type="button" role="menuitem" class={cls}
+  const item = (text: string, run: () => void) => <button type="button" role="menuitem"
     onClick={() => { setOpen(false); run(); }}>{text}</button>;
   const onKey = (e: KeyboardEvent) => {
     const items = [...(menu.current?.querySelectorAll('button') || [])];
@@ -142,7 +142,8 @@ function ExportMenu({ st, pv }: { st: Studio; pv: Preview }) {
       <button type="button" class="btn" ref={btn} aria-haspopup="true" aria-expanded={open}
         onClick={() => setOpen(!open)}>Export</button>
       <div class="menu" role="menu" ref={menu} hidden={!open} onKeyDown={onKey}>
-        {item('Export .fseq…', () => exporter().then((m) => m.exportFseq(st, pv)), 'wide-only')}
+        {!st.narrow.value && advanced.value   // wide, Advanced (SPEC-studio "Simple")
+          && item('Export .fseq…', () => exporter().then((m) => m.exportFseq(st, pv)))}
         {item('Check & bake…', () => openBake(st, pv))}
         {item('Export look JSON', () => exporter().then((m) => m.exportJson(st)))}
       </div>
