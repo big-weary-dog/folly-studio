@@ -9,9 +9,11 @@ const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
 /** Whether Delete may be pressed, what the form notes about the count, and the confirm's question. */
 export function deleting(count: Counting, username: string) {
   if (!count) return { ready: false, note: 'Counting your looks…' };
-  if ('error' in count) return { ready: false, note: `Your looks could not be counted (${count.error}). Reload to try again.` };
+  if ('error' in count) {
+    return { ready: false, note: `Your looks could not be counted (${count.error}). Reload to try again.` };
+  }
   const looks = count.all ? ` and its ${plural(count.all, 'look')}${count.shared
     ? ` (${count.shared} shared in the gallery)` : ''}` : '';
-  return { ready: true, note: count.all ? `${plural(count.all, 'look')}${count.shared ? `, ${count.shared} shared` : ''}`
-    : 'no looks', question: `Delete the account ${username}${looks}? This cannot be undone.` };
+  const note = count.all ? `${plural(count.all, 'look')}${count.shared ? `, ${count.shared} shared` : ''}` : 'no looks';
+  return { ready: true, note, question: `Delete the account ${username}${looks}? This cannot be undone.` };
 }
