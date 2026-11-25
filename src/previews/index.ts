@@ -11,6 +11,7 @@ import path from 'node:path';
 
 import type { Rig } from '../../shared/schemas/rig.ts';
 import { bakeSeconds, createLane, framesPath, layersHash, renderFields, writeAtomic } from '../bake.ts';
+import { createFailures } from '../failures.ts';
 import type { Logger } from '../http.ts';
 import type { RenderBox } from '../render-box.ts';
 import type { Store, StoredLook } from '../store.ts';
@@ -48,7 +49,7 @@ export function createPreviews({ dir, store, box, framesDir, loadRig, lane = cre
   framesDir: string,
   loadRig: () => Rig | null, lane?: ReturnType<typeof createLane>, log?: Logger, loop?: Loop, camera?: Camera }) {
   const have = new Map<string, string>(); // look id → the key of its preview on disk
-  const failed = new Set<string>();       // id:key that could not be made (until a restart)
+  const failed = createFailures();       // id:key that could not be made (retried after a while)
   const pending: string[] = [];
   let running: Promise<void> | null = null, stopped = false;
   const ready = fs.mkdir(dir, { recursive: true }).then(() => fs.readdir(dir)).then((names) => {

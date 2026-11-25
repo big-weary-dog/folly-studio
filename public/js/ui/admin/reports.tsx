@@ -7,7 +7,7 @@ import { useEffect, useState } from 'preact/hooks';
 
 import type { ReportSummary } from '../../../../shared/schemas/report.ts';
 import { api } from '../../api.ts';
-import { cx, timeAgo } from '../kit.tsx';
+import { cx, Pending, timeAgo } from '../kit.tsx';
 import { setTitle, type ViewProps } from '../session.ts';
 import { usePhone } from '../phone/viewport.ts';
 import { fileBugReport } from '../bug-report/bug-report.tsx';
@@ -32,7 +32,7 @@ export function ReportsPage({ query }: ViewProps) {
       <h1 class="page-title">Reports</h1>
       <p class="lede">What people sent with F8 (or "Report a problem"). Workers read them with
         <code> node tools/reports.ts list</code>.</p>
-      {!list ? <p class={error ? 'form-error' : 'pane-hint'}>{error || 'Loading…'}</p>
+      {!list ? <Pending error={error} />
         : !list.length ? <p class="pane-hint">No reports yet.</p>
         : <ul class="report-list">{list.map((r) => <li key={r.id} class={cx('report-row', open === r.id && 'open')}>
           <button type="button" class="report-head" aria-expanded={open === r.id}
@@ -54,7 +54,7 @@ export function ReportsPage({ query }: ViewProps) {
 function ReportDetail({ id }: { id: string }) {
   const [r, setR] = useState<Full | null>(null), [error, setError] = useState('');
   useEffect(() => { api.bugReport(id).then((x) => setR(x.report), (err) => setError((err as Error).message)); }, [id]);
-  if (!r) return <p class={error ? 'form-error' : 'pane-hint'}>{error || 'Loading…'}</p>;
+  if (!r) return <Pending error={error} />;
   const server = r.server as { build?: string; logs?: { at: string; level: string; text: string }[] } | undefined;
   const { studio, look } = (r.sources ?? {}) as { studio?: { clock?: { t?: number } }, look?: { id?: unknown } };
   return (

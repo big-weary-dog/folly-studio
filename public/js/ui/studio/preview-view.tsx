@@ -6,7 +6,7 @@ import '../../../css/viewer.css';
 import { useComputed, useSignalEffect } from '@preact/signals';
 import { useEffect, useId, useRef } from 'preact/hooks';
 
-import { cx } from '../kit.tsx';
+import { cx, mb } from '../kit.tsx';
 import type { Preview } from './preview.ts';
 import { Rose } from '../rose.tsx';
 import type { Studio } from './store.ts';
@@ -14,7 +14,6 @@ import type { Studio } from './store.ts';
 const REDUCE = matchMedia('(prefers-reduced-motion: reduce)');
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const clock = (t: number) => `${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, '0')}`;
-export const mb = (bytes: number) => `${(bytes / 1e6).toFixed(bytes < 1e8 ? 1 : 0)} MB`;
 type Props = { st: Studio; pv: Preview };
 
 export function PreviewPane({ st, pv, els }: Props & { els: Record<string, HTMLElement> }) {

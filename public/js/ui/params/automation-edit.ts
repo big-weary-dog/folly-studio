@@ -1,8 +1,8 @@
 // Make a timeline lane, optionally binding a setting to it, in one undoable look edit.
 import type { Binding } from '../../../../shared/schemas/look.ts';
-import { MAX_LANES, MAX_MACROS } from '../../../../core/globals.ts';
+import { isBinding, MAX_LANES, MAX_MACROS } from '../../../../core/globals.ts';
 import { flatModules, mapModule } from '../../../../core/tree.ts';
-import { isBinding, type Param } from './bindings.ts';
+import type { Param } from './bindings.ts';
 import { humanize, toast } from '../kit.tsx';
 import { freeName } from '../globals/look-globals-edit.ts';
 import { editValue, readEdit } from './pick-model.ts';

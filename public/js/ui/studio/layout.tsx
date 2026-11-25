@@ -7,7 +7,7 @@ import { openBake } from './bake.tsx';
 import { ChainPane } from '../chain/chain.tsx';
 import { deleteLook, mayDelete } from '../gallery/delete-look.ts';
 import { DrawerSlot } from './drawer.tsx';
-import { cx, Field, humanize, lazy, pref, Switch, useLazy } from '../kit.tsx';
+import { cx, Field, humanize, lazy, Switch, useLazy } from '../kit.tsx';
 import { ISSUE_LABELS } from './layer-status.ts';
 import { HistoryButton } from '../history/button.tsx';
 import { LayersPane } from '../layers/layers.tsx';
@@ -16,6 +16,7 @@ import type { Preview } from './preview.ts';
 import { PreviewPane } from './preview-view.tsx';
 import { advanced, navigate, user } from '../session.ts';
 import { onSideHead, SideDivider } from './side-panels.tsx';
+import { Splitter } from './splitter.tsx';
 import type { Dock, Studio } from './store.ts';
 import { Timeline } from '../timeline/timeline.tsx';
 import type { TimelineState } from '../timeline/state.ts';
@@ -40,11 +41,12 @@ export function StudioLayout({ st, pv, tl, els }: Props & { els: Record<string, 
         {` — “${st.server.value?.title}” by ${st.server.value?.ownerName || 'someone else'}. Play with it freely; `
           + 'Save makes your own copy.'}<AdminDelete st={st} /></div>}
       <PreviewPane st={st} pv={pv} els={els} />
-      <Splitter studio={root} setResizing={setResizing} />
+      <Splitter box={root} pane=".pane-code" prop="--code-h" keep="studio.split" min={15} max={75} rest={36}
+        grows={-1} class="splitter" label="Resize the bottom panel" onResizing={setResizing} />
       <PhoneTabs st={st} ph={ph} />
       <div class="side" data-pane="layers" data-side={narrow ? undefined : st.side.value} ref={side}
         onClick={narrow ? openOnTap(st, ph) : (e) => onSideHead(st, e)}>
-        <LayersPane st={st} pv={pv} />{narrow ? <SettingsHead st={st} ph={ph} /> : <SideDivider side={side} />}
+        <LayersPane st={st} pv={pv} />{narrow ? <SettingsHead st={st} ph={ph} /> : <SideDivider box={side} />}
         <ChainPane st={st} pv={pv} /></div>
       {!narrow && <DockPane st={st} pv={pv} tl={tl} />}
       {narrow && <LookTab st={st} />}
@@ -177,43 +179,6 @@ function DockPane({ st, pv, tl }: Props) {
 function DockIssue({ st }: { st: Studio }) {
   const p = st.problem.value;
   return <span class="dock-issue" data-kind={p?.kind} hidden={!p}>{p && ISSUE_LABELS[p.kind]}</span>;
-}
-
-/** The splitter sizes the dock, one height on every tab (a share of the Studio's height, kept per browser), set on
- * the Studio's style directly. */
-function Splitter({ studio, setResizing }: { studio: { current: HTMLDivElement | null };
-  setResizing: (on: boolean) => void }) {
-  const [now, setNow] = useState(() => { const v = Number(pref('studio.split')); return v >= 15 && v <= 75 ? v : 0; });
-  const drag = useRef<{ y: number; h: number; total: number } | null>(null);
-  const set = (pct: number) => {
-    studio.current?.style.setProperty('--code-h', `${pct.toFixed(1)}%`);
-    setNow(pct);
-    pref('studio.split', pct.toFixed(1));
-  };
-  useLayoutEffect(() => { if (now) studio.current?.style.setProperty('--code-h', `${now}%`); }, []);
-  const end = () => { if (drag.current) { drag.current = null; setResizing(false); } };
-  return (
-    <div class="splitter" role="separator" aria-orientation="horizontal" tabindex={0}
-      aria-label="Resize the bottom panel"
-      aria-valuemin={15} aria-valuemax={75} aria-valuenow={now ? Math.round(now) : undefined}
-      onPointerDown={(e) => {
-        const s = studio.current, pane = s?.querySelector('.pane-code');
-        if (!s || !pane) return;
-        drag.current = { y: e.clientY, h: pane.getBoundingClientRect().height,
-          total: s.getBoundingClientRect().height };
-        e.currentTarget.setPointerCapture(e.pointerId);
-        setResizing(true);
-      }}
-      onPointerMove={(e) => {
-        const d = drag.current;
-        if (d) set(Math.min(75, Math.max(15, ((d.h + d.y - e.clientY) / d.total) * 100)));
-      }}
-      onPointerUp={end} onPointerCancel={end}
-      onKeyDown={(e) => {
-        const cur = now || 36;
-        if (e.key === 'ArrowUp') { e.preventDefault(); set(Math.min(75, cur + 4)); }
-        if (e.key === 'ArrowDown') { e.preventDefault(); set(Math.max(15, cur - 4)); }
-      }} />);
 }
 
 /** The Look panel (the globals) loads when the Look tab of the dock, or a phone's, first shows. */
