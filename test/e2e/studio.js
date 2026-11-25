@@ -5,13 +5,12 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { test as base } from '@playwright/test';
+import { expect, test as base } from '@playwright/test';
 
-import { createServer } from '../../src/app.ts';
+import { serve } from '../fixtures/app.js';
 import { builtApp } from '../fixtures/build.js';
 
-export { expect } from '@playwright/test';
-export const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
+export { expect };
 
 export const test = base.extend({
   serverOptions: [{}, { scope: 'worker', option: true }],
@@ -31,10 +30,8 @@ export const test = base.extend({
   }, { scope: 'worker' }],
   studio: [async ({ serverOptions }, use) => {
     const dataDir = await mkdtemp(path.join(os.tmpdir(), 'studio-browser-'));
-    const app = await createServer({ dataDir, distDir: await builtApp(), log: quiet,
-      ...serverOptions });
-    const { port } = await app.listen(0, '127.0.0.1');
-    await use({ app, origin: `http://127.0.0.1:${port}` });
+    const app = await serve({ dataDir, distDir: await builtApp(), ...serverOptions });
+    await use({ app, origin: app.base });
     await app.close();
     await rm(dataDir, { recursive: true, force: true });
   }, { scope: 'worker', timeout: 120_000 }],
@@ -46,4 +43,17 @@ export async function signup(origin, username, password = 'correct horse') {
     headers: { 'content-type': 'application/json' } });
   if (res.status !== 201) throw new Error(`signup ${username}: ${res.status} ${await res.text()}`);
   return res.headers.getSetCookie()[0].split(';')[0];
+}
+
+/** Signs `username` up in `request`'s context (a page's or a browser context's), which keeps its session. */
+export async function signupIn(request, origin, username, password = 'correct horse') {
+  const res = await request.post(`${origin}/api/signup`, { data: { username, password } });
+  expect(res.status(), `signup ${username}`).toBe(201);
+  return res;
+}
+
+/** Signs a browser context in with an account's session cookie (`signup`'s). */
+export async function signIn(context, origin, cookie) {
+  const [name, value] = cookie.split('=');
+  await context.addCookies([{ name, value, url: origin }]);
 }

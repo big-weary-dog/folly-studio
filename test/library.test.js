@@ -9,11 +9,11 @@ import { describe, test } from 'vitest';
 import { compileLayer, compilePattern, prepareLayer, prepareLook, prepareScene, renderFrame } from
   '../public/js/pattern-core.ts';
 import { folly, mini } from './fixtures/rigs.js';
+import { libraryCode as source, libraryIndex } from './fixtures/patterns.js';
 
 const here = (p) => new URL(p, import.meta.url);
-const index = JSON.parse(readFileSync(here('../public/patterns/index.json'), 'utf8'));
+const index = libraryIndex();
 const { palettes } = JSON.parse(readFileSync(here('../public/data/palettes.json'), 'utf8'));
-const source = (name) => readFileSync(here(`../public/patterns/${name}.js`), 'utf8');
 const scene = prepareScene(folly);
 const sources = index.filter((e) => e.kind === 'source').map((e) => e.name);
 const SECOND = palettes.find((p) => p.name === 'vapour');

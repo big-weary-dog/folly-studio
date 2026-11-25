@@ -1,10 +1,9 @@
 // npm run smoke: ∿'s popover fits a laptop's screen with no scrolling inside it, in every mode (LFO, a modulator or
 // macro, and the modulator's own nested ∿), and stays on screen; on a phone it is a sheet. A speed's beat clock.
-import { readFileSync } from 'node:fs';
 
-import { expect, signup, test } from './studio.js';
+import { expect, signIn, signup, test } from './studio.js';
+import { libraryCode as code } from '../fixtures/patterns.js';
 
-const code = (name) => readFileSync(new URL(`../../public/patterns/${name}.js`, import.meta.url), 'utf8');
 const look = { title: 'Breathing bars', duration: 16, bpm: 120, layers: [
   { title: 'Bars', modules: [{ id: 'm1', kind: 'source', ref: 'bars', code: code('bars'),
     params: { speed: { mod: 'global', name: 'breath', from: 0.2, to: 1.2 } } }] },
@@ -22,8 +21,7 @@ async function open(page, studio, user) {
     headers: { 'content-type': 'application/json', cookie } });
   expect(res.status).toBe(201);
   const { look: { id } } = await res.json();
-  const [name, value] = cookie.split('=');
-  await page.context().addCookies([{ name, value, url: studio.origin }]);
+  await signIn(page.context(), studio.origin, cookie);
   await page.goto(`${studio.origin}/studio/${id}`);
   const phone = page.viewportSize().width < 900;
   if (phone) {

@@ -3,7 +3,7 @@
 // no box. A look with a module the Studio has no code for and one that throws as it plays (the page's library lacks
 // one module and has another throw): those two layers add nothing and say why on their cards; the rest keeps playing
 // through every loop, lit, every box still.
-import { expect, signup, test } from './studio.js';
+import { expect, signIn, signup, test } from './studio.js';
 
 test.use({ viewport: { width: 1366, height: 768 }, launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'],
   args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] } });
@@ -65,8 +65,7 @@ async function playWithTimeline(page) {
 
 test('the new look loops with the timeline open and nothing jumps', async ({ page, studio }) => {
   const { origin } = studio;
-  const [name, value] = (await signup(origin, 'wrap')).split('=');
-  await page.context().addCookies([{ name, value, url: origin }]);
+  await signIn(page.context(), origin, await signup(origin, 'wrap'));
   await page.goto(`${origin}/studio`);
   const bar = await page.evaluate(() => {
     const d = Object.assign(document.createElement('div'), { style: 'overflow: scroll; width: 100px' });
@@ -90,8 +89,7 @@ test('the new look loops with the timeline open and nothing jumps', async ({ pag
 test('a looping look: broken layers say why, the rest plays on, nothing jumps', async ({ page, studio }, info) => {
   const { origin } = studio;
   const cookie = await signup(origin, 'looper');
-  const [name, value] = cookie.split('=');
-  await page.context().addCookies([{ name, value, url: origin }]);
+  await signIn(page.context(), origin, cookie);
   const res = await fetch(`${origin}/api/looks`, { method: 'POST', body: JSON.stringify(LOOK),
     headers: { cookie, 'content-type': 'application/json' } });
   expect(res.status, await res.clone().text()).toBeLessThan(300);

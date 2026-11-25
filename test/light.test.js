@@ -10,7 +10,8 @@ import { addLight, encode, previewChannels, shownLight, toLight, toValue } from 
 import { LIGHT, ledChannels, ledLight, lightOf, prepareLight, prepareScene } from '../public/js/pattern-core.ts';
 import { createLightStore } from '../src/light.ts';
 import { mini } from './fixtures/rigs.js';
-import { client, fx, signup, startApp, useFixture } from './fixtures/server.js';
+import { client, signup } from './fixtures/app.js';
+import { fx, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 const scene = prepareScene(mini);

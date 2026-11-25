@@ -6,7 +6,7 @@ import http from 'node:http';
 import zlib from 'node:zlib';
 
 /** GET (or another method) counting the bytes on the wire: status line, headers and the body as sent. */
-export function request(port, url, { method = 'GET', headers = {}, body } = {}) {
+function request(port, url, { method = 'GET', headers = {}, body } = {}) {
   return new Promise((resolve, reject) => {
     const req = http.request({ host: '127.0.0.1', port, path: url, method, headers }, (res) => {
       const chunks = [];

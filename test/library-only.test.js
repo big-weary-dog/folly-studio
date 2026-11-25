@@ -10,7 +10,8 @@ import { beforeEach, test } from 'vitest';
 import { layersHash, renderFields } from '../src/bake.ts';
 import { MARKER, migrateLibraryOnly } from '../src/library-only-data.ts';
 import { lockDataDir } from '../src/store-lock.ts';
-import { fx, quiet, startApp, useFixture } from './fixtures/server.js';
+import { quiet } from './fixtures/quiet.js';
+import { fx, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 const WAVE = 'function pixel(p, t) { return [t, 0, 0]; }', OLD_WAVE = 'function pixel(p, t) { return [0, t, 0]; }';

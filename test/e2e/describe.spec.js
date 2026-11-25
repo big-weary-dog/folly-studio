@@ -3,7 +3,7 @@
 // DESCRIBE_SHOTS when set, else the test's output folder.
 import path from 'node:path';
 
-import { expect, test } from './studio.js';
+import { expect, signupIn, test } from './studio.js';
 
 const WORDS = 'Ember waves roll up the spires and settle into a slow red glow.';
 
@@ -14,7 +14,7 @@ for (const width of [390, 1366]) {
     await page.setViewportSize({ width, height: width < 600 ? 844 : 768 });
     const post = (url, data) => page.context().request.post(studio.origin + url, { data });
     const username = `describe-${width}`;
-    expect((await post('/api/signup', { username, password: 'correct horse' })).status()).toBe(201);
+    await signupIn(page.context().request, studio.origin, username);
     const { look } = await (await post('/api/looks', { title: `Ember drift ${width}`, layers: [] })).json();
     expect((await page.context().request.put(`${studio.origin}/api/looks/${look.id}`, { data: { shared: true } }))
       .ok()).toBe(true);

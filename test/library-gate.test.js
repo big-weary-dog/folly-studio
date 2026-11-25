@@ -6,7 +6,8 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { EMBERS as LIBRARY, fx, layer, signup, startApp, useFixture } from './fixtures/server.js';
+import { signup } from './fixtures/app.js';
+import { EMBERS as LIBRARY, fx, layer, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 const NEW = 'function pixel(p) { return [1, 0, 0]; }';
