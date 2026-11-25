@@ -12,9 +12,6 @@ import { customCode, libraryHashes } from '../src/box-library.ts';
 import { BakeError } from '../src/box-output.ts';
 import { parseFseq } from '../src/frames.ts';
 import { createRenderBox } from '../src/render-box.ts';
-import { boxDefaults } from '../src/profile.ts';
-import { loadBaked } from '../pi/src/baked.ts';
-import { prepareScene } from '../public/js/pattern-core.ts';
 import { fakeBox, fx, layer, signup, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
@@ -53,37 +50,21 @@ describe('library only', () => {
 
   const prlimit = ['/usr/bin', '/bin'].some((d) => fs.existsSync(path.join(d, 'prlimit')));
   const built = fs.existsSync(path.join(PUBLIC, 'data/rig.json'));
-  test('Pi defaults bake and play a full 600 s look; explicit caps still win', async ({ skip }) => {
+  test('a full 600 s look bakes; a shorter cap wins', async ({ skip }) => {
     skip(!prlimit, 'needs prlimit');
-    // Length and late clips do not depend on the installation's pixel count. Keep the real box and all 600 s,
-    // but avoid rendering and hashing hundreds of MB just to check its header and file-backed playback.
+    // Length does not depend on the installation's pixel count: the real box and all 600 s, on a small rig.
     const rig = JSON.parse(fs.readFileSync(new URL('./fixtures/rigs/mini.json', import.meta.url), 'utf8'));
-    rig.output.fps = 40; // FSEQ's integer millisecond step represents the Pi's 25 ms frames exactly.
+    rig.output.fps = 40; // FSEQ's integer millisecond step represents 25 ms frames exactly.
     const rigFile = path.join(fx.tmp, 'long-rig.json');
     fs.writeFileSync(rigFile, JSON.stringify(rig));
-    // Pi nice 19 intentionally yields to this suite's nice-0 workers; length is tested at their own priority.
     const options = { rigFile, bwrap: 'no-such-bwrap', systemdRun: '', nice: 0, log: quiet };
-    const box = createRenderBox({ ...boxDefaults('pi', {}), ...options });
+    const box = createRenderBox({ seconds: 600, ...options });
     const job = { layers: [libLayer(WASH, { groups: ['all'],
       clips: [{ start: 590, end: 600 }] })], seconds: 600 };
     const r = await box.render(job);
     const parsed = parseFseq(r.bytes, { maxBytes: box.config.maxFramesBytes, maxChannels: 1e6 });
     assert.equal(parsed.frameCount, 600 * rig.output.fps);
-    const file = path.join(fx.tmp, 'long.fseq');
-    fs.writeFileSync(file, r.bytes);
-    const { createHash } = await import('node:crypto');
-    const b = await loadBaked(fx.tmp, 'long', createHash('sha256').update(r.bytes).digest('hex'), prepareScene(rig));
-    const rgb = new Float32Array(rig.count * 3);
-    b.fill(595 * rig.output.fps, rgb);
-    assert.ok(rgb.some((v) => v > 0), 'the clip after 120 s reaches the lights');
-    b.fill(600 * rig.output.fps, rgb);
-    assert.ok(rgb.every((v) => v === 0));
-    b.fill(1195 * rig.output.fps, rgb);
-    assert.ok(rgb.some((v) => v > 0), 'playback loops to the late clip');
-    b.close();
-    fs.rmSync(file);
-    const capped = createRenderBox({ ...boxDefaults('pi', { STUDIO_BAKE_SECONDS: 1 }),
-      ...options });
+    const capped = createRenderBox({ seconds: 1, ...options });
     assert.equal(parseFseq((await capped.render(job)).bytes).frameCount, rig.output.fps);
   }, 120_000);
 

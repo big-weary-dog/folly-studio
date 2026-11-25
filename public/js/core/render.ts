@@ -118,7 +118,7 @@ type Run = { chain: Link[], warps: Link[], qs: Pixel[], c: number[], stages: Sta
 
 /** Layer L's frames, its attached runs that a spatial module reads (each into its pre), then its chain into L.buf
  * at pattern time T → null, or an error (its module in L.failed). */
-export function runChain(S: Scene, L: PreparedLayer, T: number, G: G) {
+function runChain(S: Scene, L: PreparedLayer, T: number, G: G) {
   let M: Link | null = null;
   PASS.at = null;
   try {

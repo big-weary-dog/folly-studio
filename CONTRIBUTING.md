@@ -16,11 +16,11 @@ npm run dev                  # Vite's dev server with HMR (Preact's: components 
 npm run build                # public/ → dist/: content-hashed files, the manifest, the sandbox page
 npm run check                # typecheck, lint, then every test: run it before you call anything done
 npm run check:fast           # a pre-check while iterating, not the gate: typecheck, lint, the tests that import
-                             #   what changed since origin/dev (and the library's when patterns, looks or rigs did)
+                             #   what changed since origin/dev (and the library's when patterns or rigs did)
 npm run typecheck            # tsc -p . (checks only, incremental: nothing is emitted)
 npm run lint                 # oxlint (.oxlintrc.jsonc), then node tools/budgets.ts; exit 1 on errors
 npx oxlint src/app.ts        # oxlint alone, on a file or a folder
-npm test                     # vitest run: test/ and pi/test/ *.test.{js,ts} (vitest.config.js; a fresh build of
+npm test                     # vitest run: test/ *.test.{js,ts} (vitest.config.js; a fresh build of
                              #   the app included), then every skipped test and why
 npx vitest run test/core.test.js     # one file (`-t <name>` for one test); `npm run test:watch` reruns on save
 npm run build-data           # rebuild public/data/rig.json (City of Gods) and rig-folly.json, palettes.json
@@ -57,16 +57,17 @@ pixel maps, the xLights shows, the Falcon's string config and the power model. S
 writes one: `LIGHTING_DIR`, by default `../lighting` beside this repo (`tools/sources.py`,
 `test/fixtures/sources.js`; set it in a worktree). `npm run build-data` builds `rig.json` from its
 `city-of-gods/pixel-map/out/` and `rig-folly.json` from its `show-builder/pixel-map/`, universes from each one's
-`xlights_networks.xml`; `pi/tools/build_power.py` builds `pi/data/power.json` from its `pixel-map/` Python.
+`xlights_networks.xml`; `tools/build_power.py` builds `tools/data/power.json` (the rose's expansion) from its
+`pixel-map/` Python.
 
 Lighting fits the wiring in the Falcon (virtual strings, Direction, a short strip's offset), so the channels its
-xLights models and sequences use stay put, and that channel space is what Studio sends. So
-`tools/check_channels.py` holds the rigs to lighting as it is: every LED on its xLights model's channels with
-the model's nodes running the way our LEDs do, every Falcon string of the newest
-`falcon-backups/*-cog-CERTIFIED.json` on whole LEDs of ours, each rose petal's string where the Pi expands it, and
-no LED dark in the Falcon but inside a strip it trims. `test/data.test.js` runs it and `build_rig.py --check`
-(skipping, saying so, without a checkout), so `npm run check` fails when lighting has moved: run
-`npm run build-data`, and where the channels themselves moved, see what lighting changed before following it.
+xLights models and sequences use stay put, and that channel space is what Studio sends. So `tools/check_channels.py`
+holds the rigs to lighting as it is: every LED on its xLights model's channels with the model's nodes running the way
+our LEDs do, every Falcon string of the newest `falcon-backups/*-cog-CERTIFIED.json` on whole LEDs of ours, each rose
+petal's string where its expansion (`tools/data/power.json`) puts it, and no LED dark in the Falcon but inside a strip
+it trims. `test/data.test.js` runs it and `build_rig.py --check` (skipping, saying so, without a checkout), so
+`npm run check` fails when lighting has moved: run `npm run build-data`, and where the channels themselves moved, see
+what lighting changed before following it.
 
 What lighting does not keep, and is only Studio's, is kept here in `tools/data/`: `output.json` (sACN, 40 fps, 510
 channels a universe, as TouchDesigner sends), `views.json` (the Folly's cameras), `mirage.json` (the sizes Mirage draws
@@ -80,7 +81,6 @@ To add a palette, add `tools/data/palettes/<name>.csv` with `slot,colour` rows (
 Run `python3 tools/build_palettes.py` to regenerate the catalogue. Mixed-family palettes can put both families
 in `body`, as patina, meadow, orchid, solstice, guava and voltage do; roles need not each be a single hue.
 Update the palette count in `docs/GENERATION.md` and the choices in `library-docs/README.md` too.
-Run `npm run pi:page` and commit `pi/page/dist` to update the Pi page's embedded palette catalogue.
 
 ## Dependencies
 
@@ -95,7 +95,6 @@ sandbox and the boxes take only our own code and the stdlib.
 | `typescript` 7.0.2 | `tsc` checks types (`npm run typecheck`, no emit); 7 is the native compiler, with the same CLI |
 | `vite` 8.3.4 | Builds `public/` into `dist/` (hashed names, a manifest, split views and styles, the sandbox page); the dev server |
 | `@types/node` 22.20.5 | The types of Node 22's built-ins, for `tsc` |
-| `@types/ws` 8.18.1 | The types of the socket @fastify/websocket hands us |
 | `oxlint` 1.88.0 | The lint (`.oxlintrc.jsonc`): reads `.js` and `.ts` alike, in well under a second; `tools/budgets.ts` does the rest |
 | `vitest` 5.0.5 | Runs the tests through the app's Vite config: `.ts` and Vite's imports as the build sees them, a process per file, a watch mode |
 | `@playwright/test` 1.56.1 | The browser checks (`smoke`, `perf`, `e2e`); pinned to the Chromium it drives (build 1194, as in `/opt/pw-browsers`) |
@@ -108,8 +107,6 @@ sandbox and the boxes take only our own code and the stdlib.
 | `@fastify/cookie` 11.1.3 | Reads and sets the session cookie |
 | `@fastify/rate-limit` 11.2.1 | The login limits: attempts per IP, failed ones per IP and username |
 | `@fastify/static` 10.1.6 | Serves `dist/`: the build's precompressed copies, ETags and Last-Modified, ranges, no dotfiles |
-| `@fastify/websocket` 11.3.1 | The live stage's socket: the upgrade runs through Fastify's hooks, so the session and Origin are checked as on any route |
-| `ws` 8.22.0 | The server's own socket to the Pi's engine (`src/pi-preview.ts`, `src/live/pi-feed.ts`) and the live tests' client; the version @fastify/websocket brings |
 | `@fastify/accept-negotiator` 2.1.1 | br or gzip from Accept-Encoding (q values, `*`) for API JSON and frame chunks, as @fastify/static picks |
 | `playwright-core` 1.56.1 | Runs the headless Chromium that draws the gallery previews in the Playa view (`deploy/host.sh` installs its headless shell); the same version `@playwright/test` uses |
 | `sharp` 0.35.5 | Writes the gallery previews' animated WebP from raw frames (prebuilt libvips; no ffmpeg on the host) |
@@ -189,7 +186,7 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `shared/plays.ts` | What plays (`PLAYS`, `playsOf`, `playsChanged`): the one list versions, bakes, the stage, the sandbox, export and the Studio's save and undo read (SPEC "Looks"); no zod, so the browser takes it at run time |
 | `shared/idea-status.ts` | Pure, so the browser imports it too: an idea's states (`IDEA_STATUS`), `isPending()` and `transition()`, which refuses a move that is not one |
 | `src/store.ts` | JSON-file storage under `STUDIO_DATA`, typed per collection; `store-lock.ts` keeps it to one server |
-| `src/clock.ts` | `monoNow()` for durations and `serverNow()` (the wall clock at boot, then monotonic) for Live: the host's wall clock can step back |
+| `src/clock.ts` | `monoNow()` for durations and `stamp()` for stored times: the host's wall clock can step back |
 | `src/static.ts` | The built app from `dist/` (@fastify/static: the precompressed copies, ETags, cache headers with `assets/` kept a year, the CSPs, the shell for SPA routes); the library and rig loaders |
 | `vite.config.js`, `tools/vite-sandbox.ts`, `tools/vite-compress.ts`, `tools/dev.ts` | The build (`public/` → `dist/`); the sandbox page, its scripts inlined; the `.br` and `.gz` copies of its text; `npm run dev` |
 | `src/frames.ts` | Pure: strict FSEQ parsing and frame analysis (brightness, flicker) |
@@ -197,15 +194,13 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `src/box-library.ts`, `baking.ts`, `custom-code.ts` | Where bakes run (`SPEC-baking.md`): which looks may save and bake (library code, by hash; custom code is off); the admin's bake setting (on, throttled, off) in front of the box, and its routes; the gate on saving (`generate/no-code.ts` holds a generator's rounds to it) |
 | `src/frames-wire.ts`, `frames-cache.ts`, `frames-http.ts`, `fseq-codec.ts` | Baked frames on the wire: the stream encoder; the chunks and downloads kept by hash under a disk cap, made one job at a time by the encoder thread; their routes; FSEQ zstd/zlib blocks |
 | `src/frames-worker.ts` | The encoder thread, at nice 10 |
-| `src/live/` | The live stage (`SPEC-live.md`): `state.ts` (pure: show time, pushes as lanes, loops), `hub.ts` (the sockets, presence, limits, `live.json`), `routes.ts` (the socket and its settings) |
 | `src/stats.ts` | The request log and Admin → Stats (SPEC-access "Stats"): a journal line per request worth reading, and the day's counts kept in memory, bounded |
 | `src/api-reports.ts`, `src/reports/` | F8 bug reports (SPEC "Bug reports"): their routes; `store.ts` (a folder per report, pruned by count, bytes and days), `build.ts` (the checkout's commit) |
 | `src/access.ts` | Who may use the paid models, and how much (SPEC-access "Access"): invite codes kept hashed, each account's ideas counted against the limits, the daily ceiling |
 | `src/generate/` | Idea → look: the queue (a lane per transport), the model registry (`models.ts`), adapters (`adapters.ts` maps each transport to its module, which exports its adapter and `probe()`: `claude`, `codex` with `proc.ts` for its one CLI call, `fleet`; a new transport is a row in `TRANSPORT_CAPS`, one there and its module), the prompt (`prompt.ts`, its text in `guide.ts`), the library as vocabulary (`catalog.ts`, the answer's schema `composition.ts`, its expansion into a look `expand.ts`; cleaning: `shared/schemas/generated.ts`) |
 | `render-box/render.ts`, `renderer.ts` | Bakes a look to `.fseq` inside bubblewrap; the frame loop it shares with `fleet-box/check.ts` |
 | `fleet-box/` | Checker and brief for a boxed Fleet worker |
-| `pi/` | The Pi's live engine and its page (`pi/page/`, which Studio's `/live` also uses); `pi/README.md` |
-| `public/index.html`, `css/` | The app shell and its styles: `base.css` (tokens, layout and components) on every page; the rest, one per view or panel (`liveplay.css` also for the Pi's page), imported by their views' modules, so Vite loads them with them |
+| `public/index.html`, `css/` | The app shell and its styles: `base.css` (tokens, layout and components) on every page; the rest, one per view or panel, imported by their views' modules, so Vite loads them with them |
 | `public/sandbox.html`, `js/sandbox-relay.ts`, `js/sandbox-worker.ts` | The sandboxed pattern runner (SPEC "Sandbox protocol"): the page Vite inlines them into; the relay and watchdog; the Worker |
 | `public/js/pattern-core.ts`, `core/` | Pure: stdlib (with palettes), picks (colour picks, pal() and swatch() per module), clocks (clock(): a speed param's integrated distance), compile, scene (the rig, its groups and tags), timeline, render (layers, in stages round spatial modules), chain (a chain made runnable, a composite's sub-layers as chains of their own), pass (the per-pixel pass through a chain, composites included), tree (a chain's modules as a tree: flat, mapped), warps (the one rule: a warp bends what is above it, up to a stage end), output (compositing, DMX channels), light (the one place colour values become light: the settings, the output transform, each byte's light), spatial (the neighbour graph and the native blur), links (the neighbour map: which LEDs touch, and wireDistance and rowOrder along it), globals (with automation and param bindings), flash (the flash check, for bakes and the preview alike); re-exported with their types (`Scene`, `PreparedLayer`, `Pixel`, …); runs in the sandbox, the boxes and tests |
 | `public/js/fseq.ts` | Pure: FSEQ v2 writer |
@@ -216,14 +211,14 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 | `public/js/viewer.ts`, `viewer-input.ts`, `viewer-gl.ts` | The 3D view (SPEC "The 3D view"): the orbit camera; its pointer and keys; the Points drawing |
 | `public/js/playa/` | The Playa view, loaded on first use: `geometry.ts` builds it from the rig's render hints, `renderer.ts` draws (light texture, spill, bloom, tone map, tiers), `glsl.ts` |
 | `public/js/main.tsx`, `api.ts` | The entry (renders the shell); the fetch wrapper, typed by `shared/schemas/`. A 401 from it (not `/me`, `/login`, `/signup`) calls `onSignedOut` (session.ts sends the person to sign in) and the call never settles, so views never handle a 401 themselves |
-| `public/js/ui/` | The UI, Preact components in TSX with signals for state. `app.tsx`: the shell, routing (history API, views loaded on first use) and the header, `session.ts` what views share with it (the user, navigation, the guard on unsaved edits); `auth`, `pages` (ideas, my looks, the gallery), `admin` (the Admin page's tabs, over `models`, `access`, `light`, `baking`, `reports` and `stats`); `kit.tsx` toasts, dialogs, fields and helpers, `rose.tsx` the rose. The Studio: `studio.tsx` loads it, `studio-store.ts` holds its state (the look, replaced on each edit; the selection; layout) and saves, `studio-layout.tsx` lays out the panes; `preview.ts` drives the imperative 3D view and sandbox (one clock, the flash guard, baked playback) and `preview-view.tsx` wraps them; `layers`, `chain` (+ `chain-row`, `chain-tree` a composite's sub-layers nested, `composite-model.ts` its edits, `tree-drag.ts` drags in and out), `params` (+ `bindings.ts`), `picks` (colour picks, + `pick-model.ts`), `editor`, `shelf` (auditions), `look-globals`, `bake`, `export`; the timeline is `timeline.tsx` (+ `-state`, `-tools`, `-input`, `-auto`, `-model`); `history/` History (`steps.ts` the session's steps and undo, in the main bundle; `button.tsx` in the bar, `history.tsx` the drawer loaded on first use, `steps-list.tsx` and `versions.tsx` its tabs); `layer-status.ts` is what the sandbox says; `model.ts` the rig, library, the Studio's `Layer` (a chain) and its helpers; `live/` the live stage (`live.tsx` /live, on the Pi the live play page `pi/page/controller.tsx` for curators with `lights.ts` its Studio looks, `control.tsx` and `fader.tsx` /live/control, `socket.ts` its socket and clock, `stage.ts` the view and sandbox on that clock, `lanes.ts` the state's browser twin); `bug-report.tsx` F8 and its form (+ `report-studio.ts`, the Studio's part and its replay), `reports.tsx` the admins' Reports page |
+| `public/js/ui/` | The UI, Preact components in TSX with signals for state. `app.tsx`: the shell, routing (history API, views loaded on first use) and the header, `session.ts` what views share with it (the user, navigation, the guard on unsaved edits); `auth`, `pages` (ideas, my looks, the gallery), `admin` (the Admin page's tabs, over `models`, `access`, `light`, `baking`, `reports` and `stats`); `kit.tsx` toasts, dialogs, fields and helpers, `rose.tsx` the rose. The Studio: `studio.tsx` loads it, `studio-store.ts` holds its state (the look, replaced on each edit; the selection; layout) and saves, `studio-layout.tsx` lays out the panes; `preview.ts` drives the imperative 3D view and sandbox (one clock, the flash guard, baked playback) and `preview-view.tsx` wraps them; `layers`, `chain` (+ `chain-row`, `chain-tree` a composite's sub-layers nested, `composite-model.ts` its edits, `tree-drag.ts` drags in and out), `params` (+ `bindings.ts`), `picks` (colour picks, + `pick-model.ts`), `editor`, `shelf` (auditions), `look-globals`, `bake`, `export`; the timeline is `timeline.tsx` (+ `-state`, `-tools`, `-input`, `-auto`, `-model`); `history/` History (`steps.ts` the session's steps and undo, in the main bundle; `button.tsx` in the bar, `history.tsx` the drawer loaded on first use, `steps-list.tsx` and `versions.tsx` its tabs); `layer-status.ts` is what the sandbox says; `model.ts` the rig, library, the Studio's `Layer` (a chain) and its helpers; `bug-report.tsx` F8 and its form (+ `report-studio.ts`, the Studio's part and its replay), `reports.tsx` the admins' Reports page |
 | `public/patterns/` | The built-in library (`index.json` with each entry's `kind` and `category`, + one file each): sources, warps and filters; presets, recipes of them, in the index alone |
-| `tools/` | `build_rig.py` (+ `pixel_rows.py`: the LEDs and their channels; `cog_rig.py`: City of Gods; `rig_render.py`: what Mirage draws), `check_channels.py` (the rigs against lighting's xLights and Falcon), `data/` (Studio's own show data: CONTRIBUTING "Show data"), `build_palettes.py` (data), `sacn-play.ts`, `budgets.ts` (the checks oxlint lacks, with line budgets in `budgets.json`; oxlint's rules are `.oxlintrc.jsonc` at the root), `backup.ts`, `seed-dev.ts` (a dev studio's data from the public one's), `frames-bench.ts` (brotli quality against encode time, and each look's render time), `live-bench.ts` (the Pi engine's frame loop over every library look, by stage, its options at its top; `bench-looks.ts` lists the looks), `output-bytes.ts` (each look's LED bytes hashed into `test/fixtures/output-bytes.json`, which `test/output-bytes-<rig>.test.ts` hold the engine to: re-record only for intentional pattern, rig or output-default changes), `composite-bench.ts` (a chain's cost per frame flat, as composites and with attached modules, both rigs), `bake-bench.ts` (a bake's time in the real render box under a profile's limits: `npm run bake-bench`), `reports.ts` (F8 bug reports on this machine: `list`, `get <id>`) |
+| `tools/` | `build_rig.py` (+ `pixel_rows.py`: the LEDs and their channels; `cog_rig.py`: City of Gods; `rig_render.py`: what Mirage draws), `check_channels.py` (the rigs against lighting's xLights and Falcon), `build_power.py` (the rose's expansion), `data/` (Studio's own show data: CONTRIBUTING "Show data"), `build_palettes.py` (data), `sacn-play.ts`, `budgets.ts` (the checks oxlint lacks, with line budgets in `budgets.json`; oxlint's rules are `.oxlintrc.jsonc` at the root), `backup.ts`, `seed-dev.ts` (a dev studio's data from the public one's), `frames-bench.ts` (brotli quality against encode time, and each look's render time), `output-bytes.ts` (each look of `bench-looks.ts`, its LED bytes hashed into `test/fixtures/output-bytes.json`, which `test/output-bytes-<rig>.test.ts` hold the engine to: re-record only for intentional pattern, rig or output-default changes), `composite-bench.ts` (a chain's cost per frame flat, as composites and with attached modules, both rigs), `bake-bench.ts` (a bake's time in the real render box: `npm run bake-bench`), `reports.ts` (F8 bug reports on this machine: `list`, `get <id>`) |
 | `README.md`, `DESIGN.md`, `docs/` | What it is; what is built and why (its screenshots in `docs/screenshots/`); `docs/HOSTING.md`, hosting at home |
 | `test/` | Vitest suites (`vitest.config.js`; `skip-reporter.js` lists skips and why); `fixtures/` (`build.js`: a fresh build of the app for the tests that serve it); `e2e/`: the Playwright Test browser checks (`smoke`, `perf`, `e2e`) |
 | `dist/` | What `npm run build` makes; not committed |
 
-Browser code imports only from `public/`, `pi/page/` and packages. Server code imports only `pattern-core.ts`,
+Browser code imports only from `public/` and packages. Server code imports only `pattern-core.ts`,
 `fseq.ts`, `scrub.ts` and JSON from `public/`. Both take `shared/`: the server at run time, the browser as types
 only (`import type`), so zod never ships to the browser. Four pure files are the exceptions, the browser's at run
 time too: `idea-status.ts` (an idea's states), `policy.ts` (who may do what, which the server asks too), `standard-modules.ts`
@@ -326,8 +321,8 @@ cover.
 ## Branches
 
 - `dev` is where work lands: every pull request goes to it, after `npm run check`.
-- `prod` is what the public server runs (`STUDIO_REF=origin/prod`, docs/HOSTING.md "Updating") and what the Pi's
-  Studio Live pulls (pi/INSTALL.md). It moves only from `dev`, when the owner says so; then `npm run host` deploys it.
+- `prod` is what the public server runs (`STUDIO_REF=origin/prod`, docs/HOSTING.md "Updating"). It moves only from
+  `dev`, when the owner says so; then `npm run host` deploys it.
 
 ## Commits and pull requests
 

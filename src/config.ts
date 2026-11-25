@@ -50,8 +50,7 @@ function settings(warn: Warn) {
   const d = (unit: 'ms' | 's', name: string) => duration(unit, name, warn);
   return {
     PORT: [num({ min: 0, max: 65_535, int: true }), 'the port, default 8780'],
-    HOST: [text(), 'the address to listen on, default 127.0.0.1; loopback only unless STUDIO_PROFILE=pi'],
-    STUDIO_PROFILE: [oneOf('hosted', 'pi'), 'hosted (the default), or pi: the Pi\'s offline Studio (SPEC-offline)'],
+    HOST: [text(), 'the address to listen on, default 127.0.0.1; loopback only'],
     STUDIO_DATA: [text(), 'the data folder, default data/ in the repo'],
     STUDIO_CURATORS: [text(), 'comma-separated usernames with the curator role'],
     STUDIO_ADMINS: [text(), 'comma-separated usernames with the admin role (admins are curators too)'],
@@ -67,19 +66,14 @@ function settings(warn: Warn) {
     STUDIO_IDEA_LOGS: [num({ min: 0, int: true }), 'ideas\' logs kept, default 300; 0: none written'],
     STUDIO_IDEA_LOGS_MAX_BYTES: [bytes(), 'their disk cap, default 500MB'],
     STUDIO_FRAMES_BROTLI_QUALITY: [num({ min: 0, max: 11, int: true }), 'baked frames\' brotli quality, default 9'],
-    STUDIO_FRAMES_MAX_BYTES: [bytes(), 'baked frames\' disk cap, default 2GB (the Pi: 1GB)'],
+    STUDIO_FRAMES_MAX_BYTES: [bytes(), 'baked frames\' disk cap, default 2GB'],
     STUDIO_FLASH_CHECK: [flag(), 'off: flashing blocks and dims nothing (local use only)'],
     STUDIO_FLASH_PER_SECOND: [num(), 'flashes a second allowed, default 3 (out of range: the default)'],
     STUDIO_FLASH_DELTA: [num(), 'a flash\'s swing as a share of full light, default 0.5'],
     STUDIO_FLASH_AREA: [num(), 'the share of the LEDs or lit area that blocks, default 0.25'],
-    STUDIO_LIVE_CONTROL: [oneOf('curators', 'admins', 'members'), 'who drives /live, default curators'],
-    STUDIO_LIVE_LOOKS: [oneOf('reviewed', 'shared'), 'what may play on /live, default reviewed'],
-    STUDIO_PREVIEWS: [oneOf('playa', 'front'), 'the gallery previews\' camera, default playa (the Pi: front)'],
-    PI_PREVIEW_URL: [text(), 'a Studio Live engine on this machine, at /pi (here a dry run; the Pi\'s own on it)'],
-    PI_PIN: [text(), 'the engine\'s PIN, if it has one: Studio\'s feed says it to play on the lights; a secret'],
-    STUDIO_PI_BUNDLE: [text(), 'the Pi bundle served to curators (SPEC-offline); npm run host names it'],
+    STUDIO_PREVIEWS: [oneOf('playa', 'front'), 'the gallery previews\' camera, default playa'],
     GIT_SHA: [text(), 'the build\'s commit, for bug reports (default: the checkout\'s)'],
-    STUDIO_BAKE_SECONDS: [num({ min: 0 }), 'the longest render-box bake, default 120 (Pi 600)'],
+    STUDIO_BAKE_SECONDS: [num({ min: 0 }), 'the longest render-box bake, default 120'],
     STUDIO_BAKE_TIMEOUT: [d('s', 'STUDIO_BAKE_TIMEOUT'), 'a bake\'s wall clock, default scaled to its length'],
     STUDIO_BAKE_CPU: [num({ min: 0 }), 'a bake\'s CPU seconds, default scaled to its length'],
     STUDIO_BAKE_TASKS: [num({ min: 0, int: true }), 'a bake\'s task ceiling, default 256'],
@@ -112,7 +106,7 @@ function settings(warn: Warn) {
 
 /** STUDIO_ names read by the deploy script and the tests, not by the server. */
 const ELSEWHERE = new Set(['STUDIO_REF', 'STUDIO_UNIT', 'STUDIO_ENV_FILE', 'STUDIO_HOST_CHECKED_OUT', 'STUDIO_PW_OUT']);
-const SECRET = new Set(['ANTHROPIC_API_KEY', 'PI_PIN']);
+const SECRET = new Set(['ANTHROPIC_API_KEY']);
 const schemaOf = (warn: Warn) => z.object(Object.fromEntries(Object.entries(settings(warn))
   .map(([k, [schema]]) => [k, schema])) as { [K in Name]: ReturnType<typeof settings>[K][0] });
 

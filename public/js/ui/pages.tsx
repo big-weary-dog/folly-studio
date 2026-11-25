@@ -11,18 +11,17 @@ import { can } from '../../../shared/policy.ts';
 import type { Access } from '../../../shared/schemas/access.ts';
 import type { Explore, Idea, Listed } from '../../../shared/schemas/api.ts';
 import type { ModelChoices } from '../../../shared/schemas/models.ts';
-import { ai, invitable, navigate, onPi, setTitle, user, type ViewProps } from './session.ts';
+import { ai, invitable, navigate, setTitle, user, type ViewProps } from './session.ts';
 import { enterInvite } from './invite-form.tsx';
 import { AccessGate, gateOf } from './idea-access.tsx';
 import { Approve } from './approve.tsx';
 import { deleteLook, mayDelete } from './delete-look.ts';
-import { cx, jewelGradient, lazy, pref, timeAgo, toast } from './kit.tsx';
+import { cx, jewelGradient, pref, timeAgo, toast } from './kit.tsx';
 import { LookFiles } from './look-files.tsx';
 import { PhoneDisclosure } from './phone/disclosure.tsx';
 import { Rose } from './rose.tsx';
 import { tourIdea } from './tour-view.ts';
 
-const lights = lazy(() => import('./play-lights.tsx'));
 
 const EXAMPLES = ['Rising embers drift up the spires', 'A coral reef breathing in slow blues and pinks',
   'Lightning cracks across the arches in a storm', 'The rose window blooms like a sunrise',
@@ -345,8 +344,6 @@ function Card({ look, gallery, remove, approved }: {
         </div>
       </div>
       <div class="card-actions"><a class="btn small" href={href}>Open</a>
-        {onPi() && can(user.value, 'curate') && <button class="btn small" type="button"
-          onClick={() => lights().then((m) => m.openPlayLights(look))}>Play on the lights</button>}
         {(gallery && !reviewed && can(user.value, 'review', look) || mayDelete(user.value, look, gallery)) &&
         <PhoneDisclosure label="Actions">
         {gallery && !reviewed && can(user.value, 'review', look) && <Approve look={look} approved={approved} />}

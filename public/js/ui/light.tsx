@@ -1,14 +1,14 @@
 // The Light page, for admins (SPEC "Light and output", docs/LIGHT.md): how Studio draws the LEDs, calibrated so the
-// previews show what the real lights show. Of the Pi's output transform only the gamma is edited here; the
-// calibration never changes what the LEDs get. The Pi reads the same file (on the Pi, this one; else downloaded here).
+// previews show what the real lights show. Of the output transform only the gamma is edited here; the calibration
+// never changes what the LEDs get. A player elsewhere takes the saved file, downloaded here.
 import '../../css/pages.css';
 
 import { useEffect, useState } from 'preact/hooks';
 
-import { api, type Lights } from '../api.ts';
+import { api } from '../api.ts';
 import { encode, LIGHT, LIGHT_LIMITS, type Light, lightByte, lightOf, shownLight } from '../core/light.ts';
-import { cx, download, Field, Scrub, Switch, toast } from './kit.tsx';
-import { onPi, setTitle } from './session.ts';
+import { cx, download, Field, Scrub, toast } from './kit.tsx';
+import { setTitle } from './session.ts';
 import { useDraftGuard } from './draft-guard.ts';
 import { usePhone } from './phone/viewport.ts';
 
@@ -29,7 +29,7 @@ export function LightPage() {
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   useDraftGuard(dirty);
   if (phone) return <div class="page light-page"><h1 class="page-title">Light</h1>
-    {onPi() ? <LiveLooks /> : <p class="pane-hint">Light calibration and file tools are available on a laptop.</p>}
+    <p class="pane-hint">Light calibration and file tools are available on a laptop.</p>
   </div>;
   if (!saved || !draft) {
     return <div class="page light-page"><h1 class="page-title">Light</h1>
@@ -53,12 +53,11 @@ export function LightPage() {
       <Preview draft={draft} set={set} />
       <Output draft={draft} set={set} />
       <Controller draft={draft} set={set} />
-      {onPi() && <LiveLooks />}
       <p class="form-error" role="alert" hidden={!error}>{error}</p>
       <div class="models-actions">
         <button class="btn ghost" type="button" disabled={dirty || busy}
           onClick={() => download(`${JSON.stringify(saved, null, 2)}\n`,
-          'light.json', 'application/json')}>Download for the Pi</button>
+          'light.json', 'application/json')}>Download light.json</button>
         <button class="btn ghost" type="button" disabled={busy}
           onClick={() => set({ gamma: LIGHT.gamma, calibration: LIGHT.calibration, preview: LIGHT.preview })}>
           Defaults</button>
@@ -93,7 +92,7 @@ function Preview({ draft, set }: { draft: Light; set: (p: Partial<Light>) => voi
     class="end" hint={<p class="field-hint">{hint}</p>}>{(id) => <Scrub id={id} min={0} max={100} step={1} unit="%"
       value={Math.round(P[key] * 100)} set={(v) => edit({ [key]: v / 100 })} />}</Field>;
   return <section class="models-panel" aria-label="The previews">
-    <p class="field-hint">The previews show each LED's light as the Pi's curve gives it, unrounded, calibrated, then
+    <p class="field-hint">The previews show each LED's light as the output curve gives it, unrounded, calibrated, then
       these. They never change what the LEDs get.</p>
     <Field label="Exposure" class="end" hint={<p class="field-hint">The screen light of full drive. 85 % keeps the
       brightest LED below Playa's shoulder, so every level shows in proportion; more is brighter, and compresses
@@ -127,48 +126,20 @@ function Calibrate({ draft, set }: { draft: Light; set: (p: Partial<Light>) => v
   </section>;
 }
 
-/** The Pi's output transform: what the LEDs get. The gamma is set here; the rest is shown, set by hand. */
+/** The output transform: what the LEDs get. The gamma is set here; the rest is shown, set by hand. */
 function Output({ draft, set }: { draft: Light; set: (p: Partial<Light>) => void }) {
   const list = (v: number[]) => v.map((x) => `${Math.round(x * 100)} %`).join(', '), [g0, g1] = LIGHT_LIMITS.gamma;
-  return <section class="models-panel" aria-label="The Pi's output">
-    <Field label="Output gamma" class="end" hint={<p class="field-hint">What the Pi sends: value<sup>gamma</sup>.
-      The default is 2.65; 1 sends the colours as they are, as FPP and the live apps do. The Pi takes a saved
-      gamma within seconds, and the previews draw it.</p>}>{(id) => <Scrub id={id} min={g0} max={g1}
-        step={0.05} value={draft.gamma} set={(gamma) => set({ gamma })} />}</Field>
+  return <section class="models-panel" aria-label="The output">
+    <Field label="Output gamma" class="end" hint={<p class="field-hint">What an export sends: value<sup>gamma</sup>.
+      The default is 2.65; 1 sends the colours as they are, as FPP does. The previews draw it.</p>}>
+      {(id) => <Scrub id={id} min={g0} max={g1} step={0.05} value={draft.gamma} set={(gamma) => set({ gamma })} />}
+    </Field>
     <p class="field-hint">Set in <code>light.json</code> by hand: balance{` ${list(draft.balance)}`}, floor
       {` ${draft.floor}`}{draft.trims.length ? `, trims ${draft.trims
         .map((t) => `${t.tag} ${Math.round(t.level * 100)} %`).join(', ')}` : ''}.</p>
     <Curve light={draft} />
   </section>;
 }
-const MODES = { jukebox: 'Jukebox', live: 'Live Play' } as const;
-/** On the Pi: whether Studio may play library looks live on the lights (SPEC-offline "Playing on the lights"), and
- * the mode (SPEC-liveplay "Modes"); saved as each is switched, apart from the settings above. */
-function LiveLooks() {
-  const [lights, setLights] = useState<Lights | null>(null), [busy, setBusy] = useState(false);
-  useEffect(() => { api.lights().then(setLights, () => {}); }, []);
-  const change = (next: Partial<Pick<Lights, 'liveLooks' | 'mode'>>, said: (l: Lights) => string) => {
-    setBusy(true);
-    api.saveLights(next).then((l) => { setLights(l); toast(said(l), { kind: 'ok' }); },
-      (e) => toast(e.message, { kind: 'error' })).finally(() => setBusy(false));
-  };
-  return <section class="models-panel" aria-label="On the lights">
-    <Switch label="Live library looks on the lights" class="end" checked={!!lights?.liveLooks}
-      disabled={!lights || busy} onChange={(liveLooks) => change({ liveLooks }, (l) => (l.liveLooks
-        ? 'Library looks play live.' : 'Only baked looks play on the lights.'))} />
-    <p class="field-hint">On: a look made only of library modules plays live from Studio, its controls working.
-      Off: only baked looks play.</p>
-    <div class="import-tabs" role="group" aria-label="Mode">
-      {Object.entries(MODES).map(([k, text]) => <button type="button" class="tab import-tab"
-        aria-pressed={lights?.mode === k} disabled={!lights || busy}
-        onClick={() => change({ mode: k as Lights['mode'] }, (l) => `The lights are in ${MODES[l.mode]}.`)}>
-        {text}</button>)}</div>
-    <p class="field-hint">Jukebox: guests queue looks, and each change is a full fade; no knobs, Master or Blackout.
-      Live Play: whoever may control Live drives the playing look's knobs, Master, tempo and Blackout, one at a time.
-      </p>
-  </section>;
-}
-
 /** The controller's own settings, recorded so the explanation is complete; never applied here. */
 function Controller({ draft, set }: { draft: Light; set: (p: Partial<Light>) => void }) {
   const edit = (i: number, patch: Partial<Light['controller'][number]>) => set({ controller: draft.controller
