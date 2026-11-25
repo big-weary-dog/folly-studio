@@ -86,6 +86,16 @@ test('keeps library code on the current library, drops looks and versions with a
   assert.ok(existsSync(path.join(dataDir, 'frames', 'current.fseq')));
 });
 
+test('drops a look with a malformed composite: code of its own, of any kind, or no sub-layers', async () => {
+  const inner = composite(mod(WAVE, { id: 's1.m1', ref: 'wave' }));
+  write('looks', [look('code', [{ ...inner, code: WAVE }]), look('null', [{ ...inner, code: null }]),
+    look('zero', [{ ...inner, code: 0 }]), look('empty', [{ ...inner, layers: [] }]), look('fine', [inner])]);
+  const r = await run();
+  assert.deepEqual(r.dropped.map((d) => [d.look, d.why]), [['code', 'a composite with code'],
+    ['null', 'a composite with code'], ['zero', 'a composite with code'], ['empty', 'a malformed composite']]);
+  assert.deepEqual(read('looks').map((l) => l.id), ['fine']);
+});
+
 test('a look whose code moved loses its bake, frames and review; the look keeps its number', async () => {
   const reviewed = { bake: { status: 'done', layersHash: 'h' }, reviewed: true, reviewedBy: 'cat', flashOverride: {} };
   const v = (code, extra = {}) => ({ title: 'v', layers: look('', [mod(code, { ref: 'wave' })]).layers, ...extra });

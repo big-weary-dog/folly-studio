@@ -43,7 +43,11 @@ below.
   ref of the one entry whose current or earlier file its code is exactly (by SHA-256); else it keeps its ref. A look
   and each version keep the hash of the code they were saved with (`codeHash`, never handed out). When the library
   changes that code, a read gives the look without its bake or review (`reviewed` false, no `reviewedBy` or
-  `flashOverride`), to be baked and reviewed afresh, and the version `reviewed` false. Filters and updates see the look as a read gives it, so what it leaves out stays out. A
+  `flashOverride`), to be baked and reviewed afresh, and the version `reviewed` false. Every rule on a look's
+  modules (this one, the save check, the library-only step, a bake's key) walks them by one walk
+  (`shared/look-modules.ts`): each module that runs code, in order, a layer that is one source and composites'
+  sub-layers' modules at any depth among them, a composite itself (no code: SPEC-library "Composites") never.
+  Filters and updates see the look as a read gives it, so what it leaves out stays out. A
   module whose `ref` the library has is standard: it keeps the
   library's title (`shared/standard-modules.ts`; the API puts a renamed one's back). The Studio plays each module's
   code from its ref's library file (hidden ones too, `GET /api/library`), whatever the look holds ('' for a ref the
