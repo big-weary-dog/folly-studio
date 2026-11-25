@@ -41,7 +41,7 @@ test('library only: import an earlier committed Noise, upgrade to playable code,
     assert.equal(imported.status, 201, imported.text);
     assert.equal(imported.json.imported, 'added');
     const expected = layers(current);
-    expected[0].modules.push(wash(currentWash));
+    expected[0].modules.push({ ...wash(currentWash), ref: 'colour-wash' }); // its ref, by its file
     assert.deepEqual(imported.json.look.layers, expected);
     assert.deepEqual(imported.json.look.automation, { breath: body.automation.breath },
       'stale lanes for missing macros are inert; keep the real macro lane');
@@ -74,7 +74,7 @@ test('historical library copies save and bake as library code; edited or retired
   const allows = async (code) => !(await gate.refuses([{ code }]));
   assert.equal(await allows(oldNoise), true);
   assert.equal(await allows(`${oldNoise} `), false);
-  const retired = execFileSync('git', ['show', 'a6462ae3:public/patterns/butterfly.js'],
+  const retired = execFileSync('git', ['show', '802b0973:public/patterns/twinkle.js'],
     { cwd: publicDir, encoding: 'utf8' });
   assert.equal(await allows(retired), false, 'retired patterns have no current library replacement');
   const library = await libraryHashes(patternsDir);

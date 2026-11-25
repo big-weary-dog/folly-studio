@@ -40,17 +40,21 @@ type Upgrade = (doc: Item) => Item;
 /** Each collection's documents as stored by an older version → as this one reads them (the same object when one
  * needs nothing). */
 type Upgrades = { looks?: (look: StoredLook) => StoredLook };
+/** How a collection's documents are handed out (`read`, given a copy) and kept (`write`, given the document to put),
+ * each changing it in place: a look's code comes from the library and is never kept (src/library-refs.ts). */
+type View = { read(doc: Item): Item, write(doc: Item): Item };
+type Views = { looks?: View };
 /** Random url-safe id (16 chars for 12 bytes). */
 const newId = () => randomBytes(12).toString('base64url');
 const copy = <T>(v: T): T => (v === undefined || v === null ? v : structuredClone(v));
 
-export async function createStore(dataDir: string, { log = console, upgrade = {} }: { log?: Pick<Log, 'error'>,
-  upgrade?: Upgrades } = {}) {
+export async function createStore(dataDir: string, { log = console, upgrade = {}, views = {} }: {
+  log?: Pick<Log, 'error'>, upgrade?: Upgrades, views?: Views } = {}) {
   await fsp.mkdir(dataDir, { recursive: true });
   // Before anything is read, or written back by an upgrade.
   const lock = await lockDataDir(dataDir);
   const states = await Promise.all(COLLECTIONS.map((name) => openCollection(path.join(dataDir, `${name}.json`), log,
-    upgrade[name as keyof Upgrades] as Upgrade | undefined))).catch(async (err) => {
+    upgrade[name as keyof Upgrades] as Upgrade | undefined, views[name as keyof Views]))).catch(async (err) => {
     await lock.release();
     throw err;
   });
@@ -78,7 +82,8 @@ export async function createStore(dataDir: string, { log = console, upgrade = {}
   return store;
 }
 
-async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: Upgrade) {
+async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: Upgrade,
+  { read, write }: View = { read: (d) => d, write: (d) => d }) {
   const map = new Map<string, Item>(), json = new Map<string, string>();
   const put = (item: Item) => {
     map.set(item.id, item);
@@ -131,13 +136,13 @@ async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: U
   }
 
   const api: Collection<Doc & Record<string, unknown>> = {
-    get: (id) => copy(map.get(id)) ?? null,
+    get: (id) => { const item = map.get(id); return item ? read(copy(item)) : null; },
     list(filterFn, omit) {
       const out = [];
       for (const item of map.values()) {
         if (filterFn && !filterFn(item)) continue;
-        if (!omit?.length) out.push(copy(item));
-        else out.push(copy(Object.fromEntries(Object.entries(item).filter(([k]) => !omit.includes(k))) as Item));
+        if (!omit?.length) out.push(read(copy(item)));
+        else out.push(read(copy(Object.fromEntries(Object.entries(item).filter(([k]) => !omit.includes(k))) as Item)));
       }
       return out;
     },
@@ -161,10 +166,10 @@ async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: U
         do id = newId(); while (map.has(id));
       }
       const { id: _i, createdAt: _c, updatedAt: _u, ...rest } = obj;
-      const item = { id, ...copy(rest), createdAt: now, updatedAt: now };
+      const item = write({ id, ...copy(rest), createdAt: now, updatedAt: now });
       put(item);
       schedule();
-      return copy(item);
+      return read(copy(item));
     },
     update(id, patch = {}) {
       const cur = map.get(id);
@@ -176,9 +181,9 @@ async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: U
         else next[k] = copy(v);
       }
       next.updatedAt = stamp();
-      put(next as Item);
+      put(write(next as Item));
       schedule();
-      return copy(next as Doc);
+      return read(copy(map.get(id)!));
     },
     remove(id) {
       const had = map.delete(id);

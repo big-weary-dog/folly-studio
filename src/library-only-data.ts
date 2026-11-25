@@ -43,7 +43,7 @@ async function keep(file: string, bytes: Buffer) {
 }
 
 export const dropLine = (d: Dropped) => `${d.version ? `version ${d.version} of ` : ''}${d.look} "${d.title}" `
-  + `(${d.owner || 'no owner'})`;
+  + `(${d.owner || 'no owner'}): ${d.why}`;
 
 /**
  * Runs the step on `dataDir` against the library in `patternsDir`: { done } when it already had, else { dropped,
@@ -85,7 +85,7 @@ export async function migrateLibraryOnly({ dataDir, patternsDir, dryRun = true, 
     for (const id of kept.rebaked) await removeFrames(framesDir, id);
     for (const d of kept.dropped) {
       if (!d.version) await removeFrames(framesDir, d.look);
-      log.info?.(`${STEP}: dropped ${dropLine(d)}: not library code`);
+      log.info?.(`${STEP}: dropped ${dropLine(d)}`);
     }
     await writeFileAtomic(marker, `${JSON.stringify({ ...steps, [STEP]: now.toISOString() }, null, 2)}\n`);
     return result;

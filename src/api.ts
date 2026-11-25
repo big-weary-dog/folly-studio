@@ -111,7 +111,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, log: Log,
       ...reports,
       ...looks.routes,
       ...framesRoutes({ framesDir, cache: frames, visibleLook: looks.visibleLook }),
-      'GET /library': [async () => ({ patterns: loaders.loadLibrary()
+      'GET /library': [async () => ({ patterns: loaders.loadLibrary().filter((e) => !('hidden' in e && e.hidden))
         .map(({ name, title, summary, tags, kind, category, code, ...rest }) => ({ name, title, summary, tags, kind,
           category, code, ...(kind === 'preset' ? { layers: rest.layers, globals: rest.globals } : {}) })) }),
       { public: true }],

@@ -1,5 +1,6 @@
 // The library-only step on a data folder: what it keeps, moves and drops, its backups, its marker, the dry run, and
-// that the server never runs it. A small library of its own: a current pattern with an earlier copy, a retired one.
+// that the server never runs it. A small library of its own: a current pattern with an earlier copy, a retired one
+// (dropped: only the index's modules are library).
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -48,6 +49,7 @@ test('keeps library code on the current library, drops looks and versions with a
     look('one-source', [], { layers: [{ id: 'l1', title: '', code: OLD_WAVE, params: {} }] }),
     look('edited', [mod(`${WAVE} `, { ref: 'wave' })]),
     look('spoofed', [mod(RETIRED, { ref: 'wave' })]),
+    look('renamed', [mod(OLD_WAVE, { ref: 'wave-before' })]),
     look('custom', [mod(CUSTOM)]),
     look('custom-inside', [composite(mod(CUSTOM, { id: 's1.m1' }))]),
     look('versions', [mod(WAVE, { ref: 'wave' })], { versions: [
@@ -58,12 +60,15 @@ test('keeps library code on the current library, drops looks and versions with a
   writeFileSync(path.join(dataDir, 'frames', 'custom.fseq'), 'x');
   writeFileSync(path.join(dataDir, 'frames', 'current.fseq'), 'x');
   const r = await run();
-  assert.deepEqual(r.dropped.map((d) => [d.look, d.version]), [['edited', undefined], ['spoofed', undefined],
-    ['custom', undefined], ['custom-inside', undefined], ['versions', 2]]);
+  assert.deepEqual(r.dropped.map((d) => [d.look, d.version, d.why]), [['retired', undefined, 'retired pattern gone'],
+    ['edited', undefined, 'custom code (M)'], ['spoofed', undefined, 'retired pattern gone'],
+    ['custom', undefined, 'custom code (M)'], ['custom-inside', undefined, 'custom code (M)'],
+    ['versions', 2, 'custom code (M)']]);
   const looks = Object.fromEntries(read('looks').map((l) => [l.id, l]));
   const first = (id) => looks[id].layers[0].modules?.[0] ?? looks[id].layers[0];
-  for (const id of ['current', 'older', 'unnamed']) assert.deepEqual([first(id).ref, first(id).code], ['wave', WAVE]);
-  assert.deepEqual([first('retired').ref, first('retired').code], ['gone', RETIRED]);
+  for (const id of ['current', 'older', 'unnamed', 'renamed']) {
+    assert.deepEqual([first(id).ref, first(id).code], ['wave', WAVE]);
+  }
   assert.equal(first('nested').layers[0].modules[0].code, WAVE);
   assert.equal(first('one-source').code, WAVE);
   assert.ok(!('ideaId' in looks.older));
