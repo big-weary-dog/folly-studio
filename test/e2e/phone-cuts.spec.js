@@ -19,9 +19,6 @@ for (const width of [360, 390, 430]) {
     await expect(page.getByRole('textbox', { name: 'Username', exact: true })).toBeVisible();
     const post = (url, data) => page.request.post(studio.origin + url, { data });
     expect((await post('/api/signup', { username: `cuts-${width}`, password: 'correct horse' })).status()).toBe(201);
-    const { access } = await (await post('/api/invite', {
-      code: studio.app.access.createInvite('phone-fixture', { uses: 1 }).code })).json();
-    expect([access.unlocked, access.exempt]).toEqual([true, false]);
     const { look } = await (await post('/api/looks', { title: 'Phone performance', layers: [{
       id: 'rose', title: 'Rose', modules: [
         { id: 'bars', title: 'Bars', kind: 'source', ref: 'bars', code: code('bars') },
@@ -110,12 +107,10 @@ for (const width of [360, 390, 430]) {
     await shot('look');
     await page.getByText('Share details', { exact: true }).click();
     await expect(page.getByRole('textbox', { name: 'Description', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Refine with AI', exact: true }).click();
-    await expect(page.getByRole('textbox', { name: 'What to change' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Critique', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Refine with AI', exact: true })).toHaveCount(0);
     await page.locator('.tab[data-tab=more]').click();
     await expect(page.getByRole('checkbox', { name: /Show unlit/ })).toBeVisible();
-    await expect(page.getByText(/Full detail|Open the code editor/)).toHaveCount(0);
+    await expect(page.getByText('Full detail')).toHaveCount(0);
     await shot('more');
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
   });

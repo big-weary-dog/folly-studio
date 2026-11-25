@@ -1,5 +1,5 @@
-// npm run smoke, too: custom code and generators off, as on every server (SPEC-baking "Custom code"): no Ideas, Models
-// or Access, Admin → Baking says library only, the code editor is read only and says why, and custom code is refused.
+// npm run smoke, too: custom code and generators off, as on every server (SPEC-baking "Custom code"): Admin → Baking
+// says library only, the Studio has no code to edit, its pickers only the library, and custom code is refused.
 // Screenshots land in CODE_SHOTS when set, else the test's output folder.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -12,7 +12,7 @@ test.use({ serverOptions: { admins: PEOPLE, generators: false, customCode: false
 const CUSTOM = 'function pixel(p, t) { return scale([0.2, 0.4, 1], wave(t * 0.25)); }';
 
 for (const width of [390, 1366]) {
-  test(`custom code at ${width}: off, and a read-only editor`, async ({ page, studio }, info) => {
+  test(`custom code at ${width}: off, and the library only`, async ({ page, studio }, info) => {
     const wide = width > 600;
     const shot = (name) => page.screenshot({ fullPage: true, path: process.env.CODE_SHOTS
       ? path.join(process.env.CODE_SHOTS, `${width}-${name}.png`) : info.outputPath(`${name}.png`) });
@@ -29,26 +29,15 @@ for (const width of [390, 1366]) {
     const { look } = await made.json();
     await page.goto(`${studio.origin}/admin`);
     await expect(page).toHaveURL(/\/admin\/light$/);
-    await expect(page.locator('a[href="/ideas"]')).toHaveCount(0);
-    for (const tab of ['models', 'access']) await expect(page.locator(`[data-tab=${tab}]`)).toHaveCount(0);
     await page.goto(`${studio.origin}/admin/baking`);
     if (!wide) await page.getByText('Baking details', { exact: true }).click();
     await expect(page.getByText(/Looks take only library patterns, unchanged/)).toBeVisible();
     await expect(page.getByRole('group', { name: 'Custom code' })).toHaveCount(0);
     await shot('1-admin-off');
     await page.goto(`${studio.origin}/studio/${look.id}`);
-    if (wide) {
-      await page.locator('.dock-tab', { hasText: 'Code' }).click();
-      await expect(page.locator('.editor-locked:visible')).toHaveText(/Looks take only library patterns/);
-      const editor = page.locator('textarea.code:visible').first();
-      await expect(editor).toHaveJSProperty('readOnly', true);
-      await expect(editor).toHaveValue(wash);
-    } else {
-      await page.locator('.tab[data-tab=more]').click();
-      await expect(page.getByRole('button', { name: 'Open the code editor' })).toHaveCount(0);
-      await expect(page.locator('textarea.code')).toHaveCount(0);
-    }
-    await shot('2-studio-locked');
+    await expect(page.locator('.layer-name', { hasText: 'Sea' }).first()).toBeAttached();
+    await expect(page.locator('textarea.code, .dock-tab[data-dock=code]')).toHaveCount(0);
+    await shot('2-studio');
 
     if (!wide) await page.locator('.tab[data-tab=layers]').click();
     await page.locator('[data-tour=layers-add]').click();

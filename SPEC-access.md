@@ -20,8 +20,7 @@ is a session, not an account: nothing is written to the users, and `user = { id:
 'member', guest: true }` whatever the name says (a guest named for an admin is no admin). The cookie lets them back in
 on that device for 7 days; at most 1,000 guest sessions live at once, the oldest dropped first (anyone can
 make one). A guest only reads: every mutating route but `/api/logout`, `/api/login`, `/api/signup`
-and `/api/guest` is 403 "Guests can't save", so they make no looks, ideas, bakes, reports, tour or invite, and
-have no AI ("AI only with access"). The Studio keeps a guest's work in that browser
+and `/api/guest` is 403 "Guests can't save", so they make no looks, ideas, bakes, reports, tour or invite, and, like everyone, have no AI ("No AI in the app"). The Studio keeps a guest's work in that browser
 (localStorage, the Studio's look as saved, written as it changes) and opens it again on `/studio`; Save asks them to
 log in or sign up, since saving is for accounts, and the work comes along: the first account to open a blank Studio
 in that browser gets it, unsaved, and the browser's copy goes once that account saves or discards it. Their name
@@ -58,13 +57,13 @@ start) and Deep while it is admins' only.
 Phone Admin keeps quick operator tasks; see [SPEC-studio "Phones"](SPEC-studio.md#phones).
 
 Admins' header has one more item, **Admin** (`/admin`, which opens its first tab), where everyone else's has none.
-Its tabs are pages of their own: Models (`/admin/models`, SPEC-generators "Models"), Access (`/admin/access`,
-Access below), Light (`/admin/light`, SPEC "Light and output"), Baking (`/admin/baking`, SPEC-baking "The bake
-setting"), Reports (`/admin/reports`, SPEC "Bug reports") and Stats (`/admin/stats`, Stats below). `/models`,
-`/access`, `/light` and `/reports` lead to their tab, query kept. Anyone else who opens one sees an
-explanation that Admin pages require an admin account, without the page's controls.
+Its tabs are pages of their own: Light (`/admin/light`, SPEC "Light and output"), Baking (`/admin/baking`,
+SPEC-baking "The bake setting"), Reports (`/admin/reports`, SPEC "Bug reports") and Stats (`/admin/stats`, Stats
+below). `/light` and `/reports` lead to their tab, query kept; `/models`, `/access`, `/admin/models` and
+`/admin/access` lead to Light. Anyone else who opens one sees an explanation that Admin pages require an admin
+account, without the page's controls.
 The browser uses the same admin permission as the server; admin API calls remain refused (403).
-Leaving a Models or Light draft asks before discarding it, including switching Admin tabs.
+Leaving a Light draft asks before discarding it, including switching Admin tabs.
 Light downloads the saved settings; while a draft differs, download waits for Save or Revert.
 Limits fields follow a successful Save or Defaults response; blank fields inherit the global allowance.
 
@@ -118,9 +117,6 @@ models[i].limits?: { "perHour"?, "perDay"?, "concurrent"? }
   not revoked, expired or used up and unlocks the account; an unlocked account redeeming changes nothing. Any other
   code is a 400 that says which: not valid (no such code), used up, expired or revoked. Attempts are limited per
   account (5 failures in 15 minutes) and per address (20 failures in 15 minutes): 429 with `Retry-After`.
-- An **invite link** is `/#invite=CODE` (the Access page offers it beside a new code): in the fragment, the code never
-  reaches the server's logs or a Referer. The app takes it out of the address into the tab's sessionStorage, asks a
-  signed-out visitor to sign up or in, then redeems it once and drops it, saying it was accepted or why not.
 - `access = { unlocked, exempt, inviteOnly, limits: { perHour, perDay, concurrent }, left: { hour, day, running },
   nextAt?, full?, models?: { [id]: { hour?, day? } } }` in /api/me and with a 403 or 429: `left` the paid uses this
   account has; `nextAt` when the next frees (when one is 0); `full` the ceiling is reached; `models` what is left on
@@ -128,12 +124,8 @@ models[i].limits?: { "perHour"?, "perDay"?, "concurrent"? }
   state: 'active' | 'used' | 'expired' | 'revoked' }`. `person = { id, username, role, access: { unlockedAt?, invite?,
   by?, limits?, resetAt? }, used: { hour, day, running } }`.
 
-**AI only with access.** Anyone who may not send ideas sees no AI anywhere: guests and accounts not unlocked (where
-`inviteOnly`). They get no Ideas page (it leads to My looks; a guest's home is the Studio), no
-Ideas link, no Refine panel or "Ask the AI to fix it", and no tutorial step on Ideas; `/api/me` has no `access` for a
-guest. The server refuses their ideas as above. A locked account gets the AI by an invite link, or a code entered
-under "Invite code" in its user menu (which only a locked account has, and only where `inviteOnly`).
-Sign-up explains that AI needs an invite. My looks repeats this for locked accounts and offers code entry.
+**No AI in the app.** The app has no Ideas page (`/ideas` leads to My looks; a guest's home is the Studio), no
+Refine, no invite code entry and no Models or Access tabs, for everyone; sign-up says nothing of AI.
 
 ## HTTP
 

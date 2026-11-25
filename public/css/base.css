@@ -24,7 +24,6 @@
 }
 /* phones: touch targets (var(--hit, <desktop size>)) and a shorter header */
 @media (max-width: 899px) { :root { --hit: 44px; --header-h: 52px; } }
-body[data-view=ideas] { --tint: var(--amber); }
 body[data-view=studio] { --tint: var(--violet); }
 body[data-view=looks] { --tint: var(--emerald); }
 body[data-view=gallery] { --tint: var(--ruby); }
@@ -74,23 +73,19 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offs
 .g-v { fill: var(--violet); }
 .rose-boss { fill: #ffe9c4; }
 .rose-loader .rp { opacity: .2; animation: rp-chase 1.6s linear infinite; }
-.rose-fill .rp { --step: 125ms; opacity: .2; animation: rp-fill 4s linear infinite; }
 /* after the shorthands: each petal a step after the last, on the page's clock (--t0) */
-.rose-loader .rp, .rose-fill .rp { animation-delay: calc(var(--t0, 0ms) + var(--i) * var(--step, 100ms)); }
+.rose-loader .rp { animation-delay: calc(var(--t0, 0ms) + var(--i) * var(--step, 100ms)); }
 @keyframes rp-chase { 0% { opacity: 1; } 45%, 100% { opacity: .2; } }
-/* progress: the petals fill round the window, then empty the same way */
-@keyframes rp-fill { 0%, 47% { opacity: 1; } 53%, 96% { opacity: .2; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important;
     transition-duration: .001ms !important; scroll-behavior: auto !important; }
   .rose .rp { animation: none !important; opacity: 1; }
-  .rose-fill .rp:nth-of-type(n+7) { opacity: .2; }
 }
 @media (forced-colors: active) { .rose { forced-color-adjust: none; } }
 /* Panels: glass set in lead, tinted by --tint and lit from behind; pointed-arch (ogive) pieces;
    dialogs, menus, toasts; states as quatrefoils. */
-.compose, .idea, .card, .dialog, .menu, .toast, .viewer-msg, .library-item, .empty {
+.card, .dialog, .menu, .toast, .viewer-msg, .library-item, .empty {
   border: var(--came) solid var(--lead); border-radius: var(--radius);
   background: radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--tint) 12%, #0000), #0000 70%)
     color-mix(in srgb, var(--tint) 5%, var(--night-1));
@@ -284,7 +279,6 @@ input.switch:disabled { opacity: .5; cursor: default; }
 .main-nav a { display: flex; align-items: flex-end; height: 46px; margin-bottom: calc(-1 * var(--came));
   padding: 0 15px 10px; color: var(--text-2); font-size: 14.5px; font-weight: 560; text-decoration: none; }
 .main-nav a:hover { color: var(--text); }
-.main-nav a[href="/ideas"] { --tint: var(--amber); }
 .main-nav a[href="/studio"] { --tint: var(--violet); }
 .main-nav a[href="/looks"] { --tint: var(--emerald); }
 .main-nav a[href="/gallery"] { --tint: var(--ruby); }
@@ -378,8 +372,6 @@ input.switch:disabled { opacity: .5; cursor: default; }
   letter-spacing: .24em; text-transform: uppercase; }
 .kicker::before, .kicker::after { --q: 8px; color: var(--dust); }
 .auth-lede { text-align: center; color: var(--text-2); margin: 14px 0 26px; font-size: 14.5px; }
-.auth-invited { margin: -12px 0 22px; padding: 10px 14px; border-left: 4px solid var(--emerald); font-size: 13.5px;
-  background: color-mix(in srgb, var(--emerald) 10%, var(--night-1)); color: var(--text-2); }
 .auth-form { display: flex; flex-direction: column; gap: 16px; }
 .auth-form .btn { font-size: 15px; }
 

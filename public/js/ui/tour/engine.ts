@@ -10,8 +10,8 @@ import { api } from '../../api.ts';
 import type { Tour } from '../../../../shared/schemas/tour.ts';
 import { toast } from '../kit.tsx';
 import { loadLibrary } from '../model.ts';
-import { ai, navigate, user } from '../session.ts';
-import { localTour, tourIdea, tourKey, tourView, WELCOMED } from '../tour-view.ts';
+import { navigate, user } from '../session.ts';
+import { localTour, tourKey, tourView, WELCOMED } from '../tour-view.ts';
 import { byName, tick, watchPage } from './anchors.ts';
 import { Overlay } from './overlay.tsx';
 import { pathsHere } from './paths/index.ts';
@@ -61,8 +61,7 @@ function mount() {
   render(h(Overlay, null), root);
   root.showPopover();
   unwatch = watchPage(root);
-  const checks = effect(check), ideas = effect(() => { tourIdea.value = step.value?.idea ?? null; });
-  stop = () => { checks(); ideas(); tourIdea.value = null; };
+  stop = effect(check);
   void loadLibrary().then((lib) => { titles.value = Object.fromEntries(lib.map((e) => [e.name, e.title || e.name])); })
     .catch(() => {});
 }
@@ -100,8 +99,7 @@ export async function start(path: Path, i = 0) {
   mount();
   clearTimeout(later);
   i = Math.min(i, path.steps.length - 1);
-  // A Studio step of a path that starts elsewhere resumes on its practice look.
-  const to = path.look && path.steps[i].page === '/studio' ? path.look : path.start;
+  const to = path.start;
   if (to.includes('?') || location.pathname !== to) {
     const was = open.peek();
     open.value = null;
@@ -142,5 +140,5 @@ export function resumeAt(path: Path) {
   const at = progress.value.at;
   return at?.path === path.id ? Math.max(0, path.steps.findIndex((s) => s.id === at.step)) : 0;
 }
-/** The paths, as this Studio has them (the profile is known by the time the tutorial loads). */
-export const PATHS = computed(() => pathsHere(!ai.value, !!user.value?.guest));
+/** The paths, as this Studio has them (whether this is a guest is known by the time the tutorial loads). */
+export const PATHS = computed(() => pathsHere(!!user.value?.guest));

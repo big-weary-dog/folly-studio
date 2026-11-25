@@ -17,7 +17,7 @@ export function studioReport(st: Studio, pv: Preview, tl: Timeline) {
     read() {
       const L = st.look.peek(), server = st.server.peek(), rig = st.data.rig;
       return {
-        look: { id: L.id, title: L.title, owner: L.ownerName, shared: L.shared, ideaId: L.ideaId },
+        look: { id: L.id, title: L.title, owner: L.ownerName, shared: L.shared },
         draft: st.body.peek(), dirty: st.dirty.peek(), ready: st.ready.peek(),
         server: server && { updatedAt: server.updatedAt, reviewed: server.reviewed, bake: server.bake?.status },
         selection: { layer: st.selectedId.peek(), module: st.module.peek()?.id ?? null, picked: st.picked.peek(),

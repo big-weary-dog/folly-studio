@@ -111,7 +111,7 @@ function StepCard() {
   }, [el, on, o.i]);
   const p = on ? s.progress?.(c) : null, ring = on && box, area = ring && wrap && wrapBox;
   // Back to the Studio is back to the path's practice look, if it has one.
-  const look = o.path.look ?? (o.path.start.startsWith('/studio?') ? o.path.start : null);
+  const look = o.path.start.startsWith('/studio?') ? o.path.start : null;
   const goTo = () => void navigate(s.page === '/studio' && look ? look : s.page!);
   // Keyed, so a new ring is drawn on its control, never slid in from the corner; from step to step it slides between
   // controls, and otherwise moves with its control as the page scrolls.

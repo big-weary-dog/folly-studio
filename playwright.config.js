@@ -33,9 +33,8 @@ export default defineConfig({
   use: { browserName: 'chromium', launchOptions: { args: SWIFTSHADER }, trace: 'retain-on-failure' },
   projects: [
     { name: 'smoke', testMatch: [
-      'smoke.spec.js', 'models.spec.js', 'light.spec.js', 'access.spec.js', 'refine.spec.js', 'side.spec.js',
-      'explore.spec.js', 'loop.spec.js', 'mods.spec.js', 'param-lines.spec.js', 'mod-pop.spec.js', 'report.spec.js',
-      'history.spec.js', 'look-energy.spec.js', 'tour.spec.js', 'aimode.spec.js', 'gallery.spec.js',
+      'smoke.spec.js', 'light.spec.js', 'side.spec.js', 'loop.spec.js', 'mods.spec.js', 'param-lines.spec.js',
+      'mod-pop.spec.js', 'report.spec.js', 'history.spec.js', 'look-energy.spec.js', 'tour.spec.js', 'gallery.spec.js',
       'describe.spec.js', 'param-petals.spec.js', 'approve.spec.js', 'baking.spec.js', 'stats.spec.js',
       'pages-ux.spec.js', 'composite.spec.js', 'attached.spec.js', 'custom-code.spec.js', 'guest.spec.js',
       'param-controls.spec.js', 'phone-cuts.spec.js', 'import-history.spec.js', 'palettes.spec.js', 'account.spec.js'],

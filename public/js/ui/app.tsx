@@ -12,10 +12,7 @@ import { confirmDialog, cx, toast, Toasts } from './kit.tsx';
 import { canReport, fileBugReport } from './bug-report.tsx';
 import { Rose } from './rose.tsx';
 import { openTour, welcomeOnce } from './tour-view.ts';
-import { redeemInvite, takeInvite } from './invite.ts';
-import { enterInvite } from './invite-form.tsx';
-import { ai, here, home, invitable, leaveGuard, navigate, router, setTitle, signedIn, user, type ViewProps }
-  from './session.ts';
+import { here, home, leaveGuard, navigate, router, setTitle, signedIn, user, type ViewProps } from './session.ts';
 
 interface Route {
   re: RegExp; name: string; title: string; load: () => Promise<ComponentType<ViewProps>>; public?: boolean;
@@ -26,14 +23,12 @@ const pages = () => import('./pages.tsx');
 const adminTab = (tab: string, load: Route['load']) => () => Promise.all([import('./admin.tsx'), load()])
   .then(([m, Page]) => m.withTabs(Page, tab));
 // /admin opens its first tab; the admin pages' old URLs lead to theirs.
-const MOVED: Record<string, string> = { '/admin': '/admin/models', '/models': '/admin/models',
-  '/access': '/admin/access', '/light': '/admin/light', '/reports': '/admin/reports' };
+const MOVED: Record<string, string> = { '/admin': '/admin/light', '/admin/models': '/admin/light',
+  '/admin/access': '/admin/light', '/models': '/admin/light', '/access': '/admin/light', '/light': '/admin/light',
+  '/reports': '/admin/reports', '/ideas': '/looks' };
 const ROUTES: Route[] = [
   { re: /^\/login\/?$/, name: 'auth', title: 'Sign in', public: true,
     load: () => import('./auth.tsx').then((m) => m.Auth) },
-  { re: /^\/ideas\/?$/, name: 'ideas', title: 'Ideas', nav: '/ideas', load: () => pages().then((m) => m.Ideas) },
-  { re: /^\/ideas\/([^/]+)\/how\/?$/, name: 'idea-how', title: 'How it was made', nav: '/ideas', keys: ['ideaId'],
-    load: () => import('./aimode/how.tsx').then((m) => m.IdeaHowPage) },
   { re: /^\/studio(?:\/([^/]+))?\/?$/, name: 'studio', title: 'Studio', nav: '/studio', keys: ['lookId'],
     load: () => import('./studio.tsx').then((m) => m.Studio) },
   { re: /^\/looks\/?$/, name: 'looks', title: 'My looks', nav: '/looks', scope: 'mine',
@@ -42,10 +37,6 @@ const ROUTES: Route[] = [
     load: () => pages().then((m) => m.Looks) },
   { re: /^\/account\/?$/, name: 'account', title: 'Account', nav: '/account',
     load: () => import('./account.tsx').then((m) => m.AccountPage) },
-  { re: /^\/admin\/models\/?$/, name: 'models', title: 'Models', nav: '/admin',
-    load: adminTab('models', () => import('./models.tsx').then((m) => m.Models)) },
-  { re: /^\/admin\/access\/?$/, name: 'access', title: 'Access', nav: '/admin',
-    load: adminTab('access', () => import('./access.tsx').then((m) => m.AccessPage)) },
   { re: /^\/admin\/light\/?$/, name: 'light', title: 'Light', nav: '/admin',
     load: adminTab('light', () => import('./light.tsx').then((m) => m.LightPage)) },
   { re: /^\/admin\/baking\/?$/, name: 'baking', title: 'Baking', nav: '/admin',
@@ -59,17 +50,13 @@ const ROUTES: Route[] = [
 /** Where to go after signing in: `next` when it is a page of this app, else home. */
 export const safeNext = (next: string | null) => (next && next.startsWith('/') && !next.startsWith('//')
   && !next.startsWith('/login') ? next : home());
-/** Without generators (SPEC-generators "No generators"), the pages of what the server does not run lead elsewhere. */
-const NO_AI_MOVED: Record<string, string> = { '/admin': '/admin/light', '/admin/models': '/admin/light',
-  '/admin/access': '/admin/light' };
 
 /** Where a path leads: a redirect, or a route and its params. */
 export function resolve(path: string, search: string, signedIn: boolean):
   { redirect: string } | { route: Route; params: Record<string, string> } {
   if (path === '/' || path === '') return { redirect: signedIn ? home() : '/login' };
-  const bare = path.replace(/\/$/, ''), moved = (!ai.value && NO_AI_MOVED[bare]) || MOVED[bare];
+  const moved = MOVED[path.replace(/\/$/, '')];
   if (moved) return { redirect: moved + search };
-  if (signedIn && !ai.value && bare.startsWith('/ideas')) return { redirect: home() };   // no AI, no Ideas
   for (const route of ROUTES) {
     const m = route.re.exec(path);
     if (!m) continue;
@@ -126,11 +113,10 @@ async function logout() {
   navigate('/login', { force: true, replace: true });
 }
 
-const NAV = [['/ideas', 'Ideas'], ['/studio', 'Studio'], ['/looks', 'My looks'], ['/gallery', 'Gallery']];
+const NAV = [['/studio', 'Studio'], ['/looks', 'My looks'], ['/gallery', 'Gallery']];
 const ADMIN_NAV = [...NAV, ['/admin', 'Admin']];
-/** The header's links: no Ideas without the AI, no My looks for a guest. */
-const navOf = (me: User) => (can(me, 'admin') ? ADMIN_NAV : NAV)
-  .filter(([href]) => (ai.value || href !== '/ideas') && !(me.guest && href === '/looks'));
+/** The header's links: no My looks for a guest. */
+const navOf = (me: User) => (can(me, 'admin') ? ADMIN_NAV : NAV).filter(([href]) => !(me.guest && href === '/looks'));
 
 /** The user menu drops under its button at a desktop's width; on a phone it sits open in the nav panel. */
 function placeUserMenu(e: { newState: string; currentTarget: HTMLElement }) {
@@ -180,8 +166,6 @@ function Header({ me, nav }: { me: User; nav?: string }) {
             onClick={(e) => { if ((e.target as Element).closest('.btn')) e.currentTarget.hidePopover?.(); }}>
             <button class="btn ghost small tutorials-btn" type="button" onClick={() => openTour('menu')}>
               Tutorials</button>
-            {invitable.value && <button class="btn ghost small" type="button" onClick={enterInvite}>
-              Invite code</button>}
             {!me.guest && <a class="btn ghost small" href="/account">Account</a>}
             {canReport(me) && <button class="btn ghost small report-btn" type="button" title="Report a problem (F8)"
               onClick={() => { setOpen(false); void fileBugReport(); }}>Report a problem</button>}
@@ -227,13 +211,11 @@ export async function boot() {
     show();
   });
   window.addEventListener('beforeunload', (e) => { if (leaveGuard.isDirty?.()) e.preventDefault(); });
-  takeInvite();
   try {
     signedIn(await api.me());
   } catch (err) {
     if (statusOf(err) !== 401 && statusOf(err) !== 403) toast((err as Error).message, { kind: 'error' });
   }
-  if (user.value) await redeemInvite();
   document.body.classList.remove('booting');
   await show();
   welcomeOnce(user.value);
