@@ -1,5 +1,5 @@
 // Standard modules (SPEC "Modules"): a module whose ref names a library module keeps the library's name, in the
-// store's rule, over the API and from generators; a custom module (no ref) is its own to name.
+// store's rule and over the API; a custom module (no ref) is its own to name.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -7,7 +7,6 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { validateLook } from '../shared/schemas/generated.ts';
 import { keepStandardTitles, standardTitle } from '../shared/standard-modules.ts';
 import { fakeBox, fx, PIXEL, signup, startApp, useFixture } from './fixtures/server.js';
 
@@ -30,11 +29,6 @@ describe('the rule', () => {
     const mods = [std('Renamed'), own('Mine')], out = keepStandardTitles(mods, LIB);
     assert.deepEqual(out.map((m) => m.title), [STREAKS, 'Mine']);
     assert.equal(out[1], mods[1]);
-  });
-  test('a generated module with a library ref takes the library name', () => {
-    const look = validateLook({ title: 'T', layers: [{ title: 'L', modules: [std('Glints'), own('Crossing')] }] },
-      { library: LIB });
-    assert.deepEqual(look.layers[0].modules.map((m) => m.title), [STREAKS, 'Crossing']);
   });
 });
 

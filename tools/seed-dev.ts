@@ -4,7 +4,7 @@
 //   node tools/seed-dev.ts --from <source data dir> --to <empty target dir>
 //
 // It copies the shared looks (each with its baked frames and gallery previews), the light settings and the model
-// registry. Never users, sessions or invites; nor ideas, their logs, reports or the live stage, which belong to
+// registry. Never users, sessions or invites; nor ideas, their logs or reports, which belong to
 // people the dev studio does not have. A copied look keeps its owner's id and name, so the gallery shows who made
 // it, but no account in the dev studio owns it: it is everyone's to open, play and remix, no one's to edit. Its
 // ideaId is dropped, since the idea stays behind. Unshared looks stay behind too: in the dev studio no one could

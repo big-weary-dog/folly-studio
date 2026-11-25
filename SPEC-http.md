@@ -37,11 +37,11 @@ the first problem ("Layer 2, clip 1: start must be a number of seconds from 0 to
 known path's other methods 405 with `Allow`.
 
 ```
-POST   /api/signup   { username, password }   → { user, flash, profile, rig }  (sets cookie)
-POST   /api/login    { username, password }   → { user, flash, profile, rig }
-POST   /api/guest    { name }                 → { user, flash, profile, rig }  a guest (SPEC-access "Guests")
+POST   /api/signup   { username, password }   → { user, flash, rig }  (sets cookie)
+POST   /api/login    { username, password }   → { user, flash, rig }
+POST   /api/guest    { name }                 → { user, flash, rig }  a guest (SPEC-access "Guests")
 POST   /api/logout                            → { ok: true }
-GET    /api/me                                → { user, flash, access, profile, rig } | 401
+GET    /api/me                                → { user, flash, access, rig } | 401
 PUT    /api/me/tour  tour                     → { tour }  SPEC-tutorial
 GET    /api/ideas                             → { ideas: [idea] }    mine, newest first
 POST   /api/ideas    { text, model?, explore? } → { idea }           queued for generation on that model (none: the
@@ -79,7 +79,7 @@ GET    /api/admin/reports/:id                 → { report }  admins only; 404 w
 GET    /api/admin/reports/:id/shot            → image/jpeg  admins only; 404 when it has none
 GET    /api/looks?scope=mine|gallery          → { looks: [listed] }  metadata only: no layers
 POST   /api/looks    { title, summary?, layers, duration?, bpm?, globals?, automation?, ideaId?, chain?, origin? }
-                                              → { look, imported? }  origin: an import (SPEC-offline "Look files"):
+                                              → { look, imported? }  origin: an import (SPEC-looks "Look files"):
                                               201 added, or 200 updating the importer's look it names, `imported`
                                               'added' | 'updated' | 'unchanged'; 429 at 500 looks (an account's
                                               most, which an idea's new look also keeps to: it fails)
@@ -99,8 +99,6 @@ GET    /api/looks/:id/frames/:hash/manifest   → the stream manifest (immutable
 GET    /api/looks/:id/frames/:hash/:n         → stream chunk n (immutable; br/gzip)  mine, or shared
 GET    /api/looks/:id/preview/:key.webp       → the gallery preview (image/webp, immutable)  mine, or shared;
                                               `:key-still.webp` its still; 404 unless `key` is `listed.preview`
-GET    /api/pi-bundle[/info]                  → the Pi bundle | { commit, bytes, builtAt }  curators (SPEC-offline
-                                              "Downloading the Pi bundle"); POST /api/pi-bundle/link, GET /:token
 GET    /api/library                           → { patterns: [{ name, title, summary, tags, kind, category, code }] }
                                               (a preset: kind 'preset', its layers and globals?, code '')
 ```

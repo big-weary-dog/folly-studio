@@ -23,12 +23,12 @@ as here; any other failure says why and points to Check & bake.
   a hung frame still has the same 20 s wall-clock limit.
   /out is a 1 MB tmpfs inside the box with only `frames.fseq` and
   `result.json` bound to the host, so each is capped by the file-size limit and nothing else the box writes reaches
-  the host's disk. Without bubblewrap, library only; the bake setting and custom code: `SPEC-baking.md`.
+  the host's disk. Library code only; the bake setting and custom code: `SPEC-baking.md`.
   One bake at a time, under `nice` (`STUDIO_BAKE_NICE`, default 10), in a lane it shares with wire encodes
   (`src/bake.ts` `createLane`). `fleet-box` (advisory): the Fleet worker's own `frames.fseq` + `stats.json` (its `use`
   library: `patterns/` beside check.ts, else none). All three run the same core and `renderer.ts`.
 - **Length.** A bake renders the look's `duration` from t = 0, honouring clips, but at most
-  `STUDIO_BAKE_SECONDS` (hosted default 120 s, Pi default 600 s, ≤ 600) in the render box; `fleet-box/check.ts --bake`
+  `STUDIO_BAKE_SECONDS` (default 120 s, ≤ 600) in the render box; `fleet-box/check.ts --bake`
   does the same (`--seconds` overrides). `look.bake.seconds` records what was baked; a bake is
   dropped if the layers or duration change before its record is attached (after its frames are stored). The box's wall-clock and CPU budgets
   default to 30 s + 1.5 s per second baked (at least 90 s / 120 CPU s).
@@ -47,8 +47,6 @@ as here; any other failure says why and points to Check & bake.
   start at frame 0 and ascend, its lengths fill the data exactly, frames × channels ≤
   maxDataBytes before anything is inflated, and each block inflate to exactly its frames, so a
   decompression bomb is refused. Empty index entries may only pad its end (FPP preallocates).
-  `parseFseqHeader(headerBytes, { fileBytes, maxBytes?, maxChannels? })` applies the same uncompressed metadata
-  and size checks without reading the data, returning the metadata and `dataOffset` for file-backed playback.
   `analyzeFrames(parsed, scene, watch, light)` (the core's `prepareScene(rig)`, a recording `FlashWatch` and
   `ledLight(light)`, the light settings when it bakes; frames.ts imports only types, so the Fleet box runs a copy) → `{ frames, seconds, fps, peakBrightness,
   meanBrightness, darkFraction, estPeakAmps (20 mA/channel at 5 V), coverage, flicker: { maxHz, flaggedSeconds,

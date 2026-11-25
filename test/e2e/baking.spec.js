@@ -1,4 +1,4 @@
-// npm run smoke, too: where bakes run (SPEC-baking), on a real render box made library only (no bubblewrap). An admin
+// npm run smoke, too: where bakes run (SPEC-baking), on a real render box without bubblewrap. An admin
 // sees it on Admin → Baking and throttles baking; custom code is refused with the reason, at Check & bake (1366) and a
 // gallery card's Approve (390); with baking off, Check & bake says an admin turned it off. Screenshots land in
 // BAKING_SHOTS when set, else the test's output folder.
@@ -30,10 +30,10 @@ for (const width of [390, 1366]) {
 
     await page.goto(`${studio.origin}/admin/baking`);
     if (width < 900) {
-      await expect(page.getByText(/Library only\. Bubblewrap \(bwrap\) is not installed/)).toBeHidden();
+      await expect(page.getByText(/No bubblewrap\. Bubblewrap \(bwrap\) is not installed/)).toBeHidden();
       await page.getByText('Baking details', { exact: true }).click();
     }
-    await expect(page.getByText(/Library only\. Bubblewrap \(bwrap\) is not installed/)).toBeVisible();
+    await expect(page.getByText(/No bubblewrap\. Bubblewrap \(bwrap\) is not installed/)).toBeVisible();
     await page.getByRole('button', { name: 'Throttled' }).click();
     await expect(page.getByText('Baking is throttled.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Throttled' })).toHaveAttribute('aria-pressed', 'true');
@@ -46,7 +46,7 @@ for (const width of [390, 1366]) {
       const card = page.locator('.card', { hasText: `Custom ${width}` });
       await card.locator('summary').click();
       await card.getByRole('button', { name: `Approve Custom ${width}` }).click();
-      await expect(page.getByText(/without bubblewrap, so only looks made of unchanged library .* custom code/))
+      await expect(page.getByText(/Only looks made of unchanged library patterns .* custom code/))
         .toBeVisible();
       await shot('2-refused');
     } else {
@@ -57,7 +57,6 @@ for (const width of [390, 1366]) {
       };
       await openBake();
       const bake = page.locator('dialog section.bake');
-      await expect(bake).toContainText('so this server bakes only looks made of unchanged library patterns.');
       await bake.getByRole('button', { name: 'Bake', exact: true }).click();
       await expect(bake.locator('.bake-reason').first()).toContainText('Layer 1 (Sea) is custom code.');
       await shot('2-refused');

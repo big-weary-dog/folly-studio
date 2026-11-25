@@ -49,16 +49,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 }
 
 const enc = encodeURIComponent;
-type Me = { user: User, flash?: FlashSettings, access?: Access, profile?: 'hosted' | 'pi' };
-/** Playing on the lights (SPEC-offline): what may play, and how one look would (`play`, when asked about one). */
-export type Lights = { liveLooks: boolean, mode: 'jukebox' | 'live', canQueue: boolean, canDrive: boolean,
-  engine: boolean,
-  play?: { kind: 'live' | 'baked', error?: undefined } | { kind?: undefined, error: string } };
-export type At = 'now' | 'next' | 'end';
-/** A look as the live page offers it (SPEC-offline `GET /api/lights/looks`). */
-export type LightsLook = { id: string, title: string, ownerName: string, duration: number, preview?: string,
-  play: { kind: 'live' | 'baked' } | { error: string } };
-
+type Me = { user: User, flash?: FlashSettings, access?: Access };
 export const api = {
   me: () => request<Partial<Me>>('GET', '/api/me'),
   signup: (username: string, password: string) => request<Me>('POST', '/api/signup', { username, password }),
@@ -90,12 +81,6 @@ export const api = {
   saveModels: (config: ModelsConfig) => request<AdminModels>('PUT', '/api/admin/models', config),
   light: () => request<LightSettings>('GET', '/api/light'),
   saveLight: (light: LightSettings) => request<LightSettings>('PUT', '/api/admin/light', light),
-  lights: (lookId?: string) => request<Lights>('GET', `/api/lights${lookId ? `?lookId=${enc(lookId)}` : ''}`),
-  playOnLights: (lookId: string, at: At, fade?: number) => request<{ kind: 'live' | 'baked' }>('POST',
-    '/api/lights/queue', { lookId, at, ...fade ? { fade } : {} }),
-  lightsLooks: (from: 'mine' | 'gallery') => request<{ looks: LightsLook[] }>('GET', `/api/lights/looks?from=${from}`),
-  saveLights: (change: Partial<Pick<Lights, 'liveLooks' | 'mode'>>) => request<Lights>('PUT', '/api/admin/lights',
-    change),
 
   looks: (scope: 'mine' | 'gallery' = 'mine') => request<{ looks?: Listed[] }>('GET',
     `/api/looks?scope=${enc(scope)}`),
@@ -117,8 +102,6 @@ export const api = {
     fix?: { layer: string, error: string } }) => request<{ idea: Idea }>('POST', `/api/looks/${enc(id)}/refine`, body),
   bake: (id: string) => request<{ bake: Bake }>('POST', `/api/looks/${enc(id)}/bake`, {}),
 
-  liveLooks: () => request<{ looks: Listed[] }>('GET', '/api/live/looks'),
-
   /** An F8 bug report (SPEC "Bug reports"); 413 when it is too big. */
   report: (report: ReportBody) => request<{ id: string }>('POST', '/api/reports', report),
   reports: () => request<{ reports: ReportSummary[] }>('GET', '/api/admin/reports'),
@@ -132,9 +115,6 @@ export const api = {
     body),
   /** Visits, requests and the server since it started (SPEC-access "Stats"); admins only. */
   stats: () => request<ServerStats>('GET', '/api/admin/stats'),
-  /** The Pi bundle this server holds (SPEC-offline "Downloading the Pi bundle"), and a curl link to it. */
-  piBundle: () => request<{ commit: string, bytes: number, builtAt: string }>('GET', '/api/pi-bundle/info'),
-  piBundleLink: () => request<{ path: string, expires: string }>('POST', '/api/pi-bundle/link'),
 };
 
 /** Static JSON (not under /api): the rig, the palettes. */

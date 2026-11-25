@@ -253,10 +253,8 @@ Brotli 11 is 11 % smaller over the library's sources, for 10 times the encode ti
 |---|---|
 | `.fseq` → FPP or xLights | Built; addressing proven (below); not yet verified on FPP or in xLights |
 | `tools/sacn-play.ts` | Built: plays any studio `.fseq` (plain, sparse, zstd, zlib) as E1.31 on the rig's universes, as xLights' Output to Lights and FPP do; packets checked field by field |
-| The live stage (`/live`, `SPEC-live.md`) | Built: one shared look on every viewer's Playa view, driven from `/live/control`; its state and clock are what an sACN output would follow |
-| The Pi's engine (`pi/`, SPEC-offline "Playing on the lights", `SPEC-liveplay.md`) | Built: on the FPP Pi, plays library looks live and current bakes on City of Gods, as DDP to fppd, through the rose's expansion, the power compressor (byte for byte lighting's `compress-fseq.py`) and a flash guard; a queue (Jukebox) or Live Play |
-| Relay (`SPEC-live.md` "Relay to the lights") | Built: the lights play frames a browser renders, such as Studio's editor's To the lights |
-| Live sACN from the server, TouchDesigner | Not built: live sACN would be a render-box renderer on the stage's clock at the rig's fps (`SPEC-live.md` "Later"); TouchDesigner `IDEAS.md` |
+| The live stage, the Pi's engine and relay to the lights | Archived (`ARCHIVE.md`): a shared `/live` look, a player on the FPP Pi sending DDP, and frames from the browser to the lights; the tag holds them |
+| Live sACN from the server, TouchDesigner | Not built: live sACN would be a render-box renderer at the rig's fps; TouchDesigner `IDEAS.md` |
 
 **The proof that our output matches the sculpture's input** is the Mirage match (`npm run e2e`). It renders looks
 whose colours encode each LED's identity, writes them with our FSEQ writer, plays them with `sacn-play` through
@@ -356,8 +354,6 @@ so Fleet's boxes get **no memory cap**; the server warns at start.
   ports. HTTPS matters: browsers ask for brotli only over it. With `STUDIO_TRUST_PROXY` the server takes the client
   address and host the tunnel forwards, from this machine only; never `trustProxy: true`, which would let a client
   name its own address and dodge the per-address login limit.
-- **The live stage.** One socket per viewer; a change is one JSON string sent to all (≤ 200 sockets); the pattern
-  runs in each viewer's sandbox, so the host renders nothing.
 - **Backups.** `npm run backup`: a dated `.tar.gz`, safe while the server runs; daily from cron.
 - **Storage.** JSON files, one per collection, written atomically: enough for tens of users; SQLite is the next
   step if it grows.
@@ -378,11 +374,8 @@ font. Copy is plain and says what happens ("Bake it in the render box to check i
   sought to. Anything that keeps state across frames (the trails filter; code people or the AI write that
   integrates in `frame()`) does not: the preview computes at 40, 30 or 20 fps as the device allows, the bake at
   40, and a seek does not rewind state. The baked frames are the truth.
-- **No audio, no live input.** `bpm` is a number (Live Play on the Pi takes a tapped tempo); there is no track, beat
+- **No audio, no live input.** `bpm` is a number; there is no track, beat
   detection, MIDI, OSC or sACN in.
-- **The live stage has no flash guard yet.** Only reviewed looks play, and those passed the bake's flash check, but
-  pushed values can make a reviewed look flash; `/live` has no flash guard yet (the Pi's engine has its own).
-  Stateful layers can also differ between its viewers, as above: each computes from its own first frame.
 - **LEDs are points.** A pattern is sampled at each LED's position; cells and floods have extent only in the 3D
   view, and thin fast features can alias between LEDs unless drawn with `soft()` and `band()` or softened.
 - **RGB pixels only.** Output is RGB triples in some order; no RGBW, dimmer channels, movers or other DMX fixtures.

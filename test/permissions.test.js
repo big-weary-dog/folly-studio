@@ -51,7 +51,7 @@ describe('routes that need a role', () => {
     adminsDeclared({ method: 'GET', url: '/api/administer' });
   });
 
-  let app, member, admin, curator, pi, piMember, piAdmin;
+  let app, member, admin, curator;
   const registered = [], dirs = [];
   const dir = () => {
     const d = mkdtempSync(path.join(tmpdir(), 'permissions-'));
@@ -68,13 +68,11 @@ describe('routes that need a role', () => {
     });
     try {
       app = await startApp({ admins: 'ada', curators: 'cat', dataDir: dir() });
-      pi = await startApp({ profile: 'pi', admins: 'ada', dataDir: dir(), piPreview: 'http://127.0.0.1:1' });
     } finally { spy.mockRestore(); }
     [admin, member, curator] = [await signup(app, 'ada'), await signup(app, 'bob'), await signup(app, 'cat')];
-    [piAdmin, piMember] = [await signup(pi, 'ada'), await signup(pi, 'bob')];
   });
   afterAll(async () => {
-    await Promise.all([app?.close(), pi?.close()]);
+    await app?.close();
     for (const d of dirs) rmSync(d, { recursive: true, force: true });
   });
 
@@ -84,7 +82,7 @@ describe('routes that need a role', () => {
     'GET /api/admin/people': 200, 'PUT /api/admin/people/:id': 404, 'GET /api/admin/reports': 200,
     'GET /api/admin/reports/:id': 404, 'GET /api/admin/reports/:id/shot': 404,
     'GET /api/admin/ideas/:id/log': 404, 'GET /api/admin/ideas/:id/log/stills/:name': 400,
-    'PUT /api/admin/baking': 400, 'PUT /api/admin/lights': 200, 'GET /api/admin/stats': 200,
+    'PUT /api/admin/baking': 400, 'GET /api/admin/stats': 200,
   };
   test('a member is refused every admin route, no session is asked to log in, and an admin passes', async () => {
     const routes = [...new Map(registered.map((r) => [`${r.method} ${r.url}`, r])).values()];
@@ -92,13 +90,11 @@ describe('routes that need a role', () => {
     for (const { method, url: pattern } of routes) {
       const route = `${method} ${pattern}`, url = pattern.replace(/:[^/]+/g, 'missing');
       assert.ok(Object.hasOwn(expected, route), `${route} needs an expected admin status`);
-      const onPi = pattern === '/api/admin/lights';
-      const [server, user, boss] = onPi ? [pi, piMember, piAdmin] : [app, member, admin];
       const body = method === 'GET' || method === 'DELETE' ? undefined : {};
-      assert.equal((await user.req(method, url, body)).status, 403, route);
-      assert.equal((await fetch(server.base + url, { method, headers: { 'content-type': 'application/json' },
+      assert.equal((await member.req(method, url, body)).status, 403, route);
+      assert.equal((await fetch(app.base + url, { method, headers: { 'content-type': 'application/json' },
         body: body && '{}' })).status, 401, route);
-      assert.equal((await boss.req(method, url, body)).status, expected[route], route);
+      assert.equal((await admin.req(method, url, body)).status, expected[route], route);
     }
   });
 

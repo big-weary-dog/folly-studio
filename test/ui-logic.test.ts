@@ -15,7 +15,7 @@ import {
   upgradedOf,
 } from '../public/js/ui/bindings.ts';
 import { decimals, exact, onSpan, places, scrubTo, snap } from '../public/js/ui/kit.tsx';
-import { ai, profile, user } from '../public/js/ui/session.ts';
+import { ai, user } from '../public/js/ui/session.ts';
 import { onIdeas, pathsHere } from '../public/js/ui/tour/paths/index.ts';
 import { createLayerStatus } from '../public/js/ui/layer-status.ts';
 import {
@@ -122,31 +122,13 @@ describe('routing', () => {
     }
   });
 
-  test('on the Pi, home is My looks and the pages of what it does not run lead elsewhere', () => {
-    profile.value = 'pi';
-    ai.value = false;
-    try {
-      assert.equal(where('/'), '→ /looks');
-      assert.equal(where('/ideas'), '→ /looks');
-      assert.equal(where('/nowhere'), '→ /looks');
-      assert.equal(where('/admin'), '→ /admin/light');
-      assert.equal(where('/admin/models'), '→ /admin/light');
-      assert.equal(where('/admin/access/'), '→ /admin/light');
-      assert.equal(where('/admin/reports'), 'reports {}');
-      assert.equal(safeNext(null), '/looks');
-    } finally {
-      profile.value = 'hosted';
-      ai.value = true;
-    }
-  });
-
-  test('on the Pi, the tutorial takes no step to Ideas', () => {
-    const steps = (pi: boolean) => pathsHere(pi).flatMap((p) => p.steps);
+  test('without the AI, the tutorial takes no step to Ideas', () => {
+    const steps = (noIdeas: boolean) => pathsHere(noIdeas).flatMap((p) => p.steps);
     assert.ok(steps(false).some(onIdeas));
     assert.ok(!steps(true).some(onIdeas));
     const idea = pathsHere(true).find((p) => p.id === 'idea')!;
     assert.equal(idea.start, '/studio?tour=idea', 'From an idea starts on its look');
-    assert.equal(idea.about, idea.aboutPi);
+    assert.equal(idea.about, idea.aboutNoIdeas);
   });
 
   test('`next` stays on this app', () => {

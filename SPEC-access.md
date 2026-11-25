@@ -20,8 +20,8 @@ is a session, not an account: nothing is written to the users, and `user = { id:
 'member', guest: true }` whatever the name says (a guest named for an admin is no admin). The cookie lets them back in
 on that device for 7 days; at most 1,000 guest sessions live at once, the oldest dropped first (anyone can
 make one). A guest only reads: every mutating route but `/api/logout`, `/api/login`, `/api/signup`
-and `/api/guest` is 403 "Guests can't save", so they make no looks, ideas, bakes, reports, tour or invite, never
-control the live stage, and have no AI ("AI only with access"). The Studio keeps a guest's work in that browser
+and `/api/guest` is 403 "Guests can't save", so they make no looks, ideas, bakes, reports, tour or invite, and
+have no AI ("AI only with access"). The Studio keeps a guest's work in that browser
 (localStorage, the Studio's look as saved, written as it changes) and opens it again on `/studio`; Save asks them to
 log in or sign up, since saving is for accounts, and the work comes along: the first account to open a blank Studio
 in that browser gets it, unsaved, and the browser's copy goes once that account saves or discards it. Their name
@@ -35,8 +35,7 @@ naming the look and its owner. Asking for what a look does not allow them, anyon
 (404), shared or not, so an unshared look is never revealed.
 A curator may also mark a look they can see reviewed (from the gallery, Approve), and bake it; admins are curators too, and alone use the Admin
 pages and their `/api/admin` routes (403 for anyone else; each such route names its role, or the server does not
-start), the Pi preview (SPEC-offline "The Pi preview"; curators too under the Pi profile) and Deep while it is admins' only. Who controls the live stage is its
-own setting (SPEC-live "Settings").
+start) and Deep while it is admins' only.
 
 ## Admin
 
@@ -45,12 +44,10 @@ Phone Admin keeps quick operator tasks; see [SPEC-studio "Phones"](SPEC-studio.m
 Admins' header has one more item, **Admin** (`/admin`, which opens its first tab), where everyone else's has none.
 Its tabs are pages of their own: Models (`/admin/models`, SPEC-generators "Models"), Access (`/admin/access`,
 Access below), Light (`/admin/light`, SPEC "Light and output"), Baking (`/admin/baking`, SPEC-baking "The bake
-setting"), Reports (`/admin/reports`, SPEC "Bug reports"), Stats (`/admin/stats`, Stats below) and Pi bundle
-(`/admin/pi-bundle`, SPEC-offline "Downloading the Pi bundle"), then a link to the
-Pi preview (`/pi/`, in a new tab). `/models`, `/access`, `/light` and `/reports` lead to their tab, query kept. Anyone
-else who opens one sees an explanation that Admin pages require an admin account, without the page's controls.
+setting"), Reports (`/admin/reports`, SPEC "Bug reports") and Stats (`/admin/stats`, Stats below). `/models`,
+`/access`, `/light` and `/reports` lead to their tab, query kept. Anyone else who opens one sees an
+explanation that Admin pages require an admin account, without the page's controls.
 The browser uses the same admin permission as the server; admin API calls remain refused (403).
-On the Pi there is no Models, Access or Pi bundle tab, and `/admin` opens Light (SPEC-offline).
 Leaving a Models or Light draft asks before discarding it, including switching Admin tabs.
 Light downloads the saved settings; while a draft differs, download waits for Save or Revert.
 Limits fields follow a successful Save or Defaults response; blank fields inherit the global allowance.
@@ -59,7 +56,7 @@ Limits fields follow a successful Save or Defaults response; blank fields inheri
 
 The server counts in memory, from its start (a restart starts again; nothing is written), and Stats shows the counts:
 today's as tiles, then the server's uptime, memory (RSS and heap) and 1-minute load; bakes and ideas finished in the
-last 24 hours, failed, and waiting now (no ideas on the Pi); each day's counts (the server's local days, the last 7
+last 24 hours, failed, and waiting now; each day's counts (the server's local days, the last 7
 with requests); and the 10 latest requests that took 1 s or more (an idea's long poll never counts as slow).
 `stats = { startedAt, uptime, memory: { rss, heap }, load, days: [{ day, visitors, people, views, requests, errors,
 slow }], slowest: [{ at, method, route, status, ms }], bakes: { done, failed, waiting }, ideas?: { made, failed,
@@ -73,7 +70,7 @@ the method; the API route's pattern (other paths as asked, without the query, cu
 status, time and body size (`-` when streamed); `v=` the visitor's hash for that day; and, under `STUDIO_TRUST_PROXY`,
 Cloudflare's `CF-IPCountry` when it is two capital letters. No query, cookie, header or address is written. Files
 (`/assets`, `/data`, …), frame chunks, previews and idea polls are counted but written only when they fail (4xx, 5xx)
-or are slow; sockets (the live stage) are neither. Nothing per frame: one hook per HTTP request, a hash only for a
+or are slow. Nothing per frame: one hook per HTTP request, a hash only for a
 line or a page.
 
 ## Access (invite codes and limits)
@@ -115,8 +112,8 @@ models[i].limits?: { "perHour"?, "perDay"?, "concurrent"? }
   state: 'active' | 'used' | 'expired' | 'revoked' }`. `person = { id, username, role, access: { unlockedAt?, invite?,
   by?, limits?, resetAt? }, used: { hour, day, running } }`.
 
-**AI only with access.** Anyone who may not send ideas sees no AI anywhere: guests, accounts not unlocked (where
-`inviteOnly`), and everyone on the Pi. They get no Ideas page (it leads to My looks; a guest's home is the Studio), no
+**AI only with access.** Anyone who may not send ideas sees no AI anywhere: guests and accounts not unlocked (where
+`inviteOnly`). They get no Ideas page (it leads to My looks; a guest's home is the Studio), no
 Ideas link, no Refine panel or "Ask the AI to fix it", and no tutorial step on Ideas; `/api/me` has no `access` for a
 guest. The server refuses their ideas as above. A locked account gets the AI by an invite link, or a code entered
 under "Invite code" in its user menu (which only a locked account has, and only where `inviteOnly`).
@@ -125,12 +122,12 @@ Sign-up explains that AI needs an invite. My looks repeats this for locked accou
 ## HTTP
 
 ```
-POST   /api/guest    { name }                 → { user, flash, profile }  in as a guest (sets cookie): "Guests"
+POST   /api/guest    { name }                 → { user, flash }      in as a guest (sets cookie): "Guests"
 POST   /api/invite   { code }                 → { access }           redeem an invite code ("Access")
 GET    /api/admin/invites                     → { invites: [invite] }  admins only, as are the four below
 POST   /api/admin/invites { label?, uses?, days? } → 201 { invite, code }  the code is shown only here
 DELETE /api/admin/invites/:id                 → { invite }           revoked (kept, so the list says so)
 GET    /api/admin/people                      → { people: [person] }
 PUT    /api/admin/people/:id { unlocked?, limits?, reset? } → { person }  limits: null clears the override
-GET    /api/admin/stats                       → stats  admins only (403), on the Pi too ("Stats")
+GET    /api/admin/stats                       → stats  admins only (403) ("Stats")
 ```

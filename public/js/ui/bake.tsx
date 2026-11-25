@@ -11,7 +11,6 @@ import { user } from './session.ts';
 import { askWhy } from './ask-why.tsx';
 import { cx, openDialog, Switch, toast } from './kit.tsx';
 import type { Preview } from './preview.ts';
-import { FixButton } from './refine.tsx';
 import { mb } from './preview-view.tsx';
 import type { Studio } from './studio-store.ts';
 
@@ -165,8 +164,8 @@ function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
     <section class={cx('bake', !hasFrames && 'no-play')} data-state={s.kind} aria-label="Bake">
       <div class="bake-head"><span class="bake-pill" data-kind={s.kind}>{s.label}</span></div>
       <p class={cx('bake-note', look && bake && dirty && !active && 'warn')}>{note}</p>
-      {canBake && (off || baking?.box.libraryOnly) && <p class="bake-note warn" role="note">{off
-        ? 'An admin turned baking off, so looks cannot be baked here for now.' : baking?.box.reason}</p>}
+      {canBake && off && <p class="bake-note warn" role="note">
+        An admin turned baking off, so looks cannot be baked here for now.</p>}
       <dl class="bake-report" hidden={!a}>{a && <>
         {row('Flash check', check[0], check[1])}
         {row('Peak', `${pct(a.peakBrightness)} white · ≈ ${a.estPeakAmps} A`)}
@@ -175,8 +174,8 @@ function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
         {hasFrames && url && <div class="field"><dt>Download</dt><dd><a href={url} download="">.fseq</a> · <a
           href={`${url}?compress=1`} download="">compressed</a></dd></div>}</>}</dl>
       <p class="bake-reason" role="status" hidden={!reason}>{reason}</p>
-      {threw && !dirty && <p class="bake-reason" role="status">{`${threw.title} threw while baking: ${threw.error} `}
-        <FixButton st={st} layer={threw.title} error={threw.error} /></p>}
+      {threw && !dirty && <p class="bake-reason" role="status">
+        {`${threw.title} threw while baking: ${threw.error}`}</p>}
       <p class="bake-warning" role="status" hidden={!warning}>{warning}</p>
       <div class="bake-actions">
         <button type="button" class="btn small wide-only" hidden={!canBake} disabled={busy || active || off}

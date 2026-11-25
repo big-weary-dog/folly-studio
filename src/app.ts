@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 
 import fastifyCookie from '@fastify/cookie';
 import fastifyRateLimit from '@fastify/rate-limit';
-import fastifyWebsocket from '@fastify/websocket';
 import Fastify from 'fastify';
 
 import { createAccess } from './access.ts';
@@ -25,12 +24,6 @@ import { createIdeaLogs } from './generate/idea-log.ts';
 import { createRegistry } from './generate/models.ts';
 import { createLog, errorHandler, keepTail, type Log } from './http.ts';
 import { createLightStore } from './light.ts';
-import { createHub } from './live/hub.ts';
-import { piFeed } from './live/pi-feed.ts';
-import { controlFor, liveSettings, playableLook, stageCopy } from './live/routes.ts';
-import { createLightsStore } from './lights.ts';
-import { piPreview, previewTarget } from './pi-preview.ts';
-import { boxDefaults, generates, type Profile, profileDefaults, profileOf } from './profile.ts';
 import { rigFileOf, rigOf } from './rig-choice.ts';
 import { createPreviews } from './previews/index.ts';
 import { frontView } from './previews/motion.ts';
@@ -42,7 +35,6 @@ import { createReports } from './reports/store.ts';
 import { createLoaders, CSP_APP, DEFAULT_DIST_DIR, DEFAULT_PUBLIC_DIR, serveApp } from './static.ts';
 import { createStore } from './store.ts';
 import type { FlashSettings } from '../shared/schemas/api.ts';
-import type { LiveSettings } from '../shared/schemas/live.ts';
 import type { RigName } from '../shared/schemas/rig.ts';
 
 export const DEFAULT_DATA_DIR = fileURLToPath(new URL('../data/', import.meta.url));
@@ -59,10 +51,9 @@ type Options = { config?: Config, dataDir?: string, publicDir?: string, distDir?
   trustProxy?: boolean, log?: Log,
   rateLimit?: { max?: number, ipMax?: number, guestMax?: number, windowMs?: number }, scrypt?: Cost,
   framesQuality?: number, framesMaxBytes?: number, generator?: Queue | ((deps: Deps) => Queue | Promise<Queue>),
-  renderBox?: Parameters<typeof createBakeQueue>[0]['box'], flash?: FlashSettings, live?: LiveSettings,
-  piPreview?: string, ideaLogs?: { keep?: number, maxBytes?: number }, previews?: string,
-  reports?: { keep?: number, maxBytes?: number, days?: number }, profile?: Profile, rig?: RigName,
-  customCode?: boolean };
+  renderBox?: Parameters<typeof createBakeQueue>[0]['box'], flash?: FlashSettings,
+  ideaLogs?: { keep?: number, maxBytes?: number }, previews?: string, rig?: RigName,
+  reports?: { keep?: number, maxBytes?: number, days?: number }, generators?: boolean, customCode?: boolean };
 
 /**
  * The server. `config`: the settings (src/config.ts; default: models.env's, else the environment's), the default of
@@ -71,13 +62,13 @@ type Options = { config?: Config, dataDir?: string, publicDir?: string, distDir?
  * `generatorName`: STUDIO_GENERATOR, the registry's default when its file is first written ('' when unset);
  * `publicDir`: the sources (the library, the rig); `distDir`: the app as Vite built it, served as static files.
  * `trustProxy`: one proxy in front (a tunnel): the client's address and host are the ones it forwards. `flash`: the
- * flash check's settings (default: flashSettings(config)); `live`: who controls the live stage and what plays
- * (default: liveSettings(config)); `piPreview`: PI_PREVIEW_URL, a dry-run Studio Live shown to admins at /pi;
+ * flash check's settings (default: flashSettings(config));
  * `ideaLogs`: how many ideas' logs to keep and their disk cap (STUDIO_IDEA_LOGS, STUDIO_IDEA_LOGS_MAX_BYTES);
- * `previews`: the gallery previews' camera, 'playa' or 'front' (STUDIO_PREVIEWS; default: the profile's).
- * `profile`: 'hosted' or 'pi' (STUDIO_PROFILE, SPEC-offline): the Pi has no generators, and its own defaults.
+ * `previews`: the gallery previews' camera, 'playa' or 'front' (STUDIO_PREVIEWS; default playa).
  * `rig`: 'folly' or 'cog' (STUDIO_RIG; default: the Folly), the rig it shows, bakes and boxes (SPEC "Rig").
- * `customCode`: the Custom code switch while baking.json does not set it (default off; tests writing code turn it on).
+ * `generators`, `customCode`: tests only (no setting, file or route reaches them), to run the generators and save and
+ * bake code that is not the library's; production has neither (SPEC-generators "No generators", SPEC-baking "Custom
+ * code"). They go with the generators and the custom code they test.
  */
 export async function createServer(opts: Options = {}) {
   const env = opts.models?.env ?? process.env, codexBin = opts.models?.codexBin;
@@ -85,32 +76,30 @@ export async function createServer(opts: Options = {}) {
   const {
     dataDir = DEFAULT_DATA_DIR, publicDir = DEFAULT_PUBLIC_DIR, distDir = DEFAULT_DIST_DIR, generator,
     generatorName = '', curators = [], admins = [], secureCookies = false, rateLimit, trustProxy = false,
-    renderBox, framesQuality, scrypt, profile = profileOf(config),
-    flash = flashSettings(config), live = liveSettings(config),
+    renderBox, framesQuality, framesMaxBytes, scrypt,
+    flash = flashSettings(config),
   } = opts;
   // Its last warn and error lines go with each bug report.
   const log = keepTail(opts.log ?? createLog());
-  const piTarget = opts.piPreview ? previewTarget(opts.piPreview) : null;
-  const defaults = profileDefaults(profile);
   const rig = opts.rig ?? rigOf(config), rigFile = rigFileOf(publicDir, rig);
-  const framesMaxBytes = opts.framesMaxBytes ?? defaults.framesMaxBytes;
 
   const store = await createStore(dataDir, { log, upgrade: { looks: upgradeStored } });
   const auth = createAuth({ store, curators, admins, cost: scrypt });
   auth.pruneSessions();
   const loaders = createLoaders(publicDir, { log, rigFile });
   const { loadLibrary, loadRig } = loaders;
-  const models = generates(profile) ? createRegistry({
+  // Generators run only where a test asks (SPEC-generators "No generators").
+  const gen = opts.generators === true;
+  const models = gen ? createRegistry({
     file: opts.models?.file || config.STUDIO_MODELS || path.join(dataDir, 'models.json'),
     env, settings: config, log, legacy: generatorName, foundryOn: foundryOf(config).on, codexBin }) : null;
   const access = createAccess({ store, auth, models });
   const light = createLightStore({ file: path.join(dataDir, 'light.json'), log });
-  const box = renderBox || createRenderBox({ publicDir, rigFile, log, config, ...boxDefaults(profile, config) });
+  const box = renderBox || createRenderBox({ publicDir, rigFile, log, config, customCode: opts.customCode });
   // Bakes and previews go through the admin's bake setting; the generators' render checks are not bakes.
   const baking = createBakingStore({ file: path.join(dataDir, 'baking.json'), customCode: opts.customCode, log });
   const bakeBox = governBox(box, baking.mode);
-  const codeGate = createCodeGate({ on: baking.customCode, looks: store.looks,
-    patternsDir: path.join(publicDir, 'patterns') });
+  const codeGate = createCodeGate({ on: baking.customCode, patternsDir: path.join(publicDir, 'patterns') });
   // Baked frames are encoded for streaming as soon as they are stored (src/frames-cache.ts); bakes, those encodes
   // and the generators' render checks take turns at low priority, and evicted frames are baked again on demand.
   const lane = createLane();
@@ -119,8 +108,8 @@ export async function createServer(opts: Options = {}) {
   void reports.sweep();
   const deps = { store, loadLibrary, loadRig, loadLight: light.current, loadVersion: loaders.version, models, codexBin,
     config, log, box, lane, ideaLogs, codeGate, adapterName: generatorName || models?.defaultId() || '' };
-  // The Pi runs none: nothing can make an idea there, so nothing is ever queued.
-  const queue: Queue = !models ? { enqueue: () => { throw new Error('No generators on the Pi.'); } }
+  // Without generators nothing can make an idea, so nothing is ever queued.
+  const queue: Queue = !models ? { enqueue: () => { throw new Error('No generators.'); } }
     : typeof generator === 'function' ? await generator({ ...deps, models })
       : generator || createQueue({ ...deps, models });
   const adapterName = models?.defaultId() || '';
@@ -131,20 +120,13 @@ export async function createServer(opts: Options = {}) {
     onFrames: (id) => { frames.encode(id); previews.want(id); } });
   frames.prune().then(() => frames.disk.enforce()).catch(() => {});
   // Gallery previews (SPEC-previews), made in the same lane, after anything already queued at start.
-  const playa = (opts.previews ?? config.STUDIO_PREVIEWS ?? defaults.previews) === 'front' ? null
+  const playa = (opts.previews ?? config.STUDIO_PREVIEWS) === 'front' ? null
     : playaCamera({ log, loadLight: light.current });
   const previews = createPreviews({ dir: path.join(dataDir, 'previews'), store, box: bakeBox, framesDir, lane, log,
     loadRig, camera: playa?.camera ?? frontView() });
   const previewBackfill = previews.backfill().catch((err) => log.error?.('[previews] backfill:', err));
-  const hub = await createHub({ dataDir, log, driver: profile === 'pi' ? 'pi' : undefined, playable: (id) => {
-    const look = store.looks.get(id);
-    if (!look || !playableLook(look, live)) {
-      return { error: `Only ${live.looks === 'reviewed' ? 'reviewed' : 'shared'} looks play on the stage.` };
-    }
-    return stageCopy(look, store.users.get(look.owner)?.username ?? '');
-  } });
   // Ideas a restart cut short go back in the queue (enqueue is idempotent per id).
-  for (const idea of generates(profile) ? store.ideas.list(isPending) : []) {
+  for (const idea of gen ? store.ideas.list(isPending) : []) {
     enqueueIdea({ queue, store, log }, idea);
   }
 
@@ -161,7 +143,7 @@ export async function createServer(opts: Options = {}) {
   app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => (body.length
     ? json(req, String(body), done) : done(null, {})));
   // A journal line for each request worth reading, and Admin → Stats' counts (src/stats.ts).
-  const stats = createStats({ log, store, ideas: generates(profile), trustProxy });
+  const stats = createStats({ log, store, ideas: gen, trustProxy });
   app.addHook('onResponse', stats.onResponse);
   app.addHook('onRequest', async (req, reply) => {
     reply.headers({ 'content-security-policy': CSP_APP, 'x-content-type-options': 'nosniff',
@@ -169,30 +151,18 @@ export async function createServer(opts: Options = {}) {
   });
   await app.register(fastifyCookie);
   await app.register(fastifyRateLimit, { global: false });
-  await app.register(fastifyWebsocket, { options: { maxPayload: 32 * 1024 } });   // a relayed frame (pi-preview.ts)
-  // The live stage follows the dry run whenever /pi was the last thing used (SPEC-live "Following /pi"); on the Pi,
-  // the feed also plays looks on the lights (SPEC-offline "Playing on the lights").
-  // The mode is the admin's on the Pi (lights.json); the hosted dry run at /pi is a preview, in Live Play.
-  const lightsStore = profile === 'pi' ? createLightsStore(path.join(dataDir, 'lights.json')) : null;
-  const feed = piTarget && piFeed({ target: piTarget, pin: config.PI_PIN, onNow: hub.piNow, onSource: hub.piSource,
-    mode: () => lightsStore?.current().mode ?? 'live', log });
-  if (feed) app.addHook('onClose', async () => feed.close());
-  const drive = controlFor(auth, live);
-  const lights = feed && lightsStore ? { store: lightsStore, feed, hub, drive } : undefined;
   await app.register(apiRoutes({ store, auth, queue, models, loaders, log, access, framesDir, bakes,
-    frames, rateLimit, secureCookies, flash, hub, live, ideaLogs, previews, reports, light, profile, rig, lights,
-    baking: { baking, box }, codeGate, stats: stats.routes, piBundle: config.STUDIO_PI_BUNDLE || undefined,
+    frames, rateLimit, secureCookies, flash, ideaLogs, previews, reports, light, gen, rig,
+    baking: { baking, box }, codeGate, stats: stats.routes,
     build: buildSha(path.dirname(fileURLToPath(import.meta.url)), config.GIT_SHA), tail: log.tail }),
   { prefix: '/api' });
-  if (piTarget) await app.register(piPreview({ auth, target: piTarget, hub, curators: profile === 'pi', drive,
-    loadRig }));
   await serveApp(app, { distDir, log });
   await app.ready();
   const pruneTimer = setInterval(() => { auth.pruneSessions(); void reports.sweep(); }, 60 * 60 * 1000);
   pruneTimer.unref();
 
   return {
-    app, server: app.server, store, auth, access, queue, bakes, frames, previews, loaders, models, adapterName, hub,
+    app, server: app.server, store, auth, access, queue, bakes, frames, previews, loaders, models, adapterName,
     async listen(port = 0, host = '127.0.0.1') {
       await app.listen({ port, host });
       return app.server.address() as { port: number, address: string, family: string };
@@ -201,7 +171,6 @@ export async function createServer(opts: Options = {}) {
       // First, so a call the stop cuts is never taken for a failed idea; its idea queues again at the next start.
       queue.stop?.();
       clearInterval(pruneTimer);
-      await hub.close();
       await app.close();
       bakes.stop();
       previews.stop();
