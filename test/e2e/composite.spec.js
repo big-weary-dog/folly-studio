@@ -129,7 +129,7 @@ for (const width of [1366, 390]) {
 test('nested macro uses, rename/delete, Automate and duplication stay savable', async ({ page, studio }, info) => {
   await page.setViewportSize({ width: 1366, height: 768 });
   const look = structuredClone(TWISTED);
-  look.globals = { macros: { storm: { value: 0.5, min: 0, max: 1 } }, live: ['bpm', 'storm'] };
+  look.globals = { macros: { storm: { value: 0.5, min: 0, max: 1 } } };
   look.layers[0].modules[0].layers[0].modules[0].params.speed = {
     mod: 'global', name: 'storm', from: 0, to: 1 };
   await open(page, studio, look, false);
@@ -148,11 +148,9 @@ test('nested macro uses, rename/delete, Automate and duplication stay savable', 
   await page.getByRole('textbox', { name: 'Name of macro storm' }).fill('rain');
   await page.getByRole('textbox', { name: 'Name of macro storm' }).press('Enter');
   let saved = await save();
-  expect(saved.globals.live).toEqual(['bpm', 'rain']);
   expect(saved.layers[0].modules[0].layers[0].modules[0].params.speed.name).toBe('rain');
   await page.getByRole('button', { name: 'Delete rain', exact: true }).click();
   saved = await save();
-  expect(saved.globals.live).toEqual(['bpm']);
   expect(saved.layers[0].modules[0].layers[0].modules[0].params.speed).toBeUndefined();
 
   await expect(top(page, 'a1').locator('.chain-name')).toHaveAttribute('aria-expanded', 'true');

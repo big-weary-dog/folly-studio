@@ -56,7 +56,7 @@ export const moves: Path = {
       anchor: (c) => at('rose', 'rotate', 'angle', turn(c) ? 'mod-shape' : 'mod-kinds')(c),
       done: (c) => turn(c)?.shape === 'saw' },
     { id: 'macro', page: '/studio', title: 'A macro',
-      text: 'A macro is one fader that can move several values together, by hand, from the timeline or from Live. '
+      text: 'A macro is one fader that can move several values together, by hand or from the timeline. '
         + 'In the Look tab, click + Macro.',
       anchor: ['dock:look', 'macro-add'], begin: (c) => faders(c).length,
       done: (c, n) => faders(c).length > (n as number) },
