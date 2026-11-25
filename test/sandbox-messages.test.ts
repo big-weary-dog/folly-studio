@@ -83,7 +83,8 @@ test('a compile report: the look\'s layers only, paused ones in place, its text 
   const [a, b] = compiledReport(look, report, null, new Map());
   assert.equal(a!.error!.length, TEXT_MAX);
   assert.deepEqual(a!.params, {});
-  assert.deepEqual((a as { modules?: unknown }).modules, [{ id: 'm1', ok: true, params: schema, upgraded: { speed: [1, 2] } },
+  const modules = (a as { modules?: unknown }).modules;
+  assert.deepEqual(modules, [{ id: 'm1', ok: true, params: schema, upgraded: { speed: [1, 2] } },
     { id: 'm2', ok: false, params: {}, error: ' bell' }]);
   assert.deepEqual(b, { id: 'b', ok: false, error: 'The sandbox did not report this layer.', params: {} });
   const pausedOf = (l: Layer): Paused | null => (l.id === 'a' ? { error: 'hung', load: true }
