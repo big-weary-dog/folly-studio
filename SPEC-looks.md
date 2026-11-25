@@ -113,7 +113,7 @@ nothing. With it:
   changing nothing, if a copy fails or the folder is in use;
 - a module naming a retired pattern (`src/retired-patterns.ts`) is switched to today's closest library pattern, a
   preset's modules in its place: butterfly-classic to butterfly, plasma-classic to plasma, lighthouse-classic to
-  lighthouse. The preset's source takes the module's id, blend, `as` and `enabled`, and of its params those that
+  lighthouse (a module naming the preset, the pattern's name before, too). The preset's source takes the module's id, blend, `as` and `enabled`, and of its params those that
   mean the same there (Colours; lighthouse's Beams as Bars); the preset's warps follow attached to it (`on`), ahead
   of what was attached. A layer holding tendril or stained-glass, which have no match, is dropped, the look kept; so
   is a layer a switch would take past 8 modules;

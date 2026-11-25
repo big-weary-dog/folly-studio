@@ -93,7 +93,8 @@ export async function migrateLibraryOnly({ dataDir, patternsDir, dryRun = true, 
     }
     for (const c of kept.changes) for (const line of changeLines(c)) log.info?.(`${STEP}: ${line}`);
     const at = now.toISOString();
-    await writeFileAtomic(marker, `${JSON.stringify({ ...steps, [STEP]: steps?.[STEP] ?? at, [RETIRE]: at }, null, 2)}\n`);
+    const done = { ...steps, [STEP]: steps?.[STEP] ?? at, [RETIRE]: at };
+    await writeFileAtomic(marker, `${JSON.stringify(done, null, 2)}\n`);
     return result;
   } finally {
     await lock?.release();

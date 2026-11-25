@@ -1,8 +1,9 @@
 // A stored module is its library `ref` and params (SPEC-looks "Modules"): reads fill each module's `code` from the
 // library's current file, ignoring any code stored, and writes keep none. A module whose ref the library lacks, or
-// that has none, takes the ref of the one entry whose current file its code is exactly. The library, hidden entries too, is read again at most every REFRESH_MS, so a list of looks costs one read of it. A
-// look or version keeps the hash of the code it was saved with (`codeHash`): when the library changes that code, a
-// read leaves out the look's bake and review, and a version's review.
+// that has none, takes the ref of the one entry whose current file its code is exactly. The library, hidden entries
+// too, is read again at most every REFRESH_MS, so a list of looks costs one read of it. A look or version keeps the
+// hash of the code it was saved with (`codeHash`): when the library changes that code, a read leaves out the look's
+// bake and review, and a version's review.
 import { eachModule, isNode, moduleCodes, type Node } from '../shared/look-modules.ts';
 import type { LibraryEntry } from '../shared/schemas/rig.ts';
 import { sha256 } from './library-files.ts';
