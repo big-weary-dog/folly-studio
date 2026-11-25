@@ -63,8 +63,8 @@ export function createBakingStore({ file, customCode = false, log = console }: {
 }
 type BakingStore = ReturnType<typeof createBakingStore>;
 
-type Box = Pick<RenderBox, 'probe' | 'render'> & { refuses?: RenderBox['refuses'], stop?(): void,
-  config?: Partial<RenderBox['config']> };
+type Box = Pick<RenderBox, 'probe' | 'render'> & { refuses?: RenderBox['refuses'], custom?: RenderBox['custom'],
+  stop?(): void, config?: Partial<RenderBox['config']> };
 
 /**
  * The render box under the bake setting: render() refuses while off (503) and runs throttled at nice 19; ready()
@@ -80,6 +80,7 @@ export function governBox(box: Box, mode: () => BakeMode, { cooldownMs = THROTTL
   return {
     ...box,
     ready,
+    custom: async (layers: readonly LayerInput[]) => (await box.custom?.(layers)) ?? '',
     async refusal(layers: readonly LayerInput[]) {
       if (mode() === 'off') return { status: 503, reason: BAKING_OFF };
       const p = await box.probe();

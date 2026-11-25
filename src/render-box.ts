@@ -213,12 +213,15 @@ export function createRenderBox(o: Options = {}) {
     return probed;
   }
 
-  /** Why the box will not bake these layers here ('' when it will): custom code. `customCode` (tests only) lets it
-   * bake other code under bubblewrap, never without. */
+  /** Why these layers may not bake ('' when they may): custom code. `customCode` (tests only) lets other code bake
+   * under bubblewrap, never without. */
+  async function custom(layers: readonly LayerInput[], boxed = true) {
+    return o.customCode && boxed ? '' : customCode(layers, await libraryHashes(cfg.patternsDir));
+  }
+  /** Why the box will not bake these layers here ('' when it will): no box, or custom code. */
   async function refuses(layers: readonly LayerInput[]) {
     const p = await probe();
-    if (!p.ok) return p.reason;
-    return o.customCode && !p.libraryOnly ? '' : customCode(layers, await libraryHashes(cfg.patternsDir));
+    return p.ok ? custom(layers, !p.libraryOnly) : p.reason;
   }
 
   /**
@@ -282,5 +285,5 @@ export function createRenderBox(o: Options = {}) {
     }
   }
 
-  return { probe, refuses, render, stop: () => children.forEach((c) => c.kill('SIGKILL')), config: cfg };
+  return { probe, custom, refuses, render, stop: () => children.forEach((c) => c.kill('SIGKILL')), config: cfg };
 }

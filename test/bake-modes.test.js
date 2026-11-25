@@ -197,6 +197,23 @@ describe('through the API', () => {
     assert.equal(box.renders, 1);
   });
 
+  test('custom code bakes from stored frames neither', async () => {
+    const [a, b] = [0, 1].map(async () => (await member.post('/api/looks', { title: 'z',
+      layers: [layer({ level: 0.25 })] })).json.look);
+    const [first, twin] = await Promise.all([a, b]);
+    assert.equal((await member.post(`/api/looks/${first.id}/bake`)).status, 202);
+    await app.bakes.idle();
+    box.custom = async () => 'Only looks made of unchanged library patterns … Layer 1 (Sea) is custom code.';
+    try {
+      for (const id of [first.id, twin.id]) {
+        const r = await member.post(`/api/looks/${id}/bake`);
+        assert.equal(r.status, 422, 'its own frames, or a twin\'s');
+      }
+    } finally {
+      delete box.custom;
+    }
+  });
+
   test('a box refuses custom code at the request, and says so', async () => {
     box.probe = async () => ({ ok: true, libraryOnly: 'Bubblewrap (bwrap) is not installed, so …' });
     box.refuses = async () => 'Only looks made of unchanged library patterns … Layer 1 (Sea) is custom code.';
