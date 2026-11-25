@@ -131,7 +131,7 @@ for (const width of [1366, 390, 360]) {
           await card.getByRole('button', { name: /^(Skip step|Next)$/, disabled: false }).click();
           await card.getByRole('button', { name: /^(Skip step|Next)$/, disabled: false }).click();
           await expect(card).toContainText('Your work stays in this browser');
-          await expect(card.getByRole('button', { name: 'Next', exact: true })).toBeEnabled();
+          await expect(card.getByRole('button', { name: 'Finish', exact: true })).toBeEnabled();
           await shot(page, 'guest-keep');
         }
       });

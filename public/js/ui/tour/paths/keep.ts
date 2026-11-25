@@ -4,7 +4,7 @@ import { type Ctx, layerBy, on, type Path } from '../types.ts';
 export const guestKeep = {
   id: 'save', page: '/studio', title: 'Keep your work',
   text: 'Your work stays in this browser. Save asks you to log in or sign up for an account, then your work '
-    + 'comes with you. You can keep exploring as a guest. Click Next to continue.',
+    + 'comes with you. You can keep exploring as a guest. Click Finish.',
   anchor: ['save'], done: () => true, next: true,
 };
 
@@ -29,6 +29,6 @@ export const keep: Path = {
       done: (c, at) => (c.v?.historyAt.value ?? 0) < (at as number) && !spread(c) },
     { id: 'save', page: '/studio', title: 'Save',
       text: 'Save keeps Rose and arches in My looks as your own. Click Save.',
-      anchor: ['save'], done: ({ v }) => !!v?.lookId.value && !v.dirty.value },
+      anchor: ['save'], done: ({ v }) => !!v?.lookId.value && !v.dirty.value, next: true },
   ],
 };
