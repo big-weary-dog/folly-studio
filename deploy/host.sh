@@ -96,7 +96,7 @@ ExecStart=$node server.ts
 Restart=always
 RestartSec=5
 TimeoutStopSec=20
-# A stop signals the server alone, which stops its generator calls itself and leaves their ideas for the next start.
+# A stop signals the server alone, which saves and closes itself.
 KillMode=mixed
 
 [Install]

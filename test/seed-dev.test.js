@@ -1,5 +1,6 @@
-// tools/seed-dev.ts: an empty dev data dir seeded from another's shared looks, their frames and previews, light and
-// models; never users, sessions, invites or ideas; the source read only; a non-empty or same target refused.
+// tools/seed-dev.ts: an empty dev data dir seeded from another's shared looks, their frames and previews, and light;
+// never users, sessions or an older folder's AI files (ideas, invites, models); the source read only; a non-empty
+// or same target refused.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -30,8 +31,7 @@ async function source(name) {
   const store = await createStore(data);
   const ana = store.users.create({ username: 'ana', passwordHash: 'x' });
   store.sessions.create({ userId: ana.id, expiresAt: '2099-01-01T00:00:00Z' });
-  store.invites.create({ hash: 'h', uses: 1, used: 0, createdBy: ana.id });
-  const idea = store.ideas.create({ owner: ana.id, text: 'a reef', status: 'done', generator: 'x' });
+  const idea = { id: 'idea1' };
   const reef = store.looks.create({ owner: ana.id, ownerName: 'old', title: 'Reef', shared: true, ideaId: idea.id,
     layers: [] });
   const mine = store.looks.create({ owner: ana.id, title: 'Private', layers: [] });
@@ -39,6 +39,8 @@ async function source(name) {
   await store.flush();
   fs.writeFileSync(path.join(data, 'light.json'), '{"gamma":2.2}\n');
   fs.writeFileSync(path.join(data, 'models.json'), '{"models":[]}\n');
+  fs.writeFileSync(path.join(data, 'ideas.json'), '[{"id":"idea1"}]\n');
+  fs.writeFileSync(path.join(data, 'invites.json'), '[]\n');
   fs.writeFileSync(path.join(data, 'live.json'), '{"rev":1}\n');
   fs.mkdirSync(path.join(data, 'frames', 'abc'), { recursive: true });
   fs.writeFileSync(path.join(data, 'frames', 'abc', 'manifest.json'), '{}');
@@ -53,19 +55,19 @@ async function source(name) {
   return { data, ana, reef, mine, gone };
 }
 
-test('shared looks with their frames and previews, light and models; nothing about people', async () => {
+test('shared looks with their frames and previews, and light; nothing about people, nor the AI\'s', async () => {
   const { data, ana, reef, gone } = await source('prod');
   const before = tree(data);
   const to = path.join(tmp, 'dev');
   const r = await seedDev({ from: data, to });
-  assert.deepEqual(r, { looks: 2, frames: 1, previews: 2, files: ['looks.json', 'light.json', 'models.json'] });
+  assert.deepEqual(r, { looks: 2, frames: 1, previews: 2, files: ['looks.json', 'light.json'] });
   assert.deepEqual(tree(data), before, 'the source is unchanged');
   assert.deepEqual(Object.keys(tree(to)).sort(), ['frames/' + reef.id + '.fseq', 'light.json', 'looks.json',
-    'models.json', `previews/${reef.id}-${KEY}-still.webp`, `previews/${reef.id}-${KEY}.webp`].sort());
+    `previews/${reef.id}-${KEY}-still.webp`, `previews/${reef.id}-${KEY}.webp`].sort());
   assert.equal(fs.statSync(path.join(to, 'looks.json')).mode & 0o777, 0o600);
 
   const store = await createStore(to);
-  assert.deepEqual([store.users, store.sessions, store.invites, store.ideas].map((c) => c.list().length), [0, 0, 0, 0]);
+  assert.deepEqual([store.users, store.sessions].map((c) => c.list().length), [0, 0]);
   const copied = store.looks.get(reef.id);
   assert.equal(copied.owner, ana.id);
   assert.equal(copied.ownerName, 'ana', 'named from the source users, which are not copied');

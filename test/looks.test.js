@@ -61,7 +61,6 @@ describe('looks', () => {
       { title: 'x', layers: [layer({ params: [] })] },
       { title: 'x', layers: [layer({ params: { a: { nested: true } } })] },
       { title: 'x', layers: [layer(), layer()] },
-      { title: 'x', layers: [layer()], ideaId: 'not-mine' },
     ];
     for (const body of bads) {
       const res = await alice.post('/api/looks', body);
@@ -71,14 +70,6 @@ describe('looks', () => {
     const eight = Array.from({ length: 8 }, (_, i) => layer({ id: `l${i}`, blend: ['add', 'over', 'max',
       'multiply'][i % 4], level: i / 7 }));
     assert.equal((await alice.post('/api/looks', { title: 'Eight', layers: eight })).status, 201);
-  });
-
-  test('ideaId must be my idea', async () => {
-    const idea = app.store.ideas.create({ owner: alice.user.id, text: 'linked idea', status: 'ready' });
-    const ok = await alice.post('/api/looks', { title: 'From idea', layers: [layer()], ideaId: idea.id });
-    assert.equal(ok.status, 201);
-    assert.equal(ok.json.look.ideaId, idea.id);
-    assert.equal((await bob.post('/api/looks', { title: 'Stolen', layers: [layer()], ideaId: idea.id })).status, 400);
   });
 
   test('ownership, sharing, gallery', async () => {

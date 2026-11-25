@@ -8,11 +8,9 @@ have not been run here. Check them against the tool's own docs.
 | Where | What | Cost |
 |---|---|---|
 | Phone or laptop | The app, the 3D preview, every pattern's code (sandboxed iframe), playback of baked frames | Its own CPU and battery |
-| Your computer (`npm start`) | Accounts, the JSON store, the API, static files, generators, bakes, frame encoding | About 100 MB of RAM idle; a login takes 128 MiB for half a second (scrypt, at most three at once) |
-| Codex CLI (Sol, Luna) | One `codex exec` per idea, two at once by default, read-only and with no tools | A short-lived process per idea; the model runs at OpenAI |
+| Your computer (`npm start`) | Accounts, the JSON store, the API, static files, bakes, frame encoding | About 100 MB of RAM idle; a login takes 128 MiB for half a second (scrypt, at most three at once) |
 | Render box (bubblewrap; without it, library looks only) | One bake at a time, `nice 10` (Admin → Baking: throttled is `nice 19` with 30 s between renders, or off), in its own systemd user scope: ≤ 256 tasks (`STUDIO_BAKE_TASKS`), ≤ 1 GB (`STUDIO_BAKE_MEMORY`); a wall clock | A 30 s look takes 2–3 s on one core |
 | Encoder thread | Brotli for streaming, `nice 10`, one job at a time; a look's encode waits for any bake | 2.5–5.5 s per 30 s look at quality 9 |
-| Fleet foundry (opt-in) | Deep ideas in a boxed agent, one at a time | Minutes, and **no memory cap** without a systemd user session (below) |
 
 Bakes and encodes yield to everything else: the API and your desktop stay responsive. Baked frames
 take about 0.6 MB per second on disk. `STUDIO_FRAMES_MAX_BYTES` (default 2GB, roughly an hour of
@@ -23,9 +21,7 @@ baked again when someone presses Play.
 
 Static files are served under content-hashed URLs and cached for a year, so after the first visit
 a reload costs about 2 KB (the page and two API checks, all `304`). A cold Studio load is about
-145 KB. Lists send no code, and an idea being made is followed by long polls: the server answers when it
-changes, or after 25 s, so a page learns at once that its look is ready, with two or three requests per idea and
-none from a hidden tab. Streaming a baked look costs 0.05–2 MB per 30 s, depending on how
+145 KB. Lists send no code. Streaming a baked look costs 0.05–2 MB per 30 s, depending on how
 busy it is. Brotli quality 11 (`STUDIO_FRAMES_BROTLI_QUALITY=11`) saves about 12 % of that, but
 needs about 13 times the CPU (`node tools/frames-bench.ts`).
 
@@ -90,9 +86,8 @@ What was checked on this machine (WSL 2.4, NAT networking, `systemd=true` in `/e
 (default `STUDIO_REF`, else `origin/prod`; a ref `origin` lacks stops it before anything changes). It refuses a checkout with uncommitted changes, then: fetches and checks
 out the ref, `npm ci`, builds, writes `dist/build.json` (`{ commit, builtAt }`), writes and restarts the unit, and
 checks that `/build.json` names the commit, `/api/me` answers 401, and Windows reaches it too. The unit's `KillMode=mixed`
-sends the restart's SIGTERM to the server alone: it stops its generator calls, saves and closes, and the ideas it
-cut short (left queued or generating) resume at the next start, so a deploy never fails an idea in progress. Requests during the few seconds of
-install and restart may fail; a reload fixes them.
+sends the restart's SIGTERM to the server alone: it saves and closes. Requests during the few seconds of install and
+restart may fail; a reload fixes them.
 
 - Another port: set `PORT` in the env file, run `npm run host`, and change the tunnel's URL to match.
 - Logs: `journalctl --user -u folly-studio -f`. Status: `systemctl --user status folly-studio`. An unhandled error is logged there (`[studio] unhandled …`) and the server carries on.
@@ -142,16 +137,16 @@ Set up, once:
 
 1. `git clone https://github.com/big-weary-dog/folly-studio.git ~/folly-dev`.
 2. `~/.config/folly-studio/studio-dev.env` (chmod 600), as the [Environment](#environment) below, with at least
-   `STUDIO_DATA=/home/<you>/folly-dev-data`, `PORT=8781` and `STUDIO_ADMINS=<your dev username>`. No account,
-   session or invite code carries over: sign up there afresh as that username.
+   `STUDIO_DATA=/home/<you>/folly-dev-data`, `PORT=8781` and `STUDIO_ADMINS=<your dev username>`. No account or
+   session carries over: sign up there afresh as that username.
 3. Seed its data from the public studio's, before its first start:
 
    ```sh
    cd ~/folly-dev && npm ci && node tools/seed-dev.ts --from ~/folly-data --to ~/folly-dev-data
    ```
 
-   This copies the shared looks (with their baked frames and gallery previews), the light settings and the model
-   registry; it only reads the source. It never copies users, sessions or invites, nor ideas or reports. A copied
+   This copies the shared looks (with their baked frames and gallery previews) and the light settings; it only reads
+   the source. It never copies users, sessions or reports, nor an older folder's AI files. A copied
    look keeps its owner's name in the gallery, but no dev account owns it: anyone may open and play it, no one edit
    it. Unshared looks stay behind. It refuses a target that is not empty, or that is the source or inside it; to seed
    again, stop the dev studio and empty its folder first.
@@ -188,13 +183,12 @@ node attribute). People reach it without installing Tailscale.
 ## Environment
 
 `npm run host` reads `~/.config/folly-studio/studio.env` (chmod 600; `STUDIO_ENV_FILE` names another). By hand:
-`set -a; . ~/.config/folly-studio/studio.env; set +a; npm start`. Every session running as your user can read it,
-so give the API key a spend limit. The server reads every setting once at start (`src/config.ts`; all of them under
-"Every setting" below) and logs what is set, the API key only as set. A value it cannot read stops it, naming the
-variable: on/off takes `1`, `true`, `on` or `yes`, or `0`, `false`, `off` or `no` (any case); a duration takes a unit
-(`500ms`, `90s`, `5m`, `2h`), and a bare number is in milliseconds for a `_MS` name, else seconds (a bare `_MS`
-value under 1000 is warned of: seconds were likely meant); a size takes `k`, `m` or `g` (`2GB`). A `STUDIO_` name it
-does not read is warned of (a typo?). Unset, each setting has its default.
+`set -a; . ~/.config/folly-studio/studio.env; set +a; npm start`. The server reads every setting once at start
+(`src/config.ts`; all of them under "Every setting" below) and logs what is set. A value it cannot read stops it,
+naming the variable: on/off takes `1`, `true`, `on` or `yes`, or `0`, `false`, `off` or `no` (any case); a duration
+takes a unit (`500ms`, `90s`, `5m`, `2h`), and a bare number is in seconds; a size takes `k`, `m` or `g` (`2GB`). A
+`STUDIO_` name it does not read is warned of (a typo?), but for the AI's settings an older file may still hold, which
+it ignores. Unset, each setting has its default.
 
 ```sh
 HOST=127.0.0.1
@@ -204,9 +198,7 @@ STUDIO_DATA=/home/you/folly-data  # outside the checkout
 STUDIO_SECURE_COOKIES=1           # the tunnel serves HTTPS
 STUDIO_TRUST_PROXY=1              # client IP (login limits) and host from the tunnel, trusted from this machine only
 STUDIO_CURATORS=alice,bob         # who may mark looks reviewed
-STUDIO_ADMINS=you                 # the Admin page (models, access, light, reports); admins are curators too
-ANTHROPIC_API_KEY=sk-ant-...      # for Opus: a key with a spend limit
-STUDIO_GENERATOR_FALLBACK=sol     # optional: foundry ideas go here while it is off or busy (else wait, or fail)
+STUDIO_ADMINS=you                 # the Admin page (light, baking, reports, stats); admins are curators too
 STUDIO_BAKE_SECONDS=120           # longest bake
 STUDIO_FRAMES_BROTLI_QUALITY=9
 STUDIO_FRAMES_MAX_BYTES=2GB
@@ -245,15 +237,6 @@ them.
 | `STUDIO_ADMINS` | comma-separated usernames with the admin role (admins are curators too) |
 | `STUDIO_SECURE_COOKIES` | on: the session cookie is Secure (serve over https) |
 | `STUDIO_TRUST_PROXY` | on: one proxy in front (a tunnel) gives the client's address and host |
-| `STUDIO_MODELS` | the model registry, default \<STUDIO_DATA>/models.json |
-| `STUDIO_GENERATOR` | superseded by the registry: its default when first written (claude, fleet) |
-| `STUDIO_GENERATOR_FALLBACK` | a model or transport foundry ideas go to while it is off or busy |
-| `STUDIO_GENERATOR_CONCURRENCY` | jobs at once per lane where the registry says nothing |
-| `STUDIO_FOUNDRY` | on: the Fleet foundry runs, one job at a time |
-| `STUDIO_FOUNDRY_WAIT` | on: foundry ideas wait while it is busy, even with a fallback |
-| `STUDIO_CRITIQUE_BUDGET_MS` | past this, no critique starts; default 90s |
-| `STUDIO_IDEA_LOGS` | ideas' logs kept, default 300; 0: none written |
-| `STUDIO_IDEA_LOGS_MAX_BYTES` | their disk cap, default 500MB |
 | `STUDIO_FRAMES_BROTLI_QUALITY` | baked frames' brotli quality, default 9 |
 | `STUDIO_FRAMES_MAX_BYTES` | baked frames' disk cap, default 2GB |
 | `STUDIO_FLASH_CHECK` | off: flashing blocks and dims nothing (local use only) |
@@ -269,27 +252,6 @@ them.
 | `STUDIO_BAKE_NICE` | a bake's nice level (0–19), default 10 |
 | `STUDIO_BAKE_MEMORY` | a bake's memory cap, default 1GB |
 | `STUDIO_BAKE_MAX_FRAMES` | the largest baked frames, default room for the longest bake |
-| `ANTHROPIC_API_KEY` | the Messages API key (Opus); a secret |
-| `ANTHROPIC_BASE_URL` | the Messages API, default https://api.anthropic.com |
-| `STUDIO_CLAUDE_MODEL` | a claude model's name where its entry names none |
-| `STUDIO_CLAUDE_EFFORT` | a claude model's effort where its entry names none, default medium |
-| `STUDIO_CLAUDE_MAX_TOKENS` | a claude answer's tokens, thinking too; default 32000 |
-| `STUDIO_CLAUDE_TIMEOUT_MS` | a claude call's attempt, default 300s |
-| `STUDIO_CLAUDE_FALLBACKS` | off: no server-side refusal fallback |
-| `STUDIO_CODEX_BIN` | the Codex CLI, default codex on PATH |
-| `STUDIO_CODEX_TIMEOUT_MS` | a codex call's wall clock, default 300s |
-| `STUDIO_CODEX_IDLE_MS` | a codex call silent this long has stalled; default 180s |
-| `STUDIO_CODEX_WORK` | codex's empty work folder, default in the system's temp folder |
-| `STUDIO_CODEX_SCHEMA` | off: no --output-schema |
-| `STUDIO_CODEX_USER_CONFIG` | on: codex reads ~/.codex/config.toml |
-| `STUDIO_FLEET_BIN` | the fleet command, default fleet |
-| `STUDIO_FLEET_WORK` | the foundry's workspaces, default ~/.folly-studio/fleet |
-| `STUDIO_FLEET_MODEL` | the foundry's model where its entry names none, default gpt-6.1-sol |
-| `STUDIO_FLEET_TIMEOUT` | a foundry job's wall clock, default 30m |
-| `STUDIO_FLEET_POLL` | how often a foundry job is looked at, default 5s |
-| `STUDIO_FLEET_DATA` | fleet's state folder, default ~/.fleet |
-| `STUDIO_FLEET_TMUX` | the tmux command, default tmux |
-| `STUDIO_FLEET_MAX_FRAMES` | the largest frames a foundry job may leave, default room for 120 s |
 
 ### The flash check
 
@@ -308,110 +270,12 @@ for themselves with "Don't dim for me".
 for trying things on your own machine: **not for public deployments**, where it would show strobes to people with
 photosensitive epilepsy without warning.
 
-## Models
+## Without a systemd user session
 
-People pick a model for each idea from the ones you offer. They live in `models.json` in `STUDIO_DATA`
-(`STUDIO_MODELS` names another file), written with the defaults on first run:
-
-```json
-{
-  "default": "opus",
-  "models": [
-    { "id": "opus", "label": "Opus", "via": "claude", "model": "claude-opus-5-5", "effort": "medium", "enabled": true },
-    { "id": "sol", "label": "Sol", "via": "codex", "model": "gpt-6.1-sol", "effort": "low", "critique": "images",
-      "enabled": true },
-    { "id": "luna", "label": "Luna", "via": "codex", "model": "gpt-6-luna", "effort": "low", "critique": "text",
-      "enabled": true }
-  ],
-  "concurrency": { "claude": 4, "codex": 2 },
-  "limits": { "inviteOnly": true, "perHour": 6, "perDay": 20, "concurrent": 2, "dailyCeiling": 200 }
-}
-```
-
-Edit it by hand or on Admin's **Models** tab (admins only: `STUDIO_ADMINS`): turn a model on or off, set its effort,
-pick the default. The server reads the file again when it changes, with no restart; a file that does not parse is
-reported in the log and on the Models page, and the last good one stays in use. Each model may also say
-`"roles": ["admin"]` (who may pick it; none: everyone), `"maxTokens"`, `"timeoutSeconds"` and `"critique"`
-(`"images"` or `"text"`: a round where the model sees what it made; only by hand: an existing file is never
-rewritten with the defaults, so add it there). `via` is how it is
-reached: `claude` (the Anthropic API), `codex` (the Codex CLI) or `fleet` (the foundry, below).
-A model whose transport is not set up (no `ANTHROPIC_API_KEY`, no `codex` on PATH) shows as unavailable and is not
-offered; the form hides its choice when only one model can run. `STUDIO_GENERATOR` only names the default when the
-file is first written.
-
-**Speed.** Effort is the main lever: each model's is pinned in the file (Opus medium, Sol and Luna low), and lower
-is faster. Each transport has its own lane (`concurrency`), so an Opus idea never waits behind a Sol one. The
-system prompt is built once per library and rig and sent the same, byte for byte, every time, so Anthropic's prompt
-cache (and OpenAI's prefix caching, for Codex) can serve it after the first idea. The log says where each idea's
-time went (`queued … prompt … request … parse`), and so does the idea's `timing` in `ideas.json`, with its tokens.
-
-**The idea log.** Each idea leaves a record of what its model was asked, answered and shown in
-`STUDIO_DATA/ideas-log/<id>/` (SPEC-generators "The idea log"); an admin opens it from the idea's "Log" link. An
-explore idea's is about 0.25 MB, a third of it the stills. `STUDIO_IDEA_LOGS=300` keeps the newest 300 (`0` writes none) and
-`STUDIO_IDEA_LOGS_MAX_BYTES=500MB` caps them all; older ones are removed as new ones start. Its owner reads it as the idea's
-"How it was made" page, live while it runs (SPEC-generators "How it was made"): the shared prompt by size only, no
-errors, no dollars; admins see those too. Once the log is gone, the page shows the summary the idea keeps.
-
-### Invites and limits
-
-Anyone can sign up, browse, edit, preview and use the gallery. Every model is **paid** (it
-spends your API money or your Codex and Fleet capacity), so making a look needs an **invite code**, and each person's
-use is limited. Admins are exempt from both. The `limits` block above holds the defaults; tune them in the file, and they apply at once:
-
-| Setting | Default | Why |
-|---|---|---|
-| `inviteOnly` | `true` | Paid models need a code. `false` unlocks everyone (a private server) |
-| `perHour` | 6 | An idea takes 20–60 s, so six lets someone try, look and try again through a sitting |
-| `perDay` | 20 | Enough for a good evening's work |
-| `concurrent` | 2 | Ideas queued or being made at once, so one person cannot fill Opus's 4 lanes |
-| `dailyCeiling` | 200 | Everyone's paid ideas in 24 hours: about 10 people at their full allowance, ~$40 a day of Opus at medium at worst. A backstop: still give the API key its own spend limit |
-
-The hour and day are rolling (the last 60 minutes, the last 24 hours), and a person's paid ideas share one
-allowance. A model may also say `"limits": { "perHour", "perDay", "concurrent" }`, a cap counted on that model's
-ideas alone. **One idea is one use**, counted
-when it is accepted, whatever comes of it: a retry or any repair inside it adds nothing, and "Try
-again" sends a new idea.
-
-On the **Access** page (admins) make a code: a label for who it is for, how many people may redeem it, and how many
-days it lasts (blank: no expiry). It is shown once (only its hash is kept), so copy it then; revoke it any time. A
-person types it in the idea form's code box and their account is unlocked for good. Redeeming is limited to 5 wrong
-codes per account and 20 wrong codes per address in 15 minutes; good codes never count. Under **People** you can unlock or lock someone by hand,
-**Reset** their count (their ideas so far stop counting), or give them their own **Limits** (blank fields keep the
-defaults).
-
-### Codex (Sol, Luna)
-
-Sol and Luna run through the Codex CLI on this computer, signed in with its own login, as Fleet's workers do:
-
-```sh
-npm install -g @openai/codex@0.160.1     # or a later version
-codex login                              # once, as the user who runs the studio
-codex exec --skip-git-repo-check -m gpt-6-luna "reply ok"   # check: it answers
-```
-
-On Windows, run these in the same kind of terminal as the studio: `npm install -g` puts `codex.cmd` on PATH, and the
-studio runs the script it points to with Node directly, never through `cmd.exe`. Under WSL, install and log in
-inside WSL. `STUDIO_CODEX_BIN` names the command if it is not on PATH. Each idea runs `codex exec` once, with no
-session saved, in an empty folder (`STUDIO_CODEX_WORK`, default in the system's temp folder) under a read-only
-sandbox with Codex's command, web and image tools off; it sees only the environment the CLI needs (its home, login
-and proxy settings), and gets 5 minutes (`timeoutSeconds`) before its whole process tree is stopped. The studio skips
-your `~/.codex/config.toml` (MCP servers, instructions) so calls start fast and alike; `STUDIO_CODEX_USER_CONFIG=1`
-reads it, if you need it for your login. `STUDIO_CODEX_SCHEMA=0` drops the output schema, should a model refuse it.
-The code a model writes is data: it only ever runs in the browser's sandbox and the render box.
-
-## The Fleet foundry
-
-A model with `"via": "fleet"` (`STUDIO_GENERATOR=fleet` adds one, `foundry`, when the registry is first written)
-sends ideas to a boxed Fleet worker (`fleet up`, boxed Codex). It runs only with `STUDIO_FOUNDRY=on`, one job at a
-time. While the foundry is busy the next idea waits, and while it is off its ideas fail, saying so; with
-`STUDIO_GENERATOR_FALLBACK` set they go there instead (while busy, unless `STUDIO_FOUNDRY_WAIT=1`). Fleet puts each box in a systemd user scope with a memory cap, which works under WSL with
-`systemd=true` (as here: the user manager has the memory and pids controllers). On a host without a systemd user
-session (WSL without systemd, containers), Fleet's boxes get CPU and task limits but **no memory cap**, and the
-studio says so in its log at start: a runaway worker can use all of your RAM. Prefer another machine for the
-foundry there, or watch it.
-
-Bakes get the same treatment: without a user bus, a bake's tasks are capped only by your account's own limit
-(its pid namespace and wall clock still end it) and memory by `RLIMIT_DATA`, and the log says so at start.
+Bakes run each in a systemd user scope with their caps, which works under WSL with `systemd=true` (as here: the user
+manager has the memory and pids controllers). Without a user bus (WSL without systemd, containers), a bake's tasks
+are capped only by your account's own limit (its pid namespace and wall clock still end it) and memory by
+`RLIMIT_DATA`, and the log says so at start.
 
 ## Backups
 

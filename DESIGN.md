@@ -7,15 +7,15 @@ contract the code follows; `IDEAS.md` is where it could go next; `docs/HOSTING.m
 
 ## 1. Product shape
 
-People sign in, describe a show idea in a sentence, and get a **look**: pattern code in layers on groups of the
-Gothic Folly (the playa build's 4,870 LEDs by default; City of Gods' 2,114). They preview it live, edit code, sliders, globals
+People sign in and compose a **look** from the library: pattern code in layers on groups of the
+Gothic Folly (the playa build's 4,870 LEDs by default; City of Gods' 2,114). They preview it live, edit modules, sliders, globals
 and the timeline, save and share it.
 A look that should play on the Folly is **baked** to frames in a box on the server, **reviewed** by a curator,
 and **exported** as `.fseq`.
 
 ```
-account → idea → look → live preview → bake → curator review → .fseq export
-           (generator)    (phone/laptop)  (render box)  (frames, not code)
+account → look → live preview → bake → curator review → .fseq export
+           (library)  (phone/laptop)  (render box)  (frames, not code)
 ```
 
 It is hosted on the owner's computer for tens of people (the camp and friends), behind an HTTPS tunnel.
@@ -23,9 +23,8 @@ It is hosted on the owner's computer for tens of people (the camp and friends), 
 | Where | What | Why there |
 |---|---|---|
 | Phone or laptop | The app, the 3D preview, every pattern's code (sandboxed), playback of baked frames | Each viewer pays for their own preview; the server runs no look code |
-| The owner's computer | Accounts, JSON store, API, static files, generators, bakes, frame encoding (~100 MB idle) | One cheap process; nothing to operate |
+| The owner's computer | Accounts, JSON store, API, static files, bakes, frame encoding (~100 MB idle) | One cheap process; nothing to operate |
 | Render box (bubblewrap) | One bake at a time, nice 10, ≤ 1 GB, a wall clock | The only place look code runs on the server |
-| Fleet foundry (opt-in) | Deep ideas in a boxed agent, one at a time | Minutes per idea; off unless asked for |
 
 - **Alternatives.** A desktop app (no shared gallery, no phones), a hosted service (cost and operations for a
   few dozen users), an xLights plugin (desktop-only C++, no AI loop).
@@ -40,8 +39,8 @@ It is hosted on the owner's computer for tens of people (the camp and friends), 
 
 We use a dependency whenever it makes life easier: TypeScript checks the code and Vite builds the browser's part;
 Fastify and its plugins serve the API and the build (routing, bodies, cookies, login limits, static files), and zod
-holds the shapes both sides share (`shared/schemas/`: the look, the API's bodies, the generators' output), so the
-types come from the rules and the AI's JSON Schema from the same schema the server cleans its answer with. Each is
+holds the shapes both sides share (`shared/schemas/`: the look, the API's bodies), so the types come from the rules.
+Each is
 pinned exactly, the lockfile is committed, CI installs with `npm ci`, and CONTRIBUTING says why each is
 there. What has to stay true:
 
@@ -129,7 +128,7 @@ differently, and `under`, a source drawn beneath what is above it, where turning
 
 **Blur and soften.** The one thing a pixel cannot do alone is read its neighbours, so the core does it natively: the
 `blur` filter (radius in metres, along the wire, in space or both, an amount) and each layer's `soften`, a small
-blur after its chain. New and generated layers soften by default, 0.15 m along the wire: on an arch (LEDs 0.1 m
+blur after its chain. New layers soften by default, 0.15 m along the wire: on an arch (LEDs 0.1 m
 apart) a bar's one-LED step becomes a three-LED ramp, and on the spires and canopy (0.5 m) nothing changes. A chain
 with a blur runs in stages round it: the modules before it for the layer's every pixel into a buffer made at prepare,
 the blur, then the rest per pixel; a chain without one keeps its single pass, byte for byte. Only the layer's own
@@ -184,7 +183,7 @@ its clock and a cue decides only who is visible.
 
 ## 6. Trust and safety
 
-**Pattern code is untrusted.** The AI writes it from a stranger's idea, and anyone can paste code. It runs in
+**Pattern code is untrusted**: anyone can paste code. It runs in
 exactly two places, and neither can reach accounts, cookies or the network:
 
 | Where | Boundary | If it misbehaves |
@@ -193,8 +192,8 @@ exactly two places, and neither can reach accounts, cookies or the network:
 | Server | The **render box**: bubblewrap `--unshare-all` (no network), `--clearenv`, read-only inputs, one writable `/out`; its own cgroup for tasks and memory (a systemd user scope); prlimits on CPU and file size; nice 10; a wall clock; layers in a stdlib-only `node:vm` realm | Killed; the bake fails. Without bubblewrap the box is library only: looks of unchanged library patterns (checked by hash) bake as its own process under the same limits, and any other code is refused |
 
 The server's own process never runs look code (lint keeps `eval`, `node:vm` and `child_process` to their
-allowlisted files). A Fleet worker's bake is **advisory**: its frames are parsed as data, and what it says about
-itself is kept marked untrusted.
+allowlisted files). What the box hands back is parsed as data, and what it says about itself is kept marked
+untrusted.
 
 **Curators approve baked frames, and those frames are what plays.** Review needs a passing render-box bake of the
 look's current layers; any edit clears the bake and the review. A curator judges bytes that cannot change, not
@@ -268,7 +267,7 @@ would have to be made twice. City of Gods is held to its own xLights show's chan
 Everything installation-specific is one file, the rig `STUDIO_RIG` picks (SPEC "Rig"): every LED's position and address, fixtures
 (`strip`, `points`, `cells`, `flood`) with render hints for the 3D view, the output (universes, channels per
 universe, colour order, fps), axes, named camera views, a scaffold, and an xLights-style group tree whose groups
-carry **tags** (`arch`, `spire`, `rose`, `canopy`, `wash`, `front`, …). Code, the library and the generators find
+carry **tags** (`arch`, `spire`, `rose`, `canopy`, `wash`, `front`, …). Code and the library find
 places by tag, never by the Folly's ids, so a look whose layers carry tags moves to another rig.
 
 The default is the Folly's playa build, `rig-folly.json` (4,870 LEDs), from the lighting repo's
@@ -314,29 +313,10 @@ view by choice. Skipped from Mirage, on purpose: three.js (size, CDN), walk mode
 dust and haze, and per-zone hand-built geometry. The preview is about the light, must run on a phone, and must
 work for any rig.
 
-## 11. Idea → code generators
+## 11. No AI
 
-An adapter turns `{ text, library, rig, groups }` into a look; the result is cleaned statically by one zod schema
-(`shared/schemas/generated.ts`: ≤ 4 layers, known groups and tags, code size, each module's function present, clips
-mended or dropped with a note, globals and automation then held to the API's own rules), and on the server it runs
-only in the render box (the render check). How each step works: SPEC-generators.
-
-| Generator | How | Cost |
-|---|---|---|
-| `claude` | Messages API calls with structured output (our own `fetch` client, no SDK). The model composes the look from the library by name (a preset with overrides, or a chain of modules with params; code only as a named extension, the last resort) and the server writes the code (`src/generate/expand.ts`). The system prompt (the rig, its groups, show taste, the library's catalogue, worked compositions) is cached; the idea goes only in the user turn, fenced as untrusted. Quick, Explore or Deep; an optional critique of the rendered frames | Seconds to minutes, cents |
-| `codex` | The same composition through the Codex CLI, in a read-only sandbox with its tools off | The owner's Codex sign-in |
-| `fleet` (experimental) | A boxed Codex worker per idea: writes `look.json`, checks and bakes it in its box, hands it back | Minutes; opt-in foundry |
-
-**Fleet, assessed.** Its script-driven mode (`fleet up --no-coordinator`, `fleet spawn --here --box`, polling the
-inbox) plus `report` raises fit well: a report hands back a file with no PR or review, exactly "here is your
-look". The `--box` isolation (bubblewrap, no network, a private home, a relay capped at 50 model attempts, 30 minutes
-of wall clock) fits a stranger's idea. Fleet refuses boxed Claude (network isolation blocks the API), so the
-worker is boxed **Codex** only. Fleet is one machine with the owner's sign-in, so it is an **opt-in foundry** (`STUDIO_FOUNDRY=on`),
-one job at a time, with other ideas going to the one-shot generator meanwhile. On WSL there is no systemd user bus,
-so Fleet's boxes get **no memory cap**; the server warns at start.
-
-- **Trade-off.** The AI works only inside the schema (§14). A look that does not expand, or a layer that throws in
-  the render check, gets one repair round; what still fails is dropped or noted, not fixed.
+Studio has no AI (SPEC-access "No AI"): people compose looks from the library by hand, and the server calls no
+model.
 
 ## 12. Hosting on the owner's machine
 
@@ -346,8 +326,7 @@ so Fleet's boxes get **no memory cap**; the server warns at start.
   plugins'; the auth design and the CSRF and caching rules are ours, as hooks. Static text is compressed once, at
   build time (`.br`, `.gz`), so serving the app costs no CPU. A login hashes with scrypt at OWASP's cost: half a
   second and 128 MiB, at most four at once (libuv's threads).
-- **Caches.** Hashed immutable assets; API reads answer 304 to an ETag; idea polls back off (2 s to 10 s, never
-  from a hidden tab); bakes reuse earlier frames by key; stream chunks by content hash.
+- **Caches.** Hashed immutable assets; API reads answer 304 to an ETag; bakes reuse earlier frames by key; stream chunks by content hash.
 - **Disk cap.** Baked frames are capped (`STUDIO_FRAMES_MAX_BYTES`, 2 GB, about an hour of frames), least
   recently used first, never a reviewed look's; an evicted bake is baked again when someone presses Play.
 - **The tunnel.** Bind to 127.0.0.1 and reach out through Cloudflare Tunnel or Tailscale Funnel; no router
@@ -362,7 +341,7 @@ so Fleet's boxes get **no memory cap**; the server warns at start.
 
 Stained glass and playa warmth: panels read as glass set in lead (dark outlines, jewel tints, a faint backlight),
 with dust and sand as the warm secondary; pointed-arch tops on primary buttons and tabs; a sixteen-petal rose
-window, drawn in SVG, as the logo, favicon, loader and idea progress. The wordmark is SVG, so there is no web
+window, drawn in SVG, as the logo, favicon and loader. The wordmark is SVG, so there is no web
 font. Copy is plain and says what happens ("Bake it in the render box to check it for flashing and power").
 **The 3D view stays dark** so the LEDs carry all the colour.
 
@@ -371,7 +350,7 @@ font. Copy is plain and says what happens ("Bake it in the render box to check i
 ## 14. Known limitations
 
 - **Stateful patterns drift.** The library's sources are tested to land on the same frame whether played or
-  sought to. Anything that keeps state across frames (the trails filter; code people or the AI write that
+  sought to. Anything that keeps state across frames (the trails filter; code people write that
   integrates in `frame()`) does not: the preview computes at 40, 30 or 20 fps as the device allows, the bake at
   40, and a seek does not rewind state. The baked frames are the truth.
 - **No audio, no live input.** `bpm` is a number; there is no track, beat
@@ -383,9 +362,6 @@ font. Copy is plain and says what happens ("Bake it in the render box to check i
   output**: filters see their own chain, and only the core's blur sees past a pixel (no user-written convolution).
 - **CPU rendering bounds the rig.** 4,870 LEDs fit a phone's Worker (`npm run perf` holds a composed look at
   ≥ 20 fps on a 4× slowed CPU); ten times that would need the formula tier on the GPU.
-- **The AI works inside the schema.** It can make what a look can hold (≤ 4 layers, modules, globals, clips,
-  automation), nothing else, and sees its frames only as a few front-view stills and per-group lines, when a
-  model is set to critique (SPEC-generators "Critique").
 - **Not yet verified on FPP or in xLights**, the zstd downloads least of all (§7).
 - **Saved looks do not follow the library.** A look keeps the module code it was saved with, so renaming a module,
   a param or a direction leaves saved looks on the old ones (one that fails to load is reported, never fatal).

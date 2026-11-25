@@ -5,7 +5,7 @@ Part of the [build contract](SPEC.md).
 ## Rig (`public/data/rig-folly.json`)
 
 The one installation-specific file: every LED, how it is addressed and grouped, and how the 3D view draws it.
-The core, the boxes, the frame analysis, the generators and the viewer read only the rig the server is set to,
+The core, the boxes, the frame analysis and the viewer read only the rig the server is set to,
 `STUDIO_RIG`, and nothing else names the installation:
 
 | `STUDIO_RIG` | file | is |
@@ -13,7 +13,7 @@ The core, the boxes, the frame analysis, the generators and the viewer read only
 | `folly` (the default) | `public/data/rig-folly.json` | the Gothic Folly's playa build, 4,870 LEDs, from lighting's `show-builder/pixel-map/` |
 | `cog` | `public/data/rig.json` | City of Gods, 2,114 LEDs, from lighting's `city-of-gods/pixel-map/out/` |
 
-The server reads that file for the library's groups, bakes, previews, the render box and the generators, and says
+The server reads that file for the library's groups, bakes, previews and the render box, and says
 its name in `/api/me` (`rig`); the browser fetches the same file (both ship, each under its content hash). A bake is
 of the rig it was baked on: its `renderKey` digests the file, and a server started on a rig of another LED count
 fails the done bakes it cannot play ("baked on another rig") and drops their frames and review, so they bake and
@@ -23,7 +23,7 @@ lighting's xLights and Falcon channels (`tools/check_channels.py`); another inst
 (CONTRIBUTING "Adding a new installation").
 
 ```jsonc
-{ "rig": 1, "name": "Gothic Folly 2026", "about": "…",   // about: optional prose for the AI generators
+{ "rig": 1, "name": "Gothic Folly 2026", "about": "…",   // about: optional prose about the rig
   "units": "m", "axes": { "up": "+y", "front": "-x", "right": "+z" },
   "output": { "protocol": "sacn", "universes": 80, "channelsPerUniverse": 510, "order": "RGB", "fps": 40 },
   "count": 4870, "bounds": { "min": [x, y, z], "max": [x, y, z] },          // of the pixels
@@ -60,7 +60,7 @@ lighting's xLights and Falcon channels (`tools/check_channels.py`); another inst
   Members: pixels whose fixture is in `fixtures` (ids) or zone in `zones`, or every pixel when the group gives
   only `where`; then only those whose attrs are listed in `where` (`{ "ring": [3] }`). A group with none of
   the three is the union of its children. `centre` (optional; default the middle of its pixels' bounds) is what
-  `centres(tag)` hands patterns. `tags` say what a group is, so looks, the library and the generators find "the
+  `centres(tag)` hands patterns. `tags` say what a group is, so looks and the library find "the
   rose" on any rig. Conventional tags: `all` (the root), `arch`, `arch-main`, `arch-mini`, `arch-quad`, `tower`,
   `spire`, `spirelet`, `window`, `rose`, `ring`, `canopy`, `wash`, `flood`, `ground-level` (within reach),
   `front`, `back`, `left`, `right`; a rig may add its own.

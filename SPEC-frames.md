@@ -25,11 +25,9 @@ as here; any other failure says why and points to Check & bake.
   `result.json` bound to the host, so each is capped by the file-size limit and nothing else the box writes reaches
   the host's disk. Library code only; the bake setting and custom code: `SPEC-baking.md`.
   One bake at a time, under `nice` (`STUDIO_BAKE_NICE`, default 10), in a lane it shares with wire encodes
-  (`src/bake.ts` `createLane`). `fleet-box` (advisory): the Fleet worker's own `frames.fseq` + `stats.json` (its `use`
-  library: `patterns/` beside check.ts, else none). All three run the same core and `renderer.ts`.
+  (`src/bake.ts` `createLane`). Both run the same core and `renderer.ts`.
 - **Length.** A bake renders the look's `duration` from t = 0, honouring clips, but at most
-  `STUDIO_BAKE_SECONDS` (default 120 s, ≤ 600) in the render box; `fleet-box/check.ts --bake`
-  does the same (`--seconds` overrides). `look.bake.seconds` records what was baked; a bake is
+  `STUDIO_BAKE_SECONDS` (default 120 s, ≤ 600) in the render box. `look.bake.seconds` records what was baked; a bake is
   dropped if the layers or duration change before its record is attached (after its frames are stored). The box's wall-clock and CPU budgets
   default to 30 s + 1.5 s per second baked (at least 90 s / 120 CPU s).
 - **Format.** The rig's fps, sparse FSEQ v2 covering only the rig's channels, its header's `uniqueId` from the
@@ -48,7 +46,7 @@ as here; any other failure says why and points to Check & bake.
   maxDataBytes before anything is inflated, and each block inflate to exactly its frames, so a
   decompression bomb is refused. Empty index entries may only pad its end (FPP preallocates).
   `analyzeFrames(parsed, scene, watch, light)` (the core's `prepareScene(rig)`, a recording `FlashWatch` and
-  `ledLight(light)`, the light settings when it bakes; frames.ts imports only types, so the Fleet box runs a copy) → `{ frames, seconds, fps, peakBrightness,
+  `ledLight(light)`, the light settings when it bakes) → `{ frames, seconds, fps, peakBrightness,
   meanBrightness, darkFraction, estPeakAmps (20 mA/channel at 5 V), coverage, flicker: { maxHz, flaggedSeconds,
   regions, ok, small: { maxHz, flaggedSeconds, regions }, limits: { perSecond, delta, area } } }`. All of it is in
   the LEDs' light: each byte is decoded by the output correction (`v^gamma`, Output) first, so brightness, power
@@ -81,7 +79,7 @@ as here; any other failure says why and points to Check & bake.
   hard-linked, and checks them again instead of baking.
 - **Disk cap.** `STUDIO_FRAMES_MAX_BYTES` (default 2 GB) bounds `frames/`: past it, the bakes used least
   recently (their `.fseq` files and hash folder; use = streamed, downloaded or baked, kept in the
-  `.fseq`'s mtime) are evicted, never a reviewed look's, a fleet-box bake's or one being encoded. The
+  `.fseq`'s mtime) are evicted, never a reviewed look's or one being encoded. The
   record stays; asking for the frames bakes them again (`bakes.restore`), refreshing the checks even when the
   bytes come out the same. The review stays; the frames' SHA and wire cache identity stay when their bytes match.
   Beside them, by content hash (`hash` = 32 hex of SHA-256 over the wire version, chunk size and

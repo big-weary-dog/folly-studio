@@ -7,9 +7,9 @@ The shared contract for everyone building Folly Studio. Code may refine details,
 This file is the entry point; the linked `SPEC-*.md` files are equally part of the contract.
 `SPEC "<section>"` means the section in the area file linked below.
 
-Folly Studio is a web app where people log in, describe a show idea, get it turned into
-pattern code, see it on a browser model of the installation (the Gothic Folly; any other described by a rig
-file), edit it, and export it toward the real installation.
+Folly Studio is a web app where people log in, compose a show from the pattern library, see it on a browser model
+of the installation (the Gothic Folly; any other described by a rig file), edit it, and export it toward the real
+installation.
 
 ## Ground rules
 
@@ -21,7 +21,7 @@ file), edit it, and export it toward the real installation.
 - **Every LED comes from the rig file `STUDIO_RIG` picks** (SPEC "Rig"; the Folly's `public/data/rig-folly.json` by
   default), built from the lighting repo's pixel maps, never by hand. Nothing else names the installation.
 - **Pattern code is untrusted.** It only ever runs inside the sandbox page (below) or a box
-  (bubblewrap: the render box, a Fleet worker's; else library only: SPEC-baking), never in the app page or the
+  (bubblewrap: the render box; else library only: SPEC-baking), never in the app page or the
   server's own Node process (except in tests, on our own library patterns). What a box returns is data.
 - Patterns see **x = depth** (front → back), **y = height**, **z = left → right** facing the front; the rig's
   `axes` map its own coordinates onto these (the Folly's are the repo's: front/playa −12 m → back +14 m, 0 →
@@ -43,7 +43,7 @@ file), edit it, and export it toward the real installation.
 
 ## Pattern code and the library
 
-In `SPEC-library.md`, part of this contract: **Pattern code** (what people and the AI write), **The pixel `p`**,
+In `SPEC-library.md`, part of this contract: **Pattern code** (what the library is written in), **The pixel `p`**,
 **Stdlib**, **Directions**, **Modules** (a layer is a chain; the warp contract), **Composites**, **Attached
 modules**, **Library**, **Spatial modules**, **History**, **Globals**, **Param bindings**, **Integrated clocks** and
 **Palettes**. `SPEC "<one of those>"` means that file.
@@ -77,15 +77,10 @@ part of this contract.
 
 In `SPEC-reports.md`, part of this contract: F8 reports, what they hold, and where the server keeps them.
 
-## Generators and models
-
-In `SPEC-generators.md`, part of this contract: **Generators** (idea → look) and **Models** (the registry). They are
-off on every server (SPEC-generators "No generators").
-
 ## Accounts and access
 
-In `SPEC-access.md`, part of this contract: **Accounts** (roles, sign-in), **Admin** (its pages), **Access** (invite
-codes and limits on the paid models) and their routes.
+In `SPEC-access.md`, part of this contract: **Accounts** (roles, sign-in), **Admin** (its pages), **Stats**,
+**No AI** and their routes.
 
 ## Look files
 

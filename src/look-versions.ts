@@ -1,6 +1,6 @@
 // A look's versions (SPEC-history "Versions"): changing what plays keeps what was there as a version, and the look
 // carries the number and the making of the version it is now (`look.version`). The last MAX_VERSIONS unnamed versions
-// are kept, and every named one (at most MAX_NAMED). The API's edits and the AI's refinements both go through here.
+// are kept, and every named one (at most MAX_NAMED). The API's edits go through here.
 // Versions are their owner's alone: GET /api/looks/:id/versions lists them, GET …/versions/:n has one's content,
 // PUT …/versions/:n names one or unnames it; anyone else is told the look is not found.
 import type { FastifyRequest } from 'fastify';
@@ -65,10 +65,6 @@ export function nameFields(look: Look, n: number, name: string | null): Partial<
   return n === now ? { version: set(look.version ?? { n, how: 'auto' }) }
     : { versions: kept.map((v) => (v.n === n ? set(v) as Stored : v)) };
 }
-
-/** How a refinement's version was made: by the AI, for this idea and what it asked. */
-export const byAi = (idea: { id: string, text?: string | null }) => ({ how: 'ai' as const, ideaId: idea.id,
-  ask: String(idea.text ?? '').slice(0, 200) });
 
 /** The review of a version that plays exactly as `look` does, if one was reviewed. */
 export function reviewFor(versions: Stored[], look: Look) {

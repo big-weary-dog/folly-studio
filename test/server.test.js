@@ -1,4 +1,4 @@
-// Server tests: auth, CSRF, ideas, static files, the sandbox page and the store (looks: looks.test.js).
+// Server tests: auth, CSRF, static files, the sandbox page and the store (looks: looks.test.js).
 // Each server runs on port 0 with its own temp data dir and fixture public and dist dirs.
 import assert from 'node:assert/strict';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -11,19 +11,18 @@ import { validateLayers } from '../src/api-looks.ts';
 import { createStore } from '../src/store.ts';
 import { CSP_APP, CSP_SANDBOX } from '../src/static.ts';
 import {
-  client, EXPECTED_APP_CSP, EXPECTED_SANDBOX_CSP, fakeBox, fx, PIXEL, quiet, rawGet, SANDBOX_PAGE, signup,
+  client, EXPECTED_APP_CSP, EXPECTED_SANDBOX_CSP, fakeBox, fx, layer, PIXEL, quiet, rawGet, SANDBOX_PAGE, signup,
   startApp, useFixture,
 } from './fixtures/server.js';
-import { FIX } from './fixtures/generate/shared.js';
 
 useFixture();
-const BIN = path.join(FIX, 'bin');
+const look = (title) => ({ title, layers: [layer()] });
 
 describe('server', () => {
   let app;
   beforeAll(async () => {
     app = await startApp({ dataDir: path.join(fx.tmp, 'data-main'), curators: 'Carol, other',
-      admins: 'csrf-alice, idea-alice, idea-bob', renderBox: fakeBox(), models: { env: { PATH: BIN } } });
+      admins: 'csrf-alice', renderBox: fakeBox() });
   });
   afterAll(async () => {
     await app.close();
@@ -146,11 +145,11 @@ describe('server', () => {
   describe('CSRF and request limits', () => {
     let alice;
     beforeAll(async () => {
-      alice = await signup(app, 'csrf-alice'); // an admin: exempt from invite codes and limits
+      alice = await signup(app, 'csrf-alice');
     });
 
     test('mutations need Content-Type: application/json', async () => {
-      const plain = await alice.post('/api/ideas', JSON.stringify({ text: 'a plain text idea' }),
+      const plain = await alice.post('/api/looks', JSON.stringify(look('Plain text')),
         { 'content-type': 'text/plain' });
       assert.equal(plain.status, 415);
       const form = await alice.post('/api/login', 'username=alice&password=correct+horse',
@@ -160,7 +159,7 @@ describe('server', () => {
       assert.equal(none.status, 415);
       const del = await alice.del('/api/looks/whatever', { 'content-type': '' });
       assert.equal(del.status, 415);
-      const charset = await alice.post('/api/ideas', { text: 'charset is fine' },
+      const charset = await alice.post('/api/looks', look('Charset is fine'),
         { 'content-type': 'application/json; charset=utf-8' });
       assert.equal(charset.status, 201);
     });
@@ -168,84 +167,47 @@ describe('server', () => {
     test('cross-origin Origin is refused, same-origin allowed', async () => {
       for (const origin of ['http://evil.example', 'null', `http://127.0.0.1:${app.port + 1}`,
         'https://evil.example:443']) {
-        const r = await alice.post('/api/ideas', { text: 'cross origin idea' }, { origin });
+        const r = await alice.post('/api/looks', look('Cross origin'), { origin });
         assert.equal(r.status, 403, origin);
       }
       const login = await client(app).post('/api/login', { username: 'alice', password: 'correct horse' },
         { origin: 'http://evil.example' });
       assert.equal(login.status, 403);
       assert.equal(login.setCookie.length, 0);
-      const same = await alice.post('/api/ideas', { text: 'same origin idea' }, { origin: app.base });
+      const same = await alice.post('/api/looks', look('Same origin'), { origin: app.base });
       assert.equal(same.status, 201);
     });
 
     test('body size is capped at 256 kB', async () => {
-      const big = await alice.post('/api/ideas', { text: 'x'.repeat(300 * 1024) });
+      const big = await alice.post('/api/looks', look('x'.repeat(300 * 1024)));
       assert.equal(big.status, 413);
       assert.ok(big.json.error);
       // Under the cap the body parses (and then fails validation instead).
-      const under = await alice.post('/api/ideas', { text: 'x'.repeat(200 * 1024) });
+      const under = await alice.post('/api/looks', look('x'.repeat(200 * 1024)));
       assert.equal(under.status, 400);
       // Still works afterwards.
       assert.equal((await alice.get('/api/me')).status, 200);
     });
 
     test('bad JSON and non-object bodies', async () => {
-      assert.equal((await alice.post('/api/ideas', '{"text":')).status, 400);
-      assert.equal((await alice.post('/api/ideas', '["text"]')).status, 400);
+      assert.equal((await alice.post('/api/looks', '{"title":')).status, 400);
+      assert.equal((await alice.post('/api/looks', '["title"]')).status, 400);
     });
 
     test('unknown routes and methods', async () => {
       const r = await alice.get('/api/nope');
       assert.equal(r.status, 404);
       assert.ok(r.json.error);
-      const m = await alice.req('PATCH', '/api/ideas', {});
+      const m = await alice.req('PATCH', '/api/looks', {});
       assert.equal(m.status, 405);
     });
 
     test('auth required', async () => {
       const anon = client(app);
-      for (const p of ['/api/me', '/api/ideas', '/api/looks', '/api/looks?scope=gallery', '/api/ideas/abc',
-        '/api/looks/abc']) {
+      for (const p of ['/api/me', '/api/looks', '/api/looks?scope=gallery', '/api/looks/abc']) {
         assert.equal((await anon.get(p)).status, 401, p);
       }
       assert.equal((await anon.post('/api/looks', { title: 't', layers: [] })).status, 401);
-    });
-  });
-
-  describe('ideas', () => {
-    let alice;
-    let bob;
-    beforeAll(async () => {
-      alice = await signup(app, 'idea-alice');
-      bob = await signup(app, 'idea-bob');
-    });
-
-    test('create, list, get, ownership', async () => {
-      assert.equal((await alice.post('/api/ideas', { text: 'no' })).status, 400);
-      assert.equal((await alice.post('/api/ideas', { text: 'x'.repeat(2001) })).status, 400);
-      assert.equal((await alice.post('/api/ideas', { text: 123 })).status, 400);
-
-      const queued0 = app.queue.enqueued.length;
-      const a = await alice.post('/api/ideas', { text: '  Coral reef in the arches  ' });
-      assert.equal(a.status, 201);
-      const idea = a.json.idea;
-      assert.equal(idea.text, 'Coral reef in the arches');
-      assert.equal(idea.status, 'queued');
-      assert.deepEqual([idea.model, idea.generator, idea.by], ['sol', 'sol', 'Sol'], 'no key: codex\'s Sol');
-      assert.equal(idea.owner, alice.user.id);
-      assert.ok(idea.id && idea.createdAt && idea.updatedAt);
-      assert.equal(app.queue.enqueued.length, queued0 + 1);
-      assert.equal(app.queue.enqueued.at(-1).id, idea.id);
-
-      const b = await alice.post('/api/ideas', { text: 'Thunderstorm over the spires' });
-      const list = await alice.get('/api/ideas');
-      assert.deepEqual(list.json.ideas.map((i) => i.id), [b.json.idea.id, idea.id]);
-
-      assert.equal((await alice.get(`/api/ideas/${idea.id}`)).json.idea.id, idea.id);
-      assert.equal((await bob.get(`/api/ideas/${idea.id}`)).status, 404);
-      assert.deepEqual((await bob.get('/api/ideas')).json.ideas, []);
-      assert.equal((await alice.get('/api/ideas/does-not-exist')).status, 404);
     });
   });
 
@@ -334,7 +296,7 @@ describe('without public files yet', () => {
   beforeAll(async () => {
     const empty = path.join(fx.tmp, 'public-empty');
     await mkdir(empty, { recursive: true });
-    app = await createServer({ generators: true, customCode: true,
+    app = await createServer({ customCode: true,
       dataDir: path.join(fx.tmp, 'data-fallback'),
       publicDir: empty,
       distDir: empty,
@@ -380,16 +342,15 @@ describe('store', () => {
     assert.throws(() => store.sessions.create({ id: 'given-id' }));
 
     // Many quick writes coalesce and land.
-    for (let i = 0; i < 50; i++) store.ideas.create({ n: i });
+    for (let i = 0; i < 50; i++) store.users.create({ n: i });
     await store.close();
 
     const again = await createStore(dir, { log: quiet });
     assert.equal(again.looks.get(a.id).title, 'A2');
     assert.equal(again.looks.get(b.id), null);
-    assert.equal(again.ideas.list().length, 50);
-    assert.deepEqual(again.ideas.list().map((i) => i.n), [...Array(50).keys()]);
-    assert.equal(again.users.list().length, 0);
-    const raw = JSON.parse(await readFile(path.join(dir, 'ideas.json'), 'utf8'));
+    assert.deepEqual(again.users.list().map((u) => u.n), [...Array(50).keys()]);
+    assert.deepEqual(again.sessions.list().map((x) => x.id), ['given-id']);
+    const raw = JSON.parse(await readFile(path.join(dir, 'users.json'), 'utf8'));
     assert.equal(raw.length, 50);
   });
 

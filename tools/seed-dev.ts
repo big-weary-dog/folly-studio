@@ -3,12 +3,12 @@
 //
 //   node tools/seed-dev.ts --from <source data dir> --to <empty target dir>
 //
-// It copies the shared looks (each with its baked frames and gallery previews), the light settings and the model
-// registry. Never users, sessions or invites; nor ideas, their logs or reports, which belong to
-// people the dev studio does not have. A copied look keeps its owner's id and name, so the gallery shows who made
-// it, but no account in the dev studio owns it: it is everyone's to open, play and remix, no one's to edit. Its
-// ideaId is dropped, since the idea stays behind. Unshared looks stay behind too: in the dev studio no one could
-// see them. The target must be empty (or not exist) and must not be the source or inside it.
+// It copies the shared looks (each with its baked frames and gallery previews) and the light settings. Never users,
+// sessions or reports, which belong to people the dev studio does not have, nor an older folder's AI files. A copied
+// look keeps its owner's id and name, so the gallery shows who made it, but no account in the dev studio owns it: it
+// is everyone's to open, play and remix, no one's to edit. An older look's ideaId is dropped, since its idea stays
+// behind. Unshared looks stay behind too: in the dev studio no one could see them. The target must be empty (or not
+// exist) and must not be the source or inside it.
 
 import { constants as FS, promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -64,10 +64,8 @@ export async function seedDev({ from, to }: { from: string, to: string }) {
     { flag: 'wx', mode: 0o600 });
   await write('looks.json', looks.length ? `[\n${looks.map((v) => JSON.stringify(v)).join(',\n')}\n]\n` : '[]\n');
   const copied = ['looks.json'];
-  for (const name of ['light.json', 'models.json']) {
-    const body = files.get(name);
-    if (body) { await write(name, body); copied.push(name); }
-  }
+  const light = files.get('light.json');
+  if (light) { await write('light.json', light); copied.push('light.json'); }
 
   await fs.mkdir(path.join(real, 'frames'), { mode: 0o700 });
   await fs.mkdir(path.join(real, 'previews'), { mode: 0o700 });

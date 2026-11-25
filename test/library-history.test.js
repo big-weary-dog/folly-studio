@@ -71,12 +71,12 @@ test('library only: import an earlier committed Noise, upgrade to playable code,
 test('historical library copies save and bake as library code; edited or retired ones do not', async () => {
   const patternsDir = path.join(publicDir, 'patterns');
   const gate = createCodeGate({ on: () => false, patternsDir });
-  const allows = await gate.allows();
-  assert.equal(allows(oldNoise), true);
-  assert.equal(allows(`${oldNoise} `), false);
+  const allows = async (code) => !(await gate.refuses([{ code }]));
+  assert.equal(await allows(oldNoise), true);
+  assert.equal(await allows(`${oldNoise} `), false);
   const retired = execFileSync('git', ['show', 'a6462ae3:public/patterns/butterfly.js'],
     { cwd: publicDir, encoding: 'utf8' });
-  assert.equal(allows(retired), false, 'retired patterns have no current library replacement');
+  assert.equal(await allows(retired), false, 'retired patterns have no current library replacement');
   const library = await libraryHashes(patternsDir);
   assert.equal(customCode(layers(oldNoise), library), '', 'the render box takes the exact earlier copy');
   assert.match(customCode(layers(`${oldNoise} `), library), /custom code/);

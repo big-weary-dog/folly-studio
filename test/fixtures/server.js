@@ -1,5 +1,5 @@
 // Shared by the server tests: fixture public (sources) and dist (built) dirs in a temp folder, apps on port 0 with
-// a stand-in queue and render box, and a cookie-keeping JSON client.
+// a stand-in render box, and a cookie-keeping JSON client.
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import http from 'node:http';
@@ -92,17 +92,12 @@ export function fakeBox() {
   };
 }
 
-export function fakeQueue() {
-  return { enqueued: [], enqueue(idea) { this.enqueued.push(idea); }, async idle() {} };
-}
-
 /** Passwords at a test's cost: at OWASP's, each hash takes half a second (test/auth.test.ts holds the real one). */
 const CHEAP = Object.freeze({ N: 1024, r: 8, p: 1 });
 
 export async function startApp(opts = {}) {
-  const app = await createServer({ publicDir: fx.publicDir, distDir: fx.distDir, generator: fakeQueue(),
-    generatorName: 'test', log: quiet, scrypt: CHEAP, models: { env: {} }, generators: true, customCode: true,
-    ...opts });
+  const app = await createServer({ publicDir: fx.publicDir, distDir: fx.distDir, log: quiet, scrypt: CHEAP,
+    customCode: true, ...opts });
   const addr = await app.listen(0, '127.0.0.1');
   app.base = `http://127.0.0.1:${addr.port}`;
   app.port = addr.port;

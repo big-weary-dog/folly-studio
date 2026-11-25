@@ -1,5 +1,5 @@
-// What one account's looks may hold (SPEC "HTTP API"): POST /api/looks and an idea's new look keep to the count and
-// the bytes; a change to a look keeps to the bytes when it grows them.
+// What one account's looks may hold (SPEC "HTTP API"): POST /api/looks keeps to the count and the bytes; a change
+// to a look keeps to the bytes when it grows them.
 import type { Store, StoredLook } from './store.ts';
 
 export const MAX_LOOKS_PER_USER = 500;

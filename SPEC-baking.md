@@ -21,8 +21,7 @@ Every box bakes only library code ("Custom code" below). Bubblewrap is the first
 bubblewrap is missing (or cannot make its namespaces), the render box bakes as its own process under the same
 prlimits, scope, `nice` and wall clock, with an empty environment, in the same stdlib-only `node:vm` realm, with no
 bubblewrap. Without prlimit or the box's files → 503. The library's patterns are our own code (CLAUDE.md lets tests
-run them too). A library-only box runs no generator's render check (SPEC-generators): it could only
-refuse the code. `GET /api/baking`'s `box` says which box this is.
+run them too). `GET /api/baking`'s `box` says which box this is.
 
 ## The bake setting
 

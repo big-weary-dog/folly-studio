@@ -31,14 +31,14 @@ browser's too:
 is a valid pick that lights nothing (the Studio picks them in its Groups drawer: SPEC-studio). `tags` (optional, ≤ 16 of
 `[a-z0-9-]{1,32}`) make a layer portable: when it names no groups, or one this rig lacks, the layer takes its
 known ids plus every group carrying one of its tags (a rig without them lights nothing there); where all its
-ids are known, tags change nothing. An unknown id in a layer without tags is an error. Generators set both; editing a
+ids are known, tags change nothing. An unknown id in a layer without tags is an error. Editing a
 layer's groups by hand clears its tags. Blend: `add` sums light (default: 50 % and 50 % make
 68 %), `over` replaces where the layer has alpha × level, `max` keeps the brighter channel, `multiply` tints what is
 below.
 
 - **Modules**: 1–8 per layer, ids unique in it (`[A-Za-z0-9_.:-]{1,64}`), `code` ≤ 20 kB each and always
   stored (looks stay self-contained for the boxes); `ref` names the library entry it came from, and a module whose `ref` the library has is standard: it keeps the
-  library's title (`shared/standard-modules.ts`; the API and generators put a renamed one's back), and a hand edit
+  library's title (`shared/standard-modules.ts`; the API puts a renamed one's back), and a hand edit
   of its code drops `ref`, making it custom (custom code is refused: SPEC-baking
   "Custom code"); `params`
   override the code's defaults (≤ 64; a string ≤ 256 characters: a pick, a choice or text).
@@ -154,7 +154,7 @@ Several looks go in one file as `{ "looks": [look file] }` (`folly-looks-mine-<d
   (library code only, the body limit, a bake and review dropped when the frames change), so a change to what
   plays is a new version and what the importer had, edits made since the last import included, stays in its History
   (SPEC-history "Versions"); it keeps its sharing, and its review as any such save does. One that already reads and
-  plays as the file is **unchanged**. Any other look is **added**: the importer's, unshared, with no idea, keeping the `origin`. A
+  plays as the file is **unchanged**. Any other look is **added**: the importer's, unshared, keeping the `origin`. A
   look without `chain` is converted as any such `POST` is (SPEC "Looks"). One look refused (400, or past the 256 KB
   body) does not stop the rest: the page says how many were added, updated and unchanged, and names each one that
   failed, with the server's reason.
