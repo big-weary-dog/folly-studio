@@ -20,7 +20,8 @@ const git = (cwd, ...args) => execFileSync('git', args, { cwd, env: GIT_ENV, enc
 const STUBS = {
   npm: 'echo "npm $*" >> "$LOG"; case $1 in ci) mkdir -p node_modules;; run) mkdir -p dist;; esac',
   node: 'echo "node $*" >> "$LOG"; [ "$1" != tools/config-check.ts ] || [ -z "$REFUSE" ] || '
-    + '{ echo PORT >&2; exit 1; }',
+    + '{ echo PORT >&2; exit 1; }; [ "$1" != node_modules/playwright-core/cli.js ] || [ -z "$OLD_PLAYWRIGHT" ] || '
+    + '[ -n "$PLAYWRIGHT_HOST_PLATFORM_OVERRIDE" ] || { echo "ERROR: Playwright does not support this OS"; exit 1; }',
   systemctl: 'echo "systemctl $*" >> "$LOG"; [ "$2" != is-failed ]',
   curl: 'case "$*" in *build.json*) cat "$CHECKOUT/current/dist/build.json";; '
     + '*api/me*) printf \'{"user":null}\\n200\';; esac',
@@ -126,6 +127,16 @@ describe('npm run host: releases', () => {
     assert.match(r.out, new RegExp(`would not start[\\s\\S]*left running on releases/${a()}`));
     assert.doesNotMatch(r.calls, /systemctl --user restart/);
     assert.equal(link('current'), `releases/${a()}`);
+  });
+
+  test("a failed Chromium install says what to set, and the env file's override reaches it", () => {
+    const r = host([a()], { OLD_PLAYWRIGHT: '1' });
+    assert.notEqual(r.status, 0);
+    assert.match(r.out, /does not support this OS[\s\S]*host: playwright could not[\s\S]*ubuntu24\.04-x64/);
+    assert.doesNotMatch(r.calls, /systemctl --user restart/);
+    const env = path.join(home, '.config', 'folly-studio', 'studio.env');
+    writeFileSync(env, `${readFileSync(env, 'utf8')}PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64\n`);
+    ok([a()], { OLD_PLAYWRIGHT: '1' });
   });
 
   test('--rollback switches to the previous release without building, and back again', () => {
