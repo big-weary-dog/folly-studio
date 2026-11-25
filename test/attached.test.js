@@ -1,4 +1,4 @@
-// Attached modules (SPEC-library "Attached modules"): a warp or filter `on` a source works on that source alone, as a
+// Attached modules (spec/library "Attached modules"): a warp or filter `on` a source works on that source alone, as a
 // composite of one sub-layer would; one holding real LED colours (blur, trails) runs over the source by itself.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

@@ -1,4 +1,4 @@
-// A look's versions (SPEC-history "Versions"): numbered, listed newest first with the look as saved, one read with
+// A look's versions (spec/looks "Versions"): numbered, listed newest first with the look as saved, one read with
 // its content, the owner's alone; a restore names its version and keeps a review of the same content; a named one is
 // kept, at most 50; overlapping saves each keep theirs.
 import assert from 'node:assert/strict';

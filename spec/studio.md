@@ -1,7 +1,9 @@
-# Folly Studio — the Studio's editor
+# Folly Studio — the Studio, the tutorial and bug reports
 
-Part of the contract (SPEC.md): how the Studio edits a look. The look's own rules are SPEC "Looks" and "Timeline";
-every edit here keeps them, so what the Studio saves the API accepts.
+Part of the [build contract](../SPEC.md).
+
+How the Studio edits a look. The look's own rules are SPEC "Looks" and "Timeline"; every edit here keeps them, so
+what the Studio saves the API accepts.
 
 - **Groups.** A layer's groups are picked in its Groups drawer (`ui/groups-drawer.tsx`, opened from "Plays on" in its
   settings; a drawer as Modulate's): a tree that ticks a group with every group under it and stores the outermost
@@ -34,7 +36,7 @@ every edit here keeps them, so what the Studio saves the API accepts.
 - **Reorder.** a layer row moves by its ↑ ↓ buttons, a module row (into and out of composites too) by Alt+↑/↓ on its
   controls, either by dragging its grip (`ui/drag-order.ts`, a module's `ui/tree-drag.ts`; any pointer), which marks
   where it lands, the drop one edit; Escape cancels. Composites in the panel (each source a sub-layer of its own, in
-  its row): SPEC-library "Composites".
+  its row): spec/library "Composites".
 - **Composition** (`ui/chain.tsx`, `ui/params.tsx`, `ui/shelf.tsx`, `ui/look-globals.tsx`): the selected layer's
   module chain (a line a module: kind badge, the library's name, a source's blend or a filter's
   input, enable, delete; wide, the selected one's settings open under it,
@@ -107,7 +109,7 @@ every edit here keeps them, so what the Studio saves the API accepts.
   3D view's style buttons. More holds the 3D view's Show unlit, LEDs
   and quality. On a phone the preview starts without
   Show unlit, the Playa view drops the scaffold lines, and Points draws at a pixel ratio of 1.
-- **Colours** (`ui/picks.tsx`, `ui/pick-model.ts`; SPEC-library "Palettes"): a colour param is one row like a number's: its pick in
+- **Colours** (`ui/picks.tsx`, `ui/pick-model.ts`; spec/library "Palettes"): a colour param is one row like a number's: its pick in
   a field the size of a number's (`kit.tsx` Scrub), its text over the colours it plays (the field opens the pick
   tile), ∿ to move its rotate (the same popover), ↺. The tile is TD's pick: a row per role (a box for the whole
   role, a cell per slot), a custom row (its colours, each a cell whose × removes it; below 4, a swatch that opens
@@ -115,3 +117,71 @@ every edit here keeps them, so what the Studio saves the API accepts.
   the whole palette, rainbow, then whether roles alternate (`/`), blend, and range and rotate as number fields. On a
   phone the tile is a sheet with the palette's roles and the custom row; the whole palette, rainbow,
   blend, range and rotate show when set.
+
+## Tutorial
+
+A short path through the Studio's real controls, one step at a time, in an overlay loaded on first use
+(`public/js/ui/tour/`). It opens by itself once per account (`user.tour` unset, spec/http "Accounts"; a copy in
+localStorage shows it at once) and once per browser, on a screen wider than the phone layout; elsewhere it neither
+opens nor is offered.
+Its welcome says Studio is in development and how to report a problem. There is one path, on a practice look, Rose
+and arches (the rose window blooming ring by ring, comets on the arches, a starfield under them): it opens
+`/studio?tour=<path>`, the look (`public/data/tutorial/<path>.json`: `{ title, layers: [preset layer & { tag?,
+clips? }], palette?, macros?, automation?, bpm?, view? }`, `tag` (one or several) playing a layer on the rig's groups
+with that tag, `view` the rig view the preview opens on) as an unsaved copy, so nothing a person owns changes until
+they save. Every step's control shows in Simple as well as Advanced (spec/studio "Simple").
+A step waits on the Studio's state through a read-only view (`ui/tour-view.ts`) and finds its control by
+`data-tour="<name>"`; the tour writes nothing but the user's `tour`, and moves between pages only as the app's own
+links do: over unsaved edits the app asks first, and keeping them leaves Tutorials open.
+Replay: the user menu's Tutorials.
+
+### The path
+
+`first-look`, Getting around: pause and play, a layer (click Arches), a colour (its comets' colours by palette role),
+mute (the Starfield, off and on again), save. Guests instead learn that work stays in this browser and an account is
+needed to save, with Next available.
+
+Each step names one change from where its control starts (never already met when it opens) and says in a sentence
+why it helps the look. Its control is scrolled into view in whatever panel scrolls and ringed, the ring following it
+as the page scrolls. When the control sits in a larger part being worked on (`data-tour-area`: a module's row and its
+settings, a drawer such as ∿'s, an automation lane, or a step's `area`: the list a drag runs along), that part is a
+second, quieter box, left as clear as the ring. Between controls, within a step or to the next one, the ring stays
+half a second on the one just used. The page around dims; the preview never does, and the step's card sits off it
+(and off the ring and its box)
+where any place beside the ring or in a corner of the window allows. A step is done when the Studio shows what it
+asked for (judged from the Studio as it is set up, never while it loads), and moves on by itself unless it waits
+for Next or was met already as it opened; Next stays
+locked until then, while Skip step is always there. `test/tour-sync.test.ts` holds each step's
+controls, library names, params, pages and practice looks to the app; `test/e2e/tour.spec.js` plays the path.
+
+## Bug reports
+
+F8 on any page (or "Report a problem" in the user menu, for phones) files a report for signed-in accounts.
+Guests and signed-out visitors see an explanation that reporting needs an account before the form opens.
+That explanation closes when an account signs in.
+The press freezes the moment:
+the page's state is read first, the 3D view's next frame is kept as a JPEG (≤ 960 px wide, quality 0.8), then
+everything pauses (the preview's loop and the 3D view) until the form
+closes, when it all resumes as it was. The form asks "What went wrong?" (Enter sends, Shift+Enter is a new line,
+Esc cancels) with "Include screenshot" on.
+
+`report = { format: 1, at, note, build, page: { path, title, viewport: [w, h, dpr], userAgent, gl }, toasts,
+errors, dialogs, sources: { studio?, live?, look? }, screenshot? }`: `toasts` the last 50, `errors` the page's last 100
+(window errors, unhandled rejections, console.error); `sources.studio` the look (id, title, `draft`: the unsaved
+look as save() sends it, `dirty`), the selection, picked modules, mute and solo, the layout, the timeline's
+selection and zoom, the clock (`t`, playing, speed, baked), the preview (view, mode, tier, quality, venue, dimmed,
+flashing, stats), the heavy layers, the problem shown and each layer's status, and the library and rig by name and
+size; `sources.live` the stage's rev, driver, look and blackout.
+**Report this look** (spec/http "Moderation") sends the same report without a screenshot or freeze, its note from
+a form asking "What is wrong with this look?", and `sources.look = { id, title, owner, ownerName }`; the Reports
+tab names the look and opens it. A reader that throws gives `{ unreadable }`; each
+piece is cut at 64,000 characters. Everything is scrubbed (`core/scrub.ts`): keys naming secrets blanked, IPs
+masked, URLs without query or fragment; the path has no query or hash; no cookies.
+
+The server stores `<STUDIO_DATA>/reports/<stamp>-<id>/report.json` (adding `server: { user: { id, username },
+build, logs }`, its last warn and error lines) and `shot.jpg`, keeping the newest 500 within 500 MB and none older
+than `STUDIO_REPORTS_DAYS` (default 90 days): a save, the server's start and an hourly sweep remove the rest, oldest
+first. Deleting an account leaves its reports to age out like the rest. The privacy page (spec/http "Privacy")
+reads the days from `GET /api/privacy`. Admins read them on Admin's Reports tab; "Open as captured" opens `/studio?report=<id>`: the captured
+draft in an unsaved editor, at the captured time, view, quality, selection and layout, paused, so a browser run
+reproduces it. `node tools/reports.ts list | get <id>` reads them from `STUDIO_DATA` directly.

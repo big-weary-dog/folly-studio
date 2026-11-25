@@ -1,4 +1,4 @@
-// The rose warps (SPEC-library "Library"): ring-turn, petal-repeat and petal-stride move whole petals of the rose,
+// The rose warps (spec/library "Library"): ring-turn, petal-repeat and petal-stride move whole petals of the rose,
 // found by its tag, keeping each LED's ring; off the rose they leave every LED as it was. On both rigs.
 import assert from 'node:assert/strict';
 

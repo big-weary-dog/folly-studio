@@ -1,4 +1,4 @@
-// My looks' and the Gallery's file buttons (SPEC-looks "Look files"): Export all as one file, and on My looks
+// My looks' and the Gallery's file buttons (spec/looks "Look files"): Export all as one file, and on My looks
 // Import from look files, so looks move between Studios.
 import { useRef, useState } from 'preact/hooks';
 

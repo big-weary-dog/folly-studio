@@ -294,7 +294,7 @@ input.switch:disabled { opacity: .5; cursor: default; }
 .user-name { max-width: 160px; overflow: hidden; color: var(--text-2); font-size: 14px; text-overflow: ellipsis;
   white-space: nowrap; }
 .user-box > .user-name { display: none; }
-/* Advanced editing (SPEC-studio "Simple"): a laptop's, ticked while on. */
+/* Advanced editing (spec/studio "Simple"): a laptop's, ticked while on. */
 .advanced-btn[aria-pressed=true]::after { content: ' ✓'; }
 .user-menu-btn { display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 8px; cursor: pointer;
   background: none; border: var(--came-s) solid #0000; border-radius: var(--radius); }

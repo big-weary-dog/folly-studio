@@ -1,4 +1,4 @@
-// An account's own settings (SPEC-access "Your account"): a new password, or the account deleted with its looks.
+// An account's own settings (spec/http "Your account"): a new password, or the account deleted with its looks.
 // Each needs the password; wrong ones are limited per address and account, as failed sign-ins are.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 

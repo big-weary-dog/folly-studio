@@ -28,7 +28,7 @@ function insertLayer(st: Studio, layer: Layer, at?: number, o?: EditOptions) {
   st.select(layer.id);
 }
 
-/** New look (SPEC-studio): the Start a look picker; what is picked becomes the look, in one step. */
+/** New look (spec/studio.md): the Start a look picker; what is picked becomes the look, in one step. */
 export const startLook = (st: Studio, pv: Preview) => import('./shelf.tsx').then(({ openShelf }) => {
   const made = (e: Entry) => (isPreset(e) ? presetLayers(e, st.data.library, st.data.rig)
     : [layerFromPattern(e, st.data.rig)]);

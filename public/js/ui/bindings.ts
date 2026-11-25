@@ -171,7 +171,7 @@ export function shareLfo(b: Extract<Binding, { mod: 'lfo' }>, p: Param, name: st
     binding: { mod: 'global', name, from: c - d, to: c + d } as Binding };
 }
 
-/** What upgrade() changed (SPEC-library "Pattern code"), for the params the schema declares whose saved value is
+/** What upgrade() changed (spec/library "Pattern code"), for the params the schema declares whose saved value is
  * still what it changed (an edit since wins): the sandbox's report, so untrusted. */
 export function upgradedOf(up: unknown, schema: Record<string, unknown> | null, saved: Record<string, unknown>) {
   const json = (v: unknown) => JSON.stringify(v);

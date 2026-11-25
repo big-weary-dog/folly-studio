@@ -1,4 +1,4 @@
-// npm run smoke, too: the Account page (SPEC-access "Your account"), from the user menu on a laptop and a phone: a new
+// npm run smoke, too: the Account page (spec/http "Your account"), from the user menu on a laptop and a phone: a new
 // password, then the account deleted with its looks, back on sign-in. Screenshots land in the test's output folder.
 import { expect, test } from './studio.js';
 

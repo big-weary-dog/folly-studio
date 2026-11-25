@@ -1,4 +1,4 @@
-// Only library code runs (SPEC-looks "Modules"): what the engine is sent takes each module's code from the library
+// Only library code runs (spec/looks "Modules"): what the engine is sent takes each module's code from the library
 // by its `ref`, whatever the look holds ('' for a ref the library lacks, which then fails to compile).
 type Module = { ref?: string, code?: string, layers?: { modules: Module[] }[] };
 

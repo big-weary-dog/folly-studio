@@ -1,4 +1,4 @@
-// Pictures (SPEC-library "Pictures"): the core's check, the param kind through compile and resolve, the picture
+// Pictures (spec/library "Pictures"): the core's check, the param kind through compile and resolve, the picture
 // source on the rose, the look's schema and the Studio's row.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

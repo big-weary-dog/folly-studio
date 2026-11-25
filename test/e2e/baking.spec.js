@@ -1,6 +1,6 @@
-// npm run smoke, too: where bakes run (SPEC-baking), on a real render box. An admin sees on Admin → Baking that it runs
-// and throttles baking; with baking off, Check & bake (1366) says an admin turned it off. Screenshots land in
-// BAKING_SHOTS when set, else the test's output folder.
+// npm run smoke, too: where bakes run (spec/frames "Where bakes run"), on a real render box. An admin sees on Admin →
+// Baking that it runs and throttles baking; with baking off, Check & bake (1366) says an admin turned it off.
+// Screenshots land in BAKING_SHOTS when set, else the test's output folder.
 import path from 'node:path';
 
 import { createRenderBox } from '../../src/render-box.ts';

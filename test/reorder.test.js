@@ -1,4 +1,4 @@
-// Reorder (SPEC-library "The neighbour map"): wireDistance() along the wiring, rowOrder()'s rows, the warp re-keying
+// Reorder (spec/library "The neighbour map"): wireDistance() along the wiring, rowOrder()'s rows, the warp re-keying
 // out on City of Gods; and mask's Scatter, which at 0 is mask as it was.
 import assert from 'node:assert/strict';
 

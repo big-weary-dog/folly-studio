@@ -1,4 +1,4 @@
-// The library-only rule for stored looks (SPEC-looks "Library only"): a module is library when its `ref` names a module
+// The library-only rule for stored looks (spec/looks "Library only"): a module is library when its `ref` names a module
 // the index lists, else when its code is the current file of one. Modules naming a retired pattern switch to its
 // match first, a layer without one dropped; a look or version with any other module is dropped, saying why; the rest
 // move to the current library, each module naming its entry.

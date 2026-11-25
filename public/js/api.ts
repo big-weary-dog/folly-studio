@@ -70,7 +70,7 @@ export const api = {
     '/api/looks', look),
   updateLook: (id: string, patch: LookPatch) => request<{ look: Look }>('PUT', `/api/looks/${enc(id)}`, patch),
   deleteLook: (id: string) => request('DELETE', `/api/looks/${enc(id)}`),
-  /** One's own look's versions, newest first (SPEC-history), and one with its content. */
+  /** One's own look's versions, newest first (spec/looks "Versions and History"), and one with its content. */
   versions: (id: string) => request<{ versions: VersionListed[] }>('GET', `/api/looks/${enc(id)}/versions`),
   version: (id: string, n: number) => request<{ version: Version }>('GET', `/api/looks/${enc(id)}/versions/${n}`),
   /** Names version `n` (it is kept), or unnames it (`null`). */
@@ -89,9 +89,9 @@ export const api = {
   baking: () => request<BakingState>('GET', '/api/baking'),
   saveBaking: (body: { mode: BakeMode }) => request<BakingState>('PUT', '/api/admin/baking',
     body),
-  /** Visits, requests and the server since it started (SPEC-access "Stats"); admins only. */
+  /** Visits, requests and the server since it started (spec/http "Stats"); admins only. */
   stats: () => request<ServerStats>('GET', '/api/admin/stats'),
-  /** Every account, and an admin's changes to one (SPEC-access "People"). */
+  /** Every account, and an admin's changes to one (spec/http "People"). */
   accounts: () => request<{ accounts: Account[] }>('GET', '/api/admin/accounts'),
   changeAccount: (id: string, body: { role?: Account['role'], disabled?: boolean }) =>
     request<{ account: Account }>('PUT', `/api/admin/accounts/${enc(id)}`, body),

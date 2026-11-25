@@ -1,4 +1,4 @@
-// npm run smoke, too: a visitor, with no session (SPEC-access "Visitors"), at a laptop's and a phone's size. `/` is
+// npm run smoke, too: a visitor, with no session (spec/http "Visitors"), at a laptop's and a phone's size. `/` is
 // the gallery; a share link opens the look in the Studio, theirs to play with; Try it lets them in as a guest on the
 // spot, their edits kept.
 import { expect, signup, test } from './studio.js';

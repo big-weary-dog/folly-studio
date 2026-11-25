@@ -1,5 +1,5 @@
 // A clip's transition (SPEC "Timeline": fade or wipe), the timeline's edits keeping it, and speeds in beats
-// (SPEC-library "Param bindings": { mod: 'beats' }) through the core, the dialog and a bake's key.
+// (spec/library "Param bindings": { mod: 'beats' }) through the core, the dialog and a bake's key.
 import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';

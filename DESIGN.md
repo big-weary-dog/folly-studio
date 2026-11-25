@@ -306,7 +306,7 @@ texture that all geometry samples by pixel index, with no allocation per frame.
 | Low | 1 | none | 4 | while the median of 24 frames takes over 30 ms |
 
 On a phone the view draws its lightest: no scaffold lines in Lite or Low, Show unlit off until asked for, and LEDs
-(Points) at a pixel ratio of 1; the Studio's light view keeps the panel under it to one thing at a time (SPEC-studio "Phones").
+(Points) at a pixel ratio of 1; the Studio's light view keeps the panel under it to one thing at a time (spec/studio "Phones").
 
 **Points** (every LED a sprite) is the fallback when a browser cannot render to float targets, and the lightest
 view by choice. Skipped from Mirage, on purpose: three.js (size, CDN), walk mode, the sun's path and time of day,
@@ -315,7 +315,7 @@ work for any rig.
 
 ## 11. No AI
 
-Studio has no AI (SPEC-access "No AI"): people compose looks from the library by hand, and the server calls no
+Studio has no AI (spec/http "No AI"): people compose looks from the library by hand, and the server calls no
 model.
 
 ## 12. Hosting on the owner's machine

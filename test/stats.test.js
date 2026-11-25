@@ -1,4 +1,4 @@
-// The request log and Admin → Stats (SPEC-access "Stats"): a line per request worth reading, with no query, cookie
+// The request log and Admin → Stats (spec/http "Stats"): a line per request worth reading, with no query, cookie
 // or address in it; the day's visitors told apart by a salted hash; the counts admins alone read.
 import assert from 'node:assert/strict';
 import path from 'node:path';

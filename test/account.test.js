@@ -1,4 +1,4 @@
-// An account's own settings (SPEC-access "Your account"): a new password, and the account deleted with its looks.
+// An account's own settings (spec/http "Your account"): a new password, and the account deleted with its looks.
 import assert from 'node:assert/strict';
 import path from 'node:path';
 

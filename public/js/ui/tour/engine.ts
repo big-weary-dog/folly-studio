@@ -1,6 +1,6 @@
-// The tutorial's engine (SPEC-tutorial): which path and step is open, when a step is done, and the progress kept on
-// the account (PUT /api/me/tour, a copy in localStorage). It mounts the overlay in a root of its own and reads the
-// Studio only through tourView; it moves between pages only through navigate(), so unsaved edits are asked about.
+// The tutorial's engine (spec/studio "Tutorial"): which path and step is open, when a step is done, and the progress
+// kept on the account (PUT /api/me/tour, a copy in localStorage). It mounts the overlay in a root of its own and reads
+// the Studio only through tourView; it moves between pages only through navigate(), so unsaved edits are asked about.
 import '../../../css/tour.css';
 
 import { computed, effect, signal } from '@preact/signals';

@@ -1,7 +1,7 @@
 # Contributing to Folly Studio
 
 You need Node ≥ 22.18 (it runs TypeScript by stripping the types) and Python 3; `npm ci` installs the
-dependencies from `package-lock.json`. `SPEC.md` indexes the area-specific `SPEC-*.md` contracts between the pieces;
+dependencies from `package-lock.json`. `SPEC.md` indexes the contracts between the pieces, in `spec/`;
 change the relevant file first, in the same change.
 
 ## Run, check, regenerate
@@ -181,7 +181,7 @@ Everything installation-specific is one file, the rig `STUDIO_RIG` picks (SPEC "
 | `shared/policy.ts` | `can(user, action, look)`: who may do what, the one answer the server and the browser both ask (the browser runs it, so it imports no zod). A look someone may not see is 404 to them |
 | `shared/schemas/` | zod schemas the server runs and the browser takes as types: `look.ts` (what a look may hold, the 400s naming the first problem), `api.ts` (request bodies, users; its account limits from `public/data/account.json`, which the sign-up form shows too), `rig.ts` (the rig, the library index) |
 | `shared/chain-order.ts` | Pure: looks from before the one rule converted so they render as they did (SPEC "Looks" > chain) |
-| `shared/look-modules.ts` | Pure: the one walk over a look's modules (composites' sub-layers' too) that every rule on them takes: the save check, the library-only step, refs filled on read, a bake's key (SPEC-looks "Modules") |
+| `shared/look-modules.ts` | Pure: the one walk over a look's modules (composites' sub-layers' too) that every rule on them takes: the save check, the library-only step, refs filled on read, a bake's key (spec/looks "Modules") |
 | `shared/plays.ts` | What plays (`PLAYS`, `playsOf`, `playsChanged`): the one list versions, bakes, the stage, the sandbox, export and the Studio's save and undo read (SPEC "Looks"); no zod, so the browser takes it at run time |
 | `src/store.ts`, `store-lock.ts`, `atomic-file.ts`, `settings-file.ts` | JSON-file storage under `STUDIO_DATA`, typed per collection; the lock keeping it to one server; every data file written whole (a unique temporary, synced, renamed; one write at a time per file); the admin's settings files (`light.json`, `baking.json`) read when they change |
 | `src/clock.ts` | `monoNow()` for durations and `stamp()` for stored times: the host's wall clock can step back |
@@ -189,10 +189,10 @@ Everything installation-specific is one file, the rig `STUDIO_RIG` picks (SPEC "
 | `vite.config.js`, `tools/vite-sandbox.ts`, `tools/vite-compress.ts`, `tools/dev.ts` | The build (`public/` → `dist/`); the sandbox page, its scripts inlined; the `.br` and `.gz` copies of its text; `npm run dev` |
 | `src/frames.ts` | Pure: strict FSEQ parsing and frame analysis (brightness, flicker) |
 | `src/bake.ts`, `render-box.ts`, `box-output.ts`, `core-script.ts` | The one-at-a-time bake queue and frame files; the render box, its own process under limits; what a box hands back, read as data; the core from its source for the boxes |
-| `src/baking.ts`, `library-gate.ts` | `SPEC-baking.md`: the admin's bake setting (on, throttled, off) in front of the box, and its routes; the gate on saving (library modules only: by ref, or by exact file) |
+| `src/baking.ts`, `library-gate.ts` | `spec/frames "Where bakes run"`: the admin's bake setting (on, throttled, off) in front of the box, and its routes; the gate on saving (library modules only: by ref, or by exact file) |
 | `src/frames-wire.ts`, `frames-cache.ts`, `frames-http.ts`, `fseq-codec.ts` | Baked frames on the wire: the stream encoder; the chunks and downloads kept by hash under a disk cap, made one job at a time by the encoder thread; their routes; FSEQ zstd/zlib blocks |
 | `src/frames-worker.ts` | The encoder thread, at nice 10 |
-| `src/stats.ts` | The request log and Admin → Stats (SPEC-access "Stats"): a journal line per request worth reading, and the day's counts kept in memory, bounded |
+| `src/stats.ts` | The request log and Admin → Stats (spec/http "Stats"): a journal line per request worth reading, and the day's counts kept in memory, bounded |
 | `src/api-reports.ts`, `src/reports/` | F8 bug reports (SPEC "Bug reports"): their routes; `store.ts` (a folder per report, pruned by count, bytes and days), `build.ts` (the checkout's commit) |
 | `render-box/render.ts`, `renderer.ts` | Bakes a look to `.fseq` in the render box; its frame loop |
 | `public/index.html`, `css/` | The app shell and its styles: `base.css` (tokens, layout and components) on every page; the rest, one per view or panel, imported by their views' modules, so Vite loads them with them |
@@ -209,6 +209,7 @@ Everything installation-specific is one file, the rig `STUDIO_RIG` picks (SPEC "
 | `public/js/ui/` | The UI, Preact components in TSX with signals for state. `app.tsx`: the shell, routing (history API, views loaded on first use) and the header, `session.ts` what views share with it (the user, navigation, the guard on unsaved edits); `auth`, `account` (a new password, deleting the account), `pages` (my looks, the gallery; `moderate` its Hide and Report this look), `admin` (the Admin page's tabs, over `light`, `baking`, `people`, `reports` and `stats`); `kit.tsx` toasts, dialogs, fields and helpers, `rose.tsx` the rose. The Studio: `studio.tsx` loads it, `studio-store.ts` holds its state (the look, replaced on each edit; the selection; layout) and saves, `studio-layout.tsx` lays out the panes; `preview.ts` drives the imperative 3D view and sandbox (one clock, the flash guard, baked playback) and `preview-view.tsx` wraps them; `layers`, `chain` (+ `chain-row`, `chain-tree` a composite's sub-layers nested, `composite-model.ts` its edits, `tree-drag.ts` drags in and out), `params` (+ `bindings.ts`), `picks` (colour picks, + `pick-model.ts`), `shelf` (auditions), `look-globals`, `bake`, `export`; the timeline is `timeline.tsx` (+ `-state`, `-tools`, `-input`, `-auto`, `-model`); `history/` History (`steps.ts` the session's steps and undo, in the main bundle; `button.tsx` in the bar, `history.tsx` the drawer loaded on first use, `steps-list.tsx` and `versions.tsx` its tabs); `layer-status.ts` is what the sandbox says; `model.ts` the rig, library, the Studio's `Layer` (a chain) and its helpers; `bug-report.tsx` F8 and its form (+ `report-studio.ts`, the Studio's part and its replay), `reports.tsx` the admins' Reports page |
 | `public/patterns/` | The built-in library (`index.json` with each entry's `kind` and `category`, + one file each): sources, warps and filters; presets, recipes of them, in the index alone |
 | `tools/` | `build_rig.py` (+ `pixel_rows.py`: the LEDs and their channels; `cog_rig.py`: City of Gods; `rig_render.py`: what Mirage draws), `check_channels.py` (the rigs against lighting's xLights and Falcon), `build_power.py` (the rose's expansion), `data/` (Studio's own show data: CONTRIBUTING "Show data"), `build_palettes.py` (data), `sacn-play.ts`, `budgets.ts` (the checks oxlint lacks, with line budgets in `budgets.json`; oxlint's rules are `.oxlintrc.jsonc` at the root), `backup.ts`, `seed-dev.ts` (a dev studio's data from the public one's), `frames-bench.ts` (brotli quality against encode time, and each look's render time), `output-bytes.ts` (each look of `bench-looks.ts`, its LED bytes hashed into `test/fixtures/output-bytes.json`, which `test/output-bytes-<rig>.test.ts` hold the engine to: re-record only for intentional pattern, rig or output-default changes), `composite-bench.ts` (a chain's cost per frame flat, as composites and with attached modules, both rigs), `bake-bench.ts` (a bake's time in the real render box: `npm run bake-bench`), `reports.ts` (F8 bug reports on this machine: `list`, `get <id>`) |
+| `SPEC.md`, `spec/` | The contract: its ground rules and index; an area file each (`test/spec-*.test.ts` hold the routes, the core's exports and every doc link and section reference to them) |
 | `README.md`, `DESIGN.md`, `docs/` | What it is; what is built and why (its screenshots in `docs/screenshots/`); `docs/HOSTING.md`, hosting at home |
 | `test/` | Vitest suites (`vitest.config.js`; `skip-reporter.js` lists skips and why); `fixtures/`, the shared harness (`app.js`: a server on port 0, a JSON client, a signed-up account; `server.js`: its fixture folders; `box.js`: stand-in render boxes; `quiet.js`: a silent log; `patterns.js`: the library's index and code; `build.js`: a fresh build of the app for the tests that serve it); `e2e/`: the Playwright Test browser checks (`smoke`, `perf`, `e2e`; `studio.js`: the server fixture and signing up and in; `sizes.js`: the laptop and phone) |
 | `dist/` | What `npm run build` makes; not committed |
@@ -258,7 +259,7 @@ library module follows these rules (SPEC "Palettes", "Directions", "Integrated c
   `P.colours` for one colour at a time). A module may declare a separate pick for a distinct part: Fire's `tips`
   colours its tips and embers. Code never names a role; people choose the colours.
 - **Offer distinct orientations**: `direction` lists only the choices the module draws distinctly, in `DIRECTIONS`
-  order (SPEC-library "Directions"); `angle` gives a free tilt where useful. Fire rises and Lightning strikes down:
+  order (spec/library "Directions"); `angle` gives a free tilt where useful. Fire rises and Lightning strikes down:
   use Rotate for other orientations. A centre is a place: the `anchor` warp.
 - **Motion from `clock('speed')`**, never `t × P.speed`, so a modulated speed never jumps. No hard-wired `G.energy`
   or other macro: a person binds a param to one.
@@ -283,7 +284,7 @@ cover.
   page and the server's own process never run it.
 - **The render box** runs `render-box/render.ts` as its own process under `env -i`, a systemd scope, prlimits and a
   wall clock. Inside, patterns get a `node:vm` realm holding only the stdlib. It bakes stored looks, whose modules are
-  library refs, and a save takes only library modules (SPEC-baking "Library only"). A box's output is bytes the
+  library refs, and a save takes only library modules (spec/frames "Library only"). A box's output is bytes the
   server parses strictly and measures.
 - **CSRF.** Every mutation must be `Content-Type: application/json`, and if an `Origin` header
   is present it must match the host (the forwarded one only from a proxy on this machine, with
@@ -323,7 +324,7 @@ cover.
 
 - One concern per commit, with `npm run check` green.
 - Subject line: `Folly Studio: <what changed>`. The body says why, not how it got there.
-- Interface changes update the relevant `SPEC-*.md` contract in the same commit. UI changes get a browser smoke test
+- Interface changes update the relevant `spec/` contract in the same commit. UI changes get a browser smoke test
   (`npm run smoke`, extended when the flow changes) and screenshots for the owner's approval. Keep screenshots outside the repo
   and the PR because the repo is public; never commit them (the smoke check saves one per step).
 - Never commit `data/`, `.fseq` renders, keys or a hand-edited Folly `rig.json`.

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Composites against the flat chains they stand for (SPEC-library "Composites"), and modules attached to one source
+// Composites against the flat chains they stand for (spec/library "Composites"), and modules attached to one source
 // ("Attached modules"), blur and trails too: ms a frame (mean, p95), on both rigs. Our own library code only. For
 // allocation, count scavenges under node --trace-gc: a heap delta is noise.
 //

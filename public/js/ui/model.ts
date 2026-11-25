@@ -126,7 +126,7 @@ function cleanModule(m: Partial<Module>): Module {
   };
 }
 
-/** Only the fields a saved sub-layer keeps (SPEC-library "Composites"). */
+/** Only the fields a saved sub-layer keeps (spec/library "Composites"). */
 export const cleanSub = (l: SubLayer): SubLayer => ({ id: String(l.id), title: String(l.title || 'Sub-layer'),
   modules: l.modules.map(cleanModule), ...(l.blend ? { blend: l.blend } : {}),
   ...(typeof l.level === 'number' ? { level: l.level } : {}), ...(l.groups ? { groups: [...l.groups] } : {}),

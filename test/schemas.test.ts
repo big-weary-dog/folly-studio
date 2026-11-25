@@ -122,7 +122,7 @@ describe('the rig, the library index and accounts', () => {
   });
 });
 
-describe('a composite (SPEC-library "Composites")', () => {
+describe('a composite (spec/library "Composites")', () => {
   const src = (more = {}) => ({ kind: 'source', code: PIXEL, ...more });
   const layer = (modules: unknown[]) => [{ id: 'l', modules }];
   const comp = (layers: unknown[]) => ({ kind: 'composite', layers });
