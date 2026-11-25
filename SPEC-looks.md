@@ -50,11 +50,7 @@ below.
   library lacks). A save may send a module as its `ref` alone; with custom code off (SPEC-baking "Custom code") each
   module must name a library module so, or carry a library file exactly; `params`
   override the code's defaults (≤ 64; a string ≤ 256 characters: a pick, a choice or text).
-  `live` optionally lists up to 64 unique param keys the creator offers in Live Play: only declared choice and
-  colour params are offered. The Settings panel shows **Offer in Live Play** beside each eligible setting;
-  unchecked by default. Offers belong to the module's ID within its layer, survive renaming and reordering,
-  and disappear when the module or declared param disappears. Missing `live` offers none.
-  The Look panel's **Live Play** list shows all offered faders, tempo, module settings and palette together.
+  A stored module's `live` (offers to the archived Live Play) is ignored on read and dropped.
   `enabled: false` skips it; `input` names an earlier source; `on`
   (a warp's or filter's) attaches it to the source or composite just above it, past the others attached to it
   (SPEC-library "Attached modules"); `as` is only
@@ -88,8 +84,7 @@ below.
   step. Each frame a lane wins over the mod, the mod over the value. One level only: a modulator follows faders
   (macros without a mod): a global binding, or an LFO's `amount` or `pace`, naming a modulator is
   refused by the schema and dropped by the core.
-  `live`: the names the look offers as live controls: the look's macros and `bpm`, each once; absent, the macros
-  without a mod. The Studio edits and shows it; nothing that plays a look reads it.
+  A stored look's `globals.live` (the archived Live Play's controls) is ignored on read and dropped.
 - **Automation**: `{ <macro>: [[t, v], …] }`, ≤ 16 lanes of ≤ 256 points, t 0–600 s ascending (to
   the ms); linear between points, held before the first and after the last; it replaces the static value.
 - **What plays** (`PLAYS`), versions and History: `SPEC-history.md`, part of this contract.

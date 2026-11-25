@@ -68,6 +68,13 @@ describe('the API look', () => {
     assert.deepEqual(globals(null), { globals: null }, 'null clears them');
   });
 
+  test("an old look's Live Play offers load and are dropped", () => {
+    assert.deepEqual(layers([{ modules: [{ code: PIXEL, live: ['colours'] }] }]), { layers: [{ id: 'l1', title: '',
+      modules: [{ id: 'm1', kind: 'source', title: '', code: PIXEL, params: {} }], blend: 'add', level: 1 }] });
+    assert.deepEqual(globals({ macros: { storm: {} }, live: ['bpm', 'storm', 'gone', 'gone'] }),
+      { globals: { macros: { storm: { value: 0, min: 0, max: 1 } } } });
+  });
+
   test('prototype keys are never names', () => {
     const forged = JSON.parse('{"__proto__": {"polluted": 1}, "constructor": {"value": 0}}');
     assert.match(String(globals({ macros: forged })), /^Macro constructor: a name is/);
