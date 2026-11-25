@@ -1,15 +1,13 @@
 // Guests (spec/http "Guests"): a session with a name and no account, which only reads, is nobody's admin whatever
 // its name, sees no AI, and is let back in by its cookie.
 import assert from 'node:assert/strict';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { createAuth } from '../src/auth.ts';
 import { client, signup } from './fixtures/app.js';
-import { startApp, useFixture } from './fixtures/server.js';
+import { fx, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 
@@ -17,7 +15,7 @@ describe('guests', () => {
   let app, owner, shared;
   beforeAll(async () => {
     app = await startApp({ admins: 'ada', rateLimit: { guestMax: 50 },
-      dataDir: mkdtempSync(path.join(tmpdir(), 'guests-')) });
+      dataDir: path.join(fx.tmp, 'data-guests') });
     owner = await signup(app, 'bob');
     const r = await owner.post('/api/looks', { title: 'Embers', layers: [], shared: true });
     assert.equal(r.status, 201, r.text);
@@ -89,7 +87,7 @@ describe('guests', () => {
       const r = await client(app).post('/api/guest', { name });
       assert.equal(r.status, 400, JSON.stringify(name));
     }
-    const few = await startApp({ rateLimit: { guestMax: 2 }, dataDir: mkdtempSync(path.join(tmpdir(), 'guests-')) });
+    const few = await startApp({ rateLimit: { guestMax: 2 }, dataDir: path.join(fx.tmp, 'data-few') });
     try {
       const codes = [];
       for (let i = 0; i < 3; i++) codes.push((await client(few).post('/api/guest', { name: 'Many' })).status);
