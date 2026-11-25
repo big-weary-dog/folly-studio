@@ -3,6 +3,9 @@
 // workload, a few ms each, in ABBA order within one task: whatever slows the worker meanwhile slows both alike, and
 // the look is held to its cost as a multiple of the reference's.
 
+/** The LEDs the reference works on, as written in it (it is self-contained). */
+export const REFERENCE_LEDS = 4870;
+
 /**
  * The reference: a pattern's worth of work at each of 4,870 LEDs (the Folly's count), five times over. Per-LED
  * inputs read from typed arrays as the core reads its scene, stdlib maths (a twist, a chase, a texture) and fresh
@@ -62,12 +65,12 @@ export function timer(reference) {
  * In the worker, first in the probe's prelude (its source text too, given a `timer` and the worker's own
  * postMessage). On `perf-calibrate`: `pairs` of a look frame (the worker's own handler, at the last live frame's time)
  * and a reference run, ABBA, starting with either (`flip`); it answers `perf-calibrated` with each one's ms, a
- * frame's NaN if no layer ran (paused as hung). Returns what the prelude's postMessage checks first: true for a
- * calibration frame's reply, which stops here.
+ * frame's NaN if no layer ran (paused as hung), and the rig's LED count, `leds`. Returns what the prelude's
+ * postMessage checks first: true for a calibration frame's reply, which stops here.
  */
 export function calibrator(time, post) {
   const SEQ = -2;
-  let t = 0, ms = 0;
+  let t = 0, ms = 0, leds = 0;
   const frame = () => {
     self.dispatchEvent(new MessageEvent('message', { data: { type: 'frame', seq: SEQ, t } }));
     return ms;
@@ -83,8 +86,8 @@ export function calibrator(time, post) {
       ref.push(time(t));
       if (!frameFirst) look.push(frame());
     }
-    post({ type: 'perf-calibrated', look, ref });
+    post({ type: 'perf-calibrated', look, ref, leds });
   });
   return (m) => !!m && m.type === 'frame' && m.seq === SEQ
-    && ((ms = Object.keys(m.layerMs || {}).length ? m.ms : NaN), true);
+    && ((ms = Object.keys(m.layerMs || {}).length ? m.ms : NaN), (leds = (m.rgb?.length ?? 0) / 3), true);
 }

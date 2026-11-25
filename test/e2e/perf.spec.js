@@ -5,8 +5,9 @@
 //
 // Calibration (perf-calibrate.js): runners differ about 2× in speed, so in the same page and worker, warm and at full
 // speed, the look's frames take turns with a fixed reference workload, and our pattern and core code are held to the
-// look's cost as a multiple of the reference's (under a 4× throttle on a busy 2-CPU runner that ratio wandered
-// 1.0–1.7×; at full speed it holds 0.9–1.2×). The page runs the reference too, to set its throttle and to check it.
+// look's cost per LED as a multiple of the reference's (the reference works on 4,870 LEDs; the look on the rig's, so
+// its cost is scaled by 4,870 over the rig's count and either rig reads alike). The page runs the reference too, to
+// set its throttle and to check it.
 //
 // The phone (a slowdown above 1×) is a fixed one, not this runner slowed: a typical runner's core at 1/rate of its
 // speed, which runs the reference in RUNNER_REF_MS × rate. Slowing this runner's own times instead slowed its load
@@ -24,17 +25,17 @@
 //
 // What it asserts, and what it only reports:
 // - compute (asserted): the sandbox with WebGL off. A phone draws on its GPU; here software GL (SwiftShader) would
-//   take the very CPUs the worker needs. The look must cost ≤ MAX_RATIO × the reference, and on the phone it must run
-//   above the app's 20 fps floor (PHONE_FPS). That is judged only where this runner kept up with the phone: its
-//   median frame not late and its page within PHONE_SLACK of the phone's reference time; otherwise the runner set the
-//   pace, and the fps is reported instead.
+//   take the very CPUs the worker needs. The look must cost ≤ MAX_RATIO × the reference per LED, and on the phone, on
+//   the rig's LEDs, it must run above the app's 20 fps floor (PHONE_FPS). That is judged only where this runner kept
+//   up with the phone: its median frame not late and its page within PHONE_SLACK of the phone's reference time;
+//   otherwise the runner set the pace, and the fps is reported instead.
 // - points, playa (reported): the 3D view on SwiftShader, Playa at its phone tier (lite). Their fps are software
 //   GL's, not a phone GPU's, so they are printed, not judged; the Playa view must not fall back to Points.
 // - auto (asserted): the Playa view on Auto with every frame held 35 ms, as on a slow GPU: it must step down to low.
 // Every run: no page errors, and no main-thread task of 100 ms or more at its highest slowdown.
 //   PERF_RATES=1,4  PERF_SECONDS=11 (odd: a median is a middle second); one run: npm run perf -- -g compute
 
-import { calibrator, reference, timer } from './perf-calibrate.js';
+import { calibrator, reference, REFERENCE_LEDS, timer } from './perf-calibrate.js';
 import { expect, signIn, signup, test } from './studio.js';
 import { libraryCode as code } from '../fixtures/patterns.js';
 
@@ -53,9 +54,9 @@ const WARM_MS = 2000, SETTLE_MS = 6000;
 // crawling runner; one unanswered in 5 s (a restarted worker) is dropped.
 const FULL = { bursts: 32, gap: 50, worker: true }, SLOWED = { bursts: 12, gap: 250, worker: false };
 const CAL_PAIRS = 2, CAL_WAIT_MS = 5000;
-// The demo look costs 0.9–1.2× the reference (idle, on 2 CPUs, on 2 CPUs with busy processes; 1.0–1.1× on CI); 1.6
-// leaves it a third to grow, and a core twice as slow per LED reads 2.1.
-const MAX_RATIO = 1.6;
+// The demo look costs 1.8–2.1× the reference per LED (on the Folly and on City of Gods alike); 2.6 leaves it a third
+// to grow, and a core twice as slow per LED reads 3.8.
+const MAX_RATIO = 2.6;
 // The reference unloaded on a typical runner (2.9 ms on CI's; 3.0–3.5 on a 2.8 GHz Xeon): × 4, the phone's 12 ms.
 const RUNNER_REF_MS = 3;
 // The promise: on that phone the look runs above the app's 20 fps floor (runtime.js RATES: 40, 30, 20). A look that
@@ -169,19 +170,22 @@ const prelude = `(() => { const now = performance.now.bind(performance), post = 
 /**
  * The calibration: `bursts` of reference runs on the page, each after two look/reference pairs in the sandbox's
  * worker if `worker`. The look's cost as a multiple of the reference's (the median pair's: a stall spoils a pair, not
- * the lot; a frame that ran no layer counts for nothing) and the page's median ms for the reference; NaN for none.
+ * the lot; a frame that ran no layer counts for nothing), that per LED (`perLed`: as if the rig had the reference's
+ * LEDs), and the page's median ms for the reference; NaN for none.
  */
 async function calibrate(page, { bursts, gap, worker }) {
   const ratios = [], main = [];
+  let leds = NaN;
   for (let n = 0; n < bursts; n++) {
     const r = worker ? await page.evaluate((a) => window.perfCalibrate(...a), [CAL_PAIRS, n % 2, CAL_WAIT_MS])
       : null;
     for (const [i, ms] of (r?.look ?? []).entries()) if (ms > 0) ratios.push(ms / r.ref[i]);
+    if (r?.leds > 0) leds = r.leds;
     main.push(await page.evaluate(() => window.perfTime(performance.now() / 1000)));
     await page.waitForTimeout(gap);
   }
   const mid = (a) => (a.length ? median(a) : NaN);
-  return { ratio: mid(ratios), page: mid(main) };
+  return { ratio: mid(ratios), perLed: (mid(ratios) * REFERENCE_LEDS) / leds, page: mid(main) };
 }
 
 async function measure(browser, origin, cookie, lookId, run, rate) {
@@ -230,7 +234,7 @@ async function measure(browser, origin, cookie, lookId, run, rate) {
   const tier = (/now (\w+)/.exec(title) || /quality: (\w+)/.exec(title))?.[1];   // Auto says what it is now
   const span = p.times.at(-1) - p.times[0];
   return { run, rate, mode, tier, fps: median(perSecond), perSecond, mean: ((p.frames - 1) * 1000) / span,
-    ms: median(p.ms), ratio: full.ratio, phone, pageRef: slowed.page, layerMs,
+    ms: median(p.ms), ratio: full.ratio, perLed: full.perLed, phone, pageRef: slowed.page, layerMs,
     late: phone ? p.ms.filter((ms) => ms > phone.frame * 1.001).length / p.ms.length : 0,
     draws: p.draws > 1 ? ((p.draws - 1) * 1000) / (p.d1 - p.d0) : 0,
     longest: Math.max(0, ...p.tasks), tasks: p.tasks.length, stats, heavy, errors };
@@ -266,7 +270,8 @@ for (const run of RUNS) {
         log(`${run.name}, ${rate}× CPU: ${r.fps} fps computed (median second of ${r.perSecond.join(' ')}; mean `
           + `${r.mean.toFixed(1)}), ${gl}; worker ${r.ms.toFixed(1)} ms a frame (layers ${layers} ms), longest task `
           + `${r.longest.toFixed(0)} ms (${r.tasks} over 50 ms), heavy badges ${r.heavy}; the transport says `
-          + `"${r.stats}"; the look costs ${r.ratio.toFixed(2)}× the reference${ph || ''}`);
+          + `"${r.stats}"; the look costs ${r.ratio.toFixed(2)}× the reference, ${r.perLed.toFixed(2)}× per LED`
+          + `${ph || ''}`);
         for (const e of r.errors) log(`page error: ${e}`);
       }
     } finally {
@@ -275,7 +280,8 @@ for (const run of RUNS) {
     const top = results.find((r) => r.rate === Math.max(...run.rates));
     const at = `${run.name} at ${top.rate}×`;
     if (run.name === 'compute') {
-      expect.soft(top.ratio, `the demo look's cost (${run.name}, at full speed) as a multiple of the reference's`)
+      expect.soft(top.perLed, `the demo look's cost per LED (${run.name}, at full speed) as a multiple of the `
+        + "reference's")
         .toBeLessThanOrEqual(MAX_RATIO);
       const { phone } = top;
       const slow = phone && [

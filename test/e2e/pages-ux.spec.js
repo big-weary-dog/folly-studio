@@ -83,10 +83,13 @@ for (const width of [1366, 390, 360]) {
         if (width === 1366) {
           await menu(page);
           await tutorials.click();
-          await page.getByRole('button', { name: /^Keep it/ }).click();
+          await page.locator('.tour-path', { hasText: 'Getting around' }).click();
           const card = page.locator('.tour-step');
-          await card.getByRole('button', { name: /^(Skip step|Next)$/, disabled: false }).click();
-          await card.getByRole('button', { name: /^(Skip step|Next)$/, disabled: false }).click();
+          for (const title of ['Pause and play', 'Its layers', 'A colour', 'Mute']) {
+            await expect(card.locator('h2')).toHaveText(title, { timeout: 30_000 });
+            await card.getByRole('button', { name: /^(Skip step|Next)$/, disabled: false }).click();
+          }
+          await expect(card.locator('h2')).toHaveText('Keep your work');
           await expect(card).toContainText('Your work stays in this browser');
           await expect(card.getByRole('button', { name: 'Finish', exact: true })).toBeEnabled();
           await shot(page, 'guest-keep');

@@ -18,6 +18,8 @@ test('import an earlier library Noise', async ({ page, studio }, info) => {
   await page.fill('input[name=username]', 'import-crew');
   await page.fill('input[name=password]', 'correct horse');
   await page.locator('form button[type=submit]').click();
+  await expect(page).toHaveURL(/\/gallery$/);
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'My looks' }).click();
   await expect(page.locator('h1.page-title')).toHaveText('My looks');
   await page.locator('input[type=file]').setInputFiles({ name: 'old-noise.json', mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(look)) });
