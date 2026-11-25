@@ -78,6 +78,7 @@ To add a palette, add `tools/data/palettes/<name>.csv` with `slot,colour` rows (
 Run `python3 tools/build_palettes.py` to regenerate the catalogue. Mixed-family palettes can put both families
 in `body`, as patina, meadow, orchid, solstice, guava and voltage do; roles need not each be a single hue.
 Update the palette count in `docs/GENERATION.md` and the choices in `library-docs/README.md` too.
+Run `npm run pi:page` and commit `pi/page/dist` to update the Pi page's embedded palette catalogue.
 
 ## Dependencies
 
