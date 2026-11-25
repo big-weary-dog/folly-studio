@@ -1,8 +1,8 @@
 # Folly Studio
 
 A web app where people describe a light show in a sentence, get it as pattern code in layers on the Gothic Folly
-(City of Gods' 2,114 LEDs by default; the playa build's 4,870), and shape it live on a model of the sculpture from a
-laptop or a phone. Looks that should play are baked to frames in a sandbox, checked for flashing, approved by a
+(the playa build's 4,870 LEDs by default; City of Gods' 2,114 with `STUDIO_RIG=cog`), and shape it live on a model
+of the sculpture from a laptop or a phone. Looks that should play are baked to frames in a sandbox, checked for flashing, approved by a
 curator and exported as `.fseq` for FPP or xLights.
 
 ![The Studio: the Groups drawer beside the Playa view, layers, a module chain and the timeline](docs/screenshots/laptop-studio.jpg)

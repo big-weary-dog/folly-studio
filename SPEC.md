@@ -18,8 +18,8 @@ file), edit it, and export it toward the real installation.
   time), never fetched at run time and never from a CDN, so the app, the sandbox and the boxes work offline on the
   playa. ES modules everywhere (`"type": "module"`), TypeScript or JavaScript: Node ≥ 22.18 runs the server's, the
   boxes' and the tests' as written (types stripped, no build); Vite builds the browser's into `dist/`.
-- **Every LED comes from `public/data/rig.json`** (SPEC "Rig"), built from the lighting repo's pixel maps, never
-  by hand. Nothing else names the installation.
+- **Every LED comes from the rig file `STUDIO_RIG` picks** (SPEC "Rig"; the Folly's `public/data/rig-folly.json` by
+  default), built from the lighting repo's pixel maps, never by hand. Nothing else names the installation.
 - **Pattern code is untrusted.** It only ever runs inside the sandbox page (below) or a box
   (bubblewrap: the render box, a Fleet worker's; else library only: SPEC-baking), never in the app page or the
   server's own Node process (except in tests, on our own library patterns). What a box returns is data.
@@ -29,9 +29,9 @@ file), edit it, and export it toward the real installation.
 - Frame rate, universes, channels per universe and colour order are the rig's `output`. The Folly: 40 fps,
   universes 1–80 of 510 channels (xLights networks), so a full frame is **40,800 channels**, RGB.
 
-## Rig (`public/data/rig.json`)
+## Rig (`public/data/rig-folly.json`)
 
-[The rig file, addressing, axes, fixtures and groups](SPEC-rig.md#rig-publicdatarigjson), part of this contract.
+[The rig file, addressing, axes, fixtures and groups](SPEC-rig.md#rig-publicdatarig-follyjson), part of this contract.
 
 ## The 3D view
 

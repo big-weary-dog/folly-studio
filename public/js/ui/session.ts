@@ -4,16 +4,20 @@ import { signal } from '@preact/signals';
 
 import { onSignedOut } from '../api.ts';
 import type { FlashSettings, User } from '../../../shared/schemas/api.ts';
+import type { RigName } from '../../../shared/schemas/rig.ts';
 
 export interface ViewProps { params: Record<string, string>; query: URLSearchParams; scope?: 'mine' | 'gallery' }
 export const user = signal<User | null>(null);
 /** The server's flash check: whether it runs, and its limits (GET /api/me's `flash`); null until known. */
 export const flash = signal<FlashSettings | null>(null);
+/** The rig the server shows, bakes and boxes (SPEC "Rig", GET /api/me's `rig`): the views load the same one. */
+export const rig = signal<RigName>('folly');
 /** Where a signed-in visitor starts: My looks; the Studio for a guest. */
 export const home = () => (user.value?.guest ? '/studio' : '/looks');
-type Me = { user: User | null, flash?: FlashSettings | null };
+type Me = { user: User | null, flash?: FlashSettings | null, rig?: RigName };
 /** Who the server says is signed in (GET /api/me, or a sign-in's answer), and what follows from it. */
 export function signedIn(me: Partial<Me>) {
+  rig.value = me.rig ?? 'folly';
   if (me.flash !== undefined) flash.value = me.flash ?? null;
   user.value = me.user ?? null;
 }

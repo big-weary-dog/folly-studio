@@ -28,6 +28,7 @@ import type { Reports } from './reports/store.ts';
 import type { createPreviews } from './previews/index.ts';
 import { adminsDeclared, checkMutation, HttpError, type Log, type Logger, parse, routes, sendJson } from './http.ts';
 import { cannot, TRANSPORT_CAPS } from '../shared/schemas/models.ts';
+import type { RigName } from '../shared/schemas/rig.ts';
 import type { createLoaders } from './static.ts';
 import type { Store } from './store.ts';
 
@@ -69,13 +70,13 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
   bakes: ReturnType<typeof createBakeQueue>, frames: ReturnType<typeof createFramesCache>, secureCookies?: boolean,
   rateLimit?: { max?: number, ipMax?: number, guestMax?: number, windowMs?: number }, flash: FlashSettings,
   ideaLogs: IdeaLogs, previews?: ReturnType<typeof createPreviews>, reports: Reports,
-  build: string, tail: () => unknown[], light: LightStore, gen?: boolean,
+  build: string, tail: () => unknown[], light: LightStore, gen?: boolean, rig?: RigName,
   baking?: Parameters<typeof bakingRoutes>[0], stats?: Parameters<typeof routes>[1],
   codeGate?: Parameters<typeof lookRoutes>[0]['codeGate'] }) {
   const { store, auth, queue, models, loaders, log, access } = o;
   const { bakes, framesDir, frames, secureCookies = false, flash } = o;
   const limits = { max: 10, ipMax: 100, guestMax: 10, windowMs: 60_000, ...o.rateLimit };
-  const gen = o.gen === true;
+  const gen = o.gen === true, rig = o.rig ?? 'folly';
   return async (api: FastifyInstance) => {
     api.addHook('onRequest', checkMutation);
     api.addHook('onRoute', adminsDeclared);
@@ -105,7 +106,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       auth.logout(req.cookies[COOKIE_NAME]);
       reply.setCookie(COOKIE_NAME, auth.createSession(user),
         cookie((user.guest ? GUEST_TTL_MS : SESSION_TTL_MS) / 1000)).code(status);
-      return { user: auth.publicUser(user), flash };
+      return { user: auth.publicUser(user), flash, rig };
     };
     const cookie = (maxAge: number) => ({ httpOnly: true, sameSite: 'lax' as const, path: '/', maxAge,
       secure: secureCookies });
@@ -221,7 +222,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       }, { public: true }],
       ...tourRoutes({ store }),
       'GET /me': async (req) => ({ user: auth.publicUser(req.user), flash,
-        ...(gen && !req.user!.guest ? { access: access.state(req.user!) } : {}) }),
+        ...(gen && !req.user!.guest ? { access: access.state(req.user!) } : {}), rig }),
       ...(gen && models ? { ...ideaRoutes, ...modelRoutes({ auth, models, access }),
         ...ideaLogRoutes({ logs: o.ideaLogs }),
         ...ideaHowRoutes({ store, auth, logs: o.ideaLogs, forOwner }),

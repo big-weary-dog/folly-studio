@@ -4,9 +4,10 @@ import { pixelsForGroups, prepareScene } from '../core/scene.ts';
 import { BLUR_MODES, DEFAULT_SOFTEN, MAX_RADIUS } from '../core/spatial.ts';
 import { isStageEnd } from '../core/warps.ts';
 import type { Globals, Layer as Saved, Module, Palette, Soften, SubLayer } from '../../../shared/schemas/look.ts';
-import type { LibraryEntry, ModuleEntry, PresetEntry, Rig, RigGroup } from '../../../shared/schemas/rig.ts';
+import type { LibraryEntry, ModuleEntry, PresetEntry, Rig, RigGroup, RigName } from '../../../shared/schemas/rig.ts';
 import { flatModules, mapEvery } from '../core/tree.ts';
 import { randomId } from './kit.tsx';
+import { rig } from './session.ts';
 
 /** A layer as the Studio holds it (SPEC "Modules"): a chain, never code and params; `enabled: false` when silent. */
 export type Layer = Extract<Saved, { modules: unknown }> & { enabled?: boolean };
@@ -18,7 +19,10 @@ const once = <T>(load: () => Promise<T>) => {
   let p: Promise<T> | null = null;
   return () => (p ||= load().catch((err) => { p = null; throw err; }));
 };
-export const loadRig = once(() => fetchJSON<Rig>(new URL('../../data/rig.json', import.meta.url).href));
+/** Each rig's file (SPEC "Rig"), both built under their content hashes; the session's `rig` picks one. */
+const RIG_URLS: Record<RigName, string> = { folly: new URL('../../data/rig-folly.json', import.meta.url).href,
+  cog: new URL('../../data/rig.json', import.meta.url).href };
+export const loadRig = once(() => fetchJSON<Rig>(RIG_URLS[rig.peek()]));
 /** [{ name, theme, low, body, accent, high }] from data/palettes.json (td/palettes, by tools/build_palettes.py). */
 export const loadPalettes = once(() => fetchJSON<{ palettes?: (Palette & { theme: string })[] }>(
   new URL('../../data/palettes.json', import.meta.url).href).then((d) => d.palettes || []));

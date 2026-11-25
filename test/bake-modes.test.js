@@ -49,7 +49,7 @@ describe('library only', () => {
   });
 
   const prlimit = ['/usr/bin', '/bin'].some((d) => fs.existsSync(path.join(d, 'prlimit')));
-  const built = fs.existsSync(path.join(PUBLIC, 'data/rig.json'));
+  const built = fs.existsSync(path.join(PUBLIC, 'data/rig-folly.json'));
   test('a full 600 s look bakes; a shorter cap wins', async ({ skip }) => {
     skip(!prlimit, 'needs prlimit');
     // Length does not depend on the installation's pixel count: the real box and all 600 s, on a small rig.
@@ -69,7 +69,7 @@ describe('library only', () => {
   }, 120_000);
 
   test('without bubblewrap, a library look bakes as its own process and custom code is refused', async ({ skip }) => {
-    skip(!prlimit || !built, 'needs prlimit and a built rig.json');
+    skip(!prlimit || !built, 'needs prlimit and a built rig-folly.json');
     const box = createRenderBox({ bwrap: 'no-such-bwrap', seconds: 1, systemdRun: '', log: quiet });
     const p = await box.probe();
     assert.equal(p.ok, true);

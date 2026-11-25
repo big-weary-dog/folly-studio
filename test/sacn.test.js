@@ -215,7 +215,7 @@ describe('sending', () => {
     const o = parseArgs(['show.fseq']);
     assert.deepEqual([o.host, o.port, o.universes, o.loop, o.hold, o.priority], ['127.0.0.1', 5568, null, false,
       null, 100], 'universes: all the rig\'s');
-    assert.match(o.rig, /public\/data\/rig\.json$/);
+    assert.match(o.rig, /public\/data\/rig-folly\.json$/);
     assert.equal(parseArgs(['a.fseq', '--rig', 'other.json']).rig, 'other.json');
     assert.deepEqual(parseArgs(['a.fseq', '--universes', '7-16', '--hold', '0', '--loop']).universes, [7, 16]);
     assert.deepEqual(parseArgs(['a.fseq', '--universes', '39']).universes, [39, 39]);
