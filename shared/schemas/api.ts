@@ -19,11 +19,14 @@ const PASSWORD = `Password must be at least ${PASSWORD_MIN} characters.`;
 /** A username as stored: lower case, 3–32 of [a-z0-9_-]. */
 export const Username = z.string({ error: USERNAME }).trim().toLowerCase()
   .regex(new RegExp(`^[a-z0-9_-]{${USERNAME_MIN},${USERNAME_MAX}}$`), { error: USERNAME });
-export const Signup = z.object({
-  username: Username,
-  password: z.string({ error: PASSWORD }).min(PASSWORD_MIN, { error: PASSWORD })
-    .max(MAX_PASSWORD, { error: `Password must be at most ${MAX_PASSWORD} characters.` }),
-});
+const NewPassword = z.string({ error: PASSWORD }).min(PASSWORD_MIN, { error: PASSWORD })
+  .max(MAX_PASSWORD, { error: `Password must be at most ${MAX_PASSWORD} characters.` });
+export const Signup = z.object({ username: Username, password: NewPassword });
+/** The account's own password, as a check: anything malformed is just wrong (SPEC-access "Your account"). */
+const Current = z.string().max(MAX_PASSWORD).catch('');
+/** PUT /api/me/password and DELETE /api/me. */
+export const PasswordChange = z.object({ password: Current, next: NewPassword });
+export const AccountDelete = z.object({ password: Current });
 const GUEST = 'A guest name is 1–24 letters, digits, spaces or _ . \' -.';
 /** POST /api/guest: a guest's name, untrusted text shown only as text (SPEC-access "Guests"). */
 export const GuestBody = z.object({ name: z.string({ error: GUEST }).trim().normalize('NFC')

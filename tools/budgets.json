@@ -3,13 +3,13 @@
   "areas": {
     ".": { "lines": 189, "reason": "The root holds the server entry point and the Vite, Vitest and Playwright configurations; Vitest sizes its forks to the memory its cgroups leave." },
     "public": { "lines": 56, "reason": "The app and sandbox HTML shells load their browser entry points." },
-    "public/css": { "lines": 1751, "reason": "Creator opt-in rows join responsive Studio, phone disclosures, navigation and full-size tap targets." },
-    "public/js": { "lines": 16084, "reason": "Prepared blur kernels cache exact weights and sums, nearest-LED cells store flat coordinates, and integrated clocks cache repeated reads within a frame; the views load the rig the server names." },
+    "public/css": { "lines": 1758, "reason": "The Account page's forms. Creator opt-in rows join responsive Studio, phone disclosures, navigation and full-size tap targets." },
+    "public/js": { "lines": 16198, "reason": "The Account page changes a password and deletes an account once its looks are counted. Prepared blur kernels cache exact weights and sums, nearest-LED cells store flat coordinates, and integrated clocks cache repeated reads within a frame; the views load the rig the server names." },
     "public/patterns": { "lines": 1885, "reason": "Streaks tables per-lane random values and Chase tables common strand ids in frame(), retaining exact fallback calculations outside the tables." },
     "render-box": { "lines": 260, "reason": "Parent PID checks stop orphaned library-only bakes between frames, alongside deterministic IDs and streaming FSEQ output." },
     "shared": { "lines": 951, "reason": "Shared schemas and pure rules define looks, API data, permissions and playback." },
     "src": { "lines": 4657, "reason": "The server additionally reads historical library fingerprints and upgrades exact saved copies to current code for imports." },
-    "test": { "lines": 18514, "reason": "Per-account write-limit and look-size tests. Library-only saving and baking is covered on every path (saves, imports, edits of saved custom looks, composites carrying code, bakes from stored frames), alongside Vampire palette browser coverage atomic settings-file writes and the default rig; browser checks build the app once per run and wait on drawn frames." },
+    "test": { "lines": 18514, "reason": "An account changing its password and deleting itself (against a stale check or sign-in, with previews made or being made) is covered over HTTP and in the browser. Per-account write-limit and look-size tests. Library-only saving and baking is covered on every path (saves, imports, edits of saved custom looks, composites carrying code, bakes from stored frames), alongside Vampire palette browser coverage atomic settings-file writes and the default rig; browser checks build the app once per run and wait on drawn frames." },
     "tools": { "lines": 2340, "reason": "Tools build and check rig, palette and rose-expansion data, enforce budgets, support development and backups, and benchmark rendering." }
   }
 }

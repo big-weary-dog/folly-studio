@@ -92,10 +92,14 @@ export function createPreviews({ dir, store, box, framesDir, loadRig, lane = cre
       const drawn = Date.now();
       const { webp, still } = await encodePreview(motion);
       const now = store.looks.get(id);
-      if (!now || now.shared !== true || previewKey(now, loadRig()) !== key) return want(id); // it changed meanwhile
+      if (now && (now.shared !== true || previewKey(now, loadRig()) !== key)) return want(id); // it changed meanwhile
       const [w, s] = files(id, key);
       await writeAtomic(s!, still);
       await writeAtomic(w!, webp);
+      if (!store.looks.get(id)) { // deleted meanwhile: drop(id) found nothing to remove
+        await Promise.all([s, w].map((f) => fs.rm(f!, { force: true })));
+        return;
+      }
       const old = have.get(id);
       have.set(id, key);
       if (old) await Promise.all(files(id, old).map((f) => fs.rm(f, { force: true })));
@@ -132,6 +136,12 @@ export function createPreviews({ dir, store, box, framesDir, loadRig, lane = cre
     file(id: string, name: string) {
       const m = FILE.exec(`${id}-${name}`);
       return m && m[1] === id && have.get(id) === m[2] ? path.join(dir, `${id}-${name}`) : null;
+    },
+    /** The look's preview files removed now (it was deleted). */
+    async drop(id: string) {
+      const key = have.get(id);
+      have.delete(id);
+      if (key) await Promise.all(files(id, key).map((f) => fs.rm(f, { force: true })));
     },
     /** Queue every shared look's missing preview, and drop the previews of looks no longer shared. */
     async backfill() {

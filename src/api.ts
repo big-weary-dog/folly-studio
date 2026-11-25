@@ -5,6 +5,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 import { type FlashSettings, GuestBody, Login, Signup } from '../shared/schemas/api.ts';
 import { perAccount } from './account-limit.ts';
+import { accountRoutes } from './api-account.ts';
 import { lightRoutes } from './api-light.ts';
 import { bakingRoutes } from './baking.ts';
 import { reportRoutes } from './api-reports.ts';
@@ -98,6 +99,9 @@ export function apiRoutes(o: { store: Store, auth: Auth, log: Log,
         return { ok: true };
       }, { public: true }],
       ...tourRoutes({ store }),
+      ...accountRoutes(api, { store, auth, dropFrames, previews: o.previews, log,
+        limit: { max: limits.max, windowMs: limits.windowMs },
+        clearCookie: (reply) => reply.setCookie(COOKIE_NAME, '', cookie(0)) }),
       'GET /me': async (req) => ({ user: auth.publicUser(req.user), flash, rig }),
       ...lightRoutes({ light: o.light }),
       ...(o.baking ? bakingRoutes(o.baking) : {}),

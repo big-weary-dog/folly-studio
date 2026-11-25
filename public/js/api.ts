@@ -55,6 +55,8 @@ export const api = {
   login: (username: string, password: string) => request<Me>('POST', '/api/login', { username, password }),
   guest: (name: string) => request<Me>('POST', '/api/guest', { name }),
   logout: () => request('POST', '/api/logout', {}),
+  changePassword: (password: string, next: string) => request('PUT', '/api/me/password', { password, next }),
+  deleteAccount: (password: string) => request('DELETE', '/api/me', { password }),
   saveTour: (tour: Tour) => request<{ tour: Tour }>('PUT', '/api/me/tour', tour),
 
   light: () => request<LightSettings>('GET', '/api/light'),
