@@ -474,7 +474,8 @@ npm run backup -- --out /mnt/d/folly-backups --frames    # with the baked .fseq 
 ```
 
 This writes `folly-studio-<date>.tar.gz`, safe while the server runs. The JSON files are read until
-none changes mid-read, and the archive appears only once it is complete. It holds password hashes,
+none changes mid-read, and the archive appears only once it is complete. A file it cannot read fails
+the backup rather than being left out, and the count it prints is what went in. It holds password hashes,
 so keep it private. Run it daily with cron (`crontab -e`, then
 `15 4 * * * cd /path/to/studio && npm run backup -- --out /mnt/d/folly-backups`). WSL does not
 start cron for you: run `sudo service cron start` *(to verify)*. To restore, stop the server and

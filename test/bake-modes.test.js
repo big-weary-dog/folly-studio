@@ -112,16 +112,18 @@ describe('library only', () => {
 });
 
 describe('the bake setting', () => {
-  test('stored in baking.json: missing or broken is on with custom code off, a save is checked and read back', () => {
+  test('stored in baking.json: missing or broken is on with custom code off, a save is checked and read back',
+    async () => {
     const file = path.join(fx.tmp, 'setting', 'baking.json');
     const store = createBakingStore({ file, log: quiet });
     assert.equal(store.mode(), 'on');
-    assert.match(store.save({ mode: 'slow' }).error, /on, throttled or off/);
+    assert.match((await store.save({ mode: 'slow' })).error, /on, throttled or off/);
     assert.equal(store.customCode(), false);
-    assert.match(store.save({}).error, /mode\?, customCode\?/);
-    assert.match(store.save({ customCode: 'yes' }).error, /true or false/);
-    assert.deepEqual(store.save({ mode: 'off' }), { mode: 'off', customCode: false });
-    assert.deepEqual(store.save({ customCode: true }), { mode: 'off', customCode: true }, 'one changes, one is kept');
+    assert.match((await store.save({})).error, /mode\?, customCode\?/);
+    assert.match((await store.save({ customCode: 'yes' })).error, /true or false/);
+    assert.deepEqual(await store.save({ mode: 'off' }), { mode: 'off', customCode: false });
+    assert.deepEqual(await store.save({ customCode: true }), { mode: 'off', customCode: true },
+      'one changes, one is kept');
     assert.equal(createBakingStore({ file, log: quiet }).mode(), 'off', 'from the file');
     fs.writeFileSync(file, '{ not json');
     assert.equal(createBakingStore({ file, log: quiet }).mode(), 'on');

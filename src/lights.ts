@@ -2,9 +2,6 @@
 // feed, live (library modules by ref, no code) while the admin allows it, else as its current bake, else not at all.
 // Custom code never reaches the engine. The admin's mode (SPEC-liveplay "Modes") goes to the engine through the feed.
 // Under the Pi profile with PI_PREVIEW_URL only.
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
-
 import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
@@ -12,6 +9,7 @@ import { At, Fade, type FromPage, JUKEBOX_NOW, MAX_SEND, MODES, type Mode as PiM
 import type { LibraryEntry } from '../shared/schemas/rig.ts';
 import { bakeSeconds, layersHash, renderFields } from './bake.ts';
 import { forAdmins, HttpError, parse } from './http.ts';
+import { settingsFile } from './settings-file.ts';
 import type { Hub } from './live/hub.ts';
 import type { piFeed } from './live/pi-feed.ts';
 import type { StoredLook as Look, StoredUser as User } from './store.ts';
@@ -50,21 +48,8 @@ export function playOf(look: Look, library: ReadonlySet<string>, liveLooks: bool
 /** <STUDIO_DATA>/lights.json: whether live library looks may play (default on) and the mode (default Jukebox); a
  * broken file is the default. */
 export function createLightsStore(file: string) {
-  const read = (): z.infer<typeof Settings> => {
-    try { return Settings.parse(JSON.parse(readFileSync(file, 'utf8'))); } catch {
-      return { liveLooks: true, mode: 'jukebox' };
-    }
-  };
-  return {
-    current: read,
-    save(next: z.infer<typeof Settings>) {
-      mkdirSync(path.dirname(file), { recursive: true });
-      const tmp = `${file}.${process.pid}.tmp`;
-      writeFileSync(tmp, `${JSON.stringify(next)}\n`);
-      renameSync(tmp, file);
-      return next;
-    },
-  };
+  const parse = (json: unknown) => Settings.safeParse(json).data ?? { liveLooks: true, mode: 'jukebox' as const };
+  return settingsFile({ file, parse, broken: 'live looks are on, in Jukebox' });
 }
 
 type LightsStore = ReturnType<typeof createLightsStore>;
@@ -110,7 +95,7 @@ export function lightsRoutes({ store, feed, hub, drive, curate, loadLibrary, vis
       return { kind: play.kind };
     }, { role: 'curator' }] as const,
     'PUT /admin/lights': forAdmins(async (req: FastifyRequest) => {
-      const next = store.save({ ...store.current(), ...parse(Change, req.body) });
+      const next = await store.save({ ...store.current(), ...parse(Change, req.body) });
       feed.mode(next.mode);
       return state(req.user!);
     }),
