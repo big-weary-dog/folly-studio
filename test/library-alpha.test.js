@@ -1,14 +1,13 @@
 // Filters that hide or fade do it by alpha (SPEC "Drawing on transparent"): mask (by its input or by itself),
 // and trails leave what they hide transparent, never black; trails fades whole colours, by the second.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 
 import { test } from 'vitest';
 
 import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
 import { lineRig } from './fixtures/rigs.js';
+import { libraryCode as lib } from './fixtures/patterns.js';
 
-const lib = (name) => readFileSync(new URL(`../public/patterns/${name}.js`, import.meta.url), 'utf8');
 const scene = prepareScene(lineRig(4));
 const src = (code) => ({ id: 's', kind: 'source', code: `function pixel(p, t) { ${code} }` });
 const filter = (name, params = {}) => ({ id: name, kind: 'filter', code: lib(name), params });

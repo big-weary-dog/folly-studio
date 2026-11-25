@@ -3,17 +3,14 @@
 // versions, previews one (the view says so, editing and saving wait), goes back to the work, restores one, saves a
 // named version and names a past one. Ctrl+S saves a focused field's typing.
 // With HISTORY_SHOTS set to a folder, each state's screenshot goes there.
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { drawn } from './drawn.js';
-import { expect, signup, test } from './studio.js';
+import { SIZES } from './sizes.js';
+import { expect, signIn, signup, test } from './studio.js';
+import { libraryCode } from '../fixtures/patterns.js';
 
-const SIZES = {
-  laptop: { viewport: { width: 1366, height: 768 } },
-  phone: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
-};
-const WASH = readFileSync(new URL('../../public/patterns/colour-wash.js', import.meta.url), 'utf8');
+const WASH = libraryCode('colour-wash');
 const layer = (level) => ({ id: 'l1', title: 'Glow', code: WASH, level, params: {} });
 const palette = (body) => ({ low: ['#120a2a'], body: [body], accent: ['#ffb070'], high: ['#fff4e0'] });
 
@@ -41,8 +38,8 @@ for (const [name, device] of Object.entries(SIZES)) {
       const errors = [];
       page.on('pageerror', (e) => errors.push(String(e)));
       const shot = shooter(page, device, info);
-      const cookie = await signup(studio.origin, `steps-${name}`), [k, v] = cookie.split('=');
-      await page.context().addCookies([{ name: k, value: v, url: studio.origin }]);
+      const cookie = await signup(studio.origin, `steps-${name}`);
+      await signIn(page.context(), studio.origin, cookie);
       await page.goto(`${studio.origin}/studio/${await savedThrice(studio.origin, cookie)}`);
 
       if (name === 'phone') await page.locator('.phone-look-menu > summary').click();
@@ -83,8 +80,8 @@ for (const [name, device] of Object.entries(SIZES)) {
       const errors = [];
       page.on('pageerror', (e) => errors.push(String(e)));
       const shot = shooter(page, device, info);
-      const cookie = await signup(studio.origin, `versions-${name}`), [k, v] = cookie.split('=');
-      await page.context().addCookies([{ name: k, value: v, url: studio.origin }]);
+      const cookie = await signup(studio.origin, `versions-${name}`);
+      await signIn(page.context(), studio.origin, cookie);
       const id = await savedThrice(studio.origin, cookie);
       await page.goto(`${studio.origin}/studio/${id}`);
 
@@ -139,8 +136,8 @@ for (const [name, device] of Object.entries(SIZES)) {
 }
 
 test('Ctrl+S saves what a focused field shows, before it is left', async ({ page, studio }) => {
-  const cookie = await signup(studio.origin, 'ctrl-s'), [k, v] = cookie.split('=');
-  await page.context().addCookies([{ name: k, value: v, url: studio.origin }]);
+  const cookie = await signup(studio.origin, 'ctrl-s');
+  await signIn(page.context(), studio.origin, cookie);
   const id = await savedThrice(studio.origin, cookie);
   await page.goto(`${studio.origin}/studio/${id}`);
   const level = page.getByRole('spinbutton', { name: 'Level for Glow' });

@@ -10,7 +10,8 @@ import { afterAll, beforeAll, describe, test, vi } from 'vitest';
 
 import { approvedOnly, createBody, fileText, fullLooks, importFiles, lookFile, looksIn, manyName } from
   '../public/js/ui/look-file.ts';
-import { layer, signup, startApp, useFixture } from './fixtures/server.js';
+import { signup } from './fixtures/app.js';
+import { layer, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 const file = (name, data) => ({ name, text: async () => (typeof data === 'string' ? data

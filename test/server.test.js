@@ -6,13 +6,14 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { createServer } from '../src/app.ts';
 import { validateLayers } from '../src/api-looks.ts';
 import { createStore } from '../src/store.ts';
 import { CSP_APP, CSP_SANDBOX } from '../src/static.ts';
+import { client, serve, signup } from './fixtures/app.js';
+import { fakeBox } from './fixtures/box.js';
+import { quiet } from './fixtures/quiet.js';
 import {
-  client, EXPECTED_APP_CSP, EXPECTED_SANDBOX_CSP, fakeBox, fx, layer, PIXEL, quiet, rawGet, SANDBOX_PAGE, signup,
-  startApp, useFixture,
+  EXPECTED_APP_CSP, EXPECTED_SANDBOX_CSP, fx, layer, PIXEL, rawGet, SANDBOX_PAGE, startApp, useFixture
 } from './fixtures/server.js';
 
 useFixture();
@@ -297,14 +298,11 @@ describe('without public files yet', () => {
   beforeAll(async () => {
     const empty = path.join(fx.tmp, 'public-empty');
     await mkdir(empty, { recursive: true });
-    app = await createServer({
+    app = await serve({
       dataDir: path.join(fx.tmp, 'data-fallback'),
       publicDir: empty,
       distDir: empty,
-      log: quiet,
     });
-    const addr = await app.listen(0);
-    app.base = `http://127.0.0.1:${addr.port}`;
   });
   afterAll(() => app.close());
 

@@ -1,12 +1,11 @@
 // The effects audit's small fixes on City of Gods: what each source's params now promise.
 import assert from 'node:assert/strict';
 
-import { readFileSync } from 'node:fs';
-
 import { describe, test } from 'vitest';
 
 import { compileModule, upgradedParams } from '../public/js/pattern-core.ts';
 import { at, COG, layerOf, litShare } from './fixtures/layers.js';
+import { libraryCode } from './fixtures/patterns.js';
 
 /** Each lit LED's colour over its brightest channel, as a key. */
 const hue = (L, j) => {
@@ -64,10 +63,10 @@ describe('sparkle', () => {
   });
 
   test('Settings is told what upgrade() added, so its sliders start where the look plays', () => {
-    const c = compileModule(readFileSync(new URL('../public/patterns/sparkle.js', import.meta.url), 'utf8'), 'source');
+    const c = compileModule(libraryCode('sparkle'), 'source');
     assert.deepEqual(upgradedParams(c, { mode: 'smooth', rate: 4, sharp: 3 }),
       { often: [undefined, 240], flash: [undefined, 0.6 + 0.4 * 5 / 7] });
-    const bars = compileModule(readFileSync(new URL('../public/patterns/bars.js', import.meta.url), 'utf8'), 'source');
+    const bars = compileModule(libraryCode('bars'), 'source');
     assert.deepEqual(upgradedParams(bars, { direction: 'orbit', speed: 1 }),
       { direction: ['orbit', 'orbit-counterclockwise'] }, 'a changed value, with what it was');
     assert.equal(upgradedParams(c, { often: 30, flash: 0.1 }), undefined, 'saved as now: nothing added');

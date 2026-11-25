@@ -13,14 +13,14 @@ import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { writeFseq } from '../public/js/fseq.ts';
 import { decodeChunk, parseManifest, readFrame } from '../public/js/frames-stream.ts';
-import { createServer } from '../src/app.ts';
 import { parseFseq } from '../src/frames.ts';
 import { IMMUTABLE } from '../src/frames-http.ts';
 import { GLOW, writeLibrary } from './fixtures/library.js';
 import { lineRig } from './fixtures/rigs.js';
 import { HAS_ZSTD, inflateBlock } from '../src/fseq-codec.ts';
+import { serve, signup } from './fixtures/app.js';
+import { stubBox } from './fixtures/box.js';
 
-const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const FRAMES = 170; // three chunks, the last one short
 const C = 6;
 
@@ -42,19 +42,11 @@ async function startApp() {
   await writeFile(path.join(publicDir, 'index.html'), '<!doctype html><title>t</title>');
   await writeFile(path.join(publicDir, 'data', 'rig-folly.json'), JSON.stringify(lineRig(2)));
   await writeLibrary(publicDir);
-  const renderBox = {
-    config: { seconds: FRAMES / 40 },
-    probe: async () => ({ ok: true }),
-    async render({ layers }) {
-      const data = bakedData(Number(/"seed":(\d+)/.exec(JSON.stringify(layers))?.[1] ?? 1));
-      return { bytes: Buffer.from(writeFseq({ frames: FRAMES, data, ranges: [[0, C]], uniqueId: 1 })) };
-    },
-  };
-  const dataDir = path.join(tmp, 'data');
-  app = await createServer({ dataDir, publicDir, log: quiet, renderBox, curators: ['carol'],
-    });
-  const addr = await app.listen(0, '127.0.0.1');
-  app.base = `http://127.0.0.1:${addr.port}`;
+  const renderBox = stubBox(({ layers }) => {
+    const data = bakedData(Number(/"seed":(\d+)/.exec(JSON.stringify(layers))?.[1] ?? 1));
+    return { bytes: Buffer.from(writeFseq({ frames: FRAMES, data, ranges: [[0, C]], uniqueId: 1 })) };
+  }, FRAMES / 40);
+  app = await serve({ dataDir: path.join(tmp, 'data'), publicDir, renderBox, curators: ['carol'] });
 }
 
 /** A GET with exactly these headers, the body as raw bytes (nothing decoded). */
@@ -81,12 +73,7 @@ async function send(user, method, p, body) {
   return { status: res.status, json: await res.json() };
 }
 
-async function signup(name) {
-  const user = { cookie: '' };
-  const res = await send(user, 'POST', '/api/signup', { username: name, password: 'correct horse battery' });
-  assert.equal(res.status, 201);
-  return user;
-}
+const account = async (name) => ({ cookie: (await signup(app, name, 'correct horse battery')).cookie });
 
 /** A baked look of alice's (frames from `seed`), encoded for the wire: the look, its hash, its URLs. */
 async function bakedLook(seed, extra = {}) {
@@ -104,7 +91,7 @@ async function bakedLook(seed, extra = {}) {
 beforeAll(async () => {
   tmp = await mkdtemp(path.join(tmpdir(), 'folly-wire-'));
   await startApp();
-  [alice, bob, carol] = [await signup('alice'), await signup('bob'), await signup('carol')];
+  [alice, bob, carol] = [await account('alice'), await account('bob'), await account('carol')];
   anon = { cookie: '' };
 });
 afterAll(async () => {

@@ -11,6 +11,8 @@ import { LIGHT } from '../public/js/pattern-core.ts';
 import { createBakeQueue, layersHash, renderFields, renderKey, reviewBlocker } from '../src/bake.ts';
 import { checkFrames, cleanBoxStats, failedBake } from '../src/box-output.ts';
 import { lineRig } from './fixtures/rigs.js';
+import { stubBox } from './fixtures/box.js';
+import { quiet } from './fixtures/quiet.js';
 
 const rig = lineRig(10), seconds = 3;
 const flash = { check: true, perSecond: 3, delta: 0.5, area: 0.25 };
@@ -42,13 +44,11 @@ async function fixture({ render = async () => ({ bytes: bytes() }), light = () =
       return looks.get(id);
     },
   };
-  let renders = 0;
-  const box = { config: { seconds: 10 }, probe: async () => ({ ok: true }),
-    render: async (job) => { renders++; return render(job); } };
+  const box = stubBox(render, 10);
   const queue = createBakeQueue({ store: { looks }, box, framesDir: dir, rigFile, flash, loadLight: light,
-    log: { info() {}, error() {} } });
+    log: quiet });
   const bake = async () => { await queue.request('a'); await queue.idle(); return looks.get('a').bake; };
-  return { dir, records, looks, queue, bake, renders: () => renders };
+  return { dir, records, looks, queue, bake, renders: () => box.renders };
 }
 
 test('restored and failed bakes keep verification order when the host wall clock steps back', async () => {
@@ -179,7 +179,7 @@ test('a server started on another rig fails the bakes it cannot play, dropping t
   f.looks.update('a', { reviewed: true, reviewedBy: 'carol', flashOverride: { by: 'carol', reason: 'ok' } });
   await fs.writeFile(path.join(f.dir, 'rig.json'), JSON.stringify(lineRig(12)));
   createBakeQueue({ store: { looks: f.looks }, box: { probe: async () => ({ ok: true }) }, framesDir: f.dir,
-    rigFile: path.join(f.dir, 'rig.json'), log: { info() {}, error() {} } });
+    rigFile: path.join(f.dir, 'rig.json'), log: quiet });
   const bake = f.looks.get('a').bake;
   assert.equal(bake.status, 'failed');
   assert.match(bake.reason, /another rig/);

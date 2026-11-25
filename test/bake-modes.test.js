@@ -11,12 +11,14 @@ import { createBakingStore, governBox, THROTTLE } from '../src/baking.ts';
 import { parseFseq } from '../src/frames.ts';
 import { customCode, libraryHashes } from '../src/library-gate.ts';
 import { createRenderBox } from '../src/render-box.ts';
-import { fakeBox, fx, layer, signup, startApp, useFixture } from './fixtures/server.js';
+import { signup } from './fixtures/app.js';
+import { fakeBox } from './fixtures/box.js';
+import { fx, layer, startApp, useFixture } from './fixtures/server.js';
+import { quiet } from './fixtures/quiet.js';
 
 useFixture();
 const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url));
 const PATTERNS = path.join(PUBLIC, 'patterns');
-const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const source = (name) => fs.readFileSync(path.join(PATTERNS, `${name}.js`), 'utf8');
 const WASH = source('colour-wash'), BARS = source('bars');
 const comp = (layers) => ({ id: 'k', kind: 'composite', title: 'Comp', code: '', params: {}, layers });

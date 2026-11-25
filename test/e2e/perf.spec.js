@@ -34,10 +34,10 @@
 // - auto (asserted): the Playa view on Auto with every frame held 35 ms, as on a slow GPU: it must step down to low.
 // Every run: no page errors, and no main-thread task of 100 ms or more at its highest slowdown.
 //   PERF_RATES=1,4  PERF_SECONDS=11 (odd: a median is a middle second); one run: npm run perf -- -g compute
-import { readFile } from 'node:fs/promises';
 
 import { calibrator, reference, timer } from './perf-calibrate.js';
-import { expect, signup, test } from './studio.js';
+import { expect, signIn, signup, test } from './studio.js';
+import { libraryCode as code } from '../fixtures/patterns.js';
 
 const RATES = (process.env.PERF_RATES || '1,4').split(',').map(Number);
 const SECONDS = Number(process.env.PERF_SECONDS) || 11;
@@ -69,7 +69,6 @@ const PHONE_FPS = 25;
 const PHONE_SLACK = 1.25;
 const SWIFTSHADER = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
 const log = (m) => console.log(`perf: ${m}`);
-const code = (name) => readFile(new URL(`../../public/patterns/${name}.js`, import.meta.url), 'utf8');
 
 /** The demo composed look: comets chasing along the strands (the Meteors preset's), masked by clouds, twisted, on a
  * palette with energy and a macro. */
@@ -196,7 +195,7 @@ async function calibrate(page, { bursts, gap, worker }) {
 async function measure(browser, origin, cookie, lookId, run, rate) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3,
     isMobile: true, hasTouch: true });
-  await context.addCookies([{ name: 'studio_session', value: cookie.split('=')[1], url: origin }]);
+  await signIn(context, origin, cookie);
   await context.addInitScript(probe, { view: run.view, quality: run.quality, slow: run.slow,
     calibrator: String(calibrator), timer: String(timer), reference: String(reference) });
   await context.addInitScript({ content: `window.perfTime = (${timer})(${reference});` });   // on the page's thread

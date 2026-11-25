@@ -1,12 +1,12 @@
 // An import accepts old library exports, as every server takes only library code.
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 
 import { expect, test } from './studio.js';
+import { libraryCode } from '../fixtures/patterns.js';
 
 test('import an earlier library Noise', async ({ page, studio }, info) => {
   const code = execFileSync('git', ['show', '1cfdcda6:public/patterns/noise.js'], { encoding: 'utf8' });
-  const current = readFileSync(new URL('../../public/patterns/noise.js', import.meta.url), 'utf8');
+  const current = libraryCode('noise');
   const look = { title: 'Simple Noise Bed', origin: 'old-prod-noise', chain: 2, duration: 30,
     globals: { macros: { breath: { value: 0.5, min: 0, max: 1 } } },
     automation: { breath: [[0, 0], [10, 1]], archAccent: [[0, 1]] },

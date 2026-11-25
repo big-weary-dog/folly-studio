@@ -4,7 +4,8 @@
 import path from 'node:path';
 
 import { createRenderBox } from '../../src/render-box.ts';
-import { expect, quiet, test } from './studio.js';
+import { quiet } from '../fixtures/quiet.js';
+import { expect, signupIn, test } from './studio.js';
 
 const PEOPLE = 'baking-admin-390,baking-admin-1366';
 test.use({ serverOptions: { admins: PEOPLE, curators: PEOPLE,
@@ -18,8 +19,7 @@ for (const width of [390, 1366]) {
     page.on('pageerror', (e) => errors.push(String(e)));
     await page.setViewportSize({ width, height: width < 600 ? 844 : 768 });
     const request = page.context().request, put = (url, data) => request.put(studio.origin + url, { data });
-    expect((await request.post(`${studio.origin}/api/signup`, { data: { username: `baking-admin-${width}`,
-      password: 'correct horse' } })).status()).toBe(201);
+    await signupIn(request, studio.origin, `baking-admin-${width}`);
     const { look } = await (await request.post(`${studio.origin}/api/looks`, { data: { title: `Wash ${width}`,
       duration: 2, layers: [{ id: 'l1', title: 'Sea', groups: ['cathedral'],
         modules: [{ id: 'm1', kind: 'source', ref: 'colour-wash' }] }] } })).json();

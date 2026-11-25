@@ -8,7 +8,8 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { createAuth } from '../src/auth.ts';
-import { client, signup, startApp, useFixture } from './fixtures/server.js';
+import { client, signup } from './fixtures/app.js';
+import { startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 

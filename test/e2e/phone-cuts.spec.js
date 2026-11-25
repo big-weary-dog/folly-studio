@@ -1,9 +1,7 @@
 // Phone authoring cuts preserve playback, palette, faders and sharing at the supported narrow widths.
 import path from 'node:path';
-import { readFileSync } from 'node:fs';
-import { expect, test } from './studio.js';
-
-const code = (ref) => readFileSync(new URL(`../../public/patterns/${ref}.js`, import.meta.url), 'utf8');
+import { expect, signupIn, test } from './studio.js';
+import { libraryCode as code } from '../fixtures/patterns.js';
 
 for (const width of [360, 390, 430]) {
   test(`Studio phone cuts at ${width}`, async ({ page, studio }, info) => {
@@ -18,7 +16,7 @@ for (const width of [360, 390, 430]) {
     await expect(page.getByRole('button', { name: 'Try it', exact: true })).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'Username', exact: true })).toBeVisible();
     const post = (url, data) => page.request.post(studio.origin + url, { data });
-    expect((await post('/api/signup', { username: `cuts-${width}`, password: 'correct horse' })).status()).toBe(201);
+    await signupIn(page.request, studio.origin, `cuts-${width}`);
     const { look } = await (await post('/api/looks', { title: 'Phone performance', layers: [{
       id: 'rose', title: 'Rose', modules: [
         { id: 'bars', title: 'Bars', kind: 'source', ref: 'bars', code: code('bars') },

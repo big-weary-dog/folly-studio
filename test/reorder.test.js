@@ -1,13 +1,13 @@
 // Reorder (SPEC-library "The neighbour map"): wireDistance() along the wiring, rowOrder()'s rows, the warp re-keying
 // out on City of Gods; and mask's Scatter, which at 0 is mask as it was.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
 import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
 import { tagMask, tagParts } from '../public/js/core/scene.ts';
 import { at, COG, layerOf } from './fixtures/layers.js';
+import { libraryCode as lib } from './fixtures/patterns.js';
 
 /** A rig of fixtures [id, tags, points] (y up, z right), a group each under `all`. */
 function rigOf(fixtures) {
@@ -102,7 +102,6 @@ describe('the reorder warp', () => {
 });
 
 describe('mask scatter', () => {
-  const lib = (name) => readFileSync(new URL(`../public/patterns/${name}.js`, import.meta.url), 'utf8');
   const look = (maskCode, params) => {
     const layer = { id: 'l', modules: [{ id: 's', kind: 'source', ref: 'clouds', code: lib('clouds'), params: {} },
       { id: 'm', kind: 'filter', code: maskCode, params: { by: 'self', ...params } }] };

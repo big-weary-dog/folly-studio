@@ -3,15 +3,16 @@ import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { drawn } from './drawn.js';
-import { expect, signup, test } from './studio.js';
+import { expect, signIn, signup, test } from './studio.js';
+import { libraryCode } from '../fixtures/patterns.js';
 
 test.use({ viewport: { width: 1366, height: 768 } });
 
 test('vampire palettes: swatches, selection and preview', async ({ page, studio }, info) => {
-  const cookie = await signup(studio.origin, 'vampire-palettes'), [name, value] = cookie.split('=');
-  await page.context().addCookies([{ name, value, url: studio.origin }]);
+  const cookie = await signup(studio.origin, 'vampire-palettes');
+  await signIn(page.context(), studio.origin, cookie);
   const catalogue = JSON.parse(await readFile(new URL('../../public/data/palettes.json', import.meta.url), 'utf8'));
-  const code = await readFile(new URL('../../public/patterns/colour-wash.js', import.meta.url), 'utf8');
+  const code = libraryCode('colour-wash');
   const response = await page.request.post(`${studio.origin}/api/looks`, { data: {
     title: 'Vampire ball', chain: 2, duration: 30,
     layers: [{ id: 'l1', title: 'Vampire wash', modules: [

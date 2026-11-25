@@ -10,7 +10,9 @@ import { test } from 'vitest';
 import { createCodeGate, customCode, libraryHashes } from '../src/library-gate.ts';
 import { parseFseq } from '../src/frames.ts';
 import { createRenderBox } from '../src/render-box.ts';
-import { fx, quiet, signup, startApp, useFixture } from './fixtures/server.js';
+import { signup } from './fixtures/app.js';
+import { quiet } from './fixtures/quiet.js';
+import { fx, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 const publicDir = fileURLToPath(new URL('../public/', import.meta.url));

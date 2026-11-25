@@ -8,9 +8,9 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { parseFseq } from '../../src/frames.ts';
-import { expect, signup, test } from './studio.js';
+import { expect, signIn, signup, test } from './studio.js';
+import { libraryCode as code } from '../fixtures/patterns.js';
 
-const code = (name) => readFileSync(new URL(`../../public/patterns/${name}.js`, import.meta.url), 'utf8');
 const lib = (id, kind, ref, params = {}, more = {}) => ({ id, kind, ref, title: '', code: code(ref), params, ...more });
 const comp = (id, title, layers, more = {}) => ({ id, kind: 'composite', title, code: '', params: {}, layers,
   ...more });
@@ -37,8 +37,7 @@ async function open(page, studio, look, phone) {
     headers: { 'content-type': 'application/json', cookie } });
   expect(res.status, await res.clone().text()).toBe(201);
   const { look: { id } } = await res.json();
-  const [name, value] = cookie.split('=');
-  await page.context().addCookies([{ name, value, url: studio.origin }]);
+  await signIn(page.context(), studio.origin, cookie);
   await page.goto(`${studio.origin}/studio/${id}`);
   if (phone) {
     await page.locator('.studio-tabs .tab[data-tab=layers]').click({ timeout: 30_000 });

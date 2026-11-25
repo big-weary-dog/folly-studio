@@ -2,7 +2,6 @@
 // flash check (src/frames.ts, large-area flashing over 3 a second). Strobe alone may warn, on small regions. Ten
 // seconds of each, baked as the render box bakes, spread over worker threads.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
 import { Worker } from 'node:worker_threads';
 
@@ -10,8 +9,9 @@ import { test } from 'vitest';
 
 import { presetLayers, withPresetGlobals } from '../public/js/ui/model.ts';
 import { cog } from './fixtures/rigs.js';
+import { libraryIndex, withCode } from './fixtures/patterns.js';
 
-const index = JSON.parse(readFileSync(new URL('../public/patterns/index.json', import.meta.url), 'utf8'));
+const index = libraryIndex();
 const MAY_WARN = new Set(['strobe']);
 
 function bake(names, seconds = 10) {
@@ -51,8 +51,7 @@ test('lightning at its fastest and widest stays under it', async () => {
 });
 
 test('no preset flashes a large area, as the Studio adds it', async () => {
-  const library = index.map((e) => ({ ...e, title: e.title || e.name, code: e.kind === 'preset' ? ''
-    : readFileSync(new URL(`../public/patterns/${e.name}.js`, import.meta.url), 'utf8') }));
+  const library = index.map((e) => withCode({ ...e, title: e.title || e.name }));
   const names = library.filter((e) => e.kind === 'preset').map((p) => ({ name: p.name,
     layers: presetLayers(p, library, cog), look: { globals: withPresetGlobals(null, p) } }));
   const n = Math.max(1, Math.min(2, availableParallelism() - 1));

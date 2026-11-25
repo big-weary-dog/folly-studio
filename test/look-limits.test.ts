@@ -10,7 +10,9 @@ import { lookRoutes } from '../src/api-looks.ts';
 import { createAuth } from '../src/auth.ts';
 import { MAX_LOOK_BYTES_PER_USER, roomForLook, roomToGrow } from '../src/look-cap.ts';
 import { createStore, type Store } from '../src/store.ts';
-import { fx, layer, quiet, signup, startApp, useFixture } from './fixtures/server.js';
+import { signup } from './fixtures/app.js';
+import { quiet } from './fixtures/quiet.js';
+import { fx, layer, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 const tmp = () => (fx as { tmp: string }).tmp;

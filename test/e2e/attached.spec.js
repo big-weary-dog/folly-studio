@@ -2,12 +2,11 @@
 // attached to one of two sources drawn one step in under it, detached with Alt+↓ (it then bends both) and attached
 // again by its grip; a filter attached; the preview running them without an error. Screenshots in the run's output
 // folder, or ATTACHED_SHOTS.
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { expect, signup, test } from './studio.js';
+import { expect, signIn, signup, test } from './studio.js';
+import { libraryCode as code } from '../fixtures/patterns.js';
 
-const code = (name) => readFileSync(new URL(`../../public/patterns/${name}.js`, import.meta.url), 'utf8');
 const lib = (id, kind, ref, params = {}, more = {}) => ({ id, kind, ref, title: '', code: code(ref), params, ...more });
 const look = (title, modules) => ({ title, chain: 2, duration: 30, layers: [{ id: 'l1', title, modules }] });
 
@@ -24,8 +23,7 @@ async function open(page, studio, body, phone) {
     headers: { 'content-type': 'application/json', cookie } });
   expect(res.status, await res.clone().text()).toBe(201);
   const { look: { id } } = await res.json();
-  const [name, value] = cookie.split('=');
-  await page.context().addCookies([{ name, value, url: studio.origin }]);
+  await signIn(page.context(), studio.origin, cookie);
   await page.goto(`${studio.origin}/studio/${id}`);
   if (phone) {
     await page.locator('.studio-tabs .tab[data-tab=layers]').click({ timeout: 30_000 });

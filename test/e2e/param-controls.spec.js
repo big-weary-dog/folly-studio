@@ -1,15 +1,15 @@
 // Settings show only controls used by the selected mode, without resetting the hidden saved values.
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 
-import { expect, signup, test } from './studio.js';
+import { expect, signIn, signup, test } from './studio.js';
+import { libraryCode as code } from '../fixtures/patterns.js';
 
 const names = { bars: 'source', mask: 'filter', 'in-turn': 'warp', heartbeat: 'source', lightning: 'source',
   anchor: 'warp', mirror: 'warp', 'hue-shift': 'filter', 'petal-repeat': 'warp', noise: 'source', delay: 'filter',
   fireworks: 'source', 'petal-mask': 'filter', replay: 'filter', 'single-strand': 'source', streaks: 'source',
   reorder: 'warp', strobe: 'source', recolour: 'filter', 'ring-turn': 'warp', picture: 'source', waves: 'source',
   twist: 'warp' };
-const code = (name) => readFileSync(new URL(`../../public/patterns/${name}.js`, import.meta.url), 'utf8');
 const look = { title: 'Pattern controls', duration: 16, layers: Object.entries(names).map(([name, kind]) => ({
   id: name, title: name, modules: [
     ...(kind === 'source' ? [] : [{ id: 'bed', kind: 'source', ref: 'colour-wash', code: code('colour-wash') }]),
@@ -24,8 +24,7 @@ for (const [device, settings] of Object.entries(DEVICES)) {
     test.use(settings);
     test('mode controls retain hidden settings', async ({ page, studio }, info) => {
       const cookie = await signup(studio.origin, `controls-${device}`);
-      const [key, value] = cookie.split('=');
-      await page.context().addCookies([{ name: key, value, url: studio.origin }]);
+      await signIn(page.context(), studio.origin, cookie);
       const row = (text) => page.locator('.params .field.param', { hasText: text });
       const select = (label, value) => row(label).locator('select').selectOption(value);
       const shot = async (name) => {

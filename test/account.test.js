@@ -6,7 +6,9 @@ import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { createAuth, hashPassword } from '../src/auth.ts';
 import { createStore } from '../src/store.ts';
-import { client, fx, layer, quiet, signup, startApp, useFixture } from './fixtures/server.js';
+import { CHEAP_SCRYPT, client, signup } from './fixtures/app.js';
+import { quiet } from './fixtures/quiet.js';
+import { fx, layer, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 
@@ -50,7 +52,7 @@ describe('your account', () => {
   test('a password checked against an account read before it changed is 409, as is one from an ended session',
     async () => {
       const store = createStore(path.join(fx.tmp, 'data-account-auth'), { log: quiet });
-      const auth = createAuth({ store: await store, cost: { N: 1024, r: 8, p: 1 } });
+      const auth = createAuth({ store: await store, cost: CHEAP_SCRYPT });
       const old = await auth.signup({ username: 'jo', password: 'correct horse' });
       const [a, b] = [auth.createSession(old), auth.createSession(old)];
       await auth.changePassword(old, { password: 'correct horse', next: 'battery staple' }, a);
@@ -63,9 +65,9 @@ describe('your account', () => {
 
   test('a sign-in with the old password that was being checked as the password changed is refused', async () => {
     const store = await createStore(path.join(fx.tmp, 'data-account-login'), { log: quiet });
-    const auth = createAuth({ store, cost: { N: 1024, r: 8, p: 1 } });
+    const auth = createAuth({ store, cost: CHEAP_SCRYPT });
     const { id } = await auth.signup({ username: 'kim', password: 'correct horse' });
-    const next = await hashPassword('battery staple', { N: 1024, r: 8, p: 1 });
+    const next = await hashPassword('battery staple', CHEAP_SCRYPT);
     const late = auth.login({ username: 'kim', password: 'correct horse' });   // checking the old one
     store.users.update(id, { passwordHash: next });
     await assert.rejects(late, { status: 401 });
