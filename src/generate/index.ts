@@ -297,6 +297,7 @@ export function createQueue({
       const { bake: made, frames } = (out.raw ?? {}) as { bake?: Bake, frames?: unknown };
       const bake = made && typeof made === 'object' ? { ...made, layersHash: layersHash(renderFields(look)) } : null;
       await codeGate?.check(look.layers, (why) => new GenerateError(why, 'new code'));
+      if (!(await store.ideas.get(id))) return log.info?.(`[generate] idea ${id} was deleted while it ran`);
       const saved = await store.looks.create(roomForLook(store, idea.owner, full, { owner: idea.owner,
         ownerName: owner?.username || '', title: look.title, summary: look.summary,
         ...Object.fromEntries(PLAYS.filter((k) => look[k] != null).map((k) => [k, look[k]])),

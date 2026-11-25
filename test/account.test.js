@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { createAuth } from '../src/auth.ts';
+import { createAuth, hashPassword } from '../src/auth.ts';
 import { createStore } from '../src/store.ts';
 import { client, fx, layer, quiet, signup, startApp, useFixture } from './fixtures/server.js';
 
@@ -60,6 +60,17 @@ describe('your account', () => {
       await assert.rejects(auth.confirm(now, 'battery staple', b), { status: 409 }, 'b was signed out');
       await auth.confirm(now, 'battery staple', a);
     });
+
+  test('a sign-in with the old password that was being checked as the password changed is refused', async () => {
+    const store = await createStore(path.join(fx.tmp, 'data-account-login'), { log: quiet });
+    const auth = createAuth({ store, cost: { N: 1024, r: 8, p: 1 } });
+    const { id } = await auth.signup({ username: 'kim', password: 'correct horse' });
+    const next = await hashPassword('battery staple', { N: 1024, r: 8, p: 1 });
+    const late = auth.login({ username: 'kim', password: 'correct horse' });   // checking the old one
+    store.users.update(id, { passwordHash: next });
+    await assert.rejects(late, { status: 401 });
+    await auth.login({ username: 'kim', password: 'battery staple' });
+  });
 
   test('wrong passwords are limited per account: 429 with Retry-After, even for the right one', async () => {
     const bo = await signup(app, 'acct-bo');

@@ -108,9 +108,13 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     const user = username ? findUser(username) : null;
     dummyHash ??= hashPassword('not-a-real-password', cost);
     const ok = await verifyPassword(password, user ? user.passwordHash : await dummyHash);
-    if (!user || !ok || !password) throw new HttpError(401, 'Wrong username or password.');
+    // A password changed while this one was checked: the old one no longer signs in, nor is it made again over it.
+    const stale = () => !user || store.users.get(user.id)?.passwordHash !== user.passwordHash;
+    if (!user || !ok || !password || stale()) throw new HttpError(401, 'Wrong username or password.');
     if (weaker(user.passwordHash, cost)) {
-      return store.users.update(user.id, { passwordHash: await hashPassword(password, cost) }) ?? user;
+      const passwordHash = await hashPassword(password, cost);
+      if (stale()) throw new HttpError(401, 'Wrong username or password.');
+      return store.users.update(user.id, { passwordHash }) ?? user;
     }
     return user;
   });
