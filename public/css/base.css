@@ -290,6 +290,7 @@ input.switch:disabled { opacity: .5; cursor: default; }
 .user-box { margin-left: auto; display: flex; align-items: center; gap: 12px; min-width: 0; }
 /* A visitor's way in stays in the bar, outside the phone's menu. */
 .visitor-box { order: 1; margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.visitor-menu { display: none; }
 .user-name { max-width: 160px; overflow: hidden; color: var(--text-2); font-size: 14px; text-overflow: ellipsis;
   white-space: nowrap; }
 .user-box > .user-name { display: none; }

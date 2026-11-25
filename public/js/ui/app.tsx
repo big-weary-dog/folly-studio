@@ -145,6 +145,14 @@ function placeUserMenu(e: { newState: string; currentTarget: HTMLElement }) {
   }
 }
 
+/** A visitor's Try it and Log in: in the bar, or in the menu where a phone's Studio leaves the bar no room. */
+function VisitorWayIn({ where }: { where: 'visitor-box' | 'visitor-menu' }) {
+  return <div class={where}>
+    <button class="btn primary small" type="button" onClick={() => void tryIt()}>Try it</button>
+    <a class="btn ghost small" href={`/login?next=${encodeURIComponent(here())}`}>Log in</a>
+  </div>;
+}
+
 function Header({ me, nav }: { me: User | null; nav?: string }) {
   const [open, setOpen] = useState(false);
   useLayoutEffect(() => {
@@ -163,10 +171,7 @@ function Header({ me, nav }: { me: User | null; nav?: string }) {
         <span class="brand-mark"><Rose /></span>
         <svg class="wordmark" aria-hidden="true"><use href="#wordmark" /></svg>
       </a>
-      {!me && <div class="visitor-box">
-        <button class="btn primary small" type="button" onClick={() => void tryIt()}>Try it</button>
-        <a class="btn ghost small" href={`/login?next=${encodeURIComponent(here())}`}>Log in</a>
-      </div>}
+      {!me && <VisitorWayIn where="visitor-box" />}
       <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded={open} aria-controls="nav-panel"
         onClick={() => setOpen(!open)}>
         <span class="sr-only">Menu</span><span class="nav-toggle-bars" aria-hidden="true" />
@@ -178,6 +183,7 @@ function Header({ me, nav }: { me: User | null; nav?: string }) {
           {navOf(me).map(([href, text]) => <a href={href}
             data-tour={`nav:${href.slice(1)}`} aria-current={nav === href ? 'page' : undefined}>{text}</a>)}
         </nav>
+        {!me && <VisitorWayIn where="visitor-menu" />}
         {me && <div class="user-box">
           <span class="user-name">{me.username}</span>
           <button class="user-menu-btn" id="user-menu-btn" type="button" popovertarget="user-menu"

@@ -39,6 +39,7 @@ for (const [name, device] of Object.entries(SIZES)) {
       await page.getByRole('button', { name: 'Duplicate layer' }).click();
       await expect(layers).toHaveCount(2);
 
+      if (name === 'phone') await page.locator('#nav-toggle').click();   // the phone's Studio keeps them in its menu
       await page.getByRole('button', { name: 'Try it', exact: true }).click();
       await expect(page.locator('.user-box .tag')).toHaveText('Guest');
       await expect(page).toHaveURL(`${studio.origin}/studio/${look.id}`);
