@@ -2,7 +2,7 @@
 // to a look keeps to the bytes when it grows them.
 import type { Store, StoredLook } from './store.ts';
 
-export const MAX_LOOKS_PER_USER = 500;
+const MAX_LOOKS_PER_USER = 500;
 /** An account's looks with their versions, as stored. */
 export const MAX_LOOK_BYTES_PER_USER = 20 * 2 ** 20;
 

@@ -13,7 +13,7 @@ const MAX_STRING = 2000;
 type ScrubLimits = { depth: number, items: number, chars?: number };
 /** A log line's limits; DEEP a state's. */
 export const LINE: ScrubLimits = { depth: 4, items: 50 };
-export const DEEP: ScrubLimits = { depth: 12, items: 500, chars: 20_000 };
+const DEEP: ScrubLimits = { depth: 12, items: 500, chars: 20_000 };
 /** The most one piece of a report takes, in characters of JSON. */
 const PIECE_MAX_CHARS = 64_000;
 
