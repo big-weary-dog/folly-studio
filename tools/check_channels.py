@@ -6,8 +6,8 @@
 Both rigs against their xLights models (the channels a sequence's .fseq carries): every LED in one model, each model
 starting on its first LED and running on three channels a pixel, its nodes laid out the way our LEDs run. City of
 Gods also against the Falcon's newest certified string config in falcon-backups/ (the board takes those channels by
-DDP and re-orders them to the wiring) and pi/data/power.json's rose: every string on whole LEDs in our order, each
-petal's string where the Pi's expansion puts it. LEDs the Falcon leaves dark are allowed only inside a model it
+DDP and re-orders them to the wiring) and tools/data/power.json's rose: every string on whole LEDs in our order,
+each petal's string where the rose's expansion puts it. LEDs the Falcon leaves dark are allowed only inside a model it
 drives in part, a strip shorter than its model (lighting's output-layer trims).
 """
 import glob
@@ -22,7 +22,7 @@ from sources import STUDIO, lighting  # noqa: E402
 
 RIGS = [('rig.json', os.path.join('city-of-gods', 'xlights-show')),
         ('rig-folly.json', os.path.join('show-builder', 'xlights'))]
-POWER = os.path.join(STUDIO, 'pi', 'data', 'power.json')
+POWER = os.path.join(STUDIO, 'tools', 'data', 'power.json')
 TIDY = 0.9  # how closely a model's grid must follow our LEDs along an axis for its direction to count
 
 
@@ -102,7 +102,7 @@ def check_falcon(addr, at, ms, snapshot, power, bad):
             continue
         driven.update(leds)
     for exp in petals:
-        bad('no Falcon string at channel %d, where the Pi expands a petal' % (exp + 1))
+        bad('no Falcon string at channel %d, where the rose expands a petal' % (exp + 1))
     dark = {}
     for k, a in enumerate(addr):
         if k not in driven and a not in cells:

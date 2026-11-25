@@ -1,5 +1,5 @@
-// What plays (shared/plays.ts): every PLAYS field round-trips through a save, the version it leaves, the bake's hash
-// and the stage's copy, so a field added to PLAYS can never be dropped by one of them.
+// What plays (shared/plays.ts): every PLAYS field round-trips through a save, the version it leaves and the bake's
+// hash, so a field added to PLAYS can never be dropped by one of them.
 import assert from 'node:assert/strict';
 import path from 'node:path';
 
@@ -7,7 +7,6 @@ import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { canonical, PLAYS, type PlaysKey, playsChanged, playsOf } from '../shared/plays.ts';
 import { layersHash, renderFields, renderKey } from '../src/bake.ts';
-import { stageCopy } from '../src/live/routes.ts';
 import { versionsWith } from '../src/look-versions.ts';
 import type { StoredLook } from '../src/store.ts';
 import { fx, layer, signup, startApp, useFixture } from './fixtures/server.js';
@@ -36,7 +35,6 @@ describe('PLAYS', () => {
       assert.ok(playsChanged(a, b), k);
       assert.deepEqual(playsOf(versionsWith(a).at(-1)!)[k], playsOf(a)[k], `${k} kept in a version`);
       assert.notEqual(renderKey(a, a.duration!), renderKey(b, b.duration!), `${k} in the bake key`);
-      assert.deepEqual(playsOf(stageCopy(b, 'u'))[k], OTHER[k], `${k} on the stage`);
       const saved = (l: object) => canonical(playsOf(saveBody({ id: null, title: 'T', summary: '', shared: false,
         ideaId: null, ...l } as never))[k]);
       assert.notEqual(saved(base), saved({ ...base, [k]: OTHER[k] }), `${k} saved by the Studio`);

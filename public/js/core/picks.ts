@@ -172,7 +172,7 @@ type Own = { key: string, groups: Token[][], slot: Slot, rgb: number[] };
 /** A module instance's colours: pal() and swatch() bound to its slots (its colour params, then the palette's roles),
  * its rotates (`rot`, which bound rotates move), and P's colours kept current (frame()). */
 export function newPicks() {
-  let basis: Roles | null = null, table: Record<string, Slot> = Object.create(null), moved = RUN.moved;
+  let basis: Roles | null = null, table: Record<string, Slot> = Object.create(null);
   const own: Own[] = [], rot: Values = {};
   function refresh(R: Roles) {
     basis = R;
@@ -213,16 +213,14 @@ export function newPicks() {
       basis = null;
       self.frame();
     },
-    /** Once a frame, before the module runs: P's colours for a new palette, one blending in place or a moved
-     * rotate. No allocation. */
+    /** Once a frame, before the module runs: P's colours for a new palette or a moved rotate. No allocation. */
     frame() {
-      const R = current(), walk = moved !== RUN.moved;
-      moved = RUN.moved;
+      const R = current();
       if (basis !== R) return refresh(R);
       for (const o of own) {
         const r = rot[o.key] as number;
-        if (r !== o.slot.turn) turnSlot(o.slot, r);
-        else if (!walk) continue;
+        if (r === o.slot.turn) continue;
+        turnSlot(o.slot, r);
         walkSlot(o.slot, 0, o.rgb);
       }
     },

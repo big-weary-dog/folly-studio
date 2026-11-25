@@ -1,7 +1,7 @@
 // A browser, as far as bytes on the wire go: an HTTP cache (max-age, immutable, no-cache, ETags), a page load
 // that follows the shell's scripts and links, and for each module what Vite's manifest says it loads with it (the
-// modules it imports, its styles and the files it fetches), the view module a route loads, and a clock to make
-// cached copies stale.
+// modules it imports, its styles and the files it fetches, but those `unfetched` matches: the rig the server does not
+// name), the view module a route loads, and a clock to make cached copies stale.
 import http from 'node:http';
 import zlib from 'node:zlib';
 
@@ -32,7 +32,7 @@ const maxAge = (cc) => (/no-cache|no-store/.test(cc) ? 0 : Number(/max-age=(\d+)
  * browser(port, { encoding, cookie, manifest }) → { load(path, { view, api }), fetch(url, opts), tick(s), log, … };
  * `manifest`: the build's .vite/manifest.json, and a view is its key (js/ui/studio.tsx).
  */
-export function browser(port, { encoding = 'br, gzip', cookie = '', manifest = {} } = {}) {
+export function browser(port, { encoding = 'br, gzip', cookie = '', manifest = {}, unfetched = /^$/ } = {}) {
   const cache = new Map(); // url → { res, at }
   const b = { log: [], clock: 0, cookie };
   const byFile = new Map(Object.values(manifest).map((e) => [`/${e.file}`, e]));
@@ -68,7 +68,7 @@ export function browser(port, { encoding = 'br, gzip', cookie = '', manifest = {
   const loaded = new Set();
   /** A file, and for a module the modules, styles and files it loads with it. */
   async function file(url) {
-    if (loaded.has(url)) return;
+    if (loaded.has(url) || unfetched.test(url)) return;
     loaded.add(url);
     await b.fetch(url);
     const e = byFile.get(url);

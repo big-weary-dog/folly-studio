@@ -10,6 +10,7 @@ import { afterAll, beforeAll } from 'vitest';
 
 import { writeFseq } from '../../public/js/fseq.ts';
 import { createServer } from '../../src/app.ts';
+import { RIG_FILES } from '../../src/rig-choice.ts';
 
 /** { tmp, publicDir, distDir } once useFixture()'s before hook has run. */
 export const fx = {};
@@ -68,7 +69,7 @@ async function writeFixture(dir) {
     ]),
   );
   await writeFile(path.join(dir, 'patterns', 'embers.js'), `// Rising embers\n${PIXEL}\n`);
-  await writeFile(path.join(dir, 'data', 'rig.json'), RIG);
+  await writeFile(path.join(dir, 'data', RIG_FILES.folly), RIG);   // the server's default rig
 }
 
 /**

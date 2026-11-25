@@ -24,8 +24,8 @@ In order:
   and play, the way to Ideas.
 - `idea`, From an idea: describing a look on Ideas, then Turn it into a look, which while that step is open opens the
   practice look `idea` in place of asking a model (`tourIdea` in `ui/tour-view.ts`: nothing is sent, and it works on
-  a locked account); its layers. Without Ideas (on the Pi, SPEC-offline, or without AI access, SPEC-access "AI
-  only with access"), the path starts on its look and leaves out the steps on Ideas or going there.
+  a locked account); its layers. Without Ideas (without AI access, SPEC-access "AI only with
+  access"), the path starts on its look and leaves out the steps on Ideas or going there.
 - `modules`, Modules and colour: a source's number (its settings under its line in the chain), a choice (Comet, its
   bands twice its tail, so each reads as a comet), Soften down to 0 for crisp comets, a colour param by palette role,
   the Look tab, the palette.
@@ -36,7 +36,7 @@ In order:
 - `time`, Time: BPM, the beat clock (on the rose's Spin), + Clip.
 - `moves`, Values that move (advanced): ∿ and an LFO, its rate and range, a square and a saw wave on other kinds of
   value, a macro, two values tied to it, the fader moved, an automation lane and points set on it.
-- `keep`, Keep it, show it: an edit, undo, save, Live.
+- `keep`, Keep it: an edit, undo, save.
   Guests instead learn that work stays in this browser and an account is needed to save, with Next available.
 
 Each step names one change from where its control starts (never already met when it opens) and says in a sentence

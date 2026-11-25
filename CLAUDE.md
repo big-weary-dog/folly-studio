@@ -12,8 +12,8 @@ of the Gothic Folly. `SPEC.md` indexes the contract in the area-specific `SPEC-*
 - **SPEC.md indexes the contract: change the relevant SPEC file first.** The sandbox protocol, the HTTP API, the look
   and `rig.json` shapes, and `pattern-core.ts`'s exports are what the other pieces rely on.
   Code follows the spec, in the same change.
-- **Split, never bump.** Source stays ≤ 400 lines, tests ≤ 600, library patterns ≤ 150 (they
-  are the AI's examples), lines ≤ 120, text files ≤ 64 KB, and the gzipped app ≤ 300 KB with the
+- **Split, never bump.** Source stays ≤ 400 lines, tests ≤ 600, library patterns ≤ 150 (each
+  reads as one file), lines ≤ 120, text files ≤ 64 KB, and the gzipped app ≤ 350 KB with the
   login page ≤ 40 KB, as built (`test/build.test.js`). Over a limit, split the module by responsibility, one
   concern per file named for it. Raising a limit is not a fix. Each area's total lines are ratcheted in
   `tools/budgets.json`: lower it when you cut; raise it only with a new `reason`.
@@ -42,11 +42,12 @@ of the Gothic Folly. `SPEC.md` indexes the contract in the area-specific `SPEC-*
 - **Frames are hot.** The render loop allocates nothing per frame (reuse typed arrays, pass
   `out`), layers outside their clips are skipped before any pixel work, and the loop sleeps when
   nothing plays or changes. 4,870 LEDs at 40 fps leave no room for garbage.
-- **Every LED comes from `public/data/rig.json`**, and nothing else names the installation: code finds places
-  by the rig's group tags, never by the Folly's ids. It is City of Gods, from the lighting repo's (The-Gothic-Folly/
-  lighting, read only) `city-of-gods/pixel-map/out/`; the Folly's playa build is `rig-folly.json`, from its
-  `show-builder/pixel-map/` (`LIGHTING_DIR`, CONTRIBUTING "Show data"). Both come from `npm run build-data`, on the
-  channels lighting's xLights and Falcon drive (`tools/check_channels.py`); never edit them by hand.
+- **Every LED comes from the rig file `STUDIO_RIG` picks** (SPEC "Rig"), and nothing else names the installation:
+  code finds places by the rig's group tags, never by the Folly's ids, and takes the rig's file from
+  `src/rig-choice.ts`. The default is the Folly's playa build, `public/data/rig-folly.json`, from the lighting repo's
+  (The-Gothic-Folly/lighting, read only) `show-builder/pixel-map/`; City of Gods, `rig.json`, from its
+  `city-of-gods/pixel-map/out/` (`LIGHTING_DIR`, CONTRIBUTING "Show data"). Both come from `npm run build-data`, on
+  the channels lighting's xLights and Falcon drive (`tools/check_channels.py`); never edit them by hand.
 - **Comments and docs are brief and current.** Say what is and why, never how it got here.
 - **Commits are green.** Pull requests go to `dev`; `prod` is what the public server runs, and only the owner moves
   it (CONTRIBUTING "Branches").

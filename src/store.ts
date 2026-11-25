@@ -1,5 +1,5 @@
 // JSON-file document store: a file per collection, loaded at start (each document through its collection's upgrade,
-// written back once if one changed), kept in memory, written atomically (tmp + fsync + rename), each collection's
+// written back once if one changed), kept in memory, written atomically (atomic-file.ts), each collection's
 // writes serialized and coalesced (a failed one tried again until it lands), by the one process holding the
 // folder's lock (store-lock.ts) until close(). Each document's JSON is kept from its last change, so a write joins
 // them and bytes() sums them. Objects handed out are copies; create() adds id, createdAt and updatedAt; update() is
@@ -11,6 +11,7 @@ import path from 'node:path';
 
 import type { UserAccess } from '../shared/schemas/access.ts';
 import type { Idea, Look, User, VersionMeta } from '../shared/schemas/api.ts';
+import { writeFileAtomic } from './atomic-file.ts';
 import { stamp } from './clock.ts';
 import type { Log } from './http.ts';
 import { lockDataDir } from './store-lock.ts';
@@ -107,7 +108,7 @@ async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: U
     }
   }
 
-  let chain = Promise.resolve(), queued = false, lastError: unknown = null, tmpSeq = 0;
+  let chain = Promise.resolve(), queued = false, lastError: unknown = null;
   // A failed write stays due: tried again after a backoff (1 s doubling to a minute), or at once by flush().
   let retry: NodeJS.Timeout | undefined, backoff = 0;
 
@@ -119,21 +120,12 @@ async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: U
       queued = false; // anything changed from here on schedules another write
       const items = [...json.values()];
       const text = items.length ? `[\n${items.join(',\n')}\n]\n` : '[]\n';
-      const tmp = `${file}.${process.pid}.${++tmpSeq}.tmp`;
       try {
-        const fh = await fsp.open(tmp, 'w', 0o600);
-        try {
-          await fh.writeFile(text);
-          await fh.sync();
-        } finally {
-          await fh.close();
-        }
-        await fsp.rename(tmp, file);
+        await writeFileAtomic(file, text);
         lastError = null; backoff = 0;
       } catch (err) {
         lastError = err;
         log.error(`store: could not write ${file}:`, err);
-        await fsp.rm(tmp, { force: true }).catch(() => {});
         backoff = Math.min(backoff * 2 || 1000, 60_000);
         if (!queued) retry = setTimeout(schedule, backoff).unref();
       }

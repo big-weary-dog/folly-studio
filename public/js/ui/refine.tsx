@@ -65,15 +65,6 @@ async function undo(st: Studio, r: Run) {
   toast('Put back as it was.', { kind: 'ok' });
 }
 
-/** "Ask <model> to fix": a runtime error sent to the model with the look. */
-export function FixButton({ st, layer, error }: { st: Studio, layer: string, error: string }) {
-  const r = run.value, mine = st.server.value && !st.copyOnSave.value;
-  if (!mine || !ai.value) return null;
-  return <button type="button" class="btn small refine-fix" disabled={!!r?.busy}
-    onClick={() => refine(st, { fix: { layer: layer.slice(0, 80), error: error.slice(0, 400) } })}>
-    {r?.busy ? 'Fixing…' : 'Ask the AI to fix it'}</button>;
-}
-
 /** The refine box, where models run (none without the AI). */
 export const RefinePanel = ({ st }: { st: Studio }) => (ai.value ? <Refine st={st} /> : null);
 

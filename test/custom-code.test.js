@@ -1,4 +1,4 @@
-// Custom code is off (SPEC-baking "Custom code") and the generators with it (SPEC-offline "No generators"): no
+// Custom code is off (SPEC-baking "Custom code") and the generators with it (SPEC-generators "No generators"): no
 // setting, file or route turns either on; a look saves and bakes only library code, composites included. The
 // generators' rounds see new code as an error. `generators` and `customCode` are createServer's test-only options.
 import assert from 'node:assert/strict';
@@ -31,7 +31,7 @@ describe('as the server runs (no test options; the data and environment asking f
     mkdirSync(dataDir, { recursive: true });
     writeFileSync(path.join(dataDir, 'baking.json'), JSON.stringify({ mode: 'on', customCode: true }));
     app = await startApp({ dataDir, admins: 'Olive', generators: undefined, customCode: undefined,
-      models: { env: { STUDIO_PROFILE: 'hosted', STUDIO_GENERATOR: 'test', ANTHROPIC_API_KEY: 'k' } } });
+      models: { env: { STUDIO_GENERATOR: 'test', ANTHROPIC_API_KEY: 'k' } } });
     [admin, ann, bob] = [await signup(app, 'Olive'), await signup(app, 'ann'), await signup(app, 'bob')];
   });
   afterAll(() => app?.close());

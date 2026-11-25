@@ -22,9 +22,10 @@ const QUALITIES = [50, 40, 30]; // the first whose loop fits MAX_BYTES, else the
 export const MAX_BYTES = 300 * 1024;
 const FILE = /^([A-Za-z0-9_-]{1,64})-([0-9a-f]{16})(-still)?\.webp$/;
 
-/** What a look's preview shows: changes with its render fields and duration. */
-const previewKey = (look: StoredLook) => createHash('sha256')
-  .update(JSON.stringify({ v: VERSION, fields: layersHash(renderFields(look)), duration: look.duration ?? null }))
+/** What a look's preview shows: changes with its render fields, its duration and the rig it plays on. */
+const previewKey = (look: StoredLook, rig: Rig | null) => createHash('sha256')
+  .update(JSON.stringify({ v: VERSION, fields: layersHash(renderFields(look)), duration: look.duration ?? null,
+    rig: rig && [rig.name ?? '', rig.count] }))
   .digest('hex').slice(0, 16);
 
 /** Pictures → { webp: the loop, still }. sharp (libvips, ~40 MB) loads at the first preview, not at start. */
@@ -76,7 +77,7 @@ export function createPreviews({ dir, store, box, framesDir, loadRig, lane = cre
   async function make(id: string) {
     const look = store.looks.get(id);
     if (!look || look.shared !== true) return;
-    const key = previewKey(look);
+    const key = previewKey(look, loadRig());
     if (have.get(id) === key || failed.has(`${id}:${key}`)) return;
     if (look.bake?.status === 'queued' || look.bake?.status === 'running') return; // its frames will do (onFrames)
     try {
@@ -91,7 +92,7 @@ export function createPreviews({ dir, store, box, framesDir, loadRig, lane = cre
       const drawn = Date.now();
       const { webp, still } = await encodePreview(motion);
       const now = store.looks.get(id);
-      if (!now || now.shared !== true || previewKey(now) !== key) return want(id); // it changed meanwhile
+      if (!now || now.shared !== true || previewKey(now, loadRig()) !== key) return want(id); // it changed meanwhile
       const [w, s] = files(id, key);
       await writeAtomic(s!, still);
       await writeAtomic(w!, webp);
@@ -117,7 +118,7 @@ export function createPreviews({ dir, store, box, framesDir, loadRig, lane = cre
   function want(id: string) {
     const look = store.looks.get(id);
     if (stopped || !look || look.shared !== true || pending.includes(id)) return;
-    const key = previewKey(look);
+    const key = previewKey(look, loadRig());
     if (have.get(id) === key || failed.has(`${id}:${key}`)) return;
     pending.push(id);
     pump();

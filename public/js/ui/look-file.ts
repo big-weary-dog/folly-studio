@@ -1,5 +1,5 @@
-// Look files (SPEC-offline "Look files"): a look as JSON, several in one file, and back in through POST /api/looks,
-// so a look moves between two Studios (the hosted one and the Pi's) with the same checks as any save.
+// Look files (SPEC-looks "Look files"): a look as JSON, several in one file, and back in through POST /api/looks,
+// so a look moves between two Studios with the same checks as any save.
 import { playsOf } from '../../../shared/plays.ts';
 import type { Listed, Look, LookCreate } from '../../../shared/schemas/api.ts';
 import { api, statusOf } from '../api.ts';

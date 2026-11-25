@@ -15,6 +15,7 @@ import {
 } from '../shared/schemas/rig.ts';
 import { problem } from '../shared/schemas/look.ts';
 import { HttpError, type Log } from './http.ts';
+import { rigFileOf } from './rig-choice.ts';
 
 export const DEFAULT_PUBLIC_DIR = fileURLToPath(new URL('../public/', import.meta.url));
 export const DEFAULT_DIST_DIR = fileURLToPath(new URL('../dist/', import.meta.url));
@@ -106,12 +107,13 @@ const Index = z.array(z.unknown()).catch([]).transform((list) => {
 
 // createLoaders(publicDir) → { loadLibrary() → [{ name, title, summary, tags, kind, category, code, … }] (a preset:
 //   its layers, code ''; one that names a module the library lacks is dropped),
-//   loadRig() → rig.json as SPEC "Rig" has it (null until it exists), loadGroups() → its `groups`,
+//   loadRig() → `rigFile` (default: the Folly's) as SPEC "Rig" has it (null until it exists), loadGroups() → its
+//   `groups`,
 //   version() → a string that changes when any of their files does }
-export function createLoaders(publicDir = DEFAULT_PUBLIC_DIR, { log }: { log: Log }) {
+export function createLoaders(publicDir = DEFAULT_PUBLIC_DIR, { log, rigFile = rigFileOf(publicDir, 'folly') }:
+  { log: Log, rigFile?: string }) {
   const libDir = path.join(publicDir, 'patterns');
   const indexFile = path.join(libDir, 'index.json');
-  const rigFile = path.join(publicDir, 'data', 'rig.json');
   const index = memo(() => [indexFile], () => Index.parse(readJson(indexFile, log)));
   const codeFile = (e: { name: string }) => path.join(libDir, `${e.name}.js`);
   const codeFiles = () => index().filter((e) => e.kind !== 'preset').map(codeFile);

@@ -1,6 +1,6 @@
 // npm run smoke, too: phone omits calibration and files; laptop lets an admin calibrate the response,
-// the screen row follows it at once while the bytes stay; the output gamma moves both; a save keeps them, and the
-// Pi's copy downloads as light.json.
+// the screen row follows it at once while the bytes stay; the output gamma moves both; a save keeps them, and they
+// download as light.json.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -53,7 +53,7 @@ for (const [name, device] of Object.entries(SIZES)) {
       if (name === 'phone') {
         await expect(page.getByText('Light calibration and file tools are available on a laptop.')).toBeVisible();
         await expect(page.getByRole('spinbutton')).toHaveCount(0);
-        await expect(page.getByRole('button', { name: 'Download for the Pi' })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: 'Download light.json' })).toHaveCount(0);
         await page.getByRole('combobox', { name: 'Admin page' }).selectOption('baking');
         await expect(page.getByRole('group', { name: 'Baking', exact: true })).toBeVisible();
         expect(errors).toEqual([]);
@@ -77,13 +77,13 @@ for (const [name, device] of Object.entries(SIZES)) {
       await expect(sends).toHaveText('41');
       await gamma.fill('1');
       await gamma.press('Enter');
-      await expect(page.getByRole('button', { name: 'Download for the Pi' })).toBeDisabled();
+      await expect(page.getByRole('button', { name: 'Download light.json' })).toBeDisabled();
       await page.setViewportSize({ width: 390, height: 844 });
       await expect(page.getByRole('spinbutton')).toHaveCount(0);
       await page.setViewportSize(device.viewport);
       await expect(response).toHaveValue(/^2\.00/);
       await expect(gamma).toHaveValue(/^1\.00/);
-      await expect(page.getByRole('button', { name: 'Download for the Pi' })).toBeDisabled();
+      await expect(page.getByRole('button', { name: 'Download light.json' })).toBeDisabled();
       await page.locator('.admin-tabs').getByRole('link', { name: 'Baking' }).click();
       const leave = page.getByRole('dialog', { name: 'Unsaved changes' });
       await expect(leave).toBeVisible();
@@ -98,11 +98,11 @@ for (const [name, device] of Object.entries(SIZES)) {
       await expect(gamma).toHaveValue(/^1\.00/);
 
       const download = page.waitForEvent('download');
-      await page.getByRole('button', { name: 'Download for the Pi' }).click();
+      await page.getByRole('button', { name: 'Download light.json' }).click();
       const file = await download;
       expect(file.suggestedFilename()).toBe('light.json');
-      const pi = JSON.parse(readFileSync(await file.path(), 'utf8'));
-      expect([pi.gamma, pi.calibration.response]).toEqual([1, 2]);
+      const saved = JSON.parse(readFileSync(await file.path(), 'utf8'));
+      expect([saved.gamma, saved.calibration.response]).toEqual([1, 2]);
 
       await page.getByRole('button', { name: 'Defaults' }).click();
       await page.getByRole('button', { name: 'Save' }).click();

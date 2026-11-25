@@ -7,8 +7,9 @@ Part of the [build contract](SPEC.md).
 `npm run build` (Vite, `vite.config.js`) builds `public/` into `dist/`: `index.html` naming its entry module, the
 modules it loads eagerly (`modulepreload`) and its stylesheet, and every other file under `assets/` with a content
 hash in its name (`<name>-<8 characters>.<ext>`): modules and their split chunks, each view's stylesheet (imported
-by the view's module and loaded with it), the data modules fetch (`new URL('../../data/rig.json',
-import.meta.url)`), the favicon and the sandbox page. `.vite/manifest.json` says what each module loads with it.
+by the view's module and loaded with it), the data modules fetch (`new URL('../../data/rig-folly.json',
+import.meta.url)`; both rigs ship), the favicon and the sandbox page. `.vite/manifest.json` says what each module
+loads with it.
 Nothing is inlined (no data: URLs, no inline script; the modulepreload polyfill is off). Beside each text file of 512 bytes or more the build writes `<file>.br` (quality 11) and `<file>.gz` (9) where smaller
 (`tools/vite-compress.ts`), so nothing static is compressed per request.
 
@@ -42,11 +43,11 @@ versions hold at most 20 MB as stored: a new look past either, or a change that 
 What the server itself records on a look, its bake, is bounded and never refused, so a look at the cap still bakes.
 
 ```
-POST   /api/signup   { username, password }   → { user, flash, profile }  (sets cookie)
-POST   /api/login    { username, password }   → { user, flash, profile }
-POST   /api/guest    { name }                 → { user, flash, profile }  a guest (SPEC-access "Guests")
+POST   /api/signup   { username, password }   → { user, flash, rig }  (sets cookie)
+POST   /api/login    { username, password }   → { user, flash, rig }
+POST   /api/guest    { name }                 → { user, flash, rig }  a guest (SPEC-access "Guests")
 POST   /api/logout                            → { ok: true }
-GET    /api/me                                → { user, flash, access, profile } | 401
+GET    /api/me                                → { user, flash, access, rig } | 401
 PUT    /api/me/tour  tour                     → { tour }  SPEC-tutorial
 GET    /api/ideas                             → { ideas: [idea] }    mine, newest first
 POST   /api/ideas    { text, model?, explore? } → { idea }           queued for generation on that model (none: the
@@ -84,7 +85,7 @@ GET    /api/admin/reports/:id                 → { report }  admins only; 404 w
 GET    /api/admin/reports/:id/shot            → image/jpeg  admins only; 404 when it has none
 GET    /api/looks?scope=mine|gallery          → { looks: [listed] }  metadata only: no layers
 POST   /api/looks    { title, summary?, layers, duration?, bpm?, globals?, automation?, ideaId?, chain?, origin? }
-                                              → { look, imported? }  origin: an import (SPEC-offline "Look files"):
+                                              → { look, imported? }  origin: an import (SPEC-looks "Look files"):
                                               201 added, or 200 updating the importer's look it names, `imported`
                                               'added' | 'updated' | 'unchanged'; 429 at the account's limits
                                               (above)
@@ -104,8 +105,6 @@ GET    /api/looks/:id/frames/:hash/manifest   → the stream manifest (immutable
 GET    /api/looks/:id/frames/:hash/:n         → stream chunk n (immutable; br/gzip)  mine, or shared
 GET    /api/looks/:id/preview/:key.webp       → the gallery preview (image/webp, immutable)  mine, or shared;
                                               `:key-still.webp` its still; 404 unless `key` is `listed.preview`
-GET    /api/pi-bundle[/info]                  → the Pi bundle | { commit, bytes, builtAt }  curators (SPEC-offline
-                                              "Downloading the Pi bundle"); POST /api/pi-bundle/link, GET /:token
 GET    /api/library                           → { patterns: [{ name, title, summary, tags, kind, category, code }] }
                                               (a preset: kind 'preset', its layers and globals?, code '')
 ```

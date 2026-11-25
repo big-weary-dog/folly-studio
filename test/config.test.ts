@@ -46,12 +46,12 @@ describe('settings', () => {
   });
 
   test('every bad setting is named, never its value', () => {
-    const env = { PORT: 'eighty', STUDIO_FRAMES_BROTLI_QUALITY: '12', STUDIO_LIVE_LOOKS: 'all',
+    const env = { PORT: 'eighty', STUDIO_FRAMES_BROTLI_QUALITY: '12', STUDIO_PREVIEWS: 'all',
       STUDIO_FLEET_TIMEOUT: 'soon', STUDIO_BAKE_MEMORY: 'lots', ANTHROPIC_API_KEY: 'sk-ant-secret' };
     let err: unknown;
     try { readConfig(env); } catch (e) { err = e; }
     assert.ok(err instanceof ConfigError);
-    assert.deepEqual(err.names, ['PORT', 'STUDIO_FRAMES_BROTLI_QUALITY', 'STUDIO_LIVE_LOOKS', 'STUDIO_BAKE_MEMORY',
+    assert.deepEqual(err.names, ['PORT', 'STUDIO_FRAMES_BROTLI_QUALITY', 'STUDIO_PREVIEWS', 'STUDIO_BAKE_MEMORY',
       'STUDIO_FLEET_TIMEOUT']);
     for (const v of ['eighty', '12', 'all', 'soon', 'lots', 'sk-ant']) assert.ok(!err.message.includes(v), v);
   });

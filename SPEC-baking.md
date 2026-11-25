@@ -58,6 +58,7 @@ their layers is 403, whatever else it changes; one replacing the layers with lib
 `baking.json`'s `customCode` is ignored; `GET /api/baking` says `customCode: false`, and `PUT /api/admin/baking`
 with `customCode: true` is 400.
 On saving or importing, exact historical copies of patterns still in the library move to its current code,
-keeping their params for the library's upgrade hooks. This lets imported looks play and bake on a library-only Pi.
+keeping their params for the library's upgrade hooks. This lets imported looks play and bake on a
+library-only box.
 The catalogue is rebuilt with `node tools/pattern-history.ts` from the indexed library files in committed history;
 it contains hashes only, never executable code.

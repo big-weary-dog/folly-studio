@@ -5,7 +5,8 @@
 //
 // --data: STUDIO_DATA, else data/ in the repo. --out: where the archive goes, default <data>/../backups/.
 // The store writes each JSON file whole and renames it into place, so one read is one version of it; the
-// files are read until a pass finds none replaced while it read, so the set is from one moment. Baked
+// files are listed and read until a pass finds the list the same and none replaced while it read, so the set is
+// from one moment. Any error but a file removed meanwhile fails the backup rather than leave a file out. Baked
 // frames (frames/*.fseq) only with --frames: the render box can bake them again. Their wire folders never
 // (rebuilt on demand). The archive is written beside its final name, synced, then renamed into place.
 // It holds password hashes and session hashes: keep it as private as the server.
@@ -42,38 +43,47 @@ function header(name: string, size: number, mtime: number) {
 }
 const padding = (size: number) => Buffer.alloc((BLOCK - (size % BLOCK)) % BLOCK);
 
-/** The data dir's JSON files, read until no file was replaced while they were read: [{ name, body, mtime }]. */
+/** A missing file is null (removed meanwhile); any other error stops the backup. */
+const gone = (err: NodeJS.ErrnoException) => { if (err.code === 'ENOENT') return null; throw err; };
+
+/** The data dir's JSON files, listed and read until a pass finds the list the same and no file replaced while it
+ * read: [{ name, body, mtime }]. */
 type File = { name: string, body: Buffer, mtime: number };
 export async function snapshot(dataDir: string, { attempts = 50 } = {}): Promise<File[]> {
-  const names = (await fs.readdir(dataDir, { withFileTypes: true }))
+  const list = async () => (await fs.readdir(dataDir, { withFileTypes: true }))
     .filter((e) => e.isFile() && e.name.endsWith('.json')).map((e) => e.name).sort();
-  const stat = (n: string) => fs.stat(path.join(dataDir, n)).catch(() => null);
-  for (let i = 0; i < attempts; i++) {
+  const stat = (n: string) => fs.stat(path.join(dataDir, n)).catch(gone);
+  for (let i = 0, names = await list(); i < attempts; i++) {
     const before = await Promise.all(names.map(stat));
-    const bodies = await Promise.all(names.map((n) => fs.readFile(path.join(dataDir, n)).catch(() => null)));
+    const bodies = await Promise.all(names.map((n) => fs.readFile(path.join(dataDir, n)).catch(gone)));
     const after = await Promise.all(names.map(stat));
-    if (before.every((st, k) => st && after[k] && sigOf(st) === sigOf(after[k]) && bodies[k])) {
+    const listed = await list();
+    if (listed.join('/') === names.join('/')
+      && before.every((st, k) => st && after[k] && sigOf(st) === sigOf(after[k]) && bodies[k])) {
       return names.map((name, k) => ({ name, body: bodies[k]!, mtime: after[k]!.mtimeMs }));
     }
+    names = listed;
     await new Promise((r) => setTimeout(r, 20 + 20 * i));
   }
   throw new Error('backup: the data files kept changing; try again');
 }
 
-/** The archive's entries one after another: header, bytes, padding; then the two empty blocks. */
-async function* tarStream(root: string, files: File[], frames: string[]) {
+/** The archive's entries one after another: header, bytes, padding; then the two empty blocks. `count.entries` is
+ * how many went in: a frame removed before it was opened is not one. */
+async function* tarStream(root: string, files: File[], frames: string[], count: { entries: number }) {
   for (const f of files) {
     yield header(`${root}/${f.name}`, f.body.length, f.mtime);
     yield f.body;
     yield padding(f.body.length);
+    count.entries++;
   }
   for (const file of frames) {
     // An open file keeps the version it opened: a bake renamed over it later does not change what is read.
-    const fh = await fs.open(file, FS.O_RDONLY | FS.O_NOFOLLOW).catch(() => null);
+    const fh = await fs.open(file, FS.O_RDONLY | FS.O_NOFOLLOW).catch(gone);
     if (!fh) continue;
     try {
       const st = await fh.stat();
-      if (!st.isFile()) continue;
+      if (!st.isFile()) throw new Error(`backup: ${file} is not a file`);
       yield header(`${root}/frames/${path.basename(file)}`, st.size, st.mtimeMs);
       for (let at = 0; at < st.size;) {
         const { bytesRead, buffer } = await fh.read({ buffer: Buffer.alloc(Math.min(1 << 20, st.size - at)),
@@ -83,6 +93,7 @@ async function* tarStream(root: string, files: File[], frames: string[]) {
         at += bytesRead;
       }
       yield padding(st.size);
+      count.entries++;
     } finally {
       await fh.close();
     }
@@ -95,16 +106,16 @@ export async function backup({ dataDir, outDir = path.join(path.dirname(path.res
   frames = false, now = new Date() }: { dataDir: string, outDir?: string, frames?: boolean, now?: Date }) {
   const files = await snapshot(dataDir);
   const framesDir = path.join(dataDir, 'frames');
-  const fseqs = frames ? (await fs.readdir(framesDir).catch(() => [] as string[]))
+  const fseqs = frames ? ((await fs.readdir(framesDir).catch(gone)) ?? [])
     .filter((n) => n.endsWith('.fseq')).sort().map((n) => path.join(framesDir, n)) : [];
   const stamp = now.toISOString().replace(/\.\d+Z$/, 'Z').replace(/:/g, '-');
   const root = `folly-studio-${stamp}`;
   await fs.mkdir(outDir, { recursive: true });
   const file = path.join(outDir, `${root}.tar.gz`);
-  const tmp = `${file}.${process.pid}.tmp`;
+  const tmp = `${file}.${process.pid}.tmp`, count = { entries: 0 };
   try {
     const out = createWriteStream(tmp, { mode: 0o600 });
-    await pipeline(tarStream(root, files, fseqs), zlib.createGzip({ level: 6 }), out);
+    await pipeline(tarStream(root, files, fseqs, count), zlib.createGzip({ level: 6 }), out);
     const fh = await fs.open(tmp, 'r');
     await fh.sync();
     await fh.close();
@@ -113,7 +124,7 @@ export async function backup({ dataDir, outDir = path.join(path.dirname(path.res
     await fs.rm(tmp, { force: true });
     throw err;
   }
-  return { file, entries: files.length + fseqs.length, bytes: (await fs.stat(file)).size };
+  return { file, entries: count.entries, bytes: (await fs.stat(file)).size };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

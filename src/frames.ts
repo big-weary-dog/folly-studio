@@ -60,7 +60,7 @@ export function parseFseq(input: Bytes | ArrayBuffer, opts: { maxBytes?: number,
 }
 
 /** Validate metadata against the actual file size without allocating its frame data. */
-export function parseFseqHeader(b: Bytes, { fileBytes, maxBytes = DEFAULT_MAX_BYTES,
+function parseFseqHeader(b: Bytes, { fileBytes, maxBytes = DEFAULT_MAX_BYTES,
   maxChannels = MAX_CHANNELS, compressed = false }: {
   fileBytes: number, maxBytes?: number, maxChannels?: number, compressed?: boolean }) {
   if (fileBytes > maxBytes) fail(`${fileBytes} bytes is over the ${maxBytes}-byte limit`);

@@ -8,6 +8,6 @@ npm run typecheck
 npm run lint
 npx vitest run --changed "$base" --passWithNoTests
 changed=$({ git diff --name-only "$(git merge-base "$base" HEAD)"; git ls-files --others --exclude-standard; })
-if grep -qE '^(public/patterns|public/data|pi/looks)/' <<<"$changed"; then
-  npx vitest run test/patterns.test.js test/library test/presets.test.ts test/output-bytes pi/test/library
+if grep -qE '^(public/patterns|public/data)/' <<<"$changed"; then
+  npx vitest run test/patterns.test.js test/library test/presets.test.ts test/output-bytes
 fi

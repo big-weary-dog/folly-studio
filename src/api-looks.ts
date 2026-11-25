@@ -150,7 +150,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
   async function create(req: FastifyRequest, reply: FastifyReply) {
     const { automation, ideaId, globals, bpm, origin, ...body } = parse(LookCreate, req.body);
     const user = req.user!;
-    // An import of a look the importer has (SPEC-offline "Look files"): the file overrules it, as a PUT would.
+    // An import of a look the importer has (SPEC-looks "Look files"): the file overrules it, as a PUT would.
     const had = origin && store.looks.list((l) => l.owner === user.id && (l.id === origin || l.origin === origin))[0];
     if (had) {
       const { look: updated, edited } = await revise(had, user, { title: body.title, summary: body.summary,

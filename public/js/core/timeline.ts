@@ -28,7 +28,7 @@ function normalizeTransition(v: unknown): Transition | null {
 /**
  * A pixel's share of its layer at clip envelope e (0..1): `fade` all of it, e (the level carries it); `wipe` 1 once
  * the edge, rising with e across `direction` (`toward(p, direction)`), has passed it, over `softness`. Going `out`
- * the wipe carries on across, so the first pixels lit go first. Pure, no allocation: the live stage uses it too.
+ * the wipe carries on across, so the first pixels lit go first. Pure, no allocation.
  */
 export function transitionWeight(kind: string, direction: string, e: number, p: Parameters<typeof toward>[0],
   out = false, softness = 0.1) {
