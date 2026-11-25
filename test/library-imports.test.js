@@ -1,4 +1,5 @@
-// Imports upgrade exact historical library code without granting trust to an edited copy or a claimed ref.
+// Imports go by ref: a module naming a library module is it, its code dropped for the library's; code without such a
+// ref must be a current file; a ref the library lacks is refused plainly.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -20,19 +21,17 @@ const layers = (code) => [{ id: 'l1', title: 'Noise', blend: 'add', level: 1, gr
   { id: 'm1', ref: 'noise', title: 'Noise', kind: 'source', code, params: { speed: 0.2 } },
 ] }];
 
-test('library only: import an earlier committed Noise, upgrade to playable code, reject edits', async () => {
+test('library only: an earlier Noise imports by its ref, as playable code; what names no module is refused',
+  async () => {
   const current = readFileSync(path.join(publicDir, 'patterns/noise.js'), 'utf8');
   assert.notEqual(oldNoise, current);
-  const oldWash = execFileSync('git', ['show', 'ab6dbd0d:public/patterns/colour-wash.js'],
-    { cwd: publicDir, encoding: 'utf8' });
   const currentWash = readFileSync(path.join(publicDir, 'patterns/colour-wash.js'), 'utf8');
-  assert.notEqual(oldWash, currentWash);
   const wash = (code) => ({ id: 'm2', kind: 'source', title: 'Colour wash', code, params: {} });
   const app = await startApp({ publicDir, dataDir: path.join(fx.tmp, 'history') });
   try {
     const ann = await signup(app, 'ann');
     const body = { origin: 'old-prod-noise', title: 'Simple Noise Bed', chain: 2, layers: layers(oldNoise) };
-    body.layers[0].modules.push(wash(oldWash)); // Older saved library modules need not carry a ref.
+    body.layers[0].modules.push(wash(currentWash)); // Library code need not carry a ref.
     body.globals = { macros: { breath: { value: 0.5, min: 0, max: 1 } } };
     body.automation = { breath: [[0, 0], [10, 1]], archAccent: [[0, 1]], roseAccent: [[0, 1]],
       towerAccent: [[0, 1]], canopyAccent: [[0, 1]] };
@@ -56,27 +55,37 @@ test('library only: import an earlier committed Noise, upgrade to playable code,
     assert.equal(badLane.status, 400, 'ordinary edits still reject unknown automation lanes');
     const badValue = await ann.post('/api/looks', { ...body, automation: { breath: [[0, 2]] } });
     assert.equal(badValue.status, 400, 'a present macro lane still validates its range');
-    const edited = await ann.post('/api/looks', { ...body, layers: layers(`${oldNoise}\n// edited`) });
-    assert.equal(edited.status, 403, edited.text);
-    assert.match(edited.json.error, /Noise is custom code/);
-    const spoof = await ann.post('/api/looks', { ...body, layers: layers('function pixel() { return [1,0,0]; }') });
-    assert.equal(spoof.status, 403, 'a library ref alone grants no trust');
+    const edited = await ann.post('/api/looks', { ...body, origin: 'edited', layers: layers(`${oldNoise}\n// x`) });
+    assert.equal(edited.status, 201, edited.text);
+    assert.equal(edited.json.look.layers[0].modules[0].code, current, 'an edited copy naming noise plays noise');
+    const unnamed = layers(oldNoise);
+    delete unnamed[0].modules[0].ref;
+    const old = await ann.post('/api/looks', { ...body, origin: 'unnamed', layers: unnamed });
+    assert.equal(old.status, 403, 'an earlier copy naming nothing is custom code');
+    assert.match(old.json.error, /Noise is custom code/);
+    const gone = await ann.post('/api/looks', { ...body, origin: 'gone', layers: [{ ...unnamed[0], modules: [
+      { id: 'm1', ref: 'tendril', title: 'Tendril', kind: 'source', params: {} }] }] });
+    assert.equal(gone.status, 403, gone.text);
+    assert.equal(gone.json.error, 'Layer 1 (Noise)\'s Tendril names tendril, which the library does not have.');
   } finally {
     await app.close();
   }
 });
 
-test('historical library copies save and bake as library code; edited or retired ones do not', async () => {
+test('the gate: a known ref, or a current file; an earlier copy naming nothing is not library', async () => {
   const patternsDir = path.join(publicDir, 'patterns');
   const gate = createCodeGate({ patternsDir });
-  const allows = async (code) => !(await gate.refuses([{ code }]));
-  assert.equal(await allows(oldNoise), true);
-  assert.equal(await allows(`${oldNoise} `), false);
-  const retired = execFileSync('git', ['show', '802b0973:public/patterns/twinkle.js'],
-    { cwd: publicDir, encoding: 'utf8' });
-  assert.equal(await allows(retired), false, 'retired patterns have no current library replacement');
+  const allows = async (m) => !(await gate.refuses([{ modules: [{ id: 'm1', kind: 'source', title: 'N', ...m }] }]));
+  const current = readFileSync(path.join(patternsDir, 'noise.js'), 'utf8');
+  assert.equal(await allows({ code: current }), true);
+  assert.equal(await allows({ code: oldNoise }), false);
+  assert.equal(await allows({ code: oldNoise, ref: 'noise' }), true);
+  assert.equal(await allows({ ref: 'butterfly-classic' }), false, 'retired: no longer in the library');
+  const [up] = await gate.upgrade([{ id: 'l1', modules: [{ id: 'm1', kind: 'source', title: 'N', ref: 'noise',
+    code: oldNoise, params: { speed: 0.2 } }] }]);
+  assert.deepEqual([up.modules[0].code, up.modules[0].params], [current, { speed: 0.2 }]);
   const library = await libraryHashes(patternsDir);
-  assert.equal(customCode(layers(oldNoise), library), '', 'a save takes the exact earlier copy');
-  assert.match(customCode(layers(`${oldNoise} `), library), /custom code/);
-  assert.match(customCode(layers(retired), library), /custom code/);
+  assert.equal(customCode(layers(current), library), '');
+  assert.match(customCode(layers(oldNoise), library), /names noise, which the library does not have/,
+    'without the refs, a ref is unknown');
 });

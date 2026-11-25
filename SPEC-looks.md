@@ -39,8 +39,8 @@ below.
 - **Modules**: 1–8 per layer, ids unique in it (`[A-Za-z0-9_.:-]{1,64}`), `code` ≤ 20 kB each. The server keeps a
   module as its `ref` and params, never its code (`src/library-refs.ts`): every read (the API, versions, bakes,
   previews, exports) fills `code` with the current file of the entry `ref` names, hidden ones too, whatever was
-  stored ('' for a ref the library lacks). A module whose code is not its ref's file, or that has no ref, takes the
-  ref of the one entry whose current or earlier file its code is exactly (by SHA-256); else it keeps its ref. A look
+  stored ('' for a ref the library lacks). A module whose ref the library lacks, or that has none, takes the ref of
+  the one entry whose current file its code is exactly (by SHA-256); else it keeps its ref. A look
   and each version keep the hash of the code they were saved with (`codeHash`, never handed out). When the library
   changes that code, a read gives the look without its bake or review (`reviewed` false, no `reviewedBy` or
   `flashOverride`), to be baked and reviewed afresh, and the version `reviewed` false. Every rule on a look's
@@ -102,27 +102,35 @@ below.
 
 ### Library only
 
-Stored looks hold library code alone (SPEC-baking "Library only"). A module is library when its code is a current or
-earlier file (by SHA-256: `public/patterns`' files and `history.json`) of a module the index lists, hidden ones too:
-the entry its `ref` names when it is, else the one entry whose file it is. A copy of a retired pattern (one
-`history.json` names and the index no longer lists as a module) is not. Each data folder is brought under this rule once
-(`src/library-only-data.ts`), by hand alone: `node tools/library-only.ts [--data <dir>] [--apply]`, with the server
-stopped. The server never runs it, so stored looks may still hold code. Without `--apply` it is a dry run: it lists
-what it would do and writes nothing. With it:
+Stored looks hold library modules alone (SPEC-baking "Library only"). A module is library when its `ref` names a module
+the index lists (its stored code, if any, is ignored, as every read ignores it), or, with no such ref, when its code is
+exactly (by SHA-256) the current file of one. Each data folder is brought under this rule (`src/library-only-data.ts`),
+by hand alone: `node tools/library-only.ts [--data <dir>] [--apply]`, with the server stopped. The server never runs
+it, so stored looks may still hold code. Without `--apply` it is a dry run: it lists what it would do and writes
+nothing. With it:
 
 - it copies `looks.json` and `users.json` beside themselves (`<name>.pre-library-only-<time>.json`) and stops,
   changing nothing, if a copy fails or the folder is in use;
+- a module naming a retired pattern (`src/retired-patterns.ts`) is switched to today's closest library pattern, a
+  preset's modules in its place: butterfly-classic to butterfly, plasma-classic to plasma, lighthouse-classic to
+  lighthouse. The preset's source takes the module's id, blend, `as` and `enabled`, and of its params those that
+  mean the same there (Colours; lighthouse's Beams as Bars); the preset's warps follow attached to it (`on`), ahead
+  of what was attached. A layer holding tendril or stained-glass, which have no match, is dropped, the look kept; so
+  is a layer a switch would take past 8 modules;
 - a look whose layers have any other module is dropped, with its frames (its previews and wire frames go at the
   server's next start, as no look names them); so is a version with one. Each drop, the dry run's too, says why: the
-  retired pattern it copies, or the module that is custom code. Every kept version, and the look itself, has its number
+  module that is custom code, or the shape that breaks. Every kept version, and the look itself, has its number
   written, so none is renumbered;
 - kept modules (composites' sub-layers' too) name their entry as `ref` and carry its current file. A look whose
   code changes so plays differently: its bake, frames and review
   (`reviewed`, `reviewedBy`, `flashOverride`) go, to be baked and reviewed afresh; a version whose code changes loses
   its `reviewed`;
 - looks lose `ideaId` and users `access`, the AI's;
-- each drop is logged by look id, title and owner, and `migrations.json`'s `library-only` (when it ran) marks it
-  done, so it never runs again. Without the library it changes nothing.
+- each look changed is listed, the dry run's too, by look id, title and owner: each layer switched or dropped and
+  why, and apart, each module whose stored code was not its ref's current file (an edited or earlier copy, played as
+  the library's). `migrations.json`'s `library-only` and `retired-patterns` (when it ran) mark it done, so it never
+  runs again; a folder with only the first gets the step again, for the switch. Without the library it changes
+  nothing.
 
 ### Timeline
 

@@ -7,7 +7,7 @@ import { test } from 'vitest';
 import { eachModule, findModule, mapModules, moduleCodes } from '../shared/look-modules.ts';
 import { renderFields } from '../src/bake.ts';
 import { customCode } from '../src/library-gate.ts';
-import { sha256 } from '../src/library-history.ts';
+import { sha256 } from '../src/library-files.ts';
 
 const mod = (id: string, extra: object = {}) => ({ id, kind: 'source', title: id.toUpperCase(), code: id, ...extra });
 const comp = (layers: unknown, extra: object = {}) => ({ id: 'c', kind: 'composite', title: 'Comp', code: '', layers,
@@ -62,11 +62,16 @@ test('maps each module, composites rebuilt round theirs; null where the shape br
   assert.equal(mapModules('nope', (m) => m), null);
 });
 
-test('the save check: library code, or a ref the library has with no code; a composite with code is custom', () => {
+test('the save check: library code, or a ref the library has, whatever code it carries; a composite with code is '
+  + 'custom', () => {
   const hashes = new Set(['a', 'b', 'c', 'd', 'e', 'one'].map(sha256)), refs = new Set(['wave']);
   assert.equal(customCode(LAYERS, hashes), '');
   assert.equal(customCode([{ modules: [{ ref: 'wave', title: 'W' }] }], hashes, refs), '', 'a ref alone');
-  assert.match(customCode([{ modules: [{ ref: 'gone', title: 'G' }] }], hashes, refs), /Layer 1's G is custom/);
+  assert.equal(customCode([{ modules: [{ ref: 'wave', title: 'W', code: 'edited' }] }], hashes, refs), '',
+    'a known ref wins over its code');
+  assert.match(customCode([{ modules: [{ ref: 'gone', title: 'G' }] }], hashes, refs),
+    /^Layer 1's G names gone, which the library does not have\.$/);
+  assert.match(customCode([{ modules: [{ title: 'X', code: 'edited' }] }], hashes, refs), /Layer 1's X is custom/);
   assert.match(customCode([{ title: 'Mix', modules: [comp([{ modules: [mod('a')] }], { code: 'a' })] }], hashes),
     /Layer 1 \(Mix\)'s Comp is custom/, 'even library code on a composite');
   assert.match(customCode([LAYERS[0], null], hashes), /Layer 2 is custom/);

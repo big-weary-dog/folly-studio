@@ -1,8 +1,7 @@
 // The library-only step on a data folder: what it keeps, moves and drops, its backups, its marker, the dry run, and
-// that the server never runs it. A small library of its own: a current pattern with an earlier copy, a retired one
-// (dropped: only the index's modules are library).
+// that the server never runs it. A small library of its own: one pattern; a module naming it is it, whatever code it
+// holds, and other code is custom.
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -14,7 +13,6 @@ import { lockDataDir } from '../src/store-lock.ts';
 import { fx, quiet, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
-const sha = (code) => createHash('sha256').update(code).digest('hex');
 const WAVE = 'function pixel(p, t) { return [t, 0, 0]; }', OLD_WAVE = 'function pixel(p, t) { return [0, t, 0]; }';
 const RETIRED = 'function pixel(p) { return [p.x, 0, 0]; }', CUSTOM = 'function pixel() { return [1, 1, 1]; }';
 const mod = (code, extra = {}) => ({ id: 'm1', kind: 'source', title: 'M', code, params: {}, ...extra });
@@ -32,45 +30,45 @@ beforeEach(() => {
   mkdirSync(path.join(dataDir, 'frames'), { recursive: true });
   writeFileSync(path.join(patternsDir, 'index.json'), JSON.stringify([{ name: 'wave', kind: 'source' }]));
   writeFileSync(path.join(patternsDir, 'wave.js'), WAVE);
-  writeFileSync(path.join(patternsDir, 'history.json'), JSON.stringify({ wave: [sha(WAVE), sha(OLD_WAVE)],
-    gone: [sha(RETIRED)] }));
 });
 const write = (name, items) => writeFileSync(path.join(dataDir, `${name}.json`), JSON.stringify(items));
 const read = (name) => JSON.parse(readFileSync(path.join(dataDir, `${name}.json`), 'utf8'));
 const run = (opts = {}) => migrateLibraryOnly({ dataDir, patternsDir, dryRun: false, log: quiet, ...opts });
 
-test('keeps library code on the current library, drops looks and versions with any other', async () => {
+test('keeps library modules on the current library, drops looks and versions with any other', async () => {
   write('looks', [
     look('current', [mod(WAVE, { ref: 'wave' })]),
     look('older', [mod(OLD_WAVE, { ref: 'wave' })], { ideaId: 'i1' }),
     look('unnamed', [mod(OLD_WAVE)]),
     look('retired', [mod(RETIRED, { ref: 'gone' })]),
     look('nested', [composite(mod(OLD_WAVE, { id: 's1.m1', ref: 'wave' }))]),
-    look('one-source', [], { layers: [{ id: 'l1', title: '', code: OLD_WAVE, params: {} }] }),
+    look('one-source', [], { layers: [{ id: 'l1', title: '', code: WAVE, params: {} }] }),
     look('edited', [mod(`${WAVE} `, { ref: 'wave' })]),
-    look('spoofed', [mod(RETIRED, { ref: 'wave' })]),
-    look('renamed', [mod(OLD_WAVE, { ref: 'wave-before' })]),
+    look('by-file', [mod(WAVE, { ref: 'wave-before' })]),
     look('ref-only', [{ ...mod(), ref: 'wave' }], { versions: [{ n: 1, layers: look('', [{ ...mod(), ref: 'wave' }])
       .layers }] }),
     look('ref-retired', [{ ...mod(), ref: 'gone' }]),
     look('custom', [mod(CUSTOM)]),
     look('custom-inside', [composite(mod(CUSTOM, { id: 's1.m1' }))]),
     look('versions', [mod(WAVE, { ref: 'wave' })], { versions: [
-      { title: 'v1', layers: look('', [mod(OLD_WAVE)]).layers },
+      { title: 'v1', layers: look('', [mod(OLD_WAVE, { ref: 'wave' })]).layers },
       { title: 'v2', layers: look('', [mod(CUSTOM)]).layers },
       { n: 3, title: 'v3', layers: look('', [mod(WAVE)]).layers }] }),
   ]);
   writeFileSync(path.join(dataDir, 'frames', 'custom.fseq'), 'x');
   writeFileSync(path.join(dataDir, 'frames', 'current.fseq'), 'x');
   const r = await run();
-  assert.deepEqual(r.dropped.map((d) => [d.look, d.version, d.why]), [['retired', undefined, 'retired pattern gone'],
-    ['edited', undefined, 'custom code (M)'], ['spoofed', undefined, 'retired pattern gone'],
-    ['ref-retired', undefined, 'retired pattern gone'],
+  assert.deepEqual(r.dropped.map((d) => [d.look, d.version, d.why]), [['unnamed', undefined, 'custom code (M)'],
+    ['retired', undefined, 'custom code (M)'], ['ref-retired', undefined, 'gone, which the library does not have'],
     ['custom', undefined, 'custom code (M)'], ['custom-inside', undefined, 'custom code (M)'],
     ['versions', 2, 'custom code (M)']]);
+  // A module naming the pattern is it: its other code is listed apart, as it plays the library's.
+  assert.deepEqual(r.changes.map((c) => [c.look, c.version, c.switched, c.edited]), [
+    ['older', undefined, [], ['M (wave)']], ['nested', undefined, [], ['M (wave)']],
+    ['edited', undefined, [], ['M (wave)']], ['versions', 1, [], ['M (wave)']]]);
   const looks = Object.fromEntries(read('looks').map((l) => [l.id, l]));
   const first = (id) => looks[id].layers[0].modules?.[0] ?? looks[id].layers[0];
-  for (const id of ['current', 'older', 'unnamed', 'renamed']) {
+  for (const id of ['current', 'older', 'edited', 'by-file']) {
     assert.deepEqual([first(id).ref, first(id).code], ['wave', WAVE]);
   }
   // Stored as a ref alone (as the server keeps a module): kept as it is, its version too.
@@ -100,7 +98,8 @@ test('a look whose code moved loses its bake, frames and review; the look keeps 
   const v = (code, extra = {}) => ({ title: 'v', layers: look('', [mod(code, { ref: 'wave' })]).layers, ...extra });
   write('looks', [
     look('moved', [mod(OLD_WAVE, { ref: 'wave' })], { ...reviewed,
-      versions: [v(OLD_WAVE, { reviewed: { by: 'cat' } }), v(WAVE, { reviewed: { by: 'cat' } }), v(CUSTOM)] }),
+      versions: [v(OLD_WAVE, { reviewed: { by: 'cat' } }), v(WAVE, { reviewed: { by: 'cat' } }),
+        { title: 'v', layers: look('', [mod(CUSTOM)]).layers }] }),
     look('same', [mod(WAVE, { ref: 'wave' })], reviewed),
     look('named', [mod(WAVE)], { ...reviewed, bake: { status: 'done',
       layersHash: layersHash(renderFields(look('', [mod(WAVE)]))) } }),
@@ -132,7 +131,8 @@ test('backs up first, strips the AI grants, then is done: a second run changes n
   assert.deepEqual(JSON.parse(readFileSync(r.backups[0], 'utf8')), looks);
   assert.deepEqual(JSON.parse(readFileSync(r.backups[1], 'utf8')), users);
   assert.deepEqual([read('looks'), read('users')], [[], [{ id: 'u1', username: 'ann' }, users[1]]]);
-  assert.equal(read('migrations')['library-only'], '2026-11-25T10:00:00.123Z');
+  assert.deepEqual(read('migrations'), { 'library-only': '2026-11-25T10:00:00.123Z',
+    'retired-patterns': '2026-11-25T10:00:00.123Z' });
   write('looks', looks); // were it to run again, it would drop this
   assert.deepEqual(await run(), { done: true });
   assert.deepEqual(read('looks'), looks);
@@ -162,8 +162,8 @@ test('a library file it cannot read stops it before anything changes', async () 
   const looks = [look('older', [mod(OLD_WAVE, { ref: 'wave' })])], users = [{ id: 'u1', access: {} }];
   write('looks', looks);
   write('users', users);
-  // Broken, and unreadable (a folder in its place): a missing pattern file would count as retired.
-  for (const [file, body] of [['history.json', '{'], ['wave.js', null]]) {
+  // Broken, and unreadable (a folder in its place).
+  for (const [file, body] of [['index.json', '['], ['wave.js', null]]) {
     const at = path.join(patternsDir, file), was = readFileSync(at, 'utf8');
     if (body === null) {
       rmSync(at);
@@ -177,6 +177,16 @@ test('a library file it cannot read stops it before anything changes', async () 
     assert.deepEqual([read('looks'), read('users'), existsSync(path.join(dataDir, MARKER))], [looks, users, false]);
     assert.deepEqual(readdirSync(dataDir).filter((n) => n.includes('.pre-')), []);
   }
+});
+
+test('a folder that had the step before retired patterns switched gets it again, once', async () => {
+  write('looks', [look('ref-only', [{ ...mod(), ref: 'wave' }])]);
+  write('migrations', { 'library-only': '2026-01-01T00:00:00.000Z' });
+  const r = await run({ now: new Date('2026-11-25T10:00:00.000Z') });
+  assert.equal(r.done, false);
+  assert.deepEqual(read('migrations'), { 'library-only': '2026-01-01T00:00:00.000Z',
+    'retired-patterns': '2026-11-25T10:00:00.000Z' });
+  assert.deepEqual(await run(), { done: true });
 });
 
 test('without the library it leaves the folder for a later start', async () => {
