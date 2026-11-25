@@ -102,7 +102,8 @@ during the few seconds of the restart may fail; a reload fixes them.
 
 - Roll back: `npm run host -- --rollback` switches to `previous`, already built, with no fetch, and restarts; run
   again, it switches back.
-- `STUDIO_DATA` (default `data/`; a relative one too) is resolved from the checkout, never a release. One checkout
+- Relative paths in the settings (`STUDIO_DATA`, default `data/`, `STUDIO_MODELS`, the work folders, a command named
+  with a `/`) are the checkout's, never a release's. One checkout
   hosts one instance: a run refuses a checkout another instance's unit serves, and a second run while one deploys.
 - A commit from before releases (its `deploy/host.sh` builds in place) is refused: deploy a later one.
 

@@ -128,8 +128,23 @@ if [ "$live" != "releases/$commit" ]; then
 fi
 
 node=$(command -v node)
-# STUDIO_DATA=<data> as one systemd argument: quoted, with its own \, ", $ and % escaped.
-data_arg=${data//\\/\\\\}; data_arg=${data_arg//\"/\\\"}; data_arg=${data_arg//\$/\$\$}; data_arg=${data_arg//%/%%}
+# Relative paths in the settings are the checkout's, as when it was the working directory, never a release's: the
+# data (resolved above), the other files and folders, and commands named with a slash (a bare name is a PATH lookup).
+# shellcheck disable=SC1090
+mapfile -d '' -t settings_paths < <(cd "$root"; set -a; . "$env_file"
+  for name in STUDIO_MODELS STUDIO_CODEX_WORK STUDIO_FLEET_WORK STUDIO_FLEET_DATA \
+    STUDIO_CODEX_BIN STUDIO_FLEET_BIN STUDIO_FLEET_TMUX; do
+    value=${!name:-}
+    case $value in '' | /*) continue ;; esac
+    case $name in *_BIN | *_TMUX) [[ $value == */* ]] || continue ;; esac
+    printf '%s\0' "$name=$(realpath -m "$value")"
+  done)
+# Each as one systemd argument: quoted, with its own \, ", $ and % escaped.
+paths_args=
+for setting in "STUDIO_DATA=$data" "${settings_paths[@]}"; do
+  setting=${setting//\\/\\\\}; setting=${setting//\"/\\\"}; setting=${setting//\$/\$\$}
+  paths_args+="\"${setting//%/%%}\" "
+done
 mkdir -p "$units"
 cat > "$units/$unit.service" <<EOF
 # Written by deploy/host.sh; run it again rather than editing this.
@@ -140,8 +155,8 @@ Description=Folly Studio${instance:+ ($instance)} ($root)
 WorkingDirectory=$root/current
 EnvironmentFile=$env_file
 Environment=PATH=$(dirname "$node"):$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin
-# The data as resolved above, from the checkout, never a release: set here, as the env file would win over Environment=.
-ExecStart=/usr/bin/env "STUDIO_DATA=$data_arg" $node server.ts
+# Set here, as the env file would win over Environment=.
+ExecStart=/usr/bin/env $paths_args$node server.ts
 Restart=always
 RestartSec=5
 TimeoutStopSec=20

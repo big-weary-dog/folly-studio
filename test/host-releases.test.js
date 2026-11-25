@@ -54,7 +54,8 @@ describe('npm run host: releases', () => {
     git(home, 'clone', '--quiet', origin, checkout);
     const settings = path.join(home, '.config', 'folly-studio');
     mkdirSync(settings, { recursive: true });
-    writeFileSync(path.join(settings, 'studio.env'), 'STUDIO_DATA="my data"\n');
+    writeFileSync(path.join(settings, 'studio.env'),
+      ['STUDIO_DATA="my data"', 'STUDIO_MODELS=data/models.json', 'STUDIO_FLEET_BIN=fleet', ''].join('\n'));
     chmodSync(path.join(settings, 'studio.env'), 0o600);
     mkdirSync(path.join(home, 'bin'));
     for (const [name, body] of Object.entries(STUBS)) {
@@ -90,8 +91,9 @@ describe('npm run host: releases', () => {
     assert.equal(git(checkout, 'status', '--porcelain'), '');
     const unit = readFileSync(path.join(home, '.config', 'systemd', 'user', 'folly-studio.service'), 'utf8');
     assert.match(unit, new RegExp(`^WorkingDirectory=${checkout}/current$`, 'm'));
-    // The env file's relative STUDIO_DATA is the checkout's, not the release's, and one argument.
-    assert.ok(unit.includes(`\nExecStart=/usr/bin/env "STUDIO_DATA=${checkout}/my data" `), unit);
+    // The env file's relative paths are the checkout's, not the release's, each one argument; a bare command stays.
+    assert.ok(unit.includes(`\nExecStart=/usr/bin/env "STUDIO_DATA=${checkout}/my data" `
+      + `"STUDIO_MODELS=${checkout}/data/models.json" /`), unit);
   });
 
   test('a refused setting leaves the live release and the service as they were', () => {
