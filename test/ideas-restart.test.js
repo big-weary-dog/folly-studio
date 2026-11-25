@@ -32,7 +32,8 @@ async function leftover(name) {
 test('queued and generating ideas are enqueued again on startup, oldest first', async () => {
   const { dir, ids } = await leftover('fake');
   const queue = { enqueued: [], enqueue(idea) { this.enqueued.push(idea.id); }, async idle() {} };
-  const app = await createServer({ dataDir: dir, publicDir: PUBLIC, generator: queue, renderBox: box, log: quiet });
+  const app = await createServer({ dataDir: dir, publicDir: PUBLIC, generator: queue, renderBox: box, log: quiet,
+    generators: true });
   try {
     assert.deepEqual(queue.enqueued, [ids.queued, ids.generating]);
   } finally {
@@ -46,7 +47,7 @@ test('with the real queue they finish, so the Ideas page stops waiting', async (
   const adapters = { stub: { generate: async () => look } };
   const generator = (deps) => createQueue({ ...deps, adapterName: 'stub', adapters });
   const app = await createServer({ dataDir: dir, publicDir: PUBLIC, generator, renderBox: box, log: quiet,
-    customCode: true });
+    generators: true, customCode: true });
   try {
     await app.queue.idle();
     for (const id of [ids.queued, ids.generating]) {
@@ -64,7 +65,7 @@ test('with no generator they fail instead of waiting forever', async () => {
   const { dir, ids } = await leftover('none');
   const generator = () => ({ adapterName: 'none', enqueue: () => { throw new Error('no generator'); } });
   const app = await createServer({ dataDir: dir, publicDir: PUBLIC, generator, renderBox: box, log: quiet,
-    customCode: true });
+    generators: true, customCode: true });
   try {
     for (const id of [ids.queued, ids.generating]) assert.equal(app.store.ideas.get(id).status, 'failed');
     assert.equal(app.store.ideas.get(ids.ready).status, 'ready');

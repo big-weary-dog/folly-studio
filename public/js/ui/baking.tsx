@@ -1,6 +1,6 @@
 // The Baking page, for admins (SPEC "Baked frames", "The bake setting"): whether the render box bakes freely,
-// throttled or not at all, and whether looks may take new code (SPEC-baking "Custom code"), each saved as it is
-// picked; and what the render box can do on this server.
+// throttled or not at all, saved as it is picked; that custom code is off (SPEC-baking "Custom code"); and what the
+// render box can do on this server.
 import '../../css/pages.css';
 
 import { useEffect, useState } from 'preact/hooks';
@@ -30,7 +30,6 @@ export function BakingPage() {
   };
   const pick = (mode: BakeMode) => save({ mode }, (s) => `Baking is ${MODES.find(([m]) => m === s.mode)![1]
     .toLowerCase()}.`);
-  const code = (on: boolean) => save({ customCode: on }, (s) => `Custom code is ${s.customCode ? 'on' : 'off'}.`);
   const box = state?.box;
   return (
     <div class="page baking-page">
@@ -48,19 +47,12 @@ export function BakingPage() {
       <PhoneDisclosure label="Baking details">
       {state && <section class="models-panel" aria-label="Custom code">
         <h2>Custom code</h2>
-        <div class="seg" role="group" aria-label="Custom code">
-          {([[true, 'On'], [false, 'Off']] as const).map(([on, text]) => <button key={text} type="button"
-            class="seg-btn" aria-pressed={state.customCode === on} disabled={busy}
-            onClick={() => state.customCode !== on && code(on)}>{text}</button>)}</div>
-        <p class="field-hint">{state.customCode
-          ? 'Looks may take new code: written or edited in the Studio, or an extension the AI writes.'
-          : 'No new code: looks take library modules and code already in looks here. The Studio\'s code editor is '
-            + 'read only and the AI composes from the library alone. Looks already saved play and bake as before.'}</p>
+        <p class="field-hint">Looks take only library patterns, unchanged: nothing saves or bakes other code, and
+          the Studio's code editor is read only.</p>
       </section>}
       {box && <section class="models-panel" aria-label="The render box">
         <p class="field-hint">{!box.ok ? box.reason
-          : box.libraryOnly ? `Library only. ${box.reason} Looks with custom or edited code are refused.`
-          : 'The render box runs under bubblewrap: any look bakes.'}</p>
+          : box.libraryOnly ? `No bubblewrap. ${box.reason}` : 'The render box runs under bubblewrap.'}</p>
       </section>}
       </PhoneDisclosure>
     </div>);

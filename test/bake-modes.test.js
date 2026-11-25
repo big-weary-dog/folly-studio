@@ -37,8 +37,7 @@ describe('library only', () => {
     assert.ok(lib.size > 20);
     assert.equal(customCode([libLayer(WASH), { title: 'Chain', modules: [{ code: BARS }, { code: WASH }] }], lib), '');
     assert.equal(customCode([libLayer(WASH), libLayer(`${WASH} `, { title: 'Sea' })], lib),
-      'This server bakes without bubblewrap, so only looks made of unchanged library patterns; Layer 2 (Sea) is '
-      + 'custom code.');
+      'Only looks made of unchanged library patterns save and bake; Layer 2 (Sea) is custom code.');
     assert.match(customCode([{ title: 'Chain', modules: [{ code: BARS }, { title: 'Glow', code: 'x' }] }], lib),
       /Layer 1 \(Chain\)'s Glow is custom code\.$/);
     assert.match(customCode([{ title: '' }], lib), /Layer 1 is custom code/, 'no code at all is not library code');
@@ -47,6 +46,8 @@ describe('library only', () => {
     assert.match(customCode([inner], lib), /Layer 1 \(Mix\)'s Glow is custom code\.$/);
     assert.match(customCode([{ ...COMPOSED, modules: [{ ...comp([]), code: 'x' }] }], lib), /Layer 1 \(Mix\)'s Comp/,
       'a composite with code of its own is custom');
+    assert.match(customCode([{ ...COMPOSED, modules: [{ ...COMPOSED.modules[0], code: WASH }] }], lib),
+      /Layer 1 \(Mix\)'s Comp/, 'even library code on a composite, whose sub-layers would go unchecked');
     assert.equal((await libraryHashes(path.join(fx.tmp, 'none'))).size, 0, 'no library: nothing passes');
   });
 
@@ -94,6 +95,8 @@ describe('library only', () => {
     assert.match(p.libraryOnly, /^Bubblewrap \(bwrap\) is not installed, so this server bakes only looks made of /);
     assert.equal(await box.refuses([libLayer(WASH)]), '');
     assert.match(await box.refuses([libLayer('function pixel() { return [1, 1, 1]; }')]), /Layer 1 \(Wash\) is custom/);
+    const testsOnly = createRenderBox({ bwrap: 'no-such-bwrap', systemdRun: '', log: quiet, customCode: true });
+    assert.match(await testsOnly.refuses([libLayer('x')]), /custom code/, 'never custom code without bubblewrap');
     const r = await box.render({ layers: [libLayer(WASH, { groups: ['cathedral'] }), COMPOSED] });
     assert.equal(r.seconds, 1);
     assert.equal(parseFseq(r.bytes, { maxBytes: 64 * 1024 ** 2, maxChannels: 1e6 }).frameCount, 40);
@@ -103,16 +106,20 @@ describe('library only', () => {
       (err) => err instanceof BakeError && err.status === 422 && /custom code/.test(err.reason));
   });
 
-  test('bubblewrap stays the first choice where it runs', async ({ skip }) => {
+  test('bubblewrap stays the first choice where it runs, and refuses custom code too', async ({ skip }) => {
     const box = createRenderBox({ log: quiet }), p = await box.probe();
     skip(!p.ok || !!p.libraryOnly, `bubblewrap unavailable here: ${p.reason || p.libraryOnly}`);
     assert.equal(p.libraryOnly, undefined);
-    assert.equal(await box.refuses([libLayer('function pixel() { return [1, 1, 1]; }')]), '');
+    const custom = [libLayer('function pixel() { return [1, 1, 1]; }')];
+    assert.match(await box.refuses(custom), /Layer 1 \(Wash\) is custom code/);
+    await assert.rejects(box.render({ layers: custom }), (err) => err instanceof BakeError && err.status === 422);
+    assert.equal(await box.refuses([libLayer(WASH), COMPOSED]), '');
+    assert.equal(await createRenderBox({ log: quiet, customCode: true }).refuses(custom), '', 'tests only');
   });
 });
 
 describe('the bake setting', () => {
-  test('stored in baking.json: missing or broken is on with custom code off, a save is checked and read back', () => {
+  test('stored in baking.json: missing or broken is on, custom code off, a save is checked and read back', () => {
     const file = path.join(fx.tmp, 'setting', 'baking.json');
     const store = createBakingStore({ file, log: quiet });
     assert.equal(store.mode(), 'on');
@@ -121,8 +128,11 @@ describe('the bake setting', () => {
     assert.match(store.save({}).error, /mode\?, customCode\?/);
     assert.match(store.save({ customCode: 'yes' }).error, /true or false/);
     assert.deepEqual(store.save({ mode: 'off' }), { mode: 'off', customCode: false });
-    assert.deepEqual(store.save({ customCode: true }), { mode: 'off', customCode: true }, 'one changes, one is kept');
+    assert.match(store.save({ customCode: true }).error, /Custom code is off on every server/);
+    assert.deepEqual(store.save({ customCode: false }), { mode: 'off', customCode: false });
     assert.equal(createBakingStore({ file, log: quiet }).mode(), 'off', 'from the file');
+    fs.writeFileSync(file, JSON.stringify({ mode: 'on', customCode: true }));
+    assert.equal(createBakingStore({ file, log: quiet }).customCode(), false, 'the file\'s customCode is ignored');
     fs.writeFileSync(file, '{ not json');
     assert.equal(createBakingStore({ file, log: quiet }).mode(), 'on');
     assert.equal(createBakingStore({ file, log: quiet }).customCode(), false);
@@ -170,6 +180,7 @@ describe('through the API', () => {
   afterAll(() => app.close());
 
   test('everyone reads the setting; only admins change it, and it applies at once', async () => {
+    // customCode: createServer's test option.
     assert.deepEqual((await member.get('/api/baking')).json, { mode: 'on', customCode: true,
       box: { ok: true, libraryOnly: false } });
     assert.equal((await member.put('/api/admin/baking', { mode: 'off' })).status, 403);
@@ -186,9 +197,26 @@ describe('through the API', () => {
     assert.equal(box.renders, 1);
   });
 
-  test('a library-only box refuses custom code at the request, and says so', async () => {
+  test('custom code bakes from stored frames neither', async () => {
+    const [a, b] = [0, 1].map(async () => (await member.post('/api/looks', { title: 'z',
+      layers: [layer({ level: 0.25 })] })).json.look);
+    const [first, twin] = await Promise.all([a, b]);
+    assert.equal((await member.post(`/api/looks/${first.id}/bake`)).status, 202);
+    await app.bakes.idle();
+    box.custom = async () => 'Only looks made of unchanged library patterns … Layer 1 (Sea) is custom code.';
+    try {
+      for (const id of [first.id, twin.id]) {
+        const r = await member.post(`/api/looks/${id}/bake`);
+        assert.equal(r.status, 422, 'its own frames, or a twin\'s');
+      }
+    } finally {
+      delete box.custom;
+    }
+  });
+
+  test('a box refuses custom code at the request, and says so', async () => {
     box.probe = async () => ({ ok: true, libraryOnly: 'Bubblewrap (bwrap) is not installed, so …' });
-    box.refuses = async () => 'This server bakes without bubblewrap, so only … Layer 1 (Sea) is custom code.';
+    box.refuses = async () => 'Only looks made of unchanged library patterns … Layer 1 (Sea) is custom code.';
     try {
       assert.equal((await member.get('/api/baking')).json.box.libraryOnly, true);
       // Not a render baked above, so no stored bake is taken.

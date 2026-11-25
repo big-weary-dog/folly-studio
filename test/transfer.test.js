@@ -29,7 +29,7 @@ beforeAll(async () => {
   const dist = await builtApp();
   manifest = JSON.parse(await readFile(path.join(dist, '.vite/manifest.json'), 'utf8'));
   dir = await mkdtemp(path.join(os.tmpdir(), 'studio-transfer-'));
-  app = await createServer({ dataDir: dir, distDir: dist, generator: { enqueue() {} }, log: quiet,
+  app = await createServer({ dataDir: dir, distDir: dist, generator: { enqueue() {} }, log: quiet, generators: true,
     admins: 'wire', models: { env: { PATH: path.join(import.meta.dirname, 'fixtures/generate/bin') } } });
   port = (await app.listen(0)).port;
   const res = await request(port, '/api/signup', { method: 'POST', headers: { 'content-type': 'application/json' },

@@ -24,5 +24,6 @@ export const boxDefaults = (profile: Profile, c: Config) => {
 export const hostRefusal = (profile: Profile, host: string) => (profile === 'pi' || LOOPBACK.has(host) ? ''
   : `HOST=${host}: the hosted Studio listens on loopback only, behind its tunnel (STUDIO_PROFILE=pi on the Pi).`);
 
-/** Whether the profile runs generators, and their routes and pages with them. */
-export const generates = (profile: Profile) => profile !== 'pi';
+/** Whether the server runs generators, and their routes and pages with them: never (SPEC-offline "No generators").
+ * `forTests` is createServer's `generators` option, which only tests set; it goes with the generators. */
+export const generates = (forTests?: boolean) => forTests === true;

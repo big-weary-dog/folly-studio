@@ -127,10 +127,8 @@ My looks → **Import** instead.
 
 The engine lists a look that lacks a library ref or needs a missing module as unplayable, with its reason; the
 installer refuses those looks, so remove them from the export before installing. `looks/` holds only looks whose
-code is our library's as the bundle has it, so the engine plays them as made. A look
-with code of its own reaches the lights as its bake, from Studio on the Pi (`--studio`): as the admin, turn
-**Custom code** on (Admin) for the import, then My looks → **Import** the file, open each look, **Check & bake**,
-and **Play on the lights**. Turn Custom code off again afterwards; baked looks keep playing.
+code is our library's as the bundle has it, so the engine plays them as made. A look with code of its own neither
+imports nor bakes: Studio takes only library patterns (exact earlier library copies move to current code).
 
 **FPP's own playlists.** Each `fpp/<name>.fseq` is the look as the lights take it: City of Gods' channels through
 the output curve (gamma 2.65 by default, as Export's), the rose expanded and power-compressed as lighting's `make renders`
@@ -145,7 +143,7 @@ night show's schedule is FPP's: a playlist started by hand plays until it ends o
 | --- | --- |
 | `no Node at /usr/bin/node` or `too old` | FPP 9 ships Node 22: `node --version`, then ask whoever looks after Studio |
 | `has N px … stale map` | the rig and power tables disagree: bundle again from a commit that passes `npm run check` |
-| `bubblewrap does not run here` | Studio works, but looks with custom code cannot be baked: play library looks |
+| `bubblewrap does not run here` | Studio works and bakes library looks without it |
 | The hub greys it out, or `sudo` errors | step 6 again, and read for **parsed OK** |
 | `install: FAILED: a look cannot play` | the look named above it needs a module this bundle lacks: drop it from `looks/` |
 | The page loads but nothing lights | `journalctl -u studio-live`: is it `DRY RUN`? Is FPP playing over it? |

@@ -59,7 +59,8 @@ type Options = { config?: Config, dataDir?: string, publicDir?: string, distDir?
   framesQuality?: number, framesMaxBytes?: number, generator?: Queue | ((deps: Deps) => Queue | Promise<Queue>),
   renderBox?: Parameters<typeof createBakeQueue>[0]['box'], flash?: FlashSettings, live?: LiveSettings,
   piPreview?: string, ideaLogs?: { keep?: number, maxBytes?: number }, previews?: string,
-  reports?: { keep?: number, maxBytes?: number, days?: number }, profile?: Profile, customCode?: boolean };
+  reports?: { keep?: number, maxBytes?: number, days?: number }, profile?: Profile, generators?: boolean,
+  customCode?: boolean };
 
 /**
  * The server. `config`: the settings (src/config.ts; default: models.env's, else the environment's), the default of
@@ -72,8 +73,10 @@ type Options = { config?: Config, dataDir?: string, publicDir?: string, distDir?
  * (default: liveSettings(config)); `piPreview`: PI_PREVIEW_URL, a dry-run Studio Live shown to admins at /pi;
  * `ideaLogs`: how many ideas' logs to keep and their disk cap (STUDIO_IDEA_LOGS, STUDIO_IDEA_LOGS_MAX_BYTES);
  * `previews`: the gallery previews' camera, 'playa' or 'front' (STUDIO_PREVIEWS; default: the profile's).
- * `profile`: 'hosted' or 'pi' (STUDIO_PROFILE, SPEC-offline): the Pi has no generators, and its own defaults.
- * `customCode`: the Custom code switch while baking.json does not set it (default off; tests writing code turn it on).
+ * `profile`: 'hosted' or 'pi' (STUDIO_PROFILE, SPEC-offline): the Pi's own defaults.
+ * `generators`, `customCode`: tests only (no setting, file or route reaches them), to run the generators and save and
+ * bake code that is not the library's; production has neither (SPEC-offline "No generators", SPEC-baking "Custom
+ * code"). They go with the generators and the custom code they test.
  */
 export async function createServer(opts: Options = {}) {
   const env = opts.models?.env ?? process.env, codexBin = opts.models?.codexBin;
@@ -95,17 +98,18 @@ export async function createServer(opts: Options = {}) {
   auth.pruneSessions();
   const loaders = createLoaders(publicDir, { log });
   const { loadLibrary, loadRig } = loaders;
-  const models = generates(profile) ? createRegistry({
+  const gen = generates(opts.generators);
+  const models = gen ? createRegistry({
     file: opts.models?.file || config.STUDIO_MODELS || path.join(dataDir, 'models.json'),
     env, settings: config, log, legacy: generatorName, foundryOn: foundryOf(config).on, codexBin }) : null;
   const access = createAccess({ store, auth, models });
   const light = createLightStore({ file: path.join(dataDir, 'light.json'), log });
-  const box = renderBox || createRenderBox({ publicDir, log, config, ...boxDefaults(profile, config) });
+  const box = renderBox || createRenderBox({ publicDir, log, config, customCode: opts.customCode,
+    ...boxDefaults(profile, config) });
   // Bakes and previews go through the admin's bake setting; the generators' render checks are not bakes.
   const baking = createBakingStore({ file: path.join(dataDir, 'baking.json'), customCode: opts.customCode, log });
   const bakeBox = governBox(box, baking.mode);
-  const codeGate = createCodeGate({ on: baking.customCode, looks: store.looks,
-    patternsDir: path.join(publicDir, 'patterns') });
+  const codeGate = createCodeGate({ on: baking.customCode, patternsDir: path.join(publicDir, 'patterns') });
   // Baked frames are encoded for streaming as soon as they are stored (src/frames-cache.ts); bakes, those encodes
   // and the generators' render checks take turns at low priority, and evicted frames are baked again on demand.
   const lane = createLane();
@@ -114,8 +118,8 @@ export async function createServer(opts: Options = {}) {
   void reports.sweep();
   const deps = { store, loadLibrary, loadRig, loadLight: light.current, loadVersion: loaders.version, models, codexBin,
     config, log, box, lane, ideaLogs, codeGate, adapterName: generatorName || models?.defaultId() || '' };
-  // The Pi runs none: nothing can make an idea there, so nothing is ever queued.
-  const queue: Queue = !models ? { enqueue: () => { throw new Error('No generators on the Pi.'); } }
+  // Without generators nothing can make an idea, so nothing is ever queued.
+  const queue: Queue = !models ? { enqueue: () => { throw new Error('No generators.'); } }
     : typeof generator === 'function' ? await generator({ ...deps, models })
       : generator || createQueue({ ...deps, models });
   const adapterName = models?.defaultId() || '';
@@ -140,7 +144,7 @@ export async function createServer(opts: Options = {}) {
     return stageCopy(look, store.users.get(look.owner)?.username ?? '');
   } });
   // Ideas a restart cut short go back in the queue (enqueue is idempotent per id).
-  for (const idea of generates(profile) ? store.ideas.list(isPending) : []) {
+  for (const idea of gen ? store.ideas.list(isPending) : []) {
     enqueueIdea({ queue, store, log }, idea);
   }
 
@@ -157,7 +161,7 @@ export async function createServer(opts: Options = {}) {
   app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => (body.length
     ? json(req, String(body), done) : done(null, {})));
   // A journal line for each request worth reading, and Admin → Stats' counts (src/stats.ts).
-  const stats = createStats({ log, store, ideas: generates(profile), trustProxy });
+  const stats = createStats({ log, store, ideas: gen, trustProxy });
   app.addHook('onResponse', stats.onResponse);
   app.addHook('onRequest', async (req, reply) => {
     reply.headers({ 'content-security-policy': CSP_APP, 'x-content-type-options': 'nosniff',
@@ -176,7 +180,7 @@ export async function createServer(opts: Options = {}) {
   const drive = controlFor(auth, live);
   const lights = feed && lightsStore ? { store: lightsStore, feed, hub, drive } : undefined;
   await app.register(apiRoutes({ store, auth, queue, models, loaders, log, access, framesDir, bakes,
-    frames, rateLimit, secureCookies, flash, hub, live, ideaLogs, previews, reports, light, profile, lights,
+    frames, rateLimit, secureCookies, flash, hub, live, ideaLogs, previews, reports, light, profile, gen, lights,
     baking: { baking, box }, codeGate, stats: stats.routes, piBundle: config.STUDIO_PI_BUNDLE || undefined,
     build: buildSha(path.dirname(fileURLToPath(import.meta.url)), config.GIT_SHA), tail: log.tail }),
   { prefix: '/api' });

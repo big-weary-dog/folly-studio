@@ -13,15 +13,17 @@ tree and env and restarts the services that were running. Studio data stays outs
 The ops hub starts and stops Studio; it is never enabled at boot. Activation disables any earlier boot enablement
 and starts Studio once to check it answers; rollback also leaves it disabled.
 
+**No generators, on any profile.** No model registry is read and no generator runs; ideas left in the data stay as
+they are. The routes that make or read ideas, models and their access are not there (404): `/api/ideas…`,
+`POST /api/looks/:id/refine`, `/api/models`, `/api/admin/models`, `/api/admin/ideas/…`, `/api/invite` and
+`/api/admin/invites…`, `/api/admin/people…`. `GET /api/me` has no `access`, so the app has no Ideas tab, Refine
+panel, AI fixes or Models and Access tabs under Admin; its home is My looks, and `/ideas` leads there. The tutorial
+(SPEC-tutorial) leaves out its steps on Ideas. Nothing in the environment, the data or the API turns them on.
+
 `STUDIO_PROFILE` is `hosted` (unset: the public site, as the rest of the contract describes) or `pi`. Under `pi`:
 
-- **No generators.** No model registry is read and no generator runs; ideas left in the data stay as they are.
-  The routes that make or read ideas, models and their access are not there (404): `/api/ideas…`,
-  `POST /api/looks/:id/refine`, `/api/models`, `/api/admin/models`, `/api/admin/ideas/…`, `/api/invite` and
-  `/api/admin/invites…`, `/api/admin/people…`. `GET /api/me` has no `access`.
 - **`profile`.** `POST /api/signup`, `/api/login`, `/api/guest` and `GET /api/me` answer `profile: 'hosted' | 'pi'` beside
-  `user`. Under `pi` the app has no Ideas tab, no Refine panel and no Models or Access tab under Admin; its home is
-  My looks, and `/ideas` leads there. The tutorial (SPEC-tutorial) leaves out its steps on Ideas.
+  `user`.
 - **The lights.** `/pi` (below) is the Pi's own Studio Live engine, not a dry run, and is open to curators as well
   as admins. Their header has **Lights** (`/pi/`, the engine's control page).
 - **Defaults.** `STUDIO_PREVIEWS` is `front` (no browser on the Pi), `STUDIO_FRAMES_MAX_BYTES` 1 GB (an SD
@@ -31,8 +33,8 @@ and starts Studio once to check it answers; rollback also leaves it disabled.
 - **Listening.** `HOST` may be any address. Under `hosted` the server refuses to start on anything but loopback
   (`127.0.0.1`, `localhost`, `::1`): the public site is reached through its tunnel.
 
-Everything else is the hosted Studio's: accounts (the Pi's own), looks, versions, the gallery, bakes (library only
-without bubblewrap: SPEC-baking), `/live` and bug reports.
+Everything else is the hosted Studio's: accounts (the Pi's own), looks, versions, the gallery, bakes (library code only:
+SPEC-baking), `/live` and bug reports.
 
 ## The Pi preview
 
@@ -132,7 +134,7 @@ Several looks go in one file as `{ "looks": [look file] }` (`folly-looks-mine-<d
   Lanes for present macros remain checked.
   A look already among the importer's own (its id or its `origin` is the file's `origin`) is **updated**: the file
   overrules it, as a `PUT` of the title, summary and what plays would (`how: import`), with every check a `PUT` has
-  (the Custom code switch, the body limit, a bake and review dropped when the frames change), so a change to what
+  (library code only, the body limit, a bake and review dropped when the frames change), so a change to what
   plays is a new version and what the importer had, edits made since the last import included, stays in its History
   (SPEC-history "Versions"); it keeps its sharing, and its review as any such save does. One that already reads and
   plays as the file is **unchanged**. Any other look is **added**: the importer's, unshared, with no idea, keeping the `origin`. A
@@ -159,8 +161,8 @@ and the engine's control page (`/pi/`) both add to it. Custom code never reaches
   mapping, independent of duration. File handles close on removal, replacement and shutdown. Each LED's channels
   are the look's colour, out through the same light transform, master, blackout, fades and flash guard. A baked
   item has no live controls. The engine validates an item's file when it is next, off the frame loop, so the switch
-  never waits; a missing or changed file skips the item, saying so. A Pi without bubblewrap bakes only looks of
-  unchanged library code (SPEC-baking "Library only").
+  never waits; a missing or changed file skips the item, saying so. The Pi, like any server, bakes only looks of
+  unchanged library code (SPEC-baking "Custom code").
 
 Studio picks the way: live when it may (the controls work), else baked, else it refuses, saying why ("Has custom
 code: bake it (Check & bake) to play it on the lights…", "Live looks are off: bake it…").
