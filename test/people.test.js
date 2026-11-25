@@ -4,7 +4,9 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
+import { lookRoutes } from '../src/api-looks.ts';
 import { createAuth } from '../src/auth.ts';
+import { removeAccount } from '../src/account-removal.ts';
 import { createStore } from '../src/store.ts';
 import { client, fx, layer, quiet, signup, startApp, useFixture } from './fixtures/server.js';
 
@@ -69,6 +71,22 @@ describe('people', () => {
     const late = auth.login({ username: 'gus', password: 'correct horse' });   // checking the password
     auth.setAccount(id, { disabled: true });
     await assert.rejects(late, { status: 403 });
+  });
+
+  test('a look being saved as its account is deleted is not kept', async () => {
+    const store = await createStore(path.join(fx.tmp, 'data-people-save'), { log: quiet });
+    const auth = createAuth({ store, cost: { N: 1024, r: 8, p: 1 } });
+    let open;
+    const gate = new Promise((resolve) => { open = resolve; });
+    const { routes } = lookRoutes({ store, auth, bakes: {}, dropFrames: async () => {},
+      codeGate: { check: () => gate } });
+    const user = await auth.signup({ username: 'hal', password: 'correct horse' });
+    const save = routes['POST /looks']({ user, body: { title: 'Late', layers: [layer()], shared: true } },
+      { code() {} });
+    await removeAccount({ store, auth, dropFrames: async () => {} }, user.id);
+    open();
+    await assert.rejects(save, { status: 401 });
+    assert.equal(store.looks.count((l) => l.owner === user.id), 0);
   });
 
   test('deleting takes the account and its looks; an admin changes nothing of their own', async () => {
