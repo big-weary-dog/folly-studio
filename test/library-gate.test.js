@@ -67,6 +67,19 @@ describe('as the server runs (no test options; the data and environment asking f
     assert.equal((await ann.put(`/api/looks/${old.id}`, { layers: modules('embers') })).status, 200, 'but a repair');
   });
 
+  test('a stored composite keeps its \'\' code: the same layers saved again are no change, its review kept',
+    async () => {
+    let r = await ann.post('/api/looks', { title: 'Kept', layers: comp('embers'), chain: 2 });
+    assert.equal(r.status, 201, r.text);
+    const { id } = r.json.look, stored = app.store.looks.get(id);
+    assert.equal(stored.layers[0].modules[0].code, '', 'as composites have always been stored');
+    app.store.looks.update(id, { reviewed: true, reviewedBy: admin.user.id });
+    r = await ann.put(`/api/looks/${id}`, { layers: comp('embers'), chain: 2 });
+    assert.equal(r.status, 200, r.text);
+    assert.equal(r.json.look.reviewed, true, 'no change, so the review stays');
+    assert.equal(app.store.looks.get(id).versions.length, 0, 'and no version');
+  });
+
   test('a composite\'s sub-layers are checked as a layer\'s modules are; code on it is ignored', async () => {
     let r = await ann.post('/api/looks', { title: 'Grouped', layers: comp('embers') });
     assert.equal(r.status, 201, r.text);
@@ -80,6 +93,6 @@ describe('as the server runs (no test options; the data and environment asking f
     assert.equal(r.status, 403, 'an edit putting an unknown ref in a composite too');
     r = await ann.post('/api/looks', { title: 'Coded', layers: comp('embers', NEW) });
     assert.equal(r.status, 201, r.text);
-    assert.equal(r.json.look.layers[0].modules[0].code, undefined, 'its code is not kept');
+    assert.equal(r.json.look.layers[0].modules[0].code, '', 'its own code is not kept');
   });
 });

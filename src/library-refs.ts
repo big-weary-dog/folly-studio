@@ -22,10 +22,20 @@ function fill(m: Node, ref: unknown, code: string) {
 }
 
 /** `layers` (changed in place) with each module's code its ref's file in `library` ('' for a ref it lacks), as a read
- * fills it. */
+ * fills it, and each composite's '', as a stored one keeps it. */
 export function withCode<T>(layers: T, library: readonly LibraryEntry[]): T {
   const codes = new Map(library.filter((e) => e.kind !== 'preset').map((e) => [e.name, e.code]));
   eachModule(layers, (m) => fill(m, undefined, codes.get(String(m.ref)) ?? ''));
+  const composites = (list: unknown): void => {
+    for (const l of Array.isArray(list) ? list : []) {
+      for (const m of isNode(l) && Array.isArray(l.modules) ? l.modules : []) {
+        if (!isNode(m) || m.kind !== 'composite') continue;
+        fill(m, undefined, '');
+        composites(m.layers);
+      }
+    }
+  };
+  composites(layers);
   return layers;
 }
 
