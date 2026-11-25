@@ -16,12 +16,14 @@ import { fx, startApp, useFixture } from './fixtures/server.js';
 useFixture();
 const scene = prepareScene(mini);
 const PANEL = 80;                                       // the panel (tagged rose) starts here; LED 0 is a post
+// The byte tables below are worked at this gamma, set here, so a change of the default moves none of them.
+const AT = { ...LIGHT, gamma: 2.65 };
 
 /** LED k's bytes, as r, g, b, after the transform. */
 function out(colours, settings = {}, cap = 1) {
   const rgb = new Float32Array(scene.count * 3);
   for (const [k, c] of Object.entries(colours)) rgb.set(c, 3 * k);
-  const ch = ledChannels(scene, rgb, prepareLight(scene, lightOf(settings)), null, cap);
+  const ch = ledChannels(scene, rgb, prepareLight(scene, lightOf({ ...AT, ...settings })), null, cap);
   return (k) => [0, 1, 2].map((c) => ch[scene.addr[k] + scene.order[c]]);
 }
 
@@ -46,6 +48,8 @@ describe('the output transform', () => {
     assert.deepEqual(lit(PANEL), [128, 20, 3], 'the rose at half light, each channel halved');
     assert.deepEqual(out({ 0: [1, 0.5, 0.25] }, {}, 0.5)(0), [128, 20, 3], 'a cap of ½ is the same');
     assert.deepEqual(out({ 0: [1, 1, 1] }, {}, 0)(0), [0, 0, 0]);
+    assert.deepEqual(out({ 0: [1, 1, 1] }, { controller: [{ ports: '5-32', brightness: 0.1, gamma: 'None' }] })(0),
+      [255, 255, 255], "the controller's own brightness is recorded, never applied");
   });
 
   test('a cap held two frames sends by a table, byte for byte the curve: a dense sweep and every edge', () => {
@@ -93,7 +97,7 @@ describe('the output transform', () => {
   });
 
   test("ledLight: each byte's light at full output, the curve's own rounding", () => {
-    const t = ledLight({ ...LIGHT, balance: [1, 1, 0.5] });
+    const t = ledLight({ ...AT, balance: [1, 1, 0.5] });
     const byte = (i) => Math.round(t[i] * 255);
     assert.deepEqual([byte(255), byte(128), byte(512 + 255), byte(8)], [255, 41, 128, 0],
       'full; half a byte up from 0.5; blue at half balance; the bottom rounds to off');
@@ -108,7 +112,6 @@ describe('the output transform', () => {
       controller: [] });
     assert.deepEqual(lightOf({ preview: { exposure: 9, bloom: 'x', focus: 0.1 } }).preview,
       { ...LIGHT.preview, exposure: 2, focus: 0.1 });
-    assert.deepEqual(LIGHT.controller.map((c) => c.brightness), [0.8, 0.7], "the F48's own, recorded, never applied");
     assert.deepEqual(lightOf({ calibration: { white: [3, 0.5], response: 0.1, saturation: 'x' } }).calibration,
       { white: [2, 0.5, 1], response: 0.5, saturation: 1 });
   });
@@ -135,14 +138,14 @@ describe('the preview transform', () => {
 
   test('dims are light, applied once: the gain, and the dim outside a mask', () => {
     const values = [1, 0.75, 0.5, 0.25, 0.1, 0.06, 0.05];
-    assert.deepEqual(values.map((v) => screen(shownLight(v, LIGHT))), [237, 169, 103, 40, 6, 0, 0]);
-    assert.deepEqual(values.map((v) => screen(shownLight(v, { ...LIGHT, preview: { ...LIGHT.preview,
+    assert.deepEqual(values.map((v) => screen(shownLight(v, AT))), [237, 169, 103, 40, 6, 0, 0]);
+    assert.deepEqual(values.map((v) => screen(shownLight(v, { ...AT, preview: { ...AT.preview,
       exposure: 1 } }))), [255, 182, 111, 44, 7, 0, 0], 'exposure 1: full drive through the output curve');
-    const shown = previewChannels([1, 0.5, 0, 1, 0.5, 0], LIGHT, new Float32Array(6), 0.5, [1, 0], 0.1);
-    const half = shownLight(0.5, LIGHT), full = LIGHT.preview.exposure;
+    const shown = previewChannels([1, 0.5, 0, 1, 0.5, 0], AT, new Float32Array(6), 0.5, [1, 0], 0.1);
+    const half = shownLight(0.5, AT), full = AT.preview.exposure;
     assert.deepEqual([...shown].map((x) => +x.toFixed(5)), [full / 2, half / 2, 0, full / 20, half / 20, 0]
       .map((x) => +x.toFixed(5)), 'inside: × gain; outside: × gain × dim');
-    assert.equal(shownLight(0.05, LIGHT), 0, 'off where the LEDs round to off');
+    assert.equal(shownLight(0.05, AT), 0, 'off where the LEDs round to off');
     assert.ok(shownLight(0.05, { ...LIGHT, floor: 1 }) > 0, 'the floor lights it, on the screen as on the LEDs');
   });
 

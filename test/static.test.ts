@@ -11,9 +11,10 @@ import zlib from 'node:zlib';
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { etagMatches, pickEncoding } from '../src/http.ts';
-import { CACHE_ASSET, CACHE_IMMUTABLE, CACHE_PAGE, CSP_APP, CSP_WORKER } from '../src/static.ts';
+import { CACHE_ASSET, CACHE_IMMUTABLE, CSP_APP } from '../src/static.ts';
 import { precompress } from '../tools/vite-compress.ts';
 import { serve } from './fixtures/app.js';
+import { EXPECTED_WORKER_CSP } from './fixtures/server.js';
 
 const BIG_JS = `// a module big enough to compress\n${
   'export const lights = ["ruby", "sapphire", "amber", "emerald"];\n'.repeat(80)}`;
@@ -131,13 +132,12 @@ describe('serving', () => {
   test('the shell revalidates every time, content-hashed assets are kept a year, other files briefly', async () => {
     for (const p of ['/', '/studio/abc', '/index.html']) {
       const r = await get(p, { 'accept-encoding': 'br' });
-      assert.equal(r.headers['cache-control'], CACHE_PAGE, p);
+      assert.equal(r.headers['cache-control'], 'no-cache', p);
       assert.match(zlib.brotliDecompressSync(r.body).toString(), /APP SHELL/, p);
       assert.equal(r.headers['content-security-policy'], CSP_APP, p);
     }
-    assert.equal(CACHE_PAGE, 'no-cache');
-    assert.equal(CACHE_IMMUTABLE, 'public, max-age=31536000, immutable');
-    assert.equal((await get('/assets/tiny-Ab12Cd34.js')).headers['cache-control'], CACHE_IMMUTABLE);
+    assert.equal((await get('/assets/tiny-Ab12Cd34.js')).headers['cache-control'],
+      'public, max-age=31536000, immutable');
     assert.match(CACHE_ASSET, /max-age=\d+/);
     assert.equal((await get('/big.js')).headers['cache-control'], CACHE_ASSET);
   });
@@ -145,8 +145,7 @@ describe('serving', () => {
   test('the pattern worker: its own CSP, kept a year, compressed', async () => {
     const r = await get('/assets/sandbox-worker-Ab12Cd34.js', { 'accept-encoding': 'gzip' });
     assert.equal(r.status, 200);
-    assert.equal(r.headers['content-security-policy'], CSP_WORKER);
-    assert.equal(CSP_WORKER, "default-src 'none'; script-src 'unsafe-eval'");
+    assert.equal(r.headers['content-security-policy'], EXPECTED_WORKER_CSP);
     assert.equal(r.headers['cache-control'], CACHE_IMMUTABLE);
     assert.equal(r.headers['content-encoding'], 'gzip');
     assert.match(String(r.headers['content-type']), /^text\/javascript/);
@@ -154,7 +153,7 @@ describe('serving', () => {
     const same = await get('/assets/sandbox-worker-Ab12Cd34.js',
       { 'accept-encoding': 'gzip', 'if-none-match': r.headers.etag! });
     assert.equal(same.status, 304);
-    assert.equal(same.headers['content-security-policy'], CSP_WORKER);
+    assert.equal(same.headers['content-security-policy'], EXPECTED_WORKER_CSP);
     assert.equal((await get('/assets/tiny-Ab12Cd34.js')).headers['content-security-policy'], CSP_APP, 'only it');
   });
 

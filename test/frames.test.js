@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
-import { ledRanges, writeFseq } from '../core/fseq.ts';
+import { writeFseq } from '../core/fseq.ts';
 import {
   compileLayer, FlashWatch, ledLight, pixelsForGroups, prepareLayer, prepareLook, prepareScene, renderFrame,
 } from '../core/pattern-core.ts';
@@ -11,6 +11,7 @@ import { checkFrames, flashSettings } from '../src/box-output.ts';
 import { configOf } from '../src/config.ts';
 import { analyzeFrames, FseqError, flickerReason, flickerWarning, MAX_CHANNELS, parseFseq } from '../src/frames.ts';
 import { folly } from './fixtures/rigs.js';
+import { fseqOf } from './fixtures/fseq-of.js';
 import { libraryCode as lib } from './fixtures/patterns.js';
 
 // 100 LEDs, 3 channels each: the body (zone body) on universe 1, a small spire (5 LEDs) on universe 2.
@@ -42,28 +43,6 @@ function analyze(parsed, rig, limits) {
   const scene = prepareScene(rig);
   return analyzeFrames(parsed, scene, new FlashWatch(scene, limits, { record: true }), ledLight());
 }
-const usedRanges = ledRanges;
-
-/** Bake `seconds` at 40 fps; color(f, k) → [r, g, b] 0..255 per LED. Sparse unless full. */
-function bake(c, seconds, color, { full = false } = {}) {
-  const frames = Math.round(seconds * 40);
-  const ranges = full ? null : usedRanges(c);
-  const cc = full ? 2 * 510 : ranges.reduce((n, r) => n + r[1], 0);
-  const at = new Int32Array(MAX_CHANNELS).fill(-1);
-  if (full) for (let i = 0; i < cc; i++) at[i] = i;
-  else for (let o = 0, r = 0; r < ranges.length; r++) for (let i = 0; i < ranges[r][1]; i++) at[ranges[r][0] + i] = o++;
-  const data = new Uint8Array(frames * cc);
-  for (let f = 0; f < frames; f++) {
-    for (let k = 0; k < c.count; k++) {
-      const a = (c.pixels.universe[k] - 1) * 510 + c.pixels.channel[k] - 1;
-      const [r, g, b] = color(f, k);
-      data[f * cc + at[a]] = r;
-      data[f * cc + at[a + 1]] = g;
-      data[f * cc + at[a + 2]] = b;
-    }
-  }
-  return writeFseq({ frames, data, ...(full ? { channelCount: cc } : { ranges }) });
-}
 
 const C = smallRig();
 const gray = (v) => [v, v, v];
@@ -71,7 +50,7 @@ const square = (hz) => (f) => (Math.floor((f / 40) * hz * 2) % 2 ? 0 : 255);
 
 describe('parseFseq', () => {
   test('sparse and full files round-trip through the writer', () => {
-    const file = bake(C, 1, (f, k) => [f, k, 7]);
+    const file = fseqOf(C, 1, (f, k) => [f, k, 7]);
     const p = parseFseq(file);
     assert.equal(p.version, '2.0');
     assert.equal(p.sparse, true);
@@ -85,14 +64,14 @@ describe('parseFseq', () => {
     assert.deepEqual([...p.data.subarray(39 * 300, 39 * 300 + 3)], [39, 0, 7]);
     assert.equal(p.data.buffer, file.buffer, 'a view, not a copy');
 
-    const full = parseFseq(bake(C, 0.5, () => gray(9), { full: true }));
+    const full = parseFseq(fseqOf(C, 0.5, () => gray(9), { full: true }));
     assert.equal(full.sparse, false);
     assert.deepEqual(full.ranges, [[0, 1020]]);
     assert.equal(parseFseq(full.data.buffer.slice(0)).frameCount, 20, 'an ArrayBuffer works too');
   });
 
   test('rejects truncated, malformed, oversized and compressed files', () => {
-    const good = bake(C, 0.25, () => gray(1));
+    const good = fseqOf(C, 0.25, () => gray(1));
     const bad = (mutate) => {
       const b = good.slice();
       mutate(b, new DataView(b.buffer));
@@ -132,7 +111,7 @@ describe('parseFseq', () => {
 
 describe('analyzeFrames', () => {
   test('flags a 10 Hz full-white strobe', () => {
-    const a = analyze(parseFseq(bake(C, 5, (f) => gray(square(10)(f)))), C);
+    const a = analyze(parseFseq(fseqOf(C, 5, (f) => gray(square(10)(f)))), C);
     assert.equal(a.flicker.ok, false);
     assert.equal(a.flicker.maxHz, 10);
     assert.deepEqual(a.flicker.flaggedSeconds, [0, 1, 2, 3, 4]);
@@ -143,47 +122,27 @@ describe('analyzeFrames', () => {
       /up to 10 flashes a second \(over 3 .* around 0 s, 1 s, 2 s, 3 s, 4 s, on parts, spire\./);
   });
 
-  test('passes a slow 0.5 Hz breathe, 3 Hz exactly, bright shimmer and swings under half the light', () => {
-    const breathe = analyze(parseFseq(bake(C, 10,
+  test('passes a slow 0.5 Hz breathe, flagging no second (the verdicts on the Folly: flash-guard.test.js)', () => {
+    const breathe = analyze(parseFseq(fseqOf(C, 10,
       (f) => gray(Math.round(127.5 - 127.5 * Math.cos(Math.PI * (f / 40)))))), C);
     assert.equal(breathe.flicker.ok, true);
     assert.ok(breathe.flicker.maxHz <= 1, `${breathe.flicker.maxHz}`);
     assert.deepEqual(breathe.flicker.flaggedSeconds, []);
     assert.equal(flickerReason(breathe), '');
-    // WCAG's limit is more than three flashes a second.
-    assert.equal(analyze(parseFseq(bake(C, 4, (f) => gray(square(3)(f)))), C).flicker.ok, true);
-    assert.equal(analyze(parseFseq(bake(C, 4, (f) => gray(square(4)(f)))), C).flicker.ok, false);
-    // Changes that never go darker than 0.8 relative luminance are not flashes.
-    const shimmer = analyze(parseFseq(bake(C, 3, (f) => gray(f % 2 ? 255 : 220))), C);
-    assert.equal(shimmer.flicker.ok, true);
-    // Swings under half the LEDs' light are not flashes either: 0.20 ↔ 0.35 is 3 % ↔ 10 % of it, 0.90 ↔ 0.99 is
-    // 79 % ↔ 98 %. Each is measured in light, so with a tenth as the limit the bright one flashes and the dim one not.
-    const dim = bake(C, 3, (f) => gray(square(5)(f) ? 89 : 51));
-    const bright = bake(C, 3, (f) => gray(square(5)(f) ? 252 : 230));
-    assert.equal(analyze(parseFseq(dim), C).flicker.ok, true);
-    assert.equal(analyze(parseFseq(bright), C).flicker.ok, true);
-    assert.equal(analyze(parseFseq(dim), C, { delta: 0.1 }).flicker.ok, true);
-    assert.equal(analyze(parseFseq(bright), C, { delta: 0.1 }).flicker.ok, false);
-    // An LED's light is its brightest channel: full red, blue or orange flashing is a full swing.
-    for (const c of [[255, 0, 0], [0, 0, 255], [255, 128, 0]]) {
-      assert.equal(analyze(parseFseq(bake(C, 3, (f) => (square(5)(f) ? c : gray(0)))), C).flicker.ok, false, `${c}`);
-    }
-    // A swing of half the light: 0.3 ↔ 0.9 (7 % ↔ 79 %).
-    assert.equal(analyze(parseFseq(bake(C, 3, (f) => gray(square(5)(f) ? 230 : 77))), C).flicker.ok, false);
   });
 
   test('a strobe on a small top-level group alone is a warning, not a block', () => {
-    const a = analyze(parseFseq(bake(C, 3, (f, k) => (k >= 95 ? gray(square(8)(f)) : gray(60)))), C);
+    const a = analyze(parseFseq(fseqOf(C, 3, (f, k) => (k >= 95 ? gray(square(8)(f)) : gray(60)))), C);
     assert.equal(a.flicker.ok, true, 'a 5 % strobe barely moves the whole-cathedral mean');
     assert.deepEqual(a.flicker.regions, []);
     assert.deepEqual(a.flicker.small, { maxHz: 8, flaggedSeconds: [0, 1, 2], regions: ['spire'] });
     assert.equal(flickerReason(a), '');
     assert.match(flickerWarning(a), /small parts only \(spire\) at up to 8 flashes a second around 0 s, 1 s, 2 s/);
-    assert.equal(flickerWarning(analyze(parseFseq(bake(C, 1, () => gray(60))), C)), '');
+    assert.equal(flickerWarning(analyze(parseFseq(fseqOf(C, 1, () => gray(60))), C)), '');
   });
 
   test('brightness, darkness, power and coverage', () => {
-    const white = analyze(parseFseq(bake(C, 1, (f) => gray(f < 20 ? 255 : 0))), C);
+    const white = analyze(parseFseq(fseqOf(C, 1, (f) => gray(f < 20 ? 255 : 0))), C);
     assert.equal(white.frames, 40);
     assert.equal(white.seconds, 1);
     assert.equal(white.fps, 40);
@@ -193,16 +152,16 @@ describe('analyzeFrames', () => {
     assert.equal(white.meanBrightness, 0.5);
     assert.equal(white.darkFraction, 0.5);
     assert.equal(white.estPeakAmps, 6, '100 LEDs × 3 channels × 20 mA');
-    const red = analyze(parseFseq(bake(C, 0.5, () => [255, 0, 0])), C);
+    const red = analyze(parseFseq(fseqOf(C, 0.5, () => [255, 0, 0])), C);
     assert.equal(red.peakBrightness, 0.333);
     assert.equal(red.estPeakAmps, 2);
     // In the LEDs' light (v^2.65): half the code is about a sixth of the light, and 0.06 is dark.
-    const grey = analyze(parseFseq(bake(C, 0.5, () => gray(128))), C);
+    const grey = analyze(parseFseq(fseqOf(C, 0.5, () => gray(128))), C);
     assert.equal(grey.peakBrightness, 0.161);
     assert.equal(grey.meanBrightness, 0.161);
     assert.equal(grey.estPeakAmps, 1);
     assert.equal(grey.darkFraction, 0);
-    assert.equal(analyze(parseFseq(bake(C, 0.5, () => gray(15))), C).darkFraction, 1);
+    assert.equal(analyze(parseFseq(fseqOf(C, 0.5, () => gray(15))), C).darkFraction, 1);
     // A file holding only universe 1 leaves the spire's channels out (and dark).
     const part = writeFseq({ frames: 1, data: new Uint8Array(285).fill(255), ranges: [[0, 285]] });
     const a = analyze(parseFseq(part), C);
@@ -215,7 +174,7 @@ describe('flicker on the Folly: large regions block, small ones warn', () => {
   const real = folly, scene = prepareScene(real);
   const strobeOn = (id) => {
     const inside = new Set(pixelsForGroups(scene, [id]));
-    return analyze(parseFseq(bake(real, 2, (f, k) => (inside.has(k) ? gray(square(8)(f)) : gray(40)))), real);
+    return analyze(parseFseq(fseqOf(real, 2, (f, k) => (inside.has(k) ? gray(square(8)(f)) : gray(40)))), real);
   };
 
   test('large: ≥ 25 % of the LEDs, or ≥ 25 % of the lit area from the front or side', () => {
@@ -241,7 +200,7 @@ describe('flash check on looks: a wave a second is fine, a strobe is not', () =>
     const look = prepareLook({}), frames = [];
     for (let f = 0; f < seconds * 40; f++) frames.push(renderFrame(scene, prepared, f / 40, null, look).rgb);
     const byte = (v) => Math.round(Math.min(1, Math.max(0, v)) * 255);
-    return analyze(parseFseq(bake(real, seconds, (f, k) => [0, 1, 2].map((c) => byte(frames[f][3 * k + c])))), real);
+    return analyze(parseFseq(fseqOf(real, seconds, (f, k) => [0, 1, 2].map((c) => byte(frames[f][3 * k + c])))), real);
   };
   // The Shockwave preset: a comet ring heading out of the rose, `every` seconds, `duty` thick.
   const shockwave = (every, duty = 0.5, groups) => ({ id: 's', groups, modules: [
@@ -293,7 +252,7 @@ describe('the flash check\'s settings', () => {
   });
 
   test('checked frames use them; with the check off, large-area flashing is only a warning', () => {
-    const bytes = bake(C, 2, (f) => gray(square(4)(f)));
+    const bytes = fseqOf(C, 2, (f) => gray(square(4)(f)));
     const strict = checkFrames(bytes, { source: 'render-box', rig: C, flash: flashSettings(configOf({})) }).bake;
     assert.equal(strict.ok, false);
     assert.match(strict.reason, /up to 4 flashes a second \(over 3 /);

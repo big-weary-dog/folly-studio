@@ -29,10 +29,10 @@ function check(rgb, what) {
 const sources = index.filter((e) => e.kind === 'source');
 
 describe('each source', () => {
-  for (const { name } of sources) {
+  for (const { name, title } of sources) {
     test(name, () => {
       const code = source(name);
-      assert.match(code, /^\/\/ .+/, 'starts with a comment saying what it is');
+      assert.ok(code.startsWith(`// ${title}: `), 'starts with a comment naming it and saying what it is');
       const compiled = compilePattern(code);
       let element = false;
       for (const groups of GROUPS) {
@@ -76,10 +76,10 @@ describe('each warp and filter, in a chain over a source', () => {
   // Warps over a pattern drawn across the layer; filters over one that moves fast, on a dark sky.
   const base = (kind) => ({ id: 'base', kind: 'source', code: source(kind === 'warp' ? 'clouds' : 'single-strand') });
   const ROSE = ['ring-turn', 'petal-repeat', 'petal-stride'];     // they move only the rose: chained on it
-  for (const { name, kind } of index.filter((e) => e.kind === 'warp' || e.kind === 'filter')) {
+  for (const { name, title, kind } of index.filter((e) => e.kind === 'warp' || e.kind === 'filter')) {
     test(name, () => {
       const code = source(name);
-      assert.match(code, /^\/\/ .+/, 'starts with a comment saying what it is');
+      assert.ok(code.startsWith(`// ${title}: `), 'starts with a comment naming it and saying what it is');
       const input = { id: 'in', kind: 'source', code: source('clouds'), as: 'input' };
       const mod = { id: 'm', kind, code, ...(kind === 'filter' ? { input: 'in' } : {}) };
       const modules = kind === 'warp' ? [base(kind), mod] : [base(kind), input, mod];

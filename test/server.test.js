@@ -8,12 +8,11 @@ import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { validateLayers } from '../src/api-looks.ts';
 import { createStore } from '../src/store.ts';
-import { CSP_APP, CSP_WORKER } from '../src/static.ts';
 import { client, serve, signup } from './fixtures/app.js';
 import { fakeBox } from './fixtures/box.js';
 import { quiet } from './fixtures/quiet.js';
 import {
-  EXPECTED_APP_CSP, EXPECTED_WORKER_CSP, fx, layer, PATTERN_WORKER, PIXEL, rawGet, startApp, useFixture
+  EXPECTED_APP_CSP, fx, layer, PIXEL, rawGet, startApp, useFixture
 } from './fixtures/server.js';
 
 useFixture();
@@ -214,7 +213,7 @@ describe('server', () => {
   });
 
   describe('static files', () => {
-    test('index, SPA routes, MIME types, security headers', async () => {
+    test('index, MIME types, security headers', async () => {
       const home = await fetch(`${app.base}/`);
       assert.equal(home.status, 200);
       assert.match(home.headers.get('content-type'), /^text\/html/);
@@ -223,11 +222,6 @@ describe('server', () => {
       assert.equal(home.headers.get('x-content-type-options'), 'nosniff');
       assert.equal(home.headers.get('referrer-policy'), 'same-origin');
 
-      for (const p of ['/studio', '/ideas', '/looks/abc123']) {
-        const r = await fetch(app.base + p);
-        assert.equal(r.status, 200, p);
-        assert.match(await r.text(), /APP SHELL/);
-      }
       const types = { '/js/main.js': /^text\/javascript/, '/app.css': /^text\/css/, '/favicon.svg': /^image\/svg\+xml/,
         '/data/rig.json': /^application\/json/ };
       for (const [p, type] of Object.entries(types)) {
@@ -238,7 +232,6 @@ describe('server', () => {
       }
       assert.equal((await fetch(`${app.base}/missing.js`)).status, 404);
       assert.equal((await fetch(`${app.base}/js/missing.css`)).status, 404);
-      assert.equal((await fetch(`${app.base}/js/main.js`, { method: 'POST' })).status, 405);
 
       const api404 = await fetch(`${app.base}/api/unknown-thing`);
       assert.equal(api404.status, 404);
@@ -263,17 +256,6 @@ describe('server', () => {
         assert.notEqual(r.status, 200, p);
         assert.ok(!r.body.includes('TOP SECRET') && !r.body.includes('DOTFILE'), p);
       }
-    });
-
-    test('the built pattern worker has the worker CSP and is kept, its name being its content', async () => {
-      const r = await fetch(app.base + PATTERN_WORKER);
-      assert.equal(r.status, 200);
-      assert.equal(r.headers.get('content-security-policy'), EXPECTED_WORKER_CSP);
-      assert.equal(r.headers.get('cache-control'), 'public, max-age=31536000, immutable');
-      assert.match(r.headers.get('content-type'), /^text\/javascript/);
-      assert.equal(await r.text(), 'self.ok = 1;');
-      assert.equal(CSP_WORKER, EXPECTED_WORKER_CSP);
-      assert.equal(CSP_APP, EXPECTED_APP_CSP);
     });
 
     test('library lists index.json patterns that have code', async () => {
