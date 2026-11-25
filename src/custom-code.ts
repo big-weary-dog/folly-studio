@@ -1,77 +1,34 @@
-// The Custom code switch (SPEC-baking "Custom code"): while an admin has it off, no new pattern code reaches the
-// render box. A look saved, by hand or by a generator, may carry only code the server has already: a library
-// pattern's current or historical file exactly (by SHA-256), or code in a look its owner can see (any version).
-import { createHash } from 'node:crypto';
-
-import { libraryHashes } from './box-library.ts';
+// Custom code is off (SPEC-baking "Custom code"): a look saved, by hand, by an import or by a generator, carries only
+// library code, a library pattern's current or historical file exactly (src/box-library.ts).
+import { customCode, libraryHashes } from './box-library.ts';
 import { historicalLibrary } from './library-history.ts';
 import type { Layer } from '../shared/schemas/look.ts';
-import type { StoredLook } from './store.ts';
-
-const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
-type Obj = Record<string, unknown>;
-const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null;
-const named = (v: unknown) => (typeof v === 'string' ? v.slice(0, 60) : '');
-
-/** Every piece of code in `layers` (a layer's own, its modules', its composites' sub-layers'), with where it is: a
- * composite has no code of its own, so its '' is none (SPEC "Composites"). */
-export function* codesOf(layers: unknown, at = ''): Generator<{ code: string, where: string }> {
-  for (const [i, l] of (Array.isArray(layers) ? layers : []).entries()) {
-    if (!isObj(l)) continue;
-    const where = at || `Layer ${i + 1}${named(l.title) ? ` (${named(l.title)})` : ''}`;
-    if (typeof l.code === 'string') yield { code: l.code, where };
-    for (const m of Array.isArray(l.modules) ? l.modules : []) {
-      if (!isObj(m)) continue;
-      const own = typeof m.code === 'string' && !(m.kind === 'composite' && m.code === '');
-      if (own) yield { code: m.code as string, where: `${where}'s ${named(m.title) || 'module'}` };
-      yield* codesOf(m.layers, where);
-    }
-  }
-}
 
 /**
- * The switch in front of saving: refuses(layers, owner) → why the look cannot be saved now ('' when it can), check()
- * throws it; open() whether the switch is on; allows(owner) → a test of one piece of code, for a generator's rounds.
+ * The check in front of saving: refuses(layers) → why the look cannot be saved ('' when it can), check() throws it;
+ * open() whether custom code is on (tests only: `on`); allows() → a test of one piece of code, for a generator's
+ * rounds.
  */
-export function createCodeGate({ on, looks, patternsDir }: { on: () => boolean, patternsDir: string,
-  looks: { list(match: (l: StoredLook) => unknown): StoredLook[] } }) {
+export function createCodeGate({ on, patternsDir }: { on: () => boolean, patternsDir: string }) {
   let hashes: Promise<Set<string>> | undefined;   // the library changes only with a deploy, which restarts
   const history = historicalLibrary(patternsDir);
-  const library = () => (hashes ??= (async () => {
-    const current = await libraryHashes(patternsDir);
-    for (const hash of (await history).hashes) current.add(hash);
-    return current;
-  })());
-  /** The code in looks `owner` can see. */
-  function seenBy(owner: string) {
-    const seen = new Set<string>();
-    for (const look of looks.list((l) => l.owner === owner || l.shared === true)) {
-      for (const layers of [look.layers, ...(look.versions ?? []).map((v) => v.layers)]) {
-        for (const { code } of codesOf(layers)) seen.add(code);
-      }
-    }
-    return seen;
-  }
-  async function refuses(layers: unknown, owner: string) {
-    if (on()) return '';
-    const lib = await library(), fresh = [...codesOf(layers)].filter((c) => !lib.has(sha256(c.code)));
-    const seen = fresh.length ? seenBy(owner) : null, bad = fresh.find((c) => !seen!.has(c.code));
-    return bad ? 'An admin turned custom code off, so a look takes only library modules and code already in looks '
-      + `here; ${bad.where} is new code.` : '';
+  const library = () => (hashes ??= libraryHashes(patternsDir));
+  async function refuses(layers: unknown) {
+    return on() ? '' : customCode(Array.isArray(layers) ? layers : [], await library());
   }
   return {
-    /** Whether looks may take new code now. */
+    /** Whether looks may take code that is not the library's. */
     open: on,
     async upgrade(layers: Layer[]) { return (await history).upgrade(layers); },
     refuses,
-    async check(layers: unknown, owner: string, fail: (why: string) => Error) {
-      const why = await refuses(layers, owner);
+    async check(layers: unknown, fail: (why: string) => Error) {
+      const why = await refuses(layers);
       if (why) throw fail(why);
     },
-    async allows(owner: string): Promise<(code: string) => boolean> {
+    async allows(): Promise<(code: string) => boolean> {
       if (on()) return () => true;
-      const lib = await library(), seen = seenBy(owner);
-      return (code) => seen.has(code) || lib.has(sha256(code));
+      const lib = await library();
+      return (code) => !customCode([{ code }], lib);
     },
   };
 }

@@ -14,5 +14,5 @@ export async function libraryOnly(ctx: Context, catalog: Catalog | undefined,
   gate?: Pick<CodeGate, 'open' | 'allows'>) {
   if (!catalog || !gate || gate.open()) return catalog;
   if (!ctx.turn?.includes(NOTE)) ctx.turn = `${ctx.turn ?? buildUserMessage(ctx.text)}\n\n${NOTE}`;
-  return { ...catalog, allows: await gate.allows(ctx.user.id) };
+  return { ...catalog, allows: await gate.allows() };
 }
