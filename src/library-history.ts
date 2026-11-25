@@ -1,4 +1,4 @@
-// Historical fingerprints identify exact library copies; upgrading them lets the Pi use its current library.
+// Historical fingerprints identify exact library copies; upgrading them moves saved looks onto the current library.
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';

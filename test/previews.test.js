@@ -79,7 +79,7 @@ test('the Playa camera draws the installation lit as the samples say', async (ct
 });
 
 describe('previews of shared looks', () => {
-  let tmp, app, dataDir, cookie, other, release, holding;
+  let tmp, app, dataDir, cookie, other, start, release, holding;
   const held = new Promise((r) => { release = r; }), rendering = new Promise((r) => { holding = r; });
   const PIXEL = 'function pixel(p, t) { p.r = 1; }';
   const req = (p, { method = 'GET', body, as = cookie } = {}) => fetch(app.base + p, { method, headers: {
@@ -103,15 +103,19 @@ describe('previews of shared looks', () => {
     dataDir = path.join(tmp, 'data');
     await mkdir(path.join(publicDir, 'data'), { recursive: true });
     await writeFile(path.join(publicDir, 'index.html'), '<!doctype html><title>t</title>');
-    await writeFile(path.join(publicDir, 'data', 'rig.json'), JSON.stringify(lineRig(N)));
-    const renderBox = { config: { seconds: SECONDS }, probe: async () => ({ ok: true }),
-      async render({ layers }) {
-        if (layers[0]?.code.includes('hold')) { holding(); await held; }
-        return { bytes: layers[0]?.code.includes('late') ? frames(2, 9) : frames() };
-      } };
-    app = await createServer({ dataDir, publicDir, generator: { enqueue() {}, async idle() {} }, log: quiet,
-      customCode: true, renderBox });
-    app.base = `http://127.0.0.1:${(await app.listen(0, '127.0.0.1')).port}`;
+    await writeFile(path.join(publicDir, 'data', 'rig-folly.json'), JSON.stringify(lineRig(N)));
+    await writeFile(path.join(publicDir, 'data', 'rig.json'), JSON.stringify({ ...lineRig(N), name: 'Other' }));
+    start = async (rig) => {
+      const renderBox = { config: { seconds: SECONDS }, probe: async () => ({ ok: true }),
+        async render({ layers }) {
+          if (layers[0]?.code.includes('hold')) { holding(); await held; }
+          return { bytes: layers[0]?.code.includes('late') ? frames(2, 9) : frames() };
+        } };
+      app = await createServer({ dataDir, publicDir, generator: { enqueue() {}, async idle() {} }, log: quiet,
+        generators: true, customCode: true, renderBox, rig });
+      app.base = `http://127.0.0.1:${(await app.listen(0, '127.0.0.1')).port}`;
+    };
+    await start();
     cookie = await signup('alice');
     other = await signup('bob');
   });
@@ -182,5 +186,19 @@ describe('previews of shared looks', () => {
     await app.previews.idle();
     const ids = new Set((await gallery()).map((l) => l.id));
     assert.deepEqual((await readdir(path.join(dataDir, 'previews'))).filter((f) => !ids.has(f.split('-')[0])), []);
+  });
+
+  test('a server started on another rig makes the shared looks\' previews again', async () => {
+    const { look } = await (await req('/api/looks', { method: 'POST',
+      body: { title: 'Moved', layers: [{ name: 'a', code: PIXEL }], shared: true, chain: 2 } })).json();
+    const key = await until(async () => (await gallery()).find((l) => l.id === look.id)?.preview);
+    await app.close();
+    await start('cog');
+    await app.previews.backfill();
+    const next = await until(async () => {
+      const k = (await gallery()).find((l) => l.id === look.id)?.preview;
+      return k !== key && k;
+    });
+    assert.notEqual(next, key);
   });
 });

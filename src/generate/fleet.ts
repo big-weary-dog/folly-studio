@@ -18,6 +18,7 @@ import { DEFAULT_BAKE_SECONDS, framesBytesFor } from '../bake.ts';
 import { type BakeError, checkFrames, cleanBoxStats, failedBake, flashSettings, readUntrusted } from '../box-output.ts';
 import { type Config, configOf } from '../config.ts';
 import { moduleFiles } from '../core-script.ts';
+import { rigFileOf, rigOf } from '../rig-choice.ts';
 import {
   describeRig, formatExamples, formatGroups, GROUPS_NOTE, patternGuide, pickExamples, pixelRate, rootOf, TASTE,
 } from './prompt.ts';
@@ -140,13 +141,13 @@ export function createFleetAdapter(o: Options = {}) {
     git: o.git || 'git',
     maxFramesBytes: o.maxFramesBytes ?? c.STUDIO_FLEET_MAX_FRAMES ?? framesBytesFor(DEFAULT_BAKE_SECONDS),
     patternsDir: file('patternsDir', 'public/patterns'), // the library, for use() inside the box
-    rigFile: file('rigFile', 'public/data/rig.json'),
+    rigFile: o.rigFile || rigFileOf(path.join(STUDIO, 'public'), rigOf(c)),
     briefTemplate: file('briefTemplate', 'fleet-box/BRIEF.template.md'),
     modules: { // what check.ts imports, by the names it uses, each with the modules it imports, as they are
       'pattern-core.ts': file('coreFile', 'public/js/pattern-core.ts'),
       'fseq.ts': file('fseqFile', 'public/js/fseq.ts'), 'frames.ts': file('framesLib', 'src/frames.ts') },
     copies: { // what else the workspace holds, and where it comes from
-      'rig.json': file('rigFile', 'public/data/rig.json'),
+      'rig.json': o.rigFile || rigFileOf(path.join(STUDIO, 'public'), rigOf(c)),
       'palettes.json': file('palettesFile', 'public/data/palettes.json'), // a look's palette by name
       'check.ts': file('checkFile', 'fleet-box/check.ts'),
       'renderer.ts': file('rendererFile', 'render-box/renderer.ts'),

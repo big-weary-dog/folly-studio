@@ -6,7 +6,6 @@ import { test } from 'vitest';
 
 import { normalizeParams } from '../public/js/core/compile.ts';
 import { applyMods, lookFrame, paramMods, prepareLook, resolveParams } from '../public/js/core/globals.ts';
-import { describeParam, readParams } from '../src/generate/catalog.ts';
 import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
 import { normaliseParam, visibleParams } from '../public/js/ui/bindings.ts';
 import { folly } from './fixtures/rigs.js';
@@ -19,7 +18,6 @@ test('soft ranges survive compilation and controls while automated bindings reac
   const code = 'const params = { x: { value: 0, min: -8, max: 8, soft: [-2, 2] } };';
   const schema = compileLayer({ id: 'l', code: `${code} function pixel() { return [0, 0, 0]; }` })[0].params;
   assert.deepEqual(normaliseParam('x', schema.x).soft, [-2, 2]);
-  assert.equal(describeParam('x', readParams(code).x), 'x -8–8 (0)');
   const overrides = { x: { mod: 'global', name: 'drive' } };
   const P = resolveParams(schema, overrides), mods = paramMods(schema, overrides);
   const look = prepareLook({ globals: { macros: { drive: { value: 0, min: 0, max: 1 } } },

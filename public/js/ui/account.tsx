@@ -66,7 +66,7 @@ function DeleteForm() {
     <form class="models-panel account-form account-danger" aria-labelledby="delete-h" onSubmit={submit}>
       <h2 id="delete-h">Delete account</h2>
       <p class="field-hint">This deletes your account and every look you made ({now.note}): shared looks leave the
-        gallery and the live stage. Copies other people saved are theirs and stay.</p>
+        gallery. Copies other people saved are theirs and stay.</p>
       <Field label="Your password" stack>{(id) => <input id={id} name="password" type="password" required
         autocomplete="current-password" />}</Field>
       <p class="form-error" role="alert" hidden={!error}>{error}</p>

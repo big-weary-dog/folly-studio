@@ -6,7 +6,7 @@ import path from 'node:path';
 
 import { describe, test } from 'vitest';
 
-import { buildCatalog, readParams } from '../src/generate/catalog.ts';
+import { buildCatalog, describeParam, readParams } from '../src/generate/catalog.ts';
 import { strictSchema } from '../src/generate/codex.ts';
 import { compositionSchema } from '../src/generate/composition.ts';
 import { expand } from '../src/generate/expand.ts';
@@ -201,5 +201,36 @@ describe('queue', () => {
     const look = store.looks.get(store.ideas.get(i.id).lookId);
     assert.equal(look.bpm, 100);
     assert.deepEqual(look.globals.macros.breath.mod, breath);
+  });
+});
+
+describe('picture and text params', () => {
+  test('a picture: the wire\'s key list becomes an object, and a broken picture is an error to repair', () => {
+    assert.equal(CATALOG.modules.get('picture').params.picture.type, 'picture');
+    const wire = { grid: 'rose', key: [{ char: 'r', colour: 'body' }], frames: [{ rows: ['r'] }] };
+    const look = (v) => expand({ title: 'T', summary: 'S', layers: [{ title: 'L', groups: ['rose-window'],
+      blend: 'add', level: 1, modules: [{ use: 'picture', params: [{ name: 'picture', value: v }] }] }] }, CATALOG);
+    const ok = look(wire);
+    assert.deepEqual(ok.errors, []);
+    assert.deepEqual(ok.look.layers[0].modules[0].params.picture.key, { r: 'body' });
+    assert.deepEqual(look({ ...wire, frames: [{ rows: ['q'] }] }).errors, [{
+      path: 'layers[0].modules[0].params.picture', code: 'bad_picture', message: 'frame 1: "q" is not in the key.' }]);
+  });
+
+  test('a text param is read and held to its kind', () => {
+    assert.deepEqual(CATALOG.modules.get('rhythm').params.pattern.type, 'text');
+    const look = (v) => expand({ title: 'T', summary: 'S', layers: [{ title: 'L', groups: ['cathedral'],
+      blend: 'add', level: 1, modules: [{ use: 'rhythm', params: [{ name: 'pattern', value: v }] }] }] }, CATALOG);
+    const ok = look('X... ..x.');
+    assert.deepEqual(ok.errors, []);
+    assert.equal(ok.look.layers[0].modules[0].params.pattern, 'X... ..x.');
+    const bad = look('x'.repeat(300));
+    assert.equal(bad.look.layers[0].modules[0].params.pattern, undefined);
+    assert.ok(bad.notes.some((n) => /pattern: not text/.test(n)), bad.notes.join('; '));
+  });
+
+  test('a number param is described by its hard range and default', () => {
+    const code = 'const params = { x: { value: 0, min: -8, max: 8, soft: [-2, 2] } };';
+    assert.equal(describeParam('x', readParams(code).x), 'x -8–8 (0)');
   });
 });

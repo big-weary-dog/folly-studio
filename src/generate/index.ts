@@ -286,7 +286,7 @@ export function createQueue({
         dropped(look.dropped)}`;
       if (refine) {
         const kept = keepUntouched(refine.look.layers as typeof look.layers, refine.comp, out.raw, look.layers);
-        await codeGate?.check(kept, idea.owner, (why) => new GenerateError(why, 'new code'));
+        await codeGate?.check(kept, (why) => new GenerateError(why, 'new code'));
         const changes = await revise(refine.look, { ...look, layers: kept }, promptOf(base).catalog, idea);
         timing.total = monoNow() - queuedAt;
         outcome = { status: 'ready', lookId: refine.look.id };
@@ -297,8 +297,7 @@ export function createQueue({
       }
       const { bake: made, frames } = (out.raw ?? {}) as { bake?: Bake, frames?: unknown };
       const bake = made && typeof made === 'object' ? { ...made, layersHash: layersHash(renderFields(look)) } : null;
-      await codeGate?.check(look.layers, idea.owner, (why) => new GenerateError(why, 'new code'));
-      if (!(await store.ideas.get(id))) return log.info?.(`[generate] idea ${id} was deleted while it ran`);
+      await codeGate?.check(look.layers, (why) => new GenerateError(why, 'new code'));
       roomForLook(store, idea.owner, full);
       const saved = await store.looks.create({ owner: idea.owner, ownerName: owner?.username || '', title: look.title,
         summary: look.summary, ...Object.fromEntries(PLAYS.filter((k) => look[k] != null).map((k) => [k, look[k]])),

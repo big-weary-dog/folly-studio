@@ -1,6 +1,6 @@
-// Composed looks over the API and from generators: module chains, globals (a palette by name filled in) and
-// automation are validated strictly by the API and leniently by generators; old single-code layers stay valid;
-// chains from before the one rule are converted on their way in, and once at start.
+// Composed looks over the API: module chains, globals (a palette by name filled in) and automation are validated
+// strictly; old single-code layers stay valid; chains from before the one rule are converted on their way in, and
+// once at start.
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -8,7 +8,6 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { validateLook } from '../shared/schemas/generated.ts';
 import { layersHash, renderFields } from '../src/bake.ts';
 import { fakeBox, fx, PIXEL, signup, startApp, useFixture } from './fixtures/server.js';
 
@@ -138,39 +137,4 @@ test('renderFields: plain layers unless something else plays', () => {
     bpm: null });
   const beats = [{ code: PIXEL, params: { v: { mod: 'lfo', unit: 'beats' } } }];
   assert.equal(renderFields({ layers: beats, bpm: 90 }).bpm, 90, 'an LFO in beats plays at the look\'s tempo');
-});
-
-describe('generated chains', () => {
-  const library = [{ name: 'clouds', kind: 'source', code: PIXEL }, { name: 'mask', kind: 'filter', code: FILTER }];
-  const groups = [{ id: 'spires' }];
-
-  test('modules, globals and automation are kept, cleaned, and held to the API\'s rules', () => {
-    const look = validateLook({ title: 'Storm', summary: 'x', layers: [{ title: 'L', groups: ['spires'], modules: [
-      { id: 'met', kind: 'source', title: 'Meteors', code: PIXEL },
-      { id: 'cl', kind: 'source', title: 'Clouds', ref: 'clouds', code: PIXEL, as: 'input' },
-      { kind: 'filter', title: 'Mask', ref: 'mask', code: FILTER, input: 'cl' },
-      { kind: 'filter', title: 'Broken', code: 'function pixel() {}' },
-    ] }], globals: { palette: 'Carnival', macros: [{ name: 'storm', value: 0.5 }, { name: 'energy', value: 0.4 },
-      { name: 'bpm' }] },
-    automation: [{ name: 'energy', points: [[5, 1], [0, 0], [5, 0.3]] }, { name: 'tempo', points: [[0, 1]] }] },
-    { groups, library });
-    const mods = look.layers[0].modules;
-    assert.deepEqual(mods.map((m) => m.id), ['met', 'cl', 'm3']);
-    assert.equal(mods[2].input, 'cl');
-    assert.equal(mods[1].ref, 'clouds');
-    assert.equal(look.globals.palette.name, 'carnival');
-    assert.deepEqual(Object.keys(look.globals.macros), ['storm', 'energy']);
-    assert.deepEqual(look.automation, { energy: [[0, 0], [5, 1]] });
-    assert.ok(look.dropped.some((d) => /module 4: code does not define function filter/.test(d)), look.dropped.join());
-    assert.ok(look.dropped.some((d) => /bpm/.test(d)), look.dropped.join());
-    assert.ok(look.dropped.some((d) => /tempo/.test(d)));
-  });
-
-  test('old single-code layers still pass; a chain with no source is dropped', () => {
-    const look = validateLook({ title: 'Old', layers: [{ title: 'A', code: PIXEL, params: { k: 1 } },
-      { title: 'B', modules: [{ kind: 'warp', code: WARP }] }] }, { groups, library });
-    assert.deepEqual(look.layers.map((l) => [l.title, l.code === PIXEL]), [['A', true]]);
-    assert.equal('globals' in look || 'automation' in look, false);
-    assert.match(look.dropped.join(), /no usable source module/);
-  });
 });

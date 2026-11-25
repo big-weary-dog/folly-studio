@@ -46,6 +46,7 @@ test('a dated archive of the JSON files; frames only with --frames, never the wi
   const plain = await backup({ dataDir: data, now });
   assert.equal(plain.file, path.join(tmp, 'backups', 'folly-studio-2026-10-17T21-30-05Z.tar.gz'));
   const files = untar(plain.file);
+  assert.equal(plain.entries, 2);
   const root = 'folly-studio-2026-10-17T21-30-05Z';
   assert.deepEqual(Object.keys(files).sort(), ['looks', 'users'].map((n) => `${root}/${n}.json`));
   assert.equal(JSON.parse(files[`${root}/looks.json`])[0].title, 'Reef');
@@ -54,6 +55,7 @@ test('a dated archive of the JSON files; frames only with --frames, never the wi
 
   const full = await backup({ dataDir: data, outDir: path.join(tmp, 'full'), frames: true, now });
   const all = untar(full.file);
+  assert.equal(full.entries, 3, 'what went in, not the wire folder');
   assert.deepEqual(all[`${root}/frames/look1.fseq`], Buffer.alloc(3000, 7));
   assert.ok(!Object.keys(all).some((n) => n.endsWith('.br')));
   let listing = null;
@@ -93,4 +95,18 @@ test('while the server rewrites its files, the snapshot holds whole files from o
     await churn;
   }
   assert.ok(writes > 0);
+});
+
+test('a file it cannot read fails the backup rather than leave it out', async ({ skip }) => {
+  skip(process.getuid?.() === 0, 'root reads any file');
+  const data = path.join(tmp, 'locked'), out = path.join(tmp, 'locked-out');
+  fs.mkdirSync(path.join(data, 'frames'), { recursive: true });
+  fs.writeFileSync(path.join(data, 'users.json'), '[]\n');
+  fs.writeFileSync(path.join(data, 'frames', 'a.fseq'), 'x');
+  fs.chmodSync(path.join(data, 'frames', 'a.fseq'), 0);
+  await assert.rejects(backup({ dataDir: data, outDir: out, frames: true }), { code: 'EACCES' });
+  assert.deepEqual(fs.readdirSync(out), [], 'no archive, no temporary');
+  assert.equal((await backup({ dataDir: data, outDir: out })).entries, 1, 'without frames it never opens them');
+  fs.chmodSync(path.join(data, 'users.json'), 0);
+  await assert.rejects(snapshot(data), { code: 'EACCES' });
 });

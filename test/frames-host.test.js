@@ -145,11 +145,11 @@ describe('the bake cache and re-baking evicted frames, through the API', () => {
     const publicDir = path.join(tmp, 'public');
     fs.mkdirSync(path.join(publicDir, 'data'), { recursive: true });
     fs.writeFileSync(path.join(publicDir, 'index.html'), '<!doctype html><title>t</title>');
-    fs.writeFileSync(path.join(publicDir, 'data', 'rig.json'), JSON.stringify(lineRig(100)));
+    fs.writeFileSync(path.join(publicDir, 'data', 'rig-folly.json'), JSON.stringify(lineRig(100)));
     const renderBox = { config: { seconds: 5 }, probe: async () => ({ ok: true }),
       async render({ layers }) { renders++; return { bytes: frames(layers[0].code.length, 200) }; } };
     app = await createServer({ dataDir: path.join(tmp, 'data'), publicDir, generator: { enqueue() {} }, log: quiet,
-      customCode: true, renderBox });
+      generators: true, customCode: true, renderBox });
     base = `http://127.0.0.1:${(await app.listen(0)).port}`;
     const r = await fetch(`${base}/api/signup`, { method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ username: 'cache', password: 'correct horse' }) });
@@ -212,7 +212,7 @@ describe('the render box runs at nice 10', () => {
   beforeEach(({ skip }) => skip(!probe.ok || !!probe.libraryOnly,
     `render box unavailable here: ${probe.reason || probe.libraryOnly}`));
   test('its processes have nice 10', async () => {
-    const box = createRenderBox({ seconds: 3, frameTimeoutMs: 600_000, log: quiet });
+    const box = createRenderBox({ customCode: true, seconds: 3, frameTimeoutMs: 600_000, log: quiet });
     const slow = { id: 'l1', groups: ['cathedral'], blend: 'add', level: 1, params: {},
       code: 'function pixel(p, t) { let s = 0; for (let i = 0; i < 300; i++) s += sin(i); return [s, 0, 0]; }' };
     const done = box.render({ layers: [slow] });

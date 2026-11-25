@@ -18,8 +18,8 @@ file), edit it, and export it toward the real installation.
   time), never fetched at run time and never from a CDN, so the app, the sandbox and the boxes work offline on the
   playa. ES modules everywhere (`"type": "module"`), TypeScript or JavaScript: Node ≥ 22.18 runs the server's, the
   boxes' and the tests' as written (types stripped, no build); Vite builds the browser's into `dist/`.
-- **Every LED comes from `public/data/rig.json`** (SPEC "Rig"), built from the lighting repo's pixel maps, never
-  by hand. Nothing else names the installation.
+- **Every LED comes from the rig file `STUDIO_RIG` picks** (SPEC "Rig"; the Folly's `public/data/rig-folly.json` by
+  default), built from the lighting repo's pixel maps, never by hand. Nothing else names the installation.
 - **Pattern code is untrusted.** It only ever runs inside the sandbox page (below) or a box
   (bubblewrap: the render box, a Fleet worker's; else library only: SPEC-baking), never in the app page or the
   server's own Node process (except in tests, on our own library patterns). What a box returns is data.
@@ -29,9 +29,9 @@ file), edit it, and export it toward the real installation.
 - Frame rate, universes, channels per universe and colour order are the rig's `output`. The Folly: 40 fps,
   universes 1–80 of 510 channels (xLights networks), so a full frame is **40,800 channels**, RGB.
 
-## Rig (`public/data/rig.json`)
+## Rig (`public/data/rig-folly.json`)
 
-[The rig file, addressing, axes, fixtures and groups](SPEC-rig.md#rig-publicdatarigjson), part of this contract.
+[The rig file, addressing, axes, fixtures and groups](SPEC-rig.md#rig-publicdatarig-follyjson), part of this contract.
 
 ## The 3D view
 
@@ -79,22 +79,17 @@ In `SPEC-reports.md`, part of this contract: F8 reports, what they hold, and whe
 
 ## Generators and models
 
-In `SPEC-generators.md`, part of this contract: **Generators** (idea → look) and **Models** (the registry).
+In `SPEC-generators.md`, part of this contract: **Generators** (idea → look) and **Models** (the registry). They are
+off on every server (SPEC-generators "No generators").
 
 ## Accounts and access
 
 In `SPEC-access.md`, part of this contract: **Accounts** (roles, sign-in), **Admin** (its pages), **Access** (invite
 codes and limits on the paid models) and their routes.
 
-## The live stage
+## Look files
 
-In `SPEC-live.md`, part of this contract: the shared `/live` stage, its socket (`/api/live/socket`), its state and
-the `/live/control` page.
-
-## Offline on the Pi, and the Pi preview
-
-In `SPEC-offline.md`, part of this contract: the Pi profile (`STUDIO_PROFILE`, `profile`), `/pi` (a Studio Live
-engine behind Studio) and look files; in `SPEC-liveplay.md`, the live play controller.
+[A look as JSON, export and import](SPEC-looks.md#look-files), part of this contract.
 
 ## Gallery previews
 

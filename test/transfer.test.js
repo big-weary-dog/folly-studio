@@ -15,11 +15,13 @@ import { browser, request } from './fixtures/browser.js';
 import { builtApp, removeBuiltApp } from './fixtures/build.js';
 
 const KB = 1024;
-// Measured with attached modules and the petal mask: 240 KB in 26 requests with br, 270 KB gzip only (HTTP/1.1
-// headers in full); caps with room to grow, as the owner asks: mindful of size, but no trimming for a KB.
-// rig.json is 31 KB of that with br (43 KB gzip): the LEDs, and the 3D view's rose cells, floods and scaffold.
-const COLD = { 'br, gzip': 260 * KB, gzip: 290 * KB };
+// Measured on the Folly's rig: 257 KB in 26 requests with br, 294 KB gzip only (HTTP/1.1 headers in full); the
+// owner's caps for a desktop-first builder, with room to grow: mindful of size, but no trimming for a KB.
+// The rig is 29 KB of that with br (43 KB gzip): the LEDs, and the 3D view's rose cells, floods and scaffold.
+const COLD = { 'br, gzip': 360 * KB, gzip: 400 * KB };
 const STUDIO = { view: 'js/ui/studio.tsx', api: ['/api/me', '/api/library'] };
+// Both rigs ship; the browser fetches the one /api/me names, the Folly's here, never City of Gods' rig.json.
+const unfetched = /^\/assets\/rig-(?!folly-)[\w-]{8}\.json$/;
 const PLAYA = { view: 'js/playa/renderer.ts', shell: false };   // the 3D view's default mode, imported on show
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const kb = (n) => `${(n / KB).toFixed(1)} KB`;
@@ -29,7 +31,7 @@ beforeAll(async () => {
   const dist = await builtApp();
   manifest = JSON.parse(await readFile(path.join(dist, '.vite/manifest.json'), 'utf8'));
   dir = await mkdtemp(path.join(os.tmpdir(), 'studio-transfer-'));
-  app = await createServer({ dataDir: dir, distDir: dist, generator: { enqueue() {} }, log: quiet,
+  app = await createServer({ dataDir: dir, distDir: dist, generator: { enqueue() {} }, log: quiet, generators: true,
     admins: 'wire', models: { env: { PATH: path.join(import.meta.dirname, 'fixtures/generate/bin') } } });
   port = (await app.listen(0)).port;
   const res = await request(port, '/api/signup', { method: 'POST', headers: { 'content-type': 'application/json' },
@@ -56,13 +58,13 @@ afterAll(async () => {
 
 for (const encoding of Object.keys(COLD)) {
   test(`a cold Studio load stays within ${COLD[encoding] / KB} KB on the wire (${encoding})`, async () => {
-    const b = browser(port, { encoding, cookie, manifest });
+    const b = browser(port, { encoding, cookie, manifest, unfetched });
     await b.load('/studio', STUDIO);
     await b.load('/studio', PLAYA);
     for (const r of b.log) assert.ok(r.status === 200 || r.status === 'cache', `${r.url}: ${r.status}`);
     const files = b.log.filter((r) => !/^\/(?:studio|api\/)/.test(r.url)).map((r) => r.url);
     for (const url of files) assert.match(url, /^\/assets\/[\w.-]+-[\w-]{8}\.\w+$/, 'by its content-hashed name');
-    for (const name of ['studio-*.js', 'studio-*.css', 'rig-*.json', 'sandbox-*.html', 'renderer-*.js']) {
+    for (const name of ['studio-*.js', 'studio-*.css', 'rig-folly-*.json', 'sandbox-*.html', 'renderer-*.js']) {
       const want = new RegExp(`/${name.replace('*', '[\\w-]+').replace('.', '\\.')}$`);
       assert.ok(files.some((url) => want.test(url)), `${name} is loaded`);
     }

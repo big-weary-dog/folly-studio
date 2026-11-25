@@ -1,6 +1,6 @@
-// deploy/host.sh's checks before anything moves: the instances (public, dev, offline) never share a port, a data
-// folder or an engine's port, and each runs its own profile. A stand-in systemctl with no user session stops every
-// run at that check, so none gets as far as a checkout or a unit.
+// deploy/host.sh's checks before anything moves: the instances (public, dev) never share a port or a data folder,
+// and stay on loopback. A stand-in systemctl with no user session stops every run at that check, so none gets as far
+// as a checkout or a unit.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -36,40 +36,23 @@ describe('npm run host: the instances', () => {
     return () => rmSync(home, { recursive: true, force: true });
   });
 
-  test('three instances on their own ports, data and engines pass the checks', () => {
-    env('studio', [`STUDIO_DATA=${home}/folly-data`, 'PI_PREVIEW_URL=http://127.0.0.1:4043']);
-    env('studio-dev', [`STUDIO_DATA=${home}/folly-dev-data`, 'PORT=8781']);
-    env('studio-offline', ['STUDIO_PROFILE=pi', `STUDIO_DATA=${home}/folly-offline-data`,
-      'PI_PREVIEW_URL=http://127.0.0.1:4045']);
-    for (const args of [[], ['--instance', 'dev'], ['--instance', 'offline']]) assert.match(host(...args), STOPPED);
+  test('two instances on their own ports and data pass the checks', () => {
+    env('studio', [`STUDIO_DATA=${home}/folly-data`]);
+    env('studio-dev', [`STUDIO_DATA=${home}/folly-dev-data`]);
+    for (const args of [[], ['--instance', 'dev']]) assert.match(host(...args), STOPPED);
   });
 
-  test('offline runs the Pi profile, the others never do', () => {
-    env('studio-offline', [`STUDIO_DATA=${home}/o`]);
-    assert.match(host('--instance', 'offline'), /STUDIO_PROFILE=hosted .*the offline studio runs pi/);
-    env('studio-dev', ['STUDIO_PROFILE=pi', `STUDIO_DATA=${home}/d`, 'PORT=8781']);
-    assert.match(host('--instance', 'dev'), /STUDIO_PROFILE=pi .*the dev studio runs hosted/);
+  test('a shared port or data folder stops it', () => {
+    env('studio', [`STUDIO_DATA=${home}/folly-data`]);
+    env('studio-dev', ['PORT=8780', `STUDIO_DATA=${home}/d`]);
+    assert.match(host('--instance', 'dev'), /PORT=8780 is .*studio\.env's too/);
+    env('studio-dev', [`STUDIO_DATA=${home}/folly-data`]);
+    assert.match(host('--instance', 'dev'), /STUDIO_DATA=.*folly-data is .*studio\.env's too/);
   });
 
-  test('a shared port, data folder or engine port stops it', () => {
-    env('studio', [`STUDIO_DATA=${home}/folly-data`, 'PI_PREVIEW_URL=http://127.0.0.1:4043']);
-    env('studio-offline', ['STUDIO_PROFILE=pi', 'PORT=8780', `STUDIO_DATA=${home}/o`]);
-    assert.match(host('--instance', 'offline'), /PORT=8780 is .*studio\.env's too/);
-    env('studio-offline', ['STUDIO_PROFILE=pi', `STUDIO_DATA=${home}/folly-data`]);
-    assert.match(host('--instance', 'offline'), /STUDIO_DATA=.*folly-data is .*studio\.env's too/);
-    env('studio-offline', ['STUDIO_PROFILE=pi', `STUDIO_DATA=${home}/o`, 'PI_PREVIEW_URL=http://127.0.0.1:4043']);
-    assert.match(host('--instance', 'offline'), /port 4043 is .*studio\.env's too/);
-    env('studio-offline', ['STUDIO_PROFILE=pi', 'PORT=4043', `STUDIO_DATA=${home}/o`]);
-    assert.match(host('--instance', 'offline'), /PORT=4043 is the engine's port in .*studio\.env/);
-    env('studio', [`STUDIO_DATA=${home}/folly-data`, 'PI_PREVIEW_URL=http://example.com:4043']);
-    env('studio-offline', ['STUDIO_PROFILE=pi', `STUDIO_DATA=${home}/o`]);
-    const stderr = host('--instance', 'offline');
-    assert.match(stderr, /PI_PREVIEW_URL=http:\/\/example\.com:4043: must be/);
-    assert.doesNotMatch(stderr, STOPPED);
-  });
-
-  test('offline stays on loopback like the rest', () => {
-    env('studio-offline', ['STUDIO_PROFILE=pi', 'HOST=0.0.0.0', `STUDIO_DATA=${home}/o`]);
-    assert.match(host('--instance', 'offline'), /HOST=0\.0\.0\.0: keep the studio on loopback/);
+  test('only the dev instance, and loopback only', () => {
+    assert.match(host('--instance', 'offline'), /--instance offline: the instance is dev/);
+    env('studio-dev', ['HOST=0.0.0.0', `STUDIO_DATA=${home}/d`]);
+    assert.match(host('--instance', 'dev'), /HOST=0\.0\.0\.0: keep the studio on loopback/);
   });
 });

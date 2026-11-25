@@ -6,7 +6,7 @@
 //     --host <ip>        unicast destination (default 127.0.0.1)
 //     --multicast        send to 239.255.{hi}.{lo} per universe instead
 //     --port <n>         UDP port (default 5568)
-//     --rig <rig.json>   the installation (default public/data/rig.json): its universes and channels per universe
+//     --rig <rig.json>   the installation (default public/data/rig-folly.json): its universes and channels per universe
 //     --universes a-b    universes to send (default: all the rig's); each carries its channels in 512 slots
 //     --loop             start again at the end (default: play once, then terminate the streams)
 //     --hold <frame>     keep sending that one frame (with --seconds, for that long)
@@ -190,7 +190,7 @@ export class SacnSender {
 
 const USAGE = 'usage: node tools/sacn-play.ts <show.fseq> [--host ip | --multicast] [--port n] [--rig rig.json]'
   + ' [--universes a-b] [--loop] [--hold frame] [--seconds s] [--fps n] [--priority n] [--name text] [--quiet]';
-const RIG = fileURLToPath(new URL('../public/data/rig.json', import.meta.url));
+const RIG = fileURLToPath(new URL('../public/data/rig-folly.json', import.meta.url));
 
 /** Command-line options; throws with the usage on anything unknown or out of range. */
 export function parseArgs(argv: string[]) {

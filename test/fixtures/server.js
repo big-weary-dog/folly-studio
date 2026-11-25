@@ -10,6 +10,7 @@ import { afterAll, beforeAll } from 'vitest';
 
 import { writeFseq } from '../../public/js/fseq.ts';
 import { createServer } from '../../src/app.ts';
+import { RIG_FILES } from '../../src/rig-choice.ts';
 
 /** { tmp, publicDir, distDir } once useFixture()'s before hook has run. */
 export const fx = {};
@@ -68,7 +69,7 @@ async function writeFixture(dir) {
     ]),
   );
   await writeFile(path.join(dir, 'patterns', 'embers.js'), `// Rising embers\n${PIXEL}\n`);
-  await writeFile(path.join(dir, 'data', 'rig.json'), RIG);
+  await writeFile(path.join(dir, 'data', RIG_FILES.folly), RIG);   // the server's default rig
 }
 
 /**
@@ -100,7 +101,8 @@ const CHEAP = Object.freeze({ N: 1024, r: 8, p: 1 });
 
 export async function startApp(opts = {}) {
   const app = await createServer({ publicDir: fx.publicDir, distDir: fx.distDir, generator: fakeQueue(),
-    generatorName: 'test', log: quiet, scrypt: CHEAP, models: { env: {} }, customCode: true, ...opts });
+    generatorName: 'test', log: quiet, scrypt: CHEAP, models: { env: {} }, generators: true, customCode: true,
+    ...opts });
   const addr = await app.listen(0, '127.0.0.1');
   app.base = `http://127.0.0.1:${addr.port}`;
   app.port = addr.port;

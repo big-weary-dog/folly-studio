@@ -1,18 +1,16 @@
 #!/usr/bin/env node
-// The output guard: every look of tools/bench-looks.ts played as the Pi's engine plays it (live controls, renderFrame,
-// ledChannels at a master that moves), each look's LED bytes over a few frames hashed, on both rigs. A speed-up must
-// leave every hash as it is (test/output-bytes-*.test.ts); intentional pattern, rig or output-default changes
-// re-record:
+// The output guard: every look of tools/bench-looks.ts played through the core (prepareLook, renderFrame, ledChannels
+// at a master that moves), each look's LED bytes over a few frames hashed, on both rigs. A speed-up must leave every
+// hash as it is (test/output-bytes-*.test.ts); intentional pattern, rig or output-default changes re-record:
 //   node tools/output-bytes.ts        → test/fixtures/output-bytes.json
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { compileLayer, ledChannels, prepareLayer, prepareLight, prepareScene, renderFrame, setLibrary }
-  from '../public/js/pattern-core.ts';
-import { liveLook } from '../pi/src/controls.ts';
-import { resolveLook } from '../pi/src/library.ts';
-import { chainLooks, lib, libraryLooks } from './bench-looks.ts';
+import {
+  compileLayer, ledChannels, prepareLayer, prepareLight, prepareLook, prepareScene, renderFrame, setLibrary,
+} from '../public/js/pattern-core.ts';
+import { chainLooks, lib, libraryLooks, resolveLook } from './bench-looks.ts';
 
 export const RIGS = ['rig.json', 'rig-folly.json'];
 export const BYTES = fileURLToPath(new URL('../test/fixtures/output-bytes.json', import.meta.url));
@@ -28,16 +26,12 @@ export function outputBytes(rigFile: string, warm = false) {
   const out: Record<string, string> = {};
   for (const look of [...libraryLooks(), ...chainLooks()]) {
     try {
-      const r = resolveLook(look, lib), live = liveLook(r), sum = createHash('sha256');
+      const r = resolveLook(look), L = prepareLook(r), sum = createHash('sha256');
       const layers = r.layers.map((l) => prepareLayer(scene, l, compileLayer(l)));
-      if (warm) for (let f = 8; f > 0; f--) {
-        live.step(f * dt, dt);
-        renderFrame(scene, layers, f * dt, rgb, live.look);
-      }
+      if (warm) for (let f = 8; f > 0; f--) renderFrame(scene, layers, f * dt, rgb, L);
       FRAMES.forEach((f, i) => {
         const t = (f * dt) % (r.duration || 30);
-        live.step(t, dt);
-        const { errors } = renderFrame(scene, layers, t, rgb, live.look);
+        const { errors } = renderFrame(scene, layers, t, rgb, L);
         if (errors.length) sum.update(`error ${errors[0]!.error}`);
         sum.update(ledChannels(scene, rgb, light, cells, CAPS[i]));
       });
