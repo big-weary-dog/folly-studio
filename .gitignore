@@ -11,3 +11,8 @@
 __pycache__/
 *.pyc
 .DS_Store
+# npm run host builds and serves releases here (docs/HOSTING.md "Updating")
+/releases/
+/current
+/previous
+/current.new
