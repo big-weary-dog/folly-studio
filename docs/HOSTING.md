@@ -69,7 +69,7 @@ What was checked on this machine (WSL 2.4, NAT networking, `systemd=true` in `/e
 
 ### Owner, once (in WSL)
 
-1. A checkout of its own, apart from any fleet's trees, since `npm run host` checks out commits in it:
+1. A checkout of its own, apart from any fleet's trees, since `npm run host` builds its releases in it:
 
    ```sh
    git clone https://github.com/big-weary-dog/folly-studio.git ~/folly-studio
@@ -87,12 +87,25 @@ What was checked on this machine (WSL 2.4, NAT networking, `systemd=true` in `/e
 ### Updating
 
 `cd ~/folly-studio && npm run host` again, or `npm run host -- <ref>` for another commit or branch
-(default `STUDIO_REF`, else `origin/prod`; a ref `origin` lacks stops it before anything changes). It refuses a checkout with uncommitted changes, then: fetches and checks
-out the ref, `npm ci`, builds, writes `dist/build.json` (`{ commit, builtAt }`), writes and restarts the unit, and
-checks that `/build.json` names the commit, `/api/me` answers 401, and Windows reaches it too. The unit's `KillMode=mixed`
+(default `STUDIO_REF`, else `origin/prod`; a ref `origin` lacks stops it before anything changes). Each commit is
+built in a release of its own, `releases/<commit>` (a git worktree of the checkout), never in the one being served:
+it fetches, adds the release, `npm ci`, builds and writes `dist/build.json` (`{ commit, builtAt }`) there, and checks
+the settings with that build ([Checking the settings](#checking-the-settings)). Only then does it point the `current`
+link at the release (the one it served becomes `previous`), write and restart the unit (`WorkingDirectory` is
+`current`), and check that `/build.json` names the commit, `/api/me` answers 401, and Windows reaches it too. A
+failure before the switch leaves the running service as it was, code and bundle alike. After a good deploy it keeps
+three releases: `current`, `previous` and the newest other; it removes the rest. A release already built (the live
+one again, after a settings change) is not built again. The unit's `KillMode=mixed`
 sends the restart's SIGTERM to the server alone: it stops its generator calls, saves and closes, and the ideas it
-cut short (left queued or generating) resume at the next start, so a deploy never fails an idea in progress. Requests during the few seconds of
-install and restart may fail; a reload fixes them.
+cut short (left queued or generating) resume at the next start, so a deploy never fails an idea in progress. Requests
+during the few seconds of the restart may fail; a reload fixes them.
+
+- Roll back: `npm run host -- --rollback` switches to `previous`, already built, with no fetch, and restarts; run
+  again, it switches back.
+- Relative paths in the settings (`STUDIO_DATA`, default `data/`, `STUDIO_MODELS`, the work folders, a command named
+  with a `/`) are the checkout's, never a release's. One checkout hosts one instance: a run refuses a checkout
+  another instance's unit serves, and a second run while one deploys.
+- A commit from before releases (its `deploy/host.sh` builds in place) is refused: deploy a later one.
 
 - Another port: set `PORT` in the env file, run `npm run host`, and change the tunnel's URL to match.
 - Logs: `journalctl --user -u folly-studio -f`. Status: `systemctl --user status folly-studio`. An unhandled error is logged there (`[studio] unhandled …`) and the server carries on.
@@ -101,6 +114,8 @@ install and restart may fail; a reload fixes them.
 - Stop: `systemctl --user stop folly-studio` (`disable` too, to keep it off at boot).
 - The commit that is live, from anywhere: `https://folly.swampkat.com/build.json`.
 - The unit is written by the script, to `~/.config/systemd/user/folly-studio.service`: change the script, not it.
+  The service runs the checkout's `current/server.ts`; what is installed and built lives in the releases, not in
+  the checkout itself.
 - The studio runs while WSL does. It starts with the distro (linger is on), but WSL only boots when something on
   Windows starts it and may stop an idle distro *(to verify after a Windows restart)*: if it is down, open a WSL
   terminal, or add a Windows Task Scheduler task at logon running `wsl.exe -d Ubuntu --exec sleep infinity`.
@@ -159,7 +174,7 @@ Set up, once:
    `host: folly-studio-dev serves <commit> on http://127.0.0.1:8781`.
 
 Updating is the same command again, from `~/folly-dev`; `npm run host -- --instance dev <ref>` for another
-branch. Logs: `journalctl --user -u folly-studio-dev -f`.
+branch, `npm run host -- --instance dev --rollback` to roll back. Logs: `journalctl --user -u folly-studio-dev -f`.
 
 Each run writes, enables and restarts its own instance's unit alone, and refuses to start when another instance's
 settings (if this machine has them) name the same `PORT` or `STUDIO_DATA`. The data lock (`studio.lock`, under
@@ -224,11 +239,12 @@ running `node`.
 
 ### Checking the settings
 
-`npm run config:check -- ~/.config/folly-studio/studio.env` reads a settings file as the server would and prints
+`npm run config:check -- ~/.config/folly-studio/studio.env` (on the hosting checkout, from its `current`, where the
+live release's dependencies are) reads a settings file as the server would and prints
 `OK`, or the names of the settings that would stop it, then any it would warn of. It never prints a value. It exits
 1 when the server would not start. `npm run host` runs it with the new build, after building and before restarting
 anything: when it fails, the deploy stops there and the service already running keeps running, on its old settings.
-Then fix the env file, or redeploy the previous commit: `npm run host -- <old sha>`.
+Then fix the env file, or roll back: `npm run host -- --rollback`.
 
 ### Every setting
 
