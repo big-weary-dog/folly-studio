@@ -53,7 +53,8 @@ with no one logged in.
 
 The connector reaches the studio on `127.0.0.1`, so `STUDIO_TRUST_PROXY=1` (trusted from loopback only) takes the
 client's address from `X-Forwarded-For`'s right-most entry, the one Cloudflare appends. Sign-in limits key on that
-address; whatever a client writes to the left of it is ignored.
+address; whatever a client writes to the left of it is ignored. The same-origin check on writes compares the scheme
+and host the connector forwards (`X-Forwarded-Proto`, which Cloudflare sets; `X-Forwarded-Host`, else `Host`).
 
 ### Owner, once
 
