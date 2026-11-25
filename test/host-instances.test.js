@@ -1,9 +1,9 @@
-// deploy/host.sh's checks before anything moves: the instances (public, dev) never share a port or a data folder,
-// and stay on loopback. A stand-in systemctl with no user session stops every run at that check, so none gets as far
-// as a checkout or a unit.
+// deploy/host.sh's checks before anything moves: the instances (public, dev) never share a port, a data folder or a
+// backup folder, and stay on loopback; an off-site backup needs rsync. A stand-in systemctl with no user session
+// stops every run at that check, so none gets as far as a checkout or a unit.
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +12,7 @@ import { beforeEach, describe, test } from 'vitest';
 
 const SCRIPT = fileURLToPath(new URL('../deploy/host.sh', import.meta.url));
 const STOPPED = /no systemd user session/;
+const which = (tool) => execFileSync('sh', ['-c', `command -v ${tool}`], { encoding: 'utf8' }).trim();
 
 describe('npm run host: the instances', () => {
   let home, settings, bin;
@@ -48,6 +49,25 @@ describe('npm run host: the instances', () => {
     assert.match(host('--instance', 'dev'), /PORT=8780 is .*studio\.env's too/);
     env('studio-dev', [`STUDIO_DATA=${home}/folly-data`]);
     assert.match(host('--instance', 'dev'), /STUDIO_DATA=.*folly-data is .*studio\.env's too/);
+  });
+
+  test('a shared backup folder stops it, and so does an off-site copy without rsync', () => {
+    env('studio', [`STUDIO_DATA=${home}/folly-data`, `STUDIO_BACKUP_DIR=${home}/b`]);
+    env('studio-dev', [`STUDIO_DATA=${home}/d`, `STUDIO_BACKUP_DIR=${home}/b`]);
+    assert.match(host('--instance', 'dev'), /STUDIO_BACKUP_DIR=.*\/b is .*studio\.env's too/);
+    env('studio', [`STUDIO_DATA=${home}/folly-data`]);
+    env('studio-dev', [`STUDIO_DATA=${home}/d`, `STUDIO_BACKUP_DIR=${home}/folly-data-backups`]);
+    assert.match(host('--instance', 'dev'), /STUDIO_BACKUP_DIR=.*folly-data-backups is/,
+      'the default, beside the data');
+    rmSync(path.join(settings, 'studio-dev.env'));
+    env('studio', [`STUDIO_DATA=${home}/folly-data`, 'STUDIO_BACKUP_OFFSITE=/mnt/elsewhere']);
+    // Only what the script runs before that check, and no rsync.
+    const bare = path.join(home, 'bare');
+    mkdirSync(bare);
+    for (const tool of ['dirname', 'git', 'stat', 'realpath', 'grep']) symlinkSync(which(tool), path.join(bare, tool));
+    const r = spawnSync(which('bash'), [SCRIPT], { encoding: 'utf8', timeout: 20_000,
+      env: { HOME: home, PATH: bare, STUDIO_INSTANCE: '' } });
+    assert.match(r.stderr, /STUDIO_BACKUP_OFFSITE is set but there is no rsync/);
   });
 
   test('only the dev instance, and loopback only', () => {

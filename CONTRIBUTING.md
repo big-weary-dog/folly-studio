@@ -41,7 +41,8 @@ Useful settings: `STUDIO_ADMINS` and `STUDIO_CURATORS` (usernames), `STUDIO_SECU
 behind HTTPS, `STUDIO_TRUST_PROXY=1` behind a tunnel on this machine, `STUDIO_FRAMES_BROTLI_QUALITY` (9),
 `STUDIO_FRAMES_MAX_BYTES` (2GB). Every setting is in `src/config.ts` and docs/HOSTING.md "Every setting";
 `npm run config:check -- <file>` says whether a settings file would start the server. `docs/HOSTING.md` covers
-running it at home behind a tunnel, and `npm run backup` makes a dated `.tar.gz` of the data.
+running it at home behind a tunnel, and `npm run backup` makes a dated `.tar.gz` of the data (daily, from a timer
+`npm run host` writes).
 
 The render-box tests need prlimit (util-linux). Without it they skip (`ctx.skip(condition, reason)`) and the run ends listing each
 skipped test and why (`test/skip-reporter.js`). The rigs come from a lighting checkout (below, "Show data");

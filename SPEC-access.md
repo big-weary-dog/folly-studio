@@ -112,6 +112,11 @@ Cloudflare's `CF-IPCountry` when it is two capital letters. No query, cookie, he
 or are slow. Nothing per frame: one hook per HTTP request, a hash only for a
 line or a page.
 
+When a local day ends, its counts are one journal line, with the bakes and the server's state at that moment:
+`[studio] [stats] 2026-11-24 visitors=12 people=3 views=40 requests=900 errors=0 slow=2 bakes=5/0/0 uptime=86400s
+rss=120MB`, `bakes` done/failed/waiting as in `stats.bakes`. A day the server started partway through counts from its
+start.
+
 ## No AI
 
 Studio has no AI: no Ideas page (`/ideas` leads to My looks; a guest's home is the Studio), no Refine, no invite

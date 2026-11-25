@@ -60,6 +60,13 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
   });
 }
 
-// One failed request or socket must not take the site down: log it and carry on.
+// A failed promise is one request's: log it and carry on. An uncaught exception leaves the process in a state
+// nothing vouches for: save what it can within 10 s and exit 1, for systemd's Restart=on-failure to start it again.
 process.on('unhandledRejection', (err) => console.error('[studio] unhandled rejection:', err));
-process.on('uncaughtException', (err) => console.error('[studio] uncaught exception:', err));
+process.on('uncaughtException', (err) => {
+  console.error('[studio] uncaught exception, exiting:', err);
+  if (stopping) process.exit(1);
+  stopping = true;
+  setTimeout(() => process.exit(1), 10_000).unref();
+  app.close().catch((e) => console.error('[studio] shutdown failed:', e)).finally(() => process.exit(1));
+});

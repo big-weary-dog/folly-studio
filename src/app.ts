@@ -133,6 +133,7 @@ export async function createServer(opts: Options = {}) {
     },
     async close() {
       clearInterval(pruneTimer);
+      stats.stop();
       await app.close();
       bakes.stop();
       previews.stop();
