@@ -8,18 +8,20 @@ import { expect, test } from './studio.js';
 
 test.use({ serverOptions: { curators: 'approve-curator-390,approve-curator-1366' } });
 
-const layer = (code) => ({ id: 'l1', title: 'x', code, groups: ['cathedral'], blend: 'add', level: 1, params: {} });
-const LOOKS = { Breathe: 'function pixel(p, t) { return scale([0.2, 0.4, 1], wave(t * 0.25)); }',
-  Strobe: 'function pixel(p, t) { return floor(t * 20) % 2 ? [0, 0, 0] : [1, 1, 1]; }' };
+const layer = (ref, params) => ({ id: 'l1', title: 'x', groups: ['cathedral'], blend: 'add', level: 1,
+  modules: [{ id: 'm1', kind: 'source', ref, params }] });
+/** Library modules: a slow wash, and a white strobe at 8 flashes a second; `n` makes each width's its own. */
+const LOOKS = { Breathe: (n) => layer('colour-wash', { speed: 0.1 + n / 100000 }),
+  Strobe: (n) => layer('strobe', { colours: '#ffffff', speed: 8, length: 0.5 - n / 100000, fade: 0 }) };
 
-/** Signs `username` up in `context`; with `share` (a width), shares a short look of each of LOOKS, titled and coded
+/** Signs `username` up in `context`; with `share` (a width), shares a short look of each of LOOKS, titled and set
  * for it, so no bake is one another test stored. */
 async function account(context, origin, username, share = 0) {
   const post = (url, data) => context.request.post(origin + url, { data });
   expect((await post('/api/signup', { username, password: 'correct horse' })).status()).toBe(201);
-  for (const [name, code] of share ? Object.entries(LOOKS) : []) {
+  for (const [name, made] of share ? Object.entries(LOOKS) : []) {
     const { look } = await (await post('/api/looks', { title: `${name} ${share}`, duration: 2,
-      layers: [layer(`${code} // ${share}`)] })).json();
+      layers: [made(share)] })).json();
     expect((await context.request.put(`${origin}/api/looks/${look.id}`, { data: { shared: true } })).ok()).toBe(true);
   }
 }

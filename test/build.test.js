@@ -44,7 +44,7 @@ beforeAll(async () => {
   dist = await builtApp();
   manifest = JSON.parse(readFileSync(path.join(dist, '.vite/manifest.json'), 'utf8'));
   dir = await mkdtemp(path.join(tmpdir(), 'studio-build-'));
-  app = await createServer({ dataDir: dir, distDir: dist, log: quiet, admins: 'wire', customCode: true });
+  app = await createServer({ dataDir: dir, distDir: dist, log: quiet, admins: 'wire' });
   base = `http://127.0.0.1:${(await app.listen(0)).port}`;
 });
 afterAll(async () => {
@@ -140,9 +140,10 @@ describe('the JSON API on the wire', () => {
   });
 
   test('large bodies go br or gzip, small ones plain; one ETag for every encoding', async () => {
-    const code = `function pixel(p, t) { return [p.x, p.y, p.z]; }\n// ${'a quiet comment '.repeat(40)}`;
+    const layer = (id) => ({ id, modules: [{ id: 'a', kind: 'source', ref: 'streaks' }] });   // a read fills its code
+    const layers = [layer('l1'), layer('l2')];
     const look = await fetch(`${base}/api/looks`, { method: 'POST', headers: { cookie, 'content-type':
-      'application/json' }, body: JSON.stringify({ title: 'Long', layers: [{ code }, { code }] }) })
+      'application/json' }, body: JSON.stringify({ title: 'Long', layers }) })
       .then((r) => r.json());
     const url = `/api/looks/${look.look.id}`;
     const br = await get(url, { cookie, 'accept-encoding': 'gzip, br' });

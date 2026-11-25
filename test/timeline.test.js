@@ -24,6 +24,8 @@ const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error(
 const near = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) <= eps, `${a} ≉ ${b}`);
 const WHITE = 'function pixel() { return [1, 1, 1]; }';
 const RED = 'function pixel() { return [1, 0, 0]; }';
+/** A library layer, for what goes through the API (it saves only library modules). */
+const WASH = { modules: [{ id: 'w', kind: 'source', ref: 'colour-wash' }] };
 /** A clip as the API and the runtime keep it. */
 const clip = (start, end, fadeIn = 0, fadeOut = 0) => ({ start, end, fadeIn, fadeOut });
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-timeline-'));
@@ -200,7 +202,7 @@ function fakeBox(maxSeconds = 4) {
 
 async function startApp(renderBox, name) {
   const dataDir = path.join(tmpRoot, name);
-  const app = await createServer({ customCode: true, dataDir, publicDir: PUBLIC, renderBox, log: quiet });
+  const app = await createServer({ dataDir, publicDir: PUBLIC, renderBox, log: quiet });
   const { port } = await app.listen(0);
   const base = `http://127.0.0.1:${port}`;
   const json = { 'content-type': 'application/json' };
@@ -219,24 +221,24 @@ describe('the API: duration and bpm', () => {
     const box = fakeBox();
     const app = await startApp(box, 'api');
     try {
-      const plain = (await app.call('POST', '/api/looks', { title: 'Plain', layers: [{ code: WHITE }] })).json.look;
+      const plain = (await app.call('POST', '/api/looks', { title: 'Plain', layers: [{ ...WASH }] })).json.look;
       assert.equal(plain.duration, 30, 'a look without one runs 30 s');
       assert.equal('bpm' in plain, false);
 
       const bads = [{ duration: 0.5 }, { duration: 601 }, { duration: '30' }, { duration: null }];
       bads.push({ bpm: 39 }, { bpm: 241 }, { bpm: '120' });
       for (const bad of bads) {
-        const r = await app.call('POST', '/api/looks', { title: 'Bad', layers: [{ code: WHITE }], ...bad });
+        const r = await app.call('POST', '/api/looks', { title: 'Bad', layers: [{ ...WASH }], ...bad });
         assert.equal(r.status, 400, JSON.stringify(bad));
         assert.match(r.json.error, /duration must be|bpm must be/);
       }
-      const clipped = { code: WHITE, clips: [{ start: 1, end: 2 }] };
+      const clipped = { ...WASH, clips: [{ start: 1, end: 2 }] };
       const timed = { title: 'Timed', layers: [clipped], duration: 12.5, bpm: 128 };
       const look = (await app.call('POST', '/api/looks', timed)).json.look;
       assert.equal(look.duration, 12.5);
       assert.equal(look.bpm, 128);
       assert.deepEqual(look.layers[0].clips, [{ start: 1, end: 2, fadeIn: 0, fadeOut: 0 }]);
-      const crossing = [{ code: WHITE, clips: [{ start: 0, end: 2 }, { start: 1, end: 3 }] }];
+      const crossing = [{ ...WASH, clips: [{ start: 0, end: 2 }, { start: 1, end: 3 }] }];
       const overlap = await app.call('PUT', `/api/looks/${look.id}`, { layers: crossing });
       assert.equal(overlap.status, 400);
       assert.match(overlap.json.error, /Layer 1: clips overlap/);
@@ -279,13 +281,13 @@ describe('the API: duration and bpm', () => {
   });
 });
 
-// The real render box (bubblewrap). Skips, saying why, where it cannot run.
+// The real render box. Skips, saying why, where it cannot run.
 const probe = await createRenderBox({ log: quiet }).probe();
 describe('baking a sequenced look in the render box', () => {
-  beforeEach(({ skip }) => skip(!probe.ok || !!probe.libraryOnly,
-    `render box unavailable here: ${probe.reason || probe.libraryOnly}`));
+  beforeEach(({ skip }) => skip(!probe.ok,
+    `render box unavailable here: ${probe.reason}`));
   test('a 2-clip layer over a dim base: lit in its clips, dark between, for the look\'s duration', async () => {
-    const box = createRenderBox({ customCode: true, seconds: 120, log: quiet });
+    const box = createRenderBox({ seconds: 120, log: quiet });
     const layers = [
       { id: 'base', code: 'function pixel() { return [0, 0, 0.2]; }', groups: ['cathedral'] },
       { id: 'hits', code: RED, groups: ['cathedral'], clips: [clip(0.5, 1.5), clip(2.5, 3.5, 0.5)] },

@@ -1,5 +1,5 @@
-// How the render box runs here (SPEC "Baked frames"): library only where bubblewrap is missing, and the admin's bake
-// setting (on, throttled, off) in front of it.
+// How the render box runs here (SPEC "Baked frames"): its own process under limits, what saves (library only), and
+// the admin's bake setting (on, throttled, off) in front of it.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -8,9 +8,8 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { createBakingStore, governBox, THROTTLE } from '../src/baking.ts';
-import { customCode, libraryHashes } from '../src/box-library.ts';
-import { BakeError } from '../src/box-output.ts';
 import { parseFseq } from '../src/frames.ts';
+import { customCode, libraryHashes } from '../src/library-gate.ts';
 import { createRenderBox } from '../src/render-box.ts';
 import { fakeBox, fx, layer, signup, startApp, useFixture } from './fixtures/server.js';
 
@@ -34,7 +33,7 @@ describe('library only', () => {
     assert.ok(lib.size > 20);
     assert.equal(customCode([libLayer(WASH), { title: 'Chain', modules: [{ code: BARS }, { code: WASH }] }], lib), '');
     assert.equal(customCode([libLayer(WASH), libLayer(`${WASH} `, { title: 'Sea' })], lib),
-      'Only looks made of unchanged library patterns save and bake; Layer 2 (Sea) is custom code.');
+      'Only looks made of unchanged library patterns save; Layer 2 (Sea) is custom code.');
     assert.match(customCode([{ title: 'Chain', modules: [{ code: BARS }, { title: 'Glow', code: 'x' }] }], lib),
       /Layer 1 \(Chain\)'s Glow is custom code\.$/);
     assert.match(customCode([{ title: '' }], lib), /Layer 1 is custom code/, 'no code at all is not library code');
@@ -57,7 +56,7 @@ describe('library only', () => {
     rig.output.fps = 40; // FSEQ's integer millisecond step represents 25 ms frames exactly.
     const rigFile = path.join(fx.tmp, 'long-rig.json');
     fs.writeFileSync(rigFile, JSON.stringify(rig));
-    const options = { rigFile, bwrap: 'no-such-bwrap', systemdRun: '', nice: 0, log: quiet };
+    const options = { rigFile, systemdRun: '', nice: 0, log: quiet };
     const box = createRenderBox({ seconds: 600, ...options });
     const job = { layers: [libLayer(WASH, { groups: ['all'],
       clips: [{ start: 590, end: 600 }] })], seconds: 600 };
@@ -68,56 +67,38 @@ describe('library only', () => {
     assert.equal(parseFseq((await capped.render(job)).bytes).frameCount, rig.output.fps);
   }, 120_000);
 
-  test('without bubblewrap, a library look bakes as its own process and custom code is refused', async ({ skip }) => {
+  test('a library look bakes as its own process, the same bytes each time', async ({ skip }) => {
     skip(!prlimit || !built, 'needs prlimit and a built rig-folly.json');
-    const box = createRenderBox({ bwrap: 'no-such-bwrap', seconds: 1, systemdRun: '', log: quiet });
-    const p = await box.probe();
-    assert.equal(p.ok, true);
-    assert.match(p.libraryOnly, /^Bubblewrap \(bwrap\) is not installed, so this server bakes only looks made of /);
-    assert.equal(await box.refuses([libLayer(WASH)]), '');
-    assert.match(await box.refuses([libLayer('function pixel() { return [1, 1, 1]; }')]), /Layer 1 \(Wash\) is custom/);
-    const testsOnly = createRenderBox({ bwrap: 'no-such-bwrap', systemdRun: '', log: quiet, customCode: true });
-    assert.match(await testsOnly.refuses([libLayer('x')]), /custom code/, 'never custom code without bubblewrap');
+    const box = createRenderBox({ seconds: 1, systemdRun: '', log: quiet });
+    assert.deepEqual(await box.probe(), { ok: true });
     const r = await box.render({ layers: [libLayer(WASH, { groups: ['cathedral'] }), COMPOSED] });
     assert.equal(r.seconds, 1);
     assert.equal(parseFseq(r.bytes, { maxBytes: 64 * 1024 ** 2, maxChannels: 1e6 }).frameCount, 40);
     const again = await box.render({ layers: [libLayer(WASH, { groups: ['cathedral'] }), COMPOSED] });
     assert.deepEqual(again.bytes, r.bytes, 'identical rebakes have stable FSEQ identifiers (M17)');
-    await assert.rejects(box.render({ layers: [libLayer(`${WASH}\n// edited`)] }),
-      (err) => err instanceof BakeError && err.status === 422 && /custom code/.test(err.reason));
   });
-
-  test('bubblewrap stays the first choice where it runs, and refuses custom code too', async ({ skip }) => {
-    const box = createRenderBox({ log: quiet }), p = await box.probe();
-    skip(!p.ok || !!p.libraryOnly, `bubblewrap unavailable here: ${p.reason || p.libraryOnly}`);
-    assert.equal(p.libraryOnly, undefined);
-    const custom = [libLayer('function pixel() { return [1, 1, 1]; }')];
-    assert.match(await box.refuses(custom), /Layer 1 \(Wash\) is custom code/);
-    await assert.rejects(box.render({ layers: custom }), (err) => err instanceof BakeError && err.status === 422);
-    assert.equal(await box.refuses([libLayer(WASH), COMPOSED]), '');
-    assert.equal(await createRenderBox({ log: quiet, customCode: true }).refuses(custom), '', 'tests only');
+  test('without prlimit there is no box, and it says why', async () => {
+    const p = await createRenderBox({ prlimit: 'no-such-prlimit', systemdRun: '', log: quiet }).probe();
+    assert.equal(p.ok, false);
+    assert.match(p.reason, /prlimit \(util-linux\) is not installed/);
   });
 });
 
 describe('the bake setting', () => {
-  test('stored in baking.json: missing or broken is on with custom code off, a save is checked and read back',
+  test('stored in baking.json: missing or broken is on, a save is checked and read back, other keys ignored',
     async () => {
     const file = path.join(fx.tmp, 'setting', 'baking.json');
     const store = createBakingStore({ file, log: quiet });
     assert.equal(store.mode(), 'on');
     assert.match((await store.save({ mode: 'slow' })).error, /on, throttled or off/);
-    assert.equal(store.customCode(), false);
-    assert.match((await store.save({})).error, /mode\?, customCode\?/);
-    assert.match((await store.save({ customCode: 'yes' })).error, /true or false/);
-    assert.deepEqual(await store.save({ mode: 'off' }), { mode: 'off', customCode: false });
-    assert.match((await store.save({ customCode: true })).error, /Custom code is off on every server/);
-    assert.deepEqual(await store.save({ customCode: false }), { mode: 'off', customCode: false });
+    assert.match((await store.save({})).error, /must be \{ mode \}|on, throttled or off/);
+    assert.ok((await store.save({ mode: 'on', customCode: true })).error, 'no other keys');
+    assert.deepEqual(await store.save({ mode: 'off' }), { mode: 'off' });
     assert.equal(createBakingStore({ file, log: quiet }).mode(), 'off', 'from the file');
-    fs.writeFileSync(file, JSON.stringify({ mode: 'on', customCode: true }));
-    assert.equal(createBakingStore({ file, log: quiet }).customCode(), false, 'the file\'s customCode is ignored');
+    fs.writeFileSync(file, JSON.stringify({ mode: 'throttled', customCode: true }));
+    assert.deepEqual(createBakingStore({ file, log: quiet }).current(), { mode: 'throttled' }, 'an old file\'s keys');
     fs.writeFileSync(file, '{ not json');
     assert.equal(createBakingStore({ file, log: quiet }).mode(), 'on');
-    assert.equal(createBakingStore({ file, log: quiet }).customCode(), false);
   });
 
   test('off refuses; throttled renders at nice 19, a cooldown after the last; on passes the job as it is',
@@ -143,10 +124,9 @@ describe('the bake setting', () => {
     mode = 'off';
     await assert.rejects(gov.render({ layers: [] }), (err) => err.status === 503 && /admin turned baking off/.test(
       err.reason));
-    assert.deepEqual(await gov.refusal([]), { status: 503, reason: 'An admin turned baking off.' });
+    assert.deepEqual(await gov.refusal(), { status: 503, reason: 'An admin turned baking off.' });
     mode = 'on';
-    box.refuses = async () => 'custom';
-    assert.deepEqual(await gov.refusal([]), { status: 422, reason: 'custom' });
+    assert.equal(await gov.refusal(), null);
     assert.equal(jobs.length, 2);
   });
 });
@@ -162,9 +142,7 @@ describe('through the API', () => {
   afterAll(() => app.close());
 
   test('everyone reads the setting; only admins change it, and it applies at once', async () => {
-    // customCode: createServer's test option.
-    assert.deepEqual((await member.get('/api/baking')).json, { mode: 'on', customCode: true,
-      box: { ok: true, libraryOnly: false } });
+    assert.deepEqual((await member.get('/api/baking')).json, { mode: 'on', box: { ok: true } });
     assert.equal((await member.put('/api/admin/baking', { mode: 'off' })).status, 403);
     assert.equal((await admin.put('/api/admin/baking', { mode: 'sometimes' })).status, 400);
     assert.equal((await admin.put('/api/admin/baking', { mode: 'off' })).json.mode, 'off');
@@ -177,38 +155,5 @@ describe('through the API', () => {
     assert.equal((await member.post(`/api/looks/${look.id}/bake`)).status, 202);
     await app.bakes.idle();
     assert.equal(box.renders, 1);
-  });
-
-  test('custom code bakes from stored frames neither', async () => {
-    const [a, b] = [0, 1].map(async () => (await member.post('/api/looks', { title: 'z',
-      layers: [layer({ level: 0.25 })] })).json.look);
-    const [first, twin] = await Promise.all([a, b]);
-    assert.equal((await member.post(`/api/looks/${first.id}/bake`)).status, 202);
-    await app.bakes.idle();
-    box.custom = async () => 'Only looks made of unchanged library patterns … Layer 1 (Sea) is custom code.';
-    try {
-      for (const id of [first.id, twin.id]) {
-        const r = await member.post(`/api/looks/${id}/bake`);
-        assert.equal(r.status, 422, 'its own frames, or a twin\'s');
-      }
-    } finally {
-      delete box.custom;
-    }
-  });
-
-  test('a box refuses custom code at the request, and says so', async () => {
-    box.probe = async () => ({ ok: true, libraryOnly: 'Bubblewrap (bwrap) is not installed, so …' });
-    box.refuses = async () => 'Only looks made of unchanged library patterns … Layer 1 (Sea) is custom code.';
-    try {
-      assert.equal((await member.get('/api/baking')).json.box.libraryOnly, true);
-      // Not a render baked above, so no stored bake is taken.
-      const look = (await member.post('/api/looks', { title: 'y', layers: [layer({ level: 0.5 })] })).json.look;
-      const r = await member.post(`/api/looks/${look.id}/bake`);
-      assert.equal(r.status, 422);
-      assert.match(r.json.error, /Layer 1 \(Sea\) is custom code/);
-    } finally {
-      box.probe = async () => ({ ok: true });
-      delete box.refuses;
-    }
   });
 });

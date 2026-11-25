@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // node render.ts --out DIR [--seconds S] [--frame-ms 2000] < look.json
-// src/render-box.ts supplies isolation and resource limits. Patterns run in a stdlib-only node:vm realm;
+// src/render-box.ts supplies the process and its resource limits. Patterns run in a stdlib-only node:vm realm;
 // inputs enter as JSON and only bytes, numbers and JSON text leave it.
 
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -18,8 +18,8 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const MAX_LOOK_BYTES = 1024 * 1024;
 const argv = process.argv.slice(2);
 const option = (name: string) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined);
-// Library-only boxes exec under the host; bubblewrap instead has --die-with-parent. Check before loading too,
-// in case the host died before we started. A hung frame is still interrupted by the VM wall timeout below.
+// The box runs as the server's child: it stops once the server is gone. Check before loading too, in case the
+// server died before we started. A hung frame is still interrupted by the VM wall timeout below.
 const parentPid = Number(option('--parent-pid'));
 const checkParent = () => { if (parentPid && process.ppid !== parentPid) process.exit(1); };
 checkParent();

@@ -1,27 +1,23 @@
 // npm run smoke: looks that loop with the timeline open, on classic scrollbars (headless Chromium hides them, and a
 // scrollbar that comes and goes is what made the timeline and the 3D view jump at each wrap). The new look's wrap moves
-// no box. A look with a module the Studio has no code for and one that throws as it plays: those two layers add
-// nothing and say why on their cards; the rest keeps playing through every loop, lit, every box still.
-import { readFileSync } from 'node:fs';
-
+// no box. A look with a module the Studio has no code for and one that throws as it plays (the page's library lacks
+// one module and has another throw): those two layers add nothing and say why on their cards; the rest keeps playing
+// through every loop, lit, every box still.
 import { expect, signup, test } from './studio.js';
 
 test.use({ viewport: { width: 1366, height: 768 }, launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'],
   args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] } });
 
-const code = (name) => readFileSync(new URL(`../../public/patterns/${name}.js`, import.meta.url), 'utf8');
-const WASH = code('colour-wash'), BARS = code('bars');
-const source = (ref, src, params = {}) => ({ id: ref, kind: 'source', title: ref, ref, code: src, params });
+const source = (ref, params = {}) => ({ id: ref, kind: 'source', title: ref, ref, params });
 const layer = (id, title, modules) => ({ id, title, tags: ['all'], blend: 'add', level: 1, modules });
 const LOOK = {
   title: 'Loops with broken layers',
   duration: 2,
   layers: [
-    layer('bed', 'Bed', [source('colour-wash', WASH, { speed: 0.5 })]),
-    layer('gone', 'Gone', [source('no-such-source', '')]),
-    layer('throws', 'Throws', [source('colour-wash', WASH.replace('function pixel() {',
-      'function pixel() {\n  throw new Error(\'boom\');'))]),
-    layer('bars', 'Bars', [source('bars', BARS)]),
+    layer('bed', 'Bed', [source('colour-wash', { speed: 0.5 })]),
+    layer('gone', 'Gone', [source('sparkle')]),
+    layer('throws', 'Throws', [source('clouds')]),
+    layer('bars', 'Bars', [source('bars')]),
   ],
 };
 
@@ -103,6 +99,14 @@ test('a looping look: broken layers say why, the rest plays on, nothing jumps', 
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push(String(e)));
+  // The page plays each module by ref from the library: here it has no Sparkle, and Clouds throws.
+  await page.route('**/api/library', async (route) => {
+    const body = await (await route.fetch()).json();
+    const throws = (code) => code.replace('function pixel(p, t, P) {', '$&\n  throw new Error(\'boom\');');
+    body.patterns = body.patterns.filter((p) => p.name !== 'sparkle')
+      .map((p) => (p.name === 'clouds' ? { ...p, code: throws(p.code) } : p));
+    await route.fulfill({ json: body });
+  });
 
   await page.goto(`${origin}/studio/${look.id}`);
   const play = await playWithTimeline(page);

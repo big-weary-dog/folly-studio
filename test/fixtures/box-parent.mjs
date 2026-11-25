@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { createRenderBox } from '../../src/render-box.ts';
 
-const box = createRenderBox({ bwrap: 'no-such-bwrap', systemdRun: '', nice: 0, seconds: 600,
+const box = createRenderBox({ systemdRun: '', nice: 0, seconds: 600,
   tmpRoot: process.argv[2],
   log: { info() {}, warn() {}, error() {}, debug() {} } });
 await box.render({ layers: [{ id: 'wash', groups: [],

@@ -13,6 +13,7 @@ import { writeFseq } from '../public/js/fseq.ts';
 import { createServer } from '../src/app.ts';
 import { bestWindow, HEIGHT, previewFrames, WIDTH, WINDOW_S } from '../src/previews/motion.ts';
 import { playaCamera } from '../src/previews/playa.ts';
+import { GLOW, writeLibrary } from './fixtures/library.js';
 import { lineRig } from './fixtures/rigs.js';
 
 const quiet = { info() {}, warn() {}, error() {} };
@@ -81,7 +82,7 @@ test('the Playa camera draws the installation lit as the samples say', async (ct
 describe('previews of shared looks', () => {
   let tmp, app, dataDir, cookie, other, start, release, holding;
   const held = new Promise((r) => { release = r; }), rendering = new Promise((r) => { holding = r; });
-  const PIXEL = 'function pixel(p, t) { p.r = 1; }';
+  const glow = (params = {}) => [{ name: 'a', code: GLOW, params }];
   const req = (p, { method = 'GET', body, as = cookie } = {}) => fetch(app.base + p, { method, headers: {
     cookie: as, ...(body ? { 'content-type': 'application/json' } : {}) }, body: body && JSON.stringify(body) });
   const until = async (fn) => {
@@ -105,13 +106,15 @@ describe('previews of shared looks', () => {
     await writeFile(path.join(publicDir, 'index.html'), '<!doctype html><title>t</title>');
     await writeFile(path.join(publicDir, 'data', 'rig-folly.json'), JSON.stringify(lineRig(N)));
     await writeFile(path.join(publicDir, 'data', 'rig.json'), JSON.stringify({ ...lineRig(N), name: 'Other' }));
+    await writeLibrary(publicDir);
     start = async (rig) => {
       const renderBox = { config: { seconds: SECONDS }, probe: async () => ({ ok: true }),
         async render({ layers }) {
-          if (layers[0]?.code.includes('hold')) { holding(); await held; }
-          return { bytes: layers[0]?.code.includes('late') ? frames(2, 9) : frames() };
+          const { hold, late } = layers[0]?.params ?? {};
+          if (hold) { holding(); await held; }
+          return { bytes: late ? frames(2, 9) : frames() };
         } };
-      app = await createServer({ dataDir, publicDir, log: quiet, customCode: true, renderBox, rig,
+      app = await createServer({ dataDir, publicDir, log: quiet, renderBox, rig,
         curators: 'alice, bob' });   // curators see every shared look, approved or not
       app.base = `http://127.0.0.1:${(await app.listen(0, '127.0.0.1')).port}`;
     };
@@ -125,7 +128,7 @@ describe('previews of shared looks', () => {
   });
 
   test('a shared look gets a looping WebP and a still; a change makes a new one', async () => {
-    const layers = [{ name: 'a', code: PIXEL }];
+    const layers = glow();
     const { look } = await (await req('/api/looks', { method: 'POST',
       body: { title: 'Shared', layers, shared: true, chain: 2 } })).json();
     await req('/api/looks', { method: 'POST', body: { title: 'Mine', layers, chain: 2 } });
@@ -141,7 +144,7 @@ describe('previews of shared looks', () => {
     assert.equal((await req(`/api/looks/${look.id}/preview/${'0'.repeat(16)}.webp`)).status, 404);
     assert.equal((await req(`/api/looks/${look.id}/preview/..%2Fx.webp`)).status, 404);
 
-    await req(`/api/looks/${look.id}`, { method: 'PUT', body: { layers: [{ name: 'a', code: `// late\n${PIXEL}` }],
+    await req(`/api/looks/${look.id}`, { method: 'PUT', body: { layers: glow({ late: 1 }),
       chain: 2 } });
     const next = await until(async () => {
       const k = (await gallery()).find((l) => l.id === look.id)?.preview;
@@ -155,7 +158,7 @@ describe('previews of shared looks', () => {
 
   test('an unshared look has none, and is not served', async () => {
     const { look } = await (await req('/api/looks', { method: 'POST',
-      body: { title: 'Private', layers: [{ name: 'a', code: PIXEL }], chain: 2 } })).json();
+      body: { title: 'Private', layers: glow(), chain: 2 } })).json();
     await app.previews?.idle();
     assert.equal(existsSync(path.join(dataDir, 'previews', `${look.id}.webp`)), false);
     const mine = (await (await req('/api/looks?scope=mine')).json()).looks.find((l) => l.id === look.id);
@@ -166,7 +169,7 @@ describe('previews of shared looks', () => {
   test('a deleted account\'s previews go at once', async () => {
     const cy = await signup('cyril');
     const { look } = await (await req('/api/looks', { method: 'POST', as: cy,
-      body: { title: 'Doomed', layers: [{ name: 'a', code: PIXEL }], shared: true, chain: 2 } })).json();
+      body: { title: 'Doomed', layers: glow(), shared: true, chain: 2 } })).json();
     await until(async () => (await gallery()).find((l) => l.id === look.id)?.preview);
     const mine = async () => (await readdir(path.join(dataDir, 'previews'))).filter((f) => f.startsWith(look.id));
     assert.equal((await mine()).length, 2);
@@ -178,19 +181,20 @@ describe('previews of shared looks', () => {
   test('a preview being made when its account is deleted is not kept', async () => {
     const dot = await signup('dorothy');
     await (await req('/api/looks', { method: 'POST', as: dot,
-      body: { title: 'Held', layers: [{ name: 'a', code: `// hold\n${PIXEL}` }], shared: true, chain: 2 } })).json();
+      body: { title: 'Held', layers: glow({ hold: 1 }), shared: true, chain: 2 } })).json();
     await rendering;   // its preview is being made, waiting on the render box
     assert.equal((await req('/api/me', { method: 'DELETE', as: dot, body: { password: 'correct horse battery' } }))
       .status, 200);
     release();
     await app.previews.idle();
-    const ids = new Set((await gallery()).map((l) => l.id));
-    assert.deepEqual((await readdir(path.join(dataDir, 'previews'))).filter((f) => !ids.has(f.split('-')[0])), []);
+    const ids = (await gallery()).map((l) => l.id);   // an id may hold a '-' itself
+    assert.deepEqual((await readdir(path.join(dataDir, 'previews')))
+      .filter((f) => !ids.some((id) => f.startsWith(`${id}-`))), []);
   });
 
   test('a server started on another rig makes the shared looks\' previews again', async () => {
     const { look } = await (await req('/api/looks', { method: 'POST',
-      body: { title: 'Moved', layers: [{ name: 'a', code: PIXEL }], shared: true, chain: 2 } })).json();
+      body: { title: 'Moved', layers: glow(), shared: true, chain: 2 } })).json();
     const key = await until(async () => (await gallery()).find((l) => l.id === look.id)?.preview);
     await app.close();
     await start('cog');

@@ -19,8 +19,8 @@ npm run dev            # the same with Vite's dev server and hot reload, on http
 npm run check          # typecheck, lint, then every test: green before anything is done
 ```
 
-- Bakes need bubblewrap (`apt install bubblewrap`) and unprivileged user namespaces; without them only looks made
-  of unchanged library patterns bake (SPEC-baking). Admins can throttle baking or turn it off (Admin › Baking).
+- Bakes need prlimit (util-linux); only looks of library patterns save and bake (SPEC-baking). Admins can throttle
+  baking or turn it off (Admin › Baking).
 - Models: people pick one per idea from `data/models.json` (Opus with `ANTHROPIC_API_KEY`; Sol and Luna through the
   Codex CLI after `codex login`). Admins (`STUDIO_ADMINS=you`) change it under Admin › Models; docs/HOSTING.md
   "Models" has the file and the setup.
