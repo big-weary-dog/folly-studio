@@ -2,11 +2,11 @@
 // library's current file, ignoring any code stored, and writes keep none. A module without a ref, or whose code is
 // not its ref's, takes the ref of the one entry whose current or earlier file (history.json) its code is exactly. The
 // library, hidden entries too, is read again at most every REFRESH_MS, so a list of looks costs one read of it. A
-// bake (and the review that rests on it) of other code than the look's now is left out of what a read gives.
+// look or version keeps the hash of the code it was saved with (`codeHash`): when the library changes that code, a
+// read leaves out the look's bake and review, and a version's review.
 import { readFileSync } from 'node:fs';
 
 import type { LibraryEntry } from '../shared/schemas/rig.ts';
-import { layersHash, renderFields } from './bake.ts';
 import { sha256 } from './library-history.ts';
 
 const REFRESH_MS = 2000;
@@ -39,16 +39,6 @@ function fill(m: Node, ref: unknown, code: string) {
   for (const k of Object.keys(m)) delete m[k];
   for (const k of FIRST) if (k in was) m[k] = was[k];
   for (const [k, v] of Object.entries(was)) if (!FIRST.includes(k)) m[k] = v;
-}
-
-/** `look` (changed in place) without a bake of other code than its own now, nor the review that rested on it. */
-function withoutStaleBake(look: Node) {
-  const bake = look.bake as { layersHash?: unknown } | undefined;
-  if (!bake?.layersHash || bake.layersHash === layersHash(renderFields(look as Parameters<typeof renderFields>[0]))) {
-    return;
-  }
-  for (const k of ['bake', 'reviewedBy', 'flashOverride']) delete look[k];
-  if ('reviewed' in look) look.reviewed = false;
 }
 
 /** A look's versions. */
@@ -99,25 +89,29 @@ export function libraryRefs(loadLibrary: () => readonly LibraryEntry[], historyF
     fill(m, ref, (typeof ref === 'string' && lib.codes.get(ref)) || '');
   });
   return {
-    /** `look` (changed in place) with every module's code its ref's current file ('' for a ref the library lacks),
-     * no bake (nor review) of other code, and a version whose code is not what it was saved with not reviewed. */
+    /** `look` (changed in place) with every module's code its ref's current file ('' for a ref the library lacks);
+     * one whose code is not what it was saved with has no bake, and is not reviewed, nor is such a version. */
     read<T extends object>(doc: T): T {
       const look = doc as Node, lib = library();
-      filled(look.layers, lib);
-      withoutStaleBake(look);
-      for (const v of versionsOf(look)) {
-        const was = v.codeHash ?? codeHash(v.layers);
-        delete v.codeHash;
-        filled(v.layers, lib);
-        if (was !== null && was !== codeHash(v.layers) && v.reviewed) v.reviewed = false;
+      for (const node of [look, ...versionsOf(look)]) {
+        const was = node.codeHash ?? codeHash(node.layers);
+        delete node.codeHash;
+        filled(node.layers, lib);
+        if (was === null || was === codeHash(node.layers)) continue;
+        if (node !== look) {
+          if (node.reviewed) node.reviewed = false;
+          continue;
+        }
+        for (const k of ['bake', 'reviewedBy', 'flashOverride']) delete look[k];
+        if ('reviewed' in look) look.reviewed = false;
       }
       return doc;
     },
-    /** `look` (changed in place) with each module's ref set and no code kept; each version with the hash of the code
-     * it was saved with (`codeHash`), so a read knows when the library changed it. */
+    /** `look` (changed in place) with each module's ref set and no code kept, it and each version with the hash of
+     * the code it was saved with (`codeHash`), so a read knows when the library changed it. */
     write<T extends object>(doc: T): T {
       const look = doc as Node, lib = library();
-      for (const v of versionsOf(look)) v.codeHash = codeHash(v.layers) ?? v.codeHash;
+      for (const node of [look, ...versionsOf(look)]) node.codeHash = codeHash(node.layers) ?? node.codeHash;
       for (const layers of [look.layers, ...versionsOf(look).map((v) => v.layers)]) {
         eachModule(layers, (m) => {
           const ref = refOf(m, lib);

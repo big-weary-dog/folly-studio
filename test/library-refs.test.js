@@ -64,6 +64,13 @@ test('a bake of other code than the look\'s now is left out, with its review; a 
     // A rebake asked for: the review that rested on the stale bake stays gone.
     const asked = store.looks.update(old.id, { bake: { status: 'queued' } });
     assert.deepEqual([asked.reviewed, asked.reviewedBy, asked.versions[0].reviewed], [false, undefined, false]);
+    // Saved while noise was its earlier file, mid-rebake (its bake has no hash yet); then the library changed.
+    const saved = refs.write({ layers: layers(oldNoise), reviewed: true, reviewedBy: 'u2',
+      bake: { status: 'running' } });
+    assert.ok(saved.codeHash && !('code' in saved.layers[0].modules[0]));
+    const busy = refs.read(saved);
+    assert.deepEqual([busy.bake, busy.reviewed, busy.reviewedBy, busy.codeHash],
+      [undefined, false, undefined, undefined]);
     const now = store.looks.create(baked(file('noise')));
     assert.equal(now.bake?.layersHash, layersHash(renderFields(now)));
     const shared = store.looks.update(now.id, { shared: true });
