@@ -65,7 +65,7 @@ export async function createServer(opts: Options = {}) {
 
   const loaders = createLoaders(publicDir, { log, rigFile });
   // A look's code is its modules' library files, never what is stored (SPEC-looks "Modules").
-  const views = { looks: libraryRefs(loaders.loadLibrary, path.join(publicDir, 'patterns', 'history.json')) };
+  const views = { looks: libraryRefs(loaders.loadLibrary) };
   const filled = (look: StoredLook) => views.looks.read(structuredClone(look));
   const store = await createStore(dataDir, { log, views,
     upgrade: { looks: (l) => upgradeStored(l, { ...views.looks, filled }) } });
@@ -81,7 +81,8 @@ export async function createServer(opts: Options = {}) {
   // Baked frames are encoded for streaming as soon as they are stored (src/frames-cache.ts); bakes and those
   // encodes take turns at low priority, and evicted frames are baked again on demand.
   const lane = createLane();
-  const reports = createReports({ dir: path.join(dataDir, 'reports'), ...opts.reports, log });
+  const reports = createReports({ dir: path.join(dataDir, 'reports'), days: config.STUDIO_REPORTS_DAYS,
+    ...opts.reports, log });
   void reports.sweep();
   const framesDir = path.join(dataDir, 'frames');
   const frames = createFramesCache({ framesDir, store, log, quality: framesQuality, maxBytes: framesMaxBytes, lane,

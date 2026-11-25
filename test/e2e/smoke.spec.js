@@ -9,12 +9,10 @@
 // The real server and a fresh build (studio.js); WebGL on SwiftShader. Every request stays on our origin, and the
 // console stays free of errors and CSP reports. Screenshots of each step land in the test's output folder.
 import { createRenderBox } from '../../src/render-box.ts';
-import { expect, quiet, test } from './studio.js';
+import { quiet } from '../fixtures/quiet.js';
+import { SIZES } from './sizes.js';
+import { expect, test } from './studio.js';
 
-const SIZES = {
-  laptop: { viewport: { width: 1366, height: 768 } },
-  phone: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
-};
 const BAKE = /^(?:Save & bake|Bake|Bake again)$/;
 
 for (const [name, device] of Object.entries(SIZES)) {
@@ -45,12 +43,12 @@ for (const [name, device] of Object.entries(SIZES)) {
         : page.locator(`.tab[data-tab=${tab}]`)).click();
 
       await test.step('sign up', async () => {
-        await page.goto(`${origin}/`);
+        await page.goto(`${origin}/login`);
         await page.getByRole('button', { name: 'Sign up' }).click();
         await page.fill('input[name=username]', `smoke-${name}`);
         await page.fill('input[name=password]', 'correct horse');
         await page.locator('form button[type=submit]').click();
-        await expect(page).toHaveURL(/\/looks$/, { timeout: 20_000 });
+        await expect(page).toHaveURL(/\/gallery$/, { timeout: 20_000 });
         await page.goto(`${origin}/studio`);
       });
 

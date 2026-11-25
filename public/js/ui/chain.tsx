@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 import type { Module } from '../../../shared/schemas/look.ts';
 import { standardTitle } from '../../../shared/standard-modules.ts';
-import { flatModules } from '../core/tree.ts';
+import { flatModules } from '../../../core/tree.ts';
 import { Field, loadFailed, toast } from './kit.tsx';
 import { moduleFromLibrary } from './model.ts';
 import { ChainList, isLone, SubWhere, type TreeCtx } from './chain-tree.tsx';

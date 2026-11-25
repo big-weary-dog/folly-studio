@@ -5,10 +5,11 @@
 import { readFileSync } from 'node:fs';
 import { parentPort, workerData } from 'node:worker_threads';
 
-import * as core from '../../public/js/pattern-core.ts';
-import { ledRanges, writeFseq } from '../../public/js/fseq.ts';
+import * as core from '../../core/pattern-core.ts';
+import { ledRanges, writeFseq } from '../../core/fseq.ts';
 import { renderer } from '../../render-box/renderer.ts';
 import { analyzeFrames, parseFseq } from '../../src/frames.ts';
+import { libraryCode } from './patterns.js';
 
 const here = (p) => new URL(p, import.meta.url);
 const rig = JSON.parse(readFileSync(here('../../public/data/rig.json'), 'utf8'));
@@ -19,7 +20,7 @@ const watch = new core.FlashWatch(scene, null, { record: true });
 function made(n) {
   if (n.layers) return n;
   const { name, params } = typeof n === 'string' ? { name: n } : n;
-  const code = readFileSync(here(`../../public/patterns/${name}.js`), 'utf8');
+  const code = libraryCode(name);
   return { name, layers: [{ id: name, code, params }], look: {} };
 }
 

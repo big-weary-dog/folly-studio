@@ -72,7 +72,7 @@ test('budgets.ts: sizes, hygiene, remote URLs, secrets, silences and the ratchet
 test('.oxlintrc.jsonc: the safety rules, the import boundaries and the allowlist', () => {
   const root = tree({
     'src/server.js': ["import vm from 'node:vm';", "import { spawn } from 'node:child_process';",
-      "import { h } from '../public/js/ui/dom.js';", "import { run } from '../public/js/pattern-core.ts';",
+      "import { h } from '../public/js/ui/dom.js';", "import { run } from '../core/pattern-core.ts';",
       "import rig from '../public/data/rig.json' with { type: 'json' };", 'console.warn(vm, spawn, h, run, rig);',
       "console.log(eval('1'), new Function('')); debugger;", ''].join('\n'),
     'src/render-box.ts': "import { spawn } from 'node:child_process';\nconsole.warn(spawn);\n",
@@ -80,8 +80,8 @@ test('.oxlintrc.jsonc: the safety rules, the import boundaries and the allowlist
     'public/js/ui/view.js': ["import { app } from '../../../src/app.js';",
       "import x from 'https://cdn.example.com/x.js';",
       'export const s = (el) => { el.innerHTML = app; document.write(x); return Math.random(); };', ''].join('\n'),
-    'public/js/core/scene.ts': 'export const r = () => Math.random();\n',
-    'public/js/core/compile.ts': 'export const make = (s) => new Function(s);\n',
+    'core/scene.ts': 'export const r = () => Math.random();\n',
+    'core/compile.ts': 'export const make = (s) => new Function(s);\n',
     'public/patterns/long.js': `${'// filler\n'.repeat(150)}const params = {};\n`
       + 'function pixel(p, t) { return [Math.random()]; }\n',
     'render-box/render.ts': "import vm from 'node:vm';\nconsole.warn(vm);\n",
@@ -94,7 +94,7 @@ test('.oxlintrc.jsonc: the safety rules, the import boundaries and the allowlist
   const found = [...r.stdout.matchAll(/^(\S+):(\d+):\d+: .*\((\S+)\)\]$/gm)]
     .map(([, file, line, rule]) => `${file}:${line} ${rule}`).sort();
   assert.deepEqual(found, [
-    'public/js/core/scene.ts:1 no-restricted-properties', 'public/js/ui/view.js:1 no-restricted-imports',
+    'core/scene.ts:1 no-restricted-properties', 'public/js/ui/view.js:1 no-restricted-imports',
     'public/js/ui/view.js:2 no-restricted-imports', 'public/js/ui/view.js:3 no-restricted-properties',
     'public/js/ui/view.js:3 no-restricted-properties', 'public/patterns/long.js:152 max-lines',
     'public/patterns/long.js:152 no-restricted-properties', 'src/server.js:1 no-restricted-imports',

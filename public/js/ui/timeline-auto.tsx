@@ -3,7 +3,7 @@
 // double-click one to remove it.
 import { useId, useLayoutEffect, useRef } from 'preact/hooks';
 
-import { MAX_MACROS, MAX_POINTS } from '../core/globals.ts';
+import { MAX_MACROS, MAX_POINTS } from '../../../core/globals.ts';
 import type { Automation } from '../../../shared/schemas/look.ts';
 import { humanize, onSpan } from './kit.tsx';
 import { automate } from './automation-edit.ts';

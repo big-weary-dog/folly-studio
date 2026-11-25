@@ -10,12 +10,11 @@ import zlib from 'node:zlib';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { createServer } from '../src/app.ts';
 import { etagMatches, pickEncoding } from '../src/http.ts';
 import { CACHE_ASSET, CACHE_IMMUTABLE, CACHE_PAGE, CSP_APP, CSP_WORKER } from '../src/static.ts';
 import { precompress } from '../tools/vite-compress.ts';
+import { serve } from './fixtures/app.js';
 
-const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const BIG_JS = `// a module big enough to compress\n${
   'export const lights = ["ruby", "sapphire", "amber", "emerald"];\n'.repeat(80)}`;
 const WORKER = `(function(){${'/* patterns */'.repeat(100)}})();`;
@@ -26,7 +25,7 @@ const FILES: Record<string, string | Buffer> = {
   'assets/rig-Ab12Cd34.json': JSON.stringify({ pos: Array.from({ length: 3000 }, (_, i) => +(i * 0.137).toFixed(3)) }),
   '.vite/manifest.json': '{}',
 };
-let dir: string, app: Awaited<ReturnType<typeof createServer>>, port: number;
+let dir: string, app: Awaited<ReturnType<typeof serve>>, port: number;
 
 /** What the build does after writing `files`: their .br and .gz copies. */
 const packed = (files: string[]) => (precompress() as { writeBundle: (o: object, b: object) => Promise<void> })
@@ -52,8 +51,8 @@ beforeAll(async () => {
     await writeFile(path.join(dir, f), body);
   }
   await packed(Object.keys(FILES));
-  app = await createServer({ dataDir: path.join(dir, '.data'), distDir: dir, log: quiet });
-  port = (await app.listen(0)).port;
+  app = await serve({ dataDir: path.join(dir, '.data'), distDir: dir });
+  port = app.port;
 });
 
 afterAll(async () => {

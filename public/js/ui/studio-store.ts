@@ -13,7 +13,7 @@ import { replaceUrl, setTitle } from './session.ts';
 import { pref, reducedMotion, toast } from './kit.tsx';
 import { changes, CONTENT, createSteps, type EditOptions, type Step } from './history/steps.ts';
 import { createLayerStatus } from './layer-status.ts';
-import { flatModules, mapEvery, mapModule } from '../core/tree.ts';
+import { flatModules, mapEvery, mapModule } from '../../../core/tree.ts';
 import {
   buildGroupIndex, cleanLayer, type GroupIndex, type Layer, layerFromPattern, newLayer, normaliseLayers,
 } from './model.ts';
@@ -212,7 +212,7 @@ export function createStudio(me: User | null) {
           shared: !!from.shared, layers: normaliseLayers(from.layers, rig),
           owner: from.owner, ownerName: from.ownerName, duration: cleanDuration(from.duration),
           bpm: cleanBpm(from.bpm), globals: copy(from.globals) || {}, automation: copy(from.automation) });
-        copyOnSave.value = !!(me && from.owner && from.owner !== me.id);
+        copyOnSave.value = !!from.owner && from.owner !== me?.id;   // never a visitor's own
         server.value = from;
         setTitle(L.title);
       }
@@ -268,7 +268,7 @@ export function createStudio(me: User | null) {
     /** Saves the look: true once saved; false when it failed (and said so) or a save is already running. */
     async save(extra: Pick<LookPatch, 'restoredFrom' | 'versionName'> = {}) {
       if (!ready.value || saving.value) return false;
-      if (me?.guest) return guestSave(st);
+      if (!me || me.guest) return guestSave(st);   // a guest, or a visitor
       if (previewing.value) {
         toast('You are previewing a version: restore it, or go back to your work, to save.', { kind: 'warn' });
         return false;

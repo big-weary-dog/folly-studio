@@ -19,7 +19,7 @@ import { framesRoutes } from './frames-http.ts';
 import type { LightStore } from './light.ts';
 import type { Reports } from './reports/store.ts';
 import type { createPreviews } from './previews/index.ts';
-import { adminsDeclared, checkMutation, HttpError, type Log, parse, routes, sendJson } from './http.ts';
+import { adminsDeclared, checkMutation, forAnyone, HttpError, type Log, parse, routes, sendJson } from './http.ts';
 import type { RigName } from '../shared/schemas/rig.ts';
 import type { createLoaders } from './static.ts';
 import type { Store } from './store.ts';
@@ -104,13 +104,16 @@ export function apiRoutes(o: { store: Store, auth: Auth, log: Log,
       ...accountRoutes(api, { ...removal, limit: { max: limits.max, windowMs: limits.windowMs },
         clearCookie: (reply) => reply.setCookie(COOKIE_NAME, '', cookie(0)) }),
       ...peopleRoutes(removal),
-      'GET /me': async (req) => ({ user: auth.publicUser(req.user), flash, rig }),
+      // Who is signed in, if anyone, and what the app needs either way (SPEC-access "Visitors").
+      'GET /me': forAnyone(async (req) => ({ user: req.user && auth.publicUser(req.user), flash, rig })),
       ...lightRoutes({ light: o.light }),
       ...(o.baking ? bakingRoutes(o.baking) : {}),
       ...o.stats,
       ...reports,
       ...looks.routes,
       ...framesRoutes({ framesDir, cache: frames, visibleLook: looks.visibleLook }),
+      // How long bug reports stay, for the privacy page (SPEC-access "Privacy"), signed in or not.
+      'GET /privacy': [async () => ({ reportDays: o.reports.days }), { public: true }],
       'GET /library': [async () => ({ patterns: loaders.loadLibrary()
         .map(({ name, title, summary, tags, kind, category, code, ...rest }) => ({ name, title, summary, tags, kind,
           category, code, ...('hidden' in rest && rest.hidden ? { hidden: true } : {}),

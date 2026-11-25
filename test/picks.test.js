@@ -10,7 +10,7 @@ import { describe, test } from 'vitest';
 import {
   compileLayer, compileModule, DEFAULT_PALETTE, prepareLayer, prepareLook, prepareScene, renderFrame, resolveParams,
   setLibrary,
-} from '../public/js/pattern-core.ts';
+} from '../core/pattern-core.ts';
 import { LookCreate } from '../shared/schemas/api.ts';
 import { dropRemaps } from '../shared/schemas/look.ts';
 import { fade } from './fixtures/oklab.js';

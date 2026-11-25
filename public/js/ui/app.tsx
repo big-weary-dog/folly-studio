@@ -12,10 +12,13 @@ import { confirmDialog, cx, toast, Toasts } from './kit.tsx';
 import { canReport, fileBugReport } from './bug-report.tsx';
 import { Rose } from './rose.tsx';
 import { openTour, welcomeOnce } from './tour-view.ts';
-import { here, home, leaveGuard, navigate, router, setTitle, signedIn, user, type ViewProps } from './session.ts';
+import { advanced, HOME, here, leaveGuard, navigate, router, setAdvanced, setTitle, signedIn, user,
+  type ViewProps } from './session.ts';
 
 interface Route {
-  re: RegExp; name: string; title: string; load: () => Promise<ComponentType<ViewProps>>; public?: boolean;
+  re: RegExp; name: string; title: string; load: () => Promise<ComponentType<ViewProps>>;
+  /** public: signed out only (sign-in); open: anyone. */
+  public?: boolean; open?: boolean;
   nav?: string; keys?: string[]; scope?: 'mine' | 'gallery';
 }
 const pages = () => import('./pages.tsx');
@@ -25,15 +28,20 @@ const adminTab = (tab: string, load: Route['load']) => () => Promise.all([import
 // /admin opens its first tab; the admin pages' old URLs lead to theirs.
 const MOVED: Record<string, string> = { '/admin': '/admin/light', '/admin/models': '/admin/light',
   '/admin/access': '/admin/light', '/models': '/admin/light', '/access': '/admin/light', '/light': '/admin/light',
-  '/reports': '/admin/reports', '/ideas': '/looks' };
+  '/reports': '/admin/reports' };
 const ROUTES: Route[] = [
   { re: /^\/login\/?$/, name: 'auth', title: 'Sign in', public: true,
     load: () => import('./auth.tsx').then((m) => m.Auth) },
-  { re: /^\/studio(?:\/([^/]+))?\/?$/, name: 'studio', title: 'Studio', nav: '/studio', keys: ['lookId'],
+  { re: /^\/privacy\/?$/, name: 'privacy', title: 'Privacy', nav: '/privacy', open: true,
+    load: () => import('./privacy.tsx').then((m) => m.PrivacyPage) },
+  // A look's share link is open to visitors too; a new one is for the signed in (SPEC-access "Visitors").
+  { re: /^\/studio\/([^/]+)\/?$/, name: 'studio', title: 'Studio', nav: '/studio', keys: ['lookId'], open: true,
+    load: () => import('./studio.tsx').then((m) => m.Studio) },
+  { re: /^\/studio\/?$/, name: 'studio', title: 'Studio', nav: '/studio',
     load: () => import('./studio.tsx').then((m) => m.Studio) },
   { re: /^\/looks\/?$/, name: 'looks', title: 'My looks', nav: '/looks', scope: 'mine',
     load: () => pages().then((m) => m.Looks) },
-  { re: /^\/gallery\/?$/, name: 'gallery', title: 'Gallery', nav: '/gallery', scope: 'gallery',
+  { re: /^\/gallery\/?$/, name: 'gallery', title: 'Gallery', nav: '/gallery', scope: 'gallery', open: true,
     load: () => pages().then((m) => m.Looks) },
   { re: /^\/account\/?$/, name: 'account', title: 'Account', nav: '/account',
     load: () => import('./account.tsx').then((m) => m.AccountPage) },
@@ -51,24 +59,26 @@ const ROUTES: Route[] = [
 
 /** Where to go after signing in: `next` when it is a page of this app, else home. */
 export const safeNext = (next: string | null) => (next && next.startsWith('/') && !next.startsWith('//')
-  && !next.startsWith('/login') ? next : home());
+  && !next.startsWith('/login') ? next : HOME);
 
 /** Where a path leads: a redirect, or a route and its params. */
 export function resolve(path: string, search: string, signedIn: boolean):
   { redirect: string } | { route: Route; params: Record<string, string> } {
-  if (path === '/' || path === '') return { redirect: signedIn ? home() : '/login' };
+  if (path === '/' || path === '') return { redirect: HOME };
   const moved = MOVED[path.replace(/\/$/, '')];
   if (moved) return { redirect: moved + search };
   for (const route of ROUTES) {
     const m = route.re.exec(path);
     if (!m) continue;
-    if (!route.public && !signedIn) return { redirect: `/login?next=${encodeURIComponent(path + search)}` };
+    if (!route.public && !route.open && !signedIn) {
+      return { redirect: `/login?next=${encodeURIComponent(path + search)}` };
+    }
     if (route.public && signedIn) return { redirect: safeNext(new URLSearchParams(search).get('next')) };
     const params: Record<string, string> = {};
     (route.keys || []).forEach((k, i) => { if (m[i + 1]) params[k] = decodeURIComponent(m[i + 1]); });
     return { route, params };
   }
-  return { redirect: home() };
+  return { redirect: HOME };
 }
 
 const current = signal<{ route: Route; props: ViewProps; View: ComponentType<ViewProps>; key: number } | null>(null);
@@ -117,8 +127,16 @@ async function logout() {
 
 const NAV = [['/studio', 'Studio'], ['/looks', 'My looks'], ['/gallery', 'Gallery']];
 const ADMIN_NAV = [...NAV, ['/admin', 'Admin']];
-/** The header's links: no My looks for a guest. */
-const navOf = (me: User) => (can(me, 'admin') ? ADMIN_NAV : NAV).filter(([href]) => !(me.guest && href === '/looks'));
+/** The header's links: no My looks for a guest; the gallery alone for a visitor. */
+const navOf = (me: User | null) => (!me ? [['/gallery', 'Gallery']] : can(me, 'admin') ? ADMIN_NAV : NAV)
+  .filter(([href]) => !(me?.guest && href === '/looks'));
+
+/** A visitor's Try it in the header: in as a guest where they are, the page kept (a Studio's edits with it: the
+ * Studio already treats a visitor as a guest). */
+async function tryIt() {
+  try { signedIn(await api.guest()); } catch (err) { toast((err as Error).message, { kind: 'error' }); return; }
+  welcomeOnce(user.value);
+}
 
 /** The user menu drops under its button at a desktop's width; on a phone it sits open in the nav panel. */
 function placeUserMenu(e: { newState: string; currentTarget: HTMLElement }) {
@@ -128,7 +146,15 @@ function placeUserMenu(e: { newState: string; currentTarget: HTMLElement }) {
   }
 }
 
-function Header({ me, nav }: { me: User; nav?: string }) {
+/** A visitor's Try it and Log in: in the bar, or in the menu where a phone's Studio leaves the bar no room. */
+function VisitorWayIn({ where }: { where: 'visitor-box' | 'visitor-menu' }) {
+  return <div class={where}>
+    <button class="btn primary small" type="button" onClick={() => void tryIt()}>Try it</button>
+    <a class="btn ghost small" href={`/login?next=${encodeURIComponent(here())}`}>Log in</a>
+  </div>;
+}
+
+function Header({ me, nav }: { me: User | null; nav?: string }) {
   const [open, setOpen] = useState(false);
   useLayoutEffect(() => {
     if (!open) return undefined;
@@ -142,10 +168,11 @@ function Header({ me, nav }: { me: User; nav?: string }) {
   }, [open]);
   return (
     <header class={cx('app-header', open && 'nav-open')} id="app-header">
-      <a class="brand" href={home()} aria-label="Folly Studio home">
+      <a class="brand" href={HOME} aria-label="Folly Studio home">
         <span class="brand-mark"><Rose /></span>
         <svg class="wordmark" aria-hidden="true"><use href="#wordmark" /></svg>
       </a>
+      {!me && <VisitorWayIn where="visitor-box" />}
       <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded={open} aria-controls="nav-panel"
         onClick={() => setOpen(!open)}>
         <span class="sr-only">Menu</span><span class="nav-toggle-bars" aria-hidden="true" />
@@ -157,7 +184,8 @@ function Header({ me, nav }: { me: User; nav?: string }) {
           {navOf(me).map(([href, text]) => <a href={href}
             data-tour={`nav:${href.slice(1)}`} aria-current={nav === href ? 'page' : undefined}>{text}</a>)}
         </nav>
-        <div class="user-box">
+        {!me && <VisitorWayIn where="visitor-menu" />}
+        {me && <div class="user-box">
           <span class="user-name">{me.username}</span>
           <button class="user-menu-btn" id="user-menu-btn" type="button" popovertarget="user-menu"
             aria-haspopup="menu" data-tour="user-menu"><span class="user-name">{me.username}</span></button>
@@ -168,12 +196,15 @@ function Header({ me, nav }: { me: User; nav?: string }) {
             onClick={(e) => { if ((e.target as Element).closest('.btn')) e.currentTarget.hidePopover?.(); }}>
             <button class="btn ghost small tutorials-btn" type="button" onClick={() => openTour('menu')}>
               Tutorials</button>
+            <button class="btn ghost small advanced-btn" type="button" aria-pressed={advanced.value}
+              onClick={() => setAdvanced(!advanced.peek())}>Advanced editing</button>
             {!me.guest && <a class="btn ghost small" href="/account">Account</a>}
+            <a class="btn ghost small" href="/privacy">Privacy</a>
             {canReport(me) && <button class="btn ghost small report-btn" type="button" title="Report a problem (F8)"
               onClick={() => { setOpen(false); void fileBugReport(); }}>Report a problem</button>}
             <button class="btn ghost small" type="button" onClick={logout}>{me.guest ? 'Leave' : 'Log out'}</button>
           </div>
-        </div>
+        </div>}
       </div>
     </header>);
 }
@@ -181,7 +212,7 @@ function Header({ me, nav }: { me: User; nav?: string }) {
 export function App() {
   const cur = current.value, name = cur ? cur.route.nav?.slice(1) || 'auth' : null;
   return <>
-    {user.value && <Header me={user.value} nav={cur?.route.nav} />}
+    {(user.value || cur?.route.open) && <Header me={user.value} nav={cur?.route.nav} />}
     <main id="main" tabindex={-1} class={name ? `view view-${name}` : undefined}>
       {cur ? <cur.View key={cur.key} {...cur.props} />
         : <div class="boot-msg" aria-live="polite"><Rose detail="full" class="rose-loader" />Lighting the candles…

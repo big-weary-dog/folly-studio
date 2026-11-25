@@ -5,8 +5,8 @@ import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
-import { normalizeGlobals, prepareLook } from '../public/js/pattern-core.ts';
-import { lookFrame } from '../public/js/core/globals.ts';
+import { normalizeGlobals, prepareLook } from '../core/pattern-core.ts';
+import { lookFrame } from '../core/globals.ts';
 import { Globals } from '../shared/schemas/look.ts';
 import { freeName, renameMacro } from '../public/js/ui/look-globals-edit.ts';
 import { macroUses, moveText, useText } from '../public/js/ui/mod-uses.ts';

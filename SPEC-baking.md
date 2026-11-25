@@ -11,7 +11,8 @@ light and flash settings. Frames must match the requested baked length, rig step
 layout. A reported layer error fails the bake; the box's own `ok` can never make it pass. Bakes use a stable FSEQ
 identifier so identical rebakes have identical file hashes.
 
-Before attaching a record, after storing its frames, the queue rechecks the look's render fields and baked length.
+Before attaching a record, after storing its frames, the queue rechecks the look's render fields and baked length;
+a look deleted or changed meanwhile gets no record, and the frames it stored are removed.
 Review requires a bake of both the current render fields and `min(duration, configured bake cap)` seconds (the
 default duration when omitted). Restoring evicted frames refreshes their checks while retaining the review.
 Verification timestamps preserve check order even when the host's wall clock steps backward.
@@ -36,23 +37,22 @@ Bakes under way finish; ones still queued fail with that reason. The page also s
 ```
 POST   /api/looks/:id/bake          → 202 { bake } (SPEC "HTTP API"); 503 while baking is off or there is no render
                                     box, 429 when the queue is full
-GET    /api/baking                  → { mode, box: { ok, reason? } }  everyone signed in
+GET    /api/baking                  → { mode, box: { ok, reason? } }  anyone, signed in or not
 PUT    /api/admin/baking  { mode }  → the same, after writing baking.json; admins only (403); 400 names the problem
 ```
 
 ## Library only
 
 Looks take only library patterns, on every server, and nothing turns that off. A look saved (POST or PUT
-/api/looks, an import) has each module name a library module by `ref` alone, or carry a library pattern's current or
-earlier committed file exactly (by SHA-256 against `public/patterns`' files the index lists, hidden ones too, and the
-shipped `public/patterns/history.json` catalogue of earlier ones). A composite has no code of its own: one whose
-`code` is not empty is custom, and its sub-layers' modules are checked. Anything else is refused with 403, naming
-the module ("Only looks made of unchanged library patterns save; Layer 2's Fire is custom code."). So tuning params,
-restoring a version and copying a gallery look go on as before. The Studio has no code editor and its pickers offer
-only library modules. Stored looks hold refs alone (SPEC-looks "Modules"), so every read, and so every bake, has
-library code only. A PUT or import that keeps a module the library refuses is 403, whatever else it changes; one
-replacing the layers with library modules saves, as their repair.
-On saving or importing, exact historical copies of patterns still in the library move to its current code,
-keeping their params for the library's upgrade hooks, so imported looks play and bake.
-The catalogue is rebuilt with `node tools/pattern-history.ts` from the indexed library files in committed history;
-it contains hashes only, never executable code.
+/api/looks, an import) has each module name a library module by `ref`, or, with no ref the library has, carry a
+library pattern's current file exactly (by SHA-256 against `public/patterns`' files the index lists, hidden ones too).
+A module naming a library module is that module: code it carries is dropped for the library's current file, so an
+edited or earlier copy saves as the library's (its params kept, for the pattern's upgrade hooks). A composite has no
+code of its own: one whose `code` is not empty, or that has no sub-layers, is custom, and its sub-layers' modules are
+checked. Anything else is refused with 403, naming the module: a ref the library lacks plainly ("Layer 2's Tendril
+names tendril, which the library does not have."), other code as custom ("Only looks made of unchanged library
+patterns save; Layer 2's Fire is custom code."). So tuning params, restoring a version and copying a gallery look go
+on as before. The Studio has no code editor and its pickers offer only library modules. Stored looks hold refs alone
+(SPEC-looks "Modules"), so every read, and so every bake, has library code only. A PUT or import that keeps a module
+the library refuses is 403, whatever else it changes; one replacing the layers with library modules saves, as their
+repair.

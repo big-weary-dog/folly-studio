@@ -92,7 +92,7 @@ export function check(root: string) {
     if (text.charCodeAt(0) === 0xfeff) report(1, 'no-bom', 'byte-order mark');
     if (text && !text.endsWith('\n')) report(count, 'final-newline', 'no newline at the end of the file');
     if (rel.endsWith('.json') && parse(text) === undefined) report(1, 'json', 'does not parse as JSON');
-    const remote = /^public\/.*\.(?:css|html)$/.test(rel), browser = /^public\/js\/.*\.[jt]sx?$/.test(rel);
+    const remote = /^public\/.*\.(?:css|html)$/.test(rel), browser = /^(?:public\/js|core)\/.*\.[jt]sx?$/.test(rel);
     const crlf = lines.findIndex((l) => l.endsWith('\r'));
     if (crlf >= 0) report(crlf + 1, 'no-crlf', 'CRLF line ending');
     lines.forEach((l, i) => {

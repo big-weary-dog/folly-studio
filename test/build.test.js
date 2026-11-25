@@ -12,14 +12,14 @@ import zlib from 'node:zlib';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { createServer } from '../src/app.ts';
 import { CACHE_IMMUTABLE, CACHE_PAGE, CSP_APP, CSP_WORKER } from '../src/static.ts';
 import { builtApp, removeBuiltApp } from './fixtures/build.js';
+import { serve, signup } from './fixtures/app.js';
+import { libraryCode } from './fixtures/patterns.js';
 
 const KB = 1024;
 const BUDGET = { total: 350 * KB, login: 40 * KB }; // CONTRIBUTING "Performance budgets"
 const LOGIN_VIEW = 'js/ui/auth.tsx';                  // the shell imports it at once for a signed-out visitor
-const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 let dist, manifest, dir, app, base;
 
 /** GET with raw headers back and the body decoded. */
@@ -44,8 +44,8 @@ beforeAll(async () => {
   dist = await builtApp();
   manifest = JSON.parse(readFileSync(path.join(dist, '.vite/manifest.json'), 'utf8'));
   dir = await mkdtemp(path.join(tmpdir(), 'studio-build-'));
-  app = await createServer({ dataDir: dir, distDir: dist, log: quiet, admins: 'wire' });
-  base = `http://127.0.0.1:${(await app.listen(0)).port}`;
+  app = await serve({ dataDir: dir, distDir: dist, admins: 'wire' });
+  base = app.base;
 });
 afterAll(async () => {
   await app.close();
@@ -93,7 +93,7 @@ describe('the built app', () => {
     const self = { postMessage: (m) => out.push(m), addEventListener: (type, fn) => { onMessage = fn; } };
     vm.runInNewContext(r.text, { self, performance, console });
     const rig = JSON.parse(readFileSync(new URL('../public/data/rig-folly.json', import.meta.url), 'utf8'));
-    const code = readFileSync(new URL('../public/patterns/clouds.js', import.meta.url), 'utf8');
+    const code = libraryCode('clouds');
     onMessage({ data: { type: 'init', rig, library: [] } });
     onMessage({ data: { type: 'look', layers: [{ id: 'a', code, groups: [rig.groups[0].id], level: 1 }] } });
     onMessage({ data: { type: 'frame', seq: 1, t: 2.5 } });
@@ -128,9 +128,7 @@ describe('the built app', () => {
 describe('the JSON API on the wire', () => {
   let cookie;
   beforeAll(async () => {
-    const r = await fetch(`${base}/api/signup`, { method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ username: 'wire', password: 'correct horse' }) });
-    cookie = r.headers.getSetCookie()[0].split(';')[0];
+    ({ cookie } = await signup(app, 'wire'));
   });
 
   test('large bodies go br or gzip, small ones plain; one ETag for every encoding', async () => {

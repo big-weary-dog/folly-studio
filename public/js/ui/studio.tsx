@@ -12,6 +12,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { api, statusOf } from '../api.ts';
 import { leaveGuard, replaceUrl, setTitle, user, type ViewProps } from './session.ts';
 import { toast } from './kit.tsx';
+import { startLook } from './layers.tsx';
 import { loadLibrary, loadRig } from './model.ts';
 import { reportPage } from './bug-report.tsx';
 import { createPreview } from './preview.ts';
@@ -44,7 +45,7 @@ export function Studio({ params, query }: ViewProps) {
     const { st, pv, els } = ctx;
     let alive = true;
     setTitle('Studio');
-    const guest = !!user.peek()?.guest;
+    const guest = !user.peek() || !!user.peek()?.guest;   // a visitor is a guest without a session
     const isDirty = () => !guest && st.dirty.peek();   // a guest's work is kept here (guest-work.ts)
     leaveGuard.isDirty = isDirty;
     leaveGuard.discard = () => { st.saved.value = JSON.stringify(st.body.peek()); };
@@ -55,9 +56,11 @@ export function Studio({ params, query }: ViewProps) {
     const unreport = reportPage('studio', studioReport(st, pv, ctx.tl));
     // ?report=<id> (admins): a bug report's moment, replayed (report-studio.ts).
     const replay = query.get('report') ? loadReport(query.get('report')!) : null;
-    const untour = showToTour(st, pv), practice = query.get('tour'), unkeep = guest ? keepGuestWork(st) : () => {};
-    // A blank Studio opens a guest's work kept in this browser (guest-work.ts); an account takes it unsaved.
-    const kept = !replay && !params.lookId && !practice ? guestWork() : null;
+    const untour = showToTour(st), practice = query.get('tour'), unkeep = guest ? keepGuestWork(st) : () => {};
+    // ?new: New look, the Start a look picker over a blank look. Otherwise a blank Studio opens a guest's work kept in
+    // this browser (guest-work.ts); an account takes it unsaved.
+    const fresh = query.has('new') && !replay && !params.lookId && !practice;
+    const kept = !replay && !params.lookId && !practice && !fresh ? guestWork() : null;
     const look = replay ? replay.then((r) => r.look) : kept ? Promise.resolve(kept)
       : loadLook(params.lookId, st.request('load'));
     Promise.all([loadRig(), library, look]).then(async ([rig, lib, from]) => {
@@ -73,6 +76,7 @@ export function Studio({ params, query }: ViewProps) {
       });
       if (replay) await (await replay).apply(st, pv, ctx.tl);
       else if (kept && !guest) adoptGuestWork(st);
+      else if (fresh) { replaceUrl('/studio'); void startLook(st, pv); }
     }).catch((err) => {
       if (!alive) return;
       pv.msg.value = { text: `Could not open the Studio: ${err.message}`, error: true };

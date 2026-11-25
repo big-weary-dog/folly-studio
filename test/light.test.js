@@ -6,11 +6,12 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { addLight, encode, previewChannels, shownLight, toLight, toValue } from '../public/js/core/light.ts';
-import { LIGHT, ledChannels, ledLight, lightOf, prepareLight, prepareScene } from '../public/js/pattern-core.ts';
+import { addLight, encode, previewChannels, shownLight, toLight, toValue } from '../core/light.ts';
+import { LIGHT, ledChannels, ledLight, lightOf, prepareLight, prepareScene } from '../core/pattern-core.ts';
 import { createLightStore } from '../src/light.ts';
 import { mini } from './fixtures/rigs.js';
-import { client, fx, signup, startApp, useFixture } from './fixtures/server.js';
+import { client, signup } from './fixtures/app.js';
+import { fx, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 const scene = prepareScene(mini);
@@ -194,9 +195,9 @@ describe('the light API', () => {
   });
   afterAll(() => app?.close());
 
-  test('everyone signed in reads them; only admins save, checked field by field', async () => {
+  test('anyone reads them, signed in or not; only admins save, checked field by field', async () => {
     assert.deepEqual((await member.get('/api/light')).json, LIGHT);
-    assert.equal((await client(app).get('/api/light')).status, 401);
+    assert.deepEqual((await client(app).get('/api/light')).json, LIGHT);
     assert.equal((await member.put('/api/admin/light', LIGHT)).status, 403);
     const bad = await admin.put('/api/admin/light', { ...LIGHT, balance: [1, 1] });
     assert.equal(bad.status, 400);

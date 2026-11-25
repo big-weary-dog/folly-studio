@@ -9,17 +9,17 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, beforeEach, describe, test } from 'vitest';
 
-import { createServer } from '../src/app.ts';
 import { BakeError, checkFrames } from '../src/box-output.ts';
 import { scopeLimits } from '../src/box-limits.ts';
 import { createRenderBox } from '../src/render-box.ts';
 import { parseFseq } from '../src/frames.ts';
+import { quiet } from './fixtures/quiet.js';
+import { serve, signup } from './fixtures/app.js';
 
 const STUDIO = fileURLToPath(new URL('../', import.meta.url));
 const PUBLIC = path.join(STUDIO, 'public');
-const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const rigFile = path.join(PUBLIC, 'data/rig-folly.json');
-const ready = fs.existsSync(rigFile) && fs.existsSync(path.join(PUBLIC, 'js/pattern-core.ts'));
+const ready = fs.existsSync(rigFile) && fs.existsSync(path.join(STUDIO, 'core/pattern-core.ts'));
 const probe = ready ? await createRenderBox({ log: quiet }).probe() : { ok: false,
   reason: 'the pattern runtime or LED map is not built' };
 const unavailable = `render box unavailable here: ${probe.reason}`;
@@ -205,19 +205,15 @@ describe('render box', () => {
 
   test('through the API: a strobe is blocked from review, one on the spirelets only warns, a calm one passes',
     async () => {
-    const app = await createServer({
+    const app = await serve({
       dataDir: path.join(tmpRoot, 'data'),
       publicDir: PUBLIC,
       curators: 'cur',
       renderBox: createRenderBox({ publicDir: PUBLIC, seconds: 4, log: quiet }),
-      log: quiet,
     });
-    const addr = await app.listen(0);
-    const base = `http://127.0.0.1:${addr.port}`;
+    const base = app.base;
     const login = async (username) => {
-      const r = await fetch(`${base}/api/signup`, { method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ username, password: 'correct horse' }) });
-      const cookie = r.headers.getSetCookie()[0].split(';')[0];
+      const { cookie } = await signup(app, username);
       return (method, p, body) =>
         fetch(base + p, { method, headers: { cookie, 'content-type': 'application/json' },
           body: body === undefined ? undefined : JSON.stringify(body) }).then(async (res) => ({ status: res.status,
@@ -253,8 +249,9 @@ describe('render box', () => {
       assert.match(warned.bake.warning, /small parts only \(spirelets\)/);
       assert.equal((await cur('PUT', `/api/looks/${small.id}`, { reviewed: true })).json.look.reviewed, true,
         'flashing on a small region alone does not block review');
-      const frames = await fetch(`${base}/api/looks/${calm.id}/frames`, { headers: { cookie: '' } });
-      assert.equal(frames.status, 401);
+      const visitor = (id) => fetch(`${base}/api/looks/${id}/frames`, { headers: { cookie: '' } });
+      assert.equal((await visitor(calm.id)).status, 200, 'a visitor reads an approved look\'s frames');
+      assert.equal((await visitor(strobe.id)).status, 404, 'and no other look\'s');
     } finally {
       await app.close();
     }

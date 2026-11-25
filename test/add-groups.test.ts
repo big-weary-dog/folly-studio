@@ -73,6 +73,20 @@ describe('Add a layer: where the new layer plays', () => {
     assert.deepEqual(pv.runtime.layers.slice(1).map((l) => l.groups), [['g2'], ['g2']]);
   });
 
+  test('Start a look auditions a preset (its globals too) or a source in place of the look, and puts it back', () => {
+    const pv = fakePreview(), two = [{ ...BASE[0], id: 'p1' }, { ...BASE[0], id: 'p2' }];
+    const A = auditioner({ pv, layer: {}, layers: () => two, replace: true });
+    const dawn = { min: 0, max: 1, value: 0.2 };
+    A.now({ ...SOURCE, kind: 'preset', layers: [], globals: { macros: { dawn } } } as never);
+    assert.deepEqual(pv.runtime.layers.map((l) => l.id), ['~audition0', '~audition1']);
+    assert.deepEqual(pv.runtime.extra, { globals: { macros: { dawn } } }, 'with the macros it needs, as picked');
+    A.now(SOURCE);
+    assert.deepEqual(pv.runtime.extra, {});
+    assert.deepEqual(pv.runtime.layers.map((l) => l.title), ['Glow']);
+    A.now(null);
+    assert.equal(pv.runtime.layers, BASE);
+  });
+
   test('the view focuses the new layer\'s groups while they are picked, then the Groups drawer\'s layer', () => {
     const st = createStudio(null);
     st.look.value = { ...st.look.value, layers: BASE };

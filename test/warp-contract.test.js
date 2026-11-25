@@ -1,15 +1,14 @@
 // The warp contract (SPEC "Modules"): a warp moves the pixel with move(), turn() or slide(), which keep every position
 // field consistent, so any warp works over any source, whatever field it reads; and mirror works under anchor.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
-import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
+import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../core/pattern-core.ts';
 import { cog, folly, lineRig } from './fixtures/rigs.js';
+import { libraryCode as lib, libraryIndex } from './fixtures/patterns.js';
 
-const lib = (name) => readFileSync(new URL(`../public/patterns/${name}.js`, import.meta.url), 'utf8');
-const index = JSON.parse(readFileSync(new URL('../public/patterns/index.json', import.meta.url), 'utf8'));
+const index = libraryIndex();
 const WARPS = index.filter((e) => e.kind === 'warp').map((e) => e.name);
 // A probe reads three fields as its colour (each wrapped into 0..1, so none clamps).
 const probe = (...f) => ({ id: 'p', kind: 'source',

@@ -38,7 +38,7 @@ export default defineConfig({
       'describe.spec.js', 'param-petals.spec.js', 'approve.spec.js', 'baking.spec.js', 'stats.spec.js',
       'pages-ux.spec.js', 'composite.spec.js', 'attached.spec.js', 'library-only.spec.js', 'guest.spec.js',
       'param-controls.spec.js', 'phone-cuts.spec.js', 'import-history.spec.js', 'palettes.spec.js', 'account.spec.js',
-      'people.spec.js'],
+      'people.spec.js', 'privacy.spec.js', 'visitor.spec.js', 'simple.spec.js'],
       timeout: 5 * 60_000 },
     { name: 'perf', testMatch: ['perf.spec.js', 'library-perf.spec.js'], timeout: 5 * 60_000 },
     { name: 'e2e', testMatch: 'mirage.spec.js', timeout: 20 * 60_000 },

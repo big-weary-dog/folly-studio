@@ -9,8 +9,9 @@ import { readFileSync } from 'node:fs';
 
 import { expect, test } from '@playwright/test';
 
-import { compileLayer, compilePattern, prepareLayer, prepareScene, renderFrame } from '../../public/js/pattern-core.ts';
+import { compileLayer, compilePattern, prepareLayer, prepareScene, renderFrame } from '../../core/pattern-core.ts';
 import { reference, timer } from './perf-calibrate.js';
+import { libraryCode as source, libraryIndex } from '../fixtures/patterns.js';
 
 // In references, which run in about 3 ms on a typical runner: a 25 ms frame for a source or a chain, 150 ms for the
 // stack. Measured: the dearest source 2.6, the dearest chain 2.5, the stack 10 (2.8, 2.9 and 12 with every CPU busy).
@@ -18,8 +19,7 @@ const MAX = { source: 8, chain: 8, stack: 50 };
 const PAIRS = 16;
 const here = (p) => new URL(p, import.meta.url);
 const read = (p) => readFileSync(here(p), 'utf8');
-const source = (name) => read(`../../public/patterns/${name}.js`);
-const index = JSON.parse(read('../../public/patterns/index.json'));
+const index = libraryIndex();
 const sources = index.filter((e) => e.kind === 'source').map((e) => e.name);
 const log = (m) => console.log(`perf: library: ${m}`);
 const median = (a) => [...a].sort((x, y) => x - y)[a.length >> 1];

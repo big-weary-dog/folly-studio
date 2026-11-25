@@ -1,6 +1,4 @@
-// Shared by the server tests: fixture public (sources) and dist (built) dirs in a temp folder, apps on port 0 with
-// a stand-in render box, and a cookie-keeping JSON client.
-import assert from 'node:assert/strict';
+// Shared by the server tests: fixture public (sources) and dist (built) dirs in a temp folder, and apps serving them.
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import http from 'node:http';
 import { tmpdir } from 'node:os';
@@ -8,9 +6,8 @@ import path from 'node:path';
 
 import { afterAll, beforeAll } from 'vitest';
 
-import { writeFseq } from '../../public/js/fseq.ts';
-import { createServer } from '../../src/app.ts';
 import { RIG_FILES } from '../../src/rig-choice.ts';
+import { serve } from './app.js';
 
 /** { tmp, publicDir, distDir } once useFixture()'s before hook has run. */
 export const fx = {};
@@ -26,7 +23,6 @@ export function useFixture() {
   afterAll(() => rm(fx.tmp, { recursive: true, force: true }));
 }
 
-export const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 export const EXPECTED_APP_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
   + "img-src 'self' data: blob:; connect-src 'self'; frame-src 'none'; worker-src 'self'; object-src 'none'; "
   + "base-uri 'none'; frame-ancestors 'none'";
@@ -73,81 +69,8 @@ async function writeFixture(dir) {
   await writeFile(path.join(dir, 'data', RIG_FILES.folly), RIG);   // the server's default rig
 }
 
-/**
- * A stand-in render box (the real one is test/bake.test.js): two seconds of
- * frames for the fixture's two LEDs, strobing at 10 Hz when a layer's params say strobe, else steady.
- */
-export function fakeBox() {
-  return {
-    renders: 0,
-    config: { seconds: 2 },
-    probe: async () => ({ ok: true }),
-    async render({ layers }) {
-      this.renders++;
-      const strobe = layers.some((l) => l.params?.strobe);
-      const data = new Uint8Array(80 * 6);
-      for (let f = 0; f < 80; f++) data.fill(strobe && Math.floor(f / 2) % 2 ? 0 : 200, f * 6, f * 6 + 6);
-      return { bytes: Buffer.from(writeFseq({ frames: 80, data, ranges: [[0, 6]] })), boxStats: { untrusted: true,
-        reported: { ok: true } } };
-    },
-  };
-}
-
-/** Passwords at a test's cost: at OWASP's, each hash takes half a second (test/auth.test.ts holds the real one). */
-const CHEAP = Object.freeze({ N: 1024, r: 8, p: 1 });
-
-export async function startApp(opts = {}) {
-  const app = await createServer({ publicDir: fx.publicDir, distDir: fx.distDir, log: quiet, scrypt: CHEAP,
-    ...opts });
-  const addr = await app.listen(0, '127.0.0.1');
-  app.base = `http://127.0.0.1:${addr.port}`;
-  app.port = addr.port;
-  return app;
-}
-
-/** A tiny cookie-keeping JSON client. */
-export function client(app) {
-  let cookie = '';
-  async function req(method, p, body, headers = {}) {
-    const h = { ...headers };
-    if (cookie && !('cookie' in h)) h.cookie = cookie;
-    if (method !== 'GET' && !('content-type' in h)) h['content-type'] = 'application/json';
-    const payload = body === undefined ? undefined : typeof body === 'string' ? body : JSON.stringify(body);
-    const res = await fetch(app.base + p, { method, headers: h, body: payload });
-    const setCookie = res.headers.getSetCookie();
-    for (const c of setCookie) {
-      const m = /^studio_session=([^;]*)/.exec(c);
-      if (m) cookie = m[1] ? `studio_session=${m[1]}` : '';
-    }
-    const text = await res.text();
-    let json;
-    try {
-      json = JSON.parse(text);
-    } catch {}
-    return { status: res.status, headers: res.headers, json, text, setCookie };
-  }
-  return {
-    req,
-    get: (p, h) => req('GET', p, undefined, h),
-    post: (p, b, h) => req('POST', p, b ?? {}, h),
-    put: (p, b, h) => req('PUT', p, b, h),
-    del: (p, b, h) => req('DELETE', p, b, h),
-    get cookie() {
-      return cookie;
-    },
-    set cookie(v) {
-      cookie = v;
-    },
-  };
-}
-
-export async function signup(app, username, password = 'correct horse') {
-  const c = client(app);
-  const r = await c.post('/api/signup', { username, password });
-  assert.equal(r.status, 201, `signup ${username}: ${r.text}`);
-  c.user = r.json.user;
-  return c;
-}
+/** An app serving the fixture's folders. */
+export const startApp = (opts = {}) => serve({ publicDir: fx.publicDir, distDir: fx.distDir, ...opts });
 
 /** Raw GET with an unnormalized path (fetch would collapse ../, and send Cache-Control: no-cache with an ETag). */
 export function rawGet(port, rawPath, headers = {}) {

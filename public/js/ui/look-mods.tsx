@@ -2,7 +2,7 @@
 // rename, how it moves, its value now, ∿ to edit it, × to delete it) and a chip per param it drives, which selects
 // that layer and module and opens the param's ∿.
 import type { Globals } from '../../../shared/schemas/look.ts';
-import { flatModules } from '../core/tree.ts';
+import { flatModules } from '../../../core/tree.ts';
 import { fmt, GLYPHS, normaliseParam, type Param } from './bindings.ts';
 import { automate } from './automation-edit.ts';
 import { humanize } from './kit.tsx';

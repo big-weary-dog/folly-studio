@@ -21,7 +21,7 @@ test('F8 freezes the Studio under the form and files a report; an admin replays 
   const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 } }), page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
-  await signIn(page, studio.origin, 'olive', '/looks');
+  await signIn(page, studio.origin, 'olive', '/gallery');
   await page.goto(`${studio.origin}/studio`);
   await expect(page.locator('.layer-list')).toBeVisible({ timeout: 30_000 });
   await expect.poll(() => time(page), { timeout: 30_000 }).toBeGreaterThan(0.5);
@@ -57,7 +57,7 @@ test('F8 freezes the Studio under the form and files a report; an admin replays 
 
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   const mob = await phone.newPage();
-  await signIn(mob, studio.origin, 'mona', '/looks');
+  await signIn(mob, studio.origin, 'mona', '/gallery');
   await mob.goto(`${studio.origin}/studio`);
   await expect.poll(() => time(mob), { timeout: 30_000 }).toBeGreaterThan(0.3);
   await mob.locator('#nav-toggle').click();

@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 
 import type { Binding, Clip, ParamValue } from '../../../shared/schemas/look.ts';
-import type { ParamSchema } from '../core/compile.ts';
-import { modValue, paramMods, prepareLook, type PreparedLook } from '../core/globals.ts';
-import { layerEnvelope } from '../core/timeline.ts';
+import type { ParamSchema } from '../../../core/compile.ts';
+import { modValue, paramMods, prepareLook, type PreparedLook } from '../../../core/globals.ts';
+import { layerEnvelope } from '../../../core/timeline.ts';
 import { bindingText, fmt, makeBinding, type BindingForm, type Param } from './bindings.ts';
 import { cx, decimals } from './kit.tsx';
 

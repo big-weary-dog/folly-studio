@@ -7,7 +7,7 @@ import type { FastifyRequest } from 'fastify';
 
 import { type BakeMode, Baking, type BakingState } from '../shared/schemas/api.ts';
 import { BakeError } from './box-output.ts';
-import { forAdmins, HttpError } from './http.ts';
+import { forAdmins, forAnyone, HttpError } from './http.ts';
 import type { RenderBox } from './render-box.ts';
 import { settingsFile } from './settings-file.ts';
 
@@ -69,14 +69,14 @@ export function governBox(box: Box, mode: () => BakeMode, { cooldownMs = THROTTL
   };
 }
 
-/** GET /api/baking for everyone signed in (the bake buttons read it); PUT /api/admin/baking for admins. */
+/** GET /api/baking for anyone (the bake buttons read it); PUT /api/admin/baking for admins. */
 export function bakingRoutes({ baking, box }: { baking: BakingStore, box: Pick<RenderBox, 'probe'> }) {
   const state = async (): Promise<BakingState> => {
     const p = await box.probe();
     return { ...baking.current(), box: p.ok ? { ok: true } : { ok: false, reason: p.reason } };
   };
   return {
-    'GET /baking': state,
+    'GET /baking': forAnyone(state),
     'PUT /admin/baking': forAdmins(async (req: FastifyRequest) => {
       const saved = await baking.save(req.body);
       if ('error' in saved) throw new HttpError(400, saved.error);

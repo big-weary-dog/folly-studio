@@ -1,14 +1,14 @@
 // Noise: every kind covers the layer with a field of its own, smooth kinds are smooth along a strand while static is
 // per LED, Seed deals another field, and Speed 0 holds it.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
-import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
+import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../core/pattern-core.ts';
 import { folly } from './fixtures/rigs.js';
+import { libraryCode } from './fixtures/patterns.js';
 
-const code = readFileSync(new URL('../public/patterns/noise.js', import.meta.url), 'utf8');
+const code = libraryCode('noise');
 const scene = prepareScene(folly);
 function field(params, t = 1.5) {
   const mods = [{ id: 'n', kind: 'source', code, params: { colours: '#000000 #ffffff', ...params } }];

@@ -4,9 +4,9 @@
 import { extrasOf, type ExtraKey } from '../../shared/plays.ts';
 import type { Automation, Globals } from '../../shared/schemas/look.ts';
 import type { LibraryEntry, Rig } from '../../shared/schemas/rig.ts';
-import { flatModules } from './core/tree.ts';
+import { flatModules } from '../../core/tree.ts';
 import { fromLibrary } from './library-fill.ts';
-import type { LayerInput, Light } from './pattern-core.ts';
+import type { LayerInput, Light } from '../../core/pattern-core.ts';
 import { openSandbox, type Sandbox } from './sandbox-relay.ts';
 import type { Layer } from './ui/model.ts';
 

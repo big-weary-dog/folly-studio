@@ -1,12 +1,8 @@
 // npm run smoke, too: a guest (SPEC-access "Guests") at a laptop's and a phone's size. In by a name alone, on to
 // the Studio with no AI and no My looks; their edits are kept in the browser and back after a reload, the cookie
 // letting them in; Save asks them to sign up, and the new account takes the work to save.
+import { SIZES } from './sizes.js';
 import { expect, test } from './studio.js';
-
-const SIZES = {
-  laptop: { viewport: { width: 1366, height: 768 } },
-  phone: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
-};
 
 for (const [name, device] of Object.entries(SIZES)) {
   test.describe(`${name}, ${device.viewport.width} × ${device.viewport.height}`, () => {
@@ -19,13 +15,12 @@ for (const [name, device] of Object.entries(SIZES)) {
       const layers = page.locator('li.layer'), nav = page.locator('.main-nav'), { store } = studio.app;
       const accounts = store.users.list().length;
 
-      await test.step('in by a name: the Studio, with no My looks', async () => {
+      await test.step('Try it, in one click: the gallery, then the Studio, with no My looks', async () => {
         await page.goto(`${studio.origin}/login`);
-        await page.getByRole('button', { name: 'Guest', exact: true }).click();
-        await page.getByLabel('Your name').fill('Wren');
         await shot('guest-login');
-        await page.getByRole('button', { name: 'Come in as a guest' }).click();
-        await expect(page).toHaveURL(`${studio.origin}/studio`);
+        await page.getByRole('button', { name: 'Try it', exact: true }).click();
+        await expect(page).toHaveURL(`${studio.origin}/gallery`);
+        await page.goto(`${studio.origin}/studio`);
         await expect(layers).toHaveCount(1, { timeout: 60_000 });
         await expect(page.locator('.user-box .tag')).toHaveText('Guest');
         await expect(nav.locator('a[href="/looks"]')).toHaveCount(0);

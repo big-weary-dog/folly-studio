@@ -6,13 +6,14 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { createServer } from '../src/app.ts';
 import { validateLayers } from '../src/api-looks.ts';
 import { createStore } from '../src/store.ts';
 import { CSP_APP, CSP_WORKER } from '../src/static.ts';
+import { client, serve, signup } from './fixtures/app.js';
+import { fakeBox } from './fixtures/box.js';
+import { quiet } from './fixtures/quiet.js';
 import {
-  client, EXPECTED_APP_CSP, EXPECTED_WORKER_CSP, fakeBox, fx, layer, PIXEL, quiet, rawGet, PATTERN_WORKER, signup,
-  startApp, useFixture,
+  EXPECTED_APP_CSP, EXPECTED_WORKER_CSP, fx, layer, PATTERN_WORKER, PIXEL, rawGet, startApp, useFixture
 } from './fixtures/server.js';
 
 useFixture();
@@ -50,9 +51,9 @@ describe('server', () => {
       assert.equal(out.status, 200);
       assert.deepEqual(out.json, { ok: true });
       assert.match(out.setCookie[0], /^studio_session=;.*Max-Age=0/);
-      assert.equal((await c.get('/api/me')).status, 401);
+      assert.equal((await c.get('/api/me')).json.user, null);
       // The old token is dead server-side, not just forgotten by the client.
-      assert.equal((await c.get('/api/me', { cookie: oldCookie })).status, 401);
+      assert.equal((await c.get('/api/me', { cookie: oldCookie })).json.user, null);
 
       const wrong = await c.post('/api/login', { username: 'alice', password: 'wrong password' });
       assert.equal(wrong.status, 401);
@@ -204,9 +205,10 @@ describe('server', () => {
 
     test('auth required', async () => {
       const anon = client(app);
-      for (const p of ['/api/me', '/api/looks', '/api/looks?scope=gallery', '/api/looks/abc']) {
+      for (const p of ['/api/looks', '/api/looks?scope=mine', '/api/looks/abc/versions']) {
         assert.equal((await anon.get(p)).status, 401, p);
       }
+      assert.equal((await anon.get('/api/looks/abc')).status, 404, 'a visitor reads approved looks only');
       assert.equal((await anon.post('/api/looks', { title: 't', layers: [] })).status, 401);
     });
   });
@@ -295,14 +297,11 @@ describe('without public files yet', () => {
   beforeAll(async () => {
     const empty = path.join(fx.tmp, 'public-empty');
     await mkdir(empty, { recursive: true });
-    app = await createServer({
+    app = await serve({
       dataDir: path.join(fx.tmp, 'data-fallback'),
       publicDir: empty,
       distDir: empty,
-      log: quiet,
     });
-    const addr = await app.listen(0);
-    app.base = `http://127.0.0.1:${addr.port}`;
   });
   afterAll(() => app.close());
 

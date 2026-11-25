@@ -9,7 +9,7 @@ import path from 'node:path';
 
 import { describe, test } from 'vitest';
 
-import { compileModule } from '../public/js/pattern-core.ts';
+import { compileModule } from '../core/pattern-core.ts';
 import { layerFromPattern, presetLayers } from '../public/js/ui/model.ts';
 import { type Recipe, practiceLook } from '../public/js/ui/tour/practice.ts';
 import { PATHS } from '../public/js/ui/tour/paths/index.ts';
@@ -17,11 +17,11 @@ import type { Ctx, Step } from '../public/js/ui/tour/types.ts';
 import { tourName, type TourView } from '../public/js/ui/tour-view.ts';
 import { LookCreate } from '../shared/schemas/api.ts';
 import { LibraryEntry, type ModuleEntry, type PresetEntry, type Rig } from '../shared/schemas/rig.ts';
+import { libraryIndex, withCode } from './fixtures/patterns.js';
 
 const root = new URL('..', import.meta.url).pathname, read = (p: string) => readFileSync(path.join(root, p), 'utf8');
 const rig = JSON.parse(read('public/data/rig.json')) as Rig;
-const library = (JSON.parse(read('public/patterns/index.json')) as unknown[]).map((e) => LibraryEntry.parse(e))
-  .map((e) => ({ ...e, code: e.kind === 'preset' ? '' : read(`public/patterns/${e.name}.js`) })) as
+const library = (libraryIndex() as unknown[]).map((e) => withCode(LibraryEntry.parse(e))) as
   (ModuleEntry | PresetEntry)[];
 const modules = new Map(library.filter((e): e is ModuleEntry => e.kind !== 'preset').map((e) => [e.name, e]));
 const presets = new Map(library.filter((e): e is PresetEntry => e.kind === 'preset').map((e) => [e.name, e]));
@@ -56,8 +56,7 @@ const docks = /DOCKS: Dock\[\] = \[([^\]]+)\]/.exec(source)![1].match(/[a-z]+/g)
 function anchors(s: Step, layers: Made[]) {
   if (Array.isArray(s.anchor)) return s.anchor;
   const none = { value: null }, v = { layers: { value: layers, peek: () => layers }, selected: none, module: none,
-    params: { value: {} }, macros: { value: {} }, automation: { value: { macro1: 2 } },
-    tagged: (tag: string) => rig.groups.filter((g) => g.tags?.includes(tag)).map((g) => g.id) };
+    params: { value: {} } };
   const at = (x: TourView | null): Ctx => ({ v: x, page: '/studio', el: () => null });
   return [...s.anchor(at(null)), ...s.anchor(at(v as unknown as TourView))];
 }

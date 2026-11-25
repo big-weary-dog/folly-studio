@@ -3,7 +3,7 @@
 // one into a composite and change a sub-layer. A sub-layer a module's move or delete leaves empty goes with it (the
 // last of a composite's stays). Pure: each returns a new chain, or null when the edit is not one.
 import type { Module, SubLayer } from '../../../shared/schemas/look.ts';
-import { attachedTo, flatModules, mapModule, runEnd } from '../core/tree.ts';
+import { attachedTo, flatModules, mapModule, runEnd } from '../../../core/tree.ts';
 import { randomId } from './kit.tsx';
 import { insertModule } from './model.ts';
 

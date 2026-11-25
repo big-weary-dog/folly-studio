@@ -6,7 +6,7 @@ import {
   type Compiled, type CompiledLink, compileModule, layerModules, ledChannels, lightOf, linkMap, prepareLayer,
   type PreparedLayer,
   type PreparedLook, prepareLight, prepareLook, prepareScene, renderFrame, type Scene, setLibrary, upgradedParams,
-} from './pattern-core.ts';
+} from '../../core/pattern-core.ts';
 import { extrasOf } from '../../shared/plays.ts';
 import type { Extra, ToSandbox } from './runtime.ts';
 

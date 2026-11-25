@@ -8,16 +8,17 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, beforeEach, describe, test } from 'vitest';
 
-import { writeFseq } from '../public/js/fseq.ts';
-import { createServer } from '../src/app.ts';
+import { writeFseq } from '../core/fseq.ts';
 import { createLane } from '../src/bake.ts';
 import { createFrameJobs, createFramesCache, createFramesDisk } from '../src/frames-cache.ts';
 import { wireHash } from '../src/frames-wire.ts';
 import { createRenderBox } from '../src/render-box.ts';
 import { GLOW, writeLibrary } from './fixtures/library.js';
 import { lineRig } from './fixtures/rigs.js';
+import { quiet } from './fixtures/quiet.js';
+import { serve, signup } from './fixtures/app.js';
+import { stubBox } from './fixtures/box.js';
 
-const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 let tmp;
 beforeAll(async () => { tmp = await mkdtemp(path.join(os.tmpdir(), 'studio-frames-host-')); });
 afterAll(() => rm(tmp, { recursive: true, force: true }));
@@ -147,14 +148,13 @@ describe('the bake cache and re-baking evicted frames, through the API', () => {
     fs.writeFileSync(path.join(publicDir, 'index.html'), '<!doctype html><title>t</title>');
     fs.writeFileSync(path.join(publicDir, 'data', 'rig-folly.json'), JSON.stringify(lineRig(100)));
     await writeLibrary(publicDir);
-    const renderBox = { config: { seconds: 5 }, probe: async () => ({ ok: true }),
-      async render({ layers }) { renders++; return { bytes: frames(JSON.stringify(layers).length, 200) }; } };
-    app = await createServer({ dataDir: path.join(tmp, 'data'), publicDir, log: quiet,
-      renderBox });
-    base = `http://127.0.0.1:${(await app.listen(0)).port}`;
-    const r = await fetch(`${base}/api/signup`, { method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ username: 'cache', password: 'correct horse' }) });
-    cookie = r.headers.getSetCookie()[0].split(';')[0];
+    const renderBox = stubBox(({ layers }) => {
+      renders++;
+      return { bytes: frames(JSON.stringify(layers).length, 200) };
+    }, 5);
+    app = await serve({ dataDir: path.join(tmp, 'data'), publicDir, renderBox });
+    base = app.base;
+    ({ cookie } = await signup(app, 'cache'));
   });
   afterAll(() => app.close());
   const call = (method, p, body) => fetch(base + p, { method, redirect: 'manual', headers: { cookie,

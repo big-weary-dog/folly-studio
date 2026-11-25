@@ -1,5 +1,5 @@
 // Audit regressions: drafts, reporting eligibility and tutorial availability.
-import { expect, signup, test } from './studio.js';
+import { expect, signIn, signup, test } from './studio.js';
 
 test.use({ serverOptions: { admins: 'pages-admin-1366,pages-admin-390,pages-admin-360' } });
 
@@ -14,8 +14,7 @@ for (const width of [1366, 390, 360]) {
 
     test('a draft survives cancelled navigation', async ({ page, studio }) => {
       const cookie = await signup(studio.origin, `pages-admin-${width}`);
-      const [name, value] = cookie.split('=');
-      await page.context().addCookies([{ name, value, url: studio.origin }]);
+      await signIn(page.context(), studio.origin, cookie);
       await page.goto(`${studio.origin}/admin`);
       await expect(page).toHaveURL(/\/admin\/light$/);
       if (width < 900) {
@@ -50,7 +49,7 @@ for (const width of [1366, 390, 360]) {
         await page.fill('input[name=username]', `pages-member-${width}`);
         await page.fill('input[name=password]', 'correct horse');
         await page.locator('input[name=password]').press('Enter');
-        await expect(page).toHaveURL(/\/looks$/);
+        await expect(page).toHaveURL(/\/gallery$/);
         await expect(page.getByText(/Reporting a problem needs an account/)).toHaveCount(0);
         await shot(page, 'looks');
         await page.keyboard.press('F8');
@@ -75,10 +74,8 @@ for (const width of [1366, 390, 360]) {
         }
         await shot(page, 'account-menu');
         await logOut.click();
-        await page.getByRole('button', { name: 'Guest', exact: true }).click();
-        await page.getByLabel('Your name').fill('Visitor');
-        await page.getByRole('button', { name: 'Come in as a guest' }).click();
-        await expect(page).toHaveURL(/\/studio$/);
+        await page.getByRole('button', { name: 'Try it', exact: true }).click();
+        await expect(page).toHaveURL(/\/gallery$/);
         await page.keyboard.press('F8');
         await expect(page.getByRole('dialog', { name: 'Report a problem' })).toHaveCount(0);
         await expect(page.getByText(/Reporting a problem needs an account/).last()).toBeVisible();

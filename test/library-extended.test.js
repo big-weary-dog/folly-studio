@@ -1,15 +1,13 @@
 // What the extended modules gained, where a slip is easy and shows: bars' bands as true swatches with no seam round
 // the circle, rotate's planes, the layer's middle, life's colour by age, heartbeat's tempo and shape.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
-import { compileLayer, DEFAULT_PALETTE, prepareLayer, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
+import { compileLayer, DEFAULT_PALETTE, prepareLayer, prepareScene, renderFrame } from '../core/pattern-core.ts';
 import { folly } from './fixtures/rigs.js';
+import { libraryCode as lib } from './fixtures/patterns.js';
 
-const here = (p) => new URL(p, import.meta.url);
-const lib = (name) => readFileSync(here(`../public/patterns/${name}.js`), 'utf8');
 const scene = prepareScene(folly);
 const mod = (name, kind, params = {}, extra = {}) => ({ id: name, kind, code: lib(name), params, ...extra });
 function run(mods, t = 1.25, groups) {

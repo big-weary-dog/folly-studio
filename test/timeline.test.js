@@ -10,17 +10,18 @@ import { afterAll, beforeEach, describe, test } from 'vitest';
 
 import {
   compilePattern, layerEnvelope, normalizeClips, prepareLayer, prepareScene, renderFrame,
-} from '../public/js/pattern-core.ts';
-import { ledRanges, writeFseq } from '../public/js/fseq.ts';
-import { createServer } from '../src/app.ts';
+} from '../core/pattern-core.ts';
+import { ledRanges, writeFseq } from '../core/fseq.ts';
 import { validateLayers } from '../src/api-looks.ts';
 import { createRenderBox } from '../src/render-box.ts';
 import { parseFseq } from '../src/frames.ts';
+import { quiet } from './fixtures/quiet.js';
+import { serve, signup } from './fixtures/app.js';
+import { stubBox } from './fixtures/box.js';
 
 const STUDIO = fileURLToPath(new URL('../', import.meta.url));
 const PUBLIC = path.join(STUDIO, 'public');
 const rig = JSON.parse(fs.readFileSync(path.join(PUBLIC, 'data/rig-folly.json'), 'utf8'));
-const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const near = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) <= eps, `${a} ≉ ${b}`);
 const WHITE = 'function pixel() { return [1, 1, 1]; }';
 const RED = 'function pixel() { return [1, 0, 0]; }';
@@ -185,32 +186,22 @@ describe('validation', () => {
 
 /** A stand-in render box: frames for the real LED map, all lit, as long as it is asked. */
 function fakeBox(maxSeconds = 4) {
-  const ranges = ledRanges(rig), channels = ranges.reduce((n, r) => n + r[1], 0);
-  return {
-    asked: [],
-    config: { seconds: maxSeconds },
-    probe: async () => ({ ok: true }),
-    async render({ seconds }) {
-      this.asked.push(seconds);
-      const frames = Math.round(Math.min(maxSeconds, seconds) * 40);
-      const data = new Uint8Array(frames * channels).fill(100);
-      const bytes = Buffer.from(writeFseq({ frames, data, ranges }));
-      return { bytes, boxStats: { untrusted: true, reported: {} } };
-    },
-  };
+  const ranges = ledRanges(rig), channels = ranges.reduce((n, r) => n + r[1], 0), asked = [];
+  return Object.assign(stubBox(({ seconds }) => {
+    asked.push(seconds);
+    const frames = Math.round(Math.min(maxSeconds, seconds) * 40);
+    const data = new Uint8Array(frames * channels).fill(100);
+    const bytes = Buffer.from(writeFseq({ frames, data, ranges }));
+    return { bytes, boxStats: { untrusted: true, reported: {} } };
+  }, maxSeconds), { asked });
 }
 
 async function startApp(renderBox, name) {
-  const dataDir = path.join(tmpRoot, name);
-  const app = await createServer({ dataDir, publicDir: PUBLIC, renderBox, log: quiet });
-  const { port } = await app.listen(0);
-  const base = `http://127.0.0.1:${port}`;
+  const app = await serve({ dataDir: path.join(tmpRoot, name), publicDir: PUBLIC, renderBox });
   const json = { 'content-type': 'application/json' };
-  const account = JSON.stringify({ username: `${name}-owner`, password: 'correct horse' });
-  const r = await fetch(`${base}/api/signup`, { method: 'POST', headers: json, body: account });
-  const cookie = r.headers.getSetCookie()[0].split(';')[0];
+  const { cookie } = await signup(app, `${name}-owner`);
   app.call = async (method, p, body) => {
-    const res = await fetch(base + p, { method, headers: { cookie, ...json }, body: body && JSON.stringify(body) });
+    const res = await fetch(app.base + p, { method, headers: { cookie, ...json }, body: body && JSON.stringify(body) });
     return { status: res.status, json: await res.json().catch(() => null) };
   };
   return app;

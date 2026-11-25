@@ -9,9 +9,10 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, test } from 'vitest';
 
-import { createServer } from '../src/app.ts';
-import { browser, request } from './fixtures/browser.js';
+import { browser } from './fixtures/browser.js';
 import { builtApp, removeBuiltApp } from './fixtures/build.js';
+import { serve, signup } from './fixtures/app.js';
+import { libraryCode, libraryIndex } from './fixtures/patterns.js';
 
 const KB = 1024;
 // Measured on the Folly's rig: 257 KB in 26 requests with br, 294 KB gzip only (HTTP/1.1 headers in full); the
@@ -22,7 +23,6 @@ const STUDIO = { view: 'js/ui/studio.tsx', api: ['/api/me', '/api/library'] };
 // Both rigs ship; the browser fetches the one /api/me names, the Folly's here, never City of Gods' rig.json.
 const unfetched = /^\/assets\/rig-(?!folly-)[\w-]{8}\.json$/;
 const PLAYA = { view: 'js/playa/renderer.ts', shell: false };   // the 3D view's default mode, imported on show
-const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const kb = (n) => `${(n / KB).toFixed(1)} KB`;
 let app, dir, port, cookie, manifest;
 
@@ -30,20 +30,15 @@ beforeAll(async () => {
   const dist = await builtApp();
   manifest = JSON.parse(await readFile(path.join(dist, '.vite/manifest.json'), 'utf8'));
   dir = await mkdtemp(path.join(os.tmpdir(), 'studio-transfer-'));
-  app = await createServer({ dataDir: dir, distDir: dist, log: quiet, admins: 'wire' });
-  port = (await app.listen(0)).port;
-  const res = await request(port, '/api/signup', { method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ username: 'wire', password: 'correct horse' }) });
-  assert.equal(res.status, 201);
-  cookie = /studio_session=[^;]+/.exec(res.headers['set-cookie'][0])[0];
+  app = await serve({ dataDir: dir, distDir: dist, admins: 'wire' });
+  port = app.port;
+  ({ cookie } = await signup(app, 'wire'));
   // A dozen looks of library code, as a list would show them.
   const user = app.store.users.list()[0];
-  const lib = JSON.parse(await readFile(new URL('../public/patterns/index.json', import.meta.url), 'utf8'))
-    .filter((e) => e.kind !== 'preset');
+  const lib = libraryIndex().filter((e) => e.kind !== 'preset');
   for (let i = 0; i < 12; i++) {
-    const layers = await Promise.all([0, 1, 2].map(async (k) => ({ id: `l${k}`, title: 'x', groups: ['cathedral'],
-      code: await readFile(new URL(`../public/patterns/${lib[(i + k) % lib.length].name}.js`, import.meta.url), 'utf8'),
-      blend: 'add', level: 1, params: {} })));
+    const layers = [0, 1, 2].map((k) => ({ id: `l${k}`, title: 'x', groups: ['cathedral'],
+      code: libraryCode(lib[(i + k) % lib.length].name), blend: 'add', level: 1, params: {} }));
     app.store.looks.create({ owner: user.id, ownerName: user.username, title: `Look ${i}`, layers, shared: true,
       sharedAt: new Date().toISOString(), reviewed: false, versions: [] });
   }

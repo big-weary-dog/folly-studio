@@ -6,7 +6,8 @@ import path from 'node:path';
 import { describe, test } from 'vitest';
 
 import { costOf, hashPassword, SCRYPT, verifyPassword, weaker } from '../src/auth.ts';
-import { client, fx, startApp, useFixture } from './fixtures/server.js';
+import { client } from './fixtures/app.js';
+import { fx, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 const OLD = { N: 2 ** 14, r: 8, p: 1 };   // the cost hashes were made at before

@@ -1,14 +1,13 @@
 // The rose warps (SPEC-library "Library"): ring-turn, petal-repeat and petal-stride move whole petals of the rose,
 // found by its tag, keeping each LED's ring; off the rose they leave every LED as it was. On both rigs.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
-import { compileLayer, prepareLayer, prepareScene, renderFrame, tagMask } from '../public/js/pattern-core.ts';
+import { compileLayer, prepareLayer, prepareScene, renderFrame, tagMask } from '../core/pattern-core.ts';
 import { cog, folly } from './fixtures/rigs.js';
+import { libraryCode as lib } from './fixtures/patterns.js';
 
-const lib = (name) => readFileSync(new URL(`../public/patterns/${name}.js`, import.meta.url), 'utf8');
 const mod = (name, kind, params = {}) => ({ id: name, kind, code: lib(name), params });
 // Each LED's sector, ring and index as its colour, so the output names the LED a warp read.
 const PROBE = { id: 'probe', kind: 'source',

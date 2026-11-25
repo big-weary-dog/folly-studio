@@ -6,7 +6,9 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { parseFseq } from '../src/frames.ts';
-import { EMBERS, fakeBox, fx, layer, signup, startApp, useFixture } from './fixtures/server.js';
+import { signup } from './fixtures/app.js';
+import { fakeBox } from './fixtures/box.js';
+import { EMBERS, fx, layer, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 
@@ -235,7 +237,7 @@ describe('looks', () => {
     assert.deepEqual(parsed.ranges, [[0, 6]]);
     assert.equal((await alice.get(`/api/looks/${calm.id}/frames`)).status, 200);
     assert.equal((await bob.get(`/api/looks/${calm.id}/frames`)).status, 404);
-    assert.equal((await fetch(`${app.base}/api/looks/${strobe.id}/frames`)).status, 401);
+    assert.equal((await fetch(`${app.base}/api/looks/${strobe.id}/frames`)).status, 404, 'a visitor: not approved');
 
     // Editing the code drops the bake and its frames.
     assert.equal((await alice.get(`/api/looks/${calm.id}`)).json.look.bake.ok, true);

@@ -10,20 +10,20 @@ import { readFileSync } from 'node:fs';
 
 import { test } from 'vitest';
 
-import { exportShape, packFrames, writeFseq, writeFseqHeader } from '../public/js/fseq.ts';
-import * as core from '../public/js/pattern-core.ts';
+import { exportShape, packFrames, writeFseq, writeFseqHeader } from '../core/fseq.ts';
+import * as core from '../core/pattern-core.ts';
 import { presetLayers, withPresetGlobals } from '../public/js/ui/model.ts';
 import { bakeId, bakeLoop, readLibrary, renderer } from '../render-box/renderer.ts';
 import type { ModuleEntry, PresetEntry, Rig } from '../shared/schemas/rig.ts';
 import { parseFseq } from '../src/frames.ts';
 import { readFseq } from './fixtures/fseq-reader.js';
+import { libraryIndex, withCode } from './fixtures/patterns.js';
 
 const here = (p: string) => new URL(p, import.meta.url);
 const rig = JSON.parse(readFileSync(here('../public/data/rig-folly.json'), 'utf8')) as Rig;
-const index = JSON.parse(readFileSync(here('../public/patterns/index.json'), 'utf8')) as { name: string,
+const index = libraryIndex() as { name: string,
   kind: string }[];
-const library = index.map((e) => ({ ...e, code: e.kind === 'preset' ? ''
-  : readFileSync(here(`../public/patterns/${e.name}.js`), 'utf8') })) as (ModuleEntry | PresetEntry)[];
+const library = index.map(withCode) as (ModuleEntry | PresetEntry)[];
 const presets = library.filter((e): e is PresetEntry => e.kind === 'preset');
 const uses = readLibrary(new URL('../public/patterns/', import.meta.url).pathname);
 const scene = core.prepareScene(rig);

@@ -12,8 +12,9 @@ failures, per address and username (10 a minute): 429 with `Retry-After`. Passwo
 waiting; past that, 429 "busy". A route that needs a session is 401 without one; the app takes a 401 from anything
 but `/api/me`, `/api/login`, `/api/signup` and `/api/guest` as the session ending, and goes back to sign-in.
 
-**Guests.** The sign-in page also lets anyone in as a guest with only a name (`POST /api/guest { name }`: 1–24
-letters, digits, spaces and `_ . ' -`, trimmed; 10 a minute per client address, beside the sign-in limits). A guest
+**Guests.** The sign-in page's **Try it** lets anyone in as a guest in one click, with no name to type
+(`POST /api/guest {}`, a guest named Visitor; `{ name }` names one: 1–24 letters, digits, spaces and `_ . ' -`,
+trimmed; 10 a minute per client address, beside the sign-in limits). A guest
 is a session, not an account: nothing is written to the users, and `user = { id: 'guest-…', username: <name>, role:
 'member', guest: true }` whatever the name says (a guest named for an admin is no admin). The cookie lets them back in
 on that device for 7 days; at most 1,000 guest sessions live at once, the oldest dropped first (anyone can
@@ -24,6 +25,12 @@ guest's work in that browser
 log in or sign up, since saving is for accounts, and the work comes along: the first account to open a blank Studio
 in that browser gets it, unsaved, and the browser's copy goes once that account saves or discards it. Their name
 shows with a Guest tag; it is untrusted text, shown only as text.
+
+**Visitors.** Approved looks are open to anyone, with no session: the gallery's list, a look, its preview and its
+frames answer a visitor as they would a member, and any other look is 404 (SPEC-http). `/` and `/gallery` show a
+visitor the gallery, and a share link, `/studio/<id>`, opens its look in the Studio, under a header with Gallery,
+Try it and Log in. There the visitor is a guest without a session: their work is kept in that browser, and Save
+asks them to log in or sign up. Every other page, and anything else the server is asked, sends them to sign in.
 
 ## Your account
 
@@ -63,6 +70,9 @@ only when it is also reviewed. My looks tags its owner's shared looks that are w
 Anyone with an account may **Report this look** on a card someone else shared: a short note, sent as a report
 (SPEC "Bug reports") that names the look, for an admin to read.
 
+**The gallery is home** for everyone, guests and visitors too: `/`, the header's brand and signing in without a
+`next` lead to it, showing approved looks. An empty My looks points to it, where a look is picked and saved as one's own.
+
 ## Admin
 
 Phone Admin keeps quick operator tasks; see [SPEC-studio "Phones"](SPEC-studio.md#phones).
@@ -92,6 +102,28 @@ shared, and whether it is disabled; a search narrows it by name.
   account"), no password asked.
 - An admin changes none of these for themselves (409): Account is theirs, and no admin locks themselves out.
 
+## Privacy
+
+**Privacy** (`/privacy`) is open to anyone, signed in or not, and linked from the sign-in page and the user menu
+(guests' too). It says, plainly and briefly, what Studio keeps and for how long:
+
+- **Accounts**: the username, a salted password hash, the role, when it was made and the tutorial's progress; no
+  email or real name. Usernames show in the gallery.
+- **Looks**: what each account saves, with its versions, bakes and previews; shared ones show in the gallery.
+- **Visitors**: counted with a hash of the address and browser under a salt made each day and never written; no
+  address is stored (Stats below). Behind the tunnel, the journal lines carry the visitor's country.
+- **Bug reports** (F8 and Report this look, SPEC-reports): the note, a screenshot when it is on, the page's state
+  (the unsaved look, the page's errors and messages) and the server's last warn and error lines, with the account's
+  name. The state and log lines are scrubbed (SPEC-reports); the note and screenshot are kept as sent, so the page
+  asks people to leave secrets out of them. Admins read them, and they go after `GET /api/privacy`'s `reportDays`
+  (`STUDIO_REPORTS_DAYS`).
+- **Cookies and storage**: one cookie, `studio_session`, the sign-in (30 days, a guest's 7), and nothing to track;
+  the browser keeps a guest's work, the tutorial's place and view settings in its own storage.
+- **Deleting**: Account's Delete account removes the account, its sessions and every look it owns at once; a
+  guest's work goes with the browser's site data. Bug reports age out as above.
+
+The page has no controls; a signed-out visitor gets a link back to sign in.
+
 ## Stats
 
 The server counts in memory, from its start (a restart starts again; nothing is written), and Stats shows the counts:
@@ -119,14 +151,14 @@ start.
 
 ## No AI
 
-Studio has no AI: no Ideas page (`/ideas` leads to My looks; a guest's home is the Studio), no Refine, no invite
+Studio has no AI: no Ideas page (`/ideas` leads home), no Refine, no invite
 codes and no Models or Access tabs; sign-up says nothing of AI. The server has no idea, model, invite or people
 routes, and leaves an older data folder's `ideas.json`, `invites.json`, `models.json` and `ideas-log/` unread.
 
 ## HTTP
 
 ```
-POST   /api/guest    { name }                 → { user, flash }      in as a guest (sets cookie): "Guests"
+POST   /api/guest    { name? }                → { user, flash }      in as a guest (sets cookie): "Guests"
 PUT    /api/me/password { password, next }    → { ok: true }  a new password ("Your account")
 DELETE /api/me       { password }             → { ok: true }  the account and its looks gone; clears the cookie
 GET    /api/admin/stats                       → stats  admins only (403) ("Stats")

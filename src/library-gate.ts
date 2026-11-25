@@ -1,70 +1,56 @@
-// Only library patterns save (SPEC-looks "Modules"): a look saved, by hand or by an import, has each module name a
-// library module by `ref` alone (no code), or carry a library pattern's current or earlier committed file exactly, by
-// SHA-256 (history.json). An edited copy, or a ref the library lacks, is refused.
-import { historicalLibrary, libraryFiles, sha256 } from './library-history.ts';
+// Only library patterns save (SPEC-baking "Library only"): a look saved, by hand or by an import, has each module name
+// a library module by `ref` (code it carries is dropped for the library's), or, with no ref the library has, carry a
+// library pattern's current file exactly, by SHA-256. Other code, or a ref the library lacks, is refused.
+import { eachModule, findModule, type Node } from '../shared/look-modules.ts';
 import type { Layer } from '../shared/schemas/look.ts';
+import { libraryFiles, sha256 } from './library-files.ts';
 
-/** The SHA-256 of each code file `dir`'s index.json lists (presets have none), and of its earlier copies
- * (history.json); none when it is missing. */
+/** The SHA-256 of each module file `dir`'s index.json lists; none when it is missing. */
 export async function libraryHashes(dir: string) {
-  return new Set([...(await libraryFiles(dir)).values()].flatMap((f) => [...f.hashes]));
+  return new Set([...(await libraryFiles(dir)).modules.values()].map((f) => f.hash));
 }
 
-type Module = { title?: unknown, code?: unknown, kind?: unknown, layers?: unknown };
-type Checked = { title?: unknown, code?: unknown, modules?: readonly Module[] };
 const named = (v: unknown) => (typeof v === 'string' ? v.slice(0, 60) : '');
 
-/** Where `layers` first has code that is not the library's ('' when none): a composite has no code of its own (one
- * with any is custom), so its sub-layers' modules are looked through, named as its layer. */
-function custom(layers: readonly Checked[], library: ReadonlySet<string>, at = ''): string {
-  for (const [i, layer] of layers.entries()) {
-    const name = at || `Layer ${i + 1}${named(layer?.title) ? ` (${named(layer.title)})` : ''}`;
-    const where = (m: Module) => (m !== layer && named(m?.title) ? `${name}'s ${named(m.title)}` : name);
-    for (const m of Array.isArray(layer?.modules) ? layer.modules : [layer as Module]) {
-      if (m?.kind === 'composite' && m !== layer) {
-        if (m.code) return where(m);
-        const inner = custom(Array.isArray(m.layers) ? m.layers : [], library, name);
-        if (inner) return inner;
-      } else if (typeof m?.code !== 'string' || !library.has(sha256(m.code))) {
-        return where(m);
-      }
-    }
-  }
-  return '';
+/** Why `layers` may not save ('' when each module is the library's): the first module, by its layer, whose ref is
+ * not one of `refs` and whose code is not a file `hashes` holds, or where the shape breaks. */
+export function customCode(layers: unknown, hashes: ReadonlySet<string>, refs: ReadonlySet<string> = new Set()) {
+  const library = (m: Node) => (typeof m.ref === 'string' && refs.has(m.ref))
+    || (typeof m.code === 'string' && hashes.has(sha256(m.code)));
+  const met = findModule(layers, (met) => met.fault || !library(met.module!));
+  if (!met) return '';
+  const name = `Layer ${met.at + 1}${named(met.layer?.title) ? ` (${named(met.layer!.title)})` : ''}`;
+  const title = met.module && met.module !== met.layer ? named(met.module.title) : '';
+  const what = title ? `${name}'s ${title}` : name;
+  const ref = met.fault ? '' : named(met.module.ref);
+  if (ref) return `${what} names ${ref}, which the library does not have.`;
+  return `Only looks made of unchanged library patterns save; ${what} is custom code.`;
 }
 
-/** Why `layers` may not save ('' when each one's code is the library's, unchanged). */
-export function customCode(layers: readonly Checked[], library: ReadonlySet<string>) {
-  const what = custom(layers, library);
-  return what ? `Only looks made of unchanged library patterns save; ${what} is custom code.` : '';
-}
-
-type Node = Record<string, unknown>;
-/** `layers` with a module that has no code (a `ref` alone) given its ref's library file to check, when it has one. */
-function withRefCode(layers: unknown[], lib: Map<string, { code: string | null }>): unknown[] {
-  const one = (m: unknown): unknown => {
-    if (!m || typeof m !== 'object') return m;
-    const n = m as Node;
-    if (Array.isArray(n.layers)) return { ...n, layers: withRefCode(n.layers, lib) };
-    if (Array.isArray(n.modules)) return { ...n, modules: n.modules.map(one) };
-    const code = !n.code && typeof n.ref === 'string' ? lib.get(n.ref)?.code : null;
-    return code ? { ...n, code } : n;
-  };
-  return layers.map(one);
-}
-
-/** The check in front of saving: refuses(layers) → why the look cannot be saved ('' when it can), check() throws it. */
+/** The check in front of saving: refuses(layers) → why the look cannot be saved ('' when it can), check() throws it;
+ * upgrade(layers) gives each module its entry's current file, naming it as `ref`. */
 export function createCodeGate({ patternsDir }: { patternsDir: string }) {
   let files: ReturnType<typeof libraryFiles> | undefined;   // the library changes only with a deploy, which restarts
-  const history = historicalLibrary(patternsDir);
+  const library = () => (files ??= libraryFiles(patternsDir));
   async function refuses(layers: unknown) {
-    const lib = await (files ??= libraryFiles(patternsDir));
-    const hashes = new Set([...lib.values()].flatMap((f) => [...f.hashes]));
-    const checked = withRefCode(Array.isArray(layers) ? layers : [], lib) as Parameters<typeof customCode>[0];
-    return customCode(checked, hashes);
+    const { modules } = await library();
+    return customCode(layers, new Set([...modules.values()].map((f) => f.hash)), new Set(modules.keys()));
   }
   return {
-    async upgrade(layers: Layer[]) { return (await history).upgrade(layers); },
+    async upgrade(layers: Layer[]): Promise<Layer[]> {
+      const { modules } = await library();
+      const copy = structuredClone(layers);
+      eachModule(copy, (m) => {
+        if (typeof m.code !== 'string') return;
+        const hash = sha256(m.code), byFile = [...modules].filter(([, f]) => f.hash === hash);
+        const ref = typeof m.ref === 'string' && modules.has(m.ref) ? m.ref
+          : byFile.length === 1 ? byFile[0]![0] : undefined;
+        if (!ref) return;
+        m.ref = ref;
+        m.code = modules.get(ref)!.code;
+      });
+      return copy;
+    },
     refuses,
     async check(layers: unknown, fail: (why: string) => Error) {
       const why = await refuses(layers);

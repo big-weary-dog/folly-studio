@@ -9,14 +9,15 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { writeFseq } from '../public/js/fseq.ts';
-import { createServer } from '../src/app.ts';
+import { writeFseq } from '../core/fseq.ts';
 import { bestWindow, HEIGHT, previewFrames, WIDTH, WINDOW_S } from '../src/previews/motion.ts';
 import { playaCamera } from '../src/previews/playa.ts';
 import { GLOW, writeLibrary } from './fixtures/library.js';
 import { lineRig } from './fixtures/rigs.js';
+import { quiet } from './fixtures/quiet.js';
+import { serve, signup } from './fixtures/app.js';
+import { stubBox } from './fixtures/box.js';
 
-const quiet = { info() {}, warn() {}, error() {} };
 const N = 4, C = N * 3, SECONDS = 20, FRAMES = SECONDS * 40;
 // Dim and still, but for a bright flicker from 8 s to 14 s.
 function frames(busyFrom = 8, busyTo = 14) {
@@ -94,9 +95,7 @@ describe('previews of shared looks', () => {
     throw new Error('timed out');
   };
   const gallery = async () => (await (await req('/api/looks?scope=gallery')).json()).looks;
-  const signup = async (username) => /^(studio_session=[^;]+)/.exec((await fetch(`${app.base}/api/signup`, {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ username, password: 'correct horse battery' }) })).headers.getSetCookie().join('\n'))[1];
+  const account = async (username) => (await signup(app, username, 'correct horse battery')).cookie;
 
   beforeAll(async () => {
     tmp = await mkdtemp(path.join(tmpdir(), 'previews-'));
@@ -108,19 +107,17 @@ describe('previews of shared looks', () => {
     await writeFile(path.join(publicDir, 'data', 'rig.json'), JSON.stringify({ ...lineRig(N), name: 'Other' }));
     await writeLibrary(publicDir);
     start = async (rig) => {
-      const renderBox = { config: { seconds: SECONDS }, probe: async () => ({ ok: true }),
-        async render({ layers }) {
-          const { hold, late } = layers[0]?.params ?? {};
-          if (hold) { holding(); await held; }
-          return { bytes: late ? frames(2, 9) : frames() };
-        } };
-      app = await createServer({ dataDir, publicDir, log: quiet, renderBox, rig,
+      const renderBox = stubBox(async ({ layers }) => {
+        const { hold, late } = layers[0]?.params ?? {};
+        if (hold) { holding(); await held; }
+        return { bytes: late ? frames(2, 9) : frames() };
+      }, SECONDS);
+      app = await serve({ dataDir, publicDir, renderBox, rig,
         curators: 'alice, bob' });   // curators see every shared look, approved or not
-      app.base = `http://127.0.0.1:${(await app.listen(0, '127.0.0.1')).port}`;
     };
     await start();
-    cookie = await signup('alice');
-    other = await signup('bob');
+    cookie = await account('alice');
+    other = await account('bob');
   });
   afterAll(async () => {
     await app?.close();
@@ -167,7 +164,7 @@ describe('previews of shared looks', () => {
   });
 
   test('a deleted account\'s previews go at once', async () => {
-    const cy = await signup('cyril');
+    const cy = await account('cyril');
     const { look } = await (await req('/api/looks', { method: 'POST', as: cy,
       body: { title: 'Doomed', layers: glow(), shared: true, chain: 2 } })).json();
     await until(async () => (await gallery()).find((l) => l.id === look.id)?.preview);
@@ -179,7 +176,7 @@ describe('previews of shared looks', () => {
   });
 
   test('a preview being made when its account is deleted is not kept', async () => {
-    const dot = await signup('dorothy');
+    const dot = await account('dorothy');
     await (await req('/api/looks', { method: 'POST', as: dot,
       body: { title: 'Held', layers: glow({ hold: 1 }), shared: true, chain: 2 } })).json();
     await rendering;   // its preview is being made, waiting on the render box

@@ -8,7 +8,7 @@ import { isDeepStrictEqual } from 'node:util';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
-import { DEFAULT_DURATION, upgradeGlobals } from '../public/js/pattern-core.ts';
+import { DEFAULT_DURATION, upgradeGlobals } from '../core/pattern-core.ts';
 import { CHAIN, convertLayers, upgradeLook } from '../shared/chain-order.ts';
 import { keepStandardTitles } from '../shared/standard-modules.ts';
 import { type Listed, LookCreate, LookPatch, LooksQuery } from '../shared/schemas/api.ts';
@@ -23,7 +23,7 @@ import type { Auth } from './auth.ts';
 import { type createBakeQueue, layersHash, renderFields, reviewBlocker } from './bake.ts';
 import { BakeError } from './box-output.ts';
 import type { CodeGate } from './library-gate.ts';
-import { etagMatches, HttpError, type Logger, parse } from './http.ts';
+import { etagMatches, forAnyone, HttpError, type Logger, parse } from './http.ts';
 import { currentN, nameFields, reviewFor, revisedFields, versionRoutes, versionsOf } from './look-versions.ts';
 import { roomForLook, roomToGrow } from './look-cap.ts';
 import type { createPreviews } from './previews/index.ts';
@@ -141,7 +141,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
   }
 
   /** The look, when `user` may `action` it (shared/policy.ts); else 404, so a look not theirs is never revealed. */
-  function visibleLook(id: string, user: User, action: Action = 'see'): Look {
+  function visibleLook(id: string, user: User | null, action: Action = 'see'): Look {
     const look = store.looks.get(id);
     if (!look || !auth.can(user, action, look)) throw new HttpError(404, 'Look not found.');
     return look;
@@ -151,14 +151,15 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
 
   /** `user`'s own looks, newest first, or the gallery's, newest shared first: the approved ones, or every shared one
    * for a curator (SPEC-access "Moderation"); without their versions. */
-  const looksIn = (scope: 'mine' | 'gallery', user: User) => (scope === 'mine'
-    ? store.looks.list((l) => l.owner === user.id, ['versions']).reverse().sort(newestBy('updatedAt'))
+  const looksIn = (scope: 'mine' | 'gallery', user: User | null) => (scope === 'mine'
+    ? store.looks.list((l) => l.owner === user?.id, ['versions']).reverse().sort(newestBy('updatedAt'))
     : store.looks.list((l) => l.shared === true && (auth.can(user, 'curate') || approved(l)), ['versions'])
       .reverse().sort(newestBy('sharedAt')).slice(0, GALLERY_LIMIT));
 
   async function list(req: FastifyRequest) {
     const { scope } = parse(LooksQuery, req.query);
-    return { looks: looksIn(scope, req.user!).map(listed) };
+    if (scope === 'mine' && !req.user) throw new HttpError(401, 'Log in first.');
+    return { looks: looksIn(scope, req.user).map(listed) };
   }
 
   async function create(req: FastifyRequest, reply: FastifyReply) {
@@ -316,15 +317,15 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
   }
 
   async function read(req: Req) {
-    const look = visibleLook(req.params.id, req.user!);
+    const look = visibleLook(req.params.id, req.user);
     return { look: presentLook(look, { versions: versionsFor(req, look),
-      mine: look.owner === req.user!.id }) };
+      mine: look.owner === req.user?.id }) };
   }
 
   /** The look's gallery preview (`<key>.webp`) or its still (`<key>-still.webp`), immutable. */
   async function preview(req: FastifyRequest<{ Params: { id: string, name: string } }>, reply: FastifyReply) {
     const { id, name } = req.params;
-    visibleLook(id, req.user!);
+    visibleLook(id, req.user);
     const file = previews?.file(id, name);
     const body = file && await fs.readFile(file).catch(() => null);
     if (!body) throw new HttpError(404, 'No such preview.');
@@ -341,8 +342,9 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
     };
   const versions = versionRoutes({ visibleLook, update: (id, p) => store.looks.update(id,
     roomToGrow(store, store.looks.get(id)!, p, (why) => new HttpError(429, why)))! });
-  return { visibleLook, listed, looksIn, routes: { 'GET /looks': list, 'POST /looks': limited(create),
-    'GET /looks/:id': read, 'PUT /looks/:id': limited(edit), 'DELETE /looks/:id': limited(remove),
-    'POST /looks/:id/bake': bake, 'GET /looks/:id/preview/:name': preview, ...versions,
+  // The reads forAnyone are a visitor's too, of approved looks (SPEC-access "Visitors").
+  return { visibleLook, listed, looksIn, routes: { 'GET /looks': forAnyone(list), 'POST /looks': limited(create),
+    'GET /looks/:id': forAnyone(read), 'PUT /looks/:id': limited(edit), 'DELETE /looks/:id': limited(remove),
+    'POST /looks/:id/bake': bake, 'GET /looks/:id/preview/:name': forAnyone(preview), ...versions,
     'PUT /looks/:id/versions/:n': limited(versions['PUT /looks/:id/versions/:n']) } };
 }

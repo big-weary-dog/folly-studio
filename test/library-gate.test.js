@@ -6,7 +6,8 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { EMBERS as LIBRARY, fx, layer, signup, startApp, useFixture } from './fixtures/server.js';
+import { signup } from './fixtures/app.js';
+import { EMBERS as LIBRARY, fx, layer, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 const NEW = 'function pixel(p) { return [1, 0, 0]; }';
@@ -42,12 +43,15 @@ describe('as the server runs (no test options; the data and environment asking f
     assert.equal((await admin.put('/api/admin/baking', { mode: 'throttled' })).json.mode, 'throttled');
   });
 
-  test('custom code is refused (403, naming it); a library file exactly is not', async () => {
+  test('custom code is refused (403, naming it); a library file exactly, or a library ref, is not', async () => {
     let r = await ann.post('/api/looks', { title: 'New', layers: modules(NEW) });
     assert.equal(r.status, 403);
     assert.match(r.json.error, /unchanged library patterns.*Layer 1 \(Sea\)'s Mine is custom code/);
-    r = await ann.post('/api/looks', { title: 'Old shape', layers: [layer({ code: NEW })] });
+    r = await ann.post('/api/looks', { title: 'Old shape', layers: [layer({ code: NEW, ref: undefined })] });
     assert.equal(r.status, 403, 'a layer\'s own code too');
+    r = await ann.post('/api/looks', { title: 'Named', layers: [layer({ code: NEW })] });
+    assert.equal(r.status, 201, 'naming a library module, it is that module');
+    assert.equal(r.json.look.layers[0].code, LIBRARY);
     r = await ann.post('/api/looks', { title: 'Embers', layers: modules(LIBRARY, { ref: 'embers' }), shared: true });
     assert.equal(r.status, 201);
     const embers = r.json.look.id;

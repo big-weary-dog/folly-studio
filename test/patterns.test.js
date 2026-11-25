@@ -8,12 +8,12 @@ import { describe, test } from 'vitest';
 
 import {
   compileLayer, compilePattern, prepareLayer, prepareScene, renderFrame, toChannels,
-} from '../public/js/pattern-core.ts';
+} from '../core/pattern-core.ts';
+import { libraryCode as source, libraryIndex } from './fixtures/patterns.js';
 
 const here = (p) => new URL(p, import.meta.url);
 const rig = JSON.parse(readFileSync(here('../public/data/rig-folly.json'), 'utf8'));
-const index = JSON.parse(readFileSync(here('../public/patterns/index.json'), 'utf8'));
-const source = (name) => readFileSync(here(`../public/patterns/${name}.js`), 'utf8');
+const index = libraryIndex();
 const scene = prepareScene(rig);
 const TIMES = [0, 0.37, 1.5, 4.2, 17.9, 63.25, 600.1];
 const GROUPS = [['cathedral'], ['rose-window'], ['spires'], ['main-arch-3'], ['canopy', 'wash', 'spirelets'],

@@ -2,28 +2,27 @@
 // library (one that names a module the library lacks is dropped), made into the Studio's layers (fresh ids, inputs
 // followed, the globals they need merged), rendering cleanly on the Folly and the mini rig, played equal to sought.
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 import { describe, onTestFinished, test } from 'vitest';
 
-import { compileLayer, prepareLayer, prepareLook, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
-import { compileModule } from '../public/js/core/compile.ts';
+import { compileLayer, prepareLayer, prepareLook, prepareScene, renderFrame } from '../core/pattern-core.ts';
+import { compileModule } from '../core/compile.ts';
 import { presetLayers, withPresetGlobals } from '../public/js/ui/model.ts';
 import { LibraryEntry, type ModuleEntry, Preset, type PresetEntry } from '../shared/schemas/rig.ts';
 import { createLoaders } from '../src/static.ts';
 import { folly, mini } from './fixtures/rigs.js';
+import { quiet } from './fixtures/quiet.js';
+import { libraryIndex, withCode } from './fixtures/patterns.js';
 
-const here = (p: string) => new URL(p, import.meta.url);
-const index = JSON.parse(readFileSync(here('../public/patterns/index.json'), 'utf8')) as { name: string,
+const index = libraryIndex() as { name: string,
   kind: string }[];
-const library = index.map((e) => LibraryEntry.parse(e)).map((e) => ({ ...e, code: e.kind === 'preset' ? ''
-  : readFileSync(here(`../public/patterns/${e.name}.js`), 'utf8') })) as (ModuleEntry | PresetEntry)[];
+const library = index.map((e) => withCode(LibraryEntry.parse(e))) as (ModuleEntry | PresetEntry)[];
 const presets = library.filter((e): e is PresetEntry => e.kind === 'preset');
 // Modules that hold real LED colours from frame to frame (trails, smoke, delay, replay, splash).
 const history = new Set(library.filter((e) => /^const stage = 'history'/m.test(e.code)).map((e) => e.name));
-const quiet = { warn() {}, error() {} };
 
 describe('the schema', () => {
   const ok = { name: 'p', title: 'P', summary: 'A preset.', tags: ['x'], category: 'beds', kind: 'preset',

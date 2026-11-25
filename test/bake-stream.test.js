@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, test } from 'vitest';
-import { writeFseq, writeFseqHeader } from '../public/js/fseq.ts';
+import { writeFseq, writeFseqHeader } from '../core/fseq.ts';
 import { bakeFile, bakeLoop } from '../render-box/renderer.ts';
 
 const dir = mkdtempSync(path.join(tmpdir(), 'bake-stream-'));

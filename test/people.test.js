@@ -8,7 +8,9 @@ import { lookRoutes } from '../src/api-looks.ts';
 import { createAuth } from '../src/auth.ts';
 import { removeAccount } from '../src/account-removal.ts';
 import { createStore } from '../src/store.ts';
-import { client, fx, layer, quiet, signup, startApp, useFixture } from './fixtures/server.js';
+import { CHEAP_SCRYPT, client, signup } from './fixtures/app.js';
+import { quiet } from './fixtures/quiet.js';
+import { fx, layer, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 
@@ -57,7 +59,7 @@ describe('people', () => {
     const eve = await signup(app, 'eve');
     const off = await ada.put(`/api/admin/accounts/${eve.user.id}`, { disabled: true });
     assert.equal(off.json.account.disabled, true);
-    assert.equal((await eve.get('/api/me')).status, 401);
+    assert.equal((await eve.get('/api/me')).json.user, null);
     assert.equal(await login('eve'), 403);
     assert.equal(await login('eve', 'wrong horse'), 401, 'a wrong password says nothing of it');
     await ada.put(`/api/admin/accounts/${eve.user.id}`, { disabled: false });
@@ -66,7 +68,7 @@ describe('people', () => {
 
   test('an account disabled while its password is checked does not sign in', async () => {
     const store = await createStore(path.join(fx.tmp, 'data-people-login'), { log: quiet });
-    const auth = createAuth({ store, cost: { N: 1024, r: 8, p: 1 } });
+    const auth = createAuth({ store, cost: CHEAP_SCRYPT });
     const { id } = await auth.signup({ username: 'gus', password: 'correct horse' });
     const late = auth.login({ username: 'gus', password: 'correct horse' });   // checking the password
     auth.setAccount(id, { disabled: true });
@@ -75,7 +77,7 @@ describe('people', () => {
 
   test('a look being saved as its account is deleted is not kept', async () => {
     const store = await createStore(path.join(fx.tmp, 'data-people-save'), { log: quiet });
-    const auth = createAuth({ store, cost: { N: 1024, r: 8, p: 1 } });
+    const auth = createAuth({ store, cost: CHEAP_SCRYPT });
     let open;
     const gate = new Promise((resolve) => { open = resolve; });
     const { routes } = lookRoutes({ store, auth, bakes: {}, dropFrames: async () => {},
@@ -93,7 +95,7 @@ describe('people', () => {
     const fay = await signup(app, 'fay');
     const look = (await fay.post('/api/looks', { title: 'Gone', layers: [layer()], shared: true })).json.look;
     assert.equal((await ada.del(`/api/admin/accounts/${fay.user.id}`)).status, 200);
-    assert.equal((await fay.get('/api/me')).status, 401);
+    assert.equal((await fay.get('/api/me')).json.user, null);
     assert.equal((await ada.get(`/api/looks/${look.id}`)).status, 404);
     assert.equal((await accounts()).some((a) => a.username === 'fay'), false);
     assert.equal((await ada.del(`/api/admin/accounts/${fay.user.id}`)).status, 404);

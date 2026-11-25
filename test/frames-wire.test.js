@@ -6,7 +6,7 @@ import zlib from 'node:zlib';
 
 import { describe, test } from 'vitest';
 
-import { compilePattern, prepareLayer, prepareScene, renderFrame, toChannels } from '../public/js/pattern-core.ts';
+import { compilePattern, prepareLayer, prepareScene, renderFrame, toChannels } from '../core/pattern-core.ts';
 import {
   autoFetchAllowed, decodeChunk, fetchManifest, MODES, openFrameStream, parseManifest, readFrame,
 } from '../public/js/frames-stream.ts';

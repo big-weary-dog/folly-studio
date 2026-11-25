@@ -6,10 +6,13 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
+import { readConfig } from '../src/config.ts';
 import { keepTail } from '../src/http.ts';
 import { createReports, reportFolders } from '../src/reports/store.ts';
-import { piece, scrub, scrubText } from '../public/js/scrub.ts';
-import { client, fx, quiet, signup, startApp, useFixture } from './fixtures/server.js';
+import { piece, scrub, scrubText } from '../core/scrub.ts';
+import { client, signup } from './fixtures/app.js';
+import { quiet } from './fixtures/quiet.js';
+import { fx, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 const tmp = (name) => fs.mkdtempSync(path.join(fx.tmp, `${name}-`));
@@ -77,6 +80,15 @@ describe('the store', () => {
     assert.ok(!left.some((f) => f.id === 'old000'));
     assert.ok(fs.existsSync(path.join(dir, 'not-ours')), 'only folders it named are touched');
   });
+
+  test('90 days by default', async () => {
+    const dir = tmp('reports-days'), reports = createReports({ dir }), now = Date.parse('2026-06-01T00:00:00Z');
+    for (const name of ['2026-03-10T00-00-00-young0', '2026-02-20T00-00-00-aged00']) {
+      fs.mkdirSync(path.join(dir, name), { recursive: true });
+    }
+    await reports.prune(now);
+    assert.deepEqual((await reportFolders(dir)).map((f) => f.id), ['young0']);
+  });
 });
 
 describe('the routes', () => {
@@ -116,4 +128,13 @@ describe('the routes', () => {
     for (let i = 0; i < 11; i++) codes.push((await other.post('/api/reports', report())).status);
     assert.deepEqual([codes.slice(0, 10).every((c) => c === 201), codes[10]], [true, 429]);
   });
+});
+
+test('the privacy page reads the days in force, signed in or not', async () => {
+  const app = await startApp({ dataDir: path.join(fx.tmp, 'data-privacy'),
+    config: readConfig({ STUDIO_REPORTS_DAYS: '30' }) });
+  try {
+    const got = await client(app).get('/api/privacy');
+    assert.deepEqual([got.status, got.json], [200, { reportDays: 30 }]);
+  } finally { await app.close(); }
 });

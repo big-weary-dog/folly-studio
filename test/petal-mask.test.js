@@ -5,12 +5,11 @@ import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
-import { readFileSync } from 'node:fs';
-
-import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
+import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../core/pattern-core.ts';
 import { pickText, readPicks } from '../public/js/ui/bindings.ts';
 import { at, COG, layerOf, layerOn } from './fixtures/layers.js';
 import { cog, folly } from './fixtures/rigs.js';
+import { libraryCode } from './fixtures/patterns.js';
 
 const WHITE = ['white', {}, 'function pixel() { return 1; }'];
 const shown = (params, groups = ['rose-window']) => {
@@ -54,7 +53,7 @@ describe('petal mask', () => {
 // Cell k's ring (1 at the heart) and its place across that ring, from the counterclockwise side, of how many.
 const CELLS = [[1, 0, 1], [2, 0, 2], [2, 1, 2], [3, 0, 1], [4, 0, 2], [4, 1, 2], [5, 0, 3], [5, 1, 3], [5, 2, 3],
   [6, 0, 2], [6, 1, 2], [7, 0, 3], [7, 1, 3], [7, 2, 3]];
-const code = readFileSync(new URL('../public/patterns/petal-mask.js', import.meta.url), 'utf8');
+const code = libraryCode('petal-mask');
 
 describe('cells', () => {
   for (const [name, rig] of Object.entries({ cog, folly })) {

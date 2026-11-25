@@ -1,6 +1,6 @@
 // What views share with the shell (app.tsx): who is signed in, navigation, the title, and the guard on unsaved
 // edits. The shell plugs its router in, so no view imports the shell (an import cycle would cost Vite's HMR).
-import { signal } from '@preact/signals';
+import { computed, signal } from '@preact/signals';
 
 import { onSignedOut } from '../api.ts';
 import type { FlashSettings, User } from '../../../shared/schemas/api.ts';
@@ -12,8 +12,19 @@ export const user = signal<User | null>(null);
 export const flash = signal<FlashSettings | null>(null);
 /** The rig the server shows, bakes and boxes (SPEC "Rig", GET /api/me's `rig`): the views load the same one. */
 export const rig = signal<RigName>('folly');
-/** Where a signed-in visitor starts: My looks; the Studio for a guest. */
-export const home = () => (user.value?.guest ? '/studio' : '/looks');
+/** The Studio's Advanced editing on a laptop (SPEC-studio "Simple"), as this browser chose it; null: not chosen. */
+const ADVANCED = 'studio.advanced';
+const chosen = signal<boolean | null>((() => {
+  try { return { 1: true, 0: false }[localStorage.getItem(ADVANCED) ?? ''] ?? null; } catch { return null; }
+})());
+/** Whether the Studio shows Advanced editing: as chosen, else on for an account and off for a guest or visitor. */
+export const advanced = computed(() => chosen.value ?? !!(user.value && !user.value.guest));
+export function setAdvanced(on: boolean) {
+  chosen.value = on;
+  try { localStorage.setItem(ADVANCED, on ? '1' : '0'); } catch { /* private mode: kept for this visit */ }
+}
+/** Where a signed-in visitor starts: the gallery (SPEC-access "Moderation"). */
+export const HOME = '/gallery';
 type Me = { user: User | null, flash?: FlashSettings | null, rig?: RigName };
 /** Who the server says is signed in (GET /api/me, or a sign-in's answer), and what follows from it. */
 export function signedIn(me: Partial<Me>) {
@@ -33,9 +44,10 @@ export const setTitle = (t?: string) => { document.title = t ? `${t} · Folly St
 /** Change the address bar without leaving the view (a new look got its id). */
 export function replaceUrl(path: string) { history.replaceState(null, '', path); router.shown = here(); }
 
-/** The session ended (an API call said 401, api.ts): back to the login screen, once for calls that end together. */
+/** The session ended, or a visitor asked for more than approved looks (an API call said 401, api.ts): to the login
+ * screen, once for calls that end together. */
 export function signedOut() {
-  if (!user.value) return;
+  if (location.pathname.startsWith('/login')) return;
   user.value = null;
   for (const d of document.querySelectorAll('dialog[open]')) (d as HTMLDialogElement).close();
   navigate(`/login?next=${encodeURIComponent(here())}`, { replace: true, force: true });

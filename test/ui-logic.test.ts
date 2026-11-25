@@ -14,7 +14,7 @@ import {
   upgradedOf,
 } from '../public/js/ui/bindings.ts';
 import { decimals, exact, onSpan, places, scrubTo, snap } from '../public/js/ui/kit.tsx';
-import { user } from '../public/js/ui/session.ts';
+import { advanced, setAdvanced, user } from '../public/js/ui/session.ts';
 import { pathsHere } from '../public/js/ui/tour/paths/index.ts';
 import { createLayerStatus } from '../public/js/ui/layer-status.ts';
 import {
@@ -82,15 +82,19 @@ test('new automation names avoid collisions; colour automation preserves the pic
 
 describe('routing', () => {
   test('the same URLs, with redirects for the signed out and the signed in', () => {
-    assert.equal(where('/'), '→ /looks');
-    assert.equal(where('/', '', false), '→ /login');
+    assert.equal(where('/'), '→ /gallery');
+    assert.equal(where('/', '', false), '→ /gallery');
     assert.equal(where('/studio/a%20b'), 'studio {"lookId":"a b"}');
     assert.equal(where('/studio/'), 'studio {}');
     assert.equal(where('/gallery'), 'gallery {}');
-    assert.equal(where('/nowhere'), '→ /looks');
-    assert.equal(where('/studio/x', '?y=1', false), '→ /login?next=%2Fstudio%2Fx%3Fy%3D1');
+    assert.equal(where('/nowhere'), '→ /gallery');
+    assert.equal(where('/studio', '?y=1', false), '→ /login?next=%2Fstudio%3Fy%3D1');
+    assert.equal(where('/studio/x', '', false), 'studio {"lookId":"x"}', 'a share link is open to visitors');
+    assert.equal(where('/gallery', '', false), 'gallery {}');
     assert.equal(where('/login', '?next=%2Fgallery'), '→ /gallery');
     assert.equal(where('/login', '', false), 'auth {}');
+    assert.equal(where('/privacy', '', false), 'privacy {}');
+    assert.equal(where('/privacy'), 'privacy {}');
   });
 
   test('the admin pages are tabs under /admin; /admin and their old URLs lead to them', () => {
@@ -105,24 +109,35 @@ describe('routing', () => {
     assert.equal(where('/admin/reports', '', false), '→ /login?next=%2Fadmin%2Freports');
   });
 
-  test('Ideas is gone: its URLs lead to My looks; a guest\'s home is the Studio', () => {
-    assert.equal(where('/ideas'), '→ /looks');
-    assert.equal(where('/ideas/x/how'), '→ /looks');
+  test('Ideas is gone: its URLs lead home, the gallery, a guest\'s too', () => {
+    assert.equal(where('/ideas'), '→ /gallery');
+    assert.equal(where('/ideas/x/how'), '→ /gallery');
     user.value = { id: 'guest-x', username: 'Wren', role: 'member', guest: true };
-    try {
-      assert.equal(where('/'), '→ /studio');
-    } finally { user.value = null; }
+    try { assert.equal(where('/'), '→ /gallery'); } finally { user.value = null; }
   });
 
   test('a guest\'s tutorial says an account saves', () => {
-    const save = (guest: boolean) => pathsHere(guest).find((p) => p.id === 'keep')!.steps.find((s) => s.id === 'save')!;
+    const save = (guest: boolean) => pathsHere(guest).find((p) => p.id === 'first-look')!.steps
+      .find((s) => s.id === 'save')!;
     assert.match(save(true).text, /log in or sign up/);
     assert.doesNotMatch(save(false).text, /log in or sign up/);
   });
 
+  test('Advanced editing: an account starts with it, a guest or visitor without; the browser\'s choice wins', () => {
+    const as = (u: typeof user.value) => { user.value = u; return advanced.value; };
+    try {
+      assert.deepEqual([as(null), as({ id: 'g', username: 'Wren', role: 'member', guest: true }),
+        as({ id: 'a', username: 'ann', role: 'member' })], [false, false, true]);
+      setAdvanced(false);
+      assert.equal(advanced.value, false, 'turned off by an account');
+      setAdvanced(true);
+      assert.equal(as(null), true, 'turned on in this browser');
+    } finally { user.value = null; }
+  });
+
   test('`next` stays on this app', () => {
     for (const bad of [null, '', 'https://evil.example', '//evil.example', '/login?next=/x']) {
-      assert.equal(safeNext(bad), '/looks', String(bad));
+      assert.equal(safeNext(bad), '/gallery', String(bad));
     }
     assert.equal(safeNext('/studio/abc?x=1'), '/studio/abc?x=1');
   });

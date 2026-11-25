@@ -7,7 +7,7 @@ import { computed, effect, signal } from '@preact/signals';
 
 import type { LibraryEntry, Rig } from '../../../shared/schemas/rig.ts';
 import { api, fetchJSON } from '../api.ts';
-import { LIGHT, lightOf } from '../core/light.ts';
+import { LIGHT, lightOf } from '../../../core/light.ts';
 import { FlashGuard } from '../flash-guard.ts';
 import { openFrameStream } from '../frames-stream.ts';
 import type { Venue } from '../playa/venue.ts';

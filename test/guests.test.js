@@ -8,7 +8,8 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { createAuth } from '../src/auth.ts';
-import { client, signup, startApp, useFixture } from './fixtures/server.js';
+import { client, signup } from './fixtures/app.js';
+import { startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 
@@ -43,6 +44,30 @@ describe('guests', () => {
     assert.equal(app.store.users.list().length, 1, 'only bob is an account');
   });
 
+  test('Try it sends no name: a guest named Visitor', async () => {
+    const r = await client(app).post('/api/guest', {});
+    assert.equal(r.status, 201, r.text);
+    assert.deepEqual([r.json.user.username, r.json.user.guest], ['Visitor', true]);
+  });
+
+  test('a visitor, with no session, reads approved looks alone; anything else asks them to log in', async () => {
+    const hid = (await owner.post('/api/looks', { title: 'Mine', layers: [], shared: true })).json.look.id;
+    const v = client(app), gallery = await v.get('/api/looks?scope=gallery');
+    assert.equal(gallery.status, 200, gallery.text);
+    assert.deepEqual(gallery.json.looks.map((l) => l.id), [shared], 'the approved one, not the one waiting');
+    assert.equal((await v.get(`/api/looks/${shared}`)).json.look.title, 'Embers');
+    for (const url of [`/api/looks/${hid}`, `/api/looks/${shared}/frames`, `/api/looks/${shared}/frames/wire`,
+      `/api/looks/${hid}/frames`, `/api/looks/${shared}/preview/x.webp`]) {
+      assert.equal((await v.get(url)).status, 404, url);   // never 401: unbaked, or not theirs to see
+    }
+    assert.equal((await v.get('/api/light')).status, 200);
+    assert.equal((await v.get('/api/me')).json.user, null, 'nobody signed in, said so');
+    for (const url of ['/api/looks?scope=mine', `/api/looks/${shared}/versions`]) {
+      assert.equal((await v.get(url)).status, 401, url);
+    }
+    assert.equal((await v.put(`/api/looks/${shared}`, { title: 'Ours' })).status, 401);
+  });
+
   test('reads the gallery and the library; every write is refused, signing out is not', async () => {
     const g = await guest('Wren');
     assert.equal((await g.get(`/api/looks/${shared}`)).status, 200);
@@ -56,7 +81,7 @@ describe('guests', () => {
       assert.match(r.json.error, /Guests can't save/);
     }
     assert.equal((await g.post('/api/logout', {})).status, 200);
-    assert.equal((await g.get('/api/me')).status, 401);
+    assert.equal((await g.get('/api/me')).json.user, null);
   });
 
   test('the name is checked, and guests are limited per address', async () => {

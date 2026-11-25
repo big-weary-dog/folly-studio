@@ -7,7 +7,7 @@ import { describe, test } from 'vitest';
 import {
   STDLIB, compilePattern, prepareScene, prepareLayer, renderFrame, setLibrary, SOURCE_PARAMS, toChannels,
   pixelsForGroups,
-} from '../public/js/pattern-core.ts';
+} from '../core/pattern-core.ts';
 import { fade } from './fixtures/oklab.js';
 import { folly as rig } from './fixtures/rigs.js';
 

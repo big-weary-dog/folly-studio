@@ -216,6 +216,7 @@ STUDIO_ADMINS=you                 # the Admin page (light, baking, reports, stat
 STUDIO_BAKE_SECONDS=120           # longest bake
 STUDIO_FRAMES_BROTLI_QUALITY=9
 STUDIO_FRAMES_MAX_BYTES=2GB
+STUDIO_REPORTS_DAYS=90            # bug reports kept this many days
 STUDIO_FLASH_PER_SECOND=3         # the flash check: flashes a second allowed (WCAG 2.3.1: 3)
 STUDIO_FLASH_DELTA=0.5            # a flash's swing, as a share of the LEDs' full light (WCAG: 0.1)
 STUDIO_FLASH_AREA=0.25            # share of the LEDs, or of the lit area from the front or side, that blocks
@@ -243,6 +244,7 @@ Then fix the env file, or roll back: `npm run host -- --rollback`.
 backup `STUDIO_BACKUP_DIR`, `STUDIO_BACKUP_KEEP` and `STUDIO_BACKUP_OFFSITE` ([Backups](#backups)); the server ignores
 them.
 
+<!-- settings: npm run docs:settings writes this table from src/config.ts -->
 | Setting | What it is |
 | --- | --- |
 | `PORT` | the port, default 8780 |
@@ -260,6 +262,7 @@ them.
 | `STUDIO_FLASH_DELTA` | a flash's swing as a share of full light, default 0.5 |
 | `STUDIO_FLASH_AREA` | the share of the LEDs or lit area that blocks, default 0.25 |
 | `STUDIO_PREVIEWS` | the gallery previews' camera, default playa |
+| `STUDIO_REPORTS_DAYS` | days a bug report is kept, default 90 |
 | `GIT_SHA` | the build's commit, for bug reports (default: the checkout's) |
 | `STUDIO_BAKE_SECONDS` | the longest render-box bake, default 120 |
 | `STUDIO_BAKE_TIMEOUT` | a bake's wall clock, default scaled to its length |
@@ -268,6 +271,7 @@ them.
 | `STUDIO_BAKE_NICE` | a bake's nice level (0–19), default 10 |
 | `STUDIO_BAKE_MEMORY` | a bake's memory cap, default 1GB |
 | `STUDIO_BAKE_MAX_FRAMES` | the largest baked frames, default room for the longest bake |
+<!-- /settings -->
 
 ### The flash check
 
@@ -285,6 +289,14 @@ for themselves with "Don't dim for me".
 `STUDIO_FLASH_CHECK=off` stops the check blocking or dimming anything (bakes still measure it and say so). It is
 for trying things on your own machine: **not for public deployments**, where it would show strobes to people with
 photosensitive epilepsy without warning.
+
+### Bug reports and privacy
+
+Bug reports (F8, and Report this look) hold a screenshot, the page's state and the server's last warn and error
+lines, so they are kept `STUDIO_REPORTS_DAYS` (default 90) and no more: the server removes older ones at start, on
+each new report and every hour, and keeps at most the newest 500 within 500 MB. The privacy page (`/privacy`) states
+the days in force, so change the setting rather than the folder. To clear them all at once, stop the server and
+delete `reports/` in the data folder.
 
 ## Without a systemd user session
 

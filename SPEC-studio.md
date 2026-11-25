@@ -70,8 +70,20 @@ every edit here keeps them, so what the Studio saves the API accepts.
   On a phone: globals and palette in the Look tab;
   the chain allows enable, params and + Source in a composite. + Source offers sources alone on every screen.
   Module deletion names all attached or contained modules it removes; Undo restores the whole edit.
+- **New look** (My looks' New look, `/studio?new`) opens the picker as "Start a look": Presets first, then Sources,
+  with no groups to pick. Each row auditions in place of the look; the one picked becomes the look, its layers on the
+  whole rig, its title and the globals it needs, one step that Undo takes back. Closing it keeps the blank look
+  (one source layer). A guest's work kept in the browser is not opened under it.
   Mute and Solo audition the look without changing saved content. FSEQ exports the current preview and asks
   before excluding muted or unsoloed layers; its form explains that JSON, Save and Check & bake use the full look.
+- <a id="simple"></a>**Simple.** On a laptop the Studio is Simple until the user menu's **Advanced editing** is
+  switched on: the 3D view, its camera, the layers (name, mute, solo, order), the selected module's settings, the
+  dock's Look tab (the palette, and the look's faders if it has any), Share, Export (Check & bake, the look's JSON)
+  and Save. Advanced adds the Timeline tab, History, ∿ on every setting, modulators and + Macro, Plays on, Soften,
+  a layer's blend and level, Composite and + Module, Export .fseq and the 3D view's style buttons. The choice is
+  kept per browser; unset, an account starts Advanced and a guest or visitor Simple (a visitor has no menu, so
+  stays Simple). A phone has its own light view (below) and no Advanced editing. Clips, automation, modulation and
+  the groups a layer plays on keep playing in Simple, unseen.
 - <a id="phones"></a>**Phones** (≤ 899 px wide; `ui/phone/`, `css/phone.css`): the 3D view over one panel,
   switched by Layers,
   Look and More. The preview and transport occupy 240 px while using these panels; venue scenery stays.

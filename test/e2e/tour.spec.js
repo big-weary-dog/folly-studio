@@ -1,12 +1,11 @@
-// npm run smoke, too: the tutorial (SPEC-tutorial), Rose and arches' chapters played by their steps' own controls at a
-// laptop's size and a shorter window. Each step's control is ringed inside the window (scrolled into view in whatever
-// panel scrolls), its goal is not already met when it opens, and the card keeps off the preview. A new account meets
-// the welcome and finds Getting around ticked in Tutorials; on a phone nothing opens and nothing is marked. With
+// npm run smoke, too: the tutorial (SPEC-tutorial), Getting around on Rose and arches played by its steps' own controls
+// at a laptop's size and a shorter window. Each step's control is ringed inside the window (scrolled into view in
+// whatever panel scrolls), its goal is not already met when it opens, and the card keeps off the preview. A new account
+// meets the welcome and finds Getting around ticked in Tutorials; on a phone nothing opens and nothing is marked. With
 // TOUR_SHOTS set to a folder, each step's screenshot (at 1366 × 768) goes there.
 import path from 'node:path';
 
-import { expect, signup, test } from './studio.js';
-import { playKeep, playLayers, playLook, playModules, playMoves, playTime } from './tour-paths.js';
+import { expect, signIn, signup, test } from './studio.js';
 
 test.use({ tourWelcome: true });
 
@@ -14,8 +13,7 @@ const PHONE = { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch:
 
 /** A new account's cookie on the page's context. */
 async function signedIn(page, { origin }, name) {
-  const [k, v] = (await signup(origin, name)).split('=');
-  await page.context().addCookies([{ name: k, value: v, url: origin }]);
+  await signIn(page.context(), origin, await signup(origin, name));
 }
 
 /** How far (px) the ring is from round the step's control (the last of `names` on screen, as the tour picks it), or
@@ -41,7 +39,6 @@ const ringOff = (page, names) => page.evaluate((names) => {
     Math.abs(ring.right - (r.right + PAD)), Math.abs(ring.bottom - (r.bottom + PAD)));
 }, names);
 
-/** How many px² of the preview the step's card covers. */
 /** How much of the preview and the part the ring sits in the card covers (px²). */
 const cardOnPreview = (page) => page.evaluate(() => {
   const a = document.querySelector('.tour-step')?.getBoundingClientRect();
@@ -81,8 +78,8 @@ function steps(page, info, { shots = true } = {}) {
   };
   return t;
 }
-/** A path from Tutorials in the user menu, on an account that has seen the welcome. */
-async function fromTutorials(page, studio, user, title) {
+/** Getting around from Tutorials in the user menu, on an account that has seen the welcome. */
+async function fromTutorials(page, studio, user) {
   const { origin } = studio;
   await signedIn(page, studio, user);
   await page.goto(`${origin}/`);
@@ -91,13 +88,7 @@ async function fromTutorials(page, studio, user, title) {
   await page.reload();
   await page.locator('[data-tour="user-menu"]').click();
   await page.getByRole('button', { name: 'Tutorials' }).click();
-  await page.locator('.tour-path', { hasText: title }).click();
-}
-/** The path finished: Tutorials says so, and so does the account. */
-async function finished(page, title, id) {
-  await expect(page.getByRole('dialog', { name: `${title}: done` })).toBeVisible();
-  const me = await page.evaluate(() => fetch('/api/me').then((r) => r.json()));
-  expect(me.user.tour.done).toContain(id);
+  await page.locator('.tour-path', { hasText: 'Getting around' }).click();
 }
 
 for (const height of [768, 660]) {
@@ -117,43 +108,48 @@ for (const height of [768, 660]) {
       await shot('first-look-welcome');
       await welcome.getByRole('button', { name: 'Start the tour' }).click();
 
-      await open('Turn the model');
-      await ring('preview');
-      await offPreview();
-      const box = await at('preview').boundingBox(), mid = [box.x + box.width / 2, box.y + box.height / 2];
-      await page.mouse.move(...mid);
-      await page.mouse.down();
-      await page.mouse.move(mid[0] + 160, mid[1], { steps: 8 });
-      await page.mouse.up();
-      await s.done();
-      await shot('first-look-turn');
-
-      await open('A view');
-      await ring('view-bar', 'view:rose');
-      await at('view:rose').click();
-      await s.done();
-      await shot('first-look-rose');
-
-      await open('Zoom');
-      await ring('preview');
-      await page.mouse.move(...mid);
-      await page.mouse.wheel(0, -600);
-      await s.done();
-      await shot('first-look-zoom');
-
-      await open('The whole Folly');
-      await ring('view-bar', 'view:fit');
-      await at('view:fit').click();
-      await s.done();
-      await shot('first-look-fit');
-
       await open('Pause and play');
       await ring('play');
+      await offPreview();
       await at('play').click();
       await expect(at('play')).toHaveAttribute('aria-label', 'Play');
       await at('play').click();
       await s.done();
       await shot('first-look-pause');
+
+      await open('Its layers');
+      await ring('layer:arches');
+      await offPreview();
+      await at('layer:arches').locator('.layer-name').click();
+      await s.done();
+      await shot('first-look-layer');
+
+      await open('A colour');
+      await ring('module:single-strand', 'param:colours');
+      if (!await at('param:colours').isVisible()) await at('module:single-strand').click();
+      await ring('param:colours');
+      await offPreview();
+      await at('param:colours').locator('.pick-btn').click();
+      await page.locator('.pick-pop:popover-open').locator('.pick-whole', { hasText: /^high$/ }).locator('input')
+        .check();
+      await page.keyboard.press('Escape');
+      await s.done();
+      await shot('first-look-high');
+
+      await open('Mute');
+      await ring('mute:starfield');
+      await offPreview();
+      await at('mute:starfield').click();
+      await expect(at('mute:starfield')).toHaveAttribute('aria-pressed', 'true');
+      await at('mute:starfield').click();
+      await s.done();
+      await shot('first-look-mute');
+
+      await open('Save');
+      await ring('save');
+      await at('save').click();
+      await s.done();
+      await shot('first-look-save');
       await s.next();
 
       const menu = page.getByRole('dialog', { name: 'Getting around: done' });
@@ -170,18 +166,6 @@ for (const height of [768, 660]) {
       expect(errors).toEqual([]);
     });
 
-    for (const [title, id, play] of [['The look', 'look', playLook], ['Modules and colour', 'modules', playModules],
-      ['Layers and chains', 'layers', playLayers], ['Time', 'time', playTime], ['Values that move', 'moves', playMoves],
-      ['Keep it', 'keep', playKeep]]) {
-      test(title, async ({ page, studio }, info) => {
-        const errors = [];
-        page.on('pageerror', (e) => errors.push(String(e)));
-        await fromTutorials(page, studio, `${id}-${height}`, title);
-        await play(page, steps(page, info, { shots }));
-        await finished(page, title, id);
-        expect(errors).toEqual([]);
-      });
-    }
   });
 }
 
@@ -190,8 +174,8 @@ test.describe('laptop, 1366 × 768: unsaved edits', () => {
 
   test('a practice path over unsaved edits: Cancel keeps them, Leave starts it', async ({ page, studio }, info) => {
     const { card, title, at } = steps(page, info);
-    await fromTutorials(page, studio, 'unsaved', 'Getting around');
-    await title('Turn the model');
+    await fromTutorials(page, studio, 'unsaved');
+    await title('Pause and play');
     await card.getByRole('button', { name: 'Close the tutorial' }).click();
     await page.goto(`${studio.origin}/studio`);
     const level = at('level:colour-wash').locator('input');
@@ -200,7 +184,7 @@ test.describe('laptop, 1366 × 768: unsaved edits', () => {
     const pick = async () => {
       await at('user-menu').click();
       await page.getByRole('button', { name: 'Tutorials' }).click();
-      await page.locator('.tour-path', { hasText: 'Modules and colour' }).click();
+      await page.locator('.tour-path', { hasText: 'Getting around' }).click();
       return page.getByRole('dialog', { name: 'Unsaved changes' });
     };
     await (await pick()).getByRole('button', { name: 'Cancel' }).click();
@@ -209,8 +193,8 @@ test.describe('laptop, 1366 × 768: unsaved edits', () => {
     await expect(at('level:colour-wash')).toBeVisible();
     await page.getByRole('dialog', { name: 'Tutorials' }).getByRole('button', { name: 'Close the tutorial' }).click();
     await (await pick()).getByRole('button', { name: 'Leave' }).click();
-    await title('A number');
-    await expect(page).toHaveURL(/\/studio\?tour=modules$/);
+    await title('Pause and play');
+    await expect(page).toHaveURL(/\/studio\?tour=first-look$/);
   });
 });
 

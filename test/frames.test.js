@@ -1,17 +1,17 @@
 // src/frames.ts: the strict FSEQ parser and the frame analysis (brightness, power, flicker).
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
-import { ledRanges, writeFseq } from '../public/js/fseq.ts';
+import { ledRanges, writeFseq } from '../core/fseq.ts';
 import {
   compileLayer, FlashWatch, ledLight, pixelsForGroups, prepareLayer, prepareLook, prepareScene, renderFrame,
-} from '../public/js/pattern-core.ts';
+} from '../core/pattern-core.ts';
 import { checkFrames, flashSettings } from '../src/box-output.ts';
 import { configOf } from '../src/config.ts';
 import { analyzeFrames, FseqError, flickerReason, flickerWarning, MAX_CHANNELS, parseFseq } from '../src/frames.ts';
 import { folly } from './fixtures/rigs.js';
+import { libraryCode as lib } from './fixtures/patterns.js';
 
 // 100 LEDs, 3 channels each: the body (zone body) on universe 1, a small spire (5 LEDs) on universe 2.
 // Top-level groups: parts (the body) and the spire.
@@ -243,7 +243,6 @@ describe('flash check on looks: a wave a second is fine, a strobe is not', () =>
     const byte = (v) => Math.round(Math.min(1, Math.max(0, v)) * 255);
     return analyze(parseFseq(bake(real, seconds, (f, k) => [0, 1, 2].map((c) => byte(frames[f][3 * k + c])))), real);
   };
-  const lib = (name) => readFileSync(new URL(`../public/patterns/${name}.js`, import.meta.url), 'utf8');
   // The Shockwave preset: a comet ring heading out of the rose, `every` seconds, `duty` thick.
   const shockwave = (every, duty = 0.5, groups) => ({ id: 's', groups, modules: [
     { id: 'b', kind: 'source', code: lib('bars'),

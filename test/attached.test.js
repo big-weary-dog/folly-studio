@@ -5,11 +5,11 @@ import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
-import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
+import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../core/pattern-core.ts';
 import { Modules } from '../shared/schemas/look.ts';
+import { libraryCode as lib } from './fixtures/patterns.js';
 
 const rig = JSON.parse(readFileSync(new URL('../public/data/rig.json', import.meta.url), 'utf8'));
-const lib = (name) => readFileSync(new URL(`../public/patterns/${name}.js`, import.meta.url), 'utf8');
 const scene = prepareScene(rig);
 const layerOf = (modules) => prepareLayer(scene, { id: 'l', modules }, compileLayer({ id: 'l', modules }));
 const rgbOf = (modules, t = 0.5) => renderFrame(scene, [layerOf(modules)], t).rgb.slice();

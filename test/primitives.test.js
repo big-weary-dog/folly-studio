@@ -1,15 +1,14 @@
 // The library's new primitives where a slip is easy: polar and anchor's geometry on the Folly and the fictional mini
 // rig, and the colour wash's hold, which keeps a change of colour from flashing.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
-import { compileLayer, prepareLayer, prepareScene, renderFrame, tagCentres } from '../public/js/pattern-core.ts';
+import { compileLayer, prepareLayer, prepareScene, renderFrame, tagCentres } from '../core/pattern-core.ts';
 import { fade } from './fixtures/oklab.js';
 import { folly, mini } from './fixtures/rigs.js';
+import { libraryCode as lib } from './fixtures/patterns.js';
 
-const lib = (name) => readFileSync(new URL(`../public/patterns/${name}.js`, import.meta.url), 'utf8');
 // A probe source that says what it reads: three of the pixel's fields as its colour.
 const probe = (a, b, c) => ({ id: 'p', kind: 'source',
   code: `function pixel(q) { return [q.${a}, q.${b}, q.${c}]; }` });
