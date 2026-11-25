@@ -14,11 +14,11 @@ import type { LayerInput } from '../core/pattern-core.ts';
 import { type Config, configOf } from './config.ts';
 import { rigFileOf, rigOf } from './rig-choice.ts';
 import { bundle } from './core-script.ts';
+import { FPS } from '../render-box/renderer.ts';
 import type { Logger } from './http.ts';
 
 const STUDIO = fileURLToPath(new URL('../', import.meta.url));
 const SECOND = 1000;
-const FPS = 40;
 
 async function which(cmd: string, PATH: string | undefined) {
   if (cmd.includes('/')) return cmd;

@@ -1,7 +1,8 @@
 // Pure: a module's params as controls (SPEC "Pattern code") and number params' bindings (SPEC "Param bindings"):
 // the schema entry a control shows, a binding in a few words, and the binding the modulate dialog makes.
 import type { Binding, ParamValue } from '../../../../shared/schemas/look.ts';
-import { readText } from '../../../../core/globals.ts';
+import { isBinding, readText } from '../../../../core/globals.ts';
+import { hexOfRgb } from '../../../../core/picks.ts';
 import { paramControls, type ParamControls } from '../../../../core/param-controls.ts';
 import { type Picture, readPicture } from '../../../../core/picture.ts';
 import { humanize } from '../kit.tsx';
@@ -23,10 +24,6 @@ const DIRECTION_TEXT: Record<string, string> = { up: 'Up ↑', down: 'Down ↓',
   'orbit-clockwise': 'Orbit, clockwise from above', 'orbit-counterclockwise': 'Orbit, counterclockwise from above' };
 export const optionText = (key: string, options: string[]) => (options.every((o) => o in DIRECTION_TEXT)
   ? DIRECTION_TEXT[key] : humanize(key));
-
-/** Is v a param binding rather than a value? */
-export const isBinding = (v: unknown): v is Binding => !!v && typeof v === 'object' && !Array.isArray(v)
-  && typeof (v as Binding).mod === 'string';
 
 /** A conditional row reads the same defaults and validated choices as the controls themselves. */
 export function visibleParams(entries: [string, Param][], values: Record<string, ParamValue>) {
@@ -99,8 +96,7 @@ export function normaliseParam(key: string, raw: unknown): Param | null {
 /** A colour value ('#rrggbb' or [r, g, b] 0..1) as '#rrggbb'. */
 function toHex(v: unknown) {
   if (typeof v === 'string' && HEX.test(v)) return v.toLowerCase();
-  const byte = (c: unknown) => Math.round(Math.min(1, Math.max(0, Number(c) || 0)) * 255).toString(16).padStart(2, '0');
-  return Array.isArray(v) && v.length >= 3 ? `#${v.slice(0, 3).map(byte).join('')}` : '#ffffff';
+  return Array.isArray(v) && v.length >= 3 ? hexOfRgb(v) : '#ffffff';
 }
 
 /** What a control shows for a module's value: its own, the code's default, or none while a binding moves it. */

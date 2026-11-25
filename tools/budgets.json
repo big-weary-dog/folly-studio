@@ -5,7 +5,7 @@
     "core": { "lines": 4220, "reason": "The pattern core the browser, the boxes and the server share: the runtime, module chains, blur, places, clocks, the FSEQ writer and the scrubber, with caches that keep a frame free of garbage." },
     "public": { "lines": 38, "reason": "The app's HTML shell, which loads its browser entry point." },
     "public/css": { "lines": 1840, "reason": "The app's styles: the responsive Studio and its phone panels, Simple and Advanced editing, the gallery, sign-in, privacy, Account and People pages." },
-    "public/js": { "lines": 12320, "reason": "The browser app: the Studio (Simple and Advanced editing, chain, timeline, globals, history, presets), the gallery and its moderation, sign-in, guests and visitors, the Account, People and privacy pages, the pattern Worker and the 3D preview." },
+    "public/js": { "lines": 12317, "reason": "The browser app: the Studio (Simple and Advanced editing, chain, timeline, globals, history, presets), the gallery and its moderation, sign-in, guests and visitors, the Account, People and privacy pages, the pattern Worker and the 3D preview." },
     "public/patterns": { "lines": 1940, "reason": "The library's patterns, each one file, with lookup tables where they keep a frame fast and exact fallbacks beside them." },
     "render-box": { "lines": 253, "reason": "The render box's child: it runs a look's library code in a stdlib-only realm under limits, checks its parent between frames and streams deterministic FSEQ." },
     "shared": { "lines": 1004, "reason": "What the browser and the server both hold: the look, API and rig schemas, permissions, what plays, the conversion of chains from before the one rule, and the one walk over a look's modules every rule on them takes." },

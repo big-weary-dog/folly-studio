@@ -48,7 +48,8 @@ export function fitView(P: Float32Array, b: { min: number[]; max: number[] }, ta
   return { Target: target, Distance: d * 1.06, Angle: angle, Elevation: elevation, Fov: fov, Eyelock: false };
 }
 
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+export const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 /** The part of a frame (`w` by `h` CSS px, `top` down the canvas) that `r` (CSS px of the canvas) leaves: in `out`,
  * its centre in the frame's NDC and its share of the frame's width and height; all of it when `r` is null. */
 export function clearLens(r: { x: number; y: number; w: number; h: number } | null, w: number, top: number,

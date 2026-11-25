@@ -2,12 +2,12 @@
 // dealt in turn, with blend, range and rotate; back to the value a param or a layer's role stores.
 import type { Binding, Pick } from '../../../../shared/schemas/look.ts';
 import { type PickBlend, pickText, readPick } from '../../../../core/picks.ts';
+import { isBinding } from '../../../../core/globals.ts';
 import { PALETTE_ROLES } from '../../../../core/stdlib.ts';
 
 export type PickEdit = { tokens: string[]; deal: boolean; blend?: PickBlend; range?: [number, number];
   rotate?: number | Binding };
 const SLOT = /^(low|body|accent|high)(\d*)$/;
-const isBinding = (v: unknown): v is Binding => !!v && typeof v === 'object' && 'mod' in v;
 
 /** The stored value (or, when it has none it can use, the default) as an edit. */
 export function readEdit(value: unknown, dflt: unknown): PickEdit {

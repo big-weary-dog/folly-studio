@@ -8,8 +8,9 @@ import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 
 import type { Binding, ParamValue } from '../../../../shared/schemas/look.ts';
+import { isBinding } from '../../../../core/globals.ts';
 import {
-  type BindingForm, bindingForm, bindingText, fmt, GLYPHS, isBinding, makeBinding, type Param, RATES, SHAPES,
+  type BindingForm, bindingForm, bindingText, fmt, GLYPHS, makeBinding, type Param, RATES, SHAPES,
   shareLfo,
 } from './bindings.ts';
 import { BeatClock } from './beat-clock.tsx';
