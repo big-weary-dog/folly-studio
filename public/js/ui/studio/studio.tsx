@@ -39,7 +39,7 @@ async function loadLook(id: string | undefined, live: () => boolean) {
 export function Studio({ params, query }: ViewProps) {
   const [ctx] = useState(() => {
     const st = createStudio(user.peek()), pv = createPreview(st);
-    return { st, pv, tl: createTimeline(st, pv), els: {} as Record<'canvas' | 'sandbox' | 'viewer', HTMLElement> };
+    return { st, pv, tl: createTimeline(st, pv), els: {} as Record<'canvas' | 'viewer', HTMLElement> };
   });
   useEffect(() => {
     const { st, pv, els } = ctx;
@@ -71,7 +71,7 @@ export function Studio({ params, query }: ViewProps) {
       if (!alive) return;
       batch(() => {   // ready with its preview and view set, so a tutorial step never starts on a view still changing
         st.setup(rig, lib, from);
-        pv.start(els.canvas as HTMLCanvasElement, els.sandbox, els.viewer, rig, lib);
+        pv.start(els.canvas as HTMLCanvasElement, els.viewer, rig, lib);
         if (view) pv.viewer?.setView(view);
       });
       if (replay) await (await replay).apply(st, pv, ctx.tl);

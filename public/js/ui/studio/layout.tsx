@@ -50,7 +50,6 @@ export function StudioLayout({ st, pv, tl, els }: Props & { els: Record<string, 
       {narrow && <LookTab st={st} />}
       {narrow && <MorePane pv={pv} />}
       <DrawerSlot />
-      <div class="sandbox-host" aria-hidden="true" ref={(el) => { if (el) els.sandbox = el; }} />
     </div>);
 }
 

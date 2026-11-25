@@ -17,7 +17,7 @@ installation.
   server's, the boxes' and the tests' as written (types stripped, no build); Vite builds the browser's into `dist/`.
 - **Every LED comes from the rig file `STUDIO_RIG` picks** (SPEC "Rig"; the Folly's `public/data/rig-folly.json` by
   default), built from the lighting repo's pixel maps, never by hand. Nothing else names the installation.
-- **Only library patterns run.** They run inside the sandbox page (spec/library "Sandbox protocol") or the render box
+- **Only library patterns run.** They run in the sandbox's Worker (spec/library "Sandbox protocol") or the render box
   (its own process: spec/frames "Where bakes run"), never in the app page or the server's own Node process (except
   in tests, on our own library patterns). What a box returns is data.
 - Patterns see **x = depth** (front → back), **y = height**, **z = left → right** facing the front; the rig's
@@ -36,7 +36,7 @@ in whichever area file holds it.
 - [spec/library.md](spec/library.md): **Pattern code**, **The pixel `p`**, **Stdlib**, **Directions**, **Modules** (a
   layer is a chain), **Composites**, **Attached modules**, **Library**, **Pictures**, **Spatial modules**, **The
   neighbour map**, **History**, **Globals**, **Param bindings**, **Integrated clocks**, **Palettes**, **Sandbox
-  protocol** (runtime.ts ⇄ sandbox.html, `core/pattern-core.ts`'s exports).
+  protocol** (the pattern Worker and its relay, `core/pattern-core.ts`'s exports).
 - [spec/looks.md](spec/looks.md): **Looks** (what gets saved), **Library only** (the one-time step on a data folder),
   **Timeline**, **Look files**, **Versions and History**.
 - [spec/http.md](spec/http.md): **Static files**, **Updates**, **HTTP API** (every route), **Accounts and access**

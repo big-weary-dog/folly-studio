@@ -8,13 +8,13 @@ Part of the [build contract](../SPEC.md).
 modules it loads eagerly (`modulepreload`) and its stylesheet, and every other file under `assets/` with a content
 hash in its name (`<name>-<8 characters>.<ext>`): modules and their split chunks, each view's stylesheet (imported
 by the view's module and loaded with it), the data modules fetch (`new URL('../../data/rig-folly.json',
-import.meta.url)`; both rigs ship), the favicon and the sandbox page. `.vite/manifest.json` says what each module
+import.meta.url)`; both rigs ship), the favicon and the sandbox's worker (`sandbox-worker-<hash>.js`). `.vite/manifest.json` says what each module
 loads with it.
 Nothing is inlined (no data: URLs, no inline script; the modulepreload polyfill is off). Beside each text file of 512 bytes or more the build writes `<file>.br` (quality 11) and `<file>.gz` (9) where smaller
 (`tools/vite-compress.ts`), so nothing static is compressed per request.
 
 `src/static.ts` (@fastify/static) serves `dist/` under the app CSP (`CSP_APP`): files under `assets/` with
-`Cache-Control: public, max-age=31536000, immutable`, the sandbox page with `CSP_SANDBOX`; the shell (`index.html`, for
+`Cache-Control: public, max-age=31536000, immutable`, the sandbox's worker with `CSP_WORKER` (spec/library "Sandbox protocol"); the shell (`index.html`, for
 every SPA route) `no-cache`; anything else 5 minutes. Text goes br or gzip from those copies as the request accepts
 (`Vary: Accept-Encoding`); every file has an ETag (each encoding its own) and Last-Modified. Dotfiles (`.vite/`) are
 never served, and other methods are 405. Without a build, every static path is a 404 (the log says to build).

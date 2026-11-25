@@ -1,19 +1,18 @@
-// The app side of the pattern sandbox (SPEC "Sandbox protocol"): the hidden iframe pattern code runs in, the look,
-// frames (one in flight, at 40, 30 or 20 fps by their cost) and exports. After `init` it talks over a MessagePort:
-// Chrome takes a millisecond to unpack a window message from an opaque origin. The page pauses hung layers itself;
-// this watchdog rebuilds it only when it stops answering.
+// The app side of the pattern sandbox (SPEC "Sandbox protocol"): the relay to the Worker pattern code runs in, the
+// look, frames (one in flight, at 40, 30 or 20 fps by their cost) and exports. The relay pauses hung layers itself;
+// this watchdog opens a fresh one only when it stops answering.
 import { extrasOf, type ExtraKey } from '../../shared/plays.ts';
 import type { Automation, Globals } from '../../shared/schemas/look.ts';
 import type { LibraryEntry, Rig } from '../../shared/schemas/rig.ts';
-import SANDBOX_URL from '../sandbox.html?sandbox';
 import { flatModules } from '../../core/tree.ts';
 import { fromLibrary } from './library-fill.ts';
 import type { LayerInput, Light } from '../../core/pattern-core.ts';
+import { openSandbox, type Sandbox } from './sandbox-relay.ts';
 import type { Layer } from './ui/studio/model.ts';
 
-const LOAD_MS = 6000, INIT_MS = 1500;  // no `ready` by then: init anyway; then carry on (a look's `compiled` tells)
-const SILENT_MS = 4000;          // owed a reply and heard nothing this long: the page is gone (it answers in 1.5 s)
-const RENDER_MS = 8000;          // an export goes quiet while the page probes a hung layer
+const INIT_MS = 1500;            // no `ready` by then: carry on (a look's `compiled` tells)
+const SILENT_MS = 4000;          // owed a reply and heard nothing this long: the relay is stuck (it answers in 1.5 s)
+const RENDER_MS = 8000;          // an export goes quiet while the relay probes a hung layer
 const FROZEN_GAP_MS = 1000;      // a watchdog tick this late: the tab was busy, throttled or frozen
 export const RATES = [40, 30, 20];
 export const BUDGET = 0.8;       // a frame's budget: this share of its interval (the rest: messages, the draw)
@@ -31,13 +30,14 @@ type Compiled = { id: string; ok: boolean; error?: string; params: Record<string
 export type Report = Compiled & { modules: (Compiled & { code: string; upgraded?: unknown })[] };
 /** A layer (or one of its modules) that failed this frame. */
 export type FrameError = { id: string; module?: string; error: string };
-/** What the sandbox page says; it is checked as it arrives. */
+/** What the relay says; it is checked as it arrives. */
 type FromSandbox = { type: 'ready' } | { type: 'compiled'; layers?: (Compiled & { modules?: Compiled[] })[] }
   | { type: 'frame'; seq: number; rgb?: Float32Array; errors?: FrameError[]; ms: number;
     layerMs: Record<string, number> }
-  | { type: 'progress'; seq: number; done: number } | { type: 'error'; seq?: number; error?: string }
+  | { type: 'progress'; seq: number; done: number }
+  | { type: 'error'; seq?: number; request?: string; error?: string }  // no request: the worker cannot run
   | { type: 'rendered'; seq: number; channels?: Uint8Array; errors?: FrameError[]; error?: string };
-/** What the app asks of the sandbox page (SPEC "Sandbox protocol"). */
+/** What the app asks of the relay (SPEC "Sandbox protocol"). */
 export type ToSandbox = { type: 'init'; rig: Rig; library: Pick<LibraryEntry, 'name' | 'code'>[] }
   | ({ type: 'look'; layers: (LayerInput & { id: string })[] } & Extra)
   | { type: 'frame'; seq: number; t: number }
@@ -49,28 +49,26 @@ type Render = { seq: number; frames: number; resolve: (c: Uint8Array) => void; r
   onProgress?: (done: number, frames: number) => void };
 
 export class Runtime {
-  rig!: Rig; library: Pick<LibraryEntry, 'name' | 'code'>[] = []; iframe: HTMLIFrameElement | null = null;
+  rig!: Rig; library: Pick<LibraryEntry, 'name' | 'code'>[] = []; sandbox: Sandbox | null = null;
   codes: ReadonlyMap<string, string> = new Map();   // every library module's code by name, hidden ones too
-  port: MessagePort | null = null; heard = false; deadTries = 0; playing = false; held = false;
-  phase: 'idle' | 'loading' | 'init' | 'ready' | 'dead' = 'idle';
+  playing = false; held = false;
+  phase: 'idle' | 'init' | 'ready' | 'dead' = 'idle';
   layers: Layer[] = []; extra: Extra = {}; lookDirty = false; lookVersion = 0; frameLookVersion = -1; lastT = NaN;
   seq = 0; respawns: number[] = []; render_: Render | null = null;
   frame: Frame = { seq: 0, t: 0, look: 0 };     // reused: no garbage per frame
   frameMsg: { type: 'frame'; seq: number; t: number } = { type: 'frame', seq: 0, t: 0 };
   frameInFlight: Frame | null = null;
   lookQueue: Map<string, Map<string, string>>[] = [];   // per look sent, not compiled yet: its code, to tag the reply
-  since = 0;         // when this phase began, or the page last spoke while owing us something
+  since = 0;         // when this phase began, or the relay last spoke while owing us something
   rate = RATES[0]; due = 0; rateAt = 0; layerMs = new Map<string, number>(); stats = { fps: 0, ms: 0 };
   fpsCount = 0; fpsSince = performance.now(); lastCheck = performance.now();
   watchdog = setInterval(() => this._check(), 200);
-  onMessage = (e: MessageEvent) => { if (e.source === this.iframe?.contentWindow) this._message(e.data); };
-  container!: HTMLElement; time!: () => number;    // the show time now
+  time!: () => number;    // the show time now
   onFrame!: (rgb: Float32Array, t: number) => void; onCompiled!: (layers: Report[]) => void;
   onFrameErrors!: (errors: readonly FrameError[]) => void; onStatus!: (state: Status, detail?: string) => void;
 
-  constructor(o: Pick<Runtime, 'container' | 'time' | 'onFrame' | 'onCompiled' | 'onFrameErrors' | 'onStatus'>) {
+  constructor(o: Pick<Runtime, 'time' | 'onFrame' | 'onCompiled' | 'onFrameErrors' | 'onStatus'>) {
     Object.assign(this, o);
-    window.addEventListener('message', this.onMessage);
   }
 
   /** The rig, and the library's modules: its sources for use(), and every module's code for the look's refs. */
@@ -142,32 +140,26 @@ export class Runtime {
   cancelRender() {
     if (!this.render_) return;
     this._failRender('Export cancelled.');
-    this._respawn(); // the sandbox is busy rendering: start over with a fresh one
+    this._respawn(); // the worker is busy rendering: start over with a fresh one
   }
 
   destroy() {
     this.phase = 'dead';
     clearInterval(this.watchdog);
-    window.removeEventListener('message', this.onMessage);
     this._failRender('Closed.');
     this._kill();
   }
 
   _spawn() {
-    const f = document.createElement('iframe');
-    const attrs = { sandbox: 'allow-scripts', title: 'Pattern sandbox', 'aria-hidden': 'true', tabindex: '-1' };
-    for (const [k, v] of Object.entries(attrs)) f.setAttribute(k, v);
-    f.className = 'sandbox-frame';
-    f.src = SANDBOX_URL;
-    Object.assign(this, { iframe: f, heard: false, phase: 'loading', frameInFlight: null, since: performance.now() });
+    const s: Sandbox = openSandbox((m) => { if (this.sandbox === s) this._message(m as FromSandbox); });
+    Object.assign(this, { sandbox: s, phase: 'init', frameInFlight: null, since: performance.now() });
     this.onStatus('loading');
-    this.container.append(f);
+    s.post({ type: 'init', rig: this.rig, library: this.library });
   }
 
   _kill() {
-    this.iframe?.remove();
-    this.port?.close();
-    Object.assign(this, { iframe: null, port: null, frameInFlight: null, lookQueue: [] });
+    this.sandbox?.close();
+    Object.assign(this, { sandbox: null, frameInFlight: null, lookQueue: [] });
   }
 
   _failRender(message: string) {
@@ -196,18 +188,7 @@ export class Runtime {
 
   _post(msg: ToSandbox) {
     if (!this.owed) this.since = performance.now();     // the silence that counts starts with what we ask
-    this.port?.postMessage(msg);
-  }
-
-  _sendInit() {
-    this.phase = 'init';
-    this.since = performance.now();
-    const { port1, port2 } = new MessageChannel();
-    this.port?.close();
-    this.port = port1;
-    port1.onmessage = (e) => { if (this.port === port1) this._message(e.data); };
-    const init: ToSandbox = { type: 'init', rig: this.rig, library: this.library };
-    this.iframe?.contentWindow?.postMessage(init, '*', [port2]);
+    this.sandbox?.post(msg);
   }
 
   _becomeReady() {
@@ -254,11 +235,10 @@ export class Runtime {
   _message(m: FromSandbox) {
     const r = this.render_;
     if (!m || typeof m !== 'object' || typeof m.type !== 'string') return;
-    Object.assign(this, { heard: true, deadTries: 0, since: performance.now() });
+    this.since = performance.now();
     switch (m.type) {
       case 'ready':
-        if (this.phase === 'loading') this._sendInit();
-        else this._becomeReady();
+        this._becomeReady();
         break;
       case 'compiled': {
         this._becomeReady();
@@ -282,6 +262,7 @@ export class Runtime {
         break;
       case 'error':
         if (r && (m.seq == null || m.seq === r.seq)) this._failRender(m.error || 'Render failed.');
+        if (m.request == null) return this._die(m.error || 'The pattern engine could not start.');
         this.onStatus('warning', m.error || 'The sandbox reported an error.');
         break;
       default:
@@ -292,32 +273,10 @@ export class Runtime {
     const now = performance.now(), gap = now - this.lastCheck;
     this.lastCheck = now;
     if (gap > FROZEN_GAP_MS) this.since += gap;    // replies may be queued behind this very tick: no blame
-    else if (this.phase === 'loading' && now - this.since > LOAD_MS) {
-      this._sendInit();
-      this.onStatus('warning', 'The pattern sandbox is slow to start.');
-    } else if (this.phase === 'init' && now - this.since > INIT_MS) this._becomeReady();
+    else if (this.phase === 'init' && now - this.since > INIT_MS) this._becomeReady();
     else if (this.phase === 'ready' && this.owed && now - this.since > (this.render_ ? RENDER_MS : SILENT_MS)) {
-      this._hang();
-    }
-  }
-
-  /** Rebuild a silent page (one that never spoke: retry a few times). */
-  _hang() {
-    if (this.heard) {
       this.onStatus('warning', 'The pattern engine stopped answering, so it was restarted.');
-      return this._respawn();
+      this._respawn();
     }
-    this.deadTries++;
-    this._kill();
-    if (this.deadTries > 3) {
-      return this._die('The pattern sandbox did not start (is sandbox.html served?). Reload to try again.');
-    }
-    this.phase = 'idle';
-    this.onStatus('warning', 'The pattern sandbox is not answering; retrying…');
-    setTimeout(() => {
-      if (this.phase !== 'idle') return;
-      this.lookDirty = true;
-      this._spawn();
-    }, 2500);
   }
 }

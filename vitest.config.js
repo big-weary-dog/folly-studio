@@ -1,5 +1,5 @@
 // npm test: Vitest runs test/**/*.test.{js,ts} through the app's Vite config (vite.config.js), so tests import `.ts`
-// and Vite's own imports (`?sandbox`, styles) as the build does. Root is the repo root, not public/ as for the build.
+// and Vite's own imports (styles, workers) as the build does. Root is the repo root, not public/ as for the build.
 import { readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
