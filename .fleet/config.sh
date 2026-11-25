@@ -2,3 +2,5 @@
 FLEET_BASE=dev
 FLEET_PROTECTED=prod
 FLEET_MAX_WORKERS=6
+# The train's gate: the repo's full check. TMPDIR on disk: /tmp is a quota'd tmpfs that the backup test can exhaust.
+FLEET_GATE='mkdir -p "$HOME/.cache/folly-tmp" && npm ci --no-audit --no-fund && TMPDIR="$HOME/.cache/folly-tmp" heavy npm run check'
