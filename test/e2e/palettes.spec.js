@@ -2,6 +2,7 @@
 import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { drawn } from './drawn.js';
 import { expect, signup, test } from './studio.js';
 
 test.use({ viewport: { width: 1366, height: 768 } });
@@ -36,7 +37,7 @@ test('vampire palettes: swatches, selection and preview', async ({ page, studio 
     const saved = await (await page.request.get(`${studio.origin}/api/looks/${look.id}`)).json();
     expect(saved.look.globals.palette.body).toEqual(expected.body);
     await expect(page.locator('canvas:visible').first()).toBeVisible();
-    await page.waitForTimeout(1500); // let the changed palette reach the sandbox and preview
+    await drawn(page, 20);   // the changed palette has reached the sandbox and preview
     await panel.screenshot({ path: path.join(dir, `${palette}-swatches.png`) });
     await page.screenshot({ path: path.join(dir, `${palette}-preview.png`) });
   }

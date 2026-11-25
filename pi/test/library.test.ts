@@ -1,5 +1,5 @@
 // pi/src/library.ts: the Pi plays our library's code only, by ref, and says why a look cannot play; the shipped looks
-// all play, light the sculpture and never trip the flash guard at their defaults (pushed: library-controls.test.ts).
+// all play, light the sculpture and never trip the flash guard at their defaults (pushed: library-controls.ts).
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';

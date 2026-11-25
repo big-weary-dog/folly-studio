@@ -1,5 +1,5 @@
 // Playwright Test fixtures for the smoke and perf specs: `studio`, the real server (src/app.ts) on a temporary data
-// folder, serving a fresh build of the app (test/fixtures/build.js), one per worker; `serverOptions` are its
+// folder, serving the run's fresh build of the app (test/e2e/setup.mjs), one per worker; `serverOptions` are its
 // createServer() options (the perf check turns the generator and the render box off). Without its own `models`, a spec
 // gets no real codex or Claude, whatever this machine has: the stand-in codex CLI (test/fixtures/generate/bin/codex)
 // answers for Sol and Luna.
@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { test as base } from '@playwright/test';
 
 import { createServer } from '../../src/app.ts';
-import { builtApp, removeBuiltApp } from '../fixtures/build.js';
+import { builtApp } from '../fixtures/build.js';
 
 export { expect } from '@playwright/test';
 const BIN = fileURLToPath(new URL('../fixtures/generate/bin/', import.meta.url));
@@ -42,7 +42,6 @@ export const test = base.extend({
     await use({ app, origin: `http://127.0.0.1:${port}` });
     await app.close();
     await rm(dataDir, { recursive: true, force: true });
-    await removeBuiltApp();
   }, { scope: 'worker', timeout: 120_000 }],
 });
 
