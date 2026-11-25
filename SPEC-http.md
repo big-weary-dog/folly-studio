@@ -39,6 +39,7 @@ Look writes (`POST /api/looks`, `PUT` and `DELETE /api/looks/:id`, `PUT /api/loo
 account: 120 a minute, then 429 with `Retry-After`. An account keeps at most 500 looks, and its looks with their
 versions hold at most 20 MB as stored: a new look past either, or a change that grows its looks past the bytes, is
 429 "delete some first" (a change that does not grow them always saves; an idea's new look keeps to both: it fails).
+What the server itself records on a look, its bake, is bounded and never refused, so a look at the cap still bakes.
 
 ```
 POST   /api/signup   { username, password }   → { user, flash, profile }  (sets cookie)
