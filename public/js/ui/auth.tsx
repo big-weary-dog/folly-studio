@@ -75,7 +75,8 @@ export function Auth({ query }: ViewProps) {
               minlength={ACCOUNT.usernameMin} maxlength={ACCOUNT.usernameMax} />}
             </Field>
             <Field label="Password" stack hint={signup && <p class="field-hint">
-              At least {ACCOUNT.passwordMin} characters. Usernames are public in the gallery.</p>}>
+              At least {ACCOUNT.passwordMin} characters. There is no email, so a forgotten password cannot be reset.
+              Usernames are public in the gallery.</p>}>
               {(id) => <input id={id} ref={pass} name="password" type="password" required
                 minlength={signup ? ACCOUNT.passwordMin : undefined}
                 autocomplete={signup ? 'new-password' : 'current-password'} />}</Field></>}

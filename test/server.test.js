@@ -158,7 +158,7 @@ describe('server', () => {
       assert.equal(form.status, 415);
       const none = await fetch(`${app.base}/api/logout`, { method: 'POST', headers: { cookie: alice.cookie } });
       assert.equal(none.status, 415);
-      const del = await alice.del('/api/looks/whatever', { 'content-type': '' });
+      const del = await alice.del('/api/looks/whatever', undefined, { 'content-type': '' });
       assert.equal(del.status, 415);
       const charset = await alice.post('/api/ideas', { text: 'charset is fine' },
         { 'content-type': 'application/json; charset=utf-8' });

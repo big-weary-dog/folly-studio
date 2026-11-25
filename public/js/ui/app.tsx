@@ -40,6 +40,8 @@ const ROUTES: Route[] = [
     load: () => pages().then((m) => m.Looks) },
   { re: /^\/gallery\/?$/, name: 'gallery', title: 'Gallery', nav: '/gallery', scope: 'gallery',
     load: () => pages().then((m) => m.Looks) },
+  { re: /^\/account\/?$/, name: 'account', title: 'Account', nav: '/account',
+    load: () => import('./account.tsx').then((m) => m.AccountPage) },
   { re: /^\/live\/?$/, name: 'live', title: 'Live', nav: '/live',
     load: () => import('./live/live.tsx').then((m) => m.LivePage) },
   { re: /^\/live\/control\/?$/, name: 'live-control', title: 'Live control', nav: '/live',
@@ -191,6 +193,7 @@ function Header({ me, nav }: { me: User; nav?: string }) {
               Tutorials</button>
             {invitable.value && <button class="btn ghost small" type="button" onClick={enterInvite}>
               Invite code</button>}
+            {!me.guest && <a class="btn ghost small" href="/account">Account</a>}
             {canReport(me) && <button class="btn ghost small report-btn" type="button" title="Report a problem (F8)"
               onClick={() => { setOpen(false); void fileBugReport(); }}>Report a problem</button>}
             <button class="btn ghost small" type="button" onClick={logout}>{me.guest ? 'Leave' : 'Log out'}</button>

@@ -115,6 +115,28 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     return user;
   });
 
+  /** Throws 403 unless `password` is `user`'s (SPEC-access "Your account"). */
+  const confirm = (user: Stored, password: string) => slot(async () => {
+    if (!password || !await verifyPassword(password, user.passwordHash)) {
+      throw new HttpError(403, 'That is not your password.');
+    }
+  });
+
+  /** `user`'s password made `next` once `password` is theirs; their sessions but `token`'s end. */
+  async function changePassword(user: Stored, { password, next }: { password: string, next: string },
+    token: unknown) {
+    await confirm(user, password);
+    const passwordHash = await slot(() => hashPassword(next, cost)), keep = valid(token) ? sha256(token) : '';
+    store.users.update(user.id, { passwordHash });
+    for (const s of store.sessions.list((x) => x.userId === user.id && x.id !== keep)) store.sessions.remove(s.id);
+  }
+
+  /** The account gone, with its sessions (its looks and ideas are the API's). */
+  function removeUser(id: string) {
+    for (const s of store.sessions.list((x) => x.userId === id)) store.sessions.remove(s.id);
+    store.users.remove(id);
+  }
+
   /** A new session for `user` → its token. Each user keeps at most 20, and guests all told `guests`: past that the
    * oldest go, as do expired ones. */
   function createSession(user: Stored) {
@@ -154,7 +176,8 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     for (const s of store.sessions.list((x) => !(Date.parse(x.expiresAt) > now))) store.sessions.remove(s.id);
   }
 
-  return { signup, login, guest, logout, authenticate, createSession, pruneSessions, roleOf, publicUser,
+  return { signup, login, guest, logout, authenticate, createSession, pruneSessions, roleOf, publicUser, confirm,
+    changePassword, removeUser,
     /** shared/policy.ts's can(), by `user`'s role here. */
     can: (user: Stored | null, action: Action, look?: Parameters<typeof can>[2]) =>
       can(user && publicUser(user), action, look) };
