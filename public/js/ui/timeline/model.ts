@@ -1,5 +1,6 @@
 // Timeline edits as pure functions (SPEC "Timeline"): clips [{ start, end, fadeIn, fadeOut, transition? }], sorted,
 // not overlapping. Each edit returns new arrays and keeps those rules, so the server accepts what the editor makes.
+import { clamp } from '../../../../core/stdlib.ts';
 import { DEFAULT_DURATION, MAX_CLIPS, MAX_DURATION, MIN_DURATION } from '../../../../core/timeline.ts';
 import type { Clip } from '../../../../shared/schemas/look.ts';
 import type { Layer } from '../studio/model.ts';
@@ -11,7 +12,6 @@ export const GRID = 0.25;             // snap step without a beat
 
 /** Seconds to the millisecond, as the server keeps them. */
 export const ms = (v: number) => Math.round(v * 1000) / 1000;
-const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 
 export function cleanDuration(v: unknown) {
   const n = Number(v);

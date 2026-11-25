@@ -1,6 +1,7 @@
 // The 3D view's input (viewer.ts): drag orbits (a flick coasts), right-drag, Shift-drag or two fingers pan, wheel or
 // pinch zooms, double-click resets; with focus, arrows orbit, Alt+arrows pan, +/- zoom, Home or 0 resets.
 import type { Viewer } from './viewer.ts';
+import { lerp } from './viewer-camera.ts';
 import { initGL } from './viewer-gl.ts';
 
 /** What a pointer is doing to the camera. */
@@ -8,7 +9,6 @@ export type Drag = { mode: 'pan' } | { mode: 'rotate'; vx: number; vy: number; t
   | { mode: 'pinch'; dist: number; mx: number; my: number };
 const ARROWS: Record<string, number[]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1],
   ArrowDown: [0, 1] };
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 type Ev<K> = K extends keyof HTMLElementEventMap ? HTMLElementEventMap[K] : Event;
 
 /** Listens on v's canvas; returns the removal. */

@@ -15,6 +15,7 @@ import type { Rig } from '../shared/schemas/rig.ts';
 import { BakeError, checkFrames, failedBake } from './box-output.ts';
 import { bundle } from './core-script.ts';
 import { DEFAULT_MAX_BYTES, flickerReason } from './frames.ts';
+import { FPS } from '../render-box/renderer.ts';
 import type { Logger } from './http.ts';
 import type { RenderBox } from './render-box.ts';
 import type { Store, StoredLook } from './store.ts';
@@ -22,7 +23,7 @@ import type { Store, StoredLook } from './store.ts';
 export const DEFAULT_BAKE_SECONDS = 120;
 const LOOK_ID = /^[A-Za-z0-9_-]{1,64}$/;
 // Sparse frames hold the LED map's 14,610 channels: about 0.6 MB a second at 40 fps.
-const BYTES_PER_SECOND = 40 * 15_000;
+const BYTES_PER_SECOND = FPS * 15_000;
 
 /** A queue that runs one task at a time, in order: run(fn) → fn()'s result; size: tasks queued or running. */
 export function createLane() {

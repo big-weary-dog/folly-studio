@@ -5,9 +5,10 @@ import type { ComponentChildren } from 'preact';
 import { useId, useState } from 'preact/hooks';
 
 import type { Binding, Pick } from '../../../../shared/schemas/look.ts';
-import { type PickBlend, plainRoles, stopsFor } from '../../../../core/picks.ts';
+import { isBinding } from '../../../../core/globals.ts';
+import { hexOfRgb, type PickBlend, plainRoles, stopsFor } from '../../../../core/picks.ts';
 import { DEFAULT_PALETTE, type PaletteHex, paletteColours } from '../../../../core/stdlib.ts';
-import { bindingText, fmt, isBinding } from './bindings.ts';
+import { bindingText, fmt } from './bindings.ts';
 import { cx, Field, humanize, placePopover, Scrub, Switch } from '../kit.tsx';
 import {
   addColour, CUSTOM_MAX, editText, editValue, type PickEdit, readEdit, rolesOf, roleState, toggleRole, toggleSlot,
@@ -17,13 +18,11 @@ import {
 /** What picks resolve against here: the look's palette. */
 export type Colours = { palette: PaletteHex };
 type Put = (v: Pick | undefined) => void;
-const byte = (v: number) => Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, '0');
-const hexOf = (c: readonly number[]) => `#${byte(c[0])}${byte(c[1])}${byte(c[2])}`;
 
 /** The colours a pick plays (its value, else its default) on this palette, as hex. */
 function played(c: Colours, value: unknown, dflt: unknown, blend: PickBlend) {
   const R = plainRoles(paletteColours(c.palette) ?? paletteColours(DEFAULT_PALETTE)!);
-  return stopsFor(value, dflt, R, blend).map(hexOf);
+  return stopsFor(value, dflt, R, blend).map(hexOfRgb);
 }
 
 /** Colours as glass: a pane each (step), or one ramp (smooth). */

@@ -6,13 +6,12 @@ import { useEffect, useState } from 'preact/hooks';
 
 import { api } from '../../api.ts';
 import type { ServerStats, StatsDay } from '../../../../shared/schemas/api.ts';
-import { timeAgo } from '../kit.tsx';
+import { mb, timeAgo } from '../kit.tsx';
 import { setTitle } from '../session.ts';
 import { usePhone } from '../phone/viewport.ts';
 
 const COLUMNS: [keyof StatsDay, string][] = [['visitors', 'Visitors'], ['people', 'Signed in'], ['views', 'Pages'],
   ['requests', 'Requests'], ['errors', 'Errors'], ['slow', 'Slow']];
-const mb = (bytes: number) => `${Math.round(bytes / 2 ** 20)} MB`;
 const took = (s: number) => (s < 3600 ? `${Math.floor(s / 60)} min`
   : s < 86_400 ? `${Math.floor(s / 3600)} h ${Math.floor(s / 60) % 60} min` : `${Math.floor(s / 86_400)} days`);
 
