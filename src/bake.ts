@@ -7,7 +7,8 @@ import { createHash } from 'node:crypto';
 import { promises as fs, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { DEFAULT_DURATION, flatModules, type LayerInput, type Light } from '../public/js/pattern-core.ts';
+import { DEFAULT_DURATION, type LayerInput, type Light } from '../public/js/pattern-core.ts';
+import { findModule } from '../shared/look-modules.ts';
 import type { Bake, FlashSettings } from '../shared/schemas/api.ts';
 import { EXTRAS, extrasOf, type PlaysKey } from '../shared/schemas/look.ts';
 import type { Rig } from '../shared/schemas/rig.ts';
@@ -64,8 +65,7 @@ const readsBpm = (code: unknown) => typeof code === 'string'
 export function renderFields(look: Renders | null | undefined) {
   const layers = look?.layers ?? [];
   const macros = (look?.globals as { macros?: Record<string, { mod?: unknown }> } | null)?.macros;
-  const beats = layers.some((l) => beatsLfo(l?.params) || readsBpm(l?.code)
-    || flatModules(l?.modules ?? []).some((m) => beatsLfo(m?.params) || readsBpm(m?.code)))
+  const beats = !!findModule(layers, ({ module: m }) => m && (beatsLfo(m.params as object) || readsBpm(m.code)))
     || beatsLfo(Object.fromEntries(Object.entries(macros ?? {}).map(([k, m]) => [k, m?.mod])));
   if (!look?.globals && !look?.automation && !beats) return layers;
   // Keys in PLAYS order (layers, globals, automation, bpm): the hash of every bake made so far depends on it.

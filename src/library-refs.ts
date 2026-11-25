@@ -6,6 +6,7 @@
 // read leaves out the look's bake and review, and a version's review.
 import { readFileSync } from 'node:fs';
 
+import { eachModule, isNode, moduleCodes, type Node } from '../shared/look-modules.ts';
 import type { LibraryEntry } from '../shared/schemas/rig.ts';
 import { sha256 } from './library-history.ts';
 
@@ -13,25 +14,6 @@ const REFRESH_MS = 2000;
 // A module's first keys, as the look schema orders them: a bake's hash is of the layers' JSON, so a filled module's
 // keys are in the order a saved one's are.
 const FIRST = ['id', 'kind', 'title', 'ref', 'code'];
-type Node = Record<string, unknown>;
-const isNode = (v: unknown): v is Node => !!v && typeof v === 'object' && !Array.isArray(v);
-
-/** Each module of `layers` (a layer that is one source too; composites' sub-layers' too) given to `visit`. */
-function eachModule(layers: unknown, visit: (m: Node) => void) {
-  if (!Array.isArray(layers)) return;
-  for (const layer of layers) {
-    if (!isNode(layer)) continue;
-    if (!Array.isArray(layer.modules)) {
-      visit(layer);
-      continue;
-    }
-    for (const m of layer.modules) {
-      if (!isNode(m)) continue;
-      if (m.kind === 'composite') eachModule(m.layers, visit);
-      else visit(m);
-    }
-  }
-}
 
 /** `m` (changed in place) with `ref` (when given) and `code`, its first keys in the look schema's order. */
 function fill(m: Node, ref: unknown, code: string) {
@@ -46,8 +28,7 @@ const versionsOf = (look: Node) => (Array.isArray(look.versions) ? look.versions
 
 /** The hash of `layers`' module code, in order; null when any module has none (stored as its ref alone). */
 function codeHash(layers: unknown) {
-  const codes: unknown[] = [];
-  eachModule(layers, (m) => codes.push(m.code));
+  const codes = moduleCodes(layers);
   return codes.every((c) => typeof c === 'string') ? sha256(JSON.stringify(codes)) : null;
 }
 

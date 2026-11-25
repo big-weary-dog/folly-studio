@@ -47,7 +47,7 @@ Looks take only library patterns, on every server, and nothing turns that off. A
 /api/looks, an import) has each module name a library module by `ref` alone, or carry a library pattern's current or
 earlier committed file exactly (by SHA-256 against `public/patterns`' files the index lists, hidden ones too, and the
 shipped `public/patterns/history.json` catalogue of earlier ones). A composite has no code of its own: one whose
-`code` is not empty is custom, and its sub-layers' modules are checked. Anything else is refused with 403, naming
+`code` is not empty, or that has no sub-layers, is custom, and its sub-layers' modules are checked. Anything else is refused with 403, naming
 the module ("Only looks made of unchanged library patterns save; Layer 2's Fire is custom code."). So tuning params,
 restoring a version and copying a gallery look go on as before. The Studio has no code editor and its pickers offer
 only library modules. Stored looks hold refs alone (SPEC-looks "Modules"), so every read, and so every bake, has
