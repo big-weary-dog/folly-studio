@@ -1,5 +1,5 @@
-// The library-only step on a data folder: what it keeps, moves and drops, its backups, its marker, --dry-run, and the
-// server running it at start. A small library of its own: a current pattern with an earlier copy, a retired one.
+// The library-only step on a data folder: what it keeps, moves and drops, its backups, its marker, the dry run, and
+// that the server never runs it. A small library of its own: a current pattern with an earlier copy, a retired one.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -36,7 +36,7 @@ beforeEach(() => {
 });
 const write = (name, items) => writeFileSync(path.join(dataDir, `${name}.json`), JSON.stringify(items));
 const read = (name) => JSON.parse(readFileSync(path.join(dataDir, `${name}.json`), 'utf8'));
-const run = (opts = {}) => migrateLibraryOnly({ dataDir, patternsDir, log: quiet, ...opts });
+const run = (opts = {}) => migrateLibraryOnly({ dataDir, patternsDir, dryRun: false, log: quiet, ...opts });
 
 test('keeps library code on the current library, drops looks and versions with any other', async () => {
   write('looks', [
@@ -164,14 +164,23 @@ test('without the library it leaves the folder for a later start', async () => {
   assert.ok(!existsSync(path.join(dataDir, MARKER)));
 });
 
-test('the server runs it at start, before the store reads the looks', async () => {
+test('the server never runs it: a start leaves the stored looks as they were', async () => {
   const publicDir = path.dirname(patternsDir);
   write('looks', [look('kept', [mod(OLD_WAVE, { ref: 'wave' })]), look('custom', [mod(CUSTOM)])]);
   const app = await startApp({ publicDir, dataDir });
   try {
-    assert.ok(existsSync(path.join(dataDir, MARKER)));
-    assert.deepEqual(read('looks').map((l) => l.id), ['kept']);
+    assert.ok(!existsSync(path.join(dataDir, MARKER)));
+    assert.deepEqual(read('looks').map((l) => [l.id, l.layers[0].modules[0].code]), [['kept', OLD_WAVE],
+      ['custom', CUSTOM]]);
   } finally {
     await app.close();
   }
+});
+
+test('a dry run is the default', async () => {
+  write('looks', [look('custom', [mod(CUSTOM)])]);
+  const r = await migrateLibraryOnly({ dataDir, patternsDir, log: quiet });
+  assert.deepEqual(r.dropped.map((d) => d.look), ['custom']);
+  assert.deepEqual(read('looks').map((l) => l.id), ['custom']);
+  assert.ok(!existsSync(path.join(dataDir, MARKER)));
 });

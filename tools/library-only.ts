@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// The library-only step on a data folder by hand (SPEC-looks "Library only"; the server runs it at start).
+// The library-only step on a data folder, by hand (SPEC-looks "Library only"; the server never runs it).
 //
-//   node tools/library-only.ts [--data <dir>] [--dry-run]
+//   node tools/library-only.ts [--data <dir>] [--apply]
 //
-// --data: STUDIO_DATA, else data/ in the repo. --dry-run: list what it would drop and change, writing nothing. Without
-// it the folder must not be in use (the server's lock); it backs up looks.json and users.json beside them first.
+// --data: STUDIO_DATA, else data/ in the repo. Without --apply it is a dry run: it lists what it would drop and change,
+// writing nothing. With it, the folder must not be in use (stop the server: its lock), and it backs up looks.json
+// and users.json beside them first.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -15,7 +16,7 @@ const opt = (name: string) => (args.includes(name) ? args[args.indexOf(name) + 1
 const dataDir = path.resolve(opt('--data') || process.env.STUDIO_DATA
   || fileURLToPath(new URL('../data/', import.meta.url)));
 const patternsDir = fileURLToPath(new URL('../public/patterns/', import.meta.url));
-const dryRun = args.includes('--dry-run');
+const dryRun = !args.includes('--apply');
 const say = (...a: unknown[]) => { process.stdout.write(`${a.join(' ')}\n`); };
 try {
   const r = await migrateLibraryOnly({ dataDir, patternsDir, dryRun, log: { warn: say } });
