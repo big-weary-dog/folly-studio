@@ -7,7 +7,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { ROLES, type Role } from '../../../../shared/policy.ts';
 import type { Account } from '../../../../shared/schemas/api.ts';
 import { api } from '../../api.ts';
-import { confirmDialog, cx, timeAgo, toast } from '../kit.tsx';
+import { confirmDialog, cx, Pending, timeAgo, toast } from '../kit.tsx';
 import { setTitle, user } from '../session.ts';
 
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
@@ -28,7 +28,7 @@ export function PeoplePage() {
       <p class="lede">Every account: change its role, disable it so it cannot sign in, or delete it with its looks.</p>
       <input type="search" class="search people-search" aria-label="Search people" placeholder="Search people"
         value={q} onInput={(e) => setQ(e.currentTarget.value)} />
-      {!shown ? <p class={error ? 'form-error' : 'pane-hint'}>{error || 'Loading…'}</p>
+      {!shown ? <Pending error={error} />
         : !shown.length ? <p class="pane-hint">{list!.length ? 'Nobody by that name.' : 'No accounts yet.'}</p>
         : <ul class="people-list">{shown.map((a) => <Person key={a.id} a={a} put={put} drop={drop} />)}</ul>}
     </div>);

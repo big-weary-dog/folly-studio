@@ -6,7 +6,7 @@ import { useEffect, useState } from 'preact/hooks';
 
 import { api } from '../../api.ts';
 import type { BakeMode, BakingState } from '../../../../shared/schemas/api.ts';
-import { toast } from '../kit.tsx';
+import { Pending, toast } from '../kit.tsx';
 import { setTitle } from '../session.ts';
 import { PhoneDisclosure } from '../phone/disclosure.tsx';
 
@@ -35,8 +35,7 @@ export function BakingPage() {
       <h1 class="page-title">Baking</h1>
       <p class="lede">How much of the server bakes may use: looks baked to frames in the render box, and the gallery
         previews made from them.</p>
-      <p class={error ? 'form-error' : 'pane-hint'} role={error ? 'alert' : undefined} hidden={!!state}>
-        {error || 'Loading…'}</p>
+      <Pending error={error} hidden={!!state} />
       {state && <section class="models-panel" aria-label="The bake setting">
         <div class="seg" role="group" aria-label="Baking">
           {MODES.map(([m, text]) => <button key={m} type="button" class="seg-btn" aria-pressed={state.mode === m}

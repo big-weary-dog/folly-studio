@@ -9,7 +9,8 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { writeFseq } from '../core/fseq.ts';
+import { writeFseq, writeFseqHeader } from '../core/fseq.ts';
+import { DEFAULT_MAX_BYTES } from '../src/frames.ts';
 import { bestWindow, HEIGHT, previewFrames, WIDTH, WINDOW_S } from '../src/previews/motion.ts';
 import { playaCamera } from '../src/previews/playa.ts';
 import { glowLayer, writeLibrary } from './fixtures/library.js';
@@ -54,6 +55,14 @@ describe('the preview window', () => {
     const cross = await previewFrames(frames(), rig, { loop: 'crossfade' });
     assert.equal(cross.frames.length, fade.frames.length);
     assert.ok(cross.frames.every((img) => mean(img) > middle / 2), 'never dark');
+  });
+
+  test('a bake past the 64 MiB default still gives a preview', async () => {
+    const count = Math.ceil(DEFAULT_MAX_BYTES / C) + 40, header = writeFseqHeader({ frames: count, ranges: [[0, C]] });
+    const bytes = Buffer.concat([header, Buffer.alloc(count * C, 30)]);
+    assert.ok(bytes.length > DEFAULT_MAX_BYTES);
+    const m = await previewFrames(bytes, lineRig(N), { loop: 'fade' });
+    assert.ok(m.frames.length > 0);
   });
 });
 

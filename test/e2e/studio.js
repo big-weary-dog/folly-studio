@@ -12,22 +12,32 @@ import { builtApp } from '../fixtures/build.js';
 
 export { expect };
 
+// Every context a test opens is closed when it ends, passed or failed, so no page keeps rendering into the next.
+const opened = new Set();
+
 export const test = base.extend({
   serverOptions: [{}, { scope: 'worker', option: true }],
   // The tutorial's welcome opens for a new account; every context starts as a browser that has shown it, unless a
   // spec asks for it (tour.spec.js).
   tourWelcome: [false, { scope: 'worker', option: true }],
   browser: [async ({ browser, tourWelcome }, use) => {
-    if (!tourWelcome) {
-      const make = browser.newContext.bind(browser);
-      browser.newContext = async (options) => {
-        const context = await make(options);
+    const make = browser.newContext.bind(browser);
+    browser.newContext = async (options) => {
+      const context = await make(options);
+      opened.add(context);
+      context.on('close', () => opened.delete(context));
+      if (!tourWelcome) {
         await context.addInitScript(() => { try { localStorage.setItem('studio.tour.welcomed', '1'); } catch {} });
-        return context;
-      };
-    }
+      }
+      return context;
+    };
     await use(browser);
   }, { scope: 'worker' }],
+  // oxlint-disable-next-line no-empty-pattern -- Playwright reads a fixture's needs from this pattern: it needs none
+  closeContexts: [async ({}, use) => {
+    await use();
+    await Promise.all([...opened].map((context) => context.close()));
+  }, { auto: true }],
   studio: [async ({ serverOptions }, use) => {
     const dataDir = await mkdtemp(path.join(os.tmpdir(), 'studio-browser-'));
     const app = await serve({ dataDir, distDir: await builtApp(), ...serverOptions });

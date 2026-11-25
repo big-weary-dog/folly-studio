@@ -50,7 +50,8 @@ export function readPick(v: unknown): PickSpec | null {
     rotate: o && isNum(o.rotate) ? o.rotate : 0 };
 }
 
-const hexOfRgb = (c: readonly number[]) => `#${c.slice(0, 3).map((v) => Math.round(clamp(Number(v) || 0) * 255)
+/** An [r, g, b] colour (0..1) as '#rrggbb'. */
+export const hexOfRgb = (c: readonly number[]) => `#${c.slice(0, 3).map((v) => Math.round(clamp(Number(v) || 0) * 255)
   .toString(16).padStart(2, '0')).join('')}`;
 /** A pick's tokens as text: 'body/accent', 'low2 #ff8000'. */
 export const pickText = (groups: readonly (readonly Token[])[]) => groups.map((g) => g

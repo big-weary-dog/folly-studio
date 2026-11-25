@@ -2,7 +2,8 @@
 // paces, and the modulators that follow it. The Look panel's chips and the timeline's modulator lanes read it.
 import type { Binding } from '../../../../shared/schemas/look.ts';
 import { flatModules } from '../../../../core/tree.ts';
-import { bindingText, isBinding } from '../params/bindings.ts';
+import { isBinding } from '../../../../core/globals.ts';
+import { bindingText } from '../params/bindings.ts';
 
 /** A use of a macro: a param on a layer's module (follows it, or its LFO's swing or pace), or another macro. */
 export type Use = { how: 'follows' | 'swing' | 'pace'; layer?: string; module?: string; key?: string;

@@ -154,6 +154,11 @@ export function Field({ label, children, hint, stack, class: cls, title, tour }:
       <div class="field-control">{control ? children(id) : children}</div>{hint}</div>);
 }
 
+/** What a page shows until its data comes: Loading…, or why it failed. */
+export const Pending = ({ error, hidden }: { error: string; hidden?: boolean }) => (
+  <p class={error ? 'form-error' : 'pane-hint'} role={error ? 'alert' : undefined} hidden={hidden}>
+    {error || 'Loading…'}</p>);
+
 type Range = { min: number; max: number; step: number; soft?: [number, number] };
 const dragRange = (r: Range): Range => r.soft ? { ...r, min: r.soft[0], max: r.soft[1] } : r;
 /** The decimals a step shows (0.05 → 2, at most 4). */
@@ -273,6 +278,9 @@ export function timeAgo(when?: string | number) {
   if (d < 14) return `${d} d ago`;
   return new Date(t).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
+
+/** Bytes as decimal megabytes: '2.4 MB', '310 MB'. */
+export const mb = (bytes: number) => `${(bytes / 1e6).toFixed(bytes < 1e8 ? 1 : 0)} MB`;
 
 export function slugify(s: string, fallback = 'look') {
   const slug = String(s || '').toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g, '')

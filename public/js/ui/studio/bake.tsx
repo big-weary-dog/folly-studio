@@ -9,9 +9,8 @@ import { can } from '../../../../shared/policy.ts';
 import type { Bake, BakingState } from '../../../../shared/schemas/api.ts';
 import { user } from '../session.ts';
 import { askWhy } from '../gallery/ask-why.tsx';
-import { cx, openDialog, Switch, toast } from '../kit.tsx';
+import { cx, mb, openDialog, Switch, toast } from '../kit.tsx';
 import type { Preview } from './preview.ts';
-import { mb } from './preview-view.tsx';
 import type { Studio } from './store.ts';
 
 const POLL_MS = 1500;
