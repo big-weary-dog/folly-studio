@@ -12,8 +12,9 @@ const isNode = (v: unknown): v is Node => !!v && typeof v === 'object' && !Array
 const text = (v: unknown, max = 80) => (typeof v === 'string' ? v.slice(0, max) : '');
 
 /** The entry `code` is a file of: `ref`'s when it is, else the one whose file it is (null: none, or several); a
- * retired one (no current file) too. */
+ * retired one (no current file) too. Without code (stored as a ref alone), the entry `ref` names. */
 function entryOf(library: Library, code: unknown, ref: unknown) {
+  if (code === undefined) return typeof ref === 'string' && library.has(ref) ? ref : null;
   if (typeof code !== 'string') return null;
   const hash = sha256(code);
   if (typeof ref === 'string' && library.get(ref)?.hashes.has(hash)) return ref;
@@ -50,7 +51,8 @@ function moved(library: Library, node: Node): Node | null {
     return layers.every(Boolean) ? { ...node, layers } : null;
   }
   const ref = entryOf(library, node.code, node.ref);
-  return isLibrary(library, ref) ? { ...node, ref, code: library.get(ref)!.code } : null;
+  if (!isLibrary(library, ref)) return null;
+  return node.code === undefined ? { ...node, ref } : { ...node, ref, code: library.get(ref)!.code };
 }
 
 /** A layer (or a composite's sub-layer) on the current library, or null. */

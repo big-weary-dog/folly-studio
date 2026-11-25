@@ -50,6 +50,9 @@ test('keeps library code on the current library, drops looks and versions with a
     look('edited', [mod(`${WAVE} `, { ref: 'wave' })]),
     look('spoofed', [mod(RETIRED, { ref: 'wave' })]),
     look('renamed', [mod(OLD_WAVE, { ref: 'wave-before' })]),
+    look('ref-only', [{ ...mod(), ref: 'wave' }], { versions: [{ n: 1, layers: look('', [{ ...mod(), ref: 'wave' }])
+      .layers }] }),
+    look('ref-retired', [{ ...mod(), ref: 'gone' }]),
     look('custom', [mod(CUSTOM)]),
     look('custom-inside', [composite(mod(CUSTOM, { id: 's1.m1' }))]),
     look('versions', [mod(WAVE, { ref: 'wave' })], { versions: [
@@ -62,6 +65,7 @@ test('keeps library code on the current library, drops looks and versions with a
   const r = await run();
   assert.deepEqual(r.dropped.map((d) => [d.look, d.version, d.why]), [['retired', undefined, 'retired pattern gone'],
     ['edited', undefined, 'custom code (M)'], ['spoofed', undefined, 'retired pattern gone'],
+    ['ref-retired', undefined, 'retired pattern gone'],
     ['custom', undefined, 'custom code (M)'], ['custom-inside', undefined, 'custom code (M)'],
     ['versions', 2, 'custom code (M)']]);
   const looks = Object.fromEntries(read('looks').map((l) => [l.id, l]));
@@ -69,6 +73,9 @@ test('keeps library code on the current library, drops looks and versions with a
   for (const id of ['current', 'older', 'unnamed', 'renamed']) {
     assert.deepEqual([first(id).ref, first(id).code], ['wave', WAVE]);
   }
+  // Stored as a ref alone (as the server keeps a module): kept as it is, its version too.
+  assert.deepEqual([first('ref-only').ref, 'code' in first('ref-only')], ['wave', false]);
+  assert.equal(looks['ref-only'].versions[0].layers[0].modules[0].ref, 'wave');
   assert.equal(first('nested').layers[0].modules[0].code, WAVE);
   assert.equal(first('one-source').code, WAVE);
   assert.ok(!('ideaId' in looks.older));
