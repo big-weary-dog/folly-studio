@@ -7,7 +7,6 @@ import { describe, test } from 'vitest';
 
 import { normalizeGlobals, prepareLook } from '../public/js/pattern-core.ts';
 import { lookFrame } from '../public/js/core/globals.ts';
-import { validateLook } from '../shared/schemas/generated.ts';
 import { Globals } from '../shared/schemas/look.ts';
 import { freeName, renameMacro } from '../public/js/ui/look-globals-edit.ts';
 import { macroUses, moveText, useText } from '../public/js/ui/mod-uses.ts';
@@ -111,21 +110,6 @@ test('renaming a fader carries the params and modulators that follow it; deletin
   assert.equal(freeName({}, '3D glow!'), 'd');
   assert.equal(freeName({}, '', 'Palette'), 'palette2'); // palette is the look's
   assert.equal(freeName({}, '!!'), 'mod');
-});
-
-test('a generator\'s modulators: kept with their mod and the bpm; one that follows a modulator is held still', () => {
-  const lfo = { mod: 'lfo', rate: 0.25, unit: 'beats', center: 0.5, depth: 0.5 };
-  const out = validateLook({ title: 't', summary: 's', bpm: 300, layers: [{ title: 'a', groups: ['all'],
-    blend: 'add', level: 1, code: 'function pixel(p, t, P, G) { return [1, 1, 1]; }' }],
-  globals: { macros: [{ name: 'storm', value: 1, min: 0.5, max: 3 },
-    { name: 'breath', value: 0.5, min: 0, max: 1, mod: { ...lfo, pace: 'storm' } },
-    { name: 'echo', value: 0, min: 0, max: 1, mod: { ...lfo, amount: 'breath' } },
-    { name: 'clip', value: 0, min: 0, max: 1, mod: { mod: 'envelope' } }] } });
-  assert.equal(out.bpm, 240);
-  assert.deepEqual(out.globals.macros.breath.mod, { ...lfo, pace: 'storm' });
-  assert.equal(out.globals.macros.echo.mod, undefined);
-  assert.equal(out.globals.macros.clip.mod, undefined);
-  assert.equal(out.dropped.length, 2, out.dropped.join('; '));
 });
 
 test('what drives what: params following a macro, LFOs it swings or paces, a colour\'s rotate, other macros', () => {

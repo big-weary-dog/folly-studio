@@ -9,9 +9,9 @@ import path from 'node:path';
 import { describe, onTestFinished, test } from 'vitest';
 
 import { compileLayer, prepareLayer, prepareLook, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
+import { compileModule } from '../public/js/core/compile.ts';
 import { presetLayers, withPresetGlobals } from '../public/js/ui/model.ts';
 import { LibraryEntry, type ModuleEntry, Preset, type PresetEntry } from '../shared/schemas/rig.ts';
-import { readParams } from '../src/generate/catalog.ts';
 import { createLoaders } from '../src/static.ts';
 import { folly, mini } from './fixtures/rigs.js';
 
@@ -44,7 +44,7 @@ test('the library\'s presets parse, name its modules, and the loader drops one t
   const names = new Set(library.filter((e) => e.kind !== 'preset').map((e) => e.name));
   for (const p of presets) for (const l of p.layers) for (const m of l.modules) assert.ok(names.has(m.ref), m.ref);
   for (const p of presets) for (const l of p.layers) for (const m of l.modules) {   // numbers within their range
-    const decl = readParams(library.find((e) => e.name === m.ref)!.code);
+    const e = library.find((x) => x.name === m.ref)!, decl = compileModule(e.code, e.kind).params;
     for (const [k, v] of Object.entries(m.params ?? {})) {
       const d = decl[k];
       if (typeof v === 'number' && d?.type === 'number') assert.ok(v >= d.min && v <= d.max, `${p.name}: ${k} ${v}`);

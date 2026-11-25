@@ -9,10 +9,10 @@ import { afterAll, beforeAll, describe, test } from 'vitest';
 import { keepTail } from '../src/http.ts';
 import { createReports, reportFolders } from '../src/reports/store.ts';
 import { piece, scrub, scrubText } from '../public/js/scrub.ts';
-import { tmp } from './fixtures/generate/shared.js';
 import { client, fx, quiet, signup, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
+const tmp = (name) => fs.mkdtempSync(path.join(fx.tmp, `${name}-`));
 const JPEG = `data:image/jpeg;base64,${Buffer.from([0xff, 0xd8, 0xff, 1, 2, 3]).toString('base64')}`;
 const report = (extra = {}) => ({ format: 1, at: new Date().toISOString(), note: 'It froze\nwhen I clicked',
   build: 'abc', page: { path: '/studio/x' }, sources: { studio: { look: { title: 'Reef' } } }, ...extra });
