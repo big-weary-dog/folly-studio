@@ -272,7 +272,7 @@ describe('looks', () => {
 
 describe('without a render box', () => {
   test('baking refuses with the reason, and nothing is queued', async () => {
-    const reason = 'The render box is not available: bubblewrap (bwrap) is not installed on this server.';
+    const reason = 'The render box is not available: prlimit (util-linux) is not installed on this server.';
     const app = await startApp({ dataDir: path.join(fx.tmp, 'data-nobox'), renderBox: { probe: async () => ({ ok: false,
       reason }), render: assert.fail } });
     try {

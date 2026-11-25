@@ -186,8 +186,9 @@ describe('previews of shared looks', () => {
       .status, 200);
     release();
     await app.previews.idle();
-    const ids = new Set((await gallery()).map((l) => l.id));
-    assert.deepEqual((await readdir(path.join(dataDir, 'previews'))).filter((f) => !ids.has(f.split('-')[0])), []);
+    const ids = (await gallery()).map((l) => l.id);   // an id may hold a '-' itself
+    assert.deepEqual((await readdir(path.join(dataDir, 'previews')))
+      .filter((f) => !ids.some((id) => f.startsWith(`${id}-`))), []);
   });
 
   test('a server started on another rig makes the shared looks\' previews again', async () => {

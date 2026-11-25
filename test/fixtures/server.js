@@ -75,7 +75,7 @@ async function writeFixture(dir) {
 }
 
 /**
- * A stand-in render box (the real one, under bubblewrap, is test/bake.test.js): two seconds of
+ * A stand-in render box (the real one is test/bake.test.js): two seconds of
  * frames for the fixture's two LEDs, strobing at 10 Hz when a layer's params say strobe, else steady.
  */
 export function fakeBox() {

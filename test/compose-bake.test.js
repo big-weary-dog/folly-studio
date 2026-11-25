@@ -1,7 +1,7 @@
-// The three runtimes agree on a composed look: the render box (bubblewrap, the bundled core in a node:vm realm,
-// the library from its read-only mount) bakes the same bytes as the core run here through renderer.ts, the
+// The three runtimes agree on a composed look: the render box (the bundled core in a node:vm realm, the library
+// linked into its folder) bakes the same bytes as the core run here through renderer.ts, the
 // renderer the Fleet box bakes with, on the Folly and on the mini rig (its own fps, GRB, tags for the Folly's ids).
-// Where bubblewrap is missing the box half skips and says why.
+// Where the box cannot run here its half skips and says why.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
