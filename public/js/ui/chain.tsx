@@ -50,7 +50,7 @@ export function ChainPane({ st, pv }: Props) {
     </section>);
 }
 
-/** A custom module's name, its lone sub-layer's groups, and its params. */
+/** The module's lone sub-layer's groups, and its params. */
 function ModuleSettings({ st }: { st: Studio }) {
   const l = st.selected.value, m = st.module.value, at = l && m ? placeOf(l.modules, m.id) : null;
   const comp = at?.box && at.index === 0 ? at.box : null;
@@ -58,12 +58,6 @@ function ModuleSettings({ st }: { st: Studio }) {
   return <>
     {l && comp && s && isLone(s) && <Field label="Plays on" class="sub-plays">{() => <SubWhere st={st} s={s}
       edit={(p) => st.editLayer(l.id, (x) => ({ modules: editSub(x.modules, comp.comp, comp.sub, p) }))} />}</Field>}
-    {l && m && standardTitle(m, st.data.library) === undefined && <Field label="Module name"
-      class="module-title-field">{(id) => <input type="text" id={id} class="module-title-input" maxlength={80}
-        spellcheck={false} value={m.title} onInput={(e) => {
-          const title = e.currentTarget.value;
-          st.editModule(l.id, m.id, () => ({ title }));
-        }} />}</Field>}
     <ParamsPanel st={st} />
   </>;
 }
