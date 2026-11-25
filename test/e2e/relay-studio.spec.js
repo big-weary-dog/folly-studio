@@ -1,6 +1,6 @@
 // Relay from Studio's editor (SPEC-live "From Studio's editor") on the Pi profile, against the real engine in a dry
 // run: a curator turns To the lights on in the preview's transport, over the look the lights play, and an unsaved
-// edit to the code reaches them (the engine's power reading follows it). Screenshots at a laptop's and a phone's
+// edit reaches them (the engine's power reading follows it). Screenshots at a laptop's and a phone's
 // size, in RELAY_SHOTS when it names a folder.
 import path from 'node:path';
 
@@ -22,11 +22,11 @@ test('a curator sends the look being edited to the lights; an unsaved edit reach
   const call = async (method, url, body, cookie = cara) => (await fetch(`${origin}${url}`, { method,
     body: JSON.stringify(body), headers: { 'content-type': 'application/json', cookie } })).json();
   await call('PUT', '/api/admin/lights', { mode: 'live' }, boss);
-  const look = async (title, module) => (await call('POST', '/api/looks', { title, layers: [{ id: 'l1', title: 'All',
-    modules: [{ id: 'a', kind: 'source', ...module }] }] })).look;
-  // The lights play a library look; the editor's is custom code, black, then white.
+  const look = async (title, module, level = 1) => (await call('POST', '/api/looks', { title, layers: [{ id: 'l1',
+    title: 'All', level, modules: [{ id: 'a', kind: 'source', ...module }] }] })).look;
+  // The lights play a library look; the editor's is white at level 0 (black), then at 100%.
   const playing = await look('On the lights', { title: 'Fire', ref: 'fire', code: pixel(0.3) });
-  const edited = await look('Being edited', { title: 'Flat', code: pixel(0) });
+  const edited = await look('Being edited', { title: 'Flat', code: pixel(1) }, 0);
   await expect.poll(async () => (await call('GET', '/api/lights')).engine).toBe(true);
   expect(await call('POST', '/api/lights/queue', { lookId: playing.id, at: 'now' })).toEqual({ kind: 'live' });
   const dir = process.env.RELAY_SHOTS;
@@ -55,8 +55,9 @@ test('a curator sends the look being edited to the lights; an unsaved edit reach
     const missed = stats().relay.missed;
     if (size === 'laptop') {
       // An unsaved edit: white, on the lights within a few stats lines (the buffer, then the meter's own smoothing).
-      await page.locator('.dock-tab', { hasText: 'Code' }).click();
-      await page.locator('textarea.code:visible').first().fill(pixel(1));
+      const level = page.getByRole('spinbutton', { name: 'Level for All' });
+      await level.fill('100');
+      await level.press('Enter');
       await expect(page.locator('.studio.is-dirty')).toHaveCount(1);
       await expect.poll(() => stats().watts, { timeout: 10_000 }).toBeGreaterThan(50);
       await page.getByRole('button', { name: 'To the lights' }).click();

@@ -16,9 +16,8 @@ and starts Studio once to check it answers; rollback also leaves it disabled.
 **No generators, on any profile.** No model registry is read and no generator runs; ideas left in the data stay as
 they are. The routes that make or read ideas, models and their access are not there (404): `/api/ideas…`,
 `POST /api/looks/:id/refine`, `/api/models`, `/api/admin/models`, `/api/admin/ideas/…`, `/api/invite` and
-`/api/admin/invites…`, `/api/admin/people…`. `GET /api/me` has no `access`, so the app has no Ideas tab, Refine
-panel, AI fixes or Models and Access tabs under Admin; its home is My looks, and `/ideas` leads there. The tutorial
-(SPEC-tutorial) leaves out its steps on Ideas. Nothing in the environment, the data or the API turns them on.
+`/api/admin/invites…`, `/api/admin/people…`. `GET /api/me` has no `access`, and the app has no AI (SPEC-access
+"No AI in the app"). Nothing in the environment, the data or the API turns them on.
 
 `STUDIO_PROFILE` is `hosted` (unset: the public site, as the rest of the contract describes) or `pi`. Under `pi`:
 

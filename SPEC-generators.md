@@ -73,10 +73,9 @@ a CLI's text, so it stays in the log. The idea also keeps `how`, its rounds in a
 tokens, critique, plan, up to 12 changes, checks, how many stills, and 600 characters of thinking, the oldest
 rounds' thinking dropped first to fit), so how it was made outlasts the log. The
 owner's API (`GET /api/ideas`, `/api/ideas/:id`) leaves `how` out, and strips any failed round's error stored on the
-idea's rounds and verdict too. Admins read a log at `GET /api/admin/ideas/:id/log` and its stills by name; the Studio links it
-("Log") on an idea's row for them.
+idea's rounds and verdict too. Admins read a log at `GET /api/admin/ideas/:id/log` and its stills by name.
 
-**How it was made** (`src/api-idea-how.ts`, the page `/ideas/:id/how`, linked from each idea's row). For
+**How it was made** (`src/api-idea-how.ts`). For
 the idea's owner and admins; anyone else, curators too, gets 404. `GET /api/ideas/:id/how` answers `{ idea, from,
 run: { via?, effort?, level?, name? }, prompt?, rounds, usd? }`: from the idea's log while it is kept (`from: 'log'`),
 else from the `how` the idea keeps (`'idea'`: no prompt, stills only counted), else `'none'` (as for
@@ -183,7 +182,7 @@ the prompted models refine (the foundry: 400).
 **Refine history.** A refinement's turn also carries the look's history, so a follow-up (`more`, `undo the red`)
 reads against what came before: the idea that made the look, then each earlier ready refinement of it, oldest
 first, as its request (or "a critique", "a fix of layer X") with its `changes` on one line and its critique
-`verdict`. An undone refinement (`POST /api/ideas/:id/undo`, which the Studio calls at the save after its step is undone, SPEC-history) is left out. The last 8
+`verdict`. An undone refinement (`POST /api/ideas/:id/undo`) is left out. The last 8
 entries that fit in 1,500 characters, the idea kept first; fenced as untrusted (`<history>`) and marked a record,
 not instructions. The prompted models read it. Only requests and change lines, never answers or
 transcripts.

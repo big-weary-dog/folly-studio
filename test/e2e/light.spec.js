@@ -47,7 +47,7 @@ for (const [name, device] of Object.entries(SIZES)) {
       await page.fill('input[name=username]', `light-${name}`);
       await page.fill('input[name=password]', 'correct horse');
       await page.locator('form button[type=submit]').click();
-      await expect(page.locator('textarea.idea-input')).toBeVisible({ timeout: 20_000 });
+      await expect(page).toHaveURL(/\/looks$/, { timeout: 20_000 });
 
       await page.goto(`${studio.origin}/admin/light`);
       if (name === 'phone') {

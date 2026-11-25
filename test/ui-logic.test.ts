@@ -9,14 +9,13 @@ import { describe, test } from 'vitest';
 
 import { resolve, safeNext } from '../public/js/ui/app.tsx';
 import { mayDelete } from '../public/js/ui/delete-look.ts';
-import { gateOf } from '../public/js/ui/idea-access.tsx';
 import {
   beatsAt, bindingForm, bindingText, fmt, keepsTime, makeBinding, normaliseParam, type Param, perBeat, shownValue,
   upgradedOf,
 } from '../public/js/ui/bindings.ts';
 import { decimals, exact, onSpan, places, scrubTo, snap } from '../public/js/ui/kit.tsx';
-import { ai, profile, user } from '../public/js/ui/session.ts';
-import { onIdeas, pathsHere } from '../public/js/ui/tour/paths/index.ts';
+import { profile, user } from '../public/js/ui/session.ts';
+import { pathsHere } from '../public/js/ui/tour/paths/index.ts';
 import { createLayerStatus } from '../public/js/ui/layer-status.ts';
 import {
   addColour, CUSTOM_MAX, editText, editValue, readEdit, toggleRole, toggleSlot, toggleToken,
@@ -41,7 +40,7 @@ test('automation endpoint brightness uses the macro range, not raw zero and one'
 });
 
 test('automating a setting creates its macro, lane and binding as one patch, and reuses an existing lane', () => {
-  const L = { id: null, title: 'Test', summary: '', shared: false, ideaId: null,
+  const L = { id: null, title: 'Test', summary: '', shared: false,
     duration: 24, bpm: null, layers: [{ id: 'layer', blend: 'add', level: 1,
     title: 'Clouds', modules: [{ id: 'source', kind: 'source', title: 'Clouds', code: '', params: { speed: 2 } }] }],
   } as Draft;
@@ -59,7 +58,7 @@ test('automating a setting creates its macro, lane and binding as one patch, and
 });
 
 test('new automation names avoid collisions; colour automation preserves the pick and its options', () => {
-  const L = { id: null, title: 'Test', summary: '', shared: false, ideaId: null,
+  const L = { id: null, title: 'Test', summary: '', shared: false,
     duration: 30, bpm: null, layers: [{ id: 'l', title: 'Bars', blend: 'add', level: 1, modules: [
     { id: 'm', kind: 'source', title: 'Bars', code: '', params: {
       colours: { pick: 'body/accent', blend: 'smooth', range: [0.2, 0.8] } } }] }] } as Draft;
@@ -82,14 +81,13 @@ test('new automation names avoid collisions; colour automation preserves the pic
 });
 
 describe('routing', () => {
-  ai.value = true;   // an account with the AI, unless a test says otherwise
   test('the same URLs, with redirects for the signed out and the signed in', () => {
-    assert.equal(where('/'), '→ /ideas');
+    assert.equal(where('/'), '→ /looks');
     assert.equal(where('/', '', false), '→ /login');
     assert.equal(where('/studio/a%20b'), 'studio {"lookId":"a b"}');
     assert.equal(where('/studio/'), 'studio {}');
     assert.equal(where('/gallery'), 'gallery {}');
-    assert.equal(where('/nowhere'), '→ /ideas');
+    assert.equal(where('/nowhere'), '→ /looks');
     assert.equal(where('/studio/x', '?y=1', false), '→ /login?next=%2Fstudio%2Fx%3Fy%3D1');
     assert.equal(where('/login', '?next=%2Fgallery'), '→ /gallery');
     assert.equal(where('/login', '', false), 'auth {}');
@@ -97,61 +95,46 @@ describe('routing', () => {
 
   test('the admin pages are tabs under /admin; /admin and their old URLs lead to them', () => {
     assert.equal(where('/admin/light'), 'light {}');
-    assert.equal(where('/admin'), '→ /admin/models');
-    assert.equal(where('/admin/'), '→ /admin/models');
-    assert.equal(where('/models'), '→ /admin/models');
-    assert.equal(where('/access/'), '→ /admin/access');
+    assert.equal(where('/admin'), '→ /admin/light');
+    assert.equal(where('/admin/'), '→ /admin/light');
+    assert.equal(where('/admin/models'), '→ /admin/light');
+    assert.equal(where('/models'), '→ /admin/light');
+    assert.equal(where('/access/'), '→ /admin/light');
     assert.equal(where('/light'), '→ /admin/light');
     assert.equal(where('/reports', '?id=r1'), '→ /admin/reports?id=r1');
     assert.equal(where('/admin/reports', '', false), '→ /login?next=%2Fadmin%2Freports');
   });
 
-  test('without the AI, no Ideas: home is My looks, a guest\'s the Studio', () => {
-    ai.value = false;
+  test('Ideas is gone: its URLs lead to My looks; a guest\'s home is the Studio', () => {
+    assert.equal(where('/ideas'), '→ /looks');
+    assert.equal(where('/ideas/x/how'), '→ /looks');
+    user.value = { id: 'guest-x', username: 'Wren', role: 'member', guest: true };
     try {
-      assert.equal(where('/'), '→ /looks');
-      assert.equal(where('/ideas'), '→ /looks');
-      assert.equal(where('/ideas/x/how'), '→ /looks');
-      assert.equal(where('/ideas', '', false), '→ /login?next=%2Fideas');
-      user.value = { id: 'guest-x', username: 'Wren', role: 'member', guest: true };
       assert.equal(where('/'), '→ /studio');
-      assert.equal(where('/ideas'), '→ /studio');
-    } finally {
-      ai.value = true;
-      user.value = null;
-    }
+    } finally { user.value = null; }
   });
 
   test('on the Pi, home is My looks and the pages of what it does not run lead elsewhere', () => {
     profile.value = 'pi';
-    ai.value = false;
     try {
       assert.equal(where('/'), '→ /looks');
-      assert.equal(where('/ideas'), '→ /looks');
       assert.equal(where('/nowhere'), '→ /looks');
-      assert.equal(where('/admin'), '→ /admin/light');
-      assert.equal(where('/admin/models'), '→ /admin/light');
-      assert.equal(where('/admin/access/'), '→ /admin/light');
       assert.equal(where('/admin/reports'), 'reports {}');
       assert.equal(safeNext(null), '/looks');
     } finally {
       profile.value = 'hosted';
-      ai.value = true;
     }
   });
 
-  test('on the Pi, the tutorial takes no step to Ideas', () => {
-    const steps = (pi: boolean) => pathsHere(pi).flatMap((p) => p.steps);
-    assert.ok(steps(false).some(onIdeas));
-    assert.ok(!steps(true).some(onIdeas));
-    const idea = pathsHere(true).find((p) => p.id === 'idea')!;
-    assert.equal(idea.start, '/studio?tour=idea', 'From an idea starts on its look');
-    assert.equal(idea.about, idea.aboutPi);
+  test('a guest\'s tutorial says an account saves', () => {
+    const save = (guest: boolean) => pathsHere(guest).find((p) => p.id === 'keep')!.steps.find((s) => s.id === 'save')!;
+    assert.match(save(true).text, /log in or sign up/);
+    assert.doesNotMatch(save(false).text, /log in or sign up/);
   });
 
   test('`next` stays on this app', () => {
     for (const bad of [null, '', 'https://evil.example', '//evil.example', '/login?next=/x']) {
-      assert.equal(safeNext(bad), '/ideas', String(bad));
+      assert.equal(safeNext(bad), '/looks', String(bad));
     }
     assert.equal(safeNext('/studio/abc?x=1'), '/studio/abc?x=1');
   });
@@ -290,11 +273,11 @@ describe('a number as one field, and how a chain is drawn', () => {
 
 /** The Studio's state as the timeline uses it: the look, the selection, edits. */
 function fakeStudio(layers: Layer[], extra: Partial<Draft> = {}) {
-  const look = signal({ id: 'x', title: 'T', summary: '', layers, duration: 30, bpm: null, shared: false, ideaId: null,
+  const look = signal({ id: 'x', title: 'T', summary: '', layers, duration: 30, bpm: null, shared: false,
     ...extra } as Draft);
   const selectedId = signal<string | null>(layers[0]?.id ?? null);
   const st = {
-    look, selectedId, narrow: signal(false), clock: { t: 0, typingUntil: 0 }, data: { rig: null },
+    look, selectedId, narrow: signal(false), clock: { t: 0 }, data: { rig: null },
     selected: computed(() => look.value.layers.find((l) => l.id === selectedId.value) || null),
     layerById: (id: string) => look.peek().layers.find((l) => l.id === id) || null,
     select: (id: string | null) => { selectedId.value = id; },
@@ -436,33 +419,6 @@ describe('the pick tile', () => {
     assert.equal(editText(addColour(four, '#ffffff')), editText(four), `at ${CUSTOM_MAX}: no more`);
     const five = '#000001 #000002 #000003 #000004 #000005 low';
     assert.equal(editText(addColour(readEdit(five, 'all'), '#ffffff')), five, 'more from code: kept as they are');
-  });
-});
-
-describe('the idea form\'s gate (idea-access.tsx)', () => {
-  const sol = { id: 'sol', label: 'Sol', paid: true }, free = { id: 'free', label: 'Free', paid: false };
-  const access = (o = {}) => ({ unlocked: true, exempt: false, inviteOnly: true,
-    limits: { perHour: 6, perDay: 20, concurrent: 2 }, left: { hour: 4, day: 15, running: 2 }, ...o });
-  test('free models and admins pass; locked shows the lock; open says what is left', () => {
-    assert.equal(gateOf(access({ unlocked: false }), free).kind, 'free');
-    assert.equal(gateOf(access({ exempt: true }), sol).kind, 'exempt');
-    assert.equal(gateOf(access({ unlocked: false }), sol).kind, 'locked');
-    assert.deepEqual(gateOf(access({ models: { sol: { day: 2 } } }), sol), { kind: 'open',
-      text: '4 left this hour · 2 today' });
-  });
-  test('at a limit: the wait, and when the next idea may go', () => {
-    const now = new Date(2026, 9, 19, 10, 0), at = new Date(2026, 9, 19, 10, 40).toISOString();
-    const wait = gateOf(access({ left: { hour: 0, day: 3, running: 2 }, nextAt: at }), sol, now);
-    assert.equal(wait.kind, 'wait');
-    assert.match((wait as { text: string }).text, /^That's all your ideas for this hour\. Next idea at .*40/);
-    const next = new Date(2026, 9, 20, 9).toISOString();
-    const tomorrow = gateOf(access({ left: { hour: 2, day: 0, running: 2 }, nextAt: next }), sol, now);
-    assert.match((tomorrow as { text: string }).text, /today\. Next idea tomorrow at/);
-    assert.match((gateOf(access({ left: { hour: 2, day: 2, running: 0 } }), sol) as { text: string }).text,
-      /being made/);
-    assert.match((gateOf(access({ full: true }), sol) as { text: string }).text, /done all they can/);
-    const zero = access({ limits: { perHour: 0, perDay: 20, concurrent: 2 }, left: { hour: 0, day: 20, running: 2 } });
-    assert.deepEqual(gateOf(zero, sol), { kind: 'wait', text: 'Your allowance for the AI models is 0: ask an admin.' });
   });
 });
 

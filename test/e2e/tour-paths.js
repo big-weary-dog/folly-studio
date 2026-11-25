@@ -67,15 +67,8 @@ const seg = (page, text) => page.locator('.mod-drawer').locator('.mod-seg, .mod-
 /** In the open ∿ drawer: a number by its label. */
 const num = (page, label, value) => page.locator(`.mod-drawer input[aria-label="${label}"]`).fill(String(value));
 
-export async function playIdea(page, t) {
-  await step(t, 'Describe it', ['idea'], () => t.at('idea')
-    .fill('The rose window blooms open ring by ring while light runs up the main arches.'), 'idea-describe');
-  await t.open('Make it');
-  await t.ring('idea-make');
-  await t.at('idea-make').click();
-  await expect(t.card).toHaveClass(/done/, { timeout: 30_000 });
-  await t.shot('idea-make');
-  await step(t, 'What it made', ['layer:arches'], () => pick(t, 'arches'), 'idea-layer');
+export async function playLook(page, t) {
+  await step(t, 'Its layers', ['layer:arches'], () => pick(t, 'arches'), 'look-layer');
   await t.next();
 }
 

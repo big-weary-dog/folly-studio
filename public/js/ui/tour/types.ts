@@ -24,18 +24,12 @@ export type Step = {
   area?: string;
   /** Wait for Next even once done (a step to read, the last one). */
   next?: boolean;
-  /** While open, the Ideas page opens this practice look (`/studio?tour=<id>`) instead of asking a model. */
-  idea?: string;
 };
 
 export type Path = {
   id: string; title: string; about: string;
-  /** What it covers on the Pi, where its Ideas steps are left out (SPEC-offline), when that differs. */
-  aboutPi?: string;
-  /** Where it starts: the blank Studio, its practice look (`/studio?tour=<id>`), or another page. */
+  /** Where it starts: the blank Studio or its practice look (`/studio?tour=<id>`). */
   start: string; steps: Step[];
-  /** Its practice look when it starts on another page: where its Studio steps go back to. */
-  look?: string;
 };
 
 /** A number a param holds, or null (bound to a modulator, or unset). */

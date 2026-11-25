@@ -3,8 +3,7 @@
 // divider sizes the split; the view is kept per browser. Screenshots of each land in the test's output folder.
 import { expect, test } from './studio.js';
 
-// An admin: exempt from invite codes and limits.
-test.use({ viewport: { width: 1366, height: 768 }, serverOptions: { admins: 'side-laptop' } });
+test.use({ viewport: { width: 1366, height: 768 } });
 
 test('layers and settings expand, collapse, resize and stay so', async ({ page, studio }, info) => {
   const errors = [];
@@ -15,9 +14,9 @@ test('layers and settings expand, collapse, resize and stay so', async ({ page, 
   await page.fill('input[name=username]', 'side-laptop');
   await page.fill('input[name=password]', 'correct horse');
   await page.locator('form button[type=submit]').click();
-  await page.fill('textarea.idea-input', 'Rising embers drift up the spires while the rose window glows');
-  await page.getByRole('button', { name: 'Turn it into a look' }).click();
-  await page.getByRole('link', { name: 'Open in Studio' }).first().click({ timeout: 60_000 });
+  await expect(page).toHaveURL(/\/looks$/);
+  await page.goto(`${studio.origin}/studio`);
+  await page.locator('.save-btn:visible').click();      // saved, so a reload keeps it
   await expect(page).toHaveURL(/\/studio\/[\w-]+$/);
 
   const side = page.locator('.side'), list = page.locator('.layer-list'), params = page.locator('.params-wrap');

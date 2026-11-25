@@ -1,5 +1,5 @@
-// The Studio's panes: toolbar, groups, the 3D view, layers and settings, the bottom dock (code, timeline and look
-// tabs, a fold toggle, the splitter that sizes it), and the phones' tabs. The timeline and the Look panel sit in the
+// The Studio's panes: toolbar, groups, the 3D view, layers and settings, the bottom dock (timeline and look tabs, a
+// fold toggle, the splitter that sizes it), and the phones' tabs. The timeline and the Look panel sit in the
 // dock on a wide screen; phones keep Layers, Look and More. Check & bake opens from Export on laptop.
 import { useId, useLayoutEffect, useRef, useState } from 'preact/hooks';
 
@@ -8,7 +8,6 @@ import { openBake } from './bake.tsx';
 import { ChainPane } from './chain.tsx';
 import { deleteLook, mayDelete } from './delete-look.ts';
 import { DrawerSlot } from './drawer.tsx';
-import { CodeEditor } from './editor.tsx';
 import { cx, Field, humanize, lazy, pref, Switch, useLazy } from './kit.tsx';
 import { ISSUE_LABELS } from './layer-status.ts';
 import { HistoryButton } from './history/button.tsx';
@@ -16,8 +15,7 @@ import { LayersPane } from './layers.tsx';
 import { loadPalettes } from './model.ts';
 import type { Preview } from './preview.ts';
 import { PreviewPane } from './preview-view.tsx';
-import { RefinePanel } from './refine.tsx';
-import { ai, navigate, onPi, user } from './session.ts';
+import { navigate, onPi, user } from './session.ts';
 import { onSideHead, SideDivider } from './side-panels.tsx';
 import type { Dock, Studio } from './studio-store.ts';
 import { Timeline } from './timeline.tsx';
@@ -156,31 +154,29 @@ function ExportMenu({ st, pv }: { st: Studio; pv: Preview }) {
     </div>);
 }
 
-const DOCKS: Dock[] = ['code', 'timeline', 'look'];
+const DOCKS: Dock[] = ['timeline', 'look'];
 
 function DockPane({ st, pv, tl }: Props) {
-  const dock = st.dock.value, folded = st.folded.value, narrow = st.narrow.value, ids = [useId(), useId(), useId()];
+  const dock = st.dock.value, folded = st.folded.value, narrow = st.narrow.value, ids = [useId(), useId()];
   return (
-    <section class="pane pane-code" data-pane="code" aria-label="Code, timeline and look">
+    <section class="pane pane-code" data-pane="code" aria-label="Timeline and look">
       <div class="pane-head dock-head">
         <div class="dock-tabs" role="group" aria-label="Bottom panel">{DOCKS.map((id) => <button type="button"
           class="dock-tab" data-dock={id} data-tour={`dock:${id}`}
           aria-pressed={dock === id} onClick={() => st.showDock(id)}>
           {humanize(id)}</button>)}</div>
-        <span class="pane-sub dock-code-only">{st.codeFor}</span>
         <DockIssue st={st} />
         <div class="dock-tools">{!narrow && <TimelineTools st={st} tl={tl} inspector />}</div>
         <button type="button" class="btn small ghost collapse-btn" aria-expanded={!folded} aria-controls={ids.join(' ')}
           title="Fold the panel away to give the 3D view more room" onClick={() => st.fold(!folded)}>
           {folded ? `Show ${dock}` : 'Hide'}</button>
       </div>
-      <div class="pane-body code-body" id={ids[0]}><CodeEditor st={st} /></div>
-      <div class="tl-body" id={ids[1]}>{!narrow && <Timeline st={st} pv={pv} tl={tl} />}</div>
-      <div class="pane-body look-dock" id={ids[2]}>{!narrow && <><RefinePanel st={st} /><Globals st={st} /></>}</div>
+      <div class="tl-body" id={ids[0]}>{!narrow && <Timeline st={st} pv={pv} tl={tl} />}</div>
+      <div class="pane-body look-dock" id={ids[1]}>{!narrow && <Globals st={st} />}</div>
     </section>);
 }
 
-/** The code's problem in the dock's head, while the code is folded away or on the timeline. */
+/** The selected module's problem in the dock's head. */
 function DockIssue({ st }: { st: Studio }) {
   const p = st.problem.value;
   return <span class="dock-issue" data-kind={p?.kind} hidden={!p}>{p && ISSUE_LABELS[p.kind]}</span>;
@@ -232,17 +228,12 @@ function Globals({ st }: { st: Studio }) {
   return <GlobalsPanel st={st} palettes={palettes} />;
 }
 
-/** Phone Look: palette, existing faders, sharing details and an explicit refinement action. */
+/** Phone Look: palette, existing faders and sharing details. */
 function LookTab({ st }: { st: Studio }) {
-  const [refining, setRefining] = useState(false);
   return (
     <section class="pane pane-look" data-pane="look" aria-label="Look"><div class="pane-body look-body">
       <div class="globals-slot"><Globals st={st} /></div>
       <Share st={st} cls="share-toggle big" />
       <details class="phone-share-details"><summary>Share details</summary><Describe st={st} box /></details>
-      {ai.value && !st.copyOnSave.value && st.server.value && <>
-        <button type="button" class="btn" aria-expanded={refining}
-          onClick={() => setRefining(!refining)}>Refine with AI</button>
-        {refining && <RefinePanel st={st} />}</>}
     </div></section>);
 }
