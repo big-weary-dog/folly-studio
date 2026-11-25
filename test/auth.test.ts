@@ -63,9 +63,12 @@ describe('behind the tunnel (trustProxy)', () => {
       assert.equal(blocked.status, 429, 'the same client, whatever it put on the left');
       assert.ok(Number(blocked.headers.get('retry-after')) >= 1);
       assert.equal((await login('8.8.8.8')).status, 401, 'another client has its own limit');
-      // The tunnel's host is the one a same-origin check compares with.
-      const origin = { origin: 'https://studio.example.org', 'x-forwarded-host': 'studio.example.org' };
+      // The tunnel's scheme and host are the ones a same-origin check compares with.
+      const origin = { origin: 'https://studio.example.org', 'x-forwarded-host': 'studio.example.org',
+        'x-forwarded-proto': 'https' };
       assert.equal((await client(app).post('/api/login', { username: 'nobody' }, origin)).status, 401);
+      const plain = { ...origin, origin: 'http://studio.example.org' };
+      assert.equal((await client(app).post('/api/login', { username: 'nobody' }, plain)).status, 403);
     } finally {
       await app.close();
     }

@@ -61,14 +61,15 @@ export function etagMatches(header: string | undefined, etag: string): boolean {
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const bareHost = (host: string) => host.toLowerCase().replace(/:(80|443)$/, '');
 
-/** CSRF (an onRequest hook): a mutation is JSON, and same-origin when it sends an Origin. */
+/** CSRF (an onRequest hook): a mutation is JSON, and same-origin (scheme and host) when it sends an Origin. Behind
+ * the tunnel the scheme is its X-Forwarded-Proto. */
 export async function checkMutation(req: FastifyRequest) {
   if (!MUTATING.has(req.method)) return;
   const origin = req.headers.origin;
   if (origin !== undefined) {
-    let from = '';
-    try { from = new URL(origin).host; } catch { /* "null" or garbage */ }
-    if (!from || !req.host || bareHost(from) !== bareHost(req.host)) {
+    let from: URL | null = null;
+    try { from = new URL(origin); } catch { /* "null" or garbage */ }
+    if (!from || !req.host || from.protocol !== `${req.protocol}:` || bareHost(from.host) !== bareHost(req.host)) {
       throw new HttpError(403, 'Cross-origin request refused.');
     }
   }

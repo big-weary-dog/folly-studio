@@ -167,7 +167,7 @@ describe('server', () => {
 
     test('cross-origin Origin is refused, same-origin allowed', async () => {
       for (const origin of ['http://evil.example', 'null', `http://127.0.0.1:${app.port + 1}`,
-        'https://evil.example:443']) {
+        'https://evil.example:443', app.base.replace('http:', 'https:')]) {
         const r = await alice.post('/api/looks', look('Cross origin'), { origin });
         assert.equal(r.status, 403, origin);
       }
