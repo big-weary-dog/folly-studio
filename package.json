@@ -17,6 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "npm run typecheck && npm run lint && npm test",
+    "check:fast": "bash tools/check-fast.sh",
     "e2e": "env -u DISPLAY -u WAYLAND_DISPLAY playwright test --project=e2e",
     "perf": "playwright test --project=perf",
     "smoke": "env -u DISPLAY -u WAYLAND_DISPLAY playwright test --project=smoke",

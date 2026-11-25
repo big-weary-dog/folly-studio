@@ -68,11 +68,16 @@ test('while the server rewrites its files, the snapshot holds whole files from o
   store.looks.create({ title: 'first' });
   await store.flush();
   let writing = true, writes = 0;
+  // Bursts of rewrites, as a busy server makes, with a short still moment after each: a snapshot must wait for one,
+  // and a loop with none would starve it on a loaded machine.
   const churn = (async () => {
     while (writing) {
-      store.ideas.create({ text: `more ${writes++}` });
-      store.looks.create({ title: `look ${writes}` });
-      await store.flush();
+      for (let burst = 0; burst < 3; burst++) {
+        store.ideas.create({ text: `more ${writes++}` });
+        store.looks.create({ title: `look ${writes}` });
+        await store.flush();
+      }
+      await new Promise((r) => setTimeout(r, 40));
     }
   })();
   try {

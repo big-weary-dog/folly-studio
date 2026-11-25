@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // The output guard: every look of tools/bench-looks.ts played through the core (prepareLook, renderFrame, ledChannels
-// at a master that moves), each look's LED bytes over a few frames hashed, on both rigs. A speed-up must
-// leave every hash as it is (test/output-bytes.test.ts); intentional pattern, rig or output-default changes re-record:
+// at a master that moves), each look's LED bytes over a few frames hashed, on both rigs. A speed-up must leave every
+// hash as it is (test/output-bytes-*.test.ts); intentional pattern, rig or output-default changes re-record:
 //   node tools/output-bytes.ts        → test/fixtures/output-bytes.json
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
