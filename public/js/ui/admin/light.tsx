@@ -7,7 +7,7 @@ import { useEffect, useState } from 'preact/hooks';
 
 import { api } from '../../api.ts';
 import { encode, LIGHT, LIGHT_LIMITS, type Light, lightByte, lightOf, shownLight } from '../../../../core/light.ts';
-import { cx, download, Field, Scrub, toast } from '../kit.tsx';
+import { cx, download, Field, Pending, Scrub, toast } from '../kit.tsx';
 import { setTitle } from '../session.ts';
 import { useDraftGuard } from './draft-guard.ts';
 import { usePhone } from '../phone/viewport.ts';
@@ -33,7 +33,7 @@ export function LightPage() {
   </div>;
   if (!saved || !draft) {
     return <div class="page light-page"><h1 class="page-title">Light</h1>
-      <p class={error ? 'form-error' : 'pane-hint'} role={error ? 'alert' : undefined}>{error || 'Loading…'}</p></div>;
+      <Pending error={error} /></div>;
   }
   const set = (patch: Partial<Light>) => setDraft({ ...draft, ...patch });
   async function save() {

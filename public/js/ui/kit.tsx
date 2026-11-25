@@ -154,6 +154,11 @@ export function Field({ label, children, hint, stack, class: cls, title, tour }:
       <div class="field-control">{control ? children(id) : children}</div>{hint}</div>);
 }
 
+/** What a page shows until its data comes: Loading…, or why it failed. */
+export const Pending = ({ error, hidden }: { error: string; hidden?: boolean }) => (
+  <p class={error ? 'form-error' : 'pane-hint'} role={error ? 'alert' : undefined} hidden={hidden}>
+    {error || 'Loading…'}</p>);
+
 type Range = { min: number; max: number; step: number; soft?: [number, number] };
 const dragRange = (r: Range): Range => r.soft ? { ...r, min: r.soft[0], max: r.soft[1] } : r;
 /** The decimals a step shows (0.05 → 2, at most 4). */
