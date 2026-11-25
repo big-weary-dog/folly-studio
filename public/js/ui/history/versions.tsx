@@ -83,7 +83,7 @@ export function Versions({ st, open }: { st: Studio, open: boolean }) {
             {v.name && <span class="tag t-named" title="Named: kept until you unname it">Named</span>}
             {v.current && <span class="tag" title="The look as saved">Saved</span>}
             {v.shared && <span class="tag t-gallery" title="The gallery shows this version">In gallery</span>}
-            {v.reviewed && <span class="tag t-review" title="A curator reviewed this version: it plays on Live">
+            {v.reviewed && <span class="tag t-review" title="A curator reviewed this version">
               Reviewed</span>}</span>}
         </div>
         <div class="version-btns">

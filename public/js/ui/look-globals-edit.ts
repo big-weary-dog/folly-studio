@@ -43,9 +43,7 @@ export function renameMacro(L: Draft, from: string, to: string | null): Partial<
     }
     return { ...m, params };
   }) }));
-  const live = L.globals?.live?.flatMap((name) => name === from ? to ? [to] : [] : [name]);
-  return { globals: { ...L.globals, ...(live ? { live } : {}),
-    macros: Object.keys(macros).length ? macros : undefined },
+  return { globals: { ...L.globals, macros: Object.keys(macros).length ? macros : undefined },
     automation: Object.keys(auto).length ? auto : undefined, layers };
 }
 

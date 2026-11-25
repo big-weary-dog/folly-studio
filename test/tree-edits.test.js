@@ -8,7 +8,7 @@ import { automationEdit } from '../public/js/ui/automation-edit.ts';
 import { renameMacro } from '../public/js/ui/look-globals-edit.ts';
 import { macroUses } from '../public/js/ui/mod-uses.ts';
 import { makeLayer } from '../public/js/ui/model.ts';
-import { Globals, Layers } from '../shared/schemas/look.ts';
+import { Layers } from '../shared/schemas/look.ts';
 
 const binding = { mod: 'global', name: 'storm', from: 0, to: 1 };
 const lfo = { mod: 'lfo', rate: 1, center: 0.5, depth: 0.5, amount: 'storm', pace: 'storm' };
@@ -19,7 +19,7 @@ const composite = (id, modules) => ({ id, title: id, kind: 'composite', code: ''
 const draft = () => ({ title: 'Tree edits', duration: 12, layers: [{ id: 'l', title: 'Layer', level: 1, blend: 'add',
   modules: [source('top', { speed: binding }), composite('outer', [composite('inner', [source('nested', {
     speed: binding, colours: { pick: 'body', rotate: binding }, motion: lfo,
-  })])])] }], globals: { macros: { storm: { value: 0.5, min: 0, max: 1 } }, live: ['bpm', 'storm'] },
+  })])])] }], globals: { macros: { storm: { value: 0.5, min: 0, max: 1 } } },
   automation: { storm: [[0, 0.5], [12, 0.5]] } });
 const params = (look) => flatModules(look.layers[0].modules).find((m) => m.id === 'nested').params;
 
@@ -47,20 +47,6 @@ test('M21: uses lists nested bindings in tree order with their owning layer and 
     { how: 'swing', layer: 'l', module: 'nested', key: 'motion' },
     { how: 'pace', layer: 'l', module: 'nested', key: 'motion' },
   ]);
-});
-
-test('M22: live controls rename/delete with the macro and still validate for Save', () => {
-  const look = draft(), before = structuredClone(look);
-  const renamed = renameMacro(look, 'storm', 'rain'), deleted = renameMacro(look, 'storm', null);
-  assert.deepEqual(renamed.globals.live, ['bpm', 'rain']);
-  assert.deepEqual(deleted.globals.live, ['bpm']);
-  Globals.parse(renamed.globals);
-  Globals.parse(deleted.globals);
-  assert.deepEqual(renameMacro({ ...look, globals: { ...look.globals, live: ['storm'] } }, 'storm', null)
-    .globals.live, [], 'an explicit empty list keeps all live controls off');
-  const implicit = renameMacro({ ...look, globals: { macros: look.globals.macros } }, 'storm', 'rain');
-  assert.equal('live' in implicit.globals, false, 'implicit live controls stay implicit');
-  assert.deepEqual(look, before);
 });
 
 test('M20: duplicated chains remap input and on at every depth and can be saved', () => {

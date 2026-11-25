@@ -83,3 +83,6 @@ instead of `data` (type 1 / 2; each block one whole zstd frame or zlib stream of
 compressed by the caller; ≤ 255 blocks, so the block count's high nibble in byte 20 stays 0).
 Header length = 32 + 8 × blocks (u32 first frame, u32 compressed length) + 6 × ranges (u24 start,
 u24 count). `fseqBlocks(frames, per = 80) → [[first, count], …]` splits frames into ≤ 255 blocks.
+`ledRanges(rig) → [[start, count], …]` is the channels the rig's LEDs use; `exportShape(rig) → { fps, stepMs,
+frameChannels, ranges, used }` is what the Export dialog writes (the rig's fps, its whole frame, the LEDs' ranges and
+their total), and `packFrames(full, frames, frameChannels, ranges)` squeezes rendered frames to those ranges in place.

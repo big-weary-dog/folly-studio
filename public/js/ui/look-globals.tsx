@@ -13,7 +13,6 @@ import { Drives, ModulatorCards } from './look-mods.tsx';
 import { type ModCtx, normNow, useFollow } from './mod-live.tsx';
 import { macroUses, type Use } from './mod-uses.ts';
 import type { Studio } from './studio-store.ts';
-import { LiveOffers } from './look-offers.tsx';
 
 type Macro = NonNullable<Globals['macros']>[string];
 
@@ -63,7 +62,6 @@ export function GlobalsPanel({ st, palettes }: { st: Studio; palettes: (Palette 
           set={(value) => set((x) => { x.macros = { ...x.macros, [name]: { ...m, value } }; })}
           taken={(to) => !macroNameOk(to) || !!g.macros?.[to]} />)}</ul>
       </section>
-      <LiveOffers st={st} />
     </div>);
 }
 

@@ -176,3 +176,22 @@ export function ledRanges(rig: Pick<Rig, 'output' | 'pixels' | 'count'>) {
   }
   return ranges;
 }
+
+/** What Export writes on this rig: its fps and step, its whole frame's channels (what the sandbox renders) and the
+ * LEDs' ranges in it, with their total (what the file holds a frame). */
+export function exportShape(rig: Pick<Rig, 'output' | 'pixels' | 'count'>) {
+  const fps = rig.output.fps || 40, ranges = ledRanges(rig);
+  return { fps, stepMs: Math.round(1000 / fps),
+    frameChannels: rig.output.universes * rig.output.channelsPerUniverse, ranges,
+    used: ranges.reduce((n, r) => n + r[1], 0) };
+}
+
+/** Squeeze full frames down to the ranged channels, in place (each frame moves left). */
+export function packFrames(channels: Uint8Array, frames: number, frameSize: number, ranges: readonly Span[]) {
+  let to = 0;
+  for (let f = 0; f < frames; f++) {
+    const base = f * frameSize;
+    for (const [start, count] of ranges) { channels.copyWithin(to, base + start, base + start + count); to += count; }
+  }
+  return channels.subarray(0, to);
+}

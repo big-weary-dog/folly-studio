@@ -59,7 +59,7 @@ describe('composed looks over the API', () => {
       globals: { speed: 9, level: 0.2, hue: 3, saturation: 0, live: ['level', 'bpm'] },
       automation: { hue: [[0, 1]] } });
     assert.equal(graded.status, 201, 'an old look\'s speed, level, hue and saturation are ignored');
-    assert.deepEqual(graded.json.look.globals ?? {}, { live: ['bpm'] });
+    assert.deepEqual(graded.json.look.globals ?? {}, {}, 'and Live Play\'s live controls');
     assert.deepEqual(graded.json.look.automation ?? {}, {});
   });
 

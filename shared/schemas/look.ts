@@ -143,8 +143,6 @@ const ModuleObject = z.object({
   id: z.string().regex(ID).optional(), kind: oneOf('kind', CHAIN_KINDS).default('source'), title: Title.default(''),
   ref: z.string({ error: 'ref must name a library entry.' }).regex(/^[a-z0-9-]{1,64}$/).optional(),
   code: Code.default(''), params: Params.nullish().transform((p) => p ?? {}),
-  live: z.array(z.string().min(1).max(64)).max(64)
-    .refine((keys) => new Set(keys).size === keys.length, 'live param keys must be unique.').optional(),
   input: z.string({ error: 'input must be a module id.' }).regex(ID).optional(),
   on: z.string({ error: 'on must be a module id.' }).regex(ID).optional(),
   as: z.literal('input', { error: "as is only 'input' (a source)." }).optional(), blend: SourceBlend.optional(),
@@ -269,16 +267,11 @@ export const follows = (b: z.infer<typeof Binding>) => (b.mod === 'global' ? [b.
   ? [b.amount, b.pace].filter((n) => n !== undefined) : []);
 const MACRO_RULE = 'a name is a lowercase letter, then letters, digits or _, and not palette or bpm.';
 
-// What a live engine offers as controls (SPEC "Globals"): names of macros and bpm, each once.
-const MAX_LIVE = MAX_MACROS + 1;
-const LIVE_RULE = "globals.live lists the look's macros or bpm, each once.";
-
-/** Globals from before (OLD_GLOBALS) read as now: energy a macro, the rest and their live controls dropped. */
+/** Globals from before read as now: energy a macro (OLD_GLOBALS), Live Play's `live` dropped. */
 const oldGlobals = (g: unknown): unknown => {
   if (!g || typeof g !== 'object' || Array.isArray(g)) return g;
-  const now = upgradeGlobals({ globals: g as Globals }).globals as Globals & { live?: unknown };
-  return Array.isArray(now.live) ? { ...now, live: now.live.filter((n) => !OLD_GLOBALS.includes(n)
-    || Object.hasOwn(now.macros ?? {}, n)) } : now;
+  const { live: _, ...now } = upgradeGlobals({ globals: g as Globals }).globals as Globals & { live?: unknown };
+  return now;
 };
 /** A look's globals (all optional): a palette, macros. null clears them. */
 export const Globals = z.preprocess(oldGlobals, z.strictObject({
@@ -286,11 +279,8 @@ export const Globals = z.preprocess(oldGlobals, z.strictObject({
   macros: z.record(z.string().refine(macroNameOk, MACRO_RULE), Macro,
     { error: 'globals.macros must be an object of { value, min, max }.' })
     .refine((m) => Object.keys(m).length <= MAX_MACROS, `At most ${MAX_MACROS} macros.`).optional(),
-  live: z.array(z.string(), { error: LIVE_RULE }).max(MAX_LIVE, LIVE_RULE).optional(),
 }, { error: (iss) => (iss.code === 'unrecognized_keys' ? `globals.${String(iss.keys[0]).slice(0, 40)} is not a global.`
   : 'globals must be an object.') }).nullable()
-  .refine((g) => !g?.live?.some((n, i, all) => all.indexOf(n) !== i
-    || !(n === 'bpm' || Object.hasOwn(g.macros ?? {}, n))), LIVE_RULE)
   .superRefine((g, ctx) => {   // one level: a modulator follows faders (macros without a mod)
     for (const [name, m] of Object.entries(g?.macros ?? {})) {
       const bad = m.mod && follows(m.mod).find((n) => !(Object.hasOwn(g!.macros!, n) && !g!.macros![n].mod));
