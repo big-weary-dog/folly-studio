@@ -1,4 +1,4 @@
-// Sign up, log in, or Try it: in as a guest in one click (SPEC-access "Guests").
+// Sign up, log in, or Try it: in as a guest in one click (spec/http "Guests").
 import { useEffect, useId, useRef, useState } from 'preact/hooks';
 
 import ACCOUNT from '../../data/account.json' with { type: 'json' };

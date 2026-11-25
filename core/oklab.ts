@@ -1,4 +1,4 @@
-// Colour fades (SPEC-library "Palettes", docs/LIGHT.md): mix(), gradient(), palette ramps and pick crossfades go
+// Colour fades (spec/library "Palettes", docs/LIGHT.md): mix(), gradient(), palette ramps and pick crossfades go
 // from one colour to another in OKLab, where a fade keeps its brightness and passes through the hues between, instead
 // of dipping dark and muddy as a fade of encoded values does. Encoded value → light (the engine's fixed 2.2) → OKLab
 // (Björn Ottosson's), straight across, and back; out of gamut, each channel is clamped to 0..1, or to an end beyond.

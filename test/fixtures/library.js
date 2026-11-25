@@ -1,4 +1,4 @@
-// A one-module library for tests that build their own public folder: only library code saves (SPEC-baking "Library
+// A one-module library for tests that build their own public folder: only library code saves (spec/frames "Library
 // only"), so their looks use it, told apart by their params.
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The library-only step on a data folder, by hand (SPEC-looks "Library only"; the server never runs it).
+// The library-only step on a data folder, by hand (spec/looks "Library only"; the server never runs it).
 //
 //   node tools/library-only.ts [--data <dir>] [--apply]
 //

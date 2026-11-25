@@ -1,4 +1,4 @@
-// Composites in the Studio's chain (SPEC-library "Composites"), at a laptop's size and a phone's: each source in a
+// Composites in the Studio's chain (spec/library "Composites"), at a laptop's size and a phone's: each source in a
 // composite a sub-layer of its own, drawn as its row with the sub-layer's blend, its filter attached under it; the
 // composite renamed in place and in full, shut to one row that says what it holds; a source dragged in as a sub-layer
 // of its own and out again (Alt+↓), sub-layers reordered by their sources' grips (and Alt+↓), where one plays in its

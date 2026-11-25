@@ -19,8 +19,8 @@ npm run dev            # the same with Vite's dev server and hot reload, on http
 npm run check          # typecheck, lint, then every test: green before anything is done
 ```
 
-- Bakes need prlimit (util-linux); only looks of library patterns save and bake (SPEC-baking). Admins can throttle
-  baking or turn it off (Admin › Baking).
+- Bakes need prlimit (util-linux); only looks of library patterns save and bake (spec/frames "Where bakes run").
+  Admins can throttle baking or turn it off (Admin › Baking).
 - Curators: `STUDIO_CURATORS=alice,bob`; admins: `STUDIO_ADMINS=you`.
 - The rigs come from a lighting checkout (The-Gothic-Folly/lighting, `LIGHTING_DIR`, by default `../lighting`):
   `npm run build-data` after its pixel maps change; never edit a rig by hand.
@@ -32,13 +32,7 @@ npm run check          # typecheck, lint, then every test: green before anything
 | Document | For |
 |---|---|
 | [DESIGN.md](DESIGN.md) | What is built, why, the trade-offs and the limits |
-| [SPEC.md](SPEC.md) | The contract's entry point, ground rules and links to each area |
-| [SPEC-rig.md](SPEC-rig.md) | The rig file, 3D view, light and output |
-| [SPEC-looks.md](SPEC-looks.md) | Saved looks and the timeline |
-| [SPEC-sandbox.md](SPEC-sandbox.md) | The sandbox protocol, core exports and FSEQ helpers |
-| [SPEC-http.md](SPEC-http.md) | Static files, updates and the HTTP API |
-| [SPEC-frames.md](SPEC-frames.md) | Baked frames: rendering, checks, storage, streaming and downloads |
-| [SPEC-library.md](SPEC-library.md) | The contract's pattern code: the pixel, the stdlib, modules and the warp contract, the library, globals, palettes |
+| [SPEC.md](SPEC.md) | The contract: ground rules, and the index of the area files in `spec/` |
 | [docs/HOSTING.md](docs/HOSTING.md) | Running it at home: what runs where, tunnels, settings, backups |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Layout, dependencies, TypeScript, the rules and why, security invariants, budgets, adding an installation |
 | [IDEAS.md](IDEAS.md) | Where it could go next |

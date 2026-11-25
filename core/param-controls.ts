@@ -1,4 +1,4 @@
-// JSON-safe presentation hints; runtime parameter resolution deliberately ignores them (SPEC-library).
+// JSON-safe presentation hints; runtime parameter resolution deliberately ignores them (spec/library.md).
 export type Conditions = Record<string, (string | boolean | number)[]>;
 export type ParamControls = { showWhen?: Conditions };
 

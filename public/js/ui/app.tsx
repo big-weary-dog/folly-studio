@@ -34,7 +34,7 @@ const ROUTES: Route[] = [
     load: () => import('./auth.tsx').then((m) => m.Auth) },
   { re: /^\/privacy\/?$/, name: 'privacy', title: 'Privacy', nav: '/privacy', open: true,
     load: () => import('./privacy.tsx').then((m) => m.PrivacyPage) },
-  // A look's share link is open to visitors too; a new one is for the signed in (SPEC-access "Visitors").
+  // A look's share link is open to visitors too; a new one is for the signed in (spec/http "Visitors").
   { re: /^\/studio\/([^/]+)\/?$/, name: 'studio', title: 'Studio', nav: '/studio', keys: ['lookId'], open: true,
     load: () => import('./studio.tsx').then((m) => m.Studio) },
   { re: /^\/studio\/?$/, name: 'studio', title: 'Studio', nav: '/studio',

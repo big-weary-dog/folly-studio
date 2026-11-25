@@ -1,8 +1,8 @@
-// npm run smoke, too: the tutorial (SPEC-tutorial), Getting around on Rose and arches played by its steps' own controls
-// at a laptop's size and a shorter window. Each step's control is ringed inside the window (scrolled into view in
-// whatever panel scrolls), its goal is not already met when it opens, and the card keeps off the preview. A new account
-// meets the welcome and finds Getting around ticked in Tutorials; on a phone nothing opens and nothing is marked. With
-// TOUR_SHOTS set to a folder, each step's screenshot (at 1366 × 768) goes there.
+// npm run smoke, too: the tutorial (spec/studio "Tutorial"), Getting around on Rose and arches played by its steps' own
+// controls at a laptop's size and a shorter window. Each step's control is ringed inside the window (scrolled into view
+// in whatever panel scrolls), its goal is not already met when it opens, and the card keeps off the preview. A new
+// account meets the welcome and finds Getting around ticked in Tutorials; on a phone nothing opens and nothing is
+// marked. With TOUR_SHOTS set to a folder, each step's screenshot (at 1366 × 768) goes there.
 import path from 'node:path';
 
 import { expect, signIn, signup, test } from './studio.js';

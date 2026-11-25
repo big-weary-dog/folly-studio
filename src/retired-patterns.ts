@@ -1,4 +1,4 @@
-// Retired library patterns (SPEC-looks "Library only"): the library-only step switches a module naming one to today's
+// Retired library patterns (spec/looks "Library only"): the library-only step switches a module naming one to today's
 // closest library pattern, a preset's modules in its place, keeping the params that mean the same there; a layer
 // holding one with no match is dropped, the look kept.
 import { isNode, type Node } from '../shared/look-modules.ts';

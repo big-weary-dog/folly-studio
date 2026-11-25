@@ -1,4 +1,4 @@
-// History's steps (SPEC-history "Steps"): every edit is a step named for what it changed, quick edits to one thing
+// History's steps (spec/looks "Steps"): every edit is a step named for what it changed, quick edits to one thing
 // fold into one, a jump back greys the later steps and a new edit drops them, a save is a marker that undo crosses.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

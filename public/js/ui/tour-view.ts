@@ -1,5 +1,5 @@
-// What the tutorial may see of the Studio (SPEC-tutorial): computeds over its store and preview, set while the Studio
-// is open. A computed cannot be written, so the tour reads the Studio and never changes it.
+// What the tutorial may see of the Studio (spec/studio "Tutorial"): computeds over its store and preview, set while the
+// Studio is open. A computed cannot be written, so the tour reads the Studio and never changes it.
 import { computed, type ReadonlySignal, signal } from '@preact/signals';
 
 import type { Tour } from '../../../shared/schemas/tour.ts';

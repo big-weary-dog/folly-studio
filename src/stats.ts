@@ -1,4 +1,4 @@
-// The request log and the server's stats (SPEC-access "Stats"): a journal line for each request worth reading, and a
+// The request log and the server's stats (spec/http "Stats"): a journal line for each request worth reading, and a
 // few bounded counters for Admin → Stats. Kept in memory only, so a restart starts them again.
 import { createHash, randomBytes } from 'node:crypto';
 import os from 'node:os';

@@ -1,4 +1,4 @@
-// npm run smoke, too: Admin → People (SPEC-access "People") on a laptop and a phone: an account made a curator,
+// npm run smoke, too: Admin → People (spec/http "People") on a laptop and a phone: an account made a curator,
 // disabled and enabled, then deleted after a confirm. Screenshots land in the test's output folder.
 import { expect, test } from './studio.js';
 

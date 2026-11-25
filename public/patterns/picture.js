@@ -1,4 +1,4 @@
-// Picture: draws a still or animated picture from text rows and a key (SPEC-library "Pictures"). Grid rose: a row a
+// Picture: draws a still or animated picture from text rows and a key (spec/library "Pictures"). Grid rose: a row a
 // ring from the heart out, read clockwise from the top petal's left edge, Repeat times round; grid square: rows top to
 // bottom laid flat over the layer. Key colours follow the look's palette; '.' and space are clear. Frames play at
 // Speed, each held for its `hold` ticks.

@@ -1,4 +1,4 @@
-// The frame buffer (SPEC-library "History") and Delay, the first filter on it: past() reads what was above a filter
+// The frame buffer (spec/library "History") and Delay, the first filter on it: past() reads what was above a filter
 // at its LED any time back, on the grid's blend at any render rate; time going back starts it again.
 import assert from 'node:assert/strict';
 

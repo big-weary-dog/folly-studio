@@ -1,6 +1,6 @@
-# Folly Studio — looks and the timeline
+# Folly Studio — looks, versions and the timeline
 
-Part of the [build contract](SPEC.md).
+Part of the [build contract](../SPEC.md).
 
 ## Looks (what gets saved)
 
@@ -28,7 +28,7 @@ browser's too:
 ```
 
 `groups` is an array of the rig's group ids (union). Missing, the layer plays on the rig's root; `[]` (with no tags)
-is a valid pick that lights nothing (the Studio picks them in its Groups drawer: SPEC-studio). `tags` (optional, ≤ 16 of
+is a valid pick that lights nothing (the Studio picks them in its Groups drawer: spec/studio.md). `tags` (optional, ≤ 16 of
 `[a-z0-9-]{1,32}`) make a layer portable: when it names no groups, or one this rig lacks, the layer takes its
 known ids plus every group carrying one of its tags (a rig without them lights nothing there); where all its
 ids are known, tags change nothing. An unknown id in a layer without tags is an error. Editing a
@@ -46,23 +46,23 @@ below.
   `flashOverride`), to be baked and reviewed afresh, and the version `reviewed` false. Every rule on a look's
   modules (this one, the save check, the library-only step, a bake's key) walks them by one walk
   (`shared/look-modules.ts`): each module that runs code, in order, a layer that is one source and composites'
-  sub-layers' modules at any depth among them, a composite itself (no code: SPEC-library "Composites") never.
+  sub-layers' modules at any depth among them, a composite itself (no code: spec/library "Composites") never.
   Filters and updates see the look as a read gives it, so what it leaves out stays out. A
   module whose `ref` the library has is standard: it keeps the
   library's title (`shared/standard-modules.ts`; the API puts a renamed one's back). The Studio plays each module's
   code from its ref's library file (hidden ones too, `GET /api/library`), whatever the look holds ('' for a ref the
   library lacks). A save may send a module as its `ref` alone; each module must name a library module so, or carry a
-  library file exactly (SPEC-baking "Library only"); `params`
+  library file exactly (spec/frames "Library only"); `params`
   override the code's defaults (≤ 64; a string ≤ 256 characters: a pick, a choice or text).
   A stored module's `live` (offers to the archived Live Play) is ignored on read and dropped.
   `enabled: false` skips it; `input` names an earlier source; `on`
   (a warp's or filter's) attaches it to the source or composite just above it, past the others attached to it
-  (SPEC-library "Attached modules"); `as` is only
+  (spec/library "Attached modules"); `as` is only
   `'input'`; `blend` as for layers, or `under` (a source's only). `kind` is `source`, `warp`, `filter` or
   `composite`: no code, its `layers` 1–4 sub-layers, each a chain of its own that counts as one source to the chain
-  round it (SPEC-library "Composites"); ids are unique across a layer's sub-layers too. A layer with `code`
+  round it (spec/library "Composites"); ids are unique across a layer's sub-layers too. A layer with `code`
   (+ `params`) and no `modules` is a one-source chain.
-- **chain**: `2`, the one rule (SPEC-library "Modules"). Without it a warp bends every module after it, on through blurs and
+- **chain**: `2`, the one rule (spec/library "Modules"). Without it a warp bends every module after it, on through blurs and
   trails, so a look without `chain: 2` (stored, or a body to `POST`/`PUT` without it) is converted once on its way
   in (`shared/chain-order.ts`), exactly wherever it can be: warps leading a stage move to its end, reversed; a stage
   after a stage end gets copies of the warps it read; two sources bent differently turn over (the first goes
@@ -72,9 +72,9 @@ below.
   get `const stage = 'history'`. Stored looks are converted at start (their versions too); a bake of an exact
   conversion keeps its place.
 - **Soften** (optional): `{ radius: 0–1.5 m, mode: 'wire' | 'space' | 'both' (default 'wire') }`, a blur at the end
-  of the chain (SPEC-library "Spatial modules"); radius 0 is none. New layers in the Studio and generated layers get
+  of the chain (spec/library "Spatial modules"); radius 0 is none. New layers in the Studio and generated layers get
   `DEFAULT_SOFTEN`; a layer without it has none.
-- **Colours** (SPEC-library "Palettes"): a colour param's value is a pick string (≤ 200 characters, not checked: a bad one plays
+- **Colours** (spec/library "Palettes"): a colour param's value is a pick string (≤ 200 characters, not checked: a bad one plays
   the default, as a bad hex does), `[r, g, b]`, or `{ pick, blend?, range?, rotate? }` (checked: tokens, `step`
   or `smooth`, two numbers 0..1, a number 0..1 or a binding). A layer's `palette`, a role remap the core does not read,
   is dropped on the way in and from stored looks at start (`dropRemaps`).
@@ -83,7 +83,7 @@ below.
   `[a-z][A-Za-z0-9_]{0,31}` but `palette` and `bpm`, `{ value, min = 0, max = 1, mod? }`. A stored look's `speed`,
   `level`, `hue`, `saturation` (lanes, live names) are ignored; its `energy` is read as a macro `energy`
   (its value, else 0.5) where stored, automated or followed (`upgradeGlobals`, on read; never rewritten). A macro with a `mod` (an LFO
-  or a stored tempo binding, never offered, SPEC-library "Param bindings"; never the envelope) is a **modulator**: it moves by itself each
+  or a stored tempo binding, never offered, spec/library "Param bindings"; never the envelope) is a **modulator**: it moves by itself each
   frame, `value` its value when the mod is lifted, and params bound to it (`{ mod: 'global', name }`) follow it in
   step. Each frame a lane wins over the mod, the mod over the value. One level only: a modulator follows faders
   (macros without a mod): a global binding, or an LFO's `amount` or `pace`, naming a modulator is
@@ -91,7 +91,7 @@ below.
   A stored look's `globals.live` (the archived Live Play's controls) is ignored on read and dropped.
 - **Automation**: `{ <macro>: [[t, v], …] }`, ≤ 16 lanes of ≤ 256 points, t 0–600 s ascending (to
   the ms); linear between points, held before the first and after the last; it replaces the static value.
-- **What plays** (`PLAYS`), versions and History: `SPEC-history.md`, part of this contract.
+- **What plays** (`PLAYS`), versions and History: `spec/looks "Versions and History"`, part of this contract.
 - `data/palettes.json` (`tools/build_palettes.py [--check]`, from `tools/data/palettes/*.csv` and
   `tools/data/palettes/themes.txt`; sRGB swatches grouped by role):
   `{ version: 1, roles: [low, body, accent, high], palettes: [{ name, theme, low, body, accent, high }] }`. A look
@@ -102,7 +102,7 @@ below.
 
 ### Library only
 
-Stored looks hold library modules alone (SPEC-baking "Library only"). A module is library when its `ref` names a module
+Stored looks hold library modules alone (spec/frames "Library only"). A module is library when its `ref` names a module
 the index lists (its stored code, if any, is ignored, as every read ignores it), or, with no such ref, when its code is
 exactly (by SHA-256) the current file of one. Each data folder is brought under this rule (`src/library-only-data.ts`),
 by hand alone: `node tools/library-only.ts [--data <dir>] [--apply]`, with the server stopped. The server never runs
@@ -157,7 +157,7 @@ Sequencing lives on the look, xLights-style.
 - Sequencing whole looks = importing another look's layers into this one, then placing clips.
 - Preview loops over `duration`; bakes and `.fseq` exports render `duration` from t = 0.
 
-How the Studio edits a look (its groups, timeline, chain, modulators, colours and the phone's panels): `SPEC-studio.md`,
+How the Studio edits a look (its groups, timeline, chain, modulators, colours and the phone's panels): `spec/studio.md`,
 part of this contract.
 
 ## Look files
@@ -168,7 +168,7 @@ A look file is JSON, `application/json`, named for its title (`<slug>.json`):
 { "origin", "title", "summary", "chain": 2, "duration", "layers", "bpm"?, "globals"?, "automation"? }
 ```
 
-the look's words, `chain`, and what plays (SPEC-history "What plays"), as the Studio's Export → Look JSON writes it,
+the look's words, `chain`, and what plays (spec/looks "What plays"), as the Studio's Export → Look JSON writes it,
 each module as its library `ref` and params, without code (the library it is imported into supplies it). An import
 takes such modules, and older files' modules with code, matched to the library by exact file (SPEC "Modules"). The
 FSEQ exports are unchanged.
@@ -194,8 +194,86 @@ Several looks go in one file as `{ "looks": [look file] }` (`folly-looks-mine-<d
   overrules it, as a `PUT` of the title, summary and what plays would (`how: import`), with every check a `PUT` has
   (library code only, the body limit, a bake and review dropped when the frames change), so a change to what
   plays is a new version and what the importer had, edits made since the last import included, stays in its History
-  (SPEC-history "Versions"); it keeps its sharing, and its review as any such save does. One that already reads and
+  (spec/looks "Versions"); it keeps its sharing, and its review as any such save does. One that already reads and
   plays as the file is **unchanged**. Any other look is **added**: the importer's, unshared, keeping the `origin`. A
   look without `chain` is converted as any such `POST` is (SPEC "Looks"). One look refused (400, or past the 256 KB
   body) does not stop the rest: the page says how many were added, updated and unchanged, and names each one that
   failed, with the server's reason.
+
+## Versions and History
+
+A look's saved versions (`src/look-versions.ts`, served by `src/api-looks.ts`) and the Studio's History drawer
+(`public/js/ui/history/`). The routes are in SPEC "HTTP API".
+
+### What plays
+
+`PLAYS = layers, duration, globals, automation, bpm` (`shared/plays.ts`, re-exported by `look.ts`), with
+`playsOf(look)` (layers and duration always, the others when set) and `playsChanged(a, b)`. A version, the bake's
+render fields, the sandbox's extras, the JSON export and the Studio's save and steps all take their
+fields from it: a field added to `PLAYS` reaches them all (`test/plays.test.ts`). `title` and `summary` are the
+look's words, not what plays.
+
+### Versions
+
+A save that changes what plays keeps what was there as a version (`src/look-versions.ts`): `{ n, how, name?, from?,
+ideaId?, ask?, title, summary, layers, duration, bpm, globals?, automation?, savedAt, reviewed? }`. `n` counts up
+and is never reused; `how` is `auto` (a save), `ai` (an AI refinement, kept from before Studio dropped the AI: its `ideaId` and what it `ask`ed), `restore`
+(of version `from`) or `import` (a look file overruling it: spec/looks "Look files"); `reviewed = { by,
+flashOverride? }` when a curator had reviewed it. The look holds its own
+number and making as `look.version` (`GET` answers its owner with the number alone). The last 20 unnamed versions
+are kept, and every named one (at most 50). A version without `n` is numbered by its place; one without `bpm`
+reads as the look's tempo (`tempoGuessed`). Versions are their owner's alone: others, curators too, never
+see them.
+
+A change to the frames also drops the bake and its frames and clears `reviewed`: anything but `bpm` on a look that
+does not move to the beat, where the tempo is only a grid (a bake's render fields hold it on a look that does: a
+tempo nobody flash-checked), unless it plays as a reviewed version (a restore). A version's `bpm` is null when the
+look had none.
+
+A restore is an edit plus a save (`PUT /api/looks/:id` with `restoredFrom: n`; 400 when the look has no version
+`n`). Content that plays exactly as a version a curator reviewed
+(`playsOf`, compared canonically) keeps that review, and its frames are baked again (often a stored bake); anything
+else is reviewed afresh.
+
+`GET /api/looks/:id/versions` → `{ versions: [versionListed] }` lists them newest first, the look as saved on top,
+and `GET /api/looks/:id/versions/:n` → `{ version }` has one with its content (404 when none); both answer 404 to
+anyone but the owner:
+`versionListed = { n, how, name?, from?, ideaId?, ask?, savedAt, title, layerCount, duration, bpm, tempoGuessed?,
+reviewed, current?, shared?, palette }`: `current` the look as saved (its `shared` too), `palette` up to 8 of its
+colours (the house palette when it has none), `tempoGuessed` when its `bpm` is the look's; `version` adds `summary`,
+`layers`, `globals` and `automation`.
+
+### Named versions
+
+A name (1–80 characters) keeps a version past the 20: at most 50 of a look's versions are named (409 for one more).
+`PUT /api/looks/:id { …, versionName }` is "Save a named version…": the save, then the version the look is now (new or
+not) takes the name. `PUT /api/looks/:id/versions/:n { name }` → `{ version: versionListed }` names version `n`, the
+look as saved or a kept one (404 when none), or `{ name: null }` unnames it, and the next save prunes it with the
+rest; both are the owner's alone (404 to anyone else). A version keeps its name when it is kept and when it is
+restored from (the restore is a version of its own, unnamed).
+
+### The History drawer
+
+In the Studio, History (`ui/history/`) is a drawer beside the view, opened from the bar, with two tabs and Undo and
+Redo. Only the steps model and the keys are in the main bundle; the drawer loads when first opened.
+
+**Steps** (`history/steps.ts`, held by the store as `st.history`): this session's edits of the look, oldest first,
+from "Opened the look" (or "New look"). Each edit through `st.edit(fn, { step?, kind?, merge? })` that changes
+the look's content (title, summary, what plays) is a step, named for what it changed ("Level 70%", "Edited the code
+of “Glow”", "Added a layer") unless `step` names it; edits that share a `merge` key are one step (a preset's layers
+and globals). Quick edits to one thing (a drag, typing) fold into one step until 1.5 s pass, a pointer up or a focus
+change seals it. The list is linear, like Photoshop's: clicking a step (or Undo, Ctrl/⌘+Z; Redo, Ctrl/⌘+Shift+Z or
+Ctrl+Y) plays the look as it was then and greys the later steps; a new edit drops them. A jump puts back content,
+never the look's id, owner or sharing. A save marks its step (it stays across undo); a look away from its saved step
+is unsaved. The keys are ignored while typing in a field or a dialog. At most 200 steps are kept.
+
+A toast's Undo (a deleted layer, module or clip) is ordinary undo: it undoes its own step while it is the step now,
+and says so otherwise.
+
+**Versions** lists the look's versions newest first (its own saved looks only), each with a strip of its palette's
+colours and tags (Saved, In gallery, Reviewed). Preview plays one in the view in place of the work (`st.previewing`
+holds the work, which still decides `dirty` and what saves), the view says "Previewing version n", and editing and
+saving wait; "Back to my work" puts the work back, "Restore this version" makes it the work, as a step, and saves.
+Preview and restore include the version's title and summary as well as what plays.
+"Save a named version…" asks a name and saves; ✎ on a version names it, renames it, or (left empty) unnames it.
+Named ones are tagged Named.

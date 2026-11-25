@@ -1,4 +1,4 @@
-// npm run smoke, too: the privacy page (SPEC-access "Privacy") from sign-in, signed out, and from the user menu,
+// npm run smoke, too: the privacy page (spec/http "Privacy") from sign-in, signed out, and from the user menu,
 // signed in, on a laptop and a phone. Screenshots land in the test's output folder.
 import { expect, test } from './studio.js';
 

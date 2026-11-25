@@ -1,4 +1,4 @@
-// The History drawer beside the 3D view (SPEC-history "The History drawer"): Steps walks this session's edits;
+// The History drawer beside the 3D view (spec/looks "The History drawer"): Steps walks this session's edits;
 // Versions lists the look's saved versions, newest first, to preview one in place of the work (held until "Back to
 // my work") or restore it. Undo and Redo sit in its head.
 import '../../../css/history.css';

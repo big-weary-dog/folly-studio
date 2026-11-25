@@ -98,7 +98,7 @@ const unit = z.number({ error: UNIT }).min(0, UNIT).max(1, UNIT);
 const PickObject = z.strictObject({ pick: PickText, blend: oneOf('blend', ['step', 'smooth']).optional(),
   range: z.tuple([unit, unit]).optional(), rotate: z.union([unit, Binding]).optional() });
 export const Pick = z.union([PickText, PickObject]);
-/** A picture param's value (SPEC-library "Pictures"), held to the core's limits. */
+/** A picture param's value (spec/library "Pictures"), held to the core's limits. */
 export const PictureValue = z.custom<Picture>((v) => !pictureProblem(v), { error: 'is not a picture.' });
 const ParamValue = z.union([z.number(), z.boolean(), z.string().max(256), z.array(z.number()).max(16), Binding,
   PickObject, PictureValue]);
@@ -119,7 +119,7 @@ const array = (item: (error: string) => z.ZodString, max: number, error: string)
   .max(max);
 const list = (...a: Parameters<typeof array>) => array(...a).default([]);
 
-/** A composite's sub-layer (SPEC-library "Composites"): its own chain, how it combines, where it plays. Its modules'
+/** A composite's sub-layer (spec/library "Composites"): its own chain, how it combines, where it plays. Its modules'
  * ids default to `<its id>.m1`, `.m2`, …, so they stay unique across the layer. */
 export type SubLayer = { id: string, title: string, modules: Module[], blend?: z.infer<typeof SourceBlend>,
   level?: number, groups?: string[], tags?: string[], enabled?: boolean };

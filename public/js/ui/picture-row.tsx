@@ -1,4 +1,4 @@
-// A picture param's row (SPEC-library "Pictures"): a thumbnail of its first frame in the look's palette, and an Edit
+// A picture param's row (spec/library "Pictures"): a thumbnail of its first frame in the look's palette, and an Edit
 // dialog of its JSON, checked as it is typed (the core's pictureProblem), so only a picture is ever saved.
 import { useState } from 'preact/hooks';
 

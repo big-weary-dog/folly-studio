@@ -1,9 +1,9 @@
-// A chain that holds composites (SPEC-library "Composites"), as the Settings pane draws it: each list of modules a
+// A chain that holds composites (spec/library "Composites"), as the Settings pane draws it: each list of modules a
 // chain of its own on its came, and a composite's sub-layers one step in under its row, which opens and closes them
 // like a folder (shut, it says what it holds). A sub-layer of one source is that source's row: its blend is the
 // sub-layer's, and its grip drags the sub-layer. Only a sub-layer of several sources (or none first, or one turned off)
 // has a head, one line (a grip to drag it among its composite's, its name, how it combines, where it plays, on,
-// delete), over its chain. The warps and filters attached to a module (SPEC-library "Attached modules") sit one step in
+// delete), over its chain. The warps and filters attached to a module (spec/library "Attached modules") sit one step in
 // under its row.
 import type { ComponentChildren, JSX } from 'preact';
 

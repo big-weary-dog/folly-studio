@@ -87,7 +87,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, log: Log,
     routes(api, {
       'POST /signup': [signIn(201, (req) => auth.signup(parse(Signup, req.body))), { public: true }],
       'POST /login': [signIn(200, (req) => auth.login(Login.parse(req.body))), { public: true }],
-      // A guest (SPEC-access "Guests"): a session with a name, and no account.
+      // A guest (spec/http "Guests"): a session with a name, and no account.
       'POST /guest': [async (req, reply) => {
         const [ip, made] = [await perIp(req), await perGuest(req)];
         const wait = !ip.isAllowed && ip.isExceeded ? ip.ttlInSeconds
@@ -104,7 +104,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, log: Log,
       ...accountRoutes(api, { ...removal, limit: { max: limits.max, windowMs: limits.windowMs },
         clearCookie: (reply) => reply.setCookie(COOKIE_NAME, '', cookie(0)) }),
       ...peopleRoutes(removal),
-      // Who is signed in, if anyone, and what the app needs either way (SPEC-access "Visitors").
+      // Who is signed in, if anyone, and what the app needs either way (spec/http "Visitors").
       'GET /me': forAnyone(async (req) => ({ user: req.user && auth.publicUser(req.user), flash, rig })),
       ...lightRoutes({ light: o.light }),
       ...(o.baking ? bakingRoutes(o.baking) : {}),
@@ -112,7 +112,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, log: Log,
       ...reports,
       ...looks.routes,
       ...framesRoutes({ framesDir, cache: frames, visibleLook: looks.visibleLook }),
-      // How long bug reports stay, for the privacy page (SPEC-access "Privacy"), signed in or not.
+      // How long bug reports stay, for the privacy page (spec/http "Privacy"), signed in or not.
       'GET /privacy': [async () => ({ reportDays: o.reports.days }), { public: true }],
       'GET /library': [async () => ({ patterns: loaders.loadLibrary()
         .map(({ name, title, summary, tags, kind, category, code, ...rest }) => ({ name, title, summary, tags, kind,

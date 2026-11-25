@@ -1,7 +1,7 @@
 // The list pages, My looks and the Gallery: cards that open in the Studio (lists carry metadata only; the Studio
 // fetches a look). A card with a preview plays it through its glass, or shows its still under reduced motion
-// (SPEC-previews). The gallery lists approved looks; a curator's can show the rest, to approve or hide
-// (SPEC-access "Moderation").
+// (spec/frames "Gallery previews"). The gallery lists approved looks; a curator's can show the rest, to approve or hide
+// (spec/http "Moderation").
 import '../../css/pages.css';
 
 import { useEffect, useState } from 'preact/hooks';

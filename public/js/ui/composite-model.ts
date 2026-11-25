@@ -1,4 +1,4 @@
-// A chain as a tree in the Studio (SPEC-library "Composites"): where a module sits (the layer's chain, or a
+// A chain as a tree in the Studio (spec/library "Composites"): where a module sits (the layer's chain, or a
 // composite's sub-layer), and the edits that move modules in and out, attach a warp or filter to one module, group
 // one into a composite and change a sub-layer. A sub-layer a module's move or delete leaves empty goes with it (the
 // last of a composite's stays). Pure: each returns a new chain, or null when the edit is not one.
@@ -57,7 +57,7 @@ const holds = (block: Module[], comp: string) => flatModules(block).some((x) => 
 const isSource = (m: Module) => m.kind === 'source' || m.kind === 'composite';
 
 /** Module `id` moved to list `box` at `index` (counted before the move), attached to module `on` there or not
- * (SPEC-library "Attached modules"), a source with its attached run; the sub-layer it leaves empty goes, its blend
+ * (spec/library "Attached modules"), a source with its attached run; the sub-layer it leaves empty goes, its blend
  * the module's; null if that leaves a composite empty, puts a composite inside itself, attaches what is not a warp or
  * filter or splits a run; the same chain if it changes nothing. */
 export function moveModule(mods: Module[], id: string, box: Box, index: number, on?: string): Module[] | null {

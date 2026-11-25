@@ -1,4 +1,4 @@
-// Only library patterns save (SPEC-baking "Library only"): a look saved, by hand or by an import, has each module name
+// Only library patterns save (spec/frames "Library only"): a look saved, by hand or by an import, has each module name
 // a library module by `ref` (code it carries is dropped for the library's), or, with no ref the library has, carry a
 // library pattern's current file exactly, by SHA-256. Other code, or a ref the library lacks, is refused.
 import { eachModule, findModule, type Node } from '../shared/look-modules.ts';

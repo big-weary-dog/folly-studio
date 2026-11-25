@@ -1,4 +1,4 @@
-// A look's versions (SPEC-history "Versions"): changing what plays keeps what was there as a version, and the look
+// A look's versions (spec/looks "Versions"): changing what plays keeps what was there as a version, and the look
 // carries the number and the making of the version it is now (`look.version`). The last MAX_VERSIONS unnamed versions
 // are kept, and every named one (at most MAX_NAMED). The API's edits go through here.
 // Versions are their owner's alone: GET /api/looks/:id/versions lists them, GET …/versions/:n has one's content,

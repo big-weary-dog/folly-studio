@@ -1,4 +1,4 @@
-// Pictures (SPEC-library "Pictures"): a picture param's value, text rows and a key, as pure data. readPicture holds
+// Pictures (spec/library "Pictures"): a picture param's value, text rows and a key, as pure data. readPicture holds
 // one to the limits or refuses it; the pattern reads it from P as given, so every engine passes it through untouched.
 
 export type Picture = Readonly<{ grid: 'rose' | 'square', repeat: number, key: Readonly<Record<string, string>>,

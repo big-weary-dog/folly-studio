@@ -1,5 +1,5 @@
-// Getting around, the tutorial's one path (SPEC-tutorial), on Rose and arches: play, a layer, a colour, mute and
-// save, each a control the Studio's Simple view shows.
+// Getting around, the tutorial's one path (spec/studio "Tutorial"), on Rose and arches: play, a layer, a colour, mute
+// and save, each a control the Studio's Simple view shows.
 import { type Ctx, layerBy, on, param, type Path, tokens, twice } from '../types.ts';
 
 const colours = (c: Ctx) => tokens(param(c, 'arches', 'single-strand', 'colours'));

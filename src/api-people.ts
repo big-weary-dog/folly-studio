@@ -1,4 +1,4 @@
-// People (SPEC-access "People"): admins list every account, change its role, disable it or delete it.
+// People (spec/http "People"): admins list every account, change its role, disable it or delete it.
 import type { FastifyRequest } from 'fastify';
 
 import { ROLES } from '../shared/policy.ts';

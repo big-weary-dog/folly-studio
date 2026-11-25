@@ -1,5 +1,5 @@
-// Gallery previews (SPEC-previews): the window that moves the most, the loop, and the queue and route that
-// make and serve them for shared looks.
+// Gallery previews (spec/frames "Gallery previews"): the window that moves the most, the loop, and the queue and route
+// that make and serve them for shared looks.
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';

@@ -1,7 +1,7 @@
-// The one walk over a look's modules (SPEC-looks "Modules"): every rule on them (the save check, the library-only
+// The one walk over a look's modules (spec/looks "Modules"): every rule on them (the save check, the library-only
 // step, code filled from refs, a bake's key) goes through it, so a new one lands in one place. It meets each module
 // that runs code, in order: a chain's, a layer that is one source, and a composite's sub-layers' at any depth, a
-// sub-layer read as a layer. A composite runs none of its own (SPEC-library "Composites"): one with code, or without
+// sub-layer read as a layer. A composite runs none of its own (spec/library "Composites"): one with code, or without
 // sub-layers, breaks the shape, as does an entry that is not an object.
 export type Node = Record<string, unknown>;
 export const isNode = (v: unknown): v is Node => !!v && typeof v === 'object' && !Array.isArray(v);

@@ -64,7 +64,7 @@ export async function createServer(opts: Options = {}) {
   const rig = opts.rig ?? rigOf(config), rigFile = rigFileOf(publicDir, rig);
 
   const loaders = createLoaders(publicDir, { log, rigFile });
-  // A look's code is its modules' library files, never what is stored (SPEC-looks "Modules").
+  // A look's code is its modules' library files, never what is stored (spec/looks "Modules").
   const views = { looks: libraryRefs(loaders.loadLibrary) };
   const filled = (look: StoredLook) => views.looks.read(structuredClone(look));
   const store = await createStore(dataDir, { log, views,
@@ -90,7 +90,7 @@ export async function createServer(opts: Options = {}) {
   const bakes = createBakeQueue({ store, box: bakeBox, framesDir, rigFile, log, lane, flash, loadLight: light.current,
     onFrames: (id) => { frames.encode(id); previews.want(id); } });
   frames.prune().then(() => frames.disk.enforce()).catch(() => {});
-  // Gallery previews (SPEC-previews), made in the same lane, after anything already queued at start.
+  // Gallery previews (spec/frames "Gallery previews"), made in the same lane, after anything already queued at start.
   const playa = (opts.previews ?? config.STUDIO_PREVIEWS) === 'front' ? null
     : playaCamera({ log, loadLight: light.current });
   const previews = createPreviews({ dir: path.join(dataDir, 'previews'), store, box: bakeBox, framesDir, lane, log,

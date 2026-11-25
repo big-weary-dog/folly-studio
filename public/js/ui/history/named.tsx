@@ -1,4 +1,4 @@
-// Named versions (SPEC-history "Named versions"): "Save a named version…" saves the work and names the version it
+// Named versions (spec/looks "Named versions"): "Save a named version…" saves the work and names the version it
 // is; Rename names a past one, which keeps it (at most 50). An empty name unnames it, and the next save may prune it.
 import { useState } from 'preact/hooks';
 
