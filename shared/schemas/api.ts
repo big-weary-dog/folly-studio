@@ -35,9 +35,9 @@ export const AccountChange = z.strictObject({
 export type Account = { id: string, username: string, role: Role, serverRole?: Role, createdAt: string,
   looks: number, shared: number, disabled: boolean };
 const GUEST = 'A guest name is 1–24 letters, digits, spaces or _ . \' -.';
-/** POST /api/guest: a guest's name, untrusted text shown only as text (SPEC-access "Guests"). */
+/** POST /api/guest: a guest's name, untrusted text shown only as text; Try it sends none (SPEC-access "Guests"). */
 export const GuestBody = z.object({ name: z.string({ error: GUEST }).trim().normalize('NFC')
-  .regex(/^[\p{L}\p{N} _.'-]{1,24}$/u, { error: GUEST }) });
+  .regex(/^[\p{L}\p{N} _.'-]{1,24}$/u, { error: GUEST }).default('Visitor') });
 /** A login never says which part was wrong: a malformed name or password is just a wrong one. */
 export const Login = z.object({
   username: Username.nullable().catch(null), password: z.string().max(MAX_PASSWORD).catch(''),

@@ -45,7 +45,7 @@ What the server itself records on a look, its bake, is bounded and never refused
 ```
 POST   /api/signup   { username, password }   → { user, flash, rig }  (sets cookie)
 POST   /api/login    { username, password }   → { user, flash, rig }
-POST   /api/guest    { name }                 → { user, flash, rig }  a guest (SPEC-access "Guests")
+POST   /api/guest    { name? }                → { user, flash, rig }  a guest (SPEC-access "Guests")
 POST   /api/logout                            → { ok: true }
 GET    /api/me                                → { user, flash, rig } | 401
 PUT    /api/me/tour  tour                     → { tour }  SPEC-tutorial

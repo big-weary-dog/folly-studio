@@ -19,12 +19,10 @@ for (const [name, device] of Object.entries(SIZES)) {
       const layers = page.locator('li.layer'), nav = page.locator('.main-nav'), { store } = studio.app;
       const accounts = store.users.list().length;
 
-      await test.step('in by a name: the gallery, then the Studio, with no My looks', async () => {
+      await test.step('Try it, in one click: the gallery, then the Studio, with no My looks', async () => {
         await page.goto(`${studio.origin}/login`);
-        await page.getByRole('button', { name: 'Guest', exact: true }).click();
-        await page.getByLabel('Your name').fill('Wren');
         await shot('guest-login');
-        await page.getByRole('button', { name: 'Come in as a guest' }).click();
+        await page.getByRole('button', { name: 'Try it', exact: true }).click();
         await expect(page).toHaveURL(`${studio.origin}/gallery`);
         await page.goto(`${studio.origin}/studio`);
         await expect(layers).toHaveCount(1, { timeout: 60_000 });

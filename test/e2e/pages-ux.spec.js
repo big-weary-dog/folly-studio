@@ -75,9 +75,7 @@ for (const width of [1366, 390, 360]) {
         }
         await shot(page, 'account-menu');
         await logOut.click();
-        await page.getByRole('button', { name: 'Guest', exact: true }).click();
-        await page.getByLabel('Your name').fill('Visitor');
-        await page.getByRole('button', { name: 'Come in as a guest' }).click();
+        await page.getByRole('button', { name: 'Try it', exact: true }).click();
         await expect(page).toHaveURL(/\/gallery$/);
         await page.keyboard.press('F8');
         await expect(page.getByRole('dialog', { name: 'Report a problem' })).toHaveCount(0);

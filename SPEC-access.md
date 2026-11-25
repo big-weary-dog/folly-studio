@@ -12,8 +12,9 @@ failures, per address and username (10 a minute): 429 with `Retry-After`. Passwo
 waiting; past that, 429 "busy". A route that needs a session is 401 without one; the app takes a 401 from anything
 but `/api/me`, `/api/login`, `/api/signup` and `/api/guest` as the session ending, and goes back to sign-in.
 
-**Guests.** The sign-in page also lets anyone in as a guest with only a name (`POST /api/guest { name }`: 1–24
-letters, digits, spaces and `_ . ' -`, trimmed; 10 a minute per client address, beside the sign-in limits). A guest
+**Guests.** The sign-in page's **Try it** lets anyone in as a guest in one click, with no name to type
+(`POST /api/guest {}`, a guest named Visitor; `{ name }` names one: 1–24 letters, digits, spaces and `_ . ' -`,
+trimmed; 10 a minute per client address, beside the sign-in limits). A guest
 is a session, not an account: nothing is written to the users, and `user = { id: 'guest-…', username: <name>, role:
 'member', guest: true }` whatever the name says (a guest named for an admin is no admin). The cookie lets them back in
 on that device for 7 days; at most 1,000 guest sessions live at once, the oldest dropped first (anyone can
@@ -151,7 +152,7 @@ routes, and leaves an older data folder's `ideas.json`, `invites.json`, `models.
 ## HTTP
 
 ```
-POST   /api/guest    { name }                 → { user, flash }      in as a guest (sets cookie): "Guests"
+POST   /api/guest    { name? }                → { user, flash }      in as a guest (sets cookie): "Guests"
 PUT    /api/me/password { password, next }    → { ok: true }  a new password ("Your account")
 DELETE /api/me       { password }             → { ok: true }  the account and its looks gone; clears the cookie
 GET    /api/admin/stats                       → stats  admins only (403) ("Stats")
