@@ -15,7 +15,9 @@ import { openTour, welcomeOnce } from './tour-view.ts';
 import { here, home, leaveGuard, navigate, router, setTitle, signedIn, user, type ViewProps } from './session.ts';
 
 interface Route {
-  re: RegExp; name: string; title: string; load: () => Promise<ComponentType<ViewProps>>; public?: boolean;
+  re: RegExp; name: string; title: string; load: () => Promise<ComponentType<ViewProps>>;
+  /** public: signed out only (sign-in); open: anyone. */
+  public?: boolean; open?: boolean;
   nav?: string; keys?: string[]; scope?: 'mine' | 'gallery';
 }
 const pages = () => import('./pages.tsx');
@@ -29,6 +31,8 @@ const MOVED: Record<string, string> = { '/admin': '/admin/light', '/admin/models
 const ROUTES: Route[] = [
   { re: /^\/login\/?$/, name: 'auth', title: 'Sign in', public: true,
     load: () => import('./auth.tsx').then((m) => m.Auth) },
+  { re: /^\/privacy\/?$/, name: 'privacy', title: 'Privacy', nav: '/privacy', open: true,
+    load: () => import('./privacy.tsx').then((m) => m.PrivacyPage) },
   { re: /^\/studio(?:\/([^/]+))?\/?$/, name: 'studio', title: 'Studio', nav: '/studio', keys: ['lookId'],
     load: () => import('./studio.tsx').then((m) => m.Studio) },
   { re: /^\/looks\/?$/, name: 'looks', title: 'My looks', nav: '/looks', scope: 'mine',
@@ -62,7 +66,9 @@ export function resolve(path: string, search: string, signedIn: boolean):
   for (const route of ROUTES) {
     const m = route.re.exec(path);
     if (!m) continue;
-    if (!route.public && !signedIn) return { redirect: `/login?next=${encodeURIComponent(path + search)}` };
+    if (!route.public && !route.open && !signedIn) {
+      return { redirect: `/login?next=${encodeURIComponent(path + search)}` };
+    }
     if (route.public && signedIn) return { redirect: safeNext(new URLSearchParams(search).get('next')) };
     const params: Record<string, string> = {};
     (route.keys || []).forEach((k, i) => { if (m[i + 1]) params[k] = decodeURIComponent(m[i + 1]); });
@@ -169,6 +175,7 @@ function Header({ me, nav }: { me: User; nav?: string }) {
             <button class="btn ghost small tutorials-btn" type="button" onClick={() => openTour('menu')}>
               Tutorials</button>
             {!me.guest && <a class="btn ghost small" href="/account">Account</a>}
+            <a class="btn ghost small" href="/privacy">Privacy</a>
             {canReport(me) && <button class="btn ghost small report-btn" type="button" title="Report a problem (F8)"
               onClick={() => { setOpen(false); void fileBugReport(); }}>Report a problem</button>}
             <button class="btn ghost small" type="button" onClick={logout}>{me.guest ? 'Leave' : 'Log out'}</button>

@@ -92,6 +92,26 @@ shared, and whether it is disabled; a search narrows it by name.
   account"), no password asked.
 - An admin changes none of these for themselves (409): Account is theirs, and no admin locks themselves out.
 
+## Privacy
+
+**Privacy** (`/privacy`) is open to anyone, signed in or not, and linked from the sign-in page and the user menu
+(guests' too). It says, plainly and briefly, what Studio keeps and for how long:
+
+- **Accounts**: the username, a salted password hash, the role, when it was made and the tutorial's progress; no
+  email or real name. Usernames show in the gallery.
+- **Looks**: what each account saves, with its versions, bakes and previews; shared ones show in the gallery.
+- **Visitors**: counted with a hash of the address and browser under a salt made each day and never written; no
+  address is stored (Stats below). Behind the tunnel, the journal lines carry the visitor's country.
+- **Bug reports** (F8 and Report this look, SPEC-reports): the note, a screenshot when it is on, the page's state
+  (the unsaved look, the page's errors and messages) and the server's last warn and error lines, with the account's
+  name; admins read them, and they go after `GET /api/privacy`'s `reportDays` (`STUDIO_REPORTS_DAYS`).
+- **Cookies and storage**: one cookie, `studio_session`, the sign-in (30 days, a guest's 7), and nothing to track;
+  the browser keeps a guest's work, the tutorial's place and view settings in its own storage.
+- **Deleting**: Account's Delete account removes the account, its sessions and every look it owns at once; a
+  guest's work goes with the browser's site data. Bug reports age out as above.
+
+The page has no controls; a signed-out visitor gets a link back to sign in.
+
 ## Stats
 
 The server counts in memory, from its start (a restart starts again; nothing is written), and Stats shows the counts:

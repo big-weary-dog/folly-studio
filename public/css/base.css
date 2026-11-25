@@ -374,6 +374,7 @@ input.switch:disabled { opacity: .5; cursor: default; }
 .auth-lede { text-align: center; color: var(--text-2); margin: 14px 0 26px; font-size: 14.5px; }
 .auth-form { display: flex; flex-direction: column; gap: 16px; }
 .auth-form .btn { font-size: 15px; }
+.auth-foot { margin-top: 18px; text-align: center; font-size: 13px; color: var(--text-3); }
 
 @media (max-width: 899px) {
   .page { padding: 24px 16px 64px; }

@@ -91,6 +91,8 @@ describe('routing', () => {
     assert.equal(where('/studio/x', '?y=1', false), '→ /login?next=%2Fstudio%2Fx%3Fy%3D1');
     assert.equal(where('/login', '?next=%2Fgallery'), '→ /gallery');
     assert.equal(where('/login', '', false), 'auth {}');
+    assert.equal(where('/privacy', '', false), 'privacy {}');
+    assert.equal(where('/privacy'), 'privacy {}');
   });
 
   test('the admin pages are tabs under /admin; /admin and their old URLs lead to them', () => {
