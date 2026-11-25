@@ -168,13 +168,13 @@ describe('the preview transform', () => {
 });
 
 describe('the stored settings', () => {
-  test('missing or broken: the defaults; a save is checked, written whole, and read back', () => {
+  test('missing or broken: the defaults; a save is checked, written whole, and read back', async () => {
     const file = path.join(fx.tmp, 'light-store', 'light.json'), warned = [];
     const store = createLightStore({ file, log: { warn: (m) => warned.push(m) } });
     assert.deepEqual(store.current(), LIGHT);
-    assert.deepEqual(store.save({ ...LIGHT, gamma: 0.5 }), { error: 'gamma must be at least 1.' });
+    assert.deepEqual(await store.save({ ...LIGHT, gamma: 0.5 }), { error: 'gamma must be at least 1.' });
     assert.equal(fs.existsSync(file), false);
-    const saved = store.save({ ...LIGHT, gamma: 2.4, trims: [{ tag: 'rose', level: 0.9 }] });
+    const saved = await store.save({ ...LIGHT, gamma: 2.4, trims: [{ tag: 'rose', level: 0.9 }] });
     assert.equal(saved.light.gamma, 2.4);
     assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), saved.light);
     fs.writeFileSync(file, '{ "gamma": 2.6 ');
