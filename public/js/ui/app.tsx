@@ -130,10 +130,10 @@ const ADMIN_NAV = [...NAV, ['/admin', 'Admin']];
 const navOf = (me: User | null) => (!me ? [['/gallery', 'Gallery']] : can(me, 'admin') ? ADMIN_NAV : NAV)
   .filter(([href]) => !(me?.guest && href === '/looks'));
 
-/** A visitor's Try it in the header: in as a guest, on the page they are on. */
+/** A visitor's Try it in the header: in as a guest where they are, the page kept (a Studio's edits with it: the
+ * Studio already treats a visitor as a guest). */
 async function tryIt() {
   try { signedIn(await api.guest()); } catch (err) { toast((err as Error).message, { kind: 'error' }); return; }
-  await navigate(here(), { replace: true, force: true });
   welcomeOnce(user.value);
 }
 

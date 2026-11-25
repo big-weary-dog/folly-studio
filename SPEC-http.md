@@ -47,7 +47,7 @@ POST   /api/signup   { username, password }   → { user, flash, rig }  (sets co
 POST   /api/login    { username, password }   → { user, flash, rig }
 POST   /api/guest    { name? }                → { user, flash, rig }  a guest (SPEC-access "Guests")
 POST   /api/logout                            → { ok: true }
-GET    /api/me                                → { user, flash, rig } | 401
+GET    /api/me                                → { user, flash, rig }  user null with no session
 PUT    /api/me/tour  tour                     → { tour }  SPEC-tutorial
 GET    /api/light                             → light  the light settings (Light and output), defaults where unset;
                                               no session needed

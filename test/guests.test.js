@@ -60,7 +60,8 @@ describe('guests', () => {
       assert.equal((await v.get(url)).status, 404, url);   // never 401: unbaked, or not theirs to see
     }
     assert.equal((await v.get('/api/light')).status, 200);
-    for (const url of ['/api/looks?scope=mine', '/api/me', `/api/looks/${shared}/versions`]) {
+    assert.equal((await v.get('/api/me')).json.user, null, 'nobody signed in, said so');
+    for (const url of ['/api/looks?scope=mine', `/api/looks/${shared}/versions`]) {
       assert.equal((await v.get(url)).status, 401, url);
     }
     assert.equal((await v.put(`/api/looks/${shared}`, { title: 'Ours' })).status, 401);
@@ -79,7 +80,7 @@ describe('guests', () => {
       assert.match(r.json.error, /Guests can't save/);
     }
     assert.equal((await g.post('/api/logout', {})).status, 200);
-    assert.equal((await g.get('/api/me')).status, 401);
+    assert.equal((await g.get('/api/me')).json.user, null);
   });
 
   test('the name is checked, and guests are limited per address', async () => {

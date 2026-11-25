@@ -37,7 +37,7 @@ Bakes under way finish; ones still queued fail with that reason. The page also s
 ```
 POST   /api/looks/:id/bake          → 202 { bake } (SPEC "HTTP API"); 503 while baking is off or there is no render
                                     box, 429 when the queue is full
-GET    /api/baking                  → { mode, box: { ok, reason? } }  everyone signed in
+GET    /api/baking                  → { mode, box: { ok, reason? } }  anyone, signed in or not
 PUT    /api/admin/baking  { mode }  → the same, after writing baking.json; admins only (403); 400 names the problem
 ```
 
