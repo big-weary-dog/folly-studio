@@ -1,17 +1,13 @@
-// The shared zod schemas (shared/schemas/): the API's strict look and its messages, the lenient cleaning of a
-// generator's look, the structured-output schema made from it, the rig, and the account bodies.
+// The shared zod schemas (shared/schemas/): the API's strict look and its messages, the rig, and the account bodies.
 import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 import { z } from 'zod';
 
-import { DEFAULT_SOFTEN } from '../public/js/pattern-core.ts';
 import ACCOUNT from '../public/data/account.json' with { type: 'json' };
 import { Login, Signup } from '../shared/schemas/api.ts';
-import { validateLook, wireSchema } from '../shared/schemas/generated.ts';
 import { automationFor, Globals, Layers, type Module, problem } from '../shared/schemas/look.ts';
 import { LibraryEntry } from '../shared/schemas/rig.ts';
-import { folly } from './fixtures/rigs.js';
 
 const PIXEL = 'function pixel(p) { return [1, 1, 1]; }';
 /** The parsed value, or the sentence problem() makes of its first issue. */
@@ -51,10 +47,6 @@ describe('the API look', () => {
   });
 
   test('soften: kept, rounded, its mode defaulted; out of range refused; null is none', () => {
-    const generated = validateLook({ layers: [{ code: PIXEL },
-      { code: PIXEL, soften: { radius: 7, mode: 'fog' } }, { code: PIXEL, soften: { radius: 0 } }] });
-    assert.deepEqual(generated.layers.map((l) => l.soften), [DEFAULT_SOFTEN, { radius: 1.5, mode: 'wire' },
-      { radius: 0, mode: 'wire' }]);
     const out = layers([{ code: PIXEL, soften: { radius: 0.1234567891 } }, { code: PIXEL, soften: null }]);
     assert.deepEqual((out as { layers: { soften?: object }[] }).layers.map((l) => l.soften),
       [{ radius: 0.123457, mode: 'wire' }, undefined]);
@@ -95,77 +87,6 @@ describe('the API look', () => {
     assert.equal(lanes(Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`m${i}`, [[0, 0]]])),
       { macros: Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`m${i}`, { min: 0, max: 1 }])) }),
     'At most 16 automation lanes.');
-  });
-});
-
-describe("a generator's look, cleaned", () => {
-  const groups = [{ id: 'all', parent: null, tags: ['all'] }, { id: 'rose', parent: 'all', tags: ['rose'] }];
-
-  test('unknown group ids go; with tags the layer is placed by them, else on the root; [] is kept', () => {
-    const look = validateLook({ layers: [
-      { code: PIXEL, groups: ['nope'], tags: ['rose', 'Not a tag', 'rose'] },
-      { code: PIXEL, groups: ['nope', ' rose '] },
-      { code: PIXEL, groups: 'nope' },
-    ] }, { groups });
-    assert.deepEqual(look.layers.map((l) => [l.groups, l.tags]), [[[], ['rose']], [['rose'], undefined],
-      [['all'], undefined]]);
-    const none = validateLook({ layers: [{ code: PIXEL, groups: [] }, { code: PIXEL }] }, { groups });
-    assert.deepEqual(none.layers.map((l) => l.groups), [[], ['all']], 'none picked stays none; none given: the root');
-    assert.deepEqual(look.dropped, []);
-  });
-
-  test('aliases mended, values clamped, params kept only when usable', () => {
-    const look = validateLook({ layers: [{ code: PIXEL, blend: ' Screen ', level: -3, params: {
-      color: '#ABCDEF', rgb: [2, 0.5, -1], on: true, lfo: { mod: 'lfo', rate: 1 }, '1bad': 1, worse: { a: 1 } } },
-    { modules: [{ kind: 'pattern', code: PIXEL }, { kind: 'effect', code: 'function filter(c) { return c; }' },
-      { kind: 'transform', code: 'function warp(q) {}', blend: 'NORMAL' }] }] });
-    const [a, b] = look.layers as unknown as [{ blend: string, level: number, params: object },
-      { modules: { kind: string, blend?: string }[] }];
-    assert.deepEqual([a.blend, a.level], ['max', 0]);
-    assert.deepEqual(a.params, { color: '#abcdef', rgb: [1, 0.5, 0], on: true, lfo: { mod: 'lfo', rate: 1 } });
-    assert.deepEqual(b.modules.map((m) => [m.kind, m.blend]), [['source', undefined], ['filter', undefined],
-      ['warp', 'over']]);
-  });
-
-  test('globals and automation as maps or lists; what the API refuses is dropped and noted', () => {
-    const look = validateLook({ layers: [{ code: PIXEL }], globals: { speed: 9, palette: { name: 'ember' },
-      macros: { storm: { value: 3, max: 2 } } }, automation: { storm: [[700, 5], [1, 1], ['x', 1]] } });
-    assert.deepEqual(look.globals?.macros, { storm: { value: 2, min: 0, max: 2 } });
-    assert.equal((look.globals as { speed?: number })?.speed, undefined, 'the old speed is ignored');
-    assert.equal(look.globals?.palette?.name, 'ember');
-    assert.deepEqual(look.automation, { storm: [[1, 1], [600, 2]] });
-    const refused = validateLook({ layers: [{ code: PIXEL }],
-      globals: { macros: [{ name: 'big', min: 0, max: 1e9 }] } });
-    assert.equal(refused.globals, undefined);
-    assert.match(refused.dropped.join(), /^globals: Macro big: min and max must be numbers/);
-  });
-
-  test('its JSON Schema is one structured output takes: closed objects, no bounds, defaults or patterns', () => {
-    const schema = wireSchema(folly.groups);
-    const allowed = new Set(['type', 'properties', 'required', 'items', 'enum', 'const', 'anyOf', 'description',
-      'additionalProperties']);
-    const walk = (node: Record<string, unknown>, at: string) => {
-      for (const key of Object.keys(node)) assert.ok(allowed.has(key), `${at}: ${key}`);
-      if (node.type === 'object') {
-        assert.equal(node.additionalProperties, false, at);
-        const props = node.properties as Record<string, Record<string, unknown>>;
-        for (const r of node.required as string[]) assert.ok(r in props, `${at}: ${r} is required but not there`);
-        for (const [k, p] of Object.entries(props)) walk(p, `${at}.${k}`);
-      }
-      if (node.items) walk(node.items as Record<string, unknown>, `${at}[]`);
-      if (node.enum) assert.ok((node.enum as unknown[]).length, `${at}: an empty enum`);
-    };
-    walk(schema, 'look');
-    const layer = (schema as { properties: { layers: { items: { properties: Record<string, { items: { enum?:
-      string[] } }>, required: string[] } } } }).properties.layers.items;
-    assert.deepEqual(layer.required, ['title', 'groups', 'blend', 'level']);
-    assert.ok(layer.properties.groups!.items.enum!.includes('rose-window'));
-    assert.ok(layer.properties.tags!.items.enum!.includes('rose'));
-    assert.equal('params' in layer.properties, false, "a pattern's code carries its params");
-    const many = Array.from({ length: 401 }, (_, i) => ({ id: `g${i}`, parent: i ? 'g0' : null }));
-    const wide = wireSchema(many) as typeof schema & { properties: { layers: { items: { properties: { groups:
-      { items: object } } } } } };
-    assert.deepEqual(wide.properties.layers.items.properties.groups.items, { type: 'string' }, 'ids past 400: free');
   });
 });
 

@@ -1,6 +1,7 @@
 // Who may do what (SPEC "HTTP API"), the one place the server and the browser ask. A look someone may not see is
 // "not found" to them, never "not yours", so others' unshared looks are not revealed.
-import type { Role } from './schemas/models.ts';
+export const ROLES = ['member', 'curator', 'admin'] as const;
+export type Role = typeof ROLES[number];
 
 export type Action =
   | 'admin'    // the /admin pages and their routes, Deep while it is admins' only
