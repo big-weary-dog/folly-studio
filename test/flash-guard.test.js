@@ -7,9 +7,9 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'vitest';
 
 import { FlashGuard } from '../public/js/flash-guard.ts';
-import { ledRanges, writeFseq } from '../core/fseq.ts';
 import { FlashWatch, ledLight, pixelsForGroups, prepareScene, tagCentres } from '../core/pattern-core.ts';
 import { analyzeFrames, parseFseq } from '../src/frames.ts';
+import { fseqOf } from './fixtures/fseq-of.js';
 import { folly as rig } from './fixtures/rigs.js';
 
 const N = rig.count, scene = prepareScene(rig);
@@ -41,20 +41,9 @@ function verdicts(level, { seconds = 3, fps = 40, limits } = {}) {
     for (let k = 0; k < N; k++) rgb.set(rgbOf(level(t, k)), 3 * k);
     dimmed = guard.observe(rgb, t * 1000) || dimmed;
   }
-  const ranges = ledRanges(rig);
-  const cc = ranges.reduce((n, [, c]) => n + c, 0);
-  const at = new Int32Array(scene.frameChannels).fill(-1);
-  for (let o = 0, r = 0; r < ranges.length; r++) for (let i = 0; i < ranges[r][1]; i++) at[ranges[r][0] + i] = o++;
-  const frames = seconds * 40, data = new Uint8Array(frames * cc);
-  for (let f = 0; f < frames; f++) {
-    for (let k = 0; k < N; k++) {
-      const a = scene.addr[k];
-      const c = rgbOf(level(f / 40, k));
-      for (let i = 0; i < 3; i++) data[f * cc + at[a + scene.order[i]]] = Math.round(c[i] * 255);
-    }
-  }
+  const bytes = fseqOf(rig, seconds, (f, k) => rgbOf(level(f / 40, k)).map((v) => Math.round(v * 255)));
   const watch = new FlashWatch(scene, limits, { record: true });
-  const blocked = !analyzeFrames(parseFseq(writeFseq({ frames, data, ranges })), scene, watch, ledLight()).flicker.ok;
+  const blocked = !analyzeFrames(parseFseq(bytes), scene, watch, ledLight()).flicker.ok;
   return { dimmed, blocked };
 }
 

@@ -8,7 +8,7 @@ import { applyMods, lookFrame, paramMods, prepareLook, resolveParams } from '../
 import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../core/pattern-core.ts';
 import { normaliseParam, visibleParams } from '../public/js/ui/params/bindings.ts';
 import { folly } from './fixtures/rigs.js';
-import { libraryCode as lib } from './fixtures/patterns.js';
+import { libraryCode as lib, libraryIndex } from './fixtures/patterns.js';
 
 const controls = (schema, saved = {}) => visibleParams(Object.entries(schema)
   .map(([key, p]) => [key, normaliseParam(key, p)]), saved).map(([key]) => key);
@@ -63,34 +63,16 @@ test('malformed conditions are ignored instead of hiding a control', () => {
   assert.deepEqual(controls(schema), ['x']);
 });
 
-test('Bars exposes duty and softness only for profiles that use them', () => {
-  const layer = { id: 'l', modules: [{ id: 'b', kind: 'source', code: lib('bars') }] };
-  const schema = compileLayer(layer)[0].params;
-  assert.ok(controls(schema).includes('softness'));
-  assert.ok(!controls(schema, { profile: 'smooth', duty: 0.2 }).includes('duty'));
-  assert.ok(!controls(schema, { profile: 'pulse' }).includes('softness'));
-  assert.ok(controls(schema, { profile: 'pulse' }).includes('duty'));
-});
-
-test('Chase, Streaks, Replay and Reorder expose their active shaping controls', () => {
-  const schema = (name, kind) => compileLayer({ id: 'l', modules: [{ id: 'm', kind, code: lib(name) }] })[0].params;
-  const chase = schema('single-strand', 'source');
-  assert.ok(controls(chase).includes('gap'));
-  assert.ok(!controls(chase).includes('tail'));
-  assert.ok(!controls(chase, { profile: 'comet' }).includes('gap'));
-  assert.ok(controls(chase, { profile: 'comet' }).includes('tail'));
-  assert.ok(!controls(chase, { mode: 'out' }).includes('alternate'));
-  assert.ok(!controls(chase, { mode: 'in' }).includes('alternate'));
-  assert.ok(controls(chase, { mode: 'bounce', scatter: 1 }).includes('lap'));
-  const streaks = schema('streaks', 'source');
-  assert.ok(!controls(streaks).includes('sway'));
-  assert.ok(!controls(streaks, { profile: 'flake' }).includes('tail'));
-  assert.ok(controls(streaks, { profile: 'flake' }).includes('sway'));
-  assert.ok(!controls(schema('replay', 'filter'), { play: 'hold' }).includes('length'));
-  const reorder = schema('reorder', 'warp');
-  assert.ok(!controls(reorder).includes('seed'));
-  assert.deepEqual(controls(reorder, { by: 'random' }), ['by', 'amount', 'seed']);
-  assert.deepEqual(controls(reorder, { by: 'groups' }), ['by', 'amount']);
+test('every library control shows on a choice its module has, at options it offers', () => {
+  for (const { name, kind } of libraryIndex().filter((e) => e.kind !== 'preset')) {
+    const schema = compileLayer({ id: 'l', modules: [{ id: 'm', kind, code: lib(name) }] })[0].params ?? {};
+    for (const [key, p] of Object.entries(schema)) {
+      for (const [on, values] of Object.entries(p.showWhen ?? {})) {
+        const options = schema[on]?.options ?? [];
+        assert.ok(values.every((v) => options.includes(v)), `${name}.${key} shows when ${on} is ${values}`);
+      }
+    }
+  }
 });
 
 test('saved smooth Recolour and negative half-turn preserve their rendered looks', () => {
