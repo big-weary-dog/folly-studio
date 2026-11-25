@@ -5,23 +5,16 @@ import { computed, type ReadonlySignal, signal } from '@preact/signals';
 import type { Tour } from '../../../shared/schemas/tour.ts';
 import type { User } from '../../../shared/schemas/api.ts';
 import { toast } from './kit.tsx';
-import type { Preview } from './preview.ts';
 import type { Studio } from './studio-store.ts';
 
-export type TourModule = { id: string; title: string; kind: string; ref?: string; enabled: boolean };
-export type TourLayer = { id: string; title: string; modules: TourModule[]; muted: boolean; solo: boolean;
-  level: number; blend: string; groups?: string[]; soften: number; clips: number };
+export type TourModule = { id: string; title: string; kind: string; ref?: string };
+export type TourLayer = { id: string; title: string; modules: TourModule[]; muted: boolean };
 export type TourView = {
   ready: ReadonlySignal<boolean>; layers: ReadonlySignal<TourLayer[]>; selected: ReadonlySignal<TourLayer | null>;
   module: ReadonlySignal<TourModule | null>; params: ReadonlySignal<Readonly<Record<string, unknown>>>;
-  playing: ReadonlySignal<boolean>; view: ReadonlySignal<string | null>; dock: ReadonlySignal<string>;
-  dirty: ReadonlySignal<boolean>; lookId: ReadonlySignal<string | null>; bpm: ReadonlySignal<number | null>;
-  palette: ReadonlySignal<string | null>; automation: ReadonlySignal<Readonly<Record<string, number>>>;
-  historyAt: ReadonlySignal<number>;
-  /** The look's macros by name, each with its value. */
-  macros: ReadonlySignal<Readonly<Record<string, number>>>;
-  /** The groups carrying a rig tag, then those under them; a param's label in a module made from library `ref`. */
-  tagged: (tag: string) => string[]; label: (ref: string, key: string) => string | null;
+  playing: ReadonlySignal<boolean>; dirty: ReadonlySignal<boolean>; lookId: ReadonlySignal<string | null>;
+  /** A param's label in a module made from library `ref`. */
+  label: (ref: string, key: string) => string | null;
 };
 
 export const tourView = signal<TourView | null>(null);
@@ -50,31 +43,17 @@ export function welcomeOnce(u: User | null) {
 }
 
 /** The Studio shows itself to the tour while open: the returned function hides it again. */
-export function showToTour(st: Studio, pv: Preview) {
+export function showToTour(st: Studio) {
   const layers = computed(() => st.look.value.layers.map((l): TourLayer => ({ id: l.id, title: l.title,
-    modules: l.modules.map((m) => ({ id: m.id, title: m.title, kind: m.kind, ref: m.ref,
-      enabled: m.enabled !== false })),
-    muted: st.muted.value.has(l.id), solo: st.solo.value.has(l.id), level: l.level, blend: l.blend, groups: l.groups,
-    soften: l.soften?.radius ?? 0, clips: l.clips?.length ?? 0 })));
+    modules: l.modules.map((m) => ({ id: m.id, title: m.title, kind: m.kind, ref: m.ref })),
+    muted: st.muted.value.has(l.id) })));
   const selected = computed(() => layers.value.find((l) => l.id === st.selectedId.value) ?? null);
   tourView.value = {
     ready: computed(() => st.ready.value), layers, selected,
     module: computed(() => selected.value?.modules.find((m) => m.id === st.module.value?.id) ?? null),
     params: computed(() => ({ ...st.module.value?.params })),
-    playing: computed(() => st.playing.value), view: computed(() => pv.view.value), dock: computed(() => st.dock.value),
-    dirty: computed(() => st.dirty.value), lookId: computed(() => st.look.value.id),
-    bpm: computed(() => st.look.value.bpm), palette: computed(() => st.look.value.globals?.palette?.name ?? null),
-    automation: computed(() => Object.fromEntries(Object.entries(st.look.value.automation ?? {})
-      .map(([k, pts]) => [k, pts?.length ?? 0]))),
-    historyAt: computed(() => st.history.at.value),
-    macros: computed(() => Object.fromEntries(Object.entries(st.look.value.globals?.macros ?? {})
-      .map(([k, m]) => [k, m.value]))),
-    tagged: (tag) => {
-      const all = st.data.rig?.groups ?? [], top = all.filter((g) => g.tags?.includes(tag)).map((g) => g.id);
-      const under = all.filter((g) => !top.includes(g.id)
-        && st.data.index?.ancestors(g.id).some((a) => top.includes(a)));
-      return [...top, ...under.map((g) => g.id)];
-    },
+    playing: computed(() => st.playing.value), dirty: computed(() => st.dirty.value),
+    lookId: computed(() => st.look.value.id),
     label: (ref, key) => {
       for (const l of st.look.peek().layers) {
         const m = l.modules.find((x) => x.ref === ref);
