@@ -279,6 +279,9 @@ export function timeAgo(when?: string | number) {
   return new Date(t).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+/** Bytes as decimal megabytes: '2.4 MB', '310 MB'. */
+export const mb = (bytes: number) => `${(bytes / 1e6).toFixed(bytes < 1e8 ? 1 : 0)} MB`;
+
 export function slugify(s: string, fallback = 'look') {
   const slug = String(s || '').toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g, '')
     .trim().replace(/[\s_]+/g, '-').replace(/-+/g, '-').slice(0, 60);

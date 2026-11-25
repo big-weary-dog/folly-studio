@@ -31,8 +31,8 @@ something unsaved, or once already, it shows one "Folly Studio was updated" toas
 ## HTTP API (JSON; cookie session)
 
 Mutating requests must be `Content-Type: application/json` and, when an `Origin` header is
-present, same-origin. Errors are `{ error: "message" }` with a 4xx/5xx status. A body is a JSON object of at most
-256 KB (413 past it; empty is `{}`), checked by the shared schemas (`shared/schemas/api.ts`, `look.ts`): a 400 names
+present, same-origin (its scheme and host). Errors are `{ error: "message" }` with a 4xx/5xx status. A body is a
+JSON object of at most 256 KB (413 past it; empty is `{}`), checked by the shared schemas (`shared/schemas/api.ts`, `look.ts`): a 400 names
 the first problem ("Layer 2, clip 1: start must be a number of seconds from 0 to 600."). Unknown routes are 404, a
 known path's other methods 405 with `Allow`.
 

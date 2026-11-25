@@ -7,7 +7,9 @@ import type { Rig } from '../../shared/schemas/rig.ts';
 import { LIGHT, type Light, previewChannels } from '../../core/light.ts';
 import type { Playa } from './playa/renderer.ts';
 import type { Venue, VenueGL } from './playa/venue.ts';
-import { basis, type Cam, clearLens, DEG, fitView, frameOf, type View, viewToCam } from './viewer-camera.ts';
+import {
+  basis, type Cam, clamp, clearLens, DEG, fitView, frameOf, lerp, type View, viewToCam,
+} from './viewer-camera.ts';
 import { draw, initGL, type Program, upload } from './viewer-gl.ts';
 import { bindInput, type Drag } from './viewer-input.ts';
 export { frameOf } from './viewer-camera.ts';
@@ -15,9 +17,7 @@ export { frameOf } from './viewer-camera.ts';
 const MIN_EYE_Y = 0.25;      // keep the camera above the playa
 const MAX_ELEV = 89;
 const TWEEN_S = 0.9;
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 /** A phone: a touch screen under the Studio's narrow width, where the preview draws its lightest. */
 export const isPhone = () => matchMedia('(pointer: coarse) and (max-width: 899px)').matches;
 
