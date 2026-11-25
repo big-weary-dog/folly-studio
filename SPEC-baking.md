@@ -11,7 +11,8 @@ light and flash settings. Frames must match the requested baked length, rig step
 layout. A reported layer error fails the bake; the box's own `ok` can never make it pass. Bakes use a stable FSEQ
 identifier so identical rebakes have identical file hashes.
 
-Before attaching a record, after storing its frames, the queue rechecks the look's render fields and baked length.
+Before attaching a record, after storing its frames, the queue rechecks the look's render fields and baked length;
+a look deleted or changed meanwhile gets no record, and the frames it stored are removed.
 Review requires a bake of both the current render fields and `min(duration, configured bake cap)` seconds (the
 default duration when omitted). Restoring evicted frames refreshes their checks while retaining the review.
 Verification timestamps preserve check order even when the host's wall clock steps backward.
