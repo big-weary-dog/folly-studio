@@ -80,8 +80,8 @@ GET    /api/looks/:id/frames/:hash/:n         → stream chunk n (immutable; br/
 GET    /api/looks/:id/preview/:key.webp       → the gallery preview (image/webp, immutable)  mine, or shared;
                                               `:key-still.webp` its still; 404 unless `key` is `listed.preview`
 GET    /api/library                           → { patterns: [{ name, title, summary, tags, kind, category, code }] }
-                                              (a preset: kind 'preset', its layers and globals?, code ''; hidden
-                                              modules left out)
+                                              (a preset: kind 'preset', its layers and globals?, code ''; a hidden
+                                              module: hidden true, for the looks that use it, never shown)
 ```
 
 API `GET`s answer `Cache-Control: private, no-cache` with an ETag (a reload or a poll revalidates to an

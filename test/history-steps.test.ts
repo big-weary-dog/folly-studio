@@ -32,7 +32,6 @@ describe('steps', () => {
     const lay = (x: object) => ({ ...L, layers: [{ ...a, ...x }] });
     assert.equal(named(L, { ...L, title: 'Coals' }).label, 'Renamed the look');
     assert.equal(named(L, lay({ level: 0.5 })).label, 'Level 50%');
-    assert.equal(named(L, lay({ modules: [mod('x')] })).label, 'Edited the code of “Glow”');
     assert.equal(named(L, lay({ modules: [mod(undefined, { speed: 2 })] })).label, 'Set speed');
     assert.equal(named(L, { ...L, layers: [] }).label, 'Deleted a layer');
     assert.equal(named(L, { ...L, layers: [a, { ...a, id: 'b' }] }).label, 'Added a layer');

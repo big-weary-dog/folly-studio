@@ -89,7 +89,7 @@ function missing(name: string, layers: string[], kinds: string[]) {
 }
 
 describe('the tutorial matches the app', () => {
-  const kinds = [...new Set([...library.map((e) => e.kind || 'source'), 'blank'])];   // the shelf's Blank tab too
+  const kinds = [...new Set(library.map((e) => e.kind || 'source'))];
   for (const p of PATHS) {
     test(`${p.title}: every control, name and page a step uses exists`, () => {
       const made = layersOf(p), layers = made.map((l) => tourName(l.title));

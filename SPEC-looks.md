@@ -45,9 +45,10 @@ below.
   changes that code, a read gives the look without its bake or review (`reviewed` false, no `reviewedBy` or
   `flashOverride`), to be baked and reviewed afresh, and the version `reviewed` false. Filters and updates see the look as a read gives it, so what it leaves out stays out. A
   module whose `ref` the library has is standard: it keeps the
-  library's title (`shared/standard-modules.ts`; the API puts a renamed one's back), and a hand edit
-  of its code drops `ref`, making it custom (custom code is refused: SPEC-baking
-  "Custom code"); `params`
+  library's title (`shared/standard-modules.ts`; the API puts a renamed one's back). The Studio plays each module's
+  code from its ref's library file (hidden ones too, `GET /api/library`), whatever the look holds ('' for a ref the
+  library lacks). A save may send a module as its `ref` alone; with custom code off (SPEC-baking "Custom code") each
+  module must name a library module so, or carry a library file exactly; `params`
   override the code's defaults (≤ 64; a string ≤ 256 characters: a pick, a choice or text).
   A stored module's `live` (offers to the archived Live Play) is ignored on read and dropped.
   `enabled: false` skips it; `input` names an earlier source; `on`
@@ -155,7 +156,10 @@ A look file is JSON, `application/json`, named for its title (`<slug>.json`):
 { "origin", "title", "summary", "chain": 2, "duration", "layers", "bpm"?, "globals"?, "automation"? }
 ```
 
-the look's words, `chain`, and what plays (SPEC-history "What plays"), as the Studio's Export → Look JSON writes it.
+the look's words, `chain`, and what plays (SPEC-history "What plays"), as the Studio's Export → Look JSON writes it,
+each module as its library `ref` and params, without code (the library it is imported into supplies it). An import
+takes such modules, and older files' modules with code, matched to the library by exact file (SPEC "Modules"). The
+FSEQ exports are unchanged.
 `origin` names the look wherever it is copied: the look's `origin` when it came in by an import, else its own id (ids
 are random, so one Studio's never stands for another's); `GET /api/looks/:id` answers it when set. A file without
 `origin` (written before it was) imports as a new look each time.
