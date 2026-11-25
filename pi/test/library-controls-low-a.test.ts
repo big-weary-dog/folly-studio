@@ -1,2 +1,2 @@
 import { controls } from './library-controls.ts';
-controls('low');
+controls('low', 0, 2);

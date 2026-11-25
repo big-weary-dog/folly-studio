@@ -2,6 +2,7 @@
 // click, side by side, at a laptop's and a phone's size: a click flips one and rewrites the text; typed text relights.
 import { readFileSync } from 'node:fs';
 
+import { drawn } from './drawn.js';
 import { expect, signup, test } from './studio.js';
 
 const code = (name) => readFileSync(new URL(`../../public/patterns/${name}.js`, import.meta.url), 'utf8');
@@ -45,7 +46,7 @@ for (const [name, device] of Object.entries(DEVICES)) {
       await expect(page.locator('.rose-pickers .field.param')).toHaveCount(2);
       await expect(cell(12)).toHaveAttribute('aria-checked', 'true');
       await expect(cell(5)).toHaveAttribute('aria-checked', 'false');
-      await page.waitForTimeout(1500);              // the preview draws a few frames
+      await drawn(page);
       await page.screenshot({ path: info.outputPath(`${name}.png`) });
       await page.locator('.rose-pickers').evaluate((el) => el.scrollIntoView({ block: 'center' }));
       await page.locator('.rose-pickers').screenshot({ path: info.outputPath(`${name}-field.png`) });

@@ -1,17 +1,18 @@
 // The output guard (tools/output-bytes.ts): every library look, and every module in a chain a moving warp bends,
 // sends the LED bytes recorded in test/fixtures/output-bytes.json, on both rigs. The engine's speed-ups keep every
-// byte; intentional pattern, rig or output-default changes re-record them.
+// byte; intentional pattern, rig or output-default changes re-record them. A file per rig
+// (output-bytes-<rig>.test.ts), so the two run side by side.
 import { readFileSync } from 'node:fs';
 
 import { expect, test } from 'vitest';
 
-import { BYTES, outputBytes, RIGS } from '../tools/output-bytes.ts';
+import { BYTES, outputBytes } from '../tools/output-bytes.ts';
 
 const HOW = 'LED bytes moved. Intentional pattern, rig or output-default change: node tools/output-bytes.ts re-records;'
   + ' otherwise the engine changed what the LEDs get';
 const recorded = JSON.parse(readFileSync(BYTES, 'utf8')).rigs;
 
-for (const rig of RIGS) {
+export function outputBytesOn(rig: string) {
   test(`warming then seeking to zero preserves every look's LED bytes on ${rig}`, () => {
     expect(outputBytes(rig, true)).toEqual(recorded[rig]);
   });
