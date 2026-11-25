@@ -13,12 +13,14 @@ import viteConfig from './vite.config.js';
  * cgroups (v2): Infinity when none is set or none can be read. */
 function forksThatFit(fit = Infinity) {
   try {
-    let dir = path.join('/sys/fs/cgroup', readFileSync('/proc/self/cgroup', 'utf8').trim().split(':').pop());
-    for (; dir.length > '/sys/fs/cgroup'.length; dir = path.dirname(dir)) {
+    // Up to and including the mount's root: a container's own limit sits there (its /proc/self/cgroup says 0::/).
+    const root = '/sys/fs/cgroup';
+    for (let dir = path.join(root, readFileSync('/proc/self/cgroup', 'utf8').trim().split(':').pop());
+      dir.startsWith(root); dir = path.dirname(dir)) {
       const [max, used] = ['max', 'current'].map((f) => Number(readFileSync(`${dir}/memory.${f}`, 'utf8')));
       if (Number.isFinite(max)) fit = Math.min(fit, Math.floor((max - used - 400e6) / 170e6));   // "max" is NaN
     }
-  } catch { /* not Linux, or cgroup v1 */ }
+  } catch { /* not Linux, cgroup v1, or the host's root, which has no limit files */ }
   return fit;
 }
 
