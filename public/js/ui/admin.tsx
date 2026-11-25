@@ -8,7 +8,8 @@ import { can } from '../../../shared/policy.ts';
 import { navigate, user, type ViewProps } from './session.ts';
 import { usePhone } from './phone/viewport.ts';
 
-const TABS = [['light', 'Light'], ['baking', 'Baking'], ['reports', 'Reports'], ['stats', 'Stats']];
+const TABS = [['light', 'Light'], ['baking', 'Baking'], ['people', 'People'], ['reports', 'Reports'],
+  ['stats', 'Stats']];
 
 /** The page under the Admin tabs, `tab` lit. */
 export const withTabs = (Page: ComponentType<ViewProps>, tab: string) => (props: ViewProps) => {

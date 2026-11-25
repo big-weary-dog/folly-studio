@@ -162,6 +162,8 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
       chain: CHAIN,
       reviewed: false, versions: [] };
     await allowCode(look.layers);
+    // An account deleted during the waits (itself, or on People) keeps no look made after it went.
+    if (!user.guest && !store.users.get(user.id)) throw new HttpError(401, 'Your account was deleted.');
     if (globals) look.globals = globals;
     const lanesNow = automation === undefined ? undefined : lanes(automation, globals, !!origin);
     if (lanesNow) look.automation = lanesNow;
