@@ -111,6 +111,8 @@ export function apiRoutes(o: { store: Store, auth: Auth, log: Log,
       ...reports,
       ...looks.routes,
       ...framesRoutes({ framesDir, cache: frames, visibleLook: looks.visibleLook }),
+      // How long bug reports stay, for the privacy page (SPEC-access "Privacy"), signed in or not.
+      'GET /privacy': [async () => ({ reportDays: o.reports.days }), { public: true }],
       'GET /library': [async () => ({ patterns: loaders.loadLibrary()
         .map(({ name, title, summary, tags, kind, category, code, ...rest }) => ({ name, title, summary, tags, kind,
           category, code, ...('hidden' in rest && rest.hidden ? { hidden: true } : {}),

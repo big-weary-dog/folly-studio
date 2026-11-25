@@ -216,6 +216,7 @@ STUDIO_ADMINS=you                 # the Admin page (light, baking, reports, stat
 STUDIO_BAKE_SECONDS=120           # longest bake
 STUDIO_FRAMES_BROTLI_QUALITY=9
 STUDIO_FRAMES_MAX_BYTES=2GB
+STUDIO_REPORTS_DAYS=90            # bug reports kept this many days
 STUDIO_FLASH_PER_SECOND=3         # the flash check: flashes a second allowed (WCAG 2.3.1: 3)
 STUDIO_FLASH_DELTA=0.5            # a flash's swing, as a share of the LEDs' full light (WCAG: 0.1)
 STUDIO_FLASH_AREA=0.25            # share of the LEDs, or of the lit area from the front or side, that blocks
@@ -261,6 +262,7 @@ them.
 | `STUDIO_FLASH_AREA` | the share of the LEDs or lit area that blocks, default 0.25 |
 | `STUDIO_PREVIEWS` | the gallery previews' camera, default playa |
 | `GIT_SHA` | the build's commit, for bug reports (default: the checkout's) |
+| `STUDIO_REPORTS_DAYS` | days a bug report is kept, default 90 |
 | `STUDIO_BAKE_SECONDS` | the longest render-box bake, default 120 |
 | `STUDIO_BAKE_TIMEOUT` | a bake's wall clock, default scaled to its length |
 | `STUDIO_BAKE_CPU` | a bake's CPU seconds, default scaled to its length |
@@ -285,6 +287,14 @@ for themselves with "Don't dim for me".
 `STUDIO_FLASH_CHECK=off` stops the check blocking or dimming anything (bakes still measure it and say so). It is
 for trying things on your own machine: **not for public deployments**, where it would show strobes to people with
 photosensitive epilepsy without warning.
+
+### Bug reports and privacy
+
+Bug reports (F8, and Report this look) hold a screenshot, the page's state and the server's last warn and error
+lines, so they are kept `STUDIO_REPORTS_DAYS` (default 90) and no more: the server removes older ones at start, on
+each new report and every hour, and keeps at most the newest 500 within 500 MB. The privacy page (`/privacy`) states
+the days in force, so change the setting rather than the folder. To clear them all at once, stop the server and
+delete `reports/` in the data folder.
 
 ## Without a systemd user session
 

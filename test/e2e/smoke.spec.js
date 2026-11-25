@@ -50,7 +50,7 @@ for (const [name, device] of Object.entries(SIZES)) {
         await page.fill('input[name=username]', `smoke-${name}`);
         await page.fill('input[name=password]', 'correct horse');
         await page.locator('form button[type=submit]').click();
-        await expect(page).toHaveURL(/\/looks$/, { timeout: 20_000 });
+        await expect(page).toHaveURL(/\/gallery$/, { timeout: 20_000 });
         await page.goto(`${origin}/studio`);
       });
 

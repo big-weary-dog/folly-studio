@@ -63,6 +63,9 @@ only when it is also reviewed. My looks tags its owner's shared looks that are w
 Anyone with an account may **Report this look** on a card someone else shared: a short note, sent as a report
 (SPEC "Bug reports") that names the look, for an admin to read.
 
+**The gallery is home** for everyone signed in, guests too: `/`, the header's brand and signing in without a `next`
+lead to it, showing approved looks. An empty My looks points to it, where a look is picked and saved as one's own.
+
 ## Admin
 
 Phone Admin keeps quick operator tasks; see [SPEC-studio "Phones"](SPEC-studio.md#phones).
@@ -92,6 +95,28 @@ shared, and whether it is disabled; a search narrows it by name.
   account"), no password asked.
 - An admin changes none of these for themselves (409): Account is theirs, and no admin locks themselves out.
 
+## Privacy
+
+**Privacy** (`/privacy`) is open to anyone, signed in or not, and linked from the sign-in page and the user menu
+(guests' too). It says, plainly and briefly, what Studio keeps and for how long:
+
+- **Accounts**: the username, a salted password hash, the role, when it was made and the tutorial's progress; no
+  email or real name. Usernames show in the gallery.
+- **Looks**: what each account saves, with its versions, bakes and previews; shared ones show in the gallery.
+- **Visitors**: counted with a hash of the address and browser under a salt made each day and never written; no
+  address is stored (Stats below). Behind the tunnel, the journal lines carry the visitor's country.
+- **Bug reports** (F8 and Report this look, SPEC-reports): the note, a screenshot when it is on, the page's state
+  (the unsaved look, the page's errors and messages) and the server's last warn and error lines, with the account's
+  name. The state and log lines are scrubbed (SPEC-reports); the note and screenshot are kept as sent, so the page
+  asks people to leave secrets out of them. Admins read them, and they go after `GET /api/privacy`'s `reportDays`
+  (`STUDIO_REPORTS_DAYS`).
+- **Cookies and storage**: one cookie, `studio_session`, the sign-in (30 days, a guest's 7), and nothing to track;
+  the browser keeps a guest's work, the tutorial's place and view settings in its own storage.
+- **Deleting**: Account's Delete account removes the account, its sessions and every look it owns at once; a
+  guest's work goes with the browser's site data. Bug reports age out as above.
+
+The page has no controls; a signed-out visitor gets a link back to sign in.
+
 ## Stats
 
 The server counts in memory, from its start (a restart starts again; nothing is written), and Stats shows the counts:
@@ -119,7 +144,7 @@ start.
 
 ## No AI
 
-Studio has no AI: no Ideas page (`/ideas` leads to My looks; a guest's home is the Studio), no Refine, no invite
+Studio has no AI: no Ideas page (`/ideas` leads home), no Refine, no invite
 codes and no Models or Access tabs; sign-up says nothing of AI. The server has no idea, model, invite or people
 routes, and leaves an older data folder's `ideas.json`, `invites.json`, `models.json` and `ideas-log/` unread.
 

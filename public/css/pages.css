@@ -101,3 +101,11 @@
   .card-body { padding: 12px 14px 4px; }
   .card-actions { padding: 8px 14px 14px; }
 }
+/* The privacy page (js/ui/privacy.tsx): what is kept, in plain glass panels. */
+.privacy-page { --tint: var(--violet); max-width: 720px; }
+.privacy-part { padding: 4px 20px 16px; }
+.privacy-part h2 { padding-top: 14px; font-size: 19px; }
+.privacy-part :is(p, dl) { margin-top: 8px; color: var(--text-2); }
+.privacy-part dt { margin-top: 12px; color: var(--text); font-weight: 600; }
+.privacy-part dd { margin: 2px 0 0; }
+.privacy-back { margin-top: 24px; }

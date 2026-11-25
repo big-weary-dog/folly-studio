@@ -49,8 +49,8 @@ export function Looks({ scope }: ViewProps) {
     ? <p>{gallery && approvedOnly ? 'No approved looks match.' : 'No looks match that search.'}</p>
     : gallery ? <p>Nothing in the gallery yet. Open one of your looks in the Studio and switch on “Share to gallery”;
       it shows here once a curator approves it.</p>
-    : <p>No saved looks yet. <a href="/studio">Start a blank look</a>
-      <span class="laptop-only">, or import some</span>.</p>;
+    : <p>No saved looks yet. Pick one in the <a href="/gallery">Gallery</a>: change it, and Save makes it yours.
+      Or <a href="/studio?new">start a new one</a><span class="laptop-only">, or import some</span>.</p>;
   return (
     <div class="page looks-page">
       <div class="section-head page-head">

@@ -14,7 +14,7 @@ test('layers and settings expand, collapse, resize and stay so', async ({ page, 
   await page.fill('input[name=username]', 'side-laptop');
   await page.fill('input[name=password]', 'correct horse');
   await page.locator('form button[type=submit]').click();
-  await expect(page).toHaveURL(/\/looks$/);
+  await expect(page).toHaveURL(/\/gallery$/);
   await page.goto(`${studio.origin}/studio`);
   await page.locator('.save-btn:visible').click();      // saved, so a reload keeps it
   await expect(page).toHaveURL(/\/studio\/[\w-]+$/);
