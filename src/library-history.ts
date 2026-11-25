@@ -3,7 +3,8 @@ import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
-import type { Layer, Module } from '../shared/schemas/look.ts';
+import { eachModule } from '../shared/look-modules.ts';
+import type { Layer } from '../shared/schemas/look.ts';
 
 export const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
 
@@ -57,22 +58,14 @@ export async function historicalLibrary(dir: string) {
     const hash = sha256(m.code);
     return (m.ref && files.get(m.ref)?.hashes.has(hash) ? m.ref : names.get(hash)) ?? m.ref;
   };
-  const modules = (list: Module[]) => {
-    for (const m of list) {
-      if (m.kind === 'composite' && m.layers) for (const sub of m.layers) modules(sub.modules);
-      else {
-        const ref = refOf(m);
-        if (ref) m.ref = ref;
-        m.code = replace(m.code);
-      }
-    }
-  };
   const upgrade = (layers: Layer[]): Layer[] => {
     const copy = structuredClone(layers);
-    for (const layer of copy) {
-      if ('modules' in layer) modules(layer.modules);
-      else layer.code = replace(layer.code);
-    }
+    eachModule(copy, (m) => {
+      if (typeof m.code !== 'string') return;
+      const ref = refOf(m as { code: string, ref?: string });
+      if (ref) m.ref = ref;
+      m.code = replace(m.code);
+    });
     return copy;
   };
   return { hashes: new Set(replacements.keys()), upgrade };

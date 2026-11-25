@@ -2,13 +2,12 @@
 // earlier file of a module the index lists (hidden ones too), the one its `ref` names, else the one whose file it is.
 // A look or version with any other module is dropped, saying why (a retired pattern's copy names it); the rest move
 // to the current library, each module naming its entry.
+import { findModule, isNode, mapModules, moduleCodes, type Node } from '../shared/look-modules.ts';
 import { layersHash, renderFields } from './bake.ts';
 import type { libraryFiles } from './library-history.ts';
 import { sha256 } from './library-history.ts';
 
 type Library = Awaited<ReturnType<typeof libraryFiles>>;
-type Node = Record<string, unknown>;
-const isNode = (v: unknown): v is Node => !!v && typeof v === 'object' && !Array.isArray(v);
 const text = (v: unknown, max = 80) => (typeof v === 'string' ? v.slice(0, max) : '');
 
 /** The entry `code` is a file of: `ref`'s when it is, else the one whose file it is (null: none, or several); a
@@ -23,62 +22,36 @@ function entryOf(library: Library, code: unknown, ref: unknown) {
 }
 const isLibrary = (library: Library, ref: string | null): ref is string => !!ref && library.get(ref)!.code !== null;
 
-/** Why `layers` are not library: the first module that is not, a retired pattern's copy named. */
+/** Why `layers` are not library: the first module that is not, a retired pattern's copy named, or where the shape
+ * breaks. */
 export function whyNot(library: Library, layers: unknown): string {
-  for (const layer of Array.isArray(layers) ? layers : []) {
-    if (!isNode(layer)) return 'a malformed layer';
-    for (const m of Array.isArray(layer.modules) ? layer.modules : [layer]) {
-      if (!isNode(m)) return 'a malformed module';
-      if (m.kind === 'composite') {
-        const inner = m.code ? 'a composite with code' : whyNot(library, m.layers);
-        if (inner) return inner;
-        continue;
-      }
+  let why = '';
+  findModule(layers, ({ module: m, fault }) => {
+    if (fault) why = fault === 'composite' && m!.code ? 'a composite with code' : `a malformed ${fault}`;
+    else {
       const ref = entryOf(library, m.code, m.ref);
-      if (ref && !isLibrary(library, ref)) return `retired pattern ${ref}`;
-      if (!ref) return `custom code (${text(m.title) || text(m.ref) || 'a module'})`;
+      if (ref && !isLibrary(library, ref)) why = `retired pattern ${ref}`;
+      else if (!ref) why = `custom code (${text(m.title) || text(m.ref) || 'a module'})`;
     }
-  }
-  return '';
+    return why;
+  });
+  return why;
 }
 
-/** `node` (a module, or a layer that is one source) on the current library, or null when its code is not the
- * library's; a composite has no code and its sub-layers' modules are looked through. */
-function moved(library: Library, node: Node): Node | null {
-  if (node.kind === 'composite') {
-    if (node.code || !Array.isArray(node.layers)) return null;
-    const layers = node.layers.map((sub) => (isNode(sub) ? chain(library, sub) : null));
-    return layers.every(Boolean) ? { ...node, layers } : null;
-  }
-  const ref = entryOf(library, node.code, node.ref);
+/** `m` on the current library, or null when its code is not the library's. */
+function moved(library: Library, m: Node): Node | null {
+  const ref = entryOf(library, m.code, m.ref);
   if (!isLibrary(library, ref)) return null;
-  return node.code === undefined ? { ...node, ref } : { ...node, ref, code: library.get(ref)!.code };
-}
-
-/** A layer (or a composite's sub-layer) on the current library, or null. */
-function chain(library: Library, layer: Node): Node | null {
-  if (!Array.isArray(layer.modules)) return moved(library, layer);
-  const modules = layer.modules.map((m) => (isNode(m) ? moved(library, m) : null));
-  return modules.every(Boolean) ? { ...layer, modules } : null;
+  return m.code === undefined ? { ...m, ref } : { ...m, ref, code: library.get(ref)!.code };
 }
 
 /** `layers` on the current library, or null when any is not library code. */
-export function libraryLayers(library: Library, layers: unknown): Node[] | null {
-  if (!Array.isArray(layers)) return null;
-  const out = layers.map((l) => (isNode(l) ? chain(library, l) : null));
-  return out.every(Boolean) ? out as Node[] : null;
-}
+export const libraryLayers = (library: Library, layers: unknown) => mapModules(layers, (m) => moved(library, m));
 
 export type Dropped = { look: string, title: string, owner: string, version?: number, why: string };
 
-/** Every module's code in `layers`, in order: what changes when a module moves to the current library. */
-function codes(layers: unknown): unknown[] {
-  if (!Array.isArray(layers)) return [];
-  const one = (m: unknown) => (isNode(m) && Array.isArray(m.layers) ? codes(m.layers) : [isNode(m) ? m.code : null]);
-  return layers.flatMap((l) => (!isNode(l) ? [] : Array.isArray(l.modules) ? l.modules.flatMap(one) : [l.code]));
-}
 const hashOf = (look: Node) => layersHash(renderFields(look as Parameters<typeof renderFields>[0]));
-const plays = (a: unknown, b: unknown) => JSON.stringify(codes(a)) !== JSON.stringify(codes(b));
+const plays = (a: unknown, b: unknown) => JSON.stringify(moduleCodes(a)) !== JSON.stringify(moduleCodes(b));
 
 /**
  * The looks under the rule: `looks` as kept (versions numbered, and the look's own number written, so dropping one

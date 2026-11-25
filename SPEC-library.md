@@ -204,7 +204,7 @@ ring by its radius in seven bands (as by region).
 
 ## Composites
 
-A **composite** is a chain module (`kind: 'composite'`, no code) that holds 1–4 **sub-layers**, each `{ id, title,
+A **composite** is a chain module (`kind: 'composite'`) that holds 1–4 **sub-layers**, each `{ id, title,
 modules, blend?, level?, groups?, tags?, enabled? }`: a chain of its own (every rule above holds inside it) that
 combines onto the sub-layers listed before it by its `blend` (`over` for the first, `add` after; `under` too), scaled by
 `level`, and plays only on its `groups` or `tags` within the layer (none: everywhere the layer plays). To the chain
@@ -214,9 +214,11 @@ draws on top. Per pixel, in the same one pass: a composite reads its slot's pixe
 each sub-layer runs on a copy of `q` (bent by its own warps) into a colour of its own, transparent at the start; a
 sub-layer plays on its groups' LEDs as a layer does, at the real LED, so a warp after the composite bends what each
 sub-layer draws but not where it plays (as a layer's Plays on). Module ids are unique across the whole layer,
-sub-layers' too. A sub-layer holds no stage end (its colours are at bent pixels, not real LEDs) and composites nest
-two deep at most (a composite in a sub-layer holds none); a failing module inside one is reported by its own id. Each
-sub-layer's modules count toward its own limit of 8.
+sub-layers' too. A composite has no code of its own: its `code` is `''` or absent (one with any other, or without
+sub-layers, is malformed: a save refuses it and the library-only step drops it), and its sub-layers' modules are
+stored by `ref` as any other. A sub-layer holds no stage end (its colours are at bent pixels, not real LEDs) and
+composites nest two deep at most (a composite in a sub-layer holds none); a failing module inside one is reported by
+its own id. Each sub-layer's modules count toward its own limit of 8.
 
 In the Studio's chain (`ui/chain-tree.tsx`) a composite is a violet row marked ⧉: its ▸ opens and shuts its
 sub-layers, one step in under it as attached modules are; shut, a line under its name says what it holds ("2
