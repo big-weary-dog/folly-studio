@@ -37,7 +37,7 @@ describe('PLAYS', () => {
       assert.deepEqual(playsOf(versionsWith(a).at(-1)!)[k], playsOf(a)[k], `${k} kept in a version`);
       assert.notEqual(renderKey(a, a.duration!), renderKey(b, b.duration!), `${k} in the bake key`);
       const saved = (l: object) => canonical(playsOf(saveBody({ id: null, title: 'T', summary: '', shared: false,
-        ideaId: null, ...l } as never))[k]);
+        ...l } as never))[k]);
       assert.notEqual(saved(base), saved({ ...base, [k]: OTHER[k] }), `${k} saved by the Studio`);
     }
     assert.equal(playsChanged(stored(base), stored(JSON.parse(JSON.stringify(base)))), false, 'a copy plays the same');
