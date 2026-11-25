@@ -22,12 +22,10 @@ g:hover > .tl-auto-val { display: inline; }
 .dock-tools .btn { margin-left: 0; }
 .tl-body { display: flex; flex-direction: column; flex: none; min-height: 0; }
 @media (min-width: 900px) {
-  .studio[data-dock=timeline] .code-body, .studio[data-dock=timeline] .dock-code-only { display: none !important; }
   .studio[data-dock=timeline] .tl-body { flex: 1; }
   .tl-body > .tl { flex: 1; min-height: 0; }
   .tl-body .tl-scroll { flex: 1; max-height: none; }
-  .studio[data-dock=code] .tl-body, .studio[data-dock=code] .dock-tools, .studio.code-collapsed .tl-body,
-    .studio.code-collapsed .dock-tools { display: none; }
+  .studio.code-collapsed .tl-body, .studio.code-collapsed .dock-tools { display: none; }
   .studio[data-dock=timeline] .dock-issue:not([hidden]) { display: inline-flex; }
   .studio[data-dock=timeline] .dock-head { min-height: 36px; }
 }

@@ -20,13 +20,13 @@ type Phone = ReturnType<typeof createPhone>;
 export const phoneAttrs = (st: Studio, ph: Phone) => ({ 'data-detail': 'light',
   'data-drill': ph.drill.value && ph.drill.value === st.selectedId.value ? '' : undefined });
 
-/** The tabs; the code editor is opened from More, so More stays lit while it shows. */
+/** The tabs. */
 export function PhoneTabs({ st, ph }: { st: Studio; ph: Phone }) {
   const tab = st.tab.value;
   return (
     <nav class="studio-tabs" aria-label="Studio panels">
       {TABS.map((id) => <button type="button" class="tab" data-tab={id}
-        aria-pressed={tab === id || (id === 'more' && tab === 'code')}
+        aria-pressed={tab === id}
         onClick={() => { if (id === 'layers' && tab === 'layers') ph.drill.value = null; st.setTab(id); }}>
         {humanize(id)}</button>)}</nav>);
 }

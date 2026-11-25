@@ -11,7 +11,7 @@ every edit here keeps them, so what the Studio saves the API accepts.
   the same tree beside its list (on a phone, behind its "Plays on" button): it starts on the rig's root, the audition
   plays on the groups ticked, the view focuses them, and the layer (each of a preset's layers) is added on them;
   closing the picker forgets them.
-- **Timeline** (`ui/timeline*.tsx`): docked under the 3D view beside Code on a wide screen (drag, trim, fade, zoom,
+- **Timeline** (`ui/timeline*.tsx`): docked under the 3D view beside Look on a wide screen (drag, trim, fade, zoom,
   snap to ¼ s or beats), unavailable on phone. Its edits (`ui/timeline-model.ts`,
   pure) keep SPEC "Timeline". Under the layers, a lane per modulator (`ui/timeline-mods.tsx`): its
   value over the show (0..1 of its range, as it plays: pace, swing and lanes in), its name and what it drives in the
@@ -26,7 +26,7 @@ every edit here keeps them, so what the Studio saves the API accepts.
   Click to add a point, drag to move it, double-click to remove it. Points are hollow amber at 0%, half-filled
   violet between the endpoints and filled mint at 100%. Segments blend between amber, violet and mint over the range.
   The bottom
-  dock (Code, Timeline, Look) is one height on every tab: a share of the Studio's height (36%, at least 220 px, the
+  dock (Timeline, Look) is one height on both tabs: a share of the Studio's height (36%, at least 220 px, the
   3D view keeping at least 200 px), dragged by the splitter above it and kept per browser.
 - **Title and description** edit in place: the title in the Studio bar (behind Look details on phone), with
   the description (the look's `summary`,
@@ -42,7 +42,7 @@ every edit here keeps them, so what the Studio saves the API accepts.
   start at `DEFAULT_SOFTEN`), the pickers (Add a module: tabs Sources, Warps, Filters; Add a layer: Sources,
   one source or a blank layer when custom code is on, and Presets, beside the groups the new layer plays on;
   one-line rows by category with a filter, the tab remembered for the session, each row auditioned in the 3D view;
-  module auditions use the same chain insertion as Add), the code editor and
+  module auditions use the same chain insertion as Add), the
   params on the selected module (each number param can be modulated), and a Look panel of globals, the palette
   (its theme line under the menu; each swatch titled by its slot, `body2 · #fd7f40`), its modulators and its faders
   (macros without a mod; `ui/look-mods.tsx`), with + Macro on laptop. A modulator is a card:
@@ -75,17 +75,17 @@ every edit here keeps them, so what the Studio saves the API accepts.
 - <a id="phones"></a>**Phones** (≤ 899 px wide; `ui/phone/`, `css/phone.css`): the 3D view over one panel,
   switched by Layers,
   Look and More. The preview and transport occupy 240 px while using these panels; venue scenery stays.
-  Time, code, Full detail and automation/modulation authoring are unavailable; CodeEditor and Timeline do not
+  Time, Full detail and automation/modulation authoring are unavailable; the Timeline does not
   mount on phone. Existing clips, automation and bindings keep playing. Look keeps palette and existing performance
-  faders, Share, an explicit Refine with AI action (without Critique), and description under Share details.
+  faders, Share, and description under Share details.
   It omits macro/modulator authoring, bake/export and recent-look navigation.
   The separate brand header is omitted in Studio: Menu, the look title and Save share a row, with rename and
   History behind Look details. The module chain opens behind a module selector. Every module keeps its first
   visible control row in front; the remaining rows open under More settings. A paired petals/cells row stays together.
   Palette access stays in Look. Solo and Reset all sit in the layer menu.
   My looks and Gallery omit file import/export, layer counts, dates and introductions; Delete and Approve open
-  from each card's Actions. Admin uses a page selector: quick invite/unlock, emergency baking and
-  compact health/queue status stay available. Model configuration, light calibration/files, report investigation,
+  from each card's Actions. Admin uses a page selector: emergency baking and
+  compact health/queue status stay available. Light calibration/files, report investigation,
   stats history/request investigation stay on laptop; baking details open on demand.
   Login keeps mode choice, fields, rules, feedback and actions, with a compact brand and no pitch or rose artwork.
   Layers lists one row a layer (name, mute, status); tapping one opens its settings in

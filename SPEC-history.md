@@ -56,19 +56,17 @@ In the Studio, History (`ui/history/`) is a drawer beside the view, opened from 
 Redo. Only the steps model and the keys are in the main bundle; the drawer loads when first opened.
 
 **Steps** (`history/steps.ts`, held by the store as `st.history`): this session's edits of the look, oldest first,
-from "Opened the look" (or "New look"). Each edit through `st.edit(fn, { step?, kind?, merge?, ai? })` that changes
+from "Opened the look" (or "New look"). Each edit through `st.edit(fn, { step?, kind?, merge? })` that changes
 the look's content (title, summary, what plays) is a step, named for what it changed ("Level 70%", "Edited the code
 of “Glow”", "Added a layer") unless `step` names it; edits that share a `merge` key are one step (a preset's layers
 and globals). Quick edits to one thing (a drag, typing) fold into one step until 1.5 s pass, a pointer up or a focus
 change seals it. The list is linear, like Photoshop's: clicking a step (or Undo, Ctrl/⌘+Z; Redo, Ctrl/⌘+Shift+Z or
 Ctrl+Y) plays the look as it was then and greys the later steps; a new edit drops them. A jump puts back content,
 never the look's id, owner or sharing. A save marks its step (it stays across undo); a look away from its saved step
-is unsaved. The keys are ignored while typing in a field, the code editor or a dialog. At most 200 steps are kept.
+is unsaved. The keys are ignored while typing in a field or a dialog. At most 200 steps are kept.
 
-A toast's Undo (a deleted layer, module or clip) and the Refine box's Undo are ordinary undo: they undo their own
-step while it is the step now, and say so otherwise. An AI refinement is one step with what was asked, by whom, what
-it changed and a link to the idea's log; a refinement undone or dropped is told to the server
-(`POST /api/ideas/:id/undo`) at the next save.
+A toast's Undo (a deleted layer, module or clip) is ordinary undo: it undoes its own step while it is the step now,
+and says so otherwise.
 
 **Versions** lists the look's versions newest first (its own saved looks only), each with a strip of its palette's
 colours and tags (Saved, In gallery, Reviewed). Preview plays one in the view in place of the work (`st.previewing`

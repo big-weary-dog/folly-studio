@@ -4,11 +4,10 @@
 .phone-disclosure > summary { min-height: 44px; padding: 12px 8px; cursor: pointer; }
 .phone-disclosure[open] > .btn { margin: 4px; }
 @media (max-width: 899px) {
-  .laptop-only, .looks-page .lede, .auth-lede, .auth-pitch, .auth-art { display: none !important; }
+  .laptop-only, .looks-page .lede, .auth-lede, .auth-art { display: none !important; }
   .auth-card { --arch: 48px; padding-top: 28px; }
   .auth-title { gap: 6px; margin-bottom: 20px; }
   .auth-title .wordmark { height: 36px; width: 150px; }
-  .auth-invited { margin-top: 0; }
   .looks-page .page-head { margin-bottom: 16px; }
   .card-actions .phone-disclosure { width: 100%; }
   .card-actions .phone-disclosure > summary { font-size: 14px; }

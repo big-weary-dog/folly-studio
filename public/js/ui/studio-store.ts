@@ -11,7 +11,7 @@ import type { LibraryEntry, ModuleEntry, Rig } from '../../../shared/schemas/rig
 import { keepStandardTitles } from '../../../shared/standard-modules.ts';
 import { replaceUrl, setTitle } from './session.ts';
 import { pref, reducedMotion, toast } from './kit.tsx';
-import { type AiStep, changes, CONTENT, createSteps, type EditOptions, type Step } from './history/steps.ts';
+import { changes, CONTENT, createSteps, type EditOptions, type Step } from './history/steps.ts';
 import { createLayerStatus } from './layer-status.ts';
 import { flatModules, mapEvery, mapModule } from '../core/tree.ts';
 import {
@@ -22,16 +22,15 @@ import { guestSave } from './guest-work.ts';
 
 /** The look as edited: what saves (saveBody), and where it came from. */
 export interface Draft { id: string | null; title: string; summary: string; layers: Layer[]; duration: number;
-  bpm: number | null; globals?: Globals | null; automation?: Automation | null; shared: boolean; ideaId: string | null;
+  bpm: number | null; globals?: Globals | null; automation?: Automation | null; shared: boolean;
   owner?: string; ownerName?: string }
-export const TABS = ['layers', 'code', 'time', 'look', 'more'] as const;
+export const TABS = ['layers', 'time', 'look', 'more'] as const;
 export type Tab = typeof TABS[number];
-export type Dock = 'code' | 'timeline' | 'look';
+export type Dock = 'timeline' | 'look';
 /** The side column, wide: Layers over Settings (split), or one taking it all and the other down to its head. */
 export type SideView = 'split' | 'layers' | 'params';
 const copy = <T>(v: T): T => (v == null ? v : JSON.parse(JSON.stringify(v)));
 const some = <T extends object>(o?: T | null) => (o && Object.keys(o).length ? copy(o) : null);
-const SHORT = '(max-height: 899px)';   // below this height the code editor starts folded
 
 /** How each field that plays (PLAYS) is saved: a new one needs a line here. */
 const CLEAN = { layers: (v: Layer[]) => v.map(cleanLayer), duration: cleanDuration,
@@ -48,7 +47,7 @@ export function saveBody(l: Draft) {
 export function createStudio(me: User | null) {
   const NARROW = matchMedia('(max-width: 899px)');
   const look = signal<Draft>({ id: null, title: 'Untitled look', summary: '', layers: [], duration: 30, bpm: null,
-    shared: false, ideaId: null, owner: me?.id, ownerName: me?.username, globals: {} });
+    shared: false, owner: me?.id, ownerName: me?.username, globals: {} });
   const server = signal<Look | null>(null);   // as the server last sent it (bake, reviewed, …); null until saved
   const saved = signal(''), ready = signal(false), saving = signal(false), sharing = signal(false);
   const copyOnSave = signal(false);
@@ -68,16 +67,16 @@ export function createStudio(me: User | null) {
     return l ? JSON.stringify([l.groups ?? null, l.tags ?? null]) : null;
   });
   const narrow = signal(NARROW.matches);
-  const knownDock = (d: string | null): Dock => (d === 'code' || d === 'look' ? d : 'timeline');
+  const knownDock = (d: string | null): Dock => (d === 'look' ? d : 'timeline');
   const dock = signal(knownDock(pref('studio.dock'))), wasFolded = pref('studio.dockFolded');
-  const allowedTab = (id: Tab) => TABS.includes(id) && !(narrow.peek() && (id === 'code' || id === 'time'));
+  const allowedTab = (id: Tab) => TABS.includes(id) && !(narrow.peek() && id === 'time');
   const tab = signal<Tab>(allowedTab(pref('studio.tab') as Tab) ? pref('studio.tab') as Tab : 'layers');
-  const folded = signal(wasFolded === null ? dock.value === 'code' && matchMedia(SHORT).matches : wasFolded === '1');
+  const folded = signal(wasFolded === '1');
   const side = signal<SideView>(['layers', 'params'].includes(pref('studio.side') ?? '')
     ? pref('studio.side') as SideView : 'split');
   const fallbackRev = signal(0);       // a module fell back to its last good code: send the look again
   const data = { rig: null as Rig | null, index: null as GroupIndex | null, library: [] as LibraryEntry[] };
-  const clock = { t: 0, typingUntil: 0 };       // show time (per frame, not a signal); when code edits settle
+  const clock = { t: 0 };       // show time (per frame, not a signal)
   const playing = signal(!reducedMotion()), speed = signal(1), baked = signal(false);
   /** The work's revision: one more at each change to it, so a reply that took a while (a save, a refinement) can tell
    * whether the work is still what it started from. */
@@ -96,12 +95,8 @@ export function createStudio(me: User | null) {
     return l ? flatModules(l.modules).find((m) => m.id === id) || l.modules.find((m) => m.kind === 'source')
       || l.modules[0] : null;
   });
-  /** What the dock's head shows: the layer › its module; the editor's problem. */
   const lookId = computed(() => look.value.id);
-  const codeFor = computed(() => {
-    const l = selected.value, m = module.value;
-    return l ? `${l.title}${m && l.modules.length > 1 ? ` › ${m.title}` : ''}` : '';
-  });
+  /** The selected module's problem, which the dock's head shows. */
   const problem = computed(() => (selected.value ? status.problem(selected.value.id, module.value) : null));
   /** The look as the sandbox runs it: each module's last good code, silent layers off. */
   const sandboxLook = computed(() => {
@@ -124,7 +119,7 @@ export function createStudio(me: User | null) {
   const st = {
     look, server, saved, ready, saving, sharing, copyOnSave, selectedId, picked, muted, solo, heavy, hoverGroup,
     pinnedGroup, groupsFor, newGroups, focusKey, narrow, dock, tab, folded, side, fallbackRev, data, clock, playing,
-    speed, baked, status, body, dirty, selected, module, sandboxLook, layerById, silent, groupNames, codeFor, problem,
+    speed, baked, status, body, dirty, selected, module, sandboxLook, layerById, silent, groupNames, problem,
     lookId, previewing, work, history,
     /** The work's revision now (rev above). */
     rev: () => rev,
@@ -134,8 +129,8 @@ export function createStudio(me: User | null) {
       newest.set(kind, n);
       return () => open && newest.get(kind) === n;
     },
-    /** Hooks the preview sets: an edit happened (baked playback stops); flush pending code to the sandbox. */
-    onEdit: () => {}, flush: () => {},
+    /** The hook the preview sets: an edit happened (baked playback stops). */
+    onEdit: () => {},
 
     /** Change the look; every edit of the content goes through here, and each is a step (`o.step` names it, else
      * what it changed does; `o.merge` folds edits that share it into one). */
@@ -214,7 +209,7 @@ export function createStudio(me: User | null) {
       const L = { ...look.peek() };
       if (from) {
         Object.assign(L, { id: from.id, title: from.title || 'Untitled look', summary: from.summary || '',
-          shared: !!from.shared, layers: normaliseLayers(from.layers, rig), ideaId: from.ideaId || null,
+          shared: !!from.shared, layers: normaliseLayers(from.layers, rig),
           owner: from.owner, ownerName: from.ownerName, duration: cleanDuration(from.duration),
           bpm: cleanBpm(from.bpm), globals: copy(from.globals) || {}, automation: copy(from.automation) });
         copyOnSave.value = !!(me && from.owner && from.owner !== me.id);
@@ -264,20 +259,6 @@ export function createStudio(me: User | null) {
       return st.save({ restoredFrom: p.n });
     },
 
-    /** An AI round's revision, saved by the server, over the work at revision `since`: one step, saved. Work edited
-     * since stays as it is (false); the revision is a version in History. */
-    revised(from: Look, ai: AiStep, since: number) {
-      if (from.id !== look.peek().id) return true;
-      if (rev !== since || previewing.peek()) return false;
-      const quoted = ai.asked.length > 40 ? `${ai.asked.slice(0, 39)}…` : ai.asked;
-      st.edit(() => ({ layers: normaliseLayers(from.layers, data.rig as Rig), duration: cleanDuration(from.duration),
-        bpm: cleanBpm(from.bpm), globals: copy(from.globals) || {}, automation: copy(from.automation) }),
-      { step: ai.asked ? `AI: “${quoted}”` : 'An AI round', kind: 'ai', ai });
-      batch(() => { saved.value = JSON.stringify(body.peek()); server.value = from; });
-      history.saved();
-      return true;
-    },
-
     /** The server sent a newer copy of this look (after a save, a bake, a review). */
     adopt(from: Look) {
       if (!from || (look.peek().id && from.id !== look.peek().id)) return;
@@ -292,7 +273,6 @@ export function createStudio(me: User | null) {
         toast('You are previewing a version: restore it, or go back to your work, to save.', { kind: 'warn' });
         return false;
       }
-      st.flush();
       const b = body.value, snap = JSON.stringify(b), L = look.value, create = !L.id || copyOnSave.value;
       const step = history.at.peek(), steps = history.list.peek();   // edits made while it saves are not saved
       const since = rev, live = st.request('save');
@@ -300,8 +280,7 @@ export function createStudio(me: User | null) {
       try {
         let from: Look;
         if (create) {
-          ({ look: from } = await api.createLook({ ...b, bpm: b.bpm || undefined,
-            ...(L.ideaId && !copyOnSave.value ? { ideaId: L.ideaId } : {}) }));
+          ({ look: from } = await api.createLook({ ...b, bpm: b.bpm || undefined }));
           if (live()) {
             replaceUrl(`/studio/${encodeURIComponent(from.id)}`);
             toast(copyOnSave.value ? 'Saved as your own copy.' : 'Saved.', { kind: 'ok' });
@@ -322,7 +301,6 @@ export function createStudio(me: User | null) {
         });
         setTitle(look.peek().title);
         if (history.list.peek()[step]?.look === steps[step]?.look) history.saved(step);
-        for (const id of history.undoneRounds()) api.undoRefine(id).catch(() => {});   // the AI learns it was undone
         return true;
       } catch (err) {
         failed(err, 'Could not save: ');
