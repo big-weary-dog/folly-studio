@@ -50,11 +50,21 @@ function badSilence(line: string) {
  * the committed file). Returns notes on areas well under budget. Either text may be '' (no such file).
  */
 type Budgets = Record<string, { lines: number, reason?: string }>;
+/** The file's areas, or undefined when it is missing or not that shape. */
+function budgetsOf(text: string): Budgets | undefined {
+  const areas = parse(text)?.areas;
+  if (!areas || typeof areas !== 'object' || Array.isArray(areas)) return undefined;
+  const ok = Object.values(areas as Record<string, { lines?: unknown, reason?: unknown } | null>)
+    .every((b) => Number.isInteger(b?.lines) && (b!.lines as number) >= 0
+      && (b!.reason === undefined || typeof b!.reason === 'string'));
+  return ok ? areas : undefined;
+}
 export function checkBudget(text: string, committedText: string, counts: Map<string, number>,
   report: (line: number, message: string) => void) {
-  const areas: Budgets | undefined = parse(text)?.areas, committed: Budgets = parse(committedText)?.areas || {};
+  const areas = budgetsOf(text), committed = budgetsOf(committedText) || {};
   if (!areas) {
-    if (!text && Object.keys(committed).length) report(1, 'the committed budget is gone: restore it');
+    if (text) report(1, 'it must be { "areas": { "<area>": { "lines": <count>, "reason"?: "<why>" } } }');
+    else if (Object.keys(committed).length) report(1, 'the committed budget is gone: restore it');
     return [];
   }
   const lineOf = (area: string) => Math.max(1, text.slice(0, text.indexOf(`"${area}"`)).split('\n').length);

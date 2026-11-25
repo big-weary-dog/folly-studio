@@ -80,6 +80,8 @@ test('.oxlintrc.jsonc: the safety rules, the import boundaries and the allowlist
     'public/js/ui/view.js': ["import { app } from '../../../src/app.js';",
       "import x from 'https://cdn.example.com/x.js';",
       'export const s = (el) => { el.innerHTML = app; document.write(x); return Math.random(); };', ''].join('\n'),
+    'public/js/ui/shared-use.js': ["import { a } from '../../../shared/style.js';",
+      "import { b } from '../../../shared/policy.ts';", 'export const ab = [a, b];', ''].join('\n'),
     'core/scene.ts': 'export const r = () => Math.random();\n',
     'core/compile.ts': 'export const make = (s) => new Function(s);\n',
     'public/patterns/long.js': `${'// filler\n'.repeat(150)}const params = {};\n`
@@ -94,9 +96,10 @@ test('.oxlintrc.jsonc: the safety rules, the import boundaries and the allowlist
   const found = [...r.stdout.matchAll(/^(\S+):(\d+):\d+: .*\((\S+)\)\]$/gm)]
     .map(([, file, line, rule]) => `${file}:${line} ${rule}`).sort();
   assert.deepEqual(found, [
-    'core/scene.ts:1 no-restricted-properties', 'public/js/ui/view.js:1 no-restricted-imports',
-    'public/js/ui/view.js:2 no-restricted-imports', 'public/js/ui/view.js:3 no-restricted-properties',
-    'public/js/ui/view.js:3 no-restricted-properties', 'public/patterns/long.js:152 max-lines',
+    'core/scene.ts:1 no-restricted-properties', 'public/js/ui/shared-use.js:1 no-restricted-imports',
+    'public/js/ui/view.js:1 no-restricted-imports', 'public/js/ui/view.js:2 no-restricted-imports',
+    'public/js/ui/view.js:3 no-restricted-properties', 'public/js/ui/view.js:3 no-restricted-properties',
+    'public/patterns/long.js:152 max-lines',
     'public/patterns/long.js:152 no-restricted-properties', 'src/server.js:1 no-restricted-imports',
     'src/server.js:2 no-restricted-imports', 'src/server.js:3 no-restricted-imports', 'src/server.js:7 no-console',
     'src/server.js:7 no-debugger', 'src/server.js:7 no-eval', 'src/server.js:7 no-new-func', 'src/typed.ts:1 no-eval',
@@ -117,4 +120,13 @@ test('a budget goes up only with a new reason, and its file stays', () => {
   assert.deepEqual(run({ lines: 12, reason: 'the bake panel' }, { lines: 10 }), []);
   assert.match(run({ lines: 11, reason: 'r' }, { lines: 10 })[0], /over its budget of 11/);
   assert.match(run(null, { lines: 10 })[0], /committed budget is gone/);
+  const bad = (text) => {
+    const out = [];
+    checkBudget(text, JSON.stringify({ areas: { src: { lines: 10 } } }), new Map([['src', 99]]), (_, m) => out.push(m));
+    return out;
+  };
+  for (const text of ['{ "area": {} }', 'not json', '{ "areas": [] }', '{ "areas": { "src": { "lines": "12" } } }',
+    '{ "areas": { "src": { "lines": 12, "reason": 3 } } }']) {
+    assert.match(bad(text)[0] ?? '', /it must be \{ "areas"/, text);
+  }
 });
