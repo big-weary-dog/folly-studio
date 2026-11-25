@@ -63,7 +63,7 @@ and applies it itself. The Studio shows it with the rest, and the generators' ca
 `upgrade(saved)` (optional) reads params saved for an earlier version of the module: the core hands it a copy of a
 module's saved params before resolving them, in a layer and in `use()`, and uses the object it returns (the saved
 params as they are if it throws or returns no object). A module whose params were renamed or re-ranged maps the old
-ones there, so a look that plays it from the library (a preset, the Pi following a look) plays as it did, with no
+ones there, so a look that plays it from the library (a preset) plays as it did, with no
 migration. Sparkle maps its old `mode`, `length`, `sharp` and `rate` so; bars and edge-fade a
 `round` direction (and bars an `orbit`). The sandbox reports each param `upgrade` changed as `[saved, upgraded]`
 (`upgraded`, SPEC "Sandbox protocol"), and the Settings panel shows the upgraded value, and writes it with the first
@@ -395,8 +395,8 @@ own buffer by `p.k` (their own output, fed back), not this one.
 
 `G` holds the look's globals for this frame (sealed; refreshed every frame): `bpm` (the look's tempo, 120 unset),
 `palette` (`{ name, low, body, accent, high }`, each a frozen list of `[r, g, b]`), and each macro's value by name
-(`G.storm`; `G.energy` on a look with an energy macro, SPEC "Globals"). Pattern `t` is show time (plus the offset a
-followed live engine gives, SPEC-live), as are clips, automation and LFOs.
+(`G.storm`; `G.energy` on a look with an energy macro, SPEC "Globals"). Pattern `t` is show time, as are clips,
+automation and LFOs.
 
 ## Param bindings
 

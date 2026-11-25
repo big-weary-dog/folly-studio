@@ -12,8 +12,6 @@ import { ideaHowRoutes } from './api-idea-how.ts';
 import { ideaLogRoutes } from './api-idea-log.ts';
 import { lightRoutes } from './api-light.ts';
 import { bakingRoutes } from './baking.ts';
-import { lightsRoutes } from './lights.ts';
-import { piBundleRoutes } from './pi-bundle.ts';
 import { reportRoutes } from './api-reports.ts';
 import { tourRoutes } from './api-tour.ts';
 import { lookRoutes } from './api-looks.ts';
@@ -27,14 +25,10 @@ import { type IdeaLogs, ownerOutcome } from './generate/idea-log.ts';
 import type { Registry } from './generate/models.ts';
 import type { LightStore } from './light.ts';
 import type { Reports } from './reports/store.ts';
-import type { Hub } from './live/hub.ts';
 import type { createPreviews } from './previews/index.ts';
-import { liveRoutes } from './live/routes.ts';
 import { adminsDeclared, checkMutation, HttpError, type Log, type Logger, parse, routes, sendJson } from './http.ts';
-import type { LiveSettings } from '../shared/schemas/live.ts';
 import { cannot, TRANSPORT_CAPS } from '../shared/schemas/models.ts';
 import type { createLoaders } from './static.ts';
-import { generates, type Profile } from './profile.ts';
 import type { Store } from './store.ts';
 
 /** How long GET /api/ideas/:id?wait= holds an unchanged idea, and how many such waits one user may have open. */
@@ -73,16 +67,14 @@ export const newestBy = (field: string) => (a: Record<string, unknown>, b: Recor
 export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: Registry | null, log: Log,
   loaders: ReturnType<typeof createLoaders>, access: AccessControl, framesDir: string,
   bakes: ReturnType<typeof createBakeQueue>, frames: ReturnType<typeof createFramesCache>, secureCookies?: boolean,
-  rateLimit?: { max?: number, ipMax?: number, guestMax?: number, windowMs?: number }, flash: FlashSettings, hub: Hub,
-  live: LiveSettings, ideaLogs: IdeaLogs, previews?: ReturnType<typeof createPreviews>, reports: Reports,
-  build: string, tail: () => unknown[], light: LightStore, profile?: Profile, piBundle?: string,
+  rateLimit?: { max?: number, ipMax?: number, guestMax?: number, windowMs?: number }, flash: FlashSettings,
+  ideaLogs: IdeaLogs, previews?: ReturnType<typeof createPreviews>, reports: Reports,
+  build: string, tail: () => unknown[], light: LightStore,
   baking?: Parameters<typeof bakingRoutes>[0], stats?: Parameters<typeof routes>[1],
-  codeGate?: Parameters<typeof lookRoutes>[0]['codeGate'],
-  lights?: Pick<Parameters<typeof lightsRoutes>[0], 'store' | 'feed' | 'hub' | 'drive'> }) {
+  codeGate?: Parameters<typeof lookRoutes>[0]['codeGate'] }) {
   const { store, auth, queue, models, loaders, log, access } = o;
   const { bakes, framesDir, frames, secureCookies = false, flash } = o;
   const limits = { max: 10, ipMax: 100, guestMax: 10, windowMs: 60_000, ...o.rateLimit };
-  const profile = o.profile ?? 'hosted', gen = generates(profile);
   return async (api: FastifyInstance) => {
     api.addHook('onRequest', checkMutation);
     api.addHook('onRoute', adminsDeclared);
@@ -112,7 +104,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       auth.logout(req.cookies[COOKIE_NAME]);
       reply.setCookie(COOKIE_NAME, auth.createSession(user),
         cookie((user.guest ? GUEST_TTL_MS : SESSION_TTL_MS) / 1000)).code(status);
-      return { user: auth.publicUser(user), flash, profile };
+      return { user: auth.publicUser(user), flash };
     };
     const cookie = (maxAge: number) => ({ httpOnly: true, sameSite: 'lax' as const, path: '/', maxAge,
       secure: secureCookies });
@@ -148,7 +140,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       reply.raw.once('close', wake); // the client went away
     });
 
-    // Ideas, refinements and their undo (SPEC-generators); none on the Pi (SPEC-offline).
+    // Ideas, refinements and their undo (SPEC-generators); none without the AI.
     const ideaRoutes: Parameters<typeof routes>[1] = models ? {
       'GET /ideas': async (req) => ({ ideas: store.ideas.list((i) => i.owner === req.user!.id).reverse()
         .sort(newestBy('createdAt')).map(forOwner) }),
@@ -210,7 +202,6 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       },
     } : {};
     const reports = reportRoutes(api, { reports: o.reports, build: o.build, tail: o.tail });
-    await api.register(liveRoutes({ store, auth, hub: o.hub, settings: o.live, listed: looks.listed }));
     routes(api, {
       'POST /signup': [signIn(201, (req) => auth.signup(parse(Signup, req.body))), { public: true }],
       'POST /login': [signIn(200, (req) => auth.login(Login.parse(req.body))), { public: true }],
@@ -229,19 +220,15 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
       }, { public: true }],
       ...tourRoutes({ store }),
       'GET /me': async (req) => ({ user: auth.publicUser(req.user), flash,
-        ...(gen && !req.user!.guest ? { access: access.state(req.user!) } : {}), profile }),
-      ...(gen && models ? { ...ideaRoutes, ...modelRoutes({ auth, models, access }),
+        ...(!req.user!.guest ? { access: access.state(req.user!) } : {}) }),
+      ...(models ? { ...ideaRoutes, ...modelRoutes({ auth, models, access }),
         ...ideaLogRoutes({ logs: o.ideaLogs }),
         ...ideaHowRoutes({ store, auth, logs: o.ideaLogs, forOwner }),
         ...accessRoutes(api, { access, store }) } : {}),
       ...lightRoutes({ light: o.light }),
       ...(o.baking ? bakingRoutes(o.baking) : {}),
       ...o.stats,
-      ...(o.lights ? lightsRoutes({ ...o.lights, curate: (u) => auth.can(u, 'curate'), loadLibrary: loaders.loadLibrary,
-        visibleLook: looks.visibleLook, looksIn: looks.looksIn, listed: looks.listed })
-        : {}),
       ...reports,
-      ...piBundleRoutes({ file: o.piBundle }),
       ...looks.routes,
       ...framesRoutes({ framesDir, cache: frames, visibleLook: looks.visibleLook }),
       'GET /library': [async () => ({ patterns: loaders.loadLibrary()

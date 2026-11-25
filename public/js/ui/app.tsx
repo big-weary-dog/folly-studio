@@ -14,7 +14,7 @@ import { Rose } from './rose.tsx';
 import { openTour, welcomeOnce } from './tour-view.ts';
 import { redeemInvite, takeInvite } from './invite.ts';
 import { enterInvite } from './invite-form.tsx';
-import { ai, here, home, invitable, leaveGuard, navigate, onPi, router, setTitle, signedIn, user, type ViewProps }
+import { ai, here, home, invitable, leaveGuard, navigate, router, setTitle, signedIn, user, type ViewProps }
   from './session.ts';
 
 interface Route {
@@ -40,10 +40,6 @@ const ROUTES: Route[] = [
     load: () => pages().then((m) => m.Looks) },
   { re: /^\/gallery\/?$/, name: 'gallery', title: 'Gallery', nav: '/gallery', scope: 'gallery',
     load: () => pages().then((m) => m.Looks) },
-  { re: /^\/live\/?$/, name: 'live', title: 'Live', nav: '/live',
-    load: () => import('./live/live.tsx').then((m) => m.LivePage) },
-  { re: /^\/live\/control\/?$/, name: 'live-control', title: 'Live control', nav: '/live',
-    load: () => import('./live/control.tsx').then((m) => m.ControlPage) },
   { re: /^\/admin\/models\/?$/, name: 'models', title: 'Models', nav: '/admin',
     load: adminTab('models', () => import('./models.tsx').then((m) => m.Models)) },
   { re: /^\/admin\/access\/?$/, name: 'access', title: 'Access', nav: '/admin',
@@ -56,22 +52,17 @@ const ROUTES: Route[] = [
     load: adminTab('reports', () => import('./reports.tsx').then((m) => m.ReportsPage)) },
   { re: /^\/admin\/stats\/?$/, name: 'stats', title: 'Stats', nav: '/admin',
     load: adminTab('stats', () => import('./stats.tsx').then((m) => m.StatsPage)) },
-  { re: /^\/admin\/pi-bundle\/?$/, name: 'pi-bundle', title: 'Pi bundle', nav: '/admin',
-    load: adminTab('pi-bundle', () => import('./pi-bundle.tsx').then((m) => m.PiBundlePage)) },
 ];
 
 /** Where to go after signing in: `next` when it is a page of this app, else home. */
 export const safeNext = (next: string | null) => (next && next.startsWith('/') && !next.startsWith('//')
   && !next.startsWith('/login') ? next : home());
-/** On the Pi (SPEC-offline), the pages of what it does not run lead elsewhere. */
-const PI_MOVED: Record<string, string> = { '/admin': '/admin/light', '/admin/models': '/admin/light',
-  '/admin/access': '/admin/light' };
 
 /** Where a path leads: a redirect, or a route and its params. */
 export function resolve(path: string, search: string, signedIn: boolean):
   { redirect: string } | { route: Route; params: Record<string, string> } {
   if (path === '/' || path === '') return { redirect: signedIn ? home() : '/login' };
-  const bare = path.replace(/\/$/, ''), moved = (onPi() && PI_MOVED[bare]) || MOVED[bare];
+  const bare = path.replace(/\/$/, ''), moved = MOVED[bare];
   if (moved) return { redirect: moved + search };
   if (signedIn && !ai.value && bare.startsWith('/ideas')) return { redirect: home() };   // no AI, no Ideas
   for (const route of ROUTES) {
@@ -130,16 +121,11 @@ async function logout() {
   navigate('/login', { force: true, replace: true });
 }
 
-const NAV = [['/ideas', 'Ideas'], ['/studio', 'Studio'], ['/looks', 'My looks'], ['/gallery', 'Gallery'],
-  ['/live', 'Live']];
+const NAV = [['/ideas', 'Ideas'], ['/studio', 'Studio'], ['/looks', 'My looks'], ['/gallery', 'Gallery']];
 const ADMIN_NAV = [...NAV, ['/admin', 'Admin']];
-/** The header's links: no Ideas without the AI, no My looks for a guest; on the Pi, curators have the engine's
- * control page (SPEC-offline). */
-function navOf(me: User) {
-  const nav = (can(me, 'admin') ? ADMIN_NAV : NAV)
-    .filter(([href]) => (ai.value || href !== '/ideas') && !(me.guest && href === '/looks'));
-  return onPi() && can(me, 'curate') ? [...nav, ['/pi/', 'Lights']] : nav;
-}
+/** The header's links: no Ideas without the AI, no My looks for a guest. */
+const navOf = (me: User) => (can(me, 'admin') ? ADMIN_NAV : NAV)
+  .filter(([href]) => (ai.value || href !== '/ideas') && !(me.guest && href === '/looks'));
 
 /** The user menu drops under its button at a desktop's width; on a phone it sits open in the nav panel. */
 function placeUserMenu(e: { newState: string; currentTarget: HTMLElement }) {
@@ -175,7 +161,7 @@ function Header({ me, nav }: { me: User; nav?: string }) {
         if ((e.target as Element).closest('a, .btn')) setOpen(false);
       }}>
         <nav class="main-nav" aria-label="Main">
-          {navOf(me).map(([href, text]) => <a href={href} data-native={href === '/pi/' ? '' : undefined}
+          {navOf(me).map(([href, text]) => <a href={href}
             data-tour={`nav:${href.slice(1)}`} aria-current={nav === href ? 'page' : undefined}>{text}</a>)}
         </nav>
         <div class="user-box">
@@ -241,7 +227,7 @@ export async function boot() {
   } catch (err) {
     if (statusOf(err) !== 401 && statusOf(err) !== 403) toast((err as Error).message, { kind: 'error' });
   }
-  if (user.value && !onPi()) await redeemInvite();
+  if (user.value) await redeemInvite();
   document.body.classList.remove('booting');
   await show();
   welcomeOnce(user.value);

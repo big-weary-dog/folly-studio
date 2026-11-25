@@ -64,7 +64,7 @@ export const LookCreate = z.object({
   title: LookTitle, summary: Summary, layers: Layers, duration: Duration.optional(), globals: Globals.optional(),
   automation: z.unknown().optional(), bpm: Bpm.optional(), shared: bool('shared').default(false), chain: Chain,
   ideaId: z.string({ error: 'ideaId does not name one of your ideas.' }).nullish(),
-  /** An import's look, by its id where it was made (SPEC-offline "Look files"). */
+  /** An import's look, by its id where it was made (SPEC-looks "Look files"). */
   origin: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/, { error: 'origin is not a look id.' }).optional(),
 });
 const NAME = 'A version\'s name is 1–80 characters.';

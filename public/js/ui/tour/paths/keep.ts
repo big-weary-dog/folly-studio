@@ -1,4 +1,4 @@
-// Keep it, Rose and arches' last chapter: an idea tried and undone, save, and Live.
+// Keep it, Rose and arches' last chapter: an idea tried and undone, and save.
 import { type Ctx, layerBy, on, type Path } from '../types.ts';
 
 export const guestKeep = {
@@ -15,8 +15,8 @@ const spread = (c: Ctx) => {
 };
 
 export const keep: Path = {
-  id: 'keep', title: 'Keep it, show it', start: '/studio?tour=keep',
-  about: 'Undo, save and Live.',
+  id: 'keep', title: 'Keep it', start: '/studio?tour=keep',
+  about: 'Undo and save.',
   steps: [
     { id: 'try', page: '/studio', title: 'Try an idea',
       text: 'Every edit is kept in History, so trying is safe. Click Arches, open Plays on and tick the whole '
@@ -30,8 +30,5 @@ export const keep: Path = {
     { id: 'save', page: '/studio', title: 'Save',
       text: 'Save keeps Rose and arches in My looks as your own. Click Save.',
       anchor: ['save'], done: ({ v }) => !!v?.lookId.value && !v.dirty.value },
-    { id: 'live', title: 'Live',
-      text: 'Live is what the Folly plays now, and what is lined up next. Open it.',
-      anchor: ['nav:live'], done: ({ page }) => page.startsWith('/live'), next: true },
   ],
 };

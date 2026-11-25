@@ -71,8 +71,8 @@ Playa; the view's LEDs button is Points):
 
 Both modes show light, through one preview transform (`previewChannels`, core/light.ts), applied once before either
 draws: each value's light on the LEDs (`v^gamma` × `balance`, unquantised; off where the LEDs round to off; the
-`floor`; no trims), through the `calibration`, × the `gain` × a highlight's dim outside it, all linear as the Pi's
-master is, × `exposure` (full drive's screen light).
+`floor`; no trims), through the `calibration`, × the `gain` × a highlight's dim outside it, all linear as Export's
+Brightness is, × `exposure` (full drive's screen light).
 The views encode light to sRGB for the screen with one encode; an unlit LED's faint ghost never shows under a lit one.
 
 - **Points** (LEDs): every LED a glowing sprite over a ground grid, the sprite's peak its light, overlapping sprites
@@ -91,7 +91,7 @@ The views encode light to sRGB for the screen with one encode; an unlit LED's fa
 
 **Venue** (`data/venue.json`, `setVenue(venue)`, `showVenue(on)`): scenery round the rig, drawn in both modes, dim,
 unlit (a shade per face) and hazed with distance, so the LEDs stay the star. Never LEDs: no channels, no pixels, groups
-or tags; the core, bakes, exports, fseq and the Pi never read it. It shows only when its `rig` is the rig's `name`.
+or tags; the core, bakes, exports and fseq never read it. It shows only when its `rig` is the rig's `name`.
 Metres in the rig's axes and origin: `boxes` (`min`, `max`, linear `color`; `faces`, a subset of `front`, `back`,
 `left`, `right`, `top`, `bottom`, draws only those, so a wall is one plane facing the courtyard that a camera outside
 sees through; `windows`: a `bay` × `storey` grid of `size` windows from `from` metres up, `rows` high, a `lit`
@@ -110,19 +110,17 @@ How a colour value becomes light (docs/LIGHT.md has the why and every number):
   blur work in light, at a fixed `v^2.2` (not the Light gamma), and colour fades in OKLab, from that light.
 - **The LEDs give linear light.** One output transform turns a value into an output byte, in float, then rounds:
   `byte = round(255 · min(1, v^gamma · balance[colour] · trim[LED] · cap))`, then a lit channel never below `floor`.
-  The Falcon's own gamma is None, so this is the only curve. Export's .fseq and the Pi use it; bakes and the preview
+  The Falcon's own gamma is None, so this is the only curve. Export's .fseq uses it; bakes and the preview
   keep the encoded values (`toChannels`), and the bake checks decode those bytes through the same curve (`ledLight`).
-- **Caps are linear and come after the curve**: the Pi's master, blackout and fade, Export's Brightness and each
+- **Caps are linear and come after the curve**: Export's Brightness and each
   group's `trim` scale light, as WLED's and FPP's brightness do, so dimming never shifts a colour's hue.
 - **The checks judge the look at full output**: `gamma`, `balance` and `floor`, never the caps.
   A bake is judged at the settings in force when it is checked. A new gamma changes no baked frame (they are
   values), so every bake still plays, through the new curve; its report keeps the old gamma's numbers until a rebake.
 
 The light settings, `shared/schemas/light.ts`, are stored once: `<STUDIO_DATA>/light.json`, written by the Light page
-(Admin) and read by Export, the bake checks, the previews and the Pi (its `light` setting: on the Pi, Studio's own
-`light.json`; elsewhere `pi/light.json`, the Light page's "Download for the Pi"). The Pi re-reads it when it changes,
-so a saved gamma reaches the LEDs within seconds. The page edits `gamma`, `calibration` and `preview`; the other
-output fields change by hand.
+(Admin) and read by Export, the bake checks and the previews. The page edits `gamma`, `calibration` and `preview`;
+the other output fields change by hand.
 Missing, unreadable or out of range, each field is its default:
 
 ```

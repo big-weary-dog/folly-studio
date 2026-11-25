@@ -180,7 +180,7 @@ for (const height of [768, 660]) {
 
     for (const [title, id, play] of [['From an idea', 'idea', playIdea], ['Modules and colour', 'modules', playModules],
       ['Layers and chains', 'layers', playLayers], ['Time', 'time', playTime], ['Values that move', 'moves', playMoves],
-      ['Keep it, show it', 'keep', playKeep]]) {
+      ['Keep it', 'keep', playKeep]]) {
       test(title, async ({ page, studio }, info) => {
         const errors = [];
         page.on('pageerror', (e) => errors.push(String(e)));

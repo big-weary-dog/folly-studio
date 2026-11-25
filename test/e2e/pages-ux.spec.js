@@ -63,14 +63,14 @@ for (const width of [1366, 390, 360]) {
       const gamma = page.getByRole('spinbutton', { name: 'Output gamma' });
       await gamma.fill('1.5');
       await gamma.press('Enter');
-      await expect(page.getByRole('button', { name: 'Download for the Pi' })).toBeDisabled();
+      await expect(page.getByRole('button', { name: 'Download light.json' })).toBeDisabled();
       await shot(page, 'light-draft');
       await page.locator('.admin-tabs a[data-tab=models]').click();
       await expect(leave).toBeVisible();
       await leave.getByRole('button', { name: 'Cancel' }).click();
       await expect(gamma).toHaveValue(/^1\.50/);
       await page.getByRole('button', { name: 'Revert', exact: true }).click();
-      await expect(page.getByRole('button', { name: 'Download for the Pi' })).toBeEnabled();
+      await expect(page.getByRole('button', { name: 'Download light.json' })).toBeEnabled();
     });
 
     test('accounts learn about invites; guests and signed-out visitors cannot enter an unsendable report',
@@ -126,15 +126,13 @@ for (const width of [1366, 390, 360]) {
         if (width === 1366) {
           await menu(page);
           await tutorials.click();
-          await page.getByRole('button', { name: /Keep it, show it/ }).click();
+          await page.getByRole('button', { name: /^Keep it/ }).click();
           const card = page.locator('.tour-step');
           await card.getByRole('button', { name: /^(Skip step|Next)$/, disabled: false }).click();
           await card.getByRole('button', { name: /^(Skip step|Next)$/, disabled: false }).click();
           await expect(card).toContainText('Your work stays in this browser');
           await expect(card.getByRole('button', { name: 'Next', exact: true })).toBeEnabled();
           await shot(page, 'guest-keep');
-          await card.getByRole('button', { name: 'Next', exact: true }).click();
-          await expect(card).toContainText('Live');
         }
       });
   });

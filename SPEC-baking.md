@@ -58,6 +58,7 @@ checked. So tuning params, restoring a version and copying a gallery look go on 
 its repair rounds see ("compose from the library alone"). The Studio's code editor is read-only while it is off and
 says why. Pickers omit blank-code entries and explain the restriction. Looks already saved play and bake as before.
 On saving or importing, exact historical copies of patterns still in the library move to its current code,
-keeping their params for the library's upgrade hooks. This lets imported looks play and bake on a library-only Pi.
+keeping their params for the library's upgrade hooks. This lets imported looks play and bake on a
+library-only box.
 The catalogue is rebuilt with `node tools/pattern-history.ts` from the indexed library files in committed history;
 it contains hashes only, never executable code. It does not extend the render box's library-only allowlist.

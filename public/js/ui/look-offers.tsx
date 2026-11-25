@@ -10,7 +10,7 @@ function active(modules: Module[]): Module[] {
     ...(m.layers ?? []).filter((l) => l.enabled !== false).flatMap((l) => active(l.modules))]);
 }
 
-export function offersOf(look: Pick<Studio['look']['value'], 'globals' | 'layers'>,
+function offersOf(look: Pick<Studio['look']['value'], 'globals' | 'layers'>,
   schemaFor: (layer: string, module: Module) => Record<string, unknown> | null) {
   const g = look.globals;
   const faders = g?.live ?? Object.entries(g?.macros ?? {}).filter(([, m]) => !m.mod).map(([name]) => name);

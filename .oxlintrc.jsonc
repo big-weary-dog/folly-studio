@@ -5,8 +5,6 @@
   "plugins": ["eslint", "typescript", "unicorn", "oxc", "vitest"],
   "categories": { "correctness": "error", "suspicious": "error" },
   "options": { "reportUnusedDisableDirectives": "error" },
-  // The Pi's control page as built (committed: the Pi installs no Vite).
-  "ignorePatterns": ["pi/page/dist/**"],
   "rules": {
     "max-lines": ["error", { "max": 400 }],
     "no-eval": "error",
@@ -32,24 +30,6 @@
     "unicorn/require-post-message-target-origin": "off"  // every postMessage goes to a Worker or a port
   },
   "overrides": [
-    {
-      // The engine uses Node and the pure browser core, never page UI or code generation.
-      "files": ["pi/src/**"],
-      "rules": {
-        "no-restricted-imports": ["error", {
-          "paths": [
-            { "name": "node:vm", "message": "code generation lives only in the pattern compiler and the render box" },
-            { "name": "node:child_process", "message": "processes only box untrusted work" }
-          ],
-          "patterns": [
-            { "group": ["**/public/**", "!**/public/js/pattern-core.*", "!**/public/js/core/**",
-              "!**/public/js/flash-guard.*", "!**/public/js/fseq.*", "!**/public/js/scrub.*",
-              "!**/public/**/*.json"], "message": "Pi code takes only the pure core, flash guard, fseq, scrub and data from public/" },
-            { "group": ["**/page/**"], "message": "Pi engine code does not import its browser page" }
-          ]
-        }]
-      }
-    },
     {
       "files": ["src/**", "server.ts"],
       "rules": {
@@ -174,10 +154,10 @@
         { "name": "node:child_process", "message": "processes only box untrusted work" }
       ] }] }
     },
-    { "files": ["tools/**", "pi/tools/**"], "rules": { "no-restricted-imports": "off" } },
+    { "files": ["tools/**"], "rules": { "no-restricted-imports": "off" } },
     {
       // Tests may run code and processes; they are outside the capability rules.
-      "files": ["test/**", "pi/test/**"],
+      "files": ["test/**"],
       "rules": {
         "max-lines": ["error", { "max": 600 }],
         "no-restricted-imports": "off", "no-eval": "off", "no-new-func": "off", "no-implied-eval": "off",
