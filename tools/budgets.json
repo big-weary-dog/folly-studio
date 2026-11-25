@@ -1,17 +1,17 @@
 {
   "about": "Lines of code (js, mjs, ts, css, html, py) per area, with ~3% slack: tools/budgets.ts. An area over its budget fails lint; raise a budget only with a new reason describing its current contents and size.",
   "areas": {
-    ".": { "lines": 172, "reason": "The root holds the server entry point and the Vite, Vitest and Playwright configurations." },
+    ".": { "lines": 195, "reason": "The root holds the server entry point and the Vite, Vitest and Playwright configurations; Vitest sizes its forks to the memory its cgroups leave." },
     "fleet-box": { "lines": 260, "reason": "The boxed checker validates generated looks against the library, rig, module chains and light settings." },
-    "pi": { "lines": 6065, "reason": "Live crossfades table the output gamma with byte-error coverage and warm the actual playing instance, alongside controls, playback and flash guard." },
+    "pi": { "lines": 6075, "reason": "Live crossfades table the output gamma with byte-error coverage and warm the actual playing instance, alongside controls, playback and flash guard; the controls matrix runs in eight files side by side." },
     "public": { "lines": 56, "reason": "The app and sandbox HTML shells load their browser entry points." },
     "public/css": { "lines": 2460, "reason": "Creator opt-in rows and Live Play role swatches join responsive Studio, phone disclosures, navigation and full-size tap targets." },
     "public/js": { "lines": 18880, "reason": "The browser loads the rig the server names (the Folly or City of Gods), beside prepared blur kernels, flat nearest-LED cells and integrated clocks cached within a frame." },
     "public/patterns": { "lines": 1885, "reason": "Streaks tables per-lane random values and Chase tables common strand ids in frame(), retaining exact fallback calculations outside the tables." },
     "render-box": { "lines": 260, "reason": "Parent PID checks stop orphaned library-only bakes between frames, alongside deterministic IDs and streaming FSEQ output." },
     "shared": { "lines": 1616, "reason": "Shared schemas and pure rules define looks, generated compositions, API data, permissions and playback." },
-    "src": { "lines": 10410, "reason": "The server picks its rig from one setting (the Folly, or City of Gods on the Pi), reads historical library fingerprints and upgrades exact saved copies for Pi imports." },
-    "test": { "lines": 25410, "reason": "A rig switch fails foreign bakes and remakes previews, and the wire model fetches only the named rig, beside vampire palette and historical library import coverage." },
+    "src": { "lines": 10410, "reason": "The server picks its rig from one setting (the Folly by default, or City of Gods), reads historical library fingerprints and upgrades exact saved copies for Pi imports." },
+    "test": { "lines": 25470, "reason": "A rig switch fails foreign bakes and remakes previews, and the wire model fetches only the named rig; the browser checks build the app once per run and wait on drawn frames, beside palette and library import coverage." },
     "tools": { "lines": 2380, "reason": "Tools build and check rig and palette data, check the Pi bundle holds nothing secret, enforce budgets, support development and backups, and benchmark rendering." }
   }
 }
