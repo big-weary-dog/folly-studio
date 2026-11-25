@@ -203,6 +203,23 @@ describe('sending', () => {
     assert.equal(sender.streams[0].free.length, 1, 'a failed packet still goes back to its pool');
   });
 
+  test('drained() waits for every send, so an error that comes late is still counted', async () => {
+    const sends = [];
+    const socket = { send: (...args) => sends.push(args.at(-1)) };
+    const sender = new SacnSender({ socket, cid: CID, universes: [1, 1] });
+    await sender.drained();
+    sender.send(patternFrame());
+    sender.terminate(patternFrame());
+    let done = false;
+    const drained = sender.drained().then(() => { done = true; });
+    for (const cb of sends.slice(0, -1)) cb(null);
+    await Promise.resolve();
+    assert.equal(done, false, 'one packet still out');
+    sends.at(-1)(new Error('ENOTFOUND'));
+    await drained;
+    assert.deepEqual([sender.failed, sender.error], [1, 'ENOTFOUND']);
+  });
+
   test('play: once through then terminate, or hold one frame', async () => {
     const data = Uint8Array.from({ length: 24 }, (_, i) => i);
     const show = readShow(writeFseq({ channelCount: 6, frames: 4, data }));

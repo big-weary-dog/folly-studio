@@ -150,6 +150,7 @@ export function readShow(bytes: Uint8Array, { maxDataBytes = 2 ** 31 - 1, minCha
 export class SacnSender {
   packets = 0; frames = 0;
   failed = 0; error = ''; // packets the socket could not send, and the first one's error
+  #sending = 0; #drained: (() => void)[] = [];
   streams: { universe: number, sequence: number, to: string, template: Buffer, free: Buffer[] }[] = [];
   socket: Pick<dgram.Socket, 'send'>; port: number; cpu: number;
   constructor({ socket, host = '127.0.0.1', port = E131.PORT, multicast = false, cid, name, priority = 100,
@@ -172,9 +173,11 @@ export class SacnSender {
       p[E131.SEQUENCE] = s.sequence;
       p[E131.OPTIONS] = options;
       s.sequence = (s.sequence + 1) & 0xff;
+      this.#sending++;
       this.socket.send(p, 0, E131.LENGTH, this.port, s.to, (err) => {
         s.free.push(p);
         if (err) { this.failed++; this.error ||= err.message; }
+        if (!--this.#sending) for (const done of this.#drained.splice(0)) done();
       });
       this.packets++;
     }
@@ -184,6 +187,11 @@ export class SacnSender {
   send(frame: Uint8Array) {
     this.#emit(frame, 0);
     this.frames++;
+  }
+
+  /** Resolves once every packet sent so far has left or failed. */
+  drained() {
+    return this.#sending ? new Promise<void>((resolve) => this.#drained.push(resolve)) : Promise.resolve();
   }
 
   /** E1.31 §6.7.1: three packets with Stream_Terminated set end each stream at once. */
@@ -312,7 +320,7 @@ async function main() {
   const run = play(show, sender, { ...o, onTick });
   for (const sig of ['SIGINT', 'SIGTERM']) process.once(sig, () => run.stop());
   const r = await run.done;
-  await new Promise((resolve) => setTimeout(resolve, 50)); // let the terminate packets leave
+  await sender.drained(); // the terminate packets, and every send's error, before reporting
   socket.close();
   if (!o.quiet) process.stderr.write('\n');
   console.log(`sacn-play: sent ${r.frames} frames, ${r.packets} packets, dropped ${r.dropped}`);
