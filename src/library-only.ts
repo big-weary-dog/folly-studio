@@ -2,6 +2,7 @@
 // earlier file of a library entry, retired ones too, the one its `ref` names, else the one whose file it is. A look or
 // version with any other module is dropped; the rest move to the current library (a retired pattern's copy stays as
 // it is), each module naming its entry.
+import { layersHash, renderFields } from './bake.ts';
 import type { libraryFiles } from './library-history.ts';
 import { sha256 } from './library-history.ts';
 
@@ -53,6 +54,7 @@ function codes(layers: unknown): unknown[] {
   const one = (m: unknown) => (isNode(m) && Array.isArray(m.layers) ? codes(m.layers) : [isNode(m) ? m.code : null]);
   return layers.flatMap((l) => (!isNode(l) ? [] : Array.isArray(l.modules) ? l.modules.flatMap(one) : [l.code]));
 }
+const hashOf = (look: Node) => layersHash(renderFields(look as Parameters<typeof renderFields>[0]));
 const plays = (a: unknown, b: unknown) => JSON.stringify(codes(a)) !== JSON.stringify(codes(b));
 
 /**
@@ -77,6 +79,8 @@ export function libraryOnly(library: Library, stored: readonly Node[]) {
       const { bake: _b, reviewedBy: _r, flashOverride: _f, ...fresh } = out;
       out = { ...fresh, reviewed: false };
       rebaked.push(who.look);
+    } else if (isNode(look.bake) && look.bake.layersHash === hashOf(look)) {
+      out.bake = { ...look.bake, layersHash: hashOf(out) }; // refs named: the same frames, so the bake holds
     }
     if (Array.isArray(look.versions)) {
       const numbered = look.versions.map((v: unknown, i): Node | null => (isNode(v)

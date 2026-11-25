@@ -7,6 +7,7 @@ import path from 'node:path';
 
 import { beforeEach, test } from 'vitest';
 
+import { layersHash, renderFields } from '../src/bake.ts';
 import { MARKER, migrateLibraryOnly } from '../src/library-only-data.ts';
 import { lockDataDir } from '../src/store-lock.ts';
 import { fx, quiet, startApp, useFixture } from './fixtures/server.js';
@@ -79,11 +80,15 @@ test('a look whose code moved loses its bake, frames and review; the look keeps 
     look('moved', [mod(OLD_WAVE, { ref: 'wave' })], { ...reviewed,
       versions: [v(OLD_WAVE, { reviewed: { by: 'cat' } }), v(WAVE, { reviewed: { by: 'cat' } }), v(CUSTOM)] }),
     look('same', [mod(WAVE, { ref: 'wave' })], reviewed),
+    look('named', [mod(WAVE)], { ...reviewed, bake: { status: 'done',
+      layersHash: layersHash(renderFields(look('', [mod(WAVE)]))) } }),
   ]);
   for (const id of ['moved', 'same']) writeFileSync(path.join(dataDir, 'frames', `${id}.fseq`), 'x');
   const r = await run();
   assert.deepEqual(r.dropped.map((d) => [d.look, d.version]), [['moved', 3]]);
-  const [moved, same] = read('looks');
+  const [moved, same, named] = read('looks');
+  assert.equal(named.bake.layersHash, layersHash(renderFields(named)), 'naming the ref keeps the bake');
+  assert.equal(named.reviewed, true);
   assert.deepEqual([moved.bake, moved.reviewed, moved.reviewedBy, moved.flashOverride], [undefined, false,
     undefined, undefined]);
   assert.deepEqual(moved.versions.map((x) => [x.n, x.reviewed]), [[1, undefined], [2, { by: 'cat' }]]);
