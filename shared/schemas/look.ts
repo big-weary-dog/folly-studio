@@ -16,10 +16,9 @@ export {
 } from '../../core/pattern-core.ts';
 export const MAX_LAYERS = 8;
 export const MAX_MODULES = 8;
-export const TAG = /^[a-z0-9-]{1,32}$/;   // a rig group's tag (SPEC "Rig")
+const TAG = /^[a-z0-9-]{1,32}$/;   // a rig group's tag (SPEC "Rig")
 export const ID = /^[A-Za-z0-9_.:-]{1,64}$/;
 export const HEX = /^#[0-9a-f]{6}$/i;
-export const PALETTE_NAMES: readonly string[] = Object.freeze(PALETTES.palettes.map((p) => p.name));
 /** A global's or a macro's range. */
 export type Range = { min: number, max: number };
 
@@ -96,7 +95,7 @@ const PickObject = z.strictObject({ pick: PickText, blend: oneOf('blend', ['step
   range: z.tuple([unit, unit]).optional(), rotate: z.union([unit, Binding]).optional() });
 export const Pick = z.union([PickText, PickObject]);
 /** A picture param's value (spec/library "Pictures"), held to the core's limits. */
-export const PictureValue = z.custom<Picture>((v) => !pictureProblem(v), { error: 'is not a picture.' });
+const PictureValue = z.custom<Picture>((v) => !pictureProblem(v), { error: 'is not a picture.' });
 const ParamValue = z.union([z.number(), z.boolean(), z.string().max(256), z.array(z.number()).max(16), Binding,
   PickObject, PictureValue]);
 /** Param overrides: values (numbers, toggles, colours as picks, '#hex' or [r, g, b]), bindings or pictures. */

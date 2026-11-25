@@ -5,23 +5,18 @@
 // hung, and starts a fresh worker with the others.
 import { extrasOf } from '../../shared/plays.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
-import type { Extra, FrameError, ToSandbox } from './runtime.ts';
+import type { Extra, ToSandbox } from './runtime.ts';
+import {
+  compiledReport, enabled, frameAnswer, frameErrors, type FromWorker, type Layer, type Paused, renderedAnswer, text,
+} from './sandbox-messages.ts';
 import { openProber } from './sandbox-probe.ts';
 
-type Layer = Extract<ToSandbox, { type: 'look' }>['layers'][number];
 /** A request to the worker, as the relay tracks it: `at` is when the worker started on it. */
 type Job = { at: number; overdue?: boolean; internal?: boolean; answered?: boolean; seq?: number; look?: Layer[];
   answerBy?: number } & ({ type: 'init'; msg: object } | { type: 'look'; layers: Layer[]; extra: Extra;
-  compiling?: string } | { type: 'frame'; seq: number; t: number; answerBy: number; msg: object }
+  compiling?: string } | { type: 'frame'; seq: number; t: number; answerBy: number }
   | { type: 'render'; seq: number; start: number; fps: number; done: number; sentDone: number; sentAt: number;
-    msg: object });
-/** What the worker says: pattern code shares its thread and can post too, so every field is checked. */
-type FromWorker = { type: 'ready' | 'compiled' | 'frame' | 'rendered' | 'progress' | 'compiling' | 'error';
-  id?: string; seq?: number; done?: number; layers?: unknown; rgb?: unknown; errors?: unknown; ms?: number;
-  layerMs?: unknown; channels?: unknown; frames?: number; channelCount?: number; request?: string; error?: unknown };
-type Reported = { id?: string; ok?: unknown; error?: unknown; params?: unknown; upgraded?: unknown; modules?: unknown };
-/** Why a layer is held back: it hung (until its code changes), or its top-level code did (`load`). */
-type Paused = { error: string; code?: string; params?: object; load?: true };
+    bytes: number; msg: object });
 
 const FRAME_BUDGET_MS = 1000;   // a frame (live or export) running longer than this has hung
 const LOOK_BUDGET_MS = 700;     // compiling a look's new code
@@ -61,6 +56,7 @@ export function openSandbox(send: (msg: object) => void): Sandbox {
   let closed = false;
   const prober = openProber(spawnWorker);
   const toApp = (msg: object) => { if (!closed) send(msg); };
+  const frameMsg = { type: 'frame', seq: 0, t: 0 };   // every frame request, filled in as it goes
 
   function close() {
     closed = true;
@@ -96,8 +92,6 @@ export function openSandbox(send: (msg: object) => void): Sandbox {
   const codeOf = (l: Layer) => (Array.isArray(l.modules)
     ? l.modules.map((m) => (m && typeof m.code === 'string' ? m.code : '')).join('\u0000')
     : typeof l.code === 'string' ? l.code : '');
-  const enabled = (l: Layer) => l.enabled !== false
-    && (typeof l.level === 'number' && Number.isFinite(l.level) ? l.level > 0 : true);
 
   /** Why a layer is held back from the worker, or null. */
   function paused(l: Layer): Paused | null {
@@ -106,6 +100,8 @@ export function openSandbox(send: (msg: object) => void): Sandbox {
     const h = hung.get(l.id);
     return h && h.code === codeOf(l) ? h : null;
   }
+  /** `paused`, or null while no layer is: a frame then skips the look. */
+  const pausedOf = () => (hung.size || loadHangs.size ? paused : null);
 
   function post(job: Job) {
     if (!worker) return;
@@ -113,8 +109,13 @@ export function openSandbox(send: (msg: object) => void): Sandbox {
       job.compiling = undefined;
       sentLook = job.layers;
       worker.postMessage({ type: 'look', layers: job.layers.filter((l) => !paused(l)), ...job.extra });
+    } else if (job.type === 'frame') {
+      job.look = sentLook;
+      frameMsg.seq = job.seq;
+      frameMsg.t = job.t;
+      worker.postMessage(frameMsg);   // cloned now, so the object is reused
     } else {
-      if (job.type === 'frame' || job.type === 'render') job.look = sentLook;
+      if (job.type === 'render') job.look = sentLook;
       worker.postMessage(job.msg);
     }
     if (!jobs.length) job.at = now();
@@ -145,12 +146,12 @@ export function openSandbox(send: (msg: object) => void): Sandbox {
         break;
       }
       case 'frame':
-        job = { type: 'frame', at: 0, seq: msg.seq, t: +msg.t || 0, answerBy: now() + ANSWER_MS,
-          msg: { type: 'frame', seq: msg.seq, t: +msg.t || 0 } };
+        job = { type: 'frame', at: 0, seq: msg.seq, t: +msg.t || 0, answerBy: now() + ANSWER_MS };
         break;
       case 'render':
         job = { type: 'render', at: 0, seq: msg.seq, start: +msg.start || 0, fps: +msg.fps > 0 ? +msg.fps : 40,
-          done: 0, sentDone: 0, sentAt: now(), msg };
+          done: 0, sentDone: 0, sentAt: now(), msg, bytes: Math.max(0, Math.floor(+msg.frames || 0))
+            * (rig ? rig.output.universes * rig.output.channelsPerUniverse : 0) };
         break;
       default:
         return;
@@ -165,7 +166,7 @@ export function openSandbox(send: (msg: object) => void): Sandbox {
     if (!job) return;
     switch (m.type) {
       case 'compiling':
-        if (job.type === 'look') job.compiling = m.id;
+        if (job.type === 'look' && typeof m.id === 'string') job.compiling = m.id;
         return;
       case 'progress':
         if (job.type !== 'render' || m.seq !== job.seq || !(Number(m.done) > job.done)) return;
@@ -194,60 +195,28 @@ export function openSandbox(send: (msg: object) => void): Sandbox {
       baseLook = job.layers;
       baseExtra = job.extra;
       for (const r of Array.isArray(m.layers) ? m.layers : []) {
-        if (r && r.ok && r.params && typeof r.params === 'object') schemas.set(r.id, r.params);
+        if (r && r.ok && typeof r.id === 'string' && r.params && typeof r.params === 'object') {
+          schemas.set(r.id, r.params);
+        }
       }
     }
     if (job.internal || job.answered) return;
     const fail = (error: string) => toApp({ type: 'error', seq: job.seq, request: job.type, error });
     if (m.type === 'ready') toApp({ type: 'ready' });
     else if (m.type === 'compiled' && job.type === 'look') {
-      toApp({ type: 'compiled', layers: compiledReport(job.layers, m.layers) });
-    }
-    else if (m.type === 'frame') {
-      const rgb = m.rgb instanceof Float32Array ? m.rgb : new Float32Array(count * 3);
-      toApp({ type: 'frame', seq: job.seq, rgb, errors: withPaused(m.errors, job.look), ms: Number(m.ms) || 0,
-        layerMs: m.layerMs });
-    } else if (m.type === 'rendered') {
-      if (!(m.channels instanceof Uint8Array)) return fail('The sandbox returned no channel data.');
-      toApp({ type: 'rendered', seq: job.seq, channels: m.channels, frames: m.frames, channelCount: m.channelCount,
-        errors: withPaused(m.errors, job.look) });
-    } else if (m.type === 'error') fail(String(m.error || 'error'));
-  }
-
-  /** The worker's report, plus paused layers in their places. */
-  function compiledReport(layers: Layer[], report: unknown) {
-    const byId = new Map(((Array.isArray(report) ? report : []) as Reported[]).filter((r) => r && typeof r === 'object')
-      .map((r) => [r.id, r] as const));
-    return layers.map((l) => {
-      const p = paused(l);
-      if (p && p.load) return { id: l.id, ok: false, error: p.error, params: {} };
-      if (p) return { id: l.id, ok: true, params: p.params || schemas.get(l.id) || {} };
-      const r = byId.get(l.id);
-      if (!r) return { id: l.id, ok: false, error: 'The sandbox did not report this layer.', params: {} };
-      return { id: l.id, ok: !!r.ok, params: r.params && typeof r.params === 'object' ? r.params : {},
-        modules: ((Array.isArray(r.modules) ? r.modules : []) as Reported[]).filter((x) => x && typeof x === 'object')
-          .map((x) => ({ id: x.id, ok: !!x.ok, params: x.params && typeof x.params === 'object' ? x.params : {},
-            ...(x.ok ? { upgraded: x.upgraded } : { error: String(x.error || 'error') }) })),
-        ...(r.ok ? {} : { error: String(r.error || 'error') }) };
-    });
-  }
-
-  /** Frame errors, plus one for each paused layer that would be playing. */
-  function withPaused(errors: unknown, look?: Layer[]): FrameError[] {
-    const out = (Array.isArray(errors) ? errors : []).filter((e) => e && typeof e === 'object')
-      .map((e) => (e.module == null ? { id: e.id, error: String(e.error) }
-        : { id: e.id, module: e.module, error: String(e.error) }));
-    for (const l of look || []) {
-      const p = enabled(l) && paused(l);
-      if (p && !out.some((e) => e.id === l.id)) out.push({ id: l.id, error: p.error });
-    }
-    return out;
+      toApp({ type: 'compiled', layers: compiledReport(job.layers, m.layers, pausedOf(), schemas) });
+    } else if (m.type === 'frame' && job.type === 'frame') {
+      toApp(frameAnswer(m, job.seq, count, job.look || [], pausedOf()));
+    } else if (m.type === 'rendered' && job.type === 'render') {
+      const answer = renderedAnswer(m, job.seq, job.bytes, job.look || [], pausedOf());
+      if (typeof answer === 'string') fail(answer); else toApp(answer);
+    } else if (m.type === 'error') fail(text(m.error));
   }
 
   function answerBlack(job: Job) {
     job.answered = true;
     const rgb = new Float32Array(count * 3);
-    toApp({ type: 'frame', seq: job.seq, rgb, errors: withPaused([], job.look || sentLook), ms: 0 });
+    toApp({ type: 'frame', seq: job.seq, rgb, errors: frameErrors([], job.look || sentLook, pausedOf()), ms: 0 });
   }
 
   function tickOn() {
@@ -267,7 +236,8 @@ export function openSandbox(send: (msg: object) => void): Sandbox {
       for (const j of held || []) if (j.answerBy) j.answerBy += gap;
       return;
     }
-    for (const j of [...jobs, ...held || []]) if (j.type === 'frame' && !j.answered && t > j.answerBy) answerBlack(j);
+    for (const j of jobs) if (j.type === 'frame' && !j.answered && t > j.answerBy) answerBlack(j);
+    for (const j of held || []) if (j.type === 'frame' && !j.answered && t > j.answerBy) answerBlack(j);
     const head = jobs[0];
     if (head && !held) {
       const budget = head.type === 'init' ? INIT_BUDGET_MS : head.type === 'look' ? LOOK_BUDGET_MS : FRAME_BUDGET_MS;

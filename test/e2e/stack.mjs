@@ -19,7 +19,7 @@ const SACN_PORT = 5568;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** True when something accepts TCP connections on 127.0.0.1:port. */
-export function listening(port) {
+function listening(port) {
   return new Promise((resolve) => {
     const s = net.connect({ port, host: '127.0.0.1' });
     s.once('connect', () => { s.destroy(); resolve(true); });

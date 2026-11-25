@@ -49,6 +49,7 @@ describe('compressed FSEQ', () => {
       assert.equal(h.blocks, 3);
       assert.equal(h.headerLength, 32 + 8 * 3 + 6 * RANGES.length, 'block index, then sparse ranges');
       assert.equal(h.offset % 4, 0);
+      assert.equal(h.b.readBigUInt64LE(24), 42n, "the baked file's uniqueId, so a bake downloads as the same bytes");
       assert.deepEqual(h.index.map(([frame]) => frame), [0, 80, 160], 'first frame of each block');
       assert.equal(h.index.reduce((n, [, len]) => n + len, 0), file.length - h.offset, 'then its compressed length');
       for (let i = 0, at = h.offset; i < 3; at += h.index[i++][1]) {

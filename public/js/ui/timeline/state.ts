@@ -13,7 +13,7 @@ import {
 } from './model.ts';
 
 const NAMES_W = 112;           // the layer-name column on a wide screen
-const MAX_PPS = 200;                  // pixels a second, fully zoomed in
+export const MAX_PPS = 200;                 // pixels a second, fully zoomed in
 const MAX_WIDTH = 120000;             // and never wider than this
 
 export function createTimeline(st: Studio, pv: Preview) {

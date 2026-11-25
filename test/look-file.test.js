@@ -2,8 +2,6 @@
 // real POST /api/looks as the importer's own, unshared looks, or overruling the one each came from (its origin); a
 // refused look or file is named, the rest go in.
 import assert from 'node:assert/strict';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test, vi } from 'vitest';
@@ -11,7 +9,7 @@ import { afterAll, beforeAll, describe, test, vi } from 'vitest';
 import { approvedOnly, createBody, fileText, fullLooks, importFiles, lookFile, looksIn, manyName } from
   '../public/js/ui/gallery/look-file.ts';
 import { signup } from './fixtures/app.js';
-import { layer, startApp, useFixture } from './fixtures/server.js';
+import { fx, layer, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 const file = (name, data) => ({ name, text: async () => (typeof data === 'string' ? data
@@ -21,7 +19,7 @@ describe('look files', () => {
   let app, ada, sea;
   const realFetch = fetch;
   beforeAll(async () => {
-    app = await startApp({ dataDir: mkdtempSync(path.join(tmpdir(), 'look-file-')) });
+    app = await startApp({ dataDir: path.join(fx.tmp, 'data-look-file') });
     ada = await signup(app, 'ada');
     sea = (await ada.post('/api/looks', { title: 'Sea', summary: 'Blue', chain: 2, layers: [layer()], bpm: 120 }))
       .json.look;

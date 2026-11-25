@@ -3,13 +3,13 @@
 import type { Look } from '../../../../shared/schemas/api.ts';
 import { api } from '../../api.ts';
 import type { ReportPage } from './bug-report.tsx';
+import { type Captured, parseCaptured } from './captured.ts';
 import { toast } from '../kit.tsx';
 import type { Preview } from '../studio/preview.ts';
 import type { Studio } from '../studio/store.ts';
 import type { createTimeline } from '../timeline/state.ts';
 
 type Timeline = ReturnType<typeof createTimeline>;
-type Captured = ReturnType<ReturnType<typeof studioReport>['read']>;
 
 export function studioReport(st: Studio, pv: Preview, tl: Timeline) {
   let was = false;
@@ -47,42 +47,40 @@ export function studioReport(st: Studio, pv: Preview, tl: Timeline) {
 /** A report's captured Studio: the draft as a new look to open, and how to set the editor as it was once open. */
 export async function loadReport(id: string) {
   const { report } = await api.bugReport(id);
-  const c = (report.sources as { studio?: Partial<Captured> } | undefined)?.studio;
-  if (!c?.draft) throw new Error('That report was not filed from the Studio.');
+  const c = parseCaptured((report.sources as { studio?: unknown } | undefined)?.studio);
+  if (!c) throw new Error('That report was not filed from the Studio.');
   const look = { ...c.draft, id: null, shared: false } as unknown as Look;
   return { look, apply: (st: Studio, pv: Preview, tl: Timeline) => apply(st, pv, tl, c, id) };
 }
 
-async function apply(st: Studio, pv: Preview, tl: Timeline, c: Partial<Captured>, id: string) {
+/** Sets what the report captured; what it did not (undefined) stays as it is. */
+const set = <T>(sig: { value: T }, v: T | undefined) => { if (v !== undefined) sig.value = v; };
+
+async function apply(st: Studio, pv: Preview, tl: Timeline, c: Captured, id: string) {
   st.server.value = null;
   const s = c.selection, lay = c.layout, clock = c.clock, p = c.preview;
-  if (s) {
-    st.selectedId.value = s.layer;
-    st.picked.value = s.picked ?? {};
-    st.muted.value = new Set(s.muted);
-    st.solo.value = new Set(s.solo);
-  }
-  if (lay) {      // as signals, not preferences: the admin's own layout is not changed
-    st.dock.value = lay.dock;
-    st.tab.value = lay.tab;
-    st.side.value = lay.side;
-    st.folded.value = lay.folded;
-  }
-  if (c.timeline) {
-    tl.sel.value = c.timeline.sel;
-    tl.fit.value = c.timeline.fit;
-    tl.zoomPps.value = c.timeline.zoomPps;
-  }
-  st.speed.value = clock?.speed ?? 1;
+  set(st.selectedId, s.layer);
+  set(st.picked, s.picked);
+  set(st.muted, s.muted);
+  set(st.solo, s.solo);
+  // as signals, not preferences: the admin's own layout is not changed
+  set(st.dock, lay.dock);
+  set(st.tab, lay.tab);
+  set(st.side, lay.side);
+  set(st.folded, lay.folded);
+  set(tl.sel, c.timeline.sel);
+  set(tl.fit, c.timeline.fit);
+  set(tl.zoomPps, c.timeline.zoomPps);
+  st.speed.value = clock.speed;
   pv.setPlaying(false);
-  pv.seek(clock?.t ?? 0);
+  pv.seek(clock.t);
   const v = pv.viewer;
-  if (v && p) {
+  if (v) {
     if (p.quality) { pv.quality.value = p.quality; v.setQuality(p.quality); }
     if (p.mode) pv.mode.value = (await v.setMode(p.mode)) || 'points';
-    if (p.view) v.setView(p.view, { animate: false });
-    if (typeof p.venue === 'boolean') v.showVenue(p.venue);
+    if (p.view && (p.view === 'fit' || pv.views.peek().includes(p.view))) v.setView(p.view, { animate: false });
+    if (p.venue !== undefined) v.showVenue(p.venue);
   }
-  toast(`Report ${id} as captured, at ${(clock?.t ?? 0).toFixed(2)} s${clock?.baked ? ' (it was playing baked frames)'
+  toast(`Report ${id} as captured, at ${clock.t.toFixed(2)} s${clock.baked ? ' (it was playing baked frames)'
     : ''}. Nothing is saved unless you save it.`, { timeout: 8000 });
 }

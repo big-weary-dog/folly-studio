@@ -130,7 +130,7 @@ export const writeAtomic = (file: string, bytes: string | Uint8Array) =>
   atomically(file, (tmp) => fs.writeFile(tmp, bytes, { mode: 0o600 }));
 
 /** Store a look's frames (atomically). */
-export async function saveFrames(dir: string, lookId: string, bytes: Uint8Array) {
+async function saveFrames(dir: string, lookId: string, bytes: Uint8Array) {
   await fs.mkdir(dir, { recursive: true });
   await writeAtomic(framesPath(dir, lookId), bytes);
 }
@@ -245,7 +245,7 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
   }
 
   async function bakeOne(id: string) {
-    const look = await store.looks.get(id);
+    const look = store.looks.get(id);
     if (!look) return;
     const restore = restoring.has(id) && look.bake?.frames ? look.bake : null;
     const hash = layersHash(renderFields(look));
@@ -254,7 +254,7 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
     const startedAt = new Date().toISOString();
     if (!restore) {
       const bake: Bake = { source, status: 'running', ok: false, requestedAt: look.bake?.requestedAt, startedAt };
-      await store.looks.update(id, { bake });
+      store.looks.update(id, { bake });
     }
     const extra = extrasOf(look);
     let out: { bake: Bake, frames?: Uint8Array };
@@ -293,7 +293,7 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
 
   return {
     async request(id: string) {
-      const look = await store.looks.get(id);
+      const look = store.looks.get(id);
       if (!look) throw Object.assign(new BakeError('Look not found.'), { status: 404 });
       if (asking.has(id)) return { source, status: 'queued', ok: false };
       if (queued(id) && !restoring.has(id)) return look.bake;
@@ -313,7 +313,7 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
         if (no) throw Object.assign(new BakeError(no.reason), { status: no.status });
         await removeFrames(framesDir, id);
         const bake: Bake = { source, status: 'queued', ok: false, requestedAt: new Date().toISOString() };
-        await store.looks.update(id, { bake });
+        store.looks.update(id, { bake });
         restoring.delete(id);
         if (!queued(id)) pending.push(id);
         pump();
