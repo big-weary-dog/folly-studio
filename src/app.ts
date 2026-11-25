@@ -67,7 +67,8 @@ export async function createServer(opts: Options = {}) {
   // A look's code is its modules' library files, never what is stored (SPEC-looks "Modules").
   const views = { looks: libraryRefs(loaders.loadLibrary, path.join(publicDir, 'patterns', 'history.json')) };
   const filled = (look: StoredLook) => views.looks.read(structuredClone(look));
-  const store = await createStore(dataDir, { log, upgrade: { looks: (l) => upgradeStored(l, filled) }, views });
+  const store = await createStore(dataDir, { log, views,
+    upgrade: { looks: (l) => upgradeStored(l, { filled, carryHash: views.looks.carryHash }) } });
   const auth = createAuth({ store, curators, admins, cost: scrypt });
   auth.pruneSessions();
   const { loadRig } = loaders;

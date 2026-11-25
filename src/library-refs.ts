@@ -107,6 +107,18 @@ export function libraryRefs(loadLibrary: () => readonly LibraryEntry[], historyF
       }
       return doc;
     },
+    /** `to` (changed in place), `from` with its modules converted (reordered), given the hash of the code `from` was
+     * saved with in its new order; the old hash kept when the library has changed that code since. */
+    carryHash(from: object, to: object) {
+      const was = (from as Node).codeHash, lib = library();
+      if (typeof was !== 'string') return;
+      const now = (layers: unknown) => {
+        const copy = structuredClone(layers);
+        filled(copy, lib);
+        return codeHash(copy);
+      };
+      (to as Node).codeHash = (was === now((from as Node).layers) && now((to as Node).layers)) || was;
+    },
     /** `look` (changed in place) with each module's ref set and no code kept, it and each version with the hash of
      * the code it was saved with (`codeHash`), so a read knows when the library changed it. */
     write<T extends object>(doc: T): T {

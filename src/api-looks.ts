@@ -56,15 +56,20 @@ function withoutRemaps(look: Look): Look {
 /**
  * A stored look at start: role remaps dropped; from before the one rule, its layers and versions converted, marked. A
  * bake keeps its place when the conversion is exact (same frames); otherwise the look needs a fresh bake and review.
- * `filled` gives a look as a read does, its code from the library: what a bake's hash is of.
+ * `refs` (src/library-refs.ts) gives a look as a read does, its code from the library (what a bake's hash is of), and
+ * carries the hash of the code each was saved with into its new order.
  */
-export function upgradeStored(stored: Look, filled: (look: Look) => Look = (l) => l): Look {
+export function upgradeStored(stored: Look, refs: { filled: (look: Look) => Look,
+  carryHash: (from: object, to: object) => void } = { filled: (l) => l, carryHash: () => {} }): Look {
+  const { filled } = refs;
   const look = withoutRemaps(stored);
   if (look.chain === CHAIN) return look;
   const { look: up, exact } = upgradeLook(look);
   const versions = look.versions?.map((v) => (Array.isArray(v.layers)
     ? { ...v, layers: convertLayers(v.layers as Layer[]).layers } : v));
   const out: Look = { ...up, ...(versions ? { versions } : {}) };
+  refs.carryHash(look, out);
+  versions?.forEach((v, i) => refs.carryHash(look.versions![i]!, v));
   if (!exact) {
     delete out.reviewedBy;
     return { ...out, reviewed: false };
