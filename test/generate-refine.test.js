@@ -15,6 +15,7 @@ import { viewFrames } from '../src/generate/frames-view.ts';
 import { createQueue } from '../src/generate/index.ts';
 import { buildCritiqueMessage } from '../src/generate/critique-prompt.ts';
 import { decompose, diffCompositions } from '../src/generate/refine.ts';
+import { MAX_LOOK_BYTES_PER_USER } from '../src/look-cap.ts';
 import { revisedFields } from '../src/look-versions.ts';
 import { validateLook } from '../shared/schemas/generated.ts';
 import { CATALOG, frames, REAL, stubBox } from './fixtures/generate/box.js';
@@ -181,6 +182,19 @@ describe('the rounds in the queue', () => {
     assert.equal(after.reviewed, false);
     assert.equal(after.versions.length, 1);
     assert.equal(store.looks.list().length, 1, 'no new look');
+  });
+
+  test('a refinement that would grow an account\'s looks past their bytes fails, the look as it was', async () => {
+    const { store, user, queue } = onClaude(async () => answer({ layers: [{ ...answer().layers[0], level: 0.4 }] }),
+      stubBox());
+    const look = store.looks.create({ owner: user.id, ...lookOf(answer()) });
+    store.looks.create({ owner: user.id, title: 'Full', summary: 'x'.repeat(MAX_LOOK_BYTES_PER_USER - 3000) });
+    const i = store.ideas.create({ owner: user.id, text: 'dimmer', status: 'queued', generator: 'claude',
+      lookId: look.id, refine: {} });
+    queue.enqueue(i);
+    await queue.idle();
+    assert.deepEqual([store.ideas.get(i.id).status, store.looks.get(look.id).versions], ['failed', undefined]);
+    assert.match(store.ideas.get(i.id).error, /delete some first/);
   });
 
   test('a refinement answers edits: applied to the composition, one that fails sent back once, the rest kept as stored',

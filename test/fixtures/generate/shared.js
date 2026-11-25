@@ -56,6 +56,9 @@ export function fakeStore() {
   const table = (name) => ({
     get: (id) => (tables[name].has(id) ? structuredClone(tables[name].get(id)) : null),
     list: (fn = () => true) => [...tables[name].values()].filter(fn).map((x) => structuredClone(x)),
+    count: (fn = () => true) => [...tables[name].values()].filter(fn).length,
+    bytes: (fn = () => true) => [...tables[name].values()].filter(fn)
+      .reduce((n, x) => n + Buffer.byteLength(JSON.stringify(x)), 0),
     create(obj) {
       const rec = { id: `${name[0]}${++n}`, ...obj, createdAt: 'now', updatedAt: 'now' };
       tables[name].set(rec.id, rec);
