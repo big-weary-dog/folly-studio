@@ -124,15 +124,18 @@ describe('render box', () => {
   test('a fork bomb in the box is stopped at its tasks', async ({ skip }) => {
     skip(!(await scopeLimits('systemd-run', process.execPath, process.env)).pids,
       'no systemd user scope here: bakes have no task cap but the account\'s own');
-    // Stand in for an escaped pattern that forks: start sleeping children until the box refuses one.
-    const bomb = path.join(tmpRoot, 'bomb.mjs');
+    // Stand in for an escaped pattern that forks: start sleeping children until the box refuses one. With no PID
+    // namespace nothing ends them with the box, so it ends them itself, and names them here to check.
+    const bomb = path.join(tmpRoot, 'bomb.mjs'), pids = path.join(tmpRoot, 'bomb-pids.json');
     fs.writeFileSync(bomb, `
       import { spawn } from 'node:child_process';
       import fs from 'node:fs';
+      const kids = [];
       const start = () => new Promise((resolve) => {
         try {
           const c = spawn(${JSON.stringify(process.execPath)},
             ['-e', 'process.stdout.write("up"); setInterval(() => {}, 1e6)']);
+          kids.push(c);
           c.stdout.once('data', () => resolve('up'));
           c.on('error', (e) => resolve(e.code));
           c.on('exit', (code, signal) => resolve('exit ' + (signal || code)));
@@ -140,6 +143,10 @@ describe('render box', () => {
       });
       let up = 0, why;
       while (up < 200 && (why = await start()) === 'up') up++;
+      fs.writeFileSync(${JSON.stringify(pids)}, JSON.stringify(kids.map((c) => c.pid).filter(Boolean)));
+      for (const c of kids) c.kill('SIGKILL');
+      await Promise.all(kids.map((c) => c.exitCode !== null || c.signalCode ? null
+        : new Promise((r) => c.once('exit', r))));
       const out = process.argv[process.argv.indexOf('--out') + 1];
       fs.writeFileSync(out + '/result.json', JSON.stringify({ ok: false, error: 'up ' + up + ': ' + why }));
       process.exit(1);
@@ -150,6 +157,11 @@ describe('render box', () => {
     // The spawn is refused, or the node it starts dies wanting a thread.
     const [, up] = /up (\d+): (EAGAIN|exit SIGABRT)/.exec(err.reason) || [];
     assert.ok(Number(up) < 64, `a node is about ten tasks: a few start, then the box refuses one (${err.reason})`);
+    const left = JSON.parse(fs.readFileSync(pids, 'utf8')).filter((pid) => {
+      try { return fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').includes('setInterval'); } catch { return false; }
+    });
+    for (const pid of left) process.kill(pid, 'SIGKILL');
+    assert.deepEqual(left, [], 'no child outlives the box');
   });
 
   test('streaming never reads pattern-realm buffer properties through Node file APIs', async () => {
