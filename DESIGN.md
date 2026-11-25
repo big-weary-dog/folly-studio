@@ -27,7 +27,7 @@ It is hosted on the owner's computer for tens of people (the camp and friends), 
 | Render box | One bake at a time, nice 10, ≤ 1 GB, a wall clock | The only place look code runs on the server |
 
 - **Alternatives.** A desktop app (no shared gallery, no phones), a hosted service (cost and operations for a
-  few dozen users), an xLights plugin (desktop-only C++, no AI loop).
+  few dozen users), an xLights plugin (desktop-only C++, no phones or shared gallery).
 - **Trade-off.** The server is a personal machine: its uptime and upload are the service's.
 - **The UI.** Preact components in TSX, with signals for state. The look being edited is one signal, replaced
   (never mutated) on each edit; what follows from it (unsaved or saved, the selected layer and module, what the
@@ -83,7 +83,7 @@ colour. A stdlib (`noise`, `fbm`, `hsv`, `pal`, `beat`, `centres(tag)`, `use(nam
 | `u i n` | Along the wire: position on its fixture, so chases run up arches and spires |
 | `zone fixture ring sector attr() is(tag) seed` | Structure: the rose's rings and petals, tags such as `rose` or `canopy`, a stable random per LED |
 
-- **Why JavaScript.** It is what an AI writes best and what people can read and tweak, and state across frames
+- **Why JavaScript.** Whoever adds a library pattern can read and write it, and state across frames
   (particles, trails, automata in `frame()`) needs a real language.
 - **Alternatives.** A formula language (safe by construction and portable to GLSL, but too small for stateful
   effects); GLSL directly (fast, but state across frames and logic along strands are awkward, and a runaway

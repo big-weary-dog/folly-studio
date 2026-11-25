@@ -78,8 +78,8 @@ export function Studio({ params, query }: ViewProps) {
       pv.msg.value = { text: `Could not open the Studio: ${err.message}`, error: true };
       toast(err.message, { kind: 'error' });
     });
-    // Ctrl/⌘+S saves; Ctrl/⌘+Z undoes and Ctrl/⌘+Shift+Z (or Ctrl+Y) redoes, unless a text field or the code editor
-    // has them (their own undo); Space plays or pauses unless a control or a dialog has it.
+    // Ctrl/⌘+S saves; Ctrl/⌘+Z undoes and Ctrl/⌘+Shift+Z (or Ctrl+Y) redoes, unless a text field has them
+    // (its own undo); Space plays or pauses unless a control or a dialog has it.
     const onKey = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey, t = e.target as Element;
       if (mod && k === 's') {   // the focused field's typing counts: its change commits as leaving it would

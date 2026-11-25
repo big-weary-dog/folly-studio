@@ -65,9 +65,7 @@ export function ModuleRow({ m, i, mods, first, selected, attached, std, grip, sl
             + 'composite (or Alt+↑/↓)' : 'Drag to reorder, into or out of a composite (or Alt+↑/↓)'} aria-hidden="true"
           data-tour={m.ref && `module-grip:${m.ref}`} {...grip} />
         <span class="chain-kinds"><span class="kind-badge" title={comp ? KIND_LABELS[m.kind] : undefined}>
-          {comp ? '⧉' : KIND_LABELS[m.kind]}</span>
-          {std === undefined && !comp && <span class="custom-badge"
-            title="Custom code: written by the AI or in the code editor, not a library module">Custom</span>}</span>
+          {comp ? '⧉' : KIND_LABELS[m.kind]}</span></span>
         {comp && <button type="button" class="chain-fold" aria-label={fold ? 'Shut' : 'Open'} aria-expanded={fold}
           aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown" onClick={pick} />}
         {comp ? <textarea class={cx('chain-name chain-rename', m.title.length > LONG && 'long')}

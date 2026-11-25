@@ -4,7 +4,7 @@
 import { leaveGuard } from './session.ts';
 
 const MARK = 'folly-reloaded-for', EVERY = 5 * 60_000;
-/** Text controls whose text, once left, is the store's (the code editor, a param's lines): the dirty flag covers
+/** Text controls whose text, once left, is the store's (a param's lines): the dirty flag covers
  *  them. Focused, any text control counts: a param's lines reach the store only on leaving it. */
 const KEPT = '[data-kept]';
 

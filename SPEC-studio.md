@@ -36,8 +36,8 @@ every edit here keeps them, so what the Studio saves the API accepts.
   where it lands, the drop one edit; Escape cancels. Composites in the panel (each source a sub-layer of its own, in
   its row): SPEC-library "Composites".
 - **Composition** (`ui/chain.tsx`, `ui/params.tsx`, `ui/shelf.tsx`, `ui/look-globals.tsx`): the selected layer's
-  module chain (a line a module: kind badge, Custom on a module not standard, name, a source's blend or a filter's
-  input, enable, delete; only a custom module's name is editable; wide, the selected one's settings open under it,
+  module chain (a line a module: kind badge, the library's name, a source's blend or a filter's
+  input, enable, delete; wide, the selected one's settings open under it,
   a click on it closing or opening them, ▾ ▸), its Soften row (radius and mode; new layers
   start at `DEFAULT_SOFTEN`), the pickers (Add a module: tabs Sources, Warps, Filters; Add a layer: Sources,
   one source, and Presets; only the library's modules, never a blank one, beside the groups the new layer plays on;
