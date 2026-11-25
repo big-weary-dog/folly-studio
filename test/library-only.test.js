@@ -2,7 +2,7 @@
 // server running it at start. A small library of its own: a current pattern with an earlier copy, a retired one.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { beforeEach, test } from 'vitest';
@@ -134,6 +134,27 @@ test('--dry-run writes nothing; a folder in use, or one whose backup fails, is l
   await assert.rejects(run({ now }), /EEXIST/);
   assert.deepEqual(read('looks'), looks);
   assert.ok(!existsSync(path.join(dataDir, MARKER)));
+});
+
+test('a library file it cannot read stops it before anything changes', async () => {
+  const looks = [look('older', [mod(OLD_WAVE, { ref: 'wave' })])], users = [{ id: 'u1', access: {} }];
+  write('looks', looks);
+  write('users', users);
+  // Broken, and unreadable (a folder in its place): a missing pattern file would count as retired.
+  for (const [file, body] of [['history.json', '{'], ['wave.js', null]]) {
+    const at = path.join(patternsDir, file), was = readFileSync(at, 'utf8');
+    if (body === null) {
+      rmSync(at);
+      mkdirSync(at);
+    } else {
+      writeFileSync(at, body);
+    }
+    await assert.rejects(run());
+    rmSync(at, { recursive: true });
+    writeFileSync(at, was);
+    assert.deepEqual([read('looks'), read('users'), existsSync(path.join(dataDir, MARKER))], [looks, users, false]);
+    assert.deepEqual(readdirSync(dataDir).filter((n) => n.includes('.pre-')), []);
+  }
 });
 
 test('without the library it leaves the folder for a later start', async () => {
