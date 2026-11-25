@@ -13,7 +13,7 @@ import { signup } from './fixtures/app.js';
 import { fx, layer, startApp, useFixture } from './fixtures/server.js';
 
 Object.assign(globalThis, { matchMedia: () => ({ matches: false, addEventListener() {}, addListener() {} }) });
-const { saveBody } = await import('../public/js/ui/studio-store.ts');
+const { saveBody } = await import('../public/js/ui/studio/store.ts');
 
 useFixture();
 

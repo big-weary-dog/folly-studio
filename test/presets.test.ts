@@ -10,7 +10,7 @@ import { describe, onTestFinished, test } from 'vitest';
 
 import { compileLayer, prepareLayer, prepareLook, prepareScene, renderFrame } from '../core/pattern-core.ts';
 import { compileModule } from '../core/compile.ts';
-import { presetLayers, withPresetGlobals } from '../public/js/ui/model.ts';
+import { presetLayers, withPresetGlobals } from '../public/js/ui/studio/model.ts';
 import { LibraryEntry, type ModuleEntry, Preset, type PresetEntry } from '../shared/schemas/rig.ts';
 import { createLoaders } from '../src/static.ts';
 import { folly, mini } from './fixtures/rigs.js';

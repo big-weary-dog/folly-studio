@@ -6,8 +6,8 @@ import '../../../css/history.css';
 import { signal } from '@preact/signals';
 import { useLayoutEffect } from 'preact/hooks';
 
-import { Drawer, type DrawerHandle } from '../drawer.tsx';
-import type { Studio } from '../studio-store.ts';
+import { Drawer, type DrawerHandle } from '../studio/drawer.tsx';
+import type { Studio } from '../studio/store.ts';
 import { StepsList } from './steps-list.tsx';
 import { Versions } from './versions.tsx';
 

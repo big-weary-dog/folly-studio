@@ -11,8 +11,8 @@ import {
   compileLayer, normalizeParams, pictureProblem, prepareLayer, prepareLook, prepareScene, readPicture, renderFrame,
   resolveParams,
 } from '../core/pattern-core.ts';
-import { normaliseParam } from '../public/js/ui/bindings.ts';
-import { keyColour } from '../public/js/ui/picture-row.tsx';
+import { normaliseParam } from '../public/js/ui/params/bindings.ts';
+import { keyColour } from '../public/js/ui/params/picture-row.tsx';
 import { libraryCode } from './fixtures/patterns.js';
 
 const STUDIO = fileURLToPath(new URL('../', import.meta.url));

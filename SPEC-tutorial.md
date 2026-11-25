@@ -10,7 +10,7 @@ and arches (the rose window blooming ring by ring, comets on the arches, a starf
 clips? }], palette?, macros?, automation?, bpm?, view? }`, `tag` (one or several) playing a layer on the rig's groups
 with that tag, `view` the rig view the preview opens on) as an unsaved copy, so nothing a person owns changes until
 they save. Every step's control shows in Simple as well as Advanced (SPEC-studio "Simple").
-A step waits on the Studio's state through a read-only view (`ui/tour-view.ts`) and finds its control by
+A step waits on the Studio's state through a read-only view (`ui/tour/view.ts`) and finds its control by
 `data-tour="<name>"`; the tour writes nothing but the user's `tour`, and moves between pages only as the app's own
 links do: over unsaved edits the app asks first, and keeping them leaves Tutorials open.
 Replay: the user menu's Tutorials.

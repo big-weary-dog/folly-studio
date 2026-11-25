@@ -10,11 +10,11 @@ import path from 'node:path';
 import { describe, test } from 'vitest';
 
 import { compileModule } from '../core/pattern-core.ts';
-import { layerFromPattern, presetLayers } from '../public/js/ui/model.ts';
+import { layerFromPattern, presetLayers } from '../public/js/ui/studio/model.ts';
 import { type Recipe, practiceLook } from '../public/js/ui/tour/practice.ts';
 import { PATHS } from '../public/js/ui/tour/paths/index.ts';
 import type { Ctx, Step } from '../public/js/ui/tour/types.ts';
-import { tourName, type TourView } from '../public/js/ui/tour-view.ts';
+import { tourName, type TourView } from '../public/js/ui/tour/view.ts';
 import { LookCreate } from '../shared/schemas/api.ts';
 import { LibraryEntry, type ModuleEntry, type PresetEntry, type Rig } from '../shared/schemas/rig.ts';
 import { libraryIndex, withCode } from './fixtures/patterns.js';

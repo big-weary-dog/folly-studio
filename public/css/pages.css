@@ -1,5 +1,5 @@
-/* The list pages (js/ui/pages.tsx) and the admin pages. An admin page's panel (.models-panel) in its page's glass,
-   its actions at the end. */
+/* The list pages (js/ui/gallery/pages.tsx) and the admin pages. An admin page's panel (.models-panel) in its page's
+   glass, its actions at the end. */
 .models-panel { margin-top: 28px; padding: 6px 20px; border: var(--came) solid var(--lead);
   border-radius: var(--radius); background: color-mix(in srgb, var(--tint) 5%, var(--night-1));
   box-shadow: var(--bevel), var(--rim); }
@@ -7,14 +7,14 @@
 .models-panel > .field + .field { border-top: 1px solid rgb(255 236 214 / .08); }
 .models-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 @media (max-width: 899px) { .models-panel { margin-top: 20px; padding: 2px 14px; } }
-/* The Account page (js/ui/account.tsx): its two forms in violet glass, deleting the account in ruby. */
+/* The Account page (js/ui/account/account.tsx): its two forms in violet glass, deleting the account in ruby. */
 .account-page { --tint: var(--violet); max-width: 640px; }
 .account-form h2 { padding-top: 12px; font-size: 19px; }
 .account-form .form-error:not([hidden]) { margin-top: 8px; }
 .account-form .models-actions { margin: 4px 0 14px; }
 .account-danger { --tint: var(--ruby); }
 .account-danger .field-hint { margin-top: 8px; }
-/* The Light page (js/ui/light.tsx, admins): the models' panels, amber glass; the curve as a table of numbers. */
+/* The Light page (js/ui/admin/light.tsx, admins): the models' panels, amber glass; the curve as a table of numbers. */
 .light-page { --tint: var(--amber); max-width: 780px; }
 .light-curve { width: 100%; margin: 12px 0; border-collapse: collapse; font-size: 13px;
   font-variant-numeric: tabular-nums; }
@@ -25,7 +25,7 @@
 .light-curve :is(th, td):not([scope]) { white-space: nowrap; }
 .light-page .models-actions { flex-wrap: wrap; }
 @media (max-width: 899px) { .light-curve { font-size: 11px; } .light-curve th, .light-curve td { padding: 4px 2px; } }
-/* The Stats page (js/ui/stats.tsx, admins): today's counts as tiles, the days as a table of numbers. */
+/* The Stats page (js/ui/admin/stats.tsx, admins): today's counts as tiles, the days as a table of numbers. */
 .stats-page { --tint: var(--sand); max-width: 780px; }
 .stats-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 10px;
   margin: 20px 0 0; }
@@ -101,7 +101,7 @@
   .card-body { padding: 12px 14px 4px; }
   .card-actions { padding: 8px 14px 14px; }
 }
-/* The privacy page (js/ui/privacy.tsx): what is kept, in plain glass panels. */
+/* The privacy page (js/ui/account/privacy.tsx): what is kept, in plain glass panels. */
 .privacy-page { --tint: var(--violet); max-width: 720px; }
 .privacy-part { padding: 4px 20px 16px; }
 .privacy-part h2 { padding-top: 14px; font-size: 19px; }

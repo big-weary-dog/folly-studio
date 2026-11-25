@@ -2,7 +2,7 @@
 import { render } from 'preact';
 
 import { App, boot } from './ui/app.tsx';
-import { installBugReport } from './ui/bug-report.tsx';
+import { installBugReport } from './ui/bug-report/bug-report.tsx';
 import { loadFailed } from './ui/kit.tsx';
 import { watchBuild } from './ui/updates.ts';
 

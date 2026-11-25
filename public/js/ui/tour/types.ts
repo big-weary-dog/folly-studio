@@ -1,5 +1,5 @@
 // What a tutorial path is (SPEC-tutorial): plain data, steps that wait on what the Studio shows.
-import { tourName, type TourView } from '../tour-view.ts';
+import { tourName, type TourView } from './view.ts';
 
 /** What a step reads: the Studio (null on other pages), the page's path, and the controls the tour points at. */
 export type Ctx = { v: TourView | null; page: string; el: (name: string) => Element | null };

@@ -10,7 +10,7 @@ import type { Rig } from '../shared/schemas/rig.ts';
 
 Object.assign(globalThis, { matchMedia: () => ({ matches: false, addEventListener() {}, addListener() {} }),
   document: { title: '' } });
-const { createStudio } = await import('../public/js/ui/studio-store.ts');
+const { createStudio } = await import('../public/js/ui/studio/store.ts');
 const { createSteps, named } = await import('../public/js/ui/history/steps.ts');
 
 const RIG = JSON.parse(readFileSync(new URL('../public/data/rig.json', import.meta.url), 'utf8')) as Rig;

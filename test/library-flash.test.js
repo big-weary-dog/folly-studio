@@ -7,7 +7,7 @@ import { Worker } from 'node:worker_threads';
 
 import { test } from 'vitest';
 
-import { presetLayers, withPresetGlobals } from '../public/js/ui/model.ts';
+import { presetLayers, withPresetGlobals } from '../public/js/ui/studio/model.ts';
 import { cog } from './fixtures/rigs.js';
 import { libraryIndex, withCode } from './fixtures/patterns.js';
 

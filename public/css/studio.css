@@ -1,4 +1,4 @@
-/* The Studio (loaded by js/ui/studio.tsx): one window leaded into panes round the 3D view, clear dark glass
+/* The Studio (loaded by js/ui/studio/studio.tsx): one window leaded into panes round the 3D view, clear dark glass
    so the LEDs carry the colour; wide, the side runs the window's full height (base.css stops the header at it).
    Phones: the view on top, the panes under it as tabs. */
 body[data-view=studio] { --side-w: clamp(340px, 25vw, 480px); --drawer-w: 0px; overflow: hidden; }
