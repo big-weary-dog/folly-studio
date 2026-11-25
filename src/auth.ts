@@ -127,6 +127,10 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     token: unknown) {
     await confirm(user, password);
     const passwordHash = await slot(() => hashPassword(next, cost)), keep = valid(token) ? sha256(token) : '';
+    // Another change (or sign-out) may have landed while this one hashed: then it, not this, stands.
+    if (store.users.get(user.id)?.passwordHash !== user.passwordHash || (keep && !store.sessions.get(keep))) {
+      throw new HttpError(409, 'Your password was just changed elsewhere: sign in again.');
+    }
     store.users.update(user.id, { passwordHash });
     for (const s of store.sessions.list((x) => x.userId === user.id && x.id !== keep)) store.sessions.remove(s.id);
   }

@@ -132,6 +132,12 @@ export function createPreviews({ dir, store, box, framesDir, loadRig, lane = cre
       const m = FILE.exec(`${id}-${name}`);
       return m && m[1] === id && have.get(id) === m[2] ? path.join(dir, `${id}-${name}`) : null;
     },
+    /** The look's preview files removed now (it was deleted). */
+    async drop(id: string) {
+      const key = have.get(id);
+      have.delete(id);
+      if (key) await Promise.all(files(id, key).map((f) => fs.rm(f, { force: true })));
+    },
     /** Queue every shared look's missing preview, and drop the previews of looks no longer shared. */
     async backfill() {
       await ready;

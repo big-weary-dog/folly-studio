@@ -229,7 +229,8 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         return { ok: true };
       }, { public: true }],
       ...tourRoutes({ store }),
-      ...accountRoutes(api, { store, auth, dropFrames, log, limit: { max: limits.max, windowMs: limits.windowMs },
+      ...accountRoutes(api, { store, auth, dropFrames, hub: o.hub, previews: o.previews, log,
+        limit: { max: limits.max, windowMs: limits.windowMs },
         clearCookie: (reply) => reply.setCookie(COOKIE_NAME, '', cookie(0)) }),
       'GET /me': async (req) => ({ user: auth.publicUser(req.user), flash,
         ...(gen && !req.user!.guest ? { access: access.state(req.user!) } : {}), profile }),

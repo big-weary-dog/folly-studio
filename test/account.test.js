@@ -35,6 +35,16 @@ describe('your account', () => {
     assert.equal((await login('acct-ann', 'battery staple'))[1], 200);
   });
 
+  test('of two changes at once, one stands', async () => {
+    const [ivy] = [await signup(app, 'acct-ivy')], [twin] = await login('acct-ivy', 'correct horse');
+    const both = await Promise.all([['battery staple', ivy], ['staple battery', twin]].map(([next, c]) =>
+      c.put('/api/me/password', { password: 'correct horse', next }).then((r) => [r.status, next])));
+    const won = both.filter(([status]) => status === 200);
+    assert.equal(won.length, 1, JSON.stringify(both));
+    assert.equal((await login('acct-ivy', won[0][1]))[1], 200);
+    assert.equal((await login('acct-ivy', both.find((b) => b !== won[0])[1]))[1], 401);
+  });
+
   test('wrong passwords are limited per account: 429 with Retry-After, even for the right one', async () => {
     const bo = await signup(app, 'acct-bo');
     for (let n = 0; n < 3; n++) assert.equal((await bo.del('/api/me', { password: 'nope' })).status, 403);

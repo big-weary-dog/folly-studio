@@ -33,7 +33,7 @@ shows with a Guest tag; it is untrusted text, shown only as text.
 no email, so a forgotten password cannot be reset or recovered: Account and sign-up say so plainly.
 
 - **Changing the password** takes the current one and a new one (sign-up's rules). It ends the account's other
-  sessions; this one stays.
+  sessions; this one stays. Of two changes at once, one stands; the other is 409.
 - **Deleting the account** takes its password and a confirm saying how many looks go, and how many are shared. It
   deletes the account, its sessions and ideas, and every look it owns: shared ones leave the gallery and the live
   stage too, with their frames and previews. A copy someone else saved of one is theirs and stays. The browser is

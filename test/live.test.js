@@ -247,6 +247,27 @@ describe('live socket', () => {
     assert.equal(await drive.failed, 1008);
   });
 
+  test('a look playing when its account is deleted leaves the stage', async () => {
+    const dan = await signup(app, 'dan');
+    const look = (await dan.post('/api/looks', { title: 'Going', layers: [layer()], shared: true })).json.look;
+    assert.equal((await dan.post(`/api/looks/${look.id}/bake`)).status, 202);
+    await app.bakes.idle();
+    assert.equal((await carol.put(`/api/looks/${look.id}`, { reviewed: true })).status, 200);
+    const drive = open(app, carol);
+    await drive.next('state');
+    drive.send({ type: 'play', lookId: look.id });
+    assert.equal((await drive.next('state')).live.look.id, look.id);
+    assert.equal((await dan.del('/api/me', { password: 'correct horse' })).status, 200);
+    assert.equal((await drive.next('state')).live.look, null);
+    assert.equal(app.hub.live.look, null);
+    drive.close();
+    const back = open(app, carol);   // the restart test's look plays again
+    await back.next('state');
+    back.send({ type: 'play', lookId });
+    await back.next('state');
+    back.close();
+  });
+
   test('the stage survives a restart', async () => {
     const rev = app.hub.live.rev;
     await app.close();

@@ -5,10 +5,12 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { AccountDelete, PasswordChange } from '../shared/schemas/api.ts';
 import { type Auth, COOKIE_NAME } from './auth.ts';
 import { HttpError, type Logger, parse } from './http.ts';
+import type { Hub } from './live/hub.ts';
 import type { Store } from './store.ts';
 
-export function accountRoutes(api: FastifyInstance, { store, auth, dropFrames, clearCookie, limit, log = console }: {
-  store: Store, auth: Auth, dropFrames: (id: string) => Promise<unknown>,
+export function accountRoutes(api: FastifyInstance, { store, auth, dropFrames, hub, previews, clearCookie, limit,
+  log = console }: { store: Store, auth: Auth, dropFrames: (id: string) => Promise<unknown>,
+  hub: Pick<Hub, 'forget'>, previews?: { drop(id: string): Promise<unknown> },
   /** Clears the session cookie on `reply`. */ clearCookie: (reply: FastifyReply) => void,
   limit: { max: number, windowMs: number }, log?: Logger }) {
   const failures = api.createRateLimit({ timeWindow: limit.windowMs, max: limit.max,
@@ -32,7 +34,7 @@ export function accountRoutes(api: FastifyInstance, { store, auth, dropFrames, c
       await withPassword(req, body.password, () => auth.changePassword(req.user!, body, req.cookies[COOKIE_NAME]));
       return { ok: true };
     },
-    // The account, its sessions, ideas and looks (shared ones too), and the looks' frames.
+    // The account, its sessions, ideas and looks (shared ones too, off the stage), and the looks' frames and previews.
     'DELETE /me': async (req: FastifyRequest, reply: FastifyReply) => {
       const { password } = parse(AccountDelete, req.body);
       const user = req.user!;
@@ -41,8 +43,9 @@ export function accountRoutes(api: FastifyInstance, { store, auth, dropFrames, c
         for (const id of looks) store.looks.remove(id);
         for (const idea of store.ideas.list((i) => i.owner === user.id)) store.ideas.remove(idea.id);
         auth.removeUser(user.id);
-        await Promise.all(looks.map((id) => dropFrames(id).catch((err) => {
-          log.error?.(`account: could not remove the frames of look ${id}:`, err);
+        hub.forget(new Set(looks));
+        await Promise.all(looks.map((id) => Promise.all([dropFrames(id), previews?.drop(id)]).catch((err) => {
+          log.error?.(`account: could not remove the frames or previews of look ${id}:`, err);
         })));
       });
       clearCookie(reply);

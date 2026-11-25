@@ -168,6 +168,13 @@ export async function createHub({ dataDir, playable, driver, log = console }:
       piKey = '';
       if (live.driver === 'pi') all(piMsg(true));
     },
+    /** The stage emptied when it plays one of `ids` (looks deleted with their account), every socket told. */
+    forget(ids: Set<string>) {
+      if (!live.look || !ids.has(live.look.id)) return;
+      live = { ...emptyLive(), driver: live.driver, rev: live.rev + 1, updatedAt: Date.now() };
+      for (const c of clients) state(c);
+      save();
+    },
     /** A socket that passed the session and origin checks. */
     join(ws: WebSocket, who: Who, control: boolean) {
       if (clients.size >= MAX_SOCKETS) { ws.close(1013, 'The stage is full.'); return; }

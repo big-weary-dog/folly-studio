@@ -154,4 +154,16 @@ describe('previews of shared looks', () => {
     assert.equal(mine.preview, undefined);
     assert.equal((await req(`/api/looks/${look.id}/preview/x.webp`, { as: other })).status, 404);
   });
+
+  test('a deleted account\'s previews go at once', async () => {
+    const cy = await signup('cyril');
+    const { look } = await (await req('/api/looks', { method: 'POST', as: cy,
+      body: { title: 'Doomed', layers: [{ name: 'a', code: PIXEL }], shared: true, chain: 2 } })).json();
+    await until(async () => (await gallery()).find((l) => l.id === look.id)?.preview);
+    const mine = async () => (await readdir(path.join(dataDir, 'previews'))).filter((f) => f.startsWith(look.id));
+    assert.equal((await mine()).length, 2);
+    assert.equal((await req('/api/me', { method: 'DELETE', as: cy, body: { password: 'correct horse battery' } }))
+      .status, 200);
+    assert.deepEqual(await mine(), []);
+  });
 });
