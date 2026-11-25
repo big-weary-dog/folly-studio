@@ -183,18 +183,19 @@ describe('roles in code from before one colour param', () => {
 });
 
 describe('looks', () => {
-  const base = { title: 'Picks', layers: [{ code: 'function pixel() { return 1; }', params: { c: '#ff0000' } }] };
+  const base = { title: 'Picks', layers: [{ modules: [{ ref: 'clouds', params: { c: '#ff0000' } }] }] };
   test('picks round-trip; an old look keeps its shape; a layer\'s role remap is dropped', () => {
     const old = LookCreate.parse(base);
     assert.equal('palette' in old.layers[0], false);
-    assert.deepEqual(old.layers[0].params, { c: '#ff0000' });
-    const look = { ...base, layers: [{ ...base.layers[0], params: { c: 'body/accent', d: { pick: 'all', blend: 'smooth',
-      range: [0.2, 0.8], rotate: { mod: 'lfo', shape: 'saw', unit: 'beats', rate: 0.25 } } },
-    palette: { body: 'accent2 accent3', high: { pick: '#ffffff' } } }] };
+    assert.deepEqual(old.layers[0].modules[0].params, { c: '#ff0000' });
+    const params = { c: 'body/accent', d: { pick: 'all', blend: 'smooth', range: [0.2, 0.8],
+      rotate: { mod: 'lfo', shape: 'saw', unit: 'beats', rate: 0.25 } } };
+    const look = { ...base, layers: [{ modules: [{ ref: 'clouds', params }],
+      palette: { body: 'accent2 accent3', high: { pick: '#ffffff' } } }] };
     const once = LookCreate.parse(look), twice = LookCreate.parse(JSON.parse(JSON.stringify(once)));
     assert.deepEqual(twice, once);
     assert.equal('palette' in once.layers[0], false, 'the remap is dropped');
-    assert.deepEqual(once.layers[0].params, look.layers[0].params);
+    assert.deepEqual(once.layers[0].modules[0].params, params);
     const stored = [{ id: 'a', palette: { body: 'high' } }, { id: 'b' }], plain = [{ id: 'b' }];
     assert.deepEqual(dropRemaps(stored), [{ id: 'a' }, { id: 'b' }]);
     assert.equal(dropRemaps(plain), plain, 'nothing to drop: the same layers');

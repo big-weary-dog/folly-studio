@@ -13,7 +13,7 @@ import { validateLayers } from '../src/api-looks.ts';
 const clip = (start, end, fadeIn = 0, fadeOut = 0) => ({ start, end, fadeIn, fadeOut });
 const THREE = [clip(0, 2), clip(4, 6, 0.5, 0.5), clip(10, 12)];
 /** The API takes it unchanged. */
-const accepted = (clips) => assert.deepEqual(validateLayers([{ code: 'function pixel() {}', clips }])[0].clips, clips);
+const accepted = (clips) => assert.deepEqual(validateLayers([{ modules: [{ ref: 'clouds' }], clips }])[0].clips, clips);
 
 describe('editing clips', () => {
   test('move keeps the length and stays between the neighbours', () => {
@@ -130,7 +130,7 @@ describe('importing a look', () => {
     assert.deepEqual(r.layers[0].clips, [clip(0, 30)]);
     assert.equal(r.layers[1].id, 'new1');
     assert.deepEqual(r.layers[1].clips, [clip(30, 50)]);
-    const saved = validateLayers(r.layers.map((l) => ({ ...l, code: '' })));
+    const saved = validateLayers(r.layers.map((l) => ({ ...l, modules: [{ ref: 'clouds' }] })));
     assert.deepEqual(saved.map((l) => l.clips), [[clip(0, 30)], [clip(30, 50)]]);
   });
 

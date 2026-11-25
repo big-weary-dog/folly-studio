@@ -1,12 +1,9 @@
 // npm run smoke, too: library only, as on every server (spec/frames "Library only"): the Studio has no code to edit,
-// its pickers offer only the library, and custom code is refused.
+// its pickers offer only the library, and a module naming none is refused.
 // Screenshots land in CODE_SHOTS when set, else the test's output folder.
 import path from 'node:path';
 
 import { expect, signupIn, test } from './studio.js';
-import { libraryCode } from '../fixtures/patterns.js';
-
-const CUSTOM = 'function pixel(p, t) { return scale([0.2, 0.4, 1], wave(t * 0.25)); }';
 
 for (const width of [390, 1366]) {
   test(`library only at ${width}`, async ({ page, studio }, info) => {
@@ -18,9 +15,10 @@ for (const width of [390, 1366]) {
     await page.setViewportSize({ width, height: wide ? 768 : 844 });
     const request = page.context().request;
     await signupIn(request, studio.origin, `code-${width}`);
-    const wash = libraryCode('colour-wash');
+    const sea = (module) => [{ id: 'l1', title: 'Sea', groups: ['cathedral'], modules: [{ id: 'm1', kind: 'source',
+      title: 'Mine', params: {}, ...module }] }];
     const made = await request.post(`${studio.origin}/api/looks`, { data: { title: `Mine ${width}`,
-      layers: [{ id: 'l1', title: 'Sea', code: wash, groups: ['cathedral'], params: {} }] } });
+      layers: sea({ ref: 'colour-wash' }) } });
     expect(made.status(), await made.text()).toBe(201);
     const { look } = await made.json();
     await page.goto(`${studio.origin}/studio/${look.id}`);
@@ -46,10 +44,10 @@ for (const width of [390, 1366]) {
       await page.keyboard.press('Escape');
     }
 
-    const r = await request.post(`${studio.origin}/api/looks`, { data: { title: 'New', layers: [{ id: 'l1',
-      title: 'Sea', code: `${CUSTOM} // new`, groups: ['cathedral'], params: {} }] } });
+    const r = await request.post(`${studio.origin}/api/looks`, { data: { title: 'New',
+      layers: sea({ ref: 'my-own', code: 'function pixel() { return [1, 1, 1]; }' }) } });
     expect(r.status()).toBe(403);
-    expect((await r.json()).error).toMatch(/Layer 1 \(Sea\) is custom code/);
+    expect((await r.json()).error).toMatch(/Layer 1 \(Sea\)'s Mine names my-own, which the library does not have/);
     expect(errors).toEqual([]);
   });
 }

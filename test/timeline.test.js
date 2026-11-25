@@ -23,7 +23,6 @@ const STUDIO = fileURLToPath(new URL('../', import.meta.url));
 const PUBLIC = path.join(STUDIO, 'public');
 const rig = JSON.parse(fs.readFileSync(path.join(PUBLIC, 'data/rig-folly.json'), 'utf8'));
 const near = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) <= eps, `${a} ≉ ${b}`);
-const WHITE = 'function pixel() { return [1, 1, 1]; }';
 const RED = 'function pixel() { return [1, 0, 0]; }';
 /** A library layer, for what goes through the API (it saves only library modules). */
 const WASH = { modules: [{ id: 'w', kind: 'source', ref: 'colour-wash' }] };
@@ -148,7 +147,7 @@ describe('renderFrame with clips', () => {
 });
 
 describe('validation', () => {
-  const layer = (clips, extra = {}) => ({ code: WHITE, clips, ...extra });
+  const layer = (clips, extra = {}) => ({ modules: [{ ref: 'clouds' }], clips, ...extra });
 
   test('API: clips are cleaned, sorted and kept to the millisecond', () => {
     const [l] = validateLayers([layer([{ start: 5, end: 6.00049 }, { start: 0, end: 2, fadeIn: 0.5 }])]);
@@ -158,7 +157,7 @@ describe('validation', () => {
     ]);
     const [none] = validateLayers([layer([])]);
     assert.equal('clips' in none, false, 'empty clips: always on, stored as no clips');
-    assert.equal('clips' in validateLayers([{ code: WHITE }])[0], false);
+    assert.equal('clips' in validateLayers([layer(undefined)])[0], false);
     // Fades longer than the clip are kept; the envelope shrinks them when it plays.
     assert.deepEqual(validateLayers([layer([clip(0, 1, 3, 3)])])[0].clips, [clip(0, 1, 3, 3)]);
   });

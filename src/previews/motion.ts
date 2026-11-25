@@ -1,7 +1,7 @@
 // A look's gallery preview from its baked frames (spec/frames "Gallery previews"): the LEDs' colours, sampled at FPS,
 // over the WINDOW_S seconds that move the most (mean change from one sample to the next, plus a little brightness so a
 // dark stretch loses), made to loop. A camera turns each sample into a picture: the Playa view's (./playa.ts) or,
-// without a browser, frontView's (the LEDs from the front, as the critique's stills are). Runs no look code.
+// without a browser, frontView's (the LEDs from the front). Runs no look code.
 
 import { prepareScene } from '../../core/pattern-core.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';

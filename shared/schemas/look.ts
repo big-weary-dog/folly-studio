@@ -16,8 +16,6 @@ export {
 } from '../../core/pattern-core.ts';
 export const MAX_LAYERS = 8;
 export const MAX_MODULES = 8;
-const MAX_CODE_BYTES = 20 * 1024;
-export const MAX_LAYER_CODE_BYTES = 64 * 1024;   // a chain's modules together
 export const TAG = /^[a-z0-9-]{1,32}$/;   // a rig group's tag (SPEC "Rig")
 export const ID = /^[A-Za-z0-9_.:-]{1,64}$/;
 export const HEX = /^#[0-9a-f]{6}$/i;
@@ -27,7 +25,6 @@ export type Range = { min: number, max: number };
 
 export const ms = (v: number) => Math.round(v * 1000) / 1000;   // times are kept to the millisecond
 const round = (v: number) => Math.round(v * 1e6) / 1e6;
-export const bytes = (s: string) => new TextEncoder().encode(s).length;
 /** A finite number from lo to hi; every failure says `error`. */
 const num = (lo: number, hi: number, error: string) => z.number({ error }).min(lo).max(hi);
 const seconds = (what: string, lo = 0) => num(lo, MAX_DURATION,
@@ -108,8 +105,6 @@ const Param = z.custom<z.infer<typeof ParamValue>>((v) => ParamValue.safeParse(v
 export const Params = z.record(z.string().max(64), Param, { error: 'params must be an object.' })
   .refine((p) => Object.keys(p).length <= 64, 'too many params.');
 
-const Code = z.string({ error: 'code must be a string.' })
-  .refine((c) => bytes(c) <= MAX_CODE_BYTES, `code is over ${MAX_CODE_BYTES / 1024} kB.`);
 const Title = z.string({ error: 'title must be a string of at most 200 characters.' }).max(200);
 const Blend = oneOf('blend', BLENDS);
 const SourceBlend = oneOf('blend', SOURCE_BLENDS);
@@ -142,7 +137,7 @@ export const MAX_SUBLAYERS = 4;
 const ModuleObject = z.object({
   id: z.string().regex(ID).optional(), kind: oneOf('kind', CHAIN_KINDS).default('source'), title: Title.default(''),
   ref: z.string({ error: 'ref must name a library entry.' }).regex(/^[a-z0-9-]{1,64}$/).optional(),
-  code: Code.default(''), params: Params.nullish().transform((p) => p ?? {}),
+  params: Params.nullish().transform((p) => p ?? {}),
   input: z.string({ error: 'input must be a module id.' }).regex(ID).optional(),
   on: z.string({ error: 'on must be a module id.' }).regex(ID).optional(),
   as: z.literal('input', { error: "as is only 'input' (a source)." }).optional(), blend: SourceBlend.optional(),
@@ -151,15 +146,16 @@ const ModuleObject = z.object({
     .optional(),
 }, { error: 'must be an object.' }).refine((m) => !m.as || m.kind === 'source', "as is only 'input' (a source).")
   .refine((m) => !m.on || m.kind === 'warp' || m.kind === 'filter', 'on is only a warp\'s or a filter\'s.')
-  .refine((m) => (m.kind === 'composite') === !!m.layers, 'a composite has layers, and only a composite.');
-type ModuleOut = Omit<z.infer<typeof ModuleObject>, 'layers'> & { layers?: SubLayer[] };
+  .refine((m) => (m.kind === 'composite') === !!m.layers, 'a composite has layers, and only a composite.')
+  .refine((m) => m.kind === 'composite' || m.ref, 'ref must name a library entry.');
+/** `code` is never stored or taken: every read fills it with its ref's current library file (spec/looks "Modules"). */
+type ModuleOut = Omit<z.infer<typeof ModuleObject>, 'layers'> & { layers?: SubLayer[], code?: string };
 const Module: z.ZodType<ModuleOut, unknown> = ModuleObject;
 
 /** A layer's module chain (SPEC "Modules"): 1–8 modules, ids unique (m1, m2, … by default). */
 export const Modules = z.array(Module, { error: `1–${MAX_MODULES} modules.` }).min(1).max(MAX_MODULES)
   .transform((list, ctx) => {
     const ids = new Set<string>();
-    let total = 0;
     return list.map(({ id: given, enabled, ...rest }, j) => {
       const id = given ?? `m${j + 1}`;
       if (ids.has(id)) {
@@ -170,8 +166,6 @@ export const Modules = z.array(Module, { error: `1–${MAX_MODULES} modules.` })
         ctx.addIssue({ code: 'custom', path: [j, 'on'],
           message: 'on names the source or composite just above it (or above the modules attached to it).' });
       }
-      total += bytes(rest.code);
-      if (total > MAX_LAYER_CODE_BYTES) ctx.addIssue(`its modules' code is over ${MAX_LAYER_CODE_BYTES / 1024} kB.`);
       return { id, ...rest, ...(enabled === false ? { enabled } : {}) };
     });
   });
@@ -182,36 +176,32 @@ export const Soften = z.strictObject({
   mode: oneOf('soften.mode', BLUR_MODES).default('wire'),
 }, { error: 'soften must be { radius, mode }.' });
 
+const DROPPED = new Set(['code', 'params', 'ref', 'palette']);
 const Layer = z.looseObject({
   id: z.string({ error: 'id must be 1–64 letters, digits or _.:-' }).regex(ID).optional(),
-  title: Title.default(''), code: Code.optional(), params: Params.nullish(), modules: Modules.optional(),
+  title: Title.default(''), modules: Modules,
   // None given: the rig's root; [] (and no tags): nothing.
   groups: array((error) => z.string({ error }).min(1).max(64), 64, 'groups must be an array of group ids.').optional(),
   tags: list((error) => z.string({ error }).regex(TAG), 16, 'tags must be an array of at most 16 tags (a-z, 0-9, -).'),
   blend: Blend.default('add'), level: num(0, 1, 'level must be a number from 0 to 1.').default(1),
   clips: Clips.nullish(), soften: Soften.nullish(),
 }, { error: 'must be an object.' }).superRefine((l, ctx) => {
-  const stray = l.code !== undefined || Object.keys(l.params ?? {}).length > 0;
-  if (l.modules && stray) ctx.addIssue('a layer has modules or code and params, not both.');
   const ids = new Set<string>();
-  for (const m of flatModules(l.modules ?? [])) {
+  for (const m of flatModules(l.modules)) {
     if (ids.has(m.id)) {
       ctx.addIssue({ code: 'custom', path: ['modules'],
         message: `module id ${m.id} is used twice: ids are unique across the layer, sub-layers' too.` });
     }
     ids.add(m.id);
   }
-  if (!l.modules && l.code === undefined) {
-    ctx.addIssue({ code: 'custom', message: 'code must be a string.', path: ['code'] });
-  }
-}).transform(({ id, title, code, params, modules, groups, tags, blend, level, clips, soften, palette: _, ...flags },
-) => {
-  // Small UI flags the client may add (enabled, solo) are kept; anything bulky is dropped, and so is `palette`, a role
-  // remap from before every source had one colour pick (dropRemaps).
-  const extra = Object.fromEntries(Object.entries(flags).filter(([k, v]) => k.length <= 64
+}).transform(({ id, title, modules, groups, tags, blend, level, clips, soften, ...flags }) => {
+  // Small UI flags the client may add (enabled, solo) are kept; anything bulky is dropped, and so are `code`, `params`
+  // and `ref` (what plays is the modules') and `palette`, a role remap from before every source had one colour pick
+  // (dropRemaps).
+  const extra = Object.fromEntries(Object.entries(flags).filter(([k, v]) => !DROPPED.has(k) && k.length <= 64
     && (typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v))
       || (typeof v === 'string' && v.length <= 200))).slice(0, 16));
-  return { id, title, ...(modules ? { modules } : { code: code!, params: params ?? {} }), ...(groups ? { groups } : {}),
+  return { id, title, modules, ...(groups ? { groups } : {}),
     ...(tags.length ? { tags: [...new Set(tags)] } : {}), blend, level, ...(clips?.length ? { clips } : {}),
     ...(soften ? { soften } : {}), ...extra };
 });

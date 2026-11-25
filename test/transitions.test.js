@@ -53,7 +53,8 @@ describe('a clip\'s transition in a frame', () => {
   test('kept by normalizeClips and the look schema; an unknown kind fades', () => {
     assert.deepEqual(normalizeClips([wipe])[0].transition, wipe.transition);
     assert.equal(normalizeClips([{ ...clip, transition: { kind: 'spin' } }])[0].transition, undefined);
-    const look = (transition) => Layers.safeParse([{ id: 'a', code: WHITE, clips: [{ ...clip, transition }] }]);
+    const look = (transition) => Layers.safeParse([{ id: 'a', modules: [{ ref: 'clouds' }],
+      clips: [{ ...clip, transition }] }]);
     assert.ok(look({ kind: 'wipe', direction: 'up' }).success);
     assert.ok(!look({ kind: 'wipe', direction: 'sideways' }).success);
   });

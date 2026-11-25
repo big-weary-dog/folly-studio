@@ -13,12 +13,12 @@ browser's too:
   { "id": "l1", "title": "Sea", "groups": ["cathedral"], "tags": ["all"], "blend": "add" | "over" | "max" | "multiply",
     "level": 1, "clips": [{ "start": 0, "end": 12, "fadeIn": 2, "fadeOut": 3 }], "soften": { "radius": 0.15, "mode": "wire" },
     "modules": [
-      { "id": "m1", "kind": "source", "title": "Chase", "ref": "single-strand", "code": "…",
+      { "id": "m1", "kind": "source", "title": "Chase", "ref": "single-strand",
         "params": { "speed": 40, "colours": { "pick": "body/accent", "rotate": 0.25 } } },
-      { "id": "m2", "kind": "source", "title": "Clouds", "ref": "clouds", "code": "…", "params": {}, "as": "input" },
-      { "id": "m3", "kind": "filter", "title": "Mask", "ref": "mask", "code": "…", "input": "m2",
+      { "id": "m2", "kind": "source", "title": "Clouds", "ref": "clouds", "params": {}, "as": "input" },
+      { "id": "m3", "kind": "filter", "title": "Mask", "ref": "mask", "input": "m2",
         "params": { "amount": { "mod": "global", "name": "storm", "from": 0, "to": 1 } } },
-      { "id": "m4", "kind": "warp", "title": "Twist", "ref": "twist", "code": "…", "params": {} }
+      { "id": "m4", "kind": "warp", "title": "Twist", "ref": "twist", "params": {} }
     ] }
 ],
   "globals": {
@@ -36,11 +36,13 @@ layer's groups by hand clears its tags. Blend: `add` sums light (default: 50 % a
 68 %), `over` replaces where the layer has alpha × level, `max` keeps the brighter channel, `multiply` tints what is
 below.
 
-- **Modules**: 1–8 per layer, ids unique in it (`[A-Za-z0-9_.:-]{1,64}`), `code` ≤ 20 kB each. The server keeps a
-  module as its `ref` and params, never its code (`src/library-refs.ts`): every read (the API, versions, bakes,
-  previews, exports) fills `code` with the current file of the entry `ref` names, hidden ones too, whatever was
-  stored ('' for a ref the library lacks). A module whose ref the library lacks, or that has none, takes the ref of
-  the one entry whose current file its code is exactly (by SHA-256); else it keeps its ref. A look
+- **Modules**: 1–8 per layer, ids unique in it (`[A-Za-z0-9_.:-]{1,64}`), each naming a library module by `ref`
+  (`[a-z0-9-]{1,64}`; a composite names none). A body's modules are refs and params: `code` on a module or a layer
+  is ignored. The server keeps a module as its `ref` and params, never its code (`src/library-refs.ts`): every read
+  (the API, versions, bakes, previews, exports) fills `code` with the current file of the entry `ref` names, hidden
+  ones too, whatever was stored ('' for a ref the library lacks). A stored module whose ref the library lacks, or
+  that has none, takes the ref of the one entry whose current file its stored code is exactly (by SHA-256); else it
+  keeps its ref. A look
   and each version keep the hash of the code they were saved with (`codeHash`, never handed out). When the library
   changes that code, a read gives the look without its bake or review (`reviewed` false, no `reviewedBy` or
   `flashOverride`), to be baked and reviewed afresh, and the version `reviewed` false. Every rule on a look's
@@ -51,8 +53,7 @@ below.
   module whose `ref` the library has is standard: it keeps the
   library's title (`shared/standard-modules.ts`; the API puts a renamed one's back). The Studio plays each module's
   code from its ref's library file (hidden ones too, `GET /api/library`), whatever the look holds ('' for a ref the
-  library lacks). A save may send a module as its `ref` alone; each module must name a library module so, or carry a
-  library file exactly (spec/frames "Library only"); `params`
+  library lacks). A save's modules must each name a library module (spec/frames "Library only"); `params`
   override the code's defaults (≤ 64; a string ≤ 256 characters: a pick, a choice or text).
   A stored module's `live` (offers to the archived Live Play) is ignored on read and dropped.
   `enabled: false` skips it; `input` names an earlier source; `on`
@@ -60,11 +61,11 @@ below.
   (spec/library "Attached modules"); `as` is only
   `'input'`; `blend` as for layers, or `under` (a source's only). `kind` is `source`, `warp`, `filter` or
   `composite`: no code, its `layers` 1–4 sub-layers, each a chain of its own that counts as one source to the chain
-  round it (spec/library "Composites"); ids are unique across a layer's sub-layers too. A layer with `code`
-  (+ `params`) and no `modules` is a one-source chain.
+  round it (spec/library "Composites"); ids are unique across a layer's sub-layers too. A stored layer with `code`
+  (+ `params`) and no `modules` reads and plays as a one-source chain; a body's layer has `modules`.
 - **chain**: `2`, the one rule (spec/library "Modules"). Without it a warp bends every module after it, on through blurs and
   trails, so a look without `chain: 2` (stored, or a body to `POST`/`PUT` without it) is converted once on its way
-  in (`shared/chain-order.ts`), exactly wherever it can be: warps leading a stage move to its end, reversed; a stage
+  in (`shared/chain-order.ts`, by the code its refs name), exactly wherever it can be: warps leading a stage move to its end, reversed; a stage
   after a stage end gets copies of the warps it read; two sources bent differently turn over (the first goes
   `under`, or adds or maxes as the second did); otherwise a warp stop (a blur of radius 0, `ref: 'blur'`) splits the
   stage. Where it cannot (more than 8 modules, or trails reading a pixel a warp changed), each warp moves to the end of
@@ -125,7 +126,7 @@ nothing. With it:
   code changes so plays differently: its bake, frames and review
   (`reviewed`, `reviewedBy`, `flashOverride`) go, to be baked and reviewed afresh; a version whose code changes loses
   its `reviewed`;
-- looks lose `ideaId` and users `access`, the AI's;
+- looks lose `ideaId` and users `access`, which nothing reads;
 - each look changed is listed, the dry run's too, by look id, title and owner: each layer switched or dropped and
   why, and apart, each module whose stored code was not its ref's current file (an edited or earlier copy, played as
   the library's). `migrations.json`'s `library-only` and `retired-patterns` (when it ran) mark it done, so it never
@@ -170,7 +171,8 @@ A look file is JSON, `application/json`, named for its title (`<slug>.json`):
 
 the look's words, `chain`, and what plays (spec/looks "What plays"), as the Studio's Export → Look JSON writes it,
 each module as its library `ref` and params, without code (the library it is imported into supplies it). An import
-takes such modules, and older files' modules with code, matched to the library by exact file (SPEC "Modules"). The
+takes modules as any save does: code a module carries is ignored, and each must name a library module (SPEC
+"Modules"). The
 FSEQ exports are unchanged.
 `origin` names the look wherever it is copied: the look's `origin` when it came in by an import, else its own id (ids
 are random, so one Studio's never stands for another's); `GET /api/looks/:id` answers it when set. A file without
@@ -192,7 +194,7 @@ Several looks go in one file as `{ "looks": [look file] }` (`folly-looks-mine-<d
   Lanes for present macros remain checked.
   A look already among the importer's own (its id or its `origin` is the file's `origin`) is **updated**: the file
   overrules it, as a `PUT` of the title, summary and what plays would (`how: import`), with every check a `PUT` has
-  (library code only, the body limit, a bake and review dropped when the frames change), so a change to what
+  (library modules only, the body limit, a bake and review dropped when the frames change), so a change to what
   plays is a new version and what the importer had, edits made since the last import included, stays in its History
   (spec/looks "Versions"); it keeps its sharing, and its review as any such save does. One that already reads and
   plays as the file is **unchanged**. Any other look is **added**: the importer's, unshared, keeping the `origin`. A
@@ -217,7 +219,7 @@ look's words, not what plays.
 
 A save that changes what plays keeps what was there as a version (`src/look-versions.ts`): `{ n, how, name?, from?,
 ideaId?, ask?, title, summary, layers, duration, bpm, globals?, automation?, savedAt, reviewed? }`. `n` counts up
-and is never reused; `how` is `auto` (a save), `ai` (an AI refinement, kept from before Studio dropped the AI: its `ideaId` and what it `ask`ed), `restore`
+and is never reused; `how` is `auto` (a save), `ai` (an AI refinement: its `ideaId` and what it `ask`ed), `restore`
 (of version `from`) or `import` (a look file overruling it: spec/looks "Look files"); `reviewed = { by,
 flashOverride? }` when a curator had reviewed it. The look holds its own
 number and making as `look.version` (`GET` answers its owner with the number alone). The last 20 unnamed versions

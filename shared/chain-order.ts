@@ -7,7 +7,7 @@
 // fields. A stage that needs two runs, bent differently, is split by a warp stop (a blur of radius 0: the stage buffer
 // carries c unclamped, exact) or, with two visible sources only, turned over (below). A stage after a stage end gets
 // copies of the warps it read. Over 8 modules, the warps stay in their stage, bending all of it, and a note says so.
-import { MAX_LAYER_CODE_BYTES, MAX_MODULES, type Module } from './schemas/look.ts';
+import { MAX_MODULES, type Module } from './schemas/look.ts';
 import { isStageEnd, stageOf } from '../core/pattern-core.ts';
 
 /** A look's `chain`: its chains follow the one rule. A look without it is converted once, on its way in. */
@@ -85,7 +85,7 @@ export function convertChain(saved: readonly Mod[]): { modules: Mod[], exact: bo
   }
   const parts = stages.map((ops, s) => plan(ops, s === 0));
   const built = exact && assemble(modules, live, warps, parts, ends);
-  if (built && built.length <= MAX_MODULES && codeBytes(built) <= MAX_LAYER_CODE_BYTES) {
+  if (built && built.length <= MAX_MODULES) {
     return { modules: built, exact: true };
   }
   return { modules: inPlace(modules), exact: false };
@@ -186,8 +186,6 @@ function inPlace(modules: readonly Mod[]): Mod[] {
   }
   return [...out, ...warps];
 }
-
-const codeBytes = (mods: Mod[]) => mods.reduce((n, m) => n + new TextEncoder().encode(m.code ?? '').length, 0);
 
 /** Layers from before the one rule, converted; a note for each that is not exact. */
 export function convertLayers<L extends Layer>(layers: readonly L[]): { layers: L[], notes: string[] } {

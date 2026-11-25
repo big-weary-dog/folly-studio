@@ -13,7 +13,7 @@ import { createLane } from '../src/bake.ts';
 import { createFrameJobs, createFramesCache, createFramesDisk } from '../src/frames-cache.ts';
 import { wireHash } from '../src/frames-wire.ts';
 import { createRenderBox } from '../src/render-box.ts';
-import { GLOW, writeLibrary } from './fixtures/library.js';
+import { glowLayer, writeLibrary } from './fixtures/library.js';
 import { lineRig } from './fixtures/rigs.js';
 import { quiet } from './fixtures/quiet.js';
 import { serve, signup } from './fixtures/app.js';
@@ -161,7 +161,7 @@ describe('the bake cache and re-baking evicted frames, through the API', () => {
     'content-type': 'application/json' }, body: body && JSON.stringify(body) });
 
   test('a look that renders what another baked takes its frames without baking', async () => {
-    const make = async (title) => (await (await call('POST', '/api/looks', { title, layers: [{ code: GLOW }] }))
+    const make = async (title) => (await (await call('POST', '/api/looks', { title, layers: [glowLayer()] }))
       .json()).look;
     const first = await make('First');
     assert.equal((await call('POST', `/api/looks/${first.id}/bake`, {})).status, 202);
@@ -184,7 +184,7 @@ describe('the bake cache and re-baking evicted frames, through the API', () => {
   });
 
   test('evicted frames are baked again when asked for, keeping the bake (and its review)', async () => {
-    const evict = { title: 'Evict me', layers: [{ code: GLOW, params: { k: 1 } }] };
+    const evict = { title: 'Evict me', layers: [glowLayer({ k: 1 })] };
     const { look } = await (await call('POST', '/api/looks', evict)).json();
     await call('POST', `/api/looks/${look.id}/bake`, {});
     await app.bakes.idle();

@@ -12,7 +12,7 @@ import { afterAll, beforeAll, describe, test } from 'vitest';
 import { writeFseq } from '../core/fseq.ts';
 import { bestWindow, HEIGHT, previewFrames, WIDTH, WINDOW_S } from '../src/previews/motion.ts';
 import { playaCamera } from '../src/previews/playa.ts';
-import { GLOW, writeLibrary } from './fixtures/library.js';
+import { glowLayer, writeLibrary } from './fixtures/library.js';
 import { lineRig } from './fixtures/rigs.js';
 import { quiet } from './fixtures/quiet.js';
 import { serve, signup } from './fixtures/app.js';
@@ -83,7 +83,7 @@ test('the Playa camera draws the installation lit as the samples say', async (ct
 describe('previews of shared looks', () => {
   let tmp, app, dataDir, cookie, other, start, release, holding;
   const held = new Promise((r) => { release = r; }), rendering = new Promise((r) => { holding = r; });
-  const glow = (params = {}) => [{ name: 'a', code: GLOW, params }];
+  const glow = (params = {}) => [glowLayer(params)];
   const req = (p, { method = 'GET', body, as = cookie } = {}) => fetch(app.base + p, { method, headers: {
     cookie: as, ...(body ? { 'content-type': 'application/json' } : {}) }, body: body && JSON.stringify(body) });
   const until = async (fn) => {
@@ -108,7 +108,7 @@ describe('previews of shared looks', () => {
     await writeLibrary(publicDir);
     start = async (rig) => {
       const renderBox = stubBox(async ({ layers }) => {
-        const { hold, late } = layers[0]?.params ?? {};
+        const { hold, late } = layers[0]?.modules?.[0]?.params ?? {};
         if (hold) { holding(); await held; }
         return { bytes: late ? frames(2, 9) : frames() };
       }, SECONDS);

@@ -15,7 +15,7 @@ import { writeFseq } from '../core/fseq.ts';
 import { decodeChunk, parseManifest, readFrame } from '../public/js/frames-stream.ts';
 import { parseFseq } from '../src/frames.ts';
 import { IMMUTABLE } from '../src/frames-http.ts';
-import { GLOW, writeLibrary } from './fixtures/library.js';
+import { glowLayer, writeLibrary } from './fixtures/library.js';
 import { lineRig } from './fixtures/rigs.js';
 import { HAS_ZSTD, inflateBlock } from '../src/fseq-codec.ts';
 import { serve, signup } from './fixtures/app.js';
@@ -32,7 +32,7 @@ function bakedData(seed) {
   }
   return data;
 }
-const seeded = (seed) => ({ code: GLOW, params: { seed } });
+const seeded = (seed) => glowLayer({ seed });
 
 let tmp, app, alice, bob, carol, anon;
 

@@ -9,7 +9,8 @@ import { Login, Signup } from '../shared/schemas/api.ts';
 import { automationFor, Globals, Layers, type Module, problem } from '../shared/schemas/look.ts';
 import { LibraryEntry } from '../shared/schemas/rig.ts';
 
-const PIXEL = 'function pixel(p) { return [1, 1, 1]; }';
+/** A module naming a library entry; a layer of one. */
+const SRC = { ref: 'clouds' }, ONE = { modules: [SRC] };
 /** The parsed value, or the sentence problem() makes of its first issue. */
 function check<T extends z.ZodType>(schema: T, value: unknown): z.output<T> | string {
   const r = schema.safeParse(value);
@@ -22,37 +23,42 @@ const lanes = (a: unknown, g?: { macros?: Record<string, { min: number, max: num
 
 describe('the API look', () => {
   test('defaults, ids, tags kept once, empty clips stored as none, groups none given or none picked', () => {
-    const out = layers([{ code: PIXEL, tags: ['rose', 'rose'], clips: [] },
-      { modules: [{ code: PIXEL }, { kind: 'filter', code: 'function filter(c) { return c; }', enabled: true }],
-        groups: [] }]);
+    const out = layers([{ ...ONE, tags: ['rose', 'rose'], clips: [] },
+      { modules: [SRC, { kind: 'filter', ref: 'mask', enabled: true }], groups: [] }]);
     assert.deepEqual(out, { layers: [
-      { id: 'l1', title: '', code: PIXEL, params: {}, tags: ['rose'], blend: 'add', level: 1 },
+      { id: 'l1', title: '', modules: [{ id: 'm1', kind: 'source', title: '', ref: 'clouds', params: {} }],
+        tags: ['rose'], blend: 'add', level: 1 },
       { id: 'l2', title: '', modules: [
-        { id: 'm1', kind: 'source', title: '', code: PIXEL, params: {} },
-        { id: 'm2', kind: 'filter', title: '', code: 'function filter(c) { return c; }', params: {} },
+        { id: 'm1', kind: 'source', title: '', ref: 'clouds', params: {} },
+        { id: 'm2', kind: 'filter', title: '', ref: 'mask', params: {} },
       ], groups: [], blend: 'add', level: 1 },
     ] });
   });
 
+  test('what plays is refs and params: code anywhere is dropped, and a layer without modules refused', () => {
+    const out = layers([{ code: 'x', params: { a: 1 }, ref: 'clouds', modules: [{ ...SRC, code: 'x' }] }]);
+    assert.deepEqual(out, { layers: [{ id: 'l1', title: '',
+      modules: [{ id: 'm1', kind: 'source', title: '', ref: 'clouds', params: {} }], blend: 'add', level: 1 }] });
+    assert.equal(layers([{ code: 'function pixel() { return [1, 1, 1]; }' }]), 'Layer 1: 1–8 modules.');
+    assert.equal(layers([{ modules: [{ code: 'x' }] }]), 'Layer 1, module 1: ref must name a library entry.');
+  });
+
   test('problems name where they are', () => {
-    assert.equal(layers([{ code: PIXEL }, { modules: [{ code: PIXEL, input: 3 }] }]),
+    assert.equal(layers([ONE, { modules: [{ ...SRC, input: 3 }] }]),
       'Layer 2, module 1: input must be a module id.');
-    assert.equal(layers([{ code: PIXEL, params: { speed: { mod: 'lfo', unit: 'bars' } } }]),
-      'Layer 1, param speed has an unsupported value.');
-    assert.equal(layers([{ code: PIXEL, clips: [{ start: 0, end: 1 }, 'x'] }]), 'Layer 1, clip 2 must be an object.');
-    assert.equal(layers(Array.from({ length: 9 }, () => ({ code: PIXEL }))), 'A look can have at most 8 layers.');
-    const big = 'x'.repeat(19 * 1024);
-    assert.equal(layers([{ modules: [1, 2, 3, 4].map(() => ({ code: big })) }]),
-      "Layer 1: its modules' code is over 64 kB.");
+    assert.equal(layers([{ modules: [{ ...SRC, params: { speed: { mod: 'lfo', unit: 'bars' } } }] }]),
+      'Layer 1, module 1, param speed has an unsupported value.');
+    assert.equal(layers([{ ...ONE, clips: [{ start: 0, end: 1 }, 'x'] }]), 'Layer 1, clip 2 must be an object.');
+    assert.equal(layers(Array.from({ length: 9 }, () => ONE)), 'A look can have at most 8 layers.');
   });
 
   test('soften: kept, rounded, its mode defaulted; out of range refused; null is none', () => {
-    const out = layers([{ code: PIXEL, soften: { radius: 0.1234567891 } }, { code: PIXEL, soften: null }]);
+    const out = layers([{ ...ONE, soften: { radius: 0.1234567891 } }, { ...ONE, soften: null }]);
     assert.deepEqual((out as { layers: { soften?: object }[] }).layers.map((l) => l.soften),
       [{ radius: 0.123457, mode: 'wire' }, undefined]);
-    assert.equal(layers([{ code: PIXEL, soften: { radius: 2 } }]),
+    assert.equal(layers([{ ...ONE, soften: { radius: 2 } }]),
       'Layer 1: soften.radius must be a number of metres from 0 to 1.5.');
-    assert.equal(layers([{ code: PIXEL, soften: { radius: 0.2, mode: 'fog' } }]),
+    assert.equal(layers([{ ...ONE, soften: { radius: 0.2, mode: 'fog' } }]),
       'Layer 1: soften.mode must be one of wire, space, both.');
   });
 
@@ -69,8 +75,8 @@ describe('the API look', () => {
   });
 
   test("an old look's Live Play offers load and are dropped", () => {
-    assert.deepEqual(layers([{ modules: [{ code: PIXEL, live: ['colours'] }] }]), { layers: [{ id: 'l1', title: '',
-      modules: [{ id: 'm1', kind: 'source', title: '', code: PIXEL, params: {} }], blend: 'add', level: 1 }] });
+    assert.deepEqual(layers([{ modules: [{ ...SRC, live: ['colours'] }] }]), { layers: [{ id: 'l1', title: '',
+      modules: [{ id: 'm1', kind: 'source', title: '', ref: 'clouds', params: {} }], blend: 'add', level: 1 }] });
     assert.deepEqual(globals({ macros: { storm: {} }, live: ['bpm', 'storm', 'gone', 'gone'] }),
       { globals: { macros: { storm: { value: 0, min: 0, max: 1 } } } });
   });
@@ -123,7 +129,7 @@ describe('the rig, the library index and accounts', () => {
 });
 
 describe('a composite (spec/library "Composites")', () => {
-  const src = (more = {}) => ({ kind: 'source', code: PIXEL, ...more });
+  const src = (more = {}) => ({ kind: 'source', ref: 'clouds', ...more });
   const layer = (modules: unknown[]) => [{ id: 'l', modules }];
   const comp = (layers: unknown[]) => ({ kind: 'composite', layers });
   test('its sub-layers\' modules get ids of their own by default, unique across the layer', () => {

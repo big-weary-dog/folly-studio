@@ -87,7 +87,9 @@ describe('an attached module', () => {
 });
 
 describe('on, in a look', () => {
-  const ok = (list) => Modules.safeParse(list).success;
+  // As a look stores them: each module its library ref (the render tests above run code of their own).
+  const ok = (list) => Modules.safeParse(JSON.parse(JSON.stringify(list),
+    (_, v) => (v?.kind && v.kind !== 'composite' ? { ...v, ref: 'clouds' } : v))).success;
   test('names the source or composite just above its run', () => {
     assert.ok(ok([RED, on(FLIP), on(DARK), BLUE]));
     assert.ok(ok([comp([RED]), on(FLIP, 'c')]));

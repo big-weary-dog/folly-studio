@@ -135,11 +135,13 @@ describe('convertChain', () => {
 
 // Each frozen look, converted, renders the old engine's DMX bytes: all 60 frames, one digest.
 describe('frozen looks from before the rule render as they did, converted', () => {
+  // As a look stores them: a module of the fixture's own code (no ref) stands for a library entry.
+  const stored = (layers) => layers.map((l) => ({ ...l, modules: l.modules.map((m) => ({ ref: 'own', ...m })) }));
   for (const [name, look, sha] of LOOKS) {
     test(name, () => {
       const { look: now, exact } = upgradeLook(look);
       assert.equal(exact, true);
-      assert.ok(Layers.safeParse(now.layers).success, 'a valid look');
+      assert.ok(Layers.safeParse(stored(now.layers)).success, 'a valid look');
       assert.equal(digest(core, now), sha);
     });
   }

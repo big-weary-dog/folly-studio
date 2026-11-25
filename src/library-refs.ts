@@ -21,6 +21,14 @@ function fill(m: Node, ref: unknown, code: string) {
   for (const [k, v] of Object.entries(was)) if (!FIRST.includes(k)) m[k] = v;
 }
 
+/** `layers` (changed in place) with each module's code its ref's file in `library` ('' for a ref it lacks), as a read
+ * fills it. */
+export function withCode<T>(layers: T, library: readonly LibraryEntry[]): T {
+  const codes = new Map(library.filter((e) => e.kind !== 'preset').map((e) => [e.name, e.code]));
+  eachModule(layers, (m) => fill(m, undefined, codes.get(String(m.ref)) ?? ''));
+  return layers;
+}
+
 /** A look's versions. */
 const versionsOf = (look: Node) => (Array.isArray(look.versions) ? look.versions.filter(isNode) : []);
 

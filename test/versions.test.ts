@@ -141,7 +141,12 @@ test('overlapping saves each keep a version: a save waiting on its code check bu
     onTestFinished(() => store.close());
     const user = store.users.create({ username: 'o-ann', passwordHash: '' });
     let release = () => {}, hold = false;
-    const check = () => (hold ? new Promise<void>((r) => { release = r; }) : Promise.resolve());
+    // The first check after `hold` waits for release(): that save's, whatever runs before it gets there.
+    const check = () => {
+      if (!hold) return Promise.resolve();
+      hold = false;
+      return new Promise<void>((r) => { release = r; });
+    };
     const { routes } = lookRoutes({ store, auth, codeGate: { check }, bakes: { request: async () => ({}) } as never,
       dropFrames: async () => {} });
     const put = (id: string, body: object) => (routes['PUT /looks/:id'] as (r: unknown) => Promise<unknown>)(
@@ -150,7 +155,6 @@ test('overlapping saves each keep a version: a save waiting on its code check bu
       versions: [] });
     hold = true;
     const layers = put(look.id, { layers: [layer({ level: 0.5 })], chain: 2 });
-    hold = false;
     await put(look.id, { duration: 40 });
     release();
     await layers;
