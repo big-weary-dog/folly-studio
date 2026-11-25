@@ -230,7 +230,11 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
           reason: 'The baked frames could not be stored.' };
       }
     }
-    if (!current()) return null;
+    // Gone or changed while its frames were stored (a DELETE's removal may run before they land): drop them.
+    if (!current()) {
+      if (out.bake.frames && file !== framesPath(framesDir, id)) await removeFrames(framesDir, id);
+      return null;
+    }
     const saved = store.looks.update(id, { bake: out.bake });
     if (!saved) await removeFrames(framesDir, id);
     else if (out.bake.frames) onFrames?.(id);
