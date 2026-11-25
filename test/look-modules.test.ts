@@ -37,6 +37,12 @@ test('says where the shape breaks, and still walks a broken composite\'s sub-lay
   assert.deepEqual(faults([null, { modules: [7, mod('a')] }]), ['layer', 'module', 'a']);
   assert.deepEqual(faults([{ modules: [comp([{ modules: [mod('a')] }], { code: 'x' })] }]), ['composite', 'a']);
   assert.deepEqual(faults([{ modules: [comp(undefined)] }]), ['composite'], 'a composite without sub-layers');
+  for (const code of [false, 0, null]) {
+    assert.deepEqual(faults([{ modules: [comp([{ modules: [mod('a')] }], { code })] }]), ['composite', 'a'],
+      `code ${code} is not none`);
+  }
+  assert.deepEqual(faults([{ modules: [comp([])] }]), ['composite'], 'no sub-layers');
+  assert.deepEqual(faults([{ modules: [comp([{ modules: [mod('a')] }], { code: undefined })] }]), ['a']);
   const seen: unknown[] = [];
   eachModule([null, { modules: [comp([{ modules: [mod('a')] }], { code: 'x' })] }], (m) => seen.push(m.id));
   assert.deepEqual(seen, ['a'], 'eachModule passes over where it breaks');
@@ -50,6 +56,9 @@ test('maps each module, composites rebuilt round theirs; null where the shape br
   assert.equal(mapModules(LAYERS, (m) => (m.code === 'c' ? null : m)), null);
   assert.equal(mapModules([{ modules: [comp([{ modules: [mod('a')] }], { code: 'x' })] }], (m) => m), null);
   assert.equal(mapModules([{ modules: [null] }], (m) => m), null);
+  for (const broken of [comp([]), comp(undefined), comp([{ modules: [mod('a')] }], { code: null })]) {
+    assert.equal(mapModules([{ modules: [broken] }], (m) => m), null, 'a malformed composite is not kept');
+  }
   assert.equal(mapModules('nope', (m) => m), null);
 });
 

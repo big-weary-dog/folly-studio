@@ -11,9 +11,11 @@ export const isNode = (v: unknown): v is Node => !!v && typeof v === 'object' &&
 export type Met = { module: Node, fault?: undefined, layer: Node, at: number }
   | { module?: Node, fault: 'layer' | 'module' | 'composite', layer?: Node, at: number };
 
-/** A composite (a chain's module of that kind): its own code is '' or absent, and it holds sub-layers. */
+/** A composite (a chain's module of that kind) holds sub-layers, and its own code is '' or absent; compositeCode says
+ * it has other. */
 const isComposite = (m: Node) => m.kind === 'composite';
-const brokenComposite = (m: Node) => !!m.code || !Array.isArray(m.layers);
+export const compositeCode = (m: Node) => m.code !== undefined && m.code !== '';
+const brokenComposite = (m: Node) => compositeCode(m) || !Array.isArray(m.layers) || !m.layers.length;
 
 /** Each thing met in `layers`, in order, given to `visit` until it returns true; the one it stopped at. */
 export function findModule(layers: unknown, visit: (met: Met) => unknown): Met | undefined {

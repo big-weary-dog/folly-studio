@@ -2,7 +2,7 @@
 // earlier file of a module the index lists (hidden ones too), the one its `ref` names, else the one whose file it is.
 // A look or version with any other module is dropped, saying why (a retired pattern's copy names it); the rest move
 // to the current library, each module naming its entry.
-import { findModule, isNode, mapModules, moduleCodes, type Node } from '../shared/look-modules.ts';
+import { compositeCode, findModule, isNode, mapModules, moduleCodes, type Node } from '../shared/look-modules.ts';
 import { layersHash, renderFields } from './bake.ts';
 import type { libraryFiles } from './library-history.ts';
 import { sha256 } from './library-history.ts';
@@ -27,7 +27,7 @@ const isLibrary = (library: Library, ref: string | null): ref is string => !!ref
 export function whyNot(library: Library, layers: unknown): string {
   let why = '';
   findModule(layers, ({ module: m, fault }) => {
-    if (fault) why = fault === 'composite' && m!.code ? 'a composite with code' : `a malformed ${fault}`;
+    if (fault) why = fault === 'composite' && compositeCode(m!) ? 'a composite with code' : `a malformed ${fault}`;
     else {
       const ref = entryOf(library, m.code, m.ref);
       if (ref && !isLibrary(library, ref)) why = `retired pattern ${ref}`;
