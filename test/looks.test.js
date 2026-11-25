@@ -32,7 +32,8 @@ describe('looks', () => {
   });
 
   test('create validates and defaults', async () => {
-    const r = await alice.post('/api/looks', { title: ' Coral reef ', layers: [{ code: EMBERS }] });
+    const r = await alice.post('/api/looks', { title: ' Coral reef ',
+      layers: [{ modules: [{ ref: 'embers', code: 'ignored' }] }] });
     assert.equal(r.status, 201);
     const look = r.json.look;
     assert.equal(look.title, 'Coral reef');
@@ -42,8 +43,8 @@ describe('looks', () => {
     assert.equal(look.shared, false);
     assert.equal(look.reviewed, false);
     assert.equal('versions' in look, false);
-    assert.deepEqual(look.layers, [{ id: 'l1', title: '', ref: 'embers', code: EMBERS, blend: 'add', level: 1,
-      params: {} }], 'no groups: the rig\'s root');
+    assert.deepEqual(look.layers, [{ id: 'l1', title: '', modules: [{ id: 'm1', kind: 'source', title: 'Rising embers',
+      ref: 'embers', code: EMBERS, params: {} }], blend: 'add', level: 1 }], 'no groups: the rig\'s root');
     const tagged = await alice.post('/api/looks', { title: 'Portable', layers: [layer({ tags: ['rose', 'rose'] })] });
     assert.deepEqual(tagged.json.look.layers[0].tags, ['rose']);
 
@@ -51,8 +52,8 @@ describe('looks', () => {
       { layers: [layer()] },
       { title: 'x', layers: 'nope' },
       { title: 'x', layers: Array.from({ length: 9 }, (_, i) => layer({ id: `l${i}` })) },
-      { title: 'x', layers: [layer({ code: 42 })] },
-      { title: 'x', layers: [layer({ code: `// ${'x'.repeat(20 * 1024)}` })] },
+      { title: 'x', layers: [layer({ modules: [] })] },
+      { title: 'x', layers: [layer({ modules: [{ kind: 'source', code: EMBERS }] })] },
       { title: 'x', layers: [layer({ groups: 'cathedral' })] },
       { title: 'x', layers: [layer({ groups: [1] })] },
       { title: 'x', layers: [layer({ tags: ['Not a tag'] })] },
@@ -60,8 +61,8 @@ describe('looks', () => {
       { title: 'x', layers: [layer({ blend: 'screen' })] },
       { title: 'x', layers: [layer({ level: 1.5 })] },
       { title: 'x', layers: [layer({ level: -0.1 })] },
-      { title: 'x', layers: [layer({ params: [] })] },
-      { title: 'x', layers: [layer({ params: { a: { nested: true } } })] },
+      { title: 'x', layers: [layer({ modules: [{ ref: 'embers', params: [] }] })] },
+      { title: 'x', layers: [layer({ modules: [{ ref: 'embers', params: { a: { nested: true } } }] })] },
       { title: 'x', layers: [layer(), layer()] },
     ];
     for (const body of bads) {

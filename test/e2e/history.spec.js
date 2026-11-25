@@ -8,10 +8,8 @@ import path from 'node:path';
 import { drawn } from './drawn.js';
 import { SIZES } from './sizes.js';
 import { expect, signIn, signup, test } from './studio.js';
-import { libraryCode } from '../fixtures/patterns.js';
-
-const WASH = libraryCode('colour-wash');
-const layer = (level) => ({ id: 'l1', title: 'Glow', code: WASH, level, params: {} });
+const layer = (level) => ({ id: 'l1', title: 'Glow', level,
+  modules: [{ id: 'm1', kind: 'source', ref: 'colour-wash', params: {} }] });
 const palette = (body) => ({ low: ['#120a2a'], body: [body], accent: ['#ffb070'], high: ['#fff4e0'] });
 
 /** A look of `cookie`'s, saved three times: versions 1 (red), 2 (green) and 3 (blue, as saved). */

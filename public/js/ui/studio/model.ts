@@ -136,7 +136,7 @@ export const cleanSub = (l: SubLayer): SubLayer => ({ id: String(l.id), title: S
  * hidden source above it. */
 export function insertModule(mods: Module[], m: Module, selectedId?: string) {
   const i = mods.findIndex((x) => x.id === selectedId), at = i < 0 ? mods.length : i + 1;
-  if (m.kind === 'filter' && /\bx\s*\[/.test(m.code)) {
+  if (m.kind === 'filter' && /\bx\s*\[/.test(m.code ?? '')) {
     m.input = mods.slice(0, at).reverse().find((x) => x.kind === 'source' && x.as === 'input')?.id;
   }
   return [...mods.slice(0, at), m, ...mods.slice(at)];

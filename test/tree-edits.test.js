@@ -63,7 +63,10 @@ test('M20: duplicated chains remap input and on at every depth and can be saved'
       assert.equal(next[i][key], next[old.findIndex((m) => m.id === old[i][key])].id);
     }
   }
-  Layers.parse([original, copy]);
+  // As a look stores them: each module its library ref.
+  const stored = (l) => JSON.parse(JSON.stringify(l),
+    (_, v) => (v?.kind && v.kind !== 'composite' ? { ...v, ref: 'clouds' } : v));
+  Layers.parse([original, copy].map(stored));
   next.at(-1).params.amount = 0.5;
   assert.deepEqual(original, before, 'the duplicate owns its nested params');
 });

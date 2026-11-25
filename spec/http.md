@@ -73,7 +73,7 @@ GET    /api/looks/:id                         → { look }             mine, or 
 PUT    /api/looks/:id { title?, summary?, layers?, duration?, bpm?, globals?, automation?, shared?, reviewed?,
                      hidden?, flashOverride?, chain?, restoredFrom?, versionName? } → { look }  owner only
                                               (reviewed, hidden: a curator, 403 for anyone else); layers without chain: 2 converted; applied to the look as
-                                              stored once its code is checked, so overlapping saves each keep a version
+                                              stored once its refs are checked, so overlapping saves each keep a version
 GET    /api/looks/:id/versions                → { versions: [versionListed] }  the owner's: "Versions" in
                                               spec/looks, as are the two below
 GET    /api/looks/:id/versions/:n             → { version }

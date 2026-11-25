@@ -370,9 +370,10 @@ describe('store', () => {
   });
 });
 
-test('validateLayers keeps small UI flags and drops bulky extras', () => {
-  const [l] = validateLayers([{ code: PIXEL, enabled: false, solo: true, blob: { big: 1 } }]);
+test('validateLayers keeps small UI flags and drops bulky extras, and code', () => {
+  const [l] = validateLayers([layer({ code: PIXEL, enabled: false, solo: true, blob: { big: 1 } })]);
   assert.equal(l.enabled, false);
   assert.equal(l.solo, true);
   assert.equal('blob' in l, false);
+  assert.equal('code' in l, false);
 });

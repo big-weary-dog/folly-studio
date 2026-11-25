@@ -1,5 +1,5 @@
-// How the render box runs here (SPEC "Baked frames"): its own process under limits, what saves (library only), and
-// the admin's bake setting (on, throttled, off) in front of it.
+// How the render box runs here (SPEC "Baked frames"): its own process under limits, and the admin's bake setting (on,
+// throttled, off) in front of it.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,7 +9,6 @@ import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { createBakingStore, governBox, THROTTLE } from '../src/baking.ts';
 import { parseFseq } from '../src/frames.ts';
-import { customCode, libraryHashes } from '../src/library-gate.ts';
 import { createRenderBox } from '../src/render-box.ts';
 import { signup } from './fixtures/app.js';
 import { fakeBox } from './fixtures/box.js';
@@ -28,27 +27,7 @@ const COMPOSED = { id: 'l2', title: 'Mix', groups: ['cathedral'], blend: 'add', 
 const libLayer = (code, extra = {}) => ({ id: 'l1', title: 'Wash', code, params: {}, groups: [], blend: 'add',
   level: 1, ...extra });
 
-describe('library only', () => {
-  test('a look whose every layer and module is a library file, unchanged, passes; anything else names itself',
-    async () => {
-    const lib = await libraryHashes(PATTERNS);
-    assert.ok(lib.size > 20);
-    assert.equal(customCode([libLayer(WASH), { title: 'Chain', modules: [{ code: BARS }, { code: WASH }] }], lib), '');
-    assert.equal(customCode([libLayer(WASH), libLayer(`${WASH} `, { title: 'Sea' })], lib),
-      'Only looks made of unchanged library patterns save; Layer 2 (Sea) is custom code.');
-    assert.match(customCode([{ title: 'Chain', modules: [{ code: BARS }, { title: 'Glow', code: 'x' }] }], lib),
-      /Layer 1 \(Chain\)'s Glow is custom code\.$/);
-    assert.match(customCode([{ title: '' }], lib), /Layer 1 is custom code/, 'no code at all is not library code');
-    assert.equal(customCode([COMPOSED], lib), '', 'a composite has no code of its own; its sub-layers\' is library');
-    const inner = { ...COMPOSED, modules: [comp([{ id: 's1', modules: [{ title: 'Glow', code: 'x' }] }])] };
-    assert.match(customCode([inner], lib), /Layer 1 \(Mix\)'s Glow is custom code\.$/);
-    assert.match(customCode([{ ...COMPOSED, modules: [{ ...comp([]), code: 'x' }] }], lib), /Layer 1 \(Mix\)'s Comp/,
-      'a composite with code of its own is custom');
-    assert.match(customCode([{ ...COMPOSED, modules: [{ ...COMPOSED.modules[0], code: WASH }] }], lib),
-      /Layer 1 \(Mix\)'s Comp/, 'even library code on a composite, whose sub-layers would go unchecked');
-    assert.equal((await libraryHashes(path.join(fx.tmp, 'none'))).size, 0, 'no library: nothing passes');
-  });
-
+describe('the render box', () => {
   const prlimit = ['/usr/bin', '/bin'].some((d) => fs.existsSync(path.join(d, 'prlimit')));
   const built = fs.existsSync(path.join(PUBLIC, 'data/rig-folly.json'));
   test('a full 600 s look bakes; a shorter cap wins', async ({ skip }) => {

@@ -86,5 +86,8 @@ export function rawGet(port, rawPath, headers = {}) {
   });
 }
 
-export const layer = (extra = {}) => ({ id: 'l1', title: 'Sea', ref: 'embers', code: EMBERS, groups: ['cathedral'],
-  blend: 'add', level: 1, params: { speed: 0.4 }, ...extra });
+/** A layer of one module, the fixture library's embers with `params`.
+ * @param {{ params?: Record<string, any>, [key: string]: unknown }} [extra] */
+export const layer = ({ params = { speed: 0.4 }, ...extra } = {}) => ({ id: 'l1', title: 'Sea',
+  modules: [{ id: 'm1', kind: /** @type {const} */ ('source'), title: 'Embers', ref: 'embers', params }],
+  groups: ['cathedral'], blend: 'add', level: 1, ...extra });

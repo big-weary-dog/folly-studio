@@ -6,8 +6,7 @@ import { test } from 'vitest';
 
 import { eachModule, findModule, mapModules, moduleCodes } from '../shared/look-modules.ts';
 import { renderFields } from '../src/bake.ts';
-import { customCode } from '../src/library-gate.ts';
-import { sha256 } from '../src/library-files.ts';
+import { unknownRef } from '../src/library-gate.ts';
 
 const mod = (id: string, extra: object = {}) => ({ id, kind: 'source', title: id.toUpperCase(), code: id, ...extra });
 const comp = (layers: unknown, extra: object = {}) => ({ id: 'c', kind: 'composite', title: 'Comp', code: '', layers,
@@ -62,19 +61,18 @@ test('maps each module, composites rebuilt round theirs; null where the shape br
   assert.equal(mapModules('nope', (m) => m), null);
 });
 
-test('the save check: library code, or a ref the library has, whatever code it carries; a composite with code is '
-  + 'custom', () => {
-  const hashes = new Set(['a', 'b', 'c', 'd', 'e', 'one'].map(sha256)), refs = new Set(['wave']);
-  assert.equal(customCode(LAYERS, hashes), '');
-  assert.equal(customCode([{ modules: [{ ref: 'wave', title: 'W' }] }], hashes, refs), '', 'a ref alone');
-  assert.equal(customCode([{ modules: [{ ref: 'wave', title: 'W', code: 'edited' }] }], hashes, refs), '',
+test('the save check: each module names a library module, whatever code it carries; a broken shape names none', () => {
+  const refs = new Set(['wave']);
+  assert.equal(unknownRef([{ modules: [{ ref: 'wave', title: 'W' }] }], refs), '', 'a ref alone');
+  assert.equal(unknownRef([{ modules: [{ ref: 'wave', title: 'W', code: 'edited' }] }], refs), '',
     'a known ref wins over its code');
-  assert.match(customCode([{ modules: [{ ref: 'gone', title: 'G' }] }], hashes, refs),
+  assert.equal(unknownRef([{ modules: [comp([{ modules: [{ ref: 'wave' }] }])] }], refs), '', 'a composite\'s too');
+  assert.match(unknownRef([{ modules: [{ ref: 'gone', title: 'G' }] }], refs),
     /^Layer 1's G names gone, which the library does not have\.$/);
-  assert.match(customCode([{ modules: [{ title: 'X', code: 'edited' }] }], hashes, refs), /Layer 1's X is custom/);
-  assert.match(customCode([{ title: 'Mix', modules: [comp([{ modules: [mod('a')] }], { code: 'a' })] }], hashes),
-    /Layer 1 \(Mix\)'s Comp is custom/, 'even library code on a composite');
-  assert.match(customCode([LAYERS[0], null], hashes), /Layer 2 is custom/);
+  assert.match(unknownRef([{ modules: [{ title: 'X', code: 'edited' }] }], refs), /Layer 1's X names none/);
+  assert.match(unknownRef([{ title: 'Mix', modules: [comp([{ modules: [{ ref: 'wave' }] }], { code: 'a' })] }], refs),
+    /Layer 1 \(Mix\)'s Comp names none/, 'a composite with code is broken');
+  assert.match(unknownRef([{ modules: [{ ref: 'wave' }] }, null], refs), /Layer 2 names none/);
 });
 
 test('a bake\'s key counts tempo read anywhere a module runs, a composite\'s sub-layers too', () => {

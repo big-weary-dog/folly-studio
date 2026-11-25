@@ -189,7 +189,7 @@ Everything installation-specific is one file, the rig `STUDIO_RIG` picks (SPEC "
 | `vite.config.js`, `tools/vite-compress.ts`, `tools/dev.ts` | The build (`public/` → `dist/`); the `.br` and `.gz` copies of its text; `npm run dev` |
 | `src/frames.ts` | Pure: strict FSEQ parsing and frame analysis (brightness, flicker) |
 | `src/bake.ts`, `render-box.ts`, `box-output.ts`, `core-script.ts` | The one-at-a-time bake queue and frame files; the render box, its own process under limits; what a box hands back, read as data; the core from its source for the boxes |
-| `src/baking.ts`, `library-gate.ts` | `spec/frames "Where bakes run"`: the admin's bake setting (on, throttled, off) in front of the box, and its routes; the gate on saving (library modules only: by ref, or by exact file) |
+| `src/baking.ts`, `library-gate.ts` | `spec/frames "Where bakes run"`: the admin's bake setting (on, throttled, off) in front of the box, and its routes; the gate on saving (each module a library ref) |
 | `src/frames-wire.ts`, `frames-cache.ts`, `frames-http.ts`, `fseq-codec.ts` | Baked frames on the wire: the stream encoder; the chunks and downloads kept by hash under a disk cap, made one job at a time by the encoder thread; their routes; FSEQ zstd/zlib blocks |
 | `src/frames-worker.ts` | The encoder thread, at nice 10 |
 | `src/stats.ts` | The request log and Admin → Stats (spec/http "Stats"): a journal line per request worth reading, and the day's counts kept in memory, bounded |

@@ -145,18 +145,14 @@ Its routes are in SPEC "HTTP API".
 ### Library only
 
 Looks take only library patterns, on every server, and nothing turns that off. A look saved (POST or PUT
-/api/looks, an import) has each module name a library module by `ref`, or, with no ref the library has, carry a
-library pattern's current file exactly (by SHA-256 against `public/patterns`' files the index lists, hidden ones too).
-A module naming a library module is that module: code it carries is dropped for the library's current file, so an
-edited or earlier copy saves as the library's (its params kept, for the pattern's upgrade hooks). A composite has no
-code of its own: one whose `code` is not empty, or that has no sub-layers, is custom, and its sub-layers' modules are
-checked. Anything else is refused with 403, naming the module: a ref the library lacks plainly ("Layer 2's Tendril
-names tendril, which the library does not have."), other code as custom ("Only looks made of unchanged library
-patterns save; Layer 2's Fire is custom code."). So tuning params, restoring a version and copying a gallery look go
-on as before. The Studio has no code editor and its pickers offer only library modules. Stored looks hold refs alone
-(spec/looks "Modules"), so every read, and so every bake, has library code only. A PUT or import that keeps a module
-the library refuses is 403, whatever else it changes; one replacing the layers with library modules saves, as their
-repair.
+/api/looks, an import) has each module name a library module by `ref` (`public/patterns`' index, hidden ones too); a
+body carries no code (spec/looks "Modules"), so a module is its library module's current file, its params kept (for
+the pattern's upgrade hooks). A composite names none: its sub-layers' modules are checked. A module without a ref is
+refused with 400, a ref the library lacks with 403, naming the module ("Layer 2's Tendril names tendril, which the
+library does not have."). So tuning params, restoring a version and copying a gallery look go on as before. The
+Studio has no code editor and its pickers offer only library modules. Stored looks hold refs alone (spec/looks
+"Modules"), so every read, and so every bake, has library code only. A PUT or import that keeps a module the library
+lacks is 403, whatever else it changes; one replacing the layers with library modules saves, as their repair.
 
 ## Gallery previews
 

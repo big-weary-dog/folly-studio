@@ -1,6 +1,6 @@
 // Composed looks over the API: module chains, globals (a palette by name filled in) and automation are validated
-// strictly; old single-code layers stay valid; chains from before the one rule are converted on their way in, and
-// once at start.
+// strictly; chains from before the one rule are converted on their way in, by their refs' library code, and once at
+// start.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -20,7 +20,6 @@ const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url));
 /** A layer as a read gives it: each module's code filled from the library. */
 const filled = (layer) => ({ ...layer, modules: layer.modules.map((m) => ({ ...m,
   code: readFileSync(path.join(PUBLIC, 'patterns', `${m.ref}.js`), 'utf8') })) });
-const STREAKS = filled({ modules: [{ ref: 'streaks' }] }).modules[0].code;
 const chain = (extra = {}) => ({ id: 'l1', title: 'Chain', groups: ['cathedral'], modules: [
   { id: 'a', kind: 'source', title: 'A', ref: 'streaks', params: { speed: { mod: 'lfo', rate: 2 } } },
   { id: 'b', kind: 'source', title: 'B', ref: 'streaks', as: 'input' },
@@ -56,8 +55,6 @@ describe('composed looks over the API', () => {
     assert.deepEqual(look.globals.macros, { storm: { value: 0.25, min: 0, max: 1 },
       energy: { value: 0.7, min: 0, max: 1 } }, 'an old look\'s energy is a macro');
     assert.deepEqual(look.automation.energy, [[0, 0.2], [10, 1]], 'sorted by time');
-    const old = await ana.post('/api/looks', { title: 'Old', layers: [{ code: STREAKS, params: { k: 1 } }] });
-    assert.equal(old.status, 201, 'single-code layers stay valid');
     const graded = await ana.post('/api/looks', { title: 'Graded', layers: [chain()],
       globals: { speed: 9, level: 0.2, hue: 3, saturation: 0, live: ['level', 'bpm'] },
       automation: { hue: [[0, 1]] } });
@@ -71,7 +68,8 @@ describe('composed looks over the API', () => {
     const bads = [
       [{ layers: [m({ kind: 'effect' })] }, /kind must be one of/],
       [{ layers: [chain({ modules: [chain().modules[0], chain().modules[0]] })] }, /id must be unique/],
-      [{ layers: [chain({ code: PIXEL })] }, /modules or code/],
+      [{ layers: [{ code: PIXEL }] }, /1–8 modules/],
+      [{ layers: [m({ ref: undefined, code: PIXEL })] }, /ref must name a library entry/],
       [{ layers: [m({ as: 'output' })] }, /as is only 'input'/],
       [{ layers: [m({ params: { v: { mod: 'lfo', shape: 'wobble' } } })] }, /unsupported value/],
       [{ layers: [chain({ modules: [] })] }, /1–8 modules/],

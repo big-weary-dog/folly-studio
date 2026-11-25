@@ -202,7 +202,7 @@ export class Runtime {
     this.lookDirty = false;
     this.lookVersion++;
     this._post({ type: 'look', ...this.extra, layers: fromLibrary(this.layers, this.codes) });
-    const codes = (l: Layer) => new Map(flatModules(l.modules).map((m) => [m.id, m.code]));
+    const codes = (l: Layer) => new Map(flatModules(l.modules).map((m) => [m.id, m.code ?? '']));
     this.lookQueue.push(new Map(this.layers.map((l) => [l.id, codes(l)])));
   }
 

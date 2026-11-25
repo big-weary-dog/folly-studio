@@ -23,6 +23,7 @@ import type { Auth } from './auth.ts';
 import { type createBakeQueue, layersHash, renderFields, reviewBlocker } from './bake.ts';
 import { BakeError } from './box-output.ts';
 import type { CodeGate } from './library-gate.ts';
+import { withCode } from './library-refs.ts';
 import { etagMatches, forAnyone, HttpError, type Logger, parse } from './http.ts';
 import { currentN, nameFields, reviewFor, revisedFields, versionRoutes, versionsOf } from './look-versions.ts';
 import { roomForLook, roomToGrow } from './look-cap.ts';
@@ -37,10 +38,12 @@ type Req = FastifyRequest<{ Params: { id: string } }>;
 /** A look's layers as the API stores them (a 400 naming the first problem). */
 export const validateLayers = (layers: unknown) => parse(z.object({ layers: Layers }), { layers }).layers;
 
-/** A body's layers and summary as the one rule reads them: converted when it has no `chain: 2`, noted where inexact. */
-function ruled(body: { layers: Layer[], summary?: string, chain?: number }) {
+/** A body's layers and summary as the one rule reads them: converted when it has no `chain: 2`, by the code its refs
+ * name in `library`, noted where inexact. */
+function ruled(body: { layers: Layer[], summary?: string, chain?: number }, library: readonly LibraryEntry[]) {
   if (body.chain === CHAIN) return { layers: body.layers, summary: body.summary };
-  const { look } = upgradeLook({ layers: body.layers, summary: body.summary ?? '', chain: body.chain });
+  const layers = withCode(structuredClone(body.layers), library);
+  const { look } = upgradeLook({ layers, summary: body.summary ?? '', chain: body.chain });
   return { layers: validateLayers(look.layers), summary: look.summary };
 }
 
@@ -98,18 +101,18 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
   store: Store, auth: Auth, bakes: ReturnType<typeof createBakeQueue>, dropFrames: (id: string) => Promise<unknown>,
   /** Counts a look write against its account (SPEC "HTTP API"); throws 429 past the limit. */
   limitWrites?: (req: FastifyRequest) => Promise<void>,
-  codeGate?: Pick<CodeGate, 'check'> & Partial<Pick<CodeGate, 'upgrade'>>,
+  codeGate?: CodeGate,
   previews?: Pick<ReturnType<typeof createPreviews>, 'want' | 'keyOf' | 'file'>,
   loadLibrary?: () => readonly LibraryEntry[], log?: Logger }) {
   const ownerName = (id: string) => store.users.get(id)?.username ?? '';
-  /** 403 for code that is not the library's (src/library-gate.ts). */
+  /** 403 for a module that names no library module (src/library-gate.ts). */
   const allowCode = (layers: unknown) => codeGate?.check(layers, (why) => new HttpError(403, why));
-  /** A body's layers as the one rule reads them, each standard module named as the library names it. */
-  const ruledNamed = async (body: Parameters<typeof ruled>[0]) => {
-    const out = ruled(body), library = loadLibrary();
-    if (codeGate?.upgrade) out.layers = await codeGate.upgrade(out.layers);
-    return { ...out, layers: out.layers.map((l) => ('modules' in l
-      ? { ...l, modules: keepStandardTitles(l.modules, library) } : l)) };
+  /** A body's layers as the one rule reads them, each standard module named as the library names it, and its code
+   * filled as a read fills it, so a body compares with the look as read. */
+  const ruledNamed = (body: Parameters<typeof ruled>[0]) => {
+    const library = loadLibrary(), out = ruled(body, library);
+    return { ...out, layers: withCode(out.layers.map((l) => ({ ...l,
+      modules: keepStandardTitles(l.modules, library) })), library) };
   };
 
   /** A look as GET answers, its globals as they play now (upgradeGlobals): `mine` adds the number of its version,
@@ -173,7 +176,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
         automation: automation ?? null, chain: body.chain }, 'import');
       return { look: presentLook(updated, { mine: true }), imported: edited ? 'updated' : 'unchanged' };
     }
-    const look: Partial<Look> = { owner: user.id, ownerName: user.username, ...body, ...await ruledNamed(body),
+    const look: Partial<Look> = { owner: user.id, ownerName: user.username, ...body, ...ruledNamed(body),
       chain: CHAIN,
       reviewed: false, versions: [] };
     await allowCode(look.layers);
@@ -200,12 +203,12 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
   }
 
   /** `was` with `body` (PUT /api/looks/:id) applied by `user`, as saved, and whether anything changed. A change to
-   * what plays is a version made `how`. The look is read again after the library upgrade and code gate wait; the rest
+   * what plays is a version made `how`. The look is read again after the code gate's wait; the rest
    * (the version, its number, the history) is one synchronous update of the look as it is then. */
   async function revise(was: Look, user: User, body: z.output<typeof LookPatch>, how: 'auto' | 'import' = 'auto') {
     const { id } = was;
     const ruledNow = body.layers === undefined ? undefined
-      : await ruledNamed({ ...body, layers: body.layers, summary: body.summary ?? was.summary });
+      : ruledNamed({ ...body, layers: body.layers, summary: body.summary ?? was.summary });
     await allowCode(ruledNow ? ruledNow.layers : was.layers);   // only new library layers change a custom look
     const look = visibleLook(id, user);
     const isOwner = auth.can(user, 'edit', look);
