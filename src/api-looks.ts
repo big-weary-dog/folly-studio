@@ -25,7 +25,7 @@ import { BakeError } from './box-output.ts';
 import type { CodeGate } from './custom-code.ts';
 import { etagMatches, HttpError, type Logger, parse } from './http.ts';
 import { currentN, nameFields, reviewFor, revisedFields, versionRoutes, versionsOf } from './look-versions.ts';
-import { roomForLook } from './look-cap.ts';
+import { roomForLook, roomToGrow } from './look-cap.ts';
 import type { createPreviews } from './previews/index.ts';
 import { CACHE_IMMUTABLE } from './static.ts';
 import type { Store, StoredLook as Look, StoredUser as User } from './store.ts';
@@ -83,8 +83,10 @@ const lanes = (automation: unknown, globals: Globals | null | undefined, importe
 };
 
 export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate, loadLibrary = () => [],
-  log = console }: {
+  limitWrites = async () => {}, log = console }: {
   store: Store, auth: Auth, bakes: ReturnType<typeof createBakeQueue>, dropFrames: (id: string) => Promise<unknown>,
+  /** Counts a look write against its account (SPEC "HTTP API"); throws 429 past the limit. */
+  limitWrites?: (req: FastifyRequest) => Promise<void>,
   codeGate?: Pick<CodeGate, 'check'> & Partial<Pick<CodeGate, 'upgrade'>>,
   previews?: Pick<ReturnType<typeof createPreviews>, 'want' | 'keyOf' | 'file'>,
   loadLibrary?: () => readonly LibraryEntry[], log?: Logger }) {
@@ -134,10 +136,11 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
   const versionsFor = (req: FastifyRequest, look: Look) => (req.query as { versions?: string }).versions === '1'
     && auth.can(req.user, 'edit', look);
 
-  /** `user`'s own looks, newest first, or the gallery's, newest shared first. */
+  /** `user`'s own looks, newest first, or the gallery's, newest shared first; without their versions. */
   const looksIn = (scope: 'mine' | 'gallery', user: User) => (scope === 'mine'
-    ? store.looks.list((l) => l.owner === user.id).reverse().sort(newestBy('updatedAt'))
-    : store.looks.list((l) => l.shared === true).reverse().sort(newestBy('sharedAt')).slice(0, GALLERY_LIMIT));
+    ? store.looks.list((l) => l.owner === user.id, ['versions']).reverse().sort(newestBy('updatedAt'))
+    : store.looks.list((l) => l.shared === true, ['versions']).reverse().sort(newestBy('sharedAt'))
+      .slice(0, GALLERY_LIMIT));
 
   async function list(req: FastifyRequest) {
     const { scope } = parse(LooksQuery, req.query);
@@ -170,7 +173,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
       if (!idea || idea.owner !== user.id) throw new HttpError(400, 'ideaId does not name one of your ideas.');
       look.ideaId = idea.id;
     }
-    roomForLook(store, user.id, (why) => new HttpError(429, why));
+    roomForLook(store, user.id, (why) => new HttpError(429, why), look);
     reply.code(201);
     const made = store.looks.create(look);
     previews?.want(made.id);
@@ -269,7 +272,9 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
     if (kept) {
       Object.assign(patch, { reviewed: true, reviewedBy: kept.by || undefined, flashOverride: kept.flashOverride });
     }
-    const edited = Object.keys(patch).length > 0, updated = edited ? store.looks.update(id, patch)! : look;
+    const edited = Object.keys(patch).length > 0;
+    const updated = edited ? store.looks.update(id, roomToGrow(store, look, patch, (why) => new HttpError(429, why)))!
+      : look;
     if ('bake' in patch) await dropFrames(id);
     if (kept) await bakes.request(id).catch(() => {});   // its frames again (the same render: often a stored bake)
     previews?.want(id);
@@ -313,8 +318,16 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
     return reply.headers(headers).type('image/webp').send(body);
   }
 
-  return { visibleLook, listed, looksIn, routes: { 'GET /looks': list, 'POST /looks': create, 'GET /looks/:id': read,
-    'PUT /looks/:id': edit, 'DELETE /looks/:id': remove, 'POST /looks/:id/bake': bake,
-    'GET /looks/:id/preview/:name': preview,
-    ...versionRoutes({ visibleLook, update: (id, p) => store.looks.update(id, p)! }) } };
+  /** A write, counted against its account first. */
+  const limited = <R extends FastifyRequest, A extends unknown[], T>(run: (req: R, ...rest: A) => Promise<T>) =>
+    async (req: R, ...rest: A) => {
+      await limitWrites(req);
+      return run(req, ...rest);
+    };
+  const versions = versionRoutes({ visibleLook, update: (id, p) => store.looks.update(id,
+    roomToGrow(store, store.looks.get(id)!, p, (why) => new HttpError(429, why)))! });
+  return { visibleLook, listed, looksIn, routes: { 'GET /looks': list, 'POST /looks': limited(create),
+    'GET /looks/:id': read, 'PUT /looks/:id': limited(edit), 'DELETE /looks/:id': limited(remove),
+    'POST /looks/:id/bake': bake, 'GET /looks/:id/preview/:name': preview, ...versions,
+    'PUT /looks/:id/versions/:n': limited(versions['PUT /looks/:id/versions/:n']) } };
 }

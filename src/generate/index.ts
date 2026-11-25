@@ -19,7 +19,7 @@ import { GenerateError, validateLook } from '../../shared/schemas/generated.ts';
 import { cannot, capsOf, type ModelEntry, type Transport, TRANSPORTS } from '../../shared/schemas/models.ts';
 import type { LibraryEntry, Rig, RigGroup } from '../../shared/schemas/rig.ts';
 import { layersHash, removeFrames, renderFields, saveFrames } from '../bake.ts';
-import { roomForLook } from '../look-cap.ts';
+import { roomForLook, roomToGrow } from '../look-cap.ts';
 import { byAi, currentN, revisedFields } from '../look-versions.ts';
 import { monoNow } from '../clock.ts';
 import { type Config, configOf } from '../config.ts';
@@ -263,7 +263,6 @@ export function createQueue({
     running.add(ac);
     await move(id, 'generating', { generator: r.id, by: r.label, error: null });
     try {
-      const full = (why: string) => new GenerateError(why, 'no room for a look');
       if (!idea.refine) roomForLook(store, idea.owner, full);   // before any model work; again as it is stored
       const owner = (await store.users?.get?.(idea.owner)) || null;
       const user = owner ? { id: owner.id, username: owner.username, role: owner.role } : { id: idea.owner };
@@ -299,10 +298,10 @@ export function createQueue({
       const { bake: made, frames } = (out.raw ?? {}) as { bake?: Bake, frames?: unknown };
       const bake = made && typeof made === 'object' ? { ...made, layersHash: layersHash(renderFields(look)) } : null;
       await codeGate?.check(look.layers, (why) => new GenerateError(why, 'new code'));
-      roomForLook(store, idea.owner, full);
-      const saved = await store.looks.create({ owner: idea.owner, ownerName: owner?.username || '', title: look.title,
-        summary: look.summary, ...Object.fromEntries(PLAYS.filter((k) => look[k] != null).map((k) => [k, look[k]])),
-        shared: false, reviewed: false, ideaId: id, chain: CHAIN, ...(bake ? { bake } : {}) });
+      const saved = await store.looks.create(roomForLook(store, idea.owner, full, { owner: idea.owner,
+        ownerName: owner?.username || '', title: look.title, summary: look.summary,
+        ...Object.fromEntries(PLAYS.filter((k) => look[k] != null).map((k) => [k, look[k]])),
+        shared: false, reviewed: false, ideaId: id, chain: CHAIN, ...(bake ? { bake } : {}) }));
       if (bake?.frames) await keepFrames(saved.id, frames, bake);
       timing.total = monoNow() - queuedAt;
       outcome = { status: 'ready', lookId: saved.id };
@@ -332,6 +331,7 @@ export function createQueue({
     }
   }
 
+  const full = (why: string) => new GenerateError(why, 'no room for a look');
   /** A refinement saved onto its look as an edit (a version of what was there; no bake, no review) → what changed;
    * nothing is saved when nothing did, and nothing over an edit made while it ran (a save that made a version). */
   async function revise(from: StoredLook, look: ReturnType<typeof validateLook>, catalog: Catalog, idea: Idea) {
@@ -342,10 +342,10 @@ export function createQueue({
     }
     const next = { layers: keepSwitches(now.layers as Record<string, unknown>[], look.layers),
       duration: look.duration ?? now.duration, globals: look.globals ?? now.globals,
-      automation: look.automation ?? now.automation, bpm: look.bpm ?? now.bpm };
+      automation: look.automation ?? now.automation, bpm: look.bpm ?? now.bpm, chain: CHAIN as typeof CHAIN };
     const changes = diffCompositions(decompose(now, catalog), decompose({ ...now, ...next }, catalog));
     if (!changes.length) return changes;
-    await store.looks.update(lookId, { ...revisedFields(now, byAi(idea)), ...next, chain: CHAIN });
+    await store.looks.update(lookId, roomToGrow(store, now, { ...revisedFields(now, byAi(idea)), ...next }, full));
     await removeFrames(framesHome || undefined, lookId).catch(() => {});
     return changes;
   }

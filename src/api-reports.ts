@@ -3,6 +3,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 import { ReportBody } from '../shared/schemas/report.ts';
+import { perAccount } from './account-limit.ts';
 import { forAdmins, HttpError, parse } from './http.ts';
 import type { Reports } from './reports/store.ts';
 
@@ -11,14 +12,10 @@ const PER_HOUR = 10;
 
 export function reportRoutes(api: FastifyInstance, { reports, build, tail }: { reports: Reports, build: string,
   tail: () => unknown[] }) {
-  const perUser = api.createRateLimit({ timeWindow: 3_600_000, max: PER_HOUR,
-    keyGenerator: (req) => `report|${req.user?.id}` });
+  const perUser = perAccount(api, { name: 'report', windowMs: 3_600_000, max: PER_HOUR,
+    why: 'Too many reports for now. Try again later.' });
   api.route({ method: 'POST', url: '/reports', bodyLimit: REPORT_BODY, handler: async (req, reply) => {
-    const limit = await perUser(req);
-    if (!limit.isAllowed && limit.isExceeded) {
-      throw new HttpError(429, 'Too many reports for now. Try again later.',
-        { 'Retry-After': `${limit.ttlInSeconds}` });
-    }
+    await perUser(req);
     const user = req.user!;
     const id = await reports.save(parse(ReportBody, req.body), { user: { id: user.id, username: user.username },
       build, at: new Date().toISOString(), logs: tail() });
