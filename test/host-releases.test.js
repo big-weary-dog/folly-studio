@@ -58,26 +58,20 @@ describe('npm run host: releases', () => {
       ['STUDIO_DATA="my data"', 'STUDIO_MODELS=data/models.json', 'STUDIO_FLEET_BIN=fleet', ''].join('\n'));
     chmodSync(path.join(settings, 'studio.env'), 0o600);
     mkdirSync(path.join(home, 'bin'));
-    for (const [name, body] of Object.entries(STUBS)) {
-      writeFileSync(path.join(home, 'bin', name), `#!/bin/bash\n${body}\n`);
-      chmodSync(path.join(home, 'bin', name), 0o755);
-    }
+    for (const [name, body] of Object.entries(STUBS))
+      writeFileSync(path.join(home, 'bin', name), `#!/bin/bash\n${body}\n`, { mode: 0o755 });
     return () => rmSync(home, { recursive: true, force: true });
   });
 
   const host = (args, extra = {}, wrap = []) => {
     writeFileSync(log, '');
     const command = [...wrap, 'bash', path.join(checkout, 'deploy', 'host.sh'), ...args];
-    const r = spawnSync(command[0], command.slice(1), { encoding: 'utf8',
-      timeout: 30_000, env: { ...GIT_ENV, HOME: home, PATH: `${home}/bin:${process.env.PATH}`, STUDIO_INSTANCE: '',
-        LOG: log, CHECKOUT: checkout, ...extra } });
+    const env = { ...GIT_ENV, HOME: home, PATH: `${home}/bin:${process.env.PATH}`, STUDIO_INSTANCE: '', LOG: log };
+    const r = spawnSync(command[0], command.slice(1), { encoding: 'utf8', timeout: 30_000,
+      env: { ...env, CHECKOUT: checkout, ...extra } });
     return { status: r.status, out: r.stdout + r.stderr, calls: readFileSync(log, 'utf8') };
   };
-  const ok = (args, extra) => {
-    const r = host(args, extra);
-    assert.equal(r.status, 0, r.out);
-    return r;
-  };
+  const ok = (args, extra, r = host(args, extra)) => (assert.equal(r.status, 0, r.out), r);
   const link = (name) => readlinkSync(path.join(checkout, name));
   // The commits exist once beforeAll has run.
   const [a, b, c, d] = [0, 1, 2, 3].map((i) => () => commits[i]);
