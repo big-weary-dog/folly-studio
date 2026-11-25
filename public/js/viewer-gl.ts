@@ -1,6 +1,6 @@
 // The viewer's WebGL2 side: shaders, matrices, buffers and the draw. Pure functions over a Viewer
 // (viewer.ts), which owns the state; nothing here allocates per frame.
-import { ENCODE } from './core/light.ts';
+import { ENCODE } from '../../core/light.ts';
 import type { Viewer } from './viewer.ts';
 
 /** A linked program and its uniforms by name. */

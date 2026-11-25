@@ -1,11 +1,11 @@
 // Shared data: the rig (SPEC "Rig"), the pattern library, group membership, layer and module helpers.
 import { api, fetchJSON } from '../api.ts';
-import { pixelsForGroups, prepareScene } from '../core/scene.ts';
-import { BLUR_MODES, DEFAULT_SOFTEN, MAX_RADIUS } from '../core/spatial.ts';
-import { isStageEnd } from '../core/warps.ts';
+import { pixelsForGroups, prepareScene } from '../../../core/scene.ts';
+import { BLUR_MODES, DEFAULT_SOFTEN, MAX_RADIUS } from '../../../core/spatial.ts';
+import { isStageEnd } from '../../../core/warps.ts';
 import type { Globals, Layer as Saved, Module, Palette, Soften, SubLayer } from '../../../shared/schemas/look.ts';
 import type { LibraryEntry, ModuleEntry, PresetEntry, Rig, RigGroup, RigName } from '../../../shared/schemas/rig.ts';
-import { flatModules, mapEvery } from '../core/tree.ts';
+import { flatModules, mapEvery } from '../../../core/tree.ts';
 import { randomId } from './kit.tsx';
 import { rig } from './session.ts';
 

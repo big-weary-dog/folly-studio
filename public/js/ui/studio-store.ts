@@ -13,7 +13,7 @@ import { replaceUrl, setTitle } from './session.ts';
 import { pref, reducedMotion, toast } from './kit.tsx';
 import { changes, CONTENT, createSteps, type EditOptions, type Step } from './history/steps.ts';
 import { createLayerStatus } from './layer-status.ts';
-import { flatModules, mapEvery, mapModule } from '../core/tree.ts';
+import { flatModules, mapEvery, mapModule } from '../../../core/tree.ts';
 import {
   buildGroupIndex, cleanLayer, type GroupIndex, type Layer, layerFromPattern, newLayer, normaliseLayers,
 } from './model.ts';

@@ -3,8 +3,8 @@
 // moving library pattern, on the Folly's rig (rig-folly.json), which Mirage draws. Only our own patterns run here.
 import { readFileSync } from 'node:fs';
 
-import { compilePattern, prepareLayer, prepareScene, renderFrame, toChannels } from '../../public/js/pattern-core.ts';
-import { ledRanges, writeFseq } from '../../public/js/fseq.ts';
+import { compilePattern, prepareLayer, prepareScene, renderFrame, toChannels } from '../../core/pattern-core.ts';
+import { ledRanges, writeFseq } from '../../core/fseq.ts';
 
 const STUDIO = new URL('../../', import.meta.url);
 export const rig = JSON.parse(readFileSync(new URL('public/data/rig-folly.json', STUDIO), 'utf8'));

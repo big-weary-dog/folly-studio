@@ -8,7 +8,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, beforeEach, describe, test } from 'vitest';
 
-import { writeFseq } from '../public/js/fseq.ts';
+import { writeFseq } from '../core/fseq.ts';
 import { createLane } from '../src/bake.ts';
 import { createFrameJobs, createFramesCache, createFramesDisk } from '../src/frames-cache.ts';
 import { wireHash } from '../src/frames-wire.ts';

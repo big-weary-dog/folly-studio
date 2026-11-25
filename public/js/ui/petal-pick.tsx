@@ -1,7 +1,7 @@
 // `petals` and `cells` text params (SPEC "Pattern code"): the rose window, each petal clicked in or out, and one petal
 // drawn large, each cell clicked in or out, each above its text, which takes numbers and runs typed. Petal 1 is the
 // top one, on clockwise, as the rig's sectors run; cell 1 is at the heart, ring by ring out.
-import { readText, TEXT_MAX } from '../core/globals.ts';
+import { readText, TEXT_MAX } from '../../../core/globals.ts';
 import { pickText, readPicks } from './bindings.ts';
 import { PetalCells, Rose, type RosePick } from './rose.tsx';
 

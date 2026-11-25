@@ -38,8 +38,9 @@
             { "name": "node:vm", "message": "code generation lives only in the pattern compiler and the render box" },
             { "name": "node:child_process", "message": "processes only run the render box" }
           ],
-          "patterns": [{ "group": ["**/public/**", "!**/public/js/pattern-core.*", "!**/public/js/fseq.*",
-            "!**/public/js/scrub.*", "!**/public/**/*.json"], "message": "server code takes only pattern-core, fseq, scrub and data from public/" }]
+          "patterns": [{ "group": ["**/public/**", "!**/public/**/*.json", "**/core/**", "!**/core/pattern-core.*",
+            "!**/core/fseq.*", "!**/core/scrub.*"],
+            "message": "server code takes only data from public/, and pattern-core, fseq and scrub from core/" }]
         }]
       }
     },
@@ -51,8 +52,9 @@
           "paths": [
             { "name": "node:vm", "message": "code generation lives only in the pattern compiler and the render box" }
           ],
-          "patterns": [{ "group": ["**/public/**", "!**/public/js/pattern-core.*", "!**/public/js/fseq.*",
-            "!**/public/js/scrub.*", "!**/public/**/*.json"], "message": "server code takes only pattern-core, fseq, scrub and data from public/" }]
+          "patterns": [{ "group": ["**/public/**", "!**/public/**/*.json", "**/core/**", "!**/core/pattern-core.*",
+            "!**/core/fseq.*", "!**/core/scrub.*"],
+            "message": "server code takes only data from public/, and pattern-core, fseq and scrub from core/" }]
         }]
       }
     },
@@ -77,15 +79,31 @@
       }
     },
     {
-      // The schemas are shared with the browser: zod, the core's constants and data, nothing of the server's.
+      // The core runs in the browser, the boxes and the server: the browser's rules, and nothing of the app's.
+      "files": ["core/**"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [
+            { "regex": "^node:", "message": "the core runs in the browser too: no Node built-ins" },
+            { "regex": "^\\.{1,2}/(?:.*/)?(?:public|src|render-box|tools|test)/|^\\.{1,2}/(?:.*/)?server\\.[jt]s$",
+              "message": "the core imports only itself, shared/ and packages" },
+            { "regex": "^(?:[a-z]+:)?//", "message": "remote URL: the app runs offline under a self-only CSP" },
+            { "regex": "^\\.{1,2}/(?:.*/)?shared/(?:[^ps]|p[^lo]|s[^t])", "allowTypeImports": true,
+              "message": "the core takes shared/ schemas as types (import type), so zod is not shipped by accident" }
+          ]
+        }]
+      }
+    },
+    {
+      // The schemas are shared with the browser: zod, the core's constants, data, nothing of the server's.
       "files": ["shared/**"],
       "rules": {
         "no-restricted-imports": ["error", { "patterns": [
           { "regex": "^node:", "message": "shared/ runs in the browser too: no Node built-ins" },
           { "regex": "^\\.{1,2}/(?:.*/)?(?:src|render-box|tools|test)/|^\\.{1,2}/(?:.*/)?server\\.[jt]s$",
-            "message": "shared/ imports only zod, itself and the core's constants and data from public/" },
-          { "group": ["**/public/**", "!**/public/js/pattern-core.*", "!**/public/**/*.json"],
-            "message": "shared/ imports only zod, itself and the core's constants and data from public/" }
+            "message": "shared/ imports only zod, itself, the core's constants and data from public/" },
+          { "group": ["**/public/**", "!**/public/**/*.json", "**/core/**", "!**/core/pattern-core.*"],
+            "message": "shared/ imports only zod, itself, the core's constants and data from public/" }
         ] }]
       }
     },
@@ -96,13 +114,13 @@
         "no-restricted-imports": ["error", { "patterns": [
           { "regex": "^zod$|/schemas/", "message": "shared/plays.ts is the browser's at run time: no zod, no schemas" },
           { "regex": "^node:", "message": "shared/ runs in the browser too: no Node built-ins" },
-          { "group": ["**/public/**", "!**/public/js/pattern-core.*"],
+          { "group": ["**/public/**", "**/core/**", "!**/core/pattern-core.*"],
             "message": "shared/plays.ts imports only the core's constants" }
         ] }]
       }
     },
     {
-      "files": ["src/**", "shared/**", "public/js/**"],
+      "files": ["src/**", "shared/**", "public/js/**", "core/**"],
       "rules": { "no-console": ["error", { "allow": ["warn", "error"] }] }
     },
     {
@@ -118,7 +136,7 @@
       }
     },
     {
-      "files": ["public/js/pattern-core.*", "public/js/core/**"],
+      "files": ["core/**"],
       "rules": {
         "no-restricted-properties": ["error",
           { "property": "innerHTML", "message": "HTML string sink: build nodes with JSX, text as text" },
@@ -147,7 +165,7 @@
     },
     { "files": ["public/patterns/**"], "rules": { "max-lines": ["error", { "max": 150 }] } },
     // The allowlist: the pattern compiler, the render box, and the process it runs in.
-    { "files": ["public/js/core/compile.ts"], "rules": { "no-new-func": "off" } },
+    { "files": ["core/compile.ts"], "rules": { "no-new-func": "off" } },
     {
       "files": ["render-box/render.ts"],
       "rules": { "no-restricted-imports": ["error", { "paths": [

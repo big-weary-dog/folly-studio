@@ -3,7 +3,7 @@
 // The group folds to its head, kept per browser.
 import { useMemo, useState } from 'preact/hooks';
 
-import { prepareLook } from '../core/globals.ts';
+import { prepareLook } from '../../../core/globals.ts';
 import { cx, pref } from './kit.tsx';
 import { macroUses, moveText } from './mod-uses.ts';
 import type { Studio } from './studio-store.ts';

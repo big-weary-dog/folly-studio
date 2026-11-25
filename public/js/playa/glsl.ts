@@ -1,7 +1,7 @@
 // The Playa view's GLSL (renderer.ts draws with it). Light stays linear HDR until OUT. uL: each pixel's light, as
 // the views show it (Viewer.shown: dims and all), and highlight (a), 512 a row; uHi: a highlight is on; uW: its warm
 // tint; uG: the ghost (unlit fixtures, faintly, fading out as they light); uK: the emission, or a pass's parameter.
-import { ENCODE } from '../core/light.ts';
+import { ENCODE } from '../../../core/light.ts';
 
 const H = '#version 300 es\nprecision highp float;\nprecision highp int;\n';
 const LED = `uniform highp sampler2D uL;

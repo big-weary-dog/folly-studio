@@ -10,8 +10,8 @@ import { afterAll, beforeEach, describe, test } from 'vitest';
 
 import {
   compilePattern, layerEnvelope, normalizeClips, prepareLayer, prepareScene, renderFrame,
-} from '../public/js/pattern-core.ts';
-import { ledRanges, writeFseq } from '../public/js/fseq.ts';
+} from '../core/pattern-core.ts';
+import { ledRanges, writeFseq } from '../core/fseq.ts';
 import { validateLayers } from '../src/api-looks.ts';
 import { createRenderBox } from '../src/render-box.ts';
 import { parseFseq } from '../src/frames.ts';

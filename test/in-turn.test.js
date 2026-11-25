@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
-import { tagParts } from '../public/js/core/scene.ts';
+import { tagParts } from '../core/scene.ts';
 import { at, COG, layerOf } from './fixtures/layers.js';
 
 // A probe: red its t / 10, green its clock / 10 (speed 1), blue its r, all opaque.

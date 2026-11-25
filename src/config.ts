@@ -1,4 +1,5 @@
-// The server's settings from the environment, every one listed here and in docs/HOSTING.md "Every setting". server.ts
+// The server's settings from the environment, every one listed here (docs/HOSTING.md "Every setting" is written from
+// SETTINGS by npm run docs:settings). server.ts
 // reads them once at start (readConfig): a value that does not parse stops it, naming the variable; a STUDIO_ name it
 // does not know is warned of (a typo?); what is set is logged. The parsed Config is passed down; a module given none
 // (a test, a tool) parses the environment it was given, quietly (configOf).
@@ -42,7 +43,7 @@ const duration = () => setting((v, ctx) => {
   return m ? Number(m[1]) * MS[(m[2] || 's').toLowerCase()]! : bad(ctx, 'must be a duration (500ms, 90s, 5m, 2h).');
 });
 
-/** Every setting, its parser and what it is (docs/HOSTING.md "Every setting" lists the same). */
+/** Every setting, its parser and what it is (npm run docs:settings writes docs/HOSTING.md "Every setting" from it). */
 function settings() {
   return {
     PORT: [num({ min: 0, max: 65_535, int: true }), 'the port, default 8780'],

@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
-import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
+import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../core/pattern-core.ts';
 import { libraryCode as lib } from './fixtures/patterns.js';
 
 const rig = JSON.parse(readFileSync(new URL('../public/data/rig.json', import.meta.url), 'utf8'));

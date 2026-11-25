@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 
 import { test } from 'vitest';
 
-import { prepareScene, toChannels } from '../public/js/pattern-core.ts';
+import { prepareScene, toChannels } from '../core/pattern-core.ts';
 import { cog } from './fixtures/rigs.js';
 
 // xLights model → [our fixtures in its order, its absolute StartChannel (1-based)]

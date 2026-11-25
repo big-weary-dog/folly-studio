@@ -6,9 +6,9 @@ import { extrasOf, type ExtraKey } from '../../shared/plays.ts';
 import type { Automation, Globals } from '../../shared/schemas/look.ts';
 import type { LibraryEntry, Rig } from '../../shared/schemas/rig.ts';
 import SANDBOX_URL from '../sandbox.html?sandbox';
-import { flatModules } from './core/tree.ts';
+import { flatModules } from '../../core/tree.ts';
 import { fromLibrary } from './library-fill.ts';
-import type { LayerInput, Light } from './pattern-core.ts';
+import type { LayerInput, Light } from '../../core/pattern-core.ts';
 import type { Layer } from './ui/model.ts';
 
 const LOAD_MS = 6000, INIT_MS = 1500;  // no `ready` by then: init anyway; then carry on (a look's `compiled` tells)

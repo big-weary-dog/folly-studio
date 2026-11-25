@@ -5,7 +5,7 @@
 import { promisify } from 'node:util';
 import zlib from 'node:zlib';
 
-import { fseqBlocks, writeFseq } from '../public/js/fseq.ts';
+import { fseqBlocks, writeFseq } from '../core/fseq.ts';
 import { quietly } from './core-script.ts';
 import type { Parsed } from './frames.ts';
 

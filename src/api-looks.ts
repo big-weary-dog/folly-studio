@@ -8,7 +8,7 @@ import { isDeepStrictEqual } from 'node:util';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
-import { DEFAULT_DURATION, upgradeGlobals } from '../public/js/pattern-core.ts';
+import { DEFAULT_DURATION, upgradeGlobals } from '../core/pattern-core.ts';
 import { CHAIN, convertLayers, upgradeLook } from '../shared/chain-order.ts';
 import { keepStandardTitles } from '../shared/standard-modules.ts';
 import { type Listed, LookCreate, LookPatch, LooksQuery } from '../shared/schemas/api.ts';

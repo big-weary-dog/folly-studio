@@ -8,8 +8,8 @@ import path from 'node:path';
 
 import { describe, onTestFinished, test } from 'vitest';
 
-import { compileLayer, prepareLayer, prepareLook, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
-import { compileModule } from '../public/js/core/compile.ts';
+import { compileLayer, prepareLayer, prepareLook, prepareScene, renderFrame } from '../core/pattern-core.ts';
+import { compileModule } from '../core/compile.ts';
 import { presetLayers, withPresetGlobals } from '../public/js/ui/model.ts';
 import { LibraryEntry, type ModuleEntry, Preset, type PresetEntry } from '../shared/schemas/rig.ts';
 import { createLoaders } from '../src/static.ts';

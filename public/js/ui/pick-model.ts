@@ -1,8 +1,8 @@
 // Pure: a colour pick as the pick tile edits it (SPEC "Palettes"): its tokens in order and whether its roles are
 // dealt in turn, with blend, range and rotate; back to the value a param or a layer's role stores.
 import type { Binding, Pick } from '../../../shared/schemas/look.ts';
-import { type PickBlend, pickText, readPick } from '../core/picks.ts';
-import { PALETTE_ROLES } from '../core/stdlib.ts';
+import { type PickBlend, pickText, readPick } from '../../../core/picks.ts';
+import { PALETTE_ROLES } from '../../../core/stdlib.ts';
 
 export type PickEdit = { tokens: string[]; deal: boolean; blend?: PickBlend; range?: [number, number];
   rotate?: number | Binding };

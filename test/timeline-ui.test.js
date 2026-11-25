@@ -7,7 +7,7 @@ import { describe, test } from 'vitest';
 import {
   addClip, contentEnd, editClip, fadeClip, importLook, MIN_CLIP, moveClip, removeClip, shownFades, trimClip,
 } from '../public/js/ui/timeline-model.ts';
-import { MAX_CLIPS } from '../public/js/core/timeline.ts';
+import { MAX_CLIPS } from '../core/timeline.ts';
 import { validateLayers } from '../src/api-looks.ts';
 
 const clip = (start, end, fadeIn = 0, fadeOut = 0) => ({ start, end, fadeIn, fadeOut });

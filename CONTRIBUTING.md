@@ -24,7 +24,6 @@ npm test                     # vitest run: test/ *.test.{js,ts} (vitest.config.j
                              #   the app included), then every skipped test and why
 npx vitest run test/core.test.js     # one file (`-t <name>` for one test); `npm run test:watch` reruns on save
 npm run build-data           # rebuild public/data/rig-folly.json (the Folly), rig.json (City of Gods), palettes.json
-node tools/pattern-history.ts # refresh historical library hashes after committing library pattern changes
 npm run smoke                # the app in Chromium at 1366 × 768 and 390 × 844: sign up, the Studio, a code
                              #   error, the timeline, a bake (test/e2e/smoke.spec.js), and each flow's own spec
                              #   (the `smoke` project in playwright.config.js)
@@ -175,7 +174,7 @@ Everything installation-specific is one file, the rig `STUDIO_RIG` picks (SPEC "
 | Path | Responsibility |
 |---|---|
 | `server.ts` | Entry point: the settings read (`readConfig()`), a bad one refused by name, start, graceful stop |
-| `src/config.ts`, `tools/config-check.ts` | Every setting the server reads, parsed with zod once at start (`readConfig()`) and passed down as `Config`; a module given none parses its environment (`configOf()`); `npm run config:check` |
+| `src/config.ts`, `tools/config-check.ts`, `tools/settings-table.ts` | Every setting the server reads, parsed with zod once at start (`readConfig()`) and passed down as `Config`; a module given none parses its environment (`configOf()`); `npm run config:check`; `npm run docs:settings` writes docs/HOSTING.md "Every setting" from `SETTINGS` |
 | `src/app.ts` | `createServer()`: the store, auth, the bake queue, frames cache, the API and the built app on one Fastify server |
 | `src/api.ts`, `api-looks.ts` (+ `look-versions.ts`, its versions; `look-cap.ts`, what an account's looks hold), `account-limit.ts`, `api-account.ts` (+ `account-removal.ts`, an account deleted), `api-people.ts`, `http.ts` | The HTTP API (SPEC "HTTP API"): accounts, the library and login limits; looks; an account's own password and deletion; admins' People (roles, disabling, deleting); per-account limits (look writes, reports); its plumbing (the CSRF hook, JSON revalidated and compressed, errors as `{ error }`, the `routes()` table with each route's `public` or `role` (`forAdmins`; an `/admin` route without a role stops the server at start), 405s, the logger) |
 | `src/auth.ts` | Accounts, roles (member, curator, admin), scrypt hashes that carry their cost (re-hashed at login when older), sessions; `sessionHook`, which holds each route to its config: a session unless `public` (401), and its `role` (403) |
@@ -198,9 +197,9 @@ Everything installation-specific is one file, the rig `STUDIO_RIG` picks (SPEC "
 | `render-box/render.ts`, `renderer.ts` | Bakes a look to `.fseq` in the render box; its frame loop |
 | `public/index.html`, `css/` | The app shell and its styles: `base.css` (tokens, layout and components) on every page; the rest, one per view or panel, imported by their views' modules, so Vite loads them with them |
 | `public/sandbox.html`, `js/sandbox-relay.ts`, `js/sandbox-worker.ts` | The sandboxed pattern runner (SPEC "Sandbox protocol"): the page Vite inlines them into; the relay and watchdog; the Worker |
-| `public/js/pattern-core.ts`, `core/` | Pure: stdlib (with palettes), picks (colour picks, pal() and swatch() per module), clocks (clock(): a speed param's integrated distance), compile, scene (the rig, its groups and tags), timeline, render (layers, in stages round spatial modules), chain (a chain made runnable, a composite's sub-layers as chains of their own), pass (the per-pixel pass through a chain, composites included), tree (a chain's modules as a tree: flat, mapped), warps (the one rule: a warp bends what is above it, up to a stage end), output (compositing, DMX channels), light (the one place colour values become light: the settings, the output transform, each byte's light), spatial (the neighbour graph and the native blur), links (the neighbour map: which LEDs touch, and wireDistance and rowOrder along it), globals (with automation and param bindings), flash (the flash check, for bakes and the preview alike); re-exported with their types (`Scene`, `PreparedLayer`, `Pixel`, …); runs in the sandbox, the boxes and tests |
-| `public/js/fseq.ts` | Pure: FSEQ v2 writer |
-| `public/js/scrub.ts` | Pure: what a bug report and the server's log tail may carry (secrets, addresses, URL queries out; sizes cut) |
+| `core/` | The pattern core, which the browser, the boxes and the server all import. `pattern-core.ts` and its modules, pure: stdlib (with palettes), picks (colour picks, pal() and swatch() per module), clocks (clock(): a speed param's integrated distance), compile, scene (the rig, its groups and tags), timeline, render (layers, in stages round spatial modules), chain (a chain made runnable, a composite's sub-layers as chains of their own), pass (the per-pixel pass through a chain, composites included), tree (a chain's modules as a tree: flat, mapped), warps (the one rule: a warp bends what is above it, up to a stage end), output (compositing, DMX channels), light (the one place colour values become light: the settings, the output transform, each byte's light), spatial (the neighbour graph and the native blur), links (the neighbour map: which LEDs touch, and wireDistance and rowOrder along it), globals (with automation and param bindings), flash (the flash check, for bakes and the preview alike); re-exported with their types (`Scene`, `PreparedLayer`, `Pixel`, …); runs in the sandbox, the boxes and tests |
+| `core/fseq.ts` | Pure: FSEQ v2 writer |
+| `core/scrub.ts` | Pure: what a bug report and the server's log tail may carry (secrets, addresses, URL queries out; sizes cut) |
 | `public/js/frames-stream.ts` | Streamed playback of baked frames, and their pure decoder |
 | `public/js/runtime.ts` | App side of the sandbox: iframe, adaptive frame rate, watchdog; the protocol's messages as types |
 | `public/js/flash-guard.ts` | Pure: the preview's flash guard, the bake check's rule (`core/flash.ts`) on the frames shown |
@@ -214,8 +213,9 @@ Everything installation-specific is one file, the rig `STUDIO_RIG` picks (SPEC "
 | `test/` | Vitest suites (`vitest.config.js`; `skip-reporter.js` lists skips and why); `fixtures/`, the shared harness (`app.js`: a server on port 0, a JSON client, a signed-up account; `server.js`: its fixture folders; `box.js`: stand-in render boxes; `quiet.js`: a silent log; `patterns.js`: the library's index and code; `build.js`: a fresh build of the app for the tests that serve it); `e2e/`: the Playwright Test browser checks (`smoke`, `perf`, `e2e`; `studio.js`: the server fixture and signing up and in; `sizes.js`: the laptop and phone) |
 | `dist/` | What `npm run build` makes; not committed |
 
-Browser code imports only from `public/` and packages. Server code imports only `pattern-core.ts`,
-`fseq.ts`, `scrub.ts` and JSON from `public/`. Both take `shared/`: the server at run time, the browser as types
+Browser code imports only from `public/`, `core/` and packages; the core, which the browser runs too, only from
+itself, `shared/` and packages. Server code imports only JSON from `public/`, and only `pattern-core.ts`, `fseq.ts`
+and `scrub.ts` from `core/`. All take `shared/`: the server at run time, the browser and the core as types
 only (`import type`), so zod never ships to the browser. Three pure files are the exceptions, the browser's at run
 time too: `policy.ts` (who may do what, which the server asks too), `standard-modules.ts`
 (the library's own titles), and `plays.ts`, since what plays must be one list that the server's versions and bakes and
@@ -237,7 +237,7 @@ otherwise imports only zod, itself and the core's constants and data. oxlint che
 | No `console` but `warn` and `error` in `src/` or `public/js/` | Server output goes through the logger (its one silenced line); the browser console stays quiet. |
 | No `debugger`, no `.only` in tests | Leftovers that stall the app or skip the rest of the suite. |
 | No secret-looking strings | Keys live in the environment, never in git. |
-| No `Math.random` in `pattern-core.ts`, the render box or the library | A bake must be reproducible: same look, same bytes. Use `rand`, `hash`, `noise`, `seed`. |
+| No `Math.random` in `core/`, the render box or the library | A bake must be reproducible: same look, same bytes. Use `rand`, `hash`, `noise`, `seed`. |
 | Built-ins as `node:x`; the boundaries above | Server code never reaches the browser. A broken import path fails `tsc` (in `.ts`), the build or the tests. |
 | oxlint's `correctness` and `suspicious` rules | Likely bugs. The few that are only noise here are off in `.oxlintrc.jsonc`, each with its reason. |
 | Each area's lines of code within `tools/budgets.json` | Code shrinks by default; it grows only by a decision: raise that area's budget with a new `reason` beside it, in the same change. |

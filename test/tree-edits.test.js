@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { test } from 'vitest';
 
-import { flatModules } from '../public/js/core/tree.ts';
+import { flatModules } from '../core/tree.ts';
 import { automationEdit } from '../public/js/ui/automation-edit.ts';
 import { renameMacro } from '../public/js/ui/look-globals-edit.ts';
 import { macroUses } from '../public/js/ui/mod-uses.ts';

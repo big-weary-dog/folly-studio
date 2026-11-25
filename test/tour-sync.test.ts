@@ -9,7 +9,7 @@ import path from 'node:path';
 
 import { describe, test } from 'vitest';
 
-import { compileModule } from '../public/js/pattern-core.ts';
+import { compileModule } from '../core/pattern-core.ts';
 import { layerFromPattern, presetLayers } from '../public/js/ui/model.ts';
 import { type Recipe, practiceLook } from '../public/js/ui/tour/practice.ts';
 import { PATHS } from '../public/js/ui/tour/paths/index.ts';
@@ -56,8 +56,7 @@ const docks = /DOCKS: Dock\[\] = \[([^\]]+)\]/.exec(source)![1].match(/[a-z]+/g)
 function anchors(s: Step, layers: Made[]) {
   if (Array.isArray(s.anchor)) return s.anchor;
   const none = { value: null }, v = { layers: { value: layers, peek: () => layers }, selected: none, module: none,
-    params: { value: {} }, macros: { value: {} }, automation: { value: { macro1: 2 } },
-    tagged: (tag: string) => rig.groups.filter((g) => g.tags?.includes(tag)).map((g) => g.id) };
+    params: { value: {} } };
   const at = (x: TourView | null): Ctx => ({ v: x, page: '/studio', el: () => null });
   return [...s.anchor(at(null)), ...s.anchor(at(v as unknown as TourView))];
 }

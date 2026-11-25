@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   compileLayer, ledChannels, prepareLayer, prepareLight, prepareLook, prepareScene, renderFrame, setLibrary,
-} from '../public/js/pattern-core.ts';
+} from '../core/pattern-core.ts';
 import { chainLooks, lib, libraryLooks, resolveLook } from './bench-looks.ts';
 
 export const RIGS = ['rig.json', 'rig-folly.json'];

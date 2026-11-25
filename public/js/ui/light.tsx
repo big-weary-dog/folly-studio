@@ -6,7 +6,7 @@ import '../../css/pages.css';
 import { useEffect, useState } from 'preact/hooks';
 
 import { api } from '../api.ts';
-import { encode, LIGHT, LIGHT_LIMITS, type Light, lightByte, lightOf, shownLight } from '../core/light.ts';
+import { encode, LIGHT, LIGHT_LIMITS, type Light, lightByte, lightOf, shownLight } from '../../../core/light.ts';
 import { cx, download, Field, Scrub, toast } from './kit.tsx';
 import { setTitle } from './session.ts';
 import { useDraftGuard } from './draft-guard.ts';

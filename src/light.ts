@@ -1,7 +1,7 @@
 // The light settings on the server (SPEC "Light and output"): <STUDIO_DATA>/light.json, the one stored place. Export,
 // the bake checks and the preview read it; the Light page writes it. A missing or broken file is the defaults, field
 // by field (the core's lightOf), so nothing needs migrating; edits by hand apply on the next read.
-import { type Light, lightOf } from '../public/js/pattern-core.ts';
+import { type Light, lightOf } from '../core/pattern-core.ts';
 import { Light as LightSchema } from '../shared/schemas/light.ts';
 import { settingsFile } from './settings-file.ts';
 

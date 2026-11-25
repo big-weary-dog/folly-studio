@@ -11,7 +11,7 @@ import zlib from 'node:zlib';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { writeFseq } from '../public/js/fseq.ts';
+import { writeFseq } from '../core/fseq.ts';
 import { decodeChunk, parseManifest, readFrame } from '../public/js/frames-stream.ts';
 import { parseFseq } from '../src/frames.ts';
 import { IMMUTABLE } from '../src/frames-http.ts';

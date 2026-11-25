@@ -4,9 +4,9 @@ import assert from 'node:assert/strict';
 
 import { test } from 'vitest';
 
-import { toLight } from '../public/js/core/light.ts';
-import { fadeInto } from '../public/js/core/oklab.ts';
-import { rand, ramp } from '../public/js/core/stdlib.ts';
+import { toLight } from '../core/light.ts';
+import { fadeInto } from '../core/oklab.ts';
+import { rand, ramp } from '../core/stdlib.ts';
 import { fade } from './fixtures/oklab.js';
 
 test('a fade is OKLab within 1e-4 of the reference, its ends exact', () => {

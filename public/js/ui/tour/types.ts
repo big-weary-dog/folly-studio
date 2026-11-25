@@ -32,12 +32,8 @@ export type Path = {
   start: string; steps: Step[];
 };
 
-/** A number a param holds, or null (bound to a modulator, or unset). */
-export const num = (x: unknown) => (typeof x === 'number' ? x : null);
 /** The look's layer whose `data-tour` name is `slug` (its title, tourName'd). */
 export const layerBy = ({ v }: Ctx, slug: string) => v?.layers.value.find((l) => tourName(l.title) === slug) ?? null;
-/** A param bound to a modulator, and which kind ('beats' is a beat clock's). */
-export const boundTo = (x: unknown) => (x && typeof x === 'object' && 'mod' in x ? String(x.mod) : null);
 /** The selected layer is `slug` and its open module is library `ref`. */
 export const at = (c: Ctx, slug: string, ref: string) => !!c.v && c.v.selected.value?.id === layerBy(c, slug)?.id
   && c.v.module.value?.ref === ref;

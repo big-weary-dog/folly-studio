@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
-import * as core from '../public/js/pattern-core.ts';
+import * as core from '../core/pattern-core.ts';
 import { CHAIN, convertChain, convertLayers, touches, upgradeLook } from '../shared/chain-order.ts';
 import { Layers } from '../shared/schemas/look.ts';
 import { digest, LOOKS } from './fixtures/chains-v1.js';

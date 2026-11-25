@@ -8,7 +8,7 @@ import type { FastifyError, FastifyInstance, FastifyReply, FastifyRequest, Route
 import type { z } from 'zod';
 
 import { problem } from '../shared/schemas/look.ts';
-import { scrubText } from '../public/js/scrub.ts';
+import { scrubText } from '../core/scrub.ts';
 import type { StoredUser } from './store.ts';
 
 /** A route's needs (auth.ts's sessionHook): `public` needs no session; `role`, that role or above. */

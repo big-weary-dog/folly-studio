@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { promises as fs, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { DEFAULT_DURATION, type LayerInput, type Light } from '../public/js/pattern-core.ts';
+import { DEFAULT_DURATION, type LayerInput, type Light } from '../core/pattern-core.ts';
 import { findModule } from '../shared/look-modules.ts';
 import type { Bake, FlashSettings } from '../shared/schemas/api.ts';
 import { EXTRAS, extrasOf, type PlaysKey } from '../shared/schemas/look.ts';

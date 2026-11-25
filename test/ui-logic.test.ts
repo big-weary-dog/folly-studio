@@ -117,7 +117,8 @@ describe('routing', () => {
   });
 
   test('a guest\'s tutorial says an account saves', () => {
-    const save = (guest: boolean) => pathsHere(guest).find((p) => p.id === 'keep')!.steps.find((s) => s.id === 'save')!;
+    const save = (guest: boolean) => pathsHere(guest).find((p) => p.id === 'first-look')!.steps
+      .find((s) => s.id === 'save')!;
     assert.match(save(true).text, /log in or sign up/);
     assert.doesNotMatch(save(false).text, /log in or sign up/);
   });

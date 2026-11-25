@@ -7,7 +7,7 @@ import '../../css/reports.css';
 import { effect } from '@preact/signals';
 import { useState } from 'preact/hooks';
 
-import { piece, scrub } from '../scrub.ts';
+import { piece, scrub } from '../../../core/scrub.ts';
 import { api, statusOf } from '../api.ts';
 import type { User } from '../../../shared/schemas/api.ts';
 import { openDialog, toast, toastHistory } from './kit.tsx';
