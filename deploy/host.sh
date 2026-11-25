@@ -120,7 +120,13 @@ cd "$release"
 if [ ! -f dist/build.json ]; then
   npm ci --no-audit --no-fund --loglevel=error
   # The gallery previews' camera (src/previews/playa.ts): a headless Chromium, kept in ~/.cache/ms-playwright.
-  node node_modules/playwright-core/cli.js install chromium-headless-shell >/dev/null
+  # Playwright knows only the distros it builds for: on a newer one, the env file's PLAYWRIGHT_HOST_PLATFORM_OVERRIDE
+  # names the nearest it knows (Ubuntu 26.04: ubuntu24.04-x64), for this install and the server alike.
+  pw=$(set -a; . "$env_file"; node node_modules/playwright-core/cli.js install chromium-headless-shell 2>&1) || {
+    echo "$pw" >&2
+    die "playwright could not install Chromium for the previews; on a distro it does not know, set
+    PLAYWRIGHT_HOST_PLATFORM_OVERRIDE (Ubuntu 26.04: ubuntu24.04-x64) in $env_file"
+  }
   npm run --silent build >/dev/null
   # What the check below asks for, and what anyone can ask the hosted studio for: /build.json.
   printf '{ "commit": "%s", "builtAt": "%s" }\n' "$commit" "$(date -u +%FT%TZ)" > dist/build.json.new
@@ -225,17 +231,10 @@ if [ "$served" != "$commit" ]; then
   die "$unit does not serve $commit on $url (journalctl --user -u $unit)${live:+; back to $live:
     npm run host -- ${instance:+--instance $instance }--rollback}"
 fi
-code=$(curl -s -o /dev/null -w '%{http_code}' -m 5 "$url/api/me")
-[ "$code" = 401 ] || die "$url/api/me answered $code, not 401"
-# The tunnel's connector runs on Windows and reaches WSL through localhost forwarding: check that path too. Only the
-# public studio must be reachable; a dev one may have no tunnel yet.
-if command -v curl.exe >/dev/null; then
-  if [ "$(curl.exe -fsS -m 5 "http://127.0.0.1:$port/build.json" 2>/dev/null | grep -o "$commit")" = "$commit" ]
-  then echo "host: Windows reaches it on 127.0.0.1:$port"
-  elif [ -n "$instance" ]; then echo "host: Windows' 127.0.0.1:$port is not this studio: a tunnel could not reach it"
-  else die "Windows' 127.0.0.1:$port is not this studio, so the tunnel cannot reach it: is something on that port there?"
-  fi
-fi
+# With no session, /api/me answers 200 with user null (spec/http).
+me=$(curl -s -w '\n%{http_code}' -m 5 "$url/api/me" || true)
+[ "${me##*$'\n'}" = 200 ] && [[ "${me%$'\n'*}" == *'"user":null'* ]] ||
+  die "$url/api/me answered ${me##*$'\n'}, not 200 with user null"
 
 previous=$(readlink "$root/previous" || true)
 # Three releases stay: this one, previous and the newest other (two others before there is a previous).

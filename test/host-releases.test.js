@@ -22,7 +22,8 @@ const STUBS = {
   node: 'echo "node $*" >> "$LOG"; [ "$1" != tools/config-check.ts ] || [ -z "$REFUSE" ] || '
     + '{ echo PORT >&2; exit 1; }',
   systemctl: 'echo "systemctl $*" >> "$LOG"; [ "$2" != is-failed ]',
-  curl: 'case "$*" in *build.json*) cat "$CHECKOUT/current/dist/build.json";; *) printf 401;; esac',
+  curl: 'case "$*" in *build.json*) cat "$CHECKOUT/current/dist/build.json";; '
+    + '*api/me*) printf \'{"user":null}\\n200\';; esac',
   journalctl: 'true',
 };
 

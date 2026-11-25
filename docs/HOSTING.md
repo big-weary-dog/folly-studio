@@ -26,7 +26,7 @@ busy it is. Brotli quality 11 (`STUDIO_FRAMES_BROTLI_QUALITY=11`) saves about 12
 needs about 13 times the CPU (`node tools/frames-bench.ts`).
 
 **Use HTTPS.** Browsers ask for `br` only over HTTPS. Over plain HTTP they get the gzip copy of each
-frame chunk, which is up to 76 % larger, and is made on first request. Both tunnels below serve HTTPS.
+frame chunk, which is up to 76 % larger, and is made on first request. The tunnels below serve HTTPS.
 
 ## Install and update
 
@@ -43,26 +43,19 @@ To keep it running, use `npm run host` (below).
 `HOST` defaults to `127.0.0.1`: keep it. Never forward port 8780 on your router. The tunnel connects
 outward to its provider, so nothing on your network opens.
 
-## Hosting on this machine (WSL)
+## Hosting on this machine
 
-The studio runs natively in WSL as a systemd user service, `folly-studio`; the Cloudflare tunnel's connector
-(`cloudflared`) runs on Windows, as it does for Loopr's arcade, and reaches it through WSL's localhost forwarding.
-Native rather than Docker because bakes run in a systemd user scope, which works here as it is.
+EMPEROR runs Linux natively. The studio is a systemd user service, `folly-studio`, and the Cloudflare tunnel's
+connector (`cloudflared`) runs beside it as another, `folly-studio-tunnel` ([Cloudflare Tunnel](#cloudflare-tunnel)).
+Native rather than Docker because bakes run in a systemd user scope, which works here as it is: each bake's task and
+memory caps count that bake alone, not the fleets running as the same user. Linger is on, so both start at boot
+with no one logged in.
 
-What was checked on this machine (WSL 2.4, NAT networking, `systemd=true` in `/etc/wsl.conf`, linger on):
+The connector reaches the studio on `127.0.0.1`, so `STUDIO_TRUST_PROXY=1` (trusted from loopback only) takes the
+client's address from `X-Forwarded-For`'s right-most entry, the one Cloudflare appends. Sign-in limits key on that
+address; whatever a client writes to the left of it is ignored.
 
-- A Windows program connecting to `127.0.0.1:<port>` reaches the studio listening on WSL's `127.0.0.1`, and the
-  studio sees it as `127.0.0.1`, so `STUDIO_TRUST_PROXY=1` (trusted from loopback only) takes the client's address
-  from `X-Forwarded-For`'s right-most entry, the one Cloudflare appends. Sign-in limits key on that address;
-  whatever a client writes to the left of it is ignored.
-- `localhost` on Windows tries `::1` first, which WSL does not forward to a `127.0.0.1` listener: each new
-  connection waits for the fallback (0.2 s here). Point the tunnel at `127.0.0.1`, not `localhost`.
-- A program on Windows that listens on the same port wins over WSL's forwarding: a studio started from Windows
-  (`npm start` in a Windows checkout) hides the WSL one. `npm run host` checks this and fails if so.
-- Bakes run in the service, each in its own systemd user scope, so a bake's task and memory caps count that bake
-  alone, not the fleets running as the same user.
-
-### Owner, once (in WSL)
+### Owner, once
 
 1. A checkout of its own, apart from any fleet's trees, since `npm run host` builds its releases in it:
 
@@ -87,7 +80,7 @@ built in a release of its own, `releases/<commit>` (a git worktree of the checko
 it fetches, adds the release, `npm ci`, builds and writes `dist/build.json` (`{ commit, builtAt }`) there, and checks
 the settings with that build ([Checking the settings](#checking-the-settings)). Only then does it point the `current`
 link at the release (the one it served becomes `previous`), write and restart the unit (`WorkingDirectory` is
-`current`), and check that `/build.json` names the commit, `/api/me` answers 401, and Windows reaches it too. A
+`current`), and check that `/build.json` names the commit and `/api/me` answers 200 with no user (spec/http). A
 failure before the switch leaves the running service as it was, code and bundle alike. After a good deploy it keeps
 three releases: `current`, `previous` and the newest other; it removes the rest. A release already built (the live
 one again, after a settings change) is not built again. The unit's `KillMode=mixed` sends the restart's SIGTERM to
@@ -110,22 +103,35 @@ the server alone: it saves and closes. Requests during the few seconds of the re
   backup's `folly-studio-backup.timer` and `.service` ([Backups](#backups)). Change the script, not them.
   The service runs the checkout's `current/server.ts`; what is installed and built lives in the releases, not in
   the checkout itself.
-- The studio runs while WSL does. It starts with the distro (linger is on), but WSL only boots when something on
-  Windows starts it and may stop an idle distro *(to verify after a Windows restart)*: if it is down, open a WSL
-  terminal, or add a Windows Task Scheduler task at logon running `wsl.exe -d Ubuntu --exec sleep infinity`.
 
 ## Cloudflare Tunnel
 
-swampkat.com's tunnel already serves Loopr's arcade (docs/deploy.md in Loopr); the studio is one more public
-hostname on it, with no Worker: the one server answers both the pages and the API. In the dashboard:
+The studio has a locally managed tunnel of its own, `folly-studio`, apart from the swampkat.com tunnels that serve
+other things (Loopr's arcade): one public hostname, with no Worker, since the one server answers both the pages and
+the API. Its config is `~/.cloudflared/folly.yml`:
 
-1. Zero Trust → Networks → Tunnels → the existing tunnel → Edit → Public Hostname → Add a public hostname.
-2. Subdomain `folly`, domain `swampkat.com`, path empty; Service type `HTTP`, URL `127.0.0.1:8780`
-   (not `localhost`: above). Save. The DNS record is made with it.
-3. Check: `https://folly.swampkat.com/build.json` names the commit `npm run host` printed, and the sign-in page
+```yaml
+tunnel: <the tunnel's id>
+credentials-file: /home/<you>/.cloudflared/<the tunnel's id>.json
+ingress:
+  - hostname: folly.swampkat.com
+    service: http://127.0.0.1:8780
+  - service: http_status:404
+```
+
+and it runs as the systemd user unit `folly-studio-tunnel` (`cloudflared tunnel --config ~/.cloudflared/folly.yml
+run`), which `npm run host` neither writes nor restarts. Set up once:
+
+1. `cloudflared tunnel login`, then `cloudflared tunnel create folly-studio` (it writes the credentials file).
+2. Write `folly.yml` as above, then `cloudflared tunnel route dns folly-studio folly.swampkat.com` for the DNS
+   record (`--overwrite-dns` if an older tunnel had the name).
+3. Write the unit to `~/.config/systemd/user/folly-studio-tunnel.service`, then
+   `systemctl --user daemon-reload && systemctl --user enable --now folly-studio-tunnel`.
+4. Check: `https://folly.swampkat.com/build.json` names the commit `npm run host` printed, and the sign-in page
    loads.
 
-Another name works the same: only the hostname changes; the studio needs no setting for it.
+Logs: `journalctl --user -u folly-studio-tunnel -f`. Another name works the same: add it to the ingress and route
+its DNS; the studio needs no setting for it.
 
 On the zone (swampkat.com), leave Rocket Loader and email obfuscation off (Speed → Optimization, Scrape Shield):
 they inject scripts the CSP refuses. Add no cache rules for `/api/`; its answers are per user and say so
@@ -175,12 +181,11 @@ settings (if this machine has them) name the same `PORT` or `STUDIO_DATA`. The d
 [Environment](#environment)) keeps a studio off a folder another one has open, so a dev studio pointed at
 `~/folly-data` by mistake stops at start.
 
-Windows not reaching a dev instance's port is a note, not a failure, since it may have no tunnel. A `-pi` unit an
-earlier deploy left (the archived Pi engine's dry run, ARCHIVE.md) is stopped and removed, with its Pi bundles in
-`~/.cache/folly-studio/<unit>/`.
+A `-pi` unit an earlier deploy left (the archived Pi engine's dry run, ARCHIVE.md) is stopped and removed, with its
+Pi bundles in `~/.cache/folly-studio/<unit>/`.
 
-Later, `dev.folly.swampkat.com`: a second public hostname on the tunnel, to `127.0.0.1:8781`, behind a Cloudflare
-Access application that admits the owner alone. The owner sets both up in the Cloudflare dashboard.
+Later, `dev.folly.swampkat.com`: a second hostname in the tunnel's ingress, to `127.0.0.1:8781`, behind a Cloudflare
+Access application that admits the owner alone, which the owner sets up in the Cloudflare dashboard.
 
 ## Tailscale Funnel *(to verify)*
 
@@ -242,7 +247,9 @@ Then fix the env file, or roll back: `npm run host -- --rollback`.
 
 `npm run host` also reads `STUDIO_REF`, `STUDIO_ENV_FILE` and `STUDIO_UNIT` (`deploy/host.sh`), and the daily
 backup `STUDIO_BACKUP_DIR`, `STUDIO_BACKUP_KEEP` and `STUDIO_BACKUP_OFFSITE` ([Backups](#backups)); the server ignores
-them.
+them. `PLAYWRIGHT_HOST_PLATFORM_OVERRIDE` is Playwright's, for both the deploy's Chromium install and the gallery
+previews' camera: on a distro Playwright does not know, the nearest one it does (Ubuntu 26.04: `ubuntu24.04-x64`).
+Without it there, the deploy stops before anything changes and says so.
 
 <!-- settings: npm run docs:settings writes this table from src/config.ts -->
 | Setting | What it is |
@@ -300,8 +307,8 @@ delete `reports/` in the data folder.
 
 ## Without a systemd user session
 
-Bakes run each in a systemd user scope with their caps, which works under WSL with `systemd=true` (as here: the user
-manager has the memory and pids controllers). Without a user bus (WSL without systemd, containers), a bake's tasks
+Bakes run each in a systemd user scope with their caps, which works here (the user manager has the memory and pids
+controllers). Without a user bus (containers, WSL without systemd), a bake's tasks
 are capped only by your account's own limit (its pid namespace and wall clock still end it) and memory by
 `RLIMIT_DATA`, and the log says so at start.
 
@@ -316,7 +323,7 @@ the newest `STUDIO_BACKUP_KEEP` there, and copies each new one to `STUDIO_BACKUP
 ```sh
 STUDIO_BACKUP_DIR=/home/you/folly-data-backups   # default: the data folder's path with -backups added
 STUDIO_BACKUP_KEEP=14                            # archives kept there, default 14
-STUDIO_BACKUP_OFFSITE=/mnt/d/folly-backups       # optional: another disk, or user@host:folly-backups over ssh
+STUDIO_BACKUP_OFFSITE=/mnt/backup/folly-backups  # optional: another disk, or user@host:folly-backups over ssh
 ```
 
 The off-site copy is `rsync`'s (install it: `sudo apt install rsync`; a deploy with `STUDIO_BACKUP_OFFSITE` set and
@@ -327,8 +334,8 @@ BatchMode=yes user@host true` succeeds). Nothing is removed off-site: prune it t
 By hand, or with the baked frames:
 
 ```sh
-npm run backup -- --out /mnt/d/folly-backups             # JSON files only: small
-npm run backup -- --out /mnt/d/folly-backups --frames    # with the baked .fseq files (the render box can rebake)
+npm run backup -- --out /mnt/backup/folly-backups          # JSON files only: small
+npm run backup -- --out /mnt/backup/folly-backups --frames # with the baked .fseq files (the render box can rebake)
 ```
 
 A backup is safe while the server runs: the JSON files are read until none changes mid-read, and the archive
@@ -340,8 +347,7 @@ it prints is what went in. It holds password hashes, so keep it as private as th
   `journalctl --user -u folly-studio-backup`. A failed run leaves the unit failed:
   `systemctl --user --failed` lists it.
 - Without a systemd user session, use cron instead (`crontab -e`, then
-  `15 4 * * * cd /path/to/studio && npm run backup -- --out /mnt/d/folly-backups`; WSL does not start cron for you:
-  `sudo service cron start` *(to verify)*).
+  `15 4 * * * cd /path/to/studio && npm run backup -- --out /mnt/backup/folly-backups`).
 
 ### Restore drill
 
@@ -390,6 +396,6 @@ per data folder: the server never does. First see what it would do (it writes no
   rss=120MB`. All of them: `journalctl --user -u folly-studio -g '\[stats\]'`.
 - **From outside.** Nothing on this machine can say it is down, so let a free uptime service (UptimeRobot, Better
   Stack, or similar) fetch `https://folly.swampkat.com/build.json` every 5 minutes and email you when it fails twice:
-  it expects a 200 whose body has `"commit"`. That one check covers WSL stopping, the tunnel or Cloudflare failing,
+  it expects a 200 whose body has `"commit"`. That one check covers the machine stopping, the tunnel or Cloudflare failing,
   and a server that keeps crashing. It costs one small request every 5 minutes, and `/build.json` is a static
   file, so it is counted in Stats but never logged.
