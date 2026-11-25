@@ -128,6 +128,8 @@ if [ "$live" != "releases/$commit" ]; then
 fi
 
 node=$(command -v node)
+# STUDIO_DATA=<data> as one systemd argument: quoted, with its own \, ", $ and % escaped.
+data_arg=${data//\\/\\\\}; data_arg=${data_arg//\"/\\\"}; data_arg=${data_arg//\$/\$\$}; data_arg=${data_arg//%/%%}
 mkdir -p "$units"
 cat > "$units/$unit.service" <<EOF
 # Written by deploy/host.sh; run it again rather than editing this.
@@ -139,7 +141,7 @@ WorkingDirectory=$root/current
 EnvironmentFile=$env_file
 Environment=PATH=$(dirname "$node"):$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin
 # The data as resolved above, from the checkout, never a release: set here, as the env file would win over Environment=.
-ExecStart=/usr/bin/env STUDIO_DATA=$data $node server.ts
+ExecStart=/usr/bin/env "STUDIO_DATA=$data_arg" $node server.ts
 Restart=always
 RestartSec=5
 TimeoutStopSec=20
