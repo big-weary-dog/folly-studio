@@ -38,7 +38,7 @@
     "ce568d59ab968b1b003d0b73b47590df0e175bc6c40ffb5035f1afaaa92f3d23",
     "e57d1abcd55cae692ab554b18a07ebb72bb0b7aeaf1245c88991ee7f150aa541"
   ],
-  "butterfly": [
+  "butterfly-classic": [
     "46f19117fc05313f8412821563d88757bcf32ab10d0a373a07b7ab5da40d9137",
     "79cd375bdc83ee673bee59d3edb8ccaa8f665edba94d1225604151a681095c0c"
   ],
@@ -187,7 +187,7 @@
     "ac78ff5cdd24eadeb4169bd9b365ee8c8e4df71fa07b0588ca87764281d454a2",
     "dfe3fcf689dfffb04698ede4804d4d11f624fc80f675d0dff825c640e2550a63"
   ],
-  "lighthouse": [
+  "lighthouse-classic": [
     "197d2af5e60c44ab1fd3e1bc3b3a761711604252eb5c672ad801361e6ef94c69",
     "2c1cbc846f39bf6a1d39e75eadaa8488ce43856fd86c0884e69622078569a5aa",
     "44454dcd65c0f8e5dddf0eed326b016e36d6001bf8b8e1468aeab1bf8f807205",
@@ -275,7 +275,7 @@
   "pinwheel": [
     "87c399952086e3c6494bfae5fb1ec2f65e7615512587ac810d1957f82d3590c6"
   ],
-  "plasma": [
+  "plasma-classic": [
     "18c42da3d74f93bf90c507620b8ca31e079073149bbb159e27c066ee1ee24852",
     "acf20f7a91c9bdca4ddf4cce7d91a9a5610af7691cb1aa3d362f2e7bc660e6c8",
     "b1d56e572535cc3fcbd961ed8c30b8545dc4bf2f92c1bd12738a85c469f40071",

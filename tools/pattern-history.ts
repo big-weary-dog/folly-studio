@@ -1,7 +1,7 @@
 // Ship earlier library fingerprints for the save gate, for checkouts without git history.
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -26,6 +26,13 @@ for (const commit of commits) {
     blobs.add(`${entry.name}:${blob}`);
     (hashes[entry.name] ??= []).push(createHash('sha256').update(git('cat-file', 'blob', blob)).digest('hex'));
   }
+}
+// An entry renamed (`was`: its name before) keeps its earlier copies under its name now.
+const current = JSON.parse(readFileSync(new URL('../public/patterns/index.json', import.meta.url), 'utf8'));
+for (const { name, was } of current) {
+  if (typeof was !== 'string' || !hashes[was]) continue;
+  (hashes[name] ??= []).push(...hashes[was]);
+  delete hashes[was];
 }
 writeFileSync(new URL('../public/patterns/history.json', import.meta.url),
   `${JSON.stringify(Object.fromEntries(Object.entries(hashes).sort().map(([name, list]) =>

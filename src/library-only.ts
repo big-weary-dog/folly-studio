@@ -1,7 +1,7 @@
 // The library-only rule for stored looks (SPEC-looks "Library only"): a module is library when its code is a current or
-// earlier file of a library entry, retired ones too, the one its `ref` names, else the one whose file it is. A look or
-// version with any other module is dropped; the rest move to the current library (a retired pattern's copy stays as
-// it is), each module naming its entry.
+// earlier file of a module the index lists (hidden ones too), the one its `ref` names, else the one whose file it is.
+// A look or version with any other module is dropped, saying why (a retired pattern's copy names it); the rest move
+// to the current library, each module naming its entry.
 import { layersHash, renderFields } from './bake.ts';
 import type { libraryFiles } from './library-history.ts';
 import { sha256 } from './library-history.ts';
@@ -11,13 +11,35 @@ type Node = Record<string, unknown>;
 const isNode = (v: unknown): v is Node => !!v && typeof v === 'object' && !Array.isArray(v);
 const text = (v: unknown, max = 80) => (typeof v === 'string' ? v.slice(0, max) : '');
 
-/** The entry `code` is a file of: `ref`'s when given (null when not its file), else the one whose file it is. */
+/** The entry `code` is a file of: `ref`'s when it is, else the one whose file it is (null: none, or several); a
+ * retired one (no current file) too. Without code (stored as a ref alone), the entry `ref` names. */
 function entryOf(library: Library, code: unknown, ref: unknown) {
+  if (code === undefined) return typeof ref === 'string' && library.has(ref) ? ref : null;
   if (typeof code !== 'string') return null;
   const hash = sha256(code);
-  if (typeof ref === 'string') return library.get(ref)?.hashes.has(hash) ? ref : null;
+  if (typeof ref === 'string' && library.get(ref)?.hashes.has(hash)) return ref;
   const names = [...library].filter(([, f]) => f.hashes.has(hash)).map(([name]) => name);
   return names.length === 1 ? names[0]! : null;
+}
+const isLibrary = (library: Library, ref: string | null): ref is string => !!ref && library.get(ref)!.code !== null;
+
+/** Why `layers` are not library: the first module that is not, a retired pattern's copy named. */
+export function whyNot(library: Library, layers: unknown): string {
+  for (const layer of Array.isArray(layers) ? layers : []) {
+    if (!isNode(layer)) return 'a malformed layer';
+    for (const m of Array.isArray(layer.modules) ? layer.modules : [layer]) {
+      if (!isNode(m)) return 'a malformed module';
+      if (m.kind === 'composite') {
+        const inner = m.code ? 'a composite with code' : whyNot(library, m.layers);
+        if (inner) return inner;
+        continue;
+      }
+      const ref = entryOf(library, m.code, m.ref);
+      if (ref && !isLibrary(library, ref)) return `retired pattern ${ref}`;
+      if (!ref) return `custom code (${text(m.title) || text(m.ref) || 'a module'})`;
+    }
+  }
+  return '';
 }
 
 /** `node` (a module, or a layer that is one source) on the current library, or null when its code is not the
@@ -29,7 +51,8 @@ function moved(library: Library, node: Node): Node | null {
     return layers.every(Boolean) ? { ...node, layers } : null;
   }
   const ref = entryOf(library, node.code, node.ref);
-  return ref ? { ...node, ref, code: library.get(ref)!.code ?? node.code } : null;
+  if (!isLibrary(library, ref)) return null;
+  return node.code === undefined ? { ...node, ref } : { ...node, ref, code: library.get(ref)!.code };
 }
 
 /** A layer (or a composite's sub-layer) on the current library, or null. */
@@ -46,7 +69,7 @@ export function libraryLayers(library: Library, layers: unknown): Node[] | null 
   return out.every(Boolean) ? out as Node[] : null;
 }
 
-export type Dropped = { look: string, title: string, owner: string, version?: number };
+export type Dropped = { look: string, title: string, owner: string, version?: number, why: string };
 
 /** Every module's code in `layers`, in order: what changes when a module moves to the current library. */
 function codes(layers: unknown): unknown[] {
@@ -70,7 +93,7 @@ export function libraryOnly(library: Library, stored: readonly Node[]) {
     const who = { look: text(look.id, 64), title: text(look.title), owner: text(look.owner, 64) };
     const layers = libraryLayers(library, look.layers);
     if (!layers) {
-      dropped.push(who);
+      dropped.push({ ...who, why: whyNot(library, look.layers) });
       continue;
     }
     const { ideaId: _, ...rest } = look;
@@ -91,7 +114,7 @@ export function libraryOnly(library: Library, stored: readonly Node[]) {
         if (!v) return [];
         const kept = 'layers' in v ? libraryLayers(library, v.layers) : v.layers;
         if (!kept) {
-          dropped.push({ ...who, version: v.n as number });
+          dropped.push({ ...who, version: v.n as number, why: whyNot(library, v.layers) });
           return [];
         }
         if (!('layers' in v)) return [v];
