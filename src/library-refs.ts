@@ -51,10 +51,14 @@ function withoutStaleBake(look: Node) {
   if ('reviewed' in look) look.reviewed = false;
 }
 
-/** A look's layers and its versions' layers. */
-function eachLayers(look: Node, visit: (layers: unknown) => void) {
-  visit(look.layers);
-  if (Array.isArray(look.versions)) for (const v of look.versions) if (isNode(v)) visit(v.layers);
+/** A look's versions. */
+const versionsOf = (look: Node) => (Array.isArray(look.versions) ? look.versions.filter(isNode) : []);
+
+/** The hash of `layers`' module code, in order; null when any module has none (stored as its ref alone). */
+function codeHash(layers: unknown) {
+  const codes: unknown[] = [];
+  eachModule(layers, (m) => codes.push(m.code));
+  return codes.every((c) => typeof c === 'string') ? sha256(JSON.stringify(codes)) : null;
 }
 
 type Files = { codes: Map<string, string>, names: Map<string, string | null> };
@@ -90,27 +94,38 @@ export function libraryRefs(loadLibrary: () => readonly LibraryEntry[], historyF
     if (typeof m.code !== 'string' || (typeof m.ref === 'string' && codes.get(m.ref) === m.code)) return m.ref;
     return names.get(sha256(m.code)) ?? m.ref;
   };
-  const each = (look: object, visit: (m: Node, lib: Files) => void) => {
-    const lib = library();
-    eachLayers(look as Node, (layers) => eachModule(layers, (m) => visit(m, lib)));
-    return look;
-  };
+  const filled = (layers: unknown, lib: Files) => eachModule(layers, (m) => {
+    const ref = refOf(m, lib);
+    fill(m, ref, (typeof ref === 'string' && lib.codes.get(ref)) || '');
+  });
   return {
     /** `look` (changed in place) with every module's code its ref's current file ('' for a ref the library lacks),
-     * and no bake (nor review) of other code. */
-    read: <T extends object>(look: T): T => {
-      each(look, (m, lib) => {
-        const ref = refOf(m, lib);
-        fill(m, ref, (typeof ref === 'string' && lib.codes.get(ref)) || '');
-      });
-      withoutStaleBake(look as Node);
-      return look;
+     * no bake (nor review) of other code, and a version whose code is not what it was saved with not reviewed. */
+    read<T extends object>(doc: T): T {
+      const look = doc as Node, lib = library();
+      filled(look.layers, lib);
+      withoutStaleBake(look);
+      for (const v of versionsOf(look)) {
+        const was = v.codeHash ?? codeHash(v.layers);
+        delete v.codeHash;
+        filled(v.layers, lib);
+        if (was !== null && was !== codeHash(v.layers) && v.reviewed) v.reviewed = false;
+      }
+      return doc;
     },
-    /** `look` (changed in place) with each module's ref set and no code kept. */
-    write: <T extends object>(look: T): T => each(look, (m, lib) => {
-      const ref = refOf(m, lib);
-      if (typeof ref === 'string') m.ref = ref;
-      delete m.code;
-    }) as T,
+    /** `look` (changed in place) with each module's ref set and no code kept; each version with the hash of the code
+     * it was saved with (`codeHash`), so a read knows when the library changed it. */
+    write<T extends object>(doc: T): T {
+      const look = doc as Node, lib = library();
+      for (const v of versionsOf(look)) v.codeHash = codeHash(v.layers) ?? v.codeHash;
+      for (const layers of [look.layers, ...versionsOf(look).map((v) => v.layers)]) {
+        eachModule(layers, (m) => {
+          const ref = refOf(m, lib);
+          if (typeof ref === 'string') m.ref = ref;
+          delete m.code;
+        });
+      }
+      return doc;
+    },
   };
 }

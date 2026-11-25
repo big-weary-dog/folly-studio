@@ -42,7 +42,9 @@ below.
   stored ('' for a ref the library lacks). A module whose code is not its ref's file, or that has no ref, takes the
   ref of the one entry whose current or earlier file its code is exactly (by SHA-256); else it keeps its ref. A read
   leaves out a bake whose `layersHash` is not the filled look's, with its review (`reviewed` false, no `reviewedBy`
-  or `flashOverride`): once the library changes, the look is baked and reviewed afresh. A
+  or `flashOverride`): once the library changes, the look is baked and reviewed afresh. A version keeps the hash of
+  the code it was saved with (`codeHash`, never handed out); a read gives a version whose code that is no longer
+  `reviewed` false. Filters and updates see the look as a read gives it, so what it leaves out stays out. A
   module whose `ref` the library has is standard: it keeps the
   library's title (`shared/standard-modules.ts`; the API puts a renamed one's back), and a hand edit
   of its code drops `ref`, making it custom (custom code is refused: SPEC-baking

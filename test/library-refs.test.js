@@ -55,8 +55,15 @@ test('a bake of other code than the look\'s now is left out, with its review; a 
       ref: 'noise', code, params: {} }] }];
     const baked = (code) => ({ owner: 'u1', title: 'x', layers: layers(code), reviewed: true, reviewedBy: 'u2',
       bake: { status: 'done', ok: true, layersHash: layersHash(renderFields({ layers: layers(code) })) } });
-    const old = store.looks.create(baked(git('1cfdcda6:public/patterns/noise.js')));
+    const oldNoise = git('1cfdcda6:public/patterns/noise.js');
+    const old = store.looks.create({ ...baked(oldNoise), versions: [{ n: 1, layers: layers(oldNoise), reviewed: true },
+      { n: 2, layers: layers(file('noise')), reviewed: true }] });
     assert.deepEqual([old.bake, old.reviewed, old.reviewedBy], [undefined, false, undefined]);
+    assert.deepEqual(old.versions.map((v) => v.reviewed), [false, true], 'a version the library changed: no review');
+    assert.deepEqual(store.looks.list((l) => !!l.bake).map((l) => l.id), [], 'a filter sees what a read gives');
+    // A rebake asked for: the review that rested on the stale bake stays gone.
+    const asked = store.looks.update(old.id, { bake: { status: 'queued' } });
+    assert.deepEqual([asked.reviewed, asked.reviewedBy, asked.versions[0].reviewed], [false, undefined, false]);
     const now = store.looks.create(baked(file('noise')));
     assert.equal(now.bake?.layersHash, layersHash(renderFields(now)));
     const shared = store.looks.update(now.id, { shared: true });

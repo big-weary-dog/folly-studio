@@ -82,8 +82,10 @@ export async function createStore(dataDir: string, { log = console, upgrade = {}
   return store;
 }
 
-async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: Upgrade,
-  { read, write }: View = { read: (d) => d, write: (d) => d }) {
+async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: Upgrade, view?: View) {
+  const { read, write }: View = view ?? { read: (d) => d, write: (d) => d };
+  // What a filter sees: a document as handed out (its versions left out), so it agrees with what the caller gets.
+  const seen = view ? ({ versions: _, ...item }: Item) => read(copy(item as Item)) : (item: Item) => item;
   const map = new Map<string, Item>(), json = new Map<string, string>();
   const put = (item: Item) => {
     map.set(item.id, item);
@@ -140,7 +142,7 @@ async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: U
     list(filterFn, omit) {
       const out = [];
       for (const item of map.values()) {
-        if (filterFn && !filterFn(item)) continue;
+        if (filterFn && !filterFn(seen(item))) continue;
         if (!omit?.length) out.push(read(copy(item)));
         else out.push(read(copy(Object.fromEntries(Object.entries(item).filter(([k]) => !omit.includes(k))) as Item)));
       }
@@ -148,12 +150,12 @@ async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: U
     },
     count(filterFn) {
       let n = 0;
-      for (const item of map.values()) if (!filterFn || filterFn(item)) n++;
+      for (const item of map.values()) if (!filterFn || filterFn(seen(item))) n++;
       return n;
     },
     bytes(filterFn) {
       let n = 0;
-      for (const [id, item] of map) if (!filterFn || filterFn(item)) n += Buffer.byteLength(json.get(id)!);
+      for (const [id, item] of map) if (!filterFn || filterFn(seen(item))) n += Buffer.byteLength(json.get(id)!);
       return n;
     },
     create(obj = {}) {
@@ -172,8 +174,10 @@ async function openCollection(file: string, log: Pick<Log, 'error'>, upgrade?: U
       return read(copy(item));
     },
     update(id, patch = {}) {
-      const cur = map.get(id);
-      if (!cur) return null;
+      const stored = map.get(id);
+      if (!stored) return null;
+      // On the document as handed out, so what a read leaves out (a stale bake or review) is gone for good.
+      const cur = view ? read(copy(stored)) : stored;
       const next: Record<string, unknown> = { ...cur };
       for (const [k, v] of Object.entries(patch)) {
         if (k === 'id' || k === 'createdAt' || k === 'updatedAt') continue;
