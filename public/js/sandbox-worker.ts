@@ -106,9 +106,8 @@ function onLook(msg: Message<'look'>) {
 }
 
 function onFrame(msg: Message<'frame'>) {
-  const started = now(), n = scene ? scene.count * 3 : 0;
-  // The app hands back a buffer it has finished with; one of another size (or none) means a fresh one.
-  const rgb = msg.rgb instanceof Float32Array && msg.rgb.length === n ? msg.rgb : new Float32Array(n);
+  const started = now();
+  const rgb = new Float32Array(scene ? scene.count * 3 : 0);
   const errors = scene ? renderFrame(scene, prepared, +msg.t || 0, rgb, live, result).errors : [];
   for (let i = 0; i < prepared.length; i++) layerMs[String(prepared[i].id)] = prepared[i].ms;
   post({ type: 'frame', seq: msg.seq, rgb, errors, ms: now() - started, layerMs }, [rgb.buffer]);

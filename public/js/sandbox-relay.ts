@@ -14,7 +14,7 @@ import { openProber } from './sandbox-probe.ts';
 /** A request to the worker, as the relay tracks it: `at` is when the worker started on it. */
 type Job = { at: number; overdue?: boolean; internal?: boolean; answered?: boolean; seq?: number; look?: Layer[];
   answerBy?: number } & ({ type: 'init'; msg: object } | { type: 'look'; layers: Layer[]; extra: Extra;
-  compiling?: string } | { type: 'frame'; seq: number; t: number; answerBy: number; rgb?: Float32Array }
+  compiling?: string } | { type: 'frame'; seq: number; t: number; answerBy: number }
   | { type: 'render'; seq: number; start: number; fps: number; done: number; sentDone: number; sentAt: number;
     bytes: number; msg: object });
 
@@ -56,7 +56,7 @@ export function openSandbox(send: (msg: object) => void): Sandbox {
   let closed = false;
   const prober = openProber(spawnWorker);
   const toApp = (msg: object) => { if (!closed) send(msg); };
-  const frameMsg: { type: 'frame'; seq: number; t: number; rgb?: Float32Array } = { type: 'frame', seq: 0, t: 0 };
+  const frameMsg = { type: 'frame', seq: 0, t: 0 };   // every frame request, filled in as it goes
 
   function close() {
     closed = true;
@@ -111,14 +111,9 @@ export function openSandbox(send: (msg: object) => void): Sandbox {
       worker.postMessage({ type: 'look', layers: job.layers.filter((l) => !paused(l)), ...job.extra });
     } else if (job.type === 'frame') {
       job.look = sentLook;
-      // The app's spent buffer, for the worker to fill; one an earlier worker took is detached (empty).
-      const rgb = job.rgb?.length ? job.rgb : undefined;
-      job.rgb = undefined;
       frameMsg.seq = job.seq;
       frameMsg.t = job.t;
-      frameMsg.rgb = rgb;
-      worker.postMessage(frameMsg, rgb ? [rgb.buffer] : []);   // cloned now, so the object is reused
-      frameMsg.rgb = undefined;
+      worker.postMessage(frameMsg);   // cloned now, so the object is reused
     } else {
       if (job.type === 'render') job.look = sentLook;
       worker.postMessage(job.msg);
@@ -151,8 +146,7 @@ export function openSandbox(send: (msg: object) => void): Sandbox {
         break;
       }
       case 'frame':
-        job = { type: 'frame', at: 0, seq: msg.seq, t: +msg.t || 0, answerBy: now() + ANSWER_MS,
-          rgb: msg.rgb instanceof Float32Array ? msg.rgb : undefined };
+        job = { type: 'frame', at: 0, seq: msg.seq, t: +msg.t || 0, answerBy: now() + ANSWER_MS };
         break;
       case 'render':
         job = { type: 'render', at: 0, seq: msg.seq, start: +msg.start || 0, fps: +msg.fps > 0 ? +msg.fps : 40,

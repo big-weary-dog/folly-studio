@@ -40,7 +40,7 @@ type FromSandbox = { type: 'ready' } | { type: 'compiled'; layers?: (Compiled & 
 /** What the app asks of the relay (SPEC "Sandbox protocol"). */
 export type ToSandbox = { type: 'init'; rig: Rig; library: Pick<LibraryEntry, 'name' | 'code'>[] }
   | ({ type: 'look'; layers: (LayerInput & { id: string })[] } & Extra)
-  | { type: 'frame'; seq: number; t: number; rgb?: Float32Array }
+  | { type: 'frame'; seq: number; t: number }
   | { type: 'render'; seq: number; start: number; frames: number; fps: number; brightness: number;
     light: Light };
 type Status = 'loading' | 'ready' | 'warning' | 'dead';
@@ -56,9 +56,7 @@ export class Runtime {
   layers: Layer[] = []; extra: Extra = {}; lookDirty = false; lookVersion = 0; frameLookVersion = -1; lastT = NaN;
   seq = 0; respawns: number[] = []; render_: Render | null = null;
   frame: Frame = { seq: 0, t: 0, look: 0 };     // reused: no garbage per frame
-  frameMsg: { type: 'frame'; seq: number; t: number; rgb?: Float32Array } = { type: 'frame', seq: 0, t: 0 };
-  shown: Float32Array | null = null;  // the frame onFrame has: its owner keeps it until the next
-  spare: Float32Array | null = null;  // one it is done with, for the worker to fill: no new buffer per frame
+  frameMsg: { type: 'frame'; seq: number; t: number } = { type: 'frame', seq: 0, t: 0 };
   frameInFlight: Frame | null = null;
   lookQueue: Map<string, Map<string, string>>[] = [];   // per look sent, not compiled yet: its code, to tag the reply
   since = 0;         // when this phase began, or the relay last spoke while owing us something
@@ -66,7 +64,6 @@ export class Runtime {
   fpsCount = 0; fpsSince = performance.now(); lastCheck = performance.now();
   watchdog = setInterval(() => this._check(), 200);
   time!: () => number;    // the show time now
-  /** rgb is the caller's until the next onFrame; the worker then fills it again. */
   onFrame!: (rgb: Float32Array, t: number) => void; onCompiled!: (layers: Report[]) => void;
   onFrameErrors!: (errors: readonly FrameError[]) => void; onStatus!: (state: Status, detail?: string) => void;
 
@@ -117,10 +114,7 @@ export class Runtime {
     f.seq = this.frameMsg.seq = ++this.seq;
     f.t = this.frameMsg.t = t;
     f.look = this.lookVersion;
-    this.frameMsg.rgb = this.spare ?? undefined;
-    this.spare = null;
-    this._post(this.frameMsg);          // taken synchronously, so the object can be reused
-    this.frameMsg.rgb = undefined;
+    this._post(this.frameMsg);          // cloned synchronously, so the object can be reused
     this.frameInFlight = f;
   }
 
@@ -233,11 +227,7 @@ export class Runtime {
     const i = RATES.indexOf(this.rate);
     const next = st.ms > budget(this.rate) ? RATES[i + 1] : st.ms < 0.7 * budget(RATES[i - 1]) ? RATES[i - 1] : 0;
     if (next && now - this.rateAt > 1000) { this.rate = next; this.rateAt = now; }
-    if (m.rgb && !this.held) {
-      this.spare = this.shown;
-      this.shown = m.rgb;
-      this.onFrame(m.rgb, f.t);
-    } else if (m.rgb) this.spare = m.rgb;
+    if (m.rgb && !this.held) this.onFrame(m.rgb, f.t);
     this.onFrameErrors(Array.isArray(m.errors) ? m.errors : EMPTY);
     if (this.playing && !this.lookDirty && !this.render_) this._request(this.time());
   }
