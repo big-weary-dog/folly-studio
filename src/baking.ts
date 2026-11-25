@@ -1,7 +1,8 @@
 // The bake setting (SPEC "Baked frames", "The bake setting"): <STUDIO_DATA>/baking.json, { mode: on | throttled |
-// off, customCode? } (SPEC-baking "Custom code": src/custom-code.ts), read as each render starts so it takes effect
-// without a restart (missing or broken: on, custom code off). governBox() puts it in front of the render box: off
-// refuses, throttled renders at nice 19 and spaces renders a cooldown apart.
+// off }, read as each render starts so it takes effect without a restart (missing or broken: on). Custom code is off
+// (SPEC-baking "Custom code": src/custom-code.ts): the file's customCode is ignored and no change turns it on.
+// governBox() puts it in front of the render box: off refuses, throttled renders at nice 19 and spaces renders a
+// cooldown apart.
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -15,10 +16,12 @@ import type { RenderBox } from './render-box.ts';
 
 export const THROTTLE = { nice: 19, cooldownMs: 30_000 };
 const BAKING_OFF = 'An admin turned baking off.';
+const NO_CODE = 'Custom code is off on every server: looks take only library patterns.';
 
 type Log = { warn?: (...a: unknown[]) => void };
 type Setting = { mode: BakeMode, customCode: boolean };
 
+/** `customCode`: tests only (createServer's option), never from the file or a change. */
 export function createBakingStore({ file, customCode = false, log = console }: { file: string, customCode?: boolean,
   log?: Log }) {
   let sig = '', now: Setting = { mode: 'on', customCode };
@@ -35,22 +38,23 @@ export function createBakingStore({ file, customCode = false, log = console }: {
       log.warn?.(`[baking] ${path.basename(file)} is not valid JSON (${(err as Error).message}); baking is on`);
     }
     const data = Baking.safeParse(json).data;
-    now = { mode: data?.mode ?? 'on', customCode: data?.customCode ?? customCode };
+    now = { mode: data?.mode ?? 'on', customCode };
     return now;
   }
   return {
     current,
     mode: (): BakeMode => current().mode,
-    /** Whether looks may take new code (SPEC-baking "Custom code"); off unless an admin turned it on. */
+    /** Whether looks may take code that is not the library's (SPEC-baking "Custom code"): only in tests. */
     customCode: () => current().customCode,
     /** Checks a change and writes the setting with it: the setting, or { error }. */
     save(body: unknown): Setting | { error: string } {
       const parsed = BakingPatch.safeParse(body);
       if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'That bake setting is not valid.' };
-      const next = { ...current(), ...parsed.data };
+      if (parsed.data.customCode) return { error: NO_CODE };
+      const next = { ...current(), ...parsed.data, customCode };
       mkdirSync(path.dirname(file), { recursive: true });
       const tmp = `${file}.${process.pid}.tmp`;
-      writeFileSync(tmp, `${JSON.stringify(next, null, 2)}\n`);
+      writeFileSync(tmp, `${JSON.stringify({ mode: next.mode }, null, 2)}\n`);
       renameSync(tmp, file);
       [sig, now] = [signature(), next];
       return next;

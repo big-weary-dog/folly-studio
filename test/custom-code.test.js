@@ -1,14 +1,15 @@
-// The Custom code switch (SPEC-baking "Custom code"): off, a look takes only library code and code already in looks
-// its owner can see; the generators' rounds see new code as an error; the switch is the admins'.
+// Custom code is off (SPEC-baking "Custom code") and the generators with it (SPEC-offline "No generators"): no
+// setting, file or route turns either on; a look saves and bakes only library code, composites included. The
+// generators' rounds see new code as an error. `generators` and `customCode` are createServer's test-only options.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { createServer } from '../src/app.ts';
-import { codesOf, createCodeGate } from '../src/custom-code.ts';
+import { createCodeGate } from '../src/custom-code.ts';
 import { expand } from '../src/generate/expand.ts';
 import { createQueue } from '../src/generate/index.ts';
 import { libraryOnly } from '../src/generate/no-code.ts';
@@ -18,82 +19,77 @@ useFixture();
 const LIBRARY = `// Rising embers\n${PIXEL}\n`;   // the fixture library's embers.js
 const NEW = 'function pixel(p) { return [1, 0, 0]; }';
 const mod = (code, extra = {}) => ({ id: 'm1', kind: 'source', title: 'Mine', code, params: {}, ...extra });
+const modules = (code, extra) => [{ id: 'l1', title: 'Sea', modules: [mod(code, extra)] }];
+/** A composite carrying `own` code over a sub-layer of `inner`. */
+const comp = (inner, own = '') => [{ id: 'l1', title: 'Sea', modules: [{ id: 'k', kind: 'composite', title: 'Comp',
+  code: own, params: {}, layers: [{ id: 's1', title: 'Sub', modules: [mod(inner, { title: 'Inner' })] }] }] }];
 
-test('codesOf finds every piece of code: a layer\'s own, its modules\', its composites\' sub-layers\'', () => {
-  const layers = [{ title: 'Old', code: 'A' }, { modules: [mod('B'), { id: 'c', kind: 'composite', code: '', layers: [
-    { modules: [mod('C', { title: 'Deep' })] }] }] }];
-  assert.deepEqual([...codesOf(layers)], [{ code: 'A', where: 'Layer 1 (Old)' },
-    { code: 'B', where: 'Layer 2\'s Mine' },
-    { code: 'C', where: 'Layer 2\'s Deep' }]);
-});
-
-describe('the API, custom code off', () => {
+describe('as the server runs (no test options; the data and environment asking for them)', () => {
   let app, admin, ann, bob;
   beforeAll(async () => {
-    app = await startApp({ dataDir: path.join(fx.tmp, 'data-code'), admins: 'Olive', customCode: false });
+    const dataDir = path.join(fx.tmp, 'data-code');
+    mkdirSync(dataDir, { recursive: true });
+    writeFileSync(path.join(dataDir, 'baking.json'), JSON.stringify({ mode: 'on', customCode: true }));
+    app = await startApp({ dataDir, admins: 'Olive', generators: undefined, customCode: undefined,
+      models: { env: { STUDIO_PROFILE: 'hosted', STUDIO_GENERATOR: 'test', ANTHROPIC_API_KEY: 'k' } } });
     admin = await signup(app, 'Olive');
     ann = await signup(app, 'ann');
     bob = await signup(app, 'bob');
   });
   afterAll(() => app?.close());
-  const modules = (code, extra) => [{ id: 'l1', title: 'Sea', modules: [mod(code, extra)] }];
 
-  test('only admins switch it, and everyone reads it', async () => {
-    assert.equal((await ann.get('/api/baking')).json.customCode, false);
-    assert.equal((await ann.put('/api/admin/baking', { customCode: true })).status, 403);
-    assert.equal((await admin.put('/api/admin/baking', { customCode: true })).json.customCode, true);
-    assert.equal((await ann.get('/api/baking')).json.customCode, true);
-    assert.equal((await admin.put('/api/admin/baking', { customCode: false })).json.mode, 'on', 'the mode is kept');
+  test('no generators: their routes are not there, and /api/me has no access', async () => {
+    assert.equal((await ann.get('/api/me')).json.access, undefined);
+    for (const [method, url] of [['get', '/api/ideas'], ['post', '/api/ideas'], ['get', '/api/models'],
+      ['get', '/api/admin/models'], ['get', '/api/admin/people']]) {
+      assert.equal((await admin[method](url, method === 'post' ? { text: 'a glow' } : undefined)).status, 404, url);
+    }
   });
 
-  test('new code is refused (403, naming it); a library file exactly is not', async () => {
+  test('custom code is off whatever baking.json says, and no admin turns it on', async () => {
+    assert.equal((await ann.get('/api/baking')).json.customCode, false);
+    assert.equal((await ann.put('/api/admin/baking', { customCode: true })).status, 403);
+    const r = await admin.put('/api/admin/baking', { customCode: true });
+    assert.equal(r.status, 400);
+    assert.match(r.json.error, /Custom code is off on every server/);
+    assert.equal((await admin.put('/api/admin/baking', { mode: 'on', customCode: false })).json.customCode, false);
+    assert.equal((await ann.get('/api/baking')).json.customCode, false);
+  });
+
+  test('custom code is refused (403, naming it); a library file exactly is not', async () => {
     let r = await ann.post('/api/looks', { title: 'New', layers: modules(NEW) });
     assert.equal(r.status, 403);
-    assert.match(r.json.error, /admin turned custom code off.*Layer 1 \(Sea\)'s Mine is new code/);
+    assert.match(r.json.error, /unchanged library patterns.*Layer 1 \(Sea\)'s Mine is custom code/);
     r = await ann.post('/api/looks', { title: 'Old shape', layers: [layer()] });
     assert.equal(r.status, 403, 'a layer\'s own code too');
-    r = await ann.post('/api/looks', { title: 'Embers', layers: modules(LIBRARY, { ref: 'embers' }) });
+    r = await ann.post('/api/looks', { title: 'Embers', layers: modules(LIBRARY, { ref: 'embers' }), shared: true });
     assert.equal(r.status, 201);
     const embers = r.json.look.id;
     r = await ann.put(`/api/looks/${embers}`, { layers: modules(`${LIBRARY} `) });
-    assert.equal(r.status, 403, 'an edit of library code is new');
+    assert.equal(r.status, 403, 'an edit of library code is custom');
     r = await ann.post('/api/looks', { origin: embers, title: 'Embers', layers: modules(NEW) });
     assert.equal(r.status, 403, 'an import overruling a look is checked as an edit is');
+    r = await bob.post('/api/looks', { title: 'Copy', layers: modules(LIBRARY) });
+    assert.equal(r.status, 201, 'a copy of library code');
   });
 
-  test('a composite has no code of its own: library modules in it save, new code in it is refused', async () => {
-    const comp = (code) => [{ id: 'l1', title: 'Sea', modules: [{ id: 'k', kind: 'composite', title: 'Comp', code: '',
-      params: {}, layers: [{ id: 's1', title: 'Sub', modules: [mod(code, { title: 'Inner' })] }] }] }];
+  test('a composite has no code of its own: library sub-layers save; custom ones, or code on it, are refused',
+    async () => {
     let r = await ann.post('/api/looks', { title: 'Grouped', layers: comp(LIBRARY) });
     assert.equal(r.status, 201, r.text);
     const grouped = r.json.look.id;
-    r = await ann.put(`/api/looks/${grouped}`, { title: 'Regrouped', layers: comp(LIBRARY) });
-    assert.equal(r.status, 200, r.text);
     r = await ann.post('/api/looks', { origin: grouped, title: 'Grouped', layers: comp(LIBRARY) });
     assert.ok([200, 201].includes(r.status), `an import: ${r.text}`);
     r = await ann.post('/api/looks', { title: 'Sneaky', layers: comp(NEW) });
     assert.equal(r.status, 403);
-    assert.match(r.json.error, /Layer 1 \(Sea\)'s Inner is new code/);
+    assert.match(r.json.error, /Layer 1 \(Sea\)'s Inner is custom code/);
     r = await ann.put(`/api/looks/${grouped}`, { layers: comp(NEW) });
-    assert.equal(r.status, 403, 'an edit putting new code in a composite too');
-  });
-
-  test('code already in a look its owner can see is kept: params, copies of shared looks; not others\' private ones',
-    async () => {
-    await admin.put('/api/admin/baking', { customCode: true });
-    const mine = (await ann.post('/api/looks', { title: 'Mine', layers: modules(NEW) })).json.look;
-    const shared = (await bob.post('/api/looks', { title: 'Shared', layers: modules(`${NEW}//b`), shared: true }))
-      .json.look;
-    const hidden = (await bob.post('/api/looks', { title: 'Hidden', layers: modules(`${NEW}//h`) })).json.look;
-    await admin.put('/api/admin/baking', { customCode: false });
-    let r = await ann.put(`/api/looks/${mine.id}`, { layers: modules(NEW, { params: { speed: 2 } }) });
-    assert.equal(r.status, 200, r.text);
-    r = await ann.post('/api/looks', { title: 'Copy', layers: modules(`${NEW}//b`) });
-    assert.equal(r.status, 201, 'a shared look\'s code');
-    r = await ann.post('/api/looks', { title: 'Peek', layers: modules(`${NEW}//h`) });
-    assert.equal(r.status, 403, 'another\'s unshared look\'s code is new to ann');
-    assert.equal((await bob.put(`/api/looks/${hidden.id}`, { title: 'Still mine' })).status, 200);
-    assert.ok(shared.id);
+    assert.equal(r.status, 403, 'an edit putting custom code in a composite too');
+    r = await ann.post('/api/looks', { title: 'Cloaked', layers: comp(NEW, LIBRARY) });
+    assert.equal(r.status, 403, 'library code on the composite does not hide its sub-layers');
+    r = await ann.post('/api/looks', { title: 'Coded', layers: comp(LIBRARY, LIBRARY) });
+    assert.equal(r.status, 403, 'nor is code of its own allowed, library or not');
+    assert.match(r.json.error, /Layer 1 \(Sea\)'s Comp is custom code/);
   });
 });
 
@@ -102,8 +98,7 @@ test('a generator\'s rounds: off, new code is an error the repair sees, and the 
   const answer = { title: 't', layers: [{ modules: [{ use: 'ext:glow' }] }, { code: NEW }],
     extensions: [{ name: 'glow', kind: 'source', summary: 's', why: 'w', code: NEW }] };
   assert.equal(expand(answer, catalog).errors.length, 0, 'anything goes while it is on');
-  const looks = { list: () => [] };
-  const off = createCodeGate({ on: () => false, looks, patternsDir: path.join(fx.publicDir, 'patterns') });
+  const off = createCodeGate({ on: () => false, patternsDir: path.join(fx.publicDir, 'patterns') });
   const ctx = { text: 'a red glow', user: { id: 'u' } };
   const held = await libraryOnly(ctx, catalog, off);
   assert.match(ctx.turn, /<idea>\na red glow\n<\/idea>[\s\S]*compose from the library alone/);
@@ -111,7 +106,7 @@ test('a generator\'s rounds: off, new code is an error the repair sees, and the 
   assert.deepEqual(x.errors.filter((e) => e.code === 'no_code').map((e) => e.path),
     ['extensions[0].code', 'layers[1].code']);
   assert.equal(x.look.layers.length, 0, 'nothing new is left in the look');
-  assert.equal(await libraryOnly(ctx, catalog, createCodeGate({ on: () => true, looks, patternsDir: '' })), catalog);
+  assert.equal(await libraryOnly(ctx, catalog, createCodeGate({ on: () => true, patternsDir: '' })), catalog);
 });
 
 test('off, a generator\'s look with new code fails its idea, saying why; library code makes a look', async () => {
@@ -122,14 +117,14 @@ test('off, a generator\'s look with new code fails its idea, saying why; library
   const adapters = { stub: { generate: async () => look() } };
   const box = { config: { seconds: 2 }, probe: async () => ({ ok: true }), render: assert.fail };
   const app = await createServer({ dataDir: path.join(fx.tmp, 'data-ideas'), publicDir: PUBLIC, renderBox: box,
-    generator: (deps) => createQueue({ ...deps, adapterName: 'stub', adapters }), log: quiet });
+    generators: true, generator: (deps) => createQueue({ ...deps, adapterName: 'stub', adapters }), log: quiet });
   try {
     const idea = () => app.store.ideas.create({ owner: 'u1', text: 'a glow', status: 'queued', generator: 'stub' });
     const bad = idea();
     app.queue.enqueue(bad);
     await app.queue.idle();
     assert.equal(app.store.ideas.get(bad.id).status, 'failed');
-    assert.match(app.store.ideas.get(bad.id).error, /custom code off.*Layer 1 \(Base\) is new code/);
+    assert.match(app.store.ideas.get(bad.id).error, /Layer 1 \(Base\) is custom code/);
     code = clouds;
     const good = idea();
     app.queue.enqueue(good);

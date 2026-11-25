@@ -39,7 +39,7 @@ below.
 - **Modules**: 1–8 per layer, ids unique in it (`[A-Za-z0-9_.:-]{1,64}`), `code` ≤ 20 kB each and always
   stored (looks stay self-contained for the boxes); `ref` names the library entry it came from, and a module whose `ref` the library has is standard: it keeps the
   library's title (`shared/standard-modules.ts`; the API and generators put a renamed one's back), and a hand edit
-  of its code drops `ref`, making it custom (while an admin has custom code off, new code is refused: SPEC-baking
+  of its code drops `ref`, making it custom (custom code is refused: SPEC-baking
   "Custom code"); `params`
   override the code's defaults (≤ 64; a string ≤ 256 characters: a pick, a choice or text).
   `live` optionally lists up to 64 unique param keys the creator offers in Live Play: only declared choice and

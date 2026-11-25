@@ -89,8 +89,8 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
   previews?: Pick<ReturnType<typeof createPreviews>, 'want' | 'keyOf' | 'file'>,
   loadLibrary?: () => readonly LibraryEntry[], log?: Logger }) {
   const ownerName = (id: string) => store.users.get(id)?.username ?? '';
-  /** 403 for new code while an admin has custom code off (src/custom-code.ts). */
-  const allowCode = (layers: unknown, user: User) => codeGate?.check(layers, user.id, (why) => new HttpError(403, why));
+  /** 403 for code that is not the library's (src/custom-code.ts). */
+  const allowCode = (layers: unknown) => codeGate?.check(layers, (why) => new HttpError(403, why));
   /** A body's layers as the one rule reads them, each standard module named as the library names it. */
   const ruledNamed = async (body: Parameters<typeof ruled>[0]) => {
     const out = ruled(body), library = loadLibrary();
@@ -158,7 +158,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
     const look: Partial<Look> = { owner: user.id, ownerName: user.username, ...body, ...await ruledNamed(body),
       chain: CHAIN,
       reviewed: false, versions: [] };
-    await allowCode(look.layers, user);
+    await allowCode(look.layers);
     if (globals) look.globals = globals;
     const lanesNow = automation === undefined ? undefined : lanes(automation, globals, !!origin);
     if (lanesNow) look.automation = lanesNow;
@@ -191,7 +191,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
     const { id } = was;
     const ruledNow = body.layers === undefined ? undefined
       : await ruledNamed({ ...body, layers: body.layers, summary: body.summary ?? was.summary });
-    if (ruledNow) await allowCode(ruledNow.layers, user);
+    if (ruledNow) await allowCode(ruledNow.layers);
     const look = visibleLook(id, user);
     const isOwner = auth.can(user, 'edit', look);
     const patch: Partial<Look> = {};

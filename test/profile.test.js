@@ -27,7 +27,7 @@ describe('the Pi profile', () => {
       port: 0, host: '127.0.0.1', base: '/pi' });
     const dataDir = mkdtempSync(path.join(tmpdir(), 'profile-'));
     modelsFile = path.join(dataDir, 'models.json');
-    app = await start({ dataDir, profile: 'pi', admins: 'ada', curators: 'cara',
+    app = await start({ dataDir, profile: 'pi', admins: 'ada', curators: 'cara', generators: false,
       piPreview: `http://127.0.0.1:${pi.port}` });
     [ada, cara, bob] = [await signup(app, 'ada'), await signup(app, 'cara'), await signup(app, 'bob')];
     mine = (await bob.post('/api/looks', look)).json.look;
@@ -69,15 +69,16 @@ describe('the Pi profile', () => {
 });
 
 describe('hosted', () => {
-  test('says so, with access, and keeps /pi for admins', async () => {
+  test('says so, with no access (no generators, as on the Pi), and keeps /pi for admins', async () => {
     const pi = await controlServer({ engine: engineOn().engine, state: () => ({ looks: [], out: {} }), pin: '',
       port: 0, host: '127.0.0.1', base: '/pi' });
-    const app = await start({ admins: 'ada', curators: 'cara', piPreview: `http://127.0.0.1:${pi.port}` });
+    const app = await start({ admins: 'ada', curators: 'cara', generators: false,
+      piPreview: `http://127.0.0.1:${pi.port}` });
     const cara = await signup(app, 'cara');
     const me = (await cara.get('/api/me')).json;
     assert.equal(me.profile, 'hosted');
-    assert.ok(me.access);
-    assert.equal((await cara.get('/api/models')).status, 200);
+    assert.equal(me.access, undefined);
+    assert.equal((await cara.get('/api/models')).status, 404);
     assert.equal((await cara.get('/pi/')).status, 403);
     await app.close();
     await pi.close();
