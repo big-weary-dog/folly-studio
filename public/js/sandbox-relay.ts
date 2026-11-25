@@ -14,7 +14,7 @@ import { openProber } from './sandbox-probe.ts';
 /** A request to the worker, as the relay tracks it: `at` is when the worker started on it. */
 type Job = { at: number; overdue?: boolean; internal?: boolean; answered?: boolean; seq?: number; look?: Layer[];
   answerBy?: number } & ({ type: 'init'; msg: object } | { type: 'look'; layers: Layer[]; extra: Extra;
-  compiling?: string } | { type: 'frame'; seq: number; t: number; answerBy: number; msg: object }
+  compiling?: string } | { type: 'frame'; seq: number; t: number; answerBy: number }
   | { type: 'render'; seq: number; start: number; fps: number; done: number; sentDone: number; sentAt: number;
     bytes: number; msg: object });
 
@@ -56,6 +56,7 @@ export function openSandbox(send: (msg: object) => void): Sandbox {
   let closed = false;
   const prober = openProber(spawnWorker);
   const toApp = (msg: object) => { if (!closed) send(msg); };
+  const frameMsg = { type: 'frame', seq: 0, t: 0 };   // every frame request, filled in as it goes
 
   function close() {
     closed = true;
@@ -108,8 +109,13 @@ export function openSandbox(send: (msg: object) => void): Sandbox {
       job.compiling = undefined;
       sentLook = job.layers;
       worker.postMessage({ type: 'look', layers: job.layers.filter((l) => !paused(l)), ...job.extra });
+    } else if (job.type === 'frame') {
+      job.look = sentLook;
+      frameMsg.seq = job.seq;
+      frameMsg.t = job.t;
+      worker.postMessage(frameMsg);   // cloned now, so the object is reused
     } else {
-      if (job.type === 'frame' || job.type === 'render') job.look = sentLook;
+      if (job.type === 'render') job.look = sentLook;
       worker.postMessage(job.msg);
     }
     if (!jobs.length) job.at = now();
@@ -140,8 +146,7 @@ export function openSandbox(send: (msg: object) => void): Sandbox {
         break;
       }
       case 'frame':
-        job = { type: 'frame', at: 0, seq: msg.seq, t: +msg.t || 0, answerBy: now() + ANSWER_MS,
-          msg: { type: 'frame', seq: msg.seq, t: +msg.t || 0 } };
+        job = { type: 'frame', at: 0, seq: msg.seq, t: +msg.t || 0, answerBy: now() + ANSWER_MS };
         break;
       case 'render':
         job = { type: 'render', at: 0, seq: msg.seq, start: +msg.start || 0, fps: +msg.fps > 0 ? +msg.fps : 40,
@@ -231,7 +236,8 @@ export function openSandbox(send: (msg: object) => void): Sandbox {
       for (const j of held || []) if (j.answerBy) j.answerBy += gap;
       return;
     }
-    for (const j of [...jobs, ...held || []]) if (j.type === 'frame' && !j.answered && t > j.answerBy) answerBlack(j);
+    for (const j of jobs) if (j.type === 'frame' && !j.answered && t > j.answerBy) answerBlack(j);
+    for (const j of held || []) if (j.type === 'frame' && !j.answered && t > j.answerBy) answerBlack(j);
     const head = jobs[0];
     if (head && !held) {
       const budget = head.type === 'init' ? INIT_BUDGET_MS : head.type === 'look' ? LOOK_BUDGET_MS : FRAME_BUDGET_MS;

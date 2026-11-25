@@ -308,7 +308,8 @@ cover.
   a reload, even a day later, sends only the shell and its API calls, each a 304 (assets have
   content-hashed names, kept a year); and lists carry no code.
 - The Folly's 4,870 LEDs at 40 fps: the render loop allocates nothing per frame (reuse typed arrays, pass
-  `out`), skips layers outside their clips before any pixel work, and sleeps when idle.
+  `out`; pattern code's colour calls, `hsv` or `mix`, return new arrays: the stdlib's contract), skips layers
+  outside their clips before any pixel work, and sleeps when idle.
 - The sandbox answers every frame within 1.5 s or reports the layer as hung. Bakes run one at a
   time, under CPU, memory and wall-clock limits, at nice 10, never at the same time as a frame encode.
 - `npm run lint` takes well under a second; keep it that way.
