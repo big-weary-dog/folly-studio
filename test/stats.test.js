@@ -101,9 +101,15 @@ describe('the counts', () => {
         + 'slow=1 bakes=0/0/0 uptime=\\d+s rss=\\d+MB$'));
       vi.advanceTimersByTime(24 * 3_600_000);
       assert.match(lines[1], /^\[stats\] 2026-10-22 .* requests=0 /, 'a quiet day too');
+      // A request just after midnight, before the timer: it ends the day, and the timer then has none to end.
+      vi.setSystemTime(new Date(2026, 9, 24, 0, 0, 0, 100));
+      await stats.onResponse(req('/api/looks'), reply(5));
+      vi.advanceTimersByTime(5000);
+      const days = () => lines.filter((l) => l.startsWith('[stats]')).map((l) => l.slice(8, 18));
+      assert.deepEqual(days(), ['2026-10-21', '2026-10-22', '2026-10-23'], 'each day once');
       stats.stop();
       vi.advanceTimersByTime(48 * 3_600_000);
-      assert.equal(lines.length, 2, 'stopped');
+      assert.equal(days().length, 3, 'stopped');
     } finally {
       vi.useRealTimers();
     }

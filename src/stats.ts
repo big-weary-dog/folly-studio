@@ -36,6 +36,7 @@ export function createStats({ log, store, trustProxy = false }: { log: Log, stor
   const startedAt = new Date().toISOString();
   const days: Day[] = [];
   const slowest: ServerStats['slowest'] = [];
+  // A day that ends, by a request, a read or the timer below, is one journal line of its counts.
   const today = () => {
     const now = Date.now();
     if (!days[0] || now >= days[0].end) {
@@ -43,6 +44,7 @@ export function createStats({ log, store, trustProxy = false }: { log: Log, stor
       days.length = Math.min(days.length, DAYS);
       days[1]?.seen.clear();
       days[1]?.members.clear();
+      if (days[1]) logDay(days[1]);
     }
     return days[0]!;
   };
@@ -93,20 +95,16 @@ export function createStats({ log, store, trustProxy = false }: { log: Log, stor
       bakes };
   }
 
-  // When a local day ends, its counts as one journal line. A timer that fires early waits again.
+  function logDay(ended: Day) {
+    const { bakes, uptime, memory } = read();
+    log.info(`[stats] ${ended.day} visitors=${ended.visitors} people=${ended.people} views=${ended.views} `
+      + `requests=${ended.requests} errors=${ended.errors} slow=${ended.slow} `
+      + `bakes=${bakes.done}/${bakes.failed}/${bakes.waiting} uptime=${uptime}s `
+      + `rss=${Math.round(memory.rss / 1048576)}MB`);
+  }
+  // Ends each day on time when no request does; a timer that fires early waits again.
   let timer: NodeJS.Timeout | undefined;
-  const atDayEnd = () => {
-    const ended = days[0]!;
-    if (today() !== ended) {
-      const { bakes, uptime, memory } = read();
-      log.info(`[stats] ${ended.day} visitors=${ended.visitors} people=${ended.people} views=${ended.views} `
-        + `requests=${ended.requests} errors=${ended.errors} slow=${ended.slow} `
-        + `bakes=${bakes.done}/${bakes.failed}/${bakes.waiting} uptime=${uptime}s `
-        + `rss=${Math.round(memory.rss / 1048576)}MB`);
-    }
-    wait();
-  };
-  const wait = () => { timer = setTimeout(atDayEnd, Math.max(1000, today().end - Date.now())).unref(); };
+  const wait = () => { timer = setTimeout(wait, Math.max(1000, today().end - Date.now())).unref(); };
   wait();
   const stop = () => clearTimeout(timer);
 
