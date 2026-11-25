@@ -5,7 +5,7 @@ Who has an account, what each role may do, and the Admin pages. `src/auth.ts` ho
 ## Accounts
 
 `user = { id, username, role: 'member' | 'curator' | 'admin' }` (curators listed in `STUDIO_CURATORS`, admins in
-`STUDIO_ADMINS`; an admin is also a curator), and `tour?` once they have met the tutorial (SPEC-tutorial):
+`STUDIO_ADMINS`, or made so on People below, whichever is higher; an admin is also a curator), and `tour?` once they have met the tutorial (SPEC-tutorial):
 `tour = { seen: true, done: [path], at?: { path, step } }`, the paths finished and where one was left. An account
 without it has not seen the tutorial. Signing up or in is limited per client address (100 a minute) and, for
 failures, per address and username (10 a minute): 429 with `Retry-After`. Password hashes run 3 at once with 30
@@ -57,13 +57,28 @@ Phone Admin keeps quick operator tasks; see [SPEC-studio "Phones"](SPEC-studio.m
 
 Admins' header has one more item, **Admin** (`/admin`, which opens its first tab), where everyone else's has none.
 Its tabs are pages of their own: Light (`/admin/light`, SPEC "Light and output"), Baking (`/admin/baking`,
-SPEC-baking "The bake setting"), Reports (`/admin/reports`, SPEC "Bug reports") and Stats (`/admin/stats`, Stats
-below). `/light` and `/reports` lead to their tab, query kept; `/models`, `/access`, `/admin/models` and
+SPEC-baking "The bake setting"), People (`/admin/people`, People below), Reports (`/admin/reports`, SPEC "Bug
+reports") and Stats (`/admin/stats`, Stats below). `/light` and `/reports` lead to their tab, query kept; `/models`, `/access`, `/admin/models` and
 `/admin/access` lead to Light. Anyone else who opens one sees an explanation that Admin pages require an admin
 account, without the page's controls.
 The browser uses the same admin permission as the server; admin API calls remain refused (403).
 Leaving a Light draft asks before discarding it, including switching Admin tabs.
 Light downloads the saved settings; while a draft differs, download waits for Save or Revert.
+
+## People
+
+People lists every account, newest first: its name, role, when it was made, how many looks it has and how many are
+shared, and whether it is disabled; a search narrows it by name.
+`account = { id, username, role, serverRole?, createdAt, looks, shared, disabled }`, `serverRole` the role
+`STUDIO_ADMINS` or `STUDIO_CURATORS` gives it.
+
+- **Role**: member, curator or admin, kept with the account. The server's lists still count: an account they name
+  is at least that role, and People offers nothing lower (409 if asked).
+- **Disable**: the account's sessions end and it cannot sign in ("This account is disabled.", 403) until it is
+  enabled again. Its looks stay, shared ones in the gallery.
+- **Delete**, after a confirm naming the account and how many looks go: as the account deleting itself ("Your
+  account"), no password asked.
+- An admin changes none of these for themselves (409): Account is theirs, and no admin locks themselves out.
 
 ## Stats
 
@@ -98,4 +113,7 @@ POST   /api/guest    { name }                 → { user, flash }      in as a g
 PUT    /api/me/password { password, next }    → { ok: true }  a new password ("Your account")
 DELETE /api/me       { password }             → { ok: true }  the account and its looks gone; clears the cookie
 GET    /api/admin/stats                       → stats  admins only (403) ("Stats")
+GET    /api/admin/accounts                    → { accounts: [account] }  admins only, as are the two below ("People")
+PUT    /api/admin/accounts/:id { role?, disabled? } → { account }
+DELETE /api/admin/accounts/:id                → { ok: true }  the account and its looks gone
 ```

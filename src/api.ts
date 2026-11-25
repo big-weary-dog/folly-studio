@@ -6,6 +6,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { type FlashSettings, GuestBody, Login, Signup } from '../shared/schemas/api.ts';
 import { perAccount } from './account-limit.ts';
 import { accountRoutes } from './api-account.ts';
+import { peopleRoutes } from './api-people.ts';
 import { lightRoutes } from './api-light.ts';
 import { bakingRoutes } from './baking.ts';
 import { reportRoutes } from './api-reports.ts';
@@ -77,6 +78,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, log: Log,
     const cookie = (maxAge: number) => ({ httpOnly: true, sameSite: 'lax' as const, path: '/', maxAge,
       secure: secureCookies });
     const dropFrames = (id: string) => removeFrames(framesDir, id).then(() => frames.prune());
+    const removal = { store, auth, dropFrames, previews: o.previews, log };
     const limitWrites = perAccount(api, { name: 'look', windowMs: limits.windowMs, max: limits.writeMax,
       why: 'Too many saves for now. Try again in a minute.' });
     const looks = lookRoutes({ store, auth, bakes, dropFrames, previews: o.previews, loadLibrary: loaders.loadLibrary,
@@ -99,9 +101,9 @@ export function apiRoutes(o: { store: Store, auth: Auth, log: Log,
         return { ok: true };
       }, { public: true }],
       ...tourRoutes({ store }),
-      ...accountRoutes(api, { store, auth, dropFrames, previews: o.previews, log,
-        limit: { max: limits.max, windowMs: limits.windowMs },
+      ...accountRoutes(api, { ...removal, limit: { max: limits.max, windowMs: limits.windowMs },
         clearCookie: (reply) => reply.setCookie(COOKIE_NAME, '', cookie(0)) }),
+      ...peopleRoutes(removal),
       'GET /me': async (req) => ({ user: auth.publicUser(req.user), flash, rig }),
       ...lightRoutes({ light: o.light }),
       ...(o.baking ? bakingRoutes(o.baking) : {}),

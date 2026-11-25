@@ -9,7 +9,7 @@ import { promisify } from 'node:util';
 
 import type { FastifyRequest } from 'fastify';
 
-import { type Action, can } from '../shared/policy.ts';
+import { type Action, can, ROLES, type Role } from '../shared/policy.ts';
 import type { User } from '../shared/schemas/api.ts';
 import { HttpError } from './http.ts';
 import type { Store, StoredUser as Stored } from './store.ts';
@@ -90,9 +90,15 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     }
   }
 
-  // A guest is a member whatever their name says (SPEC-access "Guests").
-  const roleOf = (user: { username: string, guest?: true } | null): User['role'] => (!user || user.guest ? 'member'
-    : adminSet.has(user.username) ? 'admin' : curatorSet.has(user.username) ? 'curator' : 'member');
+  /** The role STUDIO_ADMINS or STUDIO_CURATORS gives `username`, if any. */
+  const serverRole = (username: string): Role | undefined => (adminSet.has(username) ? 'admin'
+    : curatorSet.has(username) ? 'curator' : undefined);
+  // The higher of the server's lists and People's; a guest is a member whatever their name says (SPEC-access).
+  const roleOf = (user: { username: string, guest?: true, role?: Role } | null): Role => {
+    if (!user || user.guest) return 'member';
+    const set = serverRole(user.username), kept = ROLES.includes(user.role!) ? user.role! : 'member';
+    return set && ROLES.indexOf(set) > ROLES.indexOf(kept) ? set : kept;
+  };
   const publicUser = (user: Stored): User => ({ id: user.id, username: user.username, role: roleOf(user),
     ...(user.tour ? { tour: user.tour } : {}), ...(user.guest ? { guest: true } : {}) });
   const findUser = (username: string) => store.users.list((u) => u.username === username)[0] ?? null;
@@ -111,9 +117,15 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     // A password changed while this one was checked: the old one no longer signs in, nor is it made again over it.
     const stale = () => !user || store.users.get(user.id)?.passwordHash !== user.passwordHash;
     if (!user || !ok || !password || stale()) throw new HttpError(401, 'Wrong username or password.');
+    // Read again: People may have disabled the account while the password was checked or rehashed.
+    const off = () => {
+      if (store.users.get(user.id)?.disabled) throw new HttpError(403, 'This account is disabled.');
+    };
+    off();
     if (weaker(user.passwordHash, cost)) {
       const passwordHash = await hashPassword(password, cost);
       if (stale()) throw new HttpError(401, 'Wrong username or password.');
+      off();
       return store.users.update(user.id, { passwordHash }) ?? user;
     }
     return user;
@@ -148,8 +160,19 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
 
   /** The account gone, with its sessions (its looks are the API's). */
   function removeUser(id: string) {
-    for (const s of store.sessions.list((x) => x.userId === id)) store.sessions.remove(s.id);
+    endSessions(id);
     store.users.remove(id);
+  }
+
+  const endSessions = (id: string) => {
+    for (const s of store.sessions.list((x) => x.userId === id)) store.sessions.remove(s.id);
+  };
+
+  /** People's change to `id` (SPEC-access "People"): its kept role, or disabled (its sessions end) or not. */
+  function setAccount(id: string, change: { role?: Role, disabled?: boolean }) {
+    const user = store.users.update(id, change);
+    if (change.disabled) endSessions(id);
+    return user;
   }
 
   /** A new session for `user` → its token. Each user keeps at most 20, and guests all told `guests`: past that the
@@ -177,7 +200,7 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     if (!session) return null;
     const user = !(Date.parse(session.expiresAt) > Date.now()) ? null
       : session.guest ? guest(session.guest, session.userId, session.createdAt) : store.users.get(session.userId);
-    if (!user) {   // expired, or its user is gone
+    if (!user || user.disabled) {   // expired, or its user is gone or disabled
       store.sessions.remove(session.id);
       return null;
     }
@@ -191,8 +214,8 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     for (const s of store.sessions.list((x) => !(Date.parse(x.expiresAt) > now))) store.sessions.remove(s.id);
   }
 
-  return { signup, login, guest, logout, authenticate, createSession, pruneSessions, roleOf, publicUser, confirm,
-    changePassword, removeUser,
+  return { signup, login, guest, logout, authenticate, createSession, pruneSessions, roleOf, serverRole, publicUser,
+    confirm, changePassword, removeUser, setAccount,
     /** shared/policy.ts's can(), by `user`'s role here. */
     can: (user: Stored | null, action: Action, look?: Parameters<typeof can>[2]) =>
       can(user && publicUser(user), action, look) };

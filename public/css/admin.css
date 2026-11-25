@@ -6,6 +6,7 @@
 .admin-tabs [data-tab=models] { --tint: var(--cobalt-t); }
 .admin-tabs [data-tab=access] { --tint: var(--violet); }
 .admin-tabs [data-tab=light] { --tint: var(--amber); }
+.admin-tabs [data-tab=people] { --tint: var(--violet); }
 .admin-tabs [data-tab=reports] { --tint: var(--ruby); }
 .admin-tabs [data-tab=stats] { --tint: var(--sand); }
 .view-admin .page { padding-top: 28px; }
