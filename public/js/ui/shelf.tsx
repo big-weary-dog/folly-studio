@@ -7,7 +7,8 @@ import type { LibraryEntry } from '../../../shared/schemas/rig.ts';
 import { DEFAULT_SOFTEN } from '../core/spatial.ts';
 import { GroupsTree } from './groups-drawer.tsx';
 import { cx, humanize, openDialog } from './kit.tsx';
-import { isPreset, moduleFromLibrary, type Layer } from './model.ts';
+import type { Extra } from '../runtime.ts';
+import { isPreset, moduleFromLibrary, type Layer, withPresetGlobals } from './model.ts';
 import type { Preview } from './preview.ts';
 import type { Studio } from './studio-store.ts';
 
@@ -47,7 +48,7 @@ function clearOf(canvas: HTMLElement, dlg: HTMLElement) {
 /** The audition: the look the app sent is kept, and put back unless something was picked. With `replace`, what is
  * auditioned plays in place of the look's layers, not above them. */
 export function auditioner({ pv, layer, layers, insert, replace }: Partial<Audition> = {}) {
-  let saved: { layers: Layer[]; extra: object } | null = null, mine: Layer[] | null = null, timer = 0;
+  let saved: { layers: Layer[]; extra: Extra } | null = null, mine: Layer[] | null = null, timer = 0;
   let shown: Entry | null = null, groups: string[] | undefined;    // a new layer's groups, once picked
   const show = (e: Entry) => {
     const r = pv?.runtime;
@@ -55,10 +56,12 @@ export function auditioner({ pv, layer, layers, insert, replace }: Partial<Audit
     if (!r?.ready || !layer) return;
     if (!saved || r.layers !== mine) saved = { layers: r.layers, extra: r.extra };   // the look as the app sent it
     const under = replace ? [] : saved.layers;
+    let extra = saved.extra;
     if (isPreset(e)) {
       const made = layers?.(e);
       if (!made) return;
       mine = [...under, ...made.map((l, i) => ({ ...l, id: `${TRY}${i}`, ...(groups ? { groups } : {}) }))];
+      if (e.globals) extra = { ...extra, globals: withPresetGlobals(extra.globals, e) ?? null };   // as Add gives it
     } else {
       const m = { ...moduleFromLibrary(e), id: TRY };
       mine = m.kind === 'source' && !insert
@@ -67,7 +70,7 @@ export function auditioner({ pv, layer, layers, insert, replace }: Partial<Audit
         : saved.layers.map((l) => (l.id !== layer.id ? l : { ...l,
           modules: insert!(l.modules, m) }));
     }
-    r.setLook(mine, saved.extra);
+    r.setLook(mine, extra);
     pv?.kick();
   };
   const restore = () => {
