@@ -219,7 +219,7 @@ function Splitter({ studio, setResizing }: { studio: { current: HTMLDivElement |
 /** The Look panel (the globals) loads when the Look tab of the dock, or a phone's, first shows. */
 function Globals({ st }: { st: Studio }) {
   const mod = useLazy(() => Promise.all([import('./look-globals.tsx'), loadPalettes().catch(() => [])]),
-    st.ready.value && (st.dock.value === 'look' || st.tab.value === 'look'));
+    st.ready.value && (st.dock.value === 'look' || st.tab.value === 'look' || !advanced.value));   // Simple: Look
   if (!mod) return null;
   const [{ GlobalsPanel }, palettes] = mod;
   return <GlobalsPanel st={st} palettes={palettes} />;
