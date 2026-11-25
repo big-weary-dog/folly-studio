@@ -15,6 +15,9 @@
 # previous name two of them. Nothing is installed or built in the release being served, and a good deploy keeps
 # three: current, previous and the newest other.
 #
+# A commit's host.sh without the next line predates releases, and is refused:
+# deploys: releases
+#
 # A $STUDIO_UNIT-pi service an earlier deploy left (the archived Pi engine's dry run, ARCHIVE.md) is stopped and
 # removed, with its Pi bundles.
 set -euo pipefail
@@ -72,6 +75,9 @@ command -v systemctl >/dev/null && systemctl --user show-environment >/dev/null 
   || die "no systemd user session: in WSL, set [boot] systemd=true in /etc/wsl.conf and restart WSL"
 
 if [ -z "$release" ]; then
+  # One deploy at a time per checkout; the release's step below inherits the lock across the exec.
+  exec 9>"$root/.host.lock"
+  flock -n 9 || die "another npm run host is deploying from $root"
   if [ -n "$rollback" ]; then
     previous=$(readlink "$root/previous") || die "no previous release in $root to roll back to"
     ref=${previous#releases/}
@@ -80,6 +86,8 @@ if [ -z "$release" ]; then
   fi
   commit=$(git -C "$root" rev-parse --verify --quiet "$ref^{commit}") \
     || die "no $ref in $(git -C "$root" remote get-url origin): set STUDIO_REF in $env_file, or pass a ref"
+  git -C "$root" show "$commit:deploy/host.sh" 2>/dev/null | grep -x '# deploys: releases' >/dev/null \
+    || die "$commit's deploy/host.sh predates releases: deploy a later commit"
   release=$root/releases/$commit
   # dist/build.json is written last: without it, the release is one a failed run left, and is made again.
   if [ ! -f "$release/dist/build.json" ]; then
@@ -128,11 +136,10 @@ Description=Folly Studio${instance:+ ($instance)} ($root)
 
 [Service]
 WorkingDirectory=$root/current
-# The data stays with the checkout, not in a release; a STUDIO_DATA in the env file overrides this.
-Environment=STUDIO_DATA=$data
 EnvironmentFile=$env_file
 Environment=PATH=$(dirname "$node"):$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin
-ExecStart=$node server.ts
+# The data as resolved above, from the checkout, never a release: set here, as the env file would win over Environment=.
+ExecStart=/usr/bin/env STUDIO_DATA=$data $node server.ts
 Restart=always
 RestartSec=5
 TimeoutStopSec=20

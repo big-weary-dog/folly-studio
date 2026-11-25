@@ -16,3 +16,4 @@ __pycache__/
 /current
 /previous
 /current.new
+/.host.lock

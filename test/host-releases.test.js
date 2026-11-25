@@ -27,13 +27,18 @@ const STUBS = {
 };
 
 describe('npm run host: releases', () => {
-  let origin, commits, home, checkout, log;
+  let origin, before, commits, home, checkout, log;
   beforeAll(() => {
     origin = mkdtempSync(path.join(tmpdir(), 'host-origin-'));
     git(origin, 'init', '--quiet');
     mkdirSync(path.join(origin, 'deploy'));
-    copyFileSync(SCRIPT, path.join(origin, 'deploy', 'host.sh'));
     copyFileSync(fileURLToPath(new URL('../.gitignore', import.meta.url)), path.join(origin, '.gitignore'));
+    // A commit whose host.sh predates releases, then four that know them.
+    writeFileSync(path.join(origin, 'deploy', 'host.sh'), '#!/usr/bin/env bash\n');
+    git(origin, 'add', '.');
+    git(origin, 'commit', '--quiet', '-m', 'before');
+    before = git(origin, 'rev-parse', 'HEAD');
+    copyFileSync(SCRIPT, path.join(origin, 'deploy', 'host.sh'));
     commits = ['a', 'b', 'c', 'd'].map((name) => {
       writeFileSync(path.join(origin, 'version'), name);
       git(origin, 'add', '.');
@@ -49,7 +54,7 @@ describe('npm run host: releases', () => {
     git(home, 'clone', '--quiet', origin, checkout);
     const settings = path.join(home, '.config', 'folly-studio');
     mkdirSync(settings, { recursive: true });
-    writeFileSync(path.join(settings, 'studio.env'), `STUDIO_DATA=${home}/data\n`);
+    writeFileSync(path.join(settings, 'studio.env'), 'STUDIO_DATA=data\n');
     chmodSync(path.join(settings, 'studio.env'), 0o600);
     mkdirSync(path.join(home, 'bin'));
     for (const [name, body] of Object.entries(STUBS)) {
@@ -59,9 +64,10 @@ describe('npm run host: releases', () => {
     return () => rmSync(home, { recursive: true, force: true });
   });
 
-  const host = (args, extra = {}) => {
+  const host = (args, extra = {}, wrap = []) => {
     writeFileSync(log, '');
-    const r = spawnSync('bash', [path.join(checkout, 'deploy', 'host.sh'), ...args], { encoding: 'utf8',
+    const command = [...wrap, 'bash', path.join(checkout, 'deploy', 'host.sh'), ...args];
+    const r = spawnSync(command[0], command.slice(1), { encoding: 'utf8',
       timeout: 30_000, env: { ...GIT_ENV, HOME: home, PATH: `${home}/bin:${process.env.PATH}`, STUDIO_INSTANCE: '',
         LOG: log, CHECKOUT: checkout, ...extra } });
     return { status: r.status, out: r.stdout + r.stderr, calls: readFileSync(log, 'utf8') };
@@ -84,7 +90,8 @@ describe('npm run host: releases', () => {
     assert.equal(git(checkout, 'status', '--porcelain'), '');
     const unit = readFileSync(path.join(home, '.config', 'systemd', 'user', 'folly-studio.service'), 'utf8');
     assert.match(unit, new RegExp(`^WorkingDirectory=${checkout}/current$`, 'm'));
-    assert.match(unit, new RegExp(`^Environment=STUDIO_DATA=${home}/data$`, 'm'));
+    // The env file's relative STUDIO_DATA is the checkout's, not the release's.
+    assert.match(unit, new RegExp(`^ExecStart=/usr/bin/env STUDIO_DATA=${checkout}/data `, 'm'));
   });
 
   test('a refused setting leaves the live release and the service as they were', () => {
@@ -121,8 +128,12 @@ describe('npm run host: releases', () => {
     assert.doesNotMatch(git(checkout, 'worktree', 'list'), new RegExp(a()));
   });
 
-  test('a checkout another instance serves, or no previous release, stops it', () => {
+  test('a checkout another instance serves, a deploy under way, an old commit or no previous release stops it', () => {
     assert.match(host(['--rollback']).out, /no previous release/);
+    assert.match(host([before]).out, /predates releases/);
+    assert.ok(!existsSync(path.join(checkout, 'releases')));
+    const locked = host([a()], {}, ['flock', path.join(checkout, '.host.lock')]);
+    assert.match(locked.out, /another npm run host is deploying/);
     const units = path.join(home, '.config', 'systemd', 'user');
     mkdirSync(units, { recursive: true });
     writeFileSync(path.join(units, 'folly-studio-dev.service'), `WorkingDirectory=${checkout}/current\n`);
