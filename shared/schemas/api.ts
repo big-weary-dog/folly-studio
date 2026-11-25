@@ -79,7 +79,7 @@ export type User = { id: string, username: string, role: Role, tour?: Tour, gues
 /** GET /api/me's `flash`: whether the flash check runs here, and its limits (SPEC "Baked frames" > Checks). */
 export type FlashSettings = { check: boolean, perSecond: number, delta: number, darker: number, area: number };
 /** A curator's approval of a look whose bake fails the flash check: why, who, when. */
-export type FlashOverride = { reason: string, by: string, at: string };
+type FlashOverride = { reason: string, by: string, at: string };
 export type LookCreate = z.input<typeof LookCreate>;
 export type LookPatch = z.input<typeof LookPatch>;
 /** A look as lists show it: what a card needs, no layers or code. */
@@ -120,7 +120,7 @@ export type Bake = { source: 'render-box', status: 'queued' | 'running' | 'done'
   boxStats?: { untrusted: true, reported: unknown } };
 
 /** The bake setting (SPEC "Baked frames", "The bake setting"), as Admin → Baking saves it. */
-export const BAKE_MODES = ['on', 'throttled', 'off'] as const;
+const BAKE_MODES = ['on', 'throttled', 'off'] as const;
 export const Baking = z.strictObject({
   mode: z.enum(BAKE_MODES, { error: 'mode must be on, throttled or off.' }),
 }, { error: 'The bake setting must be { mode }.' });

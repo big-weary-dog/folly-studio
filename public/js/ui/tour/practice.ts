@@ -10,7 +10,7 @@ import { presetLayers } from '../studio/model.ts';
 type Clip = { start: number; end: number; fadeIn?: number; fadeOut?: number };
 /** A layer as a preset writes it, plus where it plays (the groups carrying a rig tag, or any of several) and its
  * clips. */
-export type RecipeLayer = PresetLayer & { tag?: string | string[]; clips?: Clip[] };
+type RecipeLayer = PresetLayer & { tag?: string | string[]; clips?: Clip[] };
 /** `palette` a name from data/palettes.json; `bpm` when not the default 120; `view` the rig view the preview opens
  * on, where the path's changes show. */
 export type Recipe = { title: string; layers: RecipeLayer[]; palette?: string; macros?: Globals['macros'];

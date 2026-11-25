@@ -11,7 +11,7 @@ import { removalBlock } from './composite-model.ts';
 import { BLEND_MODES, KIND_LABELS, type Reach } from '../studio/model.ts';
 import type { TreeDrag } from './tree-drag.ts';
 
-export const STATE_TEXT: Record<string, string> = { ok: 'Running', off: 'Off', pending: 'Compiling…',
+const STATE_TEXT: Record<string, string> = { ok: 'Running', off: 'Off', pending: 'Compiling…',
   compile: 'Compile error', runtime: 'Runtime error', hung: 'Hung' };
 const INPUT_ONLY = 'input';
 // How a source joins.

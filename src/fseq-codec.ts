@@ -37,17 +37,17 @@ const COMPRESS_SYNC: Record<Codec, (b: Uint8Array) => Buffer> = {
 };
 
 /**
- * A parsed FSEQ as a compressed file: 80-frame blocks, compressed one at a time in the thread pool, or on
- * the calling thread with `sync` (the server's low-priority worker).
+ * A parsed FSEQ as a compressed file, with its uniqueId: 80-frame blocks, compressed one at a time in the thread
+ * pool, or on the calling thread with `sync` (the server's low-priority worker).
  */
-export async function compressFseq(parsed: Parsed, { codec = FSEQ_CODEC, blockFrames = 80, uniqueId, sync = false }:
-  { codec?: Codec, blockFrames?: number, uniqueId?: number, sync?: boolean } = {}) {
+export async function compressFseq(parsed: Parsed, { codec = FSEQ_CODEC, sync = false }:
+  { codec?: Codec, sync?: boolean } = {}) {
   if (!COMPRESS[codec] || (codec === 'zstd' && !HAS_ZSTD)) {
     throw new Error(`compressFseq: no ${codec} in this Node`);
   }
-  const { data, channelCount, frameCount, stepMs, sparse, ranges, variables } = parsed;
+  const { data, channelCount, frameCount, stepMs, sparse, ranges, variables, uniqueId } = parsed;
   const blocks = [];
-  for (const [frame, count] of fseqBlocks(frameCount, blockFrames)) {
+  for (const [frame, count] of fseqBlocks(frameCount, 80)) {
     const block = data.subarray(frame * channelCount, (frame + count) * channelCount);
     const bytes = sync ? COMPRESS_SYNC[codec](block) : await COMPRESS[codec](block);
     blocks.push({ frame, bytes: new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.length) });
