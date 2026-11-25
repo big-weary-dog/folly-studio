@@ -1,7 +1,7 @@
 # Folly Studio: working here
 
-Folly Studio, the web app that turns show ideas into pattern code and previews them on a model
-of the Gothic Folly. `SPEC.md` indexes the contract in the area-specific `SPEC-*.md` files;
+Folly Studio, the web app where people compose shows from library patterns and preview them on a
+model of the Gothic Folly. `SPEC.md` indexes the contract in the area-specific `SPEC-*.md` files;
 `CONTRIBUTING.md` has the layout and the reasons behind these rules.
 
 - **Nothing is done until `npm run check` passes.** After `npm ci`, it runs `tsc` (`npm run typecheck`), the lint
