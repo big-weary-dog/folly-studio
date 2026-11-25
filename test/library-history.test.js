@@ -21,7 +21,7 @@ const layers = (code) => [{ id: 'l1', title: 'Noise', blend: 'add', level: 1, gr
   { id: 'm1', ref: 'noise', title: 'Noise', kind: 'source', code, params: { speed: 0.2 } },
 ] }];
 
-test('custom code off: import an earlier committed Noise, upgrade to playable code, reject edits', async () => {
+test('library only: import an earlier committed Noise, upgrade to playable code, reject edits', async () => {
   const current = readFileSync(path.join(publicDir, 'patterns/noise.js'), 'utf8');
   assert.notEqual(oldNoise, current);
   const oldWash = execFileSync('git', ['show', 'ab6dbd0d:public/patterns/colour-wash.js'],
@@ -60,7 +60,7 @@ test('custom code off: import an earlier committed Noise, upgrade to playable co
     assert.equal(badValue.status, 400, 'a present macro lane still validates its range');
     const edited = await ann.post('/api/looks', { ...body, layers: layers(`${oldNoise}\n// edited`) });
     assert.equal(edited.status, 403, edited.text);
-    assert.match(edited.json.error, /Noise is new code/);
+    assert.match(edited.json.error, /Noise is custom code/);
     const spoof = await ann.post('/api/looks', { ...body, layers: layers('function pixel() { return [1,0,0]; }') });
     assert.equal(spoof.status, 403, 'a library ref alone grants no trust');
   } finally {
@@ -68,14 +68,17 @@ test('custom code off: import an earlier committed Noise, upgrade to playable co
   }
 });
 
-test('historical trust reaches the generator gate but never the unboxed render allowlist', async () => {
+test('historical library copies save and bake as library code; edited or retired ones do not', async () => {
   const patternsDir = path.join(publicDir, 'patterns');
-  const gate = createCodeGate({ on: () => false, looks: { list: () => [] }, patternsDir });
-  const allows = await gate.allows('u');
+  const gate = createCodeGate({ on: () => false, patternsDir });
+  const allows = await gate.allows();
   assert.equal(allows(oldNoise), true);
   assert.equal(allows(`${oldNoise} `), false);
   const retired = execFileSync('git', ['show', 'a6462ae3:public/patterns/butterfly.js'],
     { cwd: publicDir, encoding: 'utf8' });
   assert.equal(allows(retired), false, 'retired patterns have no current library replacement');
-  assert.match(customCode(layers(oldNoise), await libraryHashes(patternsDir)), /custom code/);
+  const library = await libraryHashes(patternsDir);
+  assert.equal(customCode(layers(oldNoise), library), '', 'the render box takes the exact earlier copy');
+  assert.match(customCode(layers(`${oldNoise} `), library), /custom code/);
+  assert.match(customCode(layers(retired), library), /custom code/);
 });

@@ -1,6 +1,6 @@
-// The render box: render-box/render.ts under bubblewrap, for any look (SPEC "Baked frames"). Without bubblewrap or
-// user namespaces it is library only: it bakes looks made of unchanged library patterns (src/box-library.ts) as its
-// own process under the same limits, and refuses any other code.
+// The render box: render-box/render.ts under bubblewrap (SPEC "Baked frames"), or without bubblewrap or user
+// namespaces as its own process under the same limits. Either way it bakes only looks made of unchanged library
+// patterns (src/box-library.ts, SPEC-baking "Custom code") and refuses any other code.
 
 import { execFile, spawn } from 'node:child_process';
 import { constants as FS, promises as fs } from 'node:fs';
@@ -66,12 +66,12 @@ async function runtimeBinds(node: string) {
 type Options = Partial<Record<'publicDir' | 'script' | 'fseqFile' | 'rigFile' | 'coreFile' | 'patternsDir' | 'node'
   | 'bwrap' | 'prlimit' | 'systemdRun' | 'tmpRoot', string> & Record<'seconds' | 'timeoutMs' | 'cpuSeconds' | 'tasks'
   | 'nice' | 'memoryBytes' | 'maxFramesBytes' | 'frameTimeoutMs', number> & { env: NodeJS.ProcessEnv, config: Config,
-  log: Logger }>;
+  log: Logger, customCode: boolean }>;
 export type RenderBox = ReturnType<typeof createRenderBox>;
 /** What a bake renders: the look on the box's stdin; `nice` above the box's own runs it lower still. */
 type Job = { layers: readonly LayerInput[], seconds?: number, globals?: unknown, automation?: unknown, bpm?: unknown,
   nice?: number };
-/** libraryOnly: why bubblewrap is not used, so only library looks bake. */
+/** libraryOnly: why bubblewrap is not used. */
 type Probe = { ok: true, libraryOnly?: string } | { ok: false, reason: string };
 
 export function createRenderBox(o: Options = {}) {
@@ -213,11 +213,15 @@ export function createRenderBox(o: Options = {}) {
     return probed;
   }
 
-  /** Why the box will not bake these layers here ('' when it will): custom code, while it is library only. */
+  /** Why these layers may not bake ('' when they may): custom code. `customCode` (tests only) lets other code bake
+   * under bubblewrap, never without. */
+  async function custom(layers: readonly LayerInput[], boxed = true) {
+    return o.customCode && boxed ? '' : customCode(layers, await libraryHashes(cfg.patternsDir));
+  }
+  /** Why the box will not bake these layers here ('' when it will): no box, or custom code. */
   async function refuses(layers: readonly LayerInput[]) {
     const p = await probe();
-    if (!p.ok) return p.reason;
-    return p.libraryOnly ? customCode(layers, await libraryHashes(cfg.patternsDir)) : '';
+    return p.ok ? custom(layers, !p.libraryOnly) : p.reason;
   }
 
   /**
@@ -227,7 +231,7 @@ export function createRenderBox(o: Options = {}) {
   async function render({ layers, seconds: want, globals, automation, bpm, nice }: Job) {
     const p = await probe();
     if (!p.ok) throw new BakeError(p.reason);
-    const custom = p.libraryOnly ? customCode(layers, await libraryHashes(cfg.patternsDir)) : '';
+    const custom = await refuses(layers);
     if (custom) throw Object.assign(new BakeError(custom), { status: 422 });
     const boxed = !p.libraryOnly, t = await tools();
     const secs = Math.round(Math.min(cfg.seconds, want! > 0 ? want! : cfg.seconds) * FPS) / FPS || 1 / FPS;
@@ -281,5 +285,5 @@ export function createRenderBox(o: Options = {}) {
     }
   }
 
-  return { probe, refuses, render, stop: () => children.forEach((c) => c.kill('SIGKILL')), config: cfg };
+  return { probe, custom, refuses, render, stop: () => children.forEach((c) => c.kill('SIGKILL')), config: cfg };
 }

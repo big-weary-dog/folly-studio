@@ -34,7 +34,7 @@ import { adminsDeclared, checkMutation, HttpError, type Log, type Logger, parse,
 import type { LiveSettings } from '../shared/schemas/live.ts';
 import { cannot, TRANSPORT_CAPS } from '../shared/schemas/models.ts';
 import type { createLoaders } from './static.ts';
-import { generates, type Profile } from './profile.ts';
+import type { Profile } from './profile.ts';
 import type { Store } from './store.ts';
 
 /** How long GET /api/ideas/:id?wait= holds an unchanged idea, and how many such waits one user may have open. */
@@ -75,14 +75,14 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
   bakes: ReturnType<typeof createBakeQueue>, frames: ReturnType<typeof createFramesCache>, secureCookies?: boolean,
   rateLimit?: { max?: number, ipMax?: number, guestMax?: number, windowMs?: number }, flash: FlashSettings, hub: Hub,
   live: LiveSettings, ideaLogs: IdeaLogs, previews?: ReturnType<typeof createPreviews>, reports: Reports,
-  build: string, tail: () => unknown[], light: LightStore, profile?: Profile, piBundle?: string,
+  build: string, tail: () => unknown[], light: LightStore, profile?: Profile, gen?: boolean, piBundle?: string,
   baking?: Parameters<typeof bakingRoutes>[0], stats?: Parameters<typeof routes>[1],
   codeGate?: Parameters<typeof lookRoutes>[0]['codeGate'],
   lights?: Pick<Parameters<typeof lightsRoutes>[0], 'store' | 'feed' | 'hub' | 'drive'> }) {
   const { store, auth, queue, models, loaders, log, access } = o;
   const { bakes, framesDir, frames, secureCookies = false, flash } = o;
   const limits = { max: 10, ipMax: 100, guestMax: 10, windowMs: 60_000, ...o.rateLimit };
-  const profile = o.profile ?? 'hosted', gen = generates(profile);
+  const profile = o.profile ?? 'hosted', gen = o.gen === true;
   return async (api: FastifyInstance) => {
     api.addHook('onRequest', checkMutation);
     api.addHook('onRoute', adminsDeclared);

@@ -164,8 +164,8 @@ function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
     <section class={cx('bake', !hasFrames && 'no-play')} data-state={s.kind} aria-label="Bake">
       <div class="bake-head"><span class="bake-pill" data-kind={s.kind}>{s.label}</span></div>
       <p class={cx('bake-note', look && bake && dirty && !active && 'warn')}>{note}</p>
-      {canBake && (off || baking?.box.libraryOnly) && <p class="bake-note warn" role="note">{off
-        ? 'An admin turned baking off, so looks cannot be baked here for now.' : baking?.box.reason}</p>}
+      {canBake && off && <p class="bake-note warn" role="note">
+        An admin turned baking off, so looks cannot be baked here for now.</p>}
       <dl class="bake-report" hidden={!a}>{a && <>
         {row('Flash check', check[0], check[1])}
         {row('Peak', `${pct(a.peakBrightness)} white · ≈ ${a.estPeakAmps} A`)}

@@ -36,8 +36,8 @@ done
 Each stats line gives the frame rate, the render time per frame and `late` (frames the timer skipped). A look whose
 render time is over 25 ms cannot hold 40 fps: note which.
 
-Bakes (a look with custom code plays on the lights only as its bake) run in the render box, which needs bubblewrap
-and unprivileged user namespaces. Raspberry Pi OS (Debian) allows those as installed.
+Bakes run in the render box, under bubblewrap where it runs (it needs unprivileged user namespaces); looks take only
+library patterns, so a Pi without it bakes them too. Raspberry Pi OS (Debian) allows those as installed.
 
 ```sh
 sudo apt install -y bubblewrap
@@ -97,11 +97,10 @@ The engine serves its page at `/pi/` for Studio and at `/` for the ops hub, whos
 only lock, so choose one, and put it in `studio.env` as `PI_PIN` too, so Studio can play looks on it. It plays only
 library looks, never code, either way (SPEC-offline "The Pi preview").
 
-Curators play looks from Studio (**Play on the lights**): a look made only of library modules plays live while
-Admin → Light's **Live library looks on the lights** is on; a look with custom code plays only as its bake. Bakes are
-made on the Pi in the render box (bubblewrap, step 0), one at a time, at `nice 19` under the engine and Studio,
-within 384 MB (`STUDIO_BAKE_NICE`, `STUDIO_BAKE_MEMORY`). Without bubblewrap such looks cannot play on the lights
-until they are rebuilt from library modules. Admin → Light's **Mode** is **Jukebox** by default, or **Live Play** for
+Curators play looks from Studio (**Play on the lights**): a look plays live while Admin → Light's **Live library
+looks on the lights** is on, and otherwise as its bake. Bakes are made on the Pi in the render box (bubblewrap, step
+0), one at a time, at `nice 19` under the engine and Studio, within 384 MB (`STUDIO_BAKE_NICE`,
+`STUDIO_BAKE_MEMORY`). Admin → Light's **Mode** is **Jukebox** by default, or **Live Play** for
 whoever may drive (`STUDIO_LIVE_CONTROL`) (SPEC-liveplay "Modes"); Studio tells the engine at each change. Curators
 run the lights from Studio's **Live** on a phone or a laptop: the live play page (SPEC-liveplay "The page"). Members
 see the stage alone.
