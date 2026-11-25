@@ -83,6 +83,20 @@ describe('low priority, one at a time', () => {
     assert.ok(!threadNice().includes(10), 'the encoder thread is gone');
   });
 
+  test('a job sent while the stopped thread exits goes to the new thread and is not failed with it', async () => {
+    const jobs = createFrameJobs({ log: quiet, idleMs: 60_000 });
+    const file = path.join(tmp, 'g.fseq'), bytes = frames(5);
+    fs.writeFileSync(file, bytes);
+    const sha256 = (await import('node:crypto')).createHash('sha256').update(bytes).digest('hex');
+    const job = (hash) => jobs.run('wire', { file, sha256, dir: path.join(tmp, hash), hash, quality: 1,
+      maxBytes: bytes.length });
+    await job('ef'.repeat(16));
+    const stopped = jobs.close(); // the old thread's exit comes after the next job is sent
+    assert.equal((await job('fe'.repeat(16))).frames, 170);
+    await stopped;
+    await jobs.close();
+  });
+
   test('brotli quality is the cache\'s to choose (STUDIO_FRAMES_BROTLI_QUALITY)', async () => {
     const sizes = {};
     for (const quality of [1, 9]) {

@@ -90,7 +90,8 @@ as here; any other failure says why and points to Check & bake.
   (probed at quality 5) and compresses it at `STUDIO_FRAMES_BROTLI_QUALITY` (default 9; 11 is about 12 %
   smaller for about 13× the CPU: `tools/frames-bench.ts`), once, after a bake (or on first request for
   a bake without them; the wire then says 202). Encoding, the gzip copies and compressed downloads run in one
-  worker thread at nice 10, one job at a time (`src/frames-worker.ts`). The gzip copy, for clients that do
+  worker thread at nice 10, one job at a time (`src/frames-worker.ts`). Frames that could not be encoded are
+  500 for 5 minutes, then the next request tries again. The gzip copy, for clients that do
   not take br (browsers send br only over HTTPS), picks its own layout, so it has its own ETag.
   Manifest: `{ version: 1, hash, frames, fps, channels, ranges, chunkFrames, chunks: [{ bytes }],
   bytes }` (brotli sizes). Manifest and chunks are served `Cache-Control: private,
@@ -165,7 +166,8 @@ is shared or a shared look changes (and for every shared look at start, the gall
 bake when that is current (a look being baked waits for it), else from the render box (at most 60 s, in the bake
 lane). Kept in `<STUDIO_DATA>/previews/<lookId>-<key>.webp` and `-<key>-still.webp`, `key` naming what it renders (the look, its length and the rig);
 a look keeps its old preview until the new one is written, and previews of looks no longer shared go at the next
-start. A look without one shows its card's glass.
+start. One that could not be made is tried again at the next of those after 5 minutes. A look without one shows
+its card's glass.
 Shutdown stops queuing previews and waits for startup backfill and any active preview writes before closing storage.
 
 The camera is the app's own Viewer (`public/js/preview-camera.ts`) in a headless Chromium (playwright-core's
