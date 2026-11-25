@@ -6,7 +6,7 @@ import { useEffect, useState } from 'preact/hooks';
 
 import { api } from '../../api.ts';
 import type { ServerStats, StatsDay } from '../../../../shared/schemas/api.ts';
-import { mb, timeAgo } from '../kit.tsx';
+import { mb, Pending, timeAgo } from '../kit.tsx';
 import { setTitle } from '../session.ts';
 import { usePhone } from '../phone/viewport.ts';
 
@@ -27,8 +27,7 @@ export function StatsPage() {
       <p class="lede laptop-only">Who came and how the server is doing, counted since it started:
         a restart starts again.
         A visitor is a browser at an address, told apart each day without keeping either.</p>
-      <p class={error ? 'form-error' : 'pane-hint'} role={error ? 'alert' : undefined} hidden={!!stats && !error}>
-        {error || 'Loading…'}</p>
+      <Pending error={error} hidden={!!stats && !error} />
       {stats && <>
         {!phone && <dl class="stats-tiles" aria-label="Today">
           {COLUMNS.map(([key, text]) => <div key={key} class="stats-tile"><dt>{text}</dt>

@@ -1,8 +1,6 @@
 // The side column on a wide screen: Layers over Settings, each able to take the whole column or fold to its head
 // (its title folds it, ⤢ expands it, a click on its head's bare space folds it too), and the divider sizing the split.
-import { useLayoutEffect, useRef, useState } from 'preact/hooks';
-
-import { pref } from '../kit.tsx';
+import { Splitter } from './splitter.tsx';
 import type { SideView, Studio } from './store.ts';
 
 type Panel = 'layers' | 'params';
@@ -37,41 +35,8 @@ export function onSideHead(st: Studio, e: MouseEvent) {
   st.showSide(folding(st.side.peek(), head.closest('.pane-layers') ? 'layers' : 'params'));
 }
 
-/** The divider between them sizes Layers (a share of the column), set on the column's style; a double click resets. */
-export function SideDivider({ side }: { side: { current: HTMLDivElement | null } }) {
-  const [now, setNow] = useState(() => {
-    const v = Number(pref('studio.sideSplit'));
-    return v >= 15 && v <= 85 ? v : 0;
-  });
-  const drag = useRef<{ y: number; h: number; total: number } | null>(null);
-  const set = (pct: number) => {
-    setNow(pct);
-    pref('studio.sideSplit', pct ? pct.toFixed(1) : '');
-  };
-  useLayoutEffect(() => {
-    side.current?.style.setProperty('--layers-h', now ? `${now.toFixed(1)}%` : '');
-    side.current?.classList.toggle('sized', !!now);
-  }, [now]);
-  return (
-    <div class="side-divider" role="separator" aria-orientation="horizontal" tabindex={0}
-      aria-label="Resize layers and settings" title="Drag to resize; double-click to reset" aria-valuemin={15}
-      aria-valuemax={85} aria-valuenow={now ? Math.round(now) : undefined}
-      onPointerDown={(e) => {
-        const s = side.current, pane = s?.querySelector('.pane-layers');
-        if (!s || !pane) return;
-        const total = s.getBoundingClientRect().height;
-        drag.current = { y: e.clientY, h: pane.getBoundingClientRect().height, total };
-        e.currentTarget.setPointerCapture(e.pointerId);
-      }}
-      onPointerMove={(e) => {
-        const d = drag.current;
-        if (d) set(Math.min(85, Math.max(15, ((d.h + e.clientY - d.y) / d.total) * 100)));
-      }}
-      onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }}
-      onDblClick={() => set(0)}
-      onKeyDown={(e) => {
-        const cur = now || 50;
-        if (e.key === 'ArrowUp') { e.preventDefault(); set(Math.max(15, cur - 4)); }
-        if (e.key === 'ArrowDown') { e.preventDefault(); set(Math.min(85, cur + 4)); }
-      }} />);
-}
+/** The divider between them sizes Layers (a share of the column); a double click resets. */
+export const SideDivider = ({ box }: { box: { current: HTMLDivElement | null } }) => (
+  <Splitter box={box} pane=".pane-layers" prop="--layers-h" keep="studio.sideSplit" min={15} max={85} rest={50}
+    grows={1} class="side-divider" label="Resize layers and settings" title="Drag to resize; double-click to reset"
+    reset />);
