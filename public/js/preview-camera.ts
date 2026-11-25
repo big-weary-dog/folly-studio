@@ -2,7 +2,7 @@
 // Studio's own Viewer in its Playa view, from its default camera ('fit'), with the venue, at full quality. Each
 // picture is drawn on demand (the Viewer's own frame loop is off), then scaled down to the canvas's CSS size so the
 // 2× render smooths its edges.
-import type { Light } from './core/light.ts';
+import type { Light } from '../../core/light.ts';
 import type { Venue } from './playa/venue.ts';
 import { Viewer } from './viewer.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';

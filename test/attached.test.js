@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
-import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
+import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../core/pattern-core.ts';
 import { Modules } from '../shared/schemas/look.ts';
 import { libraryCode as lib } from './fixtures/patterns.js';
 

@@ -9,7 +9,7 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { writeFseq } from '../public/js/fseq.ts';
+import { writeFseq } from '../core/fseq.ts';
 import { bestWindow, HEIGHT, previewFrames, WIDTH, WINDOW_S } from '../src/previews/motion.ts';
 import { playaCamera } from '../src/previews/playa.ts';
 import { GLOW, writeLibrary } from './fixtures/library.js';

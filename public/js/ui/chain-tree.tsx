@@ -9,7 +9,7 @@ import type { ComponentChildren, JSX } from 'preact';
 
 import type { Module, SubLayer } from '../../../shared/schemas/look.ts';
 import { standardTitle } from '../../../shared/standard-modules.ts';
-import { attachedTo, flatModules, runEnd } from '../core/tree.ts';
+import { attachedTo, flatModules, runEnd } from '../../../core/tree.ts';
 import { ModuleRow, type SubBlend } from './chain-row.tsx';
 import { type Box, MAX_SUBLAYERS, removable } from './composite-model.ts';
 import { Drawer, useDrawer } from './drawer.tsx';

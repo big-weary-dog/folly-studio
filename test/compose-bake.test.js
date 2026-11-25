@@ -9,8 +9,8 @@ import { fileURLToPath } from 'node:url';
 
 import { test } from 'vitest';
 
-import * as core from '../public/js/pattern-core.ts';
-import { ledRanges } from '../public/js/fseq.ts';
+import * as core from '../core/pattern-core.ts';
+import { ledRanges } from '../core/fseq.ts';
 import { bakeLoop, readLibrary, renderer } from '../render-box/renderer.ts';
 import { parseFseq } from '../src/frames.ts';
 import { createRenderBox } from '../src/render-box.ts';

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { test } from 'vitest';
 
-import { writeFseq } from '../public/js/fseq.ts';
+import { writeFseq } from '../core/fseq.ts';
 import { readFseq } from './fixtures/fseq-reader.js';
 
 test('header, variable headers and frames round-trip', () => {

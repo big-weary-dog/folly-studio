@@ -1,5 +1,5 @@
 // Stand-in render boxes (the real one is test/bake.test.js): what a box returns, without a box.
-import { writeFseq } from '../../public/js/fseq.ts';
+import { writeFseq } from '../../core/fseq.ts';
 
 /** A box that always works, `render(job)` making its reply, `config.seconds` long at most; `renders` counts. */
 export function stubBox(render, seconds = 2) {

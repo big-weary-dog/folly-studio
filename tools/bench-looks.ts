@@ -6,8 +6,8 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { DEFAULT_SOFTEN } from '../public/js/core/spatial.ts';
-import { compileModule, type LayerInput, upgradeGlobals } from '../public/js/pattern-core.ts';
+import { DEFAULT_SOFTEN } from '../core/spatial.ts';
+import { compileModule, type LayerInput, upgradeGlobals } from '../core/pattern-core.ts';
 import { type Automation, automationFor, Bpm, Duration, Globals } from '../shared/schemas/look.ts';
 
 type Entry = { name: string, kind: string, code: string };

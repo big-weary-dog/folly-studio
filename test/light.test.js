@@ -6,8 +6,8 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { addLight, encode, previewChannels, shownLight, toLight, toValue } from '../public/js/core/light.ts';
-import { LIGHT, ledChannels, ledLight, lightOf, prepareLight, prepareScene } from '../public/js/pattern-core.ts';
+import { addLight, encode, previewChannels, shownLight, toLight, toValue } from '../core/light.ts';
+import { LIGHT, ledChannels, ledLight, lightOf, prepareLight, prepareScene } from '../core/pattern-core.ts';
 import { createLightStore } from '../src/light.ts';
 import { mini } from './fixtures/rigs.js';
 import { client, signup } from './fixtures/app.js';

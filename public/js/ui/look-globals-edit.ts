@@ -1,8 +1,8 @@
 // Macro edits that reach across the look (SPEC "Globals"): renaming or deleting one carries its lane, the params
 // bound to it and the modulators that follow it; sharing a param's LFO adds a modulator, which ∿ edits and renames.
 import type { Binding, Globals, ParamValue } from '../../../shared/schemas/look.ts';
-import { macroNameOk } from '../core/globals.ts';
-import { mapEvery } from '../core/tree.ts';
+import { macroNameOk } from '../../../core/globals.ts';
+import { mapEvery } from '../../../core/tree.ts';
 import { isBinding } from './bindings.ts';
 import type { Draft, Studio } from './studio-store.ts';
 

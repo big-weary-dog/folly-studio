@@ -11,7 +11,7 @@ import { afterAll, test } from 'vitest';
 
 import { bundle, moduleFiles } from '../src/core-script.ts';
 
-const CORE = fileURLToPath(new URL('../public/js/pattern-core.ts', import.meta.url));
+const CORE = fileURLToPath(new URL('../core/pattern-core.ts', import.meta.url));
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-core-script-'));
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
 const write = (rel, text) => {

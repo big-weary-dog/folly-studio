@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, test } from 'vitest';
 import { readConfig } from '../src/config.ts';
 import { keepTail } from '../src/http.ts';
 import { createReports, reportFolders } from '../src/reports/store.ts';
-import { piece, scrub, scrubText } from '../public/js/scrub.ts';
+import { piece, scrub, scrubText } from '../core/scrub.ts';
 import { client, signup } from './fixtures/app.js';
 import { quiet } from './fixtures/quiet.js';
 import { fx, startApp, useFixture } from './fixtures/server.js';

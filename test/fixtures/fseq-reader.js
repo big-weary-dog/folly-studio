@@ -1,4 +1,4 @@
-// Parses an FSEQ v2 file the way FPP/xLights do, without sharing any code with the writer (public/js/fseq.ts).
+// Parses an FSEQ v2 file the way FPP/xLights do, without sharing any code with the writer (core/fseq.ts).
 import assert from 'node:assert/strict';
 
 /** The header, its ranges and variable headers, and `frame(i)`: an uncompressed file's frame i.

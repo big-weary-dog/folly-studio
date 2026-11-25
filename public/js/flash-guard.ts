@@ -3,9 +3,9 @@
 // soon as it starts. Pure; nothing allocated per frame. test/flash-guard.test.js holds it to src/frames.ts's verdicts.
 
 import type { Rig } from '../../shared/schemas/rig.ts';
-import { type FlashLimits, FlashWatch } from './core/flash.ts';
-import { type Light, ledLight } from './core/light.ts';
-import { prepareScene } from './core/scene.ts';
+import { type FlashLimits, FlashWatch } from '../../core/flash.ts';
+import { type Light, ledLight } from '../../core/light.ts';
+import { prepareScene } from '../../core/scene.ts';
 
 const HOLD_MS = 2500;        // stays on this long after the last flashing second, so it does not blink
 

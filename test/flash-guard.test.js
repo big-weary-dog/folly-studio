@@ -7,8 +7,8 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'vitest';
 
 import { FlashGuard } from '../public/js/flash-guard.ts';
-import { ledRanges, writeFseq } from '../public/js/fseq.ts';
-import { FlashWatch, ledLight, pixelsForGroups, prepareScene, tagCentres } from '../public/js/pattern-core.ts';
+import { ledRanges, writeFseq } from '../core/fseq.ts';
+import { FlashWatch, ledLight, pixelsForGroups, prepareScene, tagCentres } from '../core/pattern-core.ts';
 import { analyzeFrames, parseFseq } from '../src/frames.ts';
 import { folly as rig } from './fixtures/rigs.js';
 

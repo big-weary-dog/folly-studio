@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
-import { STDLIB } from '../public/js/pattern-core.ts';
+import { STDLIB } from '../core/pattern-core.ts';
 import { at, COG, layerOn } from './fixtures/layers.js';
 
 const { toward, region, regions } = STDLIB;

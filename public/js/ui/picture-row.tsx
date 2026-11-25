@@ -3,8 +3,8 @@
 import { useState } from 'preact/hooks';
 
 import type { ParamValue } from '../../../shared/schemas/look.ts';
-import { type Picture, pictureProblem } from '../core/picture.ts';
-import type { PaletteHex } from '../core/stdlib.ts';
+import { type Picture, pictureProblem } from '../../../core/picture.ts';
+import type { PaletteHex } from '../../../core/stdlib.ts';
 import { cx, Field, openDialog } from './kit.tsx';
 import type { Help } from './picks.tsx';
 

@@ -5,8 +5,8 @@ import type { ComponentChildren } from 'preact';
 import { useId, useState } from 'preact/hooks';
 
 import type { Binding, Pick } from '../../../shared/schemas/look.ts';
-import { type PickBlend, plainRoles, stopsFor } from '../core/picks.ts';
-import { DEFAULT_PALETTE, type PaletteHex, paletteColours } from '../core/stdlib.ts';
+import { type PickBlend, plainRoles, stopsFor } from '../../../core/picks.ts';
+import { DEFAULT_PALETTE, type PaletteHex, paletteColours } from '../../../core/stdlib.ts';
 import { bindingText, fmt, isBinding } from './bindings.ts';
 import { cx, Field, humanize, placePopover, Scrub, Switch } from './kit.tsx';
 import {

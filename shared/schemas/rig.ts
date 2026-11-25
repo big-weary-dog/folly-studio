@@ -3,7 +3,7 @@
 // in the index). The pattern core checks a rig's pixels against its fixtures (prepareScene).
 import { z } from 'zod';
 
-import { BLENDS, MODULE_KINDS, SOURCE_BLENDS } from '../../public/js/pattern-core.ts';
+import { BLENDS, MODULE_KINDS, SOURCE_BLENDS } from '../../core/pattern-core.ts';
 import { Globals, ID, MAX_MODULES, Params, Soften } from './look.ts';
 
 const int = (min = 0) => z.number().int().min(min);

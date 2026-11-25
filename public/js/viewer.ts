@@ -4,7 +4,7 @@
 //   eye = target + (−flat·cos A, d·sin E, +flat·sin A),  flat = d·cos E   (Angle 0: the playa side)
 // Its input: viewer-input.ts.
 import type { Rig } from '../../shared/schemas/rig.ts';
-import { LIGHT, type Light, previewChannels } from './core/light.ts';
+import { LIGHT, type Light, previewChannels } from '../../core/light.ts';
 import type { Playa } from './playa/renderer.ts';
 import type { Venue, VenueGL } from './playa/venue.ts';
 import { basis, type Cam, clearLens, DEG, fitView, frameOf, type View, viewToCam } from './viewer-camera.ts';

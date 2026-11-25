@@ -7,7 +7,7 @@
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 
-import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
+import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../core/pattern-core.ts';
 
 const argv = process.argv, at = argv.indexOf('--frames'), FRAMES = at > 0 ? Number(argv[at + 1]) : 400;
 const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8');

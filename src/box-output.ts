@@ -6,8 +6,8 @@ import { createHash } from 'node:crypto';
 import { constants as FS, promises as fs } from 'node:fs';
 import path from 'node:path';
 
-import { ledRanges } from '../public/js/fseq.ts';
-import { flashLimits, FlashWatch, type Light, ledLight, prepareScene } from '../public/js/pattern-core.ts';
+import { ledRanges } from '../core/fseq.ts';
+import { flashLimits, FlashWatch, type Light, ledLight, prepareScene } from '../core/pattern-core.ts';
 import type { Bake, FlashSettings } from '../shared/schemas/api.ts';
 import type { Rig } from '../shared/schemas/rig.ts';
 import { stamp } from './clock.ts';
