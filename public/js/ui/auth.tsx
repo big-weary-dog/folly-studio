@@ -76,6 +76,7 @@ export function Auth({ query }: ViewProps) {
           <button class={cx('btn primary wide', busy && 'busy')} type="submit" disabled={busy}>
             {signup ? 'Create account' : guest ? 'Come in as a guest' : 'Log in'}</button>
         </form>
+        <p class="auth-foot"><a href="/privacy">Privacy: what Studio keeps</a></p>
       </section>
     </div>);
 }

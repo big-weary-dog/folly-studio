@@ -60,6 +60,7 @@ function settings() {
     STUDIO_FLASH_DELTA: [num(), 'a flash\'s swing as a share of full light, default 0.5'],
     STUDIO_FLASH_AREA: [num(), 'the share of the LEDs or lit area that blocks, default 0.25'],
     STUDIO_PREVIEWS: [oneOf('playa', 'front'), 'the gallery previews\' camera, default playa'],
+    STUDIO_REPORTS_DAYS: [num({ min: 1, max: 3650, int: true }), 'days a bug report is kept, default 90'],
     GIT_SHA: [text(), 'the build\'s commit, for bug reports (default: the checkout\'s)'],
     STUDIO_BAKE_SECONDS: [num({ min: 0 }), 'the longest render-box bake, default 120'],
     STUDIO_BAKE_TIMEOUT: [duration(), 'a bake\'s wall clock, default scaled to its length'],

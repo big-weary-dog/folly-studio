@@ -54,6 +54,7 @@ PUT    /api/admin/light  light                → light, after writing <STUDIO_D
                                               the field
 POST   /api/reports  report                   → 201 { id }  an F8 bug report (SPEC "Bug reports"): its own 3 MB
                                               body limit (413: send it again without the shot); 10 an hour per user
+GET    /api/privacy                           → { reportDays }  no session needed: how long reports stay
 GET    /api/admin/reports                     → { reports: [summary] }  admins only (403), newest first
 GET    /api/admin/reports/:id                 → { report }  admins only; 404 when none
 GET    /api/admin/reports/:id/shot            → image/jpeg  admins only; 404 when it has none

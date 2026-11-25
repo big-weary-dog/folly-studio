@@ -54,6 +54,7 @@ export const api = {
   signup: (username: string, password: string) => request<Me>('POST', '/api/signup', { username, password }),
   login: (username: string, password: string) => request<Me>('POST', '/api/login', { username, password }),
   guest: (name: string) => request<Me>('POST', '/api/guest', { name }),
+  privacy: () => request<{ reportDays: number }>('GET', '/api/privacy'),
   logout: () => request('POST', '/api/logout', {}),
   changePassword: (password: string, next: string) => request('PUT', '/api/me/password', { password, next }),
   deleteAccount: (password: string) => request('DELETE', '/api/me', { password }),

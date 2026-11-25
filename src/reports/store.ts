@@ -33,7 +33,7 @@ function summaryOf(id: string, at: string, r: Record<string, any>, shot: boolean
     shot };
 }
 
-export function createReports({ dir, keep = 500, maxBytes = 500 * 2 ** 20, days = 60, log }: { dir: string,
+export function createReports({ dir, keep = 500, maxBytes = 500 * 2 ** 20, days = 90, log }: { dir: string,
   keep?: number, maxBytes?: number, days?: number, log?: Logger }) {
   const find = async (id: string) => (REPORT_ID.test(id)
     ? (await reportFolders(dir)).find((f) => f.id === id) ?? null : null);
@@ -58,7 +58,7 @@ export function createReports({ dir, keep = 500, maxBytes = 500 * 2 ** 20, days 
   };
 
   return {
-    dir, prune, sweep,
+    dir, days, prune, sweep,
     /** Saves `body` with the server's side; resolves to the new report's id. */
     async save(body: ReportBody, server: Record<string, unknown>) {
       const id = Date.now().toString(36) + randomBytes(4).toString('hex');
