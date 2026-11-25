@@ -167,12 +167,13 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
   for (const look of store.looks.list(cut)) {
     store.looks.update(look.id, { bake: failedBake(source, 'The bake was interrupted by a restart; bake again.') });
   }
-  // Bakes of another rig (STUDIO_RIG changed since) cannot play on this one: failed, their frames gone.
+  // Bakes of another rig (STUDIO_RIG changed since) cannot play on this one: failed, their frames and review gone.
   const count = readRigCount(rigFile);
   const foreign = (l: StoredLook) => count !== null && l.bake?.status === 'done' && !!l.bake.analysis
     && l.bake.analysis.pixels !== count;
   for (const look of store.looks.list(foreign)) {
-    store.looks.update(look.id, { bake: failedBake(look.bake!.source, 'It was baked on another rig; bake again.') });
+    store.looks.update(look.id, { bake: failedBake(look.bake!.source, 'It was baked on another rig; bake again.'),
+      reviewed: false, reviewedBy: undefined, flashOverride: undefined });
     removeFrames(framesDir, look.id).catch(() => {});
   }
 
