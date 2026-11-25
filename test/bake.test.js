@@ -249,8 +249,9 @@ describe('render box', () => {
       assert.match(warned.bake.warning, /small parts only \(spirelets\)/);
       assert.equal((await cur('PUT', `/api/looks/${small.id}`, { reviewed: true })).json.look.reviewed, true,
         'flashing on a small region alone does not block review');
-      const frames = await fetch(`${base}/api/looks/${calm.id}/frames`, { headers: { cookie: '' } });
-      assert.equal(frames.status, 401);
+      const visitor = (id) => fetch(`${base}/api/looks/${id}/frames`, { headers: { cookie: '' } });
+      assert.equal((await visitor(calm.id)).status, 200, 'a visitor reads an approved look\'s frames');
+      assert.equal((await visitor(strobe.id)).status, 404, 'and no other look\'s');
     } finally {
       await app.close();
     }

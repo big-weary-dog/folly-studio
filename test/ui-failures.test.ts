@@ -14,7 +14,7 @@ const { leaveGuard } = await import('../public/js/ui/session.ts');
 
 describe('Share after a save', () => {
   test('a failed save stops the share and says why', async () => {
-    const st = createStudio(null), calls: object[] = [];
+    const st = createStudio({ id: 'u', username: 'u', role: 'member' }), calls: object[] = [];
     st.look.value = { ...st.look.value, id: 'look-1', title: 'Edited' };
     st.ready.value = true;                          // saved is still '': the look has unsaved edits
     Object.assign(api, { updateLook: async (_id: string, body: object) => {

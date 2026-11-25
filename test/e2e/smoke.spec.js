@@ -43,7 +43,7 @@ for (const [name, device] of Object.entries(SIZES)) {
         : page.locator(`.tab[data-tab=${tab}]`)).click();
 
       await test.step('sign up', async () => {
-        await page.goto(`${origin}/`);
+        await page.goto(`${origin}/login`);
         await page.getByRole('button', { name: 'Sign up' }).click();
         await page.fill('input[name=username]', `smoke-${name}`);
         await page.fill('input[name=password]', 'correct horse');

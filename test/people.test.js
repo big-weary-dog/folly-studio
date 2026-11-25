@@ -59,7 +59,7 @@ describe('people', () => {
     const eve = await signup(app, 'eve');
     const off = await ada.put(`/api/admin/accounts/${eve.user.id}`, { disabled: true });
     assert.equal(off.json.account.disabled, true);
-    assert.equal((await eve.get('/api/me')).status, 401);
+    assert.equal((await eve.get('/api/me')).json.user, null);
     assert.equal(await login('eve'), 403);
     assert.equal(await login('eve', 'wrong horse'), 401, 'a wrong password says nothing of it');
     await ada.put(`/api/admin/accounts/${eve.user.id}`, { disabled: false });
@@ -95,7 +95,7 @@ describe('people', () => {
     const fay = await signup(app, 'fay');
     const look = (await fay.post('/api/looks', { title: 'Gone', layers: [layer()], shared: true })).json.look;
     assert.equal((await ada.del(`/api/admin/accounts/${fay.user.id}`)).status, 200);
-    assert.equal((await fay.get('/api/me')).status, 401);
+    assert.equal((await fay.get('/api/me')).json.user, null);
     assert.equal((await ada.get(`/api/looks/${look.id}`)).status, 404);
     assert.equal((await accounts()).some((a) => a.username === 'fay'), false);
     assert.equal((await ada.del(`/api/admin/accounts/${fay.user.id}`)).status, 404);

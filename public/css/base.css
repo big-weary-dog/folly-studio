@@ -288,6 +288,9 @@ input.switch:disabled { opacity: .5; cursor: default; }
   background: radial-gradient(90% 100% at 50% 0%, color-mix(in srgb, var(--tint) 42%, #0000), #0000 80%)
     color-mix(in srgb, var(--tint) 14%, var(--night-1)); }
 .user-box { margin-left: auto; display: flex; align-items: center; gap: 12px; min-width: 0; }
+/* A visitor's way in stays in the bar, outside the phone's menu. */
+.visitor-box { order: 1; margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.visitor-menu { display: none; }
 .user-name { max-width: 160px; overflow: hidden; color: var(--text-2); font-size: 14px; text-overflow: ellipsis;
   white-space: nowrap; }
 .user-box > .user-name { display: none; }
@@ -333,11 +336,12 @@ input.switch:disabled { opacity: .5; cursor: default; }
   .main-nav a[aria-current=page], .main-nav a[aria-current=page]:focus-visible { mask: none; background: none; }
   .main-nav a[aria-current=page]::before { mask: none; inset: 0; border: var(--came-s) solid var(--lead); }
   .main-nav a:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+  .nav-toggle { order: 2; }
+  .visitor-box + .nav-toggle { margin-left: 0; }
   .user-box { margin: 6px 0 0; padding: 12px 14px 6px; border-top: var(--came) solid var(--lead); flex-wrap: wrap; }
   .user-name { max-width: none; }
   .user-box > .user-name { display: block; }
   .user-menu-btn { display: none; }
-  .advanced-btn { display: none; }
   .user-menu { display: flex; position: static; flex: 1 0 100%; flex-direction: row; padding: 0; background: none;
     flex-wrap: wrap; border: 0; box-shadow: none; }
   .user-menu .btn { flex: 1 1 auto; min-height: 44px; justify-content: center; }

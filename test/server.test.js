@@ -51,9 +51,9 @@ describe('server', () => {
       assert.equal(out.status, 200);
       assert.deepEqual(out.json, { ok: true });
       assert.match(out.setCookie[0], /^studio_session=;.*Max-Age=0/);
-      assert.equal((await c.get('/api/me')).status, 401);
+      assert.equal((await c.get('/api/me')).json.user, null);
       // The old token is dead server-side, not just forgotten by the client.
-      assert.equal((await c.get('/api/me', { cookie: oldCookie })).status, 401);
+      assert.equal((await c.get('/api/me', { cookie: oldCookie })).json.user, null);
 
       const wrong = await c.post('/api/login', { username: 'alice', password: 'wrong password' });
       assert.equal(wrong.status, 401);
@@ -205,9 +205,10 @@ describe('server', () => {
 
     test('auth required', async () => {
       const anon = client(app);
-      for (const p of ['/api/me', '/api/looks', '/api/looks?scope=gallery', '/api/looks/abc']) {
+      for (const p of ['/api/looks', '/api/looks?scope=mine', '/api/looks/abc/versions']) {
         assert.equal((await anon.get(p)).status, 401, p);
       }
+      assert.equal((await anon.get('/api/looks/abc')).status, 404, 'a visitor reads approved looks only');
       assert.equal((await anon.post('/api/looks', { title: 't', layers: [] })).status, 401);
     });
   });

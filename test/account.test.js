@@ -34,7 +34,7 @@ describe('your account', () => {
     assert.equal((await ann.put('/api/me/password', { password: 'correct horse', next: 'battery staple' })).status,
       200);
     assert.equal((await ann.get('/api/me')).status, 200, 'this session stays');
-    assert.equal((await other.get('/api/me')).status, 401, 'the other ended');
+    assert.equal((await other.get('/api/me')).json.user, null, 'the other ended');
     assert.equal((await login('acct-ann', 'correct horse'))[1], 401);
     assert.equal((await login('acct-ann', 'battery staple'))[1], 200);
   });
@@ -92,7 +92,7 @@ describe('your account', () => {
     const gone = await dee.del('/api/me', { password: 'correct horse' });
     assert.equal(gone.status, 200);
     assert.ok(gone.setCookie.some((c) => c.startsWith('studio_session=;')));
-    assert.equal((await dee.get('/api/me')).status, 401);
+    assert.equal((await dee.get('/api/me')).json.user, null);
     assert.equal((await login('acct-dee', 'correct horse'))[1], 401);
     for (const id of [mine.id, shared.id]) assert.equal((await eve.get(`/api/looks/${id}`)).status, 404);
     const gallery = (await eve.get('/api/looks?scope=gallery')).json.looks.map((l) => l.id);

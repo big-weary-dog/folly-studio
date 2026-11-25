@@ -14,6 +14,11 @@
   body[data-view=studio] .app-header { height: 0; min-height: 0; padding: 0; border: 0; z-index: 20; }
   body[data-view=studio] .app-header > .brand { display: none; }
   body[data-view=studio] #nav-toggle { position: absolute; top: 6px; left: 8px; margin: 0; }
+  .advanced-btn { display: none; }
+  body[data-view=studio] .visitor-box { display: none; }
+  body[data-view=studio] .visitor-menu { display: flex; gap: 8px; margin: 6px 0 0; padding: 12px 14px 6px;
+    border-top: var(--came) solid var(--lead); }
+  .visitor-menu .btn { flex: 1 1 auto; min-height: 44px; justify-content: center; }
   body[data-view=studio] .nav-panel { top: 56px; }
   body[data-view=studio] .view-studio { height: 100dvh; }
   .studio .studio-bar { min-height: 56px; padding-left: 60px; }

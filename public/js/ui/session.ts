@@ -44,9 +44,10 @@ export const setTitle = (t?: string) => { document.title = t ? `${t} · Folly St
 /** Change the address bar without leaving the view (a new look got its id). */
 export function replaceUrl(path: string) { history.replaceState(null, '', path); router.shown = here(); }
 
-/** The session ended (an API call said 401, api.ts): back to the login screen, once for calls that end together. */
+/** The session ended, or a visitor asked for more than approved looks (an API call said 401, api.ts): to the login
+ * screen, once for calls that end together. */
 export function signedOut() {
-  if (!user.value) return;
+  if (location.pathname.startsWith('/login')) return;
   user.value = null;
   for (const d of document.querySelectorAll('dialog[open]')) (d as HTMLDialogElement).close();
   navigate(`/login?next=${encodeURIComponent(here())}`, { replace: true, force: true });
