@@ -26,7 +26,8 @@ try {
     for (const d of r.dropped) say(`${will} ${dropLine(d)}`);
     say(`${dataDir}: ${r.dropped.filter((d) => !d.version).length} looks and `
       + `${r.dropped.filter((d) => d.version).length} versions ${will}; ${r.changed} kept looks `
-      + `${dryRun ? 'would move' : 'moved'} to the current library; ${r.grants} users' AI grants `
+      + `${dryRun ? 'would move' : 'moved'} to the current library, ${r.rebaked} of them onto new code, so their `
+      + `bake and review ${dryRun ? 'would go' : 'gone'}; ${r.grants} users' AI grants `
       + `${dryRun ? 'would go' : 'gone'}${r.backups.length ? `; backups: ${r.backups.join(', ')}` : ''}`);
   }
 } catch (err) {

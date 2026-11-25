@@ -47,12 +47,22 @@ export function libraryLayers(library: Library, layers: unknown): Node[] | null 
 
 export type Dropped = { look: string, title: string, owner: string, version?: number };
 
+/** Every module's code in `layers`, in order: what changes when a module moves to the current library. */
+function codes(layers: unknown): unknown[] {
+  if (!Array.isArray(layers)) return [];
+  const one = (m: unknown) => (isNode(m) && Array.isArray(m.layers) ? codes(m.layers) : [isNode(m) ? m.code : null]);
+  return layers.flatMap((l) => (!isNode(l) ? [] : Array.isArray(l.modules) ? l.modules.flatMap(one) : [l.code]));
+}
+const plays = (a: unknown, b: unknown) => JSON.stringify(codes(a)) !== JSON.stringify(codes(b));
+
 /**
- * The looks under the rule: `looks` as kept (versions numbered, so dropping one renumbers none; `ideaId` gone),
- * `dropped` each look and version left out, `changed` how many kept looks differ from what was stored.
+ * The looks under the rule: `looks` as kept (versions numbered, and the look's own number written, so dropping one
+ * renumbers none; `ideaId` gone), `dropped` each look and version left out, `changed` how many kept looks differ
+ * from what was stored, `rebaked` the kept looks whose code changed: their bake and review no longer hold, so both
+ * go, and a version whose code changed loses its review.
  */
 export function libraryOnly(library: Library, stored: readonly Node[]) {
-  const looks: Node[] = [], dropped: Dropped[] = [];
+  const looks: Node[] = [], dropped: Dropped[] = [], rebaked: string[] = [];
   let changed = 0;
   for (const look of stored) {
     const who = { look: text(look.id, 64), title: text(look.title), owner: text(look.owner, 64) };
@@ -62,23 +72,33 @@ export function libraryOnly(library: Library, stored: readonly Node[]) {
       continue;
     }
     const { ideaId: _, ...rest } = look;
-    const out: Node = { ...rest, layers };
+    let out: Node = { ...rest, layers };
+    if (plays(look.layers, layers)) {
+      const { bake: _b, reviewedBy: _r, flashOverride: _f, ...fresh } = out;
+      out = { ...fresh, reviewed: false };
+      rebaked.push(who.look);
+    }
     if (Array.isArray(look.versions)) {
-      out.versions = look.versions.flatMap((v: unknown, i) => {
-        if (!isNode(v)) return [];
-        const n = typeof v.n === 'number' ? v.n : i + 1;
+      const numbered = look.versions.map((v: unknown, i): Node | null => (isNode(v)
+        ? { ...v, n: typeof v.n === 'number' ? v.n : i + 1 } : null));
+      const last = numbered.at(-1)?.n;
+      if (!isNode(look.version) && typeof last === 'number') out.version = { n: last + 1 };
+      out.versions = numbered.flatMap((v) => {
+        if (!v) return [];
         const kept = 'layers' in v ? libraryLayers(library, v.layers) : v.layers;
         if (!kept) {
-          dropped.push({ ...who, version: n });
+          dropped.push({ ...who, version: v.n as number });
           return [];
         }
-        return [{ ...v, n, ...('layers' in v ? { layers: kept } : {}) }];
+        if (!('layers' in v)) return [v];
+        const { reviewed: _r, ...plain } = v;
+        return [{ ...(plays(v.layers, kept) ? plain : v), layers: kept }];
       });
     }
     if (JSON.stringify(out) !== JSON.stringify(look)) changed++;
     looks.push(out);
   }
-  return { looks, dropped, changed };
+  return { looks, dropped, changed, rebaked };
 }
 
 /** A user without `access`, the AI's grants (the same object when it had none). */

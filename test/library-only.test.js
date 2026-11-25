@@ -72,6 +72,27 @@ test('keeps library code on the current library, drops looks and versions with a
   assert.ok(existsSync(path.join(dataDir, 'frames', 'current.fseq')));
 });
 
+test('a look whose code moved loses its bake, frames and review; the look keeps its number', async () => {
+  const reviewed = { bake: { status: 'done', layersHash: 'h' }, reviewed: true, reviewedBy: 'cat', flashOverride: {} };
+  const v = (code, extra = {}) => ({ title: 'v', layers: look('', [mod(code, { ref: 'wave' })]).layers, ...extra });
+  write('looks', [
+    look('moved', [mod(OLD_WAVE, { ref: 'wave' })], { ...reviewed,
+      versions: [v(OLD_WAVE, { reviewed: { by: 'cat' } }), v(WAVE, { reviewed: { by: 'cat' } }), v(CUSTOM)] }),
+    look('same', [mod(WAVE, { ref: 'wave' })], reviewed),
+  ]);
+  for (const id of ['moved', 'same']) writeFileSync(path.join(dataDir, 'frames', `${id}.fseq`), 'x');
+  const r = await run();
+  assert.deepEqual(r.dropped.map((d) => [d.look, d.version]), [['moved', 3]]);
+  const [moved, same] = read('looks');
+  assert.deepEqual([moved.bake, moved.reviewed, moved.reviewedBy, moved.flashOverride], [undefined, false,
+    undefined, undefined]);
+  assert.deepEqual(moved.versions.map((x) => [x.n, x.reviewed]), [[1, undefined], [2, { by: 'cat' }]]);
+  assert.deepEqual(moved.version, { n: 4 }, 'it was 4 before version 3 went, and stays 4');
+  assert.deepEqual([same.bake, same.reviewed, same.reviewedBy], [reviewed.bake, true, 'cat']);
+  assert.ok(!existsSync(path.join(dataDir, 'frames', 'moved.fseq')));
+  assert.ok(existsSync(path.join(dataDir, 'frames', 'same.fseq')));
+});
+
 test('backs up first, strips the AI grants, then is done: a second run changes nothing', async () => {
   const looks = [look('custom', [mod(CUSTOM)])];
   const users = [{ id: 'u1', username: 'ann', access: { models: ['sol'] } }, { id: 'u2', username: 'bob' }];

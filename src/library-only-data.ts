@@ -1,8 +1,8 @@
 // The library-only step on a data folder (SPEC-looks "Library only"), once: the server runs it at start, before the
 // store opens; `tools/library-only.ts` runs it by hand, or with --dry-run to say what it would do and change nothing.
 // It copies looks.json and users.json beside themselves first and stops if that fails, then writes the looks kept and
-// the users without the AI's grants, removes the dropped looks' frames (their previews and wire folders go at start,
-// as no look names them), and last writes the marker that makes it done.
+// the users without the AI's grants, removes the frames of the looks dropped or whose code changed (their previews
+// and wire folders go at start, as no bake names them), and last writes the marker that makes it done.
 import { promises as fsp } from 'node:fs';
 import path from 'node:path';
 
@@ -57,7 +57,8 @@ export async function migrateLibraryOnly({ dataDir, patternsDir, dryRun = false,
   const library = await libraryFiles(patternsDir, { retired: true });
   if (!library.size) {
     log.warn?.(`${STEP}: no library in ${patternsDir}; the data folder is left as it is`);
-    return { done: false as const, dropped: [] as Dropped[], changed: 0, grants: 0, backups: [] as string[] };
+    return { done: false as const, dropped: [] as Dropped[], changed: 0, rebaked: 0, grants: 0,
+      backups: [] as string[] };
   }
   await fsp.mkdir(dataDir, { recursive: true });
   const lock = dryRun ? null : await lockDataDir(dataDir);
@@ -67,7 +68,8 @@ export async function migrateLibraryOnly({ dataDir, patternsDir, dryRun = false,
     const kept = libraryOnly(library, looks?.items ?? []);
     const plain = users?.items.map(withoutAccess);
     const grants = users ? plain!.filter((u, i) => u !== users.items[i]).length : 0;
-    const result = { done: false as const, dropped: kept.dropped, changed: kept.changed, grants,
+    const result = { done: false as const, dropped: kept.dropped, changed: kept.changed, rebaked: kept.rebaked.length,
+      grants,
       backups: [] as string[] };
     if (dryRun) return result;
     const stamp = now.toISOString().replace(/\.\d+Z$/, 'Z').replace(/:/g, '-');
@@ -80,6 +82,7 @@ export async function migrateLibraryOnly({ dataDir, patternsDir, dryRun = false,
     if (looks) await writeFileAtomic(looksFile, text(kept.looks));
     if (users && grants) await writeFileAtomic(usersFile, text(plain!));
     const framesDir = path.join(dataDir, 'frames');
+    for (const id of kept.rebaked) await removeFrames(framesDir, id);
     for (const d of kept.dropped) {
       if (!d.version) await removeFrames(framesDir, d.look);
       log.info?.(`${STEP}: dropped ${dropLine(d)}: not library code`);

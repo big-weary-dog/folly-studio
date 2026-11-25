@@ -104,9 +104,12 @@ entry its `ref` names, else the one entry whose file it is. Each data folder is 
 - it copies `looks.json` and `users.json` beside themselves (`<name>.pre-library-only-<time>.json`) and stops,
   changing nothing, if a copy fails or the folder is in use;
 - a look whose layers have any other module is dropped, with its frames (its previews and wire frames go at start,
-  as no look names them); so is a version with one, and every kept version is numbered so none is renumbered;
+  as no look names them); so is a version with one. Every kept version, and the look itself, has its number
+  written, so none is renumbered;
 - kept modules (composites' sub-layers' too) name their entry as `ref` and carry its current file; a retired
-  pattern's copy keeps its code;
+  pattern's copy keeps its code. A look whose code changes so plays differently: its bake, frames and review
+  (`reviewed`, `reviewedBy`, `flashOverride`) go, to be baked and reviewed afresh; a version whose code changes loses
+  its `reviewed`;
 - looks lose `ideaId` and users `access`, the AI's;
 - each drop is logged by look id, title and owner, and `migrations.json`'s `library-only` (when it ran) marks it
   done, so it never runs again. A folder whose server lacks the library is left for a later start.
