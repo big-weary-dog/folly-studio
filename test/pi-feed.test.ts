@@ -27,7 +27,7 @@ test('concurrent sends wait for their own acknowledgement; disconnect and timeou
     });
   });
   const feed = piFeed({ target: new URL(`http://127.0.0.1:${address.port}`),
-    onNow: () => {}, onSource: () => {} });
+    onNow: () => {}, onSource: () => {}, timing: { ackMs: 1000 } });
   try {
     await connected;
     let firstSettled = false;
@@ -84,13 +84,14 @@ test('rejected hellos reconnect with backoff; only acceptance resets it and send
   }));
   const timers = vi.spyOn(globalThis, 'setTimeout');
   const feed = piFeed({ target: new URL(`http://127.0.0.1:${address.port}`), pin: 'test-pin', mode: () => mode,
-    onNow: () => {}, onSource: () => {}, log: { warn: (...a) => warnings.push(a) } });
+    onNow: () => {}, onSource: () => {}, log: { warn: (...a) => warnings.push(a) },
+    timing: { firstWaitMs: 50, maxWaitMs: 500 } });
   try {
     await ready;
     assert.equal(feed.connected(), true);
     assert.equal(attempts.length, 4);
     assert.deepEqual(timers.mock.calls.filter(([fn]) => fn.name === 'connect').map(([, ms]) => ms),
-      [1000, 2000, 1000], 'only an accepted hello resets the backoff');
+      [50, 100, 50], 'only an accepted hello resets the backoff');
     assert.deepEqual(modes, ['live', 'live']);
     assert.equal(warnings.length, 2);
   } finally {

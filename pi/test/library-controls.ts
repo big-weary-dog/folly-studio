@@ -6,10 +6,12 @@ import { test } from 'vitest';
 
 import { engineOn, shipped } from './fixture.ts';
 
-// Each control as it is, at its low end, its high end, or alternating.
+// Each control as it is, at its low end, its high end, or alternating. Each end's looks run in `parts` files, part
+// `part` taking every parts-th look, so the matrix spreads over the test processes.
 const ends = { default: null, low: () => 0, high: () => 1, alternate: (k: number) => k % 2 };
-export function controls(end: keyof typeof ends) {
-  test.each([...shipped().keys()])('%s with its controls ' + end + ', tapped, plays 30 s without a flash', (id) => {
+export function controls(end: keyof typeof ends, part = 0, parts = 1) {
+  const looks = [...shipped().keys()].filter((_, i) => i % parts === part);
+  test.each(looks)('%s with its controls ' + end + ', tapped, plays 30 s without a flash', (id) => {
     const r = engineOn();
     r.engine.play(id);
     r.run(7);

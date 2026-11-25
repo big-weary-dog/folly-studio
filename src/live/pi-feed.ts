@@ -10,7 +10,7 @@ import WebSocket from 'ws';
 import type { Mode, PiState } from '../../pi/src/protocol.ts';
 import type { PiNow, PiQueued, PiSource } from '../../shared/schemas/live.ts';
 
-const FIRST_WAIT_MS = 1000, MAX_WAIT_MS = 10_000;
+const FIRST_WAIT_MS = 1000, MAX_WAIT_MS = 10_000, ACK_MS = 5000;
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const KINDS = new Set(['look', 'live', 'baked']);
 /** The engine's queue as viewers see it: titles, kinds and who added each, at most 20. */
@@ -38,12 +38,15 @@ export function piNowOf(state: { look?: Look | null, gain?: number, queue?: unkn
 }
 
 /** `pin`: the engine's PIN (PI_PIN), said in the hello; `mode`: the mode to tell it; `log`: what the engine refuses
- * of Studio's sends. */
-export function piFeed({ target, base = '/pi', pin, mode = () => 'live', onNow, onSource, log = console }:
+ * of Studio's sends; `timing`: how long a send waits for its acknowledgement and the reconnect's first and longest
+ * waits, in ms (tests shorten them). */
+export function piFeed({ target, base = '/pi', pin, mode = () => 'live', onNow, onSource, log = console,
+  timing: { ackMs = ACK_MS, firstWaitMs = FIRST_WAIT_MS, maxWaitMs = MAX_WAIT_MS } = {} }:
   { target: URL, base?: string, pin?: string, mode?: () => Mode, onNow: (now: PiNow | null) => void,
-  onSource: (source: PiSource) => void, log?: { warn?: (...a: unknown[]) => void } }) {
+  onSource: (source: PiSource) => void, log?: { warn?: (...a: unknown[]) => void },
+  timing?: { ackMs?: number, firstWaitMs?: number, maxWaitMs?: number } }) {
   const url = `${target.protocol === 'https:' ? 'wss:' : 'ws:'}//${target.host}${base}/ws`;
-  let ws: WebSocket | null = null, wait = FIRST_WAIT_MS, timer: NodeJS.Timeout | null = null, alive = true;
+  let ws: WebSocket | null = null, wait = firstWaitMs, timer: NodeJS.Timeout | null = null, alive = true;
   let ok = false;
   type Result = { ok: true } | { ok: false, status: number, error: string };
   const pending = new Map<string, (result: Result) => void>();
@@ -64,7 +67,7 @@ export function piFeed({ target, base = '/pi', pin, mode = () => 'live', onNow, 
       if (m?.type === 'hello') {
         ok = m.ok === true;
         if (ok) {
-          wait = FIRST_WAIT_MS;
+          wait = firstWaitMs;
           s.send(JSON.stringify({ type: 'mode', mode: mode() }));
         } else {
           if (typeof m.error === 'string') log.warn?.(`[pi] Hello rejected: ${m.error.slice(0, 200)}`);
@@ -93,7 +96,7 @@ export function piFeed({ target, base = '/pi', pin, mode = () => 'live', onNow, 
       unavailable();
       onNow(null);
       if (alive) timer = setTimeout(connect, wait);
-      wait = Math.min(MAX_WAIT_MS, wait * 2);
+      wait = Math.min(maxWaitMs, wait * 2);
     });
   }
   connect();
@@ -112,7 +115,7 @@ export function piFeed({ target, base = '/pi', pin, mode = () => 'live', onNow, 
           resolve(result);
         };
         const expiry = setTimeout(() => finish({ ok: false, status: 503,
-          error: 'The lights\' engine did not acknowledge the request.' }), 5000);
+          error: 'The lights\' engine did not acknowledge the request.' }), ackMs);
         pending.set(requestId, finish);
         socket.send(JSON.stringify({ ...msg, requestId }), (error) => {
           if (error) finish({ ok: false, status: 503, error: 'Could not send to the lights\' engine.' });

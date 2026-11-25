@@ -5,6 +5,7 @@
 // With HISTORY_SHOTS set to a folder, each state's screenshot goes there.
 import path from 'node:path';
 
+import { drawn } from './drawn.js';
 import { expect, signup, test } from './studio.js';
 
 const SIZES = {
@@ -61,7 +62,7 @@ for (const [name, device] of Object.entries(SIZES)) {
         await expect(steps.locator('.hstep-label')).toHaveText(['Opened the look', 'Blend over', 'Level 81%']);
       }
       await expect(page.locator('.save-state')).not.toHaveText('Saved');
-      await page.waitForTimeout(1500);   // the view's first frames
+      await drawn(page);
       await shot('steps');
 
       await steps.first().locator('.hstep-btn').click();
@@ -93,7 +94,7 @@ for (const [name, device] of Object.entries(SIZES)) {
       await expect(versions).toHaveCount(3, { timeout: 30_000 });
       await expect(versions.first()).toContainText('v3');
       await expect(versions.first().locator('.version-strip i')).toHaveCount(4);
-      await page.waitForTimeout(1500);   // the view's first frames
+      await drawn(page);
       await shot('versions');
 
       await versions.filter({ hasText: 'v1' }).getByRole('button', { name: 'Preview' }).click();
