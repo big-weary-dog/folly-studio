@@ -100,12 +100,14 @@ the server alone: it saves and closes. Requests during the few seconds of the re
 - A commit from before releases (its `deploy/host.sh` builds in place) is refused: deploy a later one.
 
 - Another port: set `PORT` in the env file, run `npm run host`, and change the tunnel's URL to match.
-- Logs: `journalctl --user -u folly-studio -f`. Status: `systemctl --user status folly-studio`. An unhandled error is logged there (`[studio] unhandled …`) and the server carries on.
+- Logs: `journalctl --user -u folly-studio -f`. Status: `systemctl --user status folly-studio`.
   Requests are one line each (`[studio] [http] GET / 200 3ms 1.1KB v=1a2b3c4d NZ`, SPEC-access "Stats"): only them,
-  `journalctl --user -u folly-studio -g '\[http\]'`; Admin → Stats has the day's counts.
+  `journalctl --user -u folly-studio -g '\[http\]'`; Admin → Stats has the day's counts. More in
+  [Monitoring](#monitoring).
 - Stop: `systemctl --user stop folly-studio` (`disable` too, to keep it off at boot).
 - The commit that is live, from anywhere: `https://folly.swampkat.com/build.json`.
-- The unit is written by the script, to `~/.config/systemd/user/folly-studio.service`: change the script, not it.
+- The units are written by the script, to `~/.config/systemd/user/`: `folly-studio.service`, and the daily
+  backup's `folly-studio-backup.timer` and `.service` ([Backups](#backups)). Change the script, not them.
   The service runs the checkout's `current/server.ts`; what is installed and built lives in the releases, not in
   the checkout itself.
 - The studio runs while WSL does. It starts with the distro (linger is on), but WSL only boots when something on
@@ -237,7 +239,8 @@ Then fix the env file, or roll back: `npm run host -- --rollback`.
 
 ### Every setting
 
-`npm run host` also reads `STUDIO_REF`, `STUDIO_ENV_FILE` and `STUDIO_UNIT` (`deploy/host.sh`); the server ignores
+`npm run host` also reads `STUDIO_REF`, `STUDIO_ENV_FILE` and `STUDIO_UNIT` (`deploy/host.sh`), and the daily
+backup `STUDIO_BACKUP_DIR`, `STUDIO_BACKUP_KEEP` and `STUDIO_BACKUP_OFFSITE` ([Backups](#backups)); the server ignores
 them.
 
 | Setting | What it is |
@@ -292,19 +295,69 @@ are capped only by your account's own limit (its pid namespace and wall clock st
 
 ## Backups
 
+Every deploy writes and enables a timer, `folly-studio-backup.timer` (`folly-studio-dev-backup.timer` for the dev
+instance), that runs `deploy/backup.sh` daily at 04:15, or at the next start when the machine was off then. It runs
+the copy of it and `tools/backup.ts` that the last deploy left in `~/.local/share/folly-studio/folly-studio-backup/`,
+so a rollback to a release from before the timer keeps backing up. It writes `folly-studio-<date>.tar.gz` of the data folder's JSON files into `STUDIO_BACKUP_DIR`, keeps
+the newest `STUDIO_BACKUP_KEEP` there, and copies each new one to `STUDIO_BACKUP_OFFSITE` when that is set:
+
 ```sh
-npm run backup -- --out /mnt/d/folly-backups             # JSON files only: small
-npm run backup -- --out /mnt/d/folly-backups --frames    # with the baked .fseq files
+STUDIO_BACKUP_DIR=/home/you/folly-data-backups   # default: the data folder's path with -backups added
+STUDIO_BACKUP_KEEP=14                            # archives kept there, default 14
+STUDIO_BACKUP_OFFSITE=/mnt/d/folly-backups       # optional: another disk, or user@host:folly-backups over ssh
 ```
 
-This writes `folly-studio-<date>.tar.gz`, safe while the server runs. The JSON files are read until
-none changes mid-read, and the archive appears only once it is complete. A file it cannot read fails
-the backup rather than being left out, and the count it prints is what went in. It holds password hashes,
-so keep it private. Run it daily with cron (`crontab -e`, then
-`15 4 * * * cd /path/to/studio && npm run backup -- --out /mnt/d/folly-backups`). WSL does not
-start cron for you: run `sudo service cron start` *(to verify)*. To restore, stop the server and
-unpack the archive's files into `STUDIO_DATA`. Baked frames and stream chunks that are missing are
-made again on demand.
+The off-site copy is `rsync`'s (install it: `sudo apt install rsync`; a deploy with `STUDIO_BACKUP_OFFSITE` set and
+no `rsync` stops before anything changes). Over ssh it needs a key that works without a prompt (`ssh -o
+BatchMode=yes user@host true` succeeds). Nothing is removed off-site: prune it there. Each instance keeps its own
+`STUDIO_BACKUP_DIR`: a deploy refuses one another instance's settings name.
+
+By hand, or with the baked frames:
+
+```sh
+npm run backup -- --out /mnt/d/folly-backups             # JSON files only: small
+npm run backup -- --out /mnt/d/folly-backups --frames    # with the baked .fseq files (the render box can rebake)
+```
+
+A backup is safe while the server runs: the JSON files are read until none changes mid-read, and the archive
+appears only once it is complete. A file it cannot read fails the backup rather than being left out, and the count
+it prints is what went in. It holds password hashes, so keep it as private as the server. Bug reports
+(`reports/`), previews and stream chunks are not in it; previews and chunks are made again on demand.
+
+- Last runs: `systemctl --user list-timers 'folly-studio*'`; what it wrote or why it failed:
+  `journalctl --user -u folly-studio-backup`. A failed run leaves the unit failed:
+  `systemctl --user --failed` lists it.
+- Without a systemd user session, use cron instead (`crontab -e`, then
+  `15 4 * * * cd /path/to/studio && npm run backup -- --out /mnt/d/folly-backups`; WSL does not start cron for you:
+  `sudo service cron start` *(to verify)*).
+
+### Restore drill
+
+Once a month, and after changing any backup setting, restore the newest archive into a throwaway studio and look
+at it. Nothing here touches the live one:
+
+```sh
+f=$(ls -1 ~/folly-data-backups/folly-studio-*.tar.gz | tail -1)   # or the off-site copy
+d=$(mktemp -d) && tar -xzf "$f" -C "$d" --strip-components=1
+ls "$d"                                    # users.json, looks.json, … dated as you expect
+cd ~/folly-studio/current && STUDIO_DATA="$d" PORT=8790 node server.ts
+```
+
+Open `http://127.0.0.1:8790`, sign in, and check that the newest looks are there. Then Ctrl-C and `rm -rf "$d"`.
+It starts with the defaults (no env file; add your `STUDIO_RIG` if the env file sets one), so it may begin baking
+or making previews: stop it once you have looked.
+
+### Restoring
+
+```sh
+systemctl --user stop folly-studio
+mkdir ~/folly-data.before-restore && cp -a ~/folly-data/*.json ~/folly-data.before-restore/
+tar -xzf ~/folly-data-backups/folly-studio-<date>.tar.gz -C ~/folly-data --strip-components=1
+systemctl --user start folly-studio
+```
+
+The archive's files replace those in the data folder; baked frames, previews and bug reports stay as they are. Keep
+`folly-data.before-restore` until you are sure.
 
 ### Library only
 
@@ -312,3 +365,19 @@ The library-only step (SPEC-looks "Library only") drops stored looks and version
 library's, logging each one, after copying `looks.json` and `users.json` beside themselves. Only you run it, once
 per data folder: the server never does. First see what it would do (it writes nothing):
 `node tools/library-only.ts --data ~/folly-data`; then stop the server and add `--apply`.
+
+## Monitoring
+
+- **Crashes restart.** An uncaught exception is logged (`[studio] uncaught exception, exiting: …`); the server saves
+  what it can within 10 s and exits 1, and the unit's `Restart=on-failure` starts it again 5 s later. A failed promise
+  (`[studio] unhandled rejection: …`) is one request's: it is logged and the server carries on. A stop
+  (`systemctl --user stop`, a deploy) exits 0 and is not restarted. Restarts:
+  `journalctl --user -u folly-studio -g 'uncaught|Started'`.
+- **A line a day.** When a local day ends, the server writes its counts (SPEC-access "Stats"):
+  `[studio] [stats] 2026-11-24 visitors=12 people=3 views=40 requests=900 errors=0 slow=2 bakes=5/0/0 uptime=86400s
+  rss=120MB`. All of them: `journalctl --user -u folly-studio -g '\[stats\]'`.
+- **From outside.** Nothing on this machine can say it is down, so let a free uptime service (UptimeRobot, Better
+  Stack, or similar) fetch `https://folly.swampkat.com/build.json` every 5 minutes and email you when it fails twice:
+  it expects a 200 whose body has `"commit"`. That one check covers WSL stopping, the tunnel or Cloudflare failing,
+  and a server that keeps crashing. It costs one small request every 5 minutes, and `/build.json` is a static
+  file, so it is counted in Stats but never logged.
