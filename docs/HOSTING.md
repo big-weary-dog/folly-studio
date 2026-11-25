@@ -239,7 +239,8 @@ running `node`.
 
 ### Checking the settings
 
-`npm run config:check -- ~/.config/folly-studio/studio.env` reads a settings file as the server would and prints
+`npm run config:check -- ~/.config/folly-studio/studio.env` (on the hosting checkout, from its `current`, where the
+live release's dependencies are) reads a settings file as the server would and prints
 `OK`, or the names of the settings that would stop it, then any it would warn of. It never prints a value. It exits
 1 when the server would not start. `npm run host` runs it with the new build, after building and before restarting
 anything: when it fails, the deploy stops there and the service already running keeps running, on its old settings.
