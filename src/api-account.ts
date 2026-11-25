@@ -21,7 +21,7 @@ export function accountRoutes(api: FastifyInstance, { store, auth, dropFrames, h
     if (!now.isAllowed && now.remaining === 0) {
       throw new HttpError(429, 'Too many attempts. Try again in a minute.', { 'Retry-After': `${now.ttlInSeconds}` });
     }
-    await auth.confirm(req.user!, password).catch(async (err) => {
+    await auth.confirm(req.user!, password, req.cookies[COOKIE_NAME]).catch(async (err) => {
       if (err instanceof HttpError && err.status === 403) await failures(req);
       throw err;
     });

@@ -33,11 +33,13 @@ shows with a Guest tag; it is untrusted text, shown only as text.
 no email, so a forgotten password cannot be reset or recovered: Account and sign-up say so plainly.
 
 - **Changing the password** takes the current one and a new one (sign-up's rules). It ends the account's other
-  sessions; this one stays. Of two changes at once, one stands; the other is 409.
+  sessions; this one stays.
 - **Deleting the account** takes its password and a confirm saying how many looks go, and how many are shared. It
   deletes the account, its sessions and ideas, and every look it owns: shared ones leave the gallery and the live
   stage too, with their frames and previews. A copy someone else saved of one is theirs and stays. The browser is
   signed out, on sign-in. The username is free again. An idea still generating then keeps nothing when it finishes.
+- A change or a deletion whose password changed, or whose session ended, while it was checked is 409: of two at once,
+  one stands.
 - A wrong password is 403 "That is not your password.". Wrong ones are limited as failed sign-ins are, 10 a minute per
   address and account, then 429 with `Retry-After`.
 

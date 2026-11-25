@@ -115,22 +115,29 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     return user;
   });
 
-  /** Throws 403 unless `password` is `user`'s (SPEC-access "Your account"). */
-  const confirm = (user: Stored, password: string) => slot(async () => {
+  /** Throws 409 when `user`'s password changed, or `token`'s session ended, since `user` was read. */
+  const current = (user: Stored, token: unknown) => {
+    const keep = valid(token) ? sha256(token) : '';
+    if (store.users.get(user.id)?.passwordHash !== user.passwordHash || (keep && !store.sessions.get(keep))) {
+      throw new HttpError(409, 'Your password was just changed elsewhere: sign in again.');
+    }
+  };
+
+  /** Throws 403 unless `password` is `user`'s (SPEC-access "Your account"), and 409 unless `user` and `token`'s
+   * session are still current once it is checked. */
+  const confirm = (user: Stored, password: string, token?: unknown) => slot(async () => {
     if (!password || !await verifyPassword(password, user.passwordHash)) {
       throw new HttpError(403, 'That is not your password.');
     }
+    current(user, token);
   });
 
   /** `user`'s password made `next` once `password` is theirs; their sessions but `token`'s end. */
   async function changePassword(user: Stored, { password, next }: { password: string, next: string },
     token: unknown) {
-    await confirm(user, password);
+    await confirm(user, password, token);
     const passwordHash = await slot(() => hashPassword(next, cost)), keep = valid(token) ? sha256(token) : '';
-    // Another change (or sign-out) may have landed while this one hashed: then it, not this, stands.
-    if (store.users.get(user.id)?.passwordHash !== user.passwordHash || (keep && !store.sessions.get(keep))) {
-      throw new HttpError(409, 'Your password was just changed elsewhere: sign in again.');
-    }
+    current(user, token);   // another change (or sign-out) may have landed while this one hashed: then it stands
     store.users.update(user.id, { passwordHash });
     for (const s of store.sessions.list((x) => x.userId === user.id && x.id !== keep)) store.sessions.remove(s.id);
   }

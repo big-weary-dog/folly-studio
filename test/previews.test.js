@@ -79,7 +79,8 @@ test('the Playa camera draws the installation lit as the samples say', async (ct
 });
 
 describe('previews of shared looks', () => {
-  let tmp, app, dataDir, cookie, other;
+  let tmp, app, dataDir, cookie, other, release, holding;
+  const held = new Promise((r) => { release = r; }), rendering = new Promise((r) => { holding = r; });
   const PIXEL = 'function pixel(p, t) { p.r = 1; }';
   const req = (p, { method = 'GET', body, as = cookie } = {}) => fetch(app.base + p, { method, headers: {
     cookie: as, ...(body ? { 'content-type': 'application/json' } : {}) }, body: body && JSON.stringify(body) });
@@ -104,7 +105,10 @@ describe('previews of shared looks', () => {
     await writeFile(path.join(publicDir, 'index.html'), '<!doctype html><title>t</title>');
     await writeFile(path.join(publicDir, 'data', 'rig.json'), JSON.stringify(lineRig(N)));
     const renderBox = { config: { seconds: SECONDS }, probe: async () => ({ ok: true }),
-      async render({ layers }) { return { bytes: layers[0]?.code.includes('late') ? frames(2, 9) : frames() }; } };
+      async render({ layers }) {
+        if (layers[0]?.code.includes('hold')) { holding(); await held; }
+        return { bytes: layers[0]?.code.includes('late') ? frames(2, 9) : frames() };
+      } };
     app = await createServer({ dataDir, publicDir, generator: { enqueue() {}, async idle() {} }, log: quiet,
       customCode: true, renderBox });
     app.base = `http://127.0.0.1:${(await app.listen(0, '127.0.0.1')).port}`;
@@ -165,5 +169,18 @@ describe('previews of shared looks', () => {
     assert.equal((await req('/api/me', { method: 'DELETE', as: cy, body: { password: 'correct horse battery' } }))
       .status, 200);
     assert.deepEqual(await mine(), []);
+  });
+
+  test('a preview being made when its account is deleted is not kept', async () => {
+    const dot = await signup('dorothy');
+    await (await req('/api/looks', { method: 'POST', as: dot,
+      body: { title: 'Held', layers: [{ name: 'a', code: `// hold\n${PIXEL}` }], shared: true, chain: 2 } })).json();
+    await rendering;   // its preview is being made, waiting on the render box
+    assert.equal((await req('/api/me', { method: 'DELETE', as: dot, body: { password: 'correct horse battery' } }))
+      .status, 200);
+    release();
+    await app.previews.idle();
+    const ids = new Set((await gallery()).map((l) => l.id));
+    assert.deepEqual((await readdir(path.join(dataDir, 'previews'))).filter((f) => !ids.has(f.split('-')[0])), []);
   });
 });

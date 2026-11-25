@@ -4,7 +4,9 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { client, fx, layer, signup, startApp, useFixture } from './fixtures/server.js';
+import { createAuth } from '../src/auth.ts';
+import { createStore } from '../src/store.ts';
+import { client, fx, layer, quiet, signup, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 
@@ -44,6 +46,20 @@ describe('your account', () => {
     assert.equal((await login('acct-ivy', won[0][1]))[1], 200);
     assert.equal((await login('acct-ivy', both.find((b) => b !== won[0])[1]))[1], 401);
   });
+
+  test('a password checked against an account read before it changed is 409, as is one from an ended session',
+    async () => {
+      const store = createStore(path.join(fx.tmp, 'data-account-auth'), { log: quiet });
+      const auth = createAuth({ store: await store, cost: { N: 1024, r: 8, p: 1 } });
+      const old = await auth.signup({ username: 'jo', password: 'correct horse' });
+      const [a, b] = [auth.createSession(old), auth.createSession(old)];
+      await auth.changePassword(old, { password: 'correct horse', next: 'battery staple' }, a);
+      const stale = auth.confirm(old, 'correct horse', b);   // a deletion begun before the change landed
+      await assert.rejects(stale, { status: 409 });
+      const now = (await store).users.get(old.id);
+      await assert.rejects(auth.confirm(now, 'battery staple', b), { status: 409 }, 'b was signed out');
+      await auth.confirm(now, 'battery staple', a);
+    });
 
   test('wrong passwords are limited per account: 429 with Retry-After, even for the right one', async () => {
     const bo = await signup(app, 'acct-bo');

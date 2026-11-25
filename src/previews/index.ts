@@ -91,10 +91,14 @@ export function createPreviews({ dir, store, box, framesDir, loadRig, lane = cre
       const drawn = Date.now();
       const { webp, still } = await encodePreview(motion);
       const now = store.looks.get(id);
-      if (!now || now.shared !== true || previewKey(now) !== key) return want(id); // it changed meanwhile
+      if (now && (now.shared !== true || previewKey(now) !== key)) return want(id); // it changed meanwhile
       const [w, s] = files(id, key);
       await writeAtomic(s!, still);
       await writeAtomic(w!, webp);
+      if (!store.looks.get(id)) { // deleted meanwhile: drop(id) found nothing to remove
+        await Promise.all([s, w].map((f) => fs.rm(f!, { force: true })));
+        return;
+      }
       const old = have.get(id);
       have.set(id, key);
       if (old) await Promise.all(files(id, old).map((f) => fs.rm(f, { force: true })));
