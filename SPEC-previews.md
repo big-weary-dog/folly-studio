@@ -11,7 +11,7 @@ first so it loops; an animated WebP (sharp; quality 50, else 40 or 30 to stay wi
 window's brightest sample) for reduced motion. They are made off the request path, one look at a time, when a look
 is shared or a shared look changes (and for every shared look at start, the gallery's top first): from the look's
 bake when that is current (a look being baked waits for it), else from the render box (at most 60 s, in the bake
-lane). Kept in `<STUDIO_DATA>/previews/<lookId>-<key>.webp` and `-<key>-still.webp`, `key` naming what it renders;
+lane). Kept in `<STUDIO_DATA>/previews/<lookId>-<key>.webp` and `-<key>-still.webp`, `key` naming what it renders (the look, its length and the rig);
 a look keeps its old preview until the new one is written, and previews of looks no longer shared go at the next
 start. A look without one shows its card's glass.
 Shutdown stops queuing previews and waits for startup backfill and any active preview writes before closing storage.

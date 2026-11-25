@@ -79,7 +79,7 @@ test('the Playa camera draws the installation lit as the samples say', async (ct
 });
 
 describe('previews of shared looks', () => {
-  let tmp, app, dataDir, cookie, other;
+  let tmp, app, dataDir, cookie, other, start;
   const PIXEL = 'function pixel(p, t) { p.r = 1; }';
   const req = (p, { method = 'GET', body, as = cookie } = {}) => fetch(app.base + p, { method, headers: {
     cookie: as, ...(body ? { 'content-type': 'application/json' } : {}) }, body: body && JSON.stringify(body) });
@@ -103,11 +103,15 @@ describe('previews of shared looks', () => {
     await mkdir(path.join(publicDir, 'data'), { recursive: true });
     await writeFile(path.join(publicDir, 'index.html'), '<!doctype html><title>t</title>');
     await writeFile(path.join(publicDir, 'data', 'rig-folly.json'), JSON.stringify(lineRig(N)));
-    const renderBox = { config: { seconds: SECONDS }, probe: async () => ({ ok: true }),
-      async render({ layers }) { return { bytes: layers[0]?.code.includes('late') ? frames(2, 9) : frames() }; } };
-    app = await createServer({ dataDir, publicDir, generator: { enqueue() {}, async idle() {} }, log: quiet,
-      customCode: true, renderBox });
-    app.base = `http://127.0.0.1:${(await app.listen(0, '127.0.0.1')).port}`;
+    await writeFile(path.join(publicDir, 'data', 'rig.json'), JSON.stringify({ ...lineRig(N), name: 'Other' }));
+    start = async (rig) => {
+      const renderBox = { config: { seconds: SECONDS }, probe: async () => ({ ok: true }),
+        async render({ layers }) { return { bytes: layers[0]?.code.includes('late') ? frames(2, 9) : frames() }; } };
+      app = await createServer({ dataDir, publicDir, generator: { enqueue() {}, async idle() {} }, log: quiet,
+        customCode: true, renderBox, rig });
+      app.base = `http://127.0.0.1:${(await app.listen(0, '127.0.0.1')).port}`;
+    };
+    await start();
     cookie = await signup('alice');
     other = await signup('bob');
   });
@@ -153,5 +157,19 @@ describe('previews of shared looks', () => {
     const mine = (await (await req('/api/looks?scope=mine')).json()).looks.find((l) => l.id === look.id);
     assert.equal(mine.preview, undefined);
     assert.equal((await req(`/api/looks/${look.id}/preview/x.webp`, { as: other })).status, 404);
+  });
+
+  test('a server started on another rig makes the shared looks\' previews again', async () => {
+    const { look } = await (await req('/api/looks', { method: 'POST',
+      body: { title: 'Moved', layers: [{ name: 'a', code: PIXEL }], shared: true, chain: 2 } })).json();
+    const key = await until(async () => (await gallery()).find((l) => l.id === look.id)?.preview);
+    await app.close();
+    await start('cog');
+    await app.previews.backfill();
+    const next = await until(async () => {
+      const k = (await gallery()).find((l) => l.id === look.id)?.preview;
+      return k !== key && k;
+    });
+    assert.notEqual(next, key);
   });
 });
