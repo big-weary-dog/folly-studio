@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import ACCOUNT from '../../public/data/account.json' with { type: 'json' };
 import type { IdeaStatus } from '../idea-status.ts';
-import type { Role } from '../policy.ts';
+import { ROLES, type Role } from '../policy.ts';
 import type { Tour } from './tour.ts';
 import { type Automation, Bpm, Duration, Globals, type Layer, Layers, LookTitle, Summary } from './look.ts';
 
@@ -28,6 +28,13 @@ const Current = z.string().max(MAX_PASSWORD).catch('');
 /** PUT /api/me/password and DELETE /api/me. */
 export const PasswordChange = z.object({ password: Current, next: NewPassword });
 export const AccountDelete = z.object({ password: Current });
+/** PUT /api/admin/accounts/:id (SPEC-access "People"). */
+export const AccountChange = z.strictObject({
+  role: z.enum(ROLES, { error: `role must be one of ${ROLES.join(', ')}.` }).optional(),
+  disabled: z.boolean({ error: 'disabled must be true or false.' }).optional() });
+/** An account as People lists it. */
+export type Account = { id: string, username: string, role: Role, serverRole?: Role, createdAt: string,
+  looks: number, shared: number, disabled: boolean };
 const GUEST = 'A guest name is 1–24 letters, digits, spaces or _ . \' -.';
 /** POST /api/guest: a guest's name, untrusted text shown only as text (SPEC-access "Guests"). */
 export const GuestBody = z.object({ name: z.string({ error: GUEST }).trim().normalize('NFC')

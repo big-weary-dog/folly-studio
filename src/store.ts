@@ -22,7 +22,9 @@ export type Collection<T extends Doc> = { get(id: string): T | null,
   list(filter?: (x: T) => unknown, omit?: readonly (keyof T)[]): T[], count(filter?: (x: T) => unknown): number,
   /** The documents' size as stored (JSON, UTF-8). */ bytes(filter?: (x: T) => unknown): number,
   create(x: Partial<T>): T, update(id: string, patch: Partial<T>): T | null, remove(id: string): boolean };
-export type StoredUser = Doc & Partial<User> & { username: string, passwordHash: string, access?: UserAccess };
+/** `role` is what People made it (the server's lists may raise it: auth's roleOf); `disabled` cannot sign in. */
+export type StoredUser = Doc & Partial<User> & { username: string, passwordHash: string, access?: UserAccess,
+  disabled?: boolean };
 /** An invite code as stored: its sha256, never the code (SPEC-access "Access"). */
 export type StoredInvite = Doc & { hash: string, label?: string, uses: number, used: number, expiresAt?: string,
   revokedAt?: string, createdBy: string };

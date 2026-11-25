@@ -1,7 +1,7 @@
 // HTTP API client (SPEC "HTTP API"): JSON in and out, cookie session. A non-2xx response throws an ApiError with the
 // server's message and `status` (0: the server could not be reached).
 import type {
-  Bake, BakeMode, BakingState, FlashSettings, Listed, Look, LookCreate, LookPatch, ServerStats, User, Version,
+  Account, Bake, BakeMode, BakingState, FlashSettings, Listed, Look, LookCreate, LookPatch, ServerStats, User, Version,
   VersionListed,
 } from '../../shared/schemas/api.ts';
 import type { LightSettings } from '../../shared/schemas/light.ts';
@@ -90,6 +90,11 @@ export const api = {
     body),
   /** Visits, requests and the server since it started (SPEC-access "Stats"); admins only. */
   stats: () => request<ServerStats>('GET', '/api/admin/stats'),
+  /** Every account, and an admin's changes to one (SPEC-access "People"). */
+  accounts: () => request<{ accounts: Account[] }>('GET', '/api/admin/accounts'),
+  changeAccount: (id: string, body: { role?: Account['role'], disabled?: boolean }) =>
+    request<{ account: Account }>('PUT', `/api/admin/accounts/${enc(id)}`, body),
+  removeAccount: (id: string) => request('DELETE', `/api/admin/accounts/${enc(id)}`),
 };
 
 /** Static JSON (not under /api): the rig, the palettes. */

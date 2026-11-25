@@ -10,6 +10,7 @@ import type { AccessControl } from './access.ts';
 import { perAccount } from './account-limit.ts';
 import { accessRoutes, sendRefusal } from './api-access.ts';
 import { accountRoutes } from './api-account.ts';
+import { peopleRoutes } from './api-people.ts';
 import { ideaHowRoutes } from './api-idea-how.ts';
 import { ideaLogRoutes } from './api-idea-log.ts';
 import { lightRoutes } from './api-light.ts';
@@ -114,6 +115,7 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
     const cookie = (maxAge: number) => ({ httpOnly: true, sameSite: 'lax' as const, path: '/', maxAge,
       secure: secureCookies });
     const dropFrames = (id: string) => removeFrames(framesDir, id).then(() => frames.prune());
+    const removal = { store, auth, dropFrames, previews: o.previews, log };
     const limitWrites = perAccount(api, { name: 'look', windowMs: limits.windowMs, max: limits.writeMax,
       why: 'Too many saves for now. Try again in a minute.' });
     const looks = lookRoutes({ store, auth, bakes, dropFrames, previews: o.previews, loadLibrary: loaders.loadLibrary,
@@ -226,9 +228,9 @@ export function apiRoutes(o: { store: Store, auth: Auth, queue: Queue, models: R
         return { ok: true };
       }, { public: true }],
       ...tourRoutes({ store }),
-      ...accountRoutes(api, { store, auth, dropFrames, previews: o.previews, log,
-        limit: { max: limits.max, windowMs: limits.windowMs },
+      ...accountRoutes(api, { ...removal, limit: { max: limits.max, windowMs: limits.windowMs },
         clearCookie: (reply) => reply.setCookie(COOKIE_NAME, '', cookie(0)) }),
+      ...peopleRoutes(removal),
       'GET /me': async (req) => ({ user: auth.publicUser(req.user), flash,
         ...(gen && !req.user!.guest ? { access: access.state(req.user!) } : {}), rig }),
       ...(gen && models ? { ...ideaRoutes, ...modelRoutes({ auth, models, access }),

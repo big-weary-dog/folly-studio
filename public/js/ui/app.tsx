@@ -41,6 +41,8 @@ const ROUTES: Route[] = [
     load: adminTab('light', () => import('./light.tsx').then((m) => m.LightPage)) },
   { re: /^\/admin\/baking\/?$/, name: 'baking', title: 'Baking', nav: '/admin',
     load: adminTab('baking', () => import('./baking.tsx').then((m) => m.BakingPage)) },
+  { re: /^\/admin\/people\/?$/, name: 'people', title: 'People', nav: '/admin',
+    load: adminTab('people', () => import('./people.tsx').then((m) => m.PeoplePage)) },
   { re: /^\/admin\/reports\/?$/, name: 'reports', title: 'Reports', nav: '/admin',
     load: adminTab('reports', () => import('./reports.tsx').then((m) => m.ReportsPage)) },
   { re: /^\/admin\/stats\/?$/, name: 'stats', title: 'Stats', nav: '/admin',
