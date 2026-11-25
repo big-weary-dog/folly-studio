@@ -114,7 +114,8 @@ describe('previews of shared looks', () => {
           if (hold) { holding(); await held; }
           return { bytes: late ? frames(2, 9) : frames() };
         } };
-      app = await createServer({ dataDir, publicDir, log: quiet, renderBox, rig });
+      app = await createServer({ dataDir, publicDir, log: quiet, renderBox, rig,
+        curators: 'alice, bob' });   // curators see every shared look, approved or not
       app.base = `http://127.0.0.1:${(await app.listen(0, '127.0.0.1')).port}`;
     };
     await start();

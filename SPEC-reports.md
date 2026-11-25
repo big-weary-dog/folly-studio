@@ -10,12 +10,15 @@ closes, when it all resumes as it was. The form asks "What went wrong?" (Enter s
 Esc cancels) with "Include screenshot" on.
 
 `report = { format: 1, at, note, build, page: { path, title, viewport: [w, h, dpr], userAgent, gl }, toasts,
-errors, dialogs, sources: { studio?, live? }, screenshot? }`: `toasts` the last 50, `errors` the page's last 100
+errors, dialogs, sources: { studio?, live?, look? }, screenshot? }`: `toasts` the last 50, `errors` the page's last 100
 (window errors, unhandled rejections, console.error); `sources.studio` the look (id, title, `draft`: the unsaved
 look as save() sends it, `dirty`), the selection, picked modules, mute and solo, the layout, the timeline's
 selection and zoom, the clock (`t`, playing, speed, baked), the preview (view, mode, tier, quality, venue, dimmed,
 flashing, stats), the heavy layers, the problem shown and each layer's status, and the library and rig by name and
-size; `sources.live` the stage's rev, driver, look and blackout. A reader that throws gives `{ unreadable }`; each
+size; `sources.live` the stage's rev, driver, look and blackout.
+**Report this look** (SPEC-access "Moderation") sends the same report without a screenshot or freeze, its note from
+a form asking "What is wrong with this look?", and `sources.look = { id, title, owner, ownerName }`; the Reports
+tab names the look and opens it. A reader that throws gives `{ unreadable }`; each
 piece is cut at 64,000 characters. Everything is scrubbed (`public/js/scrub.ts`): keys naming secrets blanked, IPs
 masked, URLs without query or fragment; the path has no query or hash; no cookies.
 

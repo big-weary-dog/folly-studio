@@ -17,6 +17,7 @@ useFixture();
 describe('can', () => {
   const [member, curator, admin] = ['member', 'curator', 'admin'].map((role) => ({ id: role, role }));
   const mine = { owner: 'member' }, shared = { owner: 'other', shared: true }, hidden = { owner: 'other' };
+  const approved = { ...shared, reviewed: true }, moderated = { ...approved, hidden: true };
 
   test('roles: admin above curator above member; nobody signed in may do nothing', () => {
     assert.deepEqual([member, curator, admin].map((u) => can(u, 'admin')), [false, false, true]);
@@ -26,13 +27,19 @@ describe('can', () => {
     }
   });
 
-  test('looks: the owner does anything; others see a shared one; a curator reviews and bakes what they see', () => {
+  test('looks: the owner does anything; a curator sees, reviews and bakes a shared one', () => {
     const table = (u) => ['see', 'edit', 'review', 'bake'].map((a) => [mine, shared, hidden].map((l) => can(u, a, l)));
-    assert.deepEqual(table(member), [[true, true, false], [true, false, false], [false, false, false],
+    assert.deepEqual(table(member), [[true, false, false], [true, false, false], [false, false, false],
       [true, false, false]]);
     assert.deepEqual(table(curator), [[false, true, false], [false, false, false], [false, true, false],
       [false, true, false]]);
     assert.equal(can(member, 'edit'), true, 'a new look is theirs');
+  });
+
+  test('a member sees another\'s shared look once it is approved, until a curator hides it', () => {
+    const row = (u) => [shared, approved, moderated].map((l) => can(u, 'see', l));
+    assert.deepEqual([member, curator].map(row), [[false, true, false], [true, true, true]]);
+    assert.equal(can(member, 'see', { ...moderated, owner: 'member' }), true, 'the owner sees it hidden');
   });
 
   test('delete: the owner their own; an admin any shared look, never an unshared one', () => {

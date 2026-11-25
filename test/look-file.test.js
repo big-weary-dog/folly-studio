@@ -8,7 +8,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test, vi } from 'vitest';
 
-import { createBody, fileText, fullLooks, importFiles, lookFile, looksIn, manyName } from
+import { approvedOnly, createBody, fileText, fullLooks, importFiles, lookFile, looksIn, manyName } from
   '../public/js/ui/look-file.ts';
 import { layer, signup, startApp, useFixture } from './fixtures/server.js';
 
@@ -44,6 +44,10 @@ describe('look files', () => {
       'modules go as refs, without code');
     for (const k of ['id', 'owner', 'shared', 'ideaId', 'createdAt']) assert.equal(k in f, false, k);
     assert.equal(manyName('mine', new Date('2026-10-20T12:00:00Z')), 'folly-looks-mine-2026-10-20.json');
+    const looks = [{ id: 'a', shared: true, reviewed: true }, { id: 'h', shared: true, reviewed: true, hidden: true },
+      { id: 'w', shared: true, reviewed: false }];
+    assert.deepEqual(approvedOnly(looks, true).map((l) => l.id), ['a'], 'Approved exports what it shows');
+    assert.equal(approvedOnly(looks, false).length, 3);
   });
 
   test('a file holds one look or { looks }, else says why', () => {

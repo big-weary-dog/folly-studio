@@ -2,6 +2,7 @@
 // strictly; old single-code layers stay valid; chains from before the one rule are converted on their way in, and
 // once at start.
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -116,23 +117,81 @@ describe('composed looks over the API', () => {
   });
 });
 
-test('looks stored before the rule are converted once at start: their versions too; an exact bake stays', async () => {
-  const dataDir = path.join(fx.tmp, 'data-before');
+// How a look from before the rule was stored: with its code; as refs with the hash of the code it was saved with
+// (library-refs.ts write(), in its old order); or so, the library having changed that code since.
+const STORED = { code: { layer: () => filled(OLD) }, refs: { layer: () => OLD, hash: () => codeHashOf(filled(OLD)) },
+  changed: { layer: () => OLD, hash: () => sha256('["older code"]') } };
+const sha256 = (text) => createHash('sha256').update(text).digest('hex');
+const codeHashOf = (layer) => sha256(JSON.stringify(layer.modules.map((m) => m.code)));
+
+for (const [stored, { layer, hash }] of Object.entries(STORED)) {
+  test(`looks stored before the rule (${stored}) are converted once at start, versions too; an exact bake stays while
+    its code does`, async () => {
+    const dataDir = path.join(fx.tmp, `data-before-${stored}`), kept = stored !== 'changed';
+    await mkdir(dataDir, { recursive: true });
+    // The bake's hash is of the look as read, its code filled from the library, however it was stored.
+    const at = '2025-01-01T00:00:00.000Z', bake = { source: 'render-box', status: 'done', ok: true,
+      layersHash: layersHash(renderFields({ layers: [filled(OLD)] })) };
+    const codeHash = hash ? { codeHash: hash() } : {};
+    await writeFile(path.join(dataDir, 'looks.json'), JSON.stringify([{ id: 'old', owner: 'u1', title: 'Old',
+      layers: [layer()], versions: [{ layers: [layer()], savedAt: at, reviewed: true, ...codeHash }], bake,
+      reviewed: true, shared: true, createdAt: at, updatedAt: at, ...codeHash }]));
+    // A curator sees it reviewed or not.
+    const app = await startApp({ dataDir, publicDir: PUBLIC, renderBox: fakeBox(), curators: ['before-bo'] });
+    const { look } = (await (await signup(app, 'before-bo')).get('/api/looks/old')).json;
+    assert.deepEqual([ids(look.layers), look.chain, look.updatedAt, look.reviewed], [['s', 'w'], 2, at, kept]);
+    if (kept) assert.equal(look.bake?.layersHash, layersHash(renderFields(look)), 'the same frames: the bake holds');
+    else assert.equal(look.bake, undefined, 'the library changed its code: no bake');
+    await app.close();
+    const [saved] = JSON.parse(await readFile(path.join(dataDir, 'looks.json'), 'utf8'));
+    assert.deepEqual([ids(saved.layers), ids(saved.versions[0].layers), saved.chain], [['s', 'w'], ['s', 'w'], 2]);
+    if (hash) {
+      const now = kept ? codeHashOf(filled(saved.layers[0])) : hash();
+      assert.deepEqual([saved.codeHash, saved.versions[0].codeHash], [now, now], 'the code hash, in the new order');
+    }
+  });
+}
+
+test('a chain from before the rule stored as refs converts by its code: a blur ends the mirror\'s stage', async () => {
+  const dataDir = path.join(fx.tmp, 'data-before-blur');
   await mkdir(dataDir, { recursive: true });
+  const old = { ...OLD, modules: [...OLD.modules, { id: 'b', kind: 'filter', ref: 'blur' },
+    { id: 't', kind: 'source', ref: 'streaks' }] };
   const at = '2025-01-01T00:00:00.000Z', bake = { source: 'render-box', status: 'done', ok: true,
-    layersHash: layersHash(renderFields({ layers: [filled(OLD)] })) };
-  // Stored with its code, as looks were before refs alone.
+    layersHash: layersHash(renderFields({ layers: [filled(old)] })) };
   await writeFile(path.join(dataDir, 'looks.json'), JSON.stringify([{ id: 'old', owner: 'u1', title: 'Old',
-    layers: [filled(OLD)], versions: [{ layers: [filled(OLD)], savedAt: at }], bake, reviewed: true, shared: true,
-    createdAt: at, updatedAt: at }]));
-  const app = await startApp({ dataDir, publicDir: PUBLIC, renderBox: fakeBox() });
-  const { look } = (await (await signup(app, 'before-bo')).get('/api/looks/old')).json;
-  assert.deepEqual([ids(look.layers), look.chain, look.updatedAt, look.reviewed], [['s', 'w'], 2, at, true]);
-  assert.equal(look.bake.layersHash, layersHash(renderFields(look)), 'the same frames: the bake still holds');
+    layers: [old], bake, reviewed: true, shared: true, createdAt: at, updatedAt: at,
+    codeHash: codeHashOf(filled(old)) }]));
+  const app = await startApp({ dataDir, publicDir: PUBLIC, renderBox: fakeBox(), curators: ['blur-bo'] });
+  const { look } = (await (await signup(app, 'blur-bo')).get('/api/looks/old')).json;
   await app.close();
-  const [stored] = JSON.parse(await readFile(path.join(dataDir, 'looks.json'), 'utf8'));
-  assert.deepEqual([ids(stored.layers), ids(stored.versions[0].layers), stored.chain], [['s', 'w'], ['s', 'w'], 2]);
+  // As its code says: the mirror bent the first source only, so it cannot stay exact.
+  assert.deepEqual([ids(look.layers), look.reviewed], [['s', 'w', 'b', 't'], false]);
+  assert.notEqual(look.bake?.layersHash, layersHash(renderFields(look)), 'other frames: the bake is stale');
+  const [saved] = JSON.parse(await readFile(path.join(dataDir, 'looks.json'), 'utf8'));
+  assert.ok(saved.layers[0].modules.every((m) => !('code' in m) && m.ref), 'kept as refs');
 });
+
+test('a chain from before the rule that converts exactly with a warp stop keeps its bake, the stop a blur of radius 0',
+  async () => {
+    const dataDir = path.join(fx.tmp, 'data-before-stop');
+    await mkdir(dataDir, { recursive: true });
+    const old = { ...OLD, modules: [{ id: 'b', kind: 'source', ref: 'bars' }, { id: 'w', kind: 'warp', ref: 'mirror' },
+      { id: 'h', kind: 'filter', ref: 'hue-shift' }] };
+    const at = '2025-01-01T00:00:00.000Z', bake = { source: 'render-box', status: 'done', ok: true,
+      layersHash: layersHash(renderFields({ layers: [filled(old)] })) };
+    await writeFile(path.join(dataDir, 'looks.json'), JSON.stringify([{ id: 'old', owner: 'u1', title: 'Old',
+      layers: [old], bake, reviewed: true, shared: true, createdAt: at, updatedAt: at,
+      codeHash: codeHashOf(filled(old)) }]));
+    const app = await startApp({ dataDir, publicDir: PUBLIC, renderBox: fakeBox() });
+    const { look } = (await (await signup(app, 'stop-bo')).get('/api/looks/old')).json;
+    await app.close();
+    assert.deepEqual([ids(look.layers), look.reviewed], [['b', 'stop', 'h', 'w'], true]);
+    assert.equal(look.bake?.layersHash, layersHash(renderFields(look)), 'the same frames: the bake holds');
+    const [saved] = JSON.parse(await readFile(path.join(dataDir, 'looks.json'), 'utf8'));
+    const stop = saved.layers[0].modules[1];
+    assert.deepEqual([stop.ref, stop.params?.radius, 'code' in stop], ['blur', 0, false], 'kept as a ref, radius 0');
+  });
 
 test('renderFields: plain layers unless something else plays', () => {
   const layers = [chain()];

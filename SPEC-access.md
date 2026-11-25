@@ -43,13 +43,25 @@ no email, so a forgotten password cannot be reset or recovered: Account and sign
 
 ## Who may do what
 
-A look is its owner's: only they edit it, and others see it only when it is shared. Only they delete it, but for an
+A look is its owner's: only they edit it, and others see it only when it is shared and approved (Moderation below);
+curators see every shared look. Only they delete it, but for an
 admin, who may delete any shared look: Delete on its gallery card and in the Studio's gallery notice, after a confirm
 naming the look and its owner. Asking for what a look does not allow them, anyone else is told it is not found
-(404), shared or not, so an unshared look is never revealed.
-A curator may also mark a look they can see reviewed (from the gallery, Approve), and bake it; admins are curators too, and alone use the Admin
+(404), shared or not, so an unshared or unapproved look is never revealed.
+A curator may also mark a look they can see reviewed (from the gallery, Approve), hide it, and bake it; admins are curators too, and alone use the Admin
 pages and their `/api/admin` routes (403 for anyone else; each such route names its role, or the server does not
 start).
+
+## Moderation
+
+A shared look is **approved** when a curator has marked it reviewed (SPEC "Baked frames") and no curator has hidden
+it. Only approved looks are in the gallery and open for anyone but their owner and curators; the rest are 404 to
+them, frames and previews too. A change to the frames clears the review, so an edited look waits for review again.
+A curator **hides** a shared look from its gallery card (Hide; Unhide brings it back): `hidden` stays on the look
+through edits and through unsharing and sharing again, until a curator unhides it, and the look is approved again
+only when it is also reviewed. My looks tags its owner's shared looks that are waiting for review or hidden.
+Anyone with an account may **Report this look** on a card someone else shared: a short note, sent as a report
+(SPEC "Bug reports") that names the look, for an admin to read.
 
 ## Admin
 
@@ -99,6 +111,11 @@ Cloudflare's `CF-IPCountry` when it is two capital letters. No query, cookie, he
 (`/assets`, `/data`, …), frame chunks and previews are counted but written only when they fail (4xx, 5xx)
 or are slow. Nothing per frame: one hook per HTTP request, a hash only for a
 line or a page.
+
+When a local day ends, its counts are one journal line, with the bakes and the server's state at that moment:
+`[studio] [stats] 2026-11-24 visitors=12 people=3 views=40 requests=900 errors=0 slow=2 bakes=5/0/0 uptime=86400s
+rss=120MB`, `bakes` done/failed/waiting as in `stats.bakes`. A day the server started partway through counts from its
+start.
 
 ## No AI
 

@@ -5,14 +5,14 @@ import { useRef, useState } from 'preact/hooks';
 import type { Listed } from '../../../shared/schemas/api.ts';
 import { api } from '../api.ts';
 import { download, openDialog, toast } from './kit.tsx';
-import { fileText, fullLooks, importActions, importFiles, manyName } from './look-file.ts';
+import { approvedOnly as kept, fileText, fullLooks, importActions, importFiles, manyName } from './look-file.ts';
 import { usePhone } from './phone/viewport.ts';
 
 export function LookFiles({ looks, gallery, approvedOnly, reload }: { looks: Listed[] | null; gallery: boolean;
   approvedOnly: boolean; reload: () => void }) {
   const [busy, setBusy] = useState(''), pick = useRef<HTMLInputElement>(null);
   const phone = usePhone();
-  const listed = (looks || []).filter((look) => !gallery || !approvedOnly || look.reviewed);
+  const listed = kept(looks || [], gallery && approvedOnly);
   async function exportAll() {
     setBusy(`Exporting 0 of ${listed.length}…`);
     try {
