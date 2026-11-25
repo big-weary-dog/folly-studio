@@ -244,6 +244,7 @@ Then fix the env file, or roll back: `npm run host -- --rollback`.
 backup `STUDIO_BACKUP_DIR`, `STUDIO_BACKUP_KEEP` and `STUDIO_BACKUP_OFFSITE` ([Backups](#backups)); the server ignores
 them.
 
+<!-- settings: npm run docs:settings writes this table from src/config.ts -->
 | Setting | What it is |
 | --- | --- |
 | `PORT` | the port, default 8780 |
@@ -261,8 +262,8 @@ them.
 | `STUDIO_FLASH_DELTA` | a flash's swing as a share of full light, default 0.5 |
 | `STUDIO_FLASH_AREA` | the share of the LEDs or lit area that blocks, default 0.25 |
 | `STUDIO_PREVIEWS` | the gallery previews' camera, default playa |
-| `GIT_SHA` | the build's commit, for bug reports (default: the checkout's) |
 | `STUDIO_REPORTS_DAYS` | days a bug report is kept, default 90 |
+| `GIT_SHA` | the build's commit, for bug reports (default: the checkout's) |
 | `STUDIO_BAKE_SECONDS` | the longest render-box bake, default 120 |
 | `STUDIO_BAKE_TIMEOUT` | a bake's wall clock, default scaled to its length |
 | `STUDIO_BAKE_CPU` | a bake's CPU seconds, default scaled to its length |
@@ -270,6 +271,7 @@ them.
 | `STUDIO_BAKE_NICE` | a bake's nice level (0–19), default 10 |
 | `STUDIO_BAKE_MEMORY` | a bake's memory cap, default 1GB |
 | `STUDIO_BAKE_MAX_FRAMES` | the largest baked frames, default room for the longest bake |
+<!-- /settings -->
 
 ### The flash check
 
