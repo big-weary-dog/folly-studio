@@ -29,10 +29,9 @@ export async function exportFseq(st: Studio, pv: Preview) {
       + `leave ${many ? 'them' : 'it'} out. Export the rest anyway?`;
     if (!(await confirmDialog(why, { title: 'A layer is paused', ok: 'Export anyway' }))) return undefined;
   }
-  const { ledRanges, writeFseq } = await import('../fseq.ts');
+  const { exportShape, packFrames, writeFseq } = await import('../fseq.ts');
   const rig = st.data.rig as NonNullable<typeof st.data.rig>, L = st.look.peek();
-  const fps = rig.output.fps || 40, channelCount = rig.output.universes * rig.output.channelsPerUniverse;
-  const ranges = ledRanges(rig), used = ranges.reduce((n, r) => n + r[1], 0);
+  const { fps, stepMs, frameChannels: channelCount, ranges, used } = exportShape(rig);
   // The light settings (SPEC "Light and output"), the server's: every export goes out on the same curve.
   let light: Light;
   try { light = lightOf(await api.light()); } catch (err) {
@@ -44,21 +43,12 @@ export async function exportFseq(st: Studio, pv: Preview) {
     body: (close) => <FseqForm fps={fps} close={close} runtime={runtime} light={light}
       title={L.title.trim() || 'folly-look'}
       channelCount={channelCount} ranges={ranges} used={used} duration={L.duration} running={(on) => { running = on; }}
-      write={(frames, data) => writeFseq({ frames, stepMs: Math.round(1000 / fps), data, ranges })} /> });
+      write={(frames, full) => writeFseq({ frames, stepMs, data: packFrames(full, frames, channelCount, ranges),
+        ranges })} /> });
   // An export can find a layer that hangs: show where things stand now, even when paused.
   runtime.refresh();
   pv.kick();
   return undefined;
-}
-
-/** Squeeze full frames down to the ranged channels, in place (each frame moves left). */
-function packFrames(channels: Uint8Array, frames: number, frameSize: number, ranges: [number, number][]) {
-  let to = 0;
-  for (let f = 0; f < frames; f++) {
-    const base = f * frameSize;
-    for (const [start, count] of ranges) { channels.copyWithin(to, base + start, base + start + count); to += count; }
-  }
-  return channels.subarray(0, to);
 }
 
 const Num = ({ label, ...props }: Parameters<typeof Scrub>[0] & { label: string }) =>
@@ -90,7 +80,7 @@ function FseqForm({ fps, close, runtime, light, title, channelCount, ranges, use
         } });
       setStatus('Writing the file…');
       const real = Math.floor(channels.length / channelCount) || frames;
-      const bytes = write(real, packFrames(channels, real, channelCount, ranges));
+      const bytes = write(real, channels);
       download(bytes as BlobPart, `${slugify(title, 'folly-look')}.fseq`);
       toast(`Exported ${real.toLocaleString()} frames (${(bytes.length / 1e6).toFixed(1)} MB).`, { kind: 'ok' });
       running(false);
