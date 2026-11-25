@@ -191,7 +191,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
     const { id } = was;
     const ruledNow = body.layers === undefined ? undefined
       : await ruledNamed({ ...body, layers: body.layers, summary: body.summary ?? was.summary });
-    if (ruledNow) await allowCode(ruledNow.layers);
+    await allowCode(ruledNow ? ruledNow.layers : was.layers);   // a look of custom code takes no change at all
     const look = visibleLook(id, user);
     const isOwner = auth.can(user, 'edit', look);
     const patch: Partial<Look> = {};

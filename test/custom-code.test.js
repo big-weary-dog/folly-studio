@@ -69,6 +69,10 @@ describe('as the server runs (no test options; the data and environment asking f
     assert.equal(r.status, 403, 'an import overruling a look is checked as an edit is');
     r = await bob.post('/api/looks', { title: 'Copy', layers: modules(LIBRARY) });
     assert.equal(r.status, 201, 'a copy of library code');
+    const old = app.store.looks.create({ owner: ann.user.id, title: 'Old', layers: modules(NEW), versions: [] });
+    for (const body of [{ duration: 30 }, { title: 'Renamed' }]) {
+      assert.equal((await ann.put(`/api/looks/${old.id}`, body)).status, 403, 'a saved custom look takes no change');
+    }
   });
 
   test('a composite has no code of its own: library sub-layers save; custom ones, or code on it, are refused',

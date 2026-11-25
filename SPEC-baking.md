@@ -26,9 +26,9 @@ refuse the code. `GET /api/baking`'s `box` says which box this is.
 
 ## The bake setting
 
-Admin → Baking (`/admin/baking`) sets how the render box runs, kept in
-`<STUDIO_DATA>/baking.json` as `{ mode, customCode? }` (`customCode` is always off: "Custom code") and read at each bake, so it takes effect without a restart (a missing or
-broken file is `on`). **On**: as SPEC "Baked frames" says. **Throttled**: still one at a time, at `nice` 19 whatever
+Admin → Baking (`/admin/baking`) sets how the render box runs, kept in `<STUDIO_DATA>/baking.json` as `{ mode }`
+(a `customCode` there is ignored: "Custom code") and read at each bake, so it takes effect without a restart (a
+missing or broken file is `on`). **On**: as SPEC "Baked frames" says. **Throttled**: still one at a time, at `nice` 19 whatever
 `STUDIO_BAKE_NICE` says, and each render (a bake's or a gallery preview's) starts at least 30 s after the last one
 ended, waiting outside the lane so wire encodes go on. **Off**: no render-box renders; a bake is refused (503: "An
 admin turned baking off."), Check & bake's button says so, and previews come only from bakes already made. Bakes
@@ -53,7 +53,8 @@ of its own: one whose `code` is not empty is custom, and its sub-layers' modules
 naming the module: saving 403, baking 422 at the request and again in the box, on every box ("Only looks made of
 unchanged library patterns save and bake; Layer 2's Fire is custom code."). So tuning params, restoring a version and
 copying a gallery look go on as before. The Studio's code editor is read-only and says why; pickers omit blank-code
-entries. Looks already saved with other code still play in the browser, but neither save nor bake.
+entries. Looks already saved with other code still play in the browser, but take no change (any PUT is 403) and do
+not bake.
 `baking.json`'s `customCode` is ignored; `GET /api/baking` says `customCode: false`, and `PUT /api/admin/baking`
 with `customCode: true` is 400.
 On saving or importing, exact historical copies of patterns still in the library move to its current code,
