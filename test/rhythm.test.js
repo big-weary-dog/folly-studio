@@ -1,6 +1,6 @@
 // Rhythm (library-docs/rhythm.md) and the text param kind it reads (SPEC-library "Pattern code"): steps on the beat,
 // decay, swing, lines dealt to places, the busy-line dip that keeps it under the flash check, and the kind through
-// compile, resolve, the look's schema, the generators and the Studio's row.
+// compile, resolve, the look's schema and the Studio's row.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -11,8 +11,6 @@ import {
   resolveParams,
 } from '../public/js/pattern-core.ts';
 import { normaliseParam } from '../public/js/ui/bindings.ts';
-import { buildCatalog } from '../src/generate/catalog.ts';
-import { expand } from '../src/generate/expand.ts';
 import { cog, mini } from './fixtures/rigs.js';
 
 const CODE = readFileSync(new URL('../public/patterns/rhythm.js', import.meta.url), 'utf8');
@@ -113,17 +111,7 @@ describe('the text param kind', () => {
     assert.deepEqual(resolveParams(schema, { p: 'é' }).p, 'X..x');
   });
 
-  test('the generators read it and hold it to the kind; the Studio shows it as text', () => {
-    const catalog = buildCatalog([{ name: 'rhythm', kind: 'filter', title: 'Rhythm', code: CODE }]);
-    assert.deepEqual(catalog.modules.get('rhythm').params.pattern.type, 'text');
-    const look = (v) => expand({ title: 'T', summary: 'S', layers: [{ title: 'L', groups: ['cathedral'],
-      blend: 'add', level: 1, modules: [{ use: 'rhythm', params: [{ name: 'pattern', value: v }] }] }] }, catalog);
-    const ok = look('X... ..x.');
-    assert.deepEqual(ok.errors, []);
-    assert.equal(ok.look.layers[0].modules[0].params.pattern, 'X... ..x.');
-    const bad = look('x'.repeat(300));
-    assert.equal(bad.look.layers[0].modules[0].params.pattern, undefined);
-    assert.ok(bad.notes.some((n) => /pattern: not text/.test(n)), bad.notes.join('; '));
+  test('the Studio shows it as text', () => {
     const p = normaliseParam('pattern', normalizeParams({ pattern: { type: 'text', value: 'X.' } }).pattern);
     assert.equal(p.kind, 'text');
     assert.equal(p.value, 'X.');

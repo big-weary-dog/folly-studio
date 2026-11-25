@@ -1,6 +1,6 @@
 # Folly Studio — pattern code and the library (part of the contract)
 
-What people and the AI write: a pattern, the pixel `p` it reads, the stdlib, modules and their chain, the
+What the library is written in: a pattern, the pixel `p` it reads, the stdlib, modules and their chain, the
 library, spatial modules, globals, param bindings, integrated clocks and palettes. The rig, looks, the sandbox
 and the HTTP API stay in `SPEC.md`.
 

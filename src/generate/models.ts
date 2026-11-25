@@ -8,8 +8,9 @@ import path from 'node:path';
 
 import {
   type AdminModels, EFFORTS, isPaid, type ModelChoices, type ModelEntry, type ModelsConfig, offeredTo, readModels,
-  type Role, TRANSPORT_CAPS, type Transport, TRANSPORTS,
+  TRANSPORT_CAPS, type Transport, TRANSPORTS,
 } from '../../shared/schemas/models.ts';
+import type { Role } from '../../shared/policy.ts';
 import { LIMITS } from '../../shared/schemas/access.ts';
 import { type Config, configOf } from '../config.ts';
 import type { Logger } from '../http.ts';

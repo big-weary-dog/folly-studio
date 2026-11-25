@@ -4,9 +4,9 @@ import { z } from 'zod';
 
 import ACCOUNT from '../../public/data/account.json' with { type: 'json' };
 import type { IdeaStatus } from '../idea-status.ts';
+import type { Role } from '../policy.ts';
 import type { Tour } from './tour.ts';
 import { type Automation, Bpm, Duration, Globals, type Layer, Layers, LookTitle, Summary } from './look.ts';
-import type { Role } from './models.ts';
 
 /** A body's `chain`: 2 when its chains follow the one rule; without it they are converted (SPEC "Looks"). */
 const Chain = z.literal(2, { error: 'chain must be 2 (warps bend what is above them).' }).optional();
