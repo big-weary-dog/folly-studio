@@ -22,7 +22,7 @@ import type { Action } from '../shared/policy.ts';
 import type { Auth } from './auth.ts';
 import { type createBakeQueue, layersHash, renderFields, reviewBlocker } from './bake.ts';
 import { BakeError } from './box-output.ts';
-import type { CodeGate } from './custom-code.ts';
+import type { CodeGate } from './library-gate.ts';
 import { etagMatches, HttpError, type Logger, parse } from './http.ts';
 import { currentN, nameFields, reviewFor, revisedFields, versionRoutes, versionsOf } from './look-versions.ts';
 import { roomForLook, roomToGrow } from './look-cap.ts';
@@ -91,7 +91,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
   previews?: Pick<ReturnType<typeof createPreviews>, 'want' | 'keyOf' | 'file'>,
   loadLibrary?: () => readonly LibraryEntry[], log?: Logger }) {
   const ownerName = (id: string) => store.users.get(id)?.username ?? '';
-  /** 403 for code that is not the library's (src/custom-code.ts). */
+  /** 403 for code that is not the library's (src/library-gate.ts). */
   const allowCode = (layers: unknown) => codeGate?.check(layers, (why) => new HttpError(403, why));
   /** A body's layers as the one rule reads them, each standard module named as the library names it. */
   const ruledNamed = async (body: Parameters<typeof ruled>[0]) => {

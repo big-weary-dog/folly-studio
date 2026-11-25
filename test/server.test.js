@@ -296,7 +296,7 @@ describe('without public files yet', () => {
   beforeAll(async () => {
     const empty = path.join(fx.tmp, 'public-empty');
     await mkdir(empty, { recursive: true });
-    app = await createServer({ customCode: true,
+    app = await createServer({
       dataDir: path.join(fx.tmp, 'data-fallback'),
       publicDir: empty,
       distDir: empty,

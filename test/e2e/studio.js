@@ -31,7 +31,7 @@ export const test = base.extend({
   }, { scope: 'worker' }],
   studio: [async ({ serverOptions }, use) => {
     const dataDir = await mkdtemp(path.join(os.tmpdir(), 'studio-browser-'));
-    const app = await createServer({ dataDir, distDir: await builtApp(), log: quiet, customCode: true,
+    const app = await createServer({ dataDir, distDir: await builtApp(), log: quiet,
       ...serverOptions });
     const { port } = await app.listen(0, '127.0.0.1');
     await use({ app, origin: `http://127.0.0.1:${port}` });

@@ -43,8 +43,7 @@ behind HTTPS, `STUDIO_TRUST_PROXY=1` behind a tunnel on this machine, `STUDIO_FR
 `npm run config:check -- <file>` says whether a settings file would start the server. `docs/HOSTING.md` covers
 running it at home behind a tunnel, and `npm run backup` makes a dated `.tar.gz` of the data.
 
-The render-box tests need bubblewrap (`apt install bubblewrap`) and unprivileged user namespaces (the library-only
-box's need prlimit alone). Without them they skip (`ctx.skip(condition, reason)`) and the run ends listing each
+The render-box tests need prlimit (util-linux). Without it they skip (`ctx.skip(condition, reason)`) and the run ends listing each
 skipped test and why (`test/skip-reporter.js`). The rigs come from a lighting checkout (below, "Show data");
 `npm run e2e` alone needs a show-builder checkout (big-weary-dog/show-builder), for its `relay/` and `mirage/`:
 `SHOW_BUILDER_DIR`, by default `../show-builder` beside this repo.
@@ -188,13 +187,13 @@ Everything installation-specific is one file, the rig `STUDIO_RIG` picks (SPEC "
 | `src/static.ts` | The built app from `dist/` (@fastify/static: the precompressed copies, ETags, cache headers with `assets/` kept a year, the CSPs, the shell for SPA routes); the library and rig loaders |
 | `vite.config.js`, `tools/vite-sandbox.ts`, `tools/vite-compress.ts`, `tools/dev.ts` | The build (`public/` → `dist/`); the sandbox page, its scripts inlined; the `.br` and `.gz` copies of its text; `npm run dev` |
 | `src/frames.ts` | Pure: strict FSEQ parsing and frame analysis (brightness, flicker) |
-| `src/bake.ts`, `render-box.ts`, `box-output.ts`, `core-script.ts` | The one-at-a-time bake queue and frame files; the render box under bubblewrap; what a box hands back, read as data; the core from its source for the boxes |
-| `src/box-library.ts`, `baking.ts`, `custom-code.ts` | Where bakes run (`SPEC-baking.md`): which looks may save and bake (library code, by hash; custom code is off); the admin's bake setting (on, throttled, off) in front of the box, and its routes; the gate on saving |
+| `src/bake.ts`, `render-box.ts`, `box-output.ts`, `core-script.ts` | The one-at-a-time bake queue and frame files; the render box, its own process under limits; what a box hands back, read as data; the core from its source for the boxes |
+| `src/baking.ts`, `library-gate.ts` | `SPEC-baking.md`: the admin's bake setting (on, throttled, off) in front of the box, and its routes; the gate on saving (library modules only: by ref, or by exact file) |
 | `src/frames-wire.ts`, `frames-cache.ts`, `frames-http.ts`, `fseq-codec.ts` | Baked frames on the wire: the stream encoder; the chunks and downloads kept by hash under a disk cap, made one job at a time by the encoder thread; their routes; FSEQ zstd/zlib blocks |
 | `src/frames-worker.ts` | The encoder thread, at nice 10 |
 | `src/stats.ts` | The request log and Admin → Stats (SPEC-access "Stats"): a journal line per request worth reading, and the day's counts kept in memory, bounded |
 | `src/api-reports.ts`, `src/reports/` | F8 bug reports (SPEC "Bug reports"): their routes; `store.ts` (a folder per report, pruned by count, bytes and days), `build.ts` (the checkout's commit) |
-| `render-box/render.ts`, `renderer.ts` | Bakes a look to `.fseq` inside bubblewrap; its frame loop |
+| `render-box/render.ts`, `renderer.ts` | Bakes a look to `.fseq` in the render box; its frame loop |
 | `public/index.html`, `css/` | The app shell and its styles: `base.css` (tokens, layout and components) on every page; the rest, one per view or panel, imported by their views' modules, so Vite loads them with them |
 | `public/sandbox.html`, `js/sandbox-relay.ts`, `js/sandbox-worker.ts` | The sandboxed pattern runner (SPEC "Sandbox protocol"): the page Vite inlines them into; the relay and watchdog; the Worker |
 | `public/js/pattern-core.ts`, `core/` | Pure: stdlib (with palettes), picks (colour picks, pal() and swatch() per module), clocks (clock(): a speed param's integrated distance), compile, scene (the rig, its groups and tags), timeline, render (layers, in stages round spatial modules), chain (a chain made runnable, a composite's sub-layers as chains of their own), pass (the per-pixel pass through a chain, composites included), tree (a chain's modules as a tree: flat, mapped), warps (the one rule: a warp bends what is above it, up to a stage end), output (compositing, DMX channels), light (the one place colour values become light: the settings, the output transform, each byte's light), spatial (the neighbour graph and the native blur), links (the neighbour map: which LEDs touch, and wireDistance and rowOrder along it), globals (with automation and param bindings), flash (the flash check, for bakes and the preview alike); re-exported with their types (`Scene`, `PreparedLayer`, `Pixel`, …); runs in the sandbox, the boxes and tests |
@@ -280,12 +279,10 @@ cover.
   at an opaque origin, under `default-src 'none'` (no network, cookies or storage), inside a
   Worker, so a hang cannot freeze the tab; a watchdog replaces a hung worker or iframe. The app
   page and the server's own process never run it.
-- **The render box** runs `render-box/render.ts` under bubblewrap: `--unshare-all` (no
-  network), `--clearenv`, read-only node and inputs, a 1 MB tmpfs `/out` whose two output files alone are the host's,
-  prlimits and a wall clock. Inside, patterns get a `node:vm` realm holding only the stdlib. Without bubblewrap it runs
-  in the same realm under the same limits. Every box bakes only looks made of unchanged library patterns (checked by
-  hash: our own code, not untrusted); anything else is refused. A box's output is bytes the server parses strictly
-  and measures. Custom code is off: no other code is saved at all (SPEC-baking "Custom code").
+- **The render box** runs `render-box/render.ts` as its own process under `env -i`, a systemd scope, prlimits and a
+  wall clock. Inside, patterns get a `node:vm` realm holding only the stdlib. It bakes stored looks, whose modules are
+  library refs, and a save takes only library modules (SPEC-baking "Library only"). A box's output is bytes the
+  server parses strictly and measures.
 - **CSRF.** Every mutation must be `Content-Type: application/json`, and if an `Origin` header
   is present it must match the host (the forwarded one only from a proxy on this machine, with
   `STUDIO_TRUST_PROXY`). Cookies are `SameSite=Lax`.

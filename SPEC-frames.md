@@ -12,18 +12,15 @@ marks the look reviewed. A gallery card not yet reviewed gives a curator **Appro
 the look unless it has a render-box bake (Baking…), then marks it reviewed if that passes; flashing asks the reason,
 as here; any other failure says why and points to Check & bake.
 
-- **Boxes.** `render-box` (authoritative): `src/render-box.ts` runs `render-box/render.ts` under bubblewrap
-  (`--unshare-all`, no network, `--clearenv`, read-only node + its libraries + the core as one script
-  (`src/core-script.ts`, from its source) / renderer.ts / fseq.ts / rig.json / `public/patterns` (for `use`), tmpfs
-  /tmp, one empty writable /out; the look on stdin as `{ layers, globals?, automation?, bpm? }`), a cgroup (tasks,
-  memory), prlimit (CPU s, file size; no RLIMIT_AS) and a wall-clock kill. Inside, layers run in a `node:vm` realm
-  holding only the stdlib (defence in depth). Each frame has a 2 s CPU budget, checked after it returns;
-  a 20 s VM wall-clock timeout stops a frame that never returns, even under CPU starvation.
-  Without bubblewrap, the box checks its host's PID before loading and between frames and exits if reparented;
-  a hung frame still has the same 20 s wall-clock limit.
-  /out is a 1 MB tmpfs inside the box with only `frames.fseq` and
-  `result.json` bound to the host, so each is capped by the file-size limit and nothing else the box writes reaches
-  the host's disk. Library code only; the bake setting and custom code: `SPEC-baking.md`.
+- **Boxes.** `render-box` (authoritative): `src/render-box.ts` runs `render-box/render.ts` as its own process in a
+  fresh folder (the core as one script (`src/core-script.ts`, from its source), renderer.ts, fseq.ts and rig.json
+  copied beside it, `public/patterns` linked for `use`, an empty out/; the look on stdin as `{ layers, globals?,
+  automation?, bpm? }`), under `env -i`, a cgroup (tasks, memory), prlimit (CPU s, file size, which caps what it
+  writes; no RLIMIT_AS) and a wall-clock kill. Inside, layers run in a `node:vm` realm holding only the stdlib. Each
+  frame has a 2 s CPU budget, checked after it returns; a 20 s VM wall-clock timeout stops a frame that never
+  returns, even under CPU starvation. The box checks its host's PID before loading and between frames and exits if
+  reparented. The server reads only `frames.fseq` and `result.json` from out/, each bounded. Library code only; the
+  bake setting: `SPEC-baking.md`.
   One bake at a time, under `nice` (`STUDIO_BAKE_NICE`, default 10), in a lane it shares with wire encodes
   (`src/bake.ts` `createLane`). Both run the same core and `renderer.ts`.
 - **Length.** A bake renders the look's `duration` from t = 0, honouring clips, but at most

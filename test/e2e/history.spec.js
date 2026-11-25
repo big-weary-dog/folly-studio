@@ -3,6 +3,7 @@
 // versions, previews one (the view says so, editing and saving wait), goes back to the work, restores one, saves a
 // named version and names a past one. Ctrl+S saves a focused field's typing.
 // With HISTORY_SHOTS set to a folder, each state's screenshot goes there.
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { drawn } from './drawn.js';
@@ -12,8 +13,8 @@ const SIZES = {
   laptop: { viewport: { width: 1366, height: 768 } },
   phone: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
 };
-const PIXEL = 'function pixel(p, t, P) { return [p.x, p.y, p.z]; }';
-const layer = (level) => ({ id: 'l1', title: 'Glow', code: PIXEL, level, params: {} });
+const WASH = readFileSync(new URL('../../public/patterns/colour-wash.js', import.meta.url), 'utf8');
+const layer = (level) => ({ id: 'l1', title: 'Glow', code: WASH, level, params: {} });
 const palette = (body) => ({ low: ['#120a2a'], body: [body], accent: ['#ffb070'], high: ['#fff4e0'] });
 
 /** A look of `cookie`'s, saved three times: versions 1 (red), 2 (green) and 3 (blue, as saved). */

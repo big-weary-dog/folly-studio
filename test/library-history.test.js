@@ -7,8 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 import { test } from 'vitest';
 
-import { customCode, libraryHashes } from '../src/box-library.ts';
-import { createCodeGate } from '../src/custom-code.ts';
+import { createCodeGate, customCode, libraryHashes } from '../src/library-gate.ts';
 import { parseFseq } from '../src/frames.ts';
 import { createRenderBox } from '../src/render-box.ts';
 import { fx, quiet, signup, startApp, useFixture } from './fixtures/server.js';
@@ -29,7 +28,7 @@ test('library only: import an earlier committed Noise, upgrade to playable code,
   const currentWash = readFileSync(path.join(publicDir, 'patterns/colour-wash.js'), 'utf8');
   assert.notEqual(oldWash, currentWash);
   const wash = (code) => ({ id: 'm2', kind: 'source', title: 'Colour wash', code, params: {} });
-  const app = await startApp({ publicDir, dataDir: path.join(fx.tmp, 'history'), customCode: false });
+  const app = await startApp({ publicDir, dataDir: path.join(fx.tmp, 'history') });
   try {
     const ann = await signup(app, 'ann');
     const body = { origin: 'old-prod-noise', title: 'Simple Noise Bed', chain: 2, layers: layers(oldNoise) };
@@ -46,11 +45,10 @@ test('library only: import an earlier committed Noise, upgrade to playable code,
     assert.deepEqual(imported.json.look.automation, { breath: body.automation.breath },
       'stale lanes for missing macros are inert; keep the real macro lane');
     assert.equal(customCode(imported.json.look.layers, await libraryHashes(path.join(publicDir, 'patterns'))), '',
-      'the imported look passes the render box gate without bubblewrap');
-    const box = createRenderBox({ bwrap: 'no-such-bwrap', seconds: 1, systemdRun: '', log: quiet });
-    assert.ok((await box.probe()).libraryOnly);
+      'the imported look is library code');
+    const box = createRenderBox({ seconds: 1, systemdRun: '', log: quiet });
     const baked = await box.render({ layers: imported.json.look.layers });
-    assert.equal(parseFseq(baked.bytes).frameCount, 40, 'the imported look really bakes without bubblewrap');
+    assert.equal(parseFseq(baked.bytes).frameCount, 40, 'the imported look really bakes');
     const repeated = await ann.post('/api/looks', body);
     assert.equal(repeated.status, 200, repeated.text);
     assert.equal(repeated.json.imported, 'unchanged');
@@ -70,7 +68,7 @@ test('library only: import an earlier committed Noise, upgrade to playable code,
 
 test('historical library copies save and bake as library code; edited or retired ones do not', async () => {
   const patternsDir = path.join(publicDir, 'patterns');
-  const gate = createCodeGate({ on: () => false, patternsDir });
+  const gate = createCodeGate({ patternsDir });
   const allows = async (code) => !(await gate.refuses([{ code }]));
   assert.equal(await allows(oldNoise), true);
   assert.equal(await allows(`${oldNoise} `), false);
@@ -78,7 +76,7 @@ test('historical library copies save and bake as library code; edited or retired
     { cwd: publicDir, encoding: 'utf8' });
   assert.equal(await allows(retired), false, 'retired patterns have no current library replacement');
   const library = await libraryHashes(patternsDir);
-  assert.equal(customCode(layers(oldNoise), library), '', 'the render box takes the exact earlier copy');
+  assert.equal(customCode(layers(oldNoise), library), '', 'a save takes the exact earlier copy');
   assert.match(customCode(layers(`${oldNoise} `), library), /custom code/);
   assert.match(customCode(layers(retired), library), /custom code/);
 });

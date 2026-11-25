@@ -1,8 +1,7 @@
-// The render box: render-box/render.ts under bubblewrap (SPEC "Baked frames"), or without bubblewrap or user
-// namespaces as its own process under the same limits. Either way it bakes only looks made of unchanged library
-// patterns (src/box-library.ts, SPEC-baking "Custom code") and refuses any other code.
+// The render box: render-box/render.ts as its own process under limits (SPEC "Baked frames"), off the server's event
+// loop. It bakes stored looks, whose code is always the library's (src/library-refs.ts).
 
-import { execFile, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { constants as FS, promises as fs } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -10,7 +9,6 @@ import { fileURLToPath } from 'node:url';
 
 import { DEFAULT_BAKE_SECONDS, framesBytesFor } from './bake.ts';
 import { busEnv, scopeLimits } from './box-limits.ts';
-import { customCode, libraryHashes } from './box-library.ts';
 import { BakeError, cleanBoxStats, CONTROL, readUntrusted } from './box-output.ts';
 import type { LayerInput } from '../public/js/pattern-core.ts';
 import { type Config, configOf } from './config.ts';
@@ -21,7 +19,6 @@ import type { Logger } from './http.ts';
 const STUDIO = fileURLToPath(new URL('../', import.meta.url));
 const SECOND = 1000;
 const FPS = 40;
-const OUT_FILES = ['frames.fseq', 'result.json'];   // what render.ts writes, and all the server reads
 
 async function which(cmd: string, PATH: string | undefined) {
   if (cmd.includes('/')) return cmd;
@@ -32,48 +29,27 @@ async function which(cmd: string, PATH: string | undefined) {
   return null;
 }
 
-// The node binary and the libraries it loads (ldd), as read-only binds at their own paths, with
-// LD_LIBRARY_PATH for them. A static node needs none; without ldd, the system lib dirs.
-async function runtimeBinds(node: string) {
-  const real = await fs.realpath(node);
-  const out = await new Promise<string | null>((resolve) => {
-    execFile('ldd', [real], { timeout: 10 * SECOND }, (err, stdout) => resolve(err ? null : String(stdout)));
-  });
-  const binds: string[] = [];
-  if (out === null) {
-    const dirs = ['/usr/lib', '/usr/lib64', '/lib', '/lib64'];
-    for (const d of dirs) if (await fs.stat(d).catch(() => null)) binds.push('--ro-bind', await fs.realpath(d), d);
-    return { node: real, binds, libraryPath: dirs.join(':') };
-  }
-  const libs = [...new Set([...out.matchAll(/(\/[^\s()]+)\s+\(0x[0-9a-f]+\)/g)].map((m) => m[1]!))];
-  for (const lib of libs) binds.push('--ro-bind', await fs.realpath(lib), lib);
-  return { node: real, binds, libraryPath: [...new Set(libs.map((l) => path.dirname(l)))].join(':') };
-}
-
 /**
- * The box: probe(), refuses(layers), render(job) → { bytes, boxStats, ms, seconds }. Each render gets a fresh folder
- * with the core as one script (src/core-script.ts, from its source) and an empty /out, in its own systemd user scope
- * (tasks, memory; src/box-limits.ts has the fallback), under prlimit (CPU, file size) and a wall clock, in `bwrap
- * --unshare-all --cap-drop ALL --clearenv` with everything read-only but /out's two files and a 16 MB /tmp (library
- * only: no bwrap but `env -i`, the files copied beside the script). No RLIMIT_AS: V8 reserves large
+ * The box: probe(), render(job) → { bytes, boxStats, ms, seconds }. Each render gets a fresh folder with the core as
+ * one script (src/core-script.ts, from its source), the box's files copied beside it, and an empty out/, in its own
+ * systemd user scope (tasks, memory; src/box-limits.ts has the fallback), under prlimit (CPU, file size), a wall
+ * clock and `env -i`. No RLIMIT_AS: V8 reserves large
  * ranges up front and it crashes; RLIMIT_DATA caps writable maps. Options (environment): seconds
  * (STUDIO_BAKE_SECONDS, 120, ≤ 600), timeoutMs (STUDIO_BAKE_TIMEOUT; 30 s + 1.5 s per second baked, ≥ 90 s),
  * cpuSeconds (STUDIO_BAKE_CPU; likewise, ≥ 120), tasks (STUDIO_BAKE_TASKS, 256), memoryBytes (STUDIO_BAKE_MEMORY,
  * 1 GB; 0 = none), maxFramesBytes (STUDIO_BAKE_MAX_FRAMES; 64 MB or what `seconds` needs), nice (STUDIO_BAKE_NICE, 10:
  * the box runs at low priority), frameTimeoutMs (2 CPU s; VM wall time and loading get ten times it),
- * publicDir, script, node,
- * bwrap, prlimit, systemdRun ('' = no scope), tmpRoot.
+ * publicDir, script, node, prlimit, systemdRun ('' = no scope), tmpRoot.
  */
 type Options = Partial<Record<'publicDir' | 'script' | 'fseqFile' | 'rigFile' | 'coreFile' | 'patternsDir' | 'node'
-  | 'bwrap' | 'prlimit' | 'systemdRun' | 'tmpRoot', string> & Record<'seconds' | 'timeoutMs' | 'cpuSeconds' | 'tasks'
+  | 'prlimit' | 'systemdRun' | 'tmpRoot', string> & Record<'seconds' | 'timeoutMs' | 'cpuSeconds' | 'tasks'
   | 'nice' | 'memoryBytes' | 'maxFramesBytes' | 'frameTimeoutMs', number> & { env: NodeJS.ProcessEnv, config: Config,
-  log: Logger, customCode: boolean }>;
+  log: Logger }>;
 export type RenderBox = ReturnType<typeof createRenderBox>;
 /** What a bake renders: the look on the box's stdin; `nice` above the box's own runs it lower still. */
 type Job = { layers: readonly LayerInput[], seconds?: number, globals?: unknown, automation?: unknown, bpm?: unknown,
   nice?: number };
-/** libraryOnly: why bubblewrap is not used. */
-type Probe = { ok: true, libraryOnly?: string } | { ok: false, reason: string };
+type Probe = { ok: true } | { ok: false, reason: string };
 
 export function createRenderBox(o: Options = {}) {
   const env = o.env || process.env, c = o.config ?? configOf(env);
@@ -98,12 +74,11 @@ export function createRenderBox(o: Options = {}) {
     },
     coreFile: o.coreFile || path.join(publicDir, 'js/pattern-core.ts'),
     patternsDir: o.patternsDir || path.join(publicDir, 'patterns'),    // the library, for use()
-    node: o.node || process.execPath, bwrap: o.bwrap || 'bwrap', prlimit: o.prlimit || 'prlimit',
+    node: o.node || process.execPath, prlimit: o.prlimit || 'prlimit',
     systemdRun: o.systemdRun ?? 'systemd-run',
     tmpRoot: o.tmpRoot || tmpdir(), log: o.log || console,
   };
   const children = new Set<ReturnType<typeof spawn>>();
-  const boxScript = () => `/box/${path.basename(cfg.script)}`; // its own name: Node runs a .ts one as TypeScript
   let probed: Promise<Probe> | undefined;
   let found: ReturnType<typeof findTools> | null = null;
   const tools = () => (found ||= findTools().catch((err) => { found = null; throw err; }));
@@ -111,7 +86,6 @@ export function createRenderBox(o: Options = {}) {
   async function findTools() {
     const missing = (what: string) => new BakeError(`The render box is not available: ${what} is not installed on this `
       + 'server.');
-    const bwrap = await which(cfg.bwrap, env.PATH);
     const prlimit = await which(cfg.prlimit, env.PATH);
     if (!prlimit) throw missing('prlimit (util-linux)');
     for (const f of [cfg.script, cfg.coreFile, ...Object.values(cfg.files)]) {
@@ -123,14 +97,14 @@ export function createRenderBox(o: Options = {}) {
       throw new BakeError('The render box is not set up on this server.', `missing ${cfg.patternsDir}`);
     }
     const nice = await which('nice', env.PATH), envBin = await which('env', env.PATH);
-    if (!bwrap && !envBin) throw missing('env (coreutils)');
+    if (!envBin) throw missing('env (coreutils)');
     const systemdRun = cfg.systemdRun ? await which(cfg.systemdRun, env.PATH) : null;
     const scope = await scopeLimits(systemdRun, cfg.node, env);
     const memory = cfg.memoryBytes > 0 ? (scope.pids && scope.memory ? 'MemoryMax' : 'RLIMIT_DATA') : 'no memory cap';
     if (scope.pids) cfg.log.info?.(`[bake] render box: a systemd user scope per bake (TasksMax, ${memory})`);
     else cfg.log.warn?.(`[bake] render box: no systemd user scope, so no task cap but the account's; ${memory}`);
-    return { bwrap, prlimit, nice, envBin, systemdRun: scope.pids ? systemdRun : null, scope,
-      runtime: await runtimeBinds(cfg.node) };
+    return { prlimit, nice, envBin, systemdRun: scope.pids ? systemdRun : null, scope,
+      node: await fs.realpath(cfg.node) };
   }
 
   // Time budgets grow with the bake: 30 s plus 1.5 s per second of frames (a 25 ms frame is real time).
@@ -140,9 +114,9 @@ export function createRenderBox(o: Options = {}) {
   });
 
   type Ran = { code: number | null, signal: string | null, timedOut: boolean, stderr: string, error?: Error };
-  type Run = { boxed: boolean, timeoutMs: number, cpuSeconds?: number, nice?: number };
-  function run(t: Awaited<ReturnType<typeof findTools>>, work: string | null, command: string[], input: string,
-    { boxed, timeoutMs, cpuSeconds = budget(cfg.seconds).cpuSeconds, nice = cfg.nice }: Run): Promise<Ran> {
+  type Run = { timeoutMs: number, cpuSeconds?: number, nice?: number };
+  function run(t: Awaited<ReturnType<typeof findTools>>, work: string, command: string[], input: string,
+    { timeoutMs, cpuSeconds = budget(cfg.seconds).cpuSeconds, nice = cfg.nice }: Run): Promise<Ran> {
     // The bake's own cgroup counts its tasks and memory alone (src/box-limits.ts).
     const scope = t.systemdRun ? [t.systemdRun, '--user', '--scope', '--quiet', '--collect', '-p',
       `TasksMax=${cfg.tasks}`] : [];
@@ -151,32 +125,15 @@ export function createRenderBox(o: Options = {}) {
       scope.push('-p', `MemoryMax=${cfg.memoryBytes}`, '-p', 'MemorySwapMax=0');
     } else if (cfg.memoryBytes > 0) limits.push(`--data=${cfg.memoryBytes}`);
     const node = ['--max-old-space-size=512', '--disallow-code-generation-from-strings', ...command];
-    const box = !boxed ? [t.envBin!, '-i', t.runtime.node, ...node] : [t.bwrap!,
-      '--unshare-all', '--die-with-parent', '--new-session', '--cap-drop', 'ALL', '--clearenv',
-      '--setenv', 'LD_LIBRARY_PATH', t.runtime.libraryPath, '--setenv', 'TMPDIR', '/tmp',
-      '--proc', '/proc', '--dev', '/dev', '--size', String(16 * 1024 * 1024), '--tmpfs', '/tmp',
-      ...t.runtime.binds,
-      '--ro-bind', t.runtime.node, '/box/node',
-      '--ro-bind', cfg.script, boxScript(),
-      ...Object.entries(cfg.files).flatMap(([name, from]) => ['--ro-bind', from, `/box/${name}`]),
-      '--ro-bind', cfg.patternsDir, '/box/patterns',
-      ...(work ? ['--ro-bind', path.join(work, 'box/pattern-core.js'), '/box/pattern-core.js'] : []),
-      // /out is the box's own small tmpfs; only the two files the server reads are the host's, each capped by --fsize,
-      // so nothing else written there reaches the host's disk.
-      ...(work ? ['--size', String(1024 * 1024), '--tmpfs', '/out', ...OUT_FILES.flatMap((f) => ['--bind',
-        path.join(work, 'out', f), `/out/${f}`])] : []),
-      '--remount-ro', '/', '--chdir', '/box',
-      '--', '/box/node', ...node,
-    ];
+    const box = [t.envBin!, '-i', t.node, ...node];
     const argv = [...scope, ...(scope.length ? ['--'] : []), t.prlimit, ...limits, '--', ...box];
     return new Promise((resolve) => {
       // Under nice, so a bake never starves the server or the machine it shares.
       const [cmd, ...args] = t.nice && nice > 0 ? [t.nice, '-n', String(Math.min(19, nice)), ...argv] : argv;
       const child = spawn(cmd!, args, { stdio: ['pipe', 'ignore', 'pipe'], env: t.systemdRun ? busEnv(env) : {},
-        ...(work && !boxed ? { cwd: path.join(work, 'box') } : {}) });
+        cwd: path.join(work, 'box') });
       children.add(child);
       let stderr = '', timedOut = false;
-      // bwrap --die-with-parent takes the whole box down with it
       const timer = setTimeout(() => { timedOut = true; child.kill('SIGKILL'); }, timeoutMs);
       child.stderr.on('data', (d) => (stderr = (stderr + d).slice(-4096)));
       child.stdin.on('error', () => {});
@@ -191,38 +148,11 @@ export function createRenderBox(o: Options = {}) {
     });
   }
 
-  /** Can this server run the box? Checked once (a few tens of ms), then remembered. */
+  /** Can this server run the box? Checked once, then remembered. */
   function probe() {
-    probed ||= (async (): Promise<Probe> => {
-      let t;
-      try {
-        t = await tools();
-      } catch (err) {
-        return { ok: false, reason: (err as BakeError).reason || String((err as Error).message) };
-      }
-      let why = 'bubblewrap (bwrap) is not installed';
-      if (t.bwrap) {
-        const r = await run(t, null, ['-e', '0'], '', { boxed: true, timeoutMs: 30 * SECOND });
-        if (r.code === 0) return { ok: true };
-        cfg.log.warn?.(`[bake] render box probe failed: ${r.error?.message || r.stderr || `exit ${r.code}`}`);
-        why = 'bubblewrap cannot create its namespaces (user namespaces may be disabled)';
-      }
-      cfg.log.warn?.(`[bake] render box: library only (${why})`);
-      return { ok: true, libraryOnly: `${why[0]!.toUpperCase()}${why.slice(1)}, so this server bakes only looks made `
-        + 'of unchanged library patterns.' };
-    })();
+    probed ||= tools().then((): Probe => ({ ok: true }),
+      (err) => ({ ok: false, reason: (err as BakeError).reason || String((err as Error).message) }));
     return probed;
-  }
-
-  /** Why these layers may not bake ('' when they may): custom code. `customCode` (tests only) lets other code bake
-   * under bubblewrap, never without. */
-  async function custom(layers: readonly LayerInput[], boxed = true) {
-    return o.customCode && boxed ? '' : customCode(layers, await libraryHashes(cfg.patternsDir));
-  }
-  /** Why the box will not bake these layers here ('' when it will): no box, or custom code. */
-  async function refuses(layers: readonly LayerInput[]) {
-    const p = await probe();
-    return p.ok ? custom(layers, !p.libraryOnly) : p.reason;
   }
 
   /**
@@ -232,30 +162,24 @@ export function createRenderBox(o: Options = {}) {
   async function render({ layers, seconds: want, globals, automation, bpm, nice }: Job) {
     const p = await probe();
     if (!p.ok) throw new BakeError(p.reason);
-    const custom = await refuses(layers);
-    if (custom) throw Object.assign(new BakeError(custom), { status: 422 });
-    const boxed = !p.libraryOnly, t = await tools();
+    const t = await tools();
     const secs = Math.round(Math.min(cfg.seconds, want! > 0 ? want! : cfg.seconds) * FPS) / FPS || 1 / FPS;
     const { timeoutMs, cpuSeconds } = budget(secs);
     const work = await fs.mkdtemp(path.join(cfg.tmpRoot, 'folly-bake-'));
     const out = path.join(work, 'out'), here = path.join(work, 'box');
     try {
       await fs.mkdir(out);
-      if (boxed) for (const f of OUT_FILES) await fs.writeFile(path.join(out, f), '');
       await fs.mkdir(here);
       await fs.writeFile(path.join(here, 'pattern-core.js'), bundle(cfg.coreFile).text);
-      if (!boxed) { // what bwrap binds at /box, as files beside the script
-        const files = { [path.basename(cfg.script)]: cfg.script, ...cfg.files };
-        for (const [name, from] of Object.entries(files)) await fs.copyFile(from, path.join(here, name));
-        await fs.symlink(path.resolve(cfg.patternsDir), path.join(here, 'patterns'));
-      }
-      const command = [boxed ? boxScript() : path.join(here, path.basename(cfg.script)), '--out', boxed ? '/out' : out,
-        '--seconds', String(secs), '--frame-ms', String(cfg.frameTimeoutMs),
-        ...(!boxed ? ['--parent-pid', String(process.pid)] : [])];
+      const files = { [path.basename(cfg.script)]: cfg.script, ...cfg.files };
+      for (const [name, from] of Object.entries(files)) await fs.copyFile(from, path.join(here, name));
+      await fs.symlink(path.resolve(cfg.patternsDir), path.join(here, 'patterns'));
+      const command = [path.join(here, path.basename(cfg.script)), '--out', out, '--seconds', String(secs),
+        '--frame-ms', String(cfg.frameTimeoutMs), '--parent-pid', String(process.pid)];
       const started = Date.now();
       const look = { layers, ...(globals ? { globals } : {}), ...(automation ? { automation } : {}),
         ...(bpm ? { bpm } : {}) };
-      const r = await run(t, work, command, JSON.stringify(look), { boxed, timeoutMs, cpuSeconds,
+      const r = await run(t, work, command, JSON.stringify(look), { timeoutMs, cpuSeconds,
         nice: Math.max(cfg.nice, nice ?? 0) });
       const took = `The bake took longer than ${Math.round(timeoutMs / SECOND)} s and was stopped.`;
       if (r.timedOut) throw new BakeError(took);
@@ -286,5 +210,5 @@ export function createRenderBox(o: Options = {}) {
     }
   }
 
-  return { probe, custom, refuses, render, stop: () => children.forEach((c) => c.kill('SIGKILL')), config: cfg };
+  return { probe, render, stop: () => children.forEach((c) => c.kill('SIGKILL')), config: cfg };
 }

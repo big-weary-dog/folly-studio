@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { keepStandardTitles, standardTitle } from '../shared/standard-modules.ts';
-import { fakeBox, fx, PIXEL, signup, startApp, useFixture } from './fixtures/server.js';
+import { fakeBox, fx, signup, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url));
@@ -16,8 +16,8 @@ const index = JSON.parse(readFileSync(new URL('../public/patterns/index.json', i
 const STREAKS = index.find((e) => e.name === 'streaks').title;
 const LIB = [{ name: 'streaks', title: STREAKS }, { name: 'bare' }, { name: 'set', kind: 'preset', title: 'Set' }];
 const layer = (mods) => ({ id: 'l1', title: 'L', groups: ['cathedral'], modules: mods });
-const std = (title) => ({ id: 'a', kind: 'source', title, ref: 'streaks', code: PIXEL });
-const own = (title) => ({ id: 'b', kind: 'source', title, code: PIXEL });
+const std = (title) => ({ id: 'a', kind: 'source', title, ref: 'streaks' });
+const own = (title) => ({ id: 'b', kind: 'source', title });
 
 describe('the rule', () => {
   test('a ref the library has is standard, named as the library names it; else custom', () => {
@@ -40,13 +40,12 @@ describe('over the API', () => {
   });
   afterAll(() => app.close());
 
-  test('a standard module renamed keeps its library name; a custom one takes the new name', async () => {
-    const made = await ana.post('/api/looks', { title: 'S', chain: 2, layers: [layer([std('Glints'), own('One')])] });
+  test('a standard module renamed keeps its library name', async () => {
+    const made = await ana.post('/api/looks', { title: 'S', chain: 2, layers: [layer([std('Glints')])] });
     assert.equal(made.status, 201, made.text);
-    assert.deepEqual(made.json.look.layers[0].modules.map((m) => m.title), [STREAKS, 'One']);
-    const r = await ana.put(`/api/looks/${made.json.look.id}`,
-      { chain: 2, layers: [layer([std('Again'), own('Crossing')])] });
+    assert.deepEqual(made.json.look.layers[0].modules.map((m) => m.title), [STREAKS]);
+    const r = await ana.put(`/api/looks/${made.json.look.id}`, { chain: 2, layers: [layer([std('Again')])] });
     assert.equal(r.status, 200, r.text);
-    assert.deepEqual(r.json.look.layers[0].modules.map((m) => m.title), [STREAKS, 'Crossing']);
+    assert.deepEqual(r.json.look.layers[0].modules.map((m) => m.title), [STREAKS]);
   });
 });
