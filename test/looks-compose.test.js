@@ -116,23 +116,27 @@ describe('composed looks over the API', () => {
   });
 });
 
-test('looks stored before the rule are converted once at start: their versions too; an exact bake stays', async () => {
-  const dataDir = path.join(fx.tmp, 'data-before');
-  await mkdir(dataDir, { recursive: true });
-  const at = '2025-01-01T00:00:00.000Z', bake = { source: 'render-box', status: 'done', ok: true,
-    layersHash: layersHash(renderFields({ layers: [filled(OLD)] })) };
-  // Stored with its code, as looks were before refs alone.
-  await writeFile(path.join(dataDir, 'looks.json'), JSON.stringify([{ id: 'old', owner: 'u1', title: 'Old',
-    layers: [filled(OLD)], versions: [{ layers: [filled(OLD)], savedAt: at }], bake, reviewed: true, shared: true,
-    createdAt: at, updatedAt: at }]));
-  const app = await startApp({ dataDir, publicDir: PUBLIC, renderBox: fakeBox() });
-  const { look } = (await (await signup(app, 'before-bo')).get('/api/looks/old')).json;
-  assert.deepEqual([ids(look.layers), look.chain, look.updatedAt, look.reviewed], [['s', 'w'], 2, at, true]);
-  assert.equal(look.bake.layersHash, layersHash(renderFields(look)), 'the same frames: the bake still holds');
-  await app.close();
-  const [stored] = JSON.parse(await readFile(path.join(dataDir, 'looks.json'), 'utf8'));
-  assert.deepEqual([ids(stored.layers), ids(stored.versions[0].layers), stored.chain], [['s', 'w'], ['s', 'w'], 2]);
-});
+for (const stored of ['with its code', 'as refs alone']) {
+  test(`looks stored before the rule (${stored}) are converted once at start: versions too; an exact bake stays`,
+    async () => {
+      const dataDir = path.join(fx.tmp, `data-before-${stored.split(' ').at(-1)}`);
+      await mkdir(dataDir, { recursive: true });
+      // The bake's hash is of the look as read, its code filled from the library, however it was stored.
+      const at = '2025-01-01T00:00:00.000Z', bake = { source: 'render-box', status: 'done', ok: true,
+        layersHash: layersHash(renderFields({ layers: [filled(OLD)] })) };
+      const layer = stored === 'with its code' ? filled(OLD) : OLD;
+      await writeFile(path.join(dataDir, 'looks.json'), JSON.stringify([{ id: 'old', owner: 'u1', title: 'Old',
+        layers: [layer], versions: [{ layers: [layer], savedAt: at }], bake, reviewed: true, shared: true,
+        createdAt: at, updatedAt: at }]));
+      const app = await startApp({ dataDir, publicDir: PUBLIC, renderBox: fakeBox() });
+      const { look } = (await (await signup(app, 'before-bo')).get('/api/looks/old')).json;
+      assert.deepEqual([ids(look.layers), look.chain, look.updatedAt, look.reviewed], [['s', 'w'], 2, at, true]);
+      assert.equal(look.bake?.layersHash, layersHash(renderFields(look)), 'the same frames: the bake still holds');
+      await app.close();
+      const [kept] = JSON.parse(await readFile(path.join(dataDir, 'looks.json'), 'utf8'));
+      assert.deepEqual([ids(kept.layers), ids(kept.versions[0].layers), kept.chain], [['s', 'w'], ['s', 'w'], 2]);
+    });
+}
 
 test('renderFields: plain layers unless something else plays', () => {
   const layers = [chain()];

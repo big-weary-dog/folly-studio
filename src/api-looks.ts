@@ -56,8 +56,9 @@ function withoutRemaps(look: Look): Look {
 /**
  * A stored look at start: role remaps dropped; from before the one rule, its layers and versions converted, marked. A
  * bake keeps its place when the conversion is exact (same frames); otherwise the look needs a fresh bake and review.
+ * `filled` gives a look as a read does, its code from the library: what a bake's hash is of.
  */
-export function upgradeStored(stored: Look): Look {
+export function upgradeStored(stored: Look, filled: (look: Look) => Look = (l) => l): Look {
   const look = withoutRemaps(stored);
   if (look.chain === CHAIN) return look;
   const { look: up, exact } = upgradeLook(look);
@@ -68,8 +69,8 @@ export function upgradeStored(stored: Look): Look {
     delete out.reviewedBy;
     return { ...out, reviewed: false };
   }
-  if (look.bake?.layersHash === layersHash(renderFields(look))) {
-    out.bake = { ...look.bake, layersHash: layersHash(renderFields(up)) };
+  if (look.bake?.layersHash === layersHash(renderFields(filled(look)))) {
+    out.bake = { ...look.bake, layersHash: layersHash(renderFields(filled(up))) };
   }
   return out;
 }
