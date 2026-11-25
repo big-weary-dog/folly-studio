@@ -7,6 +7,13 @@
 .models-panel > .field + .field { border-top: 1px solid rgb(255 236 214 / .08); }
 .models-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 @media (max-width: 899px) { .models-panel { margin-top: 20px; padding: 2px 14px; } }
+/* The Account page (js/ui/account.tsx): its two forms in violet glass, deleting the account in ruby. */
+.account-page { --tint: var(--violet); max-width: 640px; }
+.account-form h2 { padding-top: 12px; font-size: 19px; }
+.account-form .form-error:not([hidden]) { margin-top: 8px; }
+.account-form .models-actions { margin: 4px 0 14px; }
+.account-danger { --tint: var(--ruby); }
+.account-danger .field-hint { margin-top: 8px; }
 /* The Light page (js/ui/light.tsx, admins): the models' panels, amber glass; the curve as a table of numbers. */
 .light-page { --tint: var(--amber); max-width: 780px; }
 .light-curve { width: 100%; margin: 12px 0; border-collapse: collapse; font-size: 13px;
