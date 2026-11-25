@@ -18,9 +18,19 @@ its name in `/api/me` (`rig`); the browser fetches the same file (both ship, eac
 of the rig it was baked on: its `renderKey` digests the file, and a server started on a rig of another LED count
 fails the done bakes it cannot play ("baked on another rig") and drops their frames and review, so they bake and
 are reviewed again.
-`tools/build_rig.py [--check]` builds both (`LIGHTING_DIR`; never by hand; fixtures and groups: DESIGN §9), on
-lighting's xLights and Falcon channels (`tools/check_channels.py`); another installation writes its own
-(CONTRIBUTING "Adding a new installation").
+`tools/build_rig.py [--check]` builds both (`LIGHTING_DIR`; never by hand) through `tools/pixel_rows.py`,
+make_pixel_csv's rows (the pipeline TouchDesigner and Mirage use), on lighting's xLights and Falcon channels
+(`tools/check_channels.py`); another installation writes its own (CONTRIBUTING "Adding a new installation").
+
+In both, fixtures are make_pixel_csv's chains (an arch, a quad face, a spire strand, a rose petal; a spirelet
+corner's or a tower's wash floods merged), and `attrs` are the rose's `ring` (1–7, else 0) and `sector` (petal 0–15,
+else −1). The Folly's group tree covers Cathedral; Arches → Main arches (each arch), Mini arches left/right (each
+arch), Quad arches (each of 6, each face); Spires (each of 4); Spirelets (each corner); Rose window (each petal, rings
+1–7); Canopy (each run); Wash (each tower), with the ids saved looks name. City of Gods' is the same tree over what
+is built: one mini arch a side, two quads of three faces, two spires, spirelets (each tower's four box corners and
+one more a side), no canopy or wash groups (a layer tagged `canopy` or `wash` lights nothing there). Its towers'
+fixtures keep the Folly's back-tower ids (the hardware is labelled so), are named for where they stand ("Spire left
+(back-left)") and tagged by it, so nothing is tagged `back`.
 
 ```jsonc
 { "rig": 1, "name": "Gothic Folly 2026", "about": "…",   // about: optional prose about the rig
