@@ -12,7 +12,8 @@ import { confirmDialog, cx, toast, Toasts } from './kit.tsx';
 import { canReport, fileBugReport } from './bug-report.tsx';
 import { Rose } from './rose.tsx';
 import { openTour, welcomeOnce } from './tour-view.ts';
-import { HOME, here, leaveGuard, navigate, router, setTitle, signedIn, user, type ViewProps } from './session.ts';
+import { advanced, HOME, here, leaveGuard, navigate, router, setAdvanced, setTitle, signedIn, user,
+  type ViewProps } from './session.ts';
 
 interface Route {
   re: RegExp; name: string; title: string; load: () => Promise<ComponentType<ViewProps>>;
@@ -174,6 +175,8 @@ function Header({ me, nav }: { me: User; nav?: string }) {
             onClick={(e) => { if ((e.target as Element).closest('.btn')) e.currentTarget.hidePopover?.(); }}>
             <button class="btn ghost small tutorials-btn" type="button" onClick={() => openTour('menu')}>
               Tutorials</button>
+            <button class="btn ghost small advanced-btn" type="button" aria-pressed={advanced.value}
+              onClick={() => setAdvanced(!advanced.peek())}>Advanced editing</button>
             {!me.guest && <a class="btn ghost small" href="/account">Account</a>}
             <a class="btn ghost small" href="/privacy">Privacy</a>
             {canReport(me) && <button class="btn ghost small report-btn" type="button" title="Report a problem (F8)"

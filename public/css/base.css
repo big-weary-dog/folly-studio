@@ -291,6 +291,8 @@ input.switch:disabled { opacity: .5; cursor: default; }
 .user-name { max-width: 160px; overflow: hidden; color: var(--text-2); font-size: 14px; text-overflow: ellipsis;
   white-space: nowrap; }
 .user-box > .user-name { display: none; }
+/* Advanced editing (SPEC-studio "Simple"): a laptop's, ticked while on. */
+.advanced-btn[aria-pressed=true]::after { content: ' ✓'; }
 .user-menu-btn { display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 8px; cursor: pointer;
   background: none; border: var(--came-s) solid #0000; border-radius: var(--radius); }
 .user-menu-btn::after { content: ''; border: 4px solid #0000; border-top-color: var(--text-2); margin-top: 4px; }
@@ -335,6 +337,7 @@ input.switch:disabled { opacity: .5; cursor: default; }
   .user-name { max-width: none; }
   .user-box > .user-name { display: block; }
   .user-menu-btn { display: none; }
+  .advanced-btn { display: none; }
   .user-menu { display: flex; position: static; flex: 1 0 100%; flex-direction: row; padding: 0; background: none;
     flex-wrap: wrap; border: 0; box-shadow: none; }
   .user-menu .btn { flex: 1 1 auto; min-height: 44px; justify-content: center; }

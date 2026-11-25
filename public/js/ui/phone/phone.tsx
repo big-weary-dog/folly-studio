@@ -17,7 +17,7 @@ export function createPhone() {
 type Phone = ReturnType<typeof createPhone>;
 
 /** The Studio's attributes for the light view: settings show while their layer stays the selected one. */
-export const phoneAttrs = (st: Studio, ph: Phone) => ({ 'data-detail': 'light',
+export const phoneAttrs = (st: Studio, ph: Phone) => ({
   'data-drill': ph.drill.value && ph.drill.value === st.selectedId.value ? '' : undefined });
 
 /** The tabs. */

@@ -14,7 +14,7 @@ import { LayersPane } from './layers.tsx';
 import { loadPalettes } from './model.ts';
 import type { Preview } from './preview.ts';
 import { PreviewPane } from './preview-view.tsx';
-import { navigate, user } from './session.ts';
+import { advanced, navigate, user } from './session.ts';
 import { onSideHead, SideDivider } from './side-panels.tsx';
 import type { Dock, Studio } from './studio-store.ts';
 import { Timeline } from './timeline.tsx';
@@ -29,10 +29,12 @@ const exporter = lazy(() => import('./export.tsx'));
 export function StudioLayout({ st, pv, tl, els }: Props & { els: Record<string, HTMLElement> }) {
   const narrow = st.narrow.value, root = useRef<HTMLDivElement>(null), side = useRef<HTMLDivElement>(null);
   const [resizing, setResizing] = useState(false), [ph] = useState(createPhone);
+  // What shows (SPEC-studio "Simple", "Phones"): a phone's light view, or on a laptop Simple unless Advanced.
+  const detail = narrow ? 'light' : advanced.value ? 'full' : 'simple';
   return (
     <div ref={root} class={cx('studio', st.folded.value && 'code-collapsed', st.dirty.value && 'is-dirty',
-      st.baked.value && 'is-baked', resizing && 'resizing')} data-tab={st.tab.value} data-dock={st.dock.value}
-      {...phoneAttrs(st, ph)}>
+      st.baked.value && 'is-baked', resizing && 'resizing')} data-tab={st.tab.value}
+      data-dock={detail === 'simple' ? 'look' : st.dock.value} data-detail={detail} {...phoneAttrs(st, ph)}>
       <Bar st={st} pv={pv} />
       {st.copyOnSave.value && <div class="studio-notice" role="note"><strong>From the gallery</strong>
         {` — “${st.server.value?.title}” by ${st.server.value?.ownerName || 'someone else'}. Play with it freely; `
@@ -150,11 +152,13 @@ function ExportMenu({ st, pv }: { st: Studio; pv: Preview }) {
 const DOCKS: Dock[] = ['timeline', 'look'];
 
 function DockPane({ st, pv, tl }: Props) {
-  const dock = st.dock.value, folded = st.folded.value, narrow = st.narrow.value, ids = [useId(), useId()];
+  const narrow = st.narrow.value, simple = !narrow && !advanced.value, ids = [useId(), useId()];
+  const dock = simple ? 'look' : st.dock.value, folded = st.folded.value;
   return (
     <section class="pane pane-code" data-pane="code" aria-label="Timeline and look">
       <div class="pane-head dock-head">
-        <div class="dock-tabs" role="group" aria-label="Bottom panel">{DOCKS.map((id) => <button type="button"
+        <div class="dock-tabs" role="group" aria-label="Bottom panel">{DOCKS.filter((id) => !simple || id === 'look')
+          .map((id) => <button type="button"
           class="dock-tab" data-dock={id} data-tour={`dock:${id}`}
           aria-pressed={dock === id} onClick={() => st.showDock(id)}>
           {humanize(id)}</button>)}</div>
