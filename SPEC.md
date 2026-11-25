@@ -52,6 +52,8 @@ modules**, **Library**, **Spatial modules**, **History**, **Globals**, **Param b
 
 [The saved look schema, layers, modules, globals and automation](SPEC-looks.md#looks-what-gets-saved), part of this contract.
 
+[Library only: the one-time step on each data folder](SPEC-looks.md#library-only), part of this contract.
+
 ### Timeline
 
 [Duration, tempo, clips, fades and transitions](SPEC-looks.md#timeline), part of this contract.

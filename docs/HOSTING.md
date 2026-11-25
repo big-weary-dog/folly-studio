@@ -306,3 +306,10 @@ so keep it private. Run it daily with cron (`crontab -e`, then
 start cron for you: run `sudo service cron start` *(to verify)*. To restore, stop the server and
 unpack the archive's files into `STUDIO_DATA`. Baked frames and stream chunks that are missing are
 made again on demand.
+
+### Library only
+
+The first start of a commit with the library-only step (SPEC-looks "Library only") drops stored looks and versions
+that hold code other than the library's, logging each one, after copying `looks.json` and `users.json` beside
+themselves. To see what it will drop first, with the server still running the old commit:
+`node tools/library-only.ts --data ~/folly-data --dry-run` (it writes nothing).

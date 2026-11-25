@@ -1,23 +1,11 @@
 // What may save and bake (SPEC-baking "Custom code"): looks whose every layer's and module's code is a library
 // pattern's current or earlier committed file exactly, by SHA-256. Those are our own code; anything else is refused.
-import { createHash } from 'node:crypto';
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
-
-import { historicalLibrary } from './library-history.ts';
-
-const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
+import { libraryFiles, sha256 } from './library-history.ts';
 
 /** The SHA-256 of each code file `dir`'s index.json lists (presets have none), and of its earlier copies
  * (history.json); none when it is missing. */
 export async function libraryHashes(dir: string) {
-  const index = await fs.readFile(path.join(dir, 'index.json'), 'utf8').then(JSON.parse, () => []);
-  const names = (Array.isArray(index) ? index : []).filter((e) => e && e.kind !== 'preset'
-    && /^[a-z0-9-]{1,64}$/.test(e.name)).map((e) => e.name as string);
-  const codes = await Promise.all(names.map((n) => fs.readFile(path.join(dir, `${n}.js`), 'utf8').catch(() => null)));
-  const hashes = new Set(codes.flatMap((c) => (c === null ? [] : [sha256(c)])));
-  for (const hash of (await historicalLibrary(dir)).hashes) hashes.add(hash);
-  return hashes;
+  return new Set([...(await libraryFiles(dir)).values()].flatMap((f) => [...f.hashes]));
 }
 
 type Module = { title?: unknown, code?: unknown, kind?: unknown, layers?: unknown };

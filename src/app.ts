@@ -18,6 +18,7 @@ import { type Config, configOf } from './config.ts';
 import { createFramesCache } from './frames-cache.ts';
 import { createLog, errorHandler, keepTail, type Log } from './http.ts';
 import { createLightStore } from './light.ts';
+import { migrateLibraryOnly } from './library-only-data.ts';
 import { rigFileOf, rigOf } from './rig-choice.ts';
 import { createPreviews } from './previews/index.ts';
 import { frontView } from './previews/motion.ts';
@@ -64,6 +65,7 @@ export async function createServer(opts: Options = {}) {
   const log = keepTail(opts.log ?? createLog());
   const rig = opts.rig ?? rigOf(config), rigFile = rigFileOf(publicDir, rig);
 
+  await migrateLibraryOnly({ dataDir, patternsDir: path.join(publicDir, 'patterns'), log });
   const store = await createStore(dataDir, { log, upgrade: { looks: upgradeStored } });
   const auth = createAuth({ store, curators, admins, cost: scrypt });
   auth.pruneSessions();
