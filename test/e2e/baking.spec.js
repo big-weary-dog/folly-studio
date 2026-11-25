@@ -43,6 +43,7 @@ for (const width of [390, 1366]) {
 
     if (width < 600) {
       await page.goto(`${studio.origin}/gallery`);
+      await page.getByRole('button', { name: 'Approved', exact: true }).click();   // to see looks waiting for review
       const card = page.locator('.card', { hasText: `Custom ${width}` });
       await card.locator('summary').click();
       await card.getByRole('button', { name: `Approve Custom ${width}` }).click();

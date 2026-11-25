@@ -1,6 +1,6 @@
 // npm run smoke, too: a look's description is edited in place in the Studio (under the title on a laptop, the Look
-// tab on a phone), saves with the look, and shows on its gallery card. Screenshots land in DESCRIBE_SHOTS when set,
-// else the test's output folder.
+// tab on a phone), saves with the look, and shows on its card (the gallery's, once approved). Screenshots land in
+// DESCRIBE_SHOTS when set, else the test's output folder.
 import path from 'node:path';
 
 import { expect, test } from './studio.js';
@@ -35,8 +35,8 @@ for (const width of [390, 1366]) {
     await expect.poll(async () => (await (await page.context().request.get(`${studio.origin}/api/looks/${look.id}`))
       .json()).look.summary).toBe(WORDS);
 
-    await page.goto(`${studio.origin}/gallery`);
+    await page.goto(`${studio.origin}/looks`);
     await expect(page.locator('.card', { hasText: `Ember drift ${width}` }).locator('.card-summary')).toHaveText(WORDS);
-    await shot('gallery-card');
+    await shot('looks-card');
   });
 }

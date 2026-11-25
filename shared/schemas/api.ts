@@ -55,11 +55,12 @@ const NAME = 'A version\'s name is 1–80 characters.';
 const VersionName = z.string({ error: NAME }).trim().min(1, { error: NAME }).max(80, { error: NAME });
 const REASON = 'flashOverride: say in 3–500 characters why this flashing is acceptable.';
 /** PUT /api/looks/:id: what changes; null clears bpm, globals and automation. `flashOverride` (with reviewed: true):
- * a curator's reason for approving a bake that fails the flash check. */
+ * a curator's reason for approving a bake that fails the flash check. `reviewed` and `hidden` are a curator's. */
 export const LookPatch = z.object({
   title: LookTitle.optional(), summary: Summary.optional(), shared: bool('shared').optional(),
   bpm: Bpm.optional(), layers: Layers.optional(), duration: Duration.optional(), globals: Globals.optional(),
-  automation: z.unknown().optional(), reviewed: bool('reviewed').optional(), chain: Chain,
+  automation: z.unknown().optional(), reviewed: bool('reviewed').optional(), hidden: bool('hidden').optional(),
+  chain: Chain,
   flashOverride: z.string({ error: REASON }).trim().min(3, { error: REASON }).max(500, { error: REASON }).optional(),
   restoredFrom: z.number({ error: 'restoredFrom must be a version number.' }).int().min(1).optional(),
   versionName: VersionName.optional(),
@@ -83,11 +84,12 @@ export type LookCreate = z.input<typeof LookCreate>;
 export type LookPatch = z.input<typeof LookPatch>;
 /** A look as lists show it: what a card needs, no layers or code. */
 export type Listed = { id: string, owner: string, ownerName: string, title: string, summary: string, duration: number,
-  layerCount: number, shared: boolean, reviewed: boolean, bpm?: number, sharedAt?: string,
+  layerCount: number, shared: boolean, reviewed: boolean, hidden: boolean, bpm?: number, sharedAt?: string,
   preview?: string, createdAt: string, updatedAt: string };
 /** A look as GET /api/looks/:id answers; `version` (its owner's only): the number of the version it is. */
 export type Look = Omit<Listed, 'layerCount'> & { layers: Layer[], globals?: z.infer<typeof Globals>,
   automation?: Automation, versionCount: number, version?: number, bake?: Bake | null, reviewedBy?: string,
+  hiddenBy?: string,
   flashOverride?: FlashOverride, chain?: 2, origin?: string };
 
 /** How a version was made (SPEC-history "Versions"): a save, an AI refinement (kept from before Studio dropped the

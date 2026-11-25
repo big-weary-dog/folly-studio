@@ -35,17 +35,17 @@ for (const width of [390, 1366]) {
 
     await page.goto(`${studio.origin}/gallery`);
     const card = (name) => page.locator('.card', { hasText: `${name} ${width}` });
+    const approved = page.getByRole('button', { name: 'Approved', exact: true });
+    await expect(approved).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.card')).toHaveCount(0);
+    await expect(page.getByText('No approved looks match.', { exact: true })).toBeVisible();
+    await expect(page.getByText(/shared looks wait for review: switch Approved off/)).toBeVisible();
+    if (width >= 900) await expect(page.getByRole('button', { name: 'Export all' })).toBeDisabled();
+    await approved.click();
     if (width < 900) {
       await expect(card('Breathe').getByRole('button', { name: `Approve Breathe ${width}` })).toBeHidden();
     }
     else await expect(card('Breathe').getByRole('button', { name: `Approve Breathe ${width}` })).toBeVisible();
-    const approved = page.getByRole('button', { name: 'Approved', exact: true });
-    await expect(approved).toHaveAttribute('aria-pressed', 'false');
-    await approved.click();
-    await expect(page.locator('.card')).toHaveCount(0);
-    await expect(page.getByText('No approved looks match.', { exact: true })).toBeVisible();
-    if (width >= 900) await expect(page.getByRole('button', { name: 'Export all' })).toBeDisabled();
-    await approved.click();
     await shot('1-before');
     if (width < 900) await card('Breathe').locator('summary').click();
     await card('Breathe').getByRole('button', { name: `Approve Breathe ${width}` }).click();

@@ -28,6 +28,7 @@ for (const width of [390, 1366]) {
     await account(page.context(), studio.origin, `gallery-admin-${width}`);
 
     await page.goto(`${studio.origin}/gallery`);
+    await page.getByRole('button', { name: 'Approved', exact: true }).click();   // to see looks waiting for review
     const card = page.locator('.card', { hasText: 'Ember drift' });
     if (width < 900) {
       await expect(card.getByRole('button', { name: 'Delete Ember drift' })).toBeHidden();
@@ -49,6 +50,7 @@ for (const width of [390, 1366]) {
     await notice.getByRole('button', { name: 'Delete Rose bloom' }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
     await expect(page).toHaveURL(/\/gallery$/);
+    await page.getByRole('button', { name: 'Approved', exact: true }).click();
     await expect(page.locator('.card', { hasText: 'Rose bloom' })).toHaveCount(0);
   });
 }

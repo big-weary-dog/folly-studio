@@ -91,8 +91,11 @@ In `SPEC-access.md`, part of this contract: **Accounts** (roles, sign-in), **Adm
 ## Gallery previews
 
 Each shared look's looping preview for its card: `SPEC-previews.md`, part of this contract.
-The gallery's **Approved** toggle beside search shows only looks marked reviewed by a curator. It starts off;
-search and Approved apply together, and approving a card updates the filter immediately.
+The gallery shows **approved** looks: shared, marked reviewed by a curator, and not hidden (SPEC-access
+"Moderation"). Curators see every shared look, and have an **Approved** toggle beside search that starts on; off, it
+shows the rest too, each tagged (Reviewed, Hidden), and the page says how many wait for review. Search and Approved
+apply together, and approving or hiding a card updates the list at once. Every card someone else shared has
+**Report this look** (SPEC "Bug reports").
 
 ## Baked frames
 
