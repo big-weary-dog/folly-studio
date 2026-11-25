@@ -10,7 +10,9 @@ import { readConfig } from '../src/config.ts';
 import { keepTail } from '../src/http.ts';
 import { createReports, reportFolders } from '../src/reports/store.ts';
 import { piece, scrub, scrubText } from '../public/js/scrub.ts';
-import { client, fx, quiet, signup, startApp, useFixture } from './fixtures/server.js';
+import { client, signup } from './fixtures/app.js';
+import { quiet } from './fixtures/quiet.js';
+import { fx, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 const tmp = (name) => fs.mkdtempSync(path.join(fx.tmp, `${name}-`));

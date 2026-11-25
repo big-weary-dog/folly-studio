@@ -1,10 +1,10 @@
 // npm run smoke, too: library only, as on every server (SPEC-baking "Library only"): the Studio has no code to edit,
 // its pickers offer only the library, and custom code is refused.
 // Screenshots land in CODE_SHOTS when set, else the test's output folder.
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { expect, test } from './studio.js';
+import { expect, signupIn, test } from './studio.js';
+import { libraryCode } from '../fixtures/patterns.js';
 
 const CUSTOM = 'function pixel(p, t) { return scale([0.2, 0.4, 1], wave(t * 0.25)); }';
 
@@ -17,9 +17,8 @@ for (const width of [390, 1366]) {
     page.on('pageerror', (e) => errors.push(String(e)));
     await page.setViewportSize({ width, height: wide ? 768 : 844 });
     const request = page.context().request;
-    expect((await request.post(`${studio.origin}/api/signup`, { data: { username: `code-${width}`,
-      password: 'correct horse' } })).status()).toBe(201);
-    const wash = readFileSync(new URL('../../public/patterns/colour-wash.js', import.meta.url), 'utf8');
+    await signupIn(request, studio.origin, `code-${width}`);
+    const wash = libraryCode('colour-wash');
     const made = await request.post(`${studio.origin}/api/looks`, { data: { title: `Mine ${width}`,
       layers: [{ id: 'l1', title: 'Sea', code: wash, groups: ['cathedral'], params: {} }] } });
     expect(made.status(), await made.text()).toBe(201);

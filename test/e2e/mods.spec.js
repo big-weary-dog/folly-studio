@@ -1,13 +1,12 @@
 // npm run smoke, too: a look's modulators at a laptop's size. The dock is one height on every tab, at least 220px,
 // the same after a reload, and the splitter's drag is kept; the Look tab has a card per modulator whose chips open
 // the param's ∿ and whose name renames it everywhere; the timeline has a lane per modulator that folds as a group.
-import { readFileSync } from 'node:fs';
 
-import { expect, signup, test } from './studio.js';
+import { expect, signIn, signup, test } from './studio.js';
+import { libraryCode as code } from '../fixtures/patterns.js';
 
 test.use({ viewport: { width: 1366, height: 768 } });
 
-const code = (name) => readFileSync(new URL(`../../public/patterns/${name}.js`, import.meta.url), 'utf8');
 const look = { title: 'Breathing bars', duration: 16, bpm: 120, layers: [
   { title: 'Bars', modules: [{ id: 'm1', kind: 'source', ref: 'bars', code: code('bars'),
     params: { speed: { mod: 'global', name: 'breath', from: 0.2, to: 1.2 } } }] },
@@ -23,8 +22,7 @@ async function open(page, studio, user) {
     headers: { 'content-type': 'application/json', cookie } });
   expect(res.status).toBe(201);
   const { look: { id } } = await res.json();
-  const [name, value] = cookie.split('=');
-  await page.context().addCookies([{ name, value, url: studio.origin }]);
+  await signIn(page.context(), studio.origin, cookie);
   await page.goto(`${studio.origin}/studio/${id}`);
 }
 

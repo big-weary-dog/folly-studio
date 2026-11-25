@@ -2,7 +2,6 @@
 // decay, swing, lines dealt to places, the busy-line dip that keeps it under the flash check, and the kind through
 // compile, resolve, the look's schema and the Studio's row.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
@@ -12,9 +11,9 @@ import {
 } from '../public/js/pattern-core.ts';
 import { normaliseParam } from '../public/js/ui/bindings.ts';
 import { cog, mini } from './fixtures/rigs.js';
+import { libraryCode as lib } from './fixtures/patterns.js';
 
-const CODE = readFileSync(new URL('../public/patterns/rhythm.js', import.meta.url), 'utf8');
-const lib = (name) => readFileSync(new URL(`../public/patterns/${name}.js`, import.meta.url), 'utf8');
+const CODE = lib('rhythm');
 const WHITE = { id: 'w', kind: 'source', code: 'function pixel() { return [1, 1, 1]; }' };
 const scene = prepareScene(mini);
 const near = (a, b, what) => assert.ok(Math.abs(a - b) < 1e-6, `${what}: ${a} ≉ ${b}`);

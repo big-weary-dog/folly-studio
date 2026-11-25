@@ -7,7 +7,8 @@ import { afterAll, beforeAll, describe, test, vi } from 'vitest';
 
 import { createStats } from '../src/stats.ts';
 
-import { fx, rawGet, signup, startApp, useFixture } from './fixtures/server.js';
+import { signup } from './fixtures/app.js';
+import { fx, rawGet, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 const lines = [];

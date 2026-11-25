@@ -1,12 +1,11 @@
 // npm run smoke, too: the Look panel at a laptop's and a phone's size. A fresh look has no Energy; a look from before
 // the globals went (energy, speed, level, hue, saturation) opens with Energy as a fader of its own and nothing else
 // of those.
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { expect, signup, test } from './studio.js';
+import { expect, signIn, signup, test } from './studio.js';
+import { libraryCode as code } from '../fixtures/patterns.js';
 
-const code = (name) => readFileSync(new URL(`../../public/patterns/${name}.js`, import.meta.url), 'utf8');
 const clouds = { title: 'Clouds', modules: [{ id: 'm1', kind: 'source', ref: 'clouds', code: code('clouds'),
   params: { speed: { mod: 'global', name: 'energy', from: 0.1, to: 0.6 } } }] };
 const LOOKS = {
@@ -18,8 +17,8 @@ const LOOKS = {
 for (const width of [1366, 1920]) {
   test(`automation endpoints and creation (${width})`, async ({ page, studio }, info) => {
     await page.setViewportSize({ width, height: width === 1366 ? 768 : 1080 });
-    const cookie = await signup(studio.origin, `automation-${width}`), [name, value] = cookie.split('=');
-    await page.context().addCookies([{ name, value, url: studio.origin }]);
+    const cookie = await signup(studio.origin, `automation-${width}`);
+    await signIn(page.context(), studio.origin, cookie);
     const res = await fetch(`${studio.origin}/api/looks`, { method: 'POST',
       headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify({ ...LOOKS.fresh,
         globals: { macros: { energy: { value: 0.5, min: -2, max: 2 }, storm: { value: 0.3 } } },
@@ -61,8 +60,7 @@ for (const [size, viewport] of [['laptop', { width: 1366, height: 768 }], ['phon
       const errors = [];
       page.on('pageerror', (e) => errors.push(String(e)));
       const cookie = await signup(studio.origin, `energy-${size}`);
-      const [name, value] = cookie.split('=');
-      await page.context().addCookies([{ name, value, url: studio.origin }]);
+      await signIn(page.context(), studio.origin, cookie);
       for (const [which, look] of Object.entries(LOOKS)) {
         const res = await fetch(`${studio.origin}/api/looks`, { method: 'POST', body: JSON.stringify(look),
           headers: { 'content-type': 'application/json', cookie } });
@@ -91,8 +89,8 @@ for (const [size, viewport] of [['laptop', { width: 1366, height: 768 }], ['phon
 
 test('create automation from a setting and from the timeline picker', async ({ page, studio }, info) => {
   await page.setViewportSize({ width: 1366, height: 768 });
-  const cookie = await signup(studio.origin, 'automation-actions'), [name, value] = cookie.split('=');
-  await page.context().addCookies([{ name, value, url: studio.origin }]);
+  const cookie = await signup(studio.origin, 'automation-actions');
+  await signIn(page.context(), studio.origin, cookie);
   const res = await fetch(`${studio.origin}/api/looks`, { method: 'POST',
     headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify({ ...LOOKS.fresh,
       globals: { macros: { energy: { value: 0.5 }, storm: { value: 0.3 } } },

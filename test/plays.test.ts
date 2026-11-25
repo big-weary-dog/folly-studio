@@ -9,7 +9,8 @@ import { canonical, PLAYS, type PlaysKey, playsChanged, playsOf } from '../share
 import { layersHash, renderFields, renderKey } from '../src/bake.ts';
 import { versionsWith } from '../src/look-versions.ts';
 import type { StoredLook } from '../src/store.ts';
-import { fx, layer, signup, startApp, useFixture } from './fixtures/server.js';
+import { signup } from './fixtures/app.js';
+import { fx, layer, startApp, useFixture } from './fixtures/server.js';
 
 Object.assign(globalThis, { matchMedia: () => ({ matches: false, addEventListener() {}, addListener() {} }) });
 const { saveBody } = await import('../public/js/ui/studio-store.ts');

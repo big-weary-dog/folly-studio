@@ -1,11 +1,10 @@
 // npm run smoke: text params with `petals` and `cells` (petal-mask's Petals and Cells shown) are a rose and a petal to
 // click, side by side, at a laptop's and a phone's size: a click flips one and rewrites the text; typed text relights.
-import { readFileSync } from 'node:fs';
 
 import { drawn } from './drawn.js';
-import { expect, signup, test } from './studio.js';
+import { expect, signIn, signup, test } from './studio.js';
+import { libraryCode as code } from '../fixtures/patterns.js';
 
-const code = (name) => readFileSync(new URL(`../../public/patterns/${name}.js`, import.meta.url), 'utf8');
 const look = { title: 'Picked petals', duration: 16, layers: [{ title: 'Rose', groups: ['rose-window'], modules: [
   { id: 'm1', kind: 'source', ref: 'bars', code: code('bars'), params: { direction: 'clockwise', bars: 4 } },
   { id: 'm2', kind: 'filter', ref: 'petal-mask', code: code('petal-mask'),
@@ -26,8 +25,7 @@ for (const [name, device] of Object.entries(DEVICES)) {
         headers: { 'content-type': 'application/json', cookie } });
       expect(res.status).toBe(201);
       const { look: { id } } = await res.json();
-      const [key, value] = cookie.split('=');
-      await page.context().addCookies([{ name: key, value, url: studio.origin }]);
+      await signIn(page.context(), studio.origin, cookie);
       await page.goto(`${studio.origin}/studio/${id}`);
       const pick = page.locator('.view-select:visible, .view-btn[data-view=rose]:visible').first();
       if (name === 'phone') await pick.selectOption('rose', { timeout: 30_000 });

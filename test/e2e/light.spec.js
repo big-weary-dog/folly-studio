@@ -4,12 +4,9 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { expect, test } from './studio.js';
+import { SIZES } from './sizes.js';
+import { expect, signupIn, test } from './studio.js';
 
-const SIZES = {
-  laptop: { viewport: { width: 1366, height: 768 } },
-  phone: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
-};
 test.use({ serverOptions: { admins: 'light-laptop,light-phone' } });
 
 for (const [name, device] of Object.entries(SIZES)) {
@@ -18,8 +15,7 @@ for (const [name, device] of Object.entries(SIZES)) {
 
     test('a member opening Admin directly sees an explanation without settings', async ({ page, studio }, info) => {
       const request = page.context().request;
-      expect((await request.post(`${studio.origin}/api/signup`, { data: { username: `member-${name}`,
-        password: 'correct horse' } })).status()).toBe(201);
+      await signupIn(request, studio.origin, `member-${name}`);
       const writes = [];
       page.on('request', (r) => { if (r.method() === 'PUT') writes.push(r.url()); });
       for (const tab of ['light', 'baking']) {

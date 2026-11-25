@@ -1,10 +1,9 @@
 // npm run smoke: a text param with `lines` (rhythm's Pattern) shows a line per place, stacked and in monospace, at a
 // laptop's and a phone's size; what it stores is still the lines with spaces between.
-import { readFileSync } from 'node:fs';
 
-import { expect, signup, test } from './studio.js';
+import { expect, signIn, signup, test } from './studio.js';
+import { libraryCode as code } from '../fixtures/patterns.js';
 
-const code = (name) => readFileSync(new URL(`../../public/patterns/${name}.js`, import.meta.url), 'utf8');
 const PATTERN = 'X...X...X...X... ..x...x...x...x. x.x.x.x.x.x.x.x.';
 const look = { title: 'Drums', duration: 16, bpm: 120, layers: [{ title: 'Kit', modules: [
   { id: 'm1', kind: 'source', ref: 'bars', code: code('bars') },
@@ -26,8 +25,7 @@ for (const [name, device] of Object.entries(DEVICES)) {
         headers: { 'content-type': 'application/json', cookie } });
       expect(res.status).toBe(201);
       const { look: { id } } = await res.json();
-      const [key, value] = cookie.split('=');
-      await page.context().addCookies([{ name: key, value, url: studio.origin }]);
+      await signIn(page.context(), studio.origin, cookie);
       await page.goto(`${studio.origin}/studio/${id}`);
       if (name === 'phone') await page.locator('.layer-name:visible').first().click({ timeout: 30_000 });
       if (name === 'phone') await page.locator('.phone-module-picker').click();

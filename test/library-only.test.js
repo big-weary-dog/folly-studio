@@ -11,7 +11,8 @@ import { beforeEach, test } from 'vitest';
 import { layersHash, renderFields } from '../src/bake.ts';
 import { MARKER, migrateLibraryOnly } from '../src/library-only-data.ts';
 import { lockDataDir } from '../src/store-lock.ts';
-import { fx, quiet, startApp, useFixture } from './fixtures/server.js';
+import { quiet } from './fixtures/quiet.js';
+import { fx, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 const sha = (code) => createHash('sha256').update(code).digest('hex');

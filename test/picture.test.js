@@ -13,10 +13,11 @@ import {
 } from '../public/js/pattern-core.ts';
 import { normaliseParam } from '../public/js/ui/bindings.ts';
 import { keyColour } from '../public/js/ui/picture-row.tsx';
+import { libraryCode } from './fixtures/patterns.js';
 
 const STUDIO = fileURLToPath(new URL('../', import.meta.url));
 const read = (f) => fs.readFileSync(path.join(STUDIO, f), 'utf8');
-const RIG = JSON.parse(read('public/data/rig.json')), CODE = read('public/patterns/picture.js');
+const RIG = JSON.parse(read('public/data/rig.json')), CODE = libraryCode('picture');
 const PALETTES = JSON.parse(read('public/data/palettes.json')).palettes;
 const pic = (rows, extra = {}) => ({ grid: 'rose', key: { r: '#ff0000', g: '#00ff00', b: 'accent 50%' },
   frames: [{ rows }], ...extra });

@@ -21,9 +21,10 @@ import { missing } from '../fixtures/sources.js';
 import {
   addressMarkdown, checkCanonical, compareAddresses, framesPerUniverse, listMarkdown, quirksMarkdown,
 } from './compare.mjs';
-import { ADDRESS_CODE, FULL, led, libraryCode, renderLook, toFseq, ZONE_CODE, ZONE_LABELS } from './looks.mjs';
+import { ADDRESS_CODE, FULL, led, renderLook, toFseq, ZONE_CODE, ZONE_LABELS } from './looks.mjs';
 import { newContext, openMirage, showView, threeDir, viewFrom, waitForDrive } from './mirage.mjs';
 import { quietSacn, Stack } from './stack.mjs';
+import { libraryCode } from '../fixtures/patterns.js';
 
 const HTTP_PORT = Number(process.env.E2E_HTTP_PORT || 8765);
 const MOVING = process.env.E2E_PATTERN || 'clouds';

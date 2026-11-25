@@ -4,7 +4,8 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, test } from 'vitest';
 
-import { client, fx, signup, startApp, useFixture } from './fixtures/server.js';
+import { client, signup } from './fixtures/app.js';
+import { fx, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 let app;

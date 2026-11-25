@@ -8,7 +8,9 @@ import { lookRoutes } from '../src/api-looks.ts';
 import { createAuth } from '../src/auth.ts';
 import { removeAccount } from '../src/account-removal.ts';
 import { createStore } from '../src/store.ts';
-import { client, fx, layer, quiet, signup, startApp, useFixture } from './fixtures/server.js';
+import { CHEAP_SCRYPT, client, signup } from './fixtures/app.js';
+import { quiet } from './fixtures/quiet.js';
+import { fx, layer, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 
@@ -66,7 +68,7 @@ describe('people', () => {
 
   test('an account disabled while its password is checked does not sign in', async () => {
     const store = await createStore(path.join(fx.tmp, 'data-people-login'), { log: quiet });
-    const auth = createAuth({ store, cost: { N: 1024, r: 8, p: 1 } });
+    const auth = createAuth({ store, cost: CHEAP_SCRYPT });
     const { id } = await auth.signup({ username: 'gus', password: 'correct horse' });
     const late = auth.login({ username: 'gus', password: 'correct horse' });   // checking the password
     auth.setAccount(id, { disabled: true });
@@ -75,7 +77,7 @@ describe('people', () => {
 
   test('a look being saved as its account is deleted is not kept', async () => {
     const store = await createStore(path.join(fx.tmp, 'data-people-save'), { log: quiet });
-    const auth = createAuth({ store, cost: { N: 1024, r: 8, p: 1 } });
+    const auth = createAuth({ store, cost: CHEAP_SCRYPT });
     let open;
     const gate = new Promise((resolve) => { open = resolve; });
     const { routes } = lookRoutes({ store, auth, bakes: {}, dropFrames: async () => {},

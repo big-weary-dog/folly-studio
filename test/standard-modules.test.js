@@ -1,18 +1,20 @@
 // Standard modules (SPEC "Modules"): a module whose ref names a library module keeps the library's name, in the
 // store's rule and over the API; a custom module (no ref) is its own to name.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { keepStandardTitles, standardTitle } from '../shared/standard-modules.ts';
-import { fakeBox, fx, signup, startApp, useFixture } from './fixtures/server.js';
+import { signup } from './fixtures/app.js';
+import { fakeBox } from './fixtures/box.js';
+import { fx, startApp, useFixture } from './fixtures/server.js';
+import { libraryIndex } from './fixtures/patterns.js';
 
 useFixture();
 const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url));
-const index = JSON.parse(readFileSync(new URL('../public/patterns/index.json', import.meta.url), 'utf8'));
+const index = libraryIndex();
 const STREAKS = index.find((e) => e.name === 'streaks').title;
 const LIB = [{ name: 'streaks', title: STREAKS }, { name: 'bare' }, { name: 'set', kind: 'preset', title: 'Set' }];
 const layer = (mods) => ({ id: 'l1', title: 'L', groups: ['cathedral'], modules: mods });

@@ -1,21 +1,18 @@
 // Library modules as one layer on City of Gods, rendered in-process: for tests of what an effect draws.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 
 import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../../public/js/pattern-core.ts';
 import { cog } from './rigs.js';
+import { libraryCode, libraryIndex } from './patterns.js';
 
-const here = (p) => new URL(p, import.meta.url);
-const lib = (name) => readFileSync(here(`../../public/patterns/${name}.js`), 'utf8');
-const KIND = Object.fromEntries(JSON.parse(readFileSync(here('../../public/patterns/index.json'), 'utf8'))
-  .map((e) => [e.name, e.kind]));
+const KIND = Object.fromEntries(libraryIndex().map((e) => [e.name, e.kind]));
 export const COG = prepareScene(cog);
 
 /** A layer of modules [name, params, code?] on City of Gods' `groups` (with code: a source, or a warp if it is one). */
 export function layerOn(groups, ...mods) {
   const kind = (name, code) => (!code ? KIND[name] : /function warp/.test(code) ? 'warp' : 'source');
   const layer = { id: 'l', groups, modules: mods.map(([name, params = {}, code], i) => ({ id: `m${i}`,
-    kind: kind(name, code), ...(code ? {} : { ref: name }), code: code ?? lib(name), params })) };
+    kind: kind(name, code), ...(code ? {} : { ref: name }), code: code ?? libraryCode(name), params })) };
   return prepareLayer(COG, layer, compileLayer(layer));
 }
 /** A layer of library modules [name, params] on the whole of City of Gods. */

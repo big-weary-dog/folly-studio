@@ -4,7 +4,7 @@
 import path from 'node:path';
 import { readFile } from 'node:fs/promises';
 
-import { expect, test } from './studio.js';
+import { expect, signupIn, test } from './studio.js';
 
 test.use({ serverOptions: { curators: 'approve-curator-390,approve-curator-1366' } });
 
@@ -18,7 +18,7 @@ const LOOKS = { Breathe: (n) => layer('colour-wash', { speed: 0.1 + n / 100000 }
  * for it, so no bake is one another test stored. */
 async function account(context, origin, username, share = 0) {
   const post = (url, data) => context.request.post(origin + url, { data });
-  expect((await post('/api/signup', { username, password: 'correct horse' })).status()).toBe(201);
+  await signupIn(context.request, origin, username);
   for (const [name, made] of share ? Object.entries(LOOKS) : []) {
     const { look } = await (await post('/api/looks', { title: `${name} ${share}`, duration: 2,
       layers: [made(share)] })).json();

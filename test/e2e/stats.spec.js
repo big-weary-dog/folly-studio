@@ -3,7 +3,7 @@
 // test's output folder.
 import path from 'node:path';
 
-import { expect, test } from './studio.js';
+import { expect, signupIn, test } from './studio.js';
 
 test.use({ serverOptions: { admins: 'stats-admin-390,stats-admin-1366' } });
 
@@ -13,8 +13,7 @@ for (const width of [390, 1366]) {
     page.on('pageerror', (e) => errors.push(String(e)));
     await page.setViewportSize({ width, height: width < 600 ? 844 : 768 });
     const request = page.context().request;
-    expect((await request.post(`${studio.origin}/api/signup`, { data: { username: `stats-admin-${width}`,
-      password: 'correct horse' } })).status()).toBe(201);
+    await signupIn(request, studio.origin, `stats-admin-${width}`);
     await page.goto(`${studio.origin}/gallery`);
     await page.goto(`${studio.origin}/admin/stats`);
     const tiles = page.getByRole('definition');

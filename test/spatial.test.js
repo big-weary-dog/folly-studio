@@ -2,7 +2,6 @@
 // normalised over the layer's own pixels, `soften`, and the staged chain, which is exact where its op is the identity
 // and leaves chains without spatial modules on their one pass. On the Folly and the mini rig.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
@@ -12,6 +11,7 @@ import {
 } from '../public/js/pattern-core.ts';
 import { folly, mini } from './fixtures/rigs.js';
 import { blur, blurState } from '../public/js/core/spatial.ts';
+import { libraryCode as lib } from './fixtures/patterns.js';
 
 test('prepared blur weights match dynamic weights exactly, including hidden RGB at zero alpha', () => {
   const S = prepareScene(mini), idx = Int32Array.from({ length: S.count }, (_, i) => i);
@@ -26,7 +26,6 @@ test('prepared blur weights match dynamic weights exactly, including hidden RGB 
   }
 });
 
-const lib = (name) => readFileSync(new URL(`../public/patterns/${name}.js`, import.meta.url), 'utf8');
 const scene = prepareScene(folly);
 const N = scene.count;
 const g = neighbourGraph(scene);
