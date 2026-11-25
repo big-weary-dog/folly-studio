@@ -16,7 +16,7 @@ type Token = string | readonly number[];
 type Stops = readonly (readonly number[])[];
 type Range = readonly [number, number];
 /** A pick as given: token groups (dealt in turn when more than one), blend, range and rotate (0 when bound). */
-export type PickSpec = { groups: Token[][], blend: PickBlend | null, range: Range | null, rotate: number };
+type PickSpec = { groups: Token[][], blend: PickBlend | null, range: Range | null, rotate: number };
 
 const PICK_TOKEN = /^(?:(?:low|body|accent|high)(?:[1-9]|1[0-6])?|all|rainbow|#[0-9a-f]{6}|#[0-9a-f]{3})$/;
 const PICK_SLOT = /^(low|body|accent|high)(\d+)$/;

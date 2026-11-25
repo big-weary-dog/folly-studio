@@ -4,7 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 /** glow.js: the library's one source. */
-export const GLOW = '// Glow\nfunction pixel(p) { return [p.x, p.y, p.z]; }\n';
+const GLOW = '// Glow\nfunction pixel(p) { return [p.x, p.y, p.z]; }\n';
 
 /** A layer of the glow module with `params`, as a body names it. */
 export const glowLayer = (params = {}) => ({ modules: [{ kind: 'source', title: 'Glow', ref: 'glow', params }] });

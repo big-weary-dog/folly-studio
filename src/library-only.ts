@@ -21,7 +21,7 @@ function entryOf(library: Library, code: unknown, ref: unknown) {
 }
 
 /** Why `layers` are not library: the first module that is not, or where the shape breaks. */
-export function whyNot(library: Library, layers: unknown): string {
+function whyNot(library: Library, layers: unknown): string {
   let why = '';
   findModule(layers, ({ module: m, fault }) => {
     if (fault) why = fault === 'composite' && compositeCode(m!) ? 'a composite with code' : `a malformed ${fault}`;
@@ -54,7 +54,7 @@ function moved(library: Library, m: Node): Node | null {
 }
 
 /** `layers` on the current library, or null when any is not library code. */
-export const libraryLayers = (library: Library, layers: unknown) => mapModules(layers, (m) => moved(library, m));
+const libraryLayers = (library: Library, layers: unknown) => mapModules(layers, (m) => moved(library, m));
 
 export type Dropped = { look: string, title: string, owner: string, version?: number, why: string };
 /** A kept look or version changed: each layer `switched` (or dropped) and why, and its `edited` copies. */

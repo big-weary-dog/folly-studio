@@ -8,7 +8,7 @@ export const isNode = (v: unknown): v is Node => !!v && typeof v === 'object' &&
 
 /** What the walk meets: a `module` that runs code, or a `fault` where the shape breaks (a broken composite's
  * sub-layers are still walked); `at` is the index of the look's layer it sits in, `layer` that layer. */
-export type Met = { module: Node, fault?: undefined, layer: Node, at: number }
+type Met = { module: Node, fault?: undefined, layer: Node, at: number }
   | { module?: Node, fault: 'layer' | 'module' | 'composite', layer?: Node, at: number };
 
 /** A composite (a chain's module of that kind) holds sub-layers, and its own code is '' or absent; compositeCode says

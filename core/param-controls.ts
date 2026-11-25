@@ -1,5 +1,5 @@
 // JSON-safe presentation hints; runtime parameter resolution deliberately ignores them (spec/library.md).
-export type Conditions = Record<string, (string | boolean | number)[]>;
+type Conditions = Record<string, (string | boolean | number)[]>;
 export type ParamControls = { showWhen?: Conditions };
 
 function conditions(raw: unknown): Conditions | undefined {

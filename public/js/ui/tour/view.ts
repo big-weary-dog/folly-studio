@@ -7,8 +7,8 @@ import type { User } from '../../../../shared/schemas/api.ts';
 import { toast } from '../kit.tsx';
 import type { Studio } from '../studio/store.ts';
 
-export type TourModule = { id: string; title: string; kind: string; ref?: string };
-export type TourLayer = { id: string; title: string; modules: TourModule[]; muted: boolean };
+type TourModule = { id: string; title: string; kind: string; ref?: string };
+type TourLayer = { id: string; title: string; modules: TourModule[]; muted: boolean };
 export type TourView = {
   ready: ReadonlySignal<boolean>; layers: ReadonlySignal<TourLayer[]>; selected: ReadonlySignal<TourLayer | null>;
   module: ReadonlySignal<TourModule | null>; params: ReadonlySignal<Readonly<Record<string, unknown>>>;

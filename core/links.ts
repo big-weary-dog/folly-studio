@@ -13,7 +13,7 @@ const CHAIN_GAP = 1, TOUCH = 0.5;
 const RUNG = MAX_RADIUS, RUNG_EVERY = 1;
 
 /** A map as CSR over the rig's pixels: k's neighbours are nb[off[k]] … nb[off[k + 1] − 1], by index. */
-export type LinkMap = { off: Int32Array, nb: Int32Array };
+type LinkMap = { off: Int32Array, nb: Int32Array };
 /** What links() gives a pattern: the map within the running layer (its pixels, rig indices, in idx), rows by k. */
 export type Links = Readonly<LinkMap & { count: number, idx: Int32Array }>;
 const MAPS = new WeakMap<Scene, LinkMap>();
@@ -65,7 +65,7 @@ function buildMap(S: Scene): LinkMap {
 }
 
 /** The map within a layer's pixels (rows of pixels outside it empty). */
-export function layerLinks(S: Scene, idx: Int32Array): Links {
+function layerLinks(S: Scene, idx: Int32Array): Links {
   const N = S.count, g = linkMap(S), inside = new Uint8Array(N), off = new Int32Array(N + 1), nb: number[] = [];
   for (const k of idx) inside[k] = 1;
   for (let k = 0; k < N; k++) {
