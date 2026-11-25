@@ -37,6 +37,15 @@ test('malformed soft ranges leave the full drag range available', () => {
   }
 });
 
+test('saved numbers are held to min..max, so no setting runs a pattern past its range', () => {
+  const waves = compileLayer({ id: 'l', code: lib('waves') })[0].params;
+  const held = [[60000, waves.speed.max], [-5, waves.speed.min], ['12', 12], ['fast', 20], [Infinity, 20], [NaN, 20]];
+  for (const [speed, want] of held) assert.equal(resolveParams(waves, { speed }).speed, want);
+  for (const x of [{ value: 9, min: 0, max: 8 }, { value: 0, min: 1, max: 8 }, { value: 0, min: 1, max: -1 }]) {
+    assert.throws(() => normalizeParams({ x }), /within min\.\.max/);
+  }
+});
+
 test('conditional rows follow default and saved choices while hidden values keep resolving', () => {
   const schema = normalizeParams({
     mode: { value: 'plain', type: 'choice', options: ['plain', 'region'] },

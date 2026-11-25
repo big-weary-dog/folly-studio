@@ -143,6 +143,7 @@ export function normalizeParams(raw: unknown): ParamSchema {
       if (!Number.isFinite(value)) throw new Error(`param "${key}": value must be a number`);
       p = { type, value, min: isNum(d.min) ? d.min : Math.min(0, value),
         max: isNum(d.max) ? d.max : Math.max(1, value) };
+      if (!(p.min <= value && value <= p.max)) throw new Error(`param "${key}": value must be within min..max`);
       if (isNum(d.step) && d.step > 0) p.step = d.step;
       if (Array.isArray(d.soft) && d.soft.length === 2 && d.soft.every(isNum)
         && d.soft[0] >= p.min && d.soft[1] <= p.max && d.soft[0] < d.soft[1]) p.soft = [d.soft[0], d.soft[1]];
