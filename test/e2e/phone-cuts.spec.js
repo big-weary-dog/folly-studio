@@ -15,7 +15,7 @@ for (const width of [360, 390, 430]) {
     await page.goto(`${studio.origin}/login`);
     await expect(page.locator('.auth-art')).toBeHidden();
     await expect(page.locator('.auth-lede')).toBeHidden();
-    await expect(page.getByRole('button', { name: 'Guest', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Try it', exact: true })).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'Username', exact: true })).toBeVisible();
     const post = (url, data) => page.request.post(studio.origin + url, { data });
     expect((await post('/api/signup', { username: `cuts-${width}`, password: 'correct horse' })).status()).toBe(201);

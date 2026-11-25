@@ -43,6 +43,12 @@ describe('guests', () => {
     assert.equal(app.store.users.list().length, 1, 'only bob is an account');
   });
 
+  test('Try it sends no name: a guest named Visitor', async () => {
+    const r = await client(app).post('/api/guest', {});
+    assert.equal(r.status, 201, r.text);
+    assert.deepEqual([r.json.user.username, r.json.user.guest], ['Visitor', true]);
+  });
+
   test('reads the gallery and the library; every write is refused, signing out is not', async () => {
     const g = await guest('Wren');
     assert.equal((await g.get(`/api/looks/${shared}`)).status, 200);
